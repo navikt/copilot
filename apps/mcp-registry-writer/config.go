@@ -2,8 +2,9 @@
 package main
 
 import (
-	"fmt"
 	"log/slog"
+	"net"
+	"net/url"
 	"os"
 	"strings"
 )
@@ -69,12 +70,18 @@ func parseAdminUsers(val string) map[string]bool {
 	return admins
 }
 
-// IsAdmin returns true if the specified actor email is in AdminUsers.
+// IsAdmin returns true if the specified actor is in AdminUsers (case-insensitive).
 func (c *Config) IsAdmin(actor string) bool {
-	if c == nil || c.AdminUsers == nil {
+	if c == nil || len(c.AdminUsers) == 0 {
 		return false
 	}
-	return c.AdminUsers[strings.TrimSpace(strings.ToLower(actor))]
+	target := strings.TrimSpace(strings.ToLower(actor))
+	for admin, ok := range c.AdminUsers {
+		if ok && strings.TrimSpace(strings.ToLower(admin)) == target {
+			return true
+		}
+	}
+	return false
 }
 
 func getEnv(key, defaultValue string) string {
@@ -96,13 +103,27 @@ func getDatabaseURL() string {
 	user := os.Getenv("DB_USERNAME")
 	pass := os.Getenv("DB_PASSWORD")
 	db := os.Getenv("DB_DATABASE")
+
+	var userinfo *url.Userinfo
 	if user != "" && pass != "" {
-		return fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", user, pass, host, port, db)
+		userinfo = url.UserPassword(user, pass)
+	} else if user != "" {
+		userinfo = url.User(user)
 	}
-	if user != "" {
-		return fmt.Sprintf("postgres://%s@%s:%s/%s?sslmode=disable", user, host, port, db)
+
+	dbPath := db
+	if dbPath != "" && !strings.HasPrefix(dbPath, "/") {
+		dbPath = "/" + dbPath
 	}
-	return fmt.Sprintf("postgres://%s:%s/%s?sslmode=disable", host, port, db)
+
+	u := &url.URL{
+		Scheme:   "postgres",
+		User:     userinfo,
+		Host:     net.JoinHostPort(host, port),
+		Path:     dbPath,
+		RawQuery: "sslmode=disable",
+	}
+	return u.String()
 }
 
 func getEndpointsList(endpoints map[string]bool) []string {

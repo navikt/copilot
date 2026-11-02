@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/fs"
 	"sort"
+	"strings"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -20,6 +21,12 @@ var (
 	ErrRateLimitExceeded = errors.New("rate limit exceeded: max 10 submits per actor per hour")
 	// ErrVersionNotFound is returned when the specified version of an entry does not exist.
 	ErrVersionNotFound = errors.New("version not found")
+	// ErrForbidden is returned when a non-admin actor who is not the original submitter attempts to submit a new version.
+	ErrForbidden = errors.New("forbidden: only the original submitter or an admin can submit new versions")
+	// ErrConflict is returned when an approve or reject targets a non-pending version.
+	ErrConflict = errors.New("conflict: version is not pending approval")
+	// ErrAlreadyApproved is returned when attempting to reject an already approved version.
+	ErrAlreadyApproved = errors.New("cannot reject an already approved version; revocation comes later")
 )
 
 // DBEntry mirrors apps/mcp-registry's representation of an approved entry.
@@ -143,7 +150,7 @@ func (s *Store) applyMigration(ctx context.Context, filename string) error {
 // updates registry_entries (keeping an approved version served if present,
 // or setting status='pending' otherwise), and logs an audit entry.
 // Returns the newly created version number.
-func (s *Store) Submit(ctx context.Context, actor string, entryJSON []byte, name string) (int, error) {
+func (s *Store) Submit(ctx context.Context, actor string, entryJSON []byte, name string, isAdmin bool) (int, error) {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return 0, fmt.Errorf("starting transaction: %w", err)
@@ -151,6 +158,15 @@ func (s *Store) Submit(ctx context.Context, actor string, entryJSON []byte, name
 	defer func() {
 		_ = tx.Rollback(ctx)
 	}()
+
+	// Advisory locks at start of transaction: actor and name
+	_, err = tx.Exec(ctx, `
+		SELECT pg_advisory_xact_lock(hashtext('actor:' || $1)),
+		       pg_advisory_xact_lock(hashtext('name:' || $2))
+	`, actor, name)
+	if err != nil {
+		return 0, fmt.Errorf("acquiring advisory locks: %w", err)
+	}
 
 	// Rate limit: max 10 submits per actor per hour, counted from registry_audit
 	var submitCount int
@@ -168,7 +184,24 @@ func (s *Store) Submit(ctx context.Context, actor string, entryJSON []byte, name
 		return 0, ErrRateLimitExceeded
 	}
 
-	// Compute next version
+	// Check ownership if existing name
+	var v1SubmittedBy string
+	err = tx.QueryRow(ctx, `
+		SELECT submitted_by
+		FROM registry_entry_versions
+		WHERE name = $1 AND version = 1
+	`, name).Scan(&v1SubmittedBy)
+	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		return 0, fmt.Errorf("checking ownership: %w", err)
+	}
+	if err == nil {
+		// Existing name: only actor who submitted v1 or admin is allowed
+		if !strings.EqualFold(actor, v1SubmittedBy) && !isAdmin {
+			return 0, ErrForbidden
+		}
+	}
+
+	// Compute MAX(version) after the locks
 	var maxVersion int
 	err = tx.QueryRow(ctx, `
 		SELECT COALESCE(MAX(version), 0)
@@ -237,7 +270,7 @@ func (s *Store) Submit(ctx context.Context, actor string, entryJSON []byte, name
 		}
 	}
 
-	// Audit row
+	// Audit row in the same transaction
 	_, err = tx.Exec(ctx, `
 		INSERT INTO registry_audit (actor, action, name, version, reason, at)
 		VALUES ($1, 'submit', $2, $3, NULL, now())
@@ -255,6 +288,7 @@ func (s *Store) Submit(ctx context.Context, actor string, entryJSON []byte, name
 
 // Approve copies the specified version's entry from registry_entry_versions
 // into registry_entries with status approved, and logs an audit entry.
+// Only the current pending version can be approved; otherwise returns ErrConflict.
 func (s *Store) Approve(ctx context.Context, actor, name string, version int) error {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
@@ -263,6 +297,36 @@ func (s *Store) Approve(ctx context.Context, actor, name string, version int) er
 	defer func() {
 		_ = tx.Rollback(ctx)
 	}()
+
+	var currentStatus string
+	var currentVersion int
+	var currentPendingVersion *int
+	err = tx.QueryRow(ctx, `
+		SELECT status, version, pending_version
+		FROM registry_entries
+		WHERE name = $1
+		FOR UPDATE
+	`, name).Scan(&currentStatus, &currentVersion, &currentPendingVersion)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrVersionNotFound
+	}
+	if err != nil {
+		return fmt.Errorf("locking registry entry: %w", err)
+	}
+
+	var pendingVer int
+	switch {
+	case currentPendingVersion != nil:
+		pendingVer = *currentPendingVersion
+	case currentStatus == "pending":
+		pendingVer = currentVersion
+	default:
+		return fmt.Errorf("%w: entry %q has no pending version", ErrConflict, name)
+	}
+
+	if version != pendingVer {
+		return fmt.Errorf("%w: version %d is not the pending version (%d)", ErrConflict, version, pendingVer)
+	}
 
 	// Fetch version entry
 	var entryJSON []byte
@@ -278,25 +342,21 @@ func (s *Store) Approve(ctx context.Context, actor, name string, version int) er
 		return fmt.Errorf("fetching version entry: %w", err)
 	}
 
-	// Upsert registry_entries with approved version
+	// Update registry_entries with approved version
 	_, err = tx.Exec(ctx, `
-		INSERT INTO registry_entries (name, status, entry, version, pending_version, updated_at)
-		VALUES ($1, 'approved', $2, $3, NULL, now())
-		ON CONFLICT (name) DO UPDATE
+		UPDATE registry_entries
 		SET status = 'approved',
-		    entry = EXCLUDED.entry,
-		    version = EXCLUDED.version,
-		    pending_version = CASE
-		        WHEN registry_entries.pending_version = EXCLUDED.version THEN NULL
-		        ELSE registry_entries.pending_version
-		    END,
+		    entry = $2,
+		    version = $3,
+		    pending_version = NULL,
 		    updated_at = now()
+		WHERE name = $1
 	`, name, entryJSON, version)
 	if err != nil {
-		return fmt.Errorf("upserting approved entry: %w", err)
+		return fmt.Errorf("updating approved entry: %w", err)
 	}
 
-	// Audit row
+	// Audit row in the same transaction
 	_, err = tx.Exec(ctx, `
 		INSERT INTO registry_audit (actor, action, name, version, reason, at)
 		VALUES ($1, 'approve', $2, $3, NULL, now())
@@ -309,7 +369,9 @@ func (s *Store) Approve(ctx context.Context, actor, name string, version int) er
 }
 
 // Reject records a rejection audit row, clears pending_version if it matches,
-// and marks registry_entries status='rejected' if the currently served version was pending.
+// or marks registry_entries status='rejected' if the currently served version was pending.
+// Rejecting an already approved version returns ErrAlreadyApproved.
+// Rejecting any non-pending version returns ErrConflict.
 func (s *Store) Reject(ctx context.Context, actor, name string, version int, reason string) error {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
@@ -319,39 +381,61 @@ func (s *Store) Reject(ctx context.Context, actor, name string, version int, rea
 		_ = tx.Rollback(ctx)
 	}()
 
-	// Verify that the specified version exists
-	var exists bool
+	var currentStatus string
+	var currentVersion int
+	var currentPendingVersion *int
 	err = tx.QueryRow(ctx, `
-		SELECT true
-		FROM registry_entry_versions
-		WHERE name = $1 AND version = $2
-	`, name, version).Scan(&exists)
+		SELECT status, version, pending_version
+		FROM registry_entries
+		WHERE name = $1
+		FOR UPDATE
+	`, name).Scan(&currentStatus, &currentVersion, &currentPendingVersion)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return ErrVersionNotFound
 	}
 	if err != nil {
-		return fmt.Errorf("verifying version existence: %w", err)
+		return fmt.Errorf("locking registry entry: %w", err)
 	}
 
-	// Update registry_entries
-	_, err = tx.Exec(ctx, `
-		UPDATE registry_entries
-		SET status = CASE
-		        WHEN version = $2 AND status = 'pending' THEN 'rejected'
-		        ELSE status
-		    END,
-		    pending_version = CASE
-		        WHEN pending_version = $2 THEN NULL
-		        ELSE pending_version
-		    END,
-		    updated_at = now()
-		WHERE name = $1
-	`, name, version)
+	if currentStatus == "approved" && currentVersion == version {
+		return ErrAlreadyApproved
+	}
+
+	var pendingVer int
+	switch {
+	case currentPendingVersion != nil:
+		pendingVer = *currentPendingVersion
+	case currentStatus == "pending":
+		pendingVer = currentVersion
+	default:
+		return fmt.Errorf("%w: entry %q has no pending version", ErrConflict, name)
+	}
+
+	if version != pendingVer {
+		return fmt.Errorf("%w: version %d is not the pending version (%d)", ErrConflict, version, pendingVer)
+	}
+
+	if currentPendingVersion != nil && *currentPendingVersion == version {
+		_, err = tx.Exec(ctx, `
+			UPDATE registry_entries
+			SET pending_version = NULL,
+			    updated_at = now()
+			WHERE name = $1
+		`, name)
+	} else {
+		_, err = tx.Exec(ctx, `
+			UPDATE registry_entries
+			SET status = 'rejected',
+			    pending_version = NULL,
+			    updated_at = now()
+			WHERE name = $1
+		`, name)
+	}
 	if err != nil {
 		return fmt.Errorf("updating entry on rejection: %w", err)
 	}
 
-	// Audit row with reason
+	// Audit row with reason in the same transaction
 	_, err = tx.Exec(ctx, `
 		INSERT INTO registry_audit (actor, action, name, version, reason, at)
 		VALUES ($1, 'reject', $2, $3, $4, now())

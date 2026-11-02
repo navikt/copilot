@@ -21,6 +21,8 @@ var (
 type IntrospectionResult struct {
 	Active   bool   `json:"active"`
 	Username string `json:"preferred_username"`
+	IDType   string `json:"idtyp,omitempty"`
+	NAVident string `json:"NAVident,omitempty"`
 }
 
 // IntrospectFunc defines a function for introspecting an authentication token.
@@ -69,7 +71,7 @@ func newTexasIntrospector(endpoint string) IntrospectFunc {
 }
 
 // authenticate extracts the Bearer token from the request, verifies it with introspect,
-// and returns the authenticated actor (preferred_username).
+// validates required claims (idtyp != 'app', non-empty NAVident), and returns the lowercased actor.
 func authenticate(r *http.Request, introspect IntrospectFunc) (string, error) {
 	if introspect == nil {
 		return "", errors.New("introspector not configured")
@@ -77,6 +79,11 @@ func authenticate(r *http.Request, introspect IntrospectFunc) (string, error) {
 
 	authHeader := r.Header.Get("Authorization")
 	if authHeader == "" {
+		return "", ErrUnauthorized
+	}
+
+	// Cap Authorization header length at 8 KiB
+	if len(authHeader) > 8*1024 {
 		return "", ErrUnauthorized
 	}
 
@@ -99,5 +106,15 @@ func authenticate(r *http.Request, introspect IntrospectFunc) (string, error) {
 		return "", ErrUnauthorized
 	}
 
-	return strings.TrimSpace(res.Username), nil
+	// Reject app tokens (idtyp must not be 'app')
+	if strings.EqualFold(res.IDType, "app") {
+		return "", ErrUnauthorized
+	}
+
+	// Require non-empty NAVident
+	if strings.TrimSpace(res.NAVident) == "" {
+		return "", ErrUnauthorized
+	}
+
+	return strings.ToLower(strings.TrimSpace(res.Username)), nil
 }

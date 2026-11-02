@@ -60,6 +60,23 @@ func TestLoadConfig_Custom(t *testing.T) {
 	}
 }
 
+func TestConfig_IsAdmin_CaseInsensitiveDirectMap(t *testing.T) {
+	cfg := &Config{
+		AdminUsers: map[string]bool{
+			"SuperAdmin@NAV.NO": true,
+		},
+	}
+	if !cfg.IsAdmin("superadmin@nav.no") {
+		t.Errorf("expected superadmin@nav.no to match SuperAdmin@NAV.NO")
+	}
+	if !cfg.IsAdmin("SUPERADMIN@NAV.NO") {
+		t.Errorf("expected SUPERADMIN@NAV.NO to match SuperAdmin@NAV.NO")
+	}
+	if cfg.IsAdmin("other@nav.no") {
+		t.Errorf("expected other@nav.no not to be admin")
+	}
+}
+
 func TestGetDatabaseURL_FromHost(t *testing.T) {
 	t.Setenv("DB_URL", "")
 	t.Setenv("DB_HOST", "127.0.0.1")
@@ -70,6 +87,21 @@ func TestGetDatabaseURL_FromHost(t *testing.T) {
 
 	got := getDatabaseURL()
 	want := "postgres://dbuser:dbpass@127.0.0.1:5433/mydb?sslmode=disable"
+	if got != want {
+		t.Errorf("getDatabaseURL() = %q, want %q", got, want)
+	}
+}
+
+func TestGetDatabaseURL_SpecialCharactersInPassword(t *testing.T) {
+	t.Setenv("DB_URL", "")
+	t.Setenv("DB_HOST", "127.0.0.1")
+	t.Setenv("DB_PORT", "5432")
+	t.Setenv("DB_USERNAME", "dbuser")
+	t.Setenv("DB_PASSWORD", "p@ss:word/!#")
+	t.Setenv("DB_DATABASE", "mydb")
+
+	got := getDatabaseURL()
+	want := "postgres://dbuser:p%40ss%3Aword%2F%21%23@127.0.0.1:5432/mydb?sslmode=disable"
 	if got != want {
 		t.Errorf("getDatabaseURL() = %q, want %q", got, want)
 	}

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"io"
@@ -38,7 +39,7 @@ type submitPayload struct {
 	Entry json.RawMessage `json:"entry"`
 }
 
-func makeSubmitHandler(store *Store, introspect IntrospectFunc) http.HandlerFunc {
+func makeSubmitHandler(config *Config, store *Store, introspect IntrospectFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -58,37 +59,46 @@ func makeSubmitHandler(store *Store, introspect IntrospectFunc) http.HandlerFunc
 			return
 		}
 
+		dec := json.NewDecoder(bytes.NewReader(body))
+		dec.DisallowUnknownFields()
+
 		var payload submitPayload
-		if parseErr := json.Unmarshal(body, &payload); parseErr != nil || len(payload.Entry) == 0 {
+		if parseErr := dec.Decode(&payload); parseErr != nil || len(payload.Entry) == 0 {
 			respondJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid request body: 'entry' object required"})
 			return
 		}
 
-		name, valErr := validateServerEntry(payload.Entry)
+		sub, canonicalJSON, valErr := validateServerEntry(payload.Entry)
 		if valErr != nil {
 			slog.Warn("Validation failed for submit", "error", valErr, "actor", actor)
 			respondJSON(w, http.StatusBadRequest, map[string]string{"error": valErr.Error()})
 			return
 		}
 
-		version, storeErr := store.Submit(r.Context(), actor, payload.Entry, name)
+		isAdmin := config != nil && config.IsAdmin(actor)
+		version, storeErr := store.Submit(r.Context(), actor, canonicalJSON, sub.Name, isAdmin)
 		if storeErr != nil {
+			if errors.Is(storeErr, ErrForbidden) {
+				slog.Warn("Forbidden submit attempt for existing name", "name", sub.Name, "actor", actor)
+				respondJSON(w, http.StatusForbidden, map[string]string{"error": storeErr.Error()})
+				return
+			}
 			if errors.Is(storeErr, ErrRateLimitExceeded) {
 				slog.Warn("Rate limit exceeded for actor", "actor", actor)
 				recordWriteMetric("submit", "rate_limited")
 				respondJSON(w, http.StatusTooManyRequests, map[string]string{"error": storeErr.Error()})
 				return
 			}
-			slog.Error("Failed to store submitted entry", "error", storeErr, "name", name, "actor", actor)
+			slog.Error("Failed to store submitted entry", "error", storeErr, "name", sub.Name, "actor", actor)
 			recordWriteMetric("submit", "error")
 			respondJSON(w, http.StatusInternalServerError, map[string]string{"error": "Internal server error"})
 			return
 		}
 
 		recordWriteMetric("submit", "success")
-		slog.Info("Server entry submitted", "name", name, "version", version, "actor", actor)
+		slog.Info("Server entry submitted", "name", sub.Name, "version", version, "actor", actor)
 		respondJSON(w, http.StatusCreated, map[string]interface{}{
-			"name":    name,
+			"name":    sub.Name,
 			"version": version,
 			"status":  "pending",
 		})
@@ -160,8 +170,11 @@ func makeEntryActionHandler(config *Config, store *Store, introspect IntrospectF
 }
 
 func handleApprove(w http.ResponseWriter, r *http.Request, store *Store, actor, name string, body []byte) {
+	dec := json.NewDecoder(bytes.NewReader(body))
+	dec.DisallowUnknownFields()
+
 	var payload approvePayload
-	if err := json.Unmarshal(body, &payload); err != nil || payload.Version <= 0 {
+	if err := dec.Decode(&payload); err != nil || payload.Version <= 0 {
 		respondJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid request body: positive 'version' integer required"})
 		return
 	}
@@ -169,6 +182,10 @@ func handleApprove(w http.ResponseWriter, r *http.Request, store *Store, actor, 
 	if err := store.Approve(r.Context(), actor, name, payload.Version); err != nil {
 		if errors.Is(err, ErrVersionNotFound) {
 			respondJSON(w, http.StatusNotFound, map[string]string{"error": "Version not found"})
+			return
+		}
+		if errors.Is(err, ErrConflict) {
+			respondJSON(w, http.StatusConflict, map[string]string{"error": err.Error()})
 			return
 		}
 		slog.Error("Failed to approve entry", "error", err, "name", name, "version", payload.Version)
@@ -187,8 +204,11 @@ func handleApprove(w http.ResponseWriter, r *http.Request, store *Store, actor, 
 }
 
 func handleReject(w http.ResponseWriter, r *http.Request, store *Store, actor, name string, body []byte) {
+	dec := json.NewDecoder(bytes.NewReader(body))
+	dec.DisallowUnknownFields()
+
 	var payload rejectPayload
-	if err := json.Unmarshal(body, &payload); err != nil || payload.Version <= 0 {
+	if err := dec.Decode(&payload); err != nil || payload.Version <= 0 {
 		respondJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid request body: positive 'version' integer required"})
 		return
 	}
@@ -202,6 +222,14 @@ func handleReject(w http.ResponseWriter, r *http.Request, store *Store, actor, n
 	if err := store.Reject(r.Context(), actor, name, payload.Version, reason); err != nil {
 		if errors.Is(err, ErrVersionNotFound) {
 			respondJSON(w, http.StatusNotFound, map[string]string{"error": "Version not found"})
+			return
+		}
+		if errors.Is(err, ErrAlreadyApproved) {
+			respondJSON(w, http.StatusConflict, map[string]string{"error": err.Error()})
+			return
+		}
+		if errors.Is(err, ErrConflict) {
+			respondJSON(w, http.StatusConflict, map[string]string{"error": err.Error()})
 			return
 		}
 		slog.Error("Failed to reject entry", "error", err, "name", name, "version", payload.Version)

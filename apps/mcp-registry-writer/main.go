@@ -48,22 +48,20 @@ func run() error {
 	sigCtx, stop := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	var store *Store
-	if config.DatabaseURL != "" {
-		s, connErr := NewStore(sigCtx, config.DatabaseURL)
-		if connErr != nil {
-			return fmt.Errorf("connecting to database: %w", connErr)
-		}
-		defer s.Close()
-
-		if migErr := s.Migrate(sigCtx); migErr != nil {
-			return fmt.Errorf("applying database migrations: %w", migErr)
-		}
-		slog.Info("Database migrations applied successfully")
-		store = s
-	} else {
-		slog.Warn("No database URL configured; server will start without persistent storage")
+	if config.DatabaseURL == "" {
+		return errors.New("database is not configured: DB_URL or DB_HOST is required")
 	}
+
+	store, connErr := NewStore(sigCtx, config.DatabaseURL)
+	if connErr != nil {
+		return fmt.Errorf("connecting to database: %w", connErr)
+	}
+	defer store.Close()
+
+	if migErr := store.Migrate(sigCtx); migErr != nil {
+		return fmt.Errorf("applying database migrations: %w", migErr)
+	}
+	slog.Info("Database migrations applied successfully")
 
 	introspect := newTexasIntrospector(config.TexasEndpoint)
 
@@ -71,7 +69,7 @@ func run() error {
 	mux.HandleFunc("/health", loggingMiddleware(config, healthHandler))
 	mux.HandleFunc("/ready", loggingMiddleware(config, readyHandler(store)))
 	mux.Handle("/metrics", metricsHandler())
-	mux.HandleFunc("POST /api/v1/entries", loggingMiddleware(config, makeSubmitHandler(store, introspect)))
+	mux.HandleFunc("POST /api/v1/entries", loggingMiddleware(config, makeSubmitHandler(config, store, introspect)))
 	mux.HandleFunc("POST /api/v1/entries/{name...}", loggingMiddleware(config, makeEntryActionHandler(config, store, introspect)))
 
 	server := &http.Server{
