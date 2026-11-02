@@ -198,9 +198,9 @@ async function Cost({ token }: { token: string }) {
       <NumbersFold summary="Slik leser du tallene">
         <BodyShort size="small">
           Foreløpig forbruk er registrert modellforbruk etter rabatt, i netto USD. Tallene er ikke kontrollert mot
-          faktura, heller ikke for avsluttede måneder. Lisensabonnementer er ikke med. Historiske månedstall gjelder
-          bare Copilot. Dagsgrafen og inneværende månedsstolpe kan også inneholde Code Quality. Grafene viser registrert
-          forbruk, ikke prognoser. Måneden som pågår dekker bare dagene med data.
+          faktura, heller ikke for avsluttede måneder. Lisensabonnementer og Code Quality er ikke med. Både dagsgrafen
+          og månedstallene gjelder bare Copilot. Grafene viser registrert forbruk, ikke prognoser. Måneden som pågår
+          dekker bare dagene med data.
         </BodyShort>
       </NumbersFold>
     </VStack>
