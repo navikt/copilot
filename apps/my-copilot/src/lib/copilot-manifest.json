@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-10-30T22:44:40.241Z",
+  "generatedAt": "2026-11-02T12:24:50.236Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -306,7 +306,7 @@
       "filePath": ".github/agents/nav-pilot.agent.md",
       "repoPath": "agents/nav-pilot.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/agents/nav-pilot.agent.md",
-      "contentHash": "3cabc463ebd2b54c438e904614b9f4fe42174d3141ff5d38dace57084cf46447",
+      "contentHash": "c6eb22f0148053f39c82d01210304030f766b8e52b834b6498041180238da989",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fnav-pilot.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fnav-pilot.agent.md",
       "tools": [
@@ -318,6 +318,10 @@
         "glob",
         "web_fetch",
         "todo",
+        "io.github.nais/nais-mcp/schema_get_type",
+        "io.github.nais/nais-mcp/schema_get_field",
+        "io.github.nais/nais-mcp/validate_graphql",
+        "io.github.nais/nais-mcp/execute_graphql",
         "github/get_file_contents",
         "github/search_code",
         "github/search_repositories",
@@ -1920,20 +1924,24 @@
     {
       "id": "vulnerability-triage",
       "name": "vulnerability-triage",
-      "description": "Hent Nais-sårbarheter for appen i repoet via Nais MCP, vurder hver pakke mot avhengigheter, kildekode og advisory med kilder, og rett det som kan rettes. Bruk for CVE-er fra Nais Console eller spørsmål om én CVE, ikke for kodegjennomgang (appsec-advisory) eller rutineoppgradering (dependency-upgrade)",
+      "description": "Rett sårbarheter fra Nais MCP, eller kontroller tidligere rettinger etter deploy og ny scan. Gir en kort rapport om tiltak, begrunnelse og verifikasjon. Kan også vurdere funn uten å endre kode.",
       "type": "skill",
       "domain": "platform",
       "filePath": "skills/vulnerability-triage/SKILL.md",
       "repoPath": "skills/vulnerability-triage/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/vulnerability-triage/SKILL.md",
-      "contentHash": "442fcc8fdb05b09c213983f34cabcfeaeec207caff84a23451efac621d380ac6",
+      "contentHash": "e42c295054cbbc60af7afd094db8cb34b90dc853f9a80643448545a996341253",
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": ["security", "vulnerabilities", "cve", "nais", "dependencies", "sbom", "triage"],
       "examples": [
         {
-          "prompt": "Rydd opp i sårbarhetene Nais Console viser for appen i dette repoet",
-          "scenario": "Workload med mange CVE-er på avhengigheter og image"
+          "prompt": "Rett sårbarheter i appsec/tpt-backend, prod-gcp. Ikke commit eller push.",
+          "scenario": "Vurder MCP-funn, rett kompatible avhengigheter og kontroller lokalt"
+        },
+        {
+          "prompt": "Kontroller etter deploy at de tidligere rettingene i appsec/tpt-backend, prod-gcp virker.",
+          "scenario": "Sammenlign tidligere rettinger med ferske deployment- og scan-data uten kodeendringer"
         },
         {
           "prompt": "Er CVE-2024-47554 et problem for oss, eller er det en falsk positiv?",

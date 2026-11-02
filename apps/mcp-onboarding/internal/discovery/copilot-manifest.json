@@ -1086,7 +1086,7 @@
       "displayName": "vulnerability-triage",
       "description": "Rett sårbarheter fra Nais MCP, eller kontroller tidligere rettinger etter deploy og ny scan. Gir en kort rapport om tiltak, begrunnelse og verifikasjon. Kan også vurdere funn uten å endre kode.",
       "filePath": "skills/vulnerability-triage/SKILL.md",
-      "contentHash": "9250c62dddc349d2c1514f29591b8ef5d8c81b7ebf707eea506cd3aaa47e5f7e",
+      "contentHash": "e42c295054cbbc60af7afd094db8cb34b90dc853f9a80643448545a996341253",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/vulnerability-triage/SKILL.md",
       "references": [
