@@ -140,8 +140,9 @@
         "infrastructure"
       ],
       "filePath": "agents/nav-pilot.agent.md",
-      "contentHash": "3cabc463ebd2b54c438e904614b9f4fe42174d3141ff5d38dace57084cf46447",
+      "contentHash": "c6eb22f0148053f39c82d01210304030f766b8e52b834b6498041180238da989",
       "useCases": [
+        "Creating .nais/app.yaml manifests",
         "Adding PostgreSQL/Kafka",
         "Troubleshooting deployments",
         "Azure AD integration",
@@ -1083,9 +1084,9 @@
       "type": "skill",
       "name": "vulnerability-triage",
       "displayName": "vulnerability-triage",
-      "description": "Hent Nais-sårbarheter for appen i repoet via Nais MCP, vurder hver pakke mot avhengigheter, kildekode og advisory med kilder, og rett det som kan rettes. Bruk for CVE-er fra Nais Console eller spørsmål om én CVE, ikke for kodegjennomgang (appsec-advisory) eller rutineoppgradering (dependency-upgrade)",
+      "description": "Rett sårbarheter fra Nais MCP, eller kontroller tidligere rettinger etter deploy og ny scan. Gir en kort rapport om tiltak, begrunnelse og verifikasjon. Kan også vurdere funn uten å endre kode.",
       "filePath": "skills/vulnerability-triage/SKILL.md",
-      "contentHash": "442fcc8fdb05b09c213983f34cabcfeaeec207caff84a23451efac621d380ac6",
+      "contentHash": "9250c62dddc349d2c1514f29591b8ef5d8c81b7ebf707eea506cd3aaa47e5f7e",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/vulnerability-triage/SKILL.md",
       "references": [
