@@ -100,6 +100,16 @@ describe("monthInsights thresholds", () => {
     expect(byId({ ...real, months }).M6).toBeUndefined();
   });
 
+  it("M6 stays quiet when split data is missing despite large no_team amount", () => {
+    const missing = real.months.map((m) => ({ ...m, no_usage_net_usd: undefined as unknown as null }));
+    expect(byId({ ...real, months: missing }).M6).toBeUndefined();
+    const unknown = real.months.map((m) => ({ ...m, no_usage_net_usd: null }));
+    expect(byId({ ...real, months: unknown }).M6).toBeUndefined();
+    expect(byId({ ...real, anomalies: [] }).M6.text).toBe(
+      "Personer uten team sto for 11 % av det fakturerte beløpet i september, mot 7,5 % i august."
+    );
+  });
+
   it("M7 keeps the data-gap text and comes first", () => {
     const list = monthInsights({ ...real, anomalies: [{ rule: "A7", date: "2026-09", value: 0, threshold: 5 }] });
     expect(list[0].id).toBe("M7");
