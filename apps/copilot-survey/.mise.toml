@@ -62,7 +62,7 @@ run = "go run honnef.co/go/tools/cmd/staticcheck@v0.7.0 ./..."
 description = "Report unreachable functions (dead code) via Rapid Type Analysis; fails if any is found"
 run = """
 rc=0
-out=$(go run golang.org/x/tools/cmd/deadcode@v0.47.0 -test ./... 2>&1) || rc=$?
+out=$(go run golang.org/x/tools/cmd/deadcode@v0.47.0 -test ./...) || rc=$?
 if [ $rc -ne 0 ]; then
   echo "$out" >&2
   exit $rc
