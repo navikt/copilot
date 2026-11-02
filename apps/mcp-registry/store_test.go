@@ -7,7 +7,8 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"sync"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -15,26 +16,17 @@ import (
 )
 
 func TestStore_StaticWinsOverDBOnSameName(t *testing.T) {
-	registryDBCollisionsTotal.Reset()
+	registryDBEntriesDroppedTotal.Reset()
 	cfg := testConfig()
 
 	// allowlist.json contains "io.github.nais/nais-mcp" with version "6.6.1"
 	collidingDBEntry := DBEntry{
-		Name: "io.github.nais/nais-mcp",
-		Entry: []byte(`{
-			"name": "io.github.nais/nais-mcp",
-			"description": "DB duplicate with colliding name and version 99.0.0",
-			"version": "99.0.0"
-		}`),
+		Name:  "io.github.nais/nais-mcp",
+		Entry: subJSON("io.github.nais/nais-mcp", "DB duplicate with colliding name and version 99.0.0", "99.0.0"),
 	}
 	validDBEntry := DBEntry{
-		Name: "io.github.navikt/test-valid-server",
-		Entry: []byte(`{
-			"name": "io.github.navikt/test-valid-server",
-			"description": "A valid unique test server from DB",
-			"version": "1.0.0",
-			"status": "active"
-		}`),
+		Name:  "io.github.navikt/test-valid-server",
+		Entry: subJSON("io.github.navikt/test-valid-server", "A valid unique test server from DB", "1.0.0"),
 	}
 
 	loader := func(_ context.Context) ([]DBEntry, error) {
@@ -71,21 +63,17 @@ func TestStore_StaticWinsOverDBOnSameName(t *testing.T) {
 		t.Errorf("expected valid non-colliding DB server in servers list")
 	}
 
-	collisions := testutil.ToFloat64(registryDBCollisionsTotal.WithLabelValues("io.github.nais/nais-mcp"))
+	collisions := testutil.ToFloat64(registryDBEntriesDroppedTotal.WithLabelValues("collision"))
 	if collisions != 1 {
-		t.Errorf("expected 1 collision recorded for io.github.nais/nais-mcp, got %v", collisions)
+		t.Errorf("expected 1 collision recorded, got %v", collisions)
 	}
 }
 
 func TestStore_LoaderErrorKeepsLastGoodSet(t *testing.T) {
 	cfg := testConfig()
 	validDBEntry := DBEntry{
-		Name: "io.github.navikt/test-db-server",
-		Entry: []byte(`{
-			"name": "io.github.navikt/test-db-server",
-			"description": "Valid DB server",
-			"version": "1.0.0"
-		}`),
+		Name:  "io.github.navikt/test-db-server",
+		Entry: subJSON("io.github.navikt/test-db-server", "Valid DB server", "1.0.0"),
 	}
 
 	var shouldFail bool
@@ -172,6 +160,7 @@ func TestStore_LoaderNeverSucceededServesStaticOnly(t *testing.T) {
 }
 
 func TestStore_InvalidDBEntryDropped(t *testing.T) {
+	registryDBEntriesDroppedTotal.Reset()
 	cfg := testConfig()
 	entries := []DBEntry{
 		{
@@ -191,7 +180,7 @@ func TestStore_InvalidDBEntryDropped(t *testing.T) {
 			}`),
 		},
 		{
-			Name: "io.github.navikt/malformed-json",
+			Name:  "io.github.navikt/malformed-json",
 			Entry: []byte(`{ broken json`),
 		},
 		{
@@ -206,13 +195,16 @@ func TestStore_InvalidDBEntryDropped(t *testing.T) {
 			}`),
 		},
 		{
-			Name: "io.github.navikt/valid-server",
-			Entry: []byte(`{
-				"name": "io.github.navikt/valid-server",
-				"description": "Completely valid server",
-				"version": "1.0.0",
-				"websiteUrl": "https://nav.no"
-			}`),
+			Name:  "io.github.navikt/unknown-field",
+			Entry: []byte(`{"name":"io.github.navikt/unknown-field","description":"d","version":"1","owner":"team","remotes":[{"type":"sse","url":"https://mcp.example.com"}],"packages":[]}`),
+		},
+		{
+			Name:  "io.github.navikt/stdio-remote",
+			Entry: []byte(`{"name":"io.github.navikt/stdio-remote","description":"d","version":"1","owner":"team","remotes":[{"type":"stdio","url":"https://mcp.example.com"}]}`),
+		},
+		{
+			Name:  "io.github.navikt/valid-server",
+			Entry: subJSON("io.github.navikt/valid-server", "Completely valid server", "1.0.0"),
 		},
 	}
 
@@ -246,17 +238,74 @@ func TestStore_InvalidDBEntryDropped(t *testing.T) {
 	if !foundValid {
 		t.Errorf("expected valid DB server io.github.navikt/valid-server to be included")
 	}
+	if got := testutil.ToFloat64(registryDBEntriesDroppedTotal.WithLabelValues("parse")); got != 1 {
+		t.Errorf("parse drops = %v, want 1", got)
+	}
+	if got := testutil.ToFloat64(registryDBEntriesDroppedTotal.WithLabelValues("invalid")); got != 5 {
+		t.Errorf("invalid drops = %v, want 5", got)
+	}
+}
+
+func TestStore_DBEntryUsesRowUpdatedAt(t *testing.T) {
+	updated := time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)
+	loader := func(_ context.Context) ([]DBEntry, error) {
+		return []DBEntry{{Name: "io.github.navikt/dated", Entry: subJSON("io.github.navikt/dated", "d", "1.0.0"), UpdatedAt: updated}}, nil
+	}
+	store := NewStore(testConfig(), "allowlist.json", loader)
+	if err := store.Reload(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	sr, _ := store.GetServer("io.github.navikt/dated", "latest")
+	if sr == nil {
+		t.Fatal("DB entry not served")
+	}
+	if !sr.Meta.Official.UpdatedAt.Equal(updated) {
+		t.Errorf("UpdatedAt = %v, want %v", sr.Meta.Official.UpdatedAt, updated)
+	}
+	if sr.Meta.NavRegistry == nil || sr.Meta.NavRegistry.Owner != "team-registry" {
+		t.Errorf("owner not carried into _meta: %+v", sr.Meta.NavRegistry)
+	}
+}
+
+func TestStore_StaticLoadFailureKeepsLastGoodSet(t *testing.T) {
+	data, err := os.ReadFile("allowlist.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), "allowlist.json")
+	if err := os.WriteFile(path, data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	loader := func(_ context.Context) ([]DBEntry, error) {
+		return []DBEntry{{Name: "io.github.navikt/db-only", Entry: subJSON("io.github.navikt/db-only", "d", "1.0.0")}}, nil
+	}
+	store := NewStore(testConfig(), path, loader)
+	if err := store.Reload(t.Context()); err != nil {
+		t.Fatal(err)
+	}
+	before, _ := store.GetServers()
+
+	if err := os.WriteFile(path, []byte("{broken"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Reload(t.Context()); err != nil {
+		t.Fatalf("reload with broken static but cached set: %v", err)
+	}
+	after, _ := store.GetServers()
+	if len(after) != len(before) {
+		t.Fatalf("server count changed from %d to %d after static load failure", len(before), len(after))
+	}
+}
+
+func subJSON(name, desc, version string) []byte {
+	return []byte(`{"name":"` + name + `","description":"` + desc + `","version":"` + version + `","owner":"team-registry","remotes":[{"type":"streamable-http","url":"https://mcp.example.com/mcp"}]}`)
 }
 
 func TestStore_HTTPHandlersIntegration(t *testing.T) {
 	cfg := testConfig()
 	validDBEntry := DBEntry{
-		Name: "io.github.navikt/integration-db-server",
-		Entry: []byte(`{
-			"name": "io.github.navikt/integration-db-server",
-			"description": "DB server for integration test",
-			"version": "2.0.0"
-		}`),
+		Name:  "io.github.navikt/integration-db-server",
+		Entry: subJSON("io.github.navikt/integration-db-server", "DB server for integration test", "2.0.0"),
 	}
 
 	loader := func(_ context.Context) ([]DBEntry, error) {
@@ -316,31 +365,27 @@ func TestStore_HTTPHandlersIntegration(t *testing.T) {
 }
 
 func TestStore_BackgroundRefresher(t *testing.T) {
-	cfg := testConfig()
-	var mu sync.Mutex
-	calls := 0
+	loaded := make(chan struct{})
 	loader := func(_ context.Context) ([]DBEntry, error) {
-		mu.Lock()
-		calls++
-		mu.Unlock()
+		loaded <- struct{}{}
 		return nil, nil
 	}
-
-	store := NewStore(cfg, "allowlist.json", loader)
+	store := NewStore(testConfig(), "allowlist.json", loader)
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
-	store.StartRefresher(ctx, 15*time.Millisecond)
-	time.Sleep(50 * time.Millisecond)
-	cancel()
-
-	mu.Lock()
-	count := calls
-	mu.Unlock()
-
-	if count < 2 {
-		t.Errorf("expected refresher to run at least 2 times, ran %d times", count)
+	ticks := make(chan time.Time)
+	done := make(chan struct{})
+	go func() {
+		store.runRefresher(ctx, ticks)
+		close(done)
+	}()
+	for i := 0; i < 2; i++ {
+		ticks <- time.Time{}
+		<-loaded
 	}
+	cancel()
+	<-done
 }
 
 func TestGetDatabaseURL(t *testing.T) {

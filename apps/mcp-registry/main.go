@@ -50,14 +50,21 @@ func main() {
 	sigCtx, stop := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
+	// The DB is optional: without it the reader serves static entries only and
+	// the write endpoints answer 503.
+	var db *DB
 	var loader EntryLoader
 	if config.DatabaseURL != "" {
-		pgxLoader, closePool, err := newPGXEntryLoader(sigCtx, config.DatabaseURL)
+		opened, err := OpenDB(sigCtx, config.DatabaseURL)
 		if err != nil {
-			slog.Warn("Failed to initialize database pool", "error", err)
+			slog.Warn("Failed to connect to database, writes disabled", "error", err)
+		} else if err := opened.Migrate(sigCtx); err != nil {
+			opened.Close()
+			slog.Warn("Failed to apply database migrations, writes disabled", "error", err)
 		} else {
-			defer closePool()
-			loader = pgxLoader
+			defer opened.Close()
+			db = opened
+			loader = db.GetApprovedEntries
 		}
 	}
 
@@ -75,6 +82,9 @@ func main() {
 	http.Handle("/metrics", metricsHandler())
 	http.HandleFunc("/v0.1/servers", loggingMiddleware(config, makeServersListHandler(config)))
 	http.HandleFunc("/v0.1/servers/", loggingMiddleware(config, makeServerVersionHandler(config)))
+	introspect := newTexasIntrospector(config.TexasEndpoint)
+	http.HandleFunc("POST /api/v1/entries", loggingMiddleware(config, makeSubmitHandler(config, db, introspect)))
+	http.HandleFunc("POST /api/v1/entries/{name...}", loggingMiddleware(config, makeEntryActionHandler(config, db, introspect)))
 	http.HandleFunc("/robots.txt", robotsTxtHandler)
 	http.HandleFunc("/favicon.ico", faviconHandler)
 	http.HandleFunc("/.well-known/security.txt", securityTxtHandler)

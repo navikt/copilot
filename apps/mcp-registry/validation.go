@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"maps"
 	"net"
@@ -434,4 +436,154 @@ func validateRepository(repo *Repository, index int) error {
 func isLoopbackHost(host string) bool {
 	ip := net.ParseIP(host)
 	return strings.EqualFold(host, "localhost") || (ip != nil && ip.IsLoopback())
+}
+
+// Submission is the strict shape of an entry submitted through the write API.
+// Static allowlist.json entries are PR-reviewed and may use the richer
+// StaticServerData shape; submissions and the DB rows they produce may not.
+type Submission struct {
+	Name        string             `json:"name"`
+	Description string             `json:"description"`
+	Version     string             `json:"version"`
+	WebsiteURL  string             `json:"websiteUrl,omitempty"`
+	Repository  *Repository        `json:"repository,omitempty"`
+	Owner       string             `json:"owner"`
+	Remotes     []SubmissionRemote `json:"remotes"`
+}
+
+// SubmissionRemote is a remote transport with type and url only.
+type SubmissionRemote struct {
+	Type string `json:"type"`
+	URL  string `json:"url"`
+}
+
+var (
+	ownerRegex     = regexp.MustCompile(`^[a-z0-9-]+$`)
+	hostLabelRegex = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]*[a-z0-9])?$`)
+	// submissionBlockedSuffixes extends internalHostSuffixes for unreviewed input.
+	submissionBlockedSuffixes = append(slices.Clone(internalHostSuffixes), ".internal", ".local")
+)
+
+// validateSubmission decodes entryJSON strictly into a Submission, validates it
+// and returns it with its re-marshaled canonical JSON. It guards both the
+// write API and DB rows at reload.
+func validateSubmission(entryJSON []byte) (*Submission, []byte, error) {
+	dec := json.NewDecoder(bytes.NewReader(entryJSON))
+	dec.DisallowUnknownFields()
+	var sub Submission
+	if err := dec.Decode(&sub); err != nil {
+		return nil, nil, fmt.Errorf("invalid entry JSON: %w", err)
+	}
+	if dec.More() {
+		return nil, nil, errors.New("unexpected trailing data after JSON entry")
+	}
+	if err := validateName(sub.Name, 0); err != nil {
+		return nil, nil, err
+	}
+	if strings.TrimSpace(sub.Description) == "" {
+		return nil, nil, errors.New("description is required and cannot be empty")
+	}
+	if strings.TrimSpace(sub.Version) == "" {
+		return nil, nil, errors.New("version is required and cannot be empty")
+	}
+	if !ownerRegex.MatchString(sub.Owner) {
+		return nil, nil, fmt.Errorf("owner %q is invalid: must be a Nais team matching ^[a-z0-9-]+$", sub.Owner)
+	}
+	if sub.WebsiteURL != "" {
+		if err := validateSubmissionURL(sub.WebsiteURL); err != nil {
+			return nil, nil, fmt.Errorf("invalid websiteUrl: %w", err)
+		}
+	}
+	if sub.Repository != nil {
+		if strings.TrimSpace(sub.Repository.Source) == "" {
+			return nil, nil, errors.New("repository.source is required")
+		}
+		if err := validateSubmissionURL(sub.Repository.URL); err != nil {
+			return nil, nil, fmt.Errorf("invalid repository.url: %w", err)
+		}
+	}
+	if len(sub.Remotes) == 0 {
+		return nil, nil, errors.New("at least one remote is required")
+	}
+	for i, remote := range sub.Remotes {
+		if remote.Type != "streamable-http" && remote.Type != "sse" {
+			return nil, nil, fmt.Errorf("remote[%d]: type must be 'streamable-http' or 'sse'", i)
+		}
+		if err := validateSubmissionURL(remote.URL); err != nil {
+			return nil, nil, fmt.Errorf("remote[%d]: %w", i, err)
+		}
+	}
+	canonical, err := json.Marshal(sub)
+	if err != nil {
+		return nil, nil, fmt.Errorf("marshaling canonical entry: %w", err)
+	}
+	return &sub, canonical, nil
+}
+
+// validateSubmissionURL is stricter than validateHTTPSURL: https on port 443,
+// no userinfo, a lowercase ASCII DNS name with a dot and a non-numeric TLD, no
+// IP literal in any form, no localhost and no internal suffix.
+func validateSubmissionURL(rawURL string) error {
+	if strings.TrimSpace(rawURL) == "" {
+		return errors.New("url cannot be empty")
+	}
+	for i := 0; i < len(rawURL); i++ {
+		if rawURL[i] > 127 {
+			return errors.New("url contains non-ASCII characters")
+		}
+	}
+	u, err := url.Parse(strings.TrimSpace(rawURL))
+	if err != nil {
+		return fmt.Errorf("invalid url format: %w", err)
+	}
+	if u.Scheme != "https" {
+		return fmt.Errorf("url must use https scheme, got %q", u.Scheme)
+	}
+	if u.User != nil {
+		return errors.New("userinfo is not allowed in url")
+	}
+	if port := u.Port(); port != "" && port != "443" {
+		return fmt.Errorf("explicit non-443 port %q is not allowed", port)
+	}
+	if strings.ContainsAny(u.Host, "%[]") {
+		return errors.New("IP literals or zone IDs are not allowed in host")
+	}
+	host := u.Hostname()
+	if host == "" {
+		return errors.New("url host cannot be empty")
+	}
+	if host != strings.ToLower(host) {
+		return errors.New("host must be lowercase")
+	}
+	if strings.Contains(host, "xn--") {
+		return errors.New("IDN (punycode) host is not allowed")
+	}
+	if strings.Contains(host, ":") || net.ParseIP(host) != nil {
+		return fmt.Errorf("IP literal %q is not allowed", host)
+	}
+	if !strings.Contains(host, ".") {
+		return errors.New("host must contain at least one dot")
+	}
+	labels := strings.Split(host, ".")
+	for _, label := range labels {
+		if !hostLabelRegex.MatchString(label) {
+			return fmt.Errorf("host label %q is invalid", label)
+		}
+		if strings.HasPrefix(label, "0x") {
+			return fmt.Errorf("hex IP form %q is not allowed", label)
+		}
+	}
+	if strings.Trim(labels[len(labels)-1], "0123456789") == "" {
+		return fmt.Errorf("host last label %q cannot be numeric", labels[len(labels)-1])
+	}
+	if host == "localhost" || strings.HasSuffix(host, ".localhost") {
+		return errors.New("localhost is not allowed")
+	}
+	h := "." + host
+	for _, suffix := range submissionBlockedSuffixes {
+		if strings.HasSuffix(h, suffix) {
+			return fmt.Errorf("internal host %q (%s) is not allowed", host, strings.TrimPrefix(suffix, "."))
+		}
+	}
+	return nil
 }
