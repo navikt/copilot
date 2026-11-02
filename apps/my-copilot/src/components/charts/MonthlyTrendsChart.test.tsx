@@ -38,6 +38,19 @@ describe("MonthlyTrendsChart", () => {
     expect(descriptions[0]).toContain("2026-10 *: 120 brukere");
     expect(descriptions[1]).toContain("2026-09 *: 200 kodeforslag");
     expect(screen.getByText(/Måneder merket med \* mangler data/)).toBeInTheDocument();
+    expect(screen.queryByText("Linjer lagt til")).not.toBeInTheDocument();
+    expect(screen.queryByText("CLI-brukere")).not.toBeInTheDocument();
     expect(screen.queryByText(/^[+−-]?\d+.*fra forrige måned$/)).not.toBeInTheDocument();
+  });
+
+  it("keeps summary cards when a complete month exists", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-11-02T00:00:00Z"));
+    render(<MonthlyTrendsChart data={[{ ...month, days_in_month: 30 }]} />);
+
+    expect(screen.getByText("Linjer lagt til")).toBeVisible();
+    expect(screen.getByText("CLI-brukere")).toBeVisible();
+    expect(screen.getByText("300")).toBeVisible();
+    expect(screen.getByText("40")).toBeVisible();
   });
 });
