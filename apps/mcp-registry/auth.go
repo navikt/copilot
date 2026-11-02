@@ -19,10 +19,17 @@ var (
 
 // IntrospectionResult models Texas token introspection response.
 type IntrospectionResult struct {
-	Active   bool   `json:"active"`
-	Username string `json:"preferred_username"`
-	IDType   string `json:"idtyp,omitempty"`
-	NAVident string `json:"NAVident,omitempty"`
+	Active   bool     `json:"active"`
+	Username string   `json:"preferred_username"`
+	IDType   string   `json:"idtyp,omitempty"`
+	NAVident string   `json:"NAVident,omitempty"`
+	Groups   []string `json:"groups,omitempty"`
+}
+
+// principal is an authenticated human caller.
+type principal struct {
+	Actor  string
+	Groups []string
 }
 
 // IntrospectFunc defines a function for introspecting an authentication token.
@@ -37,7 +44,7 @@ func newTexasIntrospector(endpoint string) IntrospectFunc {
 		}
 
 		payload, err := json.Marshal(map[string]string{
-			"identity_provider": "azuread",
+			"identity_provider": "entra_id",
 			"token":             token,
 		})
 		if err != nil {
@@ -71,50 +78,51 @@ func newTexasIntrospector(endpoint string) IntrospectFunc {
 }
 
 // authenticate extracts the Bearer token from the request, verifies it with introspect,
-// validates required claims (idtyp != 'app', non-empty NAVident), and returns the lowercased actor.
-func authenticate(r *http.Request, introspect IntrospectFunc) (string, error) {
+// validates required claims (idtyp != 'app', non-empty NAVident), and returns the
+// lowercased actor with its Entra groups.
+func authenticate(r *http.Request, introspect IntrospectFunc) (*principal, error) {
 	if introspect == nil {
-		return "", errors.New("introspector not configured")
+		return nil, errors.New("introspector not configured")
 	}
 
 	authHeader := r.Header.Get("Authorization")
 	if authHeader == "" {
-		return "", ErrUnauthorized
+		return nil, ErrUnauthorized
 	}
 
 	// Cap Authorization header length at 8 KiB
 	if len(authHeader) > 8*1024 {
-		return "", ErrUnauthorized
+		return nil, ErrUnauthorized
 	}
 
 	parts := strings.SplitN(authHeader, " ", 2)
 	if len(parts) != 2 || !strings.EqualFold(parts[0], "Bearer") {
-		return "", ErrUnauthorized
+		return nil, ErrUnauthorized
 	}
 
 	token := strings.TrimSpace(parts[1])
 	if token == "" {
-		return "", ErrUnauthorized
+		return nil, ErrUnauthorized
 	}
 
 	res, err := introspect(r.Context(), token)
 	if err != nil {
-		return "", ErrUnauthorized
+		return nil, ErrUnauthorized
 	}
 
 	if !res.Active || strings.TrimSpace(res.Username) == "" {
-		return "", ErrUnauthorized
+		return nil, ErrUnauthorized
 	}
 
 	// Reject app tokens (idtyp must not be 'app')
 	if strings.EqualFold(res.IDType, "app") {
-		return "", ErrUnauthorized
+		return nil, ErrUnauthorized
 	}
 
 	// Require non-empty NAVident
 	if strings.TrimSpace(res.NAVident) == "" {
-		return "", ErrUnauthorized
+		return nil, ErrUnauthorized
 	}
 
-	return strings.ToLower(strings.TrimSpace(res.Username)), nil
+	return &principal{Actor: strings.ToLower(strings.TrimSpace(res.Username)), Groups: res.Groups}, nil
 }

@@ -4,6 +4,7 @@ package main
 import (
 	"log/slog"
 	"os"
+	"slices"
 	"strings"
 )
 
@@ -15,7 +16,16 @@ type Config struct {
 	DomainInternal  string
 	DomainExternal  string
 	DatabaseURL     string
-	Store           *Store
+	// AdminGroupID is the Entra group object id whose members may approve and
+	// reject entries. Empty means nobody is admin.
+	AdminGroupID  string
+	TexasEndpoint string
+	Store         *Store
+}
+
+// IsAdmin reports whether groups contains the configured admin group.
+func (c *Config) IsAdmin(groups []string) bool {
+	return c != nil && c.AdminGroupID != "" && slices.Contains(groups, c.AdminGroupID)
 }
 
 func loadConfig() *Config {
@@ -24,6 +34,8 @@ func loadConfig() *Config {
 		DomainInternal:  getEnv("DOMAIN_INTERNAL", "intern.dev.nav.no"),
 		DomainExternal:  getEnv("DOMAIN_EXTERNAL", "ekstern.dev.nav.no"),
 		DatabaseURL:     getDatabaseURL(),
+		AdminGroupID:    os.Getenv("ADMIN_GROUP_ID"),
+		TexasEndpoint:   os.Getenv("NAIS_TOKEN_INTROSPECTION_ENDPOINT"),
 		LoggedEndpoints: make(map[string]bool),
 	}
 

@@ -262,3 +262,16 @@ func TestGetEndpointsList(t *testing.T) {
 		})
 	}
 }
+
+func TestConfig_IsAdmin(t *testing.T) {
+	cfg := &Config{AdminGroupID: "admins"}
+	if !cfg.IsAdmin([]string{"other", "admins"}) {
+		t.Error("member of admin group not admin")
+	}
+	if cfg.IsAdmin([]string{"other"}) || cfg.IsAdmin(nil) {
+		t.Error("non-member is admin")
+	}
+	if (&Config{}).IsAdmin([]string{""}) {
+		t.Error("empty ADMIN_GROUP_ID must make nobody admin")
+	}
+}

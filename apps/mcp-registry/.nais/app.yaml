@@ -33,7 +33,23 @@ spec:
     autoInstrumentation:
       enabled: true
       runtime: sdk
+  gcp:
+    sqlInstances:
+      - type: POSTGRES_17
+        tier: db-f1-micro
+        databases:
+          - name: registry
+            envVarPrefix: DB
+  azure:
+    application:
+      enabled: true
+      allowAllUsers: true
+      claims:
+        groups:
+          - id: "{{admin_group_id}}"
   env:
+    - name: ADMIN_GROUP_ID
+      value: "{{admin_group_id}}"
     - name: PORT
       value: "8080"
     - name: LOG_LEVEL

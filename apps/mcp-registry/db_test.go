@@ -4,135 +4,57 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"os/exec"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 )
 
-// setupTestDB starts a throwaway Postgres cluster if TEST_DATABASE_URL is unset,
-// or connects to TEST_DATABASE_URL. Skips the test if unreachable or initdb is missing/fails.
-func setupTestDB(t *testing.T) *Store {
+const testAdminGroup = "00000000-0000-0000-0000-00000000a0a0"
+
+// setupTestDB connects to TEST_DATABASE_URL and resets the schema. Skips when unset.
+func setupTestDB(t *testing.T) *DB {
 	t.Helper()
+	testURL := os.Getenv("TEST_DATABASE_URL")
+	if testURL == "" {
+		t.Skip("TEST_DATABASE_URL not set")
+	}
 	ctx := context.Background()
-
-	if testURL := os.Getenv("TEST_DATABASE_URL"); testURL != "" {
-		s, connErr := NewStore(ctx, testURL)
-		if connErr != nil {
-			t.Skipf("skipping test: TEST_DATABASE_URL unreachable: %v", connErr)
-			return nil
-		}
-		t.Cleanup(func() { s.Close() })
-
-		if migErr := s.Migrate(ctx); migErr != nil {
-			t.Skipf("skipping test: running migrations on TEST_DATABASE_URL failed: %v", migErr)
-			return nil
-		}
-
-		// Truncate tables for clean test state
-		_, truncErr := s.pool.Exec(ctx, "TRUNCATE TABLE registry_entries, registry_entry_versions, registry_audit, schema_migrations CASCADE")
-		if truncErr != nil {
-			t.Skipf("skipping test: truncating test tables: %v", truncErr)
-			return nil
-		}
-
-		if reMigErr := s.Migrate(ctx); reMigErr != nil {
-			t.Skipf("skipping test: re-running migrations after truncate: %v", reMigErr)
-			return nil
-		}
-
-		return s
-	}
-
-	initdbPath := "/opt/homebrew/bin/initdb"
-	if _, err := os.Stat(initdbPath); err != nil {
-		if path, lookErr := exec.LookPath("initdb"); lookErr == nil {
-			initdbPath = path
-		} else {
-			t.Skip("skipping test: initdb not found in /opt/homebrew/bin or PATH")
-			return nil
-		}
-	}
-
-	pgCtlPath := "/opt/homebrew/bin/pg_ctl"
-	if _, err := os.Stat(pgCtlPath); err != nil {
-		if path, lookErr := exec.LookPath("pg_ctl"); lookErr == nil {
-			pgCtlPath = path
-		} else {
-			t.Skip("skipping test: pg_ctl not found in /opt/homebrew/bin or PATH")
-			return nil
-		}
-	}
-
-	tempDir := t.TempDir()
-	dataDir := filepath.Join(tempDir, "data")
-
-	// Initialize throwaway cluster
-	cmd := exec.Command(initdbPath, "-D", dataDir, "-U", "postgres", "-A", "trust", "--no-sync") //nolint:gosec // test helper path
-	if out, err := cmd.CombinedOutput(); err != nil {
-		t.Skipf("skipping test: initdb failed to initialize: %v (output: %s)", err, string(out))
-		return nil
-	}
-
-	// Find random open port
-	l, err := net.Listen("tcp", "127.0.0.1:0")
+	db, err := OpenDB(ctx, testURL)
 	if err != nil {
-		t.Fatalf("finding free port: %v", err)
+		t.Fatalf("connecting to TEST_DATABASE_URL: %v", err)
 	}
-	port := l.Addr().(*net.TCPAddr).Port
-	_ = l.Close()
-
-	logFile := filepath.Join(tempDir, "postgres.log")
-	startCmd := exec.Command(pgCtlPath, "-D", dataDir, "-o", fmt.Sprintf("-k %s -p %d -h 127.0.0.1", tempDir, port), "-l", logFile, "start", "-w") //nolint:gosec // test helper path
-	if out, startErr := startCmd.CombinedOutput(); startErr != nil {
-		t.Skipf("skipping test: pg_ctl failed to start: %v (output: %s)", startErr, string(out))
-		return nil
+	t.Cleanup(db.Close)
+	if _, err := db.pool.Exec(ctx, "DROP TABLE IF EXISTS registry_entries, registry_entry_versions, registry_audit, schema_migrations"); err != nil {
+		t.Fatalf("resetting schema: %v", err)
 	}
-
-	t.Cleanup(func() {
-		_ = exec.Command(pgCtlPath, "-D", dataDir, "-m", "immediate", "stop").Run() //nolint:gosec // test cleanup path
-	})
-
-	dbURL := fmt.Sprintf("postgres://postgres@127.0.0.1:%d/postgres?sslmode=disable", port)
-	s, err := NewStore(ctx, dbURL)
-	if err != nil {
-		t.Fatalf("connecting to throwaway postgres: %v", err)
-	}
-	t.Cleanup(func() { s.Close() })
-
-	if err := s.Migrate(ctx); err != nil {
+	if err := db.Migrate(ctx); err != nil {
 		t.Fatalf("running migrations: %v", err)
 	}
-
-	return s
+	return db
 }
 
-func testMux(cfg *Config, store *Store, introspect IntrospectFunc) *http.ServeMux {
+func testMux(cfg *Config, db *DB, introspect IntrospectFunc) *http.ServeMux {
 	mux := http.NewServeMux()
-	mux.HandleFunc("/health", healthHandler)
-	mux.HandleFunc("/ready", readyHandler(store))
-	mux.Handle("/metrics", metricsHandler())
-	mux.HandleFunc("POST /api/v1/entries", makeSubmitHandler(cfg, store, introspect))
-	mux.HandleFunc("POST /api/v1/entries/{name...}", makeEntryActionHandler(cfg, store, introspect))
+	mux.HandleFunc("POST /api/v1/entries", makeSubmitHandler(cfg, db, introspect))
+	mux.HandleFunc("POST /api/v1/entries/{name...}", makeEntryActionHandler(cfg, db, introspect))
 	return mux
 }
 
+// testFakeIntrospect accepts "token-<user>"; users starting with "admin" are in testAdminGroup.
 func testFakeIntrospect() IntrospectFunc {
 	return func(_ context.Context, token string) (*IntrospectionResult, error) {
-		if strings.HasPrefix(token, "token-") {
-			user := strings.TrimPrefix(token, "token-")
-			return &IntrospectionResult{
-				Active:   true,
-				Username: user,
-				NAVident: "A123456",
-			}, nil
+		user, ok := strings.CutPrefix(token, "token-")
+		if !ok {
+			return &IntrospectionResult{Active: false}, nil
 		}
-		return &IntrospectionResult{Active: false}, nil
+		res := &IntrospectionResult{Active: true, Username: user, NAVident: "A123456"}
+		if strings.HasPrefix(user, "admin") {
+			res.Groups = []string{testAdminGroup}
+		}
+		return res, nil
 	}
 }
 
@@ -154,10 +76,7 @@ func TestStore_RealPostgres_LifecycleAndRequirements(t *testing.T) {
 		return
 	}
 
-	cfg := &Config{
-		Port:       "8080",
-		AdminUsers: map[string]bool{"admin@nav.no": true},
-	}
+	cfg := &Config{AdminGroupID: testAdminGroup}
 	introspect := testFakeIntrospect()
 	mux := testMux(cfg, store, introspect)
 

@@ -29,19 +29,13 @@ var (
 	ErrAlreadyApproved = errors.New("cannot reject an already approved version; revocation comes later")
 )
 
-// DBEntry mirrors apps/mcp-registry's representation of an approved entry.
-type DBEntry struct {
-	Name  string
-	Entry []byte
-}
-
-// Store handles persistent storage and transactions for mcp-registry-writer.
-type Store struct {
+// DB holds the write-side storage: entries, versions and audit.
+type DB struct {
 	pool *pgxpool.Pool
 }
 
-// NewStore initializes a new Store with a pgxpool.
-func NewStore(ctx context.Context, dbURL string) (*Store, error) {
+// OpenDB connects to Postgres and pings it.
+func OpenDB(ctx context.Context, dbURL string) (*DB, error) {
 	config, err := pgxpool.ParseConfig(dbURL)
 	if err != nil {
 		return nil, fmt.Errorf("parsing db url: %w", err)
@@ -57,18 +51,18 @@ func NewStore(ctx context.Context, dbURL string) (*Store, error) {
 		return nil, fmt.Errorf("pinging database: %w", err)
 	}
 
-	return &Store{pool: pool}, nil
+	return &DB{pool: pool}, nil
 }
 
 // Close closes the database connection pool.
-func (s *Store) Close() {
+func (s *DB) Close() {
 	if s.pool != nil {
 		s.pool.Close()
 	}
 }
 
 // Ping verifies the database connection is alive.
-func (s *Store) Ping(ctx context.Context) error {
+func (s *DB) Ping(ctx context.Context) error {
 	if s.pool == nil {
 		return errors.New("database pool is not initialized")
 	}
@@ -76,7 +70,7 @@ func (s *Store) Ping(ctx context.Context) error {
 }
 
 // Migrate applies embedded sql migrations using a schema_migrations table.
-func (s *Store) Migrate(ctx context.Context) error {
+func (s *DB) Migrate(ctx context.Context) error {
 	if s.pool == nil {
 		return errors.New("database pool is not initialized")
 	}
@@ -112,7 +106,7 @@ func (s *Store) Migrate(ctx context.Context) error {
 	return nil
 }
 
-func (s *Store) applyMigration(ctx context.Context, filename string) error {
+func (s *DB) applyMigration(ctx context.Context, filename string) error {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("starting transaction: %w", err)
@@ -150,7 +144,7 @@ func (s *Store) applyMigration(ctx context.Context, filename string) error {
 // updates registry_entries (keeping an approved version served if present,
 // or setting status='pending' otherwise), and logs an audit entry.
 // Returns the newly created version number.
-func (s *Store) Submit(ctx context.Context, actor string, entryJSON []byte, name string, isAdmin bool) (int, error) {
+func (s *DB) Submit(ctx context.Context, actor string, entryJSON []byte, name string, isAdmin bool) (int, error) {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return 0, fmt.Errorf("starting transaction: %w", err)
@@ -159,13 +153,12 @@ func (s *Store) Submit(ctx context.Context, actor string, entryJSON []byte, name
 		_ = tx.Rollback(ctx)
 	}()
 
-	// Advisory locks at start of transaction: actor and name
-	_, err = tx.Exec(ctx, `
-		SELECT pg_advisory_xact_lock(hashtext('actor:' || $1)),
-		       pg_advisory_xact_lock(hashtext('name:' || $2))
-	`, actor, name)
-	if err != nil {
-		return 0, fmt.Errorf("acquiring advisory locks: %w", err)
+	// Advisory locks first, in a fixed order (actor, then name), so the rate
+	// limit count and MAX(version) below see every committed competitor.
+	for _, key := range []string{"actor:" + actor, "name:" + name} {
+		if _, err = tx.Exec(ctx, "SELECT pg_advisory_xact_lock(hashtext($1))", key); err != nil {
+			return 0, fmt.Errorf("acquiring advisory lock: %w", err)
+		}
 	}
 
 	// Rate limit: max 10 submits per actor per hour, counted from registry_audit
@@ -289,7 +282,7 @@ func (s *Store) Submit(ctx context.Context, actor string, entryJSON []byte, name
 // Approve copies the specified version's entry from registry_entry_versions
 // into registry_entries with status approved, and logs an audit entry.
 // Only the current pending version can be approved; otherwise returns ErrConflict.
-func (s *Store) Approve(ctx context.Context, actor, name string, version int) error {
+func (s *DB) Approve(ctx context.Context, actor, name string, version int) error {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("starting transaction: %w", err)
@@ -372,7 +365,7 @@ func (s *Store) Approve(ctx context.Context, actor, name string, version int) er
 // or marks registry_entries status='rejected' if the currently served version was pending.
 // Rejecting an already approved version returns ErrAlreadyApproved.
 // Rejecting any non-pending version returns ErrConflict.
-func (s *Store) Reject(ctx context.Context, actor, name string, version int, reason string) error {
+func (s *DB) Reject(ctx context.Context, actor, name string, version int, reason string) error {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("starting transaction: %w", err)
@@ -447,10 +440,9 @@ func (s *Store) Reject(ctx context.Context, actor, name string, version int, rea
 	return tx.Commit(ctx)
 }
 
-// GetApprovedEntries queries the database matching the reader's query:
-// SELECT name, entry FROM registry_entries WHERE status = 'approved' ORDER BY name.
-func (s *Store) GetApprovedEntries(ctx context.Context) ([]DBEntry, error) {
-	rows, err := s.pool.Query(ctx, "SELECT name, entry FROM registry_entries WHERE status = 'approved' ORDER BY name")
+// GetApprovedEntries is the reader's EntryLoader: approved rows with updated_at.
+func (s *DB) GetApprovedEntries(ctx context.Context) ([]DBEntry, error) {
+	rows, err := s.pool.Query(ctx, "SELECT name, entry, updated_at FROM registry_entries WHERE status = 'approved' ORDER BY name")
 	if err != nil {
 		return nil, fmt.Errorf("querying approved registry_entries: %w", err)
 	}
@@ -459,7 +451,7 @@ func (s *Store) GetApprovedEntries(ctx context.Context) ([]DBEntry, error) {
 	var entries []DBEntry
 	for rows.Next() {
 		var e DBEntry
-		if err := rows.Scan(&e.Name, &e.Entry); err != nil {
+		if err := rows.Scan(&e.Name, &e.Entry, &e.UpdatedAt); err != nil {
 			return nil, fmt.Errorf("scanning registry entry row: %w", err)
 		}
 		entries = append(entries, e)

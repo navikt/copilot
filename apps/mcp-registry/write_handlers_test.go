@@ -9,35 +9,44 @@ import (
 	"testing"
 )
 
-func TestHandlers_HealthAndReady(t *testing.T) {
-	req := httptest.NewRequest(http.MethodGet, "/health", nil)
-	rec := httptest.NewRecorder()
-	healthHandler(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("healthHandler returned %d", rec.Code)
+func TestHandlers_NoDatabaseReturns503(t *testing.T) {
+	mux := testMux(&Config{AdminGroupID: testAdminGroup}, nil, testFakeIntrospect())
+	cases := []struct{ path, body string }{
+		{"/api/v1/entries", `{"entry": ` + string(subJSON("io.github.navikt/no-db", "d", "1.0.0")) + `}`},
+		{"/api/v1/entries/io.github.navikt/no-db/approve", `{"version": 1}`},
 	}
-
-	var resp map[string]string
-	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
-		t.Fatalf("unmarshal health response: %v", err)
+	for _, tc := range cases {
+		req := httptest.NewRequest(http.MethodPost, tc.path, strings.NewReader(tc.body))
+		req.Header.Set("Authorization", "Bearer token-admin@nav.no")
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+		if rec.Code != http.StatusServiceUnavailable {
+			t.Errorf("%s: got %d, want 503: %s", tc.path, rec.Code, rec.Body.String())
+		}
 	}
-	if resp["status"] != "healthy" {
-		t.Errorf("status = %q, want healthy", resp["status"])
+}
+
+func TestIntrospectorSendsEntraID(t *testing.T) {
+	var got map[string]string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewDecoder(r.Body).Decode(&got)
+		_, _ = w.Write([]byte(`{"active":true,"preferred_username":"U@nav.no","NAVident":"A1","groups":["g1"]}`))
+	}))
+	defer srv.Close()
+	res, err := newTexasIntrospector(srv.URL)(t.Context(), "tok")
+	if err != nil {
+		t.Fatal(err)
 	}
-
-	// Ready without store
-	readyReq := httptest.NewRequest(http.MethodGet, "/ready", nil)
-	readyRec := httptest.NewRecorder()
-	readyHandler(nil)(readyRec, readyReq)
-
-	if readyRec.Code != http.StatusOK {
-		t.Fatalf("readyHandler returned %d", readyRec.Code)
+	if got["identity_provider"] != "entra_id" {
+		t.Errorf("identity_provider = %q, want entra_id", got["identity_provider"])
+	}
+	if len(res.Groups) != 1 || res.Groups[0] != "g1" {
+		t.Errorf("groups = %v", res.Groups)
 	}
 }
 
 func TestHandlers_Authentication(t *testing.T) {
-	cfg := &Config{AdminUsers: map[string]bool{"admin@nav.no": true}}
+	cfg := &Config{AdminGroupID: testAdminGroup}
 	introspect := func(_ context.Context, token string) (*IntrospectionResult, error) {
 		switch token {
 		case "valid-user":
@@ -139,18 +148,18 @@ func TestHandlers_Authentication(t *testing.T) {
 	t.Run("authenticated user actor is lowercased", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/entries", nil)
 		req.Header.Set("Authorization", "Bearer valid-user")
-		actor, err := authenticate(req, introspect)
+		caller, err := authenticate(req, introspect)
 		if err != nil {
 			t.Fatalf("unexpected authenticate error: %v", err)
 		}
-		if actor != "user@nav.no" {
-			t.Fatalf("expected actor 'user@nav.no', got %q", actor)
+		if caller.Actor != "user@nav.no" {
+			t.Fatalf("expected actor 'user@nav.no', got %q", caller.Actor)
 		}
 	})
 }
 
 func TestHandlers_SubmitValidationFailures(t *testing.T) {
-	cfg := &Config{AdminUsers: map[string]bool{"admin@nav.no": true}}
+	cfg := &Config{AdminGroupID: testAdminGroup}
 	introspect := func(_ context.Context, _ string) (*IntrospectionResult, error) {
 		return &IntrospectionResult{
 			Active:   true,

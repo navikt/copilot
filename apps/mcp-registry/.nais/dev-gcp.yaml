@@ -8,3 +8,5 @@ domain_internal: intern.dev.nav.no
 domain_external: ekstern.dev.nav.no
 ingresses:
   - https://mcp-registry.ekstern.dev.nav.no
+# TODO: set the Entra object id of the registry admin group before writes go live.
+admin_group_id: "00000000-0000-0000-0000-000000000000"

@@ -8,50 +8,35 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
-
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-func healthHandler(w http.ResponseWriter, _ *http.Request) {
-	respondJSON(w, http.StatusOK, map[string]string{"status": "healthy"})
-}
-
-func readyHandler(store *Store) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if store != nil {
-			if err := store.Ping(r.Context()); err != nil {
-				respondJSON(w, http.StatusServiceUnavailable, map[string]string{
-					"status": "unavailable",
-					"error":  "database unreachable",
-				})
-				return
-			}
-		}
-		respondJSON(w, http.StatusOK, map[string]string{"status": "ready"})
+// writeUnavailable answers 503 when the service runs without a database.
+func writeUnavailable(w http.ResponseWriter, db *DB) bool {
+	if db != nil {
+		return false
 	}
-}
-
-func metricsHandler() http.Handler {
-	return promhttp.Handler()
+	respondJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "Writes are unavailable: no database configured"})
+	return true
 }
 
 type submitPayload struct {
 	Entry json.RawMessage `json:"entry"`
 }
 
-func makeSubmitHandler(config *Config, store *Store, introspect IntrospectFunc) http.HandlerFunc {
+func makeSubmitHandler(config *Config, db *DB, introspect IntrospectFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
-		actor, authErr := authenticate(r, introspect)
+		caller, authErr := authenticate(r, introspect)
 		if authErr != nil {
 			slog.Warn("Authentication failed for submit", "error", authErr)
 			respondJSON(w, http.StatusUnauthorized, map[string]string{"error": "Unauthorized"})
 			return
 		}
+		actor := caller.Actor
 
 		body, readErr := io.ReadAll(io.LimitReader(r.Body, 1<<20))
 		if readErr != nil {
@@ -68,15 +53,18 @@ func makeSubmitHandler(config *Config, store *Store, introspect IntrospectFunc) 
 			return
 		}
 
-		sub, canonicalJSON, valErr := validateServerEntry(payload.Entry)
+		sub, canonicalJSON, valErr := validateSubmission(payload.Entry)
 		if valErr != nil {
 			slog.Warn("Validation failed for submit", "error", valErr, "actor", actor)
 			respondJSON(w, http.StatusBadRequest, map[string]string{"error": valErr.Error()})
 			return
 		}
 
-		isAdmin := config != nil && config.IsAdmin(actor)
-		version, storeErr := store.Submit(r.Context(), actor, canonicalJSON, sub.Name, isAdmin)
+		if writeUnavailable(w, db) {
+			return
+		}
+		isAdmin := config.IsAdmin(caller.Groups)
+		version, storeErr := db.Submit(r.Context(), actor, canonicalJSON, sub.Name, isAdmin)
 		if storeErr != nil {
 			if errors.Is(storeErr, ErrForbidden) {
 				slog.Warn("Forbidden submit attempt for existing name", "name", sub.Name, "actor", actor)
@@ -114,7 +102,7 @@ type rejectPayload struct {
 	Reason  string `json:"reason"`
 }
 
-func makeEntryActionHandler(config *Config, store *Store, introspect IntrospectFunc) http.HandlerFunc {
+func makeEntryActionHandler(config *Config, db *DB, introspect IntrospectFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -136,19 +124,20 @@ func makeEntryActionHandler(config *Config, store *Store, introspect IntrospectF
 			return
 		}
 
-		actor, authErr := authenticate(r, introspect)
+		caller, authErr := authenticate(r, introspect)
 		if authErr != nil {
 			slog.Warn("Authentication failed for entry action", "action", action, "error", authErr)
 			respondJSON(w, http.StatusUnauthorized, map[string]string{"error": "Unauthorized"})
 			return
 		}
+		actor := caller.Actor
 
-		if valErr := validateServerName(name); valErr != nil {
+		if valErr := validateName(name, 0); valErr != nil {
 			respondJSON(w, http.StatusBadRequest, map[string]string{"error": valErr.Error()})
 			return
 		}
 
-		if !config.IsAdmin(actor) {
+		if !config.IsAdmin(caller.Groups) {
 			slog.Warn("Non-admin user attempted privileged action", "action", action, "actor", actor, "name", name)
 			respondJSON(w, http.StatusForbidden, map[string]string{"error": "Forbidden: actor is not an admin"})
 			return
@@ -160,16 +149,19 @@ func makeEntryActionHandler(config *Config, store *Store, introspect IntrospectF
 			return
 		}
 
+		if writeUnavailable(w, db) {
+			return
+		}
 		switch action {
 		case "approve":
-			handleApprove(w, r, store, actor, name, body)
+			handleApprove(w, r, db, actor, name, body)
 		case "reject":
-			handleReject(w, r, store, actor, name, body)
+			handleReject(w, r, db, actor, name, body)
 		}
 	}
 }
 
-func handleApprove(w http.ResponseWriter, r *http.Request, store *Store, actor, name string, body []byte) {
+func handleApprove(w http.ResponseWriter, r *http.Request, db *DB, actor, name string, body []byte) {
 	dec := json.NewDecoder(bytes.NewReader(body))
 	dec.DisallowUnknownFields()
 
@@ -179,7 +171,7 @@ func handleApprove(w http.ResponseWriter, r *http.Request, store *Store, actor, 
 		return
 	}
 
-	if err := store.Approve(r.Context(), actor, name, payload.Version); err != nil {
+	if err := db.Approve(r.Context(), actor, name, payload.Version); err != nil {
 		if errors.Is(err, ErrVersionNotFound) {
 			respondJSON(w, http.StatusNotFound, map[string]string{"error": "Version not found"})
 			return
@@ -203,7 +195,7 @@ func handleApprove(w http.ResponseWriter, r *http.Request, store *Store, actor, 
 	})
 }
 
-func handleReject(w http.ResponseWriter, r *http.Request, store *Store, actor, name string, body []byte) {
+func handleReject(w http.ResponseWriter, r *http.Request, db *DB, actor, name string, body []byte) {
 	dec := json.NewDecoder(bytes.NewReader(body))
 	dec.DisallowUnknownFields()
 
@@ -219,7 +211,7 @@ func handleReject(w http.ResponseWriter, r *http.Request, store *Store, actor, n
 		return
 	}
 
-	if err := store.Reject(r.Context(), actor, name, payload.Version, reason); err != nil {
+	if err := db.Reject(r.Context(), actor, name, payload.Version, reason); err != nil {
 		if errors.Is(err, ErrVersionNotFound) {
 			respondJSON(w, http.StatusNotFound, map[string]string{"error": "Version not found"})
 			return
@@ -246,12 +238,4 @@ func handleReject(w http.ResponseWriter, r *http.Request, store *Store, actor, n
 		"status":  "rejected",
 		"reason":  reason,
 	})
-}
-
-func respondJSON(w http.ResponseWriter, status int, data interface{}) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	if err := json.NewEncoder(w).Encode(data); err != nil {
-		slog.Error("Failed to encode JSON response", "error", err)
-	}
 }

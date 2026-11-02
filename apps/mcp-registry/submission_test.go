@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestValidateServerName(t *testing.T) {
+func TestValidateSubmissionName(t *testing.T) {
 	valid := []string{
 		"io.github.navikt/github-mcp",
 		"nais/nais-mcp",
@@ -15,7 +15,7 @@ func TestValidateServerName(t *testing.T) {
 		"a.b/c",
 	}
 	for _, name := range valid {
-		if err := validateServerName(name); err != nil {
+		if err := validateName(name, 0); err != nil {
 			t.Errorf("expected valid name %q, got error: %v", name, err)
 		}
 	}
@@ -31,21 +31,21 @@ func TestValidateServerName(t *testing.T) {
 		"invalid character/server",
 		"server/invalid char",
 		"inv@lid/server",
-		".io/server",       // leading dot
-		"-io/server",       // leading dash
-		"io/.server",       // leading dot after slash
-		"io/-server",       // leading dash after slash
-		"io/_server",       // leading underscore after slash
+		".io/server",                    // leading dot
+		"-io/server",                    // leading dash
+		"io/.server",                    // leading dot after slash
+		"io/-server",                    // leading dash after slash
+		"io/_server",                    // leading underscore after slash
 		strings.Repeat("a", 201) + "/b", // > 200 chars
 	}
 	for _, name := range invalid {
-		if err := validateServerName(name); err == nil {
+		if err := validateName(name, 0); err == nil {
 			t.Errorf("expected name %q to be rejected, but it passed", name)
 		}
 	}
 }
 
-func TestValidateHTTPSURL(t *testing.T) {
+func TestValidateSubmissionURL(t *testing.T) {
 	valid := []string{
 		"https://mcp.example.com/api",
 		"https://mcp.example.com:443/api",
@@ -53,7 +53,7 @@ func TestValidateHTTPSURL(t *testing.T) {
 		"https://sub.domain.example.org/path?query=1",
 	}
 	for _, u := range valid {
-		if err := validateHTTPSURL(u); err != nil {
+		if err := validateSubmissionURL(u); err != nil {
 			t.Errorf("expected valid URL %q, got error: %v", u, err)
 		}
 	}
@@ -96,11 +96,13 @@ func TestValidateHTTPSURL(t *testing.T) {
 		{"https://service.internal/api", "forbidden suffix .internal"},
 		{"https://service.local/api", "forbidden suffix .local"},
 		{"https://ADEO.NO/api", "uppercase forbidden suffix"},
+		{"https://2130706433/api", "integer IP form"},
+		{"https://Mcp.Example.com/api", "uppercase host"},
 	}
 
 	for _, tc := range invalid {
 		t.Run(tc.reason, func(t *testing.T) {
-			if err := validateHTTPSURL(tc.url); err == nil {
+			if err := validateSubmissionURL(tc.url); err == nil {
 				t.Errorf("expected URL %q to be rejected (%s), but it passed", tc.url, tc.reason)
 			}
 		})
@@ -110,7 +112,7 @@ func TestValidateHTTPSURL(t *testing.T) {
 func TestValidateOwner(t *testing.T) {
 	valid := []string{"team-rocket", "nais", "team1", "mcp-team-dev"}
 	for _, o := range valid {
-		if err := validateOwner(o); err != nil {
+		if _, _, err := validateSubmission([]byte(`{"name":"a.b/c","description":"d","version":"1","owner":"` + o + `","remotes":[{"type":"sse","url":"https://mcp.example.com"}]}`)); err != nil {
 			t.Errorf("expected valid owner %q, got: %v", o, err)
 		}
 	}
@@ -125,13 +127,13 @@ func TestValidateOwner(t *testing.T) {
 		"team@rocket", // special char
 	}
 	for _, o := range invalid {
-		if err := validateOwner(o); err == nil {
+		if _, _, err := validateSubmission([]byte(`{"name":"a.b/c","description":"d","version":"1","owner":"` + o + `","remotes":[{"type":"sse","url":"https://mcp.example.com"}]}`)); err == nil {
 			t.Errorf("expected owner %q to be rejected, but it passed", o)
 		}
 	}
 }
 
-func TestValidateServerEntry(t *testing.T) {
+func TestValidateSubmission(t *testing.T) {
 	tests := []struct {
 		name    string
 		json    string
@@ -352,9 +354,9 @@ func TestValidateServerEntry(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			sub, canonical, err := validateServerEntry([]byte(tc.json))
+			sub, canonical, err := validateSubmission([]byte(tc.json))
 			if (err != nil) != tc.wantErr {
-				t.Fatalf("validateServerEntry() error = %v, wantErr %v", err, tc.wantErr)
+				t.Fatalf("validateSubmission() error = %v, wantErr %v", err, tc.wantErr)
 			}
 			if !tc.wantErr {
 				if sub == nil || len(canonical) == 0 {
