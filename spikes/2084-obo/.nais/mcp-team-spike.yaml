@@ -1,0 +1,31 @@
+# Spike for navikt/copilot#2084, dev-gcp only. Do not merge.
+apiVersion: nais.io/v1alpha1
+kind: Application
+metadata:
+  name: mcp-team-spike
+  namespace: copilot
+  labels:
+    team: copilot
+spec:
+  image: {{image}}
+  port: 8080
+  replicas: {min: 1, max: 1}
+  resources:
+    requests: {cpu: 10m, memory: 16Mi}
+    limits: {memory: 64Mi}
+  liveness: {path: /isalive}
+  readiness: {path: /isalive}
+  azure:
+    application:
+      enabled: true
+      allowAllUsers: true
+  accessPolicy:
+    inbound:
+      rules:
+        - application: mcp-gw-spike
+    outbound:
+      rules:
+        - application: mcp-down-spike
+  env:
+    - {name: NEXT_TARGET, value: "dev-gcp:copilot:mcp-down-spike"}
+    - {name: NEXT_URL, value: "http://mcp-down-spike"}
