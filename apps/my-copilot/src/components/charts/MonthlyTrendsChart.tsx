@@ -6,7 +6,7 @@ import { Bar } from "react-chartjs-2";
 import { axColor, bottomLegend, seriesColor, NO_DATA_MESSAGE } from "@/lib/chart-utils";
 import { VStack, HGrid, BodyShort, Box } from "@navikt/ds-react";
 import { formatNumber, formatPercent } from "@/lib/format";
-import { currentMonthUTC, selectCompleteMonths } from "@/lib/month-utils";
+import { currentMonthUTC, isMonthComplete, selectCompleteMonths } from "@/lib/month-utils";
 import { ChartFigure } from "@/components/charts/chart-figure";
 
 interface MonthlyTrendsChartProps {
@@ -19,7 +19,7 @@ const MonthlyTrendsChart: React.FC<MonthlyTrendsChartProps> = ({ data }) => {
   }
 
   const current = currentMonthUTC();
-  const labels = data.map((d) => (d.month === current ? `${d.month} *` : d.month));
+  const labels = data.map((d) => (isMonthComplete(d.month, d.days_in_month, current) ? d.month : `${d.month} *`));
 
   // Summary: latest COMPLETE month vs previous (using shared utility)
   const { latestComplete, prevComplete: prev } = selectCompleteMonths(data, current);
@@ -131,7 +131,8 @@ const MonthlyTrendsChart: React.FC<MonthlyTrendsChartProps> = ({ data }) => {
         ))}
       </HGrid>
       <BodyShort size="small" textColor="subtle">
-        Måneden merket med * er ikke ferdig.
+        Måneder merket med * mangler data for én eller flere dager. Endring fra forrige måned vises bare når begge
+        månedene har data for alle kalenderdager.
       </BodyShort>
 
       {/* Charts */}

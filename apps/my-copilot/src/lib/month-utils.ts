@@ -43,18 +43,15 @@ export function daysInCalendarMonth(month: string): number {
 
 /**
  * Determines if a month's data is complete.
- * A month is complete if:
- * - it is NOT the current calendar month, OR
- * - it has data for all calendar days in that month
+ * Calendar age alone does not establish source coverage.
  */
 export function isMonthComplete(month: string, daysOfData: number, currentMonth: string): boolean {
-  if (month !== currentMonth) return true;
-  return daysOfData >= daysInCalendarMonth(month);
+  return month <= currentMonth && daysOfData === daysInCalendarMonth(month);
 }
 
 /**
  * From a sorted array of monthly data, select the latest complete month
- * and the one before it (for MoM comparison).
+ * and its complete preceding calendar month (for MoM comparison).
  */
 export function selectCompleteMonths<T extends { month: string; days_in_month: number }>(
   data: T[],
@@ -64,6 +61,8 @@ export function selectCompleteMonths<T extends { month: string; days_in_month: n
   const currentMonth =
     data.find((m) => m.month === current && !isMonthComplete(m.month, m.days_in_month, current)) ?? null;
   const latestComplete = completeMonths.length > 0 ? completeMonths[completeMonths.length - 1] : null;
-  const prevComplete = completeMonths.length > 1 ? completeMonths[completeMonths.length - 2] : null;
+  const prevComplete = latestComplete
+    ? (completeMonths.find((m) => m.month === previousMonth(latestComplete.month)) ?? null)
+    : null;
   return { completeMonths, currentMonth, latestComplete, prevComplete };
 }
