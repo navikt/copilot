@@ -139,12 +139,22 @@ const MonthlyTrendsChart: React.FC<MonthlyTrendsChartProps> = ({ data }) => {
       <HGrid columns={{ xs: 1, md: 2 }} gap="space-16">
         <ChartFigure
           title="Brukere per funksjon"
-          summary="Brukere per funksjon per måned."
+          summary={data
+            .map(
+              (d, i) =>
+                `${labels[i]}: ${formatNumber(d.unique_users)} brukere, ${formatNumber(d.agent_users)} agent-brukere, ${formatNumber(d.chat_users)} chat-brukere, ${formatNumber(d.cli_users)} CLI-brukere.`
+            )
+            .join(" ")}
           chart={<Bar data={usersChartData} options={barOptions} />}
         />
         <ChartFigure
           title="Aktivitet per type"
-          summary="Aktivitet per type per måned."
+          summary={data
+            .map(
+              (d, i) =>
+                `${labels[i]}: ${formatNumber(d.code_generations)} kodeforslag, ${formatNumber(d.ide_interactions)} chat/agent-interaksjoner, ${formatNumber(d.cli_requests)} CLI-forespørsler.`
+            )
+            .join(" ")}
           chart={<Bar data={activityChartData} options={barOptions} />}
         />
       </HGrid>

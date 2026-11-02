@@ -15,7 +15,8 @@ describe("innsikt/bruk labels", () => {
     expect(page).toContain('label: "Foreløpig forbruk, netto"');
     expect(page).toContain("data: months.map((t) => t.total_net_amount)");
     expect(page).toContain("heller ikke for avsluttede måneder");
-    expect(page).toContain("Lisensabonnementer og CodeQuality er ikke med");
+    expect(page).toContain("Lisensabonnementer er ikke med");
+    expect(page).toContain("bare Copilot. Dagsgrafen og inneværende månedsstolpe kan også inneholde Code Quality");
     expect(page).not.toContain("getAdminMonthlyOverview");
     expect(page).toContain('id="kostnad"');
     expect(page).toContain('id="kostnad-over-tid"');

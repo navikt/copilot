@@ -62,7 +62,13 @@ async function KeyFigures({ token }: { token: string }) {
   const { trends, error } = await getMonthlyTrends(token);
   if (error) return <BodyShort>{`Kunne ikke hente månedstall: ${error}`}</BodyShort>;
   const { latestComplete: latest, prevComplete: prev } = selectCompleteMonths(trends, currentMonthUTC());
-  if (!latest) return <BodyShort>Ingen hel måned med data ennå.</BodyShort>;
+  if (!latest)
+    return (
+      <>
+        <BodyShort>Ingen hel måned med data ennå.</BodyShort>
+        {trends.length > 0 && <MonthlyTrendsChart data={trends} />}
+      </>
+    );
 
   const activity = (m: typeof latest) => m.code_generations + m.ide_interactions + m.cli_requests;
   const agentShare = (m: typeof latest) =>
@@ -192,8 +198,9 @@ async function Cost({ token }: { token: string }) {
       <NumbersFold summary="Slik leser du tallene">
         <BodyShort size="small">
           Foreløpig forbruk er registrert modellforbruk etter rabatt, i netto USD. Tallene er ikke kontrollert mot
-          faktura, heller ikke for avsluttede måneder. Lisensabonnementer og CodeQuality er ikke med. Grafene viser
-          registrert forbruk, ikke prognoser. Måneden som pågår dekker bare dagene med data.
+          faktura, heller ikke for avsluttede måneder. Lisensabonnementer er ikke med. Historiske månedstall gjelder
+          bare Copilot. Dagsgrafen og inneværende månedsstolpe kan også inneholde Code Quality. Grafene viser registrert
+          forbruk, ikke prognoser. Måneden som pågår dekker bare dagene med data.
         </BodyShort>
       </NumbersFold>
     </VStack>
@@ -403,7 +410,7 @@ export default async function BrukPage() {
         </LinkableHeading>
         <Events />
         <BodyShort size="small" textColor="subtle">
-          Andelene fordeler modellforbruket etter rabatt på modellfamilier, uten lisensabonnementer og CodeQuality.
+          Andelene fordeler modellforbruket etter rabatt på modellfamilier, uten lisensabonnementer og Code Quality.
         </BodyShort>
         <Suspense fallback={fallback}>
           <ModelFamilies token={token} />
