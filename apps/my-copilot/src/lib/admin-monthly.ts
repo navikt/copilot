@@ -29,9 +29,9 @@ export function adminMonthlyCaveats(data: AdminMonthlyOverview): string[] {
   const { membership_from, seats_snapshot } = data.coverage;
   const rebuilt = rebuiltSeatMonths(data);
   return [
-    "Fakturert er beløpet Nav betaler etter rabatt. Fordelt på personer og ikke fordelt gir til sammen fakturert.",
-    "Foreløpig forbruk er forbruket til listepris for måneden som pågår. Det byttes ut med fakturert beløp når fakturaen kommer, rundt den 3. i måneden etter.",
-    "Estimert fakturert hittil er et foreløpig anslag for måneder uten faktura: foreløpig forbruk minus den delen kredittene i lisensene dekker. Kredittene deles av alle i Nav. For måneden som pågår er det samme anslag som «Forbruk hittil» øverst på siden, og det er dette beløpet, ikke foreløpig forbruk, som er med i totalt inkl. lisenser.",
+    "Fakturert viser netto beløp etter rabatt fra GitHubs månedlige faktureringsdata. Fordelt på personer og ikke fordelt gir til sammen fakturert. At månedsdataene er ferdig innlest, betyr ikke at beløpet er kontrollert mot faktura.",
+    "Foreløpig forbruk er brutto forbruk til listepris for måneder uten innleste nettobeløp. Det byttes ut når de månedlige faktureringsdataene er lest inn, vanligvis rundt den 3. i måneden etter.",
+    "Estimert fakturert hittil er et foreløpig netto anslag for måneder uten innleste nettobeløp: foreløpig brutto forbruk minus den delen kredittene i lisensene dekker. Kredittene deles av alle i Nav. For måneden som pågår er det samme anslag som «Forbruk hittil» øverst på siden, og det er dette beløpet, ikke foreløpig brutto forbruk, som er med i totalt inkl. lisenser.",
     "Totalraden er summen av de fakturerte månedene. Måneden som pågår er ikke med.",
     "Januar til mai 2026 ble fakturert som premiumforespørsler, ikke KI-kreditter. Totalraden legger dem sammen med månedene fra juni.",
     `Personer uten team er fakturert beløp for personer som ikke var med i noe team de dagene de brukte Copilot. Teamhistorikken starter ${membership_from || "ukjent dato"}, så feltet er tomt for månedene før.`,

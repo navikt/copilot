@@ -102,7 +102,7 @@ async function KeyFigures({ token }: { token: string }) {
   );
 }
 
-/** This month day by day and this year month by month, actual figures only. Net: estimated billed, as on /innsikt/kostnad. */
+/** Model consumption after discounts, not invoice-verified totals. */
 async function Cost({ token }: { token: string }) {
   const current = currentMonthUTC();
   const [daily, { trend, error }] = await Promise.all([
@@ -120,14 +120,12 @@ async function Cost({ token }: { token: string }) {
   const sum = cumulative.at(-1) ?? 0;
 
   const year = current.slice(0, 4);
-  // One figure for the current month in both charts: the sum of the daily estimated billed amounts.
+  // Keep the current month's model consumption identical in both charts.
   const months = trend
     .filter((t) => t.year_month.startsWith(year))
     .map((t) => (t.year_month === current && days.length ? { ...t, total_net_amount: sum } : t))
     .sort((a, b) => a.year_month.localeCompare(b.year_month));
   const keys = months.map((t) => t.year_month);
-  const amount = (closed: boolean) =>
-    months.map((t) => (t.year_month < current === closed ? t.total_net_amount : null));
   const monthShort = (m: string) =>
     new Date(`${m}-01T00:00:00Z`).toLocaleDateString("nb-NO", { month: "short", timeZone: "UTC" });
 
@@ -163,22 +161,15 @@ async function Cost({ token }: { token: string }) {
           <ChartFigure
             title={`Hva har Copilot kostet per måned i ${year}?`}
             summary={months
-              .map(
-                (t) =>
-                  `${monthLong(t.year_month)}: ${formatUSD(t.total_net_amount)}${t.year_month < current ? "" : " (foreløpig)"}`
-              )
+              .map((t) => `${monthLong(t.year_month)}: ${formatUSD(t.total_net_amount)} (foreløpig)`)
               .join(", ")}
             chart={
               <EventChart
                 kind="bar"
-                stacked
                 unit="usd"
                 keys={keys}
-                labels={keys.map((k) => monthShort(k) + (k === current ? " (foreløpig)" : ""))}
-                series={[
-                  { label: "Fakturert", color: 0, data: amount(true) },
-                  { label: "Foreløpig forbruk", color: 1, data: amount(false) },
-                ]}
+                labels={keys.map((k) => monthShort(k) + (k === current ? " (hittil)" : ""))}
+                series={[{ label: "Foreløpig forbruk, netto", color: 0, data: months.map((t) => t.total_net_amount) }]}
               />
             }
           />
@@ -192,7 +183,7 @@ async function Cost({ token }: { token: string }) {
               ...months.map((t) => [
                 monthLong(t.year_month),
                 formatUSD(t.total_net_amount),
-                t.year_month < current ? "Fakturert" : "Foreløpig forbruk",
+                "Foreløpig forbruk, netto",
               ]),
             ]}
           />
@@ -200,9 +191,9 @@ async function Cost({ token }: { token: string }) {
       )}
       <NumbersFold summary="Slik leser du tallene">
         <BodyShort size="small">
-          Fakturert er beløpet på fakturaen for en avsluttet måned, etter rabatt. Foreløpig forbruk er det vi regner med
-          å bli fakturert for så langt i måneden. Beløpet kan endre seg til fakturaen kommer. Grafene viser bare faktisk
-          forbruk, ikke prognoser.
+          Foreløpig forbruk er registrert modellforbruk etter rabatt, i netto USD. Tallene er ikke kontrollert mot
+          faktura, heller ikke for avsluttede måneder. Lisensabonnementer og CodeQuality er ikke med. Grafene viser
+          registrert forbruk, ikke prognoser. Måneden som pågår dekker bare dagene med data.
         </BodyShort>
       </NumbersFold>
     </VStack>
@@ -376,8 +367,8 @@ export default async function BrukPage() {
       hourly
       source={
         <>
-          Tallene kommer fra copilot-api, som leser GitHubs bruks- og fakturadata fra BigQuery. Nøkkeltall bruker siste
-          hele måned fra <code>/usage/trends</code>. Kostnad bruker <code>/billing/model-daily</code> og{" "}
+          Tallene kommer fra copilot-api, som leser GitHubs bruks- og faktureringsdata fra BigQuery. Nøkkeltall bruker
+          siste hele måned fra <code>/usage/trends</code>. Kostnad bruker <code>/billing/model-daily</code> og{" "}
           <code>/billing/monthly-trend</code>, netto USD etter rabatt. Modellfamiliene bygger på netto kostnad per
           modell fra <code>v_billing_model_breakdown</code> (<code>/billing/model-breakdown</code>), høyst de siste 36
           månedene. AI Credits per bruker er median og snitt per måned av hver aktiv brukers{" "}
@@ -412,7 +403,7 @@ export default async function BrukPage() {
         </LinkableHeading>
         <Events />
         <BodyShort size="small" textColor="subtle">
-          Andelene fordeler de samme nettobeløpene som over på modellfamilier.
+          Andelene fordeler modellforbruket etter rabatt på modellfamilier, uten lisensabonnementer og CodeQuality.
         </BodyShort>
         <Suspense fallback={fallback}>
           <ModelFamilies token={token} />
