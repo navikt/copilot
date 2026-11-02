@@ -41,6 +41,7 @@ const columns: [number, string][] = [
   [4, "Ikke fordelt"],
   [5, "Ikke fordelt (%)"],
   [6, "Personer uten team"],
+  [12, "Uten observerte bruksdager"],
   [11, "Estimert fakturert hittil"],
   [9, "Lisenskostnad (anslag)"],
   [10, "Totalt inkl. lisenser"],

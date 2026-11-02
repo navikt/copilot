@@ -7,7 +7,8 @@ const net = (
   basis: AdminMonth["basis"],
   enterprise: number,
   residual: number,
-  noTeam: number | null
+  noTeam: number | null,
+  noUsage: number | null = null
 ) => ({
   month,
   basis,
@@ -16,6 +17,7 @@ const net = (
   residual_net_usd: residual,
   residual_pct: (residual / enterprise) * 100,
   no_team_net_usd: noTeam,
+  no_usage_net_usd: noUsage,
   gross_usd: null,
   estimated_net_usd: null,
   seats: 10,
@@ -35,10 +37,10 @@ const data: AdminMonthlyOverview = {
     seats_from: "2026-10-12",
   },
   months: [
-    net("2026-01", "premium", 1267.62, 152.79, null),
-    net("2026-09", "net", 64558.85, 170.51, 7215.43),
+    net("2026-01", "premium", 1267.62, 152.79, null, null),
+    net("2026-09", "net", 64558.85, 170.51, 6000.0, 1215.43),
     {
-      ...net("2026-10", "gross", 1, 0, null),
+      ...net("2026-10", "gross", 1, 0, null, null),
       enterprise_net_usd: null,
       assigned_net_usd: null,
       residual_net_usd: null,
@@ -67,10 +69,38 @@ describe("adminMonthlyRows", () => {
   it("sums billed months only and leaves the preliminary gross out", () => {
     expect(total[2]).toBe("65826.47");
     expect(total[5]).toBe(((323.3 / 65826.47) * 100).toFixed(2));
-    expect(total[6]).toBe("7215.43");
+    expect(total[6]).toBe("6000.00");
     expect(total[7]).toBe("");
     expect(total[9]).toBe("380.00");
     expect(total[10]).toBe("66206.47");
+    // Prehistory month (2026-01) has null no_usage_net_usd: total must be blank, not 0
+    expect(total[12]).toBe("");
+  });
+
+  it("leaves no_usage total blank if any billed month has null, and sums when all known", () => {
+    expect(total[adminMonthlyHeader.indexOf("fakturert_uten_bruksdager_usd")]).toBe("");
+    const allKnown: AdminMonthlyOverview = {
+      ...data,
+      months: [
+        net("2026-06", "net", 50000, 1000, 5000, 4000),
+        net("2026-09", "net", 64558.85, 170.51, 6000.0, 1215.43),
+      ],
+    };
+    const knownTotal = adminMonthlyRows(allKnown).at(-1)!;
+    expect(knownTotal[adminMonthlyHeader.indexOf("fakturert_uten_bruksdager_usd")]).toBe("5215.43");
+  });
+
+  it("leaves no_usage cell and total blank when field is absent during rollout", () => {
+    const absent: AdminMonthlyOverview = {
+      ...data,
+      months: [{ ...net("2026-09", "net", 64558.85, 170.51, 6000.0), no_usage_net_usd: undefined as unknown as null }],
+    };
+    const rows = adminMonthlyRows(absent);
+    const sep = rows[0];
+    const tot = rows.at(-1)!;
+    const col = adminMonthlyHeader.indexOf("fakturert_uten_bruksdager_usd");
+    expect(sep[col]).toBe("");
+    expect(tot[col]).toBe("");
   });
 });
 
@@ -114,7 +144,10 @@ describe("adminMonthlyCsv column names", () => {
     const csv = adminMonthlyCsv(data);
     expect(adminMonthlyHeader).toContain("fakturert_usd");
     expect(adminMonthlyHeader).not.toContain("netto_usd");
+    expect(adminMonthlyHeader).toContain("fakturert_uten_bruksdager_usd");
     expect(csv).toMatch(/^# Nye kolonnenavn .*netto_usd heter fakturert_usd/m);
+    expect(csv).toContain("fakturert_uten_bruksdager_usd");
+    expect(csv).toContain("uten observerte bruksdager");
     expect(adminMonthlyRows(data)[1][1]).toBe("Fakturert");
   });
 });

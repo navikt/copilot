@@ -18,9 +18,9 @@ func f(v float64) *float64 { return &v }
 
 func TestAdminMonthlyOverview(t *testing.T) {
 	cov := adminMonthRow{MembershipFrom: "2026-05-06", LastGrossDay: "2026-10-09", SeatsSnapshot: "2026-10-11"}
-	row := func(month string, complete bool, enterprise, residual, assigned, team float64, gross *float64) adminMonthRow {
+	row := func(month string, complete bool, enterprise, residual, assigned, team, noUsage float64, gross *float64) adminMonthRow {
 		r := cov
-		r.Month, r.NetComplete, r.AssignedNet, r.TeamNet, r.Gross = month+"-01", complete, assigned, team, gross
+		r.Month, r.NetComplete, r.AssignedNet, r.TeamNet, r.NoUsageNet, r.Gross = month+"-01", complete, assigned, team, noUsage, gross
 		r.Seats, r.Licence, r.LoadedAt = 10, 190, "2026-10-11 11:32:45"
 		if complete {
 			r.EnterpriseNet, r.ResidualNet = f(enterprise), f(residual)
@@ -28,22 +28,25 @@ func TestAdminMonthlyOverview(t *testing.T) {
 		return r
 	}
 	rows := []adminMonthRow{
-		row("2026-01", true, 1267.62, 152.79, 1114.83, 1000, f(2730.3)),
-		row("2026-09", true, 64558.85, 170.51, 64388.34, 57000, f(79735.69)),
-		row("2026-10", true, 9000, 1, 8999, 0, f(24517.32)), // run for the current month is ignored
-		row("2026-11", false, 0, 0, 0, 0, nil),
+		row("2026-01", true, 1267.62, 152.79, 1114.83, 1000, 50, f(2730.3)),           // unavailable membership (< MembershipFrom)
+		row("2026-06", true, 50000, 1000, 49000, 40000, 4000, f(60000)),               // mixed allocation
+		row("2026-07", true, 20000, 500, 19500, 0, 19500, f(25000)),                   // no observed usage (all unspread)
+		row("2026-08", true, 30000, 500, 29500, 0, 0, f(35000)),                       // usage without team membership
+		row("2026-09", true, 64558.85, 170.51, 64388.34, 57000, 1388.34, f(79735.69)), // mixed with cent precision
+		row("2026-10", true, 9000, 1, 8999, 0, 0, f(24517.32)),                        // current provisional month
+		row("2026-11", false, 0, 0, 0, 0, 0, nil),                                     // future month
 	}
-	rows[2].GrossNet = f(9290.14)
+	rows[5].GrossNet = f(9290.14)
 	now := time.Date(2026, 10, 12, 8, 0, 0, 0, time.UTC)
 	out := adminMonthlyOverview(2026, rows, now)
-	if len(out.Months) != 3 {
-		t.Fatalf("months = %d, want 3 (November is in the future)", len(out.Months))
+	if len(out.Months) != 6 {
+		t.Fatalf("months = %d, want 6 (November is in the future)", len(out.Months))
 	}
-	jan, sep, oct := out.Months[0], out.Months[1], out.Months[2]
+	jan, jun, jul, aug, sep, oct := out.Months[0], out.Months[1], out.Months[2], out.Months[3], out.Months[4], out.Months[5]
 	if jan.Basis != basisPremium || sep.Basis != basisNet || oct.Basis != basisGross {
 		t.Errorf("basis = %s/%s/%s, want premium/net/gross", jan.Basis, sep.Basis, oct.Basis)
 	}
-	for _, m := range []AdminMonth{jan, sep} {
+	for _, m := range []AdminMonth{jan, jun, jul, aug, sep} {
 		if d := *m.AssignedNetUSD + *m.ResidualNetUSD - *m.EnterpriseNetUSD; math.Abs(d) > 0.011 {
 			t.Errorf("%s: assigned + residual - enterprise = %.2f", m.Month, d)
 		}
@@ -54,12 +57,79 @@ func TestAdminMonthlyOverview(t *testing.T) {
 	if *jan.ResidualPct != 12.05 {
 		t.Errorf("January residual = %v%%, want 12.05", *jan.ResidualPct)
 	}
-	if jan.NoTeamNetUSD != nil || *sep.NoTeamNetUSD != 7388.34 {
-		t.Errorf("no team = %v/%v, want nil before user_teams and 7388.34", jan.NoTeamNetUSD, sep.NoTeamNetUSD)
+	// January is before MembershipFrom (2026-05-06): both must be nil
+	if jan.NoTeamNetUSD != nil || jan.NoUsageNetUSD != nil {
+		t.Errorf("January allocation: no_team=%v, no_usage=%v, want nil before user_teams", jan.NoTeamNetUSD, jan.NoUsageNetUSD)
 	}
-	// The total for a month without net is the estimated billed amount, never gross.
-	if oct.EnterpriseNetUSD != nil || *oct.GrossUSD != 24517.32 || *oct.EstimatedNetUSD != 9290.14 || *oct.TotalUSD != 9480.14 {
-		t.Errorf("October = %+v, want estimated net plus licences", oct)
+	// June: mixed allocation
+	if *jun.NoUsageNetUSD != 4000 || *jun.NoTeamNetUSD != 5000 {
+		t.Errorf("June: no_usage=%v, no_team=%v, want 4000 and 5000", *jun.NoUsageNetUSD, *jun.NoTeamNetUSD)
+	}
+	// July: no observed usage (all assigned lands on no_usage)
+	if *jul.NoUsageNetUSD != 19500 || *jul.NoTeamNetUSD != 0 {
+		t.Errorf("July: no_usage=%v, no_team=%v, want 19500 and 0", *jul.NoUsageNetUSD, *jul.NoTeamNetUSD)
+	}
+	// August: usage without membership (no_usage=0, all unassigned is no_team)
+	if *aug.NoUsageNetUSD != 0 || *aug.NoTeamNetUSD != 29500 {
+		t.Errorf("August: no_usage=%v, no_team=%v, want 0 and 29500", *aug.NoUsageNetUSD, *aug.NoTeamNetUSD)
+	}
+	// September: mixed cent precision (64388.34 - 57000 - 1388.34 = 6000.00)
+	if *sep.NoUsageNetUSD != 1388.34 || *sep.NoTeamNetUSD != 6000.00 {
+		t.Errorf("September: no_usage=%v, no_team=%v, want 1388.34 and 6000.00", *sep.NoUsageNetUSD, *sep.NoTeamNetUSD)
+	}
+	// Verify exact sum reconciliation for eligible months: TeamNet + NoTeamNet + NoUsageNet == AssignedNet
+	for _, tc := range []struct {
+		m       AdminMonth
+		teamNet float64
+	}{
+		{jun, 40000},
+		{jul, 0},
+		{aug, 0},
+		{sep, 57000},
+	} {
+		sum := tc.teamNet + *tc.m.NoTeamNetUSD + *tc.m.NoUsageNetUSD
+		if d := sum - *tc.m.AssignedNetUSD; math.Abs(d) > 0.011 {
+			t.Errorf("%s: team + no_team + no_usage - assigned = %.2f", tc.m.Month, d)
+		}
+	}
+	// October (provisional): net allocation fields must be nil
+	if oct.EnterpriseNetUSD != nil || oct.NoTeamNetUSD != nil || oct.NoUsageNetUSD != nil ||
+		*oct.GrossUSD != 24517.32 || *oct.EstimatedNetUSD != 9290.14 || *oct.TotalUSD != 9480.14 {
+		t.Errorf("October = %+v, want estimated net plus licences and nil net allocations", oct)
+	}
+	// Unavailable membership from empty MembershipFrom
+	emptyOut := adminMonthlyOverview(2026, []adminMonthRow{
+		{
+			Month:          "2026-09-01",
+			NetComplete:    true,
+			EnterpriseNet:  f(100),
+			ResidualNet:    f(10),
+			AssignedNet:    90,
+			TeamNet:        70,
+			NoUsageNet:     10,
+			MembershipFrom: "",
+		},
+	}, now)
+	if len(emptyOut.Months) != 1 || emptyOut.Months[0].NoTeamNetUSD != nil || emptyOut.Months[0].NoUsageNetUSD != nil {
+		t.Errorf("empty MembershipFrom: no_team=%v, no_usage=%v, want both nil",
+			emptyOut.Months[0].NoTeamNetUSD, emptyOut.Months[0].NoUsageNetUSD)
+	}
+	// Negative adjustment (refund/correction)
+	negOut := adminMonthlyOverview(2026, []adminMonthRow{
+		{
+			Month:          "2026-09-01",
+			NetComplete:    true,
+			EnterpriseNet:  f(80),
+			ResidualNet:    f(10),
+			AssignedNet:    70,
+			TeamNet:        80,
+			NoUsageNet:     -10, // adjustment in unspread
+			MembershipFrom: "2026-05-06",
+		},
+	}, now)
+	if len(negOut.Months) != 1 || *negOut.Months[0].NoUsageNetUSD != -10 || *negOut.Months[0].NoTeamNetUSD != 0 {
+		t.Errorf("negative adjustment: no_usage=%v, no_team=%v, want -10 and 0",
+			negOut.Months[0].NoUsageNetUSD, negOut.Months[0].NoTeamNetUSD)
 	}
 	if *sep.TotalUSD != 64748.85 || *sep.Seats != 10 {
 		t.Errorf("September total %v seats %v", *sep.TotalUSD, *sep.Seats)
@@ -79,7 +149,17 @@ func TestAdminMonthlyQueryReusesSharedCTEs(t *testing.T) {
 	}
 	client := &BigQueryClient{client: bqc, projectID: "p", metricsDataset: "d"}
 	q := client.adminMonthlyQuery(2026).Q
-	for _, want := range []string{client.teamNetCTEs(), client.teamUsageCTEs(), client.seatCTEs(), "'enterprise',39.00,19.00"} {
+	for _, want := range []string{
+		client.teamNetCTEs(),
+		client.teamUsageCTEs(),
+		client.seatCTEs(),
+		"unspread AS (\n SELECT b.month,b.user_id,b.net FROM billed b\n WHERE NOT EXISTS (SELECT 1 FROM usage_days u WHERE u.user_id=b.user_id AND u.month=b.month)\n)",
+		"no_usage_m AS (\n SELECT month,SUM(net) net FROM unspread GROUP BY month\n),",
+		"team_m AS (\n SELECT DATE_TRUNC(day,MONTH) month,SUM(net) net FROM daily w\n WHERE EXISTS (SELECT 1 FROM memberships m WHERE m.day=w.day AND m.user_id=w.user_id) GROUP BY month\n),",
+		"IFNULL(nu.net,0) no_usage_net",
+		"LEFT JOIN no_usage_m nu ON nu.month=t.month",
+		"'enterprise',39.00,19.00",
+	} {
 		if !strings.Contains(q, want) {
 			t.Errorf("query lacks %.60q", want)
 		}
