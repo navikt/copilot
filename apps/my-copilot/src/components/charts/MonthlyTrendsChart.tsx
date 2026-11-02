@@ -22,9 +22,7 @@ const MonthlyTrendsChart: React.FC<MonthlyTrendsChartProps> = ({ data }) => {
   const labels = data.map((d) => (isMonthComplete(d.month, d.days_in_month, current) ? d.month : `${d.month} *`));
 
   // Summary: latest COMPLETE month vs previous (using shared utility)
-  const { latestComplete, prevComplete: prev } = selectCompleteMonths(data, current);
-  // Fall back to last data point if no month qualifies as complete
-  const latest = latestComplete ?? data[data.length - 1];
+  const { latestComplete: latest, prevComplete: prev } = selectCompleteMonths(data, current);
 
   const usersChartData = {
     labels,
@@ -110,26 +108,28 @@ const MonthlyTrendsChart: React.FC<MonthlyTrendsChartProps> = ({ data }) => {
   return (
     <VStack gap="space-16">
       {/* Users and activity are the key figures above, so only the other two are shown here. */}
-      <HGrid columns={{ xs: 1, sm: 2 }} gap="space-8">
-        {(
-          [
-            ["Linjer lagt til", latest.lines_added, prev?.lines_added],
-            ["CLI-brukere", latest.cli_users, prev?.cli_users],
-          ] as const
-        ).map(([label, value, before]) => (
-          <Box key={label} background="neutral-soft" padding="space-12" borderRadius="8">
-            <BodyShort size="small" textColor="subtle">
-              {label}
-            </BodyShort>
-            <BodyShort weight="semibold">{formatNumber(value)}</BodyShort>
-            {before ? (
+      {latest && (
+        <HGrid columns={{ xs: 1, sm: 2 }} gap="space-8">
+          {(
+            [
+              ["Linjer lagt til", latest.lines_added, prev?.lines_added],
+              ["CLI-brukere", latest.cli_users, prev?.cli_users],
+            ] as const
+          ).map(([label, value, before]) => (
+            <Box key={label} background="neutral-soft" padding="space-12" borderRadius="8">
               <BodyShort size="small" textColor="subtle">
-                {pctChange(value, before)} fra forrige måned
+                {label}
               </BodyShort>
-            ) : null}
-          </Box>
-        ))}
-      </HGrid>
+              <BodyShort weight="semibold">{formatNumber(value)}</BodyShort>
+              {before ? (
+                <BodyShort size="small" textColor="subtle">
+                  {pctChange(value, before)} fra forrige måned
+                </BodyShort>
+              ) : null}
+            </Box>
+          ))}
+        </HGrid>
+      )}
       <BodyShort size="small" textColor="subtle">
         Måneder merket med * mangler data for én eller flere dager. Endring fra forrige måned vises bare når begge
         månedene har data for alle kalenderdager.
