@@ -177,7 +177,35 @@ go run . --run-once
 
 ### Mimir daily copy
 
-Mimir keeps about 70 days. The `copilot-mimir-daily` Naisjob (`.nais/mimir.yaml`, 03:00 UTC, prod only) copies yesterday's aggregates to `copilot_metrics_staging.mimir_daily`. It ports `underlag/mimir-backfill/backfill.py` in navikt/copilot-intern: same families and columns, day × job × model or tool, at least five devices per row for the device-labelled families (smaller rows merge into `andre` or are dropped). Exceptions: `copilot_chat` and `nav_pilot_session` (`nav_pilot_session_*`, `nav_pilot_subagent_selected_total`, summed with `sum_over_time` per `version` and `client`) have no device label to count, so they carry no threshold, and config rows are at client grain, no device, repo, instance or user labels. Token, tool-call count and code-lines counters from the OTel exporter have `counter_reliable = false`. Each day is loaded into a scratch table and swapped in one transaction, so reruns are safe and a failed load keeps the old rows. A day with no rows from Mimir is an error and leaves BigQuery untouched.
+The `copilot-mimir-daily` Naisjob ([.nais/mimir.yaml](.nais/mimir.yaml), 03:00 UTC, prod only) copies yesterday's aggregates to the configured authoritative source table `<GCP_TEAM_PROJECT_ID>.copilot_metrics_staging.mimir_daily`.
+
+Configuration and overrides:
+- `BIGQUERY_DATASET` defaults to `copilot_metrics` across the service for GitHub usage reports ([config.go](config.go#L42)), but [.nais/mimir.yaml](.nais/mimir.yaml#L30) explicitly overrides it to `copilot_metrics_staging` for the Mimir job.
+- `apps/copilot-api` configures `COPILOT_MIMIR_DATASET` with a default of `copilot_metrics_staging` ([config.go](../copilot-api/config.go#L68)) to query this table.
+
+Schedule, evaluation window, and retention:
+- Schedule: Runs daily at 03:00 UTC ([.nais/mimir.yaml](.nais/mimir.yaml#L9)) to leave a margin for late sample acceptance in Mimir.
+- Window: Evaluates the previous calendar day strictly UTC midnight to midnight (`t = Day + 1 at 00:00:00 UTC`) using `[1d]` PromQL range vectors ([mimir_daily.go](mimir_daily.go#L636-L637)).
+- Retention: Source comments assume Mimir retains around 70 days; this is a source assumption unless verified at runtime. The CLI flag `--mimir-from` enforces an explicit lookback limit of 60 days ([main.go](main.go#L74)) to stay within that assumed retention.
+- Storage retention: The daily scratch load table (`mimir_daily_load_<date>`) has an explicit 6-hour expiration ([mimir_daily.go](mimir_daily.go#L742)). The target table `mimir_daily` has no explicit partition expiration configured in repository schema metadata. Lack of a configured TTL in source definitions does not guarantee permanent retention, as GCP dataset or project lifecycle policies may apply at runtime.
+
+Query temporality (#902) and counter reliability:
+- Session telemetry (`nav_pilot_session_*`, `nav_pilot_subagent_selected_total`) originates from `newOnlyExporter`, emitting one delta per completed session. Queries aggregate with `sum by (...) (sum_over_time(...[1d]))` ([mimir_daily.go](mimir_daily.go#L405)).
+- Standard OTel Prometheus metrics (`token_usage`, `inference_tokens`, `tool_call`, `code_lines`) suffer from counter-reset artifacts in Mimir when concurrent developer sessions reset. Rows for these metrics are explicitly tagged with `counter_reliable = false` ([mimir_daily.go](mimir_daily.go#L52-L66)). Duration histograms (`operation_duration`, `execute_tool`) and session rows have `counter_reliable = true`.
+
+Aggregation thresholds:
+- Families with device labels require at least five distinct devices (`nav_pilot_device_id`). Rows under five devices merge `model` or `tool` into `andre`. If an `andre` row still has fewer than five devices, it is dropped entirely ([mimir_daily.go](mimir_daily.go#L269-L272), [mimir_daily.go](mimir_daily.go#L292-L293)). Quantiles (`p50`, `p95`) are omitted for `andre`.
+- Device-less families: `copilot_chat` (grouped by edit outcomes and sources) and version-bearing `nav_pilot_session` metrics (grouped by `version` and `client`, from `copilot_session.go`) carry no device labels and do not share a single schema grain; both aggregate Nav-wide without a device threshold.
+
+Interpreting missing rows:
+Absence of a row in `mimir_daily` cannot be inferred interchangeably as zero, uninstrumented, or suppressed:
+1. Pre-instrumentation: Sessions prior to client instrumentation (code introduced in `nav-pilot` on 2026-10-12 via commits `ee4b37e5` and `14c5bde6`) emit no session metrics. Commit timestamps record code introduction, not deployment across developer machines.
+2. Observed zero: An observed zero requires a returned sample or row with an explicit value of 0 plus known collection coverage. Absent rows have an unknown cause: they may reflect no events, but absence alone cannot prove zero because existing counters can expose explicit zeros.
+3. Threshold suppression: Cohorts with fewer than five distinct devices are merged or dropped.
+4. Source or export failure: If Mimir returns no rows for a day, the job fails with an error and leaves BigQuery untouched ([mimir_daily.go](mimir_daily.go#L675-L677)), preventing an empty day from wiping history.
+
+Live coverage limitation:
+Source contracts define the expected schema, queries, and constraints. Live production coverage, historical gap status, and end-to-end table contents are not verified from source alone and require runtime queries.
 
 Rerun missed days (inclusive):
 
