@@ -1,0 +1,62 @@
+apiVersion: nais.io/v1alpha1
+kind: Application
+metadata:
+  name: mcp-registry-writer
+  namespace: copilot
+  labels:
+    team: copilot
+spec:
+  image: {{image}}
+  port: 8080
+  replicas:
+    min: {{replicas_min}}
+    max: {{replicas_max}}
+    cpuThresholdPercentage: {{cpu_threshold}}
+  resources:
+    limits:
+      memory: {{memory_limit}}
+    requests:
+      cpu: {{cpu_request}}
+      memory: {{memory_request}}
+  liveness:
+    path: /health
+    initialDelay: 30
+    timeout: 5
+  readiness:
+    path: /ready
+    initialDelay: 10
+    timeout: 5
+  prometheus:
+    enabled: true
+    path: /metrics
+  observability:
+    autoInstrumentation:
+      enabled: true
+      runtime: sdk
+  azure:
+    application:
+      enabled: true
+      tenant: {{azure_tenant}}
+    sidecar:
+      enabled: false
+  gcp:
+    sqlInstances:
+      - type: POSTGRES_17
+        tier: db-f1-micro
+        databases:
+          - name: registry
+            envVarPrefix: DB
+  env:
+    - name: PORT
+      value: "8080"
+    - name: LOG_LEVEL
+      value: "INFO"
+    - name: LOGGED_ENDPOINTS
+      value: "/api/v1/entries"
+    - name: SERVICE_NAME
+      value: "mcp-registry-writer"
+  accessPolicy:
+    inbound:
+      rules:
+        - application: my-copilot
+          namespace: copilot
