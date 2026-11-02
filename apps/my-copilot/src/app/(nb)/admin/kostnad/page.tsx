@@ -251,8 +251,10 @@ export default async function CostPage() {
       source={
         <VStack gap="space-8">
           <span>
-            Tallene kommer fra copilot-api (<code>admin/billing/monthly</code>): Navs faktura per måned, fordelt på
-            personer og team på samme måte som på teamsidene.{" "}
+            Tallene kommer fra copilot-api (<code>admin/billing/monthly</code>): GitHubs månedlige faktureringsdata,
+            fordelt på personer og team på samme måte som på teamsidene. Ferdig innleste månedsdata er ikke en kontroll
+            mot faktura. Foreløpig forbruk er brutto til listepris, mens fakturert og estimert fakturert er netto etter
+            rabatt eller fratrekk for inkluderte kreditter.{" "}
             <Suspense fallback={null}>
               <Coverage token={token} />
             </Suspense>

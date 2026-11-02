@@ -144,6 +144,13 @@ type NavRegistryMeta struct {
 	// "external" or "host-exec". A tool with no entry is a read. nav-pilot
 	// turns external and host-exec tools off unless the user picks them.
 	ToolRisk map[string]string `json:"toolRisk,omitempty"`
+	// Owner is the Nais team that answers for the server.
+	Owner string `json:"owner,omitempty"`
+	// Gateway is the MCP gateway route that fronts a team server.
+	Gateway string `json:"gateway,omitempty"`
+	// ToolHashes pins each tool to a sha256 of its name, description and
+	// input schema. Not enforced yet.
+	ToolHashes map[string]string `json:"toolHashes,omitempty"`
 }
 
 type ResponseMeta struct {

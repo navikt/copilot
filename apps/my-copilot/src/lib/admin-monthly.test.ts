@@ -90,6 +90,15 @@ describe("current month and licence history", () => {
 });
 
 describe("adminMonthlyCsv", () => {
+  it("distinguishes gross consumption, net estimates and invoice verification", () => {
+    const csv = adminMonthlyCsv(data);
+    expect(csv).toContain("netto beløp etter rabatt");
+    expect(csv).toContain("brutto forbruk til listepris");
+    expect(csv).toContain("foreløpig netto anslag");
+    expect(csv).toContain("betyr ikke at beløpet er kontrollert mot faktura");
+    expect(csv).not.toContain("når fakturaen kommer");
+  });
+
   it("has caveats as # lines before the header", () => {
     const lines = adminMonthlyCsv(data).trimEnd().split("\n");
     const header = lines.indexOf(adminMonthlyHeader.join(","));

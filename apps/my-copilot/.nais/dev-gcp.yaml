@@ -5,5 +5,6 @@ ingresses:
   - "https://ki-utvikling.ekstern.dev.nav.no"
   - "https://min-copilot.intern.dev.nav.no"
   - "https://min-copilot.ansatt.dev.nav.no"
-# Innblikk: if set, dev loads the script, but data-domains=ki-utvikling.nav.no keeps it from sending.
-# innblikk_website_id: ""
+# Innblikk: same ID as prod so the consent banner and script can be checked in dev.
+# data-domains=ki-utvikling.nav.no keeps the script from sending anything from here.
+innblikk_website_id: "993a4ccf-b469-49ff-8994-f340588086ce"

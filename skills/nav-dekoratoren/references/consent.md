@@ -3,7 +3,7 @@
 Since 1 January 2025, the Norwegian Electronic Communications Act (ekomloven) requires Nav to obtain
 consent before analytics and statistics tools are activated. Dekoratøren shows the consent banner and
 handles storage across apps. The modules package provides helpers for your app.
-Without consent, only necessary storage is allowed. Umami and Skyra do not start.
+Without consent, only necessary storage is allowed. Innblikk (Umami-based) and Skyra do not start.
 
 Imported from `@navikt/nav-dekoratoren-moduler`.
 

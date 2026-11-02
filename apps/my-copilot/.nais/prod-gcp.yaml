@@ -5,8 +5,6 @@ ingresses:
   - "https://ki-utvikling.nav.no"
   - "https://min-copilot.intern.nav.no"
   - "https://min-copilot.ansatt.nav.no"
-# Innblikk page views on public pages. Before switching it on in prod:
-# 1. Get the tracking code (website ID) from #ResearchOps on Slack.
-# 2. Fill in the reusable "Innblikk etterlevelsesdokument".
-# Then uncomment and set the ID.
-# innblikk_website_id: ""
+# Innblikk page views on public pages, loaded only after the visitor says yes
+# (see /personvern). Tracking code for ki-utvikling from innblikk.ansatt.nav.no/sporingskoder.
+innblikk_website_id: "993a4ccf-b469-49ff-8994-f340588086ce"

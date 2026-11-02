@@ -1,6 +1,6 @@
 ---
 name: nav-dekoratoren
-description: Integrer, konfigurer og revider Nav Dekoratøren – felles header og footer for nav.no-applikasjoner. Bruk når et team skal ta i bruk Dekoratøren, sjekke en eksisterende integrasjon, oppdatere konfigurasjon, legge til breadcrumbs/språkvelger/analytics, håndtere samtykke (ekomloven), CSP eller feilsøke integrasjon mot dekoratøren.
+description: Integrer, konfigurer og revider Nav Dekoratøren – felles header og footer for nav.no-applikasjoner. Bruk når et team skal ta i bruk Dekoratøren, sjekke en eksisterende integrasjon, oppdatere konfigurasjon, legge til breadcrumbs/språkvelger/analytics (Innblikk), håndtere samtykke (ekomloven), CSP eller feilsøke integrasjon mot dekoratøren.
 license: MIT
 compatibility: Web applications on nav.no (Next.js, Remix, Vite, Express/Node)
 metadata:
@@ -11,7 +11,7 @@ metadata:
 # Nav Dekoratøren – integration
 
 Dekoratøren is the shared header and footer for public-facing nav.no applications. It provides
-SSR/CSR integration, login buttons via ID-porten, analytics (Umami) and consent and cookie handling
+SSR/CSR integration, login buttons via ID-porten, analytics (Innblikk, Umami-based) and consent and cookie handling
 under the Norwegian Electronic Communications Act (ekomloven). Dekoratøren does not give the app
 access to the user's login session. Set up authentication and access control in the app itself.
 
@@ -20,6 +20,8 @@ access to the user's login session. Set up authentication and access control in 
 **Documentation:** https://github.com/navikt/nav-dekoratoren/blob/main/README.md
 **Modules package:** https://github.com/navikt/nav-dekoratoren-moduler
 **Storybook:** https://navikt.github.io/nav-dekoratoren
+
+**Without Dekoratøren?** Use the `innblikk` skill (`skills/innblikk`).
 
 ---
 
@@ -333,7 +335,7 @@ See [CLIENT-FUNCTIONS.md](references/client-functions.md) for complete examples.
 
 Use `handleInApp: true` when the app handles navigation itself. Replace `navigateTo` with the
 framework's router, for example `router.push` in Next.js or `navigate` from React Router.
-`title` is logged to Umami as `[redacted]`. Set `analyticsTitle` only to text without personal
+`title` is logged to Innblikk (Umami-based) as `[redacted]`. Set `analyticsTitle` only to text without personal
 data if you want to log a title.
 
 ```ts
@@ -376,12 +378,12 @@ onLanguageSelect((language) => {
 });
 ```
 
-### 5.3 Analytics (Umami)
+### 5.3 Analytics (Innblikk, Umami-based)
 
 Pass the app's technical name as `origin` in the decorator parameters. The value is added to
 automatic `besøk` events, so page views can be filtered per app. When the parameter is omitted,
 `besøk` events use the value `nav-dekoratoren`.
-Dekoratøren does not send Umami events without consent. The logger still accepts the calls and
+Dekoratøren does not send Innblikk events without consent. The logger still accepts the calls and
 discards them locally. Query parameters are stripped from page views by default; use
 `analyticsQueryParams` only for names whose values cannot contain personal data.
 Changing `analyticsRedactFilter` requires a separate risk assessment.

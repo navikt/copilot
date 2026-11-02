@@ -6,7 +6,7 @@ import { Bar } from "react-chartjs-2";
 import { axColor, bottomLegend, seriesColor, NO_DATA_MESSAGE } from "@/lib/chart-utils";
 import { VStack, HGrid, BodyShort, Box } from "@navikt/ds-react";
 import { formatNumber, formatPercent } from "@/lib/format";
-import { currentMonthUTC, selectCompleteMonths } from "@/lib/month-utils";
+import { currentMonthUTC, isMonthComplete, selectCompleteMonths } from "@/lib/month-utils";
 import { ChartFigure } from "@/components/charts/chart-figure";
 
 interface MonthlyTrendsChartProps {
@@ -19,12 +19,10 @@ const MonthlyTrendsChart: React.FC<MonthlyTrendsChartProps> = ({ data }) => {
   }
 
   const current = currentMonthUTC();
-  const labels = data.map((d) => (d.month === current ? `${d.month} *` : d.month));
+  const labels = data.map((d) => (isMonthComplete(d.month, d.days_in_month, current) ? d.month : `${d.month} *`));
 
   // Summary: latest COMPLETE month vs previous (using shared utility)
-  const { latestComplete, prevComplete: prev } = selectCompleteMonths(data, current);
-  // Fall back to last data point if no month qualifies as complete
-  const latest = latestComplete ?? data[data.length - 1];
+  const { latestComplete: latest, prevComplete: prev } = selectCompleteMonths(data, current);
 
   const usersChartData = {
     labels,
@@ -110,40 +108,53 @@ const MonthlyTrendsChart: React.FC<MonthlyTrendsChartProps> = ({ data }) => {
   return (
     <VStack gap="space-16">
       {/* Users and activity are the key figures above, so only the other two are shown here. */}
-      <HGrid columns={{ xs: 1, sm: 2 }} gap="space-8">
-        {(
-          [
-            ["Linjer lagt til", latest.lines_added, prev?.lines_added],
-            ["CLI-brukere", latest.cli_users, prev?.cli_users],
-          ] as const
-        ).map(([label, value, before]) => (
-          <Box key={label} background="neutral-soft" padding="space-12" borderRadius="8">
-            <BodyShort size="small" textColor="subtle">
-              {label}
-            </BodyShort>
-            <BodyShort weight="semibold">{formatNumber(value)}</BodyShort>
-            {before ? (
+      {latest && (
+        <HGrid columns={{ xs: 1, sm: 2 }} gap="space-8">
+          {(
+            [
+              ["Linjer lagt til", latest.lines_added, prev?.lines_added],
+              ["CLI-brukere", latest.cli_users, prev?.cli_users],
+            ] as const
+          ).map(([label, value, before]) => (
+            <Box key={label} background="neutral-soft" padding="space-12" borderRadius="8">
               <BodyShort size="small" textColor="subtle">
-                {pctChange(value, before)} fra forrige måned
+                {label}
               </BodyShort>
-            ) : null}
-          </Box>
-        ))}
-      </HGrid>
+              <BodyShort weight="semibold">{formatNumber(value)}</BodyShort>
+              {before ? (
+                <BodyShort size="small" textColor="subtle">
+                  {pctChange(value, before)} fra forrige måned
+                </BodyShort>
+              ) : null}
+            </Box>
+          ))}
+        </HGrid>
+      )}
       <BodyShort size="small" textColor="subtle">
-        Måneden merket med * er ikke ferdig.
+        Måneder merket med * mangler data for én eller flere dager. Endring fra forrige måned vises bare når begge
+        månedene har data for alle kalenderdager.
       </BodyShort>
 
       {/* Charts */}
       <HGrid columns={{ xs: 1, md: 2 }} gap="space-16">
         <ChartFigure
           title="Brukere per funksjon"
-          summary="Brukere per funksjon per måned."
+          summary={data
+            .map(
+              (d, i) =>
+                `${labels[i]}: ${formatNumber(d.unique_users)} brukere, ${formatNumber(d.agent_users)} agent-brukere, ${formatNumber(d.chat_users)} chat-brukere, ${formatNumber(d.cli_users)} CLI-brukere.`
+            )
+            .join(" ")}
           chart={<Bar data={usersChartData} options={barOptions} />}
         />
         <ChartFigure
           title="Aktivitet per type"
-          summary="Aktivitet per type per måned."
+          summary={data
+            .map(
+              (d, i) =>
+                `${labels[i]}: ${formatNumber(d.code_generations)} kodeforslag, ${formatNumber(d.ide_interactions)} chat/agent-interaksjoner, ${formatNumber(d.cli_requests)} CLI-forespørsler.`
+            )
+            .join(" ")}
           chart={<Bar data={activityChartData} options={barOptions} />}
         />
       </HGrid>

@@ -369,11 +369,7 @@ func (bq *BigQueryClient) GetMonthlyBillingUsage(ctx context.Context, months int
 	return readAllRows[MonthlyBillingUsage](it)
 }
 
-func (bq *BigQueryClient) GetBillingModelDailyCosts(ctx context.Context, month string) ([]BillingModelDailyCost, error) {
-	if !isValidYearMonth(month) {
-		return nil, fmt.Errorf("invalid month format %q (expected YYYY-MM)", month)
-	}
-
+func (bq *BigQueryClient) billingModelDailyQuery(month string) *bigquery.Query {
 	billingRef := bq.tableRef(bq.metricsDataset, "billing_usage_daily_model")
 	queryStr := fmt.Sprintf(`
       SELECT
@@ -387,6 +383,7 @@ func (bq *BigQueryClient) GetBillingModelDailyCosts(ctx context.Context, month s
       WHERE day >= DATE(@month || '-01')
         AND day < DATE_ADD(DATE(@month || '-01'), INTERVAL 1 MONTH)
         AND LOWER(scope_id) = 'nav'
+        AND product = 'Copilot'
         AND gross_quantity > 0
       GROUP BY day, model
       ORDER BY day ASC, gross_amount DESC
@@ -394,7 +391,15 @@ func (bq *BigQueryClient) GetBillingModelDailyCosts(ctx context.Context, month s
 
 	query := bq.client.Query(queryStr)
 	query.Parameters = []bigquery.QueryParameter{{Name: "month", Value: month}}
-	it, err := query.Read(ctx)
+	return query
+}
+
+func (bq *BigQueryClient) GetBillingModelDailyCosts(ctx context.Context, month string) ([]BillingModelDailyCost, error) {
+	if !isValidYearMonth(month) {
+		return nil, fmt.Errorf("invalid month format %q (expected YYYY-MM)", month)
+	}
+
+	it, err := bq.billingModelDailyQuery(month).Read(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("execute query: %w", err)
 	}

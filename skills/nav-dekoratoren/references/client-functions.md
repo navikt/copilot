@@ -5,7 +5,7 @@ Imported from `@navikt/nav-dekoratoren-moduler` (without the `/ssr` suffix).
 ## setBreadcrumbs
 
 Sets the breadcrumb trail dynamically. Use `handleInApp: true` for SPA routing.
-⚠️ `title` is logged to Umami as `[redacted]` by default. Use `analyticsTitle` to log a title
+⚠️ `title` is logged to Innblikk (Umami-based) as `[redacted]` by default. Use `analyticsTitle` to log a title
 without personal data.
 
 ```ts
@@ -68,7 +68,7 @@ onLanguageSelect((language) => {
 
 ## getAnalyticsInstance
 
-Gets a logger instance for analytics (Umami). Supports taxonomy events and custom events.
+Gets a logger instance for analytics (Innblikk, Umami-based). Supports taxonomy events and custom events.
 Pass `origin` when creating the logger instance to identify the app's own events. Use the same
 value as `origin` in the decorator parameters for automatic `besøk` events.
 
