@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-11-02T12:39:55.725Z",
+  "generatedAt": "2026-11-03T13:42:06.210Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -1945,32 +1945,40 @@
     {
       "id": "vulnerability-triage",
       "name": "vulnerability-triage",
-      "description": "Rett sårbarheter fra Nais MCP, eller kontroller tidligere rettinger etter deploy og ny scan. Gir en kort rapport om tiltak, begrunnelse og verifikasjon. Kan også vurdere funn uten å endre kode.",
+      "description": "Vurder sårbarheter fra Nais MCP for en app og et team. Spor avhengigheter og bruk av sårbar kode, særlig når fix mangler. Gir bevis, usikkerhet og anbefalt tiltak uten kodeendringer.",
       "type": "skill",
       "domain": "platform",
       "filePath": "skills/vulnerability-triage/SKILL.md",
       "repoPath": "skills/vulnerability-triage/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/vulnerability-triage/SKILL.md",
-      "contentHash": "21d1b1ef56c7ebee89df0bc8354f98b42f648fc6bdba2759e4d16c68182943c6",
+      "contentHash": "d01222c07bc9a223d35f1fd9d7539debad57c94a0203c49a0dcc87ac73ef143a",
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": ["security", "vulnerabilities", "cve", "nais", "dependencies", "sbom", "triage"],
       "examples": [
         {
-          "prompt": "Rett sårbarheter i appsec/tpt-backend, prod-gcp. Ikke commit eller push.",
-          "scenario": "Vurder MCP-funn, rett kompatible avhengigheter og kontroller lokalt"
+          "prompt": "Vurder sårbarhetene for appen i dette repoet. Finn app og team i .nais.",
+          "scenario": "Hent MCP-funn og vurder avhengigheter og bruk av sårbar kode uten kodeendringer"
         },
         {
-          "prompt": "Kontroller etter deploy at de tidligere rettingene i appsec/tpt-backend, prod-gcp virker.",
-          "scenario": "Sammenlign tidligere rettinger med ferske deployment- og scan-data uten kodeendringer"
+          "prompt": "Vurder funn uten fix i appsec/tpt-backend, prod-gcp. Bruker vi den sårbare koden?",
+          "scenario": "Spor transitive avhengigheter, kall og konfigurasjon med bevis for hvert advisory"
         },
         {
           "prompt": "Er CVE-2024-47554 et problem for oss, eller er det en falsk positiv?",
           "scenario": "Vurdering av én CVE uten å endre kode"
         },
         {
-          "prompt": "Hvilke apper i teamet har CVE-2024-47554, og kan vi fikse den her?",
-          "scenario": "Én CVE på tvers av workloads"
+          "prompt": "Sjekk bare org.antlr:antlr4-runtime for appen i dette repoet.",
+          "scenario": "Avgrens vurderingen til én pakke og behold resten utenfor omfang"
+        },
+        {
+          "prompt": "Vurder bare Wolfi/APK-pakkene fra Chainguard-imaget, ikke Maven-avhengighetene.",
+          "scenario": "Avgrens til faktisk pakketype og distro fra Nais-funnene"
+        },
+        {
+          "prompt": "Jeg har lagt inn dependency tree og fått tilgang til advisoryet. Fortsett vurderingen.",
+          "scenario": "Gjenbruk gyldige sjekker og gjenoppta bare det som var blokkert"
         }
       ],
       "references": [
