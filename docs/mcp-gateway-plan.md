@@ -11,7 +11,7 @@ Teams ship MCP servers without building their own OAuth. One gateway on Nais han
 | Topic | Decision | Source |
 |---|---|---|
 | Ownership | We build, own and run the gateway for good | [#2088](https://github.com/navikt/copilot/issues/2088) |
-| Login | The gateway is its own OAuth 2.1 authorization server in front of Entra | [#2089](https://github.com/navikt/copilot/issues/2089) |
+| Login | The gateway is its own OAuth 2.1 authorization server in front of Entra; Entra-direct revisited before phase 3 if Nais can support it | [#2089](https://github.com/navikt/copilot/issues/2089) |
 | Refresh tokens | Stored in the gateway, encrypted, at most 10 hours | [#2090](https://github.com/navikt/copilot/issues/2090) |
 | Writes | Read-only at first; writes later as a consent-page scope | [#2091](https://github.com/navikt/copilot/issues/2091) |
 | Audit | One line per tool call, NAVident, 90 days | [#2092](https://github.com/navikt/copilot/issues/2092) |
@@ -35,9 +35,9 @@ Each phase starts only when the previous gate holds.
 | Phase | What | Gate to pass | Tracked in |
 |---|---|---|---|
 | 0 spike | Chained OBO through Texas, stub apps in dev-gcp | A team MCP exchanges the gateway's OBO token for its own downstream token. Fails: the gateway approach is killed | [#2084](https://github.com/navikt/copilot/issues/2084), [#2094](https://github.com/navikt/copilot/pull/2094) |
-| 0b | Minimal authorization server on the dev stub, CIMD only | One `tools/call` from Copilot CLI via CIMD reaches the pilot as the real user; `offline_access` result recorded | [#2084](https://github.com/navikt/copilot/issues/2084) |
+| 0b | Minimal authorization server on the dev stub, CIMD only | One `tools/call` from Copilot CLI via CIMD reaches the pilot as the real user; an audit line names NAVident and the tool; `offline_access` result recorded | [#2084](https://github.com/navikt/copilot/issues/2084) |
 | 1 | cplt host OAuth against the gateway, fixed-port guard, per-route consent, revocation; privacy document | `cplt mcp status` shows `credential_ok`; no token readable in the sandbox; privacy document signed off | [#2085](https://github.com/navikt/copilot/issues/2085), [navikt/cplt#947](https://github.com/navikt/cplt/pull/947) |
-| 2 pilot | Prod route to nav-etterlevelse-mcp, reads only, next to its own OAuth server | 5 users, 2 weeks, zero auth incidents, latency target met | [#2086](https://github.com/navikt/copilot/issues/2086) |
+| 2 pilot | Prod route to nav-etterlevelse-mcp, reads only, next to its own OAuth server | 5 users, 2 weeks, zero auth incidents, latency target met, one survey answer per user | [#2086](https://github.com/navikt/copilot/issues/2086) |
 | 3 | Template repo, direct clients, second team | A second team ships from the template in under a day | [#2087](https://github.com/navikt/copilot/issues/2087) |
 
 ### Registry phases mapped to gateway phases
@@ -46,7 +46,7 @@ Each phase starts only when the previous gate holds.
 |---|---|---|
 | 1 | Database in mcp-registry, writer folded in, static file wins on name collision | After gateway phase 0 passes ([#2098](https://github.com/navikt/copilot/issues/2098)) |
 | 2 | Submit form and `/admin` approval queue | Gateway phase 2 pilot ([#2099](https://github.com/navikt/copilot/issues/2099)) |
-| 3 | Form open to all teams, edit and rollback; the gateway enforces `toolHashes` | Gateway phase 3 ([#2100](https://github.com/navikt/copilot/issues/2100)) |
+| 3 | Form open to all teams, edit, deprecate and rollback; the gateway enforces `toolHashes` | Gateway phase 3 ([#2100](https://github.com/navikt/copilot/issues/2100)) |
 
 The `owner`, `gateway` and `toolHashes` fields are already in the registry response format ([#2101](https://github.com/navikt/copilot/pull/2101)).
 
