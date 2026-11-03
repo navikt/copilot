@@ -143,6 +143,10 @@ Names follow reverse-DNS with exactly one `/`:
 
 `toolRisk` classes the tools in `tools` that do more than read, as `{"tool": "write|external|host-exec"}`. A tool without an entry is a read. `write` changes the repo or project, `external` has a visible effect in another system (an issue, a PR, a file in Figma, outbound traffic), and `host-exec` runs on the user's machine outside cplt's sandbox (a terminal command in IntelliJ, say). It is served under `_meta."io.github.navikt/registry".toolRisk`. `nav-pilot mcp enable` turns on read and write tools and leaves external and host-exec tools off until the user picks them. Every key must be in `tools`, and a server on localhost must list its tools.
 
+`owner`, `gateway` and `toolHashes` are reserved in `_meta."io.github.navikt/registry"` ([#2101](https://github.com/navikt/copilot/pull/2101)) but cannot be set in `allowlist.json` yet. `owner` is the Nais team that answers for the server, `gateway` is the MCP gateway route that fronts a team server, and `toolHashes` pins each tool to a sha256 of its name, description and input schema (not enforced yet).
+
+A database source is planned next to `allowlist.json`: teams will register gateway MCP servers on ki-utvikling, and we approve them in `/admin`. External servers stay PRs to `allowlist.json`. See [docs/mcp-gateway-plan.md](../../docs/mcp-gateway-plan.md).
+
 ### Remote Servers (HTTP)
 
 For MCP servers accessible over the network via Streamable HTTP or SSE:
