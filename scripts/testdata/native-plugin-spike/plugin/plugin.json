@@ -1,0 +1,6 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "native-plugin-probe",
+  "version": "0.0.1",
+  "description": "Isolated diagnostic fixture, not a supported Nav package"
+}

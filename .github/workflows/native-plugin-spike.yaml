@@ -1,0 +1,31 @@
+name: Native plugin fixture
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/testdata/native-plugin-spike/**'
+      - '.github/workflows/native-plugin-spike.yaml'
+      - '.mise.toml'
+      - 'hack/check.sh'
+  push:
+    branches: [main]
+    paths:
+      - 'scripts/testdata/native-plugin-spike/**'
+      - '.github/workflows/native-plugin-spike.yaml'
+      - '.mise.toml'
+      - 'hack/check.sh'
+  merge_group:
+
+permissions:
+  contents: read
+
+jobs:
+  fixture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      # Same command as native-plugin:check, without installing monorepo tools.
+      - run: python3 -B scripts/testdata/native-plugin-spike/test_fixture.py
