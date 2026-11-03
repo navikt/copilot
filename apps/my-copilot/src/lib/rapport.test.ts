@@ -10,6 +10,7 @@ const month = (m: string, basis: AdminMonth["basis"], net: number | null, est: n
   residual_net_usd: 0,
   residual_pct: 0,
   no_team_net_usd: null,
+  no_usage_net_usd: null,
   gross_usd: est,
   estimated_net_usd: est,
   seats: 700,

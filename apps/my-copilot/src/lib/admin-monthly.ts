@@ -22,6 +22,7 @@ export const adminMonthlyHeader = [
   "lisenskostnad_usd_anslag",
   "totalt_inkl_lisenser_usd",
   "estimert_fakturert_hittil_usd",
+  "fakturert_uten_bruksdager_usd",
 ];
 
 /** How to read the numbers: # lines in the CSV, and «Slik leser du tabellen» on the page. */
@@ -34,7 +35,13 @@ export function adminMonthlyCaveats(data: AdminMonthlyOverview): string[] {
     "Estimert fakturert hittil er et foreløpig netto anslag for måneder uten innleste nettobeløp: foreløpig brutto forbruk minus den delen kredittene i lisensene dekker. Kredittene deles av alle i Nav. For måneden som pågår er det samme anslag som «Forbruk hittil» øverst på siden, og det er dette beløpet, ikke foreløpig brutto forbruk, som er med i totalt inkl. lisenser.",
     "Totalraden er summen av de fakturerte månedene. Måneden som pågår er ikke med.",
     "Januar til mai 2026 ble fakturert som premiumforespørsler, ikke KI-kreditter. Totalraden legger dem sammen med månedene fra juni.",
-    `Personer uten team er fakturert beløp for personer som ikke var med i noe team de dagene de brukte Copilot. Teamhistorikken starter ${membership_from || "ukjent dato"}, så feltet er tomt for månedene før.`,
+    `Personer uten team er fakturert beløp for personer uten registrert teamtilhørighet de dagene de brukte Copilot. Teamhistorikken starter ${membership_from || "ukjent dato"}, så feltet er tomt for månedene før.`,
+    "Fakturert uten observerte bruksdager er fakturert beløp for personer som ikke har noen observerte bruksdager med Copilot i måneden.",
+    ...(data.months.some((m) => billed(m) && m.no_usage_net_usd === undefined)
+      ? [
+          "Skillet mellom personer uten registrert team og personer uten observerte bruksdager er utilgjengelig for eldre data. Personer uten team skjules inntil oppdatert datakilde er tilgjengelig.",
+        ]
+      : []),
     seats_snapshot
       ? "Lisenskostnad er et anslag: antall lisenser ganger listepris, uten rabatt. Listeprisen er 19 USD for Business og 39 USD for Enterprise."
       : "Lisensene er ikke lest inn ennå. De vises etter første nattlige innlesing.",
@@ -78,12 +85,13 @@ export function adminMonthlyRows(data: AdminMonthlyOverview): string[][] {
       amount(m.assigned_net_usd),
       amount(m.residual_net_usd),
       amount(m.residual_pct),
-      amount(m.no_team_net_usd),
+      amount(m.no_usage_net_usd !== undefined ? m.no_team_net_usd : null),
       amount(m.gross_usd),
       String(m.seats ?? ""),
       amount(m.licence_usd_estimate),
       amount(m.total_usd),
       amount(m.estimated_net_usd),
+      amount(m.no_usage_net_usd),
     ]),
     adminMonthlyTotalRow(data.months.filter(billed)),
   ];
@@ -105,12 +113,13 @@ function adminMonthlyTotalRow(months: AdminMonth[]): string[] {
     amount(sum((m) => m.assigned_net_usd)),
     amount(residual),
     net && residual != null ? amount((residual / net) * 100) : "",
-    amount(sum((m) => m.no_team_net_usd)),
+    months.some((m) => m.no_usage_net_usd === undefined) ? "" : amount(sum((m) => m.no_team_net_usd)),
     "",
     "",
     months.every((m) => m.licence_usd_estimate != null) ? amount(sum((m) => m.licence_usd_estimate)) : "",
     months.every((m) => m.total_usd != null) ? amount(sum((m) => m.total_usd)) : "",
     "",
+    months.every((m) => m.no_usage_net_usd != null) ? amount(sum((m) => m.no_usage_net_usd)) : "",
   ];
 }
 
@@ -118,6 +127,7 @@ export function adminMonthlyCsv(data: AdminMonthlyOverview): string {
   return (
     [
       `# Copilot-kostnad i USD for hele Nav, ${data.year}`,
+      "# Ny kolonne fra november 2026: fakturert_uten_bruksdager_usd, for personer uten observerte bruksdager i måneden.",
       "# Ny kolonne fra oktober 2026: estimert_fakturert_hittil_usd, for måneden som pågår.",
       "# Nye kolonnenavn fra oktober 2026: netto_usd heter fakturert_usd, restbeløp_* heter ikke_fordelt_*, uten_team_usd heter personer_uten_team_usd, brutto_usd heter foreløpig_forbruk_usd, lisenser_usd_anslag heter lisenskostnad_usd_anslag og totalt_med_lisenser_usd heter totalt_inkl_lisenser_usd. I grunnlag heter Netto nå Fakturert og Brutto (foreløpig) nå Foreløpig forbruk.",
       ...[...adminMonthlyCaveats(data), adminMonthlyCoverage(data)].map((c) => `# ${c}`),
