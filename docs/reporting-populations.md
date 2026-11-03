@@ -34,3 +34,5 @@ In `apps/copilot-api/team_spend.go`, daily net cost is allocated by joining dail
 ### Billed user denominators
 
 In `apps/copilot-api/admin_trends.go`, billed user counts require a complete billing import (`billing_user_monthly_runs.status = 'complete'`) and match rows where `user_id != ''` and `sku != 'done'`. In `apps/my-copilot/src/components/cost-trends.tsx`, months without a complete billing import (`billed = false`) do not expose a per-billed-user rate.
+
+After selecting the latest billing row per user and SKU, the denominator applies `COUNT(DISTINCT user_id)` per month. A user billed for multiple SKUs counts once; counting billing rows would overstate the population ([GetActiveUsersMonthly](../apps/copilot-api/admin_trends.go#L48-L52)).
