@@ -552,19 +552,32 @@ run_suite() {
   for agent in nav-pilot worker; do
     text=$(<"${BATS_TEST_DIRNAME}/../agents/$agent.agent.md")
     [[ "$text" == *'Only under `$__CPLT_WRAPPED`:'* ]]
-    [[ "$text" == *'Scratch and `$TMPDIR` are deleted on exit: helpers only, never worktrees or unfinished work, even if pre-approved or requested in a brief.'* ]]
+    [[ "$text" == *'the cplt sandbox instructions'* ]]
     [[ "$text" == *'beneath non-empty `$CPLT_WORKTREE_ROOT`, only for the known launch repository'* ]]
-    [[ "$text" == *'When `$CPLT_WORKTREE_SOCKET` is set, run `cplt worktree add <name> <ref>`'* ]]
-    [[ "$text" == *'never run plain `git worktree add`'* ]]
     [[ "$text" == *'matching launch and target repositories'* ]]
     [[ "$text" == *'persistent, in-scope checkout verified as the target repository'* ]]
     [[ "$text" == *'Never fall back to scratch.'* ]]
     [[ "$text" == *'Leave permissions and `git worktree remove` to the user outside cplt.'* ]]
     [[ "$text" == *'No nested repositories or outward symlinks'* ]]
   done
+  # Standalone agent installs ship without the instruction file, so the
+  # profiles carry an inline copy of its worktree and scratch rules.
+  local rule
+  while IFS= read -r rule; do
+    for agent in nav-pilot worker; do
+      grep -qxF -- "$rule" "${BATS_TEST_DIRNAME}/../agents/$agent.agent.md" || { echo "$agent lacks: $rule"; false; }
+    done
+  done < <(grep -E '^- (`cplt worktree add|Never run plain|Scratch and)' "${BATS_TEST_DIRNAME}/../instructions/cplt-sandbox.instructions.md")
   text=$(<"${BATS_TEST_DIRNAME}/../agents/worker.agent.md")
   [[ "$text" == *'otherwise hand back.'* ]]
-  [[ "$text" == *'This overrides "Do exactly the brief"; hand back an unsafe destination.'* ]]
+  [[ "$text" == *'override "Do exactly the brief"; hand back an unsafe destination.'* ]]
+  text=$(<"${BATS_TEST_DIRNAME}/../instructions/cplt-sandbox.instructions.md")
+  [[ "$text" == *'applyTo: "**"'* ]]
+  [[ "$text" == *'`cplt worktree add <name> <branch>` checks out an existing local branch'* ]]
+  [[ "$text" == *'`cplt worktree add <name> <ref> -b <new-branch>` creates one. No `git switch` step.'* ]]
+  [[ "$text" == *'Create worktrees only when `$CPLT_WORKTREE_SOCKET` is set; otherwise ask the user to prepare a worktree outside cplt. Never fall back to scratch.'* ]]
+  [[ "$text" == *'Never run plain `git worktree add`'* ]]
+  [[ "$text" == *'Scratch and `$TMPDIR` are deleted when the session ends'* ]]
 }
 
 @test "zones: every red and green item in the instruction appears in the skill, the agent and both pages" {
