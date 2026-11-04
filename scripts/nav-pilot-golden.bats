@@ -552,10 +552,8 @@ run_suite() {
   for agent in nav-pilot worker; do
     text=$(<"${BATS_TEST_DIRNAME}/../agents/$agent.agent.md")
     [[ "$text" == *'Only under `$__CPLT_WRAPPED`:'* ]]
-    [[ "$text" == *'Scratch and `$TMPDIR` are deleted on exit: helpers only, never worktrees or unfinished work, even if pre-approved or requested in a brief.'* ]]
+    [[ "$text" == *'instructions/cplt-sandbox.instructions.md'* ]]
     [[ "$text" == *'beneath non-empty `$CPLT_WORKTREE_ROOT`, only for the known launch repository'* ]]
-    [[ "$text" == *'When `$CPLT_WORKTREE_SOCKET` is set, run `cplt worktree add <name> <ref>`'* ]]
-    [[ "$text" == *'never run plain `git worktree add`'* ]]
     [[ "$text" == *'matching launch and target repositories'* ]]
     [[ "$text" == *'persistent, in-scope checkout verified as the target repository'* ]]
     [[ "$text" == *'Never fall back to scratch.'* ]]
@@ -564,7 +562,13 @@ run_suite() {
   done
   text=$(<"${BATS_TEST_DIRNAME}/../agents/worker.agent.md")
   [[ "$text" == *'otherwise hand back.'* ]]
-  [[ "$text" == *'This overrides "Do exactly the brief"; hand back an unsafe destination.'* ]]
+  [[ "$text" == *'override "Do exactly the brief"; hand back an unsafe destination.'* ]]
+  text=$(<"${BATS_TEST_DIRNAME}/../instructions/cplt-sandbox.instructions.md")
+  [[ "$text" == *'applyTo: "**"'* ]]
+  [[ "$text" == *'`cplt worktree add <name> <ref>`'* ]]
+  [[ "$text" == *'switch <branch>` for an existing branch, `switch -c <branch>` for a new one'* ]]
+  [[ "$text" == *'Never run plain `git worktree add`'* ]]
+  [[ "$text" == *'Scratch and `$TMPDIR` are deleted when the session ends'* ]]
 }
 
 @test "zones: every red and green item in the instruction appears in the skill, the agent and both pages" {

@@ -140,7 +140,7 @@
         "infrastructure"
       ],
       "filePath": "agents/nav-pilot.agent.md",
-      "contentHash": "3cabc463ebd2b54c438e904614b9f4fe42174d3141ff5d38dace57084cf46447",
+      "contentHash": "7bff0d812c1bc39a377b76527db0f8424f5e2a0786a1f00d8b7b63ca991460c1",
       "useCases": [
         "Adding PostgreSQL/Kafka",
         "Troubleshooting deployments",
@@ -243,6 +243,16 @@
       "contentHash": "c3715d3fc2782a5b9784bb74f48765aa10a23014c2a5906a4a71da0e116bc5c6",
       "installUrl": "vscode:chat-instructions/install?url=https://raw.githubusercontent.com/navikt/copilot/main/instructions/accessibility.instructions.md",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/instructions/accessibility.instructions.md"
+    },
+    {
+      "type": "instruction",
+      "name": "cplt-sandbox",
+      "displayName": "cplt-sandkasse",
+      "description": "Regler for agenter som kjører i cplt: worktrees via cplt worktree add, ikke arbeid i scratch, ikke omgå avslag.",
+      "filePath": "instructions/cplt-sandbox.instructions.md",
+      "contentHash": "a9c11f5bc2895310c7e9e18e02d28bd85c9e78eda021af56efc364c17d115b75",
+      "installUrl": "vscode:chat-instructions/install?url=https://raw.githubusercontent.com/navikt/copilot/main/instructions/cplt-sandbox.instructions.md",
+      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/instructions/cplt-sandbox.instructions.md"
     },
     {
       "type": "instruction",
