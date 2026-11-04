@@ -62,8 +62,8 @@ async function RuntimeTelemetry({ token }: { token: string }) {
   return (
     <>
       <BodyShort size="small" textColor="subtle">
-        Siste syv dager fra enheter med nav-pilot, uten utviklerbygg og kjente CI-miljøer. Rader med færre enn fem
-        enheter i et døgn skjules før tallene lagres.
+        Siste syv dager fra enheter med nav-pilot, uten utviklerbygg og kjente CI-miljøer. Enhetstellinger under fem
+        skjules før tallene lagres.
       </BodyShort>
       <HGrid columns={{ xs: 1, sm: 2, lg: 4 }} gap="space-16">
         <MetricCard
@@ -207,8 +207,11 @@ export default async function NavPilotPage() {
       source={
         <>
           Tallene kommer fra copilot-api (<code>/mimir/telemetry</code>). nav-pilot sender telemetri til Mimir,
-          metrikklageret på Nais, og hver natt samles dagen i BigQuery-tabellen <code>mimir_daily</code>. En enhet er en
-          maskin-ID, ikke en person.
+          metrikklageret på Nais, og hver natt samles dagen i BigQuery-tabellen <code>mimir_daily</code>.
+          Enhetstellingene gjelder rullende vinduer på 1, 7 eller 28 dager evaluert i Mimir, ikke kalendermåneder. En
+          enhet er en maskin-ID, ikke en person eller lisens. Daglige enhetstall kan ikke summeres til unike enheter.
+          Øktmetrikker for Copilot og OpenCode ble innført i kildekoden 12. oktober 2026. Det sier ikke når utviklerne
+          installerte versjonen. Fravær av rader er ikke nødvendigvis null aktivitet.
         </>
       }
     >

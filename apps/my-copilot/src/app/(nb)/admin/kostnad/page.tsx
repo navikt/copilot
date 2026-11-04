@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Suspense, cache, type ReactNode } from "react";
 import { SectionSkeleton } from "@/components/section-skeleton";
 import type { CostEvent } from "@/lib/cost-events";
-import { Alert, BodyShort, Link, List, VStack } from "@navikt/ds-react";
+import { BodyShort, Link, List, VStack } from "@navikt/ds-react";
 import { ListItem } from "@navikt/ds-react/List";
 import { Table, TableBody, TableDataCell, TableHeader, TableHeaderCell, TableRow } from "@/components/aksel-table";
 import { InsightPage, InsightSection } from "@/components/insight-page";
@@ -14,7 +14,7 @@ import { getUserToken, requireAdmin } from "@/lib/auth";
 import { getAdminMonthlyOverview, getCostForecast } from "@/lib/cached-bigquery";
 import { adminMonthlyCaveats, adminMonthlyCoverage, adminMonthlyRows, rebuiltSeatMonths } from "@/lib/admin-monthly";
 import { costEvents, eventAnnotations, eventSummary } from "@/lib/cost-events";
-import { formatDate, formatNumber, formatUSD } from "@/lib/format";
+import { formatNumber, formatUSD } from "@/lib/format";
 import { monthName } from "@/lib/team-year";
 import { monthLabel } from "@/lib/trends";
 import type { AdminMonth } from "@/lib/types";
@@ -23,6 +23,7 @@ import { CostTrendsSection } from "@/components/cost-trends";
 import { HighConsumersSection } from "@/components/high-consumers";
 import { BudgetDaysSection } from "@/components/budget-days-section";
 import { CostStatusCards } from "@/components/cost-status-cards";
+import { AdminSourceStatus } from "@/components/admin-source-status";
 import { CostEventsSection } from "@/components/cost-events-section";
 import { RapportDownload } from "@/components/rapport-download";
 
@@ -69,12 +70,7 @@ async function Overview({ token }: { token: string }) {
   const current = data?.months.at(-1);
   return (
     <>
-      {data?.coverage.gross_stale && (
-        <Alert variant="warning" size="small">
-          Foreløpig forbruk er sist hentet for {formatDate(data.coverage.last_gross_day)}, mer enn to døgn siden.
-          Tallene for denne måneden kan være for lave.
-        </Alert>
-      )}
+      <AdminSourceStatus data={data} />
       <CostStatusCards token={token} grossToDate={current?.basis === "gross" ? current.gross_usd : null} />
     </>
   );
