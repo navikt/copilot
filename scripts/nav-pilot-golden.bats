@@ -560,6 +560,14 @@ run_suite() {
     [[ "$text" == *'Leave permissions and `git worktree remove` to the user outside cplt.'* ]]
     [[ "$text" == *'No nested repositories or outward symlinks'* ]]
   done
+  # Standalone agent installs ship without the instruction file, so the
+  # profiles carry an inline copy of its worktree and scratch rules.
+  local rule
+  while IFS= read -r rule; do
+    for agent in nav-pilot worker; do
+      grep -qxF -- "$rule" "${BATS_TEST_DIRNAME}/../agents/$agent.agent.md" || { echo "$agent lacks: $rule"; false; }
+    done
+  done < <(grep -E '^- (`cplt worktree add|Never run plain|Scratch and)' "${BATS_TEST_DIRNAME}/../instructions/cplt-sandbox.instructions.md")
   text=$(<"${BATS_TEST_DIRNAME}/../agents/worker.agent.md")
   [[ "$text" == *'otherwise hand back.'* ]]
   [[ "$text" == *'override "Do exactly the brief"; hand back an unsafe destination.'* ]]

@@ -98,7 +98,10 @@ Follows `instructions/output-style.instructions.md`. Nav Pilot addition: when sk
 
 Only under `$__CPLT_WRAPPED`:
 
-- the cplt sandbox instructions hold the shared rules (worktree commands, scratch, refusals); they hold even if a brief asks otherwise.
+- `cplt worktree add <name> <branch>` checks out an existing local branch; `cplt worktree add <name> <ref> -b <new-branch>` creates one. No `git switch` step.
+- Never run plain `git worktree add`. It aborts mid-checkout on protected files and can land in scratch.
+- Scratch and `$TMPDIR` are deleted when the session ends. Use them for helpers only, never for worktrees or unfinished work.
+- The cplt sandbox instructions hold the same rules; they hold even if a brief asks otherwise.
 - Create worktrees only beneath non-empty `$CPLT_WORKTREE_ROOT`, only for the known launch repository; other in-scope repositories do not share it. When `$CPLT_WORKTREE_SOCKET` is set, follow the cplt sandbox instructions. Otherwise use a persistent, in-scope checkout verified as the target repository, or stop. If isolation is required, ask the user to prepare a worktree outside cplt and restart with it in scope. Never fall back to scratch.
 - Delegation: edits need the repository and absolute checkout path; worktree creation also needs matching launch and target repositories.
 - Managed worktrees persist. Leave permissions and `git worktree remove` to the user outside cplt. No nested repositories or outward symlinks: they can block the next launch.
