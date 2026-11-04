@@ -1,0 +1,18 @@
+{
+  "LICENSE": "417feec2e4a1b1f4d092b047506660f8d833ddb89ae765c0d6d4f1fc44fae4ce",
+  "README.md": "6332bd02a2b66f4453ae8d8588863e6bc35f1897c5e4b2fb8eaf1d83efc54195",
+  "com.github.copilot/agents/nav-design-beta.agent.md": "591fa692088a30f60979effd210d7c13b3840afcf4b3cc262c1530f831d37022",
+  "mcp.json": "462e23a0c5238f624255d7e14bc8e2472ffda14534c0e90dd0046dde150a82f1",
+  "plugin.json": "7dda0242ffcf76c5a32ff664d8b1b3f0f07f5fd0da8448a86b95442aa601f7fa",
+  "skills/aksel-builder/SKILL.md": "8727e318ed714f65ae398d12370ce34c14958f3b166b659d817021f3a17b1846",
+  "skills/aksel-builder/references/accessibility.md": "bb54495b357926ab4a734a806cb6518bbce31a0e3c8fe9a032faf1017e07467b",
+  "skills/aksel-builder/references/components.md": "30d93b746c1c48135a9243cf98959d4ecabfef9de23ee49aa9ef3537f33549fb",
+  "skills/aksel-builder/references/figma-to-code.md": "f1d520d4d6b9699993d3d504c1d1a410b36b42be6e829224090dc09b5bff22a3",
+  "skills/aksel-builder/references/icons.md": "62a7d8304b9a330178bf2ae3ab5c965ab456556e6ec13b9f3b53f9ce9f133ffa",
+  "skills/aksel-builder/references/mcp-workflow.md": "4945b0630e60d1ed881a5b395ef23416983507e8f5d5184301fa64fe40161884",
+  "skills/aksel-builder/references/migrations.md": "7bbd5a0db721e37feb84c68be4f770db38ca54385e87faa1f9ca8dd4e86df9b9",
+  "skills/aksel-builder/references/primitives-layout.md": "f0b995c2d922f4b2ebb8eb951aa735c07faa178aa5a2c8a8a5b2a1a97543f610",
+  "skills/aksel-builder/references/setup-and-imports.md": "e0a46e77a1eca3facf8265dfc617b928902711fb1ba3ab53d7fc87ef92e1ec82",
+  "skills/aksel-builder/references/theming.md": "7733e39c827610e1aa30e5764aeca50cc561e37d51f6c1cba4423fed58d32b65",
+  "skills/aksel-builder/references/tokens-styling.md": "879256ad75a2d22f14826349b44807976ed267b6c71d23ec9f732e0c52aa1255"
+}
