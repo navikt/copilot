@@ -4,6 +4,11 @@ on:
   pull_request:
     paths:
       - 'scripts/testdata/native-plugin-spike/**'
+      - 'scripts/testdata/design-prototype-beta/**'
+      - 'plugins/nav-design-beta/**'
+      - '.github/plugin/marketplace.json'
+      - 'skills/aksel-builder/**'
+      - 'LICENSE'
       - '.github/workflows/native-plugin-spike.yaml'
       - '.mise.toml'
       - 'hack/check.sh'
@@ -11,6 +16,11 @@ on:
     branches: [main]
     paths:
       - 'scripts/testdata/native-plugin-spike/**'
+      - 'scripts/testdata/design-prototype-beta/**'
+      - 'plugins/nav-design-beta/**'
+      - '.github/plugin/marketplace.json'
+      - 'skills/aksel-builder/**'
+      - 'LICENSE'
       - '.github/workflows/native-plugin-spike.yaml'
       - '.mise.toml'
       - 'hack/check.sh'
@@ -27,5 +37,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
         with:
           persist-credentials: false
-      # Same command as native-plugin:check, without installing monorepo tools.
+      # Same commands as native-plugin:check, without installing monorepo tools.
       - run: python3 -B scripts/testdata/native-plugin-spike/test_fixture.py
+      - run: python3 -B scripts/testdata/design-prototype-beta/test_export.py
+      - run: python3 -B scripts/testdata/design-prototype-beta/export.py --check
