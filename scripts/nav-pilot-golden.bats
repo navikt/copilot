@@ -567,7 +567,7 @@ run_suite() {
   [[ "$text" == *'applyTo: "**"'* ]]
   [[ "$text" == *'`cplt worktree add <name> <branch>` checks out an existing local branch'* ]]
   [[ "$text" == *'`cplt worktree add <name> <ref> -b <new-branch>` creates one. No `git switch` step.'* ]]
-  [[ "$text" == *'Only when'* || "$text" == *'only when `$CPLT_WORKTREE_SOCKET` is set'* ]]
+  [[ "$text" == *'Create worktrees only when `$CPLT_WORKTREE_SOCKET` is set; otherwise ask the user to prepare a worktree outside cplt. Never fall back to scratch.'* ]]
   [[ "$text" == *'Never run plain `git worktree add`'* ]]
   [[ "$text" == *'Scratch and `$TMPDIR` are deleted when the session ends'* ]]
 }

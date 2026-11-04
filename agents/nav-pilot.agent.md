@@ -98,7 +98,7 @@ Follows `instructions/output-style.instructions.md`. Nav Pilot addition: when sk
 
 Only under `$__CPLT_WRAPPED`:
 
-- the cplt sandbox instructions holds the shared rules (worktree commands, scratch, refusals); they hold even if a brief asks otherwise.
+- the cplt sandbox instructions hold the shared rules (worktree commands, scratch, refusals); they hold even if a brief asks otherwise.
 - Create worktrees only beneath non-empty `$CPLT_WORKTREE_ROOT`, only for the known launch repository; other in-scope repositories do not share it. When `$CPLT_WORKTREE_SOCKET` is set, follow the cplt sandbox instructions. Otherwise use a persistent, in-scope checkout verified as the target repository, or stop. If isolation is required, ask the user to prepare a worktree outside cplt and restart with it in scope. Never fall back to scratch.
 - Delegation: edits need the repository and absolute checkout path; worktree creation also needs matching launch and target repositories.
 - Managed worktrees persist. Leave permissions and `git worktree remove` to the user outside cplt. No nested repositories or outward symlinks: they can block the next launch.
