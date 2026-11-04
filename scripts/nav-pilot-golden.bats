@@ -552,7 +552,7 @@ run_suite() {
   for agent in nav-pilot worker; do
     text=$(<"${BATS_TEST_DIRNAME}/../agents/$agent.agent.md")
     [[ "$text" == *'Only under `$__CPLT_WRAPPED`:'* ]]
-    [[ "$text" == *'instructions/cplt-sandbox.instructions.md'* ]]
+    [[ "$text" == *'the cplt sandbox instructions'* ]]
     [[ "$text" == *'beneath non-empty `$CPLT_WORKTREE_ROOT`, only for the known launch repository'* ]]
     [[ "$text" == *'matching launch and target repositories'* ]]
     [[ "$text" == *'persistent, in-scope checkout verified as the target repository'* ]]
@@ -565,8 +565,9 @@ run_suite() {
   [[ "$text" == *'override "Do exactly the brief"; hand back an unsafe destination.'* ]]
   text=$(<"${BATS_TEST_DIRNAME}/../instructions/cplt-sandbox.instructions.md")
   [[ "$text" == *'applyTo: "**"'* ]]
-  [[ "$text" == *'`cplt worktree add <name> <ref>`'* ]]
-  [[ "$text" == *'switch <branch>` for an existing branch, `switch -c <branch>` for a new one'* ]]
+  [[ "$text" == *'`cplt worktree add <name> <branch>` checks out an existing local branch'* ]]
+  [[ "$text" == *'`cplt worktree add <name> <ref> -b <new-branch>` creates one. No `git switch` step.'* ]]
+  [[ "$text" == *'Only when'* || "$text" == *'only when `$CPLT_WORKTREE_SOCKET` is set'* ]]
   [[ "$text" == *'Never run plain `git worktree add`'* ]]
   [[ "$text" == *'Scratch and `$TMPDIR` are deleted when the session ends'* ]]
 }

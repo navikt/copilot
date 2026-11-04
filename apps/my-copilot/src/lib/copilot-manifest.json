@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-11-04T10:31:17.650Z",
+  "generatedAt": "2026-11-04T10:55:03.316Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -306,7 +306,7 @@
       "filePath": ".github/agents/nav-pilot.agent.md",
       "repoPath": "agents/nav-pilot.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/agents/nav-pilot.agent.md",
-      "contentHash": "7bff0d812c1bc39a377b76527db0f8424f5e2a0786a1f00d8b7b63ca991460c1",
+      "contentHash": "7dc1daed214da13bfc39942f8c69382d43dab9301ca00c32d3d42c857b1a717e",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fnav-pilot.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fnav-pilot.agent.md",
       "tools": [
@@ -512,7 +512,7 @@
       "filePath": ".github/instructions/cplt-sandbox.instructions.md",
       "repoPath": "instructions/cplt-sandbox.instructions.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/instructions/cplt-sandbox.instructions.md",
-      "contentHash": "a9c11f5bc2895310c7e9e18e02d28bd85c9e78eda021af56efc364c17d115b75",
+      "contentHash": "444dc0451f868f73d6caed7d062a49fe235b23f7c9a6c87d7ffd7283408632e9",
       "installUrl": "/install/instructions?url=vscode%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Finstructions%2Fcplt-sandbox.instructions.md",
       "insidersInstallUrl": "/install/instructions?url=vscode-insiders%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Finstructions%2Fcplt-sandbox.instructions.md",
       "applyTo": "**",

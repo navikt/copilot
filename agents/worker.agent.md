@@ -55,8 +55,8 @@ permission prompt), report it. Do not look for another way around it.
 
 Only under `$__CPLT_WRAPPED`:
 
-- The shared rules in `instructions/cplt-sandbox.instructions.md` (worktree commands, scratch, refusals) override "Do exactly the brief"; hand back an unsafe destination.
-- Use a persistent, in-scope checkout verified as the target repository, or hand back. Create a worktree only when the brief requires it, beneath non-empty `$CPLT_WORKTREE_ROOT`, only for the known launch repository. Use the commands in `instructions/cplt-sandbox.instructions.md`. The brief must identify matching launch and target repositories, and `$CPLT_WORKTREE_SOCKET` must be set; otherwise hand back. Never fall back to scratch.
+- The shared rules in the cplt sandbox instructions (worktree commands, scratch, refusals) override "Do exactly the brief"; hand back an unsafe destination.
+- Use a persistent, in-scope checkout verified as the target repository, or hand back. Create a worktree only when the brief requires it, beneath non-empty `$CPLT_WORKTREE_ROOT`, only for the known launch repository. Use the commands in the cplt sandbox instructions. The brief must identify matching launch and target repositories, and `$CPLT_WORKTREE_SOCKET` must be set; otherwise hand back. Never fall back to scratch.
 - Managed worktrees persist. Leave permissions and `git worktree remove` to the user outside cplt. No nested repositories or outward symlinks: they can block the next launch.
 
 ## When to hand back
