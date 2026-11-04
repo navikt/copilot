@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-10-31T18:16:37.931Z",
+  "generatedAt": "2026-11-03T11:56:30.550Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -1734,6 +1734,30 @@
         {
           "path": "references/template-naisjob.md",
           "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/readme-review/references/template-naisjob.md"
+        }
+      ]
+    },
+    {
+      "id": "repo-pii-audit",
+      "name": "repo-pii-audit",
+      "description": "Kartlegg personopplysninger i repo-filer og Git-historikk og planlegg trygg opprydding. Bruk ved PII-audit, fødselsnummer i testdata, sensitive logger, BFG Repo-Cleaner og git-filter-repo.",
+      "type": "skill",
+      "domain": "auth",
+      "filePath": "skills/repo-pii-audit/SKILL.md",
+      "repoPath": "skills/repo-pii-audit/SKILL.md",
+      "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/repo-pii-audit/SKILL.md",
+      "contentHash": "00654a5dc73b386960e850685dbd66df51aa8fbf3898636ba5387083613ab214",
+      "installUrl": null,
+      "insidersInstallUrl": null,
+      "tags": ["privacy", "pii", "git", "history", "bfg", "git-filter-repo"],
+      "examples": [
+        {
+          "prompt": "Undersøk om repoet har personopplysninger i filer eller historikk uten å vise funnene i chatten",
+          "scenario": "Avgrenset kartlegging før opprydding"
+        },
+        {
+          "prompt": "Vi har slettet en CSV med fødselsnummer, men den ligger i Git-historikken. Bør vi bruke BFG Repo-Cleaner?",
+          "scenario": "Valg av verktøy og godkjent plan for historikkrydding"
         }
       ]
     },

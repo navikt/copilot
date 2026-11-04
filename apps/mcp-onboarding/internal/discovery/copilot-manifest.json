@@ -1015,6 +1015,16 @@
     },
     {
       "type": "skill",
+      "name": "repo-pii-audit",
+      "displayName": "repo-pii-audit",
+      "description": "Kartlegg personopplysninger i filer og Git-historikk, og planlegg trygg opprydding med git-filter-repo eller BFG Repo-Cleaner.",
+      "filePath": "skills/repo-pii-audit/SKILL.md",
+      "contentHash": "00654a5dc73b386960e850685dbd66df51aa8fbf3898636ba5387083613ab214",
+      "installUrl": "",
+      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/repo-pii-audit/SKILL.md"
+    },
+    {
+      "type": "skill",
       "name": "rust-development",
       "displayName": "rust-development",
       "description": "Idiomatisk Rust-utvikling med cargo, clippy, error handling, async/tokio, unsafe og testing",

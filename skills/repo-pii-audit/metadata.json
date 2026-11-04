@@ -1,0 +1,15 @@
+{
+  "description": "Kartlegg personopplysninger i filer og Git-historikk, og planlegg trygg opprydding med git-filter-repo eller BFG Repo-Cleaner.",
+  "domain": "auth",
+  "tags": ["privacy", "pii", "git", "history", "bfg", "git-filter-repo"],
+  "examples": [
+    {
+      "prompt": "Undersøk om repoet har personopplysninger i filer eller historikk uten å vise funnene i chatten",
+      "scenario": "Avgrenset kartlegging før opprydding"
+    },
+    {
+      "prompt": "Vi har slettet en CSV med fødselsnummer, men den ligger i Git-historikken. Bør vi bruke BFG Repo-Cleaner?",
+      "scenario": "Valg av verktøy og godkjent plan for historikkrydding"
+    }
+  ]
+}
