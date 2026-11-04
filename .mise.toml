@@ -55,8 +55,16 @@ description = "Run all checks across all apps"
 run = "bash hack/check.sh"
 
 [tasks."native-plugin:check"]
-description = "Check the isolated native plugin fixture (Python stdlib only)"
-run = "python3 -B scripts/testdata/native-plugin-spike/test_fixture.py"
+description = "Check native plugin diagnostic and design beta fixtures (Python stdlib only)"
+run = [
+  "python3 -B scripts/testdata/native-plugin-spike/test_fixture.py",
+  "python3 -B scripts/testdata/design-prototype-beta/test_export.py",
+  "python3 -B scripts/testdata/design-prototype-beta/export.py --check",
+]
+
+[tasks."native-plugin:generate"]
+description = "Generate the staged nav-design-beta local-source package"
+run = "python3 -B scripts/testdata/design-prototype-beta/export.py"
 
 [tasks.test]
 description = "Run tests across all apps"
