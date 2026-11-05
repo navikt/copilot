@@ -31,6 +31,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${BASE_URL}/nav-pilot/guider/cplt-gradle`, changeFrequency: "monthly", priority: 0.6 },
     { url: `${BASE_URL}/nav-pilot/guider/cplt-node`, changeFrequency: "monthly", priority: 0.6 },
     { url: `${BASE_URL}/nav-pilot/guider/cplt-git`, changeFrequency: "monthly", priority: 0.6 },
+    { url: `${BASE_URL}/nav-pilot/guider/cplt-flere-repoer`, changeFrequency: "monthly", priority: 0.6 },
     { url: `${BASE_URL}/nav-pilot/guider/cplt-nettverk`, changeFrequency: "monthly", priority: 0.6 },
     { url: `${BASE_URL}/nav-pilot/guider/cplt-feilmeldinger`, changeFrequency: "monthly", priority: 0.6 },
     { url: `${BASE_URL}/nav-pilot/guider/feilsoking`, changeFrequency: "monthly", priority: 0.6 },

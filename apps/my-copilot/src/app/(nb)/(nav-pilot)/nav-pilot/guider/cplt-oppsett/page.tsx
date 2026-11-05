@@ -122,6 +122,13 @@ cplt trust accept --all`}
             {`cplt config set --repo allow.localhost 5432   # legger forslaget i .cplt.toml     
 cplt init --write --merge                     # legger til nye funn, fjerner ingenting`}
           </CodeBlock>
+          <BodyLong>
+            Trenger agenten flere repoer, kan <code className={code}>.cplt.toml</code> også foreslå dem, se{" "}
+            <NextLink href="/nav-pilot/guider/cplt-flere-repoer" className={linkClass}>
+              Flere repoer og deling i team
+            </NextLink>
+            .
+          </BodyLong>
         </VStack>
       </section>
 
