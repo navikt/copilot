@@ -161,7 +161,7 @@ gh pr create --head min-branch`}
           </BodyLong>
           <CodeBlock compact>{`cplt link navikt/annet-repo`}</CodeBlock>
           <BodyLong>
-            Repoet får samme tilgang som prosjektmappa: lese, skrive og kjøre. Slik deler du lista med teamet, står i{" "}
+            Repoet får samme tilgang som prosjektmappa: lese, skrive og kjøre. Hvordan du deler lista med teamet, står i{" "}
             <NextLink href="/nav-pilot/guider/cplt-flere-repoer" className={linkClass}>
               Flere repoer og deling i team
             </NextLink>

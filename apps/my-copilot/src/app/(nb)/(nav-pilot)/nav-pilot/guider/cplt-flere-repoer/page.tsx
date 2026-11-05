@@ -62,7 +62,7 @@ export default function CpltFlereRepoer() {
               virker mot repoet.
             </li>
             <li>
-              Git-vakten beskytter standard-branchen til hvert repo, også om den heter noe annet enn{" "}
+              Git-vakten beskytter default branch i hvert repo, også om den heter noe annet enn{" "}
               <code className={code}>main</code>.
             </li>
             <li>
@@ -91,7 +91,7 @@ git push`}
           </CodeBlock>
           <BodyLong>Fila får en liste med navn på repoer, aldri stier:</BodyLong>
           <CodeBlock filename=".cplt.toml">{`[propose]
-repos = ["navikt/sykepenger-model"]`}</CodeBlock>
+repos = ["navikt/sykepenger-model", "navikt/spleis-testdata"]`}</CodeBlock>
           <BodyLong>
             Lista er et forslag. Den gir ingen tilgang før hver kollega har godkjent den på sin egen maskin. Fila må
             være sjekket inn: cplt ser bort fra <code className={code}>repos</code> i en{" "}
@@ -106,8 +106,8 @@ repos = ["navikt/sykepenger-model"]`}</CodeBlock>
             Det kollegaen ser
           </LinkableHeading>
           <BodyLong>
-            Når en kollega puller og starter agenten, sier cplt fra om forslaget før oppstartsoversikten. Agenten får
-            ikke tilgang til repoene ennå:
+            Når en kollega har hentet endringen og starter agenten, sier cplt fra om forslaget før oppstartsoversikten.
+            Agenten får ikke tilgang til repoene ennå:
           </BodyLong>
           <CodeBlock compact>
             {`[cplt] Untrusted .cplt.toml: 1 unapproved permission(s), not applied. Review: cplt trust
@@ -141,7 +141,6 @@ repos = ["navikt/sykepenger-model"]`}</CodeBlock>
             Har du allerede lenket et repo selv, lar godkjenningen det være. Angrer du, fjern det godkjenningen la til:
           </BodyLong>
           <CodeBlock compact>{`cplt trust revoke repos`}</CodeBlock>
-          <BodyLong>Repoer du lenket selv med cplt link, blir stående.</BodyLong>
         </VStack>
       </section>
 
@@ -156,7 +155,7 @@ repos = ["navikt/sykepenger-model"]`}</CodeBlock>
           </BodyLong>
           <Bullets>
             <li>
-              Lista har navn, ikke stier. En sjekket inn fil kan ikke peke cplt på en mappe den selv velger. Det er
+              Lista har navn, ikke stier. En innsjekket fil kan ikke peke cplt til en mappe fila selv velger. Det er
               maskinen din som bestemmer hvor repoene ligger.
             </li>
             <li>Et forslag som ikke er godkjent, gir ingenting.</li>
@@ -188,9 +187,9 @@ repos = ["navikt/sykepenger-model"]`}</CodeBlock>
           </LinkableHeading>
           <Bullets>
             <li>
-              En utsjekking nummer to av samme repo kan ikke godkjenne <code className={code}>repos</code>, fordi
+              Har du to kloner av samme repo, kan bare én av dem godkjenne <code className={code}>repos</code>, fordi
               godkjenningen lagres per <code className={code}>origin</code>. Bruk{" "}
-              <code className={code}>cplt link</code> der.
+              <code className={code}>cplt link</code> i den andre.
             </li>
             <li>
               En fork blir ikke funnet, fordi <code className={code}>origin</code> peker på forken.
@@ -202,7 +201,7 @@ repos = ["navikt/sykepenger-model"]`}</CodeBlock>
             <li>Et monorepo kan bare legges til i sin helhet.</li>
             <li>
               Bare repoet du starter fra, kan foreslå. Står det <code className={code}>[propose]</code> i et lenket
-              repo, ser cplt bort fra det.
+              repo, sier cplt fra ved oppstart og bruker det ikke.
             </li>
           </Bullets>
           <BodyLong>
