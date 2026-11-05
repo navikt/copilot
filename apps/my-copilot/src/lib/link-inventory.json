@@ -1185,8 +1185,25 @@
       "yarnrc": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-feilmeldinger/page.tsx"]
     }
   },
+  "/nav-pilot/guider/cplt-flere-repoer": {
+    "sources": [
+      "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-flere-repoer/page.tsx",
+      "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-git/page.tsx",
+      "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-oppsett/page.tsx",
+      "apps/my-copilot/src/app/sitemap.ts",
+      "apps/my-copilot/src/components/nav-pilot/doc-pages.ts"
+    ],
+    "anchors": {
+      "begrensninger": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-flere-repoer/page.tsx"],
+      "dele": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-flere-repoer/page.tsx"],
+      "kollega": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-flere-repoer/page.tsx"],
+      "legg-til": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-flere-repoer/page.tsx"],
+      "sikkerhet": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-flere-repoer/page.tsx"]
+    }
+  },
   "/nav-pilot/guider/cplt-git": {
     "sources": [
+      "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-flere-repoer/page.tsx",
       "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-git/page.tsx",
       "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/referanse/cplt-begrensninger/page.tsx",
       "apps/my-copilot/src/app/sitemap.ts",
@@ -1295,6 +1312,7 @@
   "/nav-pilot/guider/cplt-oppsett": {
     "sources": [
       "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/sandkassen/page.tsx",
+      "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-flere-repoer/page.tsx",
       "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-oppsett/page.tsx",
       "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/feilsoking/page.tsx",
       "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/kom-i-gang/page.tsx",
