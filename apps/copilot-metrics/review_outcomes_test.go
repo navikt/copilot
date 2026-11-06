@@ -89,3 +89,21 @@ func TestRepositoryBreakdownsRequireCompleteCounts(t *testing.T) {
 		}
 	}
 }
+
+func TestRepositoryViewWithholdsAmbiguousScopes(t *testing.T) {
+	data, err := os.ReadFile("views/v_repository_usage.sql")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{
+		"PARTITION BY scope, scope_id, JSON_VALUE(raw_record, '$.repo_id'), day\n    ORDER BY loaded_at DESC",
+		"GROUP BY repo_id, day\n  HAVING COUNTIF(NULLIF(JSON_VALUE(raw_record, '$.enterprise_id'), '') IS NULL) > 0",
+		"COUNT(DISTINCT CONCAT(scope, ':', scope_id)) > 1",
+		"SELECT * FROM scoped_latest AS candidate",
+		"WHERE NOT EXISTS (\n    SELECT 1 FROM ambiguous_repos\n    WHERE ambiguous_repos.repo_id = JSON_VALUE(candidate.raw_record, '$.repo_id')",
+	} {
+		if !strings.Contains(string(data), want) {
+			t.Errorf("missing ambiguity safeguard: %s", want)
+		}
+	}
+}

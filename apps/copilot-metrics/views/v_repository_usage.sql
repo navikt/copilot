@@ -28,8 +28,26 @@
 -- All pull_requests.* metrics are NULL for pre-GA (2026-07-17) days — the
 -- repos-1-day report did not exist before GA, so those days contribute nothing.
 CREATE OR REPLACE VIEW `%s.%s.v_repository_usage` AS
-WITH source AS (
+WITH scoped_latest AS (
   SELECT * FROM {{repository_metrics}}
+  QUALIFY ROW_NUMBER() OVER (
+    PARTITION BY scope, scope_id, JSON_VALUE(raw_record, '$.repo_id'), day
+    ORDER BY loaded_at DESC
+  ) = 1
+), ambiguous_repos AS (
+  -- Without parent enterprise identity, overlapping scopes cannot be reconciled.
+  SELECT JSON_VALUE(raw_record, '$.repo_id') AS repo_id
+  FROM scoped_latest
+  GROUP BY repo_id, day
+  HAVING COUNTIF(NULLIF(JSON_VALUE(raw_record, '$.enterprise_id'), '') IS NULL) > 0
+    AND COUNT(DISTINCT CONCAT(scope, ':', scope_id)) > 1
+), source AS (
+  SELECT * FROM scoped_latest AS candidate
+  -- Withhold the whole rollup, not just ambiguous days that would hide missing counts.
+  WHERE NOT EXISTS (
+    SELECT 1 FROM ambiguous_repos
+    WHERE ambiguous_repos.repo_id = JSON_VALUE(candidate.raw_record, '$.repo_id')
+  )
   QUALIFY ROW_NUMBER() OVER (
     PARTITION BY COALESCE(NULLIF(JSON_VALUE(raw_record, '$.enterprise_id'), ''), CONCAT(scope, ':', scope_id)),
       JSON_VALUE(raw_record, '$.repo_id'), day
