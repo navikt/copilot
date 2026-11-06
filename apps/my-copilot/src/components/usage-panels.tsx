@@ -10,6 +10,7 @@ const CLIENT_LABELS: Record<string, string> = {
   vscode: "VS Code",
   copilot_cli: "Copilot CLI",
   opencode: "OpenCode",
+  jetbrains: "JetBrains",
   other: "andre",
 };
 

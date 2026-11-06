@@ -11,7 +11,7 @@ import { formatNumber } from "@/lib/format";
 export interface RankedItem {
   label: string;
   value: number | null;
-  /** Shown after the number, e.g. the source of a skill. */
+  /** A second line under the label, e.g. the source of a skill. */
   note?: string;
 }
 
@@ -20,21 +20,39 @@ interface ValueLabelOptions {
 }
 
 const UNKNOWN = "Ukjent";
+const VALUE_FONT = "600 12px sans-serif";
+const CHAR_PX = 7;
 
-// Draws the number at the end of each bar, so nobody has to hover or read an axis.
+// Axis labels are right-aligned, so text wider than the axis is clipped on the left. Cut to what fits.
+const cut = (text: string, axisPx: number) => {
+  const max = Math.max(6, Math.floor(axisPx / CHAR_PX));
+  return text.length > max ? `${text.slice(0, max - 1)}…` : text;
+};
+
+const axisWidth = (chartWidth: number) => Math.min(140, Math.round(chartWidth * 0.4));
+
+// Draws the number at the end of each bar, so nobody has to hover or read an axis. The right padding is measured from
+// the actual texts, so seven-digit counts are not clipped and short ones do not waste space.
 const valueLabels: Plugin<"bar", ValueLabelOptions> = {
   id: "valueLabels",
+  beforeLayout(chart, _args, { texts }) {
+    chart.ctx.save();
+    chart.ctx.font = VALUE_FONT;
+    const widest = Math.max(0, ...texts.map((t) => chart.ctx.measureText(t).width));
+    chart.ctx.restore();
+    chart.options.layout = { ...chart.options.layout, padding: { right: Math.ceil(widest) + 12 } };
+  },
   afterDatasetsDraw(chart, _args, { texts }) {
     const { ctx } = chart;
     const bars = chart.getDatasetMeta(0).data as BarElement[];
     ctx.save();
     ctx.textBaseline = "middle";
     ctx.textAlign = "left";
-    ctx.font = "600 12px sans-serif";
+    ctx.font = VALUE_FONT;
     ctx.fillStyle = axColor("text-neutral");
     texts.forEach((text, i) => {
       const bar = bars[i];
-      const x = bar && !text.startsWith(UNKNOWN) ? bar.x : chart.scales.x.getPixelForValue(0);
+      const x = bar && text !== UNKNOWN ? bar.x : chart.scales.x.getPixelForValue(0);
       ctx.fillText(text, x + 6, bar?.y ?? 0);
     });
     ctx.restore();
@@ -64,10 +82,11 @@ export default function RankedBars({
   /** The full numbers for the fold, header first. */
   rows: string[][];
 }) {
-  const texts = items.map((i) => (i.value == null ? UNKNOWN : formatNumber(i.value)) + (i.note ? ` · ${i.note}` : ""));
+  const texts = items.map((i) => (i.value == null ? UNKNOWN : formatNumber(i.value)));
+  const twoLines = items.some((i) => i.note);
+  const shown = rows.length - 1 > items.length ? items.length : null;
   const options = {
     ...commonHorizontalBarOptions,
-    layout: { padding: { right: items.some((i) => i.note) ? 120 : 56 } },
     plugins: {
       ...commonHorizontalBarOptions.plugins,
       valueLabels: { texts },
@@ -79,8 +98,20 @@ export default function RankedBars({
         ...commonHorizontalBarOptions.scales.y,
         ticks: {
           ...commonHorizontalBarOptions.scales.y.ticks,
-          font: { size: 13 },
+          font: { size: twoLines ? 12 : 13 },
           color: () => axColor("text-neutral"),
+          callback(
+            this: { chart: { width: number }; getLabelForValue: (v: number) => string | string[] },
+            value: string | number
+          ) {
+            const raw = this.getLabelForValue(Number(value));
+            const px = axisWidth(this.chart.width) - 8;
+            return Array.isArray(raw) ? raw.map((r) => cut(r, px)) : cut(raw, px);
+          },
+        },
+        // Never more than 40 % of the chart, so the bars keep their room on a phone.
+        afterFit: (axis: { width: number; chart: { width: number } }) => {
+          axis.width = Math.min(axis.width, axisWidth(axis.chart.width));
         },
       },
       x: { ...commonHorizontalBarOptions.scales.x, display: false, ...(max ? { max } : {}) },
@@ -96,12 +127,13 @@ export default function RankedBars({
       </BodyShort>
       <ChartFigure
         summary={summary}
-        height={Math.max(96, items.length * 32 + 16)}
+        height={Math.max(96, items.length * (twoLines ? 44 : 32) + 16)}
+        tableLabel={shown ? `Vis alle ${rows.length - 1} rader, diagrammet viser de ${shown} øverste` : undefined}
         table={rows}
         chart={
           <Bar
             data={{
-              labels: items.map((i) => i.label),
+              labels: items.map((i) => (i.note ? [i.label, i.note] : i.label)),
               datasets: [
                 {
                   data: items.map((i) => i.value),

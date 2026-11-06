@@ -111,7 +111,16 @@ describe("topTakeaway", () => {
         )
       )
     ).toBe("a har flest kall blant radene med kjente tall: 3 av 3 i radene, 100 %.");
-    expect(topTakeaway([{ label: "a", value: 3 }], "kall", true)).toContain("blant de viste radene");
+    expect(
+      topTakeaway(
+        [
+          { label: "a", value: 3 },
+          { label: "b", value: 1 },
+        ],
+        "kall",
+        true
+      )
+    ).toBe("a har flest kall blant de viste radene: 3.");
   });
 });
 
@@ -134,6 +143,8 @@ describe("EditorPanels leaders", () => {
   it("labels vscode like the client panels and keeps the raw name", () => {
     expect(editorLabel("vscode")).toBe("VS Code");
     expect(clientLabel("vscode")).toBe("VS Code");
+    expect(clientLabel("jetbrains")).toBe("JetBrains");
+    expect(clientLabel("newtool")).toBe("newtool");
     render(
       <EditorPanels
         editors={[
