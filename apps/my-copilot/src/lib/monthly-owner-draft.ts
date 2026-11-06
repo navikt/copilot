@@ -1,3 +1,4 @@
+import { formatNumber } from "./format";
 import type { AdminMonth, AdminMonthlyOverview, CohortRetention, CopilotPRMonth } from "./types";
 
 export function previousUtcMonth(now: Date): string {
@@ -70,7 +71,7 @@ export function buildMonthlyOwnerDraft({
         share <= 100
       ) {
         findings.push(
-          `Av ${cohort.cohort_size} brukere med første observerte aktivitet i ${cohortMonth} ble ${share} % observert aktive igjen i ${month}, ${offset} ${offset === 1 ? "måned" : "måneder"} senere, M${offset}.`
+          `Av ${formatNumber(cohort.cohort_size)} brukere med første observerte aktivitet i ${cohortMonth} ble ${share} % observert aktive igjen i ${month}, ${offset} ${offset === 1 ? "måned" : "måneder"} senere, M${offset}.`
         );
       }
     }
@@ -86,7 +87,7 @@ export function buildMonthlyOwnerDraft({
     prError
       ? "Kunne ikke hente PR-tall. Prøv igjen før gjennomgang."
       : pr && month >= "2026-08" && pr.days === days
-        ? `I offentlige og interne repoer er ${pr.created_by_copilot} PR-er opprettet av Copilot og ${pr.reviewed_by_copilot} gjennomgått av Copilot observert over ${pr.days} dager.`
+        ? `I offentlige og interne repoer er ${formatNumber(pr.created_by_copilot)} PR-er opprettet av Copilot og ${formatNumber(pr.reviewed_by_copilot)} gjennomgått av Copilot observert over ${formatNumber(pr.days)} dager.`
         : "PR-tall er ikke tilgjengelige med full månedsdekning for offentlige og interne repoer. Kilden starter 17. juli 2026; manglende dager er ikke null aktivitet."
   );
   findings.push(

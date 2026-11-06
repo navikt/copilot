@@ -80,6 +80,15 @@ describe("monthly owner draft", () => {
       true
     );
   });
+  it("formats cohort and PR counts with Norwegian thousands separators", () => {
+    const draft = buildMonthlyOwnerDraft({
+      ...input(),
+      cohorts: [{ cohort_month: "2026-09", cohort_size: 1000, m1: 50, m3: null, m6: null }],
+      prs: [{ month: "2026-10", created_by_copilot: 1234, reviewed_by_copilot: 12345, days: 31 }],
+    });
+    assert.match(draft.findings[0], /Av 1\u00a0000 brukere/);
+    assert.match(draft.findings[1], /1\u00a0234 PR-er.*12\u00a0345 gjennomgått.*31 dager/);
+  });
   it("does not calculate change across missing, partial or different billing bases", () => {
     for (const months of [[row()], [row("2026-09", "gross"), row()], [row("2026-09", "premium"), row()]]) {
       assert.match(
