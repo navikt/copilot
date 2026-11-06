@@ -18,7 +18,7 @@ import { InsightPage, InsightSection } from "@/components/insight-page";
 import RepositoryUsageTable from "@/components/repository-usage-table";
 import UsageQuality from "@/components/usage-quality";
 import ReviewOutcomes from "@/components/review-outcomes";
-import EditorUsageTable from "@/components/editor-usage-table";
+import { ClientPanels, EditorPanels } from "@/components/usage-panels";
 import TrendChart from "@/components/charts/TrendChart";
 import MonthlyTrendsChart from "@/components/charts/MonthlyTrendsChart";
 import AdoptionCohortsChart from "@/components/charts/AdoptionCohortsChart";
@@ -304,20 +304,12 @@ async function Clients({ token }: { token: string }) {
   return (
     <>
       <BodyShort>
-        Forespørsler og økter per verktøy de siste 28 dagene. Navnene er slik GitHub oppgir dem, for eksempel{" "}
-        <code>vscode</code>, <code>copilot_cli</code> og <code>opencode</code>. GitHub har tall per verktøy fra 23.
-        oktober 2026, så fram til 20. november dekker summen færre enn 28 dager.
+        Forespørsler og økter per verktøy de siste 28 dagene. Kjente navn vises med lesbar tekst. Under «Vis tallene»
+        står navnene slik GitHub oppgir dem, for eksempel <code>vscode</code>, <code>copilot_cli</code> og{" "}
+        <code>opencode</code>. GitHub har tall per verktøy fra 23. oktober 2026, så fram til 20. november dekker summen
+        færre enn 28 dager.
       </BodyShort>
-      <PlainTable
-        rows={[
-          ["Verktøy", "Forespørsler", "Økter"],
-          ...clients.map((c) => [
-            c.client === "other" ? "andre" : c.client,
-            formatNumber(c.requests),
-            formatNumber(c.sessions),
-          ]),
-        ]}
-      />
+      <ClientPanels clients={clients} />
     </>
   );
 }
@@ -333,7 +325,7 @@ async function Editors({ token }: { token: string }) {
         28-dagersvindu som slutter siste dag med kildedata, ikke unike brukere. Perioden og antall observerte dager
         vises per editor. Manglende felt vises som ukjent, ikke null.
       </BodyShort>
-      <EditorUsageTable editors={editors} />
+      <EditorPanels editors={editors} />
     </>
   );
 }
@@ -485,9 +477,15 @@ export default async function BrukPage() {
       </InsightSection>
 
       <InsightSection id="verktoy" title="Bruk per verktøy">
+        <LinkableHeading id="verktoy-foresporsler" size="small" level="3">
+          Forespørsler og økter
+        </LinkableHeading>
         <Suspense fallback={fallback}>
           <Clients token={token} />
         </Suspense>
+        <LinkableHeading id="editorer" size="small" level="3">
+          Aktivitet per editor
+        </LinkableHeading>
         <Suspense fallback={fallback}>
           <Editors token={token} />
         </Suspense>
