@@ -12,11 +12,13 @@ import {
   getDailySummary,
   getRepositoryUsage,
   getClientUsage,
+  getEditorUsage,
 } from "@/lib/cached-bigquery";
 import { InsightPage, InsightSection } from "@/components/insight-page";
 import RepositoryUsageTable from "@/components/repository-usage-table";
 import UsageQuality from "@/components/usage-quality";
 import ReviewOutcomes from "@/components/review-outcomes";
+import EditorUsageTable from "@/components/editor-usage-table";
 import TrendChart from "@/components/charts/TrendChart";
 import MonthlyTrendsChart from "@/components/charts/MonthlyTrendsChart";
 import AdoptionCohortsChart from "@/components/charts/AdoptionCohortsChart";
@@ -320,6 +322,22 @@ async function Clients({ token }: { token: string }) {
   );
 }
 
+async function Editors({ token }: { token: string }) {
+  const { editors, error } = await getEditorUsage(token);
+  if (error) return <BodyShort>Kunne ikke hente aktivitet per editor.</BodyShort>;
+  if (!editors.length) return <BodyShort>Ingen data om editorer ennå. Det betyr ikke null aktivitet.</BodyShort>;
+  return (
+    <>
+      <BodyShort>
+        Copilot-aktivitet per editor fra GitHubs totals_by_ide, for enterprise Nav. Tallene summerer hendelser i et
+        28-dagersvindu som slutter siste dag med kildedata, ikke unike brukere. Perioden og antall observerte dager
+        vises per editor. Manglende felt vises som ukjent, ikke null.
+      </BodyShort>
+      <EditorUsageTable editors={editors} />
+    </>
+  );
+}
+
 async function ModelFamilies({ token }: { token: string }) {
   // 36 months is the most the endpoint returns.
   const { breakdown, error } = await getBillingModelBreakdown(token, 36);
@@ -387,8 +405,11 @@ export default async function BrukPage() {
           <code>/adoption/cohorts</code>. Pull requests og daglig aktivitet bruker de siste 28 dagene fra{" "}
           <code>/usage/metrics</code>, og tid til første review kommer fra <code>/usage/daily-summary</code> (
           <code>v_daily_summary</code>). Bruk per verktøy summerer de siste 28 dagene fra <code>/usage/clients</code> (
-          <code>v_client_stats</code>). Repoene gjelder hele perioden med data, uten private repoer og uten repoer med
-          færre enn fem PR-er. «Sist oppdatert» er siste dag med data i <code>v_daily_summary</code>.
+          <code>v_client_stats</code>). Editoraktivitet bruker <code>/usage/editors</code> fra{" "}
+          <code>usage_metrics</code>, enterprise Nav, siste 28 dager regnet fra siste kildedag. Ved flere innlastinger
+          brukes siste rad per dag og scope før editorene pakkes ut. Hendelser er ikke personer, lisenser eller unike
+          aktive brukere. Repoene gjelder hele perioden med data, uten private repoer og uten repoer med færre enn fem
+          PR-er. «Sist oppdatert» er siste dag med data i <code>v_daily_summary</code>.
         </>
       }
     >
@@ -466,6 +487,9 @@ export default async function BrukPage() {
       <InsightSection id="verktoy" title="Bruk per verktøy">
         <Suspense fallback={fallback}>
           <Clients token={token} />
+        </Suspense>
+        <Suspense fallback={fallback}>
+          <Editors token={token} />
         </Suspense>
       </InsightSection>
 

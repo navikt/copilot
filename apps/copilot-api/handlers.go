@@ -113,6 +113,7 @@ func makeAPIRouter(config *Config, bqHandlers *BigQueryHandlers, ghHandlers *Git
 	mux.HandleFunc("GET /api/v1/copilot/usage/segments", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleUserSegments })))
 	mux.HandleFunc("GET /api/v1/copilot/usage/repositories", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleRepositoryUsage })))
 	mux.HandleFunc("GET /api/v1/copilot/usage/clients", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleClientUsage })))
+	mux.HandleFunc("GET /api/v1/copilot/usage/editors", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleEditorUsage })))
 
 	// Admin-only cost insight: spend and budget are internal. Every admin
 	// route lives on adminMux, guarded once by requireAdmin.

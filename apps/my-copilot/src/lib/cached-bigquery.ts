@@ -41,6 +41,7 @@ import type {
   UsageDistribution,
   RepositoryUsage,
   ClientUsage,
+  EditorUsage,
   NavPilotTelemetry,
 } from "./types";
 
@@ -194,6 +195,13 @@ export async function getClientUsage(token: string): Promise<{ clients: ClientUs
     backendRequest<ClientUsage[]>("/api/v1/copilot/usage/clients", token)
   );
   return { clients: result.data, error: result.error };
+}
+
+export async function getEditorUsage(token: string): Promise<{ editors: EditorUsage[]; error: string | null }> {
+  const result = await fetchWithFallback("getEditorUsage", [] as EditorUsage[], () =>
+    backendRequest<EditorUsage[]>("/api/v1/copilot/usage/editors", token)
+  );
+  return { editors: result.data, error: result.error };
 }
 
 export async function getUserDailyCredits(
