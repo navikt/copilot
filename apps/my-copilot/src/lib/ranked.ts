@@ -1,12 +1,27 @@
 import { formatNumber, formatShare } from "@/lib/format";
 
-export const sumKnown = (values: (number | null)[]) => values.reduce<number>((s, v) => s + (v ?? 0), 0);
+interface Row {
+  label: string;
+  value: number | null;
+}
 
-/** «X har flest Y: n av total, share.» Rows must be sorted, largest first; unknown (null) rows are left out of the total. */
-export function topTakeaway(rows: { label: string; value: number | null }[], what: string) {
-  const known = rows.filter((r) => r.value != null);
-  const total = sumKnown(known.map((r) => r.value));
-  const top = known[0];
-  if (!top || total === 0) return `Ingen ${what} i perioden.`;
-  return `${top.label} har flest ${what}: ${formatNumber(top.value!)} av ${formatNumber(total)}, ${formatShare(top.value! / total)}.`;
+/**
+ * One sentence about the largest row. The leader is found here, never taken from display order, because panels
+ * can share another panel's order. Unknown (null) is not zero: all unknown is «ikke tilgjengelig», all zero is zero,
+ * and with some unknown rows the total is only «blant radene med kjente tall». `listedOnly` is for top-N lists,
+ * whose total covers the listed rows and not everything that was counted.
+ */
+export function topTakeaway(rows: Row[], what: string, listedOnly = false) {
+  const known = rows.filter((r): r is { label: string; value: number } => r.value != null);
+  if (known.length === 0) return `Tall for ${what} er ikke tilgjengelig.`;
+  const total = known.reduce((s, r) => s + r.value, 0);
+  if (total === 0) return `Alle observerte rader har 0 ${what}.`;
+  const max = Math.max(...known.map((r) => r.value));
+  const leaders = known.filter((r) => r.value === max).map((r) => r.label);
+  const scope = listedOnly
+    ? " blant de viste radene"
+    : known.length < rows.length
+      ? " blant radene med kjente tall"
+      : "";
+  return `${leaders.join(" og ")} har flest ${what}${scope}: ${formatNumber(max)} av ${formatNumber(total)}${listedOnly || known.length < rows.length ? " i radene" : ""}, ${formatShare(max / total)}.`;
 }

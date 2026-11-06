@@ -1,7 +1,7 @@
 vi.mock("react-chartjs-2", () => ({ Bar: () => null }));
 
 import { render, screen } from "@testing-library/react";
-import { ClientPanels, EditorPanels, editorLabel, looksLikeVersion } from "./usage-panels";
+import { ClientPanels, EditorPanels, clientLabel, editorLabel, looksLikeVersion } from "./usage-panels";
 import { topTakeaway } from "@/lib/ranked";
 
 describe("ClientPanels", () => {
@@ -53,7 +53,7 @@ describe("EditorPanels", () => {
     expect(screen.getByText(/1 av 2 mangler tall/)).toBeInTheDocument();
     expect(screen.getByText(/14 dager med data/)).toBeInTheDocument();
     expect(screen.getAllByText("Ukjent").length).toBeGreaterThan(0);
-    expect(screen.getByText("1.138.0")).toBeInTheDocument(); // raw name in the full table
+    expect(screen.getAllByText("1.138.0").length).toBeGreaterThan(0); // raw name in the full table
   });
   it("flags only version-like names", () => {
     expect(looksLikeVersion("1.138.0")).toBe(true);
@@ -63,16 +63,92 @@ describe("EditorPanels", () => {
 });
 
 describe("topTakeaway", () => {
-  it("leaves unknown out of the total and handles empty data", () => {
+  const nb = (s: string) => s.replace(/\u00a0/g, " ");
+  it("finds the leader regardless of order and names ties", () => {
+    expect(
+      nb(
+        topTakeaway(
+          [
+            { label: "a", value: 1 },
+            { label: "b", value: 9 },
+          ],
+          "kall"
+        )
+      )
+    ).toBe("b har flest kall: 9 av 10, 90 %.");
     expect(
       topTakeaway(
         [
-          { label: "a", value: 3 },
-          { label: "b", value: null },
+          { label: "a", value: 5 },
+          { label: "b", value: 5 },
         ],
         "kall"
       )
-    ).toBe("a har flest kall: 3 av 3, 100\u00a0%.");
-    expect(topTakeaway([], "kall")).toBe("Ingen kall i perioden.");
+    ).toContain("a og b har flest");
+  });
+  it("does not call unknown zero", () => {
+    expect(topTakeaway([{ label: "a", value: null }], "kall")).toBe("Tall for kall er ikke tilgjengelig.");
+    expect(topTakeaway([], "kall")).toBe("Tall for kall er ikke tilgjengelig.");
+    expect(
+      topTakeaway(
+        [
+          { label: "a", value: 0 },
+          { label: "b", value: 0 },
+        ],
+        "kall"
+      )
+    ).toBe("Alle observerte rader har 0 kall.");
+  });
+  it("qualifies partial and top-N totals", () => {
+    expect(
+      nb(
+        topTakeaway(
+          [
+            { label: "a", value: 3 },
+            { label: "b", value: null },
+          ],
+          "kall"
+        )
+      )
+    ).toBe("a har flest kall blant radene med kjente tall: 3 av 3 i radene, 100 %.");
+    expect(topTakeaway([{ label: "a", value: 3 }], "kall", true)).toContain("blant de viste radene");
+  });
+});
+
+describe("EditorPanels leaders", () => {
+  it("computes each metric's leader independently of the shared order", () => {
+    const e = (editor: string, generations: number, acceptances: number, interactions: number) => ({
+      editor,
+      first_day: "2026-10-01",
+      last_day: "2026-10-28",
+      days: 28,
+      generations,
+      acceptances,
+      interactions,
+    });
+    render(<EditorPanels editors={[e("alfa", 10, 1, 100), e("beta", 5, 50, 20)]} />);
+    expect(screen.getByText(/alfa har flest genereringer/)).toBeInTheDocument();
+    expect(screen.getByText(/beta har flest aksepteringer/)).toBeInTheDocument();
+    expect(screen.getByText(/alfa har flest interaksjoner/)).toBeInTheDocument();
+  });
+  it("labels vscode like the client panels and keeps the raw name", () => {
+    expect(editorLabel("vscode")).toBe("VS Code");
+    expect(clientLabel("vscode")).toBe("VS Code");
+    render(
+      <EditorPanels
+        editors={[
+          {
+            editor: "vscode",
+            first_day: "2026-10-01",
+            last_day: "2026-10-28",
+            days: 28,
+            generations: 1,
+            acceptances: 1,
+            interactions: 1,
+          },
+        ]}
+      />
+    );
+    expect(screen.getAllByText("vscode").length).toBeGreaterThan(0);
   });
 });

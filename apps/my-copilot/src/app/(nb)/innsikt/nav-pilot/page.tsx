@@ -146,7 +146,7 @@ async function RuntimeTelemetry({ token }: { token: string }) {
               {skills.length > 0 && (
                 <RankedBars
                   title="Skills etter innlastinger"
-                  takeaway={`${topTakeaway(skills, "innlastinger")} Kilden står etter tallet.`}
+                  takeaway={`${topTakeaway(skills, "innlastinger", true)} Kilden står etter tallet.`}
                   summary="De mest innlastede skillene siste syv dager, med kilde."
                   items={skills}
                   rows={[
@@ -159,7 +159,7 @@ async function RuntimeTelemetry({ token }: { token: string }) {
             {agents.length > 0 && (
               <RankedBars
                 title="Subagenter etter valg"
-                takeaway={topTakeaway(agents, "valg")}
+                takeaway={topTakeaway(agents, "valg", true)}
                 summary="De mest valgte subagentene siste syv dager."
                 items={agents}
                 color={1}
@@ -189,7 +189,7 @@ async function RuntimeTelemetry({ token }: { token: string }) {
             {tools.length > 0 && (
               <RankedBars
                 title="Verktøykall i økt"
-                takeaway={topTakeaway(tools, "kall")}
+                takeaway={topTakeaway(tools, "kall", true)}
                 summary="Verktøykall i økter siste syv dager."
                 items={tools}
                 color={3}

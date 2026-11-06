@@ -18,7 +18,8 @@ export const clientLabel = (raw: string) => CLIENT_LABELS[raw] ?? raw;
 
 /** GitHub has reported a version number («1.138.0») as an editor name. Keep the row, flag the label. */
 export const looksLikeVersion = (name: string) => /^\d+(\.\d+){1,3}$/.test(name);
-export const editorLabel = (name: string) => (looksLikeVersion(name) ? `${name} (uvanlig navn)` : name);
+export const editorLabel = (name: string) =>
+  looksLikeVersion(name) ? `${name} (uvanlig navn)` : name === "vscode" ? CLIENT_LABELS.vscode : name;
 
 /** Requests and sessions are different units: two panels in the same row order, each on its own scale, no ratio. */
 export function ClientPanels({ clients }: { clients: ClientUsage[] }) {
@@ -80,17 +81,19 @@ export function EditorPanels({ editors }: { editors: EditorUsage[] }) {
               key={key}
               title={title}
               takeaway={
-                topTakeaway(
-                  [...items].sort((a, b) => (b.value ?? -1) - (a.value ?? -1)),
-                  title.toLowerCase()
-                ) + (missing ? ` ${formatNumber(missing)} av ${formatNumber(items.length)} mangler tall.` : "")
+                topTakeaway(items, title.toLowerCase()) +
+                (missing ? ` ${formatNumber(missing)} av ${formatNumber(items.length)} mangler tall.` : "")
               }
               summary={`${title} per editor siste 28 dager, i samme editorrekkefølge som de andre panelene.`}
               items={items}
               color={color}
               rows={[
-                ["Editor", title],
-                ...items.map((i) => [i.label, i.value == null ? "Ukjent" : formatNumber(i.value)]),
+                ["Editor", "GitHubs navn", title],
+                ...order.map((e) => [
+                  editorLabel(e.editor),
+                  e.editor,
+                  e[key] == null ? "Ukjent" : formatNumber(e[key]),
+                ]),
               ]}
             />
           );

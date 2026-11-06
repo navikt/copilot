@@ -19,6 +19,7 @@ describe("DeviceClientCoverage", () => {
     expect(within(screen.getByText("OpenCode").closest("tr")!).getByText("Ukjent")).toBeInTheDocument();
     expect(within(screen.getByText("Pi").closest("tr")!).getByText("0")).toBeInTheDocument();
     expect(within(screen.getByText("user / nav-pilot").closest("tr")!).getByText("0")).toBeInTheDocument();
+    expect(within(screen.getByText("Pi").closest("tr")!).queryByText("Ukjent")).toBeNull();
     expect(screen.getByText(/ikke bruk/)).toBeInTheDocument();
     expect(screen.getByText(/kan ikke summeres/)).toBeInTheDocument();
   });
