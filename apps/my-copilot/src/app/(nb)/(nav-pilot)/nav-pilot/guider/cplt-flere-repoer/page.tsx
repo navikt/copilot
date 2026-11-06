@@ -89,6 +89,13 @@ git add .cplt.toml
 git commit -m "chore: propose sykepenger-model for cplt sessions"
 git push`}
           </CodeBlock>
+          <BodyLong>
+            Vil du også dele resten av oppsettet, kjør <code className={code}>cplt init</code> før du committer. Den
+            foreslår innstillinger for prosjektet og repoer fra lenkene dine. <code className={code}>--write</code>{" "}
+            skriver forslaget inn i <code className={code}>.cplt.toml</code>. Har fila bare{" "}
+            <code className={code}>[propose] repos</code> fra før, beholder den repoene:
+          </BodyLong>
+          <CodeBlock compact>{`cplt init --write`}</CodeBlock>
           <BodyLong>Fila får en liste med navn på repoer, aldri stier:</BodyLong>
           <CodeBlock filename=".cplt.toml">{`[propose]
 repos = ["navikt/sykepenger-model", "navikt/spleis-testdata"]`}</CodeBlock>
@@ -97,6 +104,11 @@ repos = ["navikt/sykepenger-model", "navikt/spleis-testdata"]`}</CodeBlock>
             være sjekket inn: cplt ser bort fra <code className={code}>repos</code> i en{" "}
             <code className={code}>.cplt.toml</code> som ikke er committet.
           </BodyLong>
+          <BodyLong>
+            Det gjelder deg også. Etter commit viser <code className={code}>cplt trust</code> forslaget ditt som ikke
+            godkjent, akkurat som hos kollegaene. Godkjenn det selv:
+          </BodyLong>
+          <CodeBlock compact>{`cplt trust accept --all`}</CodeBlock>
         </VStack>
       </section>
 
@@ -128,14 +140,32 @@ repos = ["navikt/sykepenger-model", "navikt/spleis-testdata"]`}</CodeBlock>
           </BodyLong>
           <CodeBlock compact>{`Clone navikt/sykepenger-model into /Users/deg/kode/sykepenger-model? [Y/n]`}</CodeBlock>
           <BodyLong>
-            Svarer du ja, kloner cplt repoet, sjekker <code className={code}>origin</code> og lenker det. Uten terminal
-            skriver cplt bare klonekommandoen og kjører ingenting. Til slutt står det hvor mange av de foreslåtte
-            repoene som er lenket.
+            Svarer du ja, kloner cplt repoet, sjekker <code className={code}>origin</code> og lenker det. Til slutt står
+            det hvor mange av de foreslåtte repoene som er lenket. Uten terminal kloner{" "}
+            <code className={code}>cplt trust accept repos</code> ingenting, men skriver ut kommandoen så du kan kjøre
+            den selv:
           </BodyLong>
+          <CodeBlock compact>
+            {`  Clone it beside this repository, then approve again:
+    gh repo clone navikt/sykepenger-model '/Users/deg/kode/sykepenger-model' && cplt trust accept repos`}
+          </CodeBlock>
           <BodyLong>
             Kloner du et repo senere, sier oppstarten fra om at det ikke er lenket. Kjør{" "}
-            <code className={code}>cplt trust accept repos</code> på nytt, så blir det lagt til. Det samme gjelder når
-            noen legger et nytt repo i lista.
+            <code className={code}>cplt trust accept repos</code> på nytt, så blir det lagt til.
+          </BodyLong>
+          <BodyLong>
+            Legger noen et nytt repo i lista, må bare <code className={code}>repos</code> godkjennes på nytt. Andre
+            nøkler du har godkjent, gjelder fortsatt. <code className={code}>cplt trust</code> viser hva som er nytt:
+          </BodyLong>
+          <CodeBlock compact>
+            {`[cplt]    repos                               ○ pending
+[cplt]      • navikt/sykepenger-model: linked → /Users/deg/kode/sykepenger-model
+[cplt]      + navikt/spleis-testdata: not linked, not found (new since last approval)`}
+          </CodeBlock>
+          <BodyLong>
+            Godkjenn med <code className={code}>cplt trust accept repos</code>. Har du godkjent med en eldre versjon av
+            cplt, blir alle nøklene spurt om på nytt én gang. Godkjenn med{" "}
+            <code className={code}>cplt trust accept --all</code>; fra da av gjelder godkjenningen per nøkkel.
           </BodyLong>
           <BodyLong>
             Har du allerede lenket et repo selv, lar godkjenningen det være. Angrer du, fjern det godkjenningen la til:
@@ -164,8 +194,9 @@ repos = ["navikt/sykepenger-model", "navikt/spleis-testdata"]`}</CodeBlock>
               en lenke varer.
             </li>
             <li>
-              Godkjenningen gjelder akkurat dette forslaget i denne utsjekkingen. Endrer noen lista, må du godkjenne på
-              nytt.
+              Godkjenningen gjelder hver nøkkel for seg, i denne utsjekkingen. Legger noen til et repo, spør cplt bare
+              om <code className={code}>repos</code> på nytt og viser hva som er lagt til og fjernet. Andre nøkler du
+              har godkjent, beholder godkjenningen så lenge verdien er den samme.
             </li>
             <li>cplt kloner aldri noe uten å spørre deg.</li>
           </Bullets>
