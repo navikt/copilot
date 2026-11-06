@@ -96,7 +96,8 @@ func TestRepositoryViewWithholdsAmbiguousScopes(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, want := range []string{
-		"PARTITION BY scope, scope_id, JSON_VALUE(raw_record, '$.repo_id'), day\n    ORDER BY loaded_at DESC",
+		"SELECT * REPLACE (LOWER(scope_id) AS scope_id) FROM {{repository_metrics}}",
+		"PARTITION BY scope, LOWER(scope_id), JSON_VALUE(raw_record, '$.repo_id'), day\n    ORDER BY loaded_at DESC",
 		"GROUP BY repo_id, day\n  HAVING COUNTIF(NULLIF(JSON_VALUE(raw_record, '$.enterprise_id'), '') IS NULL) > 0",
 		"COUNT(DISTINCT CONCAT(scope, ':', scope_id)) > 1",
 		"SELECT * FROM scoped_latest AS candidate",

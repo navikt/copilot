@@ -29,9 +29,9 @@
 -- repos-1-day report did not exist before GA, so those days contribute nothing.
 CREATE OR REPLACE VIEW `%s.%s.v_repository_usage` AS
 WITH scoped_latest AS (
-  SELECT * FROM {{repository_metrics}}
+  SELECT * REPLACE (LOWER(scope_id) AS scope_id) FROM {{repository_metrics}}
   QUALIFY ROW_NUMBER() OVER (
-    PARTITION BY scope, scope_id, JSON_VALUE(raw_record, '$.repo_id'), day
+    PARTITION BY scope, LOWER(scope_id), JSON_VALUE(raw_record, '$.repo_id'), day
     ORDER BY loaded_at DESC
   ) = 1
 ), ambiguous_repos AS (

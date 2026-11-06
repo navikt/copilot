@@ -106,6 +106,14 @@ func TestReviewOutcomesInlineBigQuery(t *testing.T) {
 	add(reloaded, "", "enterprise", "nav", "2026-11-06 01:00:00+00")
 	add(reloaded, "1001", "enterprise", "nav", "2026-11-06 02:00:00+00")
 	add(reloaded, "1001", "organization", "navikt", "2026-11-06 03:00:00+00")
+	// Case variants are one source, including missing-parent reloads and later days.
+	for i, scopeID := range []string{"MiXeD", "mixed", "MIXED"} {
+		day := "2026-11-03"
+		if i == 2 {
+			day = "2026-11-04"
+		}
+		add(map[string]any{"day": day, "repo_id": 12, "repo_visibility": "PUBLIC"}, "", "enterprise", scopeID, fmt.Sprintf("2026-11-06 0%d:00:00+00", i+1))
+	}
 	view, err := os.ReadFile("views/v_repository_usage.sql")
 	if err != nil {
 		t.Fatal(err)
@@ -135,7 +143,8 @@ func TestReviewOutcomesInlineBigQuery(t *testing.T) {
  (SELECT COUNT(*) FROM results, UNNEST(review_breakdowns) WHERE repo_id=8 AND ((label='high' AND evaluated=20 AND addressed IS NULL) OR (label='low' AND evaluated IS NULL AND addressed=0))) AS partial_breakdowns,
  COUNTIF(repo_id=9) AS ambiguous_repo,
  COUNTIF(repo_id=10 AND scope_id='fallback') AS isolated_fallback,
- COUNTIF(repo_id=11 AND scope_id='nav' AND pr_total_created=5) AS latest_identity
+ COUNTIF(repo_id=11 AND scope_id='nav' AND pr_total_created=5) AS latest_identity,
+ COUNTIF(repo_id=12 AND scope_id='mixed' AND pr_total_created=10 AND days_with_data=2) AS case_variants
  FROM results`
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
@@ -156,7 +165,7 @@ func TestReviewOutcomesInlineBigQuery(t *testing.T) {
 	if err := it.Next(&row); err != nil {
 		t.Fatal(err)
 	}
-	if len(row) != 16 {
+	if len(row) != 17 {
 		t.Fatalf("unexpected result: %v", row)
 	}
 	got.Repos = row[0].(int64)
@@ -168,7 +177,7 @@ func TestReviewOutcomesInlineBigQuery(t *testing.T) {
 	got.UnknownLabels = row[6].(int64)
 	got.Rate = row[7].(float64)
 	got.MissingObjects = row[8].(int64)
-	if got.Repos != 9 || got.Evaluated != 20 || got.Addressed != 6 || got.Days != 6 || got.OtherScopes != 1 || got.ZeroBot != 1 || got.UnknownLabels != 1 || got.MissingObjects != 1 || got.Rate != 0.3 || row[9] != int64(1) || row[10] != int64(1) || row[11] != int64(1) || row[12] != int64(2) || row[13] != int64(0) || row[14] != int64(1) || row[15] != int64(1) {
+	if got.Repos != 10 || got.Evaluated != 20 || got.Addressed != 6 || got.Days != 6 || got.OtherScopes != 1 || got.ZeroBot != 1 || got.UnknownLabels != 1 || got.MissingObjects != 1 || got.Rate != 0.3 || row[9] != int64(1) || row[10] != int64(1) || row[11] != int64(1) || row[12] != int64(2) || row[13] != int64(0) || row[14] != int64(1) || row[15] != int64(1) || row[16] != int64(1) {
 		t.Fatalf("actual view result: %+v", got)
 	}
 }
