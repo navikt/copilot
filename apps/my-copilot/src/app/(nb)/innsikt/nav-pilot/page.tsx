@@ -10,6 +10,7 @@ import { TableBody, TableDataCell, TableHeader, TableHeaderCell, TableRow } from
 import { InsightPage, InsightSection } from "@/components/insight-page";
 import { formatNumber, formatShare } from "@/lib/format";
 import type { NavPilotTelemetry } from "@/lib/types";
+import DeviceClientCoverage from "@/components/device-client-coverage";
 
 export const metadata: Metadata = {
   title: "nav-pilot i bruk",
@@ -21,6 +22,8 @@ const telemetryFor = cache(getNavPilotTelemetry);
 function hasTelemetry(t: NavPilotTelemetry): boolean {
   return (
     t.devices_7d > 0 ||
+    Object.values(t.client_available_7d ?? {}).some((n) => n != null) ||
+    (t.install_present_7d?.length ?? 0) > 0 ||
     t.devices_1d > 0 ||
     t.devices_28d > 0 ||
     t.user_scope_devices_7d > 0 ||
@@ -103,6 +106,7 @@ async function RuntimeTelemetry({ token }: { token: string }) {
           }
         />
       </HGrid>
+      <DeviceClientCoverage telemetry={t} />
       {totalSessions > 0 && (
         <BodyShort size="small" textColor="subtle">
           Observerte økter siste syv dager: {formatNumber(totalSessions)} økter med {formatNumber(totalTurns)} turer

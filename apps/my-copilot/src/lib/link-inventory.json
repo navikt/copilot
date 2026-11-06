@@ -242,6 +242,7 @@
       "ai-credits-per-bruker": ["apps/my-copilot/src/app/(nb)/innsikt/bruk/page.tsx"],
       "ai-modeller-i-bruk": ["apps/my-copilot/src/app/(nb)/innsikt/bruk/page.tsx"],
       "daglig-aktivitet": ["apps/my-copilot/src/app/(nb)/innsikt/bruk/page.tsx"],
+      "datakvalitet": ["apps/my-copilot/src/app/(nb)/innsikt/bruk/page.tsx"],
       "kilde-og-metode": ["apps/my-copilot/src/components/insight-page.tsx"],
       "kostnad": [
         "apps/my-copilot/src/app/(nb)/innsikt/bruk/page.tsx",
