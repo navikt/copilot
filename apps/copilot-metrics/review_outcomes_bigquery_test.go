@@ -32,8 +32,12 @@ func TestReviewOutcomesInlineBigQuery(t *testing.T) {
 			copy[k] = v
 		}
 		copy["enterprise_id"] = enterprise
-		copy["repo_owner_name"] = "synthetic"
-		copy["repo_name"] = fmt.Sprint(copy["repo_id"])
+		if _, ok := copy["repo_owner_name"]; !ok {
+			copy["repo_owner_name"] = "synthetic"
+		}
+		if _, ok := copy["repo_name"]; !ok {
+			copy["repo_name"] = fmt.Sprint(copy["repo_id"])
+		}
 		if _, ok := copy["pull_requests"]; !ok {
 			copy["pull_requests"] = map[string]any{"total_created": 5}
 		}
@@ -61,6 +65,28 @@ func TestReviewOutcomesInlineBigQuery(t *testing.T) {
 	add(private, "1001", "enterprise", "nav", "2026-11-06 02:00:00+00")
 	add(map[string]any{"day": "2026-11-03", "repo_id": 4, "repo_visibility": "PUBLIC"}, "1001", "enterprise", "nav", "2026-11-06 02:00:00+00")
 	add(map[string]any{"day": "2026-11-03", "repo_id": 5, "repo_visibility": "PUBLIC", "pull_requests": map[string]any{"total_created": 1}}, "1001", "enterprise", "nav", "2026-11-06 02:00:00+00")
+	// Renames retain the existing per-name privacy threshold and must not share breakdowns.
+	for i, name := range []string{"old", "new"} {
+		count := int64(4 + 2*i)
+		add(map[string]any{
+			"day": fmt.Sprintf("2026-11-0%d", 3+i), "repo_id": 6, "repo_name": name, "repo_visibility": "PUBLIC",
+			"copilot_code_review": map[string]any{
+				"total_comments_evaluated": count, "total_comments_addressed": int64(2),
+				"review_comments_by_severity": []any{map[string]any{"severity": "high", "total_comments_evaluated": count, "total_comments_addressed": int64(2)}},
+			},
+		}, "1001", "enterprise", "nav", "2026-11-06 02:00:00+00")
+	}
+	add(map[string]any{
+		"day": "2026-11-03", "repo_id": 8, "repo_visibility": "PUBLIC",
+		"copilot_code_review": map[string]any{
+			"review_comments_by_severity": []any{
+				map[string]any{"severity": "high", "total_comments_evaluated": 10, "total_comments_addressed": 1},
+				map[string]any{"severity": "high", "total_comments_evaluated": 10},
+				map[string]any{"severity": "low", "total_comments_addressed": 0},
+				map[string]any{"severity": "low", "total_comments_evaluated": 0, "total_comments_addressed": 0},
+			},
+		},
+	}, "3003", "enterprise", "partial", "2026-11-06 02:00:00+00")
 	view, err := os.ReadFile("views/v_repository_usage.sql")
 	if err != nil {
 		t.Fatal(err)
@@ -84,7 +110,10 @@ func TestReviewOutcomesInlineBigQuery(t *testing.T) {
  (SELECT COUNT(*) FROM results, UNNEST(review_breakdowns) WHERE dimension='severity' AND label='unknown') AS unknown_labels,
  SAFE_DIVIDE(SUM(IF(scope_id='nav',review_comments_addressed,0)),SUM(IF(scope_id='nav',review_comments_evaluated,0))) AS rate,
  COUNTIF(repo_id=4 AND review_comments_evaluated IS NULL AND review_outcome_days=0) AS missing_objects,
- COUNTIF(scope_id='nav' AND repo_id=1 AND review_comment_days=2 AND review_outcome_days=3) AS partial_days
+ COUNTIF(scope_id='nav' AND repo_id=1 AND review_comment_days=2 AND review_outcome_days=3) AS partial_days,
+ COUNTIF(repo_id=6 AND repo_name='old' AND review_comments_evaluated=4 AND ARRAY_LENGTH(review_breakdowns)=1 AND review_breakdowns[SAFE_OFFSET(0)].evaluated=4) AS old_name,
+ COUNTIF(repo_id=6 AND repo_name='new' AND review_comments_evaluated=6 AND ARRAY_LENGTH(review_breakdowns)=1 AND review_breakdowns[SAFE_OFFSET(0)].evaluated=6) AS new_name,
+ (SELECT COUNT(*) FROM results, UNNEST(review_breakdowns) WHERE repo_id=8 AND ((label='high' AND evaluated=20 AND addressed IS NULL) OR (label='low' AND evaluated IS NULL AND addressed=0))) AS partial_breakdowns
  FROM results`
 	ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 	defer cancel()
@@ -105,7 +134,7 @@ func TestReviewOutcomesInlineBigQuery(t *testing.T) {
 	if err := it.Next(&row); err != nil {
 		t.Fatal(err)
 	}
-	if len(row) != 10 {
+	if len(row) != 13 {
 		t.Fatalf("unexpected result: %v", row)
 	}
 	got.Repos = row[0].(int64)
@@ -117,7 +146,7 @@ func TestReviewOutcomesInlineBigQuery(t *testing.T) {
 	got.UnknownLabels = row[6].(int64)
 	got.Rate = row[7].(float64)
 	got.MissingObjects = row[8].(int64)
-	if got.Repos != 4 || got.Evaluated != 10 || got.Addressed != 2 || got.Days != 4 || got.OtherScopes != 1 || got.ZeroBot != 1 || got.UnknownLabels != 1 || got.MissingObjects != 1 || got.Rate != 0.2 || row[9] != int64(1) {
+	if got.Repos != 7 || got.Evaluated != 20 || got.Addressed != 6 || got.Days != 6 || got.OtherScopes != 1 || got.ZeroBot != 1 || got.UnknownLabels != 1 || got.MissingObjects != 1 || got.Rate != 0.3 || row[9] != int64(1) || row[10] != int64(1) || row[11] != int64(1) || row[12] != int64(2) {
 		t.Fatalf("actual view result: %+v", got)
 	}
 }

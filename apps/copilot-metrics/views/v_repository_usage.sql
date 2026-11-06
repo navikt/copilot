@@ -65,15 +65,17 @@ WITH source AS (
   -- Privacy safeguard 1: never surface private repositories.
   WHERE JSON_VALUE(raw_record, '$.repo_visibility') IN ('PUBLIC', 'INTERNAL')
 ), dimension_counts AS (
-  SELECT repo_id, scope_id, dimension,
+  SELECT repo_id, repo_owner, repo_name, scope_id, dimension,
     IFNULL(CASE dimension
       WHEN 'severity' THEN JSON_VALUE(entry, '$.severity')
       WHEN 'review_tier' THEN JSON_VALUE(entry, '$.review_tier')
       WHEN 'comment_type' THEN JSON_VALUE(entry, '$.comment_type')
       WHEN 'customization' THEN JSON_VALUE(entry, '$.customization')
     END, 'unknown') AS label,
-    SUM(SAFE_CAST(JSON_VALUE(entry, '$.total_comments_evaluated') AS INT64)) AS evaluated,
-    SUM(SAFE_CAST(JSON_VALUE(entry, '$.total_comments_addressed') AS INT64)) AS addressed
+    IF(COUNT(SAFE_CAST(JSON_VALUE(entry, '$.total_comments_evaluated') AS INT64)) = COUNT(*),
+      SUM(SAFE_CAST(JSON_VALUE(entry, '$.total_comments_evaluated') AS INT64)), NULL) AS evaluated,
+    IF(COUNT(SAFE_CAST(JSON_VALUE(entry, '$.total_comments_addressed') AS INT64)) = COUNT(*),
+      SUM(SAFE_CAST(JSON_VALUE(entry, '$.total_comments_addressed') AS INT64)), NULL) AS addressed
   FROM daily,
   UNNEST([
     STRUCT('severity' AS dimension, JSON_QUERY_ARRAY(raw_record, '$.copilot_code_review.review_comments_by_severity') AS entries),
@@ -81,12 +83,12 @@ WITH source AS (
     STRUCT('comment_type', JSON_QUERY_ARRAY(raw_record, '$.copilot_code_review.review_comments_by_comment_type')),
     STRUCT('customization', JSON_QUERY_ARRAY(raw_record, '$.copilot_code_review.review_comments_by_customization'))
   ]), UNNEST(entries) AS entry
-  GROUP BY repo_id, scope_id, dimension, label
+  GROUP BY repo_id, repo_owner, repo_name, scope_id, dimension, label
 ), breakdowns AS (
-  SELECT repo_id, scope_id,
+  SELECT repo_id, repo_owner, repo_name, scope_id,
     ARRAY_AGG(STRUCT(dimension, label, evaluated, addressed) ORDER BY dimension, label) AS review_breakdowns
   FROM dimension_counts
-  GROUP BY repo_id, scope_id
+  GROUP BY repo_id, repo_owner, repo_name, scope_id
 ), totals AS (
 SELECT
   repo_id,
@@ -134,5 +136,5 @@ GROUP BY repo_id, repo_owner, repo_name, scope_id
 HAVING pr_total_created >= 5
 )
 SELECT totals.*, IFNULL(breakdowns.review_breakdowns, []) AS review_breakdowns
-FROM totals LEFT JOIN breakdowns USING (repo_id, scope_id)
+FROM totals LEFT JOIN breakdowns USING (repo_id, repo_owner, repo_name, scope_id)
 ORDER BY pr_created_by_copilot DESC;

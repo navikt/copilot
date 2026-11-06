@@ -5,18 +5,16 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-
-	"cloud.google.com/go/bigquery"
 )
 
 type EditorUsage struct {
-	Editor       string             `bigquery:"editor" json:"editor"`
-	FirstDay     string             `bigquery:"first_day" json:"first_day"`
-	LastDay      string             `bigquery:"last_day" json:"last_day"`
-	Days         int64              `bigquery:"days" json:"days"`
-	Generations  bigquery.NullInt64 `bigquery:"generations" json:"generations"`
-	Acceptances  bigquery.NullInt64 `bigquery:"acceptances" json:"acceptances"`
-	Interactions bigquery.NullInt64 `bigquery:"interactions" json:"interactions"`
+	Editor       string `bigquery:"editor" json:"editor"`
+	FirstDay     string `bigquery:"first_day" json:"first_day"`
+	LastDay      string `bigquery:"last_day" json:"last_day"`
+	Days         int64  `bigquery:"days" json:"days"`
+	Generations  *int64 `bigquery:"generations" json:"generations"`
+	Acceptances  *int64 `bigquery:"acceptances" json:"acceptances"`
+	Interactions *int64 `bigquery:"interactions" json:"interactions"`
 }
 
 func editorUsageQuery(table string) string {

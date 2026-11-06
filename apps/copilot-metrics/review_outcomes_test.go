@@ -46,12 +46,46 @@ func TestReviewOutcomeViewPreservesNullAndPrivacy(t *testing.T) {
 		t.Fatal(err)
 	}
 	sql := string(data)
-	for _, want := range []string{"IN ('PUBLIC', 'INTERNAL')", "HAVING pr_total_created >= 5", "SUM(review_comments_evaluated)", "COUNT(DISTINCT IF(has_review_outcomes, day, NULL))", "MIN(IF(has_review_outcomes, day, NULL))", "GROUP BY repo_id, scope_id, dimension, label"} {
+	for _, want := range []string{"IN ('PUBLIC', 'INTERNAL')", "HAVING pr_total_created >= 5", "SUM(review_comments_evaluated)", "COUNT(DISTINCT IF(has_review_outcomes, day, NULL))", "MIN(IF(has_review_outcomes, day, NULL))", "GROUP BY repo_id, repo_owner, repo_name, scope_id, dimension, label"} {
 		if !strings.Contains(sql, want) {
 			t.Errorf("missing SQL contract: %s", want)
 		}
 	}
 	if strings.Contains(sql, "COALESCE(review_comments") || strings.Contains(sql, "day >= '2026-11-05'") {
 		t.Fatal("must not turn unknown into zero or discard pre-announcement data")
+	}
+}
+
+func TestRepositoryViewIdentityContracts(t *testing.T) {
+	data, err := os.ReadFile("views/v_repository_usage.sql")
+	if err != nil {
+		t.Fatal(err)
+	}
+	sql := string(data)
+	for _, want := range []string{
+		"PARTITION BY COALESCE(NULLIF(JSON_VALUE(raw_record, '$.enterprise_id'), ''), CONCAT(scope, ':', scope_id))",
+		"JSON_VALUE(raw_record, '$.repo_id'), day",
+		"ORDER BY IF(scope = 'enterprise', 0, 1), loaded_at DESC",
+		"GROUP BY repo_id, repo_owner, repo_name, scope_id, dimension, label",
+		"GROUP BY repo_id, repo_owner, repo_name, scope_id\n), totals",
+		"GROUP BY repo_id, repo_owner, repo_name, scope_id\n-- Privacy",
+		"LEFT JOIN breakdowns USING (repo_id, repo_owner, repo_name, scope_id)",
+	} {
+		if !strings.Contains(sql, want) {
+			t.Errorf("missing identity contract: %s", want)
+		}
+	}
+}
+
+func TestRepositoryBreakdownsRequireCompleteCounts(t *testing.T) {
+	data, err := os.ReadFile("views/v_repository_usage.sql")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, field := range []string{"evaluated", "addressed"} {
+		want := "IF(COUNT(SAFE_CAST(JSON_VALUE(entry, '$.total_comments_" + field + "') AS INT64)) = COUNT(*),\n      SUM(SAFE_CAST(JSON_VALUE(entry, '$.total_comments_" + field + "') AS INT64)), NULL) AS " + field
+		if !strings.Contains(string(data), want) {
+			t.Errorf("partial %s breakdowns must remain unknown", field)
+		}
 	}
 }

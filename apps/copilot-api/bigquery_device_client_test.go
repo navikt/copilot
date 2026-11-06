@@ -38,13 +38,45 @@ func TestDeviceClientCoverageMapping(t *testing.T) {
 }
 
 func TestEditorUsageNullableCounts(t *testing.T) {
-	rows := []EditorUsage{{Editor: "vscode", Generations: bigquery.NullInt64{Int64: 0, Valid: true}}}
+	zero := int64(0)
+	rows := []EditorUsage{{Editor: "vscode", Generations: &zero}}
 	data, err := json.Marshal(rows)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(string(data), `"generations":0`) || !strings.Contains(string(data), `"acceptances":null`) {
 		t.Fatalf("response: %s", data)
+	}
+}
+
+func TestEditorUsageScannerCounts(t *testing.T) {
+	schema := bigquery.Schema{
+		{Name: "generations", Type: bigquery.IntegerFieldType},
+		{Name: "acceptances", Type: bigquery.IntegerFieldType},
+		{Name: "interactions", Type: bigquery.IntegerFieldType},
+	}
+	for _, tc := range []struct {
+		name string
+		row  []bigquery.Value
+		want string
+	}{
+		{"counts", []bigquery.Value{int64(7), int64(3), int64(9)}, `"generations":7,"acceptances":3,"interactions":9`},
+		{"zero and unknown", []bigquery.Value{int64(0), nil, nil}, `"generations":0,"acceptances":null,"interactions":null`},
+		{"unknown", []bigquery.Value{nil, nil, nil}, `"generations":null,"acceptances":null,"interactions":null`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var got EditorUsage
+			if err := decodeBQRow(schema, tc.row, &got); err != nil {
+				t.Fatal(err)
+			}
+			data, err := json.Marshal(got)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !strings.Contains(string(data), tc.want) {
+				t.Fatalf("response: %s, want %s", data, tc.want)
+			}
+		})
 	}
 }
 
