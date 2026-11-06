@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-11-04T12:16:14.587Z",
+  "generatedAt": "2026-11-06T13:38:44.578Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -306,7 +306,7 @@
       "filePath": ".github/agents/nav-pilot.agent.md",
       "repoPath": "agents/nav-pilot.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/agents/nav-pilot.agent.md",
-      "contentHash": "a6d797b0efe8bbfbb9f7633660411ecba0af0f80980f46d2e89b5f6d36700689",
+      "contentHash": "67cd2f7b421b81bc1b56e6a6dcf6fb4a404a97ddbed3304a0eaa8c2a01e79298",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fnav-pilot.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fnav-pilot.agent.md",
       "tools": [
@@ -318,6 +318,10 @@
         "glob",
         "web_fetch",
         "todo",
+        "io.github.nais/nais-mcp/schema_get_type",
+        "io.github.nais/nais-mcp/schema_get_field",
+        "io.github.nais/nais-mcp/validate_graphql",
+        "io.github.nais/nais-mcp/execute_graphql",
         "github/get_file_contents",
         "github/search_code",
         "github/search_repositories",
@@ -1977,6 +1981,76 @@
       "insidersInstallUrl": null,
       "tags": ["tokenx", "auth", "service-to-service", "nais"],
       "examples": ["Sett opp TokenX-utveksling mellom dp-soknad og dp-inntekt"]
+    },
+    {
+      "id": "vulnerability-triage",
+      "name": "vulnerability-triage",
+      "description": "Vurder sårbarheter fra Nais MCP for en app og et team. Spor avhengigheter og bruk av sårbar kode, særlig når fix mangler. Gir bevis, usikkerhet og anbefalt tiltak uten kodeendringer.",
+      "type": "skill",
+      "domain": "platform",
+      "filePath": "skills/vulnerability-triage/SKILL.md",
+      "repoPath": "skills/vulnerability-triage/SKILL.md",
+      "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/vulnerability-triage/SKILL.md",
+      "contentHash": "468f9b9695c2c9cd66ef589e5ec386f509af52eb5e2c02cd200c020ba82124b8",
+      "installUrl": null,
+      "insidersInstallUrl": null,
+      "tags": ["security", "vulnerabilities", "cve", "nais", "dependencies", "sbom", "triage"],
+      "examples": [
+        {
+          "prompt": "Vurder sårbarhetene for appen i dette repoet. Finn app og team i .nais.",
+          "scenario": "Hent MCP-funn og vurder avhengigheter og bruk av sårbar kode uten kodeendringer"
+        },
+        {
+          "prompt": "Hent Nais-funnene og vis dem først. Forklar CVE-ene før vi starter kildekodeanalysen.",
+          "scenario": "Veiledet løp med bekreftelse av omfang og videre analyse"
+        },
+        {
+          "prompt": "Sorter funnene etter pakketype og fix-status. La meg velge hvilke som skal undersøkes.",
+          "scenario": "Bekreft et konkret utvalg og behold utelatte funn som ikke undersøkt"
+        },
+        {
+          "prompt": "Vurder funn uten fix i appsec/tpt-backend, prod-gcp. Bruker vi den sårbare koden?",
+          "scenario": "Spor transitive avhengigheter, kall og konfigurasjon med bevis for hvert advisory"
+        },
+        {
+          "prompt": "Er CVE-2024-47554 et problem for oss, eller er det en falsk positiv?",
+          "scenario": "Vurdering av én CVE uten å endre kode"
+        },
+        {
+          "prompt": "Sjekk bare org.antlr:antlr4-runtime for appen i dette repoet.",
+          "scenario": "Avgrens vurderingen til én pakke og behold resten utenfor omfang"
+        },
+        {
+          "prompt": "Vurder bare Wolfi/APK-pakkene fra Chainguard-imaget, ikke Maven-avhengighetene.",
+          "scenario": "Avgrens til faktisk pakketype og distro fra Nais-funnene"
+        },
+        {
+          "prompt": "Jeg har lagt inn dependency tree og fått tilgang til advisoryet. Fortsett vurderingen.",
+          "scenario": "Gjenbruk gyldige sjekker og gjenoppta bare det som var blokkert"
+        }
+      ],
+      "references": [
+        {
+          "path": "vuln.sh",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/vulnerability-triage/vuln.sh"
+        },
+        {
+          "path": "references/ecosystems.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/vulnerability-triage/references/ecosystems.md"
+        },
+        {
+          "path": "references/nais-mcp.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/vulnerability-triage/references/nais-mcp.md"
+        },
+        {
+          "path": "references/report-format.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/vulnerability-triage/references/report-format.md"
+        },
+        {
+          "path": "references/session.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/vulnerability-triage/references/session.md"
+        }
+      ]
     },
     {
       "id": "web-design-reviewer",
