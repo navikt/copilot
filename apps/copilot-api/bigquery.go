@@ -923,6 +923,7 @@ func (bq *BigQueryClient) GetNavPilotTelemetry(ctx context.Context) (*NavPilotTe
 
 // BigQueryQuerier abstracts BigQuery operations for testability
 type BigQueryQuerier interface {
+	GetUsageQuality(ctx context.Context) ([]UsageQualityDay, error)
 	GetDailyMetrics(ctx context.Context, days *int) ([]EnterpriseMetrics, error)
 	GetAdoptionSummary(ctx context.Context) (*AdoptionSummary, error)
 	GetTeamAdoption(ctx context.Context) ([]TeamAdoption, error)

@@ -81,6 +81,7 @@ func makeAPIRouter(config *Config, bqHandlers *BigQueryHandlers, ghHandlers *Git
 	}
 
 	// BigQuery endpoints
+	mux.HandleFunc("GET /api/v1/copilot/usage/quality", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleUsageQuality })))
 	mux.HandleFunc("GET /api/v1/copilot/usage/metrics", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleDailyMetrics })))
 	mux.HandleFunc("GET /api/v1/copilot/adoption/summary", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleAdoptionSummary })))
 	mux.HandleFunc("GET /api/v1/copilot/adoption/teams", bq(nilSafe(bqHandlers, func(h *BigQueryHandlers) http.HandlerFunc { return h.handleTeamAdoption })))

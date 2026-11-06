@@ -15,6 +15,7 @@ import {
 } from "@/lib/cached-bigquery";
 import { InsightPage, InsightSection } from "@/components/insight-page";
 import RepositoryUsageTable from "@/components/repository-usage-table";
+import UsageQuality from "@/components/usage-quality";
 import TrendChart from "@/components/charts/TrendChart";
 import MonthlyTrendsChart from "@/components/charts/MonthlyTrendsChart";
 import AdoptionCohortsChart from "@/components/charts/AdoptionCohortsChart";
@@ -463,6 +464,12 @@ export default async function BrukPage() {
       <InsightSection id="verktoy" title="Bruk per verktøy">
         <Suspense fallback={fallback}>
           <Clients token={token} />
+        </Suspense>
+      </InsightSection>
+
+      <InsightSection id="datakvalitet" title="Datakvalitet i bruksrapportene">
+        <Suspense fallback={fallback}>
+          <UsageQuality token={token} />
         </Suspense>
       </InsightSection>
 
