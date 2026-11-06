@@ -9,6 +9,9 @@ const CLIENTS = [
   ["pi", "Pi"],
 ] as const;
 
+/** The collector drops device counts under five and the API sends 0 for them, so 0 here means unknown. */
+export const suppressedZero = (n: number | null | undefined) => (n && n > 0 ? n : null);
+
 const count = (n: number | null | undefined) => (n == null ? "Ukjent" : formatNumber(n));
 
 /**
@@ -18,21 +21,21 @@ const count = (n: number | null | undefined) => (n == null ? "Ukjent" : formatNu
  */
 export default function DeviceClientCoverage({ telemetry: t }: { telemetry: NavPilotTelemetry }) {
   const path = CLIENTS.map(([key, label]) => ({ label, value: t.client_available_7d?.[key] ?? null }));
-  const hasConfigured = t.copilot_devices_7d > 0 || t.opencode_devices_7d > 0;
+  const hasConfigured = !!suppressedZero(t.copilot_devices_7d) || !!suppressedZero(t.opencode_devices_7d);
   const configured = [
-    { label: "Copilot", value: t.copilot_devices_7d },
-    { label: "OpenCode", value: t.opencode_devices_7d },
-    { label: "Begge", value: t.both_clients_7d },
+    { label: "Copilot", value: suppressedZero(t.copilot_devices_7d) },
+    { label: "OpenCode", value: suppressedZero(t.opencode_devices_7d) },
+    { label: "Begge", value: suppressedZero(t.both_clients_7d) },
   ];
   const install = (t.install_present_7d ?? []).map((r) => ({
     label: `${r.scope} / ${r.collection}`,
     value: r.devices,
   }));
   const scope = [
-    { label: "Personlig oppsett", value: t.user_scope_devices_7d },
-    { label: "Repo-oppsett", value: t.repo_scope_devices_7d },
+    { label: "Personlig oppsett", value: suppressedZero(t.user_scope_devices_7d) },
+    { label: "Repo-oppsett", value: suppressedZero(t.repo_scope_devices_7d) },
   ];
-  const hasScope = t.user_scope_devices_7d > 0 || t.repo_scope_devices_7d > 0;
+  const hasScope = scope.some((r) => r.value != null);
   return (
     <>
       <BodyShort>
@@ -50,7 +53,7 @@ export default function DeviceClientCoverage({ telemetry: t }: { telemetry: NavP
         {hasConfigured && (
           <RankedBars
             title="Klient med oppsett"
-            takeaway="Enheter som har rapportert konfigurasjon. «Begge» er også med i Copilot og OpenCode."
+            takeaway="Enheter som har rapportert konfigurasjon. «Begge» er også med i Copilot og OpenCode. Ukjent betyr at antallet mangler, blant annet når det er under fem."
             summary="Enheter med konfigurasjon for Copilot, OpenCode og begge siste syv dager."
             items={configured}
             color={1}
@@ -60,7 +63,7 @@ export default function DeviceClientCoverage({ telemetry: t }: { telemetry: NavP
         {hasScope && (
           <RankedBars
             title="Personlig mot repo-oppsett"
-            takeaway={`Aktive tilpasninger i ~/.copilot mot enkeltrepoer. En enhet kan ha begge.${t.rtk_devices_7d > 0 ? ` ${formatNumber(t.rtk_devices_7d)} enheter har rtk.` : ""}`}
+            takeaway={`Aktive tilpasninger i ~/.copilot mot enkeltrepoer. En enhet kan ha begge. Ukjent betyr at antallet mangler.${t.rtk_devices_7d > 0 ? ` ${formatNumber(t.rtk_devices_7d)} enheter har rtk.` : ""}`}
             summary="Enheter med personlig oppsett og repo-oppsett siste syv dager."
             items={scope}
             color={2}

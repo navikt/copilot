@@ -99,6 +99,17 @@ describe("topTakeaway", () => {
       )
     ).toBe("Alle observerte rader har 0 kall.");
   });
+  it("restricts zero claims to the known rows when some are unknown", () => {
+    const text = topTakeaway(
+      [
+        { label: "a", value: 0 },
+        { label: "b", value: null },
+      ],
+      "kall"
+    );
+    expect(text).toBe("Radene med kjente tall har 0 kall. 1 av 2 rader mangler tall.");
+    expect(text).not.toContain("Alle observerte");
+  });
   it("qualifies partial and top-N totals", () => {
     expect(
       nb(

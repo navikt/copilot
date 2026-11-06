@@ -15,7 +15,12 @@ export function topTakeaway(rows: Row[], what: string, listedOnly = false) {
   const known = rows.filter((r): r is { label: string; value: number } => r.value != null);
   if (known.length === 0) return `Tall for ${what} er ikke tilgjengelig.`;
   const total = known.reduce((s, r) => s + r.value, 0);
-  if (total === 0) return `Alle observerte rader har 0 ${what}.`;
+  if (total === 0) {
+    // With unknown rows only the known ones are zero; the rest may be anything.
+    return known.length < rows.length
+      ? `Radene med kjente tall har 0 ${what}. ${formatNumber(rows.length - known.length)} av ${formatNumber(rows.length)} rader mangler tall.`
+      : `Alle observerte rader har 0 ${what}.`;
+  }
   const max = Math.max(...known.map((r) => r.value));
   const leaders = known.filter((r) => r.value === max).map((r) => r.label);
   if (listedOnly) return `${leaders.join(" og ")} har flest ${what} blant de viste radene: ${formatNumber(max)}.`;

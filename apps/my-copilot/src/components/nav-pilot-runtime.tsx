@@ -7,7 +7,7 @@ import { LinkableHeading } from "@/components/linkable-heading";
 import { topTakeaway } from "@/lib/ranked";
 import { formatDate, formatNumber } from "@/lib/format";
 import type { NavPilotTelemetry } from "@/lib/types";
-import DeviceClientCoverage from "@/components/device-client-coverage";
+import DeviceClientCoverage, { suppressedZero } from "@/components/device-client-coverage";
 
 export const telemetryFor = cache(getNavPilotTelemetry);
 
@@ -45,11 +45,14 @@ export async function RuntimeTelemetry({ token }: { token: string }) {
     t.cli_up_to_date_7d > 0 ? `${formatNumber(t.cli_up_to_date_7d)} oppdatert CLI` : null,
     t.cli_stale_7d > 0 ? `${formatNumber(t.cli_stale_7d)} eldre CLI` : null,
   ].filter(Boolean);
+  // The collector drops device counts under five and the API sends 0, so 0 is unknown, never a measured zero.
   const windows = [
-    { label: "Siste dag", value: t.devices_1d },
-    { label: "7 dager", value: t.devices_7d },
-    { label: "28 dager", value: t.devices_28d },
+    { label: "Siste dag", value: suppressedZero(t.devices_1d) },
+    { label: "7 dager", value: suppressedZero(t.devices_7d) },
+    { label: "28 dager", value: suppressedZero(t.devices_28d) },
   ];
+  const windowText = (label: string, value: number | null) =>
+    `${label}: ${value == null ? "ukjent" : `${formatNumber(value)} enheter`}`;
   const byClient = (opencode: number, copilot: number) =>
     [
       { label: "OpenCode", value: opencode },
@@ -85,10 +88,15 @@ export async function RuntimeTelemetry({ token }: { token: string }) {
         />
         <RankedBars
           title="Rekkevidde etter vindu"
-          takeaway={`${num(t.devices_28d)} enheter siste 28 dager, ${num(t.devices_7d)} siste 7 dager og ${num(t.devices_1d)} siste dag${t.latest_day ? ` (${formatDate(t.latest_day)})` : ""}. Vinduene er rullende og kan ikke summeres.`}
+          takeaway={`${[...windows]
+            .reverse()
+            .map((w) => windowText(w.label, w.value))
+            .join(
+              ", "
+            )}${t.latest_day ? `. Siste dag med data: ${formatDate(t.latest_day)}` : ""}. Vinduene er rullende og kan ikke summeres. Ukjent betyr at antallet mangler, blant annet når det er under fem.`}
           summary="Enheter som har rapportert fra nav-pilot siste dag, siste 7 dager og siste 28 dager."
           items={windows}
-          rows={[["Vindu", "Enheter"], ...windows.map((w) => [w.label, num(w.value)])]}
+          rows={[["Vindu", "Enheter"], ...windows.map((w) => [w.label, w.value == null ? "Ukjent" : num(w.value)])]}
         />
       </HGrid>
 

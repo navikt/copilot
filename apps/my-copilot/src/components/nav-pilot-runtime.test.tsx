@@ -33,3 +33,13 @@ it("says «blant de viste» without a share, and the fold lists every row", asyn
   expect(screen.getByText(/s0 har flest innlastinger blant de viste radene: 100\./)).toBeInTheDocument();
   expect(screen.getByText("Vis alle 12 rader, diagrammet viser de 10 øverste")).toBeInTheDocument();
 });
+
+it("shows a suppressed 1-day count as unknown next to a positive 28-day count", async () => {
+  vi.mocked(getNavPilotTelemetry).mockResolvedValue({
+    telemetry: { ...nullSlices, devices_1d: 0, devices_7d: 0, devices_28d: 262 },
+    error: null,
+  });
+  render(await RuntimeTelemetry({ token: "t" }));
+  expect(screen.getByText(/28 dager: 262 enheter, 7 dager: ukjent, Siste dag: ukjent/)).toBeInTheDocument();
+  expect(screen.queryByText(/: 0 enheter/)).not.toBeInTheDocument();
+});
