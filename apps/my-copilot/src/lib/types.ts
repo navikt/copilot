@@ -420,6 +420,14 @@ export interface ClientUsage {
 }
 
 export interface RepositoryUsage {
+  review_breakdowns?: { dimension: string; label: string; evaluated: number | null; addressed: number | null }[];
+  review_comments_evaluated?: number | null;
+  review_comments_addressed?: number | null;
+  review_merged_no_human_change_request?: number | null;
+  review_outcome_days?: number;
+  review_comment_days?: number;
+  review_outcome_first_day?: string | null;
+  review_outcome_last_day?: string | null;
   repo_id: number;
   repo_owner: string;
   repo_name: string;

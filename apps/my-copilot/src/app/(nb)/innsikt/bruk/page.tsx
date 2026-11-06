@@ -16,6 +16,7 @@ import {
 import { InsightPage, InsightSection } from "@/components/insight-page";
 import RepositoryUsageTable from "@/components/repository-usage-table";
 import UsageQuality from "@/components/usage-quality";
+import ReviewOutcomes from "@/components/review-outcomes";
 import TrendChart from "@/components/charts/TrendChart";
 import MonthlyTrendsChart from "@/components/charts/MonthlyTrendsChart";
 import AdoptionCohortsChart from "@/components/charts/AdoptionCohortsChart";
@@ -289,6 +290,7 @@ async function Repositories({ token }: { token: string }) {
         />
       </HGrid>
       <RepositoryUsageTable repositories={repositories} />
+      <ReviewOutcomes repositories={repositories} />
     </>
   );
 }

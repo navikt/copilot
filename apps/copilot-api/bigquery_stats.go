@@ -1118,6 +1118,14 @@ func (bq *BigQueryClient) GetDailySummary(ctx context.Context) (*DailySummary, e
 	return &rows[0], nil
 }
 
+// ReviewBreakdown retains GitHub's dimension labels without an enum allowlist.
+type ReviewBreakdown struct {
+	Dimension string `bigquery:"dimension" json:"dimension"`
+	Label     string `bigquery:"label" json:"label"`
+	Evaluated *int64 `bigquery:"evaluated" json:"evaluated"`
+	Addressed *int64 `bigquery:"addressed" json:"addressed"`
+}
+
 // RepositoryUsage is one per-repository rollup of GitHub Copilot pull-request
 // activity, read from the v_repository_usage view. The view aggregates across
 // all available days and bakes in privacy safeguards (private repos excluded,
@@ -1126,8 +1134,18 @@ func (bq *BigQueryClient) GetDailySummary(ctx context.Context) (*DailySummary, e
 // The three PRAvgMedian* fields are *float64: the view emits NULL for a repo
 // whose days never carried a merge-time median (pre-GA days / no merges), and a
 // pointer lets that serialize as JSON null instead of a misleading 0. The
-// count columns are always present, so they stay int64.
+// existing PR count columns are always present, so they stay int64. Review
+// outcomes remain nullable for days before GitHub reported the new object.
 type RepositoryUsage struct {
+	ReviewBreakdowns                 []ReviewBreakdown `bigquery:"review_breakdowns" json:"review_breakdowns"`
+	ReviewCommentsEvaluated          *int64            `bigquery:"review_comments_evaluated" json:"review_comments_evaluated"`
+	ReviewCommentsAddressed          *int64            `bigquery:"review_comments_addressed" json:"review_comments_addressed"`
+	ReviewMergedNoHumanChangeRequest *int64            `bigquery:"review_merged_no_human_change_request" json:"review_merged_no_human_change_request"`
+	ReviewOutcomeDays                int64             `bigquery:"review_outcome_days" json:"review_outcome_days"`
+	ReviewCommentDays                int64             `bigquery:"review_comment_days" json:"review_comment_days"`
+	ReviewOutcomeFirstDay            *string           `bigquery:"review_outcome_first_day" json:"review_outcome_first_day"`
+	ReviewOutcomeLastDay             *string           `bigquery:"review_outcome_last_day" json:"review_outcome_last_day"`
+
 	RepoID                                   int64    `bigquery:"repo_id" json:"repo_id"`
 	RepoOwner                                string   `bigquery:"repo_owner" json:"repo_owner"`
 	RepoName                                 string   `bigquery:"repo_name" json:"repo_name"`
@@ -1156,33 +1174,15 @@ type RepositoryUsage struct {
 // apps/copilot-metrics/views/v_repository_usage.sql), so there is no time-window
 // parameter to apply here — every surfaced row is returned as-is.
 //
-// DEPLOY ORDERING: the v_repository_usage view must be deployed by copilot-metrics
-// before this endpoint is queried, the same coupling GetDailySummary has with
-// v_daily_summary.
+// SELECT * keeps old views working until the metrics job adds new columns.
+// decodeBQRow leaves fields absent from the returned schema at their zero value.
 func (bq *BigQueryClient) GetRepositoryUsage(ctx context.Context) ([]RepositoryUsage, error) {
 	viewRef := bq.viewRef(bq.metricsDataset, "v_repository_usage")
 	queryStr := fmt.Sprintf(`
-      SELECT
-        repo_id,
-        repo_owner,
-        repo_name,
-        repo_visibility,
-        scope_id,
-        days_with_data,
+      SELECT * REPLACE (
         CAST(first_day AS STRING) AS first_day,
-        CAST(last_day AS STRING) AS last_day,
-        pr_total_created,
-        pr_total_merged,
-        pr_total_reviewed,
-        pr_created_by_copilot,
-        pr_reviewed_by_copilot,
-        pr_merged_copilot_authored,
-        pr_merged_copilot_reviewed,
-        pr_copilot_suggestions,
-        pr_copilot_applied_suggestions,
-        pr_avg_median_minutes_to_merge,
-        pr_avg_median_minutes_to_merge_copilot,
-        pr_avg_median_minutes_to_merge_copilot_reviewed
+        CAST(last_day AS STRING) AS last_day
+      )
       FROM %s
       ORDER BY pr_created_by_copilot DESC
     `, viewRef)
