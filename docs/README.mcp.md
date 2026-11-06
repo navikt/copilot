@@ -9,7 +9,7 @@ Nav-godkjente MCP-servere som utvider Copilot med eksterne verktøy.
 | Server                    | Beskrivelse                                                         | URL                                        |
 | ------------------------- | ------------------------------------------------------------------- | ------------------------------------------ |
 | **GitHub MCP**            | GitHub repos, issues, PRs og kodesøk. Innebygd i VS Code.          | `https://api.githubcopilot.com/mcp/`       |
-| **Nav Copilot Discovery** | Oppdag Nav-tilpasninger, vurder agent-readiness, generer AGENTS.md. | `https://mcp-onboarding.intern.nav.no/mcp` |
+| **Nav MCP Onboarding** | Oppdag Nav-tilpasninger, vurder agent-readiness, generer AGENTS.md. | `https://mcp-onboarding.intern.nav.no/mcp` |
 | **Figma MCP**             | Hent Figma-designkontekst for design-to-code.                      | `https://mcp.figma.com/mcp`                |
 
 ## Installer

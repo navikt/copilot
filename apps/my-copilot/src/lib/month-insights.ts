@@ -317,7 +317,9 @@ function m5(data: MonthInsightData): MonthInsight | null {
 }
 
 function m6(data: MonthInsightData): MonthInsight | null {
-  const closed = billedMonths(data.months).filter((m) => m.enterprise_net_usd && m.no_team_net_usd != null);
+  const closed = billedMonths(data.months).filter(
+    (m) => m.enterprise_net_usd && m.no_team_net_usd != null && m.no_usage_net_usd != null
+  );
   const [a, b] = closed.slice(-2);
   if (!a || !b) return null;
   const sa = (a.no_team_net_usd! / a.enterprise_net_usd!) * 100;

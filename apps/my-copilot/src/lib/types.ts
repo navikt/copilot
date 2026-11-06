@@ -367,8 +367,10 @@ export interface AdminMonth {
   assigned_net_usd: number | null;
   residual_net_usd: number | null;
   residual_pct: number | null;
-  /** Null before team history exists. */
+  /** Null before team history exists. Net billed to users on days they were on no team. */
   no_team_net_usd: number | null;
+  /** Null before team history exists. Net billed to users with no observed usage days. */
+  no_usage_net_usd: number | null;
   /** Preliminary list price for a month without net. */
   gross_usd: number | null;
   /** Estimated billed so far for a month without net: gross less the pooled included credits. */

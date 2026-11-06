@@ -140,7 +140,7 @@
         "infrastructure"
       ],
       "filePath": "agents/nav-pilot.agent.md",
-      "contentHash": "c6eb22f0148053f39c82d01210304030f766b8e52b834b6498041180238da989",
+      "contentHash": "67cd2f7b421b81bc1b56e6a6dcf6fb4a404a97ddbed3304a0eaa8c2a01e79298",
       "useCases": [
         "Creating .nais/app.yaml manifests",
         "Adding PostgreSQL/Kafka",
@@ -244,6 +244,16 @@
       "contentHash": "c3715d3fc2782a5b9784bb74f48765aa10a23014c2a5906a4a71da0e116bc5c6",
       "installUrl": "vscode:chat-instructions/install?url=https://raw.githubusercontent.com/navikt/copilot/main/instructions/accessibility.instructions.md",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/instructions/accessibility.instructions.md"
+    },
+    {
+      "type": "instruction",
+      "name": "cplt-sandbox",
+      "displayName": "cplt-sandkasse",
+      "description": "Regler for agenter som kjører i cplt: worktrees via cplt worktree add, ikke arbeid i scratch, ikke omgå avslag.",
+      "filePath": "instructions/cplt-sandbox.instructions.md",
+      "contentHash": "444dc0451f868f73d6caed7d062a49fe235b23f7c9a6c87d7ffd7283408632e9",
+      "installUrl": "vscode:chat-instructions/install?url=https://raw.githubusercontent.com/navikt/copilot/main/instructions/cplt-sandbox.instructions.md",
+      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/instructions/cplt-sandbox.instructions.md"
     },
     {
       "type": "instruction",
@@ -1013,6 +1023,16 @@
           "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/readme-review/references/template-naisjob.md"
         }
       ]
+    },
+    {
+      "type": "skill",
+      "name": "repo-pii-audit",
+      "displayName": "repo-pii-audit",
+      "description": "Kartlegg personopplysninger i filer og Git-historikk, og planlegg trygg opprydding med git-filter-repo eller BFG Repo-Cleaner.",
+      "filePath": "skills/repo-pii-audit/SKILL.md",
+      "contentHash": "00654a5dc73b386960e850685dbd66df51aa8fbf3898636ba5387083613ab214",
+      "installUrl": "",
+      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/repo-pii-audit/SKILL.md"
     },
     {
       "type": "skill",

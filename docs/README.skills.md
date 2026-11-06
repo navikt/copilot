@@ -50,6 +50,7 @@ at den nye skillen gir bedre resultater.
 | **playwright-testing** | Generer og kjør Playwright E2E-tester for webapplikasjoner med page objects, auth fixtures og tilgjengelighetstester | [`skills/playwright-testing/`](../skills/playwright-testing/SKILL.md) |
 | **postgresql-review** | PostgreSQL query review, optimalisering og beste praksis for Nav-applikasjoner | [`skills/postgresql-review/`](../skills/postgresql-review/SKILL.md) |
 | **readme-review** | Strukturell gjennomgang og generering av README-er tilpasset prosjekttype — tjeneste, bibliotek, monorepo eller naisjob | [`skills/readme-review/`](../skills/readme-review/SKILL.md) |
+| **repo-pii-audit** | Kartlegg personopplysninger i repo-filer og Git-historikk og planlegg trygg opprydding. Bruk ved PII-audit, fødselsnummer i testdata, sensitive logger, BFG Repo-Cleaner og git-filter-repo. | [`skills/repo-pii-audit/`](../skills/repo-pii-audit/SKILL.md) |
 | **rust-development** | Idiomatisk Rust-utvikling med cargo, clippy, error handling, async/tokio, unsafe og testing | [`skills/rust-development/`](../skills/rust-development/SKILL.md) |
 | **security-owasp** | OWASP Top 10:2025 kodenivå-mønstre for Kotlin, Go, Java og Node.js — tilgangskontroll, forsyningskjede, injeksjon og feilhåndtering | [`skills/security-owasp/`](../skills/security-owasp/SKILL.md) |
 | **security-review** | Bruk før commit, push eller pull request for å sjekke at koden er trygg å merge | [`skills/security-review/`](../skills/security-review/SKILL.md) |
