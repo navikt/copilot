@@ -63,6 +63,16 @@
     "sources": ["apps/my-copilot/next.config.ts"],
     "anchors": {}
   },
+  "/admin/kostnad/manedsutkast": {
+    "sources": [
+      "apps/my-copilot/src/app/(nb)/admin/kostnad/manedsutkast/page.tsx",
+      "apps/my-copilot/src/app/(nb)/admin/kostnad/page.tsx"
+    ],
+    "anchors": {
+      "kilde-og-metode": ["apps/my-copilot/src/components/insight-page.tsx"],
+      "manedsutkast": ["apps/my-copilot/src/app/(nb)/admin/kostnad/manedsutkast/page.tsx"]
+    }
+  },
   "/admin/kostnad/rapport": {
     "sources": ["apps/my-copilot/src/app/(nb)/admin/kostnad/rapport/page.tsx"],
     "anchors": {}
