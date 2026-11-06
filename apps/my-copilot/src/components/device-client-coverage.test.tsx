@@ -1,3 +1,5 @@
+vi.mock("react-chartjs-2", () => ({ Bar: () => null }));
+
 import { render, screen, within } from "@testing-library/react";
 import DeviceClientCoverage from "./device-client-coverage";
 import type { NavPilotTelemetry } from "@/lib/types";
@@ -24,6 +26,7 @@ describe("DeviceClientCoverage", () => {
   it("renders a missing install snapshot as unknown", () => {
     render(<DeviceClientCoverage telemetry={{} as NavPilotTelemetry} />);
     expect(screen.getAllByText("Ukjent")).toHaveLength(3);
+    expect(screen.queryByText("Klient med oppsett")).not.toBeInTheDocument();
     expect(screen.getByText(/Manglende rader betyr ikke null installasjoner/)).toBeInTheDocument();
   });
 });
