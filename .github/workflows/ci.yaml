@@ -414,7 +414,6 @@ jobs:
       contents: read
       packages: read
     env:
-      # Read by .npmrc for public packages on GitHub Packages (@nais/apm).
       GITHUB_PACKAGES_TOKEN: ${{ github.token }}
     if: needs.changes.outputs.my-copilot == 'true'
     runs-on: ubuntu-latest
@@ -433,6 +432,11 @@ jobs:
       - uses: jdx/mise-action@6be3c7ed4c21d4f76b208d351d95aac273ebb76d # ratchet:jdx/mise-action@v5.2.4
         with:
           experimental: true
+      - name: Configure GitHub Packages auth
+        run: |
+          umask 077
+          printf '%s\n' "//npm.pkg.github.com/:_authToken=\${GITHUB_PACKAGES_TOKEN}" > "$RUNNER_TEMP/github-packages.npmrc"
+          printf 'NPM_CONFIG_USERCONFIG=%s\n' "$RUNNER_TEMP/github-packages.npmrc" >> "$GITHUB_ENV"
       - run: mise run install
       - run: mise run lint
       - run: mise run check
@@ -448,7 +452,6 @@ jobs:
       contents: read
       packages: read
     env:
-      # Read by .npmrc for public packages on GitHub Packages (@nais/apm).
       GITHUB_PACKAGES_TOKEN: ${{ github.token }}
     if: needs.changes.outputs.link-guard == 'true'
     runs-on: ubuntu-latest
@@ -467,6 +470,11 @@ jobs:
       - uses: jdx/mise-action@6be3c7ed4c21d4f76b208d351d95aac273ebb76d # ratchet:jdx/mise-action@v5.2.4
         with:
           experimental: true
+      - name: Configure GitHub Packages auth
+        run: |
+          umask 077
+          printf '%s\n' "//npm.pkg.github.com/:_authToken=\${GITHUB_PACKAGES_TOKEN}" > "$RUNNER_TEMP/github-packages.npmrc"
+          printf 'NPM_CONFIG_USERCONFIG=%s\n' "$RUNNER_TEMP/github-packages.npmrc" >> "$GITHUB_ENV"
       - run: mise run install
       - run: mise exec -- pnpm vitest run src/link-inventory.test.ts
 
