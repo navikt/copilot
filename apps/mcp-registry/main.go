@@ -46,6 +46,30 @@ func main() {
 		}()
 	}
 
+	// Graceful shutdown, so the deferred tracer shutdown flushes spans.
+	sigCtx, stop := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	var loader EntryLoader
+	if config.DatabaseURL != "" {
+		pgxLoader, closePool, err := newPGXEntryLoader(sigCtx, config.DatabaseURL)
+		if err != nil {
+			slog.Warn("Failed to initialize database pool", "error", err)
+		} else {
+			defer closePool()
+			loader = pgxLoader
+		}
+	}
+
+	store := NewStore(config, "allowlist.json", loader)
+	if loader != nil {
+		if err := store.Reload(sigCtx); err != nil {
+			slog.Warn("Initial database reload failed, serving static entries only", "error", err)
+		}
+		store.StartRefresher(sigCtx, 60*time.Second)
+	}
+	config.Store = store
+
 	http.HandleFunc("/health", loggingMiddleware(config, healthHandler))
 	http.HandleFunc("/ready", loggingMiddleware(config, readyHandler))
 	http.Handle("/metrics", metricsHandler())
@@ -66,10 +90,6 @@ func main() {
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  60 * time.Second,
 	}
-
-	// Graceful shutdown, so the deferred tracer shutdown flushes spans.
-	sigCtx, stop := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
-	defer stop()
 
 	go func() {
 		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {

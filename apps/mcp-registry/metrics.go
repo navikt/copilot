@@ -25,6 +25,11 @@ var (
 		Name: "registry_server_lookups_total",
 		Help: "Total number of server lookups by server name and result.",
 	}, []string{"server", "result"})
+
+	registryDBCollisionsTotal = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "registry_db_collisions_total",
+		Help: "Total number of database entries dropped due to collision with static entries.",
+	}, []string{"server"})
 )
 
 var knownPaths = map[string]bool{
@@ -57,4 +62,8 @@ func recordHTTPMetrics(method, path string, statusCode int, duration time.Durati
 
 func recordServerLookup(server, result string) {
 	registryServerLookupsTotal.WithLabelValues(server, result).Inc()
+}
+
+func recordDBCollision(server string) {
+	registryDBCollisionsTotal.WithLabelValues(server).Inc()
 }
