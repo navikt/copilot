@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-11-06T13:56:32.917Z",
+  "generatedAt": "2026-11-09T12:13:33.918Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -1985,28 +1985,32 @@
     {
       "id": "vulnerability-triage",
       "name": "vulnerability-triage",
-      "description": "Vurder sårbarheter fra Nais MCP for en app og et team. Spor avhengigheter og bruk av sårbar kode, særlig når fix mangler. Gir bevis, usikkerhet og anbefalt tiltak uten kodeendringer.",
+      "description": "Selvstendig Nais-skill som henter sårbarheter fra Nais MCP, forklarer hver CVE enkelt og anbefaler tiltak ut fra CVE-data og workload-kontekst. La brukeren velge fiks eller dypere analyse.",
       "type": "skill",
       "domain": "platform",
       "filePath": "skills/vulnerability-triage/SKILL.md",
       "repoPath": "skills/vulnerability-triage/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/vulnerability-triage/SKILL.md",
-      "contentHash": "46be61a89dc7241398be7dc66027679bf0b2051ef5858b14004040a1b0b8e35f",
+      "contentHash": "e6831f3d9a3fbcf745dccc610e2f95d4a41cdc799200c4bb49ccd94b41d700f0",
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": ["security", "vulnerabilities", "cve", "nais", "dependencies", "sbom", "triage"],
       "examples": [
         {
           "prompt": "Vurder sårbarhetene for appen i dette repoet. Finn app og team i .nais.",
-          "scenario": "Hent MCP-funn og vurder avhengigheter og bruk av sårbar kode uten kodeendringer"
+          "scenario": "Gi en konkret rapport med enkle CVE-forklaringer, fix-status og workload-kontekst før brukeren velger neste handling"
         },
         {
-          "prompt": "Hent Nais-funnene og vis dem først. Forklar CVE-ene før vi starter kildekodeanalysen.",
-          "scenario": "Veiledet løp med bekreftelse av omfang og videre analyse"
+          "prompt": "Hent Nais-funnene, forklar hver CVE enkelt og anbefal hva vi bør håndtere først.",
+          "scenario": "Hent data og forklar uten en ekstra bekreftelse av et entydig mål; stopp før dypanalyse eller fiks"
         },
         {
           "prompt": "Sorter funnene etter pakketype og fix-status. La meg velge hvilke som skal undersøkes.",
-          "scenario": "Bekreft et konkret utvalg og behold utelatte funn som ikke undersøkt"
+          "scenario": "Anbefal første tiltak, la brukeren velge utvalg og analysedybde og behold utelatte funn som ikke undersøkt"
+        },
+        {
+          "prompt": "Vis først hvorfor avhengigheten finnes. La meg velge om vi skal undersøke den sårbare koden etterpå.",
+          "scenario": "Stopp etter avhengighetsoversikten og spør før dypere analyse av kode og kjørebetingelser"
         },
         {
           "prompt": "Vurder funn uten fix i appsec/tpt-backend, prod-gcp. Bruker vi den sårbare koden?",
