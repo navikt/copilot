@@ -63,7 +63,6 @@ jobs:
       contents: read
       packages: read
     env:
-      # Read by .npmrc for public packages on GitHub Packages (@nais/apm).
       GITHUB_PACKAGES_TOKEN: ${{ github.token }}
     defaults:
       run:
@@ -89,6 +88,12 @@ jobs:
         if: steps.changed.outputs.run
         with:
           experimental: true
+      - name: Configure GitHub Packages auth
+        if: steps.changed.outputs.run
+        run: |
+          umask 077
+          printf '%s\n' "//npm.pkg.github.com/:_authToken=\${GITHUB_PACKAGES_TOKEN}" > "$RUNNER_TEMP/github-packages.npmrc"
+          printf 'NPM_CONFIG_USERCONFIG=%s\n' "$RUNNER_TEMP/github-packages.npmrc" >> "$GITHUB_ENV"
       - if: steps.changed.outputs.run
         timeout-minutes: 4
         run: mise run install

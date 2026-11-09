@@ -1,11 +1,34 @@
 package main
 
 import (
+	"encoding/json"
 	"testing"
 
 	"cloud.google.com/go/bigquery"
 	"cloud.google.com/go/civil"
 )
+
+func TestRepositoryUsageOldViewRemainsAvailable(t *testing.T) {
+	schema := bigquery.Schema{field("repo_name", bigquery.StringFieldType), field("pr_total_created", bigquery.IntegerFieldType)}
+	var got RepositoryUsage
+	if err := decodeBQRow(schema, []bigquery.Value{"existing-repo", int64(7)}, &got); err != nil {
+		t.Fatal(err)
+	}
+	if got.RepoName != "existing-repo" || got.PRTotalCreated != 7 || got.ReviewCommentsEvaluated != nil || got.ReviewOutcomeDays != 0 {
+		t.Fatalf("old view lost existing data or invented outcomes: %+v", got)
+	}
+	data, err := json.Marshal(got)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var body map[string]any
+	if err := json.Unmarshal(data, &body); err != nil {
+		t.Fatal(err)
+	}
+	if body["review_comments_evaluated"] != nil || body["repo_name"] != "existing-repo" {
+		t.Fatalf("wrong old-view response: %s", data)
+	}
+}
 
 func field(name string, t bigquery.FieldType) *bigquery.FieldSchema {
 	return &bigquery.FieldSchema{Name: name, Type: t}

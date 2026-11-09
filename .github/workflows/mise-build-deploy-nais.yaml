@@ -158,7 +158,6 @@ jobs:
       contents: read
       packages: read
     env:
-      # Read by .npmrc for public packages on GitHub Packages (@nais/apm).
       GITHUB_PACKAGES_TOKEN: ${{ github.token }}
     if: ${{ inputs.mise-setup-tasks != '[]' }}
     runs-on: ${{ inputs.runner-size }}
@@ -192,6 +191,11 @@ jobs:
       - uses: jdx/mise-action@6be3c7ed4c21d4f76b208d351d95aac273ebb76d # ratchet:jdx/mise-action@v5.2.4
         with:
           experimental: true
+      - name: Configure GitHub Packages auth
+        run: |
+          umask 077
+          printf '%s\n' "//npm.pkg.github.com/:_authToken=\${GITHUB_PACKAGES_TOKEN}" > "$RUNNER_TEMP/github-packages.npmrc"
+          printf 'NPM_CONFIG_USERCONFIG=%s\n' "$RUNNER_TEMP/github-packages.npmrc" >> "$GITHUB_ENV"
       - name: Run setup tasks
         env:
           MISE_SETUP_TASKS: ${{ inputs.mise-setup-tasks }}
@@ -207,7 +211,6 @@ jobs:
       contents: read
       packages: read
     env:
-      # Read by .npmrc for public packages on GitHub Packages (@nais/apm).
       GITHUB_PACKAGES_TOKEN: ${{ github.token }}
     needs: [setup]
     if: ${{ always() && (needs.setup.result == 'success' || needs.setup.result == 'skipped') }}
@@ -246,6 +249,11 @@ jobs:
       - uses: jdx/mise-action@6be3c7ed4c21d4f76b208d351d95aac273ebb76d # ratchet:jdx/mise-action@v5.2.4
         with:
           experimental: true
+      - name: Configure GitHub Packages auth
+        run: |
+          umask 077
+          printf '%s\n' "//npm.pkg.github.com/:_authToken=\${GITHUB_PACKAGES_TOKEN}" > "$RUNNER_TEMP/github-packages.npmrc"
+          printf 'NPM_CONFIG_USERCONFIG=%s\n' "$RUNNER_TEMP/github-packages.npmrc" >> "$GITHUB_ENV"
       - name: Run setup tasks
         if: ${{ inputs.mise-setup-tasks != '[]' }}
         env:
@@ -266,7 +274,6 @@ jobs:
       contents: read
       packages: read
     env:
-      # Read by .npmrc for public packages on GitHub Packages (@nais/apm).
       GITHUB_PACKAGES_TOKEN: ${{ github.token }}
     needs: [setup]
     if: ${{ always() && (needs.setup.result == 'success' || needs.setup.result == 'skipped') }}
@@ -301,6 +308,11 @@ jobs:
       - uses: jdx/mise-action@6be3c7ed4c21d4f76b208d351d95aac273ebb76d # ratchet:jdx/mise-action@v5.2.4
         with:
           experimental: true
+      - name: Configure GitHub Packages auth
+        run: |
+          umask 077
+          printf '%s\n' "//npm.pkg.github.com/:_authToken=\${GITHUB_PACKAGES_TOKEN}" > "$RUNNER_TEMP/github-packages.npmrc"
+          printf 'NPM_CONFIG_USERCONFIG=%s\n' "$RUNNER_TEMP/github-packages.npmrc" >> "$GITHUB_ENV"
       - name: Run setup tasks
         if: ${{ inputs.mise-setup-tasks != '[]' }}
         env:
@@ -341,7 +353,7 @@ jobs:
             APP_VERSION=${{ needs.meta.outputs.version }}
           # BuildKit secret, never a layer: lets pnpm read GitHub Packages.
           build_secrets: |
-            GITHUB_PACKAGES_TOKEN=${{ github.token }}
+            npmrc=//npm.pkg.github.com/:_authToken=${{ github.token }}
           cache_from: type=gha
           cache_to: type=gha,mode=max
 

@@ -260,6 +260,7 @@ export default async function CostPage() {
             <ForecastMethod />
           </NumbersFold>
           <RapportDownload />
+          <Link href="/admin/kostnad/manedsutkast">Forhåndsvis månedsutkast</Link>
         </VStack>
       }
     >

@@ -69,7 +69,13 @@ Install the dependencies:
 pnpm install --frozen-lockfile
 ```
 
-`@nais/apm` is served from GitHub Packages, which needs a token even for public packages. `.npmrc` reads it from `GITHUB_PACKAGES_TOKEN`, so set that first, for example `GITHUB_PACKAGES_TOKEN=$(gh auth token) pnpm install --frozen-lockfile` (the token needs the `read:packages` scope). CI uses the workflow's `GITHUB_TOKEN` with `packages: read`.
+`@nais/apm` is served from GitHub Packages, which requires authentication even for public packages. The project `.npmrc` sets only the registry mapping. Keep credentials in your user-level `~/.npmrc`; an existing valid literal credential works unchanged. For environment-based credentials, put this line in `~/.npmrc` and set `GITHUB_PACKAGES_TOKEN` in your environment:
+
+```ini
+//npm.pkg.github.com/:_authToken=${GITHUB_PACKAGES_TOKEN}
+```
+
+Both pnpm 11.5.1 and 11.28.9 support this user-level configuration. Never commit credentials. CI uses a runner-temporary user config with the workflow's `GITHUB_TOKEN` and `packages: read`; Docker mounts the user config as a BuildKit secret.
 
 Create a `.env.local` file in the root directory and add the required environment variables:
 

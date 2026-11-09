@@ -63,6 +63,16 @@
     "sources": ["apps/my-copilot/next.config.ts"],
     "anchors": {}
   },
+  "/admin/kostnad/manedsutkast": {
+    "sources": [
+      "apps/my-copilot/src/app/(nb)/admin/kostnad/manedsutkast/page.tsx",
+      "apps/my-copilot/src/app/(nb)/admin/kostnad/page.tsx"
+    ],
+    "anchors": {
+      "kilde-og-metode": ["apps/my-copilot/src/components/insight-page.tsx"],
+      "manedsutkast": ["apps/my-copilot/src/app/(nb)/admin/kostnad/manedsutkast/page.tsx"]
+    }
+  },
   "/admin/kostnad/rapport": {
     "sources": ["apps/my-copilot/src/app/(nb)/admin/kostnad/rapport/page.tsx"],
     "anchors": {}
@@ -232,6 +242,8 @@
       "ai-credits-per-bruker": ["apps/my-copilot/src/app/(nb)/innsikt/bruk/page.tsx"],
       "ai-modeller-i-bruk": ["apps/my-copilot/src/app/(nb)/innsikt/bruk/page.tsx"],
       "daglig-aktivitet": ["apps/my-copilot/src/app/(nb)/innsikt/bruk/page.tsx"],
+      "datakvalitet": ["apps/my-copilot/src/app/(nb)/innsikt/bruk/page.tsx"],
+      "editorer": ["apps/my-copilot/src/app/(nb)/innsikt/bruk/page.tsx"],
       "kilde-og-metode": ["apps/my-copilot/src/components/insight-page.tsx"],
       "kostnad": [
         "apps/my-copilot/src/app/(nb)/innsikt/bruk/page.tsx",
@@ -248,7 +260,8 @@
       "nokkeltall": ["apps/my-copilot/src/app/(nb)/innsikt/bruk/page.tsx"],
       "pull-requests-og-code-review": ["apps/my-copilot/src/app/(nb)/innsikt/bruk/page.tsx"],
       "repositorier": ["apps/my-copilot/src/app/(nb)/innsikt/bruk/page.tsx"],
-      "verktoy": ["apps/my-copilot/src/app/(nb)/innsikt/bruk/page.tsx"]
+      "verktoy": ["apps/my-copilot/src/app/(nb)/innsikt/bruk/page.tsx"],
+      "verktoy-foresporsler": ["apps/my-copilot/src/app/(nb)/innsikt/bruk/page.tsx"]
     }
   },
   "/innsikt/forbruk": {
@@ -360,7 +373,11 @@
     ],
     "anchors": {
       "faktisk-bruk": ["apps/my-copilot/src/app/(nb)/innsikt/nav-pilot/page.tsx"],
-      "kilde-og-metode": ["apps/my-copilot/src/components/insight-page.tsx"]
+      "kilde-og-metode": ["apps/my-copilot/src/components/insight-page.tsx"],
+      "kommandoer-og-verktoy": ["apps/my-copilot/src/app/(nb)/innsikt/nav-pilot/page.tsx"],
+      "okter": ["apps/my-copilot/src/app/(nb)/innsikt/nav-pilot/page.tsx"],
+      "oppsett": ["apps/my-copilot/src/app/(nb)/innsikt/nav-pilot/page.tsx"],
+      "skills-og-subagenter": ["apps/my-copilot/src/app/(nb)/innsikt/nav-pilot/page.tsx"]
     }
   },
   "/innsikt/team": {
