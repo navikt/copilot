@@ -1116,7 +1116,7 @@
       "displayName": "vulnerability-triage",
       "description": "Vurder sårbarheter fra Nais MCP for en app og et team. Spor avhengigheter og bruk av sårbar kode, særlig når fix mangler. Gir bevis, usikkerhet og anbefalt tiltak uten kodeendringer.",
       "filePath": "skills/vulnerability-triage/SKILL.md",
-      "contentHash": "468f9b9695c2c9cd66ef589e5ec386f509af52eb5e2c02cd200c020ba82124b8",
+      "contentHash": "46be61a89dc7241398be7dc66027679bf0b2051ef5858b14004040a1b0b8e35f",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/vulnerability-triage/SKILL.md",
       "references": [
