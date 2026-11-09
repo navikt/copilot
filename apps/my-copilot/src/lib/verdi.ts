@@ -40,12 +40,6 @@ export interface VerdiMonth {
   usdPerAgentMergedPR: number | null;
   /** V2 (#1783) & V4 (#1785): direct Coding Agent SKU net USD divided by merged Copilot-authored PRs. */
   usdPerAgentMergedPRDirect: number | null;
-  /** V2 (#1783): total net USD divided by PRs reviewed by Copilot (coarse enterprise ratio). */
-  usdPerReviewGrossScope: number | null;
-  /** V2 (#1783) & V8 (#1789): direct code-review-model net USD divided by PRs reviewed by Copilot. */
-  usdPerReviewDirect: number | null;
-  /** V2 (#1783) & V8 (#1789): direct code-review-model net USD divided by applied Copilot review suggestions. */
-  usdPerAppliedSuggestion: number | null;
   /** V4 (#1785): monthly flow ratio of merged Copilot-authored PRs to Copilot-created PRs (may exceed 100% across month boundaries). */
   agentMergeSharePct: number | null;
   /** V8 (#1789): applied Copilot review suggestions as % of total Copilot suggestions. */
@@ -290,9 +284,6 @@ export function buildVerdiMonths({
         usdPerMergedPR: divUsd(netUsd, prTotalMerged),
         usdPerAgentMergedPR: divUsd(netUsd, prMergedCopilotAuthored),
         usdPerAgentMergedPRDirect: divUsd(cloudAgentNetUsd, prMergedCopilotAuthored),
-        usdPerReviewGrossScope: divUsd(netUsd, prReviewedByCopilot),
-        usdPerReviewDirect: divUsd(codeReviewNetUsd, prReviewedByCopilot),
-        usdPerAppliedSuggestion: divUsd(codeReviewNetUsd, copilotAppliedSuggestions),
         agentMergeSharePct: pct(prMergedCopilotAuthored, prCreatedByCopilot),
         reviewAppliedSharePct: pct(copilotAppliedSuggestions, copilotSuggestions),
         reviewMergedSharePct: pct(prMergedCopilotReviewed, prReviewedByCopilot),

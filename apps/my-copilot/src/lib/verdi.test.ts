@@ -102,9 +102,12 @@ describe("verdi", () => {
     expect(feb.usdPerMergedPR).toBe(5);
     expect(feb.usdPerAgentMergedPR).toBe(40);
     expect(feb.usdPerAgentMergedPRDirect).toBe(6);
-    expect(feb.usdPerReviewGrossScope).toBe(10);
-    expect(feb.usdPerReviewDirect).toBe(0.5);
-    expect(feb.usdPerAppliedSuggestion).toBe(0.83);
+    expect(feb).not.toHaveProperty("usdPerReviewGrossScope");
+    expect(feb).not.toHaveProperty("usdPerReviewDirect");
+    expect(feb).not.toHaveProperty("usdPerAppliedSuggestion");
+    expect(feb.prReviewedByCopilot).toBe(200);
+    expect(feb.copilotSuggestions).toBe(400);
+    expect(feb.copilotAppliedSuggestions).toBe(120);
     expect(feb.agentMergeSharePct).toBe(62.5);
     expect(feb.reviewAppliedSharePct).toBe(30);
     expect(feb.reviewMergedSharePct).toBe(90);
@@ -211,8 +214,9 @@ describe("verdi", () => {
     expect(months[1].prTotalMerged).toBe(100);
     expect(months[1].cloudAgentNetUsd).toBe(25);
     expect(months[1].usdPerAgentMergedPRDirect).toBe(2.5);
-    expect(months[1].usdPerReviewDirect).toBe(0.6);
-    expect(months[1].usdPerAppliedSuggestion).toBe(1);
+    expect(months[1].codeReviewNetUsd).toBe(60);
+    expect(months[1].prReviewedByCopilot).toBe(100);
+    expect(months[1].copilotAppliedSuggestions).toBe(60);
     // (100 * 90 + 200 * 10) / 100 = 110 (vs unweighted 150)
     expect(months[1].avgMedianMinutesToMerge).toBe(110);
     // (80 * 9 + 180 * 1) / 10 = 90 (vs unweighted 130)
@@ -282,8 +286,8 @@ describe("verdi", () => {
     expect(withZeroCost.usdPerMergedPR).toBe(0);
     expect(withZeroCost.usdPerAgentMergedPR).toBe(0);
     expect(withZeroCost.codeReviewNetUsd).toBe(0);
-    expect(withZeroCost.usdPerReviewDirect).toBe(0);
-    expect(withZeroCost.usdPerAppliedSuggestion).toBe(0);
+    expect(withZeroCost.prReviewedByCopilot).toBe(50);
+    expect(withZeroCost.copilotAppliedSuggestions).toBe(30);
 
     const [withoutBreakdown] = buildVerdiMonths({
       admin,
@@ -293,8 +297,8 @@ describe("verdi", () => {
     });
     expect(withoutBreakdown.codeReviewNetUsd).toBeNull();
     expect(withoutBreakdown.codeReviewSharePct).toBeNull();
-    expect(withoutBreakdown.usdPerReviewDirect).toBeNull();
-    expect(withoutBreakdown.usdPerAppliedSuggestion).toBeNull();
+    expect(withoutBreakdown.prReviewedByCopilot).toBe(50);
+    expect(withoutBreakdown.copilotAppliedSuggestions).toBe(30);
   });
 
   it("enforces k >= 5 pr_total_created on repo breakdown", () => {
