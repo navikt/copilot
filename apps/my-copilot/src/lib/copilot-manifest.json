@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-11-10T11:57:32.770Z",
+  "generatedAt": "2026-11-10T14:26:00.402Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -306,7 +306,7 @@
       "filePath": ".github/agents/nav-pilot.agent.md",
       "repoPath": "agents/nav-pilot.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/agents/nav-pilot.agent.md",
-      "contentHash": "ea813822cd300d42d2cef0b6906dd7bf3e875df1fba728d68fb7688166620feb",
+      "contentHash": "c25362a1e74c4775ba908a20b54b1faa5938146c3fc4236ab1b2ad1f3bda8ed5",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fnav-pilot.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fnav-pilot.agent.md",
       "tools": [
@@ -1986,32 +1986,36 @@
     {
       "id": "vulnerability-triage",
       "name": "vulnerability-triage",
-      "description": "Viser Nais- og Dependabot-funn med kilder og rettelser, uten rangering. Brukeren velger fiks eller undersøkelse.",
+      "description": "Forklarer appens Nais- og GitHub-funn med kilder og dokumenterte fikser først. Brukeren velger fiks, undersøkelse eller suppression.",
       "type": "skill",
       "domain": "platform",
       "filePath": "skills/vulnerability-triage/SKILL.md",
       "repoPath": "skills/vulnerability-triage/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/vulnerability-triage/SKILL.md",
-      "contentHash": "13c14f5e3f91498318d064def87746cb9c472b265a58a839f8549332467b7b0d",
+      "contentHash": "0d56f51b96166c6f973938e7fa239caa9a1c4a76cfbc5abbd87ebd185cf951c9",
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": ["security", "vulnerabilities", "cve", "nais", "dependencies", "sbom", "triage"],
       "examples": [
         {
-          "prompt": "Hent Nais-funn, ta med Dependabot-varsler i vurderingen og sjekk om åpne PR-er allerede retter dem.",
-          "scenario": "Sammenlign kilder uten dobbelttelling, skill repo-funn fra image-funn og vis relevante PR-er med merge-blokkere"
+          "prompt": "Hvilke CVE-er har appen min? Forklar hva de betyr, med kilder fra Nais.",
+          "scenario": "Hent appens funn og forklar dem enkelt uten å starte en kildekodeaudit"
         },
         {
-          "prompt": "Hent Nais-funnene og vis kildene og rapporterte rettelser, uten å rangere funnene.",
-          "scenario": "Behold kildenes alvorlighetsgrader og spør om fiks av valgte funn eller videre undersøkelse; stopp før analyse eller endringer"
+          "prompt": "Finnes det fikser? Sjekk også om Dependabot allerede har laget en PR.",
+          "scenario": "Vis dokumenterte fikser først og relevante PR-er med merge-blokkere, uten risikorangering eller dobbelttelling"
         },
         {
-          "prompt": "Sorter funnene etter pakketype og fix-status. La meg velge hvilke som skal undersøkes.",
-          "scenario": "Grupper uten risikorangering, la brukeren velge utvalg og analysedybde, og merk utelatte funn som ikke undersøkt"
+          "prompt": "Fiks de valgte CVE-ene med de dokumenterte rettede versjonene.",
+          "scenario": "Gjør bare de valgte oppgraderingene og relevante sjekkene, uten automatisk commit, push, PR eller deploy"
         },
         {
-          "prompt": "Vis først hvorfor avhengigheten finnes. La meg velge om vi skal undersøke den sårbare koden etterpå.",
-          "scenario": "Stopp etter avhengighetsoversikten og spør før kodeanalyse"
+          "prompt": "Hva gjør jeg med funnene uten en kjent fiks?",
+          "scenario": "Forklar usikkerhet og relevante tiltak, inkludert suppression som brukerens beslutning"
+        },
+        {
+          "prompt": "Jeg vil suppresse denne CVE-en selv om vi ikke vet om den kan utløses.",
+          "scenario": "Forklar risiko, ukjente forhold og delt scope, behold berørthet som ukjent og gi en konkret overlevering til Nais Console"
         },
         {
           "prompt": "Vurder funn uten fix i appsec/tpt-backend, prod-gcp. Bruker vi den sårbare koden?",

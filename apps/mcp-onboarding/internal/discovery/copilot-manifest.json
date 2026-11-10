@@ -140,7 +140,7 @@
         "infrastructure"
       ],
       "filePath": "agents/nav-pilot.agent.md",
-      "contentHash": "ea813822cd300d42d2cef0b6906dd7bf3e875df1fba728d68fb7688166620feb",
+      "contentHash": "c25362a1e74c4775ba908a20b54b1faa5938146c3fc4236ab1b2ad1f3bda8ed5",
       "useCases": [
         "Creating .nais/app.yaml manifests",
         "Adding PostgreSQL/Kafka",
@@ -1114,9 +1114,9 @@
       "type": "skill",
       "name": "vulnerability-triage",
       "displayName": "vulnerability-triage",
-      "description": "Viser Nais- og Dependabot-funn med kilder og rettelser, uten rangering. Brukeren velger fiks eller undersøkelse.",
+      "description": "Forklarer appens Nais- og GitHub-funn med kilder og dokumenterte fikser først. Brukeren velger fiks, undersøkelse eller suppression.",
       "filePath": "skills/vulnerability-triage/SKILL.md",
-      "contentHash": "13c14f5e3f91498318d064def87746cb9c472b265a58a839f8549332467b7b0d",
+      "contentHash": "0d56f51b96166c6f973938e7fa239caa9a1c4a76cfbc5abbd87ebd185cf951c9",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/vulnerability-triage/SKILL.md",
       "references": [
