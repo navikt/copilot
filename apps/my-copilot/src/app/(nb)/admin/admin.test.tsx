@@ -11,6 +11,7 @@ vi.mock("next/navigation", () => ({
 import AdminLayout from "./layout";
 import AdminPage from "./page";
 import CostPage from "./kostnad/page";
+import MonthlyOwnerDraftPage from "./kostnad/manedsutkast/page";
 
 describe("/admin", () => {
   const group = "11111111-2222-3333-4444-555555555555";
@@ -26,6 +27,7 @@ describe("/admin", () => {
     await expect(AdminLayout({ children: null })).rejects.toThrow("NEXT_NOT_FOUND");
     await expect(AdminPage()).rejects.toThrow("NEXT_NOT_FOUND");
     await expect(CostPage()).rejects.toThrow("NEXT_NOT_FOUND");
+    await expect(MonthlyOwnerDraftPage()).rejects.toThrow("NEXT_NOT_FOUND");
   });
 
   it("lets an admin through the layout", async () => {

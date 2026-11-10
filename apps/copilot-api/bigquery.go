@@ -563,7 +563,16 @@ type NavPilotClientTokens struct {
 	CacheWriteTokens int64 `json:"cache_write_tokens"`
 }
 
+type NavPilotInstallPresence struct {
+	Scope      string `json:"scope"`
+	Collection string `json:"collection"`
+	Devices    int64  `json:"devices"`
+}
+
 type NavPilotTelemetry struct {
+	ClientAvailable7d map[string]*int64         `json:"client_available_7d"`
+	InstallPresent7d  []NavPilotInstallPresence `json:"install_present_7d"`
+
 	LatestDay           string                   `json:"latest_day,omitempty"`
 	Devices1d           int64                    `json:"devices_1d"`
 	Devices7d           int64                    `json:"devices_7d"`
@@ -622,6 +631,8 @@ type mimirTelemetryRow struct {
 
 func aggregateNavPilotTelemetry(rows []mimirTelemetryRow) *NavPilotTelemetry {
 	out := &NavPilotTelemetry{
+		ClientAvailable7d: map[string]*int64{"copilot": nil, "opencode": nil, "pi": nil},
+
 		TopSkills7d:    []NavPilotSkillLoad{},
 		TopAgents7d:    []NavPilotAgentSelection{},
 		TopTools7d:     []NavPilotToolCall{},
@@ -641,6 +652,15 @@ func aggregateNavPilotTelemetry(rows []mimirTelemetryRow) *NavPilotTelemetry {
 				continue
 			}
 			switch r.Metric {
+			case "nav_pilot_client_available":
+				if _, ok := out.ClientAvailable7d[r.Client]; ok && r.Operation == "7d" {
+					devices := r.Devices
+					out.ClientAvailable7d[r.Client] = &devices
+				}
+			case "nav_pilot_install_present":
+				if (r.Source == "user" || r.Source == "repo") && r.Operation != "" {
+					out.InstallPresent7d = append(out.InstallPresent7d, NavPilotInstallPresence{Scope: r.Source, Collection: r.Operation, Devices: r.Devices})
+				}
 			case "nav_pilot_info":
 				switch r.Operation {
 				case "1d":
@@ -839,6 +859,12 @@ func aggregateNavPilotTelemetry(rows []mimirTelemetryRow) *NavPilotTelemetry {
 		}
 		return out.CommandReach7d[i].Command < out.CommandReach7d[j].Command
 	})
+	sort.Slice(out.InstallPresent7d, func(i, j int) bool {
+		if out.InstallPresent7d[i].Scope != out.InstallPresent7d[j].Scope {
+			return out.InstallPresent7d[i].Scope < out.InstallPresent7d[j].Scope
+		}
+		return out.InstallPresent7d[i].Collection < out.InstallPresent7d[j].Collection
+	})
 	return out
 }
 
@@ -923,6 +949,7 @@ func (bq *BigQueryClient) GetNavPilotTelemetry(ctx context.Context) (*NavPilotTe
 
 // BigQueryQuerier abstracts BigQuery operations for testability
 type BigQueryQuerier interface {
+	GetUsageQuality(ctx context.Context) ([]UsageQualityDay, error)
 	GetDailyMetrics(ctx context.Context, days *int) ([]EnterpriseMetrics, error)
 	GetAdoptionSummary(ctx context.Context) (*AdoptionSummary, error)
 	GetTeamAdoption(ctx context.Context) ([]TeamAdoption, error)
@@ -960,6 +987,7 @@ type BigQueryQuerier interface {
 	GetUsageDistribution(ctx context.Context, month string, budgetCredits float64) (*UsageDistribution, error)
 	GetRepositoryUsage(ctx context.Context) ([]RepositoryUsage, error)
 	GetClientUsage(ctx context.Context) ([]ClientUsage, error)
+	GetEditorUsage(ctx context.Context) ([]EditorUsage, error)
 	GetCreditsPerUserMonthly(ctx context.Context) ([]CreditsPerUserMonth, error)
 	GetCopilotPRsMonthly(ctx context.Context) ([]CopilotPRMonth, error)
 	GetCohortRetention(ctx context.Context) ([]CohortRetention, error)

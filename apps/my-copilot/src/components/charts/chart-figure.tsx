@@ -14,6 +14,7 @@ export function ChartFigure({
   summary,
   chart,
   table,
+  tableLabel,
   height,
 }: {
   /** Leave out when the section heading above already names the chart. */
@@ -24,6 +25,8 @@ export function ChartFigure({
   height?: number;
   /** A ready table, or the cells for a plain one: the first row is the header. */
   table?: ReactNode | string[][];
+  /** The fold's link text when the table holds more than the chart shows. */
+  tableLabel?: string;
 }) {
   const id = useId();
   return (
@@ -46,7 +49,9 @@ export function ChartFigure({
           {summary}
         </figcaption>
         {table !== undefined && (
-          <NumbersFold>{Array.isArray(table) ? <PlainTable rows={table as string[][]} /> : table}</NumbersFold>
+          <NumbersFold summary={tableLabel}>
+            {Array.isArray(table) ? <PlainTable rows={table as string[][]} /> : table}
+          </NumbersFold>
         )}
       </VStack>
     </figure>

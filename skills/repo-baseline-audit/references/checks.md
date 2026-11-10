@@ -66,16 +66,19 @@ Source: [Golden Path](https://sikkerhet.nav.no/docs/goldenpath/). IDs follow
 - Check: a lockfile is committed; CI installs from it (`npm ci`,
   `--frozen-lockfile`); npm and yarn projects disable lifecycle scripts in the
   repository config; a minimum release age is set (playbook recommends 3 days);
-  committed `.npmrc` uses `${NPM_TOKEN}`, never a literal token. pnpm disables
-  lifecycle scripts by default. `[js]` `[workflows]`
+  committed `.npmrc` uses `${NPM_TOKEN}`, never a literal token. pnpm 10 and
+  later disable dependency lifecycle scripts by default; older pnpm versions
+  need the same explicit setting as npm and yarn. Read the version from
+  `packageManager` or the lockfile. `[js]` `[workflows]`
 - Source: [Supply chain](https://sikkerhet.nav.no/docs/sikker-utvikling/supply-chain)
 
 ### GP-GITHUB-PIN
 - Applies when: `.github/workflows/` exists.
 - Check: third-party actions are pinned to a full commit SHA, ideally with a
   `# vX.Y.Z` comment. GitHub-owned actions (`actions/*`, `github/*`) may use
-  tags. Pinning only through an `actions.lock` file is `Partly`: the playbook
-  does not mention it. `[workflows]` `[zizmor]`
+  tags. Container actions (`docker://…`) are pinned to an image digest
+  (`@sha256:…`). Pinning only through an `actions.lock` file is `Partly`: the
+  playbook does not mention it. `[workflows]` `[zizmor]`
 - Fix hint: `gh extension install navikt/gh-act && gh act pin`. To align
   zizmor with the playbook, set a `ref-pin` policy for `actions/*` and
   `github/*` in `zizmor.yml`.
@@ -154,7 +157,11 @@ unless stated otherwise.
 ### PB-BRANCH-PROTECTION
 - Applies when: always.
 - Check: the default branch has a ruleset or classic protection that
-  restricts deletion, blocks force pushes and requires. `[branch-protection]`
+  restricts deletion, blocks force pushes, requires a pull request before
+  merging and requires status checks to pass. A ruleset needs the rule types
+  `deletion`, `non_fast_forward`, `pull_request` and `required_status_checks`.
+  `[branch-protection]`
+- Source: [Branch protection](https://sikkerhet.nav.no/docs/sikker-utvikling/github#branch-protection)
 
 ### PB-OWNERSHIP
 - Applies when: always.
@@ -224,9 +231,10 @@ No Nav source states these yet. Report them as general practice.
   applications are committed. `[lockfiles]`
 
 ### HYG-VULN-REPORTING
-- Applies when: always.
+- Applies when: visibility is `public`. GitHub offers private vulnerability
+  reporting only for public repositories.
 - Check: private vulnerability reporting is enabled. The org-wide
-  `SECURITY.md` sends reporters there, so the route must exist in every
+  `SECURITY.md` sends reporters there, so the route must exist in every public
   repository. `[repo]`
 - Source: [navikt/.github SECURITY.md](https://github.com/navikt/.github/blob/main/SECURITY.md)
 

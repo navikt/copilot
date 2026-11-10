@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-11-10T06:37:52.912Z",
+  "generatedAt": "2026-11-10T07:25:14.782Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -306,7 +306,7 @@
       "filePath": ".github/agents/nav-pilot.agent.md",
       "repoPath": "agents/nav-pilot.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/agents/nav-pilot.agent.md",
-      "contentHash": "3cabc463ebd2b54c438e904614b9f4fe42174d3141ff5d38dace57084cf46447",
+      "contentHash": "a6d797b0efe8bbfbb9f7633660411ecba0af0f80980f46d2e89b5f6d36700689",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fnav-pilot.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fnav-pilot.agent.md",
       "tools": [
@@ -502,6 +502,22 @@
       "applyTo": "src/**/*.{tsx,jsx}",
       "tags": ["accessibility", "wcag", "a11y", "universell-utforming"],
       "examples": ["Legg til riktige ARIA-attributter på dette skjemaet"]
+    },
+    {
+      "id": "cplt-sandbox",
+      "name": "cplt-sandkasse",
+      "description": "Regler for agenter som kjører i cplt: worktrees via cplt worktree add, ikke arbeid i scratch, ikke omgå avslag.",
+      "type": "instruction",
+      "domain": "general",
+      "filePath": ".github/instructions/cplt-sandbox.instructions.md",
+      "repoPath": "instructions/cplt-sandbox.instructions.md",
+      "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/instructions/cplt-sandbox.instructions.md",
+      "contentHash": "444dc0451f868f73d6caed7d062a49fe235b23f7c9a6c87d7ffd7283408632e9",
+      "installUrl": "/install/instructions?url=vscode%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Finstructions%2Fcplt-sandbox.instructions.md",
+      "insidersInstallUrl": "/install/instructions?url=vscode-insiders%3Achat-instructions%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Finstructions%2Fcplt-sandbox.instructions.md",
+      "applyTo": "**",
+      "tags": ["cplt", "sandbox", "worktree", "git"],
+      "examples": ["Lag en worktree for en ny branch inne i cplt", "Hva gjør jeg når cplt nekter en kommando"]
     },
     {
       "id": "database",
@@ -1746,7 +1762,7 @@
       "filePath": "skills/repo-baseline-audit/SKILL.md",
       "repoPath": "skills/repo-baseline-audit/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/repo-baseline-audit/SKILL.md",
-      "contentHash": "979c10a20f280821be520e3eefbae05355c39c35730278646633a2bbfdc361a8",
+      "contentHash": "f14cdce7b12b4969fc54b5060b06d7f58eab8e77fbef3bf11928b18e3c9be1a8",
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": ["security", "github", "golden-path", "repo-hygiene", "compliance"],
@@ -1772,6 +1788,30 @@
         {
           "path": "references/evidence.md",
           "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/repo-baseline-audit/references/evidence.md"
+        }
+      ]
+    },
+    {
+      "id": "repo-pii-audit",
+      "name": "repo-pii-audit",
+      "description": "Kartlegg personopplysninger i repo-filer og Git-historikk og planlegg trygg opprydding. Bruk ved PII-audit, fødselsnummer i testdata, sensitive logger, BFG Repo-Cleaner og git-filter-repo.",
+      "type": "skill",
+      "domain": "auth",
+      "filePath": "skills/repo-pii-audit/SKILL.md",
+      "repoPath": "skills/repo-pii-audit/SKILL.md",
+      "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/repo-pii-audit/SKILL.md",
+      "contentHash": "00654a5dc73b386960e850685dbd66df51aa8fbf3898636ba5387083613ab214",
+      "installUrl": null,
+      "insidersInstallUrl": null,
+      "tags": ["privacy", "pii", "git", "history", "bfg", "git-filter-repo"],
+      "examples": [
+        {
+          "prompt": "Undersøk om repoet har personopplysninger i filer eller historikk uten å vise funnene i chatten",
+          "scenario": "Avgrenset kartlegging før opprydding"
+        },
+        {
+          "prompt": "Vi har slettet en CSV med fødselsnummer, men den ligger i Git-historikken. Bør vi bruke BFG Repo-Cleaner?",
+          "scenario": "Valg av verktøy og godkjent plan for historikkrydding"
         }
       ]
     },

@@ -29,9 +29,9 @@ vulnerabilities in application logic.
 Load [the rule catalogue](references/checks.md) and
 [the evidence commands](references/evidence.md). Each rule names the evidence
 `[section]` it needs. Collect those sections from the repository root. The
-commands are read-only, run in bash, zsh and PowerShell, and never print
-secret values. A 403 or 404 from GitHub, or a missing tool, makes the rules
-that depend on it `Not verifiable`.
+commands never change the repository or its settings, run in bash, zsh and
+PowerShell, and never print secret values. A 403 or 404 from GitHub, or a
+missing tool, makes the rules that depend on it `Not verifiable`.
 
 Then assess every applicable rule. For rules marked *judgment*, sample the
 code directly and cite `file:line`.

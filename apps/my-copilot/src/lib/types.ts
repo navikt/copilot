@@ -419,7 +419,25 @@ export interface ClientUsage {
   sessions: number;
 }
 
+export interface EditorUsage {
+  editor: string;
+  first_day: string;
+  last_day: string;
+  days: number;
+  generations: number | null;
+  acceptances: number | null;
+  interactions: number | null;
+}
+
 export interface RepositoryUsage {
+  review_breakdowns?: { dimension: string; label: string; evaluated: number | null; addressed: number | null }[];
+  review_comments_evaluated?: number | null;
+  review_comments_addressed?: number | null;
+  review_merged_no_human_change_request?: number | null;
+  review_outcome_days?: number;
+  review_comment_days?: number;
+  review_outcome_first_day?: string | null;
+  review_outcome_last_day?: string | null;
   repo_id: number;
   repo_owner: string;
   repo_name: string;
@@ -806,6 +824,8 @@ export interface NavPilotClientTokens {
 }
 
 export interface NavPilotTelemetry {
+  client_available_7d?: Record<"copilot" | "opencode" | "pi", number | null>;
+  install_present_7d?: { scope: string; collection: string; devices: number }[] | null;
   latest_day?: string;
   devices_1d: number;
   devices_7d: number;

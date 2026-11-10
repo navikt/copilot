@@ -44,14 +44,15 @@ gh api repos/OWNER/REPO/branches/BRANCH/protection --jq '{require_pr: (.required
 ```
 
 Rulesets count. `Branch not protected` (404) from the second call is not a gap
-when the first lists `deletion`, `non_fast_forward` and `pull_request`.
+when the first lists `deletion`, `non_fast_forward`, `pull_request` and
+`required_status_checks`.
 
 ## [access]
 
 ```
-gh api repos/OWNER/REPO/teams --jq '[.[] | {slug, permission}]'
-gh api 'repos/OWNER/REPO/collaborators?affiliation=direct&per_page=100' --jq '[.[] | {login, role_name}]'
-gh api repos/OWNER/REPO/keys --jq '[.[] | {title, read_only}]'
+gh api 'repos/OWNER/REPO/teams?per_page=100' --paginate --jq '.[] | {slug, permission}'
+gh api 'repos/OWNER/REPO/collaborators?affiliation=direct&per_page=100' --paginate --jq '.[] | {login, role_name}'
+gh api 'repos/OWNER/REPO/keys?per_page=100' --paginate --jq '.[] | {title, read_only}'
 ```
 
 ## [code-scanning]
@@ -103,9 +104,10 @@ git ls-files -- '.github/workflows/*.yml' '.github/workflows/*.yaml' '.github/ac
 
 Search those files for:
 
-- `uses:` references. Classify each as `local` (`./…`, `docker://…`),
-  `github-owned` (`actions/*`, `github/*`), `sha-pinned` (ref after `@` is a
-  40-character hex SHA) or `unpinned` (anything else). Cite `file:line`.
+- `uses:` references. Classify each as `local` (`./…`), `container`
+  (`docker://…`; pinned only with an `@sha256:` image digest), `github-owned`
+  (`actions/*`, `github/*`), `sha-pinned` (ref after `@` is a 40-character hex
+  SHA) or `unpinned` (anything else). Cite `file:line`.
 - `pull_request_target` and `workflow_run` triggers.
 - Workflows without a top-level `permissions:` key, and whether every job sets
   its own. Any `write-all`.
@@ -144,21 +146,26 @@ Check `pnpm-workspace.yaml`, `.yarnrc.yml` and `bunfig.toml` for
 ## [lockfiles]
 
 ```
-git ls-files -- go.mod go.sum pyproject.toml uv.lock poetry.lock Cargo.toml Cargo.lock build.gradle.kts build.gradle gradle.lockfile gradle/verification-metadata.xml pom.xml
+git ls-files -- go.mod go.sum pyproject.toml uv.lock poetry.lock Cargo.toml Cargo.lock build.gradle.kts build.gradle gradle.lockfile gradle/verification-metadata.xml pom.xml '*/go.mod' '*/go.sum' '*/pyproject.toml' '*/uv.lock' '*/poetry.lock' '*/Cargo.toml' '*/Cargo.lock' '*/build.gradle.kts' '*/build.gradle' '*/gradle.lockfile' '*/pom.xml' '*/gradle/verification-metadata.xml'
 ```
 
-Pair each manifest with its expected lockfile: `go.mod` with `go.sum`,
-`pyproject.toml` with `uv.lock` or `poetry.lock`, `Cargo.toml` with
-`Cargo.lock`, Gradle with `gradle.lockfile` or `verification-metadata.xml`.
+Pair each manifest with the expected lockfile in the same directory: `go.mod`
+with `go.sum`, `pyproject.toml` with `uv.lock` or `poetry.lock`, `Cargo.toml`
+with `Cargo.lock`, Gradle with `gradle.lockfile` or
+`gradle/verification-metadata.xml`. Skip manifests under vendored or test
+fixture directories.
 
 ## [gitignore]
 
 ```
-git check-ignore --no-index .env .env.local .env.production key.pem server.key keystore.jks cert.p12 .idea/x .vscode/x .env.example
+git check-ignore --no-index -v .env .env.local .env.production key.pem server.key keystore.jks cert.p12 .idea/x .vscode/x .env.example
 ```
 
-Paths that are printed are ignored; paths that are missing are not. Exit code
-1 means none are ignored. `.env.example` should not be printed.
+Each line is `source:line:pattern<TAB>path`. A path counts as ignored only
+when the source is a tracked `.gitignore` and the pattern does not start with
+`!`. Global excludes and `.git/info/exclude` belong to one developer, not the
+repository. Paths that are not printed are not ignored. `.env.example` should
+not count as ignored.
 
 ## [tracked-sensitive]
 
@@ -166,8 +173,9 @@ Paths that are printed are ignored; paths that are missing are not. Exit code
 git ls-files -- '*.env' '*.env.*' '*.pem' '*.key' '*.p12' '*.pfx' '*.jks' '*.keystore' '*.tfstate' '*id_rsa' '*id_ed25519' '*kubeconfig' '*credentials' '*credentials.json' '*.netrc' '*.pgpass'
 ```
 
-Ignore templates (`.example`, `.sample`, `.template`, `.dist`). For the rest,
-count lines of the form `KEY=value` without reproducing them.
+Templates (`.example`, `.sample`, `.template`, `.dist`) are fine only when
+their values are placeholders. Check them as well. For each file, count lines
+of the form `KEY=value` with a real-looking value, without reproducing them.
 
 ## [zizmor]
 
@@ -181,11 +189,23 @@ Each line is `::level file=…,line=…,title=rule::message`. Group by rule.
 
 ## [gitleaks]
 
+The built-in report formats (CSV, JSON, SARIF) include the unredacted commit
+message, and `--verbose` prints secrets before redaction. Use a template report
+instead, so only rule, file, line and short commit SHA reach the output. Save
+this template to a temporary file outside the repository:
+
 ```
-gitleaks git --redact --no-banner --log-level error --report-format csv --report-path - .
+{{- range . }}
+{{ .RuleID }} {{ .File }}:{{ .StartLine }}{{ if .Commit }} {{ trunc 8 .Commit }}{{ end }}
+{{- end }}
+```
+
+Then run, with `TEMPLATE` as the path to that file:
+
+```
+gitleaks git --redact --no-banner --log-level error --report-format template --report-template TEMPLATE --report-path - .
 ```
 
 Use `gitleaks dir` instead of `gitleaks git` when the repository has no
-commits. Exit code 1 means findings, not failure. Report only `RuleID`, `File`,
-`StartLine` and the first 8 characters of `Commit`. Leave out `Author`, `Email`
-and `Message`. `Secret` and `Match` are already redacted.
+commits. Exit code 1 means findings, not failure. Delete the template file
+afterwards. Never add `--verbose`.
