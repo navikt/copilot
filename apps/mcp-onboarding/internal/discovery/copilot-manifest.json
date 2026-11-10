@@ -1116,7 +1116,7 @@
       "displayName": "vulnerability-triage",
       "description": "Henter Nais-funn om sårbarheter, forklarer hver CVE enkelt og anbefaler tiltak ut fra workload-kontekst. Brukeren velger fiks/PR eller dypere analyse.",
       "filePath": "skills/vulnerability-triage/SKILL.md",
-      "contentHash": "2b9081c6850e7af778cb018e3a489ea3f4955701d021f622df74e293ab10e0f7",
+      "contentHash": "6918c61cab13217151d20f52e149534221d412f213f9316eb9db3926c24cb3e6",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/vulnerability-triage/SKILL.md",
       "references": [
@@ -1131,6 +1131,10 @@
         {
           "path": "references/nais-mcp.md",
           "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/vulnerability-triage/references/nais-mcp.md"
+        },
+        {
+          "path": "references/dependabot.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/vulnerability-triage/references/dependabot.md"
         },
         {
           "path": "references/workload.graphql",

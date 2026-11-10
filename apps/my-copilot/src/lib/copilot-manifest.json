@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-11-10T09:12:54.787Z",
+  "generatedAt": "2026-11-10T10:25:32.099Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -1992,11 +1992,15 @@
       "filePath": "skills/vulnerability-triage/SKILL.md",
       "repoPath": "skills/vulnerability-triage/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/vulnerability-triage/SKILL.md",
-      "contentHash": "2b9081c6850e7af778cb018e3a489ea3f4955701d021f622df74e293ab10e0f7",
+      "contentHash": "6918c61cab13217151d20f52e149534221d412f213f9316eb9db3926c24cb3e6",
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": ["security", "vulnerabilities", "cve", "nais", "dependencies", "sbom", "triage"],
       "examples": [
+        {
+          "prompt": "Hent Nais-funn, ta med Dependabot-varsler i vurderingen og sjekk om åpne PR-er allerede retter dem.",
+          "scenario": "Sammenlign kilder uten dobbelttelling, skill repo-funn fra image-funn og vis relevante PR-er med merge-blokkere"
+        },
         {
           "prompt": "Vurder sårbarhetene for appen i dette repoet.",
           "scenario": "Gi en rapport med enkle CVE-forklaringer, fix-status og workload-kontekst før brukeren velger neste steg"
@@ -2046,6 +2050,10 @@
         {
           "path": "references/nais-mcp.md",
           "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/vulnerability-triage/references/nais-mcp.md"
+        },
+        {
+          "path": "references/dependabot.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/vulnerability-triage/references/dependabot.md"
         },
         {
           "path": "references/workload.graphql",
