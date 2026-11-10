@@ -58,7 +58,7 @@ at den nye skillen gir bedre resultater.
 | **terse-mode** | Kompakt output-stil som kutter fyllord og beholder teknisk substans — spar output-tokens uten å miste nøyaktighet. | [`skills/terse-mode/`](../skills/terse-mode/SKILL.md) |
 | **threat-model** | STRIDE-A trusselmodellering for Nais-mikrotjenester — dataflyt, tillitsgrenser og risikovurdering | [`skills/threat-model/`](../skills/threat-model/SKILL.md) |
 | **tokenx-auth** | Tjeneste-til-tjeneste-autentisering med TokenX token exchange i Nais | [`skills/tokenx-auth/`](../skills/tokenx-auth/SKILL.md) |
-| **vulnerability-triage** | Henter Nais-funn om sårbarheter, forklarer hver CVE enkelt og anbefaler tiltak ut fra workload-kontekst. Brukeren velger fiks/PR eller dypere analyse. | [`skills/vulnerability-triage/`](../skills/vulnerability-triage/SKILL.md) |
+| **vulnerability-triage** | Viser Nais- og Dependabot-funn med kilder og rettelser, uten rangering. Brukeren velger fiks eller undersøkelse. | [`skills/vulnerability-triage/`](../skills/vulnerability-triage/SKILL.md) |
 | **web-design-reviewer** | Visuell inspeksjon av nettsider for å identifisere og fikse designproblemer. Trigges av forespørsler som "sjekk designet", "gå gjennom UI-en", "fiks layouten", "finn designfeil". Finner problemer med responsivt design, tilgjengelighet, visuell konsistens og layout, og fikser dem i kildekoden. | [`skills/web-design-reviewer/`](../skills/web-design-reviewer/SKILL.md) |
 | **workstation-security** | Sikkerhetssjekk for macOS-utviklermaskiner — brannmur, SSH, Git, hemmeligheter, nettverk og Nav-plattformverktøy | [`skills/workstation-security/`](../skills/workstation-security/SKILL.md) |
 <!-- END GENERATED TABLE -->

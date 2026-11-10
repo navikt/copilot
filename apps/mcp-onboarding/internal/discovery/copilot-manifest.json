@@ -1114,9 +1114,9 @@
       "type": "skill",
       "name": "vulnerability-triage",
       "displayName": "vulnerability-triage",
-      "description": "Henter Nais-funn om sårbarheter, forklarer hver CVE enkelt og anbefaler tiltak ut fra workload-kontekst. Brukeren velger fiks/PR eller dypere analyse.",
+      "description": "Viser Nais- og Dependabot-funn med kilder og rettelser, uten rangering. Brukeren velger fiks eller undersøkelse.",
       "filePath": "skills/vulnerability-triage/SKILL.md",
-      "contentHash": "6918c61cab13217151d20f52e149534221d412f213f9316eb9db3926c24cb3e6",
+      "contentHash": "13c14f5e3f91498318d064def87746cb9c472b265a58a839f8549332467b7b0d",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/vulnerability-triage/SKILL.md",
       "references": [

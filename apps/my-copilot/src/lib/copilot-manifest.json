@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-11-10T10:25:32.099Z",
+  "generatedAt": "2026-11-10T11:57:32.770Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -1986,13 +1986,13 @@
     {
       "id": "vulnerability-triage",
       "name": "vulnerability-triage",
-      "description": "Henter Nais-funn om sårbarheter, forklarer hver CVE enkelt og anbefaler tiltak ut fra workload-kontekst. Brukeren velger fiks/PR eller dypere analyse.",
+      "description": "Viser Nais- og Dependabot-funn med kilder og rettelser, uten rangering. Brukeren velger fiks eller undersøkelse.",
       "type": "skill",
       "domain": "platform",
       "filePath": "skills/vulnerability-triage/SKILL.md",
       "repoPath": "skills/vulnerability-triage/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/vulnerability-triage/SKILL.md",
-      "contentHash": "6918c61cab13217151d20f52e149534221d412f213f9316eb9db3926c24cb3e6",
+      "contentHash": "13c14f5e3f91498318d064def87746cb9c472b265a58a839f8549332467b7b0d",
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": ["security", "vulnerabilities", "cve", "nais", "dependencies", "sbom", "triage"],
@@ -2002,16 +2002,12 @@
           "scenario": "Sammenlign kilder uten dobbelttelling, skill repo-funn fra image-funn og vis relevante PR-er med merge-blokkere"
         },
         {
-          "prompt": "Vurder sårbarhetene for appen i dette repoet.",
-          "scenario": "Gi en rapport med enkle CVE-forklaringer, fix-status og workload-kontekst før brukeren velger neste steg"
-        },
-        {
-          "prompt": "Hent Nais-funnene, forklar hver CVE enkelt og anbefal hva vi bør håndtere først.",
-          "scenario": "Hent data og forklar uten ekstra bekreftelse når målet er entydig; stopp før dypanalyse eller fiks"
+          "prompt": "Hent Nais-funnene og vis kildene og rapporterte rettelser, uten å rangere funnene.",
+          "scenario": "Behold kildenes alvorlighetsgrader og spør om fiks av valgte funn eller videre undersøkelse; stopp før analyse eller endringer"
         },
         {
           "prompt": "Sorter funnene etter pakketype og fix-status. La meg velge hvilke som skal undersøkes.",
-          "scenario": "Anbefal første tiltak, la brukeren velge utvalg og analysedybde, og merk utelatte funn som ikke undersøkt"
+          "scenario": "Grupper uten risikorangering, la brukeren velge utvalg og analysedybde, og merk utelatte funn som ikke undersøkt"
         },
         {
           "prompt": "Vis først hvorfor avhengigheten finnes. La meg velge om vi skal undersøke den sårbare koden etterpå.",
