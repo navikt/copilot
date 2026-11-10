@@ -140,7 +140,7 @@
         "infrastructure"
       ],
       "filePath": "agents/nav-pilot.agent.md",
-      "contentHash": "67cd2f7b421b81bc1b56e6a6dcf6fb4a404a97ddbed3304a0eaa8c2a01e79298",
+      "contentHash": "ea813822cd300d42d2cef0b6906dd7bf3e875df1fba728d68fb7688166620feb",
       "useCases": [
         "Creating .nais/app.yaml manifests",
         "Adding PostgreSQL/Kafka",
@@ -1114,9 +1114,9 @@
       "type": "skill",
       "name": "vulnerability-triage",
       "displayName": "vulnerability-triage",
-      "description": "Selvstendig Nais-skill som henter sårbarheter fra Nais MCP, forklarer hver CVE enkelt og anbefaler tiltak ut fra CVE-data og workload-kontekst. La brukeren velge fiks eller dypere analyse.",
+      "description": "Henter Nais-funn om sårbarheter, forklarer hver CVE enkelt og anbefaler tiltak ut fra workload-kontekst. Brukeren velger fiks/PR eller dypere analyse.",
       "filePath": "skills/vulnerability-triage/SKILL.md",
-      "contentHash": "e6831f3d9a3fbcf745dccc610e2f95d4a41cdc799200c4bb49ccd94b41d700f0",
+      "contentHash": "2b9081c6850e7af778cb018e3a489ea3f4955701d021f622df74e293ab10e0f7",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/vulnerability-triage/SKILL.md",
       "references": [
@@ -1131,6 +1131,10 @@
         {
           "path": "references/nais-mcp.md",
           "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/vulnerability-triage/references/nais-mcp.md"
+        },
+        {
+          "path": "references/workload.graphql",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/vulnerability-triage/references/workload.graphql"
         },
         {
           "path": "references/report-format.md",

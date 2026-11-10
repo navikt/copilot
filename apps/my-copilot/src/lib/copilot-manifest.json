@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-11-09T12:13:33.918Z",
+  "generatedAt": "2026-11-10T09:12:54.787Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -306,7 +306,7 @@
       "filePath": ".github/agents/nav-pilot.agent.md",
       "repoPath": "agents/nav-pilot.agent.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/agents/nav-pilot.agent.md",
-      "contentHash": "67cd2f7b421b81bc1b56e6a6dcf6fb4a404a97ddbed3304a0eaa8c2a01e79298",
+      "contentHash": "ea813822cd300d42d2cef0b6906dd7bf3e875df1fba728d68fb7688166620feb",
       "installUrl": "/install/agent?url=vscode%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fnav-pilot.agent.md",
       "insidersInstallUrl": "/install/agent?url=vscode-insiders%3Achat-agent%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fagents%2Fnav-pilot.agent.md",
       "tools": [
@@ -318,6 +318,7 @@
         "glob",
         "web_fetch",
         "todo",
+        "io.github.nais/nais-mcp/get_nais_context",
         "io.github.nais/nais-mcp/schema_get_type",
         "io.github.nais/nais-mcp/schema_get_field",
         "io.github.nais/nais-mcp/validate_graphql",
@@ -1985,36 +1986,36 @@
     {
       "id": "vulnerability-triage",
       "name": "vulnerability-triage",
-      "description": "Selvstendig Nais-skill som henter sårbarheter fra Nais MCP, forklarer hver CVE enkelt og anbefaler tiltak ut fra CVE-data og workload-kontekst. La brukeren velge fiks eller dypere analyse.",
+      "description": "Henter Nais-funn om sårbarheter, forklarer hver CVE enkelt og anbefaler tiltak ut fra workload-kontekst. Brukeren velger fiks/PR eller dypere analyse.",
       "type": "skill",
       "domain": "platform",
       "filePath": "skills/vulnerability-triage/SKILL.md",
       "repoPath": "skills/vulnerability-triage/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/vulnerability-triage/SKILL.md",
-      "contentHash": "e6831f3d9a3fbcf745dccc610e2f95d4a41cdc799200c4bb49ccd94b41d700f0",
+      "contentHash": "2b9081c6850e7af778cb018e3a489ea3f4955701d021f622df74e293ab10e0f7",
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": ["security", "vulnerabilities", "cve", "nais", "dependencies", "sbom", "triage"],
       "examples": [
         {
-          "prompt": "Vurder sårbarhetene for appen i dette repoet. Finn app og team i .nais.",
-          "scenario": "Gi en konkret rapport med enkle CVE-forklaringer, fix-status og workload-kontekst før brukeren velger neste handling"
+          "prompt": "Vurder sårbarhetene for appen i dette repoet.",
+          "scenario": "Gi en rapport med enkle CVE-forklaringer, fix-status og workload-kontekst før brukeren velger neste steg"
         },
         {
           "prompt": "Hent Nais-funnene, forklar hver CVE enkelt og anbefal hva vi bør håndtere først.",
-          "scenario": "Hent data og forklar uten en ekstra bekreftelse av et entydig mål; stopp før dypanalyse eller fiks"
+          "scenario": "Hent data og forklar uten ekstra bekreftelse når målet er entydig; stopp før dypanalyse eller fiks"
         },
         {
           "prompt": "Sorter funnene etter pakketype og fix-status. La meg velge hvilke som skal undersøkes.",
-          "scenario": "Anbefal første tiltak, la brukeren velge utvalg og analysedybde og behold utelatte funn som ikke undersøkt"
+          "scenario": "Anbefal første tiltak, la brukeren velge utvalg og analysedybde, og merk utelatte funn som ikke undersøkt"
         },
         {
           "prompt": "Vis først hvorfor avhengigheten finnes. La meg velge om vi skal undersøke den sårbare koden etterpå.",
-          "scenario": "Stopp etter avhengighetsoversikten og spør før dypere analyse av kode og kjørebetingelser"
+          "scenario": "Stopp etter avhengighetsoversikten og spør før kodeanalyse"
         },
         {
           "prompt": "Vurder funn uten fix i appsec/tpt-backend, prod-gcp. Bruker vi den sårbare koden?",
-          "scenario": "Spor transitive avhengigheter, kall og konfigurasjon med bevis for hvert advisory"
+          "scenario": "Spor transitive avhengigheter, kall og konfigurasjon, med bevis per advisory"
         },
         {
           "prompt": "Er CVE-2024-47554 et problem for oss, eller er det en falsk positiv?",
@@ -2045,6 +2046,10 @@
         {
           "path": "references/nais-mcp.md",
           "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/vulnerability-triage/references/nais-mcp.md"
+        },
+        {
+          "path": "references/workload.graphql",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/vulnerability-triage/references/workload.graphql"
         },
         {
           "path": "references/report-format.md",

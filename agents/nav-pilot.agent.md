@@ -10,6 +10,7 @@ tools:
   - glob
   - web_fetch
   - todo
+  - io.github.nais/nais-mcp/get_nais_context
   - io.github.nais/nais-mcp/schema_get_type
   - io.github.nais/nais-mcp/schema_get_field
   - io.github.nais/nais-mcp/validate_graphql
