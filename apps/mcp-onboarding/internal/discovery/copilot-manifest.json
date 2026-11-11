@@ -1025,6 +1025,26 @@
     },
     {
       "type": "skill",
+      "name": "repo-baseline-audit",
+      "displayName": "repo-baseline-audit",
+      "description": "Sjekk om et GitHub-repo i navikt følger grunnkravene og beste praksis fra navikt/offentlig, Golden Path og sikkerhetsplaybooken, og vanlig GitHub-hygiene. Bruk når teamet vil vite hva som mangler i oppsettet av et repo, ikke for å lete etter sårbarheter i koden eller sjekke en endring før commit.",
+      "filePath": "skills/repo-baseline-audit/SKILL.md",
+      "contentHash": "f14cdce7b12b4969fc54b5060b06d7f58eab8e77fbef3bf11928b18e3c9be1a8",
+      "installUrl": "",
+      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/repo-baseline-audit/SKILL.md",
+      "references": [
+        {
+          "path": "references/checks.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/repo-baseline-audit/references/checks.md"
+        },
+        {
+          "path": "references/evidence.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/repo-baseline-audit/references/evidence.md"
+        }
+      ]
+    },
+    {
+      "type": "skill",
       "name": "repo-pii-audit",
       "displayName": "repo-pii-audit",
       "description": "Kartlegg personopplysninger i filer og Git-historikk, og planlegg trygg opprydding med git-filter-repo eller BFG Repo-Cleaner.",
