@@ -163,9 +163,8 @@ export default async function AdminVerdiPage() {
       <InsightSection id="kostnad-per-resultat" title="Kostnad per resultat">
         <BodyShort size="small" textColor="subtle">
           Fakturadata skiller ut varelinjene for kodeagenten (<code>Copilot Cloud Agent</code>) og automatisk
-          kodegjennomgang (<code>code-review-model</code>), mens IDE-chat og CLI deler de øvrige modell-SKU-ene. Derfor
-          vises direkte kostnad for kodeagent og kodegjennomgang ved siden av total netto kostnad delt på alle mergede
-          pull requests.
+          kodegjennomgang (<code>code-review-model</code>), mens IDE-chat og CLI deler de øvrige modell-SKU-ene. Her
+          vises kodeagentkostnad per merget agent-PR og total netto kostnad delt på alle mergede pull requests.
         </BodyShort>
         {latestPR ? (
           <HGrid columns={{ xs: 1, sm: 2, lg: 4 }} gap="space-16">
@@ -187,20 +186,6 @@ export default async function AdminVerdiPage() {
               helpTitle="Kostnad per merget kodeagent-PR"
               helpText="Månedens netto kostnad for Copilot Cloud Agent delt på pull requests opprettet av kodeagenten som ble merget."
             />
-            <MetricCard
-              value={fmtUsd(latestPR.usdPerReviewDirect)}
-              label="USD per kodegjennomgang (modell)"
-              subtitle={mLabel(latestPR.month, latestPR.preliminary)}
-              helpTitle="Direkte modellkostnad per kodegjennomgang"
-              helpText="Månedens netto kostnad for code-review-model delt på antall pull requests gjennomgått av Copilot."
-            />
-            <MetricCard
-              value={fmtUsd(latestPR.usdPerAppliedSuggestion)}
-              label="USD per forslag tatt i bruk (modell)"
-              subtitle={mLabel(latestPR.month, latestPR.preliminary)}
-              helpTitle="Direkte modellkostnad per forslag tatt i bruk"
-              helpText="Månedens netto kostnad for code-review-model delt på antall endringsforslag fra Copilot som ble tatt i bruk."
-            />
           </HGrid>
         ) : (
           <BodyShort>Ingen månedlige PR- og kostnadstall ennå.</BodyShort>
@@ -214,8 +199,6 @@ export default async function AdminVerdiPage() {
                 "Mergede PR-er",
                 "USD / PR (total)",
                 "USD / agent-PR (SKU)",
-                "USD / gjennomgang (modell)",
-                "USD / forslag tatt i bruk (modell)",
                 "USD / agent-PR (grovt)",
               ],
               ...prMonths.map((m) => [
@@ -224,8 +207,6 @@ export default async function AdminVerdiPage() {
                 formatNumber(m.prTotalMerged),
                 fmtUsd(m.usdPerMergedPR),
                 fmtUsd(m.usdPerAgentMergedPRDirect),
-                fmtUsd(m.usdPerReviewDirect),
-                fmtUsd(m.usdPerAppliedSuggestion),
                 fmtUsd(m.usdPerAgentMergedPR),
               ]),
             ]}
@@ -312,8 +293,8 @@ export default async function AdminVerdiPage() {
 
       <InsightSection id="kodegjennomgang" title="Verdi av kodegjennomgang">
         <BodyShort size="small" textColor="subtle">
-          Andel av Copilots gjennomgangskommentarer som blir tatt i bruk, tid til merge og hva modellbruken til
-          kodegjennomgang koster per gjennomgått PR og per forslag tatt i bruk.
+          Aktivitet i kodegjennomgang og fakturert modellkostnad vises hver for seg. Kostnad og aktivitet kan ikke
+          kobles til de samme gjennomgangene, så vi beregner ikke kostnad per gjennomgang eller forslag tatt i bruk.
         </BodyShort>
         {latestPR ? (
           <HGrid columns={{ xs: 1, sm: 2, lg: 4 }} gap="space-16">
@@ -342,13 +323,6 @@ export default async function AdminVerdiPage() {
               helpTitle="Modellkostnad kodegjennomgang"
               helpText="Fakturert nettobeløp for modellfamilien som brukes til kodegjennomgang i GitHub."
             />
-            <MetricCard
-              value={fmtUsd(latestPR.usdPerAppliedSuggestion)}
-              label="USD per forslag tatt i bruk"
-              subtitle={`Per gjennomgang: ${fmtUsd(latestPR.usdPerReviewDirect)}`}
-              helpTitle="USD per forslag tatt i bruk"
-              helpText="Direkte modellkostnad for kodegjennomgang delt på antall endringsforslag som ble tatt i bruk."
-            />
           </HGrid>
         ) : (
           <BodyShort>Ingen data om kodegjennomgang ennå.</BodyShort>
@@ -365,8 +339,6 @@ export default async function AdminVerdiPage() {
                 "Andel tatt i bruk",
                 "Tid til merge (gjennomgått)",
                 "Modellkostnad",
-                "USD / gjennomgang",
-                "USD / forslag tatt i bruk",
               ],
               ...prMonths.map((m) => [
                 mLabel(m.month, m.preliminary),
@@ -377,8 +349,6 @@ export default async function AdminVerdiPage() {
                 fmtPct(m.reviewAppliedSharePct),
                 formatMinutes(m.avgMedianMinutesToMergeReviewed),
                 fmtUsd(m.codeReviewNetUsd),
-                fmtUsd(m.usdPerReviewDirect),
-                fmtUsd(m.usdPerAppliedSuggestion),
               ]),
             ]}
           />
@@ -634,8 +604,8 @@ export default async function AdminVerdiPage() {
           <BodyShort size="small">
             <strong>Delte modell-SKU-er for IDE og CLI:</strong> GitHub skiller ut <code>Copilot Cloud Agent</code> og{" "}
             <code>code-review-model</code> som egne varelinjer, men bruker ellers samme modellnavn på tvers av IDE-chat
-            og CLI. Direkte kostnad per funksjon finnes derfor for kodeagenten og kodegjennomgang, men ikke for IDE og
-            CLI hver for seg.
+            og CLI. Modellkostnaden for kodegjennomgang og PR-aktiviteten har ikke et dokumentert felles datagrunnlag
+            og vises derfor som separate totaler, ikke som kostnad per gjennomgang eller forslag.
           </BodyShort>
           <BodyShort size="small">
             <strong>Seleksjonsskjevhet i tid til merge:</strong> Kodeagenten settes oftest på små, avgrensede oppgaver,
