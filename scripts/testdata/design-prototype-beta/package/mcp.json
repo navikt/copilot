@@ -1,0 +1,13 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+  "mcpServers": {
+    "io.github.navikt/aksel-mcp": {
+      "type": "streamable-http",
+      "url": "https://aksel-mcp.nav.no/mcp"
+    },
+    "com.figma/figma-mcp": {
+      "type": "streamable-http",
+      "url": "https://mcp.figma.com/mcp"
+    }
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "name": "nav-pilot",
+  "owner": { "name": "Nav" },
+  "plugins": [
+    {
+      "name": "nav-design-beta",
+      "source": "./plugins/nav-design-beta",
+      "description": "Aksel and Figma prototyping in existing projects",
+      "version": "0.1.0-beta.1"
+    }
+  ]
+}
