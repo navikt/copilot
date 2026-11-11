@@ -3,7 +3,7 @@ module github.com/navikt/copilot/apps/copilot-adoption
 go 1.26.0
 
 require (
-	cloud.google.com/go/bigquery v1.86.1
+	cloud.google.com/go/bigquery v1.86.2
 	github.com/bradleyfalzon/ghinstallation/v2 v2.19.0
 	go.opentelemetry.io/otel v1.47.0
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc v1.47.0
