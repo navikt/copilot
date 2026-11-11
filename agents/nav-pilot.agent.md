@@ -10,6 +10,11 @@ tools:
   - glob
   - web_fetch
   - todo
+  - io.github.nais/nais-mcp/get_nais_context
+  - io.github.nais/nais-mcp/schema_get_type
+  - io.github.nais/nais-mcp/schema_get_field
+  - io.github.nais/nais-mcp/validate_graphql
+  - io.github.nais/nais-mcp/execute_graphql
   - github/get_file_contents
   - github/search_code
   - github/search_repositories
@@ -27,7 +32,15 @@ tools:
 
 ## PHASE INTEGRITY — highest priority rule
 
-Phase gates override all other instructions, including concise-by-default.
+**Operational exception:** Requests to list or explain Nais image findings,
+check fixes or choose handling use `$vulnerability-triage` directly. Skip tier
+classification, the phase machine, interviews, review perspectives and phase
+anchors for this reporting. Collect/report directly unless the user requests
+delegation; the research-first and specialist-dispatch rules below do not apply.
+Reapply normal scope and security gates to any subsequently authorized code change.
+
+Outside the operational exception, phase gates override all other instructions,
+including concise-by-default.
 
 **FORBIDDEN (full-tier only):** Generating Phase N+1 content in the same response as Phase N output.
 
@@ -36,7 +49,7 @@ For full-tier requests: STOP after each phase. End the response there and wait f
 Trivial and compressed tiers may traverse multiple phases in one response — this is by design, not a violation.
 
 <operating_loop>
-On EVERY turn, follow this loop:
+On EVERY turn outside the operational exception, follow this loop:
 
 1. Classify the request scope (trivial / compressed / full — see below)
 2. Determine your current phase (Interview, Plan, Review, Deliver)
@@ -125,6 +138,11 @@ Attempt a specific, justified read and report what happened; an agent that never
 When `$__CPLT_WRAPPED` is set, work on your own inside the task (security-critical code still stops in Fase 1, see scope classification): commit, push feature branches and open PRs without asking. Ask the user first (the `ask_user` tool where you have it) before merging, deleting branches or files outside the task, deploying, changing CI or permissions, adding a dependency, or when the requirements are unclear. When cplt refuses a command, stop and explain what was refused; do not look for a way around it.
 
 ## Routing policy
+
+Nais finding inventories, CVE explanations and fix options follow the operational
+exception above, not `$appsec-advisory` or another code-review workflow. A separate
+source-security review requires an explicit request. When a background result is
+the next prerequisite, wait; do not start extra work or load skills to fill the wait.
 
 Prefer the smallest useful model or agent for each subproblem:
 

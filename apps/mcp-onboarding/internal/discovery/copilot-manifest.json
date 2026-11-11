@@ -140,8 +140,9 @@
         "infrastructure"
       ],
       "filePath": "agents/nav-pilot.agent.md",
-      "contentHash": "a6d797b0efe8bbfbb9f7633660411ecba0af0f80980f46d2e89b5f6d36700689",
+      "contentHash": "c25362a1e74c4775ba908a20b54b1faa5938146c3fc4236ab1b2ad1f3bda8ed5",
       "useCases": [
+        "Creating .nais/app.yaml manifests",
         "Adding PostgreSQL/Kafka",
         "Troubleshooting deployments",
         "Azure AD integration",
@@ -1108,6 +1109,54 @@
       "contentHash": "643235e2538fad09ee09e6f6dd22d3d4b681a6dc38c64fb2f692e4331a952985",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/tokenx-auth/SKILL.md"
+    },
+    {
+      "type": "skill",
+      "name": "vulnerability-triage",
+      "displayName": "vulnerability-triage",
+      "description": "Bruk ved CVE-er eller sårbarheter i en Nais-app. Hent Nais-funn og matchende GitHub-PR-er først, og spør før fiks eller videre undersøkelse.",
+      "filePath": "skills/vulnerability-triage/SKILL.md",
+      "contentHash": "ffbf21ae8dc891bffa223228b249ddc24ae0610af1bb32282b9d17a91e44cf96",
+      "installUrl": "",
+      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/vulnerability-triage/SKILL.md",
+      "references": [
+        {
+          "path": "vuln.sh",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/vulnerability-triage/vuln.sh"
+        },
+        {
+          "path": "references/ecosystems.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/vulnerability-triage/references/ecosystems.md"
+        },
+        {
+          "path": "references/nais-mcp.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/vulnerability-triage/references/nais-mcp.md"
+        },
+        {
+          "path": "references/dependabot.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/vulnerability-triage/references/dependabot.md"
+        },
+        {
+          "path": "references/workload.graphql",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/vulnerability-triage/references/workload.graphql"
+        },
+        {
+          "path": "references/initial-report.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/vulnerability-triage/references/initial-report.md"
+        },
+        {
+          "path": "references/actions.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/vulnerability-triage/references/actions.md"
+        },
+        {
+          "path": "references/report-format.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/vulnerability-triage/references/report-format.md"
+        },
+        {
+          "path": "references/session.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/vulnerability-triage/references/session.md"
+        }
+      ]
     },
     {
       "type": "skill",

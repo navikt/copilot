@@ -1,4 +1,5 @@
 import type { Agent, Instruction, Prompt, Skill, McpServerCustomization } from "./customization-types";
+import { getAllCustomizations } from "./customizations";
 import {
   transportLabel,
   getToolCount,
@@ -311,6 +312,15 @@ describe("getManualInstallCommand", () => {
     expect(cmd).toContain('mkdir -p ".github/skills/observability-setup/references"');
     expect(cmd).toContain("SKILL.md");
     expect(cmd).toContain("grafana-queries.md");
+  });
+
+  it("includes the triage helper when installing the published skill", () => {
+    const triage = getAllCustomizations().find((item) => item.type === "skill" && item.name === "vulnerability-triage");
+    if (!triage) throw new Error("vulnerability-triage is missing from the manifest");
+    const cmd = getManualInstallCommand(triage);
+    expect(cmd).toContain(
+      'curl -fsSL -o ".github/skills/vulnerability-triage/vuln.sh" "https://raw.githubusercontent.com/navikt/copilot/main/skills/vulnerability-triage/vuln.sh"'
+    );
   });
 
   it("returns empty string for mcp", () => {

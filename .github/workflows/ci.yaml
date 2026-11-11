@@ -554,7 +554,7 @@ jobs:
           distribution: temurin
           java-version: "21"
       - name: Run BATS
-        run: mise exec -- bats scripts/install.bats scripts/publish-release.bats scripts/sync-pr-body.bats scripts/skill-selvutlosning-probe.bats scripts/nav-pilot-golden.bats scripts/obs-query.bats
+        run: mise exec -- bats scripts/install.bats scripts/publish-release.bats scripts/sync-pr-body.bats scripts/skill-selvutlosning-probe.bats scripts/nav-pilot-golden.bats scripts/obs-query.bats scripts/vulnerability-triage.bats
       - name: Benchmark checks (offline)
         run: mise run benchmark:check
 

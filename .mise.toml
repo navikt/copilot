@@ -223,7 +223,7 @@ run = """
 set -e
 python3 scripts/copilot-usage.py --selftest
 shellcheck scripts/install.sh scripts/publish-release.sh scripts/subagent-pin-canary.sh skills/*/*.sh
-bats scripts/install.bats scripts/publish-release.bats scripts/sync-pr-body.bats scripts/skill-selvutlosning-probe.bats scripts/nav-pilot-golden.bats scripts/obs-query.bats
+bats scripts/install.bats scripts/publish-release.bats scripts/sync-pr-body.bats scripts/skill-selvutlosning-probe.bats scripts/nav-pilot-golden.bats scripts/obs-query.bats scripts/vulnerability-triage.bats
 """
 
 [tasks."canary:subagent-pin"]
