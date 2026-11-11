@@ -1116,7 +1116,7 @@
       "displayName": "vulnerability-triage",
       "description": "Bruk ved CVE-er eller sårbarheter i en Nais-app. Hent Nais-funn og matchende GitHub-PR-er først, og spør før fiks eller videre undersøkelse.",
       "filePath": "skills/vulnerability-triage/SKILL.md",
-      "contentHash": "f155659beb3b2b5667e0fdb8dc586f7730ca5cdd368c6a3ef9ca8abea4944f07",
+      "contentHash": "ffbf21ae8dc891bffa223228b249ddc24ae0610af1bb32282b9d17a91e44cf96",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/vulnerability-triage/SKILL.md",
       "references": [
