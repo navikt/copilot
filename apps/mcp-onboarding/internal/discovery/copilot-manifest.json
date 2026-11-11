@@ -1114,9 +1114,9 @@
       "type": "skill",
       "name": "vulnerability-triage",
       "displayName": "vulnerability-triage",
-      "description": "Forklarer appens Nais- og GitHub-funn med kilder og dokumenterte fikser først. Brukeren velger fiks, undersøkelse eller suppression.",
+      "description": "Bruk ved CVE-er eller sårbarheter i en Nais-app. Hent Nais-funn og matchende GitHub-PR-er først, og spør før fiks eller videre undersøkelse.",
       "filePath": "skills/vulnerability-triage/SKILL.md",
-      "contentHash": "0d56f51b96166c6f973938e7fa239caa9a1c4a76cfbc5abbd87ebd185cf951c9",
+      "contentHash": "f155659beb3b2b5667e0fdb8dc586f7730ca5cdd368c6a3ef9ca8abea4944f07",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/vulnerability-triage/SKILL.md",
       "references": [
@@ -1139,6 +1139,14 @@
         {
           "path": "references/workload.graphql",
           "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/vulnerability-triage/references/workload.graphql"
+        },
+        {
+          "path": "references/initial-report.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/vulnerability-triage/references/initial-report.md"
+        },
+        {
+          "path": "references/actions.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/vulnerability-triage/references/actions.md"
         },
         {
           "path": "references/report-format.md",

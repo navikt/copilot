@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-11-10T14:26:00.402Z",
+  "generatedAt": "2026-11-11T11:59:30.847Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -1986,24 +1986,28 @@
     {
       "id": "vulnerability-triage",
       "name": "vulnerability-triage",
-      "description": "Forklarer appens Nais- og GitHub-funn med kilder og dokumenterte fikser først. Brukeren velger fiks, undersøkelse eller suppression.",
+      "description": "Bruk ved CVE-er eller sårbarheter i en Nais-app. Hent Nais-funn og matchende GitHub-PR-er først, og spør før fiks eller videre undersøkelse.",
       "type": "skill",
       "domain": "platform",
       "filePath": "skills/vulnerability-triage/SKILL.md",
       "repoPath": "skills/vulnerability-triage/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/vulnerability-triage/SKILL.md",
-      "contentHash": "0d56f51b96166c6f973938e7fa239caa9a1c4a76cfbc5abbd87ebd185cf951c9",
+      "contentHash": "f155659beb3b2b5667e0fdb8dc586f7730ca5cdd368c6a3ef9ca8abea4944f07",
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": ["security", "vulnerabilities", "cve", "nais", "dependencies", "sbom", "triage"],
       "examples": [
         {
           "prompt": "Hvilke CVE-er har appen min? Forklar hva de betyr, med kilder fra Nais.",
-          "scenario": "Hent appens funn og forklar dem enkelt uten å starte en kildekodeaudit"
+          "scenario": "Hent Nais-data, sjekk matchende åpne PR-er, vis oppgitte fikser og spør uten å åpne CVE-lenker eller analysere kode"
         },
         {
-          "prompt": "Finnes det fikser? Sjekk også om Dependabot allerede har laget en PR.",
-          "scenario": "Vis dokumenterte fikser først og relevante PR-er med merge-blokkere, uten risikorangering eller dobbelttelling"
+          "prompt": "Finnes det en åpen PR som allerede fikser noen av Nais-funnene?",
+          "scenario": "Ta med matchende åpne PR-er i første oversikt, vis dokumentert dekning og blokkere og spør før bruk av PR-en"
+        },
+        {
+          "prompt": "Les nå CVE-lenkene for de valgte funnene uten en oppgitt fiks. Finnes det en rettet versjon der?",
+          "scenario": "Les bare valgte kilder, forklar funn og eventuelle fiksversjoner, og spør før oppgradering eller kodeanalyse"
         },
         {
           "prompt": "Fiks de valgte CVE-ene med de dokumenterte rettede versjonene.",
@@ -2011,11 +2015,15 @@
         },
         {
           "prompt": "Hva gjør jeg med funnene uten en kjent fiks?",
-          "scenario": "Forklar usikkerhet og relevante tiltak, inkludert suppression som brukerens beslutning"
+          "scenario": "Spør først om å lese valgte CVE-lenker; ikke start avhengighets- eller kodeanalyse. Suppression er fortsatt brukerens valg"
         },
         {
           "prompt": "Jeg vil suppresse denne CVE-en selv om vi ikke vet om den kan utløses.",
-          "scenario": "Forklar risiko, ukjente forhold og delt scope, behold berørthet som ukjent og gi en konkret overlevering til Nais Console"
+          "scenario": "Forklar delt scope og start menneskelig MCP-bekreftelse uten krav om evidence eller bestemt status. Behold berørthet separat; bruk Nais Console hvis flyten ikke støttes"
+        },
+        {
+          "prompt": "MCP svarte indeterminate etter suppression. Prøv igjen.",
+          "scenario": "Kontroller lagret tilstand før en eventuell ny brukerbekreftet handling. Ikke gjenta mutasjonen automatisk eller påstå at ingenting ble lagret"
         },
         {
           "prompt": "Vurder funn uten fix i appsec/tpt-backend, prod-gcp. Bruker vi den sårbare koden?",
@@ -2058,6 +2066,14 @@
         {
           "path": "references/workload.graphql",
           "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/vulnerability-triage/references/workload.graphql"
+        },
+        {
+          "path": "references/initial-report.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/vulnerability-triage/references/initial-report.md"
+        },
+        {
+          "path": "references/actions.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/vulnerability-triage/references/actions.md"
         },
         {
           "path": "references/report-format.md",
