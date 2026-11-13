@@ -27,10 +27,14 @@ exec nav-pilot install plattform --user --yes
 # registry_only: the unlisted remote and local servers are turned off.
 env POLICY=registry_only
 exec /bin/sh -c 'nav-pilot --client opencode --model claude-opus-4.8 -- run x </dev/null'
-stderr 'MCP servers turned off for this session \(not in Nav''s MCP registry\): egen-lokal, tredjepart\. See https://ki-utvikling\.nav\.no/verktoy'
+stderr 'MCP servers turned off for this session \(configured URL or package is not in Nav''s MCP registry; a registered name alone does not approve it\): com.jetbrains/intellij, egen-lokal, localhost, tredjepart\. See https://ki-utvikling\.nav\.no/verktoy'
+! stderr '127\.0\.0\.1|configured-secret|/stream'
 exec cat $WORK/env.out
 stdout '"tredjepart":\{"enabled":false\}'
 stdout '"egen-lokal":\{"enabled":false\}'
+stdout '"com.jetbrains/intellij":\{"enabled":false\}'
+stdout '"localhost":\{"enabled":false\}'
+! stdout '"intellij-approved"'
 ! stdout '"aksel"'
 ! stdout '"playwright"'
 ! stdout '"av"'
@@ -45,7 +49,8 @@ grep '^--pass-env\nNAV_PILOT_MCP_BLOCKED\n' $WORK/fake/cplt.log
 [exec:node] stdout '^list_mcp_resources: allowed$'
 
 exec nav-pilot doctor
-stdout 'MCP servers turned off at launch \(not in Nav''s MCP registry\): egen-lokal, tredjepart'
+stdout 'MCP servers turned off at launch \(configured URL or package is not in Nav''s MCP registry; a registered name alone does not approve it\): com.jetbrains/intellij, egen-lokal, localhost, tredjepart'
+! stdout 'configured-secret|/stream'
 
 # With every hook off, the session policy still reaches opencode.
 exec nav-pilot config set hook_loop_guard false
@@ -97,13 +102,17 @@ for (const [tool, args] of [["tredjepart_search", {}], ["aksel_find_docs", {}], 
 -- registry.json --
 {"servers":[
   {"server":{"name":"io.github.navikt/aksel-mcp","remotes":[{"type":"streamable-http","url":"https://aksel-mcp.nav.no/mcp"}]}},
-  {"server":{"name":"com.microsoft/playwright-mcp","packages":[{"registryType":"npm","identifier":"@playwright/mcp"}]}}
-],"metadata":{"count":2}}
+  {"server":{"name":"com.microsoft/playwright-mcp","packages":[{"registryType":"npm","identifier":"@playwright/mcp"}]}},
+  {"server":{"name":"com.jetbrains/intellij","remotes":[{"type":"sse","url":"http://127.0.0.1:64342/sse"}]}}
+],"metadata":{"count":3}}
 -- user.json --
 {
   // the developer's own servers
   "mcp": {
     "aksel": {"type": "remote", "url": "https://aksel-mcp.nav.no/mcp/"},
+    "com.jetbrains/intellij": {"type": "remote", "url": "http://127.0.0.1:64342/stream?token=configured-secret"},
+    "intellij-approved": {"type": "remote", "url": "http://127.0.0.1:64342/sse"},
+    "localhost": {"type": "remote", "url": "http://127.0.0.1:9999/mcp"},
     "tredjepart": {"type": "remote", "url": "https://mcp.example.com/sse"},
     "av": {"type": "remote", "url": "https://off.example.com", "enabled": false},
   }
