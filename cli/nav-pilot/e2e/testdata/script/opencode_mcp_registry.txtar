@@ -24,16 +24,17 @@ cp ../project.json opencode.json
 exec nav-pilot config set source $WORK/plattform
 exec nav-pilot install plattform --user --yes
 
-# registry_only: the unlisted remote and local servers are turned off.
+# registry_only: unlisted servers and registered packages with environment overrides are turned off.
 env POLICY=registry_only
 exec /bin/sh -c 'nav-pilot --client opencode --model claude-opus-4.8 -- run x </dev/null'
-stderr 'MCP servers turned off for this session \(configured URL or package is not in Nav''s MCP registry; a registered name alone does not approve it\): com.jetbrains/intellij, egen-lokal, localhost, tredjepart\. See https://ki-utvikling\.nav\.no/verktoy'
+stderr 'MCP servers turned off for this session \(registry mismatch or blocked by configuration policy; a registered name alone does not approve it\): com.jetbrains/intellij, egen-lokal, localhost, playwright-env, tredjepart\. See https://ki-utvikling\.nav\.no/verktoy'
 ! stderr '127\.0\.0\.1|configured-secret|/stream'
 exec cat $WORK/env.out
 stdout '"tredjepart":\{"enabled":false\}'
 stdout '"egen-lokal":\{"enabled":false\}'
 stdout '"com.jetbrains/intellij":\{"enabled":false\}'
 stdout '"localhost":\{"enabled":false\}'
+stdout '"playwright-env":\{"enabled":false\}'
 ! stdout '"intellij-approved"'
 ! stdout '"aksel"'
 ! stdout '"playwright"'
@@ -49,7 +50,7 @@ grep '^--pass-env\nNAV_PILOT_MCP_BLOCKED\n' $WORK/fake/cplt.log
 [exec:node] stdout '^list_mcp_resources: allowed$'
 
 exec nav-pilot doctor
-stdout 'MCP servers turned off at launch \(configured URL or package is not in Nav''s MCP registry; a registered name alone does not approve it\): com.jetbrains/intellij, egen-lokal, localhost, tredjepart'
+stdout 'MCP servers turned off at launch \(registry mismatch or blocked by configuration policy; a registered name alone does not approve it\): com.jetbrains/intellij, egen-lokal, localhost, playwright-env, tredjepart'
 ! stdout 'configured-secret|/stream'
 
 # With every hook off, the session policy still reaches opencode.
@@ -120,6 +121,7 @@ for (const [tool, args] of [["tredjepart_search", {}], ["aksel_find_docs", {}], 
 -- project.json --
 {"mcp": {
   "playwright": {"type": "local", "command": ["npx", "-y", "@playwright/mcp@latest"]},
+  "playwright-env": {"type": "local", "command": ["npx", "-y", "@playwright/mcp@latest"], "environment": {"PATH": "/unapproved/bin"}},
   "egen-lokal": {"type": "local", "command": ["node", "./server.js"]}
 }}
 -- plattform/.nav-pilot/agentpakke.json --
