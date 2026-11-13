@@ -1,11 +1,11 @@
 # Copilots lokale sandkasse inni cplt på Linux
 
-Start Copilot med `cplt` fra prosjektet, eller med `nav-pilot copilot` hvis du bruker nav-pilot. Ikke aktiver Copilots `/sandbox` inni cplt. cplt håndhever allerede sandkassen rundt hele agentprosessen og barna dens. nav-pilot er ikke nødvendig for å starte cplt.
+Start Copilot med `cplt` fra prosjektet, eller med `nav-pilot --client copilot` hvis du bruker nav-pilot. Ikke aktiver Copilots `/sandbox` inni cplt. cplt håndhever allerede sandkassen rundt hele agentprosessen og barna dens. nav-pilot er ikke nødvendig for å starte cplt.
 
 ```sh
 cplt
 # Alternativt, med nav-pilot:
-nav-pilot copilot
+nav-pilot --client copilot
 ```
 
 ## Installert bwrap betyr ikke at en ny sandkasse kan starte
