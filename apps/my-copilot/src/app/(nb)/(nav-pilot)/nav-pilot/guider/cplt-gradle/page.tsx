@@ -289,13 +289,26 @@ cplt config set proxy.allow_private_domains intern.nav.no`}
           <BodyLong>En database på port 5432, startet utenfor cplt:</BodyLong>
           <CodeBlock compact>{`cplt config set allow.localhost 5432`}</CodeBlock>
           <BodyLong>
-            Slik gir du agenten Docker for én økt eller fast. Testcontainers kobler seg til containerne over tilfeldige
-            porter på localhost, så slå på <code className={code}>allow_localhost_any</code> også:
+            Testcontainers kobler seg til containerne over tilfeldige porter på localhost, så slå på{" "}
+            <code className={code}>allow_localhost_any</code> som i oppsettet over. Start deretter med Docker-tilgang
+            for én økt:
           </BodyLong>
-          <CodeBlock compact>
-            {`cplt --allow-docker
-cplt config set sandbox.allow_docker true --force`}
-          </CodeBlock>
+          <CodeBlock compact>{`nav-pilot --cplt --allow-docker`}</CodeBlock>
+          <BodyLong>
+            Ved vanlig oppstart oppdaterer nav-pilot agentkonfigurasjonen med Nav-kontekst og starter valgt klient i
+            cplt. Flagget <code className={code}>--cplt</code> sender <code className={code}>--allow-docker</code>{" "}
+            videre til cplt for denne økten, uten å lagre Docker-tillatelsen. Du kan også starte direkte med{" "}
+            <code className={code}>cplt --allow-docker</code>. nav-pilot er ikke påkrevd for å bruke sandkassen.
+          </BodyLong>
+          <BodyLong>
+            Docker-socketen gir agenten kontroll over containerne og mulighet til å montere filer fra hosten. På Linux
+            med root-daemon kan den få root-tilgang til hosten. Tilgang for én økt begrenser varigheten, ikke hva
+            agenten kan gjøre.
+          </BodyLong>
+          <BodyLong>
+            Vil du gi Docker-tilgang fast for senere økter, endrer denne kommandoen cplt-konfigurasjonen:
+          </BodyLong>
+          <CodeBlock compact>{`cplt config set sandbox.allow_docker true --force`}</CodeBlock>
           <BodyLong>
             Med colima må <code className={code}>TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock</code> være
             satt, som utenfor cplt. cplt sender <code className={code}>DOCKER_HOST</code> og{" "}
@@ -397,8 +410,8 @@ cplt exec -- ./gradlew build`}
             (engelsk).
           </BodyLong>
           <BodyLong>
-            Kommandoene på denne siden er testet med cplt fra 29. september 2026 på macOS, med et lite Kotlin-prosjekt,
-            Gradle 9.7.0 og 9.8.0 og colima.
+            Gradle-oppsettet er testet med cplt fra 29. september 2026 på macOS, med et lite Kotlin-prosjekt, Gradle
+            9.7.0 og 9.8.0 og colima.
           </BodyLong>
         </VStack>
       </section>
