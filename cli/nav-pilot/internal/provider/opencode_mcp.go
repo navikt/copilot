@@ -44,6 +44,9 @@ import (
 // turned off: the approved list, and how to get one added.
 const MCPRegistryHelpURL = "https://ki-utvikling.nav.no/verktoy (approved servers); to add one: https://github.com/navikt/copilot/blob/main/apps/mcp-registry/README.md#adding-servers"
 
+// MCPRegistryMismatch explains registry and policy checks without exposing config values.
+const MCPRegistryMismatch = "registry mismatch or blocked by configuration policy; a registered name alone does not approve it"
+
 // MCPPolicyTimeout bounds each gh and registry call. A var so the e2e build
 // can give its fake gh more time on a loaded machine.
 var MCPPolicyTimeout = 5 * time.Second
@@ -721,8 +724,8 @@ func applyOpenCodeMCPPolicy(env []string, projectDir string) []string {
 		mcp[name] = e
 	}
 	if offChanged || Verbose {
-		fmt.Fprintf(os.Stderr, "%s MCP servers turned off for this session (not in Nav's MCP registry): %s. See %s\n",
-			domain.Yellow("⚠"), strings.Join(off, ", "), MCPRegistryHelpURL)
+		fmt.Fprintf(os.Stderr, "%s MCP servers turned off for this session (%s): %s. See %s\n",
+			domain.Yellow("⚠"), MCPRegistryMismatch, strings.Join(off, ", "), MCPRegistryHelpURL)
 	}
 	var listed []string
 	for name := range servers {

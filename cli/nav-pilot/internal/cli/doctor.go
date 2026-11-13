@@ -454,7 +454,7 @@ func doctorChecks() bool {
 		case err != nil:
 			fmt.Printf("      %s MCP servers not checked against Nav's MCP registry: %v\n", yellow("⚠"), err)
 		case len(unlisted) > 0:
-			fmt.Printf("      %s MCP servers turned off at launch (not in Nav's MCP registry): %s\n", yellow("⚠"), strings.Join(unlisted, ", "))
+			fmt.Printf("      %s MCP servers turned off at launch (%s): %s\n", yellow("⚠"), providerpkg.MCPRegistryMismatch, strings.Join(unlisted, ", "))
 			fmt.Printf("          See %s\n", providerpkg.MCPRegistryHelpURL)
 		case len(listed) > 0:
 			fmt.Printf("      %s MCP servers in Nav's MCP registry: %s\n", green("✓"), strings.Join(listed, ", "))
