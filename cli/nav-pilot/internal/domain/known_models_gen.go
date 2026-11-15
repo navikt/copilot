@@ -35,6 +35,7 @@ var KnownCopilotModels = []ModelChoice{
 	{ID: "gemini-3.8-flash", Label: "Gemini 3.8 Flash"},
 	{ID: "gemini-4-argon", Label: "Gemini 4 Argon"},
 	{ID: "gemini-4-carbon", Label: "Gemini 4 Carbon"},
+	{ID: "gemini-4-hydrogen", Label: "Gemini 4 Hydrogen"},
 	{ID: "gpt-5-mini", Label: "GPT-5 Mini"},
 	{ID: "gpt-5.3-codex", Label: "GPT-5.3 Codex"},
 	{ID: "gpt-5.4", Label: "GPT-5.4"},
