@@ -534,12 +534,15 @@ func editMCPConfig(client, name string, edit func(top, servers *jsonObject) (jso
 	// A config in opencode 2's own layout is edited there, not beside it.
 	target := &servers
 	native, nested := jsonObject{}, false
+	flat := false
 	if client == MCPClientOpenCode {
 		// A flat server beside mcp.servers is edited where it is.
 		native, nested = openCodeNativeServers(servers)
-		_, flat := servers.vals[name]
+		if raw, ok := servers.vals[name]; ok {
+			flat = name != "servers" && (name != "timeout" || isOpenCodeServerJSON(raw))
+		}
 		_, inNative := native.vals[name]
-		if nested && (inNative || !flat || name == "servers") {
+		if nested && (inNative || !flat) {
 			target = &native
 		}
 	}
@@ -551,6 +554,10 @@ func editMCPConfig(client, name string, edit func(top, servers *jsonObject) (jso
 	ch.Existing = existing
 	if !changed {
 		return ch, nil
+	}
+	// Drop any shadowed flat duplicate when editing/removing the nested entry.
+	if target == &native && flat {
+		servers.del(name)
 	}
 	if nested {
 		servers.set("servers", native.marshal())

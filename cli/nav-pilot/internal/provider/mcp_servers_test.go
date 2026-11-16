@@ -530,3 +530,19 @@ func TestMCPConfigOpenCodeFlatBesideNative(t *testing.T) {
 		t.Errorf("keys after remove = %v, want b", got)
 	}
 }
+
+// Same server present both flat and under mcp.servers: one remove drops both.
+func TestMCPConfigOpenCodeDuplicateFlatAndNativeRemovedTogether(t *testing.T) {
+	home := mcpConfigEnv(t)
+	path := filepath.Join(home, ".config", "opencode", "opencode.json")
+	writeFile(t, path, `{"mcp": {"timeout": 5000, "figma": {"type": "remote", "url": "https://old"}, "servers": {"figma": {"type": "remote", "url": "https://mcp.figma.com/mcp"}, "b": {"type": "remote", "url": "https://b"}}}}`)
+	if ch, err := RemoveMCPServer(MCPClientOpenCode, "figma", nil); err != nil || !ch.Changed {
+		t.Fatalf("RemoveMCPServer = %+v, %v", ch, err)
+	}
+	if got := MCPConfigKeys(MCPClientOpenCode); strings.Join(got, ",") != "b" {
+		t.Errorf("keys after remove = %v, want b", got)
+	}
+	if got := readFile(t, path); !strings.Contains(got, `"timeout": 5000`) {
+		t.Errorf("config lost timeout: %s", got)
+	}
+}

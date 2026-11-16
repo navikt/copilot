@@ -232,10 +232,13 @@ repo-konfig som vil åpne for flere providere, eller som bruker `{file:}` eller
 `{env:}` i `enabled_providers`, `experimental` eller `policies`, stopper derfor
 oppstarten i stedet for å utvide økta i det stille.
 
-Repoets egne OpenCode-plugins lastes bare når brukeren har sagt ja.
-`nav-pilot plugins` viser pluginene og spør på nytt. Et nei setter
-`OPENCODE_DISABLE_PROJECT_CONFIG=1`, og da leser OpenCode 2 ingenting fra repoet:
-`opencode.json`, `.opencode/` (plugins, agenter, MCP-servere) og `AGENTS.md`.
+Repoets egne OpenCode-plugins og hook-gates lastes bare når brukeren har sagt ja.
+`nav-pilot plugins` viser dem og spør på nytt. Et nei, eller ubesvart sett,
+setter `OPENCODE_DISABLE_PROJECT_CONFIG=1`, og da leser OpenCode 2 ingenting
+fra repoet: `opencode.json`, `.opencode/` (plugins, agenter, MCP-servere) og
+`AGENTS.md`. Har repoet bare gates og ingen plugins, droppes bare gatene
+(`NAV_PILOT_OPENCODE_DROP_REPO_GATES=1`), mens `AGENTS.md`, agenter og skills
+fortsatt lastes.
 
 ### OpenCode livssyklus — Nav-kontekst
 

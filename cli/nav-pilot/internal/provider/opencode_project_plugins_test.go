@@ -308,3 +308,71 @@ func TestOpenCodeRepoGateChangeAsksAgain(t *testing.T) {
 		t.Fatalf("asked %d times, want 2", *asked)
 	}
 }
+
+func TestOpenCodeRepoGatesAllowClearsInheritedDropEnv(t *testing.T) {
+	yes := true
+	proj, _ := pluginTrustSetup(t, true, &yes)
+	writeRepoGate(t, proj, "true")
+	env := applyOpenCodeProjectPlugins([]string{openCodeDropRepoGatesEnv + "=1"}, proj)
+	if got := bridgeRepoGates(t, env); !strings.Contains(got, "repo-gate") {
+		t.Fatalf("inherited drop env kept repo gate off: %s", got)
+	}
+}
+
+func TestOpenCodeRepoGateLargeScriptSwapAsksAgain(t *testing.T) {
+	yes := true
+	proj, asked := pluginTrustSetup(t, true, &yes)
+	writeRepoGate(t, proj, "python3 .github/hooks/g.py")
+	script := filepath.Join(proj, ".github", "hooks", "g.py")
+	pad := strings.Repeat("a", pluginMaxRead+1)
+	if err := os.WriteFile(script, []byte("# "+pad), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	applyOpenCodeProjectPlugins(nil, proj)
+	if err := os.WriteFile(script, []byte("# b"+pad[1:]), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	applyOpenCodeProjectPlugins(nil, proj)
+	if *asked != 2 {
+		t.Fatalf("asked %d times, want 2", *asked)
+	}
+}
+
+func TestOpenCodeRepoGateSymlinkOutsideRepoIsUnknown(t *testing.T) {
+	yes := true
+	proj, _ := pluginTrustSetup(t, true, &yes)
+	writeRepoGate(t, proj, "true")
+	ext := t.TempDir()
+	if err := os.Symlink(ext, filepath.Join(proj, ".github", "hooks", "ext")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(filepath.Join("..", ".."), filepath.Join(proj, ".github", "hooks", "up")); err != nil {
+		t.Fatal(err)
+	}
+	set := openCodeProjectPlugins(proj, nil)
+	if !strings.HasPrefix(set.sum, "unknown:") {
+		t.Fatalf("sum = %q, want unknown:", set.sum)
+	}
+}
+
+func TestOpenCodeRepoGateFileSymlinkOutsideRepoIsUnknown(t *testing.T) {
+	yes := true
+	proj, asked := pluginTrustSetup(t, true, &yes)
+	writeRepoGate(t, proj, "python3 .github/hooks/g.py")
+	outside := filepath.Join(t.TempDir(), "outside.py")
+	if err := os.WriteFile(outside, []byte("print(1)"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(proj, ".github", "hooks", "g.py")); err != nil {
+		t.Fatal(err)
+	}
+	set := openCodeProjectPlugins(proj, nil)
+	if !strings.HasPrefix(set.sum, "unknown:") {
+		t.Fatalf("sum = %q, want unknown:", set.sum)
+	}
+	applyOpenCodeProjectPlugins(nil, proj)
+	applyOpenCodeProjectPlugins(nil, proj)
+	if *asked != 2 {
+		t.Fatalf("asked %d times, want 2", *asked)
+	}
+}

@@ -198,6 +198,16 @@ describe("POST /api/copilot self-service authorization", () => {
     expect(mockedBackendRequest).not.toHaveBeenCalled();
   });
 
+  it("returns 400 for a literal null JSON body", async () => {
+    mockedGetUser.mockResolvedValue(makeUser({ groups: ["allowed-group"] }));
+    mockedGetUserToken.mockResolvedValue("token");
+
+    const response = await POST(postRequest(null));
+
+    expect(response.status).toBe(400);
+    expect(mockedBackendRequest).not.toHaveBeenCalled();
+  });
+
   it("allows an allowed-group member to activate a license (201)", async () => {
     mockedGetUser.mockResolvedValue(makeUser({ groups: ["allowed-group"] }));
     mockedGetUserToken.mockResolvedValue("token");

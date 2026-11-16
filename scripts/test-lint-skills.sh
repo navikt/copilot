@@ -304,6 +304,31 @@ assert_exit_code 0 "$exit_code" "exits 0 for a complete review contract"
 assert_output_contains "review contract ends in a verdict" "$output" "reports the contract as satisfied"
 rm -rf "$repo"
 
+# ── Test 10: Gitignored files are not treated as bundled drift ────────
+echo ""
+echo "Test 10: Gitignored files (.swp, __pycache__) are ignored"
+repo=$(setup_test_repo)
+printf '*.swp\n__pycache__/\n' > "$repo/.gitignore"
+create_skill "$repo" "ignored-skill" \
+'---
+name: ignored-skill
+description: Test
+---
+# Test
+
+See [queries](references/queries.md) for details.
+' \
+'{"description": "Test", "references": ["references/queries.md"]}'
+mkdir -p "$repo/skills/ignored-skill/references" "$repo/skills/ignored-skill/__pycache__"
+echo "# Queries" > "$repo/skills/ignored-skill/references/queries.md"
+touch "$repo/skills/ignored-skill/.SKILL.md.swp" "$repo/skills/ignored-skill/__pycache__/x.pyc"
+
+exit_code=0
+output=$(cd "$repo" && bash scripts/lint-skills.sh ignored-skill 2>&1) || exit_code=$?
+assert_exit_code 0 "$exit_code" "exits 0 when only gitignored junk exists"
+assert_output_contains "references in sync" "$output" "reports sync status despite gitignored files"
+rm -rf "$repo"
+
 # ── Summary ───────────────────────────────────────────────────────────
 echo ""
 echo "─────────────────────────────────────────────"

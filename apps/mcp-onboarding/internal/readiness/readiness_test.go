@@ -204,10 +204,10 @@ func TestSuggestCustomizations_Kotlin(t *testing.T) {
 	}
 
 	if !names["kotlin"] {
-		t.Error("expected kotlin-ktor suggestion for Kotlin repo")
+		t.Error("expected kotlin suggestion for Kotlin repo")
 	}
 	if !names["@kafka-agent"] {
-		t.Error("expected kafka-events suggestion for Kotlin repo")
+		t.Error("expected kafka-agent suggestion for Kotlin repo")
 	}
 }
 

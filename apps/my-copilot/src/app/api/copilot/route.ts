@@ -106,7 +106,7 @@ export async function POST(request: Request) {
     return error("User is not a member of any groups", 403);
   }
 
-  const { action } = await request.json().catch(() => ({ action: undefined }));
+  const { action } = (await request.json().catch(() => null)) ?? {};
 
   if (!action) {
     return error("Action is required", 400);

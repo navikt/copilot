@@ -14,13 +14,16 @@ import (
 func testSeat(login, pending string) copilotSeat {
 	var s copilotSeat
 	s.Assignee.Login = login
+	for _, b := range []byte(login) {
+		s.Assignee.ID = s.Assignee.ID*31 + int64(b)
+	}
 	s.PendingCancellationDate = pending
 	return s
 }
 
 func TestCountSeats(t *testing.T) {
 	got := countSeats("enterprise", "nav", 4, []copilotSeat{
-		testSeat("alice", ""), testSeat("bob", "2026-11-01"), testSeat("", ""), testSeat("dave", "2026-11-01"),
+		testSeat("alice", ""), testSeat("bob", "2026-11-01"), testSeat("", "2026-11-01"), testSeat("dave", "2026-11-01"),
 		testSeat("bob", "2026-11-01"), // repeated across pages
 	})
 	want := SeatCounts{Scope: "enterprise", ScopeID: "nav", Total: 4, PendingCancellation: 2}

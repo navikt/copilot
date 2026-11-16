@@ -186,6 +186,14 @@ func TestApplyOpenCodeMCPPolicyV2(t *testing.T) {
 		t.Fatalf("servers = %+v", got)
 	}
 
+	// Same server name flat and under mcp.servers: nested always wins over flat.
+	doc := []byte(`{"mcp": {"s": {"type": "remote", "url": "https://flat"}, "servers": {"s": {"type": "remote", "url": "https://nested"}}}}`)
+	for range 20 {
+		if m := openCodeMCPServersIn([][]byte{doc}, nil); m["s"].URL != "https://nested" {
+			t.Fatalf("nested did not shadow flat: %+v", m["s"])
+		}
+	}
+
 	env := applyOpenCodeMCPPolicy(nil, proj)
 	all := strings.Join(env, "\n")
 	for _, want := range []string{

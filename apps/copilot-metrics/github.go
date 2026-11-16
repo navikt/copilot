@@ -666,14 +666,13 @@ func seatsPermissionDenied(err error) bool {
 // authoritative; pending cancellations are counted from the seat list.
 func countSeats(scope, scopeID string, total int, seats []copilotSeat) *SeatCounts {
 	counts := &SeatCounts{Scope: scope, ScopeID: scopeID, Total: total}
-	seen := map[string]bool{}
+	seen := map[int64]bool{}
 	for _, seat := range seats {
 		// fetchSeats can return a seat twice when the list shifts between pages.
-		login := seat.Assignee.Login
-		if login != "" && seen[login] {
-			continue
+		if seat.Assignee.ID == 0 || seen[seat.Assignee.ID] {
+			continue // seat without a user, or repeated across pages
 		}
-		seen[login] = true
+		seen[seat.Assignee.ID] = true
 		if seat.PendingCancellationDate != "" {
 			counts.PendingCancellation++
 		}
