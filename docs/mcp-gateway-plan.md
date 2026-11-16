@@ -39,7 +39,7 @@ Unverified marks behaviour that no spike or Nais documentation has confirmed yet
 5. **Gateway to team MCP.** The gateway gets an Entra access token for itself from the stored refresh token by calling Entra directly (unverified), then Texas OBO exchanges it for one scoped to the team MCP. The team MCP validates it, checks that `azp` is the gateway's client id, rejects `idtyp=app`, requires NAVident, and its `accessPolicy.inbound` admits only the gateway. The gateway is the single policy point: route consent, read-only mode and the tool allowlist are enforced there from the pilot.
 6. **Team MCP to downstream API.** A second Texas OBO on the OBO token. Verified in the phase 0 spike: 200 on every hop, `aud` is the hop's own app, `azp` the previous hop, NAVident carried throughout.
 
-Texas introspection checks `aud`: the spike sent the gateway's token unchanged to the team MCP and got `InvalidAudience`. It does not check `azp` or `groups`, and it does not reject app tokens: a client-credentials token came back `active: true` with `idtyp: app`. Every team MCP must therefore check `idtyp`, check that `azp` is the gateway's client id, and require NAVident itself.
+Texas introspection checks `aud`: the spike sent the gateway's token unchanged to the team MCP and got `InvalidAudience`. Texas is not documented to check `azp` or `groups` (unverified). It does not reject app tokens: a client-credentials token came back `active: true` with `idtyp: app`. Every team MCP must therefore check `idtyp`, check that `azp` is the gateway's client id, and require NAVident itself.
 
 A missing inbound rule fails the OBO in Entra with `invalid_grant` / `AADSTS65001` ("has not consented"), returned by Texas as a 400. The gateway and team MCPs must translate it to "missing access to the next app (inbound rule)"; otherwise the user sees a consent error.
 
@@ -88,13 +88,23 @@ The `owner`, `gateway` and `toolHashes` fields are already in the registry respo
 - The writer has never been tested against real Texas introspection.
 - OpenCode under cplt waits for DCR, which is out of the pilot.
 
+## Onboarding and pilot control
+
+Three layers must all hold before a route opens to wider use:
+
+1. **Registry approval.** A submission stays pending until the admin group (team copilot) approves it ([#2110](https://github.com/navikt/copilot/pull/2110)).
+2. **Nais access policy.** The gateway's `accessPolicy.outbound` names every team MCP, and the team adds the gateway to its `inbound`. A missing rule fails with `AADSTS65001`.
+3. **Pilot list.** An explicit, versioned list of routes and teams in the gateway config. The gateway exposes a route only if it is on the list and approved in the registry. Removing a route from the list switches it off.
+
+The pilot accepts only cplt's client_id, on a naisdevice ingress. Teams apply through the GitHub issue template "MCP gateway: pilotsøknad" in navikt/copilot until the self-service form ([#2099](https://github.com/navikt/copilot/issues/2099)) exists. Preliminary user docs: [ki-utvikling.nav.no/verktoy/mcp-gateway](https://ki-utvikling.nav.no/verktoy/mcp-gateway) (added in a separate PR).
+
 ## Setup checklist
 
-In order. "Owner" means a human with the access; "agent" means repo work an agent can do.
+In order. Who may join the pilot: see [Onboarding and pilot control](#onboarding-and-pilot-control). "Owner" means a human with the access; "agent" means repo work an agent can do.
 
 | # | What | Where | Who | Tracked in |
 |---|---|---|---|---|
-| 1 | Run the chained-OBO spike, record the result, then delete the stub apps | dev-gcp, `spikes/2084-obo/` in [#2094](https://github.com/navikt/copilot/pull/2094) | Owner saves a dev token and runs `gcloud auth login`; agent calls the chain, tests the missing inbound grant, passthrough, app-token and group-restricted cases, deletes the apps, posts on #2084, closes #2094 | [#2084](https://github.com/navikt/copilot/issues/2084) |
+| 1 | Done 2026-11-16: chained-OBO spike run, result on #2084, stub apps deleted, #2094 closed unmerged. Tested: chain, missing inbound rule, passthrough, app token. Group-restricted apps moved to phase 0b. | dev-gcp | Agent; owner | [#2084](https://github.com/navikt/copilot/issues/2084) |
 | 2 | Phase 0b: test whether Entra issues a refresh token (`offline_access`) to the gateway's `azure.application` (unverified) | Gateway app, Entra | Agent builds the test; owner verifies | [#2084](https://github.com/navikt/copilot/issues/2084) |
 | 2b | Repeat phase 0b in prod-gcp with a stub that holds no data, before phase 1 | prod-gcp | Agent builds the stub; owner runs | [#2084](https://github.com/navikt/copilot/issues/2084) |
 | 3 | Public ingress (after the pilot, which runs on a naisdevice ingress): see External dependencies | Nais | Owner | [#2083](https://github.com/navikt/copilot/issues/2083) |
@@ -112,6 +122,14 @@ In order. "Owner" means a human with the access; "agent" means repo work an agen
 3. Where the refresh-token encryption key lives: Nais secret or KMS.
 
 ## Decisions log
+
+### 2026-11-16: controlled onboarding
+
+Owner decisions:
+
+1. **Three layers before wider opening:** registry approval by team copilot, Nais `accessPolicy` on both sides, and a versioned pilot list in the gateway config that doubles as a per-route kill switch. Details: [Onboarding and pilot control](#onboarding-and-pilot-control).
+2. **Pilot clients.** Only cplt's client_id, on a naisdevice ingress.
+3. **Applications** go through the issue template "MCP gateway: pilotsøknad" until the self-service form ([#2099](https://github.com/navikt/copilot/issues/2099)).
 
 ### 2026-11-16: registry writes, personal data, database outage, spike gate
 
