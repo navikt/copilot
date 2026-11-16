@@ -72,6 +72,9 @@ type BridgeHook struct {
 	Timeout    int      `json:"timeout,omitempty"`
 	FailClosed bool     `json:"failClosed,omitempty"`
 	SkipLocal  bool     `json:"skipLocal,omitempty"`
+	// Repo marks a gate read from the repo's own hook config; it is dropped
+	// when the launch turns the repo's OpenCode config off.
+	Repo bool `json:"-"`
 }
 
 // HookBridge is what one launch hands the plugin. ReadDirs are directories the
@@ -106,6 +109,24 @@ func navPilotDataDir() string {
 
 const openCodeDisableProjectConfigEnv = "OPENCODE_DISABLE_PROJECT_CONFIG"
 
+// OpenCodeProjectDisableEnvs are the switches that turn off a repo's own
+// OpenCode config: the consent prompt, the repo-gate drop and cplt's pass-env
+// all read this one list.
+var OpenCodeProjectDisableEnvs = []string{"OPENCODE_CONFIG_PROJECT_DISABLE", openCodeDisableProjectConfigEnv}
+
+// OpenCodeProjectDisabled mirrors OpenCode's
+// `OPENCODE_CONFIG_PROJECT_DISABLE ?? OPENCODE_DISABLE_PROJECT_CONFIG`: the
+// first key that is set decides, even when it is "0", "false" or empty.
+func OpenCodeProjectDisabled(lookup func(string) (string, bool)) bool {
+	for _, k := range OpenCodeProjectDisableEnvs {
+		if v, ok := lookup(k); ok {
+			v = strings.ToLower(v)
+			return v == "1" || v == "true"
+		}
+	}
+	return false
+}
+
 func openCodePluginDir() string { return filepath.Join(navPilotDataDir(), "opencode-plugin") }
 
 // OpenCodeHookStateDir is where the OpenCode bridge's hooks keep their state
@@ -123,13 +144,20 @@ func applyOpenCodeHooks(r domain.ResolvedConfig, env []string, cpltArgs []string
 	// whether or not any hook runs, and cplt passes only what it is told to.
 	cpltArgs = append(cpltArgs, "--pass-env", openCodeConfigContentEnv)
 	// The documented switch for an untrusted repo; cplt strips it otherwise.
-	if slices.ContainsFunc(env, func(e string) bool { return strings.HasPrefix(e, openCodeDisableProjectConfigEnv+"=") }) {
-		cpltArgs = append(cpltArgs, "--pass-env", openCodeDisableProjectConfigEnv)
+	for _, k := range OpenCodeProjectDisableEnvs {
+		if slices.ContainsFunc(env, func(e string) bool { return strings.HasPrefix(e, k+"=") }) {
+			cpltArgs = append(cpltArgs, "--pass-env", k)
+		}
 	}
 	if OpenCodeHookBridge == nil {
 		return env, cpltArgs
 	}
 	b := OpenCodeHookBridge(r)
+	// The switch is often set by this launch (declined or unanswered repo
+	// plugins), so read it from env, not the process environment.
+	if OpenCodeProjectDisabled(openCodeEnvLookup(env)) {
+		b.Pre = slices.DeleteFunc(b.Pre, func(h BridgeHook) bool { return h.Repo })
+	}
 	blocked := slices.ContainsFunc(env, func(e string) bool { return strings.HasPrefix(e, MCPBlockedEnv+"=") })
 	v2 := openCodeMajor() >= 2
 	// On opencode 2 the bridge also runs the dispatch gate (dispatch-gate.js

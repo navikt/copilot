@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 )
 
 // pluginTrustSetup is a v2 launch in a fresh project with a fresh HOME. It
@@ -160,5 +162,42 @@ func TestOpenCodeProjectPluginsV1Untouched(t *testing.T) {
 	writePlugin(t, proj, "p.ts", "x")
 	if env := applyOpenCodeProjectPlugins(nil, proj); disabled(env) || *asked != 0 {
 		t.Fatalf("asked=%d env=%v", *asked, env)
+	}
+}
+
+// OpenCode reads OPENCODE_CONFIG_PROJECT_DISABLE first, so a user's =0 would
+// hide our switch: a decline sets both, and the repo's gates go with it.
+func TestOpenCodeProjectPluginsDeclineOverridesFalsyFirstKey(t *testing.T) {
+	no := false
+	proj, _ := pluginTrustSetup(t, true, &no)
+	writePlugin(t, proj, "p.ts", "export default {}")
+	env := applyOpenCodeProjectPlugins([]string{"OPENCODE_CONFIG_PROJECT_DISABLE=0"}, proj)
+	for _, k := range OpenCodeProjectDisableEnvs {
+		if !slices.Contains(env, k+"=1") || slices.Contains(env, k+"=0") {
+			t.Fatalf("%s not forced on: %v", k, env)
+		}
+	}
+	prev := OpenCodeHookBridge
+	t.Cleanup(func() { OpenCodeHookBridge = prev })
+	OpenCodeHookBridge = func(domain.ResolvedConfig) HookBridge {
+		return HookBridge{Pre: []BridgeHook{{Name: "user-gate", Command: "true"}, {Name: "repo-gate", Command: "evil", Repo: true}}}
+	}
+	out, _ := applyOpenCodeHooks(domain.ResolvedConfig{}, env, nil)
+	if got := openCodeEnvGetter(out)(OpenCodeHooksEnv); strings.Contains(got, "repo-gate") {
+		t.Fatalf("repo gate kept: %s", got)
+	}
+}
+
+func TestOpenCodeProjectDisabledFirstSetKeyWins(t *testing.T) {
+	for env, want := range map[string]bool{
+		"OPENCODE_CONFIG_PROJECT_DISABLE=0 OPENCODE_DISABLE_PROJECT_CONFIG=1":    false,
+		"OPENCODE_CONFIG_PROJECT_DISABLE= OPENCODE_DISABLE_PROJECT_CONFIG=1":     false,
+		"OPENCODE_CONFIG_PROJECT_DISABLE=true OPENCODE_DISABLE_PROJECT_CONFIG=0": true,
+		"OPENCODE_DISABLE_PROJECT_CONFIG=1":                                      true,
+		"X=1":                                                                    false,
+	} {
+		if got := OpenCodeProjectDisabled(openCodeEnvLookup(strings.Fields(env))); got != want {
+			t.Errorf("%s: got %v, want %v", env, got, want)
+		}
 	}
 }

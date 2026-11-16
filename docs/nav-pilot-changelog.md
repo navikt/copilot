@@ -17,6 +17,15 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 - **Lokal KI-modell**: Når flere økter sender forespørsler til den lokale modellen samtidig, blir ingen av dem lenger avvist med «connection reset». De venter i køen i stedet (#2181).
 
+### Feilrettinger
+
+- **OpenCode**: Når du har avslått et repos OpenCode-plugins, eller ikke har svart ennå, kjører nav-pilot heller ikke repoets egne `preToolUse`-hooks fra `.github/hooks/copilot-hooks.json` (#2207).
+- **`nav-pilot mcp enable` og `disable` med OpenCode 2**: Servere under `mcp.servers` blir nå funnet og endret der de står. Tidligere svarte `disable` at serveren ikke fantes, og `enable` la til en kopi utenfor `mcp.servers` (#2207).
+- **pi med lokal modell**: nav-pilot stopper nå med en forklaring når `model` er en lokal modell og klienten er pi. pi kan ikke kjøre lokale modeller ennå. Bruk `nav-pilot --client opencode` (#2207).
+- **`--project-dir` med `--`**: En installasjon i repoet du peker på, teller nå med. Tidligere stoppet oppstarten med «nothing is installed» når du sto i en annen mappe (#2207).
+- **Lokal statistikk**: Fullførte svar fra en ekstern lokal server blir nå telt, også når `nav-pilot alpha local init` aldri har kjørt (#2207).
+- **`nav-pilot mcp enable --json`**: Tar nå ett servernavn. Med flere navn skrev kommandoen flere JSON-objekter etter hverandre, som ingen JSON-leser forstår (#2207).
+
 ## 2026-10-31
 
 ### `innblikk`: nettstatistikk uten dekoratøren

@@ -235,7 +235,7 @@ func openCodeVerdict(rules [][2]string, id string) string {
 // Copilot's tools list (and GitHub's URL), OpenCode's permission rules (and
 // GitHub's URL). The rest of the entry is kept. A change leaves a backup.
 func SetMCPServerTools(client, key string, e MCPServerEntry, c MCPToolChoice) (MCPConfigChange, error) {
-	return editMCPConfig(client, func(top, servers *jsonObject) (json.RawMessage, bool, error) {
+	return editMCPConfig(client, key, func(top, servers *jsonObject) (json.RawMessage, bool, error) {
 		raw, ok := servers.vals[key]
 		if !ok {
 			return nil, false, errors.New(key + " is not in the file")
@@ -244,7 +244,6 @@ func SetMCPServerTools(client, key string, e MCPServerEntry, c MCPToolChoice) (M
 		if err != nil {
 			return nil, false, errors.New(key + " is not an object, so nav-pilot left it alone")
 		}
-		before := compactJSON(top.marshal())
 		if c.URL != "" {
 			v, _ := json.Marshal(c.URL)
 			entry.set("url", v)
@@ -279,10 +278,9 @@ func SetMCPServerTools(client, key string, e MCPServerEntry, c MCPToolChoice) (M
 			entry.set("tools", v)
 		}
 		servers.set(key, entry.marshal())
-		// Unchanged is no write, so the backup of the last real change
-		// stays. Order counts: OpenCode's rules are read in order.
-		top.set(mcpServersKey(client), servers.marshal())
-		return nil, !bytes.Equal(before, compactJSON(top.marshal())), nil
+		// editMCPConfig skips the write when the result is unchanged.
+		// Order counts: OpenCode's rules are read in order.
+		return nil, true, nil
 	})
 }
 

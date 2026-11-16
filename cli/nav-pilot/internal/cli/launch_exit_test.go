@@ -2,7 +2,9 @@ package cli
 
 import (
 	"errors"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"testing"
 )
 
@@ -92,5 +94,28 @@ func TestOfferLaunchMissingClientWithPromptFails(t *testing.T) {
 	}
 	if err := offerLaunch(ResolvedConfig{Client: "pi", AutoLaunch: true}, false); err != nil {
 		t.Errorf("bare: offerLaunch = %v, want nil", err)
+	}
+}
+
+// --project-dir names the repo a launch runs in, so its repo-scope install
+// counts even when nav-pilot is started from somewhere else.
+func TestNothingInstalledHonoursProjectDir(t *testing.T) {
+	isolatedConfig(t)
+	repo := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(repo, ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if !nothingInstalled(repo) {
+		t.Fatal("nothingInstalled = false before any install")
+	}
+	state := ScopeRepo(repo).StatePath()
+	if err := os.MkdirAll(filepath.Dir(state), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(state, []byte("{}"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if nothingInstalled(repo) {
+		t.Error("nothingInstalled = true with a repo-scope install in --project-dir")
 	}
 }

@@ -296,7 +296,7 @@ type MCPConfigChange struct {
 // server is kept as it was, in its order. An equal entry changes nothing; a
 // different one under the same name is kept and returned.
 func SetMCPServer(client, name string, entry json.RawMessage, e MCPServerEntry, c MCPToolChoice) (MCPConfigChange, error) {
-	return editMCPConfig(client, func(top, servers *jsonObject) (json.RawMessage, bool, error) {
+	return editMCPConfig(client, name, func(top, servers *jsonObject) (json.RawMessage, bool, error) {
 		if old, ok := servers.vals[name]; ok {
 			if jsonEqual(old, entry) {
 				return nil, false, nil
@@ -317,7 +317,7 @@ func SetMCPServer(client, name string, entry json.RawMessage, e MCPServerEntry, 
 // For OpenCode its permission rules go too (dropOpenCodeRules); tools is the
 // registry's tool list for it, nil when unknown.
 func RemoveMCPServer(client, name string, tools []string) (MCPConfigChange, error) {
-	return editMCPConfig(client, func(top, servers *jsonObject) (json.RawMessage, bool, error) {
+	return editMCPConfig(client, name, func(top, servers *jsonObject) (json.RawMessage, bool, error) {
 		if !servers.del(name) {
 			return nil, false, nil
 		}
@@ -387,7 +387,50 @@ func MCPConfigKeys(client string) []string {
 	if err != nil {
 		return nil
 	}
+	if client == MCPClientOpenCode {
+		return openCodeAllServers(servers).keys
+	}
 	return servers.keys
+}
+
+// openCodeAllServers is every server under mcp: flat mcp.<name> entries and,
+// on opencode 2's layout, mcp.servers.<name>, as openCodeMCPServersIn loads
+// both. A nested name shadows a flat one of the same name.
+func openCodeAllServers(mcp jsonObject) jsonObject {
+	native, ok := openCodeNativeServers(mcp)
+	if !ok {
+		return mcp
+	}
+	all := jsonObject{vals: map[string]json.RawMessage{}}
+	for _, k := range mcp.keys {
+		if k == "servers" || (k == "timeout" && !isOpenCodeServerJSON(mcp.vals[k])) {
+			continue
+		}
+		all.set(k, mcp.vals[k])
+	}
+	for _, k := range native.keys {
+		all.set(k, native.vals[k])
+	}
+	return all
+}
+
+func isOpenCodeServerJSON(raw json.RawMessage) bool {
+	var probe struct {
+		Type string `json:"type"`
+	}
+	return json.Unmarshal(raw, &probe) == nil && (probe.Type == "local" || probe.Type == "remote")
+}
+
+// openCodeNativeServers is opencode 2's mcp.servers.<name> map, when mcp has
+// one: a "servers" key with no server type is that map, not a server
+// (openCodeUserMCPServers reads it the same way).
+func openCodeNativeServers(mcp jsonObject) (jsonObject, bool) {
+	raw, ok := mcp.vals["servers"]
+	if !ok || isOpenCodeServerJSON(raw) {
+		return jsonObject{}, false
+	}
+	native, err := parseJSONObject(raw)
+	return native, err == nil
 }
 
 // MCPConfigKeyFor is the name the server already has in the client's user
@@ -402,16 +445,9 @@ func MCPConfigKeyFor(client string, e MCPServerEntry) string {
 	if client != MCPClientOpenCode {
 		return ""
 	}
-	path, _ := MCPConfigPath(client)
-	data, _ := os.ReadFile(path)
-	var cfg struct {
-		MCP map[string]mcpServer `json:"mcp"`
-	}
-	if json.Unmarshal(stripJSONC(data), &cfg) != nil {
-		return ""
-	}
+	defs := openCodeUserServerDefs()
 	for _, k := range keys {
-		if openCodeRegistryName([]MCPServerEntry{e}, k, cfg.MCP[k]) != "" {
+		if openCodeRegistryName([]MCPServerEntry{e}, k, defs[k]) != "" {
 			return k
 		}
 	}
@@ -422,16 +458,34 @@ func MCPConfigKeyFor(client string, e MCPServerEntry) string {
 // in OpenCode's user config, matched by name, URL or package, or "". One
 // read of the file, however many entries there are.
 func OpenCodeRegistryNameFor(key string, entries []MCPServerEntry) string {
-	path, _ := MCPConfigPath(MCPClientOpenCode)
-	data, _ := os.ReadFile(path)
-	var cfg struct {
-		MCP map[string]mcpServer `json:"mcp"`
-	}
-	_ = json.Unmarshal(stripJSONC(data), &cfg) // unreadable: by name only
-	return openCodeRegistryName(entries, key, cfg.MCP[key])
+	return openCodeRegistryName(entries, key, openCodeUserServerDefs()[key]) // unreadable: by name only
 }
 
-func editMCPConfig(client string, edit func(top, servers *jsonObject) (json.RawMessage, bool, error)) (MCPConfigChange, error) {
+// openCodeUserServerDefs is the servers in OpenCode's user config by name,
+// from mcp.servers on opencode 2's layout, else from mcp.
+func openCodeUserServerDefs() map[string]mcpServer {
+	path, _ := MCPConfigPath(MCPClientOpenCode)
+	data, _ := os.ReadFile(path)
+	top, err := parseJSONObject(stripJSONC(data))
+	if err != nil {
+		return nil
+	}
+	mcp, err := parseJSONObject(top.vals["mcp"])
+	if err != nil {
+		return nil
+	}
+	mcp = openCodeAllServers(mcp)
+	defs := map[string]mcpServer{}
+	for _, k := range mcp.keys {
+		var d mcpServer
+		if json.Unmarshal(mcp.vals[k], &d) == nil {
+			defs[k] = d
+		}
+	}
+	return defs
+}
+
+func editMCPConfig(client, name string, edit func(top, servers *jsonObject) (json.RawMessage, bool, error)) (MCPConfigChange, error) {
 	path, err := MCPConfigPath(client)
 	if err != nil {
 		return MCPConfigChange{}, err
@@ -477,7 +531,20 @@ func editMCPConfig(client string, edit func(top, servers *jsonObject) (json.RawM
 	if _, ok := top.vals[key]; !ok {
 		top.set(key, json.RawMessage(`{}`))
 	}
-	existing, changed, err := edit(&top, &servers)
+	// A config in opencode 2's own layout is edited there, not beside it.
+	target := &servers
+	native, nested := jsonObject{}, false
+	if client == MCPClientOpenCode {
+		// A flat server beside mcp.servers is edited where it is.
+		native, nested = openCodeNativeServers(servers)
+		_, flat := servers.vals[name]
+		_, inNative := native.vals[name]
+		if nested && (inNative || !flat || name == "servers") {
+			target = &native
+		}
+	}
+	before := compactJSON(top.marshal())
+	existing, changed, err := edit(&top, target)
 	if err != nil {
 		return ch, fmt.Errorf("%s: %w", ch.Path, err)
 	}
@@ -485,7 +552,14 @@ func editMCPConfig(client string, edit func(top, servers *jsonObject) (json.RawM
 	if !changed {
 		return ch, nil
 	}
+	if nested {
+		servers.set("servers", native.marshal())
+	}
 	top.set(key, servers.marshal())
+	// Unchanged is no write, so the backup of the last real change stays.
+	if bytes.Equal(before, compactJSON(top.marshal())) {
+		return ch, nil
+	}
 	var out bytes.Buffer
 	if err := json.Indent(&out, top.marshal(), "", "  "); err != nil {
 		return ch, err

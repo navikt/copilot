@@ -48,11 +48,8 @@ type openCodePluginSet struct {
 // ponytail: a bundled plugin can import any file in the repo, so the hash
 // covers the plugin's own files, not everything it may load.
 func openCodeProjectPlugins(projectDir string, env []string) openCodePluginSet {
-	getenv := openCodeEnvGetter(env)
-	for _, k := range []string{openCodeDisableProjectConfigEnv, "OPENCODE_CONFIG_PROJECT_DISABLE"} {
-		if v := strings.ToLower(getenv(k)); v == "1" || v == "true" {
-			return openCodePluginSet{}
-		}
+	if OpenCodeProjectDisabled(openCodeEnvLookup(env)) {
+		return openCodePluginSet{}
 	}
 	if projectDir == "" {
 		projectDir, _ = os.Getwd()
@@ -314,7 +311,7 @@ func applyOpenCodeProjectPlugins(env []string, projectDir string) []string {
 	case ok && a.Hash == set.sum:
 	case !openCodePluginsTTY():
 		// Headless: never block, never load an unanswered set, record nothing.
-		env, _ = telemetry.SetEnvValue(env, openCodeDisableProjectConfigEnv, "1")
+		env = disableOpenCodeProject(env)
 		fmt.Fprintf(os.Stderr, "%s This repo's OpenCode config (plugins, agents, AGENTS.md) is off until you answer. Run %s in a terminal.\n", domain.Yellow("⚠"), OpenCodePluginsCommand)
 		return env
 	default:
@@ -323,7 +320,7 @@ func applyOpenCodeProjectPlugins(env []string, projectDir string) []string {
 	if allow {
 		return env
 	}
-	env, _ = telemetry.SetEnvValue(env, openCodeDisableProjectConfigEnv, "1")
+	env = disableOpenCodeProject(env)
 	fmt.Fprintf(os.Stderr, "%s This repo's OpenCode config is off (you declined its plugins). Change: %s\n", domain.Dim("-"), OpenCodePluginsCommand)
 	// A repo-scope install lives in the same .opencode/ and goes off with it.
 	if _, err := os.Stat(filepath.Join(set.root, ".opencode", ".nav-pilot-state.json")); err == nil {
@@ -361,4 +358,13 @@ func RunOpenCodePlugins(projectDir string) error {
 	}
 	askOpenCodePluginSet(set)
 	return nil
+}
+
+// disableOpenCodeProject sets every switch: OpenCode reads the first one set,
+// so a user's OPENCODE_CONFIG_PROJECT_DISABLE=0 would hide ours.
+func disableOpenCodeProject(env []string) []string {
+	for _, k := range OpenCodeProjectDisableEnvs {
+		env, _ = telemetry.SetEnvValue(env, k, "1")
+	}
+	return env
 }

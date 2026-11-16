@@ -403,13 +403,18 @@ func localPythonRunnerPackage(rest []string) string {
 }
 
 func openCodeEnvGetter(env []string) func(string) string {
-	return func(k string) string {
+	lookup := openCodeEnvLookup(env)
+	return func(k string) string { v, _ := lookup(k); return v }
+}
+
+func openCodeEnvLookup(env []string) func(string) (string, bool) {
+	return func(k string) (string, bool) {
 		for _, e := range env {
 			if v, ok := strings.CutPrefix(e, k+"="); ok {
-				return v
+				return v, true
 			}
 		}
-		return ""
+		return "", false
 	}
 }
 
@@ -579,7 +584,7 @@ func openCodeConfigDocuments(projectDir string, env []string, userOnly bool) []o
 	if f := getenv("OPENCODE_CONFIG"); f != "" {
 		read(filepath.Dir(f), filepath.Base(f))
 	}
-	if v := strings.ToLower(getenv("OPENCODE_DISABLE_PROJECT_CONFIG")); v != "true" && v != "1" {
+	if !OpenCodeProjectDisabled(openCodeEnvLookup(env)) {
 		if projectDir == "" {
 			projectDir, _ = os.Getwd()
 		}
