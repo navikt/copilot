@@ -256,9 +256,16 @@ func (c *GitHubClient) GetRepoFile(accessToken, owner, repo, path string) (bool,
 		return false, err
 	}
 	defer func() { _ = resp.Body.Close() }()
-	_, _ = io.ReadAll(resp.Body)
+	body, _ := io.ReadAll(resp.Body)
 
-	return resp.StatusCode == http.StatusOK, nil
+	switch resp.StatusCode {
+	case http.StatusOK:
+		return true, nil
+	case http.StatusNotFound:
+		return false, nil
+	default:
+		return false, fmt.Errorf("github api error: %d - %s", resp.StatusCode, string(body))
+	}
 }
 
 func (c *GitHubClient) ListDirectory(accessToken, owner, repo, path string) ([]RepoContent, error) {
