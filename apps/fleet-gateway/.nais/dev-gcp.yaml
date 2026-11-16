@@ -8,7 +8,7 @@ log_level: "INFO"
 base_url: "https://fleet-gateway.intern.dev.nav.no"
 allowed_client_ids: "https://fleet-gw-0b.intern.dev.nav.no/oauth-client.json" # dev test: spike CIMD until my-copilot publishes one (#2085)
 allowed_redirect_uris: "http://127.0.0.1:62471/callback"
-allowed_resources: "https://fleet-gateway.intern.dev.nav.no/mcp"
+allowed_resources: "https://fleet-gateway.intern.dev.nav.no/mcp/test"
 entra_scope: "openid"
 pilot_routes_file: "/app/pilot-routes.dev.yaml"
 outbound_rules:
