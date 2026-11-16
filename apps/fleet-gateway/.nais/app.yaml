@@ -69,7 +69,7 @@ spec:
       {{/if}}
       external:
         - host: login.microsoftonline.com
-        - host: my-copilot.ekstern.dev.nav.no
+        - host: "{{cimd_host}}"
   ingresses:
   {{#each ingresses as |url|}}
     - {{url}}
