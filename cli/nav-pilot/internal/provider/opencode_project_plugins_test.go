@@ -354,3 +354,25 @@ func TestOpenCodeRepoGateSymlinkOutsideRepoIsUnknown(t *testing.T) {
 		t.Fatalf("sum = %q, want unknown:", set.sum)
 	}
 }
+
+func TestOpenCodeRepoGateFileSymlinkOutsideRepoIsUnknown(t *testing.T) {
+	yes := true
+	proj, asked := pluginTrustSetup(t, true, &yes)
+	writeRepoGate(t, proj, "python3 .github/hooks/g.py")
+	outside := filepath.Join(t.TempDir(), "outside.py")
+	if err := os.WriteFile(outside, []byte("print(1)"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(proj, ".github", "hooks", "g.py")); err != nil {
+		t.Fatal(err)
+	}
+	set := openCodeProjectPlugins(proj, nil)
+	if !strings.HasPrefix(set.sum, "unknown:") {
+		t.Fatalf("sum = %q, want unknown:", set.sum)
+	}
+	applyOpenCodeProjectPlugins(nil, proj)
+	applyOpenCodeProjectPlugins(nil, proj)
+	if *asked != 2 {
+		t.Fatalf("asked %d times, want 2", *asked)
+	}
+}

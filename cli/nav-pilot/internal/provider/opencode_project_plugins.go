@@ -220,15 +220,15 @@ func (w *pluginHasher) add(p string) {
 		return
 	}
 	w.seen[real] = true
+	if !withinDir(w.realRoot, real) {
+		w.unknown = true // symlink outside the repository
+		return
+	}
 	st, err := os.Lstat(real)
 	switch {
 	case err != nil:
 		w.unknown = true
 	case st.IsDir():
-		if !withinDir(w.realRoot, real) {
-			w.unknown = true // symlink outside the repository
-			return
-		}
 		if parentReal, perr := filepath.EvalSymlinks(filepath.Dir(p)); perr == nil && withinDir(real, parentReal) {
 			w.unknown = true // symlink to an ancestor directory
 			return
