@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -633,7 +634,7 @@ func run(args []string) error {
 	if explicitLaunch {
 		// No menu, no sync, no install: a benchmark or CI run must not
 		// rewrite ~/.copilot. --sync stays opt-in (nav-pilot --sync -- …).
-		if nothingInstalled() {
+		if nothingInstalled(cmp.Or(cliOverrides.ProjectDir, ".")) {
 			// Installing needs a yes, and --sync is not one: say what is.
 			return &exitCode{code: 2, err: fmt.Errorf("nothing is installed, and a launch with client args after -- installs nothing. Install first: %s", bold("nav-pilot install --user --all --yes"))}
 		}
@@ -1501,13 +1502,13 @@ func norwegian(err error) error {
 // nothingInstalled reports whether neither the user scope nor this
 // repository has an install (a pinned agentpakke counts: it lives in the
 // user scope's state).
-func nothingInstalled() bool {
+func nothingInstalled(dir string) bool {
 	if s, err := ScopeUser(); err == nil {
 		if st, err := readScopedState(s); err != nil || st != nil {
 			return false
 		}
 	}
-	if root := findGitRoot("."); root != "" {
+	if root := findGitRoot(dir); root != "" {
 		if st, err := readScopedState(ScopeRepo(root)); err != nil || st != nil {
 			return false
 		}
