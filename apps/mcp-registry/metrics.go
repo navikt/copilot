@@ -26,10 +26,15 @@ var (
 		Help: "Total number of server lookups by server name and result.",
 	}, []string{"server", "result"})
 
-	registryDBCollisionsTotal = promauto.NewCounterVec(prometheus.CounterOpts{
-		Name: "registry_db_collisions_total",
-		Help: "Total number of database entries dropped due to collision with static entries.",
-	}, []string{"server"})
+	registryDBEntriesDroppedTotal = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "registry_db_entries_dropped_total",
+		Help: "Database entries dropped at reload, by reason (collision, invalid, parse).",
+	}, []string{"reason"})
+
+	registryWritesTotal = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "registry_writes_total",
+		Help: "Total number of registry write operations.",
+	}, []string{"action", "status"})
 )
 
 var knownPaths = map[string]bool{
@@ -42,9 +47,19 @@ var knownPaths = map[string]bool{
 	"/robots.txt":               true,
 	"/favicon.ico":              true,
 	"/.well-known/security.txt": true,
+	"/api/v1/entries":           true,
 }
 
 func normalizePath(path string) string {
+	if strings.HasPrefix(path, "/api/v1/entries/") {
+		if strings.HasSuffix(path, "/approve") {
+			return "/api/v1/entries/{name}/approve"
+		}
+		if strings.HasSuffix(path, "/reject") {
+			return "/api/v1/entries/{name}/reject"
+		}
+		return "other"
+	}
 	if strings.HasPrefix(path, "/v0.1/servers/") && path != "/v0.1/servers/" {
 		return "/v0.1/servers/{name}"
 	}
@@ -64,6 +79,10 @@ func recordServerLookup(server, result string) {
 	registryServerLookupsTotal.WithLabelValues(server, result).Inc()
 }
 
-func recordDBCollision(server string) {
-	registryDBCollisionsTotal.WithLabelValues(server).Inc()
+func recordDBDropped(reason string) {
+	registryDBEntriesDroppedTotal.WithLabelValues(reason).Inc()
+}
+
+func recordWriteMetric(action, status string) {
+	registryWritesTotal.WithLabelValues(action, status).Inc()
 }

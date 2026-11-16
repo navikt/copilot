@@ -2,6 +2,7 @@ package main
 
 import (
 	"log/slog"
+	"slices"
 	"testing"
 )
 
@@ -260,5 +261,33 @@ func TestGetEndpointsList(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestConfig_IsAdmin(t *testing.T) {
+	cfg := &Config{AdminGroupID: "admins"}
+	if !cfg.IsAdmin([]string{"other", "admins"}) {
+		t.Error("member of admin group not admin")
+	}
+	if cfg.IsAdmin([]string{"other"}) || cfg.IsAdmin(nil) {
+		t.Error("non-member is admin")
+	}
+	if (&Config{}).IsAdmin([]string{""}) {
+		t.Error("empty ADMIN_GROUP_ID must make nobody admin")
+	}
+}
+
+func TestParseAllowedWriteAZP(t *testing.T) {
+	pre := `[{"name":"dev-gcp:copilot:my-copilot","clientId":"mc-id"},{"name":"dev-gcp:copilot:other","clientId":"o-id"}]`
+	got := parseAllowedWriteAZP(" dev-gcp:copilot:my-copilot , raw-id,,dev-gcp:copilot:missing", pre)
+	if !slices.Equal(got, []string{"mc-id", "raw-id"}) {
+		t.Fatalf("got %v", got)
+	}
+	if got := parseAllowedWriteAZP("", pre); len(got) != 0 {
+		t.Fatalf("empty input: got %v", got)
+	}
+	cfg := &Config{}
+	if cfg.AllowsWriteAZP("") || cfg.AllowsWriteAZP("mc-id") {
+		t.Fatal("empty list must allow nobody")
 	}
 }

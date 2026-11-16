@@ -33,7 +33,28 @@ spec:
     autoInstrumentation:
       enabled: true
       runtime: sdk
+  gcp:
+    sqlInstances:
+      - type: POSTGRES_17
+        tier: db-f1-micro
+        databases:
+          - name: registry
+            envVarPrefix: DB
+  azure:
+    application:
+      enabled: true
+      tenant: nav.no
+      allowAllUsers: true
+      claims:
+        groups:
+          - id: "{{admin_group_id}}"
   env:
+    - name: ADMIN_GROUP_ID
+      value: "{{admin_group_id}}"
+    # Only my-copilot may write. Resolved to its client id through
+    # AZURE_APP_PRE_AUTHORIZED_APPS, which the inbound rule below provides.
+    - name: ALLOWED_WRITE_AZP
+      value: "{{cluster}}:copilot:my-copilot"
     - name: PORT
       value: "8080"
     - name: LOG_LEVEL

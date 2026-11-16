@@ -1,3 +1,4 @@
+cluster: dev-gcp
 replicas_min: "1"
 replicas_max: "2"
 cpu_threshold: "80"
@@ -8,3 +9,4 @@ domain_internal: intern.dev.nav.no
 domain_external: ekstern.dev.nav.no
 ingresses:
   - https://mcp-registry.ekstern.dev.nav.no
+admin_group_id: "f59c8c77-7b73-4753-890a-2b483a07d18a" # team copilot

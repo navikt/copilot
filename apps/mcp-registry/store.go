@@ -9,8 +9,6 @@ import (
 	"os"
 	"sync"
 	"time"
-
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 // DBEntry represents a single row returned from registry_entries.
@@ -151,7 +149,7 @@ func (s *Store) Reload(ctx context.Context) error {
 			slog.Error("Failed to reload registry entries from database, keeping last good set", "error", err)
 			dbErr = err
 		} else {
-			dbServers = s.dbEntriesToResponses(entries)
+			dbServers = dbEntriesToResponses(entries)
 		}
 	}
 
@@ -172,7 +170,7 @@ func (s *Store) Reload(ctx context.Context) error {
 	for _, sr := range s.dbServers {
 		if s.staticNames[sr.Server.Name] {
 			slog.Warn("Database entry collides with static allowlist name, dropping DB entry", "server", sr.Server.Name)
-			recordDBCollision(sr.Server.Name)
+			recordDBDropped("collision")
 			continue
 		}
 		merged = append(merged, sr)
@@ -181,34 +179,39 @@ func (s *Store) Reload(ctx context.Context) error {
 	return dbErr
 }
 
-// dbEntriesToResponses parses and validates DB rows; invalid rows are dropped.
-func (s *Store) dbEntriesToResponses(entries []DBEntry) []ServerResponse {
-	now := time.Now().UTC()
-	seen := make(map[string]bool)
+// dbEntriesToResponses validates DB rows with the submission validator and
+// converts them. Rows that fail are dropped and counted.
+func dbEntriesToResponses(entries []DBEntry) []ServerResponse {
 	var out []ServerResponse
-	for i, entry := range entries {
-		rawJSON := entry.Entry
-		if s.config != nil {
-			rawJSON = substituteVariables(rawJSON, s.config)
-		}
-		var server StaticServerData
-		if err := json.Unmarshal(rawJSON, &server); err != nil {
-			slog.Warn("Failed to unmarshal database registry entry, dropping", "server", entry.Name, "error", err)
+	for _, entry := range entries {
+		if !json.Valid(entry.Entry) {
+			slog.Warn("Failed to parse database registry entry, dropping", "server", entry.Name)
+			recordDBDropped("parse")
 			continue
 		}
-		if server.Name == "" {
-			server.Name = entry.Name
+		sub, _, err := validateSubmission(entry.Entry)
+		if err == nil && sub.Name != entry.Name {
+			err = fmt.Errorf("entry name %q does not match row name", sub.Name)
 		}
-		if err := validateServerEntry(&server, i, seen); err != nil {
-			slog.Warn("Invalid database registry entry dropped", "server", server.Name, "error", err)
+		if err != nil {
+			slog.Warn("Invalid database registry entry dropped", "server", entry.Name, "error", err)
+			recordDBDropped("invalid")
 			continue
 		}
-		seen[server.Name] = true
-		updatedAt := entry.UpdatedAt.UTC()
-		if entry.UpdatedAt.IsZero() {
-			updatedAt = now
+		remotes := make([]Transport, len(sub.Remotes))
+		for i, r := range sub.Remotes {
+			remotes[i] = Transport{Type: r.Type, URL: r.URL}
 		}
-		out = append(out, serverToResponse(server, updatedAt))
+		sr := serverToResponse(StaticServerData{
+			Name:        sub.Name,
+			Description: sub.Description,
+			Version:     sub.Version,
+			WebsiteURL:  sub.WebsiteURL,
+			Repository:  sub.Repository,
+			Remotes:     remotes,
+		}, entry.UpdatedAt.UTC())
+		sr.Meta.NavRegistry = &NavRegistryMeta{Owner: sub.Owner}
+		out = append(out, sr)
 	}
 	return out
 }
@@ -243,49 +246,22 @@ func (s *Store) GetServer(name, version string) (*ServerResponse, error) {
 
 // StartRefresher runs a background loop refreshing entries at the given interval.
 func (s *Store) StartRefresher(ctx context.Context, interval time.Duration) {
+	ticker := time.NewTicker(interval)
 	go func() {
-		ticker := time.NewTicker(interval)
 		defer ticker.Stop()
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-ticker.C:
-				if err := s.Reload(ctx); err != nil {
-					slog.Warn("Background reload failed", "error", err)
-				}
-			}
-		}
+		s.runRefresher(ctx, ticker.C)
 	}()
 }
 
-// newPGXEntryLoader creates an EntryLoader backed by a pgx connection pool.
-func newPGXEntryLoader(ctx context.Context, dbURL string) (EntryLoader, func(), error) {
-	pool, err := pgxpool.New(ctx, dbURL)
-	if err != nil {
-		return nil, nil, fmt.Errorf("creating pgx connection pool: %w", err)
-	}
-
-	loader := func(ctx context.Context) ([]DBEntry, error) {
-		rows, err := pool.Query(ctx, "SELECT name, entry, updated_at FROM registry_entries WHERE status = 'approved' ORDER BY name")
-		if err != nil {
-			return nil, fmt.Errorf("querying registry_entries: %w", err)
-		}
-		defer rows.Close()
-
-		var entries []DBEntry
-		for rows.Next() {
-			var e DBEntry
-			if err := rows.Scan(&e.Name, &e.Entry, &e.UpdatedAt); err != nil {
-				return nil, fmt.Errorf("scanning registry entry row: %w", err)
+func (s *Store) runRefresher(ctx context.Context, ticks <-chan time.Time) {
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticks:
+			if err := s.Reload(ctx); err != nil {
+				slog.Warn("Background reload failed", "error", err)
 			}
-			entries = append(entries, e)
 		}
-		if err := rows.Err(); err != nil {
-			return nil, fmt.Errorf("iterating registry entry rows: %w", err)
-		}
-		return entries, nil
 	}
-
-	return loader, pool.Close, nil
 }

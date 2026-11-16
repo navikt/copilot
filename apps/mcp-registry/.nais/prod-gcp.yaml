@@ -1,3 +1,4 @@
+cluster: prod-gcp
 replicas_min: "1"
 replicas_max: "5"
 cpu_threshold: "70"
@@ -8,3 +9,4 @@ domain_internal: intern.nav.no
 domain_external: nav.no
 ingresses:
   - https://mcp-registry.nav.no
+admin_group_id: "f59c8c77-7b73-4753-890a-2b483a07d18a" # team copilot

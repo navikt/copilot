@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"sync/atomic"
 	"syscall"
 	"time"
 )
@@ -50,26 +51,42 @@ func main() {
 	sigCtx, stop := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
+	// The DB is optional: without DATABASE_URL, or while it cannot be reached,
+	// the reader serves static entries and the write endpoints answer 503.
+	// Reads must stay up when the DB is down, so a failing DB never blocks startup.
+	var db atomic.Pointer[DB]
 	var loader EntryLoader
 	if config.DatabaseURL != "" {
-		pgxLoader, closePool, err := newPGXEntryLoader(sigCtx, config.DatabaseURL)
-		if err != nil {
-			slog.Warn("Failed to initialize database pool", "error", err)
-		} else {
-			defer closePool()
-			loader = pgxLoader
+		loader = func(ctx context.Context) ([]DBEntry, error) {
+			d := db.Load()
+			if d == nil {
+				return nil, errors.New("database not connected")
+			}
+			return d.GetApprovedEntries(ctx)
 		}
 	}
-
+	if loader != nil && len(config.AllowedWriteAZP) == 0 {
+		slog.Warn("ALLOWED_WRITE_AZP resolves to no client ids: every write is rejected")
+	}
 	store := NewStore(config, "allowlist.json", loader)
 	if loader != nil {
-		// Load DB entries in the background: static entries and health serve at once.
 		go func() {
+			opened, err := connectWithRetry(sigCtx, func(ctx context.Context) (*DB, error) {
+				return openAndMigrate(ctx, config.DatabaseURL)
+			}, 10*time.Second, time.Second, time.Minute)
+			if err != nil {
+				return // ctx cancelled
+			}
+			db.Store(opened)
+			slog.Info("Database connected and migrated, writes enabled")
 			if err := store.Reload(sigCtx); err != nil {
 				slog.Warn("Initial database reload failed, serving static entries only", "error", err)
 			}
+			store.StartRefresher(sigCtx, 60*time.Second)
+			retentionTicker := time.NewTicker(time.Hour)
+			defer retentionTicker.Stop()
+			runRetention(sigCtx, opened, retentionTicker.C)
 		}()
-		store.StartRefresher(sigCtx, 60*time.Second)
 	}
 	config.Store = store
 
@@ -78,6 +95,9 @@ func main() {
 	http.Handle("/metrics", metricsHandler())
 	http.HandleFunc("/v0.1/servers", loggingMiddleware(config, makeServersListHandler(config)))
 	http.HandleFunc("/v0.1/servers/", loggingMiddleware(config, makeServerVersionHandler(config)))
+	introspect := newTexasIntrospector(config.TexasEndpoint)
+	http.HandleFunc("POST /api/v1/entries", loggingMiddleware(config, makeSubmitHandler(config, &db, introspect)))
+	http.HandleFunc("POST /api/v1/entries/{name...}", loggingMiddleware(config, makeEntryActionHandler(config, &db, introspect)))
 	http.HandleFunc("/robots.txt", robotsTxtHandler)
 	http.HandleFunc("/favicon.ico", faviconHandler)
 	http.HandleFunc("/.well-known/security.txt", securityTxtHandler)
@@ -108,5 +128,43 @@ func main() {
 	defer cancel()
 	if err := server.Shutdown(shutdownCtx); err != nil {
 		slog.Error("Server shutdown failed", "error", err)
+	}
+	// Close the pool only after in-flight writes have drained.
+	if d := db.Load(); d != nil {
+		d.Close()
+	}
+}
+
+// openAndMigrate opens the DB and applies migrations, closing it on failure.
+func openAndMigrate(ctx context.Context, dbURL string) (*DB, error) {
+	db, err := OpenDB(ctx, dbURL)
+	if err != nil {
+		return nil, err
+	}
+	if err := db.Migrate(ctx); err != nil {
+		db.Close()
+		return nil, err
+	}
+	return db, nil
+}
+
+// connectWithRetry calls connect until it succeeds or ctx is cancelled. Each
+// attempt is bounded by timeout; the delay doubles from minDelay up to maxDelay.
+func connectWithRetry(ctx context.Context, connect func(context.Context) (*DB, error), timeout, minDelay, maxDelay time.Duration) (*DB, error) {
+	delay := minDelay
+	for attempt := 1; ; attempt++ {
+		attemptCtx, cancel := context.WithTimeout(ctx, timeout)
+		db, err := connect(attemptCtx)
+		cancel()
+		if err == nil {
+			return db, nil
+		}
+		slog.Error("Database unavailable, serving static entries only; retrying", "attempt", attempt, "retry_in", delay.String(), "error", err)
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(delay):
+		}
+		delay = min(delay*2, maxDelay)
 	}
 }
