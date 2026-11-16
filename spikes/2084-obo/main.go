@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"os"
 	"strings"
@@ -64,18 +65,25 @@ func handle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	claims := map[string]any{}
-	for _, k := range []string{"aud", "azp", "azp_name", "NAVident", "scp", "idtyp"} {
+	for _, k := range []string{"aud", "azp", "azp_name", "NAVident", "scp", "idtyp", "tid", "active"} {
 		if v, ok := in[k]; ok {
 			claims[k] = v
 		}
 	}
 	res["claims"] = claims
+	// Introspection checks signature and standard claims only; aud is ours to check.
+	if in["aud"] != os.Getenv("AZURE_APP_CLIENT_ID") {
+		w.WriteHeader(http.StatusUnauthorized)
+		res["error"] = "aud is not this app"
+		return
+	}
 	if in["idtyp"] == "app" {
 		w.WriteHeader(http.StatusUnauthorized)
 		res["error"] = "app token rejected"
 		return
 	}
-	if !preAuthorized(in["azp"]) {
+	// The login proxy's user token has azp = this app itself.
+	if in["azp"] != os.Getenv("AZURE_APP_CLIENT_ID") && !preAuthorized(in["azp"]) {
 		w.WriteHeader(http.StatusUnauthorized)
 		res["error"] = "azp not pre-authorized"
 		return
@@ -135,8 +143,29 @@ func errString(err error) string {
 	return err.Error()
 }
 
+// runAll runs every mode with the inbound (login proxy) token and returns the per-step
+// results. handle only ever emits claims and errors, never tokens.
+func runAll(w http.ResponseWriter, r *http.Request) {
+	steps := map[string]any{}
+	for _, mode := range []string{"chain", "passthrough", "app"} {
+		req := r.Clone(r.Context())
+		req.URL.RawQuery = ""
+		if mode != "chain" {
+			req.URL.RawQuery = "mode=" + mode
+		}
+		rec := httptest.NewRecorder()
+		handle(rec, req)
+		steps[mode] = map[string]any{"status": rec.Code, "result": json.RawMessage(rec.Body.Bytes())}
+	}
+	w.Header().Set("Content-Type", "application/json")
+	enc := json.NewEncoder(w)
+	enc.SetIndent("", "  ")
+	_ = enc.Encode(steps)
+}
+
 func main() {
 	http.HandleFunc("/", handle)
+	http.HandleFunc("GET /run-all", runAll)
 	http.HandleFunc("/isalive", func(w http.ResponseWriter, _ *http.Request) {})
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
