@@ -493,6 +493,55 @@
           "prompt": "Oppdater komponenten via Aksel Arcade"
         }
       ]
+    },
+    {
+      "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+      "name": "io.aha/aha-mcp",
+      "description": "Read and update roadmap, features and ideas in Nav's Aha! account (Team Holmes).",
+      "version": "1.0.0",
+      "status": "active",
+      "publishedAt": "2026-11-16T00:00:00Z",
+      "websiteUrl": "https://support.aha.io/aha-roadmaps/integrations/mcp-server/remote-mcp-server-connection~7611343859688960297",
+      "tools": [
+        "read_records",
+        "search_records",
+        "analyze_records",
+        "find_project",
+        "fields_metadata",
+        "field_options_metadata",
+        "get_report_data",
+        "get_report_columns_and_filters",
+        "get_report_filter_options",
+        "read_attachments",
+        "manage_record",
+        "add_comment",
+        "create_record_link"
+      ],
+      "toolRisk": {
+        "manage_record": "external",
+        "add_comment": "external",
+        "create_record_link": "external"
+      },
+      "tags": [
+        "product-management",
+        "aha"
+      ],
+      "examples": [
+        {
+          "scenario": "Planlegg fra en feature",
+          "prompt": "Les feature WATSON-123 fra Aha og lag en implementeringsplan"
+        },
+        {
+          "scenario": "Oppdater status",
+          "prompt": "Sett WATSON-123 til Ferdig i Aha og legg inn en kommentar med lenke til PR-en"
+        }
+      ],
+      "remotes": [
+        {
+          "type": "streamable-http",
+          "url": "https://nav1.aha.io/api/v1/mcp"
+        }
+      ]
     }
   ]
 }
