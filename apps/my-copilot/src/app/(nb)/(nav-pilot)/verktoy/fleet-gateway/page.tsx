@@ -1,5 +1,6 @@
 import { Alert, BodyLong, Tag, VStack } from "@navikt/ds-react";
 import type { Metadata } from "next";
+import { FleetGatewayAccessDiagram, FleetGatewayCallDiagram } from "@/components/fleet-gateway-diagrams";
 import { LinkableHeading } from "@/components/linkable-heading";
 import { Bullets, DocPage, code, linkClass } from "@/components/nav-pilot/doc-page";
 import type { TocItem } from "@/components/table-of-contents";
@@ -48,6 +49,7 @@ export default function FleetGatewayPage() {
           serveren ser den faktiske brukeren. Teamene registrerer serverne sine på ki-utvikling, og cplt holder tokenene
           på maskinen, utenfor agentens sandkasse.
         </BodyLong>
+        <FleetGatewayCallDiagram />
       </VStack>
 
       <VStack gap="space-12">
@@ -85,6 +87,7 @@ export default function FleetGatewayPage() {
           </li>
           <li>Serveren settes på pilotlisten.</li>
         </VStack>
+        <FleetGatewayAccessDiagram />
         <BodyLong>Texas utsteder tokenene. fleet-control gir tilgang, og fleet-gateway håndhever den.</BodyLong>
       </VStack>
 
