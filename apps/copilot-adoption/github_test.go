@@ -155,6 +155,9 @@ func TestParseGraphQLResponse(t *testing.T) {
 	if len(ci.Oids) != 1 || ci.Oids[0] != "abc123" {
 		t.Errorf("expected copilot_instructions oid [abc123], got %v", ci.Oids)
 	}
+	if len(ci.Files) != 1 || ci.Files[0] != "copilot-instructions.md" {
+		t.Errorf("expected copilot_instructions files [copilot-instructions.md], got %v", ci.Files)
+	}
 
 	// has-stuff: 2 agent files (README.md filtered out by *.agent.md) with OIDs
 	agents := results["has-stuff"]["agents"]
