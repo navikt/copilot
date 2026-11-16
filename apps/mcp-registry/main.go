@@ -80,8 +80,6 @@ func main() {
 				slog.Warn("Initial database reload failed, serving static entries only", "error", err)
 			}
 			store.StartRefresher(sigCtx, 60*time.Second)
-			<-sigCtx.Done()
-			opened.Close()
 		}()
 	}
 	config.Store = store
@@ -124,6 +122,10 @@ func main() {
 	defer cancel()
 	if err := server.Shutdown(shutdownCtx); err != nil {
 		slog.Error("Server shutdown failed", "error", err)
+	}
+	// Close the pool only after in-flight writes have drained.
+	if d := db.Load(); d != nil {
+		d.Close()
 	}
 }
 
