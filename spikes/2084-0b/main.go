@@ -533,7 +533,7 @@ func teamHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	res["claims"] = claims
-	if msg := teamCheck(in, os.Getenv("AZURE_APP_CLIENT_ID"), gatewayClientID()); msg != "" {
+	if msg := teamCheck(in, os.Getenv("AZURE_APP_CLIENT_ID"), gatewayClientIDs()...); msg != "" {
 		res["error"] = msg
 		writeJSON(w, 403, res)
 		return
@@ -541,13 +541,14 @@ func teamHandler(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, res)
 }
 
-func teamCheck(in map[string]any, self, gw string) string {
+func teamCheck(in map[string]any, self string, gws ...string) string {
+	azp, _ := in["azp"].(string)
 	switch {
 	case in["aud"] != self:
 		return "aud is not this app"
 	case in["idtyp"] == "app":
 		return "app token rejected"
-	case gw == "" || in["azp"] != gw:
+	case azp == "" || !slices.Contains(gws, azp):
 		return "azp is not the gateway"
 	case in["NAVident"] == nil || in["NAVident"] == "":
 		return "NAVident missing"
@@ -555,16 +556,23 @@ func teamCheck(in map[string]any, self, gw string) string {
 	return ""
 }
 
-// gatewayClientID finds the gateway's client id among the pre-authorized apps Nais injects.
-func gatewayClientID() string {
-	var apps []struct{ Name, ClientID string }
-	_ = json.Unmarshal([]byte(os.Getenv("AZURE_APP_PRE_AUTHORIZED_APPS")), &apps)
-	for _, a := range apps {
-		if a.Name == os.Getenv("GATEWAY_NAME") {
-			return a.ClientID
+// gatewayClientIDs finds allowed gateway client ids among the pre-authorized apps Nais injects.
+func gatewayClientIDs() []string {
+	allowed := map[string]bool{}
+	for _, n := range strings.Split(os.Getenv("GATEWAY_NAME"), ",") {
+		if n = strings.TrimSpace(n); n != "" {
+			allowed[n] = true
 		}
 	}
-	return ""
+	var apps []struct{ Name, ClientID string }
+	_ = json.Unmarshal([]byte(os.Getenv("AZURE_APP_PRE_AUTHORIZED_APPS")), &apps)
+	var ids []string
+	for _, a := range apps {
+		if allowed[a.Name] && a.ClientID != "" {
+			ids = append(ids, a.ClientID)
+		}
+	}
+	return ids
 }
 
 func main() {

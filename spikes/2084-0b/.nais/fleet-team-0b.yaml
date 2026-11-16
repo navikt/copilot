@@ -30,7 +30,8 @@ spec:
         []  # T4: gateway removed on purpose, expect AADSTS65001
         {{else}}
         - application: fleet-gw-0b
+        - application: fleet-gateway
         {{/if}}
   env:
     - {name: ROLE, value: team}
-    - {name: GATEWAY_NAME, value: "dev-gcp:copilot:fleet-gw-0b"}
+    - {name: GATEWAY_NAME, value: "dev-gcp:copilot:fleet-gw-0b,dev-gcp:copilot:fleet-gateway"}

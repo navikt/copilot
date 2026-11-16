@@ -154,17 +154,32 @@ func TestTokenPKCEAndRedirectMatch(t *testing.T) {
 
 func TestTeamCheck(t *testing.T) {
 	ok := map[string]any{"aud": "team", "azp": "gw", "NAVident": "Z1", "idtyp": "user"}
-	if m := teamCheck(ok, "team", "gw"); m != "" {
+	if m := teamCheck(ok, "team", "gw", "gw2"); m != "" {
 		t.Fatal(m)
 	}
-	for _, c := range []struct{ k, v string }{{"idtyp", "app"}, {"azp", "other"}, {"aud", "x"}, {"NAVident", ""}} {
+	if m := teamCheck(map[string]any{"aud": "team", "azp": "gw2", "NAVident": "Z1", "idtyp": "user"}, "team", "gw", "gw2"); m != "" {
+		t.Fatal(m)
+	}
+	if m := teamCheck(ok, "team"); m == "" {
+		t.Fatal("empty gateway allowlist accepted")
+	}
+	for _, c := range []struct{ k, v string }{{"idtyp", "app"}, {"azp", "other"}, {"azp", ""}, {"aud", "x"}, {"NAVident", ""}} {
 		in := map[string]any{}
 		for k, v := range ok {
 			in[k] = v
 		}
 		in[c.k] = c.v
-		if teamCheck(in, "team", "gw") == "" {
+		if teamCheck(in, "team", "gw", "gw2") == "" {
 			t.Errorf("%s=%s accepted", c.k, c.v)
 		}
+	}
+}
+
+func TestGatewayClientIDs(t *testing.T) {
+	t.Setenv("GATEWAY_NAME", "dev-gcp:copilot:fleet-gw-0b, dev-gcp:copilot:fleet-gateway")
+	t.Setenv("AZURE_APP_PRE_AUTHORIZED_APPS", `[{"name":"dev-gcp:copilot:fleet-gw-0b","clientId":"id-0b"},{"name":"dev-gcp:copilot:other","clientId":"id-other"},{"name":"dev-gcp:copilot:fleet-gateway","clientId":"id-gw"}]`)
+	got := gatewayClientIDs()
+	if len(got) != 2 || got[0] != "id-0b" || got[1] != "id-gw" {
+		t.Fatalf("got %v, want [id-0b id-gw]", got)
 	}
 }
