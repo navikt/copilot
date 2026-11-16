@@ -98,6 +98,8 @@ Three layers must all hold before a route opens to wider use:
 
 The pilot accepts only cplt's client_id, on a naisdevice ingress. Teams apply through the GitHub issue template "MCP gateway: pilotsøknad" in navikt/copilot until the self-service form ([#2099](https://github.com/navikt/copilot/issues/2099)) exists. Preliminary user docs: [ki-utvikling.nav.no/verktoy/mcp-gateway](https://ki-utvikling.nav.no/verktoy/mcp-gateway) (added in a separate PR).
 
+**Stretch goal: team-scoped access ([#2209](https://github.com/navikt/copilot/issues/2209)).** The gateway checks the user's Entra group per route before the OBO call; the pilot list gets a required group per route. nav-pilot may then show only the servers that match the user's teams, but that is convenience: a client can be changed, so the gateway check is the control.
+
 ## Setup checklist
 
 In order. Who may join the pilot: see [Onboarding and pilot control](#onboarding-and-pilot-control). "Owner" means a human with the access; "agent" means repo work an agent can do.
