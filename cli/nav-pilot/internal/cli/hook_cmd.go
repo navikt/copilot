@@ -455,7 +455,7 @@ func openCodeHookBridge(r ResolvedConfig) providerpkg.HookBridge {
 	// A user who turned off OpenCode's project config turned off the repo's
 	// own plugins, which is the argument for running its gates without a trust
 	// check; so they do not run either.
-	if providerpkg.OpenCodeProjectDisabled(os.Getenv) {
+	if providerpkg.OpenCodeProjectDisabled(os.LookupEnv) {
 		return b
 	}
 	if root := source.FindGitRoot(dir); root != "" {

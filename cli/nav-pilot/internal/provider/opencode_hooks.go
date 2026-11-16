@@ -112,14 +112,16 @@ const openCodeDisableProjectConfigEnv = "OPENCODE_DISABLE_PROJECT_CONFIG"
 // OpenCodeProjectDisableEnvs are the switches that turn off a repo's own
 // OpenCode config: the consent prompt, the repo-gate drop and cplt's pass-env
 // all read this one list.
-var OpenCodeProjectDisableEnvs = []string{openCodeDisableProjectConfigEnv, "OPENCODE_CONFIG_PROJECT_DISABLE"}
+var OpenCodeProjectDisableEnvs = []string{"OPENCODE_CONFIG_PROJECT_DISABLE", openCodeDisableProjectConfigEnv}
 
-// OpenCodeProjectDisabled reports whether any switch in
-// OpenCodeProjectDisableEnvs is on.
-func OpenCodeProjectDisabled(getenv func(string) string) bool {
+// OpenCodeProjectDisabled mirrors OpenCode's
+// `OPENCODE_CONFIG_PROJECT_DISABLE ?? OPENCODE_DISABLE_PROJECT_CONFIG`: the
+// first key that is set decides, even when it is "0", "false" or empty.
+func OpenCodeProjectDisabled(lookup func(string) (string, bool)) bool {
 	for _, k := range OpenCodeProjectDisableEnvs {
-		if v := strings.ToLower(getenv(k)); v == "1" || v == "true" {
-			return true
+		if v, ok := lookup(k); ok {
+			v = strings.ToLower(v)
+			return v == "1" || v == "true"
 		}
 	}
 	return false
@@ -153,7 +155,7 @@ func applyOpenCodeHooks(r domain.ResolvedConfig, env []string, cpltArgs []string
 	b := OpenCodeHookBridge(r)
 	// The switch is often set by this launch (declined or unanswered repo
 	// plugins), so read it from env, not the process environment.
-	if OpenCodeProjectDisabled(openCodeEnvGetter(env)) {
+	if OpenCodeProjectDisabled(openCodeEnvLookup(env)) {
 		b.Pre = slices.DeleteFunc(b.Pre, func(h BridgeHook) bool { return h.Repo })
 	}
 	blocked := slices.ContainsFunc(env, func(e string) bool { return strings.HasPrefix(e, MCPBlockedEnv+"=") })
