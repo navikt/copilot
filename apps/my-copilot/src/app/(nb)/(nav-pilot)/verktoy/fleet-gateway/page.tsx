@@ -78,9 +78,12 @@ export default function FleetGatewayPage() {
         <BodyLong>Slik blir en server med:</BodyLong>
         <VStack as="ol" gap="space-4" className="list-decimal" style={{ paddingInlineStart: "var(--ax-space-20)" }}>
           <li>Teamet sender inn serveren til fleet-control (registeret).</li>
-          <li>Admingruppen godkjenner serveren.</li>
-          <li>fleet-control gir fleet-gateway de godkjente rutene.</li>
-          <li>fleet-gateway kaller teamets MCP-server, som bare slipper inn fleet-gateway.</li>
+          <li>Team copilot godkjenner serveren i fleet-control.</li>
+          <li>
+            Tilgangen åpnes begge veier i <code className={code}>accessPolicy</code>: utgående fra fleet-gateway,
+            inngående hos teamets server.
+          </li>
+          <li>Serveren settes på pilotlisten.</li>
         </VStack>
         <BodyLong>Texas utsteder tokenene. fleet-control gir tilgang, og fleet-gateway håndhever den.</BodyLong>
       </VStack>
