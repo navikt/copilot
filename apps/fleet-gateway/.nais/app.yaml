@@ -1,0 +1,63 @@
+apiVersion: nais.io/v1alpha1
+kind: Application
+metadata:
+  name: fleet-gateway
+  namespace: copilot
+  labels:
+    team: copilot
+spec:
+  image: {{image}}
+  port: 8080
+  # Single replica in step 1: pending authorizations, codes, and sessions are
+  # held in process memory.
+  replicas:
+    min: {{replicas_min}}
+    max: {{replicas_max}}
+    cpuThresholdPercentage: {{cpu_threshold}}
+  resources:
+    limits:
+      memory: {{memory_limit}}
+    requests:
+      cpu: {{cpu_request}}
+      memory: {{memory_request}}
+  liveness:
+    path: /health
+    initialDelay: 10
+    timeout: 5
+  readiness:
+    path: /ready
+    initialDelay: 10
+    timeout: 5
+  azure:
+    application:
+      enabled: true
+      tenant: nav.no
+      allowAllUsers: true
+      replyURLs:
+      {{#each reply_urls as |url|}}
+        - {{url}}
+      {{/each}}
+  env:
+    - name: PORT
+      value: "8080"
+    - name: LOG_LEVEL
+      value: "{{log_level}}"
+    - name: BASE_URL
+      value: "{{base_url}}"
+    - name: ALLOWED_CLIENT_IDS
+      value: "{{allowed_client_ids}}"
+    - name: ALLOWED_REDIRECT_URIS
+      value: "{{allowed_redirect_uris}}"
+    - name: ALLOWED_RESOURCES
+      value: "{{allowed_resources}}"
+    - name: ENTRA_SCOPE
+      value: "{{entra_scope}}"
+  accessPolicy:
+    outbound:
+      external:
+        - host: login.microsoftonline.com
+        - host: my-copilot.ekstern.dev.nav.no
+  ingresses:
+  {{#each ingresses as |url|}}
+    - {{url}}
+  {{/each}}
