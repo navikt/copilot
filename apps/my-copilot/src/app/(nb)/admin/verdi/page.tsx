@@ -609,8 +609,8 @@ export default async function AdminVerdiPage() {
           </BodyShort>
           <BodyShort size="small">
             <strong>Kostnad og aktivitet i kodegjennomgang:</strong> Modellkostnaden for kodegjennomgang kan ikke kobles
-            til de samme gjennomgangene og forslagene som PR-aktiviteten. Derfor vises separate totaler, ikke kostnad per
-            gjennomgang eller forslag.
+            til de samme gjennomgangene og forslagene som PR-aktiviteten. Derfor vises separate totaler, ikke kostnad
+            per gjennomgang eller forslag.
           </BodyShort>
           <BodyShort size="small">
             <strong>Seleksjonsskjevhet i tid til merge:</strong> Kodeagenten settes oftest på små, avgrensede oppgaver,
