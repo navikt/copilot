@@ -4,16 +4,37 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"io"
 	"log"
 	"net/http"
 	"net/url"
 	"os"
 	"strings"
+	"time"
 )
 
+var client = &http.Client{
+	Timeout:       10 * time.Second,
+	CheckRedirect: func(*http.Request, []*http.Request) error { return errors.New("redirects refused") },
+}
+
+// preAuthorized reports whether azp is the client id of an app in AZURE_APP_PRE_AUTHORIZED_APPS.
+func preAuthorized(azp any) bool {
+	var apps []struct {
+		ClientID string `json:"clientId"`
+	}
+	_ = json.Unmarshal([]byte(os.Getenv("AZURE_APP_PRE_AUTHORIZED_APPS")), &apps)
+	for _, a := range apps {
+		if a.ClientID != "" && a.ClientID == azp {
+			return true
+		}
+	}
+	return false
+}
+
 func texas(endpoint string, form url.Values) (map[string]any, int, error) {
-	resp, err := http.PostForm(endpoint, form)
+	resp, err := client.PostForm(endpoint, form)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -49,20 +70,49 @@ func handle(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	res["claims"] = claims
+	if in["idtyp"] == "app" {
+		w.WriteHeader(http.StatusUnauthorized)
+		res["error"] = "app token rejected"
+		return
+	}
+	if !preAuthorized(in["azp"]) {
+		w.WriteHeader(http.StatusUnauthorized)
+		res["error"] = "azp not pre-authorized"
+		return
+	}
 	target := os.Getenv("NEXT_TARGET")
 	if target == "" {
 		return
 	}
-	obo, code, err := texas(os.Getenv("NAIS_TOKEN_EXCHANGE_ENDPOINT"), url.Values{"identity_provider": {"entra_id"}, "target": {target}, "user_token": {tok}})
-	if err != nil || code != http.StatusOK {
-		w.WriteHeader(http.StatusBadGateway)
-		// Texas error bodies carry error/error_description only, never tokens.
-		res["obo_error"] = map[string]any{"status": code, "error": obo["error"], "error_description": obo["error_description"], "err": errString(err)}
+	// ?mode=passthrough forwards the inbound token unchanged; ?mode=app sends a client-credentials token.
+	mode := r.URL.Query().Get("mode")
+	res["mode"] = mode
+	next := tok
+	if mode != "passthrough" {
+		form := url.Values{"identity_provider": {"entra_id"}, "target": {target}}
+		endpoint := os.Getenv("NAIS_TOKEN_EXCHANGE_ENDPOINT")
+		if mode == "app" {
+			endpoint = os.Getenv("NAIS_TOKEN_ENDPOINT")
+		} else {
+			form.Set("user_token", tok)
+		}
+		out, code, err := texas(endpoint, form)
+		next, _ = out["access_token"].(string)
+		if err != nil || code != http.StatusOK || next == "" {
+			w.WriteHeader(http.StatusBadGateway)
+			// Texas error bodies carry error/error_description only, never tokens.
+			res["texas_error"] = map[string]any{"status": code, "error": out["error"], "error_description": out["error_description"], "err": errString(err)}
+			return
+		}
+	}
+	req, err := http.NewRequest(http.MethodGet, os.Getenv("NEXT_URL"), nil)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		res["error"] = err.Error()
 		return
 	}
-	req, _ := http.NewRequest(http.MethodGet, os.Getenv("NEXT_URL"), nil)
-	req.Header.Set("Authorization", "Bearer "+obo["access_token"].(string))
-	resp, err := http.DefaultClient.Do(req)
+	req.Header.Set("Authorization", "Bearer "+next)
+	resp, err := client.Do(req)
 	if err != nil {
 		w.WriteHeader(http.StatusBadGateway)
 		res["downstream_error"] = err.Error()

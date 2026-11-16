@@ -30,5 +30,6 @@ jobs:
           CLUSTER: dev-gcp
           TEAM: copilot
           RESOURCE: spikes/2084-obo/.nais/mcp-down-spike.yaml,spikes/2084-obo/.nais/mcp-team-spike.yaml,spikes/2084-obo/.nais/mcp-gw-spike.yaml
+          VARS: spikes/2084-obo/.nais/vars.yaml
           IMAGE: ${{ steps.docker-push.outputs.image }}
           TELEMETRY: ${{ steps.docker-push.outputs.telemetry }}
