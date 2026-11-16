@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -37,9 +38,11 @@ func setupTestDB(t *testing.T) *DB {
 }
 
 func testMux(cfg *Config, db *DB, introspect IntrospectFunc) *http.ServeMux {
+	ref := &atomic.Pointer[DB]{}
+	ref.Store(db)
 	mux := http.NewServeMux()
-	mux.HandleFunc("POST /api/v1/entries", makeSubmitHandler(cfg, db, introspect))
-	mux.HandleFunc("POST /api/v1/entries/{name...}", makeEntryActionHandler(cfg, db, introspect))
+	mux.HandleFunc("POST /api/v1/entries", makeSubmitHandler(cfg, ref, introspect))
+	mux.HandleFunc("POST /api/v1/entries/{name...}", makeEntryActionHandler(cfg, ref, introspect))
 	return mux
 }
 
@@ -512,6 +515,58 @@ func TestMigrate_ConcurrentReplicas(t *testing.T) {
 		if err := <-errs; err != nil {
 			t.Fatalf("concurrent Migrate: %v", err)
 		}
+	}
+}
+
+// TestMigrate_WaitsForAdvisoryLock holds the migration lock on another
+// connection and checks that Migrate blocks until it is released.
+func TestMigrate_WaitsForAdvisoryLock(t *testing.T) {
+	db := setupTestDB(t)
+	ctx := context.Background()
+	conn, err := db.pool.Acquire(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Release()
+	if _, err := conn.Exec(ctx, "SELECT pg_advisory_lock($1)", migrationLockKey); err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan error, 1)
+	go func() { done <- db.Migrate(ctx) }()
+	select {
+	case err := <-done:
+		t.Fatalf("Migrate returned while the lock was held: %v", err)
+	case <-time.After(300 * time.Millisecond):
+	}
+	if _, err := conn.Exec(ctx, "SELECT pg_advisory_unlock($1)", migrationLockKey); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("Migrate after unlock: %v", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("Migrate did not return after the lock was released")
+	}
+}
+
+func TestSubmit_AuditsSupersededUnapprovedVersion(t *testing.T) {
+	db := setupTestDB(t)
+	ctx := context.Background()
+	entry := []byte(`{"name":"io.github.navikt/p","description":"d","version":"1","owner":"team","remotes":[{"type":"sse","url":"https://mcp.example.com"}]}`)
+	name := "io.github.navikt/p"
+	for range 2 { // v1 pending, then v2 replaces it before approval
+		if _, err := db.Submit(ctx, "a@nav.no", entry, name, false); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var version int
+	if err := db.pool.QueryRow(ctx, "SELECT version FROM registry_audit WHERE action = 'supersede' AND name = $1", name).Scan(&version); err != nil {
+		t.Fatalf("no supersede audit row: %v", err)
+	}
+	if version != 1 {
+		t.Fatalf("superseded version = %d, want 1", version)
 	}
 }
 

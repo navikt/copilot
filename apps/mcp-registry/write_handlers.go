@@ -8,14 +8,15 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"sync/atomic"
 )
 
-// writeUnavailable answers 503 when the service runs without a database.
+// writeUnavailable answers 503 when the service has no connected database.
 func writeUnavailable(w http.ResponseWriter, db *DB) bool {
 	if db != nil {
 		return false
 	}
-	respondJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "Writes are unavailable: no database configured"})
+	respondJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "Writes are unavailable: database not connected"})
 	return true
 }
 
@@ -23,7 +24,7 @@ type submitPayload struct {
 	Entry json.RawMessage `json:"entry"`
 }
 
-func makeSubmitHandler(config *Config, db *DB, introspect IntrospectFunc) http.HandlerFunc {
+func makeSubmitHandler(config *Config, dbRef *atomic.Pointer[DB], introspect IntrospectFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -60,6 +61,7 @@ func makeSubmitHandler(config *Config, db *DB, introspect IntrospectFunc) http.H
 			return
 		}
 
+		db := dbRef.Load()
 		if writeUnavailable(w, db) {
 			return
 		}
@@ -102,7 +104,7 @@ type rejectPayload struct {
 	Reason  string `json:"reason"`
 }
 
-func makeEntryActionHandler(config *Config, db *DB, introspect IntrospectFunc) http.HandlerFunc {
+func makeEntryActionHandler(config *Config, dbRef *atomic.Pointer[DB], introspect IntrospectFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -149,6 +151,7 @@ func makeEntryActionHandler(config *Config, db *DB, introspect IntrospectFunc) h
 			return
 		}
 
+		db := dbRef.Load()
 		if writeUnavailable(w, db) {
 			return
 		}

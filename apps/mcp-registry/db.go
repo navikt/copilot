@@ -234,12 +234,13 @@ func (s *DB) Submit(ctx context.Context, actor string, entryJSON []byte, name st
 	// Lock and check current entry row
 	var currentStatus string
 	var supersededVersion *int
+	var currentVersion int
 	err = tx.QueryRow(ctx, `
-		SELECT status, pending_version
+		SELECT status, pending_version, version
 		FROM registry_entries
 		WHERE name = $1
 		FOR UPDATE
-	`, name).Scan(&currentStatus, &supersededVersion)
+	`, name).Scan(&currentStatus, &supersededVersion, &currentVersion)
 
 	switch {
 	case errors.Is(err, pgx.ErrNoRows):
@@ -286,6 +287,15 @@ func (s *DB) Submit(ctx context.Context, actor string, entryJSON []byte, name st
 		`, name, entryJSON, newVersion)
 		if err != nil {
 			return 0, fmt.Errorf("updating pending registry entry: %w", err)
+		}
+		if currentStatus == "pending" {
+			_, err = tx.Exec(ctx, `
+				INSERT INTO registry_audit (actor, action, name, version, reason, at)
+				VALUES ($1, 'supersede', $2, $3, $4, now())
+			`, actor, name, currentVersion, fmt.Sprintf("superseded by version %d", newVersion))
+			if err != nil {
+				return 0, fmt.Errorf("auditing superseded version: %w", err)
+			}
 		}
 	}
 

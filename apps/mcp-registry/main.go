@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"sync/atomic"
 	"syscall"
 	"time"
 )
@@ -50,30 +51,38 @@ func main() {
 	sigCtx, stop := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	// The DB is optional: without DATABASE_URL the reader serves static entries
-	// only and the write endpoints answer 503. With it configured, a DB that
-	// cannot be reached or migrated is fatal, so a broken replica never turns ready.
-	var db *DB
+	// The DB is optional: without DATABASE_URL, or while it cannot be reached,
+	// the reader serves static entries and the write endpoints answer 503.
+	// Reads must stay up when the DB is down, so a failing DB never blocks startup.
+	var db atomic.Pointer[DB]
 	var loader EntryLoader
 	if config.DatabaseURL != "" {
-		opened, err := openAndMigrate(sigCtx, config.DatabaseURL, 5, 3*time.Second)
-		if err != nil {
-			stop()
-			slog.Error("Database unavailable, exiting", "error", err)
-			os.Exit(1) //nolint:gocritic // fail closed; stop() already ran, tracer flush is best effort
-
+		loader = func(ctx context.Context) ([]DBEntry, error) {
+			d := db.Load()
+			if d == nil {
+				return nil, errors.New("database not connected")
+			}
+			return d.GetApprovedEntries(ctx)
 		}
-		defer opened.Close()
-		db = opened
-		loader = db.GetApprovedEntries
 	}
-
 	store := NewStore(config, "allowlist.json", loader)
 	if loader != nil {
-		if err := store.Reload(sigCtx); err != nil {
-			slog.Warn("Initial database reload failed, serving static entries only", "error", err)
-		}
-		store.StartRefresher(sigCtx, 60*time.Second)
+		go func() {
+			opened, err := connectWithRetry(sigCtx, func(ctx context.Context) (*DB, error) {
+				return openAndMigrate(ctx, config.DatabaseURL)
+			}, 10*time.Second, time.Second, time.Minute)
+			if err != nil {
+				return // ctx cancelled
+			}
+			db.Store(opened)
+			slog.Info("Database connected and migrated, writes enabled")
+			if err := store.Reload(sigCtx); err != nil {
+				slog.Warn("Initial database reload failed, serving static entries only", "error", err)
+			}
+			store.StartRefresher(sigCtx, 60*time.Second)
+			<-sigCtx.Done()
+			opened.Close()
+		}()
 	}
 	config.Store = store
 
@@ -83,8 +92,8 @@ func main() {
 	http.HandleFunc("/v0.1/servers", loggingMiddleware(config, makeServersListHandler(config)))
 	http.HandleFunc("/v0.1/servers/", loggingMiddleware(config, makeServerVersionHandler(config)))
 	introspect := newTexasIntrospector(config.TexasEndpoint)
-	http.HandleFunc("POST /api/v1/entries", loggingMiddleware(config, makeSubmitHandler(config, db, introspect)))
-	http.HandleFunc("POST /api/v1/entries/{name...}", loggingMiddleware(config, makeEntryActionHandler(config, db, introspect)))
+	http.HandleFunc("POST /api/v1/entries", loggingMiddleware(config, makeSubmitHandler(config, &db, introspect)))
+	http.HandleFunc("POST /api/v1/entries/{name...}", loggingMiddleware(config, makeEntryActionHandler(config, &db, introspect)))
 	http.HandleFunc("/robots.txt", robotsTxtHandler)
 	http.HandleFunc("/favicon.ico", faviconHandler)
 	http.HandleFunc("/.well-known/security.txt", securityTxtHandler)
@@ -118,26 +127,36 @@ func main() {
 	}
 }
 
-// openAndMigrate retries OpenDB and Migrate a bounded number of times, since
-// the Cloud SQL proxy may start after the app.
-func openAndMigrate(ctx context.Context, dbURL string, attempts int, delay time.Duration) (*DB, error) {
-	var err error
-	for i := 1; i <= attempts; i++ {
-		var db *DB
-		if db, err = OpenDB(ctx, dbURL); err == nil {
-			if err = db.Migrate(ctx); err == nil {
-				return db, nil
-			}
-			db.Close()
-		}
-		slog.Warn("Database not ready", "attempt", i, "error", err)
-		if i < attempts {
-			select {
-			case <-ctx.Done():
-				return nil, ctx.Err()
-			case <-time.After(delay):
-			}
-		}
+// openAndMigrate opens the DB and applies migrations, closing it on failure.
+func openAndMigrate(ctx context.Context, dbURL string) (*DB, error) {
+	db, err := OpenDB(ctx, dbURL)
+	if err != nil {
+		return nil, err
 	}
-	return nil, err
+	if err := db.Migrate(ctx); err != nil {
+		db.Close()
+		return nil, err
+	}
+	return db, nil
+}
+
+// connectWithRetry calls connect until it succeeds or ctx is cancelled. Each
+// attempt is bounded by timeout; the delay doubles from minDelay up to maxDelay.
+func connectWithRetry(ctx context.Context, connect func(context.Context) (*DB, error), timeout, minDelay, maxDelay time.Duration) (*DB, error) {
+	delay := minDelay
+	for attempt := 1; ; attempt++ {
+		attemptCtx, cancel := context.WithTimeout(ctx, timeout)
+		db, err := connect(attemptCtx)
+		cancel()
+		if err == nil {
+			return db, nil
+		}
+		slog.Error("Database unavailable, serving static entries only; retrying", "attempt", attempt, "retry_in", delay.String(), "error", err)
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(delay):
+		}
+		delay = min(delay*2, maxDelay)
+	}
 }
