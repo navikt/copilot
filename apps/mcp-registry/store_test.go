@@ -7,6 +7,8 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"sync"
 	"testing"
 	"time"
@@ -191,7 +193,7 @@ func TestStore_InvalidDBEntryDropped(t *testing.T) {
 			}`),
 		},
 		{
-			Name: "io.github.navikt/malformed-json",
+			Name:  "io.github.navikt/malformed-json",
 			Entry: []byte(`{ broken json`),
 		},
 		{
@@ -365,4 +367,34 @@ func TestGetDatabaseURL(t *testing.T) {
 			t.Errorf("expected empty string, got %s", got)
 		}
 	})
+}
+
+func TestStore_StaticReloadFailureKeepsStaticEntries(t *testing.T) {
+	data, err := os.ReadFile("allowlist.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), "allowlist.json")
+	if err := os.WriteFile(path, data, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	loader := func(_ context.Context) ([]DBEntry, error) {
+		return []DBEntry{{Name: "io.github.navikt/db-only", Entry: []byte(`{"name":"io.github.navikt/db-only","description":"from db","version":"1.0.0"}`)}}, nil
+	}
+	store := NewStore(testConfig(), path, loader)
+	if err := store.Reload(t.Context()); err != nil {
+		t.Fatalf("first reload: %v", err)
+	}
+	before, _ := store.GetServers()
+
+	if err := os.WriteFile(path, []byte("{not json"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Reload(t.Context()); err != nil {
+		t.Fatalf("reload with cached static should not fail: %v", err)
+	}
+	after, _ := store.GetServers()
+	if len(after) != len(before) || len(after) < 2 {
+		t.Fatalf("static entries dropped: before %d, after %d", len(before), len(after))
+	}
 }

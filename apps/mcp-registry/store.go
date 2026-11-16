@@ -23,12 +23,16 @@ type DBEntry struct {
 type EntryLoader func(ctx context.Context) ([]DBEntry, error)
 
 // Store manages server entries merged from static allowlist.json and a database.
+// It keeps the last good static set and the last good DB set independently, so
+// a failure on one side never drops the other.
 type Store struct {
 	mu            sync.RWMutex
 	allowlistPath string
 	config        *Config
 	loader        EntryLoader
-	hasDBLoaded   bool
+	static        []ServerResponse
+	staticNames   map[string]bool
+	dbServers     []ServerResponse
 	cachedServers []ServerResponse
 }
 
@@ -42,8 +46,8 @@ func NewStore(config *Config, allowlistPath string, loader EntryLoader) *Store {
 		allowlistPath: allowlistPath,
 		loader:        loader,
 	}
-	if staticServers, _, err := s.loadStatic(); err == nil {
-		s.cachedServers = staticServers
+	if staticServers, names, err := s.loadStatic(); err == nil {
+		s.static, s.staticNames, s.cachedServers = staticServers, names, staticServers
 	}
 	return s
 }
@@ -116,49 +120,62 @@ func serverToResponse(s StaticServerData, defaultUpdatedAt time.Time) ServerResp
 }
 
 // Reload reloads static entries and approved database entries, merging them.
+// On a static load error the last good static set is kept; on a DB error the
+// last good DB set is kept. The DB error is returned.
 func (s *Store) Reload(ctx context.Context) error {
-	staticServers, staticNames, err := s.loadStatic()
-	if err != nil {
-		slog.Error("Failed to load static allowlist", "error", err)
-		s.mu.RLock()
-		hasCache := s.cachedServers != nil
-		s.mu.RUnlock()
-		if !hasCache {
-			return fmt.Errorf("loading static allowlist: %w", err)
+	staticServers, staticNames, staticErr := s.loadStatic()
+	if staticErr != nil {
+		slog.Error("Failed to load static allowlist, keeping last good set", "error", staticErr)
+	}
+
+	var dbServers []ServerResponse
+	var dbErr error
+	if s.loader != nil {
+		entries, err := s.loader(ctx)
+		if err != nil {
+			slog.Error("Failed to reload registry entries from database, keeping last good set", "error", err)
+			dbErr = err
+		} else {
+			dbServers = s.dbEntriesToResponses(entries)
 		}
 	}
 
-	if s.loader == nil {
-		if staticServers != nil {
-			s.mu.Lock()
-			s.cachedServers = staticServers
-			s.hasDBLoaded = false
-			s.mu.Unlock()
-		}
-		return nil
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if staticErr == nil {
+		s.static, s.staticNames = staticServers, staticNames
+	}
+	if s.loader != nil && dbErr == nil {
+		s.dbServers = dbServers
+	}
+	if s.static == nil {
+		return fmt.Errorf("loading static allowlist: %w", staticErr)
 	}
 
-	dbEntries, dbErr := s.loader(ctx)
-	if dbErr != nil {
-		slog.Error("Failed to reload registry entries from database", "error", dbErr)
-		s.mu.Lock()
-		if !s.hasDBLoaded && staticServers != nil {
-			s.cachedServers = staticServers
+	merged := make([]ServerResponse, 0, len(s.static)+len(s.dbServers))
+	merged = append(merged, s.static...)
+	for _, sr := range s.dbServers {
+		if s.staticNames[sr.Server.Name] {
+			slog.Warn("Database entry collides with static allowlist name, dropping DB entry", "server", sr.Server.Name)
+			recordDBCollision(sr.Server.Name)
+			continue
 		}
-		s.mu.Unlock()
-		return dbErr
+		merged = append(merged, sr)
 	}
+	s.cachedServers = merged
+	return dbErr
+}
 
+// dbEntriesToResponses parses and validates DB rows; invalid rows are dropped.
+func (s *Store) dbEntriesToResponses(entries []DBEntry) []ServerResponse {
 	now := time.Now().UTC()
-	existingDBNames := make(map[string]bool)
-	var validDBResponses []ServerResponse
-
-	for i, entry := range dbEntries {
+	seen := make(map[string]bool)
+	var out []ServerResponse
+	for i, entry := range entries {
 		rawJSON := entry.Entry
 		if s.config != nil {
 			rawJSON = substituteVariables(rawJSON, s.config)
 		}
-
 		var server StaticServerData
 		if err := json.Unmarshal(rawJSON, &server); err != nil {
 			slog.Warn("Failed to unmarshal database registry entry, dropping", "server", entry.Name, "error", err)
@@ -167,32 +184,14 @@ func (s *Store) Reload(ctx context.Context) error {
 		if server.Name == "" {
 			server.Name = entry.Name
 		}
-
-		if staticNames[server.Name] {
-			slog.Warn("Database entry collides with static allowlist name, dropping DB entry", "server", server.Name)
-			recordDBCollision(server.Name)
-			continue
-		}
-
-		if err := validateServerEntry(&server, i, existingDBNames); err != nil {
+		if err := validateServerEntry(&server, i, seen); err != nil {
 			slog.Warn("Invalid database registry entry dropped", "server", server.Name, "error", err)
 			continue
 		}
-
-		existingDBNames[server.Name] = true
-		validDBResponses = append(validDBResponses, serverToResponse(server, now))
+		seen[server.Name] = true
+		out = append(out, serverToResponse(server, now))
 	}
-
-	merged := make([]ServerResponse, 0, len(staticServers)+len(validDBResponses))
-	merged = append(merged, staticServers...)
-	merged = append(merged, validDBResponses...)
-
-	s.mu.Lock()
-	s.cachedServers = merged
-	s.hasDBLoaded = true
-	s.mu.Unlock()
-
-	return nil
+	return out
 }
 
 // GetServers returns all merged server responses.
