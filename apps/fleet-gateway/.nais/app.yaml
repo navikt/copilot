@@ -8,8 +8,6 @@ metadata:
 spec:
   image: {{image}}
   port: 8080
-  # Single replica in step 1: pending authorizations, codes, and sessions are
-  # held in process memory.
   replicas:
     min: {{replicas_min}}
     max: {{replicas_max}}
@@ -54,6 +52,7 @@ spec:
       value: "{{entra_scope}}"
   accessPolicy:
     outbound:
+      rules: []
       external:
         - host: login.microsoftonline.com
         - host: my-copilot.ekstern.dev.nav.no
