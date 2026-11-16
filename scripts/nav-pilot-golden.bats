@@ -815,7 +815,10 @@ run_suite() {
 
 @test "kafka and rust: the known fix passes, the tempting wrong fix and doing nothing fail, a stray edit fails scope" {
   command -v gradle >/dev/null && command -v cargo >/dev/null || skip "needs gradle and cargo"
-  for suite in kafka rust; do
+  # kafka builds with java@21 from mise; without it only rust can run.
+  suites="kafka rust"
+  mise where java@21 >/dev/null 2>&1 || { suites=rust; echo "# kafka skipped: needs java@21 from mise (mise install java@21)" >&3; }
+  for suite in $suites; do
     if [[ $suite == kafka ]]; then ok="kf1 kf3"; scope="kf2 kf4"; else ok="rs1 rs3"; scope="rs2 rs4"; fi
     run_suite good --suite $suite
     [ "$status" -eq 0 ]
@@ -1401,6 +1404,7 @@ run_deleg() {
 
 @test "delegation d2: a subagent on another model with green tests passes; none, parent model or no write fails" {
   command -v gradle >/dev/null || skip "needs gradle"
+  mise where java@21 >/dev/null 2>&1 || skip "needs java@21 from mise (mise install java@21)"
   export ONLY_D=d2
   run_deleg delegated
   [ "$status" -eq 0 ]

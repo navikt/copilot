@@ -13,6 +13,10 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 - **OpenCode-oppstart og `nav-pilot doctor`**: Når nav-pilot slår av en MCP-server, sier meldingen nå hva som er galt: serveren finnes ikke i Navs MCP-register, eller URL, kommando eller miljøvariabler avviker fra oppføringen (#2164).
 - **KI-agentens beskjed og `nav-pilot mcp list`**: Samme forklaring gjelder nå også her. `mcp list` viser i tillegg problem og løsning for en server som står i registeret, men som nav-pilot likevel slår av fordi URL, kommando eller miljøvariabler avviker (#2195).
 
+### Lokal modell tåler flere samtidige forespørsler
+
+- **Lokal KI-modell**: Når flere økter sender forespørsler til den lokale modellen samtidig, blir ingen av dem lenger avvist med «connection reset». De venter i køen i stedet (#2181).
+
 ## 2026-10-31
 
 ### `innblikk`: nettstatistikk uten dekoratøren
