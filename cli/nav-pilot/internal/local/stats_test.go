@@ -2,6 +2,7 @@ package local
 
 import (
 	"fmt"
+	"path/filepath"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -234,5 +235,16 @@ func TestUsageTapIgnoresFailedCompletions(t *testing.T) {
 				t.Errorf("status %d did not reach the client (got %d)", tc.status, rec.Code)
 			}
 		})
+	}
+}
+
+// An external endpoint never runs init, so the data dir may be missing on the
+// first completion; it is created rather than the line dropped.
+func TestStatsCreateMissingDir(t *testing.T) {
+	data, _ := stubDirs(t)
+	dataDir = func() string { return filepath.Join(data, "local") }
+	RecordCompletion(1, 1, 0.1)
+	if s, err := ReadStats(); err != nil || s.Requests != 1 {
+		t.Errorf("ReadStats = %+v, %v; want one request", s, err)
 	}
 }
