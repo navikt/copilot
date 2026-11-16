@@ -230,14 +230,14 @@ func handleApprove(w http.ResponseWriter, r *http.Request, db *DB, actor, name s
 			respondJSON(w, http.StatusConflict, map[string]string{"error": err.Error()})
 			return
 		}
-		slog.Error("Failed to approve entry", "error", err, "version", payload.Version)
+		slog.Error("Failed to approve entry", "error", err)
 		recordWriteMetric("approve", "error")
 		respondJSON(w, http.StatusInternalServerError, map[string]string{"error": "Internal server error"})
 		return
 	}
 
 	recordWriteMetric("approve", "success")
-	slog.Info("Server entry approved", "version", payload.Version) // name and actor are in registry_audit
+	slog.Info("Server entry approved") // name, version and actor are in registry_audit
 	respondJSON(w, http.StatusOK, map[string]interface{}{
 		"name":    name,
 		"version": payload.Version,
@@ -273,14 +273,14 @@ func handleReject(w http.ResponseWriter, r *http.Request, db *DB, actor, name st
 			respondJSON(w, http.StatusConflict, map[string]string{"error": err.Error()})
 			return
 		}
-		slog.Error("Failed to reject entry", "error", err, "version", payload.Version)
+		slog.Error("Failed to reject entry", "error", err)
 		recordWriteMetric("reject", "error")
 		respondJSON(w, http.StatusInternalServerError, map[string]string{"error": "Internal server error"})
 		return
 	}
 
 	recordWriteMetric("reject", "success")
-	slog.Info("Server entry rejected", "version", payload.Version) // name and actor are in registry_audit
+	slog.Info("Server entry rejected") // name, version and actor are in registry_audit
 	respondJSON(w, http.StatusOK, map[string]interface{}{
 		"name":    name,
 		"version": payload.Version,
