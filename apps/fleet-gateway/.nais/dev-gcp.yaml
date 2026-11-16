@@ -10,6 +10,9 @@ allowed_client_ids: "https://my-copilot.ekstern.dev.nav.no/oauth-client.json"
 allowed_redirect_uris: "http://127.0.0.1:38249/callback"
 allowed_resources: "https://fleet-gateway.intern.dev.nav.no/mcp"
 entra_scope: "openid"
+pilot_routes_file: "/app/pilot-routes.dev.yaml"
+outbound_rules:
+  - application: fleet-team-0b
 ingresses:
   - https://fleet-gateway.intern.dev.nav.no
 reply_urls:

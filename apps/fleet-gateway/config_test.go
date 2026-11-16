@@ -381,3 +381,23 @@ routes:
 		})
 	}
 }
+
+func TestDevPilotRoutesFileValid(t *testing.T) {
+	setBaseValidEnv(t)
+	t.Setenv("PILOT_ROUTES_FILE", "pilot-routes.dev.yaml")
+
+	cfg, err := loadConfigFromEnv()
+	if err != nil {
+		t.Fatalf("expected pilot-routes.dev.yaml to load without error, got %v", err)
+	}
+	if len(cfg.Routes) != 1 {
+		t.Fatalf("expected 1 dev route, got %d", len(cfg.Routes))
+	}
+	r := cfg.Routes[0]
+	if r.Route != "/mcp/test" || r.Team != "copilot" || r.Target != "dev-gcp:copilot:fleet-team-0b" {
+		t.Fatalf("unexpected dev route metadata: %+v", r)
+	}
+	if r.UpstreamURL != "http://fleet-team-0b.copilot/" {
+		t.Fatalf("unexpected dev upstream URL: %q", r.UpstreamURL)
+	}
+}

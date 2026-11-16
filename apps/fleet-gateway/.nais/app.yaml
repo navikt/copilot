@@ -50,9 +50,23 @@ spec:
       value: "{{allowed_resources}}"
     - name: ENTRA_SCOPE
       value: "{{entra_scope}}"
+    {{#if pilot_routes_file}}
+    - name: PILOT_ROUTES_FILE
+      value: "{{pilot_routes_file}}"
+    {{/if}}
   accessPolicy:
     outbound:
-      rules: []
+      rules:
+      {{#if outbound_rules}}
+      {{#each outbound_rules as |rule|}}
+        - application: {{rule.application}}
+        {{#if rule.namespace}}
+          namespace: {{rule.namespace}}
+        {{/if}}
+      {{/each}}
+      {{else}}
+        []
+      {{/if}}
       external:
         - host: login.microsoftonline.com
         - host: my-copilot.ekstern.dev.nav.no
