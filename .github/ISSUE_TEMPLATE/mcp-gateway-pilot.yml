@@ -1,0 +1,64 @@
+name: "mcp-gateway: Pilotsøknad"
+description: Søk om å koble teamets MCP-server til MCP-gatewayen i piloten
+title: "mcp-gateway: pilotsøknad for "
+labels: []
+
+body:
+  - type: input
+    id: team
+    attributes:
+      label: Team
+    validations:
+      required: true
+
+  - type: input
+    id: namespace
+    attributes:
+      label: Nais-namespace
+    validations:
+      required: true
+
+  - type: input
+    id: app
+    attributes:
+      label: Appnavn på MCP-serveren
+    validations:
+      required: true
+
+  - type: textarea
+    id: data
+    attributes:
+      label: Hvilke data og verktøy eksponerer serveren?
+      description: Beskriv verktøyene og hvilken datakategori de gir tilgang til.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: writes
+    attributes:
+      label: Skriver noen av verktøyene?
+      description: Piloten starter med bare lesing.
+      options:
+        - "Nei, bare lesing"
+        - "Ja, noen verktøy skriver"
+    validations:
+      required: true
+
+  - type: input
+    id: contact
+    attributes:
+      label: Kontaktperson
+      description: GitHub-brukernavn.
+      placeholder: "@brukernavn"
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: Bekreftelser
+      options:
+        - label: Vi legger til gatewayen i `accessPolicy.inbound` for MCP-serveren.
+          required: true
+        - label: "Serveren validerer tokenet med Texas-introspeksjon, avviser `idtyp: app`, sjekker at `azp` er gatewayen og krever NAVident."
+          required: true

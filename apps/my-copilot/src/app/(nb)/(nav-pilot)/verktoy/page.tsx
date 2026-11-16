@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
-import { Heading, Box, VStack } from "@navikt/ds-react";
+import { BodyShort, Heading, Box, VStack } from "@navikt/ds-react";
+import NextLink from "next/link";
 import { getAllCustomizations, getCountsByDomain, getCustomizationById } from "@/lib/customizations";
 import type { Domain } from "@/lib/customization-types";
 import { TYPE_LABELS } from "@/lib/customization-types";
@@ -106,6 +107,13 @@ export default async function CustomizationsPage() {
               <Heading size="small" level="2" className="mb-4">
                 Alle tilpasninger
               </Heading>
+              <BodyShort className="mb-4">
+                Eier teamet en MCP-server?{" "}
+                <NextLink href="/verktoy/mcp-gateway" className="text-blue-600 hover:underline">
+                  Les om piloten for MCP-gatewayen
+                </NextLink>
+                .
+              </BodyShort>
               <Suspense>
                 <CustomizationCatalog items={enrichedItems} />
               </Suspense>
