@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -225,6 +227,109 @@ func TestHandlers_WriteRequiresAllowedAZP(t *testing.T) {
 				if rec.Code != http.StatusForbidden {
 					t.Errorf("%s: expected 403, got %d", path, rec.Code)
 				}
+			}
+		})
+	}
+}
+
+func TestLogSafe(t *testing.T) {
+	if got := logSafe("normal\nforged=true\r\nline"); got != "normalforged=trueline" {
+		t.Errorf("logSafe() = %q, want %q", got, "normalforged=trueline")
+	}
+}
+
+func TestHandlers_BodyLimitsAndTrailingJSON(t *testing.T) {
+	cfg := &Config{AdminGroupID: testAdminGroup, AllowedWriteAZP: []string{testWriterAZP}}
+	mux := testMux(cfg, &DB{}, testFakeIntrospect())
+	validEntry := string(subJSON("io.github.navikt/x", "d", "1.0.0"))
+
+	t.Run("oversized body returns 413", func(t *testing.T) {
+		huge := `{"entry":"` + strings.Repeat("a", maxWriteBodyBytes+1) + `"}`
+		for _, path := range []string{"/api/v1/entries", "/api/v1/entries/io.github.navikt/x/approve"} {
+			req := httptest.NewRequest(http.MethodPost, path, strings.NewReader(huge))
+			req.Header.Set("Authorization", "Bearer token-admin")
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+			if rec.Code != http.StatusRequestEntityTooLarge {
+				t.Errorf("%s: got %d, want 413: %s", path, rec.Code, rec.Body.String())
+			}
+		}
+	})
+
+	t.Run("trailing garbage after JSON returns 400", func(t *testing.T) {
+		cases := []struct {
+			path string
+			body string
+		}{
+			{"/api/v1/entries", `{"entry": ` + validEntry + `} trailing`},
+			{"/api/v1/entries", `{"entry": ` + validEntry + `}{"extra": 1}`},
+			{"/api/v1/entries/io.github.navikt/x/approve", `{"version": 1} trailing`},
+			{"/api/v1/entries/io.github.navikt/x/reject", `{"version": 1, "reason": "nope"} {"extra": 1}`},
+		}
+		for _, tc := range cases {
+			req := httptest.NewRequest(http.MethodPost, tc.path, strings.NewReader(tc.body))
+			req.Header.Set("Authorization", "Bearer token-admin")
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+			if rec.Code != http.StatusBadRequest {
+				t.Errorf("%s (%s): got %d, want 400: %s", tc.path, tc.body, rec.Code, rec.Body.String())
+			}
+		}
+	})
+}
+
+func TestHandlers_ValidationErrorOmitsRejectedInput(t *testing.T) {
+	var logBuf bytes.Buffer
+	prev := slog.Default()
+	slog.SetDefault(slog.New(slog.NewJSONHandler(&logBuf, nil)))
+	t.Cleanup(func() { slog.SetDefault(prev) })
+
+	cfg := &Config{AdminGroupID: testAdminGroup, AllowedWriteAZP: []string{testWriterAZP}}
+	mux := testMux(cfg, nil, testFakeIntrospect())
+
+	cases := []struct {
+		name      string
+		body      string
+		wantErr   string
+		forbidden string
+	}{
+		{
+			name:      "invalid owner omits email value",
+			body:      `{"entry":{"name":"io.github.navikt/test-server","description":"Valid description","version":"1.0.0","owner":"secret.person@nav.no","remotes":[{"type":"streamable-http","url":"https://mcp.example.com/api"}]}}`,
+			wantErr:   "invalid owner",
+			forbidden: "secret.person@nav.no",
+		},
+		{
+			name:      "invalid websiteUrl omits url value",
+			body:      `{"entry":{"name":"io.github.navikt/test-server","description":"Valid description","version":"1.0.0","owner":"team-test","websiteUrl":"http://secret-host.example.com/p","remotes":[{"type":"streamable-http","url":"https://mcp.example.com/api"}]}}`,
+			wantErr:   "invalid websiteUrl",
+			forbidden: "secret-host.example.com",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			logBuf.Reset()
+			req := httptest.NewRequest(http.MethodPost, "/api/v1/entries", strings.NewReader(tc.body))
+			req.Header.Set("Authorization", "Bearer token-user")
+			rec := httptest.NewRecorder()
+			mux.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("got %d, want 400: %s", rec.Code, rec.Body.String())
+			}
+			var resp map[string]string
+			if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+				t.Fatalf("unmarshal response: %v", err)
+			}
+			if resp["error"] != tc.wantErr {
+				t.Errorf("error = %q, want %q", resp["error"], tc.wantErr)
+			}
+			if strings.Contains(rec.Body.String(), tc.forbidden) {
+				t.Errorf("response leaked rejected input %q: %s", tc.forbidden, rec.Body.String())
+			}
+			if strings.Contains(logBuf.String(), tc.forbidden) {
+				t.Errorf("log leaked rejected input %q: %s", tc.forbidden, logBuf.String())
 			}
 		})
 	}

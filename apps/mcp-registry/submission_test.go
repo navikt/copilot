@@ -385,3 +385,40 @@ func TestValidateSubmission(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateSubmission_TrimsURLs(t *testing.T) {
+	raw := `{
+		"name": "io.github.navikt/trimmed",
+		"description": "Valid description",
+		"version": "1.0.0",
+		"owner": "team-test",
+		"websiteUrl": "  https://example.com/docs  ",
+		"repository": {
+			"source": "github",
+			"url": "\thttps://github.com/navikt/trimmed\n"
+		},
+		"remotes": [{"type": "streamable-http", "url": "  https://mcp.example.com/api  "}]
+	}`
+
+	sub, canonical, err := validateSubmission([]byte(raw))
+	if err != nil {
+		t.Fatalf("validateSubmission() unexpected error: %v", err)
+	}
+	if sub.WebsiteURL != "https://example.com/docs" {
+		t.Errorf("WebsiteURL = %q, want trimmed", sub.WebsiteURL)
+	}
+	if sub.Repository.URL != "https://github.com/navikt/trimmed" {
+		t.Errorf("Repository.URL = %q, want trimmed", sub.Repository.URL)
+	}
+	if sub.Remotes[0].URL != "https://mcp.example.com/api" {
+		t.Errorf("Remotes[0].URL = %q, want trimmed", sub.Remotes[0].URL)
+	}
+
+	var stored Submission
+	if err := json.Unmarshal(canonical, &stored); err != nil {
+		t.Fatalf("unmarshal canonical: %v", err)
+	}
+	if stored.WebsiteURL != "https://example.com/docs" || stored.Repository.URL != "https://github.com/navikt/trimmed" || stored.Remotes[0].URL != "https://mcp.example.com/api" {
+		t.Errorf("canonical JSON kept untrimmed URLs: %+v", stored)
+	}
+}

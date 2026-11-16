@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -9,7 +10,45 @@ import (
 	"net/http"
 	"strings"
 	"sync/atomic"
+	"time"
 )
+
+const (
+	maxWriteBodyBytes = 1 << 20
+	writeDBTimeout    = 10 * time.Second
+)
+
+// logSafe strips CR and LF characters from request-derived values passed to slog.
+func logSafe(s string) string {
+	return strings.NewReplacer("\n", "", "\r", "").Replace(s)
+}
+
+func readWriteBody(w http.ResponseWriter, r *http.Request) ([]byte, bool) {
+	r.Body = http.MaxBytesReader(w, r.Body, maxWriteBodyBytes)
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		var maxBytesErr *http.MaxBytesError
+		if errors.As(err, &maxBytesErr) {
+			respondJSON(w, http.StatusRequestEntityTooLarge, map[string]string{"error": "Request body too large"})
+			return nil, false
+		}
+		respondJSON(w, http.StatusBadRequest, map[string]string{"error": "Failed to read request body"})
+		return nil, false
+	}
+	return body, true
+}
+
+func decodeStrictJSON(body []byte, dst any) error {
+	dec := json.NewDecoder(bytes.NewReader(body))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(dst); err != nil {
+		return err
+	}
+	if err := dec.Decode(&struct{}{}); err != io.EOF {
+		return errors.New("unexpected trailing data")
+	}
+	return nil
+}
 
 // writeUnavailable answers 503 when the service has no connected database.
 func writeUnavailable(w http.ResponseWriter, db *DB) bool {
@@ -44,25 +83,22 @@ func makeSubmitHandler(config *Config, dbRef *atomic.Pointer[DB], introspect Int
 		}
 		actor := caller.Actor
 
-		body, readErr := io.ReadAll(io.LimitReader(r.Body, 1<<20))
-		if readErr != nil {
-			respondJSON(w, http.StatusBadRequest, map[string]string{"error": "Failed to read request body"})
+		body, ok := readWriteBody(w, r)
+		if !ok {
 			return
 		}
 
-		dec := json.NewDecoder(bytes.NewReader(body))
-		dec.DisallowUnknownFields()
-
 		var payload submitPayload
-		if parseErr := dec.Decode(&payload); parseErr != nil || len(payload.Entry) == 0 {
+		if parseErr := decodeStrictJSON(body, &payload); parseErr != nil || len(payload.Entry) == 0 {
 			respondJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid request body: 'entry' object required"})
 			return
 		}
 
 		sub, canonicalJSON, valErr := validateSubmission(payload.Entry)
 		if valErr != nil {
-			slog.Warn("Validation failed for submit", "error", valErr, "actor", actor)
-			respondJSON(w, http.StatusBadRequest, map[string]string{"error": valErr.Error()})
+			msg := submissionErrorMessage(valErr)
+			slog.Warn("Validation failed for submit", "error", logSafe(msg), "actor", logSafe(actor))
+			respondJSON(w, http.StatusBadRequest, map[string]string{"error": msg})
 			return
 		}
 
@@ -71,27 +107,29 @@ func makeSubmitHandler(config *Config, dbRef *atomic.Pointer[DB], introspect Int
 			return
 		}
 		isAdmin := config.IsAdmin(caller.Groups)
-		version, storeErr := db.Submit(r.Context(), actor, canonicalJSON, sub.Name, isAdmin)
+		dbCtx, cancel := context.WithTimeout(r.Context(), writeDBTimeout)
+		defer cancel()
+		version, storeErr := db.Submit(dbCtx, actor, canonicalJSON, sub.Name, isAdmin)
 		if storeErr != nil {
 			if errors.Is(storeErr, ErrForbidden) {
-				slog.Warn("Forbidden submit attempt for existing name", "name", sub.Name, "actor", actor)
+				slog.Warn("Forbidden submit attempt for existing name", "name", logSafe(sub.Name), "actor", logSafe(actor))
 				respondJSON(w, http.StatusForbidden, map[string]string{"error": storeErr.Error()})
 				return
 			}
 			if errors.Is(storeErr, ErrRateLimitExceeded) {
-				slog.Warn("Rate limit exceeded for actor", "actor", actor)
+				slog.Warn("Rate limit exceeded for actor", "actor", logSafe(actor))
 				recordWriteMetric("submit", "rate_limited")
 				respondJSON(w, http.StatusTooManyRequests, map[string]string{"error": storeErr.Error()})
 				return
 			}
-			slog.Error("Failed to store submitted entry", "error", storeErr, "name", sub.Name, "actor", actor)
+			slog.Error("Failed to store submitted entry", "error", storeErr, "name", logSafe(sub.Name), "actor", logSafe(actor))
 			recordWriteMetric("submit", "error")
 			respondJSON(w, http.StatusInternalServerError, map[string]string{"error": "Internal server error"})
 			return
 		}
 
 		recordWriteMetric("submit", "success")
-		slog.Info("Server entry submitted", "name", sub.Name, "version", version, "actor", actor)
+		slog.Info("Server entry submitted", "name", logSafe(sub.Name), "version", version, "actor", logSafe(actor))
 		respondJSON(w, http.StatusCreated, map[string]interface{}{
 			"name":    sub.Name,
 			"version": version,
@@ -150,14 +188,13 @@ func makeEntryActionHandler(config *Config, dbRef *atomic.Pointer[DB], introspec
 		}
 
 		if !config.IsAdmin(caller.Groups) {
-			slog.Warn("Non-admin user attempted privileged action", "action", action, "actor", actor, "name", name)
+			slog.Warn("Non-admin user attempted privileged action", "action", action, "actor", logSafe(actor), "name", logSafe(name))
 			respondJSON(w, http.StatusForbidden, map[string]string{"error": "Forbidden: actor is not an admin"})
 			return
 		}
 
-		body, readErr := io.ReadAll(io.LimitReader(r.Body, 1<<20))
-		if readErr != nil {
-			respondJSON(w, http.StatusBadRequest, map[string]string{"error": "Failed to read request body"})
+		body, ok := readWriteBody(w, r)
+		if !ok {
 			return
 		}
 
@@ -175,16 +212,15 @@ func makeEntryActionHandler(config *Config, dbRef *atomic.Pointer[DB], introspec
 }
 
 func handleApprove(w http.ResponseWriter, r *http.Request, db *DB, actor, name string, body []byte) {
-	dec := json.NewDecoder(bytes.NewReader(body))
-	dec.DisallowUnknownFields()
-
 	var payload approvePayload
-	if err := dec.Decode(&payload); err != nil || payload.Version <= 0 {
+	if err := decodeStrictJSON(body, &payload); err != nil || payload.Version <= 0 {
 		respondJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid request body: positive 'version' integer required"})
 		return
 	}
 
-	if err := db.Approve(r.Context(), actor, name, payload.Version); err != nil {
+	dbCtx, cancel := context.WithTimeout(r.Context(), writeDBTimeout)
+	defer cancel()
+	if err := db.Approve(dbCtx, actor, name, payload.Version); err != nil {
 		if errors.Is(err, ErrVersionNotFound) {
 			respondJSON(w, http.StatusNotFound, map[string]string{"error": "Version not found"})
 			return
@@ -193,14 +229,14 @@ func handleApprove(w http.ResponseWriter, r *http.Request, db *DB, actor, name s
 			respondJSON(w, http.StatusConflict, map[string]string{"error": err.Error()})
 			return
 		}
-		slog.Error("Failed to approve entry", "error", err, "name", name, "version", payload.Version)
+		slog.Error("Failed to approve entry", "error", err, "name", logSafe(name), "version", payload.Version)
 		recordWriteMetric("approve", "error")
 		respondJSON(w, http.StatusInternalServerError, map[string]string{"error": "Internal server error"})
 		return
 	}
 
 	recordWriteMetric("approve", "success")
-	slog.Info("Server entry approved", "name", name, "version", payload.Version, "actor", actor)
+	slog.Info("Server entry approved", "name", logSafe(name), "version", payload.Version, "actor", logSafe(actor))
 	respondJSON(w, http.StatusOK, map[string]interface{}{
 		"name":    name,
 		"version": payload.Version,
@@ -209,11 +245,8 @@ func handleApprove(w http.ResponseWriter, r *http.Request, db *DB, actor, name s
 }
 
 func handleReject(w http.ResponseWriter, r *http.Request, db *DB, actor, name string, body []byte) {
-	dec := json.NewDecoder(bytes.NewReader(body))
-	dec.DisallowUnknownFields()
-
 	var payload rejectPayload
-	if err := dec.Decode(&payload); err != nil || payload.Version <= 0 {
+	if err := decodeStrictJSON(body, &payload); err != nil || payload.Version <= 0 {
 		respondJSON(w, http.StatusBadRequest, map[string]string{"error": "Invalid request body: positive 'version' integer required"})
 		return
 	}
@@ -224,7 +257,9 @@ func handleReject(w http.ResponseWriter, r *http.Request, db *DB, actor, name st
 		return
 	}
 
-	if err := db.Reject(r.Context(), actor, name, payload.Version, reason); err != nil {
+	dbCtx, cancel := context.WithTimeout(r.Context(), writeDBTimeout)
+	defer cancel()
+	if err := db.Reject(dbCtx, actor, name, payload.Version, reason); err != nil {
 		if errors.Is(err, ErrVersionNotFound) {
 			respondJSON(w, http.StatusNotFound, map[string]string{"error": "Version not found"})
 			return
@@ -237,14 +272,14 @@ func handleReject(w http.ResponseWriter, r *http.Request, db *DB, actor, name st
 			respondJSON(w, http.StatusConflict, map[string]string{"error": err.Error()})
 			return
 		}
-		slog.Error("Failed to reject entry", "error", err, "name", name, "version", payload.Version)
+		slog.Error("Failed to reject entry", "error", err, "name", logSafe(name), "version", payload.Version)
 		recordWriteMetric("reject", "error")
 		respondJSON(w, http.StatusInternalServerError, map[string]string{"error": "Internal server error"})
 		return
 	}
 
 	recordWriteMetric("reject", "success")
-	slog.Info("Server entry rejected", "name", name, "version", payload.Version, "actor", actor)
+	slog.Info("Server entry rejected", "name", logSafe(name), "version", payload.Version, "actor", logSafe(actor))
 	respondJSON(w, http.StatusOK, map[string]interface{}{
 		"name":    name,
 		"version": payload.Version,

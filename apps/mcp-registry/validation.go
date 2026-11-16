@@ -464,6 +464,24 @@ var (
 	submissionBlockedSuffixes = append(slices.Clone(internalHostSuffixes), ".internal", ".local")
 )
 
+type validationFieldError struct {
+	field string
+	err   error
+}
+
+func (e *validationFieldError) Error() string { return e.err.Error() }
+func (e *validationFieldError) Unwrap() error { return e.err }
+
+// submissionErrorMessage returns a generic validation message naming only the
+// failing field so rejected input is never echoed in responses or logs.
+func submissionErrorMessage(err error) string {
+	var fe *validationFieldError
+	if errors.As(err, &fe) {
+		return "invalid " + fe.field
+	}
+	return "invalid entry"
+}
+
 // validateSubmission decodes entryJSON strictly into a Submission, validates it
 // and returns it with its re-marshaled canonical JSON. It guards both the
 // write API and DB rows at reload.
@@ -472,50 +490,53 @@ func validateSubmission(entryJSON []byte) (*Submission, []byte, error) {
 	dec.DisallowUnknownFields()
 	var sub Submission
 	if err := dec.Decode(&sub); err != nil {
-		return nil, nil, fmt.Errorf("invalid entry JSON: %w", err)
+		return nil, nil, &validationFieldError{field: "entry", err: fmt.Errorf("invalid entry JSON: %w", err)}
 	}
 	if dec.More() {
-		return nil, nil, errors.New("unexpected trailing data after JSON entry")
+		return nil, nil, &validationFieldError{field: "entry", err: errors.New("unexpected trailing data after JSON entry")}
 	}
 	if err := validateName(sub.Name, 0); err != nil {
-		return nil, nil, err
+		return nil, nil, &validationFieldError{field: "name", err: err}
 	}
 	if err := validateDescription(sub.Description, 0); err != nil {
-		return nil, nil, err
+		return nil, nil, &validationFieldError{field: "description", err: err}
 	}
 	if strings.TrimSpace(sub.Version) == "" {
-		return nil, nil, errors.New("version is required and cannot be empty")
+		return nil, nil, &validationFieldError{field: "version", err: errors.New("version is required and cannot be empty")}
 	}
 	if !ownerRegex.MatchString(sub.Owner) {
-		return nil, nil, fmt.Errorf("owner %q is invalid: must be a Nais team matching ^[a-z0-9-]+$", sub.Owner)
+		return nil, nil, &validationFieldError{field: "owner", err: fmt.Errorf("owner %q is invalid: must be a Nais team matching ^[a-z0-9-]+$", sub.Owner)}
 	}
 	if sub.WebsiteURL != "" {
+		sub.WebsiteURL = strings.TrimSpace(sub.WebsiteURL)
 		if err := validateSubmissionURL(sub.WebsiteURL); err != nil {
-			return nil, nil, fmt.Errorf("invalid websiteUrl: %w", err)
+			return nil, nil, &validationFieldError{field: "websiteUrl", err: fmt.Errorf("invalid websiteUrl: %w", err)}
 		}
 	}
 	if sub.Repository != nil {
 		if strings.TrimSpace(sub.Repository.Source) == "" {
-			return nil, nil, errors.New("repository.source is required")
+			return nil, nil, &validationFieldError{field: "repository.source", err: errors.New("repository.source is required")}
 		}
+		sub.Repository.URL = strings.TrimSpace(sub.Repository.URL)
 		if err := validateSubmissionURL(sub.Repository.URL); err != nil {
-			return nil, nil, fmt.Errorf("invalid repository.url: %w", err)
+			return nil, nil, &validationFieldError{field: "repository.url", err: fmt.Errorf("invalid repository.url: %w", err)}
 		}
 	}
 	if len(sub.Remotes) == 0 {
-		return nil, nil, errors.New("at least one remote is required")
+		return nil, nil, &validationFieldError{field: "remotes", err: errors.New("at least one remote is required")}
 	}
 	for i, remote := range sub.Remotes {
 		if remote.Type != "streamable-http" && remote.Type != "sse" {
-			return nil, nil, fmt.Errorf("remote[%d]: type must be 'streamable-http' or 'sse'", i)
+			return nil, nil, &validationFieldError{field: "remotes", err: fmt.Errorf("remote[%d]: type must be 'streamable-http' or 'sse'", i)}
 		}
-		if err := validateSubmissionURL(remote.URL); err != nil {
-			return nil, nil, fmt.Errorf("remote[%d]: %w", i, err)
+		sub.Remotes[i].URL = strings.TrimSpace(remote.URL)
+		if err := validateSubmissionURL(sub.Remotes[i].URL); err != nil {
+			return nil, nil, &validationFieldError{field: "remotes", err: fmt.Errorf("remote[%d]: %w", i, err)}
 		}
 	}
 	canonical, err := json.Marshal(sub)
 	if err != nil {
-		return nil, nil, fmt.Errorf("marshaling canonical entry: %w", err)
+		return nil, nil, &validationFieldError{field: "entry", err: fmt.Errorf("marshaling canonical entry: %w", err)}
 	}
 	return &sub, canonical, nil
 }

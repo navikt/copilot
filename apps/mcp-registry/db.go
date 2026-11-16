@@ -87,7 +87,9 @@ func (s *DB) Migrate(ctx context.Context) error {
 		return fmt.Errorf("acquiring migration lock: %w", err)
 	}
 	defer func() {
-		_, _ = conn.Exec(context.WithoutCancel(ctx), "SELECT pg_advisory_unlock($1)", migrationLockKey)
+		unlockCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+		defer cancel()
+		_, _ = conn.Exec(unlockCtx, "SELECT pg_advisory_unlock($1)", migrationLockKey)
 	}()
 
 	createMigrationsTable := `
