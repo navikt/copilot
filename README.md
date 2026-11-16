@@ -68,6 +68,8 @@ Arkivet oppdateres hver time fra den nyeste releasen, så en release du nettopp 
 
 **[Les mer →](docs/README.nav-pilot.md)**
 
+Bruker du Copilot CLI inni cplt på Linux? Se [hvorfor Copilots `/sandbox` ikke skal aktiveres der](docs/cplt-copilot-sandbox.md).
+
 ## Kom i gang
 
 Enkleste vei er **[ki-utvikling.nav.no/verktoy](https://ki-utvikling.nav.no/verktoy)**. Finn det du trenger og følg installeringsstega. MCP-servere har ferdige `code --add-mcp`-kommandoer du kan kopiere rett inn i terminalen.
