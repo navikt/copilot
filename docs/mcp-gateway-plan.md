@@ -137,15 +137,15 @@ Three layers must all hold before a route opens to wider use:
 2. **Nais access policy.** fleet-gateway's `accessPolicy.outbound` names every team MCP, and the team adds fleet-gateway to its `inbound`. A missing rule fails with `AADSTS65001`.
 3. **Pilot list.** An explicit, versioned list of routes and teams in the fleet-gateway config. fleet-gateway exposes a route only if it is on the list and approved in the registry. Removing a route from the list switches it off.
 
-The pilot accepts only cplt's client_id, on a naisdevice ingress. Teams apply through the GitHub issue template "fleet-gateway: pilotsøknad" in navikt/copilot until the self-service form ([#2099](https://github.com/navikt/copilot/issues/2099)) exists. Preliminary user docs: [ki-utvikling.nav.no/verktoy/fleet-gateway](https://ki-utvikling.nav.no/verktoy/fleet-gateway) (added in a separate PR).
+The pilot accepts only cplt's client_id, on a naisdevice ingress. Teams apply through the issue template [fleet-gateway: Pilotsøknad](https://github.com/navikt/copilot/issues/new?template=fleet-gateway-pilot.yml) in navikt/copilot until the self-service form ([#2099](https://github.com/navikt/copilot/issues/2099)) exists. Preliminary user docs: [ki-utvikling.nav.no/verktoy/fleet-gateway](https://ki-utvikling.nav.no/verktoy/fleet-gateway) (added in a separate PR).
 
-**Stretch goal: team-scoped access ([#2209](https://github.com/navikt/copilot/issues/2209)).** fleet-gateway checks the user's Entra group per route before the OBO call; the pilot list gets a required group per route. nav-pilot may then show only the servers that match the user's teams, but that is convenience: a client can be changed, so fleet-gateway check is the control.
+**Stretch goal: team-scoped access ([#2209](https://github.com/navikt/copilot/issues/2209)).** fleet-gateway checks the user's Entra group per route before the OBO call; the pilot list gets a required group per route. nav-pilot may then show only the servers that match the user's teams, but that is convenience: a client can be changed, so the check in fleet-gateway is the control.
 
 Texas issues the tokens. fleet-control grants access, and fleet-gateway enforces it.
 
 ```mermaid
 flowchart LR
-    Team[Team with an MCP server] -->|pilot application| FC[fleet-control registry]
+    Team[Team with an MCP server] -->|submits server| FC[fleet-control registry]
     Copilot[Team copilot, admin group] -->|approves| FC
     FC -->|approved routes| GW
     subgraph GW[fleet-gateway enforces]
@@ -189,7 +189,7 @@ Owner decisions:
 
 1. **Three layers before wider opening:** registry approval by team copilot, Nais `accessPolicy` on both sides, and a versioned pilot list in the fleet-gateway config that doubles as a per-route kill switch. Details: [Onboarding and pilot control](#onboarding-and-pilot-control).
 2. **Pilot clients.** Only cplt's client_id, on a naisdevice ingress.
-3. **Applications** go through the issue template "fleet-gateway: pilotsøknad" until the self-service form ([#2099](https://github.com/navikt/copilot/issues/2099)).
+3. **Applications** go through the issue template [fleet-gateway: Pilotsøknad](https://github.com/navikt/copilot/issues/new?template=fleet-gateway-pilot.yml) until the self-service form ([#2099](https://github.com/navikt/copilot/issues/2099)).
 
 ### 2026-11-16: registry writes, personal data, database outage, spike gate
 
