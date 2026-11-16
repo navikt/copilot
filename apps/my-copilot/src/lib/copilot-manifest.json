@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-11-16T13:31:11.988Z",
+  "generatedAt": "2026-11-16T14:01:01.810Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -1987,7 +1987,7 @@
       "filePath": "skills/vulnerability-triage/SKILL.md",
       "repoPath": "skills/vulnerability-triage/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/vulnerability-triage/SKILL.md",
-      "contentHash": "1c971a6f579caf89a053108af53376766206935beee9f496bd985813e5649aff",
+      "contentHash": "262f8822330a1852c50447a7e504416478ac7fffa07e85b5e2d4315893521e18",
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": ["security", "vulnerabilities", "cve", "nais", "dependencies", "sbom", "triage"],
