@@ -53,6 +53,12 @@ exec nav-pilot doctor
 stdout 'MCP servers turned off at launch \(not in Nav''s MCP registry, or its URL, command or env differs from the registry entry\): com.jetbrains/intellij, egen-lokal, localhost, playwright-env, tredjepart'
 ! stdout 'configured-secret|/stream'
 
+# mcp list names a server listed by name that launch still turns off (#2195).
+env POLICY=registry_only
+exec nav-pilot mcp list
+stdout 'com.jetbrains/intellij \(opencode\): not in Nav''s MCP registry, or its URL, command or env differs'
+! stdout 'configured-secret'
+
 # With every hook off, the session policy still reaches opencode.
 exec nav-pilot config set hook_loop_guard false
 exec nav-pilot config set hook_redact_secrets false

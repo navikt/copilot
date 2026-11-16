@@ -450,3 +450,19 @@ func TestMCPListPackageSandboxHosts(t *testing.T) {
 		t.Errorf("problems = %+v", rep.Problems)
 	}
 }
+
+// A server the registry matches by package, but with env the launch check
+// refuses, gets a problem and a fix (#2195).
+func TestMCPListRefusedAtLaunch(t *testing.T) {
+	mcpCmdEnv(t, providerpkg.MCPHostState{})
+	e := providerpkg.MCPServerEntry{Name: "io.example/pkg", Packages: []providerpkg.MCPPackage{{RegistryType: "npm", Identifier: "@example/pkg", Version: "1.0.0"}}}
+	home, _ := os.UserHomeDir()
+	writeTestFile(t, filepath.Join(home, ".config", "opencode", "opencode.json"), `{"mcp": {"pkg": {"type": "local", "command": ["npx", "@example/pkg"], "environment": {"X": "1"}}}}`)
+	entries := []providerpkg.MCPServerEntry{e}
+	rep := diagnoseMCP("r", entries, mcpConfigured(entries), "")
+	if !slices.ContainsFunc(rep.Problems, func(p mcpProblem) bool {
+		return p.Server == "pkg" && strings.HasPrefix(p.Problem, providerpkg.MCPRegistryMismatch) && strings.Contains(p.Fix, "enable io.example/pkg --client opencode")
+	}) {
+		t.Errorf("problems = %+v", rep.Problems)
+	}
+}
