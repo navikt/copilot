@@ -1,0 +1,9 @@
+{
+  "client_id": "https://ki-utvikling.nav.no/cplt/oauth-client.json",
+  "client_name": "cplt",
+  "client_uri": "https://ki-utvikling.nav.no/cplt",
+  "redirect_uris": ["http://127.0.0.1:62471/callback"],
+  "grant_types": ["authorization_code", "refresh_token"],
+  "response_types": ["code"],
+  "token_endpoint_auth_method": "none"
+}
