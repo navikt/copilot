@@ -30,7 +30,7 @@ spec:
   accessPolicy:
     inbound:
       rules:
-        - application: mcp-team-spike
+        []  # spike: missing-grant test, team removed on purpose
     outbound:
       rules:
         []
