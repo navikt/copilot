@@ -61,7 +61,7 @@ Read in the OpenCode 1.18.32 source (`packages/opencode/src/session/tools.ts`, `
 - **The hook state directory is writable from the session**, as Copilot's session directory is. An agent could reset its own loop guard, and spooled telemetry lines are enum-checked before they are recorded.
 - **The hooks' stderr is discarded**, because inheriting it would draw over the TUI. A tripped loop guard is still counted in telemetry.
 - An MCP result with many text items runs the hooks once per item.
-- Repo gates are shell commands, and the `navPilot` marker on them is the repo's to write. On opencode 2, nav-pilot asks before it runs them, in the same question as the repo's plugins (`nav-pilot plugins`). The answer is stored against a hash of the plugins and `.github/hooks/copilot-hooks.json`, so a changed gate asks again. A no, or no answer yet, sets `OPENCODE_DISABLE_PROJECT_CONFIG=1` and drops the repo gates. On opencode 1 there is no question; set `OPENCODE_DISABLE_PROJECT_CONFIG=1` yourself for a repo you do not trust.
+- Repo gates are shell commands, and the `navPilot` marker on them is the repo's to write. On opencode 2, nav-pilot asks before it runs them, in the same question as the repo's plugins (`nav-pilot plugins`). The answer is stored against a hash of the plugins, the gate entries and the files in `.github/hooks/`, so a changed gate or gate script asks again. A no, or no answer yet, sets `OPENCODE_DISABLE_PROJECT_CONFIG=1` and drops the repo gates. In a repo with gates and no plugins, a no drops only the gates: the repo's `AGENTS.md`, agents and skills still load. On opencode 1 there is no question; set `OPENCODE_DISABLE_PROJECT_CONFIG=1` yourself for a repo you do not trust.
 
 ## Repo plugins are code, in opencode 1 and 2
 

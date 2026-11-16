@@ -155,7 +155,7 @@ func applyOpenCodeHooks(r domain.ResolvedConfig, env []string, cpltArgs []string
 	b := OpenCodeHookBridge(r)
 	// The switch is often set by this launch (declined or unanswered repo
 	// plugins), so read it from env, not the process environment.
-	if OpenCodeProjectDisabled(openCodeEnvLookup(env)) {
+	if OpenCodeProjectDisabled(openCodeEnvLookup(env)) || slices.Contains(env, openCodeDropRepoGatesEnv+"=1") {
 		b.Pre = slices.DeleteFunc(b.Pre, func(h BridgeHook) bool { return h.Repo })
 	}
 	blocked := slices.ContainsFunc(env, func(e string) bool { return strings.HasPrefix(e, MCPBlockedEnv+"=") })

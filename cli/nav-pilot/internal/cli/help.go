@@ -146,9 +146,10 @@ Set the model: nav-pilot config set model <id>
 	"plugins": `Usage: nav-pilot plugins
 
 Show this repo's own OpenCode plugins and hook gates, and answer again whether to load them.
-It lists the plugins, shows your answer, and asks again. Enter declines. A no
-turns off everything OpenCode 2 reads from the repo: opencode.json, plugins,
-agents, commands, skills and AGENTS.md. Without a terminal it prints the
+It lists the plugins and hook gates, shows your answer, and asks again. Enter
+declines. A no turns off everything OpenCode 2 reads from the repo:
+opencode.json, plugins, agents, commands, skills and AGENTS.md. In a repo with
+hook gates and no plugins, a no turns off only the gates. Without a terminal it prints the
 state, and exits non-zero only when there is no answer yet.
 `,
 	"mcp": `Usage: nav-pilot mcp [list] [--json]

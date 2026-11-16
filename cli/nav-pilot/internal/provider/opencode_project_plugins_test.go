@@ -23,7 +23,8 @@ func pluginTrustSetup(t *testing.T, tty bool, answer *bool) (string, *int) {
 	openCodePluginsTTY = func() bool { return tty }
 	askOpenCodePlugins = func(p string) bool {
 		*asked++
-		if !strings.Contains(p, "This repo has its own OpenCode plugins or hook gates (") || !strings.Contains(p, "Load them? They run with the same access as the agent. A no also turns off this repo's AGENTS.md, agents and skills.") {
+		gates := p == "This repo has its own hook gates (.github/hooks). Run them? They run with the same access as the agent. [y/N] "
+		if !gates && (!strings.Contains(p, "This repo has its own OpenCode plugins or hook gates (") || !strings.Contains(p, "Load them? They run with the same access as the agent. A no also turns off this repo's AGENTS.md, agents and skills.")) {
 			t.Errorf("prompt %q", p)
 		}
 		return *answer
@@ -215,13 +216,83 @@ func writeRepoGate(t *testing.T, proj, command string) {
 }
 
 // Repo gates are shell commands the bridge runs; with no plugins they still
-// need a yes, and a no turns them off with the project config.
-func TestOpenCodeRepoGatesOnlyAsk(t *testing.T) {
+// need a yes. A no, or no answer, drops only the gates: the project config stays.
+func TestOpenCodeRepoGatesOnlyDeclineKeepsProjectConfig(t *testing.T) {
+	for _, tty := range []bool{true, false} {
+		no := false
+		proj, asked := pluginTrustSetup(t, tty, &no)
+		writeRepoGate(t, proj, "true")
+		env := applyOpenCodeProjectPlugins(nil, proj)
+		if OpenCodeProjectDisabled(openCodeEnvLookup(env)) || *asked != map[bool]int{true: 1}[tty] {
+			t.Fatalf("tty=%v asked=%d env=%v", tty, *asked, env)
+		}
+		if got := bridgeRepoGates(t, env); strings.Contains(got, "repo-gate") {
+			t.Fatalf("tty=%v repo gate kept: %s", tty, got)
+		}
+	}
+}
+
+// With plugins, a no still turns off the whole project config.
+func TestOpenCodeRepoGatesWithPluginsDeclineDisablesProject(t *testing.T) {
 	no := false
-	proj, asked := pluginTrustSetup(t, true, &no)
+	proj, _ := pluginTrustSetup(t, true, &no)
+	writePlugin(t, proj, "p.ts", "x")
 	writeRepoGate(t, proj, "true")
-	if env := applyOpenCodeProjectPlugins(nil, proj); !disabled(env) || *asked != 1 {
-		t.Fatalf("asked=%d env=%v", *asked, env)
+	if env := applyOpenCodeProjectPlugins(nil, proj); !disabled(env) || strings.Contains(bridgeRepoGates(t, env), "repo-gate") {
+		t.Fatalf("env=%v", env)
+	}
+}
+
+func bridgeRepoGates(t *testing.T, env []string) string {
+	t.Helper()
+	prev := OpenCodeHookBridge
+	t.Cleanup(func() { OpenCodeHookBridge = prev })
+	OpenCodeHookBridge = func(domain.ResolvedConfig) HookBridge {
+		return HookBridge{Pre: []BridgeHook{{Name: "user-gate", Command: "true"}, {Name: "repo-gate", Command: "evil", Repo: true}}}
+	}
+	out, _ := applyOpenCodeHooks(domain.ResolvedConfig{}, env, nil)
+	return openCodeEnvGetter(out)(OpenCodeHooksEnv)
+}
+
+// A hooks file over pluginMaxRead is hashed by its entries, not name and size.
+func TestOpenCodeRepoGateLargeFileSwapAsksAgain(t *testing.T) {
+	yes := true
+	proj, asked := pluginTrustSetup(t, true, &yes)
+	p := filepath.Join(proj, ".github", "hooks", "copilot-hooks.json")
+	write := func(cmd string) {
+		body := `{"version":1,"hooks":{"preToolUse":[{"type":"command","navPilot":"g","command":"` + cmd + `"}]},"pad":"` + strings.Repeat("x", pluginMaxRead) + `"}`
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("true")
+	applyOpenCodeProjectPlugins(nil, proj)
+	write("evil") // same length
+	applyOpenCodeProjectPlugins(nil, proj)
+	if *asked != 2 {
+		t.Fatalf("asked %d times, want 2", *asked)
+	}
+}
+
+// Gates run scripts in .github/hooks; changing one asks again.
+func TestOpenCodeRepoGateScriptChangeAsksAgain(t *testing.T) {
+	yes := true
+	proj, asked := pluginTrustSetup(t, true, &yes)
+	writeRepoGate(t, proj, "python3 .github/hooks/g.py")
+	script := filepath.Join(proj, ".github", "hooks", "g.py")
+	if err := os.WriteFile(script, []byte("print(1)"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	applyOpenCodeProjectPlugins(nil, proj)
+	if err := os.WriteFile(script, []byte("print(2)"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	applyOpenCodeProjectPlugins(nil, proj)
+	if *asked != 2 {
+		t.Fatalf("asked %d times, want 2", *asked)
 	}
 }
 
