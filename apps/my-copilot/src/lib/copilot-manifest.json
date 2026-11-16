@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-11-04T12:16:14.587Z",
+  "generatedAt": "2026-11-10T07:25:14.782Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -1750,6 +1750,44 @@
         {
           "path": "references/template-naisjob.md",
           "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/readme-review/references/template-naisjob.md"
+        }
+      ]
+    },
+    {
+      "id": "repo-baseline-audit",
+      "name": "repo-baseline-audit",
+      "description": "Sjekk om et GitHub-repo i navikt følger grunnkravene og beste praksis fra navikt/offentlig, Golden Path og sikkerhetsplaybooken (sikkerhet.nav.no), og vanlig GitHub-hygiene som .gitignore og innsjekkede env-filer. Bruk når teamet vil vite hva som mangler i oppsettet av et repo, ikke for å lete etter sårbarheter i koden (bruk appsec-advisory) eller sjekke en endring før commit (bruk security-review)",
+      "type": "skill",
+      "domain": "general",
+      "filePath": "skills/repo-baseline-audit/SKILL.md",
+      "repoPath": "skills/repo-baseline-audit/SKILL.md",
+      "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/repo-baseline-audit/SKILL.md",
+      "contentHash": "f14cdce7b12b4969fc54b5060b06d7f58eab8e77fbef3bf11928b18e3c9be1a8",
+      "installUrl": null,
+      "insidersInstallUrl": null,
+      "tags": ["security", "github", "golden-path", "repo-hygiene", "compliance"],
+      "examples": [
+        {
+          "prompt": "Følger dette repoet Navs beste praksis for GitHub og sikkerhet?",
+          "scenario": "Sjekk av et eksisterende repo mot grunnkravene"
+        },
+        {
+          "prompt": "Vi skal gjøre repoet offentlig. Hva mangler før vi kan åpne det?",
+          "scenario": "Klargjøring før et repo åpnes"
+        },
+        {
+          "prompt": "Gå gjennom oppsettet av navikt/min-app mot Golden Path og si hva vi bør fikse først",
+          "scenario": "Prioritert liste over mangler i repooppsettet"
+        }
+      ],
+      "references": [
+        {
+          "path": "references/checks.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/repo-baseline-audit/references/checks.md"
+        },
+        {
+          "path": "references/evidence.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/repo-baseline-audit/references/evidence.md"
         }
       ]
     },

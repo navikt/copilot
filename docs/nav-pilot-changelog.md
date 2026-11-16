@@ -2,6 +2,12 @@
 
 Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, prompts og samlinger.
 
+## 2026-11-16
+
+### `repo-baseline-audit`: sjekk oppsettet av et repo
+
+- **`repo-baseline-audit`**: Ny skill som sjekker om et repo i navikt følger grunnkravene fra navikt/offentlig, Golden Path og sikkerhetsplaybooken, og vanlig GitHub-hygiene som `.gitignore` og innsjekkede env-filer. Den viser hva som mangler i oppsettet, og endrer ingenting uten at du ber om det. Sårbarheter i koden dekkes av `appsec-advisory`, og endringer før commit av `security-review` (#2159).
+
 ## 2026-10-31
 
 ### `innblikk`: nettstatistikk uten dekoratøren
