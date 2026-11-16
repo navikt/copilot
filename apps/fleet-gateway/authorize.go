@@ -426,6 +426,14 @@ func (g *Gateway) callbackHandler(w http.ResponseWriter, r *http.Request) {
 			extractIdentityFromClaims(atClaims, &navIdent, groups)
 		}
 	}
+	if navIdent == "" {
+		slog.Warn("audit login", "outcome", "missing_navident", "client_id", p.ClientID, "resource", p.Resource)
+		back(url.Values{
+			"error":             {"access_denied"},
+			"error_description": {"missing required NAVident claim"},
+		})
+		return
+	}
 
 	sessionTTL := computeSessionTTL(out["expires_in"])
 	rt, _ := out["refresh_token"].(string)

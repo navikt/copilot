@@ -163,36 +163,46 @@ func newTestEnv(t *testing.T) *testEnv {
 				Route:       "/mcp/etterlevelse",
 				Team:        "team-etterlevelse",
 				Target:      "dev-gcp:team-etterlevelse:nav-etterlevelse-mcp",
-				UpstreamURL: te.upstreamServer.URL,
+				UpstreamURL: "http://nav-etterlevelse-mcp.team-etterlevelse",
 			},
 		},
-		TeamTokenStrategy:     strategyOBO,
-		TexasExchangeEndpoint: te.texasServer.URL,
-		EntraScope:            "openid",
-		AzureClientID:         "azure-client-id",
-		AzureClientSecret:     "azure-client-secret",
-		AzureWellKnownURL:     te.entraServer.URL + "/.well-known/openid-configuration",
-		AzureTokenEndpoint:    te.entraServer.URL + "/token",
-		CookieSecret:          []byte("0123456789abcdef0123456789abcdef"),
-		HTTPClient:            newHardenedHTTPClient(5 * time.Second),
-		ProxyHeaderTimeout:    5 * time.Second,
-		PendingCap:            1024,
-		CodeCap:               1024,
-		SessionCap:            4096,
-		CIMDCap:               64,
-		RateLimitCap:          4096,
-		RateLimitRequests:     100,
-		RateLimitWindow:       time.Minute,
+		TeamTokenStrategy:       strategyOBO,
+		TexasExchangeEndpoint:   te.texasServer.URL,
+		EntraScope:              "openid",
+		AzureClientID:           "azure-client-id",
+		AzureClientSecret:       "azure-client-secret",
+		AzureWellKnownURL:       te.entraServer.URL + "/.well-known/openid-configuration",
+		AzureTokenEndpoint:      te.entraServer.URL + "/token",
+		CookieSecret:            []byte("0123456789abcdef0123456789abcdef"),
+		HTTPClient:              newHardenedHTTPClient(5 * time.Second),
+		ProxyHeaderTimeout:      5 * time.Second,
+		PendingCap:              1024,
+		CodeCap:                 1024,
+		SessionCap:              4096,
+		CIMDCap:                 64,
+		RateLimitCap:            4096,
+		RateLimitRequests:       100,
+		RateLimitGlobalRequests: 500,
+		RateLimitWindow:         time.Minute,
 	}
 	if err := validateConfig(cfg); err != nil {
 		t.Fatalf("validateConfig failed: %v", err)
 	}
+	parsedUpstream, err := url.Parse(te.upstreamServer.URL)
+	if err != nil {
+		t.Fatalf("parse upstream server URL: %v", err)
+	}
+	cfg.Routes[0].ParsedURL = parsedUpstream
 
-	te.gw = newGateway(cfg, func() time.Time {
+	gw, err := newGateway(cfg, func() time.Time {
 		te.mu.Lock()
 		defer te.mu.Unlock()
 		return te.now
 	})
+	if err != nil {
+		t.Fatalf("newGateway failed: %v", err)
+	}
+	te.gw = gw
 	te.handler = te.gw.routes()
 	return te
 }
@@ -880,7 +890,7 @@ func TestMapCapsAndRateLimit(t *testing.T) {
 			name: "per-IP rate limit enforced on authorize and token",
 			run: func(t *testing.T) {
 				te := newTestEnv(t)
-				te.gw.limiter = newIPRateLimiter(2, time.Minute, 10, func() time.Time { return te.now })
+				te.gw.limiter = newIPRateLimiter(2, 100, time.Minute, 10, func() time.Time { return te.now })
 				te.handler = te.gw.routes()
 
 				for i := 0; i < 2; i++ {
@@ -918,6 +928,56 @@ func TestMapCapsAndRateLimit(t *testing.T) {
 				te.handler.ServeHTTP(tRec, tReq)
 				if tRec.Code != http.StatusTooManyRequests {
 					t.Fatalf("expected 429 on /token, got %d", tRec.Code)
+				}
+			},
+		},
+		{
+			name: "X-Forwarded-For uses last trusted ingress IP and enforces global ceiling",
+			run: func(t *testing.T) {
+				te := newTestEnv(t)
+				te.gw.limiter = newIPRateLimiter(2, 4, time.Minute, 10, func() time.Time { return te.now })
+				te.handler = te.gw.routes()
+
+				// Spoofing earlier XFF entries cannot bypass per-IP limit keyed on the last entry.
+				for i, firstHop := range []string{"1.1.1.1", "2.2.2.2"} {
+					req := httptest.NewRequest(http.MethodGet, te.authorizeURL(nil, verifier), nil)
+					req.RemoteAddr = "10.0.0.1:443"
+					req.Header.Set("X-Forwarded-For", firstHop+", 203.0.113.10")
+					rec := httptest.NewRecorder()
+					te.handler.ServeHTTP(rec, req)
+					if rec.Code != http.StatusOK {
+						t.Fatalf("request %d expected 200, got %d", i, rec.Code)
+					}
+				}
+				blockedReq := httptest.NewRequest(http.MethodGet, te.authorizeURL(nil, verifier), nil)
+				blockedReq.RemoteAddr = "10.0.0.1:443"
+				blockedReq.Header.Set("X-Forwarded-For", "3.3.3.3, 203.0.113.10")
+				blockedRec := httptest.NewRecorder()
+				te.handler.ServeHTTP(blockedRec, blockedReq)
+				if blockedRec.Code != http.StatusTooManyRequests {
+					t.Fatalf("expected 429 when spoofing earlier XFF hop, got %d", blockedRec.Code)
+				}
+
+				// Distinct client IP behind same Nais ingress (10.0.0.1) is allowed until global ceiling (4).
+				for i, ip := range []string{"203.0.113.11", "203.0.113.12"} {
+					req := httptest.NewRequest(http.MethodGet, te.authorizeURL(nil, verifier), nil)
+					req.RemoteAddr = "10.0.0.1:443"
+					req.Header.Set("X-Forwarded-For", ip)
+					rec := httptest.NewRecorder()
+					te.handler.ServeHTTP(rec, req)
+					if rec.Code != http.StatusOK {
+						t.Fatalf("distinct IP %d expected 200 (blocked per-IP must not exhaust global), got %d", i, rec.Code)
+					}
+				}
+
+				// Global ceiling reached: a brand-new IP is also rejected with 429.
+				globalReq := httptest.NewRequest(http.MethodGet, te.authorizeURL(nil, verifier), nil)
+				globalReq.RemoteAddr = "10.0.0.1:443"
+				globalReq.Header.Set("X-Forwarded-For", "203.0.113.99")
+				globalRec := httptest.NewRecorder()
+				te.handler.ServeHTTP(globalRec, globalReq)
+				if globalRec.Code != http.StatusTooManyRequests {
+					t.Fatalf("expected 429 at global ceiling, got %d", globalRec.Code)
 				}
 			},
 		},
@@ -965,4 +1025,55 @@ func TestLogsNeverContainSecrets(t *testing.T) {
 			t.Fatalf("log output leaked secret %q: %s", secret, logs)
 		}
 	}
+}
+
+func TestNewGateway_FailsOnInvalidTeamTokenStrategy(t *testing.T) {
+	te := newTestEnv(t)
+	badCfg := *te.gw.cfg
+	badCfg.TeamTokenStrategy = "unsupported-strategy"
+	if _, err := newGateway(&badCfg, nil); err == nil {
+		t.Fatal("expected newGateway to fail when newTeamTokenSource returns an error")
+	}
+}
+
+func TestCallback_RequiresNAVident(t *testing.T) {
+	verifier := "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG"
+
+	t.Run("missing NAVident in id_token and access_token is rejected", func(t *testing.T) {
+		te := newTestEnv(t)
+		te.mu.Lock()
+		te.navIdent = ""
+		te.mu.Unlock()
+
+		id, csrf, csrfCookie, _ := te.startAuthorizeAndConsent(verifier)
+		entraState, stateCookie := te.approveConsent(id, csrf, csrfCookie)
+		req := httptest.NewRequest(http.MethodGet, "/oauth2/callback?code=entra-code-123&state="+url.QueryEscape(entraState), nil)
+		req.AddCookie(stateCookie)
+		rec := httptest.NewRecorder()
+		te.handler.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusFound {
+			t.Fatalf("expected 302 redirect, got %d", rec.Code)
+		}
+		loc, err := url.Parse(rec.Header().Get("Location"))
+		if err != nil {
+			t.Fatalf("invalid redirect location: %v", err)
+		}
+		if loc.Query().Get("error") != "access_denied" {
+			t.Fatalf("expected access_denied when NAVident missing, got %q (%s)", loc.Query().Get("error"), loc.Query().Get("error_description"))
+		}
+	})
+
+	t.Run("NAVident in access_token claims satisfies requirement", func(t *testing.T) {
+		te := newTestEnv(t)
+		te.mu.Lock()
+		te.navIdent = ""
+		te.entraToken = makeTestJWT(map[string]any{"NAVident": "A987654"})
+		te.mu.Unlock()
+
+		code := te.obtainAuthCode(verifier)
+		if code == "" {
+			t.Fatal("expected auth code when NAVident is present in access_token")
+		}
+	})
 }

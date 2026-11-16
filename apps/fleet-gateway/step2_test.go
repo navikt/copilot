@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -67,13 +68,19 @@ func TestGatewayAccessToken_HashedStorage_ResourceBinding_GroupAndExpiry(t *test
 		Route:         "/mcp/restricted",
 		Team:          "team-sec",
 		Target:        "dev-gcp:team-sec:sec-mcp",
-		UpstreamURL:   te.upstreamServer.URL,
+		UpstreamURL:   "http://sec-mcp.team-sec",
 		RequiredGroup: "group-secret",
 	})
 	if err := validateConfig(te.gw.cfg); err != nil {
 		t.Fatalf("validateConfig failed: %v", err)
 	}
-	var err error
+	parsedUpstream, err := url.Parse(te.upstreamServer.URL)
+	if err != nil {
+		t.Fatalf("parse upstream server URL: %v", err)
+	}
+	for i := range te.gw.cfg.Routes {
+		te.gw.cfg.Routes[i].ParsedURL = parsedUpstream
+	}
 	te.gw.TeamTokens, err = newTeamTokenSource(te.gw.cfg, te.gw.sessions, func() time.Time {
 		te.mu.Lock()
 		defer te.mu.Unlock()
@@ -740,4 +747,316 @@ func TestAuditMCP_LogsFields_BoundsMethod_And_NoSecretsOrArgs(t *testing.T) {
 			t.Fatalf("audit/server logs leaked %q: %s", secret, allLogs)
 		}
 	}
+}
+
+func TestProxy_StrictHeaderAllowlists(t *testing.T) {
+	te := newTestEnv(t)
+
+	var (
+		mu              sync.Mutex
+		gotUpstreamHdrs http.Header
+		gotUpstreamHost string
+	)
+
+	te.upstreamServer.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		gotUpstreamHdrs = r.Header.Clone()
+		gotUpstreamHost = r.Host
+		mu.Unlock()
+
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Cache-Control", "no-cache")
+		w.Header().Set("Mcp-Session-Id", "up-sess-1")
+		w.Header().Set("Mcp-Protocol-Version", "2025-03-26")
+		w.Header().Set("Last-Event-ID", "ev-42")
+		w.Header().Set("Set-Cookie", "evil=1; Path=/")
+		w.Header().Set("Location", "https://evil.example/")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Strict-Transport-Security", "max-age=31536000")
+		w.Header().Set("Content-Security-Policy", "default-src *")
+		w.Header().Set("X-Upstream-Internal", "secret")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"jsonrpc":"2.0","id":1,"result":{}}`))
+	})
+
+	gwToken := te.obtainAccessTokenForResource(te.resource)
+
+	req := httptest.NewRequest(http.MethodPost, "/mcp/etterlevelse", strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"tools/list"}`))
+	req.Host = "spoofed-host.example"
+	req.Header.Set("Authorization", "Bearer "+gwToken)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json, text/event-stream")
+	req.Header.Set("Mcp-Session-Id", "cli-sess-1")
+	req.Header.Set("Mcp-Protocol-Version", "2025-03-26")
+	req.Header.Set("Last-Event-ID", "ev-1")
+	req.Header.Set("Cookie", "session=secret")
+	req.Header.Set("X-Forwarded-For", "1.2.3.4")
+	req.Header.Set("X-Forwarded-Proto", "https")
+	req.Header.Set("X-Forwarded-Host", "evil.example")
+	req.Header.Set("Forwarded", "for=1.2.3.4")
+	req.Header.Set("X-Arbitrary-Client-Header", "nope")
+
+	rec := httptest.NewRecorder()
+	te.handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d (%s)", rec.Code, rec.Body.String())
+	}
+
+	mu.Lock()
+	defer mu.Unlock()
+	if gotUpstreamHost == "spoofed-host.example" {
+		t.Fatalf("upstream Host header was spoofed: %q", gotUpstreamHost)
+	}
+	for _, want := range []struct{ key, val string }{
+		{"Content-Type", "application/json"},
+		{"Accept", "application/json, text/event-stream"},
+		{"Mcp-Session-Id", "cli-sess-1"},
+		{"Mcp-Protocol-Version", "2025-03-26"},
+		{"Last-Event-Id", "ev-1"},
+	} {
+		if got := gotUpstreamHdrs.Get(want.key); got != want.val {
+			t.Fatalf("expected allowlisted request header %s=%q, got %q", want.key, want.val, got)
+		}
+	}
+	for _, forbidden := range []string{
+		"Cookie",
+		"X-Forwarded-For",
+		"X-Forwarded-Proto",
+		"X-Forwarded-Host",
+		"Forwarded",
+		"X-Arbitrary-Client-Header",
+	} {
+		if got := gotUpstreamHdrs.Get(forbidden); got != "" {
+			t.Fatalf("forbidden request header %s leaked to upstream: %q", forbidden, got)
+		}
+	}
+
+	respHdrs := rec.Result().Header
+	for _, want := range []struct{ key, val string }{
+		{"Content-Type", "application/json"},
+		{"Cache-Control", "no-cache"},
+		{"Mcp-Session-Id", "up-sess-1"},
+		{"Mcp-Protocol-Version", "2025-03-26"},
+		{"Last-Event-Id", "ev-42"},
+	} {
+		if got := respHdrs.Get(want.key); got != want.val {
+			t.Fatalf("expected allowlisted response header %s=%q, got %q", want.key, want.val, got)
+		}
+	}
+	for _, forbidden := range []string{
+		"Set-Cookie",
+		"Location",
+		"Access-Control-Allow-Origin",
+		"Strict-Transport-Security",
+		"Content-Security-Policy",
+		"X-Upstream-Internal",
+	} {
+		if got := respHdrs.Get(forbidden); got != "" {
+			t.Fatalf("forbidden response header %s leaked to client: %q", forbidden, got)
+		}
+	}
+}
+
+func TestProxy_SSEBounds_And_NonSSEResponseLimit(t *testing.T) {
+	t.Run("SSE stops on max stream duration", func(t *testing.T) {
+		te := newTestEnv(t)
+		te.gw.cfg.SSEMaxDuration = 80 * time.Millisecond
+		te.gw.cfg.SSEIdleTimeout = time.Second
+		te.handler = te.gw.routes()
+
+		done := make(chan struct{})
+		te.upstreamServer.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			defer close(done)
+			w.Header().Set("Content-Type", "text/event-stream")
+			w.WriteHeader(http.StatusOK)
+			flusher, _ := w.(http.Flusher)
+			ticker := time.NewTicker(15 * time.Millisecond)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-r.Context().Done():
+					return
+				case <-ticker.C:
+					if _, err := w.Write([]byte("data: tick\n\n")); err != nil {
+						return
+					}
+					if flusher != nil {
+						flusher.Flush()
+					}
+				}
+			}
+		})
+
+		gwToken := te.obtainAccessTokenForResource(te.resource)
+		ts := httptest.NewServer(te.handler)
+		defer ts.Close()
+
+		req, _ := http.NewRequest(http.MethodGet, ts.URL+"/mcp/etterlevelse", nil)
+		req.Header.Set("Authorization", "Bearer "+gwToken)
+		resp, err := ts.Client().Do(req) //nolint:gosec // test server URL
+		if err != nil {
+			t.Fatalf("SSE request failed: %v", err)
+		}
+		defer func() { _ = resp.Body.Close() }()
+		body, _ := io.ReadAll(resp.Body)
+		if !strings.Contains(string(body), "data: tick") {
+			t.Fatalf("expected at least one SSE event before max duration, got %q", string(body))
+		}
+		select {
+		case <-done:
+		case <-time.After(time.Second):
+			t.Fatal("upstream handler did not stop after max SSE duration")
+		}
+	})
+
+	t.Run("SSE stops on idle timeout between events", func(t *testing.T) {
+		te := newTestEnv(t)
+		te.gw.cfg.SSEMaxDuration = time.Second
+		te.gw.cfg.SSEIdleTimeout = 60 * time.Millisecond
+		te.handler = te.gw.routes()
+
+		done := make(chan struct{})
+		te.upstreamServer.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			defer close(done)
+			w.Header().Set("Content-Type", "text/event-stream")
+			w.WriteHeader(http.StatusOK)
+			flusher, _ := w.(http.Flusher)
+			_, _ = w.Write([]byte("data: first\n\n"))
+			if flusher != nil {
+				flusher.Flush()
+			}
+			<-r.Context().Done()
+		})
+
+		gwToken := te.obtainAccessTokenForResource(te.resource)
+		ts := httptest.NewServer(te.handler)
+		defer ts.Close()
+
+		req, _ := http.NewRequest(http.MethodGet, ts.URL+"/mcp/etterlevelse", nil)
+		req.Header.Set("Authorization", "Bearer "+gwToken)
+		resp, err := ts.Client().Do(req) //nolint:gosec // test server URL
+		if err != nil {
+			t.Fatalf("SSE request failed: %v", err)
+		}
+		defer func() { _ = resp.Body.Close() }()
+		body, _ := io.ReadAll(resp.Body)
+		if !strings.Contains(string(body), "data: first") {
+			t.Fatalf("expected initial event, got %q", string(body))
+		}
+		select {
+		case <-done:
+		case <-time.After(time.Second):
+			t.Fatal("upstream handler did not stop after SSE idle timeout")
+		}
+	})
+
+	t.Run("SSE stops on max total bytes", func(t *testing.T) {
+		te := newTestEnv(t)
+		te.gw.cfg.SSEMaxBytes = 64
+		te.gw.cfg.SSEMaxDuration = time.Second
+		te.gw.cfg.SSEIdleTimeout = time.Second
+		te.handler = te.gw.routes()
+
+		te.upstreamServer.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.Header().Set("Content-Type", "text/event-stream")
+			w.WriteHeader(http.StatusOK)
+			flusher, _ := w.(http.Flusher)
+			for i := 0; i < 20; i++ {
+				if r.Context().Err() != nil {
+					return
+				}
+				if _, err := w.Write([]byte("data: 0123456789abcdef\n\n")); err != nil {
+					return
+				}
+				if flusher != nil {
+					flusher.Flush()
+				}
+			}
+		})
+
+		gwToken := te.obtainAccessTokenForResource(te.resource)
+		ts := httptest.NewServer(te.handler)
+		defer ts.Close()
+
+		req, _ := http.NewRequest(http.MethodGet, ts.URL+"/mcp/etterlevelse", nil)
+		req.Header.Set("Authorization", "Bearer "+gwToken)
+		resp, err := ts.Client().Do(req) //nolint:gosec // test server URL
+		if err != nil {
+			t.Fatalf("SSE request failed: %v", err)
+		}
+		defer func() { _ = resp.Body.Close() }()
+		body, _ := io.ReadAll(resp.Body)
+		if int64(len(body)) > 64 {
+			t.Fatalf("expected SSE body capped at 64 bytes, got %d", len(body))
+		}
+	})
+
+	t.Run("SSE stops when client disconnects", func(t *testing.T) {
+		te := newTestEnv(t)
+		te.gw.cfg.SSEMaxDuration = 10 * time.Second
+		te.gw.cfg.SSEIdleTimeout = 10 * time.Second
+		te.handler = te.gw.routes()
+
+		upstreamDone := make(chan struct{})
+		te.upstreamServer.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			defer close(upstreamDone)
+			w.Header().Set("Content-Type", "text/event-stream")
+			w.WriteHeader(http.StatusOK)
+			flusher, _ := w.(http.Flusher)
+			_, _ = w.Write([]byte("data: hello\n\n"))
+			if flusher != nil {
+				flusher.Flush()
+			}
+			<-r.Context().Done()
+		})
+
+		gwToken := te.obtainAccessTokenForResource(te.resource)
+		ts := httptest.NewServer(te.handler)
+		defer ts.Close()
+
+		ctx, cancel := context.WithCancel(t.Context())
+		req, _ := http.NewRequestWithContext(ctx, http.MethodGet, ts.URL+"/mcp/etterlevelse", nil)
+		req.Header.Set("Authorization", "Bearer "+gwToken)
+		resp, err := ts.Client().Do(req) //nolint:gosec // test server URL
+		if err != nil {
+			cancel()
+			t.Fatalf("SSE request failed: %v", err)
+		}
+		buf := make([]byte, 32)
+		_, _ = resp.Body.Read(buf)
+		cancel()
+		_ = resp.Body.Close()
+
+		select {
+		case <-upstreamDone:
+		case <-time.After(time.Second):
+			t.Fatal("upstream handler did not stop on client disconnect")
+		}
+	})
+
+	t.Run("non-SSE response exceeding size limit returns 502", func(t *testing.T) {
+		te := newTestEnv(t)
+		te.gw.cfg.MaxResponseBodyBytes = 32
+		te.handler = te.gw.routes()
+
+		te.upstreamServer.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.Header().Set("Content-Type", "application/json")
+			w.Header().Set("Mcp-Session-Id", "should-not-appear-on-502")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(strings.Repeat("x", 100)))
+		})
+
+		gwToken := te.obtainAccessTokenForResource(te.resource)
+		req := httptest.NewRequest(http.MethodPost, "/mcp/etterlevelse", strings.NewReader(`{"method":"tools/list"}`))
+		req.Header.Set("Authorization", "Bearer "+gwToken)
+		rec := httptest.NewRecorder()
+		te.handler.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusBadGateway {
+			t.Fatalf("expected 502 for oversized non-SSE response, got %d (%s)", rec.Code, rec.Body.String())
+		}
+		if rec.Header().Get("Mcp-Session-Id") != "" {
+			t.Fatalf("expected upstream headers not copied on 502 error, got %q", rec.Header().Get("Mcp-Session-Id"))
+		}
+	})
 }

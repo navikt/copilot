@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -22,6 +23,22 @@ const (
 	maxMCPResponseBodyBytes = 10 << 20 // 10 MiB for non-SSE responses
 	maxAuditMethodLen       = 64
 )
+
+var allowedUpstreamRequestHeaders = map[string]bool{
+	"Content-Type":         true,
+	"Accept":               true,
+	"Mcp-Session-Id":       true,
+	"Mcp-Protocol-Version": true,
+	"Last-Event-Id":        true,
+}
+
+var allowedUpstreamResponseHeaders = map[string]bool{
+	"Content-Type":         true,
+	"Cache-Control":        true,
+	"Mcp-Session-Id":       true,
+	"Mcp-Protocol-Version": true,
+	"Last-Event-Id":        true,
+}
 
 var hopByHopHeaders = map[string]bool{
 	"Connection":          true,
@@ -182,7 +199,10 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 		if len(reqBody) > 0 {
 			bodyReader = bytes.NewReader(reqBody)
 		}
-		upReq, err := http.NewRequestWithContext(r.Context(), r.Method, targetURL, bodyReader)
+		upCtx, upCancel := context.WithCancel(r.Context())
+		defer upCancel()
+
+		upReq, err := http.NewRequestWithContext(upCtx, r.Method, targetURL, bodyReader)
 		if err != nil {
 			outcome = "upstream_error"
 			writeJSON(w, http.StatusBadGateway, map[string]string{
@@ -192,7 +212,7 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 			return
 		}
 
-		copyFilteredHeaders(upReq.Header, r.Header, true)
+		copyAllowlistedHeaders(upReq.Header, r.Header, allowedUpstreamRequestHeaders)
 		upReq.Header.Set("Authorization", "Bearer "+teamToken)
 
 		client := g.proxyClient
@@ -210,14 +230,13 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 		}
 		defer func() { _ = resp.Body.Close() }()
 
-		copyFilteredHeaders(w.Header(), resp.Header, false)
-
 		if isEventStream(resp.Header.Get("Content-Type")) {
+			copyAllowlistedHeaders(w.Header(), resp.Header, allowedUpstreamResponseHeaders)
 			rc := http.NewResponseController(w)
 			_ = rc.SetWriteDeadline(time.Time{})
 			w.WriteHeader(resp.StatusCode)
 			_ = rc.Flush()
-			if err := streamSSE(w, rc, resp.Body); err != nil {
+			if streamErr := streamSSE(upCtx, w, rc, resp.Body, g.cfg.SSEMaxDuration, g.cfg.SSEIdleTimeout, g.cfg.SSEMaxBytes); streamErr != nil {
 				outcome = "stream_error"
 			} else if resp.StatusCode >= 400 {
 				outcome = fmt.Sprintf("upstream_%d", resp.StatusCode)
@@ -225,10 +244,50 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 			return
 		}
 
-		w.WriteHeader(resp.StatusCode)
-		if _, err := io.Copy(w, io.LimitReader(resp.Body, maxMCPResponseBodyBytes)); err != nil {
-			outcome = "stream_error"
+		maxRespBytes := g.cfg.MaxResponseBodyBytes
+		if maxRespBytes <= 0 {
+			maxRespBytes = maxMCPResponseBodyBytes
+		}
+		if resp.ContentLength > maxRespBytes {
+			outcome = "response_too_large"
+			writeJSON(w, http.StatusBadGateway, map[string]string{
+				"error":   "response_too_large",
+				"message": "upstream response exceeds maximum allowed size",
+			})
 			return
+		}
+
+		bodyTimeout := g.cfg.ProxyHeaderTimeout
+		if bodyTimeout <= 0 {
+			bodyTimeout = defaultOutboundTimeout
+		}
+		bodyTimer := time.AfterFunc(bodyTimeout, upCancel)
+		respBody, err := io.ReadAll(io.LimitReader(resp.Body, maxRespBytes+1))
+		bodyTimer.Stop()
+		if err != nil {
+			outcome = "stream_error"
+			writeJSON(w, http.StatusBadGateway, map[string]string{
+				"error":   "upstream_error",
+				"message": "failed to read upstream response",
+			})
+			return
+		}
+		if int64(len(respBody)) > maxRespBytes {
+			outcome = "response_too_large"
+			writeJSON(w, http.StatusBadGateway, map[string]string{
+				"error":   "response_too_large",
+				"message": "upstream response exceeds maximum allowed size",
+			})
+			return
+		}
+
+		copyAllowlistedHeaders(w.Header(), resp.Header, allowedUpstreamResponseHeaders)
+		w.WriteHeader(resp.StatusCode)
+		if len(respBody) > 0 {
+			if _, err := w.Write(respBody); err != nil {
+				outcome = "stream_error"
+				return
+			}
 		}
 		if resp.StatusCode >= 400 {
 			outcome = fmt.Sprintf("upstream_%d", resp.StatusCode)
@@ -236,19 +295,74 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 	}
 }
 
-func streamSSE(w io.Writer, rc *http.ResponseController, body io.Reader) error {
+func streamSSE(
+	ctx context.Context,
+	w io.Writer,
+	rc *http.ResponseController,
+	body io.ReadCloser,
+	maxDuration time.Duration,
+	idleTimeout time.Duration,
+	maxBytes int64,
+) error {
+	streamCtx, cancelStream := context.WithCancelCause(ctx)
+	defer cancelStream(nil)
+
+	if maxDuration > 0 {
+		maxTimer := time.AfterFunc(maxDuration, func() {
+			cancelStream(errors.New("sse max duration exceeded"))
+		})
+		defer maxTimer.Stop()
+	}
+
+	var idleTimer *time.Timer
+	if idleTimeout > 0 {
+		idleTimer = time.AfterFunc(idleTimeout, func() {
+			cancelStream(errors.New("sse idle timeout exceeded"))
+		})
+		defer idleTimer.Stop()
+	}
+
+	stopAfter := context.AfterFunc(streamCtx, func() {
+		_ = body.Close()
+	})
+	defer stopAfter()
+
+	var totalBytes int64
 	buf := make([]byte, 32*1024)
 	for {
+		if streamCtx.Err() != nil {
+			return context.Cause(streamCtx)
+		}
 		n, err := body.Read(buf)
 		if n > 0 {
+			if streamCtx.Err() != nil {
+				return context.Cause(streamCtx)
+			}
+			if maxBytes > 0 && totalBytes+int64(n) > maxBytes {
+				remaining := maxBytes - totalBytes
+				if remaining > 0 {
+					if _, werr := w.Write(buf[:remaining]); werr != nil {
+						return werr
+					}
+					_ = rc.Flush()
+				}
+				return errors.New("sse max bytes exceeded")
+			}
 			if _, werr := w.Write(buf[:n]); werr != nil {
 				return werr
 			}
 			_ = rc.Flush()
+			totalBytes += int64(n)
+			if idleTimer != nil {
+				idleTimer.Reset(idleTimeout)
+			}
 		}
 		if err != nil {
 			if errors.Is(err, io.EOF) {
 				return nil
+			}
+			if cause := context.Cause(streamCtx); cause != nil {
+				return cause
 			}
 			return err
 		}
@@ -289,17 +403,11 @@ func buildUpstreamURL(base *url.URL, rawQuery string) string {
 	return u.String()
 }
 
-func copyFilteredHeaders(dst, src http.Header, isRequest bool) {
+func copyAllowlistedHeaders(dst, src http.Header, allowlist map[string]bool) {
 	connTokens := connectionHeaderTokens(src)
 	for k, vals := range src {
 		ck := textproto.CanonicalMIMEHeaderKey(k)
-		if hopByHopHeaders[ck] || connTokens[ck] {
-			continue
-		}
-		if isRequest && (ck == "Authorization" || ck == "Cookie" || ck == "Host") {
-			continue
-		}
-		if !isRequest && ck == "Set-Cookie" {
+		if hopByHopHeaders[ck] || connTokens[ck] || !allowlist[ck] {
 			continue
 		}
 		for _, v := range vals {

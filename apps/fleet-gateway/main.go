@@ -3,11 +3,13 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net"
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -34,14 +36,14 @@ type Gateway struct {
 	TeamTokens TeamTokenSource
 }
 
-func newGateway(cfg *Config, now func() time.Time) *Gateway {
+func newGateway(cfg *Config, now func() time.Time) (*Gateway, error) {
 	if now == nil {
 		now = time.Now
 	}
 	sessions := newTTLMap[*gatewaySession](cfg.SessionCap, now)
 	teamTokens, err := newTeamTokenSource(cfg, sessions, now)
 	if err != nil {
-		slog.Error("Failed to initialize team token source", "error", err)
+		return nil, fmt.Errorf("initialize team token source: %w", err)
 	}
 	return &Gateway{
 		cfg:            cfg,
@@ -51,10 +53,10 @@ func newGateway(cfg *Config, now func() time.Time) *Gateway {
 		codes:          newTTLMap[*issuedCode](cfg.CodeCap, now),
 		sessions:       sessions,
 		cimdCache:      newTTLMap[*clientMetadata](cfg.CIMDCap, now),
-		limiter:        newIPRateLimiter(cfg.RateLimitRequests, cfg.RateLimitWindow, cfg.RateLimitCap, now),
+		limiter:        newIPRateLimiter(cfg.RateLimitRequests, cfg.RateLimitGlobalRequests, cfg.RateLimitWindow, cfg.RateLimitCap, now),
 		proxyClient:    newHardenedProxyClient(cfg.ProxyHeaderTimeout),
 		TeamTokens:     teamTokens,
-	}
+	}, nil
 }
 
 func (g *Gateway) startSweeper(ctx context.Context, interval time.Duration) {
@@ -161,7 +163,7 @@ func (w *statusResponseWriter) Unwrap() http.ResponseWriter {
 
 func (g *Gateway) rateLimitMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		ip := extractClientIP(r.RemoteAddr)
+		ip := extractClientIP(r)
 		if !g.limiter.Allow(ip) {
 			w.Header().Set("Retry-After", "60")
 			if r.URL.Path == "/token" {
@@ -178,7 +180,43 @@ func (g *Gateway) rateLimitMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
-func extractClientIP(remoteAddr string) string {
+// extractClientIP resolves the client IP for rate limiting.
+// Only the Nais ingress is trusted: we take the LAST valid IP address in
+// X-Forwarded-For (appended by the trusted ingress) so earlier client-supplied
+// values cannot spoof the rate-limit key, and fall back to r.RemoteAddr when
+// X-Forwarded-For is absent or unparseable.
+func extractClientIP(r *http.Request) string {
+	if r == nil {
+		return "unknown"
+	}
+	var lastToken string
+	for _, hdr := range r.Header.Values("X-Forwarded-For") {
+		for _, part := range strings.Split(hdr, ",") {
+			if trimmed := strings.TrimSpace(part); trimmed != "" {
+				lastToken = trimmed
+			}
+		}
+	}
+	if lastToken != "" {
+		if ip := parseIPToken(lastToken); ip != "" {
+			return ip
+		}
+	}
+	return parseRemoteAddrIP(r.RemoteAddr)
+}
+
+func parseIPToken(token string) string {
+	if host, _, err := net.SplitHostPort(token); err == nil && host != "" {
+		token = host
+	}
+	token = strings.TrimSuffix(strings.TrimPrefix(token, "["), "]")
+	if ip := net.ParseIP(token); ip != nil {
+		return ip.String()
+	}
+	return ""
+}
+
+func parseRemoteAddrIP(remoteAddr string) string {
 	host, _, err := net.SplitHostPort(remoteAddr)
 	if err == nil && host != "" {
 		return host
@@ -195,20 +233,25 @@ type rateWindow struct {
 }
 
 type ipRateLimiter struct {
-	mu      sync.Mutex
-	buckets map[string]rateWindow
-	limit   int
-	window  time.Duration
-	maxSize int
-	now     func() time.Time
+	mu          sync.Mutex
+	buckets     map[string]rateWindow
+	limit       int
+	globalLimit int
+	global      rateWindow
+	window      time.Duration
+	maxSize     int
+	now         func() time.Time
 }
 
-func newIPRateLimiter(limit int, window time.Duration, maxSize int, now func() time.Time) *ipRateLimiter {
+func newIPRateLimiter(limit, globalLimit int, window time.Duration, maxSize int, now func() time.Time) *ipRateLimiter {
 	if now == nil {
 		now = time.Now
 	}
 	if limit <= 0 {
 		limit = defaultRateLimitRequests
+	}
+	if globalLimit <= 0 {
+		globalLimit = defaultRateLimitGlobalRequests
 	}
 	if window <= 0 {
 		window = defaultRateLimitWindow
@@ -217,11 +260,12 @@ func newIPRateLimiter(limit int, window time.Duration, maxSize int, now func() t
 		maxSize = 1
 	}
 	return &ipRateLimiter{
-		buckets: make(map[string]rateWindow),
-		limit:   limit,
-		window:  window,
-		maxSize: maxSize,
-		now:     now,
+		buckets:     make(map[string]rateWindow),
+		limit:       limit,
+		globalLimit: globalLimit,
+		window:      window,
+		maxSize:     maxSize,
+		now:         now,
 	}
 }
 
@@ -230,6 +274,13 @@ func (l *ipRateLimiter) Allow(ip string) bool {
 	defer l.mu.Unlock()
 
 	now := l.now()
+	if !now.Before(l.global.resetAt) {
+		l.global = rateWindow{count: 0, resetAt: now.Add(l.window)}
+	}
+	if l.global.count >= l.globalLimit {
+		return false
+	}
+
 	b, ok := l.buckets[ip]
 	if !ok || !now.Before(b.resetAt) {
 		if !ok && len(l.buckets) >= l.maxSize {
@@ -239,6 +290,7 @@ func (l *ipRateLimiter) Allow(ip string) bool {
 			}
 		}
 		l.buckets[ip] = rateWindow{count: 1, resetAt: now.Add(l.window)}
+		l.global.count++
 		return true
 	}
 	if b.count >= l.limit {
@@ -246,6 +298,7 @@ func (l *ipRateLimiter) Allow(ip string) bool {
 	}
 	b.count++
 	l.buckets[ip] = b
+	l.global.count++
 	return true
 }
 
@@ -278,10 +331,15 @@ func main() {
 	}))
 	slog.SetDefault(logger)
 
+	gw, err := newGateway(cfg, nil)
+	if err != nil {
+		slog.Error("Failed to initialize gateway", "error", err)
+		os.Exit(1)
+	}
+
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	gw := newGateway(cfg, nil)
 	gw.startSweeper(ctx, defaultSweepInterval)
 
 	server := &http.Server{

@@ -171,34 +171,30 @@ func validateInternalUpstreamURL(raw, namespace string) (*url.URL, error) {
 	}
 
 	if ip := net.ParseIP(host); ip != nil {
-		if ip.IsUnspecified() || ip.IsMulticast() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() {
+		if ip.IsLoopback() || ip.IsUnspecified() || ip.IsMulticast() || ip.IsLinkLocalUnicast() || ip.IsLinkLocalMulticast() {
 			return nil, fmt.Errorf("disallowed IP address %q", host)
 		}
-		if !ip.IsLoopback() && !ip.IsPrivate() {
+		if !ip.IsPrivate() {
 			return nil, fmt.Errorf("upstream host %q must not be a public IP", host)
 		}
-		return u, nil
+		return nil, fmt.Errorf("disallowed IP address %q: raw IP addresses are not allowed", host)
 	}
 
-	if host == "localhost" {
-		return u, nil
+	if host == "localhost" || strings.HasSuffix(host, ".localhost") {
+		return nil, fmt.Errorf("disallowed loopback host %q", host)
+	}
+	if strings.HasSuffix(host, ".internal") {
+		return nil, fmt.Errorf("disallowed internal host %q", host)
 	}
 	if strings.Contains(host, ".ekstern.") {
 		return nil, fmt.Errorf("upstream host %q must not be public (.ekstern.)", host)
 	}
 
-	// Cluster-internal service DNS: <app>, <app>.<namespace>, *.<namespace>.svc, *.cluster.local, *.local, *.internal
-	isClusterInternal := !strings.Contains(host, ".") ||
-		host == namespace ||
-		strings.HasSuffix(host, "."+namespace) ||
-		strings.HasSuffix(host, "."+namespace+".svc") ||
-		strings.HasSuffix(host, "."+namespace+".svc.cluster.local") ||
-		strings.HasSuffix(host, ".svc.cluster.local") ||
-		strings.HasSuffix(host, ".cluster.local") ||
-		strings.HasSuffix(host, ".local") ||
-		strings.HasSuffix(host, ".internal")
-
-	if isClusterInternal {
+	// Cluster-internal service DNS: only <app>.<namespace> or <app>.<namespace>.svc.cluster.local.
+	if app, ok := strings.CutSuffix(host, "."+namespace+".svc.cluster.local"); ok && isSingleDNSLabel(app) {
+		return u, nil
+	}
+	if app, ok := strings.CutSuffix(host, "."+namespace); ok && isSingleDNSLabel(app) {
 		return u, nil
 	}
 
@@ -214,4 +210,21 @@ func validateInternalUpstreamURL(raw, namespace string) (*url.URL, error) {
 	}
 
 	return nil, fmt.Errorf("upstream host %q is public or not recognized as internal", host)
+}
+
+func isSingleDNSLabel(label string) bool {
+	if label == "" || len(label) > 63 || strings.Contains(label, ".") {
+		return false
+	}
+	for i := 0; i < len(label); i++ {
+		c := label[i]
+		isAlphaNum := (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')
+		if !isAlphaNum && c != '-' {
+			return false
+		}
+		if (i == 0 || i == len(label)-1) && c == '-' {
+			return false
+		}
+	}
+	return true
 }

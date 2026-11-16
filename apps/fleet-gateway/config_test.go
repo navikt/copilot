@@ -304,6 +304,56 @@ routes:
 			content:   "version: 1\nroutes:\n  - route: /mcp/a\n    team: t\n    target: dev-gcp:ns:app\n    upstream_url: http://app.intern.dev.nav.no\n",
 			wantError: "must use https",
 		},
+		{
+			name:      "cloud metadata internal DNS fails closed",
+			content:   "version: 1\nroutes:\n  - route: /mcp/a\n    team: t\n    target: dev-gcp:ns:app\n    upstream_url: http://metadata.google.internal\n",
+			wantError: "disallowed internal host",
+		},
+		{
+			name:      "loopback IPv4 fails closed",
+			content:   "version: 1\nroutes:\n  - route: /mcp/a\n    team: t\n    target: dev-gcp:ns:app\n    upstream_url: http://127.0.0.1:8080\n",
+			wantError: "disallowed IP address",
+		},
+		{
+			name:      "loopback IPv6 fails closed",
+			content:   "version: 1\nroutes:\n  - route: /mcp/a\n    team: t\n    target: dev-gcp:ns:app\n    upstream_url: http://[::1]:8080\n",
+			wantError: "disallowed IP address",
+		},
+		{
+			name:      "localhost fails closed",
+			content:   "version: 1\nroutes:\n  - route: /mcp/a\n    team: t\n    target: dev-gcp:ns:app\n    upstream_url: http://localhost:8080\n",
+			wantError: "disallowed loopback host",
+		},
+		{
+			name:      "link-local IPv6 fails closed",
+			content:   "version: 1\nroutes:\n  - route: /mcp/a\n    team: t\n    target: dev-gcp:ns:app\n    upstream_url: http://[fe80::1]\n",
+			wantError: "disallowed IP address",
+		},
+		{
+			name:      "private raw IP fails closed",
+			content:   "version: 1\nroutes:\n  - route: /mcp/a\n    team: t\n    target: dev-gcp:ns:app\n    upstream_url: http://10.0.0.1:8080\n",
+			wantError: "raw IP addresses are not allowed",
+		},
+		{
+			name:      "single-label host without namespace fails closed",
+			content:   "version: 1\nroutes:\n  - route: /mcp/a\n    team: t\n    target: dev-gcp:ns:app\n    upstream_url: http://app\n",
+			wantError: "not recognized as internal",
+		},
+		{
+			name:      "short svc suffix without cluster.local fails closed",
+			content:   "version: 1\nroutes:\n  - route: /mcp/a\n    team: t\n    target: dev-gcp:ns:app\n    upstream_url: http://app.ns.svc\n",
+			wantError: "not recognized as internal",
+		},
+		{
+			name:      "cross-namespace svc.cluster.local fails closed",
+			content:   "version: 1\nroutes:\n  - route: /mcp/a\n    team: t\n    target: dev-gcp:ns:app\n    upstream_url: http://app.other-ns.svc.cluster.local\n",
+			wantError: "not recognized as internal",
+		},
+		{
+			name:      "dot-local host fails closed",
+			content:   "version: 1\nroutes:\n  - route: /mcp/a\n    team: t\n    target: dev-gcp:ns:app\n    upstream_url: http://app.local\n",
+			wantError: "not recognized as internal",
+		},
 	}
 
 	for _, tt := range tests {

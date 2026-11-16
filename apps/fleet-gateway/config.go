@@ -29,14 +29,18 @@ const (
 	defaultCodeCap           = 1024
 	defaultSessionCap        = 4096
 	defaultCIMDCap           = 64
-	defaultRateLimitCap      = 4096
-	defaultRateLimitRequests = 30
-	defaultRateLimitWindow   = time.Minute
-	defaultSweepInterval     = 30 * time.Second
-	maxFormBodyBytes         = 16 * 1024
-	maxClaimsBytes           = 4096
-	maxCIMDBodyBytes         = 64 * 1024
-	maxUpstreamBodyBytes     = 1 << 20
+	defaultRateLimitCap            = 4096
+	defaultRateLimitRequests       = 30
+	defaultRateLimitGlobalRequests = 300
+	defaultRateLimitWindow         = time.Minute
+	defaultSweepInterval           = 30 * time.Second
+	defaultSSEMaxDuration          = 10 * time.Minute
+	defaultSSEIdleTimeout          = 60 * time.Second
+	defaultSSEMaxBytes       int64 = 16 << 20 // 16 MiB
+	maxFormBodyBytes               = 16 * 1024
+	maxClaimsBytes                 = 4096
+	maxCIMDBodyBytes               = 64 * 1024
+	maxUpstreamBodyBytes           = 1 << 20
 )
 
 // TeamTokenSource acquires downstream Entra OBO tokens for team MCP servers.
@@ -65,14 +69,19 @@ type Config struct {
 	AzureAuthorizeEndpoint string
 	CookieSecret           []byte
 	HTTPClient             *http.Client
-	ProxyHeaderTimeout     time.Duration
-	PendingCap             int
-	CodeCap                int
-	SessionCap             int
-	CIMDCap                int
-	RateLimitCap           int
-	RateLimitRequests      int
-	RateLimitWindow        time.Duration
+	ProxyHeaderTimeout      time.Duration
+	SSEMaxDuration          time.Duration
+	SSEIdleTimeout          time.Duration
+	SSEMaxBytes             int64
+	MaxResponseBodyBytes    int64
+	PendingCap              int
+	CodeCap                 int
+	SessionCap              int
+	CIMDCap                 int
+	RateLimitCap            int
+	RateLimitRequests       int
+	RateLimitGlobalRequests int
+	RateLimitWindow         time.Duration
 }
 
 func loadConfigFromEnv() (*Config, error) {
@@ -132,15 +141,20 @@ func loadConfigFromEnv() (*Config, error) {
 		AzureTokenEndpoint:     strings.TrimSpace(os.Getenv("AZURE_OPENID_CONFIG_TOKEN_ENDPOINT")),
 		AzureAuthorizeEndpoint: strings.TrimSpace(os.Getenv("AZURE_OPENID_CONFIG_AUTHORIZATION_ENDPOINT")),
 		CookieSecret:           cookieSecret,
-		HTTPClient:             newHardenedHTTPClient(defaultOutboundTimeout),
-		ProxyHeaderTimeout:     defaultOutboundTimeout,
-		PendingCap:             getEnvInt("PENDING_MAP_CAP", defaultPendingCap),
-		CodeCap:                getEnvInt("CODE_MAP_CAP", defaultCodeCap),
-		SessionCap:             getEnvInt("SESSION_MAP_CAP", defaultSessionCap),
-		CIMDCap:                defaultCIMDCap,
-		RateLimitCap:           getEnvInt("RATE_LIMIT_MAP_CAP", defaultRateLimitCap),
-		RateLimitRequests:      getEnvInt("RATE_LIMIT_REQUESTS", defaultRateLimitRequests),
-		RateLimitWindow:        defaultRateLimitWindow,
+		HTTPClient:              newHardenedHTTPClient(defaultOutboundTimeout),
+		ProxyHeaderTimeout:      defaultOutboundTimeout,
+		SSEMaxDuration:          getEnvDuration("SSE_MAX_DURATION", defaultSSEMaxDuration),
+		SSEIdleTimeout:          getEnvDuration("SSE_IDLE_TIMEOUT", defaultSSEIdleTimeout),
+		SSEMaxBytes:             getEnvInt64("SSE_MAX_BYTES", defaultSSEMaxBytes),
+		MaxResponseBodyBytes:    getEnvInt64("MAX_RESPONSE_BODY_BYTES", maxMCPResponseBodyBytes),
+		PendingCap:              getEnvInt("PENDING_MAP_CAP", defaultPendingCap),
+		CodeCap:                 getEnvInt("CODE_MAP_CAP", defaultCodeCap),
+		SessionCap:              getEnvInt("SESSION_MAP_CAP", defaultSessionCap),
+		CIMDCap:                 defaultCIMDCap,
+		RateLimitCap:            getEnvInt("RATE_LIMIT_MAP_CAP", defaultRateLimitCap),
+		RateLimitRequests:       getEnvInt("RATE_LIMIT_REQUESTS", defaultRateLimitRequests),
+		RateLimitGlobalRequests: getEnvInt("RATE_LIMIT_GLOBAL_REQUESTS", defaultRateLimitGlobalRequests),
+		RateLimitWindow:         defaultRateLimitWindow,
 	}
 
 	if err := validateConfig(cfg); err != nil {
@@ -236,6 +250,21 @@ func validateConfig(cfg *Config) error {
 	}
 	if cfg.ProxyHeaderTimeout <= 0 {
 		cfg.ProxyHeaderTimeout = defaultOutboundTimeout
+	}
+	if cfg.SSEMaxDuration <= 0 {
+		cfg.SSEMaxDuration = defaultSSEMaxDuration
+	}
+	if cfg.SSEIdleTimeout <= 0 {
+		cfg.SSEIdleTimeout = defaultSSEIdleTimeout
+	}
+	if cfg.SSEMaxBytes <= 0 {
+		cfg.SSEMaxBytes = defaultSSEMaxBytes
+	}
+	if cfg.MaxResponseBodyBytes <= 0 {
+		cfg.MaxResponseBodyBytes = maxMCPResponseBodyBytes
+	}
+	if cfg.RateLimitGlobalRequests <= 0 {
+		cfg.RateLimitGlobalRequests = defaultRateLimitGlobalRequests
 	}
 	return nil
 }
@@ -334,6 +363,30 @@ func getEnvInt(key string, fallback int) int {
 		return fallback
 	}
 	return n
+}
+
+func getEnvInt64(key string, fallback int64) int64 {
+	v := strings.TrimSpace(os.Getenv(key))
+	if v == "" {
+		return fallback
+	}
+	n, err := strconv.ParseInt(v, 10, 64)
+	if err != nil || n <= 0 {
+		return fallback
+	}
+	return n
+}
+
+func getEnvDuration(key string, fallback time.Duration) time.Duration {
+	v := strings.TrimSpace(os.Getenv(key))
+	if v == "" {
+		return fallback
+	}
+	d, err := time.ParseDuration(v)
+	if err != nil || d <= 0 {
+		return fallback
+	}
+	return d
 }
 
 func randomToken() (string, error) {
