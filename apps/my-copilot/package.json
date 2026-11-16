@@ -30,7 +30,7 @@
     "@navikt/ds-react": "^8.22.1",
     "@opentelemetry/api": "^1.9.1",
     "@prometheus-io/client": "^0.16.1",
-    "@tailwindcss/postcss": "^4.3.4",
+    "@tailwindcss/postcss": "^4.3.5",
     "chart.js": "^4.6.1",
     "gray-matter": "^4.0.3",
     "next": "16.4.5",
