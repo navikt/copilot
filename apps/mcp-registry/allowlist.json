@@ -91,7 +91,7 @@
         "source": "github",
         "subfolder": "apps/mcp-onboarding"
       },
-      "tools": ["hello_world", "greet", "whoami", "echo", "get_time", "list_agents", "list_instructions", "list_prompts", "list_skills", "check_agent_readiness", "generate_agents_md"],
+      "tools": ["hello_world", "greet", "whoami", "echo", "get_time", "search_customizations", "list_agents", "list_instructions", "list_prompts", "list_skills", "get_installation_guide", "check_agent_readiness", "suggest_customizations", "generate_agents_md", "generate_setup_steps", "team_readiness"],
       "tags": ["developer-tools", "onboarding", "nav-internal"],
       "examples": [
         {
