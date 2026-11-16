@@ -1111,6 +1111,26 @@
     },
     {
       "type": "skill",
+      "name": "vulnerability-triage",
+      "displayName": "vulnerability-triage",
+      "description": "Hent og forklar sårbarheter i Nais-apper og jobber. Bruk Nais MCP, finn eksisterende fikser og utfør avtalte oppdateringer.",
+      "filePath": "skills/vulnerability-triage/SKILL.md",
+      "contentHash": "152b0be65346a42af18325d65c802c9bbebc703504efe5492bbfe124c5c7cc28",
+      "installUrl": "",
+      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/vulnerability-triage/SKILL.md",
+      "references": [
+        {
+          "path": "references/nais-mcp.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/vulnerability-triage/references/nais-mcp.md"
+        },
+        {
+          "path": "references/dependabot.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/vulnerability-triage/references/dependabot.md"
+        }
+      ]
+    },
+    {
+      "type": "skill",
       "name": "web-design-reviewer",
       "displayName": "web-design-reviewer",
       "description": "Visuell inspeksjon av nettsider for å identifisere og fikse designproblemer",
