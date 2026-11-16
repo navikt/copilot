@@ -96,6 +96,20 @@ func TestGetRepoFile_NotFound(t *testing.T) {
 	}
 }
 
+func TestGetRepoFile_ForbiddenIsError(t *testing.T) {
+	server := newGitHubMock(t, map[string]http.HandlerFunc{
+		"GET /repos/navikt/my-app/contents/AGENTS.md": func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusForbidden)
+		},
+	})
+	defer server.Close()
+
+	client := newTestGitHubClient(server)
+	if _, err := client.GetRepoFile("test-token", "navikt", "my-app", "AGENTS.md"); err == nil {
+		t.Error("expected error for 403")
+	}
+}
+
 func TestGetDirectoryCount(t *testing.T) {
 	server := newGitHubMock(t, map[string]http.HandlerFunc{
 		"GET /repos/navikt/my-app/contents/.github/instructions": func(w http.ResponseWriter, _ *http.Request) {

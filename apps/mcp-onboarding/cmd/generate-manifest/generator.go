@@ -10,6 +10,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	"unicode"
 
 	"github.com/navikt/copilot/mcp-onboarding/internal/discovery"
 	"gopkg.in/yaml.v3"
@@ -370,20 +371,30 @@ func (g *Generator) loadSkills(dir string) ([]discovery.Customization, error) {
 // Helper methods extracted from original discovery package
 func (g *Generator) inferCategory(name, description string) string {
 	lower := strings.ToLower(name + " " + description)
-	if strings.Contains(lower, "nais") || strings.Contains(lower, "kubernetes") ||
-		strings.Contains(lower, "deployment") || strings.Contains(lower, "observability") {
+	if hasWordPrefix(lower, "nais") || hasWordPrefix(lower, "kubernetes") ||
+		hasWordPrefix(lower, "deployment") || hasWordPrefix(lower, "observability") {
 		return "platform"
 	}
-	if strings.Contains(lower, "auth") || strings.Contains(lower, "security") {
+	if hasWordPrefix(lower, "auth") || hasWordPrefix(lower, "security") {
 		return "security"
 	}
-	if strings.Contains(lower, "kafka") || strings.Contains(lower, "kotlin") || strings.Contains(lower, "ktor") {
+	if hasWordPrefix(lower, "kafka") || hasWordPrefix(lower, "kotlin") || hasWordPrefix(lower, "ktor") {
 		return "backend"
 	}
-	if strings.Contains(lower, "aksel") || strings.Contains(lower, "nextjs") || strings.Contains(lower, "react") {
+	if hasWordPrefix(lower, "aksel") || hasWordPrefix(lower, "nextjs") || hasWordPrefix(lower, "react") {
 		return "frontend"
 	}
 	return ""
+}
+
+// hasWordPrefix reports whether a word in s starts with kw, so "ktor" does not match "refaktorerer".
+func hasWordPrefix(s, kw string) bool {
+	for _, w := range strings.FieldsFunc(s, func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsDigit(r) }) {
+		if strings.HasPrefix(w, kw) {
+			return true
+		}
+	}
+	return false
 }
 
 func (g *Generator) extractTags(name, description string) []string {

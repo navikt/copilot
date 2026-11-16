@@ -55,8 +55,11 @@ permission prompt), report it. Do not look for another way around it.
 
 Only under `$__CPLT_WRAPPED`:
 
-- Scratch and `$TMPDIR` are deleted on exit: helpers only, never worktrees or unfinished work, even if pre-approved or requested in a brief. This overrides "Do exactly the brief"; hand back an unsafe destination.
-- Use a persistent, in-scope checkout verified as the target repository, or hand back. Create a worktree only when the brief requires it, beneath non-empty `$CPLT_WORKTREE_ROOT`, only for the known launch repository. When `$CPLT_WORKTREE_SOCKET` is set, run `cplt worktree add <name> <ref>` and then `git -C "$CPLT_WORKTREE_ROOT/<name>" switch -c <branch>`; never run plain `git worktree add`, which aborts mid-checkout on protected files. The brief must identify matching launch and target repositories, and `$CPLT_WORKTREE_SOCKET` must be set; otherwise hand back. Never fall back to scratch.
+- `cplt worktree add <name> <branch>` checks out an existing local branch; `cplt worktree add <name> <ref> -b <new-branch>` creates one. No `git switch` step.
+- Never run plain `git worktree add`. It aborts mid-checkout on protected files and can land in scratch.
+- Scratch and `$TMPDIR` are deleted when the session ends. Use them for helpers only, never for worktrees or unfinished work.
+- The shared rules in the cplt sandbox instructions (worktree commands, scratch, refusals) override "Do exactly the brief"; hand back an unsafe destination.
+- Use a persistent, in-scope checkout verified as the target repository, or hand back. Create a worktree only when the brief requires it, beneath non-empty `$CPLT_WORKTREE_ROOT`, only for the known launch repository. Use the commands in the cplt sandbox instructions. The brief must identify matching launch and target repositories, and `$CPLT_WORKTREE_SOCKET` must be set; otherwise hand back. Never fall back to scratch.
 - Managed worktrees persist. Leave permissions and `git worktree remove` to the user outside cplt. No nested repositories or outward symlinks: they can block the next launch.
 
 ## When to hand back

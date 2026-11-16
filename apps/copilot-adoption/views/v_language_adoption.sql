@@ -1,7 +1,7 @@
 CREATE OR REPLACE VIEW `%s.%s.v_language_adoption` AS
 SELECT
   scan_date,
-  IFNULL(primary_language, 'Unknown') AS language,
+  IFNULL(NULLIF(primary_language, ''), 'Unknown') AS language,
   COUNT(*) AS total_repos,
   COUNTIF(default_branch_last_commit >= TIMESTAMP_SUB(TIMESTAMP(scan_date), INTERVAL 90 DAY)) AS recently_active_repos,
   COUNTIF(has_any_customization) AS repos_with_customizations,

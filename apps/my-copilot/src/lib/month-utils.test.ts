@@ -55,8 +55,8 @@ describe("daysInCalendarMonth", () => {
 });
 
 describe("isMonthComplete", () => {
-  it("any non-current month is complete", () => {
-    expect(isMonthComplete("2026-05", 15, "2026-07")).toBe(true);
+  it("a historical month with missing days is incomplete", () => {
+    expect(isMonthComplete("2026-05", 15, "2026-07")).toBe(false);
   });
 
   it("current month with fewer days than calendar is incomplete", () => {
@@ -69,6 +69,11 @@ describe("isMonthComplete", () => {
 
   it("February 28-day month with 28 days is complete if not current", () => {
     expect(isMonthComplete("2026-02", 28, "2026-07")).toBe(true);
+  });
+
+  it("does not accept future months or excessive day counts", () => {
+    expect(isMonthComplete("2026-08", 31, "2026-07")).toBe(false);
+    expect(isMonthComplete("2026-06", 31, "2026-07")).toBe(false);
   });
 });
 
@@ -87,9 +92,39 @@ describe("selectCompleteMonths", () => {
     expect(result.prevComplete?.month).toBe("2026-05");
   });
 
-  it("treats all months as complete when none is current", () => {
+  it("keeps incomplete historical months out of comparisons", () => {
     const result = selectCompleteMonths(data, "2026-08");
-    expect(result.completeMonths).toHaveLength(3);
+    expect(result.completeMonths).toHaveLength(2);
+    expect(result.latestComplete?.month).toBe("2026-06");
     expect(result.currentMonth).toBeNull();
+  });
+
+  it.each([{ middle: [] }, { middle: [{ month: "2026-06", days_in_month: 29, unique_users: 110 }] }])(
+    "does not compare across a missing or incomplete calendar month: $middle",
+    ({ middle }) => {
+      const result = selectCompleteMonths(
+        [data[0], ...middle, { month: "2026-07", days_in_month: 31, unique_users: 120 }],
+        "2026-08"
+      );
+      expect(result.latestComplete?.month).toBe("2026-07");
+      expect(result.prevComplete).toBeNull();
+    }
+  );
+
+  it("compares consecutive complete months across a year boundary", () => {
+    const result = selectCompleteMonths(
+      [
+        { month: "2025-12", days_in_month: 31 },
+        { month: "2026-01", days_in_month: 31 },
+      ],
+      "2026-02"
+    );
+    expect(result.prevComplete?.month).toBe("2025-12");
+  });
+
+  it("returns no comparison when no month has complete coverage", () => {
+    const result = selectCompleteMonths([data[2]], "2026-08");
+    expect(result.latestComplete).toBeNull();
+    expect(result.prevComplete).toBeNull();
   });
 });

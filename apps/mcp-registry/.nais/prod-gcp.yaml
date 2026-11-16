@@ -9,5 +9,4 @@ domain_internal: intern.nav.no
 domain_external: nav.no
 ingresses:
   - https://mcp-registry.nav.no
-# TODO: set the Entra object id of the registry admin group before writes go live.
-admin_group_id: "00000000-0000-0000-0000-000000000000"
+admin_group_id: "f59c8c77-7b73-4753-890a-2b483a07d18a" # team copilot

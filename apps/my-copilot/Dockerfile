@@ -7,8 +7,8 @@ FROM base AS deps
 WORKDIR /app
 
 COPY apps/my-copilot/package.json apps/my-copilot/pnpm-lock.yaml apps/my-copilot/pnpm-workspace.yaml apps/my-copilot/.npmrc ./
-# .npmrc reads GITHUB_PACKAGES_TOKEN for @nais/apm; a BuildKit secret keeps it out of every layer.
-RUN --mount=type=secret,id=GITHUB_PACKAGES_TOKEN,env=GITHUB_PACKAGES_TOKEN pnpm install --frozen-lockfile
+# User-level auth works across pnpm versions; BuildKit keeps the file out of layers.
+RUN --mount=type=secret,id=npmrc,target=/root/.npmrc,required=true pnpm install --frozen-lockfile
 
 FROM base AS builder
 WORKDIR /app
@@ -24,7 +24,7 @@ ARG APP_VERSION=unknown
 ENV NEXT_PUBLIC_APP_VERSION=${APP_VERSION}
 
 # pnpm re-checks minimumReleaseAge against the registry during build, so it needs the token too.
-RUN --mount=type=secret,id=GITHUB_PACKAGES_TOKEN,env=GITHUB_PACKAGES_TOKEN pnpm build
+RUN --mount=type=secret,id=npmrc,target=/root/.npmrc,required=true pnpm build
 
 FROM gcr.io/distroless/nodejs24:nonroot AS runner
 WORKDIR /app

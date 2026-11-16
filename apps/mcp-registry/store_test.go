@@ -285,15 +285,41 @@ func TestStore_StaticLoadFailureKeepsLastGoodSet(t *testing.T) {
 	}
 	before, _ := store.GetServers()
 
-	if err := os.WriteFile(path, []byte("{broken"), 0o600); err != nil {
-		t.Fatal(err)
+	for _, bad := range []string{"{broken", `{"servers":[]}`, `{"servers":[{"name":"bad name"}]}`} {
+		if err := os.WriteFile(path, []byte(bad), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if err := store.Reload(t.Context()); err != nil {
+			t.Fatalf("%s: reload with bad static but cached set: %v", bad, err)
+		}
+		after, _ := store.GetServers()
+		if len(after) != len(before) {
+			t.Fatalf("%s: server count changed from %d to %d after static load failure", bad, len(before), len(after))
+		}
 	}
-	if err := store.Reload(t.Context()); err != nil {
-		t.Fatalf("reload with broken static but cached set: %v", err)
+}
+
+func TestStore_ReloadBoundsStalledDBLoad(t *testing.T) {
+	old := dbLoadTimeout
+	dbLoadTimeout = 50 * time.Millisecond
+	t.Cleanup(func() { dbLoadTimeout = old })
+	loader := func(ctx context.Context) ([]DBEntry, error) {
+		<-ctx.Done()
+		return nil, ctx.Err()
 	}
-	after, _ := store.GetServers()
-	if len(after) != len(before) {
-		t.Fatalf("server count changed from %d to %d after static load failure", len(before), len(after))
+	store := NewStore(testConfig(), "allowlist.json", loader)
+	done := make(chan error, 1)
+	go func() { done <- store.Reload(context.Background()) }()
+	select {
+	case err := <-done:
+		if !errors.Is(err, context.DeadlineExceeded) {
+			t.Fatalf("expected deadline error, got %v", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("Reload hung on a stalled DB load")
+	}
+	if servers, err := store.GetServers(); err != nil || len(servers) == 0 {
+		t.Fatalf("static entries not served: %d, %v", len(servers), err)
 	}
 }
 

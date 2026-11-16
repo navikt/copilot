@@ -44,6 +44,9 @@ import (
 // turned off: the approved list, and how to get one added.
 const MCPRegistryHelpURL = "https://ki-utvikling.nav.no/verktoy (approved servers); to add one: https://github.com/navikt/copilot/blob/main/apps/mcp-registry/README.md#adding-servers"
 
+// MCPRegistryMismatch explains registry and policy checks without exposing config values.
+const MCPRegistryMismatch = "not in Nav's MCP registry, or its URL, command or env differs from the registry entry"
+
 // MCPPolicyTimeout bounds each gh and registry call. A var so the e2e build
 // can give its fake gh more time on a loaded machine.
 var MCPPolicyTimeout = 5 * time.Second
@@ -400,13 +403,18 @@ func localPythonRunnerPackage(rest []string) string {
 }
 
 func openCodeEnvGetter(env []string) func(string) string {
-	return func(k string) string {
+	lookup := openCodeEnvLookup(env)
+	return func(k string) string { v, _ := lookup(k); return v }
+}
+
+func openCodeEnvLookup(env []string) func(string) (string, bool) {
+	return func(k string) (string, bool) {
 		for _, e := range env {
 			if v, ok := strings.CutPrefix(e, k+"="); ok {
-				return v
+				return v, true
 			}
 		}
-		return ""
+		return "", false
 	}
 }
 
@@ -576,7 +584,7 @@ func openCodeConfigDocuments(projectDir string, env []string, userOnly bool) []o
 	if f := getenv("OPENCODE_CONFIG"); f != "" {
 		read(filepath.Dir(f), filepath.Base(f))
 	}
-	if v := strings.ToLower(getenv("OPENCODE_DISABLE_PROJECT_CONFIG")); v != "true" && v != "1" {
+	if !OpenCodeProjectDisabled(openCodeEnvLookup(env)) {
 		if projectDir == "" {
 			projectDir, _ = os.Getwd()
 		}
@@ -721,8 +729,8 @@ func applyOpenCodeMCPPolicy(env []string, projectDir string) []string {
 		mcp[name] = e
 	}
 	if offChanged || Verbose {
-		fmt.Fprintf(os.Stderr, "%s MCP servers turned off for this session (not in Nav's MCP registry): %s. See %s\n",
-			domain.Yellow("⚠"), strings.Join(off, ", "), MCPRegistryHelpURL)
+		fmt.Fprintf(os.Stderr, "%s MCP servers turned off for this session (%s): %s. See %s\n",
+			domain.Yellow("⚠"), MCPRegistryMismatch, strings.Join(off, ", "), MCPRegistryHelpURL)
 	}
 	var listed []string
 	for name := range servers {

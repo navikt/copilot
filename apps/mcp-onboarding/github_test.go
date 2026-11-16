@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"testing"
 )
@@ -199,6 +200,28 @@ func TestGetUser_Unauthorized(t *testing.T) {
 }
 
 // --- GetUserOrganizations tests ---
+
+func TestGetUserOrganizations_Paginates(t *testing.T) {
+	server := newGitHubMock(t, map[string]http.HandlerFunc{
+		"GET /user/orgs": func(w http.ResponseWriter, r *http.Request) {
+			var orgs []GitHubOrg
+			if r.URL.Query().Get("page") == "1" {
+				for i := range 100 {
+					orgs = append(orgs, GitHubOrg{ID: int64(i), Login: fmt.Sprintf("org-%d", i)})
+				}
+			} else {
+				orgs = []GitHubOrg{{ID: 999, Login: "navikt"}}
+			}
+			_ = json.NewEncoder(w).Encode(orgs)
+		},
+	})
+	defer server.Close()
+
+	client := newTestGitHubClient(server)
+	if ok, org := client.CheckOrgMembership("test-token", []string{"navikt"}); !ok || org != "navikt" {
+		t.Errorf("expected navikt on page 2, got %v %q", ok, org)
+	}
+}
 
 func TestGetUserOrganizations_Success(t *testing.T) {
 	server := newGitHubMock(t, map[string]http.HandlerFunc{

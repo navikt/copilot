@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -17,6 +18,7 @@ import (
 	"github.com/navikt/copilot/cli/nav-pilot/internal/hook"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/local"
 	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
+	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
 )
 
 const riskyPayload = `{"sessionId":"s1","cwd":"/w","toolName":"bash","toolArgs":{"command":"kubectl delete deployment app -n team --token=ghp_0123456789abcdefghijklmnopqrstuvwxyz","description":"Restart the app"}}`
@@ -308,5 +310,45 @@ func TestActionCheckAsksAnEndpointWithThinkingOff(t *testing.T) {
 	runActionHook(t, localOn, riskyPayload)
 	if got := last()["reasoning_effort"]; got != "none" {
 		t.Errorf("reasoning_effort = %v, want none for an endpoint", got)
+	}
+}
+
+// The bridge marks a gate from the repo's .github/hooks/copilot-hooks.json as
+// Repo, so a launch that turned project config off can drop it; a user-scope
+// gate is not marked.
+func TestOpenCodeHookBridgeMarksRepoGates(t *testing.T) {
+	isolatedConfig(t)
+	for _, k := range providerpkg.OpenCodeProjectDisableEnvs {
+		t.Setenv(k, "")
+	}
+	gate := func(name string) string {
+		return `{"version":1,"hooks":{"preToolUse":[{"type":"command","navPilot":"` + name + `","command":"true"}]}}`
+	}
+	scope, err := ScopeUser()
+	if err != nil {
+		t.Fatal(err)
+	}
+	userDir := scope.DstPath(KindHook.Dir)
+	repo := t.TempDir()
+	repoDir := ScopeRepo(repo).DstPath(KindHook.Dir)
+	for _, d := range []string{userDir, repoDir, filepath.Join(repo, ".git")} {
+		if err := os.MkdirAll(d, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(userDir, "user.json"), []byte(gate("user-gate")), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(repoDir, source.RepoHooksConfig), []byte(gate("repo-gate")), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	b := openCodeHookBridge(ResolvedConfig{Client: "opencode", HookActionCheck: "off", ProjectDir: repo})
+	got := map[string]bool{}
+	for _, h := range b.Pre {
+		got[h.Name] = h.Repo
+	}
+	want := map[string]bool{"user-gate": false, "repo-gate": true}
+	if !maps.Equal(got, want) {
+		t.Errorf("pre gates (name: Repo) = %v, want %v", got, want)
 	}
 }

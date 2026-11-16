@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
@@ -113,7 +114,7 @@ Commands:
   alpha decide "<q>"      Ask the local model a multiple-choice question (alpha; see 'alpha decide --help')
   models [filter]         List the models the client can use, the current one marked
   mcp [list|enable|disable]  List Nav's MCP servers and what stops yours from working; enable or disable some
-  plugins                 Show this repo's own OpenCode plugins and answer again whether to load them
+  plugins                 Show this repo's own OpenCode plugins and hook gates, and answer again whether to load them
   auth <login|status|logout>  Authenticate with GitHub for copilot-cli usage lookups
   usage                   Show your GitHub Copilot usage (requires 'auth login')
   version                 Show version information
@@ -633,7 +634,7 @@ func run(args []string) error {
 	if explicitLaunch {
 		// No menu, no sync, no install: a benchmark or CI run must not
 		// rewrite ~/.copilot. --sync stays opt-in (nav-pilot --sync -- …).
-		if nothingInstalled() {
+		if nothingInstalled(cmp.Or(cliOverrides.ProjectDir, ".")) {
 			// Installing needs a yes, and --sync is not one: say what is.
 			return &exitCode{code: 2, err: fmt.Errorf("nothing is installed, and a launch with client args after -- installs nothing. Install first: %s", bold("nav-pilot install --user --all --yes"))}
 		}
@@ -1501,13 +1502,13 @@ func norwegian(err error) error {
 // nothingInstalled reports whether neither the user scope nor this
 // repository has an install (a pinned agentpakke counts: it lives in the
 // user scope's state).
-func nothingInstalled() bool {
+func nothingInstalled(dir string) bool {
 	if s, err := ScopeUser(); err == nil {
 		if st, err := readScopedState(s); err != nil || st != nil {
 			return false
 		}
 	}
-	if root := findGitRoot("."); root != "" {
+	if root := findGitRoot(dir); root != "" {
 		if st, err := readScopedState(ScopeRepo(root)); err != nil || st != nil {
 			return false
 		}

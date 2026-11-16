@@ -35,7 +35,14 @@ type openCodePluginSet struct {
 	root  string
 	names []string // short, for the prompt
 	sum   string   // "" when there are none
+	// gatesOnly: the repo has hook gates and no plugins, so a no drops only
+	// the gates and leaves AGENTS.md, agents and skills on.
+	gatesOnly bool
 }
+
+// openCodeDropRepoGatesEnv tells applyOpenCodeHooks to drop the repo's gates
+// without turning off the rest of the project config.
+const openCodeDropRepoGatesEnv = "NAV_PILOT_OPENCODE_DROP_REPO_GATES"
 
 // openCodeProjectPlugins finds the plugin files and directories, and plugins
 // entries in project config documents with the code they point at. sum covers
@@ -48,11 +55,8 @@ type openCodePluginSet struct {
 // ponytail: a bundled plugin can import any file in the repo, so the hash
 // covers the plugin's own files, not everything it may load.
 func openCodeProjectPlugins(projectDir string, env []string) openCodePluginSet {
-	getenv := openCodeEnvGetter(env)
-	for _, k := range []string{openCodeDisableProjectConfigEnv, "OPENCODE_CONFIG_PROJECT_DISABLE"} {
-		if v := strings.ToLower(getenv(k)); v == "1" || v == "true" {
-			return openCodePluginSet{}
-		}
+	if OpenCodeProjectDisabled(openCodeEnvLookup(env)) {
+		return openCodePluginSet{}
 	}
 	if projectDir == "" {
 		projectDir, _ = os.Getwd()
@@ -114,6 +118,18 @@ func openCodeProjectPlugins(projectDir string, env []string) openCodePluginSet {
 				w.entry(doc.path, e, &set.names)
 			}
 		}
+	}
+	// The hook bridge runs the repo's gates as shell commands; the nav-pilot
+	// marker on them is the repo's to write, so they need the same yes.
+	hooks := filepath.Join(set.root, ".github", "hooks", source.RepoHooksConfig)
+	if gates := source.PreToolUseHooks(hooks); len(gates) > 0 {
+		set.gatesOnly = len(set.names) == 0
+		set.names = append(set.names, ".github/hooks/"+source.RepoHooksConfig)
+		// The parsed entries, since the file itself may be over pluginMaxRead,
+		// and the directory, since the gates run scripts kept there.
+		b, _ := json.Marshal(gates)
+		fmt.Fprintf(w.h, "gates %s\n", b)
+		w.add(filepath.Dir(hooks))
 	}
 	switch {
 	case len(set.names) == 0:
@@ -291,7 +307,11 @@ func askOpenCodePluginSet(set openCodePluginSet) bool {
 	if len(short) > 3 {
 		short = append(slices.Clone(short[:3]), "…")
 	}
-	allow := askOpenCodePlugins(fmt.Sprintf("This repo has its own OpenCode plugins (%d: %s). Load them? They run with the same access as the agent. A no also turns off this repo's AGENTS.md, agents and skills. [y/N] ", len(set.names), strings.Join(short, ", ")))
+	prompt := fmt.Sprintf("This repo has its own OpenCode plugins or hook gates (%d: %s). Load them? They run with the same access as the agent. A no also turns off this repo's AGENTS.md, agents and skills. [y/N] ", len(set.names), strings.Join(short, ", "))
+	if set.gatesOnly {
+		prompt = "This repo has its own hook gates (.github/hooks). Run them? They run with the same access as the agent. [y/N] "
+	}
+	allow := askOpenCodePlugins(prompt)
 	recordOpenCodePluginAnswer(set.key, openCodePluginAnswer{Hash: set.sum, Allow: allow})
 	return allow
 }
@@ -314,7 +334,12 @@ func applyOpenCodeProjectPlugins(env []string, projectDir string) []string {
 	case ok && a.Hash == set.sum:
 	case !openCodePluginsTTY():
 		// Headless: never block, never load an unanswered set, record nothing.
-		env, _ = telemetry.SetEnvValue(env, openCodeDisableProjectConfigEnv, "1")
+		if set.gatesOnly {
+			env, _ = telemetry.SetEnvValue(env, openCodeDropRepoGatesEnv, "1")
+			fmt.Fprintf(os.Stderr, "%s This repo's hook gates are off until you answer. Run %s in a terminal.\n", domain.Yellow("⚠"), OpenCodePluginsCommand)
+			return env
+		}
+		env = disableOpenCodeProject(env)
 		fmt.Fprintf(os.Stderr, "%s This repo's OpenCode config (plugins, agents, AGENTS.md) is off until you answer. Run %s in a terminal.\n", domain.Yellow("⚠"), OpenCodePluginsCommand)
 		return env
 	default:
@@ -323,7 +348,12 @@ func applyOpenCodeProjectPlugins(env []string, projectDir string) []string {
 	if allow {
 		return env
 	}
-	env, _ = telemetry.SetEnvValue(env, openCodeDisableProjectConfigEnv, "1")
+	if set.gatesOnly {
+		env, _ = telemetry.SetEnvValue(env, openCodeDropRepoGatesEnv, "1")
+		fmt.Fprintf(os.Stderr, "%s This repo's hook gates are off (you declined them). Change: %s\n", domain.Dim("-"), OpenCodePluginsCommand)
+		return env
+	}
+	env = disableOpenCodeProject(env)
 	fmt.Fprintf(os.Stderr, "%s This repo's OpenCode config is off (you declined its plugins). Change: %s\n", domain.Dim("-"), OpenCodePluginsCommand)
 	// A repo-scope install lives in the same .opencode/ and goes off with it.
 	if _, err := os.Stat(filepath.Join(set.root, ".opencode", ".nav-pilot-state.json")); err == nil {
@@ -337,10 +367,10 @@ func applyOpenCodeProjectPlugins(env []string, projectDir string) []string {
 func RunOpenCodePlugins(projectDir string) error {
 	set := openCodeProjectPlugins(projectDir, nil)
 	if set.sum == "" {
-		fmt.Println("This repo has no OpenCode plugins of its own.")
+		fmt.Println("This repo has no OpenCode plugins or hook gates of its own.")
 		return nil
 	}
-	fmt.Printf("OpenCode plugins in %s:\n", set.root)
+	fmt.Printf("OpenCode plugins and hook gates in %s:\n", set.root)
 	for _, n := range set.names {
 		fmt.Printf("  %s\n", n)
 	}
@@ -350,6 +380,8 @@ func RunOpenCodePlugins(projectDir string) error {
 		fmt.Println("Answer: not asked (off until approved)")
 	case a.Allow:
 		fmt.Println("Answer: load them")
+	case set.gatesOnly:
+		fmt.Println("Answer: do not run the hook gates")
 	default:
 		fmt.Println("Answer: do not load (the repo's OpenCode config is off)")
 	}
@@ -361,4 +393,13 @@ func RunOpenCodePlugins(projectDir string) error {
 	}
 	askOpenCodePluginSet(set)
 	return nil
+}
+
+// disableOpenCodeProject sets every switch: OpenCode reads the first one set,
+// so a user's OPENCODE_CONFIG_PROJECT_DISABLE=0 would hide ours.
+func disableOpenCodeProject(env []string) []string {
+	for _, k := range OpenCodeProjectDisableEnvs {
+		env, _ = telemetry.SetEnvValue(env, k, "1")
+	}
+	return env
 }

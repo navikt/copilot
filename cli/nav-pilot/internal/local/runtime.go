@@ -1182,6 +1182,10 @@ if _REVISION:
     # other id loads as before.
     _load = _server.load
     _server.load = lambda p, *a, **k: _load(p, *a, **(dict(k, revision=_REVISION) if p == _MODEL else k))
+# Python's default listen backlog of 5 makes macOS reset bursts of connections
+# before the queue above sees them; main() builds its server after this (#2181).
+import socketserver
+socketserver.TCPServer.request_queue_size = max(64, _QUEUE + 1)
 sys.exit(_server.main())
 `
 

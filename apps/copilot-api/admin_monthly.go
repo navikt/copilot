@@ -24,9 +24,12 @@ type AdminMonth struct {
 	// ResidualNetUSD is net the run could not assign to a person.
 	ResidualNetUSD *float64 `json:"residual_net_usd"`
 	ResidualPct    *float64 `json:"residual_pct"`
-	// NoTeamNetUSD is assigned net that lands on no team, split the same way
-	// as team-net. Nil before the first user_teams month.
+	// NoTeamNetUSD is assigned net for users with observed usage days who were
+	// on no team that day. Nil before the first user_teams month.
 	NoTeamNetUSD *float64 `json:"no_team_net_usd"`
+	// NoUsageNetUSD is billed net for users with no observed usage days in the
+	// month (unspread). Nil before the first user_teams month.
+	NoUsageNetUSD *float64 `json:"no_usage_net_usd"`
 	// GrossUSD is the preliminary list-price amount for a month without net.
 	GrossUSD *float64 `json:"gross_usd"`
 	// EstimatedNetUSD is the estimated billed amount so far for a month
@@ -66,6 +69,7 @@ type adminMonthRow struct {
 	LoadedAt       string   `bigquery:"loaded_at"`
 	AssignedNet    float64  `bigquery:"assigned_net"`
 	TeamNet        float64  `bigquery:"team_net"`
+	NoUsageNet     float64  `bigquery:"no_usage_net"`
 	Gross          *float64 `bigquery:"gross"`
 	GrossNet       *float64 `bigquery:"gross_net"`
 	Seats          int64    `bigquery:"seats"`
@@ -112,6 +116,8 @@ WITH ` + bq.teamUsageCTEs() + `, ` + bq.teamNetCTEs() + `, ` + bq.seatCTEs() + f
 ), team_m AS (
  SELECT DATE_TRUNC(day,MONTH) month,SUM(net) net FROM daily w
  WHERE EXISTS (SELECT 1 FROM memberships m WHERE m.day=w.day AND m.user_id=w.user_id) GROUP BY month
+), no_usage_m AS (
+ SELECT month,SUM(net) net FROM unspread GROUP BY month
 ), gross_m AS (
  SELECT DATE_TRUNC(day,MONTH) month,SUM(gross_amount) gross,SUM(net_amount) gross_net FROM %[2]s
  WHERE day>=DATE(@from) AND day<DATE(@to) AND scope_id='nav' AND product='Copilot' AND sku IN (`+billedSKUs+`)
@@ -128,12 +134,12 @@ WITH ` + bq.teamUsageCTEs() + `, ` + bq.teamNetCTEs() + `, ` + bq.seatCTEs() + f
   (SELECT IFNULL(CAST(MIN(snapshot_date) AS STRING),'') FROM %[4]s) seats_from
 )
 SELECT CAST(t.month AS STRING) month,r.month IS NOT NULL net_complete,r.enterprise_net,r.residual_net,
- IFNULL(r.loaded_at,'') loaded_at,IFNULL(a.net,0) assigned_net,IFNULL(tm.net,0) team_net,g.gross,g.gross_net,
+ IFNULL(r.loaded_at,'') loaded_at,IFNULL(a.net,0) assigned_net,IFNULL(tm.net,0) team_net,IFNULL(nu.net,0) no_usage_net,g.gross,g.gross_net,
  IFNULL(s.seats,0) seats,IFNULL(s.licence,0) licence,IFNULL(s.unknown_plan,0) unknown_plan,
  v.membership_from,v.last_gross_day,v.seats_snapshot,v.seats_from
 FROM months t CROSS JOIN coverage v
 LEFT JOIN runs r ON r.month=t.month LEFT JOIN assigned_m a ON a.month=t.month
-LEFT JOIN team_m tm ON tm.month=t.month LEFT JOIN gross_m g ON g.month=t.month
+LEFT JOIN team_m tm ON tm.month=t.month LEFT JOIN no_usage_m nu ON nu.month=t.month LEFT JOIN gross_m g ON g.month=t.month
 LEFT JOIN seat_m s ON s.month=t.month
 ORDER BY month`,
 		bq.tableRef(bq.metricsDataset, "billing_user_monthly_runs"),
@@ -169,7 +175,8 @@ func adminMonthlyOverview(year int, rows []adminMonthRow, now time.Time) *AdminM
 				m.ResidualPct = cents(*row.ResidualNet / *row.EnterpriseNet * 100)
 			}
 			if row.MembershipFrom != "" && month >= row.MembershipFrom[:7] {
-				m.NoTeamNetUSD = cents(row.AssignedNet - row.TeamNet)
+				m.NoUsageNetUSD = cents(row.NoUsageNet)
+				m.NoTeamNetUSD = cents(row.AssignedNet - row.TeamNet - row.NoUsageNet)
 			}
 			m.LoadedAt = row.LoadedAt
 		case row.Gross != nil:

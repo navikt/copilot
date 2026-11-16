@@ -21,6 +21,7 @@ func testSeat(login, pending string) copilotSeat {
 func TestCountSeats(t *testing.T) {
 	got := countSeats("enterprise", "nav", 4, []copilotSeat{
 		testSeat("alice", ""), testSeat("bob", "2026-11-01"), testSeat("", ""), testSeat("dave", "2026-11-01"),
+		testSeat("bob", "2026-11-01"), // repeated across pages
 	})
 	want := SeatCounts{Scope: "enterprise", ScopeID: "nav", Total: 4, PendingCancellation: 2}
 	if *got != want {

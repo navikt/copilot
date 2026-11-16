@@ -269,3 +269,21 @@ func TestSetMCPServerToolsSwitchesHeaders(t *testing.T) {
 		}
 	}
 }
+
+// Same with opencode 2's mcp.servers: an unchanged choice is no write.
+func TestSetMCPServerToolsUnchangedIsNoWriteNative(t *testing.T) {
+	home := mcpConfigEnv(t)
+	path := filepath.Join(home, ".config", "opencode", "opencode.json")
+	orig := `{"mcp": {"servers": {"` + intellij.Name + `": {"type": "remote", "url": "http://127.0.0.1:64342/sse"}}}}`
+	writeFile(t, path, orig)
+	c := MCPToolChoice{Tools: []string{"read_file"}}
+	for i, want := range []bool{true, false} {
+		ch, err := SetMCPServerTools(MCPClientOpenCode, intellij.Name, intellij, c)
+		if err != nil || ch.Changed != want {
+			t.Fatalf("call %d: changed = %v, %v; want %v", i, ch.Changed, err, want)
+		}
+	}
+	if b, _ := os.ReadFile(path + ".bak"); string(b) != orig {
+		t.Errorf("backup = %s", b)
+	}
+}

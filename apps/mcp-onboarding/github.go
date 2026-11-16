@@ -189,31 +189,39 @@ func (c *GitHubClient) GetUser(accessToken string) (*GitHubUser, error) {
 }
 
 func (c *GitHubClient) GetUserOrganizations(accessToken string) ([]GitHubOrg, error) {
-	req, err := http.NewRequest("GET", c.APIBaseURL+"/user/orgs", nil)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("Authorization", "Bearer "+accessToken)
-	req.Header.Set("Accept", "application/vnd.github+json")
-	req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
+	var all []GitHubOrg
+	for page := 1; ; page++ {
+		req, err := http.NewRequest("GET", fmt.Sprintf("%s/user/orgs?per_page=100&page=%d", c.APIBaseURL, page), nil)
+		if err != nil {
+			return nil, err
+		}
+		req.Header.Set("Authorization", "Bearer "+accessToken)
+		req.Header.Set("Accept", "application/vnd.github+json")
+		req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
 
-	resp, err := c.HTTPClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer func() { _ = resp.Body.Close() }()
+		resp, err := c.HTTPClient.Do(req)
+		if err != nil {
+			return nil, err
+		}
 
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("github api error: %d - %s", resp.StatusCode, string(body))
-	}
+		if resp.StatusCode != http.StatusOK {
+			body, _ := io.ReadAll(resp.Body)
+			_ = resp.Body.Close()
+			return nil, fmt.Errorf("github api error: %d - %s", resp.StatusCode, string(body))
+		}
 
-	var orgs []GitHubOrg
-	if err := json.NewDecoder(resp.Body).Decode(&orgs); err != nil {
-		return nil, err
+		var orgs []GitHubOrg
+		err = json.NewDecoder(resp.Body).Decode(&orgs)
+		_ = resp.Body.Close()
+		if err != nil {
+			return nil, err
+		}
+		all = append(all, orgs...)
+		// shortcut: stops at 10 pages (1000 orgs), far beyond any real user.
+		if len(orgs) < 100 || page == 10 {
+			return all, nil
+		}
 	}
-
-	return orgs, nil
 }
 
 func (c *GitHubClient) CheckOrgMembership(accessToken string, allowedOrgs []string) (bool, string) {
@@ -256,9 +264,16 @@ func (c *GitHubClient) GetRepoFile(accessToken, owner, repo, path string) (bool,
 		return false, err
 	}
 	defer func() { _ = resp.Body.Close() }()
-	_, _ = io.ReadAll(resp.Body)
+	body, _ := io.ReadAll(resp.Body)
 
-	return resp.StatusCode == http.StatusOK, nil
+	switch resp.StatusCode {
+	case http.StatusOK:
+		return true, nil
+	case http.StatusNotFound:
+		return false, nil
+	default:
+		return false, fmt.Errorf("github api error: %d - %s", resp.StatusCode, string(body))
+	}
 }
 
 func (c *GitHubClient) ListDirectory(accessToken, owner, repo, path string) ([]RepoContent, error) {

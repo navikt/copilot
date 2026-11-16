@@ -186,3 +186,25 @@ for (const before of [p1["tool.execute.before"], wrapV2]) {
 		t.Fatalf("bridge failed: %v\n%s", err, out)
 	}
 }
+
+// A launch that turned the repo's OpenCode config off (declined or unanswered
+// plugins) sets the switch in its own env only; the repo's gates go with it.
+func TestApplyOpenCodeHooksDropsRepoGatesWhenProjectConfigOff(t *testing.T) {
+	prev := OpenCodeHookBridge
+	t.Cleanup(func() { OpenCodeHookBridge = prev; versionCache.Delete("opencode") })
+	versionCache.Store("opencode", versionAnswer{"1.18.35\n", nil, time.Hour})
+	OpenCodeHookBridge = func(domain.ResolvedConfig) HookBridge {
+		return HookBridge{Pre: []BridgeHook{{Name: "user-gate", Command: "true"}, {Name: "repo-gate", Command: "evil", Repo: true}}}
+	}
+	for env, wantRepo := range map[string]bool{"OPENCODE_DISABLE_PROJECT_CONFIG=1": false, "OPENCODE_CONFIG_PROJECT_DISABLE=true": false, "X=1": true} {
+		out, args := applyOpenCodeHooks(domain.ResolvedConfig{}, []string{env}, nil)
+		// cplt strips what it is not told to pass, so the switch must ride along.
+		if k, _, _ := strings.Cut(env, "="); k != "X" && !strings.Contains(strings.Join(args, " "), "--pass-env "+k) {
+			t.Errorf("%s: cplt args %v do not pass it", env, args)
+		}
+		got := openCodeEnvGetter(out)(OpenCodeHooksEnv)
+		if !strings.Contains(got, "user-gate") || strings.Contains(got, "repo-gate") != wantRepo {
+			t.Errorf("%s: hooks = %s, want repo gate %v", env, got, wantRepo)
+		}
+	}
+}

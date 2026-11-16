@@ -182,14 +182,14 @@ func serverVersionHandler(w http.ResponseWriter, r *http.Request, config *Config
 		return
 	}
 	if server != nil {
-		slog.Debug("Returning server", "name", serverName, "version", version)
+		slog.Debug("Returning server", "name", server.Server.Name, "version", server.Server.Version)
 		recordServerLookup(serverName, "found")
 		setCORSHeaders(w)
 		respondJSON(w, http.StatusOK, *server)
 		return
 	}
 	recordServerLookup("unknown", "not_found")
-	slog.Warn("Server not found", "name", serverName, "version", version)
+	slog.Warn("Server not found")
 	http.Error(w, "Server not found", http.StatusNotFound)
 }
 

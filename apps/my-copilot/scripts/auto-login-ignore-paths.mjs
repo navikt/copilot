@@ -39,6 +39,7 @@ export const PRIVATE_ROUTES = [
   "/innsikt/undersokelser",
   "/admin",
   "/admin/kostnad",
+  "/admin/kostnad/manedsutkast",
   "/admin/kostnad/rapport",
   "/admin/kostnad/innsyn",
   "/admin/verdi",

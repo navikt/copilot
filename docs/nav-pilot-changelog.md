@@ -2,6 +2,31 @@
 
 Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, prompts og samlinger.
 
+## 2026-11-16
+
+### `repo-baseline-audit`: sjekk oppsettet av et repo
+
+- **`repo-baseline-audit`**: Ny skill som sjekker om et repo i navikt følger grunnkravene fra navikt/offentlig, Golden Path og sikkerhetsplaybooken, og vanlig GitHub-hygiene som `.gitignore` og innsjekkede env-filer. Den viser hva som mangler i oppsettet, og endrer ingenting uten at du ber om det. Sårbarheter i koden dekkes av `appsec-advisory`, og endringer før commit av `security-review` (#2159).
+
+### Tydeligere beskjed når en MCP-server slås av
+
+- **OpenCode-oppstart og `nav-pilot doctor`**: Når nav-pilot slår av en MCP-server, sier meldingen nå hva som er galt: serveren finnes ikke i Navs MCP-register, eller URL, kommando eller miljøvariabler avviker fra oppføringen (#2164).
+- **KI-agentens beskjed og `nav-pilot mcp list`**: Samme forklaring gjelder nå også her. `mcp list` viser i tillegg problem og løsning for en server som står i registeret, men som nav-pilot likevel slår av fordi URL, kommando eller miljøvariabler avviker (#2195).
+
+### Lokal modell tåler flere samtidige forespørsler
+
+- **Lokal KI-modell**: Når flere økter sender forespørsler til den lokale modellen samtidig, blir ingen av dem lenger avvist med «connection reset». De venter i køen i stedet (#2181).
+
+### Feilrettinger
+
+- **OpenCode 2 spør før repoets egne gates kjører**: Gates i `.github/hooks/copilot-hooks.json` er kommandoer repoet selv bestemmer. nav-pilot spør nå om dem i samme spørsmål som repoets OpenCode-plugins, også når repoet ikke har plugins. Endrer repoet en gate eller et gate-skript i `.github/hooks/`, spør nav-pilot på nytt. Har repoet gates, men ingen plugins, slår et nei bare av gatene. Repoets `AGENTS.md`, agenter og skills lastes fortsatt. Du kan få ett nytt spørsmål per repo som har slike gates (#2212).
+- **OpenCode**: Når du har avslått et repos OpenCode-plugins, eller ikke har svart ennå, kjører nav-pilot heller ikke repoets egne `preToolUse`-hooks fra `.github/hooks/copilot-hooks.json` (#2207).
+- **`nav-pilot mcp enable` og `disable` med OpenCode 2**: Servere under `mcp.servers` blir nå funnet og endret der de står. Tidligere svarte `disable` at serveren ikke fantes, og `enable` la til en kopi utenfor `mcp.servers` (#2207).
+- **pi med lokal modell**: nav-pilot stopper nå med en forklaring når `model` er en lokal modell og klienten er pi. pi kan ikke kjøre lokale modeller ennå. Bruk `nav-pilot --client opencode` (#2207).
+- **`--project-dir` med `--`**: En installasjon i repoet du peker på, teller nå med. Tidligere stoppet oppstarten med «nothing is installed» når du sto i en annen mappe (#2207).
+- **Lokal statistikk**: Fullførte svar fra en ekstern lokal server blir nå telt, også når `nav-pilot alpha local init` aldri har kjørt (#2207).
+- **`nav-pilot mcp enable --json`**: Tar nå ett servernavn. Med flere navn skrev kommandoen flere JSON-objekter etter hverandre, som ingen JSON-leser forstår (#2207).
+
 ## 2026-10-31
 
 ### `innblikk`: nettstatistikk uten dekoratøren
