@@ -34,12 +34,12 @@ const (
 	defaultRateLimitWindow   = time.Minute
 	defaultSweepInterval     = 30 * time.Second
 	maxFormBodyBytes         = 16 * 1024
+	maxClaimsBytes           = 4096
 	maxCIMDBodyBytes         = 64 * 1024
 	maxUpstreamBodyBytes     = 1 << 20
 )
 
 // TeamTokenSource acquires downstream Entra OBO tokens for team MCP servers.
-// TODO(step 2): implement Entra refresh and Texas OBO exchange for routed MCP calls.
 type TeamTokenSource interface {
 	TeamToken(ctx context.Context, sessionID, resource string) (string, error)
 }
@@ -53,6 +53,10 @@ type Config struct {
 	AllowedRedirectURIs    map[string]bool
 	AllowedResources       map[string]bool
 	PrimaryResource        string
+	Routes                 []PilotRoute
+	RoutesByPath           map[string]PilotRoute
+	TeamTokenStrategy      string
+	TexasExchangeEndpoint  string
 	EntraScope             string
 	AzureClientID          string
 	AzureClientSecret      string
@@ -61,6 +65,7 @@ type Config struct {
 	AzureAuthorizeEndpoint string
 	CookieSecret           []byte
 	HTTPClient             *http.Client
+	ProxyHeaderTimeout     time.Duration
 	PendingCap             int
 	CodeCap                int
 	SessionCap             int
@@ -74,21 +79,22 @@ func loadConfigFromEnv() (*Config, error) {
 	baseURL := strings.TrimRight(strings.TrimSpace(os.Getenv("BASE_URL")), "/")
 	clientIDs := parseCSVSet(os.Getenv("ALLOWED_CLIENT_IDS"))
 	redirectURIs := parseCSVSet(os.Getenv("ALLOWED_REDIRECT_URIS"))
-	resources := parseCSVSet(os.Getenv("ALLOWED_RESOURCES"))
 
+	routes, err := loadPilotRoutes(os.Getenv("PILOT_ROUTES_FILE"))
+	if err != nil {
+		return nil, err
+	}
+
+	resources := make(map[string]bool, len(routes))
+	routesByPath := make(map[string]PilotRoute, len(routes))
 	primaryResource := ""
-	if baseURL != "" && len(resources) == 0 {
-		primaryResource = baseURL + "/mcp"
-		resources[primaryResource] = true
-	} else if len(resources) > 0 {
-		if baseURL != "" && resources[baseURL+"/mcp"] {
-			primaryResource = baseURL + "/mcp"
-		} else {
-			for r := range resources {
-				if primaryResource == "" || r < primaryResource {
-					primaryResource = r
-				}
-			}
+	for i := range routes {
+		fullURL := baseURL + routes[i].Route
+		routes[i].FullRouteID = fullURL
+		resources[fullURL] = true
+		routesByPath[routes[i].Route] = routes[i]
+		if primaryResource == "" {
+			primaryResource = fullURL
 		}
 	}
 
@@ -102,6 +108,11 @@ func loadConfigFromEnv() (*Config, error) {
 		entraScope = "openid"
 	}
 
+	strategy := strings.ToLower(strings.TrimSpace(os.Getenv("TEAM_TOKEN_STRATEGY")))
+	if strategy == "" {
+		strategy = strategyOBO
+	}
+
 	cfg := &Config{
 		Port:                   getEnv("PORT", defaultPort),
 		LogLevel:               parseLogLevel(getEnv("LOG_LEVEL", "INFO")),
@@ -110,6 +121,10 @@ func loadConfigFromEnv() (*Config, error) {
 		AllowedRedirectURIs:    redirectURIs,
 		AllowedResources:       resources,
 		PrimaryResource:        primaryResource,
+		Routes:                 routes,
+		RoutesByPath:           routesByPath,
+		TeamTokenStrategy:      strategy,
+		TexasExchangeEndpoint:  strings.TrimSpace(os.Getenv("NAIS_TOKEN_EXCHANGE_ENDPOINT")),
 		EntraScope:             entraScope,
 		AzureClientID:          strings.TrimSpace(os.Getenv("AZURE_APP_CLIENT_ID")),
 		AzureClientSecret:      strings.TrimSpace(os.Getenv("AZURE_APP_CLIENT_SECRET")),
@@ -118,6 +133,7 @@ func loadConfigFromEnv() (*Config, error) {
 		AzureAuthorizeEndpoint: strings.TrimSpace(os.Getenv("AZURE_OPENID_CONFIG_AUTHORIZATION_ENDPOINT")),
 		CookieSecret:           cookieSecret,
 		HTTPClient:             newHardenedHTTPClient(defaultOutboundTimeout),
+		ProxyHeaderTimeout:     defaultOutboundTimeout,
 		PendingCap:             getEnvInt("PENDING_MAP_CAP", defaultPendingCap),
 		CodeCap:                getEnvInt("CODE_MAP_CAP", defaultCodeCap),
 		SessionCap:             getEnvInt("SESSION_MAP_CAP", defaultSessionCap),
@@ -156,14 +172,40 @@ func validateConfig(cfg *Config) error {
 			return fmt.Errorf("invalid ALLOWED_REDIRECT_URIS entry %q: %w", redirectURI, err)
 		}
 	}
-	if len(cfg.AllowedResources) == 0 {
-		return errors.New("ALLOWED_RESOURCES must not be empty")
+	validatedRoutes, err := validatePilotRoutes(cfg.Routes)
+	if err != nil {
+		return err
 	}
-	for res := range cfg.AllowedResources {
-		if err := validateHTTPURL(res, false); err != nil {
-			return fmt.Errorf("invalid ALLOWED_RESOURCES entry %q: %w", res, err)
+	cfg.Routes = validatedRoutes
+	cfg.RoutesByPath = make(map[string]PilotRoute, len(validatedRoutes))
+	cfg.AllowedResources = make(map[string]bool, len(validatedRoutes))
+	for i := range cfg.Routes {
+		fullURL := cfg.BaseURL + cfg.Routes[i].Route
+		cfg.Routes[i].FullRouteID = fullURL
+		cfg.RoutesByPath[cfg.Routes[i].Route] = cfg.Routes[i]
+		cfg.AllowedResources[fullURL] = true
+	}
+	if cfg.PrimaryResource == "" || !cfg.AllowedResources[cfg.PrimaryResource] {
+		cfg.PrimaryResource = cfg.Routes[0].FullRouteID
+	}
+
+	switch strings.ToLower(strings.TrimSpace(cfg.TeamTokenStrategy)) {
+	case "", strategyOBO:
+		cfg.TeamTokenStrategy = strategyOBO
+		if err := validateHTTPURL(cfg.TexasExchangeEndpoint, false); err != nil {
+			return fmt.Errorf("invalid NAIS_TOKEN_EXCHANGE_ENDPOINT: %w", err)
 		}
+	case strategyRefresh:
+		cfg.TeamTokenStrategy = strategyRefresh
+		if cfg.TexasExchangeEndpoint != "" {
+			if err := validateHTTPURL(cfg.TexasExchangeEndpoint, false); err != nil {
+				return fmt.Errorf("invalid NAIS_TOKEN_EXCHANGE_ENDPOINT: %w", err)
+			}
+		}
+	default:
+		return fmt.Errorf("invalid TEAM_TOKEN_STRATEGY %q: expected obo or refresh", cfg.TeamTokenStrategy)
 	}
+
 	if cfg.AzureClientID == "" {
 		return errors.New("AZURE_APP_CLIENT_ID is required")
 	}
@@ -191,6 +233,9 @@ func validateConfig(cfg *Config) error {
 	}
 	if cfg.HTTPClient == nil {
 		cfg.HTTPClient = newHardenedHTTPClient(defaultOutboundTimeout)
+	}
+	if cfg.ProxyHeaderTimeout <= 0 {
+		cfg.ProxyHeaderTimeout = defaultOutboundTimeout
 	}
 	return nil
 }

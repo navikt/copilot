@@ -18,18 +18,31 @@ import (
 )
 
 type testEnv struct {
-	t           *testing.T
-	gw          *Gateway
-	handler     http.Handler
-	clientID    string
-	redirectURI string
-	resource    string
-	now         time.Time
-	mu          sync.Mutex
-	entraToken  string
-	entraStatus int
-	cimdServer  *httptest.Server
-	entraServer *httptest.Server
+	t                  *testing.T
+	gw                 *Gateway
+	handler            http.Handler
+	clientID           string
+	redirectURI        string
+	resource           string
+	now                time.Time
+	mu                 sync.Mutex
+	entraToken         string
+	entraStatus        int
+	lastEntraNonce     string
+	lastEntraChallenge string
+	navIdent           string
+	groups             []string
+	cimdServer         *httptest.Server
+	entraServer        *httptest.Server
+	texasServer        *httptest.Server
+	upstreamServer     *httptest.Server
+}
+
+func makeTestJWT(claims map[string]any) string {
+	header := base64.RawURLEncoding.EncodeToString([]byte(`{"alg":"none","typ":"JWT"}`))
+	payloadBytes, _ := json.Marshal(claims)
+	payload := base64.RawURLEncoding.EncodeToString(payloadBytes)
+	return header + "." + payload + ".sig"
 }
 
 func newTestEnv(t *testing.T) *testEnv {
@@ -40,6 +53,8 @@ func newTestEnv(t *testing.T) *testEnv {
 		now:         time.Date(2026, 11, 16, 12, 0, 0, 0, time.UTC),
 		entraToken:  strings.Join([]string{"entra", "test", "access"}, "-"),
 		entraStatus: http.StatusOK,
+		navIdent:    "Z123456",
+		groups:      []string{"group-allowed"},
 	}
 
 	te.cimdServer = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -81,9 +96,35 @@ func newTestEnv(t *testing.T) *testEnv {
 				})
 				return
 			}
+			_ = r.ParseForm()
+			te.mu.Lock()
+			expectedChallenge := te.lastEntraChallenge
+			nonce := te.lastEntraNonce
+			navIdent := te.navIdent
+			groups := te.groups
+			te.mu.Unlock()
+			if expectedChallenge != "" {
+				verifier := r.FormValue("code_verifier")
+				if verifier == "" || pkceS256(verifier) != expectedChallenge {
+					writeJSON(w, http.StatusBadRequest, map[string]any{
+						"error":             "invalid_grant",
+						"error_description": "PKCE code_verifier mismatch",
+					})
+					return
+				}
+			}
+			claims := map[string]any{
+				"sub":      "user-123",
+				"NAVident": navIdent,
+				"groups":   groups,
+			}
+			if nonce != "" {
+				claims["nonce"] = nonce
+			}
 			writeJSON(w, http.StatusOK, map[string]any{
 				"access_token":  te.entraToken,
 				"refresh_token": strings.Join([]string{"entra", "test", "refresh"}, "-"),
+				"id_token":      makeTestJWT(claims),
 				"token_type":    "Bearer",
 				"expires_in":    3600,
 			})
@@ -93,9 +134,23 @@ func newTestEnv(t *testing.T) *testEnv {
 	}))
 	t.Cleanup(te.entraServer.Close)
 
+	te.texasServer = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(w, http.StatusOK, map[string]any{
+			"access_token": strings.Join([]string{"team", "obo", "token"}, "-"),
+			"token_type":   "Bearer",
+			"expires_in":   300,
+		})
+	}))
+	t.Cleanup(te.texasServer.Close)
+
+	te.upstreamServer = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(w, http.StatusOK, map[string]any{"jsonrpc": "2.0", "id": 1, "result": map[string]any{}})
+	}))
+	t.Cleanup(te.upstreamServer.Close)
+
 	te.clientID = te.cimdServer.URL + "/oauth-client.json"
 	baseURL := "https://fleet-gateway.intern.dev.nav.no"
-	te.resource = baseURL + "/mcp"
+	te.resource = baseURL + "/mcp/etterlevelse"
 
 	cfg := &Config{
 		Port:                "8080",
@@ -103,22 +158,31 @@ func newTestEnv(t *testing.T) *testEnv {
 		BaseURL:             baseURL,
 		AllowedClientIDs:    map[string]bool{te.clientID: true},
 		AllowedRedirectURIs: map[string]bool{te.redirectURI: true},
-		AllowedResources:    map[string]bool{te.resource: true},
-		PrimaryResource:     te.resource,
-		EntraScope:          "openid",
-		AzureClientID:       "azure-client-id",
-		AzureClientSecret:   "azure-client-secret",
-		AzureWellKnownURL:   te.entraServer.URL + "/.well-known/openid-configuration",
-		AzureTokenEndpoint:  te.entraServer.URL + "/token",
-		CookieSecret:        []byte("0123456789abcdef0123456789abcdef"),
-		HTTPClient:          newHardenedHTTPClient(5 * time.Second),
-		PendingCap:          1024,
-		CodeCap:             1024,
-		SessionCap:          4096,
-		CIMDCap:             64,
-		RateLimitCap:        4096,
-		RateLimitRequests:   100,
-		RateLimitWindow:     time.Minute,
+		Routes: []PilotRoute{
+			{
+				Route:       "/mcp/etterlevelse",
+				Team:        "team-etterlevelse",
+				Target:      "dev-gcp:team-etterlevelse:nav-etterlevelse-mcp",
+				UpstreamURL: te.upstreamServer.URL,
+			},
+		},
+		TeamTokenStrategy:     strategyOBO,
+		TexasExchangeEndpoint: te.texasServer.URL,
+		EntraScope:            "openid",
+		AzureClientID:         "azure-client-id",
+		AzureClientSecret:     "azure-client-secret",
+		AzureWellKnownURL:     te.entraServer.URL + "/.well-known/openid-configuration",
+		AzureTokenEndpoint:    te.entraServer.URL + "/token",
+		CookieSecret:          []byte("0123456789abcdef0123456789abcdef"),
+		HTTPClient:            newHardenedHTTPClient(5 * time.Second),
+		ProxyHeaderTimeout:    5 * time.Second,
+		PendingCap:            1024,
+		CodeCap:               1024,
+		SessionCap:            4096,
+		CIMDCap:               64,
+		RateLimitCap:          4096,
+		RateLimitRequests:     100,
+		RateLimitWindow:       time.Minute,
 	}
 	if err := validateConfig(cfg); err != nil {
 		t.Fatalf("validateConfig failed: %v", err)
@@ -222,6 +286,10 @@ func (te *testEnv) approveConsent(consentID, csrf string, csrfCookie *http.Cooki
 	if stateCookie == nil {
 		te.t.Fatal("expected fleet_entra_state cookie")
 	}
+	te.mu.Lock()
+	te.lastEntraNonce = loc.Query().Get("nonce")
+	te.lastEntraChallenge = loc.Query().Get("code_challenge")
+	te.mu.Unlock()
 	return loc.Query().Get("state"), stateCookie
 }
 
@@ -291,11 +359,16 @@ func TestMetadataEndpoints(t *testing.T) {
 			wantValue:  te.resource,
 		},
 		{
-			name:       "protected resource metadata mcp path",
-			path:       "/.well-known/oauth-protected-resource/mcp",
+			name:       "protected resource metadata pilot route path",
+			path:       "/.well-known/oauth-protected-resource/mcp/etterlevelse",
 			wantStatus: http.StatusOK,
 			wantField:  "resource",
 			wantValue:  te.resource,
+		},
+		{
+			name:       "protected resource metadata unlisted mcp root returns 404",
+			path:       "/.well-known/oauth-protected-resource/mcp",
+			wantStatus: http.StatusNotFound,
 		},
 		{
 			name:       "protected resource metadata unknown path",

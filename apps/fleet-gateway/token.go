@@ -4,7 +4,9 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/base64"
+	"encoding/hex"
 	"net/http"
+	"sync"
 	"time"
 )
 
@@ -12,8 +14,18 @@ type gatewaySession struct {
 	clientID     string
 	resource     string
 	entraToken   string
+	refreshMu    sync.Mutex
 	refreshToken string
+	navIdent     string
+	groups       map[string]bool
 	expiry       time.Time
+}
+
+func (s *gatewaySession) hasGroup(group string) bool {
+	if s == nil || len(s.groups) == 0 {
+		return false
+	}
+	return s.groups[group]
 }
 
 type issuedCode struct {
@@ -88,7 +100,7 @@ func (g *Gateway) tokenHandler(w http.ResponseWriter, r *http.Request) {
 		bad(http.StatusInternalServerError, "server_error", "failed to issue token")
 		return
 	}
-	if !g.sessions.Set(accessToken, issued.Session, ttl) {
+	if !g.sessions.Set(hashToken(accessToken), issued.Session, ttl) {
 		bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store capacity reached")
 		return
 	}
@@ -98,6 +110,11 @@ func (g *Gateway) tokenHandler(w http.ResponseWriter, r *http.Request) {
 		"token_type":   "Bearer",
 		"expires_in":   int(ttl.Seconds()),
 	})
+}
+
+func hashToken(token string) string {
+	sum := sha256.Sum256([]byte(token))
+	return hex.EncodeToString(sum[:])
 }
 
 func pkceS256(verifier string) string {

@@ -21,16 +21,18 @@ import (
 const entraStateCookieName = "fleet_entra_state"
 
 type pendingAuth struct {
-	ClientID    string
-	ClientName  string
-	RedirectURI string
-	State       string
-	Challenge   string
-	Resource    string
-	Prompt      string
-	Claims      string
-	CSRF        string
-	Created     time.Time
+	ClientID      string
+	ClientName    string
+	RedirectURI   string
+	State         string
+	Challenge     string
+	Resource      string
+	Prompt        string
+	Claims        string
+	EntraVerifier string
+	EntraNonce    string
+	CSRF          string
+	Created       time.Time
 }
 
 type clientMetadata struct {
@@ -85,6 +87,8 @@ func (g *Gateway) authorizeHandler(w http.ResponseWriter, r *http.Request) {
 
 	challenge := q.Get("code_challenge")
 	resource := q.Get("resource")
+	prompt := q.Get("prompt")
+	claims := q.Get("claims")
 
 	switch {
 	case q.Get("response_type") != "code":
@@ -95,6 +99,10 @@ func (g *Gateway) authorizeHandler(w http.ResponseWriter, r *http.Request) {
 		failRedirect("invalid_request", "state is required")
 	case resource == "" || !g.cfg.AllowedResources[resource]:
 		failRedirect("invalid_target", "missing or unsupported resource")
+	case !isValidPrompt(prompt):
+		failRedirect("invalid_request", "unsupported prompt value")
+	case validateClaimsParam(claims) != nil:
+		failRedirect("invalid_request", "claims must be a valid JSON object within size limit")
 	default:
 		consentID, err := randomToken()
 		if err != nil {
@@ -114,8 +122,8 @@ func (g *Gateway) authorizeHandler(w http.ResponseWriter, r *http.Request) {
 			State:       state,
 			Challenge:   challenge,
 			Resource:    resource,
-			Prompt:      q.Get("prompt"),
-			Claims:      q.Get("claims"),
+			Prompt:      prompt,
+			Claims:      claims,
 			CSRF:        csrf,
 			Created:     g.now(),
 		}
@@ -190,7 +198,22 @@ func (g *Gateway) redirectToEntra(w http.ResponseWriter, r *http.Request, p *pen
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
+	entraVerifier, err := randomToken()
+	if err != nil {
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+	entraNonce := ""
+	if hasScope(g.cfg.EntraScope, "openid") {
+		entraNonce, err = randomToken()
+		if err != nil {
+			http.Error(w, "internal server error", http.StatusInternalServerError)
+			return
+		}
+	}
 
+	p.EntraVerifier = entraVerifier
+	p.EntraNonce = entraNonce
 	p.Created = g.now()
 	if !g.pendingEntra.Set(entraState, p, defaultPendingTTL) {
 		http.Error(w, "too many pending authorizations", http.StatusServiceUnavailable)
@@ -208,12 +231,17 @@ func (g *Gateway) redirectToEntra(w http.ResponseWriter, r *http.Request, p *pen
 	})
 
 	v := url.Values{
-		"client_id":     {g.cfg.AzureClientID},
-		"response_type": {"code"},
-		"redirect_uri":  {g.cfg.BaseURL + "/oauth2/callback"},
-		"response_mode": {"query"},
-		"state":         {entraState},
-		"scope":         {g.cfg.EntraScope},
+		"client_id":             {g.cfg.AzureClientID},
+		"response_type":         {"code"},
+		"redirect_uri":          {g.cfg.BaseURL + "/oauth2/callback"},
+		"response_mode":         {"query"},
+		"state":                 {entraState},
+		"scope":                 {g.cfg.EntraScope},
+		"code_challenge":        {pkceS256(entraVerifier)},
+		"code_challenge_method": {"S256"},
+	}
+	if entraNonce != "" {
+		v.Set("nonce", entraNonce)
 	}
 	if p.Prompt != "" {
 		v.Set("prompt", p.Prompt)
@@ -230,44 +258,68 @@ func (g *Gateway) entraAuthorizeEndpoint(ctx context.Context) (string, error) {
 		return g.cfg.AzureAuthorizeEndpoint, nil
 	}
 
-	g.wellKnownMu.Lock()
+	g.wellKnownMu.RLock()
 	cached := g.cachedAuthzEndpoint
-	g.wellKnownMu.Unlock()
+	g.wellKnownMu.RUnlock()
 	if cached != "" {
 		return cached, nil
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, g.cfg.AzureWellKnownURL, nil)
-	if err != nil {
-		return "", err
-	}
-	req.Header.Set("Accept", "application/json")
-	req.Header.Set("User-Agent", "fleet-gateway/1.0")
+	ch := g.wellKnownGroup.DoChan("authz", func() (any, error) {
+		g.wellKnownMu.RLock()
+		if g.cachedAuthzEndpoint != "" {
+			ep := g.cachedAuthzEndpoint
+			g.wellKnownMu.RUnlock()
+			return ep, nil
+		}
+		g.wellKnownMu.RUnlock()
 
-	resp, err := g.cfg.HTTPClient.Do(req) //nolint:gosec // URL validated at startup
-	if err != nil {
-		return "", err
-	}
-	defer func() { _ = resp.Body.Close() }()
+		fetchCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), defaultOutboundTimeout)
+		defer cancel()
 
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("well-known returned status %d", resp.StatusCode)
-	}
+		req, err := http.NewRequestWithContext(fetchCtx, http.MethodGet, g.cfg.AzureWellKnownURL, nil)
+		if err != nil {
+			return "", err
+		}
+		req.Header.Set("Accept", "application/json")
+		req.Header.Set("User-Agent", "fleet-gateway/1.0")
 
-	var metadata struct {
-		AuthorizationEndpoint string `json:"authorization_endpoint"`
-	}
-	if err := json.NewDecoder(io.LimitReader(resp.Body, maxCIMDBodyBytes)).Decode(&metadata); err != nil {
-		return "", fmt.Errorf("decode well-known: %w", err)
-	}
-	if err := validateHTTPURL(metadata.AuthorizationEndpoint, false); err != nil {
-		return "", fmt.Errorf("invalid authorization_endpoint in well-known: %w", err)
-	}
+		resp, err := g.cfg.HTTPClient.Do(req) //nolint:gosec // URL validated at startup
+		if err != nil {
+			return "", err
+		}
+		defer func() { _ = resp.Body.Close() }()
 
-	g.wellKnownMu.Lock()
-	g.cachedAuthzEndpoint = metadata.AuthorizationEndpoint
-	g.wellKnownMu.Unlock()
-	return metadata.AuthorizationEndpoint, nil
+		if resp.StatusCode != http.StatusOK {
+			return "", fmt.Errorf("well-known returned status %d", resp.StatusCode)
+		}
+
+		var metadata struct {
+			AuthorizationEndpoint string `json:"authorization_endpoint"`
+		}
+		if err := json.NewDecoder(io.LimitReader(resp.Body, maxCIMDBodyBytes)).Decode(&metadata); err != nil {
+			return "", fmt.Errorf("decode well-known: %w", err)
+		}
+		if err := validateHTTPURL(metadata.AuthorizationEndpoint, false); err != nil {
+			return "", fmt.Errorf("invalid authorization_endpoint in well-known: %w", err)
+		}
+
+		g.wellKnownMu.Lock()
+		g.cachedAuthzEndpoint = metadata.AuthorizationEndpoint
+		g.wellKnownMu.Unlock()
+		return metadata.AuthorizationEndpoint, nil
+	})
+
+	select {
+	case <-ctx.Done():
+		return "", ctx.Err()
+	case res := <-ch:
+		if res.Err != nil {
+			return "", res.Err
+		}
+		ep, _ := res.Val.(string)
+		return ep, nil
+	}
 }
 
 func (g *Gateway) callbackHandler(w http.ResponseWriter, r *http.Request) {
@@ -319,7 +371,7 @@ func (g *Gateway) callbackHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	out, status, err := g.redeemEntraCode(r.Context(), entraCode)
+	out, status, err := g.redeemEntraCode(r.Context(), entraCode, p.EntraVerifier)
 	at, _ := out["access_token"].(string)
 	idt, _ := out["id_token"].(string)
 	if err != nil || status != http.StatusOK || (at == "" && idt == "") {
@@ -332,6 +384,49 @@ func (g *Gateway) callbackHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var idClaims map[string]any
+	if idt != "" {
+		var parseErr error
+		idClaims, parseErr = parseJWTClaims(idt)
+		if parseErr != nil {
+			slog.Warn("audit login", "outcome", "invalid_id_token", "client_id", p.ClientID, "resource", p.Resource)
+			back(url.Values{
+				"error":             {"server_error"},
+				"error_description": {"upstream identity token validation failed"},
+			})
+			return
+		}
+	}
+
+	if p.EntraNonce != "" {
+		if idClaims == nil {
+			slog.Warn("audit login", "outcome", "missing_id_token", "client_id", p.ClientID, "resource", p.Resource)
+			back(url.Values{
+				"error":             {"server_error"},
+				"error_description": {"upstream identity token missing"},
+			})
+			return
+		}
+		nonceClaim, _ := idClaims["nonce"].(string)
+		if nonceClaim == "" || subtle.ConstantTimeCompare([]byte(nonceClaim), []byte(p.EntraNonce)) != 1 {
+			slog.Warn("audit login", "outcome", "nonce_mismatch", "client_id", p.ClientID, "resource", p.Resource)
+			back(url.Values{
+				"error":             {"server_error"},
+				"error_description": {"upstream identity token nonce validation failed"},
+			})
+			return
+		}
+	}
+
+	navIdent := ""
+	groups := make(map[string]bool)
+	extractIdentityFromClaims(idClaims, &navIdent, groups)
+	if at != "" {
+		if atClaims, parseErr := parseJWTClaims(at); parseErr == nil {
+			extractIdentityFromClaims(atClaims, &navIdent, groups)
+		}
+	}
+
 	sessionTTL := computeSessionTTL(out["expires_in"])
 	rt, _ := out["refresh_token"].(string)
 	sess := &gatewaySession{
@@ -339,6 +434,8 @@ func (g *Gateway) callbackHandler(w http.ResponseWriter, r *http.Request) {
 		resource:     p.Resource,
 		entraToken:   at,
 		refreshToken: rt,
+		navIdent:     navIdent,
+		groups:       groups,
 		expiry:       g.now().Add(sessionTTL),
 	}
 
@@ -361,11 +458,11 @@ func (g *Gateway) callbackHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	slog.Info("audit login", "outcome", "ok", "client_id", p.ClientID, "resource", p.Resource, "refresh_token_received", rt != "")
+	slog.Info("audit login", "outcome", "ok", "navident", navIdent, "client_id", p.ClientID, "resource", p.Resource, "refresh_token_received", rt != "")
 	back(url.Values{"code": {gwCode}})
 }
 
-func (g *Gateway) redeemEntraCode(ctx context.Context, code string) (map[string]any, int, error) {
+func (g *Gateway) redeemEntraCode(ctx context.Context, code, codeVerifier string) (map[string]any, int, error) {
 	form := url.Values{
 		"client_id":     {g.cfg.AzureClientID},
 		"client_secret": {g.cfg.AzureClientSecret},
@@ -373,6 +470,9 @@ func (g *Gateway) redeemEntraCode(ctx context.Context, code string) (map[string]
 		"code":          {code},
 		"redirect_uri":  {g.cfg.BaseURL + "/oauth2/callback"},
 		"scope":         {g.cfg.EntraScope},
+	}
+	if codeVerifier != "" {
+		form.Set("code_verifier", codeVerifier)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, g.cfg.AzureTokenEndpoint, strings.NewReader(form.Encode()))
@@ -498,4 +598,70 @@ func safeEntraFailureMessage(out map[string]any, status int) string {
 		return fmt.Sprintf("upstream token exchange failed (%s, status %d)", errCode, status)
 	}
 	return fmt.Sprintf("upstream token exchange failed (status %d)", status)
+}
+
+func isValidPrompt(prompt string) bool {
+	switch prompt {
+	case "", "none", "login", "consent", "select_account":
+		return true
+	default:
+		return false
+	}
+}
+
+func validateClaimsParam(claims string) error {
+	if claims == "" {
+		return nil
+	}
+	if len(claims) > maxClaimsBytes {
+		return errors.New("claims parameter exceeds maximum size")
+	}
+	var obj map[string]any
+	if err := json.Unmarshal([]byte(claims), &obj); err != nil || obj == nil {
+		return errors.New("claims must be a valid JSON object")
+	}
+	return nil
+}
+
+func hasScope(scopes, target string) bool {
+	for _, s := range strings.Fields(scopes) {
+		if s == target {
+			return true
+		}
+	}
+	return false
+}
+
+func parseJWTClaims(rawJWT string) (map[string]any, error) {
+	parts := strings.Split(rawJWT, ".")
+	if len(parts) != 3 || parts[1] == "" {
+		return nil, errors.New("malformed JWT")
+	}
+	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return nil, fmt.Errorf("decode JWT payload: %w", err)
+	}
+	var claims map[string]any
+	if err := json.Unmarshal(payload, &claims); err != nil || claims == nil {
+		return nil, errors.New("invalid JWT claims JSON")
+	}
+	return claims, nil
+}
+
+func extractIdentityFromClaims(claims map[string]any, navIdent *string, groups map[string]bool) {
+	if claims == nil {
+		return
+	}
+	if *navIdent == "" {
+		if v, ok := claims["NAVident"].(string); ok {
+			*navIdent = strings.TrimSpace(v)
+		}
+	}
+	if rawGroups, ok := claims["groups"].([]any); ok {
+		for _, g := range rawGroups {
+			if gs, ok := g.(string); ok && gs != "" {
+				groups[gs] = true
+			}
+		}
+	}
 }

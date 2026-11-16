@@ -11,9 +11,11 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"golang.org/x/sync/singleflight"
 )
 
-// Gateway implements the fleet-gateway OAuth 2.1 authorization server.
+// Gateway implements the fleet-gateway OAuth 2.1 authorization server and MCP proxy.
 type Gateway struct {
 	cfg            *Config
 	now            func() time.Time
@@ -23,11 +25,12 @@ type Gateway struct {
 	sessions       *ttlMap[*gatewaySession]
 	cimdCache      *ttlMap[*clientMetadata]
 	limiter        *ipRateLimiter
+	proxyClient    *http.Client
 
-	wellKnownMu         sync.Mutex
+	wellKnownMu         sync.RWMutex
+	wellKnownGroup      singleflight.Group
 	cachedAuthzEndpoint string
 
-	// TeamTokens is reserved for step 2 downstream team MCP token issuance.
 	TeamTokens TeamTokenSource
 }
 
@@ -35,15 +38,22 @@ func newGateway(cfg *Config, now func() time.Time) *Gateway {
 	if now == nil {
 		now = time.Now
 	}
+	sessions := newTTLMap[*gatewaySession](cfg.SessionCap, now)
+	teamTokens, err := newTeamTokenSource(cfg, sessions, now)
+	if err != nil {
+		slog.Error("Failed to initialize team token source", "error", err)
+	}
 	return &Gateway{
 		cfg:            cfg,
 		now:            now,
 		pendingConsent: newTTLMap[*pendingAuth](cfg.PendingCap, now),
 		pendingEntra:   newTTLMap[*pendingAuth](cfg.PendingCap, now),
 		codes:          newTTLMap[*issuedCode](cfg.CodeCap, now),
-		sessions:       newTTLMap[*gatewaySession](cfg.SessionCap, now),
+		sessions:       sessions,
 		cimdCache:      newTTLMap[*clientMetadata](cfg.CIMDCap, now),
 		limiter:        newIPRateLimiter(cfg.RateLimitRequests, cfg.RateLimitWindow, cfg.RateLimitCap, now),
+		proxyClient:    newHardenedProxyClient(cfg.ProxyHeaderTimeout),
+		TeamTokens:     teamTokens,
 	}
 }
 
@@ -75,7 +85,7 @@ func (g *Gateway) routes() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", healthHandler)
 	mux.HandleFunc("GET /ready", readyHandler)
-	mux.HandleFunc("GET /", g.rootHandler)
+	mux.HandleFunc("GET /{$}", g.rootHandler)
 	mux.HandleFunc("GET /.well-known/oauth-protected-resource", g.prmHandler)
 	mux.HandleFunc("GET /.well-known/oauth-protected-resource/{rest...}", g.prmHandler)
 	mux.HandleFunc("GET /.well-known/oauth-authorization-server", g.asMetadataHandler)
@@ -83,6 +93,9 @@ func (g *Gateway) routes() http.Handler {
 	mux.HandleFunc("POST /consent", g.consentPostHandler)
 	mux.HandleFunc("GET /oauth2/callback", g.callbackHandler)
 	mux.HandleFunc("POST /token", g.rateLimitMiddleware(g.tokenHandler))
+	for _, route := range g.cfg.Routes {
+		mux.HandleFunc(route.Route, g.mcpHandler(route))
+	}
 	return g.loggingMiddleware(mux)
 }
 
@@ -140,6 +153,10 @@ type statusResponseWriter struct {
 func (w *statusResponseWriter) WriteHeader(code int) {
 	w.statusCode = code
 	w.ResponseWriter.WriteHeader(code)
+}
+
+func (w *statusResponseWriter) Unwrap() http.ResponseWriter {
+	return w.ResponseWriter
 }
 
 func (g *Gateway) rateLimitMiddleware(next http.HandlerFunc) http.HandlerFunc {
@@ -282,6 +299,8 @@ func main() {
 		"allowed_clients", len(cfg.AllowedClientIDs),
 		"allowed_redirects", len(cfg.AllowedRedirectURIs),
 		"allowed_resources", len(cfg.AllowedResources),
+		"pilot_routes", len(cfg.Routes),
+		"team_token_strategy", cfg.TeamTokenStrategy,
 	)
 
 	go func() {

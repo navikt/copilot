@@ -10,7 +10,7 @@ WORKDIR /app
 COPY go.mod go.sum* ./
 RUN go mod download
 
-COPY *.go ./
+COPY *.go pilot-routes.yaml ./
 
 RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -trimpath -ldflags="-s -w" -o main .
 

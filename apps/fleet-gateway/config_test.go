@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -14,13 +16,15 @@ func setBaseValidEnv(t *testing.T) {
 	t.Setenv("BASE_URL", "https://fleet-gateway.intern.dev.nav.no")
 	t.Setenv("ALLOWED_CLIENT_IDS", "https://my-copilot.ekstern.dev.nav.no/oauth-client.json")
 	t.Setenv("ALLOWED_REDIRECT_URIS", "http://127.0.0.1:38249/callback")
-	t.Setenv("ALLOWED_RESOURCES", "https://fleet-gateway.intern.dev.nav.no/mcp")
 	t.Setenv("AZURE_APP_CLIENT_ID", "entra-client-id")
 	t.Setenv("AZURE_APP_CLIENT_SECRET", "entra-client-secret")
 	t.Setenv("AZURE_OPENID_CONFIG_TOKEN_ENDPOINT", "https://login.microsoftonline.com/nav.no/oauth2/v2.0/token")
 	t.Setenv("AZURE_APP_WELL_KNOWN_URL", "https://login.microsoftonline.com/nav.no/v2.0/.well-known/openid-configuration")
 	t.Setenv("AZURE_OPENID_CONFIG_AUTHORIZATION_ENDPOINT", "")
 	t.Setenv("COOKIE_SIGNING_SECRET", "")
+	t.Setenv("NAIS_TOKEN_EXCHANGE_ENDPOINT", "http://127.0.0.1:3000/api/v1/token/exchange")
+	t.Setenv("TEAM_TOKEN_STRATEGY", "")
+	t.Setenv("PILOT_ROUTES_FILE", "")
 }
 
 func TestLoadConfig_FailClosed(t *testing.T) {
@@ -91,6 +95,24 @@ func TestLoadConfig_FailClosed(t *testing.T) {
 			name:      "short cookie secret fails closed",
 			override:  map[string]string{"COOKIE_SIGNING_SECRET": "too-short"},
 			wantError: "COOKIE_SIGNING_SECRET",
+		},
+		{
+			name:      "missing texas endpoint fails closed for default obo strategy",
+			override:  map[string]string{"NAIS_TOKEN_EXCHANGE_ENDPOINT": ""},
+			wantError: "invalid NAIS_TOKEN_EXCHANGE_ENDPOINT",
+		},
+		{
+			name:      "invalid team token strategy fails closed",
+			override:  map[string]string{"TEAM_TOKEN_STRATEGY": "magic"},
+			wantError: "invalid TEAM_TOKEN_STRATEGY",
+		},
+		{
+			name: "refresh strategy does not require texas endpoint",
+			override: map[string]string{
+				"TEAM_TOKEN_STRATEGY":          "refresh",
+				"NAIS_TOKEN_EXCHANGE_ENDPOINT": "",
+			},
+			wantError: "",
 		},
 	}
 
@@ -188,5 +210,124 @@ func TestTTLMap_CapExpiryAndSweep(t *testing.T) {
 	}
 	if m.Len() != 0 {
 		t.Fatalf("expected empty map after Sweep, got %d", m.Len())
+	}
+}
+
+func TestPilotRoutesValidation(t *testing.T) {
+	tests := []struct {
+		name      string
+		content   string
+		wantError string
+	}{
+		{
+			name: "valid YAML with internal http and https routes",
+			content: `version: 1
+routes:
+  - route: /mcp/etterlevelse
+    team: team-etterlevelse
+    target: dev-gcp:team-etterlevelse:nav-etterlevelse-mcp
+    upstream_url: http://nav-etterlevelse-mcp.team-etterlevelse
+  - route: /mcp/docs
+    team: copilot
+    target: dev-gcp:copilot:docs-mcp
+    upstream_url: https://docs-mcp.intern.dev.nav.no
+    required_group: 11111111-2222-3333-4444-555555555555
+`,
+		},
+		{
+			name:      "valid JSON format succeeds",
+			content:   `{"version":1,"routes":[{"route":"/mcp/json-app","team":"copilot","target":"dev-gcp:copilot:json-mcp","upstream_url":"http://json-mcp.copilot.svc.cluster.local"}]}`,
+			wantError: "",
+		},
+		{
+			name:      "empty routes fails closed",
+			content:   "version: 1\nroutes: []\n",
+			wantError: "must not be empty",
+		},
+		{
+			name:      "unsupported version fails closed",
+			content:   "version: 2\nroutes:\n  - route: /mcp/a\n    team: t\n    target: c:n:a\n    upstream_url: http://a.n\n",
+			wantError: "unsupported pilot routes version",
+		},
+		{
+			name: "duplicate routes fail closed",
+			content: `version: 1
+routes:
+  - route: /mcp/dup
+    team: t1
+    target: dev-gcp:ns1:app1
+    upstream_url: http://app1.ns1
+  - route: /mcp/dup
+    team: t2
+    target: dev-gcp:ns2:app2
+    upstream_url: http://app2.ns2
+`,
+			wantError: "duplicate route",
+		},
+		{
+			name:      "invalid route prefix fails closed",
+			content:   "version: 1\nroutes:\n  - route: /api/a\n    team: t\n    target: c:n:a\n    upstream_url: http://a.n\n",
+			wantError: "must start with /mcp/",
+		},
+		{
+			name:      "nested route path fails closed",
+			content:   "version: 1\nroutes:\n  - route: /mcp/a/b\n    team: t\n    target: c:n:a\n    upstream_url: http://a.n\n",
+			wantError: "single non-empty segment",
+		},
+		{
+			name:      "invalid target format fails closed",
+			content:   "version: 1\nroutes:\n  - route: /mcp/a\n    team: t\n    target: dev-gcp:only-two\n    upstream_url: http://a.only-two\n",
+			wantError: "expected cluster:namespace:app",
+		},
+		{
+			name:      "public domain upstream fails closed",
+			content:   "version: 1\nroutes:\n  - route: /mcp/a\n    team: t\n    target: dev-gcp:ns:app\n    upstream_url: https://example.com/mcp\n",
+			wantError: "public or not recognized as internal",
+		},
+		{
+			name:      "ekstern nav domain fails closed",
+			content:   "version: 1\nroutes:\n  - route: /mcp/a\n    team: t\n    target: dev-gcp:ns:app\n    upstream_url: https://app.ekstern.dev.nav.no\n",
+			wantError: "must not be public",
+		},
+		{
+			name:      "public IP upstream fails closed",
+			content:   "version: 1\nroutes:\n  - route: /mcp/a\n    team: t\n    target: dev-gcp:ns:app\n    upstream_url: https://8.8.8.8\n",
+			wantError: "must not be a public IP",
+		},
+		{
+			name:      "metadata IP upstream fails closed",
+			content:   "version: 1\nroutes:\n  - route: /mcp/a\n    team: t\n    target: dev-gcp:ns:app\n    upstream_url: http://169.254.169.254\n",
+			wantError: "disallowed IP address",
+		},
+		{
+			name:      "http intern nav host fails closed",
+			content:   "version: 1\nroutes:\n  - route: /mcp/a\n    team: t\n    target: dev-gcp:ns:app\n    upstream_url: http://app.intern.dev.nav.no\n",
+			wantError: "must use https",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "routes.yaml")
+			if err := os.WriteFile(path, []byte(tt.content), 0o600); err != nil {
+				t.Fatalf("write temp routes file: %v", err)
+			}
+			setBaseValidEnv(t)
+			t.Setenv("PILOT_ROUTES_FILE", path)
+
+			_, err := loadConfigFromEnv()
+			if tt.wantError == "" {
+				if err != nil {
+					t.Fatalf("expected no error, got %v", err)
+				}
+				return
+			}
+			if err == nil {
+				t.Fatalf("expected error containing %q, got nil", tt.wantError)
+			}
+			if !strings.Contains(err.Error(), tt.wantError) {
+				t.Fatalf("expected error containing %q, got %v", tt.wantError, err)
+			}
+		})
 	}
 }

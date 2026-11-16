@@ -1,0 +1,363 @@
+package main
+
+import (
+	"bytes"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"log/slog"
+	"mime"
+	"net"
+	"net/http"
+	"net/textproto"
+	"net/url"
+	"strings"
+	"time"
+	"unicode"
+)
+
+const (
+	maxMCPRequestBodyBytes  = 1 << 20  // 1 MiB
+	maxMCPResponseBodyBytes = 10 << 20 // 10 MiB for non-SSE responses
+	maxAuditMethodLen       = 64
+)
+
+var hopByHopHeaders = map[string]bool{
+	"Connection":          true,
+	"Proxy-Connection":    true,
+	"Keep-Alive":          true,
+	"Proxy-Authenticate":  true,
+	"Proxy-Authorization": true,
+	"Te":                  true,
+	"Trailer":             true,
+	"Transfer-Encoding":   true,
+	"Upgrade":             true,
+}
+
+func newHardenedProxyClient(headerTimeout time.Duration) *http.Client {
+	if headerTimeout <= 0 {
+		headerTimeout = defaultOutboundTimeout
+	}
+	return &http.Client{
+		Transport: &http.Transport{
+			DialContext: (&net.Dialer{
+				Timeout: 5 * time.Second,
+			}).DialContext,
+			TLSHandshakeTimeout:   5 * time.Second,
+			ResponseHeaderTimeout: headerTimeout,
+			IdleConnTimeout:       90 * time.Second,
+		},
+		CheckRedirect: func(*http.Request, []*http.Request) error {
+			return errors.New("redirects refused")
+		},
+	}
+}
+
+func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
+	fullRouteURL := g.cfg.BaseURL + route.Route
+	prmURL := g.cfg.BaseURL + "/.well-known/oauth-protected-resource" + route.Route
+
+	return func(w http.ResponseWriter, r *http.Request) {
+		start := g.now()
+		outcome := "ok"
+		navIdent := ""
+		clientID := ""
+		rpcMethod := ""
+
+		defer func() {
+			slog.Info("audit mcp",
+				"navident", navIdent,
+				"client_id", clientID,
+				"route", route.Route,
+				"http_method", r.Method,
+				"method", rpcMethod,
+				"outcome", outcome,
+				"duration_ms", g.now().Sub(start).Milliseconds(),
+			)
+		}()
+
+		switch r.Method {
+		case http.MethodPost, http.MethodGet, http.MethodDelete:
+		default:
+			outcome = "method_not_allowed"
+			w.Header().Set("Allow", "GET, POST, DELETE")
+			writeJSON(w, http.StatusMethodNotAllowed, map[string]string{
+				"error":   "method_not_allowed",
+				"message": "only GET, POST, and DELETE are supported",
+			})
+			return
+		}
+
+		token, ok := extractBearerToken(r.Header.Get("Authorization"))
+		if !ok {
+			outcome = "unauthorized"
+			writeUnauthorized(w, prmURL)
+			return
+		}
+
+		tokenHash := hashToken(token)
+		sess, ok := g.sessions.Get(tokenHash)
+		if !ok || !g.now().Before(sess.expiry) {
+			outcome = "unauthorized"
+			writeUnauthorized(w, prmURL)
+			return
+		}
+
+		navIdent = sess.navIdent
+		clientID = sess.clientID
+
+		if sess.resource != fullRouteURL {
+			outcome = "forbidden_resource"
+			writeJSON(w, http.StatusForbidden, map[string]string{
+				"error":   "invalid_target",
+				"message": "token is not bound to this route",
+			})
+			return
+		}
+
+		if route.RequiredGroup != "" && !sess.hasGroup(route.RequiredGroup) {
+			outcome = "forbidden_group"
+			writeJSON(w, http.StatusForbidden, map[string]string{
+				"error":   "insufficient_scope",
+				"message": "missing required group membership",
+			})
+			return
+		}
+
+		r.Body = http.MaxBytesReader(w, r.Body, maxMCPRequestBodyBytes)
+		reqBody, err := io.ReadAll(r.Body)
+		if err != nil {
+			var maxErr *http.MaxBytesError
+			if errors.As(err, &maxErr) {
+				outcome = "payload_too_large"
+				writeJSON(w, http.StatusRequestEntityTooLarge, map[string]string{
+					"error":   "payload_too_large",
+					"message": "request body exceeds maximum allowed size",
+				})
+				return
+			}
+			outcome = "bad_request"
+			writeJSON(w, http.StatusBadRequest, map[string]string{
+				"error":   "invalid_request",
+				"message": "failed to read request body",
+			})
+			return
+		}
+
+		if r.Method == http.MethodPost {
+			rpcMethod = extractJSONRPCMethod(reqBody)
+		}
+
+		if g.TeamTokens == nil {
+			outcome = "upstream_token_error"
+			writeJSON(w, http.StatusBadGateway, map[string]string{
+				"error":   "upstream_token_error",
+				"message": "team token source is not configured",
+			})
+			return
+		}
+
+		teamToken, err := g.TeamTokens.TeamToken(r.Context(), tokenHash, fullRouteURL)
+		if err != nil {
+			var missingAccess *upstreamAccessMissingError
+			if errors.As(err, &missingAccess) {
+				outcome = "upstream_access_missing"
+				writeJSON(w, http.StatusBadGateway, map[string]string{
+					"error":   "upstream_access_missing",
+					"message": missingAccess.Error(),
+				})
+				return
+			}
+			outcome = "upstream_token_error"
+			writeJSON(w, http.StatusBadGateway, map[string]string{
+				"error":   "upstream_token_error",
+				"message": "failed to acquire upstream team token",
+			})
+			return
+		}
+
+		targetURL := buildUpstreamURL(route.ParsedURL, r.URL.RawQuery)
+		var bodyReader io.Reader
+		if len(reqBody) > 0 {
+			bodyReader = bytes.NewReader(reqBody)
+		}
+		upReq, err := http.NewRequestWithContext(r.Context(), r.Method, targetURL, bodyReader)
+		if err != nil {
+			outcome = "upstream_error"
+			writeJSON(w, http.StatusBadGateway, map[string]string{
+				"error":   "upstream_error",
+				"message": "failed to build upstream request",
+			})
+			return
+		}
+
+		copyFilteredHeaders(upReq.Header, r.Header, true)
+		upReq.Header.Set("Authorization", "Bearer "+teamToken)
+
+		client := g.proxyClient
+		if client == nil {
+			client = g.cfg.HTTPClient
+		}
+		resp, err := client.Do(upReq) //nolint:gosec // upstream URL validated from versioned pilot-routes config
+		if err != nil {
+			outcome = "upstream_error"
+			writeJSON(w, http.StatusBadGateway, map[string]string{
+				"error":   "upstream_error",
+				"message": "upstream request failed",
+			})
+			return
+		}
+		defer func() { _ = resp.Body.Close() }()
+
+		copyFilteredHeaders(w.Header(), resp.Header, false)
+
+		if isEventStream(resp.Header.Get("Content-Type")) {
+			rc := http.NewResponseController(w)
+			_ = rc.SetWriteDeadline(time.Time{})
+			w.WriteHeader(resp.StatusCode)
+			_ = rc.Flush()
+			if err := streamSSE(w, rc, resp.Body); err != nil {
+				outcome = "stream_error"
+			} else if resp.StatusCode >= 400 {
+				outcome = fmt.Sprintf("upstream_%d", resp.StatusCode)
+			}
+			return
+		}
+
+		w.WriteHeader(resp.StatusCode)
+		if _, err := io.Copy(w, io.LimitReader(resp.Body, maxMCPResponseBodyBytes)); err != nil {
+			outcome = "stream_error"
+			return
+		}
+		if resp.StatusCode >= 400 {
+			outcome = fmt.Sprintf("upstream_%d", resp.StatusCode)
+		}
+	}
+}
+
+func streamSSE(w io.Writer, rc *http.ResponseController, body io.Reader) error {
+	buf := make([]byte, 32*1024)
+	for {
+		n, err := body.Read(buf)
+		if n > 0 {
+			if _, werr := w.Write(buf[:n]); werr != nil {
+				return werr
+			}
+			_ = rc.Flush()
+		}
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				return nil
+			}
+			return err
+		}
+	}
+}
+
+func writeUnauthorized(w http.ResponseWriter, prmURL string) {
+	w.Header().Set("WWW-Authenticate", fmt.Sprintf(`Bearer resource_metadata="%s"`, prmURL))
+	writeJSON(w, http.StatusUnauthorized, map[string]string{
+		"error":   "invalid_token",
+		"message": "missing, invalid, or expired bearer token",
+	})
+}
+
+func extractBearerToken(authHeader string) (string, bool) {
+	if len(authHeader) <= len("Bearer ") {
+		return "", false
+	}
+	if !strings.EqualFold(authHeader[:len("Bearer ")], "Bearer ") {
+		return "", false
+	}
+	tok := strings.TrimSpace(authHeader[len("Bearer "):])
+	if tok == "" || strings.ContainsAny(tok, " \t\r\n") {
+		return "", false
+	}
+	return tok, true
+}
+
+func buildUpstreamURL(base *url.URL, rawQuery string) string {
+	u := *base
+	if rawQuery != "" {
+		if u.RawQuery != "" {
+			u.RawQuery = u.RawQuery + "&" + rawQuery
+		} else {
+			u.RawQuery = rawQuery
+		}
+	}
+	return u.String()
+}
+
+func copyFilteredHeaders(dst, src http.Header, isRequest bool) {
+	connTokens := connectionHeaderTokens(src)
+	for k, vals := range src {
+		ck := textproto.CanonicalMIMEHeaderKey(k)
+		if hopByHopHeaders[ck] || connTokens[ck] {
+			continue
+		}
+		if isRequest && (ck == "Authorization" || ck == "Cookie" || ck == "Host") {
+			continue
+		}
+		if !isRequest && ck == "Set-Cookie" {
+			continue
+		}
+		for _, v := range vals {
+			dst.Add(ck, v)
+		}
+	}
+}
+
+func connectionHeaderTokens(h http.Header) map[string]bool {
+	tokens := make(map[string]bool)
+	for _, val := range h.Values("Connection") {
+		for _, part := range strings.Split(val, ",") {
+			name := textproto.CanonicalMIMEHeaderKey(strings.TrimSpace(part))
+			if name != "" {
+				tokens[name] = true
+			}
+		}
+	}
+	return tokens
+}
+
+func isEventStream(contentType string) bool {
+	if contentType == "" {
+		return false
+	}
+	mediaType, _, err := mime.ParseMediaType(contentType)
+	return err == nil && strings.EqualFold(mediaType, "text/event-stream")
+}
+
+func extractJSONRPCMethod(body []byte) string {
+	trimmed := bytes.TrimSpace(body)
+	if len(trimmed) == 0 || trimmed[0] != '{' {
+		return ""
+	}
+	var rpc struct {
+		Method string `json:"method"`
+	}
+	if err := json.Unmarshal(trimmed, &rpc); err != nil {
+		return ""
+	}
+	return sanitizeAuditMethod(rpc.Method)
+}
+
+func sanitizeAuditMethod(method string) string {
+	method = strings.TrimSpace(method)
+	if method == "" {
+		return ""
+	}
+	var b strings.Builder
+	b.Grow(min(len(method), maxAuditMethodLen))
+	for _, r := range method {
+		if b.Len() >= maxAuditMethodLen {
+			break
+		}
+		if unicode.IsControl(r) {
+			continue
+		}
+		b.WriteRune(r)
+	}
+	return b.String()
+}
