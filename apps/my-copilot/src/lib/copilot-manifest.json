@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-11-04T12:16:14.587Z",
+  "generatedAt": "2026-11-16T14:01:01.810Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -1977,6 +1977,60 @@
       "insidersInstallUrl": null,
       "tags": ["tokenx", "auth", "service-to-service", "nais"],
       "examples": ["Sett opp TokenX-utveksling mellom dp-soknad og dp-inntekt"]
+    },
+    {
+      "id": "vulnerability-triage",
+      "name": "vulnerability-triage",
+      "description": "Hent og forklar sårbarheter i Nais-apper og jobber. Bruk Nais MCP, finn eksisterende fikser og utfør avtalte oppdateringer.",
+      "type": "skill",
+      "domain": "platform",
+      "filePath": "skills/vulnerability-triage/SKILL.md",
+      "repoPath": "skills/vulnerability-triage/SKILL.md",
+      "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/vulnerability-triage/SKILL.md",
+      "contentHash": "262f8822330a1852c50447a7e504416478ac7fffa07e85b5e2d4315893521e18",
+      "installUrl": null,
+      "insidersInstallUrl": null,
+      "tags": ["security", "vulnerabilities", "cve", "nais", "dependencies", "sbom", "triage"],
+      "examples": [
+        {
+          "prompt": "Fiks sårbarhetene i jobben min.",
+          "scenario": "Hent funn med Nais MCP, sammenlign med kildekoden og gjør dokumenterte ordinære oppdateringer. Spør om uklare valg, ikke om lov til samme fiks på nytt"
+        },
+        {
+          "prompt": "Hvilke CVE-er har appen min? Forklar hva de betyr, med kilder fra Nais.",
+          "scenario": "Hent Nais-data, vis oppgitte fikser og spør uten GitHub-søk, advisory-oppslag eller kodeanalyse"
+        },
+        {
+          "prompt": "Finnes det en åpen PR som allerede fikser noen av Nais-funnene?",
+          "scenario": "Start det valgfrie GitHub-sporet, vis matchende PR-er med dokumentert dekning og spør før bruk av PR-en"
+        },
+        {
+          "prompt": "Sammenlign Nais-funnene med åpne Dependabot-varsler.",
+          "scenario": "Hent bare de valgte GitHub-varslene, sammenlign kildene og skill repo-funn fra funn i deployet image"
+        },
+        {
+          "prompt": "Fiks de valgte CVE-ene med de dokumenterte rettede versjonene.",
+          "scenario": "Gjør bare de valgte oppgraderingene og relevante sjekkene, uten automatisk commit, push, PR eller deploy"
+        },
+        {
+          "prompt": "Jeg har pushet fiksene. Sjekk om de er deployet og skannet.",
+          "scenario": "Bruk statusverktøyet med digest fra det nye bygget, ikke det gamle imaget. Kontroller funntall separat, uten å starte deploy"
+        },
+        {
+          "prompt": "Dette advisoryet ser ut til å være trukket tilbake. Kan du sjekke kilden?",
+          "scenario": "Sjekk det konkrete advisoryet og pakkescopet. Behold andre CVE-er og eventuelle kildekonflikter som uavklart"
+        }
+      ],
+      "references": [
+        {
+          "path": "references/nais-mcp.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/vulnerability-triage/references/nais-mcp.md"
+        },
+        {
+          "path": "references/dependabot.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/vulnerability-triage/references/dependabot.md"
+        }
+      ]
     },
     {
       "id": "web-design-reviewer",
