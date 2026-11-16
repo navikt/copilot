@@ -12,7 +12,7 @@ Teams ship MCP servers without building their own OAuth. One gateway on Nais han
 |---|---|---|
 | Ownership | We build, own and run the gateway for good | [#2088](https://github.com/navikt/copilot/issues/2088) |
 | Login | The gateway is its own OAuth 2.1 authorization server in front of Entra; Entra-direct revisited before phase 3 if Nais can support it | [#2089](https://github.com/navikt/copilot/issues/2089) |
-| Refresh tokens | Stored in the gateway, encrypted, at most 10 hours | [#2090](https://github.com/navikt/copilot/issues/2090) |
+| Refresh tokens | Stored in the gateway, encrypted, at most 10 hours; strategy revisited after phase 0b (decisions log 2026-11-16) | [#2090](https://github.com/navikt/copilot/issues/2090) |
 | Writes | Read-only at first; writes later as a consent-page scope | [#2091](https://github.com/navikt/copilot/issues/2091) |
 | Audit | One line per tool call, NAVident, 90 days | [#2092](https://github.com/navikt/copilot/issues/2092) |
 | Registry approval | Gateway team MCPs: admin queue on ki-utvikling. External servers: PR review | [#2093](https://github.com/navikt/copilot/issues/2093), [#2096](https://github.com/navikt/copilot/issues/2096) |
@@ -67,7 +67,7 @@ The `owner`, `gateway` and `toolHashes` fields are already in the registry respo
 
 | Dependency | Needed for | Status |
 |---|---|---|
-| Public ingress for the gateway (Nais) | Clients outside the internal network, phase 1 | Not requested yet |
+| Public ingress for the gateway (Nais) | Clients outside naisdevice, after the phase 2 pilot | Not requested yet |
 | `offline_access` on a Nais Entra app (Nais) | Refresh tokens, phase 0b | Unverified; tested in 0b |
 | `claims` in Texas error responses (Nais) | Conditional Access challenges without a re-login loop | Missing in Texas |
 | Privacy sign-off | Refresh tokens and audit with NAVident, before phase 2 | Document written in phase 1 |
@@ -77,13 +77,12 @@ The `owner`, `gateway` and `toolHashes` fields are already in the registry respo
 
 - Chained OBO is likely to work but unverified until the spike runs.
 - Entra may refuse `offline_access`; then the 10-hour session in #2090 does not hold.
-- Entra refresh tokens for non-SPA clients last 90 days, rotate without revoking the old one, and are not bound to a resource. "At most 10 hours" is only the gateway's delete discipline. A database backup plus the encryption key plus the client secret lets an attacker impersonate every logged-in user on every route.
-- Conditional Access `claims` cannot travel back from the downstream hop; accepted limit. The gateway can pass `claims` on its own `/authorize`.
+- Entra refresh tokens for non-SPA clients last 90 days, rotate without revoking the old one, and are not bound to a resource. "At most 10 hours" is only the gateway's delete discipline. A database backup plus the encryption key plus the client secret lets an attacker impersonate every logged-in user on every route, unless consent is per route.
+- Conditional Access `claims` cannot travel back from the downstream hop; accepted limit for the pilot; row 4 asks Nais to lift it. The gateway can pass `claims` on its own `/authorize`.
 - The dev tenant is not prod: a pass in dev-gcp does not prove prod-gcp.
 - The consent page must: ask for consent before the Entra redirect, store `state` only after approval, protect against CSRF, set `frame-ancestors`, match redirect URIs exactly, return `iss` in responses, and bind the token to the exact route resource.
 - cplt's port guard has a gap: the sandbox can bind the loopback OAuth port after another holder releases it ([navikt/cplt#1017](https://github.com/navikt/cplt/issues/1017)).
 - The writer has never been tested against real Texas introspection.
-- A stored refresh token lets the gateway reach any route unless consent is per route.
 - OpenCode under cplt waits for DCR, which is out of the pilot.
 
 ## Setup checklist
@@ -92,7 +91,7 @@ In order. "Owner" means a human with the access; "agent" means repo work an agen
 
 | # | What | Where | Who | Tracked in |
 |---|---|---|---|---|
-| 1 | Run the chained-OBO spike, record the result, then delete the stub apps | dev-gcp, `spikes/2084-obo/` in [#2094](https://github.com/navikt/copilot/pull/2094) | Owner saves a dev token and runs `gcloud auth login`; agent calls the chain, tests the missing inbound grant, deletes the apps, posts on #2084, closes #2094 | [#2084](https://github.com/navikt/copilot/issues/2084) |
+| 1 | Run the chained-OBO spike, record the result, then delete the stub apps | dev-gcp, `spikes/2084-obo/` in [#2094](https://github.com/navikt/copilot/pull/2094) | Owner saves a dev token and runs `gcloud auth login`; agent calls the chain, tests the missing inbound grant, passthrough, app-token and group-restricted cases, deletes the apps, posts on #2084, closes #2094 | [#2084](https://github.com/navikt/copilot/issues/2084) |
 | 2 | Phase 0b: test whether Entra issues a refresh token (`offline_access`) to the gateway's `azure.application` (unverified) | Gateway app, Entra | Agent builds the test; owner verifies | [#2084](https://github.com/navikt/copilot/issues/2084) |
 | 2b | Repeat phase 0b in prod-gcp with a stub that holds no data, before phase 1 | prod-gcp | Agent builds the stub; owner runs | [#2084](https://github.com/navikt/copilot/issues/2084) |
 | 3 | Public ingress (after the pilot, which runs on a naisdevice ingress): see External dependencies | Nais | Owner | [#2083](https://github.com/navikt/copilot/issues/2083) |
@@ -115,7 +114,7 @@ In order. "Owner" means a human with the access; "agent" means repo work an agen
 
 Owner decisions, recorded in [#2098 (comment)](https://github.com/navikt/copilot/issues/2098#issuecomment-6924375982) and implemented in [#2110](https://github.com/navikt/copilot/pull/2110):
 
-1. **Write access.** The registry write endpoints accept only tokens whose `azp` is my-copilot. `ALLOWED_WRITE_AZP` lists `cluster:namespace:app` names, resolved to client ids through Nais `AZURE_APP_PRE_AUTHORIZED_APPS`; the manifest sets `{{cluster}}:copilot:my-copilot`, and the Entra app uses `tenant: nav.no`. Any other `azp` gets 403, and the rejection reason is not logged. An empty allowlist closes writes entirely.
+1. **Write access.** The registry write endpoints accept only tokens whose `azp` is my-copilot, and an empty allowlist closes writes entirely. The free-text reason an admin gives when rejecting an entry is not logged. A 401 is logged without its cause; a 403 logs the rejected `azp`, or the NAVident of a non-admin. Mechanism (`ALLOWED_WRITE_AZP`, Nais pre-authorization): see the [mcp-registry README](../apps/mcp-registry/README.md).
 2. **Personal data.** Audit and version rows store the caller's NAVident, not the email address. Audit rows (`registry_audit`) are deleted after 90 days. Version rows (`registry_entry_versions`) are kept for version history, but `submitted_by` is cleared after 90 days. `registry_entries.owner_navident` is kept while the entry exists, a deliberate exception to the 90-day rule, because ownership decides who may update the entry. The privacy document ([#2092](https://github.com/navikt/copilot/issues/2092)) must cover this exception. Logs carry no email address.
 3. **Database outage.** Reads keep serving `allowlist.json`, writes answer 503, and the app retries connect and migrate in the background. The app does not exit fail-closed.
 4. **Spike gate stands.** [#2102](https://github.com/navikt/copilot/pull/2102) and [#2110](https://github.com/navikt/copilot/pull/2110) merge together after the chained-OBO spike ([#2084](https://github.com/navikt/copilot/issues/2084)) passes.
