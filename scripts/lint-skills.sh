@@ -237,12 +237,10 @@ for r in d.get('references', []):
 " "$metadata" 2>/dev/null || true)
   fi
 
-  # 2. Files actually on disk in references/
-  if [[ -d "$refs_dir" ]]; then
-    while IFS= read -r f; do
-      [[ -n "$f" ]] && fs_refs+=("references/$(basename "$f")")
-    done < <(find "$refs_dir" -maxdepth 1 -type f -name '*.md' | sort)
-  fi
+  # 2. Bundled files on disk: everything installers must ship (README.md is for humans only)
+  while IFS= read -r f; do
+    [[ -n "$f" ]] && fs_refs+=("${f#./}")
+  done < <(cd "$dir" && find . -type f ! -name SKILL.md ! -name metadata.json ! -name README.md ! -name .DS_Store | sort)
 
   # 3. Links in SKILL.md pointing to references/ (only markdown links, strip #fragments)
   while IFS= read -r link; do

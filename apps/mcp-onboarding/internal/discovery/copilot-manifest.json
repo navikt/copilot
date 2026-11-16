@@ -920,6 +920,10 @@
         {
           "path": "references/query-library.md",
           "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/observability-debugging/references/query-library.md"
+        },
+        {
+          "path": "obs-query.sh",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/observability-debugging/obs-query.sh"
         }
       ]
     },
@@ -1071,7 +1075,13 @@
       "filePath": "skills/security-owasp/SKILL.md",
       "contentHash": "d17dc35c154950d0ecc4384c0f3e85a9b9440396b707e532d373a15ddd117191",
       "installUrl": "",
-      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/security-owasp/SKILL.md"
+      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/security-owasp/SKILL.md",
+      "references": [
+        {
+          "path": "examples.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/security-owasp/examples.md"
+        }
+      ]
     },
     {
       "type": "skill",

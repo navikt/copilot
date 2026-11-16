@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-11-10T07:25:14.782Z",
+  "generatedAt": "2026-11-16T17:39:42.080Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -1582,6 +1582,10 @@
         {
           "path": "references/query-library.md",
           "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/observability-debugging/references/query-library.md"
+        },
+        {
+          "path": "obs-query.sh",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/observability-debugging/obs-query.sh"
         }
       ]
     },
@@ -1880,6 +1884,12 @@
         {
           "prompt": "Sjekk Next.js API-rutene mine for sikkerhetsproblemer",
           "scenario": "OWASP — Node.js/Next.js-mønstre"
+        }
+      ],
+      "references": [
+        {
+          "path": "examples.md",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/security-owasp/examples.md"
         }
       ]
     },
