@@ -170,13 +170,22 @@ func PiUnsupportedConfigWarnings(resolved domain.ResolvedConfig) []string {
 	return warnings
 }
 
+// refusePiLocalModel refuses a catalogued local model whether or not local
+// inference is enabled: pi cannot run one either way.
+func refusePiLocalModel(resolved domain.ResolvedConfig) error {
+	if m := cmp.Or(resolved.Model, pakkeDeclaredModel("pi")); local.IsLocal(m) || local.DisabledLocalModel(m) {
+		return fmt.Errorf("%s is a local model, and pi cannot run local models yet.\n  Run it with: %s", m, domain.Bold("nav-pilot --client opencode"))
+	}
+	return nil
+}
+
 // LaunchPi launches pi inside the cplt sandbox with the active agentpakke's
 // artifacts passed as flags.
 func LaunchPi(resolved domain.ResolvedConfig) error {
 	// pi gets no local provider, server or guard, so a local model would reach
 	// it as a provider it does not have.
-	if m := cmp.Or(resolved.Model, pakkeDeclaredModel("pi")); local.IsLocal(m) {
-		return fmt.Errorf("%s is a local model, and pi cannot run local models yet.\n  Run it with: %s", m, domain.Bold("nav-pilot --client opencode"))
+	if err := refusePiLocalModel(resolved); err != nil {
+		return err
 	}
 	if _, err := exec.LookPath("pi"); err != nil {
 		return fmt.Errorf("pi not found in PATH. Install it with: npm i -g @earendil-works/pi-coding-agent\n  Or pick another client with: nav-pilot config set client copilot")
@@ -195,6 +204,10 @@ func LaunchPi(resolved domain.ResolvedConfig) error {
 		}
 	}
 	resolved = beforeClientStart(resolved)
+	// The callback may pick another model, or clear it to the pakke default.
+	if err := refusePiLocalModel(resolved); err != nil {
+		return err
+	}
 
 	persona := resolved.Persona
 	if persona == "" {

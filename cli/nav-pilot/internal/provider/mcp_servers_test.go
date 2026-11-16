@@ -513,3 +513,20 @@ func TestMCPConfigOpenCodeNativeServers(t *testing.T) {
 		t.Errorf("config lost its other keys: %s", got)
 	}
 }
+
+// A flat server beside mcp.servers still runs (openCodeMCPServersIn loads
+// both), so disable must find it and remove it where it is.
+func TestMCPConfigOpenCodeFlatBesideNative(t *testing.T) {
+	home := mcpConfigEnv(t)
+	path := filepath.Join(home, ".config", "opencode", "opencode.json")
+	writeFile(t, path, `{"mcp": {"figma": {"type": "remote", "url": "https://mcp.figma.com/mcp"}, "servers": {"b": {"type": "remote", "url": "https://b"}}}}`)
+	if got := MCPConfigKeys(MCPClientOpenCode); strings.Join(got, ",") != "figma,b" {
+		t.Errorf("keys = %v, want figma,b", got)
+	}
+	if ch, err := RemoveMCPServer(MCPClientOpenCode, "figma", nil); err != nil || !ch.Changed {
+		t.Fatalf("RemoveMCPServer = %+v, %v", ch, err)
+	}
+	if got := MCPConfigKeys(MCPClientOpenCode); strings.Join(got, ",") != "b" {
+		t.Errorf("keys after remove = %v, want b", got)
+	}
+}

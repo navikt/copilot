@@ -296,7 +296,7 @@ type MCPConfigChange struct {
 // server is kept as it was, in its order. An equal entry changes nothing; a
 // different one under the same name is kept and returned.
 func SetMCPServer(client, name string, entry json.RawMessage, e MCPServerEntry, c MCPToolChoice) (MCPConfigChange, error) {
-	return editMCPConfig(client, func(top, servers *jsonObject) (json.RawMessage, bool, error) {
+	return editMCPConfig(client, name, func(top, servers *jsonObject) (json.RawMessage, bool, error) {
 		if old, ok := servers.vals[name]; ok {
 			if jsonEqual(old, entry) {
 				return nil, false, nil
@@ -317,7 +317,7 @@ func SetMCPServer(client, name string, entry json.RawMessage, e MCPServerEntry, 
 // For OpenCode its permission rules go too (dropOpenCodeRules); tools is the
 // registry's tool list for it, nil when unknown.
 func RemoveMCPServer(client, name string, tools []string) (MCPConfigChange, error) {
-	return editMCPConfig(client, func(top, servers *jsonObject) (json.RawMessage, bool, error) {
+	return editMCPConfig(client, name, func(top, servers *jsonObject) (json.RawMessage, bool, error) {
 		if !servers.del(name) {
 			return nil, false, nil
 		}
@@ -388,11 +388,37 @@ func MCPConfigKeys(client string) []string {
 		return nil
 	}
 	if client == MCPClientOpenCode {
-		if native, ok := openCodeNativeServers(servers); ok {
-			return native.keys
-		}
+		return openCodeAllServers(servers).keys
 	}
 	return servers.keys
+}
+
+// openCodeAllServers is every server under mcp: flat mcp.<name> entries and,
+// on opencode 2's layout, mcp.servers.<name>, as openCodeMCPServersIn loads
+// both. A nested name shadows a flat one of the same name.
+func openCodeAllServers(mcp jsonObject) jsonObject {
+	native, ok := openCodeNativeServers(mcp)
+	if !ok {
+		return mcp
+	}
+	all := jsonObject{vals: map[string]json.RawMessage{}}
+	for _, k := range mcp.keys {
+		if k == "servers" || (k == "timeout" && !isOpenCodeServerJSON(mcp.vals[k])) {
+			continue
+		}
+		all.set(k, mcp.vals[k])
+	}
+	for _, k := range native.keys {
+		all.set(k, native.vals[k])
+	}
+	return all
+}
+
+func isOpenCodeServerJSON(raw json.RawMessage) bool {
+	var probe struct {
+		Type string `json:"type"`
+	}
+	return json.Unmarshal(raw, &probe) == nil && (probe.Type == "local" || probe.Type == "remote")
 }
 
 // openCodeNativeServers is opencode 2's mcp.servers.<name> map, when mcp has
@@ -400,13 +426,7 @@ func MCPConfigKeys(client string) []string {
 // (openCodeUserMCPServers reads it the same way).
 func openCodeNativeServers(mcp jsonObject) (jsonObject, bool) {
 	raw, ok := mcp.vals["servers"]
-	if !ok {
-		return jsonObject{}, false
-	}
-	var probe struct {
-		Type string `json:"type"`
-	}
-	if json.Unmarshal(raw, &probe) != nil || probe.Type == "local" || probe.Type == "remote" {
+	if !ok || isOpenCodeServerJSON(raw) {
 		return jsonObject{}, false
 	}
 	native, err := parseJSONObject(raw)
@@ -454,9 +474,7 @@ func openCodeUserServerDefs() map[string]mcpServer {
 	if err != nil {
 		return nil
 	}
-	if native, ok := openCodeNativeServers(mcp); ok {
-		mcp = native
-	}
+	mcp = openCodeAllServers(mcp)
 	defs := map[string]mcpServer{}
 	for _, k := range mcp.keys {
 		var d mcpServer
@@ -467,7 +485,7 @@ func openCodeUserServerDefs() map[string]mcpServer {
 	return defs
 }
 
-func editMCPConfig(client string, edit func(top, servers *jsonObject) (json.RawMessage, bool, error)) (MCPConfigChange, error) {
+func editMCPConfig(client, name string, edit func(top, servers *jsonObject) (json.RawMessage, bool, error)) (MCPConfigChange, error) {
 	path, err := MCPConfigPath(client)
 	if err != nil {
 		return MCPConfigChange{}, err
@@ -517,10 +535,15 @@ func editMCPConfig(client string, edit func(top, servers *jsonObject) (json.RawM
 	target := &servers
 	native, nested := jsonObject{}, false
 	if client == MCPClientOpenCode {
-		if native, nested = openCodeNativeServers(servers); nested {
+		// A flat server beside mcp.servers is edited where it is.
+		native, nested = openCodeNativeServers(servers)
+		_, flat := servers.vals[name]
+		_, inNative := native.vals[name]
+		if nested && (inNative || !flat || name == "servers") {
 			target = &native
 		}
 	}
+	before := compactJSON(top.marshal())
 	existing, changed, err := edit(&top, target)
 	if err != nil {
 		return ch, fmt.Errorf("%s: %w", ch.Path, err)
@@ -533,6 +556,10 @@ func editMCPConfig(client string, edit func(top, servers *jsonObject) (json.RawM
 		servers.set("servers", native.marshal())
 	}
 	top.set(key, servers.marshal())
+	// Unchanged is no write, so the backup of the last real change stays.
+	if bytes.Equal(before, compactJSON(top.marshal())) {
+		return ch, nil
+	}
 	var out bytes.Buffer
 	if err := json.Indent(&out, top.marshal(), "", "  "); err != nil {
 		return ch, err
