@@ -1315,7 +1315,9 @@ func (f *suggestionsFormatter) String() string {
 	for i, s := range f.suggestions {
 		fmt.Fprintf(&sb, "## %d. %s (%s)\n\n", i+1, s.Name, s.Type)
 		fmt.Fprintf(&sb, "%s\n\n", s.Reason)
-		fmt.Fprintf(&sb, "**Install**: %s\n\n", s.InstallURL)
+		if s.InstallURL != "" {
+			fmt.Fprintf(&sb, "**Install**: %s\n\n", s.InstallURL)
+		}
 	}
 
 	return sb.String()
