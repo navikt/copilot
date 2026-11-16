@@ -35,8 +35,7 @@ export default function FleetGatewayPage() {
       toc={TOC}
     >
       <Alert variant="warning">
-        Forhåndsvisning. Piloten er bare åpen for utvalgte team, og detaljene kan endre seg. Navnene følger utkastet til
-        nav-fleet og kan endres.
+        Forhåndsvisning. Piloten har ikke startet, og detaljene kan endres. Navnene følger utkastet til nav-fleet.
       </Alert>
 
       <VStack gap="space-12">
@@ -56,8 +55,8 @@ export default function FleetGatewayPage() {
           Status
         </LinkableHeading>
         <BodyLong>
-          Spiken med kjedet OBO gjennom Texas ble godkjent 16. november 2026. Piloten er ikke åpen ennå, bortsett fra
-          for utvalgte team. Den starter med bare lesing.
+          Testen av kjedet OBO gjennom Texas ble bestått 16. november 2026. Piloten har ikke startet. Den starter med
+          bare lesing.
         </BodyLong>
       </VStack>
 
@@ -67,15 +66,23 @@ export default function FleetGatewayPage() {
         </LinkableHeading>
         <Bullets>
           <li>
-            Registeret (mcp-registry, del av fleet-control): en adminsgruppe godkjenner hver server før den blir synlig.
+            Registeret (mcp-registry, del av fleet-control): en admingruppe godkjenner hver server før den blir synlig.
           </li>
           <li>
             Nettverket: fleet-gateway har en liste over hvilke servere den kan kalle, og teamets server slipper bare inn
             fleet-gateway.
           </li>
-          <li>Piloten: hver rute har en liste over hvem som er med.</li>
-          <li>Klienten: i piloten er bare cplt på naisdevice med.</li>
+          <li>Pilotlisten: fleet-gateway åpner bare ruter som står på en eksplisitt liste.</li>
+          <li>Klienten: piloten godtar bare cplt, på naisdevice.</li>
         </Bullets>
+        <BodyLong>Slik blir en server med:</BodyLong>
+        <VStack as="ol" gap="space-4" className="list-decimal" style={{ paddingInlineStart: "var(--ax-space-20)" }}>
+          <li>Teamet sender inn serveren til fleet-control (registeret).</li>
+          <li>Admingruppen godkjenner serveren.</li>
+          <li>fleet-control gir fleet-gateway de godkjente rutene.</li>
+          <li>fleet-gateway kaller teamets MCP-server, som bare slipper inn fleet-gateway.</li>
+        </VStack>
+        <BodyLong>Texas utsteder tokenene. fleet-control gir tilgang, og fleet-gateway håndhever den.</BodyLong>
       </VStack>
 
       <VStack gap="space-12">
@@ -83,10 +90,10 @@ export default function FleetGatewayPage() {
           Hva teamet gjør
         </LinkableHeading>
         <Bullets>
-          <li>Registrer MCP-serveren i registeret.</li>
+          <li>Søk med skjemaet under. Vi registrerer serveren til selvbetjening finnes.</li>
           <li>
             Legg til fleet-gateway i <code className={code}>accessPolicy.inbound</code> i serverens Nais-manifest.
-            Mangler regelen, får brukeren feilen <code className={code}>AADSTS65001</code>.
+            Mangler regelen, feiler kallet med <code className={code}>AADSTS65001</code>.
           </li>
           <li>
             Valider tokenet med Texas-introspeksjon. Avvis <code className={code}>idtyp</code> lik{" "}

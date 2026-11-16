@@ -13,6 +13,7 @@ import { getUserToken, getUser } from "@/lib/auth";
 import { enrichWithUsage } from "@/lib/enrich-customizations";
 import { DomainCards } from "./domain-cards";
 import type { CustomizationUsage } from "@/lib/types";
+import { linkClass } from "@/components/nav-pilot/doc-page";
 
 interface Props {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -107,9 +108,9 @@ export default async function CustomizationsPage() {
               <Heading size="small" level="2" className="mb-4">
                 Alle tilpasninger
               </Heading>
-              <BodyShort className="mb-4">
+              <BodyShort spacing>
                 Eier teamet en MCP-server?{" "}
-                <NextLink href="/verktoy/fleet-gateway" className="text-blue-600 hover:underline">
+                <NextLink href="/verktoy/fleet-gateway" className={linkClass}>
                   Les om piloten for fleet-gateway
                 </NextLink>
                 .
