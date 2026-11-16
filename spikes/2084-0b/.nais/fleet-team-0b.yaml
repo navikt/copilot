@@ -1,0 +1,36 @@
+# Spike for navikt/copilot#2084 phase 0b, dev-gcp only. Do not merge.
+apiVersion: nais.io/v1alpha1
+kind: Application
+metadata:
+  name: fleet-team-0b
+  namespace: copilot
+  labels:
+    team: copilot
+spec:
+  image: {{image}}
+  port: 8080
+  replicas: {min: 1, max: 1}
+  resources:
+    requests: {cpu: 10m, memory: 16Mi}
+    limits: {memory: 64Mi}
+  liveness: {path: /isalive}
+  readiness: {path: /isalive}
+  azure:
+    application:
+      enabled: true
+      tenant: nav.no
+      allowAllUsers: false  # T5: members of team copilot only
+      claims:
+        groups:
+          - id: "f59c8c77-7b73-4753-890a-2b483a07d18a"
+  accessPolicy:
+    inbound:
+      rules:
+        {{#if t4_no_inbound}}
+        []  # T4: gateway removed on purpose, expect AADSTS65001
+        {{else}}
+        - application: fleet-gw-0b
+        {{/if}}
+  env:
+    - {name: ROLE, value: team}
+    - {name: GATEWAY_NAME, value: "dev-gcp:copilot:fleet-gw-0b"}

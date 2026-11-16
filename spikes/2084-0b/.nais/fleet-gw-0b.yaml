@@ -1,0 +1,38 @@
+# Spike for navikt/copilot#2084 phase 0b, dev-gcp only. Do not merge.
+apiVersion: nais.io/v1alpha1
+kind: Application
+metadata:
+  name: fleet-gw-0b
+  namespace: copilot
+  labels:
+    team: copilot
+spec:
+  image: {{image}}
+  port: 8080
+  replicas: {min: 1, max: 1}  # sessions live in memory
+  resources:
+    requests: {cpu: 10m, memory: 16Mi}
+    limits: {memory: 64Mi}
+  liveness: {path: /isalive}
+  readiness: {path: /isalive}
+  ingresses:
+    - https://fleet-gw-0b.intern.dev.nav.no
+  azure:
+    application:
+      enabled: true
+      tenant: nav.no
+      allowAllUsers: true
+    # No sidecar: the app owns /oauth2/callback, which naiserator registers as the
+    # reply URL for every ingress when replyURLs is empty (see PR body).
+  accessPolicy:
+    outbound:
+      rules:
+        - application: fleet-team-0b
+      external:
+        - host: login.microsoftonline.com
+  env:
+    - {name: ROLE, value: gateway}
+    - {name: BASE_URL, value: "https://fleet-gw-0b.intern.dev.nav.no"}
+    - {name: REDIRECT_URIS, value: "http://127.0.0.1:62471/callback"}
+    - {name: TEAM_SCOPE, value: "api://dev-gcp.copilot.fleet-team-0b/.default"}
+    - {name: TEAM_URL, value: "http://fleet-team-0b"}

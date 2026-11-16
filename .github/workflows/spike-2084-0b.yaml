@@ -1,0 +1,40 @@
+# Spike for navikt/copilot#2084 phase 0b: deploys two throwaway apps to dev-gcp. Do not merge.
+name: spike 2084 0b
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'spikes/2084-0b/**'
+      - '.github/workflows/spike-2084-0b.yaml'
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # ratchet:actions/setup-go@v7.0.0
+        with:
+          go-version-file: spikes/2084-0b/go.mod
+      - run: go vet ./... && go test ./...
+        working-directory: spikes/2084-0b
+      - uses: nais/docker-build-push@dd7421d5068057a020ca46ead966c26190c516b1 # ratchet:nais/docker-build-push@v0
+        id: docker-push
+        with:
+          team: copilot
+          image_suffix: fleet-0b-spike
+          dockerfile: spikes/2084-0b/Dockerfile
+          docker_context: spikes/2084-0b
+      - uses: nais/deploy/actions/deploy@6a9dcd6df697ec2d38edc78cadb0b9acd1232f50 # ratchet:nais/deploy/actions/deploy@v3
+        env:
+          CLUSTER: dev-gcp
+          TEAM: copilot
+          RESOURCE: spikes/2084-0b/.nais/fleet-team-0b.yaml,spikes/2084-0b/.nais/fleet-gw-0b.yaml
+          VARS: spikes/2084-0b/.nais/vars.yaml
+          IMAGE: ${{ steps.docker-push.outputs.image }}
+          TELEMETRY: ${{ steps.docker-push.outputs.telemetry }}
