@@ -45,9 +45,9 @@ export default function FleetGatewayPage() {
         </LinkableHeading>
         <BodyLong>
           Team skal kunne tilby MCP-servere uten å bygge egen OAuth. fleet-gateway er ett sted på Nais som tar seg av
-          innloggingen med Nav-brukeren. Innloggingen går via Entra ID. Den kaller teamets MCP-server med et
-          on-behalf-of-token (OBO) fra Texas, så serveren ser den faktiske brukeren. Teamene søker om å bli med via et
-          skjema, og serveren registreres i fleet-control. cplt holder tokenene på maskinen, utenfor agentens sandkasse.
+          innloggingen med Nav-brukeren via Entra ID. Den kaller teamets MCP-server med et on-behalf-of-token (OBO) fra
+          Texas, så serveren ser den faktiske brukeren. Teamene søker om å bli med via et skjema, og serveren
+          registreres i fleet-control. cplt holder tokenene på maskinen, utenfor agentens sandkasse.
         </BodyLong>
         <FleetGatewayCallDiagram />
       </VStack>
