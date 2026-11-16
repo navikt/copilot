@@ -318,7 +318,7 @@ export default {
       const server = blockedServer(event.tool, event.input)
       if (server)
         throw new Error(
-          `nav-pilot: the MCP server ${server} is not in Nav's MCP registry, so its tools are turned off in this session. Tell the user.`,
+          `nav-pilot: the MCP server ${server} is not in Nav's MCP registry, or its URL, command or env differs from the registry entry, so its tools are turned off in this session. Tell the user.`,
         )
       if (gate) await gate.before(event)
       if (!pre.length) return

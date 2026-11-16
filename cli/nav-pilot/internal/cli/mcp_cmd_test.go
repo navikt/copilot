@@ -58,6 +58,7 @@ func mcpCmdEnv(t *testing.T, st providerpkg.MCPHostState) *mcpFakes {
 	}
 	narrowMCPApproval = func() ([]string, error) { return nil, nil }
 	mcpCpltPath = func() string { return "/fake/cplt" }
+	t.Cleanup(providerpkg.StubMCPPolicy("")) // never ask gh
 	mcpCpltConfigGet = func(_, key string) string { return f.config[key] }
 	mcpLookPath = func(string) (string, error) { return "", os.ErrNotExist }
 	var mu = make(chan struct{}, 1)
@@ -447,6 +448,38 @@ func TestMCPListPackageSandboxHosts(t *testing.T) {
 		t.Fatalf("servers = %+v", rep.Servers)
 	}
 	if !slices.ContainsFunc(rep.Problems, func(p mcpProblem) bool { return p.Fix == "cplt config set allow.domains api.example.org" }) {
+		t.Errorf("problems = %+v", rep.Problems)
+	}
+}
+
+// A server the registry matches by package, but with env the launch check
+// refuses, gets a problem and a fix (#2195).
+func TestMCPListRefusedAtLaunch(t *testing.T) {
+	mcpCmdEnv(t, providerpkg.MCPHostState{})
+	t.Cleanup(providerpkg.StubMCPPolicy("https://registry.test"))
+	e := providerpkg.MCPServerEntry{Name: "io.example/pkg", Packages: []providerpkg.MCPPackage{{RegistryType: "npm", Identifier: "@example/pkg", Version: "1.0.0"}}}
+	home, _ := os.UserHomeDir()
+	writeTestFile(t, filepath.Join(home, ".config", "opencode", "opencode.json"), `{"mcp": {"pkg": {"type": "local", "command": ["npx", "@example/pkg"], "environment": {"X": "1"}}}}`)
+	entries := []providerpkg.MCPServerEntry{e}
+	rep := diagnoseMCP("r", entries, mcpConfigured(entries), "")
+	if !slices.ContainsFunc(rep.Problems, func(p mcpProblem) bool {
+		return p.Server == "pkg" && strings.HasPrefix(p.Problem, providerpkg.MCPRegistryMismatch) && strings.Contains(p.Fix, "enable io.example/pkg --client opencode")
+	}) {
+		t.Errorf("problems = %+v", rep.Problems)
+	}
+}
+
+// The repair command keeps an odd key and name literal when pasted.
+func TestMCPListRefusedQuotesFix(t *testing.T) {
+	mcpCmdEnv(t, providerpkg.MCPHostState{})
+	t.Cleanup(providerpkg.StubMCPPolicy("https://registry.test"))
+	e := providerpkg.MCPServerEntry{Name: "io.example/pkg $(x)", Packages: []providerpkg.MCPPackage{{RegistryType: "npm", Identifier: "@example/pkg", Version: "1.0.0"}}}
+	home, _ := os.UserHomeDir()
+	writeTestFile(t, filepath.Join(home, ".config", "opencode", "opencode.json"), `{"mcp": {"pw $(touch y)": {"type": "local", "command": ["npx", "@example/pkg"], "environment": {"X": "1"}}}}`)
+	entries := []providerpkg.MCPServerEntry{e}
+	rep := diagnoseMCP("r", entries, mcpConfigured(entries), "")
+	want := `nav-pilot mcp disable 'pw $(touch y)' --client opencode && nav-pilot mcp enable 'io.example/pkg $(x)' --client opencode`
+	if !slices.ContainsFunc(rep.Problems, func(p mcpProblem) bool { return p.Fix == want }) {
 		t.Errorf("problems = %+v", rep.Problems)
 	}
 }

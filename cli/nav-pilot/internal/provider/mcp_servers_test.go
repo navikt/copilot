@@ -3,6 +3,7 @@ package provider
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"maps"
 	"net/http"
 	"net/http/httptest"
@@ -211,6 +212,8 @@ func TestConfiguredMCPServers(t *testing.T) {
 	writeFile(t, filepath.Join(home, ".config", "opencode", "opencode.json"), `{"mcp": {
 		"figma": {"type": "remote", "url": "https://MCP.figma.com/mcp/"},
 		"pw": {"type": "local", "command": ["npx", "@playwright/mcp@latest"]},
+		"pwenv": {"type": "local", "command": ["npx", "@playwright/mcp"], "environment": {"X": "1"}},
+		"dev.svelte/svelte-mcp": {"type": "remote", "url": "https://svelte.example/mcp"},
 		"off": {"type": "remote", "url": "https://mcp.svelte.dev/mcp", "enabled": false},
 		"other": {"type": "remote", "url": "https://elsewhere.example/mcp"}}}`)
 	// A project's config is shown, never counted.
@@ -219,11 +222,23 @@ func TestConfiguredMCPServers(t *testing.T) {
 	entries := []MCPServerEntry{figma,
 		{Name: "com.microsoft/playwright-mcp", Packages: []MCPPackage{{RegistryType: "npm", Identifier: "@playwright/mcp"}}},
 		{Name: "dev.svelte/svelte-mcp", Remotes: []MCPRemote{{URL: "https://mcp.svelte.dev/mcp"}}}}
+	prevPolicy := fetchMCPPolicy
+	t.Cleanup(func() { fetchMCPPolicy = prevPolicy })
+	// allow_all: launch turns nothing off, so nothing is refused.
+	fetchMCPPolicy = func() (string, error) { return "", nil }
+	if c := ConfiguredMCPServers(entries); len(c.OpenCodeRefused) != 0 {
+		t.Errorf("allow_all refused = %v", c.OpenCodeRefused)
+	}
+	fetchMCPPolicy = func() (string, error) { return "https://registry.test", nil }
 	c := ConfiguredMCPServers(entries)
 	if !c.Copilot[figma.Name] || c.Copilot["com.microsoft/playwright-mcp"] || strings.Join(c.CopilotOther, ",") != "playwright-mcp" {
 		t.Errorf("copilot = %v, other %v; the short name must not count as the registry's", c.Copilot, c.CopilotOther)
 	}
-	if !c.OpenCode[figma.Name] || !c.OpenCode["com.microsoft/playwright-mcp"] || c.OpenCode["dev.svelte/svelte-mcp"] || strings.Join(c.OpenCodeOther, ",") != "other" {
+	// Matched by package or name, yet listed() turns them off at launch (#2195).
+	if fmt.Sprint(c.OpenCodeRefused) != "[[dev.svelte/svelte-mcp dev.svelte/svelte-mcp] [pwenv com.microsoft/playwright-mcp]]" {
+		t.Errorf("refused = %v", c.OpenCodeRefused)
+	}
+	if !c.OpenCode[figma.Name] || !c.OpenCode["com.microsoft/playwright-mcp"] || strings.Join(c.OpenCodeOther, ",") != "other" {
 		t.Errorf("opencode = %v, other %v", c.OpenCode, c.OpenCodeOther)
 	}
 	if strings.Join(c.OpenCodeProject, ",") != "repo-pick" {
