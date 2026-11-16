@@ -609,7 +609,8 @@ type MCPConfigured struct {
 	OpenCodeOther []string
 	// OpenCodeRefused is the OpenCode servers matched to an entry above that
 	// the launch check, listed(), still turns off: env set, or a URL or
-	// command that is not the entry's.
+	// command that is not the entry's. Empty when launch does not enforce:
+	// an allow_all or unreadable policy.
 	// Each is {configured key, registry name}.
 	OpenCodeRefused [][2]string
 	// OpenCodeProject is the servers OpenCode loads here from a project's
@@ -653,6 +654,8 @@ func ConfiguredMCPServers(entries []MCPServerEntry) MCPConfigured {
 	}
 	slices.Sort(keys)
 	reg := registryOf(entries)
+	// Launch enforces only under a readable registry_only policy, as in unlistedMCPServers.
+	enforced := func() bool { policy, err := fetchMCPPolicy(); return err == nil && policy != "" }
 	for _, k := range keys {
 		s := oc[k]
 		if s.Enabled != nil && !*s.Enabled {
@@ -660,7 +663,7 @@ func ConfiguredMCPServers(entries []MCPServerEntry) MCPConfigured {
 		}
 		if name := openCodeRegistryName(entries, k, s); name != "" {
 			c.OpenCode[name] = true
-			if !reg.listed(s) {
+			if !reg.listed(s) && enforced() {
 				c.OpenCodeRefused = append(c.OpenCodeRefused, [2]string{k, name})
 			}
 		} else {

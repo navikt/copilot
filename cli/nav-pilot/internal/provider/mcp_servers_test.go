@@ -222,6 +222,14 @@ func TestConfiguredMCPServers(t *testing.T) {
 	entries := []MCPServerEntry{figma,
 		{Name: "com.microsoft/playwright-mcp", Packages: []MCPPackage{{RegistryType: "npm", Identifier: "@playwright/mcp"}}},
 		{Name: "dev.svelte/svelte-mcp", Remotes: []MCPRemote{{URL: "https://mcp.svelte.dev/mcp"}}}}
+	prevPolicy := fetchMCPPolicy
+	t.Cleanup(func() { fetchMCPPolicy = prevPolicy })
+	// allow_all: launch turns nothing off, so nothing is refused.
+	fetchMCPPolicy = func() (string, error) { return "", nil }
+	if c := ConfiguredMCPServers(entries); len(c.OpenCodeRefused) != 0 {
+		t.Errorf("allow_all refused = %v", c.OpenCodeRefused)
+	}
+	fetchMCPPolicy = func() (string, error) { return "https://registry.test", nil }
 	c := ConfiguredMCPServers(entries)
 	if !c.Copilot[figma.Name] || c.Copilot["com.microsoft/playwright-mcp"] || strings.Join(c.CopilotOther, ",") != "playwright-mcp" {
 		t.Errorf("copilot = %v, other %v; the short name must not count as the registry's", c.Copilot, c.CopilotOther)

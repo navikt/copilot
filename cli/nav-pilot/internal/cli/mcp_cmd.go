@@ -408,7 +408,7 @@ func diagnoseMCP(registry string, entries []providerpkg.MCPServerEntry, conf pro
 			add(mcpUnlisted(entries, k, providerpkg.MCPClientOpenCode))
 		}
 		for _, r := range conf.OpenCodeRefused {
-			add(mcpProblem{Server: r[0], Client: providerpkg.MCPClientOpenCode, Problem: providerpkg.MCPRegistryMismatch + ", so nav-pilot turns it off when it starts OpenCode", Fix: fmt.Sprintf("nav-pilot mcp disable %s --client opencode && nav-pilot mcp enable %s --client opencode", r[0], r[1])})
+			add(mcpProblem{Server: r[0], Client: providerpkg.MCPClientOpenCode, Problem: providerpkg.MCPRegistryMismatch + ", so nav-pilot turns it off when it starts OpenCode", Fix: fmt.Sprintf("nav-pilot mcp disable %s --client opencode && nav-pilot mcp enable %s --client opencode", shellQuote(r[0]), shellQuote(r[1]))})
 		}
 		if cpltPath == "" {
 			add(mcpProblem{Server: "cplt", Problem: "cplt is not installed, so no host was checked against the sandbox", Fix: domain.CpltInstallHint(domain.PkgForInstall())})
