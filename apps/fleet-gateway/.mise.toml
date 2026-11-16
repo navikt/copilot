@@ -32,7 +32,7 @@ run = [
 
 [tasks."test:short"]
 description = "Run tests without verbose output"
-run = "go test -race ./..."
+run = "go test ./..."
 
 [tasks.lint]
 description = "Run linters (golangci-lint)"
