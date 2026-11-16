@@ -1,6 +1,6 @@
 # MCP gateway: plan and path forward
 
-Status 2026-11-16. Epic: [#2083](https://github.com/navikt/copilot/issues/2083). Registry self-service: [#2096](https://github.com/navikt/copilot/issues/2096). Client side: [navikt/cplt#912](https://github.com/navikt/cplt/issues/912), design in [navikt/cplt#947](https://github.com/navikt/cplt/pull/947) (merged 2026-11-04).
+Status 2026-11-16: the phase 0 spike passed in tenant nav.no; chained OBO works and the kill criterion was not triggered ([#2084 (comment)](https://github.com/navikt/copilot/issues/2084#issuecomment-6925521276)). Epic: [#2083](https://github.com/navikt/copilot/issues/2083). Registry self-service: [#2096](https://github.com/navikt/copilot/issues/2096). Client side: [navikt/cplt#912](https://github.com/navikt/cplt/issues/912), design in [navikt/cplt#947](https://github.com/navikt/cplt/pull/947) (merged 2026-11-04).
 
 ## Goal
 
@@ -24,7 +24,7 @@ Owner decisions 2026-11-02:
 3. **Registry admins**: an Entra group through the `groups` claim from Texas introspection. No email list.
 4. **First remote for cplt OAuth**: the gateway, then Figma.
 5. **Client registration**: CIMD only in the pilot. DCR (and OpenCode, which needs it) after the pilot, with a per-IP cap and expiry of unused clients.
-6. **Registry PRs** [#2102](https://github.com/navikt/copilot/pull/2102) and [#2110](https://github.com/navikt/copilot/pull/2110): fix review findings now, merge after the chained-OBO spike passes.
+6. **Registry PRs** [#2102](https://github.com/navikt/copilot/pull/2102) and [#2110](https://github.com/navikt/copilot/pull/2110): fix review findings now, merge after the chained-OBO spike passes. The spike passed 2026-11-16; both are unblocked.
 7. **Privacy**: one compliance document covering refresh tokens and the audit log, written during phase 1.
 8. **`offline_access`**: tested in phase 0b. If Entra refuses, #2090 is revisited before phase 1.
 
@@ -37,9 +37,13 @@ Unverified marks behaviour that no spike or Nais documentation has confirmed yet
 3. **Gateway to Entra ID.** The gateway is the Entra confidential client that Nais provisions (`azure.application`). It sends the user to Entra to log in, passing any Conditional Access `claims` on `/authorize`. Texas has only `/token`, `/token/exchange` and `/introspect`, so the gateway redeems the code and refreshes against Entra directly with its own client credential. It keeps the Entra refresh token encrypted and deletes it after at most 10 hours ([#2090](https://github.com/navikt/copilot/issues/2090)). Whether Entra issues it via `offline_access` is unverified (phase 0b).
 4. **cplt broker to gateway route.** Bearer gateway access token. The gateway checks the token, consent for that route, and writes one audit line with NAVident ([#2092](https://github.com/navikt/copilot/issues/2092)). Opaque: cplt cannot check `aud` and relies on the gateway binding the token to the route (RFC 8707). JWT: cplt refuses to send a token whose `aud` is not the route.
 5. **Gateway to team MCP.** The gateway gets an Entra access token for itself from the stored refresh token by calling Entra directly (unverified), then Texas OBO exchanges it for one scoped to the team MCP. The team MCP validates it, checks that `azp` is the gateway's client id, rejects `idtyp=app`, requires NAVident, and its `accessPolicy.inbound` admits only the gateway. The gateway is the single policy point: route consent, read-only mode and the tool allowlist are enforced there from the pilot.
-6. **Team MCP to downstream API.** A second Texas OBO on the OBO token. Likely to work, since Entra only requires the assertion's `aud` to be the exchanging app; the phase 0 spike decides.
+6. **Team MCP to downstream API.** A second Texas OBO on the OBO token. Verified in the phase 0 spike: 200 on every hop, `aud` is the hop's own app, `azp` the previous hop, NAVident carried throughout.
 
-Texas introspection is not documented to check `azp` or `groups` for you; each hop that relies on them must check them itself (unverified).
+Texas introspection checks `aud`: the spike sent the gateway's token unchanged to the team MCP and got `InvalidAudience`. It does not check `azp` or `groups`, and it does not reject app tokens: a client-credentials token came back `active: true` with `idtyp: app`. Every team MCP must therefore check `idtyp`, check that `azp` is the gateway's client id, and require NAVident itself.
+
+A missing inbound rule fails the OBO in Entra with `invalid_grant` / `AADSTS65001` ("has not consented"), returned by Texas as a 400. The gateway and team MCPs must translate it to "missing access to the next app (inbound rule)"; otherwise the user sees a consent error.
+
+To test, get user tokens from the Nais login sidecar (Wonderwall) on the calling app, as the spike did. `azure-token-generator` does not support the nav.no tenant (Nais docs).
 
 ## Phases and gates
 
@@ -47,8 +51,8 @@ Each phase starts only when the previous gate holds.
 
 | Phase | What | Gate to pass | Tracked in |
 |---|---|---|---|
-| 0 spike | Chained OBO through Texas, stub apps in dev-gcp | A team MCP exchanges the gateway's OBO token for its own downstream token. Fails: the gateway approach is killed | [#2084](https://github.com/navikt/copilot/issues/2084), [#2094](https://github.com/navikt/copilot/pull/2094) |
-| 0b | Minimal authorization server on the dev stub, CIMD only | One `tools/call` from Copilot CLI via CIMD reaches the pilot as the real user; an audit line names NAVident and the tool; `offline_access` result recorded | [#2084](https://github.com/navikt/copilot/issues/2084) |
+| 0 spike | Chained OBO through Texas, stub apps in dev-gcp | A team MCP exchanges the gateway's OBO token for its own downstream token. Fails: the gateway approach is killed. **Passed 2026-11-16** | [#2084](https://github.com/navikt/copilot/issues/2084), [#2094](https://github.com/navikt/copilot/pull/2094) |
+| 0b | Minimal authorization server on the dev stub, CIMD only; also group-restricted apps (`allowAllUsers: false`), a Conditional Access challenge and the prod tenant, which the spike did not test | One `tools/call` from Copilot CLI via CIMD reaches the pilot as the real user; an audit line names NAVident and the tool; `offline_access` result recorded | [#2084](https://github.com/navikt/copilot/issues/2084) |
 | 1 | cplt host OAuth against the gateway, fixed-port guard, per-route consent, revocation; privacy document | `cplt mcp status` shows `credential_ok`; no token readable in the sandbox; privacy document signed off | [#2085](https://github.com/navikt/copilot/issues/2085), design merged in [navikt/cplt#947](https://github.com/navikt/cplt/pull/947) |
 | 2 pilot | Prod route to nav-etterlevelse-mcp, reads only, next to its own OAuth server | 5 users, 2 weeks, zero auth incidents, latency target met, one survey answer per user | [#2086](https://github.com/navikt/copilot/issues/2086) |
 | 3 | Template repo, direct clients, second team | A second team ships from the template in under a day | [#2087](https://github.com/navikt/copilot/issues/2087) |
@@ -75,7 +79,6 @@ The `owner`, `gateway` and `toolHashes` fields are already in the registry respo
 
 ## Open risks
 
-- Chained OBO is likely to work but unverified until the spike runs.
 - Entra may refuse `offline_access`; then the 10-hour session in #2090 does not hold.
 - Entra refresh tokens for non-SPA clients last 90 days, rotate without revoking the old one, and are not bound to a resource. "At most 10 hours" is only the gateway's delete discipline. A database backup plus the encryption key plus the client secret lets an attacker impersonate every logged-in user on every route, unless consent is per route.
 - Conditional Access `claims` cannot travel back from the downstream hop; accepted limit for the pilot; row 4 asks Nais to lift it. The gateway can pass `claims` on its own `/authorize`.
