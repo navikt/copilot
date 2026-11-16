@@ -23,7 +23,7 @@ func pluginTrustSetup(t *testing.T, tty bool, answer *bool) (string, *int) {
 	openCodePluginsTTY = func() bool { return tty }
 	askOpenCodePlugins = func(p string) bool {
 		*asked++
-		if !strings.Contains(p, "This repo has its own OpenCode plugins (") || !strings.Contains(p, "Load them? They run with the same access as the agent. A no also turns off this repo's AGENTS.md, agents and skills.") {
+		if !strings.Contains(p, "This repo has its own OpenCode plugins or hook gates (") || !strings.Contains(p, "Load them? They run with the same access as the agent. A no also turns off this repo's AGENTS.md, agents and skills.") {
 			t.Errorf("prompt %q", p)
 		}
 		return *answer
@@ -199,5 +199,41 @@ func TestOpenCodeProjectDisabledFirstSetKeyWins(t *testing.T) {
 		if got := OpenCodeProjectDisabled(openCodeEnvLookup(strings.Fields(env))); got != want {
 			t.Errorf("%s: got %v, want %v", env, got, want)
 		}
+	}
+}
+
+func writeRepoGate(t *testing.T, proj, command string) {
+	t.Helper()
+	p := filepath.Join(proj, ".github", "hooks", "copilot-hooks.json")
+	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	body := `{"version":1,"hooks":{"preToolUse":[{"type":"command","navPilot":"g","command":"` + command + `"}]}}`
+	if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// Repo gates are shell commands the bridge runs; with no plugins they still
+// need a yes, and a no turns them off with the project config.
+func TestOpenCodeRepoGatesOnlyAsk(t *testing.T) {
+	no := false
+	proj, asked := pluginTrustSetup(t, true, &no)
+	writeRepoGate(t, proj, "true")
+	if env := applyOpenCodeProjectPlugins(nil, proj); !disabled(env) || *asked != 1 {
+		t.Fatalf("asked=%d env=%v", *asked, env)
+	}
+}
+
+func TestOpenCodeRepoGateChangeAsksAgain(t *testing.T) {
+	yes := true
+	proj, asked := pluginTrustSetup(t, true, &yes)
+	writePlugin(t, proj, "p.ts", "x")
+	writeRepoGate(t, proj, "true")
+	applyOpenCodeProjectPlugins(nil, proj)
+	writeRepoGate(t, proj, "curl evil")
+	applyOpenCodeProjectPlugins(nil, proj)
+	if *asked != 2 {
+		t.Fatalf("asked %d times, want 2", *asked)
 	}
 }

@@ -61,7 +61,7 @@ Read in the OpenCode 1.18.32 source (`packages/opencode/src/session/tools.ts`, `
 - **The hook state directory is writable from the session**, as Copilot's session directory is. An agent could reset its own loop guard, and spooled telemetry lines are enum-checked before they are recorded.
 - **The hooks' stderr is discarded**, because inheriting it would draw over the TUI. A tripped loop guard is still counted in telemetry.
 - An MCP result with many text items runs the hooks once per item.
-- Repo gates run without Copilot's folder-trust check. OpenCode has no such check and already loads a repo's `.opencode/plugins` as code, so a repo's gate entries give it nothing new. With `OPENCODE_DISABLE_PROJECT_CONFIG` set, repo gates are not run either.
+- Repo gates are shell commands, and the `navPilot` marker on them is the repo's to write. On opencode 2, nav-pilot asks before it runs them, in the same question as the repo's plugins (`nav-pilot plugins`). The answer is stored against a hash of the plugins and `.github/hooks/copilot-hooks.json`, so a changed gate asks again. A no, or no answer yet, sets `OPENCODE_DISABLE_PROJECT_CONFIG=1` and drops the repo gates. On opencode 1 there is no question; set `OPENCODE_DISABLE_PROJECT_CONFIG=1` yourself for a repo you do not trust.
 
 ## Repo plugins are code, in opencode 1 and 2
 

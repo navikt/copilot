@@ -112,6 +112,13 @@ func openCodeProjectPlugins(projectDir string, env []string) openCodePluginSet {
 			}
 		}
 	}
+	// The hook bridge runs the repo's gates as shell commands; the nav-pilot
+	// marker on them is the repo's to write, so they need the same yes.
+	hooks := filepath.Join(set.root, ".github", "hooks", source.RepoHooksConfig)
+	if len(source.PreToolUseHooks(hooks)) > 0 {
+		set.names = append(set.names, ".github/hooks/"+source.RepoHooksConfig)
+		w.add(hooks)
+	}
 	switch {
 	case len(set.names) == 0:
 	case w.unknown:
@@ -288,7 +295,7 @@ func askOpenCodePluginSet(set openCodePluginSet) bool {
 	if len(short) > 3 {
 		short = append(slices.Clone(short[:3]), "…")
 	}
-	allow := askOpenCodePlugins(fmt.Sprintf("This repo has its own OpenCode plugins (%d: %s). Load them? They run with the same access as the agent. A no also turns off this repo's AGENTS.md, agents and skills. [y/N] ", len(set.names), strings.Join(short, ", ")))
+	allow := askOpenCodePlugins(fmt.Sprintf("This repo has its own OpenCode plugins or hook gates (%d: %s). Load them? They run with the same access as the agent. A no also turns off this repo's AGENTS.md, agents and skills. [y/N] ", len(set.names), strings.Join(short, ", ")))
 	recordOpenCodePluginAnswer(set.key, openCodePluginAnswer{Hash: set.sum, Allow: allow})
 	return allow
 }
@@ -334,10 +341,10 @@ func applyOpenCodeProjectPlugins(env []string, projectDir string) []string {
 func RunOpenCodePlugins(projectDir string) error {
 	set := openCodeProjectPlugins(projectDir, nil)
 	if set.sum == "" {
-		fmt.Println("This repo has no OpenCode plugins of its own.")
+		fmt.Println("This repo has no OpenCode plugins or hook gates of its own.")
 		return nil
 	}
-	fmt.Printf("OpenCode plugins in %s:\n", set.root)
+	fmt.Printf("OpenCode plugins and hook gates in %s:\n", set.root)
 	for _, n := range set.names {
 		fmt.Printf("  %s\n", n)
 	}

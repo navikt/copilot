@@ -19,6 +19,7 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ### Feilrettinger
 
+- **OpenCode 2 spør før repoets egne gates kjører**: Gates i `.github/hooks/copilot-hooks.json` er kommandoer repoet selv bestemmer. nav-pilot spør nå om dem i samme spørsmål som repoets OpenCode-plugins, også når repoet ikke har plugins. Endrer repoet en gate, spør nav-pilot på nytt. Du kan få ett nytt spørsmål per repo som har slike gates (#PR).
 - **OpenCode**: Når du har avslått et repos OpenCode-plugins, eller ikke har svart ennå, kjører nav-pilot heller ikke repoets egne `preToolUse`-hooks fra `.github/hooks/copilot-hooks.json` (#2207).
 - **`nav-pilot mcp enable` og `disable` med OpenCode 2**: Servere under `mcp.servers` blir nå funnet og endret der de står. Tidligere svarte `disable` at serveren ikke fantes, og `enable` la til en kopi utenfor `mcp.servers` (#2207).
 - **pi med lokal modell**: nav-pilot stopper nå med en forklaring når `model` er en lokal modell og klienten er pi. pi kan ikke kjøre lokale modeller ennå. Bruk `nav-pilot --client opencode` (#2207).
