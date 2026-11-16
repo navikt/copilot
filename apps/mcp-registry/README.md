@@ -4,6 +4,16 @@ Public registry service for Nav-approved MCP servers, implementing the [MCP Regi
 
 **Public URL:** `https://mcp-registry.nav.no`
 
+## Architecture
+
+On `main` the registry serves only the static `allowlist.json`. Everything else in this section is planned in draft PRs [#2102](https://github.com/navikt/copilot/pull/2102) and [#2110](https://github.com/navikt/copilot/pull/2110), which merge together after the gateway spike ([#2084](https://github.com/navikt/copilot/issues/2084)). Decisions behind it: [MCP gateway plan, decisions log](../../docs/mcp-gateway-plan.md#decisions-log).
+
+- **Read path** (planned, draft PR #2102): approved entries from Postgres are merged with `allowlist.json` and cached. A background refresher reloads them. On a name collision the static entry wins. If a reload fails, the last good set keeps serving; if the database never answered, only static entries are served.
+- **Write path** (planned, draft PR #2110): `POST /api/v1/entries` submits an entry as a pending version. `POST /api/v1/entries/{name}/approve` or `/reject` decides it. Every step writes an audit row, including a `supersede` row when a newer version replaces an earlier one.
+- **Migrations** (planned, draft PR #2110): applied at startup under a Postgres session advisory lock, so only one replica migrates at a time.
+- **Startup and outage** (planned, draft PR #2110): if the database is unreachable, reads serve `allowlist.json`, writes answer 503, and the app retries connect and migrate in the background with backoff. It does not exit.
+- **Auth** (planned, draft PR #2110): the bearer token is checked with Texas introspection. App tokens (`idtyp` = `app`) are rejected, and a NAVident is required. The token `azp` must be in `ALLOWED_WRITE_AZP` (my-copilot); an empty list rejects every write with 403. Approve and reject also require membership in `ADMIN_GROUP_ID`. Audit and version rows store the NAVident, never the email, and are deleted or cleared after 90 days.
+
 ## Endpoints
 
 - `GET /` - Service information and available endpoints
