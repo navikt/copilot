@@ -5,13 +5,13 @@ import { Bullets, DocPage, code, linkClass } from "@/components/nav-pilot/doc-pa
 import type { TocItem } from "@/components/table-of-contents";
 
 export const metadata: Metadata = {
-  title: "MCP-gateway (pilot)",
+  title: "fleet-gateway (pilot)",
   description:
-    "Én gateway på Nais med Nav-innlogging foran teamenes MCP-servere. Slik blir teamets MCP-server med i piloten.",
+    "fleet-gateway er én gateway på Nais med Nav-innlogging foran teamenes MCP-servere. Slik blir teamets MCP-server med i piloten.",
 };
 
 const PLAN_URL = "https://github.com/navikt/copilot/blob/main/docs/mcp-gateway-plan.md";
-const APPLY_URL = "https://github.com/navikt/copilot/issues/new?template=mcp-gateway-pilot.yml";
+const APPLY_URL = "https://github.com/navikt/copilot/issues/new?template=fleet-gateway-pilot.yml";
 
 const TOC: TocItem[] = [
   { id: "hva-det-er", label: "Hva det er" },
@@ -21,11 +21,11 @@ const TOC: TocItem[] = [
   { id: "sok", label: "Søk om å bli med" },
 ];
 
-export default function McpGatewayPage() {
+export default function FleetGatewayPage() {
   return (
     <DocPage
       label="Verktøy"
-      title="MCP-gateway"
+      title="fleet-gateway"
       description={metadata.description as string}
       badge={
         <Tag variant="warning" size="small">
@@ -35,7 +35,8 @@ export default function McpGatewayPage() {
       toc={TOC}
     >
       <Alert variant="warning">
-        Forhåndsvisning. Piloten er bare åpen for utvalgte team, og detaljene kan endre seg.
+        Forhåndsvisning. Piloten er bare åpen for utvalgte team, og detaljene kan endre seg. Navnene følger utkastet til
+        nav-fleet og kan endres.
       </Alert>
 
       <VStack gap="space-12">
@@ -43,7 +44,7 @@ export default function McpGatewayPage() {
           Hva det er
         </LinkableHeading>
         <BodyLong>
-          Team skal kunne tilby MCP-servere uten å bygge egen OAuth. Gatewayen er ett sted på Nais som tar seg av
+          Team skal kunne tilby MCP-servere uten å bygge egen OAuth. fleet-gateway er ett sted på Nais som tar seg av
           innloggingen med Nav-brukeren. Den kaller teamets MCP-server med et on-behalf-of-token (OBO) fra Texas, så
           serveren ser den faktiske brukeren. Teamene registrerer serverne sine på ki-utvikling, og cplt holder tokenene
           på maskinen, utenfor agentens sandkasse.
@@ -65,10 +66,12 @@ export default function McpGatewayPage() {
           Hvem slipper inn
         </LinkableHeading>
         <Bullets>
-          <li>Registeret: en adminsgruppe godkjenner hver server før den blir synlig.</li>
           <li>
-            Nettverket: gatewayen har en liste over hvilke servere den kan kalle, og teamets server slipper bare inn
-            gatewayen.
+            Registeret (mcp-registry, del av fleet-control): en adminsgruppe godkjenner hver server før den blir synlig.
+          </li>
+          <li>
+            Nettverket: fleet-gateway har en liste over hvilke servere den kan kalle, og teamets server slipper bare inn
+            fleet-gateway.
           </li>
           <li>Piloten: hver rute har en liste over hvem som er med.</li>
           <li>Klienten: i piloten er bare cplt på naisdevice med.</li>
@@ -82,12 +85,12 @@ export default function McpGatewayPage() {
         <Bullets>
           <li>Registrer MCP-serveren i registeret.</li>
           <li>
-            Legg til gatewayen i <code className={code}>accessPolicy.inbound</code> i serverens Nais-manifest. Mangler
-            regelen, får brukeren feilen <code className={code}>AADSTS65001</code>.
+            Legg til fleet-gateway i <code className={code}>accessPolicy.inbound</code> i serverens Nais-manifest.
+            Mangler regelen, får brukeren feilen <code className={code}>AADSTS65001</code>.
           </li>
           <li>
             Valider tokenet med Texas-introspeksjon. Avvis <code className={code}>idtyp</code> lik{" "}
-            <code className={code}>app</code>, sjekk at <code className={code}>azp</code> er gatewayen, og krev
+            <code className={code}>app</code>, sjekk at <code className={code}>azp</code> er fleet-gateway, og krev
             NAVident.
           </li>
         </Bullets>
@@ -104,7 +107,7 @@ export default function McpGatewayPage() {
           </a>
           . Detaljene om arkitektur, tokenflyt og faser står i{" "}
           <a href={PLAN_URL} className={linkClass}>
-            planen for MCP-gatewayen
+            planen for fleet-gateway
           </a>
           .
         </BodyLong>

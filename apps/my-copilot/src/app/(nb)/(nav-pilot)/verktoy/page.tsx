@@ -109,8 +109,8 @@ export default async function CustomizationsPage() {
               </Heading>
               <BodyShort className="mb-4">
                 Eier teamet en MCP-server?{" "}
-                <NextLink href="/verktoy/mcp-gateway" className="text-blue-600 hover:underline">
-                  Les om piloten for MCP-gatewayen
+                <NextLink href="/verktoy/fleet-gateway" className="text-blue-600 hover:underline">
+                  Les om piloten for fleet-gateway
                 </NextLink>
                 .
               </BodyShort>

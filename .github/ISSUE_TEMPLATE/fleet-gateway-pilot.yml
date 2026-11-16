@@ -1,6 +1,6 @@
-name: "mcp-gateway: Pilotsøknad"
-description: Søk om å koble teamets MCP-server til MCP-gatewayen i piloten
-title: "mcp-gateway: pilotsøknad for "
+name: "fleet-gateway: Pilotsøknad"
+description: Søk om å koble teamets MCP-server til fleet-gateway i piloten
+title: "fleet-gateway: pilotsøknad for "
 labels: []
 
 body:
@@ -58,7 +58,7 @@ body:
     attributes:
       label: Bekreftelser
       options:
-        - label: Vi legger til gatewayen i `accessPolicy.inbound` for MCP-serveren.
+        - label: Vi legger til fleet-gateway i `accessPolicy.inbound` for MCP-serveren.
           required: true
-        - label: "Serveren validerer tokenet med Texas-introspeksjon, avviser `idtyp: app`, sjekker at `azp` er gatewayen og krever NAVident."
+        - label: "Serveren validerer tokenet med Texas-introspeksjon, avviser `idtyp: app`, sjekker at `azp` er fleet-gateway og krever NAVident."
           required: true
