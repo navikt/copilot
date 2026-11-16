@@ -18,7 +18,8 @@ spec:
   azure:
     application:
       enabled: true
-      # Group-restricted test: set down_group_id in vars.yaml (a group in the dev tenant).
+      tenant: nav.no
+      # Group-restricted test: set down_group_id in vars.yaml (a group in the nav.no tenant).
       # Empty keeps allowAllUsers so the chain test still runs.
       allowAllUsers: {{#if down_group_id}}false{{else}}true{{/if}}
       {{#if down_group_id}}
