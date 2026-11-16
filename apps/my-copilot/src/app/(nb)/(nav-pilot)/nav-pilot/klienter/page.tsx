@@ -169,7 +169,7 @@ const SETTINGS: { key: string; copilot: string; opencode: string; pi: string }[]
   { key: "log_level", copilot: "Ja", opencode: "Ja, unntatt none", pi: "Advarsel" },
 ];
 
-const MCP_WARNING = `⚠ MCP servers turned off for this session (URL, command or env differs from its registry entry, or policy blocks it; run nav-pilot mcp list to see why): <navn>. See https://ki-utvikling.nav.no/verktoy (approved servers); to add one: https://github.com/navikt/copilot/blob/main/apps/mcp-registry/README.md#adding-servers`;
+const MCP_WARNING = `⚠ MCP servers turned off for this session (URL, command or env differs from its registry entry, or policy blocks it): <navn>. See https://ki-utvikling.nav.no/verktoy (approved servers); to add one: https://github.com/navikt/copilot/blob/main/apps/mcp-registry/README.md#adding-servers`;
 
 function Section({ children }: { children: ReactNode }) {
   return (

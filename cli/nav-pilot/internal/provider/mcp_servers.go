@@ -616,8 +616,11 @@ type MCPConfigured struct {
 // ConfiguredMCPServers matches the user's client configs against the
 // registry. Copilot's policy matches on the server's name only, so a Copilot
 // server under any other name is unlisted even when its URL is the
-// registry's (#601). OpenCode matches by name, remote URL or package, as
-// the launch's policy check does; a server turned off does not count.
+// registry's (#601). OpenCode matches by name, remote URL or
+// package. The launch check, listed() in opencode_mcp.go, is stricter: it
+// ignores the name and refuses any server with env set, so a server counted
+// here can still be turned off at launch. A server turned off in config does
+// not count.
 func ConfiguredMCPServers(entries []MCPServerEntry) MCPConfigured {
 	c := MCPConfigured{Copilot: map[string]bool{}, OpenCode: map[string]bool{}}
 	byName := map[string]bool{}
