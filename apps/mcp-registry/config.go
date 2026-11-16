@@ -14,6 +14,8 @@ type Config struct {
 	LoggedEndpoints map[string]bool
 	DomainInternal  string
 	DomainExternal  string
+	DatabaseURL     string
+	Store           *Store
 }
 
 func loadConfig() *Config {
@@ -21,6 +23,7 @@ func loadConfig() *Config {
 		Port:            getEnv("PORT", "8080"),
 		DomainInternal:  getEnv("DOMAIN_INTERNAL", "intern.dev.nav.no"),
 		DomainExternal:  getEnv("DOMAIN_EXTERNAL", "ekstern.dev.nav.no"),
+		DatabaseURL:     getDatabaseURL(),
 		LoggedEndpoints: make(map[string]bool),
 	}
 
@@ -57,6 +60,10 @@ func getEnv(key, defaultValue string) string {
 		return value
 	}
 	return defaultValue
+}
+
+func getDatabaseURL() string {
+	return os.Getenv("DB_URL")
 }
 
 func getEndpointsList(endpoints map[string]bool) []string {
