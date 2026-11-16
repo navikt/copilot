@@ -51,7 +51,6 @@ class APIHandler(BaseHTTPRequestHandler):
         self._reply("%d %d" % (_peak[0], _ran[0]))
 def main():
     port = int(sys.argv[sys.argv.index("--port") + 1])
-    ThreadingHTTPServer.request_queue_size = 64  # default 5 resets bursts on macOS (#2181)
     ThreadingHTTPServer(("127.0.0.1", port), APIHandler).serve_forever()
 `
 
