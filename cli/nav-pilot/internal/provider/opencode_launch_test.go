@@ -1086,3 +1086,36 @@ func TestOpenCodeAgentArgsClientArgs(t *testing.T) {
 		t.Error("attach after -- behind --client-arg -s not refused")
 	}
 }
+
+// A catalogued local model is refused with local inference off too.
+func TestLaunchPi_RefusesLocalModelWhenLocalDisabled(t *testing.T) {
+	local.SetActive(local.EndpointManifest("qwen3.6:35b"))
+	local.SetEnabled(false)
+	t.Cleanup(func() { local.SetActive(nil) })
+	t.Setenv("PATH", t.TempDir())
+	err := LaunchPi(domain.ResolvedConfig{Client: "pi", Model: "qwen3.6:35b"})
+	if err == nil || !strings.Contains(err.Error(), "local model") {
+		t.Fatalf("err = %v, want the local-model refusal", err)
+	}
+}
+
+// BeforeClientStart may switch to a local model; the refusal sees that.
+func TestLaunchPi_RechecksModelAfterBeforeClientStart(t *testing.T) {
+	local.SetActive(local.EndpointManifest("qwen3.6:35b"))
+	local.SetEnabled(true)
+	t.Cleanup(func() { local.SetActive(nil); local.SetEnabled(false) })
+	dir := t.TempDir()
+	for _, n := range []string{"cplt", "pi"} {
+		if err := testhome.WriteExec(filepath.Join(dir, n), "#!/bin/sh\n"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	t.Setenv("PATH", dir)
+	PiNavContextDirOverride = t.TempDir()
+	t.Cleanup(func() { PiNavContextDirOverride = "" })
+	err := LaunchPi(domain.ResolvedConfig{Client: "pi", Model: "claude-sonnet-4.6",
+		BeforeClientStart: func(r domain.ResolvedConfig) domain.ResolvedConfig { r.Model = "qwen3.6:35b"; return r }})
+	if err == nil || !strings.Contains(err.Error(), "local model") {
+		t.Fatalf("err = %v, want the local-model refusal", err)
+	}
+}

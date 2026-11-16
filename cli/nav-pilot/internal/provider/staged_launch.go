@@ -342,7 +342,7 @@ func buildStagedPiSpec(r domain.ResolvedConfig, s StagedLaunch) (cpltLaunch, err
 	if local.IsLocal(model) {
 		return cpltLaunch{}, fmt.Errorf(
 			"%s is a local model, and agentpakke %q launches from a digest-verified payload that nav-pilot does not point at a server on this machine.\n\n  Launch the pakke on its declared model, or run a local session without it: %s",
-			model, s.PakkeName, domain.Bold("nav-pilot --client pi"))
+			model, s.PakkeName, domain.Bold("nav-pilot --client opencode"))
 	}
 	if err := rejectReservedClientArgs("pi", s.PakkeName, r.ExtraArgs); err != nil {
 		return cpltLaunch{}, err

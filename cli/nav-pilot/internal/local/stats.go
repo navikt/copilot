@@ -117,5 +117,10 @@ func ReadStats() (Stats, error) {
 // each short line at the current end of file, where a seek-then-write would let
 // two sessions land on the same offset and lose one.
 func openAppend(path string) (*os.File, error) {
+	// An external endpoint (alpha local setup) never runs init, so the
+	// directory may not exist yet.
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		return nil, err
+	}
 	return os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o600)
 }

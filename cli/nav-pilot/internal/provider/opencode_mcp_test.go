@@ -328,3 +328,18 @@ func TestApplyOpenCodeMCPPolicyLeavesBrokeredServers(t *testing.T) {
 		}
 	}
 }
+
+// The project's servers follow the same switch OpenCode reads, either key.
+func TestOpenCodeMCPServersHonourProjectDisable(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Cleanup(func() { versionCache.Delete("opencode") })
+	versionCache.Store("opencode", versionAnswer{"opencode v2.0.24\n", nil, time.Hour})
+	proj := t.TempDir()
+	os.WriteFile(filepath.Join(proj, "opencode.json"), []byte(`{"mcp":{"s":{"type":"remote","url":"https://project/mcp"}}}`), 0o600)
+	for env, want := range map[string]bool{"OPENCODE_CONFIG_PROJECT_DISABLE=1": false, "X=1": true} {
+		if _, got := openCodeMCPServers(proj, []string{env})["s"]; got != want {
+			t.Errorf("%s: project server loaded = %v, want %v", env, got, want)
+		}
+	}
+}

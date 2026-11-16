@@ -710,3 +710,14 @@ func TestMCPEnableBrokerUsesCpltCredential(t *testing.T) {
 		t.Errorf("enable did not report cplt's answer:\n%s", out)
 	}
 }
+
+// --json prints one document, so it takes one server: two would print two
+// concatenated objects no JSON parser reads.
+func TestMCPEnableJSONTakesOneServer(t *testing.T) {
+	brokerEnv(t, brokerStatusOK)
+	var err error
+	out := captureStdout(func() { err = cmdMCP([]string{"enable", "nais-mcp", "nais-mcp", "--json"}) })
+	if err == nil || out != "" {
+		t.Errorf("err = %v, stdout = %q; want a refusal and nothing printed", err, out)
+	}
+}

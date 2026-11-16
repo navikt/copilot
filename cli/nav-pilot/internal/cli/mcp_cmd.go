@@ -122,6 +122,10 @@ func cmdMCP(args []string) error {
 		if jsonOut && pos[0] != "enable" {
 			return fmt.Errorf("--json is for mcp list and mcp enable")
 		}
+		// One JSON document per run: two servers would print two objects.
+		if jsonOut && len(pos) > 2 {
+			return fmt.Errorf("mcp enable --json takes one server name. Fix: run nav-pilot mcp enable <name> --json once per server")
+		}
 		// A brokered server needs no client config, so no client either:
 		// the client list is asked for only when one is written.
 		clients := func() ([]string, error) { return mcpClients(client) }
