@@ -244,7 +244,7 @@ func handleReject(w http.ResponseWriter, r *http.Request, db *DB, actor, name st
 	}
 
 	recordWriteMetric("reject", "success")
-	slog.Info("Server entry rejected", "name", name, "version", payload.Version, "reason", reason, "actor", actor)
+	slog.Info("Server entry rejected", "name", name, "version", payload.Version, "actor", actor)
 	respondJSON(w, http.StatusOK, map[string]interface{}{
 		"name":    name,
 		"version": payload.Version,
