@@ -387,7 +387,30 @@ func MCPConfigKeys(client string) []string {
 	if err != nil {
 		return nil
 	}
+	if client == MCPClientOpenCode {
+		if native, ok := openCodeNativeServers(servers); ok {
+			return native.keys
+		}
+	}
 	return servers.keys
+}
+
+// openCodeNativeServers is opencode 2's mcp.servers.<name> map, when mcp has
+// one: a "servers" key with no server type is that map, not a server
+// (openCodeUserMCPServers reads it the same way).
+func openCodeNativeServers(mcp jsonObject) (jsonObject, bool) {
+	raw, ok := mcp.vals["servers"]
+	if !ok {
+		return jsonObject{}, false
+	}
+	var probe struct {
+		Type string `json:"type"`
+	}
+	if json.Unmarshal(raw, &probe) != nil || probe.Type == "local" || probe.Type == "remote" {
+		return jsonObject{}, false
+	}
+	native, err := parseJSONObject(raw)
+	return native, err == nil
 }
 
 // MCPConfigKeyFor is the name the server already has in the client's user
@@ -402,16 +425,9 @@ func MCPConfigKeyFor(client string, e MCPServerEntry) string {
 	if client != MCPClientOpenCode {
 		return ""
 	}
-	path, _ := MCPConfigPath(client)
-	data, _ := os.ReadFile(path)
-	var cfg struct {
-		MCP map[string]mcpServer `json:"mcp"`
-	}
-	if json.Unmarshal(stripJSONC(data), &cfg) != nil {
-		return ""
-	}
+	defs := openCodeUserServerDefs()
 	for _, k := range keys {
-		if openCodeRegistryName([]MCPServerEntry{e}, k, cfg.MCP[k]) != "" {
+		if openCodeRegistryName([]MCPServerEntry{e}, k, defs[k]) != "" {
 			return k
 		}
 	}
@@ -422,13 +438,33 @@ func MCPConfigKeyFor(client string, e MCPServerEntry) string {
 // in OpenCode's user config, matched by name, URL or package, or "". One
 // read of the file, however many entries there are.
 func OpenCodeRegistryNameFor(key string, entries []MCPServerEntry) string {
+	return openCodeRegistryName(entries, key, openCodeUserServerDefs()[key]) // unreadable: by name only
+}
+
+// openCodeUserServerDefs is the servers in OpenCode's user config by name,
+// from mcp.servers on opencode 2's layout, else from mcp.
+func openCodeUserServerDefs() map[string]mcpServer {
 	path, _ := MCPConfigPath(MCPClientOpenCode)
 	data, _ := os.ReadFile(path)
-	var cfg struct {
-		MCP map[string]mcpServer `json:"mcp"`
+	top, err := parseJSONObject(stripJSONC(data))
+	if err != nil {
+		return nil
 	}
-	_ = json.Unmarshal(stripJSONC(data), &cfg) // unreadable: by name only
-	return openCodeRegistryName(entries, key, cfg.MCP[key])
+	mcp, err := parseJSONObject(top.vals["mcp"])
+	if err != nil {
+		return nil
+	}
+	if native, ok := openCodeNativeServers(mcp); ok {
+		mcp = native
+	}
+	defs := map[string]mcpServer{}
+	for _, k := range mcp.keys {
+		var d mcpServer
+		if json.Unmarshal(mcp.vals[k], &d) == nil {
+			defs[k] = d
+		}
+	}
+	return defs
 }
 
 func editMCPConfig(client string, edit func(top, servers *jsonObject) (json.RawMessage, bool, error)) (MCPConfigChange, error) {
@@ -477,13 +513,24 @@ func editMCPConfig(client string, edit func(top, servers *jsonObject) (json.RawM
 	if _, ok := top.vals[key]; !ok {
 		top.set(key, json.RawMessage(`{}`))
 	}
-	existing, changed, err := edit(&top, &servers)
+	// A config in opencode 2's own layout is edited there, not beside it.
+	target := &servers
+	native, nested := jsonObject{}, false
+	if client == MCPClientOpenCode {
+		if native, nested = openCodeNativeServers(servers); nested {
+			target = &native
+		}
+	}
+	existing, changed, err := edit(&top, target)
 	if err != nil {
 		return ch, fmt.Errorf("%s: %w", ch.Path, err)
 	}
 	ch.Existing = existing
 	if !changed {
 		return ch, nil
+	}
+	if nested {
+		servers.set("servers", native.marshal())
 	}
 	top.set(key, servers.marshal())
 	var out bytes.Buffer
