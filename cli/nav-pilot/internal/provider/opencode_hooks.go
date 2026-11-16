@@ -72,6 +72,9 @@ type BridgeHook struct {
 	Timeout    int      `json:"timeout,omitempty"`
 	FailClosed bool     `json:"failClosed,omitempty"`
 	SkipLocal  bool     `json:"skipLocal,omitempty"`
+	// Repo marks a gate read from the repo's own hook config; it is dropped
+	// when the launch turns the repo's OpenCode config off.
+	Repo bool `json:"-"`
 }
 
 // HookBridge is what one launch hands the plugin. ReadDirs are directories the
@@ -130,6 +133,11 @@ func applyOpenCodeHooks(r domain.ResolvedConfig, env []string, cpltArgs []string
 		return env, cpltArgs
 	}
 	b := OpenCodeHookBridge(r)
+	// The switch is often set by this launch (declined or unanswered repo
+	// plugins), so read it from env, not the process environment.
+	if v := strings.ToLower(openCodeEnvGetter(env)(openCodeDisableProjectConfigEnv)); v == "1" || v == "true" {
+		b.Pre = slices.DeleteFunc(b.Pre, func(h BridgeHook) bool { return h.Repo })
+	}
 	blocked := slices.ContainsFunc(env, func(e string) bool { return strings.HasPrefix(e, MCPBlockedEnv+"=") })
 	v2 := openCodeMajor() >= 2
 	// On opencode 2 the bridge also runs the dispatch gate (dispatch-gate.js

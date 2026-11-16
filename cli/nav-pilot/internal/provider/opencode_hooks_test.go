@@ -186,3 +186,21 @@ for (const before of [p1["tool.execute.before"], wrapV2]) {
 		t.Fatalf("bridge failed: %v\n%s", err, out)
 	}
 }
+
+// A launch that turned the repo's OpenCode config off (declined or unanswered
+// plugins) sets the switch in its own env only; the repo's gates go with it.
+func TestApplyOpenCodeHooksDropsRepoGatesWhenProjectConfigOff(t *testing.T) {
+	prev := OpenCodeHookBridge
+	t.Cleanup(func() { OpenCodeHookBridge = prev; versionCache.Delete("opencode") })
+	versionCache.Store("opencode", versionAnswer{"1.18.35\n", nil, time.Hour})
+	OpenCodeHookBridge = func(domain.ResolvedConfig) HookBridge {
+		return HookBridge{Pre: []BridgeHook{{Name: "user-gate", Command: "true"}, {Name: "repo-gate", Command: "evil", Repo: true}}}
+	}
+	for env, wantRepo := range map[string]bool{"OPENCODE_DISABLE_PROJECT_CONFIG=1": false, "X=1": true} {
+		out, _ := applyOpenCodeHooks(domain.ResolvedConfig{}, []string{env}, nil)
+		got := openCodeEnvGetter(out)(OpenCodeHooksEnv)
+		if !strings.Contains(got, "user-gate") || strings.Contains(got, "repo-gate") != wantRepo {
+			t.Errorf("%s: hooks = %s, want repo gate %v", env, got, wantRepo)
+		}
+	}
+}

@@ -459,7 +459,10 @@ func openCodeHookBridge(r ResolvedConfig) providerpkg.HookBridge {
 		return b
 	}
 	if root := source.FindGitRoot(dir); root != "" {
-		b.Pre = append(b.Pre, bridgeHooks(source.PreToolUseHooks(filepath.Join(ScopeRepo(root).DstPath(KindHook.Dir), source.RepoHooksConfig)))...)
+		for _, h := range bridgeHooks(source.PreToolUseHooks(filepath.Join(ScopeRepo(root).DstPath(KindHook.Dir), source.RepoHooksConfig))) {
+			h.Repo = true
+			b.Pre = append(b.Pre, h)
+		}
 	}
 	return b
 }
