@@ -27,7 +27,7 @@ exec nav-pilot install plattform --user --yes
 # registry_only: unlisted servers and registered packages with environment overrides are turned off.
 env POLICY=registry_only
 exec /bin/sh -c 'nav-pilot --client opencode --model claude-opus-4.8 -- run x </dev/null'
-stderr 'MCP servers turned off for this session \(URL, command or env differs from its registry entry, or policy blocks it\): com.jetbrains/intellij, egen-lokal, localhost, playwright-env, tredjepart\. See https://ki-utvikling\.nav\.no/verktoy'
+stderr 'MCP servers turned off for this session \(not in Nav''s MCP registry, or its URL, command or env differs from the registry entry\): com.jetbrains/intellij, egen-lokal, localhost, playwright-env, tredjepart\. See https://ki-utvikling\.nav\.no/verktoy'
 ! stderr '127\.0\.0\.1|configured-secret|/stream'
 exec cat $WORK/env.out
 stdout '"tredjepart":\{"enabled":false\}'
@@ -50,7 +50,7 @@ grep '^--pass-env\nNAV_PILOT_MCP_BLOCKED\n' $WORK/fake/cplt.log
 [exec:node] stdout '^list_mcp_resources: allowed$'
 
 exec nav-pilot doctor
-stdout 'MCP servers turned off at launch \(URL, command or env differs from its registry entry, or policy blocks it\): com.jetbrains/intellij, egen-lokal, localhost, playwright-env, tredjepart'
+stdout 'MCP servers turned off at launch \(not in Nav''s MCP registry, or its URL, command or env differs from the registry entry\): com.jetbrains/intellij, egen-lokal, localhost, playwright-env, tredjepart'
 ! stdout 'configured-secret|/stream'
 
 # With every hook off, the session policy still reaches opencode.

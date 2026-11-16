@@ -618,7 +618,8 @@ type MCPConfigured struct {
 // server under any other name is unlisted even when its URL is the
 // registry's (#601). OpenCode matches by name, remote URL or
 // package. The launch check, listed() in opencode_mcp.go, is stricter: it
-// ignores the name and refuses any server with env set, so a server counted
+// ignores the name and refuses a local server with env set, or any server
+// with `{env:}` in its name, so a server counted
 // here can still be turned off at launch. A server turned off in config does
 // not count.
 func ConfiguredMCPServers(entries []MCPServerEntry) MCPConfigured {
