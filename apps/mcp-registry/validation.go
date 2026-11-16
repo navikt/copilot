@@ -480,8 +480,8 @@ func validateSubmission(entryJSON []byte) (*Submission, []byte, error) {
 	if err := validateName(sub.Name, 0); err != nil {
 		return nil, nil, err
 	}
-	if strings.TrimSpace(sub.Description) == "" {
-		return nil, nil, errors.New("description is required and cannot be empty")
+	if err := validateDescription(sub.Description, 0); err != nil {
+		return nil, nil, err
 	}
 	if strings.TrimSpace(sub.Version) == "" {
 		return nil, nil, errors.New("version is required and cannot be empty")

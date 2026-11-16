@@ -75,12 +75,25 @@ func (s *DB) Migrate(ctx context.Context) error {
 		return errors.New("database pool is not initialized")
 	}
 
+	// Session-level lock on one connection so concurrent replicas migrate serially.
+	conn, err := s.pool.Acquire(ctx)
+	if err != nil {
+		return fmt.Errorf("acquiring connection: %w", err)
+	}
+	defer conn.Release()
+	if _, err = conn.Exec(ctx, "SELECT pg_advisory_lock($1)", migrationLockKey); err != nil {
+		return fmt.Errorf("acquiring migration lock: %w", err)
+	}
+	defer func() {
+		_, _ = conn.Exec(context.WithoutCancel(ctx), "SELECT pg_advisory_unlock($1)", migrationLockKey)
+	}()
+
 	createMigrationsTable := `
 	CREATE TABLE IF NOT EXISTS schema_migrations (
 		version TEXT PRIMARY KEY,
 		applied_at TIMESTAMPTZ NOT NULL DEFAULT now()
 	);`
-	if _, err := s.pool.Exec(ctx, createMigrationsTable); err != nil {
+	if _, err = conn.Exec(ctx, createMigrationsTable); err != nil {
 		return fmt.Errorf("creating schema_migrations table: %w", err)
 	}
 
@@ -98,7 +111,7 @@ func (s *DB) Migrate(ctx context.Context) error {
 	sort.Strings(filenames)
 
 	for _, filename := range filenames {
-		if err := s.applyMigration(ctx, filename); err != nil {
+		if err := applyMigration(ctx, conn, filename); err != nil {
 			return fmt.Errorf("applying migration %s: %w", filename, err)
 		}
 	}
@@ -106,8 +119,11 @@ func (s *DB) Migrate(ctx context.Context) error {
 	return nil
 }
 
-func (s *DB) applyMigration(ctx context.Context, filename string) error {
-	tx, err := s.pool.Begin(ctx)
+// migrationLockKey is an arbitrary fixed pg_advisory_lock key for Migrate.
+const migrationLockKey int64 = 0x6d6370726567 // "mcpreg"
+
+func applyMigration(ctx context.Context, conn *pgxpool.Conn, filename string) error {
+	tx, err := conn.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("starting transaction: %w", err)
 	}
@@ -217,12 +233,13 @@ func (s *DB) Submit(ctx context.Context, actor string, entryJSON []byte, name st
 
 	// Lock and check current entry row
 	var currentStatus string
+	var supersededVersion *int
 	err = tx.QueryRow(ctx, `
-		SELECT status
+		SELECT status, pending_version
 		FROM registry_entries
 		WHERE name = $1
 		FOR UPDATE
-	`, name).Scan(&currentStatus)
+	`, name).Scan(&currentStatus, &supersededVersion)
 
 	switch {
 	case errors.Is(err, pgx.ErrNoRows):
@@ -246,6 +263,15 @@ func (s *DB) Submit(ctx context.Context, actor string, entryJSON []byte, name st
 		`, name, newVersion)
 		if err != nil {
 			return 0, fmt.Errorf("updating pending version for approved entry: %w", err)
+		}
+		if supersededVersion != nil {
+			_, err = tx.Exec(ctx, `
+				INSERT INTO registry_audit (actor, action, name, version, reason, at)
+				VALUES ($1, 'supersede', $2, $3, $4, now())
+			`, actor, name, *supersededVersion, fmt.Sprintf("superseded by version %d", newVersion))
+			if err != nil {
+				return 0, fmt.Errorf("auditing superseded version: %w", err)
+			}
 		}
 	default:
 		// Previous status was pending or rejected: switch/update to pending

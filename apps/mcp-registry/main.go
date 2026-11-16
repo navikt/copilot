@@ -50,22 +50,22 @@ func main() {
 	sigCtx, stop := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	// The DB is optional: without it the reader serves static entries only and
-	// the write endpoints answer 503.
+	// The DB is optional: without DATABASE_URL the reader serves static entries
+	// only and the write endpoints answer 503. With it configured, a DB that
+	// cannot be reached or migrated is fatal, so a broken replica never turns ready.
 	var db *DB
 	var loader EntryLoader
 	if config.DatabaseURL != "" {
-		opened, err := OpenDB(sigCtx, config.DatabaseURL)
+		opened, err := openAndMigrate(sigCtx, config.DatabaseURL, 5, 3*time.Second)
 		if err != nil {
-			slog.Warn("Failed to connect to database, writes disabled", "error", err)
-		} else if err := opened.Migrate(sigCtx); err != nil {
-			opened.Close()
-			slog.Warn("Failed to apply database migrations, writes disabled", "error", err)
-		} else {
-			defer opened.Close()
-			db = opened
-			loader = db.GetApprovedEntries
+			stop()
+			slog.Error("Database unavailable, exiting", "error", err)
+			os.Exit(1) //nolint:gocritic // fail closed; stop() already ran, tracer flush is best effort
+
 		}
+		defer opened.Close()
+		db = opened
+		loader = db.GetApprovedEntries
 	}
 
 	store := NewStore(config, "allowlist.json", loader)
@@ -116,4 +116,28 @@ func main() {
 	if err := server.Shutdown(shutdownCtx); err != nil {
 		slog.Error("Server shutdown failed", "error", err)
 	}
+}
+
+// openAndMigrate retries OpenDB and Migrate a bounded number of times, since
+// the Cloud SQL proxy may start after the app.
+func openAndMigrate(ctx context.Context, dbURL string, attempts int, delay time.Duration) (*DB, error) {
+	var err error
+	for i := 1; i <= attempts; i++ {
+		var db *DB
+		if db, err = OpenDB(ctx, dbURL); err == nil {
+			if err = db.Migrate(ctx); err == nil {
+				return db, nil
+			}
+			db.Close()
+		}
+		slog.Warn("Database not ready", "attempt", i, "error", err)
+		if i < attempts {
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			case <-time.After(delay):
+			}
+		}
+	}
+	return nil, err
 }

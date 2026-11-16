@@ -498,3 +498,44 @@ func TestStore_RealPostgres_LifecycleAndRequirements(t *testing.T) {
 		}
 	})
 }
+
+func TestMigrate_ConcurrentReplicas(t *testing.T) {
+	db := setupTestDB(t)
+	if _, err := db.pool.Exec(context.Background(), "DROP TABLE IF EXISTS registry_entries, registry_entry_versions, registry_audit, schema_migrations"); err != nil {
+		t.Fatalf("resetting schema: %v", err)
+	}
+	errs := make(chan error, 4)
+	for range 4 {
+		go func() { errs <- db.Migrate(context.Background()) }()
+	}
+	for range 4 {
+		if err := <-errs; err != nil {
+			t.Fatalf("concurrent Migrate: %v", err)
+		}
+	}
+}
+
+func TestSubmit_AuditsSupersededPendingVersion(t *testing.T) {
+	db := setupTestDB(t)
+	ctx := context.Background()
+	entry := []byte(`{"name":"io.github.navikt/s","description":"d","version":"1","owner":"team","remotes":[{"type":"sse","url":"https://mcp.example.com"}]}`)
+	name := "io.github.navikt/s"
+	if _, err := db.Submit(ctx, "a@nav.no", entry, name, false); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Approve(ctx, "admin@nav.no", name, 1); err != nil {
+		t.Fatal(err)
+	}
+	for range 2 { // v2 pending, then v3 supersedes it
+		if _, err := db.Submit(ctx, "a@nav.no", entry, name, false); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var version int
+	if err := db.pool.QueryRow(ctx, "SELECT version FROM registry_audit WHERE action = 'supersede' AND name = $1", name).Scan(&version); err != nil {
+		t.Fatalf("no supersede audit row: %v", err)
+	}
+	if version != 2 {
+		t.Fatalf("superseded version = %d, want 2", version)
+	}
+}

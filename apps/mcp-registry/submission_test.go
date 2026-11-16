@@ -207,6 +207,17 @@ func TestValidateSubmission(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name: "description too long",
+			json: `{
+				"name": "io.github.navikt/test-server",
+				"description": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+				"version": "1.0.0",
+				"owner": "team",
+				"remotes": [{"type": "streamable-http", "url": "https://mcp.example.com/api"}]
+			}`,
+			wantErr: true,
+		},
+		{
 			name: "invalid owner uppercase",
 			json: `{
 				"name": "io.github.navikt/test-server",
