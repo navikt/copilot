@@ -8,6 +8,10 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 - **`repo-baseline-audit`**: Ny skill som sjekker om et repo i navikt følger grunnkravene fra navikt/offentlig, Golden Path og sikkerhetsplaybooken, og vanlig GitHub-hygiene som `.gitignore` og innsjekkede env-filer. Den viser hva som mangler i oppsettet, og endrer ingenting uten at du ber om det. Sårbarheter i koden dekkes av `appsec-advisory`, og endringer før commit av `security-review` (#2159).
 
+### Tydeligere beskjed når en MCP-server slås av
+
+- **OpenCode-oppstart og `nav-pilot doctor`**: Når nav-pilot slår av en MCP-server, sier meldingen nå hva som er galt: URL, kommando eller miljøvariabler avviker fra serverens oppføring i registeret, eller en policy blokkerer den. Kjør `nav-pilot mcp list` for å se årsaken og hva du gjør per server (#2164).
+
 ## 2026-10-31
 
 ### `innblikk`: nettstatistikk uten dekoratøren

@@ -45,7 +45,7 @@ import (
 const MCPRegistryHelpURL = "https://ki-utvikling.nav.no/verktoy (approved servers); to add one: https://github.com/navikt/copilot/blob/main/apps/mcp-registry/README.md#adding-servers"
 
 // MCPRegistryMismatch explains registry and policy checks without exposing config values.
-const MCPRegistryMismatch = "registry mismatch or blocked by configuration policy; a registered name alone does not approve it"
+const MCPRegistryMismatch = "URL, command or env differs from its registry entry, or policy blocks it; run nav-pilot mcp list to see why"
 
 // MCPPolicyTimeout bounds each gh and registry call. A var so the e2e build
 // can give its fake gh more time on a loaded machine.
