@@ -110,8 +110,8 @@ In order. "Owner" means a human with the access; "agent" means repo work an agen
 
 Owner decisions, recorded in [#2098 (comment)](https://github.com/navikt/copilot/issues/2098#issuecomment-6924375982) and implemented in [#2110](https://github.com/navikt/copilot/pull/2110):
 
-1. **Write access.** The registry write endpoints accept only tokens whose `azp` is my-copilot. Any other `azp` gets 403. An empty allowlist closes writes entirely.
-2. **Personal data.** Audit and version rows store the caller's NAVident, not the email address. Rows are deleted after 90 days ([#2092](https://github.com/navikt/copilot/issues/2092)). Logs carry no email address.
+1. **Write access.** The registry write endpoints accept only tokens whose `azp` is my-copilot. `ALLOWED_WRITE_AZP` lists `cluster:namespace:app` names, resolved to client ids through Nais `AZURE_APP_PRE_AUTHORIZED_APPS`; the manifest sets `{{cluster}}:copilot:my-copilot`, and the Entra app uses `tenant: nav.no`. Any other `azp` gets 403, and the rejection reason is not logged. An empty allowlist closes writes entirely.
+2. **Personal data.** Audit and version rows store the caller's NAVident, not the email address. Audit rows (`registry_audit`) are deleted after 90 days. Version rows (`registry_entry_versions`) are kept for version history, but `submitted_by` is cleared after 90 days. `registry_entries.owner_navident` is kept while the entry exists, a deliberate exception to the 90-day rule, because ownership decides who may update the entry. The privacy document ([#2092](https://github.com/navikt/copilot/issues/2092)) must cover this exception. Logs carry no email address.
 3. **Database outage.** Reads keep serving `allowlist.json`, writes answer 503, and the app retries connect and migrate in the background. The app does not exit fail-closed.
 4. **Spike gate stands.** [#2102](https://github.com/navikt/copilot/pull/2102) and [#2110](https://github.com/navikt/copilot/pull/2110) merge together after the chained-OBO spike ([#2084](https://github.com/navikt/copilot/issues/2084)) passes.
 
