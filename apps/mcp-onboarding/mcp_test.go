@@ -340,3 +340,15 @@ func TestHandleRoot_MethodNotAllowed(t *testing.T) {
 		t.Fatalf("POST / status = %d, want %d", rec.Code, http.StatusMethodNotAllowed)
 	}
 }
+
+func TestMCPHandler_HandleJSONRPC_NotificationGets202(t *testing.T) {
+	h := newSimpleMCPHandler()
+
+	req := httptest.NewRequest("POST", "/mcp", bytes.NewReader([]byte(`{"jsonrpc":"2.0","method":"notifications/initialized"}`)))
+	w := httptest.NewRecorder()
+	h.handleJSONRPC(w, req)
+
+	if w.Code != http.StatusAccepted || w.Body.Len() != 0 {
+		t.Errorf("expected 202 with empty body, got %d %q", w.Code, w.Body.String())
+	}
+}

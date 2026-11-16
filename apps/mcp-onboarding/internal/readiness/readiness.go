@@ -304,23 +304,23 @@ func SuggestCustomizations(contents *RepoContents, manifest *discovery.Customiza
 	if langs["Kotlin"] || langs["Java"] {
 		switch {
 		case isSpringBoot(contents):
-			suggestions = appendMatching(suggestions, manifest, "instruction", "kotlin-ktor",
+			suggestions = appendMatching(suggestions, manifest, "instruction", "kotlin",
 				"Your repo uses Kotlin — this provides coding conventions, sealed classes, and testing patterns applicable to Spring Boot projects")
 		case isKtor(contents):
-			suggestions = appendMatching(suggestions, manifest, "instruction", "kotlin-ktor",
+			suggestions = appendMatching(suggestions, manifest, "instruction", "kotlin",
 				"Your repo uses Kotlin/Ktor — this provides Ktor routing patterns, ApplicationBuilder conventions, and Kotliquery database patterns")
 		default:
-			suggestions = appendMatching(suggestions, manifest, "instruction", "kotlin-ktor",
+			suggestions = appendMatching(suggestions, manifest, "instruction", "kotlin",
 				"Your repo uses Kotlin/Java — this provides Ktor patterns, sealed class configs, and Kotliquery conventions")
 		}
-		suggestions = appendMatching(suggestions, manifest, "agent", "kafka-events",
+		suggestions = appendMatching(suggestions, manifest, "agent", "kafka-agent",
 			"Provides Rapids & Rivers pattern guidance for Kafka event handling in JVM projects")
 	}
 
 	suggestions = appendMatching(suggestions, manifest, "instruction", "testing",
 		"Testing instructions applicable to all Nav projects — patterns for Jest, Kotest, and integration tests")
 
-	suggestions = appendMatching(suggestions, manifest, "agent", "security-champion",
+	suggestions = appendMatching(suggestions, manifest, "agent", "security-champion-agent",
 		"Security review agent for all Nav repos — OWASP, dependency scanning, secrets management")
 
 	suggestions = appendMatching(suggestions, manifest, "skill", "nais",
@@ -489,7 +489,11 @@ func FormatReport(r *Report) string {
 	if len(r.Suggestions) > 0 {
 		b.WriteString("\n## Suggested Nav Customizations\n\n")
 		for _, s := range r.Suggestions {
-			fmt.Fprintf(&b, "- **%s** (%s): %s\n  Install: %s\n\n", s.Name, s.Type, s.Reason, s.InstallURL)
+			fmt.Fprintf(&b, "- **%s** (%s): %s\n", s.Name, s.Type, s.Reason)
+			if s.InstallURL != "" {
+				fmt.Fprintf(&b, "  Install: %s\n", s.InstallURL)
+			}
+			b.WriteString("\n")
 		}
 	}
 
@@ -533,7 +537,7 @@ func appendMatching(suggestions []Suggestion, manifest *discovery.Customizations
 	}
 
 	for _, item := range items {
-		if strings.Contains(item.Name, name) {
+		if item.Name == name {
 			suggestions = append(suggestions, Suggestion{
 				Type:        typ,
 				Name:        item.DisplayName,

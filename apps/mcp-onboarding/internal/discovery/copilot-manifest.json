@@ -29,7 +29,7 @@
       "name": "aksel-agent",
       "displayName": "@aksel-agent",
       "description": "Bygger og refaktorerer UI med Navs Aksel designsystem (v8+), fra komponenter og layout til Figma-design, theming og tilgjengelighet. Bruker aksel-builder, Aksel MCP og prosjektets installerte versjon.",
-      "category": "backend",
+      "category": "frontend",
       "tags": [
         "aksel",
         "design-system",
