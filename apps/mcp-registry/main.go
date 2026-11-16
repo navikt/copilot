@@ -63,9 +63,12 @@ func main() {
 
 	store := NewStore(config, "allowlist.json", loader)
 	if loader != nil {
-		if err := store.Reload(sigCtx); err != nil {
-			slog.Warn("Initial database reload failed, serving static entries only", "error", err)
-		}
+		// Load DB entries in the background: static entries and health serve at once.
+		go func() {
+			if err := store.Reload(sigCtx); err != nil {
+				slog.Warn("Initial database reload failed, serving static entries only", "error", err)
+			}
+		}()
 		store.StartRefresher(sigCtx, 60*time.Second)
 	}
 	config.Store = store

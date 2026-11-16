@@ -387,14 +387,60 @@ func TestStore_StaticReloadFailureKeepsStaticEntries(t *testing.T) {
 	}
 	before, _ := store.GetServers()
 
-	if err := os.WriteFile(path, []byte("{not json"), 0o600); err != nil {
-		t.Fatal(err)
+	for _, bad := range []string{"{not json", `{"servers":[]}`, `{"servers":[{"name":"bad name"}]}`} {
+		if err := os.WriteFile(path, []byte(bad), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		if err := store.Reload(t.Context()); err != nil {
+			t.Fatalf("%s: reload with cached static should not fail: %v", bad, err)
+		}
+		after, _ := store.GetServers()
+		if len(after) != len(before) || len(after) < 2 {
+			t.Fatalf("%s: static entries dropped: before %d, after %d", bad, len(before), len(after))
+		}
 	}
-	if err := store.Reload(t.Context()); err != nil {
-		t.Fatalf("reload with cached static should not fail: %v", err)
+}
+
+func TestStore_ReloadBoundsStalledDBLoad(t *testing.T) {
+	old := dbLoadTimeout
+	dbLoadTimeout = 50 * time.Millisecond
+	t.Cleanup(func() { dbLoadTimeout = old })
+	loader := func(ctx context.Context) ([]DBEntry, error) {
+		<-ctx.Done()
+		return nil, ctx.Err()
 	}
-	after, _ := store.GetServers()
-	if len(after) != len(before) || len(after) < 2 {
-		t.Fatalf("static entries dropped: before %d, after %d", len(before), len(after))
+	store := NewStore(testConfig(), "allowlist.json", loader)
+	done := make(chan error, 1)
+	go func() { done <- store.Reload(context.Background()) }()
+	select {
+	case err := <-done:
+		if !errors.Is(err, context.DeadlineExceeded) {
+			t.Fatalf("expected deadline error, got %v", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("Reload hung on a stalled DB load")
+	}
+	if servers, err := store.GetServers(); err != nil || len(servers) == 0 {
+		t.Fatalf("static entries not served: %d, %v", len(servers), err)
+	}
+}
+
+func TestStore_DBEntryKeepsStoredTimestamp(t *testing.T) {
+	stored := time.Date(2026, 1, 2, 3, 4, 5, 0, time.UTC)
+	loader := func(_ context.Context) ([]DBEntry, error) {
+		return []DBEntry{{Name: "io.github.navikt/db-only", UpdatedAt: stored, Entry: []byte(`{"name":"io.github.navikt/db-only","description":"from db","version":"1.0.0"}`)}}, nil
+	}
+	store := NewStore(testConfig(), "allowlist.json", loader)
+	for range 2 {
+		if err := store.Reload(t.Context()); err != nil {
+			t.Fatal(err)
+		}
+		sr, err := store.GetServer("io.github.navikt/db-only", "latest")
+		if err != nil || sr == nil {
+			t.Fatalf("db entry missing: %v", err)
+		}
+		if m := sr.Meta.Official; !m.UpdatedAt.Equal(stored) || !m.PublishedAt.Equal(stored) {
+			t.Fatalf("timestamps not from DB row: updated %v, published %v", m.UpdatedAt, m.PublishedAt)
+		}
 	}
 }

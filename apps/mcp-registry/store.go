@@ -15,9 +15,13 @@ import (
 
 // DBEntry represents a single row returned from registry_entries.
 type DBEntry struct {
-	Name  string
-	Entry []byte
+	Name      string
+	Entry     []byte
+	UpdatedAt time.Time
 }
+
+// dbLoadTimeout bounds one database load, so a stalled query cannot hang a reload.
+var dbLoadTimeout = 10 * time.Second
 
 // EntryLoader loads approved server entries from a database or fake.
 type EntryLoader func(ctx context.Context) ([]DBEntry, error)
@@ -56,6 +60,15 @@ func (s *Store) loadStatic() ([]ServerResponse, map[string]bool, error) {
 	data, err := os.ReadFile(s.allowlistPath)
 	if err != nil {
 		return nil, nil, fmt.Errorf("reading static allowlist file: %w", err)
+	}
+
+	// Same validation as startup, so a bad file never replaces the last good set.
+	var raw StaticRegistryData
+	if err = json.Unmarshal(data, &raw); err != nil {
+		return nil, nil, fmt.Errorf("parsing static allowlist JSON: %w", err)
+	}
+	if err = validateRegistry(&raw); err != nil {
+		return nil, nil, fmt.Errorf("validating static allowlist: %w", err)
 	}
 
 	if s.config != nil {
@@ -131,7 +144,9 @@ func (s *Store) Reload(ctx context.Context) error {
 	var dbServers []ServerResponse
 	var dbErr error
 	if s.loader != nil {
-		entries, err := s.loader(ctx)
+		loadCtx, cancel := context.WithTimeout(ctx, dbLoadTimeout)
+		entries, err := s.loader(loadCtx)
+		cancel()
 		if err != nil {
 			slog.Error("Failed to reload registry entries from database, keeping last good set", "error", err)
 			dbErr = err
@@ -189,7 +204,11 @@ func (s *Store) dbEntriesToResponses(entries []DBEntry) []ServerResponse {
 			continue
 		}
 		seen[server.Name] = true
-		out = append(out, serverToResponse(server, now))
+		updatedAt := entry.UpdatedAt.UTC()
+		if entry.UpdatedAt.IsZero() {
+			updatedAt = now
+		}
+		out = append(out, serverToResponse(server, updatedAt))
 	}
 	return out
 }
@@ -248,7 +267,7 @@ func newPGXEntryLoader(ctx context.Context, dbURL string) (EntryLoader, func(), 
 	}
 
 	loader := func(ctx context.Context) ([]DBEntry, error) {
-		rows, err := pool.Query(ctx, "SELECT name, entry FROM registry_entries WHERE status = 'approved' ORDER BY name")
+		rows, err := pool.Query(ctx, "SELECT name, entry, updated_at FROM registry_entries WHERE status = 'approved' ORDER BY name")
 		if err != nil {
 			return nil, fmt.Errorf("querying registry_entries: %w", err)
 		}
@@ -257,7 +276,7 @@ func newPGXEntryLoader(ctx context.Context, dbURL string) (EntryLoader, func(), 
 		var entries []DBEntry
 		for rows.Next() {
 			var e DBEntry
-			if err := rows.Scan(&e.Name, &e.Entry); err != nil {
+			if err := rows.Scan(&e.Name, &e.Entry, &e.UpdatedAt); err != nil {
 				return nil, fmt.Errorf("scanning registry entry row: %w", err)
 			}
 			entries = append(entries, e)
