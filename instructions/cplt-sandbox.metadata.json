@@ -1,0 +1,10 @@
+{
+  "displayName": "cplt-sandkasse",
+  "description": "Regler for agenter som kjører i cplt: worktrees via cplt worktree add, ikke arbeid i scratch, ikke omgå avslag.",
+  "domain": "general",
+  "tags": ["cplt", "sandbox", "worktree", "git"],
+  "examples": [
+    "Lag en worktree for en ny branch inne i cplt",
+    "Hva gjør jeg når cplt nekter en kommando"
+  ]
+}

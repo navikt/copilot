@@ -196,6 +196,7 @@ func TestAPIRoutesRequireAuth(t *testing.T) {
 	// All /api/v1/ paths should require auth
 	paths := []string{
 		"/api/v1/copilot/usage/metrics",
+		"/api/v1/copilot/usage/quality",
 		"/api/v1/copilot/adoption/summary",
 		"/api/v1/copilot/seats/testuser",
 		"/api/v1/copilot/budget",

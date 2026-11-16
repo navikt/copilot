@@ -159,7 +159,7 @@ Et repo helt uten `.nav-pilot/agentpakke.json` er ikke en feil. Det behandles so
 
 Valgfritt. En pakke som ikke bruker MCP utelater feltet, og install sier da ingenting nytt.
 
-MCP-servere styres sentralt i [Navs MCP-register](https://mcp-registry.nav.no). Et team kan ikke opprette sin egen server, men velger hvilke av registerets servere agentene og skillene deres bruker. `mcpServers` er det valget:
+MCP-servere styres sentralt i [Navs MCP-register](https://mcp-registry.nav.no). I dag kan et team ikke legge inn sin egen server selv, men velger hvilke av registerets servere agentene og skillene deres bruker. Når MCP-gatewayen er i drift, skal team kunne registrere egne servere bak gatewayen på ki-utvikling (se [planen](mcp-gateway-plan.md)). `mcpServers` er det valget:
 
 ```json
 {

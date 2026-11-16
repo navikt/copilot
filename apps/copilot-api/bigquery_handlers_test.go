@@ -75,6 +75,8 @@ type mockBigQueryClient struct {
 	repositoryUsageErr   error
 	clientUsage          []ClientUsage
 	clientUsageErr       error
+	editorUsage          []EditorUsage
+	editorUsageErr       error
 	creditsPerUser       []CreditsPerUserMonth
 	creditsPerUserErr    error
 	copilotPRs           []CopilotPRMonth

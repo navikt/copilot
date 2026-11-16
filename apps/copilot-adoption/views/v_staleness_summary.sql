@@ -14,7 +14,7 @@ WITH file_data AS (
   FROM `%s.%s.%s`,
     UNNEST(
       ARRAY_CONCAT(
-        IF(JSON_VALUE(customizations, '$.agents.exists') = 'true',
+        IFNULL(IF(JSON_VALUE(customizations, '$.agents.exists') = 'true',
           (SELECT ARRAY_AGG(STRUCT(
             'agents' AS category,
             JSON_VALUE(f) AS file_name,
@@ -24,8 +24,8 @@ WITH file_data AS (
           FROM UNNEST(JSON_QUERY_ARRAY(customizations, '$.agents.files')) AS f WITH OFFSET pos
           LEFT JOIN UNNEST(JSON_QUERY_ARRAY(customizations, '$.agents.oids')) AS o WITH OFFSET opos ON pos = opos
           LEFT JOIN UNNEST(JSON_QUERY_ARRAY(customizations, '$.agents.in_sync')) AS s WITH OFFSET spos ON pos = spos),
-          []),
-        IF(JSON_VALUE(customizations, '$.instructions.exists') = 'true',
+          []), []),
+        IFNULL(IF(JSON_VALUE(customizations, '$.instructions.exists') = 'true',
           (SELECT ARRAY_AGG(STRUCT(
             'instructions' AS category,
             JSON_VALUE(f) AS file_name,
@@ -35,8 +35,8 @@ WITH file_data AS (
           FROM UNNEST(JSON_QUERY_ARRAY(customizations, '$.instructions.files')) AS f WITH OFFSET pos
           LEFT JOIN UNNEST(JSON_QUERY_ARRAY(customizations, '$.instructions.oids')) AS o WITH OFFSET opos ON pos = opos
           LEFT JOIN UNNEST(JSON_QUERY_ARRAY(customizations, '$.instructions.in_sync')) AS s WITH OFFSET spos ON pos = spos),
-          []),
-        IF(JSON_VALUE(customizations, '$.prompts.exists') = 'true',
+          []), []),
+        IFNULL(IF(JSON_VALUE(customizations, '$.prompts.exists') = 'true',
           (SELECT ARRAY_AGG(STRUCT(
             'prompts' AS category,
             JSON_VALUE(f) AS file_name,
@@ -46,8 +46,8 @@ WITH file_data AS (
           FROM UNNEST(JSON_QUERY_ARRAY(customizations, '$.prompts.files')) AS f WITH OFFSET pos
           LEFT JOIN UNNEST(JSON_QUERY_ARRAY(customizations, '$.prompts.oids')) AS o WITH OFFSET opos ON pos = opos
           LEFT JOIN UNNEST(JSON_QUERY_ARRAY(customizations, '$.prompts.in_sync')) AS s WITH OFFSET spos ON pos = spos),
-          []),
-        IF(JSON_VALUE(customizations, '$.skills.exists') = 'true',
+          []), []),
+        IFNULL(IF(JSON_VALUE(customizations, '$.skills.exists') = 'true',
           (SELECT ARRAY_AGG(STRUCT(
             'skills' AS category,
             JSON_VALUE(f) AS file_name,
@@ -57,8 +57,8 @@ WITH file_data AS (
           FROM UNNEST(JSON_QUERY_ARRAY(customizations, '$.skills.files')) AS f WITH OFFSET pos
           LEFT JOIN UNNEST(JSON_QUERY_ARRAY(customizations, '$.skills.oids')) AS o WITH OFFSET opos ON pos = opos
           LEFT JOIN UNNEST(JSON_QUERY_ARRAY(customizations, '$.skills.in_sync')) AS s WITH OFFSET spos ON pos = spos),
-          []),
-        IF(JSON_VALUE(customizations, '$.copilot_instructions.exists') = 'true',
+          []), []),
+        IFNULL(IF(JSON_VALUE(customizations, '$.copilot_instructions.exists') = 'true',
           (SELECT ARRAY_AGG(STRUCT(
             'copilot_instructions' AS category,
             JSON_VALUE(f) AS file_name,
@@ -68,8 +68,8 @@ WITH file_data AS (
           FROM UNNEST(JSON_QUERY_ARRAY(customizations, '$.copilot_instructions.files')) AS f WITH OFFSET pos
           LEFT JOIN UNNEST(JSON_QUERY_ARRAY(customizations, '$.copilot_instructions.oids')) AS o WITH OFFSET opos ON pos = opos
           LEFT JOIN UNNEST(JSON_QUERY_ARRAY(customizations, '$.copilot_instructions.in_sync')) AS s WITH OFFSET spos ON pos = spos),
-          []),
-        IF(JSON_VALUE(customizations, '$.agents_md.exists') = 'true',
+          []), []),
+        IFNULL(IF(JSON_VALUE(customizations, '$.agents_md.exists') = 'true',
           (SELECT ARRAY_AGG(STRUCT(
             'agents_md' AS category,
             JSON_VALUE(f) AS file_name,
@@ -79,7 +79,7 @@ WITH file_data AS (
           FROM UNNEST(JSON_QUERY_ARRAY(customizations, '$.agents_md.files')) AS f WITH OFFSET pos
           LEFT JOIN UNNEST(JSON_QUERY_ARRAY(customizations, '$.agents_md.oids')) AS o WITH OFFSET opos ON pos = opos
           LEFT JOIN UNNEST(JSON_QUERY_ARRAY(customizations, '$.agents_md.in_sync')) AS s WITH OFFSET spos ON pos = spos),
-          [])
+          []), [])
       )
     ) AS item
   WHERE NOT is_archived

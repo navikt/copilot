@@ -47,6 +47,43 @@ func TestMCPRegistryListed(t *testing.T) {
 	}
 }
 
+func TestOpenCodeMCPRegisteredNameDoesNotApproveEndpoint(t *testing.T) {
+	origPolicy, origReg := fetchMCPPolicy, fetchMCPRegistry
+	t.Cleanup(func() { fetchMCPPolicy, fetchMCPRegistry = origPolicy, origReg })
+	fetchMCPPolicy = func() (string, error) { return "https://registry/", nil }
+	entries := []MCPServerEntry{{Name: "com.jetbrains/intellij", Remotes: []MCPRemote{{Type: "sse", URL: "http://127.0.0.1:64342/sse"}}}}
+	fetchMCPRegistry = func(registryURL string) (mcpRegistry, error) {
+		if registryURL != "https://registry/" {
+			t.Fatalf("registry URL = %q, want policy URL", registryURL)
+		}
+		return mcpRegistry{
+			Remotes: map[string]bool{"http://127.0.0.1:64342/sse": true},
+			Servers: map[string][]string{"com.jetbrains/intellij": {"http://127.0.0.1:64342/sse"}},
+			Entries: entries,
+		}, nil
+	}
+	for _, tt := range []struct {
+		name string
+		url  string
+		off  bool
+	}{
+		{"registered endpoint", "http://127.0.0.1:64342/sse", false},
+		{"different path", "http://127.0.0.1:64342/stream", true},
+		{"unrelated localhost", "http://127.0.0.1:9999/mcp", true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			servers := map[string]mcpServer{"com.jetbrains/intellij": {Type: "remote", URL: tt.url}}
+			if name := openCodeRegistryName(entries, "com.jetbrains/intellij", servers["com.jetbrains/intellij"]); name != "com.jetbrains/intellij" {
+				t.Fatalf("registry name = %q, want com.jetbrains/intellij", name)
+			}
+			off, err := unlistedMCPServers(servers, []string{"com.jetbrains/intellij"})
+			if err != nil || (len(off) == 1) != tt.off {
+				t.Fatalf("unlisted = %v, err = %v, want blocked = %v", off, err, tt.off)
+			}
+		})
+	}
+}
+
 func TestOpenCodeMCPServersMergesJSONC(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())

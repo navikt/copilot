@@ -150,7 +150,7 @@ func TestSuggestCustomizations_TypeScript(t *testing.T) {
 	manifest := &discovery.CustomizationsManifest{
 		Agents: []discovery.Customization{
 			{Name: "aksel-agent", DisplayName: "@aksel-agent", Type: "agent", InstallURL: "vscode:..."},
-			{Name: "security-champion", DisplayName: "@security-champion", Type: "agent", InstallURL: "vscode:..."},
+			{Name: "security-champion-agent", DisplayName: "@security-champion", Type: "agent", InstallURL: "vscode:..."},
 			{Name: "nais-platform", DisplayName: "@nais-platform", Type: "agent", InstallURL: "vscode:..."},
 			{Name: "observability", DisplayName: "@observability", Type: "agent", InstallURL: "vscode:..."},
 		},
@@ -183,13 +183,13 @@ func TestSuggestCustomizations_TypeScript(t *testing.T) {
 func TestSuggestCustomizations_Kotlin(t *testing.T) {
 	manifest := &discovery.CustomizationsManifest{
 		Agents: []discovery.Customization{
-			{Name: "kafka-events", DisplayName: "@kafka-events", Type: "agent", InstallURL: "vscode:..."},
-			{Name: "security-champion", DisplayName: "@security-champion", Type: "agent", InstallURL: "vscode:..."},
+			{Name: "kafka-agent", DisplayName: "@kafka-agent", Type: "agent", InstallURL: "vscode:..."},
+			{Name: "security-champion-agent", DisplayName: "@security-champion", Type: "agent", InstallURL: "vscode:..."},
 			{Name: "nais-platform", DisplayName: "@nais-platform", Type: "agent", InstallURL: "vscode:..."},
 			{Name: "observability", DisplayName: "@observability", Type: "agent", InstallURL: "vscode:..."},
 		},
 		Instructions: []discovery.Customization{
-			{Name: "kotlin-ktor", DisplayName: "kotlin-ktor", Type: "instruction", InstallURL: "vscode:..."},
+			{Name: "kotlin", DisplayName: "kotlin", Type: "instruction", InstallURL: "vscode:..."},
 			{Name: "testing", DisplayName: "testing", Type: "instruction", InstallURL: "vscode:..."},
 			{Name: "database", DisplayName: "database", Type: "instruction", InstallURL: "vscode:..."},
 		},
@@ -203,10 +203,10 @@ func TestSuggestCustomizations_Kotlin(t *testing.T) {
 		names[s.Name] = true
 	}
 
-	if !names["kotlin-ktor"] {
+	if !names["kotlin"] {
 		t.Error("expected kotlin-ktor suggestion for Kotlin repo")
 	}
-	if !names["@kafka-events"] {
+	if !names["@kafka-agent"] {
 		t.Error("expected kafka-events suggestion for Kotlin repo")
 	}
 }
@@ -241,7 +241,7 @@ func TestFormatReport(t *testing.T) {
 		Languages:       []string{"Kotlin", "Dockerfile"},
 		Recommendations: []string{"Add AGENTS.md"},
 		Suggestions: []Suggestion{
-			{Type: "instruction", Name: "kotlin-ktor", Reason: "Kotlin detected", InstallURL: "vscode:..."},
+			{Type: "instruction", Name: "kotlin", Reason: "Kotlin detected", InstallURL: "vscode:..."},
 		},
 	}
 
@@ -280,7 +280,7 @@ func TestFormatReport(t *testing.T) {
 	if !strings.Contains(output, "Kotlin") {
 		t.Error("expected language in output")
 	}
-	if !strings.Contains(output, "kotlin-ktor") {
+	if !strings.Contains(output, "kotlin") {
 		t.Error("expected suggestion in output")
 	}
 }
@@ -427,13 +427,13 @@ func TestRecommend_KtorSpecific(t *testing.T) {
 func TestSuggestCustomizations_SpringBoot(t *testing.T) {
 	manifest := &discovery.CustomizationsManifest{
 		Agents: []discovery.Customization{
-			{Name: "kafka-events", DisplayName: "@kafka-events", Type: "agent", InstallURL: "vscode:..."},
-			{Name: "security-champion", DisplayName: "@security-champion", Type: "agent", InstallURL: "vscode:..."},
+			{Name: "kafka-agent", DisplayName: "@kafka-agent", Type: "agent", InstallURL: "vscode:..."},
+			{Name: "security-champion-agent", DisplayName: "@security-champion", Type: "agent", InstallURL: "vscode:..."},
 			{Name: "nais-platform", DisplayName: "@nais-platform", Type: "agent", InstallURL: "vscode:..."},
 			{Name: "observability", DisplayName: "@observability", Type: "agent", InstallURL: "vscode:..."},
 		},
 		Instructions: []discovery.Customization{
-			{Name: "kotlin-ktor", DisplayName: "kotlin-ktor", Type: "instruction", InstallURL: "vscode:..."},
+			{Name: "kotlin", DisplayName: "kotlin", Type: "instruction", InstallURL: "vscode:..."},
 			{Name: "testing", DisplayName: "testing", Type: "instruction", InstallURL: "vscode:..."},
 			{Name: "database", DisplayName: "database", Type: "instruction", InstallURL: "vscode:..."},
 		},
@@ -448,7 +448,7 @@ func TestSuggestCustomizations_SpringBoot(t *testing.T) {
 
 	var ktReason string
 	for _, s := range suggestions {
-		if s.Name == "kotlin-ktor" {
+		if s.Name == "kotlin" {
 			ktReason = s.Reason
 		}
 	}
@@ -462,7 +462,7 @@ func TestSuggestCustomizations_NextJS(t *testing.T) {
 	manifest := &discovery.CustomizationsManifest{
 		Agents: []discovery.Customization{
 			{Name: "aksel-agent", DisplayName: "@aksel-agent", Type: "agent", InstallURL: "vscode:..."},
-			{Name: "security-champion", DisplayName: "@security-champion", Type: "agent", InstallURL: "vscode:..."},
+			{Name: "security-champion-agent", DisplayName: "@security-champion", Type: "agent", InstallURL: "vscode:..."},
 			{Name: "nais-platform", DisplayName: "@nais-platform", Type: "agent", InstallURL: "vscode:..."},
 			{Name: "observability", DisplayName: "@observability", Type: "agent", InstallURL: "vscode:..."},
 		},
@@ -590,5 +590,22 @@ func TestRecommend_LinterConfig(t *testing.T) {
 	}
 	if !found {
 		t.Error("expected linter recommendation with ESLint advice for TypeScript")
+	}
+}
+
+func TestAppendMatching_ExactNameAndBlankInstall(t *testing.T) {
+	manifest := &discovery.CustomizationsManifest{
+		Instructions: []discovery.Customization{
+			{Name: "testing-kotlin", DisplayName: "testing-kotlin"},
+			{Name: "testing", DisplayName: "testing"},
+		},
+	}
+	got := appendMatching(nil, manifest, "instruction", "testing", "r")
+	if len(got) != 1 || got[0].Name != "testing" {
+		t.Fatalf("want exact match testing, got %+v", got)
+	}
+	out := FormatReport(&Report{Suggestions: got})
+	if strings.Contains(out, "Install:") {
+		t.Errorf("blank InstallURL must not print an Install line:\n%s", out)
 	}
 }

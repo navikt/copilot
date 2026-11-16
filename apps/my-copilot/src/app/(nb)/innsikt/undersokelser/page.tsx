@@ -30,8 +30,8 @@ export default async function PublishedSurveysPage() {
       source={
         <>
           Resultatene kommer fra <code>copilot-survey</code> og viser aggregerte tall for avsluttede og publiserte
-          undersøkelser. Alternativer med færre enn fem svar vises som «&lt;5» av hensyn til personvern, og fritekstsvar
-          publiseres ikke her. Spørsmål eller innspill kan tas i #ki-produktutvikling på Slack.
+          undersøkelser. En undersøkelse vises først når minst fem har svart. Da vises alle tall slik de er, og
+          fritekstsvar publiseres ikke her. Spørsmål eller innspill kan tas i #ki-produktutvikling på Slack.
         </>
       }
     >

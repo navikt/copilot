@@ -8,6 +8,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"path"
 	"strconv"
 	"strings"
 	"sync"
@@ -533,7 +534,12 @@ func parseGraphQLResponseWithActivity(data map[string]json.RawMessage, repos []R
 
 			switch c.CheckType {
 			case CheckFile:
-				repoResults[c.Category] = SearchResult{Exists: obj.TypeName == "Blob", Oids: blobOids(obj)}
+				if obj.TypeName != "Blob" {
+					repoResults[c.Category] = SearchResult{Exists: false}
+					continue
+				}
+				// Files parallels Oids so v_staleness_summary can unnest file checks.
+				repoResults[c.Category] = SearchResult{Exists: true, Files: []string{path.Base(c.TreePath)}, Oids: blobOids(obj)}
 			case CheckDirectory:
 				if obj.TypeName != "Tree" || len(obj.Entries) == 0 {
 					repoResults[c.Category] = SearchResult{Exists: false}

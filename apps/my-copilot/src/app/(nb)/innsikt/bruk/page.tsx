@@ -12,9 +12,13 @@ import {
   getDailySummary,
   getRepositoryUsage,
   getClientUsage,
+  getEditorUsage,
 } from "@/lib/cached-bigquery";
 import { InsightPage, InsightSection } from "@/components/insight-page";
 import RepositoryUsageTable from "@/components/repository-usage-table";
+import UsageQuality from "@/components/usage-quality";
+import ReviewOutcomes from "@/components/review-outcomes";
+import { ClientPanels, EditorPanels } from "@/components/usage-panels";
 import TrendChart from "@/components/charts/TrendChart";
 import MonthlyTrendsChart from "@/components/charts/MonthlyTrendsChart";
 import AdoptionCohortsChart from "@/components/charts/AdoptionCohortsChart";
@@ -62,7 +66,13 @@ async function KeyFigures({ token }: { token: string }) {
   const { trends, error } = await getMonthlyTrends(token);
   if (error) return <BodyShort>{`Kunne ikke hente månedstall: ${error}`}</BodyShort>;
   const { latestComplete: latest, prevComplete: prev } = selectCompleteMonths(trends, currentMonthUTC());
-  if (!latest) return <BodyShort>Ingen hel måned med data ennå.</BodyShort>;
+  if (!latest)
+    return (
+      <>
+        <BodyShort>Ingen hel måned med data ennå.</BodyShort>
+        {trends.length > 0 && <MonthlyTrendsChart data={trends} />}
+      </>
+    );
 
   const activity = (m: typeof latest) => m.code_generations + m.ide_interactions + m.cli_requests;
   const agentShare = (m: typeof latest) =>
@@ -102,7 +112,7 @@ async function KeyFigures({ token }: { token: string }) {
   );
 }
 
-/** This month day by day and this year month by month, actual figures only. Net: estimated billed, as on /innsikt/kostnad. */
+/** Model consumption after discounts, not invoice-verified totals. */
 async function Cost({ token }: { token: string }) {
   const current = currentMonthUTC();
   const [daily, { trend, error }] = await Promise.all([
@@ -120,14 +130,12 @@ async function Cost({ token }: { token: string }) {
   const sum = cumulative.at(-1) ?? 0;
 
   const year = current.slice(0, 4);
-  // One figure for the current month in both charts: the sum of the daily estimated billed amounts.
+  // Keep the current month's model consumption identical in both charts.
   const months = trend
     .filter((t) => t.year_month.startsWith(year))
     .map((t) => (t.year_month === current && days.length ? { ...t, total_net_amount: sum } : t))
     .sort((a, b) => a.year_month.localeCompare(b.year_month));
   const keys = months.map((t) => t.year_month);
-  const amount = (closed: boolean) =>
-    months.map((t) => (t.year_month < current === closed ? t.total_net_amount : null));
   const monthShort = (m: string) =>
     new Date(`${m}-01T00:00:00Z`).toLocaleDateString("nb-NO", { month: "short", timeZone: "UTC" });
 
@@ -163,22 +171,15 @@ async function Cost({ token }: { token: string }) {
           <ChartFigure
             title={`Hva har Copilot kostet per måned i ${year}?`}
             summary={months
-              .map(
-                (t) =>
-                  `${monthLong(t.year_month)}: ${formatUSD(t.total_net_amount)}${t.year_month < current ? "" : " (foreløpig)"}`
-              )
+              .map((t) => `${monthLong(t.year_month)}: ${formatUSD(t.total_net_amount)} (foreløpig)`)
               .join(", ")}
             chart={
               <EventChart
                 kind="bar"
-                stacked
                 unit="usd"
                 keys={keys}
-                labels={keys.map((k) => monthShort(k) + (k === current ? " (foreløpig)" : ""))}
-                series={[
-                  { label: "Fakturert", color: 0, data: amount(true) },
-                  { label: "Foreløpig forbruk", color: 1, data: amount(false) },
-                ]}
+                labels={keys.map((k) => monthShort(k) + (k === current ? " (hittil)" : ""))}
+                series={[{ label: "Foreløpig forbruk, netto", color: 0, data: months.map((t) => t.total_net_amount) }]}
               />
             }
           />
@@ -192,7 +193,7 @@ async function Cost({ token }: { token: string }) {
               ...months.map((t) => [
                 monthLong(t.year_month),
                 formatUSD(t.total_net_amount),
-                t.year_month < current ? "Fakturert" : "Foreløpig forbruk",
+                "Foreløpig forbruk, netto",
               ]),
             ]}
           />
@@ -200,9 +201,10 @@ async function Cost({ token }: { token: string }) {
       )}
       <NumbersFold summary="Slik leser du tallene">
         <BodyShort size="small">
-          Fakturert er beløpet på fakturaen for en avsluttet måned, etter rabatt. Foreløpig forbruk er det vi regner med
-          å bli fakturert for så langt i måneden. Beløpet kan endre seg til fakturaen kommer. Grafene viser bare faktisk
-          forbruk, ikke prognoser.
+          Foreløpig forbruk er registrert modellforbruk etter rabatt, i netto USD. Tallene er ikke kontrollert mot
+          faktura, heller ikke for avsluttede måneder. Lisensabonnementer og Code Quality er ikke med. Både dagsgrafen
+          og månedstallene gjelder bare Copilot. Grafene viser registrert forbruk, ikke prognoser. Måneden som pågår
+          dekker bare dagene med data.
         </BodyShort>
       </NumbersFold>
     </VStack>
@@ -290,6 +292,7 @@ async function Repositories({ token }: { token: string }) {
         />
       </HGrid>
       <RepositoryUsageTable repositories={repositories} />
+      <ReviewOutcomes repositories={repositories} />
     </>
   );
 }
@@ -301,20 +304,28 @@ async function Clients({ token }: { token: string }) {
   return (
     <>
       <BodyShort>
-        Forespørsler og økter per verktøy de siste 28 dagene. Navnene er slik GitHub oppgir dem, for eksempel{" "}
-        <code>vscode</code>, <code>copilot_cli</code> og <code>opencode</code>. GitHub har tall per verktøy fra 23.
-        oktober 2026, så fram til 20. november dekker summen færre enn 28 dager.
+        Forespørsler og økter per verktøy de siste 28 dagene. Kjente navn vises med lesbar tekst. Under «Vis tallene»
+        står navnene slik GitHub oppgir dem, for eksempel <code>vscode</code>, <code>copilot_cli</code> og{" "}
+        <code>opencode</code>. GitHub har tall per verktøy fra 23. oktober 2026, så fram til 20. november dekker summen
+        færre enn 28 dager.
       </BodyShort>
-      <PlainTable
-        rows={[
-          ["Verktøy", "Forespørsler", "Økter"],
-          ...clients.map((c) => [
-            c.client === "other" ? "andre" : c.client,
-            formatNumber(c.requests),
-            formatNumber(c.sessions),
-          ]),
-        ]}
-      />
+      <ClientPanels clients={clients} />
+    </>
+  );
+}
+
+async function Editors({ token }: { token: string }) {
+  const { editors, error } = await getEditorUsage(token);
+  if (error) return <BodyShort>Kunne ikke hente aktivitet per editor.</BodyShort>;
+  if (!editors.length) return <BodyShort>Ingen data om editorer ennå. Det betyr ikke null aktivitet.</BodyShort>;
+  return (
+    <>
+      <BodyShort>
+        Copilot-aktivitet per editor fra GitHubs totals_by_ide, for enterprise Nav. Tallene summerer hendelser i et
+        28-dagersvindu som slutter siste dag med kildedata, ikke unike brukere. Perioden og antall observerte dager
+        vises per editor. Manglende felt vises som ukjent, ikke null.
+      </BodyShort>
+      <EditorPanels editors={editors} />
     </>
   );
 }
@@ -376,8 +387,8 @@ export default async function BrukPage() {
       hourly
       source={
         <>
-          Tallene kommer fra copilot-api, som leser GitHubs bruks- og fakturadata fra BigQuery. Nøkkeltall bruker siste
-          hele måned fra <code>/usage/trends</code>. Kostnad bruker <code>/billing/model-daily</code> og{" "}
+          Tallene kommer fra copilot-api, som leser GitHubs bruks- og faktureringsdata fra BigQuery. Nøkkeltall bruker
+          siste hele måned fra <code>/usage/trends</code>. Kostnad bruker <code>/billing/model-daily</code> og{" "}
           <code>/billing/monthly-trend</code>, netto USD etter rabatt. Modellfamiliene bygger på netto kostnad per
           modell fra <code>v_billing_model_breakdown</code> (<code>/billing/model-breakdown</code>), høyst de siste 36
           månedene. AI Credits per bruker er median og snitt per måned av hver aktiv brukers{" "}
@@ -386,8 +397,11 @@ export default async function BrukPage() {
           <code>/adoption/cohorts</code>. Pull requests og daglig aktivitet bruker de siste 28 dagene fra{" "}
           <code>/usage/metrics</code>, og tid til første review kommer fra <code>/usage/daily-summary</code> (
           <code>v_daily_summary</code>). Bruk per verktøy summerer de siste 28 dagene fra <code>/usage/clients</code> (
-          <code>v_client_stats</code>). Repoene gjelder hele perioden med data, uten private repoer og uten repoer med
-          færre enn fem PR-er. «Sist oppdatert» er siste dag med data i <code>v_daily_summary</code>.
+          <code>v_client_stats</code>). Editoraktivitet bruker <code>/usage/editors</code> fra{" "}
+          <code>usage_metrics</code>, enterprise Nav, siste 28 dager regnet fra siste kildedag. Ved flere innlastinger
+          brukes siste rad per dag og scope før editorene pakkes ut. Hendelser er ikke personer, lisenser eller unike
+          aktive brukere. Repoene gjelder hele perioden med data, uten private repoer og uten repoer med færre enn fem
+          PR-er. «Sist oppdatert» er siste dag med data i <code>v_daily_summary</code>.
         </>
       }
     >
@@ -412,7 +426,7 @@ export default async function BrukPage() {
         </LinkableHeading>
         <Events />
         <BodyShort size="small" textColor="subtle">
-          Andelene fordeler de samme nettobeløpene som over på modellfamilier.
+          Andelene fordeler modellforbruket etter rabatt på modellfamilier, uten lisensabonnementer og Code Quality.
         </BodyShort>
         <Suspense fallback={fallback}>
           <ModelFamilies token={token} />
@@ -463,8 +477,23 @@ export default async function BrukPage() {
       </InsightSection>
 
       <InsightSection id="verktoy" title="Bruk per verktøy">
+        <LinkableHeading id="verktoy-foresporsler" size="small" level="3">
+          Forespørsler og økter
+        </LinkableHeading>
         <Suspense fallback={fallback}>
           <Clients token={token} />
+        </Suspense>
+        <LinkableHeading id="editorer" size="small" level="3">
+          Aktivitet per editor
+        </LinkableHeading>
+        <Suspense fallback={fallback}>
+          <Editors token={token} />
+        </Suspense>
+      </InsightSection>
+
+      <InsightSection id="datakvalitet" title="Datakvalitet i bruksrapportene">
+        <Suspense fallback={fallback}>
+          <UsageQuality token={token} />
         </Suspense>
       </InsightSection>
 

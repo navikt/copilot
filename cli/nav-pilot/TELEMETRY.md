@@ -453,6 +453,12 @@ sum by (scope) (sum_over_time(nav_pilot_sync_conflicts_total[$__range]))
 sum by (version) (sum_over_time(nav_pilot_command_duration_ms_count[$__range]))
 ```
 
+### Aggregering til BigQuery og datakontrakt (mimir_daily)
+
+Nattjobben `copilot-mimir-daily` samler gårsdagens Mimir-aggregater i tabellen `copilot_metrics_staging.mimir_daily`. Se [apps/copilot-metrics/README.md](../../apps/copilot-metrics/README.md#mimir-daily-copy) for den fullstendige datakontrakten (spørrelogikk for #902, terskel på minst fem enheter for enhetsmerkede serier, og skille mellom manglende rader, skjerming og observerte nullverdier).
+
+Koden for `nav_pilot_session_*` ble lagt inn 12. oktober 2026 (commits `ee4b37e5` for Copilot og `14c5bde6` for opencode). Dette er datoen koden kom inn i repoet, ikke tidspunktet da alle utviklere installerte og tok i bruk den nye versjonen. Fravær av rader har ukjent årsak og kan ikke uten videre tolkes som null aktivitet.
+
 ## Metrikker som er fjernet
 
 `nav_pilot_command_total` og `nav_pilot_local_server_total` finnes ikke lenger.

@@ -58,21 +58,19 @@ export function CostTrendsView({
   if (!months.length) return <BodyShort>Ingen måneder med forbruk ennå.</BodyShort>;
   const keys = months.map((t) => t.year_month);
   const markers = eventAnnotations(events, keys);
-  const activeBy = new Map(active.map((a) => [a.month, a.active_users]));
+  const activeBy = new Map(active.map((a) => [a.month, a]));
   // Licence share of the total from F2: licence estimate over usage plus licences.
   const licenceShare = new Map(
     admin
       .filter((a) => a.licence_usd_estimate != null && a.total_usd)
       .map((a) => [a.month, (a.licence_usd_estimate! / a.total_usd!) * 100])
   );
-  // The current month is a partial point: estimated billed so far over users active so far.
+  // Billed users on invoices cannot be compared with active telemetry users in open months.
   const perUser = months.map((t) => {
-    const users = activeBy.get(t.year_month);
-    return users ? t.total_net_amount / users : null;
+    const act = activeBy.get(t.year_month);
+    if (!act?.billed || act.active_users <= 0) return null;
+    return t.total_net_amount / act.active_users;
   });
-  // The trend in the summary uses whole, billed months only.
-  const billedMonths = new Set(active.filter((a) => a.billed).map((a) => a.month));
-  const full = perUser.map((v, i) => (billedMonths.has(keys[i]) ? v : null));
   const label = (month: string) =>
     monthLabel(month) + (premium(month) ? "*" : "") + (month === currentMonth ? " (hittil)" : "");
 
@@ -84,9 +82,9 @@ export function CostTrendsView({
   ).series;
   const mix = families.map((f) => ({ model: f.label, shares: f.shares }));
   const pct = (v: number | null) => (v == null ? "–" : formatPercent(v));
-  const lastPerUser = full.findLast((v) => v != null);
-  const firstPerUser = full.find((v) => v != null);
-  const partial = keys.includes(currentMonth) && perUser[keys.indexOf(currentMonth)] != null;
+  const lastPerUser = perUser.findLast((v) => v != null);
+  const firstPerUser = perUser.find((v) => v != null);
+  const hasUnbilled = months.some((t) => activeBy.get(t.year_month)?.billed === false);
   const footnote = keys.some(premium) && (
     <BodyShort size="small" textColor="subtle">
       * Fakturert som premiumforespørsler, ikke KI-kreditter.
@@ -99,10 +97,12 @@ export function CostTrendsView({
         title="Hvor mye koster Copilot per person?"
         summary={
           (firstPerUser != null && lastPerUser != null
-            ? `Fakturert per fakturert bruker gikk fra ${formatUSD(firstPerUser)} i ${monthLabel(keys[full.indexOf(firstPerUser)])} til ${formatUSD(lastPerUser)} i ${monthLabel(keys[full.lastIndexOf(lastPerUser)])}.`
+            ? `Fakturert per fakturert bruker gikk fra ${formatUSD(firstPerUser)} i ${monthLabel(keys[perUser.indexOf(firstPerUser)])} til ${formatUSD(lastPerUser)} i ${monthLabel(keys[perUser.lastIndexOf(lastPerUser)])}.`
             : "Ingen fakturerte måneder ennå.") +
           " Fakturerte brukere er alle som står på fakturaen for måneden." +
-          (partial ? ` ${monthLabel(currentMonth)} er et foreløpig punkt (hittil), se tabellen.` : "") +
+          (hasUnbilled
+            ? " Måneder uten fullført faktureringsinnlesing viser totalbeløp, men mangler nevner for fakturerte brukere."
+            : "") +
           eventSummary(markers)
         }
         chart={
@@ -137,14 +137,18 @@ export function CostTrendsView({
               </TableHeader>
               <TableBody>
                 {months.map((t, i) => {
-                  const users = activeBy.get(t.year_month);
+                  const act = activeBy.get(t.year_month);
+                  const isBilled = act?.billed === true;
+                  const userCount = act?.active_users;
                   return (
                     <TableRow key={t.year_month}>
                       <TableHeaderCell scope="row" className="whitespace-nowrap">
                         {label(t.year_month)}
                       </TableHeaderCell>
                       <TableDataCell align="right">{formatUSD(t.total_net_amount)}</TableDataCell>
-                      <TableDataCell align="right">{users ? formatNumber(users) : "–"}</TableDataCell>
+                      <TableDataCell align="right">
+                        {isBilled ? (userCount != null ? formatNumber(userCount) : "–") : "–"}
+                      </TableDataCell>
                       <TableDataCell align="right">{perUser[i] != null ? formatUSD(perUser[i]) : "–"}</TableDataCell>
                       <TableDataCell align="right">{pct(licenceShare.get(t.year_month) ?? null)}</TableDataCell>
                     </TableRow>
@@ -153,11 +157,10 @@ export function CostTrendsView({
               </TableBody>
             </Table>
             {footnote}
-            {partial && (
+            {hasUnbilled && (
               <BodyShort size="small" textColor="subtle">
-                Hittil: fakturaen for {monthLabel(currentMonth)} er ikke kommet. Raden viser estimert fakturert hittil
-                delt på brukere med Copilot-aktivitet hittil i måneden. Den er foreløpig og kan ikke sammenlignes med
-                hele måneder.
+                Måneder uten fullført faktureringsinnlesing viser faktisk eller estimert beløp, men ikke fakturerte
+                brukere eller beløp per fakturert bruker før innlesingen er fullført.
               </BodyShort>
             )}
             <BodyShort size="small" textColor="subtle">

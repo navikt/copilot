@@ -3,7 +3,8 @@
   "domain": "observability",
   "tags": ["debugging", "mimir", "loki", "tempo", "prometheus", "traces", "logs", "kubectl", "nais", "nav-pilot"],
   "references": [
-    "references/query-library.md"
+    "references/query-library.md",
+    "obs-query.sh"
   ],
   "examples": [
     {

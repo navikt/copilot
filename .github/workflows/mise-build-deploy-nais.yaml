@@ -127,7 +127,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
         with:
           fetch-depth: 0
-      - uses: jdx/mise-action@82a612c5ab8bcda7cc5db6b7e81a8e7584c3dc6e # ratchet:jdx/mise-action@v5.2.3
+      - uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # ratchet:jdx/mise-action@v5.2.8
         with:
           experimental: true
       - id: version
@@ -158,7 +158,6 @@ jobs:
       contents: read
       packages: read
     env:
-      # Read by .npmrc for public packages on GitHub Packages (@nais/apm).
       GITHUB_PACKAGES_TOKEN: ${{ github.token }}
     if: ${{ inputs.mise-setup-tasks != '[]' }}
     runs-on: ${{ inputs.runner-size }}
@@ -189,9 +188,14 @@ jobs:
           key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-npm-
-      - uses: jdx/mise-action@82a612c5ab8bcda7cc5db6b7e81a8e7584c3dc6e # ratchet:jdx/mise-action@v5.2.3
+      - uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # ratchet:jdx/mise-action@v5.2.8
         with:
           experimental: true
+      - name: Configure GitHub Packages auth
+        run: |
+          umask 077
+          printf '%s\n' "//npm.pkg.github.com/:_authToken=\${GITHUB_PACKAGES_TOKEN}" > "$RUNNER_TEMP/github-packages.npmrc"
+          printf 'NPM_CONFIG_USERCONFIG=%s\n' "$RUNNER_TEMP/github-packages.npmrc" >> "$GITHUB_ENV"
       - name: Run setup tasks
         env:
           MISE_SETUP_TASKS: ${{ inputs.mise-setup-tasks }}
@@ -207,7 +211,6 @@ jobs:
       contents: read
       packages: read
     env:
-      # Read by .npmrc for public packages on GitHub Packages (@nais/apm).
       GITHUB_PACKAGES_TOKEN: ${{ github.token }}
     needs: [setup]
     if: ${{ always() && (needs.setup.result == 'success' || needs.setup.result == 'skipped') }}
@@ -243,9 +246,14 @@ jobs:
           key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-npm-
-      - uses: jdx/mise-action@82a612c5ab8bcda7cc5db6b7e81a8e7584c3dc6e # ratchet:jdx/mise-action@v5.2.3
+      - uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # ratchet:jdx/mise-action@v5.2.8
         with:
           experimental: true
+      - name: Configure GitHub Packages auth
+        run: |
+          umask 077
+          printf '%s\n' "//npm.pkg.github.com/:_authToken=\${GITHUB_PACKAGES_TOKEN}" > "$RUNNER_TEMP/github-packages.npmrc"
+          printf 'NPM_CONFIG_USERCONFIG=%s\n' "$RUNNER_TEMP/github-packages.npmrc" >> "$GITHUB_ENV"
       - name: Run setup tasks
         if: ${{ inputs.mise-setup-tasks != '[]' }}
         env:
@@ -266,7 +274,6 @@ jobs:
       contents: read
       packages: read
     env:
-      # Read by .npmrc for public packages on GitHub Packages (@nais/apm).
       GITHUB_PACKAGES_TOKEN: ${{ github.token }}
     needs: [setup]
     if: ${{ always() && (needs.setup.result == 'success' || needs.setup.result == 'skipped') }}
@@ -298,9 +305,14 @@ jobs:
           key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-npm-
-      - uses: jdx/mise-action@82a612c5ab8bcda7cc5db6b7e81a8e7584c3dc6e # ratchet:jdx/mise-action@v5.2.3
+      - uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # ratchet:jdx/mise-action@v5.2.8
         with:
           experimental: true
+      - name: Configure GitHub Packages auth
+        run: |
+          umask 077
+          printf '%s\n' "//npm.pkg.github.com/:_authToken=\${GITHUB_PACKAGES_TOKEN}" > "$RUNNER_TEMP/github-packages.npmrc"
+          printf 'NPM_CONFIG_USERCONFIG=%s\n' "$RUNNER_TEMP/github-packages.npmrc" >> "$GITHUB_ENV"
       - name: Run setup tasks
         if: ${{ inputs.mise-setup-tasks != '[]' }}
         env:
@@ -328,7 +340,7 @@ jobs:
       telemetry: ${{ steps.docker-push.outputs.telemetry }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
-      - uses: nais/docker-build-push@dd7421d5068057a020ca46ead966c26190c516b1 # ratchet:nais/docker-build-push@v0
+      - uses: nais/docker-build-push@588f76a6f45aeb1e75d5e8417ec6ef6d79b2b39f # ratchet:nais/docker-build-push@v0
         id: docker-push
         with:
           team: ${{ inputs.nais-team }}
@@ -341,7 +353,7 @@ jobs:
             APP_VERSION=${{ needs.meta.outputs.version }}
           # BuildKit secret, never a layer: lets pnpm read GitHub Packages.
           build_secrets: |
-            GITHUB_PACKAGES_TOKEN=${{ github.token }}
+            npmrc=//npm.pkg.github.com/:_authToken=${{ github.token }}
           cache_from: type=gha
           cache_to: type=gha,mode=max
 

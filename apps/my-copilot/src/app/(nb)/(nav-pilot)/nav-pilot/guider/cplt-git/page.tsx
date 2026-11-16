@@ -160,7 +160,13 @@ gh pr create --head min-branch`}
             <code className={code}>origin</code> er det repoet du ba om:
           </BodyLong>
           <CodeBlock compact>{`cplt link navikt/annet-repo`}</CodeBlock>
-          <BodyLong>Repoet får samme tilgang som prosjektmappa: lese, skrive og kjøre.</BodyLong>
+          <BodyLong>
+            Repoet får samme tilgang som prosjektmappa: lese, skrive og kjøre. Hvordan du deler lista med teamet, står i{" "}
+            <NextLink href="/nav-pilot/guider/cplt-flere-repoer" className={linkClass}>
+              Flere repoer og deling i team
+            </NextLink>
+            .
+          </BodyLong>
         </VStack>
       </section>
 

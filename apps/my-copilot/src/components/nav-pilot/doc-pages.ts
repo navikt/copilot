@@ -59,6 +59,11 @@ export const GUIDE_PAGES: DocLink[] = [
     desc: "Push til egen branch, pull requests, andre repoer og signerte commits når agenten kjører i cplt.",
   },
   {
+    href: "/nav-pilot/guider/cplt-flere-repoer",
+    title: "Flere repoer og deling i team",
+    desc: "Gi agenten tilgang til flere repoer med cplt link, og del lista med teamet i .cplt.toml.",
+  },
+  {
     href: "/nav-pilot/guider/cplt-nettverk",
     title: "Nettverk i sandkassen",
     desc: "Se hva cplt stopper, og slipp gjennom interne tjenester, andre porter og hoster på en tillatelsesliste.",

@@ -124,6 +124,10 @@ func (h *MCPHandler) handleJSONRPC(w http.ResponseWriter, r *http.Request) {
 
 	user := GetUserFromContext(r.Context())
 	response := h.processRequest(&req, user)
+	if response == nil {
+		w.WriteHeader(http.StatusAccepted)
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(response)
@@ -139,6 +143,10 @@ func (h *MCPHandler) handleStreamableHTTP(w http.ResponseWriter, r *http.Request
 
 	user := GetUserFromContext(r.Context())
 	response := h.processRequest(&req, user)
+	if response == nil {
+		w.WriteHeader(http.StatusAccepted)
+		return
+	}
 
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
@@ -222,6 +230,9 @@ func (h *MCPHandler) handleSSE(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 			response := h.processRequest(&req, user)
+			if response == nil {
+				continue
+			}
 			data, _ := json.Marshal(response)
 			sendEvent("message", string(data))
 		}
@@ -232,7 +243,7 @@ func (h *MCPHandler) processRequest(req *JSONRPCRequest, user *UserContext) *JSO
 	switch req.Method {
 	case "initialize":
 		return h.handleInitialize(req)
-	case "initialized":
+	case "initialized", "notifications/initialized":
 		return nil
 	case "tools/list":
 		return h.handleListTools(req)
@@ -1315,7 +1326,9 @@ func (f *suggestionsFormatter) String() string {
 	for i, s := range f.suggestions {
 		fmt.Fprintf(&sb, "## %d. %s (%s)\n\n", i+1, s.Name, s.Type)
 		fmt.Fprintf(&sb, "%s\n\n", s.Reason)
-		fmt.Fprintf(&sb, "**Install**: %s\n\n", s.InstallURL)
+		if s.InstallURL != "" {
+			fmt.Fprintf(&sb, "**Install**: %s\n\n", s.InstallURL)
+		}
 	}
 
 	return sb.String()

@@ -410,3 +410,13 @@ func TestMimirReachRows(t *testing.T) {
 		}
 	}
 }
+
+func TestRunMimirDailyEmptyDayFailsWithoutWipe(t *testing.T) {
+	m, _ := fakeMimir(t, map[string][]fakeSeries{})
+	d := time.Date(2026, 10, 10, 0, 0, 0, 0, time.UTC)
+	// A nil BigQueryClient proves ReplaceMimirDay was not called, as any write attempt panics.
+	err := runMimirDaily(context.Background(), m, nil, d, d)
+	if err == nil || !strings.Contains(err.Error(), "Mimir returned no rows") {
+		t.Fatalf("expected 'Mimir returned no rows' error, got %v", err)
+	}
+}

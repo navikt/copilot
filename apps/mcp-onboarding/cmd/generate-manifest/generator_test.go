@@ -283,3 +283,13 @@ func TestLoadAgents_ExcludedAgentsFiltered(t *testing.T) {
 		t.Errorf("expected included, got %q", agents[0].Name)
 	}
 }
+
+func TestInferCategory_WordPrefix(t *testing.T) {
+	g := &Generator{}
+	if got := g.inferCategory("aksel-agent", "refaktorerer Aksel-komponenter"); got != "frontend" {
+		t.Errorf("got %q, want frontend", got)
+	}
+	if got := g.inferCategory("x", "Ktor routing"); got != "backend" {
+		t.Errorf("got %q, want backend", got)
+	}
+}

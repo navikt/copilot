@@ -188,6 +188,16 @@ describe("POST /api/copilot self-service authorization", () => {
     expect(mockedBackendRequest).not.toHaveBeenCalled();
   });
 
+  it("returns 400 for a malformed JSON body", async () => {
+    mockedGetUser.mockResolvedValue(makeUser({ groups: ["allowed-group"] }));
+    mockedGetUserToken.mockResolvedValue("token");
+
+    const response = await POST(new Request("http://localhost/api/copilot", { method: "POST", body: "{not json" }));
+
+    expect(response.status).toBe(400);
+    expect(mockedBackendRequest).not.toHaveBeenCalled();
+  });
+
   it("allows an allowed-group member to activate a license (201)", async () => {
     mockedGetUser.mockResolvedValue(makeUser({ groups: ["allowed-group"] }));
     mockedGetUserToken.mockResolvedValue("token");

@@ -123,6 +123,14 @@ func StubCpltVersion(out string) func() {
 	return func() { probeCpltVersion = previous }
 }
 
+// StubMCPPolicy makes the MCP policy lookup answer registry ("" is
+// allow_all), for tests in other packages, and returns the restore.
+func StubMCPPolicy(registry string) func() {
+	previous := fetchMCPPolicy
+	fetchMCPPolicy = func() (string, error) { return registry, nil }
+	return func() { fetchMCPPolicy = previous }
+}
+
 // probeClientVersion runs a bounded version probe for the client a staged
 // launch is about to start.
 //

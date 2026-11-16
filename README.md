@@ -10,9 +10,9 @@ En samling Copilot-tilpasninger for Nav-økosystemet:
 
 <!-- BEGIN GENERATED COUNTS -->
 - **🤖 [10 Agenter](docs/README.agents.md)** — Spesialiserte KI-assistenter for Nav-domener
-- **📋 [16 Instruksjoner](docs/README.instructions.md)** — Kodestandarder som aktiveres automatisk basert på filmønster
+- **📋 [17 Instruksjoner](docs/README.instructions.md)** — Kodestandarder som aktiveres automatisk basert på filmønster
 - **⚡ [7 Prompts](docs/README.prompts.md)** — Scaffolding-maler for vanlige Nav-mønstre
-- **🎯 [35 Skills](docs/README.skills.md)** — Produksjonsmønstre fra ekte Nav-repoer
+- **🎯 [37 Skills](docs/README.skills.md)** — Produksjonsmønstre fra ekte Nav-repoer
 - **🔌 [MCP-servere](docs/README.mcp.md)** — Nav-godkjente MCP-servere fra registeret
 <!-- END GENERATED COUNTS -->
 
@@ -67,6 +67,8 @@ curl -fsSL -o /tmp/navikt-archive-keyring.gpg https://navikt.github.io/apt/keyri
 Arkivet oppdateres hver time fra den nyeste releasen, så en release du nettopp kuttet kan bruke opptil en time på å bli installerbar. Bruk [installasjonsskriptet](docs/README.nav-pilot.md#kom-i-gang) hvis du ikke er på et Debian-derivat, står i CI, eller en proxy stenger for `navikt.github.io`. Feiler ett av stegene, stopper kommandoen der og skriver ut installasjonsskriptet du kan bruke i stedet.
 
 **[Les mer →](docs/README.nav-pilot.md)**
+
+Bruker du Copilot CLI inni cplt på Linux? Se [hvorfor Copilots `/sandbox` ikke skal aktiveres der](docs/cplt-copilot-sandbox.md).
 
 ## Kom i gang
 

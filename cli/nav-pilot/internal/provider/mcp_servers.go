@@ -607,6 +607,12 @@ type MCPConfigured struct {
 	OpenCode      map[string]bool
 	CopilotOther  []string
 	OpenCodeOther []string
+	// OpenCodeRefused is the OpenCode servers matched to an entry above that
+	// the launch check, listed(), still turns off: env set, or a URL or
+	// command that is not the entry's. Empty when launch does not enforce:
+	// an allow_all or unreadable policy.
+	// Each is {configured key, registry name}.
+	OpenCodeRefused [][2]string
 	// OpenCodeProject is the servers OpenCode loads here from a project's
 	// config or an OPENCODE_CONFIG* variable. Shown, never counted: the
 	// repository chose them, not the user.
@@ -616,8 +622,12 @@ type MCPConfigured struct {
 // ConfiguredMCPServers matches the user's client configs against the
 // registry. Copilot's policy matches on the server's name only, so a Copilot
 // server under any other name is unlisted even when its URL is the
-// registry's (#601). OpenCode matches by name, remote URL or package, as
-// the launch's policy check does; a server turned off does not count.
+// registry's (#601). OpenCode matches by name, remote URL or
+// package. The launch check, listed() in opencode_mcp.go, is stricter: it
+// ignores the name and refuses a local server with env set, or any server
+// with `{env:}` in its name, so a server counted
+// here can still be turned off at launch. A server turned off in config does
+// not count.
 func ConfiguredMCPServers(entries []MCPServerEntry) MCPConfigured {
 	c := MCPConfigured{Copilot: map[string]bool{}, OpenCode: map[string]bool{}}
 	byName := map[string]bool{}
@@ -643,6 +653,9 @@ func ConfiguredMCPServers(entries []MCPServerEntry) MCPConfigured {
 		keys = append(keys, k)
 	}
 	slices.Sort(keys)
+	reg := registryOf(entries)
+	// Launch enforces only under a readable registry_only policy, as in unlistedMCPServers.
+	enforced := func() bool { policy, err := fetchMCPPolicy(); return err == nil && policy != "" }
 	for _, k := range keys {
 		s := oc[k]
 		if s.Enabled != nil && !*s.Enabled {
@@ -650,11 +663,31 @@ func ConfiguredMCPServers(entries []MCPServerEntry) MCPConfigured {
 		}
 		if name := openCodeRegistryName(entries, k, s); name != "" {
 			c.OpenCode[name] = true
+			if !reg.listed(s) && enforced() {
+				c.OpenCodeRefused = append(c.OpenCodeRefused, [2]string{k, name})
+			}
 		} else {
 			c.OpenCodeOther = append(c.OpenCodeOther, k)
 		}
 	}
 	return c
+}
+
+// registryOf is the launch check's view of entries, as askMCPRegistry builds it.
+func registryOf(entries []MCPServerEntry) mcpRegistry {
+	reg := mcpRegistry{Remotes: map[string]bool{}, Packages: map[string]bool{}, Brokered: map[string]bool{}}
+	for _, e := range entries {
+		if e.Meta.Broker != nil && e.Name != "" {
+			reg.Brokered[e.Name] = true
+		}
+		for _, r := range e.Remotes {
+			reg.Remotes[normalizeMCPURL(r.URL)] = true
+		}
+		for _, p := range e.Packages {
+			reg.Packages[strings.ToLower(p.Identifier)] = true
+		}
+	}
+	return reg
 }
 
 func openCodeRegistryName(entries []MCPServerEntry, key string, s mcpServer) string {
