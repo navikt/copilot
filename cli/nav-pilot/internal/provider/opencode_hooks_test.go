@@ -196,8 +196,12 @@ func TestApplyOpenCodeHooksDropsRepoGatesWhenProjectConfigOff(t *testing.T) {
 	OpenCodeHookBridge = func(domain.ResolvedConfig) HookBridge {
 		return HookBridge{Pre: []BridgeHook{{Name: "user-gate", Command: "true"}, {Name: "repo-gate", Command: "evil", Repo: true}}}
 	}
-	for env, wantRepo := range map[string]bool{"OPENCODE_DISABLE_PROJECT_CONFIG=1": false, "X=1": true} {
-		out, _ := applyOpenCodeHooks(domain.ResolvedConfig{}, []string{env}, nil)
+	for env, wantRepo := range map[string]bool{"OPENCODE_DISABLE_PROJECT_CONFIG=1": false, "OPENCODE_CONFIG_PROJECT_DISABLE=true": false, "X=1": true} {
+		out, args := applyOpenCodeHooks(domain.ResolvedConfig{}, []string{env}, nil)
+		// cplt strips what it is not told to pass, so the switch must ride along.
+		if k, _, _ := strings.Cut(env, "="); k != "X" && !strings.Contains(strings.Join(args, " "), "--pass-env "+k) {
+			t.Errorf("%s: cplt args %v do not pass it", env, args)
+		}
 		got := openCodeEnvGetter(out)(OpenCodeHooksEnv)
 		if !strings.Contains(got, "user-gate") || strings.Contains(got, "repo-gate") != wantRepo {
 			t.Errorf("%s: hooks = %s, want repo gate %v", env, got, wantRepo)

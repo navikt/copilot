@@ -48,11 +48,8 @@ type openCodePluginSet struct {
 // ponytail: a bundled plugin can import any file in the repo, so the hash
 // covers the plugin's own files, not everything it may load.
 func openCodeProjectPlugins(projectDir string, env []string) openCodePluginSet {
-	getenv := openCodeEnvGetter(env)
-	for _, k := range []string{openCodeDisableProjectConfigEnv, "OPENCODE_CONFIG_PROJECT_DISABLE"} {
-		if v := strings.ToLower(getenv(k)); v == "1" || v == "true" {
-			return openCodePluginSet{}
-		}
+	if OpenCodeProjectDisabled(openCodeEnvGetter(env)) {
+		return openCodePluginSet{}
 	}
 	if projectDir == "" {
 		projectDir, _ = os.Getwd()

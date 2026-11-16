@@ -109,6 +109,22 @@ func navPilotDataDir() string {
 
 const openCodeDisableProjectConfigEnv = "OPENCODE_DISABLE_PROJECT_CONFIG"
 
+// OpenCodeProjectDisableEnvs are the switches that turn off a repo's own
+// OpenCode config: the consent prompt, the repo-gate drop and cplt's pass-env
+// all read this one list.
+var OpenCodeProjectDisableEnvs = []string{openCodeDisableProjectConfigEnv, "OPENCODE_CONFIG_PROJECT_DISABLE"}
+
+// OpenCodeProjectDisabled reports whether any switch in
+// OpenCodeProjectDisableEnvs is on.
+func OpenCodeProjectDisabled(getenv func(string) string) bool {
+	for _, k := range OpenCodeProjectDisableEnvs {
+		if v := strings.ToLower(getenv(k)); v == "1" || v == "true" {
+			return true
+		}
+	}
+	return false
+}
+
 func openCodePluginDir() string { return filepath.Join(navPilotDataDir(), "opencode-plugin") }
 
 // OpenCodeHookStateDir is where the OpenCode bridge's hooks keep their state
@@ -126,8 +142,10 @@ func applyOpenCodeHooks(r domain.ResolvedConfig, env []string, cpltArgs []string
 	// whether or not any hook runs, and cplt passes only what it is told to.
 	cpltArgs = append(cpltArgs, "--pass-env", openCodeConfigContentEnv)
 	// The documented switch for an untrusted repo; cplt strips it otherwise.
-	if slices.ContainsFunc(env, func(e string) bool { return strings.HasPrefix(e, openCodeDisableProjectConfigEnv+"=") }) {
-		cpltArgs = append(cpltArgs, "--pass-env", openCodeDisableProjectConfigEnv)
+	for _, k := range OpenCodeProjectDisableEnvs {
+		if slices.ContainsFunc(env, func(e string) bool { return strings.HasPrefix(e, k+"=") }) {
+			cpltArgs = append(cpltArgs, "--pass-env", k)
+		}
 	}
 	if OpenCodeHookBridge == nil {
 		return env, cpltArgs
@@ -135,7 +153,7 @@ func applyOpenCodeHooks(r domain.ResolvedConfig, env []string, cpltArgs []string
 	b := OpenCodeHookBridge(r)
 	// The switch is often set by this launch (declined or unanswered repo
 	// plugins), so read it from env, not the process environment.
-	if v := strings.ToLower(openCodeEnvGetter(env)(openCodeDisableProjectConfigEnv)); v == "1" || v == "true" {
+	if OpenCodeProjectDisabled(openCodeEnvGetter(env)) {
 		b.Pre = slices.DeleteFunc(b.Pre, func(h BridgeHook) bool { return h.Repo })
 	}
 	blocked := slices.ContainsFunc(env, func(e string) bool { return strings.HasPrefix(e, MCPBlockedEnv+"=") })
