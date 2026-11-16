@@ -45,9 +45,9 @@ export default function FleetGatewayPage() {
         </LinkableHeading>
         <BodyLong>
           Team skal kunne tilby MCP-servere uten å bygge egen OAuth. fleet-gateway er ett sted på Nais som tar seg av
-          innloggingen med Nav-brukeren. Den kaller teamets MCP-server med et on-behalf-of-token (OBO) fra Texas, så
-          serveren ser den faktiske brukeren. Teamene registrerer serverne sine på ki-utvikling, og cplt holder tokenene
-          på maskinen, utenfor agentens sandkasse.
+          innloggingen med Nav-brukeren. Innloggingen går via Entra ID. Den kaller teamets MCP-server med et
+          on-behalf-of-token (OBO) fra Texas, så serveren ser den faktiske brukeren. Teamene søker om å bli med via et
+          skjema, og serveren registreres i fleet-control. cplt holder tokenene på maskinen, utenfor agentens sandkasse.
         </BodyLong>
         <FleetGatewayCallDiagram />
       </VStack>
@@ -68,7 +68,7 @@ export default function FleetGatewayPage() {
         </LinkableHeading>
         <Bullets>
           <li>
-            Registeret (mcp-registry, del av fleet-control): en admingruppe godkjenner hver server før den blir synlig.
+            Registeret (mcp-registry, del av fleet-control): team copilot godkjenner hver server før den blir synlig.
           </li>
           <li>
             Nettverket: fleet-gateway har en liste over hvilke servere den kan kalle, og teamets server slipper bare inn
@@ -102,9 +102,9 @@ export default function FleetGatewayPage() {
             Mangler regelen, feiler kallet med <code className={code}>AADSTS65001</code>.
           </li>
           <li>
-            Valider tokenet med Texas-introspeksjon. Avvis <code className={code}>idtyp</code> lik{" "}
-            <code className={code}>app</code>, sjekk at <code className={code}>azp</code> er fleet-gateway, og krev
-            NAVident.
+            Valider tokenet med Texas-introspeksjon. Sjekk at <code className={code}>aud</code> er serveren din, avvis{" "}
+            <code className={code}>idtyp</code> lik <code className={code}>app</code>, sjekk at{" "}
+            <code className={code}>azp</code> er fleet-gateway, og krev NAVident.
           </li>
         </Bullets>
       </VStack>
