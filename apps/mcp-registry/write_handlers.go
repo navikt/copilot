@@ -230,7 +230,7 @@ func handleApprove(w http.ResponseWriter, r *http.Request, db *DB, actor, name s
 			respondJSON(w, http.StatusConflict, map[string]string{"error": err.Error()})
 			return
 		}
-		slog.Error("Failed to approve entry", "error", err)
+		slog.Error("Failed to approve entry", "error", logSafe(err.Error()))
 		recordWriteMetric("approve", "error")
 		respondJSON(w, http.StatusInternalServerError, map[string]string{"error": "Internal server error"})
 		return
@@ -273,7 +273,7 @@ func handleReject(w http.ResponseWriter, r *http.Request, db *DB, actor, name st
 			respondJSON(w, http.StatusConflict, map[string]string{"error": err.Error()})
 			return
 		}
-		slog.Error("Failed to reject entry", "error", err)
+		slog.Error("Failed to reject entry", "error", logSafe(err.Error()))
 		recordWriteMetric("reject", "error")
 		respondJSON(w, http.StatusInternalServerError, map[string]string{"error": "Internal server error"})
 		return
