@@ -2,9 +2,9 @@ package local
 
 import (
 	"fmt"
-	"path/filepath"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
