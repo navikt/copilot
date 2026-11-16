@@ -77,7 +77,11 @@ func openCodeProjectPlugins(projectDir string, env []string) openCodePluginSet {
 			break
 		}
 	}
-	w := pluginHasher{h: sha256.New(), root: set.root, seen: map[string]bool{}}
+	realRoot, err := filepath.EvalSymlinks(set.root)
+	if err != nil {
+		realRoot = set.root
+	}
+	w := pluginHasher{h: sha256.New(), root: set.root, realRoot: realRoot, seen: map[string]bool{}}
 	for _, d := range dirs {
 		if filepath.Base(d) != ".opencode" {
 			continue
@@ -129,6 +133,9 @@ func openCodeProjectPlugins(projectDir string, env []string) openCodePluginSet {
 		// and the directory, since the gates run scripts kept there.
 		b, _ := json.Marshal(gates)
 		fmt.Fprintf(w.h, "gates %s\n", b)
+		if rh, err := filepath.EvalSymlinks(hooks); err == nil {
+			w.hooksFile = rh
+		}
 		w.add(filepath.Dir(hooks))
 	}
 	switch {
@@ -145,10 +152,17 @@ func openCodeProjectPlugins(projectDir string, env []string) openCodePluginSet {
 const pluginMaxRead = 1 << 20
 
 type pluginHasher struct {
-	h       hash.Hash
-	root    string
-	seen    map[string]bool
-	unknown bool
+	h         hash.Hash
+	root      string
+	realRoot  string
+	hooksFile string
+	seen      map[string]bool
+	unknown   bool
+}
+
+func withinDir(base, target string) bool {
+	rel, err := filepath.Rel(base, target)
+	return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }
 
 func (w *pluginHasher) rel(p string) string {
@@ -211,6 +225,14 @@ func (w *pluginHasher) add(p string) {
 	case err != nil:
 		w.unknown = true
 	case st.IsDir():
+		if !withinDir(w.realRoot, real) {
+			w.unknown = true // symlink outside the repository
+			return
+		}
+		if parentReal, perr := filepath.EvalSymlinks(filepath.Dir(p)); perr == nil && withinDir(real, parentReal) {
+			w.unknown = true // symlink to an ancestor directory
+			return
+		}
 		fmt.Fprintf(w.h, "dir %s\n", w.rel(p))
 		entries, err := os.ReadDir(real)
 		if err != nil {
@@ -226,7 +248,10 @@ func (w *pluginHasher) add(p string) {
 	case st.Mode().IsRegular():
 		fmt.Fprintf(w.h, "file %s %d\n", w.rel(p), st.Size())
 		if st.Size() > pluginMaxRead {
-			return // name and size only
+			if real != w.hooksFile {
+				w.unknown = true // over pluginMaxRead: cannot pin contents
+			}
+			return
 		}
 		f, err := os.Open(real)
 		if err != nil {
@@ -321,6 +346,9 @@ func askOpenCodePluginSet(set openCodePluginSet) bool {
 // A stored answer holds with or without a terminal. A yes is silent; a no says
 // one dim line each launch, since the repo's AGENTS.md and agents are off too.
 func applyOpenCodeProjectPlugins(env []string, projectDir string) []string {
+	env = slices.DeleteFunc(slices.Clone(env), func(e string) bool {
+		return strings.HasPrefix(e, openCodeDropRepoGatesEnv+"=")
+	})
 	if openCodeMajor() < 2 {
 		return env
 	}

@@ -239,8 +239,11 @@ for r in d.get('references', []):
 
   # 2. Bundled files on disk: everything installers must ship (README.md is for humans only)
   while IFS= read -r f; do
-    [[ -n "$f" ]] && fs_refs+=("${f#./}")
-  done < <(cd "$dir" && find . -type f ! -name SKILL.md ! -name metadata.json ! -name README.md ! -name .DS_Store | sort)
+    case "$f" in
+      ""|SKILL.md|metadata.json|README.md|.DS_Store|*/.DS_Store) continue ;;
+    esac
+    [[ -f "$dir/$f" ]] && fs_refs+=("$f")
+  done < <(git -C "$dir" -c core.quotePath=false ls-files -co --exclude-standard | sort -u)
 
   # 3. Links in SKILL.md pointing to references/ (only markdown links, strip #fragments)
   while IFS= read -r link; do

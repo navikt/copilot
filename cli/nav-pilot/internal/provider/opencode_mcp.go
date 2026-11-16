@@ -487,6 +487,7 @@ func openCodeMCPServersIn(docs [][]byte, getenv func(string) string) map[string]
 			}
 			continue
 		}
+		var nestedRaw json.RawMessage
 		for name, raw := range cfg.MCP {
 			// opencode 2's own shape: mcp.servers.<name>, mcp.timeout. A
 			// key of either name is a server only with a type, as opencode
@@ -498,16 +499,20 @@ func openCodeMCPServersIn(docs [][]byte, getenv func(string) string) map[string]
 				}
 				if json.Unmarshal(expandOpenCodeServerJSON(raw, getenv), &probe) == nil && probe.Type != "local" && probe.Type != "remote" {
 					if name == "servers" {
-						var native map[string]json.RawMessage
-						_ = json.Unmarshal(raw, &native)
-						for n, r := range native {
-							unmarshalServer(n, r, true)
-						}
+						nestedRaw = raw
 					}
 					continue
 				}
 			}
 			unmarshalServer(name, raw, false)
+		}
+		// Apply mcp.servers after flat keys so nested deterministically shadows flat.
+		if nestedRaw != nil {
+			var native map[string]json.RawMessage
+			_ = json.Unmarshal(nestedRaw, &native)
+			for n, r := range native {
+				unmarshalServer(n, r, true)
+			}
 		}
 	}
 	return servers
