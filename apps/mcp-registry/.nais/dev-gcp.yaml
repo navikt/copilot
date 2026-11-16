@@ -1,3 +1,4 @@
+cluster: dev-gcp
 replicas_min: "1"
 replicas_max: "2"
 cpu_threshold: "80"

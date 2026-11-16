@@ -65,6 +65,9 @@ func main() {
 			return d.GetApprovedEntries(ctx)
 		}
 	}
+	if loader != nil && len(config.AllowedWriteAZP) == 0 {
+		slog.Warn("ALLOWED_WRITE_AZP resolves to no client ids: every write is rejected")
+	}
 	store := NewStore(config, "allowlist.json", loader)
 	if loader != nil {
 		go func() {
@@ -80,6 +83,9 @@ func main() {
 				slog.Warn("Initial database reload failed, serving static entries only", "error", err)
 			}
 			store.StartRefresher(sigCtx, 60*time.Second)
+			retentionTicker := time.NewTicker(time.Hour)
+			defer retentionTicker.Stop()
+			runRetention(sigCtx, opened, retentionTicker.C)
 		}()
 	}
 	config.Store = store

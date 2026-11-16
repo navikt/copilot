@@ -10,14 +10,14 @@ import (
 )
 
 func TestHandlers_NoDatabaseReturns503(t *testing.T) {
-	mux := testMux(&Config{AdminGroupID: testAdminGroup}, nil, testFakeIntrospect())
+	mux := testMux(&Config{AdminGroupID: testAdminGroup, AllowedWriteAZP: []string{testWriterAZP}}, nil, testFakeIntrospect())
 	cases := []struct{ path, body string }{
 		{"/api/v1/entries", `{"entry": ` + string(subJSON("io.github.navikt/no-db", "d", "1.0.0")) + `}`},
 		{"/api/v1/entries/io.github.navikt/no-db/approve", `{"version": 1}`},
 	}
 	for _, tc := range cases {
 		req := httptest.NewRequest(http.MethodPost, tc.path, strings.NewReader(tc.body))
-		req.Header.Set("Authorization", "Bearer token-admin@nav.no")
+		req.Header.Set("Authorization", "Bearer token-admin")
 		rec := httptest.NewRecorder()
 		mux.ServeHTTP(rec, req)
 		if rec.Code != http.StatusServiceUnavailable {
@@ -30,7 +30,7 @@ func TestIntrospectorSendsEntraID(t *testing.T) {
 	var got map[string]string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewDecoder(r.Body).Decode(&got)
-		_, _ = w.Write([]byte(`{"active":true,"preferred_username":"U@nav.no","NAVident":"A1","groups":["g1"]}`))
+		_, _ = w.Write([]byte(`{"active":true,"azp":"c1","NAVident":"A1","groups":["g1"]}`))
 	}))
 	defer srv.Close()
 	res, err := newTexasIntrospector(srv.URL)(t.Context(), "tok")
@@ -40,32 +40,32 @@ func TestIntrospectorSendsEntraID(t *testing.T) {
 	if got["identity_provider"] != "entra_id" {
 		t.Errorf("identity_provider = %q, want entra_id", got["identity_provider"])
 	}
+	if res.Azp != "c1" {
+		t.Errorf("azp = %q", res.Azp)
+	}
 	if len(res.Groups) != 1 || res.Groups[0] != "g1" {
 		t.Errorf("groups = %v", res.Groups)
 	}
 }
 
 func TestHandlers_Authentication(t *testing.T) {
-	cfg := &Config{AdminGroupID: testAdminGroup}
+	cfg := &Config{AdminGroupID: testAdminGroup, AllowedWriteAZP: []string{testWriterAZP}}
 	introspect := func(_ context.Context, token string) (*IntrospectionResult, error) {
 		switch token {
 		case "valid-user":
 			return &IntrospectionResult{
 				Active:   true,
-				Username: "User@Nav.No",
-				NAVident: "A123456",
+				NAVident: " a123456 ",
 			}, nil
 		case "app-token":
 			return &IntrospectionResult{
 				Active:   true,
-				Username: "app-id",
 				IDType:   "app",
 				NAVident: "A123456",
 			}, nil
 		case "no-navident":
 			return &IntrospectionResult{
 				Active:   true,
-				Username: "user@nav.no",
 				NAVident: "",
 			}, nil
 		case "inactive-token":
@@ -145,26 +145,26 @@ func TestHandlers_Authentication(t *testing.T) {
 		}
 	})
 
-	t.Run("authenticated user actor is lowercased", func(t *testing.T) {
+	t.Run("actor is the uppercased NAVident", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/entries", nil)
 		req.Header.Set("Authorization", "Bearer valid-user")
 		caller, err := authenticate(req, introspect)
 		if err != nil {
 			t.Fatalf("unexpected authenticate error: %v", err)
 		}
-		if caller.Actor != "user@nav.no" {
-			t.Fatalf("expected actor 'user@nav.no', got %q", caller.Actor)
+		if caller.Actor != "A123456" {
+			t.Fatalf("expected actor 'A123456', got %q", caller.Actor)
 		}
 	})
 }
 
 func TestHandlers_SubmitValidationFailures(t *testing.T) {
-	cfg := &Config{AdminGroupID: testAdminGroup}
+	cfg := &Config{AdminGroupID: testAdminGroup, AllowedWriteAZP: []string{testWriterAZP}}
 	introspect := func(_ context.Context, _ string) (*IntrospectionResult, error) {
 		return &IntrospectionResult{
 			Active:   true,
-			Username: "user@nav.no",
 			NAVident: "A123456",
+			Azp:      testWriterAZP,
 		}, nil
 	}
 
@@ -204,4 +204,28 @@ func TestHandlers_SubmitValidationFailures(t *testing.T) {
 			t.Fatalf("expected 400 on invalid name, got %d: %s", rec.Code, rec.Body.String())
 		}
 	})
+}
+
+func TestHandlers_WriteRequiresAllowedAZP(t *testing.T) {
+	for _, tc := range []struct {
+		name    string
+		allowed []string
+	}{
+		{"azp not in list", []string{"other-client"}},
+		{"empty list fails closed", nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			// Database "connected" so the 403 cannot be the 503 path.
+			mux := testMux(&Config{AdminGroupID: testAdminGroup, AllowedWriteAZP: tc.allowed}, &DB{}, testFakeIntrospect())
+			for _, path := range []string{"/api/v1/entries", "/api/v1/entries/io.github.navikt/x/approve", "/api/v1/entries/io.github.navikt/x/reject"} {
+				req := httptest.NewRequest(http.MethodPost, path, strings.NewReader(`{}`))
+				req.Header.Set("Authorization", "Bearer token-admin")
+				rec := httptest.NewRecorder()
+				mux.ServeHTTP(rec, req)
+				if rec.Code != http.StatusForbidden {
+					t.Errorf("%s: expected 403, got %d", path, rec.Code)
+				}
+			}
+		})
+	}
 }

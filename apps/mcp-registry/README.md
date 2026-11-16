@@ -25,6 +25,9 @@ Public registry service for Nav-approved MCP servers, implementing the [MCP Regi
 - `LOGGED_ENDPOINTS` (default: `/,/v0.1/servers`) - Comma-separated endpoint paths to log
 - `DOMAIN_INTERNAL` (default: `intern.dev.nav.no`) - Internal domain for template substitution
 - `DOMAIN_EXTERNAL` (default: `ekstern.dev.nav.no`) - External domain for template substitution
+- `ALLOWED_WRITE_AZP` - Comma-separated client ids (token `azp`) allowed to call the write endpoints. An entry shaped `cluster:namespace:app` is resolved through `AZURE_APP_PRE_AUTHORIZED_APPS`. Empty means every write gets 403.
+
+Audit and version rows record the caller's NAVident, never the email address. An hourly job deletes audit rows older than 90 days and clears the submitter on older version rows; entry ownership is kept on the entry itself.
 
 ### Domain Template Variables
 

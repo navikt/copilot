@@ -6,8 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"log/slog"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -193,21 +195,19 @@ func (s *DB) Submit(ctx context.Context, actor string, entryJSON []byte, name st
 		return 0, ErrRateLimitExceeded
 	}
 
-	// Check ownership if existing name
-	var v1SubmittedBy string
+	// Check ownership if existing name: only the owner (first submitter) or
+	// an admin may submit a new version. No owner means admin only.
+	var owner *string
 	err = tx.QueryRow(ctx, `
-		SELECT submitted_by
-		FROM registry_entry_versions
-		WHERE name = $1 AND version = 1
-	`, name).Scan(&v1SubmittedBy)
+		SELECT owner_navident
+		FROM registry_entries
+		WHERE name = $1
+	`, name).Scan(&owner)
 	if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		return 0, fmt.Errorf("checking ownership: %w", err)
 	}
-	if err == nil {
-		// Existing name: only actor who submitted v1 or admin is allowed
-		if !strings.EqualFold(actor, v1SubmittedBy) && !isAdmin {
-			return 0, ErrForbidden
-		}
+	if err == nil && !isAdmin && (owner == nil || !strings.EqualFold(actor, *owner)) {
+		return 0, ErrForbidden
 	}
 
 	// Compute MAX(version) after the locks
@@ -246,9 +246,9 @@ func (s *DB) Submit(ctx context.Context, actor string, entryJSON []byte, name st
 	case errors.Is(err, pgx.ErrNoRows):
 		// No existing row: create with status pending
 		_, err = tx.Exec(ctx, `
-			INSERT INTO registry_entries (name, status, entry, version, pending_version, updated_at)
-			VALUES ($1, 'pending', $2, $3, NULL, now())
-		`, name, entryJSON, newVersion)
+			INSERT INTO registry_entries (name, status, entry, version, pending_version, updated_at, owner_navident)
+			VALUES ($1, 'pending', $2, $3, NULL, now(), $4)
+		`, name, entryJSON, newVersion, actor)
 		if err != nil {
 			return 0, fmt.Errorf("inserting new registry entry: %w", err)
 		}
@@ -313,6 +313,40 @@ func (s *DB) Submit(ctx context.Context, actor string, entryJSON []byte, name st
 	}
 
 	return newVersion, nil
+}
+
+// auditRetention is how long audit rows and version submitters are kept (#2092).
+const auditRetention = 90 * 24 * time.Hour
+
+// PurgeExpired deletes audit rows older than auditRetention and clears the
+// submitter on older version rows. Version rows stay: approval and version
+// numbering read them.
+func (s *DB) PurgeExpired(ctx context.Context) error {
+	cutoff := time.Now().Add(-auditRetention)
+	if _, err := s.pool.Exec(ctx, `DELETE FROM registry_audit WHERE at < $1`, cutoff); err != nil {
+		return fmt.Errorf("purging audit rows: %w", err)
+	}
+	if _, err := s.pool.Exec(ctx, `
+		UPDATE registry_entry_versions SET submitted_by = NULL
+		WHERE submitted_at < $1 AND submitted_by IS NOT NULL
+	`, cutoff); err != nil {
+		return fmt.Errorf("purging version submitters: %w", err)
+	}
+	return nil
+}
+
+// runRetention calls PurgeExpired on every tick until ctx is done.
+func runRetention(ctx context.Context, db *DB, ticks <-chan time.Time) {
+	for {
+		if err := db.PurgeExpired(ctx); err != nil && ctx.Err() == nil {
+			slog.Warn("Retention purge failed", "error", err)
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticks:
+		}
+	}
 }
 
 // Approve copies the specified version's entry from registry_entry_versions

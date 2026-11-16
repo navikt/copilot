@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -13,7 +14,10 @@ import (
 	"time"
 )
 
-const testAdminGroup = "00000000-0000-0000-0000-00000000a0a0"
+const (
+	testAdminGroup = "00000000-0000-0000-0000-00000000a0a0"
+	testWriterAZP  = "my-copilot-client-id"
+)
 
 // setupTestDB connects to TEST_DATABASE_URL and resets the schema. Skips when unset.
 func setupTestDB(t *testing.T) *DB {
@@ -46,15 +50,16 @@ func testMux(cfg *Config, db *DB, introspect IntrospectFunc) *http.ServeMux {
 	return mux
 }
 
-// testFakeIntrospect accepts "token-<user>"; users starting with "admin" are in testAdminGroup.
+// testFakeIntrospect accepts "token-<user>" with NAVident <user> and azp
+// testWriterAZP; users starting with "admin" are in testAdminGroup.
 func testFakeIntrospect() IntrospectFunc {
 	return func(_ context.Context, token string) (*IntrospectionResult, error) {
 		user, ok := strings.CutPrefix(token, "token-")
 		if !ok {
 			return &IntrospectionResult{Active: false}, nil
 		}
-		res := &IntrospectionResult{Active: true, Username: user, NAVident: "A123456"}
-		if strings.HasPrefix(user, "admin") {
+		res := &IntrospectionResult{Active: true, NAVident: user, Azp: testWriterAZP}
+		if strings.HasPrefix(strings.ToLower(user), "admin") {
 			res.Groups = []string{testAdminGroup}
 		}
 		return res, nil
@@ -79,13 +84,13 @@ func TestStore_RealPostgres_LifecycleAndRequirements(t *testing.T) {
 		return
 	}
 
-	cfg := &Config{AdminGroupID: testAdminGroup}
+	cfg := &Config{AdminGroupID: testAdminGroup, AllowedWriteAZP: []string{testWriterAZP}}
 	introspect := testFakeIntrospect()
 	mux := testMux(cfg, store, introspect)
 
 	const serverName = "io.github.navikt/test-service"
-	actor := "developer@nav.no"
-	adminActor := "admin@nav.no"
+	actor := "D100001"
+	adminActor := "ADMIN1"
 
 	// 1. Submit creates pending + audit row with actor and time
 	t.Run("submit creates pending + audit row with actor and time", func(t *testing.T) {
@@ -358,8 +363,8 @@ func TestStore_RealPostgres_LifecycleAndRequirements(t *testing.T) {
 	// 5. Ownership: submit for existing name allowed only from original submitter or admin
 	t.Run("ownership: submit for existing name allowed only from original submitter or admin", func(t *testing.T) {
 		const ownedName = "io.github.navikt/ownership-service"
-		originalOwner := "owner-user@nav.no"
-		otherUser := "other-user@nav.no"
+		originalOwner := "O100001"
+		otherUser := "O200002"
 
 		// Original user submits version 1 -> 201
 		bodyV1 := fmt.Sprintf(`{"entry": %s}`, sampleServerEntryJSON(ownedName, "v1 by owner"))
@@ -408,7 +413,7 @@ func TestStore_RealPostgres_LifecycleAndRequirements(t *testing.T) {
 	// 6. Non-admin approve is 403
 	t.Run("non-admin approve is 403", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/entries/"+serverName+"/approve", strings.NewReader(`{"version": 1}`))
-		req.Header.Set("Authorization", "Bearer token-"+actor) // developer@nav.no is not in ADMIN_USERS
+		req.Header.Set("Authorization", "Bearer token-"+actor) // not in the admin group
 		req.Header.Set("Content-Type", "application/json")
 		rec := httptest.NewRecorder()
 
@@ -433,7 +438,7 @@ func TestStore_RealPostgres_LifecycleAndRequirements(t *testing.T) {
 
 	// 7. 11th submit within an hour is 429
 	t.Run("11th submit within an hour is 429", func(t *testing.T) {
-		rateLimitActor := "spammer@nav.no"
+		rateLimitActor := "S100001"
 
 		for i := 1; i <= 10; i++ {
 			entryName := fmt.Sprintf("io.github.navikt/rate-limit-test-%d", i)
@@ -557,7 +562,7 @@ func TestSubmit_AuditsSupersededUnapprovedVersion(t *testing.T) {
 	entry := []byte(`{"name":"io.github.navikt/p","description":"d","version":"1","owner":"team","remotes":[{"type":"sse","url":"https://mcp.example.com"}]}`)
 	name := "io.github.navikt/p"
 	for range 2 { // v1 pending, then v2 replaces it before approval
-		if _, err := db.Submit(ctx, "a@nav.no", entry, name, false); err != nil {
+		if _, err := db.Submit(ctx, "a", entry, name, false); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -575,14 +580,14 @@ func TestSubmit_AuditsSupersededPendingVersion(t *testing.T) {
 	ctx := context.Background()
 	entry := []byte(`{"name":"io.github.navikt/s","description":"d","version":"1","owner":"team","remotes":[{"type":"sse","url":"https://mcp.example.com"}]}`)
 	name := "io.github.navikt/s"
-	if _, err := db.Submit(ctx, "a@nav.no", entry, name, false); err != nil {
+	if _, err := db.Submit(ctx, "a", entry, name, false); err != nil {
 		t.Fatal(err)
 	}
-	if err := db.Approve(ctx, "admin@nav.no", name, 1); err != nil {
+	if err := db.Approve(ctx, "admin", name, 1); err != nil {
 		t.Fatal(err)
 	}
 	for range 2 { // v2 pending, then v3 supersedes it
-		if _, err := db.Submit(ctx, "a@nav.no", entry, name, false); err != nil {
+		if _, err := db.Submit(ctx, "a", entry, name, false); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -592,5 +597,70 @@ func TestSubmit_AuditsSupersededPendingVersion(t *testing.T) {
 	}
 	if version != 2 {
 		t.Fatalf("superseded version = %d, want 2", version)
+	}
+}
+
+func TestPurgeExpired_RetentionKeepsOwnership(t *testing.T) {
+	db := setupTestDB(t)
+	ctx := context.Background()
+	entry := []byte(`{"name":"io.github.navikt/r","description":"d","version":"1","owner":"team","remotes":[{"type":"sse","url":"https://mcp.example.com"}]}`)
+	name := "io.github.navikt/r"
+	if _, err := db.Submit(ctx, "A111111", entry, name, false); err != nil {
+		t.Fatal(err)
+	}
+	// Age everything past retention, then add one fresh audit row.
+	if _, err := db.pool.Exec(ctx, "UPDATE registry_audit SET at = now() - INTERVAL '91 days'"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.pool.Exec(ctx, "UPDATE registry_entry_versions SET submitted_at = now() - INTERVAL '91 days'"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.pool.Exec(ctx, "INSERT INTO registry_audit (actor, action, name) VALUES ('A222222', 'submit', 'x')"); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.PurgeExpired(ctx); err != nil {
+		t.Fatal(err)
+	}
+	var audits, submitters int
+	if err := db.pool.QueryRow(ctx, "SELECT COUNT(*) FROM registry_audit").Scan(&audits); err != nil {
+		t.Fatal(err)
+	}
+	if err := db.pool.QueryRow(ctx, "SELECT COUNT(submitted_by) FROM registry_entry_versions").Scan(&submitters); err != nil {
+		t.Fatal(err)
+	}
+	if audits != 1 || submitters != 0 {
+		t.Fatalf("after purge: %d audit rows (want 1), %d submitters (want 0)", audits, submitters)
+	}
+	// Ownership survives retention: another user is still refused, the owner is not.
+	if _, err := db.Submit(ctx, "A333333", entry, name, false); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("other user after purge: err = %v, want ErrForbidden", err)
+	}
+	if _, err := db.Submit(ctx, "A111111", entry, name, false); err != nil {
+		t.Fatalf("owner after purge: %v", err)
+	}
+}
+
+func TestMigration002_DropsEmailActors(t *testing.T) {
+	db := setupTestDB(t)
+	ctx := context.Background()
+	sql, err := migrationFS.ReadFile("migrations/002_navident_retention.sql")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.pool.Exec(ctx, `
+		INSERT INTO registry_audit (actor, action, name) VALUES ('u@nav.no', 'submit', 'n'), ('A1', 'submit', 'n');
+		INSERT INTO registry_entry_versions (name, version, entry, submitted_by) VALUES ('n', 1, '{}', 'u@nav.no');
+	`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := db.pool.Exec(ctx, string(sql)); err != nil { // idempotent rerun
+		t.Fatal(err)
+	}
+	var emails int
+	if err := db.pool.QueryRow(ctx, `SELECT (SELECT COUNT(*) FROM registry_audit WHERE actor LIKE '%@%') + (SELECT COUNT(*) FROM registry_entry_versions WHERE submitted_by LIKE '%@%')`).Scan(&emails); err != nil {
+		t.Fatal(err)
+	}
+	if emails != 0 {
+		t.Fatalf("%d email actors left", emails)
 	}
 }

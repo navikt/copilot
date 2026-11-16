@@ -37,6 +37,11 @@ func makeSubmitHandler(config *Config, dbRef *atomic.Pointer[DB], introspect Int
 			respondJSON(w, http.StatusUnauthorized, map[string]string{"error": "Unauthorized"})
 			return
 		}
+		if !config.AllowsWriteAZP(caller.Azp) {
+			slog.Warn("Write rejected: client is not an allowed writer", "azp", caller.Azp)
+			respondJSON(w, http.StatusForbidden, map[string]string{"error": "Forbidden: client is not allowed to write"})
+			return
+		}
 		actor := caller.Actor
 
 		body, readErr := io.ReadAll(io.LimitReader(r.Body, 1<<20))
@@ -130,6 +135,11 @@ func makeEntryActionHandler(config *Config, dbRef *atomic.Pointer[DB], introspec
 		if authErr != nil {
 			slog.Warn("Authentication failed for entry action", "action", action, "error", authErr)
 			respondJSON(w, http.StatusUnauthorized, map[string]string{"error": "Unauthorized"})
+			return
+		}
+		if !config.AllowsWriteAZP(caller.Azp) {
+			slog.Warn("Write rejected: client is not an allowed writer", "azp", caller.Azp)
+			respondJSON(w, http.StatusForbidden, map[string]string{"error": "Forbidden: client is not allowed to write"})
 			return
 		}
 		actor := caller.Actor

@@ -50,6 +50,10 @@ spec:
   env:
     - name: ADMIN_GROUP_ID
       value: "{{admin_group_id}}"
+    # Only my-copilot may write. Resolved to its client id through
+    # AZURE_APP_PRE_AUTHORIZED_APPS, which the inbound rule below provides.
+    - name: ALLOWED_WRITE_AZP
+      value: "{{cluster}}:copilot:my-copilot"
     - name: PORT
       value: "8080"
     - name: LOG_LEVEL

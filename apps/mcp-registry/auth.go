@@ -20,7 +20,7 @@ var (
 // IntrospectionResult models Texas token introspection response.
 type IntrospectionResult struct {
 	Active   bool     `json:"active"`
-	Username string   `json:"preferred_username"`
+	Azp      string   `json:"azp,omitempty"`
 	IDType   string   `json:"idtyp,omitempty"`
 	NAVident string   `json:"NAVident,omitempty"`
 	Groups   []string `json:"groups,omitempty"`
@@ -28,7 +28,9 @@ type IntrospectionResult struct {
 
 // principal is an authenticated human caller.
 type principal struct {
+	// Actor is the caller's NAVident, never the email address.
 	Actor  string
+	Azp    string
 	Groups []string
 }
 
@@ -79,7 +81,7 @@ func newTexasIntrospector(endpoint string) IntrospectFunc {
 
 // authenticate extracts the Bearer token from the request, verifies it with introspect,
 // validates required claims (idtyp != 'app', non-empty NAVident), and returns the
-// lowercased actor with its Entra groups.
+// uppercased NAVident as actor with the token's azp and Entra groups.
 func authenticate(r *http.Request, introspect IntrospectFunc) (*principal, error) {
 	if introspect == nil {
 		return nil, errors.New("introspector not configured")
@@ -110,7 +112,7 @@ func authenticate(r *http.Request, introspect IntrospectFunc) (*principal, error
 		return nil, ErrUnauthorized
 	}
 
-	if !res.Active || strings.TrimSpace(res.Username) == "" {
+	if !res.Active {
 		return nil, ErrUnauthorized
 	}
 
@@ -124,5 +126,5 @@ func authenticate(r *http.Request, introspect IntrospectFunc) (*principal, error
 		return nil, ErrUnauthorized
 	}
 
-	return &principal{Actor: strings.ToLower(strings.TrimSpace(res.Username)), Groups: res.Groups}, nil
+	return &principal{Actor: strings.ToUpper(strings.TrimSpace(res.NAVident)), Azp: res.Azp, Groups: res.Groups}, nil
 }

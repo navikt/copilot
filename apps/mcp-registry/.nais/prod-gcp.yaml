@@ -1,3 +1,4 @@
+cluster: prod-gcp
 replicas_min: "1"
 replicas_max: "5"
 cpu_threshold: "70"
