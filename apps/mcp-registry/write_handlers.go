@@ -77,7 +77,7 @@ func makeSubmitHandler(config *Config, dbRef *atomic.Pointer[DB], introspect Int
 			return
 		}
 		if !config.AllowsWriteAZP(caller.Azp) {
-			slog.Warn("Write rejected: client is not an allowed writer", "azp", caller.Azp)
+			slog.Warn("Write rejected: client is not an allowed writer", "azp", logSafe(caller.Azp))
 			respondJSON(w, http.StatusForbidden, map[string]string{"error": "Forbidden: client is not allowed to write"})
 			return
 		}
@@ -176,7 +176,7 @@ func makeEntryActionHandler(config *Config, dbRef *atomic.Pointer[DB], introspec
 			return
 		}
 		if !config.AllowsWriteAZP(caller.Azp) {
-			slog.Warn("Write rejected: client is not an allowed writer", "azp", caller.Azp)
+			slog.Warn("Write rejected: client is not an allowed writer", "azp", logSafe(caller.Azp))
 			respondJSON(w, http.StatusForbidden, map[string]string{"error": "Forbidden: client is not allowed to write"})
 			return
 		}
