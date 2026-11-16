@@ -374,10 +374,22 @@
     "anchors": {
       "faktisk-bruk": ["apps/my-copilot/src/app/(nb)/innsikt/nav-pilot/page.tsx"],
       "kilde-og-metode": ["apps/my-copilot/src/components/insight-page.tsx"],
-      "kommandoer-og-verktoy": ["apps/my-copilot/src/app/(nb)/innsikt/nav-pilot/page.tsx"],
-      "okter": ["apps/my-copilot/src/app/(nb)/innsikt/nav-pilot/page.tsx"],
-      "oppsett": ["apps/my-copilot/src/app/(nb)/innsikt/nav-pilot/page.tsx"],
-      "skills-og-subagenter": ["apps/my-copilot/src/app/(nb)/innsikt/nav-pilot/page.tsx"]
+      "kommandoer-og-verktoy": [
+        "apps/my-copilot/src/app/(nb)/innsikt/nav-pilot/page.tsx",
+        "apps/my-copilot/src/components/nav-pilot-runtime.tsx"
+      ],
+      "okter": [
+        "apps/my-copilot/src/app/(nb)/innsikt/nav-pilot/page.tsx",
+        "apps/my-copilot/src/components/nav-pilot-runtime.tsx"
+      ],
+      "oppsett": [
+        "apps/my-copilot/src/app/(nb)/innsikt/nav-pilot/page.tsx",
+        "apps/my-copilot/src/components/nav-pilot-runtime.tsx"
+      ],
+      "skills-og-subagenter": [
+        "apps/my-copilot/src/app/(nb)/innsikt/nav-pilot/page.tsx",
+        "apps/my-copilot/src/components/nav-pilot-runtime.tsx"
+      ]
     }
   },
   "/innsikt/team": {
