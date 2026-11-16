@@ -20,7 +20,8 @@ const (
 
 // logSafe strips CR and LF characters from request-derived values passed to slog.
 func logSafe(s string) string {
-	return strings.NewReplacer("\n", "", "\r", "").Replace(s)
+	s = strings.ReplaceAll(s, "\n", "")
+	return strings.ReplaceAll(s, "\r", "")
 }
 
 func readWriteBody(w http.ResponseWriter, r *http.Request) ([]byte, bool) {
