@@ -1,6 +1,7 @@
 package provider
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"os"
@@ -10,6 +11,7 @@ import (
 	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/artifacts"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
+	"github.com/navikt/copilot/cli/nav-pilot/internal/local"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
 )
 
@@ -171,6 +173,11 @@ func PiUnsupportedConfigWarnings(resolved domain.ResolvedConfig) []string {
 // LaunchPi launches pi inside the cplt sandbox with the active agentpakke's
 // artifacts passed as flags.
 func LaunchPi(resolved domain.ResolvedConfig) error {
+	// pi gets no local provider, server or guard, so a local model would reach
+	// it as a provider it does not have.
+	if m := cmp.Or(resolved.Model, pakkeDeclaredModel("pi")); local.IsLocal(m) {
+		return fmt.Errorf("%s is a local model, and pi cannot run local models yet.\n  Run it with: %s", m, domain.Bold("nav-pilot --client opencode"))
+	}
 	if _, err := exec.LookPath("pi"); err != nil {
 		return fmt.Errorf("pi not found in PATH. Install it with: npm i -g @earendil-works/pi-coding-agent\n  Or pick another client with: nav-pilot config set client copilot")
 	}

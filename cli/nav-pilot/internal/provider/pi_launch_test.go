@@ -137,3 +137,14 @@ func TestPiSkillArgsPersonaFilenames(t *testing.T) {
 		})
 	}
 }
+
+// pi has no local provider: a local model is refused before pi starts rather
+// than handed over as mlx/<id>.
+func TestLaunchPiRefusesLocalModel(t *testing.T) {
+	withLocalEnabled(t)
+	id := aLocalModelID(t)
+	err := LaunchPi(domain.ResolvedConfig{Model: id})
+	if err == nil || !strings.Contains(err.Error(), "local model") {
+		t.Fatalf("LaunchPi(%q) = %v, want a local-model refusal", id, err)
+	}
+}
