@@ -110,19 +110,19 @@ The `owner`, `gateway` and `toolHashes` fields are already in the registry respo
 
 ## External dependencies
 
-| Dependency | Needed for | Status |
-|---|---|---|
-| Public ingress for fleet-gateway (Nais) | Clients outside naisdevice, after the phase 2 pilot | Not requested yet |
-| `offline_access` on a Nais Entra app (Nais) | Refresh tokens, phase 0b | Unverified; tested in 0b |
-| `claims` in Texas error responses (Nais) | Conditional Access challenges without a re-login loop | Missing in Texas |
-| Privacy sign-off | Refresh tokens and audit with NAVident, before phase 2 | Document written in phase 1 |
-| Pilot team agreement | Phase 2 | Not asked yet |
+| Dependency | Needed for | Status | Owner |
+|---|---|---|---|
+| Public ingress for fleet-gateway | Clients outside naisdevice, after the phase 2 pilot | Team does it; pilot stays on naisdevice ingress by decision. Nais apps declare `spec.ingresses` on `*.nav.no` in `prod-gcp` or `*.ekstern.dev.nav.no` in `dev-gcp` with no ticket, per the doc.nais.io `expose` how-to and naiserator ingress classes. | Team copilot |
+| `offline_access` on a Nais Entra app | Refresh tokens, phase 0b | Resolved 2026-11-16 in phase 0b, [#2084](https://github.com/navikt/copilot/issues/2084). Entra issued and rotated a refresh token for a Nais `azure.application` in tenant `nav.no`, and the gateway redeemed it directly for the team MCP scope, strategy A. | Resolved |
+| `claims` in Texas error responses | Conditional Access challenges without a re-login loop | Team can contribute to `nais/texas`; not needed for the pilot. `nais/texas` is MIT-licensed and accepts PRs, and Entra's OBO error body carries `claims`, so a PR can pass `claims` through. Gateway code and refresh calls go directly to Entra and can already pass `claims` on `/authorize`. | Team copilot, optional post-pilot PR |
+| Privacy sign-off | Refresh tokens and audit with NAVident, before phase 2 | Partly self-service. The team drafts the Behandlingskatalog processing record, Etterlevelse answers, risk assessment and PVK in `etterlevelse.ansatt.nav.no`; the data protection officer signs off. Exceptions: `owner_navident` stays while the entry exists, and version rows are anonymised after 90 days. | Team copilot drafts; data protection officer signs off |
+| Pilot team agreement | Phase 2 | Not asked yet. Teams apply via the [fleet-gateway: Pilotsøknad](https://github.com/navikt/copilot/issues/new?template=fleet-gateway-pilot.yml) issue form; the pilot team must agree and add fleet-gateway to `accessPolicy.inbound`. | Team copilot and pilot team |
 
 ## Open risks
 
-- Entra may refuse `offline_access`; then the 10-hour session in #2090 does not hold.
+- Resolved 2026-11-16, [#2084](https://github.com/navikt/copilot/issues/2084): Entra issued and rotated a refresh token via `offline_access` for a Nais `azure.application` in tenant `nav.no`, and the gateway redeemed it directly for the team MCP scope, strategy A.
 - Entra refresh tokens for non-SPA clients last 90 days, rotate without revoking the old one, and are not bound to a resource. "At most 10 hours" is only fleet-gateway's delete discipline. A database backup plus the encryption key plus the client secret lets an attacker impersonate every logged-in user on every route, unless consent is per route.
-- Conditional Access `claims` cannot travel back from the downstream hop; accepted limit for the pilot; row 4 asks Nais to lift it. fleet-gateway can pass `claims` on its own `/authorize`.
+- Conditional Access `claims` from a downstream OBO hop cannot travel back through Texas yet. Accepted limit for the pilot: `nais/texas` is MIT-licensed and accepts PRs, Entra's OBO error body carries `claims`, and the team can contribute a passthrough PR later. Meanwhile, fleet-gateway's direct Entra code and refresh calls can already pass `claims` on `/authorize`.
 - The dev tenant is not prod: a pass in dev-gcp does not prove prod-gcp.
 - The consent page must: ask for consent before the Entra redirect, store `state` only after approval, protect against CSRF, set `frame-ancestors`, match redirect URIs exactly, return `iss` in responses, and bind the token to the exact route resource.
 - cplt's port guard has a gap: the sandbox can bind the loopback OAuth port after another holder releases it ([navikt/cplt#1017](https://github.com/navikt/cplt/issues/1017)).
@@ -165,15 +165,15 @@ In order. Who may join the pilot: see [Onboarding and pilot control](#onboarding
 | # | What | Where | Who | Tracked in |
 |---|---|---|---|---|
 | 1 | Done 2026-11-16: chained-OBO spike run, result on #2084, stub apps deleted, #2094 closed unmerged. Tested: chain, missing inbound rule, passthrough, app token. Group-restricted apps moved to phase 0b. | dev-gcp | Agent; owner | [#2084](https://github.com/navikt/copilot/issues/2084) |
-| 2 | Phase 0b: test whether Entra issues a refresh token (`offline_access`) to fleet-gateway's `azure.application` (unverified) | Gateway app, Entra | Agent builds the test; owner verifies | [#2084](https://github.com/navikt/copilot/issues/2084) |
+| 2 | Done 2026-11-16: phase 0b verified `offline_access`. Entra issued and rotated a refresh token for a Nais `azure.application` in tenant `nav.no`, and the gateway redeemed it directly for the team MCP scope, strategy A. | Gateway app, Entra | Agent; owner | [#2084](https://github.com/navikt/copilot/issues/2084) |
 | 2b | Repeat phase 0b in prod-gcp with a stub that holds no data, before phase 1 | prod-gcp | Agent builds the stub; owner runs | [#2084](https://github.com/navikt/copilot/issues/2084) |
-| 3 | Public ingress (after the pilot, which runs on a naisdevice ingress): see External dependencies | Nais | Owner | [#2083](https://github.com/navikt/copilot/issues/2083) |
-| 4 | `claims` in Texas errors: see External dependencies | Nais | Owner | [#2083](https://github.com/navikt/copilot/issues/2083) |
+| 3 | Public ingress after the pilot, which stays on naisdevice ingress by decision: declare `spec.ingresses` on `*.nav.no` in `prod-gcp` or `*.ekstern.dev.nav.no` in `dev-gcp`, no Nais ticket needed | fleet-gateway `.nais/*.yaml` | Team copilot | [#2083](https://github.com/navikt/copilot/issues/2083) |
+| 4 | Optional after the pilot: contribute a PR to `nais/texas` passing `claims` from Entra's OBO error body through. Gateway code and refresh calls go directly to Entra and can already pass `claims` on `/authorize`. | `nais/texas` | Team copilot | [#2083](https://github.com/navikt/copilot/issues/2083) |
 | 5 | Choose the loopback port and publish `oauth-client.json` with that `redirect_uris` entry | my-copilot, path set in #2085 | Owner picks port; agent publishes | [#2085](https://github.com/navikt/copilot/issues/2085) |
 | 6 | Registry phase 1: replace the all-zero `admin_group_id` with the real Entra group | mcp-registry vars in [#2110](https://github.com/navikt/copilot/pull/2110) | Owner supplies ID; agent wires | [#2098](https://github.com/navikt/copilot/issues/2098) |
 | 6b | Gateway phase 1: provision the refresh-token encryption key | Gateway secret | Owner supplies secret; agent wires | [#2090](https://github.com/navikt/copilot/issues/2090) |
-| 7 | Wire `accessPolicy`: gateway outbound to team MCPs, team MCP inbound from gateway only | Gateway and team MCP `.nais/*.yaml` | Agent (gateway); team owner (team MCP) | [#2083](https://github.com/navikt/copilot/issues/2083) |
-| 8 | Privacy sign-off: see External dependencies | etterlevelse document in copilot-intern | Agent drafts; owner gets sign-off | [#2085](https://github.com/navikt/copilot/issues/2085) |
+| 7 | Pilot team agreement and `accessPolicy`: pilot team agrees via [fleet-gateway: Pilotsøknad](https://github.com/navikt/copilot/issues/new?template=fleet-gateway-pilot.yml) and adds fleet-gateway to `accessPolicy.inbound`; gateway adds team MCPs to `accessPolicy.outbound` | Gateway and team MCP `.nais/*.yaml` | Agent for gateway; pilot team owner for team MCP | [#2083](https://github.com/navikt/copilot/issues/2083) |
+| 8 | Privacy sign-off: draft Behandlingskatalog processing record, Etterlevelse answers, risk assessment and PVK in `etterlevelse.ansatt.nav.no`, including exceptions that `owner_navident` stays while the entry exists and version rows are anonymised after 90 days; get data protection officer sign-off | `etterlevelse.ansatt.nav.no`, `copilot-intern` | Team copilot drafts; data protection officer signs off | [#2085](https://github.com/navikt/copilot/issues/2085) |
 
 ## Open decisions
 
