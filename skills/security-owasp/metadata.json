@@ -2,6 +2,7 @@
   "description": "OWASP Top 10:2025 kodenivå-mønstre for Kotlin, Go, Java og Node.js — tilgangskontroll, forsyningskjede, injeksjon og feilhåndtering",
   "domain": "auth",
   "tags": ["security", "owasp", "kotlin", "go", "java", "nodejs", "nais", "supply-chain"],
+  "references": ["examples.md"],
   "examples": [
     {
       "prompt": "Vis sikre mønstre for tilgangskontroll i Ktor-endepunktene mine",

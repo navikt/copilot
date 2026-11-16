@@ -108,6 +108,28 @@ assert_exit_code 1 "$exit_code" "exits 1 when file on disk not in metadata"
 assert_output_contains "exists on disk but not in metadata" "$output" "reports disk-only file"
 rm -rf "$repo"
 
+# ── Test 2b: Bundled file outside references/ not in metadata ─────────
+echo ""
+echo "Test 2b: Top-level bundled file not in metadata (drift)"
+repo=$(setup_test_repo)
+create_skill "$repo" "script-skill" \
+'---
+name: script-skill
+description: Test
+---
+# Test
+' \
+'{"description": "Test"}'
+echo "echo hi" > "$repo/skills/script-skill/run.sh"
+echo "# Readme" > "$repo/skills/script-skill/README.md"
+
+exit_code=0
+output=$(cd "$repo" && bash scripts/lint-skills.sh script-skill 2>&1) || exit_code=$?
+assert_exit_code 1 "$exit_code" "exits 1 when bundled script not in metadata"
+assert_output_contains "'run.sh' exists on disk but not in metadata" "$output" "reports unlisted script"
+assert_output_not_contains "README.md" "$output" "README.md is not a bundled file"
+rm -rf "$repo"
+
 # ── Test 3: Metadata lists file that doesn't exist ────────────────────
 echo ""
 echo "Test 3: Metadata references missing file"
