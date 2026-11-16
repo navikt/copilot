@@ -604,8 +604,13 @@ export default async function AdminVerdiPage() {
           <BodyShort size="small">
             <strong>Delte modell-SKU-er for IDE og CLI:</strong> GitHub skiller ut <code>Copilot Cloud Agent</code> og{" "}
             <code>code-review-model</code> som egne varelinjer, men bruker ellers samme modellnavn på tvers av IDE-chat
-            og CLI. Modellkostnaden for kodegjennomgang og PR-aktiviteten har ikke et dokumentert felles datagrunnlag og
-            vises derfor som separate totaler, ikke som kostnad per gjennomgang eller forslag.
+            og CLI. Direkte kostnad per funksjon finnes derfor for kodeagenten og kodegjennomgang, men ikke for IDE og
+            CLI hver for seg.
+          </BodyShort>
+          <BodyShort size="small">
+            <strong>Kostnad og aktivitet i kodegjennomgang:</strong> Modellkostnaden for kodegjennomgang kan ikke kobles
+            til de samme gjennomgangene og forslagene som PR-aktiviteten. Derfor vises separate totaler, ikke kostnad per
+            gjennomgang eller forslag.
           </BodyShort>
           <BodyShort size="small">
             <strong>Seleksjonsskjevhet i tid til merge:</strong> Kodeagenten settes oftest på små, avgrensede oppgaver,
