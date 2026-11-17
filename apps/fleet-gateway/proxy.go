@@ -33,7 +33,17 @@ var allowedUpstreamRequestHeaders = map[string]bool{
 	"Mcp-Session-Id":       true,
 	"Mcp-Protocol-Version": true,
 	"Last-Event-Id":        true,
+	// MCP 2026-07-28 Streamable HTTP request metadata; upstream validates them against the body.
+	"Mcp-Method": true,
+	"Mcp-Name":   true,
 }
+
+// Mcp-Param-{Name} headers mirror tool arguments; the spec sets no limits, so the gateway does.
+const (
+	mcpParamHeaderPrefix   = "Mcp-Param-"
+	maxMCPParamHeaders     = 32
+	maxMCPParamHeaderBytes = 4096 // name + value
+)
 
 var allowedUpstreamResponseHeaders = map[string]bool{
 	"Content-Type":         true,
@@ -224,6 +234,15 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 			return
 		}
 
+		if !mcpParamHeadersWithinLimits(r.Header) {
+			outcome = "bad_request"
+			writeJSON(w, http.StatusBadRequest, map[string]string{
+				"error":   "invalid_request",
+				"message": "too many or too large Mcp-Param-* headers",
+			})
+			return
+		}
+
 		if r.Method == http.MethodPost {
 			rpcMethod, toolName = extractJSONRPCAudit(reqBody)
 		}
@@ -276,6 +295,7 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 		}
 
 		copyAllowlistedHeaders(upReq.Header, r.Header, allowedUpstreamRequestHeaders)
+		copyMCPParamHeaders(upReq.Header, r.Header)
 		upReq.Header.Set("Authorization", "Bearer "+teamToken)
 
 		client := g.proxyClient
@@ -525,6 +545,42 @@ func copyAllowlistedHeaders(dst, src http.Header, allowlist map[string]bool) {
 	for k, vals := range src {
 		ck := textproto.CanonicalMIMEHeaderKey(k)
 		if hopByHopHeaders[ck] || connTokens[ck] || !allowlist[ck] {
+			continue
+		}
+		for _, v := range vals {
+			dst.Add(ck, v)
+		}
+	}
+}
+
+func isMCPParamHeader(name string) bool {
+	ck := textproto.CanonicalMIMEHeaderKey(name)
+	return len(ck) > len(mcpParamHeaderPrefix) && strings.HasPrefix(ck, mcpParamHeaderPrefix)
+}
+
+func mcpParamHeadersWithinLimits(h http.Header) bool {
+	n := 0
+	for k, vals := range h {
+		if !isMCPParamHeader(k) {
+			continue
+		}
+		for _, v := range vals {
+			n++
+			if n > maxMCPParamHeaders || len(k)+len(v) > maxMCPParamHeaderBytes {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+// copyMCPParamHeaders forwards Mcp-Param-* unchanged, as the spec requires of intermediaries.
+// Callers must check mcpParamHeadersWithinLimits first.
+func copyMCPParamHeaders(dst, src http.Header) {
+	connTokens := connectionHeaderTokens(src)
+	for k, vals := range src {
+		ck := textproto.CanonicalMIMEHeaderKey(k)
+		if !isMCPParamHeader(ck) || connTokens[ck] {
 			continue
 		}
 		for _, v := range vals {
