@@ -27,6 +27,8 @@ permissions:
 
 jobs:
   build:
+    # A failing Postgres test stops the deploy.
+    needs: db-test
     uses: ./.github/workflows/mise-build-deploy-nais.yaml
     with:
       working-directory: apps/copilot-survey
@@ -42,6 +44,7 @@ jobs:
   db-test:
     name: Postgres tests
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
     services:

@@ -316,7 +316,7 @@ later is never moved earlier: `retention_days` (q2-2026: 730 days, to
 2028-04-30) or the default 180 days wins when it is longer. Until the next
 wave closes, `delete_after` stays as written.
 Expired rows of a defined survey are deleted only once it has aggregates and
-skip counts for every `skip_if` in the definitions (`survey_skip_results`),
+skip counts for every `skip_if` rule set in the definitions (`survey_skip_results`),
 so a failed close-out is retried the next day rather than losing the counts.
 The job logs `survey: rows kept until skip counts are written` with the
 survey id while it waits. Rows that no longer match the stored total (partly
@@ -400,6 +400,6 @@ Every scale or matrix item that the first and the last wave answered in the same
 
 Closed formulas only, so the admin page and `analyze` give the same numbers with no seed. There is no confidence interval: a Welch interval for the mean tests something else than the rank test and disagreed with it (`tilfredshet`), so one test gives one answer. Spring against autumn 2026 tests 7 statements; only `teknisk-kompetanse` holds after correction (`p` 0.0031, `p_holm` 0.022).
 
-`compare` reads a wave's rows while they exist. Once they are deleted it reads the wave's aggregates instead and gives the same JSON and CSV (`TestCompareStoreAfterRetention`). The skip rule needs each answer, so the aggregates hold, in `survey_skip_results`, for every `skip_if` in any definition and each question or statement it skips there, the answer counts among the respondents the rule skips. Compare subtracts them. With `survey_results` that is a cross table of the rule's answer against those answers only: the same numbers compare already shows as `excluded` and kept counts, small cells included, and nothing per row.
+`compare` reads a wave's rows while they exist. Once they are deleted it reads the wave's aggregates instead and gives the same JSON and CSV (`TestCompareStoreAfterRetention`). The skip rule needs each answer, so the aggregates hold, in `survey_skip_results`, for every `skip_if` rule set in any definition and each question or statement it skips there, the answer counts among the respondents the set skips. A set is keyed by its rules, sorted, as JSON; a respondent any rule in the set skips is counted once, so overlapping rules give the union. Compare subtracts them. With `survey_results` that is a cross table of the rule's answer against those answers only: the same numbers compare already shows as `excluded` and kept counts, small cells included, and nothing per row.
 
 The daily job rewrites these counts for every closed survey whose rows are all still there, so a `skip_if` in a new definition is picked up as soon as it is deployed. Retention (`extendRetention`) keeps a wave's rows until the next wave in the series has closed, and that wave's definition is deployed before it opens, so its rule is always stored in time. A rule that first appears after a wave's rows are deleted cannot be applied to that wave: compare answers 409 for it.

@@ -1,6 +1,8 @@
 package main
 
 import (
+	"cmp"
+	"encoding/json"
 	"net/http"
 	"slices"
 	"strconv"
@@ -88,7 +90,7 @@ func (a *surveyAPI) compare(w http.ResponseWriter, r *http.Request) {
 		}
 		waves = append(waves, a.surveys[i])
 	}
-	last, rules := waves[len(waves)-1], skipKeys(a.surveys)
+	last, sets := waves[len(waves)-1], skipSets(a.surveys)
 	tallies := make([]waveTally, len(waves))
 	for i, s := range waves {
 		rs, err := a.read(r, s.ID)
@@ -96,7 +98,7 @@ func (a *surveyAPI) compare(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusServiceUnavailable, "survey storage unavailable")
 			return
 		}
-		tallies[i] = rowsTally(s, mergeClients(rs), rules)
+		tallies[i] = rowsTally(s, mergeClients(rs), sets)
 		if len(rs) > 0 || a.finalCompare == nil || s.status(a.now()) != "stengt" {
 			continue
 		}
@@ -108,9 +110,9 @@ func (a *surveyAPI) compare(w http.ResponseWriter, r *http.Request) {
 		if stored == nil {
 			continue
 		}
-		for rule, keys := range skipKeys([]survey{last}) {
-			for _, k := range keys {
-				if _, ok := stored.Skipped[rule][k]; !ok {
+		for id, set := range skipSets([]survey{last}) {
+			for _, k := range set.Keys {
+				if _, ok := stored.Skipped[id][k]; !ok {
 					writeError(w, http.StatusConflict, s.ID+": the answers are deleted, and the stored counts were written before "+last.ID+"'s skip_if existed")
 					return
 				}
@@ -148,21 +150,58 @@ func mergeClients(rs []storedAnswer) []storedAnswer {
 // waveTally is what a comparison needs from one wave, counted from its rows
 // or read from its stored aggregates once the rows are deleted: respondents,
 // channels (context.client merged as the export merges them), every answer
-// key's counts, and per skip rule the counts among the respondents it skips.
+// key's counts, and per skip_if rule set the counts among the respondents
+// it skips (any rule in the set, each respondent once).
 type waveTally struct {
 	Responses int
 	Channels  map[string]int
 	Keys      map[string]map[int]*verTally
-	Skipped   map[skipRule]map[string]map[int]*verTally // rule → key → version
+	Skipped   map[string]map[string]map[int]*verTally // skipSetID → key → version
 }
 
-// skipKeys is every skip_if in defs with the answer keys a definition
-// skips with it.
-func skipKeys(defs []survey) map[skipRule][]string {
-	out := map[skipRule][]string{}
+// skipSet is the skip_if rules on a question, any one of which skips it,
+// and the answer keys a definition skips with exactly that set.
+type skipSet struct {
+	Rules []skipRule
+	Keys  []string
+}
+
+// skipRulesOf is q's skip_if rules, sorted and without duplicates.
+// shortcut: one rule until skip_if becomes a list (#2267); then return the list here.
+func skipRulesOf(q question) []skipRule {
+	if q.SkipIf == nil {
+		return nil
+	}
+	return []skipRule{*q.SkipIf}
+}
+
+// skipSetID is the canonical key of a rule set: its rules sorted, without
+// duplicates, as JSON. "" for none.
+func skipSetID(rules []skipRule) string {
+	if len(rules) == 0 {
+		return ""
+	}
+	rules = slices.Clone(rules)
+	slices.SortFunc(rules, func(a, b skipRule) int {
+		return cmp.Or(cmp.Compare(a.Question, b.Question), cmp.Compare(a.Answer, b.Answer))
+	})
+	b, _ := json.Marshal(slices.Compact(rules))
+	return string(b)
+}
+
+// skipsAny: some rule in rules skips answers.
+func skipsAny(rules []skipRule, answers map[string]any) bool {
+	return slices.ContainsFunc(rules, func(r skipRule) bool { return r.skipped(answers) })
+}
+
+// skipSets is every skip_if rule set in defs, by skipSetID, with the
+// answer keys a definition skips with it.
+func skipSets(defs []survey) map[string]skipSet {
+	out := map[string]skipSet{}
 	for _, s := range defs {
 		for _, q := range s.Questions {
-			if q.SkipIf == nil || q.Type == "text" {
+			id := skipSetID(skipRulesOf(q))
+			if id == "" || q.Type == "text" {
 				continue
 			}
 			keys := []string{q.ID}
@@ -172,26 +211,29 @@ func skipKeys(defs []survey) map[skipRule][]string {
 					keys = append(keys, it.ID)
 				}
 			}
+			set := out[id]
+			set.Rules = skipRulesOf(q)
 			for _, k := range keys {
-				if !slices.Contains(out[*q.SkipIf], k) {
-					out[*q.SkipIf] = append(out[*q.SkipIf], k)
+				if !slices.Contains(set.Keys, k) {
+					set.Keys = append(set.Keys, k)
 				}
 			}
+			out[id] = set
 		}
 	}
 	return out
 }
 
-// rowsTally counts s's rows for a comparison under any of rules. Channels
+// rowsTally counts s's rows for a comparison under any of sets. Channels
 // count row.Client as given, so merge first (mergeClients).
-func rowsTally(s survey, rows []storedAnswer, rules map[skipRule][]string) waveTally {
-	t := waveTally{Responses: len(rows), Channels: map[string]int{}, Keys: tallyRows(s, rows).Keys, Skipped: map[skipRule]map[string]map[int]*verTally{}}
+func rowsTally(s survey, rows []storedAnswer, sets map[string]skipSet) waveTally {
+	t := waveTally{Responses: len(rows), Channels: map[string]int{}, Keys: tallyRows(s, rows).Keys, Skipped: map[string]map[string]map[int]*verTally{}}
 	for _, row := range rows {
 		t.Channels[row.Client]++
 	}
-	for rule := range rules {
-		skipped := slices.DeleteFunc(slices.Clone(rows), func(row storedAnswer) bool { return !rule.skipped(row.Answers) })
-		t.Skipped[rule] = tallyRows(s, skipped).Keys
+	for id, set := range sets {
+		skipped := slices.DeleteFunc(slices.Clone(rows), func(row storedAnswer) bool { return !skipsAny(set.Rules, row.Answers) })
+		t.Skipped[id] = tallyRows(s, skipped).Keys
 	}
 	return t
 }
@@ -201,10 +243,10 @@ func rowsTally(s survey, rows []storedAnswer, rules map[skipRule][]string) waveT
 // compareTallies, so the numbers online and from an exported CSV are
 // computed by the same code.
 func compareWavesResult(waves []survey, rows [][]storedAnswer, now time.Time) compareResult {
-	rules := skipKeys(waves)
+	sets := skipSets(waves)
 	tallies := make([]waveTally, len(rows))
 	for i, rs := range rows {
-		tallies[i] = rowsTally(waves[i], rs, rules)
+		tallies[i] = rowsTally(waves[i], rs, sets)
 	}
 	return compareTallies(waves, tallies, now)
 }
@@ -292,8 +334,8 @@ func compareWaves(q question, waves []survey, tallies []waveTally) ([]waveCounts
 			seen[v], top = true, m
 		}
 		kept := t.Keys[q.ID]
-		if q.SkipIf != nil {
-			kept, out[i].Excluded = without(kept, t.Skipped[*q.SkipIf][q.ID])
+		if id := skipSetID(skipRulesOf(q)); id != "" {
+			kept, out[i].Excluded = without(kept, t.Skipped[id][q.ID])
 		}
 		out[i].Versions = []waveStat{}
 		for _, vr := range versionsFrom(q, kept) {

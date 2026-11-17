@@ -49,19 +49,18 @@ CREATE TABLE IF NOT EXISTS survey_results (
 	mean      double precision,
 	PRIMARY KEY (survey_id, kind, key, version, option)
 );
--- Per skip_if and the answer keys it skips, survey_results' answer counts
--- among the respondents it skips, so compare works after the rows are
--- deleted (writeSkipped).
+-- Per skip_if rule set (skip_rules: skipSetID, canonical JSON) and the
+-- answer keys it skips, survey_results' answer counts among the respondents
+-- it skips, so compare works after the rows are deleted (writeSkipped).
 CREATE TABLE IF NOT EXISTS survey_skip_results (
 	survey_id     text    NOT NULL,
-	skip_question text    NOT NULL,
-	skip_answer   text    NOT NULL,
+	skip_rules    text    NOT NULL,
 	key           text    NOT NULL,
 	version       integer NOT NULL,
 	option        text    NOT NULL,
 	count         integer NOT NULL,
 	n             integer NOT NULL,
-	PRIMARY KEY (survey_id, skip_question, skip_answer, key, version, option)
+	PRIMARY KEY (survey_id, skip_rules, key, version, option)
 );
 CREATE TABLE IF NOT EXISTS survey_freetext_hidden (
 	survey_id text NOT NULL,
@@ -193,18 +192,18 @@ func (s *surveyStore) deletable(ctx context.Context, d survey) (bool, error) {
 	if *total != rows {
 		return true, nil
 	}
-	have := map[[3]string]bool{}
-	res, err := s.pool.Query(ctx, `SELECT skip_question, skip_answer, key FROM survey_skip_results WHERE survey_id = $1 AND version = -1`, d.ID)
+	have := map[[2]string]bool{}
+	res, err := s.pool.Query(ctx, `SELECT skip_rules, key FROM survey_skip_results WHERE survey_id = $1 AND version = -1`, d.ID)
 	if err != nil {
 		return false, err
 	}
-	var q, a, k string
-	if _, err := pgx.ForEachRow(res, []any{&q, &a, &k}, func() error { have[[3]string{q, a, k}] = true; return nil }); err != nil {
+	var set, k string
+	if _, err := pgx.ForEachRow(res, []any{&set, &k}, func() error { have[[2]string{set, k}] = true; return nil }); err != nil {
 		return false, err
 	}
-	for rule, keys := range skipKeys(s.defs) {
-		for _, k := range keys {
-			if !have[[3]string{rule.Question, rule.Answer, k}] {
+	for id, set := range skipSets(s.defs) {
+		for _, k := range set.Keys {
+			if !have[[2]string{id, k}] {
 				slog.Warn("survey: rows kept until skip counts are written", "survey", d.ID)
 				return false, nil
 			}

@@ -126,7 +126,7 @@ func finalize(ctx context.Context, pool *pgxpool.Pool, defs []survey, s survey, 
 				if total != len(rows) {
 					return nil
 				}
-				return writeSkipped(ctx, tx, defs, s, rows)
+				return writeSkipped(ctx, tx, skipSets(defs), s, rows)
 			}
 			if !errors.Is(err, pgx.ErrNoRows) {
 				return err
@@ -172,7 +172,7 @@ func finalize(ctx context.Context, pool *pgxpool.Pool, defs []survey, s survey, 
 		if err := tx.SendBatch(ctx, batch).Close(); err != nil {
 			return err
 		}
-		if err := writeSkipped(ctx, tx, defs, s, rows); err != nil {
+		if err := writeSkipped(ctx, tx, skipSets(defs), s, rows); err != nil {
 			return err
 		}
 		return extendRetention(ctx, tx, defs, s, now)
@@ -180,28 +180,28 @@ func finalize(ctx context.Context, pool *pgxpool.Pool, defs []survey, s survey, 
 	return n, err
 }
 
-// writeSkipped replaces s's survey_skip_results: for every skip_if in defs
-// and every answer key a definition skips with it, the counts among the
-// respondents it skips, as compare subtracts them (#2227). With
-// survey_results that is the cross table compare already shows as excluded
-// and kept counts; nothing per row. Version -1, option ”: the pair is
-// counted, count = respondents it skips who answered the key.
-func writeSkipped(ctx context.Context, tx pgx.Tx, defs []survey, s survey, rows []storedAnswer) error {
+// writeSkipped replaces s's survey_skip_results: for every skip_if rule
+// set and every answer key a definition skips with it, the counts among the
+// respondents the set skips (any of its rules, each respondent once), as
+// compare subtracts them (#2227). With survey_results that is the cross
+// table compare already shows as excluded and kept counts; nothing per row.
+// Version -1, option ”: the pair is counted, count = respondents it skips
+// who answered the key.
+func writeSkipped(ctx context.Context, tx pgx.Tx, sets map[string]skipSet, s survey, rows []storedAnswer) error {
 	batch := &pgx.Batch{}
 	batch.Queue(`DELETE FROM survey_skip_results WHERE survey_id = $1`, s.ID)
-	insert := `INSERT INTO survey_skip_results (survey_id, skip_question, skip_answer, key, version, option, count, n) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
-	rules := skipKeys(defs)
-	t := rowsTally(s, rows, rules)
-	for rule, keys := range rules {
-		for _, k := range keys {
+	insert := `INSERT INTO survey_skip_results (survey_id, skip_rules, key, version, option, count, n) VALUES ($1, $2, $3, $4, $5, $6, $7)`
+	t := rowsTally(s, rows, sets)
+	for id, set := range sets {
+		for _, k := range set.Keys {
 			excluded := 0
-			for ver, vt := range t.Skipped[rule][k] {
+			for ver, vt := range t.Skipped[id][k] {
 				excluded += vt.N
 				for o, c := range vt.Counts {
-					batch.Queue(insert, s.ID, rule.Question, rule.Answer, k, ver, o, c, vt.N)
+					batch.Queue(insert, s.ID, id, k, ver, o, c, vt.N)
 				}
 			}
-			batch.Queue(insert, s.ID, rule.Question, rule.Answer, k, -1, "", excluded, 0)
+			batch.Queue(insert, s.ID, id, k, -1, "", excluded, 0)
 		}
 	}
 	return tx.SendBatch(ctx, batch).Close()
@@ -377,8 +377,8 @@ func (s *surveyStore) finalCompare(ctx context.Context, id string) (*waveTally, 
 	if err != nil || f == nil {
 		return nil, err
 	}
-	t := &waveTally{Responses: f.Responses, Channels: map[string]int{}, Keys: f.Keys, Skipped: map[skipRule]map[string]map[int]*verTally{}}
-	var q, a, key, opt string
+	t := &waveTally{Responses: f.Responses, Channels: map[string]int{}, Keys: f.Keys, Skipped: map[string]map[string]map[int]*verTally{}}
+	var set, key, opt string
 	var ver, count, n int
 	rows, err := s.pool.Query(ctx, `SELECT option, count FROM survey_results WHERE survey_id = $1 AND kind = 'context' AND key = 'client'`, id)
 	if err != nil {
@@ -395,16 +395,15 @@ func (s *surveyStore) finalCompare(ctx context.Context, id string) (*waveTally, 
 	if rest > 0 {
 		t.Channels[""] += rest
 	}
-	rows, err = s.pool.Query(ctx, `SELECT skip_question, skip_answer, key, version, option, count, n FROM survey_skip_results WHERE survey_id = $1`, id)
+	rows, err = s.pool.Query(ctx, `SELECT skip_rules, key, version, option, count, n FROM survey_skip_results WHERE survey_id = $1`, id)
 	if err != nil {
 		return nil, err
 	}
-	_, err = pgx.ForEachRow(rows, []any{&q, &a, &key, &ver, &opt, &count, &n}, func() error {
-		rule := skipRule{q, a}
-		if t.Skipped[rule] == nil {
-			t.Skipped[rule] = map[string]map[int]*verTally{}
+	_, err = pgx.ForEachRow(rows, []any{&set, &key, &ver, &opt, &count, &n}, func() error {
+		if t.Skipped[set] == nil {
+			t.Skipped[set] = map[string]map[int]*verTally{}
 		}
-		keys := t.Skipped[rule]
+		keys := t.Skipped[set]
 		if keys[key] == nil {
 			keys[key] = map[int]*verTally{}
 		}

@@ -5,9 +5,12 @@ import (
 	"encoding/json"
 	"math"
 	"os"
+	"reflect"
 	"slices"
 	"testing"
 	"time"
+
+	"github.com/jackc/pgx/v5"
 )
 
 // Two waves. Spring showed the statements to everyone; autumn skips them
@@ -195,7 +198,7 @@ func TestCompareAfterRowsDeleted(t *testing.T) {
 	api.now = func() time.Time { return time.Date(2026, 11, 15, 0, 0, 0, 0, time.UTC) }
 	stored := map[string]waveTally{}
 	for _, s := range api.surveys {
-		stored[s.ID] = rowsTally(s, mergeClients(data[s.ID]), skipKeys(api.surveys))
+		stored[s.ID] = rowsTally(s, mergeClients(data[s.ID]), skipSets(api.surveys))
 	}
 	api.finalCompare = func(_ context.Context, id string) (*waveTally, error) {
 		t := stored[id]
@@ -285,5 +288,86 @@ func TestCompareStoreAfterRetention(t *testing.T) {
 	s.closeOut(ctx, now)
 	if j, _ := compareBodies(t, api, "spring,autumn"); j != wantJSON {
 		t.Fatalf("close-out without rows changed the stored counts:\n%s", j)
+	}
+}
+
+// Two skip rules that overlap: the first respondent matches both, so the
+// set skips 1 of 6, not 2. Rule sets are one rule per question until
+// skip_if becomes a list (#2267), so the set is built here.
+const unionSurvey = `[{"id":"union","title":"U","starts":"2026-01-01","ends":"2026-01-31","questions":[
+ {"id":"a","version":1,"type":"choice","text":"A?","options":["x","y"]},
+ {"id":"b","version":1,"type":"choice","text":"B?","options":["p","q"]},
+ {"id":"fast","version":1,"type":"scale","text":"Fast?","min":1,"max":5}]}]`
+
+func unionFixture(t *testing.T) (survey, []storedAnswer, string, map[string]skipSet) {
+	t.Helper()
+	defs, err := loadSurveys([]byte(unionSurvey))
+	if err != nil {
+		t.Fatal(err)
+	}
+	rows := []storedAnswer{row(`{"a":"x","b":"p","fast":1}`, `{"a":1,"b":1,"fast":1}`)}
+	for _, f := range []string{"2", "3", "4", "5", "5"} {
+		rows = append(rows, row(`{"a":"y","b":"q","fast":`+f+`}`, `{"a":1,"b":1,"fast":1}`))
+	}
+	rules := []skipRule{{"b", "p"}, {"a", "x"}, {"b", "p"}}
+	id := skipSetID(rules)
+	if id != skipSetID([]skipRule{{"a", "x"}, {"b", "p"}}) {
+		t.Fatalf("skipSetID not canonical: %s", id)
+	}
+	return defs[0], rows, id, map[string]skipSet{id: {Rules: rules, Keys: []string{"fast"}}}
+}
+
+func keptFast(t *testing.T, tl waveTally, id string) ([]versionResult, int) {
+	t.Helper()
+	kept, excluded := without(tl.Keys["fast"], tl.Skipped[id]["fast"])
+	return versionsFrom(question{ID: "fast", Type: "scale", Version: 1, Min: 1, Max: 5}, kept), excluded
+}
+
+func TestSkipSetUnion(t *testing.T) {
+	s, rows, id, sets := unionFixture(t)
+	vs, excluded := keptFast(t, rowsTally(s, rows, sets), id)
+	if excluded != 1 || len(vs) != 1 || *vs[0].N != 5 || *vs[0].Options[0].Count != 0 {
+		t.Fatalf("excluded %d, kept %+v", excluded, vs)
+	}
+}
+
+// TestSkipSetUnionStored is TestSkipSetUnion through survey_skip_results,
+// before and after the rows are deleted (COPILOT_SURVEY_TEST_DB_URL).
+func TestSkipSetUnionStored(t *testing.T) {
+	url := os.Getenv("COPILOT_SURVEY_TEST_DB_URL")
+	if url == "" {
+		t.Skip("COPILOT_SURVEY_TEST_DB_URL not set")
+	}
+	ctx := t.Context()
+	st, err := openSurveyStore(ctx, url)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.pool.Close()
+	_, _ = st.pool.Exec(ctx, `DELETE FROM survey_answers; DELETE FROM survey_results; DELETE FROM survey_skip_results`)
+	s, rows, id, sets := unionFixture(t)
+	for _, r := range rows {
+		aj, _ := json.Marshal(r.Answers)
+		vj, _ := json.Marshal(r.QuestionVersions)
+		if _, err = st.pool.Exec(ctx, `INSERT INTO survey_answers VALUES ('union', $1, $2, '{"client":"web"}', '2027-01-01')`, aj, vj); err != nil {
+			t.Fatal(err)
+		}
+	}
+	now := time.Date(2026, 11, 15, 0, 0, 0, 0, time.UTC)
+	if _, err = finalize(ctx, st.pool, []survey{s}, s, now, true); err != nil {
+		t.Fatal(err)
+	}
+	if err = pgx.BeginFunc(ctx, st.pool, func(tx pgx.Tx) error { return writeSkipped(ctx, tx, sets, s, rows) }); err != nil {
+		t.Fatal(err)
+	}
+	wantV, wantX := keptFast(t, rowsTally(s, rows, sets), id)
+	_, _ = st.pool.Exec(ctx, `DELETE FROM survey_answers WHERE survey_id = 'union'`)
+	stored, err := st.finalCompare(ctx, "union")
+	if err != nil || stored == nil {
+		t.Fatal(stored, err)
+	}
+	gotV, gotX := keptFast(t, *stored, id)
+	if gotX != wantX || !reflect.DeepEqual(gotV, wantV) || *gotV[0].N != 5 {
+		t.Fatalf("stored: excluded %d kept %+v, want %d %+v", gotX, gotV, wantX, wantV)
 	}
 }
