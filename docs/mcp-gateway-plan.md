@@ -123,7 +123,7 @@ The `owner`, `gateway` and `toolHashes` fields are already in the registry respo
 ## Open risks
 
 - Resolved 2026-11-16, [#2084](https://github.com/navikt/copilot/issues/2084): Entra issued and rotated a refresh token via `offline_access` for a Nais `azure.application` in tenant `nav.no`, and the gateway redeemed it directly for the team MCP scope, strategy A.
-- Entra refresh tokens for non-SPA clients last 90 days, rotate without revoking the old one, and are not bound to a resource. "At most 10 hours" is only fleet-gateway's delete discipline. A database backup plus the encryption key plus the client secret lets an attacker impersonate every logged-in user on every route, unless consent is per route.
+- Entra refresh tokens for non-SPA clients last 90 days, rotate without revoking the old one, and are not bound to a resource. Prod uses client-encrypted storage (`rt_storage: client-encrypted`): the Entra refresh token leaves Nais, sealed with AES-256-GCM inside the gateway refresh token, and sits in files the client can read in direct mode. Fleet-gateway's 12-hour cap limits only the gateway session, not the Entra token. Whoever holds `RT_KEYS` and the Entra client secret can redeem every sealed token ever issued for up to 90 days. Accepted for the pilot (decisions log 2026-11-17, evening).
 - Conditional Access `claims` from a downstream OBO hop cannot travel back through Texas yet. Accepted limit for the pilot: `nais/texas` is MIT-licensed and accepts PRs, Entra's OBO error body carries `claims`, and the team can contribute a passthrough PR later. Gateway code and refresh calls hit Entra's /token endpoint directly and receive claims errors; /authorize already passes claims.
 - The dev tenant is not prod: a pass in dev-gcp does not prove prod-gcp.
 - The consent page must: ask for consent before the gateway redirects back to the client (since 2026-11-17 it is shown after the Entra login, so a remembered consent can skip it), protect against CSRF, set `frame-ancestors`, match redirect URIs exactly, return `iss` in responses, and bind the token to the exact route resource.
@@ -186,6 +186,23 @@ In order. Who may join the pilot: see [Onboarding and pilot control](#onboarding
 3. Where the refresh-token encryption key lives: Nais secret or KMS.
 
 ## Decisions log
+
+### 2026-11-17 (late): privacy status, silent-login trigger, tool allowlist, parallel tracks
+
+Owner decisions after the holistic review round:
+
+1. **D1: pilot teams go to dev and prod straight away; privacy status recorded.** Logged: NAVident, route, MCP method, and soon tool name ([#2300](https://github.com/navikt/copilot/issues/2300)). Where: stdout, shipped to Nais logging. For how long: unknown, must be clarified. The data protection officer advises; the accountable owner approves. The decision to keep the audit trail 90 days with each team seeing its own lines ([#2092](https://github.com/navikt/copilot/issues/2092)) is not implemented; tracked in [#2324](https://github.com/navikt/copilot/issues/2324) and the privacy issue [#2316](https://github.com/navikt/copilot/issues/2316).
+2. **D2: re-evaluate the accepted silent-login risk** (2026-11-17, evening, item 5) when the first route with write tools or citizen data comes in. Options then: shorter consent lifetime for such routes, or requiring the cplt broker for them.
+3. **D4: tool allowlist, in two levels.** Level 1 now: an optional `tools: [...]` list per route in `pilot-routes`; the gateway filters `tools/list` and rejects `tools/call` outside the list; reviewed in the route PR; depends on #2300 ([#2331](https://github.com/navikt/copilot/issues/2331)). Level 3 later: a declarative per-route policy (groups and per-tool rules declared by the team, managed through an API, tracked in [#2332](https://github.com/navikt/copilot/issues/2332), tied to [#2287](https://github.com/navikt/copilot/issues/2287) and [#2209](https://github.com/navikt/copilot/issues/2209)). Teams still authorize; the gateway enforces what the team declares. MCP `readOnlyHint` annotations are untrusted and never a security boundary. This replaces "read-only by agreement" in the pilot text for routes that set the list.
+4. **D5: operations and visibility in parallel.** V2 to V4 ([#2290](https://github.com/navikt/copilot/issues/2290) to [#2292](https://github.com/navikt/copilot/issues/2292)) stay in "før bred utrulling".
+
+Implemented but not logged until now (F8):
+
+- **Refresh-token storage is client-encrypted.** The Entra refresh token, sealed, leaves Nais inside the gateway refresh token (recorded earlier only in navikt/cplt#1025). Sessions are capped at 12 hours, not 10.
+- **One key ring, three uses:** sealing refresh tokens, sealing the store, and deriving the cookie HMAC key. It lives in a Nais secret.
+- **No Texas validation of callback tokens.** The ID and access tokens from the Entra back channel are parsed without signature, issuer or audience checks. Accepted as deliberate: TLS to the configured token endpoint, a code bound by PKCE and nonce, and a signed state cookie (OIDC Core 3.1.3.7).
+- **No Postgres HA in the pilot.** `/ready` pings the store, so a database outage takes the gateway out. Recreating the database empty is the recovery. Revisit before broad rollout.
+- **The gateway's Entra app has `allowAllUsers: true`.**
 
 ### 2026-11-17 (evening): pilot rollout, visibility and revised plan
 
