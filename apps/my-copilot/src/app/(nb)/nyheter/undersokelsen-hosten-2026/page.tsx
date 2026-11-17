@@ -152,9 +152,10 @@ export default function SurveyAutumnArticlePage() {
               </Table>
 
               <BodyLong spacing>
-                <strong>Tilfredsheten er høy.</strong> 83 % av KI-brukerne er enige i at de er fornøyde, og snittet gikk
-                opp fra 3,99 til 4,17, men den økningen er usikker. Mange sier også at KI hjelper dem videre når de står
-                fast.
+                <strong>Tilfredsheten er høy.</strong> 83 % av KI-brukerne er fornøyde. Økningen fra i vår er usikker.
+                77 % er enige i at KI hjelper dem videre når de står fast og med å fullføre oppgaver raskere, og 69 %
+                opplever mindre mental innsats på repetitive oppgaver. Dette er deres egne vurderinger, ikke målt
+                tidsbesparelse.
               </BodyLong>
 
               <BodyLong spacing>
@@ -169,8 +170,9 @@ export default function SurveyAutumnArticlePage() {
               </Quote>
 
               <BodyLong spacing>
-                <strong>Kvaliteten står på stedet hvil.</strong> Påstanden om at KI-kode holder god nok kvalitet til at
-                den ikke gir ekstra arbeid i review, ligger rett over midten, akkurat som i vår.
+                <strong>Omtrent samme gjennomsnitt for kvalitet.</strong> Påstanden gjelder om KI-hjulpet kode er god
+                nok til å unngå ekstra arbeid i review. Dette er deltakernes vurdering, ikke målt kodekvalitet eller
+                samlet reviewarbeid.
               </BodyLong>
 
               <BodyLong spacing>
@@ -179,8 +181,8 @@ export default function SurveyAutumnArticlePage() {
               </BodyLong>
 
               <Quote>
-                Den la seg flat da jeg oppdaget feilen, men det er ikke lett når den er så skråsikker og som oftest gjør
-                ting helt riktig. Da blir det for lett å stole på den.
+                Det er ikke lett når den er så skråsikker og som oftest gjør ting helt riktig. Da blir det for lett å
+                stole på den.
               </Quote>
 
               <BodyLong spacing>
@@ -217,22 +219,29 @@ export default function SurveyAutumnArticlePage() {
               </Table>
 
               <Heading size="medium" level="2" spacing>
-                Hvor KI gir mest verdi
+                Hvor KI-brukerne opplever mest verdi
               </Heading>
               <BodyLong spacing>
-                Å forklare kode er fortsatt på topp (54 %), fulgt av feilsøking (51 %, opp 8 prosentpoeng) og
-                kodegenerering (42 %). Færre nevner å lære nye språk, 8 % mot 14 % i vår.
+                Blant KI-brukerne er de vanligste valgene å forklare eller forstå eksisterende kode (54 %), feilsøking
+                (51 %) og kodegenerering (42 %). De kunne velge opptil tre områder.
               </BodyLong>
 
-              <Quote>
-                Positiv opplevelse med agentisk feilsøking av en prodsak: den leste logger, fant rotårsaken i koden og
-                foreslo en fiks.
-              </Quote>
-
-              <Quote>
-                Å få rydde opp og øke kvaliteten på eksisterende kode har vært utrolig givende. Det hadde nok aldri
-                blitt prioritert i dette omfanget uten KI.
-              </Quote>
+              <Heading size="small" level="3" spacing>
+                Arbeid som ellers kunne blitt liggende
+              </Heading>
+              <BodyLong spacing>
+                I friteksten beskriver en respondent opprydding i eksisterende kode samtidig med videreutvikling.
+                Vedkommende vurderer at arbeidet neppe ville blitt prioritert i samme omfang uten KI. En annen forteller
+                om å bytte testoppsett i en jobb det ellers var vanskelig å finne motivasjon til.
+              </BodyLong>
+              <BodyLong spacing>
+                Å få gjort utsatt arbeid er en annen mulig verdi enn å fullføre samme oppgave raskere. En tredje
+                beskriver hjelp til feilsøking med logger og kode, der KI foreslo en feilårsak og en fiks.
+              </BodyLong>
+              <BodyLong spacing>
+                Dette er redigerte gjengivelser av enkeltsvar, ikke målte gevinster. Svarene viser ikke hvor vanlige
+                erfaringene er eller hvor mye tid som ble spart.
+              </BodyLong>
 
               <Heading size="medium" level="2" spacing>
                 Én ting å endre
@@ -340,18 +349,22 @@ export default function SurveyAutumnArticlePage() {
                 Om undersøkelsen
               </Heading>
               <BodyLong spacing>
-                Vår- og høstrunden er to separate utvalg. Svarene er ikke koblet til person, så vi kan ikke følge den
-                enkelte over tid. I vår brukte vi Microsoft Forms. I høst svarte folk på nettsiden eller i terminalen,
-                med de samme spørsmålene og den samme skalaen. Vi vurderer risikoen for at byttet har påvirket svarene
-                som liten. Påstandene om tillit til agenter og om kostnad er nye i høst. Alle tall gjelder dem som
-                svarte. Svarandelen regner vi av dem som brukte Copilot i perioden. Vårrunden var åpen i 38 dager og
-                høstrunden i 15, og jo lengre perioden er, jo flere teller som brukere. Ikke alle som svarte, bruker
-                Copilot, så andelen er ikke en ren svarprosent.
+                Vår- og høstrunden er to separate, selvrekrutterte utvalg. Svarene er ikke koblet til person, så vi vet
+                ikke om de samme personene svarte. Resultatene gjelder dem som svarte, ikke nødvendigvis alle i Nav. Vi
+                målte opplevd nytte og bekymring, ikke faktisk produktivitet eller kompetansetap.
+              </BodyLong>
+              <BodyLong spacing>
+                I vår brukte vi Microsoft Forms. I høst svarte folk på nettsiden eller i terminalen, med de samme
+                spørsmålene og den samme skalaen. Vi vurderer risikoen for at byttet har påvirket svarene som liten.
+                Påstandene om tillit til agenter og om kostnad er nye i høst. Svarandelen regner vi av dem som brukte
+                Copilot i perioden. Vårrunden var åpen i 38 dager og høstrunden i 15, og jo lengre perioden er, jo flere
+                teller som brukere. Ikke alle som svarte, bruker Copilot, så andelen er ikke en ren svarprosent.
               </BodyLong>
               <BodyLong spacing>
                 For å se om endringene er mer enn tilfeldigheter, brukte vi Mann–Whitney-test og Holm-korreksjon for
                 mange sammenligninger. Bare økningen i bekymring for egen forståelse står seg (p ≈ 0,003, korrigert p ≈
-                0,02). Sitatene er korte utdrag fra fritekstsvar, redigert og avidentifisert.
+                0,02). Sitatene er korte, redigerte og avidentifiserte utdrag. Eksemplene fra arbeidshverdagen er
+                parafraser av enkeltsvar.
               </BodyLong>
               <BodyLong spacing>
                 Artikkelen er skrevet av teamet som også bygger og forvalter KI-verktøyene i Nav, og er lest av noen
