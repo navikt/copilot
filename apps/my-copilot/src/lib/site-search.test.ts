@@ -43,6 +43,14 @@ describe("search index", () => {
       // Admin pages answer 404 to everyone else, so they stay out of search.
       .filter(
         (r) => !/\b(permanentRedirect|requireAdmin)\(/.test(fs.readFileSync(path.join(appDir, pageFile(r)), "utf-8"))
+      )
+      // A news draft (noindex until published) is left out by getNewsItems.
+      .filter(
+        (r) =>
+          !(
+            r.startsWith("/nyheter/") &&
+            /robots:\s*\{\s*index:\s*false/.test(fs.readFileSync(path.join(appDir, pageFile(r)), "utf-8"))
+          )
       );
     const hrefs = new Set(index.map((e) => e.href));
     expect(routes.filter((r) => !hrefs.has(r))).toEqual([]);

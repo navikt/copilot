@@ -1,9 +1,11 @@
-import { Box, VStack, Heading, BodyShort, BodyLong, Tag, HStack, Table } from "@navikt/ds-react";
+import { Box, VStack, Heading, BodyLong, Tag, HStack } from "@navikt/ds-react";
+import { Table, TableBody, TableDataCell, TableHeader, TableHeaderCell, TableRow } from "@/components/aksel-table";
 import NextLink from "next/link";
 import { ArrowLeftIcon } from "@navikt/aksel-icons";
 import type { Metadata } from "next";
 
-// Utkast: ikke i nyhetslista eller sitemap før docs/news/articles-fila mister draft: true.
+// Utkast. Før publisering: fjern draft: true i docs/news/articles/undersokelsen-hosten-2026.md,
+// fjern robots og Utkast-taggen her, og fyll inn ekstern leser.
 export const metadata: Metadata = {
   title: "Utviklerundersøkelsen høsten 2026: Fornøyd, men bekymret",
   description:
@@ -39,24 +41,26 @@ const statements: { text: string; n: string; spring: string; autumn: string; not
     spring: "Ny",
     autumn: "2,11",
   },
-  { text: "Jeg er trygg på å ta fullt ansvar for koden jeg leverer", n: "Alle", spring: "3,6", autumn: "3,7" },
+  { text: "Jeg er trygg på å ta fullt ansvar for koden jeg leverer", n: "Alle", spring: "3,62", autumn: "3,71" },
   { text: "Personvern eller sikkerhet hindrer meg i å bruke KI fullt ut", n: "Alle", spring: "2,65", autumn: "2,44" },
 ];
 
 const tools: { name: string; spring: string; autumn: string }[] = [
-  { name: "Copilot CLI", spring: "53 %", autumn: "65 %" },
-  { name: "Copilot i IntelliJ", spring: "55 %", autumn: "36 %" },
-  { name: "Copilot i VS Code", spring: "33 %", autumn: "26 %" },
-  { name: "OpenCode", spring: "5 %", autumn: "21 %" },
+  { name: "Copilot CLI", spring: "53 %", autumn: "65 %" },
+  { name: "Copilot i IntelliJ", spring: "55 %", autumn: "36 %" },
+  { name: "Copilot i VS Code", spring: "33 %", autumn: "26 %" },
+  { name: "OpenCode", spring: "5 %", autumn: "21 %" },
 ];
 
 const changes: { what: string; share: string }[] = [
-  { what: "Opplæring", share: "24 %" },
-  { what: "Ingenting, jeg er fornøyd", share: "17 %" },
-  { what: "Retningslinjer", share: "12 %" },
-  { what: "At verktøyene forstår kodebasen bedre", share: "11 %" },
-  { what: "Færre begrensninger", share: "10 %" },
-  { what: "Jeg foretrekker å jobbe uten KI", share: "8 %" },
+  { what: "Mer opplæring og veiledning i effektiv bruk", share: "24 %" },
+  { what: "Ingenting, jeg er fornøyd med dagens situasjon", share: "17 %" },
+  { what: "Tydeligere retningslinjer for sikkerhet og personvern", share: "12 %" },
+  { what: "Bedre forståelse av kodebasen vår og interne rammeverk", share: "11 %" },
+  { what: "Færre begrensninger på tilgang til verktøy", share: "10 %" },
+  { what: "Annet", share: "10 %" },
+  { what: "Støtte for flere KI-verktøy eller miljøer", share: "9 %" },
+  { what: "Jeg foretrekker å kode uten KI", share: "8 %" },
 ];
 
 function Quote({ children }: { children: string }) {
@@ -104,7 +108,8 @@ export default function SurveyAutumnArticlePage() {
               <BodyLong spacing>
                 Fra 13. til 27. oktober 2026 svarte 211 personer på utviklerundersøkelsen om KI-kodeverktøy i Nav. I vår
                 svarte 165. De fleste er fornøyde med verktøyene. Samtidig er flere enn i vår bekymret for at KI kan
-                svekke deres egen dype forståelse av koden. Det er den eneste endringen vi kan si er statistisk sikker.
+                svekke deres egen dype forståelse av koden. Det er den eneste endringen i påstandene som står seg i
+                testen.
               </BodyLong>
 
               <Heading size="medium" level="2" spacing>
@@ -112,12 +117,12 @@ export default function SurveyAutumnArticlePage() {
               </Heading>
               <BodyLong spacing>
                 Vi inviterte omtrent 1000 teknologer, utviklere og designere som kan få Copilot-lisens. 211 svar
-                tilsvarer omtrent 30 % av de 712 som brukte Copilot i høstperioden. I vår var det 165 av 584, omtrent 28
-                %. De aller fleste som svarte, bruker KI-kodeverktøy: 203 av 211 i høst og 153 av 165 i vår.
+                tilsvarer omtrent 30 % av de 712 som brukte Copilot i høstperioden. I vår var det 165 av 584, omtrent
+                28 %. De aller fleste som svarte, bruker KI-kodeverktøy: 203 av 211 i høst og 153 av 165 i vår.
               </BodyLong>
 
               <Heading size="medium" level="2" spacing>
-                Mer fornøyd, og mer bekymret
+                Fornøyd, men mer bekymret
               </Heading>
               <BodyLong spacing>
                 Vi stilte de samme påstandene som i vår, på en skala fra 1 (helt uenig) til 5 (helt enig). Tabellen
@@ -126,46 +131,41 @@ export default function SurveyAutumnArticlePage() {
 
               <Table size="small">
                 <caption>Gjennomsnitt per påstand, vår og høst 2026 (1 = helt uenig, 5 = helt enig)</caption>
-                <Table.Header>
-                  <Table.Row>
-                    <Table.HeaderCell scope="col">Påstand</Table.HeaderCell>
-                    <Table.HeaderCell scope="col">Hvem svarte</Table.HeaderCell>
-                    <Table.HeaderCell scope="col">Vår</Table.HeaderCell>
-                    <Table.HeaderCell scope="col">Høst</Table.HeaderCell>
-                  </Table.Row>
-                </Table.Header>
-                <Table.Body>
+                <TableHeader>
+                  <TableRow>
+                    <TableHeaderCell scope="col">Påstand</TableHeaderCell>
+                    <TableHeaderCell scope="col">Hvem svarte</TableHeaderCell>
+                    <TableHeaderCell scope="col">Vår</TableHeaderCell>
+                    <TableHeaderCell scope="col">Høst</TableHeaderCell>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {statements.map((s) => (
-                    <Table.Row key={s.text}>
-                      <Table.HeaderCell scope="row">{s.text}</Table.HeaderCell>
-                      <Table.DataCell>{s.n}</Table.DataCell>
-                      <Table.DataCell>{s.spring}</Table.DataCell>
-                      <Table.DataCell>{s.autumn}</Table.DataCell>
-                    </Table.Row>
+                    <TableRow key={s.text}>
+                      <TableHeaderCell scope="row">{s.text}</TableHeaderCell>
+                      <TableDataCell>{s.n}</TableDataCell>
+                      <TableDataCell>{s.spring}</TableDataCell>
+                      <TableDataCell>{s.autumn}</TableDataCell>
+                    </TableRow>
                   ))}
-                </Table.Body>
+                </TableBody>
               </Table>
 
               <BodyLong spacing>
-                <strong>Tilfredsheten er høy.</strong> 83 % av KI-brukerne er enige i at de er fornøyde, og snittet gikk
+                <strong>Tilfredsheten er høy.</strong> 83 % av KI-brukerne er enige i at de er fornøyde, og snittet gikk
                 opp fra 3,99 til 4,17, men den økningen er usikker. Mange sier også at KI hjelper dem videre når de står
                 fast.
               </BodyLong>
 
               <BodyLong spacing>
-                <strong>Bekymringen har økt.</strong> 70 % er enige i at de er bekymret for at KI kan svekke deres egen
-                dype forståelse, 12 prosentpoeng flere enn i vår. Dette er den eneste endringen vi kan si er statistisk
-                sikker.
+                <strong>Bekymringen har økt.</strong> 70 % er enige i at de er bekymret for at KI kan svekke deres egen
+                dype forståelse, 12 prosentpoeng flere enn i vår. Dette er den eneste endringen i påstandene som står
+                seg i testen.
               </BodyLong>
 
               <Quote>
-                Da jeg begynte å bruke KI til å lage features, merket jeg at jeg fort ble rusten. Jeg kunne prompte meg
-                frem til kode som fungerte, uten å kunne forklare hvordan den virket.
-              </Quote>
-
-              <Quote>
-                Når kollegaene spurte meg hvorfor jeg hadde tatt valgene i en PR, kunne jeg ikke svare dem. Mesteparten
-                av koden var KI-generert, og jeg hadde glemt den.
+                Da jeg begynte å bruke KI til å lage funksjoner, merket jeg at jeg fort ble rusten. Jeg kunne prompte
+                meg frem til kode som fungerte, uten å kunne forklare hvordan den virket.
               </Quote>
 
               <BodyLong spacing>
@@ -174,8 +174,8 @@ export default function SurveyAutumnArticlePage() {
               </BodyLong>
 
               <BodyLong spacing>
-                <strong>Få lar agenten jobbe alene.</strong> Bare 19 % stoler på at en KI-agent løser oppgaver i flere
-                steg uten at de følger med. Få sier at usikkerhet om kostnad gjør at de bruker verktøyene mindre.
+                <strong>Få stoler på agenter uten tilsyn.</strong> Bare 20 % stoler på at en KI-agent løser oppgaver i
+                flere steg uten at de følger med. Få sier at usikkerhet om kostnad gjør at de bruker verktøyene mindre.
               </BodyLong>
 
               <Quote>
@@ -198,30 +198,30 @@ export default function SurveyAutumnArticlePage() {
 
               <Table size="small">
                 <caption>Andel av alle som svarte som bruker verktøyet</caption>
-                <Table.Header>
-                  <Table.Row>
-                    <Table.HeaderCell scope="col">Verktøy</Table.HeaderCell>
-                    <Table.HeaderCell scope="col">Vår</Table.HeaderCell>
-                    <Table.HeaderCell scope="col">Høst</Table.HeaderCell>
-                  </Table.Row>
-                </Table.Header>
-                <Table.Body>
+                <TableHeader>
+                  <TableRow>
+                    <TableHeaderCell scope="col">Verktøy</TableHeaderCell>
+                    <TableHeaderCell scope="col">Vår</TableHeaderCell>
+                    <TableHeaderCell scope="col">Høst</TableHeaderCell>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {tools.map((t) => (
-                    <Table.Row key={t.name}>
-                      <Table.HeaderCell scope="row">{t.name}</Table.HeaderCell>
-                      <Table.DataCell>{t.spring}</Table.DataCell>
-                      <Table.DataCell>{t.autumn}</Table.DataCell>
-                    </Table.Row>
+                    <TableRow key={t.name}>
+                      <TableHeaderCell scope="row">{t.name}</TableHeaderCell>
+                      <TableDataCell>{t.spring}</TableDataCell>
+                      <TableDataCell>{t.autumn}</TableDataCell>
+                    </TableRow>
                   ))}
-                </Table.Body>
+                </TableBody>
               </Table>
 
               <Heading size="medium" level="2" spacing>
                 Hvor KI gir mest verdi
               </Heading>
               <BodyLong spacing>
-                Å forklare kode er fortsatt på topp (54 %), fulgt av feilsøking (51 %, opp 8 prosentpoeng) og
-                kodegenerering (42 %). Færre nevner å lære nye språk, 8 % mot 14 % i vår.
+                Å forklare kode er fortsatt på topp (54 %), fulgt av feilsøking (51 %, opp 8 prosentpoeng) og
+                kodegenerering (42 %). Færre nevner å lære nye språk, 8 % mot 14 % i vår.
               </BodyLong>
 
               <Quote>
@@ -230,8 +230,8 @@ export default function SurveyAutumnArticlePage() {
               </Quote>
 
               <Quote>
-                Siden sommeren har vi skrevet en arvtaker til en tjeneste, refaktorert store mengder kode og redusert
-                teknisk gjeld betraktelig.
+                Å få rydde opp og øke kvaliteten på eksisterende kode har vært utrolig givende. Det hadde aldri blitt
+                prioritert i dette omfanget uten KI.
               </Quote>
 
               <Heading size="medium" level="2" spacing>
@@ -243,20 +243,20 @@ export default function SurveyAutumnArticlePage() {
 
               <Table size="small">
                 <caption>Én ting å endre, høsten 2026 (andel av alle 211 som svarte)</caption>
-                <Table.Header>
-                  <Table.Row>
-                    <Table.HeaderCell scope="col">Ønske</Table.HeaderCell>
-                    <Table.HeaderCell scope="col">Andel</Table.HeaderCell>
-                  </Table.Row>
-                </Table.Header>
-                <Table.Body>
+                <TableHeader>
+                  <TableRow>
+                    <TableHeaderCell scope="col">Ønske</TableHeaderCell>
+                    <TableHeaderCell scope="col">Andel</TableHeaderCell>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {changes.map((c) => (
-                    <Table.Row key={c.what}>
-                      <Table.HeaderCell scope="row">{c.what}</Table.HeaderCell>
-                      <Table.DataCell>{c.share}</Table.DataCell>
-                    </Table.Row>
+                    <TableRow key={c.what}>
+                      <TableHeaderCell scope="row">{c.what}</TableHeaderCell>
+                      <TableDataCell>{c.share}</TableDataCell>
+                    </TableRow>
                   ))}
-                </Table.Body>
+                </TableBody>
               </Table>
 
               <Heading size="medium" level="2" spacing>
