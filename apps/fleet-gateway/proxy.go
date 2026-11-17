@@ -538,18 +538,16 @@ func isEventStream(contentType string) bool {
 	return err == nil && strings.EqualFold(mediaType, "text/event-stream")
 }
 
-type auditRPC struct {
-	Method string `json:"method"`
-	Params struct {
-		Name string `json:"name"`
-	} `json:"params"`
-}
-
 // extractJSONRPCAudit returns the JSON-RPC method and, for tools/call, the tool
 // name. Arguments are never decoded into anything that is logged. A batch is
 // logged as method "batch" with the names of up to maxAuditBatchTools
 // tools/call entries. The body is already capped at maxMCPRequestBodyBytes and
 // is read only, so upstream receives it byte for byte.
+//
+// Keys are matched exactly, not case-insensitively as encoding/json does for
+// struct fields, so the logged name is the one an MCP server reads. A batch is
+// streamed one member at a time: decoding it into a slice cost ~53 MiB for a
+// 1 MiB body of {} members, near the pod's 64 MiB limit.
 func extractJSONRPCAudit(body []byte) (method, tool string) {
 	trimmed := bytes.TrimSpace(body)
 	if len(trimmed) == 0 {
@@ -557,33 +555,55 @@ func extractJSONRPCAudit(body []byte) (method, tool string) {
 	}
 	switch trimmed[0] {
 	case '{':
-		var rpc auditRPC
-		if json.Unmarshal(trimmed, &rpc) != nil {
-			return "", ""
-		}
-		if rpc.Method == "tools/call" {
-			tool = sanitizeAuditMethod(rpc.Params.Name)
-		}
-		return sanitizeAuditMethod(rpc.Method), tool
+		return auditRPCObject(trimmed)
 	case '[':
-		var batch []auditRPC
-		if json.Unmarshal(trimmed, &batch) != nil {
+		dec := json.NewDecoder(bytes.NewReader(trimmed))
+		if _, err := dec.Token(); err != nil {
 			return "", ""
 		}
 		var tools []string
-		for _, rpc := range batch {
-			if rpc.Method != "tools/call" {
+		var raw json.RawMessage
+		for dec.More() {
+			if dec.Decode(&raw) != nil {
+				break
+			}
+			// Cheap filter: only members that mention tools/call are parsed.
+			if !bytes.Contains(raw, []byte("tools/call")) {
+				continue
+			}
+			m, name := auditRPCObject(raw)
+			if m != "tools/call" {
 				continue
 			}
 			if len(tools) == maxAuditBatchTools {
 				tools = append(tools, "...")
 				break
 			}
-			tools = append(tools, sanitizeAuditMethod(rpc.Params.Name))
+			tools = append(tools, name)
 		}
 		return "batch", strings.Join(tools, ",")
 	}
 	return "", ""
+}
+
+// auditRPCObject reads method and, for tools/call, params.name from one
+// JSON-RPC object. A field of the wrong type is left empty without dropping
+// the other.
+func auditRPCObject(raw []byte) (method, tool string) {
+	var obj map[string]json.RawMessage
+	if json.Unmarshal(raw, &obj) != nil {
+		return "", ""
+	}
+	_ = json.Unmarshal(obj["method"], &method)
+	method = sanitizeAuditMethod(method)
+	if method != "tools/call" {
+		return method, ""
+	}
+	var params map[string]json.RawMessage
+	if json.Unmarshal(obj["params"], &params) == nil {
+		_ = json.Unmarshal(params["name"], &tool)
+	}
+	return method, sanitizeAuditMethod(tool)
 }
 
 func sanitizeAuditMethod(method string) string {

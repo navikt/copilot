@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -129,5 +130,50 @@ func TestExtractJSONRPCAudit_NonToolCallHasNoTool(t *testing.T) {
 	m, tool := extractJSONRPCAudit([]byte(`{"method":"tools/list","params":{"name":"x"}}`))
 	if m != "tools/list" || tool != "" {
 		t.Fatalf("got %q %q", m, tool)
+	}
+}
+
+func TestExtractJSONRPCAudit_BadBatchMemberSkipped(t *testing.T) {
+	m, tool := extractJSONRPCAudit([]byte(`[42,{"method":"tools/call","params":"x"},{"method":"tools/call","params":{"name":"a"}},"s",{"method":"tools/call","params":{"name":"b"}}]`))
+	if m != "batch" || tool != ",a,b" {
+		t.Fatalf("got %q %q", m, tool)
+	}
+}
+
+func TestExtractJSONRPCAudit_BadParamsKeepMethod(t *testing.T) {
+	for _, body := range []string{
+		`{"method":"tools/call","params":[1]}`,
+		`{"method":"tools/call","params":{"name":7}}`,
+	} {
+		if m, tool := extractJSONRPCAudit([]byte(body)); m != "tools/call" || tool != "" {
+			t.Fatalf("%s: got %q %q", body, m, tool)
+		}
+	}
+}
+
+func TestExtractJSONRPCAudit_ExactCaseKeys(t *testing.T) {
+	for _, body := range []string{
+		`{"method":"tools/call","params":{"name":"evil","Name":"benign"}}`,
+		`{"method":"tools/call","params":{"Name":"benign","name":"evil"}}`,
+	} {
+		if _, tool := extractJSONRPCAudit([]byte(body)); tool != "evil" {
+			t.Fatalf("%s: got tool %q, want evil", body, tool)
+		}
+	}
+	if m, _ := extractJSONRPCAudit([]byte(`{"Method":"tools/call"}`)); m != "" {
+		t.Fatalf("Method must not match method, got %q", m)
+	}
+}
+
+func TestExtractJSONRPCAudit_BatchOfEmptyObjectsBoundedMemory(t *testing.T) {
+	n := (maxMCPRequestBodyBytes - 2) / 3
+	body := []byte("[" + strings.Repeat("{},", n-1) + "{}]")
+	var before, after runtime.MemStats
+	runtime.GC()
+	runtime.ReadMemStats(&before)
+	extractJSONRPCAudit(body)
+	runtime.ReadMemStats(&after)
+	if got := after.TotalAlloc - before.TotalAlloc; got > 16<<20 {
+		t.Fatalf("allocated %d MiB for a %d-byte batch, want < 16 MiB", got>>20, len(body))
 	}
 }
