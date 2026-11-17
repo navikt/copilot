@@ -93,7 +93,7 @@ func (a *surveyAPI) compare(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/csv; charset=utf-8")
 		w.Header().Set("Content-Disposition", `attachment; filename="sammenligning-`+strings.Join(ids, "-")+`.csv"`)
 		w.Header().Set("Cache-Control", "no-store")
-		writeCompareCSV(w, res)
+		_ = writeCompareCSV(w, res) // headers are sent; a broken connection has no one to tell
 		return
 	}
 	writeJSON(w, res)

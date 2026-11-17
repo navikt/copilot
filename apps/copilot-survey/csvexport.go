@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/csv"
+	"fmt"
 	"io"
 	"log/slog"
 	"math/rand/v2"
@@ -100,7 +101,7 @@ func writeExportCSV(w io.Writer, s survey, rows []exportRow) {
 			}
 			continue
 		case "multi":
-			for _, o := range q.options() {
+			for _, o := range multiColumns(q, rows) {
 				cols = append(cols, column{q.ID + "=" + o, func(r exportRow) string {
 					picked, ok := r.Answers[q.ID].([]any)
 					switch {
@@ -140,14 +141,32 @@ func writeExportCSV(w io.Writer, s survey, rows []exportRow) {
 	cw.Flush()
 }
 
+// multiColumns are q's options, then any value a row picked that is no
+// longer an option (an older version's), sorted, so nothing picked is lost.
+func multiColumns(q question, rows []exportRow) []string {
+	cols := q.options()
+	var extra []string
+	for _, r := range rows {
+		picked, _ := r.Answers[q.ID].([]any)
+		for _, p := range picked {
+			if v := fmt.Sprint(p); !slices.Contains(cols, v) && !slices.Contains(extra, v) {
+				extra = append(extra, v)
+			}
+		}
+	}
+	slices.Sort(extra)
+	return append(slices.Clip(cols), extra...)
+}
+
 // csvValue writes an answer as a cell. Text a spreadsheet would read as a
-// formula gets a leading apostrophe.
+// formula gets a leading apostrophe, and so does text that already starts
+// with one, so unformula can undo it without guessing.
 func csvValue(v any) string {
 	switch t := v.(type) {
 	case float64:
 		return strconv.FormatFloat(t, 'f', -1, 64)
 	case string:
-		if t != "" && strings.ContainsRune("=+-@\t\r", rune(t[0])) {
+		if t != "" && strings.ContainsRune("=+-@\t\r'", rune(t[0])) {
 			return "'" + t
 		}
 		return t

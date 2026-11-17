@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"io"
 	"strings"
 	"testing"
 	"time"
@@ -66,6 +67,11 @@ func TestAnalyzeMatchesOnline(t *testing.T) {
 		rows = append(rows, r)
 	}
 	rows = append(rows, row(`{}`, `{}`))
+	// Values the export must not lose or alter: a pick no longer an option,
+	// and a choice that starts with an apostrophe.
+	for range 2 {
+		rows = append(rows, row(`{"tools":["old"],"client":"'=x"}`, `{"tools":1,"client":1}`))
+	}
 	got := roundTrip(t, s, rows)
 	want, have := aggregate(s, rows, now), aggregate(s, got, now)
 	sameJSON(t, "results", want.Questions, have.Questions)
@@ -77,8 +83,9 @@ func TestAnalyzeMatchesOnline(t *testing.T) {
 	local := compareWavesResult(cd, [][]storedAnswer{roundTrip(t, cd[0], data["spring"]), roundTrip(t, cd[1], data["autumn"])}, now)
 	sameJSON(t, "comparison", online.Questions, local.Questions)
 	var a, b bytes.Buffer
-	writeCompareCSV(&a, online)
-	writeCompareCSV(&b, local)
+	if writeCompareCSV(&a, online) != nil || writeCompareCSV(&b, local) != nil {
+		t.Fatal("write")
+	}
 	// Byte for byte, channels too: autumn's web 3 and copilot 2 are «annet» in both.
 	if a.String() != b.String() {
 		t.Errorf("comparison CSV differs\n%s\n%s", a.String(), b.String())
@@ -97,5 +104,23 @@ func TestReadExportCSVRefusesOtherColumns(t *testing.T) {
 	}
 	if _, err := readExportCSV(defs[0], strings.NewReader(buf.String()+strings.Repeat(",", strings.Count(strings.SplitN(buf.String(), "\n", 2)[0], ","))+"\n")); err != nil {
 		t.Errorf("empty row: %v", err)
+	}
+}
+
+type failWriter struct{}
+
+func (failWriter) Write([]byte) (int, error) { return 0, io.ErrClosedPipe }
+
+func TestCompareCSVEdges(t *testing.T) {
+	res := compareResult{
+		Surveys:   []waveMeta{{surveySummary: surveySummary{ID: "spring"}}},
+		Questions: []compareQuestion{{ID: "q", Waves: []waveCounts{{Excluded: 6, Versions: []waveStat{}}}}},
+	}
+	var buf bytes.Buffer
+	if err := writeCompareCSV(&buf, res); err != nil || !strings.Contains(buf.String(), "answer,spring,q,,,false,,,,6,,") {
+		t.Errorf("all excluded lost: %v\n%s", err, buf.String())
+	}
+	if writeCompareCSV(failWriter{}, res) == nil {
+		t.Error("write error swallowed")
 	}
 }

@@ -52,7 +52,7 @@ func readExportCSV(s survey, r io.Reader) ([]storedAnswer, error) {
 			}
 			continue
 		case "multi":
-			for _, o := range q.options() {
+			for _, o := range multiOptions(q, head) {
 				want = append(want, q.ID+"="+o)
 			}
 		default:
@@ -117,7 +117,7 @@ func readExportCSV(s survey, r io.Reader) ([]storedAnswer, error) {
 				err = number(q.ID, q.ID, q.Version)
 			case "multi":
 				picked, answered := []any{}, false
-				for _, o := range q.options() {
+				for _, o := range multiOptions(q, head) {
 					switch rec[col[q.ID+"="+o]] {
 					case "1":
 						picked, answered = append(picked, o), true
@@ -155,10 +155,19 @@ func readExportCSV(s survey, r io.Reader) ([]storedAnswer, error) {
 
 // unformula undoes csvValue's leading apostrophe.
 func unformula(s string) string {
-	if len(s) > 1 && s[0] == '\'' && strings.ContainsRune("=+-@\t\r", rune(s[1])) {
-		return s[1:]
+	return strings.TrimPrefix(s, "'")
+}
+
+// multiOptions are q's options and the older ones the header carries
+// (multiColumns), in header order after the current ones.
+func multiOptions(q question, head []string) []string {
+	opts := q.options()
+	for _, h := range head {
+		if v, ok := strings.CutPrefix(h, q.ID+"="); ok && !slices.Contains(opts, v) {
+			opts = append(slices.Clip(opts), v)
+		}
 	}
-	return s
+	return opts
 }
 
 // runAnalyze is «copilot-survey analyze [--csv] id=file.csv …»: the admin
@@ -203,8 +212,7 @@ func runAnalyze(args []string, out io.Writer, now time.Time) error {
 	}
 	res := compareWavesResult(waves, rows, now)
 	if asCSV {
-		writeCompareCSV(out, res)
-		return nil
+		return writeCompareCSV(out, res)
 	}
 	return encodeJSON(out, res)
 }

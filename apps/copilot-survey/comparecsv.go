@@ -14,10 +14,13 @@ import (
 //	channel   q4-2026                              web    183
 //	answer    q4-2026   pastander   tilfredshet 1 false 5     71   203 0  4.15… 0.83…
 //
-// mean and agree are on every option row of their version, unrounded.
+// mean and agree are on every option row of their version, unrounded. A
+// wave with nothing counted has one answer row with only excluded.
 // Free text is never in a comparison.
-func writeCompareCSV(w io.Writer, res compareResult) {
-	_, _ = w.Write([]byte("\xef\xbb\xbf"))
+func writeCompareCSV(w io.Writer, res compareResult) error {
+	if _, err := w.Write([]byte("\xef\xbb\xbf")); err != nil {
+		return err
+	}
 	cw := csv.NewWriter(w)
 	_ = cw.Write([]string{"kind", "survey_id", "question_id", "item_id", "version", "break", "option", "count", "n", "excluded", "mean", "agree"})
 	for _, m := range res.Surveys {
@@ -28,6 +31,9 @@ func writeCompareCSV(w io.Writer, res compareResult) {
 	}
 	waves := func(qid, iid string, br bool, ws []waveCounts) {
 		for i, wc := range ws {
+			if len(wc.Versions) == 0 { // nothing counted, but excluded must survive
+				_ = cw.Write([]string{"answer", res.Surveys[i].ID, qid, iid, "", strconv.FormatBool(br), "", "", "", strconv.Itoa(wc.Excluded), "", ""})
+			}
 			for _, v := range wc.Versions {
 				for _, o := range v.Options {
 					_ = cw.Write([]string{"answer", res.Surveys[i].ID, qid, iid, strconv.Itoa(v.Version), strconv.FormatBool(br),
@@ -43,6 +49,7 @@ func writeCompareCSV(w io.Writer, res compareResult) {
 		}
 	}
 	cw.Flush()
+	return cw.Error()
 }
 
 func intCell(p *int) string {
