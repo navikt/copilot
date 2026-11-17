@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -125,5 +126,64 @@ func TestMCPSession_DeleteReleasesBindingAndCapSlot(t *testing.T) {
 	}
 	if _, found := mcpBound(te, "up-1"); !found {
 		t.Fatal("cap slot was not released by DELETE")
+	}
+}
+
+func mcpDelete(te *testEnv, token, sessionID string) int {
+	req := httptest.NewRequest(http.MethodDelete, "/mcp/etterlevelse", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Mcp-Session-Id", sessionID)
+	rec := httptest.NewRecorder()
+	te.handler.ServeHTTP(rec, req)
+	return rec.Code
+}
+
+func mcpUserCount(te *testEnv) string {
+	raw, _, err := te.gw.store.Get(context.Background(), kindMCPSessionUser, te.navIdent)
+	if err != nil {
+		te.t.Fatalf("store get: %v", err)
+	}
+	return string(raw)
+}
+
+func TestMCPSession_DeleteDoesNotRebindEchoedID(t *testing.T) {
+	te := newTestEnv(t)
+	issued := "up-0"
+	setUpstreamSessionID(te, &issued) // upstream echoes the id on DELETE too
+	token := te.obtainAccessTokenForResource(te.resource)
+	if rec := mcpPost(te, token, ""); rec.Code != http.StatusOK {
+		t.Fatalf("initialize: got %d", rec.Code)
+	}
+	if code := mcpDelete(te, token, "up-0"); code != http.StatusOK {
+		t.Fatalf("delete: got %d", code)
+	}
+	if _, found := mcpBound(te, "up-0"); found {
+		t.Fatal("echoed Mcp-Session-Id on DELETE was bound again")
+	}
+	if got := mcpUserCount(te); got != "0" {
+		t.Fatalf("user count = %q, want 0", got)
+	}
+}
+
+func TestMCPSession_ConcurrentDeletesFreeOneSlot(t *testing.T) {
+	te := newTestEnv(t)
+	te.gw.cfg.MCPSessionUserCap = 2
+	issued := ""
+	setUpstreamSessionID(te, &issued)
+	token := te.obtainAccessTokenForResource(te.resource)
+	for _, id := range []string{"up-0", "up-1"} {
+		issued = id
+		if rec := mcpPost(te, token, ""); rec.Code != http.StatusOK {
+			t.Fatalf("initialize %s: got %d", id, rec.Code)
+		}
+	}
+	issued = ""
+	var wg sync.WaitGroup
+	for range 20 {
+		wg.Go(func() { mcpDelete(te, token, "up-0") })
+	}
+	wg.Wait()
+	if got := mcpUserCount(te); got != "1" {
+		t.Fatalf("user count = %q after concurrent DELETEs of one session, want 1", got)
 	}
 }
