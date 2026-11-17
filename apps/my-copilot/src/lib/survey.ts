@@ -326,6 +326,15 @@ export async function getSurveyComparison(userToken: string, ids: string[]): Pro
   return adminGet<SurveyComparison>(userToken, `/api/v1/admin/surveys/compare?ids=${ids.join(",")}`);
 }
 
+/** The last four closed, published waves of a series, without channels. */
+export async function getPublishedSeriesComparison(
+  userToken: string,
+  series: string
+): Promise<AdminResult<SurveyComparison>> {
+  if (!/^[a-z0-9-]{1,64}$/.test(series)) return { status: "not-found" };
+  return adminGet<SurveyComparison>(userToken, `/api/v1/surveys/published/compare?series=${series}`);
+}
+
 /** One free-text field (GET /api/v1/admin/surveys/{id}/freetext): a text question, or a question's «Annet» text. */
 export type FreetextField = {
   id: string;
@@ -372,6 +381,12 @@ export async function fetchSurveyExport(userToken: string, id: string): Promise<
 export async function fetchSurveyCompareExport(userToken: string, ids: string[]): Promise<Response | null> {
   if (ids.length < 2 || ids.length > 4 || !ids.every((id) => /^[a-z0-9-]{1,64}$/.test(id))) return null;
   return fetchSurveyCSV(userToken, `/api/v1/admin/surveys/compare?ids=${ids.join(",")}&format=csv`);
+}
+
+/** The published series comparison as long-form CSV, for any signed-in user. */
+export async function fetchPublishedSeriesExport(userToken: string, series: string): Promise<Response | null> {
+  if (!/^[a-z0-9-]{1,64}$/.test(series)) return null;
+  return fetchSurveyCSV(userToken, `/api/v1/surveys/published/compare?series=${series}&format=csv`);
 }
 
 async function fetchSurveyCSV(userToken: string, path: string): Promise<Response | null> {

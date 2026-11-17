@@ -12,7 +12,8 @@ vi.mock("next/navigation", () => ({
 
 import PublishedSurveysPage from "./page";
 import PublishedSurveyResultsPage from "./[id]/page";
-import type { SurveyResults } from "@/lib/survey";
+import PublishedSeriesPage from "./serie/[series]/page";
+import type { SurveyComparison, SurveyResults } from "@/lib/survey";
 import fixture from "../../admin/undersokelser/results-fixture.json";
 
 const params = (id: string) => ({ params: Promise.resolve({ id }) });
@@ -95,6 +96,102 @@ describe("/innsikt/undersokelser", () => {
     expect(screen.queryByRole("link", { name: /fritekst/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /CSV/i })).not.toBeInTheDocument();
     expect(screen.getByText(/#ki-produktutvikling/)).toBeInTheDocument();
+  });
+
+  it("links to the series when two published waves share one", async () => {
+    const wave = { ...results, questions: undefined, series: "utviklerundersokelsen" };
+    respond(200, { surveys: [{ ...wave, id: "var-2026" }, wave] });
+    render(await PublishedSurveysPage());
+    expect(screen.getByRole("link", { name: "Se utviklingen over tid" })).toHaveAttribute(
+      "href",
+      "/innsikt/undersokelser/serie/utviklerundersokelsen"
+    );
+  });
+
+  it("has no series link for a single wave", async () => {
+    respond(200, { surveys: [{ ...results, questions: undefined, series: "utviklerundersokelsen" }] });
+    render(await PublishedSurveysPage());
+    expect(screen.queryByRole("link", { name: /over tid/ })).not.toBeInTheDocument();
+  });
+
+  it("shows the series over time with full distribution and n, without channels", async () => {
+    const wave = { status: "stengt", suppressed: false, channels: null } as const;
+    const comparison: SurveyComparison = {
+      surveys: [
+        {
+          ...wave,
+          id: "var-2026",
+          title: "Utviklerundersøkelsen våren 2026",
+          starts: "2026-03-24",
+          ends: "2026-04-30",
+          responses: 165,
+        },
+        {
+          ...wave,
+          id: "host-2026",
+          title: "Utviklerundersøkelsen høsten 2026",
+          starts: "2026-10-13",
+          ends: "2026-10-27",
+          responses: 20,
+        },
+      ],
+      questions: [
+        {
+          id: "pastander",
+          type: "matrix",
+          text: "Hvor enig er du?",
+          min: 1,
+          max: 5,
+          labels: ["Helt uenig", "Uenig", "Nøytral", "Enig", "Helt enig"],
+          items: [
+            {
+              id: "review",
+              text: "Review går fortere",
+              break: true,
+              waves: [1, 2].map((version, i) => ({
+                excluded: 0,
+                versions: [
+                  {
+                    version,
+                    n: 10 * (i + 1),
+                    options: [1, 2, 3, 4, 5].map((v) => ({ value: `${v}`, count: 2 * (i + 1), suppressed: false })),
+                    mean: 3,
+                    agree: 0.4,
+                  },
+                ],
+              })),
+            },
+          ],
+        },
+      ],
+    };
+    const fetch = respond(200, comparison);
+    render(await PublishedSeriesPage({ params: Promise.resolve({ series: "utviklerundersokelsen" }) }));
+    expect(fetch).toHaveBeenCalledWith(
+      "http://copilot-survey/api/v1/surveys/published/compare?series=utviklerundersokelsen",
+      expect.anything()
+    );
+    expect(screen.getByText("Spørsmålet er endret: brudd i serien")).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Våren 2026, versjon 1 (n 10)" })).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: "Høsten 2026, versjon 2 (n 20)" })).toBeInTheDocument();
+    expect(screen.getAllByRole("cell", { name: "4 (20 %)" })).toHaveLength(5);
+    expect(screen.queryByRole("columnheader", { name: "Besvart via" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Utviklerundersøkelsen våren 2026" })).toHaveAttribute(
+      "href",
+      "/innsikt/undersokelser/var-2026"
+    );
+    expect(screen.getByText("Last ned sammenligning (CSV)").closest("a")).toHaveAttribute(
+      "href",
+      "/api/survey/compare/export?series=utviklerundersokelsen"
+    );
+  });
+
+  it("maps an unknown series or a bad slug to notFound", async () => {
+    const fetch = respond(404);
+    const page = (series: string) => PublishedSeriesPage({ params: Promise.resolve({ series }) });
+    await expect(page("finnes-ikke")).rejects.toThrow("NEXT_NOT_FOUND");
+    await expect(page("../x")).rejects.toThrow("NEXT_NOT_FOUND");
+    expect(fetch).toHaveBeenCalledTimes(1);
   });
 
   it("maps 404 or invalid id to notFound", async () => {
