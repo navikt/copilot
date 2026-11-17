@@ -440,3 +440,16 @@ func TestDefaultEntraScopeTargetsGateway(t *testing.T) {
 		t.Fatalf("refresh scope %q", got)
 	}
 }
+
+func TestProdPilotRoutesFileValid(t *testing.T) {
+	setBaseValidEnv(t)
+	t.Setenv("PILOT_ROUTES_FILE", "pilot-routes.prod.yaml")
+
+	cfg, err := loadConfigFromEnv()
+	if err != nil {
+		t.Fatalf("expected pilot-routes.prod.yaml to load without error, got %v", err)
+	}
+	if len(cfg.Routes) != 1 || cfg.Routes[0].Target != "prod-gcp:copilot:mcp-onboarding" {
+		t.Fatalf("expected only the mcp-onboarding prod route, got %+v", cfg.Routes)
+	}
+}

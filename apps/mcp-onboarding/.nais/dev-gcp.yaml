@@ -11,5 +11,5 @@ ingresses:
 base_url: https://mcp-onboarding.intern.dev.nav.no
 allowed_organization: navikt
 log_level: DEBUG
-# Entra mode for fleet-gateway on /mcp/gw. Dev only; prod keeps GitHub OAuth alone.
+# Entra mode for fleet-gateway on /mcp/gw; the GitHub OAuth path is unchanged.
 fleet_gateway_inbound: true
