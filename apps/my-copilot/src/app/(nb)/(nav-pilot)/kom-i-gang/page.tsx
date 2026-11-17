@@ -44,6 +44,13 @@ export default function KomIGangPage() {
                 </NextLink>
               </BodyLong>
               <BodyLong>
+                Vil du bare vite reglene og hvor du får hjelp? Les{" "}
+                <NextLink href="/ma-vite" className="text-blue-600 hover:underline">
+                  Dette må du vite
+                </NextLink>
+                .
+              </BodyLong>
+              <BodyLong>
                 Vil du heller bruke Copilot i VS Code eller IntelliJ? Se{" "}
                 <NextLink href="/praksis/guide/kom-i-gang" className="text-blue-600 hover:underline">
                   Kom i gang med Copilot
