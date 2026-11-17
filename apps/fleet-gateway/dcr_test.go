@@ -200,3 +200,36 @@ func TestDCR_RateLimitAndCap(t *testing.T) {
 		t.Fatalf("global cap: got %d %v", code, out)
 	}
 }
+
+func TestDCR_RefreshHonoursRegisteredGrantTypes(t *testing.T) {
+	te := newClientEncryptedTestEnv(t, "k1:"+testKeyBase64(t, false))
+	enableDCR(te, 10, 10)
+	reg := func(grants []string) string {
+		body := opencodeRegistration()
+		if grants == nil {
+			delete(body, "grant_types")
+		} else {
+			body["grant_types"] = grants
+		}
+		_, out := postRegister(te, body, "10.0.0.8")
+		id, _ := out["client_id"].(string)
+		return id
+	}
+	ctx := t.Context()
+	if !te.gw.clientMayRefresh(ctx, reg([]string{"authorization_code", "refresh_token"})) {
+		t.Fatal("OpenCode-style registration must be allowed to refresh")
+	}
+	if te.gw.clientMayRefresh(ctx, reg([]string{"authorization_code"})) {
+		t.Fatal("authorization_code-only client must not refresh")
+	}
+	if te.gw.clientMayRefresh(ctx, reg(nil)) {
+		t.Fatal("omitted grant_types defaults to authorization_code only")
+	}
+
+	// End to end: the token endpoint refuses the grant before touching the token.
+	id := reg([]string{"authorization_code"})
+	code, out := te.postToken(url.Values{"grant_type": {"refresh_token"}, "client_id": {id}, "refresh_token": {"opaque"}})
+	if code != http.StatusBadRequest || out["error"] != "unauthorized_client" {
+		t.Fatalf("got %d %v, want 400 unauthorized_client", code, out)
+	}
+}

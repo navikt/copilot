@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"unicode"
 )
@@ -192,4 +193,14 @@ func (g *Gateway) clientKnown(ctx context.Context, clientID string) bool {
 	}
 	_, ok, err := g.registeredClient(ctx, clientID)
 	return err == nil && ok
+}
+
+// clientMayRefresh honours the grant_types a DCR client registered (RFC 7591
+// 2: default authorization_code only). Allowlisted CIMD clients may refresh.
+func (g *Gateway) clientMayRefresh(ctx context.Context, clientID string) bool {
+	if g.cfg.AllowedClientIDs[clientID] {
+		return true
+	}
+	meta, ok, err := g.registeredClient(ctx, clientID)
+	return err == nil && ok && slices.Contains(meta.GrantTypes, "refresh_token")
 }
