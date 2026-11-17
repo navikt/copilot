@@ -116,7 +116,7 @@ func main() {
 		}()
 	}
 
-	mcpHandler := NewMCPHandler(githubClient, discoveryService)
+	mcpHandler := NewMCPHandler(githubClient, discoveryService, cfg.BaseURL)
 	authMiddleware := NewAuthMiddleware(store, cfg.BaseURL)
 
 	mux := http.NewServeMux()

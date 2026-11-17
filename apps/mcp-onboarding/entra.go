@@ -169,4 +169,7 @@ var entraTools = map[string]bool{
 	"get_installation_guide": true,
 }
 
-const githubLoginRequired = "Dette verktøyet krever GitHub-innlogging. Bruk det direkte endepunktet https://mcp-onboarding.intern.dev.nav.no/mcp."
+// githubLoginRequired points at this deployment's own direct endpoint (BASE_URL), so prod never names the dev host.
+func githubLoginRequired(baseURL string) string {
+	return "Dette verktøyet krever GitHub-innlogging. Bruk det direkte endepunktet " + strings.TrimRight(baseURL, "/") + "/mcp."
+}
