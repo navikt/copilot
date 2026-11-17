@@ -13,7 +13,8 @@ import (
 
 // TestCodebooksMatchSchema checks every free-text codebook in
 // surveys/codebooks/ (#2239) against its schema, and what the schema cannot
-// say: unique category ids, one catch-all, and fields that exist in the series.
+// say: unique category ids, one catch-all per field, every category in use,
+// and fields that exist in the series.
 func TestCodebooksMatchSchema(t *testing.T) {
 	raw, err := fs.ReadFile(surveyFiles, "surveys/codebooks/schema.json")
 	if err != nil {
@@ -52,8 +53,11 @@ func TestCodebooksMatchSchema(t *testing.T) {
 			continue
 		}
 		var cb struct {
-			Series     string
-			Fields     []string
+			Series string
+			Fields []struct {
+				ID         string
+				Categories []string
+			}
 			Categories []struct{ ID, Kind string }
 		}
 		if err := json.Unmarshal(raw, &cb); err != nil {
@@ -62,22 +66,34 @@ func TestCodebooksMatchSchema(t *testing.T) {
 		if path.Base(name) != cb.Series+".json" {
 			t.Errorf("%s: must be named after the series, %s.json", name, cb.Series)
 		}
-		ids, catchAll := map[string]bool{}, 0
+		kind, used := map[string]string{}, map[string]bool{}
 		for _, cat := range cb.Categories {
-			if ids[cat.ID] {
+			if kind[cat.ID] != "" {
 				t.Errorf("%s: category %s twice", name, cat.ID)
 			}
-			ids[cat.ID] = true
-			if cat.Kind == "annet" {
-				catchAll++
-			}
-		}
-		if catchAll != 1 {
-			t.Errorf("%s: %d categories of kind annet, want 1", name, catchAll)
+			kind[cat.ID] = cat.Kind
 		}
 		for _, f := range cb.Fields {
-			if !seriesHasFreetext(defs, cb.Series, f) {
-				t.Errorf("%s: no survey in series %s has free-text field %s", name, cb.Series, f)
+			if !seriesHasFreetext(defs, cb.Series, f.ID) {
+				t.Errorf("%s: no survey in series %s has free-text field %s", name, cb.Series, f.ID)
+			}
+			catchAll := 0
+			for _, id := range f.Categories {
+				used[id] = true
+				switch kind[id] {
+				case "":
+					t.Errorf("%s: field %s: unknown category %s", name, f.ID, id)
+				case "annet":
+					catchAll++
+				}
+			}
+			if catchAll != 1 {
+				t.Errorf("%s: field %s: %d categories of kind annet, want 1", name, f.ID, catchAll)
+			}
+		}
+		for id := range kind {
+			if !used[id] {
+				t.Errorf("%s: category %s is in no field", name, id)
 			}
 		}
 	}

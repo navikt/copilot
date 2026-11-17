@@ -1,18 +1,80 @@
 {
   "series": "utviklerundersokelsen",
   "version": 1,
-  "fields": [
-    "opplevelse"
-  ],
-  "max_codes": 3,
   "rules": [
-    "Kod det svaret forteller at har skjedd, eller hvordan respondenten opplever verktøyene. Et ønske eller forslag kodes bare når det springer ut av en erfaring i samme svar, og da kodes erfaringen. Et rent ønske uten erfaring er annet. Et ønske som viser at respondenten er usikker eller sitter fast i dag («skulle gjerne visst om jeg kan bruke den på saker med personopplysninger») er en erfaring og kodes.",
+    "Hver kode er en kategori pluss onske (true/false). onske er false når svaret forteller om noe som har skjedd eller hvordan respondenten har det, og true når svaret ber om, foreslår eller ønsker noe. Definisjonene beskriver temaet som erfaring; et ønske om det samme (mer av nytten, mindre av problemet) får samme kategori med onske: true. Samme kategori kan få begge i ett svar, som to koder.",
     "Kod hva svaret handler om, ikke hvem som skriver. Rolle (utvikler, designer, leder, ikke-utvikler) kodes ikke. En ikke-kodende oppgave kodes etter hva KI-en gjorde, som enhver annen oppgave.",
-    "Gi 1 til 3 koder per svar. Passer flere, velg de som fyller mest av svaret. annet brukes alltid alene.",
+    "Gi 1 til max_codes koder per svar (kategori og onske teller som én kode). Passer flere, velg de som fyller mest av svaret. annet brukes alltid alene.",
     "store-loft og raskere utelukker hverandre. Skillet er hva som ellers ville skjedd: sier svaret at arbeidet ellers ikke ville blitt gjort, var for stort eller aldri ble prioritert, er det store-loft; ellers, når poenget er at noe gikk fortere enn for hånd, er det raskere. Migrering, modernisering, arvtaker og samme endring i mange apper er store-loft også når svaret ikke sier det (konvensjon: slikt arbeid er program over tid, ikke en enkeltoppgave).",
     "Hver kategori har én retning, nytte eller problem. Et svar med både positivt og negativt får en kode for hver. Å avkrefte et problem («jeg har ikke mistet noe») kodes ikke som problemet.",
     "En kategori krever at svaret sier noe om temaet, ikke bare nevner et ord. Kod ikke det du tror respondenten mener.",
-    "I tvil mellom to kategorier: følg «hold utenfor», som sier hvor tilfellet hører hjemme."
+    "I tvil mellom to kategorier: følg «hold utenfor», som sier hvor tilfellet hører hjemme.",
+    "Hvert felt koder bare med sitt eget kategorisett (fields[].categories). Peker «hold utenfor» på en kategori som ikke er i feltets sett, brukes annet.",
+    "onske per felt: kodes betyr at koderen avgjør det per kode; alltid og aldri betyr at det er gitt av spørsmålet (en-endring spør etter en endring, verktoy og verdi etter bruk)."
+  ],
+  "fields": [
+    {
+      "id": "opplevelse",
+      "onske": "kodes",
+      "max_codes": 3,
+      "categories": [
+        "store-loft",
+        "raskere",
+        "finne-feil",
+        "forsta-og-dokumentere",
+        "arbeidsflyt",
+        "kompetansetap",
+        "belastning-team",
+        "skrasikker",
+        "medgjorlig",
+        "for-mye",
+        "friksjon",
+        "informasjon",
+        "motstand",
+        "annet"
+      ]
+    },
+    {
+      "id": "verdi.other",
+      "onske": "aldri",
+      "max_codes": 2,
+      "categories": [
+        "forsta-og-dokumentere",
+        "arbeidsflyt",
+        "prototyping",
+        "sok-og-research",
+        "ingen-verdi",
+        "annet"
+      ]
+    },
+    {
+      "id": "en-endring.other",
+      "onske": "alltid",
+      "max_codes": 2,
+      "categories": [
+        "friksjon",
+        "informasjon",
+        "belastning-team",
+        "skrasikker",
+        "medgjorlig",
+        "for-mye",
+        "motstand",
+        "arbeidsflyt",
+        "annet"
+      ]
+    },
+    {
+      "id": "verktoy.other",
+      "onske": "aldri",
+      "max_codes": 3,
+      "categories": [
+        "copilot-annen-flate",
+        "andre-kodeverktoy",
+        "chat-assistent",
+        "lokale-modeller",
+        "annet"
+      ]
+    }
   ],
   "categories": [
     {
@@ -118,8 +180,7 @@
       ],
       "exclude": [
         "Bare hva agenten fikk til: kategorien for resultatet (store-loft, raskere, finne-feil, forsta-og-dokumentere).",
-        "Å få oppsettet til å virke: friksjon.",
-        "Ønske om bedre støtte for agenter uten erfaring med det: annet."
+        "Å få oppsettet til å virke: friksjon."
       ],
       "examples": [
         "Vi har bygget opp instruksjoner for rammeverket vårt, og nå treffer agenten konvensjonene uten at vi minner den på det.",
@@ -240,7 +301,7 @@
       "include": [
         "Lokalt oppsett, konfigurasjon eller kjøring som ikke virker.",
         "Sandkasse og rettigheter, også en agent som ikke respekterer dem.",
-        "Lisensregler, eller mangel på tilgang til data, modeller eller verktøy.",
+        "Lisensregler, begrensninger i verktøyet (som kontekstvindu, plattformstøtte, standardmodell), eller mangel på tilgang til data, modeller eller verktøy.",
         "Mer tid på å få verktøyet til å virke enn på selve oppgaven."
       ],
       "exclude": [
@@ -263,11 +324,10 @@
         "Dokumentasjon eller veiledning som er vanskelig å forstå eller følge.",
         "Uklart hva som er lov, trygt eller god praksis.",
         "Føler seg utenfor eller hengt etter fordi opplæring mangler.",
-        "Ønske om tydeligere veiledning eller retningslinjer som viser at respondenten er usikker i dag."
+        "Ønske om mer opplæring, tydeligere veiledning eller dokumentert effekt (onske: true)."
       ],
       "exclude": [
-        "Tekniske problemer med oppsett eller tilgang: friksjon.",
-        "Ønske om mer opplæring uten beskrevet erfaring: annet."
+        "Tekniske problemer med oppsett eller tilgang: friksjon."
       ],
       "examples": [
         "Jeg finner ikke ut hvilken av de fire veiledningene om agenter som gjelder for teamet mitt.",
@@ -298,19 +358,145 @@
       "id": "annet",
       "name": "Ikke kodbart eller annet",
       "kind": "annet",
-      "definition": "Svaret passer ikke i noen kategori, er for kort eller uklart til å kodes, eller er et rent ønske eller spørsmål uten beskrevet erfaring. Brukes alltid alene.",
+      "definition": "Svaret passer ikke i noen kategori i feltets sett, eller er for kort eller uklart til å kodes. Brukes alltid alene.",
       "include": [
         "Generell begeistring eller misnøye uten innhold.",
-        "Rene ønsker, forslag eller spørsmål.",
+        "Et ønske eller spørsmål som ikke passer i noen kategori (onske: true).",
         "Ros for at en oppgave eller et problem ble løst, uten at det går fram hva slags oppgave det var.",
-        "Tekst uten mening, som en strek eller «nei»."
+        "Tekst uten mening, som en strek eller «nei», eller kommentarer til selve undersøkelsen."
       ],
       "exclude": [
         "Alt som passer i en annen kategori."
       ],
       "examples": [
         "Fint verktøy, fortsett sånn.",
-        "Kunne dere lagt til støtte for flere språk i chatten?"
+        "Spørsmålet var vanskelig å svare på."
+      ]
+    },
+    {
+      "id": "prototyping",
+      "name": "Prototyper og utforsking",
+      "kind": "nytte",
+      "definition": "KI brukes til å lage prototyper, utforske muligheter eller idémyldring, der målet er å se hva som er mulig, ikke å levere produksjonskode.",
+      "include": [
+        "Klikkbare prototyper eller skisser.",
+        "Utforske løsninger, idémyldring."
+      ],
+      "exclude": [
+        "Ny kode eller funksjon som skal i bruk: raskere.",
+        "Planlegging og spesifisering av en oppgave: arbeidsflyt."
+      ],
+      "examples": [
+        "Teste tre varianter av et skjema med brukere samme uke.",
+        "Prøve ut ideer før vi bestemmer oss."
+      ]
+    },
+    {
+      "id": "sok-og-research",
+      "name": "Søk og research",
+      "kind": "nytte",
+      "definition": "KI brukes som søkemotor eller researchverktøy: finne informasjon, få svar på avgrensede spørsmål, oppsummere hvordan andre har løst noe, teknisk støtte.",
+      "include": [
+        "Erstatning for nettsøk eller oppslag i dokumentasjon.",
+        "Research og oppsummering av kilder.",
+        "Svar på avgrensede tekniske spørsmål."
+      ],
+      "exclude": [
+        "Forstå eller dokumentere egen kode eller egne systemer: forsta-og-dokumentere."
+      ],
+      "examples": [
+        "Slå opp syntaks raskere enn i dokumentasjonen.",
+        "Finne ut hva som finnes av biblioteker for noe."
+      ]
+    },
+    {
+      "id": "ingen-verdi",
+      "name": "Bruker ikke eller ser ingen verdi",
+      "kind": "noytral",
+      "definition": "Svaret sier at respondenten ikke bruker KI-verktøy, ikke har begynt ennå, at spørsmålet ikke er relevant, eller at verktøyene ikke gir verdi.",
+      "include": [
+        "Bruker ikke KI, eller skal ta det i bruk.",
+        "Ikke relevant, ingen.",
+        "Ser ikke at det hjelper."
+      ],
+      "exclude": [
+        "Begrunnet motstand mot KI: motstand."
+      ],
+      "examples": [
+        "Har ikke prøvd ennå.",
+        "Ingenting foreløpig."
+      ]
+    },
+    {
+      "id": "copilot-annen-flate",
+      "name": "GitHub Copilot på en flate som ikke står i listen",
+      "kind": "noytral",
+      "definition": "GitHub Copilot brukt i en flate listen ikke nevner: Copilot-appen eller desktop, andre editorer, nav-pilot.",
+      "include": [
+        "Copilot-appen eller Copilot Desktop.",
+        "Copilot i en editor som ikke står i listen.",
+        "nav-pilot."
+      ],
+      "exclude": [
+        "Microsoft 365 Copilot: chat-assistent.",
+        "Kodeverktøy fra andre enn GitHub: andre-kodeverktoy."
+      ],
+      "examples": [
+        "Copilot i Emacs.",
+        "GitHub Copilot-appen på Mac."
+      ]
+    },
+    {
+      "id": "andre-kodeverktoy",
+      "name": "Kodeverktøy fra andre enn GitHub",
+      "kind": "noytral",
+      "definition": "Kodeagenter, harnesser og editorer fra andre enn GitHub, også når de brukes privat.",
+      "include": [
+        "Kodeagenter og CLI-er som Codex, Gemini CLI eller Claude Code.",
+        "Editorer med innebygd KI, som Cursor eller Zed.",
+        "Egne eller åpne harnesser."
+      ],
+      "exclude": [
+        "Generelle chat-assistenter: chat-assistent.",
+        "Lokale modeller: lokale-modeller."
+      ],
+      "examples": [
+        "Windsurf.",
+        "Aider i terminalen."
+      ]
+    },
+    {
+      "id": "chat-assistent",
+      "name": "Generelle chat-assistenter",
+      "kind": "noytral",
+      "definition": "Chat-assistenter som ikke er kodeverktøy: ChatGPT, Microsoft 365 Copilot, Gemini, Perplexity eller KI i nettleseren.",
+      "include": [
+        "ChatGPT eller Microsoft 365 Copilot, også innebygd i operativsystemet.",
+        "Gemini- eller Perplexity-chat.",
+        "En chat i nettleseren uten at verktøyet er navngitt."
+      ],
+      "exclude": [
+        "Copilot i editor, CLI eller app: copilot-annen-flate."
+      ],
+      "examples": [
+        "Claude.ai i nettleseren.",
+        "Le Chat."
+      ]
+    },
+    {
+      "id": "lokale-modeller",
+      "name": "Lokale modeller",
+      "kind": "noytral",
+      "definition": "Modeller som kjøres på egen maskin, og verktøy for det.",
+      "include": [
+        "Ollama, LM Studio eller lignende."
+      ],
+      "exclude": [
+        "Ønske om lokale modeller i en-endring: friksjon."
+      ],
+      "examples": [
+        "LM Studio.",
+        "llama.cpp."
       ]
     }
   ]

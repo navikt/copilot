@@ -2,34 +2,151 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://raw.githubusercontent.com/navikt/copilot/main/apps/copilot-survey/surveys/codebooks/schema.json",
   "title": "copilot-survey free-text codebook",
-  "description": "Categories for coding the free text of one survey series (#2239). One file per series, <series>.json. A version is locked before coding starts; waves compare only when coded with the same version, so any change to a category bumps version. Examples are synthetic: never a quote from an answer. copilot-survey also checks what a schema cannot express (unique category ids, exactly one catch-all, fields that exist in the series); see codebook_test.go.",
+  "description": "Categories for coding the free text of one survey series (#2239). One file per series, <series>.json. Categories are one pool; each field codes with its own subset. A code is a category plus onske (wish: true/false). A version is locked before coding starts; waves compare only when coded with the same version, so any change to rules, fields or categories bumps version. Examples are synthetic: never a quote from an answer. codebook_test.go also checks what a schema cannot express: unique category ids, every field's categories in the pool with exactly one catch-all, every pool category used, and fields that exist in the series.",
   "type": "object",
-  "required": ["series", "version", "fields", "max_codes", "rules", "categories"],
+  "required": [
+    "series",
+    "version",
+    "rules",
+    "fields",
+    "categories"
+  ],
   "additionalProperties": false,
   "properties": {
-    "series": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,62}$", "description": "The survey series the codebook belongs to." },
-    "version": { "type": "integer", "minimum": 1, "description": "Goes up on any change to rules or categories." },
-    "fields": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,62}(\\.other)?$" }, "description": "Free-text fields coded with this book: a text question id, or <id>.other." },
-    "max_codes": { "type": "integer", "minimum": 1, "maximum": 5, "description": "Most categories one text can get." },
-    "rules": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 }, "description": "General coding rules, applied before the category definitions." },
-    "categories": {
+    "series": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
+      "description": "The survey series the codebook belongs to."
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Goes up on any change to rules or categories."
+    },
+    "fields": {
       "type": "array",
-      "minItems": 8,
-      "maxItems": 14,
+      "minItems": 1,
       "items": {
         "type": "object",
-        "required": ["id", "name", "kind", "definition", "include", "exclude", "examples"],
+        "required": [
+          "id",
+          "onske",
+          "max_codes",
+          "categories"
+        ],
         "additionalProperties": false,
         "properties": {
-          "id": { "type": "string", "pattern": "^[a-z0-9][a-z0-9-]{0,62}$", "description": "Stored in survey_freetext_codes.category; never reused for a different meaning." },
-          "name": { "type": "string", "minLength": 1 },
-          "kind": { "enum": ["nytte", "problem", "annet"], "description": "Benefit, problem, or the catch-all (exactly one, coded alone)." },
-          "definition": { "type": "string", "minLength": 1 },
-          "include": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 }, "description": "Ta med." },
-          "exclude": { "type": "array", "minItems": 1, "items": { "type": "string", "minLength": 1 }, "description": "Hold utenfor, each naming where it goes instead." },
-          "examples": { "type": "array", "minItems": 2, "maxItems": 2, "items": { "type": "string", "minLength": 1 }, "description": "Two synthetic examples, never quotes." }
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]{0,62}(\\.other)?$",
+            "description": "A text question id, or <id>.other."
+          },
+          "onske": {
+            "enum": [
+              "kodes",
+              "alltid",
+              "aldri"
+            ],
+            "description": "kodes: the coder sets onske per code. alltid/aldri: fixed by the question."
+          },
+          "max_codes": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5,
+            "description": "Most codes (category + onske) one text can get."
+          },
+          "categories": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 14,
+            "uniqueItems": true,
+            "items": {
+              "type": "string"
+            },
+            "description": "Category ids from the pool this field codes with."
+          }
         }
-      }
+      },
+      "description": "Free-text fields coded with this book, each with its own category set."
+    },
+    "rules": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "General coding rules, applied before the category definitions."
+    },
+    "categories": {
+      "type": "array",
+      "maxItems": 30,
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "definition",
+          "include",
+          "exclude",
+          "examples"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]{0,62}$",
+            "description": "Stored in survey_freetext_codes.category; never reused for a different meaning."
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "kind": {
+            "enum": [
+              "nytte",
+              "problem",
+              "noytral",
+              "annet"
+            ],
+            "description": "Benefit, problem, neutral (use or tool, no valence), or the catch-all (one per field, coded alone)."
+          },
+          "definition": {
+            "type": "string",
+            "minLength": 1
+          },
+          "include": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "description": "Ta med."
+          },
+          "exclude": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "description": "Hold utenfor, each naming where it goes instead."
+          },
+          "examples": {
+            "type": "array",
+            "minItems": 2,
+            "maxItems": 2,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            },
+            "description": "Two synthetic examples, never quotes."
+          }
+        }
+      },
+      "minItems": 2
     }
   }
 }
