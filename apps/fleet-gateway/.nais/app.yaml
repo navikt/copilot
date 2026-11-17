@@ -1,0 +1,74 @@
+apiVersion: nais.io/v1alpha1
+kind: Application
+metadata:
+  name: fleet-gateway
+  namespace: copilot
+  labels:
+    team: copilot
+spec:
+  image: {{image}}
+  port: 8080
+  replicas:
+    min: {{replicas_min}}
+    max: {{replicas_max}}
+    cpuThresholdPercentage: {{cpu_threshold}}
+  resources:
+    limits:
+      memory: {{memory_limit}}
+    requests:
+      cpu: {{cpu_request}}
+      memory: {{memory_request}}
+  liveness:
+    path: /health
+    initialDelay: 10
+    timeout: 5
+  readiness:
+    path: /ready
+    initialDelay: 10
+    timeout: 5
+  azure:
+    application:
+      enabled: true
+      tenant: nav.no
+      allowAllUsers: true
+      replyURLs:
+      {{#each reply_urls as |url|}}
+        - {{url}}
+      {{/each}}
+  env:
+    - name: PORT
+      value: "8080"
+    - name: LOG_LEVEL
+      value: "{{log_level}}"
+    - name: BASE_URL
+      value: "{{base_url}}"
+    - name: ALLOWED_CLIENT_IDS
+      value: "{{allowed_client_ids}}"
+    - name: ALLOWED_REDIRECT_URIS
+      value: "{{allowed_redirect_uris}}"
+    - name: ALLOWED_RESOURCES
+      value: "{{allowed_resources}}"
+    {{#if pilot_routes_file}}
+    - name: PILOT_ROUTES_FILE
+      value: "{{pilot_routes_file}}"
+    {{/if}}
+  accessPolicy:
+    outbound:
+      rules:
+      {{#if outbound_rules}}
+      {{#each outbound_rules as |rule|}}
+        - application: {{rule.application}}
+        {{#if rule.namespace}}
+          namespace: {{rule.namespace}}
+        {{/if}}
+      {{/each}}
+      {{else}}
+        []
+      {{/if}}
+      external:
+        - host: login.microsoftonline.com
+        - host: "{{cimd_host}}"
+  ingresses:
+  {{#each ingresses as |url|}}
+    - {{url}}
+  {{/each}}

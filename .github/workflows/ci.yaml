@@ -45,6 +45,7 @@ jobs:
       copilot-cli: ${{ steps.reuse.outputs.reuse != 'true' && steps.filter.outputs.copilot-cli || 'false' }}
       copilot-survey: ${{ steps.reuse.outputs.reuse != 'true' && steps.filter.outputs.copilot-survey || 'false' }}
       copilot-metrics: ${{ steps.reuse.outputs.reuse != 'true' && steps.filter.outputs.copilot-metrics || 'false' }}
+      fleet-gateway: ${{ steps.reuse.outputs.reuse != 'true' && steps.filter.outputs.fleet-gateway || 'false' }}
       mcp-onboarding: ${{ steps.reuse.outputs.reuse != 'true' && steps.filter.outputs.mcp-onboarding || 'false' }}
       mcp-registry: ${{ steps.reuse.outputs.reuse != 'true' && steps.filter.outputs.mcp-registry || 'false' }}
       my-copilot: ${{ steps.reuse.outputs.reuse != 'true' && steps.filter.outputs.my-copilot || 'false' }}
@@ -123,6 +124,10 @@ jobs:
             copilot-metrics:
               - 'apps/copilot-metrics/**'
               - '.github/workflows/copilot-metrics.yaml'
+              - '.github/workflows/mise-build-deploy-nais.yaml'
+              - '.github/workflows/ci.yaml'
+            fleet-gateway:
+              - 'apps/fleet-gateway/**'
               - '.github/workflows/mise-build-deploy-nais.yaml'
               - '.github/workflows/ci.yaml'
             mcp-onboarding:
@@ -354,6 +359,38 @@ jobs:
       - run: mise run install
       - run: mise run lint
       - run: mise run check
+
+  fleet-gateway:
+    name: fleet-gateway
+    needs: changes
+    if: needs.changes.outputs.fleet-gateway == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: apps/fleet-gateway
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # ratchet:actions/cache@v6.1.0
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+      - uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # ratchet:jdx/mise-action@v5.2.8
+        with:
+          experimental: true
+      - run: mise run install
+      - run: mise run lint
+      - run: mise run check
+      - name: Check fleet-echo
+        working-directory: apps/fleet-gateway/echo
+        run: |
+          mise run install
+          mise run lint
+          mise run check
 
   mcp-onboarding:
     name: mcp-onboarding
@@ -763,6 +800,7 @@ jobs:
       - copilot-cli
       - copilot-survey
       - copilot-metrics
+      - fleet-gateway
       - mcp-onboarding
       - mcp-registry
       - my-copilot

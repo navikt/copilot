@@ -139,6 +139,20 @@ updates:
           - "*"
     open-pull-requests-limit: 5
 
+  # fleet-gateway (Go)
+  - package-ecosystem: "gomod"
+    directory: "/apps/fleet-gateway"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Oslo"
+    groups:
+      fleet-gateway-go:
+        patterns:
+          - "*"
+    open-pull-requests-limit: 5
+
   # mcp-onboarding (Go)
   - package-ecosystem: "gomod"
     directory: "/apps/mcp-onboarding"
