@@ -36,9 +36,12 @@ describe("GET /api/admin/surveys/compare/export", () => {
     expect(await res.text()).toBe("kind\n");
   });
 
-  it("answers 400 when the ids are refused", async () => {
+  it("answers 400 to bad ids without fetching, 502 when copilot-survey fails", async () => {
     vi.mocked(isAdmin).mockReturnValue(true);
-    vi.mocked(fetchSurveyCompareExport).mockResolvedValue(null);
     expect((await call("q2-2026")).status).toBe(400);
+    expect((await call("Q2,x/../y")).status).toBe(400);
+    expect(fetchSurveyCompareExport).not.toHaveBeenCalled();
+    vi.mocked(fetchSurveyCompareExport).mockResolvedValue(null);
+    expect((await call()).status).toBe(502);
   });
 });
