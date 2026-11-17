@@ -26,6 +26,7 @@ async function Comparison({ token, ids }: { token: string; ids: string[] }) {
         data={res.data}
         csvHref={`/api/admin/surveys/compare/export?ids=${ids.join(",")}`}
         waveHref={(id) => `/admin/undersokelser/${id}`}
+        groups="I påstandene teller bare svar fra dem som bruker KI-verktøy, i alle runder."
       />
     </>
   );

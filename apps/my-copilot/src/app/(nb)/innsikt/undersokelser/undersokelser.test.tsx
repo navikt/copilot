@@ -149,7 +149,6 @@ describe("/innsikt/undersokelser", () => {
               text: "Review går fortere",
               break: true,
               waves: [1, 2].map((version, i) => ({
-                excluded: 0,
                 versions: [
                   {
                     version,
@@ -166,8 +165,8 @@ describe("/innsikt/undersokelser", () => {
               text: "Jeg jobber raskere",
               break: false,
               waves: [
-                { excluded: 0, versions: [{ version: 1, n: null, options: null, hidden: true }], hidden: true },
-                { excluded: 0, versions: [{ version: 1, n: 20, options: [], mean: 3, agree: 0.4 }] },
+                { versions: [{ version: 1, n: null, options: null, hidden: true }] },
+                { versions: [{ version: 1, n: 20, options: [], mean: 3, agree: 0.4 }] },
               ],
             },
           ],
@@ -185,12 +184,9 @@ describe("/innsikt/undersokelser", () => {
     expect(screen.getByRole("columnheader", { name: "Høsten 2026, versjon 2 (n 20)" })).toBeInTheDocument();
     expect(screen.getAllByRole("cell", { name: "4 (20 %)" })).toHaveLength(5);
     expect(screen.queryByRole("columnheader", { name: "Besvart via" })).not.toBeInTheDocument();
-    expect(
-      screen.getByText(/Våren 2026: vises ikke\. Noen tall vises ikke, fordi en gruppe på færre enn 5/)
-    ).toBeInTheDocument();
-    expect(
-      screen.getAllByText("Noen tall vises ikke, fordi en gruppe på færre enn 5 ellers kunne regnes ut.")
-    ).toHaveLength(1);
+    expect(screen.getAllByText("Færre enn 5 svarte på denne versjonen, så tallene vises ikke.")).toHaveLength(1);
+    expect(screen.queryByText(/Holdt utenfor/)).not.toBeInTheDocument();
+    expect(screen.getByText(/Gruppene er derfor ikke helt like/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Utviklerundersøkelsen våren 2026" })).toHaveAttribute(
       "href",
       "/innsikt/undersokelser/var-2026"

@@ -31,8 +31,8 @@ export default async function PublishedSeriesPage({ params }: { params: Promise<
         <>
           Tallene kommer fra <code>copilot-survey</code> og gjelder de siste fire avsluttede og publiserte rundene med
           minst fem svar. Hvert svaralternativ vises med antall og andel, og n er antallet som svarte på spørsmålet i
-          runden. Fritekstsvar og hvilken kanal folk svarte i, publiseres ikke. Spørsmål eller innspill kan tas i
-          #ki-produktutvikling på Slack.
+          runden. En versjon av et spørsmål som færre enn fem svarte på, vises uten tall. Fritekstsvar og hvilken kanal
+          folk svarte i, publiseres ikke. Spørsmål eller innspill kan tas i #ki-produktutvikling på Slack.
         </>
       }
       className="print-report survey-print"
@@ -45,6 +45,7 @@ export default async function PublishedSeriesPage({ params }: { params: Promise<
         data={res.data}
         csvHref={`/api/survey/compare/export?series=${series}`}
         waveHref={(id) => `/innsikt/undersokelser/${id}`}
+        groups="Hver runde vises med sine egne tall, de samme som på resultatsiden for runden. Gruppene er derfor ikke helt like: våren 2026 viste påstandene til alle, også dem som ikke bruker KI-verktøy, mens høsten 2026 bare viste dem til dem som bruker slike verktøy. Det gjelder også testen."
       />
     </InsightPage>
   );

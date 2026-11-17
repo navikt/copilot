@@ -37,7 +37,7 @@ function shortName(title: string) {
 const num = (x: number, digits = 1) => x.toFixed(digits).replace(".", ",").replace("-", "−");
 const signed = (x: number, digits = 1) => (x > 0 ? "+" : "") + num(x, digits);
 
-const HIDDEN = "Noen tall vises ikke, fordi en gruppe på færre enn 5 ellers kunne regnes ut.";
+const HIDDEN = "Færre enn 5 svarte på denne versjonen, så tallene vises ikke.";
 
 /** The single version a wave asked, or undefined when it has none or several. */
 const only = (w: WaveCounts | undefined): WaveStat | undefined =>
@@ -254,17 +254,12 @@ function Statement({
 
 function Excluded({ waves, counts }: { waves: WaveMeta[]; counts: WaveCounts[] }) {
   const notes = counts.flatMap((w, i) =>
-    w.hidden
-      ? [`${shortName(waves[i].title)}: vises ikke`]
-      : w.excluded
-        ? [`${shortName(waves[i].title)}: ${formatNumber(w.excluded)}`]
-        : []
+    w.excluded ? [`${shortName(waves[i].title)}: ${formatNumber(w.excluded)}`] : []
   );
   if (notes.length === 0) return null;
   return (
     <Detail textColor="subtle">
       Holdt utenfor fordi de ikke bruker KI-verktøy (som i siste runde): {notes.join(", ")}.
-      {counts.some((w) => w.hidden) ? ` ${HIDDEN}` : ""}
     </Detail>
   );
 }
@@ -459,10 +454,13 @@ export function ComparisonView({
   data,
   csvHref,
   waveHref,
+  groups,
 }: {
   data: SurveyComparison;
   csvHref: string;
   waveHref: (id: string) => string;
+  /** Which answers the statements count in each wave. */
+  groups: string;
 }) {
   const { surveys: waves, questions } = data;
   const title = waves.map((w) => shortName(w.title)).join(" og ");
@@ -479,10 +477,9 @@ export function ComparisonView({
       <Waves waves={waves} waveHref={waveHref} />
       <Alert variant="info" size="small">
         Rundene ble samlet inn på ulike måter{waves.some((w) => w.channels) ? " (se «Besvart via»)" : ""}. En forskjell
-        mellom rundene kan komme av metoden og ikke bare av endring over tid. I påstandene teller bare svar fra dem som
-        bruker KI-verktøy, i alle runder. Vi tester hver påstand mellom første og siste runde (Mann–Whitney). «Står seg
-        i testen» betyr at forskjellen er statistisk signifikant (korrigert p under 0,05), også etter at vi har tatt
-        hensyn til at vi tester mange påstander (Holm).
+        mellom rundene kan komme av metoden og ikke bare av endring over tid. {groups} Vi tester hver påstand mellom
+        første og siste runde (Mann–Whitney). «Står seg i testen» betyr at forskjellen er statistisk signifikant
+        (korrigert p under 0,05), også etter at vi har tatt hensyn til at vi tester mange påstander (Holm).
       </Alert>
       {waves.some((w) => w.suppressed) ? (
         <Alert variant="info">En av rundene har under 5 svar. Den vises uten tall.</Alert>

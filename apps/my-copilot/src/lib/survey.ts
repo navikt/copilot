@@ -303,10 +303,10 @@ export async function getPublishedSurveyResults(userToken: string, id: string): 
 /** One version of a question in one wave; mean and agree (share at the top two steps) for scale items. */
 export type WaveStat = VersionResult & { mean?: number; agree?: number };
 /**
- * A question or item in one wave. excluded: answers the comparison rule dropped (the last wave's skip_if).
- * hidden: the published comparison hid a small group in the wave; excluded is 0 and hidden versions have no counts.
+ * A question or item in one wave. excluded: answers the comparison rule dropped (the last wave's skip_if);
+ * admin only, the published series counts every wave as it was answered.
  */
-export type WaveCounts = { excluded: number; versions: WaveStat[]; hidden?: boolean };
+export type WaveCounts = { excluded?: number; versions: WaveStat[] };
 export type WaveMeta = SurveySummary & { suppressed: boolean; channels: Record<string, number> | null };
 /** First wave against the last, scale items without a break: Mann–Whitney p and Holm-corrected p. */
 export type Significance = { p?: number; p_holm?: number };
