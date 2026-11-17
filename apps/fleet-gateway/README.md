@@ -7,11 +7,11 @@ Step 1 implements the authorization server only: protected resource metadata, au
 ## Endpoints
 
 - `GET /.well-known/oauth-protected-resource` — RFC 9728 Protected Resource Metadata
-- `GET /.well-known/oauth-protected-resource/{resource}` — Resource-specific PRM (must be in `ALLOWED_RESOURCES`)
+- `GET /.well-known/oauth-protected-resource/{resource}` — Resource-specific PRM (must match a configured pilot route)
 - `GET /.well-known/oauth-authorization-server` — RFC 8414 Authorization Server Metadata
 - `GET /authorize` — OAuth 2.1 authorization endpoint (CIMD allowlist, exact `redirect_uri`, PKCE `S256`, RFC 8707 `resource`, RFC 9207 `iss`)
 - `POST /consent` — Consent submission with CSRF cookie check
-- `GET /oauth2/callback` — Entra ID reply URL, verified against signed `fleet_entra_state` cookie
+- `GET /oauth2/callback` — Entra ID reply URL, verified against signed `__Host-fleet_entra_state` cookie
 - `POST /token` — Single-use, 60-second authorization code exchange with PKCE verification
 - `GET /health` — Liveness probe
 - `GET /ready` — Readiness probe
@@ -23,14 +23,13 @@ Step 1 implements the authorization server only: protected resource metadata, au
 | `BASE_URL` | Yes | — | External gateway origin without trailing slash |
 | `ALLOWED_CLIENT_IDS` | Yes | — | Comma-separated allowlist of CIMD `client_id` URLs |
 | `ALLOWED_REDIRECT_URIS` | Yes | — | Comma-separated allowlist of exact `redirect_uri` values |
-| `ALLOWED_RESOURCES` | No | `${BASE_URL}/mcp` | Comma-separated allowlist of RFC 8707 `resource` URLs |
 | `AZURE_APP_CLIENT_ID` | Yes | — | Nais-injected Entra client ID |
 | `AZURE_APP_CLIENT_SECRET` | Yes | — | Nais-injected Entra client secret |
 | `AZURE_OPENID_CONFIG_TOKEN_ENDPOINT` | Yes | — | Nais-injected Entra token endpoint |
 | `AZURE_APP_WELL_KNOWN_URL` | Conditional | — | Nais-injected OpenID discovery URL (required unless `AZURE_OPENID_CONFIG_AUTHORIZATION_ENDPOINT` is set) |
 | `AZURE_OPENID_CONFIG_AUTHORIZATION_ENDPOINT` | Conditional | — | Direct override for Entra authorization endpoint |
-| `ENTRA_SCOPE` | No | `openid` | Scope requested from Entra |
-| `COOKIE_SIGNING_SECRET` | No | Random 32 bytes | HMAC key (>= 32 bytes) for `fleet_entra_state` cookie |
+| `ENTRA_SCOPE` | No | `openid api://<own client id>/.default` (plus `offline_access` for `refresh`) | Scope requested from Entra |
+| `COOKIE_SIGNING_SECRET` | No | Random 32 bytes | HMAC key (>= 32 bytes) for `__Host-fleet_entra_state` cookie |
 | `PORT` | No | `8080` | HTTP listen port |
 | `LOG_LEVEL` | No | `INFO` | `DEBUG`, `INFO`, `WARN`, or `ERROR` |
 

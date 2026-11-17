@@ -11,7 +11,7 @@ allowed_redirect_uris: "http://127.0.0.1:62471/callback"
 allowed_resources: "https://fleet-gateway.intern.dev.nav.no/mcp/test"
 pilot_routes_file: "/app/pilot-routes.dev.yaml"
 outbound_rules:
-  - application: fleet-team-0b
+  - application: fleet-echo
 ingresses:
   - https://fleet-gateway.intern.dev.nav.no
 reply_urls:

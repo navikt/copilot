@@ -7,7 +7,7 @@ import (
 	"net/url"
 )
 
-const csrfCookieName = "fleet_csrf"
+const csrfCookieName = "__Host-fleet_csrf"
 
 var consentTemplate = template.Must(template.New("consent").Parse(`<!doctype html>
 <html lang="en">
@@ -41,7 +41,7 @@ func (g *Gateway) renderConsentPage(w http.ResponseWriter, consentID string, p *
 	http.SetCookie(w, &http.Cookie{
 		Name:     csrfCookieName,
 		Value:    p.CSRF,
-		Path:     "/consent",
+		Path:     "/",
 		HttpOnly: true,
 		Secure:   true,
 		SameSite: http.SameSiteStrictMode,
@@ -102,7 +102,7 @@ func clearCSRFCookie(w http.ResponseWriter) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     csrfCookieName,
 		Value:    "",
-		Path:     "/consent",
+		Path:     "/",
 		HttpOnly: true,
 		Secure:   true,
 		SameSite: http.SameSiteStrictMode,

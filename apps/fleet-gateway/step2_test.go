@@ -461,7 +461,7 @@ func TestStrategyRefresh_Rotation_And_Concurrency(t *testing.T) {
 	if seenRTs[0] != "rt-0" || seenRTs[1] != "rt-1" {
 		t.Fatalf("expected RT rotation rt-0 -> rt-1, got %v", seenRTs)
 	}
-	wantScope := "api://dev-gcp:team-etterlevelse:nav-etterlevelse-mcp/.default"
+	wantScope := "api://dev-gcp.team-etterlevelse.nav-etterlevelse-mcp/.default"
 	if seenScopes[0] != wantScope {
 		t.Fatalf("expected scope %q, got %q", wantScope, seenScopes[0])
 	}
@@ -1059,4 +1059,10 @@ func TestProxy_SSEBounds_And_NonSSEResponseLimit(t *testing.T) {
 			t.Fatalf("expected upstream headers not copied on 502 error, got %q", rec.Header().Get("Mcp-Session-Id"))
 		}
 	})
+}
+
+func TestEntraScopeForTarget(t *testing.T) {
+	if got := entraScopeForTarget("dev-gcp:copilot:fleet-echo"); got != "api://dev-gcp.copilot.fleet-echo/.default" {
+		t.Fatalf("entraScopeForTarget = %q, want %q", got, "api://dev-gcp.copilot.fleet-echo/.default")
+	}
 }

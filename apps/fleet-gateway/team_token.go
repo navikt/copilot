@@ -192,7 +192,7 @@ func (s *StrategyRefresh) TeamToken(ctx context.Context, sessionID, resource str
 			"client_secret": {s.clientSecret},
 			"grant_type":    {"refresh_token"},
 			"refresh_token": {sess.refreshToken},
-			"scope":         {"api://" + route.Target + "/.default"},
+			"scope":         {entraScopeForTarget(route.Target)},
 		}
 
 		req, err := http.NewRequestWithContext(reqCtx, http.MethodPost, s.tokenEndpoint, strings.NewReader(form.Encode()))
@@ -271,3 +271,11 @@ var (
 	aadstsCode    = regexp.MustCompile(`AADSTS\d{4,6}`)
 	safeErrorCode = regexp.MustCompile(`^[a-z_]{1,40}$`)
 )
+
+func entraScopeForTarget(target string) string {
+	cluster, ns, app, err := parseTarget(target)
+	if err == nil {
+		return "api://" + cluster + "." + ns + "." + app + "/.default"
+	}
+	return "api://" + strings.ReplaceAll(target, ":", ".") + "/.default"
+}

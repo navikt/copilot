@@ -139,12 +139,35 @@ func (g *Gateway) loggingMiddleware(next http.Handler) http.Handler {
 		}
 		// Never log query strings, headers, tokens, codes, or verifiers.
 		slog.Info("request completed",
-			"method", r.Method,
-			"path", r.URL.Path,
+			"method", sanitizeLogValue(r.Method),
+			"path", sanitizeLogValue(r.URL.Path),
 			"status", wrapped.statusCode,
 			"duration_ms", g.now().Sub(start).Milliseconds(),
 		)
 	})
+}
+
+const maxLogErrorLen = 64
+
+func sanitizeLogValue(s string) string {
+	s = strings.ReplaceAll(s, "\n", "")
+	s = strings.ReplaceAll(s, "\r", "")
+	return s
+}
+
+func truncateLogValue(s string, maxChars int) string {
+	s = sanitizeLogValue(s)
+	if maxChars <= 0 {
+		return ""
+	}
+	count := 0
+	for i := range s {
+		if count == maxChars {
+			return s[:i]
+		}
+		count++
+	}
+	return s
 }
 
 type statusResponseWriter struct {

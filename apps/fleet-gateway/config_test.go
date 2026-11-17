@@ -394,10 +394,10 @@ func TestDevPilotRoutesFileValid(t *testing.T) {
 		t.Fatalf("expected 1 dev route, got %d", len(cfg.Routes))
 	}
 	r := cfg.Routes[0]
-	if r.Route != "/mcp/test" || r.Team != "copilot" || r.Target != "dev-gcp:copilot:fleet-team-0b" {
+	if r.Route != "/mcp/test" || r.Team != "copilot" || r.Target != "dev-gcp:copilot:fleet-echo" {
 		t.Fatalf("unexpected dev route metadata: %+v", r)
 	}
-	if r.UpstreamURL != "http://fleet-team-0b.copilot/" {
+	if r.UpstreamURL != "http://fleet-echo.copilot/" {
 		t.Fatalf("unexpected dev upstream URL: %q", r.UpstreamURL)
 	}
 }

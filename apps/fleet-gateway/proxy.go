@@ -84,11 +84,11 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 
 		defer func() {
 			slog.Info("audit mcp",
-				"navident", navIdent,
-				"client_id", clientID,
+				"navident", sanitizeLogValue(navIdent),
+				"client_id", sanitizeLogValue(clientID),
 				"route", route.Route,
-				"http_method", r.Method,
-				"method", rpcMethod,
+				"http_method", sanitizeLogValue(r.Method),
+				"method", sanitizeLogValue(rpcMethod),
 				"outcome", outcome,
 				"duration_ms", g.now().Sub(start).Milliseconds(),
 			)

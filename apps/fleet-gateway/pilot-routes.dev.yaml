@@ -2,5 +2,5 @@ version: 1
 routes:
   - route: /mcp/test
     team: copilot
-    target: dev-gcp:copilot:fleet-team-0b
-    upstream_url: http://fleet-team-0b.copilot/
+    target: dev-gcp:copilot:fleet-echo
+    upstream_url: http://fleet-echo.copilot/

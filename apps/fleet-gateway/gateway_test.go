@@ -687,7 +687,8 @@ func TestConsent_CSRF_SecurityHeaders_And_NoRememberedConsent(t *testing.T) {
 			if got := consentHeaders.Get("Content-Security-Policy"); !strings.Contains(got, "frame-ancestors 'none'") {
 				t.Fatalf("expected frame-ancestors 'none' in CSP, got %q", got)
 			}
-			if !cookie.HttpOnly || !cookie.Secure || cookie.SameSite != http.SameSiteStrictMode {
+			if cookie.Name != "__Host-fleet_csrf" || cookie.Path != "/" || cookie.Domain != "" ||
+				!cookie.HttpOnly || !cookie.Secure || cookie.SameSite != http.SameSiteStrictMode {
 				t.Fatalf("unexpected CSRF cookie attributes: %+v", cookie)
 			}
 
@@ -770,7 +771,8 @@ func TestCallback_StateCookieBinding(t *testing.T) {
 			id, csrf, csrfCookie, _ := te.startAuthorizeAndConsent(verifier)
 			entraState, stateCookie := te.approveConsent(id, csrf, csrfCookie)
 
-			if !stateCookie.HttpOnly || !stateCookie.Secure || stateCookie.SameSite != http.SameSiteLaxMode {
+			if stateCookie.Name != "__Host-fleet_entra_state" || stateCookie.Path != "/" || stateCookie.Domain != "" ||
+				!stateCookie.HttpOnly || !stateCookie.Secure || stateCookie.SameSite != http.SameSiteLaxMode {
 				t.Fatalf("unexpected state cookie attributes: %+v", stateCookie)
 			}
 
@@ -1076,4 +1078,126 @@ func TestCallback_RequiresNAVident(t *testing.T) {
 			t.Fatal("expected auth code when NAVident is present in access_token")
 		}
 	})
+}
+
+func TestHostCookies_ClearedWithPathRoot(t *testing.T) {
+	verifier := "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG"
+	te := newTestEnv(t)
+
+	id, csrf, csrfCookie, _ := te.startAuthorizeAndConsent(verifier)
+	form := url.Values{"id": {id}, "csrf": {csrf}, "decision": {"approve"}}
+	consentReq := httptest.NewRequest(http.MethodPost, "/consent", strings.NewReader(form.Encode()))
+	consentReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	consentReq.AddCookie(csrfCookie)
+	consentRec := httptest.NewRecorder()
+	te.handler.ServeHTTP(consentRec, consentReq)
+
+	var clearedCSRF, stateCookie *http.Cookie
+	for _, c := range consentRec.Result().Cookies() {
+		switch c.Name {
+		case "__Host-fleet_csrf":
+			clearedCSRF = c
+		case "__Host-fleet_entra_state":
+			stateCookie = c
+		}
+	}
+	if clearedCSRF == nil || clearedCSRF.Path != "/" || clearedCSRF.MaxAge != -1 || !clearedCSRF.Secure || !clearedCSRF.HttpOnly {
+		t.Fatalf("unexpected cleared CSRF cookie: %+v", clearedCSRF)
+	}
+	if stateCookie == nil || stateCookie.Path != "/" || stateCookie.Domain != "" || !stateCookie.Secure || !stateCookie.HttpOnly {
+		t.Fatalf("unexpected state cookie: %+v", stateCookie)
+	}
+
+	loc, _ := url.Parse(consentRec.Header().Get("Location"))
+	cbReq := httptest.NewRequest(http.MethodGet, "/oauth2/callback?code=entra-code-123&state="+url.QueryEscape(loc.Query().Get("state")), nil)
+	cbReq.AddCookie(stateCookie)
+	cbRec := httptest.NewRecorder()
+	te.handler.ServeHTTP(cbRec, cbReq)
+
+	var clearedState *http.Cookie
+	for _, c := range cbRec.Result().Cookies() {
+		if c.Name == "__Host-fleet_entra_state" {
+			clearedState = c
+		}
+	}
+	if clearedState == nil || clearedState.Path != "/" || clearedState.MaxAge != -1 || !clearedState.Secure || !clearedState.HttpOnly {
+		t.Fatalf("unexpected cleared state cookie: %+v", clearedState)
+	}
+}
+
+func TestLogInjection_SanitizedAndEntraErrorTruncated(t *testing.T) {
+	if got := sanitizeLogValue("a\nb\rc\r\nd"); got != "abcd" {
+		t.Fatalf("sanitizeLogValue=%q, want %q", got, "abcd")
+	}
+	long := strings.Repeat("x", 80) + "\n\r"
+	if got := truncateLogValue(long, maxLogErrorLen); len(got) != maxLogErrorLen || strings.ContainsAny(got, "\r\n") {
+		t.Fatalf("truncateLogValue len=%d val=%q", len(got), got)
+	}
+
+	var logBuf bytes.Buffer
+	oldLogger := slog.Default()
+	slog.SetDefault(slog.New(slog.NewJSONHandler(&logBuf, &slog.HandlerOptions{Level: slog.LevelInfo})))
+	defer slog.SetDefault(oldLogger)
+
+	te := newTestEnv(t)
+	verifier := "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG"
+
+	// 1. loggingMiddleware strips CR/LF from method and path.
+	pathReq := httptest.NewRequest(http.MethodGet, "/not-found", nil)
+	pathReq.Method = "GET\nINJECT"
+	pathReq.URL.Path = "/evil\nmsg=fake\r"
+	te.handler.ServeHTTP(httptest.NewRecorder(), pathReq)
+
+	// 2. callbackHandler sanitizes and truncates Entra error param to 64 chars.
+	id, csrf, csrfCookie, _ := te.startAuthorizeAndConsent(verifier)
+	entraState, stateCookie := te.approveConsent(id, csrf, csrfCookie)
+	injectedErr := "access\n_denied\r_" + strings.Repeat("a", 80)
+	cbReq := httptest.NewRequest(http.MethodGet, "/oauth2/callback?error="+url.QueryEscape(injectedErr)+"&state="+url.QueryEscape(entraState), nil)
+	cbReq.AddCookie(stateCookie)
+	cbRec := httptest.NewRecorder()
+	te.handler.ServeHTTP(cbRec, cbReq)
+	if cbRec.Code != http.StatusFound {
+		t.Fatalf("expected 302 redirect on entra error, got %d", cbRec.Code)
+	}
+
+	// 3. authorizeHandler sanitizes client_id on CIMD fetch failure.
+	badClientID := te.cimdServer.URL + "/missing\nfake\r"
+	te.gw.cfg.AllowedClientIDs[badClientID] = true
+	authReq := httptest.NewRequest(http.MethodGet, te.authorizeURL(map[string]string{"client_id": badClientID}, verifier), nil)
+	te.handler.ServeHTTP(httptest.NewRecorder(), authReq)
+
+	var sawRequestCompleted, sawEntraError, sawCIMDFailed bool
+	for _, line := range strings.Split(strings.TrimSpace(logBuf.String()), "\n") {
+		var entry map[string]any
+		if err := json.Unmarshal([]byte(line), &entry); err != nil {
+			t.Fatalf("expected valid single-line JSON log, got %q: %v", line, err)
+		}
+		switch entry["msg"] {
+		case "request completed":
+			if entry["path"] == "/evilmsg=fake" && entry["method"] == "GETINJECT" {
+				sawRequestCompleted = true
+			}
+		case "audit login":
+			if entry["outcome"] == "entra_error" {
+				sawEntraError = true
+				loggedErr, _ := entry["error"].(string)
+				if strings.ContainsAny(loggedErr, "\r\n") {
+					t.Fatalf("entra_error log contained CR/LF: %q", loggedErr)
+				}
+				if len(loggedErr) != maxLogErrorLen {
+					t.Fatalf("expected logged error truncated to %d chars, got %d (%q)", maxLogErrorLen, len(loggedErr), loggedErr)
+				}
+			}
+		case "CIMD fetch or validation failed":
+			sawCIMDFailed = true
+			cid, _ := entry["client_id"].(string)
+			if strings.ContainsAny(cid, "\r\n") {
+				t.Fatalf("client_id log contained CR/LF: %q", cid)
+			}
+		}
+	}
+	if !sawRequestCompleted || !sawEntraError || !sawCIMDFailed {
+		t.Fatalf("missing expected log entries (req=%v entraErr=%v cimd=%v):\n%s",
+			sawRequestCompleted, sawEntraError, sawCIMDFailed, logBuf.String())
+	}
 }

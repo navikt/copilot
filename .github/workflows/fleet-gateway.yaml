@@ -36,3 +36,15 @@ jobs:
       deploy-pr-to-dev: true
       nais-team: copilot
       nais-clusters: '["dev-gcp"]'
+
+  echo:
+    name: fleet-echo
+    uses: ./.github/workflows/mise-build-deploy-nais.yaml
+    with:
+      working-directory: apps/fleet-gateway/echo
+      mise-setup-tasks: '["install"]'
+      mise-tasks: '["lint", "check"]'
+      deploys-to-nais: true
+      deploy-pr-to-dev: true
+      nais-team: copilot
+      nais-clusters: '["dev-gcp"]'

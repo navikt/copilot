@@ -18,7 +18,7 @@ import (
 	"time"
 )
 
-const entraStateCookieName = "fleet_entra_state"
+const entraStateCookieName = "__Host-fleet_entra_state"
 
 type pendingAuth struct {
 	ClientID      string
@@ -54,7 +54,7 @@ func (g *Gateway) authorizeHandler(w http.ResponseWriter, r *http.Request) {
 
 	meta, err := g.fetchCIMD(r.Context(), clientID)
 	if err != nil {
-		slog.Warn("CIMD fetch or validation failed", "client_id", clientID, "error", err)
+		slog.Warn("CIMD fetch or validation failed", "client_id", sanitizeLogValue(clientID), "error", sanitizeLogValue(err.Error()))
 		http.Error(w, "unable to validate client metadata document", http.StatusBadRequest)
 		return
 	}
@@ -223,7 +223,7 @@ func (g *Gateway) redirectToEntra(w http.ResponseWriter, r *http.Request, p *pen
 	http.SetCookie(w, &http.Cookie{
 		Name:     entraStateCookieName,
 		Value:    g.signEntraState(entraState),
-		Path:     "/oauth2/callback",
+		Path:     "/",
 		HttpOnly: true,
 		Secure:   true,
 		SameSite: http.SameSiteLaxMode,
@@ -353,7 +353,7 @@ func (g *Gateway) callbackHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if errCode := q.Get("error"); errCode != "" {
-		slog.Info("audit login", "outcome", "entra_error", "error", errCode, "client_id", p.ClientID, "resource", p.Resource)
+		slog.Info("audit login", "outcome", "entra_error", "error", truncateLogValue(errCode, maxLogErrorLen), "client_id", sanitizeLogValue(p.ClientID), "resource", sanitizeLogValue(p.Resource))
 		back(url.Values{
 			"error":             {errCode},
 			"error_description": {sanitizeUpstreamDesc(q.Get("error_description"))},
@@ -363,7 +363,7 @@ func (g *Gateway) callbackHandler(w http.ResponseWriter, r *http.Request) {
 
 	entraCode := q.Get("code")
 	if entraCode == "" {
-		slog.Info("audit login", "outcome", "missing_code", "client_id", p.ClientID, "resource", p.Resource)
+		slog.Info("audit login", "outcome", "missing_code", "client_id", sanitizeLogValue(p.ClientID), "resource", sanitizeLogValue(p.Resource))
 		back(url.Values{
 			"error":             {"invalid_request"},
 			"error_description": {"missing authorization code from upstream"},
@@ -377,7 +377,7 @@ func (g *Gateway) callbackHandler(w http.ResponseWriter, r *http.Request) {
 	logAccessTokenShape(at)
 	if err != nil || status != http.StatusOK || (at == "" && idt == "") {
 		errType, _ := out["error"].(string)
-		slog.Warn("audit login", "outcome", "code_redeem_failed", "status", status, "error", errType, "client_id", p.ClientID, "resource", p.Resource)
+		slog.Warn("audit login", "outcome", "code_redeem_failed", "status", status, "error", sanitizeLogValue(errType), "client_id", sanitizeLogValue(p.ClientID), "resource", sanitizeLogValue(p.Resource))
 		back(url.Values{
 			"error":             {"server_error"},
 			"error_description": {safeEntraFailureMessage(out, status)},
@@ -532,7 +532,7 @@ func clearEntraStateCookie(w http.ResponseWriter) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     entraStateCookieName,
 		Value:    "",
-		Path:     "/oauth2/callback",
+		Path:     "/",
 		HttpOnly: true,
 		Secure:   true,
 		SameSite: http.SameSiteLaxMode,

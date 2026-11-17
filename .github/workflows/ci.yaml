@@ -385,6 +385,12 @@ jobs:
       - run: mise run install
       - run: mise run lint
       - run: mise run check
+      - name: Check fleet-echo
+        working-directory: apps/fleet-gateway/echo
+        run: |
+          mise run install
+          mise run lint
+          mise run check
 
   mcp-onboarding:
     name: mcp-onboarding
