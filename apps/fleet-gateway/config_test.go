@@ -26,6 +26,8 @@ func setBaseValidEnv(t *testing.T) {
 	t.Setenv("NAIS_TOKEN_EXCHANGE_ENDPOINT", "http://127.0.0.1:3000/api/v1/token/exchange")
 	t.Setenv("TEAM_TOKEN_STRATEGY", "")
 	t.Setenv("PILOT_ROUTES_FILE", "")
+	t.Setenv("SESSION_STORE", "")
+	t.Setenv("RT_STORAGE", "")
 }
 
 func TestLoadConfig_FailClosed(t *testing.T) {

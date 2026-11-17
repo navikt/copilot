@@ -79,6 +79,7 @@ type Config struct {
 	AzureTokenEndpoint      string
 	AzureAuthorizeEndpoint  string
 	CookieSecret            []byte
+	CookieVerifyKeys        [][]byte // extra keys accepted on verify only (older RT_KEYS entries)
 	HTTPClient              *http.Client
 	ProxyHeaderTimeout      time.Duration
 	SSEMaxDuration          time.Duration
@@ -125,7 +126,7 @@ func loadConfigFromEnv() (*Config, error) {
 		}
 	}
 
-	cookieSecret, err := loadCookieSecret(os.Getenv("COOKIE_SIGNING_SECRET"), os.Getenv("RT_KEYS"), os.Getenv("NAIS_CLUSTER_NAME") != "")
+	cookieKeys, err := loadCookieSecret(os.Getenv("COOKIE_SIGNING_SECRET"), os.Getenv("RT_KEYS"), os.Getenv("NAIS_CLUSTER_NAME") != "")
 	if err != nil {
 		return nil, err
 	}
@@ -173,7 +174,8 @@ func loadConfigFromEnv() (*Config, error) {
 		AzureWellKnownURL:       strings.TrimSpace(os.Getenv("AZURE_APP_WELL_KNOWN_URL")),
 		AzureTokenEndpoint:      strings.TrimSpace(os.Getenv("AZURE_OPENID_CONFIG_TOKEN_ENDPOINT")),
 		AzureAuthorizeEndpoint:  strings.TrimSpace(os.Getenv("AZURE_OPENID_CONFIG_AUTHORIZATION_ENDPOINT")),
-		CookieSecret:            cookieSecret,
+		CookieSecret:            cookieKeys[0],
+		CookieVerifyKeys:        cookieKeys[1:],
 		HTTPClient:              newHardenedHTTPClient(defaultOutboundTimeout),
 		ProxyHeaderTimeout:      defaultOutboundTimeout,
 		SSEMaxDuration:          getEnvDuration("SSE_MAX_DURATION", defaultSSEMaxDuration),
@@ -435,14 +437,24 @@ const stateCookieKeyInfo = "fleet-gateway entra-state cookie hmac v1"
 // share it, or a callback that lands on another pod (or after a deploy) fails.
 // Order: COOKIE_SIGNING_SECRET, else an HKDF subkey of the primary RT_KEYS key,
 // else a random key, which is only allowed outside Nais (local runs and tests).
-func loadCookieSecret(raw, rtKeys string, onNais bool) ([]byte, error) {
+// The first key signs. With RT_KEYS, every ring entry's subkey follows, so a
+// cookie signed by a pod on the previous primary still verifies mid-rotation.
+func loadCookieSecret(raw, rtKeys string, onNais bool) ([][]byte, error) {
 	trimmed := strings.TrimSpace(raw)
 	if trimmed == "" && strings.TrimSpace(rtKeys) != "" {
 		kr, err := parseKeyRing(rtKeys)
 		if err != nil {
 			return nil, fmt.Errorf("invalid RT_KEYS: %w", err)
 		}
-		return hkdf.Key(sha256.New, kr.entries[0].key[:], nil, stateCookieKeyInfo, 32)
+		keys := make([][]byte, 0, len(kr.entries))
+		for _, e := range kr.entries {
+			k, err := hkdf.Key(sha256.New, e.key[:], nil, stateCookieKeyInfo, 32)
+			if err != nil {
+				return nil, err
+			}
+			keys = append(keys, k)
+		}
+		return keys, nil
 	}
 	if trimmed == "" {
 		if onNais {
@@ -452,15 +464,15 @@ func loadCookieSecret(raw, rtKeys string, onNais bool) ([]byte, error) {
 		if _, err := rand.Read(secret); err != nil {
 			return nil, fmt.Errorf("generate cookie secret: %w", err)
 		}
-		return secret, nil
+		return [][]byte{secret}, nil
 	}
 	if decoded, err := base64.RawURLEncoding.DecodeString(trimmed); err == nil && len(decoded) >= 32 {
-		return decoded, nil
+		return [][]byte{decoded}, nil
 	}
 	if len(trimmed) < 32 {
 		return nil, errors.New("COOKIE_SIGNING_SECRET must be at least 32 bytes")
 	}
-	return []byte(trimmed), nil
+	return [][]byte{[]byte(trimmed)}, nil
 }
 
 func parseCSVSet(raw string) map[string]bool {

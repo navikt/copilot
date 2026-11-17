@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/rand"
 	"encoding/base64"
+	"strings"
 	"testing"
 	"time"
 )
@@ -64,5 +65,29 @@ func TestLoadCookieSecret_FailsClosedOnNais(t *testing.T) {
 	}
 	if _, err := loadCookieSecret("", "", false); err != nil {
 		t.Fatalf("local random key: %v", err)
+	}
+}
+
+// During an RT_KEYS rotation rollout, pods on the new ring (new primary first)
+// must accept cookies signed by pods still on the old primary.
+func TestEntraStateCookie_ValidatesAcrossKeyRotation(t *testing.T) {
+	oldRing, _ := testRTKeys(t)
+	newPrimary, _ := testRTKeys(t)
+	newRing := strings.Replace(newPrimary, "k1:", "k2:", 1) + "," + oldRing
+
+	oldKeys, err := loadCookieSecret("", oldRing, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	newKeys, err := loadCookieSecret("", newRing, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	gw := &Gateway{cfg: &Config{CookieSecret: newKeys[0], CookieVerifyKeys: newKeys[1:]}}
+	if !gw.verifyEntraStateCookie(signEntraStateWith(oldKeys[0], "s"), "s") {
+		t.Fatal("cookie signed with the old primary rejected after rotation")
+	}
+	if gw.verifyEntraStateCookie(signEntraStateWith(make([]byte, 32), "s"), "s") {
+		t.Fatal("cookie signed with an unknown key accepted")
 	}
 }

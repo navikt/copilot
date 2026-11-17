@@ -556,11 +556,14 @@ func (g *Gateway) postEntraToken(ctx context.Context, form url.Values) ([]byte, 
 }
 
 func (g *Gateway) signEntraState(state string) string {
-	mac := hmac.New(sha256.New, g.cfg.CookieSecret)
+	return signEntraStateWith(g.cfg.CookieSecret, state)
+}
+
+func signEntraStateWith(key []byte, state string) string {
+	mac := hmac.New(sha256.New, key)
 	mac.Write([]byte("entra-state:"))
 	mac.Write([]byte(state))
-	sig := base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
-	return state + "." + sig
+	return state + "." + base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
 }
 
 func (g *Gateway) verifyEntraStateCookie(cookieVal, queryState string) bool {
@@ -571,8 +574,13 @@ func (g *Gateway) verifyEntraStateCookie(cookieVal, queryState string) bool {
 	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
 		return false
 	}
-	expected := g.signEntraState(parts[0])
-	if subtle.ConstantTimeCompare([]byte(cookieVal), []byte(expected)) != 1 {
+	valid := false
+	for _, key := range append([][]byte{g.cfg.CookieSecret}, g.cfg.CookieVerifyKeys...) {
+		if subtle.ConstantTimeCompare([]byte(cookieVal), []byte(signEntraStateWith(key, parts[0]))) == 1 {
+			valid = true
+		}
+	}
+	if !valid {
 		return false
 	}
 	return subtle.ConstantTimeCompare([]byte(parts[0]), []byte(queryState)) == 1
