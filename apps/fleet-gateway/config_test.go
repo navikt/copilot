@@ -401,3 +401,12 @@ func TestDevPilotRoutesFileValid(t *testing.T) {
 		t.Fatalf("unexpected dev upstream URL: %q", r.UpstreamURL)
 	}
 }
+
+func TestDefaultEntraScopeTargetsGateway(t *testing.T) {
+	if got := defaultEntraScope("obo", "gw-client"); got != "openid api://gw-client/.default" {
+		t.Fatalf("obo scope %q", got)
+	}
+	if got := defaultEntraScope(strategyRefresh, "gw-client"); got != "openid offline_access api://gw-client/.default" {
+		t.Fatalf("refresh scope %q", got)
+	}
+}

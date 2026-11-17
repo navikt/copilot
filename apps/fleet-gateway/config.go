@@ -18,29 +18,29 @@ import (
 )
 
 const (
-	defaultPort              = "8080"
-	defaultPendingTTL        = 10 * time.Minute
-	defaultCodeTTL           = 60 * time.Second
-	defaultSessionMaxTTL     = 10 * time.Hour
-	defaultSessionTTL        = time.Hour
-	defaultCIMDTTL           = 5 * time.Minute
-	defaultOutboundTimeout   = 10 * time.Second
-	defaultPendingCap        = 1024
-	defaultCodeCap           = 1024
-	defaultSessionCap        = 4096
-	defaultCIMDCap           = 64
-	defaultRateLimitCap            = 4096
-	defaultRateLimitRequests       = 30
-	defaultRateLimitGlobalRequests = 300
-	defaultRateLimitWindow         = time.Minute
-	defaultSweepInterval           = 30 * time.Second
-	defaultSSEMaxDuration          = 10 * time.Minute
-	defaultSSEIdleTimeout          = 60 * time.Second
-	defaultSSEMaxBytes       int64 = 16 << 20 // 16 MiB
-	maxFormBodyBytes               = 16 * 1024
-	maxClaimsBytes                 = 4096
-	maxCIMDBodyBytes               = 64 * 1024
-	maxUpstreamBodyBytes           = 1 << 20
+	defaultPort                          = "8080"
+	defaultPendingTTL                    = 10 * time.Minute
+	defaultCodeTTL                       = 60 * time.Second
+	defaultSessionMaxTTL                 = 10 * time.Hour
+	defaultSessionTTL                    = time.Hour
+	defaultCIMDTTL                       = 5 * time.Minute
+	defaultOutboundTimeout               = 10 * time.Second
+	defaultPendingCap                    = 1024
+	defaultCodeCap                       = 1024
+	defaultSessionCap                    = 4096
+	defaultCIMDCap                       = 64
+	defaultRateLimitCap                  = 4096
+	defaultRateLimitRequests             = 30
+	defaultRateLimitGlobalRequests       = 300
+	defaultRateLimitWindow               = time.Minute
+	defaultSweepInterval                 = 30 * time.Second
+	defaultSSEMaxDuration                = 10 * time.Minute
+	defaultSSEIdleTimeout                = 60 * time.Second
+	defaultSSEMaxBytes             int64 = 16 << 20 // 16 MiB
+	maxFormBodyBytes                     = 16 * 1024
+	maxClaimsBytes                       = 4096
+	maxCIMDBodyBytes                     = 64 * 1024
+	maxUpstreamBodyBytes                 = 1 << 20
 )
 
 // TeamTokenSource acquires downstream Entra OBO tokens for team MCP servers.
@@ -50,25 +50,25 @@ type TeamTokenSource interface {
 
 // Config holds validated runtime configuration for fleet-gateway.
 type Config struct {
-	Port                   string
-	LogLevel               slog.Level
-	BaseURL                string
-	AllowedClientIDs       map[string]bool
-	AllowedRedirectURIs    map[string]bool
-	AllowedResources       map[string]bool
-	PrimaryResource        string
-	Routes                 []PilotRoute
-	RoutesByPath           map[string]PilotRoute
-	TeamTokenStrategy      string
-	TexasExchangeEndpoint  string
-	EntraScope             string
-	AzureClientID          string
-	AzureClientSecret      string
-	AzureWellKnownURL      string
-	AzureTokenEndpoint     string
-	AzureAuthorizeEndpoint string
-	CookieSecret           []byte
-	HTTPClient             *http.Client
+	Port                    string
+	LogLevel                slog.Level
+	BaseURL                 string
+	AllowedClientIDs        map[string]bool
+	AllowedRedirectURIs     map[string]bool
+	AllowedResources        map[string]bool
+	PrimaryResource         string
+	Routes                  []PilotRoute
+	RoutesByPath            map[string]PilotRoute
+	TeamTokenStrategy       string
+	TexasExchangeEndpoint   string
+	EntraScope              string
+	AzureClientID           string
+	AzureClientSecret       string
+	AzureWellKnownURL       string
+	AzureTokenEndpoint      string
+	AzureAuthorizeEndpoint  string
+	CookieSecret            []byte
+	HTTPClient              *http.Client
 	ProxyHeaderTimeout      time.Duration
 	SSEMaxDuration          time.Duration
 	SSEIdleTimeout          time.Duration
@@ -112,35 +112,38 @@ func loadConfigFromEnv() (*Config, error) {
 		return nil, err
 	}
 
-	entraScope := strings.TrimSpace(os.Getenv("ENTRA_SCOPE"))
-	if entraScope == "" {
-		entraScope = "openid"
-	}
-
 	strategy := strings.ToLower(strings.TrimSpace(os.Getenv("TEAM_TOKEN_STRATEGY")))
 	if strategy == "" {
 		strategy = strategyOBO
 	}
 
+	// The user's Entra access token must be issued to fleet-gateway itself:
+	// Texas OBO requires the assertion's aud to be the exchanging app, and
+	// strategy A redeems the refresh token, which needs offline_access.
+	entraScope := strings.TrimSpace(os.Getenv("ENTRA_SCOPE"))
+	if entraScope == "" {
+		entraScope = defaultEntraScope(strategy, strings.TrimSpace(os.Getenv("AZURE_APP_CLIENT_ID")))
+	}
+
 	cfg := &Config{
-		Port:                   getEnv("PORT", defaultPort),
-		LogLevel:               parseLogLevel(getEnv("LOG_LEVEL", "INFO")),
-		BaseURL:                baseURL,
-		AllowedClientIDs:       clientIDs,
-		AllowedRedirectURIs:    redirectURIs,
-		AllowedResources:       resources,
-		PrimaryResource:        primaryResource,
-		Routes:                 routes,
-		RoutesByPath:           routesByPath,
-		TeamTokenStrategy:      strategy,
-		TexasExchangeEndpoint:  strings.TrimSpace(os.Getenv("NAIS_TOKEN_EXCHANGE_ENDPOINT")),
-		EntraScope:             entraScope,
-		AzureClientID:          strings.TrimSpace(os.Getenv("AZURE_APP_CLIENT_ID")),
-		AzureClientSecret:      strings.TrimSpace(os.Getenv("AZURE_APP_CLIENT_SECRET")),
-		AzureWellKnownURL:      strings.TrimSpace(os.Getenv("AZURE_APP_WELL_KNOWN_URL")),
-		AzureTokenEndpoint:     strings.TrimSpace(os.Getenv("AZURE_OPENID_CONFIG_TOKEN_ENDPOINT")),
-		AzureAuthorizeEndpoint: strings.TrimSpace(os.Getenv("AZURE_OPENID_CONFIG_AUTHORIZATION_ENDPOINT")),
-		CookieSecret:           cookieSecret,
+		Port:                    getEnv("PORT", defaultPort),
+		LogLevel:                parseLogLevel(getEnv("LOG_LEVEL", "INFO")),
+		BaseURL:                 baseURL,
+		AllowedClientIDs:        clientIDs,
+		AllowedRedirectURIs:     redirectURIs,
+		AllowedResources:        resources,
+		PrimaryResource:         primaryResource,
+		Routes:                  routes,
+		RoutesByPath:            routesByPath,
+		TeamTokenStrategy:       strategy,
+		TexasExchangeEndpoint:   strings.TrimSpace(os.Getenv("NAIS_TOKEN_EXCHANGE_ENDPOINT")),
+		EntraScope:              entraScope,
+		AzureClientID:           strings.TrimSpace(os.Getenv("AZURE_APP_CLIENT_ID")),
+		AzureClientSecret:       strings.TrimSpace(os.Getenv("AZURE_APP_CLIENT_SECRET")),
+		AzureWellKnownURL:       strings.TrimSpace(os.Getenv("AZURE_APP_WELL_KNOWN_URL")),
+		AzureTokenEndpoint:      strings.TrimSpace(os.Getenv("AZURE_OPENID_CONFIG_TOKEN_ENDPOINT")),
+		AzureAuthorizeEndpoint:  strings.TrimSpace(os.Getenv("AZURE_OPENID_CONFIG_AUTHORIZATION_ENDPOINT")),
+		CookieSecret:            cookieSecret,
 		HTTPClient:              newHardenedHTTPClient(defaultOutboundTimeout),
 		ProxyHeaderTimeout:      defaultOutboundTimeout,
 		SSEMaxDuration:          getEnvDuration("SSE_MAX_DURATION", defaultSSEMaxDuration),
@@ -493,4 +496,13 @@ func (m *ttlMap[V]) sweepLocked(now time.Time) int {
 		}
 	}
 	return removed
+}
+
+// defaultEntraScope asks Entra for an access token issued to fleet-gateway
+// itself, plus offline_access when the refresh strategy needs a refresh token.
+func defaultEntraScope(strategy, clientID string) string {
+	if strategy == strategyRefresh {
+		return "openid offline_access api://" + clientID + "/.default"
+	}
+	return "openid api://" + clientID + "/.default"
 }
