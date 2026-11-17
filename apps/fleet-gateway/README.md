@@ -77,3 +77,4 @@ mise run build    # Build binary to bin/fleet-gateway
 ## References
 
 - [MCP gateway plan](../../docs/mcp-gateway-plan.md)
+- [Declarative route and policy configuration (design)](../../docs/fleet-gateway-declarative-config.md)
