@@ -313,6 +313,7 @@ export type CompareQuestion = {
   min?: number;
   max?: number;
   labels?: string[];
+  unsure?: string;
   break?: boolean;
   waves?: WaveCounts[];
   items?: CompareItem[];

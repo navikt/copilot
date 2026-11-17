@@ -48,6 +48,7 @@ type compareQuestion struct {
 	Min    int           `json:"min,omitempty"`
 	Max    int           `json:"max,omitempty"`
 	Labels []string      `json:"labels,omitempty"`
+	Unsure string        `json:"unsure,omitempty"`
 	Break  bool          `json:"break,omitempty"`
 	Waves  []waveCounts  `json:"waves,omitempty"` // scale, choice, multi
 	Items  []compareItem `json:"items,omitempty"` // matrix
@@ -136,7 +137,7 @@ func compareWavesResult(waves []survey, rows [][]storedAnswer, now time.Time) co
 		if q.Type == "text" {
 			continue
 		}
-		cq := compareQuestion{ID: q.ID, Type: q.Type, Text: q.Text, Min: q.Min, Max: q.Max, Labels: q.Labels}
+		cq := compareQuestion{ID: q.ID, Type: q.Type, Text: q.Text, Min: q.Min, Max: q.Max, Labels: q.Labels, Unsure: q.Unsure}
 		if q.Type == "matrix" {
 			for _, it := range q.Items {
 				item := q

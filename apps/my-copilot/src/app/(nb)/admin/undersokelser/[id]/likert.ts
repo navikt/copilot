@@ -32,9 +32,12 @@ export function unsureLabel(versions: VersionResult[]): string | undefined {
   return versions.flatMap((v) => v.options ?? []).find((o) => !isStep(o.value) && (o.count ?? 0) > 0)?.value;
 }
 
-/** n as shown: answers on the scale, then «· k vet ikke» when any; "–" when hidden. */
-export function nText(v: VersionResult, fmt: (x: number) => string): string {
+/**
+ * n as shown: for a scale or matrix with an unsure label, answers on the scale, then «· k vet ikke»;
+ * any other question, n as is. "–" when hidden.
+ */
+export function nText(v: VersionResult, fmt: (x: number) => string, unsure?: string): string {
   if (v.n === null) return "–";
-  const unsure = (v.options ?? []).filter((o) => !isStep(o.value)).reduce((a, o) => a + (o.count ?? 0), 0);
-  return unsure ? `${fmt(v.n - unsure)} · ${fmt(unsure)} vet ikke` : fmt(v.n);
+  const k = unsure ? (v.options?.find((o) => o.value === unsure)?.count ?? 0) : 0;
+  return k ? `${fmt(v.n - k)} · ${fmt(k)} vet ikke` : fmt(v.n);
 }
