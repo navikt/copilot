@@ -40,6 +40,9 @@ func (g *Gateway) asMetadataHandler(w http.ResponseWriter, _ *http.Request) {
 		"client_id_metadata_document_supported":          true,
 		"authorization_response_iss_parameter_supported": true,
 	}
+	if g.cfg.DCREnabled {
+		meta["registration_endpoint"] = g.cfg.BaseURL + "/register"
+	}
 	if g.cfg.RTStorage == rtStorageClientEncrypted {
 		meta["grant_types_supported"] = []string{"authorization_code", "refresh_token"}
 		meta["revocation_endpoint"] = g.cfg.BaseURL + "/revoke"

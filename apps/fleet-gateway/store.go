@@ -18,6 +18,7 @@ const (
 	kindConsent            = "consent" // remembered consent per (NAVident, client_id, resource)
 	kindMCPSession         = "mcp_session"
 	kindMCPSessionUser     = "mcp_session_user" // per-user count of mcp_session bindings
+	kindDCRClient          = "dcr_client"
 )
 
 var errStoreFull = errors.New("store capacity reached")

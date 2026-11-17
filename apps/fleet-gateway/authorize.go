@@ -26,6 +26,7 @@ const entraStateCookieName = "__Host-fleet_entra_state"
 type pendingAuth struct {
 	ClientID      string    `json:"client_id"`
 	ClientName    string    `json:"client_name"`
+	Unverified    bool      `json:"unverified,omitempty"`
 	RedirectURI   string    `json:"redirect_uri"`
 	State         string    `json:"state"`
 	Challenge     string    `json:"challenge"`
@@ -53,23 +54,38 @@ type clientMetadata struct {
 func (g *Gateway) authorizeHandler(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	clientID := q.Get("client_id")
-	if !g.cfg.AllowedClientIDs[clientID] {
-		http.Error(w, "unknown client_id: client is not allowlisted", http.StatusBadRequest)
-		return
-	}
-
-	meta, err := g.fetchCIMD(r.Context(), clientID)
-	if err != nil {
-		slog.Warn("CIMD fetch or validation failed", "client_id", sanitizeLogValue(clientID), "error", sanitizeLogValue(err.Error()))
-		http.Error(w, "unable to validate client metadata document", http.StatusBadRequest)
-		return
-	}
-
 	redirectURI := q.Get("redirect_uri")
+	var meta *clientMetadata
+	unverified := false
+	if g.cfg.AllowedClientIDs[clientID] {
+		m, err := g.fetchCIMD(r.Context(), clientID)
+		if err != nil {
+			slog.Warn("CIMD fetch or validation failed", "client_id", sanitizeLogValue(clientID), "error", sanitizeLogValue(err.Error()))
+			http.Error(w, "unable to validate client metadata document", http.StatusBadRequest)
+			return
+		}
+		if !g.redirectURIAllowlisted(redirectURI) {
+			http.Error(w, "redirect_uri does not match allowlisted client metadata", http.StatusBadRequest)
+			return
+		}
+		meta = m
+	} else {
+		m, ok, err := g.registeredClient(r.Context(), clientID)
+		if err != nil {
+			slog.Warn("load registered client failed", "error", err)
+			http.Error(w, "session store unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		if !ok {
+			http.Error(w, "unknown client_id: client is not allowlisted or registered", http.StatusBadRequest)
+			return
+		}
+		meta, unverified = m, true
+	}
+
 	if redirectURI == "" ||
-		!slices.ContainsFunc(meta.RedirectURIs, func(reg string) bool { return redirectURIMatches(reg, redirectURI) }) ||
-		!g.redirectURIAllowlisted(redirectURI) {
-		http.Error(w, "redirect_uri does not match allowlisted client metadata", http.StatusBadRequest)
+		!slices.ContainsFunc(meta.RedirectURIs, func(reg string) bool { return redirectURIMatches(reg, redirectURI) }) {
+		http.Error(w, "redirect_uri does not match client metadata", http.StatusBadRequest)
 		return
 	}
 	parsedRedirect, err := url.Parse(redirectURI)
@@ -115,6 +131,7 @@ func (g *Gateway) authorizeHandler(w http.ResponseWriter, r *http.Request) {
 		g.redirectToEntra(w, r, &pendingAuth{
 			ClientID:    clientID,
 			ClientName:  meta.ClientName,
+			Unverified:  unverified,
 			RedirectURI: redirectURI,
 			State:       state,
 			Challenge:   challenge,
