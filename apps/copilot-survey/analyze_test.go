@@ -67,6 +67,8 @@ func TestAnalyzeMatchesOnline(t *testing.T) {
 		rows = append(rows, r)
 	}
 	rows = append(rows, row(`{}`, `{}`))
+	// «Vet ikke» on a scale survives as the label, not a number.
+	rows = append(rows, row(`{"overall":2,"client":"copilot","fast":"Vet ikke","safe":4}`, `{"overall":1,"client":1,"fast":2,"safe":1}`))
 	// Values the export must not lose or alter: a pick no longer an option,
 	// and a choice that starts with an apostrophe.
 	for range 2 {

@@ -92,10 +92,13 @@ func readExportCSV(s survey, r io.Reader) ([]storedAnswer, error) {
 			}
 			return nil
 		}
-		number := func(key, name string, def int) error {
+		number := func(key, name string, def int, unsure string) error {
 			cell := rec[col[name]]
 			if cell == "" {
 				return nil
+			}
+			if unsure != "" && unformula(cell) == unsure {
+				return put(key, name, def, unsure)
 			}
 			f, perr := strconv.ParseFloat(cell, 64)
 			if perr != nil {
@@ -107,14 +110,14 @@ func readExportCSV(s survey, r io.Reader) ([]storedAnswer, error) {
 			switch q.Type {
 			case "matrix":
 				for _, it := range q.Items {
-					err = number(it.ID, q.ID+"."+it.ID, it.Version)
+					err = number(it.ID, q.ID+"."+it.ID, it.Version, q.Unsure)
 					if err != nil {
 						return nil, err
 					}
 				}
 				continue
 			case "scale":
-				err = number(q.ID, q.ID, q.Version)
+				err = number(q.ID, q.ID, q.Version, q.Unsure)
 			case "multi":
 				picked, answered := []any{}, false
 				for _, o := range multiOptions(q, head) {

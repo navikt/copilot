@@ -7,13 +7,15 @@ export function likert(v: VersionResult, min: number, max: number) {
   const n = v.n ?? 0;
   const segments: Segment[] = [];
   let sum = 0;
+  let counted = 0; // steps only: an unsure answer («Vet ikke») is in n but not in the mean
   let hidden = false; // legacy payload: an explicit null count makes the mean unknowable
   for (let value = min; value <= max; value++) {
     const o = v.options?.find((x) => Number(x.value) === value);
     if (o && o.count == null) hidden = true;
     const count = o?.count ?? 0;
     sum += value * count;
+    counted += count;
     segments.push({ value, count, share: n ? count / n : 0 });
   }
-  return { segments, mean: n && !hidden ? sum / n : null };
+  return { segments, mean: counted && !hidden ? sum / counted : null };
 }

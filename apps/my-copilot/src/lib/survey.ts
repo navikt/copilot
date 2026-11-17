@@ -17,6 +17,8 @@ export type SurveyQuestion = {
   min?: number;
   max?: number;
   labels?: string[];
+  /** scale, matrix: one more answer after the steps («Vet ikke»), sent as this label. */
+  unsure?: string;
   options?: string[];
   max_choices?: number;
   exclusive?: string;

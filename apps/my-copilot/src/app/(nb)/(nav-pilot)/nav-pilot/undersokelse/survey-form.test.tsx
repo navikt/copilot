@@ -64,6 +64,18 @@ describe("SurveyForm matrix", () => {
     expect(sendSurvey).toHaveBeenCalledWith("s", { fast: 3, safe: 1 });
   });
 
+  it("offers «Vet ikke» last in each row, sends it as the label and counts it as answered", async () => {
+    sendSurvey.mockReset().mockResolvedValue({ status: "recorded" });
+    const withUnsure: Survey = { ...survey, questions: [{ ...survey.questions[0], unsure: "Vet ikke" }] };
+    render(<SurveyForm survey={withUnsure} />);
+    expect(screen.getAllByRole("radio")).toHaveLength(8);
+    fireEvent.click(pick("Den er rask.", "Vet ikke"));
+    fireEvent.click(pick("Den er trygg.", "Enig"));
+    fireEvent.click(screen.getByRole("button", { name: "Send svar" }));
+    expect(await screen.findByText("Takk! Svaret ditt er sendt.")).toBeInTheDocument();
+    expect(sendSurvey).toHaveBeenCalledWith("s", { fast: "Vet ikke", safe: 3 });
+  });
+
   it("groups each row's radios under one name, so arrow keys move within the row", () => {
     render(<SurveyForm survey={survey} />);
     // jsdom has no native arrow-key radio handling; the browser does it for radios sharing a name.
