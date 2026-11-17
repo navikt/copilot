@@ -75,9 +75,6 @@ spec:
       {{#if outbound_rules}}
       {{#each outbound_rules as |rule|}}
         - application: {{rule.application}}
-        {{#if rule.namespace}}
-          namespace: {{rule.namespace}}
-        {{/if}}
       {{/each}}
       {{else}}
         []
