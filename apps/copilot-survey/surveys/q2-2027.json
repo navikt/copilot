@@ -129,49 +129,50 @@
       "items": [
         {
           "id": "tilfredshet",
-          "version": 1,
+          "version": 2,
           "construct": "space-satisfaction",
           "text": "Alt i alt er jeg fornøyd med KI-kodeverktøyene vi har tilgang til i Nav."
         },
         {
           "id": "kognitiv-belastning",
-          "version": 1,
+          "version": 2,
           "construct": "cognitive-load",
           "text": "KI-kodeverktøy reduserer mental innsats på repetitive oppgaver og boilerplate, slik at jeg kan fokusere på vanskeligere problemer."
         },
         {
           "id": "oppgavegjennomforing",
-          "version": 1,
+          "version": 2,
           "construct": "task-completion",
           "text": "KI-kodeverktøy hjelper meg å komme videre når jeg står fast, og fullføre oppgaver raskere enn uten."
         },
         {
           "id": "code-review",
-          "version": 1,
+          "version": 2,
           "construct": "code-review",
           "text": "Kode jeg lager med KI-hjelp holder god nok kvalitet til at den ikke skaper ekstra arbeid i code review."
         },
         {
           "id": "teknisk-kompetanse",
-          "version": 1,
+          "version": 2,
           "construct": "technical-skill",
           "reverse": true,
           "text": "Jeg er bekymra for at KI-verktøy kan svekke min egen dype forståelse av koden og teknologiene jeg jobber med."
         },
         {
           "id": "agent-tillit",
-          "version": 1,
+          "version": 2,
           "construct": "agent-trust",
           "text": "Jeg stoler på at en KI-agent løser oppgaver i flere steg i kodebasen vår uten at jeg følger med på hvert steg."
         },
         {
           "id": "kostnad-tilbakeholdenhet",
-          "version": 1,
+          "version": 2,
           "construct": "cost-restraint",
           "reverse": true,
           "text": "Jeg bruker KI-verktøyene mindre fordi jeg er usikker på hva de koster."
         }
-      ]
+      ],
+      "unsure": "Vet ikke / ikke relevant"
     },
     {
       "id": "pastander-alle",
@@ -191,13 +192,13 @@
       "items": [
         {
           "id": "eierskap",
-          "version": 1,
+          "version": 2,
           "construct": "ownership",
           "text": "Jeg er trygg på å ta fullt ansvar for kode som er generert eller vesentlig hjulpet av KI."
         },
         {
           "id": "juss-og-sikkerhet",
-          "version": 1,
+          "version": 2,
           "construct": "legal-security",
           "reverse": true,
           "text": "Usikkerhet rundt personvern eller interne sikkerhetsregler hindrer meg i å bruke KI-kodeverktøy fullt ut i det daglige arbeidet."
@@ -206,7 +207,8 @@
       "skip_if": {
         "question": "frekvens",
         "answer": "Ikke i det hele tatt"
-      }
+      },
+      "unsure": "Vet ikke / ikke relevant"
     },
     {
       "id": "en-endring",
