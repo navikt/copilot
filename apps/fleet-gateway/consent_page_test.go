@@ -26,7 +26,7 @@ func TestConsentPage_ContentAndCSP(t *testing.T) {
 		`<link rel="stylesheet" href="/static/consent.css">`,
 		"<h1>Vil du gi ",
 		"på dine vegne, med Nav-identiteten din",
-		"huskes i 30 dager",
+		"Gir du tilgang, huskes valget i 30 dager",
 		"logger ut og trekker tilbake tilgangen",
 		"<details>", "<summary>Vis tekniske detaljer</summary>",
 		"<code>" + te.clientID + "</code>",

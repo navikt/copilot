@@ -90,7 +90,7 @@ func TestDCR_RegisterAndAuthorize(t *testing.T) {
 	resp := login(clientID)
 	page, _ := io.ReadAll(resp.Body)
 	_ = resp.Body.Close()
-	if resp.StatusCode != http.StatusOK || !strings.Contains(string(page), "uverifisert klient") || !strings.Contains(string(page), "OpenCode") {
+	if resp.StatusCode != http.StatusOK || !strings.Contains(string(page), "uverifisert verktøy") || !strings.Contains(string(page), "OpenCode") {
 		t.Fatalf("expected unverified consent page, got %d: %s", resp.StatusCode, page)
 	}
 	resp.Body = io.NopCloser(strings.NewReader(string(page)))
