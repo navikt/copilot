@@ -273,7 +273,15 @@ type failingStore struct {
 	failPop        error
 	failDelete     error
 	failRevokeOnce error
+	failRevoke     error
 	failPing       error
+}
+
+func (f *failingStore) Revoke(ctx context.Context, jti string, expiresAt time.Time) error {
+	if f.failRevoke != nil {
+		return f.failRevoke
+	}
+	return f.SessionStore.Revoke(ctx, jti, expiresAt)
 }
 
 func (f *failingStore) Put(ctx context.Context, kind, key string, val []byte, ttl time.Duration) error {

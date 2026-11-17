@@ -98,6 +98,72 @@ func (g *Gateway) openRefreshToken(token string) (*rtPayload, error) {
 	return &p, nil
 }
 
+// refreshGrace is the pair issued for a rotated RT. It is kept, sealed, for
+// RefreshGraceWindow so a lost response or a second terminal can replay the old
+// RT and get the same pair (OAuth 2.0 Security BCP 4.14.2).
+type refreshGrace struct {
+	AccessToken  string    `json:"access_token"`  //nolint:gosec // sealed in SessionStore for the grace window only
+	RefreshToken string    `json:"refresh_token"` //nolint:gosec // sealed in SessionStore for the grace window only
+	NewJTI       string    `json:"new_jti"`
+	Expiry       time.Time `json:"expiry"`
+}
+
+// graceResponse returns the pair already issued for jti, while the grace window
+// lasts and the new RT is still unused. Only the immediately previous RT
+// qualifies: once the new RT has been rotated too, replaying the old one is reuse.
+//
+// The checks run after the pair is read, so a /revoke (which revokes the family)
+// landing before this returns is seen. The old jti must be burned: the winner
+// stores the pair before burning, and a pair whose burn failed must never be
+// served, or the old RT and the new pair would be two live branches.
+func (g *Gateway) graceResponse(ctx context.Context, jti, fid string) (map[string]any, bool, error) {
+	raw, ok, err := g.store.Get(ctx, kindRefreshGrace, jti)
+	if err != nil || !ok {
+		return nil, false, err
+	}
+	var gr refreshGrace
+	if err = json.Unmarshal(raw, &gr); err != nil {
+		return nil, false, err
+	}
+	for _, k := range []string{"fam:" + fid, gr.NewJTI} {
+		gone, rerr := g.store.IsRevoked(ctx, k)
+		if rerr != nil || gone {
+			return nil, false, rerr
+		}
+	}
+	burned, err := g.store.IsRevoked(ctx, jti)
+	if err != nil || !burned {
+		return nil, false, err
+	}
+	ttl := gr.Expiry.Sub(g.now())
+	if ttl <= 0 {
+		return nil, false, nil
+	}
+	return map[string]any{
+		"access_token":  gr.AccessToken,
+		"token_type":    "Bearer",
+		"expires_in":    int(ttl.Seconds()),
+		"refresh_token": gr.RefreshToken,
+	}, true, nil
+}
+
+// awaitGrace polls for the pair a concurrent refresh of the same RT is about to
+// issue, for at most g.refreshWait.
+func (g *Gateway) awaitGrace(ctx context.Context, jti, fid string) (map[string]any, bool, error) {
+	deadline := time.Now().Add(g.refreshWait)
+	for {
+		resp, ok, err := g.graceResponse(ctx, jti, fid)
+		if err != nil || ok || !time.Now().Before(deadline) {
+			return resp, ok, err
+		}
+		select {
+		case <-ctx.Done():
+			return nil, false, ctx.Err()
+		case <-time.After(50 * time.Millisecond):
+		}
+	}
+}
+
 func randomJTI() (string, error) {
 	buf := make([]byte, 16)
 	if _, err := rand.Read(buf); err != nil {
@@ -344,6 +410,17 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 		return
 	}
 	if used {
+		// Inside the grace window the immediately previous RT gets the same pair again.
+		resp, ok, gerr := g.graceResponse(r.Context(), payload.JTI, payload.FID)
+		if gerr != nil {
+			unavailable(gerr)
+			return
+		}
+		if ok {
+			outcome = "grace_replay"
+			writeJSON(w, http.StatusOK, resp)
+			return
+		}
 		// Replay: someone holds an already-rotated RT. Kill the family so a thief
 		// who refreshed first loses the newest RT too.
 		if err = g.store.Revoke(r.Context(), famKey, absExpiry); err != nil {
@@ -370,10 +447,22 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 		return
 	}
 	if !won {
+		// A concurrent refresh of the same RT: wait briefly for its pair.
+		resp, ok, gerr := g.awaitGrace(r.Context(), payload.JTI, payload.FID)
+		if gerr != nil {
+			unavailable(gerr)
+			return
+		}
+		if ok {
+			outcome = "grace_concurrent"
+			writeJSON(w, http.StatusOK, resp)
+			return
+		}
 		// A legit client may be retrying after a transient upstream error; do not
-		// make it drop its RT. Retry-After is an upper bound: the claim's start is unknown.
+		// make it drop its RT. Retry-After stays inside the grace window so a retry
+		// after a slow but successful refresh still gets the pair.
 		outcome = "refresh_in_flight"
-		retry := min(refreshPendingTTL, absExpiry.Sub(g.now()))
+		retry := min(refreshPendingTTL, absExpiry.Sub(g.now()), g.cfg.RefreshGraceWindow/2)
 		w.Header().Set("Retry-After", strconv.Itoa(max(1, int(retry.Seconds()))))
 		bad(http.StatusServiceUnavailable, "temporarily_unavailable", "refresh in progress, retry later")
 		return
@@ -402,17 +491,20 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 			}
 		}
 	}
-	if err = g.store.Revoke(r.Context(), payload.JTI, absExpiry); err != nil {
-		unavailable(err)
-		return
-	}
 	if status != http.StatusOK {
+		if err = g.store.Revoke(r.Context(), payload.JTI, absExpiry); err != nil {
+			unavailable(err)
+			return
+		}
 		outcome = "upstream_error"
 		errCode, aadsts := safeUpstreamErrorDetails(body)
 		slog.Warn("upstream refresh failed", "status", status, "error_code", errCode, "aadsts", aadsts)
 		bad(http.StatusBadRequest, "invalid_grant", "upstream refresh failed")
 		return
 	}
+	// From here the old jti is burned only after the grace pair is stored, so a
+	// replay never sees it used without a pair. A failure before that leaves the
+	// RT blocked by the pending claim only, as after a transient upstream error.
 	newAT, _ := out["access_token"].(string)
 	if newAT == "" {
 		outcome = "upstream_error"
@@ -483,7 +575,7 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 		IssuedAt:     issuedAt,
 		Expiry:       sessExpiry,
 	}
-	if err := g.putSession(r.Context(), hashToken(accessToken), newSess, ttl); err != nil {
+	if err = g.putSession(r.Context(), hashToken(accessToken), newSess, ttl); err != nil {
 		outcome = "store_error"
 		if errors.Is(err, errStoreFull) {
 			bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store capacity reached")
@@ -491,6 +583,20 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 		}
 		slog.Warn("store refreshed session failed", "error", err)
 		bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store unavailable")
+		return
+	}
+	// Store the pair, then burn the old jti. graceResponse serves the pair only
+	// once the jti is burned, so a failed or crashed burn leaves the pair unused
+	// and concurrent users get 503 Retry-After, never a second live branch.
+	// A lost grace pair only costs the grace window, so a write failure is not fatal.
+	graceTTL := min(g.cfg.RefreshGraceWindow, absExpiry.Sub(now))
+	if raw, merr := json.Marshal(refreshGrace{AccessToken: accessToken, RefreshToken: newRT, NewJTI: newJTI, Expiry: sessExpiry}); merr != nil {
+		slog.Warn("marshal refresh grace failed", "error", merr)
+	} else if perr := g.store.Put(r.Context(), kindRefreshGrace, payload.JTI, raw, graceTTL); perr != nil {
+		slog.Warn("store refresh grace failed", "error", perr)
+	}
+	if err = g.store.Revoke(r.Context(), payload.JTI, absExpiry); err != nil {
+		unavailable(err)
 		return
 	}
 
@@ -583,6 +689,18 @@ func (g *Gateway) revokeHandler(w http.ResponseWriter, r *http.Request) {
 			expiresAt := time.Unix(payload.EXP, 0).UTC()
 			if _, err := g.store.RevokeOnce(r.Context(), payload.JTI, expiresAt); err != nil {
 				slog.Warn("revoke refresh token failed", "error", err)
+				bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store unavailable")
+				return
+			}
+			// Revoke the family too (RFC 7009 2.1), so a grace pair already read
+			// by a concurrent replay fails its family recheck.
+			if err := g.store.Revoke(r.Context(), "fam:"+payload.FID, expiresAt); err != nil {
+				slog.Warn("revoke refresh family failed", "error", err)
+				bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store unavailable")
+				return
+			}
+			if err := g.store.Delete(r.Context(), kindRefreshGrace, payload.JTI); err != nil {
+				slog.Warn("revoke refresh grace failed", "error", err)
 				bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store unavailable")
 				return
 			}

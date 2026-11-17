@@ -24,6 +24,7 @@ const (
 	defaultPendingTTL                       = 10 * time.Minute
 	defaultCodeTTL                          = 60 * time.Second
 	defaultSessionMaxAge                    = 12 * time.Hour
+	defaultRefreshGraceWindow               = 30 * time.Second
 	defaultConsentTTL                       = 30 * 24 * time.Hour
 	defaultSessionTTL                       = time.Hour
 	defaultCIMDTTL                          = 5 * time.Minute
@@ -112,6 +113,7 @@ type Config struct {
 	SessionStore            string
 	DatabaseURL             string
 	SessionMaxAge           time.Duration
+	RefreshGraceWindow      time.Duration
 	ConsentTTL              time.Duration
 	RTKeys                  string
 	RTStorage               string
@@ -219,6 +221,7 @@ func loadConfigFromEnv() (*Config, error) {
 		SessionStore:            strings.ToLower(getEnv("SESSION_STORE", "memory")),
 		DatabaseURL:             strings.TrimSpace(os.Getenv("DATABASE_URL")),
 		SessionMaxAge:           getEnvDuration("SESSION_MAX_AGE", defaultSessionMaxAge),
+		RefreshGraceWindow:      getEnvDuration("REFRESH_GRACE_WINDOW", defaultRefreshGraceWindow),
 		ConsentTTL:              getEnvDuration("CONSENT_TTL", defaultConsentTTL),
 		RTKeys:                  rtKeys,
 		RTStorage:               rtStorage,
@@ -385,6 +388,9 @@ func validateConfig(cfg *Config) error {
 	}
 	if cfg.SessionMaxAge <= 0 {
 		cfg.SessionMaxAge = defaultSessionMaxAge
+	}
+	if cfg.RefreshGraceWindow <= 0 {
+		cfg.RefreshGraceWindow = defaultRefreshGraceWindow
 	}
 	if cfg.ConsentTTL <= 0 {
 		cfg.ConsentTTL = defaultConsentTTL

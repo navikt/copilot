@@ -26,6 +26,7 @@ type Gateway struct {
 	cimdCache   *ttlMap[*clientMetadata]
 	limiter     *ipRateLimiter
 	proxyClient *http.Client
+	refreshWait time.Duration // how long a concurrent refresh waits for the winner's grace pair
 
 	wellKnownMu         sync.RWMutex
 	wellKnownGroup      singleflight.Group
@@ -71,6 +72,7 @@ func newGateway(cfg *Config, now func() time.Time) (*Gateway, error) {
 		cimdCache:   newTTLMap[*clientMetadata](cfg.CIMDCap, now),
 		limiter:     newIPRateLimiter(cfg.RateLimitRequests, cfg.RateLimitGlobalRequests, cfg.RateLimitWindow, cfg.RateLimitCap, now),
 		proxyClient: newHardenedProxyClient(cfg.ProxyHeaderTimeout),
+		refreshWait: 5 * time.Second,
 		TeamTokens:  teamTokens,
 	}, nil
 }
