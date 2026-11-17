@@ -193,6 +193,7 @@ Owner decisions after the design review of 2026-11-17:
 2. **Both cplt paths are built:** native OAuth in the client and the cplt broker.
 3. **DCR is on in prod while the ingress is naisdevice-only.** Before prod it needs TTL renewal on use and a cap sized from users × routes × clients ([#2261](https://github.com/navikt/copilot/issues/2261)).
 4. **Teams authorize, the gateway authenticates.** The gateway logs in the user, binds the token to the route and writes the tool name to the audit log. Each team MCP decides what the user may do. `required_group` is removed for the pilot, and group restriction per route ([#2209](https://github.com/navikt/copilot/issues/2209)) is deferred.
+5. **Accepted risk: silent login by a local process.** Consent is remembered for 30 days and loopback redirect URIs accept any port. Another process on the developer's machine can therefore start a login as an allowlisted public client and get a token without a click, through browser SSO and the remembered consent. PKCE does not help, because the attacker starts the flow. This is the same threat model as public-client logins in the az and gh CLIs. Mitigations: tokens are scoped to fleet-gateway, sessions are capped at 12 hours, and tokens can be revoked.
 
 ### 2026-11-17: direct MCP clients are a primary path
 
