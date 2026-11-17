@@ -211,6 +211,17 @@ func (g *Gateway) handleAuthorizationCodeGrant(w http.ResponseWriter, r *http.Re
 		return
 	}
 
+	// Look the client up before the code is consumed: a store error here answers
+	// 503 Retry-After and the retry still finds the code. The client_id is
+	// checked against the code below.
+	_, mayRefresh, err := g.clientGrants(r.Context(), r.PostFormValue("client_id"))
+	if err != nil {
+		slog.Warn("load registered client failed", "error", err)
+		w.Header().Set("Retry-After", "5")
+		bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store unavailable")
+		return
+	}
+
 	// Single-use: Pop deletes the code even if subsequent binding checks fail.
 	issued, ok, err := g.popCode(r.Context(), code)
 	if err != nil {
@@ -265,13 +276,6 @@ func (g *Gateway) handleAuthorizationCodeGrant(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	_, mayRefresh, err := g.clientGrants(r.Context(), issued.Session.ClientID)
-	if err != nil {
-		slog.Warn("load registered client failed", "error", err)
-		w.Header().Set("Retry-After", "5")
-		bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store unavailable")
-		return
-	}
 	refreshToken := ""
 	if g.cfg.RTStorage == rtStorageClientEncrypted && issued.EntraRT != "" && mayRefresh {
 		issued.Session.RefreshToken = ""

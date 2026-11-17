@@ -419,4 +419,16 @@ func TestDCR_StoreErrorIsTemporary(t *testing.T) {
 	}
 	check("refresh", url.Values{"grant_type": {"refresh_token"}, "client_id": {id}, "refresh_token": {"opaque"}})
 	check("code", url.Values{"grant_type": {"authorization_code"}, "code": {code}, "client_id": {id}, "redirect_uri": {te.redirectURI}, "resource": {te.resource}, "code_verifier": {verifier}})
+
+	// The 503 must not have consumed the code: the retry the client was invited to make succeeds.
+	te.gw.store = te.gw.store.(*failingStore).SessionStore
+	te.handler = te.gw.routes()
+	form := url.Values{"grant_type": {"authorization_code"}, "code": {code}, "client_id": {id}, "redirect_uri": {te.redirectURI}, "resource": {te.resource}, "code_verifier": {verifier}}
+	req := httptest.NewRequest(http.MethodPost, "/token", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+	te.handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("code retry after store recovery: got %d %s, want 200", rec.Code, rec.Body.String())
+	}
 }
