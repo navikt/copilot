@@ -77,7 +77,7 @@ func (g *Gateway) authorizeHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if !ok {
-			http.Error(w, "unknown client_id: client is not allowlisted or registered", http.StatusBadRequest)
+			renderErrorPage(w, http.StatusBadRequest, "Verktøyet har ikke tilgang", "Verktøyet du logget inn fra er ikke godkjent for denne gatewayen, eller registreringen er utløpt.", "Start innloggingen på nytt fra verktøyet. Hvis feilen gjentar seg, kontakt teamet som drifter gatewayen.")
 			return
 		}
 		if !slices.Contains(m.GrantTypes, "authorization_code") {
