@@ -25,7 +25,11 @@ describe("GET /api/admin/surveys/compare/export", () => {
     vi.mocked(isAdmin).mockReturnValue(true);
     vi.mocked(fetchSurveyCompareExport).mockResolvedValue(
       new Response("kind\n", {
-        headers: { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": "attachment", "Set-Cookie": "x=y" },
+        headers: {
+          "Content-Type": "text/csv; charset=utf-8",
+          "Content-Disposition": "attachment",
+          "Set-Cookie": "x=y",
+        },
       })
     );
     const res = await call();
