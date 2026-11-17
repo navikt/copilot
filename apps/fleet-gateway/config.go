@@ -18,29 +18,35 @@ import (
 )
 
 const (
-	defaultPort                          = "8080"
-	defaultPendingTTL                    = 10 * time.Minute
-	defaultCodeTTL                       = 60 * time.Second
-	defaultSessionMaxAge                 = 12 * time.Hour
-	defaultSessionTTL                    = time.Hour
-	defaultCIMDTTL                       = 5 * time.Minute
-	defaultOutboundTimeout               = 10 * time.Second
-	defaultPendingCap                    = 1024
-	defaultCodeCap                       = 1024
-	defaultSessionCap                    = 4096
-	defaultCIMDCap                       = 64
-	defaultRateLimitCap                  = 4096
-	defaultRateLimitRequests             = 30
-	defaultRateLimitGlobalRequests       = 300
-	defaultRateLimitWindow               = time.Minute
-	defaultSweepInterval                 = 30 * time.Second
-	defaultSSEMaxDuration                = 10 * time.Minute
-	defaultSSEIdleTimeout                = 60 * time.Second
-	defaultSSEMaxBytes             int64 = 16 << 20 // 16 MiB
-	maxFormBodyBytes                     = 20 * 1024
-	maxClaimsBytes                       = 4096
-	maxCIMDBodyBytes                     = 64 * 1024
-	maxUpstreamBodyBytes                 = 1 << 20
+	defaultPort                             = "8080"
+	defaultPendingTTL                       = 10 * time.Minute
+	defaultCodeTTL                          = 60 * time.Second
+	defaultSessionMaxAge                    = 12 * time.Hour
+	defaultSessionTTL                       = time.Hour
+	defaultCIMDTTL                          = 5 * time.Minute
+	defaultOutboundTimeout                  = 10 * time.Second
+	defaultPendingCap                       = 1024
+	defaultCodeCap                          = 1024
+	defaultSessionCap                       = 4096
+	defaultCIMDCap                          = 64
+	defaultDCRClientTTL                     = 30 * 24 * time.Hour
+	defaultDCRClientCap                     = 500
+	defaultDCRRateLimitRequests             = 10
+	defaultDCRRateLimitGlobalRequests       = 100
+	defaultDCRRateLimitWindow               = time.Hour
+	maxDCRBodyBytes                         = 16 * 1024
+	defaultRateLimitCap                     = 4096
+	defaultRateLimitRequests                = 30
+	defaultRateLimitGlobalRequests          = 300
+	defaultRateLimitWindow                  = time.Minute
+	defaultSweepInterval                    = 30 * time.Second
+	defaultSSEMaxDuration                   = 10 * time.Minute
+	defaultSSEIdleTimeout                   = 60 * time.Second
+	defaultSSEMaxBytes                int64 = 16 << 20 // 16 MiB
+	maxFormBodyBytes                        = 20 * 1024
+	maxClaimsBytes                          = 4096
+	maxCIMDBodyBytes                        = 64 * 1024
+	maxUpstreamBodyBytes                    = 1 << 20
 
 	rtStorageNone            = "none"
 	rtStorageClientEncrypted = "client-encrypted"
@@ -86,6 +92,10 @@ type Config struct {
 	CodeCap                 int
 	SessionCap              int
 	CIMDCap                 int
+	DCREnabled              bool
+	DCRClientTTL            time.Duration
+	DCRClientCap            int
+	DCRRateLimitRequests    int
 	RateLimitCap            int
 	RateLimitRequests       int
 	RateLimitGlobalRequests int
@@ -137,6 +147,10 @@ func loadConfigFromEnv() (*Config, error) {
 		return nil, fmt.Errorf("invalid RT_STORAGE %q: expected client-encrypted or server", rtStorage)
 	}
 
+	dcrEnabled, err := getEnvBool("DCR_ENABLED")
+	if err != nil {
+		return nil, err
+	}
 	gatewayDisabled, err := getEnvBool("GATEWAY_DISABLED")
 	if err != nil {
 		return nil, err
@@ -180,6 +194,10 @@ func loadConfigFromEnv() (*Config, error) {
 		CodeCap:                 getEnvInt("CODE_MAP_CAP", defaultCodeCap),
 		SessionCap:              getEnvInt("SESSION_MAP_CAP", defaultSessionCap),
 		CIMDCap:                 defaultCIMDCap,
+		DCREnabled:              dcrEnabled,
+		DCRClientTTL:            getEnvDuration("DCR_CLIENT_TTL", defaultDCRClientTTL),
+		DCRClientCap:            getEnvInt("DCR_CLIENT_CAP", defaultDCRClientCap),
+		DCRRateLimitRequests:    getEnvInt("DCR_RATE_LIMIT_REQUESTS", defaultDCRRateLimitRequests),
 		RateLimitCap:            getEnvInt("RATE_LIMIT_MAP_CAP", defaultRateLimitCap),
 		RateLimitRequests:       getEnvInt("RATE_LIMIT_REQUESTS", defaultRateLimitRequests),
 		RateLimitGlobalRequests: getEnvInt("RATE_LIMIT_GLOBAL_REQUESTS", defaultRateLimitGlobalRequests),
@@ -352,6 +370,15 @@ func validateConfig(cfg *Config) error {
 	}
 	if cfg.SessionMaxAge <= 0 {
 		cfg.SessionMaxAge = defaultSessionMaxAge
+	}
+	if cfg.DCRClientTTL <= 0 {
+		cfg.DCRClientTTL = defaultDCRClientTTL
+	}
+	if cfg.DCRClientCap <= 0 {
+		cfg.DCRClientCap = defaultDCRClientCap
+	}
+	if cfg.DCRRateLimitRequests <= 0 {
+		cfg.DCRRateLimitRequests = defaultDCRRateLimitRequests
 	}
 	if cfg.PendingCap <= 0 {
 		cfg.PendingCap = defaultPendingCap
