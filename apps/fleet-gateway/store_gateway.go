@@ -129,3 +129,22 @@ func dropUnreadableSession(ctx context.Context, store SessionStore, hash string,
 	slog.Warn("unreadable session row, treating as missing", "reason", err.Error())
 	_ = store.Delete(ctx, kindSession, hash)
 }
+
+// consentKey hashes the (user, client, route) triple so client IDs of any
+// length fit the store key and NAVidents are not stored as plain keys.
+func consentKey(navIdent, clientID, resource string) string {
+	return hashToken(navIdent + "\x00" + clientID + "\x00" + resource)
+}
+
+func (g *Gateway) hasConsent(ctx context.Context, navIdent, clientID, resource string) (bool, error) {
+	_, ok, err := g.store.Get(ctx, kindConsent, consentKey(navIdent, clientID, resource))
+	return ok, err
+}
+
+func (g *Gateway) rememberConsent(ctx context.Context, navIdent, clientID, resource string) error {
+	return g.store.Put(ctx, kindConsent, consentKey(navIdent, clientID, resource), []byte("1"), g.cfg.ConsentTTL)
+}
+
+func (g *Gateway) forgetConsent(ctx context.Context, navIdent, clientID, resource string) error {
+	return g.store.Delete(ctx, kindConsent, consentKey(navIdent, clientID, resource))
+}

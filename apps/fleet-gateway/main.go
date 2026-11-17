@@ -84,12 +84,14 @@ func buildSessionStore(cfg *Config, now func() time.Time, rtKeys *keyRing) (Sess
 	}
 
 	caps := map[string]int{
-		kindPendingConsent: cfg.PendingCap,
-		kindPendingEntra:   cfg.PendingCap,
-		kindCode:           cfg.CodeCap,
-		kindSession:        cfg.SessionCap,
-		kindMCPSession:     cfg.SessionCap,
-		kindMCPSessionUser: cfg.SessionCap,
+		kindPendingConsent:     cfg.PendingCap,
+		kindPendingEntra:       cfg.PendingCap,
+		kindPendingEntraLegacy: cfg.PendingCap,
+		kindCode:               cfg.CodeCap,
+		kindSession:            cfg.SessionCap,
+		kindConsent:            cfg.SessionCap,
+		kindMCPSession:         cfg.SessionCap,
+		kindMCPSessionUser:     cfg.SessionCap,
 	}
 
 	var store SessionStore

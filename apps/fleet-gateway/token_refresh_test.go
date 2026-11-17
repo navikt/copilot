@@ -53,8 +53,7 @@ func newClientEncryptedTestEnv(t *testing.T, rtKeys string) *testEnv {
 func (te *testEnv) obtainTokensForResource(resource string) (accessToken, refreshToken string, expiresIn int) {
 	te.t.Helper()
 	verifier := "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG"
-	id, csrf, csrfCookie, _ := te.startAuthorizeAndConsent(verifier)
-	entraState, stateCookie := te.approveConsent(id, csrf, csrfCookie)
+	entraState, stateCookie := te.startLogin(verifier)
 	code := te.completeEntraCallback(entraState, stateCookie)
 
 	status, body := te.postToken(url.Values{

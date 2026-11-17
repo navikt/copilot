@@ -34,6 +34,9 @@ type pendingAuth struct {
 	EntraNonce    string    `json:"entra_nonce,omitempty"`
 	CSRF          string    `json:"csrf"`
 	Created       time.Time `json:"created"`
+	// Issued is set when consent is asked after the Entra login: the code is
+	// held here until the user approves.
+	Issued *issuedCode `json:"issued,omitempty"`
 }
 
 type clientMetadata struct {
@@ -105,18 +108,9 @@ func (g *Gateway) authorizeHandler(w http.ResponseWriter, r *http.Request) {
 	case validateClaimsParam(claims) != nil:
 		failRedirect("invalid_request", "claims must be a valid JSON object within size limit")
 	default:
-		consentID, err := randomToken()
-		if err != nil {
-			http.Error(w, "internal server error", http.StatusInternalServerError)
-			return
-		}
-		csrf, err := randomToken()
-		if err != nil {
-			http.Error(w, "internal server error", http.StatusInternalServerError)
-			return
-		}
-
-		p := &pendingAuth{
+		// Consent is asked after the Entra login, once the user is known, so a
+		// remembered consent can skip the page (callbackHandler).
+		g.redirectToEntra(w, r, &pendingAuth{
 			ClientID:    clientID,
 			ClientName:  meta.ClientName,
 			RedirectURI: redirectURI,
@@ -125,22 +119,8 @@ func (g *Gateway) authorizeHandler(w http.ResponseWriter, r *http.Request) {
 			Resource:    resource,
 			Prompt:      prompt,
 			Claims:      claims,
-			CSRF:        csrf,
 			Created:     g.now(),
-		}
-
-		// Step 1 never remembers prior consent: always ask before redirecting to Entra.
-		if err := g.putPending(r.Context(), kindPendingConsent, consentID, p); err != nil {
-			if errors.Is(err, errStoreFull) {
-				http.Error(w, "too many pending authorizations", http.StatusServiceUnavailable)
-				return
-			}
-			slog.Warn("store pending consent failed", "error", err)
-			http.Error(w, "session store unavailable", http.StatusServiceUnavailable)
-			return
-		}
-
-		g.renderConsentPage(w, consentID, p)
+		})
 	}
 }
 
@@ -346,6 +326,11 @@ func (g *Gateway) callbackHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	p, ok, err := g.popPending(r.Context(), kindPendingEntra, queryState)
+	legacy := false
+	if err == nil && !ok {
+		p, ok, err = g.popPending(r.Context(), kindPendingEntraLegacy, queryState)
+		legacy = ok
+	}
 	if err != nil {
 		slog.Warn("pop pending entra state failed", "error", err)
 		http.Error(w, "session store unavailable", http.StatusServiceUnavailable)
@@ -495,6 +480,45 @@ func (g *Gateway) callbackHandler(w http.ResponseWriter, r *http.Request) {
 		EntraRT:     entraRT,
 		Created:     issuedAt,
 	}
+	remembered, err := g.hasConsent(r.Context(), navIdent, p.ClientID, p.Resource)
+	if err != nil {
+		slog.Warn("consent lookup failed", "error", err)
+	}
+	if remembered && p.Prompt != "consent" && !legacy {
+		g.issueCode(w, r, p, gwCode, issued)
+		return
+	}
+	if p.Prompt == "none" {
+		slog.Info("audit login", "outcome", "consent_required", "navident", navIdent, "client_id", p.ClientID, "resource", p.Resource)
+		back(url.Values{"error": {"consent_required"}})
+		return
+	}
+
+	consentID, err := randomToken()
+	if err != nil {
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+	if p.CSRF, err = randomToken(); err != nil {
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+	p.Issued = issued
+	if err := g.putPending(r.Context(), kindPendingConsent, consentID, p); err != nil {
+		if errors.Is(err, errStoreFull) {
+			http.Error(w, "too many pending authorizations", http.StatusServiceUnavailable)
+			return
+		}
+		slog.Warn("store pending consent failed", "error", err)
+		http.Error(w, "session store unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	g.renderConsentPage(w, consentID, p)
+}
+
+// issueCode stores the gateway authorization code and sends the browser back
+// to the client.
+func (g *Gateway) issueCode(w http.ResponseWriter, r *http.Request, p *pendingAuth, gwCode string, issued *issuedCode) {
 	if err := g.putCode(r.Context(), gwCode, issued); err != nil {
 		if errors.Is(err, errStoreFull) {
 			http.Error(w, "too many active authorization codes", http.StatusServiceUnavailable)
@@ -505,8 +529,19 @@ func (g *Gateway) callbackHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	slog.Info("audit login", "outcome", "ok", "navident", navIdent, "client_id", p.ClientID, "resource", p.Resource, "refresh_token_received", rt != "")
-	back(url.Values{"code": {gwCode}})
+	slog.Info("audit login", "outcome", "ok", "navident", issued.Session.NAVIdent, "client_id", p.ClientID, "resource", p.Resource, "refresh_token_received", issued.EntraRT != "" || issued.Session.RefreshToken != "")
+	g.redirectToClient(w, r, p, url.Values{"code": {gwCode}})
+}
+
+func (g *Gateway) redirectToClient(w http.ResponseWriter, r *http.Request, p *pendingAuth, v url.Values) {
+	target, err := url.Parse(p.RedirectURI)
+	if err != nil {
+		http.Error(w, "invalid stored redirect_uri", http.StatusInternalServerError)
+		return
+	}
+	v.Set("state", p.State)
+	v.Set("iss", g.cfg.BaseURL)
+	redirectWithValues(w, r, target, v)
 }
 
 func (g *Gateway) redeemEntraCode(ctx context.Context, code, codeVerifier string) (map[string]any, int, error) {
