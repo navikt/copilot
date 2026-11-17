@@ -28,9 +28,10 @@ type waveStat struct {
 
 // waveCounts is one question or item in one wave, index-aligned with
 // compareResult.Surveys. Excluded is how many answers the comparison rule
-// dropped (see compare).
+// dropped (see compare); always set by compare, nil in the published series,
+// which has no such rule.
 type waveCounts struct {
-	Excluded int        `json:"excluded,omitempty"`
+	Excluded *int       `json:"excluded,omitempty"`
 	Versions []waveStat `json:"versions"`
 }
 
@@ -215,7 +216,8 @@ func compareWaves(q question, waves []survey, rows [][]storedAnswer) ([]waveCoun
 			v, ok := row.Answers[q.ID]
 			return ok && v != nil && q.SkipIf.skipped(row.Answers)
 		})
-		out[i].Excluded = len(rs) - len(kept)
+		excluded := len(rs) - len(kept)
+		out[i].Excluded = &excluded
 		out[i].Versions = []waveStat{}
 		for _, vr := range countVersions(q, kept) {
 			ws := waveStat{versionResult: vr}

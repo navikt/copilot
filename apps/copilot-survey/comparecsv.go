@@ -35,7 +35,7 @@ func writeCompareCSV(w io.Writer, res compareResult) error {
 	waves := func(qid, iid string, br bool, ws []waveCounts, sig significance) {
 		test := []string{floatCell(sig.P), floatCell(sig.PHolm)}
 		for i, wc := range ws {
-			excluded := strconv.Itoa(wc.Excluded)
+			excluded := intCell(wc.Excluded)
 			if len(wc.Versions) == 0 { // nothing counted, but excluded must survive
 				_ = cw.Write(append([]string{"answer", res.Surveys[i].ID, qid, iid, "", strconv.FormatBool(br), "", "", "", excluded, "", ""}, test...))
 			}

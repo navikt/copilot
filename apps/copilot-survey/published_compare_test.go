@@ -56,7 +56,7 @@ func TestPublishedCompare(t *testing.T) {
 	// Each wave counts its own answers: spring keeps its 2 non-users on
 	// "fast" (n 6), as its /results does. Admin drops them (TestCompare).
 	fast := got.Questions[1].Items[0]
-	if s := fast.Waves[0]; s.Excluded != 0 || *s.Versions[0].N != 6 || fast.P == nil || fast.PHolm == nil {
+	if s := fast.Waves[0]; s.Excluded != nil || *s.Versions[0].N != 6 || fast.P == nil || fast.PHolm == nil {
 		t.Errorf("spring fast: %+v %+v", s, fast.significance)
 	}
 	body := do(h, "GET", path+"dev", webToken, "").Body.String()
@@ -147,7 +147,7 @@ func publishedSpring(t *testing.T, groups ...[3]any) (compareItem, []versionResu
 // hidden in both, so subtracting one from the other leaves nothing.
 func sameAsResults(t *testing.T, w waveCounts, res []versionResult) {
 	t.Helper()
-	if len(w.Versions) != len(res) || w.Excluded != 0 {
+	if len(w.Versions) != len(res) || w.Excluded != nil {
 		t.Fatalf("versions %+v vs %+v", w, res)
 	}
 	for i, v := range w.Versions {

@@ -224,10 +224,11 @@ func hideSmallVersions(res *surveyResults) {
 // hideSmallWaveVersions hides every version under minSegment respondents in
 // a published comparison, as hideSmallVersions does in /results, and the
 // item's test when the first or last wave has one. Holm keeps the hidden
-// items (owner decision).
+// items (owner decision). It drops excluded, which is 0 without the rule.
 func hideSmallWaveVersions(res *compareResult) {
 	hide := func(sig *significance, ws []waveCounts) {
 		for i := range ws {
+			ws[i].Excluded = nil
 			for vi := range ws[i].Versions {
 				v := &ws[i].Versions[vi]
 				if v.N == nil || !small(*v.N) {
