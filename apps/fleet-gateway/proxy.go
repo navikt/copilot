@@ -106,6 +106,17 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 			return
 		}
 
+		if g.cfg.GatewayDisabled || route.isDisabled() {
+			outcome = "disabled"
+			slog.Warn("route disabled by kill switch", "route", route.Route, "global", g.cfg.GatewayDisabled)
+			w.Header().Set("Retry-After", "300")
+			writeJSON(w, http.StatusServiceUnavailable, map[string]string{
+				"error":   "temporarily_unavailable",
+				"message": "this route is temporarily disabled by the gateway operator",
+			})
+			return
+		}
+
 		token, ok := extractBearerToken(r.Header.Get("Authorization"))
 		if !ok {
 			outcome = "unauthorized"

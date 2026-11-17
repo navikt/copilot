@@ -66,6 +66,7 @@ type Config struct {
 	PrimaryResource         string
 	Routes                  []PilotRoute
 	RoutesByPath            map[string]PilotRoute
+	GatewayDisabled         bool
 	TeamTokenStrategy       string
 	TexasExchangeEndpoint   string
 	EntraScope              string
@@ -136,6 +137,11 @@ func loadConfigFromEnv() (*Config, error) {
 		return nil, fmt.Errorf("invalid RT_STORAGE %q: expected client-encrypted or server", rtStorage)
 	}
 
+	gatewayDisabled, err := getEnvBool("GATEWAY_DISABLED")
+	if err != nil {
+		return nil, err
+	}
+
 	// The user's Entra access token must be issued to fleet-gateway itself:
 	// Texas OBO requires the assertion's aud to be the exchanging app, and
 	// strategy refresh or client-encrypted refresh tokens need offline_access.
@@ -154,6 +160,7 @@ func loadConfigFromEnv() (*Config, error) {
 		PrimaryResource:         primaryResource,
 		Routes:                  routes,
 		RoutesByPath:            routesByPath,
+		GatewayDisabled:         gatewayDisabled,
 		TeamTokenStrategy:       strategy,
 		TexasExchangeEndpoint:   strings.TrimSpace(os.Getenv("NAIS_TOKEN_EXCHANGE_ENDPOINT")),
 		EntraScope:              entraScope,
@@ -459,6 +466,18 @@ func getEnv(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+func getEnvBool(key string) (bool, error) {
+	v := strings.TrimSpace(os.Getenv(key))
+	if v == "" {
+		return false, nil
+	}
+	b, err := strconv.ParseBool(v)
+	if err != nil {
+		return false, fmt.Errorf("invalid %s %q: %w", key, v, err)
+	}
+	return b, nil
 }
 
 func getEnvInt(key string, fallback int) int {

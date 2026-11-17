@@ -1066,3 +1066,138 @@ func TestEntraScopeForTarget(t *testing.T) {
 		t.Fatalf("entraScopeForTarget = %q, want %q", got, "api://dev-gcp.copilot.fleet-echo/.default")
 	}
 }
+
+func TestProxy_KillSwitch(t *testing.T) {
+	setBaseValidEnv(t)
+	t.Setenv("GATEWAY_DISABLED", "not-a-bool")
+	if _, err := loadConfigFromEnv(); err == nil {
+		t.Fatal("expected invalid GATEWAY_DISABLED to return config error")
+	}
+
+	tests := []struct {
+		name            string
+		gatewayDisabled string
+		targetPath      string
+		wantGlobal      bool
+	}{
+		{
+			name:       "route enabled:false returns 503",
+			targetPath: "/mcp/disabled",
+			wantGlobal: false,
+		},
+		{
+			name:            "GatewayDisabled returns 503",
+			gatewayDisabled: "true",
+			targetPath:      "/mcp/etterlevelse",
+			wantGlobal:      true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var logBuf bytes.Buffer
+			oldLogger := slog.Default()
+			slog.SetDefault(slog.New(slog.NewJSONHandler(&logBuf, &slog.HandlerOptions{Level: slog.LevelInfo})))
+			defer slog.SetDefault(oldLogger)
+
+			te := newTestEnv(t)
+			var upstreamCalls atomic.Int32
+			te.upstreamServer.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				upstreamCalls.Add(1)
+				writeJSON(w, http.StatusOK, map[string]any{"jsonrpc": "2.0", "id": 1, "result": "ok"})
+			})
+
+			routesYAML := `version: 1
+routes:
+  - route: /mcp/etterlevelse
+    team: team-etterlevelse
+    target: dev-gcp:team-etterlevelse:nav-etterlevelse-mcp
+    upstream_url: http://nav-etterlevelse-mcp.team-etterlevelse
+  - route: /mcp/disabled
+    team: team-sec
+    target: dev-gcp:team-sec:sec-mcp
+    upstream_url: http://sec-mcp.team-sec
+    enabled: false
+`
+			parsedRoutes, err := parseAndValidatePilotRoutes([]byte(routesYAML))
+			if err != nil {
+				t.Fatalf("parseAndValidatePilotRoutes failed: %v", err)
+			}
+			te.gw.cfg.Routes = parsedRoutes
+			if err := validateConfig(te.gw.cfg); err != nil {
+				t.Fatalf("validateConfig failed: %v", err)
+			}
+			parsedUpstream, err := url.Parse(te.upstreamServer.URL)
+			if err != nil {
+				t.Fatalf("parse upstream server URL: %v", err)
+			}
+			for i := range te.gw.cfg.Routes {
+				te.gw.cfg.Routes[i].ParsedURL = parsedUpstream
+			}
+			te.gw.TeamTokens, err = newTeamTokenSource(te.gw.cfg, te.gw.store, func() time.Time {
+				te.mu.Lock()
+				defer te.mu.Unlock()
+				return te.now
+			})
+			if err != nil {
+				t.Fatalf("newTeamTokenSource failed: %v", err)
+			}
+
+			if tt.gatewayDisabled != "" {
+				setBaseValidEnv(t)
+				t.Setenv("GATEWAY_DISABLED", tt.gatewayDisabled)
+				loadedCfg, err := loadConfigFromEnv()
+				if err != nil {
+					t.Fatalf("loadConfigFromEnv failed: %v", err)
+				}
+				te.gw.cfg.GatewayDisabled = loadedCfg.GatewayDisabled
+			}
+			te.handler = te.gw.routes()
+
+			// Send without Authorization to verify kill switch runs after method check and before auth.
+			req := httptest.NewRequest(http.MethodPost, tt.targetPath, strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"tools/list"}`))
+			rec := httptest.NewRecorder()
+			te.handler.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusServiceUnavailable {
+				t.Fatalf("expected 503, got %d (%s)", rec.Code, rec.Body.String())
+			}
+			if got := rec.Header().Get("Retry-After"); got != "300" {
+				t.Fatalf("expected Retry-After=300, got %q", got)
+			}
+			var body map[string]string
+			if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+				t.Fatalf("decode 503 JSON: %v", err)
+			}
+			if body["error"] != "temporarily_unavailable" || body["message"] != "this route is temporarily disabled by the gateway operator" {
+				t.Fatalf("unexpected 503 body: %+v", body)
+			}
+			if upstreamCalls.Load() != 0 {
+				t.Fatalf("expected 0 upstream calls, got %d", upstreamCalls.Load())
+			}
+
+			var foundWarn, foundAudit map[string]any
+			for _, line := range strings.Split(strings.TrimSpace(logBuf.String()), "\n") {
+				var entry map[string]any
+				if json.Unmarshal([]byte(line), &entry) != nil {
+					continue
+				}
+				switch entry["msg"] {
+				case "route disabled by kill switch":
+					foundWarn = entry
+				case "audit mcp":
+					foundAudit = entry
+				}
+			}
+			if foundWarn == nil {
+				t.Fatalf("expected kill switch warning log, got:\n%s", logBuf.String())
+			}
+			if foundWarn["route"] != tt.targetPath || foundWarn["global"] != tt.wantGlobal {
+				t.Fatalf("unexpected warning fields: %+v", foundWarn)
+			}
+			if foundAudit == nil || foundAudit["outcome"] != "disabled" {
+				t.Fatalf("expected audit mcp outcome=disabled, got %+v", foundAudit)
+			}
+		})
+	}
+}
