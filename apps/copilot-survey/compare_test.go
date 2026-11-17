@@ -91,7 +91,7 @@ func checkCompare(t *testing.T, got compareResult) {
 		t.Errorf("slow: no break %+v", slow)
 	}
 	// fast is the only item tested (slow has a break), so Holm leaves its p.
-	if fast.P == nil || math.Abs(*fast.P-0.17752985241215352) > 1e-12 || *fast.PHolm != *fast.P || *fast.CILow > -1 || *fast.CIHigh < -1 {
+	if fast.P == nil || math.Abs(*fast.P-0.17752985241215352) > 1e-12 || *fast.PHolm != *fast.P {
 		t.Errorf("fast test %+v", fast.significance)
 	}
 	if slow.P != nil || slow.PHolm != nil {

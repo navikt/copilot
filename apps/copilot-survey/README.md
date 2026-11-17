@@ -373,18 +373,17 @@ Survey ids select the embedded definition; a CSV whose columns do not match it i
 
 Channels (`context.client`) in a comparison are merged as the export merges them (values and combinations under 5 become `annet`), so they match too. `/results` still shows unmerged channels.
 
-Comparison CSV columns: `kind` (`responses`, `channel`, `answer`), `survey_id`, `question_id`, `item_id` (matrix), `version`, `break`, `option`, `count`, `n`, `excluded`, `mean`, `agree`, `p`, `p_holm`, `ci_low`, `ci_high`. Means and shares are unrounded; round when you present, not before you subtract.
+Comparison CSV columns: `kind` (`responses`, `channel`, `answer`), `survey_id`, `question_id`, `item_id` (matrix), `version`, `break`, `option`, `count`, `n`, `excluded`, `mean`, `agree`, `p`, `p_holm`. Means and shares are unrounded; round when you present, not before you subtract.
 
 #### Significance
 
-Every scale or matrix item that the first and the last wave answered in the same version (no `break`) gets a test of the first wave against the last, as `p`, `p_holm`, `ci_low` and `ci_high` in the JSON and on every answer row of the item in the CSV. Waves in between are not tested.
+Every scale or matrix item that the first and the last wave answered in the same version (no `break`) gets a test of the first wave against the last, as `p` and `p_holm` in the JSON and on every answer row of the item in the CSV. Waves in between are not tested.
 
 | Field | What |
 | --- | --- |
 | `p` | Two-sided Mann–Whitney U, normal approximation with tie correction, no continuity correction |
 | `p_holm` | `p` after Holm correction over every tested item in the comparison, statements for KI users and for everyone together |
-| `ci_low`, `ci_high` | 95 % interval for last mean minus first mean (Welch, 1.96) |
 
-Closed formulas only, so the admin page and `analyze` give the same numbers with no seed. The rank test and the interval answer different questions: an interval that excludes 0 next to a `p` above 0.05 is not a bug. Spring against autumn 2026 tests 7 statements; only `teknisk-kompetanse` holds after correction (`p` 0.0031, `p_holm` 0.022).
+Closed formulas only, so the admin page and `analyze` give the same numbers with no seed. There is no confidence interval: a Welch interval for the mean tests something else than the rank test and disagreed with it (`tilfredshet`), so one test gives one answer. Spring against autumn 2026 tests 7 statements; only `teknisk-kompetanse` holds after correction (`p` 0.0031, `p_holm` 0.022).
 
 `compare` reads rows, not the stored aggregates, because the skip rule needs each answer. Once a wave's rows are deleted it can no longer be compared: keep its comparison CSV.

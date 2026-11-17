@@ -462,10 +462,9 @@ async function Comparison({ token, ids }: { token: string; ids: string[] }) {
       <Waves waves={waves} />
       <Alert variant="info" size="small">
         Rundene ble samlet inn på ulike måter (se «Besvart via»). En forskjell mellom rundene kan komme av metoden og
-        ikke bare av endring over tid. I påstandene teller bare svar fra dem som bruker KI-verktøy, i alle runder. Hver
-        påstand testes mellom første og siste runde. «Står seg i testen» betyr at endringen neppe skyldes
-        tilfeldigheter, også når vi tar hensyn til at mange påstander testes samtidig (Mann–Whitney, korrigert med
-        Holm). p under 0,05 uten korreksjon er ikke nok.
+        ikke bare av endring over tid. I påstandene teller bare svar fra dem som bruker KI-verktøy, i alle runder. Vi
+        tester hver påstand mellom første og siste runde (Mann–Whitney). «Står seg i testen» betyr at endringen neppe
+        skyldes tilfeldigheter, også når vi tar hensyn til at vi tester mange påstander samtidig (Holm).
       </Alert>
       {waves.some((w) => w.suppressed) ? (
         <Alert variant="info">En av rundene har under 5 svar. Den vises uten tall.</Alert>

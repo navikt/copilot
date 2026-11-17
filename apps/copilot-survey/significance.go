@@ -16,10 +16,6 @@ type significance struct {
 	P *float64 `json:"p,omitempty"`
 	// PHolm: P after Holm correction over every tested item in the comparison.
 	PHolm *float64 `json:"p_holm,omitempty"`
-	// CILow, CIHigh: 95 % interval for last mean minus first mean (Welch,
-	// normal quantile 1.96; fine at survey sizes, too narrow under ~30).
-	CILow  *float64 `json:"ci_low,omitempty"`
-	CIHigh *float64 `json:"ci_high,omitempty"`
 }
 
 // testFirstLast sets sig from ws unless the item has a break or either end
@@ -33,8 +29,7 @@ func testFirstLast(sig *significance, ws []waveCounts, br bool) bool {
 	if !ok {
 		return false
 	}
-	lo, hi := welchCI(a, b)
-	sig.P, sig.CILow, sig.CIHigh = &p, &lo, &hi
+	sig.P = &p
 	return true
 }
 
@@ -80,28 +75,6 @@ func mannWhitney(a, b map[int]int) (float64, bool) {
 	}
 	z := math.Abs(u-n1*n2/2) / math.Sqrt(variance)
 	return math.Erfc(z / math.Sqrt2), true
-}
-
-// welchCI is the 95 % interval for mean(b) - mean(a).
-func welchCI(a, b map[int]int) (lo, hi float64) {
-	moments := func(m map[int]int) (n, mean, variance float64) {
-		var sum float64
-		for v, c := range m {
-			n, sum = n+float64(c), sum+float64(v*c)
-		}
-		mean = sum / n
-		for v, c := range m {
-			variance += float64(c) * (float64(v) - mean) * (float64(v) - mean)
-		}
-		if n > 1 {
-			variance /= n - 1
-		}
-		return n, mean, variance
-	}
-	na, ma, va := moments(a)
-	nb, mb, vb := moments(b)
-	d, se := mb-ma, math.Sqrt(va/na+vb/nb)
-	return d - 1.96*se, d + 1.96*se
 }
 
 // holm is Holm's step-down adjustment of ps, in the input order.

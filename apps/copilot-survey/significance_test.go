@@ -31,14 +31,6 @@ func TestMannWhitney(t *testing.T) {
 	}
 }
 
-func TestWelchCI(t *testing.T) {
-	// Means 4 and 3, variances 2 and 0: −1 ± 1.96·√(2/4).
-	lo, hi := welchCI(map[int]int{5: 2, 4: 1, 2: 1}, map[int]int{3: 5})
-	if want := 1.96 * math.Sqrt(0.5); math.Abs(lo+1+want) > 1e-12 || math.Abs(hi+1-want) > 1e-12 {
-		t.Errorf("welchCI = %v, %v", lo, hi)
-	}
-}
-
 func TestHolm(t *testing.T) {
 	// Sorted 0.005·5, 0.01·4, 0.03·3, then 0.04·2 = 0.08 held up to 0.09, 0.9·1.
 	got := holm([]float64{0.01, 0.04, 0.03, 0.005, 0.9})
