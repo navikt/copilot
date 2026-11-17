@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"math"
 	"os"
 	"testing"
 	"time"
@@ -88,6 +89,13 @@ func checkCompare(t *testing.T, got compareResult) {
 	}
 	if !slow.Break || slow.Waves[0].Versions[0].Version != 1 || slow.Waves[1].Versions[0].Version != 2 {
 		t.Errorf("slow: no break %+v", slow)
+	}
+	// fast is the only item tested (slow has a break), so Holm leaves its p.
+	if fast.P == nil || math.Abs(*fast.P-0.17752985241215352) > 1e-12 || *fast.PHolm != *fast.P || *fast.CILow > -1 || *fast.CIHigh < -1 {
+		t.Errorf("fast test %+v", fast.significance)
+	}
+	if slow.P != nil || slow.PHolm != nil {
+		t.Errorf("slow tested across a break: %+v", slow.significance)
 	}
 }
 
