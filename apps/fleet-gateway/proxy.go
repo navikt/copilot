@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"net/textproto"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 	"unicode"
@@ -172,7 +173,6 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 			return
 		}
 		reqSessionID := r.Header.Get("Mcp-Session-Id")
-		reqSessionBound := false
 		if reqSessionID != "" {
 			if len(reqSessionID) > maxMCPSessionIDBytes {
 				outcome = "bad_request"
@@ -205,7 +205,6 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 					})
 					return
 				}
-				reqSessionBound = true
 			}
 		}
 
@@ -305,22 +304,37 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 		bindMCPSession := func(id string) {
 			key := route.Route + "\n" + id
 			// Never take over an id another user already owns.
-			if owner, found, getErr := g.store.Get(r.Context(), kindMCPSession, key); getErr != nil || (found && string(owner) != sess.NAVIdent) {
+			owner, found, getErr := g.store.Get(r.Context(), kindMCPSession, key)
+			if getErr != nil || (found && string(owner) != sess.NAVIdent) {
 				slog.Warn("mcp session bind skipped", "route", route.Route, "owned_by_other", found, "error", getErr)
+				return
+			}
+			if found {
+				return // already ours; skipping keeps the per-user count exact
+			}
+			// shortcut: Get+Put on the counter is not atomic across pods, so the cap is approximate; fine as defence in depth.
+			count := 0
+			if raw, ok, cntErr := g.store.Get(r.Context(), kindMCPSessionUser, sess.NAVIdent); cntErr == nil && ok {
+				count, _ = strconv.Atoi(string(raw))
+			}
+			if count >= g.cfg.MCPSessionUserCap {
+				slog.Warn("mcp session bind skipped: per-user cap reached", "route", route.Route, "navident", sanitizeLogValue(navIdent))
 				return
 			}
 			if putErr := g.store.Put(r.Context(), kindMCPSession, key, []byte(sess.NAVIdent), mcpSessionTTL); putErr != nil {
 				slog.Warn("mcp session bind failed", "route", route.Route, "error", putErr)
+				return
 			}
+			_ = g.store.Put(r.Context(), kindMCPSessionUser, sess.NAVIdent, []byte(strconv.Itoa(count+1)), mcpSessionTTL)
 		}
-		respSessionID := resp.Header.Get("Mcp-Session-Id")
-		for _, id := range resp.Header.Values("Mcp-Session-Id") {
-			if id != "" && len(id) <= maxMCPSessionIDBytes {
-				bindMCPSession(id)
+		// Bind only ids the upstream issued on a successful response (MCP streamable HTTP).
+		// A client-supplied id is never bound; an unbound one passes through for stateless upstreams.
+		if resp.StatusCode < 300 {
+			for _, id := range resp.Header.Values("Mcp-Session-Id") {
+				if id != "" && len(id) <= maxMCPSessionIDBytes {
+					bindMCPSession(id)
+				}
 			}
-		}
-		if reqSessionID != "" && !reqSessionBound && resp.StatusCode < 300 && reqSessionID != respSessionID {
-			bindMCPSession(reqSessionID)
 		}
 
 		if isEventStream(resp.Header.Get("Content-Type")) {

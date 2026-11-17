@@ -28,6 +28,7 @@ const (
 	defaultPendingCap                    = 1024
 	defaultCodeCap                       = 1024
 	defaultSessionCap                    = 4096
+	defaultMCPSessionUserCap             = 64
 	defaultCIMDCap                       = 64
 	defaultRateLimitCap                  = 4096
 	defaultRateLimitRequests             = 30
@@ -85,6 +86,7 @@ type Config struct {
 	PendingCap              int
 	CodeCap                 int
 	SessionCap              int
+	MCPSessionUserCap       int
 	CIMDCap                 int
 	RateLimitCap            int
 	RateLimitRequests       int
@@ -179,6 +181,7 @@ func loadConfigFromEnv() (*Config, error) {
 		PendingCap:              getEnvInt("PENDING_MAP_CAP", defaultPendingCap),
 		CodeCap:                 getEnvInt("CODE_MAP_CAP", defaultCodeCap),
 		SessionCap:              getEnvInt("SESSION_MAP_CAP", defaultSessionCap),
+		MCPSessionUserCap:       getEnvInt("MCP_SESSION_USER_CAP", defaultMCPSessionUserCap),
 		CIMDCap:                 defaultCIMDCap,
 		RateLimitCap:            getEnvInt("RATE_LIMIT_MAP_CAP", defaultRateLimitCap),
 		RateLimitRequests:       getEnvInt("RATE_LIMIT_REQUESTS", defaultRateLimitRequests),
@@ -361,6 +364,9 @@ func validateConfig(cfg *Config) error {
 	}
 	if cfg.SessionCap <= 0 {
 		cfg.SessionCap = defaultSessionCap
+	}
+	if cfg.MCPSessionUserCap <= 0 {
+		cfg.MCPSessionUserCap = defaultMCPSessionUserCap
 	}
 	return nil
 }
