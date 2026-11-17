@@ -10,6 +10,7 @@ on:
   pull_request:
     branches: [main]
     paths:
+      - 'apps/mcp-registry/allowlist.json'
       - 'apps/fleet-gateway/**'
       - '.github/workflows/fleet-gateway.yaml'
       - '.github/workflows/mise-build-deploy-nais.yaml'
