@@ -191,7 +191,8 @@ func TestCompareTypeChange(t *testing.T) {
 	api := compareAPI(t, func(_ context.Context, id string) ([]storedAnswer, error) { return data[id], nil })
 	api.surveys[0].Questions[0].Type, api.surveys[0].Questions[0].Options = "text", nil
 	tools := getCompare(t, api, "spring,autumn").Questions[0]
-	if !tools.Break || len(tools.Waves[0].Versions) != 0 || *tools.Waves[1].Versions[0].N != 5 {
+	if !tools.Break || len(tools.Waves[0].Versions) != 0 || *tools.Waves[1].Versions[0].N != 5 ||
+		tools.Waves[0].Excluded == nil || *tools.Waves[0].Excluded != 0 { // admin always says excluded
 		t.Errorf("free text counted: %+v", tools)
 	}
 }

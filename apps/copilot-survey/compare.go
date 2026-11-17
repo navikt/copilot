@@ -209,7 +209,8 @@ func compareWaves(q question, waves []survey, rows [][]storedAnswer) ([]waveCoun
 			seen[v], top = true, m
 		}
 		if ok && typ != q.Type {
-			out[i].Versions, broken = []waveStat{}, true
+			zero := 0
+			out[i].Excluded, out[i].Versions, broken = &zero, []waveStat{}, true
 			continue
 		}
 		kept := slices.DeleteFunc(slices.Clone(rs), func(row storedAnswer) bool {
