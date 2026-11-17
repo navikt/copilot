@@ -47,7 +47,6 @@ func (a *surveyAPI) exportCSV(w http.ResponseWriter, r *http.Request) {
 			return hidden[hiddenKey(field, textHash(raw))]
 		})
 	}
-	suppressSmallSegments(rows)
 	rand.Shuffle(len(rows), func(i, j int) { rows[i], rows[j] = rows[j], rows[i] })
 
 	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
@@ -59,8 +58,10 @@ func (a *surveyAPI) exportCSV(w http.ResponseWriter, r *http.Request) {
 }
 
 // writeExportCSV writes rows as the columns described at exportCSV.
-// readExportCSV is its inverse.
+// readExportCSV is its inverse. Context under minSegment is merged here,
+// so every export, and the test of the round trip, goes through it.
 func writeExportCSV(w io.Writer, s survey, rows []exportRow) {
+	suppressSmallSegments(rows)
 	// A column is a header and how a row fills it.
 	type column struct {
 		name string

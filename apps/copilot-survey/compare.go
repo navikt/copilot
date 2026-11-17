@@ -86,7 +86,7 @@ func (a *surveyAPI) compare(w http.ResponseWriter, r *http.Request) {
 			writeError(w, http.StatusServiceUnavailable, "survey storage unavailable")
 			return
 		}
-		waves, rows = append(waves, a.surveys[i]), append(rows, rs)
+		waves, rows = append(waves, a.surveys[i]), append(rows, mergeClients(rs))
 	}
 	res := compareWavesResult(waves, rows, a.now())
 	if r.URL.Query().Get("format") == "csv" {
@@ -97,6 +97,22 @@ func (a *surveyAPI) compare(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, res)
+}
+
+// mergeClients sets each row's Client to its context.client as the CSV
+// export writes it (suppressSmallSegments), so the channels online are the
+// ones «copilot-survey analyze» reads from that CSV.
+func mergeClients(rs []storedAnswer) []storedAnswer {
+	ex := make([]exportRow, len(rs))
+	for i, r := range rs {
+		ex[i] = newExportRow(map[string]any{}, nil, r.Context, func(string, string) bool { return false })
+	}
+	suppressSmallSegments(ex)
+	out := slices.Clone(rs)
+	for i := range out {
+		out[i].Client = ex[i].Context["client"]
+	}
+	return out
 }
 
 // compareWavesResult is the comparison of waves (oldest first) from their

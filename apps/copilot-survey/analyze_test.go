@@ -73,17 +73,17 @@ func TestAnalyzeMatchesOnline(t *testing.T) {
 
 	cd, _ := loadSurveys([]byte(compareSurveys))
 	data := waveRows()
-	online := compareWavesResult(cd, [][]storedAnswer{data["spring"], data["autumn"]}, now)
+	online := compareWavesResult(cd, [][]storedAnswer{mergeClients(data["spring"]), mergeClients(data["autumn"])}, now)
 	local := compareWavesResult(cd, [][]storedAnswer{roundTrip(t, cd[0], data["spring"]), roundTrip(t, cd[1], data["autumn"])}, now)
 	sameJSON(t, "comparison", online.Questions, local.Questions)
 	var a, b bytes.Buffer
 	writeCompareCSV(&a, online)
 	writeCompareCSV(&b, local)
-	// Channels are the one known difference (merged under minSegment); here every client has ≥ 5.
+	// Byte for byte, channels too: autumn's web 3 and copilot 2 are «annet» in both.
 	if a.String() != b.String() {
 		t.Errorf("comparison CSV differs\n%s\n%s", a.String(), b.String())
 	}
-	if !strings.Contains(a.String(), "answer,spring,grid,fast,1,false,5,2,4,2,4,0.75") {
+	if !strings.Contains(a.String(), "answer,spring,grid,fast,1,false,5,2,4,2,4,0.75") || !strings.Contains(a.String(), "channel,autumn,,,,,annet,5") {
 		t.Errorf("comparison CSV:\n%s", a.String())
 	}
 }
