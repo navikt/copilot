@@ -169,8 +169,9 @@ func TestFinalAggregates(t *testing.T) {
 
 	// Rare client/OS/version combinations merge into "annet" in kind='context'
 	// without hiding a channel that has >= 5 total respondents in kind='channel'.
-	for i := range 5 {
-		cj, _ := json.Marshal(map[string]any{"client": "web", "os": "linux", "version": string(rune('a' + i)), "local_models": false})
+	// Every value is held by 5 rows, every combination by 2 or 3.
+	for i := range 10 {
+		cj, _ := json.Marshal(map[string]any{"client": []string{"web", "copilot"}[i/5], "os": []string{"linux", "darwin"}[(i/5+i%5/3)%2], "version": "2026.06", "local_models": false})
 		if _, err = st.pool.Exec(ctx, `INSERT INTO survey_answers VALUES ('w2', '{"overall":4}', '{"overall":1}', $1, '2026-12-27')`, cj); err != nil {
 			t.Fatal(err)
 		}
@@ -178,11 +179,11 @@ func TestFinalAggregates(t *testing.T) {
 	if _, err = finalize(ctx, st.pool, st.defs, second, now, true); err != nil {
 		t.Fatal(err)
 	}
-	if ctxCount("w2", "client", "web") != 0 || ctxCount("w2", "client", "annet") != 5 {
+	if ctxCount("w2", "client", "web") != 0 || ctxCount("w2", "client", "annet") != 10 {
 		t.Fatal("expected rare context segments to merge into annet")
 	}
-	if f, fErr := st.final(ctx, "w2"); fErr != nil || !reflect.DeepEqual(f.Channels, map[string]int{"web": 5}) {
-		t.Fatalf("expected channel count to preserve web=5: got %v, err %v", f, fErr)
+	if f, fErr := st.final(ctx, "w2"); fErr != nil || !reflect.DeepEqual(f.Channels, map[string]int{"web": 5, "copilot": 5}) {
+		t.Fatalf("expected channel counts to preserve web=5, copilot=5: got %v, err %v", f, fErr)
 	}
 
 	// No rows: nothing written, so a later import still gets aggregated.
