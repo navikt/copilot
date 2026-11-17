@@ -23,6 +23,7 @@ const (
 	maxMCPRequestBodyBytes  = 1 << 20  // 1 MiB
 	maxMCPResponseBodyBytes = 10 << 20 // 10 MiB for non-SSE responses
 	maxAuditMethodLen       = 64
+	maxAuditBatchTools      = 10
 	maxMCPSessionIDBytes    = 256
 )
 
@@ -83,6 +84,7 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 		navIdent := ""
 		clientID := ""
 		rpcMethod := ""
+		toolName := ""
 
 		defer func() {
 			slog.Info("audit mcp",
@@ -91,6 +93,7 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 				"route", route.Route,
 				"http_method", sanitizeLogValue(r.Method),
 				"method", sanitizeLogValue(rpcMethod),
+				"tool", sanitizeLogValue(toolName),
 				"outcome", outcome,
 				"duration_ms", g.now().Sub(start).Milliseconds(),
 			)
@@ -220,7 +223,7 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 		}
 
 		if r.Method == http.MethodPost {
-			rpcMethod = extractJSONRPCMethod(reqBody)
+			rpcMethod, toolName = extractJSONRPCAudit(reqBody)
 		}
 
 		if g.TeamTokens == nil {
@@ -535,18 +538,52 @@ func isEventStream(contentType string) bool {
 	return err == nil && strings.EqualFold(mediaType, "text/event-stream")
 }
 
-func extractJSONRPCMethod(body []byte) string {
+type auditRPC struct {
+	Method string `json:"method"`
+	Params struct {
+		Name string `json:"name"`
+	} `json:"params"`
+}
+
+// extractJSONRPCAudit returns the JSON-RPC method and, for tools/call, the tool
+// name. Arguments are never decoded into anything that is logged. A batch is
+// logged as method "batch" with the names of up to maxAuditBatchTools
+// tools/call entries. The body is already capped at maxMCPRequestBodyBytes and
+// is read only, so upstream receives it byte for byte.
+func extractJSONRPCAudit(body []byte) (method, tool string) {
 	trimmed := bytes.TrimSpace(body)
-	if len(trimmed) == 0 || trimmed[0] != '{' {
-		return ""
+	if len(trimmed) == 0 {
+		return "", ""
 	}
-	var rpc struct {
-		Method string `json:"method"`
+	switch trimmed[0] {
+	case '{':
+		var rpc auditRPC
+		if json.Unmarshal(trimmed, &rpc) != nil {
+			return "", ""
+		}
+		if rpc.Method == "tools/call" {
+			tool = sanitizeAuditMethod(rpc.Params.Name)
+		}
+		return sanitizeAuditMethod(rpc.Method), tool
+	case '[':
+		var batch []auditRPC
+		if json.Unmarshal(trimmed, &batch) != nil {
+			return "", ""
+		}
+		var tools []string
+		for _, rpc := range batch {
+			if rpc.Method != "tools/call" {
+				continue
+			}
+			if len(tools) == maxAuditBatchTools {
+				tools = append(tools, "...")
+				break
+			}
+			tools = append(tools, sanitizeAuditMethod(rpc.Params.Name))
+		}
+		return "batch", strings.Join(tools, ",")
 	}
-	if err := json.Unmarshal(trimmed, &rpc); err != nil {
-		return ""
-	}
-	return sanitizeAuditMethod(rpc.Method)
+	return "", ""
 }
 
 func sanitizeAuditMethod(method string) string {
