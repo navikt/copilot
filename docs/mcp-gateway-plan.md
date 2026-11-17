@@ -124,7 +124,7 @@ The `owner`, `gateway` and `toolHashes` fields are already in the registry respo
 - Entra refresh tokens for non-SPA clients last 90 days, rotate without revoking the old one, and are not bound to a resource. "At most 10 hours" is only fleet-gateway's delete discipline. A database backup plus the encryption key plus the client secret lets an attacker impersonate every logged-in user on every route, unless consent is per route.
 - Conditional Access `claims` from a downstream OBO hop cannot travel back through Texas yet. Accepted limit for the pilot: `nais/texas` is MIT-licensed and accepts PRs, Entra's OBO error body carries `claims`, and the team can contribute a passthrough PR later. Gateway code and refresh calls hit Entra's /token endpoint directly and receive claims errors; /authorize already passes claims.
 - The dev tenant is not prod: a pass in dev-gcp does not prove prod-gcp.
-- The consent page must: ask for consent before the Entra redirect, store `state` only after approval, protect against CSRF, set `frame-ancestors`, match redirect URIs exactly, return `iss` in responses, and bind the token to the exact route resource.
+- The consent page must: ask for consent before the gateway redirects back to the client (since 2026-11-17 it is shown after the Entra login, so a remembered consent can skip it), protect against CSRF, set `frame-ancestors`, match redirect URIs exactly, return `iss` in responses, and bind the token to the exact route resource.
 - cplt's port guard has a gap: the sandbox can bind the loopback OAuth port after another holder releases it ([navikt/cplt#1017](https://github.com/navikt/cplt/issues/1017)).
 - The writer has never been tested against real Texas introspection.
 - OpenCode under cplt waits for DCR, which is out of the pilot.
@@ -184,6 +184,15 @@ In order. Who may join the pilot: see [Onboarding and pilot control](#onboarding
 3. Where the refresh-token encryption key lives: Nais secret or KMS.
 
 ## Decisions log
+
+### 2026-11-17: consent, client paths, DCR and authorization
+
+Owner decisions after the design review of 2026-11-17:
+
+1. **Consent is remembered for 30 days** per user (NAVident), client_id and route (`CONSENT_TTL`, default `720h`). The gateway checks it after the Entra login and skips the consent page when a valid record exists. A new client or a new route still asks. Clients registered through DCR follow the same rules, but their first consent page shows an "unverified client" banner. `/revoke` clears the consent for that client and route ([#2223](https://github.com/navikt/copilot/issues/2223)).
+2. **Both cplt paths are built:** native OAuth in the client and the cplt broker.
+3. **DCR is on in prod while the ingress is naisdevice-only.** Before prod it needs TTL renewal on use and a cap sized from users × routes × clients ([#2261](https://github.com/navikt/copilot/issues/2261)).
+4. **Teams authorize, the gateway authenticates.** The gateway logs in the user, binds the token to the route and writes the tool name to the audit log. Each team MCP decides what the user may do. `required_group` is removed for the pilot, and group restriction per route ([#2209](https://github.com/navikt/copilot/issues/2209)) is deferred.
 
 ### 2026-11-16: controlled onboarding
 

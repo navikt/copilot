@@ -22,27 +22,7 @@ func (te *testEnv) obtainAccessTokenForResource(resource string) string {
 	te.t.Helper()
 	verifier := "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG"
 	req := httptest.NewRequest(http.MethodGet, te.authorizeURL(map[string]string{"resource": resource}, verifier), nil)
-	rec := httptest.NewRecorder()
-	te.handler.ServeHTTP(rec, req)
-	resp := rec.Result()
-	bodyBytes, _ := io.ReadAll(resp.Body)
-	_ = resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		te.t.Fatalf("expected 200 consent page, got %d: %s", resp.StatusCode, string(bodyBytes))
-	}
-	body := string(bodyBytes)
-	idMatch := reID.FindStringSubmatch(body)
-	csrfMatch := reCSRF.FindStringSubmatch(body)
-	if len(idMatch) != 2 || len(csrfMatch) != 2 {
-		te.t.Fatalf("missing hidden fields in consent HTML")
-	}
-	var csrfCookie *http.Cookie
-	for _, c := range resp.Cookies() {
-		if c.Name == csrfCookieName {
-			csrfCookie = c
-		}
-	}
-	entraState, stateCookie := te.approveConsent(idMatch[1], csrfMatch[1], csrfCookie)
+	entraState, stateCookie := te.followToEntra(req)
 	code := te.completeEntraCallback(entraState, stateCookie)
 	status, tokBody := te.postToken(url.Values{
 		"grant_type":    {"authorization_code"},
@@ -568,15 +548,15 @@ func TestHardening_OIDCNonce_PKCE_Singleflight_Prompt_And_Claims(t *testing.T) {
 	t.Run("prompt allowlist and claims JSON/size validation", func(t *testing.T) {
 		te := newTestEnv(t)
 
-		// Valid prompt and valid JSON object claims pass to consent page (200).
+		// Valid prompt and valid JSON object claims pass on to Entra (302).
 		okReq := httptest.NewRequest(http.MethodGet, te.authorizeURL(map[string]string{
 			"prompt": "select_account",
 			"claims": `{"id_token":{"acrs":{"essential":true}}}`,
 		}, verifier), nil)
 		okRec := httptest.NewRecorder()
 		te.handler.ServeHTTP(okRec, okReq)
-		if okRec.Code != http.StatusOK {
-			t.Fatalf("expected 200 for valid prompt and claims, got %d", okRec.Code)
+		if okRec.Code != http.StatusFound {
+			t.Fatalf("expected 302 for valid prompt and claims, got %d", okRec.Code)
 		}
 
 		badCases := []struct {
@@ -631,8 +611,7 @@ func TestHardening_OIDCNonce_PKCE_Singleflight_Prompt_And_Claims(t *testing.T) {
 					}
 				})
 
-				id, csrf, csrfCookie, _ := te.startAuthorizeAndConsent(verifier)
-				entraState, stateCookie := te.approveConsent(id, csrf, csrfCookie)
+				entraState, stateCookie := te.startLogin(verifier)
 				req := httptest.NewRequest(http.MethodGet, "/oauth2/callback?code=entra-code-123&state="+url.QueryEscape(entraState), nil)
 				req.AddCookie(stateCookie)
 				rec := httptest.NewRecorder()

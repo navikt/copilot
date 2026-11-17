@@ -10,7 +10,7 @@ Step 1 implements the authorization server only: protected resource metadata, au
 - `GET /.well-known/oauth-protected-resource/{resource}` — Resource-specific PRM (must match a configured pilot route)
 - `GET /.well-known/oauth-authorization-server` — RFC 8414 Authorization Server Metadata
 - `GET /authorize` — OAuth 2.1 authorization endpoint (CIMD allowlist, exact `redirect_uri`, PKCE `S256`, RFC 8707 `resource`, RFC 9207 `iss`)
-- `POST /consent` — Consent submission with CSRF cookie check
+- `POST /consent` — Consent submission with CSRF cookie check. The page is shown after the Entra login, and only when the user has no remembered consent for this client and route
 - `GET /oauth2/callback` — Entra ID reply URL, verified against signed `__Host-fleet_entra_state` cookie
 - `POST /token` — Single-use, 60-second authorization code exchange with PKCE verification
 - `POST /token` also accepts `grant_type=refresh_token` when `RT_STORAGE=client-encrypted` (single-use rotation, absolute `SESSION_MAX_AGE` cap)
@@ -39,6 +39,7 @@ Step 1 implements the authorization server only: protected resource metadata, au
 | `SESSION_STORE` | No | `memory` | `memory` (tests/local; lost on restart, not shared across replicas) or `postgres` |
 | `DATABASE_URL` | No | — | Postgres URL override. If empty, pgx reads the libpq `PG*` variables that Nais Postgres injects (TLS client certs, PgBouncer transaction mode; simple query protocol, no session state). Migrations run with the unprefixed admin `PG*` credentials; the running store uses the `READWRITE_PG*` runtime credentials |
 | `SESSION_MAX_AGE` | No | `12h` | Absolute session lifetime from login; refresh never extends it |
+| `CONSENT_TTL` | No | `720h` | How long a consent is remembered per NAVident, client_id and route. `/revoke` clears it |
 | `RT_STORAGE` | No | `client-encrypted` if `RT_KEYS` set, else none | `client-encrypted`: the Entra refresh token is sealed (AES-256-GCM) inside the gateway refresh token returned to the client; nothing is stored. `server`: refresh token stays in the session store, no client refresh token |
 | `RT_KEYS` | With `postgres` or `client-encrypted` | — | `kid:base64key,...` (32-byte keys, newest first encrypts, all decrypt). Also seals every value in the session store |
 | `GATEWAY_DISABLED` | No | `false` | Set to `true` to disable all `/mcp/*` routes (`503`, `Retry-After: 300`) |
