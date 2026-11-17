@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"time"
 )
 
@@ -88,12 +89,20 @@ func putSessionInStore(ctx context.Context, store SessionStore, nowFn func() tim
 
 func getSessionFromStore(ctx context.Context, store SessionStore, nowFn func() time.Time, maxAge time.Duration, hash string) (*gatewaySession, bool, error) {
 	raw, ok, err := store.Get(ctx, kindSession, hash)
-	if err != nil || !ok {
-		return nil, ok, err
+	if err != nil {
+		if errors.Is(err, errSealUnknownKID) || errors.Is(err, errSealDecrypt) || errors.Is(err, errSealMalformed) {
+			dropUnreadableSession(ctx, store, hash, err)
+			return nil, false, nil
+		}
+		return nil, false, err
+	}
+	if !ok {
+		return nil, false, nil
 	}
 	var sess gatewaySession
 	if err := json.Unmarshal(raw, &sess); err != nil {
-		return nil, false, err
+		dropUnreadableSession(ctx, store, hash, err)
+		return nil, false, nil
 	}
 	now := nowFn()
 	if !now.Before(sess.Expiry) {
@@ -109,4 +118,9 @@ func getSessionFromStore(ctx context.Context, store SessionStore, nowFn func() t
 		}
 	}
 	return &sess, true, nil
+}
+
+func dropUnreadableSession(ctx context.Context, store SessionStore, hash string, err error) {
+	slog.Warn("unreadable session row, treating as missing", "reason", err.Error())
+	_ = store.Delete(ctx, kindSession, hash)
 }

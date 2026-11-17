@@ -490,3 +490,47 @@ func TestConfig_SessionStoreValidationAndSealing(t *testing.T) {
 		t.Fatal("memory store with RT_KEYS set must be wrapped in sealedStore")
 	}
 }
+
+func TestSealedSessionUnknownKID_Returns401(t *testing.T) {
+	te := newTestEnv(t)
+	inner := newMemoryStore(te.gw.now, map[string]int{
+		kindPendingConsent: 1024,
+		kindPendingEntra:   1024,
+		kindCode:           1024,
+		kindSession:        4096,
+	})
+
+	kr1, err := parseKeyRing("k1:" + testKeyBase64(t, false))
+	if err != nil {
+		t.Fatalf("parseKeyRing k1 failed: %v", err)
+	}
+	kr2, err := parseKeyRing("k2:" + testKeyBase64(t, true))
+	if err != nil {
+		t.Fatalf("parseKeyRing k2 failed: %v", err)
+	}
+
+	gw1, handler1 := cloneTestEnvWithSharedStore(t, te, newSealedStore(inner, kr1), te.gw.now)
+	te.gw = gw1
+	te.handler = handler1
+	tok := te.obtainAccessTokenForResource(te.resource)
+
+	_, handler2 := cloneTestEnvWithSharedStore(t, te, newSealedStore(inner, kr2), te.gw.now)
+	req := httptest.NewRequest(http.MethodPost, "/mcp/etterlevelse", strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"tools/list"}`))
+	req.Header.Set("Authorization", "Bearer "+tok)
+	rec := httptest.NewRecorder()
+	handler2.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401 when session kid is absent from key ring, got %d (%s)", rec.Code, rec.Body.String())
+	}
+	var errBody map[string]string
+	if err := json.Unmarshal(rec.Body.Bytes(), &errBody); err != nil {
+		t.Fatalf("expected JSON body on 401, got %q: %v", rec.Body.String(), err)
+	}
+	if errBody["error"] != "invalid_token" {
+		t.Fatalf("expected error=invalid_token, got %v", errBody)
+	}
+	if _, ok, err := inner.Get(context.Background(), kindSession, hashToken(tok)); err != nil || ok {
+		t.Fatalf("expected unreadable session row to be deleted, got ok=%v err=%v", ok, err)
+	}
+}
