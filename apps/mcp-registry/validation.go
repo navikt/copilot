@@ -139,6 +139,10 @@ func validateServerEntry(server *StaticServerData, index int, existingNames map[
 		}
 	}
 
+	if err := validateAudience(server.Audience); err != nil {
+		return fmt.Errorf("server[%d].%w", index, err)
+	}
+
 	if server.Meta != nil && server.Meta.Broker != nil {
 		if err := validateBroker(server.Meta.Broker, server.Tools, index); err != nil {
 			return err
@@ -448,6 +452,7 @@ type Submission struct {
 	WebsiteURL  string             `json:"websiteUrl,omitempty"`
 	Repository  *Repository        `json:"repository,omitempty"`
 	Owner       string             `json:"owner"`
+	Audience    *Audience          `json:"audience,omitempty"`
 	Remotes     []SubmissionRemote `json:"remotes"`
 }
 
@@ -480,6 +485,36 @@ func submissionErrorMessage(err error) string {
 		return "invalid " + fe.field
 	}
 	return "invalid entry"
+}
+
+const (
+	maxAudienceTeams = 50
+	maxTeamSlugLen   = 63 // a Nais team is a Kubernetes namespace, a DNS label
+)
+
+// validateAudience is the one check for audience, shared by allowlist.json
+// and the write API so the two cannot drift. nil means visible to everyone.
+func validateAudience(a *Audience) error {
+	if a == nil {
+		return nil
+	}
+	if len(a.Teams) == 0 {
+		return errors.New("audience.teams must list at least one team; leave out audience for everyone")
+	}
+	if len(a.Teams) > maxAudienceTeams {
+		return fmt.Errorf("audience.teams has %d teams, at most %d allowed", len(a.Teams), maxAudienceTeams)
+	}
+	seen := make(map[string]bool, len(a.Teams))
+	for i, team := range a.Teams {
+		if len(team) > maxTeamSlugLen || !ownerRegex.MatchString(team) {
+			return fmt.Errorf("audience.teams[%d] is invalid: must be a Nais team matching ^[a-z0-9-]+$, at most %d characters", i, maxTeamSlugLen)
+		}
+		if seen[team] {
+			return fmt.Errorf("audience.teams[%d] is a duplicate", i)
+		}
+		seen[team] = true
+	}
+	return nil
 }
 
 // validateSubmission decodes entryJSON strictly into a Submission, validates it
@@ -521,6 +556,9 @@ func validateSubmission(entryJSON []byte) (*Submission, []byte, error) {
 		if err := validateSubmissionURL(sub.Repository.URL); err != nil {
 			return nil, nil, &validationFieldError{field: "repository.url", err: fmt.Errorf("invalid repository.url: %w", err)}
 		}
+	}
+	if err := validateAudience(sub.Audience); err != nil {
+		return nil, nil, &validationFieldError{field: "audience", err: err}
 	}
 	if len(sub.Remotes) == 0 {
 		return nil, nil, &validationFieldError{field: "remotes", err: errors.New("at least one remote is required")}

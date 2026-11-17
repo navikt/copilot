@@ -151,6 +151,14 @@ type NavRegistryMeta struct {
 	// ToolHashes pins each tool to a sha256 of its name, description and
 	// input schema. Not enforced yet.
 	ToolHashes map[string]string `json:"toolHashes,omitempty"`
+	// Audience names the teams the server is meant for. Visibility, not
+	// access control: the registry stays public. No audience means everyone.
+	Audience *Audience `json:"audience,omitempty"`
+}
+
+// Audience is validated by validateAudience, for allowlist.json and the write API alike.
+type Audience struct {
+	Teams []string `json:"teams"`
 }
 
 type ResponseMeta struct {
@@ -188,6 +196,7 @@ type StaticServerData struct {
 	SetupInstructions []SetupInstruction `json:"setupInstructions,omitempty"`
 	SandboxHosts      []string           `json:"sandboxHosts,omitempty"`
 	ToolRisk          map[string]string  `json:"toolRisk,omitempty"`
+	Audience          *Audience          `json:"audience,omitempty"`
 	Remotes           []Transport        `json:"remotes,omitempty"`
 	Packages          []Package          `json:"packages,omitempty"`
 	Meta              *ServerMeta        `json:"_meta,omitempty"`
