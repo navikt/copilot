@@ -117,7 +117,7 @@ export default async function Home() {
               <Heading size="small" level="2" className="mb-4">
                 Ressurser
               </Heading>
-              <HGrid columns={{ xs: 1, sm: 2, md: 4 }} gap="space-12">
+              <HGrid columns={{ xs: 1, sm: 2, lg: 4 }} gap="space-12">
                 <NavCard
                   href="/ma-vite"
                   icon={<ExclamationmarkTriangleIcon aria-hidden fontSize="1.75rem" />}

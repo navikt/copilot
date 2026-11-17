@@ -59,7 +59,9 @@ export default function EierskapPage() {
                 <ListItem>
                   Hold PR-ene små. Del en stor endring fra agenten i flere PR-er som kan leses hver for seg.
                 </ListItem>
-                <ListItem>Skriv i beskrivelsen hva som er testet, og hva reviewer bør se ekstra nøye på.</ListItem>
+                <ListItem>
+                  Skriv i beskrivelsen hva som er testet, og hva den som gjør review, bør se ekstra nøye på.
+                </ListItem>
               </List>
             </VStack>
 
@@ -70,7 +72,7 @@ export default function EierskapPage() {
               <List>
                 <ListItem>Gjør review som av annen kode. At en agent skrev den, senker ikke kravene.</ListItem>
                 <ListItem>
-                  Spør forfatteren om hvorfor. Et svar som «agenten foreslo det» er et signal om å ta en runde til.
+                  Be forfatteren forklare valgene. Et svar som «agenten foreslo det» er et signal om å ta en runde til.
                 </ListItem>
                 <ListItem>
                   Se etter det agenter ofte gjør: unødvendig kode, nye avhengigheter, svekket feilhåndtering og tester

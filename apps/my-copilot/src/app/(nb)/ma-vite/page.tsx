@@ -67,7 +67,7 @@ export default function MaVitePage() {
                 Du eier koden
               </Heading>
               <BodyLong>
-                Koden agenten skriver, er din når du ber om review. Du må kunne forklare den.{" "}
+                Du har ansvar for koden agenten skriver. Du må kunne forklare den.{" "}
                 <NextLink href="/praksis/eierskap" className={link}>
                   Eierskap og review av KI-kode
                 </NextLink>
