@@ -75,7 +75,7 @@ spec:
     outbound:
       rules:
       {{#each outbound_rules}}
-        - application: {{application}}
+        - { application: {{application}}{{#if namespace}}, namespace: {{namespace}}{{/if}}{{#if cluster}}, cluster: {{cluster}}{{/if}} }
       {{/each}}
       external:
         - host: login.microsoftonline.com
