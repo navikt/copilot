@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -77,16 +78,39 @@ func TestDCR_RegisterAndAuthorize(t *testing.T) {
 	}
 
 	verifier := "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG"
-	// Any port on the registered loopback path reaches the consent page, marked unverified.
-	u := te.authorizeURL(map[string]string{"client_id": clientID, "redirect_uri": "http://127.0.0.1:40001/mcp/oauth/callback"}, verifier)
-	rec = httptest.NewRecorder()
-	te.handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, u, nil))
-	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "Unverified client") || !strings.Contains(rec.Body.String(), "OpenCode") {
-		t.Fatalf("expected unverified consent page, got %d: %s", rec.Code, rec.Body.String())
+	// Any port on the registered loopback path goes to Entra; after the callback
+	// the consent page marks the client unverified.
+	cb := "http://127.0.0.1:40001/mcp/oauth/callback"
+	login := func(id string) *http.Response {
+		return te.callback(te.followToEntra(httptest.NewRequest(http.MethodGet, te.authorizeURL(map[string]string{"client_id": id, "redirect_uri": cb}, verifier), nil)))
+	}
+	resp := login(clientID)
+	page, _ := io.ReadAll(resp.Body)
+	_ = resp.Body.Close()
+	if resp.StatusCode != http.StatusOK || !strings.Contains(string(page), "Unverified client") || !strings.Contains(string(page), "OpenCode") {
+		t.Fatalf("expected unverified consent page, got %d: %s", resp.StatusCode, page)
+	}
+	resp.Body = io.NopCloser(strings.NewReader(string(page)))
+	id, csrf, cookie, _ := te.parseConsentPage(resp)
+	_ = te.clientCode(te.postConsent(id, csrf, cookie, "approve")) //nolint:bodyclose // clientCode closes it
+
+	// Consent is remembered for this registered client like any other client.
+	status := func(id string) int { r := login(id); _ = r.Body.Close(); return r.StatusCode }
+	if got := status(clientID); got != http.StatusFound {
+		t.Fatalf("remembered consent not used for DCR client: %d", got)
+	}
+	// A new registration gets a new random client_id and must ask again.
+	_, out2 := postRegister(te, opencodeRegistration(), "10.0.0.1")
+	clientID2, _ := out2["client_id"].(string)
+	if clientID2 == clientID {
+		t.Fatal("registrations share a client_id")
+	}
+	if got := status(clientID2); got != http.StatusOK {
+		t.Fatalf("new registration inherited consent: %d", got)
 	}
 
 	// PKCE stays mandatory for registered clients.
-	u = te.authorizeURL(map[string]string{"client_id": clientID, "redirect_uri": "http://127.0.0.1:40001/mcp/oauth/callback", "code_challenge": ""}, verifier)
+	u := te.authorizeURL(map[string]string{"client_id": clientID, "redirect_uri": "http://127.0.0.1:40001/mcp/oauth/callback", "code_challenge": ""}, verifier)
 	rec = httptest.NewRecorder()
 	te.handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, u, nil))
 	loc, _ := url.Parse(rec.Header().Get("Location"))
