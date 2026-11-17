@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/fs"
 	"log/slog"
+	"os"
 	"sort"
 	"strings"
 	"time"
@@ -40,8 +41,10 @@ type DB struct {
 func OpenDB(ctx context.Context, dbURL string) (*DB, error) {
 	config, err := pgxpool.ParseConfig(dbURL)
 	if err != nil {
-		return nil, fmt.Errorf("parsing db url: %w", err)
+		return nil, fmt.Errorf("parsing db config: %w", err)
 	}
+	// Simple protocol avoids prepared statements incompatible with PgBouncer transaction mode.
+	config.ConnConfig.DefaultQueryExecMode = pgx.QueryExecModeSimpleProtocol
 
 	pool, err := pgxpool.NewWithConfig(ctx, config)
 	if err != nil {
@@ -54,6 +57,31 @@ func OpenDB(ctx context.Context, dbURL string) (*DB, error) {
 	}
 
 	return &DB{pool: pool}, nil
+}
+
+var pgEnvReplacer = strings.NewReplacer(`\`, `\\`, `'`, `\'`)
+
+func pgEnvDSN(prefix string) string {
+	vars := []struct {
+		env string
+		key string
+	}{
+		{"PGHOST", "host"},
+		{"PGPORT", "port"},
+		{"PGDATABASE", "dbname"},
+		{"PGUSER", "user"},
+		{"PGSSLMODE", "sslmode"},
+		{"PGSSLCERT", "sslcert"},
+		{"PGSSLKEY", "sslkey"},
+		{"PGSSLROOTCERT", "sslrootcert"},
+	}
+	var parts []string
+	for _, v := range vars {
+		if val := os.Getenv(prefix + v.env); val != "" {
+			parts = append(parts, fmt.Sprintf("%s='%s'", v.key, pgEnvReplacer.Replace(val)))
+		}
+	}
+	return strings.Join(parts, " ")
 }
 
 // Close closes the database connection pool.
@@ -77,28 +105,27 @@ func (s *DB) Migrate(ctx context.Context) error {
 		return errors.New("database pool is not initialized")
 	}
 
-	// Session-level lock on one connection so concurrent replicas migrate serially.
-	conn, err := s.pool.Acquire(ctx)
+	// Use xact lock because PgBouncer transaction pooling gives no session state.
+	tx, err := s.pool.Begin(ctx)
 	if err != nil {
-		return fmt.Errorf("acquiring connection: %w", err)
-	}
-	defer conn.Release()
-	if _, err = conn.Exec(ctx, "SELECT pg_advisory_lock($1)", migrationLockKey); err != nil {
-		return fmt.Errorf("acquiring migration lock: %w", err)
+		return fmt.Errorf("starting migration bootstrap transaction: %w", err)
 	}
 	defer func() {
-		unlockCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
-		defer cancel()
-		_, _ = conn.Exec(unlockCtx, "SELECT pg_advisory_unlock($1)", migrationLockKey)
+		_ = tx.Rollback(ctx)
 	}()
-
+	if _, err = tx.Exec(ctx, "SELECT pg_advisory_xact_lock($1)", migrationLockKey); err != nil {
+		return fmt.Errorf("acquiring migration lock: %w", err)
+	}
 	createMigrationsTable := `
 	CREATE TABLE IF NOT EXISTS schema_migrations (
 		version TEXT PRIMARY KEY,
 		applied_at TIMESTAMPTZ NOT NULL DEFAULT now()
 	);`
-	if _, err = conn.Exec(ctx, createMigrationsTable); err != nil {
+	if _, err = tx.Exec(ctx, createMigrationsTable); err != nil {
 		return fmt.Errorf("creating schema_migrations table: %w", err)
+	}
+	if err = tx.Commit(ctx); err != nil {
+		return fmt.Errorf("committing migration bootstrap transaction: %w", err)
 	}
 
 	entries, err := fs.ReadDir(migrationFS, "migrations")
@@ -115,7 +142,7 @@ func (s *DB) Migrate(ctx context.Context) error {
 	sort.Strings(filenames)
 
 	for _, filename := range filenames {
-		if err := applyMigration(ctx, conn, filename); err != nil {
+		if err := applyMigration(ctx, s.pool, filename); err != nil {
 			return fmt.Errorf("applying migration %s: %w", filename, err)
 		}
 	}
@@ -123,17 +150,22 @@ func (s *DB) Migrate(ctx context.Context) error {
 	return nil
 }
 
-// migrationLockKey is an arbitrary fixed pg_advisory_lock key for Migrate.
+// migrationLockKey is an arbitrary fixed pg_advisory_xact_lock key for Migrate.
 const migrationLockKey int64 = 0x6d6370726567 // "mcpreg"
 
-func applyMigration(ctx context.Context, conn *pgxpool.Conn, filename string) error {
-	tx, err := conn.Begin(ctx)
+func applyMigration(ctx context.Context, pool *pgxpool.Pool, filename string) error {
+	tx, err := pool.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("starting transaction: %w", err)
 	}
 	defer func() {
 		_ = tx.Rollback(ctx)
 	}()
+
+	// Use xact lock because PgBouncer transaction pooling gives no session state.
+	if _, err = tx.Exec(ctx, "SELECT pg_advisory_xact_lock($1)", migrationLockKey); err != nil {
+		return fmt.Errorf("acquiring migration lock: %w", err)
+	}
 
 	var exists bool
 	err = tx.QueryRow(ctx, "SELECT true FROM schema_migrations WHERE version = $1", filename).Scan(&exists)
@@ -224,11 +256,12 @@ func (s *DB) Submit(ctx context.Context, actor string, entryJSON []byte, name st
 	}
 	newVersion := maxVersion + 1
 
-	// Insert into registry_entry_versions (append-only)
+	// Insert into registry_entry_versions (append-only). jsonb params go as string:
+	// simple protocol would send []byte as bytea.
 	_, err = tx.Exec(ctx, `
 		INSERT INTO registry_entry_versions (name, version, entry, submitted_by)
 		VALUES ($1, $2, $3, $4)
-	`, name, newVersion, entryJSON, actor)
+	`, name, newVersion, string(entryJSON), actor)
 	if err != nil {
 		return 0, fmt.Errorf("inserting entry version: %w", err)
 	}
@@ -250,7 +283,7 @@ func (s *DB) Submit(ctx context.Context, actor string, entryJSON []byte, name st
 		_, err = tx.Exec(ctx, `
 			INSERT INTO registry_entries (name, status, entry, version, pending_version, updated_at, owner_navident)
 			VALUES ($1, 'pending', $2, $3, NULL, now(), $4)
-		`, name, entryJSON, newVersion, actor)
+		`, name, string(entryJSON), newVersion, actor)
 		if err != nil {
 			return 0, fmt.Errorf("inserting new registry entry: %w", err)
 		}
@@ -286,7 +319,7 @@ func (s *DB) Submit(ctx context.Context, actor string, entryJSON []byte, name st
 			    pending_version = NULL,
 			    updated_at = now()
 			WHERE name = $1
-		`, name, entryJSON, newVersion)
+		`, name, string(entryJSON), newVersion)
 		if err != nil {
 			return 0, fmt.Errorf("updating pending registry entry: %w", err)
 		}
@@ -416,7 +449,7 @@ func (s *DB) Approve(ctx context.Context, actor, name string, version int) error
 		    pending_version = NULL,
 		    updated_at = now()
 		WHERE name = $1
-	`, name, entryJSON, version)
+	`, name, string(entryJSON), version)
 	if err != nil {
 		return fmt.Errorf("updating approved entry: %w", err)
 	}

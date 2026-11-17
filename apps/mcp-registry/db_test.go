@@ -12,6 +12,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 const (
@@ -523,17 +525,19 @@ func TestMigrate_ConcurrentReplicas(t *testing.T) {
 	}
 }
 
-// TestMigrate_WaitsForAdvisoryLock holds the migration lock on another
-// connection and checks that Migrate blocks until it is released.
+// TestMigrate_WaitsForAdvisoryLock holds the migration lock in a transaction
+// and checks that Migrate blocks until it is released.
 func TestMigrate_WaitsForAdvisoryLock(t *testing.T) {
 	db := setupTestDB(t)
 	ctx := context.Background()
-	conn, err := db.pool.Acquire(ctx)
+	tx, err := db.pool.Begin(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer conn.Release()
-	if _, err := conn.Exec(ctx, "SELECT pg_advisory_lock($1)", migrationLockKey); err != nil {
+	defer func() {
+		_ = tx.Rollback(ctx)
+	}()
+	if _, err := tx.Exec(ctx, "SELECT pg_advisory_xact_lock($1)", migrationLockKey); err != nil {
 		t.Fatal(err)
 	}
 	done := make(chan error, 1)
@@ -543,7 +547,7 @@ func TestMigrate_WaitsForAdvisoryLock(t *testing.T) {
 		t.Fatalf("Migrate returned while the lock was held: %v", err)
 	case <-time.After(300 * time.Millisecond):
 	}
-	if _, err := conn.Exec(ctx, "SELECT pg_advisory_unlock($1)", migrationLockKey); err != nil {
+	if err := tx.Rollback(ctx); err != nil {
 		t.Fatal(err)
 	}
 	select {
@@ -663,4 +667,63 @@ func TestMigration002_DropsEmailActors(t *testing.T) {
 	if emails != 0 {
 		t.Fatalf("%d email actors left", emails)
 	}
+}
+
+func TestPgEnvDSN(t *testing.T) {
+	keys := []string{"PGHOST", "PGPORT", "PGDATABASE", "PGUSER", "PGSSLMODE", "PGSSLCERT", "PGSSLKEY", "PGSSLROOTCERT"}
+	clearEnv := func(t *testing.T, prefix string) {
+		t.Helper()
+		for _, k := range keys {
+			t.Setenv(prefix+k, "")
+		}
+	}
+
+	t.Run("skips empty vars", func(t *testing.T) {
+		clearEnv(t, "READWRITE_")
+		if got := pgEnvDSN("READWRITE_"); got != "" {
+			t.Fatalf("got %q, want empty string", got)
+		}
+		t.Setenv("READWRITE_PGHOST", "127.0.0.1")
+		t.Setenv("READWRITE_PGUSER", "rw")
+		want := "host='127.0.0.1' user='rw'"
+		if got := pgEnvDSN("READWRITE_"); got != want {
+			t.Fatalf("got %q, want %q", got, want)
+		}
+	})
+
+	t.Run("all keys and quoting", func(t *testing.T) {
+		clearEnv(t, "READWRITE_")
+		t.Setenv("READWRITE_PGHOST", "db.local")
+		t.Setenv("READWRITE_PGPORT", "5432")
+		t.Setenv("READWRITE_PGDATABASE", `app's\db`)
+		t.Setenv("READWRITE_PGUSER", `user\name'1`)
+		t.Setenv("READWRITE_PGSSLMODE", "verify-full")
+		t.Setenv("READWRITE_PGSSLCERT", `/tmp/a'b\c.crt`)
+		t.Setenv("READWRITE_PGSSLKEY", "/tmp/client.key")
+		t.Setenv("READWRITE_PGSSLROOTCERT", "/tmp/ca.crt")
+
+		got := pgEnvDSN("READWRITE_")
+		want := `host='db.local' port='5432' dbname='app\'s\\db' user='user\\name\'1' sslmode='verify-full' sslcert='/tmp/a\'b\\c.crt' sslkey='/tmp/client.key' sslrootcert='/tmp/ca.crt'`
+		if got != want {
+			t.Fatalf("got  %q\nwant %q", got, want)
+		}
+	})
+
+	t.Run("pgxpool parses quoted DSN", func(t *testing.T) {
+		clearEnv(t, "READWRITE_")
+		t.Setenv("READWRITE_PGHOST", "db.local")
+		t.Setenv("READWRITE_PGPORT", "5432")
+		t.Setenv("READWRITE_PGDATABASE", `app's\db`)
+		t.Setenv("READWRITE_PGUSER", `user\name'1`)
+		t.Setenv("READWRITE_PGSSLMODE", "disable")
+
+		dsn := pgEnvDSN("READWRITE_")
+		cfg, err := pgxpool.ParseConfig(dsn)
+		if err != nil {
+			t.Fatalf("ParseConfig(%q): %v", dsn, err)
+		}
+		if cfg.ConnConfig.Database != `app's\db` || cfg.ConnConfig.User != `user\name'1` {
+			t.Fatalf("parsed db=%q user=%q, want app's\\db and user\\name'1", cfg.ConnConfig.Database, cfg.ConnConfig.User)
+		}
+	})
 }

@@ -17,6 +17,7 @@ type Config struct {
 	DomainInternal  string
 	DomainExternal  string
 	DatabaseURL     string
+	DatabaseEnabled bool
 	// AdminGroupID is the Entra group object id whose members may approve and
 	// reject entries. Empty means nobody is admin.
 	AdminGroupID string
@@ -76,11 +77,13 @@ func parseAllowedWriteAZP(raw, preAuthorizedJSON string) []string {
 }
 
 func loadConfig() *Config {
+	dbURL := getDatabaseURL()
 	config := &Config{
 		Port:            getEnv("PORT", "8080"),
 		DomainInternal:  getEnv("DOMAIN_INTERNAL", "intern.dev.nav.no"),
 		DomainExternal:  getEnv("DOMAIN_EXTERNAL", "ekstern.dev.nav.no"),
-		DatabaseURL:     getDatabaseURL(),
+		DatabaseURL:     dbURL,
+		DatabaseEnabled: dbURL != "" || os.Getenv("PGHOST") != "",
 		AdminGroupID:    os.Getenv("ADMIN_GROUP_ID"),
 		AllowedWriteAZP: parseAllowedWriteAZP(os.Getenv("ALLOWED_WRITE_AZP"), os.Getenv("AZURE_APP_PRE_AUTHORIZED_APPS")),
 		TexasEndpoint:   os.Getenv("NAIS_TOKEN_INTROSPECTION_ENDPOINT"),

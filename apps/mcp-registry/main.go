@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"os"
@@ -51,12 +52,12 @@ func main() {
 	sigCtx, stop := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	// The DB is optional: without DATABASE_URL, or while it cannot be reached,
+	// The DB is optional: without DB_URL or PGHOST, or while it cannot be reached,
 	// the reader serves static entries and the write endpoints answer 503.
 	// Reads must stay up when the DB is down, so a failing DB never blocks startup.
 	var db atomic.Pointer[DB]
 	var loader EntryLoader
-	if config.DatabaseURL != "" {
+	if config.DatabaseEnabled {
 		loader = func(ctx context.Context) ([]DBEntry, error) {
 			d := db.Load()
 			if d == nil {
@@ -136,14 +137,42 @@ func main() {
 }
 
 // openAndMigrate opens the DB and applies migrations, closing it on failure.
+// When dbURL is empty, it migrates with unprefixed PG* credentials and then
+// opens the runtime pool with READWRITE_PG* credentials (falling back to PG*).
 func openAndMigrate(ctx context.Context, dbURL string) (*DB, error) {
-	db, err := OpenDB(ctx, dbURL)
+	if dbURL != "" {
+		db, err := OpenDB(ctx, dbURL)
+		if err != nil {
+			return nil, err
+		}
+		if err := db.Migrate(ctx); err != nil {
+			db.Close()
+			return nil, err
+		}
+		return db, nil
+	}
+
+	migDB, err := OpenDB(ctx, "")
 	if err != nil {
 		return nil, err
 	}
-	if err := db.Migrate(ctx); err != nil {
-		db.Close()
+	if err = migDB.Migrate(ctx); err != nil {
+		migDB.Close()
 		return nil, err
+	}
+	migDB.Close()
+
+	runtimeDSN := ""
+	if os.Getenv("READWRITE_PGHOST") != "" {
+		runtimeDSN = pgEnvDSN("READWRITE_")
+	}
+	db, err := OpenDB(ctx, runtimeDSN)
+	if err != nil {
+		return nil, err
+	}
+	if _, err := db.GetApprovedEntries(ctx); err != nil {
+		db.Close()
+		return nil, fmt.Errorf("runtime role cannot read registry_entries: %w", err)
 	}
 	return db, nil
 }
