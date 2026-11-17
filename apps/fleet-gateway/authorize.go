@@ -374,6 +374,7 @@ func (g *Gateway) callbackHandler(w http.ResponseWriter, r *http.Request) {
 	out, status, err := g.redeemEntraCode(r.Context(), entraCode, p.EntraVerifier)
 	at, _ := out["access_token"].(string)
 	idt, _ := out["id_token"].(string)
+	logAccessTokenShape(at)
 	if err != nil || status != http.StatusOK || (at == "" && idt == "") {
 		errType, _ := out["error"].(string)
 		slog.Warn("audit login", "outcome", "code_redeem_failed", "status", status, "error", errType, "client_id", p.ClientID, "resource", p.Resource)
@@ -672,4 +673,27 @@ func extractIdentityFromClaims(claims map[string]any, navIdent *string, groups m
 			}
 		}
 	}
+}
+
+// logAccessTokenShape logs only non-secret claims (aud, ver, azp, scp) of the
+// Entra access token, to diagnose OBO audience errors. Never the token.
+func logAccessTokenShape(at string) {
+	parts := strings.Split(at, ".")
+	if len(parts) != 3 {
+		return
+	}
+	raw, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return
+	}
+	var c struct {
+		Aud any    `json:"aud"`
+		Ver string `json:"ver"`
+		Azp string `json:"azp"`
+		Scp string `json:"scp"`
+	}
+	if json.Unmarshal(raw, &c) != nil {
+		return
+	}
+	slog.Info("entra access token shape", "aud", fmt.Sprint(c.Aud), "ver", c.Ver, "azp", c.Azp, "scp", c.Scp)
 }
