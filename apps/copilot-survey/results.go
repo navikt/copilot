@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"slices"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -172,6 +173,50 @@ func (a *surveyAPI) publishedResults(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, aggregateTally(a.surveys[i], t, now))
+}
+
+// publishedCompare compares the last four closed, published waves of a
+// series that have at least minSegment rows, oldest first (#2229). Channels
+// are left out. An unknown series, or fewer than two such waves, is 404.
+// Like compare it reads rows, so a wave whose rows are deleted drops out.
+func (a *surveyAPI) publishedCompare(w http.ResponseWriter, r *http.Request) {
+	now, series := a.now(), r.URL.Query().Get("series")
+	candidates := slices.Clone(a.surveys)
+	slices.SortFunc(candidates, func(x, y survey) int { return strings.Compare(y.Starts, x.Starts) }) // newest first
+	var waves []survey
+	var rows [][]storedAnswer
+	for _, s := range candidates {
+		if len(waves) == 4 {
+			break
+		}
+		if series == "" || s.Series != series || !s.Published || s.status(now) != "stengt" {
+			continue
+		}
+		rs, err := a.read(r, s.ID)
+		if err != nil {
+			writeError(w, http.StatusServiceUnavailable, "survey storage unavailable")
+			return
+		}
+		if len(rs) >= minSegment {
+			waves, rows = append([]survey{s}, waves...), append([][]storedAnswer{rs}, rows...)
+		}
+	}
+	if len(waves) < 2 {
+		writeError(w, http.StatusNotFound, "unknown series")
+		return
+	}
+	res := compareWavesResult(waves, rows, now)
+	for i := range res.Surveys {
+		res.Surveys[i].Channels = nil
+	}
+	if r.URL.Query().Get("format") == "csv" {
+		w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+		w.Header().Set("Content-Disposition", `attachment; filename="sammenligning-`+series+`.csv"`)
+		w.Header().Set("Cache-Control", "no-store")
+		_ = writeCompareCSV(w, res)
+		return
+	}
+	writeJSON(w, res)
 }
 
 // aggregate counts answers per question and question version. Free text is
