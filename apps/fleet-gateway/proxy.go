@@ -95,6 +95,8 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 		clientID := ""
 		rpcMethod := ""
 		toolName := ""
+		decision := ""
+		decisionReason := ""
 
 		defer func() {
 			slog.Info("audit mcp",
@@ -104,6 +106,8 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 				"http_method", sanitizeLogValue(r.Method),
 				"method", sanitizeLogValue(rpcMethod),
 				"tool", sanitizeLogValue(toolName),
+				"decision", decision,
+				"decision_reason", decisionReason,
 				"outcome", outcome,
 				"duration_ms", g.now().Sub(start).Milliseconds(),
 			)
@@ -243,8 +247,33 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 			return
 		}
 
+		decision, decisionReason = "allow", reasonPassAll
+		if r.Method != http.MethodPost && route.allowedTools != nil {
+			decisionReason = reasonNotCall
+		}
+		// MCP defines no body for GET/DELETE; reject one rather than strip it,
+		// so a client sending tools/call that way learns it was never run.
+		if r.Method != http.MethodPost && len(reqBody) > 0 {
+			decision, decisionReason = "deny", reasonAmbiguous
+			outcome = "bad_request"
+			writeJSON(w, http.StatusBadRequest, map[string]string{
+				"error":   "invalid_request",
+				"message": "request body is only accepted on POST",
+			})
+			return
+		}
 		if r.Method == http.MethodPost {
 			rpcMethod, toolName = extractJSONRPCAudit(reqBody)
+			if route.allowedTools != nil {
+				allow, reason := toolPolicyDecision(reqBody, route.allowedTools)
+				decisionReason = reason
+				if !allow {
+					decision = "deny"
+					outcome = "tool_denied"
+					writeToolDenied(w, reason)
+					return
+				}
+			}
 		}
 
 		if g.TeamTokens == nil {
@@ -506,6 +535,24 @@ func streamSSE(
 	}
 }
 
+// writeToolDenied answers a denied POST with a JSON-RPC error and never
+// forwards it. An ambiguous body is a malformed request: HTTP 400 with
+// -32600 Invalid Request. A tool outside the allowlist is HTTP 403 with
+// -32602, the code MCP uses for an unknown tool, so clients treat it as a
+// tool that does not exist. The id is null: for a batch or an ambiguous body
+// the gateway cannot name one id without guessing.
+func writeToolDenied(w http.ResponseWriter, reason string) {
+	status, code, msg := http.StatusForbidden, -32602, "tool is not allowed on this route"
+	if reason == reasonAmbiguous {
+		status, code, msg = http.StatusBadRequest, -32600, "invalid_request: ambiguous JSON-RPC body"
+	}
+	writeJSON(w, status, map[string]any{
+		"jsonrpc": "2.0",
+		"id":      nil,
+		"error":   map[string]any{"code": code, "message": msg},
+	})
+}
+
 func writeUnauthorized(w http.ResponseWriter, prmURL string) {
 	w.Header().Set("WWW-Authenticate", fmt.Sprintf(`Bearer resource_metadata="%s"`, prmURL))
 	writeJSON(w, http.StatusUnauthorized, map[string]string{
@@ -707,35 +754,133 @@ func auditKeyAmbiguous(key json.Token, want string, seen *bool) bool {
 // auditMethodTool decodes the raw method and, for tools/call, params.name. A
 // field of the wrong type is left empty without dropping the other.
 func auditMethodTool(rawMethod, params json.RawMessage) (method, tool string) {
+	method, tool, ambiguous := rpcMethodTool(rawMethod, params)
+	if ambiguous {
+		return sanitizeAuditMethod(method), auditIncomplete
+	}
+	return sanitizeAuditMethod(method), sanitizeAuditMethod(tool)
+}
+
+// rpcMethodTool returns the unsanitized method and, for tools/call, the
+// unsanitized params.name, so audit and enforcement read the body the same way.
+// ambiguous is set for a case-variant or duplicate name key, and for a method
+// that only reads as tools/call once control characters or spaces are dropped.
+func rpcMethodTool(rawMethod, params json.RawMessage) (method, tool string, ambiguous bool) {
 	_ = json.Unmarshal(rawMethod, &method)
-	method = sanitizeAuditMethod(method)
-	if method != "tools/call" || len(params) == 0 {
-		return method, ""
+	if sanitizeAuditMethod(method) != "tools/call" {
+		return method, "", false
+	}
+	if method != "tools/call" {
+		return method, "", true
+	}
+	if len(params) == 0 {
+		return method, "", false
 	}
 	dec := json.NewDecoder(bytes.NewReader(params))
 	if tok, err := dec.Token(); err != nil || tok != json.Delim('{') {
-		return method, ""
+		return method, "", false
 	}
 	var skip, name json.RawMessage
 	var seen bool
 	for dec.More() {
 		key, err := dec.Token()
 		if err != nil {
-			return method, ""
+			return method, "", false
 		}
 		if auditKeyAmbiguous(key, "name", &seen) {
-			return method, auditIncomplete
+			return method, "", true
 		}
 		dst := &skip
 		if key == "name" {
 			dst = &name
 		}
 		if dec.Decode(dst) != nil {
-			return method, ""
+			return method, "", false
 		}
 	}
 	_ = json.Unmarshal(name, &tool)
-	return method, sanitizeAuditMethod(tool)
+	return method, tool, false
+}
+
+// Tool policy decision reasons, logged in the audit line.
+const (
+	reasonPassAll   = "pass_all"
+	reasonListed    = "listed"
+	reasonNotCall   = "not_tools_call"
+	reasonNotListed = "not_listed"
+	reasonAmbiguous = "ambiguous"
+)
+
+// toolPolicyDecision decides a POST body against a route's tool allowlist,
+// walking it like extractJSONRPCAudit. Anything the scan cannot read without
+// guessing (case-variant or duplicate method/params/name keys, trailing data,
+// unparseable or incomplete JSON) is denied as ambiguous, because upstream Go
+// servers match keys case-insensitively and may run a tool the scan never saw.
+// A batch is denied whole if any member is ambiguous or not listed.
+func toolPolicyDecision(body []byte, allowed map[string]bool) (allow bool, reason string) {
+	dec := json.NewDecoder(bytes.NewReader(body))
+	tok, err := dec.Token()
+	if err != nil {
+		return false, reasonAmbiguous
+	}
+	sawCall, notListed := false, false
+	member := func() (bool, string) {
+		m, params, ok := auditScanObject(dec)
+		if !ok {
+			return false, reasonAmbiguous
+		}
+		method, tool, ambiguous := rpcMethodTool(m, params)
+		switch {
+		case ambiguous || (strings.EqualFold(strings.TrimSpace(method), "tools/call") && method != "tools/call"):
+			return false, reasonAmbiguous
+		case method != "tools/call":
+			return true, ""
+		case !allowed[tool]:
+			// Keep scanning: ambiguity later in the body outranks not_listed.
+			notListed = true
+			return true, ""
+		}
+		sawCall = true
+		return true, ""
+	}
+	switch tok {
+	case json.Delim('{'):
+		if ok, reason := member(); !ok {
+			return false, reason
+		}
+	case json.Delim('['):
+		for dec.More() {
+			tok, err := dec.Token()
+			if err != nil {
+				return false, reasonAmbiguous
+			}
+			if tok != json.Delim('{') {
+				if !auditSkip(dec, tok) {
+					return false, reasonAmbiguous
+				}
+				continue
+			}
+			if ok, reason := member(); !ok {
+				return false, reason
+			}
+		}
+		// More() is also false on a syntax error, so require the closing ']'.
+		if tok, err := dec.Token(); err != nil || tok != json.Delim(']') {
+			return false, reasonAmbiguous
+		}
+	default:
+		return false, reasonAmbiguous
+	}
+	if !auditAtEOF(dec) {
+		return false, reasonAmbiguous
+	}
+	if notListed {
+		return false, reasonNotListed
+	}
+	if sawCall {
+		return true, reasonListed
+	}
+	return true, reasonNotCall
 }
 
 // auditScanObject reads one object whose '{' is consumed and returns the raw

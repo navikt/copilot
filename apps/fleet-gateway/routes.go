@@ -30,13 +30,31 @@ type PilotRoute struct {
 	Target      string `yaml:"target" json:"target"`
 	UpstreamURL string `yaml:"upstream_url" json:"upstream_url"`
 	Enabled     *bool  `yaml:"enabled,omitempty" json:"enabled,omitempty"`
+	// Tools is the version 2 allowlist of tool names for tools/call.
+	Tools []string `yaml:"tools,omitempty" json:"tools,omitempty"`
+	// PassAllTools is operator-only: a version 2 route without Tools forwards
+	// every tools/call. Version 1 routes behave as if it were set.
+	PassAllTools bool `yaml:"passAllTools,omitempty" json:"passAllTools,omitempty"`
 
 	Cluster     string   `yaml:"-" json:"-"`
 	Namespace   string   `yaml:"-" json:"-"`
 	App         string   `yaml:"-" json:"-"`
 	ParsedURL   *url.URL `yaml:"-" json:"-"`
 	FullRouteID string   `yaml:"-" json:"-"`
+	// allowedTools is set when the route enforces a tool allowlist; nil passes all.
+	allowedTools map[string]bool
 }
+
+// RouteSource supplies the validated pilot routes. The route file is the only
+// implementation today; the control service (#2334) becomes the second.
+type RouteSource interface {
+	Routes() ([]PilotRoute, error)
+}
+
+// fileRouteSource reads routes from PILOT_ROUTES_FILE, or the embedded default.
+type fileRouteSource struct{ path string }
+
+func (s fileRouteSource) Routes() ([]PilotRoute, error) { return loadPilotRoutes(s.path) }
 
 func (r PilotRoute) isDisabled() bool {
 	return r.Enabled != nil && !*r.Enabled
@@ -70,10 +88,51 @@ func parseAndValidatePilotRoutes(raw []byte) ([]PilotRoute, error) {
 	if err := dec.Decode(&extra); err != io.EOF {
 		return nil, errors.New("pilot routes config must contain a single YAML/JSON document")
 	}
-	if doc.Version != 1 {
+	if doc.Version != 1 && doc.Version != 2 {
 		return nil, fmt.Errorf("unsupported pilot routes version %d", doc.Version)
 	}
+	for i := range doc.Routes {
+		if err := applyToolPolicy(&doc.Routes[i], doc.Version); err != nil {
+			return nil, err
+		}
+	}
 	return validatePilotRoutes(doc.Routes)
+}
+
+// applyToolPolicy validates tools and passAllTools and builds the allowlist.
+// Version 2 denies by default: a route must list tools or be marked
+// passAllTools by the operator, not both.
+func applyToolPolicy(r *PilotRoute, version int) error {
+	name := strings.TrimSpace(r.Route)
+	if version == 1 {
+		if r.Tools != nil || r.PassAllTools {
+			return fmt.Errorf("route %q: tools and passAllTools require version 2", name)
+		}
+		return nil
+	}
+	if r.Tools == nil {
+		if !r.PassAllTools {
+			return fmt.Errorf("route %q: version 2 routes must declare tools (or passAllTools, set by the operator)", name)
+		}
+		return nil
+	}
+	if r.PassAllTools {
+		return fmt.Errorf("route %q: tools and passAllTools are mutually exclusive", name)
+	}
+	if len(r.Tools) == 0 {
+		return fmt.Errorf("route %q: tools must not be empty", name)
+	}
+	r.allowedTools = make(map[string]bool, len(r.Tools))
+	for _, t := range r.Tools {
+		if t == "" || strings.TrimSpace(t) != t {
+			return fmt.Errorf("route %q: invalid tool name %q", name, t)
+		}
+		if r.allowedTools[t] {
+			return fmt.Errorf("route %q: duplicate tool %q", name, t)
+		}
+		r.allowedTools[t] = true
+	}
+	return nil
 }
 
 func validatePilotRoutes(routes []PilotRoute) ([]PilotRoute, error) {

@@ -85,7 +85,8 @@ const OUTBOUND_YAML = `outbound_rules:
 const ROUTE_YAML = `- route: /mcp/<navn>
   team: <team>
   target: <klynge>:<namespace>:<app>
-  upstream_url: http://<app>.<namespace>/<sti-til-mcp>`;
+  upstream_url: http://<app>.<namespace>/<sti-til-mcp>
+  tools: [<verktøy>, <verktøy>]`;
 
 const OPENCODE_JSON = `{
   "mcp": {
@@ -223,7 +224,8 @@ export default function FleetGatewayForTeamPage() {
                     <code className={code}>.nais/prod-gcp.yaml</code>, med <code className={code}>namespace</code> når
                     appen ligger i et annet namespace enn <code className={code}>copilot</code>.{" "}
                     <code className={code}>upstream_url</code> er den interne adressen med full sti til MCP-endepunktet,
-                    i samme namespace som <code className={code}>target</code>.
+                    i samme namespace som <code className={code}>target</code>. <code className={code}>tools</code> er
+                    listen over verktøy ruten slipper gjennom; andre <code className={code}>tools/call</code> avvises.
                   </BodyLong>
                   <CodeBlock filename="apps/fleet-gateway/pilot-routes.<miljø>.yaml">{ROUTE_YAML}</CodeBlock>
                   <CodeBlock filename="apps/fleet-gateway/.nais/<klynge>.yaml">{OUTBOUND_YAML}</CodeBlock>

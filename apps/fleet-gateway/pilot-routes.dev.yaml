@@ -1,10 +1,12 @@
-version: 1
+version: 2
 routes:
   - route: /mcp/test
     team: copilot
     target: dev-gcp:copilot:fleet-echo
     upstream_url: http://fleet-echo.copilot/
+    tools: [whoami]
   - route: /mcp/onboarding
     team: copilot
     target: dev-gcp:copilot:mcp-onboarding
     upstream_url: http://mcp-onboarding.copilot/mcp/gw
+    passAllTools: true
