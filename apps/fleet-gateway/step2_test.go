@@ -1124,7 +1124,7 @@ routes:
 				t.Fatalf("parseAndValidatePilotRoutes failed: %v", err)
 			}
 			te.gw.cfg.Routes = parsedRoutes
-			if err := validateConfig(te.gw.cfg); err != nil {
+			if err = validateConfig(te.gw.cfg); err != nil {
 				t.Fatalf("validateConfig failed: %v", err)
 			}
 			parsedUpstream, err := url.Parse(te.upstreamServer.URL)
