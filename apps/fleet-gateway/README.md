@@ -9,7 +9,7 @@ Step 1 implements the authorization server only: protected resource metadata, au
 - `GET /.well-known/oauth-protected-resource` — RFC 9728 Protected Resource Metadata
 - `GET /.well-known/oauth-protected-resource/{resource}` — Resource-specific PRM (must match a configured pilot route)
 - `GET /.well-known/oauth-authorization-server` — RFC 8414 Authorization Server Metadata
-- `GET /authorize` — OAuth 2.1 authorization endpoint (CIMD allowlist, exact `redirect_uri`, PKCE `S256`, RFC 8707 `resource`, RFC 9207 `iss`)
+- `GET /authorize` — OAuth 2.1 authorization endpoint (CIMD allowlist, exact `redirect_uri` except the port of http loopback IP literals per RFC 8252 §7.3, PKCE `S256`, RFC 8707 `resource`, RFC 9207 `iss`)
 - `POST /consent` — Consent submission with CSRF cookie check. The page is shown after the Entra login, and only when the user has no remembered consent for this client and route
 - `GET /oauth2/callback` — Entra ID reply URL, verified against signed `__Host-fleet_entra_state` cookie
 - `POST /token` — Single-use, 60-second authorization code exchange with PKCE verification
@@ -24,7 +24,7 @@ Step 1 implements the authorization server only: protected resource metadata, au
 | --- | --- | --- | --- |
 | `BASE_URL` | Yes | — | External gateway origin without trailing slash |
 | `ALLOWED_CLIENT_IDS` | Yes | — | Comma-separated allowlist of CIMD `client_id` URLs |
-| `ALLOWED_REDIRECT_URIS` | Yes | — | Comma-separated allowlist of exact `redirect_uri` values |
+| `ALLOWED_REDIRECT_URIS` | Yes | — | Comma-separated allowlist of `redirect_uri` values. Exact match, except that `http://127.0.0.1` and `http://[::1]` entries match on any port (RFC 8252 §7.3); `localhost` never does |
 | `AZURE_APP_CLIENT_ID` | Yes | — | Nais-injected Entra client ID |
 | `AZURE_APP_CLIENT_SECRET` | Yes | — | Nais-injected Entra client secret |
 | `AZURE_OPENID_CONFIG_TOKEN_ENDPOINT` | Yes | — | Nais-injected Entra token endpoint |

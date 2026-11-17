@@ -77,7 +77,9 @@ spec:
       {{/each}}
       external:
         - host: login.microsoftonline.com
-        - host: "{{cimd_host}}"
+      {{#each cimd_hosts as |host|}}
+        - host: "{{host}}"
+      {{/each}}
   ingresses:
   {{#each ingresses as |url|}}
     - {{url}}
