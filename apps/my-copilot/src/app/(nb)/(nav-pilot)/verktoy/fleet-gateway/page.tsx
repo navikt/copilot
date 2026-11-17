@@ -57,7 +57,7 @@ export default function FleetGatewayPage() {
                 </Heading>
               </HStack>
               <Bullets>
-                <li>For deg som bruker Copilot CLI eller OpenCode. nav-pilot og cplt er valgfritt.</li>
+                <li>For deg som bruker Copilot CLI eller OpenCode. I dev fungerer bare OpenCode startet direkte.</li>
                 <li>Hent data fra Navs egne MCP-servere.</li>
                 <li>Logg inn med Nav-kontoen. Du trenger ingen egne nøkler per server.</li>
               </Bullets>
@@ -108,27 +108,31 @@ export default function FleetGatewayPage() {
         </LinkableHeading>
         <Bullets>
           <li>
-            Legg til serveren i Copilot CLI eller OpenCode direkte. nav-pilot og cplt trenger du ikke, men de fungerer
-            også.
+            I dev fungerer bare OpenCode som du starter direkte, ikke via nav-pilot. Legg til adressen som ekstern
+            MCP-server i OpenCode.
+          </li>
+          <li>
+            Copilot CLI kan ikke bruke gatewayen ennå. Nav tillater bare MCP-servere som står i MCP-registeret på{" "}
+            <code className={code}>mcp-registry.nav.no</code>, og nav-pilot følger samme regel når den starter OpenCode.
+            Rutene legges i registeret når gatewayen er i prod. Dev-adresser publiseres ikke.
           </li>
           <li>
             Adressen er <code className={code}>https://fleet-gateway.intern.dev.nav.no/mcp/&lt;navn&gt;</code>. Første
             rute er <code className={code}>/mcp/onboarding</code> (mcp-onboarding).{" "}
             <code className={code}>/mcp/test</code> er en testserver.
           </li>
-          <li>Du må være på naisdevice. Adressen nås ikke ellers.</li>
+          <li>Du må være på naisdevice. Ellers når du ikke adressen.</li>
           <li>
-            Første gang åpnes nettleseren. Du logger inn med Nav-kontoen og godkjenner klienten for ruten. Du godkjenner
-            én gang per rute og klient, og valget huskes i 30 dager. Å tilbakekalle tokenet nullstiller det.
+            Første gang åpnes nettleseren. Du logger inn med Nav-kontoen og godkjenner klienten for ruten. Valget huskes
+            i 30 dager per rute og klient. Tilbakekaller du tokenet, må du godkjenne på nytt.
           </li>
           <li>
-            Copilot CLI og OpenCode registrerer seg selv. Klienter som registrerer seg dynamisk vises som «unverified»
-            på godkjenningssiden.
+            Klienter som registrerer seg selv, merkes som «Unverified client» på godkjenningssiden. Fortsett bare hvis
+            du nettopp startet innloggingen selv.
           </li>
         </Bullets>
         <Alert variant="info" size="small">
-          Bare i dev, og bare pilot. Innloggingen er testet mot gatewayen i kode og enhetstester. Vi har ikke kjørt hele
-          løpet ende til ende fra Copilot CLI og OpenCode ennå.
+          Bare i dev. Innloggingen er dekket av enhetstester. Hele løpet fra OpenCode er ikke kjørt ende til ende ennå.
         </Alert>
       </VStack>
 
@@ -156,7 +160,8 @@ export default function FleetGatewayPage() {
           </li>
           <li>Pilotlisten: fleet-gateway åpner bare ruter som står på en eksplisitt liste.</li>
           <li>
-            Klienten: piloten godtar bare navngitte klienter (cplt, Copilot CLI og OpenCode i dev), på naisdevice.
+            Klienten: cplt, Copilot CLI og OpenCode er forhåndsgodkjent i dev. Andre klienter kan registrere seg selv og
+            merkes som «Unverified client». Alle må være på naisdevice.
           </li>
         </Bullets>
         <BodyLong>Slik blir en server med:</BodyLong>

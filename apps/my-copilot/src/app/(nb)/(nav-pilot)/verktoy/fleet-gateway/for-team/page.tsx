@@ -65,7 +65,6 @@ const CHECKLIST = [
   "Entra ID er slått på i azure.application",
   "fleet-gateway står i accessPolicy.inbound",
   "Appen sjekker aud, idtyp, NAVident og azp med Texas",
-  "Rutetesten i fleet-gateway er oppdatert med riktig antall ruter",
   "Appen logger aldri tokenet",
   "Pilotsøknaden er sendt",
 ];
@@ -104,9 +103,9 @@ export default function FleetGatewayForTeamPage() {
           </li>
           <li>Verktøyene kan bare lese data. Piloten støtter ikke skriving ennå.</li>
           <li>
-            Deler dere <code className={code}>app.yaml</code> mellom dev og prod, må dere slå på Azure bare i dev. Bruk
-            en variabel per miljø (vars-fil), slik at <code className={code}>azure.application.enabled</code> og
-            inbound-regelen ikke kommer med i prod. Piloten finnes ikke i prod.
+            Piloten finnes ikke i prod. Deler dere <code className={code}>app.yaml</code> mellom dev og prod, styrer
+            dere inbound-regelen med en variabel per miljø (vars-fil), slik at den ikke kommer med i prod. Det samme
+            gjelder <code className={code}>azure.application.enabled</code> hvis appen ikke bruker Entra ID fra før.
           </li>
         </Bullets>
       </VStack>
@@ -151,9 +150,9 @@ export default function FleetGatewayForTeamPage() {
                     </li>
                     <li>
                       <code className={code}>azp</code> er klient-ID-en til fleet-gateway, fra{" "}
-                      <code className={code}>AZURE_APP_PRE_AUTHORIZED_APPS</code>. Lista kan ha flere apper som heter
-                      fleet-gateway. Velg oppføringen der navnet er <code className={code}>cluster:namespace:app</code>,
-                      her <code className={code}>dev-gcp:copilot:fleet-gateway</code>.
+                      <code className={code}>AZURE_APP_PRE_AUTHORIZED_APPS</code>. Listen kan ha flere apper som heter
+                      fleet-gateway. Velg den som heter <code className={code}>dev-gcp:copilot:fleet-gateway</code>, på
+                      formen <code className={code}>cluster:namespace:app</code>.
                     </li>
                   </Bullets>
                   <CodeBlock filename="Go-utdrag">{TOKEN_CHECK}</CodeBlock>
@@ -181,33 +180,35 @@ export default function FleetGatewayForTeamPage() {
                     til MCP-endepunktet, i samme namespace som <code className={code}>target</code>.
                   </BodyLong>
                   <CodeBlock filename="apps/fleet-gateway/pilot-routes.dev.yaml">{ROUTE_YAML}</CodeBlock>
+                  <BodyLong>Lager dere PR-en selv, gjelder dette:</BodyLong>
                   <Bullets>
                     <li>
-                      <code className={code}>allowed_resources</code> trenger dere ikke å røre. fleet-gateway bygger
-                      lista fra rutene. Verdien i <code className={code}>.nais/dev-gcp.yaml</code> er utdatert.
+                      Ikke endre <code className={code}>allowed_resources</code> i{" "}
+                      <code className={code}>.nais/dev-gcp.yaml</code>. fleet-gateway bygger listen fra rutene og bruker
+                      ikke verdien.
                     </li>
                     <li>
-                      Ny rute endrer antallet i <code className={code}>TestDevPilotRoutesFileValid</code>, som teller
-                      rutene hardkodet. Oppdater tallet, ellers feiler testen.
+                      Oppdater antallet ruter i <code className={code}>TestDevPilotRoutesFileValid</code>. Testen har
+                      tallet hardkodet og feiler ellers.
                     </li>
                   </Bullets>
                 </VStack>
               ),
             },
             {
-              title: "Test fra Copilot CLI eller OpenCode",
+              title: "Test fra OpenCode",
               content: (
                 <VStack gap="space-8">
                   <BodyLong>
                     Adressen blir <code className={code}>https://fleet-gateway.intern.dev.nav.no/mcp/&lt;navn&gt;</code>
-                    . Legg den til som ekstern MCP-server i Copilot CLI eller OpenCode. Dere må være på naisdevice.
-                    Første kall åpner nettleseren. Der logger dere inn med Nav-kontoen og godkjenner klienten for ruten.
-                    Godkjenningen huskes i 30 dager per rute og klient.
+                    . Legg den til som ekstern MCP-server i OpenCode, og start OpenCode direkte, ikke via nav-pilot.
+                    Dere må være på naisdevice. Første kall åpner nettleseren. Der logger dere inn med Nav-kontoen og
+                    godkjenner klienten for ruten. Godkjenningen huskes i 30 dager per rute og klient.
                   </BodyLong>
                   <BodyLong>
-                    nav-pilot og cplt er valgfritt. Hele løpet ende til ende fra Copilot CLI og OpenCode er ikke
-                    verifisert ennå. mcp-onboarding på <code className={code}>/mcp/onboarding</code> er første ekte rute
-                    i dev.
+                    Copilot CLI og OpenCode via nav-pilot fungerer først når ruten står i MCP-registeret. Det skjer når
+                    gatewayen er i prod. Hele løpet fra OpenCode er ikke kjørt ende til ende ennå. Første ekte rute i
+                    dev er mcp-onboarding på <code className={code}>/mcp/onboarding</code>.
                   </BodyLong>
                 </VStack>
               ),
