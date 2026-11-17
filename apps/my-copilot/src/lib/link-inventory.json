@@ -3083,6 +3083,7 @@
       "hva-teamet-gjor": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/verktoy/fleet-gateway/page.tsx"],
       "hvem": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/verktoy/fleet-gateway/page.tsx"],
       "hvem-slipper-inn": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/verktoy/fleet-gateway/page.tsx"],
+      "koble-til": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/verktoy/fleet-gateway/page.tsx"],
       "sok": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/verktoy/fleet-gateway/page.tsx"],
       "status": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/verktoy/fleet-gateway/page.tsx"]
     }
