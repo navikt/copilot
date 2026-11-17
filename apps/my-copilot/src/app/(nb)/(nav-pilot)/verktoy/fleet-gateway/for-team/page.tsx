@@ -65,6 +65,7 @@ const CHECKLIST = [
   "Entra ID er slått på i azure.application",
   "fleet-gateway står i accessPolicy.inbound",
   "Appen sjekker aud, idtyp, NAVident og azp med Texas",
+  "Rutetesten i fleet-gateway er oppdatert med riktig antall ruter",
   "Appen logger aldri tokenet",
   "Pilotsøknaden er sendt",
 ];
@@ -102,6 +103,11 @@ export default function FleetGatewayForTeamPage() {
             Appen kjører på Nais i dev-gcp med Entra ID slått på i <code className={code}>azure.application</code>.
           </li>
           <li>Verktøyene kan bare lese data. Piloten støtter ikke skriving ennå.</li>
+          <li>
+            Deler dere <code className={code}>app.yaml</code> mellom dev og prod, må dere slå på Azure bare i dev. Bruk
+            en variabel per miljø (vars-fil), slik at <code className={code}>azure.application.enabled</code> og
+            inbound-regelen ikke kommer med i prod. Piloten finnes ikke i prod.
+          </li>
         </Bullets>
       </VStack>
 
@@ -145,7 +151,9 @@ export default function FleetGatewayForTeamPage() {
                     </li>
                     <li>
                       <code className={code}>azp</code> er klient-ID-en til fleet-gateway, fra{" "}
-                      <code className={code}>AZURE_APP_PRE_AUTHORIZED_APPS</code>.
+                      <code className={code}>AZURE_APP_PRE_AUTHORIZED_APPS</code>. Lista kan ha flere apper som heter
+                      fleet-gateway. Velg oppføringen der navnet er <code className={code}>cluster:namespace:app</code>,
+                      her <code className={code}>dev-gcp:copilot:fleet-gateway</code>.
                     </li>
                   </Bullets>
                   <CodeBlock filename="Go-utdrag">{TOKEN_CHECK}</CodeBlock>
@@ -173,17 +181,35 @@ export default function FleetGatewayForTeamPage() {
                     til MCP-endepunktet, i samme namespace som <code className={code}>target</code>.
                   </BodyLong>
                   <CodeBlock filename="apps/fleet-gateway/pilot-routes.dev.yaml">{ROUTE_YAML}</CodeBlock>
+                  <Bullets>
+                    <li>
+                      <code className={code}>allowed_resources</code> trenger dere ikke å røre. fleet-gateway bygger
+                      lista fra rutene. Verdien i <code className={code}>.nais/dev-gcp.yaml</code> er utdatert.
+                    </li>
+                    <li>
+                      Ny rute endrer antallet i <code className={code}>TestDevPilotRoutesFileValid</code>, som teller
+                      rutene hardkodet. Oppdater tallet, ellers feiler testen.
+                    </li>
+                  </Bullets>
                 </VStack>
               ),
             },
             {
-              title: "Test fra cplt",
+              title: "Test fra Copilot CLI eller OpenCode",
               content: (
-                <BodyLong>
-                  Adressen blir <code className={code}>https://fleet-gateway.intern.dev.nav.no/mcp/&lt;navn&gt;</code>.
-                  Dere må være på naisdevice, og piloten godtar bare cplt som klient. Første kall åpner nettleseren. Der
-                  godkjenner dere serveren og logger inn med Nav-kontoen.
-                </BodyLong>
+                <VStack gap="space-8">
+                  <BodyLong>
+                    Adressen blir <code className={code}>https://fleet-gateway.intern.dev.nav.no/mcp/&lt;navn&gt;</code>
+                    . Legg den til som ekstern MCP-server i Copilot CLI eller OpenCode. Dere må være på naisdevice.
+                    Første kall åpner nettleseren. Der logger dere inn med Nav-kontoen og godkjenner klienten for ruten.
+                    Godkjenningen huskes i 30 dager per rute og klient.
+                  </BodyLong>
+                  <BodyLong>
+                    nav-pilot og cplt er valgfritt. Hele løpet ende til ende fra Copilot CLI og OpenCode er ikke
+                    verifisert ennå. mcp-onboarding på <code className={code}>/mcp/onboarding</code> er første ekte rute
+                    i dev.
+                  </BodyLong>
+                </VStack>
               ),
             },
           ]}

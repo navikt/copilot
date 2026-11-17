@@ -19,6 +19,7 @@ const APPLY_URL = "https://github.com/navikt/copilot/issues/new?template=fleet-g
 const TOC: TocItem[] = [
   { id: "hvem", label: "Hvem og hvorfor" },
   { id: "hva-det-er", label: "Hva det er" },
+  { id: "koble-til", label: "Slik kobler du til" },
   { id: "status", label: "Status" },
   { id: "hvem-slipper-inn", label: "Hvem slipper inn" },
   { id: "hva-teamet-gjor", label: "Hva teamet gjør" },
@@ -56,7 +57,7 @@ export default function FleetGatewayPage() {
                 </Heading>
               </HStack>
               <Bullets>
-                <li>For deg som bruker Copilot eller nav-pilot gjennom cplt.</li>
+                <li>For deg som bruker Copilot CLI eller OpenCode. nav-pilot og cplt er valgfritt.</li>
                 <li>Hent data fra Navs egne MCP-servere.</li>
                 <li>Logg inn med Nav-kontoen. Du trenger ingen egne nøkler per server.</li>
               </Bullets>
@@ -102,6 +103,36 @@ export default function FleetGatewayPage() {
       </VStack>
 
       <VStack gap="space-12">
+        <LinkableHeading id="koble-til" size="medium" level="2">
+          Slik kobler du til
+        </LinkableHeading>
+        <Bullets>
+          <li>
+            Legg til serveren i Copilot CLI eller OpenCode direkte. nav-pilot og cplt trenger du ikke, men de fungerer
+            også.
+          </li>
+          <li>
+            Adressen er <code className={code}>https://fleet-gateway.intern.dev.nav.no/mcp/&lt;navn&gt;</code>. Første
+            rute er <code className={code}>/mcp/onboarding</code> (mcp-onboarding).{" "}
+            <code className={code}>/mcp/test</code> er en testserver.
+          </li>
+          <li>Du må være på naisdevice. Adressen nås ikke ellers.</li>
+          <li>
+            Første gang åpnes nettleseren. Du logger inn med Nav-kontoen og godkjenner klienten for ruten. Du godkjenner
+            én gang per rute og klient, og valget huskes i 30 dager. Å tilbakekalle tokenet nullstiller det.
+          </li>
+          <li>
+            Copilot CLI og OpenCode registrerer seg selv. Klienter som registrerer seg dynamisk vises som «unverified»
+            på godkjenningssiden.
+          </li>
+        </Bullets>
+        <Alert variant="info" size="small">
+          Bare i dev, og bare pilot. Innloggingen er testet mot gatewayen i kode og enhetstester. Vi har ikke kjørt hele
+          løpet ende til ende fra Copilot CLI og OpenCode ennå.
+        </Alert>
+      </VStack>
+
+      <VStack gap="space-12">
         <LinkableHeading id="status" size="medium" level="2">
           Status
         </LinkableHeading>
@@ -124,7 +155,9 @@ export default function FleetGatewayPage() {
             fleet-gateway.
           </li>
           <li>Pilotlisten: fleet-gateway åpner bare ruter som står på en eksplisitt liste.</li>
-          <li>Klienten: piloten godtar bare cplt, på naisdevice.</li>
+          <li>
+            Klienten: piloten godtar bare navngitte klienter (cplt, Copilot CLI og OpenCode i dev), på naisdevice.
+          </li>
         </Bullets>
         <BodyLong>Slik blir en server med:</BodyLong>
         <VStack as="ol" gap="space-4" className="list-decimal" style={{ paddingInlineStart: "var(--ax-space-20)" }}>
