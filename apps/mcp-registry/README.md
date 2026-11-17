@@ -150,13 +150,15 @@ Names follow reverse-DNS with exactly one `/`:
 
 **Required fields**: `name`, `description`, `version`
 
-**Optional fields**: `status` (default: `active`), `publishedAt`, `remotes`, `packages`, `setupInstructions`, `sandboxHosts`, `toolRisk`
+**Optional fields**: `status` (default: `active`), `publishedAt`, `remotes`, `packages`, `setupInstructions`, `sandboxHosts`, `toolRisk`, `audience`
 
 `setupInstructions` is an array of `{ "title", "description", "commands" }` steps, shown with copyable commands in Min Copilot.
 
 `sandboxHosts` lists bare host names the server needs besides its remotes, such as an OAuth endpoint (`["api.figma.com"]` for Figma). It is served under `_meta."io.github.navikt/registry".sandboxHosts`, and nav-pilot asks the user before allowing these hosts in cplt's sandbox.
 
 `toolRisk` classes the tools in `tools` that do more than read, as `{"tool": "write|external|host-exec"}`. A tool without an entry is a read. `write` changes the repo or project, `external` has a visible effect in another system (an issue, a PR, a file in Figma, outbound traffic), and `host-exec` runs on the user's machine outside cplt's sandbox (a terminal command in IntelliJ, say). It is served under `_meta."io.github.navikt/registry".toolRisk`. `nav-pilot mcp enable` turns on read and write tools and leaves external and host-exec tools off until the user picks them. Every key must be in `tools`, and a server on localhost must list its tools.
+
+`audience` names the Nais teams a server is meant for, as `{"teams": ["team-a", "team-b"]}`. It is served unchanged under `_meta."io.github.navikt/registry".audience`. A server without `audience` is meant for everyone. This is visibility, not access control: the registry stays public and unauthenticated, so the team list is public too, and clients such as nav-pilot decide what to show. Name the teams explicitly; the registry does not derive them from `owner`. `teams` must hold 1 to 50 unique slugs matching `^[a-z0-9-]+$`, at most 63 characters each. `allowlist.json` and the write API (`POST /api/v1/entries`, field `audience` next to `owner`) share one validator. As with other fields, `allowlist.json` ignores unknown keys and the write API rejects them.
 
 `owner`, `gateway` and `toolHashes` are reserved in `_meta."io.github.navikt/registry"` ([#2101](https://github.com/navikt/copilot/pull/2101)) but cannot be set in `allowlist.json` yet. `owner` is the Nais team that answers for the server, `gateway` is the MCP gateway route that fronts a team server, and `toolHashes` pins each tool to a sha256 of its name, description and input schema (not enforced yet).
 

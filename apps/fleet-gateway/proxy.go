@@ -167,6 +167,7 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 			return
 		}
 		reqSessionID := r.Header.Get("Mcp-Session-Id")
+		ownsReqSession := false
 		if reqSessionID != "" {
 			if len(reqSessionID) > maxMCPSessionIDBytes {
 				outcome = "bad_request"
@@ -199,6 +200,7 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 					})
 					return
 				}
+				ownsReqSession = true
 			}
 		}
 
@@ -321,9 +323,23 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 			}
 			_ = g.store.Put(r.Context(), kindMCPSessionUser, sess.NAVIdent, []byte(strconv.Itoa(count+1)), mcpSessionTTL)
 		}
+		// A terminated session frees its binding and the user's slot under the cap.
+		if r.Method == http.MethodDelete && ownsReqSession && resp.StatusCode < 300 {
+			// Pop, not Delete: only the request that removed the binding frees the slot,
+			// so concurrent DELETEs of one session cannot decrement twice.
+			if _, removed, delErr := g.store.Pop(r.Context(), kindMCPSession, route.Route+"\n"+reqSessionID); delErr != nil {
+				slog.Warn("mcp session unbind failed", "route", route.Route, "error", delErr)
+			} else if raw, ok, cntErr := g.store.Get(r.Context(), kindMCPSessionUser, sess.NAVIdent); removed && cntErr == nil && ok {
+				// shortcut: same non-atomic Get+Put as bindMCPSession; the cap stays approximate.
+				if count, _ := strconv.Atoi(string(raw)); count > 0 {
+					_ = g.store.Put(r.Context(), kindMCPSessionUser, sess.NAVIdent, []byte(strconv.Itoa(count-1)), mcpSessionTTL)
+				}
+			}
+		}
 		// Bind only ids the upstream issued on a successful response (MCP streamable HTTP).
 		// A client-supplied id is never bound; an unbound one passes through for stateless upstreams.
-		if resp.StatusCode < 300 {
+		// A DELETE ends the session, so an id echoed on its response is not bound again.
+		if resp.StatusCode < 300 && r.Method != http.MethodDelete {
 			for _, id := range resp.Header.Values("Mcp-Session-Id") {
 				if id != "" && len(id) <= maxMCPSessionIDBytes {
 					bindMCPSession(id)
