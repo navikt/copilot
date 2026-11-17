@@ -37,7 +37,7 @@ const (
 	defaultSSEMaxDuration                = 10 * time.Minute
 	defaultSSEIdleTimeout                = 60 * time.Second
 	defaultSSEMaxBytes             int64 = 16 << 20 // 16 MiB
-	maxFormBodyBytes                     = 16 * 1024
+	maxFormBodyBytes                     = 20 * 1024
 	maxClaimsBytes                       = 4096
 	maxCIMDBodyBytes                     = 64 * 1024
 	maxUpstreamBodyBytes                 = 1 << 20
@@ -365,7 +365,8 @@ func validatePostgresURL(raw string) error {
 	}
 	u, err := url.Parse(trimmed)
 	if err != nil {
-		return err
+		// url.Error embeds the raw URL, i.e. the DSN with its password.
+		return errors.New("unparseable URL")
 	}
 	if u.Scheme != "postgres" && u.Scheme != "postgresql" {
 		return fmt.Errorf("unsupported scheme %q", u.Scheme)

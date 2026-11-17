@@ -13,12 +13,18 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
+	"strconv"
 	"time"
 )
 
 const (
-	rtSealAAD          = "fgw-rt-v1"
-	maxRefreshTokenLen = 4096
+	rtSealAAD = "fgw-rt-v1"
+	// maxRefreshTokenLen fits a sealed RT carrying ~200 Entra group GUIDs plus the
+	// Entra RT and metadata (base64 expands by 4/3). Still bounded.
+	maxRefreshTokenLen = 16 * 1024
+	// refreshPendingTTL is how long an in-flight refresh blocks concurrent use of
+	// the same RT; after a transient upstream failure it is also the retry delay.
+	refreshPendingTTL = 60 * time.Second
 )
 
 type gatewaySession struct {
@@ -52,7 +58,9 @@ type issuedCode struct {
 type rtPayload struct {
 	V        int      `json:"v"`
 	JTI      string   `json:"jti"`
+	FID      string   `json:"fid"` // token family, constant across rotations
 	IAT      int64    `json:"iat"`
+	EXP      int64    `json:"exp"` // absolute session end, fixed at issue time
 	ClientID string   `json:"client_id"`
 	Resource string   `json:"resource"`
 	NAVIdent string   `json:"nav_ident"`
@@ -91,7 +99,7 @@ func (g *Gateway) openRefreshToken(token string) (*rtPayload, error) {
 	if err := json.Unmarshal(plaintext, &p); err != nil {
 		return nil, errSealMalformed
 	}
-	if p.V != 1 || p.JTI == "" || p.IAT <= 0 || p.ClientID == "" || p.Resource == "" || p.NAVIdent == "" || p.EntraRT == "" {
+	if p.V != 1 || p.JTI == "" || p.FID == "" || p.IAT <= 0 || p.EXP <= 0 || p.ClientID == "" || p.Resource == "" || p.NAVIdent == "" || p.EntraRT == "" {
 		return nil, errSealMalformed
 	}
 	return &p, nil
@@ -206,10 +214,17 @@ func (g *Gateway) handleAuthorizationCodeGrant(w http.ResponseWriter, r *http.Re
 			bad(http.StatusInternalServerError, "server_error", "failed to issue token")
 			return
 		}
+		fid, err := randomJTI()
+		if err != nil {
+			bad(http.StatusInternalServerError, "server_error", "failed to issue token")
+			return
+		}
 		refreshToken, err = g.sealRefreshToken(rtPayload{
 			V:        1,
 			JTI:      jti,
+			FID:      fid,
 			IAT:      issued.Session.IssuedAt.Unix(),
+			EXP:      issued.Session.IssuedAt.Add(g.cfg.SessionMaxAge).Unix(),
 			ClientID: issued.Session.ClientID,
 			Resource: issued.Session.Resource,
 			NAVIdent: issued.Session.NAVIdent,
@@ -284,28 +299,77 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 	}
 
 	issuedAt := time.Unix(payload.IAT, 0).UTC()
-	absExpiry := issuedAt.Add(g.cfg.SessionMaxAge)
+	// Absolute expiry is fixed in the RT at issue time, so raising SESSION_MAX_AGE
+	// later cannot revive old tokens.
+	absExpiry := time.Unix(payload.EXP, 0).UTC()
 	if !g.now().Before(absExpiry) {
 		outcome = "session_max_age_expired"
 		bad(http.StatusBadRequest, "invalid_grant", "session expired")
 		return
 	}
 
-	revokedFirst, err := g.store.RevokeOnce(r.Context(), payload.JTI, absExpiry)
-	if err != nil {
+	unavailable := func(err error) {
 		outcome = "store_error"
-		slog.Warn("revoke refresh token failed", "error", err)
+		slog.Warn("refresh token denylist failed", "error", err)
 		bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store unavailable")
+	}
+	famKey := "fam:" + payload.FID
+	if revoked, err := g.store.IsRevoked(r.Context(), famKey); err != nil {
+		unavailable(err)
+		return
+	} else if revoked {
+		outcome = "family_revoked"
+		bad(http.StatusBadRequest, "invalid_grant", "refresh token already used or revoked")
 		return
 	}
-	if !revokedFirst {
-		outcome = "replayed_or_revoked"
+	if used, err := g.store.IsRevoked(r.Context(), payload.JTI); err != nil {
+		unavailable(err)
+		return
+	} else if used {
+		// Replay: someone holds an already-rotated RT. Kill the family so a thief
+		// who refreshed first loses the newest RT too.
+		if err := g.store.Revoke(r.Context(), famKey, absExpiry); err != nil {
+			unavailable(err)
+			return
+		}
+		outcome = "replayed_family_revoked"
+		bad(http.StatusBadRequest, "invalid_grant", "refresh token already used or revoked")
+		return
+	}
+
+	// Gate against concurrent double use with a short-lived pending claim. The jti
+	// is only denylisted for good after Entra accepts or permanently rejects the RT,
+	// so a transient Entra failure does not burn the user's RT (retry after the
+	// pending TTL). Trade-off: a crash between Entra success and Revoke leaves the
+	// old RT usable once more after the TTL.
+	pendExpiry := g.now().Add(refreshPendingTTL)
+	if pendExpiry.After(absExpiry) {
+		pendExpiry = absExpiry
+	}
+	won, err := g.store.RevokeOnce(r.Context(), "pend:"+payload.JTI, pendExpiry)
+	if err != nil {
+		unavailable(err)
+		return
+	}
+	if !won {
+		outcome = "refresh_in_flight"
 		bad(http.StatusBadRequest, "invalid_grant", "refresh token already used or revoked")
 		return
 	}
 
 	out, status, body, err := g.redeemEntraRefreshToken(r.Context(), payload.EntraRT)
-	if err != nil || status != http.StatusOK {
+	if err != nil || status >= 500 || status == http.StatusTooManyRequests {
+		outcome = "upstream_unavailable"
+		slog.Warn("upstream refresh unavailable", "status", status)
+		w.Header().Set("Retry-After", strconv.Itoa(int(refreshPendingTTL.Seconds())))
+		bad(http.StatusServiceUnavailable, "temporarily_unavailable", "upstream unavailable, retry later")
+		return
+	}
+	if err := g.store.Revoke(r.Context(), payload.JTI, absExpiry); err != nil {
+		unavailable(err)
+		return
+	}
+	if status != http.StatusOK {
 		outcome = "upstream_error"
 		errCode, aadsts := safeUpstreamErrorDetails(body)
 		slog.Warn("upstream refresh failed", "status", status, "error_code", errCode, "aadsts", aadsts)
@@ -357,7 +421,9 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 	newRT, err := g.sealRefreshToken(rtPayload{
 		V:        1,
 		JTI:      newJTI,
+		FID:      payload.FID,
 		IAT:      payload.IAT,
+		EXP:      payload.EXP,
 		ClientID: payload.ClientID,
 		Resource: payload.Resource,
 		NAVIdent: payload.NAVIdent,
@@ -439,7 +505,7 @@ func (g *Gateway) revokeHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if payload, err := g.openRefreshToken(token); err == nil {
-			expiresAt := time.Unix(payload.IAT, 0).UTC().Add(g.cfg.SessionMaxAge)
+			expiresAt := time.Unix(payload.EXP, 0).UTC()
 			if _, err := g.store.RevokeOnce(r.Context(), payload.JTI, expiresAt); err != nil {
 				slog.Warn("revoke refresh token failed", "error", err)
 				writeJSON(w, http.StatusServiceUnavailable, map[string]string{

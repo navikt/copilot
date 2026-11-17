@@ -15,8 +15,10 @@ import (
 
 const (
 	sealMaxKIDLen = 32
-	sealKeyBytes  = 32
-	sealNonceSize = 12
+	// sealMaxPlaintext bounds what Seal accepts (sessions and RTs are a few KiB).
+	sealMaxPlaintext = 1 << 20
+	sealKeyBytes     = 32
+	sealNonceSize    = 12
 )
 
 var (
@@ -131,10 +133,11 @@ func (kr *keyRing) Seal(aad, plaintext []byte) ([]byte, error) {
 	if len(kidBytes) == 0 || len(kidBytes) > sealMaxKIDLen {
 		return nil, errors.New("sealed store: invalid key id length")
 	}
-	out := make([]byte, 1+len(kidBytes)+sealNonceSize, 1+len(kidBytes)+sealNonceSize+len(plaintext)+gcm.Overhead())
-	out[0] = byte(len(kidBytes)) //nolint:gosec // bounded by sealMaxKIDLen (32)
-	copy(out[1:1+len(kidBytes)], kidBytes)
-	copy(out[1+len(kidBytes):1+len(kidBytes)+sealNonceSize], nonce)
+	if len(plaintext) > sealMaxPlaintext {
+		return nil, errors.New("sealed store: plaintext too large")
+	}
+	out := append([]byte{byte(len(kidBytes))}, kidBytes...) //nolint:gosec // bounded by sealMaxKIDLen (32)
+	out = append(out, nonce...)
 	out = gcm.Seal(out, nonce, plaintext, aad)
 	return out, nil
 }
