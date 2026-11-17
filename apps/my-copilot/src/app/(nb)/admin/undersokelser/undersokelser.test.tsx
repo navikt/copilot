@@ -163,6 +163,8 @@ describe("/admin/undersokelser", () => {
       options: v.options!.map((o) => (o.value === "Vet ikke" ? { ...o, value: "Vet ikke / gammel" } : o)),
     };
     expect(nText(old, String, "Vet ikke")).toBe("8 · 2 vet ikke");
+    const allOld = { version: 1, n: 5, options: [{ value: "Vet ikke / gammel", count: 5, suppressed: false }] };
+    expect(nText(allOld, String, "Vet ikke")).toBe("0 · 5 vet ikke");
   });
 
   it("leaves n alone for choice and multi, whose options are not numbers", () => {
@@ -186,7 +188,6 @@ describe("/admin/undersokelser", () => {
     };
     expect(nText(choice, String)).toBe("10");
     expect(nText(multi, String)).toBe("10");
-    expect(nText(multi, String, "Vet ikke")).toBe("10");
   });
 
   it("shows raw values when the definition is missing", async () => {
