@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"os"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -586,6 +587,8 @@ func runTwoInstanceRefreshTests(t *testing.T, shared SessionStore, rtKeys string
 				} else {
 					t.Errorf("unexpected 400 error body: %v", errBody)
 				}
+			case http.StatusServiceUnavailable: // loser raced the in-flight winner
+				rejectCount.Add(1)
 			default:
 				t.Errorf("unexpected status %d: %s", rec.Code, rec.Body.String())
 			}
@@ -949,6 +952,98 @@ func TestConfig_RTStorageModesAndMetadata(t *testing.T) {
 			})
 			if status != http.StatusBadRequest || body["error"] != "unsupported_grant_type" {
 				t.Fatalf("expected 400 unsupported_grant_type in mode %s, got %d (%v)", mode, status, body)
+			}
+		})
+	}
+}
+
+func refreshForm(te *testEnv, rt string) url.Values {
+	return url.Values{"grant_type": {"refresh_token"}, "refresh_token": {rt}, "client_id": {te.clientID}}
+}
+
+func TestRefreshToken_InFlightRetryGets503AndRecovers(t *testing.T) {
+	te := newClientEncryptedTestEnv(t, "k1:"+testKeyBase64(t, false))
+	_, rt, _ := te.obtainTokensForResource(te.resource)
+
+	te.mu.Lock()
+	te.entraRefreshStatus = http.StatusServiceUnavailable
+	te.mu.Unlock()
+	if status, body := te.postToken(refreshForm(te, rt)); status != http.StatusServiceUnavailable {
+		t.Fatalf("expected 503 on transient upstream error, got %d (%v)", status, body)
+	}
+
+	te.mu.Lock()
+	te.entraRefreshStatus = http.StatusOK
+	te.mu.Unlock()
+	req := httptest.NewRequest(http.MethodPost, "/token", strings.NewReader(refreshForm(te, rt).Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+	te.handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusServiceUnavailable || !strings.Contains(rec.Body.String(), "temporarily_unavailable") {
+		t.Fatalf("retry inside pending TTL: want 503 temporarily_unavailable, got %d %s", rec.Code, rec.Body.String())
+	}
+	if ra, err := strconv.Atoi(rec.Header().Get("Retry-After")); err != nil || ra < 1 || ra > int(refreshPendingTTL.Seconds()) {
+		t.Fatalf("bad Retry-After %q", rec.Header().Get("Retry-After"))
+	}
+
+	te.advance(refreshPendingTTL + time.Second)
+	if status, body := te.postToken(refreshForm(te, rt)); status != http.StatusOK {
+		t.Fatalf("retry after pending TTL: want 200, got %d (%v)", status, body)
+	}
+}
+
+func TestRefreshToken_ConcurrentUseDuringInFlightNeverTwoSuccesses(t *testing.T) {
+	te := newClientEncryptedTestEnv(t, "k1:"+testKeyBase64(t, false))
+	_, rt, _ := te.obtainTokensForResource(te.resource)
+
+	entered, release := make(chan struct{}), make(chan struct{})
+	te.mu.Lock()
+	te.entraRefreshHook = func() { close(entered); <-release }
+	te.mu.Unlock()
+	first := make(chan int, 1)
+	go func() { s, _ := te.postToken(refreshForm(te, rt)); first <- s }()
+	<-entered
+	status, body := te.postToken(refreshForm(te, rt))
+	close(release)
+	if status != http.StatusServiceUnavailable || body["error"] != "temporarily_unavailable" {
+		t.Fatalf("concurrent second use: want 503 temporarily_unavailable, got %d (%v)", status, body)
+	}
+	if s := <-first; s != http.StatusOK {
+		t.Fatalf("first use: want 200, got %d", s)
+	}
+}
+
+func TestRefreshToken_RevokedDuringInFlightIssuesNothing(t *testing.T) {
+	for _, tc := range []string{"revoke_rt", "family"} {
+		t.Run(tc, func(t *testing.T) {
+			te := newClientEncryptedTestEnv(t, "k1:"+testKeyBase64(t, false))
+			_, rt, _ := te.obtainTokensForResource(te.resource)
+			payload, err := te.gw.openRefreshToken(rt)
+			if err != nil {
+				t.Fatal(err)
+			}
+			entered, release := make(chan struct{}), make(chan struct{})
+			te.mu.Lock()
+			te.entraRefreshHook = func() { close(entered); <-release }
+			te.mu.Unlock()
+			type res struct {
+				status int
+				body   map[string]any
+			}
+			done := make(chan res, 1)
+			go func() { s, b := te.postToken(refreshForm(te, rt)); done <- res{s, b} }()
+			<-entered
+			if tc == "revoke_rt" {
+				if s, _ := postRevoke(te.handler, rt); s != http.StatusOK {
+					t.Fatalf("revoke: %d", s)
+				}
+			} else if err := te.gw.store.Revoke(context.Background(), "fam:"+payload.FID, time.Unix(payload.EXP, 0)); err != nil {
+				t.Fatal(err)
+			}
+			close(release)
+			r := <-done
+			if r.status != http.StatusBadRequest || r.body["error"] != "invalid_grant" || r.body["access_token"] != nil || r.body["refresh_token"] != nil {
+				t.Fatalf("want invalid_grant and no tokens, got %d (%v)", r.status, r.body)
 			}
 		})
 	}

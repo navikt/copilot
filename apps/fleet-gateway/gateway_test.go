@@ -34,6 +34,7 @@ type testEnv struct {
 	entraRefreshCount  int
 	entraSeenRTs       []string
 	entraRefreshOmitRT bool
+	entraRefreshHook   func()
 	entraExpiresIn     int
 	lastEntraNonce     string
 	lastEntraChallenge string
@@ -108,7 +109,11 @@ func newTestEnv(t *testing.T) *testEnv {
 				}
 				omitRT := te.entraRefreshOmitRT
 				expiresIn := te.entraExpiresIn
+				hook := te.entraRefreshHook
 				te.mu.Unlock()
+				if hook != nil {
+					hook()
+				}
 				if expiresIn <= 0 {
 					expiresIn = 3600
 				}

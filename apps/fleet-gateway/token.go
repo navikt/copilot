@@ -356,8 +356,12 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 		return
 	}
 	if !won {
+		// A legit client may be retrying after a transient upstream error; do not
+		// make it drop its RT. Retry-After is an upper bound: the claim's start is unknown.
 		outcome = "refresh_in_flight"
-		bad(http.StatusBadRequest, "invalid_grant", "refresh token already used or revoked")
+		retry := min(refreshPendingTTL, absExpiry.Sub(g.now()))
+		w.Header().Set("Retry-After", strconv.Itoa(max(1, int(retry.Seconds()))))
+		bad(http.StatusServiceUnavailable, "temporarily_unavailable", "refresh in progress, retry later")
 		return
 	}
 
@@ -368,6 +372,21 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 		w.Header().Set("Retry-After", strconv.Itoa(int(refreshPendingTTL.Seconds())))
 		bad(http.StatusServiceUnavailable, "temporarily_unavailable", "upstream unavailable, retry later")
 		return
+	}
+	if status == http.StatusOK {
+		// /revoke or a family revoke may have landed while Entra was in flight.
+		for _, k := range []string{famKey, payload.JTI} {
+			gone, rerr := g.store.IsRevoked(r.Context(), k)
+			if rerr != nil {
+				unavailable(rerr)
+				return
+			}
+			if gone {
+				outcome = "revoked_in_flight"
+				bad(http.StatusBadRequest, "invalid_grant", "refresh token already used or revoked")
+				return
+			}
+		}
 	}
 	if err = g.store.Revoke(r.Context(), payload.JTI, absExpiry); err != nil {
 		unavailable(err)
