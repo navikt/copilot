@@ -76,26 +76,32 @@ apiVersion: fleet-gateway.nav.no/v1
 kind: Route
 metadata:
   name: onboarding            # route is /mcp/<name>; unique per environment
-  team: copilot               # Nais team; immutable after creation without operator action
   environment: prod           # dev | prod; one document per environment
+  labels: {}
 spec:
+  owner: copilot              # Nais team; immutable after creation without operator action
   enabled: true               # the team's own kill switch
-  upstream:
-    target: prod-gcp:copilot:mcp-onboarding   # cluster:namespace:app, namespace must belong to team
-    path: /mcp/gw                             # URL is derived, not free text
+  backendRef:                 # the namespace must belong to owner
+    cluster: prod-gcp
+    namespace: copilot
+    name: mcp-onboarding
+    path: /mcp/gw             # URL is derived, not free text
   exposure: internal          # internal | external (#2297); external needs operator approval
 
-  tools:                      # Level 1: allowlist. Absent = see section 4.3
+  tools:                      # Level 1: allowlist, shorthand for one Allow rule. Absent = see section 4.3
     - get_onboarding_status
     - list_checklists
 
   groups:                     # Level 3: named aliases, so rules do not repeat GUIDs
     saksbehandlere: 00000000-0000-0000-0000-000000000000
   rules:                      # Level 3: first match wins, no match = deny
-    - tools: [list_*]
-      allow: { principals: [user, delegated-agent] }
-    - tools: [update_checklist]
-      allow: { principals: [user], groups: [saksbehandlere] }
+    - matches: [{ tool: "list_*" }]
+      action: Allow
+      from: { principalTypes: [user, delegated-agent] }
+    - matches: [{ tool: update_checklist }]
+      action: Allow
+      from: { principalTypes: [user], groups: [saksbehandlere] }
+      # when: "..."           # optional CEL, rejected until enabled (section 4.5)
 
   clients:                    # optional narrowing of GatewayPolicy; cannot widen it
     allow: []                 # empty = every client the gateway allows
@@ -111,19 +117,20 @@ spec:
     toolRisk: { update_checklist: write }
     examples: []
 status:                       # written by the control service, never by the team
-  generation: 7
-  phase: active               # pending | active | rejected | disabled
-  conditions: [...]           # e.g. OboProbe=ok, RegistryPublished=ok
+  observedGeneration: 7
+  conditions: [...]           # metav1.Condition shape, see section 2.4
 ```
 
 Field rules worth fixing early:
 
-- `name`, `team`, `environment` are identity. A change of `team` or of the namespace in
-  `upstream.target` is a new registration, not an update.
-- `upstream` is `target` + `path`. The URL is derived (`http://<app>.<ns><path>`), which removes
-  the free-text `upstream_url` and the validation that guards it today.
-- `tools` and `rules` are alternatives. `tools: [a, b]` is shorthand for one rule that allows
-  `a` and `b` for every principal the route admits. A document has one or the other.
+- `name`, `owner`, `environment` are identity. A change of `owner` or of `backendRef.namespace`
+  is a new registration, not an update.
+- `backendRef` is `cluster`, `namespace`, `name` and `path` (Gateway API and Envoy AI Gateway use
+  the same word). The URL is derived (`http://<name>.<namespace><path>`), which removes the
+  free-text `upstream_url` and the validation that guards it today.
+- `tools` and `rules` are alternatives. `tools: [a, b]` is shorthand for one `Allow` rule with
+  `matches: [{tool: a}, {tool: b}]` for every principal the route admits. A document has one or the other.
+- `metadata` stays Kubernetes-shaped (`name`, `labels`, `annotations`, `generation`).
 - `spec.registry` is an explicit list of public fields. Group IDs, agent apps and client lists are
   never in the public projection.
 
@@ -133,6 +140,7 @@ Field rules worth fixing early:
 kind: RouteOverride
 metadata: { name: onboarding, environment: prod }
 spec:
+  targetRef: { kind: Route, name: onboarding }   # explicit, not matched by name implicitly
   approved: true              # first registration
   disabled: false             # operator kill switch; wins over spec.enabled
   disabledReason: ""
@@ -143,7 +151,22 @@ spec:
 Effective state = `Route` ∧ `RouteOverride` ∧ `GatewayPolicy`. A team apply never touches the
 override, so a CI job that re-applies the team's file cannot re-enable a route an operator closed.
 
-### 2.4 One source of truth
+### 2.4 Status conditions
+
+Every document carries `status.observedGeneration` and `status.conditions[]` in the Kubernetes
+`metav1.Condition` shape (`type`, `status`, `reason`, `message`, `observedGeneration`,
+`lastTransitionTime`), as Gateway API does. This replaces the free-form `phase`. Types:
+
+| Type | Meaning | Example reasons |
+|---|---|---|
+| `Accepted` | The document validated. | `Invalid`, `TargetNotFound`, `NamespaceNotOwned` |
+| `Programmed` | The route is in a snapshot the gateway has loaded. True only after the gateway reports the snapshot ETag back to the control service. | `Pending`, `Stale` |
+| `ResolvedRefs` | The `backendRef` resolves: the upstream answers the OBO probe and the network rule exists. | `OboProbeFailed`, `NetworkPolicyMissing` |
+| `Overridden` | An operator `RouteOverride` is narrowing the route. | `Disabled`, `NotApproved` |
+
+The old `OboProbe` and `NetworkPolicy` ideas are reasons under `ResolvedRefs`.
+
+### 2.5 One source of truth
 
 - The gateway's route table = effective state of all active `Route`s for its environment.
 - The registry entry for a gateway server, as served by mcp-registry = projection of `Route.spec.registry` + the remote URL
@@ -226,7 +249,7 @@ edits). The options considered:
 Proof of ownership that already exists and costs nothing: OBO to the team app only works when the
 team has put fleet-gateway in *its own* `accessPolicy.inbound`. So "the team that owns
 `ns:app` consents to this route" is already enforced by Nais. The control service can run an OBO or
-m2m probe at registration and record `OboProbe=ok` in `status`. A route pointing at someone else's
+m2m probe at registration and record `ResolvedRefs=True` in `status`. A route pointing at someone else's
 app fails that probe. What it does not prove is that the *caller of the API* belongs to the team;
 that is what the repo binding or group check is for.
 
@@ -261,7 +284,7 @@ that is what the repo binding or group check is for.
   `outbound.external` hosts, still a manifest); or ask Nais whether a broader outbound pattern
   exists (**unverified**; none known). Recommendation: accept it; creating a route is rare and
   deliberate, and CI can fail a `Route` apply whose upstream is not yet in the manifest
-  (`status.conditions: NetworkPolicy=missing`).
+  (`ResolvedRefs=False`, reason `NetworkPolicyMissing`).
 - **Entra pre-authorization** follows from the team's inbound rule, same deploy.
 - **Ingress hosts** for external exposure (#2297) are gateway manifest, one-time.
 
@@ -299,6 +322,21 @@ with the team for good.
 
 Keep the door open cheaply: the evaluator takes a plain input struct and returns a decision and a
 rule id. Swapping the engine later touches one function.
+
+The struct follows the AuthZEN 1.0 shape, so an external decision point stays possible. Log the
+same struct for every decision:
+
+```text
+subject:  { type, id, groups }          # user | delegated-agent | app
+action:   { name: "tools/call" }
+resource: { route, tool }
+context:  { client_id, azp, act }
+```
+
+Decision: deny unless the route is enabled, no operator override disables it, the client is
+allowed by `GatewayPolicy` and by the route's narrowing, and the first matching rule allows. An
+override can only narrow. Field names (`mcp.tool.name`, `jwt.<claim>`, `Allow`) follow
+agentgateway's CEL vocabulary where that costs nothing.
 
 ### 4.2 Inputs
 
@@ -365,6 +403,13 @@ identity and must still check it: the gateway allowlist is a coarse outer gate, 
 The team guide should say this in one sentence, because a tool allowlist reads like access control
 and a team could be tempted to drop its own check.
 
+### 4.5 Optional CEL
+
+A `when:` field takes a CEL expression (`github.com/google/cel-go`) over the same input. It is
+rejected until the gateway enables it; add it only when a rule needs a condition the fixed fields
+cannot express. Cedar stays on hold, OPA and OpenFGA are out (see the
+[research note](fleet-gateway-research-2026-11.md)).
+
 ## 5. Migration without breaking the pilot
 
 | Phase | What | Not throwaway because |
@@ -419,7 +464,15 @@ manifest per new upstream; move upstreams to internal ingresses; ask Nais for a 
 pattern. Recommendation: accept it as the one non-API step and raise the question with Nais without
 blocking on it.
 
-## 8. Not checked
+## 8. Build or adopt
+
+External research (2026-11-17, [note](fleet-gateway-research-2026-11.md)): keep building, borrow
+models and names, and reassess agentgateway in about six months. No product found combines
+CIMD/DCR as authorization server, per-user Entra OBO to many team upstreams, and team-owned route
+documents with operator overrides. The vocabulary above keeps a later move cheap: the route table
+can be compiled to `AgentgatewayBackend` and `AgentgatewayPolicy`.
+
+## 9. Not checked
 
 - No live token was inspected: the claims about `groups` on the gateway session and on OBO tokens
   are from code and memory.
