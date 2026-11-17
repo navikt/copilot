@@ -238,7 +238,8 @@ export default function FleetGatewayForTeamPage() {
                   <CodeBlock filename="Terminal">{"opencode mcp auth <navn>\nopencode"}</CodeBlock>
                   <BodyLong>
                     Start OpenCode direkte, ikke via nav-pilot, og be agenten kalle et verktøy. Første innlogging åpner
-                    nettleseren. Copilot CLI kan brukes når ruten står i MCP-registeret. Den veien er ikke testet ennå.
+                    nettleseren. Copilot CLI kan brukes når ruten står i MCP-registeret. Bruk via nav-pilot er ikke
+                    testet ennå.
                   </BodyLong>
                 </VStack>
               ),

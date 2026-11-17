@@ -112,7 +112,8 @@ export default function FleetGatewayPage() {
           Team skal kunne tilby MCP-servere uten å bygge egen OAuth. fleet-gateway er ett sted på Nais som tar seg av
           innloggingen med Nav-brukeren via Entra ID. Den kaller teamets MCP-server med et on-behalf-of-token (OBO) fra
           Texas, så serveren ser den faktiske brukeren. Teamene søker om å bli med via et skjema, og serveren
-          registreres i fleet-control. cplt holder tokenene på maskinen, utenfor agentens sandkasse.
+          registreres i fleet-control. Klienten (Copilot CLI eller OpenCode) logger inn og holder tokenene selv. Veien
+          via cplt-brokeren er valgfri og er ikke tilgjengelig ennå.
         </BodyLong>
         <FleetGatewayCallDiagram />
       </VStack>
@@ -130,8 +131,7 @@ export default function FleetGatewayPage() {
           <li>Du må være på naisdevice. Ellers når du ikke adressen.</li>
         </Bullets>
         <BodyLong>
-          <strong>OpenCode</strong> (testet i prod 17. november 2026). Legg serveren til i{" "}
-          <code className={code}>opencode.json</code>:
+          <strong>OpenCode</strong> (testet i prod). Legg serveren til i <code className={code}>opencode.json</code>:
         </BodyLong>
         <CodeBlock filename="opencode.json">{OPENCODE_JSON}</CodeBlock>
         <BodyLong>Logg inn, og start OpenCode direkte, ikke via nav-pilot:</BodyLong>
@@ -141,10 +141,10 @@ export default function FleetGatewayPage() {
           <code className={code}>opencode mcp logout onboarding</code>.
         </BodyLong>
         <BodyLong>
-          <strong>Copilot CLI</strong> (ikke testet ennå). Nav tillater bare MCP-servere som står i MCP-registeret. Når
-          ruten står der som <code className={code}>io.github.navikt/fleet-gateway-onboarding</code>, legger du den til
-          med <code className={code}>/mcp add</code> som type <code className={code}>http</code> med adressen over.
-          Innloggingen starter ved første kall.
+          <strong>Copilot CLI</strong> (testet i prod). Nav tillater bare MCP-servere som står i MCP-registeret. Ruten
+          står der som <code className={code}>io.github.navikt/fleet-gateway-onboarding</code>. Legg den til med{" "}
+          <code className={code}>/mcp add</code> som type <code className={code}>http</code> med adressen over.
+          Innloggingen starter ved første kall. Bruk via nav-pilot og cplt er ikke testet ennå.
         </BodyLong>
         <Bullets>
           <li>
