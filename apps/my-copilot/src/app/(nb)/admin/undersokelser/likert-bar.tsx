@@ -56,14 +56,16 @@ export function LikertBar({ v, min, max, labels }: { v: VersionResult; min: numb
           .filter((s) => s.value >= mid)
           .map((s) => (s.value === mid ? seg(s, s.share / 2, false) : seg(s, s.share)))}
         {unsure.count ? (
-          <div
-            data-testid="segment-unsure"
-            title={`Vet ikke: ${pct(unsure.share)} (${formatNumber(unsure.count)})`}
-            className="@container ml-1 h-7 overflow-hidden whitespace-nowrap text-xs leading-7 text-center"
-            style={{ width: `${unsure.share * 100}%`, ...fill(UNSURE[0], UNSURE[1]) }}
-          >
-            <span className="hidden @min-[4.5rem]:inline">{`${pct(unsure.share)} (${formatNumber(unsure.count)})`}</span>
-          </div>
+          <Box paddingInline="space-4 space-0" style={{ width: `${unsure.share * 100}%` }}>
+            <div
+              data-testid="segment-unsure"
+              title={`Vet ikke: ${pct(unsure.share)} (${formatNumber(unsure.count)})`}
+              className="@container h-7 overflow-hidden whitespace-nowrap text-xs leading-7 text-center"
+              style={fill(UNSURE[0], UNSURE[1])}
+            >
+              <span className="hidden @min-[4.5rem]:inline">{`${pct(unsure.share)} (${formatNumber(unsure.count)})`}</span>
+            </div>
+          </Box>
         ) : null}
       </div>
       <Box paddingInline="space-12 space-0" className="flex items-center gap-2 text-xs">
