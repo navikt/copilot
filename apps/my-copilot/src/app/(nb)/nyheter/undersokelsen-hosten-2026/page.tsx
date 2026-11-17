@@ -21,10 +21,15 @@ const statements: { text: string; n: string; spring: string; autumn: string; not
     spring: "3,52",
     autumn: "3,87",
   },
-  { text: "KI hjelper meg videre når jeg står fast", n: "KI-brukere", spring: "4,05", autumn: "4,05" },
+  {
+    text: "KI hjelper meg videre når jeg står fast og med å fullføre oppgaver raskere",
+    n: "KI-brukere",
+    spring: "4,05",
+    autumn: "4,05",
+  },
   { text: "KI reduserer mental innsats på repetitive oppgaver", n: "KI-brukere", spring: "3,94", autumn: "3,84" },
   {
-    text: "KI-generert kode holder god nok kvalitet til at den ikke gir ekstra arbeid i review",
+    text: "Kode laget med KI-hjelp holder god nok kvalitet til at den ikke gir ekstra arbeid i review",
     n: "KI-brukere",
     spring: "3,27",
     autumn: "3,26",
@@ -181,8 +186,8 @@ export default function SurveyAutumnArticlePage() {
               </BodyLong>
 
               <Quote>
-                Det er ikke lett når den er så skråsikker og som oftest gjør ting helt riktig. Da blir det for lett å
-                stole på den.
+                Det er ikke lett [å se feilen] når den er så skråsikker og som oftest gjør ting helt riktig. Da blir det
+                for lett å stole på den.
               </Quote>
 
               <BodyLong spacing>
