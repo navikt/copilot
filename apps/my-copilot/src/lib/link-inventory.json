@@ -496,6 +496,7 @@
       "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/lokal/page.tsx",
       "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/referanse/page.tsx",
       "apps/my-copilot/src/app/(nb)/kom-i-gang/page.tsx",
+      "apps/my-copilot/src/app/(nb)/ma-vite/page.tsx",
       "apps/my-copilot/src/app/(nb)/nav-pilot/guider/installere-og-oppgradere/page.tsx",
       "apps/my-copilot/src/app/(nb)/nav-pilot/guider/page.tsx",
       "apps/my-copilot/src/app/(nb)/nav-pilot/referanse/page.tsx",
@@ -523,6 +524,15 @@
       "apps/my-copilot/src/app/(nb)/innsikt/page.tsx",
       "apps/my-copilot/src/app/(nb)/kostnad/page.tsx",
       "apps/my-copilot/src/app/(nb)/ordliste/terms.ts"
+    ],
+    "anchors": {}
+  },
+  "/ma-vite": {
+    "sources": [
+      "apps/my-copilot/src/app/(nb)/(home)/page.tsx",
+      "apps/my-copilot/src/app/(nb)/(nav-pilot)/kom-i-gang/page.tsx",
+      "apps/my-copilot/src/app/(nb)/ma-vite/page.tsx",
+      "apps/my-copilot/src/app/sitemap.ts"
     ],
     "anchors": {}
   },
@@ -1085,6 +1095,7 @@
       "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/sandkassen/page.tsx",
       "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/cplt-feilmeldinger/page.tsx",
       "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/klienter/page.tsx",
+      "apps/my-copilot/src/app/(nb)/ma-vite/page.tsx",
       "apps/my-copilot/src/app/(nb)/nav-pilot/forklaring/page.tsx",
       "apps/my-copilot/src/app/(nb)/nav-pilot/forklaring/sandkassen/page.tsx",
       "apps/my-copilot/src/app/(nb)/nav-pilot/klienter/page.tsx",
@@ -2529,7 +2540,11 @@
     "anchors": {}
   },
   "/nyheter/kvalitet-foran-fart": {
-    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx", "apps/my-copilot/src/app/sitemap.ts"],
+    "sources": [
+      "apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx",
+      "apps/my-copilot/src/app/(nb)/praksis/eierskap/page.tsx",
+      "apps/my-copilot/src/app/sitemap.ts"
+    ],
     "anchors": {}
   },
   "/nyheter/larger-context-reasoning-levels": {
@@ -2816,6 +2831,7 @@
   "/praksis": {
     "sources": [
       "apps/my-copilot/src/app/(nb)/(home)/page.tsx",
+      "apps/my-copilot/src/app/(nb)/ma-vite/page.tsx",
       "apps/my-copilot/src/app/(nb)/nav-pilot/docs/page.tsx",
       "apps/my-copilot/src/app/(nb)/praksis/guide/layout.tsx",
       "apps/my-copilot/src/app/(nb)/praksis/page.tsx",
@@ -2825,6 +2841,14 @@
       "apps/my-copilot/src/components/page-hero.tsx",
       "apps/my-copilot/src/lib/nav-items.ts",
       "docs/news/articles/kvalitet-foran-fart.md"
+    ],
+    "anchors": {}
+  },
+  "/praksis/eierskap": {
+    "sources": [
+      "apps/my-copilot/src/app/(nb)/ma-vite/page.tsx",
+      "apps/my-copilot/src/app/(nb)/praksis/eierskap/page.tsx",
+      "apps/my-copilot/src/app/sitemap.ts"
     ],
     "anchors": {}
   },
@@ -2842,6 +2866,7 @@
   },
   "/praksis/guide/gjennomfore-code-review": {
     "sources": [
+      "apps/my-copilot/src/app/(nb)/praksis/eierskap/page.tsx",
       "apps/my-copilot/src/app/(nb)/praksis/guide/[slug]/page.tsx",
       "apps/my-copilot/src/components/weekly-tip.tsx"
     ],
@@ -2961,7 +2986,9 @@
   },
   "/retningslinjer": {
     "sources": [
+      "apps/my-copilot/src/app/(nb)/ma-vite/page.tsx",
       "apps/my-copilot/src/app/(nb)/ordliste/terms.ts",
+      "apps/my-copilot/src/app/(nb)/praksis/eierskap/page.tsx",
       "apps/my-copilot/src/app/(nb)/retningslinjer/page.tsx",
       "apps/my-copilot/src/app/sitemap.ts",
       "apps/my-copilot/src/components/page-hero.tsx",

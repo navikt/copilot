@@ -11,6 +11,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${BASE_URL}/kom-i-gang`, changeFrequency: "monthly", priority: 0.9 },
     { url: `${BASE_URL}/praksis`, changeFrequency: "monthly", priority: 0.8 },
     { url: `${BASE_URL}/verktoy`, changeFrequency: "monthly", priority: 0.8 },
+    { url: `${BASE_URL}/ma-vite`, changeFrequency: "monthly", priority: 0.8 },
+    { url: `${BASE_URL}/praksis/eierskap`, changeFrequency: "monthly", priority: 0.6 },
     { url: `${BASE_URL}/retningslinjer`, changeFrequency: "monthly", priority: 0.7 },
     { url: `${BASE_URL}/ordbok`, changeFrequency: "monthly", priority: 0.7 },
     { url: `${BASE_URL}/nav-pilot`, changeFrequency: "monthly", priority: 0.8 },
