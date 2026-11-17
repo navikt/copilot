@@ -175,6 +175,7 @@ describe("types follow copilot-survey's schema.json", () => {
     max: 0,
     version: 0,
     labels: [],
+    unsure: "",
     options: [],
     max_choices: 0,
     exclusive: "",

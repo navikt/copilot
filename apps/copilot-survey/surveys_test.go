@@ -20,7 +20,7 @@ const testSurveys = `[{"id":"q4-2026","title":"Q4","active":true,"starts":"2026-
  {"id":"tools","version":1,"type":"multi","text":"Which tools?","options":["a","b","c"],"max_choices":2},
  {"id":"why","version":1,"type":"choice","text":"Why not copilot?","options":["habit","other"],"skip_if":{"question":"client","answer":"copilot"}},
  {"id":"editor","version":1,"type":"multi","text":"Which editors?","options":["vim","vscode"],"other":"Annet","max_length":10},
- {"id":"grid","version":1,"type":"matrix","text":"How much do you agree?","min":1,"max":5,"skip_if":{"question":"client","answer":"opencode"},
+ {"id":"grid","version":1,"type":"matrix","text":"How much do you agree?","min":1,"max":5,"unsure":"Vet ikke","skip_if":{"question":"client","answer":"opencode"},
   "items":[{"id":"fast","version":2,"text":"It is fast."},{"id":"safe","version":1,"text":"It is safe.","reverse":true}]},
  {"id":"comment","version":1,"type":"text","text":"Anything else?","max_length":20}]},
  {"id":"old","title":"Old","active":true,"starts":"2025-01-01","ends":"2025-01-31","questions":[{"id":"a","version":1,"type":"scale","text":"?","min":1,"max":3}]}]`
@@ -289,6 +289,8 @@ func TestLoadSurveysRejectsBadDefinitions(t *testing.T) {
 		"no version":        `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","type":"scale","text":"?","min":1,"max":5}]}]`,
 		"labels count":      `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"scale","text":"?","min":1,"max":5,"labels":["a","b"]}]}]`,
 		"skip_if later":     `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"text","text":"?","max_length":5,"skip_if":{"question":"r","answer":"x"}},{"id":"r","version":1,"type":"choice","text":"?","options":["x","y"]}]}]`,
+		"unsure on choice":  `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"r","version":1,"type":"choice","text":"?","options":["x","y"],"unsure":"Vet ikke"}]}]`,
+		"unsure numeric":    `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"scale","text":"?","min":1,"max":5,"unsure":"0"}]}]`,
 		"skip_if scale":     `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"r","version":1,"type":"scale","text":"?","min":1,"max":5,"options":["x"]},{"id":"q","version":1,"type":"text","text":"?","max_length":5,"skip_if":{"question":"r","answer":"x"}}]}]`,
 		"exclusive choice":  `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"r","version":1,"type":"choice","text":"?","options":["x","y"],"exclusive":"x"}]}]`,
 		"exclusive unknown": `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"r","version":1,"type":"multi","text":"?","options":["x","y"],"exclusive":"z"}]}]`,
@@ -419,6 +421,37 @@ func TestRequiredMatrixSkippedWhole(t *testing.T) {
 		if _, err := validateAnswers(defs[0], raw); (err == nil) != tc.ok {
 			t.Errorf("%s: %v", name, err)
 		}
+	}
+}
+
+// «Vet ikke» is taken as its label on a matrix item, and nothing else
+// non-numeric is.
+func TestUnsure(t *testing.T) {
+	defs, err := loadSurveys([]byte(testSurveys))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for answers, ok := range map[string]bool{
+		`{"overall":3,"client":"copilot","fast":"Vet ikke","safe":2}`: true,
+		`{"overall":3,"client":"copilot","fast":"vet ikke"}`:          false,
+		`{"overall":"Vet ikke"}`:                                      false,
+	} {
+		var raw map[string]json.RawMessage
+		if err := json.Unmarshal([]byte(answers), &raw); err != nil {
+			t.Fatal(err)
+		}
+		out, err := validateAnswers(defs[0], raw)
+		if (err == nil) != ok {
+			t.Errorf("%s: %v", answers, err)
+		}
+		if ok && out["fast"] != "Vet ikke" {
+			t.Errorf("stored %v", out["fast"])
+		}
+	}
+	two, four := 2, 4
+	mean, agree := scaleStats(versionResult{Options: []optionCount{{Value: "5", Count: &two}, {Value: "Vet ikke", Count: &four}}}, 5)
+	if *mean != 5 || *agree != 1 {
+		t.Errorf("mean %v agree %v", *mean, *agree)
 	}
 }
 

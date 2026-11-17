@@ -20,6 +20,7 @@ import {
   UNDER_FIVE,
 } from "@/lib/survey";
 import { DocumentTitle, PrintButton } from "@/components/report-controls";
+import { nText, unsureLabel } from "../[id]/likert";
 import { fill, Legend, LikertBar, pct } from "../likert-bar";
 import { PrintHeader } from "../print-header";
 
@@ -81,7 +82,7 @@ function WaveLabel({
   wave: WaveMeta;
   i: number;
   count: number;
-  n: number | null;
+  n: string;
   version?: number;
 }) {
   return (
@@ -93,7 +94,7 @@ function WaveLabel({
       />
       <span>
         {shortName(wave.title)}
-        {version === undefined ? "" : `, versjon ${version}`} · n {n === null ? "–" : formatNumber(n)}
+        {version === undefined ? "" : `, versjon ${version}`} · n {n}
       </span>
     </span>
   );
@@ -121,7 +122,13 @@ function MeanOverview({ waves, questions }: { waves: WaveMeta[]; questions: Comp
         </BodyShort>
         <HStack gap="space-16">
           {waves.map((w, i) => (
-            <WaveLabel key={w.id} wave={w} i={i} count={waves.length} n={w.suppressed ? null : w.responses} />
+            <WaveLabel
+              key={w.id}
+              wave={w}
+              i={i}
+              count={waves.length}
+              n={w.suppressed ? "–" : formatNumber(w.responses)}
+            />
           ))}
         </HStack>
         <div
@@ -247,13 +254,19 @@ function Statement({
       {counts.map((w, i) =>
         w.versions.map((v) => (
           <div key={`${i}-${v.version}`}>
-            <WaveLabel wave={waves[i]} i={i} count={waves.length} n={v.n} version={broken ? v.version : undefined} />
+            <WaveLabel
+              wave={waves[i]}
+              i={i}
+              count={waves.length}
+              n={nText(v, formatNumber, q.unsure)}
+              version={broken ? v.version : undefined}
+            />
             <LikertBar v={v} min={min} max={max} labels={labels} />
           </div>
         ))
       )}
       <Excluded waves={waves} counts={counts} />
-      <Numbers waves={waves} counts={counts} label={(v) => labels[Number(v) - min] ?? v} />
+      <Numbers waves={waves} counts={counts} label={(v) => labels[Number(v) - min] ?? v} unsure={q.unsure} />
     </VStack>
   );
 }
@@ -290,7 +303,7 @@ function Options({ waves, q }: { waves: WaveMeta[]; q: CompareQuestion }) {
             wave={waves[i]}
             i={i}
             count={waves.length}
-            n={v.n}
+            n={nText(v, formatNumber)}
             version={q.break || counts[i].versions.length > 1 ? v.version : undefined}
           />
         ))}
@@ -341,7 +354,17 @@ function Options({ waves, q }: { waves: WaveMeta[]; q: CompareQuestion }) {
 }
 
 /** The accessible view: every count and share per wave and version. */
-function Numbers({ waves, counts, label }: { waves: WaveMeta[]; counts: WaveCounts[]; label: (v: string) => string }) {
+function Numbers({
+  waves,
+  counts,
+  label,
+  unsure,
+}: {
+  waves: WaveMeta[];
+  counts: WaveCounts[];
+  label: (v: string) => string;
+  unsure?: string;
+}) {
   const cols = counts.flatMap((w, i) =>
     w.versions.map((v) => ({
       v,
@@ -359,7 +382,7 @@ function Numbers({ waves, counts, label }: { waves: WaveMeta[]; counts: WaveCoun
               <TableHeaderCell scope="col">Svar</TableHeaderCell>
               {cols.map((c) => (
                 <TableHeaderCell key={c.name} scope="col" align="right">
-                  {c.name} (n {c.v.n === null ? "–" : formatNumber(c.v.n)})
+                  {c.name} (n {nText(c.v, formatNumber, unsure)})
                 </TableHeaderCell>
               ))}
             </TableRow>
@@ -479,7 +502,12 @@ async function Comparison({ token, ids }: { token: string; ids: string[] }) {
             </Heading>
             {q.type === "matrix" ? (
               <>
-                {q.labels ? <Legend labels={q.labels} /> : null}
+                {q.labels ? (
+                  <Legend
+                    labels={q.labels}
+                    unsure={unsureLabel((q.items ?? []).flatMap((it) => it.waves.flatMap((w) => w.versions)))}
+                  />
+                ) : null}
                 {q.items?.map((it) => (
                   <Statement
                     key={it.id}

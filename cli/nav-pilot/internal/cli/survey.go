@@ -96,6 +96,7 @@ type surveyQuestion struct {
 	Min        int      `json:"min,omitempty"`
 	Max        int      `json:"max,omitempty"`
 	Labels     []string `json:"labels,omitempty"`
+	Unsure     string   `json:"unsure,omitempty"` // scale, matrix: one more answer, sent as this label
 	Options    []string `json:"options,omitempty"`
 	MaxChoices int      `json:"max_choices,omitempty"`
 	Exclusive  string   `json:"exclusive,omitempty"`
@@ -703,6 +704,8 @@ func surveyAnswers(s surveyDef, picks []string, multis [][]string, others []stri
 		for j, it := range q.Items {
 			if n, err := strconv.Atoi(grid[i][j]); err == nil && !skipped(q) {
 				answers[it.ID] = n
+			} else if q.Unsure != "" && grid[i][j] == q.Unsure && !skipped(q) {
+				answers[it.ID] = q.Unsure
 			}
 		}
 		if t := strings.TrimSpace(others[i]); t != "" && !skipped(q) && slices.Contains(answered(q.ID), q.Other) {
@@ -715,6 +718,8 @@ func surveyAnswers(s surveyDef, picks []string, multis [][]string, others []stri
 				answers[q.ID] = multis[i]
 			}
 		case v == "" || q.Type == "matrix":
+		case q.Type == "scale" && q.Unsure != "" && v == q.Unsure:
+			answers[q.ID] = v
 		case q.Type == "scale":
 			n, _ := strconv.Atoi(v)
 			answers[q.ID] = n
@@ -747,6 +752,9 @@ func surveySelect(q surveyQuestion, desc string, value *string) *huh.Select[stri
 				label += "  " + q.Labels[n-q.Min]
 			}
 			opts = append(opts, huh.NewOption(label, strconv.Itoa(n)))
+		}
+		if q.Unsure != "" {
+			opts = append(opts, huh.NewOption(q.Unsure, q.Unsure))
 		}
 	}
 	if !q.Required {

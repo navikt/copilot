@@ -14,7 +14,7 @@ import SurveysPage from "./page";
 import SurveyResultsPage from "./[id]/page";
 import type { SurveyResults } from "@/lib/survey";
 import fixture from "./results-fixture.json";
-import { likert } from "./[id]/likert";
+import { likert, nText, unsureLabel } from "./[id]/likert";
 
 const group = "11111111-2222-3333-4444-555555555555";
 const params = (id: string) => ({ params: Promise.resolve({ id }) });
@@ -141,6 +141,53 @@ describe("/admin/undersokelser", () => {
       options: [1, 2, 3, 4, 5].map((x) => ({ value: `${x}`, count: 2, suppressed: false })),
     };
     expect(likert(v, 1, 5)).toMatchObject({ mean: 3 });
+  });
+
+  it("keeps «Vet ikke» out of n and mean, but in the bar's 100 %", () => {
+    const v = {
+      version: 1,
+      n: 10,
+      options: [
+        ...[1, 5].map((x) => ({ value: `${x}`, count: 4, suppressed: false })),
+        { value: "Vet ikke", count: 2, suppressed: false },
+      ],
+    };
+    const r = likert(v, 1, 5);
+    expect(r).toMatchObject({ n: 8, mean: 3, unsure: { count: 2, share: 0.2 } });
+    expect(r.segments.reduce((a, s) => a + s.share, 0) + r.unsure.share).toBeCloseTo(1);
+    expect(unsureLabel([v])).toBe("Vet ikke");
+    expect(nText(v, String, "Vet ikke")).toBe("8 · 2 vet ikke");
+    expect(nText(v, String)).toBe("10");
+    const old = {
+      ...v,
+      options: v.options!.map((o) => (o.value === "Vet ikke" ? { ...o, value: "Vet ikke / gammel" } : o)),
+    };
+    expect(nText(old, String, "Vet ikke")).toBe("8 · 2 vet ikke");
+    const allOld = { version: 1, n: 5, options: [{ value: "Vet ikke / gammel", count: 5, suppressed: false }] };
+    expect(nText(allOld, String, "Vet ikke")).toBe("0 · 5 vet ikke");
+  });
+
+  it("leaves n alone for choice and multi, whose options are not numbers", () => {
+    const opts = (xs: [string, number][]) => xs.map(([value, count]) => ({ value, count, suppressed: false }));
+    const choice = {
+      version: 1,
+      n: 10,
+      options: opts([
+        ["Ja", 6],
+        ["Nei", 4],
+      ]),
+    };
+    const multi = {
+      version: 1,
+      n: 10,
+      options: opts([
+        ["VS Code", 7],
+        ["IntelliJ", 4],
+        ["Annet", 3],
+      ]),
+    };
+    expect(nText(choice, String)).toBe("10");
+    expect(nText(multi, String)).toBe("10");
   });
 
   it("shows raw values when the definition is missing", async () => {

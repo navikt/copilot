@@ -88,6 +88,9 @@ type question struct {
 	Reverse   bool   `json:"reverse,omitempty"`   // scale: agreeing is the negative end
 	Min       int    `json:"min,omitempty"`       // scale
 	Max       int    `json:"max,omitempty"`       // scale
+	// Unsure is one more answer after a scale's steps («Vet ikke»), stored as
+	// this label and left out of mean and agree share.
+	Unsure string `json:"unsure,omitempty"`
 	// Labels names every scale step from min to max (a labelled Likert).
 	Labels     []string `json:"labels,omitempty"`
 	Options    []string `json:"options,omitempty"`     // choice, multi
@@ -234,6 +237,7 @@ func validateSurveys(surveys []survey) error {
 				(q.Items == nil || q.Type == "matrix") &&
 				(!q.Reverse || q.Type == "scale") && (q.MaxChoices == 0 || q.Type == "multi") &&
 				(q.Other == "" || q.Type == "choice" || q.Type == "multi") &&
+				(q.Unsure == "" || q.Type == "scale" || q.Type == "matrix") && !numeric(q.Unsure) &&
 				(q.Exclusive == "" || q.Type == "multi" && slices.Contains(q.Options, q.Exclusive))
 			if q.SkipIf != nil {
 				j := slices.IndexFunc(s.Questions[:i], func(p question) bool { return p.ID == q.SkipIf.Question })
@@ -428,6 +432,11 @@ func validateAnswers(s survey, raw map[string]json.RawMessage) (map[string]any, 
 		}
 		switch q.Type {
 		case "scale":
+			var u string
+			if q.Unsure != "" && json.Unmarshal(v, &u) == nil && u == q.Unsure {
+				out[q.ID] = u
+				break
+			}
 			var n int
 			if json.Unmarshal(v, &n) != nil || n < q.Min || n > q.Max {
 				return nil, fmt.Errorf("question %q takes a whole number from %d to %d", q.ID, q.Min, q.Max)
@@ -504,6 +513,13 @@ func (s survey) answerable() []question {
 		}
 	}
 	return qs
+}
+
+// numeric reports whether s reads as a number, which a scale's unsure label
+// must not: mean and the CSV tell the two apart that way.
+func numeric(s string) bool {
+	_, err := strconv.ParseFloat(s, 64)
+	return err == nil
 }
 
 // freeText checks a free-text answer and trims it; "" means not answered.
