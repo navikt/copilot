@@ -187,6 +187,15 @@ In order. Who may join the pilot: see [Onboarding and pilot control](#onboarding
 
 ## Decisions log
 
+### 2026-11-17: declarative route configuration
+
+Owner decisions on the design in [#2342](https://github.com/navikt/copilot/issues/2342) (research: [#2341](https://github.com/navikt/copilot/issues/2341)):
+
+1. **Source of truth is a separate control service**, not mcp-registry. It owns versioned `Route`, `RouteOverride` and `GatewayPolicy` documents in its own Nais Postgres behind a PUT-whole-spec API. fleet-gateway polls its compiled snapshot, re-validates it and fails static. mcp-registry consumes the projection for gateway routes; `allowlist.json` keeps servers that are not behind the gateway. Trade-off accepted: one more service to run, for clean separation.
+2. **Team writes use GitHub OIDC from the team's repo**, with the repo bound to the route at first operator approval. Humans use the my-copilot admin UI.
+3. **Groups: spike first** (groups in the team OBO token, overage handling, else Graph). Until proven, Level 3 rules use tool, principal type and client only.
+4. **Routes without `tools`:** existing routes stay pass-all; new routes must declare `tools`. On control-service outage the gateway fails static, with an alert on snapshot age.
+
 ### 2026-11-17 (evening): pilot rollout, visibility and revised plan
 
 Owner decisions after the milestone review:
@@ -203,7 +212,7 @@ Revised plan. The gateway works for one client on one route in prod. No new gate
 
 - **Before the first pilot team goes live in prod:** user and team pages rewritten for prod and språkvasket; Copilot CLI tested against prod, then both clients through nav-pilot and cplt (owner); `TestProdPilotRoutesFileValid` loosened and `pilot-routes.yaml` deleted; operating rules in `apps/fleet-gateway/README.md` with one kill-switch drill in dev; consent redirect checked in four browsers and `Mcp-Session-Id` documented ([#2224](https://github.com/navikt/copilot/issues/2224)); AADSTS50105 mapped to its own error; privacy status confirmed (owner).
 - **Before broadening (second team, announcement):** visibility ([#2209](https://github.com/navikt/copilot/issues/2209)); consent page in Norwegian with server name and owning team; triage of [#2241](https://github.com/navikt/copilot/issues/2241); one alert on gateway errors and a saved log query for audit lines; the announcement, after Copilot CLI is verified.
-- **Later:** dynamic registry and management (above), the template repo ([#2087](https://github.com/navikt/copilot/issues/2087)), the cplt broker login ([#2085](https://github.com/navikt/copilot/issues/2085)), DCR flood limits with a public ingress ([#2279](https://github.com/navikt/copilot/issues/2279)), and a kill switch without deploy ([#2294](https://github.com/navikt/copilot/issues/2294)).
+- **Later:** dynamic registry and management (above), the template repo ([#2087](https://github.com/navikt/copilot/issues/2087)), the cplt broker login ([#2085](https://github.com/navikt/copilot/issues/2085)), DCR flood limits with a public ingress ([#2279](https://github.com/navikt/copilot/issues/2279)), and a kill switch without deploy ([#2294](https://github.com/navikt/copilot/issues/2294)). Declarative, API-driven route and policy configuration: [#2342](https://github.com/navikt/copilot/issues/2342).
 
 ### 2026-11-17: consent, client paths, DCR and authorization
 
