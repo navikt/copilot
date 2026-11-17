@@ -194,6 +194,25 @@ Owner decisions after the design review of 2026-11-17:
 3. **DCR is on in prod while the ingress is naisdevice-only.** Before prod it needs TTL renewal on use and a cap sized from users × routes × clients ([#2261](https://github.com/navikt/copilot/issues/2261)).
 4. **Teams authorize, the gateway authenticates.** The gateway logs in the user, binds the token to the route and writes the tool name to the audit log. Each team MCP decides what the user may do. `required_group` is removed for the pilot, and group restriction per route ([#2209](https://github.com/navikt/copilot/issues/2209)) is deferred.
 
+### 2026-11-17: direct MCP clients are a primary path
+
+Owner decisions ([#2249](https://github.com/navikt/copilot/issues/2249), [#2250](https://github.com/navikt/copilot/issues/2250)):
+
+1. **Direct clients are first-class.** Copilot CLI and OpenCode must work against fleet-gateway directly, without cplt. The cplt broker is an optional extra, not a requirement.
+2. **Follow the MCP authorization spec as written**, with no client-specific code: PRM (RFC 9728), AS metadata (RFC 8414), CIMD, DCR (RFC 7591), PKCE S256 and RFC 8707 `resource`. Any spec-compliant MCP client should work. Which clients get in is configuration (the CIMD allowlist, the DCR flag), never a code path.
+3. **Loopback redirects match on any port** for `http://127.0.0.1` and `http://[::1]` (RFC 8252 §7.3). Scheme, host, path and query must still match. `localhost` names never get this.
+4. **DCR is on in dev** (prod: see the consent decision above). Registered clients accept only loopback redirect URIs and `token_endpoint_auth_method: none`, live 30 days, and are capped globally and rate-limited per IP. The consent screen marks them as unverified.
+
+Client support, verified against client source on 2026-11-17:
+
+| Client | Path | Registration | Status |
+|---|---|---|---|
+| Copilot CLI (direct) | Primary | CIMD, `https://github.com/copilot/cli/client-metadata.json`, redirect `http://127.0.0.1:<random port>/` or `/callback` | Allowlisted in dev |
+| OpenCode 1.19.x (direct) | Primary | DCR, one redirect `http://127.0.0.1:19876/mcp/oauth/callback`, auth method `none` | DCR in dev |
+| OpenCode, next release (direct) | Primary | CIMD `https://opencode.ai/oauth/opencode/client.json` when the server advertises CIMD, otherwise DCR with both a `127.0.0.1` and a `localhost` redirect | Allowlisted in dev; DCR drops the `localhost` entry |
+| cplt broker (nav-pilot) | Optional | CIMD, `https://ki-utvikling.nav.no/cplt/oauth-client.json` | Allowlisted in dev |
+| VS Code, Claude Code, MCP Inspector and other spec-compliant clients | Supported if they use CIMD from the allowlist or DCR with a loopback redirect | CIMD or DCR | Not tested |
+
 ### 2026-11-16: controlled onboarding
 
 Owner decisions:
