@@ -81,6 +81,8 @@ const comparison: SurveyComparison = {
           id: "tilfredshet",
           text: "Jeg er fornøyd",
           break: false,
+          p: 0.0031,
+          p_holm: 0.022,
           waves: [
             { excluded: 14, versions: [scale([10, 10, 20, 30, 10])] },
             { excluded: 0, versions: [scale([0, 0, 5, 10, 5])] },
@@ -178,6 +180,7 @@ describe("/admin/undersokelser/sammenlign", () => {
     );
     expect(screen.getByText("Δ snitt +0,75")).toBeInTheDocument();
     expect(screen.getByText("Δ enig +25 pp")).toBeInTheDocument();
+    expect(screen.getByText("p 0,003, korrigert 0,022: står seg i testen")).toBeInTheDocument();
     expect(screen.getByText("+10 pp")).toBeInTheDocument(); // VS Code 60 % → 70 %
     expect(screen.getAllByText(/Holdt utenfor fordi de ikke bruker KI-verktøy.*Våren 2026: 14/)).toHaveLength(2);
   });
@@ -196,6 +199,16 @@ describe("/admin/undersokelser/sammenlign", () => {
     expect(screen.getByText(/Vet ikke \(ikke med i n og snitt\)/)).toBeInTheDocument();
     expect(screen.getAllByTestId("segment-unsure")).toHaveLength(1);
     expect(screen.getAllByText(/n 20\b/).length).toBeGreaterThan(0); // multi: n as is
+  });
+
+  it("says a change may be chance when it does not hold after Holm correction", async () => {
+    const grid = comparison.questions[1];
+    respond({
+      ...comparison,
+      questions: [{ ...grid, items: [{ ...grid.items![0], p: 0.0004, p_holm: 0.56 }] }],
+    });
+    await renderPage("q2-2026,q4-2026");
+    expect(screen.getByText("p under 0,001, korrigert 0,560: kan skyldes tilfeldigheter")).toBeInTheDocument();
   });
 
   it("saves as PDF: a print button and the print layout", async () => {

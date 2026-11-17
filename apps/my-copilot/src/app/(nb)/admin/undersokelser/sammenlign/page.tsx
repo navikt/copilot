@@ -13,6 +13,7 @@ import {
   getAdminSurveys,
   getSurveyComparison,
   type CompareQuestion,
+  type Significance,
   type WaveCounts,
   type WaveMeta,
   type WaveStat,
@@ -195,8 +196,21 @@ function MeanOverview({ waves, questions }: { waves: WaveMeta[]; questions: Comp
   );
 }
 
+const pValue = (p: number) => (p < 0.001 ? "under 0,001" : num(p, 3));
+
+/** The first-to-last test from copilot-survey; it holds when p after Holm correction is under 0,05. */
+function SignificanceTag({ sig }: { sig: Significance }) {
+  if (sig.p === undefined || sig.p_holm === undefined) return null;
+  const holds = sig.p_holm < 0.05;
+  return (
+    <Tag size="xsmall" variant={holds ? "success" : "neutral"}>
+      p {pValue(sig.p)}, korrigert {pValue(sig.p_holm)}: {holds ? "står seg i testen" : "kan skyldes tilfeldigheter"}
+    </Tag>
+  );
+}
+
 /** Δ mean and Δ share agreeing, first wave to last, when both asked the same single version. */
-function ScaleDeltas({ waves, broken }: { waves: WaveCounts[]; broken: boolean }) {
+function ScaleDeltas({ waves, broken, sig }: { waves: WaveCounts[]; broken: boolean; sig: Significance }) {
   if (broken) return <BreakTag />;
   const a = only(waves[0]);
   const b = only(waves[waves.length - 1]);
@@ -205,6 +219,7 @@ function ScaleDeltas({ waves, broken }: { waves: WaveCounts[]; broken: boolean }
     <HStack gap="space-8">
       <Delta label="Δ snitt" value={signed(b.mean - a.mean, 2)} />
       <Delta label="Δ enig" value={`${signed((b.agree - a.agree) * 100, 0)} pp`} />
+      <SignificanceTag sig={sig} />
     </HStack>
   );
 }
@@ -215,12 +230,14 @@ function Statement({
   text,
   counts,
   broken,
+  sig,
   q,
 }: {
   waves: WaveMeta[];
   text: string;
   counts: WaveCounts[];
   broken: boolean;
+  sig: Significance;
   q: CompareQuestion;
 }) {
   const min = q.min ?? 1;
@@ -232,7 +249,7 @@ function Statement({
         <Heading level="3" size="xsmall">
           {text}
         </Heading>
-        <ScaleDeltas waves={counts} broken={broken} />
+        <ScaleDeltas waves={counts} broken={broken} sig={sig} />
       </HStack>
       {counts.map((w, i) =>
         w.versions.map((v) => (
@@ -468,7 +485,10 @@ async function Comparison({ token, ids }: { token: string; ids: string[] }) {
       <Waves waves={waves} />
       <Alert variant="info" size="small">
         Rundene ble samlet inn på ulike måter (se «Besvart via»). En forskjell mellom rundene kan komme av metoden og
-        ikke bare av endring over tid. I påstandene teller bare svar fra dem som bruker KI-verktøy, i alle runder.
+        ikke bare av endring over tid. I påstandene teller bare svar fra dem som bruker KI-verktøy, i alle runder. Vi
+        tester hver påstand mellom første og siste runde (Mann–Whitney). «Står seg i testen» betyr at forskjellen er
+        statistisk signifikant (korrigert p under 0,05), også etter at vi har tatt hensyn til at vi tester mange
+        påstander (Holm).
       </Alert>
       {waves.some((w) => w.suppressed) ? (
         <Alert variant="info">En av rundene har under 5 svar. Den vises uten tall.</Alert>
@@ -489,11 +509,19 @@ async function Comparison({ token, ids }: { token: string; ids: string[] }) {
                   />
                 ) : null}
                 {q.items?.map((it) => (
-                  <Statement key={it.id} waves={waves} text={it.text} counts={it.waves} broken={it.break} q={q} />
+                  <Statement
+                    key={it.id}
+                    waves={waves}
+                    text={it.text}
+                    counts={it.waves}
+                    broken={it.break}
+                    sig={it}
+                    q={q}
+                  />
                 ))}
               </>
             ) : q.type === "scale" ? (
-              <Statement waves={waves} text={q.text} counts={q.waves ?? []} broken={!!q.break} q={q} />
+              <Statement waves={waves} text={q.text} counts={q.waves ?? []} broken={!!q.break} sig={q} q={q} />
             ) : (
               <Options waves={waves} q={q} />
             )}

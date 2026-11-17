@@ -22,9 +22,12 @@ func setBaseValidEnv(t *testing.T) {
 	t.Setenv("AZURE_APP_WELL_KNOWN_URL", "https://login.microsoftonline.com/nav.no/v2.0/.well-known/openid-configuration")
 	t.Setenv("AZURE_OPENID_CONFIG_AUTHORIZATION_ENDPOINT", "")
 	t.Setenv("COOKIE_SIGNING_SECRET", "")
+	t.Setenv("NAIS_CLUSTER_NAME", "")
 	t.Setenv("NAIS_TOKEN_EXCHANGE_ENDPOINT", "http://127.0.0.1:3000/api/v1/token/exchange")
 	t.Setenv("TEAM_TOKEN_STRATEGY", "")
 	t.Setenv("PILOT_ROUTES_FILE", "")
+	t.Setenv("SESSION_STORE", "")
+	t.Setenv("RT_STORAGE", "")
 }
 
 func TestLoadConfig_FailClosed(t *testing.T) {
@@ -231,8 +234,14 @@ routes:
     team: copilot
     target: dev-gcp:copilot:docs-mcp
     upstream_url: https://docs-mcp.intern.dev.nav.no
-    required_group: 11111111-2222-3333-4444-555555555555
 `,
+		},
+		{
+			// Removed for the pilot (owner decision 2026-11-17): a file that still
+			// sets it must fail, not silently drop the restriction.
+			name:      "required_group is rejected",
+			content:   "version: 1\nroutes:\n  - route: /mcp/a\n    team: t\n    target: c:n:a\n    upstream_url: http://a.n\n    required_group: g\n",
+			wantError: "required_group",
 		},
 		{
 			name:      "valid JSON format succeeds",
@@ -390,8 +399,8 @@ func TestDevPilotRoutesFileValid(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected pilot-routes.dev.yaml to load without error, got %v", err)
 	}
-	if len(cfg.Routes) != 1 {
-		t.Fatalf("expected 1 dev route, got %d", len(cfg.Routes))
+	if len(cfg.Routes) != 2 {
+		t.Fatalf("expected 2 dev routes, got %d", len(cfg.Routes))
 	}
 	r := cfg.Routes[0]
 	if r.Route != "/mcp/test" || r.Team != "copilot" || r.Target != "dev-gcp:copilot:fleet-echo" {
@@ -399,6 +408,10 @@ func TestDevPilotRoutesFileValid(t *testing.T) {
 	}
 	if r.UpstreamURL != "http://fleet-echo.copilot/" {
 		t.Fatalf("unexpected dev upstream URL: %q", r.UpstreamURL)
+	}
+	o := cfg.Routes[1]
+	if o.Route != "/mcp/onboarding" || o.Target != "dev-gcp:copilot:mcp-onboarding" || o.UpstreamURL != "http://mcp-onboarding.copilot/mcp/gw" {
+		t.Fatalf("unexpected onboarding route: %+v", o)
 	}
 }
 

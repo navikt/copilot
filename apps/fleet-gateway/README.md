@@ -9,8 +9,8 @@ Step 1 implements the authorization server only: protected resource metadata, au
 - `GET /.well-known/oauth-protected-resource` — RFC 9728 Protected Resource Metadata
 - `GET /.well-known/oauth-protected-resource/{resource}` — Resource-specific PRM (must match a configured pilot route)
 - `GET /.well-known/oauth-authorization-server` — RFC 8414 Authorization Server Metadata
-- `GET /authorize` — OAuth 2.1 authorization endpoint (CIMD allowlist, exact `redirect_uri`, PKCE `S256`, RFC 8707 `resource`, RFC 9207 `iss`)
-- `POST /consent` — Consent submission with CSRF cookie check
+- `GET /authorize` — OAuth 2.1 authorization endpoint (CIMD allowlist, exact `redirect_uri` except the port of http loopback IP literals per RFC 8252 §7.3, PKCE `S256`, RFC 8707 `resource`, RFC 9207 `iss`)
+- `POST /consent` — Consent submission with CSRF cookie check. The page is shown after the Entra login, and only when the user has no remembered consent for this client and route
 - `GET /oauth2/callback` — Entra ID reply URL, verified against signed `__Host-fleet_entra_state` cookie
 - `POST /token` — Single-use, 60-second authorization code exchange with PKCE verification
 - `POST /token` also accepts `grant_type=refresh_token` when `RT_STORAGE=client-encrypted` (single-use rotation, absolute `SESSION_MAX_AGE` cap)
@@ -24,14 +24,14 @@ Step 1 implements the authorization server only: protected resource metadata, au
 | --- | --- | --- | --- |
 | `BASE_URL` | Yes | — | External gateway origin without trailing slash |
 | `ALLOWED_CLIENT_IDS` | Yes | — | Comma-separated allowlist of CIMD `client_id` URLs |
-| `ALLOWED_REDIRECT_URIS` | Yes | — | Comma-separated allowlist of exact `redirect_uri` values |
+| `ALLOWED_REDIRECT_URIS` | Yes | — | Comma-separated allowlist of `redirect_uri` values. Exact match, except that `http://127.0.0.1` and `http://[::1]` entries match on any port (RFC 8252 §7.3); `localhost` never does |
 | `AZURE_APP_CLIENT_ID` | Yes | — | Nais-injected Entra client ID |
 | `AZURE_APP_CLIENT_SECRET` | Yes | — | Nais-injected Entra client secret |
 | `AZURE_OPENID_CONFIG_TOKEN_ENDPOINT` | Yes | — | Nais-injected Entra token endpoint |
 | `AZURE_APP_WELL_KNOWN_URL` | Conditional | — | Nais-injected OpenID discovery URL (required unless `AZURE_OPENID_CONFIG_AUTHORIZATION_ENDPOINT` is set) |
 | `AZURE_OPENID_CONFIG_AUTHORIZATION_ENDPOINT` | Conditional | — | Direct override for Entra authorization endpoint |
 | `ENTRA_SCOPE` | No | `openid api://<own client id>/.default` (plus `offline_access` for `refresh`) | Scope requested from Entra |
-| `COOKIE_SIGNING_SECRET` | No | Random 32 bytes | HMAC key (>= 32 bytes) for `__Host-fleet_entra_state` cookie |
+| `COOKIE_SIGNING_SECRET` | No | HKDF subkey of the primary `RT_KEYS` key; random only outside Nais | HMAC key (>= 32 bytes) for the `__Host-fleet_entra_state` cookie. On Nais (`NAIS_CLUSTER_NAME` set) startup fails if neither this nor `RT_KEYS` is set |
 | `PORT` | No | `8080` | HTTP listen port |
 | `LOG_LEVEL` | No | `INFO` | `DEBUG`, `INFO`, `WARN`, or `ERROR` |
 
@@ -39,8 +39,12 @@ Step 1 implements the authorization server only: protected resource metadata, au
 | `SESSION_STORE` | No | `memory` | `memory` (tests/local; lost on restart, not shared across replicas) or `postgres` |
 | `DATABASE_URL` | No | — | Postgres URL override. If empty, pgx reads the libpq `PG*` variables that Nais Postgres injects (TLS client certs, PgBouncer transaction mode; simple query protocol, no session state). Migrations run with the unprefixed admin `PG*` credentials; the running store uses the `READWRITE_PG*` runtime credentials |
 | `SESSION_MAX_AGE` | No | `12h` | Absolute session lifetime from login; refresh never extends it |
+| `CONSENT_TTL` | No | `720h` | How long a consent is remembered per NAVident, client_id and route. `/revoke` clears it |
 | `RT_STORAGE` | No | `client-encrypted` if `RT_KEYS` set, else none | `client-encrypted`: the Entra refresh token is sealed (AES-256-GCM) inside the gateway refresh token returned to the client; nothing is stored. `server`: refresh token stays in the session store, no client refresh token |
 | `RT_KEYS` | With `postgres` or `client-encrypted` | — | `kid:base64key,...` (32-byte keys, newest first encrypts, all decrypt). Also seals every value in the session store |
+| `GATEWAY_DISABLED` | No | `false` | Set to `true` to disable all `/mcp/*` routes (`503`, `Retry-After: 300`) |
+
+Routes in `pilot-routes.yaml` (`PILOT_ROUTES_FILE`) support an optional `enabled: false` field to disable a single route (`503`, `Retry-After: 300`) while keeping it validated and registered.
 
 Key rotation: prepend a new `kid:key`, deploy, drop the old entry after `SESSION_MAX_AGE` plus one deploy. Unknown or tampered values fail closed.
 

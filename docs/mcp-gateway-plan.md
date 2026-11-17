@@ -124,7 +124,7 @@ The `owner`, `gateway` and `toolHashes` fields are already in the registry respo
 - Entra refresh tokens for non-SPA clients last 90 days, rotate without revoking the old one, and are not bound to a resource. "At most 10 hours" is only fleet-gateway's delete discipline. A database backup plus the encryption key plus the client secret lets an attacker impersonate every logged-in user on every route, unless consent is per route.
 - Conditional Access `claims` from a downstream OBO hop cannot travel back through Texas yet. Accepted limit for the pilot: `nais/texas` is MIT-licensed and accepts PRs, Entra's OBO error body carries `claims`, and the team can contribute a passthrough PR later. Gateway code and refresh calls hit Entra's /token endpoint directly and receive claims errors; /authorize already passes claims.
 - The dev tenant is not prod: a pass in dev-gcp does not prove prod-gcp.
-- The consent page must: ask for consent before the Entra redirect, store `state` only after approval, protect against CSRF, set `frame-ancestors`, match redirect URIs exactly, return `iss` in responses, and bind the token to the exact route resource.
+- The consent page must: ask for consent before the gateway redirects back to the client (since 2026-11-17 it is shown after the Entra login, so a remembered consent can skip it), protect against CSRF, set `frame-ancestors`, match redirect URIs exactly, return `iss` in responses, and bind the token to the exact route resource.
 - cplt's port guard has a gap: the sandbox can bind the loopback OAuth port after another holder releases it ([navikt/cplt#1017](https://github.com/navikt/cplt/issues/1017)).
 - The writer has never been tested against real Texas introspection.
 - OpenCode under cplt waits for DCR, which is out of the pilot.
@@ -141,7 +141,7 @@ The pilot accepts only cplt's client_id, on a naisdevice ingress. Teams apply th
 
 **Team guide.** A team connects its MCP server in four steps: add fleet-gateway (`copilot` namespace, `dev-gcp`) to `accessPolicy.inbound`; validate the token with Texas introspection and check `idtyp`, NAVident and `azp` itself; apply so team copilot adds the route to `pilot-routes.dev.yaml` and the server to `accessPolicy.outbound`; test against `https://fleet-gateway.intern.dev.nav.no/mcp/<route>` from cplt. Details and a token-check example: [ki-utvikling.nav.no/verktoy/fleet-gateway/for-team](https://ki-utvikling.nav.no/verktoy/fleet-gateway/for-team).
 
-**Stretch goal: team-scoped access ([#2209](https://github.com/navikt/copilot/issues/2209)).** fleet-gateway checks the user's Entra group per route before the OBO call; the pilot list gets a required group per route. nav-pilot may then show only the servers that match the user's teams, but that is convenience: a client can be changed, so the check in fleet-gateway is the control.
+**Deferred: team-scoped access ([#2209](https://github.com/navikt/copilot/issues/2209)).** Owner decision 2026-11-17: teams authorize in their own MCP, and the pilot list has no `required_group`. If it returns, fleet-gateway checks the user's Entra group per route before the OBO call. nav-pilot may then show only the servers that match the user's teams, but that is convenience: a client can be changed, so the check in fleet-gateway is the control.
 
 Texas issues the tokens. fleet-control grants access, and fleet-gateway enforces it.
 
@@ -152,7 +152,7 @@ flowchart LR
     FC -->|approved routes| GW
     subgraph GW[fleet-gateway enforces]
         PL[Pilot list per route]
-        GR["Group per route (stretch goal, #2209)"]
+        GR["Group per route (deferred, #2209)"]
     end
     GW -->|"accessPolicy.outbound names the team MCP"| MCP[Team MCP]
     MCP -.->|"accessPolicy.inbound admits only fleet-gateway"| GW
@@ -184,6 +184,34 @@ In order. Who may join the pilot: see [Onboarding and pilot control](#onboarding
 3. Where the refresh-token encryption key lives: Nais secret or KMS.
 
 ## Decisions log
+
+### 2026-11-17: consent, client paths, DCR and authorization
+
+Owner decisions after the design review of 2026-11-17:
+
+1. **Consent is remembered for 30 days** per user (NAVident), client_id and route (`CONSENT_TTL`, default `720h`). The gateway checks it after the Entra login and skips the consent page when a valid record exists. A new client or a new route still asks. Clients registered through DCR follow the same rules, but their first consent page shows an "unverified client" banner. `/revoke` clears the consent for that client and route ([#2223](https://github.com/navikt/copilot/issues/2223)).
+2. **Both cplt paths are built:** native OAuth in the client and the cplt broker.
+3. **DCR is on in prod while the ingress is naisdevice-only.** Before prod it needs TTL renewal on use and a cap sized from users × routes × clients ([#2261](https://github.com/navikt/copilot/issues/2261)).
+4. **Teams authorize, the gateway authenticates.** The gateway logs in the user, binds the token to the route and writes the tool name to the audit log. Each team MCP decides what the user may do. `required_group` is removed for the pilot, and group restriction per route ([#2209](https://github.com/navikt/copilot/issues/2209)) is deferred.
+
+### 2026-11-17: direct MCP clients are a primary path
+
+Owner decisions ([#2249](https://github.com/navikt/copilot/issues/2249), [#2250](https://github.com/navikt/copilot/issues/2250)):
+
+1. **Direct clients are first-class.** Copilot CLI and OpenCode must work against fleet-gateway directly, without cplt. The cplt broker is an optional extra, not a requirement.
+2. **Follow the MCP authorization spec as written**, with no client-specific code: PRM (RFC 9728), AS metadata (RFC 8414), CIMD, DCR (RFC 7591), PKCE S256 and RFC 8707 `resource`. Any spec-compliant MCP client should work. Which clients get in is configuration (the CIMD allowlist, the DCR flag), never a code path.
+3. **Loopback redirects match on any port** for `http://127.0.0.1` and `http://[::1]` (RFC 8252 §7.3). Scheme, host, path and query must still match. `localhost` names never get this.
+4. **DCR (#2260) is on in dev** (prod: see the consent decision above). Registered clients accept only loopback redirect URIs and `token_endpoint_auth_method: none`, live 30 days, and are capped globally and rate-limited per IP. The consent screen marks them as unverified.
+
+Client support, verified against client source on 2026-11-17:
+
+| Client | Path | Registration | Status |
+|---|---|---|---|
+| Copilot CLI (direct) | Primary | CIMD, `https://github.com/copilot/cli/client-metadata.json`, redirect `http://127.0.0.1:<random port>/` or `/callback` | Allowlisted in dev |
+| OpenCode 1.19.x (direct) | Primary | DCR, one redirect `http://127.0.0.1:19876/mcp/oauth/callback`, auth method `none` | DCR in dev once #2260 lands |
+| OpenCode, next release (direct) | Primary | CIMD `https://opencode.ai/oauth/opencode/client.json` when the server advertises CIMD, otherwise DCR with both a `127.0.0.1` and a `localhost` redirect | Allowlisted in dev; DCR drops the `localhost` entry |
+| cplt broker (nav-pilot) | Optional | CIMD, `https://ki-utvikling.nav.no/cplt/oauth-client.json` | Allowlisted in dev |
+| VS Code, Claude Code, MCP Inspector and other spec-compliant clients | Supported if they use CIMD from the allowlist or DCR with a loopback redirect | CIMD or DCR | Not tested |
 
 ### 2026-11-16: controlled onboarding
 

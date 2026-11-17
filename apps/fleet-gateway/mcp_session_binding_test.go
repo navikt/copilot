@@ -1,0 +1,97 @@
+package main
+
+import (
+	"context"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"testing"
+)
+
+func mcpPost(te *testEnv, token, sessionID string) *httptest.ResponseRecorder {
+	req := httptest.NewRequest(http.MethodPost, "/mcp/etterlevelse", strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"tools/list"}`))
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json, text/event-stream")
+	if sessionID != "" {
+		req.Header.Set("Mcp-Session-Id", sessionID)
+	}
+	rec := httptest.NewRecorder()
+	te.handler.ServeHTTP(rec, req)
+	return rec
+}
+
+func mcpBound(te *testEnv, id string) (string, bool) {
+	owner, found, err := te.gw.store.Get(context.Background(), kindMCPSession, "/mcp/etterlevelse\n"+id)
+	if err != nil {
+		te.t.Fatalf("store get: %v", err)
+	}
+	return string(owner), found
+}
+
+func setUpstreamSessionID(te *testEnv, id *string) {
+	te.upstreamServer.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if *id != "" {
+			w.Header().Set("Mcp-Session-Id", *id)
+		}
+		_, _ = w.Write([]byte(`{"jsonrpc":"2.0","id":1,"result":{}}`))
+	})
+}
+
+func TestMCPSession_ClientSuppliedIDsAreNeverBound(t *testing.T) {
+	te := newTestEnv(t)
+	none := ""
+	setUpstreamSessionID(te, &none) // stateless upstream: 2xx, no session header
+	token := te.obtainAccessTokenForResource(te.resource)
+	for i := range 20 {
+		id := fmt.Sprintf("random-%d", i)
+		if rec := mcpPost(te, token, id); rec.Code != http.StatusOK {
+			t.Fatalf("unbound client id must pass through, got %d (%s)", rec.Code, rec.Body.String())
+		}
+		if _, found := mcpBound(te, id); found {
+			t.Fatalf("client-supplied id %q created a binding", id)
+		}
+	}
+}
+
+func TestMCPSession_UpstreamIssuedIDBindsToUser(t *testing.T) {
+	te := newTestEnv(t)
+	issued := "upstream-issued-1"
+	setUpstreamSessionID(te, &issued)
+	tokenA := te.obtainAccessTokenForResource(te.resource)
+	if rec := mcpPost(te, tokenA, ""); rec.Code != http.StatusOK {
+		t.Fatalf("initialize: got %d (%s)", rec.Code, rec.Body.String())
+	}
+	if owner, found := mcpBound(te, issued); !found || owner != te.navIdent {
+		t.Fatalf("expected binding to %s, got %q found=%v", te.navIdent, owner, found)
+	}
+
+	te.navIdent = "B654321"
+	tokenB := te.obtainAccessTokenForResource(te.resource)
+	if rec := mcpPost(te, tokenB, issued); rec.Code != http.StatusForbidden {
+		t.Fatalf("user B on A's session: expected 403, got %d", rec.Code)
+	}
+	if rec := mcpPost(te, tokenA, issued); rec.Code != http.StatusOK {
+		t.Fatalf("user A on own session: expected 200, got %d", rec.Code)
+	}
+}
+
+func TestMCPSession_PerUserCap(t *testing.T) {
+	te := newTestEnv(t)
+	te.gw.cfg.MCPSessionUserCap = 3
+	issued := ""
+	setUpstreamSessionID(te, &issued)
+	token := te.obtainAccessTokenForResource(te.resource)
+	for i := range 5 {
+		issued = fmt.Sprintf("up-%d", i)
+		if rec := mcpPost(te, token, ""); rec.Code != http.StatusOK {
+			t.Fatalf("got %d", rec.Code)
+		}
+		_, found := mcpBound(te, issued)
+		if want := i < 3; found != want {
+			t.Fatalf("session %d: bound=%v, want %v", i, found, want)
+		}
+	}
+}

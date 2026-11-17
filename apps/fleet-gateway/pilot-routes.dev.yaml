@@ -4,3 +4,7 @@ routes:
     team: copilot
     target: dev-gcp:copilot:fleet-echo
     upstream_url: http://fleet-echo.copilot/
+  - route: /mcp/onboarding
+    team: copilot
+    target: dev-gcp:copilot:mcp-onboarding
+    upstream_url: http://mcp-onboarding.copilot/mcp/gw

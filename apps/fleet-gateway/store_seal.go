@@ -252,6 +252,10 @@ func (s *sealedStore) Sweep(ctx context.Context) (int, error) {
 	return s.inner.Sweep(ctx)
 }
 
+func (s *sealedStore) Ping(ctx context.Context) error {
+	return s.inner.Ping(ctx)
+}
+
 func (s *sealedStore) Close() {
 	s.inner.Close()
 }
