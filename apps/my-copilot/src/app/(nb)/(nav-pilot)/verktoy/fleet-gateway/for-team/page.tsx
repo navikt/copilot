@@ -44,7 +44,7 @@ const TOKEN_CHECK = `// Svar fra Texas: POST $NAIS_TOKEN_INTROSPECTION_ENDPOINT
 if !claims.Active {
     return errUnauthorized // 401
 }
-if strings.EqualFold(claims.Idtyp, "app") {
+if strings.EqualFold(claims.Idtyp, "app") || slices.Contains(claims.Roles, "access_as_application") {
     return errForbidden // apptoken uten bruker
 }
 if strings.TrimSpace(claims.NAVident) == "" {
@@ -97,7 +97,7 @@ export default function FleetGatewayForTeamPage() {
           Forutsetninger
         </LinkableHeading>
         <Bullets>
-          <li>MCP over streamable HTTP.</li>
+          <li>Serveren snakker MCP over streamable HTTP.</li>
           <li>
             Appen kjører på Nais i dev-gcp med Entra ID slått på i <code className={code}>azure.application</code>.
           </li>
@@ -135,8 +135,10 @@ export default function FleetGatewayForTeamPage() {
                       <code className={code}>aud</code> er appen deres. Texas sjekker dette.
                     </li>
                     <li>
-                      <code className={code}>idtyp</code> er ikke <code className={code}>app</code>. Texas godtar
-                      apptokener, så dette sjekker dere selv.
+                      <code className={code}>idtyp</code> er ikke <code className={code}>app</code>, og{" "}
+                      <code className={code}>roles</code> inneholder ikke{" "}
+                      <code className={code}>access_as_application</code>. Texas godtar apptokener, så dette sjekker
+                      dere selv.
                     </li>
                     <li>
                       <code className={code}>NAVident</code> finnes, altså en innlogget bruker.
@@ -179,8 +181,8 @@ export default function FleetGatewayForTeamPage() {
               content: (
                 <BodyLong>
                   Adressen blir <code className={code}>https://fleet-gateway.intern.dev.nav.no/mcp/&lt;navn&gt;</code>.
-                  Dere må være på naisdevice, og piloten godtar bare cplt som klient. Første kall åpner innloggingen med
-                  Nav-kontoen i nettleseren.
+                  Dere må være på naisdevice, og piloten godtar bare cplt som klient. Første kall åpner nettleseren. Der
+                  godkjenner dere serveren og logger inn med Nav-kontoen.
                 </BodyLong>
               ),
             },
@@ -208,7 +210,10 @@ export default function FleetGatewayForTeamPage() {
             </TableRow>
             <TableRow>
               <TableDataCell>401 fra appen deres</TableDataCell>
-              <TableDataCell>Texas avviste tokenet, for eksempel feil aud.</TableDataCell>
+              <TableDataCell>
+                Texas svarte <code className={code}>active: false</code>. Tokenet er utløpt eller laget for en annen app
+                (feil aud).
+              </TableDataCell>
             </TableRow>
             <TableRow>
               <TableDataCell>403 fra appen deres</TableDataCell>

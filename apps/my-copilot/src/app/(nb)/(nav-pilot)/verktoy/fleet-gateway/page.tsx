@@ -58,7 +58,7 @@ export default function FleetGatewayPage() {
               <Bullets>
                 <li>For deg som bruker Copilot eller nav-pilot gjennom cplt.</li>
                 <li>Hent data fra Navs egne MCP-servere.</li>
-                <li>Logg inn én gang med Nav-kontoen, ikke én gang per server.</li>
+                <li>Logg inn med Nav-kontoen. Du trenger ingen egne nøkler per server.</li>
               </Bullets>
             </VStack>
           </Box>
@@ -71,7 +71,7 @@ export default function FleetGatewayPage() {
                 </Heading>
               </HStack>
               <Bullets>
-                <li>Tilby serveren til resten av Nav uten å bygge innlogging selv.</li>
+                <li>Tilby serveren til resten av Nav uten å bygge egen OAuth. Dere sjekker bare tokenet.</li>
                 <li>Gatewayen sender et token laget for akkurat appen deres (OBO). Klienten ser det aldri.</li>
                 <li>
                   <NextLink href="/verktoy/fleet-gateway/for-team" className={linkClass}>
