@@ -185,6 +185,24 @@ In order. Who may join the pilot: see [Onboarding and pilot control](#onboarding
 
 ## Decisions log
 
+### 2026-11-17 (evening): pilot rollout, visibility and revised plan
+
+Owner decisions after the milestone review:
+
+1. **Visibility per team, not access control (option A).** Team slugs go in the public registry, in `_meta."io.github.navikt/registry".audience.teams`. nav-pilot filters `mcp list` on the user's teams; `--all` shows everything and `mcp enable` still works. Membership comes from GitHub teams through `gh`, read locally and never sent anywhere. If the lookup fails, everything is shown (fail-open). The team's own check stays the only access control. Work: [#2209](https://github.com/navikt/copilot/issues/2209) with [#2289](https://github.com/navikt/copilot/issues/2289) to [#2293](https://github.com/navikt/copilot/issues/2293). Gateway-enforced groups per route stay deferred.
+2. **Pilot teams may go to dev and prod directly.**
+3. **The dev registry serving the dev gateway hostname is accepted.** "No dev hostnames published" applies to the public prod registry ([#2253](https://github.com/navikt/copilot/issues/2253)).
+4. **Approval rule for a route.** Team copilot reviews the route PR within two working days, dev before prod. Onboarding is by PR; the submit form and approval queue ([#2099](https://github.com/navikt/copilot/issues/2099), [#2100](https://github.com/navikt/copilot/issues/2100)) wait until after the pilot.
+5. **Cloud SQL cleanup through the Console** by the owner ([#2283](https://github.com/navikt/copilot/issues/2283)).
+6. **Survey parked** until after the pilot.
+7. **Future work** is tracked in [#2287](https://github.com/navikt/copilot/issues/2287): a dynamic registry, management in the ki-utvikling admin pages, and management through nav-pilot or an MCP server. Until then, onboarding stays by PR, and nothing may be built that only works for a file: the registry entry stays the one place a server is described, and clients read only the served response.
+
+Revised plan. The gateway works for one client on one route in prod. No new gateway features are needed for the first pilot team.
+
+- **Before the first pilot team goes live in prod:** user and team pages rewritten for prod and språkvasket; Copilot CLI tested against prod, then both clients through nav-pilot and cplt (owner); `TestProdPilotRoutesFileValid` loosened and `pilot-routes.yaml` deleted; operating rules in `apps/fleet-gateway/README.md` with one kill-switch drill in dev; consent redirect checked in four browsers and `Mcp-Session-Id` documented ([#2224](https://github.com/navikt/copilot/issues/2224)); AADSTS50105 mapped to its own error; privacy status confirmed (owner).
+- **Before broadening (second team, announcement):** visibility ([#2209](https://github.com/navikt/copilot/issues/2209)); consent page in Norwegian with server name and owning team; triage of [#2241](https://github.com/navikt/copilot/issues/2241); one alert on gateway errors and a saved log query for audit lines; the announcement, after Copilot CLI is verified.
+- **Later:** dynamic registry and management (above), the template repo ([#2087](https://github.com/navikt/copilot/issues/2087)), the cplt broker login ([#2085](https://github.com/navikt/copilot/issues/2085)), DCR flood limits with a public ingress ([#2279](https://github.com/navikt/copilot/issues/2279)), and a kill switch without deploy ([#2294](https://github.com/navikt/copilot/issues/2294)).
+
 ### 2026-11-17: consent, client paths, DCR and authorization
 
 Owner decisions after the design review of 2026-11-17:
