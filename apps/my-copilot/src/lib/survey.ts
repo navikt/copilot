@@ -305,8 +305,10 @@ export type WaveStat = VersionResult & { mean?: number; agree?: number };
 /** A question or item in one wave. excluded: answers the comparison rule dropped (the last wave's skip_if). */
 export type WaveCounts = { excluded: number; versions: WaveStat[] };
 export type WaveMeta = SurveySummary & { suppressed: boolean; channels: Record<string, number> | null };
-export type CompareItem = { id: string; text: string; break: boolean; waves: WaveCounts[] };
-export type CompareQuestion = {
+/** First wave against the last, scale items without a break: Mann–Whitney p and Holm-corrected p. */
+export type Significance = { p?: number; p_holm?: number };
+export type CompareItem = Significance & { id: string; text: string; break: boolean; waves: WaveCounts[] };
+export type CompareQuestion = Significance & {
   id: string;
   type: SurveyQuestion["type"];
   text: string;

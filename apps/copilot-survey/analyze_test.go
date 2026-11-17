@@ -4,6 +4,9 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
+	"os"
+	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -142,5 +145,20 @@ func TestCompareCSVEdges(t *testing.T) {
 	}
 	if writeCompareCSV(failWriter{}, res) == nil {
 		t.Error("write error swallowed")
+	}
+}
+
+func TestAnalyzeRefusesRepeatedSurvey(t *testing.T) {
+	defs, _ := loadSurveyDir(surveyFiles)
+	i := slices.IndexFunc(defs, func(s survey) bool { return s.ID == "q4-2026" })
+	var buf bytes.Buffer
+	writeExportCSV(&buf, defs[i], nil)
+	f := filepath.Join(t.TempDir(), "a.csv")
+	if err := os.WriteFile(f, buf.Bytes(), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	err := runAnalyze([]string{"q4-2026=" + f, "q4-2026=" + f}, io.Discard, time.Now())
+	if err == nil || !strings.Contains(err.Error(), "twice") {
+		t.Errorf("repeated id: %v", err)
 	}
 }

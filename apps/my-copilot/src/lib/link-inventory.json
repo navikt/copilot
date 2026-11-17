@@ -168,6 +168,10 @@
       "vakter": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/cplt/page.tsx"]
     }
   },
+  "/cplt/oauth-client.json": {
+    "sources": ["docs/mcp-gateway-plan.md"],
+    "anchors": {}
+  },
   "/cplt/windows": {
     "sources": [
       "apps/my-copilot/src/app/(en)/cplt/page.tsx",

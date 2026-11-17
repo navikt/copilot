@@ -39,6 +39,7 @@ type compareItem struct {
 	Text  string       `json:"text"`
 	Break bool         `json:"break"` // the waves asked different versions
 	Waves []waveCounts `json:"waves"`
+	significance
 }
 
 type compareQuestion struct {
@@ -52,6 +53,7 @@ type compareQuestion struct {
 	Break  bool          `json:"break,omitempty"`
 	Waves  []waveCounts  `json:"waves,omitempty"` // scale, choice, multi
 	Items  []compareItem `json:"items,omitempty"` // matrix
+	significance
 }
 
 type compareResult struct {
@@ -143,12 +145,33 @@ func compareWavesResult(waves []survey, rows [][]storedAnswer, now time.Time) co
 				item := q
 				item.Type, item.ID, item.Version = "scale", it.ID, it.Version
 				ws, br := compareWaves(item, waves, rows)
-				cq.Items = append(cq.Items, compareItem{it.ID, it.Text, br, ws})
+				cq.Items = append(cq.Items, compareItem{ID: it.ID, Text: it.Text, Break: br, Waves: ws})
 			}
 		} else {
 			cq.Waves, cq.Break = compareWaves(q, waves, rows)
 		}
 		res.Questions = append(res.Questions, cq)
+	}
+	// After the appends, so the pointers stay valid. Holm runs over every
+	// tested item: statements for KI users and for everyone alike.
+	var tested []*significance
+	for qi := range res.Questions {
+		cq := &res.Questions[qi]
+		if cq.Type == "scale" && testFirstLast(&cq.significance, cq.Waves, cq.Break) {
+			tested = append(tested, &cq.significance)
+		}
+		for ii := range cq.Items {
+			if it := &cq.Items[ii]; testFirstLast(&it.significance, it.Waves, it.Break) {
+				tested = append(tested, &it.significance)
+			}
+		}
+	}
+	ps := make([]float64, len(tested))
+	for i, t := range tested {
+		ps[i] = *t.P
+	}
+	for i, h := range holm(ps) {
+		tested[i].PHolm = &h
 	}
 	return res
 }

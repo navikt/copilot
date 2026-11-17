@@ -19,6 +19,8 @@ var consentTemplate = template.Must(template.New("consent").Parse(`<!doctype htm
 <body style="font-family:sans-serif;max-width:40em;margin:2em auto;padding:0 1em">
 <h1>Allow access?</h1>
 <p><strong>{{.ClientName}}</strong> (<code>{{.ClientID}}</code>) requests access to <strong>{{.Resource}}</strong> on your behalf.</p>
+{{if .Unverified}}<p style="border:2px solid #c30000;padding:.5em"><strong>Unverified client.</strong> This client registered itself and is not on the gateway's list of known clients. Allow only if you started this login yourself.</p>{{end}}
+<p>Your choice is remembered for {{.RememberDays}} days for this client and this route.</p>
 <p>Redirect destination: <code>{{.RedirectURI}}</code></p>
 <form method="post" action="/consent">
 <input type="hidden" name="id" value="{{.ID}}">
@@ -29,8 +31,14 @@ var consentTemplate = template.Must(template.New("consent").Parse(`<!doctype htm
 </body>
 </html>`))
 
-func setConsentSecurityHeaders(w http.ResponseWriter) {
-	w.Header().Set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; form-action 'self' https://login.microsoftonline.com; frame-ancestors 'none'")
+// setConsentSecurityHeaders allows the form to post to the gateway and to
+// follow the redirect back to the client (Chromium applies form-action to it).
+func setConsentSecurityHeaders(w http.ResponseWriter, redirectURI string) {
+	formAction := "'self'"
+	if u, err := url.Parse(redirectURI); err == nil && u.Scheme != "" && u.Host != "" {
+		formAction += " " + u.Scheme + "://" + u.Host
+	}
+	w.Header().Set("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'; form-action "+formAction+"; frame-ancestors 'none'")
 	w.Header().Set("X-Frame-Options", "DENY")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Cache-Control", "no-store")
@@ -48,15 +56,17 @@ func (g *Gateway) renderConsentPage(w http.ResponseWriter, consentID string, p *
 		SameSite: http.SameSiteStrictMode,
 		MaxAge:   int(defaultPendingTTL.Seconds()),
 	})
-	setConsentSecurityHeaders(w)
+	setConsentSecurityHeaders(w, p.RedirectURI)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_ = consentTemplate.Execute(w, map[string]string{
-		"ID":          consentID,
-		"CSRF":        p.CSRF,
-		"ClientName":  p.ClientName,
-		"ClientID":    p.ClientID,
-		"RedirectURI": p.RedirectURI,
-		"Resource":    p.Resource,
+	_ = consentTemplate.Execute(w, map[string]any{
+		"Unverified":   !g.cfg.AllowedClientIDs[p.ClientID],
+		"RememberDays": int(g.cfg.ConsentTTL.Hours() / 24),
+		"ID":           consentID,
+		"CSRF":         p.CSRF,
+		"ClientName":   p.ClientName,
+		"ClientID":     p.ClientID,
+		"RedirectURI":  p.RedirectURI,
+		"Resource":     p.Resource,
 	})
 }
 
@@ -101,7 +111,20 @@ func (g *Gateway) consentPostHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	g.redirectToEntra(w, r, p)
+	if p.Issued == nil {
+		// Pending consent from a pod that still asked before the Entra login.
+		g.redirectToEntra(w, r, p)
+		return
+	}
+	if err = g.rememberConsent(r.Context(), p.Issued.Session.NAVIdent, p.ClientID, p.Resource); err != nil {
+		slog.Warn("remember consent failed", "error", err)
+	}
+	gwCode, err := randomToken()
+	if err != nil {
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+	g.issueCode(w, r, p, gwCode, p.Issued)
 }
 
 func clearCSRFCookie(w http.ResponseWriter) {

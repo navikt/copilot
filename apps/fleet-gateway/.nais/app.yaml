@@ -72,19 +72,14 @@ spec:
   accessPolicy:
     outbound:
       rules:
-      {{#if outbound_rules}}
-      {{#each outbound_rules as |rule|}}
-        - application: {{rule.application}}
-        {{#if rule.namespace}}
-          namespace: {{rule.namespace}}
-        {{/if}}
+      {{#each outbound_rules}}
+        - application: {{application}}
       {{/each}}
-      {{else}}
-        []
-      {{/if}}
       external:
         - host: login.microsoftonline.com
-        - host: "{{cimd_host}}"
+      {{#each cimd_hosts as |host|}}
+        - host: "{{host}}"
+      {{/each}}
   ingresses:
   {{#each ingresses as |url|}}
     - {{url}}

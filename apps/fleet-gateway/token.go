@@ -38,13 +38,6 @@ type gatewaySession struct {
 	Expiry       time.Time `json:"expiry"`
 }
 
-func (s *gatewaySession) hasGroup(group string) bool {
-	if s == nil || len(s.Groups) == 0 {
-		return false
-	}
-	return slices.Contains(s.Groups, group)
-}
-
 type issuedCode struct {
 	ClientID    string         `json:"client_id"`
 	RedirectURI string         `json:"redirect_uri"`
@@ -508,33 +501,67 @@ func (g *Gateway) redeemEntraRefreshToken(ctx context.Context, entraRT string) (
 }
 
 func (g *Gateway) revokeHandler(w http.ResponseWriter, r *http.Request) {
+	bad := func(status int, errCode, desc string) {
+		writeJSON(w, status, map[string]string{
+			"error":             errCode,
+			"error_description": desc,
+		})
+	}
+
 	r.Body = http.MaxBytesReader(w, r.Body, maxFormBodyBytes)
 	if err := r.ParseForm(); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{
-			"error":             "invalid_request",
-			"error_description": "invalid form body",
-		})
+		bad(http.StatusBadRequest, "invalid_request", "invalid form body")
+		return
+	}
+
+	clientID := r.PostFormValue("client_id")
+	if clientID == "" {
+		bad(http.StatusBadRequest, "invalid_request", "client_id is required")
 		return
 	}
 
 	token := r.PostFormValue("token")
 	if token != "" && len(token) <= maxRefreshTokenLen {
-		if err := g.store.Delete(r.Context(), kindSession, hashToken(token)); err != nil {
-			slog.Warn("revoke session delete failed", "error", err)
-			writeJSON(w, http.StatusServiceUnavailable, map[string]string{
-				"error":             "temporarily_unavailable",
-				"error_description": "session store unavailable",
-			})
+		tokenHash := hashToken(token)
+		sess, ok, err := g.getSession(r.Context(), tokenHash)
+		if err != nil {
+			slog.Warn("revoke session lookup failed", "error", err)
+			bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store unavailable")
 			return
 		}
+		if ok {
+			if sess.ClientID != clientID {
+				slog.Warn("revoke client mismatch")
+				writeJSON(w, http.StatusOK, map[string]any{})
+				return
+			}
+			// Consent first: if its delete fails the session stays, so a retry still finds it.
+			if err := g.forgetConsent(r.Context(), sess.NAVIdent, sess.ClientID, sess.Resource); err != nil {
+				slog.Warn("revoke consent delete failed", "error", err)
+				bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store unavailable")
+				return
+			}
+			if err := g.store.Delete(r.Context(), kindSession, tokenHash); err != nil {
+				slog.Warn("revoke session delete failed", "error", err)
+				bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store unavailable")
+				return
+			}
+		}
 		if payload, err := g.openRefreshToken(token); err == nil {
+			if payload.ClientID != clientID {
+				slog.Warn("revoke client mismatch")
+				writeJSON(w, http.StatusOK, map[string]any{})
+				return
+			}
+			if err := g.forgetConsent(r.Context(), payload.NAVIdent, payload.ClientID, payload.Resource); err != nil {
+				slog.Warn("revoke consent delete failed", "error", err)
+				bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store unavailable")
+				return
+			}
 			expiresAt := time.Unix(payload.EXP, 0).UTC()
 			if _, err := g.store.RevokeOnce(r.Context(), payload.JTI, expiresAt); err != nil {
 				slog.Warn("revoke refresh token failed", "error", err)
-				writeJSON(w, http.StatusServiceUnavailable, map[string]string{
-					"error":             "temporarily_unavailable",
-					"error_description": "session store unavailable",
-				})
+				bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store unavailable")
 				return
 			}
 		}

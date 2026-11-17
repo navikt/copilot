@@ -9,9 +9,15 @@ import (
 
 const (
 	kindPendingConsent = "pending_consent"
-	kindPendingEntra   = "pending_entra"
-	kindCode           = "code"
-	kindSession        = "session"
+	// pending_entra_v2: consent is asked after the Entra callback. A new kind so
+	// old pods (consent before Entra) never pop it and skip consent mid-rollout.
+	kindPendingEntra       = "pending_entra_v2"
+	kindPendingEntraLegacy = "pending_entra" // written by old pods; always gets the consent page
+	kindCode               = "code"
+	kindSession            = "session"
+	kindConsent            = "consent" // remembered consent per (NAVident, client_id, resource)
+	kindMCPSession         = "mcp_session"
+	kindMCPSessionUser     = "mcp_session_user" // per-user count of mcp_session bindings
 )
 
 var errStoreFull = errors.New("store capacity reached")
@@ -27,6 +33,7 @@ type SessionStore interface {
 	RevokeOnce(ctx context.Context, jti string, expiresAt time.Time) (bool, error)
 	IsRevoked(ctx context.Context, jti string) (bool, error)
 	Sweep(ctx context.Context) (int, error)
+	Ping(ctx context.Context) error
 	Close()
 }
 
@@ -240,5 +247,7 @@ func (s *memoryStore) sweepKindLocked(kind string, now time.Time) int {
 	}
 	return removed
 }
+
+func (s *memoryStore) Ping(_ context.Context) error { return nil }
 
 func (s *memoryStore) Close() {}

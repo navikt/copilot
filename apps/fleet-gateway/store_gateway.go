@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"time"
 )
 
@@ -88,12 +89,25 @@ func putSessionInStore(ctx context.Context, store SessionStore, nowFn func() tim
 
 func getSessionFromStore(ctx context.Context, store SessionStore, nowFn func() time.Time, maxAge time.Duration, hash string) (*gatewaySession, bool, error) {
 	raw, ok, err := store.Get(ctx, kindSession, hash)
-	if err != nil || !ok {
-		return nil, ok, err
+	if err != nil {
+		if errors.Is(err, errSealUnknownKID) {
+			// Keep the row: during a key rollout another replica may hold the new kid.
+			slog.Warn("session row sealed with unknown key id, treating as missing")
+			return nil, false, nil
+		}
+		if errors.Is(err, errSealDecrypt) || errors.Is(err, errSealMalformed) {
+			dropUnreadableSession(ctx, store, hash, err)
+			return nil, false, nil
+		}
+		return nil, false, err
+	}
+	if !ok {
+		return nil, false, nil
 	}
 	var sess gatewaySession
 	if err := json.Unmarshal(raw, &sess); err != nil {
-		return nil, false, err
+		dropUnreadableSession(ctx, store, hash, err)
+		return nil, false, nil
 	}
 	now := nowFn()
 	if !now.Before(sess.Expiry) {
@@ -109,4 +123,28 @@ func getSessionFromStore(ctx context.Context, store SessionStore, nowFn func() t
 		}
 	}
 	return &sess, true, nil
+}
+
+func dropUnreadableSession(ctx context.Context, store SessionStore, hash string, err error) {
+	slog.Warn("unreadable session row, treating as missing", "reason", err.Error())
+	_ = store.Delete(ctx, kindSession, hash)
+}
+
+// consentKey hashes the (user, client, route) triple so client IDs of any
+// length fit the store key and NAVidents are not stored as plain keys.
+func consentKey(navIdent, clientID, resource string) string {
+	return hashToken(navIdent + "\x00" + clientID + "\x00" + resource)
+}
+
+func (g *Gateway) hasConsent(ctx context.Context, navIdent, clientID, resource string) (bool, error) {
+	_, ok, err := g.store.Get(ctx, kindConsent, consentKey(navIdent, clientID, resource))
+	return ok, err
+}
+
+func (g *Gateway) rememberConsent(ctx context.Context, navIdent, clientID, resource string) error {
+	return g.store.Put(ctx, kindConsent, consentKey(navIdent, clientID, resource), []byte("1"), g.cfg.ConsentTTL)
+}
+
+func (g *Gateway) forgetConsent(ctx context.Context, navIdent, clientID, resource string) error {
+	return g.store.Delete(ctx, kindConsent, consentKey(navIdent, clientID, resource))
 }
