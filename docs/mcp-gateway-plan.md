@@ -90,6 +90,8 @@ To test, get user tokens from the Nais login sidecar (Wonderwall) on the calling
 
 Each phase starts only when the previous gate holds.
 
+> Superseded by the 2026-11-17 (evening) decisions log below: the survey is parked until after the pilot, so phase 2 needs no survey answer per user. The submit form and approval queue (registry phases 2 and 3) also wait until after the pilot; onboarding is by PR.
+
 | Phase | What | Gate to pass | Tracked in |
 |---|---|---|---|
 | 0 spike | Chained OBO through Texas, stub apps in dev-gcp | A team MCP exchanges fleet-gateway's OBO token for its own downstream token. Fails: the fleet-gateway approach is killed. **Passed 2026-11-16** | [#2084](https://github.com/navikt/copilot/issues/2084), [#2094](https://github.com/navikt/copilot/pull/2094) |
