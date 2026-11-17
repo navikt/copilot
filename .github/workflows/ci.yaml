@@ -128,6 +128,7 @@ jobs:
               - '.github/workflows/ci.yaml'
             fleet-gateway:
               - 'apps/fleet-gateway/**'
+              - 'apps/mcp-registry/allowlist.json'
               - '.github/workflows/mise-build-deploy-nais.yaml'
               - '.github/workflows/ci.yaml'
             mcp-onboarding:
