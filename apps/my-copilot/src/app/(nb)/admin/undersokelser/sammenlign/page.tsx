@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
-import { Alert, BodyShort, Box, Detail, Heading, HStack, Link, Tag, VStack } from "@navikt/ds-react";
+import { Alert, BodyShort, Box, Button, Detail, Heading, HStack, Link, Tag, VStack } from "@navikt/ds-react";
 import { PageHero } from "@/components/page-hero";
 import { SectionSkeleton } from "@/components/section-skeleton";
 import { Table, TableBody, TableDataCell, TableHeader, TableHeaderCell, TableRow } from "@/components/aksel-table";
@@ -196,7 +196,7 @@ function ScaleDeltas({ waves, broken }: { waves: WaveCounts[]; broken: boolean }
   if (a?.mean === undefined || b?.mean === undefined || a.agree === undefined || b.agree === undefined) return null;
   return (
     <HStack gap="space-8">
-      <Delta label="Δ snitt" value={signed(b.mean - a.mean)} />
+      <Delta label="Δ snitt" value={signed(b.mean - a.mean, 2)} />
       <Delta label="Δ enig" value={`${signed((b.agree - a.agree) * 100, 0)} pp`} />
     </HStack>
   );
@@ -429,9 +429,12 @@ async function Comparison({ token, ids }: { token: string; ids: string[] }) {
     <VStack gap="space-32">
       <DocumentTitle title={`Sammenligning ${title}`} />
       {/* Here, not in the hero: only a comparison that loaded is worth saving. */}
-      <div>
+      <HStack gap="space-8" className="print-hidden">
         <PrintButton>Lagre som PDF</PrintButton>
-      </div>
+        <Button as="a" href={`/api/admin/surveys/compare/export?ids=${ids.join(",")}`} size="small" variant="secondary">
+          Last ned sammenligning (CSV)
+        </Button>
+      </HStack>
       <PrintHeader
         title={`Sammenligning: ${title}`}
         lines={waves.map(

@@ -362,17 +362,23 @@ export async function hideSurveyFreetext(userToken: string, id: string, textToke
 
 /** GET /api/v1/admin/surveys/{id}/export.csv as is, for the route handler to stream on; null without a URL, a valid id or a connection. */
 export async function fetchSurveyExport(userToken: string, id: string): Promise<Response | null> {
+  if (!/^[a-z0-9-]{1,64}$/.test(id)) return null;
+  return fetchSurveyCSV(userToken, `/api/v1/admin/surveys/${id}/export.csv`);
+}
+
+/** The comparison as long-form CSV, the same numbers as «copilot-survey analyze --csv» gives from exported answers. */
+export async function fetchSurveyCompareExport(userToken: string, ids: string[]): Promise<Response | null> {
+  if (ids.length < 2 || ids.length > 4 || !ids.every((id) => /^[a-z0-9-]{1,64}$/.test(id))) return null;
+  return fetchSurveyCSV(userToken, `/api/v1/admin/surveys/compare?ids=${ids.join(",")}&format=csv`);
+}
+
+async function fetchSurveyCSV(userToken: string, path: string): Promise<Response | null> {
   const url = process.env.COPILOT_SURVEY_URL;
-  if (!url || !/^[a-z0-9-]{1,64}$/.test(id)) return null;
+  if (!url) return null;
   try {
     const headers: Record<string, string> = {};
     if (!isLocalDev()) headers.Authorization = `Bearer ${await exchangeTokenFor(userToken, "copilot-survey")}`;
-    return await fetchWithTimeout(
-      `${url}/api/v1/admin/surveys/${id}/export.csv`,
-      { headers, cache: "no-store" },
-      30000,
-      "timeout"
-    );
+    return await fetchWithTimeout(`${url}${path}`, { headers, cache: "no-store" }, 30000, "timeout");
   } catch {
     return null;
   }
