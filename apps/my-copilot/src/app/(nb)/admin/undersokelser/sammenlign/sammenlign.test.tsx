@@ -185,6 +185,22 @@ describe("/admin/undersokelser/sammenlign", () => {
     expect(screen.getAllByText(/Holdt utenfor fordi de ikke bruker KI-verktøy.*Våren 2026: 14/)).toHaveLength(2);
   });
 
+  it("shows the same n over the bar and in «Vis tall»: scale answers, then «vet ikke» apart", async () => {
+    const unsure = structuredClone(comparison);
+    const autumn = scale([0, 0, 2, 4, 2]); // 8 on the scale
+    autumn.n = 10;
+    autumn.options = [...(autumn.options ?? []), { value: "Vet ikke", count: 2, suppressed: false }];
+    unsure.questions[1].items![0].waves[1].versions = [autumn];
+    unsure.questions[1].unsure = "Vet ikke";
+    respond(unsure);
+    await renderPage("q2-2026,q4-2026");
+    expect(screen.getAllByText(/n 8 · 2 vet ikke/)).toHaveLength(2); // wave label and table header
+    expect(screen.queryByText(/n 10\b/)).not.toBeInTheDocument();
+    expect(screen.getByText(/Vet ikke \(ikke med i n og snitt\)/)).toBeInTheDocument();
+    expect(screen.getAllByTestId("segment-unsure")).toHaveLength(1);
+    expect(screen.getAllByText(/n 20\b/).length).toBeGreaterThan(0); // multi: n as is
+  });
+
   it("says a change may be chance when it does not hold after Holm correction", async () => {
     const grid = comparison.questions[1];
     respond({

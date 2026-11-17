@@ -1,8 +1,8 @@
 # MCP gateway: plan and path forward
 
-Names follow the nav-fleet draft, which is not final: fleet-gateway is the MCP gateway, and the registry is part of fleet-control. App and host names such as mcp-registry stay unchanged for now.
+fleet-gateway is the MCP gateway. App and host names such as mcp-registry stay unchanged.
 
-Status 2026-11-16: the phase 0 spike passed in tenant nav.no; chained OBO works and the kill criterion was not triggered ([#2084 (comment)](https://github.com/navikt/copilot/issues/2084#issuecomment-6925521276)). Epic: [#2083](https://github.com/navikt/copilot/issues/2083). Registry self-service: [#2096](https://github.com/navikt/copilot/issues/2096). Client side: [navikt/cplt#912](https://github.com/navikt/cplt/issues/912), design in [navikt/cplt#947](https://github.com/navikt/cplt/pull/947) (merged 2026-11-04).
+Status 2026-11-17: fleet-gateway is live in prod with a controlled pilot ([#2276](https://github.com/navikt/copilot/issues/2276)); Copilot CLI (CIMD) and OpenCode (DCR) are verified against it. Phase 0 spike passed on 2026-11-16 in tenant nav.no; chained OBO works and the kill criterion was not triggered ([#2084 (comment)](https://github.com/navikt/copilot/issues/2084#issuecomment-6925521276)). Epic: [#2083](https://github.com/navikt/copilot/issues/2083). Registry self-service: [#2096](https://github.com/navikt/copilot/issues/2096). Client side: [navikt/cplt#912](https://github.com/navikt/cplt/issues/912), design in [navikt/cplt#947](https://github.com/navikt/cplt/pull/947) (merged 2026-11-04).
 
 ## Goal
 
@@ -90,13 +90,15 @@ To test, get user tokens from the Nais login sidecar (Wonderwall) on the calling
 
 Each phase starts only when the previous gate holds.
 
+> Superseded by the 2026-11-17 (evening) decisions log below: the survey is parked until after the pilot, so phase 2 needs no survey answer per user. The submit form and approval queue (registry phases 2 and 3) also wait until after the pilot; onboarding is by PR.
+
 | Phase | What | Gate to pass | Tracked in |
 |---|---|---|---|
 | 0 spike | Chained OBO through Texas, stub apps in dev-gcp | A team MCP exchanges fleet-gateway's OBO token for its own downstream token. Fails: the fleet-gateway approach is killed. **Passed 2026-11-16** | [#2084](https://github.com/navikt/copilot/issues/2084), [#2094](https://github.com/navikt/copilot/pull/2094) |
-| 0b | Minimal authorization server on the dev stub, CIMD only; also group-restricted apps (`allowAllUsers: false`), a Conditional Access challenge and the prod tenant, which the spike did not test | One `tools/call` from Copilot CLI via CIMD reaches the pilot as the real user; an audit line names NAVident and the tool; `offline_access` result recorded | [#2084](https://github.com/navikt/copilot/issues/2084) |
-| 1 | cplt host OAuth against fleet-gateway, fixed-port guard, per-route consent, revocation; privacy document | `cplt mcp status` shows `credential_ok`; no token readable in the sandbox; privacy document signed off | [#2085](https://github.com/navikt/copilot/issues/2085), design merged in [navikt/cplt#947](https://github.com/navikt/cplt/pull/947) |
-| 2 pilot | Prod route to nav-etterlevelse-mcp, reads only, next to its own OAuth server | 5 users, 2 weeks, zero auth incidents, latency target met, one survey answer per user | [#2086](https://github.com/navikt/copilot/issues/2086) |
-| 3 | Template repo, direct clients, second team | A second team ships from the template in under a day | [#2087](https://github.com/navikt/copilot/issues/2087) |
+| 0b | Minimal authorization server on the dev stub, CIMD only; also group-restricted apps (`allowAllUsers: false`), a Conditional Access challenge and the prod tenant, which the spike did not test | One `tools/call` from Copilot CLI via CIMD reaches the pilot as the real user; an audit line names NAVident and the tool; `offline_access` result recorded. **Passed in dev 2026-11-16 and in prod 2026-11-17** | [#2084](https://github.com/navikt/copilot/issues/2084) |
+| 1 | **Reshaped 2026-11-17:** direct clients (Copilot CLI via CIMD, OpenCode via DCR) are first class and cplt is optional. Deferred to "fleet-gateway: senere" ([#2085](https://github.com/navikt/copilot/issues/2085)): cplt host OAuth against fleet-gateway, fixed-port guard, per-route consent, revocation. **Not deferred:** the privacy document, still required before the pilot goes live with real data (checklist 8) | `cplt mcp status` shows `credential_ok`; no token readable in the sandbox (cplt part); privacy document signed off | [#2085](https://github.com/navikt/copilot/issues/2085), design merged in [navikt/cplt#947](https://github.com/navikt/cplt/pull/947) |
+| 2 pilot | Prod route to nav-etterlevelse-mcp, reads only, next to its own OAuth server. **In progress: prod live 2026-11-17, pilot team invited on [#412](https://github.com/navikt/copilot/issues/412)** | 5 users, 2 weeks, zero auth incidents, latency target met, one survey answer per user | [#2276](https://github.com/navikt/copilot/issues/2276) (replaces #2086) |
+| 3 | Template repo, direct clients, second team | A second team ships from the template in under a day | [#2087](https://github.com/navikt/copilot/issues/2087), deferred to "fleet-gateway: senere" |
 
 ### Registry phases mapped to gateway phases
 
@@ -137,7 +139,7 @@ Three layers must all hold before a route opens to wider use:
 2. **Nais access policy.** fleet-gateway's `accessPolicy.outbound` names every team MCP, and the team adds fleet-gateway to its `inbound`. A missing rule fails with `AADSTS65001`.
 3. **Pilot list.** An explicit, versioned list of routes and teams in the fleet-gateway config. fleet-gateway exposes a route only if it is on the list and approved in the registry. Removing a route from the list switches it off.
 
-The pilot accepts only cplt's client_id, on a naisdevice ingress. Teams apply through the issue template [fleet-gateway: Pilotsøknad](https://github.com/navikt/copilot/issues/new?template=fleet-gateway-pilot.yml) in navikt/copilot until the self-service form ([#2099](https://github.com/navikt/copilot/issues/2099)) exists. Preliminary user docs: [ki-utvikling.nav.no/verktoy/fleet-gateway](https://ki-utvikling.nav.no/verktoy/fleet-gateway) (added in a separate PR).
+The pilot accepts direct clients (Copilot CLI via CIMD, OpenCode via DCR) on a naisdevice ingress. Teams apply through the issue template [fleet-gateway: Pilotsøknad](https://github.com/navikt/copilot/issues/new?template=fleet-gateway-pilot.yml) in navikt/copilot until the self-service form ([#2099](https://github.com/navikt/copilot/issues/2099)) exists. Preliminary user docs: [ki-utvikling.nav.no/verktoy/fleet-gateway](https://ki-utvikling.nav.no/verktoy/fleet-gateway) (added in a separate PR).
 
 **Team guide.** A team connects its MCP server in four steps: add fleet-gateway (`copilot` namespace, `dev-gcp`) to `accessPolicy.inbound`; validate the token with Texas introspection and check `idtyp`, NAVident and `azp` itself; apply so team copilot adds the route to `pilot-routes.dev.yaml` and the server to `accessPolicy.outbound`; test against `https://fleet-gateway.intern.dev.nav.no/mcp/<route>` from cplt. Details and a token-check example: [ki-utvikling.nav.no/verktoy/fleet-gateway/for-team](https://ki-utvikling.nav.no/verktoy/fleet-gateway/for-team).
 
@@ -185,6 +187,24 @@ In order. Who may join the pilot: see [Onboarding and pilot control](#onboarding
 
 ## Decisions log
 
+### 2026-11-17 (evening): pilot rollout, visibility and revised plan
+
+Owner decisions after the milestone review:
+
+1. **Visibility per team, not access control (option A).** Team slugs go in the public registry, in `_meta."io.github.navikt/registry".audience.teams`. nav-pilot filters `mcp list` on the user's teams; `--all` shows everything and `mcp enable` still works. Membership comes from GitHub teams through `gh`, read locally and never sent anywhere. If the lookup fails, everything is shown (fail-open). The team's own check stays the only access control. Work: [#2209](https://github.com/navikt/copilot/issues/2209) with [#2289](https://github.com/navikt/copilot/issues/2289) to [#2293](https://github.com/navikt/copilot/issues/2293). Gateway-enforced groups per route stay deferred.
+2. **Pilot teams may go to dev and prod directly.**
+3. **The dev registry serving the dev gateway hostname is accepted.** "No dev hostnames published" applies to the public prod registry ([#2253](https://github.com/navikt/copilot/issues/2253)).
+4. **Approval rule for a route.** Team copilot reviews the route PR within two working days, dev before prod. Onboarding is by PR; the submit form and approval queue ([#2099](https://github.com/navikt/copilot/issues/2099), [#2100](https://github.com/navikt/copilot/issues/2100)) wait until after the pilot.
+5. **Cloud SQL cleanup through the Console** by the owner ([#2283](https://github.com/navikt/copilot/issues/2283)).
+6. **Survey parked** until after the pilot.
+7. **Future work** is tracked in [#2287](https://github.com/navikt/copilot/issues/2287): a dynamic registry, management in the ki-utvikling admin pages, and management through nav-pilot or an MCP server. Until then, onboarding stays by PR, and nothing may be built that only works for a file: the registry entry stays the one place a server is described, and clients read only the served response.
+
+Revised plan. The gateway works for one client on one route in prod. No new gateway features are needed for the first pilot team.
+
+- **Before the first pilot team goes live in prod:** user and team pages rewritten for prod and språkvasket; Copilot CLI tested against prod, then both clients through nav-pilot and cplt (owner); `TestProdPilotRoutesFileValid` loosened and `pilot-routes.yaml` deleted; operating rules in `apps/fleet-gateway/README.md` with one kill-switch drill in dev; consent redirect checked in four browsers and `Mcp-Session-Id` documented ([#2224](https://github.com/navikt/copilot/issues/2224)); AADSTS50105 mapped to its own error; privacy status confirmed (owner).
+- **Before broadening (second team, announcement):** visibility ([#2209](https://github.com/navikt/copilot/issues/2209)); consent page in Norwegian with server name and owning team; triage of [#2241](https://github.com/navikt/copilot/issues/2241); one alert on gateway errors and a saved log query for audit lines; the announcement, after Copilot CLI is verified.
+- **Later:** dynamic registry and management (above), the template repo ([#2087](https://github.com/navikt/copilot/issues/2087)), the cplt broker login ([#2085](https://github.com/navikt/copilot/issues/2085)), DCR flood limits with a public ingress ([#2279](https://github.com/navikt/copilot/issues/2279)), and a kill switch without deploy ([#2294](https://github.com/navikt/copilot/issues/2294)).
+
 ### 2026-11-17: consent, client paths, DCR and authorization
 
 Owner decisions after the design review of 2026-11-17:
@@ -193,6 +213,7 @@ Owner decisions after the design review of 2026-11-17:
 2. **Both cplt paths are built:** native OAuth in the client and the cplt broker.
 3. **DCR is on in prod while the ingress is naisdevice-only.** Before prod it needs TTL renewal on use and a cap sized from users × routes × clients ([#2261](https://github.com/navikt/copilot/issues/2261)).
 4. **Teams authorize, the gateway authenticates.** The gateway logs in the user, binds the token to the route and writes the tool name to the audit log. Each team MCP decides what the user may do. `required_group` is removed for the pilot, and group restriction per route ([#2209](https://github.com/navikt/copilot/issues/2209)) is deferred.
+5. **Accepted risk: silent login by a local process.** Consent is remembered for 30 days and loopback redirect URIs accept any port. Another process on the developer's machine can therefore start a login as an allowlisted public client and get a token without a click, through browser SSO and the remembered consent. PKCE does not help, because the attacker starts the flow. This is the same threat model as public-client logins in the az and gh CLIs. Mitigations: tokens are scoped to fleet-gateway, sessions are capped at 12 hours, and tokens can be revoked.
 
 ### 2026-11-17: direct MCP clients are a primary path
 
@@ -201,14 +222,14 @@ Owner decisions ([#2249](https://github.com/navikt/copilot/issues/2249), [#2250]
 1. **Direct clients are first-class.** Copilot CLI and OpenCode must work against fleet-gateway directly, without cplt. The cplt broker is an optional extra, not a requirement.
 2. **Follow the MCP authorization spec as written**, with no client-specific code: PRM (RFC 9728), AS metadata (RFC 8414), CIMD, DCR (RFC 7591), PKCE S256 and RFC 8707 `resource`. Any spec-compliant MCP client should work. Which clients get in is configuration (the CIMD allowlist, the DCR flag), never a code path.
 3. **Loopback redirects match on any port** for `http://127.0.0.1` and `http://[::1]` (RFC 8252 §7.3). Scheme, host, path and query must still match. `localhost` names never get this.
-4. **DCR (#2260) is on in dev** (prod: see the consent decision above). Registered clients accept only loopback redirect URIs and `token_endpoint_auth_method: none`, live 30 days, and are capped globally and rate-limited per IP. The consent screen marks them as unverified.
+4. **DCR (#2270) is on in dev** (prod: see the consent decision above). Registered clients accept only loopback redirect URIs and `token_endpoint_auth_method: none`, live 30 days, and are capped globally and rate-limited per IP. The consent screen marks them as unverified.
 
 Client support, verified against client source on 2026-11-17:
 
 | Client | Path | Registration | Status |
 |---|---|---|---|
 | Copilot CLI (direct) | Primary | CIMD, `https://github.com/copilot/cli/client-metadata.json`, redirect `http://127.0.0.1:<random port>/` or `/callback` | Allowlisted in dev |
-| OpenCode 1.19.x (direct) | Primary | DCR, one redirect `http://127.0.0.1:19876/mcp/oauth/callback`, auth method `none` | DCR in dev once #2260 lands |
+| OpenCode 1.19.x (direct) | Primary | DCR, one redirect `http://127.0.0.1:19876/mcp/oauth/callback`, auth method `none` | DCR in dev once #2270 lands |
 | OpenCode, next release (direct) | Primary | CIMD `https://opencode.ai/oauth/opencode/client.json` when the server advertises CIMD, otherwise DCR with both a `127.0.0.1` and a `localhost` redirect | Allowlisted in dev; DCR drops the `localhost` entry |
 | cplt broker (nav-pilot) | Optional | CIMD, `https://ki-utvikling.nav.no/cplt/oauth-client.json` | Allowlisted in dev |
 | VS Code, Claude Code, MCP Inspector and other spec-compliant clients | Supported if they use CIMD from the allowlist or DCR with a loopback redirect | CIMD or DCR | Not tested |

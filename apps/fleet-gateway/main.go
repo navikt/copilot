@@ -26,6 +26,7 @@ type Gateway struct {
 	cimdCache   *ttlMap[*clientMetadata]
 	limiter     *ipRateLimiter
 	proxyClient *http.Client
+	refreshWait time.Duration // how long a concurrent refresh waits for the winner's grace pair
 
 	wellKnownMu         sync.RWMutex
 	wellKnownGroup      singleflight.Group
@@ -71,6 +72,7 @@ func newGateway(cfg *Config, now func() time.Time) (*Gateway, error) {
 		cimdCache:   newTTLMap[*clientMetadata](cfg.CIMDCap, now),
 		limiter:     newIPRateLimiter(cfg.RateLimitRequests, cfg.RateLimitGlobalRequests, cfg.RateLimitWindow, cfg.RateLimitCap, now),
 		proxyClient: newHardenedProxyClient(cfg.ProxyHeaderTimeout),
+		refreshWait: 5 * time.Second,
 		TeamTokens:  teamTokens,
 	}, nil
 }
@@ -92,6 +94,7 @@ func buildSessionStore(cfg *Config, now func() time.Time, rtKeys *keyRing) (Sess
 		kindConsent:            cfg.SessionCap,
 		kindMCPSession:         cfg.SessionCap,
 		kindMCPSessionUser:     cfg.SessionCap,
+		kindDCRClient:          cfg.DCRClientCap,
 	}
 
 	var store SessionStore
@@ -157,6 +160,9 @@ func (g *Gateway) routes() http.Handler {
 	mux.HandleFunc("GET /oauth2/callback", g.callbackHandler)
 	mux.HandleFunc("POST /token", g.rateLimitMiddleware(g.tokenHandler))
 	mux.HandleFunc("POST /revoke", g.rateLimitMiddleware(g.revokeHandler))
+	if g.cfg.DCREnabled {
+		mux.HandleFunc("POST /register", g.rateLimitMiddleware(g.registerHandler))
+	}
 	for _, route := range g.cfg.Routes {
 		mux.HandleFunc(route.Route, g.mcpHandler(route))
 	}

@@ -145,14 +145,17 @@ func finalize(ctx context.Context, pool *pgxpool.Pool, defs []survey, s survey, 
 		for k, vers := range t.Keys {
 			for ver, vt := range vers {
 				var mean *float64
-				if scale[k] && vt.N > 0 {
-					sum := 0.0
+				if scale[k] {
+					sum, cnt := 0.0, 0
 					for o, c := range vt.Counts {
-						f, _ := strconv.ParseFloat(o, 64)
-						sum += f * float64(c)
+						if f, err := strconv.ParseFloat(o, 64); err == nil { // unsure is not a step
+							sum, cnt = sum+f*float64(c), cnt+c
+						}
 					}
-					m := sum / float64(vt.N)
-					mean = &m
+					if cnt > 0 {
+						m := sum / float64(cnt)
+						mean = &m
+					}
 				}
 				for o, c := range vt.Counts {
 					batch.Queue(insert, s.ID, "answer", k, ver, o, c, vt.N, mean)

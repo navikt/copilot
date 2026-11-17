@@ -18,6 +18,8 @@ const (
 	kindConsent            = "consent" // remembered consent per (NAVident, client_id, resource)
 	kindMCPSession         = "mcp_session"
 	kindMCPSessionUser     = "mcp_session_user" // per-user count of mcp_session bindings
+	kindDCRClient          = "dcr_client"
+	kindRefreshGrace       = "refresh_grace" // pair issued for a rotated RT, keyed by its jti
 )
 
 var errStoreFull = errors.New("store capacity reached")
@@ -32,6 +34,14 @@ type SessionStore interface {
 	Revoke(ctx context.Context, jti string, expiresAt time.Time) error
 	RevokeOnce(ctx context.Context, jti string, expiresAt time.Time) (bool, error)
 	IsRevoked(ctx context.Context, jti string) (bool, error)
+	// Incr bumps a fixed-window counter shared by every replica and returns the
+	// count in the current window, which starts on the first Incr after expiry.
+	Incr(ctx context.Context, key string, window time.Duration) (int, error)
+	// PutEvict is Put that, when kind is at its cap, first deletes the live item
+	// of kind with the earliest expiry. Eviction and insert are one atomic step,
+	// so concurrent callers cannot take the freed slot. evicted reports whether
+	// an item was dropped.
+	PutEvict(ctx context.Context, kind, key string, val []byte, ttl time.Duration) (evicted bool, err error)
 	Sweep(ctx context.Context) (int, error)
 	Ping(ctx context.Context) error
 	Close()
@@ -46,6 +56,7 @@ type memoryStore struct {
 	mu      sync.Mutex
 	items   map[string]map[string]memoryItem
 	revoked map[string]time.Time
+	counts  map[string]rateWindow
 	caps    map[string]int
 	now     func() time.Time
 }
@@ -61,14 +72,24 @@ func newMemoryStore(now func() time.Time, caps map[string]int) *memoryStore {
 	return &memoryStore{
 		items:   make(map[string]map[string]memoryItem),
 		revoked: make(map[string]time.Time),
+		counts:  make(map[string]rateWindow),
 		caps:    copiedCaps,
 		now:     now,
 	}
 }
 
 func (s *memoryStore) Put(ctx context.Context, kind, key string, val []byte, ttl time.Duration) error {
+	_, err := s.put(ctx, kind, key, val, ttl, false)
+	return err
+}
+
+func (s *memoryStore) PutEvict(ctx context.Context, kind, key string, val []byte, ttl time.Duration) (bool, error) {
+	return s.put(ctx, kind, key, val, ttl, true)
+}
+
+func (s *memoryStore) put(ctx context.Context, kind, key string, val []byte, ttl time.Duration, evict bool) (evicted bool, err error) {
 	if err := ctx.Err(); err != nil {
-		return err
+		return false, err
 	}
 
 	s.mu.Lock()
@@ -79,7 +100,18 @@ func (s *memoryStore) Put(ctx context.Context, kind, key string, val []byte, ttl
 		s.sweepKindLocked(kind, now)
 		bucket := s.items[kind]
 		if _, exists := bucket[key]; !exists && len(bucket) >= capLimit {
-			return errStoreFull
+			if !evict || len(bucket) == 0 {
+				return false, errStoreFull
+			}
+			// sweepKindLocked left only live items, so this frees a counted slot.
+			oldest, oldestAt := "", time.Time{}
+			for k, e := range bucket {
+				if oldest == "" || e.expiresAt.Before(oldestAt) {
+					oldest, oldestAt = k, e.expiresAt
+				}
+			}
+			delete(bucket, oldest)
+			evicted = true
 		}
 	}
 
@@ -95,7 +127,7 @@ func (s *memoryStore) Put(ctx context.Context, kind, key string, val []byte, ttl
 		value:     copied,
 		expiresAt: now.Add(ttl),
 	}
-	return nil
+	return evicted, nil
 }
 
 func (s *memoryStore) Get(ctx context.Context, kind, key string) ([]byte, bool, error) {
@@ -211,6 +243,23 @@ func (s *memoryStore) IsRevoked(ctx context.Context, jti string) (bool, error) {
 	return true, nil
 }
 
+func (s *memoryStore) Incr(ctx context.Context, key string, window time.Duration) (int, error) {
+	if err := ctx.Err(); err != nil {
+		return 0, err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	now := s.now()
+	c, ok := s.counts[key]
+	if !ok || !now.Before(c.resetAt) {
+		c = rateWindow{resetAt: now.Add(window)}
+	}
+	c.count++
+	s.counts[key] = c
+	return c.count, nil
+}
+
 func (s *memoryStore) Sweep(ctx context.Context) (int, error) {
 	if err := ctx.Err(); err != nil {
 		return 0, err
@@ -227,6 +276,12 @@ func (s *memoryStore) Sweep(ctx context.Context) (int, error) {
 	for jti, exp := range s.revoked {
 		if !now.Before(exp) {
 			delete(s.revoked, jti)
+			removed++
+		}
+	}
+	for k, c := range s.counts {
+		if !now.Before(c.resetAt) {
+			delete(s.counts, k)
 			removed++
 		}
 	}

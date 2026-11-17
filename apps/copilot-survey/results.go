@@ -231,6 +231,9 @@ func cells(q question, ver int, counts map[string]int) []optionCount {
 			for n := q.Min; n <= q.Max; n++ {
 				values = append(values, strconv.Itoa(n))
 			}
+			if q.Unsure != "" {
+				values = append(values, q.Unsure)
+			}
 		} else {
 			values = q.options()
 		}

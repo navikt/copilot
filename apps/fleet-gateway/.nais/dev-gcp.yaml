@@ -9,7 +9,7 @@ base_url: "https://fleet-gateway.intern.dev.nav.no"
 allowed_client_ids: "https://ki-utvikling.nav.no/cplt/oauth-client.json,https://github.com/copilot/cli/client-metadata.json,https://opencode.ai/oauth/opencode/client.json"
 # Loopback entries match on any port (RFC 8252 section 7.3).
 allowed_redirect_uris: "http://127.0.0.1:62471/callback,http://127.0.0.1/,http://127.0.0.1/callback,http://127.0.0.1/mcp/oauth/callback"
-allowed_resources: "https://fleet-gateway.intern.dev.nav.no/mcp/test"
+dcr_enabled: "true"
 pilot_routes_file: "/app/pilot-routes.dev.yaml"
 outbound_rules:
   - application: fleet-echo

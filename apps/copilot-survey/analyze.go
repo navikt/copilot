@@ -92,29 +92,38 @@ func readExportCSV(s survey, r io.Reader) ([]storedAnswer, error) {
 			}
 			return nil
 		}
-		number := func(key, name string, def int) error {
+		number := func(key, name string, def int, unsure string) error {
 			cell := rec[col[name]]
 			if cell == "" {
 				return nil
 			}
 			f, perr := strconv.ParseFloat(cell, 64)
-			if perr != nil {
+			if perr == nil {
+				return put(key, name, def, f)
+			}
+			// Not a number: the unsure label, or for an older version any
+			// label it had (#2258): what the export writes must read back.
+			label := unformula(cell)
+			if perr := put(key, name, def, label); perr != nil {
+				return perr
+			}
+			if label != unsure && row.QuestionVersions[key] == def {
 				return fmt.Errorf("line %d: %s %q", line, name, cell)
 			}
-			return put(key, name, def, f)
+			return nil
 		}
 		for _, q := range s.Questions {
 			switch q.Type {
 			case "matrix":
 				for _, it := range q.Items {
-					err = number(it.ID, q.ID+"."+it.ID, it.Version)
+					err = number(it.ID, q.ID+"."+it.ID, it.Version, q.Unsure)
 					if err != nil {
 						return nil, err
 					}
 				}
 				continue
 			case "scale":
-				err = number(q.ID, q.ID, q.Version)
+				err = number(q.ID, q.ID, q.Version, q.Unsure)
 			case "multi":
 				picked, answered := []any{}, false
 				for _, o := range multiOptions(q, head) {

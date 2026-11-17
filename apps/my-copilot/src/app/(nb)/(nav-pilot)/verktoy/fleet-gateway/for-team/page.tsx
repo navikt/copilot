@@ -13,10 +13,12 @@ import type { TocItem } from "@/components/table-of-contents";
 export const metadata: Metadata = {
   title: "Koble teamets MCP-server til fleet-gateway",
   description:
-    "Slik kobler et team en MCP-server på Nais til fleet-gateway: tilgang i accessPolicy, sjekk av tokenet og registrering av ruten.",
+    "Slik kobler et team en MCP-server på Nais til fleet-gateway: tilgang i accessPolicy, sjekk av tokenet og en rute i fleet-gateway.",
 };
 
 const APPLY_URL = "https://github.com/navikt/copilot/issues/new?template=fleet-gateway-pilot.yml";
+const HELP_URL = "https://nav-it.slack.com/archives/C0ASJSZK8P8";
+const ROUTES_URL = "https://github.com/navikt/copilot/tree/main/apps/fleet-gateway";
 const ECHO_URL = "https://github.com/navikt/copilot/blob/main/apps/fleet-gateway/echo/main.go";
 
 const TOC: TocItem[] = [
@@ -24,6 +26,7 @@ const TOC: TocItem[] = [
   { id: "steg", label: "Steg for steg" },
   { id: "feil", label: "Vanlige feil" },
   { id: "ikke-gjor", label: "Dette må dere ikke gjøre" },
+  { id: "drift", label: "Test, drift og avvikling" },
   { id: "sjekkliste", label: "Sjekkliste" },
 ];
 
@@ -31,12 +34,13 @@ const INBOUND_YAML = `spec:
   azure:
     application:
       enabled: true
+      tenant: nav.no
+      allowAllUsers: true
   accessPolicy:
     inbound:
       rules:
         - application: fleet-gateway
-          namespace: copilot
-          cluster: dev-gcp`;
+          namespace: copilot`;
 
 const TOKEN_CHECK = `// Svar fra Texas: POST $NAIS_TOKEN_INTROSPECTION_ENDPOINT
 // med {"identity_provider": "entra_id", "token": <Bearer-tokenet>}.
@@ -50,23 +54,55 @@ if strings.EqualFold(claims.Idtyp, "app") || slices.Contains(claims.Roles, "acce
 if strings.TrimSpace(claims.NAVident) == "" {
     return errForbidden
 }
-// gatewayClientID: clientId for fleet-gateway fra AZURE_APP_PRE_AUTHORIZED_APPS
 if subtle.ConstantTimeCompare([]byte(claims.Azp), []byte(gatewayClientID)) != 1 {
     return errForbidden
 }`;
 
+const AZP_LOOKUP = `// fleet-gateway i samme klynge som appen: dev-gcp eller prod-gcp
+gatewayName := os.Getenv("NAIS_CLUSTER_NAME") + ":copilot:fleet-gateway"
+
+var apps []struct {
+    Name     string \`json:"name"\`
+    ClientID string \`json:"clientId"\`
+}
+if err := json.Unmarshal([]byte(os.Getenv("AZURE_APP_PRE_AUTHORIZED_APPS")), &apps); err != nil {
+    return err
+}
+var gatewayClientID string
+for _, a := range apps {
+    if a.Name == gatewayName {
+        gatewayClientID = a.ClientID
+    }
+}
+if gatewayClientID == "" {
+    return errors.New("fleet-gateway mangler i AZURE_APP_PRE_AUTHORIZED_APPS")
+}`;
+
+const OUTBOUND_YAML = `outbound_rules:
+  - application: <app>
+    namespace: <namespace>`;
+
 const ROUTE_YAML = `- route: /mcp/<navn>
   team: <team>
-  target: dev-gcp:<namespace>:<app>
+  target: <klynge>:<namespace>:<app>
   upstream_url: http://<app>.<namespace>/<sti-til-mcp>`;
 
+const OPENCODE_JSON = `{
+  "mcp": {
+    "<navn>": {
+      "type": "remote",
+      "url": "https://fleet-gateway.intern.nav.no/mcp/<navn>"
+    }
+  }
+}`;
+
 const CHECKLIST = [
-  "MCP-serveren støtter streamable HTTP og kjører i dev-gcp",
-  "Entra ID er slått på i azure.application",
+  "MCP-serveren støtter streamable HTTP og kjører på Nais",
+  "azure.application har enabled, tenant: nav.no og allowAllUsers: true",
   "fleet-gateway står i accessPolicy.inbound",
   "Appen sjekker aud, idtyp, NAVident og azp med Texas",
   "Appen logger aldri tokenet",
-  "Pilotsøknaden er sendt",
+  "Ruten er testet i dev før prod",
 ];
 
 export default function FleetGatewayForTeamPage() {
@@ -83,7 +119,7 @@ export default function FleetGatewayForTeamPage() {
       toc={TOC}
     >
       <Alert variant="warning">
-        Pilot – bare i dev-gcp foreløpig. Stegene kan endres. Les{" "}
+        Pilot i dev-gcp og prod-gcp. Stegene kan endres. Les{" "}
         <NextLink href="/verktoy/fleet-gateway" className={linkClass}>
           oversikten over fleet-gateway
         </NextLink>{" "}
@@ -99,9 +135,15 @@ export default function FleetGatewayForTeamPage() {
         <Bullets>
           <li>Serveren snakker MCP over streamable HTTP.</li>
           <li>
-            Appen kjører på Nais i dev-gcp med Entra ID slått på i <code className={code}>azure.application</code>.
+            Appen kjører på Nais i dev-gcp eller prod-gcp med Entra ID slått på i{" "}
+            <code className={code}>azure.application</code>, med <code className={code}>tenant: nav.no</code> og{" "}
+            <code className={code}>allowAllUsers: true</code>.
           </li>
-          <li>Verktøyene kan bare lese data. Piloten støtter ikke skriving ennå.</li>
+          <li>Teamet bestemmer selv hvilke verktøy serveren har, og hvem som får bruke dem.</li>
+          <li>
+            Samme manifest fungerer i begge miljøer. Inbound-regelen har ingen <code className={code}>cluster</code>, så
+            den gjelder fleet-gateway i samme klynge som appen.
+          </li>
         </Bullets>
       </VStack>
 
@@ -144,10 +186,13 @@ export default function FleetGatewayForTeamPage() {
                       <code className={code}>NAVident</code> finnes, altså en innlogget bruker.
                     </li>
                     <li>
-                      <code className={code}>azp</code> er klient-ID-en til fleet-gateway, fra{" "}
-                      <code className={code}>AZURE_APP_PRE_AUTHORIZED_APPS</code>.
+                      <code className={code}>azp</code> er klient-ID-en til fleet-gateway i samme klynge, fra{" "}
+                      <code className={code}>AZURE_APP_PRE_AUTHORIZED_APPS</code>. Slå opp navnet{" "}
+                      <code className={code}>&lt;klynge&gt;:copilot:fleet-gateway</code> med klyngen fra{" "}
+                      <code className={code}>NAIS_CLUSTER_NAME</code>. Da virker samme kode i dev og prod.
                     </li>
                   </Bullets>
+                  <CodeBlock filename="Go-utdrag: klient-ID for fleet-gateway">{AZP_LOOKUP}</CodeBlock>
                   <CodeBlock filename="Go-utdrag">{TOKEN_CHECK}</CodeBlock>
                   <BodyLong>
                     Hele eksempelet ligger i{" "}
@@ -160,30 +205,54 @@ export default function FleetGatewayForTeamPage() {
               ),
             },
             {
-              title: "Få ruten registrert",
+              title: "Be om en rute",
               content: (
                 <VStack gap="space-8">
                   <BodyLong>
-                    Send{" "}
+                    Lag en PR, eller fyll ut{" "}
                     <a href={APPLY_URL} className={linkClass}>
-                      pilotsøknaden
+                      skjemaet
+                    </a>{" "}
+                    så lager team copilot den. Ruten står i <code className={code}>pilot-routes.dev.yaml</code> og{" "}
+                    <code className={code}>pilot-routes.prod.yaml</code> i{" "}
+                    <a href={ROUTES_URL} className={linkClass}>
+                      apps/fleet-gateway
                     </a>
-                    . Team copilot legger da serveren til i <code className={code}>accessPolicy.outbound</code> og ruten
-                    til i pilotlisten. <code className={code}>upstream_url</code> er den interne adressen med full sti
-                    til MCP-endepunktet, i samme namespace som <code className={code}>target</code>.
+                    . Appen må også inn i <code className={code}>outbound_rules</code> i{" "}
+                    <code className={code}>.nais/dev-gcp.yaml</code> eller{" "}
+                    <code className={code}>.nais/prod-gcp.yaml</code>, med <code className={code}>namespace</code> når
+                    appen ligger i et annet namespace enn <code className={code}>copilot</code>.{" "}
+                    <code className={code}>upstream_url</code> er den interne adressen med full sti til MCP-endepunktet,
+                    i samme namespace som <code className={code}>target</code>.
                   </BodyLong>
-                  <CodeBlock filename="apps/fleet-gateway/pilot-routes.dev.yaml">{ROUTE_YAML}</CodeBlock>
+                  <CodeBlock filename="apps/fleet-gateway/pilot-routes.<miljø>.yaml">{ROUTE_YAML}</CodeBlock>
+                  <CodeBlock filename="apps/fleet-gateway/.nais/<klynge>.yaml">{OUTBOUND_YAML}</CodeBlock>
+                  <BodyLong>
+                    Team copilot ser på PR-en innen to arbeidsdager. Ta dev først, og prod når dere har testet i dev.
+                    Ruten virker når fleet-gateway er deployet.
+                  </BodyLong>
                 </VStack>
               ),
             },
             {
-              title: "Test fra cplt",
+              title: "Test fra OpenCode",
               content: (
-                <BodyLong>
-                  Adressen blir <code className={code}>https://fleet-gateway.intern.dev.nav.no/mcp/&lt;navn&gt;</code>.
-                  Dere må være på naisdevice, og piloten godtar bare cplt som klient. Første kall åpner nettleseren. Der
-                  godkjenner dere serveren og logger inn med Nav-kontoen.
-                </BodyLong>
+                <VStack gap="space-8">
+                  <BodyLong>
+                    Adressen blir <code className={code}>https://fleet-gateway.intern.nav.no/mcp/&lt;navn&gt;</code> i
+                    prod og <code className={code}>https://fleet-gateway.intern.dev.nav.no/mcp/&lt;navn&gt;</code> i
+                    dev. Dere må være på naisdevice.
+                  </BodyLong>
+                  <CodeBlock filename="opencode.json">{OPENCODE_JSON}</CodeBlock>
+                  <CodeBlock filename="Terminal">{"opencode mcp auth <navn>\nopencode"}</CodeBlock>
+                  <BodyLong>
+                    Be agenten kalle et verktøy. Første innlogging åpner nettleseren. Andre klienter står i{" "}
+                    <NextLink href="/nav-pilot/guider/nav-mcp-servere" className={linkClass}>
+                      Koble til Navs MCP-servere
+                    </NextLink>
+                    .
+                  </BodyLong>
+                </VStack>
               ),
             },
           ]}
@@ -240,6 +309,32 @@ export default function FleetGatewayForTeamPage() {
           </li>
           <li>Slippe inn andre enn fleet-gateway i inbound-regelen.</li>
           <li>Sende tokenet videre. Trenger appen et annet API, veksler dere tokenet med Texas OBO først.</li>
+        </Bullets>
+      </VStack>
+
+      <VStack gap="space-12">
+        <LinkableHeading id="drift" size="medium" level="2">
+          Test, drift og avvikling
+        </LinkableHeading>
+        <Bullets>
+          <li>Test i prod på samme måte som i dev, med prod-adressen.</li>
+          <li>En innlogging varer i 12 timer. Godkjenningen av klienten huskes i 30 dager.</li>
+          <li>Gatewayen logger hvert kall med NAV-ident, rute og MCP-metode. Tilgang til data styrer dere i appen.</li>
+          <li>
+            Stenge en rute: PR som setter <code className={code}>enabled: false</code> på ruten. Ruten svarer{" "}
+            <code className={code}>503</code> når endringen er deployet.
+          </li>
+          <li>
+            Avslutte: PR som fjerner ruten og appen fra <code className={code}>outbound_rules</code>. Fjern deretter
+            inbound-regelen hos dere.
+          </li>
+          <li>
+            Spør i{" "}
+            <a href={HELP_URL} className={linkClass}>
+              #ki-produktutvikling-diskusjon
+            </a>
+            .
+          </li>
         </Bullets>
       </VStack>
 
