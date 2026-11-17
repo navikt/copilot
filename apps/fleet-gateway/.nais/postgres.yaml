@@ -1,6 +1,11 @@
-# Apply with: nais apply -t copilot -e dev-gcp .nais/postgres.yaml (dev already provisioned).
+# dev (provisioned): nais apply -t copilot -e dev-gcp .nais/postgres.yaml
+# prod: nais postgres create fleet-gateway -t copilot -e prod-gcp --version 18 --cpu 100m --memory 512Mi --disk-size 5Gi
 version: v1
 type: Postgres
 name: fleet-gateway
 spec:
   majorVersion: "18"
+  resources:
+    cpu: 100m
+    memory: 512Mi
+    diskSize: 5Gi

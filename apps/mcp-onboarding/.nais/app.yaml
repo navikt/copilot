@@ -62,7 +62,6 @@ spec:
       rules:
         - application: fleet-gateway
           namespace: copilot
-          cluster: dev-gcp
     {{/if}}
     outbound:
       external:
