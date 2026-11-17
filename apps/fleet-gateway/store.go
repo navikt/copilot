@@ -24,6 +24,7 @@ type SessionStore interface {
 	Pop(ctx context.Context, kind, key string) ([]byte, bool, error)
 	Delete(ctx context.Context, kind, key string) error
 	Revoke(ctx context.Context, jti string, expiresAt time.Time) error
+	RevokeOnce(ctx context.Context, jti string, expiresAt time.Time) (bool, error)
 	IsRevoked(ctx context.Context, jti string) (bool, error)
 	Sweep(ctx context.Context) (int, error)
 	Close()
@@ -166,6 +167,22 @@ func (s *memoryStore) Revoke(ctx context.Context, jti string, expiresAt time.Tim
 		s.revoked[jti] = expiresAt
 	}
 	return nil
+}
+
+func (s *memoryStore) RevokeOnce(ctx context.Context, jti string, expiresAt time.Time) (bool, error) {
+	if err := ctx.Err(); err != nil {
+		return false, err
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	now := s.now()
+	if existing, ok := s.revoked[jti]; ok && now.Before(existing) {
+		return false, nil
+	}
+	s.revoked[jti] = expiresAt
+	return true, nil
 }
 
 func (s *memoryStore) IsRevoked(ctx context.Context, jti string) (bool, error) {

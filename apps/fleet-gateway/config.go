@@ -41,6 +41,13 @@ const (
 	maxClaimsBytes                       = 4096
 	maxCIMDBodyBytes                     = 64 * 1024
 	maxUpstreamBodyBytes                 = 1 << 20
+
+	rtStorageNone            = "none"
+	rtStorageClientEncrypted = "client-encrypted"
+	// rtStorageServer keeps the Entra refresh token inside the session in the store
+	// (existing StrategyRefresh behaviour) and issues NO gateway refresh token
+	// (cplt re-logs in when the access token expires).
+	rtStorageServer = "server"
 )
 
 // TeamTokenSource acquires downstream Entra OBO tokens for team MCP servers.
@@ -86,6 +93,7 @@ type Config struct {
 	DatabaseURL             string
 	SessionMaxAge           time.Duration
 	RTKeys                  string
+	RTStorage               string
 	Store                   SessionStore
 }
 
@@ -122,12 +130,18 @@ func loadConfigFromEnv() (*Config, error) {
 		strategy = strategyOBO
 	}
 
+	rtKeys := strings.TrimSpace(os.Getenv("RT_KEYS"))
+	rtStorage := strings.ToLower(strings.TrimSpace(os.Getenv("RT_STORAGE")))
+	if rtStorage == rtStorageNone {
+		return nil, fmt.Errorf("invalid RT_STORAGE %q: expected client-encrypted or server", rtStorage)
+	}
+
 	// The user's Entra access token must be issued to fleet-gateway itself:
 	// Texas OBO requires the assertion's aud to be the exchanging app, and
-	// strategy A redeems the refresh token, which needs offline_access.
+	// strategy refresh or client-encrypted refresh tokens need offline_access.
 	entraScope := strings.TrimSpace(os.Getenv("ENTRA_SCOPE"))
 	if entraScope == "" {
-		entraScope = defaultEntraScope(strategy, strings.TrimSpace(os.Getenv("AZURE_APP_CLIENT_ID")))
+		entraScope = defaultEntraScope(strategy, rtStorage, rtKeys, strings.TrimSpace(os.Getenv("AZURE_APP_CLIENT_ID")))
 	}
 
 	cfg := &Config{
@@ -166,7 +180,8 @@ func loadConfigFromEnv() (*Config, error) {
 		SessionStore:            strings.ToLower(getEnv("SESSION_STORE", "memory")),
 		DatabaseURL:             strings.TrimSpace(os.Getenv("DATABASE_URL")),
 		SessionMaxAge:           getEnvDuration("SESSION_MAX_AGE", defaultSessionMaxAge),
-		RTKeys:                  strings.TrimSpace(os.Getenv("RT_KEYS")),
+		RTKeys:                  rtKeys,
+		RTStorage:               rtStorage,
 	}
 
 	if err := validateConfig(cfg); err != nil {
@@ -299,6 +314,34 @@ func validateConfig(cfg *Config) error {
 		if _, err := parseKeyRing(cfg.RTKeys); err != nil {
 			return fmt.Errorf("invalid RT_KEYS: %w", err)
 		}
+	}
+	// rtStorageServer ("server") keeps the Entra refresh token inside the session
+	// in the store (existing StrategyRefresh behaviour) and issues NO gateway
+	// refresh token (cplt re-logs in when the access token expires).
+	switch strings.ToLower(strings.TrimSpace(cfg.RTStorage)) {
+	case "":
+		if strings.TrimSpace(cfg.RTKeys) != "" {
+			cfg.RTStorage = rtStorageClientEncrypted
+		} else {
+			cfg.RTStorage = rtStorageNone
+		}
+	case rtStorageNone:
+		if strings.TrimSpace(cfg.RTKeys) != "" {
+			return fmt.Errorf("invalid RT_STORAGE %q: expected client-encrypted or server", cfg.RTStorage)
+		}
+		cfg.RTStorage = rtStorageNone
+	case rtStorageClientEncrypted:
+		cfg.RTStorage = rtStorageClientEncrypted
+		if strings.TrimSpace(cfg.RTKeys) == "" {
+			return errors.New("RT_KEYS is required when RT_STORAGE=client-encrypted")
+		}
+	case rtStorageServer:
+		cfg.RTStorage = rtStorageServer
+	default:
+		return fmt.Errorf("invalid RT_STORAGE %q: expected client-encrypted or server", cfg.RTStorage)
+	}
+	if cfg.RTStorage == rtStorageClientEncrypted && cfg.TeamTokenStrategy == strategyRefresh {
+		return errors.New("strategy refresh needs RT_STORAGE=server")
 	}
 	if cfg.SessionMaxAge <= 0 {
 		cfg.SessionMaxAge = defaultSessionMaxAge
@@ -560,9 +603,12 @@ func (m *ttlMap[V]) sweepLocked(now time.Time) int {
 }
 
 // defaultEntraScope asks Entra for an access token issued to fleet-gateway
-// itself, plus offline_access when the refresh strategy needs a refresh token.
-func defaultEntraScope(strategy, clientID string) string {
-	if strategy == strategyRefresh {
+// itself, plus offline_access when strategy is refresh or client-encrypted
+// refresh tokens are enabled (RT_KEYS non-empty and RTStorage != server).
+func defaultEntraScope(strategy, rtStorage, rtKeys, clientID string) string {
+	needsOffline := strategy == strategyRefresh ||
+		(strings.TrimSpace(rtKeys) != "" && strings.ToLower(strings.TrimSpace(rtStorage)) != rtStorageServer)
+	if needsOffline {
 		return "openid offline_access api://" + clientID + "/.default"
 	}
 	return "openid api://" + clientID + "/.default"

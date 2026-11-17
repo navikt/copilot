@@ -461,11 +461,19 @@ func (g *Gateway) callbackHandler(w http.ResponseWriter, r *http.Request) {
 	issuedAt := g.now()
 	sessionTTL := computeSessionTTL(out["expires_in"], g.cfg.SessionMaxAge)
 	rt, _ := out["refresh_token"].(string)
+	sessRT := rt
+	entraRT := ""
+	if g.cfg.RTStorage == rtStorageClientEncrypted {
+		// Never persist the Entra refresh token in the session store in client-encrypted
+		// mode; carry it transiently on the 60s single-use code until /token seals it.
+		sessRT = ""
+		entraRT = rt
+	}
 	sess := gatewaySession{
 		ClientID:     p.ClientID,
 		Resource:     p.Resource,
 		EntraToken:   at,
-		RefreshToken: rt,
+		RefreshToken: sessRT,
 		NAVIdent:     navIdent,
 		Groups:       groupList,
 		IssuedAt:     issuedAt,
@@ -484,6 +492,7 @@ func (g *Gateway) callbackHandler(w http.ResponseWriter, r *http.Request) {
 		Challenge:   p.Challenge,
 		Resource:    p.Resource,
 		Session:     sess,
+		EntraRT:     entraRT,
 		Created:     issuedAt,
 	}
 	if err := g.putCode(r.Context(), gwCode, issued); err != nil {
@@ -513,6 +522,18 @@ func (g *Gateway) redeemEntraCode(ctx context.Context, code, codeVerifier string
 		form.Set("code_verifier", codeVerifier)
 	}
 
+	body, status, err := g.postEntraToken(ctx, form)
+	if err != nil {
+		return nil, status, err
+	}
+	var out map[string]any
+	if err := json.Unmarshal(body, &out); err != nil {
+		return nil, status, err
+	}
+	return out, status, nil
+}
+
+func (g *Gateway) postEntraToken(ctx context.Context, form url.Values) ([]byte, int, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, g.cfg.AzureTokenEndpoint, strings.NewReader(form.Encode()))
 	if err != nil {
 		return nil, 0, err
@@ -527,11 +548,11 @@ func (g *Gateway) redeemEntraCode(ctx context.Context, code, codeVerifier string
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	var out map[string]any
-	if err := json.NewDecoder(io.LimitReader(resp.Body, maxUpstreamBodyBytes)).Decode(&out); err != nil {
+	body, err := io.ReadAll(io.LimitReader(resp.Body, maxUpstreamBodyBytes))
+	if err != nil {
 		return nil, resp.StatusCode, err
 	}
-	return out, resp.StatusCode, nil
+	return body, resp.StatusCode, nil
 }
 
 func (g *Gateway) signEntraState(state string) string {

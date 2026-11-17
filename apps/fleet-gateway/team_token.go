@@ -289,12 +289,24 @@ func mapUpstreamTokenFailure(body []byte, app string, status int) error {
 		return &upstreamAccessMissingError{App: app}
 	}
 	// Log-safe diagnostics only: the OAuth error code and the AADSTS number.
+	code, aadsts := safeUpstreamErrorDetails(body)
+	return &upstreamTokenError{reason: fmt.Sprintf("upstream token endpoint returned status %d error=%q %s", status, code, aadsts)}
+}
+
+func safeUpstreamErrorDetails(body []byte) (string, string) {
+	var errPayload struct {
+		Error            string `json:"error"`
+		ErrorDescription string `json:"error_description"`
+	}
+	if json.Unmarshal(body, &errPayload) != nil {
+		return "", ""
+	}
 	code := errPayload.Error
 	if !safeErrorCode.MatchString(code) {
 		code = ""
 	}
 	aadsts := aadstsCode.FindString(errPayload.ErrorDescription)
-	return &upstreamTokenError{reason: fmt.Sprintf("upstream token endpoint returned status %d error=%q %s", status, code, aadsts)}
+	return code, aadsts
 }
 
 var (

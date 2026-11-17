@@ -237,6 +237,10 @@ func (s *sealedStore) Revoke(ctx context.Context, jti string, expiresAt time.Tim
 	return s.inner.Revoke(ctx, jti, expiresAt)
 }
 
+func (s *sealedStore) RevokeOnce(ctx context.Context, jti string, expiresAt time.Time) (bool, error) {
+	return s.inner.RevokeOnce(ctx, jti, expiresAt)
+}
+
 func (s *sealedStore) IsRevoked(ctx context.Context, jti string) (bool, error) {
 	return s.inner.IsRevoked(ctx, jti)
 }

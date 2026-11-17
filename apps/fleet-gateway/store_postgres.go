@@ -236,6 +236,21 @@ func (s *pgxStore) Revoke(ctx context.Context, jti string, expiresAt time.Time) 
 	return err
 }
 
+func (s *pgxStore) RevokeOnce(ctx context.Context, jti string, expiresAt time.Time) (bool, error) {
+	tag, err := s.pool.Exec(ctx, `
+		INSERT INTO revoked (jti, expires_at)
+		VALUES ($1, $2)
+		ON CONFLICT (jti) DO UPDATE SET
+			expires_at = EXCLUDED.expires_at
+		WHERE revoked.expires_at <= $3`,
+		jti, expiresAt.UTC(), s.now().UTC(),
+	)
+	if err != nil {
+		return false, err
+	}
+	return tag.RowsAffected() == 1, nil
+}
+
 func (s *pgxStore) IsRevoked(ctx context.Context, jti string) (bool, error) {
 	var one int
 	err := s.pool.QueryRow(ctx, `

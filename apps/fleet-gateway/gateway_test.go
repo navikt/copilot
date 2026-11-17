@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -27,7 +28,13 @@ type testEnv struct {
 	now                time.Time
 	mu                 sync.Mutex
 	entraToken         string
+	entraRefreshToken  string
 	entraStatus        int
+	entraRefreshStatus int
+	entraRefreshCount  int
+	entraSeenRTs       []string
+	entraRefreshOmitRT bool
+	entraExpiresIn     int
 	lastEntraNonce     string
 	lastEntraChallenge string
 	navIdent           string
@@ -89,20 +96,57 @@ func newTestEnv(t *testing.T) *testEnv {
 				"token_endpoint":         te.entraServer.URL + "/token",
 			})
 		case "/token":
-			if te.entraStatus != http.StatusOK {
-				writeJSON(w, te.entraStatus, map[string]any{
+			_ = r.ParseForm()
+			if r.FormValue("grant_type") == "refresh_token" {
+				te.mu.Lock()
+				te.entraRefreshCount++
+				idx := te.entraRefreshCount
+				te.entraSeenRTs = append(te.entraSeenRTs, r.FormValue("refresh_token"))
+				status := te.entraRefreshStatus
+				if status == 0 {
+					status = te.entraStatus
+				}
+				omitRT := te.entraRefreshOmitRT
+				expiresIn := te.entraExpiresIn
+				te.mu.Unlock()
+				if expiresIn <= 0 {
+					expiresIn = 3600
+				}
+				if status != http.StatusOK {
+					writeJSON(w, status, map[string]any{
+						"error":             "invalid_grant",
+						"error_description": "AADSTS700082: The refresh token has expired due to inactivity",
+					})
+					return
+				}
+				resp := map[string]any{
+					"access_token": fmt.Sprintf("entra-refreshed-access-%d", idx),
+					"token_type":   "Bearer",
+					"expires_in":   expiresIn,
+				}
+				if !omitRT {
+					resp["refresh_token"] = fmt.Sprintf("entra-rotated-refresh-%d", idx)
+				}
+				writeJSON(w, http.StatusOK, resp)
+				return
+			}
+			te.mu.Lock()
+			entraStatus := te.entraStatus
+			expectedChallenge := te.lastEntraChallenge
+			nonce := te.lastEntraNonce
+			navIdent := te.navIdent
+			groups := te.groups
+			entraToken := te.entraToken
+			entraRT := te.entraRefreshToken
+			expiresIn := te.entraExpiresIn
+			te.mu.Unlock()
+			if entraStatus != http.StatusOK {
+				writeJSON(w, entraStatus, map[string]any{
 					"error":             "invalid_grant",
 					"error_description": "AADSTS65001: user has not consented",
 				})
 				return
 			}
-			_ = r.ParseForm()
-			te.mu.Lock()
-			expectedChallenge := te.lastEntraChallenge
-			nonce := te.lastEntraNonce
-			navIdent := te.navIdent
-			groups := te.groups
-			te.mu.Unlock()
 			if expectedChallenge != "" {
 				verifier := r.FormValue("code_verifier")
 				if verifier == "" || pkceS256(verifier) != expectedChallenge {
@@ -121,12 +165,18 @@ func newTestEnv(t *testing.T) *testEnv {
 			if nonce != "" {
 				claims["nonce"] = nonce
 			}
+			if entraRT == "" {
+				entraRT = strings.Join([]string{"entra", "test", "refresh"}, "-")
+			}
+			if expiresIn <= 0 {
+				expiresIn = 3600
+			}
 			writeJSON(w, http.StatusOK, map[string]any{
-				"access_token":  te.entraToken,
-				"refresh_token": strings.Join([]string{"entra", "test", "refresh"}, "-"),
+				"access_token":  entraToken,
+				"refresh_token": entraRT,
 				"id_token":      makeTestJWT(claims),
 				"token_type":    "Bearer",
-				"expires_in":    3600,
+				"expires_in":    expiresIn,
 			})
 		default:
 			http.NotFound(w, r)

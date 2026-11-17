@@ -268,9 +268,11 @@ func TestSessionAbsoluteCap(t *testing.T) {
 
 type failingStore struct {
 	SessionStore
-	failGet error
-	failPut error
-	failPop error
+	failGet        error
+	failPut        error
+	failPop        error
+	failDelete     error
+	failRevokeOnce error
 }
 
 func (f *failingStore) Put(ctx context.Context, kind, key string, val []byte, ttl time.Duration) error {
@@ -292,6 +294,20 @@ func (f *failingStore) Pop(ctx context.Context, kind, key string) ([]byte, bool,
 		return nil, false, f.failPop
 	}
 	return f.SessionStore.Pop(ctx, kind, key)
+}
+
+func (f *failingStore) Delete(ctx context.Context, kind, key string) error {
+	if f.failDelete != nil {
+		return f.failDelete
+	}
+	return f.SessionStore.Delete(ctx, kind, key)
+}
+
+func (f *failingStore) RevokeOnce(ctx context.Context, jti string, expiresAt time.Time) (bool, error) {
+	if f.failRevokeOnce != nil {
+		return false, f.failRevokeOnce
+	}
+	return f.SessionStore.RevokeOnce(ctx, jti, expiresAt)
 }
 
 func TestStoreError_Returns503FailClosed(t *testing.T) {

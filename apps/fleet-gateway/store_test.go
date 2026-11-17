@@ -249,6 +249,63 @@ func runStoreContract(t *testing.T, factory storeFactory) {
 			t.Fatalf("expected live revocation preserved after sweep: rev=%v err=%v", rev, err)
 		}
 	})
+
+	t.Run("revokeOnce single use expiry and concurrent", func(t *testing.T) {
+		clk := newFakeClock(time.Date(2026, 11, 17, 10, 0, 0, 0, time.UTC))
+		store := factory(t, clk.Now, map[string]int{kindSession: 10})
+		defer store.Close()
+
+		ctx := context.Background()
+		exp := clk.Now().Add(5 * time.Minute)
+		ok, err := store.RevokeOnce(ctx, "jti-once", exp)
+		if err != nil || !ok {
+			t.Fatalf("first RevokeOnce failed: ok=%v err=%v", ok, err)
+		}
+		ok, err = store.RevokeOnce(ctx, "jti-once", exp)
+		if err != nil || ok {
+			t.Fatalf("second RevokeOnce before expiry must return false: ok=%v err=%v", ok, err)
+		}
+		if rev, revErr := store.IsRevoked(ctx, "jti-once"); revErr != nil || !rev {
+			t.Fatalf("expected jti-once revoked: rev=%v err=%v", rev, revErr)
+		}
+
+		// Once expired, existing row is treated as absent and RevokeOnce succeeds again.
+		clk.Advance(5 * time.Minute)
+		if rev, revErr := store.IsRevoked(ctx, "jti-once"); revErr != nil || rev {
+			t.Fatalf("expected jti-once expired: rev=%v err=%v", rev, revErr)
+		}
+		ok, err = store.RevokeOnce(ctx, "jti-once", clk.Now().Add(5*time.Minute))
+		if err != nil || !ok {
+			t.Fatalf("RevokeOnce after expiry must return true: ok=%v err=%v", ok, err)
+		}
+
+		// Concurrent RevokeOnce on the same jti: exactly one returns true.
+		const workers = 8
+		var wins atomic.Int32
+		var startWG, doneWG sync.WaitGroup
+		startWG.Add(1)
+		concExp := clk.Now().Add(10 * time.Minute)
+		for i := 0; i < workers; i++ {
+			doneWG.Add(1)
+			go func() {
+				defer doneWG.Done()
+				startWG.Wait()
+				won, revErr := store.RevokeOnce(ctx, "jti-race", concExp)
+				if revErr != nil {
+					t.Errorf("concurrent RevokeOnce error: %v", revErr)
+					return
+				}
+				if won {
+					wins.Add(1)
+				}
+			}()
+		}
+		startWG.Done()
+		doneWG.Wait()
+		if wins.Load() != 1 {
+			t.Fatalf("expected exactly 1 winning concurrent RevokeOnce, got %d", wins.Load())
+		}
+	})
 }
 
 func TestStoreContract_Memory(t *testing.T) {
@@ -267,6 +324,47 @@ func TestStoreContract_SealedMemory(t *testing.T) {
 	})
 }
 
+func newTestPostgresStore(t *testing.T, pgURL string, now func() time.Time, caps map[string]int) SessionStore {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	var randBuf [6]byte
+	if _, err := rand.Read(randBuf[:]); err != nil {
+		t.Fatalf("rand schema suffix: %v", err)
+	}
+	schema := "fgw_test_" + hex.EncodeToString(randBuf[:])
+
+	adminPool, err := pgxpool.New(ctx, pgURL)
+	if err != nil {
+		t.Fatalf("connect postgres admin pool: %v", err)
+	}
+	if _, execErr := adminPool.Exec(ctx, fmt.Sprintf(`CREATE SCHEMA "%s"`, schema)); execErr != nil {
+		adminPool.Close()
+		t.Fatalf("create test schema %s: %v", schema, execErr)
+	}
+	t.Cleanup(func() {
+		dropCtx, dropCancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer dropCancel()
+		_, _ = adminPool.Exec(dropCtx, fmt.Sprintf(`DROP SCHEMA IF EXISTS "%s" CASCADE`, schema))
+		adminPool.Close()
+	})
+
+	u, err := url.Parse(pgURL)
+	if err != nil {
+		t.Fatalf("parse FGW_TEST_PG_URL: %v", err)
+	}
+	q := u.Query()
+	q.Set("search_path", schema)
+	u.RawQuery = q.Encode()
+
+	store, err := newPostgresStore(ctx, u.String(), now, caps)
+	if err != nil {
+		t.Fatalf("newPostgresStore failed: %v", err)
+	}
+	return store
+}
+
 func TestStoreContract_Postgres(t *testing.T) {
 	pgURL := os.Getenv("FGW_TEST_PG_URL")
 	if pgURL == "" {
@@ -274,44 +372,7 @@ func TestStoreContract_Postgres(t *testing.T) {
 	}
 
 	runStoreContract(t, func(t *testing.T, now func() time.Time, caps map[string]int) SessionStore {
-		t.Helper()
-		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-		defer cancel()
-
-		var randBuf [6]byte
-		if _, err := rand.Read(randBuf[:]); err != nil {
-			t.Fatalf("rand schema suffix: %v", err)
-		}
-		schema := "fgw_test_" + hex.EncodeToString(randBuf[:])
-
-		adminPool, err := pgxpool.New(ctx, pgURL)
-		if err != nil {
-			t.Fatalf("connect postgres admin pool: %v", err)
-		}
-		if _, execErr := adminPool.Exec(ctx, fmt.Sprintf(`CREATE SCHEMA "%s"`, schema)); execErr != nil {
-			adminPool.Close()
-			t.Fatalf("create test schema %s: %v", schema, execErr)
-		}
-		t.Cleanup(func() {
-			dropCtx, dropCancel := context.WithTimeout(context.Background(), 10*time.Second)
-			defer dropCancel()
-			_, _ = adminPool.Exec(dropCtx, fmt.Sprintf(`DROP SCHEMA IF EXISTS "%s" CASCADE`, schema))
-			adminPool.Close()
-		})
-
-		u, err := url.Parse(pgURL)
-		if err != nil {
-			t.Fatalf("parse FGW_TEST_PG_URL: %v", err)
-		}
-		q := u.Query()
-		q.Set("search_path", schema)
-		u.RawQuery = q.Encode()
-
-		store, err := newPostgresStore(ctx, u.String(), now, caps)
-		if err != nil {
-			t.Fatalf("newPostgresStore failed: %v", err)
-		}
-		return store
+		return newTestPostgresStore(t, pgURL, now, caps)
 	})
 }
 
