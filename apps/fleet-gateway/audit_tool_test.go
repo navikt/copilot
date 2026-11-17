@@ -3,13 +3,17 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"runtime"
+	"runtime/debug"
+	"runtime/metrics"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 )
 
@@ -117,7 +121,7 @@ func TestAuditMCP_Batch(t *testing.T) {
 	if audit["method"] != "batch" {
 		t.Fatalf("expected method=batch, got %v", audit["method"])
 	}
-	want := strings.Repeat("t,", maxAuditBatchTools) + "..."
+	want := `[` + strings.Repeat(`"t",`, maxAuditBatchTools) + `"..."]`
 	if audit["tool"] != want {
 		t.Fatalf("expected tool=%q, got %v", want, audit["tool"])
 	}
@@ -135,7 +139,7 @@ func TestExtractJSONRPCAudit_NonToolCallHasNoTool(t *testing.T) {
 
 func TestExtractJSONRPCAudit_BadBatchMemberSkipped(t *testing.T) {
 	m, tool := extractJSONRPCAudit([]byte(`[42,{"method":"tools/call","params":"x"},{"method":"tools/call","params":{"name":"a"}},"s",{"method":"tools/call","params":{"name":"b"}}]`))
-	if m != "batch" || tool != ",a,b" {
+	if m != "batch" || tool != `["","a","b"]` {
 		t.Fatalf("got %q %q", m, tool)
 	}
 }
@@ -165,15 +169,87 @@ func TestExtractJSONRPCAudit_ExactCaseKeys(t *testing.T) {
 	}
 }
 
-func TestExtractJSONRPCAudit_BatchOfEmptyObjectsBoundedMemory(t *testing.T) {
-	n := (maxMCPRequestBodyBytes - 2) / 3
-	body := []byte("[" + strings.Repeat("{},", n-1) + "{}]")
-	var before, after runtime.MemStats
+func TestExtractJSONRPCAudit_BatchEscapedMethod(t *testing.T) {
+	for _, body := range []string{
+		`[{"method":"tools\/call","params":{"name":"hidden"}}]`,
+		`[{"method":"tools/call","params":{"n\u0061me":"hidden"}}]`,
+		`[{"method":"tools/call","params":{"name":"hidden"}}]`,
+	} {
+		if m, tool := extractJSONRPCAudit([]byte(body)); m != "batch" || tool != `["hidden"]` {
+			t.Fatalf("%s: got %q %q", body, m, tool)
+		}
+	}
+}
+
+func TestExtractJSONRPCAudit_BatchNameCannotForgeEntries(t *testing.T) {
+	_, tool := extractJSONRPCAudit([]byte(`[{"method":"tools/call","params":{"name":"a\",\"b"}}]`))
+	var names []string
+	if err := json.Unmarshal([]byte(tool), &names); err != nil || len(names) != 1 || names[0] != `a","b` {
+		t.Fatalf("got %q", tool)
+	}
+}
+
+// peakHeapDuring runs f and returns the peak heap above the level before f,
+// sampled concurrently. GOGC=1 collects garbage almost at once, so the peak is
+// close to what f holds live rather than to GC pacing.
+func peakHeapDuring(f func()) uint64 {
+	defer debug.SetGCPercent(debug.SetGCPercent(1))
+	sample := []metrics.Sample{{Name: "/memory/classes/heap/objects:bytes"}}
+	read := func() uint64 { metrics.Read(sample); return sample[0].Value.Uint64() }
 	runtime.GC()
-	runtime.ReadMemStats(&before)
-	extractJSONRPCAudit(body)
-	runtime.ReadMemStats(&after)
-	if got := after.TotalAlloc - before.TotalAlloc; got > 16<<20 {
-		t.Fatalf("allocated %d MiB for a %d-byte batch, want < 16 MiB", got>>20, len(body))
+	base := read()
+	var peak atomic.Uint64
+	done := make(chan struct{})
+	stopped := make(chan struct{})
+	go func() {
+		defer close(stopped)
+		for {
+			if v := read(); v > peak.Load() {
+				peak.Store(v)
+			}
+			select {
+			case <-done:
+				return
+			default:
+			}
+		}
+	}()
+	f()
+	close(done)
+	<-stopped
+	if p := peak.Load(); p > base {
+		return p - base
+	}
+	return 0
+}
+
+func TestExtractJSONRPCAudit_BoundedHeap(t *testing.T) {
+	fill := func(open, member, sep, end string) []byte {
+		n := (maxMCPRequestBodyBytes - len(open) - len(end)) / (len(member) + len(sep))
+		return []byte(open + strings.Repeat(member+sep, n-1) + member + end)
+	}
+	keys := make([]string, 50000)
+	for i := range keys {
+		keys[i] = fmt.Sprintf(`"k%d":0`, i)
+	}
+	cases := map[string][]byte{
+		"empty objects":  fill("[", "{}", ",", "]"),
+		"m tools/call":   fill("[", `{"m":"tools/call"}`, ",", "]"),
+		"tools/call":     fill("[", `{"method":"tools/call","params":{"name":"t"}}`, ",", "]"),
+		"50k keys":       []byte(`{"method":"tools/call",` + strings.Join(keys, ",") + `}`),
+		"50k param keys": []byte(`{"method":"tools/call","params":{` + strings.Join(keys, ",") + `}}`),
+		"huge string":    []byte(`{"method":"tools/call","params":{"name":"` + strings.Repeat("a", maxMCPRequestBodyBytes-60) + `"}}`),
+		"deep nesting":   fill("[", "[", "", "]"),
+		"deep in object": []byte(`{"method":"x","a":` + strings.Repeat("[", maxMCPRequestBodyBytes-40) + `}`),
+	}
+	for name, body := range cases {
+		if len(body) > maxMCPRequestBodyBytes {
+			t.Fatalf("%s: body %d bytes over cap", name, len(body))
+		}
+		peak := peakHeapDuring(func() { extractJSONRPCAudit(body) })
+		t.Logf("%s: peak heap +%.1f MiB", name, float64(peak)/(1<<20))
+		if peak > 8<<20 {
+			t.Errorf("%s: peak heap +%d MiB for a %d-byte body, want < 8 MiB", name, peak>>20, len(body))
+		}
 	}
 }
