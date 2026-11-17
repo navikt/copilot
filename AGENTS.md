@@ -48,7 +48,7 @@ After editing an app, run `mise check` in that app's directory. Run `mise all` w
 - Issue titles use `<scope>: <short description>` (`nav-pilot:`, `my-copilot:`,
   `copilot-api:`, `copilot-survey:`, `copilot-metrics:`, `copilot-adoption:`,
   `mcp-onboarding:`, `mcp-registry:`, `fleet-gateway:`, `kostnadsinnsikt:`,
-  `verdi:`, `dispatch:`, `benchmark:`, `harness:`, `observability:`, `security:`, or
+  `verdi:`, `dispatch:`, `benchmark:`, `harness:`, `skills:`, `observability:`, `security:`, or
   `PRD:`). Leave Conventional Commit prefixes (`feat:`, `fix:`, `chore:`) for
   commits and PRs; issue type belongs in labels. Write issues in Norwegian
   (following `apps/my-copilot/ORDBOK.md`) or English, and do not mix languages
