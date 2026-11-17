@@ -19,7 +19,7 @@ import {
   UNDER_FIVE,
 } from "@/lib/survey";
 import { DocumentTitle, PrintButton } from "@/components/report-controls";
-import { likert, unsureLabel } from "../[id]/likert";
+import { nText, unsureLabel } from "../[id]/likert";
 import { fill, Legend, LikertBar, pct } from "../likert-bar";
 import { PrintHeader } from "../print-header";
 
@@ -81,7 +81,7 @@ function WaveLabel({
   wave: WaveMeta;
   i: number;
   count: number;
-  n: number | null;
+  n: string;
   version?: number;
 }) {
   return (
@@ -93,7 +93,7 @@ function WaveLabel({
       />
       <span>
         {shortName(wave.title)}
-        {version === undefined ? "" : `, versjon ${version}`} · n {n === null ? "–" : formatNumber(n)}
+        {version === undefined ? "" : `, versjon ${version}`} · n {n}
       </span>
     </span>
   );
@@ -121,7 +121,13 @@ function MeanOverview({ waves, questions }: { waves: WaveMeta[]; questions: Comp
         </BodyShort>
         <HStack gap="space-16">
           {waves.map((w, i) => (
-            <WaveLabel key={w.id} wave={w} i={i} count={waves.length} n={w.suppressed ? null : w.responses} />
+            <WaveLabel
+              key={w.id}
+              wave={w}
+              i={i}
+              count={waves.length}
+              n={w.suppressed ? "–" : formatNumber(w.responses)}
+            />
           ))}
         </HStack>
         <div
@@ -235,7 +241,7 @@ function Statement({
               wave={waves[i]}
               i={i}
               count={waves.length}
-              n={v.n === null ? null : likert(v, min, max).n}
+              n={nText(v, formatNumber)}
               version={broken ? v.version : undefined}
             />
             <LikertBar v={v} min={min} max={max} labels={labels} />
@@ -280,7 +286,7 @@ function Options({ waves, q }: { waves: WaveMeta[]; q: CompareQuestion }) {
             wave={waves[i]}
             i={i}
             count={waves.length}
-            n={v.n}
+            n={nText(v, formatNumber)}
             version={q.break || counts[i].versions.length > 1 ? v.version : undefined}
           />
         ))}
@@ -349,7 +355,7 @@ function Numbers({ waves, counts, label }: { waves: WaveMeta[]; counts: WaveCoun
               <TableHeaderCell scope="col">Svar</TableHeaderCell>
               {cols.map((c) => (
                 <TableHeaderCell key={c.name} scope="col" align="right">
-                  {c.name} (n {c.v.n === null ? "–" : formatNumber(c.v.n)})
+                  {c.name} (n {nText(c.v, formatNumber)})
                 </TableHeaderCell>
               ))}
             </TableRow>

@@ -14,7 +14,7 @@ import SurveysPage from "./page";
 import SurveyResultsPage from "./[id]/page";
 import type { SurveyResults } from "@/lib/survey";
 import fixture from "./results-fixture.json";
-import { likert, unsureLabel } from "./[id]/likert";
+import { likert, nText, unsureLabel } from "./[id]/likert";
 
 const group = "11111111-2222-3333-4444-555555555555";
 const params = (id: string) => ({ params: Promise.resolve({ id }) });
@@ -156,6 +156,7 @@ describe("/admin/undersokelser", () => {
     expect(r).toMatchObject({ n: 8, mean: 3, unsure: { count: 2, share: 0.2 } });
     expect(r.segments.reduce((a, s) => a + s.share, 0) + r.unsure.share).toBeCloseTo(1);
     expect(unsureLabel([v])).toBe("Vet ikke");
+    expect(nText(v, String)).toBe("8 · 2 vet ikke");
   });
 
   it("shows raw values when the definition is missing", async () => {

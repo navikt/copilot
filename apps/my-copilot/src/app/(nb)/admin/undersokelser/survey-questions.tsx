@@ -2,7 +2,7 @@ import { BodyShort, Heading, VStack } from "@navikt/ds-react";
 import { Table, TableBody, TableDataCell, TableHeader, TableHeaderCell, TableRow } from "@/components/aksel-table";
 import { formatNumber } from "@/lib/format";
 import type { QuestionResult, Survey, SurveyQuestion, VersionResult } from "@/lib/survey";
-import { unsureLabel } from "./[id]/likert";
+import { nText, unsureLabel } from "./[id]/likert";
 import { fill, Legend, LikertBar } from "./likert-bar";
 
 /**
@@ -26,7 +26,7 @@ function VersionTable({ v, caption, label }: { v: VersionResult; caption: string
       <Table size="small">
         <caption className="text-left">
           <BodyShort size="small">
-            {caption}: {formatNumber(n)} svar
+            {caption}: {nText(v, formatNumber)} svar
           </BodyShort>
         </caption>
         <TableHeader>
