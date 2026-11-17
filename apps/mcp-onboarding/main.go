@@ -77,6 +77,12 @@ func main() {
 		os.Exit(1)
 	}
 
+	entraAuth, entraErr := NewEntraAuthFromEnv()
+	if entraErr != nil {
+		slog.Error("entra configuration error", "error", entraErr)
+		os.Exit(1)
+	}
+
 	buildInfo.WithLabelValues(version).Set(1)
 
 	store := NewTokenStore()
@@ -119,6 +125,11 @@ func main() {
 
 	mux.Handle("GET /mcp", authMiddleware.Authenticate(mcpHandler))
 	mux.Handle("POST /mcp", authMiddleware.Authenticate(mcpHandler))
+
+	if entraAuth != nil {
+		mux.Handle("POST /mcp/gw", entraAuth.Authenticate(mcpHandler))
+		slog.Info("entra mode enabled for fleet-gateway", "path", "/mcp/gw")
+	}
 
 	mux.HandleFunc("GET /health", handleHealth)
 	mux.HandleFunc("GET /ready", handleReady)
