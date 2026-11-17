@@ -6,7 +6,7 @@
   "active": false,
   "starts": "2099-01-01",
   "ends": "2099-01-14",
-  "min_cli_version": "2026.09.29-072249",
+  "min_cli_version": "2026.11.18",
   "questions": [
     {
       "id": "erfaring",
@@ -116,10 +116,16 @@
         "Helt enig"
       ],
       "required": true,
-      "skip_if": {
-        "question": "verktoy",
-        "answer": "Jeg bruker ikke KI-kodeverktøy"
-      },
+      "skip_if": [
+        {
+          "question": "verktoy",
+          "answer": "Jeg bruker ikke KI-kodeverktøy"
+        },
+        {
+          "question": "frekvens",
+          "answer": "Ikke i det hele tatt"
+        }
+      ],
       "items": [
         {
           "id": "tilfredshet",
@@ -196,7 +202,11 @@
           "reverse": true,
           "text": "Usikkerhet rundt personvern eller interne sikkerhetsregler hindrer meg i å bruke KI-kodeverktøy fullt ut i det daglige arbeidet."
         }
-      ]
+      ],
+      "skip_if": {
+        "question": "frekvens",
+        "answer": "Ikke i det hele tatt"
+      }
     },
     {
       "id": "en-endring",

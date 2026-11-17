@@ -161,6 +161,10 @@ warns at start while the key is still in the secret.
   it is the answer most likely to name its author.
 - `skip_if`: skip this question when an earlier `choice` answer is, or
   `multi` answer includes, `answer`. On a `matrix` it skips every item.
+  A list of rules skips when any matches; nav-pilot reads lists from
+  2026.11.18, so a survey with one sets `min_cli_version` at least that.
+  In a comparison, a rule on a question an earlier wave did not ask drops
+  nobody from that wave.
 - `required`: must be answered unless skipped. With `skip_if`, a required
   question is required for those who are asked it and left out for the rest.
 - `environments`: NAIS clusters that load the survey (`dev-gcp`, `prod-gcp`).
