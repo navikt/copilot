@@ -125,7 +125,7 @@ func loadConfigFromEnv() (*Config, error) {
 	clientIDs := parseCSVSet(os.Getenv("ALLOWED_CLIENT_IDS"))
 	redirectURIs := parseCSVSet(os.Getenv("ALLOWED_REDIRECT_URIS"))
 
-	routes, err := loadPilotRoutes(os.Getenv("PILOT_ROUTES_FILE"))
+	routes, err := fileRouteSource{path: os.Getenv("PILOT_ROUTES_FILE")}.Routes()
 	if err != nil {
 		return nil, err
 	}

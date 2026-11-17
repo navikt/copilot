@@ -21,6 +21,12 @@ import (
 // body upstream received.
 func auditPost(t *testing.T, body string) (map[string]any, []byte, int) {
 	t.Helper()
+	return auditPostTools(t, nil, body)
+}
+
+// auditPostTools is auditPost on a route whose tool allowlist is tools.
+func auditPostTools(t *testing.T, tools map[string]bool, body string) (map[string]any, []byte, int) {
+	t.Helper()
 	var logBuf bytes.Buffer
 	old := slog.Default()
 	slog.SetDefault(slog.New(slog.NewJSONHandler(&logBuf, &slog.HandlerOptions{Level: slog.LevelInfo})))
@@ -39,6 +45,8 @@ func auditPost(t *testing.T, body string) (map[string]any, []byte, int) {
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"jsonrpc":"2.0","id":1,"result":{}}`))
 	})
+	te.gw.cfg.Routes[0].allowedTools = tools
+	te.handler = te.gw.routes()
 	gwToken := te.obtainAccessTokenForResource(te.resource)
 
 	req := httptest.NewRequest(http.MethodPost, "/mcp/etterlevelse", strings.NewReader(body))

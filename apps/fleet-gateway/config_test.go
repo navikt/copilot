@@ -255,7 +255,7 @@ routes:
 		},
 		{
 			name:      "unsupported version fails closed",
-			content:   "version: 2\nroutes:\n  - route: /mcp/a\n    team: t\n    target: c:n:a\n    upstream_url: http://a.n\n",
+			content:   "version: 3\nroutes:\n  - route: /mcp/a\n    team: t\n    target: c:n:a\n    upstream_url: http://a.n\n",
 			wantError: "unsupported pilot routes version",
 		},
 		{
