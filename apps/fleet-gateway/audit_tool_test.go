@@ -155,17 +155,28 @@ func TestExtractJSONRPCAudit_BadParamsKeepMethod(t *testing.T) {
 	}
 }
 
-func TestExtractJSONRPCAudit_ExactCaseKeys(t *testing.T) {
-	for _, body := range []string{
-		`{"method":"tools/call","params":{"name":"evil","Name":"benign"}}`,
-		`{"method":"tools/call","params":{"Name":"benign","name":"evil"}}`,
+func TestExtractJSONRPCAudit_AmbiguousKeysIncomplete(t *testing.T) {
+	inc := `["` + auditIncomplete + `"]`
+	for _, tc := range []struct{ body, method, tool string }{
+		{`{"method":"tools/call","params":{"name":"evil","Name":"benign"}}`, "tools/call", auditIncomplete},
+		{`{"method":"tools/call","params":{"Name":"benign","name":"evil"}}`, "tools/call", auditIncomplete},
+		{`{"method":"tools/call","params":{"name":"a","name":"b"}}`, "tools/call", auditIncomplete},
+		{`{"Method":"tools/call","Params":{"Name":"x"}}`, "", auditIncomplete},
+		{`{"method":"ping","METHOD":"tools/call","params":{"name":"x"}}`, "", auditIncomplete},
+		{`{"method":"ping","method":"tools/call","params":{"name":"x"}}`, "", auditIncomplete},
+		{`{"method":"tools/call","params":{"name":"x"},"PARAMS":{"name":"y"}}`, "", auditIncomplete},
+		{`{"method":"tools/call","params":{"name":"x"},"params":{"name":"y"}}`, "", auditIncomplete},
+		{`{"method":"ping"} {"method":"tools/call","params":{"name":"x"}}`, "", auditIncomplete},
+		{`{"method":"ping"}x`, "", auditIncomplete},
+		{`[{"Method":"tools/call","Params":{"Name":"x"}}]`, "batch", inc},
+		{`[{"method":"tools/call","params":{"name":"a","NAME":"b"}}]`, "batch", inc},
+		{`[{"method":"ping","method":"tools/call"}]`, "batch", inc},
+		{`[{"method":"ping"}] [{"method":"tools/call","params":{"name":"x"}}]`, "batch", inc},
+		{"{\"method\":\"tools/call\",\"params\":{\"name\":\"ok\"}}\n", "tools/call", "ok"},
 	} {
-		if _, tool := extractJSONRPCAudit([]byte(body)); tool != "evil" {
-			t.Fatalf("%s: got tool %q, want evil", body, tool)
+		if m, tool := extractJSONRPCAudit([]byte(tc.body)); m != tc.method || tool != tc.tool {
+			t.Errorf("%s: got %q %q, want %q %q", tc.body, m, tool, tc.method, tc.tool)
 		}
-	}
-	if m, _ := extractJSONRPCAudit([]byte(`{"Method":"tools/call"}`)); m != "" {
-		t.Fatalf("Method must not match method, got %q", m)
 	}
 }
 

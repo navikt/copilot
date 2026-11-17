@@ -565,8 +565,9 @@ const auditIncomplete = "...incomplete"
 // body is already capped at maxMCPRequestBodyBytes and is read only, so
 // upstream receives it byte for byte.
 //
-// Keys are matched exactly, not case-insensitively as encoding/json does for
-// struct fields, so the logged name is the one an MCP server reads. One token
+// Upstream Go servers match keys case-insensitively, last wins, so a
+// case-variant or duplicate method, params or name key, or data after the
+// first top-level value, logs as incomplete rather than guessing. One token
 // decoder walks the whole body and keeps only method and params, never a slice
 // of members or a map of keys: a 1 MiB body of {} members or of 50k keys
 // otherwise cost tens of MiB, near the pod's 64 MiB limit.
@@ -584,7 +585,7 @@ func extractJSONRPCAudit(body []byte) (method, tool string) {
 	switch tok {
 	case json.Delim('{'):
 		m, params, ok := auditScanObject(dec)
-		if !ok {
+		if !ok || !auditAtEOF(dec) {
 			return "", auditIncomplete
 		}
 		return auditMethodTool(m, params)
@@ -616,7 +617,7 @@ func extractJSONRPCAudit(body []byte) (method, tool string) {
 		}
 		if len(tools) <= maxAuditBatchTools {
 			// More() is also false on a syntax error, so require the closing ']'.
-			if tok, err := dec.Token(); !complete || err != nil || tok != json.Delim(']') {
+			if tok, err := dec.Token(); !complete || err != nil || tok != json.Delim(']') || !auditAtEOF(dec) {
 				tools = append(tools, auditIncomplete)
 			}
 		}
@@ -627,6 +628,24 @@ func extractJSONRPCAudit(body []byte) (method, tool string) {
 		return "batch", string(list)
 	}
 	return "", ""
+}
+
+// auditAtEOF reports whether only whitespace follows the top-level value.
+func auditAtEOF(dec *json.Decoder) bool {
+	_, err := dec.Token()
+	return err == io.EOF
+}
+
+// auditKeyAmbiguous reports whether key is a case variant of want, or a repeat
+// of want already seen; upstream may read either copy.
+func auditKeyAmbiguous(key json.Token, want string, seen *bool) bool {
+	k, _ := key.(string)
+	if k == want {
+		dup := *seen
+		*seen = true
+		return dup
+	}
+	return strings.EqualFold(k, want)
 }
 
 // auditMethodTool decodes the raw method and, for tools/call, params.name. A
@@ -642,14 +661,18 @@ func auditMethodTool(rawMethod, params json.RawMessage) (method, tool string) {
 		return method, ""
 	}
 	var skip, name json.RawMessage
+	var seen bool
 	for dec.More() {
 		key, err := dec.Token()
 		if err != nil {
 			return method, ""
 		}
+		if auditKeyAmbiguous(key, "name", &seen) {
+			return method, auditIncomplete
+		}
 		dst := &skip
 		if key == "name" {
-			dst = &name // last key wins, as for an MCP server decoding into a struct
+			dst = &name
 		}
 		if dec.Decode(dst) != nil {
 			return method, ""
@@ -663,9 +686,13 @@ func auditMethodTool(rawMethod, params json.RawMessage) (method, tool string) {
 // method and params values. Other values are skipped into a reused buffer.
 func auditScanObject(dec *json.Decoder) (method, params json.RawMessage, ok bool) {
 	var skip json.RawMessage
+	var seenM, seenP bool
 	for dec.More() {
 		key, err := dec.Token()
 		if err != nil {
+			return nil, nil, false
+		}
+		if auditKeyAmbiguous(key, "method", &seenM) || auditKeyAmbiguous(key, "params", &seenP) {
 			return nil, nil, false
 		}
 		dst := &skip
