@@ -201,7 +201,7 @@ Owner decisions ([#2249](https://github.com/navikt/copilot/issues/2249), [#2250]
 1. **Direct clients are first-class.** Copilot CLI and OpenCode must work against fleet-gateway directly, without cplt. The cplt broker is an optional extra, not a requirement.
 2. **Follow the MCP authorization spec as written**, with no client-specific code: PRM (RFC 9728), AS metadata (RFC 8414), CIMD, DCR (RFC 7591), PKCE S256 and RFC 8707 `resource`. Any spec-compliant MCP client should work. Which clients get in is configuration (the CIMD allowlist, the DCR flag), never a code path.
 3. **Loopback redirects match on any port** for `http://127.0.0.1` and `http://[::1]` (RFC 8252 §7.3). Scheme, host, path and query must still match. `localhost` names never get this.
-4. **DCR (#2260) is on in dev** (prod: see the consent decision above).** Registered clients accept only loopback redirect URIs and `token_endpoint_auth_method: none`, live 30 days, and are capped globally and rate-limited per IP. The consent screen marks them as unverified.
+4. **DCR (#2260) is on in dev** (prod: see the consent decision above). Registered clients accept only loopback redirect URIs and `token_endpoint_auth_method: none`, live 30 days, and are capped globally and rate-limited per IP. The consent screen marks them as unverified.
 
 Client support, verified against client source on 2026-11-17:
 
