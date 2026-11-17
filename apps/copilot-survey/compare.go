@@ -30,11 +30,8 @@ type waveStat struct {
 // compareResult.Surveys. Excluded is how many answers the comparison rule
 // dropped (see compare).
 type waveCounts struct {
-	Excluded int        `json:"excluded"`
+	Excluded int        `json:"excluded,omitempty"`
 	Versions []waveStat `json:"versions"`
-	// Hidden: the published comparison hid a small group in this wave (see
-	// hideSmallGroups): Excluded is 0 and the hidden versions have no counts.
-	Hidden bool `json:"hidden,omitempty"`
 }
 
 type compareItem struct {

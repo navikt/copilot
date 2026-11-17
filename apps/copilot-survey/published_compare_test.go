@@ -53,18 +53,27 @@ func TestPublishedCompare(t *testing.T) {
 			t.Errorf("channels published: %+v", s)
 		}
 	}
-	// Spring "fast": excluded 2, n 4. /results counts all 6, so the 2 would
-	// show as the difference: the wave and the test are hidden. Admin shows
-	// them (TestCompare).
+	// Each wave counts its own answers: spring keeps its 2 non-users on
+	// "fast" (n 6), as its /results does. Admin drops them (TestCompare).
 	fast := got.Questions[1].Items[0]
-	if s := fast.Waves[0]; !s.Hidden || s.Excluded != 0 || !s.Versions[0].Hidden || s.Versions[0].N != nil || fast.P != nil || fast.PHolm != nil {
-		t.Errorf("small excluded group shown: %+v %+v", s, fast.significance)
+	if s := fast.Waves[0]; s.Excluded != 0 || *s.Versions[0].N != 6 || fast.P == nil || fast.PHolm == nil {
+		t.Errorf("spring fast: %+v %+v", s, fast.significance)
 	}
-	if a := fast.Waves[1]; a.Hidden || *a.Versions[0].N != 5 {
-		t.Errorf("autumn hidden: %+v", a)
+	body := do(h, "GET", path+"dev", webToken, "").Body.String()
+	if strings.Contains(body, `"excluded"`) {
+		t.Errorf("excluded published: %s", body)
 	}
-	if s := got.Questions[0].Waves[0]; s.Hidden || *s.Versions[0].N != 6 { // tools: nothing excluded
-		t.Errorf("tools hidden: %+v", s)
+	// Later waves' skip_if does not reach back, and the definition is not changed.
+	rule := api.surveys[1].Questions[1].SkipIf
+	api.surveys[1].Questions[1].SkipIf = nil
+	if other := do(h, "GET", path+"dev", webToken, "").Body.String(); other != body {
+		t.Errorf("depends on autumn's skip_if:\n%s\n%s", body, other)
+	}
+	if api.surveys[1].Questions[1].SkipIf = rule; rule == nil {
+		t.Fatal("fixture lost its skip_if")
+	}
+	if do(h, "GET", path+"dev", webToken, "").Body.String() != body || api.surveys[1].Questions[1].SkipIf != rule {
+		t.Error("published compare changed the definition")
 	}
 
 	// At most the last four, oldest first.
@@ -81,7 +90,7 @@ func TestPublishedCompare(t *testing.T) {
 
 	rec := do(h, "GET", path+"dev&format=csv", webToken, "")
 	if rec.Code != 200 || !strings.Contains(rec.Header().Get("Content-Disposition"), "sammenligning-dev.csv") ||
-		strings.Contains(rec.Body.String(), "\nchannel,") || !strings.Contains(rec.Body.String(), "\nanswer,spring,grid,fast,1,false,,,hidden,hidden,,,,\n") || !strings.Contains(rec.Body.String(), "\nanswer,autumn,") {
+		strings.Contains(rec.Body.String(), "\nchannel,") || !strings.Contains(rec.Body.String(), "\nanswer,autumn,") {
 		t.Errorf("csv %d %v %s", rec.Code, rec.Header(), rec.Body)
 	}
 
@@ -101,15 +110,20 @@ func TestMergeSmallChannels(t *testing.T) {
 	}
 }
 
-// publishedFast is the published comparison's "fast" item for spring rows
-// built as groups of {count, tools answer, fast version}; autumn has 5 users.
-func publishedFast(t *testing.T, groups ...[3]any) compareItem {
+// publishedSpring builds spring from groups of {count, tools answer, fast
+// version, 0 for no answer}; autumn has 5 users and skips "grid" for "none". It returns the
+// published comparison's "fast" item and spring's published /results for it.
+func publishedSpring(t *testing.T, groups ...[3]any) (compareItem, []versionResult) {
 	t.Helper()
 	data := waveRows()
 	data["spring"] = nil
 	for _, g := range groups {
 		for range g[0].(int) {
-			data["spring"] = append(data["spring"], row(`{"tools":["`+g[1].(string)+`"],"fast":5,"slow":3}`, fmt.Sprintf(`{"tools":1,"fast":%d,"slow":1}`, g[2].(int))))
+			r := row(`{"tools":["`+g[1].(string)+`"],"fast":5,"slow":3}`, fmt.Sprintf(`{"tools":1,"fast":%d,"slow":1}`, g[2].(int)))
+			if g[2].(int) == 0 { // did not answer "fast"
+				delete(r.Answers, "fast")
+			}
+			data["spring"] = append(data["spring"], r)
 		}
 	}
 	api := compareAPI(t, func(_ context.Context, id string) ([]storedAnswer, error) { return data[id], nil })
@@ -117,40 +131,72 @@ func publishedFast(t *testing.T, groups ...[3]any) compareItem {
 	for i := range api.surveys {
 		api.surveys[i].Series, api.surveys[i].Published = "dev", true
 	}
-	rec := do(makeRouter(testAuthenticator(t), api), "GET", "/api/v1/surveys/published/compare?series=dev", webToken, "")
-	var got compareResult
-	if rec.Code != 200 || json.Unmarshal(rec.Body.Bytes(), &got) != nil {
+	h := makeRouter(testAuthenticator(t), api)
+	var cmp compareResult
+	var res surveyResults
+	if rec := do(h, "GET", "/api/v1/surveys/published/compare?series=dev", webToken, ""); rec.Code != 200 || json.Unmarshal(rec.Body.Bytes(), &cmp) != nil {
 		t.Fatalf("%d %s", rec.Code, rec.Body)
 	}
-	return got.Questions[1].Items[0]
+	if rec := do(h, "GET", "/api/v1/surveys/spring/results", webToken, ""); rec.Code != 200 || json.Unmarshal(rec.Body.Bytes(), &res) != nil {
+		t.Fatalf("%d %s", rec.Code, rec.Body)
+	}
+	return cmp.Questions[1].Items[0], res.Questions[1].Items[0].Versions
 }
 
-func TestPublishedCompareSmallGroupsPerVersion(t *testing.T) {
-	hidden := func(w waveCounts) bool {
-		for _, v := range w.Versions {
-			if !v.Hidden || v.N != nil || v.Options != nil || v.Mean != nil || v.Agree != nil {
-				return false
+// sameAsResults: every version of a wave has /results' n and counts, or is
+// hidden in both, so subtracting one from the other leaves nothing.
+func sameAsResults(t *testing.T, w waveCounts, res []versionResult) {
+	t.Helper()
+	if len(w.Versions) != len(res) || w.Excluded != 0 {
+		t.Fatalf("versions %+v vs %+v", w, res)
+	}
+	for i, v := range w.Versions {
+		r := res[i]
+		if v.Version != r.Version || v.Hidden != r.Hidden || (v.N == nil) != (r.N == nil) || (v.N != nil && *v.N != *r.N) {
+			t.Errorf("version %d: %+v vs %+v", v.Version, v.versionResult, r)
+		}
+		if v.Hidden && (v.Options != nil || v.Mean != nil || v.Agree != nil) {
+			t.Errorf("hidden version %d has counts: %+v", v.Version, v)
+		}
+		counts := map[string]int{}
+		for _, o := range r.Options {
+			counts[o.Value] = *o.Count
+		}
+		for _, o := range v.Options {
+			if *o.Count != counts[o.Value] {
+				t.Errorf("version %d option %s: %d vs %d", v.Version, o.Value, *o.Count, counts[o.Value])
 			}
 		}
-		return w.Hidden && w.Excluded == 0
 	}
-	// 20 answers, total excluded 5: 1 excluded in version 1 and 4 in version 2.
-	fast := publishedFast(t, [3]any{7, "a", 1}, [3]any{1, "none", 1}, [3]any{8, "a", 2}, [3]any{4, "none", 2})
-	if s := fast.Waves[0]; len(s.Versions) != 2 || !hidden(s) || fast.P != nil {
-		t.Errorf("per-version excluded shown: %+v", s)
+}
+
+// Astra's scenarios (#2271): with autumn's skip_if applied backwards, the
+// difference to spring's /results showed 1 + 4 dropped non-users, or the one
+// user kept out of 6. Each wave now has its own counts, equal to /results.
+func TestPublishedCompareEqualsResults(t *testing.T) {
+	// 20 answers: version 1 has 7 users and 1 non-user, version 2 8 and 4.
+	fast, res := publishedSpring(t, [3]any{7, "a", 1}, [3]any{1, "none", 1}, [3]any{8, "a", 2}, [3]any{4, "none", 2})
+	sameAsResults(t, fast.Waves[0], res)
+	if *fast.Waves[0].Versions[0].N != 8 || *fast.Waves[0].Versions[1].N != 12 {
+		t.Errorf("own counts: %+v", fast.Waves[0])
 	}
-	// 6 answers, 5 excluded: the one kept answer is a group of one.
-	fast = publishedFast(t, [3]any{1, "a", 1}, [3]any{5, "none", 1})
-	if s := fast.Waves[0]; len(s.Versions) != 1 || !hidden(s) || fast.P != nil {
-		t.Errorf("kept n=1 shown: %+v", s)
+	// 6 answers, 5 of them non-users: all 6 count, as in /results.
+	fast, res = publishedSpring(t, [3]any{1, "a", 1}, [3]any{5, "none", 1})
+	sameAsResults(t, fast.Waves[0], res)
+	if *fast.Waves[0].Versions[0].N != 6 || fast.P == nil {
+		t.Errorf("own counts: %+v", fast)
 	}
-	// Control: 6 kept in version 1 and 5 excluded in version 2 hide nothing.
-	fast = publishedFast(t, [3]any{6, "a", 1}, [3]any{5, "none", 2})
-	if s := fast.Waves[0]; s.Hidden || s.Excluded != 5 || *s.Versions[0].N != 6 || s.Versions[0].Mean == nil {
-		t.Errorf("control hidden: %+v", s)
+	// A version under 5 is hidden in both.
+	fast, res = publishedSpring(t, [3]any{7, "a", 1}, [3]any{3, "a", 2})
+	sameAsResults(t, fast.Waves[0], res)
+	if !fast.Waves[0].Versions[1].Hidden || fast.Waves[0].Versions[0].Hidden {
+		t.Errorf("small version: %+v", fast.Waves[0])
 	}
-	if a := fast.Waves[1]; a.Hidden || *a.Versions[0].N != 5 {
-		t.Errorf("autumn hidden: %+v", a)
+	// Only 3 answered "fast" in spring: hidden, and no test on 3 people.
+	fast, res = publishedSpring(t, [3]any{3, "a", 1}, [3]any{3, "a", 0})
+	sameAsResults(t, fast.Waves[0], res)
+	if !fast.Waves[0].Versions[0].Hidden || fast.P != nil || fast.PHolm != nil {
+		t.Errorf("small wave tested: %+v %+v", fast.Waves[0], fast.significance)
 	}
 }
 
