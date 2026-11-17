@@ -63,8 +63,10 @@ spec:
       value: "{{allowed_client_ids}}"
     - name: ALLOWED_REDIRECT_URIS
       value: "{{allowed_redirect_uris}}"
+    {{#if allowed_resources}}
     - name: ALLOWED_RESOURCES
       value: "{{allowed_resources}}"
+    {{/if}}
     {{#if dcr_enabled}}
     - name: DCR_ENABLED
       value: "{{dcr_enabled}}"
