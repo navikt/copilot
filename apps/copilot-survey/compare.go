@@ -32,8 +32,8 @@ type waveStat struct {
 type waveCounts struct {
 	Excluded int        `json:"excluded"`
 	Versions []waveStat `json:"versions"`
-	// Hidden: the published comparison left this wave out (see
-	// hideSmallExcluded); Excluded and Versions are empty.
+	// Hidden: the published comparison hid a small group in this wave (see
+	// hideSmallGroups): Excluded is 0 and the hidden versions have no counts.
 	Hidden bool `json:"hidden,omitempty"`
 }
 

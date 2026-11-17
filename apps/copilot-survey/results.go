@@ -115,6 +115,8 @@ type versionResult struct {
 	// N is respondents who answered this version (people, also for multi).
 	N       *int          `json:"n"`
 	Options []optionCount `json:"options"`
+	// Hidden: published results left out a small group; N and Options are null.
+	Hidden bool `json:"hidden,omitempty"`
 }
 
 type itemResult struct {
@@ -174,6 +176,7 @@ func (a *surveyAPI) publishedResults(w http.ResponseWriter, r *http.Request) {
 	}
 	res := aggregateTally(a.surveys[i], t, now)
 	res.Channels = mergeSmallChannels(res.Channels)
+	hideSmallVersions(&res)
 	writeJSON(w, res)
 }
 
@@ -193,23 +196,73 @@ func mergeSmallChannels(channels map[string]int) map[string]int {
 	return out
 }
 
-// hideSmallExcluded hides a wave's counts for a question or item when the
-// comparison rule dropped 1 to minSegment-1 of its answers: published
-// /results counts them all, so the difference would show that small group.
-// The item's test goes too.
-func hideSmallExcluded(res *compareResult) {
-	hide := func(sig *significance, ws []waveCounts) {
+// small is a group of 1 to minSegment-1: shown, its answers could be told apart.
+func small(n int) bool { return n > 0 && n < minSegment }
+
+// hide removes a version's counts, n and statistics.
+func (v *versionResult) hide() { v.N, v.Options, v.Hidden = nil, nil, true }
+
+// hideSmallVersions hides every version under minSegment respondents in
+// published /results: one person answering an old version would otherwise
+// show their answer.
+func hideSmallVersions(res *surveyResults) {
+	hide := func(vs []versionResult) {
+		for i := range vs {
+			if vs[i].N != nil && small(*vs[i].N) {
+				vs[i].hide()
+			}
+		}
+	}
+	for qi := range res.Questions {
+		hide(res.Questions[qi].Versions)
+		for ii := range res.Questions[qi].Items {
+			hide(res.Questions[qi].Items[ii].Versions)
+		}
+	}
+}
+
+// hideSmallGroups hides, per wave and version of a question or item, the
+// counts that published /results would let a reader subtract down to a small
+// group: kept answers (n) or answers the comparison rule dropped, 1 to
+// minSegment-1 of either. /results counts every answer per version, so
+// dropped = /results n − kept n. A wave with a hidden version also hides
+// its excluded total, and the item's test goes when its first or last wave
+// has one. Holm keeps the hidden items (owner decision).
+func hideSmallGroups(res *compareResult, rows [][]storedAnswer) {
+	hide := func(id string, sig *significance, ws []waveCounts) {
 		for i := range ws {
-			if ws[i].Excluded > 0 && ws[i].Excluded < minSegment {
-				ws[i], *sig = waveCounts{Versions: []waveStat{}, Hidden: true}, significance{}
+			wc := &ws[i]
+			if len(wc.Versions) == 0 && wc.Excluded == 0 {
+				continue // not asked, or asked as another type
+			}
+			kept := map[int]*waveStat{}
+			for vi := range wc.Versions {
+				kept[wc.Versions[vi].Version] = &wc.Versions[vi]
+			}
+			for ver, all := range tallyKey(id, rows[i]) {
+				n := 0
+				if v := kept[ver]; v != nil && v.N != nil {
+					n = *v.N
+				}
+				if !small(n) && !small(all.N-n) {
+					continue
+				}
+				if v := kept[ver]; v != nil {
+					v.hide()
+					v.Mean, v.Agree = nil, nil
+				}
+				wc.Hidden, wc.Excluded = true, 0
+				if i == 0 || i == len(ws)-1 {
+					*sig = significance{}
+				}
 			}
 		}
 	}
 	for qi := range res.Questions {
 		q := &res.Questions[qi]
-		hide(&q.significance, q.Waves)
+		hide(q.ID, &q.significance, q.Waves)
 		for ii := range q.Items {
-			hide(&q.Items[ii].significance, q.Items[ii].Waves)
+			hide(q.Items[ii].ID, &q.Items[ii].significance, q.Items[ii].Waves)
 		}
 	}
 }
@@ -217,7 +270,7 @@ func hideSmallExcluded(res *compareResult) {
 // publishedCompare compares the last four closed, published waves of a
 // series that have at least minSegment rows, oldest first (#2229). Channels
 // are left out, and so are counts a small group could be told apart by
-// (hideSmallExcluded). An unknown series, or fewer than two such waves, is
+// (hideSmallGroups). An unknown series, or fewer than two such waves, is
 // 404. Like compare it reads rows, so a wave whose rows are deleted drops out.
 func (a *surveyAPI) publishedCompare(w http.ResponseWriter, r *http.Request) {
 	now, series := a.now(), r.URL.Query().Get("series")
@@ -249,7 +302,7 @@ func (a *surveyAPI) publishedCompare(w http.ResponseWriter, r *http.Request) {
 	for i := range res.Surveys {
 		res.Surveys[i].Channels = nil
 	}
-	hideSmallExcluded(&res)
+	hideSmallGroups(&res, rows)
 	if r.URL.Query().Get("format") == "csv" {
 		w.Header().Set("Content-Type", "text/csv; charset=utf-8")
 		w.Header().Set("Content-Disposition", `attachment; filename="sammenligning-`+series+`.csv"`)
