@@ -292,12 +292,14 @@ func TestCompareStoreAfterRetention(t *testing.T) {
 }
 
 // Two skip rules that overlap: the first respondent matches both, so the
-// set skips 1 of 6, not 2. Rule sets are one rule per question until
+// set skips 1 of 6, not 2. «Vet ikke» (unsure) is answered by the skipped
+// respondent and one kept, so it is subtracted like any option and stays
+// out of the mean. Rule sets are one rule per question until
 // skip_if becomes a list (#2267), so the set is built here.
 const unionSurvey = `[{"id":"union","title":"U","starts":"2026-01-01","ends":"2026-01-31","questions":[
  {"id":"a","version":1,"type":"choice","text":"A?","options":["x","y"]},
  {"id":"b","version":1,"type":"choice","text":"B?","options":["p","q"]},
- {"id":"fast","version":1,"type":"scale","text":"Fast?","min":1,"max":5}]}]`
+ {"id":"fast","version":1,"type":"scale","text":"Fast?","min":1,"max":5,"unsure":"Vet ikke"}]}]`
 
 func unionFixture(t *testing.T) (survey, []storedAnswer, string, map[string]skipSet) {
 	t.Helper()
@@ -305,8 +307,8 @@ func unionFixture(t *testing.T) (survey, []storedAnswer, string, map[string]skip
 	if err != nil {
 		t.Fatal(err)
 	}
-	rows := []storedAnswer{row(`{"a":"x","b":"p","fast":1}`, `{"a":1,"b":1,"fast":1}`)}
-	for _, f := range []string{"2", "3", "4", "5", "5"} {
+	rows := []storedAnswer{row(`{"a":"x","b":"p","fast":"Vet ikke"}`, `{"a":1,"b":1,"fast":1}`)}
+	for _, f := range []string{"2", "3", "4", "5", `"Vet ikke"`} {
 		rows = append(rows, row(`{"a":"y","b":"q","fast":`+f+`}`, `{"a":1,"b":1,"fast":1}`))
 	}
 	rules := []skipRule{{"b", "p"}, {"a", "x"}, {"b", "p"}}
@@ -320,14 +322,18 @@ func unionFixture(t *testing.T) (survey, []storedAnswer, string, map[string]skip
 func keptFast(t *testing.T, tl waveTally, id string) ([]versionResult, int) {
 	t.Helper()
 	kept, excluded := without(tl.Keys["fast"], tl.Skipped[id]["fast"])
-	return versionsFrom(question{ID: "fast", Type: "scale", Version: 1, Min: 1, Max: 5}, kept), excluded
+	return versionsFrom(question{ID: "fast", Type: "scale", Version: 1, Min: 1, Max: 5, Unsure: "Vet ikke"}, kept), excluded
 }
 
 func TestSkipSetUnion(t *testing.T) {
 	s, rows, id, sets := unionFixture(t)
 	vs, excluded := keptFast(t, rowsTally(s, rows, sets), id)
-	if excluded != 1 || len(vs) != 1 || *vs[0].N != 5 || *vs[0].Options[0].Count != 0 {
+	o := vs[0].Options
+	if excluded != 1 || len(vs) != 1 || *vs[0].N != 5 || len(o) != 6 || *o[0].Count != 0 || o[5].Value != "Vet ikke" || *o[5].Count != 1 {
 		t.Fatalf("excluded %d, kept %+v", excluded, vs)
+	}
+	if mean, agree := scaleStats(vs[0], 5); *mean != 3.5 || *agree != 0.5 {
+		t.Fatalf("unsure in mean or agree: %v %v", *mean, *agree)
 	}
 }
 
@@ -367,7 +373,7 @@ func TestSkipSetUnionStored(t *testing.T) {
 		t.Fatal(stored, err)
 	}
 	gotV, gotX := keptFast(t, *stored, id)
-	if gotX != wantX || !reflect.DeepEqual(gotV, wantV) || *gotV[0].N != 5 {
+	if gotX != wantX || !reflect.DeepEqual(gotV, wantV) || *gotV[0].N != 5 || *gotV[0].Options[5].Count != 1 {
 		t.Fatalf("stored: excluded %d kept %+v, want %d %+v", gotX, gotV, wantX, wantV)
 	}
 }
