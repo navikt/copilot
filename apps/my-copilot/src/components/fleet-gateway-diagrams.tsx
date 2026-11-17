@@ -148,3 +148,42 @@ export function FleetGatewayCallDiagram() {
     </Figure>
   );
 }
+
+export function FleetGatewayTeamDiagram() {
+  const m = "fg-arrow-team";
+  const arrow = `url(#${m})`;
+  return (
+    <Figure
+      titleId="fg-team-title"
+      viewBox="0 0 970 300"
+      title="Kallet til teamets server: cplt kaller fleet-gateway, fleet-gateway veksler tokenet hos Texas til et OBO-token for teamets app, og kaller teamets app. Steg 1, accessPolicy.inbound, slipper inn fleet-gateway. Steg 2, sjekk av tokenet med Texas-introspeksjon, skjer i teamets app."
+    >
+      <Defs id={m} />
+      <Box x={10} y={60} w={170} h={100} title="cplt" sub={["klienten"]} />
+      <Box x={260} y={60} w={210} h={100} title="fleet-gateway" sub={["innlogging, pilotliste"]} />
+      <Box x={260} y={200} w={210} h={90} title="Texas" sub={["OBO-veksling"]} />
+
+      <rect x={560} y={20} width={400} height={270} rx="14" className="fg-host" />
+      <text x={580} y={50} className="fg-group">
+        Teamets namespace
+      </text>
+      <Box x={590} y={70} w={340} h={80} title="Steg 1: accessPolicy.inbound" sub={["slipper inn fleet-gateway"]} />
+      <Box
+        x={590}
+        y={180}
+        w={340}
+        h={95}
+        title="Steg 2: teamets app"
+        sub={["sjekker tokenet med Texas:", "aud, idtyp, azp, NAVident"]}
+      />
+
+      <line x1={180} y1={110} x2={258} y2={110} className="fg-line" markerEnd={arrow} />
+      <line x1={365} y1={160} x2={365} y2={198} className="fg-line" markerStart={arrow} markerEnd={arrow} />
+      <line x1={470} y1={110} x2={588} y2={110} className="fg-line" markerEnd={arrow} />
+      <text x={530} y={98} textAnchor="middle" className="fg-sub">
+        OBO
+      </text>
+      <line x1={760} y1={150} x2={760} y2={178} className="fg-line" markerEnd={arrow} />
+    </Figure>
+  );
+}

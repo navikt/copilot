@@ -1,5 +1,7 @@
-import { Alert, BodyLong, Tag, VStack } from "@navikt/ds-react";
+import { PersonGroupIcon, PersonIcon } from "@navikt/aksel-icons";
+import { Alert, BodyLong, Box, HGrid, HStack, Heading, Tag, VStack } from "@navikt/ds-react";
 import type { Metadata } from "next";
+import NextLink from "next/link";
 import { FleetGatewayAccessDiagram, FleetGatewayCallDiagram } from "@/components/fleet-gateway-diagrams";
 import { LinkableHeading } from "@/components/linkable-heading";
 import { Bullets, DocPage, code, linkClass } from "@/components/nav-pilot/doc-page";
@@ -15,6 +17,7 @@ const PLAN_URL = "https://github.com/navikt/copilot/blob/main/docs/mcp-gateway-p
 const APPLY_URL = "https://github.com/navikt/copilot/issues/new?template=fleet-gateway-pilot.yml";
 
 const TOC: TocItem[] = [
+  { id: "hvem", label: "Hvem og hvorfor" },
   { id: "hva-det-er", label: "Hva det er" },
   { id: "status", label: "Status" },
   { id: "hvem-slipper-inn", label: "Hvem slipper inn" },
@@ -38,6 +41,52 @@ export default function FleetGatewayPage() {
       <Alert variant="warning">
         Forhåndsvisning. Piloten har ikke startet, og detaljene kan endres. Navnene følger utkastet til nav-fleet.
       </Alert>
+
+      <VStack gap="space-12">
+        <LinkableHeading id="hvem" size="medium" level="2">
+          Hvem er det for, og hvorfor?
+        </LinkableHeading>
+        <HGrid columns={{ xs: 1, md: 2 }} gap="space-16">
+          <Box padding="space-16" borderRadius="12" borderWidth="1" borderColor="neutral-subtle">
+            <VStack gap="space-8">
+              <HStack gap="space-8" align="center">
+                <PersonIcon aria-hidden fontSize="1.5rem" />
+                <Heading size="small" level="3">
+                  Utviklere
+                </Heading>
+              </HStack>
+              <Bullets>
+                <li>For deg som bruker Copilot eller nav-pilot gjennom cplt.</li>
+                <li>Hent data fra Navs egne MCP-servere.</li>
+                <li>Logg inn én gang med Nav-kontoen, ikke én gang per server.</li>
+              </Bullets>
+            </VStack>
+          </Box>
+          <Box padding="space-16" borderRadius="12" borderWidth="1" borderColor="neutral-subtle">
+            <VStack gap="space-8">
+              <HStack gap="space-8" align="center">
+                <PersonGroupIcon aria-hidden fontSize="1.5rem" />
+                <Heading size="small" level="3">
+                  Team med en MCP-server
+                </Heading>
+              </HStack>
+              <Bullets>
+                <li>Tilby serveren til resten av Nav uten å bygge innlogging selv.</li>
+                <li>Gatewayen sender et token laget for akkurat appen deres (OBO). Klienten ser det aldri.</li>
+                <li>
+                  <NextLink href="/verktoy/fleet-gateway/for-team" className={linkClass}>
+                    Slik kobler dere til serveren
+                  </NextLink>
+                </li>
+              </Bullets>
+            </VStack>
+          </Box>
+        </HGrid>
+        <BodyLong>
+          Vi styrer hvem som får bruke hvilke servere, og vi kan stenge en server raskt. Derfor starter vi med en pilot
+          før alle får tilgang.
+        </BodyLong>
+      </VStack>
 
       <VStack gap="space-12">
         <LinkableHeading id="hva-det-er" size="medium" level="2">
@@ -96,6 +145,13 @@ export default function FleetGatewayPage() {
           Hva teamet gjør
         </LinkableHeading>
         <Bullets>
+          <li>
+            Følg{" "}
+            <NextLink href="/verktoy/fleet-gateway/for-team" className={linkClass}>
+              veiledningen for team
+            </NextLink>
+            .
+          </li>
           <li>Søk med skjemaet under. Vi registrerer serveren til selvbetjening finnes.</li>
           <li>
             Legg til fleet-gateway i <code className={code}>accessPolicy.inbound</code> i serverens Nais-manifest.
