@@ -192,9 +192,9 @@ the same version, so q2-2026 and q4-2026 are coded with the same one.
   owner. The person belongs to the team that builds the tools, so the human
   coder is not neutral; kappa is published with that role named.
 - A category is published for a wave only when Cohen's kappa between the two
-  coders is at least 0.6. Below that it is merged into a related category of
-  the same field (if the merged category reaches 0.6), otherwise hidden. Counts
-  under 5 show as «<5». No quotes.
+  coders is at least 0.6. Below that it is published together with its
+  `merge_with` partner, if the partner is coded in the same field and the pair
+  reaches 0.6; otherwise it is hidden. Counts under 5 show as «<5». No quotes.
 - Examples in a codebook are synthetic, never a quote from an answer.
 
 ## End-to-end test in dev

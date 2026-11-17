@@ -82,10 +82,10 @@
       "name": "Store løft som ellers ikke ble gjort",
       "kind": "nytte",
       "merge_with": "raskere",
-      "definition": "KI gjør det mulig å ta arbeid som ellers ikke ville blitt gjort: det var for stort, for kjedelig eller ble aldri prioritert. Ofte et program over tid, som migrering, modernisering, en arvtaker til en gammel tjeneste, nedbetaling av teknisk gjeld, samme endring i mange apper eller dokumentasjon som var ansett som for stor.",
+      "definition": "KI gjør det mulig å ta arbeid som ellers ikke ville blitt gjort: det var for stort, for kjedelig eller ble aldri prioritert. Ofte et program over tid, som migrering, modernisering, en etterfølger for en gammel tjeneste, nedbetaling av teknisk gjeld, samme endring i mange apper eller dokumentasjon som var ansett som for stor.",
       "include": [
         "Svaret sier at arbeidet ellers ikke ville blitt gjort, prioritert eller tatt på seg.",
-        "Migrering, modernisering eller arvtaker til en eksisterende tjeneste.",
+        "Migrering, modernisering eller en etterfølger for en eksisterende tjeneste.",
         "Nedbetaling av teknisk gjeld eller opprydding i stor skala.",
         "Samme endring rullet ut i mange apper eller repoer.",
         "Dokumentasjon eller kartlegging som var ansett som for stor (kodes også forsta-og-dokumentere)."
@@ -106,7 +106,7 @@
       "name": "Raskere enn for hånd",
       "kind": "nytte",
       "merge_with": "store-loft",
-      "definition": "KI gjør arbeid som ville blitt gjort uansett, men raskere: ny kode, en funksjon, et verktøy eller en prototyp, ofte på første forsøk, en avgrenset refaktorering, kodefullføring, eller å komme i gang i et språk eller rammeverk respondenten ikke kan fra før.",
+      "definition": "KI gjør arbeid som ville blitt gjort uansett, men raskere: ny kode, en funksjon, et verktøy eller en prototyp, ofte på første forsøk, en avgrenset refaktorering, kodefullføring, eller å komme i gang i et språk eller rammeverk respondenten ikke behersker.",
       "include": [
         "Ny funksjon, komponent, app eller prototyp som virket nesten med en gang.",
         "En avgrenset refaktorering eller oppgradering som gikk fort.",
@@ -199,9 +199,9 @@
       "definition": "Respondenten opplever at KI svekker egen forståelse, læring, ferdigheter eller eierskap til koden: blir rusten eller lat, mister oversikt, kan ikke forklare koden, tenker mindre selv.",
       "include": [
         "Forstår ikke koden KI-en laget, eller kan ikke forklare valg i egen PR.",
-        "Mister oversikt over kodebasen.",
+        "Har mindre oversikt over egen kodebase enn før.",
         "Lærer mindre, blir rusten, tenker mindre selv, eller lar KI-en lokke frem enkleste vei.",
-        "Føler ikke at koden er ens egen."
+        "Opplever koden som noe annet enn sin egen."
       ],
       "exclude": [
         "Kolleger som ikke forstår sin egen kode: belastning-team.",
@@ -239,10 +239,10 @@
       "name": "Feil som presenteres som riktig",
       "kind": "problem",
       "merge_with": "medgjorlig",
-      "definition": "KI tar feil eller lykkes ikke, ofte med stor sikkerhet: hallusinasjoner, gjetting, kode som ser riktig ut men ikke er det, falske funn og svært ujevn kvalitet. Kjernen er at feilen kommer fra KI-en.",
+      "definition": "KI tar feil eller lykkes ikke, ofte med stor sikkerhet: hallusinasjoner, gjetting, troverdig kode som er feil, falske funn og svært ujevn kvalitet. Kjernen er at feilen kommer fra KI-en.",
       "include": [
         "Hallusinasjoner og feilinformasjon.",
-        "Kode som ikke kjører, eller som ser riktig ut og er feil.",
+        "Kode som ikke kjører, eller som virker overbevisende og er feil.",
         "Falske funn i kodegjennomgang, eller overfladisk diagnose.",
         "Løsninger som bygger på antakelser agenten ikke har sjekket.",
         "Svært ulikt resultat fra gang til gang, eller vanskelig å vite hva som er sjekket.",
@@ -353,7 +353,7 @@
         "Vil ikke bruke KI, eller opplever den som påtvunget.",
         "Etiske, økonomiske, miljømessige eller samfunnsmessige innvendinger, eller opplevd press om å ta KI i bruk.",
         "Uttrykt skepsis til nytten.",
-        "KI tar bort gleden ved å kode eller motivasjonen i jobben."
+        "Mindre glede ved å kode, eller mindre motivasjon i jobben."
       ],
       "exclude": [
         "Tap av ferdigheter eller forståelse: kompetansetap.",
@@ -387,7 +387,7 @@
       "id": "prototyping",
       "name": "Prototyper og utforsking",
       "kind": "nytte",
-      "definition": "KI brukes til å lage prototyper, utforske muligheter eller idémyldring, der målet er å se hva som er mulig, ikke å levere produksjonskode.",
+      "definition": "KI brukes til prototyper, utforske muligheter eller idémyldring, der målet er å se hva som er mulig, ikke å levere produksjonskode.",
       "include": [
         "Klikkbare prototyper eller skisser.",
         "Utforske løsninger, idémyldring."
