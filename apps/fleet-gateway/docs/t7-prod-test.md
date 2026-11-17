@@ -1,7 +1,7 @@
 # T7: manual prod verification
 
 Run after each prod deploy of fleet-gateway. Cluster `prod-gcp`, namespace `copilot`.
-Read-only except steps 4 and 7. Never read secrets (`kubectl get secret`, `nais secret`).
+Step 3 deletes one prod pod. That is the only step that changes prod. Steps 2, 4 and 5 log in and out with your own user, and step 7 writes a temporary local file. Never read secrets (`kubectl get secret`, `nais secret`).
 
 Setup:
 
@@ -28,15 +28,18 @@ Add `$URL/mcp/onboarding` as a remote MCP server in OpenCode, then `opencode mcp
 Expected: login succeeds, `whoami` returns your NAVident.
 
 ```sh
-kubectl -n $NS logs deploy/fleet-gateway --since=10m | grep '"audit mcp"' | tail -5
+kubectl -n $NS logs -l app=fleet-gateway --prefix --tail=-1 --since=10m | grep '"audit mcp"' | tail -5
 ```
 
 Expected: lines with `navident`, `route=/mcp/onboarding`, `outcome` ok.
 
 ## 3. Pod restart keeps the session
 
+Prod mutation: this deletes one gateway pod. The other replica keeps serving, and the deployment starts a replacement.
+
 ```sh
-kubectl -n $NS rollout restart deploy/fleet-gateway
+kubectl -n $NS get pods -l app=fleet-gateway
+kubectl -n $NS delete pod <one-pod-name>
 kubectl -n $NS rollout status deploy/fleet-gateway --timeout=120s
 ```
 
@@ -51,7 +54,7 @@ Wait for the gateway access token to expire (check `expires_in` in the token res
 Expected: call succeeds, client refreshed silently, no browser prompt.
 
 ```sh
-kubectl -n $NS logs deploy/fleet-gateway --since=10m | grep -i -E 'refresh|token' | tail -10
+kubectl -n $NS logs -l app=fleet-gateway --prefix --tail=-1 --since=10m | grep -i -E 'refresh|token' | tail -10
 ```
 
 Expected: no errors; no `invalid_grant`.
@@ -60,35 +63,37 @@ Expected: no errors; no `invalid_grant`.
 
 In OpenCode, log out the server (`opencode mcp logout <name>`), which calls `POST /revoke`. Then call `whoami`.
 
-Expected: the call fails with 401 and the client asks for login. Replaying the old refresh token returns `invalid_grant`.
+Expected: the client asks for login. This shows the client dropped its credentials, not that the server revoked them. `/revoke` revokes only the token it is sent, so server-side revocation of the access token and the refresh token is covered by `TestRevoke_RefreshTokenAndAccessToken`, not by this step. Do not copy tokens out of OpenCode to replay them by hand.
 
 ```sh
-kubectl -n $NS logs deploy/fleet-gateway --since=5m | grep -i revoke | tail -5
+kubectl -n $NS logs -l app=fleet-gateway --prefix --tail=-1 --since=5m | grep -i revoke | tail -5
 ```
 
 ## 6. Kill switch dry run
 
 Do not merge. On a branch, set `enabled: false` on the `/mcp/onboarding` route in `apps/fleet-gateway/pilot-routes.prod.yaml`. Run `mise check` and `go test ./...` in `apps/fleet-gateway`; both must pass with the route disabled. Push the branch, but do not deploy it.
 
-Expected: tests green. If deployed to dev instead, calls to the route are refused and the log shows `route disabled by kill switch`:
+Expected: tests green.
+
+Optional runtime check in dev: dev loads `pilot-routes.dev.yaml` (`pilot_routes_file` in `.nais/dev-gcp.yaml`), not the prod file. On a separate branch, set `enabled: false` on the route in `apps/fleet-gateway/pilot-routes.dev.yaml` and deploy that branch to dev. Calls to the route are then refused and the log shows `route disabled by kill switch`:
 
 ```sh
-kubectl --context dev-gcp -n $NS logs deploy/fleet-gateway --since=5m | grep 'kill switch'
+kubectl --context dev-gcp -n $NS logs -l app=fleet-gateway --prefix --tail=-1 --since=5m | grep 'kill switch'
 ```
 
-Global switch: `GATEWAY_DISABLED=true` stops all routes. Know the rollback path before using it.
+Redeploy main to dev afterwards. Global switch: `GATEWAY_DISABLED=true` stops all routes. Know the rollback path before using it.
 
 ## 7. Logs: NAVident only, no tokens
 
 ```sh
-kubectl -n $NS logs deploy/fleet-gateway --since=1h > /tmp/fgw.log
+kubectl -n $NS logs -l app=fleet-gateway --prefix --tail=-1 --since=1h > /tmp/fgw.log
 grep -c '"audit mcp"' /tmp/fgw.log
-grep -E -i 'eyJ[A-Za-z0-9_-]{10,}|bearer |refresh_token|access_token|client_secret' /tmp/fgw.log | wc -l
+grep -E -i 'eyJ[A-Za-z0-9_-]{10,}|bearer [A-Za-z0-9._~+/=-]{10,}|"(access_token|refresh_token|client_secret|id_token)":"|[A-Za-z0-9_-]{100,}' /tmp/fgw.log | wc -l
 grep -E -o '"navident":"[^"]*"' /tmp/fgw.log | sort -u
 rm /tmp/fgw.log
 ```
 
-Expected: audit count above 0, token grep prints `0`, navident values are only NAVidents (one letter, six digits). No e-mail, name or token in any line.
+Expected: audit count above 0. The token grep prints `0`: no JWT (`eyJ...`), no bearer value, no JSON field holding a token, and no long base64url run such as a sealed or Entra refresh token. Field names like `refresh_token_received` do not match. Any match is a leak until shown otherwise. The navident values are only NAVidents (one letter, six digits). No e-mail, name or token in any line.
 
 ## Result
 

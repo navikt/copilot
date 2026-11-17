@@ -414,7 +414,7 @@ func TestDevPilotRoutesFileValid(t *testing.T) {
 		if want := r.Cluster + ":" + r.Namespace + ":" + r.App; r.Target != want {
 			t.Errorf("route %q: target %q, want %q", r.Route, r.Target, want)
 		}
-		if r.ParsedURL == nil || r.ParsedURL.Scheme != "http" || r.ParsedURL.Host == "" {
+		if r.ParsedURL == nil || (r.ParsedURL.Scheme != "http" && r.ParsedURL.Scheme != "https") || r.ParsedURL.Host == "" {
 			t.Errorf("route %q: bad upstream_url %q", r.Route, r.UpstreamURL)
 		}
 		if !cfg.AllowedResources[r.FullRouteID] {
