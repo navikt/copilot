@@ -77,10 +77,13 @@ func (te *testEnv) obtainTokensForResource(resource string) (accessToken, refres
 	return at, rt, int(exp)
 }
 
-func postRevoke(handler http.Handler, token string) (int, map[string]any) {
+func postRevoke(handler http.Handler, token, clientID string) (int, map[string]any) {
 	form := url.Values{}
 	if token != "" {
 		form.Set("token", token)
+	}
+	if clientID != "" {
+		form.Set("client_id", clientID)
 	}
 	req := httptest.NewRequest(http.MethodPost, "/revoke", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -408,7 +411,7 @@ func TestRevoke_RefreshTokenAndAccessToken(t *testing.T) {
 
 	// 1. Revoke refresh token -> refresh rejected; repeated revoke still 200 {}.
 	_, rt1, _ := te.obtainTokensForResource(te.resource)
-	code, body := postRevoke(te.handler, rt1)
+	code, body := postRevoke(te.handler, rt1, te.clientID)
 	if code != http.StatusOK || len(body) != 0 {
 		t.Fatalf("expected 200 {} on /revoke RT, got %d (%v)", code, body)
 	}
@@ -420,14 +423,14 @@ func TestRevoke_RefreshTokenAndAccessToken(t *testing.T) {
 	if status != http.StatusBadRequest || tokErr["error"] != "invalid_grant" {
 		t.Fatalf("expected 400 invalid_grant after /revoke, got %d (%v)", status, tokErr)
 	}
-	code2, body2 := postRevoke(te.handler, rt1)
+	code2, body2 := postRevoke(te.handler, rt1, te.clientID)
 	if code2 != http.StatusOK || len(body2) != 0 {
 		t.Fatalf("expected 200 {} on idempotent /revoke, got %d (%v)", code2, body2)
 	}
 
 	// 2. Revoke access token -> session deleted, MCP call returns 401.
 	at2, _, _ := te.obtainTokensForResource(te.resource)
-	code3, body3 := postRevoke(te.handler, at2)
+	code3, body3 := postRevoke(te.handler, at2, te.clientID)
 	if code3 != http.StatusOK || len(body3) != 0 {
 		t.Fatalf("expected 200 {} on /revoke AT, got %d (%v)", code3, body3)
 	}
@@ -440,9 +443,77 @@ func TestRevoke_RefreshTokenAndAccessToken(t *testing.T) {
 	}
 
 	// 3. Unknown token -> indistinguishable 200 {}.
-	code4, body4 := postRevoke(te.handler, "non-existent-token")
+	code4, body4 := postRevoke(te.handler, "non-existent-token", te.clientID)
 	if code4 != http.StatusOK || len(body4) != 0 {
 		t.Fatalf("expected 200 {} on unknown token revoke, got %d (%v)", code4, body4)
+	}
+}
+
+func TestRevoke_ClientMismatchAndRequiredClientID(t *testing.T) {
+	te := newClientEncryptedTestEnv(t, "k1:"+testKeyBase64(t, false))
+	otherClient := te.cimdServer.URL + "/other-client.json"
+	te.gw.cfg.AllowedClientIDs[otherClient] = true
+
+	at1, rt1, _ := te.obtainTokensForResource(te.resource)
+
+	// Missing client_id -> 400 invalid_request.
+	code, body := postRevoke(te.handler, at1, "")
+	if code != http.StatusBadRequest || body["error"] != "invalid_request" || body["error_description"] != "client_id is required" {
+		t.Fatalf("expected 400 invalid_request client_id is required, got %d (%v)", code, body)
+	}
+
+	// Revoke AT with client B -> 200 {}, AT still works.
+	code, body = postRevoke(te.handler, at1, otherClient)
+	if code != http.StatusOK || len(body) != 0 {
+		t.Fatalf("expected 200 {} on /revoke AT mismatch, got %d (%v)", code, body)
+	}
+	mcpReq := httptest.NewRequest(http.MethodPost, "/mcp/etterlevelse", strings.NewReader(`{}`))
+	mcpReq.Header.Set("Authorization", "Bearer "+at1)
+	mcpRec := httptest.NewRecorder()
+	te.handler.ServeHTTP(mcpRec, mcpReq)
+	if mcpRec.Code != http.StatusOK {
+		t.Fatalf("expected AT to remain valid after client mismatch revoke, got %d", mcpRec.Code)
+	}
+
+	// Revoke RT with client B -> 200 {}, RT still refreshes.
+	code, body = postRevoke(te.handler, rt1, otherClient)
+	if code != http.StatusOK || len(body) != 0 {
+		t.Fatalf("expected 200 {} on /revoke RT mismatch, got %d (%v)", code, body)
+	}
+	status, refBody := te.postToken(url.Values{
+		"grant_type":    {"refresh_token"},
+		"refresh_token": {rt1},
+		"client_id":     {te.clientID},
+	})
+	if status != http.StatusOK {
+		t.Fatalf("expected RT to remain valid after client mismatch revoke, got %d (%v)", status, refBody)
+	}
+	rt2, _ := refBody["refresh_token"].(string)
+
+	// Revoke AT and RT with owning client A -> both stop working.
+	code, body = postRevoke(te.handler, at1, te.clientID)
+	if code != http.StatusOK || len(body) != 0 {
+		t.Fatalf("expected 200 {} on /revoke AT with owner, got %d (%v)", code, body)
+	}
+	mcpReq2 := httptest.NewRequest(http.MethodPost, "/mcp/etterlevelse", strings.NewReader(`{}`))
+	mcpReq2.Header.Set("Authorization", "Bearer "+at1)
+	mcpRec2 := httptest.NewRecorder()
+	te.handler.ServeHTTP(mcpRec2, mcpReq2)
+	if mcpRec2.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401 after owner revoked AT, got %d", mcpRec2.Code)
+	}
+
+	code, body = postRevoke(te.handler, rt2, te.clientID)
+	if code != http.StatusOK || len(body) != 0 {
+		t.Fatalf("expected 200 {} on /revoke RT with owner, got %d (%v)", code, body)
+	}
+	status, errBody := te.postToken(url.Values{
+		"grant_type":    {"refresh_token"},
+		"refresh_token": {rt2},
+		"client_id":     {te.clientID},
+	})
+	if status != http.StatusBadRequest || errBody["error"] != "invalid_grant" {
+		t.Fatalf("expected 400 invalid_grant after owner revoked RT, got %d (%v)", status, errBody)
 	}
 }
 
@@ -797,7 +868,7 @@ func TestRefreshToken_UpstreamInvalidGrantAndStoreErrors503(t *testing.T) {
 		SessionStore: origStore,
 		failDelete:   errors.New("db unavailable"),
 	}
-	revStatus, revBody := postRevoke(te.handler, at1)
+	revStatus, revBody := postRevoke(te.handler, at1, te.clientID)
 	if revStatus != http.StatusServiceUnavailable || revBody["error"] != "temporarily_unavailable" {
 		t.Fatalf("expected 503 temporarily_unavailable on /revoke Delete error, got %d (%v)", revStatus, revBody)
 	}
@@ -807,7 +878,7 @@ func TestRefreshToken_UpstreamInvalidGrantAndStoreErrors503(t *testing.T) {
 		SessionStore:   origStore,
 		failRevokeOnce: errors.New("db unavailable"),
 	}
-	revStatus, revBody = postRevoke(te.handler, rt2)
+	revStatus, revBody = postRevoke(te.handler, rt2, te.clientID)
 	if revStatus != http.StatusServiceUnavailable || revBody["error"] != "temporarily_unavailable" {
 		t.Fatalf("expected 503 temporarily_unavailable on /revoke RevokeOnce error, got %d (%v)", revStatus, revBody)
 	}
@@ -1034,7 +1105,7 @@ func TestRefreshToken_RevokedDuringInFlightIssuesNothing(t *testing.T) {
 			go func() { s, b := te.postToken(refreshForm(te, rt)); done <- res{s, b} }()
 			<-entered
 			if tc == "revoke_rt" {
-				if s, _ := postRevoke(te.handler, rt); s != http.StatusOK {
+				if s, _ := postRevoke(te.handler, rt, te.clientID); s != http.StatusOK {
 					t.Fatalf("revoke: %d", s)
 				}
 			} else if err := te.gw.store.Revoke(context.Background(), "fam:"+payload.FID, time.Unix(payload.EXP, 0)); err != nil {
