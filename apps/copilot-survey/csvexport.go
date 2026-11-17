@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/csv"
+	"io"
 	"log/slog"
 	"math/rand/v2"
 	"net/http"
@@ -49,6 +50,17 @@ func (a *surveyAPI) exportCSV(w http.ResponseWriter, r *http.Request) {
 	suppressSmallSegments(rows)
 	rand.Shuffle(len(rows), func(i, j int) { rows[i], rows[j] = rows[j], rows[i] })
 
+	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+	w.Header().Set("Content-Disposition", `attachment; filename="`+s.ID+`-svar.csv"`)
+	w.Header().Set("Cache-Control", "no-store")
+	writeExportCSV(w, s, rows)
+	// Who exported is in my-copilot's access log; never the content here.
+	slog.Info("admin survey export", "survey", s.ID, "rows", len(rows))
+}
+
+// writeExportCSV writes rows as the columns described at exportCSV.
+// readExportCSV is its inverse.
+func writeExportCSV(w io.Writer, s survey, rows []exportRow) {
 	// A column is a header and how a row fills it.
 	type column struct {
 		name string
@@ -60,14 +72,16 @@ func (a *surveyAPI) exportCSV(w http.ResponseWriter, r *http.Request) {
 	}
 	// Versions come from question_versions, not the answers: a hidden text
 	// is gone from those but was still answered.
-	version := func(name, key string) {
+	// Written whenever a row's version is not the definition's, so
+	// readExportCSV can take the definition's version when the column is absent.
+	version := func(name, key string, def int) {
 		seen := map[int]bool{}
 		for _, r := range rows {
 			if v, ok := r.QuestionVersions[key]; ok {
 				seen[v] = true
 			}
 		}
-		if len(seen) > 1 {
+		if len(seen) > 1 || len(seen) == 1 && !seen[def] {
 			cols = append(cols, column{name + ".version", func(r exportRow) string {
 				if v, ok := r.QuestionVersions[key]; ok {
 					return strconv.Itoa(v)
@@ -81,7 +95,7 @@ func (a *surveyAPI) exportCSV(w http.ResponseWriter, r *http.Request) {
 		case "matrix":
 			for _, it := range q.Items {
 				answer(q.ID+"."+it.ID, it.ID)
-				version(q.ID+"."+it.ID, it.ID)
+				version(q.ID+"."+it.ID, it.ID, it.Version)
 			}
 			continue
 		case "multi":
@@ -103,15 +117,12 @@ func (a *surveyAPI) exportCSV(w http.ResponseWriter, r *http.Request) {
 		if q.Other != "" {
 			answer(otherKey(q.ID), otherKey(q.ID))
 		}
-		version(q.ID, q.ID)
+		version(q.ID, q.ID, q.Version)
 	}
 	for _, k := range exportCSVContext {
 		cols = append(cols, column{"context." + k, func(r exportRow) string { return r.Context[k] }})
 	}
 
-	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
-	w.Header().Set("Content-Disposition", `attachment; filename="`+s.ID+`-svar.csv"`)
-	w.Header().Set("Cache-Control", "no-store")
 	_, _ = w.Write([]byte("\xef\xbb\xbf")) // BOM: Excel then reads æøå as UTF-8
 	cw := csv.NewWriter(w)
 	line := make([]string, len(cols))
@@ -126,8 +137,6 @@ func (a *surveyAPI) exportCSV(w http.ResponseWriter, r *http.Request) {
 		_ = cw.Write(line)
 	}
 	cw.Flush()
-	// Who exported is in my-copilot's access log; never the content here.
-	slog.Info("admin survey export", "survey", s.ID, "rows", len(rows))
 }
 
 // csvValue writes an answer as a cell. Text a spreadsheet would read as a

@@ -30,7 +30,7 @@ status routes only.
 | `GET` | `/api/v1/surveys/{id}/status` | see above | `{"answered": bool}` for the caller, same hash as a submission: 200, 401 caller refused, 403 no Nav identity, 404 not open, 503 storage unavailable |
 | `GET` | `/api/v1/admin/surveys` | admin | All surveys with status (kommende, åpen, stengt) and written answers |
 | `GET` | `/api/v1/admin/surveys/{id}/results` | admin | Counts per option and question version, no free text. Fewer than 5 answers in the whole survey: nothing. Otherwise every count is real; `suppressed` is always `false` at option level (kept for old clients) |
-| `GET` | `/api/v1/admin/surveys/compare?ids=a,b` | admin | Two to four waves, oldest first, question by question after the last wave's definition: n, counts, mean and share agreeing (top two steps) per version, `break` where the waves asked different versions, answers per `context.client`. The last wave's `skip_if` applies to every wave, so spring statement answers from people who do not use KI tools are dropped (`excluded`) as autumn skips them. A wave under 5 answers has no counts |
+| `GET` | `/api/v1/admin/surveys/compare?ids=a,b` | admin | Two to four waves, oldest first, question by question after the last wave's definition: n, counts, mean and share agreeing (top two steps) per version, `break` where the waves asked different versions, answers per `context.client`. The last wave's `skip_if` applies to every wave, so spring statement answers from people who do not use KI tools are dropped (`excluded`) as autumn skips them. A wave under 5 answers has no counts. `&format=csv`: the same numbers in long form, see [Same numbers locally](#same-numbers-locally) |
 | `GET` | `/api/v1/admin/surveys/{id}/freetext` | admin | Free text per field (text questions and `<id>.other`), masked as in the export, random order, each text on its own: no row id, no other answers. Hidden texts left out. Visible while open (owner, 2026-10-13) |
 | `POST` | `/api/v1/admin/surveys/{id}/freetext/hide` | admin | `{"token": "..."}` from the list above: hides that text in admin and the export. 204, or 404 for an unknown token |
 | `GET` | `/api/v1/admin/surveys/{id}/export.csv` | admin | Every response as one CSV row, see [CSV export in admin](#csv-export-in-admin). 410 when a closed survey's rows are deleted and only aggregates remain |
@@ -358,3 +358,21 @@ mise check   # fmt, vet, staticcheck, deadcode, lint, test
 ```
 
 `COPILOT_SURVEY_TEST_DB_URL` runs the store test against a real Postgres.
+
+### Same numbers locally
+
+`analyze` computes from exported CSVs with the functions the admin endpoints use, so a person, an agent and the admin page get the same numbers:
+
+```bash
+go run . analyze q4-2026=q4-2026-svar.csv                                   # = /admin/surveys/q4-2026/results, JSON
+go run . analyze q2-2026=q2-2026-svar.csv q4-2026=q4-2026-svar.csv          # = /compare, JSON
+go run . analyze --csv q2-2026=q2-2026-svar.csv q4-2026=q4-2026-svar.csv    # = /compare?format=csv
+```
+
+Survey ids select the embedded definition; a CSV whose columns do not match it is refused. `TestAnalyzeMatchesOnline` holds the promise: rows → export CSV → `readExportCSV` must give byte-identical results and comparison CSV.
+
+One difference, on purpose: channels (`context.client`). The export merges context values under 5 into `annet`, so `channel` rows match the admin page only when every client has at least 5 answers. Answer counts, means and shares always match.
+
+Comparison CSV columns: `kind` (`responses`, `channel`, `answer`), `survey_id`, `question_id`, `item_id` (matrix), `version`, `break`, `option`, `count`, `n`, `excluded`, `mean`, `agree`. Means and shares are unrounded; round when you present, not before you subtract.
+
+`compare` reads rows, not the stored aggregates, because the skip rule needs each answer. Once a wave's rows are deleted it can no longer be compared: keep its comparison CSV.

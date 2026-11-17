@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // waveMeta is one wave in a comparison: its summary and how it was answered.
@@ -74,27 +75,45 @@ func (a *surveyAPI) compare(w http.ResponseWriter, r *http.Request) {
 	}
 	var waves []survey
 	var rows [][]storedAnswer
-	res := compareResult{Questions: []compareQuestion{}}
 	for _, id := range ids {
 		i := slices.IndexFunc(a.surveys, func(s survey) bool { return s.ID == id })
 		if i < 0 || slices.ContainsFunc(waves, func(s survey) bool { return s.ID == id }) {
 			writeError(w, http.StatusNotFound, "unknown survey")
 			return
 		}
-		s := a.surveys[i]
-		rs, err := a.read(r, s.ID)
+		rs, err := a.read(r, a.surveys[i].ID)
 		if err != nil {
 			writeError(w, http.StatusServiceUnavailable, "survey storage unavailable")
 			return
 		}
-		m := waveMeta{surveySummary{s.ID, s.Title, s.Starts, s.Ends, s.status(a.now()), len(rs), s.Series, s.Published}, len(rs) < minSegment, map[string]int{}}
+		waves, rows = append(waves, a.surveys[i]), append(rows, rs)
+	}
+	res := compareWavesResult(waves, rows, a.now())
+	if r.URL.Query().Get("format") == "csv" {
+		w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+		w.Header().Set("Content-Disposition", `attachment; filename="sammenligning-`+strings.Join(ids, "-")+`.csv"`)
+		w.Header().Set("Cache-Control", "no-store")
+		writeCompareCSV(w, res)
+		return
+	}
+	writeJSON(w, res)
+}
+
+// compareWavesResult is the comparison of waves (oldest first) from their
+// rows. The endpoint and «copilot-survey analyze» both call it, so the
+// numbers online and from an exported CSV are computed by the same code.
+func compareWavesResult(waves []survey, rows [][]storedAnswer, now time.Time) compareResult {
+	res := compareResult{Questions: []compareQuestion{}}
+	rows = slices.Clone(rows)
+	for i, s := range waves {
+		rs := rows[i]
+		m := waveMeta{surveySummary{s.ID, s.Title, s.Starts, s.Ends, s.status(now), len(rs), s.Series, s.Published}, len(rs) < minSegment, map[string]int{}}
 		for _, row := range rs {
 			m.Channels[row.Client]++
 		}
 		if m.Suppressed {
-			rs, m.Channels = nil, nil
+			rows[i], m.Channels = nil, nil
 		}
-		waves, rows = append(waves, s), append(rows, rs)
 		res.Surveys = append(res.Surveys, m)
 	}
 	for _, q := range waves[len(waves)-1].Questions {
@@ -114,7 +133,7 @@ func (a *surveyAPI) compare(w http.ResponseWriter, r *http.Request) {
 		}
 		res.Questions = append(res.Questions, cq)
 	}
-	writeJSON(w, res)
+	return res
 }
 
 // asked finds the question or matrix item id in s as asked there: its
