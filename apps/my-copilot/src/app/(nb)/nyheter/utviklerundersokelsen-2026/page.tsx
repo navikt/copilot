@@ -1,4 +1,4 @@
-import { Box, VStack, Heading, BodyShort, BodyLong, Tag, HStack } from "@navikt/ds-react";
+import { Alert, Box, VStack, Heading, BodyShort, BodyLong, Tag, HStack } from "@navikt/ds-react";
 import NextLink from "next/link";
 import { ArrowLeftIcon } from "@navikt/aksel-icons";
 import { SurveyCharts } from "./survey-charts";
@@ -42,6 +42,11 @@ export default function SurveyArticlePage() {
             </VStack>
 
             <article className="prose max-w-none">
+              <Alert variant="info" size="small">
+                Rettet 17. november 2026: Artikkelen ble skrevet 15. april, mens undersøkelsen var åpen. Den stengte 30.
+                april med 165 svar, omtrent 28 % av de 584 som brukte Copilot i perioden. Tallene i artikkelen er fra
+                15. april.
+              </Alert>
               <BodyLong spacing>
                 I mars 2026 gjennomførte vi en spørreundersøkelse blant utviklere i Nav om erfaringer med
                 AI-kodeverktøy. 163 personer svarte over 21 dager. Hovedbildet: stor entusiasme for produktivitetsverdi,
@@ -284,9 +289,9 @@ export default function SurveyArticlePage() {
                 å svare.
               </BodyLong>
               <BodyLong spacing>
-                163 av over 500 Copilot-brukere svarte, en svarprosent på ca. 32 %. Det er en god respons for en
-                frivillig undersøkelse, men to tredjedeler svarte altså ikke. Vi distribuerte via Slack og allmøte, noe
-                som kan gi skjevhet mot utviklere som er mest aktive i disse kanalene.
+                Da undersøkelsen stengte, hadde 165 av de 584 som brukte Copilot i perioden svart, omtrent 28 %. Det er
+                en god respons for en frivillig undersøkelse, men de fleste svarte altså ikke. Vi distribuerte via Slack
+                og allmøte, noe som kan gi skjevhet mot utviklere som er mest aktive i disse kanalene.
               </BodyLong>
               <BodyLong spacing>
                 Én ting om dataene: Noen respondenter kan ha forvekslet Claude Code (Anthropics terminalagent) med bruk
@@ -295,7 +300,7 @@ export default function SurveyArticlePage() {
               </BodyLong>
               <BodyLong spacing>
                 Som med alle undersøkelser basert på selvseleksjon, bør vi lese resultatene som et nyttig bilde av
-                holdningene blant engasjerte utviklere, ikke nødvendigvis representative for alle 500+ brukere.
+                holdningene blant engasjerte utviklere, ikke nødvendigvis representative for alle brukerne.
               </BodyLong>
               <BodyLong spacing>
                 <strong>Om bruk av AI i denne artikkelen.</strong> Tekst og visualiseringer ble utarbeidet med hjelp av
