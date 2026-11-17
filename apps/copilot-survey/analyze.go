@@ -97,14 +97,20 @@ func readExportCSV(s survey, r io.Reader) ([]storedAnswer, error) {
 			if cell == "" {
 				return nil
 			}
-			if unsure != "" && unformula(cell) == unsure {
-				return put(key, name, def, unsure)
-			}
 			f, perr := strconv.ParseFloat(cell, 64)
-			if perr != nil {
+			if perr == nil {
+				return put(key, name, def, f)
+			}
+			// Not a number: the unsure label, or for an older version any
+			// label it had (#2258): what the export writes must read back.
+			label := unformula(cell)
+			if err := put(key, name, def, label); err != nil {
+				return err
+			}
+			if label != unsure && row.QuestionVersions[key] == def {
 				return fmt.Errorf("line %d: %s %q", line, name, cell)
 			}
-			return put(key, name, def, f)
+			return nil
 		}
 		for _, q := range s.Questions {
 			switch q.Type {
