@@ -188,12 +188,14 @@ describe("/admin/undersokelser/sammenlign", () => {
     autumn.n = 10;
     autumn.options = [...(autumn.options ?? []), { value: "Vet ikke", count: 2, suppressed: false }];
     unsure.questions[1].items![0].waves[1].versions = [autumn];
+    unsure.questions[1].unsure = "Vet ikke";
     respond(unsure);
     await renderPage("q2-2026,q4-2026");
     expect(screen.getAllByText(/n 8 · 2 vet ikke/)).toHaveLength(2); // wave label and table header
     expect(screen.queryByText(/n 10\b/)).not.toBeInTheDocument();
     expect(screen.getByText(/Vet ikke \(ikke med i n og snitt\)/)).toBeInTheDocument();
     expect(screen.getAllByTestId("segment-unsure")).toHaveLength(1);
+    expect(screen.getAllByText(/n 20\b/).length).toBeGreaterThan(0); // multi: n as is
   });
 
   it("saves as PDF: a print button and the print layout", async () => {

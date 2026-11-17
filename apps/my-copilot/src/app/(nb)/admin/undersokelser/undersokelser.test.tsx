@@ -156,7 +156,32 @@ describe("/admin/undersokelser", () => {
     expect(r).toMatchObject({ n: 8, mean: 3, unsure: { count: 2, share: 0.2 } });
     expect(r.segments.reduce((a, s) => a + s.share, 0) + r.unsure.share).toBeCloseTo(1);
     expect(unsureLabel([v])).toBe("Vet ikke");
-    expect(nText(v, String)).toBe("8 · 2 vet ikke");
+    expect(nText(v, String, "Vet ikke")).toBe("8 · 2 vet ikke");
+    expect(nText(v, String)).toBe("10");
+  });
+
+  it("leaves n alone for choice and multi, whose options are not numbers", () => {
+    const opts = (xs: [string, number][]) => xs.map(([value, count]) => ({ value, count, suppressed: false }));
+    const choice = {
+      version: 1,
+      n: 10,
+      options: opts([
+        ["Ja", 6],
+        ["Nei", 4],
+      ]),
+    };
+    const multi = {
+      version: 1,
+      n: 10,
+      options: opts([
+        ["VS Code", 7],
+        ["IntelliJ", 4],
+        ["Annet", 3],
+      ]),
+    };
+    expect(nText(choice, String)).toBe("10");
+    expect(nText(multi, String)).toBe("10");
+    expect(nText(multi, String, "Vet ikke")).toBe("10");
   });
 
   it("shows raw values when the definition is missing", async () => {

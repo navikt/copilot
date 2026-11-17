@@ -241,7 +241,7 @@ function Statement({
               wave={waves[i]}
               i={i}
               count={waves.length}
-              n={nText(v, formatNumber)}
+              n={nText(v, formatNumber, q.unsure)}
               version={broken ? v.version : undefined}
             />
             <LikertBar v={v} min={min} max={max} labels={labels} />
@@ -249,7 +249,7 @@ function Statement({
         ))
       )}
       <Excluded waves={waves} counts={counts} />
-      <Numbers waves={waves} counts={counts} label={(v) => labels[Number(v) - min] ?? v} />
+      <Numbers waves={waves} counts={counts} label={(v) => labels[Number(v) - min] ?? v} unsure={q.unsure} />
     </VStack>
   );
 }
@@ -337,7 +337,17 @@ function Options({ waves, q }: { waves: WaveMeta[]; q: CompareQuestion }) {
 }
 
 /** The accessible view: every count and share per wave and version. */
-function Numbers({ waves, counts, label }: { waves: WaveMeta[]; counts: WaveCounts[]; label: (v: string) => string }) {
+function Numbers({
+  waves,
+  counts,
+  label,
+  unsure,
+}: {
+  waves: WaveMeta[];
+  counts: WaveCounts[];
+  label: (v: string) => string;
+  unsure?: string;
+}) {
   const cols = counts.flatMap((w, i) =>
     w.versions.map((v) => ({
       v,
@@ -355,7 +365,7 @@ function Numbers({ waves, counts, label }: { waves: WaveMeta[]; counts: WaveCoun
               <TableHeaderCell scope="col">Svar</TableHeaderCell>
               {cols.map((c) => (
                 <TableHeaderCell key={c.name} scope="col" align="right">
-                  {c.name} (n {nText(c.v, formatNumber)})
+                  {c.name} (n {nText(c.v, formatNumber, unsure)})
                 </TableHeaderCell>
               ))}
             </TableRow>
