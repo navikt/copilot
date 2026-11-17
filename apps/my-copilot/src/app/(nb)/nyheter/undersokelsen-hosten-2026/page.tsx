@@ -111,9 +111,9 @@ export default function SurveyAutumnArticlePage() {
                 Hvem svarte
               </Heading>
               <BodyLong spacing>
-                Vi inviterte omtrent 1000 teknologer, utviklere og designere som kan få Copilot-lisens. Svarprosenten
-                var omtrent 21 % i høst og omtrent 16–17 % i vår. De aller fleste som svarte, bruker KI-kodeverktøy: 203
-                av 211 i høst og 153 av 165 i vår.
+                Vi inviterte omtrent 1000 teknologer, utviklere og designere som kan få Copilot-lisens. 211 svar
+                tilsvarer omtrent 30 % av de 712 som brukte Copilot i høstperioden. I vår var det 165 av 584, omtrent 28
+                %. De aller fleste som svarte, bruker KI-kodeverktøy: 203 av 211 i høst og 153 av 165 i vår.
               </BodyLong>
 
               <Heading size="medium" level="2" spacing>
