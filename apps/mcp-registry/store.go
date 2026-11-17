@@ -210,7 +210,7 @@ func dbEntriesToResponses(entries []DBEntry) []ServerResponse {
 			Repository:  sub.Repository,
 			Remotes:     remotes,
 		}, entry.UpdatedAt.UTC())
-		sr.Meta.NavRegistry = &NavRegistryMeta{Owner: sub.Owner}
+		sr.Meta.NavRegistry = &NavRegistryMeta{Owner: sub.Owner, Audience: sub.Audience}
 		out = append(out, sr)
 	}
 	return out
