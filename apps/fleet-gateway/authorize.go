@@ -11,10 +11,12 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/url"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -62,8 +64,8 @@ func (g *Gateway) authorizeHandler(w http.ResponseWriter, r *http.Request) {
 
 	redirectURI := q.Get("redirect_uri")
 	if redirectURI == "" ||
-		!slices.Contains(meta.RedirectURIs, redirectURI) ||
-		!g.cfg.AllowedRedirectURIs[redirectURI] {
+		!slices.ContainsFunc(meta.RedirectURIs, func(reg string) bool { return redirectURIMatches(reg, redirectURI) }) ||
+		!g.redirectURIAllowlisted(redirectURI) {
 		http.Error(w, "redirect_uri does not match allowlisted client metadata", http.StatusBadRequest)
 		return
 	}
@@ -142,6 +144,64 @@ func (g *Gateway) authorizeHandler(w http.ResponseWriter, r *http.Request) {
 
 		g.renderConsentPage(w, consentID, p)
 	}
+}
+
+// redirectURIAllowlisted reports whether redirectURI matches an
+// ALLOWED_REDIRECT_URIS entry under the same rules as client metadata.
+func (g *Gateway) redirectURIAllowlisted(redirectURI string) bool {
+	if g.cfg.AllowedRedirectURIs[redirectURI] {
+		return true
+	}
+	for reg := range g.cfg.AllowedRedirectURIs {
+		if redirectURIMatches(reg, redirectURI) {
+			return true
+		}
+	}
+	return false
+}
+
+// redirectURIMatches compares a registered redirect URI with a requested one.
+// Exact string match, except for http loopback IP literals (127.0.0.1, [::1]):
+// there the port may differ, as RFC 8252 section 7.3 requires for native
+// clients that bind an ephemeral port. Scheme, host, path and query must still
+// match exactly. The "localhost" name never gets this treatment (RFC 8252 8.3).
+func redirectURIMatches(registered, requested string) bool {
+	if registered == requested {
+		return true
+	}
+	reg, err := url.Parse(registered)
+	if err != nil {
+		return false
+	}
+	req, err := url.Parse(requested)
+	if err != nil {
+		return false
+	}
+	return isLoopbackRedirect(reg) && isLoopbackRedirect(req) &&
+		reg.Hostname() == req.Hostname() &&
+		reg.EscapedPath() == req.EscapedPath() &&
+		reg.RawQuery == req.RawQuery
+}
+
+// isLoopbackRedirect reports whether u is http on a loopback IP literal, with
+// no userinfo, fragment or opaque part, and a numeric port if any.
+func isLoopbackRedirect(u *url.URL) bool {
+	if u.Scheme != "http" || u.User != nil || u.Fragment != "" || u.Opaque != "" {
+		return false
+	}
+	switch u.Host {
+	case "127.0.0.1", "[::1]":
+	default:
+		h, port, err := net.SplitHostPort(u.Host)
+		if err != nil || (h != "127.0.0.1" && h != "::1") {
+			return false
+		}
+		n, err := strconv.Atoi(port)
+		if err != nil || n < 1 || n > 65535 {
+			return false
+		}
+	}
+	return true
 }
 
 func (g *Gateway) fetchCIMD(ctx context.Context, clientID string) (*clientMetadata, error) {
