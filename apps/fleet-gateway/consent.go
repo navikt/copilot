@@ -101,7 +101,7 @@ func (g *Gateway) consentPostHandler(w http.ResponseWriter, r *http.Request) {
 	p, ok, err := g.popPending(r.Context(), kindPendingConsent, consentID)
 	if err != nil {
 		slog.Warn("pop pending consent failed", "error", err)
-		renderErrorPage(w, http.StatusServiceUnavailable, "Tjenesten er ikke tilgjengelig", "Gatewayen får ikke kontakt med lageret sitt akkurat nå.", "Prøv igjen om litt.")
+		renderErrorPage(w, http.StatusServiceUnavailable, "Tjenesten er ikke tilgjengelig", "Gatewayen får ikke kontakt med lageret sitt akkurat nå.", "Vent litt, og logg så inn på nytt fra verktøyet ditt.")
 		return
 	}
 	if !ok || cookieErr != nil || formCSRF == "" ||
