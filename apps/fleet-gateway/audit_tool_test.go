@@ -269,6 +269,14 @@ func TestExtractJSONRPCAudit_IncompleteScanIsMarked(t *testing.T) {
 	if _, tool := extractJSONRPCAudit([]byte(deep)); tool != auditIncomplete {
 		t.Errorf("single object: got %q", tool)
 	}
+	for name, body := range map[string]string{"BOM object": "\xef\xbb\xbf" + call, "BOM batch": "\xef\xbb\xbf[" + call + `]`} {
+		if m, tool := extractJSONRPCAudit([]byte(body)); m != "" || tool != auditIncomplete {
+			t.Errorf("%s: got %q %q", name, m, tool)
+		}
+	}
+	if m, tool := extractJSONRPCAudit(nil); m != "" || tool != "" {
+		t.Errorf("empty body: got %q %q", m, tool)
+	}
 	if _, tool := extractJSONRPCAudit([]byte(`[` + call + `,[[1]]]`)); tool != `["hidden"]` {
 		t.Errorf("complete batch: got %q", tool)
 	}

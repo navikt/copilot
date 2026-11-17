@@ -574,6 +574,11 @@ func extractJSONRPCAudit(body []byte) (method, tool string) {
 	dec := json.NewDecoder(bytes.NewReader(body))
 	tok, err := dec.Token()
 	if err != nil {
+		// A body the scan cannot start on (a UTF-8 BOM, say, which some upstream
+		// parsers accept) must not log as if it carried no call.
+		if len(body) > 0 {
+			return "", auditIncomplete
+		}
 		return "", ""
 	}
 	switch tok {
