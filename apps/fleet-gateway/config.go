@@ -299,7 +299,7 @@ func validateConfig(cfg *Config) error {
 	case "postgres":
 		cfg.SessionStore = "postgres"
 		// Empty DATABASE_URL means the libpq PG* environment (Nais Postgres).
-		if cfg.DatabaseURL != "" || os.Getenv("PGHOST") == "" && os.Getenv(os.Getenv("PG_ENV_PREFIX")+"PGHOST") == "" {
+		if cfg.DatabaseURL != "" || os.Getenv("PGHOST") == "" {
 			if err := validatePostgresURL(cfg.DatabaseURL); err != nil {
 				return fmt.Errorf("invalid DATABASE_URL: %w", err)
 			}

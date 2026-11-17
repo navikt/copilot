@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"hash/fnv"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -37,15 +38,8 @@ type pgxStore struct {
 	now  func() time.Time
 }
 
-func newPostgresStore(ctx context.Context, databaseURL string, now func() time.Time, caps map[string]int) (*pgxStore, error) {
-	if now == nil {
-		now = time.Now
-	}
-	// Empty databaseURL: pgx reads the libpq PG* environment (host, TLS client certs).
-	if databaseURL == "" {
-		applyPGEnvPrefix(os.Getenv("PG_ENV_PREFIX"))
-	}
-	poolCfg, err := pgxpool.ParseConfig(databaseURL)
+func openPGPool(ctx context.Context, dsn string) (*pgxpool.Pool, error) {
+	poolCfg, err := pgxpool.ParseConfig(dsn)
 	if err != nil {
 		return nil, fmt.Errorf("parse postgres config: %w", err)
 	}
@@ -59,20 +53,43 @@ func newPostgresStore(ctx context.Context, databaseURL string, now func() time.T
 		pool.Close()
 		return nil, fmt.Errorf("ping postgres: %w", err)
 	}
+	return pool, nil
+}
 
+// newPostgresStore opens the store. With an empty databaseURL (Nais Postgres) it
+// migrates with the unprefixed admin PG* credentials, then runs on a pool using
+// the READWRITE_PG* runtime credentials (falling back to PG*).
+func newPostgresStore(ctx context.Context, databaseURL string, now func() time.Time, caps map[string]int) (*pgxStore, error) {
+	if now == nil {
+		now = time.Now
+	}
 	copiedCaps := make(map[string]int, len(caps))
 	for k, v := range caps {
 		copiedCaps[k] = v
 	}
 
-	s := &pgxStore{
-		pool: pool,
-		caps: copiedCaps,
-		now:  now,
+	migPool, err := openPGPool(ctx, databaseURL)
+	if err != nil {
+		return nil, err
 	}
+	s := &pgxStore{pool: migPool, caps: copiedCaps, now: now}
 	if err := s.migrate(ctx); err != nil {
-		pool.Close()
+		migPool.Close()
 		return nil, fmt.Errorf("run postgres migrations: %w", err)
+	}
+	if databaseURL != "" || os.Getenv("READWRITE_PGHOST") == "" {
+		return s, nil
+	}
+	migPool.Close()
+	rtPool, err := openPGPool(ctx, pgEnvDSN("READWRITE_"))
+	if err != nil {
+		return nil, fmt.Errorf("runtime role: %w", err)
+	}
+	s.pool = rtPool
+	// Fail at startup, not on first login, if the runtime role cannot use the tables.
+	if _, err := rtPool.Exec(ctx, `SELECT 1 FROM items LIMIT 1`); err != nil {
+		rtPool.Close()
+		return nil, fmt.Errorf("runtime role cannot read items: %w", err)
 	}
 	return s, nil
 }
@@ -285,15 +302,19 @@ func (s *pgxStore) Close() {
 	s.pool.Close()
 }
 
-// applyPGEnvPrefix copies PREFIX+PGHOST etc. onto the plain PG* variables so a
-// prefixed credential set (for example the runtime role) is the one pgx reads.
-func applyPGEnvPrefix(prefix string) {
-	if prefix == "" {
-		return
+var pgEnvReplacer = strings.NewReplacer(`\`, `\\`, `'`, `\'`)
+
+// pgEnvDSN builds a libpq keyword DSN from prefix+PG* variables (no password: TLS client certs).
+func pgEnvDSN(prefix string) string {
+	vars := []struct{ env, key string }{
+		{"PGHOST", "host"}, {"PGPORT", "port"}, {"PGDATABASE", "dbname"}, {"PGUSER", "user"},
+		{"PGSSLMODE", "sslmode"}, {"PGSSLCERT", "sslcert"}, {"PGSSLKEY", "sslkey"}, {"PGSSLROOTCERT", "sslrootcert"},
 	}
-	for _, name := range []string{"PGHOST", "PGPORT", "PGDATABASE", "PGUSER", "PGPASSWORD", "PGSSLMODE", "PGSSLROOTCERT", "PGSSLCERT", "PGSSLKEY"} {
-		if v := os.Getenv(prefix + name); v != "" {
-			_ = os.Setenv(name, v)
+	var parts []string
+	for _, v := range vars {
+		if val := os.Getenv(prefix + v.env); val != "" {
+			parts = append(parts, fmt.Sprintf("%s='%s'", v.key, pgEnvReplacer.Replace(val)))
 		}
 	}
+	return strings.Join(parts, " ")
 }

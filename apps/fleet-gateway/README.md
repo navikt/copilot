@@ -37,7 +37,7 @@ Step 1 implements the authorization server only: protected resource metadata, au
 
 | `TEAM_TOKEN_STRATEGY` | No | `obo` | `obo` (Texas OBO) or `refresh` (Entra refresh token held in the session; needs `RT_STORAGE=server`) |
 | `SESSION_STORE` | No | `memory` | `memory` (tests/local; lost on restart, not shared across replicas) or `postgres` |
-| `DATABASE_URL` | No | — | Postgres URL override. If empty, pgx reads the libpq `PG*` variables that Nais Postgres injects (TLS client certs, PgBouncer transaction mode; simple query protocol, no session state). `PG_ENV_PREFIX` copies `<prefix>PGHOST` etc. onto `PG*` (for a prefixed runtime-role set) |
+| `DATABASE_URL` | No | — | Postgres URL override. If empty, pgx reads the libpq `PG*` variables that Nais Postgres injects (TLS client certs, PgBouncer transaction mode; simple query protocol, no session state). Migrations run with the unprefixed admin `PG*` credentials; the running store uses the `READWRITE_PG*` runtime credentials |
 | `SESSION_MAX_AGE` | No | `12h` | Absolute session lifetime from login; refresh never extends it |
 | `RT_STORAGE` | No | `client-encrypted` if `RT_KEYS` set, else none | `client-encrypted`: the Entra refresh token is sealed (AES-256-GCM) inside the gateway refresh token returned to the client; nothing is stored. `server`: refresh token stays in the session store, no client refresh token |
 | `RT_KEYS` | With `postgres` or `client-encrypted` | — | `kid:base64key,...` (32-byte keys, newest first encrypts, all decrypt). Also seals every value in the session store |

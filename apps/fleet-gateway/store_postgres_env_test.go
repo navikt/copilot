@@ -43,11 +43,10 @@ func TestPostgresStore_FromPGEnv(t *testing.T) {
 	}
 }
 
-func TestPGEnvPrefix(t *testing.T) {
-	t.Setenv("PGUSER", "plain")
-	t.Setenv("READWRITE_PGUSER", "rw")
-	applyPGEnvPrefix("READWRITE_")
-	if os.Getenv("PGUSER") != "rw" {
-		t.Fatal("prefixed var not applied")
+func TestPGEnvDSN(t *testing.T) {
+	t.Setenv("READWRITE_PGHOST", "db.local")
+	t.Setenv("READWRITE_PGUSER", `u'1\x`)
+	if got, want := pgEnvDSN("READWRITE_"), `host='db.local' user='u\'1\\x'`; got != want {
+		t.Fatalf("got %q want %q", got, want)
 	}
 }
