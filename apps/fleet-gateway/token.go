@@ -266,7 +266,7 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 	}
 
 	clientID := r.PostFormValue("client_id")
-	if clientID == "" || !g.cfg.AllowedClientIDs[clientID] {
+	if !g.clientKnown(r.Context(), clientID) {
 		outcome = "client_not_allowed"
 		bad(http.StatusBadRequest, "invalid_grant", "invalid client")
 		return
