@@ -13,6 +13,7 @@ const (
 	kindCode           = "code"
 	kindSession        = "session"
 	kindMCPSession     = "mcp_session"
+	kindDCRClient      = "dcr_client"
 	kindMCPSessionUser = "mcp_session_user" // per-user count of mcp_session bindings
 )
 

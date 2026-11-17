@@ -65,6 +65,10 @@ spec:
       value: "{{allowed_redirect_uris}}"
     - name: ALLOWED_RESOURCES
       value: "{{allowed_resources}}"
+    {{#if dcr_enabled}}
+    - name: DCR_ENABLED
+      value: "{{dcr_enabled}}"
+    {{/if}}
     {{#if pilot_routes_file}}
     - name: PILOT_ROUTES_FILE
       value: "{{pilot_routes_file}}"
