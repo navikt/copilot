@@ -314,21 +314,25 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 		bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store unavailable")
 	}
 	famKey := "fam:" + payload.FID
-	if revoked, err := g.store.IsRevoked(r.Context(), famKey); err != nil {
+	revoked, err := g.store.IsRevoked(r.Context(), famKey)
+	if err != nil {
 		unavailable(err)
 		return
-	} else if revoked {
+	}
+	if revoked {
 		outcome = "family_revoked"
 		bad(http.StatusBadRequest, "invalid_grant", "refresh token already used or revoked")
 		return
 	}
-	if used, err := g.store.IsRevoked(r.Context(), payload.JTI); err != nil {
+	used, err := g.store.IsRevoked(r.Context(), payload.JTI)
+	if err != nil {
 		unavailable(err)
 		return
-	} else if used {
+	}
+	if used {
 		// Replay: someone holds an already-rotated RT. Kill the family so a thief
 		// who refreshed first loses the newest RT too.
-		if err := g.store.Revoke(r.Context(), famKey, absExpiry); err != nil {
+		if err = g.store.Revoke(r.Context(), famKey, absExpiry); err != nil {
 			unavailable(err)
 			return
 		}
@@ -365,7 +369,7 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 		bad(http.StatusServiceUnavailable, "temporarily_unavailable", "upstream unavailable, retry later")
 		return
 	}
-	if err := g.store.Revoke(r.Context(), payload.JTI, absExpiry); err != nil {
+	if err = g.store.Revoke(r.Context(), payload.JTI, absExpiry); err != nil {
 		unavailable(err)
 		return
 	}
