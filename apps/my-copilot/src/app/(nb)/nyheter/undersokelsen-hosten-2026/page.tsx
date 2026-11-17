@@ -7,7 +7,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Utviklerundersøkelsen høsten 2026: Fornøyd, men bekymret",
   description:
-    "211 svarte på høstens undersøkelse om KI-kodeverktøy. Flere er fornøyde enn i vår, og flere er bekymret for at KI kan svekke egen dyp forståelse.",
+    "211 svarte på høstens undersøkelse om KI-kodeverktøy. De fleste er fornøyde, og flere enn i vår er bekymret for at KI kan svekke egen dype forståelse.",
   robots: { index: false, follow: false },
 };
 
@@ -103,8 +103,8 @@ export default function SurveyAutumnArticlePage() {
             <article className="prose max-w-none">
               <BodyLong spacing>
                 Fra 13. til 27. oktober 2026 svarte 211 personer på utviklerundersøkelsen om KI-kodeverktøy i Nav. I vår
-                svarte 165. Flere er fornøyde med verktøyene enn i vår. Samtidig er flere bekymret for at KI kan svekke
-                deres egen dype forståelse av koden. Det er den eneste endringen vi kan si sikkert noe om.
+                svarte 165. De fleste er fornøyde med verktøyene. Samtidig er flere enn i vår bekymret for at KI kan
+                svekke deres egen dype forståelse av koden. Det er den eneste endringen vi kan si er statistisk sikker.
               </BodyLong>
 
               <Heading size="medium" level="2" spacing>
@@ -148,13 +148,14 @@ export default function SurveyAutumnArticlePage() {
 
               <BodyLong spacing>
                 <strong>Tilfredsheten er høy.</strong> 83 % av KI-brukerne er enige i at de er fornøyde, og snittet gikk
-                opp fra 3,99 til 4,17. Mange sier også at KI hjelper dem videre når de står fast.
+                opp fra 3,99 til 4,17, men den økningen er usikker. Mange sier også at KI hjelper dem videre når de står
+                fast.
               </BodyLong>
 
               <BodyLong spacing>
                 <strong>Bekymringen har økt.</strong> 70 % er enige i at de er bekymret for at KI kan svekke deres egen
-                dype forståelse, 12 prosentpoeng flere enn i vår. Dette er den eneste endringen som står seg når vi
-                korrigerer for at vi sammenligner mange påstander samtidig.
+                dype forståelse, 12 prosentpoeng flere enn i vår. Dette er den eneste endringen vi kan si er statistisk
+                sikker.
               </BodyLong>
 
               <Quote>
@@ -168,7 +169,7 @@ export default function SurveyAutumnArticlePage() {
               </Quote>
 
               <BodyLong spacing>
-                <strong>Kvaliteten står på stedet hvil.</strong> Spørsmålet om KI-kode holder god nok kvalitet til at
+                <strong>Kvaliteten står på stedet hvil.</strong> Påstanden om at KI-kode holder god nok kvalitet til at
                 den ikke gir ekstra arbeid i review, ligger rett over midten, akkurat som i vår.
               </BodyLong>
 
@@ -184,7 +185,7 @@ export default function SurveyAutumnArticlePage() {
 
               <BodyLong spacing>
                 <strong>Personvern og sikkerhet.</strong> Litt færre opplever at personvern eller sikkerhet hindrer dem,
-                men forskjellen er så liten at den kan skyldes tilfeldigheter.
+                men nedgangen er usikker.
               </BodyLong>
 
               <Heading size="medium" level="2" spacing>
@@ -192,7 +193,7 @@ export default function SurveyAutumnArticlePage() {
               </Heading>
               <BodyLong spacing>
                 Andelen som bruker Copilot CLI og OpenCode har økt, mens færre oppgir Copilot i IntelliJ og VS Code.
-                Mange bruker begge deler: 80 av de som svarte i høst bruker både en editor og et terminalverktøy.
+                Mange bruker begge deler: 80 av dem som svarte i høst bruker både en editor og et terminalverktøy.
               </BodyLong>
 
               <Table size="small">
@@ -237,7 +238,7 @@ export default function SurveyAutumnArticlePage() {
                 Én ting å endre
               </Heading>
               <BodyLong spacing>
-                Vi spurte hva de ville endret hvis de bare kunne endre én ting. Opplæring er igjen det vanligste svaret.
+                Vi spurte hva de ville endre hvis de bare kunne endre én ting. Opplæring er igjen det vanligste svaret.
               </BodyLong>
 
               <Table size="small">
