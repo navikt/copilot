@@ -1,12 +1,15 @@
 {
   "series": "utviklerundersokelsen",
   "version": 1,
-  "fields": ["opplevelse"],
+  "fields": [
+    "opplevelse"
+  ],
   "max_codes": 3,
   "rules": [
     "Kod det svaret forteller at har skjedd, eller hvordan respondenten opplever verktøyene. Et ønske eller forslag kodes bare når det springer ut av en erfaring i samme svar, og da kodes erfaringen. Et rent ønske uten erfaring er annet. Et ønske som viser at respondenten er usikker eller sitter fast i dag («skulle gjerne visst om jeg kan bruke den på saker med personopplysninger») er en erfaring og kodes.",
     "Kod hva svaret handler om, ikke hvem som skriver. Rolle (utvikler, designer, leder, ikke-utvikler) kodes ikke. En ikke-kodende oppgave kodes etter hva KI-en gjorde, som enhver annen oppgave.",
     "Gi 1 til 3 koder per svar. Passer flere, velg de som fyller mest av svaret. annet brukes alltid alene.",
+    "store-loft og raskere utelukker hverandre. Skillet er hva som ellers ville skjedd: sier svaret at arbeidet ellers ikke ville blitt gjort, var for stort eller aldri ble prioritert, er det store-loft; ellers, når poenget er at noe gikk fortere enn for hånd, er det raskere. Migrering, modernisering, arvtaker og samme endring i mange apper er store-loft også når svaret ikke sier det (konvensjon: slikt arbeid er program over tid, ikke en enkeltoppgave).",
     "Hver kategori har én retning, nytte eller problem. Et svar med både positivt og negativt får en kode for hver. Å avkrefte et problem («jeg har ikke mistet noe») kodes ikke som problemet.",
     "En kategori krever at svaret sier noe om temaet, ikke bare nevner et ord. Kod ikke det du tror respondenten mener.",
     "I tvil mellom to kategorier: følg «hold utenfor», som sier hvor tilfellet hører hjemme."
@@ -14,17 +17,19 @@
   "categories": [
     {
       "id": "store-loft",
-      "name": "Store løft i eksisterende kode",
+      "name": "Store løft som ellers ikke ble gjort",
       "kind": "nytte",
-      "definition": "KI gjør endringer i eksisterende kode mulige som ellers var for store, for kjedelige eller aldri ville blitt prioritert: migrering, oppgradering, omskriving, refaktorering, teknisk gjeld og samme endring i mange apper.",
+      "definition": "KI gjør det mulig å ta arbeid som ellers ikke ville blitt gjort: det var for stort, for kjedelig eller ble aldri prioritert. Ofte et program over tid, som migrering, modernisering, en arvtaker til en gammel tjeneste, nedbetaling av teknisk gjeld, samme endring i mange apper eller dokumentasjon som var ansett som for stor.",
       "include": [
-        "Migrering mellom språk, biblioteker, rammeverk eller versjoner.",
-        "Refaktorering, opprydding, modernisering og nedbetaling av teknisk gjeld.",
+        "Svaret sier at arbeidet ellers ikke ville blitt gjort, prioritert eller tatt på seg.",
+        "Migrering, modernisering eller arvtaker til en eksisterende tjeneste.",
+        "Nedbetaling av teknisk gjeld eller opprydding i stor skala.",
         "Samme endring rullet ut i mange apper eller repoer.",
-        "Planlagt forbedring av noe som finnes, som kortere byggtid eller enklere kode."
+        "Dokumentasjon eller kartlegging som var ansett som for stor (kodes også forsta-og-dokumentere)."
       ],
       "exclude": [
-        "Ny kode eller et nytt verktøy fra bunnen: bygge-nytt.",
+        "Arbeid som ville blitt gjort uansett, men gikk fortere: raskere.",
+        "Én avgrenset refaktorering eller oppgradering uten at det sies at den ellers ble liggende: raskere.",
         "Finne årsaken til en feil eller et ytelsesproblem: finne-feil.",
         "Refaktorering KI-en gjorde uten å bli bedt om det: for-mye."
       ],
@@ -34,17 +39,19 @@
       ]
     },
     {
-      "id": "bygge-nytt",
-      "name": "Bygge nytt raskt",
+      "id": "raskere",
+      "name": "Raskere enn for hånd",
       "kind": "nytte",
-      "definition": "KI lager ny kode, en ny funksjon, et verktøy eller en prototyp raskt, ofte på første forsøk, eller lar respondenten bygge i et språk eller rammeverk de ikke kan fra før.",
+      "definition": "KI gjør arbeid som ville blitt gjort uansett, men raskere: ny kode, en funksjon, et verktøy eller en prototyp, ofte på første forsøk, en avgrenset refaktorering, kodefullføring, eller å komme i gang i et språk eller rammeverk respondenten ikke kan fra før.",
       "include": [
         "Ny funksjon, komponent, app eller prototyp som virket nesten med en gang.",
+        "En avgrenset refaktorering eller oppgradering som gikk fort.",
         "Kodefullføring som skrev det respondenten så for seg.",
-        "Komme i gang med ny teknologi eller gjøre endringer i en kodebase respondenten ikke behersker."
+        "Komme i gang med ny teknologi eller gjøre endringer i en kodebase respondenten ikke behersker.",
+        "Timer eller dager spart på en oppgave."
       ],
       "exclude": [
-        "Endringer i eksisterende kode i stor skala: store-loft.",
+        "Svaret sier at arbeidet ellers ikke ville blitt gjort: store-loft.",
         "Arbeidsmåten som forklaring på resultatet (planlegging, agenter, skills): arbeidsflyt, i tillegg.",
         "At resultatet virket, men respondenten ikke forstår det: kompetansetap, i tillegg."
       ],
@@ -59,7 +66,7 @@
       "kind": "nytte",
       "definition": "KI finner årsaken til en kjent feil, eller oppdager feil, sårbarheter og svakheter som ingen hadde sett: feilsøking, funn i kodegjennomgang, sikkerhetsfunn og svakheter i en plan.",
       "include": [
-        "Rotårsak funnet i logger, sporinger, metrikker eller kode.",
+        "Rotårsak funnet i logger, sporinger, metrikker eller kode, også på tvers av repoer.",
         "Kodegjennomgang som fanget en reell feil eller sårbarhet.",
         "En agent som avslører feil i en annen agents arbeid.",
         "Påpeker en svakhet i plan, spesifikasjon eller tekst før arbeidet er gjort."
@@ -87,7 +94,7 @@
         "Analyse av data, regneark eller dokumenter."
       ],
       "exclude": [
-        "Lære en ny teknologi for å bygge noe: bygge-nytt.",
+        "Lære en ny teknologi for å bygge noe: raskere.",
         "Finne årsaken til en feil: finne-feil.",
         "Dokumentasjon som ble for lang eller ingen ba om: for-mye."
       ],
@@ -103,13 +110,14 @@
       "definition": "Respondenten beskriver en måte å jobbe med KI på som gir effekt: planlegging før koding, agenter som jobber selvstendig eller parallelt, underagenter som kontrollerer, KI som sparringspartner, og tilpasning til Nav og teamet med skills, instruksjoner, MCP-servere eller nav-pilot.",
       "include": [
         "Planleggingsmodus, eller å planlegge sammen før agenten koder.",
+        "Delegere implementasjonen til agenter og gå gjennom resultatet.",
         "Flere agenter parallelt eller på tvers av repoer, eller en agent som kontrollerer en annen.",
         "Overgangen fra chat til agent eller CLI beskrevet som et vendepunkt.",
         "Skills, instruksjoner eller MCP-servere som gjør resultatet bedre, eller KI som følger Nav-konvensjoner.",
         "KI som sparringspartner eller gummiand."
       ],
       "exclude": [
-        "Bare hva agenten fikk til: kategorien for resultatet (store-loft, bygge-nytt, finne-feil, forsta-og-dokumentere).",
+        "Bare hva agenten fikk til: kategorien for resultatet (store-loft, raskere, finne-feil, forsta-og-dokumentere).",
         "Å få oppsettet til å virke: friksjon.",
         "Ønske om bedre støtte for agenter uten erfaring med det: annet."
       ],
@@ -168,6 +176,7 @@
         "Hallusinasjoner og feilinformasjon.",
         "Kode som ikke kjører, eller som ser riktig ut og er feil.",
         "Falske funn i kodegjennomgang, eller overfladisk diagnose.",
+        "Løsninger som bygger på antakelser agenten ikke har sjekket.",
         "Svært ulikt resultat fra gang til gang, eller vanskelig å vite hva som er sjekket.",
         "KI-en innrømmer en feil den faktisk har gjort."
       ],
@@ -272,7 +281,7 @@
       "definition": "Prinsipiell motstand mot KI, etiske eller samfunnsmessige innvendinger, skepsis til nytten, eller at KI tar bort glede og motivasjon i arbeidet.",
       "include": [
         "Vil ikke bruke KI, eller opplever den som påtvunget.",
-        "Etiske, økonomiske eller samfunnsmessige innvendinger.",
+        "Etiske, økonomiske, miljømessige eller samfunnsmessige innvendinger, eller opplevd press om å ta KI i bruk.",
         "Uttrykt skepsis til nytten.",
         "KI tar bort gleden ved å kode eller motivasjonen i jobben."
       ],
