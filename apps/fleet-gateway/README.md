@@ -1,8 +1,8 @@
 # fleet-gateway
 
-OAuth 2.1 authorization server fronting Microsoft Entra ID for Nav's internal MCP gateway (`nav-fleet`).
+OAuth 2.1 authorization server fronting Microsoft Entra ID for Nav's internal MCP gateway.
 
-Step 1 implements the authorization server only: protected resource metadata, authorization server metadata, CIMD client verification, consent, and Entra authorization-code redemption. Downstream team MCP routing and Texas OBO exchange (`TeamTokenSource`) follow in step 2.
+The gateway is live in prod (2026-11-17) for a controlled pilot. It runs the authorization server (protected resource metadata, authorization server metadata, CIMD and DCR client registration, consent, Entra authorization-code redemption and refresh) and routes calls to team MCP servers with Texas OBO. See `docs/mcp-gateway-plan.md` for phases and status.
 
 ## Endpoints
 
