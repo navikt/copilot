@@ -437,3 +437,29 @@ func TestGetDatabaseURL(t *testing.T) {
 		}
 	})
 }
+
+func TestLoadConfig_DatabaseEnabled(t *testing.T) {
+	t.Run("disabled when DB_URL and PGHOST are unset", func(t *testing.T) {
+		t.Setenv("DB_URL", "")
+		t.Setenv("PGHOST", "")
+		if cfg := loadConfig(); cfg.DatabaseEnabled {
+			t.Error("expected DatabaseEnabled to be false")
+		}
+	})
+
+	t.Run("enabled when DB_URL is set", func(t *testing.T) {
+		t.Setenv("DB_URL", "postgres://localhost/testdb")
+		t.Setenv("PGHOST", "")
+		if cfg := loadConfig(); !cfg.DatabaseEnabled {
+			t.Error("expected DatabaseEnabled to be true")
+		}
+	})
+
+	t.Run("enabled when PGHOST is set", func(t *testing.T) {
+		t.Setenv("DB_URL", "")
+		t.Setenv("PGHOST", "127.0.0.1")
+		if cfg := loadConfig(); !cfg.DatabaseEnabled {
+			t.Error("expected DatabaseEnabled to be true")
+		}
+	})
+}

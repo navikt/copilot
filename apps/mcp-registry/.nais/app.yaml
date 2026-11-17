@@ -33,13 +33,9 @@ spec:
     autoInstrumentation:
       enabled: true
       runtime: sdk
-  gcp:
-    sqlInstances:
-      - type: POSTGRES_17
-        tier: db-f1-micro
-        databases:
-          - name: registry
-            envVarPrefix: DB
+  uses:
+    postgres:
+      - name: mcp-registry
   azure:
     application:
       enabled: true

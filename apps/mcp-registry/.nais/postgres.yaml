@@ -1,0 +1,9 @@
+version: v1
+type: Postgres
+name: mcp-registry
+spec:
+  majorVersion: "18"
+  resources:
+    cpu: 100m
+    memory: 512Mi
+    diskSize: 5Gi
