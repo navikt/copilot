@@ -77,19 +77,26 @@ export function FleetGatewayAccessDiagram() {
     <Figure
       titleId="fg-access-title"
       viewBox="0 0 970 370"
-      title="Hvem slipper inn: teamet sender inn MCP-serveren til fleet-control, team copilot godkjenner, fleet-gateway håndhever pilotlisten per rute, Nais accessPolicy åpner nettverket, og Texas utsteder tokenene."
+      title="Hvem slipper inn: teamet lager en PR med ruten, team copilot godkjenner, fleet-gateway åpner bare ruter i rutefilen og logger hvem som kaller, teamets server bestemmer tilgangen, Nais accessPolicy åpner nettverket, og Texas utsteder tokenene."
     >
       <Defs id={m} />
-      <Box x={10} y={70} w={150} h={100} title="Teamet" sub={["sender inn", "MCP-server"]} />
+      <Box x={10} y={70} w={150} h={100} title="Teamet" sub={["PR med", "ruten"]} />
 
       <rect x={190} y={20} width={500} height={180} rx="14" className="fg-fleet" />
       <text x={210} y={50} className="fg-group">
         nav-fleet
       </text>
-      <Box x={205} y={65} w={235} h={110} title="fleet-control" sub={["registeret", "team copilot godkjenner"]} />
-      <Box x={460} y={65} w={215} h={110} title="fleet-gateway" sub={["håndhever", "pilotliste per rute"]} />
+      <Box x={205} y={65} w={235} h={110} title="Rutefilen" sub={["pilot-routes.*.yaml", "team copilot godkjenner"]} />
+      <Box
+        x={460}
+        y={65}
+        w={215}
+        h={110}
+        title="fleet-gateway"
+        sub={["logger inn brukeren", "åpner bare ruter i filen"]}
+      />
 
-      <Box x={755} y={65} w={205} h={110} title="Teamets" sub={["MCP-server"]} />
+      <Box x={755} y={65} w={205} h={110} title="Teamets" sub={["MCP-server", "styrer tilgangen"]} />
 
       <line x1={160} y1={120} x2={203} y2={120} className="fg-line" markerEnd={arrow} />
       <line x1={440} y1={120} x2={458} y2={120} className="fg-line" markerEnd={arrow} />

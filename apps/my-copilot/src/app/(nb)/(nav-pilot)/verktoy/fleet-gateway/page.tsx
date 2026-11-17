@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import NextLink from "next/link";
 import { FleetGatewayAccessDiagram, FleetGatewayCallDiagram } from "@/components/fleet-gateway-diagrams";
 import { LinkableHeading } from "@/components/linkable-heading";
+import { CodeBlock } from "@/components/code-block";
 import { Bullets, DocPage, code, linkClass } from "@/components/nav-pilot/doc-page";
 import type { TocItem } from "@/components/table-of-contents";
 
@@ -14,6 +15,7 @@ export const metadata: Metadata = {
 };
 
 const PLAN_URL = "https://github.com/navikt/copilot/blob/main/docs/mcp-gateway-plan.md";
+const HELP_URL = "https://nav-it.slack.com/archives/C0ASJSZK8P8";
 const APPLY_URL = "https://github.com/navikt/copilot/issues/new?template=fleet-gateway-pilot.yml";
 
 const TOC: TocItem[] = [
@@ -25,6 +27,15 @@ const TOC: TocItem[] = [
   { id: "hva-teamet-gjor", label: "Hva teamet gjør" },
   { id: "sok", label: "Søk om å bli med" },
 ];
+
+const OPENCODE_JSON = `{
+  "mcp": {
+    "onboarding": {
+      "type": "remote",
+      "url": "https://fleet-gateway.intern.nav.no/mcp/onboarding"
+    }
+  }
+}`;
 
 export default function FleetGatewayPage() {
   return (
@@ -39,8 +50,12 @@ export default function FleetGatewayPage() {
       }
       toc={TOC}
     >
-      <Alert variant="warning">
-        Forhåndsvisning. Piloten har ikke startet, og detaljene kan endres. Navnene følger utkastet til nav-fleet.
+      <Alert variant="info">
+        fleet-gateway er i drift i prod som pilot. Detaljene kan endres. Spørsmål tar du i{" "}
+        <a href={HELP_URL} className={linkClass}>
+          #ki-produktutvikling-diskusjon
+        </a>
+        .
       </Alert>
 
       <VStack gap="space-12">
@@ -57,7 +72,7 @@ export default function FleetGatewayPage() {
                 </Heading>
               </HStack>
               <Bullets>
-                <li>For deg som bruker Copilot CLI eller OpenCode. I dev fungerer bare OpenCode startet direkte.</li>
+                <li>For deg som bruker OpenCode eller Copilot CLI.</li>
                 <li>Hent data fra Navs egne MCP-servere.</li>
                 <li>Logg inn med Nav-kontoen. Du trenger ingen egne nøkler per server.</li>
               </Bullets>
@@ -84,8 +99,8 @@ export default function FleetGatewayPage() {
           </Box>
         </HGrid>
         <BodyLong>
-          Vi styrer hvem som får bruke hvilke servere, og vi kan stenge en server raskt. Derfor starter vi med en pilot
-          før alle får tilgang.
+          Gatewayen sjekker hvem du er. Teamet som eier serveren, bestemmer hva du får gjøre. Vi starter med en pilot
+          før alle team kan koble seg på.
         </BodyLong>
       </VStack>
 
@@ -108,32 +123,44 @@ export default function FleetGatewayPage() {
         </LinkableHeading>
         <Bullets>
           <li>
-            I dev fungerer bare OpenCode som du starter direkte, ikke via nav-pilot. Legg til adressen som ekstern
-            MCP-server i OpenCode.
-          </li>
-          <li>
-            Copilot CLI kan ikke bruke gatewayen ennå. Nav tillater bare MCP-servere som står i MCP-registeret på{" "}
-            <code className={code}>mcp-registry.nav.no</code>, og nav-pilot følger samme regel når den starter OpenCode.
-            Rutene legges i registeret når gatewayen er i prod. Dev-adresser publiseres ikke.
-          </li>
-          <li>
-            Adressen er <code className={code}>https://fleet-gateway.intern.dev.nav.no/mcp/&lt;navn&gt;</code>. Første
-            rute er <code className={code}>/mcp/onboarding</code> (mcp-onboarding).{" "}
-            <code className={code}>/mcp/test</code> er en testserver.
+            Adressen er <code className={code}>https://fleet-gateway.intern.nav.no/mcp/&lt;navn&gt;</code>. Første rute
+            er <code className={code}>/mcp/onboarding</code> (mcp-onboarding). Til testing finnes samme rute i dev på{" "}
+            <code className={code}>fleet-gateway.intern.dev.nav.no</code>.
           </li>
           <li>Du må være på naisdevice. Ellers når du ikke adressen.</li>
+        </Bullets>
+        <BodyLong>
+          <strong>OpenCode</strong> (testet i prod 17. november 2026). Legg serveren til i{" "}
+          <code className={code}>opencode.json</code>:
+        </BodyLong>
+        <CodeBlock filename="opencode.json">{OPENCODE_JSON}</CodeBlock>
+        <BodyLong>Logg inn, og start OpenCode direkte, ikke via nav-pilot:</BodyLong>
+        <CodeBlock filename="Terminal">{"opencode mcp auth onboarding\nopencode"}</CodeBlock>
+        <BodyLong>
+          Be agenten kalle verktøyet <code className={code}>whoami</code>. Svaret viser NAV-identen din. Logg ut med{" "}
+          <code className={code}>opencode mcp logout onboarding</code>.
+        </BodyLong>
+        <BodyLong>
+          <strong>Copilot CLI</strong> (ikke testet ennå). Nav tillater bare MCP-servere som står i MCP-registeret. Når
+          ruten står der som <code className={code}>io.github.navikt/fleet-gateway-onboarding</code>, legger du den til
+          med <code className={code}>/mcp add</code> som type <code className={code}>http</code> med adressen over.
+          Innloggingen starter ved første kall.
+        </BodyLong>
+        <Bullets>
           <li>
             Første gang åpnes nettleseren. Du logger inn med Nav-kontoen og godkjenner klienten for ruten. Valget huskes
-            i 30 dager per rute og klient. Tilbakekaller du tokenet, må du godkjenne på nytt.
+            i 30 dager per rute og klient.
           </li>
+          <li>En innlogging varer i 12 timer. Etter det logger du inn på nytt.</li>
           <li>
             Klienter som registrerer seg selv, merkes som «Unverified client» på godkjenningssiden. Fortsett bare hvis
             du nettopp startet innloggingen selv.
           </li>
+          <li>
+            Er en rute stengt, svarer gatewayen <code className={code}>503</code> med{" "}
+            <code className={code}>temporarily_unavailable</code>.
+          </li>
         </Bullets>
-        <Alert variant="info" size="small">
-          Bare i dev. Innloggingen er dekket av enhetstester. Hele løpet fra OpenCode er ikke kjørt ende til ende ennå.
-        </Alert>
       </VStack>
 
       <VStack gap="space-12">
@@ -141,8 +168,8 @@ export default function FleetGatewayPage() {
           Status
         </LinkableHeading>
         <BodyLong>
-          Testen av kjedet OBO gjennom Texas ble bestått 16. november 2026. Piloten har ikke startet. Den starter med
-          bare lesing.
+          fleet-gateway kjører i prod. Hele løpet fra OpenCode ble testet i dev og prod 17. november 2026. Teamene
+          bestemmer selv hvilke verktøy serveren har, og hvem som får bruke dem.
         </BodyLong>
       </VStack>
 
@@ -152,30 +179,35 @@ export default function FleetGatewayPage() {
         </LinkableHeading>
         <Bullets>
           <li>
-            Registeret (mcp-registry, del av fleet-control): team copilot godkjenner hver server før den blir synlig.
+            Innloggingen: gatewayen slipper bare inn brukere som har logget inn med Nav-kontoen. Hvert kall logges med
+            NAV-ident, rute og MCP-metode.
           </li>
           <li>
-            Nettverket: fleet-gateway har en liste over hvilke servere den kan kalle, og teamets server slipper bare inn
-            fleet-gateway.
+            Teamets server: teamet bestemmer selv hvem som får gjøre hva. Gatewayen sender med hvem brukeren er, men
+            sjekker ikke tilgang til data.
           </li>
-          <li>Pilotlisten: fleet-gateway åpner bare ruter som står på en eksplisitt liste.</li>
           <li>
-            Klienten: cplt, Copilot CLI og OpenCode er forhåndsgodkjent i dev. Andre klienter kan registrere seg selv og
-            merkes som «Unverified client». Alle må være på naisdevice.
+            Nettverket: fleet-gateway kan bare kalle servere som står i listen over utgående trafikk, og teamets server
+            slipper bare inn fleet-gateway.
           </li>
+          <li>Rutelisten: fleet-gateway åpner bare ruter som står i rutefilen for miljøet.</li>
+          <li>Klienten: alle må være på naisdevice.</li>
         </Bullets>
         <BodyLong>Slik blir en server med:</BodyLong>
         <VStack as="ol" gap="space-4" className="list-decimal" style={{ paddingInlineStart: "var(--ax-space-20)" }}>
-          <li>Teamet sender inn serveren til fleet-control (registeret).</li>
-          <li>Team copilot godkjenner serveren i fleet-control.</li>
+          <li>Teamet sender pilotsøknaden eller lager en PR med ruten.</li>
+          <li>Team copilot godkjenner PR-en. Ruten legges først i dev, så i prod.</li>
           <li>
             Tilgangen åpnes begge veier i <code className={code}>accessPolicy</code>: utgående fra fleet-gateway,
             inngående hos teamets server.
           </li>
-          <li>Serveren settes på pilotlisten.</li>
+          <li>Ruten blir tilgjengelig når fleet-gateway er deployet.</li>
         </VStack>
         <FleetGatewayAccessDiagram />
-        <BodyLong>Texas utsteder tokenene. fleet-control gir tilgang, og fleet-gateway håndhever den.</BodyLong>
+        <BodyLong>
+          Texas utsteder tokenene. Team copilot kan stenge en rute med en PR som setter{" "}
+          <code className={code}>enabled: false</code>, og ruten er stengt når endringen er deployet.
+        </BodyLong>
       </VStack>
 
       <VStack gap="space-12">
@@ -190,7 +222,7 @@ export default function FleetGatewayPage() {
             </NextLink>
             .
           </li>
-          <li>Søk med skjemaet under. Vi registrerer serveren til selvbetjening finnes.</li>
+          <li>Søk med skjemaet under, eller lag en PR med ruten selv.</li>
           <li>
             Legg til fleet-gateway i <code className={code}>accessPolicy.inbound</code> i serverens Nais-manifest.
             Mangler regelen, feiler kallet med <code className={code}>AADSTS65001</code>.

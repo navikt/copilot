@@ -3096,6 +3096,7 @@
       "docs/mcp-gateway-plan.md"
     ],
     "anchors": {
+      "drift": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/verktoy/fleet-gateway/for-team/page.tsx"],
       "feil": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/verktoy/fleet-gateway/for-team/page.tsx"],
       "forutsetninger": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/verktoy/fleet-gateway/for-team/page.tsx"],
       "ikke-gjor": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/verktoy/fleet-gateway/for-team/page.tsx"],
