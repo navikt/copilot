@@ -29,7 +29,7 @@ func (g *Gateway) prmHandler(w http.ResponseWriter, r *http.Request) {
 
 // asMetadataHandler serves RFC 8414 OAuth 2.0 Authorization Server Metadata.
 func (g *Gateway) asMetadataHandler(w http.ResponseWriter, _ *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]any{
+	meta := map[string]any{
 		"issuer":                                         g.cfg.BaseURL,
 		"authorization_endpoint":                         g.cfg.BaseURL + "/authorize",
 		"token_endpoint":                                 g.cfg.BaseURL + "/token",
@@ -39,7 +39,15 @@ func (g *Gateway) asMetadataHandler(w http.ResponseWriter, _ *http.Request) {
 		"token_endpoint_auth_methods_supported":          []string{"none"},
 		"client_id_metadata_document_supported":          true,
 		"authorization_response_iss_parameter_supported": true,
-	})
+	}
+	if g.cfg.DCREnabled {
+		meta["registration_endpoint"] = g.cfg.BaseURL + "/register"
+	}
+	if g.cfg.RTStorage == rtStorageClientEncrypted {
+		meta["grant_types_supported"] = []string{"authorization_code", "refresh_token"}
+		meta["revocation_endpoint"] = g.cfg.BaseURL + "/revoke"
+	}
+	writeJSON(w, http.StatusOK, meta)
 }
 
 func writeJSON(w http.ResponseWriter, status int, payload any) {

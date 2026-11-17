@@ -66,6 +66,8 @@ spec:
       - /cplt/**
       - /kom-i-gang
       - /kom-i-gang/**
+      - /ma-vite
+      - /ma-vite/**
       - /retningslinjer
       - /retningslinjer/**
       - /install

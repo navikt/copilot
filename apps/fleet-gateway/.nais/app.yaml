@@ -35,7 +35,24 @@ spec:
       {{#each reply_urls as |url|}}
         - {{url}}
       {{/each}}
+  {{#if postgres}}
+  # TODO(#2221): provisioning is Nais Postgres (spec.uses.postgres, dev only for now);
+  # the Cloud SQL option (gcp.sqlInstances) is deliberately not used.
+  uses:
+    postgres:
+      - name: {{postgres}}
+  envFrom:
+    - secret: fleet-gateway-rt-keys # key RT_KEYS = "kid:base64key,..." (newest first); created by a human
+  {{/if}}
   env:
+    - name: SESSION_STORE
+      value: "{{session_store}}"
+    - name: SESSION_MAX_AGE
+      value: "{{session_max_age}}"
+    - name: RT_STORAGE
+      value: "{{rt_storage}}"
+    - name: TEAM_TOKEN_STRATEGY
+      value: "{{team_token_strategy}}"
     - name: PORT
       value: "8080"
     - name: LOG_LEVEL
@@ -46,8 +63,10 @@ spec:
       value: "{{allowed_client_ids}}"
     - name: ALLOWED_REDIRECT_URIS
       value: "{{allowed_redirect_uris}}"
-    - name: ALLOWED_RESOURCES
-      value: "{{allowed_resources}}"
+    {{#if dcr_enabled}}
+    - name: DCR_ENABLED
+      value: "{{dcr_enabled}}"
+    {{/if}}
     {{#if pilot_routes_file}}
     - name: PILOT_ROUTES_FILE
       value: "{{pilot_routes_file}}"
@@ -55,19 +74,14 @@ spec:
   accessPolicy:
     outbound:
       rules:
-      {{#if outbound_rules}}
-      {{#each outbound_rules as |rule|}}
-        - application: {{rule.application}}
-        {{#if rule.namespace}}
-          namespace: {{rule.namespace}}
-        {{/if}}
+      {{#each outbound_rules}}
+        - { application: {{application}}{{#if namespace}}, namespace: {{namespace}}{{/if}}{{#if cluster}}, cluster: {{cluster}}{{/if}} }
       {{/each}}
-      {{else}}
-        []
-      {{/if}}
       external:
         - host: login.microsoftonline.com
-        - host: "{{cimd_host}}"
+      {{#each cimd_hosts as |host|}}
+        - host: "{{host}}"
+      {{/each}}
   ingresses:
   {{#each ingresses as |url|}}
     - {{url}}

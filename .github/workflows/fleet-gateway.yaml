@@ -35,7 +35,7 @@ jobs:
       deploys-to-nais: true
       deploy-pr-to-dev: true
       nais-team: copilot
-      nais-clusters: '["dev-gcp"]'
+      nais-clusters: '["dev-gcp", "prod-gcp"]'
 
   echo:
     name: fleet-echo

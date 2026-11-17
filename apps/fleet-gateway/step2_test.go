@@ -22,27 +22,7 @@ func (te *testEnv) obtainAccessTokenForResource(resource string) string {
 	te.t.Helper()
 	verifier := "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG"
 	req := httptest.NewRequest(http.MethodGet, te.authorizeURL(map[string]string{"resource": resource}, verifier), nil)
-	rec := httptest.NewRecorder()
-	te.handler.ServeHTTP(rec, req)
-	resp := rec.Result()
-	bodyBytes, _ := io.ReadAll(resp.Body)
-	_ = resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		te.t.Fatalf("expected 200 consent page, got %d: %s", resp.StatusCode, string(bodyBytes))
-	}
-	body := string(bodyBytes)
-	idMatch := reID.FindStringSubmatch(body)
-	csrfMatch := reCSRF.FindStringSubmatch(body)
-	if len(idMatch) != 2 || len(csrfMatch) != 2 {
-		te.t.Fatalf("missing hidden fields in consent HTML")
-	}
-	var csrfCookie *http.Cookie
-	for _, c := range resp.Cookies() {
-		if c.Name == csrfCookieName {
-			csrfCookie = c
-		}
-	}
-	entraState, stateCookie := te.approveConsent(idMatch[1], csrfMatch[1], csrfCookie)
+	entraState, stateCookie := te.followToEntra(req)
 	code := te.completeEntraCallback(entraState, stateCookie)
 	status, tokBody := te.postToken(url.Values{
 		"grant_type":    {"authorization_code"},
@@ -62,14 +42,13 @@ func (te *testEnv) obtainAccessTokenForResource(resource string) string {
 	return tok
 }
 
-func TestGatewayAccessToken_HashedStorage_ResourceBinding_GroupAndExpiry(t *testing.T) {
+func TestGatewayAccessToken_HashedStorage_ResourceBinding_AndExpiry(t *testing.T) {
 	te := newTestEnv(t)
 	te.gw.cfg.Routes = append(te.gw.cfg.Routes, PilotRoute{
-		Route:         "/mcp/restricted",
-		Team:          "team-sec",
-		Target:        "dev-gcp:team-sec:sec-mcp",
-		UpstreamURL:   "http://sec-mcp.team-sec",
-		RequiredGroup: "group-secret",
+		Route:       "/mcp/restricted",
+		Team:        "team-sec",
+		Target:      "dev-gcp:team-sec:sec-mcp",
+		UpstreamURL: "http://sec-mcp.team-sec",
 	})
 	if err := validateConfig(te.gw.cfg); err != nil {
 		t.Fatalf("validateConfig failed: %v", err)
@@ -81,7 +60,7 @@ func TestGatewayAccessToken_HashedStorage_ResourceBinding_GroupAndExpiry(t *test
 	for i := range te.gw.cfg.Routes {
 		te.gw.cfg.Routes[i].ParsedURL = parsedUpstream
 	}
-	te.gw.TeamTokens, err = newTeamTokenSource(te.gw.cfg, te.gw.sessions, func() time.Time {
+	te.gw.TeamTokens, err = newTeamTokenSource(te.gw.cfg, te.gw.store, func() time.Time {
 		te.mu.Lock()
 		defer te.mu.Unlock()
 		return te.now
@@ -94,10 +73,10 @@ func TestGatewayAccessToken_HashedStorage_ResourceBinding_GroupAndExpiry(t *test
 	token := te.obtainAccessTokenForResource(te.resource)
 
 	// Session map must store only SHA-256(token), never the raw token.
-	if _, ok := te.gw.sessions.Get(token); ok {
+	if _, ok, err := te.gw.getSession(context.Background(), token); err != nil || ok {
 		t.Fatal("raw gateway token must not be stored in sessions map")
 	}
-	if _, ok := te.gw.sessions.Get(hashToken(token)); !ok {
+	if _, ok, err := te.gw.getSession(context.Background(), hashToken(token)); err != nil || !ok {
 		t.Fatal("expected SHA-256(token) in sessions map")
 	}
 
@@ -143,27 +122,15 @@ func TestGatewayAccessToken_HashedStorage_ResourceBinding_GroupAndExpiry(t *test
 		t.Fatalf("expected 403 for resource mismatch, got %d", wrongResRec.Code)
 	}
 
-	// Required group enforcement (#2209): user without group-secret gets 403; user with it gets 200.
-	restrictedResource := te.gw.cfg.BaseURL + "/mcp/restricted"
-	restrictedTokNoGroup := te.obtainAccessTokenForResource(restrictedResource)
-	noGroupReq := httptest.NewRequest(http.MethodPost, "/mcp/restricted", strings.NewReader(`{"jsonrpc":"2.0","method":"tools/list"}`))
-	noGroupReq.Header.Set("Authorization", "Bearer "+restrictedTokNoGroup)
-	noGroupRec := httptest.NewRecorder()
-	te.handler.ServeHTTP(noGroupRec, noGroupReq)
-	if noGroupRec.Code != http.StatusForbidden {
-		t.Fatalf("expected 403 when missing required_group, got %d", noGroupRec.Code)
-	}
-
-	te.mu.Lock()
-	te.groups = []string{"group-secret"}
-	te.mu.Unlock()
-	restrictedTokWithGroup := te.obtainAccessTokenForResource(restrictedResource)
-	withGroupReq := httptest.NewRequest(http.MethodPost, "/mcp/restricted", strings.NewReader(`{"jsonrpc":"2.0","method":"tools/list"}`))
-	withGroupReq.Header.Set("Authorization", "Bearer "+restrictedTokWithGroup)
-	withGroupRec := httptest.NewRecorder()
-	te.handler.ServeHTTP(withGroupRec, withGroupReq)
-	if withGroupRec.Code != http.StatusOK {
-		t.Fatalf("expected 200 when user has required_group, got %d (%s)", withGroupRec.Code, withGroupRec.Body.String())
+	// No group gate on the route (required_group removed 2026-11-17): a token
+	// bound to the route reaches it; the team MCP authorizes.
+	restrictedTok := te.obtainAccessTokenForResource(te.gw.cfg.BaseURL + "/mcp/restricted")
+	routeReq := httptest.NewRequest(http.MethodPost, "/mcp/restricted", strings.NewReader(`{"jsonrpc":"2.0","method":"tools/list"}`))
+	routeReq.Header.Set("Authorization", "Bearer "+restrictedTok)
+	routeRec := httptest.NewRecorder()
+	te.handler.ServeHTTP(routeRec, routeReq)
+	if routeRec.Code != http.StatusOK {
+		t.Fatalf("expected 200 on the bound route, got %d (%s)", routeRec.Code, routeRec.Body.String())
 	}
 
 	// Expiry: advancing past session TTL returns 401.
@@ -361,7 +328,7 @@ func TestStrategyRefresh_Rotation_And_Concurrency(t *testing.T) {
 	te := newTestEnv(t)
 	te.gw.cfg.TeamTokenStrategy = strategyRefresh
 	var err error
-	te.gw.TeamTokens, err = newTeamTokenSource(te.gw.cfg, te.gw.sessions, func() time.Time {
+	te.gw.TeamTokens, err = newTeamTokenSource(te.gw.cfg, te.gw.store, func() time.Time {
 		te.mu.Lock()
 		defer te.mu.Unlock()
 		return te.now
@@ -523,7 +490,7 @@ func TestErrorMapping_AADSTS65001_And_NoRawEntraLeak(t *testing.T) {
 			te := newTestEnv(t)
 			te.gw.cfg.TeamTokenStrategy = tt.strategy
 			var err error
-			te.gw.TeamTokens, err = newTeamTokenSource(te.gw.cfg, te.gw.sessions, te.gw.now)
+			te.gw.TeamTokens, err = newTeamTokenSource(te.gw.cfg, te.gw.store, te.gw.now)
 			if err != nil {
 				t.Fatalf("newTeamTokenSource failed: %v", err)
 			}
@@ -568,15 +535,15 @@ func TestHardening_OIDCNonce_PKCE_Singleflight_Prompt_And_Claims(t *testing.T) {
 	t.Run("prompt allowlist and claims JSON/size validation", func(t *testing.T) {
 		te := newTestEnv(t)
 
-		// Valid prompt and valid JSON object claims pass to consent page (200).
+		// Valid prompt and valid JSON object claims pass on to Entra (302).
 		okReq := httptest.NewRequest(http.MethodGet, te.authorizeURL(map[string]string{
 			"prompt": "select_account",
 			"claims": `{"id_token":{"acrs":{"essential":true}}}`,
 		}, verifier), nil)
 		okRec := httptest.NewRecorder()
 		te.handler.ServeHTTP(okRec, okReq)
-		if okRec.Code != http.StatusOK {
-			t.Fatalf("expected 200 for valid prompt and claims, got %d", okRec.Code)
+		if okRec.Code != http.StatusFound {
+			t.Fatalf("expected 302 for valid prompt and claims, got %d", okRec.Code)
 		}
 
 		badCases := []struct {
@@ -631,8 +598,7 @@ func TestHardening_OIDCNonce_PKCE_Singleflight_Prompt_And_Claims(t *testing.T) {
 					}
 				})
 
-				id, csrf, csrfCookie, _ := te.startAuthorizeAndConsent(verifier)
-				entraState, stateCookie := te.approveConsent(id, csrf, csrfCookie)
+				entraState, stateCookie := te.startLogin(verifier)
 				req := httptest.NewRequest(http.MethodGet, "/oauth2/callback?code=entra-code-123&state="+url.QueryEscape(entraState), nil)
 				req.AddCookie(stateCookie)
 				rec := httptest.NewRecorder()
@@ -1064,5 +1030,221 @@ func TestProxy_SSEBounds_And_NonSSEResponseLimit(t *testing.T) {
 func TestEntraScopeForTarget(t *testing.T) {
 	if got := entraScopeForTarget("dev-gcp:copilot:fleet-echo"); got != "api://dev-gcp.copilot.fleet-echo/.default" {
 		t.Fatalf("entraScopeForTarget = %q, want %q", got, "api://dev-gcp.copilot.fleet-echo/.default")
+	}
+}
+
+func TestProxy_KillSwitch(t *testing.T) {
+	setBaseValidEnv(t)
+	t.Setenv("GATEWAY_DISABLED", "not-a-bool")
+	if _, err := loadConfigFromEnv(); err == nil {
+		t.Fatal("expected invalid GATEWAY_DISABLED to return config error")
+	}
+
+	tests := []struct {
+		name            string
+		gatewayDisabled string
+		targetPath      string
+		wantGlobal      bool
+	}{
+		{
+			name:       "route enabled:false returns 503",
+			targetPath: "/mcp/disabled",
+			wantGlobal: false,
+		},
+		{
+			name:            "GatewayDisabled returns 503",
+			gatewayDisabled: "true",
+			targetPath:      "/mcp/etterlevelse",
+			wantGlobal:      true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var logBuf bytes.Buffer
+			oldLogger := slog.Default()
+			slog.SetDefault(slog.New(slog.NewJSONHandler(&logBuf, &slog.HandlerOptions{Level: slog.LevelInfo})))
+			defer slog.SetDefault(oldLogger)
+
+			te := newTestEnv(t)
+			var upstreamCalls atomic.Int32
+			te.upstreamServer.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				upstreamCalls.Add(1)
+				writeJSON(w, http.StatusOK, map[string]any{"jsonrpc": "2.0", "id": 1, "result": "ok"})
+			})
+
+			routesYAML := `version: 1
+routes:
+  - route: /mcp/etterlevelse
+    team: team-etterlevelse
+    target: dev-gcp:team-etterlevelse:nav-etterlevelse-mcp
+    upstream_url: http://nav-etterlevelse-mcp.team-etterlevelse
+  - route: /mcp/disabled
+    team: team-sec
+    target: dev-gcp:team-sec:sec-mcp
+    upstream_url: http://sec-mcp.team-sec
+    enabled: false
+`
+			parsedRoutes, err := parseAndValidatePilotRoutes([]byte(routesYAML))
+			if err != nil {
+				t.Fatalf("parseAndValidatePilotRoutes failed: %v", err)
+			}
+			te.gw.cfg.Routes = parsedRoutes
+			if err = validateConfig(te.gw.cfg); err != nil {
+				t.Fatalf("validateConfig failed: %v", err)
+			}
+			parsedUpstream, err := url.Parse(te.upstreamServer.URL)
+			if err != nil {
+				t.Fatalf("parse upstream server URL: %v", err)
+			}
+			for i := range te.gw.cfg.Routes {
+				te.gw.cfg.Routes[i].ParsedURL = parsedUpstream
+			}
+			te.gw.TeamTokens, err = newTeamTokenSource(te.gw.cfg, te.gw.store, func() time.Time {
+				te.mu.Lock()
+				defer te.mu.Unlock()
+				return te.now
+			})
+			if err != nil {
+				t.Fatalf("newTeamTokenSource failed: %v", err)
+			}
+
+			if tt.gatewayDisabled != "" {
+				setBaseValidEnv(t)
+				t.Setenv("GATEWAY_DISABLED", tt.gatewayDisabled)
+				loadedCfg, err := loadConfigFromEnv()
+				if err != nil {
+					t.Fatalf("loadConfigFromEnv failed: %v", err)
+				}
+				te.gw.cfg.GatewayDisabled = loadedCfg.GatewayDisabled
+			}
+			te.handler = te.gw.routes()
+
+			// Send without Authorization to verify kill switch runs after method check and before auth.
+			req := httptest.NewRequest(http.MethodPost, tt.targetPath, strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"tools/list"}`))
+			rec := httptest.NewRecorder()
+			te.handler.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusServiceUnavailable {
+				t.Fatalf("expected 503, got %d (%s)", rec.Code, rec.Body.String())
+			}
+			if got := rec.Header().Get("Retry-After"); got != "300" {
+				t.Fatalf("expected Retry-After=300, got %q", got)
+			}
+			var body map[string]string
+			if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+				t.Fatalf("decode 503 JSON: %v", err)
+			}
+			if body["error"] != "temporarily_unavailable" || body["message"] != "this route is temporarily disabled by the gateway operator" {
+				t.Fatalf("unexpected 503 body: %+v", body)
+			}
+			if upstreamCalls.Load() != 0 {
+				t.Fatalf("expected 0 upstream calls, got %d", upstreamCalls.Load())
+			}
+
+			var foundWarn, foundAudit map[string]any
+			for _, line := range strings.Split(strings.TrimSpace(logBuf.String()), "\n") {
+				var entry map[string]any
+				if json.Unmarshal([]byte(line), &entry) != nil {
+					continue
+				}
+				switch entry["msg"] {
+				case "route disabled by kill switch":
+					foundWarn = entry
+				case "audit mcp":
+					foundAudit = entry
+				}
+			}
+			if foundWarn == nil {
+				t.Fatalf("expected kill switch warning log, got:\n%s", logBuf.String())
+			}
+			if foundWarn["route"] != tt.targetPath || foundWarn["global"] != tt.wantGlobal {
+				t.Fatalf("unexpected warning fields: %+v", foundWarn)
+			}
+			if foundAudit == nil || foundAudit["outcome"] != "disabled" {
+				t.Fatalf("expected audit mcp outcome=disabled, got %+v", foundAudit)
+			}
+		})
+	}
+}
+
+func TestProxy_MCPSessionIDBoundToUser(t *testing.T) {
+	te := newTestEnv(t)
+
+	var upstreamCalls atomic.Int32
+	te.upstreamServer.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		upstreamCalls.Add(1)
+		if r.Header.Get("Mcp-Session-Id") == "" {
+			w.Header().Set("Mcp-Session-Id", "mcp-sess-user-a")
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"jsonrpc": "2.0", "id": 1, "result": "ok"})
+	})
+
+	// User A obtains an Mcp-Session-Id from upstream.
+	te.mu.Lock()
+	te.navIdent = "A111111"
+	te.mu.Unlock()
+	tokA := te.obtainAccessTokenForResource(te.resource)
+
+	reqA1 := httptest.NewRequest(http.MethodPost, "/mcp/etterlevelse", strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"initialize"}`))
+	reqA1.Header.Set("Authorization", "Bearer "+tokA)
+	recA1 := httptest.NewRecorder()
+	te.handler.ServeHTTP(recA1, reqA1)
+	if recA1.Code != http.StatusOK {
+		t.Fatalf("expected 200 for user A initialize, got %d (%s)", recA1.Code, recA1.Body.String())
+	}
+	mcpSessID := recA1.Header().Get("Mcp-Session-Id")
+	if mcpSessID != "mcp-sess-user-a" {
+		t.Fatalf("expected Mcp-Session-Id=mcp-sess-user-a, got %q", mcpSessID)
+	}
+
+	// User B with a valid token for the same route sending user A's Mcp-Session-Id gets 403.
+	te.mu.Lock()
+	te.navIdent = "B222222"
+	te.mu.Unlock()
+	tokB := te.obtainAccessTokenForResource(te.resource)
+
+	callsBeforeB := upstreamCalls.Load()
+	reqB := httptest.NewRequest(http.MethodPost, "/mcp/etterlevelse", strings.NewReader(`{"jsonrpc":"2.0","id":2,"method":"tools/list"}`))
+	reqB.Header.Set("Authorization", "Bearer "+tokB)
+	reqB.Header.Set("Mcp-Session-Id", mcpSessID)
+	recB := httptest.NewRecorder()
+	te.handler.ServeHTTP(recB, reqB)
+	if recB.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 for user B using user A's Mcp-Session-Id, got %d (%s)", recB.Code, recB.Body.String())
+	}
+	var errBody map[string]string
+	if err := json.Unmarshal(recB.Body.Bytes(), &errBody); err != nil {
+		t.Fatalf("decode 403 body: %v", err)
+	}
+	if errBody["error"] != "forbidden" {
+		t.Fatalf("expected error=forbidden, got %+v", errBody)
+	}
+	if upstreamCalls.Load() != callsBeforeB {
+		t.Fatalf("expected user B request to be rejected before upstream, got %d extra calls", upstreamCalls.Load()-callsBeforeB)
+	}
+
+	// A second Mcp-Session-Id header cannot smuggle A's id past the check.
+	reqDup := httptest.NewRequest(http.MethodPost, "/mcp/etterlevelse", strings.NewReader(`{"jsonrpc":"2.0","id":2,"method":"tools/list"}`))
+	reqDup.Header.Set("Authorization", "Bearer "+tokB)
+	reqDup.Header.Add("Mcp-Session-Id", "fresh-id-b")
+	reqDup.Header.Add("Mcp-Session-Id", mcpSessID)
+	recDup := httptest.NewRecorder()
+	te.handler.ServeHTTP(recDup, reqDup)
+	if recDup.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for duplicate Mcp-Session-Id headers, got %d", recDup.Code)
+	}
+
+	// User A still gets through with that Mcp-Session-Id.
+	reqA2 := httptest.NewRequest(http.MethodPost, "/mcp/etterlevelse", strings.NewReader(`{"jsonrpc":"2.0","id":3,"method":"tools/list"}`))
+	reqA2.Header.Set("Authorization", "Bearer "+tokA)
+	reqA2.Header.Set("Mcp-Session-Id", mcpSessID)
+	recA2 := httptest.NewRecorder()
+	te.handler.ServeHTTP(recA2, reqA2)
+	if recA2.Code != http.StatusOK {
+		t.Fatalf("expected 200 for user A reusing own Mcp-Session-Id, got %d (%s)", recA2.Code, recA2.Body.String())
+	}
+	if upstreamCalls.Load() != callsBeforeB+1 {
+		t.Fatalf("expected user A request to reach upstream, got %d calls", upstreamCalls.Load()-callsBeforeB)
 	}
 }

@@ -2,6 +2,8 @@ package main
 
 import (
 	"encoding/csv"
+	"fmt"
+	"io"
 	"log/slog"
 	"math/rand/v2"
 	"net/http"
@@ -46,9 +48,21 @@ func (a *surveyAPI) exportCSV(w http.ResponseWriter, r *http.Request) {
 			return hidden[hiddenKey(field, textHash(raw))]
 		})
 	}
-	suppressSmallSegments(rows)
 	rand.Shuffle(len(rows), func(i, j int) { rows[i], rows[j] = rows[j], rows[i] })
 
+	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+	w.Header().Set("Content-Disposition", `attachment; filename="`+s.ID+`-svar.csv"`)
+	w.Header().Set("Cache-Control", "no-store")
+	writeExportCSV(w, s, rows)
+	// Who exported is in my-copilot's access log; never the content here.
+	slog.Info("admin survey export", "survey", s.ID, "rows", len(rows))
+}
+
+// writeExportCSV writes rows as the columns described at exportCSV.
+// readExportCSV is its inverse. Context under minSegment is merged here,
+// so every export, and the test of the round trip, goes through it.
+func writeExportCSV(w io.Writer, s survey, rows []exportRow) {
+	suppressSmallSegments(rows)
 	// A column is a header and how a row fills it.
 	type column struct {
 		name string
@@ -60,14 +74,16 @@ func (a *surveyAPI) exportCSV(w http.ResponseWriter, r *http.Request) {
 	}
 	// Versions come from question_versions, not the answers: a hidden text
 	// is gone from those but was still answered.
-	version := func(name, key string) {
+	// Written whenever a row's version is not the definition's, so
+	// readExportCSV can take the definition's version when the column is absent.
+	version := func(name, key string, def int) {
 		seen := map[int]bool{}
 		for _, r := range rows {
 			if v, ok := r.QuestionVersions[key]; ok {
 				seen[v] = true
 			}
 		}
-		if len(seen) > 1 {
+		if len(seen) > 1 || len(seen) == 1 && !seen[def] {
 			cols = append(cols, column{name + ".version", func(r exportRow) string {
 				if v, ok := r.QuestionVersions[key]; ok {
 					return strconv.Itoa(v)
@@ -81,11 +97,11 @@ func (a *surveyAPI) exportCSV(w http.ResponseWriter, r *http.Request) {
 		case "matrix":
 			for _, it := range q.Items {
 				answer(q.ID+"."+it.ID, it.ID)
-				version(q.ID+"."+it.ID, it.ID)
+				version(q.ID+"."+it.ID, it.ID, it.Version)
 			}
 			continue
 		case "multi":
-			for _, o := range q.options() {
+			for _, o := range multiColumns(q, rows) {
 				cols = append(cols, column{q.ID + "=" + o, func(r exportRow) string {
 					picked, ok := r.Answers[q.ID].([]any)
 					switch {
@@ -103,15 +119,12 @@ func (a *surveyAPI) exportCSV(w http.ResponseWriter, r *http.Request) {
 		if q.Other != "" {
 			answer(otherKey(q.ID), otherKey(q.ID))
 		}
-		version(q.ID, q.ID)
+		version(q.ID, q.ID, q.Version)
 	}
 	for _, k := range exportCSVContext {
 		cols = append(cols, column{"context." + k, func(r exportRow) string { return r.Context[k] }})
 	}
 
-	w.Header().Set("Content-Type", "text/csv; charset=utf-8")
-	w.Header().Set("Content-Disposition", `attachment; filename="`+s.ID+`-svar.csv"`)
-	w.Header().Set("Cache-Control", "no-store")
 	_, _ = w.Write([]byte("\xef\xbb\xbf")) // BOM: Excel then reads æøå as UTF-8
 	cw := csv.NewWriter(w)
 	line := make([]string, len(cols))
@@ -126,18 +139,34 @@ func (a *surveyAPI) exportCSV(w http.ResponseWriter, r *http.Request) {
 		_ = cw.Write(line)
 	}
 	cw.Flush()
-	// Who exported is in my-copilot's access log; never the content here.
-	slog.Info("admin survey export", "survey", s.ID, "rows", len(rows))
+}
+
+// multiColumns are q's options, then any value a row picked that is no
+// longer an option (an older version's), sorted, so nothing picked is lost.
+func multiColumns(q question, rows []exportRow) []string {
+	cols := q.options()
+	var extra []string
+	for _, r := range rows {
+		picked, _ := r.Answers[q.ID].([]any)
+		for _, p := range picked {
+			if v := fmt.Sprint(p); !slices.Contains(cols, v) && !slices.Contains(extra, v) {
+				extra = append(extra, v)
+			}
+		}
+	}
+	slices.Sort(extra)
+	return append(slices.Clip(cols), extra...)
 }
 
 // csvValue writes an answer as a cell. Text a spreadsheet would read as a
-// formula gets a leading apostrophe.
+// formula gets a leading apostrophe, and so does text that already starts
+// with one, so unformula can undo it without guessing.
 func csvValue(v any) string {
 	switch t := v.(type) {
 	case float64:
 		return strconv.FormatFloat(t, 'f', -1, 64)
 	case string:
-		if t != "" && strings.ContainsRune("=+-@\t\r", rune(t[0])) {
+		if t != "" && strings.ContainsRune("=+-@\t\r'", rune(t[0])) {
 			return "'" + t
 		}
 		return t

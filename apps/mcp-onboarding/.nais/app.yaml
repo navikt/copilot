@@ -49,7 +49,20 @@ spec:
       value: "{{log_level}}"
   envFrom:
     - secret: mcp-onboarding-secrets
+  {{#if fleet_gateway_inbound}}
+  azure:
+    application:
+      enabled: true
+      tenant: nav.no
+      allowAllUsers: true
+  {{/if}}
   accessPolicy:
+    {{#if fleet_gateway_inbound}}
+    inbound:
+      rules:
+        - application: fleet-gateway
+          namespace: copilot
+    {{/if}}
     outbound:
       external:
         - host: api.github.com

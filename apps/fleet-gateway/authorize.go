@@ -11,9 +11,12 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/url"
 	"slices"
+	"sort"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -21,18 +24,22 @@ import (
 const entraStateCookieName = "__Host-fleet_entra_state"
 
 type pendingAuth struct {
-	ClientID      string
-	ClientName    string
-	RedirectURI   string
-	State         string
-	Challenge     string
-	Resource      string
-	Prompt        string
-	Claims        string
-	EntraVerifier string
-	EntraNonce    string
-	CSRF          string
-	Created       time.Time
+	ClientID      string    `json:"client_id"`
+	ClientName    string    `json:"client_name"`
+	Unverified    bool      `json:"unverified,omitempty"`
+	RedirectURI   string    `json:"redirect_uri"`
+	State         string    `json:"state"`
+	Challenge     string    `json:"challenge"`
+	Resource      string    `json:"resource"`
+	Prompt        string    `json:"prompt,omitempty"`
+	Claims        string    `json:"claims,omitempty"`
+	EntraVerifier string    `json:"entra_verifier,omitempty"`
+	EntraNonce    string    `json:"entra_nonce,omitempty"`
+	CSRF          string    `json:"csrf"`
+	Created       time.Time `json:"created"`
+	// Issued is set when consent is asked after the Entra login: the code is
+	// held here until the user approves.
+	Issued *issuedCode `json:"issued,omitempty"`
 }
 
 type clientMetadata struct {
@@ -47,23 +54,42 @@ type clientMetadata struct {
 func (g *Gateway) authorizeHandler(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	clientID := q.Get("client_id")
-	if !g.cfg.AllowedClientIDs[clientID] {
-		http.Error(w, "unknown client_id: client is not allowlisted", http.StatusBadRequest)
-		return
-	}
-
-	meta, err := g.fetchCIMD(r.Context(), clientID)
-	if err != nil {
-		slog.Warn("CIMD fetch or validation failed", "client_id", sanitizeLogValue(clientID), "error", sanitizeLogValue(err.Error()))
-		http.Error(w, "unable to validate client metadata document", http.StatusBadRequest)
-		return
-	}
-
 	redirectURI := q.Get("redirect_uri")
+	var meta *clientMetadata
+	unverified := false
+	if g.cfg.AllowedClientIDs[clientID] {
+		m, err := g.fetchCIMD(r.Context(), clientID)
+		if err != nil {
+			slog.Warn("CIMD fetch or validation failed", "client_id", sanitizeLogValue(clientID), "error", sanitizeLogValue(err.Error()))
+			http.Error(w, "unable to validate client metadata document", http.StatusBadRequest)
+			return
+		}
+		if !g.redirectURIAllowlisted(redirectURI) {
+			http.Error(w, "redirect_uri does not match allowlisted client metadata", http.StatusBadRequest)
+			return
+		}
+		meta = m
+	} else {
+		m, ok, err := g.registeredClient(r.Context(), clientID)
+		if err != nil {
+			slog.Warn("load registered client failed", "error", err)
+			http.Error(w, "session store unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		if !ok {
+			http.Error(w, "unknown client_id: client is not allowlisted or registered", http.StatusBadRequest)
+			return
+		}
+		if !slices.Contains(m.GrantTypes, "authorization_code") {
+			http.Error(w, "unauthorized_client: authorization_code grant not registered for client", http.StatusBadRequest)
+			return
+		}
+		meta, unverified = m, true
+	}
+
 	if redirectURI == "" ||
-		!slices.Contains(meta.RedirectURIs, redirectURI) ||
-		!g.cfg.AllowedRedirectURIs[redirectURI] {
-		http.Error(w, "redirect_uri does not match allowlisted client metadata", http.StatusBadRequest)
+		!slices.ContainsFunc(meta.RedirectURIs, func(reg string) bool { return redirectURIMatches(reg, redirectURI) }) {
+		http.Error(w, "redirect_uri does not match client metadata", http.StatusBadRequest)
 		return
 	}
 	parsedRedirect, err := url.Parse(redirectURI)
@@ -104,38 +130,79 @@ func (g *Gateway) authorizeHandler(w http.ResponseWriter, r *http.Request) {
 	case validateClaimsParam(claims) != nil:
 		failRedirect("invalid_request", "claims must be a valid JSON object within size limit")
 	default:
-		consentID, err := randomToken()
-		if err != nil {
-			http.Error(w, "internal server error", http.StatusInternalServerError)
-			return
-		}
-		csrf, err := randomToken()
-		if err != nil {
-			http.Error(w, "internal server error", http.StatusInternalServerError)
-			return
-		}
-
-		p := &pendingAuth{
+		// Consent is asked after the Entra login, once the user is known, so a
+		// remembered consent can skip the page (callbackHandler).
+		g.redirectToEntra(w, r, &pendingAuth{
 			ClientID:    clientID,
 			ClientName:  meta.ClientName,
+			Unverified:  unverified,
 			RedirectURI: redirectURI,
 			State:       state,
 			Challenge:   challenge,
 			Resource:    resource,
 			Prompt:      prompt,
 			Claims:      claims,
-			CSRF:        csrf,
 			Created:     g.now(),
-		}
-
-		// Step 1 never remembers prior consent: always ask before redirecting to Entra.
-		if !g.pendingConsent.Set(consentID, p, defaultPendingTTL) {
-			http.Error(w, "too many pending authorizations", http.StatusServiceUnavailable)
-			return
-		}
-
-		g.renderConsentPage(w, consentID, p)
+		})
 	}
+}
+
+// redirectURIAllowlisted reports whether redirectURI matches an
+// ALLOWED_REDIRECT_URIS entry under the same rules as client metadata.
+func (g *Gateway) redirectURIAllowlisted(redirectURI string) bool {
+	if g.cfg.AllowedRedirectURIs[redirectURI] {
+		return true
+	}
+	for reg := range g.cfg.AllowedRedirectURIs {
+		if redirectURIMatches(reg, redirectURI) {
+			return true
+		}
+	}
+	return false
+}
+
+// redirectURIMatches compares a registered redirect URI with a requested one.
+// Exact string match, except for http loopback IP literals (127.0.0.1, [::1]):
+// there the port may differ, as RFC 8252 section 7.3 requires for native
+// clients that bind an ephemeral port. Scheme, host, path and query must still
+// match exactly. The "localhost" name never gets this treatment (RFC 8252 8.3).
+func redirectURIMatches(registered, requested string) bool {
+	if registered == requested {
+		return true
+	}
+	reg, err := url.Parse(registered)
+	if err != nil {
+		return false
+	}
+	req, err := url.Parse(requested)
+	if err != nil {
+		return false
+	}
+	return isLoopbackRedirect(reg) && isLoopbackRedirect(req) &&
+		reg.Hostname() == req.Hostname() &&
+		reg.EscapedPath() == req.EscapedPath() &&
+		reg.RawQuery == req.RawQuery
+}
+
+// isLoopbackRedirect reports whether u is http on a loopback IP literal, with
+// no userinfo, fragment or opaque part, and a numeric port if any.
+func isLoopbackRedirect(u *url.URL) bool {
+	if u.Scheme != "http" || u.User != nil || u.Fragment != "" || u.Opaque != "" {
+		return false
+	}
+	switch u.Host {
+	case "127.0.0.1", "[::1]":
+	default:
+		h, port, err := net.SplitHostPort(u.Host)
+		if err != nil || (h != "127.0.0.1" && h != "::1") {
+			return false
+		}
+		n, err := strconv.Atoi(port)
+		if err != nil || n < 1 || n > 65535 {
+			return false
+		}
+	}
+	return true
 }
 
 func (g *Gateway) fetchCIMD(ctx context.Context, clientID string) (*clientMetadata, error) {
@@ -215,8 +282,13 @@ func (g *Gateway) redirectToEntra(w http.ResponseWriter, r *http.Request, p *pen
 	p.EntraVerifier = entraVerifier
 	p.EntraNonce = entraNonce
 	p.Created = g.now()
-	if !g.pendingEntra.Set(entraState, p, defaultPendingTTL) {
-		http.Error(w, "too many pending authorizations", http.StatusServiceUnavailable)
+	if err := g.putPending(r.Context(), kindPendingEntra, entraState, p); err != nil {
+		if errors.Is(err, errStoreFull) {
+			http.Error(w, "too many pending authorizations", http.StatusServiceUnavailable)
+			return
+		}
+		slog.Warn("store pending entra state failed", "error", err)
+		http.Error(w, "session store unavailable", http.StatusServiceUnavailable)
 		return
 	}
 
@@ -334,7 +406,17 @@ func (g *Gateway) callbackHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	p, ok := g.pendingEntra.Pop(queryState)
+	p, ok, err := g.popPending(r.Context(), kindPendingEntra, queryState)
+	legacy := false
+	if err == nil && !ok {
+		p, ok, err = g.popPending(r.Context(), kindPendingEntraLegacy, queryState)
+		legacy = ok
+	}
+	if err != nil {
+		slog.Warn("pop pending entra state failed", "error", err)
+		http.Error(w, "session store unavailable", http.StatusServiceUnavailable)
+		return
+	}
 	if !ok {
 		http.Error(w, "unknown or expired login; start again", http.StatusBadRequest)
 		return
@@ -436,16 +518,32 @@ func (g *Gateway) callbackHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sessionTTL := computeSessionTTL(out["expires_in"])
+	groupList := make([]string, 0, len(groups))
+	for grp := range groups {
+		groupList = append(groupList, grp)
+	}
+	sort.Strings(groupList)
+
+	issuedAt := g.now()
+	sessionTTL := computeSessionTTL(out["expires_in"], g.cfg.SessionMaxAge)
 	rt, _ := out["refresh_token"].(string)
-	sess := &gatewaySession{
-		clientID:     p.ClientID,
-		resource:     p.Resource,
-		entraToken:   at,
-		refreshToken: rt,
-		navIdent:     navIdent,
-		groups:       groups,
-		expiry:       g.now().Add(sessionTTL),
+	sessRT := rt
+	entraRT := ""
+	if g.cfg.RTStorage == rtStorageClientEncrypted {
+		// Never persist the Entra refresh token in the session store in client-encrypted
+		// mode; carry it transiently on the 60s single-use code until /token seals it.
+		sessRT = ""
+		entraRT = rt
+	}
+	sess := gatewaySession{
+		ClientID:     p.ClientID,
+		Resource:     p.Resource,
+		EntraToken:   at,
+		RefreshToken: sessRT,
+		NAVIdent:     navIdent,
+		Groups:       groupList,
+		IssuedAt:     issuedAt,
+		Expiry:       issuedAt.Add(sessionTTL),
 	}
 
 	gwCode, err := randomToken()
@@ -460,15 +558,71 @@ func (g *Gateway) callbackHandler(w http.ResponseWriter, r *http.Request) {
 		Challenge:   p.Challenge,
 		Resource:    p.Resource,
 		Session:     sess,
-		Created:     g.now(),
+		EntraRT:     entraRT,
+		Created:     issuedAt,
 	}
-	if !g.codes.Set(gwCode, issued, defaultCodeTTL) {
-		http.Error(w, "too many active authorization codes", http.StatusServiceUnavailable)
+	remembered, err := g.hasConsent(r.Context(), navIdent, p.ClientID, p.Resource)
+	if err != nil {
+		slog.Warn("consent lookup failed", "error", err)
+	}
+	if remembered && p.Prompt != "consent" && !legacy {
+		g.issueCode(w, r, p, gwCode, issued)
+		return
+	}
+	if p.Prompt == "none" {
+		slog.Info("audit login", "outcome", "consent_required", "navident", navIdent, "client_id", p.ClientID, "resource", p.Resource)
+		back(url.Values{"error": {"consent_required"}})
 		return
 	}
 
-	slog.Info("audit login", "outcome", "ok", "navident", navIdent, "client_id", p.ClientID, "resource", p.Resource, "refresh_token_received", rt != "")
-	back(url.Values{"code": {gwCode}})
+	consentID, err := randomToken()
+	if err != nil {
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+	if p.CSRF, err = randomToken(); err != nil {
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+	p.Issued = issued
+	if err := g.putPending(r.Context(), kindPendingConsent, consentID, p); err != nil {
+		if errors.Is(err, errStoreFull) {
+			http.Error(w, "too many pending authorizations", http.StatusServiceUnavailable)
+			return
+		}
+		slog.Warn("store pending consent failed", "error", err)
+		http.Error(w, "session store unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	g.renderConsentPage(w, consentID, p)
+}
+
+// issueCode stores the gateway authorization code and sends the browser back
+// to the client.
+func (g *Gateway) issueCode(w http.ResponseWriter, r *http.Request, p *pendingAuth, gwCode string, issued *issuedCode) {
+	if err := g.putCode(r.Context(), gwCode, issued); err != nil {
+		if errors.Is(err, errStoreFull) {
+			http.Error(w, "too many active authorization codes", http.StatusServiceUnavailable)
+			return
+		}
+		slog.Warn("store authorization code failed", "error", err)
+		http.Error(w, "session store unavailable", http.StatusServiceUnavailable)
+		return
+	}
+
+	slog.Info("audit login", "outcome", "ok", "navident", issued.Session.NAVIdent, "client_id", p.ClientID, "resource", p.Resource, "refresh_token_received", issued.EntraRT != "" || issued.Session.RefreshToken != "")
+	g.redirectToClient(w, r, p, url.Values{"code": {gwCode}})
+}
+
+func (g *Gateway) redirectToClient(w http.ResponseWriter, r *http.Request, p *pendingAuth, v url.Values) {
+	target, err := url.Parse(p.RedirectURI)
+	if err != nil {
+		http.Error(w, "invalid stored redirect_uri", http.StatusInternalServerError)
+		return
+	}
+	v.Set("state", p.State)
+	v.Set("iss", g.cfg.BaseURL)
+	redirectWithValues(w, r, target, v)
 }
 
 func (g *Gateway) redeemEntraCode(ctx context.Context, code, codeVerifier string) (map[string]any, int, error) {
@@ -484,6 +638,18 @@ func (g *Gateway) redeemEntraCode(ctx context.Context, code, codeVerifier string
 		form.Set("code_verifier", codeVerifier)
 	}
 
+	body, status, err := g.postEntraToken(ctx, form)
+	if err != nil {
+		return nil, status, err
+	}
+	var out map[string]any
+	if err := json.Unmarshal(body, &out); err != nil {
+		return nil, status, err
+	}
+	return out, status, nil
+}
+
+func (g *Gateway) postEntraToken(ctx context.Context, form url.Values) ([]byte, int, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, g.cfg.AzureTokenEndpoint, strings.NewReader(form.Encode()))
 	if err != nil {
 		return nil, 0, err
@@ -498,19 +664,22 @@ func (g *Gateway) redeemEntraCode(ctx context.Context, code, codeVerifier string
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	var out map[string]any
-	if err := json.NewDecoder(io.LimitReader(resp.Body, maxUpstreamBodyBytes)).Decode(&out); err != nil {
+	body, err := io.ReadAll(io.LimitReader(resp.Body, maxUpstreamBodyBytes))
+	if err != nil {
 		return nil, resp.StatusCode, err
 	}
-	return out, resp.StatusCode, nil
+	return body, resp.StatusCode, nil
 }
 
 func (g *Gateway) signEntraState(state string) string {
-	mac := hmac.New(sha256.New, g.cfg.CookieSecret)
+	return signEntraStateWith(g.cfg.CookieSecret, state)
+}
+
+func signEntraStateWith(key []byte, state string) string {
+	mac := hmac.New(sha256.New, key)
 	mac.Write([]byte("entra-state:"))
 	mac.Write([]byte(state))
-	sig := base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
-	return state + "." + sig
+	return state + "." + base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
 }
 
 func (g *Gateway) verifyEntraStateCookie(cookieVal, queryState string) bool {
@@ -521,8 +690,13 @@ func (g *Gateway) verifyEntraStateCookie(cookieVal, queryState string) bool {
 	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
 		return false
 	}
-	expected := g.signEntraState(parts[0])
-	if subtle.ConstantTimeCompare([]byte(cookieVal), []byte(expected)) != 1 {
+	valid := false
+	for _, key := range append([][]byte{g.cfg.CookieSecret}, g.cfg.CookieVerifyKeys...) {
+		if subtle.ConstantTimeCompare([]byte(cookieVal), []byte(signEntraStateWith(key, parts[0]))) == 1 {
+			valid = true
+		}
+	}
+	if !valid {
 		return false
 	}
 	return subtle.ConstantTimeCompare([]byte(parts[0]), []byte(queryState)) == 1
@@ -559,14 +733,17 @@ func isValidCodeChallenge(challenge string) bool {
 	return true
 }
 
-func computeSessionTTL(expiresIn any) time.Duration {
+func computeSessionTTL(expiresIn any, maxAge time.Duration) time.Duration {
+	if maxAge <= 0 {
+		maxAge = defaultSessionMaxAge
+	}
 	secs := parseNumeric(expiresIn)
 	if secs <= 0 {
-		return defaultSessionTTL
+		return min(defaultSessionTTL, maxAge)
 	}
 	d := time.Duration(secs) * time.Second
-	if d > defaultSessionMaxTTL {
-		return defaultSessionMaxTTL
+	if d > maxAge {
+		return maxAge
 	}
 	return d
 }

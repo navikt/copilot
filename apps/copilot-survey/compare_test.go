@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"math"
 	"os"
 	"testing"
 	"time"
@@ -28,17 +29,18 @@ func waveRows() map[string][]storedAnswer {
 	out := map[string][]storedAnswer{}
 	for _, f := range []string{"5", "5", "4", "2"} {
 		r := row(`{"tools":["a"],"fast":`+f+`,"slow":3,"note":"x"}`, `{"tools":1,"fast":1,"slow":1,"note":1}`)
-		r.Client = "forms"
+		r.Client, r.Context = "forms", map[string]any{"client": "forms"}
 		out["spring"] = append(out["spring"], r)
 	}
 	for range 2 {
 		r := row(`{"tools":["none"],"fast":1,"slow":1}`, `{"tools":1,"fast":1,"slow":1}`)
-		r.Client = "forms"
+		r.Client, r.Context = "forms", map[string]any{"client": "forms"}
 		out["spring"] = append(out["spring"], r)
 	}
 	for i := range 5 {
 		r := row(`{"tools":["a"],"fast":3,"slow":4}`, `{"tools":1,"fast":1,"slow":2}`)
 		r.Client = map[bool]string{true: "web", false: "copilot"}[i < 3]
+		r.Context = map[string]any{"client": r.Client}
 		out["autumn"] = append(out["autumn"], r)
 	}
 	return out
@@ -66,7 +68,7 @@ func getCompare(t *testing.T, api *surveyAPI, ids string) compareResult {
 func checkCompare(t *testing.T, got compareResult) {
 	t.Helper()
 	if len(got.Surveys) != 2 || got.Surveys[0].ID != "spring" || got.Surveys[0].Channels["forms"] != 6 ||
-		got.Surveys[1].Channels["web"] != 3 || got.Surveys[1].Channels["copilot"] != 2 {
+		len(got.Surveys[1].Channels) != 1 || got.Surveys[1].Channels["annet"] != 5 { // web 3 and copilot 2 merged as in the export
 		t.Fatalf("meta %+v", got.Surveys)
 	}
 	if len(got.Questions) != 2 {
@@ -87,6 +89,13 @@ func checkCompare(t *testing.T, got compareResult) {
 	}
 	if !slow.Break || slow.Waves[0].Versions[0].Version != 1 || slow.Waves[1].Versions[0].Version != 2 {
 		t.Errorf("slow: no break %+v", slow)
+	}
+	// fast is the only item tested (slow has a break), so Holm leaves its p.
+	if fast.P == nil || math.Abs(*fast.P-0.17752985241215352) > 1e-12 || *fast.PHolm != *fast.P {
+		t.Errorf("fast test %+v", fast.significance)
+	}
+	if slow.P != nil || slow.PHolm != nil {
+		t.Errorf("slow tested across a break: %+v", slow.significance)
 	}
 }
 

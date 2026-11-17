@@ -2,6 +2,7 @@ import { BodyShort, Heading, VStack } from "@navikt/ds-react";
 import { Table, TableBody, TableDataCell, TableHeader, TableHeaderCell, TableRow } from "@/components/aksel-table";
 import { formatNumber } from "@/lib/format";
 import type { QuestionResult, Survey, SurveyQuestion, VersionResult } from "@/lib/survey";
+import { nText, unsureLabel } from "./[id]/likert";
 import { fill, Legend, LikertBar } from "./likert-bar";
 
 /**
@@ -17,7 +18,17 @@ function labeller(def: SurveyQuestion | undefined, current: number | undefined) 
 type Label = (version: number, value: string) => string;
 
 /** One version of a question as a table: count, share of respondents and an inline bar. */
-function VersionTable({ v, caption, label }: { v: VersionResult; caption: string; label: Label }) {
+function VersionTable({
+  v,
+  caption,
+  label,
+  unsure,
+}: {
+  v: VersionResult;
+  caption: string;
+  label: Label;
+  unsure?: string;
+}) {
   const n = v.n;
   if (!v.options || n === null) return null;
   return (
@@ -25,7 +36,7 @@ function VersionTable({ v, caption, label }: { v: VersionResult; caption: string
       <Table size="small">
         <caption className="text-left">
           <BodyShort size="small">
-            {caption}: {formatNumber(n)} svar
+            {caption}: {nText(v, formatNumber, unsure)} svar
           </BodyShort>
         </caption>
         <TableHeader>
@@ -76,10 +87,20 @@ function scaleOf(def: SurveyQuestion | undefined, version: number | undefined): 
   return { version, min, max: def.max ?? min + def.labels.length - 1, labels: def.labels };
 }
 
-function Versions({ versions, label, scale }: { versions: VersionResult[]; label: Label; scale?: Scale }) {
+function Versions({
+  versions,
+  label,
+  scale,
+  unsure,
+}: {
+  versions: VersionResult[];
+  label: Label;
+  scale?: Scale;
+  unsure?: string;
+}) {
   return versions.map((v) => {
     const caption = versions.length > 1 ? `Versjon ${v.version}` : "Alle";
-    const table = <VersionTable key={v.version} v={v} label={label} caption={caption} />;
+    const table = <VersionTable key={v.version} v={v} label={label} caption={caption} unsure={unsure} />;
     if (!scale || v.version !== scale.version || !v.options || v.n === null) return table;
     return (
       <VStack key={v.version} gap="space-4">
@@ -103,9 +124,15 @@ export function SurveyQuestions({ questions, def }: { questions: QuestionResult[
           <Heading level="2" size="small">
             {q.text}
           </Heading>
-          {(qdef?.type === "matrix" || qdef?.type === "scale") && qdef.labels ? <Legend labels={qdef.labels} /> : null}
+          {(qdef?.type === "matrix" || qdef?.type === "scale") && qdef.labels ? (
+            <Legend
+              labels={qdef.labels}
+              unsure={unsureLabel([...(q.versions ?? []), ...(q.items ?? []).flatMap((it) => it.versions)])}
+            />
+          ) : null}
           {q.versions ? (
             <Versions
+              unsure={qdef?.unsure}
               versions={q.versions}
               label={labeller(qdef, qdef?.version)}
               scale={scaleOf(qdef, qdef?.version)}
@@ -117,6 +144,7 @@ export function SurveyQuestions({ questions, def }: { questions: QuestionResult[
                 {item.text}
               </Heading>
               <Versions
+                unsure={qdef?.unsure}
                 versions={item.versions}
                 label={labeller(qdef, qdef?.items?.find((d) => d.id === item.id)?.version)}
                 scale={scaleOf(qdef, qdef?.items?.find((d) => d.id === item.id)?.version)}

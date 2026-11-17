@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 )
 
 // waveMeta is one wave in a comparison: its summary and how it was answered.
@@ -38,6 +39,7 @@ type compareItem struct {
 	Text  string       `json:"text"`
 	Break bool         `json:"break"` // the waves asked different versions
 	Waves []waveCounts `json:"waves"`
+	significance
 }
 
 type compareQuestion struct {
@@ -47,9 +49,11 @@ type compareQuestion struct {
 	Min    int           `json:"min,omitempty"`
 	Max    int           `json:"max,omitempty"`
 	Labels []string      `json:"labels,omitempty"`
+	Unsure string        `json:"unsure,omitempty"`
 	Break  bool          `json:"break,omitempty"`
 	Waves  []waveCounts  `json:"waves,omitempty"` // scale, choice, multi
 	Items  []compareItem `json:"items,omitempty"` // matrix
+	significance
 }
 
 type compareResult struct {
@@ -74,47 +78,102 @@ func (a *surveyAPI) compare(w http.ResponseWriter, r *http.Request) {
 	}
 	var waves []survey
 	var rows [][]storedAnswer
-	res := compareResult{Questions: []compareQuestion{}}
 	for _, id := range ids {
 		i := slices.IndexFunc(a.surveys, func(s survey) bool { return s.ID == id })
 		if i < 0 || slices.ContainsFunc(waves, func(s survey) bool { return s.ID == id }) {
 			writeError(w, http.StatusNotFound, "unknown survey")
 			return
 		}
-		s := a.surveys[i]
-		rs, err := a.read(r, s.ID)
+		rs, err := a.read(r, a.surveys[i].ID)
 		if err != nil {
 			writeError(w, http.StatusServiceUnavailable, "survey storage unavailable")
 			return
 		}
-		m := waveMeta{surveySummary{s.ID, s.Title, s.Starts, s.Ends, s.status(a.now()), len(rs), s.Series, s.Published}, len(rs) < minSegment, map[string]int{}}
+		waves, rows = append(waves, a.surveys[i]), append(rows, mergeClients(rs))
+	}
+	res := compareWavesResult(waves, rows, a.now())
+	if r.URL.Query().Get("format") == "csv" {
+		w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+		w.Header().Set("Content-Disposition", `attachment; filename="sammenligning-`+strings.Join(ids, "-")+`.csv"`)
+		w.Header().Set("Cache-Control", "no-store")
+		_ = writeCompareCSV(w, res) // headers are sent; a broken connection has no one to tell
+		return
+	}
+	writeJSON(w, res)
+}
+
+// mergeClients sets each row's Client to its context.client as the CSV
+// export writes it (suppressSmallSegments), so the channels online are the
+// ones «copilot-survey analyze» reads from that CSV.
+func mergeClients(rs []storedAnswer) []storedAnswer {
+	ex := make([]exportRow, len(rs))
+	for i, r := range rs {
+		ex[i] = newExportRow(map[string]any{}, nil, r.Context, func(string, string) bool { return false })
+	}
+	suppressSmallSegments(ex)
+	out := slices.Clone(rs)
+	for i := range out {
+		out[i].Client = ex[i].Context["client"]
+	}
+	return out
+}
+
+// compareWavesResult is the comparison of waves (oldest first) from their
+// rows. The endpoint and «copilot-survey analyze» both call it, so the
+// numbers online and from an exported CSV are computed by the same code.
+func compareWavesResult(waves []survey, rows [][]storedAnswer, now time.Time) compareResult {
+	res := compareResult{Questions: []compareQuestion{}}
+	rows = slices.Clone(rows)
+	for i, s := range waves {
+		rs := rows[i]
+		m := waveMeta{surveySummary{s.ID, s.Title, s.Starts, s.Ends, s.status(now), len(rs), s.Series, s.Published}, len(rs) < minSegment, map[string]int{}}
 		for _, row := range rs {
 			m.Channels[row.Client]++
 		}
 		if m.Suppressed {
-			rs, m.Channels = nil, nil
+			rows[i], m.Channels = nil, nil
 		}
-		waves, rows = append(waves, s), append(rows, rs)
 		res.Surveys = append(res.Surveys, m)
 	}
 	for _, q := range waves[len(waves)-1].Questions {
 		if q.Type == "text" {
 			continue
 		}
-		cq := compareQuestion{ID: q.ID, Type: q.Type, Text: q.Text, Min: q.Min, Max: q.Max, Labels: q.Labels}
+		cq := compareQuestion{ID: q.ID, Type: q.Type, Text: q.Text, Min: q.Min, Max: q.Max, Labels: q.Labels, Unsure: q.Unsure}
 		if q.Type == "matrix" {
 			for _, it := range q.Items {
 				item := q
 				item.Type, item.ID, item.Version = "scale", it.ID, it.Version
 				ws, br := compareWaves(item, waves, rows)
-				cq.Items = append(cq.Items, compareItem{it.ID, it.Text, br, ws})
+				cq.Items = append(cq.Items, compareItem{ID: it.ID, Text: it.Text, Break: br, Waves: ws})
 			}
 		} else {
 			cq.Waves, cq.Break = compareWaves(q, waves, rows)
 		}
 		res.Questions = append(res.Questions, cq)
 	}
-	writeJSON(w, res)
+	// After the appends, so the pointers stay valid. Holm runs over every
+	// tested item: statements for KI users and for everyone alike.
+	var tested []*significance
+	for qi := range res.Questions {
+		cq := &res.Questions[qi]
+		if cq.Type == "scale" && testFirstLast(&cq.significance, cq.Waves, cq.Break) {
+			tested = append(tested, &cq.significance)
+		}
+		for ii := range cq.Items {
+			if it := &cq.Items[ii]; testFirstLast(&it.significance, it.Waves, it.Break) {
+				tested = append(tested, &it.significance)
+			}
+		}
+	}
+	ps := make([]float64, len(tested))
+	for i, t := range tested {
+		ps[i] = *t.P
+	}
+	for i, h := range holm(ps) {
+		tested[i].PHolm = &h
+	}
+	return res
 }
 
 // asked finds the question or matrix item id in s as asked there: its

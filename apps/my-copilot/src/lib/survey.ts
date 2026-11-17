@@ -17,6 +17,8 @@ export type SurveyQuestion = {
   min?: number;
   max?: number;
   labels?: string[];
+  /** scale, matrix: one more answer after the steps («Vet ikke»), sent as this label. */
+  unsure?: string;
   options?: string[];
   max_choices?: number;
   exclusive?: string;
@@ -303,14 +305,17 @@ export type WaveStat = VersionResult & { mean?: number; agree?: number };
 /** A question or item in one wave. excluded: answers the comparison rule dropped (the last wave's skip_if). */
 export type WaveCounts = { excluded: number; versions: WaveStat[] };
 export type WaveMeta = SurveySummary & { suppressed: boolean; channels: Record<string, number> | null };
-export type CompareItem = { id: string; text: string; break: boolean; waves: WaveCounts[] };
-export type CompareQuestion = {
+/** First wave against the last, scale items without a break: Mann–Whitney p and Holm-corrected p. */
+export type Significance = { p?: number; p_holm?: number };
+export type CompareItem = Significance & { id: string; text: string; break: boolean; waves: WaveCounts[] };
+export type CompareQuestion = Significance & {
   id: string;
   type: SurveyQuestion["type"];
   text: string;
   min?: number;
   max?: number;
   labels?: string[];
+  unsure?: string;
   break?: boolean;
   waves?: WaveCounts[];
   items?: CompareItem[];
@@ -362,17 +367,23 @@ export async function hideSurveyFreetext(userToken: string, id: string, textToke
 
 /** GET /api/v1/admin/surveys/{id}/export.csv as is, for the route handler to stream on; null without a URL, a valid id or a connection. */
 export async function fetchSurveyExport(userToken: string, id: string): Promise<Response | null> {
+  if (!/^[a-z0-9-]{1,64}$/.test(id)) return null;
+  return fetchSurveyCSV(userToken, `/api/v1/admin/surveys/${id}/export.csv`);
+}
+
+/** The comparison as long-form CSV, the same numbers as «copilot-survey analyze --csv» gives from exported answers. */
+export async function fetchSurveyCompareExport(userToken: string, ids: string[]): Promise<Response | null> {
+  if (ids.length < 2 || ids.length > 4 || !ids.every((id) => /^[a-z0-9-]{1,64}$/.test(id))) return null;
+  return fetchSurveyCSV(userToken, `/api/v1/admin/surveys/compare?ids=${ids.join(",")}&format=csv`);
+}
+
+async function fetchSurveyCSV(userToken: string, path: string): Promise<Response | null> {
   const url = process.env.COPILOT_SURVEY_URL;
-  if (!url || !/^[a-z0-9-]{1,64}$/.test(id)) return null;
+  if (!url) return null;
   try {
     const headers: Record<string, string> = {};
     if (!isLocalDev()) headers.Authorization = `Bearer ${await exchangeTokenFor(userToken, "copilot-survey")}`;
-    return await fetchWithTimeout(
-      `${url}/api/v1/admin/surveys/${id}/export.csv`,
-      { headers, cache: "no-store" },
-      30000,
-      "timeout"
-    );
+    return await fetchWithTimeout(`${url}${path}`, { headers, cache: "no-store" }, 30000, "timeout");
   } catch {
     return null;
   }

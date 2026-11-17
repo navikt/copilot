@@ -30,7 +30,7 @@ status routes only.
 | `GET` | `/api/v1/surveys/{id}/status` | see above | `{"answered": bool}` for the caller, same hash as a submission: 200, 401 caller refused, 403 no Nav identity, 404 not open, 503 storage unavailable |
 | `GET` | `/api/v1/admin/surveys` | admin | All surveys with status (kommende, åpen, stengt) and written answers |
 | `GET` | `/api/v1/admin/surveys/{id}/results` | admin | Counts per option and question version, no free text. Fewer than 5 answers in the whole survey: nothing. Otherwise every count is real; `suppressed` is always `false` at option level (kept for old clients) |
-| `GET` | `/api/v1/admin/surveys/compare?ids=a,b` | admin | Two to four waves, oldest first, question by question after the last wave's definition: n, counts, mean and share agreeing (top two steps) per version, `break` where the waves asked different versions, answers per `context.client`. The last wave's `skip_if` applies to every wave, so spring statement answers from people who do not use KI tools are dropped (`excluded`) as autumn skips them. A wave under 5 answers has no counts |
+| `GET` | `/api/v1/admin/surveys/compare?ids=a,b` | admin | Two to four waves, oldest first, question by question after the last wave's definition: n, counts, mean and share agreeing (top two steps) per version, `break` where the waves asked different versions, a first-to-last test per scale item ([Significance](#significance)), answers per `context.client` merged under 5 as in the export. The last wave's `skip_if` applies to every wave, so spring statement answers from people who do not use KI tools are dropped (`excluded`) as autumn skips them. A wave under 5 answers has no counts. `&format=csv`: the same numbers in long form, see [Same numbers locally](#same-numbers-locally) |
 | `GET` | `/api/v1/admin/surveys/{id}/freetext` | admin | Free text per field (text questions and `<id>.other`), masked as in the export, random order, each text on its own: no row id, no other answers. Hidden texts left out. Visible while open (owner, 2026-10-13) |
 | `POST` | `/api/v1/admin/surveys/{id}/freetext/hide` | admin | `{"token": "..."}` from the list above: hides that text in admin and the export. 204, or 404 for an unknown token |
 | `GET` | `/api/v1/admin/surveys/{id}/export.csv` | admin | Every response as one CSV row, see [CSV export in admin](#csv-export-in-admin). 410 when a closed survey's rows are deleted and only aggregates remain |
@@ -358,3 +358,32 @@ mise check   # fmt, vet, staticcheck, deadcode, lint, test
 ```
 
 `COPILOT_SURVEY_TEST_DB_URL` runs the store test against a real Postgres.
+
+### Same numbers locally
+
+`analyze` computes from exported CSVs with the functions the admin endpoints use, so a person, an agent and the admin page get the same numbers:
+
+```bash
+go run . analyze q4-2026=q4-2026-svar.csv                                   # = /admin/surveys/q4-2026/results, JSON
+go run . analyze q2-2026=q2-2026-svar.csv q4-2026=q4-2026-svar.csv          # = /compare, JSON
+go run . analyze --csv q2-2026=q2-2026-svar.csv q4-2026=q4-2026-svar.csv    # = /compare?format=csv
+```
+
+Survey ids select the embedded definition; a CSV whose columns do not match it is refused. `TestAnalyzeMatchesOnline` holds the promise: rows → export CSV → `readExportCSV` must give byte-identical results and comparison CSV.
+
+Channels (`context.client`) in a comparison are merged as the export merges them (values and combinations under 5 become `annet`), so they match too. `/results` still shows unmerged channels.
+
+Comparison CSV columns: `kind` (`responses`, `channel`, `answer`), `survey_id`, `question_id`, `item_id` (matrix), `version`, `break`, `option`, `count`, `n`, `excluded`, `mean`, `agree`, `p`, `p_holm`. Means and shares are unrounded; round when you present, not before you subtract.
+
+#### Significance
+
+Every scale or matrix item that the first and the last wave answered in the same version (no `break`) gets a test of the first wave against the last, as `p` and `p_holm` in the JSON and on every answer row of the item in the CSV. Waves in between are not tested.
+
+| Field | What |
+| --- | --- |
+| `p` | Two-sided Mann–Whitney U, normal approximation with tie correction, no continuity correction |
+| `p_holm` | `p` after Holm correction over every tested item in the comparison, statements for KI users and for everyone together |
+
+Closed formulas only, so the admin page and `analyze` give the same numbers with no seed. There is no confidence interval: a Welch interval for the mean tests something else than the rank test and disagreed with it (`tilfredshet`), so one test gives one answer. Spring against autumn 2026 tests 7 statements; only `teknisk-kompetanse` holds after correction (`p` 0.0031, `p_holm` 0.022).
+
+`compare` reads rows, not the stored aggregates, because the skip rule needs each answer. Once a wave's rows are deleted it can no longer be compared: keep its comparison CSV.

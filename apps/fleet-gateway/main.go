@@ -19,15 +19,14 @@ import (
 
 // Gateway implements the fleet-gateway OAuth 2.1 authorization server and MCP proxy.
 type Gateway struct {
-	cfg            *Config
-	now            func() time.Time
-	pendingConsent *ttlMap[*pendingAuth]
-	pendingEntra   *ttlMap[*pendingAuth]
-	codes          *ttlMap[*issuedCode]
-	sessions       *ttlMap[*gatewaySession]
-	cimdCache      *ttlMap[*clientMetadata]
-	limiter        *ipRateLimiter
-	proxyClient    *http.Client
+	cfg         *Config
+	now         func() time.Time
+	store       SessionStore
+	rtKeys      *keyRing
+	cimdCache   *ttlMap[*clientMetadata]
+	limiter     *ipRateLimiter
+	proxyClient *http.Client
+	refreshWait time.Duration // how long a concurrent refresh waits for the winner's grace pair
 
 	wellKnownMu         sync.RWMutex
 	wellKnownGroup      singleflight.Group
@@ -37,26 +36,90 @@ type Gateway struct {
 }
 
 func newGateway(cfg *Config, now func() time.Time) (*Gateway, error) {
+	if cfg == nil {
+		return nil, errors.New("nil config")
+	}
 	if now == nil {
 		now = time.Now
 	}
-	sessions := newTTLMap[*gatewaySession](cfg.SessionCap, now)
-	teamTokens, err := newTeamTokenSource(cfg, sessions, now)
+	var rtKeys *keyRing
+	if strings.TrimSpace(cfg.RTKeys) != "" {
+		kr, err := parseKeyRing(cfg.RTKeys)
+		if err != nil {
+			return nil, fmt.Errorf("parse RT_KEYS: %w", err)
+		}
+		rtKeys = kr
+	}
+	if cfg.RTStorage == rtStorageClientEncrypted && rtKeys == nil {
+		return nil, errors.New("RT_KEYS is required when RT_STORAGE=client-encrypted")
+	}
+	store, ownedStore, err := buildSessionStore(cfg, now, rtKeys)
 	if err != nil {
+		return nil, fmt.Errorf("initialize session store: %w", err)
+	}
+	teamTokens, err := newTeamTokenSource(cfg, store, now)
+	if err != nil {
+		if ownedStore {
+			store.Close()
+		}
 		return nil, fmt.Errorf("initialize team token source: %w", err)
 	}
 	return &Gateway{
-		cfg:            cfg,
-		now:            now,
-		pendingConsent: newTTLMap[*pendingAuth](cfg.PendingCap, now),
-		pendingEntra:   newTTLMap[*pendingAuth](cfg.PendingCap, now),
-		codes:          newTTLMap[*issuedCode](cfg.CodeCap, now),
-		sessions:       sessions,
-		cimdCache:      newTTLMap[*clientMetadata](cfg.CIMDCap, now),
-		limiter:        newIPRateLimiter(cfg.RateLimitRequests, cfg.RateLimitGlobalRequests, cfg.RateLimitWindow, cfg.RateLimitCap, now),
-		proxyClient:    newHardenedProxyClient(cfg.ProxyHeaderTimeout),
-		TeamTokens:     teamTokens,
+		cfg:         cfg,
+		now:         now,
+		store:       store,
+		rtKeys:      rtKeys,
+		cimdCache:   newTTLMap[*clientMetadata](cfg.CIMDCap, now),
+		limiter:     newIPRateLimiter(cfg.RateLimitRequests, cfg.RateLimitGlobalRequests, cfg.RateLimitWindow, cfg.RateLimitCap, now),
+		proxyClient: newHardenedProxyClient(cfg.ProxyHeaderTimeout),
+		refreshWait: 5 * time.Second,
+		TeamTokens:  teamTokens,
 	}, nil
+}
+
+func buildSessionStore(cfg *Config, now func() time.Time, rtKeys *keyRing) (SessionStore, bool, error) {
+	if cfg == nil {
+		return nil, false, errors.New("nil config")
+	}
+	if cfg.Store != nil {
+		return cfg.Store, false, nil
+	}
+
+	caps := map[string]int{
+		kindPendingConsent:     cfg.PendingCap,
+		kindPendingEntra:       cfg.PendingCap,
+		kindPendingEntraLegacy: cfg.PendingCap,
+		kindCode:               cfg.CodeCap,
+		kindSession:            cfg.SessionCap,
+		kindConsent:            cfg.SessionCap,
+		kindMCPSession:         cfg.SessionCap,
+		kindMCPSessionUser:     cfg.SessionCap,
+		kindDCRClient:          cfg.DCRClientCap,
+	}
+
+	var store SessionStore
+	switch strings.ToLower(strings.TrimSpace(cfg.SessionStore)) {
+	case "", "memory":
+		store = newMemoryStore(now, caps)
+	case "postgres":
+		if rtKeys == nil {
+			return nil, false, errors.New("RT_KEYS is required when SESSION_STORE=postgres")
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		pgStore, err := newPostgresStore(ctx, cfg.DatabaseURL, now, caps)
+		if err != nil {
+			return nil, false, err
+		}
+		store = pgStore
+	default:
+		return nil, false, fmt.Errorf("unsupported SESSION_STORE %q", cfg.SessionStore)
+	}
+
+	if rtKeys != nil {
+		store = newSealedStore(store, rtKeys)
+	}
+	return store, true, nil
 }
 
 func (g *Gateway) startSweeper(ctx context.Context, interval time.Duration) {
@@ -75,10 +138,11 @@ func (g *Gateway) startSweeper(ctx context.Context, interval time.Duration) {
 }
 
 func (g *Gateway) sweepAll() {
-	g.pendingConsent.Sweep()
-	g.pendingEntra.Sweep()
-	g.codes.Sweep()
-	g.sessions.Sweep()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if _, err := g.store.Sweep(ctx); err != nil {
+		slog.Warn("session store sweep failed", "error", err)
+	}
 	g.cimdCache.Sweep()
 	g.limiter.Sweep()
 }
@@ -86,7 +150,7 @@ func (g *Gateway) sweepAll() {
 func (g *Gateway) routes() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", healthHandler)
-	mux.HandleFunc("GET /ready", readyHandler)
+	mux.HandleFunc("GET /ready", g.readyHandler)
 	mux.HandleFunc("GET /{$}", g.rootHandler)
 	mux.HandleFunc("GET /.well-known/oauth-protected-resource", g.prmHandler)
 	mux.HandleFunc("GET /.well-known/oauth-protected-resource/{rest...}", g.prmHandler)
@@ -95,6 +159,10 @@ func (g *Gateway) routes() http.Handler {
 	mux.HandleFunc("POST /consent", g.consentPostHandler)
 	mux.HandleFunc("GET /oauth2/callback", g.callbackHandler)
 	mux.HandleFunc("POST /token", g.rateLimitMiddleware(g.tokenHandler))
+	mux.HandleFunc("POST /revoke", g.rateLimitMiddleware(g.revokeHandler))
+	if g.cfg.DCREnabled {
+		mux.HandleFunc("POST /register", g.rateLimitMiddleware(g.registerHandler))
+	}
 	for _, route := range g.cfg.Routes {
 		mux.HandleFunc(route.Route, g.mcpHandler(route))
 	}
@@ -105,7 +173,14 @@ func healthHandler(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "healthy"})
 }
 
-func readyHandler(w http.ResponseWriter, _ *http.Request) {
+func (g *Gateway) readyHandler(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+	defer cancel()
+	if err := g.store.Ping(ctx); err != nil {
+		slog.Warn("readiness check failed", "error", err)
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"status": "not_ready"})
+		return
+	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ready"})
 }
 
@@ -189,7 +264,7 @@ func (g *Gateway) rateLimitMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		ip := extractClientIP(r)
 		if !g.limiter.Allow(ip) {
 			w.Header().Set("Retry-After", "60")
-			if r.URL.Path == "/token" {
+			if r.URL.Path == "/token" || r.URL.Path == "/revoke" {
 				writeJSON(w, http.StatusTooManyRequests, map[string]string{
 					"error":             "temporarily_unavailable",
 					"error_description": "rate limit exceeded",
@@ -359,6 +434,7 @@ func main() {
 		slog.Error("Failed to initialize gateway", "error", err)
 		os.Exit(1)
 	}
+	defer gw.store.Close()
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
@@ -382,6 +458,7 @@ func main() {
 		"allowed_resources", len(cfg.AllowedResources),
 		"pilot_routes", len(cfg.Routes),
 		"team_token_strategy", cfg.TeamTokenStrategy,
+		"rt_storage", cfg.RTStorage,
 	)
 
 	go func() {

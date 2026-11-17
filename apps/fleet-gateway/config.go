@@ -3,7 +3,9 @@ package main
 
 import (
 	"context"
+	"crypto/hkdf"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -18,29 +20,46 @@ import (
 )
 
 const (
-	defaultPort                          = "8080"
-	defaultPendingTTL                    = 10 * time.Minute
-	defaultCodeTTL                       = 60 * time.Second
-	defaultSessionMaxTTL                 = 10 * time.Hour
-	defaultSessionTTL                    = time.Hour
-	defaultCIMDTTL                       = 5 * time.Minute
-	defaultOutboundTimeout               = 10 * time.Second
-	defaultPendingCap                    = 1024
-	defaultCodeCap                       = 1024
-	defaultSessionCap                    = 4096
-	defaultCIMDCap                       = 64
-	defaultRateLimitCap                  = 4096
-	defaultRateLimitRequests             = 30
-	defaultRateLimitGlobalRequests       = 300
-	defaultRateLimitWindow               = time.Minute
-	defaultSweepInterval                 = 30 * time.Second
-	defaultSSEMaxDuration                = 10 * time.Minute
-	defaultSSEIdleTimeout                = 60 * time.Second
-	defaultSSEMaxBytes             int64 = 16 << 20 // 16 MiB
-	maxFormBodyBytes                     = 16 * 1024
-	maxClaimsBytes                       = 4096
-	maxCIMDBodyBytes                     = 64 * 1024
-	maxUpstreamBodyBytes                 = 1 << 20
+	defaultPort                             = "8080"
+	defaultPendingTTL                       = 10 * time.Minute
+	defaultCodeTTL                          = 60 * time.Second
+	defaultSessionMaxAge                    = 12 * time.Hour
+	defaultRefreshGraceWindow               = 30 * time.Second
+	defaultConsentTTL                       = 30 * 24 * time.Hour
+	defaultSessionTTL                       = time.Hour
+	defaultCIMDTTL                          = 5 * time.Minute
+	defaultOutboundTimeout                  = 10 * time.Second
+	defaultPendingCap                       = 1024
+	defaultCodeCap                          = 1024
+	defaultSessionCap                       = 4096
+	defaultMCPSessionUserCap                = 64
+	defaultCIMDCap                          = 64
+	defaultDCRClientTTL                     = 30 * 24 * time.Hour
+	defaultDCRClientMaxAge                  = 180 * 24 * time.Hour
+	defaultDCRClientCap                     = 5000
+	defaultDCRRateLimitRequests             = 10
+	defaultDCRRateLimitGlobalRequests       = 100
+	defaultDCRRateLimitWindow               = time.Hour
+	maxDCRBodyBytes                         = 16 * 1024
+	defaultRateLimitCap                     = 4096
+	defaultRateLimitRequests                = 30
+	defaultRateLimitGlobalRequests          = 300
+	defaultRateLimitWindow                  = time.Minute
+	defaultSweepInterval                    = 30 * time.Second
+	defaultSSEMaxDuration                   = 10 * time.Minute
+	defaultSSEIdleTimeout                   = 60 * time.Second
+	defaultSSEMaxBytes                int64 = 16 << 20 // 16 MiB
+	maxFormBodyBytes                        = 20 * 1024
+	maxClaimsBytes                          = 4096
+	maxCIMDBodyBytes                        = 64 * 1024
+	maxUpstreamBodyBytes                    = 1 << 20
+
+	rtStorageNone            = "none"
+	rtStorageClientEncrypted = "client-encrypted"
+	// rtStorageServer keeps the Entra refresh token inside the session in the store
+	// (existing StrategyRefresh behaviour) and issues NO gateway refresh token
+	// (cplt re-logs in when the access token expires).
+	rtStorageServer = "server"
 )
 
 // TeamTokenSource acquires downstream Entra OBO tokens for team MCP servers.
@@ -59,6 +78,7 @@ type Config struct {
 	PrimaryResource         string
 	Routes                  []PilotRoute
 	RoutesByPath            map[string]PilotRoute
+	GatewayDisabled         bool
 	TeamTokenStrategy       string
 	TexasExchangeEndpoint   string
 	EntraScope              string
@@ -68,6 +88,7 @@ type Config struct {
 	AzureTokenEndpoint      string
 	AzureAuthorizeEndpoint  string
 	CookieSecret            []byte
+	CookieVerifyKeys        [][]byte // extra keys accepted on verify only (older RT_KEYS entries)
 	HTTPClient              *http.Client
 	ProxyHeaderTimeout      time.Duration
 	SSEMaxDuration          time.Duration
@@ -77,11 +98,26 @@ type Config struct {
 	PendingCap              int
 	CodeCap                 int
 	SessionCap              int
+	MCPSessionUserCap       int
 	CIMDCap                 int
+	DCREnabled              bool
+	DCRClientTTL            time.Duration
+	DCRClientMaxAge         time.Duration
+	DCRClientCap            int
+	DCRRateLimitRequests    int
+	DCRRateLimitGlobal      int
 	RateLimitCap            int
 	RateLimitRequests       int
 	RateLimitGlobalRequests int
 	RateLimitWindow         time.Duration
+	SessionStore            string
+	DatabaseURL             string
+	SessionMaxAge           time.Duration
+	RefreshGraceWindow      time.Duration
+	ConsentTTL              time.Duration
+	RTKeys                  string
+	RTStorage               string
+	Store                   SessionStore
 }
 
 func loadConfigFromEnv() (*Config, error) {
@@ -107,7 +143,7 @@ func loadConfigFromEnv() (*Config, error) {
 		}
 	}
 
-	cookieSecret, err := loadCookieSecret(os.Getenv("COOKIE_SIGNING_SECRET"))
+	cookieKeys, err := loadCookieSecret(os.Getenv("COOKIE_SIGNING_SECRET"), os.Getenv("RT_KEYS"), os.Getenv("NAIS_CLUSTER_NAME") != "")
 	if err != nil {
 		return nil, err
 	}
@@ -117,12 +153,27 @@ func loadConfigFromEnv() (*Config, error) {
 		strategy = strategyOBO
 	}
 
+	rtKeys := strings.TrimSpace(os.Getenv("RT_KEYS"))
+	rtStorage := strings.ToLower(strings.TrimSpace(os.Getenv("RT_STORAGE")))
+	if rtStorage == rtStorageNone {
+		return nil, fmt.Errorf("invalid RT_STORAGE %q: expected client-encrypted or server", rtStorage)
+	}
+
+	dcrEnabled, err := getEnvBool("DCR_ENABLED")
+	if err != nil {
+		return nil, err
+	}
+	gatewayDisabled, err := getEnvBool("GATEWAY_DISABLED")
+	if err != nil {
+		return nil, err
+	}
+
 	// The user's Entra access token must be issued to fleet-gateway itself:
 	// Texas OBO requires the assertion's aud to be the exchanging app, and
-	// strategy A redeems the refresh token, which needs offline_access.
+	// strategy refresh or client-encrypted refresh tokens need offline_access.
 	entraScope := strings.TrimSpace(os.Getenv("ENTRA_SCOPE"))
 	if entraScope == "" {
-		entraScope = defaultEntraScope(strategy, strings.TrimSpace(os.Getenv("AZURE_APP_CLIENT_ID")))
+		entraScope = defaultEntraScope(strategy, rtStorage, rtKeys, strings.TrimSpace(os.Getenv("AZURE_APP_CLIENT_ID")))
 	}
 
 	cfg := &Config{
@@ -135,6 +186,7 @@ func loadConfigFromEnv() (*Config, error) {
 		PrimaryResource:         primaryResource,
 		Routes:                  routes,
 		RoutesByPath:            routesByPath,
+		GatewayDisabled:         gatewayDisabled,
 		TeamTokenStrategy:       strategy,
 		TexasExchangeEndpoint:   strings.TrimSpace(os.Getenv("NAIS_TOKEN_EXCHANGE_ENDPOINT")),
 		EntraScope:              entraScope,
@@ -143,7 +195,8 @@ func loadConfigFromEnv() (*Config, error) {
 		AzureWellKnownURL:       strings.TrimSpace(os.Getenv("AZURE_APP_WELL_KNOWN_URL")),
 		AzureTokenEndpoint:      strings.TrimSpace(os.Getenv("AZURE_OPENID_CONFIG_TOKEN_ENDPOINT")),
 		AzureAuthorizeEndpoint:  strings.TrimSpace(os.Getenv("AZURE_OPENID_CONFIG_AUTHORIZATION_ENDPOINT")),
-		CookieSecret:            cookieSecret,
+		CookieSecret:            cookieKeys[0],
+		CookieVerifyKeys:        cookieKeys[1:],
 		HTTPClient:              newHardenedHTTPClient(defaultOutboundTimeout),
 		ProxyHeaderTimeout:      defaultOutboundTimeout,
 		SSEMaxDuration:          getEnvDuration("SSE_MAX_DURATION", defaultSSEMaxDuration),
@@ -153,11 +206,25 @@ func loadConfigFromEnv() (*Config, error) {
 		PendingCap:              getEnvInt("PENDING_MAP_CAP", defaultPendingCap),
 		CodeCap:                 getEnvInt("CODE_MAP_CAP", defaultCodeCap),
 		SessionCap:              getEnvInt("SESSION_MAP_CAP", defaultSessionCap),
+		MCPSessionUserCap:       getEnvInt("MCP_SESSION_USER_CAP", defaultMCPSessionUserCap),
 		CIMDCap:                 defaultCIMDCap,
+		DCREnabled:              dcrEnabled,
+		DCRClientTTL:            getEnvDuration("DCR_CLIENT_TTL", defaultDCRClientTTL),
+		DCRClientMaxAge:         getEnvDuration("DCR_CLIENT_MAX_AGE", defaultDCRClientMaxAge),
+		DCRClientCap:            getEnvInt("DCR_CLIENT_CAP", defaultDCRClientCap),
+		DCRRateLimitRequests:    getEnvInt("DCR_RATE_LIMIT_REQUESTS", defaultDCRRateLimitRequests),
+		DCRRateLimitGlobal:      getEnvInt("DCR_RATE_LIMIT_GLOBAL_REQUESTS", defaultDCRRateLimitGlobalRequests),
 		RateLimitCap:            getEnvInt("RATE_LIMIT_MAP_CAP", defaultRateLimitCap),
 		RateLimitRequests:       getEnvInt("RATE_LIMIT_REQUESTS", defaultRateLimitRequests),
 		RateLimitGlobalRequests: getEnvInt("RATE_LIMIT_GLOBAL_REQUESTS", defaultRateLimitGlobalRequests),
 		RateLimitWindow:         defaultRateLimitWindow,
+		SessionStore:            strings.ToLower(getEnv("SESSION_STORE", "memory")),
+		DatabaseURL:             strings.TrimSpace(os.Getenv("DATABASE_URL")),
+		SessionMaxAge:           getEnvDuration("SESSION_MAX_AGE", defaultSessionMaxAge),
+		RefreshGraceWindow:      getEnvDuration("REFRESH_GRACE_WINDOW", defaultRefreshGraceWindow),
+		ConsentTTL:              getEnvDuration("CONSENT_TTL", defaultConsentTTL),
+		RTKeys:                  rtKeys,
+		RTStorage:               rtStorage,
 	}
 
 	if err := validateConfig(cfg); err != nil {
@@ -269,6 +336,114 @@ func validateConfig(cfg *Config) error {
 	if cfg.RateLimitGlobalRequests <= 0 {
 		cfg.RateLimitGlobalRequests = defaultRateLimitGlobalRequests
 	}
+	switch strings.ToLower(strings.TrimSpace(cfg.SessionStore)) {
+	case "", "memory":
+		cfg.SessionStore = "memory"
+	case "postgres":
+		cfg.SessionStore = "postgres"
+		// Empty DATABASE_URL means the libpq PG* environment (Nais Postgres).
+		if cfg.DatabaseURL != "" || os.Getenv("PGHOST") == "" {
+			if err := validatePostgresURL(cfg.DatabaseURL); err != nil {
+				return fmt.Errorf("invalid DATABASE_URL: %w", err)
+			}
+		}
+		if strings.TrimSpace(cfg.RTKeys) == "" {
+			return errors.New("RT_KEYS is required when SESSION_STORE=postgres")
+		}
+	default:
+		return fmt.Errorf("invalid SESSION_STORE %q: expected memory or postgres", cfg.SessionStore)
+	}
+	if strings.TrimSpace(cfg.RTKeys) != "" {
+		if _, err := parseKeyRing(cfg.RTKeys); err != nil {
+			return fmt.Errorf("invalid RT_KEYS: %w", err)
+		}
+	}
+	// rtStorageServer ("server") keeps the Entra refresh token inside the session
+	// in the store (existing StrategyRefresh behaviour) and issues NO gateway
+	// refresh token (cplt re-logs in when the access token expires).
+	switch strings.ToLower(strings.TrimSpace(cfg.RTStorage)) {
+	case "":
+		if strings.TrimSpace(cfg.RTKeys) != "" {
+			cfg.RTStorage = rtStorageClientEncrypted
+		} else {
+			cfg.RTStorage = rtStorageNone
+		}
+	case rtStorageNone:
+		if strings.TrimSpace(cfg.RTKeys) != "" {
+			return fmt.Errorf("invalid RT_STORAGE %q: expected client-encrypted or server", cfg.RTStorage)
+		}
+		cfg.RTStorage = rtStorageNone
+	case rtStorageClientEncrypted:
+		cfg.RTStorage = rtStorageClientEncrypted
+		if strings.TrimSpace(cfg.RTKeys) == "" {
+			return errors.New("RT_KEYS is required when RT_STORAGE=client-encrypted")
+		}
+	case rtStorageServer:
+		cfg.RTStorage = rtStorageServer
+	default:
+		return fmt.Errorf("invalid RT_STORAGE %q: expected client-encrypted or server", cfg.RTStorage)
+	}
+	if cfg.RTStorage == rtStorageClientEncrypted && cfg.TeamTokenStrategy == strategyRefresh {
+		return errors.New("strategy refresh needs RT_STORAGE=server")
+	}
+	if cfg.SessionMaxAge <= 0 {
+		cfg.SessionMaxAge = defaultSessionMaxAge
+	}
+	if cfg.RefreshGraceWindow <= 0 {
+		cfg.RefreshGraceWindow = defaultRefreshGraceWindow
+	}
+	if cfg.ConsentTTL <= 0 {
+		cfg.ConsentTTL = defaultConsentTTL
+	}
+	if cfg.DCRClientTTL <= 0 {
+		cfg.DCRClientTTL = defaultDCRClientTTL
+	}
+	if cfg.DCRClientMaxAge <= 0 {
+		cfg.DCRClientMaxAge = defaultDCRClientMaxAge
+	}
+	if cfg.DCRClientMaxAge < cfg.DCRClientTTL {
+		cfg.DCRClientMaxAge = cfg.DCRClientTTL
+	}
+	if cfg.DCRRateLimitGlobal <= 0 {
+		cfg.DCRRateLimitGlobal = defaultDCRRateLimitGlobalRequests
+	}
+	if cfg.DCRClientCap <= 0 {
+		cfg.DCRClientCap = defaultDCRClientCap
+	}
+	if cfg.DCRRateLimitRequests <= 0 {
+		cfg.DCRRateLimitRequests = defaultDCRRateLimitRequests
+	}
+	if cfg.PendingCap <= 0 {
+		cfg.PendingCap = defaultPendingCap
+	}
+	if cfg.CodeCap <= 0 {
+		cfg.CodeCap = defaultCodeCap
+	}
+	if cfg.SessionCap <= 0 {
+		cfg.SessionCap = defaultSessionCap
+	}
+	if cfg.MCPSessionUserCap <= 0 {
+		cfg.MCPSessionUserCap = defaultMCPSessionUserCap
+	}
+	return nil
+}
+
+func validatePostgresURL(raw string) error {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return errors.New("empty URL")
+	}
+	u, err := url.Parse(trimmed)
+	if err != nil {
+		// url.Error embeds the raw URL, i.e. the DSN with its password.
+		return errors.New("unparseable URL")
+	}
+	if u.Scheme != "postgres" && u.Scheme != "postgresql" {
+		return fmt.Errorf("unsupported scheme %q", u.Scheme)
+	}
+	if u.Host == "" && u.Query().Get("host") == "" {
+		return errors.New("missing host")
+	}
 	return nil
 }
 
@@ -307,22 +482,50 @@ func newHardenedHTTPClient(timeout time.Duration) *http.Client {
 	}
 }
 
-func loadCookieSecret(raw string) ([]byte, error) {
+// stateCookieKeyInfo is the HKDF label that separates the state-cookie key from
+// the RT_KEYS AES key; the AES key itself is never used for HMAC.
+const stateCookieKeyInfo = "fleet-gateway entra-state cookie hmac v1"
+
+// loadCookieSecret returns the key for the Entra state cookie. Every replica must
+// share it, or a callback that lands on another pod (or after a deploy) fails.
+// Order: COOKIE_SIGNING_SECRET, else an HKDF subkey of the primary RT_KEYS key,
+// else a random key, which is only allowed outside Nais (local runs and tests).
+// The first key signs. With RT_KEYS, every ring entry's subkey follows, so a
+// cookie signed by a pod on the previous primary still verifies mid-rotation.
+func loadCookieSecret(raw, rtKeys string, onNais bool) ([][]byte, error) {
 	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" && strings.TrimSpace(rtKeys) != "" {
+		kr, err := parseKeyRing(rtKeys)
+		if err != nil {
+			return nil, fmt.Errorf("invalid RT_KEYS: %w", err)
+		}
+		keys := make([][]byte, 0, len(kr.entries))
+		for _, e := range kr.entries {
+			k, err := hkdf.Key(sha256.New, e.key[:], nil, stateCookieKeyInfo, 32)
+			if err != nil {
+				return nil, err
+			}
+			keys = append(keys, k)
+		}
+		return keys, nil
+	}
 	if trimmed == "" {
+		if onNais {
+			return nil, errors.New("COOKIE_SIGNING_SECRET or RT_KEYS is required on Nais: a per-pod random key breaks login across replicas")
+		}
 		secret := make([]byte, 32)
 		if _, err := rand.Read(secret); err != nil {
 			return nil, fmt.Errorf("generate cookie secret: %w", err)
 		}
-		return secret, nil
+		return [][]byte{secret}, nil
 	}
 	if decoded, err := base64.RawURLEncoding.DecodeString(trimmed); err == nil && len(decoded) >= 32 {
-		return decoded, nil
+		return [][]byte{decoded}, nil
 	}
 	if len(trimmed) < 32 {
 		return nil, errors.New("COOKIE_SIGNING_SECRET must be at least 32 bytes")
 	}
-	return []byte(trimmed), nil
+	return [][]byte{[]byte(trimmed)}, nil
 }
 
 func parseCSVSet(raw string) map[string]bool {
@@ -354,6 +557,18 @@ func getEnv(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+func getEnvBool(key string) (bool, error) {
+	v := strings.TrimSpace(os.Getenv(key))
+	if v == "" {
+		return false, nil
+	}
+	b, err := strconv.ParseBool(v)
+	if err != nil {
+		return false, fmt.Errorf("invalid %s %q: %w", key, v, err)
+	}
+	return b, nil
 }
 
 func getEnvInt(key string, fallback int) int {
@@ -499,9 +714,12 @@ func (m *ttlMap[V]) sweepLocked(now time.Time) int {
 }
 
 // defaultEntraScope asks Entra for an access token issued to fleet-gateway
-// itself, plus offline_access when the refresh strategy needs a refresh token.
-func defaultEntraScope(strategy, clientID string) string {
-	if strategy == strategyRefresh {
+// itself, plus offline_access when strategy is refresh or client-encrypted
+// refresh tokens are enabled (RT_KEYS non-empty and RTStorage != server).
+func defaultEntraScope(strategy, rtStorage, rtKeys, clientID string) string {
+	needsOffline := strategy == strategyRefresh ||
+		(strings.TrimSpace(rtKeys) != "" && strings.ToLower(strings.TrimSpace(rtStorage)) != rtStorageServer)
+	if needsOffline {
 		return "openid offline_access api://" + clientID + "/.default"
 	}
 	return "openid api://" + clientID + "/.default"

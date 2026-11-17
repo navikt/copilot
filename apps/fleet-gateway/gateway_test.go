@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -27,7 +28,14 @@ type testEnv struct {
 	now                time.Time
 	mu                 sync.Mutex
 	entraToken         string
+	entraRefreshToken  string
 	entraStatus        int
+	entraRefreshStatus int
+	entraRefreshCount  int
+	entraSeenRTs       []string
+	entraRefreshOmitRT bool
+	entraRefreshHook   func()
+	entraExpiresIn     int
 	lastEntraNonce     string
 	lastEntraChallenge string
 	navIdent           string
@@ -89,20 +97,61 @@ func newTestEnv(t *testing.T) *testEnv {
 				"token_endpoint":         te.entraServer.URL + "/token",
 			})
 		case "/token":
-			if te.entraStatus != http.StatusOK {
-				writeJSON(w, te.entraStatus, map[string]any{
+			_ = r.ParseForm()
+			if r.FormValue("grant_type") == "refresh_token" {
+				te.mu.Lock()
+				te.entraRefreshCount++
+				idx := te.entraRefreshCount
+				te.entraSeenRTs = append(te.entraSeenRTs, r.FormValue("refresh_token"))
+				status := te.entraRefreshStatus
+				if status == 0 {
+					status = te.entraStatus
+				}
+				omitRT := te.entraRefreshOmitRT
+				expiresIn := te.entraExpiresIn
+				hook := te.entraRefreshHook
+				te.mu.Unlock()
+				if hook != nil {
+					hook()
+				}
+				if expiresIn <= 0 {
+					expiresIn = 3600
+				}
+				if status != http.StatusOK {
+					writeJSON(w, status, map[string]any{
+						"error":             "invalid_grant",
+						"error_description": "AADSTS700082: The refresh token has expired due to inactivity",
+					})
+					return
+				}
+				resp := map[string]any{
+					"access_token": fmt.Sprintf("entra-refreshed-access-%d", idx),
+					"token_type":   "Bearer",
+					"expires_in":   expiresIn,
+				}
+				if !omitRT {
+					resp["refresh_token"] = fmt.Sprintf("entra-rotated-refresh-%d", idx)
+				}
+				writeJSON(w, http.StatusOK, resp)
+				return
+			}
+			te.mu.Lock()
+			entraStatus := te.entraStatus
+			expectedChallenge := te.lastEntraChallenge
+			nonce := te.lastEntraNonce
+			navIdent := te.navIdent
+			groups := te.groups
+			entraToken := te.entraToken
+			entraRT := te.entraRefreshToken
+			expiresIn := te.entraExpiresIn
+			te.mu.Unlock()
+			if entraStatus != http.StatusOK {
+				writeJSON(w, entraStatus, map[string]any{
 					"error":             "invalid_grant",
 					"error_description": "AADSTS65001: user has not consented",
 				})
 				return
 			}
-			_ = r.ParseForm()
-			te.mu.Lock()
-			expectedChallenge := te.lastEntraChallenge
-			nonce := te.lastEntraNonce
-			navIdent := te.navIdent
-			groups := te.groups
-			te.mu.Unlock()
 			if expectedChallenge != "" {
 				verifier := r.FormValue("code_verifier")
 				if verifier == "" || pkceS256(verifier) != expectedChallenge {
@@ -121,12 +170,18 @@ func newTestEnv(t *testing.T) *testEnv {
 			if nonce != "" {
 				claims["nonce"] = nonce
 			}
+			if entraRT == "" {
+				entraRT = strings.Join([]string{"entra", "test", "refresh"}, "-")
+			}
+			if expiresIn <= 0 {
+				expiresIn = 3600
+			}
 			writeJSON(w, http.StatusOK, map[string]any{
-				"access_token":  te.entraToken,
-				"refresh_token": strings.Join([]string{"entra", "test", "refresh"}, "-"),
+				"access_token":  entraToken,
+				"refresh_token": entraRT,
 				"id_token":      makeTestJWT(claims),
 				"token_type":    "Bearer",
-				"expires_in":    3600,
+				"expires_in":    expiresIn,
 			})
 		default:
 			http.NotFound(w, r)
@@ -243,40 +298,14 @@ var (
 	reCSRF = regexp.MustCompile(`name="csrf"\s+value="([^"]+)"`)
 )
 
-func (te *testEnv) startAuthorizeAndConsent(verifier string) (consentID, csrf string, csrfCookie *http.Cookie, headers http.Header) {
+// startLogin runs GET /authorize, which goes straight to Entra; consent is
+// asked after the callback.
+func (te *testEnv) startLogin(verifier string) (entraState string, stateCookie *http.Cookie) {
 	req := httptest.NewRequest(http.MethodGet, te.authorizeURL(nil, verifier), nil)
-	rec := httptest.NewRecorder()
-	te.handler.ServeHTTP(rec, req)
-	resp := rec.Result()
-	bodyBytes, _ := io.ReadAll(resp.Body)
-	_ = resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		te.t.Fatalf("expected 200 consent page, got %d: %s", resp.StatusCode, string(bodyBytes))
-	}
-	body := string(bodyBytes)
-	idMatch := reID.FindStringSubmatch(body)
-	csrfMatch := reCSRF.FindStringSubmatch(body)
-	if len(idMatch) != 2 || len(csrfMatch) != 2 {
-		te.t.Fatalf("missing hidden fields in consent HTML: %s", body)
-	}
-	for _, c := range resp.Cookies() {
-		if c.Name == csrfCookieName {
-			csrfCookie = c
-		}
-	}
-	if csrfCookie == nil {
-		te.t.Fatal("expected fleet_csrf cookie on consent page")
-	}
-	return idMatch[1], csrfMatch[1], csrfCookie, resp.Header.Clone()
+	return te.followToEntra(req)
 }
 
-func (te *testEnv) approveConsent(consentID, csrf string, csrfCookie *http.Cookie) (entraState string, stateCookie *http.Cookie) {
-	form := url.Values{"id": {consentID}, "csrf": {csrf}, "decision": {"approve"}}
-	req := httptest.NewRequest(http.MethodPost, "/consent", strings.NewReader(form.Encode()))
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	if csrfCookie != nil {
-		req.AddCookie(csrfCookie)
-	}
+func (te *testEnv) followToEntra(req *http.Request) (entraState string, stateCookie *http.Cookie) {
 	rec := httptest.NewRecorder()
 	te.handler.ServeHTTP(rec, req)
 	resp := rec.Result()
@@ -303,14 +332,60 @@ func (te *testEnv) approveConsent(consentID, csrf string, csrfCookie *http.Cooki
 	return loc.Query().Get("state"), stateCookie
 }
 
-func (te *testEnv) completeEntraCallback(entraState string, stateCookie *http.Cookie) string {
+func (te *testEnv) callback(entraState string, stateCookie *http.Cookie) *http.Response {
 	req := httptest.NewRequest(http.MethodGet, "/oauth2/callback?code=entra-code-123&state="+url.QueryEscape(entraState), nil)
 	if stateCookie != nil {
 		req.AddCookie(stateCookie)
 	}
 	rec := httptest.NewRecorder()
 	te.handler.ServeHTTP(rec, req)
-	resp := rec.Result()
+	return rec.Result()
+}
+
+// parseConsentPage reads the consent form from a 200 response.
+func (te *testEnv) parseConsentPage(resp *http.Response) (consentID, csrf string, csrfCookie *http.Cookie, headers http.Header) {
+	bodyBytes, _ := io.ReadAll(resp.Body)
+	_ = resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		te.t.Fatalf("expected 200 consent page, got %d: %s", resp.StatusCode, string(bodyBytes))
+	}
+	body := string(bodyBytes)
+	idMatch := reID.FindStringSubmatch(body)
+	csrfMatch := reCSRF.FindStringSubmatch(body)
+	if len(idMatch) != 2 || len(csrfMatch) != 2 {
+		te.t.Fatalf("missing hidden fields in consent HTML: %s", body)
+	}
+	for _, c := range resp.Cookies() {
+		if c.Name == csrfCookieName {
+			csrfCookie = c
+		}
+	}
+	if csrfCookie == nil {
+		te.t.Fatal("expected fleet_csrf cookie on consent page")
+	}
+	return idMatch[1], csrfMatch[1], csrfCookie, resp.Header.Clone()
+}
+
+// startAuthorizeAndConsent logs in through Entra and returns the consent page
+// shown after the callback. It fails if consent was remembered.
+func (te *testEnv) startAuthorizeAndConsent(verifier string) (consentID, csrf string, csrfCookie *http.Cookie, headers http.Header) {
+	return te.parseConsentPage(te.callback(te.startLogin(verifier))) //nolint:bodyclose // parseConsentPage closes it
+}
+
+func (te *testEnv) postConsent(consentID, csrf string, csrfCookie *http.Cookie, decision string) *http.Response {
+	form := url.Values{"id": {consentID}, "csrf": {csrf}, "decision": {decision}}
+	req := httptest.NewRequest(http.MethodPost, "/consent", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	if csrfCookie != nil {
+		req.AddCookie(csrfCookie)
+	}
+	rec := httptest.NewRecorder()
+	te.handler.ServeHTTP(rec, req)
+	return rec.Result()
+}
+
+// clientCode checks the redirect back to the client and returns the code.
+func (te *testEnv) clientCode(resp *http.Response) string {
 	_ = resp.Body.Close()
 	if resp.StatusCode != http.StatusFound {
 		te.t.Fatalf("expected 302 redirect to client, got %d", resp.StatusCode)
@@ -333,10 +408,19 @@ func (te *testEnv) completeEntraCallback(entraState string, stateCookie *http.Co
 	return code
 }
 
+// completeEntraCallback finishes the login and returns the gateway code,
+// approving the consent page if one is shown.
+func (te *testEnv) completeEntraCallback(entraState string, stateCookie *http.Cookie) string {
+	resp := te.callback(entraState, stateCookie)
+	if resp.StatusCode == http.StatusOK {
+		id, csrf, cookie, _ := te.parseConsentPage(resp)
+		resp = te.postConsent(id, csrf, cookie, "approve")
+	}
+	return te.clientCode(resp)
+}
+
 func (te *testEnv) obtainAuthCode(verifier string) string {
-	id, csrf, csrfCookie, _ := te.startAuthorizeAndConsent(verifier)
-	entraState, stateCookie := te.approveConsent(id, csrf, csrfCookie)
-	return te.completeEntraCallback(entraState, stateCookie)
+	return te.completeEntraCallback(te.startLogin(verifier))
 }
 
 func (te *testEnv) postToken(form url.Values) (int, map[string]any) {
@@ -720,19 +804,12 @@ func TestConsent_CSRF_SecurityHeaders_And_NoRememberedConsent(t *testing.T) {
 		})
 	}
 
-	t.Run("step 1 never remembers consent across logins", func(t *testing.T) {
+	t.Run("consent is remembered for the same user, client and route", func(t *testing.T) {
 		te := newTestEnv(t)
 		_ = te.obtainAuthCode(verifier)
 
-		req := httptest.NewRequest(http.MethodGet, te.authorizeURL(nil, verifier), nil)
-		rec := httptest.NewRecorder()
-		te.handler.ServeHTTP(rec, req)
-		if rec.Code != http.StatusOK {
-			t.Fatalf("expected consent page (200) on second login, got %d", rec.Code)
-		}
-		if !strings.Contains(rec.Body.String(), "Allow access?") {
-			t.Fatal("expected consent prompt on second login")
-		}
+		resp := te.callback(te.startLogin(verifier)) //nolint:bodyclose // clientCode closes it
+		_ = te.clientCode(resp)                      // 302 straight to the client, no consent page
 	})
 }
 
@@ -768,8 +845,7 @@ func TestCallback_StateCookieBinding(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			te := newTestEnv(t)
-			id, csrf, csrfCookie, _ := te.startAuthorizeAndConsent(verifier)
-			entraState, stateCookie := te.approveConsent(id, csrf, csrfCookie)
+			entraState, stateCookie := te.startLogin(verifier)
 
 			if stateCookie.Name != "__Host-fleet_entra_state" || stateCookie.Path != "/" || stateCookie.Domain != "" ||
 				!stateCookie.HttpOnly || !stateCookie.Secure || stateCookie.SameSite != http.SameSiteLaxMode {
@@ -803,15 +879,14 @@ func TestMapCapsAndRateLimit(t *testing.T) {
 			name: "pendingConsent map cap returns 503",
 			run: func(t *testing.T) {
 				te := newTestEnv(t)
-				te.gw.pendingConsent = newTTLMap[*pendingAuth](1, func() time.Time { return te.now })
+				te.gw.store = newMemoryStore(te.gw.now, map[string]int{kindPendingConsent: 1, kindPendingEntra: 1024, kindCode: 1024, kindSession: 4096})
 
 				_, _, _, _ = te.startAuthorizeAndConsent(verifier)
 
-				req := httptest.NewRequest(http.MethodGet, te.authorizeURL(nil, verifier), nil)
-				rec := httptest.NewRecorder()
-				te.handler.ServeHTTP(rec, req)
-				if rec.Code != http.StatusServiceUnavailable {
-					t.Fatalf("expected 503 at pending cap, got %d", rec.Code)
+				resp := te.callback(te.startLogin(verifier))
+				_ = resp.Body.Close()
+				if resp.StatusCode != http.StatusServiceUnavailable {
+					t.Fatalf("expected 503 at pending cap, got %d", resp.StatusCode)
 				}
 			},
 		},
@@ -819,16 +894,11 @@ func TestMapCapsAndRateLimit(t *testing.T) {
 			name: "pendingEntra map cap returns 503",
 			run: func(t *testing.T) {
 				te := newTestEnv(t)
-				te.gw.pendingEntra = newTTLMap[*pendingAuth](1, func() time.Time { return te.now })
+				te.gw.store = newMemoryStore(te.gw.now, map[string]int{kindPendingConsent: 1024, kindPendingEntra: 1, kindCode: 1024, kindSession: 4096})
 
-				id1, csrf1, cookie1, _ := te.startAuthorizeAndConsent(verifier)
-				_, _ = te.approveConsent(id1, csrf1, cookie1)
+				_, _ = te.startLogin(verifier)
 
-				id2, csrf2, cookie2, _ := te.startAuthorizeAndConsent(verifier)
-				form := url.Values{"id": {id2}, "csrf": {csrf2}, "decision": {"approve"}}
-				req := httptest.NewRequest(http.MethodPost, "/consent", strings.NewReader(form.Encode()))
-				req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-				req.AddCookie(cookie2)
+				req := httptest.NewRequest(http.MethodGet, te.authorizeURL(nil, verifier), nil)
 				rec := httptest.NewRecorder()
 				te.handler.ServeHTTP(rec, req)
 				if rec.Code != http.StatusServiceUnavailable {
@@ -840,12 +910,11 @@ func TestMapCapsAndRateLimit(t *testing.T) {
 			name: "codes map cap returns 503",
 			run: func(t *testing.T) {
 				te := newTestEnv(t)
-				te.gw.codes = newTTLMap[*issuedCode](1, func() time.Time { return te.now })
+				te.gw.store = newMemoryStore(te.gw.now, map[string]int{kindPendingConsent: 1024, kindPendingEntra: 1024, kindCode: 1, kindSession: 4096})
 
 				_ = te.obtainAuthCode(verifier)
 
-				id2, csrf2, cookie2, _ := te.startAuthorizeAndConsent(verifier)
-				st2, stCookie2 := te.approveConsent(id2, csrf2, cookie2)
+				st2, stCookie2 := te.startLogin(verifier)
 				req := httptest.NewRequest(http.MethodGet, "/oauth2/callback?code=entra-code&state="+url.QueryEscape(st2), nil)
 				req.AddCookie(stCookie2)
 				rec := httptest.NewRecorder()
@@ -859,7 +928,7 @@ func TestMapCapsAndRateLimit(t *testing.T) {
 			name: "sessions map cap returns 503",
 			run: func(t *testing.T) {
 				te := newTestEnv(t)
-				te.gw.sessions = newTTLMap[*gatewaySession](1, func() time.Time { return te.now })
+				te.gw.store = newMemoryStore(te.gw.now, map[string]int{kindPendingConsent: 1024, kindPendingEntra: 1024, kindCode: 1024, kindSession: 1})
 
 				c1 := te.obtainAuthCode(verifier)
 				status1, _ := te.postToken(url.Values{
@@ -900,8 +969,8 @@ func TestMapCapsAndRateLimit(t *testing.T) {
 					req.RemoteAddr = "198.51.100.10:1234"
 					rec := httptest.NewRecorder()
 					te.handler.ServeHTTP(rec, req)
-					if rec.Code != http.StatusOK {
-						t.Fatalf("request %d expected 200, got %d", i, rec.Code)
+					if rec.Code != http.StatusFound {
+						t.Fatalf("request %d expected 302, got %d", i, rec.Code)
 					}
 				}
 				req := httptest.NewRequest(http.MethodGet, te.authorizeURL(nil, verifier), nil)
@@ -947,8 +1016,8 @@ func TestMapCapsAndRateLimit(t *testing.T) {
 					req.Header.Set("X-Forwarded-For", firstHop+", 203.0.113.10")
 					rec := httptest.NewRecorder()
 					te.handler.ServeHTTP(rec, req)
-					if rec.Code != http.StatusOK {
-						t.Fatalf("request %d expected 200, got %d", i, rec.Code)
+					if rec.Code != http.StatusFound {
+						t.Fatalf("request %d expected 302, got %d", i, rec.Code)
 					}
 				}
 				blockedReq := httptest.NewRequest(http.MethodGet, te.authorizeURL(nil, verifier), nil)
@@ -967,8 +1036,8 @@ func TestMapCapsAndRateLimit(t *testing.T) {
 					req.Header.Set("X-Forwarded-For", ip)
 					rec := httptest.NewRecorder()
 					te.handler.ServeHTTP(rec, req)
-					if rec.Code != http.StatusOK {
-						t.Fatalf("distinct IP %d expected 200 (blocked per-IP must not exhaust global), got %d", i, rec.Code)
+					if rec.Code != http.StatusFound {
+						t.Fatalf("distinct IP %d expected 302 (blocked per-IP must not exhaust global), got %d", i, rec.Code)
 					}
 				}
 
@@ -1047,8 +1116,7 @@ func TestCallback_RequiresNAVident(t *testing.T) {
 		te.navIdent = ""
 		te.mu.Unlock()
 
-		id, csrf, csrfCookie, _ := te.startAuthorizeAndConsent(verifier)
-		entraState, stateCookie := te.approveConsent(id, csrf, csrfCookie)
+		entraState, stateCookie := te.startLogin(verifier)
 		req := httptest.NewRequest(http.MethodGet, "/oauth2/callback?code=entra-code-123&state="+url.QueryEscape(entraState), nil)
 		req.AddCookie(stateCookie)
 		rec := httptest.NewRecorder()
@@ -1084,44 +1152,33 @@ func TestHostCookies_ClearedWithPathRoot(t *testing.T) {
 	verifier := "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG"
 	te := newTestEnv(t)
 
-	id, csrf, csrfCookie, _ := te.startAuthorizeAndConsent(verifier)
-	form := url.Values{"id": {id}, "csrf": {csrf}, "decision": {"approve"}}
-	consentReq := httptest.NewRequest(http.MethodPost, "/consent", strings.NewReader(form.Encode()))
-	consentReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	consentReq.AddCookie(csrfCookie)
-	consentRec := httptest.NewRecorder()
-	te.handler.ServeHTTP(consentRec, consentReq)
-
-	var clearedCSRF, stateCookie *http.Cookie
-	for _, c := range consentRec.Result().Cookies() {
-		switch c.Name {
-		case "__Host-fleet_csrf":
-			clearedCSRF = c
-		case "__Host-fleet_entra_state":
-			stateCookie = c
-		}
-	}
-	if clearedCSRF == nil || clearedCSRF.Path != "/" || clearedCSRF.MaxAge != -1 || !clearedCSRF.Secure || !clearedCSRF.HttpOnly {
-		t.Fatalf("unexpected cleared CSRF cookie: %+v", clearedCSRF)
-	}
-	if stateCookie == nil || stateCookie.Path != "/" || stateCookie.Domain != "" || !stateCookie.Secure || !stateCookie.HttpOnly {
+	entraState, stateCookie := te.startLogin(verifier)
+	if stateCookie.Path != "/" || stateCookie.Domain != "" || !stateCookie.Secure || !stateCookie.HttpOnly {
 		t.Fatalf("unexpected state cookie: %+v", stateCookie)
 	}
 
-	loc, _ := url.Parse(consentRec.Header().Get("Location"))
-	cbReq := httptest.NewRequest(http.MethodGet, "/oauth2/callback?code=entra-code-123&state="+url.QueryEscape(loc.Query().Get("state")), nil)
-	cbReq.AddCookie(stateCookie)
-	cbRec := httptest.NewRecorder()
-	te.handler.ServeHTTP(cbRec, cbReq)
-
+	cbResp := te.callback(entraState, stateCookie) //nolint:bodyclose // parseConsentPage closes it
 	var clearedState *http.Cookie
-	for _, c := range cbRec.Result().Cookies() {
+	for _, c := range cbResp.Cookies() {
 		if c.Name == "__Host-fleet_entra_state" {
 			clearedState = c
 		}
 	}
 	if clearedState == nil || clearedState.Path != "/" || clearedState.MaxAge != -1 || !clearedState.Secure || !clearedState.HttpOnly {
 		t.Fatalf("unexpected cleared state cookie: %+v", clearedState)
+	}
+
+	id, csrf, csrfCookie, _ := te.parseConsentPage(cbResp)
+	consentResp := te.postConsent(id, csrf, csrfCookie, "approve")
+	_ = consentResp.Body.Close()
+	var clearedCSRF *http.Cookie
+	for _, c := range consentResp.Cookies() {
+		if c.Name == "__Host-fleet_csrf" {
+			clearedCSRF = c
+		}
+	}
+	if clearedCSRF == nil || clearedCSRF.Path != "/" || clearedCSRF.MaxAge != -1 || !clearedCSRF.Secure || !clearedCSRF.HttpOnly {
+		t.Fatalf("unexpected cleared CSRF cookie: %+v", clearedCSRF)
 	}
 }
 
@@ -1149,8 +1206,7 @@ func TestLogInjection_SanitizedAndEntraErrorTruncated(t *testing.T) {
 	te.handler.ServeHTTP(httptest.NewRecorder(), pathReq)
 
 	// 2. callbackHandler sanitizes and truncates Entra error param to 64 chars.
-	id, csrf, csrfCookie, _ := te.startAuthorizeAndConsent(verifier)
-	entraState, stateCookie := te.approveConsent(id, csrf, csrfCookie)
+	entraState, stateCookie := te.startLogin(verifier)
 	injectedErr := "access\n_denied\r_" + strings.Repeat("a", 80)
 	cbReq := httptest.NewRequest(http.MethodGet, "/oauth2/callback?error="+url.QueryEscape(injectedErr)+"&state="+url.QueryEscape(entraState), nil)
 	cbReq.AddCookie(stateCookie)

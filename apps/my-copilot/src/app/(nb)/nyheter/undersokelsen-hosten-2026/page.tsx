@@ -4,13 +4,10 @@ import NextLink from "next/link";
 import { ArrowLeftIcon } from "@navikt/aksel-icons";
 import type { Metadata } from "next";
 
-// Utkast. Før publisering: fjern draft: true i docs/news/articles/undersokelsen-hosten-2026.md,
-// og fjern robots og Utkast-taggen her.
 export const metadata: Metadata = {
   title: "Utviklerundersøkelsen høsten 2026: Fornøyd, men bekymret",
   description:
     "211 svarte på høstens undersøkelse om KI-kodeverktøy. De fleste er fornøyde, og flere enn i vår er bekymret for at KI kan svekke egen dype forståelse.",
-  robots: { index: false, follow: false },
 };
 
 const statements: { text: string; n: string; spring: string; autumn: string; note?: string }[] = [
@@ -46,8 +43,18 @@ const statements: { text: string; n: string; spring: string; autumn: string; not
     spring: "Ny",
     autumn: "2,11",
   },
-  { text: "Jeg er trygg på å ta fullt ansvar for koden jeg leverer", n: "Alle", spring: "3,62", autumn: "3,71" },
-  { text: "Personvern eller sikkerhet hindrer meg i å bruke KI fullt ut", n: "Alle", spring: "2,65", autumn: "2,44" },
+  {
+    text: "Jeg er trygg på å ta fullt ansvar for kode som er generert eller vesentlig hjulpet av KI",
+    n: "Alle",
+    spring: "3,62",
+    autumn: "3,71",
+  },
+  {
+    text: "Usikkerhet rundt personvern eller sikkerhetsregler hindrer meg i å bruke KI fullt ut",
+    n: "Alle",
+    spring: "2,65",
+    autumn: "2,44",
+  },
 ];
 
 const tools: { name: string; spring: string; autumn: string }[] = [
@@ -99,9 +106,6 @@ export default function SurveyAutumnArticlePage() {
               <HStack gap="space-4" align="center">
                 <Tag size="small" variant="success">
                   Nav
-                </Tag>
-                <Tag size="small" variant="warning">
-                  Utkast
                 </Tag>
               </HStack>
               <Heading size="xlarge" level="1">
@@ -191,16 +195,16 @@ export default function SurveyAutumnArticlePage() {
               </Quote>
 
               <BodyLong spacing>
-                <strong>Personvern og sikkerhet.</strong> Litt færre opplever at personvern eller sikkerhet hindrer dem,
-                men nedgangen er usikker.
+                <strong>Personvern og sikkerhet.</strong> Litt færre opplever at usikkerhet rundt personvern eller
+                sikkerhetsregler hindrer dem, men nedgangen er usikker.
               </BodyLong>
 
               <Heading size="medium" level="2" spacing>
                 Større andel bruker terminalen
               </Heading>
               <BodyLong spacing>
-                Andelen som bruker Copilot CLI og OpenCode har økt, mens færre oppgir Copilot i IntelliJ og VS Code.
-                Mange bruker begge deler: 80 av dem som svarte i høst bruker både en editor og et terminalverktøy.
+                Andelen som bruker Copilot CLI og OpenCode, har økt, mens færre oppgir Copilot i IntelliJ og VS Code.
+                Mange bruker begge deler: 80 av dem som svarte i høst, bruker både en editor og et terminalverktøy.
               </BodyLong>
 
               <Table size="small">
@@ -252,7 +256,8 @@ export default function SurveyAutumnArticlePage() {
                 Én ting å endre
               </Heading>
               <BodyLong spacing>
-                Vi spurte hva de ville endre hvis de bare kunne endre én ting. Opplæring er igjen det vanligste svaret.
+                Vi spurte hva deltakerne ville endre hvis de bare kunne endre én ting. Opplæring er igjen det vanligste
+                svaret.
               </BodyLong>
 
               <Table size="small">
@@ -276,7 +281,7 @@ export default function SurveyAutumnArticlePage() {
               <Heading size="medium" level="2" spacing>
                 Hva vi har gjort siden i vår
               </Heading>
-              <BodyLong spacing>Vi har ikke målt om dette virker. Det er det vi har gjort med det dere ba om.</BodyLong>
+              <BodyLong spacing>Dette har vi gjort med det dere ba om. Vi har ikke målt om det virker.</BodyLong>
               <ul>
                 <li>
                   <BodyLong>
@@ -285,6 +290,12 @@ export default function SurveyAutumnArticlePage() {
                     <NextLink href="/nav-pilot/guider/cplt-flere-repoer">å jobbe i flere repoer</NextLink> og for{" "}
                     <NextLink href="/nav-pilot/guider/mcp-gjennom-cplt">MCP-servere</NextLink>, og en forklaring av{" "}
                     <NextLink href="/nav-pilot/forklaring/sandkassen">sandkassen</NextLink>.
+                  </BodyLong>
+                </li>
+                <li>
+                  <BodyLong>
+                    <strong>Det du må vite:</strong> <NextLink href="/ma-vite">én side med det du må vite</NextLink>, og
+                    veiledning om <NextLink href="/praksis/eierskap">eierskap til KI-generert kode og review</NextLink>.
                   </BodyLong>
                 </li>
                 <li>
@@ -310,8 +321,8 @@ export default function SurveyAutumnArticlePage() {
                 <li>
                   <BodyLong>
                     <strong>Innsikt i bruk og kostnad:</strong>{" "}
-                    <NextLink href="/innsikt/bruk">Bruk og kostnad</NextLink> viser nå bruk per klient (Copilot CLI,
-                    OpenCode, VS Code og andre) for hele Nav.
+                    <NextLink href="/innsikt/bruk">Bruk og kostnad</NextLink> (krever innlogging) viser nå bruk per
+                    klient (Copilot CLI, OpenCode, VS Code og andre) for hele Nav.
                   </BodyLong>
                 </li>
               </ul>
@@ -327,8 +338,10 @@ export default function SurveyAutumnArticlePage() {
                 </li>
                 <li>
                   <BodyLong>
-                    Team kan registrere egne MCP-servere selv, og en felles inngang med Nav-innlogging. Det gir agentene
-                    bedre tilgang til kodebasen og fagsystemene våre.
+                    En{" "}
+                    <NextLink href="/verktoy/fleet-gateway">felles inngang til MCP-servere med Nav-innlogging</NextLink>{" "}
+                    er i pilot, og etter hvert kan team registrere egne MCP-servere selv. Det gir agentene bedre tilgang
+                    til kodebasen og fagsystemene våre.
                   </BodyLong>
                 </li>
                 <li>
@@ -364,6 +377,9 @@ export default function SurveyAutumnArticlePage() {
                 Påstandene om tillit til agenter og om kostnad er nye i høst. Svarandelen regner vi av dem som brukte
                 Copilot i perioden. Vårrunden var åpen i 38 dager og høstrunden i 15, og jo lengre perioden er, jo flere
                 teller som brukere. Ikke alle som svarte, bruker Copilot, så andelen er ikke en ren svarprosent.
+                Vårtallene er regnet på nytt blant KI-brukerne, så de avviker litt fra{" "}
+                <NextLink href="/nyheter/utviklerundersokelsen-2026">vårartikkelen</NextLink>, som regnet av alle som
+                svarte.
               </BodyLong>
               <BodyLong spacing>
                 For å se om endringene er mer enn tilfeldigheter, brukte vi Mann–Whitney-test og Holm-korreksjon for
