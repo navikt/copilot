@@ -81,7 +81,7 @@ func TestGatewayAccessToken_HashedStorage_ResourceBinding_GroupAndExpiry(t *test
 	for i := range te.gw.cfg.Routes {
 		te.gw.cfg.Routes[i].ParsedURL = parsedUpstream
 	}
-	te.gw.TeamTokens, err = newTeamTokenSource(te.gw.cfg, te.gw.sessions, func() time.Time {
+	te.gw.TeamTokens, err = newTeamTokenSource(te.gw.cfg, te.gw.store, func() time.Time {
 		te.mu.Lock()
 		defer te.mu.Unlock()
 		return te.now
@@ -94,10 +94,10 @@ func TestGatewayAccessToken_HashedStorage_ResourceBinding_GroupAndExpiry(t *test
 	token := te.obtainAccessTokenForResource(te.resource)
 
 	// Session map must store only SHA-256(token), never the raw token.
-	if _, ok := te.gw.sessions.Get(token); ok {
+	if _, ok, err := te.gw.getSession(context.Background(), token); err != nil || ok {
 		t.Fatal("raw gateway token must not be stored in sessions map")
 	}
-	if _, ok := te.gw.sessions.Get(hashToken(token)); !ok {
+	if _, ok, err := te.gw.getSession(context.Background(), hashToken(token)); err != nil || !ok {
 		t.Fatal("expected SHA-256(token) in sessions map")
 	}
 
@@ -361,7 +361,7 @@ func TestStrategyRefresh_Rotation_And_Concurrency(t *testing.T) {
 	te := newTestEnv(t)
 	te.gw.cfg.TeamTokenStrategy = strategyRefresh
 	var err error
-	te.gw.TeamTokens, err = newTeamTokenSource(te.gw.cfg, te.gw.sessions, func() time.Time {
+	te.gw.TeamTokens, err = newTeamTokenSource(te.gw.cfg, te.gw.store, func() time.Time {
 		te.mu.Lock()
 		defer te.mu.Unlock()
 		return te.now
@@ -523,7 +523,7 @@ func TestErrorMapping_AADSTS65001_And_NoRawEntraLeak(t *testing.T) {
 			te := newTestEnv(t)
 			te.gw.cfg.TeamTokenStrategy = tt.strategy
 			var err error
-			te.gw.TeamTokens, err = newTeamTokenSource(te.gw.cfg, te.gw.sessions, te.gw.now)
+			te.gw.TeamTokens, err = newTeamTokenSource(te.gw.cfg, te.gw.store, te.gw.now)
 			if err != nil {
 				t.Fatalf("newTeamTokenSource failed: %v", err)
 			}

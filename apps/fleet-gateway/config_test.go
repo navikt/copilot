@@ -403,10 +403,19 @@ func TestDevPilotRoutesFileValid(t *testing.T) {
 }
 
 func TestDefaultEntraScopeTargetsGateway(t *testing.T) {
-	if got := defaultEntraScope("obo", "gw-client"); got != "openid api://gw-client/.default" {
-		t.Fatalf("obo scope %q", got)
+	if got := defaultEntraScope("obo", "", "", "gw-client"); got != "openid api://gw-client/.default" {
+		t.Fatalf("obo scope without RT_KEYS %q", got)
 	}
-	if got := defaultEntraScope(strategyRefresh, "gw-client"); got != "openid offline_access api://gw-client/.default" {
+	if got := defaultEntraScope("obo", "", "k1:secret", "gw-client"); got != "openid offline_access api://gw-client/.default" {
+		t.Fatalf("obo scope with RT_KEYS and unset RT_STORAGE %q", got)
+	}
+	if got := defaultEntraScope("obo", rtStorageClientEncrypted, "k1:secret", "gw-client"); got != "openid offline_access api://gw-client/.default" {
+		t.Fatalf("obo scope with client-encrypted %q", got)
+	}
+	if got := defaultEntraScope("obo", rtStorageServer, "k1:secret", "gw-client"); got != "openid api://gw-client/.default" {
+		t.Fatalf("obo scope with server %q", got)
+	}
+	if got := defaultEntraScope(strategyRefresh, rtStorageServer, "k1:secret", "gw-client"); got != "openid offline_access api://gw-client/.default" {
 		t.Fatalf("refresh scope %q", got)
 	}
 }

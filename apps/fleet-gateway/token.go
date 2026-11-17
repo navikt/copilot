@@ -1,40 +1,116 @@
 package main
 
 import (
+	"context"
+	"crypto/rand"
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"log/slog"
 	"net/http"
-	"sync"
+	"net/url"
+	"slices"
+	"strconv"
 	"time"
 )
 
+const (
+	rtSealAAD = "fgw-rt-v1"
+	// maxRefreshTokenLen fits a sealed RT carrying ~200 Entra group GUIDs plus the
+	// Entra RT and metadata (base64 expands by 4/3). Still bounded.
+	maxRefreshTokenLen = 16 * 1024
+	// refreshPendingTTL is how long an in-flight refresh blocks concurrent use of
+	// the same RT; after a transient upstream failure it is also the retry delay.
+	refreshPendingTTL = 60 * time.Second
+)
+
 type gatewaySession struct {
-	clientID     string
-	resource     string
-	entraToken   string
-	refreshMu    sync.Mutex
-	refreshToken string
-	navIdent     string
-	groups       map[string]bool
-	expiry       time.Time
+	ClientID     string    `json:"client_id"`
+	Resource     string    `json:"resource"`
+	EntraToken   string    `json:"entra_token,omitempty"`
+	RefreshToken string    `json:"refresh_token,omitempty"` //nolint:gosec // serialized only into SessionStore (sealed with RT_KEYS in Postgres)
+	NAVIdent     string    `json:"nav_ident"`
+	Groups       []string  `json:"groups,omitempty"`
+	IssuedAt     time.Time `json:"issued_at"`
+	Expiry       time.Time `json:"expiry"`
 }
 
 func (s *gatewaySession) hasGroup(group string) bool {
-	if s == nil || len(s.groups) == 0 {
+	if s == nil || len(s.Groups) == 0 {
 		return false
 	}
-	return s.groups[group]
+	return slices.Contains(s.Groups, group)
 }
 
 type issuedCode struct {
-	ClientID    string
-	RedirectURI string
-	Challenge   string
-	Resource    string
-	Session     *gatewaySession
-	Created     time.Time
+	ClientID    string         `json:"client_id"`
+	RedirectURI string         `json:"redirect_uri"`
+	Challenge   string         `json:"challenge"`
+	Resource    string         `json:"resource"`
+	Session     gatewaySession `json:"session"`
+	EntraRT     string         `json:"entra_rt,omitempty"` //nolint:gosec // transient on 60s single-use code until /token seals it
+	Created     time.Time      `json:"created"`
+}
+
+type rtPayload struct {
+	V        int      `json:"v"`
+	JTI      string   `json:"jti"`
+	FID      string   `json:"fid"` // token family, constant across rotations
+	IAT      int64    `json:"iat"`
+	EXP      int64    `json:"exp"` // absolute session end, fixed at issue time
+	ClientID string   `json:"client_id"`
+	Resource string   `json:"resource"`
+	NAVIdent string   `json:"nav_ident"`
+	Groups   []string `json:"groups,omitempty"`
+	EntraRT  string   `json:"entra_rt"` //nolint:gosec // encrypted inside AES-GCM sealed client refresh token
+}
+
+func (g *Gateway) sealRefreshToken(p rtPayload) (string, error) {
+	if g.rtKeys == nil {
+		return "", errors.New("refresh token sealing keys not configured")
+	}
+	raw, err := json.Marshal(p)
+	if err != nil {
+		return "", err
+	}
+	blob, err := g.rtKeys.Seal([]byte(rtSealAAD), raw)
+	if err != nil {
+		return "", err
+	}
+	return base64.RawURLEncoding.EncodeToString(blob), nil
+}
+
+func (g *Gateway) openRefreshToken(token string) (*rtPayload, error) {
+	if g.rtKeys == nil {
+		return nil, errSealDecrypt
+	}
+	blob, err := base64.RawURLEncoding.DecodeString(token)
+	if err != nil {
+		return nil, errSealMalformed
+	}
+	plaintext, err := g.rtKeys.Open([]byte(rtSealAAD), blob)
+	if err != nil {
+		return nil, err
+	}
+	var p rtPayload
+	if err := json.Unmarshal(plaintext, &p); err != nil {
+		return nil, errSealMalformed
+	}
+	if p.V != 1 || p.JTI == "" || p.FID == "" || p.IAT <= 0 || p.EXP <= 0 || p.ClientID == "" || p.Resource == "" || p.NAVIdent == "" || p.EntraRT == "" {
+		return nil, errSealMalformed
+	}
+	return &p, nil
+}
+
+func randomJTI() (string, error) {
+	buf := make([]byte, 16)
+	if _, err := rand.Read(buf); err != nil {
+		return "", err
+	}
+	return base64.RawURLEncoding.EncodeToString(buf), nil
 }
 
 func (g *Gateway) tokenHandler(w http.ResponseWriter, r *http.Request) {
@@ -51,11 +127,25 @@ func (g *Gateway) tokenHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if r.PostFormValue("grant_type") != "authorization_code" {
+	switch r.PostFormValue("grant_type") {
+	case "authorization_code":
+		g.handleAuthorizationCodeGrant(w, r, bad)
+	case "refresh_token":
+		if g.cfg.RTStorage != rtStorageClientEncrypted {
+			bad(http.StatusBadRequest, "unsupported_grant_type", "only authorization_code is supported")
+			return
+		}
+		g.handleRefreshTokenGrant(w, r, bad)
+	default:
+		if g.cfg.RTStorage == rtStorageClientEncrypted {
+			bad(http.StatusBadRequest, "unsupported_grant_type", "supported grant_types are authorization_code and refresh_token")
+			return
+		}
 		bad(http.StatusBadRequest, "unsupported_grant_type", "only authorization_code is supported")
-		return
 	}
+}
 
+func (g *Gateway) handleAuthorizationCodeGrant(w http.ResponseWriter, r *http.Request, bad func(int, string, string)) {
 	code := r.PostFormValue("code")
 	if code == "" {
 		bad(http.StatusBadRequest, "invalid_request", "code is required")
@@ -63,7 +153,12 @@ func (g *Gateway) tokenHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Single-use: Pop deletes the code even if subsequent binding checks fail.
-	issued, ok := g.codes.Pop(code)
+	issued, ok, err := g.popCode(r.Context(), code)
+	if err != nil {
+		slog.Warn("pop authorization code failed", "error", err)
+		bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store unavailable")
+		return
+	}
 	if !ok {
 		bad(http.StatusBadRequest, "invalid_grant", "unknown, used, or expired code")
 		return
@@ -89,7 +184,17 @@ func (g *Gateway) tokenHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ttl := issued.Session.expiry.Sub(g.now())
+	now := g.now()
+	if issued.Session.IssuedAt.IsZero() {
+		issued.Session.IssuedAt = now
+	}
+	if g.cfg.SessionMaxAge > 0 {
+		maxExpiry := issued.Session.IssuedAt.Add(g.cfg.SessionMaxAge)
+		if issued.Session.Expiry.After(maxExpiry) {
+			issued.Session.Expiry = maxExpiry
+		}
+	}
+	ttl := issued.Session.Expiry.Sub(now)
 	if ttl <= 0 {
 		bad(http.StatusBadRequest, "invalid_grant", "session expired")
 		return
@@ -100,16 +205,342 @@ func (g *Gateway) tokenHandler(w http.ResponseWriter, r *http.Request) {
 		bad(http.StatusInternalServerError, "server_error", "failed to issue token")
 		return
 	}
-	if !g.sessions.Set(hashToken(accessToken), issued.Session, ttl) {
-		bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store capacity reached")
+
+	refreshToken := ""
+	if g.cfg.RTStorage == rtStorageClientEncrypted && issued.EntraRT != "" {
+		issued.Session.RefreshToken = ""
+		jti, err := randomJTI()
+		if err != nil {
+			bad(http.StatusInternalServerError, "server_error", "failed to issue token")
+			return
+		}
+		fid, err := randomJTI()
+		if err != nil {
+			bad(http.StatusInternalServerError, "server_error", "failed to issue token")
+			return
+		}
+		refreshToken, err = g.sealRefreshToken(rtPayload{
+			V:        1,
+			JTI:      jti,
+			FID:      fid,
+			IAT:      issued.Session.IssuedAt.Unix(),
+			EXP:      issued.Session.IssuedAt.Add(g.cfg.SessionMaxAge).Unix(),
+			ClientID: issued.Session.ClientID,
+			Resource: issued.Session.Resource,
+			NAVIdent: issued.Session.NAVIdent,
+			Groups:   issued.Session.Groups,
+			EntraRT:  issued.EntraRT,
+		})
+		if err != nil {
+			bad(http.StatusInternalServerError, "server_error", "failed to issue token")
+			return
+		}
+	}
+
+	if err := g.putSession(r.Context(), hashToken(accessToken), &issued.Session, ttl); err != nil {
+		if errors.Is(err, errStoreFull) {
+			bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store capacity reached")
+			return
+		}
+		slog.Warn("store session failed", "error", err)
+		bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store unavailable")
+		return
+	}
+
+	resp := map[string]any{
+		"access_token": accessToken,
+		"token_type":   "Bearer",
+		"expires_in":   int(ttl.Seconds()),
+	}
+	if refreshToken != "" {
+		resp["refresh_token"] = refreshToken
+	}
+	writeJSON(w, http.StatusOK, resp)
+}
+
+func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request, bad func(int, string, string)) {
+	outcome := "ok"
+	navIdent := ""
+	defer func() {
+		slog.Info("audit refresh", "outcome", outcome, "navident", sanitizeLogValue(navIdent))
+	}()
+
+	rawRT := r.PostFormValue("refresh_token")
+	if rawRT == "" || len(rawRT) > maxRefreshTokenLen {
+		outcome = "invalid_request"
+		bad(http.StatusBadRequest, "invalid_grant", "invalid refresh token")
+		return
+	}
+
+	clientID := r.PostFormValue("client_id")
+	if clientID == "" || !g.cfg.AllowedClientIDs[clientID] {
+		outcome = "client_not_allowed"
+		bad(http.StatusBadRequest, "invalid_grant", "invalid client")
+		return
+	}
+
+	payload, err := g.openRefreshToken(rawRT)
+	if err != nil {
+		outcome = "decrypt_failed"
+		bad(http.StatusBadRequest, "invalid_grant", "invalid refresh token")
+		return
+	}
+	navIdent = payload.NAVIdent
+
+	if clientID != payload.ClientID {
+		outcome = "client_mismatch"
+		bad(http.StatusBadRequest, "invalid_grant", "client_id mismatch")
+		return
+	}
+	if reqResource := r.PostFormValue("resource"); reqResource != "" && reqResource != payload.Resource {
+		outcome = "resource_mismatch"
+		bad(http.StatusBadRequest, "invalid_grant", "resource mismatch")
+		return
+	}
+
+	issuedAt := time.Unix(payload.IAT, 0).UTC()
+	// Absolute expiry is fixed in the RT at issue time, so raising SESSION_MAX_AGE
+	// later cannot revive old tokens.
+	absExpiry := time.Unix(payload.EXP, 0).UTC()
+	if !g.now().Before(absExpiry) {
+		outcome = "session_max_age_expired"
+		bad(http.StatusBadRequest, "invalid_grant", "session expired")
+		return
+	}
+
+	unavailable := func(err error) {
+		outcome = "store_error"
+		slog.Warn("refresh token denylist failed", "error", err)
+		bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store unavailable")
+	}
+	famKey := "fam:" + payload.FID
+	revoked, err := g.store.IsRevoked(r.Context(), famKey)
+	if err != nil {
+		unavailable(err)
+		return
+	}
+	if revoked {
+		outcome = "family_revoked"
+		bad(http.StatusBadRequest, "invalid_grant", "refresh token already used or revoked")
+		return
+	}
+	used, err := g.store.IsRevoked(r.Context(), payload.JTI)
+	if err != nil {
+		unavailable(err)
+		return
+	}
+	if used {
+		// Replay: someone holds an already-rotated RT. Kill the family so a thief
+		// who refreshed first loses the newest RT too.
+		if err = g.store.Revoke(r.Context(), famKey, absExpiry); err != nil {
+			unavailable(err)
+			return
+		}
+		outcome = "replayed_family_revoked"
+		bad(http.StatusBadRequest, "invalid_grant", "refresh token already used or revoked")
+		return
+	}
+
+	// Gate against concurrent double use with a short-lived pending claim. The jti
+	// is only denylisted for good after Entra accepts or permanently rejects the RT,
+	// so a transient Entra failure does not burn the user's RT (retry after the
+	// pending TTL). Trade-off: a crash between Entra success and Revoke leaves the
+	// old RT usable once more after the TTL.
+	pendExpiry := g.now().Add(refreshPendingTTL)
+	if pendExpiry.After(absExpiry) {
+		pendExpiry = absExpiry
+	}
+	won, err := g.store.RevokeOnce(r.Context(), "pend:"+payload.JTI, pendExpiry)
+	if err != nil {
+		unavailable(err)
+		return
+	}
+	if !won {
+		// A legit client may be retrying after a transient upstream error; do not
+		// make it drop its RT. Retry-After is an upper bound: the claim's start is unknown.
+		outcome = "refresh_in_flight"
+		retry := min(refreshPendingTTL, absExpiry.Sub(g.now()))
+		w.Header().Set("Retry-After", strconv.Itoa(max(1, int(retry.Seconds()))))
+		bad(http.StatusServiceUnavailable, "temporarily_unavailable", "refresh in progress, retry later")
+		return
+	}
+
+	out, status, body, err := g.redeemEntraRefreshToken(r.Context(), payload.EntraRT)
+	if err != nil || status >= 500 || status == http.StatusTooManyRequests {
+		outcome = "upstream_unavailable"
+		slog.Warn("upstream refresh unavailable", "status", status)
+		w.Header().Set("Retry-After", strconv.Itoa(int(refreshPendingTTL.Seconds())))
+		bad(http.StatusServiceUnavailable, "temporarily_unavailable", "upstream unavailable, retry later")
+		return
+	}
+	if status == http.StatusOK {
+		// /revoke or a family revoke may have landed while Entra was in flight.
+		for _, k := range []string{famKey, payload.JTI} {
+			gone, rerr := g.store.IsRevoked(r.Context(), k)
+			if rerr != nil {
+				unavailable(rerr)
+				return
+			}
+			if gone {
+				outcome = "revoked_in_flight"
+				bad(http.StatusBadRequest, "invalid_grant", "refresh token already used or revoked")
+				return
+			}
+		}
+	}
+	if err = g.store.Revoke(r.Context(), payload.JTI, absExpiry); err != nil {
+		unavailable(err)
+		return
+	}
+	if status != http.StatusOK {
+		outcome = "upstream_error"
+		errCode, aadsts := safeUpstreamErrorDetails(body)
+		slog.Warn("upstream refresh failed", "status", status, "error_code", errCode, "aadsts", aadsts)
+		bad(http.StatusBadRequest, "invalid_grant", "upstream refresh failed")
+		return
+	}
+	newAT, _ := out["access_token"].(string)
+	if newAT == "" {
+		outcome = "upstream_error"
+		slog.Warn("upstream refresh response missing access_token")
+		bad(http.StatusBadRequest, "invalid_grant", "upstream refresh failed")
+		return
+	}
+
+	now := g.now()
+	if !now.Before(absExpiry) {
+		outcome = "session_max_age_expired"
+		bad(http.StatusBadRequest, "invalid_grant", "session expired")
+		return
+	}
+	sessionTTL := computeSessionTTL(out["expires_in"], g.cfg.SessionMaxAge)
+	sessExpiry := now.Add(sessionTTL)
+	if sessExpiry.After(absExpiry) {
+		sessExpiry = absExpiry
+	}
+	ttl := sessExpiry.Sub(now)
+	if ttl <= 0 {
+		outcome = "session_max_age_expired"
+		bad(http.StatusBadRequest, "invalid_grant", "session expired")
+		return
+	}
+
+	accessToken, err := randomToken()
+	if err != nil {
+		outcome = "server_error"
+		bad(http.StatusInternalServerError, "server_error", "failed to issue token")
+		return
+	}
+	newJTI, err := randomJTI()
+	if err != nil {
+		outcome = "server_error"
+		bad(http.StatusInternalServerError, "server_error", "failed to issue token")
+		return
+	}
+	newEntraRT, _ := out["refresh_token"].(string)
+	if newEntraRT == "" {
+		newEntraRT = payload.EntraRT
+	}
+	newRT, err := g.sealRefreshToken(rtPayload{
+		V:        1,
+		JTI:      newJTI,
+		FID:      payload.FID,
+		IAT:      payload.IAT,
+		EXP:      payload.EXP,
+		ClientID: payload.ClientID,
+		Resource: payload.Resource,
+		NAVIdent: payload.NAVIdent,
+		Groups:   slices.Clone(payload.Groups),
+		EntraRT:  newEntraRT,
+	})
+	if err != nil {
+		outcome = "server_error"
+		bad(http.StatusInternalServerError, "server_error", "failed to issue token")
+		return
+	}
+
+	newSess := &gatewaySession{
+		ClientID:     payload.ClientID,
+		Resource:     payload.Resource,
+		EntraToken:   newAT,
+		RefreshToken: "",
+		NAVIdent:     payload.NAVIdent,
+		Groups:       slices.Clone(payload.Groups),
+		IssuedAt:     issuedAt,
+		Expiry:       sessExpiry,
+	}
+	if err := g.putSession(r.Context(), hashToken(accessToken), newSess, ttl); err != nil {
+		outcome = "store_error"
+		if errors.Is(err, errStoreFull) {
+			bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store capacity reached")
+			return
+		}
+		slog.Warn("store refreshed session failed", "error", err)
+		bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store unavailable")
 		return
 	}
 
 	writeJSON(w, http.StatusOK, map[string]any{
-		"access_token": accessToken,
-		"token_type":   "Bearer",
-		"expires_in":   int(ttl.Seconds()),
+		"access_token":  accessToken,
+		"token_type":    "Bearer",
+		"expires_in":    int(ttl.Seconds()),
+		"refresh_token": newRT,
 	})
+}
+
+func (g *Gateway) redeemEntraRefreshToken(ctx context.Context, entraRT string) (map[string]any, int, []byte, error) {
+	form := url.Values{
+		"client_id":     {g.cfg.AzureClientID},
+		"client_secret": {g.cfg.AzureClientSecret},
+		"grant_type":    {"refresh_token"},
+		"refresh_token": {entraRT},
+		"scope":         {g.cfg.EntraScope},
+	}
+	body, status, err := g.postEntraToken(ctx, form)
+	if err != nil {
+		return nil, status, body, err
+	}
+	var out map[string]any
+	if err := json.Unmarshal(body, &out); err != nil {
+		return nil, status, body, err
+	}
+	return out, status, body, nil
+}
+
+func (g *Gateway) revokeHandler(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, maxFormBodyBytes)
+	if err := r.ParseForm(); err != nil {
+		writeJSON(w, http.StatusBadRequest, map[string]string{
+			"error":             "invalid_request",
+			"error_description": "invalid form body",
+		})
+		return
+	}
+
+	token := r.PostFormValue("token")
+	if token != "" && len(token) <= maxRefreshTokenLen {
+		if err := g.store.Delete(r.Context(), kindSession, hashToken(token)); err != nil {
+			slog.Warn("revoke session delete failed", "error", err)
+			writeJSON(w, http.StatusServiceUnavailable, map[string]string{
+				"error":             "temporarily_unavailable",
+				"error_description": "session store unavailable",
+			})
+			return
+		}
+		if payload, err := g.openRefreshToken(token); err == nil {
+			expiresAt := time.Unix(payload.EXP, 0).UTC()
+			if _, err := g.store.RevokeOnce(r.Context(), payload.JTI, expiresAt); err != nil {
+				slog.Warn("revoke refresh token failed", "error", err)
+				writeJSON(w, http.StatusServiceUnavailable, map[string]string{
+					"error":             "temporarily_unavailable",
+					"error_description": "session store unavailable",
+				})
+				return
+			}
+		}
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{})
 }
 
 func hashToken(token string) string {

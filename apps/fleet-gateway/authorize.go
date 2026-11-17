@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
+	"sort"
 	"strings"
 	"time"
 )
@@ -21,18 +22,18 @@ import (
 const entraStateCookieName = "__Host-fleet_entra_state"
 
 type pendingAuth struct {
-	ClientID      string
-	ClientName    string
-	RedirectURI   string
-	State         string
-	Challenge     string
-	Resource      string
-	Prompt        string
-	Claims        string
-	EntraVerifier string
-	EntraNonce    string
-	CSRF          string
-	Created       time.Time
+	ClientID      string    `json:"client_id"`
+	ClientName    string    `json:"client_name"`
+	RedirectURI   string    `json:"redirect_uri"`
+	State         string    `json:"state"`
+	Challenge     string    `json:"challenge"`
+	Resource      string    `json:"resource"`
+	Prompt        string    `json:"prompt,omitempty"`
+	Claims        string    `json:"claims,omitempty"`
+	EntraVerifier string    `json:"entra_verifier,omitempty"`
+	EntraNonce    string    `json:"entra_nonce,omitempty"`
+	CSRF          string    `json:"csrf"`
+	Created       time.Time `json:"created"`
 }
 
 type clientMetadata struct {
@@ -129,8 +130,13 @@ func (g *Gateway) authorizeHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Step 1 never remembers prior consent: always ask before redirecting to Entra.
-		if !g.pendingConsent.Set(consentID, p, defaultPendingTTL) {
-			http.Error(w, "too many pending authorizations", http.StatusServiceUnavailable)
+		if err := g.putPending(r.Context(), kindPendingConsent, consentID, p); err != nil {
+			if errors.Is(err, errStoreFull) {
+				http.Error(w, "too many pending authorizations", http.StatusServiceUnavailable)
+				return
+			}
+			slog.Warn("store pending consent failed", "error", err)
+			http.Error(w, "session store unavailable", http.StatusServiceUnavailable)
 			return
 		}
 
@@ -215,8 +221,13 @@ func (g *Gateway) redirectToEntra(w http.ResponseWriter, r *http.Request, p *pen
 	p.EntraVerifier = entraVerifier
 	p.EntraNonce = entraNonce
 	p.Created = g.now()
-	if !g.pendingEntra.Set(entraState, p, defaultPendingTTL) {
-		http.Error(w, "too many pending authorizations", http.StatusServiceUnavailable)
+	if err := g.putPending(r.Context(), kindPendingEntra, entraState, p); err != nil {
+		if errors.Is(err, errStoreFull) {
+			http.Error(w, "too many pending authorizations", http.StatusServiceUnavailable)
+			return
+		}
+		slog.Warn("store pending entra state failed", "error", err)
+		http.Error(w, "session store unavailable", http.StatusServiceUnavailable)
 		return
 	}
 
@@ -334,7 +345,12 @@ func (g *Gateway) callbackHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	p, ok := g.pendingEntra.Pop(queryState)
+	p, ok, err := g.popPending(r.Context(), kindPendingEntra, queryState)
+	if err != nil {
+		slog.Warn("pop pending entra state failed", "error", err)
+		http.Error(w, "session store unavailable", http.StatusServiceUnavailable)
+		return
+	}
 	if !ok {
 		http.Error(w, "unknown or expired login; start again", http.StatusBadRequest)
 		return
@@ -436,16 +452,32 @@ func (g *Gateway) callbackHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sessionTTL := computeSessionTTL(out["expires_in"])
+	groupList := make([]string, 0, len(groups))
+	for grp := range groups {
+		groupList = append(groupList, grp)
+	}
+	sort.Strings(groupList)
+
+	issuedAt := g.now()
+	sessionTTL := computeSessionTTL(out["expires_in"], g.cfg.SessionMaxAge)
 	rt, _ := out["refresh_token"].(string)
-	sess := &gatewaySession{
-		clientID:     p.ClientID,
-		resource:     p.Resource,
-		entraToken:   at,
-		refreshToken: rt,
-		navIdent:     navIdent,
-		groups:       groups,
-		expiry:       g.now().Add(sessionTTL),
+	sessRT := rt
+	entraRT := ""
+	if g.cfg.RTStorage == rtStorageClientEncrypted {
+		// Never persist the Entra refresh token in the session store in client-encrypted
+		// mode; carry it transiently on the 60s single-use code until /token seals it.
+		sessRT = ""
+		entraRT = rt
+	}
+	sess := gatewaySession{
+		ClientID:     p.ClientID,
+		Resource:     p.Resource,
+		EntraToken:   at,
+		RefreshToken: sessRT,
+		NAVIdent:     navIdent,
+		Groups:       groupList,
+		IssuedAt:     issuedAt,
+		Expiry:       issuedAt.Add(sessionTTL),
 	}
 
 	gwCode, err := randomToken()
@@ -460,10 +492,16 @@ func (g *Gateway) callbackHandler(w http.ResponseWriter, r *http.Request) {
 		Challenge:   p.Challenge,
 		Resource:    p.Resource,
 		Session:     sess,
-		Created:     g.now(),
+		EntraRT:     entraRT,
+		Created:     issuedAt,
 	}
-	if !g.codes.Set(gwCode, issued, defaultCodeTTL) {
-		http.Error(w, "too many active authorization codes", http.StatusServiceUnavailable)
+	if err := g.putCode(r.Context(), gwCode, issued); err != nil {
+		if errors.Is(err, errStoreFull) {
+			http.Error(w, "too many active authorization codes", http.StatusServiceUnavailable)
+			return
+		}
+		slog.Warn("store authorization code failed", "error", err)
+		http.Error(w, "session store unavailable", http.StatusServiceUnavailable)
 		return
 	}
 
@@ -484,6 +522,18 @@ func (g *Gateway) redeemEntraCode(ctx context.Context, code, codeVerifier string
 		form.Set("code_verifier", codeVerifier)
 	}
 
+	body, status, err := g.postEntraToken(ctx, form)
+	if err != nil {
+		return nil, status, err
+	}
+	var out map[string]any
+	if err := json.Unmarshal(body, &out); err != nil {
+		return nil, status, err
+	}
+	return out, status, nil
+}
+
+func (g *Gateway) postEntraToken(ctx context.Context, form url.Values) ([]byte, int, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, g.cfg.AzureTokenEndpoint, strings.NewReader(form.Encode()))
 	if err != nil {
 		return nil, 0, err
@@ -498,11 +548,11 @@ func (g *Gateway) redeemEntraCode(ctx context.Context, code, codeVerifier string
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	var out map[string]any
-	if err := json.NewDecoder(io.LimitReader(resp.Body, maxUpstreamBodyBytes)).Decode(&out); err != nil {
+	body, err := io.ReadAll(io.LimitReader(resp.Body, maxUpstreamBodyBytes))
+	if err != nil {
 		return nil, resp.StatusCode, err
 	}
-	return out, resp.StatusCode, nil
+	return body, resp.StatusCode, nil
 }
 
 func (g *Gateway) signEntraState(state string) string {
@@ -559,14 +609,17 @@ func isValidCodeChallenge(challenge string) bool {
 	return true
 }
 
-func computeSessionTTL(expiresIn any) time.Duration {
+func computeSessionTTL(expiresIn any, maxAge time.Duration) time.Duration {
+	if maxAge <= 0 {
+		maxAge = defaultSessionMaxAge
+	}
 	secs := parseNumeric(expiresIn)
 	if secs <= 0 {
-		return defaultSessionTTL
+		return min(defaultSessionTTL, maxAge)
 	}
 	d := time.Duration(secs) * time.Second
-	if d > defaultSessionMaxTTL {
-		return defaultSessionMaxTTL
+	if d > maxAge {
+		return maxAge
 	}
 	return d
 }

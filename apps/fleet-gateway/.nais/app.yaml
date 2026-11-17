@@ -35,7 +35,24 @@ spec:
       {{#each reply_urls as |url|}}
         - {{url}}
       {{/each}}
+  {{#if postgres}}
+  # TODO(#2221): provisioning is Nais Postgres (spec.uses.postgres, dev only for now);
+  # the Cloud SQL option (gcp.sqlInstances) is deliberately not used.
+  uses:
+    postgres:
+      - name: {{postgres}}
+  envFrom:
+    - secret: fleet-gateway-rt-keys # key RT_KEYS = "kid:base64key,..." (newest first); created by a human
+  {{/if}}
   env:
+    - name: SESSION_STORE
+      value: "{{session_store}}"
+    - name: SESSION_MAX_AGE
+      value: "{{session_max_age}}"
+    - name: RT_STORAGE
+      value: "{{rt_storage}}"
+    - name: TEAM_TOKEN_STRATEGY
+      value: "{{team_token_strategy}}"
     - name: PORT
       value: "8080"
     - name: LOG_LEVEL

@@ -114,17 +114,26 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 		}
 
 		tokenHash := hashToken(token)
-		sess, ok := g.sessions.Get(tokenHash)
-		if !ok || !g.now().Before(sess.expiry) {
+		sess, ok, err := g.getSession(r.Context(), tokenHash)
+		if err != nil {
+			outcome = "store_error"
+			slog.Warn("session lookup failed", "route", route.Route, "error", err)
+			writeJSON(w, http.StatusServiceUnavailable, map[string]string{
+				"error":   "temporarily_unavailable",
+				"message": "session store unavailable",
+			})
+			return
+		}
+		if !ok || !g.now().Before(sess.Expiry) {
 			outcome = "unauthorized"
 			writeUnauthorized(w, prmURL)
 			return
 		}
 
-		navIdent = sess.navIdent
-		clientID = sess.clientID
+		navIdent = sess.NAVIdent
+		clientID = sess.ClientID
 
-		if sess.resource != fullRouteURL {
+		if sess.Resource != fullRouteURL {
 			outcome = "forbidden_resource"
 			writeJSON(w, http.StatusForbidden, map[string]string{
 				"error":   "invalid_target",
