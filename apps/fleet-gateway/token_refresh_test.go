@@ -1123,3 +1123,66 @@ func TestRefreshToken_RevokedDuringInFlightIssuesNothing(t *testing.T) {
 		})
 	}
 }
+
+// If burning the old jti fails after the grace pair is stored, a concurrent
+// user of the same RT must not get that pair: the old RT stays usable after the
+// pending TTL, so serving the pair would make two live branches.
+func TestRefreshToken_BurnFailureServesNoGracePair(t *testing.T) {
+	te := newClientEncryptedTestEnv(t, "k1:"+testKeyBase64(t, false))
+	te.gw.refreshWait = 300 * time.Millisecond
+	_, rt, _ := te.obtainTokensForResource(te.resource)
+	te.gw.store = &failingStore{SessionStore: te.gw.store, failRevoke: errors.New("db unavailable")}
+	te.handler = te.gw.routes()
+
+	entered, release := make(chan struct{}), make(chan struct{})
+	te.mu.Lock()
+	te.entraRefreshHook = func() { close(entered); <-release }
+	te.mu.Unlock()
+	type res struct {
+		status int
+		body   map[string]any
+	}
+	first, second := make(chan res, 1), make(chan res, 1)
+	go func() { s, b := te.postToken(refreshForm(te, rt)); first <- res{s, b} }()
+	<-entered
+	go func() { s, b := te.postToken(refreshForm(te, rt)); second <- res{s, b} }()
+	time.Sleep(100 * time.Millisecond) // let the second request reach the pending claim
+	close(release)
+	for _, r := range []res{<-first, <-second} {
+		if r.status != http.StatusServiceUnavailable || r.body["access_token"] != nil || r.body["refresh_token"] != nil {
+			t.Fatalf("burn failed: want 503 and no tokens, got %d (%v)", r.status, r.body)
+		}
+	}
+}
+
+// A /revoke landing after a replay has read the grace pair must still stop it:
+// /revoke revokes the family and graceResponse rechecks it after the read.
+func TestRefreshToken_GraceRechecksFamilyAfterRevoke(t *testing.T) {
+	te := newClientEncryptedTestEnv(t, "k1:"+testKeyBase64(t, false))
+	_, rt, _ := te.obtainTokensForResource(te.resource)
+	payload, err := te.gw.openRefreshToken(rt)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if status, body := te.postToken(refreshForm(te, rt)); status != http.StatusOK {
+		t.Fatalf("refresh: %d (%v)", status, body)
+	}
+	ctx := context.Background()
+	if _, ok, err := te.gw.graceResponse(ctx, payload.JTI, payload.FID); err != nil || !ok {
+		t.Fatalf("grace pair should be served before revoke: %v %v", ok, err)
+	}
+	raw, ok, err := te.gw.store.Get(ctx, kindRefreshGrace, payload.JTI)
+	if err != nil || !ok {
+		t.Fatalf("grace pair missing: %v", err)
+	}
+	if s, _ := postRevoke(te.handler, rt, te.clientID); s != http.StatusOK {
+		t.Fatalf("revoke: %d", s)
+	}
+	// Simulate the replay that read the pair before /revoke deleted it.
+	if err := te.gw.store.Put(ctx, kindRefreshGrace, payload.JTI, raw, time.Minute); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok, err := te.gw.graceResponse(ctx, payload.JTI, payload.FID); err != nil || ok {
+		t.Fatalf("grace pair served after /revoke: %v %v", ok, err)
+	}
+}

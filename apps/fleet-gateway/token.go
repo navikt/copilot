@@ -111,7 +111,12 @@ type refreshGrace struct {
 // graceResponse returns the pair already issued for jti, while the grace window
 // lasts and the new RT is still unused. Only the immediately previous RT
 // qualifies: once the new RT has been rotated too, replaying the old one is reuse.
-func (g *Gateway) graceResponse(ctx context.Context, jti string) (map[string]any, bool, error) {
+//
+// The checks run after the pair is read, so a /revoke (which revokes the family)
+// landing before this returns is seen. The old jti must be burned: the winner
+// stores the pair before burning, and a pair whose burn failed must never be
+// served, or the old RT and the new pair would be two live branches.
+func (g *Gateway) graceResponse(ctx context.Context, jti, fid string) (map[string]any, bool, error) {
 	raw, ok, err := g.store.Get(ctx, kindRefreshGrace, jti)
 	if err != nil || !ok {
 		return nil, false, err
@@ -120,8 +125,14 @@ func (g *Gateway) graceResponse(ctx context.Context, jti string) (map[string]any
 	if err = json.Unmarshal(raw, &gr); err != nil {
 		return nil, false, err
 	}
-	used, err := g.store.IsRevoked(ctx, gr.NewJTI)
-	if err != nil || used {
+	for _, k := range []string{"fam:" + fid, gr.NewJTI} {
+		gone, rerr := g.store.IsRevoked(ctx, k)
+		if rerr != nil || gone {
+			return nil, false, rerr
+		}
+	}
+	burned, err := g.store.IsRevoked(ctx, jti)
+	if err != nil || !burned {
 		return nil, false, err
 	}
 	ttl := gr.Expiry.Sub(g.now())
@@ -138,10 +149,10 @@ func (g *Gateway) graceResponse(ctx context.Context, jti string) (map[string]any
 
 // awaitGrace polls for the pair a concurrent refresh of the same RT is about to
 // issue, for at most g.refreshWait.
-func (g *Gateway) awaitGrace(ctx context.Context, jti string) (map[string]any, bool, error) {
+func (g *Gateway) awaitGrace(ctx context.Context, jti, fid string) (map[string]any, bool, error) {
 	deadline := time.Now().Add(g.refreshWait)
 	for {
-		resp, ok, err := g.graceResponse(ctx, jti)
+		resp, ok, err := g.graceResponse(ctx, jti, fid)
 		if err != nil || ok || !time.Now().Before(deadline) {
 			return resp, ok, err
 		}
@@ -399,7 +410,7 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 	}
 	if used {
 		// Inside the grace window the immediately previous RT gets the same pair again.
-		resp, ok, gerr := g.graceResponse(r.Context(), payload.JTI)
+		resp, ok, gerr := g.graceResponse(r.Context(), payload.JTI, payload.FID)
 		if gerr != nil {
 			unavailable(gerr)
 			return
@@ -436,7 +447,7 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 	}
 	if !won {
 		// A concurrent refresh of the same RT: wait briefly for its pair.
-		resp, ok, gerr := g.awaitGrace(r.Context(), payload.JTI)
+		resp, ok, gerr := g.awaitGrace(r.Context(), payload.JTI, payload.FID)
 		if gerr != nil {
 			unavailable(gerr)
 			return
@@ -573,6 +584,9 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 		bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store unavailable")
 		return
 	}
+	// Store the pair, then burn the old jti. graceResponse serves the pair only
+	// once the jti is burned, so a failed or crashed burn leaves the pair unused
+	// and concurrent users get 503 Retry-After, never a second live branch.
 	// A lost grace pair only costs the grace window, so a write failure is not fatal.
 	graceTTL := min(g.cfg.RefreshGraceWindow, absExpiry.Sub(now))
 	if raw, merr := json.Marshal(refreshGrace{AccessToken: accessToken, RefreshToken: newRT, NewJTI: newJTI, Expiry: sessExpiry}); merr != nil {
@@ -673,6 +687,13 @@ func (g *Gateway) revokeHandler(w http.ResponseWriter, r *http.Request) {
 			expiresAt := time.Unix(payload.EXP, 0).UTC()
 			if _, err := g.store.RevokeOnce(r.Context(), payload.JTI, expiresAt); err != nil {
 				slog.Warn("revoke refresh token failed", "error", err)
+				bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store unavailable")
+				return
+			}
+			// Revoke the family too (RFC 7009 2.1), so a grace pair already read
+			// by a concurrent replay fails its family recheck.
+			if err := g.store.Revoke(r.Context(), "fam:"+payload.FID, expiresAt); err != nil {
+				slog.Warn("revoke refresh family failed", "error", err)
 				bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store unavailable")
 				return
 			}
