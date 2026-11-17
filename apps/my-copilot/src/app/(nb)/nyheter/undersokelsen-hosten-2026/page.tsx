@@ -260,22 +260,74 @@ export default function SurveyAutumnArticlePage() {
               </Table>
 
               <Heading size="medium" level="2" spacing>
-                Hva vi prøver videre
+                Hva vi har gjort siden i vår
               </Heading>
-              <BodyLong spacing>Dette er forsøk. Vi vet ikke ennå om de virker.</BodyLong>
+              <BodyLong spacing>Vi har ikke målt om dette virker. Det er det vi har gjort med det dere ba om.</BodyLong>
               <ul>
                 <li>
-                  <BodyLong>Samle det du må vite på ett sted, med mindre tekst.</BodyLong>
+                  <BodyLong>
+                    <strong>Opplæring og veiledning:</strong> nye guider for{" "}
+                    <NextLink href="/nav-pilot/guider/kom-i-gang">å komme i gang</NextLink>, for
+                    <NextLink href="/nav-pilot/guider/cplt-flere-repoer">å jobbe i flere repoer</NextLink> og for
+                    <NextLink href="/nav-pilot/guider/mcp-gjennom-cplt">MCP-servere</NextLink>, og en forklaring av
+                    <NextLink href="/nav-pilot/forklaring/sandkassen">sandkassen</NextLink>.
+                  </BodyLong>
                 </li>
                 <li>
-                  <BodyLong>Lage veiledning om eierskap til KI-generert kode og om review.</BodyLong>
+                  <BodyLong>
+                    <strong>Enklere oppsett:</strong> nav-pilot har fått en kortere første kjøring, agentpakken samlet
+                    på ett sted og tydeligere feilmeldinger når noe stopper.
+                  </BodyLong>
                 </li>
                 <li>
-                  <BodyLong>Gjøre oppsettet av verktøyene enklere.</BodyLong>
+                  <BodyLong>
+                    <strong>Sikkerhet og personvern:</strong> de samme sandkassereglene gjelder nå for alle agenter, og
+                    nav-pilot spør før den bruker personopplysninger eller kjører et repos egne tillegg.
+                  </BodyLong>
+                </li>
+                <li>
+                  <BodyLong>
+                    <strong>Kvalitet og egen forståelse:</strong> vi skrev om{" "}
+                    <NextLink href="/nyheter/kvalitet-foran-fart">kvalitet foran fart</NextLink>
+                    og om å bruke KI på vedlikehold.
+                  </BodyLong>
+                </li>
+                <li>
+                  <BodyLong>
+                    <strong>Innsikt i bruk og kostnad:</strong> du kan nå se bruk per klient og per verktøy.
+                  </BodyLong>
+                </li>
+              </ul>
+
+              <Heading size="medium" level="2" spacing>
+                Hva som kommer
+              </Heading>
+              <ul>
+                <li>
+                  <BodyLong>
+                    Agentpakken i Copilot-appen og VS Code, uten terminal. Flere ba om bedre støtte for appen.
+                  </BodyLong>
+                </li>
+                <li>
+                  <BodyLong>
+                    Team kan registrere egne MCP-servere selv, og en felles inngang med Nav-innlogging. Det gir agentene
+                    bedre tilgang til kodebasen og fagsystemene våre.
+                  </BodyLong>
+                </li>
+                <li>
+                  <BodyLong>
+                    Tydeligere veiledning om hvilken klient du bør velge, og om lokal kontra skybasert kjøring.
+                  </BodyLong>
+                </li>
+                <li>
+                  <BodyLong>
+                    Resultatene fra undersøkelsene, samlet bak innlogging på ki-utvikling.nav.no, så du kan følge
+                    utviklingen selv.
+                  </BodyLong>
                 </li>
                 <li>
                   <BodyLong spacing>
-                    Utvide neste undersøkelse med svaralternativet «vet ikke» og spørsmål om rolle, hvor ofte du bruker
+                    Neste undersøkelse får svaralternativet «vet ikke» og spørsmål om rolle, hvor ofte du bruker
                     verktøyene og hvilke klienter du bruker.
                   </BodyLong>
                 </li>
