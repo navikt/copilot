@@ -166,7 +166,7 @@ describe("/innsikt/undersokelser", () => {
               text: "Jeg jobber raskere",
               break: false,
               waves: [
-                { excluded: 0, versions: [], hidden: true },
+                { excluded: 0, versions: [{ version: 1, n: null, options: null, hidden: true }], hidden: true },
                 { excluded: 0, versions: [{ version: 1, n: 20, options: [], mean: 3, agree: 0.4 }] },
               ],
             },
@@ -185,7 +185,12 @@ describe("/innsikt/undersokelser", () => {
     expect(screen.getByRole("columnheader", { name: "Høsten 2026, versjon 2 (n 20)" })).toBeInTheDocument();
     expect(screen.getAllByRole("cell", { name: "4 (20 %)" })).toHaveLength(5);
     expect(screen.queryByRole("columnheader", { name: "Besvart via" })).not.toBeInTheDocument();
-    expect(screen.getByText(/Våren 2026: <5\. Der færre enn 5 er holdt utenfor/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Våren 2026: vises ikke\. Noen tall vises ikke, fordi en gruppe på færre enn 5/)
+    ).toBeInTheDocument();
+    expect(
+      screen.getAllByText("Noen tall vises ikke, fordi en gruppe på færre enn 5 ellers kunne regnes ut.")
+    ).toHaveLength(1);
     expect(screen.getByRole("link", { name: "Utviklerundersøkelsen våren 2026" })).toHaveAttribute(
       "href",
       "/innsikt/undersokelser/var-2026"
@@ -202,6 +207,14 @@ describe("/innsikt/undersokelser", () => {
     await expect(page("finnes-ikke")).rejects.toThrow("NEXT_NOT_FOUND");
     await expect(page("../x")).rejects.toThrow("NEXT_NOT_FOUND");
     expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("says a hidden small version is under 5, without numbers", async () => {
+    const [nytte, ...rest] = results.questions!;
+    const hidden = { version: 3, n: null, options: null, hidden: true };
+    respond(200, { ...results, questions: [{ ...nytte, versions: [...nytte.versions!, hidden] }, ...rest] });
+    render(await PublishedSurveyResultsPage(params("host-2026")));
+    expect(screen.getByText("Versjon 3: under 5 svar. Tallene vises ikke.")).toBeInTheDocument();
   });
 
   it("maps 404 or invalid id to notFound", async () => {

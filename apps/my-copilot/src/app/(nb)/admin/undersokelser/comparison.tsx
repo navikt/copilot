@@ -37,6 +37,8 @@ function shortName(title: string) {
 const num = (x: number, digits = 1) => x.toFixed(digits).replace(".", ",").replace("-", "−");
 const signed = (x: number, digits = 1) => (x > 0 ? "+" : "") + num(x, digits);
 
+const HIDDEN = "Noen tall vises ikke, fordi en gruppe på færre enn 5 ellers kunne regnes ut.";
+
 /** The single version a wave asked, or undefined when it has none or several. */
 const only = (w: WaveCounts | undefined): WaveStat | undefined =>
   w?.versions.length === 1 && w.versions[0].n !== null ? w.versions[0] : undefined;
@@ -236,7 +238,11 @@ function Statement({
         w.versions.map((v) => (
           <div key={`${i}-${v.version}`}>
             <WaveLabel wave={waves[i]} i={i} count={waves.length} n={v.n} version={broken ? v.version : undefined} />
-            <LikertBar v={v} min={min} max={max} labels={labels} />
+            {v.hidden ? (
+              <Detail textColor="subtle">{HIDDEN}</Detail>
+            ) : (
+              <LikertBar v={v} min={min} max={max} labels={labels} />
+            )}
           </div>
         ))
       )}
@@ -249,7 +255,7 @@ function Statement({
 function Excluded({ waves, counts }: { waves: WaveMeta[]; counts: WaveCounts[] }) {
   const notes = counts.flatMap((w, i) =>
     w.hidden
-      ? [`${shortName(waves[i].title)}: <5`]
+      ? [`${shortName(waves[i].title)}: vises ikke`]
       : w.excluded
         ? [`${shortName(waves[i].title)}: ${formatNumber(w.excluded)}`]
         : []
@@ -258,9 +264,7 @@ function Excluded({ waves, counts }: { waves: WaveMeta[]; counts: WaveCounts[] }
   return (
     <Detail textColor="subtle">
       Holdt utenfor fordi de ikke bruker KI-verktøy (som i siste runde): {notes.join(", ")}.
-      {counts.some((w) => w.hidden)
-        ? " Der færre enn 5 er holdt utenfor, vises ikke tallene for runden, fordi gruppen ellers kunne regnes ut."
-        : ""}
+      {counts.some((w) => w.hidden) ? ` ${HIDDEN}` : ""}
     </Detail>
   );
 }

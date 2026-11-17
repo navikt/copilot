@@ -238,6 +238,8 @@ export type VersionResult = {
   version: number;
   n: number | null;
   options: { value: string; count: number | null; suppressed: boolean }[] | null;
+  /** Published results: a small group, shown without n or counts. */
+  hidden?: boolean;
 };
 
 export type QuestionResult = {
@@ -302,7 +304,7 @@ export async function getPublishedSurveyResults(userToken: string, id: string): 
 export type WaveStat = VersionResult & { mean?: number; agree?: number };
 /**
  * A question or item in one wave. excluded: answers the comparison rule dropped (the last wave's skip_if).
- * hidden: the published comparison left the wave out, since 1–4 were excluded; excluded is 0 and versions empty.
+ * hidden: the published comparison hid a small group in the wave; excluded is 0 and hidden versions have no counts.
  */
 export type WaveCounts = { excluded: number; versions: WaveStat[]; hidden?: boolean };
 export type WaveMeta = SurveySummary & { suppressed: boolean; channels: Record<string, number> | null };

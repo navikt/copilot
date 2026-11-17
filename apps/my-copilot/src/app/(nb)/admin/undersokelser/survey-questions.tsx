@@ -1,7 +1,7 @@
 import { BodyShort, Heading, VStack } from "@navikt/ds-react";
 import { Table, TableBody, TableDataCell, TableHeader, TableHeaderCell, TableRow } from "@/components/aksel-table";
 import { formatNumber } from "@/lib/format";
-import type { QuestionResult, Survey, SurveyQuestion, VersionResult } from "@/lib/survey";
+import { UNDER_FIVE, type QuestionResult, type Survey, type SurveyQuestion, type VersionResult } from "@/lib/survey";
 import { fill, Legend, LikertBar } from "./likert-bar";
 
 /**
@@ -19,6 +19,12 @@ type Label = (version: number, value: string) => string;
 /** One version of a question as a table: count, share of respondents and an inline bar. */
 function VersionTable({ v, caption, label }: { v: VersionResult; caption: string; label: Label }) {
   const n = v.n;
+  if (v.hidden)
+    return (
+      <BodyShort size="small">
+        {caption}: {UNDER_FIVE} svar. Tallene vises ikke.
+      </BodyShort>
+    );
   if (!v.options || n === null) return null;
   return (
     <div className="overflow-x-auto">
