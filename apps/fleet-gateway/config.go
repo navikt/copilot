@@ -28,6 +28,7 @@ const (
 	defaultPendingCap                    = 1024
 	defaultCodeCap                       = 1024
 	defaultSessionCap                    = 4096
+	defaultMCPSessionUserCap             = 64
 	defaultCIMDCap                       = 64
 	defaultRateLimitCap                  = 4096
 	defaultRateLimitRequests             = 30
@@ -66,6 +67,7 @@ type Config struct {
 	PrimaryResource         string
 	Routes                  []PilotRoute
 	RoutesByPath            map[string]PilotRoute
+	GatewayDisabled         bool
 	TeamTokenStrategy       string
 	TexasExchangeEndpoint   string
 	EntraScope              string
@@ -84,6 +86,7 @@ type Config struct {
 	PendingCap              int
 	CodeCap                 int
 	SessionCap              int
+	MCPSessionUserCap       int
 	CIMDCap                 int
 	RateLimitCap            int
 	RateLimitRequests       int
@@ -136,6 +139,11 @@ func loadConfigFromEnv() (*Config, error) {
 		return nil, fmt.Errorf("invalid RT_STORAGE %q: expected client-encrypted or server", rtStorage)
 	}
 
+	gatewayDisabled, err := getEnvBool("GATEWAY_DISABLED")
+	if err != nil {
+		return nil, err
+	}
+
 	// The user's Entra access token must be issued to fleet-gateway itself:
 	// Texas OBO requires the assertion's aud to be the exchanging app, and
 	// strategy refresh or client-encrypted refresh tokens need offline_access.
@@ -154,6 +162,7 @@ func loadConfigFromEnv() (*Config, error) {
 		PrimaryResource:         primaryResource,
 		Routes:                  routes,
 		RoutesByPath:            routesByPath,
+		GatewayDisabled:         gatewayDisabled,
 		TeamTokenStrategy:       strategy,
 		TexasExchangeEndpoint:   strings.TrimSpace(os.Getenv("NAIS_TOKEN_EXCHANGE_ENDPOINT")),
 		EntraScope:              entraScope,
@@ -172,6 +181,7 @@ func loadConfigFromEnv() (*Config, error) {
 		PendingCap:              getEnvInt("PENDING_MAP_CAP", defaultPendingCap),
 		CodeCap:                 getEnvInt("CODE_MAP_CAP", defaultCodeCap),
 		SessionCap:              getEnvInt("SESSION_MAP_CAP", defaultSessionCap),
+		MCPSessionUserCap:       getEnvInt("MCP_SESSION_USER_CAP", defaultMCPSessionUserCap),
 		CIMDCap:                 defaultCIMDCap,
 		RateLimitCap:            getEnvInt("RATE_LIMIT_MAP_CAP", defaultRateLimitCap),
 		RateLimitRequests:       getEnvInt("RATE_LIMIT_REQUESTS", defaultRateLimitRequests),
@@ -355,6 +365,9 @@ func validateConfig(cfg *Config) error {
 	if cfg.SessionCap <= 0 {
 		cfg.SessionCap = defaultSessionCap
 	}
+	if cfg.MCPSessionUserCap <= 0 {
+		cfg.MCPSessionUserCap = defaultMCPSessionUserCap
+	}
 	return nil
 }
 
@@ -459,6 +472,18 @@ func getEnv(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+func getEnvBool(key string) (bool, error) {
+	v := strings.TrimSpace(os.Getenv(key))
+	if v == "" {
+		return false, nil
+	}
+	b, err := strconv.ParseBool(v)
+	if err != nil {
+		return false, fmt.Errorf("invalid %s %q: %w", key, v, err)
+	}
+	return b, nil
 }
 
 func getEnvInt(key string, fallback int) int {

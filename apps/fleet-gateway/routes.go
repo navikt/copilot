@@ -30,12 +30,17 @@ type PilotRoute struct {
 	Target        string `yaml:"target" json:"target"`
 	UpstreamURL   string `yaml:"upstream_url" json:"upstream_url"`
 	RequiredGroup string `yaml:"required_group,omitempty" json:"required_group,omitempty"`
+	Enabled       *bool  `yaml:"enabled,omitempty" json:"enabled,omitempty"`
 
 	Cluster     string   `yaml:"-" json:"-"`
 	Namespace   string   `yaml:"-" json:"-"`
 	App         string   `yaml:"-" json:"-"`
 	ParsedURL   *url.URL `yaml:"-" json:"-"`
 	FullRouteID string   `yaml:"-" json:"-"`
+}
+
+func (r PilotRoute) isDisabled() bool {
+	return r.Enabled != nil && !*r.Enabled
 }
 
 func loadPilotRoutes(filePath string) ([]PilotRoute, error) {

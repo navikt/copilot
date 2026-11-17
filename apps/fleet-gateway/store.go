@@ -12,6 +12,8 @@ const (
 	kindPendingEntra   = "pending_entra"
 	kindCode           = "code"
 	kindSession        = "session"
+	kindMCPSession     = "mcp_session"
+	kindMCPSessionUser = "mcp_session_user" // per-user count of mcp_session bindings
 )
 
 var errStoreFull = errors.New("store capacity reached")
@@ -27,6 +29,7 @@ type SessionStore interface {
 	RevokeOnce(ctx context.Context, jti string, expiresAt time.Time) (bool, error)
 	IsRevoked(ctx context.Context, jti string) (bool, error)
 	Sweep(ctx context.Context) (int, error)
+	Ping(ctx context.Context) error
 	Close()
 }
 
@@ -240,5 +243,7 @@ func (s *memoryStore) sweepKindLocked(kind string, now time.Time) int {
 	}
 	return removed
 }
+
+func (s *memoryStore) Ping(_ context.Context) error { return nil }
 
 func (s *memoryStore) Close() {}

@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"net/textproto"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 	"unicode"
@@ -22,6 +23,7 @@ const (
 	maxMCPRequestBodyBytes  = 1 << 20  // 1 MiB
 	maxMCPResponseBodyBytes = 10 << 20 // 10 MiB for non-SSE responses
 	maxAuditMethodLen       = 64
+	maxMCPSessionIDBytes    = 256
 )
 
 var allowedUpstreamRequestHeaders = map[string]bool{
@@ -106,6 +108,17 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 			return
 		}
 
+		if g.cfg.GatewayDisabled || route.isDisabled() {
+			outcome = "disabled"
+			slog.Warn("route disabled by kill switch", "route", route.Route, "global", g.cfg.GatewayDisabled)
+			w.Header().Set("Retry-After", "300")
+			writeJSON(w, http.StatusServiceUnavailable, map[string]string{
+				"error":   "temporarily_unavailable",
+				"message": "this route is temporarily disabled by the gateway operator",
+			})
+			return
+		}
+
 		token, ok := extractBearerToken(r.Header.Get("Authorization"))
 		if !ok {
 			outcome = "unauthorized"
@@ -149,6 +162,50 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 				"message": "missing required group membership",
 			})
 			return
+		}
+
+		if len(r.Header.Values("Mcp-Session-Id")) > 1 {
+			outcome = "bad_request"
+			writeJSON(w, http.StatusBadRequest, map[string]string{
+				"error":   "invalid_request",
+				"message": "only one Mcp-Session-Id header is allowed",
+			})
+			return
+		}
+		reqSessionID := r.Header.Get("Mcp-Session-Id")
+		if reqSessionID != "" {
+			if len(reqSessionID) > maxMCPSessionIDBytes {
+				outcome = "bad_request"
+				writeJSON(w, http.StatusBadRequest, map[string]string{
+					"error":   "invalid_request",
+					"message": "Mcp-Session-Id exceeds maximum allowed length",
+				})
+				return
+			}
+			owner, found, getErr := g.store.Get(r.Context(), kindMCPSession, route.Route+"\n"+reqSessionID)
+			if getErr != nil {
+				outcome = "store_error"
+				slog.Warn("mcp session lookup failed", "route", route.Route, "error", getErr)
+				writeJSON(w, http.StatusServiceUnavailable, map[string]string{
+					"error":   "temporarily_unavailable",
+					"message": "session store unavailable",
+				})
+				return
+			}
+			if found {
+				if string(owner) != sess.NAVIdent {
+					outcome = "mcp_session_mismatch"
+					slog.Warn("mcp session id belongs to another user",
+						"navident", sanitizeLogValue(navIdent),
+						"route", route.Route,
+					)
+					writeJSON(w, http.StatusForbidden, map[string]string{
+						"error":   "forbidden",
+						"message": "Mcp-Session-Id belongs to another user",
+					})
+					return
+				}
+			}
 		}
 
 		r.Body = http.MaxBytesReader(w, r.Body, maxMCPRequestBodyBytes)
@@ -239,6 +296,46 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 			return
 		}
 		defer func() { _ = resp.Body.Close() }()
+
+		mcpSessionTTL := g.cfg.SessionMaxAge
+		if mcpSessionTTL <= 0 {
+			mcpSessionTTL = defaultSessionMaxAge
+		}
+		bindMCPSession := func(id string) {
+			key := route.Route + "\n" + id
+			// Never take over an id another user already owns.
+			owner, found, getErr := g.store.Get(r.Context(), kindMCPSession, key)
+			if getErr != nil || (found && string(owner) != sess.NAVIdent) {
+				slog.Warn("mcp session bind skipped", "route", route.Route, "owned_by_other", found, "error", getErr)
+				return
+			}
+			if found {
+				return // already ours; skipping keeps the per-user count exact
+			}
+			// shortcut: Get+Put on the counter is not atomic across pods, so the cap is approximate; fine as defence in depth.
+			count := 0
+			if raw, ok, cntErr := g.store.Get(r.Context(), kindMCPSessionUser, sess.NAVIdent); cntErr == nil && ok {
+				count, _ = strconv.Atoi(string(raw))
+			}
+			if count >= g.cfg.MCPSessionUserCap {
+				slog.Warn("mcp session bind skipped: per-user cap reached", "route", route.Route, "navident", sanitizeLogValue(navIdent))
+				return
+			}
+			if putErr := g.store.Put(r.Context(), kindMCPSession, key, []byte(sess.NAVIdent), mcpSessionTTL); putErr != nil {
+				slog.Warn("mcp session bind failed", "route", route.Route, "error", putErr)
+				return
+			}
+			_ = g.store.Put(r.Context(), kindMCPSessionUser, sess.NAVIdent, []byte(strconv.Itoa(count+1)), mcpSessionTTL)
+		}
+		// Bind only ids the upstream issued on a successful response (MCP streamable HTTP).
+		// A client-supplied id is never bound; an unbound one passes through for stateless upstreams.
+		if resp.StatusCode < 300 {
+			for _, id := range resp.Header.Values("Mcp-Session-Id") {
+				if id != "" && len(id) <= maxMCPSessionIDBytes {
+					bindMCPSession(id)
+				}
+			}
+		}
 
 		if isEventStream(resp.Header.Get("Content-Type")) {
 			copyAllowlistedHeaders(w.Header(), resp.Header, allowedUpstreamResponseHeaders)

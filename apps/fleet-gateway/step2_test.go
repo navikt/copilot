@@ -1066,3 +1066,219 @@ func TestEntraScopeForTarget(t *testing.T) {
 		t.Fatalf("entraScopeForTarget = %q, want %q", got, "api://dev-gcp.copilot.fleet-echo/.default")
 	}
 }
+
+func TestProxy_KillSwitch(t *testing.T) {
+	setBaseValidEnv(t)
+	t.Setenv("GATEWAY_DISABLED", "not-a-bool")
+	if _, err := loadConfigFromEnv(); err == nil {
+		t.Fatal("expected invalid GATEWAY_DISABLED to return config error")
+	}
+
+	tests := []struct {
+		name            string
+		gatewayDisabled string
+		targetPath      string
+		wantGlobal      bool
+	}{
+		{
+			name:       "route enabled:false returns 503",
+			targetPath: "/mcp/disabled",
+			wantGlobal: false,
+		},
+		{
+			name:            "GatewayDisabled returns 503",
+			gatewayDisabled: "true",
+			targetPath:      "/mcp/etterlevelse",
+			wantGlobal:      true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var logBuf bytes.Buffer
+			oldLogger := slog.Default()
+			slog.SetDefault(slog.New(slog.NewJSONHandler(&logBuf, &slog.HandlerOptions{Level: slog.LevelInfo})))
+			defer slog.SetDefault(oldLogger)
+
+			te := newTestEnv(t)
+			var upstreamCalls atomic.Int32
+			te.upstreamServer.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				upstreamCalls.Add(1)
+				writeJSON(w, http.StatusOK, map[string]any{"jsonrpc": "2.0", "id": 1, "result": "ok"})
+			})
+
+			routesYAML := `version: 1
+routes:
+  - route: /mcp/etterlevelse
+    team: team-etterlevelse
+    target: dev-gcp:team-etterlevelse:nav-etterlevelse-mcp
+    upstream_url: http://nav-etterlevelse-mcp.team-etterlevelse
+  - route: /mcp/disabled
+    team: team-sec
+    target: dev-gcp:team-sec:sec-mcp
+    upstream_url: http://sec-mcp.team-sec
+    enabled: false
+`
+			parsedRoutes, err := parseAndValidatePilotRoutes([]byte(routesYAML))
+			if err != nil {
+				t.Fatalf("parseAndValidatePilotRoutes failed: %v", err)
+			}
+			te.gw.cfg.Routes = parsedRoutes
+			if err = validateConfig(te.gw.cfg); err != nil {
+				t.Fatalf("validateConfig failed: %v", err)
+			}
+			parsedUpstream, err := url.Parse(te.upstreamServer.URL)
+			if err != nil {
+				t.Fatalf("parse upstream server URL: %v", err)
+			}
+			for i := range te.gw.cfg.Routes {
+				te.gw.cfg.Routes[i].ParsedURL = parsedUpstream
+			}
+			te.gw.TeamTokens, err = newTeamTokenSource(te.gw.cfg, te.gw.store, func() time.Time {
+				te.mu.Lock()
+				defer te.mu.Unlock()
+				return te.now
+			})
+			if err != nil {
+				t.Fatalf("newTeamTokenSource failed: %v", err)
+			}
+
+			if tt.gatewayDisabled != "" {
+				setBaseValidEnv(t)
+				t.Setenv("GATEWAY_DISABLED", tt.gatewayDisabled)
+				loadedCfg, err := loadConfigFromEnv()
+				if err != nil {
+					t.Fatalf("loadConfigFromEnv failed: %v", err)
+				}
+				te.gw.cfg.GatewayDisabled = loadedCfg.GatewayDisabled
+			}
+			te.handler = te.gw.routes()
+
+			// Send without Authorization to verify kill switch runs after method check and before auth.
+			req := httptest.NewRequest(http.MethodPost, tt.targetPath, strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"tools/list"}`))
+			rec := httptest.NewRecorder()
+			te.handler.ServeHTTP(rec, req)
+
+			if rec.Code != http.StatusServiceUnavailable {
+				t.Fatalf("expected 503, got %d (%s)", rec.Code, rec.Body.String())
+			}
+			if got := rec.Header().Get("Retry-After"); got != "300" {
+				t.Fatalf("expected Retry-After=300, got %q", got)
+			}
+			var body map[string]string
+			if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+				t.Fatalf("decode 503 JSON: %v", err)
+			}
+			if body["error"] != "temporarily_unavailable" || body["message"] != "this route is temporarily disabled by the gateway operator" {
+				t.Fatalf("unexpected 503 body: %+v", body)
+			}
+			if upstreamCalls.Load() != 0 {
+				t.Fatalf("expected 0 upstream calls, got %d", upstreamCalls.Load())
+			}
+
+			var foundWarn, foundAudit map[string]any
+			for _, line := range strings.Split(strings.TrimSpace(logBuf.String()), "\n") {
+				var entry map[string]any
+				if json.Unmarshal([]byte(line), &entry) != nil {
+					continue
+				}
+				switch entry["msg"] {
+				case "route disabled by kill switch":
+					foundWarn = entry
+				case "audit mcp":
+					foundAudit = entry
+				}
+			}
+			if foundWarn == nil {
+				t.Fatalf("expected kill switch warning log, got:\n%s", logBuf.String())
+			}
+			if foundWarn["route"] != tt.targetPath || foundWarn["global"] != tt.wantGlobal {
+				t.Fatalf("unexpected warning fields: %+v", foundWarn)
+			}
+			if foundAudit == nil || foundAudit["outcome"] != "disabled" {
+				t.Fatalf("expected audit mcp outcome=disabled, got %+v", foundAudit)
+			}
+		})
+	}
+}
+
+func TestProxy_MCPSessionIDBoundToUser(t *testing.T) {
+	te := newTestEnv(t)
+
+	var upstreamCalls atomic.Int32
+	te.upstreamServer.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		upstreamCalls.Add(1)
+		if r.Header.Get("Mcp-Session-Id") == "" {
+			w.Header().Set("Mcp-Session-Id", "mcp-sess-user-a")
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"jsonrpc": "2.0", "id": 1, "result": "ok"})
+	})
+
+	// User A obtains an Mcp-Session-Id from upstream.
+	te.mu.Lock()
+	te.navIdent = "A111111"
+	te.mu.Unlock()
+	tokA := te.obtainAccessTokenForResource(te.resource)
+
+	reqA1 := httptest.NewRequest(http.MethodPost, "/mcp/etterlevelse", strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"initialize"}`))
+	reqA1.Header.Set("Authorization", "Bearer "+tokA)
+	recA1 := httptest.NewRecorder()
+	te.handler.ServeHTTP(recA1, reqA1)
+	if recA1.Code != http.StatusOK {
+		t.Fatalf("expected 200 for user A initialize, got %d (%s)", recA1.Code, recA1.Body.String())
+	}
+	mcpSessID := recA1.Header().Get("Mcp-Session-Id")
+	if mcpSessID != "mcp-sess-user-a" {
+		t.Fatalf("expected Mcp-Session-Id=mcp-sess-user-a, got %q", mcpSessID)
+	}
+
+	// User B with a valid token for the same route sending user A's Mcp-Session-Id gets 403.
+	te.mu.Lock()
+	te.navIdent = "B222222"
+	te.mu.Unlock()
+	tokB := te.obtainAccessTokenForResource(te.resource)
+
+	callsBeforeB := upstreamCalls.Load()
+	reqB := httptest.NewRequest(http.MethodPost, "/mcp/etterlevelse", strings.NewReader(`{"jsonrpc":"2.0","id":2,"method":"tools/list"}`))
+	reqB.Header.Set("Authorization", "Bearer "+tokB)
+	reqB.Header.Set("Mcp-Session-Id", mcpSessID)
+	recB := httptest.NewRecorder()
+	te.handler.ServeHTTP(recB, reqB)
+	if recB.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 for user B using user A's Mcp-Session-Id, got %d (%s)", recB.Code, recB.Body.String())
+	}
+	var errBody map[string]string
+	if err := json.Unmarshal(recB.Body.Bytes(), &errBody); err != nil {
+		t.Fatalf("decode 403 body: %v", err)
+	}
+	if errBody["error"] != "forbidden" {
+		t.Fatalf("expected error=forbidden, got %+v", errBody)
+	}
+	if upstreamCalls.Load() != callsBeforeB {
+		t.Fatalf("expected user B request to be rejected before upstream, got %d extra calls", upstreamCalls.Load()-callsBeforeB)
+	}
+
+	// A second Mcp-Session-Id header cannot smuggle A's id past the check.
+	reqDup := httptest.NewRequest(http.MethodPost, "/mcp/etterlevelse", strings.NewReader(`{"jsonrpc":"2.0","id":2,"method":"tools/list"}`))
+	reqDup.Header.Set("Authorization", "Bearer "+tokB)
+	reqDup.Header.Add("Mcp-Session-Id", "fresh-id-b")
+	reqDup.Header.Add("Mcp-Session-Id", mcpSessID)
+	recDup := httptest.NewRecorder()
+	te.handler.ServeHTTP(recDup, reqDup)
+	if recDup.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for duplicate Mcp-Session-Id headers, got %d", recDup.Code)
+	}
+
+	// User A still gets through with that Mcp-Session-Id.
+	reqA2 := httptest.NewRequest(http.MethodPost, "/mcp/etterlevelse", strings.NewReader(`{"jsonrpc":"2.0","id":3,"method":"tools/list"}`))
+	reqA2.Header.Set("Authorization", "Bearer "+tokA)
+	reqA2.Header.Set("Mcp-Session-Id", mcpSessID)
+	recA2 := httptest.NewRecorder()
+	te.handler.ServeHTTP(recA2, reqA2)
+	if recA2.Code != http.StatusOK {
+		t.Fatalf("expected 200 for user A reusing own Mcp-Session-Id, got %d (%s)", recA2.Code, recA2.Body.String())
+	}
+	if upstreamCalls.Load() != callsBeforeB+1 {
+		t.Fatalf("expected user A request to reach upstream, got %d calls", upstreamCalls.Load()-callsBeforeB)
+	}
+}

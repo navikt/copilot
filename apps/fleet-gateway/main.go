@@ -88,6 +88,8 @@ func buildSessionStore(cfg *Config, now func() time.Time, rtKeys *keyRing) (Sess
 		kindPendingEntra:   cfg.PendingCap,
 		kindCode:           cfg.CodeCap,
 		kindSession:        cfg.SessionCap,
+		kindMCPSession:     cfg.SessionCap,
+		kindMCPSessionUser: cfg.SessionCap,
 	}
 
 	var store SessionStore
@@ -143,7 +145,7 @@ func (g *Gateway) sweepAll() {
 func (g *Gateway) routes() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", healthHandler)
-	mux.HandleFunc("GET /ready", readyHandler)
+	mux.HandleFunc("GET /ready", g.readyHandler)
 	mux.HandleFunc("GET /{$}", g.rootHandler)
 	mux.HandleFunc("GET /.well-known/oauth-protected-resource", g.prmHandler)
 	mux.HandleFunc("GET /.well-known/oauth-protected-resource/{rest...}", g.prmHandler)
@@ -163,7 +165,14 @@ func healthHandler(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "healthy"})
 }
 
-func readyHandler(w http.ResponseWriter, _ *http.Request) {
+func (g *Gateway) readyHandler(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+	defer cancel()
+	if err := g.store.Ping(ctx); err != nil {
+		slog.Warn("readiness check failed", "error", err)
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"status": "not_ready"})
+		return
+	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ready"})
 }
 

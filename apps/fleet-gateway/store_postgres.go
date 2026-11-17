@@ -298,6 +298,10 @@ func (s *pgxStore) Sweep(ctx context.Context) (int, error) {
 	return int(tag1.RowsAffected() + tag2.RowsAffected()), nil
 }
 
+func (s *pgxStore) Ping(ctx context.Context) error {
+	return s.pool.Ping(ctx)
+}
+
 func (s *pgxStore) Close() {
 	s.pool.Close()
 }
