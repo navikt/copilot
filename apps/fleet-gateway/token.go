@@ -255,6 +255,7 @@ func (g *Gateway) handleAuthorizationCodeGrant(w http.ResponseWriter, r *http.Re
 	if refreshToken != "" {
 		resp["refresh_token"] = refreshToken
 	}
+	g.renewClient(r.Context(), issued.Session.ClientID)
 	writeJSON(w, http.StatusOK, resp)
 }
 
@@ -493,6 +494,7 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	g.renewClient(r.Context(), clientID)
 	writeJSON(w, http.StatusOK, map[string]any{
 		"access_token":  accessToken,
 		"token_type":    "Bearer",

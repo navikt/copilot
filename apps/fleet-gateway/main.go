@@ -25,7 +25,6 @@ type Gateway struct {
 	rtKeys      *keyRing
 	cimdCache   *ttlMap[*clientMetadata]
 	limiter     *ipRateLimiter
-	dcrLimiter  *ipRateLimiter
 	proxyClient *http.Client
 
 	wellKnownMu         sync.RWMutex
@@ -71,7 +70,6 @@ func newGateway(cfg *Config, now func() time.Time) (*Gateway, error) {
 		rtKeys:      rtKeys,
 		cimdCache:   newTTLMap[*clientMetadata](cfg.CIMDCap, now),
 		limiter:     newIPRateLimiter(cfg.RateLimitRequests, cfg.RateLimitGlobalRequests, cfg.RateLimitWindow, cfg.RateLimitCap, now),
-		dcrLimiter:  newIPRateLimiter(cfg.DCRRateLimitRequests, defaultDCRRateLimitGlobalRequests, defaultDCRRateLimitWindow, cfg.RateLimitCap, now),
 		proxyClient: newHardenedProxyClient(cfg.ProxyHeaderTimeout),
 		TeamTokens:  teamTokens,
 	}, nil
@@ -145,7 +143,6 @@ func (g *Gateway) sweepAll() {
 	}
 	g.cimdCache.Sweep()
 	g.limiter.Sweep()
-	g.dcrLimiter.Sweep()
 }
 
 func (g *Gateway) routes() http.Handler {
@@ -162,7 +159,7 @@ func (g *Gateway) routes() http.Handler {
 	mux.HandleFunc("POST /token", g.rateLimitMiddleware(g.tokenHandler))
 	mux.HandleFunc("POST /revoke", g.rateLimitMiddleware(g.revokeHandler))
 	if g.cfg.DCREnabled {
-		mux.HandleFunc("POST /register", g.registerHandler)
+		mux.HandleFunc("POST /register", g.rateLimitMiddleware(g.registerHandler))
 	}
 	for _, route := range g.cfg.Routes {
 		mux.HandleFunc(route.Route, g.mcpHandler(route))

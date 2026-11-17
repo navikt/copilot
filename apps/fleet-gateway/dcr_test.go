@@ -17,8 +17,10 @@ import (
 func enableDCR(te *testEnv, capDCR, perIP int) {
 	te.gw.cfg.DCREnabled = true
 	te.gw.cfg.DCRClientTTL = 24 * time.Hour
+	te.gw.cfg.DCRClientMaxAge = 72 * time.Hour
+	te.gw.cfg.DCRRateLimitRequests = perIP
+	te.gw.cfg.DCRRateLimitGlobal = 1000
 	te.gw.store = newMemoryStore(te.gw.now, map[string]int{kindDCRClient: capDCR})
-	te.gw.dcrLimiter = newIPRateLimiter(perIP, 1000, time.Hour, 100, te.gw.now)
 	te.handler = te.gw.routes()
 }
 
@@ -216,15 +218,113 @@ func TestDCR_RateLimitAndCap(t *testing.T) {
 		t.Fatalf("other IP should pass: got %d", code)
 	}
 
-	te = newTestEnv(t)
+}
+
+func registerID(t *testing.T, te *testEnv, ip string) string {
+	t.Helper()
+	code, out := postRegister(te, opencodeRegistration(), ip)
+	if code != http.StatusCreated {
+		t.Fatalf("register from %s: got %d %v", ip, code, out)
+	}
+	id, _ := out["client_id"].(string)
+	return id
+}
+
+func clientKnown(t *testing.T, te *testEnv, id string) bool {
+	t.Helper()
+	known, _, err := te.gw.clientGrants(t.Context(), id)
+	if err != nil {
+		t.Fatalf("clientGrants: %v", err)
+	}
+	return known
+}
+
+// A full store evicts the least recently renewed client instead of refusing.
+func TestDCR_FullCapEvictsLeastRecentlyRenewed(t *testing.T) {
+	te := newTestEnv(t)
 	enableDCR(te, 2, 100)
-	for i := 0; i < 2; i++ {
-		if code, _ := postRegister(te, opencodeRegistration(), "10.0.0.6"); code != http.StatusCreated {
-			t.Fatalf("request %d: got %d", i, code)
+	a := registerID(t, te, "10.0.0.6")
+	te.advance(time.Hour)
+	b := registerID(t, te, "10.0.0.6")
+	te.advance(time.Hour)
+	te.gw.renewClient(t.Context(), a) // a token exchange renews a past b
+	c := registerID(t, te, "10.0.0.7")
+	if !clientKnown(t, te, a) || !clientKnown(t, te, c) {
+		t.Fatalf("a and c should be live after eviction")
+	}
+	if clientKnown(t, te, b) {
+		t.Fatalf("b was least recently renewed and should be evicted")
+	}
+}
+
+// A token exchange slides the TTL; DCRClientMaxAge still ends the client.
+func TestDCR_TTLRenewedOnUseBoundedByMaxAge(t *testing.T) {
+	te := newTestEnv(t)
+	enableDCR(te, 10, 10)
+	id := registerID(t, te, "10.0.0.8")
+	for elapsed := 20 * time.Hour; elapsed < 72*time.Hour; elapsed += 20 * time.Hour {
+		te.advance(20 * time.Hour)
+		if !clientKnown(t, te, id) {
+			t.Fatalf("client renewed every 20h expired after %s; TTL is 24h", elapsed)
+		}
+		te.gw.renewClient(t.Context(), id)
+	}
+	te.advance(20 * time.Hour) // 80h > 72h max age
+	if clientKnown(t, te, id) {
+		t.Fatalf("client must expire at max age despite use")
+	}
+}
+
+// Unauthenticated /authorize hits must not keep a registered client alive.
+func TestDCR_AuthorizeDoesNotRenew(t *testing.T) {
+	te := newTestEnv(t)
+	enableDCR(te, 10, 10)
+	id := registerID(t, te, "10.0.0.9")
+	for range 2 {
+		te.advance(20 * time.Hour)
+		u := te.authorizeURL(map[string]string{"client_id": id, "redirect_uri": "http://127.0.0.1:40001/mcp/oauth/callback"}, "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG")
+		te.handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, u, nil))
+	}
+	if clientKnown(t, te, id) {
+		t.Fatalf("client kept alive by /authorize past its 24h TTL")
+	}
+}
+
+// /register sits behind the in-memory per-IP limiter before the store-backed one.
+func TestDCR_RegisterBehindInMemoryRateLimit(t *testing.T) {
+	te := newTestEnv(t)
+	enableDCR(te, 100, 100)
+	te.gw.limiter = newIPRateLimiter(1, 100, time.Minute, 10, func() time.Time { return te.now })
+	registerID(t, te, "10.0.2.1")
+	if code, _ := postRegister(te, opencodeRegistration(), "10.0.2.1"); code != http.StatusTooManyRequests {
+		t.Fatalf("second register from same IP: got %d, want 429", code)
+	}
+}
+
+// Two replicas sharing one store share the limits, and one IP cannot use up
+// the global budget.
+func TestDCR_RateLimitSharedAcrossReplicas(t *testing.T) {
+	te1 := newTestEnv(t)
+	enableDCR(te1, 100, 2)
+	te2 := newTestEnv(t)
+	enableDCR(te2, 100, 2)
+	te2.gw.store = te1.gw.store
+	te2.handler = te2.gw.routes()
+	te1.gw.cfg.DCRRateLimitGlobal = 3
+	te2.gw.cfg.DCRRateLimitGlobal = 3
+
+	registerID(t, te1, "10.0.1.1")
+	registerID(t, te2, "10.0.1.1")
+	for i := 0; i < 10; i++ {
+		for _, te := range []*testEnv{te1, te2} {
+			if code, _ := postRegister(te, opencodeRegistration(), "10.0.1.1"); code != http.StatusTooManyRequests {
+				t.Fatalf("per-IP limit must hold across replicas: got %d", code)
+			}
 		}
 	}
-	if code, out := postRegister(te, opencodeRegistration(), "10.0.0.7"); code != http.StatusServiceUnavailable {
-		t.Fatalf("global cap: got %d %v", code, out)
+	registerID(t, te2, "10.0.1.2") // global 3: one IP took only 2
+	if code, _ := postRegister(te1, opencodeRegistration(), "10.0.1.3"); code != http.StatusTooManyRequests {
+		t.Fatalf("global limit must hold across replicas: got %d", code)
 	}
 }
 
