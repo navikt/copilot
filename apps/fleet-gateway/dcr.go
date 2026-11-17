@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"slices"
 	"strings"
+	"time"
 	"unicode"
 )
 
@@ -19,6 +20,14 @@ const (
 	maxDCRClientName   = 64
 	maxDCRRedirectURIs = 5
 )
+
+// dcrClient is the stored record. IssuedAt bounds the sliding TTL by
+// DCRClientMaxAge; RenewedAt throttles renewal writes.
+type dcrClient struct {
+	clientMetadata
+	IssuedAt  time.Time `json:"issued_at"`
+	RenewedAt time.Time `json:"renewed_at"`
+}
 
 type dcrRequest struct {
 	RedirectURIs            []string `json:"redirect_uris"`
@@ -35,8 +44,13 @@ func (g *Gateway) registerHandler(w http.ResponseWriter, r *http.Request) {
 	fail := func(status int, code, desc string) {
 		writeJSON(w, status, map[string]string{"error": code, "error_description": desc})
 	}
-	ip := extractClientIP(r)
-	if !g.dcrLimiter.Allow(ip) {
+	allowed, err := g.allowRegistration(r.Context(), extractClientIP(r))
+	if err != nil {
+		slog.Warn("dcr rate limit failed", "error", err)
+		fail(http.StatusServiceUnavailable, "temporarily_unavailable", "session store unavailable")
+		return
+	}
+	if !allowed {
 		w.Header().Set("Retry-After", "3600")
 		fail(http.StatusTooManyRequests, "temporarily_unavailable", "registration rate limit exceeded")
 		return
@@ -94,12 +108,24 @@ func (g *Gateway) registerHandler(w http.ResponseWriter, r *http.Request) {
 		ResponseTypes:           []string{"code"},
 		TokenEndpointAuthMethod: "none",
 	}
-	raw, err := json.Marshal(meta)
+	now := g.now()
+	raw, err := json.Marshal(dcrClient{clientMetadata: meta, IssuedAt: now, RenewedAt: now})
 	if err != nil {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
-	if err := g.store.Put(r.Context(), kindDCRClient, meta.ClientID, raw, g.cfg.DCRClientTTL); err != nil {
+	err = g.store.Put(r.Context(), kindDCRClient, meta.ClientID, raw, g.cfg.DCRClientTTL)
+	if errors.Is(err, errStoreFull) {
+		// Full: drop the client that has gone longest without use (renewal pushes
+		// expiry forward, so the earliest expiry is the least recently used).
+		if _, evictErr := g.store.EvictOldest(r.Context(), kindDCRClient); evictErr != nil {
+			err = evictErr
+		} else {
+			slog.Info("audit dcr", "outcome", "evicted_oldest")
+			err = g.store.Put(r.Context(), kindDCRClient, meta.ClientID, raw, g.cfg.DCRClientTTL)
+		}
+	}
+	if err != nil {
 		if errors.Is(err, errStoreFull) {
 			w.Header().Set("Retry-After", "3600")
 			fail(http.StatusServiceUnavailable, "temporarily_unavailable", "client registration capacity reached")
@@ -111,7 +137,6 @@ func (g *Gateway) registerHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	slog.Info("audit dcr", "outcome", "registered", "client_id", meta.ClientID, "client_name", sanitizeLogValue(meta.ClientName))
 
-	now := g.now()
 	writeJSON(w, http.StatusCreated, map[string]any{
 		"client_id":                  meta.ClientID,
 		"client_id_issued_at":        now.Unix(),
@@ -121,6 +146,22 @@ func (g *Gateway) registerHandler(w http.ResponseWriter, r *http.Request) {
 		"response_types":             meta.ResponseTypes,
 		"token_endpoint_auth_method": "none",
 	})
+}
+
+// allowRegistration applies the per-IP and global registration limits through
+// the session store, so every replica shares them. The global counter only
+// counts requests the per-IP limit let through: one IP cannot use up more of
+// the global budget than its own limit.
+func (g *Gateway) allowRegistration(ctx context.Context, ip string) (bool, error) {
+	n, err := g.store.Incr(ctx, "dcr_ip:"+ip, defaultDCRRateLimitWindow)
+	if err != nil || n > g.cfg.DCRRateLimitRequests {
+		return false, err
+	}
+	n, err = g.store.Incr(ctx, "dcr_global", defaultDCRRateLimitWindow)
+	if err != nil || n > g.cfg.DCRRateLimitGlobal {
+		return false, err
+	}
+	return true, nil
 }
 
 // filterDCRRedirectURIs keeps http loopback IP-literal redirect URIs. Entries
@@ -182,11 +223,37 @@ func (g *Gateway) registeredClient(ctx context.Context, clientID string) (*clien
 	if err != nil || !ok {
 		return nil, false, err
 	}
-	var meta clientMetadata
-	if err := json.Unmarshal(raw, &meta); err != nil {
+	var rec dcrClient
+	if err := json.Unmarshal(raw, &rec); err != nil {
 		return nil, false, err
 	}
-	return &meta, true, nil
+	g.renewClient(ctx, &rec)
+	return &rec.clientMetadata, true, nil
+}
+
+// renewClient slides the client's TTL on use, at most once per TTL/30, and never
+// past IssuedAt+DCRClientMaxAge. A failed renewal only logs: the client is
+// still live until its current expiry.
+func (g *Gateway) renewClient(ctx context.Context, rec *dcrClient) {
+	now := g.now()
+	if rec.IssuedAt.IsZero() {
+		rec.IssuedAt = now // registered before renewal existed
+	}
+	if now.Sub(rec.RenewedAt) < g.cfg.DCRClientTTL/30 {
+		return
+	}
+	ttl := min(g.cfg.DCRClientTTL, rec.IssuedAt.Add(g.cfg.DCRClientMaxAge).Sub(now))
+	if ttl <= 0 {
+		return
+	}
+	rec.RenewedAt = now
+	raw, err := json.Marshal(rec)
+	if err == nil {
+		err = g.store.Put(ctx, kindDCRClient, rec.ClientID, raw, ttl)
+	}
+	if err != nil {
+		slog.Warn("renew dcr client failed", "error", err)
+	}
 }
 
 // clientGrants loads a client once: known is true for allowlisted or live DCR

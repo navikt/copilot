@@ -30,6 +30,12 @@ var pgMigrations = []string{
 		expires_at timestamptz NOT NULL
 	);
 	CREATE INDEX IF NOT EXISTS revoked_expires_at_idx ON revoked (expires_at);`,
+	`CREATE TABLE IF NOT EXISTS counters (
+		key        text PRIMARY KEY,
+		n          bigint NOT NULL,
+		expires_at timestamptz NOT NULL
+	);
+	CREATE INDEX IF NOT EXISTS counters_expires_at_idx ON counters (expires_at);`,
 }
 
 type pgxStore struct {
@@ -90,6 +96,10 @@ func newPostgresStore(ctx context.Context, databaseURL string, now func() time.T
 	if _, err = rtPool.Exec(ctx, `SELECT 1 FROM items LIMIT 1`); err != nil {
 		rtPool.Close()
 		return nil, fmt.Errorf("runtime role cannot read items: %w", err)
+	}
+	if _, err = rtPool.Exec(ctx, `SELECT 1 FROM counters LIMIT 1`); err != nil {
+		rtPool.Close()
+		return nil, fmt.Errorf("runtime role cannot read counters: %w", err)
 	}
 	return s, nil
 }
@@ -285,6 +295,33 @@ func (s *pgxStore) IsRevoked(ctx context.Context, jti string) (bool, error) {
 	return true, nil
 }
 
+func (s *pgxStore) Incr(ctx context.Context, key string, window time.Duration) (int, error) {
+	now := s.now().UTC()
+	var n int
+	err := s.pool.QueryRow(ctx, `
+		INSERT INTO counters (key, n, expires_at)
+		VALUES ($1, 1, $2)
+		ON CONFLICT (key) DO UPDATE SET
+			n = CASE WHEN counters.expires_at <= $3 THEN 1 ELSE counters.n + 1 END,
+			expires_at = CASE WHEN counters.expires_at <= $3 THEN EXCLUDED.expires_at ELSE counters.expires_at END
+		RETURNING n`,
+		key, now.Add(window), now,
+	).Scan(&n)
+	return n, err
+}
+
+func (s *pgxStore) EvictOldest(ctx context.Context, kind string) (bool, error) {
+	tag, err := s.pool.Exec(ctx, `
+		DELETE FROM items
+		WHERE kind = $1 AND key = (
+			SELECT key FROM items WHERE kind = $1 ORDER BY expires_at LIMIT 1
+		)`, kind)
+	if err != nil {
+		return false, err
+	}
+	return tag.RowsAffected() == 1, nil
+}
+
 func (s *pgxStore) Sweep(ctx context.Context) (int, error) {
 	now := s.now().UTC()
 	tag1, err := s.pool.Exec(ctx, `DELETE FROM items WHERE expires_at <= $1`, now)
@@ -295,7 +332,11 @@ func (s *pgxStore) Sweep(ctx context.Context) (int, error) {
 	if err != nil {
 		return int(tag1.RowsAffected()), err
 	}
-	return int(tag1.RowsAffected() + tag2.RowsAffected()), nil
+	tag3, err := s.pool.Exec(ctx, `DELETE FROM counters WHERE expires_at <= $1`, now)
+	if err != nil {
+		return int(tag1.RowsAffected() + tag2.RowsAffected()), err
+	}
+	return int(tag1.RowsAffected() + tag2.RowsAffected() + tag3.RowsAffected()), nil
 }
 
 func (s *pgxStore) Ping(ctx context.Context) error {

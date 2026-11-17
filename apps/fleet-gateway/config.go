@@ -34,7 +34,8 @@ const (
 	defaultMCPSessionUserCap                = 64
 	defaultCIMDCap                          = 64
 	defaultDCRClientTTL                     = 30 * 24 * time.Hour
-	defaultDCRClientCap                     = 500
+	defaultDCRClientMaxAge                  = 180 * 24 * time.Hour
+	defaultDCRClientCap                     = 5000
 	defaultDCRRateLimitRequests             = 10
 	defaultDCRRateLimitGlobalRequests       = 100
 	defaultDCRRateLimitWindow               = time.Hour
@@ -100,8 +101,10 @@ type Config struct {
 	CIMDCap                 int
 	DCREnabled              bool
 	DCRClientTTL            time.Duration
+	DCRClientMaxAge         time.Duration
 	DCRClientCap            int
 	DCRRateLimitRequests    int
+	DCRRateLimitGlobal      int
 	RateLimitCap            int
 	RateLimitRequests       int
 	RateLimitGlobalRequests int
@@ -205,8 +208,10 @@ func loadConfigFromEnv() (*Config, error) {
 		CIMDCap:                 defaultCIMDCap,
 		DCREnabled:              dcrEnabled,
 		DCRClientTTL:            getEnvDuration("DCR_CLIENT_TTL", defaultDCRClientTTL),
+		DCRClientMaxAge:         getEnvDuration("DCR_CLIENT_MAX_AGE", defaultDCRClientMaxAge),
 		DCRClientCap:            getEnvInt("DCR_CLIENT_CAP", defaultDCRClientCap),
 		DCRRateLimitRequests:    getEnvInt("DCR_RATE_LIMIT_REQUESTS", defaultDCRRateLimitRequests),
+		DCRRateLimitGlobal:      getEnvInt("DCR_RATE_LIMIT_GLOBAL_REQUESTS", defaultDCRRateLimitGlobalRequests),
 		RateLimitCap:            getEnvInt("RATE_LIMIT_MAP_CAP", defaultRateLimitCap),
 		RateLimitRequests:       getEnvInt("RATE_LIMIT_REQUESTS", defaultRateLimitRequests),
 		RateLimitGlobalRequests: getEnvInt("RATE_LIMIT_GLOBAL_REQUESTS", defaultRateLimitGlobalRequests),
@@ -386,6 +391,15 @@ func validateConfig(cfg *Config) error {
 	}
 	if cfg.DCRClientTTL <= 0 {
 		cfg.DCRClientTTL = defaultDCRClientTTL
+	}
+	if cfg.DCRClientMaxAge <= 0 {
+		cfg.DCRClientMaxAge = defaultDCRClientMaxAge
+	}
+	if cfg.DCRClientMaxAge < cfg.DCRClientTTL {
+		cfg.DCRClientMaxAge = cfg.DCRClientTTL
+	}
+	if cfg.DCRRateLimitGlobal <= 0 {
+		cfg.DCRRateLimitGlobal = defaultDCRRateLimitGlobalRequests
 	}
 	if cfg.DCRClientCap <= 0 {
 		cfg.DCRClientCap = defaultDCRClientCap

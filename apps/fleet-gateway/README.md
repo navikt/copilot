@@ -27,9 +27,11 @@ Step 1 implements the authorization server only: protected resource metadata, au
 | `ALLOWED_CLIENT_IDS` | Yes | — | Comma-separated allowlist of CIMD `client_id` URLs |
 | `ALLOWED_REDIRECT_URIS` | Yes | — | Comma-separated allowlist of `redirect_uri` values. Exact match, except that `http://127.0.0.1` and `http://[::1]` entries match on any port (RFC 8252 §7.3); `localhost` never does |
 | `DCR_ENABLED` | No | `false` | Serve RFC 7591 dynamic client registration at `POST /register` and advertise `registration_endpoint`. Only http loopback redirect URIs and `token_endpoint_auth_method: none`; registered clients are shown as unverified on the consent page |
-| `DCR_CLIENT_TTL` | No | `720h` | Lifetime of a registered client |
-| `DCR_CLIENT_CAP` | No | `500` | Maximum number of live registered clients |
-| `DCR_RATE_LIMIT_REQUESTS` | No | `10` | Registrations per IP per hour, per replica (global limit 100 per hour per replica) |
+| `DCR_CLIENT_TTL` | No | `720h` | Lifetime of an unused registered client. Each use extends it, up to `DCR_CLIENT_MAX_AGE` |
+| `DCR_CLIENT_MAX_AGE` | No | `4320h` | Maximum lifetime of a registered client, used or not |
+| `DCR_CLIENT_CAP` | No | `5000` | Maximum number of live registered clients. When full, a new registration evicts the client that has gone longest without use |
+| `DCR_RATE_LIMIT_REQUESTS` | No | `10` | Registrations per IP per hour, shared by all replicas through the session store |
+| `DCR_RATE_LIMIT_GLOBAL_REQUESTS` | No | `100` | Registrations per hour across all IPs and replicas. Requests the per-IP limit rejects do not count |
 | `AZURE_APP_CLIENT_ID` | Yes | — | Nais-injected Entra client ID |
 | `AZURE_APP_CLIENT_SECRET` | Yes | — | Nais-injected Entra client secret |
 | `AZURE_OPENID_CONFIG_TOKEN_ENDPOINT` | Yes | — | Nais-injected Entra token endpoint |

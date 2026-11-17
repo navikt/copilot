@@ -33,6 +33,12 @@ type SessionStore interface {
 	Revoke(ctx context.Context, jti string, expiresAt time.Time) error
 	RevokeOnce(ctx context.Context, jti string, expiresAt time.Time) (bool, error)
 	IsRevoked(ctx context.Context, jti string) (bool, error)
+	// Incr bumps a fixed-window counter shared by every replica and returns the
+	// count in the current window, which starts on the first Incr after expiry.
+	Incr(ctx context.Context, key string, window time.Duration) (int, error)
+	// EvictOldest deletes the item of kind with the earliest expiry. ok is false
+	// when kind is empty.
+	EvictOldest(ctx context.Context, kind string) (bool, error)
 	Sweep(ctx context.Context) (int, error)
 	Ping(ctx context.Context) error
 	Close()
@@ -47,6 +53,7 @@ type memoryStore struct {
 	mu      sync.Mutex
 	items   map[string]map[string]memoryItem
 	revoked map[string]time.Time
+	counts  map[string]rateWindow
 	caps    map[string]int
 	now     func() time.Time
 }
@@ -62,6 +69,7 @@ func newMemoryStore(now func() time.Time, caps map[string]int) *memoryStore {
 	return &memoryStore{
 		items:   make(map[string]map[string]memoryItem),
 		revoked: make(map[string]time.Time),
+		counts:  make(map[string]rateWindow),
 		caps:    copiedCaps,
 		now:     now,
 	}
@@ -212,6 +220,43 @@ func (s *memoryStore) IsRevoked(ctx context.Context, jti string) (bool, error) {
 	return true, nil
 }
 
+func (s *memoryStore) Incr(ctx context.Context, key string, window time.Duration) (int, error) {
+	if err := ctx.Err(); err != nil {
+		return 0, err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	now := s.now()
+	c, ok := s.counts[key]
+	if !ok || !now.Before(c.resetAt) {
+		c = rateWindow{resetAt: now.Add(window)}
+	}
+	c.count++
+	s.counts[key] = c
+	return c.count, nil
+}
+
+func (s *memoryStore) EvictOldest(ctx context.Context, kind string) (bool, error) {
+	if err := ctx.Err(); err != nil {
+		return false, err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	oldest, found := "", false
+	var oldestAt time.Time
+	for k, e := range s.items[kind] {
+		if !found || e.expiresAt.Before(oldestAt) {
+			oldest, oldestAt, found = k, e.expiresAt, true
+		}
+	}
+	if found {
+		delete(s.items[kind], oldest)
+	}
+	return found, nil
+}
+
 func (s *memoryStore) Sweep(ctx context.Context) (int, error) {
 	if err := ctx.Err(); err != nil {
 		return 0, err
@@ -228,6 +273,12 @@ func (s *memoryStore) Sweep(ctx context.Context) (int, error) {
 	for jti, exp := range s.revoked {
 		if !now.Before(exp) {
 			delete(s.revoked, jti)
+			removed++
+		}
+	}
+	for k, c := range s.counts {
+		if !now.Before(c.resetAt) {
+			delete(s.counts, k)
 			removed++
 		}
 	}

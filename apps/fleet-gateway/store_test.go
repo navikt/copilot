@@ -306,6 +306,41 @@ func runStoreContract(t *testing.T, factory storeFactory) {
 			t.Fatalf("expected exactly 1 winning concurrent RevokeOnce, got %d", wins.Load())
 		}
 	})
+
+	t.Run("incr fixed window and evict oldest", func(t *testing.T) {
+		clk := newFakeClock(time.Date(2026, 11, 17, 10, 0, 0, 0, time.UTC))
+		store := factory(t, clk.Now, map[string]int{kindDCRClient: 10})
+		defer store.Close()
+		ctx := context.Background()
+
+		for want := 1; want <= 3; want++ {
+			if n, err := store.Incr(ctx, "c", time.Hour); err != nil || n != want {
+				t.Fatalf("Incr = %d, %v; want %d", n, err, want)
+			}
+		}
+		clk.Advance(time.Hour)
+		if n, err := store.Incr(ctx, "c", time.Hour); err != nil || n != 1 {
+			t.Fatalf("Incr after window = %d, %v; want 1", n, err)
+		}
+
+		if ok, err := store.EvictOldest(ctx, kindDCRClient); err != nil || ok {
+			t.Fatalf("EvictOldest on empty kind = %v, %v", ok, err)
+		}
+		for key, ttl := range map[string]time.Duration{"late": 3 * time.Hour, "early": time.Hour, "mid": 2 * time.Hour} {
+			if err := store.Put(ctx, kindDCRClient, key, []byte("v"), ttl); err != nil {
+				t.Fatalf("Put %s: %v", key, err)
+			}
+		}
+		if ok, err := store.EvictOldest(ctx, kindDCRClient); err != nil || !ok {
+			t.Fatalf("EvictOldest = %v, %v", ok, err)
+		}
+		if _, ok, _ := store.Get(ctx, kindDCRClient, "early"); ok {
+			t.Fatalf("earliest-expiring item should be evicted")
+		}
+		if _, ok, _ := store.Get(ctx, kindDCRClient, "mid"); !ok {
+			t.Fatalf("mid should remain")
+		}
+	})
 }
 
 func TestStoreContract_Memory(t *testing.T) {

@@ -248,6 +248,14 @@ func (s *sealedStore) IsRevoked(ctx context.Context, jti string) (bool, error) {
 	return s.inner.IsRevoked(ctx, jti)
 }
 
+func (s *sealedStore) Incr(ctx context.Context, key string, window time.Duration) (int, error) {
+	return s.inner.Incr(ctx, key, window)
+}
+
+func (s *sealedStore) EvictOldest(ctx context.Context, kind string) (bool, error) {
+	return s.inner.EvictOldest(ctx, kind)
+}
+
 func (s *sealedStore) Sweep(ctx context.Context) (int, error) {
 	return s.inner.Sweep(ctx)
 }
