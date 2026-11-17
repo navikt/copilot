@@ -1168,8 +1168,8 @@ func TestRefreshToken_GraceRechecksFamilyAfterRevoke(t *testing.T) {
 		t.Fatalf("refresh: %d (%v)", status, body)
 	}
 	ctx := context.Background()
-	if _, ok, err := te.gw.graceResponse(ctx, payload.JTI, payload.FID); err != nil || !ok {
-		t.Fatalf("grace pair should be served before revoke: %v %v", ok, err)
+	if _, ok, gerr := te.gw.graceResponse(ctx, payload.JTI, payload.FID); gerr != nil || !ok {
+		t.Fatalf("grace pair should be served before revoke: %v %v", ok, gerr)
 	}
 	raw, ok, err := te.gw.store.Get(ctx, kindRefreshGrace, payload.JTI)
 	if err != nil || !ok {
@@ -1179,10 +1179,10 @@ func TestRefreshToken_GraceRechecksFamilyAfterRevoke(t *testing.T) {
 		t.Fatalf("revoke: %d", s)
 	}
 	// Simulate the replay that read the pair before /revoke deleted it.
-	if err := te.gw.store.Put(ctx, kindRefreshGrace, payload.JTI, raw, time.Minute); err != nil {
+	if err = te.gw.store.Put(ctx, kindRefreshGrace, payload.JTI, raw, time.Minute); err != nil {
 		t.Fatal(err)
 	}
-	if _, ok, err := te.gw.graceResponse(ctx, payload.JTI, payload.FID); err != nil || ok {
+	if _, ok, err = te.gw.graceResponse(ctx, payload.JTI, payload.FID); err != nil || ok {
 		t.Fatalf("grace pair served after /revoke: %v %v", ok, err)
 	}
 }
