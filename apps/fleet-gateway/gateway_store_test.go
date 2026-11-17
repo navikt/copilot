@@ -530,7 +530,7 @@ func TestSealedSessionUnknownKID_Returns401(t *testing.T) {
 	if errBody["error"] != "invalid_token" {
 		t.Fatalf("expected error=invalid_token, got %v", errBody)
 	}
-	if _, ok, err := inner.Get(context.Background(), kindSession, hashToken(tok)); err != nil || ok {
-		t.Fatalf("expected unreadable session row to be deleted, got ok=%v err=%v", ok, err)
+	if _, ok, err := inner.Get(context.Background(), kindSession, hashToken(tok)); err != nil || !ok {
+		t.Fatalf("expected row with unknown kid to be kept for key rollout, got ok=%v err=%v", ok, err)
 	}
 }

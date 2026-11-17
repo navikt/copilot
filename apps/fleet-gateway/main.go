@@ -88,6 +88,7 @@ func buildSessionStore(cfg *Config, now func() time.Time, rtKeys *keyRing) (Sess
 		kindPendingEntra:   cfg.PendingCap,
 		kindCode:           cfg.CodeCap,
 		kindSession:        cfg.SessionCap,
+		kindMCPSession:     cfg.SessionCap,
 	}
 
 	var store SessionStore

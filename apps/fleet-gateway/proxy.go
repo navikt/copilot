@@ -163,6 +163,14 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 			return
 		}
 
+		if len(r.Header.Values("Mcp-Session-Id")) > 1 {
+			outcome = "bad_request"
+			writeJSON(w, http.StatusBadRequest, map[string]string{
+				"error":   "invalid_request",
+				"message": "only one Mcp-Session-Id header is allowed",
+			})
+			return
+		}
 		reqSessionID := r.Header.Get("Mcp-Session-Id")
 		reqSessionBound := false
 		if reqSessionID != "" {
@@ -295,15 +303,23 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 			mcpSessionTTL = defaultSessionMaxAge
 		}
 		bindMCPSession := func(id string) {
-			if putErr := g.store.Put(r.Context(), kindMCPSession, route.Route+"\n"+id, []byte(sess.NAVIdent), mcpSessionTTL); putErr != nil {
+			key := route.Route + "\n" + id
+			// Never take over an id another user already owns.
+			if owner, found, getErr := g.store.Get(r.Context(), kindMCPSession, key); getErr != nil || (found && string(owner) != sess.NAVIdent) {
+				slog.Warn("mcp session bind skipped", "route", route.Route, "owned_by_other", found, "error", getErr)
+				return
+			}
+			if putErr := g.store.Put(r.Context(), kindMCPSession, key, []byte(sess.NAVIdent), mcpSessionTTL); putErr != nil {
 				slog.Warn("mcp session bind failed", "route", route.Route, "error", putErr)
 			}
 		}
 		respSessionID := resp.Header.Get("Mcp-Session-Id")
-		if respSessionID != "" {
-			bindMCPSession(respSessionID)
+		for _, id := range resp.Header.Values("Mcp-Session-Id") {
+			if id != "" && len(id) <= maxMCPSessionIDBytes {
+				bindMCPSession(id)
+			}
 		}
-		if reqSessionID != "" && !reqSessionBound && reqSessionID != respSessionID {
+		if reqSessionID != "" && !reqSessionBound && resp.StatusCode < 300 && reqSessionID != respSessionID {
 			bindMCPSession(reqSessionID)
 		}
 

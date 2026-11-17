@@ -1258,6 +1258,17 @@ func TestProxy_MCPSessionIDBoundToUser(t *testing.T) {
 		t.Fatalf("expected user B request to be rejected before upstream, got %d extra calls", upstreamCalls.Load()-callsBeforeB)
 	}
 
+	// A second Mcp-Session-Id header cannot smuggle A's id past the check.
+	reqDup := httptest.NewRequest(http.MethodPost, "/mcp/etterlevelse", strings.NewReader(`{"jsonrpc":"2.0","id":2,"method":"tools/list"}`))
+	reqDup.Header.Set("Authorization", "Bearer "+tokB)
+	reqDup.Header.Add("Mcp-Session-Id", "fresh-id-b")
+	reqDup.Header.Add("Mcp-Session-Id", mcpSessID)
+	recDup := httptest.NewRecorder()
+	te.handler.ServeHTTP(recDup, reqDup)
+	if recDup.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for duplicate Mcp-Session-Id headers, got %d", recDup.Code)
+	}
+
 	// User A still gets through with that Mcp-Session-Id.
 	reqA2 := httptest.NewRequest(http.MethodPost, "/mcp/etterlevelse", strings.NewReader(`{"jsonrpc":"2.0","id":3,"method":"tools/list"}`))
 	reqA2.Header.Set("Authorization", "Bearer "+tokA)

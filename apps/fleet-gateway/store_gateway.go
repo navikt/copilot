@@ -90,7 +90,12 @@ func putSessionInStore(ctx context.Context, store SessionStore, nowFn func() tim
 func getSessionFromStore(ctx context.Context, store SessionStore, nowFn func() time.Time, maxAge time.Duration, hash string) (*gatewaySession, bool, error) {
 	raw, ok, err := store.Get(ctx, kindSession, hash)
 	if err != nil {
-		if errors.Is(err, errSealUnknownKID) || errors.Is(err, errSealDecrypt) || errors.Is(err, errSealMalformed) {
+		if errors.Is(err, errSealUnknownKID) {
+			// Keep the row: during a key rollout another replica may hold the new kid.
+			slog.Warn("session row sealed with unknown key id, treating as missing")
+			return nil, false, nil
+		}
+		if errors.Is(err, errSealDecrypt) || errors.Is(err, errSealMalformed) {
 			dropUnreadableSession(ctx, store, hash, err)
 			return nil, false, nil
 		}
