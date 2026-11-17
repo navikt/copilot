@@ -4,7 +4,7 @@
   "fields": ["opplevelse"],
   "max_codes": 3,
   "rules": [
-    "Kod det svaret forteller at har skjedd, eller hvordan respondenten opplever verktøyene. Et ønske eller forslag kodes bare når det springer ut av en erfaring i samme svar, og da kodes erfaringen. Et rent ønske uten erfaring er annet.",
+    "Kod det svaret forteller at har skjedd, eller hvordan respondenten opplever verktøyene. Et ønske eller forslag kodes bare når det springer ut av en erfaring i samme svar, og da kodes erfaringen. Et rent ønske uten erfaring er annet. Et ønske som viser at respondenten er usikker eller sitter fast i dag («skulle gjerne visst om jeg kan bruke den på saker med personopplysninger») er en erfaring og kodes.",
     "Kod hva svaret handler om, ikke hvem som skriver. Rolle (utvikler, designer, leder, ikke-utvikler) kodes ikke. En ikke-kodende oppgave kodes etter hva KI-en gjorde, som enhver annen oppgave.",
     "Gi 1 til 3 koder per svar. Passer flere, velg de som fyller mest av svaret. annet brukes alltid alene.",
     "Hver kategori har én retning, nytte eller problem. Et svar med både positivt og negativt får en kode for hver. Å avkrefte et problem («jeg har ikke mistet noe») kodes ikke som problemet.",
@@ -66,6 +66,8 @@
       ],
       "exclude": [
         "Falske funn eller feil diagnose: skrasikker.",
+        "Retting etter Nav-konvensjoner eller teamets regler: arbeidsflyt.",
+        "Et problem som ble løst uten at det går fram at det var en feil: annet, hvis ingen annen kategori passer.",
         "At kodegjennomgang tar lang tid eller belaster teamet: belastning-team."
       ],
       "examples": [
@@ -251,7 +253,8 @@
         "For mye informasjon, nyheter eller tips, vanskelig å vite hva som er viktig.",
         "Dokumentasjon eller veiledning som er vanskelig å forstå eller følge.",
         "Uklart hva som er lov, trygt eller god praksis.",
-        "Føler seg utenfor eller hengt etter fordi opplæring mangler."
+        "Føler seg utenfor eller hengt etter fordi opplæring mangler.",
+        "Ønske om tydeligere veiledning eller retningslinjer som viser at respondenten er usikker i dag."
       ],
       "exclude": [
         "Tekniske problemer med oppsett eller tilgang: friksjon.",
@@ -290,6 +293,7 @@
       "include": [
         "Generell begeistring eller misnøye uten innhold.",
         "Rene ønsker, forslag eller spørsmål.",
+        "Ros for at en oppgave eller et problem ble løst, uten at det går fram hva slags oppgave det var.",
         "Tekst uten mening, som en strek eller «nei»."
       ],
       "exclude": [
