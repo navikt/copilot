@@ -19,6 +19,7 @@ import {
   UNDER_FIVE,
 } from "@/lib/survey";
 import { DocumentTitle, PrintButton } from "@/components/report-controls";
+import { likert, unsureLabel } from "../[id]/likert";
 import { fill, Legend, LikertBar, pct } from "../likert-bar";
 import { PrintHeader } from "../print-header";
 
@@ -230,7 +231,13 @@ function Statement({
       {counts.map((w, i) =>
         w.versions.map((v) => (
           <div key={`${i}-${v.version}`}>
-            <WaveLabel wave={waves[i]} i={i} count={waves.length} n={v.n} version={broken ? v.version : undefined} />
+            <WaveLabel
+              wave={waves[i]}
+              i={i}
+              count={waves.length}
+              n={v.n === null ? null : likert(v, min, max).n}
+              version={broken ? v.version : undefined}
+            />
             <LikertBar v={v} min={min} max={max} labels={labels} />
           </div>
         ))
@@ -459,7 +466,12 @@ async function Comparison({ token, ids }: { token: string; ids: string[] }) {
             </Heading>
             {q.type === "matrix" ? (
               <>
-                {q.labels ? <Legend labels={q.labels} /> : null}
+                {q.labels ? (
+                  <Legend
+                    labels={q.labels}
+                    unsure={unsureLabel((q.items ?? []).flatMap((it) => it.waves.flatMap((w) => w.versions)))}
+                  />
+                ) : null}
                 {q.items?.map((it) => (
                   <Statement key={it.id} waves={waves} text={it.text} counts={it.waves} broken={it.break} q={q} />
                 ))}

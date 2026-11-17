@@ -2,6 +2,7 @@ import { BodyShort, Heading, VStack } from "@navikt/ds-react";
 import { Table, TableBody, TableDataCell, TableHeader, TableHeaderCell, TableRow } from "@/components/aksel-table";
 import { formatNumber } from "@/lib/format";
 import type { QuestionResult, Survey, SurveyQuestion, VersionResult } from "@/lib/survey";
+import { unsureLabel } from "./[id]/likert";
 import { fill, Legend, LikertBar } from "./likert-bar";
 
 /**
@@ -103,7 +104,12 @@ export function SurveyQuestions({ questions, def }: { questions: QuestionResult[
           <Heading level="2" size="small">
             {q.text}
           </Heading>
-          {(qdef?.type === "matrix" || qdef?.type === "scale") && qdef.labels ? <Legend labels={qdef.labels} /> : null}
+          {(qdef?.type === "matrix" || qdef?.type === "scale") && qdef.labels ? (
+            <Legend
+              labels={qdef.labels}
+              unsure={unsureLabel([...(q.versions ?? []), ...(q.items ?? []).flatMap((it) => it.versions)])}
+            />
+          ) : null}
           {q.versions ? (
             <Versions
               versions={q.versions}
