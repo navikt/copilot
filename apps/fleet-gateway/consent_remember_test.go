@@ -187,12 +187,12 @@ func TestConsent_RevokeKeepsSessionWhenConsentDeleteFails(t *testing.T) {
 	if _, ok, _ := te.gw.store.Get(context.Background(), kindSession, hashToken(at)); !ok {
 		t.Fatal("precondition: expected a stored session")
 	}
-	real := te.gw.store
-	te.gw.store = failConsentDeleteStore{real}
+	inner := te.gw.store
+	te.gw.store = failConsentDeleteStore{inner}
 	if code, _ := postRevoke(te.handler, at, te.clientID); code != http.StatusServiceUnavailable {
 		t.Fatalf("revoke with failing consent delete: %d", code)
 	}
-	if _, ok, _ := real.Get(context.Background(), kindSession, hashToken(at)); !ok {
+	if _, ok, _ := inner.Get(context.Background(), kindSession, hashToken(at)); !ok {
 		t.Fatal("session deleted although consent delete failed")
 	}
 }
