@@ -57,6 +57,7 @@ export const SECTION: NavGroup[] = [
     items: [
       { label: "Verktøykatalog", href: "/verktoy" },
       { label: "fleet-gateway (pilot)", href: "/verktoy/fleet-gateway" },
+      { label: "fleet-gateway for team", href: "/verktoy/fleet-gateway/for-team" },
       { label: "Agentpakker", href: "/nav-pilot/agentpakker" },
       { label: "Agentpakker: felt og regler", href: "/nav-pilot/agentpakker/referanse" },
     ],
