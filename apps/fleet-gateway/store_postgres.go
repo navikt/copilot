@@ -168,7 +168,7 @@ func (s *pgxStore) put(ctx context.Context, kind, key string, val []byte, ttl ti
 
 	capLimit, hasCap := s.caps[kind]
 	if !hasCap || capLimit <= 0 {
-		_, err := s.pool.Exec(ctx, `
+		_, err = s.pool.Exec(ctx, `
 			INSERT INTO items (kind, key, value, expires_at, created_at)
 			VALUES ($1, $2, $3, $4, $5)
 			ON CONFLICT (kind, key) DO UPDATE SET
