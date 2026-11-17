@@ -1,0 +1,63 @@
+{{define "head"}}<!doctype html>
+<html lang="nb">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{.}} – Nav MCP-gateway</title>
+<link rel="stylesheet" href="/static/consent.css">
+</head>
+<body>
+<header>Nav MCP-gateway</header>
+<main>{{end}}
+
+{{define "consent"}}{{template "head" "Gi tilgang"}}
+<h1>Vil du gi {{.ClientName}} tilgang til {{.Route}}?</h1>
+{{if .Unverified}}<div class="alert alert-warning" role="note">
+<p><strong>Advarsel: uverifisert verktøy.</strong> Verktøyet har registrert seg selv, og Nav har ikke sjekket navnet. Fortsett bare hvis du nettopp startet innloggingen selv, fra et verktøy du stoler på.</p>
+</div>
+{{end}}<dl class="facts">
+<dt>Verktøy</dt>
+<dd>{{.ClientName}}{{if .Unverified}} <span class="tag">Uverifisert</span>{{end}}</dd>
+<dt>MCP-server</dt>
+<dd><code>{{.Route}}</code></dd>
+{{if .Team}}<dt>Team som eier serveren</dt>
+<dd>{{.Team}}</dd>
+{{end}}</dl>
+<h2>Hva betyr det?</h2>
+<ul>
+<li>Verktøyet kan kalle MCP-serveren på dine vegne, med Nav-identiteten din.</li>
+<li>Gir du tilgang, huskes valget i {{.RememberDays}} dager for dette verktøyet og denne serveren. Du blir ikke spurt igjen i den perioden.</li>
+<li>Samtykket slettes når verktøyet logger ut og trekker tilbake tilgangen sin hos gatewayen. Ellers varer det til perioden er ute.</li>
+</ul>
+<details>
+<summary>Vis tekniske detaljer</summary>
+<dl class="facts">
+<dt>Klient-ID (<code>client_id</code>)</dt>
+<dd><code>{{.ClientID}}</code></dd>
+<dt>Sendes tilbake til (<code>redirect_uri</code>)</dt>
+<dd><code>{{.RedirectURI}}</code></dd>
+<dt>Ressurs</dt>
+<dd><code>{{.Resource}}</code></dd>
+</dl>
+</details>
+<form method="post" action="/consent">
+<input type="hidden" name="id" value="{{.ID}}">
+<input type="hidden" name="csrf" value="{{.CSRF}}">
+<div class="actions">
+<button class="primary" type="submit" name="decision" value="approve">Gi tilgang</button>
+<button class="secondary" type="submit" name="decision" value="deny">Avslå</button>
+</div>
+</form>
+</main>
+</body>
+</html>{{end}}
+
+{{define "error"}}{{template "head" .Title}}
+<div class="alert alert-error" role="alert">
+<h1>{{.Title}}</h1>
+<p>{{.Message}}</p>
+</div>
+<p>{{.Action}}</p>
+</main>
+</body>
+</html>{{end}}
