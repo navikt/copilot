@@ -19,6 +19,7 @@ const (
 	kindMCPSession         = "mcp_session"
 	kindMCPSessionUser     = "mcp_session_user" // per-user count of mcp_session bindings
 	kindDCRClient          = "dcr_client"
+	kindRefreshGrace       = "refresh_grace" // pair issued for a rotated RT, keyed by its jti
 )
 
 var errStoreFull = errors.New("store capacity reached")

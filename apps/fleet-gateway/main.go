@@ -27,6 +27,7 @@ type Gateway struct {
 	limiter     *ipRateLimiter
 	dcrLimiter  *ipRateLimiter
 	proxyClient *http.Client
+	refreshWait time.Duration // how long a concurrent refresh waits for the winner's grace pair
 
 	wellKnownMu         sync.RWMutex
 	wellKnownGroup      singleflight.Group
@@ -73,6 +74,7 @@ func newGateway(cfg *Config, now func() time.Time) (*Gateway, error) {
 		limiter:     newIPRateLimiter(cfg.RateLimitRequests, cfg.RateLimitGlobalRequests, cfg.RateLimitWindow, cfg.RateLimitCap, now),
 		dcrLimiter:  newIPRateLimiter(cfg.DCRRateLimitRequests, defaultDCRRateLimitGlobalRequests, defaultDCRRateLimitWindow, cfg.RateLimitCap, now),
 		proxyClient: newHardenedProxyClient(cfg.ProxyHeaderTimeout),
+		refreshWait: 5 * time.Second,
 		TeamTokens:  teamTokens,
 	}, nil
 }

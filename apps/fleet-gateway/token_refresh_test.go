@@ -15,7 +15,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -216,6 +215,7 @@ func TestRefreshToken_RotationReplayRejected(t *testing.T) {
 		t.Fatalf("expected first refresh 200, got %d", status)
 	}
 
+	te.advance(te.gw.cfg.RefreshGraceWindow)
 	replayStatus, replayBody := te.postToken(url.Values{
 		"grant_type":    {"refresh_token"},
 		"refresh_token": {rt1},
@@ -624,17 +624,18 @@ func runTwoInstanceRefreshTests(t *testing.T, shared SessionStore, rtKeys string
 		t.Fatalf("expected 200 on A with token refreshed on B, got %d (%s)", mcpRec.Code, mcpRec.Body.String())
 	}
 
-	// 2. Concurrent double-refresh across A and B with rtB: exactly one succeeds, Entra called once.
+	// 2. Concurrent double-refresh across A and B with rtB: both get the same
+	// pair, Entra is called once.
 	te.mu.Lock()
 	countBefore := te.entraRefreshCount
 	te.mu.Unlock()
 
-	var okCount, rejectCount atomic.Int32
 	var startWG, doneWG sync.WaitGroup
+	results := make([]map[string]any, 2)
 	startWG.Add(1)
-	for _, h := range []http.Handler{handlerA, handlerB} {
+	for i, h := range []http.Handler{handlerA, handlerB} {
 		doneWG.Add(1)
-		go func(target http.Handler) {
+		go func(i int, target http.Handler) {
 			defer doneWG.Done()
 			startWG.Wait()
 			f := url.Values{
@@ -646,29 +647,20 @@ func runTwoInstanceRefreshTests(t *testing.T, shared SessionStore, rtKeys string
 			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 			rec := httptest.NewRecorder()
 			target.ServeHTTP(rec, req)
-			switch rec.Code {
-			case http.StatusOK:
-				okCount.Add(1)
-			case http.StatusBadRequest:
-				var errBody map[string]any
-				_ = json.Unmarshal(rec.Body.Bytes(), &errBody)
-				if errBody["error"] == "invalid_grant" {
-					rejectCount.Add(1)
-				} else {
-					t.Errorf("unexpected 400 error body: %v", errBody)
-				}
-			case http.StatusServiceUnavailable: // loser raced the in-flight winner
-				rejectCount.Add(1)
-			default:
-				t.Errorf("unexpected status %d: %s", rec.Code, rec.Body.String())
+			if rec.Code != http.StatusOK {
+				t.Errorf("concurrent refresh %d: want 200, got %d: %s", i, rec.Code, rec.Body.String())
+				return
 			}
-		}(h)
+			_ = json.Unmarshal(rec.Body.Bytes(), &results[i])
+		}(i, h)
 	}
 	startWG.Done()
 	doneWG.Wait()
-
-	if okCount.Load() != 1 || rejectCount.Load() != 1 {
-		t.Fatalf("expected 1 ok and 1 invalid_grant on concurrent double-refresh, got ok=%d reject=%d", okCount.Load(), rejectCount.Load())
+	if t.Failed() {
+		return
+	}
+	if results[0]["access_token"] != results[1]["access_token"] || results[0]["refresh_token"] != results[1]["refresh_token"] {
+		t.Fatalf("concurrent refreshes must get the same pair: %v vs %v", results[0], results[1])
 	}
 	te.mu.Lock()
 	delta := te.entraRefreshCount - countBefore
@@ -1033,6 +1025,7 @@ func refreshForm(te *testEnv, rt string) url.Values {
 
 func TestRefreshToken_InFlightRetryGets503AndRecovers(t *testing.T) {
 	te := newClientEncryptedTestEnv(t, "k1:"+testKeyBase64(t, false))
+	te.gw.refreshWait = 0 // nothing to wait for: the first attempt failed upstream
 	_, rt, _ := te.obtainTokensForResource(te.resource)
 
 	te.mu.Lock()
@@ -1052,7 +1045,7 @@ func TestRefreshToken_InFlightRetryGets503AndRecovers(t *testing.T) {
 	if rec.Code != http.StatusServiceUnavailable || !strings.Contains(rec.Body.String(), "temporarily_unavailable") {
 		t.Fatalf("retry inside pending TTL: want 503 temporarily_unavailable, got %d %s", rec.Code, rec.Body.String())
 	}
-	if ra, err := strconv.Atoi(rec.Header().Get("Retry-After")); err != nil || ra < 1 || ra > int(refreshPendingTTL.Seconds()) {
+	if ra, err := strconv.Atoi(rec.Header().Get("Retry-After")); err != nil || ra < 1 || ra > int(te.gw.cfg.RefreshGraceWindow.Seconds()/2) {
 		t.Fatalf("bad Retry-After %q", rec.Header().Get("Retry-After"))
 	}
 
@@ -1062,7 +1055,7 @@ func TestRefreshToken_InFlightRetryGets503AndRecovers(t *testing.T) {
 	}
 }
 
-func TestRefreshToken_ConcurrentUseDuringInFlightNeverTwoSuccesses(t *testing.T) {
+func TestRefreshToken_ConcurrentUseDuringInFlightGetsSamePair(t *testing.T) {
 	te := newClientEncryptedTestEnv(t, "k1:"+testKeyBase64(t, false))
 	_, rt, _ := te.obtainTokensForResource(te.resource)
 
@@ -1070,16 +1063,28 @@ func TestRefreshToken_ConcurrentUseDuringInFlightNeverTwoSuccesses(t *testing.T)
 	te.mu.Lock()
 	te.entraRefreshHook = func() { close(entered); <-release }
 	te.mu.Unlock()
-	first := make(chan int, 1)
-	go func() { s, _ := te.postToken(refreshForm(te, rt)); first <- s }()
-	<-entered
-	status, body := te.postToken(refreshForm(te, rt))
-	close(release)
-	if status != http.StatusServiceUnavailable || body["error"] != "temporarily_unavailable" {
-		t.Fatalf("concurrent second use: want 503 temporarily_unavailable, got %d (%v)", status, body)
+	type res struct {
+		status int
+		body   map[string]any
 	}
-	if s := <-first; s != http.StatusOK {
-		t.Fatalf("first use: want 200, got %d", s)
+	first, second := make(chan res, 1), make(chan res, 1)
+	go func() { s, b := te.postToken(refreshForm(te, rt)); first <- res{s, b} }()
+	<-entered
+	go func() { s, b := te.postToken(refreshForm(te, rt)); second <- res{s, b} }()
+	time.Sleep(100 * time.Millisecond) // let the second request reach the pending claim
+	close(release)
+	a, b := <-first, <-second
+	if a.status != http.StatusOK || b.status != http.StatusOK {
+		t.Fatalf("both uses: want 200, got %d (%v) and %d (%v)", a.status, a.body, b.status, b.body)
+	}
+	if a.body["access_token"] != b.body["access_token"] || a.body["refresh_token"] != b.body["refresh_token"] {
+		t.Fatalf("both uses must get the same pair")
+	}
+	te.mu.Lock()
+	n := te.entraRefreshCount
+	te.mu.Unlock()
+	if n != 1 {
+		t.Fatalf("Entra must be called once, count=%d", n)
 	}
 }
 
