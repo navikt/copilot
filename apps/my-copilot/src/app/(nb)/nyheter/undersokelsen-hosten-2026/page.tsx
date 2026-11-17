@@ -289,7 +289,9 @@ export default function SurveyAutumnArticlePage() {
                 enkelte over tid. I vår brukte vi Microsoft Forms. I høst svarte folk på nettsiden eller i terminalen,
                 med de samme spørsmålene og den samme skalaen. Vi vurderer risikoen for at byttet har påvirket svarene
                 som liten. Påstandene om tillit til agenter og om kostnad er nye i høst. Alle tall gjelder dem som
-                svarte.
+                svarte. Svarandelen regner vi av dem som brukte Copilot i perioden. Vårrunden var åpen i 38 dager og
+                høstrunden i 15, og jo lengre perioden er, jo flere teller som brukere. Ikke alle som svarte, bruker
+                Copilot, så andelen er ikke en ren svarprosent.
               </BodyLong>
               <BodyLong spacing>
                 For å se om endringene er mer enn tilfeldigheter, brukte vi Mann–Whitney-test og Holm-korreksjon for
