@@ -67,7 +67,7 @@ func enabledProdRoutes(t *testing.T) map[string]bool {
 	return set
 }
 
-func diffPaths(have, want map[string]string, wantRoutes map[string]bool) (missingEntry, missingRoute []string) {
+func diffPaths(have map[string]string, wantRoutes map[string]bool) (missingEntry, missingRoute []string) {
 	for r := range wantRoutes {
 		if _, ok := have[r]; !ok {
 			missingEntry = append(missingEntry, r)
@@ -84,7 +84,7 @@ func diffPaths(have, want map[string]string, wantRoutes map[string]bool) (missin
 }
 
 func TestRegistryMatchesProdRoutes(t *testing.T) {
-	missingEntry, missingRoute := diffPaths(registryGatewayPaths(t), nil, enabledProdRoutes(t))
+	missingEntry, missingRoute := diffPaths(registryGatewayPaths(t), enabledProdRoutes(t))
 	for _, r := range missingEntry {
 		t.Errorf("enabled prod route %s has no registry entry in apps/mcp-registry/allowlist.json", r)
 	}
@@ -95,7 +95,7 @@ func TestRegistryMatchesProdRoutes(t *testing.T) {
 
 // Control: the comparison reports drift in both directions.
 func TestRegistryRouteDiffDetectsDrift(t *testing.T) {
-	entry, route := diffPaths(map[string]string{"/a": "x", "/b": "y"}, nil, map[string]bool{"/a": true, "/c": true})
+	entry, route := diffPaths(map[string]string{"/a": "x", "/b": "y"}, map[string]bool{"/a": true, "/c": true})
 	if len(entry) != 1 || entry[0] != "/c" || len(route) != 1 || route[0] != "/b" {
 		t.Fatalf("got %v %v", entry, route)
 	}
