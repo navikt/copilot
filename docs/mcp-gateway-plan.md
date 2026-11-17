@@ -141,7 +141,7 @@ The pilot accepts only cplt's client_id, on a naisdevice ingress. Teams apply th
 
 **Team guide.** A team connects its MCP server in four steps: add fleet-gateway (`copilot` namespace, `dev-gcp`) to `accessPolicy.inbound`; validate the token with Texas introspection and check `idtyp`, NAVident and `azp` itself; apply so team copilot adds the route to `pilot-routes.dev.yaml` and the server to `accessPolicy.outbound`; test against `https://fleet-gateway.intern.dev.nav.no/mcp/<route>` from cplt. Details and a token-check example: [ki-utvikling.nav.no/verktoy/fleet-gateway/for-team](https://ki-utvikling.nav.no/verktoy/fleet-gateway/for-team).
 
-**Stretch goal: team-scoped access ([#2209](https://github.com/navikt/copilot/issues/2209)).** fleet-gateway checks the user's Entra group per route before the OBO call; the pilot list gets a required group per route. nav-pilot may then show only the servers that match the user's teams, but that is convenience: a client can be changed, so the check in fleet-gateway is the control.
+**Deferred: team-scoped access ([#2209](https://github.com/navikt/copilot/issues/2209)).** Owner decision 2026-11-17: teams authorize in their own MCP, and the pilot list has no `required_group`. If it returns, fleet-gateway checks the user's Entra group per route before the OBO call. nav-pilot may then show only the servers that match the user's teams, but that is convenience: a client can be changed, so the check in fleet-gateway is the control.
 
 Texas issues the tokens. fleet-control grants access, and fleet-gateway enforces it.
 
@@ -152,7 +152,7 @@ flowchart LR
     FC -->|approved routes| GW
     subgraph GW[fleet-gateway enforces]
         PL[Pilot list per route]
-        GR["Group per route (stretch goal, #2209)"]
+        GR["Group per route (deferred, #2209)"]
     end
     GW -->|"accessPolicy.outbound names the team MCP"| MCP[Team MCP]
     MCP -.->|"accessPolicy.inbound admits only fleet-gateway"| GW
