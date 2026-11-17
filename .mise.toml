@@ -15,7 +15,7 @@
 #   all       — full pipeline: generate → check → build
 
 [tools]
-"go:github.com/sethvargo/ratchet" = "latest"
+"go:github.com/sethvargo/ratchet" = "0.12.0"
 lefthook = "2.1.9"
 node = "24"
 pnpm = "11"
