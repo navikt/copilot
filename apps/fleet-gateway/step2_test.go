@@ -62,14 +62,13 @@ func (te *testEnv) obtainAccessTokenForResource(resource string) string {
 	return tok
 }
 
-func TestGatewayAccessToken_HashedStorage_ResourceBinding_GroupAndExpiry(t *testing.T) {
+func TestGatewayAccessToken_HashedStorage_ResourceBinding_AndExpiry(t *testing.T) {
 	te := newTestEnv(t)
 	te.gw.cfg.Routes = append(te.gw.cfg.Routes, PilotRoute{
-		Route:         "/mcp/restricted",
-		Team:          "team-sec",
-		Target:        "dev-gcp:team-sec:sec-mcp",
-		UpstreamURL:   "http://sec-mcp.team-sec",
-		RequiredGroup: "group-secret",
+		Route:       "/mcp/restricted",
+		Team:        "team-sec",
+		Target:      "dev-gcp:team-sec:sec-mcp",
+		UpstreamURL: "http://sec-mcp.team-sec",
 	})
 	if err := validateConfig(te.gw.cfg); err != nil {
 		t.Fatalf("validateConfig failed: %v", err)
@@ -143,27 +142,15 @@ func TestGatewayAccessToken_HashedStorage_ResourceBinding_GroupAndExpiry(t *test
 		t.Fatalf("expected 403 for resource mismatch, got %d", wrongResRec.Code)
 	}
 
-	// Required group enforcement (#2209): user without group-secret gets 403; user with it gets 200.
-	restrictedResource := te.gw.cfg.BaseURL + "/mcp/restricted"
-	restrictedTokNoGroup := te.obtainAccessTokenForResource(restrictedResource)
-	noGroupReq := httptest.NewRequest(http.MethodPost, "/mcp/restricted", strings.NewReader(`{"jsonrpc":"2.0","method":"tools/list"}`))
-	noGroupReq.Header.Set("Authorization", "Bearer "+restrictedTokNoGroup)
-	noGroupRec := httptest.NewRecorder()
-	te.handler.ServeHTTP(noGroupRec, noGroupReq)
-	if noGroupRec.Code != http.StatusForbidden {
-		t.Fatalf("expected 403 when missing required_group, got %d", noGroupRec.Code)
-	}
-
-	te.mu.Lock()
-	te.groups = []string{"group-secret"}
-	te.mu.Unlock()
-	restrictedTokWithGroup := te.obtainAccessTokenForResource(restrictedResource)
-	withGroupReq := httptest.NewRequest(http.MethodPost, "/mcp/restricted", strings.NewReader(`{"jsonrpc":"2.0","method":"tools/list"}`))
-	withGroupReq.Header.Set("Authorization", "Bearer "+restrictedTokWithGroup)
-	withGroupRec := httptest.NewRecorder()
-	te.handler.ServeHTTP(withGroupRec, withGroupReq)
-	if withGroupRec.Code != http.StatusOK {
-		t.Fatalf("expected 200 when user has required_group, got %d (%s)", withGroupRec.Code, withGroupRec.Body.String())
+	// No group gate on the route (required_group removed 2026-11-17): a token
+	// bound to the route reaches it; the team MCP authorizes.
+	restrictedTok := te.obtainAccessTokenForResource(te.gw.cfg.BaseURL + "/mcp/restricted")
+	routeReq := httptest.NewRequest(http.MethodPost, "/mcp/restricted", strings.NewReader(`{"jsonrpc":"2.0","method":"tools/list"}`))
+	routeReq.Header.Set("Authorization", "Bearer "+restrictedTok)
+	routeRec := httptest.NewRecorder()
+	te.handler.ServeHTTP(routeRec, routeReq)
+	if routeRec.Code != http.StatusOK {
+		t.Fatalf("expected 200 on the bound route, got %d (%s)", routeRec.Code, routeRec.Body.String())
 	}
 
 	// Expiry: advancing past session TTL returns 401.
