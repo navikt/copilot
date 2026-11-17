@@ -23,6 +23,7 @@ const (
 	maxMCPRequestBodyBytes  = 1 << 20  // 1 MiB
 	maxMCPResponseBodyBytes = 10 << 20 // 10 MiB for non-SSE responses
 	maxAuditMethodLen       = 64
+	maxAuditBatchTools      = 10
 	maxMCPSessionIDBytes    = 256
 )
 
@@ -83,6 +84,7 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 		navIdent := ""
 		clientID := ""
 		rpcMethod := ""
+		toolName := ""
 
 		defer func() {
 			slog.Info("audit mcp",
@@ -91,6 +93,7 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 				"route", route.Route,
 				"http_method", sanitizeLogValue(r.Method),
 				"method", sanitizeLogValue(rpcMethod),
+				"tool", sanitizeLogValue(toolName),
 				"outcome", outcome,
 				"duration_ms", g.now().Sub(start).Milliseconds(),
 			)
@@ -222,7 +225,7 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 		}
 
 		if r.Method == http.MethodPost {
-			rpcMethod = extractJSONRPCMethod(reqBody)
+			rpcMethod, toolName = extractJSONRPCAudit(reqBody)
 		}
 
 		if g.TeamTokens == nil {
@@ -551,18 +554,184 @@ func isEventStream(contentType string) bool {
 	return err == nil && strings.EqualFold(mediaType, "text/event-stream")
 }
 
-func extractJSONRPCMethod(body []byte) string {
-	trimmed := bytes.TrimSpace(body)
-	if len(trimmed) == 0 || trimmed[0] != '{' {
-		return ""
+// auditIncomplete marks an audit line whose scan stopped before the end of the
+// body, so a name the upstream reads past that point is never logged as absent.
+const auditIncomplete = "...incomplete"
+
+// extractJSONRPCAudit returns the JSON-RPC method and, for tools/call, the tool
+// name. Arguments are never decoded into anything that is logged. A batch is
+// logged as method "batch" with the names of up to maxAuditBatchTools
+// tools/call entries as a JSON array, so a name cannot forge extra entries. The
+// body is already capped at maxMCPRequestBodyBytes and is read only, so
+// upstream receives it byte for byte.
+//
+// Upstream Go servers match keys case-insensitively, last wins, so a
+// case-variant or duplicate method, params or name key, or data after the
+// first top-level value, logs as incomplete rather than guessing. One token
+// decoder walks the whole body and keeps only method and params, never a slice
+// of members or a map of keys: a 1 MiB body of {} members or of 50k keys
+// otherwise cost tens of MiB, near the pod's 64 MiB limit.
+func extractJSONRPCAudit(body []byte) (method, tool string) {
+	dec := json.NewDecoder(bytes.NewReader(body))
+	tok, err := dec.Token()
+	if err != nil {
+		// A body the scan cannot start on (a UTF-8 BOM, say, which some upstream
+		// parsers accept) must not log as if it carried no call.
+		if len(body) > 0 {
+			return "", auditIncomplete
+		}
+		return "", ""
 	}
-	var rpc struct {
-		Method string `json:"method"`
+	switch tok {
+	case json.Delim('{'):
+		m, params, ok := auditScanObject(dec)
+		if !ok || !auditAtEOF(dec) {
+			return "", auditIncomplete
+		}
+		return auditMethodTool(m, params)
+	case json.Delim('['):
+		var tools []string
+		complete := true
+		for complete && dec.More() {
+			tok, err := dec.Token()
+			if err != nil {
+				complete = false
+				break
+			}
+			if tok != json.Delim('{') {
+				complete = auditSkip(dec, tok)
+				continue
+			}
+			m, params, ok := auditScanObject(dec)
+			if !ok {
+				complete = false
+				break
+			}
+			if m, name := auditMethodTool(m, params); m == "tools/call" {
+				if len(tools) == maxAuditBatchTools {
+					tools = append(tools, "...")
+					break
+				}
+				tools = append(tools, name)
+			}
+		}
+		if len(tools) <= maxAuditBatchTools {
+			// More() is also false on a syntax error, so require the closing ']'.
+			if tok, err := dec.Token(); !complete || err != nil || tok != json.Delim(']') || !auditAtEOF(dec) {
+				tools = append(tools, auditIncomplete)
+			}
+		}
+		if len(tools) == 0 {
+			return "batch", ""
+		}
+		list, _ := json.Marshal(tools)
+		return "batch", string(list)
 	}
-	if err := json.Unmarshal(trimmed, &rpc); err != nil {
-		return ""
+	return "", ""
+}
+
+// auditAtEOF reports whether only whitespace follows the top-level value.
+func auditAtEOF(dec *json.Decoder) bool {
+	_, err := dec.Token()
+	return err == io.EOF
+}
+
+// auditKeyAmbiguous reports whether key is a case variant of want, or a repeat
+// of want already seen; upstream may read either copy.
+func auditKeyAmbiguous(key json.Token, want string, seen *bool) bool {
+	k, _ := key.(string)
+	if k == want {
+		dup := *seen
+		*seen = true
+		return dup
 	}
-	return sanitizeAuditMethod(rpc.Method)
+	return strings.EqualFold(k, want)
+}
+
+// auditMethodTool decodes the raw method and, for tools/call, params.name. A
+// field of the wrong type is left empty without dropping the other.
+func auditMethodTool(rawMethod, params json.RawMessage) (method, tool string) {
+	_ = json.Unmarshal(rawMethod, &method)
+	method = sanitizeAuditMethod(method)
+	if method != "tools/call" || len(params) == 0 {
+		return method, ""
+	}
+	dec := json.NewDecoder(bytes.NewReader(params))
+	if tok, err := dec.Token(); err != nil || tok != json.Delim('{') {
+		return method, ""
+	}
+	var skip, name json.RawMessage
+	var seen bool
+	for dec.More() {
+		key, err := dec.Token()
+		if err != nil {
+			return method, ""
+		}
+		if auditKeyAmbiguous(key, "name", &seen) {
+			return method, auditIncomplete
+		}
+		dst := &skip
+		if key == "name" {
+			dst = &name
+		}
+		if dec.Decode(dst) != nil {
+			return method, ""
+		}
+	}
+	_ = json.Unmarshal(name, &tool)
+	return method, sanitizeAuditMethod(tool)
+}
+
+// auditScanObject reads one object whose '{' is consumed and returns the raw
+// method and params values. Other values are skipped into a reused buffer.
+func auditScanObject(dec *json.Decoder) (method, params json.RawMessage, ok bool) {
+	var skip json.RawMessage
+	var seenM, seenP bool
+	for dec.More() {
+		key, err := dec.Token()
+		if err != nil {
+			return nil, nil, false
+		}
+		if auditKeyAmbiguous(key, "method", &seenM) || auditKeyAmbiguous(key, "params", &seenP) {
+			return nil, nil, false
+		}
+		dst := &skip
+		switch key {
+		case "method":
+			dst = &method
+		case "params":
+			dst = &params
+		}
+		if dec.Decode(dst) != nil {
+			return nil, nil, false
+		}
+	}
+	_, err := dec.Token() // '}'
+	return method, params, err == nil
+}
+
+// auditSkip consumes the rest of a non-object batch member whose first token
+// is tok. It gives up past maxAuditSkipDepth: the decoder's delimiter stack
+// grew to 27 MiB on a 1 MiB body of [, and no JSON-RPC member nests that deep.
+func auditSkip(dec *json.Decoder, tok json.Token) bool {
+	const maxAuditSkipDepth = 64
+	depth := 0
+	for depth <= maxAuditSkipDepth {
+		switch tok {
+		case json.Delim('['), json.Delim('{'):
+			depth++
+		case json.Delim(']'), json.Delim('}'):
+			depth--
+		}
+		if depth == 0 {
+			return true
+		}
+		var err error
+		if tok, err = dec.Token(); err != nil {
+			return false
+		}
+	}
+	return false
 }
 
 func sanitizeAuditMethod(method string) string {
