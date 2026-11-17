@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"math"
 	"os"
+	"slices"
 	"testing"
 	"time"
 )
@@ -172,4 +173,117 @@ func TestCompareStore(t *testing.T) {
 		}
 	}
 	checkCompare(t, getCompare(t, api, "spring,autumn"))
+}
+
+// compareBodies is the comparison of ids as JSON and as CSV, byte for byte.
+func compareBodies(t *testing.T, api *surveyAPI, ids string) (string, string) {
+	t.Helper()
+	h := makeRouter(testAuthenticator(t), api)
+	j := do(h, "GET", "/api/v1/admin/surveys/compare?ids="+ids, adminToken, "")
+	c := do(h, "GET", "/api/v1/admin/surveys/compare?ids="+ids+"&format=csv", adminToken, "")
+	if j.Code != 200 || c.Code != 200 {
+		t.Fatalf("compare: %d %s / %d %s", j.Code, j.Body, c.Code, c.Body)
+	}
+	return j.Body.String(), c.Body.String()
+}
+
+// Once a wave's rows are deleted, compare reads its stored tally and gives
+// the same JSON and CSV; a skip rule the stored tally lacks is refused.
+func TestCompareAfterRowsDeleted(t *testing.T) {
+	data := waveRows()
+	api := compareAPI(t, func(_ context.Context, id string) ([]storedAnswer, error) { return data[id], nil })
+	api.now = func() time.Time { return time.Date(2026, 11, 15, 0, 0, 0, 0, time.UTC) }
+	stored := map[string]waveTally{}
+	for _, s := range api.surveys {
+		stored[s.ID] = rowsTally(s, mergeClients(data[s.ID]), skipKeys(api.surveys))
+	}
+	api.finalCompare = func(_ context.Context, id string) (*waveTally, error) {
+		t := stored[id]
+		return &t, nil
+	}
+	wantJSON, wantCSV := compareBodies(t, api, "spring,autumn")
+	delete(data, "spring")
+	if j, c := compareBodies(t, api, "spring,autumn"); j != wantJSON || c != wantCSV {
+		t.Fatalf("after spring's rows are deleted:\n%s\nwant\n%s", j, wantJSON)
+	}
+	delete(data, "autumn")
+	if j, c := compareBodies(t, api, "spring,autumn"); j != wantJSON || c != wantCSV {
+		t.Fatalf("after both waves' rows are deleted:\n%s\nwant\n%s", c, wantCSV)
+	}
+	var res compareResult
+	_ = json.Unmarshal([]byte(wantJSON), &res)
+	checkCompare(t, res)
+
+	api.surveys[1].Questions[1].SkipIf = &skipRule{Question: "tools", Answer: "a"}
+	if rec := do(makeRouter(testAuthenticator(t), api), "GET", "/api/v1/admin/surveys/compare?ids=spring,autumn", adminToken, ""); rec.Code != 409 {
+		t.Fatalf("skip rule missing from the stored tally: %d %s", rec.Code, rec.Body)
+	}
+}
+
+// TestCompareStoreAfterRetention is TestCompareAfterRowsDeleted on Postgres
+// (COPILOT_SURVEY_TEST_DB_URL): close-out stores the tallies, a skip rule
+// defined later is added while the rows exist, and compare gives the same
+// JSON and CSV after the rows are deleted.
+func TestCompareStoreAfterRetention(t *testing.T) {
+	url := os.Getenv("COPILOT_SURVEY_TEST_DB_URL")
+	if url == "" {
+		t.Skip("COPILOT_SURVEY_TEST_DB_URL not set")
+	}
+	ctx := t.Context()
+	s, err := openSurveyStore(ctx, url)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer s.pool.Close()
+	_, _ = s.pool.Exec(ctx, `DELETE FROM survey_participation; DELETE FROM survey_answers; DELETE FROM survey_results; DELETE FROM survey_skip_results`)
+	now := time.Date(2026, 11, 15, 0, 0, 0, 0, time.UTC)
+	api := compareAPI(t, s.answers)
+	api.now, api.finalCompare = func() time.Time { return now }, s.finalCompare
+	data := waveRows()
+	var spring []map[string]any
+	for _, r := range data["spring"] {
+		spring = append(spring, r.Answers)
+	}
+	if _, err := writeImport(ctx, url, api.surveys[0], spring, now.AddDate(1, 0, 0)); err != nil {
+		t.Fatal(err)
+	}
+	for i, r := range data["autumn"] {
+		resp := response{SurveyID: "autumn", Answers: r.Answers, QuestionVersions: r.QuestionVersions,
+			Context: techContext{Version: "web", OS: "linux", Client: r.Client}, DeleteAfter: now.AddDate(1, 0, 0)}
+		if _, err := s.submit(ctx, "autumn", string(rune('a'+i)), now, resp); err != nil {
+			t.Fatal(err)
+		}
+	}
+	wantJSON, wantCSV := compareBodies(t, api, "spring,autumn")
+	var res compareResult
+	_ = json.Unmarshal([]byte(wantJSON), &res)
+	checkCompare(t, res)
+
+	// Close-out before autumn's skip_if is known, then again once it is.
+	autumn := api.surveys[1]
+	autumn.Questions = slices.Clone(autumn.Questions)
+	autumn.Questions[1].SkipIf = nil
+	s.defs = []survey{api.surveys[0], autumn}
+	s.closeOut(ctx, now)
+	var rules int
+	_ = s.pool.QueryRow(ctx, `SELECT count(*) FROM survey_skip_results`).Scan(&rules)
+	if rules != 0 {
+		t.Fatalf("skip counts without a skip rule: %d rows", rules)
+	}
+	s.defs = api.surveys
+	s.closeOut(ctx, now)
+
+	for _, id := range []string{"spring", "autumn"} {
+		if _, err := s.pool.Exec(ctx, `DELETE FROM survey_answers WHERE survey_id = $1`, id); err != nil {
+			t.Fatal(err)
+		}
+		if j, c := compareBodies(t, api, "spring,autumn"); j != wantJSON || c != wantCSV {
+			t.Fatalf("after %s's rows are deleted:\n%s\nwant\n%s\n%s\nwant\n%s", id, j, wantJSON, c, wantCSV)
+		}
+	}
+	// Close-out with no rows left leaves the stored counts alone.
+	s.closeOut(ctx, now)
+	if j, _ := compareBodies(t, api, "spring,autumn"); j != wantJSON {
+		t.Fatalf("close-out without rows changed the stored counts:\n%s", j)
+	}
 }

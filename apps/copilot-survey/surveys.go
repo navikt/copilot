@@ -568,6 +568,9 @@ type surveyAPI struct {
 	answers func(ctx context.Context, surveyID string) ([]storedAnswer, error)
 	// final reads a closed survey's aggregates; nil, nil when it has none.
 	final func(ctx context.Context, surveyID string) (*surveyTally, error)
+	// finalCompare reads what compare needs from a closed survey's
+	// aggregates (surveyStore.finalCompare); nil, nil when it has none.
+	finalCompare func(ctx context.Context, surveyID string) (*waveTally, error)
 	// hidden and hide read and add free texts hidden by an admin
 	// (surveyStore.hidden, surveyStore.hide). Nil without storage.
 	hidden func(ctx context.Context, surveyID string) (map[string]bool, error)

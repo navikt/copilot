@@ -49,6 +49,20 @@ CREATE TABLE IF NOT EXISTS survey_results (
 	mean      double precision,
 	PRIMARY KEY (survey_id, kind, key, version, option)
 );
+-- Per skip_if and the answer keys it skips, survey_results' answer counts
+-- among the respondents it skips, so compare works after the rows are
+-- deleted (writeSkipped).
+CREATE TABLE IF NOT EXISTS survey_skip_results (
+	survey_id     text    NOT NULL,
+	skip_question text    NOT NULL,
+	skip_answer   text    NOT NULL,
+	key           text    NOT NULL,
+	version       integer NOT NULL,
+	option        text    NOT NULL,
+	count         integer NOT NULL,
+	n             integer NOT NULL,
+	PRIMARY KEY (survey_id, skip_question, skip_answer, key, version, option)
+);
 CREATE TABLE IF NOT EXISTS survey_freetext_hidden (
 	survey_id text NOT NULL,
 	field     text NOT NULL,

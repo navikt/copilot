@@ -113,15 +113,24 @@ func finalize(ctx context.Context, pool *pgxpool.Pool, defs []survey, s survey, 
 		if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtext('survey_results:' || $1))`, s.ID); err != nil {
 			return err
 		}
-		if !replace {
-			var done bool
-			if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM survey_results WHERE survey_id = $1)`, s.ID).Scan(&done); err != nil || done {
-				return err
-			}
-		}
 		rows, ctxRows, err := readRows(ctx, tx, s.ID)
 		if err != nil || len(rows) == 0 {
 			return err
+		}
+		if !replace {
+			var total int
+			err := tx.QueryRow(ctx, `SELECT count FROM survey_results WHERE survey_id = $1 AND kind = 'total'`, s.ID).Scan(&total)
+			if err == nil {
+				// Aggregated already: redo only the skip counts, for skip_if
+				// defined since, and only while every row is still there.
+				if total != len(rows) {
+					return nil
+				}
+				return writeSkipped(ctx, tx, defs, s, rows)
+			}
+			if !errors.Is(err, pgx.ErrNoRows) {
+				return err
+			}
 		}
 		n = len(rows)
 		batch := &pgx.Batch{}
@@ -163,9 +172,39 @@ func finalize(ctx context.Context, pool *pgxpool.Pool, defs []survey, s survey, 
 		if err := tx.SendBatch(ctx, batch).Close(); err != nil {
 			return err
 		}
+		if err := writeSkipped(ctx, tx, defs, s, rows); err != nil {
+			return err
+		}
 		return extendRetention(ctx, tx, defs, s, now)
 	})
 	return n, err
+}
+
+// writeSkipped replaces s's survey_skip_results: for every skip_if in defs
+// and every answer key a definition skips with it, the counts among the
+// respondents it skips, as compare subtracts them (#2227). With
+// survey_results that is the cross table compare already shows as excluded
+// and kept counts; nothing per row. Version -1, option ”: the pair is
+// counted, count = respondents it skips who answered the key.
+func writeSkipped(ctx context.Context, tx pgx.Tx, defs []survey, s survey, rows []storedAnswer) error {
+	batch := &pgx.Batch{}
+	batch.Queue(`DELETE FROM survey_skip_results WHERE survey_id = $1`, s.ID)
+	insert := `INSERT INTO survey_skip_results (survey_id, skip_question, skip_answer, key, version, option, count, n) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
+	rules := skipKeys(defs)
+	t := rowsTally(s, rows, rules)
+	for rule, keys := range rules {
+		for _, k := range keys {
+			excluded := 0
+			for ver, vt := range t.Skipped[rule][k] {
+				excluded += vt.N
+				for o, c := range vt.Counts {
+					batch.Queue(insert, s.ID, rule.Question, rule.Answer, k, ver, o, c, vt.N)
+				}
+			}
+			batch.Queue(insert, s.ID, rule.Question, rule.Answer, k, -1, "", excluded, 0)
+		}
+	}
+	return tx.SendBatch(ctx, batch).Close()
 }
 
 func readRows(ctx context.Context, tx pgx.Tx, id string) ([]storedAnswer, []exportRow, error) {
@@ -328,6 +367,57 @@ func (s *surveyStore) final(ctx context.Context, id string) (*surveyTally, error
 		t.Channels = ctxClients
 	}
 	return t, nil
+}
+
+// finalCompare reads what compare needs from a survey's aggregates; nil
+// when it has none. Channels are the stored context.client counts, merged as
+// the export merges them, with the rest under "" as mergeClients gives them.
+func (s *surveyStore) finalCompare(ctx context.Context, id string) (*waveTally, error) {
+	f, err := s.final(ctx, id)
+	if err != nil || f == nil {
+		return nil, err
+	}
+	t := &waveTally{Responses: f.Responses, Channels: map[string]int{}, Keys: f.Keys, Skipped: map[skipRule]map[string]map[int]*verTally{}}
+	var q, a, key, opt string
+	var ver, count, n int
+	rows, err := s.pool.Query(ctx, `SELECT option, count FROM survey_results WHERE survey_id = $1 AND kind = 'context' AND key = 'client'`, id)
+	if err != nil {
+		return nil, err
+	}
+	rest := t.Responses
+	if _, err = pgx.ForEachRow(rows, []any{&opt, &count}, func() error {
+		t.Channels[opt] += count
+		rest -= count
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+	if rest > 0 {
+		t.Channels[""] += rest
+	}
+	rows, err = s.pool.Query(ctx, `SELECT skip_question, skip_answer, key, version, option, count, n FROM survey_skip_results WHERE survey_id = $1`, id)
+	if err != nil {
+		return nil, err
+	}
+	_, err = pgx.ForEachRow(rows, []any{&q, &a, &key, &ver, &opt, &count, &n}, func() error {
+		rule := skipRule{q, a}
+		if t.Skipped[rule] == nil {
+			t.Skipped[rule] = map[string]map[int]*verTally{}
+		}
+		keys := t.Skipped[rule]
+		if keys[key] == nil {
+			keys[key] = map[int]*verTally{}
+		}
+		if ver == -1 {
+			return nil
+		}
+		if keys[key][ver] == nil {
+			keys[key][ver] = &verTally{N: n, Counts: map[string]int{}}
+		}
+		keys[key][ver].Counts[opt] = count
+		return nil
+	})
+	return t, err
 }
 
 // runAggregate is `copilot-survey aggregate --survey <id>`: (re)writes a

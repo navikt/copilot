@@ -70,6 +70,7 @@ func main() {
 		surveys.answers = store.answers
 		surveys.answered = store.answered
 		surveys.final = store.final
+		surveys.finalCompare = store.finalCompare
 		store.defs = defs
 		surveys.hidden = store.hidden
 		surveys.hide = store.hide

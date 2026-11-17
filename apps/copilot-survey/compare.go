@@ -69,6 +69,10 @@ type compareResult struct {
 // who gave that answer are dropped too, so both waves count the same group
 // (q2-2026 came from Forms, which showed the statements to everyone; q4-2026
 // skips them for those who do not use KI tools). Excluded reports how many.
+//
+// A closed wave whose rows are deleted is read from its stored tally
+// (survey_skip_results); 409 when that was written before the last wave's
+// skip_if existed.
 func (a *surveyAPI) compare(w http.ResponseWriter, r *http.Request) {
 	ids := strings.Split(r.URL.Query().Get("ids"), ",")
 	if len(ids) < 2 || len(ids) > 4 {
@@ -76,21 +80,45 @@ func (a *surveyAPI) compare(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var waves []survey
-	var rows [][]storedAnswer
 	for _, id := range ids {
 		i := slices.IndexFunc(a.surveys, func(s survey) bool { return s.ID == id })
 		if i < 0 || slices.ContainsFunc(waves, func(s survey) bool { return s.ID == id }) {
 			writeError(w, http.StatusNotFound, "unknown survey")
 			return
 		}
-		rs, err := a.read(r, a.surveys[i].ID)
+		waves = append(waves, a.surveys[i])
+	}
+	last, rules := waves[len(waves)-1], skipKeys(a.surveys)
+	tallies := make([]waveTally, len(waves))
+	for i, s := range waves {
+		rs, err := a.read(r, s.ID)
 		if err != nil {
 			writeError(w, http.StatusServiceUnavailable, "survey storage unavailable")
 			return
 		}
-		waves, rows = append(waves, a.surveys[i]), append(rows, mergeClients(rs))
+		tallies[i] = rowsTally(s, mergeClients(rs), rules)
+		if len(rs) > 0 || a.finalCompare == nil || s.status(a.now()) != "stengt" {
+			continue
+		}
+		stored, err := a.finalCompare(r.Context(), s.ID)
+		if err != nil {
+			writeError(w, http.StatusServiceUnavailable, "survey storage unavailable")
+			return
+		}
+		if stored == nil {
+			continue
+		}
+		for rule, keys := range skipKeys([]survey{last}) {
+			for _, k := range keys {
+				if _, ok := stored.Skipped[rule][k]; !ok {
+					writeError(w, http.StatusConflict, s.ID+": the answers are deleted, and the stored counts were written before "+last.ID+"'s skip_if existed")
+					return
+				}
+			}
+		}
+		tallies[i] = *stored
 	}
-	res := compareWavesResult(waves, rows, a.now())
+	res := compareTallies(waves, tallies, a.now())
 	if r.URL.Query().Get("format") == "csv" {
 		w.Header().Set("Content-Type", "text/csv; charset=utf-8")
 		w.Header().Set("Content-Disposition", `attachment; filename="sammenligning-`+strings.Join(ids, "-")+`.csv"`)
@@ -117,20 +145,80 @@ func mergeClients(rs []storedAnswer) []storedAnswer {
 	return out
 }
 
-// compareWavesResult is the comparison of waves (oldest first) from their
-// rows. The endpoint and «copilot-survey analyze» both call it, so the
-// numbers online and from an exported CSV are computed by the same code.
-func compareWavesResult(waves []survey, rows [][]storedAnswer, now time.Time) compareResult {
-	res := compareResult{Questions: []compareQuestion{}}
-	rows = slices.Clone(rows)
-	for i, s := range waves {
-		rs := rows[i]
-		m := waveMeta{surveySummary{s.ID, s.Title, s.Starts, s.Ends, s.status(now), len(rs), s.Series, s.Published}, len(rs) < minSegment, map[string]int{}}
-		for _, row := range rs {
-			m.Channels[row.Client]++
+// waveTally is what a comparison needs from one wave, counted from its rows
+// or read from its stored aggregates once the rows are deleted: respondents,
+// channels (context.client merged as the export merges them), every answer
+// key's counts, and per skip rule the counts among the respondents it skips.
+type waveTally struct {
+	Responses int
+	Channels  map[string]int
+	Keys      map[string]map[int]*verTally
+	Skipped   map[skipRule]map[string]map[int]*verTally // rule → key → version
+}
+
+// skipKeys is every skip_if in defs with the answer keys a definition
+// skips with it.
+func skipKeys(defs []survey) map[skipRule][]string {
+	out := map[skipRule][]string{}
+	for _, s := range defs {
+		for _, q := range s.Questions {
+			if q.SkipIf == nil || q.Type == "text" {
+				continue
+			}
+			keys := []string{q.ID}
+			if q.Type == "matrix" {
+				keys = nil
+				for _, it := range q.Items {
+					keys = append(keys, it.ID)
+				}
+			}
+			for _, k := range keys {
+				if !slices.Contains(out[*q.SkipIf], k) {
+					out[*q.SkipIf] = append(out[*q.SkipIf], k)
+				}
+			}
 		}
+	}
+	return out
+}
+
+// rowsTally counts s's rows for a comparison under any of rules. Channels
+// count row.Client as given, so merge first (mergeClients).
+func rowsTally(s survey, rows []storedAnswer, rules map[skipRule][]string) waveTally {
+	t := waveTally{Responses: len(rows), Channels: map[string]int{}, Keys: tallyRows(s, rows).Keys, Skipped: map[skipRule]map[string]map[int]*verTally{}}
+	for _, row := range rows {
+		t.Channels[row.Client]++
+	}
+	for rule := range rules {
+		skipped := slices.DeleteFunc(slices.Clone(rows), func(row storedAnswer) bool { return !rule.skipped(row.Answers) })
+		t.Skipped[rule] = tallyRows(s, skipped).Keys
+	}
+	return t
+}
+
+// compareWavesResult is the comparison of waves (oldest first) from their
+// rows. The endpoint and «copilot-survey analyze» both count through
+// compareTallies, so the numbers online and from an exported CSV are
+// computed by the same code.
+func compareWavesResult(waves []survey, rows [][]storedAnswer, now time.Time) compareResult {
+	rules := skipKeys(waves)
+	tallies := make([]waveTally, len(rows))
+	for i, rs := range rows {
+		tallies[i] = rowsTally(waves[i], rs, rules)
+	}
+	return compareTallies(waves, tallies, now)
+}
+
+// compareTallies is the comparison of waves (oldest first) from their
+// tallies, live or stored.
+func compareTallies(waves []survey, tallies []waveTally, now time.Time) compareResult {
+	res := compareResult{Questions: []compareQuestion{}}
+	tallies = slices.Clone(tallies)
+	for i, s := range waves {
+		t := tallies[i]
+		m := waveMeta{surveySummary{s.ID, s.Title, s.Starts, s.Ends, s.status(now), t.Responses, s.Series, s.Published}, t.Responses < minSegment, t.Channels}
 		if m.Suppressed {
-			rows[i], m.Channels = nil, nil
+			tallies[i], m.Channels = waveTally{Responses: t.Responses}, nil
 		}
 		res.Surveys = append(res.Surveys, m)
 	}
@@ -143,11 +231,11 @@ func compareWavesResult(waves []survey, rows [][]storedAnswer, now time.Time) co
 			for _, it := range q.Items {
 				item := q
 				item.Type, item.ID, item.Version = "scale", it.ID, it.Version
-				ws, br := compareWaves(item, waves, rows)
+				ws, br := compareWaves(item, waves, tallies)
 				cq.Items = append(cq.Items, compareItem{ID: it.ID, Text: it.Text, Break: br, Waves: ws})
 			}
 		} else {
-			cq.Waves, cq.Break = compareWaves(q, waves, rows)
+			cq.Waves, cq.Break = compareWaves(q, waves, tallies)
 		}
 		res.Questions = append(res.Questions, cq)
 	}
@@ -195,21 +283,20 @@ func asked(s survey, id string) (version, top int, ok bool) {
 // break when the waves did not all ask, or answer, the same single version.
 // A wave's declared version counts even without answers; a wave that did
 // not ask the question at all does not break the series.
-func compareWaves(q question, waves []survey, rows [][]storedAnswer) ([]waveCounts, bool) {
-	out := make([]waveCounts, len(rows))
+func compareWaves(q question, waves []survey, tallies []waveTally) ([]waveCounts, bool) {
+	out := make([]waveCounts, len(tallies))
 	seen := map[int]bool{}
-	for i, rs := range rows {
+	for i, t := range tallies {
 		top := q.Max
 		if v, m, ok := asked(waves[i], q.ID); ok {
 			seen[v], top = true, m
 		}
-		kept := slices.DeleteFunc(slices.Clone(rs), func(row storedAnswer) bool {
-			v, ok := row.Answers[q.ID]
-			return ok && v != nil && q.SkipIf.skipped(row.Answers)
-		})
-		out[i].Excluded = len(rs) - len(kept)
+		kept := t.Keys[q.ID]
+		if q.SkipIf != nil {
+			kept, out[i].Excluded = without(kept, t.Skipped[*q.SkipIf][q.ID])
+		}
 		out[i].Versions = []waveStat{}
-		for _, vr := range countVersions(q, kept) {
+		for _, vr := range versionsFrom(q, kept) {
 			ws := waveStat{versionResult: vr}
 			if q.Type == "scale" {
 				ws.Mean, ws.Agree = scaleStats(vr, top)
@@ -219,6 +306,31 @@ func compareWaves(q question, waves []survey, rows [][]storedAnswer) ([]waveCoun
 		}
 	}
 	return out, len(seen) > 1
+}
+
+// without is all minus skipped, as tallyKey would count the rows left, and
+// how many answers skipped held.
+func without(all, skipped map[int]*verTally) (map[int]*verTally, int) {
+	out, excluded := map[int]*verTally{}, 0
+	for ver, vt := range all {
+		s := skipped[ver]
+		if s == nil {
+			out[ver] = vt
+			continue
+		}
+		excluded += s.N
+		if vt.N == s.N {
+			continue
+		}
+		kept := &verTally{N: vt.N - s.N, Counts: map[string]int{}}
+		for o, c := range vt.Counts {
+			if c -= s.Counts[o]; c > 0 {
+				kept.Counts[o] = c
+			}
+		}
+		out[ver] = kept
+	}
+	return out, excluded
 }
 
 // scaleStats is the mean and the share at top or top-1.
