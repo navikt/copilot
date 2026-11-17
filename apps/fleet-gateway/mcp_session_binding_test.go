@@ -95,3 +95,35 @@ func TestMCPSession_PerUserCap(t *testing.T) {
 		}
 	}
 }
+
+func TestMCPSession_DeleteReleasesBindingAndCapSlot(t *testing.T) {
+	te := newTestEnv(t)
+	te.gw.cfg.MCPSessionUserCap = 1
+	issued := "up-0"
+	setUpstreamSessionID(te, &issued)
+	token := te.obtainAccessTokenForResource(te.resource)
+	if rec := mcpPost(te, token, ""); rec.Code != http.StatusOK {
+		t.Fatalf("initialize: got %d", rec.Code)
+	}
+
+	req := httptest.NewRequest(http.MethodDelete, "/mcp/etterlevelse", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Mcp-Session-Id", "up-0")
+	rec := httptest.NewRecorder()
+	issued = ""
+	te.handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("delete: got %d", rec.Code)
+	}
+	if _, found := mcpBound(te, "up-0"); found {
+		t.Fatal("DELETE left the binding in place")
+	}
+
+	issued = "up-1"
+	if rec := mcpPost(te, token, ""); rec.Code != http.StatusOK {
+		t.Fatalf("second initialize: got %d", rec.Code)
+	}
+	if _, found := mcpBound(te, "up-1"); !found {
+		t.Fatal("cap slot was not released by DELETE")
+	}
+}
