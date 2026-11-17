@@ -271,6 +271,11 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 		bad(http.StatusBadRequest, "invalid_grant", "invalid client")
 		return
 	}
+	if !g.clientMayRefresh(r.Context(), clientID) {
+		outcome = "grant_not_registered"
+		bad(http.StatusBadRequest, "unauthorized_client", "refresh_token grant not registered for client")
+		return
+	}
 
 	payload, err := g.openRefreshToken(rawRT)
 	if err != nil {
