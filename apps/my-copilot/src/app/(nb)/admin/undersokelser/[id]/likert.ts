@@ -33,11 +33,13 @@ export function unsureLabel(versions: VersionResult[]): string | undefined {
 }
 
 /**
- * n as shown: for a scale or matrix with an unsure label, answers on the scale, then «· k vet ikke»;
+ * n as shown: for a scale or matrix with an unsure label (pass it only for those), answers on the scale, then «· k vet ikke»;
  * any other question, n as is. "–" when hidden.
  */
 export function nText(v: VersionResult, fmt: (x: number) => string, unsure?: string): string {
   if (v.n === null) return "–";
-  const k = unsure ? (v.options?.find((o) => o.value === unsure)?.count ?? 0) : 0;
+  // unsure is the definition's label, set only on scale and matrix questions, where every
+  // non-numeric answer is unsure whatever an older version called it.
+  const k = unsure ? (v.options ?? []).filter((o) => !isStep(o.value)).reduce((a, o) => a + (o.count ?? 0), 0) : 0;
   return k ? `${fmt(v.n - k)} · ${fmt(k)} vet ikke` : fmt(v.n);
 }

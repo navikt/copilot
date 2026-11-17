@@ -32,11 +32,11 @@ var (
 	errEntraForbidden    = errors.New("token not accepted")
 )
 
-// NewEntraAuthFromEnv returns nil when Entra is not configured (prod today),
-// so the /mcp/gw route is never registered there.
+// NewEntraAuthFromEnv returns nil when Entra is not configured, so the /mcp/gw
+// route is never registered there.
 func NewEntraAuthFromEnv() (*EntraAuth, error) {
 	endpoint := strings.TrimSpace(os.Getenv("NAIS_TOKEN_INTROSPECTION_ENDPOINT"))
-	clientID, err := gatewayClientID(os.Getenv("AZURE_APP_PRE_AUTHORIZED_APPS"))
+	clientID, err := gatewayClientID(os.Getenv("AZURE_APP_PRE_AUTHORIZED_APPS"), os.Getenv("NAIS_CLUSTER_NAME"))
 	if err != nil {
 		return nil, err
 	}
@@ -53,10 +53,12 @@ func NewEntraAuthFromEnv() (*EntraAuth, error) {
 	}, nil
 }
 
-// gatewayClientID picks fleet-gateway's client ID from AZURE_APP_PRE_AUTHORIZED_APPS.
-// Zero or several matches yield "", which leaves Entra mode off.
-func gatewayClientID(raw string) (string, error) {
-	if strings.TrimSpace(raw) == "" {
+// gatewayClientID picks fleet-gateway's client ID in this cluster from
+// AZURE_APP_PRE_AUTHORIZED_APPS. An unset cluster, or zero or several matches,
+// yield "", which leaves Entra mode off.
+func gatewayClientID(raw, cluster string) (string, error) {
+	cluster = strings.TrimSpace(cluster)
+	if strings.TrimSpace(raw) == "" || cluster == "" {
 		return "", nil
 	}
 	var apps []struct {
@@ -68,7 +70,7 @@ func gatewayClientID(raw string) (string, error) {
 	}
 	var matches []string
 	for _, a := range apps {
-		if a.Name == "dev-gcp:copilot:fleet-gateway" && a.ClientID != "" {
+		if a.Name == cluster+":copilot:fleet-gateway" && a.ClientID != "" {
 			matches = append(matches, a.ClientID)
 		}
 	}

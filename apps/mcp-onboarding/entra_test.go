@@ -72,14 +72,20 @@ func TestEntraAuth_MissingBearer(t *testing.T) {
 }
 
 func TestGatewayClientID(t *testing.T) {
-	raw := `[{"name":"dev-gcp:copilot:fleet-gateway","clientId":"gw"},{"name":"dev-gcp:other:fleet-gateway","clientId":"x"}]`
-	if id, err := gatewayClientID(raw); err != nil || id != "gw" {
-		t.Fatalf("got %q, %v", id, err)
+	raw := `[{"name":"dev-gcp:copilot:fleet-gateway","clientId":"dev-gw"},{"name":"prod-gcp:copilot:fleet-gateway","clientId":"prod-gw"},{"name":"dev-gcp:other:fleet-gateway","clientId":"x"}]`
+	for cluster, want := range map[string]string{"dev-gcp": "dev-gw", "prod-gcp": "prod-gw", "": ""} {
+		if id, err := gatewayClientID(raw, cluster); err != nil || id != want {
+			t.Fatalf("cluster %q: got %q, %v; want %q", cluster, id, err, want)
+		}
 	}
-	if id, _ := gatewayClientID(`[{"name":"dev-gcp:other:fleet-gateway","clientId":"x"}]`); id != "" {
+	devOnly := `[{"name":"dev-gcp:copilot:fleet-gateway","clientId":"dev-gw"}]`
+	if id, _ := gatewayClientID(devOnly, "prod-gcp"); id != "" {
+		t.Fatalf("dev gateway accepted in prod: %q", id)
+	}
+	if id, _ := gatewayClientID(`[{"name":"dev-gcp:other:fleet-gateway","clientId":"x"}]`, "dev-gcp"); id != "" {
 		t.Fatalf("foreign namespace accepted: %q", id)
 	}
-	if _, err := gatewayClientID("{"); err == nil {
+	if _, err := gatewayClientID("{", "dev-gcp"); err == nil {
 		t.Fatal("expected parse error")
 	}
 }

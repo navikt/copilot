@@ -20,31 +20,39 @@ import (
 )
 
 const (
-	defaultPort                          = "8080"
-	defaultPendingTTL                    = 10 * time.Minute
-	defaultCodeTTL                       = 60 * time.Second
-	defaultSessionMaxAge                 = 12 * time.Hour
-	defaultConsentTTL                    = 30 * 24 * time.Hour
-	defaultSessionTTL                    = time.Hour
-	defaultCIMDTTL                       = 5 * time.Minute
-	defaultOutboundTimeout               = 10 * time.Second
-	defaultPendingCap                    = 1024
-	defaultCodeCap                       = 1024
-	defaultSessionCap                    = 4096
-	defaultMCPSessionUserCap             = 64
-	defaultCIMDCap                       = 64
-	defaultRateLimitCap                  = 4096
-	defaultRateLimitRequests             = 30
-	defaultRateLimitGlobalRequests       = 300
-	defaultRateLimitWindow               = time.Minute
-	defaultSweepInterval                 = 30 * time.Second
-	defaultSSEMaxDuration                = 10 * time.Minute
-	defaultSSEIdleTimeout                = 60 * time.Second
-	defaultSSEMaxBytes             int64 = 16 << 20 // 16 MiB
-	maxFormBodyBytes                     = 20 * 1024
-	maxClaimsBytes                       = 4096
-	maxCIMDBodyBytes                     = 64 * 1024
-	maxUpstreamBodyBytes                 = 1 << 20
+	defaultPort                             = "8080"
+	defaultPendingTTL                       = 10 * time.Minute
+	defaultCodeTTL                          = 60 * time.Second
+	defaultSessionMaxAge                    = 12 * time.Hour
+	defaultRefreshGraceWindow               = 30 * time.Second
+	defaultConsentTTL                       = 30 * 24 * time.Hour
+	defaultSessionTTL                       = time.Hour
+	defaultCIMDTTL                          = 5 * time.Minute
+	defaultOutboundTimeout                  = 10 * time.Second
+	defaultPendingCap                       = 1024
+	defaultCodeCap                          = 1024
+	defaultSessionCap                       = 4096
+	defaultMCPSessionUserCap                = 64
+	defaultCIMDCap                          = 64
+	defaultDCRClientTTL                     = 30 * 24 * time.Hour
+	defaultDCRClientMaxAge                  = 180 * 24 * time.Hour
+	defaultDCRClientCap                     = 5000
+	defaultDCRRateLimitRequests             = 10
+	defaultDCRRateLimitGlobalRequests       = 100
+	defaultDCRRateLimitWindow               = time.Hour
+	maxDCRBodyBytes                         = 16 * 1024
+	defaultRateLimitCap                     = 4096
+	defaultRateLimitRequests                = 30
+	defaultRateLimitGlobalRequests          = 300
+	defaultRateLimitWindow                  = time.Minute
+	defaultSweepInterval                    = 30 * time.Second
+	defaultSSEMaxDuration                   = 10 * time.Minute
+	defaultSSEIdleTimeout                   = 60 * time.Second
+	defaultSSEMaxBytes                int64 = 16 << 20 // 16 MiB
+	maxFormBodyBytes                        = 20 * 1024
+	maxClaimsBytes                          = 4096
+	maxCIMDBodyBytes                        = 64 * 1024
+	maxUpstreamBodyBytes                    = 1 << 20
 
 	rtStorageNone            = "none"
 	rtStorageClientEncrypted = "client-encrypted"
@@ -92,6 +100,12 @@ type Config struct {
 	SessionCap              int
 	MCPSessionUserCap       int
 	CIMDCap                 int
+	DCREnabled              bool
+	DCRClientTTL            time.Duration
+	DCRClientMaxAge         time.Duration
+	DCRClientCap            int
+	DCRRateLimitRequests    int
+	DCRRateLimitGlobal      int
 	RateLimitCap            int
 	RateLimitRequests       int
 	RateLimitGlobalRequests int
@@ -99,6 +113,7 @@ type Config struct {
 	SessionStore            string
 	DatabaseURL             string
 	SessionMaxAge           time.Duration
+	RefreshGraceWindow      time.Duration
 	ConsentTTL              time.Duration
 	RTKeys                  string
 	RTStorage               string
@@ -144,6 +159,10 @@ func loadConfigFromEnv() (*Config, error) {
 		return nil, fmt.Errorf("invalid RT_STORAGE %q: expected client-encrypted or server", rtStorage)
 	}
 
+	dcrEnabled, err := getEnvBool("DCR_ENABLED")
+	if err != nil {
+		return nil, err
+	}
 	gatewayDisabled, err := getEnvBool("GATEWAY_DISABLED")
 	if err != nil {
 		return nil, err
@@ -189,6 +208,12 @@ func loadConfigFromEnv() (*Config, error) {
 		SessionCap:              getEnvInt("SESSION_MAP_CAP", defaultSessionCap),
 		MCPSessionUserCap:       getEnvInt("MCP_SESSION_USER_CAP", defaultMCPSessionUserCap),
 		CIMDCap:                 defaultCIMDCap,
+		DCREnabled:              dcrEnabled,
+		DCRClientTTL:            getEnvDuration("DCR_CLIENT_TTL", defaultDCRClientTTL),
+		DCRClientMaxAge:         getEnvDuration("DCR_CLIENT_MAX_AGE", defaultDCRClientMaxAge),
+		DCRClientCap:            getEnvInt("DCR_CLIENT_CAP", defaultDCRClientCap),
+		DCRRateLimitRequests:    getEnvInt("DCR_RATE_LIMIT_REQUESTS", defaultDCRRateLimitRequests),
+		DCRRateLimitGlobal:      getEnvInt("DCR_RATE_LIMIT_GLOBAL_REQUESTS", defaultDCRRateLimitGlobalRequests),
 		RateLimitCap:            getEnvInt("RATE_LIMIT_MAP_CAP", defaultRateLimitCap),
 		RateLimitRequests:       getEnvInt("RATE_LIMIT_REQUESTS", defaultRateLimitRequests),
 		RateLimitGlobalRequests: getEnvInt("RATE_LIMIT_GLOBAL_REQUESTS", defaultRateLimitGlobalRequests),
@@ -196,6 +221,7 @@ func loadConfigFromEnv() (*Config, error) {
 		SessionStore:            strings.ToLower(getEnv("SESSION_STORE", "memory")),
 		DatabaseURL:             strings.TrimSpace(os.Getenv("DATABASE_URL")),
 		SessionMaxAge:           getEnvDuration("SESSION_MAX_AGE", defaultSessionMaxAge),
+		RefreshGraceWindow:      getEnvDuration("REFRESH_GRACE_WINDOW", defaultRefreshGraceWindow),
 		ConsentTTL:              getEnvDuration("CONSENT_TTL", defaultConsentTTL),
 		RTKeys:                  rtKeys,
 		RTStorage:               rtStorage,
@@ -363,8 +389,29 @@ func validateConfig(cfg *Config) error {
 	if cfg.SessionMaxAge <= 0 {
 		cfg.SessionMaxAge = defaultSessionMaxAge
 	}
+	if cfg.RefreshGraceWindow <= 0 {
+		cfg.RefreshGraceWindow = defaultRefreshGraceWindow
+	}
 	if cfg.ConsentTTL <= 0 {
 		cfg.ConsentTTL = defaultConsentTTL
+	}
+	if cfg.DCRClientTTL <= 0 {
+		cfg.DCRClientTTL = defaultDCRClientTTL
+	}
+	if cfg.DCRClientMaxAge <= 0 {
+		cfg.DCRClientMaxAge = defaultDCRClientMaxAge
+	}
+	if cfg.DCRClientMaxAge < cfg.DCRClientTTL {
+		cfg.DCRClientMaxAge = cfg.DCRClientTTL
+	}
+	if cfg.DCRRateLimitGlobal <= 0 {
+		cfg.DCRRateLimitGlobal = defaultDCRRateLimitGlobalRequests
+	}
+	if cfg.DCRClientCap <= 0 {
+		cfg.DCRClientCap = defaultDCRClientCap
+	}
+	if cfg.DCRRateLimitRequests <= 0 {
+		cfg.DCRRateLimitRequests = defaultDCRRateLimitRequests
 	}
 	if cfg.PendingCap <= 0 {
 		cfg.PendingCap = defaultPendingCap

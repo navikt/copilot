@@ -63,8 +63,10 @@ spec:
       value: "{{allowed_client_ids}}"
     - name: ALLOWED_REDIRECT_URIS
       value: "{{allowed_redirect_uris}}"
-    - name: ALLOWED_RESOURCES
-      value: "{{allowed_resources}}"
+    {{#if dcr_enabled}}
+    - name: DCR_ENABLED
+      value: "{{dcr_enabled}}"
+    {{/if}}
     {{#if pilot_routes_file}}
     - name: PILOT_ROUTES_FILE
       value: "{{pilot_routes_file}}"
@@ -73,7 +75,7 @@ spec:
     outbound:
       rules:
       {{#each outbound_rules}}
-        - application: {{application}}
+        - { application: {{application}}{{#if namespace}}, namespace: {{namespace}}{{/if}}{{#if cluster}}, cluster: {{cluster}}{{/if}} }
       {{/each}}
       external:
         - host: login.microsoftonline.com

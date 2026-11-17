@@ -89,19 +89,19 @@ func (s surveyDef) needsNewerCLI() bool {
 // renders (apps/copilot-survey/surveys/README.md); the analysis fields are not
 // needed here.
 type surveyQuestion struct {
-	ID         string   `json:"id"`
-	Type       string   `json:"type"` // scale, choice, multi, text or matrix
-	Text       string   `json:"text"`
-	Required   bool     `json:"required,omitempty"`
-	Min        int      `json:"min,omitempty"`
-	Max        int      `json:"max,omitempty"`
-	Labels     []string `json:"labels,omitempty"`
-	Unsure     string   `json:"unsure,omitempty"` // scale, matrix: one more answer, sent as this label
-	Options    []string `json:"options,omitempty"`
-	MaxChoices int      `json:"max_choices,omitempty"`
-	Exclusive  string   `json:"exclusive,omitempty"`
-	Other      string   `json:"other,omitempty"` // one more option, with a short free text sent as <id>.other
-	MaxLen     int      `json:"max_length,omitempty"`
+	ID         string    `json:"id"`
+	Type       string    `json:"type"` // scale, choice, multi, text or matrix
+	Text       string    `json:"text"`
+	Required   bool      `json:"required,omitempty"`
+	Min        int       `json:"min,omitempty"`
+	Max        int       `json:"max,omitempty"`
+	Labels     []string  `json:"labels,omitempty"`
+	Unsure     string    `json:"unsure,omitempty"` // scale, matrix: one more answer, sent as this label
+	Options    []string  `json:"options,omitempty"`
+	MaxChoices int       `json:"max_choices,omitempty"`
+	Exclusive  string    `json:"exclusive,omitempty"`
+	Other      string    `json:"other,omitempty"` // one more option, with a short free text sent as <id>.other
+	MaxLen     int       `json:"max_length,omitempty"`
 	SkipIf     skipRules `json:"skip_if,omitempty"`
 	// Items are a matrix's statements on its scale, asked one per screen and
 	// sent as scale answers under their own ids.

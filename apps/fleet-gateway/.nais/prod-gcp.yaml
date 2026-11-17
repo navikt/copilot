@@ -1,0 +1,29 @@
+replicas_min: "2"
+replicas_max: "2"
+cpu_threshold: "80"
+cpu_request: 50m
+memory_request: 32Mi
+memory_limit: 64Mi
+log_level: "INFO"
+base_url: "https://fleet-gateway.intern.nav.no"
+allowed_client_ids: "https://ki-utvikling.nav.no/cplt/oauth-client.json,https://github.com/copilot/cli/client-metadata.json,https://opencode.ai/oauth/opencode/client.json"
+# Loopback entries match on any port (RFC 8252 section 7.3).
+allowed_redirect_uris: "http://127.0.0.1:62471/callback,http://127.0.0.1/,http://127.0.0.1/callback,http://127.0.0.1/mcp/oauth/callback"
+# Owner decision 2026-11-17: DCR on in prod while the ingress is naisdevice-only; needs #2261 first.
+dcr_enabled: "true"
+pilot_routes_file: "/app/pilot-routes.prod.yaml"
+outbound_rules:
+  - application: mcp-onboarding
+ingresses:
+  - https://fleet-gateway.intern.nav.no
+reply_urls:
+  - https://fleet-gateway.intern.nav.no/oauth2/callback
+cimd_hosts:
+  - ki-utvikling.nav.no
+  - github.com
+  - opencode.ai
+postgres: fleet-gateway
+session_store: postgres
+session_max_age: 12h
+rt_storage: client-encrypted
+team_token_strategy: obo
