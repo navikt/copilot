@@ -134,3 +134,65 @@ func TestConsent_PageBannerAndFormAction(t *testing.T) {
 func httptestGet(target string) *http.Request {
 	return httptest.NewRequest(http.MethodGet, target, nil)
 }
+
+// A rolling deploy runs old pods (consent before Entra, pending_entra) next to
+// new ones. Neither may complete the other's login without the consent page.
+func TestConsent_RollingDeployNeverSkipsConsent(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("new pod's pending state is invisible to old pods", func(t *testing.T) {
+		te := newTestEnv(t)
+		st, _ := te.startLogin(consentVerifier)
+		if _, ok, _ := te.gw.store.Get(ctx, "pending_entra", st); ok {
+			t.Fatal("new flow wrote the kind old pods pop")
+		}
+		if _, ok, _ := te.gw.store.Get(ctx, kindPendingEntra, st); !ok {
+			t.Fatal("new flow did not store its pending state")
+		}
+	})
+
+	t.Run("old pod's pending state always gets the consent page", func(t *testing.T) {
+		te := newTestEnv(t)
+		_ = te.obtainAuthCode(consentVerifier) // consent now remembered
+		st, sc := te.startLogin(consentVerifier)
+		raw, ok, err := te.gw.store.Pop(ctx, kindPendingEntra, st)
+		if err != nil || !ok {
+			t.Fatalf("pop: %v %v", ok, err)
+		}
+		if err := te.gw.store.Put(ctx, kindPendingEntraLegacy, st, raw, time.Minute); err != nil {
+			t.Fatal(err)
+		}
+		resp := te.callback(st, sc)
+		_ = resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("legacy pending state skipped consent: %d", resp.StatusCode)
+		}
+	})
+}
+
+type failConsentDeleteStore struct{ SessionStore }
+
+func (s failConsentDeleteStore) Delete(ctx context.Context, kind, key string) error {
+	if kind == kindConsent {
+		return io.ErrUnexpectedEOF
+	}
+	return s.SessionStore.Delete(ctx, kind, key)
+}
+
+// A failed consent delete must leave the session, so a retried revoke can
+// still find it and clear consent instead of returning 200 with consent kept.
+func TestConsent_RevokeKeepsSessionWhenConsentDeleteFails(t *testing.T) {
+	te := newTestEnv(t)
+	at, _, _ := te.obtainTokensForResource(te.resource)
+	if _, ok, _ := te.gw.store.Get(context.Background(), kindSession, hashToken(at)); !ok {
+		t.Fatal("precondition: expected a stored session")
+	}
+	real := te.gw.store
+	te.gw.store = failConsentDeleteStore{real}
+	if code, _ := postRevoke(te.handler, at, te.clientID); code != http.StatusServiceUnavailable {
+		t.Fatalf("revoke with failing consent delete: %d", code)
+	}
+	if _, ok, _ := real.Get(context.Background(), kindSession, hashToken(at)); !ok {
+		t.Fatal("session deleted although consent delete failed")
+	}
+}

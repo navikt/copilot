@@ -542,13 +542,14 @@ func (g *Gateway) revokeHandler(w http.ResponseWriter, r *http.Request) {
 				writeJSON(w, http.StatusOK, map[string]any{})
 				return
 			}
-			if err := g.store.Delete(r.Context(), kindSession, tokenHash); err != nil {
-				slog.Warn("revoke session delete failed", "error", err)
+			// Consent first: if its delete fails the session stays, so a retry still finds it.
+			if err := g.forgetConsent(r.Context(), sess.NAVIdent, sess.ClientID, sess.Resource); err != nil {
+				slog.Warn("revoke consent delete failed", "error", err)
 				bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store unavailable")
 				return
 			}
-			if err := g.forgetConsent(r.Context(), sess.NAVIdent, sess.ClientID, sess.Resource); err != nil {
-				slog.Warn("revoke consent delete failed", "error", err)
+			if err := g.store.Delete(r.Context(), kindSession, tokenHash); err != nil {
+				slog.Warn("revoke session delete failed", "error", err)
 				bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store unavailable")
 				return
 			}

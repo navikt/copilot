@@ -326,6 +326,11 @@ func (g *Gateway) callbackHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	p, ok, err := g.popPending(r.Context(), kindPendingEntra, queryState)
+	legacy := false
+	if err == nil && !ok {
+		p, ok, err = g.popPending(r.Context(), kindPendingEntraLegacy, queryState)
+		legacy = ok
+	}
 	if err != nil {
 		slog.Warn("pop pending entra state failed", "error", err)
 		http.Error(w, "session store unavailable", http.StatusServiceUnavailable)
@@ -479,7 +484,7 @@ func (g *Gateway) callbackHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		slog.Warn("consent lookup failed", "error", err)
 	}
-	if remembered && p.Prompt != "consent" {
+	if remembered && p.Prompt != "consent" && !legacy {
 		g.issueCode(w, r, p, gwCode, issued)
 		return
 	}
