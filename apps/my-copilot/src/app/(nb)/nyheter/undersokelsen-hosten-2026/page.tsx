@@ -294,7 +294,7 @@ export default function SurveyAutumnArticlePage() {
                 </li>
                 <li>
                   <BodyLong>
-                    <strong>Det du må vite:</strong> <NextLink href="/ma-vite">én side med det du må vite</NextLink>, og
+                    <strong>Det du må vite:</strong> <NextLink href="/ma-vite">én side med det viktigste</NextLink>, og
                     veiledning om <NextLink href="/praksis/eierskap">eierskap til KI-generert kode og review</NextLink>.
                   </BodyLong>
                 </li>
@@ -378,7 +378,7 @@ export default function SurveyAutumnArticlePage() {
                 Copilot i perioden. Vårrunden var åpen i 38 dager og høstrunden i 15, og jo lengre perioden er, jo flere
                 teller som brukere. Ikke alle som svarte, bruker Copilot, så andelen er ikke en ren svarprosent.
                 Vårtallene er regnet på nytt blant KI-brukerne, så de avviker litt fra{" "}
-                <NextLink href="/nyheter/utviklerundersokelsen-2026">vårartikkelen</NextLink>, som regnet av alle som
+                <NextLink href="/nyheter/utviklerundersokelsen-2026">vårartikkelen</NextLink>, som regnet blant alle som
                 svarte.
               </BodyLong>
               <BodyLong spacing>
