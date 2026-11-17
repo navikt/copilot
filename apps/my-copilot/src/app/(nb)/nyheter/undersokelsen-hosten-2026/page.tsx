@@ -5,7 +5,7 @@ import { ArrowLeftIcon } from "@navikt/aksel-icons";
 import type { Metadata } from "next";
 
 // Utkast. Før publisering: fjern draft: true i docs/news/articles/undersokelsen-hosten-2026.md,
-// fjern robots og Utkast-taggen her, og fyll inn ekstern leser.
+// og fjern robots og Utkast-taggen her.
 export const metadata: Metadata = {
   title: "Utviklerundersøkelsen høsten 2026: Fornøyd, men bekymret",
   description:
@@ -351,8 +351,8 @@ export default function SurveyAutumnArticlePage() {
                 0,02). Sitatene er korte utdrag fra fritekstsvar, redigert og avidentifisert.
               </BodyLong>
               <BodyLong spacing>
-                Artikkelen er skrevet av teamet som også bygger og forvalter KI-verktøyene i Nav, og er lest av [ekstern
-                leser – fylles inn] før publisering.
+                Artikkelen er skrevet av teamet som også bygger og forvalter KI-verktøyene i Nav, og er lest av noen
+                utenfor teamet før publisering.
               </BodyLong>
             </article>
 
