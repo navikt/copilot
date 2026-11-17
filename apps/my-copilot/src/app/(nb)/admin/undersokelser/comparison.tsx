@@ -129,7 +129,9 @@ function MeanOverview({ waves, questions }: { waves: WaveMeta[]; questions: Comp
             const shown = means.filter((m): m is number => m !== undefined);
             return (
               <div key={r.id} className="contents" data-testid={`dumbbell-${r.id}`}>
-                <span className="pt-2 sm:pt-0 sm:py-1">{r.text}</span>
+                <Box as="span" paddingBlock={{ xs: "space-8 space-0", sm: "space-4" }}>
+                  {r.text}
+                </Box>
                 <Box paddingInline="space-8">
                   <div className="relative h-6">
                     {ticks.map((t) => (
@@ -246,12 +248,19 @@ function Statement({
 
 function Excluded({ waves, counts }: { waves: WaveMeta[]; counts: WaveCounts[] }) {
   const notes = counts.flatMap((w, i) =>
-    w.excluded ? [`${shortName(waves[i].title)}: ${formatNumber(w.excluded)}`] : []
+    w.hidden
+      ? [`${shortName(waves[i].title)}: <5`]
+      : w.excluded
+        ? [`${shortName(waves[i].title)}: ${formatNumber(w.excluded)}`]
+        : []
   );
   if (notes.length === 0) return null;
   return (
     <Detail textColor="subtle">
       Holdt utenfor fordi de ikke bruker KI-verktøy (som i siste runde): {notes.join(", ")}.
+      {counts.some((w) => w.hidden)
+        ? " Der færre enn 5 er holdt utenfor, vises ikke tallene for runden, fordi gruppen ellers kunne regnes ut."
+        : ""}
     </Detail>
   );
 }
@@ -287,7 +296,7 @@ function Options({ waves, q }: { waves: WaveMeta[]; q: CompareQuestion }) {
           const last = share(only(counts[counts.length - 1]), value);
           return (
             <div key={value} className="contents">
-              <span className="pt-2 sm:pt-0">
+              <Box as="span" paddingBlock={{ xs: "space-8 space-0", sm: "space-0" }}>
                 {value}
                 {!q.break && first && last ? (
                   <Box
@@ -299,7 +308,7 @@ function Options({ waves, q }: { waves: WaveMeta[]; q: CompareQuestion }) {
                     {signed((last.share - first.share) * 100, 0)} pp
                   </Box>
                 ) : null}
-              </span>
+              </Box>
               <div className="flex flex-col gap-[2px]">
                 {series.map(({ i, v }) => {
                   const s = share(v, value);

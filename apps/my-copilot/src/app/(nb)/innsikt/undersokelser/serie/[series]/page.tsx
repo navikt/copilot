@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { HStack, Link } from "@navikt/ds-react";
 import { InsightPage } from "@/components/insight-page";
 import ErrorState from "@/components/error-state";
-import { getUserToken } from "@/lib/auth";
+import { getUser, getUserToken } from "@/lib/auth";
 import { getPublishedSeriesComparison } from "@/lib/survey";
 import { ComparisonPrintHeader, ComparisonView } from "../../../../admin/undersokelser/comparison";
 
@@ -16,6 +16,7 @@ export const metadata: Metadata = {
 export default async function PublishedSeriesPage({ params }: { params: Promise<{ series: string }> }) {
   const { series } = await params;
   if (!/^[a-z0-9-]{1,64}$/.test(series)) notFound();
+  await getUser();
   const token = await getUserToken();
   if (!token) return <ErrorState title="Utvikling over tid" message="Mangler innloggingstoken" />;
   const res = await getPublishedSeriesComparison(token, series);

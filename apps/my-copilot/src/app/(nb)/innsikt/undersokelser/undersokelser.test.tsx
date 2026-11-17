@@ -161,6 +161,15 @@ describe("/innsikt/undersokelser", () => {
                 ],
               })),
             },
+            {
+              id: "fart",
+              text: "Jeg jobber raskere",
+              break: false,
+              waves: [
+                { excluded: 0, versions: [], hidden: true },
+                { excluded: 0, versions: [{ version: 1, n: 20, options: [], mean: 3, agree: 0.4 }] },
+              ],
+            },
           ],
         },
       ],
@@ -176,6 +185,7 @@ describe("/innsikt/undersokelser", () => {
     expect(screen.getByRole("columnheader", { name: "Høsten 2026, versjon 2 (n 20)" })).toBeInTheDocument();
     expect(screen.getAllByRole("cell", { name: "4 (20 %)" })).toHaveLength(5);
     expect(screen.queryByRole("columnheader", { name: "Besvart via" })).not.toBeInTheDocument();
+    expect(screen.getByText(/Våren 2026: <5\. Der færre enn 5 er holdt utenfor/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Utviklerundersøkelsen våren 2026" })).toHaveAttribute(
       "href",
       "/innsikt/undersokelser/var-2026"
