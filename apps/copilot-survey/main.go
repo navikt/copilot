@@ -37,6 +37,13 @@ func main() {
 		}
 		return
 	}
+	if len(os.Args) > 1 && os.Args[1] == "analyze" {
+		if err := runAnalyze(os.Args[2:], os.Stdout, time.Now()); err != nil {
+			fmt.Fprintln(os.Stderr, "analyze:", err)
+			os.Exit(1)
+		}
+		return
+	}
 	config := loadConfig()
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: config.LogLevel})))
 
