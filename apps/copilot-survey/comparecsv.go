@@ -35,6 +35,9 @@ func writeCompareCSV(w io.Writer, res compareResult) error {
 				_ = cw.Write([]string{"answer", res.Surveys[i].ID, qid, iid, "", strconv.FormatBool(br), "", "", "", strconv.Itoa(wc.Excluded), "", ""})
 			}
 			for _, v := range wc.Versions {
+				if len(v.Options) == 0 { // e.g. only empty multi answers: keep n
+					_ = cw.Write([]string{"answer", res.Surveys[i].ID, qid, iid, strconv.Itoa(v.Version), strconv.FormatBool(br), "", "", intCell(v.N), strconv.Itoa(wc.Excluded), "", ""})
+				}
 				for _, o := range v.Options {
 					_ = cw.Write([]string{"answer", res.Surveys[i].ID, qid, iid, strconv.Itoa(v.Version), strconv.FormatBool(br),
 						o.Value, intCell(o.Count), intCell(v.N), strconv.Itoa(wc.Excluded), floatCell(v.Mean), floatCell(v.Agree)})

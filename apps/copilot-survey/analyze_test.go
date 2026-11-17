@@ -120,6 +120,12 @@ func TestCompareCSVEdges(t *testing.T) {
 	if err := writeCompareCSV(&buf, res); err != nil || !strings.Contains(buf.String(), "answer,spring,q,,,false,,,,6,,") {
 		t.Errorf("all excluded lost: %v\n%s", err, buf.String())
 	}
+	five := 5
+	res.Questions[0].Waves[0] = waveCounts{Versions: []waveStat{{versionResult: versionResult{Version: 1, N: &five, Options: []optionCount{}}}}}
+	buf.Reset()
+	if _ = writeCompareCSV(&buf, res); !strings.Contains(buf.String(), "answer,spring,q,,1,false,,,5,0,,") {
+		t.Errorf("version without options lost:\n%s", buf.String())
+	}
 	if writeCompareCSV(failWriter{}, res) == nil {
 		t.Error("write error swallowed")
 	}
