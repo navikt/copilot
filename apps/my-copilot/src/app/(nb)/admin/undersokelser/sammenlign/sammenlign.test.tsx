@@ -176,7 +176,7 @@ describe("/admin/undersokelser/sammenlign", () => {
     expect(screen.getByRole("row", { name: /høsten 2026/ })).toHaveTextContent(
       "Nettside (knapperad): 15, Terminal, nav-pilot (copilot): 5"
     );
-    expect(screen.getByText("Δ snitt +0,8")).toBeInTheDocument();
+    expect(screen.getByText("Δ snitt +0,75")).toBeInTheDocument();
     expect(screen.getByText("Δ enig +25 pp")).toBeInTheDocument();
     expect(screen.getByText("+10 pp")).toBeInTheDocument(); // VS Code 60 % → 70 %
     expect(screen.getAllByText(/Holdt utenfor fordi de ikke bruker KI-verktøy.*Våren 2026: 14/)).toHaveLength(2);
