@@ -53,6 +53,8 @@ spec:
   azure:
     application:
       enabled: true
+      tenant: nav.no
+      allowAllUsers: true
   {{/if}}
   accessPolicy:
     {{#if fleet_gateway_inbound}}

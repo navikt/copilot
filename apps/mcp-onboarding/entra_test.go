@@ -87,7 +87,7 @@ func TestGatewayClientID(t *testing.T) {
 func TestEntraMode_GitHubToolsRefused(t *testing.T) {
 	h := newSimpleMCPHandler()
 	user := &UserContext{Login: "a@nav.no", NAVident: "Z123456"}
-	for tool := range githubTokenTools {
+	for _, tool := range []string{"check_agent_readiness", "suggest_customizations", "generate_agents_md", "generate_setup_steps", "team_readiness", "some_future_tool"} {
 		resp := callTool(h, tool, map[string]interface{}{"owner": "navikt", "repo": "copilot", "org": "navikt", "team": "x"}, user)
 		result, ok := resp.Result.(CallToolResult)
 		if !ok || !result.IsError || !strings.Contains(result.Content[0].Text, "krever GitHub-innlogging") {

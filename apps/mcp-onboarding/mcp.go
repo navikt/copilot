@@ -605,7 +605,7 @@ func (h *MCPHandler) handleCallTool(req *JSONRPCRequest, user *UserContext) (res
 
 	var result CallToolResult
 
-	if user.NAVident != "" && githubTokenTools[params.Name] {
+	if user.NAVident != "" && !entraTools[params.Name] {
 		return &JSONRPCResponse{JSONRPC: "2.0", ID: req.ID, Result: CallToolResult{
 			Content: []TextContent{{Type: "text", Text: githubLoginRequired}},
 			IsError: true,

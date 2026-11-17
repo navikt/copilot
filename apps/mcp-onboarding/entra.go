@@ -118,12 +118,11 @@ func (e *EntraAuth) validate(ctx context.Context, token string) (*UserContext, e
 		return nil, fmt.Errorf("texas returned status %d", resp.StatusCode)
 	}
 	var c struct {
-		Active            bool     `json:"active"`
-		Idtyp             string   `json:"idtyp"`
-		Roles             []string `json:"roles"`
-		NAVident          string   `json:"NAVident"`
-		Azp               string   `json:"azp"`
-		PreferredUsername string   `json:"preferred_username"`
+		Active   bool     `json:"active"`
+		Idtyp    string   `json:"idtyp"`
+		Roles    []string `json:"roles"`
+		NAVident string   `json:"NAVident"`
+		Azp      string   `json:"azp"`
 	}
 	if err := json.NewDecoder(io.LimitReader(resp.Body, 64<<10)).Decode(&c); err != nil {
 		return nil, fmt.Errorf("decode texas response: %w", err)
@@ -141,11 +140,8 @@ func (e *EntraAuth) validate(ctx context.Context, token string) (*UserContext, e
 	if subtle.ConstantTimeCompare([]byte(c.Azp), []byte(e.gatewayClientID)) != 1 {
 		return nil, errEntraForbidden
 	}
-	login := c.PreferredUsername
-	if login == "" {
-		login = navIdent
-	}
-	return &UserContext{Login: login, NAVident: navIdent}, nil
+	// Login is the NAVident, never an email, so INFO logs carry no PII.
+	return &UserContext{Login: navIdent, NAVident: navIdent}, nil
 }
 
 func writeEntraError(w http.ResponseWriter, status int) {
@@ -154,13 +150,21 @@ func writeEntraError(w http.ResponseWriter, status int) {
 	_, _ = fmt.Fprintf(w, `{"error":%q}`, strings.ToLower(strings.ReplaceAll(http.StatusText(status), " ", "_")))
 }
 
-// githubTokenTools need the user's GitHub token, which Entra mode does not have.
-var githubTokenTools = map[string]bool{
-	"check_agent_readiness":  true,
-	"suggest_customizations": true,
-	"generate_agents_md":     true,
-	"generate_setup_steps":   true,
-	"team_readiness":         true,
+// entraTools is the allowlist of tools that work without the user's GitHub
+// token. Anything not listed is refused in Entra mode, so a new tool is
+// closed by default.
+var entraTools = map[string]bool{
+	"hello_world":            true,
+	"greet":                  true,
+	"whoami":                 true,
+	"echo":                   true,
+	"get_time":               true,
+	"search_customizations":  true,
+	"list_agents":            true,
+	"list_instructions":      true,
+	"list_prompts":           true,
+	"list_skills":            true,
+	"get_installation_guide": true,
 }
 
 const githubLoginRequired = "Dette verktøyet krever GitHub-innlogging. Bruk det direkte endepunktet https://mcp-onboarding.intern.dev.nav.no/mcp."
