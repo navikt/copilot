@@ -38,6 +38,12 @@ export function unsureLabel(versions: VersionResult[]): string | undefined {
  */
 export function nText(v: VersionResult, fmt: (x: number) => string, unsure?: string): string {
   if (v.n === null) return "–";
-  const k = unsure ? (v.options?.find((o) => o.value === unsure)?.count ?? 0) : 0;
+  // On a scale (any numeric option) every non-numeric answer is unsure, whatever an older version
+  // called it. Choice and multi have no numeric options, so only the label itself counts there.
+  const opts = v.options ?? [];
+  const scale = opts.some((o) => isStep(o.value));
+  const k = unsure
+    ? opts.filter((o) => (scale ? !isStep(o.value) : o.value === unsure)).reduce((a, o) => a + (o.count ?? 0), 0)
+    : 0;
   return k ? `${fmt(v.n - k)} · ${fmt(k)} vet ikke` : fmt(v.n);
 }

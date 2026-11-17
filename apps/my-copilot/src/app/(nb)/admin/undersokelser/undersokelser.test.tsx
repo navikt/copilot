@@ -158,6 +158,11 @@ describe("/admin/undersokelser", () => {
     expect(unsureLabel([v])).toBe("Vet ikke");
     expect(nText(v, String, "Vet ikke")).toBe("8 · 2 vet ikke");
     expect(nText(v, String)).toBe("10");
+    const old = {
+      ...v,
+      options: v.options!.map((o) => (o.value === "Vet ikke" ? { ...o, value: "Vet ikke / gammel" } : o)),
+    };
+    expect(nText(old, String, "Vet ikke")).toBe("8 · 2 vet ikke");
   });
 
   it("leaves n alone for choice and multi, whose options are not numbers", () => {
