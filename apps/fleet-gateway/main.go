@@ -157,6 +157,7 @@ func (g *Gateway) routes() http.Handler {
 	mux.HandleFunc("GET /.well-known/oauth-authorization-server", g.asMetadataHandler)
 	mux.HandleFunc("GET /authorize", g.rateLimitMiddleware(g.authorizeHandler))
 	mux.HandleFunc("POST /consent", g.consentPostHandler)
+	mux.HandleFunc("GET /static/consent.css", consentCSSHandler)
 	mux.HandleFunc("GET /oauth2/callback", g.callbackHandler)
 	mux.HandleFunc("POST /token", g.rateLimitMiddleware(g.tokenHandler))
 	mux.HandleFunc("POST /revoke", g.rateLimitMiddleware(g.revokeHandler))
