@@ -1,0 +1,284 @@
+package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"hash/fnv"
+	"os"
+	"time"
+
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+)
+
+const pgMigrationLockID int64 = 0x666c656574677701
+
+var pgMigrations = []string{
+	`CREATE TABLE IF NOT EXISTS items (
+		kind       text NOT NULL,
+		key        text NOT NULL,
+		value      bytea NOT NULL,
+		expires_at timestamptz NOT NULL,
+		created_at timestamptz NOT NULL,
+		PRIMARY KEY (kind, key)
+	);
+	CREATE INDEX IF NOT EXISTS items_expires_at_idx ON items (expires_at);
+	CREATE TABLE IF NOT EXISTS revoked (
+		jti        text PRIMARY KEY,
+		expires_at timestamptz NOT NULL
+	);
+	CREATE INDEX IF NOT EXISTS revoked_expires_at_idx ON revoked (expires_at);`,
+}
+
+type pgxStore struct {
+	pool *pgxpool.Pool
+	caps map[string]int
+	now  func() time.Time
+}
+
+func newPostgresStore(ctx context.Context, databaseURL string, now func() time.Time, caps map[string]int) (*pgxStore, error) {
+	if now == nil {
+		now = time.Now
+	}
+	// Empty databaseURL: pgx reads the libpq PG* environment (host, TLS client certs).
+	if databaseURL == "" {
+		applyPGEnvPrefix(os.Getenv("PG_ENV_PREFIX"))
+	}
+	poolCfg, err := pgxpool.ParseConfig(databaseURL)
+	if err != nil {
+		return nil, fmt.Errorf("parse postgres config: %w", err)
+	}
+	// PgBouncer in transaction mode: no server-side prepared statements, no session state.
+	poolCfg.ConnConfig.DefaultQueryExecMode = pgx.QueryExecModeSimpleProtocol
+	pool, err := pgxpool.NewWithConfig(ctx, poolCfg)
+	if err != nil {
+		return nil, fmt.Errorf("create postgres pool: %w", err)
+	}
+	if err := pool.Ping(ctx); err != nil {
+		pool.Close()
+		return nil, fmt.Errorf("ping postgres: %w", err)
+	}
+
+	copiedCaps := make(map[string]int, len(caps))
+	for k, v := range caps {
+		copiedCaps[k] = v
+	}
+
+	s := &pgxStore{
+		pool: pool,
+		caps: copiedCaps,
+		now:  now,
+	}
+	if err := s.migrate(ctx); err != nil {
+		pool.Close()
+		return nil, fmt.Errorf("run postgres migrations: %w", err)
+	}
+	return s, nil
+}
+
+func (s *pgxStore) migrate(ctx context.Context) error {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock($1)`, pgMigrationLockID); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx, `
+		CREATE TABLE IF NOT EXISTS schema_migrations (
+			version    integer PRIMARY KEY,
+			applied_at timestamptz NOT NULL
+		)`); err != nil {
+		return err
+	}
+
+	appliedAt := s.now().UTC()
+	for i, stmt := range pgMigrations {
+		version := i + 1
+		var applied bool
+		if err := tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM schema_migrations WHERE version = $1)`, version).Scan(&applied); err != nil {
+			return err
+		}
+		if applied {
+			continue
+		}
+		if _, err := tx.Exec(ctx, stmt); err != nil {
+			return fmt.Errorf("migration %d: %w", version, err)
+		}
+		if _, err := tx.Exec(ctx, `INSERT INTO schema_migrations (version, applied_at) VALUES ($1, $2)`, version, appliedAt); err != nil {
+			return fmt.Errorf("record migration %d: %w", version, err)
+		}
+	}
+	return tx.Commit(ctx)
+}
+
+func kindAdvisoryLockID(kind string) int64 {
+	h := fnv.New64a()
+	_, _ = h.Write([]byte("fgw:kind:" + kind))
+	// Mask to signed 63-bit positive space and avoid colliding with pgMigrationLockID.
+	id := int64(h.Sum64() & 0x7fffffffffffffff)
+	if id == pgMigrationLockID {
+		id++
+	}
+	return id
+}
+
+func (s *pgxStore) Put(ctx context.Context, kind, key string, val []byte, ttl time.Duration) error {
+	now := s.now().UTC()
+	expiresAt := now.Add(ttl)
+
+	capLimit, hasCap := s.caps[kind]
+	if !hasCap || capLimit <= 0 {
+		_, err := s.pool.Exec(ctx, `
+			INSERT INTO items (kind, key, value, expires_at, created_at)
+			VALUES ($1, $2, $3, $4, $5)
+			ON CONFLICT (kind, key) DO UPDATE SET
+				value = EXCLUDED.value,
+				expires_at = EXCLUDED.expires_at,
+				created_at = EXCLUDED.created_at`,
+			kind, key, val, expiresAt, now,
+		)
+		return err
+	}
+
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock($1)`, kindAdvisoryLockID(kind)); err != nil {
+		return err
+	}
+
+	var liveCount int
+	var keyLive bool
+	if err := tx.QueryRow(ctx, `
+		SELECT count(*), COALESCE(bool_or(key = $3), false)
+		FROM items
+		WHERE kind = $1 AND expires_at > $2`,
+		kind, now, key,
+	).Scan(&liveCount, &keyLive); err != nil {
+		return err
+	}
+	if !keyLive && liveCount >= capLimit {
+		return errStoreFull
+	}
+
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO items (kind, key, value, expires_at, created_at)
+		VALUES ($1, $2, $3, $4, $5)
+		ON CONFLICT (kind, key) DO UPDATE SET
+			value = EXCLUDED.value,
+			expires_at = EXCLUDED.expires_at,
+			created_at = EXCLUDED.created_at`,
+		kind, key, val, expiresAt, now,
+	); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
+}
+
+func (s *pgxStore) Get(ctx context.Context, kind, key string) ([]byte, bool, error) {
+	var val []byte
+	err := s.pool.QueryRow(ctx, `
+		SELECT value
+		FROM items
+		WHERE kind = $1 AND key = $2 AND expires_at > $3`,
+		kind, key, s.now().UTC(),
+	).Scan(&val)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, false, nil
+	}
+	if err != nil {
+		return nil, false, err
+	}
+	return val, true, nil
+}
+
+func (s *pgxStore) Pop(ctx context.Context, kind, key string) ([]byte, bool, error) {
+	var val []byte
+	var expiresAt time.Time
+	err := s.pool.QueryRow(ctx, `
+		DELETE FROM items
+		WHERE kind = $1 AND key = $2
+		RETURNING value, expires_at`,
+		kind, key,
+	).Scan(&val, &expiresAt)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, false, nil
+	}
+	if err != nil {
+		return nil, false, err
+	}
+	if !s.now().UTC().Before(expiresAt) {
+		return nil, false, nil
+	}
+	return val, true, nil
+}
+
+func (s *pgxStore) Delete(ctx context.Context, kind, key string) error {
+	_, err := s.pool.Exec(ctx, `DELETE FROM items WHERE kind = $1 AND key = $2`, kind, key)
+	return err
+}
+
+func (s *pgxStore) Revoke(ctx context.Context, jti string, expiresAt time.Time) error {
+	_, err := s.pool.Exec(ctx, `
+		INSERT INTO revoked (jti, expires_at)
+		VALUES ($1, $2)
+		ON CONFLICT (jti) DO UPDATE SET
+			expires_at = GREATEST(revoked.expires_at, EXCLUDED.expires_at)`,
+		jti, expiresAt.UTC(),
+	)
+	return err
+}
+
+func (s *pgxStore) IsRevoked(ctx context.Context, jti string) (bool, error) {
+	var one int
+	err := s.pool.QueryRow(ctx, `
+		SELECT 1
+		FROM revoked
+		WHERE jti = $1 AND expires_at > $2`,
+		jti, s.now().UTC(),
+	).Scan(&one)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func (s *pgxStore) Sweep(ctx context.Context) (int, error) {
+	now := s.now().UTC()
+	tag1, err := s.pool.Exec(ctx, `DELETE FROM items WHERE expires_at <= $1`, now)
+	if err != nil {
+		return 0, err
+	}
+	tag2, err := s.pool.Exec(ctx, `DELETE FROM revoked WHERE expires_at <= $1`, now)
+	if err != nil {
+		return int(tag1.RowsAffected()), err
+	}
+	return int(tag1.RowsAffected() + tag2.RowsAffected()), nil
+}
+
+func (s *pgxStore) Close() {
+	s.pool.Close()
+}
+
+// applyPGEnvPrefix copies PREFIX+PGHOST etc. onto the plain PG* variables so a
+// prefixed credential set (for example the runtime role) is the one pgx reads.
+func applyPGEnvPrefix(prefix string) {
+	if prefix == "" {
+		return
+	}
+	for _, name := range []string{"PGHOST", "PGPORT", "PGDATABASE", "PGUSER", "PGPASSWORD", "PGSSLMODE", "PGSSLROOTCERT", "PGSSLCERT", "PGSSLKEY"} {
+		if v := os.Getenv(prefix + name); v != "" {
+			_ = os.Setenv(name, v)
+		}
+	}
+}

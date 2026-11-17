@@ -6,11 +6,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"hash/fnv"
 	"io"
 	"net/http"
 	"net/url"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	"golang.org/x/sync/singleflight"
@@ -40,7 +42,7 @@ func (e *upstreamTokenError) Error() string {
 	return "upstream token acquisition failed"
 }
 
-func newTeamTokenSource(cfg *Config, sessions *ttlMap[*gatewaySession], now func() time.Time) (TeamTokenSource, error) {
+func newTeamTokenSource(cfg *Config, store SessionStore, now func() time.Time) (TeamTokenSource, error) {
 	if now == nil {
 		now = time.Now
 	}
@@ -52,7 +54,8 @@ func newTeamTokenSource(cfg *Config, sessions *ttlMap[*gatewaySession], now func
 	switch cfg.TeamTokenStrategy {
 	case "", strategyOBO:
 		return &StrategyOBO{
-			sessions:         sessions,
+			store:            store,
+			sessionMaxAge:    cfg.SessionMaxAge,
 			routesByResource: byRes,
 			endpoint:         cfg.TexasExchangeEndpoint,
 			client:           cfg.HTTPClient,
@@ -60,7 +63,8 @@ func newTeamTokenSource(cfg *Config, sessions *ttlMap[*gatewaySession], now func
 		}, nil
 	case strategyRefresh:
 		return &StrategyRefresh{
-			sessions:         sessions,
+			store:            store,
+			sessionMaxAge:    cfg.SessionMaxAge,
 			routesByResource: byRes,
 			tokenEndpoint:    cfg.AzureTokenEndpoint,
 			clientID:         cfg.AzureClientID,
@@ -75,7 +79,8 @@ func newTeamTokenSource(cfg *Config, sessions *ttlMap[*gatewaySession], now func
 
 // StrategyOBO exchanges the session's Entra access token via Nais Texas OBO.
 type StrategyOBO struct {
-	sessions         *ttlMap[*gatewaySession]
+	store            SessionStore
+	sessionMaxAge    time.Duration
 	routesByResource map[string]PilotRoute
 	endpoint         string
 	client           *http.Client
@@ -91,11 +96,14 @@ func (s *StrategyOBO) TeamToken(ctx context.Context, sessionID, resource string)
 	if !ok {
 		return "", fmt.Errorf("unknown route resource %q", resource)
 	}
-	sess, ok := s.sessions.Get(sessionID)
-	if !ok || !s.now().Before(sess.expiry) {
+	sess, ok, err := getSessionFromStore(ctx, s.store, s.now, s.sessionMaxAge, sessionID)
+	if err != nil {
+		return "", fmt.Errorf("load session: %w", err)
+	}
+	if !ok || !s.now().Before(sess.Expiry) {
 		return "", errors.New("session not found or expired")
 	}
-	if sess.entraToken == "" {
+	if sess.EntraToken == "" {
 		return "", &upstreamTokenError{reason: "session has no entra access token"}
 	}
 
@@ -106,7 +114,7 @@ func (s *StrategyOBO) TeamToken(ctx context.Context, sessionID, resource string)
 	}{
 		IdentityProvider: "entra_id",
 		Target:           route.Target,
-		UserToken:        sess.entraToken,
+		UserToken:        sess.EntraToken,
 	})
 	if err != nil {
 		return "", &upstreamTokenError{reason: "encode texas request"}
@@ -146,9 +154,10 @@ func (s *StrategyOBO) TeamToken(ctx context.Context, sessionID, resource string)
 	return accessToken, nil
 }
 
-// StrategyRefresh redeems the session's in-memory Entra refresh token directly at Entra.
+// StrategyRefresh redeems the session's Entra refresh token directly at Entra.
 type StrategyRefresh struct {
-	sessions         *ttlMap[*gatewaySession]
+	store            SessionStore
+	sessionMaxAge    time.Duration
 	routesByResource map[string]PilotRoute
 	tokenEndpoint    string
 	clientID         string
@@ -156,6 +165,13 @@ type StrategyRefresh struct {
 	client           *http.Client
 	now              func() time.Time
 	sf               singleflight.Group
+	refreshMu        [64]sync.Mutex
+}
+
+func (s *StrategyRefresh) lockSession(sessionID string) *sync.Mutex {
+	h := fnv.New32a()
+	_, _ = h.Write([]byte(sessionID))
+	return &s.refreshMu[h.Sum32()%uint32(len(s.refreshMu))]
 }
 
 // TeamToken acquires a downstream team token by refreshing against Entra with per-session serialization.
@@ -167,8 +183,11 @@ func (s *StrategyRefresh) TeamToken(ctx context.Context, sessionID, resource str
 	if !ok {
 		return "", fmt.Errorf("unknown route resource %q", resource)
 	}
-	sess, ok := s.sessions.Get(sessionID)
-	if !ok || !s.now().Before(sess.expiry) {
+	sess, ok, err := getSessionFromStore(ctx, s.store, s.now, s.sessionMaxAge, sessionID)
+	if err != nil {
+		return "", fmt.Errorf("load session: %w", err)
+	}
+	if !ok || !s.now().Before(sess.Expiry) {
 		return "", errors.New("session not found or expired")
 	}
 
@@ -177,13 +196,19 @@ func (s *StrategyRefresh) TeamToken(ctx context.Context, sessionID, resource str
 		reqCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), defaultOutboundTimeout)
 		defer cancel()
 
-		sess.refreshMu.Lock()
-		defer sess.refreshMu.Unlock()
+		// shortcut: cross-replica concurrent refresh is not locked, Entra tolerates RT reuse in its grace window; add advisory lock if observed
+		mu := s.lockSession(sessionID)
+		mu.Lock()
+		defer mu.Unlock()
 
-		if !s.now().Before(sess.expiry) {
+		freshSess, ok, err := getSessionFromStore(reqCtx, s.store, s.now, s.sessionMaxAge, sessionID)
+		if err != nil {
+			return nil, fmt.Errorf("load session: %w", err)
+		}
+		if !ok || !s.now().Before(freshSess.Expiry) {
 			return nil, errors.New("session expired")
 		}
-		if sess.refreshToken == "" {
+		if freshSess.RefreshToken == "" {
 			return nil, &upstreamTokenError{reason: "session has no refresh token"}
 		}
 
@@ -191,7 +216,7 @@ func (s *StrategyRefresh) TeamToken(ctx context.Context, sessionID, resource str
 			"client_id":     {s.clientID},
 			"client_secret": {s.clientSecret},
 			"grant_type":    {"refresh_token"},
-			"refresh_token": {sess.refreshToken},
+			"refresh_token": {freshSess.RefreshToken},
 			"scope":         {entraScopeForTarget(route.Target)},
 		}
 
@@ -227,7 +252,12 @@ func (s *StrategyRefresh) TeamToken(ctx context.Context, sessionID, resource str
 			return nil, &upstreamTokenError{reason: "invalid entra refresh response"}
 		}
 		if newRT, _ := out["refresh_token"].(string); newRT != "" {
-			sess.refreshToken = newRT
+			freshSess.RefreshToken = newRT
+			if remTTL := freshSess.Expiry.Sub(s.now()); remTTL > 0 {
+				if err := putSessionInStore(reqCtx, s.store, s.now, s.sessionMaxAge, sessionID, freshSess, remTTL); err != nil {
+					return nil, fmt.Errorf("persist rotated refresh token: %w", err)
+				}
+			}
 		}
 		return accessToken, nil
 	})

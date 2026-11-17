@@ -803,7 +803,7 @@ func TestMapCapsAndRateLimit(t *testing.T) {
 			name: "pendingConsent map cap returns 503",
 			run: func(t *testing.T) {
 				te := newTestEnv(t)
-				te.gw.pendingConsent = newTTLMap[*pendingAuth](1, func() time.Time { return te.now })
+				te.gw.store = newMemoryStore(te.gw.now, map[string]int{kindPendingConsent: 1, kindPendingEntra: 1024, kindCode: 1024, kindSession: 4096})
 
 				_, _, _, _ = te.startAuthorizeAndConsent(verifier)
 
@@ -819,7 +819,7 @@ func TestMapCapsAndRateLimit(t *testing.T) {
 			name: "pendingEntra map cap returns 503",
 			run: func(t *testing.T) {
 				te := newTestEnv(t)
-				te.gw.pendingEntra = newTTLMap[*pendingAuth](1, func() time.Time { return te.now })
+				te.gw.store = newMemoryStore(te.gw.now, map[string]int{kindPendingConsent: 1024, kindPendingEntra: 1, kindCode: 1024, kindSession: 4096})
 
 				id1, csrf1, cookie1, _ := te.startAuthorizeAndConsent(verifier)
 				_, _ = te.approveConsent(id1, csrf1, cookie1)
@@ -840,7 +840,7 @@ func TestMapCapsAndRateLimit(t *testing.T) {
 			name: "codes map cap returns 503",
 			run: func(t *testing.T) {
 				te := newTestEnv(t)
-				te.gw.codes = newTTLMap[*issuedCode](1, func() time.Time { return te.now })
+				te.gw.store = newMemoryStore(te.gw.now, map[string]int{kindPendingConsent: 1024, kindPendingEntra: 1024, kindCode: 1, kindSession: 4096})
 
 				_ = te.obtainAuthCode(verifier)
 
@@ -859,7 +859,7 @@ func TestMapCapsAndRateLimit(t *testing.T) {
 			name: "sessions map cap returns 503",
 			run: func(t *testing.T) {
 				te := newTestEnv(t)
-				te.gw.sessions = newTTLMap[*gatewaySession](1, func() time.Time { return te.now })
+				te.gw.store = newMemoryStore(te.gw.now, map[string]int{kindPendingConsent: 1024, kindPendingEntra: 1024, kindCode: 1024, kindSession: 1})
 
 				c1 := te.obtainAuthCode(verifier)
 				status1, _ := te.postToken(url.Values{

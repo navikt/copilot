@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/subtle"
 	"html/template"
+	"log/slog"
 	"net/http"
 	"net/url"
 )
@@ -69,12 +70,17 @@ func (g *Gateway) consentPostHandler(w http.ResponseWriter, r *http.Request) {
 
 	consentID := r.PostFormValue("id")
 	formCSRF := r.PostFormValue("csrf")
-	cookie, err := r.Cookie(csrfCookieName)
+	cookie, cookieErr := r.Cookie(csrfCookieName)
 
 	clearCSRFCookie(w)
 
-	p, ok := g.pendingConsent.Pop(consentID)
-	if !ok || err != nil || formCSRF == "" ||
+	p, ok, err := g.popPending(r.Context(), kindPendingConsent, consentID)
+	if err != nil {
+		slog.Warn("pop pending consent failed", "error", err)
+		http.Error(w, "session store unavailable", http.StatusServiceUnavailable)
+		return
+	}
+	if !ok || cookieErr != nil || formCSRF == "" ||
 		subtle.ConstantTimeCompare([]byte(cookie.Value), []byte(formCSRF)) != 1 ||
 		subtle.ConstantTimeCompare([]byte(formCSRF), []byte(p.CSRF)) != 1 {
 		http.Error(w, "consent request expired or CSRF check failed; start the login again", http.StatusForbidden)

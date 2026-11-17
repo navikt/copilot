@@ -5,36 +5,38 @@ import (
 	"crypto/subtle"
 	"encoding/base64"
 	"encoding/hex"
+	"errors"
+	"log/slog"
 	"net/http"
-	"sync"
+	"slices"
 	"time"
 )
 
 type gatewaySession struct {
-	clientID     string
-	resource     string
-	entraToken   string
-	refreshMu    sync.Mutex
-	refreshToken string
-	navIdent     string
-	groups       map[string]bool
-	expiry       time.Time
+	ClientID     string    `json:"client_id"`
+	Resource     string    `json:"resource"`
+	EntraToken   string    `json:"entra_token,omitempty"`
+	RefreshToken string    `json:"refresh_token,omitempty"` //nolint:gosec // serialized only into SessionStore (sealed with RT_KEYS in Postgres)
+	NAVIdent     string    `json:"nav_ident"`
+	Groups       []string  `json:"groups,omitempty"`
+	IssuedAt     time.Time `json:"issued_at"`
+	Expiry       time.Time `json:"expiry"`
 }
 
 func (s *gatewaySession) hasGroup(group string) bool {
-	if s == nil || len(s.groups) == 0 {
+	if s == nil || len(s.Groups) == 0 {
 		return false
 	}
-	return s.groups[group]
+	return slices.Contains(s.Groups, group)
 }
 
 type issuedCode struct {
-	ClientID    string
-	RedirectURI string
-	Challenge   string
-	Resource    string
-	Session     *gatewaySession
-	Created     time.Time
+	ClientID    string         `json:"client_id"`
+	RedirectURI string         `json:"redirect_uri"`
+	Challenge   string         `json:"challenge"`
+	Resource    string         `json:"resource"`
+	Session     gatewaySession `json:"session"`
+	Created     time.Time      `json:"created"`
 }
 
 func (g *Gateway) tokenHandler(w http.ResponseWriter, r *http.Request) {
@@ -63,7 +65,12 @@ func (g *Gateway) tokenHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Single-use: Pop deletes the code even if subsequent binding checks fail.
-	issued, ok := g.codes.Pop(code)
+	issued, ok, err := g.popCode(r.Context(), code)
+	if err != nil {
+		slog.Warn("pop authorization code failed", "error", err)
+		bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store unavailable")
+		return
+	}
 	if !ok {
 		bad(http.StatusBadRequest, "invalid_grant", "unknown, used, or expired code")
 		return
@@ -89,7 +96,13 @@ func (g *Gateway) tokenHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ttl := issued.Session.expiry.Sub(g.now())
+	if g.cfg.SessionMaxAge > 0 && !issued.Session.IssuedAt.IsZero() {
+		maxExpiry := issued.Session.IssuedAt.Add(g.cfg.SessionMaxAge)
+		if issued.Session.Expiry.After(maxExpiry) {
+			issued.Session.Expiry = maxExpiry
+		}
+	}
+	ttl := issued.Session.Expiry.Sub(g.now())
 	if ttl <= 0 {
 		bad(http.StatusBadRequest, "invalid_grant", "session expired")
 		return
@@ -100,8 +113,13 @@ func (g *Gateway) tokenHandler(w http.ResponseWriter, r *http.Request) {
 		bad(http.StatusInternalServerError, "server_error", "failed to issue token")
 		return
 	}
-	if !g.sessions.Set(hashToken(accessToken), issued.Session, ttl) {
-		bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store capacity reached")
+	if err := g.putSession(r.Context(), hashToken(accessToken), &issued.Session, ttl); err != nil {
+		if errors.Is(err, errStoreFull) {
+			bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store capacity reached")
+			return
+		}
+		slog.Warn("store session failed", "error", err)
+		bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store unavailable")
 		return
 	}
 

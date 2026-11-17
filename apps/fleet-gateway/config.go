@@ -21,7 +21,7 @@ const (
 	defaultPort                          = "8080"
 	defaultPendingTTL                    = 10 * time.Minute
 	defaultCodeTTL                       = 60 * time.Second
-	defaultSessionMaxTTL                 = 10 * time.Hour
+	defaultSessionMaxAge                 = 12 * time.Hour
 	defaultSessionTTL                    = time.Hour
 	defaultCIMDTTL                       = 5 * time.Minute
 	defaultOutboundTimeout               = 10 * time.Second
@@ -82,6 +82,11 @@ type Config struct {
 	RateLimitRequests       int
 	RateLimitGlobalRequests int
 	RateLimitWindow         time.Duration
+	SessionStore            string
+	DatabaseURL             string
+	SessionMaxAge           time.Duration
+	RTKeys                  string
+	Store                   SessionStore
 }
 
 func loadConfigFromEnv() (*Config, error) {
@@ -158,6 +163,10 @@ func loadConfigFromEnv() (*Config, error) {
 		RateLimitRequests:       getEnvInt("RATE_LIMIT_REQUESTS", defaultRateLimitRequests),
 		RateLimitGlobalRequests: getEnvInt("RATE_LIMIT_GLOBAL_REQUESTS", defaultRateLimitGlobalRequests),
 		RateLimitWindow:         defaultRateLimitWindow,
+		SessionStore:            strings.ToLower(getEnv("SESSION_STORE", "memory")),
+		DatabaseURL:             strings.TrimSpace(os.Getenv("DATABASE_URL")),
+		SessionMaxAge:           getEnvDuration("SESSION_MAX_AGE", defaultSessionMaxAge),
+		RTKeys:                  strings.TrimSpace(os.Getenv("RT_KEYS")),
 	}
 
 	if err := validateConfig(cfg); err != nil {
@@ -268,6 +277,58 @@ func validateConfig(cfg *Config) error {
 	}
 	if cfg.RateLimitGlobalRequests <= 0 {
 		cfg.RateLimitGlobalRequests = defaultRateLimitGlobalRequests
+	}
+	switch strings.ToLower(strings.TrimSpace(cfg.SessionStore)) {
+	case "", "memory":
+		cfg.SessionStore = "memory"
+	case "postgres":
+		cfg.SessionStore = "postgres"
+		// Empty DATABASE_URL means the libpq PG* environment (Nais Postgres).
+		if cfg.DatabaseURL != "" || os.Getenv("PGHOST") == "" && os.Getenv(os.Getenv("PG_ENV_PREFIX")+"PGHOST") == "" {
+			if err := validatePostgresURL(cfg.DatabaseURL); err != nil {
+				return fmt.Errorf("invalid DATABASE_URL: %w", err)
+			}
+		}
+		if strings.TrimSpace(cfg.RTKeys) == "" {
+			return errors.New("RT_KEYS is required when SESSION_STORE=postgres")
+		}
+	default:
+		return fmt.Errorf("invalid SESSION_STORE %q: expected memory or postgres", cfg.SessionStore)
+	}
+	if strings.TrimSpace(cfg.RTKeys) != "" {
+		if _, err := parseKeyRing(cfg.RTKeys); err != nil {
+			return fmt.Errorf("invalid RT_KEYS: %w", err)
+		}
+	}
+	if cfg.SessionMaxAge <= 0 {
+		cfg.SessionMaxAge = defaultSessionMaxAge
+	}
+	if cfg.PendingCap <= 0 {
+		cfg.PendingCap = defaultPendingCap
+	}
+	if cfg.CodeCap <= 0 {
+		cfg.CodeCap = defaultCodeCap
+	}
+	if cfg.SessionCap <= 0 {
+		cfg.SessionCap = defaultSessionCap
+	}
+	return nil
+}
+
+func validatePostgresURL(raw string) error {
+	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" {
+		return errors.New("empty URL")
+	}
+	u, err := url.Parse(trimmed)
+	if err != nil {
+		return err
+	}
+	if u.Scheme != "postgres" && u.Scheme != "postgresql" {
+		return fmt.Errorf("unsupported scheme %q", u.Scheme)
+	}
+	if u.Host == "" && u.Query().Get("host") == "" {
+		return errors.New("missing host")
 	}
 	return nil
 }
