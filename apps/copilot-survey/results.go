@@ -172,13 +172,53 @@ func (a *surveyAPI) publishedResults(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "unknown survey")
 		return
 	}
-	writeJSON(w, aggregateTally(a.surveys[i], t, now))
+	res := aggregateTally(a.surveys[i], t, now)
+	res.Channels = mergeSmallChannels(res.Channels)
+	writeJSON(w, res)
+}
+
+// mergeSmallChannels folds every channel under minSegment into «annet», the
+// export's rule for one context value. Admin /results keeps them apart.
+func mergeSmallChannels(channels map[string]int) map[string]int {
+	if channels == nil {
+		return nil
+	}
+	out := map[string]int{}
+	for c, n := range channels {
+		if n < minSegment {
+			c = merged
+		}
+		out[c] += n
+	}
+	return out
+}
+
+// hideSmallExcluded hides a wave's counts for a question or item when the
+// comparison rule dropped 1 to minSegment-1 of its answers: published
+// /results counts them all, so the difference would show that small group.
+// The item's test goes too.
+func hideSmallExcluded(res *compareResult) {
+	hide := func(sig *significance, ws []waveCounts) {
+		for i := range ws {
+			if ws[i].Excluded > 0 && ws[i].Excluded < minSegment {
+				ws[i], *sig = waveCounts{Versions: []waveStat{}, Hidden: true}, significance{}
+			}
+		}
+	}
+	for qi := range res.Questions {
+		q := &res.Questions[qi]
+		hide(&q.significance, q.Waves)
+		for ii := range q.Items {
+			hide(&q.Items[ii].significance, q.Items[ii].Waves)
+		}
+	}
 }
 
 // publishedCompare compares the last four closed, published waves of a
 // series that have at least minSegment rows, oldest first (#2229). Channels
-// are left out. An unknown series, or fewer than two such waves, is 404.
-// Like compare it reads rows, so a wave whose rows are deleted drops out.
+// are left out, and so are counts a small group could be told apart by
+// (hideSmallExcluded). An unknown series, or fewer than two such waves, is
+// 404. Like compare it reads rows, so a wave whose rows are deleted drops out.
 func (a *surveyAPI) publishedCompare(w http.ResponseWriter, r *http.Request) {
 	now, series := a.now(), r.URL.Query().Get("series")
 	candidates := slices.Clone(a.surveys)
@@ -209,6 +249,7 @@ func (a *surveyAPI) publishedCompare(w http.ResponseWriter, r *http.Request) {
 	for i := range res.Surveys {
 		res.Surveys[i].Channels = nil
 	}
+	hideSmallExcluded(&res)
 	if r.URL.Query().Get("format") == "csv" {
 		w.Header().Set("Content-Type", "text/csv; charset=utf-8")
 		w.Header().Set("Content-Disposition", `attachment; filename="sammenligning-`+series+`.csv"`)

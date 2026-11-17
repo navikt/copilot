@@ -16,7 +16,9 @@ import (
 //
 // mean and agree are on every option row of their version, unrounded; the
 // item's first-to-last test (significance) on every answer row of the item. A
-// wave with nothing counted has one answer row with only excluded.
+// wave with nothing counted has one answer row with only excluded; in the
+// published comparison excluded is «<5» there when the wave is hidden
+// (hideSmallExcluded).
 // Free text is never in a comparison.
 func writeCompareCSV(w io.Writer, res compareResult) error {
 	if _, err := w.Write([]byte("\xef\xbb\xbf")); err != nil {
@@ -34,7 +36,11 @@ func writeCompareCSV(w io.Writer, res compareResult) error {
 		test := []string{floatCell(sig.P), floatCell(sig.PHolm)}
 		for i, wc := range ws {
 			if len(wc.Versions) == 0 { // nothing counted, but excluded must survive
-				_ = cw.Write(append([]string{"answer", res.Surveys[i].ID, qid, iid, "", strconv.FormatBool(br), "", "", "", strconv.Itoa(wc.Excluded), "", ""}, test...))
+				excluded := strconv.Itoa(wc.Excluded)
+				if wc.Hidden {
+					excluded = "<" + strconv.Itoa(minSegment)
+				}
+				_ = cw.Write(append([]string{"answer", res.Surveys[i].ID, qid, iid, "", strconv.FormatBool(br), "", "", "", excluded, "", ""}, test...))
 			}
 			for _, v := range wc.Versions {
 				if len(v.Options) == 0 { // e.g. only empty multi answers: keep n

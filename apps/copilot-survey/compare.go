@@ -32,6 +32,9 @@ type waveStat struct {
 type waveCounts struct {
 	Excluded int        `json:"excluded"`
 	Versions []waveStat `json:"versions"`
+	// Hidden: the published comparison left this wave out (see
+	// hideSmallExcluded); Excluded and Versions are empty.
+	Hidden bool `json:"hidden,omitempty"`
 }
 
 type compareItem struct {
@@ -176,32 +179,39 @@ func compareWavesResult(waves []survey, rows [][]storedAnswer, now time.Time) co
 }
 
 // asked finds the question or matrix item id in s as asked there: its
-// version and scale maximum.
-func asked(s survey, id string) (version, top int, ok bool) {
+// version, scale maximum and type (scale for a matrix item).
+func asked(s survey, id string) (version, top int, typ string, ok bool) {
 	for _, q := range s.Questions {
 		if q.ID == id {
-			return q.Version, q.Max, true
+			return q.Version, q.Max, q.Type, true
 		}
 		for _, it := range q.Items {
 			if it.ID == id {
-				return it.Version, q.Max, true
+				return it.Version, q.Max, "scale", true
 			}
 		}
 	}
-	return 0, 0, false
+	return 0, 0, "", false
 }
 
 // compareWaves counts q in every wave after the skip rule, and reports a
 // break when the waves did not all ask, or answer, the same single version.
 // A wave's declared version counts even without answers; a wave that did
-// not ask the question at all does not break the series.
+// not ask the question at all does not break the series. A wave that asked
+// the id as another type (free text, say) has no counts and breaks it.
 func compareWaves(q question, waves []survey, rows [][]storedAnswer) ([]waveCounts, bool) {
 	out := make([]waveCounts, len(rows))
 	seen := map[int]bool{}
+	broken := false
 	for i, rs := range rows {
 		top := q.Max
-		if v, m, ok := asked(waves[i], q.ID); ok {
+		v, m, typ, ok := asked(waves[i], q.ID)
+		if ok {
 			seen[v], top = true, m
+		}
+		if ok && typ != q.Type {
+			out[i].Versions, broken = []waveStat{}, true
+			continue
 		}
 		kept := slices.DeleteFunc(slices.Clone(rs), func(row storedAnswer) bool {
 			v, ok := row.Answers[q.ID]
@@ -218,7 +228,7 @@ func compareWaves(q question, waves []survey, rows [][]storedAnswer) ([]waveCoun
 			seen[vr.Version] = true
 		}
 	}
-	return out, len(seen) > 1
+	return out, broken || len(seen) > 1
 }
 
 // scaleStats is the mean and the share at top or top-1.

@@ -52,8 +52,18 @@ func TestPublishedCompare(t *testing.T) {
 			t.Errorf("channels published: %+v", s)
 		}
 	}
-	if s := got.Questions[1].Items[0].Waves[0]; s.Excluded != 2 || *s.Versions[0].N != 4 {
-		t.Errorf("not the comparison rule: %+v", s)
+	// Spring "fast": excluded 2, n 4. /results counts all 6, so the 2 would
+	// show as the difference: the wave and the test are hidden. Admin shows
+	// them (TestCompare).
+	fast := got.Questions[1].Items[0]
+	if s := fast.Waves[0]; !s.Hidden || s.Excluded != 0 || len(s.Versions) != 0 || fast.P != nil || fast.PHolm != nil {
+		t.Errorf("small excluded group shown: %+v %+v", s, fast.significance)
+	}
+	if a := fast.Waves[1]; a.Hidden || *a.Versions[0].N != 5 {
+		t.Errorf("autumn hidden: %+v", a)
+	}
+	if s := got.Questions[0].Waves[0]; s.Hidden || *s.Versions[0].N != 6 { // tools: nothing excluded
+		t.Errorf("tools hidden: %+v", s)
 	}
 
 	// At most the last four, oldest first.
@@ -70,7 +80,7 @@ func TestPublishedCompare(t *testing.T) {
 
 	rec := do(h, "GET", path+"dev&format=csv", webToken, "")
 	if rec.Code != 200 || !strings.Contains(rec.Header().Get("Content-Disposition"), "sammenligning-dev.csv") ||
-		strings.Contains(rec.Body.String(), "\nchannel,") || !strings.Contains(rec.Body.String(), "\nanswer,autumn,") {
+		strings.Contains(rec.Body.String(), "\nchannel,") || !strings.Contains(rec.Body.String(), "\nanswer,spring,grid,fast,,false,,,,<5,") || !strings.Contains(rec.Body.String(), "\nanswer,autumn,") {
 		t.Errorf("csv %d %v %s", rec.Code, rec.Header(), rec.Body)
 	}
 
@@ -80,5 +90,12 @@ func TestPublishedCompare(t *testing.T) {
 		if rec := do(h, "GET", path+q, webToken, ""); rec.Code != 404 {
 			t.Errorf("series=%q: %d, want 404", q, rec.Code)
 		}
+	}
+}
+
+func TestMergeSmallChannels(t *testing.T) {
+	got := mergeSmallChannels(map[string]int{"web": 5, "copilot": 2, "opencode": 1})
+	if len(got) != 2 || got["web"] != 5 || got["annet"] != 3 {
+		t.Errorf("got %v", got)
 	}
 }

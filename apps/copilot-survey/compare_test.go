@@ -173,3 +173,18 @@ func TestCompareStore(t *testing.T) {
 	}
 	checkCompare(t, getCompare(t, api, "spring,autumn"))
 }
+
+// An id asked as free text in an earlier wave is not counted as the later
+// wave's question: those answers are someone's text, not options.
+func TestCompareTypeChange(t *testing.T) {
+	data := waveRows()
+	for i := range data["spring"] {
+		data["spring"][i].Answers["tools"] = "a"
+	}
+	api := compareAPI(t, func(_ context.Context, id string) ([]storedAnswer, error) { return data[id], nil })
+	api.surveys[0].Questions[0].Type, api.surveys[0].Questions[0].Options = "text", nil
+	tools := getCompare(t, api, "spring,autumn").Questions[0]
+	if !tools.Break || len(tools.Waves[0].Versions) != 0 || *tools.Waves[1].Versions[0].N != 5 {
+		t.Errorf("free text counted: %+v", tools)
+	}
+}
