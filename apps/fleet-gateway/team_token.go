@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strings"
 	"time"
 
@@ -257,5 +258,16 @@ func mapUpstreamTokenFailure(body []byte, app string, status int) error {
 	if bytes.Contains(body, []byte("AADSTS65001")) {
 		return &upstreamAccessMissingError{App: app}
 	}
-	return &upstreamTokenError{reason: fmt.Sprintf("upstream token endpoint returned status %d", status)}
+	// Log-safe diagnostics only: the OAuth error code and the AADSTS number.
+	code := errPayload.Error
+	if !safeErrorCode.MatchString(code) {
+		code = ""
+	}
+	aadsts := aadstsCode.FindString(errPayload.ErrorDescription)
+	return &upstreamTokenError{reason: fmt.Sprintf("upstream token endpoint returned status %d error=%q %s", status, code, aadsts)}
 }
+
+var (
+	aadstsCode    = regexp.MustCompile(`AADSTS\d{4,6}`)
+	safeErrorCode = regexp.MustCompile(`^[a-z_]{1,40}$`)
+)

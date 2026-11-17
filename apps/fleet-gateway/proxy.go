@@ -187,6 +187,7 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 				return
 			}
 			outcome = "upstream_token_error"
+			slog.Warn("team token failed", "route", route.Route, "reason", err.Error())
 			writeJSON(w, http.StatusBadGateway, map[string]string{
 				"error":   "upstream_token_error",
 				"message": "failed to acquire upstream team token",
