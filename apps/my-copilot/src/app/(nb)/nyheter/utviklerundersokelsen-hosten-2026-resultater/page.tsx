@@ -19,8 +19,8 @@ const statements: { text: string; n: string; spring: string; autumn: string; not
     spring: "3,52",
     autumn: "3,87",
   },
-  { text: "KI hjelper meg videre når jeg står fast", n: "KI-brukere", spring: "–", autumn: "4,05" },
-  { text: "KI gjør at oppgaver krever mindre mental innsats", n: "KI-brukere", spring: "–", autumn: "3,84" },
+  { text: "KI hjelper meg videre når jeg står fast", n: "KI-brukere", spring: "4,05", autumn: "4,05" },
+  { text: "KI reduserer mental innsats på repetitive oppgaver", n: "KI-brukere", spring: "3,94", autumn: "3,84" },
   {
     text: "KI-generert kode holder god nok kvalitet til at den ikke gir ekstra arbeid i review",
     n: "KI-brukere",
@@ -241,7 +241,7 @@ export default function SurveyAutumnArticlePage() {
               </BodyLong>
 
               <Table size="small">
-                <caption>Én ting å endre, høsten 2026</caption>
+                <caption>Én ting å endre, høsten 2026 (andel av alle 211 som svarte)</caption>
                 <Table.Header>
                   <Table.Row>
                     <Table.HeaderCell scope="col">Ønske</Table.HeaderCell>
