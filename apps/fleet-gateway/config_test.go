@@ -231,8 +231,14 @@ routes:
     team: copilot
     target: dev-gcp:copilot:docs-mcp
     upstream_url: https://docs-mcp.intern.dev.nav.no
-    required_group: 11111111-2222-3333-4444-555555555555
 `,
+		},
+		{
+			// Removed for the pilot (owner decision 2026-11-17): a file that still
+			// sets it must fail, not silently drop the restriction.
+			name:      "required_group is rejected",
+			content:   "version: 1\nroutes:\n  - route: /mcp/a\n    team: t\n    target: c:n:a\n    upstream_url: http://a.n\n    required_group: g\n",
+			wantError: "required_group",
 		},
 		{
 			name:      "valid JSON format succeeds",

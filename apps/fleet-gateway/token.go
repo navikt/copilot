@@ -38,13 +38,6 @@ type gatewaySession struct {
 	Expiry       time.Time `json:"expiry"`
 }
 
-func (s *gatewaySession) hasGroup(group string) bool {
-	if s == nil || len(s.Groups) == 0 {
-		return false
-	}
-	return slices.Contains(s.Groups, group)
-}
-
 type issuedCode struct {
 	ClientID    string         `json:"client_id"`
 	RedirectURI string         `json:"redirect_uri"`

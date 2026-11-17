@@ -25,12 +25,11 @@ type PilotRoutesConfig struct {
 
 // PilotRoute defines one allowed MCP route and its upstream target.
 type PilotRoute struct {
-	Route         string `yaml:"route" json:"route"`
-	Team          string `yaml:"team" json:"team"`
-	Target        string `yaml:"target" json:"target"`
-	UpstreamURL   string `yaml:"upstream_url" json:"upstream_url"`
-	RequiredGroup string `yaml:"required_group,omitempty" json:"required_group,omitempty"`
-	Enabled       *bool  `yaml:"enabled,omitempty" json:"enabled,omitempty"`
+	Route       string `yaml:"route" json:"route"`
+	Team        string `yaml:"team" json:"team"`
+	Target      string `yaml:"target" json:"target"`
+	UpstreamURL string `yaml:"upstream_url" json:"upstream_url"`
+	Enabled     *bool  `yaml:"enabled,omitempty" json:"enabled,omitempty"`
 
 	Cluster     string   `yaml:"-" json:"-"`
 	Namespace   string   `yaml:"-" json:"-"`
@@ -89,7 +88,6 @@ func validatePilotRoutes(routes []PilotRoute) ([]PilotRoute, error) {
 		r.Team = strings.TrimSpace(r.Team)
 		r.Target = strings.TrimSpace(r.Target)
 		r.UpstreamURL = strings.TrimSpace(r.UpstreamURL)
-		r.RequiredGroup = strings.TrimSpace(r.RequiredGroup)
 
 		if err := validatePilotRoutePath(r.Route); err != nil {
 			return nil, fmt.Errorf("route[%d] invalid route %q: %w", i, r.Route, err)
@@ -116,10 +114,6 @@ func validatePilotRoutes(routes []PilotRoute) ([]PilotRoute, error) {
 			return nil, fmt.Errorf("route %q: invalid upstream_url %q: %w", r.Route, r.UpstreamURL, err)
 		}
 		r.ParsedURL = parsed
-
-		if strings.ContainsAny(r.RequiredGroup, " \t\r\n") {
-			return nil, fmt.Errorf("route %q: required_group must not contain whitespace", r.Route)
-		}
 
 		out[i] = r
 	}

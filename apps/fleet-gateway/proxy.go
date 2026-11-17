@@ -155,15 +155,6 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 			return
 		}
 
-		if route.RequiredGroup != "" && !sess.hasGroup(route.RequiredGroup) {
-			outcome = "forbidden_group"
-			writeJSON(w, http.StatusForbidden, map[string]string{
-				"error":   "insufficient_scope",
-				"message": "missing required group membership",
-			})
-			return
-		}
-
 		if len(r.Header.Values("Mcp-Session-Id")) > 1 {
 			outcome = "bad_request"
 			writeJSON(w, http.StatusBadRequest, map[string]string{
