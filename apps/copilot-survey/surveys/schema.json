@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://raw.githubusercontent.com/navikt/copilot/main/apps/copilot-survey/surveys/schema.json",
-  "schema_version": 8,
+  "schema_version": 9,
   "title": "copilot-survey survey definition",
   "description": "One survey, as a file in apps/copilot-survey/surveys/ and as an item of GET /api/v1/surveys/active. schema_version goes up on every change to the format. New fields are optional, so a client built against an older version keeps working: it ignores fields it does not know, and skips a survey with a question type it does not know. copilot-survey also checks what a schema cannot express (unique question ids, skip_if pointing at an earlier question, starts <= ends, at most one text question); see surveys/README.md.",
   "type": "object",
