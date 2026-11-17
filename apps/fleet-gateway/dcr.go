@@ -58,7 +58,7 @@ func (g *Gateway) registerHandler(w http.ResponseWriter, r *http.Request) {
 
 	var req dcrRequest
 	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxDCRBodyBytes))
-	if err := dec.Decode(&req); err != nil {
+	if err = dec.Decode(&req); err != nil {
 		fail(http.StatusBadRequest, "invalid_client_metadata", "body must be a JSON object")
 		return
 	}
