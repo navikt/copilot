@@ -179,6 +179,24 @@ analysis and are never quoted next to their segment values. A survey keeps to
 one `text` question and at most three `other` options, each capped at 200
 characters: they say what the listed options missed, not how someone feels.
 
+### Codebooks (#2239, design only)
+
+Free text is coded with a codebook per series, [`codebooks/<series>.json`](codebooks/)
+([schema](codebooks/schema.json), checked by `TestCodebooksMatchSchema`). Each
+field codes with its own subset of one category pool. A code is a category
+plus `onske` (a wish, or an experience), so wishes and experiences are counted
+apart. The version is locked before coding; waves compare only when coded with
+the same version, so q2-2026 and q4-2026 are coded with the same one.
+
+- Coders: a model through Copilot on masked text, and one person, the survey
+  owner. The person belongs to the team that builds the tools, so the human
+  coder is not neutral; kappa is published with that role named.
+- A category is published for a wave only when Cohen's kappa between the two
+  coders is at least 0.6. Below that it is merged into a related category of
+  the same field (if the merged category reaches 0.6), otherwise hidden. Counts
+  under 5 show as «<5». No quotes.
+- Examples in a codebook are synthetic, never a quote from an answer.
+
 ## End-to-end test in dev
 
 `dev-e2e-test.json` is a dummy that ships inactive. In dev-gcp only,

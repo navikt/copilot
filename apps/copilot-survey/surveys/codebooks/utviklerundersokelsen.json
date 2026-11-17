@@ -7,7 +7,7 @@
     "Gi 1 til max_codes koder per svar (kategori og onske teller som én kode). Passer flere, velg de som fyller mest av svaret. annet brukes alltid alene.",
     "store-loft og raskere utelukker hverandre. Skillet er hva som ellers ville skjedd: sier svaret at arbeidet ellers ikke ville blitt gjort, var for stort eller aldri ble prioritert, er det store-loft; ellers, når poenget er at noe gikk fortere enn for hånd, er det raskere. Migrering, modernisering, arvtaker og samme endring i mange apper er store-loft også når svaret ikke sier det (konvensjon: slikt arbeid er program over tid, ikke en enkeltoppgave).",
     "Hver kategori har én retning, nytte eller problem. Et svar med både positivt og negativt får en kode for hver. Å avkrefte et problem («jeg har ikke mistet noe») kodes ikke som problemet.",
-    "En kategori krever at svaret sier noe om temaet, ikke bare nevner et ord. Kod ikke det du tror respondenten mener.",
+    "En kategori krever at svaret sier noe om temaet, ikke bare nevner et ord. Kod ikke det du tror respondenten mener. Et kort svar på ett eller to ord kodes når det tilsvarer et punkt i «ta med» (som «analyse» eller «utforske»), ellers annet.",
     "I tvil mellom to kategorier: følg «hold utenfor», som sier hvor tilfellet hører hjemme.",
     "Hvert felt koder bare med sitt eget kategorisett (fields[].categories). Peker «hold utenfor» på en kategori som ikke er i feltets sett, brukes annet.",
     "onske per felt: kodes betyr at koderen avgjør det per kode; alltid og aldri betyr at det er gitt av spørsmålet (en-endring spør etter en endring, verktoy og verdi etter bruk)."
@@ -81,6 +81,7 @@
       "id": "store-loft",
       "name": "Store løft som ellers ikke ble gjort",
       "kind": "nytte",
+      "merge_with": "raskere",
       "definition": "KI gjør det mulig å ta arbeid som ellers ikke ville blitt gjort: det var for stort, for kjedelig eller ble aldri prioritert. Ofte et program over tid, som migrering, modernisering, en arvtaker til en gammel tjeneste, nedbetaling av teknisk gjeld, samme endring i mange apper eller dokumentasjon som var ansett som for stor.",
       "include": [
         "Svaret sier at arbeidet ellers ikke ville blitt gjort, prioritert eller tatt på seg.",
@@ -104,6 +105,7 @@
       "id": "raskere",
       "name": "Raskere enn for hånd",
       "kind": "nytte",
+      "merge_with": "store-loft",
       "definition": "KI gjør arbeid som ville blitt gjort uansett, men raskere: ny kode, en funksjon, et verktøy eller en prototyp, ofte på første forsøk, en avgrenset refaktorering, kodefullføring, eller å komme i gang i et språk eller rammeverk respondenten ikke kan fra før.",
       "include": [
         "Ny funksjon, komponent, app eller prototyp som virket nesten med en gang.",
@@ -126,6 +128,7 @@
       "id": "finne-feil",
       "name": "Finne feil og sårbarheter",
       "kind": "nytte",
+      "merge_with": "forsta-og-dokumentere",
       "definition": "KI finner årsaken til en kjent feil, eller oppdager feil, sårbarheter og svakheter som ingen hadde sett: feilsøking, funn i kodegjennomgang, sikkerhetsfunn og svakheter i en plan.",
       "include": [
         "Rotårsak funnet i logger, sporinger, metrikker eller kode, også på tvers av repoer.",
@@ -148,6 +151,7 @@
       "id": "forsta-og-dokumentere",
       "name": "Forstå og dokumentere",
       "kind": "nytte",
+      "merge_with": "finne-feil",
       "definition": "KI hjelper med å forstå, kartlegge eller dokumentere noe som finnes: kode, systemer, arkitektur, data og dokumenter. Gjelder også ikke-kodende oppgaver som å analysere regneark eller sammenstille dokumenter.",
       "include": [
         "Forklaring av ukjent kode eller hvordan en funksjon virker.",
@@ -191,6 +195,7 @@
       "id": "kompetansetap",
       "name": "Egen forståelse, læring og eierskap",
       "kind": "problem",
+      "merge_with": "belastning-team",
       "definition": "Respondenten opplever at KI svekker egen forståelse, læring, ferdigheter eller eierskap til koden: blir rusten eller lat, mister oversikt, kan ikke forklare koden, tenker mindre selv.",
       "include": [
         "Forstår ikke koden KI-en laget, eller kan ikke forklare valg i egen PR.",
@@ -212,6 +217,7 @@
       "id": "belastning-team",
       "name": "Belastning på kolleger og team",
       "kind": "problem",
+      "merge_with": "kompetansetap",
       "definition": "KI-bruk hos andre skaper ekstra arbeid eller risiko for teamet: store eller uforståelige PR-er, kolleger som ikke forstår eller kan forklare sin egen kode, kodegjennomgang som flaskehals, mindre faglig diskusjon og uklare krav til hvem som kan bidra med kode.",
       "include": [
         "Flere, større eller vanskeligere PR-er å gå gjennom.",
@@ -232,6 +238,7 @@
       "id": "skrasikker",
       "name": "Feil som presenteres som riktig",
       "kind": "problem",
+      "merge_with": "medgjorlig",
       "definition": "KI tar feil eller lykkes ikke, ofte med stor sikkerhet: hallusinasjoner, gjetting, kode som ser riktig ut men ikke er det, falske funn og svært ujevn kvalitet. Kjernen er at feilen kommer fra KI-en.",
       "include": [
         "Hallusinasjoner og feilinformasjon.",
@@ -255,6 +262,7 @@
       "id": "medgjorlig",
       "name": "For enig med brukeren",
       "kind": "problem",
+      "merge_with": "skrasikker",
       "definition": "KI er for medgjørlig: går med på brukerens feil valg, utfordrer ikke antagelser og gir etter for innvendinger uten å vurdere dem. Kjernen er at feilen eller retningen kommer fra brukeren.",
       "include": [
         "Hjelper villig med en feil teknologi, metode eller retning.",
@@ -297,6 +305,7 @@
       "id": "friksjon",
       "name": "Oppsett, tilgang og verktøy som ikke virker",
       "kind": "problem",
+      "merge_with": "informasjon",
       "definition": "Tid og frustrasjon går med til å få verktøyene til å virke eller til å få tilgang: oppsett og konfigurasjon, sandkasse og rettigheter, lisenser, manglende tilgang til data, modeller eller verktøy, og integrasjoner som er til bry.",
       "include": [
         "Lokalt oppsett, konfigurasjon eller kjøring som ikke virker.",
@@ -318,6 +327,7 @@
       "id": "informasjon",
       "name": "Informasjon, opplæring og retningslinjer",
       "kind": "problem",
+      "merge_with": "friksjon",
       "definition": "Respondenten opplever for mye, for lite eller uklar informasjon om KI-verktøyene: overveldende innhold, mangel på opplæring, uklart hva som er lov eller trygt, dokumentasjon som er vanskelig å forstå, eller å føle seg utenfor.",
       "include": [
         "For mye informasjon, nyheter eller tips, vanskelig å vite hva som er viktig.",
@@ -431,6 +441,7 @@
       "id": "copilot-annen-flate",
       "name": "GitHub Copilot på en flate som ikke står i listen",
       "kind": "noytral",
+      "merge_with": "andre-kodeverktoy",
       "definition": "GitHub Copilot brukt i en flate listen ikke nevner: Copilot-appen eller desktop, andre editorer, nav-pilot.",
       "include": [
         "Copilot-appen eller Copilot Desktop.",
@@ -450,6 +461,7 @@
       "id": "andre-kodeverktoy",
       "name": "Kodeverktøy fra andre enn GitHub",
       "kind": "noytral",
+      "merge_with": "copilot-annen-flate",
       "definition": "Kodeagenter, harnesser og editorer fra andre enn GitHub, også når de brukes privat.",
       "include": [
         "Kodeagenter og CLI-er som Codex, Gemini CLI eller Claude Code.",

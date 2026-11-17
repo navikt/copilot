@@ -13,7 +13,7 @@ import (
 
 // TestCodebooksMatchSchema checks every free-text codebook in
 // surveys/codebooks/ (#2239) against its schema, and what the schema cannot
-// say: unique category ids, one catch-all per field, every category in use,
+// say: unique category ids, one catch-all per field, every category in use, mutual merge_with pairs,
 // and fields that exist in the series.
 func TestCodebooksMatchSchema(t *testing.T) {
 	raw, err := fs.ReadFile(surveyFiles, "surveys/codebooks/schema.json")
@@ -58,7 +58,10 @@ func TestCodebooksMatchSchema(t *testing.T) {
 				ID         string
 				Categories []string
 			}
-			Categories []struct{ ID, Kind string }
+			Categories []struct {
+				ID, Kind  string
+				MergeWith string `json:"merge_with"`
+			}
 		}
 		if err := json.Unmarshal(raw, &cb); err != nil {
 			t.Fatal(err)
@@ -89,6 +92,15 @@ func TestCodebooksMatchSchema(t *testing.T) {
 			}
 			if catchAll != 1 {
 				t.Errorf("%s: field %s: %d categories of kind annet, want 1", name, f.ID, catchAll)
+			}
+		}
+		partner := map[string]string{}
+		for _, cat := range cb.Categories {
+			partner[cat.ID] = cat.MergeWith
+		}
+		for id, p := range partner {
+			if p != "" && (p == id || partner[p] != id) {
+				t.Errorf("%s: category %s: merge_with %s is not a mutual pair", name, id, p)
 			}
 		}
 		for id := range kind {
