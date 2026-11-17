@@ -73,7 +73,7 @@ func newPostgresStore(ctx context.Context, databaseURL string, now func() time.T
 		return nil, err
 	}
 	s := &pgxStore{pool: migPool, caps: copiedCaps, now: now}
-	if err := s.migrate(ctx); err != nil {
+	if err = s.migrate(ctx); err != nil {
 		migPool.Close()
 		return nil, fmt.Errorf("run postgres migrations: %w", err)
 	}
@@ -87,7 +87,7 @@ func newPostgresStore(ctx context.Context, databaseURL string, now func() time.T
 	}
 	s.pool = rtPool
 	// Fail at startup, not on first login, if the runtime role cannot use the tables.
-	if _, err := rtPool.Exec(ctx, `SELECT 1 FROM items LIMIT 1`); err != nil {
+	if _, err = rtPool.Exec(ctx, `SELECT 1 FROM items LIMIT 1`); err != nil {
 		rtPool.Close()
 		return nil, fmt.Errorf("runtime role cannot read items: %w", err)
 	}
