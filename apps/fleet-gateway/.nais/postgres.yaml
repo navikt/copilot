@@ -1,0 +1,6 @@
+# Apply with: nais apply -t copilot -e dev-gcp .nais/postgres.yaml (dev already provisioned).
+version: v1
+type: Postgres
+name: fleet-gateway
+spec:
+  majorVersion: "18"

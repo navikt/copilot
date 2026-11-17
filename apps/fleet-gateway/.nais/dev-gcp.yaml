@@ -17,3 +17,8 @@ ingresses:
 reply_urls:
   - https://fleet-gateway.intern.dev.nav.no/oauth2/callback
 cimd_host: fleet-gw-0b.intern.dev.nav.no
+postgres: fleet-gateway
+session_store: postgres
+session_max_age: 12h
+rt_storage: client-encrypted
+team_token_strategy: obo
