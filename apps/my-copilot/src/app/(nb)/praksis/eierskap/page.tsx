@@ -40,7 +40,8 @@ export default function EierskapPage() {
                 </ListItem>
                 <ListItem>
                   <strong>Sikre med tester:</strong> boilerplate, konfigurasjon, testdata og refaktorering med kjent
-                  mål. Testene må sjekke oppførselen, ikke bare at koden kjører.
+                  mål. Testene må sjekke oppførselen, ikke bare at koden kjører. Konfigurasjon som berører nettverk,
+                  hemmeligheter, MCP-servere, produksjon eller persondata, har høy risiko og må forstås fullt ut.
                 </ListItem>
               </List>
             </VStack>
