@@ -1,0 +1,102 @@
+package main
+
+import (
+	"bytes"
+	"encoding/json"
+	"io/fs"
+	"path"
+	"strings"
+	"testing"
+
+	"github.com/santhosh-tekuri/jsonschema/v6"
+)
+
+// TestCodebooksMatchSchema checks every free-text codebook in
+// surveys/codebooks/ (#2239) against its schema, and what the schema cannot
+// say: unique category ids, one catch-all, and fields that exist in the series.
+func TestCodebooksMatchSchema(t *testing.T) {
+	raw, err := fs.ReadFile(surveyFiles, "surveys/codebooks/schema.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	doc, err := jsonschema.UnmarshalJSON(bytes.NewReader(raw))
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := jsonschema.NewCompiler()
+	if err = c.AddResource("codebook.json", doc); err != nil {
+		t.Fatal(err)
+	}
+	s, err := c.Compile("codebook.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defs, err := loadSurveyDir(surveyFiles)
+	if err != nil {
+		t.Fatal(err)
+	}
+	names, _ := fs.Glob(surveyFiles, "surveys/codebooks/*.json")
+	n := 0
+	for _, name := range names {
+		if path.Base(name) == "schema.json" {
+			continue
+		}
+		n++
+		raw, _ := fs.ReadFile(surveyFiles, name)
+		inst, err := jsonschema.UnmarshalJSON(bytes.NewReader(raw))
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		if err := s.Validate(inst); err != nil {
+			t.Errorf("%s: %v", name, err)
+			continue
+		}
+		var cb struct {
+			Series     string
+			Fields     []string
+			Categories []struct{ ID, Kind string }
+		}
+		if err := json.Unmarshal(raw, &cb); err != nil {
+			t.Fatal(err)
+		}
+		if path.Base(name) != cb.Series+".json" {
+			t.Errorf("%s: must be named after the series, %s.json", name, cb.Series)
+		}
+		ids, catchAll := map[string]bool{}, 0
+		for _, cat := range cb.Categories {
+			if ids[cat.ID] {
+				t.Errorf("%s: category %s twice", name, cat.ID)
+			}
+			ids[cat.ID] = true
+			if cat.Kind == "annet" {
+				catchAll++
+			}
+		}
+		if catchAll != 1 {
+			t.Errorf("%s: %d categories of kind annet, want 1", name, catchAll)
+		}
+		for _, f := range cb.Fields {
+			if !seriesHasFreetext(defs, cb.Series, f) {
+				t.Errorf("%s: no survey in series %s has free-text field %s", name, cb.Series, f)
+			}
+		}
+	}
+	if n == 0 {
+		t.Fatal("no codebooks found")
+	}
+}
+
+func seriesHasFreetext(defs []survey, series, field string) bool {
+	id, other := strings.CutSuffix(field, ".other")
+	for _, d := range defs {
+		if d.Series != series {
+			continue
+		}
+		for _, q := range d.Questions {
+			if q.ID == id && (other && q.Other != "" || !other && q.Type == "text") {
+				return true
+			}
+		}
+	}
+	return false
+}
