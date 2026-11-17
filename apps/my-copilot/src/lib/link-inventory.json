@@ -3079,5 +3079,9 @@
       "sok": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/verktoy/fleet-gateway/page.tsx"],
       "status": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/verktoy/fleet-gateway/page.tsx"]
     }
+  },
+  "/nyheter/utviklerundersokelsen-hosten-2026-resultater": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/utviklerundersokelsen-hosten-2026-resultater/page.tsx"],
+    "anchors": {}
   }
 }
