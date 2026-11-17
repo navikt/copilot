@@ -189,7 +189,7 @@ export default function SurveyAutumnArticlePage() {
               </BodyLong>
 
               <Heading size="medium" level="2" spacing>
-                Flere bruker terminalen
+                Større andel bruker terminalen
               </Heading>
               <BodyLong spacing>
                 Andelen som bruker Copilot CLI og OpenCode har økt, mens færre oppgir Copilot i IntelliJ og VS Code.
@@ -230,8 +230,8 @@ export default function SurveyAutumnArticlePage() {
               </Quote>
 
               <Quote>
-                Å få rydde opp og øke kvaliteten på eksisterende kode har vært utrolig givende. Det hadde aldri blitt
-                prioritert i dette omfanget uten KI.
+                Å få rydde opp og øke kvaliteten på eksisterende kode har vært utrolig givende. Det hadde nok aldri
+                blitt prioritert i dette omfanget uten KI.
               </Quote>
 
               <Heading size="medium" level="2" spacing>
@@ -267,9 +267,9 @@ export default function SurveyAutumnArticlePage() {
                 <li>
                   <BodyLong>
                     <strong>Opplæring og veiledning:</strong> nye guider for{" "}
-                    <NextLink href="/nav-pilot/guider/kom-i-gang">å komme i gang</NextLink>, for
-                    <NextLink href="/nav-pilot/guider/cplt-flere-repoer">å jobbe i flere repoer</NextLink> og for
-                    <NextLink href="/nav-pilot/guider/mcp-gjennom-cplt">MCP-servere</NextLink>, og en forklaring av
+                    <NextLink href="/nav-pilot/guider/kom-i-gang">å komme i gang</NextLink>, for{" "}
+                    <NextLink href="/nav-pilot/guider/cplt-flere-repoer">å jobbe i flere repoer</NextLink> og for{" "}
+                    <NextLink href="/nav-pilot/guider/mcp-gjennom-cplt">MCP-servere</NextLink>, og en forklaring av{" "}
                     <NextLink href="/nav-pilot/forklaring/sandkassen">sandkassen</NextLink>.
                   </BodyLong>
                 </li>
@@ -281,20 +281,22 @@ export default function SurveyAutumnArticlePage() {
                 </li>
                 <li>
                   <BodyLong>
-                    <strong>Sikkerhet og personvern:</strong> de samme sandkassereglene gjelder nå for alle agenter, og
-                    nav-pilot spør før den bruker personopplysninger eller kjører et repos egne tillegg.
+                    <strong>Sikkerhet og personvern:</strong> de samme sandkassereglene gjelder nå for alle agenter.
+                    Nav-pilot-agenten skal stoppe og spørre før den legger inn nye felt med personopplysninger, og i
+                    OpenCode spør nav-pilot før et repos egne tillegg kjøres.
                   </BodyLong>
                 </li>
                 <li>
                   <BodyLong>
                     <strong>Kvalitet og egen forståelse:</strong> vi skrev om{" "}
-                    <NextLink href="/nyheter/kvalitet-foran-fart">kvalitet foran fart</NextLink>
-                    og om å bruke KI på vedlikehold.
+                    <NextLink href="/nyheter/kvalitet-foran-fart">kvalitet foran fart</NextLink> og om å bruke KI på
+                    vedlikehold.
                   </BodyLong>
                 </li>
                 <li>
                   <BodyLong>
-                    <strong>Innsikt i bruk og kostnad:</strong> du kan nå se bruk per klient og per verktøy.
+                    <strong>Innsikt i bruk og kostnad:</strong> <NextLink href="/innsikt/bruk">Innsikt i bruk</NextLink>{" "}
+                    viser nå bruk per klient (Copilot CLI, OpenCode, VS Code og andre) for hele Nav.
                   </BodyLong>
                 </li>
               </ul>
