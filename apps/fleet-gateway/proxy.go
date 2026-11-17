@@ -22,6 +22,7 @@ const (
 	maxMCPRequestBodyBytes  = 1 << 20  // 1 MiB
 	maxMCPResponseBodyBytes = 10 << 20 // 10 MiB for non-SSE responses
 	maxAuditMethodLen       = 64
+	maxMCPSessionIDBytes    = 256
 )
 
 var allowedUpstreamRequestHeaders = map[string]bool{
@@ -162,6 +163,44 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 			return
 		}
 
+		reqSessionID := r.Header.Get("Mcp-Session-Id")
+		reqSessionBound := false
+		if reqSessionID != "" {
+			if len(reqSessionID) > maxMCPSessionIDBytes {
+				outcome = "bad_request"
+				writeJSON(w, http.StatusBadRequest, map[string]string{
+					"error":   "invalid_request",
+					"message": "Mcp-Session-Id exceeds maximum allowed length",
+				})
+				return
+			}
+			owner, found, getErr := g.store.Get(r.Context(), kindMCPSession, route.Route+"\n"+reqSessionID)
+			if getErr != nil {
+				outcome = "store_error"
+				slog.Warn("mcp session lookup failed", "route", route.Route, "error", getErr)
+				writeJSON(w, http.StatusServiceUnavailable, map[string]string{
+					"error":   "temporarily_unavailable",
+					"message": "session store unavailable",
+				})
+				return
+			}
+			if found {
+				if string(owner) != sess.NAVIdent {
+					outcome = "mcp_session_mismatch"
+					slog.Warn("mcp session id belongs to another user",
+						"navident", sanitizeLogValue(navIdent),
+						"route", route.Route,
+					)
+					writeJSON(w, http.StatusForbidden, map[string]string{
+						"error":   "forbidden",
+						"message": "Mcp-Session-Id belongs to another user",
+					})
+					return
+				}
+				reqSessionBound = true
+			}
+		}
+
 		r.Body = http.MaxBytesReader(w, r.Body, maxMCPRequestBodyBytes)
 		reqBody, err := io.ReadAll(r.Body)
 		if err != nil {
@@ -250,6 +289,23 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 			return
 		}
 		defer func() { _ = resp.Body.Close() }()
+
+		mcpSessionTTL := g.cfg.SessionMaxAge
+		if mcpSessionTTL <= 0 {
+			mcpSessionTTL = defaultSessionMaxAge
+		}
+		bindMCPSession := func(id string) {
+			if putErr := g.store.Put(r.Context(), kindMCPSession, route.Route+"\n"+id, []byte(sess.NAVIdent), mcpSessionTTL); putErr != nil {
+				slog.Warn("mcp session bind failed", "route", route.Route, "error", putErr)
+			}
+		}
+		respSessionID := resp.Header.Get("Mcp-Session-Id")
+		if respSessionID != "" {
+			bindMCPSession(respSessionID)
+		}
+		if reqSessionID != "" && !reqSessionBound && reqSessionID != respSessionID {
+			bindMCPSession(reqSessionID)
+		}
 
 		if isEventStream(resp.Header.Get("Content-Type")) {
 			copyAllowlistedHeaders(w.Header(), resp.Header, allowedUpstreamResponseHeaders)

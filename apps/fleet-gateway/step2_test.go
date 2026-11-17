@@ -1201,3 +1201,73 @@ routes:
 		})
 	}
 }
+
+func TestProxy_MCPSessionIDBoundToUser(t *testing.T) {
+	te := newTestEnv(t)
+
+	var upstreamCalls atomic.Int32
+	te.upstreamServer.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		upstreamCalls.Add(1)
+		if r.Header.Get("Mcp-Session-Id") == "" {
+			w.Header().Set("Mcp-Session-Id", "mcp-sess-user-a")
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"jsonrpc": "2.0", "id": 1, "result": "ok"})
+	})
+
+	// User A obtains an Mcp-Session-Id from upstream.
+	te.mu.Lock()
+	te.navIdent = "A111111"
+	te.mu.Unlock()
+	tokA := te.obtainAccessTokenForResource(te.resource)
+
+	reqA1 := httptest.NewRequest(http.MethodPost, "/mcp/etterlevelse", strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"initialize"}`))
+	reqA1.Header.Set("Authorization", "Bearer "+tokA)
+	recA1 := httptest.NewRecorder()
+	te.handler.ServeHTTP(recA1, reqA1)
+	if recA1.Code != http.StatusOK {
+		t.Fatalf("expected 200 for user A initialize, got %d (%s)", recA1.Code, recA1.Body.String())
+	}
+	mcpSessID := recA1.Header().Get("Mcp-Session-Id")
+	if mcpSessID != "mcp-sess-user-a" {
+		t.Fatalf("expected Mcp-Session-Id=mcp-sess-user-a, got %q", mcpSessID)
+	}
+
+	// User B with a valid token for the same route sending user A's Mcp-Session-Id gets 403.
+	te.mu.Lock()
+	te.navIdent = "B222222"
+	te.mu.Unlock()
+	tokB := te.obtainAccessTokenForResource(te.resource)
+
+	callsBeforeB := upstreamCalls.Load()
+	reqB := httptest.NewRequest(http.MethodPost, "/mcp/etterlevelse", strings.NewReader(`{"jsonrpc":"2.0","id":2,"method":"tools/list"}`))
+	reqB.Header.Set("Authorization", "Bearer "+tokB)
+	reqB.Header.Set("Mcp-Session-Id", mcpSessID)
+	recB := httptest.NewRecorder()
+	te.handler.ServeHTTP(recB, reqB)
+	if recB.Code != http.StatusForbidden {
+		t.Fatalf("expected 403 for user B using user A's Mcp-Session-Id, got %d (%s)", recB.Code, recB.Body.String())
+	}
+	var errBody map[string]string
+	if err := json.Unmarshal(recB.Body.Bytes(), &errBody); err != nil {
+		t.Fatalf("decode 403 body: %v", err)
+	}
+	if errBody["error"] != "forbidden" {
+		t.Fatalf("expected error=forbidden, got %+v", errBody)
+	}
+	if upstreamCalls.Load() != callsBeforeB {
+		t.Fatalf("expected user B request to be rejected before upstream, got %d extra calls", upstreamCalls.Load()-callsBeforeB)
+	}
+
+	// User A still gets through with that Mcp-Session-Id.
+	reqA2 := httptest.NewRequest(http.MethodPost, "/mcp/etterlevelse", strings.NewReader(`{"jsonrpc":"2.0","id":3,"method":"tools/list"}`))
+	reqA2.Header.Set("Authorization", "Bearer "+tokA)
+	reqA2.Header.Set("Mcp-Session-Id", mcpSessID)
+	recA2 := httptest.NewRecorder()
+	te.handler.ServeHTTP(recA2, reqA2)
+	if recA2.Code != http.StatusOK {
+		t.Fatalf("expected 200 for user A reusing own Mcp-Session-Id, got %d (%s)", recA2.Code, recA2.Body.String())
+	}
+	if upstreamCalls.Load() != callsBeforeB+1 {
+		t.Fatalf("expected user A request to reach upstream, got %d calls", upstreamCalls.Load()-callsBeforeB)
+	}
+}

@@ -12,6 +12,7 @@ const (
 	kindPendingEntra   = "pending_entra"
 	kindCode           = "code"
 	kindSession        = "session"
+	kindMCPSession     = "mcp_session"
 )
 
 var errStoreFull = errors.New("store capacity reached")
