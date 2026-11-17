@@ -48,8 +48,6 @@ spec:
       value: "{{allowed_redirect_uris}}"
     - name: ALLOWED_RESOURCES
       value: "{{allowed_resources}}"
-    - name: ENTRA_SCOPE
-      value: "{{entra_scope}}"
     {{#if pilot_routes_file}}
     - name: PILOT_ROUTES_FILE
       value: "{{pilot_routes_file}}"
