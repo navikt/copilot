@@ -193,6 +193,9 @@ func runAnalyze(args []string, out io.Writer, now time.Time) error {
 		if !ok || i < 0 {
 			return fmt.Errorf("%q: want <survey-id>=<file.csv> with a known survey id", a)
 		}
+		if slices.ContainsFunc(waves, func(s survey) bool { return s.ID == id }) {
+			return fmt.Errorf("%q: survey %s given twice", a, id) // as /compare refuses it
+		}
 		f, err := os.Open(path) //nolint:gosec // G304: the path is the operator's own argument to a local command
 		if err != nil {
 			return err
