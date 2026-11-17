@@ -80,6 +80,10 @@ func (g *Gateway) authorizeHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "unknown client_id: client is not allowlisted or registered", http.StatusBadRequest)
 			return
 		}
+		if !slices.Contains(m.GrantTypes, "authorization_code") {
+			http.Error(w, "unauthorized_client: authorization_code grant not registered for client", http.StatusBadRequest)
+			return
+		}
 		meta, unverified = m, true
 	}
 

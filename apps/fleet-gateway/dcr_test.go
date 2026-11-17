@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -152,7 +153,7 @@ func TestDCR_UnknownOrExpiredClientRejected(t *testing.T) {
 	_, out = postRegister(te, opencodeRegistration(), "10.0.0.1")
 	clientID, _ = out["client_id"].(string)
 	te.gw.cfg.DCREnabled = false
-	if te.gw.clientKnown(t.Context(), clientID) {
+	if known, _, _ := te.gw.clientGrants(t.Context(), clientID); known {
 		t.Fatalf("registered client must be unknown with DCR disabled")
 	}
 }
@@ -169,6 +170,8 @@ func TestDCR_RejectsUnsafeMetadata(t *testing.T) {
 		"custom scheme":         {"redirect_uris": []string{"myapp://cb"}},
 		"client secret":         {"redirect_uris": []string{"http://127.0.0.1/cb"}, "token_endpoint_auth_method": "client_secret_post"},
 		"implicit grant":        {"redirect_uris": []string{"http://127.0.0.1/cb"}, "grant_types": []string{"implicit"}},
+		"refresh only":          {"redirect_uris": []string{"http://127.0.0.1/cb"}, "grant_types": []string{"refresh_token"}},
+		"code plus implicit":    {"redirect_uris": []string{"http://127.0.0.1/cb"}, "grant_types": []string{"authorization_code", "implicit"}},
 		"token response type":   {"redirect_uris": []string{"http://127.0.0.1/cb"}, "response_types": []string{"token"}},
 	}
 	for name, body := range cases {
@@ -239,15 +242,32 @@ func TestDCR_RefreshHonoursRegisteredGrantTypes(t *testing.T) {
 		id, _ := out["client_id"].(string)
 		return id
 	}
-	ctx := t.Context()
-	if !te.gw.clientMayRefresh(ctx, reg([]string{"authorization_code", "refresh_token"})) {
+	mayRefresh := func(id string) bool {
+		_, ok, err := te.gw.clientGrants(t.Context(), id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return ok
+	}
+	if !mayRefresh(reg([]string{"authorization_code", "refresh_token"})) {
 		t.Fatal("OpenCode-style registration must be allowed to refresh")
 	}
-	if te.gw.clientMayRefresh(ctx, reg([]string{"authorization_code"})) {
+	if mayRefresh(reg([]string{"authorization_code"})) {
 		t.Fatal("authorization_code-only client must not refresh")
 	}
-	if te.gw.clientMayRefresh(ctx, reg(nil)) {
+	if mayRefresh(reg(nil)) {
 		t.Fatal("omitted grant_types defaults to authorization_code only")
+	}
+
+	// The code grant hands out a gateway refresh token only to clients registered for it.
+	te.redirectURI = "http://127.0.0.1:19876/mcp/oauth/callback"
+	te.clientID = reg([]string{"authorization_code"})
+	if _, rt, _ := te.obtainTokensForResource(te.resource); rt != "" {
+		t.Fatal("authorization_code-only DCR client got a refresh token")
+	}
+	te.clientID = reg([]string{"authorization_code", "refresh_token"})
+	if _, rt, _ := te.obtainTokensForResource(te.resource); rt == "" {
+		t.Fatal("refresh-registered DCR client got no refresh token")
 	}
 
 	// End to end: the token endpoint refuses the grant before touching the token.
@@ -256,4 +276,47 @@ func TestDCR_RefreshHonoursRegisteredGrantTypes(t *testing.T) {
 	if code != http.StatusBadRequest || out["error"] != "unauthorized_client" {
 		t.Fatalf("got %d %v, want 400 unauthorized_client", code, out)
 	}
+}
+
+func TestDCR_AuthorizeRequiresRegisteredCodeGrant(t *testing.T) {
+	te := newTestEnv(t)
+	enableDCR(te, 10, 10)
+	// A registration stored before grant_types were enforced.
+	id := dcrClientIDPrefix + "legacy"
+	raw, _ := json.Marshal(clientMetadata{ClientID: id, RedirectURIs: []string{"http://127.0.0.1/mcp/oauth/callback"}, GrantTypes: []string{"refresh_token"}})
+	if err := te.gw.store.Put(t.Context(), kindDCRClient, id, raw, time.Hour); err != nil {
+		t.Fatal(err)
+	}
+	u := te.authorizeURL(map[string]string{"client_id": id, "redirect_uri": "http://127.0.0.1:40001/mcp/oauth/callback"}, "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG")
+	rec := httptest.NewRecorder()
+	te.handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, u, nil))
+	if rec.Code != http.StatusBadRequest || !strings.Contains(rec.Body.String(), "unauthorized_client") {
+		t.Fatalf("got %d %s, want 400 unauthorized_client", rec.Code, rec.Body.String())
+	}
+}
+
+func TestDCR_StoreErrorIsTemporary(t *testing.T) {
+	te := newClientEncryptedTestEnv(t, "k1:"+testKeyBase64(t, false))
+	enableDCR(te, 10, 10)
+	_, out := postRegister(te, opencodeRegistration(), "10.0.0.9")
+	id, _ := out["client_id"].(string)
+	te.redirectURI = "http://127.0.0.1:19876/mcp/oauth/callback"
+	te.clientID = id
+	verifier := "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG"
+	code := te.obtainAuthCode(verifier)
+
+	te.gw.store = &failingStore{SessionStore: te.gw.store, failGet: errors.New("db connection refused")}
+	te.handler = te.gw.routes()
+	check := func(name string, form url.Values) {
+		t.Helper()
+		req := httptest.NewRequest(http.MethodPost, "/token", strings.NewReader(form.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		rec := httptest.NewRecorder()
+		te.handler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusServiceUnavailable || !strings.Contains(rec.Body.String(), "temporarily_unavailable") || rec.Header().Get("Retry-After") == "" {
+			t.Fatalf("%s: got %d %s, want 503 temporarily_unavailable with Retry-After", name, rec.Code, rec.Body.String())
+		}
+	}
+	check("refresh", url.Values{"grant_type": {"refresh_token"}, "client_id": {id}, "refresh_token": {"opaque"}})
+	check("code", url.Values{"grant_type": {"authorization_code"}, "code": {code}, "client_id": {id}, "redirect_uri": {te.redirectURI}, "resource": {te.resource}, "code_verifier": {verifier}})
 }

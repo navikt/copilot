@@ -199,8 +199,15 @@ func (g *Gateway) handleAuthorizationCodeGrant(w http.ResponseWriter, r *http.Re
 		return
 	}
 
+	_, mayRefresh, err := g.clientGrants(r.Context(), issued.Session.ClientID)
+	if err != nil {
+		slog.Warn("load registered client failed", "error", err)
+		w.Header().Set("Retry-After", "5")
+		bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store unavailable")
+		return
+	}
 	refreshToken := ""
-	if g.cfg.RTStorage == rtStorageClientEncrypted && issued.EntraRT != "" {
+	if g.cfg.RTStorage == rtStorageClientEncrypted && issued.EntraRT != "" && mayRefresh {
 		issued.Session.RefreshToken = ""
 		jti, err := randomJTI()
 		if err != nil {
@@ -266,12 +273,20 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 	}
 
 	clientID := r.PostFormValue("client_id")
-	if !g.clientKnown(r.Context(), clientID) {
+	known, mayRefresh, err := g.clientGrants(r.Context(), clientID)
+	if err != nil {
+		outcome = "store_error"
+		slog.Warn("load registered client failed", "error", err)
+		w.Header().Set("Retry-After", "5")
+		bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store unavailable")
+		return
+	}
+	if !known {
 		outcome = "client_not_allowed"
 		bad(http.StatusBadRequest, "invalid_grant", "invalid client")
 		return
 	}
-	if !g.clientMayRefresh(r.Context(), clientID) {
+	if !mayRefresh {
 		outcome = "grant_not_registered"
 		bad(http.StatusBadRequest, "unauthorized_client", "refresh_token grant not registered for client")
 		return

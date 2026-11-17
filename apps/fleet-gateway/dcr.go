@@ -62,11 +62,17 @@ func (g *Gateway) registerHandler(w http.ResponseWriter, r *http.Request) {
 	if len(grants) == 0 {
 		grants = []string{"authorization_code"}
 	}
-	for _, gt := range grants {
-		if gt != "authorization_code" && gt != "refresh_token" {
-			fail(http.StatusBadRequest, "invalid_client_metadata", "unsupported grant_type")
-			return
-		}
+	// Clients bootstrap only through authorization codes, so authorization_code is
+	// required; refresh_token is the only optional extra.
+	mayRefresh := slices.Contains(grants, "refresh_token")
+	if !slices.Contains(grants, "authorization_code") ||
+		slices.ContainsFunc(grants, func(gt string) bool { return gt != "authorization_code" && gt != "refresh_token" }) {
+		fail(http.StatusBadRequest, "invalid_client_metadata", "grant_types must be [authorization_code] or [authorization_code, refresh_token]")
+		return
+	}
+	grants = []string{"authorization_code"}
+	if mayRefresh {
+		grants = append(grants, "refresh_token")
 	}
 	for _, rt := range req.ResponseTypes {
 		if rt != "code" {
@@ -183,24 +189,20 @@ func (g *Gateway) registeredClient(ctx context.Context, clientID string) (*clien
 	return &meta, true, nil
 }
 
-// clientKnown reports whether clientID is allowlisted or a live DCR client.
-func (g *Gateway) clientKnown(ctx context.Context, clientID string) bool {
+// clientGrants loads a client once: known is true for allowlisted or live DCR
+// clients, mayRefresh honours the grant_types a DCR client registered (RFC 7591
+// 2: default authorization_code only). Allowlisted CIMD clients may refresh. A
+// store error is returned so callers answer 503, not a client error.
+func (g *Gateway) clientGrants(ctx context.Context, clientID string) (known, mayRefresh bool, err error) {
 	if clientID == "" {
-		return false
+		return false, false, nil
 	}
 	if g.cfg.AllowedClientIDs[clientID] {
-		return true
-	}
-	_, ok, err := g.registeredClient(ctx, clientID)
-	return err == nil && ok
-}
-
-// clientMayRefresh honours the grant_types a DCR client registered (RFC 7591
-// 2: default authorization_code only). Allowlisted CIMD clients may refresh.
-func (g *Gateway) clientMayRefresh(ctx context.Context, clientID string) bool {
-	if g.cfg.AllowedClientIDs[clientID] {
-		return true
+		return true, true, nil
 	}
 	meta, ok, err := g.registeredClient(ctx, clientID)
-	return err == nil && ok && slices.Contains(meta.GrantTypes, "refresh_token")
+	if err != nil || !ok {
+		return false, false, err
+	}
+	return true, slices.Contains(meta.GrantTypes, "refresh_token"), nil
 }
