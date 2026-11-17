@@ -282,7 +282,7 @@ export default function SurveyAutumnArticlePage() {
                 <li>
                   <BodyLong>
                     <strong>Sikkerhet og personvern:</strong> de samme sandkassereglene gjelder nå for alle agenter.
-                    Nav-pilot-agenten skal stoppe og spørre før den legger inn nye felt med personopplysninger, og i
+                    Agenten @nav-pilot skal stoppe og spørre før den legger inn nye felt med personopplysninger, og i
                     OpenCode spør nav-pilot før et repos egne tillegg kjøres.
                   </BodyLong>
                 </li>
@@ -295,8 +295,9 @@ export default function SurveyAutumnArticlePage() {
                 </li>
                 <li>
                   <BodyLong>
-                    <strong>Innsikt i bruk og kostnad:</strong> <NextLink href="/innsikt/bruk">Innsikt i bruk</NextLink>{" "}
-                    viser nå bruk per klient (Copilot CLI, OpenCode, VS Code og andre) for hele Nav.
+                    <strong>Innsikt i bruk og kostnad:</strong>{" "}
+                    <NextLink href="/innsikt/bruk">Bruk og kostnad</NextLink> viser nå bruk per klient (Copilot CLI,
+                    OpenCode, VS Code og andre) for hele Nav.
                   </BodyLong>
                 </li>
               </ul>
