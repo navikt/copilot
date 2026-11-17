@@ -63,7 +63,7 @@ Expected: no errors; no `invalid_grant`.
 
 In OpenCode, log out the server (`opencode mcp logout <name>`), which calls `POST /revoke`. Then call `whoami`.
 
-Expected: the client asks for login. This shows the client dropped its credentials, not that the server revoked them. `/revoke` revokes only the token it is sent, so server-side revocation of the access token and the refresh token is covered by `TestRevoke_RefreshTokenAndAccessToken`, not by this step. Do not copy tokens out of OpenCode to replay them by hand.
+Expected: the client asks for login. This shows the client dropped its credentials, not that the server revoked them. `/revoke` of a refresh token revokes its whole token family (since #2278), so server-side revocation is covered by `TestRevoke_RefreshTokenAndAccessToken`, not by this step. Do not copy tokens out of OpenCode to replay them by hand.
 
 ```sh
 kubectl -n $NS logs -l app=fleet-gateway --prefix --tail=-1 --since=5m | grep -i revoke | tail -5
