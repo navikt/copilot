@@ -28,6 +28,7 @@ type SessionStore interface {
 	RevokeOnce(ctx context.Context, jti string, expiresAt time.Time) (bool, error)
 	IsRevoked(ctx context.Context, jti string) (bool, error)
 	Sweep(ctx context.Context) (int, error)
+	Ping(ctx context.Context) error
 	Close()
 }
 
@@ -241,5 +242,7 @@ func (s *memoryStore) sweepKindLocked(kind string, now time.Time) int {
 	}
 	return removed
 }
+
+func (s *memoryStore) Ping(_ context.Context) error { return nil }
 
 func (s *memoryStore) Close() {}

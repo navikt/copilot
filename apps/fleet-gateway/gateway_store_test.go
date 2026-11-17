@@ -273,6 +273,7 @@ type failingStore struct {
 	failPop        error
 	failDelete     error
 	failRevokeOnce error
+	failPing       error
 }
 
 func (f *failingStore) Put(ctx context.Context, kind, key string, val []byte, ttl time.Duration) error {
@@ -308,6 +309,13 @@ func (f *failingStore) RevokeOnce(ctx context.Context, jti string, expiresAt tim
 		return false, f.failRevokeOnce
 	}
 	return f.SessionStore.RevokeOnce(ctx, jti, expiresAt)
+}
+
+func (f *failingStore) Ping(ctx context.Context) error {
+	if f.failPing != nil {
+		return f.failPing
+	}
+	return f.SessionStore.Ping(ctx)
 }
 
 func TestStoreError_Returns503FailClosed(t *testing.T) {
@@ -356,6 +364,28 @@ func TestStoreError_Returns503FailClosed(t *testing.T) {
 	status, tokErr := te.postToken(tokForm)
 	if status != http.StatusServiceUnavailable || tokErr["error"] != "temporarily_unavailable" {
 		t.Fatalf("expected 503 temporarily_unavailable on /token store error, got %d (%v)", status, tokErr)
+	}
+}
+
+func TestReady_StorePingFailureReturns503(t *testing.T) {
+	te := newTestEnv(t)
+	te.gw.store = &failingStore{
+		SessionStore: te.gw.store,
+		failPing:     errors.New("db connection refused"),
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/ready", nil)
+	rec := httptest.NewRecorder()
+	te.handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Fatalf("expected 503 on /ready store Ping error, got %d (%s)", rec.Code, rec.Body.String())
+	}
+	var body map[string]string
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("expected JSON body on 503, got %q: %v", rec.Body.String(), err)
+	}
+	if body["status"] != "not_ready" {
+		t.Fatalf("expected status=not_ready, got %v", body)
 	}
 }
 
