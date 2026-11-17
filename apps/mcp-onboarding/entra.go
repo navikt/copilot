@@ -140,7 +140,7 @@ func (e *EntraAuth) validate(ctx context.Context, token string) (*UserContext, e
 	if subtle.ConstantTimeCompare([]byte(c.Azp), []byte(e.gatewayClientID)) != 1 {
 		return nil, errEntraForbidden
 	}
-	// Login is the NAVident, never an email, so INFO logs carry no PII.
+	// Login is the NAVident, never an email. It is personal data, logged at INFO deliberately as an audit trail (owner decision 2026-11-17).
 	return &UserContext{Login: navIdent, NAVident: navIdent}, nil
 }
 
