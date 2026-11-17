@@ -6,6 +6,7 @@ import (
 	"math/rand/v2"
 	"os"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -227,5 +228,78 @@ func TestResultsReadFinalForClosed(t *testing.T) {
 	if !strings.Contains(rec.Body.String(), `"id":"old","title":"Old","starts":"2025-01-01","ends":"2025-01-31","status":"stengt","responses":6`) ||
 		!strings.Contains(rec.Body.String(), `"status":"åpen","responses":1`) {
 		t.Fatal(rec.Body.String())
+	}
+}
+
+// TestRetainWaitsForSkipCounts (Postgres, COPILOT_SURVEY_TEST_DB_URL):
+// expired rows stay until their skip counts are written, and go after, or
+// once the rows no longer match the stored total.
+func TestRetainWaitsForSkipCounts(t *testing.T) {
+	url := os.Getenv("COPILOT_SURVEY_TEST_DB_URL")
+	if url == "" {
+		t.Skip("COPILOT_SURVEY_TEST_DB_URL not set")
+	}
+	ctx := t.Context()
+	st, err := openSurveyStore(ctx, url)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.pool.Close()
+	_, _ = st.pool.Exec(ctx, `DELETE FROM survey_answers; DELETE FROM survey_results; DELETE FROM survey_skip_results`)
+	defs, err := loadSurveys([]byte(compareSurveys))
+	if err != nil {
+		t.Fatal(err)
+	}
+	noRule := slices.Clone(defs)
+	noRule[1].Questions = slices.Clone(defs[1].Questions)
+	noRule[1].Questions[1].SkipIf = nil
+	now := time.Date(2026, 11, 15, 0, 0, 0, 0, time.UTC)
+	for id, rows := range waveRows() {
+		for _, r := range rows {
+			aj, _ := json.Marshal(r.Answers)
+			vj, _ := json.Marshal(r.QuestionVersions)
+			cj, _ := json.Marshal(r.Context)
+			if _, err := st.pool.Exec(ctx, `INSERT INTO survey_answers VALUES ($1, $2, $3, $4, '2026-01-01')`, id, aj, vj, cj); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	count := func(id string) (n int) {
+		_ = st.pool.QueryRow(ctx, `SELECT count(*) FROM survey_answers WHERE survey_id = $1`, id).Scan(&n)
+		return n
+	}
+	block := func(on bool) {
+		q := `ALTER TABLE survey_skip_results DROP CONSTRAINT IF EXISTS skip_block`
+		if on {
+			q = `ALTER TABLE survey_skip_results ADD CONSTRAINT skip_block CHECK (false) NOT VALID`
+		}
+		if _, err := st.pool.Exec(ctx, q); err != nil {
+			t.Fatal(err)
+		}
+	}
+	defer block(false)
+
+	// Aggregates written before autumn's skip_if existed: no skip counts.
+	st.defs = noRule
+	st.closeOut(ctx, now)
+	// autumn loses a row: its stored total no longer matches.
+	_, _ = st.pool.Exec(ctx, `DELETE FROM survey_answers WHERE ctid = (SELECT ctid FROM survey_answers WHERE survey_id = 'autumn' LIMIT 1)`)
+
+	// The rule is deployed, but its counts cannot be written.
+	st.defs = defs
+	block(true)
+	st.retain(ctx, now)
+	if count("spring") != 6 || count("autumn") != 0 {
+		t.Fatalf("while skip counts are missing: spring %d (want 6 kept), autumn %d (want 0)", count("spring"), count("autumn"))
+	}
+	block(false)
+	st.retain(ctx, now)
+	if count("spring") != 0 {
+		t.Fatalf("after skip counts are written: spring %d rows", count("spring"))
+	}
+	var marker int
+	_ = st.pool.QueryRow(ctx, `SELECT count(*) FROM survey_skip_results WHERE survey_id = 'spring' AND version = -1`).Scan(&marker)
+	if marker != 2 { // fast and slow
+		t.Fatalf("spring skip counts: %d pairs", marker)
 	}
 }

@@ -133,6 +133,12 @@ Residual risks, for the privacy review:
   per login; the `CopilotSurveySubmissionBurst` alert in `.nais/app.yaml`
   fires when `survey_submissions_total` grows by more than 20 in 5 minutes,
   all surveys and statuses summed. See the accepted risk in `SECURITY.md`.
+- Small cells in the stored aggregates: `survey_results` and
+  `survey_skip_results` keep counts under 5 as they are, also after the rows
+  are deleted, as `/results` and `compare` show them. `survey_skip_results`
+  is a cross table of a `skip_if` answer against the questions it skips
+  there. Accepted by the owner on 2026-11-17; it belongs in the privacy
+  assessment.
 - Free text: the answers that can name their author ("as the only Rust dev
   on team X"): a `text` question (at most one per survey) and the short text
   of an «other» option (at most 200 characters each, at most three per
@@ -309,8 +315,16 @@ rows' `delete_after` is set to that wave's last day. A date that is already
 later is never moved earlier: `retention_days` (q2-2026: 730 days, to
 2028-04-30) or the default 180 days wins when it is longer. Until the next
 wave closes, `delete_after` stays as written.
-Expired rows of a defined survey are deleted only once it has aggregates, so
-a failed close-out is retried the next day rather than losing the counts.
+Expired rows of a defined survey are deleted only once it has aggregates and
+skip counts for every `skip_if` in the definitions (`survey_skip_results`),
+so a failed close-out is retried the next day rather than losing the counts.
+The job logs `survey: rows kept until skip counts are written` with the
+survey id while it waits. Rows that no longer match the stored total (partly
+deleted) cannot give skip counts and are deleted as before.
+
+A `skip_if` that first appears two or more waves later, after a wave's rows
+are deleted, cannot be applied to that wave: `compare` answers 409 (owner,
+2026-11-17).
 
 `copilot-survey aggregate --survey <id>` writes (or rewrites) a closed
 survey's aggregates from its rows in one transaction, replacing any. The

@@ -147,20 +147,28 @@ func (s *surveyStore) retain(parent context.Context, now time.Time) {
 	s.closeOut(ctx, now)
 	today := now.UTC().Truncate(24 * time.Hour)
 	ids := make([]string, len(s.defs))
+	var ready []string
 	for i, d := range s.defs {
 		ids[i] = d.ID
+		ok, err := s.deletable(ctx, d)
+		if err != nil {
+			slog.Error("survey: checking aggregates before deletion failed", "survey", d.ID, "error_type", fmt.Sprintf("%T", err))
+		}
+		if ok {
+			ready = append(ready, d.ID)
+		}
 	}
-	// Answers go only once their survey has aggregates, so a failed
-	// close-out is retried the next day instead of losing the counts. A
-	// survey no longer defined has nothing to aggregate with and expires as
-	// before.
+	// Answers go only once their survey has aggregates and skip counts
+	// (deletable), so a failed close-out is retried the next day instead of
+	// losing the counts. A survey no longer defined has nothing to aggregate
+	// with and expires as before.
 	for _, q := range []struct {
 		sql  string
 		args []any
 	}{
 		{`DELETE FROM survey_participation WHERE closes_on <= $1`, []any{today}},
-		{`DELETE FROM survey_answers a WHERE delete_after < $1
-			AND (EXISTS (SELECT 1 FROM survey_results r WHERE r.survey_id = a.survey_id) OR NOT a.survey_id = ANY($2))`, []any{today, ids}},
+		{`DELETE FROM survey_answers WHERE delete_after < $1
+			AND (survey_id = ANY($3) OR NOT survey_id = ANY($2))`, []any{today, ids, ready}},
 	} {
 		tag, err := s.pool.Exec(ctx, q.sql, q.args...)
 		if err != nil {
@@ -169,6 +177,40 @@ func (s *surveyStore) retain(parent context.Context, now time.Time) {
 			slog.Info("survey retention step", "rows", tag.RowsAffected())
 		}
 	}
+}
+
+// deletable: d's expired rows may go. It has aggregates, and its skip
+// counts cover every skip_if in the definitions, or its rows no longer
+// match its total (partly deleted: the counts can no longer be written).
+// Otherwise it logs that the rows are kept.
+func (s *surveyStore) deletable(ctx context.Context, d survey) (bool, error) {
+	var total *int
+	var rows int
+	if err := s.pool.QueryRow(ctx, `SELECT (SELECT count FROM survey_results WHERE survey_id = $1 AND kind = 'total'),
+		(SELECT count(*) FROM survey_answers WHERE survey_id = $1)`, d.ID).Scan(&total, &rows); err != nil || total == nil {
+		return false, err
+	}
+	if *total != rows {
+		return true, nil
+	}
+	have := map[[3]string]bool{}
+	res, err := s.pool.Query(ctx, `SELECT skip_question, skip_answer, key FROM survey_skip_results WHERE survey_id = $1 AND version = -1`, d.ID)
+	if err != nil {
+		return false, err
+	}
+	var q, a, k string
+	if _, err := pgx.ForEachRow(res, []any{&q, &a, &k}, func() error { have[[3]string{q, a, k}] = true; return nil }); err != nil {
+		return false, err
+	}
+	for rule, keys := range skipKeys(s.defs) {
+		for _, k := range keys {
+			if !have[[3]string{rule.Question, rule.Answer, k}] {
+				slog.Warn("survey: rows kept until skip counts are written", "survey", d.ID)
+				return false, nil
+			}
+		}
+	}
+	return true, nil
 }
 
 // answers returns a survey's written rows: answers, question versions and
