@@ -390,8 +390,8 @@ func TestDevPilotRoutesFileValid(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected pilot-routes.dev.yaml to load without error, got %v", err)
 	}
-	if len(cfg.Routes) != 1 {
-		t.Fatalf("expected 1 dev route, got %d", len(cfg.Routes))
+	if len(cfg.Routes) != 2 {
+		t.Fatalf("expected 2 dev routes, got %d", len(cfg.Routes))
 	}
 	r := cfg.Routes[0]
 	if r.Route != "/mcp/test" || r.Team != "copilot" || r.Target != "dev-gcp:copilot:fleet-echo" {
@@ -399,6 +399,10 @@ func TestDevPilotRoutesFileValid(t *testing.T) {
 	}
 	if r.UpstreamURL != "http://fleet-echo.copilot/" {
 		t.Fatalf("unexpected dev upstream URL: %q", r.UpstreamURL)
+	}
+	o := cfg.Routes[1]
+	if o.Route != "/mcp/onboarding" || o.Target != "dev-gcp:copilot:mcp-onboarding" || o.UpstreamURL != "http://mcp-onboarding.copilot/mcp/gw" {
+		t.Fatalf("unexpected onboarding route: %+v", o)
 	}
 }
 

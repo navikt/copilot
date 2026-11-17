@@ -605,6 +605,13 @@ func (h *MCPHandler) handleCallTool(req *JSONRPCRequest, user *UserContext) (res
 
 	var result CallToolResult
 
+	if user.NAVident != "" && githubTokenTools[params.Name] {
+		return &JSONRPCResponse{JSONRPC: "2.0", ID: req.ID, Result: CallToolResult{
+			Content: []TextContent{{Type: "text", Text: githubLoginRequired}},
+			IsError: true,
+		}}
+	}
+
 	switch params.Name {
 	case "hello_world":
 		result = CallToolResult{
@@ -625,6 +632,15 @@ func (h *MCPHandler) handleCallTool(req *JSONRPCRequest, user *UserContext) (res
 		}
 
 	case "whoami":
+		if user.NAVident != "" {
+			result = CallToolResult{Content: []TextContent{{Type: "text", Text: fmt.Sprintf(`Nav User Information:
+- NAVident: %s
+- Username: %s
+- Authenticated: ✅
+
+This information is from your Entra ID token via fleet-gateway.`, user.NAVident, user.Login)}}}
+			break
+		}
 		info := fmt.Sprintf(`GitHub User Information:
 - Username: @%s
 - User ID: %d
@@ -1363,6 +1379,7 @@ type UserContext struct {
 	Login             string
 	ID                int64
 	GitHubAccessToken string
+	NAVident          string // set only in Entra mode (fleet-gateway)
 }
 
 func GetUserFromContext(ctx context.Context) *UserContext {
