@@ -538,6 +538,10 @@ func isEventStream(contentType string) bool {
 	return err == nil && strings.EqualFold(mediaType, "text/event-stream")
 }
 
+// auditIncomplete marks an audit line whose scan stopped before the end of the
+// body, so a name the upstream reads past that point is never logged as absent.
+const auditIncomplete = "...incomplete"
+
 // extractJSONRPCAudit returns the JSON-RPC method and, for tools/call, the tool
 // name. Arguments are never decoded into anything that is logged. A batch is
 // logged as method "batch" with the names of up to maxAuditBatchTools
@@ -560,24 +564,25 @@ func extractJSONRPCAudit(body []byte) (method, tool string) {
 	case json.Delim('{'):
 		m, params, ok := auditScanObject(dec)
 		if !ok {
-			return "", ""
+			return "", auditIncomplete
 		}
 		return auditMethodTool(m, params)
 	case json.Delim('['):
 		var tools []string
-		for dec.More() {
+		complete := true
+		for complete && dec.More() {
 			tok, err := dec.Token()
 			if err != nil {
+				complete = false
 				break
 			}
 			if tok != json.Delim('{') {
-				if !auditSkip(dec, tok) {
-					break
-				}
+				complete = auditSkip(dec, tok)
 				continue
 			}
 			m, params, ok := auditScanObject(dec)
 			if !ok {
+				complete = false
 				break
 			}
 			if m, name := auditMethodTool(m, params); m == "tools/call" {
@@ -586,6 +591,12 @@ func extractJSONRPCAudit(body []byte) (method, tool string) {
 					break
 				}
 				tools = append(tools, name)
+			}
+		}
+		if len(tools) <= maxAuditBatchTools {
+			// More() is also false on a syntax error, so require the closing ']'.
+			if tok, err := dec.Token(); !complete || err != nil || tok != json.Delim(']') {
+				tools = append(tools, auditIncomplete)
 			}
 		}
 		if len(tools) == 0 {

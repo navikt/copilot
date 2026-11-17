@@ -253,3 +253,23 @@ func TestExtractJSONRPCAudit_BoundedHeap(t *testing.T) {
 		}
 	}
 }
+
+func TestExtractJSONRPCAudit_IncompleteScanIsMarked(t *testing.T) {
+	call := `{"method":"tools/call","params":{"name":"hidden"}}`
+	for name, body := range map[string]string{
+		"skip depth cap": `[` + strings.Repeat("[", 65) + strings.Repeat("]", 65) + `,` + call + `]`,
+		"decoder depth":  `[{"a":` + strings.Repeat("[", 10001) + strings.Repeat("]", 10001) + `},` + call + `]`,
+		"syntax error":   `[{"method":"tools/call","params":{"name":"a"}} x]`,
+	} {
+		if m, tool := extractJSONRPCAudit([]byte(body)); m != "batch" || !strings.Contains(tool, `"`+auditIncomplete+`"`) {
+			t.Errorf("%s: got %q %q", name, m, tool)
+		}
+	}
+	deep := `{"a":` + strings.Repeat("[", 10001) + strings.Repeat("]", 10001) + `,"method":"tools/call","params":{"name":"hidden"}}`
+	if _, tool := extractJSONRPCAudit([]byte(deep)); tool != auditIncomplete {
+		t.Errorf("single object: got %q", tool)
+	}
+	if _, tool := extractJSONRPCAudit([]byte(`[` + call + `,[[1]]]`)); tool != `["hidden"]` {
+		t.Errorf("complete batch: got %q", tool)
+	}
+}
