@@ -28,6 +28,16 @@ func cloneAnswers(m map[string]any) map[string]any {
 	return c
 }
 
+// The current version takes only its own unsure label from a CSV.
+func TestReadExportRefusesUnknownLabelOnCurrentVersion(t *testing.T) {
+	defs, _ := loadSurveys([]byte(testSurveys))
+	var buf bytes.Buffer
+	writeExportCSV(&buf, defs[0], toExportRows([]storedAnswer{row(`{"overall":2,"client":"copilot","fast":"Kanskje","safe":4}`, `{"overall":1,"client":1,"fast":2,"safe":1}`)}))
+	if _, err := readExportCSV(defs[0], &buf); err == nil {
+		t.Error("took «Kanskje» on the current version")
+	}
+}
+
 func roundTrip(t *testing.T, s survey, rows []storedAnswer) []storedAnswer {
 	t.Helper()
 	var buf bytes.Buffer
@@ -70,6 +80,10 @@ func TestAnalyzeMatchesOnline(t *testing.T) {
 		rows = append(rows, r)
 	}
 	rows = append(rows, row(`{}`, `{}`))
+	// «Vet ikke» on a scale survives as the label, not a number.
+	rows = append(rows, row(`{"overall":2,"client":"copilot","fast":"Vet ikke","safe":4}`, `{"overall":1,"client":1,"fast":2,"safe":1}`))
+	// An older version's unsure label, since renamed: still read back.
+	rows = append(rows, row(`{"overall":2,"client":"copilot","fast":"Vet ikke / gammel","safe":4}`, `{"overall":1,"client":1,"fast":1,"safe":1}`))
 	// Values the export must not lose or alter: a pick no longer an option,
 	// and a choice that starts with an apostrophe.
 	for range 2 {

@@ -77,19 +77,26 @@ export function FleetGatewayAccessDiagram() {
     <Figure
       titleId="fg-access-title"
       viewBox="0 0 970 370"
-      title="Hvem slipper inn: teamet sender inn MCP-serveren til fleet-control, team copilot godkjenner, fleet-gateway håndhever pilotlisten per rute, Nais accessPolicy åpner nettverket, og Texas utsteder tokenene."
+      title="Hvem slipper inn: teamet lager en PR med ruten, team copilot godkjenner, fleet-gateway åpner bare ruter i rutefilen og logger hvem som kaller, teamets server bestemmer tilgangen, Nais accessPolicy åpner nettverket, og Texas utsteder tokenene."
     >
       <Defs id={m} />
-      <Box x={10} y={70} w={150} h={100} title="Teamet" sub={["sender inn", "MCP-server"]} />
+      <Box x={10} y={70} w={150} h={100} title="Teamet" sub={["PR med", "ruten"]} />
 
       <rect x={190} y={20} width={500} height={180} rx="14" className="fg-fleet" />
       <text x={210} y={50} className="fg-group">
         nav-fleet
       </text>
-      <Box x={205} y={65} w={235} h={110} title="fleet-control" sub={["registeret", "team copilot godkjenner"]} />
-      <Box x={460} y={65} w={215} h={110} title="fleet-gateway" sub={["håndhever", "pilotliste per rute"]} />
+      <Box x={205} y={65} w={235} h={110} title="Rutefilen" sub={["pilot-routes.*.yaml", "team copilot godkjenner"]} />
+      <Box
+        x={460}
+        y={65}
+        w={215}
+        h={110}
+        title="fleet-gateway"
+        sub={["logger inn brukeren", "åpner bare ruter i filen"]}
+      />
 
-      <Box x={755} y={65} w={205} h={110} title="Teamets" sub={["MCP-server"]} />
+      <Box x={755} y={65} w={205} h={110} title="Teamets" sub={["MCP-server", "styrer tilgangen"]} />
 
       <line x1={160} y1={120} x2={203} y2={120} className="fg-line" markerEnd={arrow} />
       <line x1={440} y1={120} x2={458} y2={120} className="fg-line" markerEnd={arrow} />
@@ -119,15 +126,24 @@ export function FleetGatewayCallDiagram() {
     <Figure
       titleId="fg-call-title"
       viewBox="0 0 970 350"
-      title="Slik går et kall: utviklerens agent kaller cplt på vertsmaskinen, cplt kaller fleet-gateway, der brukeren logger inn med Nav-konto via Entra, fleet-gateway henter et OBO-token fra Texas og kaller teamets MCP-server, som sjekker aud, idtyp, azp og NAVident."
+      title="Slik går et kall: Copilot CLI eller OpenCode på utviklermaskinen kaller fleet-gateway og holder tokenene selv. cplt-brokeren er valgfri og ikke tilgjengelig ennå. Brukeren logger inn med Nav-konto via Entra, og fleet-gateway henter et OBO-token fra Texas og kaller teamets MCP-server, som sjekker aud, idtyp, azp og NAVident."
     >
       <Defs id={m} />
       <rect x={10} y={20} width={400} height={180} rx="14" className="fg-host" />
       <text x={30} y={50} className="fg-group">
         Utviklermaskin
       </text>
-      <Box x={25} y={70} w={150} h={110} title="Agenten" sub={["i sandkassen"]} />
-      <Box x={230} y={70} w={165} h={110} title="cplt" sub={["på vertsmaskinen", "holder tokenene"]} />
+      <Box
+        x={25}
+        y={65}
+        w={370}
+        h={80}
+        title="Copilot CLI eller OpenCode"
+        sub={["logger inn og holder tokenene selv"]}
+      />
+      <text x={210} y={180} textAnchor="middle" className="fg-sub">
+        cplt-broker: valgfri, ikke tilgjengelig ennå
+      </text>
 
       <rect x={440} y={20} width={240} height={170} rx="14" className="fg-fleet" />
       <text x={460} y={50} className="fg-group">
@@ -138,8 +154,7 @@ export function FleetGatewayCallDiagram() {
 
       <Box x={740} y={65} w={225} h={130} title="Teamets MCP-server" sub={["sjekker aud, idtyp,", "azp og NAVident"]} />
 
-      <line x1={175} y1={125} x2={228} y2={125} className="fg-line" markerEnd={arrow} />
-      <line x1={395} y1={125} x2={453} y2={125} className="fg-line" markerEnd={arrow} />
+      <line x1={395} y1={105} x2={453} y2={105} className="fg-line" markerEnd={arrow} />
       <line x1={560} y1={177} x2={560} y2={233} className="fg-line" markerStart={arrow} markerEnd={arrow} />
       <line x1={665} y1={125} x2={738} y2={125} className="fg-line" markerEnd={arrow} />
       <text x={710} y={113} textAnchor="middle" className="fg-sub">
@@ -156,11 +171,11 @@ export function FleetGatewayTeamDiagram() {
     <Figure
       titleId="fg-team-title"
       viewBox="0 0 970 300"
-      title="Kallet til teamets server: cplt kaller fleet-gateway, fleet-gateway veksler tokenet hos Texas til et OBO-token for teamets app, og kaller teamets app. Steg 1, accessPolicy.inbound, slipper inn fleet-gateway. Steg 2, sjekk av tokenet med Texas-introspeksjon, skjer i teamets app."
+      title="Kallet til teamets server: klienten (Copilot CLI eller OpenCode) kaller fleet-gateway, fleet-gateway veksler tokenet hos Texas til et OBO-token for teamets app, og kaller teamets app. Steg 1, accessPolicy.inbound, slipper inn fleet-gateway. Steg 2, sjekk av tokenet med Texas-introspeksjon, skjer i teamets app."
     >
       <Defs id={m} />
-      <Box x={10} y={60} w={170} h={100} title="cplt" sub={["klienten"]} />
-      <Box x={260} y={60} w={210} h={100} title="fleet-gateway" sub={["innlogging, pilotliste"]} />
+      <Box x={10} y={60} w={170} h={100} title="Klienten" sub={["Copilot CLI, OpenCode"]} />
+      <Box x={260} y={60} w={210} h={100} title="fleet-gateway" sub={["innlogging,", "ruter fra pilot-routes"]} />
       <Box x={260} y={200} w={210} h={90} title="Texas" sub={["OBO-veksling"]} />
 
       <rect x={560} y={20} width={400} height={270} rx="14" className="fg-host" />

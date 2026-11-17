@@ -136,3 +136,17 @@ func TestSurveyQ4MatrixHeadingRunsOn(t *testing.T) {
 		}
 	}
 }
+
+// «Vet ikke» on a matrix item is sent as its label, not dropped as a
+// non-number.
+func TestSurveyUnsureSentAsLabel(t *testing.T) {
+	s := loadQ4(t)
+	i := slices.IndexFunc(s.Questions, func(q surveyQuestion) bool { return q.ID == "pastander-alle" })
+	s.Questions[i].Unsure = "Vet ikke"
+	picks, multis, others, grid, skipped, answered := q4Form(s, true)
+	grid[i][0] = "Vet ikke"
+	got := surveyAnswers(s, picks, multis, others, grid, skipped, answered)
+	if got["eierskap"] != "Vet ikke" || got["juss-og-sikkerhet"] != 4 {
+		t.Errorf("answers %v", got)
+	}
+}

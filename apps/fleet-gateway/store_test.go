@@ -306,6 +306,76 @@ func runStoreContract(t *testing.T, factory storeFactory) {
 			t.Fatalf("expected exactly 1 winning concurrent RevokeOnce, got %d", wins.Load())
 		}
 	})
+
+	t.Run("incr fixed window", func(t *testing.T) {
+		clk := newFakeClock(time.Date(2026, 11, 17, 10, 0, 0, 0, time.UTC))
+		store := factory(t, clk.Now, nil)
+		defer store.Close()
+		ctx := context.Background()
+
+		for want := 1; want <= 3; want++ {
+			if n, err := store.Incr(ctx, "c", time.Hour); err != nil || n != want {
+				t.Fatalf("Incr = %d, %v; want %d", n, err, want)
+			}
+		}
+		clk.Advance(time.Hour)
+		if n, err := store.Incr(ctx, "c", time.Hour); err != nil || n != 1 {
+			t.Fatalf("Incr after window = %d, %v; want 1", n, err)
+		}
+	})
+
+	t.Run("put evict frees a live slot atomically", func(t *testing.T) {
+		clk := newFakeClock(time.Date(2026, 11, 17, 10, 0, 0, 0, time.UTC))
+		store := factory(t, clk.Now, map[string]int{kindDCRClient: 3})
+		defer store.Close()
+		ctx := context.Background()
+
+		// An expired row that has not been swept must not be the one evicted:
+		// it does not count toward the cap, so deleting it frees nothing.
+		if err := store.Put(ctx, kindDCRClient, "expired", []byte("v"), time.Minute); err != nil {
+			t.Fatalf("Put expired: %v", err)
+		}
+		clk.Advance(2 * time.Minute)
+		for key, ttl := range map[string]time.Duration{"late": 3 * time.Hour, "early": time.Hour, "mid": 2 * time.Hour} {
+			if err := store.Put(ctx, kindDCRClient, key, []byte("v"), ttl); err != nil {
+				t.Fatalf("Put %s: %v", key, err)
+			}
+		}
+		if err := store.Put(ctx, kindDCRClient, "new", []byte("v"), 4*time.Hour); !errors.Is(err, errStoreFull) {
+			t.Fatalf("Put at cap = %v, want errStoreFull", err)
+		}
+		evicted, err := store.PutEvict(ctx, kindDCRClient, "new", []byte("v"), 4*time.Hour)
+		if err != nil || !evicted {
+			t.Fatalf("PutEvict = %v, %v; want evicted", evicted, err)
+		}
+		if _, ok, _ := store.Get(ctx, kindDCRClient, "early"); ok {
+			t.Fatalf("earliest-expiring live item should be evicted")
+		}
+		for _, k := range []string{"mid", "late", "new"} {
+			if _, ok, _ := store.Get(ctx, kindDCRClient, k); !ok {
+				t.Fatalf("%s should remain", k)
+			}
+		}
+
+		// Concurrent registrations at cap must all succeed.
+		var wg sync.WaitGroup
+		errs := make(chan error, 8)
+		for i := range 8 {
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				_, err := store.PutEvict(ctx, kindDCRClient, fmt.Sprintf("c%d", i), []byte("v"), time.Duration(5+i)*time.Hour)
+				errs <- err
+			}()
+		}
+		wg.Wait()
+		close(errs)
+		for err := range errs {
+			if err != nil {
+				t.Fatalf("concurrent PutEvict at cap: %v", err)
+			}
+		}
+	})
 }
 
 func TestStoreContract_Memory(t *testing.T) {

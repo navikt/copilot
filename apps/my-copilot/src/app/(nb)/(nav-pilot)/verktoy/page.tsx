@@ -109,9 +109,13 @@ export default async function CustomizationsPage() {
                 Alle tilpasninger
               </Heading>
               <BodyShort spacing>
-                Eier teamet en MCP-server?{" "}
+                Slik bruker du en MCP-server fra et Nav-team:{" "}
+                <NextLink href="/nav-pilot/guider/nav-mcp-servere" className={linkClass}>
+                  Koble til Navs MCP-servere
+                </NextLink>
+                . Eier teamet en MCP-server?{" "}
                 <NextLink href="/verktoy/fleet-gateway" className={linkClass}>
-                  Les om piloten for fleet-gateway
+                  Tilby den gjennom fleet-gateway
                 </NextLink>
                 .
               </BodyShort>

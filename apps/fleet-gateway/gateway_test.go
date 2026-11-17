@@ -809,7 +809,7 @@ func TestConsent_CSRF_SecurityHeaders_And_NoRememberedConsent(t *testing.T) {
 		_ = te.obtainAuthCode(verifier)
 
 		resp := te.callback(te.startLogin(verifier)) //nolint:bodyclose // clientCode closes it
-		_ = te.clientCode(resp) // 302 straight to the client, no consent page
+		_ = te.clientCode(resp)                      // 302 straight to the client, no consent page
 	})
 }
 

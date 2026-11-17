@@ -18,8 +18,8 @@ var consentTemplate = template.Must(template.New("consent").Parse(`<!doctype htm
 </head>
 <body style="font-family:sans-serif;max-width:40em;margin:2em auto;padding:0 1em">
 <h1>Allow access?</h1>
-<p><strong>{{.ClientName}}</strong> (<code>{{.ClientID}}</code>) requests access to <strong>{{.Resource}}</strong> on your behalf.</p>
-{{if .Unverified}}<p style="border:2px solid #c30000;padding:.5em"><strong>Unverified client.</strong> This client registered itself and is not on the gateway's list of known clients. Allow only if you started this login yourself.</p>{{end}}
+{{if .Unverified}}<p style="border:2px solid #c30000;padding:.5em"><strong>Unverified client.</strong> This application registered itself. Its name was not checked by Nav. Only continue if you just started the sign-in yourself from a tool you trust.</p>
+{{end}}<p><strong>{{.ClientName}}</strong>{{if .Unverified}} (unverified){{end}} (<code>{{.ClientID}}</code>) requests access to <strong>{{.Resource}}</strong> on your behalf.</p>
 <p>Your choice is remembered for {{.RememberDays}} days for this client and this route.</p>
 <p>Redirect destination: <code>{{.RedirectURI}}</code></p>
 <form method="post" action="/consent">
@@ -59,7 +59,7 @@ func (g *Gateway) renderConsentPage(w http.ResponseWriter, consentID string, p *
 	setConsentSecurityHeaders(w, p.RedirectURI)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	_ = consentTemplate.Execute(w, map[string]any{
-		"Unverified":   !g.cfg.AllowedClientIDs[p.ClientID],
+		"Unverified":   p.Unverified || !g.cfg.AllowedClientIDs[p.ClientID],
 		"RememberDays": int(g.cfg.ConsentTTL.Hours() / 24),
 		"ID":           consentID,
 		"CSRF":         p.CSRF,

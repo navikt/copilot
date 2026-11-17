@@ -131,6 +131,12 @@ warns at start while the key is still in the secret.
 - `starts`, `ends`: first and last day it takes answers (UTC).
 - `scale`: whole numbers from `min` to `max` (at most 11 steps). `labels`, if
   given, names every step. Stored as the number.
+- `unsure` (`scale`, `matrix`): the label of one more answer after the
+  steps, such as «Vet ikke / ikke relevant». Choosing it stores the label
+  instead of a number. Results count it; mean and agree share leave it out.
+  Not a number. Turning it on changes how a statement is asked, so it bumps
+  the `version` of the question or every item. nav-pilot shows it from
+  2026.11.18: set `min_cli_version` at least that.
 - `choice`: one option. `multi`: one or more, at most `max_choices` if set.
   At least two options, no duplicates. Stored as the option text.
 - `other` (`choice`, `multi`): the label of one more option, shown last, that

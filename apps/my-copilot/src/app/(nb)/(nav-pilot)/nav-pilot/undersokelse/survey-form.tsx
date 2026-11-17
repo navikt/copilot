@@ -43,7 +43,9 @@ function repeatsPrevious(visible: SurveyQuestion[], i: number): boolean {
 
 function missing(q: SurveyQuestion, answers: Answers): string | undefined {
   if (q.type === "matrix") {
-    const all = (q.items ?? []).every((it) => typeof answers[it.id] === "number");
+    const all = (q.items ?? []).every(
+      (it) => typeof answers[it.id] === "number" || (!!q.unsure && answers[it.id] === q.unsure)
+    );
     return q.required && !all ? "Svar på alle påstandene." : undefined;
   }
   const a = answers[q.id];
@@ -128,7 +130,7 @@ export function SurveyForm({ survey, preview = false }: { survey: Survey; previe
     for (const q of visible) {
       for (const it of q.items ?? []) {
         const n = answers[it.id];
-        if (typeof n === "number") toSend[it.id] = n;
+        if (typeof n === "number" || (!!q.unsure && n === q.unsure)) toSend[it.id] = n;
       }
       const a = answers[q.id];
       const other = answers[otherKey(q)];
@@ -297,14 +299,15 @@ function Question({
           tabIndex={-1}
           legend={legend}
           error={error}
-          value={typeof value === "number" ? String(value) : ""}
-          onChange={(v: string) => onChange(Number(v))}
+          value={typeof value === "number" ? String(value) : value === q.unsure ? q.unsure : ""}
+          onChange={(v: string) => onChange(v === q.unsure ? v : Number(v))}
         >
           {steps.map((n, i) => (
             <Radio key={n} value={String(n)}>
               {q.labels?.[i] ?? String(n)}
             </Radio>
           ))}
+          {q.unsure ? <Radio value={q.unsure}>{q.unsure}</Radio> : null}
         </RadioGroup>
       );
     }
@@ -390,10 +393,11 @@ function Matrix({
   q: SurveyQuestion;
   answers: Answers;
   error?: string;
-  onChange: (itemId: string, n: number) => void;
+  onChange: (itemId: string, n: number | string) => void;
   hideLegend?: boolean;
 }) {
-  const steps = scaleSteps(q);
+  const steps: (number | string)[] = scaleSteps(q);
+  if (q.unsure) steps.push(q.unsure);
   return (
     <Fieldset
       id={`q-${q.id}`}
@@ -417,7 +421,7 @@ function Matrix({
                     checked={answers[it.id] === n}
                     onChange={() => onChange(it.id, n)}
                   />
-                  <span>{q.labels?.[i] ?? String(n)}</span>
+                  <span>{typeof n === "number" ? (q.labels?.[i] ?? String(n)) : n}</span>
                 </label>
               ))}
             </div>

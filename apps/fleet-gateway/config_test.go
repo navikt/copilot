@@ -392,26 +392,40 @@ routes:
 }
 
 func TestDevPilotRoutesFileValid(t *testing.T) {
+	assertPilotRoutesFileValid(t, "pilot-routes.dev.yaml", "dev-gcp")
+}
+
+// assertPilotRoutesFileValid checks every route in file structurally, so adding a route does not break the test.
+func assertPilotRoutesFileValid(t *testing.T, file, cluster string) {
+	t.Helper()
 	setBaseValidEnv(t)
-	t.Setenv("PILOT_ROUTES_FILE", "pilot-routes.dev.yaml")
+	t.Setenv("PILOT_ROUTES_FILE", file)
 
 	cfg, err := loadConfigFromEnv()
 	if err != nil {
-		t.Fatalf("expected pilot-routes.dev.yaml to load without error, got %v", err)
+		t.Fatalf("expected %s to load without error, got %v", file, err)
 	}
-	if len(cfg.Routes) != 2 {
-		t.Fatalf("expected 2 dev routes, got %d", len(cfg.Routes))
+	if len(cfg.Routes) == 0 {
+		t.Fatalf("%s: expected at least one route", file)
 	}
-	r := cfg.Routes[0]
-	if r.Route != "/mcp/test" || r.Team != "copilot" || r.Target != "dev-gcp:copilot:fleet-echo" {
-		t.Fatalf("unexpected dev route metadata: %+v", r)
-	}
-	if r.UpstreamURL != "http://fleet-echo.copilot/" {
-		t.Fatalf("unexpected dev upstream URL: %q", r.UpstreamURL)
-	}
-	o := cfg.Routes[1]
-	if o.Route != "/mcp/onboarding" || o.Target != "dev-gcp:copilot:mcp-onboarding" || o.UpstreamURL != "http://mcp-onboarding.copilot/mcp/gw" {
-		t.Fatalf("unexpected onboarding route: %+v", o)
+	seen := map[string]bool{}
+	for _, r := range cfg.Routes {
+		if !strings.HasPrefix(r.Route, "/mcp/") || seen[r.Route] {
+			t.Errorf("route %q must start with /mcp/ and be unique", r.Route)
+		}
+		seen[r.Route] = true
+		if r.Team == "" || r.Cluster != cluster || r.Namespace == "" || r.App == "" {
+			t.Errorf("route %q: incomplete team/target: %+v", r.Route, r)
+		}
+		if want := r.Cluster + ":" + r.Namespace + ":" + r.App; r.Target != want {
+			t.Errorf("route %q: target %q, want %q", r.Route, r.Target, want)
+		}
+		if r.ParsedURL == nil || (r.ParsedURL.Scheme != "http" && r.ParsedURL.Scheme != "https") || r.ParsedURL.Host == "" {
+			t.Errorf("route %q: bad upstream_url %q", r.Route, r.UpstreamURL)
+		}
+		if !cfg.AllowedResources[r.FullRouteID] {
+			t.Errorf("route %q: %q not in AllowedResources", r.Route, r.FullRouteID)
+		}
 	}
 }
 
@@ -431,4 +445,8 @@ func TestDefaultEntraScopeTargetsGateway(t *testing.T) {
 	if got := defaultEntraScope(strategyRefresh, rtStorageServer, "k1:secret", "gw-client"); got != "openid offline_access api://gw-client/.default" {
 		t.Fatalf("refresh scope %q", got)
 	}
+}
+
+func TestProdPilotRoutesFileValid(t *testing.T) {
+	assertPilotRoutesFileValid(t, "pilot-routes.prod.yaml", "prod-gcp")
 }

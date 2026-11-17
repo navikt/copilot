@@ -147,7 +147,7 @@ func TestResultsRealCountsAndSplit(t *testing.T) {
 	}
 	fast := q["grid"].Items[0]
 	if fast.ID != "fast" || len(fast.Versions) != 2 || fast.Versions[0].Version != 1 || fast.Versions[0].N == nil || *fast.Versions[0].N != 4 || *fast.Versions[0].Options[0].Count != 4 ||
-		*fast.Versions[1].N != 6 || len(fast.Versions[1].Options) != 5 || *fast.Versions[1].Options[2].Count != 6 {
+		*fast.Versions[1].N != 6 || len(fast.Versions[1].Options) != 6 || *fast.Versions[1].Options[2].Count != 6 {
 		t.Errorf("fast %+v", fast)
 	}
 }
