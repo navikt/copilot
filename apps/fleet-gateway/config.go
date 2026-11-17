@@ -3,7 +3,9 @@ package main
 
 import (
 	"context"
+	"crypto/hkdf"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -123,7 +125,7 @@ func loadConfigFromEnv() (*Config, error) {
 		}
 	}
 
-	cookieSecret, err := loadCookieSecret(os.Getenv("COOKIE_SIGNING_SECRET"))
+	cookieSecret, err := loadCookieSecret(os.Getenv("COOKIE_SIGNING_SECRET"), os.Getenv("RT_KEYS"), os.Getenv("NAIS_CLUSTER_NAME") != "")
 	if err != nil {
 		return nil, err
 	}
@@ -425,9 +427,27 @@ func newHardenedHTTPClient(timeout time.Duration) *http.Client {
 	}
 }
 
-func loadCookieSecret(raw string) ([]byte, error) {
+// stateCookieKeyInfo is the HKDF label that separates the state-cookie key from
+// the RT_KEYS AES key; the AES key itself is never used for HMAC.
+const stateCookieKeyInfo = "fleet-gateway entra-state cookie hmac v1"
+
+// loadCookieSecret returns the key for the Entra state cookie. Every replica must
+// share it, or a callback that lands on another pod (or after a deploy) fails.
+// Order: COOKIE_SIGNING_SECRET, else an HKDF subkey of the primary RT_KEYS key,
+// else a random key, which is only allowed outside Nais (local runs and tests).
+func loadCookieSecret(raw, rtKeys string, onNais bool) ([]byte, error) {
 	trimmed := strings.TrimSpace(raw)
+	if trimmed == "" && strings.TrimSpace(rtKeys) != "" {
+		kr, err := parseKeyRing(rtKeys)
+		if err != nil {
+			return nil, fmt.Errorf("invalid RT_KEYS: %w", err)
+		}
+		return hkdf.Key(sha256.New, kr.entries[0].key[:], nil, stateCookieKeyInfo, 32)
+	}
 	if trimmed == "" {
+		if onNais {
+			return nil, errors.New("COOKIE_SIGNING_SECRET or RT_KEYS is required on Nais: a per-pod random key breaks login across replicas")
+		}
 		secret := make([]byte, 32)
 		if _, err := rand.Read(secret); err != nil {
 			return nil, fmt.Errorf("generate cookie secret: %w", err)

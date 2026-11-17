@@ -31,7 +31,7 @@ Step 1 implements the authorization server only: protected resource metadata, au
 | `AZURE_APP_WELL_KNOWN_URL` | Conditional | — | Nais-injected OpenID discovery URL (required unless `AZURE_OPENID_CONFIG_AUTHORIZATION_ENDPOINT` is set) |
 | `AZURE_OPENID_CONFIG_AUTHORIZATION_ENDPOINT` | Conditional | — | Direct override for Entra authorization endpoint |
 | `ENTRA_SCOPE` | No | `openid api://<own client id>/.default` (plus `offline_access` for `refresh`) | Scope requested from Entra |
-| `COOKIE_SIGNING_SECRET` | No | Random 32 bytes | HMAC key (>= 32 bytes) for `__Host-fleet_entra_state` cookie |
+| `COOKIE_SIGNING_SECRET` | No | HKDF subkey of the primary `RT_KEYS` key; random only outside Nais | HMAC key (>= 32 bytes) for the `__Host-fleet_entra_state` cookie. On Nais (`NAIS_CLUSTER_NAME` set) startup fails if neither this nor `RT_KEYS` is set |
 | `PORT` | No | `8080` | HTTP listen port |
 | `LOG_LEVEL` | No | `INFO` | `DEBUG`, `INFO`, `WARN`, or `ERROR` |
 
