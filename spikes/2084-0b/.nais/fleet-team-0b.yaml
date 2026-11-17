@@ -30,7 +30,7 @@ spec:
         []  # T4: gateway removed on purpose, expect AADSTS65001
         {{else}}
         - application: fleet-gw-0b
-        - application: fleet-gateway
+        # T4 (fleet-gateway): fleet-gateway removed on purpose, expect upstream_access_missing
         {{/if}}
   env:
     - {name: ROLE, value: team}
