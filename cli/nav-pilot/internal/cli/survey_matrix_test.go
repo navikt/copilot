@@ -61,7 +61,7 @@ func q4Form(s surveyDef, user bool) ([]string, [][]string, []string, [][]string,
 		return []string{picks[i]}
 	}
 	skipped := func(q surveyQuestion) bool {
-		return q.SkipIf != nil && slices.Contains(answered(q.SkipIf.Question), q.SkipIf.Answer)
+		return slices.ContainsFunc(q.SkipIf, func(r skipRule) bool { return slices.Contains(answered(r.Question), r.Answer) })
 	}
 	return picks, multis, others, grid, skipped, answered
 }

@@ -14,6 +14,7 @@ import {
   scaleSteps,
   submitAnswers,
   type Survey,
+  type SkipRule,
   type SurveyQuestion,
 } from "./survey";
 
@@ -39,6 +40,12 @@ describe("isSkipped", () => {
     expect(isSkipped(q, { tools: ["a", "none"] })).toBe(true);
     expect(isSkipped(q, { tools: ["a"] })).toBe(false);
     expect(isSkipped({ ...q, skip_if: undefined }, { tools: "none" })).toBe(false);
+  });
+  it("skips when any rule in a list matches", () => {
+    const two = { ...q, skip_if: [q.skip_if as SkipRule, { question: "freq", answer: "never" }] };
+    expect(isSkipped(two, { tools: ["a"], freq: "never" })).toBe(true);
+    expect(isSkipped(two, { tools: "none", freq: "daily" })).toBe(true);
+    expect(isSkipped(two, { tools: ["a"], freq: "daily" })).toBe(false);
   });
 });
 

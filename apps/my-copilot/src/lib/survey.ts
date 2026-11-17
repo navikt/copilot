@@ -23,10 +23,13 @@ export type SurveyQuestion = {
   /** One more option, after options, that takes a short free text sent as `<id>.other` (otherKey). */
   other?: string;
   max_length?: number;
-  skip_if?: { question: string; answer: string };
+  /** One rule, or a list: skipped when any matches. */
+  skip_if?: SkipRule | SkipRule[];
   /** matrix: statements on its scale, each answered and sent as a scale answer under its own id. */
   items?: { id: string; version?: number; text: string }[];
 };
+
+export type SkipRule = { question: string; answer: string };
 
 export type Survey = {
   id: string;
@@ -145,8 +148,10 @@ export function choseOther(q: SurveyQuestion, answers: Answers): boolean {
 /** Whether question q is skipped by an earlier answer (skip_if). */
 export function isSkipped(q: SurveyQuestion, answers: Answers): boolean {
   if (!q.skip_if) return false;
-  const a = answers[q.skip_if.question];
-  return Array.isArray(a) ? a.includes(q.skip_if.answer) : a === q.skip_if.answer;
+  return [q.skip_if].flat().some((r) => {
+    const a = answers[r.question];
+    return Array.isArray(a) ? a.includes(r.answer) : a === r.answer;
+  });
 }
 
 /** A multi answer after a change: the exclusive option (like "I use none")
