@@ -392,15 +392,21 @@ routes:
 }
 
 func TestDevPilotRoutesFileValid(t *testing.T) {
+	assertPilotRoutesFileValid(t, "pilot-routes.dev.yaml", "dev-gcp")
+}
+
+// assertPilotRoutesFileValid checks every route in file structurally, so adding a route does not break the test.
+func assertPilotRoutesFileValid(t *testing.T, file, cluster string) {
+	t.Helper()
 	setBaseValidEnv(t)
-	t.Setenv("PILOT_ROUTES_FILE", "pilot-routes.dev.yaml")
+	t.Setenv("PILOT_ROUTES_FILE", file)
 
 	cfg, err := loadConfigFromEnv()
 	if err != nil {
-		t.Fatalf("expected pilot-routes.dev.yaml to load without error, got %v", err)
+		t.Fatalf("expected %s to load without error, got %v", file, err)
 	}
 	if len(cfg.Routes) == 0 {
-		t.Fatal("expected at least one dev route")
+		t.Fatalf("%s: expected at least one route", file)
 	}
 	seen := map[string]bool{}
 	for _, r := range cfg.Routes {
@@ -408,7 +414,7 @@ func TestDevPilotRoutesFileValid(t *testing.T) {
 			t.Errorf("route %q must start with /mcp/ and be unique", r.Route)
 		}
 		seen[r.Route] = true
-		if r.Team == "" || r.Cluster != "dev-gcp" || r.Namespace == "" || r.App == "" {
+		if r.Team == "" || r.Cluster != cluster || r.Namespace == "" || r.App == "" {
 			t.Errorf("route %q: incomplete team/target: %+v", r.Route, r)
 		}
 		if want := r.Cluster + ":" + r.Namespace + ":" + r.App; r.Target != want {
@@ -442,14 +448,5 @@ func TestDefaultEntraScopeTargetsGateway(t *testing.T) {
 }
 
 func TestProdPilotRoutesFileValid(t *testing.T) {
-	setBaseValidEnv(t)
-	t.Setenv("PILOT_ROUTES_FILE", "pilot-routes.prod.yaml")
-
-	cfg, err := loadConfigFromEnv()
-	if err != nil {
-		t.Fatalf("expected pilot-routes.prod.yaml to load without error, got %v", err)
-	}
-	if len(cfg.Routes) != 1 || cfg.Routes[0].Target != "prod-gcp:copilot:mcp-onboarding" {
-		t.Fatalf("expected only the mcp-onboarding prod route, got %+v", cfg.Routes)
-	}
+	assertPilotRoutesFileValid(t, "pilot-routes.prod.yaml", "prod-gcp")
 }
