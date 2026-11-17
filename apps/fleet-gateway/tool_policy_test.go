@@ -2,8 +2,11 @@ package main
 
 import (
 	"net/http"
+	"os"
 	"strings"
 	"testing"
+
+	"gopkg.in/yaml.v3"
 )
 
 var policyTools = map[string]bool{"whoami": true}
@@ -32,6 +35,11 @@ func TestToolPolicy_Proxy(t *testing.T) {
 		{"batch allowed", "[" + call("whoami") + `,{"method":"notifications/initialized"}]`, reasonListed, http.StatusOK},
 		{"batch mixed", "[" + call("whoami") + "," + call("delete_all") + "]", reasonNotListed, http.StatusForbidden},
 		{"batch ambiguous", "[" + call("whoami") + `,{"METHOD":"tools/call","params":{"name":"delete_all"}}]`, reasonAmbiguous, http.StatusBadRequest},
+		{"denied then trailing", call("delete_all") + "]", reasonAmbiguous, http.StatusBadRequest},
+		{"batch denied then ambiguous", "[" + call("delete_all") + `,{"METHOD":"tools/call"}]`, reasonAmbiguous, http.StatusBadRequest},
+		{"method NUL", `{"method":"tools/call\u0000","params":{"name":"delete_all"}}`, reasonAmbiguous, http.StatusBadRequest},
+		{"method tab", `{"method":"tools/\tcall","params":{"name":"delete_all"}}`, reasonAmbiguous, http.StatusBadRequest},
+		{"method space", `{"method":" tools/call","params":{"name":"delete_all"}}`, reasonAmbiguous, http.StatusBadRequest},
 		{"batch unclosed", "[" + call("whoami"), reasonAmbiguous, http.StatusBadRequest},
 	}
 	for _, tc := range cases {
@@ -60,6 +68,33 @@ func TestToolPolicy_PassAllRouteForwards(t *testing.T) {
 	audit, got, code := auditPostTools(t, nil, `{"method":"tools/call","params":{"name":"delete_all"}}`)
 	if code != http.StatusOK || got == nil || audit["decision"] != "allow" || audit["decision_reason"] != reasonPassAll {
 		t.Fatalf("pass-all route: code=%d forwarded=%v audit=%v/%v", code, got != nil, audit["decision"], audit["decision_reason"])
+	}
+}
+
+func TestToolPolicy_NonPostBody(t *testing.T) {
+	body := `{"method":"tools/call","params":{"name":"delete_all"}}`
+	for _, m := range []string{http.MethodGet, http.MethodDelete} {
+		audit, got, code := auditTools(t, m, policyTools, body)
+		if code != http.StatusBadRequest || got != nil || audit["decision"] != "deny" {
+			t.Fatalf("%s with body: code=%d forwarded=%v decision=%v", m, code, got != nil, audit["decision"])
+		}
+		audit, _, code = auditTools(t, m, policyTools, "")
+		if code == http.StatusBadRequest || audit["decision"] != "allow" || audit["decision_reason"] != reasonNotCall {
+			t.Fatalf("%s without body: code=%d audit=%v/%v", m, code, audit["decision"], audit["decision_reason"])
+		}
+	}
+}
+
+func TestToolPolicy_RouteFilesAreV2(t *testing.T) {
+	for _, f := range []string{"pilot-routes.dev.yaml", "pilot-routes.prod.yaml"} {
+		raw, err := os.ReadFile(f) //nolint:gosec // fixed repo file names
+		if err != nil {
+			t.Fatal(err)
+		}
+		var doc PilotRoutesConfig
+		if err := yaml.Unmarshal(raw, &doc); err != nil || doc.Version != 2 {
+			t.Errorf("%s: version %d (err %v), want 2", f, doc.Version, err)
+		}
 	}
 }
 

@@ -247,9 +247,23 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 			return
 		}
 
+		decision, decisionReason = "allow", reasonPassAll
+		if r.Method != http.MethodPost && route.allowedTools != nil {
+			decisionReason = reasonNotCall
+		}
+		// MCP defines no body for GET/DELETE; reject one rather than strip it,
+		// so a client sending tools/call that way learns it was never run.
+		if r.Method != http.MethodPost && len(reqBody) > 0 {
+			decision, decisionReason = "deny", reasonAmbiguous
+			outcome = "bad_request"
+			writeJSON(w, http.StatusBadRequest, map[string]string{
+				"error":   "invalid_request",
+				"message": "request body is only accepted on POST",
+			})
+			return
+		}
 		if r.Method == http.MethodPost {
 			rpcMethod, toolName = extractJSONRPCAudit(reqBody)
-			decision, decisionReason = "allow", reasonPassAll
 			if route.allowedTools != nil {
 				allow, reason := toolPolicyDecision(reqBody, route.allowedTools)
 				decisionReason = reason
@@ -749,10 +763,17 @@ func auditMethodTool(rawMethod, params json.RawMessage) (method, tool string) {
 
 // rpcMethodTool returns the unsanitized method and, for tools/call, the
 // unsanitized params.name, so audit and enforcement read the body the same way.
-// ambiguous is set for a case-variant or duplicate name key.
+// ambiguous is set for a case-variant or duplicate name key, and for a method
+// that only reads as tools/call once control characters or spaces are dropped.
 func rpcMethodTool(rawMethod, params json.RawMessage) (method, tool string, ambiguous bool) {
 	_ = json.Unmarshal(rawMethod, &method)
-	if sanitizeAuditMethod(method) != "tools/call" || len(params) == 0 {
+	if sanitizeAuditMethod(method) != "tools/call" {
+		return method, "", false
+	}
+	if method != "tools/call" {
+		return method, "", true
+	}
+	if len(params) == 0 {
 		return method, "", false
 	}
 	dec := json.NewDecoder(bytes.NewReader(params))
@@ -802,7 +823,7 @@ func toolPolicyDecision(body []byte, allowed map[string]bool) (allow bool, reaso
 	if err != nil {
 		return false, reasonAmbiguous
 	}
-	sawCall := false
+	sawCall, notListed := false, false
 	member := func() (bool, string) {
 		m, params, ok := auditScanObject(dec)
 		if !ok {
@@ -815,7 +836,9 @@ func toolPolicyDecision(body []byte, allowed map[string]bool) (allow bool, reaso
 		case method != "tools/call":
 			return true, ""
 		case !allowed[tool]:
-			return false, reasonNotListed
+			// Keep scanning: ambiguity later in the body outranks not_listed.
+			notListed = true
+			return true, ""
 		}
 		sawCall = true
 		return true, ""
@@ -850,6 +873,9 @@ func toolPolicyDecision(body []byte, allowed map[string]bool) (allow bool, reaso
 	}
 	if !auditAtEOF(dec) {
 		return false, reasonAmbiguous
+	}
+	if notListed {
+		return false, reasonNotListed
 	}
 	if sawCall {
 		return true, reasonListed

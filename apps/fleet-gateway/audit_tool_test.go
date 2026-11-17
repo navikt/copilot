@@ -27,6 +27,11 @@ func auditPost(t *testing.T, body string) (map[string]any, []byte, int) {
 // auditPostTools is auditPost on a route whose tool allowlist is tools.
 func auditPostTools(t *testing.T, tools map[string]bool, body string) (map[string]any, []byte, int) {
 	t.Helper()
+	return auditTools(t, http.MethodPost, tools, body)
+}
+
+func auditTools(t *testing.T, method string, tools map[string]bool, body string) (map[string]any, []byte, int) {
+	t.Helper()
 	var logBuf bytes.Buffer
 	old := slog.Default()
 	slog.SetDefault(slog.New(slog.NewJSONHandler(&logBuf, &slog.HandlerOptions{Level: slog.LevelInfo})))
@@ -49,7 +54,7 @@ func auditPostTools(t *testing.T, tools map[string]bool, body string) (map[strin
 	te.handler = te.gw.routes()
 	gwToken := te.obtainAccessTokenForResource(te.resource)
 
-	req := httptest.NewRequest(http.MethodPost, "/mcp/etterlevelse", strings.NewReader(body))
+	req := httptest.NewRequest(method, "/mcp/etterlevelse", strings.NewReader(body))
 	req.Header.Set("Authorization", "Bearer "+gwToken)
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
