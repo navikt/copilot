@@ -52,6 +52,8 @@ The gateway is live in prod (2026-11-17) for a controlled pilot. It runs the aut
 | `RT_KEYS` | With `postgres` or `client-encrypted` | — | `kid:base64key,...` (32-byte keys, newest first encrypts, all decrypt). Also seals every value in the session store |
 | `GATEWAY_DISABLED` | No | `false` | Set to `true` to disable all `/mcp/*` routes (`503`, `Retry-After: 300`) |
 
+A route path is `/mcp/<namespace>/<name>`, and `<namespace>` must equal the namespace in `target` (for example `/mcp/copilot/onboarding`). The old `/mcp/<name>` paths answer `404` with the new URL in `new_url`; they are not forwarded.
+
 Routes in `pilot-routes.yaml` (`PILOT_ROUTES_FILE`) support an optional `enabled: false` field to disable a single route (`503`, `Retry-After: 300`) while keeping it validated and registered.
 
 In `version: 2` route files every route lists the tools it allows in `tools: [...]`; the gateway rejects any other `tools/call`, and any ambiguous JSON-RPC body (case-variant or duplicate keys, trailing data), with a JSON-RPC error and does not forward it. Only the operator sets `passAllTools: true` instead, for a route that forwards every call. `version: 1` files load unchanged and pass every call.

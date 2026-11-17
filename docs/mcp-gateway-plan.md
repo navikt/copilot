@@ -187,6 +187,10 @@ In order. Who may join the pilot: see [Onboarding and pilot control](#onboarding
 
 ## Decisions log
 
+### 2026-11-17: route path is `/mcp/<namespace>/<name>`
+
+Owner decision on [#2342](https://github.com/navikt/copilot/issues/2342) §3.3: routes move from `/mcp/<name>` to `/mcp/<namespace>/<name>`, with no alias. The namespace segment must equal the route's target namespace. The old path answers `404` with the new URL; it is not forwarded. The route URL is the OAuth `resource` and part of the consent key, so every pilot user logs in and consents again. The registry entry keeps its name `io.github.navikt/fleet-gateway-onboarding`; only its URL changes. A rename to `<namespace>.<route>` waits for the control service (§7).
+
 ### 2026-11-17: declarative route configuration
 
 Owner decisions on the design in [#2342](https://github.com/navikt/copilot/issues/2342) (research: [#2341](https://github.com/navikt/copilot/issues/2341)):

@@ -16,14 +16,14 @@ URL=https://fleet-gateway.intern.nav.no
 ```sh
 kubectl -n $NS rollout status deploy/fleet-gateway --timeout=120s
 kubectl -n $NS get pods -l app=fleet-gateway
-curl -s -o /dev/null -w '%{http_code}\n' $URL/.well-known/oauth-protected-resource/mcp/onboarding
+curl -s -o /dev/null -w '%{http_code}\n' $URL/.well-known/oauth-protected-resource/mcp/copilot/onboarding
 ```
 
 Expected: rollout complete, pods Ready, curl prints `200`.
 
 ## 2. Login via OpenCode and whoami
 
-Add `$URL/mcp/onboarding` as a remote MCP server in OpenCode, then `opencode mcp auth <name>`. Complete the Entra login in the browser. In a session, call the `whoami` tool.
+Add `$URL/mcp/copilot/onboarding` as a remote MCP server in OpenCode, then `opencode mcp auth <name>`. Complete the Entra login in the browser. In a session, call the `whoami` tool.
 
 Expected: login succeeds, `whoami` returns your NAVident.
 
@@ -31,7 +31,7 @@ Expected: login succeeds, `whoami` returns your NAVident.
 kubectl -n $NS logs -l app=fleet-gateway --prefix --tail=-1 --since=10m | grep '"audit mcp"' | tail -5
 ```
 
-Expected: lines with `navident`, `route=/mcp/onboarding`, `outcome` ok.
+Expected: lines with `navident`, `route=/mcp/copilot/onboarding`, `outcome` ok.
 
 ## 3. Pod restart keeps the session
 
@@ -71,7 +71,7 @@ kubectl -n $NS logs -l app=fleet-gateway --prefix --tail=-1 --since=5m | grep -i
 
 ## 6. Kill switch dry run
 
-Do not merge. On a branch, set `enabled: false` on the `/mcp/onboarding` route in `apps/fleet-gateway/pilot-routes.prod.yaml`. Run `mise check` and `go test ./...` in `apps/fleet-gateway`; both must pass with the route disabled. Push the branch, but do not deploy it.
+Do not merge. On a branch, set `enabled: false` on the `/mcp/copilot/onboarding` route in `apps/fleet-gateway/pilot-routes.prod.yaml`. Run `mise check` and `go test ./...` in `apps/fleet-gateway`; both must pass with the route disabled. Push the branch, but do not deploy it.
 
 Expected: tests green.
 

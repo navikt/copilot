@@ -54,7 +54,7 @@ func auditTools(t *testing.T, method string, tools map[string]bool, body string)
 	te.handler = te.gw.routes()
 	gwToken := te.obtainAccessTokenForResource(te.resource)
 
-	req := httptest.NewRequest(method, "/mcp/etterlevelse", strings.NewReader(body))
+	req := httptest.NewRequest(method, "/mcp/team-etterlevelse/etterlevelse", strings.NewReader(body))
 	req.Header.Set("Authorization", "Bearer "+gwToken)
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()

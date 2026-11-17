@@ -11,7 +11,7 @@ import (
 )
 
 func mcpPost(te *testEnv, token, sessionID string) *httptest.ResponseRecorder {
-	req := httptest.NewRequest(http.MethodPost, "/mcp/etterlevelse", strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"tools/list"}`))
+	req := httptest.NewRequest(http.MethodPost, "/mcp/team-etterlevelse/etterlevelse", strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"tools/list"}`))
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json, text/event-stream")
@@ -24,7 +24,7 @@ func mcpPost(te *testEnv, token, sessionID string) *httptest.ResponseRecorder {
 }
 
 func mcpBound(te *testEnv, id string) (string, bool) {
-	owner, found, err := te.gw.store.Get(context.Background(), kindMCPSession, "/mcp/etterlevelse\n"+id)
+	owner, found, err := te.gw.store.Get(context.Background(), kindMCPSession, "/mcp/team-etterlevelse/etterlevelse\n"+id)
 	if err != nil {
 		te.t.Fatalf("store get: %v", err)
 	}
@@ -107,7 +107,7 @@ func TestMCPSession_DeleteReleasesBindingAndCapSlot(t *testing.T) {
 		t.Fatalf("initialize: got %d", rec.Code)
 	}
 
-	req := httptest.NewRequest(http.MethodDelete, "/mcp/etterlevelse", nil)
+	req := httptest.NewRequest(http.MethodDelete, "/mcp/team-etterlevelse/etterlevelse", nil)
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Mcp-Session-Id", "up-0")
 	rec := httptest.NewRecorder()
@@ -130,7 +130,7 @@ func TestMCPSession_DeleteReleasesBindingAndCapSlot(t *testing.T) {
 }
 
 func mcpDelete(te *testEnv, token, sessionID string) int {
-	req := httptest.NewRequest(http.MethodDelete, "/mcp/etterlevelse", nil)
+	req := httptest.NewRequest(http.MethodDelete, "/mcp/team-etterlevelse/etterlevelse", nil)
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Mcp-Session-Id", sessionID)
 	rec := httptest.NewRecorder()
