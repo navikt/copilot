@@ -29,7 +29,7 @@ Step 1 implements the authorization server only: protected resource metadata, au
 | `DCR_ENABLED` | No | `false` | Serve RFC 7591 dynamic client registration at `POST /register` and advertise `registration_endpoint`. Only http loopback redirect URIs and `token_endpoint_auth_method: none`; registered clients are shown as unverified on the consent page |
 | `DCR_CLIENT_TTL` | No | `720h` | Lifetime of an unused registered client. Each use extends it, up to `DCR_CLIENT_MAX_AGE` |
 | `DCR_CLIENT_MAX_AGE` | No | `4320h` | Maximum lifetime of a registered client, used or not |
-| `DCR_CLIENT_CAP` | No | `5000` | Maximum number of live registered clients. When full, a new registration evicts the client that has gone longest without use |
+| `DCR_CLIENT_CAP` | No | `5000` | Maximum number of live registered clients. When full, a new registration evicts the client with the earliest expiry. Expiry slides forward on each successful token exchange (at most once per `DCR_CLIENT_TTL`/30, never past the max age), so this approximates least recently used |
 | `DCR_RATE_LIMIT_REQUESTS` | No | `10` | Registrations per IP per hour, shared by all replicas through the session store |
 | `DCR_RATE_LIMIT_GLOBAL_REQUESTS` | No | `100` | Registrations per hour across all IPs and replicas. Requests the per-IP limit rejects do not count |
 | `AZURE_APP_CLIENT_ID` | Yes | — | Nais-injected Entra client ID |

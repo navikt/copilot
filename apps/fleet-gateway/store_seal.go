@@ -208,6 +208,14 @@ func (s *sealedStore) Put(ctx context.Context, kind, key string, val []byte, ttl
 	return s.inner.Put(ctx, kind, key, blob, ttl)
 }
 
+func (s *sealedStore) PutEvict(ctx context.Context, kind, key string, val []byte, ttl time.Duration) (bool, error) {
+	blob, err := s.keys.Seal(sealAAD(kind, key), val)
+	if err != nil {
+		return false, err
+	}
+	return s.inner.PutEvict(ctx, kind, key, blob, ttl)
+}
+
 func (s *sealedStore) Get(ctx context.Context, kind, key string) ([]byte, bool, error) {
 	blob, ok, err := s.inner.Get(ctx, kind, key)
 	if err != nil || !ok {
@@ -250,10 +258,6 @@ func (s *sealedStore) IsRevoked(ctx context.Context, jti string) (bool, error) {
 
 func (s *sealedStore) Incr(ctx context.Context, key string, window time.Duration) (int, error) {
 	return s.inner.Incr(ctx, key, window)
-}
-
-func (s *sealedStore) EvictOldest(ctx context.Context, kind string) (bool, error) {
-	return s.inner.EvictOldest(ctx, kind)
 }
 
 func (s *sealedStore) Sweep(ctx context.Context) (int, error) {

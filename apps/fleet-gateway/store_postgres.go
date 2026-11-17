@@ -154,6 +154,15 @@ func kindAdvisoryLockID(kind string) int64 {
 }
 
 func (s *pgxStore) Put(ctx context.Context, kind, key string, val []byte, ttl time.Duration) error {
+	_, err := s.put(ctx, kind, key, val, ttl, false)
+	return err
+}
+
+func (s *pgxStore) PutEvict(ctx context.Context, kind, key string, val []byte, ttl time.Duration) (bool, error) {
+	return s.put(ctx, kind, key, val, ttl, true)
+}
+
+func (s *pgxStore) put(ctx context.Context, kind, key string, val []byte, ttl time.Duration, evict bool) (evicted bool, err error) {
 	now := s.now().UTC()
 	expiresAt := now.Add(ttl)
 
@@ -168,17 +177,17 @@ func (s *pgxStore) Put(ctx context.Context, kind, key string, val []byte, ttl ti
 				created_at = EXCLUDED.created_at`,
 			kind, key, val, expiresAt, now,
 		)
-		return err
+		return false, err
 	}
 
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
-		return err
+		return false, err
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
 	if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock($1)`, kindAdvisoryLockID(kind)); err != nil {
-		return err
+		return false, err
 	}
 
 	var liveCount int
@@ -189,10 +198,23 @@ func (s *pgxStore) Put(ctx context.Context, kind, key string, val []byte, ttl ti
 		WHERE kind = $1 AND expires_at > $2`,
 		kind, now, key,
 	).Scan(&liveCount, &keyLive); err != nil {
-		return err
+		return false, err
 	}
 	if !keyLive && liveCount >= capLimit {
-		return errStoreFull
+		if !evict || liveCount == 0 {
+			return false, errStoreFull
+		}
+		// Only live rows count toward the cap, so only a live row frees a slot.
+		tag, err := tx.Exec(ctx, `
+			DELETE FROM items
+			WHERE kind = $1 AND key = (
+				SELECT key FROM items WHERE kind = $1 AND expires_at > $2
+				ORDER BY expires_at LIMIT 1
+			)`, kind, now)
+		if err != nil {
+			return false, err
+		}
+		evicted = tag.RowsAffected() == 1
 	}
 
 	if _, err := tx.Exec(ctx, `
@@ -204,9 +226,9 @@ func (s *pgxStore) Put(ctx context.Context, kind, key string, val []byte, ttl ti
 			created_at = EXCLUDED.created_at`,
 		kind, key, val, expiresAt, now,
 	); err != nil {
-		return err
+		return false, err
 	}
-	return tx.Commit(ctx)
+	return evicted, tx.Commit(ctx)
 }
 
 func (s *pgxStore) Get(ctx context.Context, kind, key string) ([]byte, bool, error) {
@@ -308,18 +330,6 @@ func (s *pgxStore) Incr(ctx context.Context, key string, window time.Duration) (
 		key, now.Add(window), now,
 	).Scan(&n)
 	return n, err
-}
-
-func (s *pgxStore) EvictOldest(ctx context.Context, kind string) (bool, error) {
-	tag, err := s.pool.Exec(ctx, `
-		DELETE FROM items
-		WHERE kind = $1 AND key = (
-			SELECT key FROM items WHERE kind = $1 ORDER BY expires_at LIMIT 1
-		)`, kind)
-	if err != nil {
-		return false, err
-	}
-	return tag.RowsAffected() == 1, nil
 }
 
 func (s *pgxStore) Sweep(ctx context.Context) (int, error) {

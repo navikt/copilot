@@ -239,27 +239,25 @@ func clientKnown(t *testing.T, te *testEnv, id string) bool {
 	return known
 }
 
-// A full store evicts the least recently used client instead of refusing.
-func TestDCR_FullCapEvictsLeastRecentlyUsed(t *testing.T) {
+// A full store evicts the least recently renewed client instead of refusing.
+func TestDCR_FullCapEvictsLeastRecentlyRenewed(t *testing.T) {
 	te := newTestEnv(t)
 	enableDCR(te, 2, 100)
 	a := registerID(t, te, "10.0.0.6")
 	te.advance(time.Hour)
 	b := registerID(t, te, "10.0.0.6")
 	te.advance(time.Hour)
-	if !clientKnown(t, te, a) { // use renews a past b
-		t.Fatalf("a should be live")
-	}
+	te.gw.renewClient(t.Context(), a) // a token exchange renews a past b
 	c := registerID(t, te, "10.0.0.7")
 	if !clientKnown(t, te, a) || !clientKnown(t, te, c) {
 		t.Fatalf("a and c should be live after eviction")
 	}
 	if clientKnown(t, te, b) {
-		t.Fatalf("b was least recently used and should be evicted")
+		t.Fatalf("b was least recently renewed and should be evicted")
 	}
 }
 
-// Use slides the TTL; DCRClientMaxAge still ends the client.
+// A token exchange slides the TTL; DCRClientMaxAge still ends the client.
 func TestDCR_TTLRenewedOnUseBoundedByMaxAge(t *testing.T) {
 	te := newTestEnv(t)
 	enableDCR(te, 10, 10)
@@ -267,12 +265,39 @@ func TestDCR_TTLRenewedOnUseBoundedByMaxAge(t *testing.T) {
 	for elapsed := 20 * time.Hour; elapsed < 72*time.Hour; elapsed += 20 * time.Hour {
 		te.advance(20 * time.Hour)
 		if !clientKnown(t, te, id) {
-			t.Fatalf("client used every 20h expired after %s; TTL is 24h", elapsed)
+			t.Fatalf("client renewed every 20h expired after %s; TTL is 24h", elapsed)
 		}
+		te.gw.renewClient(t.Context(), id)
 	}
 	te.advance(20 * time.Hour) // 80h > 72h max age
 	if clientKnown(t, te, id) {
 		t.Fatalf("client must expire at max age despite use")
+	}
+}
+
+// Unauthenticated /authorize hits must not keep a registered client alive.
+func TestDCR_AuthorizeDoesNotRenew(t *testing.T) {
+	te := newTestEnv(t)
+	enableDCR(te, 10, 10)
+	id := registerID(t, te, "10.0.0.9")
+	for range 2 {
+		te.advance(20 * time.Hour)
+		u := te.authorizeURL(map[string]string{"client_id": id, "redirect_uri": "http://127.0.0.1:40001/mcp/oauth/callback"}, "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG")
+		te.handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, u, nil))
+	}
+	if clientKnown(t, te, id) {
+		t.Fatalf("client kept alive by /authorize past its 24h TTL")
+	}
+}
+
+// /register sits behind the in-memory per-IP limiter before the store-backed one.
+func TestDCR_RegisterBehindInMemoryRateLimit(t *testing.T) {
+	te := newTestEnv(t)
+	enableDCR(te, 100, 100)
+	te.gw.limiter = newIPRateLimiter(1, 100, time.Minute, 10, func() time.Time { return te.now })
+	registerID(t, te, "10.0.2.1")
+	if code, _ := postRegister(te, opencodeRegistration(), "10.0.2.1"); code != http.StatusTooManyRequests {
+		t.Fatalf("second register from same IP: got %d, want 429", code)
 	}
 }
 

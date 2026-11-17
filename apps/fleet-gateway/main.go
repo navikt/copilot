@@ -159,7 +159,7 @@ func (g *Gateway) routes() http.Handler {
 	mux.HandleFunc("POST /token", g.rateLimitMiddleware(g.tokenHandler))
 	mux.HandleFunc("POST /revoke", g.rateLimitMiddleware(g.revokeHandler))
 	if g.cfg.DCREnabled {
-		mux.HandleFunc("POST /register", g.registerHandler)
+		mux.HandleFunc("POST /register", g.rateLimitMiddleware(g.registerHandler))
 	}
 	for _, route := range g.cfg.Routes {
 		mux.HandleFunc(route.Route, g.mcpHandler(route))

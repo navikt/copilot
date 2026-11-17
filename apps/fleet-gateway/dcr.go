@@ -114,16 +114,11 @@ func (g *Gateway) registerHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
-	err = g.store.Put(r.Context(), kindDCRClient, meta.ClientID, raw, g.cfg.DCRClientTTL)
-	if errors.Is(err, errStoreFull) {
-		// Full: drop the client that has gone longest without use (renewal pushes
-		// expiry forward, so the earliest expiry is the least recently used).
-		if _, evictErr := g.store.EvictOldest(r.Context(), kindDCRClient); evictErr != nil {
-			err = evictErr
-		} else {
-			slog.Info("audit dcr", "outcome", "evicted_oldest")
-			err = g.store.Put(r.Context(), kindDCRClient, meta.ClientID, raw, g.cfg.DCRClientTTL)
-		}
+	// Full: drop the client with the earliest expiry. Expiry slides only on a
+	// successful token exchange, so this is the least recently renewed client.
+	evicted, err := g.store.PutEvict(r.Context(), kindDCRClient, meta.ClientID, raw, g.cfg.DCRClientTTL)
+	if evicted {
+		slog.Info("audit dcr", "outcome", "evicted_oldest")
 	}
 	if err != nil {
 		if errors.Is(err, errStoreFull) {
@@ -227,14 +222,25 @@ func (g *Gateway) registeredClient(ctx context.Context, clientID string) (*clien
 	if err := json.Unmarshal(raw, &rec); err != nil {
 		return nil, false, err
 	}
-	g.renewClient(ctx, &rec)
 	return &rec.clientMetadata, true, nil
 }
 
-// renewClient slides the client's TTL on use, at most once per TTL/30, and never
-// past IssuedAt+DCRClientMaxAge. A failed renewal only logs: the client is
-// still live until its current expiry.
-func (g *Gateway) renewClient(ctx context.Context, rec *dcrClient) {
+// renewClient slides a DCR client's TTL after a successful token exchange, at
+// most once per TTL/30, and never past IssuedAt+DCRClientMaxAge. It is not
+// called from /authorize: unauthenticated requests must not keep a client
+// alive. A failed renewal only logs: the client is live until its expiry.
+func (g *Gateway) renewClient(ctx context.Context, clientID string) {
+	if !g.cfg.DCREnabled || !strings.HasPrefix(clientID, dcrClientIDPrefix) {
+		return
+	}
+	raw, ok, err := g.store.Get(ctx, kindDCRClient, clientID)
+	if err != nil || !ok {
+		return
+	}
+	var rec dcrClient
+	if json.Unmarshal(raw, &rec) != nil {
+		return
+	}
 	now := g.now()
 	if rec.IssuedAt.IsZero() {
 		rec.IssuedAt = now // registered before renewal existed
@@ -247,7 +253,7 @@ func (g *Gateway) renewClient(ctx context.Context, rec *dcrClient) {
 		return
 	}
 	rec.RenewedAt = now
-	raw, err := json.Marshal(rec)
+	raw, err = json.Marshal(rec)
 	if err == nil {
 		err = g.store.Put(ctx, kindDCRClient, rec.ClientID, raw, ttl)
 	}

@@ -36,9 +36,11 @@ type SessionStore interface {
 	// Incr bumps a fixed-window counter shared by every replica and returns the
 	// count in the current window, which starts on the first Incr after expiry.
 	Incr(ctx context.Context, key string, window time.Duration) (int, error)
-	// EvictOldest deletes the item of kind with the earliest expiry. ok is false
-	// when kind is empty.
-	EvictOldest(ctx context.Context, kind string) (bool, error)
+	// PutEvict is Put that, when kind is at its cap, first deletes the live item
+	// of kind with the earliest expiry. Eviction and insert are one atomic step,
+	// so concurrent callers cannot take the freed slot. evicted reports whether
+	// an item was dropped.
+	PutEvict(ctx context.Context, kind, key string, val []byte, ttl time.Duration) (evicted bool, err error)
 	Sweep(ctx context.Context) (int, error)
 	Ping(ctx context.Context) error
 	Close()
@@ -76,8 +78,17 @@ func newMemoryStore(now func() time.Time, caps map[string]int) *memoryStore {
 }
 
 func (s *memoryStore) Put(ctx context.Context, kind, key string, val []byte, ttl time.Duration) error {
+	_, err := s.put(ctx, kind, key, val, ttl, false)
+	return err
+}
+
+func (s *memoryStore) PutEvict(ctx context.Context, kind, key string, val []byte, ttl time.Duration) (bool, error) {
+	return s.put(ctx, kind, key, val, ttl, true)
+}
+
+func (s *memoryStore) put(ctx context.Context, kind, key string, val []byte, ttl time.Duration, evict bool) (evicted bool, err error) {
 	if err := ctx.Err(); err != nil {
-		return err
+		return false, err
 	}
 
 	s.mu.Lock()
@@ -88,7 +99,18 @@ func (s *memoryStore) Put(ctx context.Context, kind, key string, val []byte, ttl
 		s.sweepKindLocked(kind, now)
 		bucket := s.items[kind]
 		if _, exists := bucket[key]; !exists && len(bucket) >= capLimit {
-			return errStoreFull
+			if !evict || len(bucket) == 0 {
+				return false, errStoreFull
+			}
+			// sweepKindLocked left only live items, so this frees a counted slot.
+			oldest, oldestAt := "", time.Time{}
+			for k, e := range bucket {
+				if oldest == "" || e.expiresAt.Before(oldestAt) {
+					oldest, oldestAt = k, e.expiresAt
+				}
+			}
+			delete(bucket, oldest)
+			evicted = true
 		}
 	}
 
@@ -104,7 +126,7 @@ func (s *memoryStore) Put(ctx context.Context, kind, key string, val []byte, ttl
 		value:     copied,
 		expiresAt: now.Add(ttl),
 	}
-	return nil
+	return evicted, nil
 }
 
 func (s *memoryStore) Get(ctx context.Context, kind, key string) ([]byte, bool, error) {
@@ -235,26 +257,6 @@ func (s *memoryStore) Incr(ctx context.Context, key string, window time.Duration
 	c.count++
 	s.counts[key] = c
 	return c.count, nil
-}
-
-func (s *memoryStore) EvictOldest(ctx context.Context, kind string) (bool, error) {
-	if err := ctx.Err(); err != nil {
-		return false, err
-	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	oldest, found := "", false
-	var oldestAt time.Time
-	for k, e := range s.items[kind] {
-		if !found || e.expiresAt.Before(oldestAt) {
-			oldest, oldestAt, found = k, e.expiresAt, true
-		}
-	}
-	if found {
-		delete(s.items[kind], oldest)
-	}
-	return found, nil
 }
 
 func (s *memoryStore) Sweep(ctx context.Context) (int, error) {
