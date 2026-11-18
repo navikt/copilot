@@ -1,0 +1,8 @@
+ MD Read fakta.md 6 lines read
+
+ / Search "*" 27 files found
+
+ MD Create notis.md +7
+
+Notisen er lagret i `notis.md` og er på rundt 50 ord. Den har med lanseringsdato, hva agenten sjekker, at den kjører på PR-er som endrer `docs/`, hvordan teamene slår den av, og hvor tilbakemeldinger går.
+

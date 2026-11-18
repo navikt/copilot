@@ -1,0 +1,16 @@
+TokenX.
+
+Tjeneste A bytter brukerens token til et nytt token med B som audience, og sender det med kallet. B ser fortsatt hvilken bruker kallet gjelder, så revisjonssporet blir bevart.
+
+- **A:** `tokenx.enabled: true`, og `accessPolicy.outbound.rules` peker på B.
+- **B:** `tokenx.enabled: true`, og `accessPolicy.inbound.rules` tillater A.
+- **B validerer tokenet:** sjekk issuer, audience (B sin `client_id`) og at `pid`/`sub` hører til brukeren. Hvis B bruker Entra ID-tokens, skal B også sjekke `azp` mot A.
+
+Tokenet skal ikke logges.
+
+Entra ID client_credentials passer bare for kall uten bruker, for eksempel batch. Med brukerkontekst mister du revisjonssporet til brukeren.
+
+Unntak: kommer brukertokenet fra Entra ID (saksbehandler), bruker du Entra ID On-Behalf-Of i stedet for TokenX.
+
+Si «forklar» for detaljer.
+

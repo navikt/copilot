@@ -1,0 +1,27 @@
+ / Search "{AGENTS.md,.github/copilot-instructions.md,.github/copilot-review-instruct… 2 files found
+
+ YM Read nais.yaml 12 lines read
+
+Denne oppgaven får nivået **Full**: ny tjeneste, ny innlogging og fødselsnummer (fnr). Jeg starter derfor med **Fase 1: Intervju** og skriver ingen kode før du har svart.
+
+**Det jeg fant i repoet**
+- Prosjektet er Kotlin (`build.gradle.kts`).
+- `nais.yaml` har helsesjekker, men ingen innlogging og ingen `accessPolicy`.
+- Repoet mangler `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`. Kjør `nav-pilot init` for å legge dem til.
+
+**Antakelser**
+Innbyggeren logger inn med ID-porten. Fnr hentes fra `pid`-claimet i tokenet.
+
+**Spørsmål**
+1. **Personvern ⚠️:** Hva skal fnr brukes til? Skal det lagres, sendes videre eller bare slås opp? Behandler tjenesten andre opplysninger, for eksempel navn, helse eller ytelser?
+2. **Tilgangsstyring ⚠️:** Logger innbyggeren inn direkte i denne tjenesten via Wonderwall? Eller er det en backend som en frontend kaller med TokenX? Hvilke apper skal få kalle den?
+3. **Feilhåndtering:** Hvilke tjenester avhenger den av, for eksempel PDL eller en database? Hva skal skje når en av dem er nede?
+4. **Observerbarhet:** Hvilke tall viser at tjenesten fungerer?
+5. **Teamgrenser:** Eier dere hele flyten, eller er dere avhengige av andre team?
+6. **Påvirkning på andre:** Hvem skal bruke API-et?
+7. **Ny teknologi:** Har teamet brukt ID-porten eller TokenX før? Hvis ikke, regner jeg innloggingen som 🔴 rød sone.
+
+Blindsoner reist: 7/11 (#1, #2, #3, #4, #5, #6, #11 stilt; #7, #8, #9, #10 er ikke relevante fordi dette er en ny tjeneste uten eksisterende kode, brukere eller eldre løsning)
+
+Fase 2 (plan) starter når du har svart.
+

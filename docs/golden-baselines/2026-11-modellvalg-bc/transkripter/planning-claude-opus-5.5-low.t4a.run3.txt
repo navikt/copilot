@@ -1,0 +1,42 @@
+ ✗ Shell Inspect repo Failed with exit code 1  . .. .github build.gradle.kts nais.yaml README.md sr…
+   ls -a; ls .github 2>/dev/null; ls nais* .nais 2>/dev/null
+   .
+   ..
+   .github
+   build.gradle.kts
+   nais.yaml
+   README.md
+   src
+   agents
+   instructions
+   nais.yaml
+   Failed with exit code 1
+
+ $ Shell Read repo signals 32 lines…
+   cat nais.yaml build.gradle.kts README.md | head -80; find src -type f | head -20
+
+**Nivå: Full** (ny tjeneste, ny autentisering, personopplysninger). Dette er fase 1, intervjuet.
+
+Dette har jeg funnet i repoet:
+- Det er en Ktor 3-tjeneste (`demo-tjeneste`) med helsesjekker.
+- Den har ingen autentisering, ingen `accessPolicy` og ingen database.
+- `AGENTS.md`, `.github/copilot-instructions.md` og `copilot-review-instructions.md` mangler. Jeg anbefaler å kjøre `nav-pilot init`.
+
+Jeg antar at innbyggeren logger inn via nettleseren, at du bruker ID-porten med Wonderwall, og at fnr hentes fra `pid`-claimet.
+
+**Spørsmål:**
+1. **Personvern ⚠️:** Hva skal fnr brukes til? Skal det lagres, sendes videre (PDL, Kafka) eller bare slås opp? Kommer det andre personopplysninger i tillegg, for eksempel navn, helse eller ytelser?
+2. **Tilgangsstyring ⚠️:** Kaller innbyggeren tjenesten direkte, eller går kallet via en frontend eller BFF med TokenX? Hvilket sikkerhetsnivå trenger dere (`idporten-loa-high` eller `substantial`)?
+3. **Feilhåndtering:** Hvilke avhengigheter har tjenesten, og hva skal skje når de er nede?
+4. **Observerbarhet:** Hvilke forretningsmetrikker viser at tjenesten virker?
+5. **Teamgrenser:** Eier dere frontenden, eller gjør et annet team det?
+6. **Konsumenter:** Hvem skal bruke API-et?
+7. **Teststrategi:** Er MockOAuth2Server et greit valg for testene?
+11. **Kompetanse:** Har teamet jobbet med ID-porten og tokenvalidering før? Tokenvalidering er 🔴 rød sone.
+
+Jeg hopper over #8 og #10 fordi tjenesten er ny, og #9 fordi det ikke finnes et gammelt format å være bakoverkompatibel med.
+
+Blindsoner reist: 8/11 (#1–#7, #11 stilt; #8–#10 ikke relevant)
+
+Jeg venter på svarene dine før jeg går videre til fase 2 (plan).
+

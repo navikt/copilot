@@ -1,0 +1,23 @@
+ ● skill(nav-auth)
+
+ ● skill(klarsprak)
+
+ $ Shell Sjekk prosjektfiler og lokal Copilot-konfigurasjon 11 lines…
+   ls -a; ls -a .github
+
+ $ Shell Les dagens formål, tilgang og prosjektstruktur 32 lines…
+   cat README.md nais.yaml build.gradle.kts; find src -type f
+
+ $ Shell Sjekk hvilke data og kall demoen allerede håndterer 47 lines…
+   cat src/main/kotlin/no/nav/demo/*.kt
+
+**Fase 1: Avklar formål og tilgang.** Jeg antar at dette er en ny tjeneste, adskilt fra Ktor-demoen. Demoen returnerer faste oppgaver uten brukerkobling, og `nais.yaml` har ikke oppsett for ID-porten.
+
+1. Hva skal innbyggeren kunne gjøre som krever fødselsnummer? Trenger tjenesten andre personopplysninger?
+2. Skal innbyggeren bruke tjenesten direkte og bare få tilgang til egne opplysninger, eller skal en annen Nav-applikasjon kalle tjenesten på innbyggerens vegne? Hvilken?
+3. Holder det å bruke fødselsnummeret mens forespørselen behandles? Hvis det må lagres eller deles, hvor lenge skal det beholdes, og hvem skal motta det? Fødselsnummer og token skal ikke havne i logger.
+
+Lokal Copilot-konfigurasjon mangler. Den kan opprettes med `nav-pilot init`.
+
+Blindsoner reist: 3/11 (#1 personvern, #2 tilgang, #6 mottakere). Drift, teamansvar, test og læringsbehov avhenger av formålet. Ingen eksisterende løsning er oppgitt for migrering, kompatibilitet eller avvikling.
+

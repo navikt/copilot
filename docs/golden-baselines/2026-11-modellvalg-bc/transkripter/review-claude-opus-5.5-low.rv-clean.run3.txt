@@ -1,0 +1,34 @@
+ $ Shell Read file 62 lines…
+   cat -n src/main/kotlin/no/nav/demo/sak/SakService.kt; ls
+
+ $ Shell List files 15 lines…
+   find src -type f; ls -a; which mise
+
+## Gjennomgang av `SakService.kt`
+
+Filen har ingen blokkerende feil. `mise check` ble ikke kjørt fordi repoet ikke har noen mise-konfigurasjon. Repoet har heller ingen testkatalog, så ingen tester er kjørt.
+
+### Dette er bra
+- SQL-spørringen er parameterisert (linje 26), så den er beskyttet mot SQL-injeksjon.
+- Fødselsnummeret hentes fra `pid`-claimet i TokenX-tokenet (linje 50), ikke fra en parameter i forespørselen. Brukeren kan derfor bare se sine egne saker, så eierskapet er sjekket.
+- Fødselsnummeret maskeres helt før det logges (linje 37).
+- Feilloggen skriver bare klassenavnet på unntaket, ikke meldingen. Dermed lekker ikke personopplysninger fra en eventuell SQL-feil ut i loggen.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|-----|-------|-----------|---------|
+| `SakService.kt` | 40–43 | 🟡 | Unntaket kastes videre uten kontekst. Ktor logger det da med full melding, og den kan inneholde fødselsnummeret. |
+| `SakService.kt` | 37 | 💭 | Loggen er lite nyttig, fordi den maskerte verdien alltid er `***********`. |
+| `SakService.kt` | 20 | 💭 | `maskert()` er en extension på alle `String`. Den bør være `private` eller ligge i en egen loggverktøy-fil. |
+| (mangler) | – | 🟡 | Det finnes ingen tester for ruten. Mangler `pid` skal gi 401, og gyldig token skal gi bare egne saker. |
+
+### Detaljer
+**Linje 40–43:** Unntaket kastes videre uendret. Hvis ingen StatusPages-handler fanger det, logger Ktor stack trace og melding. Hos Postgres kan meldingen inneholde parameterverdier, altså fødselsnummeret. Pakk feilen inn i et domeneunntak uten persondata, for eksempel `throw SakOppslagException(e)`. Legg til en StatusPages-handler som logger trygt og svarer 500.
+
+**Linje 37:** Loggen sier bare at et oppslag skjedde. Logg heller en ikke-sensitiv verdi, for eksempel en correlation-id.
+
+🔴 Rød sone: autorisasjonen i `sakRoutes` bygger på at `pid` alltid kommer fra et validert TokenX-token. Sjekk at `tokenx`-oppsettet i `App.kt`/`Config.kt` validerer audience og issuer.
+
+Still gjerne spørsmål om valgene over.
+

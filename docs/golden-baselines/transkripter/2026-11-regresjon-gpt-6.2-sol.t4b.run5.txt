@@ -1,0 +1,15 @@
+## Fase 2: Plan for navneoppslag via PDL
+
+**Bruk den eksisterende Next.js-frontenden som BFF.** Innbyggeren logger inn med ID-porten via Wonderwall. Nettleseren kaller frontenden, som bruker TokenX til å veksle innbyggerens token til et token med Ktor-tjenesten som mottaker. Det gir én offentlig inngang og lar Ktor-tjenesten validere innbyggerens identitet uten å stole på et fødselsnummer fra nettleseren. Prisen er ett ekstra tjenestekall og tokenbytte.
+
+| Område | Plan |
+|---|---|
+| API og data | Frontenden kaller et internt `GET /api/me`. Ktor validerer TokenX-tokenet og leser fødselsnummeret fra det validerte identitetsclaimet. Endepunktet tar ikke imot fødselsnummer som parameter og returnerer bare navnefeltene UI-et trenger, med `Cache-Control: no-store`. Ingen database eller mellomlagring. |
+| Nais og PDL | Ktor-tjenesten får ingen offentlig ingress og tillater innkommende trafikk bare fra frontenden. Utgående tilgang begrenses til nødvendige avhengigheter. Bruk PDLs godkjente autentiseringsflyt for oppslag på vegne av innbyggeren. Før implementering må teamet verifisere PDLs tokenkrav, tilgang og behandlingsnummer, samt hvilket sikkerhetsnivå ID-porten-innloggingen krever. |
+| Feil og måling | Avvis manglende eller ugyldig token før PDL-kallet. Sett en tidsgrense for oppslaget. Ved utilgjengelig PDL eller tidsavbrudd: returner `503` og logg feiltypen uten fødselsnummer, navn, token eller PDL-payload. Ingen kø eller dead-letter. Mål PDL-oppslag per minutt og andel feilende PDL-kall med tellere uten personidentifiserende etiketter. |
+| Tester og leveranse | Test at tjenesten avviser feil utsteder, mottaker og utløpt token, og at manglende identitetsclaim stopper oppslaget. Test vellykket PDL-oppslag, `503` ved utilgjengelighet og at responsen ikke inneholder fødselsnummer. Bygg og test i GitHub Actions. Verifiser flyten med testidentiteter i dev før prod. Ved rollback fjernes først frontendens bruk av endepunktet. |
+
+Planen forutsetter at fødselsnummeret bare brukes til PDL-oppslaget, og at navnet bare vises til den innloggede innbyggeren. Dokumenter hvilken lovhjemmel som dekker oppslaget før produksjonssetting.
+
+**🔴 Rød sone:** Teamet skriver og gjennomgår Wonderwall-oppsettet, TokenX-utvekslingen og tokenvalideringen, koblingen mellom innlogget identitet og PDL-oppslaget, og PDL-autentiseringen. Det er her en feil kan føre til oppslag på feil person. Ingen kode er endret.
+

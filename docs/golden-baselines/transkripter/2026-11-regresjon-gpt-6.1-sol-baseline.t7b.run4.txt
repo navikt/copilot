@@ -1,0 +1,29 @@
+ ● skill(klarsprak)
+
+ ● Research-agent (model: gpt-6-luna) Undersøk Kafka-melding og personvern                       26s
+   │ ## Funn
+   │ Search ".github/copilot-instructions.md" No matches found
+   └ Search "**/copilot-review-instructions.md" No matches found
+
+## Funn
+
+- `src/main/kotlin/no/nav/demo/Soknad.kt:13` definerer `SoknadMottattMelding` med `soknadId` og `mottatt`, men ikke fnr. `sendMottatt` serialiserer hele meldingen til JSON på topicet `soknad-mottatt`, med `soknadId` som Kafka-key (`:21–22`).
+- Mulig kilde til fnr i kodebasen er `SokerDto.fnr` (`Soknad.kt:11`). `lesSoker` leser denne DTO-en fra JSON (`:19`), og `sendSoker` sender den på et annet topic, `soker-oppdatert`, med fnr som key og i payload (`:25–26`). Jeg fant ingen kobling som viser at denne kilden brukes når søknadsmeldingen lages.
+- Fant ingen tester eller testfiler. Kodebasen viser derfor ikke forventet meldingsformat eller hvordan konsumenter håndterer meldingen.
+- `nais.yaml` oppgir bare appens navn, namespace, port og helseendepunkter; den beskriver ikke Kafka-tilgang eller topic-konfigurasjon. Ingen filer i repoet dokumenterer topic-lesere, konsumentformål, retention eller logging av Kafka-meldinger. `App.kt:9` logger bare oppstart og `maksAntall`; jeg fant ingen logging av meldingsinnhold eller fnr.
+- `README.md` beskriver tjenesten som en liten Ktor-demotjeneste og sier at dokumentasjonen ikke er komplett.
+
+## Hva repoet ikke avklarer
+
+Repoet sier ikke hvem som leser `soknad-mottatt`, hvorfor de eventuelt trenger fnr, om de har tilgang til å motta det, eller hvordan meldinger lagres, beholdes og logges utenfor denne appen. Det gir derfor ikke grunnlag for å konkludere med at fnr kan deles med eksisterende konsumenter.
+
+Jeg fant ingen `AGENTS.md`, `.github/copilot-instructions.md` eller `copilot-review-instructions.md`. Det finnes `.github/agents/golden-nav-pilot.agent.md`, som sier at nye personopplysninger i payload skal utløse en avklaring når repoet ikke gir svaret; Kotlin-instruksjonene sier også at endring av Kafka-skjema skal avklares først. Dette er kun kartlegging; ingen filer er endret.
+
+**Avklaring:** Er det avklart at fnr skal behandles i denne meldingen, og at alle eksisterende konsumenter av `soknad-mottatt` har et godkjent behov og tilgang til å motta det?
+
+Å legge til `fnr` utvider Kafka-meldingen med personopplysninger. Repoet viser ikke hvem som leser `soknad-mottatt` eller hvorfor de trenger fødselsnummer. Ingen filer er endret.
+
+Er det avklart hvilket formål fnr skal brukes til, og at alle konsumentene av topicet har lov til å motta det?
+
+Blindsoner reist: 1/11 (#1 personvern; øvrige avklaringer avventer dette).
+

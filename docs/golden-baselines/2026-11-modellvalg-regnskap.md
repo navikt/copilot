@@ -67,3 +67,22 @@ Median credits per kjøring uten dommer og probe. Mann–Whitney er ensidig, kan
 
 D5: MAI Code 2 i `coding`: alle oppgaver 5/5 mot 6.1 Sol 5/5, median 5,11 mot 29,27, p 0,004 → **anbefales** som rimelig koder.
 
+
+## Trinn B+C (n = 5 per arm)
+
+Armfil (kjøres i rekkefølge med `run-arms.sh`): D1 6.2 Sol (580), D1 6.1 Sol (580), review Opus (293), review Astra (1 000), planning Opus (254), planning Astra (575), norsk Opus (175), norsk Sonnet (93), accessibility Opus (285), accessibility Sonnet (144), coding 6.2 Sol (130). Estimatene er summen av B og C, og prognosen med probe er ≈ 4 175.
+
+| Arm | Estimat | Reservert (brukt + estimat) | Agent | Dommer | Probe | Faktisk | Bestått | Status |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 2026-11-regresjon-gpt-6.2-sol | 580 | 1212.51 | 482.58 | 2.88 | 5.91 | 491.38 | 2 5/5 3 5/5 4 5/5 5 5/5 7b 5/5 7 5/5 8b 4/5 8 3/5 9b 5/5 9c 5/5 9d 1/5 9 5/5 | ferdig |
+| 2026-11-regresjon-gpt-6.1-sol-baseline | 580 | 1703.89 | 580.89 | 3.05 | 5.91 | 589.85 | 2 5/5 3 5/5 4 5/5 5 5/5 7b 5/5 7 5/5 8b 5/5 8 1/5 9b 5/5 9c 5/5 9d 5/5 9 4/5 | ferdig; 1 kall fra andre økter på samme modell i vinduet |
+| review claude-opus-5.5 low | 293 | 2006.74 | 318.26 | 0.00 | 5.91 | 324.17 | rv1 5/5 rv2 5/5 rv3 4/5 rv4 4/5 rv5 4/5 rv6 4/5 rv7 5/5 rv8 5/5 | ferdig |
+| review gpt-6.2-astra low | 1000 | 3037.91 | 660.98 | 0.00 | 5.91 | 666.89 | rv1 5/5 rv2 5/5 rv3 1/5 rv4 0/5 rv5 4/5 rv6 4/5 rv7 2/5 rv8 5/5 | ferdig |
+| planning claude-opus-5.5 low | 254 | 2958.8 | 288.50 | 0.75 | 5.91 | 295.16 | 2 5/5 3 5/5 4 0/5 5 5/5 | ferdig |
+| planning gpt-6.2-astra low | 575 | 3574.96 | 549.36 | 0.85 | 5.91 | 556.12 | 2 5/5 3 5/5 4 5/5 5 5/5 | ferdig |
+| norsk claude-opus-5.5 default | 175 | 3731.08 | 235.62 | 0.00 | 5.91 | 241.53 | no1 5/5 no2 5/5 no3 5/5 no4 5/5 | ferdig |
+| norsk claude-sonnet-5.5 default | 93 | 3890.61 | 115.76 | 0.00 | 5.91 | 121.67 | no1 5/5 no2 5/5 no3 5/5 no4 5/5 | ferdig |
+| accessibility-claude-opus-5.5-default | 285 | 4204.28 | 434.55 | 0.00 | 5.91 | 440.46 | uu1 5/5 uu2 5/5 uu3 0/5 uu4 5/5 uu5 5/5 | ferdig |
+
+**Stopp 19. november 2026 kl. 00:5x, regel 5:** accessibility Opus kostet 440,46, over grensen 1,5 × (285 + 5,91) = 436,4 (agent 434,55, median 82,2 per kjøring mot planens ≈ 57). Brukt: **4 353,83**. Gjenstår: accessibility Sonnet (144) og coding 6.2 Sol (130), som venter på eieren. I D1 6.1 Sol kommer «1 kall fra andre økter» fra testoppsettets innloggingsprobe (`gpt-6.1-sol`).
+

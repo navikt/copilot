@@ -1,0 +1,23 @@
+ $ Shell Read component 19 lines…
+   cat -n src/app/komponenter/StatusPanel.tsx
+
+Nei. Slett-knappen (linje 14–16) har ikke noe tilgjengelig navn. Den inneholder bare `<TrashIcon />`, og Aksel-ikoner får `aria-hidden="true"` når de mangler `title`. En skjermleser leser derfor bare «knapp». Det bryter WCAG 4.1.2 (navn, rolle, verdi).
+
+Løsning med Aksel `Button`, som gir knappen navnet «Slett»:
+
+```tsx
+import { Button } from "@navikt/ds-react";
+
+<Button
+  variant="tertiary"
+  icon={<TrashIcon title="Slett" />}
+  onClick={onSlett}
+/>
+```
+
+Har panelet flere slike knapper, bør navnet være mer presist, for eksempel `title={`Slett ${status}`}`.
+
+Jeg så også disse feilene i samme fil, men endret ingenting:
+- **Linje 8:** `<div onClick>` kan ikke brukes med tastatur, og `outline: none` fjerner fokusindikatoren (WCAG 2.1.1 og 2.4.7). Bruk `<Button aria-expanded={apen}>`.
+- **Linje 11:** `tabIndex={5}` lager en unaturlig tab-rekkefølge (WCAG 2.4.3). Statusen vises også bare med farge (WCAG 1.4.1). Fjern `tabIndex` og bruk Aksel `Tag` med tekst.
+

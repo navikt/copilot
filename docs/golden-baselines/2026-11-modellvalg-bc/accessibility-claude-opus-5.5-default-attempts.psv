@@ -1,0 +1,35 @@
+# golden-prompt PER-RUN ATTEMPTS
+# agent:        accessibility
+# suite:        none
+# date:         2026-11-18
+# revision:     6fbce9a6
+# personaHash:  03d2ec6ccc4a2101b95b549546e4b42b610282cd6b370dcc25369b25df72f770
+# harnessHash:  31303b66a044df68da77f1ba539f6a0a98cf0aabc6733992e11c37f4979c6eb4
+# model:        claude-opus-5.5
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.114-0.
+# effort:       CLI default
+# context:      CLI default
+# usage_complete: true
+#
+# slug|run|exit_code|outcome|bytes|elapsed_ms|usage_complete|detail
+uu-review|1|0|pass|2728|30872|true|
+uu-ask|1|0|pass|6624|44414|true|
+uu-trivial|1|0|pass|718|12972|true|
+uu-fix|1|0|pass|806|16195|true|
+uu-review|2|0|pass|3152|30820|true|
+uu-ask|2|0|pass|2929|31570|true|
+uu-trivial|2|0|pass|1067|13922|true|
+uu-fix|2|0|pass|974|15683|true|
+uu-review|3|0|pass|2468|30531|true|
+uu-ask|3|0|pass|9496|70412|true|
+uu-trivial|3|0|pass|822|13224|true|
+uu-fix|3|0|pass|945|16272|true|
+uu-review|4|0|pass|2420|27816|true|
+uu-ask|4|0|pass|2882|36600|true|
+uu-trivial|4|0|pass|851|13296|true|
+uu-fix|4|0|pass|945|17162|true|
+uu-review|5|0|pass|2746|32421|true|
+uu-ask|5|0|pass|13888|88679|true|
+uu-trivial|5|0|pass|888|13924|true|
+uu-fix|5|0|pass|842|17038|true|

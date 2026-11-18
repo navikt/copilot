@@ -1,0 +1,6 @@
+review    claude-opus-5.5     low      5   # 293
+review    gpt-6.2-astra       low      5   # 1000
+planning  claude-opus-5.5     low      5   # 254
+planning  gpt-6.2-astra       low      5   # 575
+norsk     claude-opus-5.5     default  5   # 175
+norsk     claude-sonnet-5.5   default  5   # 93

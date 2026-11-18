@@ -1,0 +1,35 @@
+# golden-prompt PER-RUN ATTEMPTS
+# agent:        code-review
+# suite:        review
+# date:         2026-11-18
+# revision:     6fbce9a6
+# personaHash:  9d50afc2daa1a11c7749a9370f080455acfa7638d25fc9f46895482acaf3a20d
+# harnessHash:  31303b66a044df68da77f1ba539f6a0a98cf0aabc6733992e11c37f4979c6eb4
+# model:        gpt-6.2-astra
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.114-0.
+# effort:       low
+# context:      CLI default
+# usage_complete: true
+#
+# slug|run|exit_code|outcome|bytes|elapsed_ms|usage_complete|detail
+cr-kotlin|1|0|pass|1434|18956|true|
+cr-tsx|1|0|pass|3400|24054|true|
+rv-pr|1|0|pass|3611|39915|true|
+rv-clean|1|0|pass|1627|34507|true|
+cr-kotlin|2|0|pass|1482|17954|true|
+cr-tsx|2|0|pass|2069|20859|true|
+rv-pr|2|0|pass|18460|41383|true|
+rv-clean|2|0|pass|1418|25783|true|
+cr-kotlin|3|0|pass|1370|23794|true|
+cr-tsx|3|0|pass|1878|18585|true|
+rv-pr|3|0|pass|3463|37167|true|
+rv-clean|3|0|pass|1882|34882|true|
+cr-kotlin|4|0|pass|1363|15872|true|
+cr-tsx|4|0|pass|2424|28138|true|
+rv-pr|4|0|pass|3763|43103|true|
+rv-clean|4|0|pass|1017|21129|true|
+cr-kotlin|5|0|pass|1468|22692|true|
+cr-tsx|5|0|pass|2205|25228|true|
+rv-pr|5|0|pass|18563|42217|true|
+rv-clean|5|0|pass|1463|22460|true|

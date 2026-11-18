@@ -1,0 +1,17 @@
+ ● skill(klarsprak)
+
+ / Search "**/*.{kt,kts,md}" 24 files found
+
+ $ Shell Read Kotlin and test conventions output too large to show (30.7 KB)…
+   cat build.gradle.kts src/main/kotlin/no/nav/demo/Oppgave.kt
+   .github/instructions/{kotlin,security-owasp,testing,testing-kotlin}.instructions.md
+
+ ● Edit  Create src/main/kotlin/no/nav/demo/Avrunding.kt (+7)
+
+Implementerte avrundingen i `Avrunding.kt`. `avrundTilNærmesteKrone` tar et `BigDecimal`-beløp i kroner og unngår flyttallsfeil ved grensen på 50 øre. `Feriepenger.kt` og enhetstestene lar jeg deg skrive. Jeg kjørte ikke Gradle.
+
+**Sjekkliste for rød sone**
+- [ ] Sjekk at `10,49` blir `10`, `10,50` blir `11`, og `10,51` blir `11`. Send beløpet direkte som `BigDecimal`, uten å gå via `Double`.
+
+Kan du fortelle meg hva denne koden gjør og hvorfor denne tilnærmingen er riktig?
+

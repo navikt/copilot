@@ -1,0 +1,11 @@
+ ● skill(klarsprak)
+
+ MD Read fakta.md 6 lines read
+
+ MD Create notis.md +7
+
+Notisen ligger i `notis.md`. Brødteksten er på omtrent 55 ord, og alt innholdet kommer fra `fakta.md`.
+
+- **Dato:** Utkastet sier «Available from Monday 5 October». Dagens dato er 19. november 2026, så den datoen har passert. Derfor står det i notisen at funksjonen «har vært tilgjengelig siden mandag 5. oktober». Sjekk at det stemmer før du publiserer.
+- **Ordvalg:** Jeg skrev «KI», ikke «AI», og oversatte «AI buzzwords» til «KI-moteord». `review.norsk = false` og `.nav-pilot/config.toml` står uendret.
+

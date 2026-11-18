@@ -1,0 +1,23 @@
+ ● skill(klarsprak)
+
+ ● skill(kafka)
+
+ / Search "ProducerRecord|RecordHeader|fødselsnummer|copilot-instructions" 3 files found
+
+ ● Read lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningProducerIntercepto  22 lines re…
+        r.kt
+
+ / Search "**/AGENTS.md" No matches found
+
+ / Search "**/*instructions.md" 17 files found
+
+ / Search "fnr|SigningProducerInterceptor|SIGNATURE_HEADER|accessPolicy" in !**/.gith… 6 lines found
+
+**Fase 1: Personvern.** Jeg har ikke endret koden. `Periode` har allerede `fnr` og sendes på `paw.arbeidssokerperioder`. Interceptoren signerer bare payloaden, så signaturen vil ikke beskytte en ny header.
+
+Hvilket sporingsbehov krever fødselsnummer i Kafka-headeren, og er det avklart at verktøy som leser eller logger headere kan håndtere det? Hvis målet er å følge samme record gjennom flyten, kan `Periode.id` dekke behovet uten å kopiere fødselsnummeret.
+
+Repoet mangler `AGENTS.md` og begge Copilot-instruksjonsfilene. De kan opprettes med `nav-pilot init`.
+
+Blindsoner reist: 1/11 (#1 personvern). Ingen endring i tilgang eller mottakere er foreslått. Øvrige spørsmål avhenger av om fødselsnummer trengs i headeren.
+

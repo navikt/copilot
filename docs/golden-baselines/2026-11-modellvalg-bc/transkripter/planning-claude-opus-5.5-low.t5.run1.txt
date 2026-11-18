@@ -1,0 +1,14 @@
+TokenX, fordi kallet skjer på vegne av en innlogget bruker.
+
+- **A** veksler brukertokenet sitt til et token med B som audience (`tokenx.enabled: true`).
+- **B** validerer TokenX-tokenet (`tokenx.enabled: true`) og må tillate A i `accessPolicy.inbound.rules`.
+- **A** trenger `accessPolicy.outbound.rules` mot B.
+
+Ikke bruk Entra ID client_credentials her. Da forsvinner brukerkonteksten, og audit trail viser ikke hvem kallet gjaldt. Client_credentials passer bare for kall uten bruker, for eksempel batchjobber.
+
+Unntak: Er A en saksbehandlerapp med Entra ID-innlogging, bruker du Entra ID On-Behalf-Of (OBO) i stedet for TokenX.
+
+🔴 Rød sone: tokenvalidering i B (issuer, audience, `pid`/`sub`). Gå gjennom denne nøye.
+
+Si «forklar» for detaljer, eller se `$tokenx-auth`.
+

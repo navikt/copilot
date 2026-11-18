@@ -1,0 +1,15 @@
+ ● skill(klarsprak)
+
+ $ Shell ls -a; find . -name '*.kt' -o -name '*.instructions.md' | head -40 28 lines…
+   ls -a; find . -name '*.kt' -o -name '*.instructions.md' | head -40
+
+ $ Shell Read Kotlin and test conventions output too large to show (30.7 KB)…
+   cat build.gradle.kts src/main/kotlin/no/nav/demo/Oppgave.kt; cat
+   .github/instructions/{kotlin,security-owasp,testing-kotlin,testing}.instructions.md
+
+ ● Edit  Edit build.gradle.kts (+1)  Create src/main/kotlin/no/nav/demo/Feriepenger.kt (+4)  Create…
+
+La til `Feriepenger.kt` med funksjonssignaturen og enhetstester for satsene ved 59, 60 og 61 år, avrunding rundt 50 øre, null og negativt grunnlag. Gradle ble ikke kjørt.
+
+🔴 **Rød sone:** Selve beregningen står som `TODO`. Testene beskriver reglene teamet må implementere, men vil feile frem til beregningen er på plass.
+

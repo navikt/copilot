@@ -1,0 +1,45 @@
+ $ Shell ls -a; find . -name '*.kt' -o -name '*instructions.md' 28 lines…
+   ls -a; find . -name '*.kt' -o -name '*instructions.md'
+
+ ● skill(klarsprak)
+
+ ✗ Shell Read Kotlin and test conventions Failed with exit code 1  Output too large to read at once…
+   cat .github/instructions/{kotlin,security-owasp,testing,testing-kotlin}.instructions.md
+   src/main/kotlin/no/nav/demo/Oppgave.kt build.gradle.kts; command -v kotlinc
+   Output too large to read at once (30.7 KB). Saved to: /var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc000
+   0gn/T/1795039885768-copilot-tool-output-59157-074e2f9f-42dc-443d-ad17-a6af7e0c5a28.txt
+   Consider using tools like rg (for searching), head/tail (for viewing start/end), view with 
+   view_range (for specific sections), or jq (for JSON) to examine portions of the output.
+   
+   Preview (first 500 chars):
+   ---
+   name: Kotlin Backend Patterns
+   description: "Kotlin-backendmønstre for Nav: Ktor og Rapids & Rivers, Spring Boot, database, 
+   auth, testing og feilhåndtering."
+   applyTo: "**/*.kt"
+   ---
+   
+   Kotlin backend patterns for Nav: Ktor and Rapids & Rivers, Spring Boot, database access, auth, 
+   testing, and error handling.
+   
+   > **Pick one half.** A file path cannot tell Ktor from Spring Boot, so this file covers both. 
+   Decide from the file itself: `RapidApplication`, `routing`, `River`, `embeddedServer` means Ktor
+   Failed with exit code 1
+
+ $ Shell Identify package and test dependencies 93 lines…
+   cat build.gradle.kts src/main/kotlin/no/nav/demo/Oppgave.kt; ls -R src; grep '^#'
+   .github/instructions/{kotlin,testing,testing-kotlin,security-owasp}.instructions.md
+
+ ● Edit  Create src/main/kotlin/no/nav/demo/Avrunding.kt (+7)  Create src/main/kotlin/no/nav/demo/F…
+
+Implementerte avrundingen i `Avrunding.kt`. `avrundTilHeleKroner` tar et eksakt `BigDecimal`-beløp i kroner og runder 50 øre opp uten flyttallsfeil.
+
+`Feriepenger.kt` har en `TODO` for satsvalg og validering. Testene dekker aldersgrensen, avrundingsgrensen og negativt grunnlag. Jeg kjørte ikke Gradle.
+
+🔴 Rød sone: Gå gjennom avrundingen før du kobler den til beregningen.
+
+**Sjekkliste for rød sone**
+- [ ] Sjekk at beløpet ikke avrundes før det sendes til hjelpefunksjonen, og at testen skiller mellom 25,398 kr → 25 kr og 25,50 kr → 26 kr.
+
+Kan du fortelle meg hva denne koden gjør og hvorfor denne tilnærmingen er riktig?
+

@@ -1,0 +1,20 @@
+ $ Shell Read file 62 lines…
+   cat -n src/main/kotlin/no/nav/demo/sak/SakService.kt; ls
+
+### Oppsummering
+Filen er i god stand. Fnr kommer fra `pid`-claimet i TokenX-tokenet, så brukeren får bare egne saker, og eierskapet er dermed sjekket. SQL-en er parameterisert, og fnr blir maskert før logging. Jeg fant ingen blokkere. `mise check` er ikke kjørt, fordi prosjektet ikke har mise-oppsett (bare `build.gradle.kts`).
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|------|------|----------|-------|
+| `SakService.kt` | 41 | 🟡 | Loggen tar bare med `simpleName`, så stacktrace og årsak forsvinner |
+| `SakService.kt` | 38–43 | 🟡 | Feilen logges og kastes videre, så den blir trolig logget to ganger |
+| `SakService.kt` | 37 | 💭 | `maskert()` gir bare 11 stjerner, så loglinjen har ingen verdi for feilsøking |
+| — | — | 🟡 | Det finnes ingen tester for ruten: manglende `pid` som skal gi 401, og at bare egne saker returneres |
+
+### Detaljer
+- **Linje 41:** Uten unntaket i loggen kan du ikke se om feilen er timeout, pool-tømming eller SQL-feil. Send med `e` som siste argument (`log.error("Kunne ikke hente saker", e)`). Sjekk først at JDBC-driveren ikke tar med parameterverdier i meldingen. Ellers kan fnr havne i loggen.
+- **Linje 38–43:** Fjern try/catch og la Ktor sin `StatusPages` logge feilen og svare 500 én gang.
+- **Linje 37:** Fjern loglinjen, eller logg en ikke-sensitiv ID, for eksempel en korrelasjons-ID.
+

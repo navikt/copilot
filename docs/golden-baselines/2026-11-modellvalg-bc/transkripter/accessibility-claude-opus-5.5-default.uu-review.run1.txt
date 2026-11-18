@@ -1,0 +1,70 @@
+Jeg leser komponenten og UU-instruksjonene.
+
+ TX Read src/app/komponenter/StatusPanel.tsx 19 lines read
+
+ MD Read .github/instructions/accessibility.instructions.md 121 lines read
+
+## Funn i `StatusPanel.tsx`
+
+Komponenten bryter fem WCAG 2.1 AA-krav. Jeg har ikke endret fila.
+
+| # | Linje | Problem | WCAG |
+|---|---|---|---|
+| 1 | 8 | «Vis detaljer» er en `<div onClick>`. Den kan ikke nås eller brukes med tastatur, og den har ingen rolle og ingen `aria-expanded`. | 2.1.1, 4.1.2 |
+| 2 | 8 | `outline: none` fjerner fokusindikatoren uten erstatning. | 2.4.7 |
+| 3 | 11 | `tabIndex={5}` ødelegger tab-rekkefølgen og gjør tekst som ikke er interaktiv fokuserbar. | 2.4.3 |
+| 4 | 11 | Status vises bare med rød/grønn farge, som fargeblinde ikke skiller. `red` på hvit bakgrunn har kontrast 4,0:1, under kravet på 4,5:1. | 1.4.1, 1.4.3 |
+| 5 | 14–16 | Sletteknappen har bare et ikon og ingen tilgjengelig navn. Skjermleseren leser «knapp». | 1.1.1, 4.1.2 |
+| 6 | 14 | Sletting skjer uten bekreftelse. | 3.3.4 |
+| 7 | 9 | `apen` brukes ikke, så detaljene vises aldri. Dette er en funksjonsfeil. | – |
+
+Hvis status endrer seg mens siden er åpen, bør endringen også annonseres for skjermlesere med `role="status"` (4.1.3).
+
+## Forslag med Aksel
+
+```tsx
+"use client";
+import { useId, useState } from "react";
+import { Button, HStack, Tag } from "@navikt/ds-react";
+import { TrashIcon, ChevronDownIcon } from "@navikt/aksel-icons";
+
+type Props = { status: "ok" | "feil"; onSlett: () => void };
+
+export function StatusPanel({ status, onSlett }: Props) {
+  const [apen, setApen] = useState(false);
+  const panelId = useId();
+
+  return (
+    <div className="p-4 mx-8">
+      <HStack gap="4" align="center">
+        <Button
+          variant="tertiary"
+          aria-expanded={apen}
+          aria-controls={panelId}
+          icon={<ChevronDownIcon aria-hidden />}
+          iconPosition="right"
+          onClick={() => setApen(!apen)}
+        >
+          {apen ? "Skjul detaljer" : "Vis detaljer"}
+        </Button>
+        <Tag variant={status === "feil" ? "error" : "success"} role="status">
+          Status: {status === "feil" ? "Feil" : "OK"}
+        </Tag>
+        <Button
+          variant="tertiary"
+          icon={<TrashIcon title="Slett" />}
+          onClick={onSlett}
+        />
+      </HStack>
+      {apen && <div id={panelId}>{/* detaljer */}</div>}
+    </div>
+  );
+}
+```
+
+I forslaget viser `Tag` status både med farge og tekst, og Aksel-fargene oppfyller kontrastkravet. Aksel-`Button` er tastaturbetjent og har synlig fokus.
+
+For sletting bør `onSlett` åpne en Aksel `Modal` som ber om bekreftelse før noe slettes.
+
+Etter endringen bør du teste med Tab og VoiceOver, og kjøre `vitest-axe`.
+

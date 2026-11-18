@@ -1,0 +1,44 @@
+ ✗ Shell Inspect repo Failed with exit code 1  . .. .github build.gradle.kts nais.yaml README.md sr…
+   ls -a; ls .github 2>/dev/null; ls AGENTS.md .nais 2>/dev/null
+   .
+   ..
+   .github
+   build.gradle.kts
+   nais.yaml
+   README.md
+   src
+   agents
+   instructions
+   Failed with exit code 1
+
+ $ Shell Read config files 32 lines…
+   cat nais.yaml build.gradle.kts README.md; find src -type f | head -30
+
+**Nivå: Full.** Det er en ny tjeneste med fnr og ID-porten-autentisering. Vi går gjennom alle fasene og stopper etter hver.
+
+## Fase 1: Intervju
+
+**Det jeg leste i repoet:** `demo-tjeneste` er en Ktor-tjeneste (Kotlin 2.1, Ktor 3.0). `nais.yaml` har ingen `idporten`, ingen `accessPolicy` og ingen database. Det finnes ingen `AGENTS.md`, `.github/copilot-instructions.md` eller `.github/copilot-review-instructions.md`, så jeg foreslår `nav-pilot init`.
+
+**Antakelse:** Innbyggeren logger inn via ID-porten og Wonderwall, og tjenesten henter fnr fra `pid`-claimet i tokenet.
+
+**Spørsmål:**
+
+1. **Personvern ⚠️:** Hva skal fnr brukes til? Skal det bare slås opp, lagres, sendes videre (til hvem?) eller logges som referanse? Behandles andre opplysninger også, som helse, ytelser eller navn?
+2. **Tilgangskontroll ⚠️:** Hvem kaller tjenesten?
+   - Innbyggeren direkte fra nettleseren via Wonderwall og sidecar
+   - En frontend/BFF som kaller videre med TokenX
+   
+   Kreves sikkerhetsnivå `idporten-loa-high`?
+3. **Feilhåndtering:** Hvilke tjenester avhenger den av, for eksempel PDL? Hva skal skje når de er nede?
+4. **Observerbarhet:** Hvilke forretningsmålinger viser at tjenesten fungerer?
+5. **Teamgrenser:** Eier dere hele flyten, eller avhenger dere av andre team?
+6. **Endringspåvirkning:** Hvem tar i bruk API-et eller hendelsene fra tjenesten?
+7. **Teststrategi:** Er MockOAuth2Server greit for auth-testene?
+8. **Ny tjeneste eller endring:** Skal dette bli en ny app, eller skal funksjonaliteten inn i `demo-tjeneste`?
+9. **Kompetanse:** Har teamet jobbet med ID-porten og TokenX før? Hvis ikke, er tokenvalidering en kandidat for 🔴 rød sone.
+
+Blindsoner reist: 9/11 (#1–#7, #8, #11 stilt; #9 bakoverkompatibilitet og #10 utfasing er ikke relevant for en ny tjeneste uten eksisterende konsumenter)
+
+Svar på spørsmålene, så lager jeg planen i Fase 2.
+

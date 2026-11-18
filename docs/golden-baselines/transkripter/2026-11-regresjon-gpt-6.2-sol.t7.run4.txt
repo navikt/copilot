@@ -1,0 +1,53 @@
+ ● skill(jackson-3-migration)
+
+ ● skill(klarsprak)
+
+ $ Shell git status --short -b; git log -6 --oneline --decorate; git branch -a; ls -a; ja… 16 lines…
+   git status --short -b; git log -6 --oneline --decorate; git branch -a; ls -a; java -version
+
+ $ Shell Les migreringsdiff og byggoppsett 72 lines…
+   git --no-pager diff main...HEAD; git ls-files; command -v gradle || true
+
+ $ Shell Kartlegg JSON-kontrakter og kallsteder 95 lines…
+   cat build.gradle.kts src/main/kotlin/no/nav/demo/*.kt; git grep -n -E 'jackson|JsonNode'
+
+ ✗ Shell Bygg og kontroller Jackson-avhengigheter Failed with exit code 1  To honour the JVM settin…
+   gradle --no-daemon --console=plain build dependencyInsight --dependency jackson --configuration
+   compileClasspath
+   To honour the JVM settings for this build a single-use Daemon process will be forked. For more on
+    this, please refer to 
+   https://docs.gradle.org/8.14.7/userguide/gradle_daemon.html#sec:disabling_the_daemon in the 
+   Gradle documentation.
+   Daemon will be stopped at the end of the build 
+   
+   FAILURE: Build failed with an exception.
+   
+   * What went wrong:
+   A problem occurred configuring root project 'repo'.
+   > 27.0.1.0.2
+   
+   * Try:
+   > Run with --stacktrace option to get the stack trace.
+   > Run with --info or --debug option to get more log output.
+   > Run with --scan to get full insights.
+   > Get more help at https://help.gradle.org.
+   
+   BUILD FAILED in 2s
+   Failed with exit code 1
+
+ ✗ Shell  Permission denied because no interactive user response was available. Retry in an interact
+   /usr/libexec/java_home -V; mise ls java; nl -ba src/main/kotlin/no/nav/demo/Soknad.kt; nl -ba
+   build.gradle.kts
+   Approval check
+     └ ✗ Denied, no one to approve shell path (/usr/libexec/java_home)
+   Permission denied because no interactive user response was available. Retry in an interactive 
+   session so the user can approve it, or try an alternative that does not require this permission.
+
+ / Search "JsonMapper.builder|fun lesSoker|fun send|ktor-serialization|jackson-databi… 6 lines found
+
+**Jeg ville ikke godkjent migreringen som atferdsbevarende ennå.** Den viktigste endringen er at `lesSoker` ikke lenger avviser ukjente JSON-felt som standard. Jackson 3 sjekker også som standard at det ikke ligger flere JSON-tokens etter objektet. Det betyr at samme kode kan godta input den før avviste, og avvise input den før godtok. Se [Soknad.kt:14–18](src/main/kotlin/no/nav/demo/Soknad.kt#L14-L18).
+
+Kafka-meldingene beholder feltnavnene, og `mottatt` skal fortsatt være en ISO-dato. Jackson 3 sorterer imidlertid feltene alfabetisk som standard, så `soknad-mottatt` får `mottatt` før `soknadId`. Det endrer JSON-teksten, ikke innholdet for konsumenter som leser feltene etter navn. Før merge bør kontrakttester låse ønsket oppførsel for begge Kafka-meldingene og for innlesing med ukjente felt eller etterfølgende tokens.
+
+**Verifisering:** Ktor bruker fortsatt `kotlinx.serialization` og trenger ingen oppgradering for denne migreringen. Jeg fant ingen Jackson 2-importer eller `JsonNode.map`-kall i kildekoden. Gradle stoppet under konfigurering med `27.0.1.0.2` på den lokale JDK 27, så verken kompilering eller transitive avhengigheter ble verifisert. Branchen har ingen tester, og jeg endret ingen filer.
+

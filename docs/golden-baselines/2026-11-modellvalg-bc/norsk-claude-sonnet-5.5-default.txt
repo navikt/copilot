@@ -1,0 +1,23 @@
+# golden-prompt SIZE MEASUREMENT: RECORDED, NOT A TARGET
+# Nothing asserts against these numbers, and no run fails because it
+# missed them. They describe one agent, one revision, one model, one day.
+# Only comparable with another run made the same way (--compare).
+# agent:        forfatter
+# suite:        norsk
+# date:         2026-11-18
+# revision:     6fbce9a6
+# personaHash:  81d4560449214a21214d98a7a50847f0f2cb5e1372a24d1071a404ed8c3042e6
+# harnessHash:  31303b66a044df68da77f1ba539f6a0a98cf0aabc6733992e11c37f4979c6eb4
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.114-0.
+# model:        claude-sonnet-5.5
+# effort:       CLI default
+# context:      CLI default
+# repeats:      5
+# instructions: 17 installed, 4 always-on
+# fixture:      3498918618
+# prompts:      all
+#
+# slug|runs|bytes_median|bytes_min|bytes_max|lines_median|lines_min|lines_max|words_median|words_min|words_max|elapsed_ms_median|elapsed_ms_min|elapsed_ms_max
+no-omskriv|5|925|767|1119|22|18|25|125|98|151|24500|23445|28351
+no-notis|5|337|235|554|8|8|16|51|40|87|13902|11166|18136

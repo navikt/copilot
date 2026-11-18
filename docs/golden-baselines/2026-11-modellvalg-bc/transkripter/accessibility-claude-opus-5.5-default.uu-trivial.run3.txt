@@ -1,0 +1,25 @@
+ TX Read src/app/komponenter/StatusPanel.tsx 19 lines read
+
+**Nei.** Knappen på linje 14–16 har ikke noe tilgjengelig navn.
+
+```tsx
+<button onClick={onSlett}>
+  <TrashIcon />
+</button>
+```
+
+Knappen inneholder bare et ikon. `TrashIcon` mangler `title`, og knappen har verken tekst eller `aria-label`. En skjermleser leser den derfor bare som «knapp», noe som bryter WCAG 4.1.2 (navn, rolle, verdi).
+
+Rettingen er en Aksel-`Button` der ikonet har `title`:
+
+```tsx
+<Button variant="tertiary" onClick={onSlett} icon={<TrashIcon title="Slett" />} />
+```
+
+Jeg fant også flere andre UU-feil i samme fil:
+- `<div onClick>` har ingen rolle og ingen tastaturstøtte, og `outline: none` fjerner fokusindikatoren.
+- `tabIndex={5}` er større enn 0.
+- Status vises bare med farge, rød eller grønn.
+
+Jeg har ikke endret filen.
+

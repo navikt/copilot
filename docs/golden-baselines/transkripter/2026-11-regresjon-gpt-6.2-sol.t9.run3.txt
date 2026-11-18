@@ -1,0 +1,16 @@
+ ● skill(klarsprak)
+
+ $ Shell ls -a; find . -name '*.kt' -o -name '*instructions.md' -o -name AGENTS.md | head… 28 lines…
+   ls -a; find . -name '*.kt' -o -name '*instructions.md' -o -name AGENTS.md | head -40
+
+ $ Shell cat build.gradle.kts src/main/kotlin/no/nav/demo/Oppgave.kt; head -25 .github/i… 121 lines…
+   cat build.gradle.kts src/main/kotlin/no/nav/demo/Oppgave.kt; head -25
+   .github/instructions/{kotlin,security-owasp,testing,testing-kotlin}.instructions.md; find src
+   -type d
+
+ ● Edit  Edit build.gradle.kts (+1)  Create src/main/kotlin/no/nav/demo/Feriepenger.kt (+4)  Create…
+
+La til `Feriepenger.kt` med funksjonssignaturen og enhetstester for satsbyttet ved 60 år, avrunding, null og negativt grunnlag. Gradle ble ikke kjørt.
+
+🔴 Rød sone: Beregningen står som `TODO` fordi den er ny domenelogikk for teamet. Testene beskriver forventet oppførsel, men vil feile til funksjonen er implementert.
+

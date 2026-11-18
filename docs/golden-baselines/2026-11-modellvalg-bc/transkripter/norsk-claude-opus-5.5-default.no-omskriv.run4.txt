@@ -1,0 +1,17 @@
+ ● skill(klarsprak)
+
+ MD Read utkast.md 11 lines read
+
+ MD Edit utkast.md +4 -6
+
+Jeg har språkvasket `utkast.md` og skrevet resultatet tilbake til fila. Teksten er nå på 75 ord med overskrift, og alle fakta står igjen.
+
+- **Nyheten først:** Teksten åpner med at alle team kan bruke agenten fra mandag.
+- **KI-markører fjernet:** «I en tid der», «banebrytende», «sømløs», «spiller en avgjørende rolle», «Det er viktig å påpeke», «Avslutningsvis» og «fremtiden ser lys ut» er borte.
+- **Nynorsk rettet:** «ikkje», «sjølv», «berre», «mykje» og «tilgjengeleg» er byttet til bokmål.
+- **KI, ikke AI:** Jeg skriver nå «KI-agent».
+- **Aktiv form:** «slås av» og «tas imot» er blitt «Slå av» og «Send tilbakemeldinger».
+- **Leseren tiltalt direkte:** «utvikleren» er byttet til «du».
+
+Jeg har tolket «hverdagen til teamene» som pynt og ikke et faktum, så den er kuttet. Påstanden om at agenten gjør det «mykje enklere» å finne feil, står igjen som «enklere».
+

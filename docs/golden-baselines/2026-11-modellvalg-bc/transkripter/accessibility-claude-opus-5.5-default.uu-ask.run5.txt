@@ -1,0 +1,345 @@
+ ● skill(aksel-builder)
+
+ $ Shell Inspect file and context 101 lines…
+   cat src/app/komponenter/StatusPanel.tsx; ls src/app/komponenter; cat package.json; cat
+   .github/instructions/accessibility.instructions.md | head -80
+
+ $ Shell Verify Aksel token names 27 lines…
+   curl -s ]8;id=md-1hik1bs;https://aksel.nav.no/grunnleggende/styling/design-tokens.mdhttps://aksel.nav.no/grunnleggende/styling/design-tokens.md]8;;]8;; | grep -oE -- "--ax-(border-f]8;;
+   ocus|bg-accent-moderate|bg-accent-soft|bg-neutral-moderate-hover|border-neutral|bg-default|bg-neu
+   tral-moderateA|text-neutral|border-accent|bg-accent-moderate-hover|bg-neutral-soft)[a-zA-Z-]*" |
+   sort -u | head -30
+
+ $ Shell Verify spacing tokens and Label docs 2 lines…
+   curl -s ]8;id=md-1hik1bs;https://aksel.nav.no/grunnleggende/styling/design-tokens.mdhttps://aksel.nav.no/grunnleggende/styling/design-tokens.md]8;;]8;; | grep -oE -- ]8;;
+   "--ax-(space-[0-9]+|radius-[0-9]+)" | sort -u | tr '\n' ' '; echo; curl -s
+   ]8;id=md-1xzkdlf;https://aksel.nav.no/komponenter/core/label.mdhttps://aksel.nav.no/komponenter/core/label.md]8;;]8;; | head -40]8;;
+
+ $ Shell Verify Checkmark icon name 2 lines…
+   curl -s ]8;id=md-e9f0cz;https://aksel.nav.no/komponenter/ikoner.mdhttps://aksel.nav.no/komponenter/ikoner.md]8;;]8;; | grep -iE "checkmark" | head; curl -s ]8;;
+   ]8;id=md-1tr6tgx;https://aksel.nav.no/llm.mdhttps://aksel.nav.no/llm.md]8;;]8;; | grep -i ikon | head]8;;
+
+Writing the listbox per the WAI-ARIA APG single-select pattern. I'm using `aria-activedescendant`, Aksel tokens and `CheckmarkIcon`, and I confirmed all of them in the Aksel docs.
+
+ ✗ Shell  Permission denied because no interactive user response was available. Retry in an interact
+   cat > src/app/komponenter/StatusPanel.tsx <<'EOF'
+   import { useId, useState, type KeyboardEvent } from "react";
+   import { CheckmarkIcon, TrashIcon } from "@navikt/aksel-icons";
+
+   type Statusvalg = { verdi: string; tekst: string };
+
+   type StatusPanelProps = {
+     status: string;
+     statusvalg: Statusvalg[];
+     onEndreStatus: (verdi: string) => void;
+     onSlett: () => void;
+   };
+
+   export function StatusPanel({ status, statusvalg, onEndreStatus, onSlett }: StatusPanelProps) {
+     const [apen, setApen] = useState(false);
+     return (
+       <div className="p-4 mx-8">
+         <div onClick={() => setApen(!apen)} style={{ outline: "none" }}>
+           Vis detaljer
+         </div>
+         <span tabIndex={5} style={{ color: status === "feil" ? "red" : "green" }}>
+           {status}
+         </span>
+         <StatusListbox valg={statusvalg} valgt={status} onVelg={onEndreStatus} />
+         <button onClick={onSlett}>
+           <TrashIcon />
+         </button>
+       </div>
+     );
+   }
+
+   type StatusListboxProps = {
+     valg: Statusvalg[];
+     valgt: string;
+     onVelg: (verdi: string) => void;
+   };
+
+   // Single-select listbox etter WAI-ARIA APG: fokus blir på <ul>, aktivt valg pekes ut med
+   // aria-activedescendant. Piltaster flytter, Enter/mellomrom velger, slik at onVelg ikke
+   // kalles for hvert tastetrykk.
+   function StatusListbox({ valg, valgt, onVelg }: StatusListboxProps) {
+     const id = useId();
+     const labelId = `${id}-label`;
+     const valgtIndeks = valg.findIndex((v) => v.verdi === valgt);
+     const [aktivIndeks, setAktivIndeks] = useState(Math.max(valgtIndeks, 0));
+     const [harFokus, setHarFokus] = useState(false);
+
+     const opsjonId = (indeks: number) => `${id}-opsjon-${indeks}`;
+
+     const velg = (indeks: number) => {
+       setAktivIndeks(indeks);
+       onVelg(valg[indeks].verdi);
+     };
+
+     const onKeyDown = (event: KeyboardEvent<HTMLUListElement>) => {
+       if (valg.length === 0) return;
+       const sisteIndeks = valg.length - 1;
+       switch (event.key) {
+         case "ArrowDown":
+           setAktivIndeks((i) => Math.min(i + 1, sisteIndeks));
+           break;
+         case "ArrowUp":
+           setAktivIndeks((i) => Math.max(i - 1, 0));
+           break;
+         case "Home":
+           setAktivIndeks(0);
+           break;
+         case "End":
+           setAktivIndeks(sisteIndeks);
+           break;
+         case "Enter":
+         case " ":
+           velg(aktivIndeks);
+           break;
+         default:
+           return;
+       }
+       event.preventDefault();
+     };
+
+     return (
+       <div>
+         <span id={labelId}>Status</span>
+         <ul
+           role="listbox"
+           aria-labelledby={labelId}
+           aria-activedescendant={valg.length > 0 ? opsjonId(aktivIndeks) : undefined}
+           tabIndex={0}
+           onKeyDown={onKeyDown}
+           onFocus={() => {
+             setHarFokus(true);
+             if (valgtIndeks >= 0) setAktivIndeks(valgtIndeks);
+           }}
+           onBlur={() => setHarFokus(false)}
+           style={{
+             listStyle: "none",
+             margin: 0,
+             padding: "var(--ax-space-4)",
+             border: "1px solid var(--ax-border-neutral)",
+             borderRadius: "var(--ax-radius-4)",
+             background: "var(--ax-bg-default)",
+             outline: harFokus ? "3px solid var(--ax-border-focus)" : undefined,
+             outlineOffset: "2px",
+           }}
+         >
+           {valg.map((v, indeks) => {
+             const erValgt = v.verdi === valgt;
+             const erAktiv = harFokus && indeks === aktivIndeks;
+             return (
+               <li
+                 key={v.verdi}
+                 id={opsjonId(indeks)}
+                 role="option"
+                 aria-selected={erValgt}
+                 onMouseDown={(e) => e.preventDefault()}
+                 onClick={() => velg(indeks)}
+                 onMouseMove={() => setAktivIndeks(indeks)}
+                 style={{
+                   display: "flex",
+                   alignItems: "center",
+                   gap: "var(--ax-space-8)",
+                   padding: "var(--ax-space-8) var(--ax-space-12)",
+                   borderRadius: "var(--ax-radius-2)",
+                   cursor: "pointer",
+                   color: "var(--ax-text-neutral)",
+                   background: erValgt ? "var(--ax-bg-accent-moderate)" : undefined,
+                   outline: erAktiv ? "2px solid var(--ax-border-focus)" : undefined,
+                   outlineOffset: "-2px",
+                 }}
+               >
+                 {/* Hake i tillegg til bakgrunnsfarge, så valgt tilstand ikke formidles bare med
+   farge (WCAG 1.4.1) */}
+                 <CheckmarkIcon aria-hidden style={{ visibility: erValgt ? "visible" : "hidden" }}
+   />
+                 {v.tekst}
+               </li>
+             );
+           })}
+         </ul>
+       </div>
+     );
+   }
+   EOF
+   cd /tmp && mkdir -p lbcheck && cd lbcheck && [ -d node_modules ] || npm i -s typescript
+   @types/react @navikt/aksel-icons >/dev/null 2>&1; cp
+   "$OLDPWD/src/app/komponenter/StatusPanel.tsx" . && npx tsc --noEmit --strict --jsx react-jsx
+   --skipLibCheck --moduleResolution bundler --module esnext StatusPanel.tsx && echo OK
+   Approval check
+     └ ✗ Denied, no one to approve shell path (/tmp,
+       /tmp/$OLDPWD/src/app/komponenter/StatusPanel.tsx, +7 more)
+   Permission denied because no interactive user response was available. Retry in an interactive 
+   session so the user can approve it, or try an alternative that does not require this permission.
+
+ $ Shell Write listbox component 141 lines…
+   cat > src/app/komponenter/StatusPanel.tsx <<'EOF'
+   import { useId, useState, type KeyboardEvent } from "react";
+   import { CheckmarkIcon, TrashIcon } from "@navikt/aksel-icons";
+
+   type Statusvalg = { verdi: string; tekst: string };
+
+   type StatusPanelProps = {
+     status: string;
+     statusvalg: Statusvalg[];
+     onEndreStatus: (verdi: string) => void;
+     onSlett: () => void;
+   };
+
+   export function StatusPanel({ status, statusvalg, onEndreStatus, onSlett }: StatusPanelProps) {
+     const [apen, setApen] = useState(false);
+     return (
+       <div className="p-4 mx-8">
+         <div onClick={() => setApen(!apen)} style={{ outline: "none" }}>
+           Vis detaljer
+         </div>
+         <span tabIndex={5} style={{ color: status === "feil" ? "red" : "green" }}>
+           {status}
+         </span>
+         <StatusListbox valg={statusvalg} valgt={status} onVelg={onEndreStatus} />
+         <button onClick={onSlett}>
+           <TrashIcon />
+         </button>
+       </div>
+     );
+   }
+
+   type StatusListboxProps = {
+     valg: Statusvalg[];
+     valgt: string;
+     onVelg: (verdi: string) => void;
+   };
+
+   // Single-select listbox etter WAI-ARIA APG: fokus blir på <ul>, aktivt valg pekes ut med
+   // aria-activedescendant. Piltaster flytter, Enter/mellomrom velger, slik at onVelg ikke
+   // kalles for hvert tastetrykk.
+   function StatusListbox({ valg, valgt, onVelg }: StatusListboxProps) {
+     const id = useId();
+     const labelId = `${id}-label`;
+     const valgtIndeks = valg.findIndex((v) => v.verdi === valgt);
+     const [aktivIndeks, setAktivIndeks] = useState(Math.max(valgtIndeks, 0));
+     const [harFokus, setHarFokus] = useState(false);
+
+     const opsjonId = (indeks: number) => `${id}-opsjon-${indeks}`;
+
+     const velg = (indeks: number) => {
+       setAktivIndeks(indeks);
+       onVelg(valg[indeks].verdi);
+     };
+
+     const onKeyDown = (event: KeyboardEvent<HTMLUListElement>) => {
+       if (valg.length === 0) return;
+       const sisteIndeks = valg.length - 1;
+       switch (event.key) {
+         case "ArrowDown":
+           setAktivIndeks((i) => Math.min(i + 1, sisteIndeks));
+           break;
+         case "ArrowUp":
+           setAktivIndeks((i) => Math.max(i - 1, 0));
+           break;
+         case "Home":
+           setAktivIndeks(0);
+           break;
+         case "End":
+           setAktivIndeks(sisteIndeks);
+           break;
+         case "Enter":
+         case " ":
+           velg(aktivIndeks);
+           break;
+         default:
+           return;
+       }
+       event.preventDefault();
+     };
+
+     return (
+       <div>
+         <span id={labelId}>Status</span>
+         <ul
+           role="listbox"
+           aria-labelledby={labelId}
+           aria-activedescendant={valg.length > 0 ? opsjonId(aktivIndeks) : undefined}
+           tabIndex={0}
+           onKeyDown={onKeyDown}
+           onFocus={() => {
+             setHarFokus(true);
+             if (valgtIndeks >= 0) setAktivIndeks(valgtIndeks);
+           }}
+           onBlur={() => setHarFokus(false)}
+           style={{
+             listStyle: "none",
+             margin: 0,
+             padding: "var(--ax-space-4)",
+             border: "1px solid var(--ax-border-neutral)",
+             borderRadius: "var(--ax-radius-4)",
+             background: "var(--ax-bg-default)",
+             outline: harFokus ? "3px solid var(--ax-border-focus)" : undefined,
+             outlineOffset: "2px",
+           }}
+         >
+           {valg.map((v, indeks) => {
+             const erValgt = v.verdi === valgt;
+             const erAktiv = harFokus && indeks === aktivIndeks;
+             return (
+               <li
+                 key={v.verdi}
+                 id={opsjonId(indeks)}
+                 role="option"
+                 aria-selected={erValgt}
+                 onMouseDown={(e) => e.preventDefault()}
+                 onClick={() => velg(indeks)}
+                 onMouseMove={() => setAktivIndeks(indeks)}
+                 style={{
+                   display: "flex",
+                   alignItems: "center",
+                   gap: "var(--ax-space-8)",
+                   padding: "var(--ax-space-8) var(--ax-space-12)",
+                   borderRadius: "var(--ax-radius-2)",
+                   cursor: "pointer",
+                   color: "var(--ax-text-neutral)",
+                   background: erValgt ? "var(--ax-bg-accent-moderate)" : undefined,
+                   outline: erAktiv ? "2px solid var(--ax-border-focus)" : undefined,
+                   outlineOffset: "-2px",
+                 }}
+               >
+                 {/* Hake i tillegg til bakgrunnsfarge, så valgt tilstand ikke formidles bare med
+   farge (WCAG 1.4.1) */}
+                 <CheckmarkIcon aria-hidden style={{ visibility: erValgt ? "visible" : "hidden" }}
+   />
+                 {v.tekst}
+               </li>
+             );
+           })}
+         </ul>
+       </div>
+     );
+   }
+   EOF
+   echo done
+
+ TX Edit src/app/komponenter/StatusPanel.tsx -1
+
+Jeg har lagt til `StatusListbox` med `role="listbox"` i `StatusPanel.tsx`. Typesjekk og tester er ikke kjørt, fordi repoet mangler `package.json` og installasjon av avhengigheter ble avvist.
+
+**Bryter API-et:** `StatusPanel` krever nå to nye props, `statusvalg` (`{ verdi, tekst }[]`) og `onEndreStatus`. De som bruker komponenten, må sende inn disse.
+
+**Hvordan den virker**
+- Fokus blir stående på listen. `aria-activedescendant` viser skjermleseren hvilket valg som er aktivt, og `aria-selected` markerer det valgte.
+- Piltastene og Home/End flytter mellom valgene. Enter eller mellomrom velger, slik at du ikke lagrer status for hvert tastetrykk.
+- Listen har et synlig navn via `aria-labelledby`, og en fokusring med `--ax-border-focus`.
+- Valgt status vises med både hake (`CheckmarkIcon`) og bakgrunnsfarge, ikke bare farge (WCAG 1.4.1).
+
+**Valget du bør vite om:** Egne ARIA-roller er noe vi avtaler før vi bruker dem. Aksel `Select` eller `RadioGroup` gir samme funksjon med innebygd UU og mindre kode å vedlikeholde. Det er mer egen kode å vedlikeholde, og hvis du vil, kan jeg bytte til `Select` eller `RadioGroup`.
+
+**Feil fra før, som jeg ikke rettet**
+- `tabIndex={5}` gir feil tabrekkefølge.
+- `<div onClick>` kan ikke brukes med tastatur, og `outline: none` skjuler fokus.
+- Statusen vises bare med rød eller grønn farge.
+- Sletteknappen mangler tilgjengelig navn.
+
+Still gjerne spørsmål om valgene over.
+

@@ -1,0 +1,58 @@
+# golden-prompt PER-RUN ASSERTION OUTCOMES
+# agent:        code-review
+# suite:        review
+# date:         2026-11-18
+# revision:     6fbce9a6
+# personaHash:  9d50afc2daa1a11c7749a9370f080455acfa7638d25fc9f46895482acaf3a20d
+# harnessHash:  31303b66a044df68da77f1ba539f6a0a98cf0aabc6733992e11c37f4979c6eb4
+# model:        claude-opus-5.5
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.114-0.
+# effort:       low
+# context:      CLI default
+# instructions: 17 installed, 4 always-on
+# repeat:       5
+# fixture:      2929655385
+# prompts:      rv1,rv2,rv3,rv4,rv5,rv6,rv7,rv8
+#
+# id|run|status|assertion|detail
+rv1|1|pass|Kotlin: all three planted defects named within three lines|
+rv2|1|pass|Kotlin: every planted defect cited on its line|
+rv3|1|pass|TSX: all four planted defects named within three lines|
+rv4|1|pass|TSX: every planted defect cited on its line|
+rv5|1|pass|PR: security and privacy defects on the right line in the right file|
+rv6|1|fail|PR: design defects named (idempotency under retry, insert-then-send)|not named near its line: dobbeltskriving (anywhere)
+rv7|1|pass|PR: SQL and access findings marked high, the nit is not|
+rv8|1|pass|clean service: no high-priority finding, says nothing is critical|0 spurious high-priority rows
+rv1|2|pass|Kotlin: all three planted defects named within three lines|
+rv2|2|pass|Kotlin: every planted defect cited on its line|
+rv3|2|pass|TSX: all four planted defects named within three lines|
+rv4|2|pass|TSX: every planted defect cited on its line|
+rv5|2|pass|PR: security and privacy defects on the right line in the right file|
+rv6|2|pass|PR: design defects named (idempotency under retry, insert-then-send)|
+rv7|2|pass|PR: SQL and access findings marked high, the nit is not|
+rv8|2|pass|clean service: no high-priority finding, says nothing is critical|0 spurious high-priority rows
+rv1|3|pass|Kotlin: all three planted defects named within three lines|
+rv2|3|pass|Kotlin: every planted defect cited on its line|
+rv3|3|pass|TSX: all four planted defects named within three lines|
+rv4|3|pass|TSX: every planted defect cited on its line|
+rv5|3|pass|PR: security and privacy defects on the right line in the right file|
+rv6|3|pass|PR: design defects named (idempotency under retry, insert-then-send)|
+rv7|3|pass|PR: SQL and access findings marked high, the nit is not|
+rv8|3|pass|clean service: no high-priority finding, says nothing is critical|0 spurious high-priority rows
+rv1|4|pass|Kotlin: all three planted defects named within three lines|
+rv2|4|pass|Kotlin: every planted defect cited on its line|
+rv3|4|fail|TSX: all four planted defects named within three lines|not named near its line: tailwind
+rv4|4|fail|TSX: every planted defect cited on its line|not named near its line: tailwind
+rv5|4|pass|PR: security and privacy defects on the right line in the right file|
+rv6|4|pass|PR: design defects named (idempotency under retry, insert-then-send)|
+rv7|4|pass|PR: SQL and access findings marked high, the nit is not|
+rv8|4|pass|clean service: no high-priority finding, says nothing is critical|0 spurious high-priority rows
+rv1|5|pass|Kotlin: all three planted defects named within three lines|
+rv2|5|pass|Kotlin: every planted defect cited on its line|
+rv3|5|pass|TSX: all four planted defects named within three lines|
+rv4|5|pass|TSX: every planted defect cited on its line|
+rv5|5|fail|PR: security and privacy defects on the right line in the right file|wrong line: sql (want [23], cited [24])
+rv6|5|pass|PR: design defects named (idempotency under retry, insert-then-send)|
+rv7|5|pass|PR: SQL and access findings marked high, the nit is not|
+rv8|5|pass|clean service: no high-priority finding, says nothing is critical|0 spurious high-priority rows

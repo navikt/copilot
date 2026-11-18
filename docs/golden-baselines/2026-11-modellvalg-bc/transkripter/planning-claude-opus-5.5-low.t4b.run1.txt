@@ -1,0 +1,74 @@
+## Fase 2: Plan
+
+### 1. Arkitekturvalg
+- **Flyten:** Next.js-frontenden bruker Wonderwall og ID-porten. Den bytter innbyggerens token til et TokenX-token og kaller `demo-tjeneste`. Tjenesten kaller så PDL med et nytt TokenX-token.
+- **Auth inn:** Tjenesten tar imot TokenX-tokens, ikke ID-porten-tokens direkte. Da får hver tjeneste et token med riktig audience, og brukerkonteksten følger med hele veien. Det andre alternativet er å validere ID-porten-tokenet direkte i backend. Det har vi forkastet, fordi audience da blir frontendens og ikke tjenestens. Tjenesten sjekker at `acr` er `idporten-loa-high` og leser fnr fra `pid`-claimet.
+- **Auth mot PDL:** TokenX med brukerkontekst. Azure client_credentials bruker vi ikke, fordi vi da mister sporbarheten for hvilken bruker som gjorde oppslaget. *Antakelse:* PDL godtar TokenX for at innbyggeren slår opp seg selv. Dette må bekreftes med PDL-teamet.
+- **Kommunikasjon:** Synkron REST. Det er ingen database og ingen Kafka.
+- **Eierskap:** Fnr kommer alltid fra tokenet og aldri fra en parameter i forespørselen. Innbyggeren kan dermed bare slå opp seg selv.
+
+### 2. Struktur
+```
+src/main/kotlin/no/nav/demo/
+  App.kt, Config.kt (sealed config, env)
+  auth/TokenValidering.kt     🔴
+  auth/TokenXKlient.kt        🔴
+  pdl/PdlKlient.kt            (GraphQL hentPerson → navn)
+  Routes.kt                   GET /api/meg → { navn }
+  Metrikker.kt
+src/test/kotlin/... (MockOAuth2Server, MockEngine for PDL)
+```
+
+### 3. Nais-manifest (endringer)
+```yaml
+spec:
+  tokenx: { enabled: true }
+  accessPolicy:
+    inbound:
+      rules: [{ application: <frontend-app>, namespace: demo }]
+    outbound:
+      rules: [{ application: pdl-api, namespace: pdl, cluster: <cluster> }]
+  prometheus: { enabled: true, path: /internal/metrics }
+  observability: { autoInstrumentation: { enabled: true, runtime: java } }
+  resources: { requests: { cpu: 15m, memory: 256Mi }, limits: { memory: 512Mi } }
+```
+
+### 4. CI/CD
+GitHub Actions bygger med Gradle, kjører testene, bygger og pusher et Docker-image med `nais/docker-build-push` og deployer med `nais/deploy` til dev og så prod. Actions pinnes med SHA, og `permissions` holdes minimale.
+
+### 5. Database
+Ingen. Tjenesten lagrer verken fnr eller navn.
+
+### 6. Tester
+- **Auth:** MockOAuth2Server sjekker at manglende, utløpt eller feil token gir 401. Feil audience og nivå lavere enn `loa-high` skal også gi 401.
+- **PDL:** MockEngine sjekker at riktig svar gir 200 med navn, og at tidsavbrudd eller 5xx gir 503.
+- **Logging:** En test sjekker at fnr ikke havner i loggen.
+
+### 7. Sikkerhetsliste
+- Data: fnr og navn. Behandlingsgrunnlaget er lovhjemmel.
+- Verken fnr, navn eller tokens skal logges. Feil logges med `callId`.
+- `pid` hentes bare fra et validert token, og `aud`, `iss`, `exp` og `acr` sjekkes.
+- Svaret sendes med `Cache-Control: no-store`.
+- Tidsavbrudd mot PDL er 5 sekunder og gir 503.
+- Ny behandling av personopplysninger må føres i behandlingsoversikten (sjekk med personvernombudet om det trengs en DPIA).
+
+### 8. Utrulling
+Nybygg. Vi deployer til dev, tester ende til ende med testbrukere fra Dolly og går så til prod. Rollback gjøres ved å deploye forrige image.
+
+### 9. Observerbarhet
+- `oppslag_totalt{status}` er en teller. I Grafana vises den som `rate()` per minutt og som andel feilende kall.
+- `pdl_kall_varighet` er et histogram.
+- Varsel når andelen feil er over 5 % i 5 minutter.
+- Health-endepunkter finnes allerede.
+
+### 10. 🔴 Rød-sone-deklarasjon (utvikleren skriver selv)
+- `TokenValidering.kt`: validering av TokenX-tokenet, sjekk av `acr` og uttrekk av `pid`.
+- `TokenXKlient.kt`: tokenbytte mot PDL (client assertion, riktig audience).
+- Eierskapsregelen om at fnr bare kommer fra tokenet.
+
+TokenX er nytt for teamet. Jeg leverer derfor bare testskjelett og stubber for disse filene. Resten er grønn sone.
+
+Plan-fasen er ferdig. Bekreft planen, så går jeg videre til Fase 3 og vurderer den fra fem perspektiver, der sikkerhetsdelen sendes til @security-champion-agent.
+
+Still gjerne spørsmål om valgene over.
+
