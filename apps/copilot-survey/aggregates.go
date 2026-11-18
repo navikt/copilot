@@ -134,7 +134,7 @@ func finalize(ctx context.Context, pool *pgxpool.Pool, defs []survey, s survey, 
 		}
 		n = len(rows)
 		batch := &pgx.Batch{}
-		batch.Queue(`DELETE FROM survey_results WHERE survey_id = $1`, s.ID)
+		batch.Queue(`DELETE FROM survey_results WHERE survey_id = $1 AND kind NOT IN ('freetext', 'freetext_onske')`, s.ID)
 		insert := `INSERT INTO survey_results (survey_id, kind, key, version, option, count, n, mean) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
 		batch.Queue(insert, s.ID, "total", "", 0, "", n, n, nil)
 		t := tallyRows(s, rows)

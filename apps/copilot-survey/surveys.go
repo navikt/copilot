@@ -670,6 +670,13 @@ type surveyAPI struct {
 	hide   func(ctx context.Context, surveyID, field, hash string) error
 	// textKey keys the free-text tokens (freetext.go); random per process.
 	textKey []byte
+	// codebooks by series (codebook.go). codes, saveCodes and finalCoding
+	// read and write free-text codes and their stored counts
+	// (surveyStore.codes, saveCodes, finalCoding). Nil without storage.
+	codebooks   map[string]codebook
+	codes       func(ctx context.Context, surveyID string, version int) (map[string]*textCodes, error)
+	saveCodes   func(ctx context.Context, surveyID, field, hash, coder string, version int, codes []code, by string) error
+	finalCoding func(ctx context.Context, surveyID string, version int) (map[string]fieldTally, error)
 }
 
 // open: active, inside its window and with a key. A survey without a key

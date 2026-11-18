@@ -67,13 +67,36 @@ CREATE TABLE IF NOT EXISTS survey_freetext_hidden (
 	field     text NOT NULL,
 	text_hash text NOT NULL, -- sha256 of the raw text, see freetext.go
 	PRIMARY KEY (survey_id, field, text_hash)
+);
+-- Free-text codes (codebook.go): per text as in survey_freetext_hidden,
+-- never per row. Deleted once the survey has no rows left (retain).
+CREATE TABLE IF NOT EXISTS survey_freetext_codes (
+	survey_id        text    NOT NULL,
+	field            text    NOT NULL,
+	text_hash        text    NOT NULL,
+	coder            text    NOT NULL CHECK (coder IN ('model', 'human', 'final')),
+	category         text    NOT NULL,
+	onske            boolean NOT NULL,
+	codebook_version integer NOT NULL,
+	PRIMARY KEY (survey_id, field, text_hash, coder, codebook_version, category, onske)
+);
+-- Who decided where the coders disagreed, and when; never the text.
+CREATE TABLE IF NOT EXISTS survey_freetext_decisions (
+	survey_id  text        NOT NULL,
+	field      text        NOT NULL,
+	text_hash  text        NOT NULL,
+	decided_by text        NOT NULL,
+	decided_at timestamptz NOT NULL
 )`
 
 type surveyStore struct {
 	pool *pgxpool.Pool
 	defs []survey // for closeOut: final aggregates and next-round retention
+	// codebooks by series: purge writes the coding counts before rows go.
+	codebooks map[string]codebook
 	// purgeHook, in tests only, runs after purge decides that a survey's
-	// expired rows may go and before it deletes them.
+	// expired rows may go and has written their coding counts, and before
+	// it deletes them.
 	purgeHook func(surveyID string)
 }
 
@@ -166,6 +189,9 @@ func (s *surveyStore) retain(parent context.Context, now time.Time) {
 	}{
 		{`DELETE FROM survey_participation WHERE closes_on <= $1`, []any{today}},
 		{`DELETE FROM survey_answers WHERE delete_after < $1 AND NOT survey_id = ANY($2)`, []any{today, ids}},
+		// Codes and decisions go with the last row of their survey.
+		{`DELETE FROM survey_freetext_codes c WHERE NOT EXISTS (SELECT 1 FROM survey_answers a WHERE a.survey_id = c.survey_id)`, nil},
+		{`DELETE FROM survey_freetext_decisions d WHERE NOT EXISTS (SELECT 1 FROM survey_answers a WHERE a.survey_id = d.survey_id)`, nil},
 	} {
 		tag, err := s.pool.Exec(ctx, q.sql, q.args...)
 		if err != nil {
@@ -178,7 +204,9 @@ func (s *surveyStore) retain(parent context.Context, now time.Time) {
 
 // purge deletes d's expired answers once it has aggregates and skip counts
 // (deletable), so a failed close-out is retried the next day instead of
-// losing the counts. Decision and delete run in one transaction under the
+// losing the counts. While every row is there it first writes the coding
+// counts (writeCodingResults), so they are as coded on the day the rows go.
+// Decision, counts and delete run in one transaction under the
 // lock finalize and writeImport take, so an import cannot replace the rows
 // in between. Each of the three takes only this one lock: no deadlock.
 func (s *surveyStore) purge(ctx context.Context, d survey, today time.Time) (int64, error) {
@@ -189,6 +217,9 @@ func (s *surveyStore) purge(ctx context.Context, d survey, today time.Time) (int
 		}
 		ok, err := s.deletable(ctx, tx, d)
 		if err != nil || !ok {
+			return err
+		}
+		if err = s.writeCoding(ctx, tx, d, today); err != nil {
 			return err
 		}
 		if s.purgeHook != nil {
@@ -233,6 +264,26 @@ func (s *surveyStore) deletable(ctx context.Context, tx pgx.Tx, d survey) (bool,
 		}
 	}
 	return true, nil
+}
+
+// writeCoding writes d's coding counts when it has a codebook, rows about
+// to expire, and every row it was aggregated with.
+func (s *surveyStore) writeCoding(ctx context.Context, tx pgx.Tx, d survey, today time.Time) error {
+	cb, ok := s.codebooks[d.Series]
+	if !ok || d.Series == "" {
+		return nil
+	}
+	var expiring, complete bool
+	if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM survey_answers WHERE survey_id = $1 AND delete_after < $2),
+		coalesce((SELECT count FROM survey_results WHERE survey_id = $1 AND kind = 'total') = (SELECT count(*) FROM survey_answers WHERE survey_id = $1), false)`,
+		d.ID, today).Scan(&expiring, &complete); err != nil || !expiring || !complete {
+		return err
+	}
+	rows, _, err := readRows(ctx, tx, d.ID)
+	if err != nil {
+		return err
+	}
+	return writeCodingResults(ctx, tx, cb, d, rows)
 }
 
 // answers returns a survey's written rows: answers, question versions and
