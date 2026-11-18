@@ -355,6 +355,8 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 		if r.Method == http.MethodGet || acceptsEventStream(r.Header) {
 			release, ok := g.sseStreams.tryAcquire()
 			if !ok {
+				// Shed, not a decision: same as over_capacity above.
+				decision, decisionReason = "", ""
 				outcome = "sse_over_capacity"
 				writeOverCapacity(w, "SSE streams")
 				return
