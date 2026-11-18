@@ -35,20 +35,26 @@ Eierens beslutninger 18. november 2026:
 
   ```sh
   awk -F'|' '!/^#/ && $17 == "" {print $6, ($7 == "" ? "-" : $7)}' <arm>-usage.psv | sort | uniq -c
-  grep -h '^# clientVersion' <arm>
+  grep -h '^# clientVersion' <fil>
   ```
 
-  Første kommando skal gi nøyaktig én linje: modellen og det forventede observerte innsatsnivået fra [Innsatsnivå](#innsatsnivå) (`-` når bruksradene ikke har noe nivå). Andre kommando skal vise `1.0.114-0`. `<arm>` er stien gitt til `--save-baseline`, uten `.txt`.
+  Første kommando skal gi nøyaktig én linje: modellen og det forventede observerte innsatsnivået fra [Innsatsnivå](#innsatsnivå) (`-` når bruksradene ikke har noe nivå). Andre kommando skal vise `1.0.114-0`. `<fil>` er stien gitt til `--save-baseline`, nøyaktig som den står: med `.txt` for matrise- og erstatningsarmer, uten for D1 og `accessibility`. Hodet med `clientVersion` står i den fila. `<arm>` er `<fil>` uten en eventuell `.txt`, og PSV-filene heter `<arm>-usage.psv`, `<arm>-attempts.psv` og så videre. Det samme gjelder under [Kostnad og ramme](#kostnad-og-ramme).
 - **Forkastede kjøringer:** timeout, CLI-feil, ødelagt testmiljø og feil modell eller innsatsnivå får egen status. De telles ikke som bestått eller feilet. Et `error`-utfall på en sjekk der CLI-kallet lyktes (for eksempel `redzone_check` når modellen verken skriver kode eller sier hvem som skal), er ikke en forkastet kjøring. Det er modellens atferd og behandles under D1.
 - **Erstatningskjøringer:** `benchmark-matrix.py` regner en arm som ferdig når alle kjøringsnumrene har forsøksrader, også ved timeout og CLI-feil, og en høyere n kjører hele armen på nytt og overskriver filene. Derfor:
   1. Matriselinja og den lagrede armen endres ikke.
   2. For k forkastede kjøringer (høyst 2) kjøres `nav-pilot-golden.sh` direkte med samme argumenter og `--repeat k`, lagret til `docs/golden-baselines/2026-11-modellvalg-<trinn>/utenfor-oppsummering/<arm>-erstatning-<i>.txt`.
   3. Den opprinnelige armen flyttes til samme `utenfor-oppsummering/`, og linja i matrisefila kommenteres ut med en henvisning, så matrisen ikke kjører den på nytt.
   4. `gyldige.psv` i trinnmappa lister de fem gyldige kjøringene per arm (`arm|fil|run`): de gyldige fra den opprinnelige armen i rekkefølge, deretter erstatningskjøringene i rekkefølge til det er fem.
-  5. Analysen, statistikken og README-ens sammendrag bruker bare kjøringene i `gyldige.psv`. Alle råfiler committes, og kostnaden for alle kjøringene, gyldige eller ikke, telles med i rammen. Armer med erstatninger er ikke med i `summary.json`.
+  5. Analysen, statistikken og README-ens sammendrag bruker bare kjøringene i `gyldige.psv`. Alle råfiler committes etter [gjennomgangen for hemmeligheter og personopplysninger](#publisering-av-rådata), og kostnaden for alle kjøringene, gyldige eller ikke, telles med i rammen. Armer med erstatninger er ikke med i `summary.json`.
 
   Færre enn fem gyldige etter to erstatninger gir «ikke avgjort».
-- **Filene agenten skrev** lagres per test og kjøring som `transkripter/<arm>.<slug>.run<N>.files.txt` ved siden av transkriptet. `nav-pilot-golden.sh` skriver dem før arbeidsområdet nullstilles for neste prompt. 9, 9c og 9d vurderer den koden, og en bom eller et grensetilfelle skal kunne etterprøves fra fila.
+
+  **Armer som er delt mellom trinn B og C** (review og norsk: 2 + 3, planning: 1 + 4, accessibility for Opus: 2 + 3):
+  - Målet per trinn er n-en på linja: B skal ha 2 (eller 1) gyldige kjøringer før silingen vurderes, C skal ha 3 (eller 4). Forkastede kjøringer i B erstattes i trinn B, slik at stoppreglene leser gyldige kjøringer.
+  - Armen har til sammen fem utvalgte kjøringer: de gyldige fra B i rekkefølge, deretter de gyldige fra C i rekkefølge.
+  - Tillatelsen på høyst to erstatninger gjelder armen samlet, ikke hvert trinn.
+  - Får en av halvdelene en erstatning, flyttes begge halvdelene, med erstatningene, til `utenfor-oppsummering/` i sine trinnmapper, og ingen av dem er med i `summary.json`. `gyldige.psv` for armen ligger i trinnmappa for C og viser til filer i begge.
+- **Filene agenten skrev** lagres per test og kjøring som `transkripter/<arm>.<slug>.run<N>.files.txt` ved siden av transkriptet. `nav-pilot-golden.sh` skriver dem før arbeidsområdet nullstilles for neste prompt. 9, 9c og 9d vurderer den koden, og en bom eller et grensetilfelle skal kunne etterprøves fra fila. Testoppsettet kopierer ikke symlenker, filer som løser seg utenfor arbeidsområdet, eller filer med navn som ofte inneholder hemmeligheter (`.env*`, `*.pem`, `*.key`, `id_*`, `.npmrc`, `credentials*`). De står bare som en markør med stien.
 - **Feilede sjekker leses for hånd** og klassifiseres i `failures.psv` som reell bom, falsk negativ eller grensetilfelle før armene sammenlignes. Konklusjonene bygger på sjekkens egne tall. Unntaket er D1, der pin-protokollen krever en bom lest for hånd på sikkerhetstestene, og der et grensetilfelle teller som bom.
 - **Oppgavesuksess:** en oppgave er bestått i en kjøring bare når alle sjekkene i oppgaven er bestått. Oppgavene står i tabellen under. `review`, `norsk` og `accessibility` vurderes per sjekk, som i de tidligere kriteriene.
 - **Credits** i kriteriene er median credits per gyldig kjøring fra `assistant_usage_events`, uten dommeren. **Kostnadsbeslutninger krever fullstendige kostnadsdata:** har én gyldig kjøring i en av armene `usage_complete=false`, er kostnadskriteriet «ikke avgjort», og dagens modell beholdes. Forbruket mot rammen er noe annet og står under [Kostnad og ramme](#kostnad-og-ramme).
@@ -67,6 +73,15 @@ Eierens beslutninger 18. november 2026:
 | `kafka` | kf-felt | kf3, kf4 |
 | `rust` | rs-borrow | rs1, rs2 |
 | `rust` | rs-feil | rs3, rs4 |
+
+## Publisering av rådata
+
+Transkripter og `.files.txt` committes ikke før de er gjennomgått for hemmeligheter og personopplysninger. Agenten kjører med `--allow-all-tools` og kan ha lest eller skrevet noe som ikke hører hjemme i et offentlig repo. Krav før hver commit med rådata:
+
+1. `gitleaks dir <sti>` gir ingen funn for hver trinnmappe og for D1- og `accessibility`-filene med transkriptene deres. Et funn fjernes eller sladdes før commit, og det står i README-en hvilken fil som er endret.
+2. Fødselsnumre og andre personopplysninger sjekkes for hånd. Fiksturene bruker bare syntetiske fødselsnumre. Et nummer som ikke står i fiksturene, behandles som et funn.
+
+Rådata som ikke er gjennomgått, blir liggende lokalt og regnes ikke som publisert.
 
 ## Innsatsnivå
 
