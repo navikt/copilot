@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -72,7 +73,7 @@ func TestPublishedCompare(t *testing.T) {
 	if api.surveys[1].Questions[1].SkipIf = rule; rule == nil {
 		t.Fatal("fixture lost its skip_if")
 	}
-	if do(h, "GET", path+"dev", webToken, "").Body.String() != body || api.surveys[1].Questions[1].SkipIf != rule {
+	if do(h, "GET", path+"dev", webToken, "").Body.String() != body || !reflect.DeepEqual(api.surveys[1].Questions[1].SkipIf, rule) {
 		t.Error("published compare changed the definition")
 	}
 
