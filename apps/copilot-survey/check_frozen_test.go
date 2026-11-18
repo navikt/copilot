@@ -34,6 +34,10 @@ func TestCheckFrozenSurveys(t *testing.T) {
 		{"started, paused and retitled", started, `{"id":"w","title":"U","active":false,"starts":"2000-01-01","ends":"2000-03-01","questions":[{"id":"a","version":1}]}`, false},
 		{"not started, questions changed", future, `{"id":"w","title":"T","active":true,"starts":"2999-01-01","ends":"2999-02-01","questions":[{"id":"a","version":2}]}`, false},
 		{"new file", "", started, false},
+		{"dev-only, started, questions changed", `{"id":"w","title":"T","environments":["dev-gcp"],"active":false,"starts":"2000-01-01","ends":"2000-02-01","questions":[{"id":"a","version":1}]}`, `{"id":"w","title":"T","environments":["dev-gcp"],"active":false,"starts":"2000-01-01","ends":"2000-02-01","questions":[{"id":"a","version":2}]}`, false},
+		{"prod-only, started, questions changed", `{"id":"w","title":"T","environments":["prod-gcp"],"active":false,"starts":"2000-01-01","ends":"2000-02-01","questions":[{"id":"a","version":1}]}`, `{"id":"w","title":"T","environments":["prod-gcp"],"active":false,"starts":"2000-01-01","ends":"2000-02-01","questions":[{"id":"a","version":2}]}`, true},
+		// The first of two pull requests that would make a prod survey dev-only.
+		{"started, made dev-only", started, `{"id":"w","title":"T","environments":["dev-gcp"],"active":true,"starts":"2000-01-01","ends":"2000-02-01","questions":[{"id":"a","version":1}]}`, true},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

@@ -8,6 +8,9 @@
 # active: false, or moves starts later, would let the next one change the
 # questions. Every other field (title, intro, nudge, series, min_cli_version,
 # active, ends) may still change.
+# A dev-only survey (environments without prod-gcp on the base, see
+# forCluster) is a test fixture and is not frozen. environments is frozen
+# for the rest, so a pull request cannot make a prod survey dev-only first.
 #
 # Usage: check-frozen-surveys.sh <base commit>
 set -euo pipefail
@@ -20,10 +23,10 @@ today=$(date -u +%F)
 fail=0
 for f in $(git diff --no-renames --name-only "$base" HEAD -- ':(top)apps/copilot-survey/surveys/*.json'); do
   old=$(git show "$base:$f" 2>/dev/null) || continue # new file
-  jq -e --arg today "$today" '.starts <= $today' <<<"$old" >/dev/null || continue
+  jq -e --arg today "$today" '.starts <= $today and ((.environments // ["prod-gcp"]) | index("prod-gcp"))' <<<"$old" >/dev/null || continue
   new=$(git show "HEAD:$f" 2>/dev/null || echo '{}')
-  if [[ "$(jq -cS '[.id, .questions, .starts]' <<<"$old")" != "$(jq -cS '[.id, .questions, .starts]' <<<"$new")" ]]; then
-    echo "::error file=$f::$f has started: its id, questions and starts are frozen. Change them in a new wave (new id), see surveys/README.md."
+  if [[ "$(jq -cS '[.id, .questions, .starts, .environments]' <<<"$old")" != "$(jq -cS '[.id, .questions, .starts, .environments]' <<<"$new")" ]]; then
+    echo "::error file=$f::$f has started: its id, questions, starts and environments are frozen. Change them in a new wave (new id), see surveys/README.md."
     fail=1
   fi
 done
