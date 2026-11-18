@@ -351,8 +351,10 @@ func SetMCPServer(client, name string, entry json.RawMessage, e MCPServerEntry, 
 }
 
 // BackfillOpenCodeProtocol adds the registry protocol to the OpenCode entry
-// under key when it has none. An existing protocol, a non-remote entry, or a
-// registry entry without 2026-07-28 changes nothing.
+// under key when it has none. It uses the same rule as creation
+// (openCodeProtocol), so an https nav.no remote without protocolVersions gets
+// "auto"; an existing protocol, a non-remote entry, or any other remote without
+// 2026-07-28 changes nothing.
 func BackfillOpenCodeProtocol(key string, e MCPServerEntry) (string, MCPConfigChange, error) {
 	if key == "" {
 		return "", MCPConfigChange{}, nil
@@ -374,8 +376,9 @@ func BackfillOpenCodeProtocol(key string, e MCPServerEntry) (string, MCPConfigCh
 		if err := json.Unmarshal(entry.vals["type"], &typ); err != nil || typ != "remote" {
 			return nil, false, nil
 		}
-		// Empty URL on purpose: backfill only from the registry protocolVersions.
-		p = openCodeProtocol(e.ProtocolVersions, "")
+		var u string
+		_ = json.Unmarshal(entry.vals["url"], &u)
+		p = openCodeProtocol(e.ProtocolVersions, u)
 		if p == "" {
 			return nil, false, nil
 		}

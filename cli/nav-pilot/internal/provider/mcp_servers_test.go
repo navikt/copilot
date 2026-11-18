@@ -646,9 +646,17 @@ func TestBackfillOpenCodeProtocol(t *testing.T) {
 			url:      "https://x.example/mcp",
 		},
 		{
-			name:  "nil versions with nav.no url",
-			entry: `{"type":"remote","url":"https://x.nav.no/mcp"}`,
-			url:   "https://x.nav.no/mcp",
+			name:    "nil versions with nav.no url",
+			entry:   `{"type":"remote","url":"https://x.nav.no/mcp"}`,
+			url:     "https://x.nav.no/mcp",
+			wantRet: "auto",
+			wantVal: "auto",
+			wantChg: true,
+		},
+		{
+			name:  "nil versions with non-nav https url",
+			entry: `{"type":"remote","url":"https://example.com/mcp"}`,
+			url:   "https://example.com/mcp",
 		},
 		{
 			name:     "existing user protocol kept",
