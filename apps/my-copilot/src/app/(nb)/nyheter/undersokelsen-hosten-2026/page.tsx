@@ -379,7 +379,8 @@ export default function SurveyAutumnArticlePage() {
                 teller som brukere. Ikke alle som svarte, bruker Copilot, så andelen er ikke en ren svarprosent.
                 Vårtallene er regnet på nytt blant KI-brukerne, så de avviker litt fra{" "}
                 <NextLink href="/nyheter/utviklerundersokelsen-2026">vårartikkelen</NextLink>, som regnet blant alle som
-                svarte.
+                svarte. Resultatsiden bak innlogging regner også våren av alle som svarte, så tallene der kan avvike
+                litt fra tallene her.
               </BodyLong>
               <BodyLong spacing>
                 For å se om endringene er mer enn tilfeldigheter, brukte vi Mann–Whitney-test og Holm-korreksjon for
