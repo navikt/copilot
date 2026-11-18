@@ -14,15 +14,15 @@ Eierens beslutninger 18. november 2026:
 
 **Uavgjort beholder dagens modell.** Alle utfall som ikke er et oppfylt byttekriterium, inkludert «ikke avgjort» og «ikke videreført», betyr at pinnen står.
 
-Ingen måling her flytter en pinne. Hvert bytte tas i en egen PR etter rapporten.
+**Ingen pinne flyttes på golden-testpakkene alene** ([pin-protokollen](../pin-protokoll.md), [README](README.md)). D1 følger pin-protokollen, der trinn 2 er golden og trinn 3, trinnvis utrulling, kommer etter. D2 og D3 er siling: et oppfylt kriterium betyr at kandidaten går videre til en beslutningsmåling etter pin-protokollen, med egen forhåndsregistrering. Den er ikke en del av denne planen. D4 og D5 gir bare reserve og anbefaling, ingen pinne.
 
 ## Beslutninger
 
 | # | Spørsmål | Kandidat | Kontroll (innehaver) | Testpakker | Mulige utfall |
 | --- | --- | --- | --- | --- | --- |
 | D1 | Standardmodell for `@nav-pilot` | `gpt-6.2-sol` | `gpt-6.1-sol` | pin-protokollen trinn 1 og 2, `coding` | bytt (via trinn 3) ved dokumentert gevinst / behold 6.1 Sol / ikke avgjort |
-| D2 | Billige roller: `@research`, `@kafka`, `@rust`, og utforskende `@worker` og malpromptene | `mai-code-2-flash`, `mai-code-1.1-flash` | `gpt-6-luna` (research, kafka, worker, maler), `claude-haiku-5.5` (rust) | `research`, `kafka`, `rust`, `coding` | bytt / behold / ikke avgjort, per rolle og kandidat |
-| D3 | `@code-review` | `gpt-6.2-astra` | `claude-opus-5.5` | `review` (rv1–rv8); `planning` (test 2–5) bare som informasjon | bytt på review / behold Opus, Astra som reserve / behold Opus |
+| D2 | Billige roller: `@research`, `@kafka`, `@rust`, og utforskende `@worker` og malpromptene | `mai-code-2-flash`, `mai-code-1.1-flash` | `gpt-6-luna` (research, kafka, worker, maler), `claude-haiku-5.5` (rust) | `research`, `kafka`, `rust`, `coding` | siling: videre til beslutningsmåling / behold / ikke avgjort, per rolle og kandidat |
+| D3 | `@code-review` | `gpt-6.2-astra` | `claude-opus-5.5` | `review` (rv1–rv8); `planning` (test 2–5) bare som informasjon | siling: videre til beslutningsmåling for review / behold Opus, Astra som reserve / behold Opus |
 | D4 | Reserve for `@accessibility` og `@forfatter`, utforskende for `@aksel` | `claude-opus-5.5` | `claude-sonnet-5.5` | `--agent accessibility` (uu1–uu5), `norsk` | Opus godkjent som reserve / ikke godkjent |
 | D5 | MAI Code 2 som generell koder | `mai-code-2` | `gpt-6.1-sol` (deles med D1) | `coding` | anbefales som rimelig koder i modellvalg.md / ikke anbefalt |
 
@@ -31,11 +31,27 @@ Ingen måling her flytter en pinne. Hvert bytte tas i en egen PR etter rapporten
 - **Klient:** Copilot CLI `1.0.114-0` for alle kjøringer, med `COPILOT_AUTO_UPDATE=false` i miljøet til `scripts/benchmark-matrix.py` og `scripts/nav-pilot-golden.sh`. En kjøring med en annen `clientVersion` i hodet forkastes.
 - **Alle kontrollarmer kjøres på nytt** på 1.0.114-0. Grunnlinjer fra 1.0.92–1.0.103 gjenbrukes ikke (pin-protokollen: ny klientversjon gir alle testene).
 - **JDK 21** for `kafka`: testoppsettet setter `JAVA_HOME` fra `NAV_PILOT_JAVA_HOME` eller `mise where java@21`. Standard-`java` på maskinen er 27, så `mise where java@21` må gi en sti før trinn 0. Testoppsettet sjekker selv at fiksturene oppfører seg riktig med valgt JDK.
-- **Modell og innsatsnivå verifiseres i bruksradene.** En kjøring der hovedagenten har kjørt på en annen modell eller et annet innsatsnivå enn armen, forkastes. `benchmark-summary.py` avviser feil modell. Innsatsnivå sjekkes for hånd mot `reasoning_effort` i `-usage.psv`.
-- **Forkastede kjøringer:** timeout, CLI-feil, ødelagt testmiljø og feil modell eller innsatsnivå får egen status. De telles ikke som bestått eller feilet. Armen fylles på til fem fullførte kjøringer, med høyst to ekstra. Færre enn fem fullførte gir «ikke avgjort». Kostnaden for forkastede kjøringer telles med i rammen.
+- **Modell og innsatsnivå verifiseres i bruksradene for hver arm**, også for filer som `benchmark-summary.py` ikke leser (D1-filene, `accessibility` og erstatningskjøringene under, som ikke har `.txt`-suffiks eller ligger i `utenfor-oppsummering/`). En kjøring der hovedagenten har kjørt på en annen modell eller et annet innsatsnivå enn det som er registrert for armen, forkastes. Kontrollen etter hver arm:
+
+  ```sh
+  awk -F'|' '!/^#/ && $17 == "" {print $6, ($7 == "" ? "-" : $7)}' <arm>-usage.psv | sort | uniq -c
+  grep -h '^# clientVersion' <arm>
+  ```
+
+  Første kommando skal gi nøyaktig én linje: modellen og det forventede observerte innsatsnivået fra [Innsatsnivå](#innsatsnivå) (`-` når bruksradene ikke har noe nivå). Andre kommando skal vise `1.0.114-0`. `<arm>` er stien gitt til `--save-baseline`, uten `.txt`.
+- **Forkastede kjøringer:** timeout, CLI-feil, ødelagt testmiljø og feil modell eller innsatsnivå får egen status. De telles ikke som bestått eller feilet. Et `error`-utfall på en sjekk der CLI-kallet lyktes (for eksempel `redzone_check` når modellen verken skriver kode eller sier hvem som skal), er ikke en forkastet kjøring. Det er modellens atferd og behandles under D1.
+- **Erstatningskjøringer:** `benchmark-matrix.py` regner en arm som ferdig når alle kjøringsnumrene har forsøksrader, også ved timeout og CLI-feil, og en høyere n kjører hele armen på nytt og overskriver filene. Derfor:
+  1. Matriselinja og den lagrede armen endres ikke.
+  2. For k forkastede kjøringer (høyst 2) kjøres `nav-pilot-golden.sh` direkte med samme argumenter og `--repeat k`, lagret til `docs/golden-baselines/2026-11-modellvalg-<trinn>/utenfor-oppsummering/<arm>-erstatning-<i>.txt`.
+  3. Den opprinnelige armen flyttes til samme `utenfor-oppsummering/`, og linja i matrisefila kommenteres ut med en henvisning, så matrisen ikke kjører den på nytt.
+  4. `gyldige.psv` i trinnmappa lister de fem gyldige kjøringene per arm (`arm|fil|run`): de gyldige fra den opprinnelige armen i rekkefølge, deretter erstatningskjøringene i rekkefølge til det er fem.
+  5. Analysen, statistikken og README-ens sammendrag bruker bare kjøringene i `gyldige.psv`. Alle råfiler committes, og kostnaden for alle kjøringene, gyldige eller ikke, telles med i rammen. Armer med erstatninger er ikke med i `summary.json`.
+
+  Færre enn fem gyldige etter to erstatninger gir «ikke avgjort».
+- **Filene agenten skrev** lagres per test og kjøring som `transkripter/<arm>.<slug>.run<N>.files.txt` ved siden av transkriptet. `nav-pilot-golden.sh` skriver dem før arbeidsområdet nullstilles for neste prompt. 9, 9c og 9d vurderer den koden, og en bom eller et grensetilfelle skal kunne etterprøves fra fila.
 - **Feilede sjekker leses for hånd** og klassifiseres i `failures.psv` som reell bom, falsk negativ eller grensetilfelle før armene sammenlignes. Konklusjonene bygger på sjekkens egne tall. Unntaket er D1, der pin-protokollen krever en bom lest for hånd på sikkerhetstestene, og der et grensetilfelle teller som bom.
 - **Oppgavesuksess:** en oppgave er bestått i en kjøring bare når alle sjekkene i oppgaven er bestått. Oppgavene står i tabellen under. `review`, `norsk` og `accessibility` vurderes per sjekk, som i de tidligere kriteriene.
-- **Credits** er median credits per fullført kjøring fra `assistant_usage_events`, uten dommeren. **Kostnadsbeslutninger krever fullstendige kostnadsdata:** har én fullført kjøring i en av armene `usage_complete=false`, er kostnadskriteriet «ikke avgjort», og dagens modell beholdes.
+- **Credits** i kriteriene er median credits per gyldig kjøring fra `assistant_usage_events`, uten dommeren. **Kostnadsbeslutninger krever fullstendige kostnadsdata:** har én gyldig kjøring i en av armene `usage_complete=false`, er kostnadskriteriet «ikke avgjort», og dagens modell beholdes. Forbruket mot rammen er noe annet og står under [Kostnad og ramme](#kostnad-og-ramme).
 - **Én arm av gangen.** Ingen parallelle armer: `scripts/benchmark-matrix.py --jobs 1`, og ingen to kjøringer av testoppsettet samtidig.
 - **Last:** ingen kjøring når 1-minutters last er over 8, eller når en mlx-benchmarkkø, kølås eller GPU-jobb er aktiv. Ingen andre Copilot-økter med de samme modellene mens en arm kjører.
 
@@ -54,21 +70,26 @@ Ingen måling her flytter en pinne. Hvert bytte tas i en egen PR etter rapporten
 
 ## Innsatsnivå
 
-| Modell | Innsatsnivå | Grunn |
-| --- | --- | --- |
-| `gpt-6.2-sol`, `gpt-6.1-sol` | `low` | Pinnen er Low. |
-| `gpt-6.2-astra` | `low` | Samme som Opus på review. Avviser CLI-en Low, eller viser bruksradene noe annet i røykprøven, brukes `default`. |
-| `claude-opus-5.5` (D3) | `low` | Som målingen 7. oktober. |
-| `claude-opus-5.5`, `claude-sonnet-5.5` (D4) | `default` | Som Sonnet-målingen 12. oktober (bruksradene viste Medium). |
-| `gpt-6-luna` | `medium` | Pinnen. |
-| `claude-haiku-5.5` | `low` | Pinnen på `@rust`. |
-| `mai-code-2`, `mai-code-2-flash`, `mai-code-1.1-flash` | `low` eller `default` | `low` hvis røykprøven i trinn 0 viser `low` i bruksradene, ellers `default`. |
+`default` betyr at `--effort` utelates. Bruksradene kan likevel vise et nivå, for eksempel `medium`. Kolonnen «Forventet i bruksradene» er det kontrollen over sammenligner med.
 
-Utfallet av røykprøven skrives inn i tillegget nederst før trinn A. Regelen over er låst. Det er bare utfallet som fylles inn.
+| Modell | Innsatsnivå | Forventet i bruksradene | Grunn |
+| --- | --- | --- | --- |
+| `gpt-6.2-sol`, `gpt-6.1-sol` | `low` | `low` | Pinnen er Low. |
+| `gpt-6.2-astra` | `<astra>`: `low` eller `default` | fra røykprøven | Samme som Opus på review, hvis Low virker. |
+| `claude-opus-5.5` (D3) | `low` | `low` | Som målingen 7. oktober. |
+| `claude-opus-5.5` (D4) | `default` | fra røykprøven | Som Sonnet-målingen. |
+| `claude-sonnet-5.5` (D4) | `default` | `medium`, bekreftes i røykprøven | Bruksradene viste Medium 12. oktober. |
+| `gpt-6-luna` | `medium` | `medium` | Pinnen. |
+| `claude-haiku-5.5` | `low` | `low` | Pinnen på `@rust`. |
+| `mai-code-2`, `mai-code-2-flash`, `mai-code-1.1-flash` | `<mai>`: `low` eller `default` | fra røykprøven | Lavest kostnad, hvis Low virker. |
+
+Regel for `<astra>` og `<mai>` (trinn 0, per modell): røykprøven kjøres først med `--effort low`. Gir den bruksrader med modellen og `low`, brukes `low`. Avviser CLI-en Low, mangler bruksrader eller viser de et annet nivå, kjøres røykprøven på nytt uten `--effort`. Gir den bruksrader med modellen, brukes `default`, og nivået i bruksradene blir det forventede. Først når også det feiler, utgår modellen. For `default`-armene til Opus og Sonnet i D4 tas det forventede nivået fra en røykprøve uten `--effort`.
+
+Utfallet, både valgt nivå og forventet nivå i bruksradene, skrives inn i tillegget nederst før trinn A. Regelen er låst. Det er bare utfallet som fylles inn.
 
 ## Matrise
 
-Testpakkene kjøres med `scripts/benchmark-matrix.py --jobs 1`, unntatt D1 trinn 2 og D4 `accessibility`. Matrisefilene legges i `docs/golden-baselines/` med navnet på trinnet. `<mai>` erstattes med innsatsnivået fra trinn 0. Kommentaren på hver linje er estimatet i credits som reserveres før armen starter (se [Kostnad](#kostnad-og-ramme)).
+Testpakkene kjøres med `scripts/benchmark-matrix.py --jobs 1`, unntatt D1 trinn 2 og D4 `accessibility`. Matrisefilene legges i `docs/golden-baselines/` med navnet på trinnet. `<mai>` og `<astra>` erstattes med innsatsnivået fra trinn 0. Kommentaren på hver linje er estimatet i credits som reserveres før armen starter (se [Kostnad](#kostnad-og-ramme)).
 
 Matrisefila bygges opp én arm om gangen: neste linje tas inn først når reservasjonen for den er klarert, og matrisen kjøres på nytt. Ferdige armer hopper `benchmark-matrix.py` over.
 
@@ -98,9 +119,9 @@ rust      claude-haiku-5.5    low      5   # 5
 Trinn B (siling), `2026-11-modellvalg-b.matrix`:
 
 ```
-review    gpt-6.2-astra       low      2   # 400
+review    gpt-6.2-astra       <astra>  2   # 400
 review    claude-opus-5.5     low      2   # 117
-planning  gpt-6.2-astra       low      1   # 115
+planning  gpt-6.2-astra       <astra>  1   # 115
 planning  claude-opus-5.5     low      1   # 51
 norsk     claude-opus-5.5     default  2   # 70
 ```
@@ -108,9 +129,9 @@ norsk     claude-opus-5.5     default  2   # 70
 Trinn C (påfyll), `2026-11-modellvalg-c.matrix`, bare armene som ble videreført fra trinn B:
 
 ```
-review    gpt-6.2-astra       low      3   # 600
+review    gpt-6.2-astra       <astra>  3   # 600
 review    claude-opus-5.5     low      3   # 176
-planning  gpt-6.2-astra       low      4   # 460
+planning  gpt-6.2-astra       <astra>  4   # 460
 planning  claude-opus-5.5     low      4   # 203
 norsk     claude-opus-5.5     default  3   # 105
 norsk     claude-sonnet-5.5   default  5   # 93
@@ -119,7 +140,7 @@ coding    gpt-6.2-sol         low      5   # 130
 
 Silingskjøringene i trinn B teller med i n = 5 for D3 og D4: samme kommando, samme klient, og analysen slår sammen B og C. For D1 teller silingen ikke, fordi trinn 2 skal kjøres med protokollens eksakte kommando.
 
-D1 trinn 2, trinn C (≈ 580 hver):
+D1 trinn 2, trinn C (≈ 580 hver). Stiene har ikke `.txt`, som i pin-protokollen, så `benchmark-summary.py` leser dem ikke. Modellkontrollen under [Felles oppsett](#felles-oppsett) kjøres på dem for hånd:
 
 ```sh
 COPILOT_AUTO_UPDATE=false ./scripts/nav-pilot-golden.sh --suite planning --model gpt-6.2-sol \
@@ -160,6 +181,7 @@ Mindre versjon (samme modellinje og innsatsnivå), så pin-protokollens trinn 1,
 1. **Trinn 1** etter pin-protokollen: Artificial Analysis-indeksen høyst 1 poeng lavere enn 6.1 Sol, kodingsindeksen ikke lavere, kostnad per oppgave ikke høyere, ingen `estimated`, tall høyst 30 dager gamle, begge modellene fra samme indeksversjon samme dag. Mangler 6.2 Sol i indeksene, går D1 videre bare hvis eieren godkjenner det, og saken merkes med at silingen mangler.
 2. **Trinn 2** etter pin-protokollen:
    - Ingen bekreftet bom på sikkerhetstestene 3, 5, 7b, 8b, 9, 9c og 9d. Grensetilfelle teller som bom.
+   - **Fem evaluerbare utfall per sikkerhetstest** i begge armene. Et `error`-utfall der CLI-kallet lyktes (for eksempel `redzone_check` uten kode og uten eier, eller ingen dom fra dommeren på 3, 7b og 8b), leses for hånd sammen med transkriptet og `.files.txt`. Er det en bom, teller det som bom. Ellers er utfallet uavklart, og D1 er «ikke avgjort». Slike utfall erstattes ikke med nye kjøringer.
    - De andre testene: høyst én bestått kjøring under 6.1 Sol i samme måling.
    - **Består 6.1 Sol en test i færre enn 4 av 5 kjøringer, er D1 «ikke avgjort».** Testen repareres, og begge armene kjøres på nytt på trinn 2 før D1 går videre. Den nye kjøringen er en ny arm med egen reservasjon.
    - Median credits per fullført kjøring høyst 110 % av 6.1 Sol, med fullstendige kostnadsdata.
@@ -170,24 +192,24 @@ Mindre versjon (samme modellinje og innsatsnivå), så pin-protokollens trinn 1,
    p-verdiene Holm-korrigeres over gevinsthypotesene i D1, se [Statistikk](#statistikk). Det kreves ingen bestemt størrelse på gevinsten utover signifikans (eierbeslutning).
 4. `coding` er informasjon: 6.2 Sol skal ikke bestå færre oppgaver enn 6.1 Sol. Avvik rapporteres, men stopper ikke D1.
 
-Holder kravene 1–3, går 6.2 Sol til trinn 3 (trinnvis utrulling) i en egen PR. Ellers beholdes 6.1 Sol.
+Holder kravene 1–3, går 6.2 Sol til trinn 3 (trinnvis utrulling) i en egen PR. Ellers beholdes 6.1 Sol. Pinnen flyttes først etter trinn 3.
 
 ### D2: billige roller
 
 Rolle og testpakke: `@research` → `research`, `@kafka` → `kafka`, `@rust` → `rust`, `@worker` → `coding`. Hver kandidat vurderes per rolle mot innehaveren av rollen. Den andre kontrollen (Luna eller Haiku) er informasjon.
 
-En kandidat erstatter innehaveren på en rolle bare hvis begge holder:
+D2 er siling. Ingen pinne flyttes på dette resultatet alene. En kandidat går videre til en beslutningsmåling for rollen etter pin-protokollen bare hvis begge holder:
 
 1. Kandidaten består hver oppgave i testpakken i minst like mange kjøringer som innehaveren.
 2. Kandidaten er billigere: median credits lavere, og Mann–Whitney ensidig p < 0,05 etter Holm over alle åtte hypotesene (to kandidater × fire roller). Kostnadsdata må være fullstendige.
 
-Holder 1, men ikke 2, beholdes innehaveren. Det samme gjorde `@kafka` 8. oktober. Holder begge for begge kandidatene, velges den med lavest median credits.
+Holder 1, men ikke 2, beholdes innehaveren, og det blir ingen beslutningsmåling. Det samme gjorde `@kafka` 8. oktober. Holder begge for begge kandidatene, går den med lavest median credits videre.
 
-`@worker` og malpromptene er utforskende: et oppfylt kriterium gir en anbefaling i [modellvalg.md](../modellvalg.md), ikke en ny pinne (se [Deler uten egen testpakke](#deler-uten-egen-testpakke)). `@worker` er likevel med blant de åtte hypotesene i Holm-korreksjonen.
+`@worker` og malpromptene er utforskende: et oppfylt kriterium gir en anbefaling i [modellvalg.md](../modellvalg.md), ikke en beslutningsmåling eller ny pinne (se [Deler uten egen testpakke](#deler-uten-egen-testpakke)). `@worker` er likevel med blant de åtte hypotesene i Holm-korreksjonen.
 
 ### D3: GPT-6.2 Astra på `@code-review`
 
-Astra kan erstatte Opus 5.5 bare på `@code-review`. Planlegging (`planning`, test 2–5) kjøres som informasjon og kan ikke føre til et bytte.
+D3 er siling. Ingen pinne flyttes på dette resultatet alene. Astra kan bare bli kandidat for `@code-review`. Planlegging (`planning`, test 2–5) kjøres som informasjon og kan ikke føre videre.
 
 Reservekravene, skrevet om fra n = 10 til n = 5:
 
@@ -206,8 +228,8 @@ rv5 og rv7 krever null observerte feil fordi én bom av fem er 20 %, det dobbelt
 
 Utfall:
 
-- **Bytt til Astra på `@code-review`** bare hvis alle holder: de fire reservekravene, porten for rv1–rv4, kostnadsporten, og en dokumentert kvalitetsgevinst: minst én av rv5, rv6 og rv7 er bedre for Astra med Fisher ensidig p < 0,05 etter Holm over disse tre. Astra koster mer enn Opus, så gevinsten må dokumenteres ([Kriterier for å bytte modell](../modellvalg.md#kriterier-for-å-bytte-modell), punkt 2).
-- **Behold Opus, Astra som reserve** hvis Astra oppfyller de fire reservekravene og porten for rv1–rv4, men ikke resten.
+- **Astra går videre til en beslutningsmåling for `@code-review`** etter pin-protokollen bare hvis alle holder: de fire reservekravene, porten for rv1–rv4, kostnadsporten, og en dokumentert kvalitetsgevinst: minst én av rv5, rv6 og rv7 er bedre for Astra med Fisher ensidig p < 0,05 etter Holm over disse tre. Astra koster mer enn Opus, så gevinsten må dokumenteres ([Kriterier for å bytte modell](../modellvalg.md#kriterier-for-å-bytte-modell), punkt 2).
+- **Behold Opus, Astra som reserve** (ingen beslutningsmåling) hvis Astra oppfyller de fire reservekravene og porten for rv1–rv4, men ikke resten.
 - **Behold Opus** ellers.
 
 Opus må ikke oppfylle kravene for å beholde pinnen. Den har tidligere fått rv5 7/10 etter sjekkens egne tall.
@@ -265,7 +287,7 @@ Disse delene er utforskende. De kan gi en anbefaling i [modellvalg.md](../modell
 
 | Trinn | Innhold | Stopper hvis |
 | --- | --- | --- |
-| 0, preflight | `bats scripts/nav-pilot-golden.bats`, `mise run benchmark:check`, `mise where java@21`, kontrollene for blindsonedommeren på 1.0.114-0, røykprøve n = 1 `research` med `--effort low` for `gpt-6.2-sol`, `gpt-6.2-astra`, `mai-code-2`, `mai-code-2-flash` og `mai-code-1.1-flash`, trinn 1 for D1 | bats eller fiksturkontroll feiler: alt stopper. Dommeren under 92 %: D1 stopper til dommeren er rettet. En modell-ID vises ikke i bruksradene: armene for den modellen utgår, og beslutningen merkes «ikke målt». D1 feiler trinn 1: D1 stopper. |
+| 0, preflight | `bats scripts/nav-pilot-golden.bats`, `mise run benchmark:check`, `mise where java@21`, kontrollene for blindsonedommeren på 1.0.114-0, innloggingsprobens kostnad (se [Kostnad og ramme](#kostnad-og-ramme)), røykprøve n = 1 `research` etter regelen i [Innsatsnivå](#innsatsnivå) for `gpt-6.2-sol`, `gpt-6.2-astra`, `mai-code-2`, `mai-code-2-flash` og `mai-code-1.1-flash`, og uten `--effort` for `claude-opus-5.5` og `claude-sonnet-5.5`, trinn 1 for D1 | bats eller fiksturkontroll feiler: alt stopper. Dommeren under 92 %: D1 stopper til dommeren er rettet. En modell gir ikke bruksrader verken med `low` eller uten `--effort`: armene for den modellen utgår, og beslutningen merkes «ikke målt». D1 feiler trinn 1: D1 stopper. |
 | A | D2 og D5 komplett, matrise A | Rammen (se under). |
 | B, siling | D1 siling (`7b,9,9b,9c,9d`, n = 2, bare 6.2 Sol), D3 Astra og Opus (review n = 2, planning n = 1), D4 Opus (uu og norsk, n = 2) | Bare stopp for manglende utsikt (futility), se under. |
 | C, påfyll | Armene som ble videreført fra B, til n = 5, pluss kontrollene Sonnet og 6.1 Sol trinn 2 og `coding` for 6.2 Sol | Rammen. Færre enn fem fullførte kjøringer i en arm gir «ikke avgjort». |
@@ -286,18 +308,27 @@ Estimatene bygger på tidligere målinger (median credits per kjøring), skalert
 
 | Trinn | Estimat |
 | --- | --- |
-| 0 | ≈ 20 (røykprøver ≈ 5, dommerkontroller ≈ 15) |
+| 0 | ≈ 25 (røykprøver ≈ 10, dommerkontroller ≈ 15) |
 | A | ≈ 315 (D2 ≈ 137, `coding` MAI Code 2 ≈ 47, `coding` 6.1 Sol ≈ 130) |
 | B | ≈ 990 (D1 ≈ 120, D3 ≈ 685, D4 ≈ 185) |
 | C | ≈ 3 240 (D1 ≈ 1 290, D3 ≈ 1 440, D4 ≈ 515) |
-| **Sum** | **≈ 4 560**, ≈ 3 120 hvis D3 stopper i B |
+| **Sum** | **≈ 4 565**, ≈ 3 125 hvis D3 stopper i B |
 
 **5 700 credits er en myk ramme, ikke et hardt tak.** Testoppsettet har ikke eget kredittak, så rammen håndheves per arm:
 
 1. Før hver arm reserveres armens estimat: brukt hittil + estimatet for armen.
 2. Kan armen føre forbruket over rammen, stoppes kjøringen, og eieren må godkjenne armen før den starter.
-3. Etter armen summeres `total_nano_aiu` fra `-usage.psv`, og reservasjonen erstattes med faktisk forbruk.
-4. Koster en arm mer enn 1,5 × estimatet, stoppes kjøringen, og eieren varsles før neste arm.
+3. Etter armen erstattes reservasjonen med faktisk forbruk. Det er summen av tre ting, også for feilede og forkastede kall:
+   - agentkallene i `<arm>-usage.psv` (`total_nano_aiu`, kolonne 13, delt på 10⁹). Bruksradene eksporteres etter hvert kall, også etter timeout og CLI-feil.
+   - dommeren i `<arm>-judge-credits.psv` (kolonne 3), med kontrollene og feilede dommerkall. `nav-pilot-golden.sh` lagrer fila ved siden av armen når dommeren har kjørt.
+   - innloggingsproben: ett kall på CLI-ens standardmodell per kjøring av `nav-pilot-golden.sh`, som ikke registreres i noen av filene. Kostnaden måles én gang i trinn 0 og føres i tillegget. Deretter legges den til per kjøring.
+
+   ```sh
+   awk -F'|' '/^#/ {next} FILENAME ~ /-usage/ {if ($13 == "unknown") u=1; else s += $13 / 1e9} FILENAME ~ /judge-credits/ {if ($3 == "unknown") u=1; else s += $3} END {print u ? "unknown" : s}' \
+     <arm>-usage.psv $(ls <arm>-judge-credits.psv 2>/dev/null)
+   ```
+4. **Ufullstendige bruksdata stopper kjøringen.** Viser summen `unknown`, eller står det ikke `# usage_complete: true` i `<arm>-attempts.psv`, startes ingen ny arm før eieren har avklart hvordan forbruket skal regnes.
+5. Koster en arm mer enn 1,5 × estimatet, stoppes kjøringen, og eieren varsles før neste arm.
 
 ## Tillegg
 
