@@ -191,10 +191,9 @@ func (s *server) echoHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if r.Method != http.MethodPost {
-		writeJSON(w, http.StatusOK, map[string]any{
-			"service": "fleet-echo",
-			"claims":  claims,
-		})
+		// MCP 2026-07-28 has no GET stream (SHOULD 405); read claims via the whoami tool.
+		w.Header().Set("Allow", http.MethodPost)
+		writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "method_not_allowed"})
 		return
 	}
 

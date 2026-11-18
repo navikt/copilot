@@ -252,6 +252,5 @@ func TestMCP2026Compliance(t *testing.T) {
 	srv, _ := newTestServer(t, func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{"active": true, "idtyp": "user", "NAVident": "Z123456", "azp": "gw-client-123", "aud": "api://dev-gcp.copilot.fleet-echo", "scp": "access_as_user", "sub": "sub-123"})
 	})
-	// GET stays a claims diagnostic for gateway debugging, so it is not checked for 405.
-	runMCP2026Compliance(t, mcpComplianceTarget{handler: srv.routes(), tool: "whoami", header: map[string]string{"Authorization": "Bearer test-token"}})
+	runMCP2026Compliance(t, mcpComplianceTarget{checkGET: true, handler: srv.routes(), tool: "whoami", header: map[string]string{"Authorization": "Bearer test-token"}})
 }
