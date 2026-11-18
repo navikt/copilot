@@ -205,6 +205,9 @@ func runMCP2026Compliance(t *testing.T, tgt mcpComplianceTarget) {
 			if rec.Code != tc.status {
 				t.Fatalf("status = %d, want %d; body %s", rec.Code, tc.status, rec.Body.String())
 			}
+			if tc.status == 405 && rec.Header().Get("Allow") != http.MethodPost {
+				t.Errorf("Allow = %q, want POST", rec.Header().Get("Allow"))
+			}
 			if tc.code != 0 && errCode(out) != tc.code {
 				t.Fatalf("error code = %d, want %d; body %s", errCode(out), tc.code, rec.Body.String())
 			}

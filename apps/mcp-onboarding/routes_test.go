@@ -20,5 +20,8 @@ func TestMCPRoutesAnswer405ForRemovedVerbs(t *testing.T) {
 		if rec.Code != http.StatusMethodNotAllowed {
 			t.Errorf("%s %s = %d, want 405", tc.verb, tc.path, rec.Code)
 		}
+		if got := rec.Header().Get("Allow"); got != http.MethodPost {
+			t.Errorf("%s %s Allow = %q, want POST", tc.verb, tc.path, got)
+		}
 	}
 }

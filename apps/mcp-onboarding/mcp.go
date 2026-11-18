@@ -112,7 +112,7 @@ func (h *MCPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {
 		// The GET stream is removed in 2026-07-28; only legacy clients get it.
 		if !mcpLegacyAllowed(time.Now()) {
-			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			methodNotAllowedPost(w, r)
 			return
 		}
 		h.handleSSE(w, r)
@@ -148,7 +148,7 @@ func (h *MCPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	methodNotAllowedPost(w, r)
 }
 
 func (h *MCPHandler) handleJSONRPC(w http.ResponseWriter, r *http.Request) {
