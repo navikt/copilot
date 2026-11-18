@@ -74,13 +74,21 @@ level: answers are not linked to a person across waves (see
   people answer it. Same `id` and
   `version` in two waves means the results compare; a higher `version` means
   they do not, and the pull request says why.
-- Once a survey has opened (`active` and `starts` reached), its `id` and
-  `questions` are frozen; CI (`check-frozen-surveys.sh`) refuses a change.
-  A version bump does not help mid-wave: an answer is stored with the
-  server's versions, not the ones the respondent saw, and nav-pilot caches
-  definitions for up to a day. A change waits for the next wave. Every other
-  field (`title`, `intro`, `nudge`, `series`, `min_cli_version`, `active`,
-  `starts`, `ends`) may still change.
+- Once a survey has started (`starts` reached, `active` or not), its `id`,
+  `questions`, `starts` and `environments` are frozen; CI
+  (`check-frozen-surveys.sh`) refuses a change. A version bump does not help
+  mid-wave: an answer is stored with the server's versions, not the ones the
+  respondent saw, and nav-pilot caches definitions for up to a day. A change
+  waits for the next wave. `active` does not count and `starts` and
+  `environments` are frozen, so a pull request that sets `active: false`,
+  moves `starts` later or makes the survey dev-only cannot open the way for
+  the next to change the questions. Every other field (`title`, `intro`,
+  `nudge`, `series`, `min_cli_version`, `active`, `ends`) may still change.
+  A dev-only test survey (`environments` without `prod-gcp`, such as
+  `dev-e2e-test`) is not frozen.
+- A definition may not repeat a key, also not one that differs only in
+  case: jq keeps the last, Go merges them, so the check and the server would
+  read different definitions. The server and CI refuse it.
 - A question that is dropped is simply absent; its `id` is never reused for
   something else.
 - `construct` names what a question measures (for analysis) and `reverse`
