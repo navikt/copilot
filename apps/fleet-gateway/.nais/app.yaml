@@ -148,6 +148,18 @@ spec:
             description: Deliberate 503s (kill switch, in-flight cap, store quota, concurrent refresh) carry a non-empty reason label and are not counted.
             consequence: Users get errors on login or MCP calls.
             action: "Break down `fleet_gateway_mcp_requests_total` by route and outcome, then read the `audit mcp` log lines for that route."
+        - alert: FleetGatewaySustainedShedding
+          expr: sum by (reason) (increase(fleet_gateway_http_requests_total{namespace="copilot", code="503", reason=~"store_full|cap"}[5m])) > 5
+          for: 15m
+          labels:
+            namespace: copilot
+            severity: warning
+            alert_type: custom
+            app: fleet-gateway
+          annotations:
+            summary: More than 5 deliberate 503s (store_full or cap) per 5 minutes for 15 minutes; the reason label says which
+            consequence: "store_full: new logins and registrations fail. cap: MCP calls get 503 over capacity."
+            action: "store_full: count rows per kind in the session store and look for a client registering in a loop. cap: check `fleet_gateway_mcp_requests_total` by route and slow upstreams."
         - alert: FleetGatewayUpstreamTokenErrors
           expr: sum(increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome="upstream_token_error"}[10m])) > 5
           labels:

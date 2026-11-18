@@ -15,7 +15,7 @@ import (
 var (
 	httpRequestsTotal = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "fleet_gateway_http_requests_total",
-		Help: "HTTP requests answered by fleet-gateway, by status code. Excludes /health and /ready. reason is empty except for deliberate 503s (disabled: kill switch).",
+		Help: "HTTP requests answered by fleet-gateway, by status code. Excludes /health and /ready. reason is empty except for deliberate 503s (disabled: kill switch, cap: in-flight/SSE cap, store_full: store quota, refresh_in_flight: concurrent refresh).",
 	}, []string{"code", "reason"})
 
 	mcpRequestsTotal = promauto.NewCounterVec(prometheus.CounterOpts{
@@ -69,7 +69,9 @@ func initMetrics(routes []PilotRoute) {
 	for _, code := range []string{"200", "500", "502", "503", "504"} {
 		httpRequestsTotal.WithLabelValues(code, "")
 	}
-	httpRequestsTotal.WithLabelValues("503", "disabled")
+	for _, reason := range []string{"disabled", "cap", "store_full", "refresh_in_flight"} {
+		httpRequestsTotal.WithLabelValues("503", reason)
+	}
 	for _, r := range routes {
 		for _, o := range []string{"ok", "upstream_token_error", "upstream_error"} {
 			mcpRequestsTotal.WithLabelValues(r.Route, o, "allow")
