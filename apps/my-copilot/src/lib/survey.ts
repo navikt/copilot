@@ -384,6 +384,100 @@ export async function hideSurveyFreetext(userToken: string, id: string, textToke
   }
 }
 
+/** A code: a category from the field's set, and whether the text asks for something (onske). */
+export type FreetextCode = { category: string; onske: boolean };
+export type CodingCategory = {
+  id: string;
+  name: string;
+  kind: string;
+  merge_with?: string;
+  definition: string;
+  include: string[];
+  exclude: string[];
+  examples: string[];
+};
+/** A coded field: onske «kodes» is set per code, «alltid» and «aldri» are fixed by the question. */
+export type CodingField = {
+  id: string;
+  question: string;
+  other?: string;
+  onske: "kodes" | "alltid" | "aldri";
+  max_codes: number;
+  categories: CodingCategory[];
+};
+/** A masked text without row id; human and model only where the coders disagree. */
+export type CodingText = { field: string; token: string; text: string; human?: FreetextCode[]; model?: FreetextCode[] };
+export type CodingProgress = {
+  field: string;
+  texts: number;
+  human: number;
+  model: number;
+  final: number;
+  disagreements: number;
+};
+/** A category, or «a+b» for a merged pair. count, onske and share are null with small («<5»). */
+export type CodedCategory = {
+  id: string;
+  name: string;
+  count: number | null;
+  onske: number | null;
+  share: number | null;
+  small?: boolean;
+  kappa: number | null;
+  status: "published" | "merged" | "hidden";
+  merged_into?: string;
+};
+export type CodedField = {
+  id: string;
+  question: string;
+  other?: string;
+  written: number;
+  coded: number;
+  categories?: CodedCategory[];
+  published: CodedCategory[] | null;
+};
+/** GET /api/v1/admin/surveys/{id}/freetext/coding. */
+export type SurveyCoding = {
+  id: string;
+  title: string;
+  codebook: { version: number; rules: string[]; fields: CodingField[] };
+  progress: CodingProgress[];
+  next: CodingText | null;
+  disagreements: CodingText[];
+  results: CodedField[];
+};
+
+export async function getSurveyCoding(userToken: string, id: string): Promise<AdminResult<SurveyCoding>> {
+  if (!/^[a-z0-9-]{1,64}$/.test(id)) return { status: "not-found" };
+  return adminGet<SurveyCoding>(userToken, `/api/v1/admin/surveys/${id}/freetext/coding`);
+}
+
+/**
+ * POSTs a coding body to copilot-survey as is: «coding» saves the person's codes or a decision, «model»
+ * imports the model's codes file. null without a URL, a valid id or a connection.
+ */
+export async function postSurveyCoding(
+  userToken: string,
+  id: string,
+  path: "coding" | "coding/model",
+  body: string
+): Promise<Response | null> {
+  const url = process.env.COPILOT_SURVEY_URL;
+  if (!url || !/^[a-z0-9-]{1,64}$/.test(id)) return null;
+  try {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (!isLocalDev()) headers.Authorization = `Bearer ${await exchangeTokenFor(userToken, "copilot-survey")}`;
+    return await fetchWithTimeout(
+      `${url}/api/v1/admin/surveys/${id}/freetext/${path}`,
+      { method: "POST", headers, body, cache: "no-store" },
+      30000,
+      "timeout"
+    );
+  } catch {
+    return null;
+  }
+}
+
 /** GET /api/v1/admin/surveys/{id}/export.csv as is, for the route handler to stream on; null without a URL, a valid id or a connection. */
 export async function fetchSurveyExport(userToken: string, id: string): Promise<Response | null> {
   if (!/^[a-z0-9-]{1,64}$/.test(id)) return null;

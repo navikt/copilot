@@ -53,6 +53,7 @@ const DYNAMIC: Record<string, (value: string) => boolean> = {
   "/innsikt/undersokelser/serie/[series]": (s) => /^[a-z0-9-]{1,64}$/.test(s),
   "/admin/undersokelser/[id]": (s) => /^[a-z0-9-]{1,64}$/.test(s),
   "/admin/undersokelser/[id]/fritekst": (s) => /^[a-z0-9-]{1,64}$/.test(s),
+  "/admin/undersokelser/[id]/fritekst/koding": (s) => /^[a-z0-9-]{1,64}$/.test(s),
 };
 
 // Redirects that are deliberately temporary: aliases, not moved pages.
@@ -296,6 +297,7 @@ function currentSite(): Found[] {
     "/videos/[id]": [],
     "/admin/undersokelser/[id]": [],
     "/admin/undersokelser/[id]/fritekst": [],
+    "/admin/undersokelser/[id]/fritekst/koding": [],
   };
   for (const route of routes.filter((r) => r.pattern.includes("["))) {
     for (const value of dynamicPages[route.pattern] ?? []) {
