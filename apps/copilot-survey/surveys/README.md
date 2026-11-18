@@ -197,7 +197,7 @@ analysis and are never quoted next to their segment values. A survey keeps to
 one `text` question and at most three `other` options, each capped at 200
 characters: they say what the listed options missed, not how someone feels.
 
-### Codebooks (#2239, design only)
+### Codebooks
 
 Free text is coded with a codebook per series, [`codebooks/<series>.json`](codebooks/)
 ([schema](codebooks/schema.json), checked by `TestCodebooksMatchSchema`). Each
@@ -215,6 +215,7 @@ the same version, so q2-2026 and q4-2026 are coded with the same one.
   reaches 0.6; otherwise it is hidden. Counts under 5 show as «<5», and so do
   the percentages and CSV cells derived from them. No quotes.
 - Examples in a codebook are synthetic, never a quote from an answer.
+- Storage, coding and counts: [Free-text coding](../README.md#free-text-coding).
 
 ## End-to-end test in dev
 

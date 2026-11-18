@@ -35,6 +35,9 @@ status routes only.
 | `GET` | `/api/v1/admin/surveys/compare?ids=a,b` | admin | Two to four waves, oldest first, question by question after the last wave's definition: n, counts, mean and share agreeing (top two steps) per version, `break` where the waves asked different versions, a first-to-last test per scale item ([Significance](#significance)), answers per `context.client` merged under 5 as in the export. The last wave's `skip_if` applies to every wave, so spring statement answers from people who do not use KI tools are dropped (`excluded`) as autumn skips them. A wave under 5 answers has no counts. A closed wave whose answers are deleted is read from its aggregates (409 if they lack the last wave's `skip_if`, see [Same numbers locally](#same-numbers-locally)). `&format=csv`: the same numbers in long form, see [Same numbers locally](#same-numbers-locally) |
 | `GET` | `/api/v1/admin/surveys/{id}/freetext` | admin | Free text per field (text questions and `<id>.other`), masked as in the export, random order, each text on its own: no row id, no other answers. Hidden texts left out. Visible while open (owner, 2026-10-13) |
 | `POST` | `/api/v1/admin/surveys/{id}/freetext/hide` | admin | `{"token": "..."}` from the list above: hides that text in admin and the export. 204, or 404 for an unknown token |
+| `GET` | `/api/v1/admin/surveys/{id}/freetext/coding` | admin | Coding, see [Free-text coding](#free-text-coding): the codebook's fields, progress, one masked text the person has not coded (`next`), open disagreements with both coders' codes, and the results per field and category. 404 when the survey's series has no codebook |
+| `POST` | `/api/v1/admin/surveys/{id}/freetext/coding` | admin | `{"token", "coder": "human" \| "final", "codes": [{"category", "onske"}]}`. `human` once per text (409 after), answered with the model's codes; `final` decides a disagreement (409 until both have coded) |
+| `POST` | `/api/v1/admin/surveys/{id}/freetext/coding/model` | admin | The model's codes as `copilot-survey code` writes them, keyed by sha256 of the masked text. Replaces earlier model codes; 409 for another codebook version. Answers `{"saved", "unmatched"}` |
 | `GET` | `/api/v1/admin/surveys/{id}/export.csv` | admin | Every response as one CSV row, see [CSV export in admin](#csv-export-in-admin). 410 when a closed survey's rows are deleted and only aggregates remain |
 | `GET` | `/health`, `/ready`, `/metrics` | none | Probes and Prometheus (`survey_submissions_total{survey,status}`, `survey_cli_nameid_unexpected_domain_total`) |
 
@@ -298,6 +301,23 @@ psql "$DB_URL" -c "SELECT count(*) FROM survey_answers WHERE survey_id = 'q2-202
 nais cloudsql revoke copilot-survey -t copilot -e prod-gcp --reason "$REASON"
 ```
 
+### Free-text coding
+
+#2239. Codebook per series in [`surveys/codebooks/`](surveys/codebooks/), rules in
+[`surveys/README.md`](surveys/README.md#codebooks). Code in `codebook.go`, `coding.go`.
+
+| Table | Columns |
+| --- | --- |
+| `survey_freetext_codes` | `survey_id`, `field`, `text_hash` (sha256 of the raw text, as `survey_freetext_hidden`), `coder` (`model`, `human`, `final`), `category`, `onske`, `codebook_version` |
+| `survey_freetext_decisions` | `survey_id`, `field`, `text_hash`, `decided_by` (the admin's e-mail), `decided_at` |
+
+- No row id: identical texts in a field share codes. Hidden texts are not coded or counted.
+- The person codes blind: the model's codes come back only in the answer to saving their own, and their codes cannot be changed after. A disagreement is settled with `final`, which logs who and when, never the text.
+- Final codes of a text: the decision, else both coders' codes where they are equal, else none yet.
+- Counts are per respondent who wrote in the field. Kappa is Cohen's kappa per category, and per `merge_with` pair, over the texts both coders coded; undefined (`null`) when either coder gave every text the same answer.
+- Publication rule: a category alone at kappa ≥ 0.6; below that as its pair if the pair reaches 0.6; otherwise hidden. In `published`, counts, wish counts and shares under 5 are `null` with `small: true`, and a field with fewer than 5 writers has none. Admin `categories` shows every real count.
+- Codes and decisions are deleted with the survey's last row. Before the rows go, `retain` writes the counts to `survey_results` (kind `freetext`: per field `""` with coded and written, per category or pair its count and kappa as `mean`; kind `freetext_onske`: wish counts; `version` is the codebook version). After that the coding page reads them.
+
 ### Final aggregates and retention
 
 When a survey closes, the daily retention job (`retain`) writes its counts to `survey_results`: respondents, count per
@@ -326,6 +346,10 @@ so a failed close-out is retried the next day rather than losing the counts.
 The job logs `survey: rows kept until skip counts are written` with the
 survey id while it waits. Rows that no longer match the stored total (partly
 deleted) cannot give skip counts and are deleted as before.
+
+Coding counts (see [Free-text coding](#free-text-coding)) are written in the
+same transaction that deletes a survey's expired rows, while every row is
+still there; if that fails, the rows stay. `aggregate` leaves them alone.
 
 A `skip_if` that first appears two or more waves later, after a wave's rows
 are deleted, cannot be applied to that wave: `compare` answers 409 (owner,
