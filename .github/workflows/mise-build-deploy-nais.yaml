@@ -213,7 +213,9 @@ jobs:
     env:
       GITHUB_PACKAGES_TOKEN: ${{ github.token }}
     needs: [setup]
-    if: ${{ always() && (needs.setup.result == 'success' || needs.setup.result == 'skipped') }}
+    # Skipped on pull requests: ci.yaml runs the same install/lint/check per
+    # app as the required `ci-ok` gate. Push to main still checks before deploy.
+    if: ${{ github.event_name != 'pull_request' && always() && (needs.setup.result == 'success' || needs.setup.result == 'skipped') }}
     strategy:
       fail-fast: false
       matrix:
@@ -328,7 +330,8 @@ jobs:
 
   docker:
     name: Build Docker Image
-    if: ${{ inputs.builds-docker && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository) }}
+    # !cancelled() plus explicit results, because lint is skipped on PRs.
+    if: ${{ !cancelled() && needs.meta.result == 'success' && needs.build.result == 'success' && (needs.lint.result == 'success' || needs.lint.result == 'skipped') && inputs.builds-docker && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository) }}
     permissions:
       contents: read
       packages: read
@@ -402,7 +405,8 @@ jobs:
 
   deploy-pr:
     name: Deploy PR to dev
-    if: ${{ inputs.deploy-pr-to-dev && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
+    # !cancelled(): the skipped lint job upstream would otherwise skip this too.
+    if: ${{ !cancelled() && needs.meta.result == 'success' && needs.docker.result == 'success' && inputs.deploy-pr-to-dev && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: ubuntu-latest
     permissions:
       id-token: write
