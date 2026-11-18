@@ -24,9 +24,21 @@ SECRET_WORDS = ("credential", "secret", "kubeconfig", "token", "password")
 # Tests only: runs with the path after the parent directory is open and before
 # the file is, to swap things under the reader.
 HOOK = os.environ.get("GOLDEN_SAVE_WRITTEN_HOOK")
+# The largest fixture source is a few KB and a whole fixture tree about 33 KB,
+# so a real fix stays far below both. The limits only stop a runaway or hostile
+# write from landing in docs/: per file, and per call across all its files.
+PER_FILE = 256 * 1024
+PER_CALL = 2 * 1024 * 1024
 
 
-def read(root_fd, rel):
+class Skip(Exception):
+    pass
+
+
+
+
+def read(root_fd, rel, limit):
+    """Up to limit bytes of rel, and whether there was more."""
     parts = [p for p in rel.split("/") if p not in ("", ".")]
     if not parts or ".." in parts:
         raise PermissionError(rel)
@@ -43,27 +55,44 @@ def read(root_fd, rel):
     finally:
         os.close(fd)
     with os.fdopen(f, "rb") as fh:
-        if not stat.S_ISREG(os.fstat(fh.fileno()).st_mode):
+        st = os.fstat(fh.fileno())
+        if not stat.S_ISREG(st.st_mode):
             raise PermissionError(rel)
-        return fh.read()
+        # A hard link is a regular file inside $WS whose content may live
+        # anywhere on the same filesystem; a fixture never makes one.
+        if st.st_nlink > 1:
+            raise Skip("hard link")
+        # Bounded read from the open fd: a file that grows meanwhile still
+        # stops at the limit.
+        data = fh.read(limit + 1)
+        return data[:limit], len(data) > limit
 
 
 def main():
     root_fd = os.open(sys.argv[1], os.O_RDONLY | os.O_NOFOLLOW | os.O_DIRECTORY)
     out = sys.stdout.buffer
+    budget = PER_CALL
     for rel in sys.stdin.read().splitlines():
         name = rel.rsplit("/", 1)[-1]
         if name.startswith(".") or not name.endswith(COPY) or any(w in name.lower() for w in SECRET_WORDS):
             out.write(f"=== {rel} (skipped: not a source file)\n".encode())
             continue
+        if budget <= 0:
+            out.write(f"=== {rel} (skipped: {PER_CALL}-byte limit for this call reached)\n".encode())
+            continue
+        limit = min(PER_FILE, budget)
         try:
-            data = read(root_fd, rel)
+            data, more = read(root_fd, rel, limit)
+        except Skip as e:
+            out.write(f"=== {rel} (skipped: {e})\n".encode())
         except FileNotFoundError:
             out.write(f"=== {rel} (deleted)\n".encode())
         except OSError:
             out.write(f"=== {rel} (skipped: symlink or not a regular file)\n".encode())
         else:
-            out.write(f"=== {rel}\n".encode() + data + b"\n")
+            budget -= len(data)
+            note = f" (truncated at {limit} bytes)" if more else ""
+            out.write(f"=== {rel}{note}\n".encode() + data + b"\n")
 
 
 if __name__ == "__main__":

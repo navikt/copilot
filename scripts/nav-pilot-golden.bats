@@ -834,6 +834,32 @@ EOF
   [[ "$output" != *UTENFOR* ]]
 }
 
+@test "golden-save-written: a hard link to a file outside is not copied" {
+  local ws="$SHIM/ws" ute="$SHIM/ute"
+  mkdir -p "$ws" "$ute"
+  echo UTENFOR >"$ute/H.kt"
+  ln "$ute/H.kt" "$ws/H.kt"
+  echo './H.kt' >"$SHIM/paths"
+  run python3 "$BATS_TEST_DIRNAME/golden-save-written.py" "$ws" <"$SHIM/paths"
+  [ "$status" -eq 0 ]
+  [ "$output" = "=== ./H.kt (skipped: hard link)" ]
+}
+
+@test "golden-save-written: 256 KiB per file and 2 MiB per call, marked when cut" {
+  local ws="$SHIM/ws" i
+  mkdir -p "$ws"
+  head -c 300000 /dev/zero | tr '\0' a >"$ws/A.kt"
+  for i in 1 2 3 4 5 6 7 8 9; do head -c 250000 /dev/zero | tr '\0' b >"$ws/F$i.kt"; done
+  (cd "$ws" && find . -type f | sort) >"$SHIM/paths"
+  python3 "$BATS_TEST_DIRNAME/golden-save-written.py" "$ws" <"$SHIM/paths" >"$SHIM/out"
+  grep -qx '=== ./A.kt (truncated at 262144 bytes)' "$SHIM/out"
+  [ "$(grep -A1 -x '=== ./A.kt (truncated at 262144 bytes)' "$SHIM/out" | tail -1 | wc -c)" -eq 262145 ]
+  # 262 144 + 7 × 250 000 leaves 85 008 bytes for F8 and none for F9.
+  grep -qx '=== ./F8.kt (truncated at 85008 bytes)' "$SHIM/out"
+  grep -qx '=== ./F9.kt (skipped: 2097152-byte limit for this call reached)' "$SHIM/out"
+  [ "$(wc -c <"$SHIM/out")" -lt 2200000 ]
+}
+
 @test "golden-save-written: secret-looking and non-source files are named, not copied" {
   local ws="$SHIM/ws" f
   mkdir -p "$ws/.docker"
