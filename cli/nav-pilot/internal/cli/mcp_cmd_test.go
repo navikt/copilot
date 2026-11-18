@@ -343,10 +343,9 @@ func TestMCPCommandIsOffTheHotPath(t *testing.T) {
 			}
 		}
 	}
-	// The entry point, sync --apply's protocol backfill (#2395), and the
-	// read-only reports doctor and the host consent
-	// share with mcp list.
-	allowed := map[string]bool{"cli.go:cmdMCP": true, "cli.go:mcpBackfillOpenCodeProtocol": true, "doctor.go:reportMCPTools": true, "mcp_consent.go:mcpLoopbackNote": true}
+	// The entry point, user-scope sync --apply's protocol backfill (#2395), and
+	// the read-only reports doctor and the host consent share with mcp list.
+	allowed := map[string]bool{"cli.go:cmdMCP": true, "sync.go:mcpBackfillOpenCodeProtocol": true, "doctor.go:reportMCPTools": true, "mcp_consent.go:mcpLoopbackNote": true}
 	writers := map[string]bool{"MCPRegistryServers": true, "SetMCPServer": true, "RemoveMCPServer": true, "MCPConfigKeys": true, "ConfiguredMCPServers": true, "MCPClientEntry": true, "MCPConfigKeyFor": true, "NarrowMCPApproval": true, "SetMCPServerTools": true}
 	var files []string
 	for _, dir := range []string{".", "../provider"} {
@@ -528,5 +527,46 @@ func TestMCPEnableBackfillsOpenCodeProtocol(t *testing.T) {
 	}
 	if lines != 1 {
 		t.Errorf("Set protocol lines = %d, want 1\n%s", lines, out)
+	}
+}
+
+func TestMCPBackfillOpenCodeProtocolTwoKeys(t *testing.T) {
+	isolatedConfig(t)
+	ocPath, err := providerpkg.MCPConfigPath(providerpkg.MCPClientOpenCode)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeTestFile(t, ocPath, `{"mcp": {"no.nav/x": {"type": "remote", "url": "https://x.nav.no/mcp", "enabled": true}, "alias-x": {"type": "remote", "url": "https://x.nav.no/mcp", "enabled": true}}}`)
+	entries := []providerpkg.MCPServerEntry{{
+		Name:             "no.nav/x",
+		ProtocolVersions: []string{"2026-07-28"},
+		Remotes:          []providerpkg.MCPRemote{{URL: "https://x.nav.no/mcp"}},
+	}}
+	out := captureStdout(func() {
+		mcpBackfillOpenCodeProtocol(entries)
+	})
+	b, err := os.ReadFile(ocPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var cfg struct {
+		MCP map[string]map[string]any `json:"mcp"`
+	}
+	if err := json.Unmarshal(b, &cfg); err != nil {
+		t.Fatal(err)
+	}
+	for _, key := range []string{"no.nav/x", "alias-x"} {
+		if got := cfg.MCP[key]["protocol"]; got != "2026-07-28" {
+			t.Errorf("%s protocol = %v, want 2026-07-28\n%s", key, got, b)
+		}
+	}
+	lines := 0
+	for _, line := range strings.Split(strings.TrimSpace(out), "\n") {
+		if strings.Contains(line, "Set protocol") {
+			lines++
+		}
+	}
+	if lines != 2 {
+		t.Errorf("Set protocol lines = %d, want 2\n%s", lines, out)
 	}
 }

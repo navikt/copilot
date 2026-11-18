@@ -670,6 +670,12 @@ func TestBackfillOpenCodeProtocol(t *testing.T) {
 			entry:    `{"type":"local","command":["npx","x"]}`,
 			versions: []string{"2026-07-28"},
 		},
+		{
+			name:     "registry name with different url",
+			entry:    `{"type":"remote","url":"https://other.example/mcp"}`,
+			versions: []string{"2026-07-28"},
+			url:      "https://x.example/mcp",
+		},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

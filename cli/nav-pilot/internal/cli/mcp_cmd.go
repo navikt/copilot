@@ -869,13 +869,31 @@ func cmdMCPEnable(names []string, clientsOf func() ([]string, error), topts mcpT
 // mcpBackfillOpenCodeProtocol adds a missing protocol to OpenCode entries of
 // these registry servers, one line per entry it changes.
 func mcpBackfillOpenCodeProtocol(entries []providerpkg.MCPServerEntry) {
+	if len(entries) == 0 {
+		return
+	}
+	byName := make(map[string]providerpkg.MCPServerEntry, len(entries))
 	for _, e := range entries {
-		key := providerpkg.MCPConfigKeyFor(providerpkg.MCPClientOpenCode, e)
-		if key == "" {
+		byName[e.Name] = e
+	}
+	for _, key := range providerpkg.MCPConfigKeys(providerpkg.MCPClientOpenCode) {
+		name := providerpkg.OpenCodeRegistryNameFor(key, entries)
+		if name == "" {
+			continue
+		}
+		e, ok := byName[name]
+		if !ok {
 			continue
 		}
 		p, ch, err := providerpkg.BackfillOpenCodeProtocol(key, e)
-		if err != nil || p == "" {
+		if err != nil {
+			if errors.Is(err, providerpkg.ErrMCPConfigHasComments) {
+				continue
+			}
+			fmt.Printf("%s Could not set protocol on %s: %v\n", yellow("⚠"), safe(key, 64), err)
+			continue
+		}
+		if p == "" {
 			continue
 		}
 		fmt.Printf("%s Set protocol %q on %s in %s, from the registry\n", green("✓"), p, safe(key, 64), ch.Path)

@@ -378,6 +378,9 @@ func BackfillOpenCodeProtocol(key string, e MCPServerEntry) (string, MCPConfigCh
 		}
 		var u string
 		_ = json.Unmarshal(entry.vals["url"], &u)
+		if !openCodeMatchesRemoteURL(e, u) {
+			return nil, false, nil
+		}
 		p = openCodeProtocol(e.ProtocolVersions, u)
 		if p == "" {
 			return nil, false, nil
@@ -851,6 +854,20 @@ func registryOf(entries []MCPServerEntry) mcpRegistry {
 	return reg
 }
 
+func openCodeMatchesRemoteURL(e MCPServerEntry, rawURL string) bool {
+	if rawURL == "" {
+		return false
+	}
+	nu := normalizeMCPURL(rawURL)
+	for _, r := range e.Remotes {
+		if r.URL != "" && normalizeMCPURL(r.URL) == nu {
+			return true
+		}
+	}
+	// enable writes GitHub's read-only endpoint; it is the same server.
+	return e.GitHubReadonlyURL() != "" && IsGitHubReadonlyURL(rawURL)
+}
+
 func openCodeRegistryName(entries []MCPServerEntry, key string, s mcpServer) string {
 	pkg := localPackage(s.Command)
 	if i := strings.LastIndex(pkg, "@"); i > 0 {
@@ -860,13 +877,7 @@ func openCodeRegistryName(entries []MCPServerEntry, key string, s mcpServer) str
 		if e.Name == key {
 			return e.Name
 		}
-		for _, r := range e.Remotes {
-			if s.Type == "remote" && normalizeMCPURL(r.URL) == normalizeMCPURL(s.URL) {
-				return e.Name
-			}
-		}
-		// enable writes GitHub's read-only endpoint; it is the same server.
-		if ro := e.GitHubReadonlyURL(); s.Type == "remote" && ro != "" && IsGitHubReadonlyURL(s.URL) {
+		if s.Type == "remote" && openCodeMatchesRemoteURL(e, s.URL) {
 			return e.Name
 		}
 		for _, p := range e.Packages {
