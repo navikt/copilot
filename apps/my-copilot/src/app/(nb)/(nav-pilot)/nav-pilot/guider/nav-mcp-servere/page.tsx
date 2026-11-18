@@ -89,8 +89,14 @@ export default function NavMcpServerePage() {
           Logg ut med <code className={code}>opencode mcp logout onboarding</code>.
         </BodyLong>
         <BodyLong>
-          Bruker du OpenCode 2.x direkte, legger du til <code className={code}>"protocol": "2026-07-28"</code> på
-          serveroppføringen. nav-pilot gjør det selv for nye oppføringer, ut fra protokollversjonene i MCP-registeret.
+          nav-pilot setter <code className={code}>protocol</code> selv, ut fra protokollversjonene i MCP-registeret.
+          Konfigurerer du OpenCode 2.x for hånd, bruker du{" "}
+          <code className={code}>&quot;protocol&quot;: &quot;auto&quot;</code>. Bruk{" "}
+          <code className={code}>&quot;2026-07-28&quot;</code> bare når registeret oppgir den som eneste versjon. Se{" "}
+          <a href="#protokollversjon" className={linkClass}>
+            Protokollversjon
+          </a>
+          .
         </BodyLong>
       </VStack>
 
