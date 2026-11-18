@@ -74,10 +74,10 @@ Every request to an MCP route logs one JSON line with `msg` `audit mcp` in the O
  "action":{"name":"tools/call","properties":{"tool":"search"}},
  "resource":{"type":"mcp_route","id":"copilot/onboarding","properties":{"backend":"prod-gcp:copilot:mcp-onboarding"}},
  "context":{"request_id":"<26 chars>","http_method":"POST","scan_incomplete":false,"header_mismatch":false,"outcome":"ok","duration_ms":12},
- "decision":{"decision":true,"reason":"listed"}}
+ "decision":{"decision":true,"context":{"reason":"listed"}}}
 ```
 
-`decision.decision` is `true` only when the gateway's own checks let the request through; `context.outcome` says what happened after that (for example `upstream_error`). `decision.reason` is the tool policy reason (`listed`, `pass_all`, `not_tools_call`, `not_listed`, `ambiguous`) or, for a request stopped earlier, the outcome (`unauthorized`, `disabled`, `bad_request`, ...). `context.scan_incomplete` is `true` when the body scan stopped before the end. Tool arguments and tokens are never logged. The flat fields of earlier versions (`navident`, `route`, `method`, `tool`, `decision_reason`, `outcome`) are gone; no dashboard or alert in this repository read them.
+`decision.decision` is `true` only when the gateway's own checks let the request through; `context.outcome` says what happened after that (for example `upstream_error`). `decision.context.reason` is the tool policy reason (`listed`, `pass_all`, `not_tools_call`, `not_listed`, `ambiguous`) or, for a request stopped earlier, the outcome (`unauthorized`, `disabled`, `bad_request`, ...). `context.scan_incomplete` is `true` when the body scan stopped before the end. A request without a valid token has no `subject`: AuthZEN 1.0 requires `subject.id`, and there is no identity to put there. Tool arguments and tokens are never logged. The flat fields of earlier versions (`navident`, `route`, `method`, `tool`, `decision_reason`, `outcome`) are gone; no dashboard or alert in this repository read them.
 
 ## Security
 

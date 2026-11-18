@@ -39,7 +39,7 @@ func flatAudit(e map[string]any) map[string]any {
 		"tool":            get("action", "properties", "tool"),
 		"route":           "/mcp/" + fmt.Sprint(get("resource", "id")),
 		"decision":        decision,
-		"decision_reason": get("decision", "reason"),
+		"decision_reason": get("decision", "context", "reason"),
 		"header_mismatch": get("context", "header_mismatch"),
 		"outcome":         get("context", "outcome"),
 		"duration_ms":     get("context", "duration_ms"),
@@ -391,7 +391,7 @@ func TestAuditMCP_AuthZENShape(t *testing.T) {
 	got, _ := json.Marshal(raw)
 	want := `{"action":{"name":"tools/call","properties":{"tool":"delete"}},` +
 		`"context":{"duration_ms":0,"header_mismatch":true,"http_method":"POST","outcome":"tool_denied","request_id":"ID","scan_incomplete":false},` +
-		`"decision":{"decision":false,"reason":"not_listed"},"level":"INFO","msg":"audit mcp",` +
+		`"decision":{"context":{"reason":"not_listed"},"decision":false},"level":"INFO","msg":"audit mcp",` +
 		`"resource":{"id":"team-etterlevelse/etterlevelse","properties":{"backend":"dev-gcp:team-etterlevelse:nav-etterlevelse-mcp"},"type":"mcp_route"},` +
 		`"subject":{"id":"Z123456","properties":{"client_id":"` + fmt.Sprint(audit["client_id"]) + `"},"type":"user"}}`
 	if audit["client_id"] == "" || string(got) != want {
@@ -445,5 +445,33 @@ func TestAuditField_QuotesQuoteAndBackslash(t *testing.T) {
 	}
 	if got := auditField(`a\b`); got != `"a\\b"` {
 		t.Errorf("backslash: got %s", got)
+	}
+}
+
+func TestAuditMCP_UnauthenticatedHasNoSubject(t *testing.T) {
+	audit, _, code := auditToolsHeaders(t, http.MethodPost, nil, `{"method":"ping"}`,
+		http.Header{"Authorization": {"Bearer not-a-token"}})
+	raw := audit["raw"].(map[string]any)
+	if code != http.StatusUnauthorized {
+		t.Fatalf("code %d, want 401", code)
+	}
+	if _, ok := raw["subject"]; ok {
+		t.Errorf("unauthenticated record has subject %v; AuthZEN requires subject.id", raw["subject"])
+	}
+}
+
+func TestAuditMCP_ScanIncompleteFromScan(t *testing.T) {
+	for _, tc := range []struct {
+		body string
+		want bool
+	}{
+		{`{"method":"tools/call","params":{"name":"...incomplete"}}`, false},
+		{`{"method":"ping"}x`, true},
+	} {
+		audit, _, _ := auditPost(t, tc.body)
+		ctx := audit["raw"].(map[string]any)["context"].(map[string]any)
+		if ctx["scan_incomplete"] != tc.want {
+			t.Errorf("%s: scan_incomplete %v, want %v", tc.body, ctx["scan_incomplete"], tc.want)
+		}
 	}
 }

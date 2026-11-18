@@ -105,6 +105,7 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 		decision := ""
 		decisionReason := ""
 		headerMismatch := false
+		scanIncomplete := false
 
 		requestID := rand.Text()
 
@@ -116,12 +117,17 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 			if decision != "allow" && (decision == "" || reason == "") {
 				reason = outcome
 			}
-			slog.Info("audit mcp",
-				slog.Group("subject",
+			var attrs []any
+			// AuthZEN 1.0 §5.1 makes subject.id REQUIRED, so an unauthenticated
+			// request has no subject rather than one with an empty id.
+			if navIdent != "" {
+				attrs = append(attrs, slog.Group("subject",
 					"type", "user",
 					"id", sanitizeLogValue(navIdent),
 					slog.Group("properties", "client_id", sanitizeLogValue(clientID)),
-				),
+				))
+			}
+			slog.Info("audit mcp", append(attrs,
 				slog.Group("action",
 					"name", sanitizeLogValue(rpcMethod),
 					slog.Group("properties", "tool", sanitizeLogValue(toolName)),
@@ -134,16 +140,17 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 				slog.Group("context",
 					"request_id", requestID,
 					"http_method", sanitizeLogValue(r.Method),
-					"scan_incomplete", strings.Contains(toolName, auditIncomplete),
+					"scan_incomplete", scanIncomplete,
 					"header_mismatch", headerMismatch,
 					"outcome", outcome,
 					"duration_ms", g.now().Sub(start).Milliseconds(),
 				),
+				// AuthZEN 1.0 §5.5: decision boolean plus optional context.
 				slog.Group("decision",
 					"decision", decision == "allow",
-					"reason", reason,
+					slog.Group("context", "reason", reason),
 				),
-			)
+			)...)
 		}()
 
 		switch r.Method {
@@ -297,7 +304,7 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 		}
 		if r.Method == http.MethodPost {
 			audit := scanJSONRPCAudit(reqBody)
-			rpcMethod, toolName = audit.method, audit.tool
+			rpcMethod, toolName, scanIncomplete = audit.method, audit.tool, audit.incomplete
 			headerMismatch = mcpHeadersMismatch(r.Header, audit)
 			if route.allowedTools != nil {
 				allow, reason := toolPolicyDecision(reqBody, route.allowedTools)
