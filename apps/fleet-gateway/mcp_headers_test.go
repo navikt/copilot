@@ -73,6 +73,25 @@ func TestProxy_ForwardsMCPRequestMetadataHeaders(t *testing.T) {
 			t.Errorf("%s: expected 400, got %d", name, rec.Code)
 		}
 	}
+	for name, hdrs := range map[string]http.Header{
+		"name size":      {"Mcp-Name": {strings.Repeat("a", maxMCPNameHeaderBytes+1)}},
+		"method size":    {"Mcp-Method": {strings.Repeat("a", maxMCPNameHeaderBytes+1)}},
+		"name twice":     {"Mcp-Name": {"search", "delete"}},
+		"method twice":   {"Mcp-Method": {"tools/call", "tools/list"}},
+		"obs-text name":  {"Mcp-Name": {"s\xf8k"}},
+		"obs-text param": {"Mcp-Param-Q": {"\xe6"}},
+	} {
+		req := httptest.NewRequest(http.MethodPost, "/mcp/team-etterlevelse/etterlevelse", strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"search"}}`))
+		req.Header.Set("Authorization", "Bearer "+gwToken)
+		for k, v := range hdrs {
+			req.Header[k] = v
+		}
+		rec := httptest.NewRecorder()
+		te.handler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusBadRequest {
+			t.Errorf("%s: expected 400, got %d", name, rec.Code)
+		}
+	}
 	mu.Lock()
 	defer mu.Unlock()
 	if upstreamCalls != 1 {

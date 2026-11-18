@@ -58,11 +58,17 @@ Routes in `pilot-routes.yaml` (`PILOT_ROUTES_FILE`) support an optional `enabled
 
 In `version: 2` route files every route lists the tools it allows in `tools: [...]`; the gateway rejects any other `tools/call`, and any ambiguous JSON-RPC body (case-variant or duplicate keys, trailing data), with a JSON-RPC error and does not forward it. Only the operator sets `passAllTools: true` instead, for a route that forwards every call. `version: 1` files load unchanged and pass every call.
 
+On every route, `passAllTools` included, a `GET` or `DELETE` with a body gets `400` and is logged as `deny`/`ambiguous`: MCP defines no body for them, so a `tools/call` sent that way is never forwarded.
+
 Key rotation: prepend a new `kid:key`, deploy, drop the old entry after `SESSION_MAX_AGE` plus one deploy. Unknown or tampered values fail closed.
 
 Empty `ALLOWED_CLIENT_IDS` or `ALLOWED_REDIRECT_URIS` fails closed at startup.
 
 ## Security
+
+MCP request metadata headers: `Mcp-Name` and `Mcp-Method` may appear once and hold at most 1024 bytes; `Mcp-Param-*` is capped at 32 headers of 4096 bytes each. A value in any `Mcp-*` header with a byte in 0x80–0xFF (obs-text) is rejected. These requests get `400` before any token exchange. The server sets `MaxHeaderBytes` to 192 KiB, enough for every `Mcp-Param-*` at its cap plus a bearer token. The gateway never decides anything on these headers; the JSON-RPC body is the truth. The `audit mcp` line sets `header_mismatch: true` when `Mcp-Method` or (for `tools/call`) `Mcp-Name` disagrees with the body.
+
+The audit line logs `method` and `tool` as they are when they are short visible ASCII. Anything else (spaces, control characters, invisible characters such as U+200B) is logged Go-quoted and escaped, for example `"whoami "`, so a denied name never reads as a listed tool.
 
 Accepted risk (owner decision 2026-11-17): consent is remembered for 30 days and loopback redirect URIs accept any port. Another process on the developer's machine can start a login as an allowlisted public client and get a token without a click, through browser SSO and the remembered consent. PKCE does not help, because the attacker starts the flow. This is the same threat model as public-client logins in the az and gh CLIs. Mitigations: tokens are scoped to fleet-gateway, sessions are capped at 12 hours, and tokens can be revoked.
 

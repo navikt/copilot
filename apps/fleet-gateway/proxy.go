@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -43,6 +44,11 @@ const (
 	mcpParamHeaderPrefix   = "Mcp-Param-"
 	maxMCPParamHeaders     = 32
 	maxMCPParamHeaderBytes = 4096 // name + value
+	// Mcp-Name carries a tool name, resource URI or prompt name; Mcp-Method a method.
+	maxMCPNameHeaderBytes = 1024
+	// MaxHeaderBytes covers every Mcp-Param-* at its cap (128 KiB), a bearer token
+	// and the other headers with room to spare; Go's default is 1 MiB.
+	maxRequestHeaderBytes = 192 << 10
 )
 
 var allowedUpstreamResponseHeaders = map[string]bool{
@@ -97,6 +103,7 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 		toolName := ""
 		decision := ""
 		decisionReason := ""
+		headerMismatch := false
 
 		defer func() {
 			slog.Info("audit mcp",
@@ -108,6 +115,7 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 				"tool", sanitizeLogValue(toolName),
 				"decision", decision,
 				"decision_reason", decisionReason,
+				"header_mismatch", headerMismatch,
 				"outcome", outcome,
 				"duration_ms", g.now().Sub(start).Milliseconds(),
 			)
@@ -238,11 +246,11 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 			return
 		}
 
-		if !mcpParamHeadersWithinLimits(r.Header) {
+		if !mcpHeadersValid(r.Header) {
 			outcome = "bad_request"
 			writeJSON(w, http.StatusBadRequest, map[string]string{
 				"error":   "invalid_request",
-				"message": "too many or too large Mcp-Param-* headers",
+				"message": "too many, too large, duplicate or non-ASCII Mcp-* headers",
 			})
 			return
 		}
@@ -264,6 +272,7 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 		}
 		if r.Method == http.MethodPost {
 			rpcMethod, toolName = extractJSONRPCAudit(reqBody)
+			headerMismatch = mcpHeadersMismatch(r.Header, rpcMethod, toolName)
 			if route.allowedTools != nil {
 				allow, reason := toolPolicyDecision(reqBody, route.allowedTools)
 				decisionReason = reason
@@ -605,15 +614,33 @@ func isMCPParamHeader(name string) bool {
 	return len(ck) > len(mcpParamHeaderPrefix) && strings.HasPrefix(ck, mcpParamHeaderPrefix)
 }
 
-func mcpParamHeadersWithinLimits(h http.Header) bool {
+// mcpHeadersValid caps Mcp-Param-*, Mcp-Name and Mcp-Method, rejects a repeated
+// Mcp-Name or Mcp-Method, and rejects obs-text (0x80-0xFF) in any Mcp-* value:
+// the spec requires ASCII, and upstreams that ignore these headers never check.
+func mcpHeadersValid(h http.Header) bool {
 	n := 0
 	for k, vals := range h {
-		if !isMCPParamHeader(k) {
+		ck := textproto.CanonicalMIMEHeaderKey(k)
+		if !strings.HasPrefix(ck, "Mcp-") {
 			continue
 		}
 		for _, v := range vals {
-			n++
-			if n > maxMCPParamHeaders || len(k)+len(v) > maxMCPParamHeaderBytes {
+			for i := 0; i < len(v); i++ {
+				if v[i] >= 0x80 {
+					return false
+				}
+			}
+		}
+		switch {
+		case isMCPParamHeader(ck):
+			for _, v := range vals {
+				n++
+				if n > maxMCPParamHeaders || len(ck)+len(v) > maxMCPParamHeaderBytes {
+					return false
+				}
+			}
+		case ck == "Mcp-Name" || ck == "Mcp-Method":
+			if len(vals) > 1 || len(vals[0]) > maxMCPNameHeaderBytes {
 				return false
 			}
 		}
@@ -621,8 +648,34 @@ func mcpParamHeadersWithinLimits(h http.Header) bool {
 	return true
 }
 
+// mcpHeadersMismatch reports whether Mcp-Method or Mcp-Name disagrees with the
+// audited body. The body is the truth; the headers only feed this audit field.
+// Mcp-Name is compared for tools/call only, where the audit has the tool name.
+func mcpHeadersMismatch(h http.Header, method, tool string) bool {
+	if m := h.Get("Mcp-Method"); m != "" && m != method {
+		return true
+	}
+	name := h.Get("Mcp-Name")
+	if name == "" || method != "tools/call" || tool == auditIncomplete {
+		return false
+	}
+	return decodeMCPHeaderValue(name) != tool
+}
+
+// decodeMCPHeaderValue undoes the spec's =?base64?...?= wrapping for non-ASCII values.
+func decodeMCPHeaderValue(v string) string {
+	if inner, ok := strings.CutPrefix(v, "=?base64?"); ok {
+		if inner, ok = strings.CutSuffix(inner, "?="); ok {
+			if b, err := base64.StdEncoding.DecodeString(inner); err == nil {
+				return string(b)
+			}
+		}
+	}
+	return v
+}
+
 // copyMCPParamHeaders forwards Mcp-Param-* unchanged, as the spec requires of intermediaries.
-// Callers must check mcpParamHeadersWithinLimits first.
+// Callers must check mcpHeadersValid first.
 func copyMCPParamHeaders(dst, src http.Header) {
 	connTokens := connectionHeaderTokens(src)
 	for k, vals := range src {
@@ -710,7 +763,8 @@ func extractJSONRPCAudit(body []byte) (method, tool string) {
 				complete = false
 				break
 			}
-			if m, name := auditMethodTool(m, params); m == "tools/call" {
+			// name is set only for tools/call, also when m is quoted as unusual.
+			if m, name := auditMethodTool(m, params); name != "" || m == "tools/call" {
 				if len(tools) == maxAuditBatchTools {
 					tools = append(tools, "...")
 					break
@@ -756,9 +810,28 @@ func auditKeyAmbiguous(key json.Token, want string, seen *bool) bool {
 func auditMethodTool(rawMethod, params json.RawMessage) (method, tool string) {
 	method, tool, ambiguous := rpcMethodTool(rawMethod, params)
 	if ambiguous {
-		return sanitizeAuditMethod(method), auditIncomplete
+		return auditField(method), auditIncomplete
 	}
-	return sanitizeAuditMethod(method), sanitizeAuditMethod(tool)
+	return auditField(method), auditField(tool)
+}
+
+// auditField returns s as is when it is short visible ASCII, which every MCP
+// method and tool name is. Anything else (spaces, NUL, U+200B, U+FEFF, U+00A0)
+// is logged Go-quoted and ASCII-escaped, so "whoami " can never read as the
+// listed tool whoami and an invisible character never hides in the audit line.
+func auditField(s string) string {
+	visible := len(s) <= maxAuditMethodLen
+	for i := 0; visible && i < len(s); i++ {
+		visible = s[i] > 0x20 && s[i] < 0x7f
+	}
+	if visible {
+		return s
+	}
+	trunc := ""
+	if r := []rune(s); len(r) > maxAuditMethodLen {
+		s, trunc = string(r[:maxAuditMethodLen]), "..."
+	}
+	return strconv.QuoteToASCII(s) + trunc
 }
 
 // rpcMethodTool returns the unsanitized method and, for tools/call, the
