@@ -3,7 +3,8 @@ replicas_max: "2"
 cpu_threshold: "80"
 cpu_request: 50m
 memory_request: 128Mi
-memory_limit: 256Mi
+memory_limit: 384Mi
+gomemlimit: 320MiB
 log_level: "INFO"
 base_url: "https://fleet-gateway.intern.nav.no"
 allowed_client_ids: "https://ki-utvikling.nav.no/cplt/oauth-client.json,https://github.com/copilot/cli/client-metadata.json,https://opencode.ai/oauth/opencode/client.json"

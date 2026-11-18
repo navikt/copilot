@@ -332,8 +332,8 @@ export default function FleetGatewayForTeamPage() {
             går mer enn 60 sekunder mellom hendelsene.
           </li>
           <li>
-            Hver gateway-pod tar 16 MCP-kall samtidig. Kall over taket får <code className={code}>503</code> med{" "}
-            <code className={code}>Retry-After</code>.
+            Hver gateway-pod tar 16 vanlige MCP-kall og 64 åpne SSE-strømmer samtidig. Kall over taket får{" "}
+            <code className={code}>503</code> med <code className={code}>Retry-After</code>.
           </li>
           <li>Gatewayen logger hvert kall med NAV-ident, rute og MCP-metode. Tilgang til data styrer dere i appen.</li>
           <li>

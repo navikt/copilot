@@ -41,7 +41,8 @@ The gateway is live in prod (2026-11-17) for a controlled pilot. It runs the aut
 | `COOKIE_SIGNING_SECRET` | No | HKDF subkey of the primary `RT_KEYS` key; random only outside Nais | HMAC key (>= 32 bytes) for the `__Host-fleet_entra_state` cookie. On Nais (`NAIS_CLUSTER_NAME` set) startup fails if neither this nor `RT_KEYS` is set |
 | `PORT` | No | `8080` | HTTP listen port |
 | `UPSTREAM_TIMEOUT` | No | `60s` | Time the MCP server gets to send response headers, and again to finish a non-SSE body. SSE uses `SSE_IDLE_TIMEOUT` and `SSE_MAX_DURATION` instead |
-| `MCP_MAX_IN_FLIGHT` | No | `16` | Concurrent `/mcp/*` requests per pod. Over the cap: `503` with `Retry-After: 1` |
+| `MCP_MAX_IN_FLIGHT` | No | `16` | Concurrent buffered `/mcp/*` requests per pod. Over the cap: `503` with `Retry-After: 1` |
+| `MCP_MAX_SSE` | No | `64` | Concurrent SSE response streams per pod, counted apart from `MCP_MAX_IN_FLIGHT` |
 | `LOG_LEVEL` | No | `INFO` | `DEBUG`, `INFO`, `WARN`, or `ERROR` |
 
 | `TEAM_TOKEN_STRATEGY` | No | `obo` | `obo` (Texas OBO) or `refresh` (Entra refresh token held in the session; needs `RT_STORAGE=server`) |
@@ -66,7 +67,22 @@ Empty `ALLOWED_CLIENT_IDS` or `ALLOWED_REDIRECT_URIS` fails closed at startup.
 
 ## Memory and limits
 
-Each MCP call buffers up to 1 MiB of request and 10 MiB of non-SSE response. With 16 calls in flight that is at most 176 MiB of bodies, plus a Go runtime of roughly 20-30 MiB. Hence a 256 Mi limit and a 128 Mi request in both clusters. The figure is arithmetic, not a load test: raise `MCP_MAX_IN_FLIGHT` only together with the memory limit.
+Worst case per buffered MCP call, at the size limits:
+
+| Part | MiB |
+|---|---|
+| Response body, read in 32 KiB chunks (no `io.ReadAll` growth) | 10.03 |
+| Request body (1 MiB) through `io.ReadAll`, which allocates about 2.25x the body (measured: 23.5 MB for 10 MiB), plus JSON parsing for tool policy | 4 |
+| Connection and transport buffers | 0.1 |
+| **Per call** | **~14.1** |
+
+`MCP_MAX_IN_FLIGHT` = 16 calls: 16 x 14.1 = 226 MiB. `MCP_MAX_SSE` = 64 streams at about 48 KiB each (32 KiB read buffer plus connection buffers): 3 MiB. Go runtime, route config and session caches: about 30 MiB. Total: about 259 MiB.
+
+Both clusters therefore run with a 384 Mi limit, a 128 Mi request and `GOMEMLIMIT=320MiB` (83 % of the limit), so the garbage collector works harder before the kernel kills the pod. The figures are arithmetic plus one allocation measurement, not a load test. Raise `MCP_MAX_IN_FLIGHT` or the body limits only together with `memory_limit` and `gomemlimit`; `TestMemoryBudgetFitsManifests` checks the sum against both manifests.
+
+An SSE stream holds its in-flight slot only until the upstream answers with `text/event-stream`. It then moves to the `MCP_MAX_SSE` cap and may stay open for `SSE_MAX_DURATION`, so open streams never block tool calls. Over either cap the gateway answers `503` with `Retry-After: 1`, writes an `audit mcp` line with outcome `over_capacity` or `sse_over_capacity`, and counts it in the metrics.
+
+`WriteTimeout` is derived in code (`mcpWriteTimeout`): read timeout (10 s) + team-token exchange (10 s) + 2 x `UPSTREAM_TIMEOUT` (headers, then body) + 5 s margin. With the defaults that is 145 s.
 
 ## Security
 

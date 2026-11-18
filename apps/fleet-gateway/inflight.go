@@ -1,22 +1,33 @@
 package main
 
-import "net/http"
+import (
+	"net/http"
+	"sync"
+)
 
-// inFlightLimit caps concurrent MCP requests per pod. Each one may buffer up to
-// 1 MiB in and 10 MiB out, so the cap bounds memory. Excess requests get 503
-// with Retry-After instead of queueing.
-func inFlightLimit(slots chan struct{}, next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		select {
-		case slots <- struct{}{}:
-			defer func() { <-slots }()
-			next(w, r)
-		default:
-			w.Header().Set("Retry-After", "1")
-			writeJSON(w, http.StatusServiceUnavailable, map[string]string{
-				"error":   "too_many_requests",
-				"message": "fleet-gateway is at its limit of concurrent MCP requests; retry shortly",
-			})
-		}
+// slots is a counting semaphore for MCP requests. A nil slots never limits,
+// for Gateways built without routes().
+type slots chan struct{}
+
+// tryAcquire takes a slot without waiting. release is idempotent, so the SSE
+// path can hand its slot back early and the deferred call is a no-op.
+func (s slots) tryAcquire() (release func(), ok bool) {
+	if s == nil {
+		return func() {}, true
 	}
+	select {
+	case s <- struct{}{}:
+		return sync.OnceFunc(func() { <-s }), true
+	default:
+		return nil, false
+	}
+}
+
+// writeOverCapacity answers 503 with Retry-After instead of queueing.
+func writeOverCapacity(w http.ResponseWriter, what string) {
+	w.Header().Set("Retry-After", "1")
+	writeJSON(w, http.StatusServiceUnavailable, map[string]string{
+		"error":   "too_many_requests",
+		"message": "fleet-gateway is at its limit of concurrent " + what + "; retry shortly",
+	})
 }

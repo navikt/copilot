@@ -45,6 +45,9 @@ spec:
     - secret: fleet-gateway-rt-keys # key RT_KEYS = "kid:base64key,..." (newest first); created by a human
   {{/if}}
   env:
+    # Soft heap limit below the container limit, so GC runs before an OOM kill (README, Memory and limits).
+    - name: GOMEMLIMIT
+      value: "{{gomemlimit}}"
     - name: SESSION_STORE
       value: "{{session_store}}"
     - name: SESSION_MAX_AGE
