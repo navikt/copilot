@@ -86,10 +86,6 @@ Remove the `client_id` from `ALLOWED_CLIENT_IDS` in `.nais/<env>-gcp.yaml` and d
 - Loss or corruption: recreate empty. Everything in it is short-lived (sessions 12 h, consent 30 days, DCR clients up to 180 days). Users log in again; migrations run at startup. OpenCode users may need `opencode mcp logout <name>` first (unverified).
 - Backups: Nais Postgres defaults (automated backups, retention) are **unverified**; none are required for this design.
 
-```sh
-kubectl -n copilot get postgres,pods | grep -i fleet-gateway
-```
-
 ## Post-deploy smoke (three steps)
 
 1. `curl -s -o /dev/null -w '%{http_code}\n' $URL/.well-known/oauth-protected-resource/mcp/<namespace>/<name>` prints `200`.
