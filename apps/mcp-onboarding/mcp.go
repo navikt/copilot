@@ -301,8 +301,12 @@ func (h *MCPHandler) processRequest(req *JSONRPCRequest, user *UserContext) *JSO
 }
 
 func (h *MCPHandler) handleInitialize(req *JSONRPCRequest) *JSONRPCResponse {
+	var params struct {
+		ProtocolVersion string `json:"protocolVersion"`
+	}
+	_ = json.Unmarshal(req.Params, &params)
 	result := InitializeResult{
-		ProtocolVersion: "2024-11-05",
+		ProtocolVersion: mcpNegotiateLegacyVersion(params.ProtocolVersion),
 		Capabilities: ServerCapabilities{
 			Tools: &ToolsCapability{
 				ListChanged: false,
@@ -1443,6 +1447,7 @@ func (h *MCPHandler) serveModern(w http.ResponseWriter, r *http.Request, body []
 		writeMCPError(w, http.StatusBadRequest, req.ID, e)
 		return
 	}
+	// A notification has no id; with one it is a request (transport rule 5).
 	if strings.HasPrefix(req.Method, "notifications/") && req.ID == nil {
 		w.WriteHeader(http.StatusAccepted)
 		return

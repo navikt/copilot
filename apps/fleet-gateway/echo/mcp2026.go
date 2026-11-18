@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"os"
+	"slices"
 	"strings"
 	"time"
 )
@@ -21,8 +22,10 @@ const (
 	mcpCodeHeaderMismatch      = -32020
 	mcpCodeUnsupportedVersion  = -32022
 	mcpCodeMethodNotFound      = -32601
+	mcpCodeInvalidParams       = -32602
 	mcpCodeParseError          = -32700
 	mcpMetaProtocolVersion     = "io.modelcontextprotocol/protocolVersion"
+	mcpMetaClientCapabilities  = "io.modelcontextprotocol/clientCapabilities"
 	mcpMetaServerInfo          = "io.modelcontextprotocol/serverInfo"
 	mcpLegacyUntilEnv          = "MCP_LEGACY_PROTOCOL_UNTIL"
 	mcpDiscoverTTLMilliseconds = 300000
@@ -40,10 +43,29 @@ type mcpRPCError struct {
 type mcpEnvelope struct {
 	Method string `json:"method"`
 	Params struct {
-		Name string                     `json:"name"`
-		URI  string                     `json:"uri"`
-		Meta map[string]json.RawMessage `json:"_meta"`
+		Name string `json:"name"`
+		URI  string `json:"uri"`
+		// ProtocolVersion is the initialize-era handshake field, not _meta.
+		ProtocolVersion string                     `json:"protocolVersion"`
+		Meta            map[string]json.RawMessage `json:"_meta"`
 	} `json:"params"`
+}
+
+// hasClientCapabilities reports whether _meta carries clientCapabilities as a
+// JSON object; an empty object is valid (no optional capabilities).
+func (e mcpEnvelope) hasClientCapabilities() bool {
+	var m map[string]json.RawMessage
+	return json.Unmarshal(e.Params.Meta[mcpMetaClientCapabilities], &m) == nil && m != nil
+}
+
+// mcpNegotiateLegacyVersion answers an initialize-era handshake: echo the
+// requested revision when supported, else offer the newest one.
+// https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle#version-negotiation
+func mcpNegotiateLegacyVersion(requested string) string {
+	if slices.Contains(mcpLegacyVersions, requested) {
+		return requested
+	}
+	return mcpLegacyVersions[0]
 }
 
 func (e mcpEnvelope) metaVersion() string {
@@ -100,12 +122,21 @@ func validateModernMCPRequest(r *http.Request, env mcpEnvelope, now time.Time) *
 	mismatch := func(msg string) *mcpRPCError {
 		return &mcpRPCError{Code: mcpCodeHeaderMismatch, Message: msg}
 	}
+	// Required _meta fields absent from params: InvalidParams, not HeaderMismatch.
+	// https://modelcontextprotocol.io/specification/2026-07-28/schema#requestmetaobject
+	invalid := func(msg string) *mcpRPCError {
+		return &mcpRPCError{Code: mcpCodeInvalidParams, Message: msg}
+	}
 	h := r.Header.Get("MCP-Protocol-Version")
 	switch {
 	case h == "":
 		return mismatch("missing MCP-Protocol-Version header")
 	case h != mcpModernVersion:
 		return mcpUnsupportedVersion(h, now)
+	case env.metaVersion() == "":
+		return invalid("missing _meta " + mcpMetaProtocolVersion)
+	case !env.hasClientCapabilities():
+		return invalid("missing _meta " + mcpMetaClientCapabilities + " (use {} for none)")
 	case env.metaVersion() != h:
 		return mismatch("MCP-Protocol-Version header does not match _meta " + mcpMetaProtocolVersion)
 	case r.Header.Get("Mcp-Method") != env.Method:
