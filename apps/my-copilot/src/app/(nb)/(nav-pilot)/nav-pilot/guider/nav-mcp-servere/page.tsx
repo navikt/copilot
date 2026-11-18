@@ -117,11 +117,9 @@ export default function NavMcpServerePage() {
         <Bullets>
           <li>
             OpenCode 2.x: <code className={code}>&quot;protocol&quot;: &quot;2026-07-28&quot;</code> virker bare mot
-            servere som støtter revisjonen. <code className={code}>onboarding</code> gjør ikke det ennå (
-            <a href="https://github.com/navikt/copilot/pull/2365" className={linkClass}>
-              #2365
-            </a>
-            ). Bruk <code className={code}>&quot;protocol&quot;: &quot;auto&quot;</code> til da.
+            servere som bare støtter revisjonen. <code className={code}>onboarding</code> støtter både{" "}
+            <code className={code}>2026-07-28</code> og eldre protokoll, så bruk{" "}
+            <code className={code}>&quot;protocol&quot;: &quot;auto&quot;</code> der.
           </li>
           <li>
             OpenCode 1.19 støtter ikke <code className={code}>2026-07-28</code> og bruker eldre protokoll.

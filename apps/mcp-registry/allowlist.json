@@ -124,6 +124,7 @@
         "subfolder": "apps/fleet-gateway"
       },
       "tags": ["developer-tools", "onboarding", "nav-internal", "gateway"],
+      "protocolVersions": ["2026-07-28", "2024-11-05"],
       "remotes": [
         {
           "type": "streamable-http",
