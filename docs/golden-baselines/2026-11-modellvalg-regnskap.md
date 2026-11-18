@@ -33,3 +33,5 @@ Brukt etter trinn 0: **217.72**.
 | Arm | Estimat | Reservert (brukt + estimat) | Agent | Dommer | Probe | Faktisk | Bestått | Status |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | coding mai-code-2-flash low | 5 | 222.72 | 3.58 | 0 | 5.91 | 9.49 | 30/30 sjekker, 15/15 oppgaver | ferdig; stoppet først på regel 5 (7,5), innenfor etter eierbeslutningen (1,5 × 10,91 = 16,4) |
+| coding mai-code-1.1-flash low | 20 | 253.12 | 13.66 | 0 | 5.91 | 19.57 | ko1–ko6 5/5 | ferdig |
+| coding mai-code-2 low (avbrutt) | 47 | 299.69 | 3.74 | 0 | 5.91 | 9.65 | – | avbrutt i run 1 da OpenCode-serveren startet på nytt 19:34 UTC. Ingenting lagret. Agentkostnaden er hentet fra `session-store.db` (11 kall, `mai-code-2`/`low`, 19:33:49–19:34:31 UTC). Armen kjøres på nytt fra start |

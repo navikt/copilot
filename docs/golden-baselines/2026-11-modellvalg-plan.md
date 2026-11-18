@@ -396,3 +396,19 @@ Kilde: modellsidene [gpt-6-2-sol](https://artificialanalysis.ai/models/gpt-6-2-s
 | 5. Samme versjon, samme dag, høyst 30 dager | v5.0.1, 18.11. | v5.0.1, 18.11. | holder |
 
 Krav 3 holder ikke. Etter planen stopper D1 da («D1 feiler trinn 1: D1 stopper»). Eieren avgjør før trinn B. Øyeblikksbildet er ikke lagret i copilot-intern ennå.
+
+### 18. november 2026, kveld: eierbeslutninger om D1 og full test
+
+**Avvik fra forhåndsregistreringen.** Begrunnelse fra eieren: «vi ønsker gode data og målinger for kapabiliteter og det som trengs for å beslutte bytte».
+
+1. **D1 fortsetter** selv om krav 3 i trinn 1 ikke holder (kostnad per oppgave hos Artificial Analysis er 14 % høyere). Beslutningsreglene for D1 er uendret: et bytte krever fortsatt alle kravene i trinn 2 og en statistisk sikker kostnadsgevinst i våre egne oppgaver. Funnet fra Artificial Analysis rapporteres sammen med resultatet.
+2. **Full test.** Stoppreglene for manglende utsikt i trinn B brukes ikke. Alle armene i B og C kjøres til n = 5: D1, D3 (med `planning` som informasjon), D4 `norsk` og `accessibility`. Beslutningsreglene ved n = 5 er uendret. Ingen beslutning tas før n = 5, og det finnes ingen tidlig suksessbeslutning, så endringen øker ikke risikoen for falske funn. Den fjerner bare et tap av styrke.
+3. **Hardstopp beholdes:** myk ramme 6 500 med reservasjon per arm og stopp før en arm som kan bryte den, regel 5 (1,5 × (estimat + probe)), stopp ved ufullstendige bruksdata, ingen parallelle armer, og last høyst 8.
+
+Gjennomføring (valgt av den som kjører, innenfor beslutningen over):
+
+- B og C kjøres som én måling med n = 5 per arm, ikke som delte halvdeler (2 + 3, 1 + 4). Matrisearmene ligger i `2026-11-modellvalg-bc.matrix` og lagres i `2026-11-modellvalg-bc/<suite>-<modell>-<innsats>.txt`. Navneregelen fra [Matrise](#matrise) er uendret, og bare trinnmappa heter `bc`. Reglene for delte armer under [Felles oppsett](#felles-oppsett) gjelder ikke, fordi ingen arm deles. Erstatningskjøringer følger de vanlige reglene, med `utenfor-oppsummering/` i `2026-11-modellvalg-bc/`.
+- Estimatet per arm er summen av estimatene for B og C, for eksempel review Astra 400 + 600 = 1 000.
+- D4 `accessibility` kjøres med `--repeat 5` og lagres i `2026-11-modellvalg-bc/accessibility-<modell>-default`.
+- D1 trinn 2 kjøres med protokollens eksakte kommandoer og stier. Silingen av D1 (`7b,9,9b,9c,9d`, n = 2) kjøres ikke. Den hadde bare en stoppfunksjon og telles ikke med i trinn 2 (se [Matrise](#matrise)).
+- Arm `coding mai-code-2` i trinn A ble avbrutt i run 1 av en omstart av OpenCode-serveren, som drepte kjøringen. Ingenting ble lagret, og armen kjøres på nytt fra start. Kostnaden for det avbrutte forsøket (3,74 + probe) står i regnskapet.

@@ -1,0 +1,48 @@
+ MD Read .github/instructions/golang.instructions.md L1:220 (219 lines read)
+
+ $ Shell Inspect repository structure and locate the ytelse directory 13 lines…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.qenq4R/repo && pwd
+   && ls -1 && echo '---' && ls -1 ytelse 2>/dev/null || true
+
+ GO Read ytelse/ytelse.go Path does not exist
+
+ GO Read ytelse/ytelse_test.go L1:220 (21 lines read)
+
+ GO Read ytelse/utbetaling.go L1:220 (6 lines read)
+
+Jeg sjekker de konkrete funksjonene og kjører den minste relevante testen for å finne årsaken, så jeg retter koden uten å endre testene.
+
+ GO Read ytelse/rapport.go L1:200 (8 lines read)
+
+ ✗ Shell Run the ytelse Go tests to reproduce the failure Failed with exit code 1  # example.com/yt…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.qenq4R/repo/ytelse
+   && go test ./...
+   # example.com/ytelse [example.com/ytelse.test]
+   ./ytelse_test.go:11:36: too many arguments in call to Utbetaling
+           have (int, int)
+           want (int)
+   ./ytelse_test.go:18:36: too many arguments in call to Rapport
+           have (string, number, number)
+           want (string, int)
+   FAIL    example.com/ytelse [build failed]
+   FAIL
+   Failed with exit code 1
+
+ GO Edit ytelse/utbetaling.go +4 -3
+
+ GO Edit ytelse/rapport.go +2 -2
+
+Koden er oppdatert til å bruke grad som prosent i beregningen. Nå verifiserer jeg med den nøyaktige Go-testkommandoen i ytelse-mappen.
+
+ $ Shell Verify the ytelse package tests pass after fixing the calculation logic 1 line…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.qenq4R/repo/ytelse
+   && go test ./...
+
+Fikset: `Utbetaling` og `Rapport` tar nå med grad som prosent, slik at 100% = full dagsats og 50% = halv dagsats.
+
+Verifisert med:
+`cd .../ytelse && go test ./...`
+
+Resultat:
+`ok   example.com/ytelse`
+
