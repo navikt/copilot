@@ -164,8 +164,9 @@ func (g *Gateway) routes() http.Handler {
 	if g.cfg.DCREnabled {
 		mux.HandleFunc("POST /register", g.rateLimitMiddleware(g.registerHandler))
 	}
+	inFlight := make(chan struct{}, g.cfg.MCPMaxInFlight) // shared by all MCP routes
 	for _, route := range g.cfg.Routes {
-		mux.HandleFunc(route.Route, g.mcpHandler(route))
+		mux.HandleFunc(route.Route, inFlightLimit(inFlight, g.mcpHandler(route)))
 	}
 	mux.HandleFunc("/mcp/{name}", g.oldRoutePathHandler)
 	return g.loggingMiddleware(mux)
@@ -471,7 +472,8 @@ func main() {
 		Handler:           gw.routes(),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
-		WriteTimeout:      15 * time.Second,
+		// Non-SSE MCP responses may take a header timeout plus a body timeout; SSE clears its own deadline.
+		WriteTimeout:      2*cfg.ProxyHeaderTimeout + 5*time.Second,
 		IdleTimeout:       60 * time.Second,
 	}
 

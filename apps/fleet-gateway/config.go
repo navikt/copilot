@@ -29,6 +29,8 @@ const (
 	defaultSessionTTL                       = time.Hour
 	defaultCIMDTTL                          = 5 * time.Minute
 	defaultOutboundTimeout                  = 10 * time.Second
+	defaultUpstreamTimeout                  = 60 * time.Second // MCP tool calls; headers and body each get this long
+	defaultMCPMaxInFlight                   = 16
 	defaultPendingCap                       = 1024
 	defaultCodeCap                          = 1024
 	defaultSessionCap                       = 4096
@@ -91,6 +93,7 @@ type Config struct {
 	CookieVerifyKeys        [][]byte // extra keys accepted on verify only (older RT_KEYS entries)
 	HTTPClient              *http.Client
 	ProxyHeaderTimeout      time.Duration
+	MCPMaxInFlight          int // concurrent /mcp/* requests per pod
 	SSEMaxDuration          time.Duration
 	SSEIdleTimeout          time.Duration
 	SSEMaxBytes             int64
@@ -198,7 +201,8 @@ func loadConfigFromEnv() (*Config, error) {
 		CookieSecret:            cookieKeys[0],
 		CookieVerifyKeys:        cookieKeys[1:],
 		HTTPClient:              newHardenedHTTPClient(defaultOutboundTimeout),
-		ProxyHeaderTimeout:      defaultOutboundTimeout,
+		ProxyHeaderTimeout:      getEnvDuration("UPSTREAM_TIMEOUT", defaultUpstreamTimeout),
+		MCPMaxInFlight:          getEnvInt("MCP_MAX_IN_FLIGHT", defaultMCPMaxInFlight),
 		SSEMaxDuration:          getEnvDuration("SSE_MAX_DURATION", defaultSSEMaxDuration),
 		SSEIdleTimeout:          getEnvDuration("SSE_IDLE_TIMEOUT", defaultSSEIdleTimeout),
 		SSEMaxBytes:             getEnvInt64("SSE_MAX_BYTES", defaultSSEMaxBytes),
@@ -319,7 +323,10 @@ func validateConfig(cfg *Config) error {
 		cfg.HTTPClient = newHardenedHTTPClient(defaultOutboundTimeout)
 	}
 	if cfg.ProxyHeaderTimeout <= 0 {
-		cfg.ProxyHeaderTimeout = defaultOutboundTimeout
+		cfg.ProxyHeaderTimeout = defaultUpstreamTimeout
+	}
+	if cfg.MCPMaxInFlight <= 0 {
+		cfg.MCPMaxInFlight = defaultMCPMaxInFlight
 	}
 	if cfg.SSEMaxDuration <= 0 {
 		cfg.SSEMaxDuration = defaultSSEMaxDuration

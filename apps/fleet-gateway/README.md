@@ -40,6 +40,8 @@ The gateway is live in prod (2026-11-17) for a controlled pilot. It runs the aut
 | `ENTRA_SCOPE` | No | `openid api://<own client id>/.default` (plus `offline_access` for `refresh`) | Scope requested from Entra |
 | `COOKIE_SIGNING_SECRET` | No | HKDF subkey of the primary `RT_KEYS` key; random only outside Nais | HMAC key (>= 32 bytes) for the `__Host-fleet_entra_state` cookie. On Nais (`NAIS_CLUSTER_NAME` set) startup fails if neither this nor `RT_KEYS` is set |
 | `PORT` | No | `8080` | HTTP listen port |
+| `UPSTREAM_TIMEOUT` | No | `60s` | Time the MCP server gets to send response headers, and again to finish a non-SSE body. SSE uses `SSE_IDLE_TIMEOUT` and `SSE_MAX_DURATION` instead |
+| `MCP_MAX_IN_FLIGHT` | No | `16` | Concurrent `/mcp/*` requests per pod. Over the cap: `503` with `Retry-After: 1` |
 | `LOG_LEVEL` | No | `INFO` | `DEBUG`, `INFO`, `WARN`, or `ERROR` |
 
 | `TEAM_TOKEN_STRATEGY` | No | `obo` | `obo` (Texas OBO) or `refresh` (Entra refresh token held in the session; needs `RT_STORAGE=server`) |
@@ -61,6 +63,10 @@ In `version: 2` route files every route lists the tools it allows in `tools: [..
 Key rotation: prepend a new `kid:key`, deploy, drop the old entry after `SESSION_MAX_AGE` plus one deploy. Unknown or tampered values fail closed.
 
 Empty `ALLOWED_CLIENT_IDS` or `ALLOWED_REDIRECT_URIS` fails closed at startup.
+
+## Memory and limits
+
+Each MCP call buffers up to 1 MiB of request and 10 MiB of non-SSE response. With 16 calls in flight that is at most 176 MiB of bodies, plus a Go runtime of roughly 20-30 MiB. Hence a 256 Mi limit and a 128 Mi request in both clusters. The figure is arithmetic, not a load test: raise `MCP_MAX_IN_FLIGHT` only together with the memory limit.
 
 ## Security
 
