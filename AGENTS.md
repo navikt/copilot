@@ -80,6 +80,11 @@ After editing an app, run `mise check` in that app's directory. Run `mise all` w
   translate it or restyle it to the ki-utvikling/Aksel look; fix bugs only.
 - Do not commit secrets.
 - Do not push unless explicitly asked.
+- New direct dependencies need a justification in the PR body: why the
+  stdlib or an existing dependency is not enough, maintenance status (recent
+  releases, not archived) and licence. Major upgrades are reviewed by a human
+  before merge. Dependabot is grouped per ecosystem in `.github/dependabot.yml`;
+  add new module directories there instead of new update entries.
 
 ## Merging a stacked pull request
 
