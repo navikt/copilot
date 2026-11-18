@@ -806,9 +806,46 @@ run_suite() {
   grep -q '^MELLOMROM_OK$' "$f"
   run grep -E 'hemmelig-verdi|UTENFOR' "$f"
   [ "$status" -eq 1 ]
-  grep -qx '=== ./.env (skipped: may hold a secret)' "$f"
-  grep -qx '=== ./README.md (skipped: symlink)' "$f"
-  grep -qx '=== ./src/main/kotlin/no/nav/demo/Config.kt (skipped: outside the workspace)' "$f"
+  grep -qx '=== ./.env (skipped: not a source file)' "$f"
+  grep -qx '=== ./README.md (skipped: symlink or not a regular file)' "$f"
+  grep -qx '=== ./src/main/kotlin/no/nav/demo/Config.kt (skipped: symlink or not a regular file)' "$f"
+}
+
+@test "golden-save-written: a file or parent swapped for a symlink during the read is not followed" {
+  local ws="$SHIM/ws" ute="$SHIM/ute"
+  mkdir -p "$ws/a" "$ute/a"
+  echo INNE_F >"$ws/a/F.kt"; echo INNE_G >"$ws/G.kt"
+  echo UTENFOR >"$ute/a/F.kt"; echo UTENFOR >"$ute/G.kt"
+  # Swaps after the parent is open and before the file is: G.kt for a symlink,
+  # and the directory a/ for a symlink to a directory outside.
+  cat >"$SHIM/hook" <<EOF
+#!/bin/bash
+case "\$1" in
+  ./G.kt) rm "$ws/G.kt" && ln -s "$ute/G.kt" "$ws/G.kt" ;;
+  ./a/F.kt) mv "$ws/a" "$ws/a.gammel" && ln -s "$ute/a" "$ws/a" ;;
+esac
+EOF
+  chmod +x "$SHIM/hook"
+  printf './G.kt\n./a/F.kt\n' >"$SHIM/paths"
+  run env GOLDEN_SAVE_WRITTEN_HOOK="$SHIM/hook" python3 "$BATS_TEST_DIRNAME/golden-save-written.py" "$ws" <"$SHIM/paths"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"=== ./G.kt (skipped: symlink or not a regular file)"* ]]
+  grep -A1 -x '=== ./a/F.kt' <<<"$output" | grep -qx INNE_F
+  [[ "$output" != *UTENFOR* ]]
+}
+
+@test "golden-save-written: secret-looking and non-source files are named, not copied" {
+  local ws="$SHIM/ws" f
+  mkdir -p "$ws/.docker"
+  for f in .netrc .pypirc k.p12 k.pfx k.jks k.keystore .git-credentials .docker/config.json kubeconfig prod.tfvars \
+    kubeconfig.yaml client-secret.yaml .env.md; do echo HEMMELIG >"$ws/$f"; done
+  echo KODE >"$ws/App.kt"
+  (cd "$ws" && find . -type f | sort) >"$SHIM/paths"
+  run python3 "$BATS_TEST_DIRNAME/golden-save-written.py" "$ws" <"$SHIM/paths"
+  [ "$status" -eq 0 ]
+  grep -A1 -x '=== ./App.kt' <<<"$output" | grep -qx KODE
+  [[ "$output" != *HEMMELIG* ]]
+  [ "$(grep -c '(skipped: not a source file)' <<<"$output")" -eq 13 ]
 }
 
 @test "coding: a fix passes, editing the test fails scope, doing nothing fails tests" {
