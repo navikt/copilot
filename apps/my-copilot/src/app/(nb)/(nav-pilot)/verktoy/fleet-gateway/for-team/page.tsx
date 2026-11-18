@@ -86,8 +86,8 @@ if gatewayClientID == "" {
     return errors.New("fleet-gateway mangler i AZURE_APP_PRE_AUTHORIZED_APPS")
 }`;
 
-const GROUP_CHECK = `// Etter at Texas har godkjent tokenet. groups er gruppe-ID-ene (GUID)
-// som appen selv har listet i azure.application.claims.groups.
+const GROUP_CHECK = `// Etter at Texas har godkjent tokenet. groups har gruppe-ID-ene (GUID) fra
+// appens azure.application.claims.groups som brukeren er direkte medlem av.
 if !slices.Contains(claims.Groups, teamGroupID) {
     return errForbidden // 403
 }`;
@@ -166,8 +166,8 @@ export default function FleetGatewayForTeamPage() {
           </li>
           <li>
             Teamet bestemmer selv hvilke verktøy serveren har, og hvem som får bruke dem. Gatewayen slipper inn alle
-            Nav-ansatte som logger inn, og begrenser bare hvilke verktøy ruten tillater. Brukerstyringen gjør serveren
-            deres, se{" "}
+            Nav-ansatte som logger inn, og begrenser bare hvilke verktøy ruten tillater. Serveren deres må selv sjekke
+            hvem brukeren er, se{" "}
             <a href="#autorisasjon" className={linkClass}>
               Hvem får bruke serveren
             </a>
@@ -238,35 +238,36 @@ export default function FleetGatewayForTeamPage() {
           autoriserer selv.
         </BodyLong>
         <BodyLong>
-          Tokenet serveren får (OBO) har bare de gruppene serveren selv har listet i{" "}
-          <code className={code}>azure.application.claims.groups</code>. Gatewayen sender ikke med gruppene den selv
-          kjenner til, og serveren kan ikke lese andre gruppemedlemskap fra tokenet. Det er samme modell som med
-          Wonderwall: tjenesten lister gruppene, Entra filtrerer, og koden sjekker.
+          Tokenet serveren får (OBO-tokenet), har bare de gruppene som står i serverens egen{" "}
+          <code className={code}>azure.application.claims.groups</code>, og som brukeren er direkte medlem av. Gatewayen
+          sender ikke med gruppene den selv kjenner til, og serveren kan ikke lese andre gruppemedlemskap fra tokenet.
+          Det er samme modell som med Wonderwall: tjenesten fører opp gruppene, Entra filtrerer, og koden sjekker.
         </BodyLong>
         <Bullets>
           <li>
-            List teamets gruppe i <code className={code}>claims.groups</code> (se manifestet i steg 1).
+            Før opp teamets gruppe i <code className={code}>claims.groups</code> (se manifestet i steg 1).
           </li>
           <li>
             Sjekk <code className={code}>groups</code> i tokenet, etter sjekkene i steg 2, og svar 403 når teamets
             gruppe-ID mangler.
           </li>
           <li>
-            Uten egen <code className={code}>claims.groups</code> og med{" "}
-            <code className={code}>allowAllUsers: true</code> har tokenet bare Nais sin alle-brukere-gruppe, så en
-            gruppesjekk har ingenting å slå opp.
+            Uten egne grupper i <code className={code}>claims.groups</code> og med{" "}
+            <code className={code}>allowAllUsers: true</code> har tokenet bare gruppen Nais legger til for alle brukere
+            (én gruppe målt i dev 18. november 2026). Da avviser en sjekk mot teamets gruppe alle.
           </li>
         </Bullets>
         <CodeBlock filename="Go-utdrag: gruppesjekk">{GROUP_CHECK}</CodeBlock>
         <BodyLong>
           Alternativet er <code className={code}>allowAllUsers: false</code> med gruppene i{" "}
-          <code className={code}>claims.groups</code>. Da skal Entra avvise brukere utenfor gruppene når gatewayen
-          veksler tokenet (<code className={code}>AADSTS50105</code>). Dette er ikke testet gjennom gatewayen ennå (
+          <code className={code}>claims.groups</code>. Etter Nais-dokumentasjonen skal Entra da avvise brukere utenfor
+          gruppene når gatewayen veksler tokenet (<code className={code}>AADSTS50105</code>). Dette er ikke testet
+          gjennom gatewayen (
           <a href="https://github.com/navikt/copilot/issues/2321" className={linkClass}>
             #2321
           </a>
-          ), og brukeren får feilen som <code className={code}>upstream_token_error</code>. Bruk gruppesjekken i koden
-          til det er verifisert.
+          ). Slik koden er nå, vil brukeren få feilen som <code className={code}>upstream_token_error</code>, men det er
+          heller ikke testet. Bruk gruppesjekken i koden til alternativet er testet.
         </BodyLong>
       </VStack>
 
