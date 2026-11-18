@@ -77,22 +77,21 @@ export default function FleetGatewayPage() {
         </LinkableHeading>
         <BodyLong>
           Team som har, eller vil lage, en MCP-server på Nais og vil gjøre den tilgjengelig for utviklere i Nav.
-          Serveren må bruke Entra ID og følge MCP-protokoll{" "}
+          Serveren må bruke Entra ID og støtte MCP-revisjon{" "}
           <a href={SPEC_URL} className={linkClass}>
             2026-07-28
           </a>{" "}
-          over streamable HTTP fra start (<code className={code}>server/discover</code>, ingen{" "}
-          <code className={code}>initialize</code> eller sesjoner). Se{" "}
-          <a href={ECHO_TREE_URL} className={linkClass}>
-            fleet-echo
-          </a>{" "}
-          som referanseimplementasjon og{" "}
+          over streamable HTTP fra start. Se{" "}
           <NextLink href="/verktoy/fleet-gateway/for-team#krav-til-serveren" className={linkClass}>
             kravene til serveren
-          </NextLink>
-          . En midlertidig støtte for gammel protokoll avsluttes når OpenCode 2.x blir standard (
+          </NextLink>{" "}
+          og referansen{" "}
+          <a href={ECHO_TREE_URL} className={linkClass}>
+            fleet-echo
+          </a>
+          . Gatewayen håndhever ikke kravet ennå (
           <a href="https://github.com/navikt/copilot/issues/2367" className={linkClass}>
-            planlagt i #2367
+            #2367
           </a>
           ).
         </BodyLong>
@@ -140,12 +139,12 @@ export default function FleetGatewayPage() {
         </LinkableHeading>
         <Bullets>
           <li>
-            Nye ruter må oppgi <code className={code}>tools</code> (nivå 1, i drift). Ruteformatet er{" "}
-            <code className={code}>/mcp/&lt;namespace&gt;/&lt;navn&gt;</code>.
+            Hver rute må liste verktøyene den tillater, i <code className={code}>tools</code>. Gatewayen avviser andre
+            verktøykall. Ruten heter <code className={code}>/mcp/&lt;namespace&gt;/&lt;navn&gt;</code>.
           </li>
           <li>
-            Hvert kall revisjonslogges med <code className={code}>NAVident</code>, rute, metode og verktøy
-            (AuthZEN-format). Personvern og lagringstid avklares (
+            Gatewayen logger hvert kall med <code className={code}>NAVident</code>, rute, metode og verktøy. Personvern
+            og lagringstid avklares (
             <a href="https://github.com/navikt/copilot/issues/2316" className={linkClass}>
               #2316
             </a>{" "}
@@ -177,12 +176,12 @@ export default function FleetGatewayPage() {
             .
           </li>
           <li>
-            Grenser: SSE maks 10 minutter, 60 sekunder uten trafikk og 16 MiB per strøm. Tidsavbrudd på 60 sekunder mot
-            oppstrøm og tak på samtidige kall kommer i{" "}
+            En SSE-strøm kan vare i 10 minutter, være stille i 60 sekunder og sende 16 MiB. Tidsavbrudd på 60 sekunder
+            mot serveren og tak på samtidige kall kommer (
             <a href="https://github.com/navikt/copilot/pull/2359" className={linkClass}>
-              PR #2359
-            </a>{" "}
-            (ikke merget ennå).
+              #2359
+            </a>
+            ).
           </li>
         </Bullets>
       </VStack>

@@ -28,8 +28,7 @@ const OPENCODE_JSON = `{
   "mcp": {
     "onboarding": {
       "type": "remote",
-      "url": "https://fleet-gateway.intern.nav.no/mcp/copilot/onboarding",
-      "protocol": "2026-07-28"
+      "url": "https://fleet-gateway.intern.nav.no/mcp/copilot/onboarding"
     }
   }
 }`;
@@ -107,25 +106,23 @@ export default function NavMcpServerePage() {
         </LinkableHeading>
         <Bullets>
           <li>
-            OpenCode 2.x: sett <code className={code}>&quot;protocol&quot;: &quot;2026-07-28&quot;</code> på serveren i{" "}
-            <code className={code}>opencode.json</code>. OpenCode 1.19 støtter ikke{" "}
-            <code className={code}>2026-07-28</code>.
+            OpenCode 2.x: <code className={code}>&quot;protocol&quot;: &quot;2026-07-28&quot;</code> virker bare mot
+            servere som støtter revisjonen. <code className={code}>onboarding</code> gjør ikke det ennå (
+            <a href="https://github.com/navikt/copilot/pull/2365" className={linkClass}>
+              #2365
+            </a>
+            ). Bruk <code className={code}>&quot;protocol&quot;: &quot;auto&quot;</code> til da.
           </li>
           <li>
-            Copilot CLI fra og med versjon <code className={code}>1.0.107</code>
-            forhandler protokollen automatisk.
+            OpenCode 1.19 støtter ikke <code className={code}>2026-07-28</code> og bruker eldre protokoll.
           </li>
           <li>
-            <code className={code}>nav-pilot</code> skal sette protokollen automatisk fra{" "}
-            <code className={code}>protocolVersions</code> i registeret (
-            <a href="https://github.com/navikt/copilot/pull/2375" className={linkClass}>
-              planlagt i #2375
-            </a>
-            , registerfeltet er lagt til i{" "}
-            <a href="https://github.com/navikt/copilot/pull/2379" className={linkClass}>
-              #2379
-            </a>
-            ).
+            Copilot CLI prøver <code className={code}>2026-07-28</code> først og faller tilbake til eldre protokoll.
+            Bruk versjon <code className={code}>1.0.107</code> eller nyere.
+          </li>
+          <li>
+            <code className={code}>nav-pilot</code> setter <code className={code}>protocol</code> selv på nye
+            OpenCode-oppføringer, ut fra <code className={code}>protocolVersions</code> i MCP-registeret.
           </li>
         </Bullets>
       </VStack>

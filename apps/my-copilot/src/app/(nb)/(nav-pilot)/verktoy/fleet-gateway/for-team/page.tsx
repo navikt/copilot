@@ -104,8 +104,8 @@ const OPENCODE_JSON = `{
 
 const CHECKLIST = [
   "MCP-serveren støtter protokoll 2026-07-28 over streamable HTTP og kjører på Nais",
-  "Serveren implementerer server/discover uten initialize og sesjoner",
-  "Serveren sjekker Mcp-Method og Mcp-Name (-32020 ved avvik) og svarer -32022 på ustøttet protokollversjon",
+  "Serveren svarer på server/discover og bruker ikke sesjoner",
+  "Serveren sjekker Mcp-Method og Mcp-Name (-32020 ved avvik) og svarer -32022 på protokollversjoner den ikke støtter",
   "azure.application har enabled, tenant: nav.no og allowAllUsers: true",
   "fleet-gateway står i accessPolicy.inbound",
   "Appen sjekker aud, idtyp, NAVident og azp med Texas",
@@ -166,40 +166,44 @@ export default function FleetGatewayForTeamPage() {
           Krav til serveren
         </LinkableHeading>
         <BodyLong>
-          MCP-protokollrevisjon{" "}
+          Serveren må støtte MCP-revisjon{" "}
           <a href={SPEC_URL} className={linkClass}>
             2026-07-28
           </a>{" "}
-          er påkrevd for teamets MCP-server bak fleet-gateway fra start. En midlertidig støtte for gammel protokoll
-          avsluttes når OpenCode 2.x blir standard (
+          fra start. Gatewayen håndhever ikke kravet ennå. Den gjør det når klientene er over på revisjonen (
           <a href="https://github.com/navikt/copilot/issues/2367" className={linkClass}>
-            planlagt i #2367
+            #2367
           </a>
           ).
         </BodyLong>
         <Bullets>
           <li>
-            Implementer <code className={code}>server/discover</code>. Serveren skal ikke ha{" "}
-            <code className={code}>initialize</code> og ikke sesjoner.
+            Svar på <code className={code}>server/discover</code>. Revisjonen har verken{" "}
+            <code className={code}>initialize</code> eller sesjoner.
           </li>
           <li>
-            Les headerne <code className={code}>Mcp-Method</code> og <code className={code}>Mcp-Name</code>. Svar med{" "}
-            <code className={code}>-32020</code> hvis en header ikke stemmer med body.
+            Sjekk <code className={code}>Mcp-Method</code> og <code className={code}>Mcp-Name</code> mot innholdet i
+            forespørselen. Svar 400 med <code className={code}>-32020</code> hvis en av dem mangler eller ikke stemmer.
           </li>
           <li>
-            Svar med <code className={code}>-32022</code> når klienten ber om en protokollversjon serveren ikke støtter.
+            Svar 400 med <code className={code}>-32022</code> når klienten ber om en protokollversjon serveren ikke
+            støtter.
           </li>
           <li>
-            Referanseimplementasjon:{" "}
+            Eldre klienter, som OpenCode 1.19, trenger <code className={code}>initialize</code> i en overgangsperiode.
+            fleet-echo støtter dem til en fast dato med <code className={code}>MCP_LEGACY_PROTOCOL_UNTIL</code>.
+          </li>
+          <li>
+            Referanse:{" "}
             <a href={ECHO_TREE_URL} className={linkClass}>
               fleet-echo
             </a>{" "}
-            (<code className={code}>apps/fleet-gateway/echo</code>, har samsvarstest, merget i PR #2366). For{" "}
-            <code className={code}>mcp-onboarding</code> kommer referanseimplementasjon (
+            (<code className={code}>apps/fleet-gateway/echo</code>), med samsvarstest.{" "}
+            <code className={code}>mcp-onboarding</code> får samme støtte i{" "}
             <a href="https://github.com/navikt/copilot/pull/2365" className={linkClass}>
-              planlagt i #2365
+              #2365
             </a>
-            ).
+            .
           </li>
         </Bullets>
       </VStack>
