@@ -48,17 +48,29 @@ Time from merge to 503: **unmeasured, drill needed** (#2294). There is no faster
 
 ### Close everything
 
-`GATEWAY_DISABLED` is read in `config.go` and is **not** in `.nais/app.yaml`. Break-glass without a merge:
+`GATEWAY_DISABLED` is read in `config.go` and is **not** in `.nais/app.yaml`. Break-glass without a merge, through the Nais API with team rights:
 
 ```sh
-# break-glass: changes prod. Starts a rolling restart.
-kubectl -n copilot set env deploy/fleet-gateway GATEWAY_DISABLED=true
-kubectl -n copilot rollout status deploy/fleet-gateway --timeout=120s
+# break-glass: changes the cluster you name. Starts a rolling restart.
+nais app set env fleet-gateway GATEWAY_DISABLED=true -t copilot -e <env>
+nais app status fleet-gateway -t copilot -e <env>
 ```
 
-Undo: `kubectl -n copilot set env deploy/fleet-gateway GATEWAY_DISABLED-`. The next normal deploy (nais apply) overwrites the manifest and reverts the switch silently, so say in the incident channel that it is on and re-check after every deploy.
+Undo: `nais app set env fleet-gateway GATEWAY_DISABLED- -t copilot -e <env>`.
 
-Time to 503 for the break-glass path: **unmeasured, drill needed**. It is a rollout, not an instant switch: expect old pods to serve until replaced. Whether the Nais deployment controller reverts a `set env` before the next deploy is unverified.
+With RBAC on the deployment, kubectl does the same:
+
+```sh
+kubectl -n copilot set env deploy/fleet-gateway GATEWAY_DISABLED=true
+kubectl -n copilot rollout status deploy/fleet-gateway --timeout=120s
+kubectl -n copilot set env deploy/fleet-gateway GATEWAY_DISABLED-
+```
+
+Developer accounts have no `patch` on deployments in dev-gcp: `kubectl set env` fails with `requires container.deployments.update`. Use the Nais CLI.
+
+A normal deploy overwrites the switch silently (measured in dev 2026-11-18: the switch was gone after the deploy job reran). Say in the incident channel that it is on and re-check after every deploy.
+
+Time to 503 for the break-glass path, dev 2026-11-18: rollout complete in 28 s, every current pod returned `503` on `/mcp/*` at 34 s, with `/health`, `/ready` and PRM metadata still 200. It is a rollout, not an instant switch: the old pod serves until the new one is ready. Undo: rollout complete in 27 s, pod back to 401 at 30 s. The Nais CLI says the change is temporary and is overwritten on the next deploy; the rerun confirmed it.
 
 ## Rotate `RT_KEYS`
 
@@ -108,17 +120,20 @@ Run in dev first (`kubectl config use-context dev-gcp`, `URL=https://fleet-gatew
 - [ ] Baseline: route returns 200/401 (not 503), `/ready` 200.
 - [ ] Route: set `enabled: false` on a dev route, open PR. Same-repo PRs deploy to dev before merge, so the route may already be 503. Start the clock at the shutdown decision (PR opened), not at merge. Stop when the rollout is complete, no old replica serves, and each current pod returns `503` when probed directly (`kubectl port-forward`). Record decision-to-503 and merge-to-503. Time: ____
 - [ ] Re-enable via PR; time to recovery: ____
-- [ ] Global: `kubectl -n copilot set env deploy/fleet-gateway GATEWAY_DISABLED=true`. Start at the command, stop only after `rollout status` completes and each current pod returns `503` when probed directly; repeated ingress requests do not show which replica answered. Time: ____
-- [ ] Confirm `/health`, `/ready`, metadata and login still respond.
-- [ ] While `GATEWAY_DISABLED=true` is still set, run a normal deploy and check whether the switch survives (record which). Undo if it was kept.
-- [ ] Undo with `GATEWAY_DISABLED-`; time to recovery: ____
+- [x] Global (dev, 2026-11-18, `nais app set env`): 34 s to every pod 503. Start at the command, stop only after the rollout completes and each current pod returns `503` when probed directly; repeated ingress requests do not show which replica answered. Time: 34 s.
+- [x] Confirm `/health`, `/ready`, metadata and login still respond.
+- [x] Deploy with the switch set (dev rerun of the deploy job only): the switch did not survive; the pod came back serving 401.
+- [x] Undo with `GATEWAY_DISABLED-`: 30 s to recovery.
 - [ ] Record whether a changed `RT_KEYS` secret needs a restart.
 - [ ] Copy the numbers into this page and close the measurement half of #2294.
 
 ## Alert drill
 
-The owner runs this; agents do not. In dev only.
+Run in dev only. `nais app stop` and `nais app set replicas` ask for interactive confirmation and refuse without a terminal, so the owner runs them. Developer accounts cannot scale with kubectl, and the Alertmanager is not reachable with developer rights (no `pods/portforward` in `nais-system`).
 
-- [ ] `kubectl -n copilot scale deploy/fleet-gateway --replicas=0`.
-- [ ] An alert reaches #github-copilot-alerts. Time from scale-down: ____
-- [ ] `kubectl -n copilot scale deploy/fleet-gateway --replicas=<original>` (check with `get deploy` first); alert resolves. Time: ____
+Alerts route per environment to the channel set in Nais Console, not necessarily #github-copilot-alerts.
+
+- [x] `nais app stop fleet-gateway -t copilot -e dev-gcp` (dev-gcp, 2026-11-18, 19:43:39 UTC).
+- [x] `FleetGatewayNoReadyPods` reached Slack at 19:47 UTC, about 3.5 min after the stop. The team's dev alert channel was changed in Nais Console during the drill, so treat 3.5 min as an upper bound.
+- [x] `nais app set replicas fleet-gateway --min 1 --max 2 -t copilot -e dev-gcp`; `/ready` returned 200 at 19:48:18 UTC.
+- [ ] Alert resolve time: not recorded.
