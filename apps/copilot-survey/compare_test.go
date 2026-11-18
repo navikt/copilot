@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"math"
 	"os"
+	"strings"
 	"testing"
 	"time"
 )
@@ -75,16 +76,16 @@ func checkCompare(t *testing.T, got compareResult) {
 		t.Fatalf("text question not left out: %+v", got.Questions)
 	}
 	tools, grid := got.Questions[0], got.Questions[1]
-	if tools.Break || tools.Waves[0].Excluded != 0 || *tools.Waves[0].Versions[0].N != 6 {
+	if tools.Break || *tools.Waves[0].Excluded != 0 || *tools.Waves[0].Versions[0].N != 6 {
 		t.Errorf("tools %+v", tools)
 	}
 	fast, slow := grid.Items[0], grid.Items[1]
 	// Spring: the two non-users are dropped by autumn's skip_if.
 	s := fast.Waves[0]
-	if fast.Break || s.Excluded != 2 || *s.Versions[0].N != 4 || *s.Versions[0].Mean != 4 || *s.Versions[0].Agree != 0.75 {
+	if fast.Break || *s.Excluded != 2 || *s.Versions[0].N != 4 || *s.Versions[0].Mean != 4 || *s.Versions[0].Agree != 0.75 {
 		t.Errorf("fast spring %+v mean %v agree %v", s, *s.Versions[0].Mean, *s.Versions[0].Agree)
 	}
-	if a := fast.Waves[1]; a.Excluded != 0 || *a.Versions[0].N != 5 || *a.Versions[0].Mean != 3 || *a.Versions[0].Agree != 0 {
+	if a := fast.Waves[1]; *a.Excluded != 0 || *a.Versions[0].N != 5 || *a.Versions[0].Mean != 3 || *a.Versions[0].Agree != 0 {
 		t.Errorf("fast autumn %+v", a)
 	}
 	if !slow.Break || slow.Waves[0].Versions[0].Version != 1 || slow.Waves[1].Versions[0].Version != 2 {
@@ -104,10 +105,16 @@ func TestCompare(t *testing.T) {
 	api := compareAPI(t, func(_ context.Context, id string) ([]storedAnswer, error) { return data[id], nil })
 	checkCompare(t, getCompare(t, api, "spring,autumn"))
 
+	// Admin JSON always carries excluded, also when it is 0.
+	rec := do(makeRouter(testAuthenticator(t), api), "GET", "/api/v1/admin/surveys/compare?ids=spring,autumn", adminToken, "")
+	if !strings.Contains(rec.Body.String(), `"excluded":0`) {
+		t.Errorf("admin excluded 0 omitted: %s", rec.Body)
+	}
+
 	// Control: without autumn's skip_if, spring keeps its non-users.
 	rule := api.surveys[1].Questions[1].SkipIf
 	api.surveys[1].Questions[1].SkipIf = nil
-	if s := getCompare(t, api, "spring,autumn").Questions[1].Items[0].Waves[0]; s.Excluded != 0 || *s.Versions[0].N != 6 {
+	if s := getCompare(t, api, "spring,autumn").Questions[1].Items[0].Waves[0]; *s.Excluded != 0 || *s.Versions[0].N != 6 {
 		t.Errorf("control: %+v", s)
 	}
 	api.surveys[1].Questions[1].SkipIf = rule
@@ -172,4 +179,20 @@ func TestCompareStore(t *testing.T) {
 		}
 	}
 	checkCompare(t, getCompare(t, api, "spring,autumn"))
+}
+
+// An id asked as free text in an earlier wave is not counted as the later
+// wave's question: those answers are someone's text, not options.
+func TestCompareTypeChange(t *testing.T) {
+	data := waveRows()
+	for i := range data["spring"] {
+		data["spring"][i].Answers["tools"] = "a"
+	}
+	api := compareAPI(t, func(_ context.Context, id string) ([]storedAnswer, error) { return data[id], nil })
+	api.surveys[0].Questions[0].Type, api.surveys[0].Questions[0].Options = "text", nil
+	tools := getCompare(t, api, "spring,autumn").Questions[0]
+	if !tools.Break || len(tools.Waves[0].Versions) != 0 || *tools.Waves[1].Versions[0].N != 5 ||
+		tools.Waves[0].Excluded == nil || *tools.Waves[0].Excluded != 0 { // admin always says excluded
+		t.Errorf("free text counted: %+v", tools)
+	}
 }

@@ -452,7 +452,8 @@
     "sources": [
       "apps/my-copilot/src/app/(nb)/innsikt/page.tsx",
       "apps/my-copilot/src/app/(nb)/innsikt/undersokelser/[id]/page.tsx",
-      "apps/my-copilot/src/app/(nb)/innsikt/undersokelser/page.tsx"
+      "apps/my-copilot/src/app/(nb)/innsikt/undersokelser/page.tsx",
+      "apps/my-copilot/src/app/(nb)/innsikt/undersokelser/serie/[series]/page.tsx"
     ],
     "anchors": {
       "kilde-og-metode": ["apps/my-copilot/src/components/insight-page.tsx"],
