@@ -317,3 +317,32 @@ func TestPublishedCompareAfterRetention(t *testing.T) {
 		matchesResults(wantJSON)
 	}
 }
+
+func TestShippedSeriesPublished(t *testing.T) {
+	defs, err := loadSurveyDir(surveyFiles)
+	if err != nil {
+		t.Fatal(err)
+	}
+	read := func(context.Context, string) ([]storedAnswer, error) {
+		r := row(`{}`, `{}`)
+		r.Client, r.Context = "web", map[string]any{"client": "web"}
+		return []storedAnswer{r, r, r, r, r}, nil
+	}
+	api := &surveyAPI{surveys: defs, answers: read, now: func() time.Time { return time.Date(2026, 11, 18, 0, 0, 0, 0, time.UTC) }}
+	rec := do(makeRouter(testAuthenticator(t), api), "GET", "/api/v1/surveys/published/compare?series=utviklerundersokelsen", webToken, "")
+	var got compareResult
+	if rec.Code != 200 || json.Unmarshal(rec.Body.Bytes(), &got) != nil {
+		t.Fatalf("%d %s", rec.Code, rec.Body)
+	}
+	if len(got.Surveys) != 2 || got.Surveys[0].ID != "q2-2026" || got.Surveys[1].ID != "q4-2026" {
+		t.Fatalf("waves %+v", got.Surveys)
+	}
+	for _, s := range got.Surveys {
+		if s.Channels != nil {
+			t.Errorf("channels published: %+v", s)
+		}
+	}
+	if strings.Contains(rec.Body.String(), `"excluded"`) {
+		t.Error("excluded published")
+	}
+}
