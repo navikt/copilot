@@ -31,7 +31,8 @@ func TestMCPRegistryListed(t *testing.T) {
 		// The package has to be what runs, not an argument to something else.
 		{mcpServer{Type: "local", Command: []string{"node", "evil.js", "@playwright/mcp"}}, false},
 		{mcpServer{Type: "local", Command: []string{"pnpm", "dlx", "@playwright/mcp"}}, true},
-		{mcpServer{Type: "local", Command: []string{"npx", "--package", "@playwright/mcp", "mcp"}}, true},
+		{mcpServer{Type: "local", Command: []string{"npx", "--package", "@playwright/mcp", "mcp"}}, false},
+		{mcpServer{Type: "local", Command: []string{"npx", "-p", "@playwright/mcp", "node", "-e", "x"}}, false},
 		{mcpServer{Type: "local", Command: []string{"npx", "-e", "evil()", "@playwright/mcp"}}, false},
 		{mcpServer{Type: "local", Command: []string{"npx", "--call=evil", "@playwright/mcp"}}, false},
 		{mcpServer{Type: "local", Command: []string{"npx", "--eval", "evil()", "@playwright/mcp"}}, false},
@@ -43,6 +44,43 @@ func TestMCPRegistryListed(t *testing.T) {
 	} {
 		if got := reg.listed(tt.s); got != tt.want {
 			t.Errorf("listed(%+v) = %v, want %v", tt.s, got, tt.want)
+		}
+	}
+}
+
+func TestLocalPackageRunnerForms(t *testing.T) {
+	runners := [][]string{
+		{"npx"},
+		{"bunx"},
+		{"pnpm", "dlx"},
+		{"yarn", "dlx"},
+	}
+	cases := []struct {
+		args []string
+		want string
+	}{
+		{[]string{"@playwright/mcp"}, "@playwright/mcp"},
+		{[]string{"-y", "@playwright/mcp"}, "@playwright/mcp"},
+		{[]string{"-p", "@playwright/mcp"}, "@playwright/mcp"},
+		{[]string{"--package", "@playwright/mcp"}, "@playwright/mcp"},
+		{[]string{"--package=@playwright/mcp"}, "@playwright/mcp"},
+		{[]string{"-p", "@playwright/mcp", "node", "x.js"}, ""},
+		{[]string{"--package", "@playwright/mcp", "mcp"}, ""},
+		{[]string{"--package=@playwright/mcp", "sh"}, ""},
+		{[]string{"-p", "@playwright/mcp", "-p", "other"}, ""},
+		{[]string{"-p", "@playwright/mcp", "--", "node"}, ""},
+		{[]string{"--", "@playwright/mcp"}, ""},
+		{[]string{"-p"}, ""},
+		{[]string{"--package="}, ""},
+	}
+	for _, runner := range runners {
+		for _, tc := range cases {
+			cmd := append(append([]string(nil), runner...), tc.args...)
+			t.Run(strings.Join(cmd, " "), func(t *testing.T) {
+				if got := localPackage(cmd); got != tc.want {
+					t.Errorf("localPackage(%q) = %q, want %q", cmd, got, tc.want)
+				}
+			})
 		}
 	}
 }
