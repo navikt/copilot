@@ -99,6 +99,7 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 		decisionReason := ""
 
 		defer func() {
+			observeMCPRequest(route.Route, outcome, decision, g.now().Sub(start))
 			slog.Info("audit mcp",
 				"navident", sanitizeLogValue(navIdent),
 				"client_id", sanitizeLogValue(clientID),

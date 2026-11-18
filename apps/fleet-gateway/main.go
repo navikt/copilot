@@ -237,6 +237,7 @@ func (g *Gateway) loggingMiddleware(next http.Handler) http.Handler {
 		if r.URL.Path == "/health" || r.URL.Path == "/ready" {
 			return
 		}
+		observeHTTPRequest(wrapped.statusCode)
 		// Never log query strings, headers, tokens, codes, or verifiers.
 		slog.Info("request completed",
 			"method", sanitizeLogValue(r.Method),
@@ -486,6 +487,14 @@ func main() {
 		"rt_storage", cfg.RTStorage,
 	)
 
+	routesLoaded.Set(float64(len(cfg.Routes)))
+	metrics := metricsServer(":" + getEnv("METRICS_PORT", "9090"))
+	go func() {
+		if err := metrics.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			slog.Error("Metrics server failed", "error", err)
+		}
+	}()
+
 	go func() {
 		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			slog.Error("Server failed", "error", err)
@@ -498,6 +507,7 @@ func main() {
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+	_ = metrics.Shutdown(shutdownCtx)
 	if err := server.Shutdown(shutdownCtx); err != nil {
 		slog.Error("Server shutdown failed", "error", err)
 	}
