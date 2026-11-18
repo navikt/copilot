@@ -56,7 +56,7 @@ A route path is `/mcp/<namespace>/<name>`, and `<namespace>` must equal the name
 
 Routes in `pilot-routes.yaml` (`PILOT_ROUTES_FILE`) support an optional `enabled: false` field to disable a single route (`503`, `Retry-After: 300`) while keeping it validated and registered.
 
-In `version: 2` route files every route lists the tools it allows in `tools: [...]`; the gateway rejects any other `tools/call`, and any ambiguous JSON-RPC body (case-variant or duplicate keys, trailing data), with a JSON-RPC error and does not forward it. Only the operator sets `passAllTools: true` instead, for a route that forwards every call. `version: 1` files load unchanged and pass every call.
+In route files (`version: 2`) every route lists the tools it allows in `tools: [...]`; the gateway rejects any other `tools/call`, and any ambiguous JSON-RPC body (case-variant or duplicate keys, trailing data), with a JSON-RPC error and does not forward it. Only the operator sets `passAllTools: true` instead, for a route that forwards every call. `version: 1` files are rejected at startup with an error.
 
 Key rotation: prepend a new `kid:key`, deploy, drop the old entry after `SESSION_MAX_AGE` plus one deploy. Unknown or tampered values fail closed.
 
