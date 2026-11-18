@@ -88,6 +88,9 @@ type question struct {
 	Reverse   bool   `json:"reverse,omitempty"`   // scale: agreeing is the negative end
 	Min       int    `json:"min,omitempty"`       // scale
 	Max       int    `json:"max,omitempty"`       // scale
+	// Unsure is one more answer after a scale's steps («Vet ikke»), stored as
+	// this label and left out of mean and agree share.
+	Unsure string `json:"unsure,omitempty"`
 	// Labels names every scale step from min to max (a labelled Likert).
 	Labels     []string `json:"labels,omitempty"`
 	Options    []string `json:"options,omitempty"`     // choice, multi
@@ -98,8 +101,9 @@ type question struct {
 	Other  string `json:"other,omitempty"`
 	MaxLen int    `json:"max_length,omitempty"` // text, and other's free text, in characters
 	// SkipIf skips this question when an earlier choice or multi question's
-	// answer is, or includes, the given option.
-	SkipIf *skipRule `json:"skip_if,omitempty"`
+	// answer is, or includes, the given option. In JSON one rule or a list;
+	// the question is skipped when any rule matches.
+	SkipIf skipRules `json:"skip_if,omitempty"`
 	// Items are a matrix's statements, all on its scale (min, max, labels).
 	// Each is answered, versioned and stored as if it were a scale question
 	// of its own, so an item compares with a separate scale question of the
@@ -120,11 +124,43 @@ type skipRule struct {
 	Answer   string `json:"answer"`
 }
 
-// skipped reports whether rule applies to the canonical answers so far.
-func (r *skipRule) skipped(answers map[string]any) bool {
-	if r == nil {
-		return false
+type skipRules []skipRule
+
+// UnmarshalJSON takes one rule (every survey before #2230) or a list.
+func (rs *skipRules) UnmarshalJSON(b []byte) error {
+	if len(b) > 0 && b[0] == '{' {
+		var r skipRule
+		err := decodeStrict(b, &r) // a custom Unmarshaler loses the outer decoder's DisallowUnknownFields
+		*rs = skipRules{r}
+		return err
 	}
+	return decodeStrict(b, (*[]skipRule)(rs))
+}
+
+// MarshalJSON keeps one rule an object, so older clients still read it.
+func (rs skipRules) MarshalJSON() ([]byte, error) {
+	if len(rs) == 1 {
+		return json.Marshal(rs[0])
+	}
+	return json.Marshal([]skipRule(rs))
+}
+
+// skipped reports whether any rule applies to the canonical answers so far.
+func (rs skipRules) skipped(answers map[string]any) bool {
+	return slices.ContainsFunc(rs, func(r skipRule) bool { return r.skipped(answers) })
+}
+
+// matched returns the question of the first rule that applies, for errors.
+func (rs skipRules) matched(answers map[string]any) string {
+	for _, r := range rs {
+		if r.skipped(answers) {
+			return r.Question
+		}
+	}
+	return ""
+}
+
+func (r skipRule) skipped(answers map[string]any) bool {
 	switch v := answers[r.Question].(type) {
 	case string:
 		return v == r.Answer
@@ -234,11 +270,13 @@ func validateSurveys(surveys []survey) error {
 				(q.Items == nil || q.Type == "matrix") &&
 				(!q.Reverse || q.Type == "scale") && (q.MaxChoices == 0 || q.Type == "multi") &&
 				(q.Other == "" || q.Type == "choice" || q.Type == "multi") &&
+				(q.Unsure == "" || q.Type == "scale" || q.Type == "matrix") && !numeric(q.Unsure) &&
 				(q.Exclusive == "" || q.Type == "multi" && slices.Contains(q.Options, q.Exclusive))
-			if q.SkipIf != nil {
-				j := slices.IndexFunc(s.Questions[:i], func(p question) bool { return p.ID == q.SkipIf.Question })
+			ok = ok && (q.SkipIf == nil || len(q.SkipIf) > 0)
+			for _, r := range q.SkipIf {
+				j := slices.IndexFunc(s.Questions[:i], func(p question) bool { return p.ID == r.Question })
 				ok = ok && j >= 0 && (s.Questions[j].Type == "choice" || s.Questions[j].Type == "multi") &&
-					slices.Contains(s.Questions[j].Options, q.SkipIf.Answer)
+					slices.Contains(s.Questions[j].Options, r.Answer)
 			}
 			qseen[q.ID] = true
 			switch q.Type {
@@ -413,7 +451,7 @@ func validateAnswers(s survey, raw map[string]json.RawMessage) (map[string]any, 
 		hasOther = hasOther && q.Other != "" && string(other) != "null"
 		if q.SkipIf.skipped(out) {
 			if (ok && string(v) != "null") || hasOther {
-				return nil, fmt.Errorf("question %q is skipped for this answer to %q", q.ID, q.SkipIf.Question)
+				return nil, fmt.Errorf("question %q is skipped for this answer to %q", q.ID, q.SkipIf.matched(out))
 			}
 			continue
 		}
@@ -428,6 +466,11 @@ func validateAnswers(s survey, raw map[string]json.RawMessage) (map[string]any, 
 		}
 		switch q.Type {
 		case "scale":
+			var u string
+			if q.Unsure != "" && json.Unmarshal(v, &u) == nil && u == q.Unsure {
+				out[q.ID] = u
+				break
+			}
 			var n int
 			if json.Unmarshal(v, &n) != nil || n < q.Min || n > q.Max {
 				return nil, fmt.Errorf("question %q takes a whole number from %d to %d", q.ID, q.Min, q.Max)
@@ -504,6 +547,13 @@ func (s survey) answerable() []question {
 		}
 	}
 	return qs
+}
+
+// numeric reports whether s reads as a number, which a scale's unsure label
+// must not: mean and the CSV tell the two apart that way.
+func numeric(s string) bool {
+	_, err := strconv.ParseFloat(s, 64)
+	return err == nil
 }
 
 // freeText checks a free-text answer and trims it; "" means not answered.

@@ -12,6 +12,8 @@ const FILLS = [
   ["var(--ax-bg-success-moderate-pressed)", "var(--ax-text-neutral)"],
   ["var(--ax-bg-success-strong)", "var(--ax-text-success-contrast)"],
 ];
+// «Vet ikke» sits apart from the scale: a lighter gray than neutral.
+const UNSURE = ["var(--ax-bg-neutral-moderate)", "var(--ax-text-neutral)"];
 /**
  * A chart colour that survives print: Aksel's print layer sets every background to white with !important,
  * so globals.css paints [style*="--fill"] from these variables instead.
@@ -25,7 +27,7 @@ export const pct = (share: number) => `${Math.round(share * 100)} %`;
  * positives right. Decorative: the numbers are in the table under «Vis tall».
  */
 export function LikertBar({ v, min, max, labels }: { v: VersionResult; min: number; max: number; labels: string[] }) {
-  const { segments, mean } = likert(v, min, max);
+  const { segments, unsure, mean } = likert(v, min, max);
   const mid = (min + max) / 2;
   const seg = (s: Segment, width: number, label = true) => {
     const i = Math.round(((s.value - min) / (max - min || 1)) * (FILLS.length - 1));
@@ -53,6 +55,18 @@ export function LikertBar({ v, min, max, labels }: { v: VersionResult; min: numb
         {shown
           .filter((s) => s.value >= mid)
           .map((s) => (s.value === mid ? seg(s, s.share / 2, false) : seg(s, s.share)))}
+        {unsure.count ? (
+          <Box paddingInline="space-4 space-0" style={{ width: `${unsure.share * 100}%` }}>
+            <div
+              data-testid="segment-unsure"
+              title={`Vet ikke: ${pct(unsure.share)} (${formatNumber(unsure.count)})`}
+              className="@container h-7 overflow-hidden whitespace-nowrap text-xs leading-7 text-center"
+              style={fill(UNSURE[0], UNSURE[1])}
+            >
+              <span className="hidden @min-[4.5rem]:inline">{`${pct(unsure.share)} (${formatNumber(unsure.count)})`}</span>
+            </div>
+          </Box>
+        ) : null}
       </div>
       <Box paddingInline="space-12 space-0" className="flex items-center gap-2 text-xs">
         {mean === null ? null : <span>Snitt {mean.toFixed(1).replace(".", ",")}</span>}
@@ -61,7 +75,8 @@ export function LikertBar({ v, min, max, labels }: { v: VersionResult; min: numb
   );
 }
 
-export function Legend({ labels }: { labels: string[] }) {
+/** unsure: the «Vet ikke» label, shown last and marked as left out of n and mean. */
+export function Legend({ labels, unsure }: { labels: string[]; unsure?: string }) {
   return (
     <div aria-hidden className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
       {labels.map((l, i) => (
@@ -73,6 +88,12 @@ export function Legend({ labels }: { labels: string[] }) {
           {l}
         </span>
       ))}
+      {unsure ? (
+        <span className="flex items-center gap-1">
+          <span className="inline-block h-3 w-3 rounded-sm" style={fill(UNSURE[0])} />
+          {unsure} (ikke med i n og snitt)
+        </span>
+      ) : null}
     </div>
   );
 }

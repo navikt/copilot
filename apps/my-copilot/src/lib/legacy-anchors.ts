@@ -8,6 +8,9 @@
 // target exists and that no key is a real id on its page. A value must be a
 // real id on its page, never another key. The link guard rejects chains.
 export const LEGACY_ANCHORS: Record<string, string> = {
+  // /verktoy/fleet-gateway is for teams that offer an MCP server. How to connect moved to a guide.
+  "/verktoy/fleet-gateway#koble-til": "/nav-pilot/guider/nav-mcp-servere#for-du-starter",
+  "/verktoy/fleet-gateway#hva-teamet-gjor": "/verktoy/fleet-gateway/for-team#steg",
   // «Varsler» on the admin cost page became «Månedsinnsikt».
   "/admin/kostnad#avvik": "/admin/kostnad#maanedsinnsikt",
   // /nav-pilot/agentpakker was split into a how-to and a reference page.

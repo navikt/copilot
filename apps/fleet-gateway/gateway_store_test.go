@@ -59,7 +59,7 @@ func TestGatewayReplicas_SharedStore(t *testing.T) {
 	// 1. Login on replica A -> MCP call on replica B succeeds.
 	tok := te.obtainAccessTokenForResource(te.resource)
 
-	reqB := httptest.NewRequest(http.MethodPost, "/mcp/etterlevelse", strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"tools/list"}`))
+	reqB := httptest.NewRequest(http.MethodPost, "/mcp/team-etterlevelse/etterlevelse", strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"tools/list"}`))
 	reqB.Header.Set("Authorization", "Bearer "+tok)
 	recB := httptest.NewRecorder()
 	handlerB.ServeHTTP(recB, reqB)
@@ -71,7 +71,7 @@ func TestGatewayReplicas_SharedStore(t *testing.T) {
 	if err := gwB.store.Delete(context.Background(), kindSession, hashToken(tok)); err != nil {
 		t.Fatalf("delete session on B failed: %v", err)
 	}
-	reqA := httptest.NewRequest(http.MethodPost, "/mcp/etterlevelse", strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"tools/list"}`))
+	reqA := httptest.NewRequest(http.MethodPost, "/mcp/team-etterlevelse/etterlevelse", strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"tools/list"}`))
 	reqA.Header.Set("Authorization", "Bearer "+tok)
 	recA := httptest.NewRecorder()
 	handlerA.ServeHTTP(recA, reqA)
@@ -165,7 +165,7 @@ func TestGatewayReplicas_RefreshRotationAcrossReplicas(t *testing.T) {
 	tok := te.obtainAccessTokenForResource(te.resource)
 
 	// Call on B rotates rt-init -> rt-next-1 and writes back to shared store.
-	reqB := httptest.NewRequest(http.MethodPost, "/mcp/etterlevelse", strings.NewReader(`{"method":"tools/list"}`))
+	reqB := httptest.NewRequest(http.MethodPost, "/mcp/team-etterlevelse/etterlevelse", strings.NewReader(`{"method":"tools/list"}`))
 	reqB.Header.Set("Authorization", "Bearer "+tok)
 	recB := httptest.NewRecorder()
 	handlerB.ServeHTTP(recB, reqB)
@@ -174,7 +174,7 @@ func TestGatewayReplicas_RefreshRotationAcrossReplicas(t *testing.T) {
 	}
 
 	// Next call on A must see rotated rt-next-1.
-	reqA := httptest.NewRequest(http.MethodPost, "/mcp/etterlevelse", strings.NewReader(`{"method":"tools/call"}`))
+	reqA := httptest.NewRequest(http.MethodPost, "/mcp/team-etterlevelse/etterlevelse", strings.NewReader(`{"method":"tools/call"}`))
 	reqA.Header.Set("Authorization", "Bearer "+tok)
 	recA := httptest.NewRecorder()
 	handlerA.ServeHTTP(recA, reqA)
@@ -247,7 +247,7 @@ func TestSessionAbsoluteCap(t *testing.T) {
 
 	// Advance fake clock to issuedAt + 12h - 1s: still valid.
 	te.advance(12*time.Hour - time.Second)
-	okReq := httptest.NewRequest(http.MethodPost, "/mcp/etterlevelse", strings.NewReader(`{}`))
+	okReq := httptest.NewRequest(http.MethodPost, "/mcp/team-etterlevelse/etterlevelse", strings.NewReader(`{}`))
 	okReq.Header.Set("Authorization", "Bearer "+tok)
 	okRec := httptest.NewRecorder()
 	te.handler.ServeHTTP(okRec, okReq)
@@ -257,7 +257,7 @@ func TestSessionAbsoluteCap(t *testing.T) {
 
 	// Advance to issuedAt + 12h + 1s: rejected with 401.
 	te.advance(2 * time.Second)
-	expReq := httptest.NewRequest(http.MethodPost, "/mcp/etterlevelse", strings.NewReader(`{}`))
+	expReq := httptest.NewRequest(http.MethodPost, "/mcp/team-etterlevelse/etterlevelse", strings.NewReader(`{}`))
 	expReq.Header.Set("Authorization", "Bearer "+tok)
 	expRec := httptest.NewRecorder()
 	te.handler.ServeHTTP(expRec, expReq)
@@ -338,7 +338,7 @@ func TestStoreError_Returns503FailClosed(t *testing.T) {
 	}
 
 	// Proxy session lookup error must return 503 JSON {"error":"temporarily_unavailable"}, NOT 401.
-	req := httptest.NewRequest(http.MethodPost, "/mcp/etterlevelse", strings.NewReader(`{}`))
+	req := httptest.NewRequest(http.MethodPost, "/mcp/team-etterlevelse/etterlevelse", strings.NewReader(`{}`))
 	req.Header.Set("Authorization", "Bearer "+tok)
 	rec := httptest.NewRecorder()
 	te.handler.ServeHTTP(rec, req)
@@ -523,7 +523,7 @@ func TestSealedSessionUnknownKID_Returns401(t *testing.T) {
 	tok := te.obtainAccessTokenForResource(te.resource)
 
 	_, handler2 := cloneTestEnvWithSharedStore(t, te, newSealedStore(inner, kr2), te.gw.now)
-	req := httptest.NewRequest(http.MethodPost, "/mcp/etterlevelse", strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"tools/list"}`))
+	req := httptest.NewRequest(http.MethodPost, "/mcp/team-etterlevelse/etterlevelse", strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"tools/list"}`))
 	req.Header.Set("Authorization", "Bearer "+tok)
 	rec := httptest.NewRecorder()
 	handler2.ServeHTTP(rec, req)

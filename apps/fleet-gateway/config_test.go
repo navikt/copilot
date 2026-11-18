@@ -224,143 +224,182 @@ func TestPilotRoutesValidation(t *testing.T) {
 	}{
 		{
 			name: "valid YAML with internal http and https routes",
-			content: `version: 1
+			content: `version: 2
 routes:
-  - route: /mcp/etterlevelse
+  - route: /mcp/team-etterlevelse/etterlevelse
     team: team-etterlevelse
     target: dev-gcp:team-etterlevelse:nav-etterlevelse-mcp
     upstream_url: http://nav-etterlevelse-mcp.team-etterlevelse
-  - route: /mcp/docs
+    passAllTools: true
+  - route: /mcp/copilot/docs
     team: copilot
     target: dev-gcp:copilot:docs-mcp
     upstream_url: https://docs-mcp.intern.dev.nav.no
+    passAllTools: true
 `,
 		},
 		{
 			// Removed for the pilot (owner decision 2026-11-17): a file that still
 			// sets it must fail, not silently drop the restriction.
 			name:      "required_group is rejected",
-			content:   "version: 1\nroutes:\n  - route: /mcp/a\n    team: t\n    target: c:n:a\n    upstream_url: http://a.n\n    required_group: g\n",
+			content:   "version: 2\nroutes:\n  - route: /mcp/n/a\n    team: t\n    target: c:n:a\n    upstream_url: http://a.n\n    passAllTools: true\n    required_group: g\n",
 			wantError: "required_group",
 		},
 		{
 			name:      "valid JSON format succeeds",
-			content:   `{"version":1,"routes":[{"route":"/mcp/json-app","team":"copilot","target":"dev-gcp:copilot:json-mcp","upstream_url":"http://json-mcp.copilot.svc.cluster.local"}]}`,
+			content:   `{"version":2,"routes":[{"route":"/mcp/copilot/json-app","team":"copilot","target":"dev-gcp:copilot:json-mcp","upstream_url":"http://json-mcp.copilot.svc.cluster.local","passAllTools":true}]}`,
 			wantError: "",
 		},
 		{
 			name:      "empty routes fails closed",
-			content:   "version: 1\nroutes: []\n",
+			content:   "version: 2\nroutes: []\n",
 			wantError: "must not be empty",
 		},
 		{
 			name:      "unsupported version fails closed",
-			content:   "version: 2\nroutes:\n  - route: /mcp/a\n    team: t\n    target: c:n:a\n    upstream_url: http://a.n\n",
+			content:   "version: 3\nroutes:\n  - route: /mcp/n/a\n    team: t\n    target: c:n:a\n    upstream_url: http://a.n\n    passAllTools: true\n",
 			wantError: "unsupported pilot routes version",
 		},
 		{
 			name: "duplicate routes fail closed",
-			content: `version: 1
+			content: `version: 2
 routes:
-  - route: /mcp/dup
+  - route: /mcp/ns1/dup
     team: t1
     target: dev-gcp:ns1:app1
     upstream_url: http://app1.ns1
-  - route: /mcp/dup
+    passAllTools: true
+  - route: /mcp/ns1/dup
     team: t2
     target: dev-gcp:ns2:app2
     upstream_url: http://app2.ns2
+    passAllTools: true
 `,
 			wantError: "duplicate route",
 		},
 		{
 			name:      "invalid route prefix fails closed",
-			content:   "version: 1\nroutes:\n  - route: /api/a\n    team: t\n    target: c:n:a\n    upstream_url: http://a.n\n",
+			content:   "version: 2\nroutes:\n  - route: /api/a\n    team: t\n    target: c:n:a\n    upstream_url: http://a.n\n    passAllTools: true\n",
 			wantError: "must start with /mcp/",
 		},
 		{
 			name:      "nested route path fails closed",
-			content:   "version: 1\nroutes:\n  - route: /mcp/a/b\n    team: t\n    target: c:n:a\n    upstream_url: http://a.n\n",
-			wantError: "single non-empty segment",
+			content:   "version: 2\nroutes:\n  - route: /mcp/n/a/b\n    team: t\n    target: c:n:a\n    upstream_url: http://a.n\n    passAllTools: true\n",
+			wantError: "must match /mcp/<namespace>/<name>",
+		},
+		{
+			name:      "path namespace differs from target namespace fails closed",
+			content:   "version: 2\nroutes:\n  - route: /mcp/other/a\n    team: t\n    target: c:n:a\n    upstream_url: http://a.n\n    passAllTools: true\n",
+			wantError: "must equal target namespace",
+		},
+		{
+			name:      "single-segment path fails closed",
+			content:   "version: 2\nroutes:\n  - route: /mcp/a\n    team: t\n    target: c:n:a\n    upstream_url: http://a.n\n    passAllTools: true\n",
+			wantError: "must match /mcp/<namespace>/<name>",
+		},
+		{
+			name:      "three-segment path fails closed",
+			content:   "version: 2\nroutes:\n  - route: /mcp/n/a/b\n    team: t\n    target: c:n:a\n    upstream_url: http://a.n\n    passAllTools: true\n",
+			wantError: "must match /mcp/<namespace>/<name>",
+		},
+		{
+			name:      "trailing slash fails closed",
+			content:   "version: 2\nroutes:\n  - route: /mcp/n/a/\n    team: t\n    target: c:n:a\n    upstream_url: http://a.n\n    passAllTools: true\n",
+			wantError: "must match /mcp/<namespace>/<name>",
+		},
+		{
+			name:      "dot-dot segment fails closed",
+			content:   "version: 2\nroutes:\n  - route: /mcp/n/..\n    team: t\n    target: c:n:a\n    upstream_url: http://a.n\n    passAllTools: true\n",
+			wantError: "invalid route segment",
+		},
+		{
+			name:      "percent in segment fails closed",
+			content:   "version: 2\nroutes:\n  - route: /mcp/n/a%2Fb\n    team: t\n    target: c:n:a\n    upstream_url: http://a.n\n    passAllTools: true\n",
+			wantError: "invalid character",
+		},
+		{
+			name:      "namespace case mismatch fails closed",
+			content:   "version: 2\nroutes:\n  - route: /mcp/N/a\n    team: t\n    target: c:n:a\n    upstream_url: http://a.n\n    passAllTools: true\n",
+			wantError: "must equal target namespace",
 		},
 		{
 			name:      "invalid target format fails closed",
-			content:   "version: 1\nroutes:\n  - route: /mcp/a\n    team: t\n    target: dev-gcp:only-two\n    upstream_url: http://a.only-two\n",
+			content:   "version: 2\nroutes:\n  - route: /mcp/x/a\n    team: t\n    target: dev-gcp:only-two\n    upstream_url: http://a.only-two\n    passAllTools: true\n",
 			wantError: "expected cluster:namespace:app",
 		},
 		{
 			name:      "public domain upstream fails closed",
-			content:   "version: 1\nroutes:\n  - route: /mcp/a\n    team: t\n    target: dev-gcp:ns:app\n    upstream_url: https://example.com/mcp\n",
+			content:   "version: 2\nroutes:\n  - route: /mcp/ns/a\n    team: t\n    target: dev-gcp:ns:app\n    upstream_url: https://example.com/mcp\n    passAllTools: true\n",
 			wantError: "public or not recognized as internal",
 		},
 		{
 			name:      "ekstern nav domain fails closed",
-			content:   "version: 1\nroutes:\n  - route: /mcp/a\n    team: t\n    target: dev-gcp:ns:app\n    upstream_url: https://app.ekstern.dev.nav.no\n",
+			content:   "version: 2\nroutes:\n  - route: /mcp/ns/a\n    team: t\n    target: dev-gcp:ns:app\n    upstream_url: https://app.ekstern.dev.nav.no\n    passAllTools: true\n",
 			wantError: "must not be public",
 		},
 		{
 			name:      "public IP upstream fails closed",
-			content:   "version: 1\nroutes:\n  - route: /mcp/a\n    team: t\n    target: dev-gcp:ns:app\n    upstream_url: https://8.8.8.8\n",
+			content:   "version: 2\nroutes:\n  - route: /mcp/ns/a\n    team: t\n    target: dev-gcp:ns:app\n    upstream_url: https://8.8.8.8\n    passAllTools: true\n",
 			wantError: "must not be a public IP",
 		},
 		{
 			name:      "metadata IP upstream fails closed",
-			content:   "version: 1\nroutes:\n  - route: /mcp/a\n    team: t\n    target: dev-gcp:ns:app\n    upstream_url: http://169.254.169.254\n",
+			content:   "version: 2\nroutes:\n  - route: /mcp/ns/a\n    team: t\n    target: dev-gcp:ns:app\n    upstream_url: http://169.254.169.254\n    passAllTools: true\n",
 			wantError: "disallowed IP address",
 		},
 		{
 			name:      "http intern nav host fails closed",
-			content:   "version: 1\nroutes:\n  - route: /mcp/a\n    team: t\n    target: dev-gcp:ns:app\n    upstream_url: http://app.intern.dev.nav.no\n",
+			content:   "version: 2\nroutes:\n  - route: /mcp/ns/a\n    team: t\n    target: dev-gcp:ns:app\n    upstream_url: http://app.intern.dev.nav.no\n    passAllTools: true\n",
 			wantError: "must use https",
 		},
 		{
 			name:      "cloud metadata internal DNS fails closed",
-			content:   "version: 1\nroutes:\n  - route: /mcp/a\n    team: t\n    target: dev-gcp:ns:app\n    upstream_url: http://metadata.google.internal\n",
+			content:   "version: 2\nroutes:\n  - route: /mcp/ns/a\n    team: t\n    target: dev-gcp:ns:app\n    upstream_url: http://metadata.google.internal\n    passAllTools: true\n",
 			wantError: "disallowed internal host",
 		},
 		{
 			name:      "loopback IPv4 fails closed",
-			content:   "version: 1\nroutes:\n  - route: /mcp/a\n    team: t\n    target: dev-gcp:ns:app\n    upstream_url: http://127.0.0.1:8080\n",
+			content:   "version: 2\nroutes:\n  - route: /mcp/ns/a\n    team: t\n    target: dev-gcp:ns:app\n    upstream_url: http://127.0.0.1:8080\n    passAllTools: true\n",
 			wantError: "disallowed IP address",
 		},
 		{
 			name:      "loopback IPv6 fails closed",
-			content:   "version: 1\nroutes:\n  - route: /mcp/a\n    team: t\n    target: dev-gcp:ns:app\n    upstream_url: http://[::1]:8080\n",
+			content:   "version: 2\nroutes:\n  - route: /mcp/ns/a\n    team: t\n    target: dev-gcp:ns:app\n    upstream_url: http://[::1]:8080\n    passAllTools: true\n",
 			wantError: "disallowed IP address",
 		},
 		{
 			name:      "localhost fails closed",
-			content:   "version: 1\nroutes:\n  - route: /mcp/a\n    team: t\n    target: dev-gcp:ns:app\n    upstream_url: http://localhost:8080\n",
+			content:   "version: 2\nroutes:\n  - route: /mcp/ns/a\n    team: t\n    target: dev-gcp:ns:app\n    upstream_url: http://localhost:8080\n    passAllTools: true\n",
 			wantError: "disallowed loopback host",
 		},
 		{
 			name:      "link-local IPv6 fails closed",
-			content:   "version: 1\nroutes:\n  - route: /mcp/a\n    team: t\n    target: dev-gcp:ns:app\n    upstream_url: http://[fe80::1]\n",
+			content:   "version: 2\nroutes:\n  - route: /mcp/ns/a\n    team: t\n    target: dev-gcp:ns:app\n    upstream_url: http://[fe80::1]\n    passAllTools: true\n",
 			wantError: "disallowed IP address",
 		},
 		{
 			name:      "private raw IP fails closed",
-			content:   "version: 1\nroutes:\n  - route: /mcp/a\n    team: t\n    target: dev-gcp:ns:app\n    upstream_url: http://10.0.0.1:8080\n",
+			content:   "version: 2\nroutes:\n  - route: /mcp/ns/a\n    team: t\n    target: dev-gcp:ns:app\n    upstream_url: http://10.0.0.1:8080\n    passAllTools: true\n",
 			wantError: "raw IP addresses are not allowed",
 		},
 		{
 			name:      "single-label host without namespace fails closed",
-			content:   "version: 1\nroutes:\n  - route: /mcp/a\n    team: t\n    target: dev-gcp:ns:app\n    upstream_url: http://app\n",
+			content:   "version: 2\nroutes:\n  - route: /mcp/ns/a\n    team: t\n    target: dev-gcp:ns:app\n    upstream_url: http://app\n    passAllTools: true\n",
 			wantError: "not recognized as internal",
 		},
 		{
 			name:      "short svc suffix without cluster.local fails closed",
-			content:   "version: 1\nroutes:\n  - route: /mcp/a\n    team: t\n    target: dev-gcp:ns:app\n    upstream_url: http://app.ns.svc\n",
+			content:   "version: 2\nroutes:\n  - route: /mcp/ns/a\n    team: t\n    target: dev-gcp:ns:app\n    upstream_url: http://app.ns.svc\n    passAllTools: true\n",
 			wantError: "not recognized as internal",
 		},
 		{
 			name:      "cross-namespace svc.cluster.local fails closed",
-			content:   "version: 1\nroutes:\n  - route: /mcp/a\n    team: t\n    target: dev-gcp:ns:app\n    upstream_url: http://app.other-ns.svc.cluster.local\n",
+			content:   "version: 2\nroutes:\n  - route: /mcp/ns/a\n    team: t\n    target: dev-gcp:ns:app\n    upstream_url: http://app.other-ns.svc.cluster.local\n    passAllTools: true\n",
 			wantError: "not recognized as internal",
 		},
 		{
 			name:      "dot-local host fails closed",
-			content:   "version: 1\nroutes:\n  - route: /mcp/a\n    team: t\n    target: dev-gcp:ns:app\n    upstream_url: http://app.local\n",
+			content:   "version: 2\nroutes:\n  - route: /mcp/ns/a\n    team: t\n    target: dev-gcp:ns:app\n    upstream_url: http://app.local\n    passAllTools: true\n",
 			wantError: "not recognized as internal",
 		},
 	}
@@ -392,15 +431,21 @@ routes:
 }
 
 func TestDevPilotRoutesFileValid(t *testing.T) {
+	assertPilotRoutesFileValid(t, "pilot-routes.dev.yaml", "dev-gcp")
+}
+
+// assertPilotRoutesFileValid checks every route in file structurally, so adding a route does not break the test.
+func assertPilotRoutesFileValid(t *testing.T, file, cluster string) {
+	t.Helper()
 	setBaseValidEnv(t)
-	t.Setenv("PILOT_ROUTES_FILE", "pilot-routes.dev.yaml")
+	t.Setenv("PILOT_ROUTES_FILE", file)
 
 	cfg, err := loadConfigFromEnv()
 	if err != nil {
-		t.Fatalf("expected pilot-routes.dev.yaml to load without error, got %v", err)
+		t.Fatalf("expected %s to load without error, got %v", file, err)
 	}
 	if len(cfg.Routes) == 0 {
-		t.Fatal("expected at least one dev route")
+		t.Fatalf("%s: expected at least one route", file)
 	}
 	seen := map[string]bool{}
 	for _, r := range cfg.Routes {
@@ -408,7 +453,7 @@ func TestDevPilotRoutesFileValid(t *testing.T) {
 			t.Errorf("route %q must start with /mcp/ and be unique", r.Route)
 		}
 		seen[r.Route] = true
-		if r.Team == "" || r.Cluster != "dev-gcp" || r.Namespace == "" || r.App == "" {
+		if r.Team == "" || r.Cluster != cluster || r.Namespace == "" || r.App == "" {
 			t.Errorf("route %q: incomplete team/target: %+v", r.Route, r)
 		}
 		if want := r.Cluster + ":" + r.Namespace + ":" + r.App; r.Target != want {
@@ -442,14 +487,5 @@ func TestDefaultEntraScopeTargetsGateway(t *testing.T) {
 }
 
 func TestProdPilotRoutesFileValid(t *testing.T) {
-	setBaseValidEnv(t)
-	t.Setenv("PILOT_ROUTES_FILE", "pilot-routes.prod.yaml")
-
-	cfg, err := loadConfigFromEnv()
-	if err != nil {
-		t.Fatalf("expected pilot-routes.prod.yaml to load without error, got %v", err)
-	}
-	if len(cfg.Routes) != 1 || cfg.Routes[0].Target != "prod-gcp:copilot:mcp-onboarding" {
-		t.Fatalf("expected only the mcp-onboarding prod route, got %+v", cfg.Routes)
-	}
+	assertPilotRoutesFileValid(t, "pilot-routes.prod.yaml", "prod-gcp")
 }

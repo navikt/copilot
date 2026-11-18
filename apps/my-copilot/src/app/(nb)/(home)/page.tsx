@@ -1,7 +1,7 @@
 import NextLink from "next/link";
 import { getNewsItems } from "@/lib/news";
 import { Box, VStack, HStack, Heading, HGrid, BodyShort } from "@navikt/ds-react";
-import { ExternalLinkIcon, PlayIcon, BookIcon } from "@navikt/aksel-icons";
+import { ExternalLinkIcon, PlayIcon, BookIcon, ExclamationmarkTriangleIcon } from "@navikt/aksel-icons";
 import { NewsFeed } from "@/components/news-feed";
 import { WeeklyTip } from "@/components/weekly-tip";
 import { InsightStrip } from "@/components/insight-strip";
@@ -117,7 +117,13 @@ export default async function Home() {
               <Heading size="small" level="2" className="mb-4">
                 Ressurser
               </Heading>
-              <HGrid columns={{ xs: 1, sm: 2, md: 3 }} gap="space-12">
+              <HGrid columns={{ xs: 1, sm: 2, lg: 4 }} gap="space-12">
+                <NavCard
+                  href="/ma-vite"
+                  icon={<ExclamationmarkTriangleIcon aria-hidden fontSize="1.75rem" />}
+                  title="Dette må du vite"
+                  description="Det viktigste om regler, sandkassen og hjelp på én side"
+                />
                 <NavCard
                   href="/kom-i-gang"
                   icon={<PlayIcon aria-hidden fontSize="1.75rem" />}

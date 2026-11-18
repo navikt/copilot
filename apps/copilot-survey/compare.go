@@ -28,9 +28,10 @@ type waveStat struct {
 
 // waveCounts is one question or item in one wave, index-aligned with
 // compareResult.Surveys. Excluded is how many answers the comparison rule
-// dropped (see compare).
+// dropped (see compare); always set by compare, nil in the published series,
+// which has no such rule.
 type waveCounts struct {
-	Excluded int        `json:"excluded"`
+	Excluded *int       `json:"excluded,omitempty"`
 	Versions []waveStat `json:"versions"`
 }
 
@@ -49,6 +50,7 @@ type compareQuestion struct {
 	Min    int           `json:"min,omitempty"`
 	Max    int           `json:"max,omitempty"`
 	Labels []string      `json:"labels,omitempty"`
+	Unsure string        `json:"unsure,omitempty"`
 	Break  bool          `json:"break,omitempty"`
 	Waves  []waveCounts  `json:"waves,omitempty"` // scale, choice, multi
 	Items  []compareItem `json:"items,omitempty"` // matrix
@@ -138,7 +140,7 @@ func compareWavesResult(waves []survey, rows [][]storedAnswer, now time.Time) co
 		if q.Type == "text" {
 			continue
 		}
-		cq := compareQuestion{ID: q.ID, Type: q.Type, Text: q.Text, Min: q.Min, Max: q.Max, Labels: q.Labels}
+		cq := compareQuestion{ID: q.ID, Type: q.Type, Text: q.Text, Min: q.Min, Max: q.Max, Labels: q.Labels, Unsure: q.Unsure}
 		if q.Type == "matrix" {
 			for _, it := range q.Items {
 				item := q
@@ -176,38 +178,47 @@ func compareWavesResult(waves []survey, rows [][]storedAnswer, now time.Time) co
 }
 
 // asked finds the question or matrix item id in s as asked there: its
-// version and scale maximum.
-func asked(s survey, id string) (version, top int, ok bool) {
+// version, scale maximum and type (scale for a matrix item).
+func asked(s survey, id string) (version, top int, typ string, ok bool) {
 	for _, q := range s.Questions {
 		if q.ID == id {
-			return q.Version, q.Max, true
+			return q.Version, q.Max, q.Type, true
 		}
 		for _, it := range q.Items {
 			if it.ID == id {
-				return it.Version, q.Max, true
+				return it.Version, q.Max, "scale", true
 			}
 		}
 	}
-	return 0, 0, false
+	return 0, 0, "", false
 }
 
 // compareWaves counts q in every wave after the skip rule, and reports a
 // break when the waves did not all ask, or answer, the same single version.
 // A wave's declared version counts even without answers; a wave that did
-// not ask the question at all does not break the series.
+// not ask the question at all does not break the series. A wave that asked
+// the id as another type (free text, say) has no counts and breaks it.
 func compareWaves(q question, waves []survey, rows [][]storedAnswer) ([]waveCounts, bool) {
 	out := make([]waveCounts, len(rows))
 	seen := map[int]bool{}
+	broken := false
 	for i, rs := range rows {
 		top := q.Max
-		if v, m, ok := asked(waves[i], q.ID); ok {
+		v, m, typ, ok := asked(waves[i], q.ID)
+		if ok {
 			seen[v], top = true, m
+		}
+		if ok && typ != q.Type {
+			zero := 0
+			out[i].Excluded, out[i].Versions, broken = &zero, []waveStat{}, true
+			continue
 		}
 		kept := slices.DeleteFunc(slices.Clone(rs), func(row storedAnswer) bool {
 			v, ok := row.Answers[q.ID]
 			return ok && v != nil && q.SkipIf.skipped(row.Answers)
 		})
-		out[i].Excluded = len(rs) - len(kept)
+		excluded := len(rs) - len(kept)
+		out[i].Excluded = &excluded
 		out[i].Versions = []waveStat{}
 		for _, vr := range countVersions(q, kept) {
 			ws := waveStat{versionResult: vr}
@@ -218,7 +229,7 @@ func compareWaves(q question, waves []survey, rows [][]storedAnswer) ([]waveCoun
 			seen[vr.Version] = true
 		}
 	}
-	return out, len(seen) > 1
+	return out, broken || len(seen) > 1
 }
 
 // scaleStats is the mean and the share at top or top-1.

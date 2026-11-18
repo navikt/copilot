@@ -1,7 +1,7 @@
 /**
  * GitHub Copilot model pricing data.
  * Source: https://docs.github.com/en/copilot/reference/copilot-billing/models-and-pricing
- * Last updated: 2026-11-14
+ * Last updated: 2026-11-17
  *
  * All prices are per 1 million tokens in USD.
  * 1 AI credit = $0.01 USD.
@@ -82,26 +82,6 @@ export const MODEL_PRICING: ModelPrice[] = [
     cachedInput: 0.8,
     cacheWrite: 10,
     output: 30,
-  },
-  {
-    model: "GPT-5.6 Terra (Default, ≤ 272K)",
-    provider: "OpenAI",
-    category: "Versatile",
-    status: "GA",
-    input: 2,
-    cachedInput: 0.2,
-    cacheWrite: 2.5,
-    output: 12,
-  },
-  {
-    model: "GPT-5.6 Terra (Long context, 272K)",
-    provider: "OpenAI",
-    category: "Versatile",
-    status: "GA",
-    input: 4,
-    cachedInput: 0.4,
-    cacheWrite: 5,
-    output: 18,
   },
   {
     model: "GPT-6 Astra (Default, ≤ 272K)",
@@ -265,16 +245,6 @@ export const MODEL_PRICING: ModelPrice[] = [
     output: 25,
   },
   {
-    model: "Claude Opus 5 (Default)",
-    provider: "Anthropic",
-    category: "Powerful",
-    status: "GA",
-    input: 5,
-    cachedInput: 0.5,
-    cacheWrite: 6.25,
-    output: 25,
-  },
-  {
     model: "Claude Opus 5.5 (Default)",
     provider: "Anthropic",
     category: "Powerful",
@@ -410,4 +380,4 @@ export const MODEL_PRICING: ModelPrice[] = [
 ];
 
 export const PRICING_SOURCE_URL = "https://docs.github.com/en/copilot/reference/copilot-billing/models-and-pricing";
-export const PRICING_LAST_UPDATED = "2026-11-14";
+export const PRICING_LAST_UPDATED = "2026-11-17";

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 )
@@ -103,5 +104,34 @@ func TestEntraMode_GitHubToolsRefused(t *testing.T) {
 	resp := callTool(h, "whoami", nil, user)
 	if result, ok := resp.Result.(CallToolResult); !ok || !strings.Contains(result.Content[0].Text, "Z123456") {
 		t.Fatalf("whoami: %+v", resp)
+	}
+}
+
+func TestGitHubLoginRequired_UsesBaseURL(t *testing.T) {
+	const prod = "https://mcp-onboarding.intern.nav.no"
+	for base, want := range map[string]string{
+		prod: prod + "/mcp.",
+		"https://mcp-onboarding.intern.dev.nav.no/": "https://mcp-onboarding.intern.dev.nav.no/mcp.",
+	} {
+		h := newSimpleMCPHandler()
+		h.baseURL = base
+		resp := callTool(h, "team_readiness", nil, &UserContext{Login: "Z123456", NAVident: "Z123456"})
+		text := resp.Result.(CallToolResult).Content[0].Text
+		if !strings.HasSuffix(text, want) {
+			t.Fatalf("base %q: got %q, want suffix %q", base, text, want)
+		}
+		if base == prod && strings.Contains(text, ".dev.") {
+			t.Fatalf("prod message names dev host: %q", text)
+		}
+	}
+}
+
+func TestProdManifest_NotDebug(t *testing.T) {
+	b, err := os.ReadFile(".nais/prod-gcp.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(b), "\nlog_level: INFO\n") {
+		t.Fatal("prod log_level must be INFO")
 	}
 }

@@ -89,22 +89,20 @@ func (s surveyDef) needsNewerCLI() bool {
 // renders (apps/copilot-survey/surveys/README.md); the analysis fields are not
 // needed here.
 type surveyQuestion struct {
-	ID         string   `json:"id"`
-	Type       string   `json:"type"` // scale, choice, multi, text or matrix
-	Text       string   `json:"text"`
-	Required   bool     `json:"required,omitempty"`
-	Min        int      `json:"min,omitempty"`
-	Max        int      `json:"max,omitempty"`
-	Labels     []string `json:"labels,omitempty"`
-	Options    []string `json:"options,omitempty"`
-	MaxChoices int      `json:"max_choices,omitempty"`
-	Exclusive  string   `json:"exclusive,omitempty"`
-	Other      string   `json:"other,omitempty"` // one more option, with a short free text sent as <id>.other
-	MaxLen     int      `json:"max_length,omitempty"`
-	SkipIf     *struct {
-		Question string `json:"question"`
-		Answer   string `json:"answer"`
-	} `json:"skip_if,omitempty"`
+	ID         string    `json:"id"`
+	Type       string    `json:"type"` // scale, choice, multi, text or matrix
+	Text       string    `json:"text"`
+	Required   bool      `json:"required,omitempty"`
+	Min        int       `json:"min,omitempty"`
+	Max        int       `json:"max,omitempty"`
+	Labels     []string  `json:"labels,omitempty"`
+	Unsure     string    `json:"unsure,omitempty"` // scale, matrix: one more answer, sent as this label
+	Options    []string  `json:"options,omitempty"`
+	MaxChoices int       `json:"max_choices,omitempty"`
+	Exclusive  string    `json:"exclusive,omitempty"`
+	Other      string    `json:"other,omitempty"` // one more option, with a short free text sent as <id>.other
+	MaxLen     int       `json:"max_length,omitempty"`
+	SkipIf     skipRules `json:"skip_if,omitempty"`
 	// Items are a matrix's statements on its scale, asked one per screen and
 	// sent as scale answers under their own ids.
 	Items []struct {
@@ -582,6 +580,24 @@ func askSurvey(s surveyDef, ask int) string {
 	return choice
 }
 
+type skipRule struct {
+	Question string `json:"question"`
+	Answer   string `json:"answer"`
+}
+
+// skipRules is skip_if: one rule, or a list where any match skips.
+type skipRules []skipRule
+
+func (rs *skipRules) UnmarshalJSON(b []byte) error {
+	if len(b) > 0 && b[0] == '{' {
+		var r skipRule
+		err := json.Unmarshal(b, &r)
+		*rs = skipRules{r}
+		return err
+	}
+	return json.Unmarshal(b, (*[]skipRule)(rs))
+}
+
 // runSurveyForm asks the questions, one per screen, skipping those whose
 // skip_if matches an earlier answer. false means the form was left before the
 // end.
@@ -601,7 +617,7 @@ func runSurveyForm(s surveyDef) (map[string]any, bool) {
 		return []string{picks[i]}
 	}
 	skipped := func(q surveyQuestion) bool {
-		return q.SkipIf != nil && slices.Contains(answered(q.SkipIf.Question), q.SkipIf.Answer)
+		return slices.ContainsFunc(q.SkipIf, func(r skipRule) bool { return slices.Contains(answered(r.Question), r.Answer) })
 	}
 	var groups []*huh.Group
 	for i, q := range s.Questions {
@@ -613,7 +629,7 @@ func runSurveyForm(s surveyDef) (map[string]any, bool) {
 				sel := surveySelect(q, "", &grid[i][j]).Title(it.Text).
 					DescriptionFunc(func() string { return matrixHeading(s, i, j, skipped) }, []any{picks, multis})
 				g := huh.NewGroup(escHelpField{sel})
-				if q.SkipIf != nil {
+				if len(q.SkipIf) > 0 {
 					g = g.WithHideFunc(func() bool { return skipped(q) })
 				}
 				groups = append(groups, g)
@@ -655,7 +671,7 @@ func runSurveyForm(s surveyDef) (map[string]any, bool) {
 			field = in.Description(desc)
 		}
 		g := huh.NewGroup(escHelpField{field})
-		if q.SkipIf != nil {
+		if len(q.SkipIf) > 0 {
 			g = g.WithHideFunc(func() bool { return skipped(q) })
 		}
 		groups = append(groups, g)
@@ -703,6 +719,8 @@ func surveyAnswers(s surveyDef, picks []string, multis [][]string, others []stri
 		for j, it := range q.Items {
 			if n, err := strconv.Atoi(grid[i][j]); err == nil && !skipped(q) {
 				answers[it.ID] = n
+			} else if q.Unsure != "" && grid[i][j] == q.Unsure && !skipped(q) {
+				answers[it.ID] = q.Unsure
 			}
 		}
 		if t := strings.TrimSpace(others[i]); t != "" && !skipped(q) && slices.Contains(answered(q.ID), q.Other) {
@@ -715,6 +733,8 @@ func surveyAnswers(s surveyDef, picks []string, multis [][]string, others []stri
 				answers[q.ID] = multis[i]
 			}
 		case v == "" || q.Type == "matrix":
+		case q.Type == "scale" && q.Unsure != "" && v == q.Unsure:
+			answers[q.ID] = v
 		case q.Type == "scale":
 			n, _ := strconv.Atoi(v)
 			answers[q.ID] = n
@@ -747,6 +767,9 @@ func surveySelect(q surveyQuestion, desc string, value *string) *huh.Select[stri
 				label += "  " + q.Labels[n-q.Min]
 			}
 			opts = append(opts, huh.NewOption(label, strconv.Itoa(n)))
+		}
+		if q.Unsure != "" {
+			opts = append(opts, huh.NewOption(q.Unsure, q.Unsure))
 		}
 	}
 	if !q.Required {

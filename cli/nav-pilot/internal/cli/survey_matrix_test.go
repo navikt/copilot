@@ -61,7 +61,7 @@ func q4Form(s surveyDef, user bool) ([]string, [][]string, []string, [][]string,
 		return []string{picks[i]}
 	}
 	skipped := func(q surveyQuestion) bool {
-		return q.SkipIf != nil && slices.Contains(answered(q.SkipIf.Question), q.SkipIf.Answer)
+		return slices.ContainsFunc(q.SkipIf, func(r skipRule) bool { return slices.Contains(answered(r.Question), r.Answer) })
 	}
 	return picks, multis, others, grid, skipped, answered
 }
@@ -134,5 +134,19 @@ func TestSurveyQ4MatrixHeadingRunsOn(t *testing.T) {
 		if got := matrixHeading(s, tc.i, tc.j, tc.skipped); got != tc.want {
 			t.Errorf("matrixHeading(%d, %d) = %q, want %q", tc.i, tc.j, got, tc.want)
 		}
+	}
+}
+
+// «Vet ikke» on a matrix item is sent as its label, not dropped as a
+// non-number.
+func TestSurveyUnsureSentAsLabel(t *testing.T) {
+	s := loadQ4(t)
+	i := slices.IndexFunc(s.Questions, func(q surveyQuestion) bool { return q.ID == "pastander-alle" })
+	s.Questions[i].Unsure = "Vet ikke"
+	picks, multis, others, grid, skipped, answered := q4Form(s, true)
+	grid[i][0] = "Vet ikke"
+	got := surveyAnswers(s, picks, multis, others, grid, skipped, answered)
+	if got["eierskap"] != "Vet ikke" || got["juss-og-sikkerhet"] != 4 {
+		t.Errorf("answers %v", got)
 	}
 }

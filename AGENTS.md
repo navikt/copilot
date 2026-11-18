@@ -48,7 +48,7 @@ After editing an app, run `mise check` in that app's directory. Run `mise all` w
 - Issue titles use `<scope>: <short description>` (`nav-pilot:`, `my-copilot:`,
   `copilot-api:`, `copilot-survey:`, `copilot-metrics:`, `copilot-adoption:`,
   `mcp-onboarding:`, `mcp-registry:`, `fleet-gateway:`, `kostnadsinnsikt:`,
-  `verdi:`, `dispatch:`, `benchmark:`, `harness:`, `observability:`, `security:`, or
+  `verdi:`, `dispatch:`, `benchmark:`, `harness:`, `skills:`, `observability:`, `security:`, or
   `PRD:`). Leave Conventional Commit prefixes (`feat:`, `fix:`, `chore:`) for
   commits and PRs; issue type belongs in labels. Write issues in Norwegian
   (following `apps/my-copilot/ORDBOK.md`) or English, and do not mix languages
@@ -80,6 +80,11 @@ After editing an app, run `mise check` in that app's directory. Run `mise all` w
   translate it or restyle it to the ki-utvikling/Aksel look; fix bugs only.
 - Do not commit secrets.
 - Do not push unless explicitly asked.
+- New direct dependencies need a justification in the PR body: why the
+  stdlib or an existing dependency is not enough, maintenance status (recent
+  releases, not archived) and licence. Major upgrades are reviewed by a human
+  before merge. Dependabot is grouped per ecosystem in `.github/dependabot.yml`;
+  add new module directories there instead of new update entries.
 
 ## Merging a stacked pull request
 

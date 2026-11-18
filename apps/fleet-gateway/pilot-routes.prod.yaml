@@ -1,6 +1,7 @@
-version: 1
+version: 2
 routes:
-  - route: /mcp/onboarding
+  - route: /mcp/copilot/onboarding
     team: copilot
     target: prod-gcp:copilot:mcp-onboarding
     upstream_url: http://mcp-onboarding.copilot/mcp/gw
+    passAllTools: true

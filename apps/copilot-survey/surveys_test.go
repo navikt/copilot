@@ -20,7 +20,7 @@ const testSurveys = `[{"id":"q4-2026","title":"Q4","active":true,"starts":"2026-
  {"id":"tools","version":1,"type":"multi","text":"Which tools?","options":["a","b","c"],"max_choices":2},
  {"id":"why","version":1,"type":"choice","text":"Why not copilot?","options":["habit","other"],"skip_if":{"question":"client","answer":"copilot"}},
  {"id":"editor","version":1,"type":"multi","text":"Which editors?","options":["vim","vscode"],"other":"Annet","max_length":10},
- {"id":"grid","version":1,"type":"matrix","text":"How much do you agree?","min":1,"max":5,"skip_if":{"question":"client","answer":"opencode"},
+ {"id":"grid","version":1,"type":"matrix","text":"How much do you agree?","min":1,"max":5,"unsure":"Vet ikke","skip_if":{"question":"client","answer":"opencode"},
   "items":[{"id":"fast","version":2,"text":"It is fast."},{"id":"safe","version":1,"text":"It is safe.","reverse":true}]},
  {"id":"comment","version":1,"type":"text","text":"Anything else?","max_length":20}]},
  {"id":"old","title":"Old","active":true,"starts":"2025-01-01","ends":"2025-01-31","questions":[{"id":"a","version":1,"type":"scale","text":"?","min":1,"max":3}]}]`
@@ -280,33 +280,39 @@ func TestParticipantHash(t *testing.T) {
 
 func TestLoadSurveysRejectsBadDefinitions(t *testing.T) {
 	for name, raw := range map[string]string{
-		"unknown field":     `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"scale","text":"?","min":1,"max":5}],"x":1}]`,
-		"ends first":        `[{"id":"a","title":"t","starts":"2026-01-02","ends":"2026-01-01","questions":[{"id":"q","version":1,"type":"scale","text":"?","min":1,"max":5}]}]`,
-		"bad type":          `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"essay","text":"?"}]}]`,
-		"text no limit":     `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"text","text":"?"}]}]`,
-		"one option":        `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"choice","text":"?","options":["x"]}]}]`,
-		"duplicate id":      `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"scale","text":"?","min":1,"max":5}]},{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"scale","text":"?","min":1,"max":5}]}]`,
-		"no version":        `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","type":"scale","text":"?","min":1,"max":5}]}]`,
-		"labels count":      `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"scale","text":"?","min":1,"max":5,"labels":["a","b"]}]}]`,
-		"skip_if later":     `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"text","text":"?","max_length":5,"skip_if":{"question":"r","answer":"x"}},{"id":"r","version":1,"type":"choice","text":"?","options":["x","y"]}]}]`,
-		"skip_if scale":     `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"r","version":1,"type":"scale","text":"?","min":1,"max":5,"options":["x"]},{"id":"q","version":1,"type":"text","text":"?","max_length":5,"skip_if":{"question":"r","answer":"x"}}]}]`,
-		"exclusive choice":  `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"r","version":1,"type":"choice","text":"?","options":["x","y"],"exclusive":"x"}]}]`,
-		"exclusive unknown": `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"r","version":1,"type":"multi","text":"?","options":["x","y"],"exclusive":"z"}]}]`,
-		"stray ]":           `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"scale","text":"?","min":1,"max":5}]}]]`,
-		"bad nudge":         `[{"id":"a","title":"t","nudge":"loud","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"scale","text":"?","min":1,"max":5}]}]`,
-		"two texts":         `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"text","text":"?","max_length":5},{"id":"r","version":1,"type":"text","text":"?","max_length":5}]}]`,
-		"other on scale":    `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"scale","text":"?","min":1,"max":5,"other":"Annet","max_length":5}]}]`,
-		"other is option":   `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"choice","text":"?","options":["x","Annet"],"other":"Annet","max_length":5}]}]`,
-		"other no limit":    `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"choice","text":"?","options":["x","y"],"other":"Annet"}]}]`,
-		"other too long":    `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"choice","text":"?","options":["x","y"],"other":"Annet","max_length":201}]}]`,
-		"four others":       `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"a","version":1,"type":"choice","text":"?","options":["x","y"],"other":"Annet","max_length":5},{"id":"b","version":1,"type":"choice","text":"?","options":["x","y"],"other":"Annet","max_length":5},{"id":"c","version":1,"type":"choice","text":"?","options":["x","y"],"other":"Annet","max_length":5},{"id":"d","version":1,"type":"choice","text":"?","options":["x","y"],"other":"Annet","max_length":5}]}]`,
-		"limit no other":    `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"choice","text":"?","options":["x","y"],"max_length":5}]}]`,
-		"matrix one item":   `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"matrix","text":"?","min":1,"max":5,"items":[{"id":"i","version":1,"text":"?"}]}]}]`,
-		"matrix item id":    `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"matrix","text":"?","min":1,"max":5,"items":[{"id":"q","version":1,"text":"?"},{"id":"i","version":1,"text":"?"}]}]}]`,
-		"matrix item twice": `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"i","version":1,"type":"scale","text":"?","min":1,"max":5},{"id":"q","version":1,"type":"matrix","text":"?","min":1,"max":5,"items":[{"id":"i","version":1,"text":"?"},{"id":"j","version":1,"text":"?"}]}]}]`,
-		"matrix no version": `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"matrix","text":"?","min":1,"max":5,"items":[{"id":"i","text":"?"},{"id":"j","version":1,"text":"?"}]}]}]`,
-		"items on scale":    `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"scale","text":"?","min":1,"max":5,"items":[{"id":"i","version":1,"text":"?"},{"id":"j","version":1,"text":"?"}]}]}]`,
-		"id with slash":     `[{"id":"a/b","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"scale","text":"?","min":1,"max":5}]}]`,
+		"unknown field":        `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"scale","text":"?","min":1,"max":5}],"x":1}]`,
+		"ends first":           `[{"id":"a","title":"t","starts":"2026-01-02","ends":"2026-01-01","questions":[{"id":"q","version":1,"type":"scale","text":"?","min":1,"max":5}]}]`,
+		"bad type":             `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"essay","text":"?"}]}]`,
+		"text no limit":        `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"text","text":"?"}]}]`,
+		"one option":           `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"choice","text":"?","options":["x"]}]}]`,
+		"duplicate id":         `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"scale","text":"?","min":1,"max":5}]},{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"scale","text":"?","min":1,"max":5}]}]`,
+		"no version":           `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","type":"scale","text":"?","min":1,"max":5}]}]`,
+		"labels count":         `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"scale","text":"?","min":1,"max":5,"labels":["a","b"]}]}]`,
+		"skip_if later":        `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"text","text":"?","max_length":5,"skip_if":{"question":"r","answer":"x"}},{"id":"r","version":1,"type":"choice","text":"?","options":["x","y"]}]}]`,
+		"skip_if object extra": `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"r","version":1,"type":"choice","text":"?","options":["x","y"]},{"id":"q","version":1,"type":"text","text":"?","max_length":5,"skip_if":{"question":"r","answer":"x","x":1}}]}]`,
+		"skip_if list extra":   `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"r","version":1,"type":"choice","text":"?","options":["x","y"]},{"id":"q","version":1,"type":"text","text":"?","max_length":5,"skip_if":[{"question":"r","answer":"x","x":1}]}]}]`,
+		"skip_if list empty":   `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"r","version":1,"type":"choice","text":"?","options":["x","y"]},{"id":"q","version":1,"type":"text","text":"?","max_length":5,"skip_if":[]}]}]`,
+		"skip_if list bad":     `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"r","version":1,"type":"choice","text":"?","options":["x","y"]},{"id":"q","version":1,"type":"text","text":"?","max_length":5,"skip_if":[{"question":"r","answer":"x"},{"question":"r","answer":"z"}]}]}]`,
+		"skip_if scale":        `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"r","version":1,"type":"scale","text":"?","min":1,"max":5,"options":["x"]},{"id":"q","version":1,"type":"text","text":"?","max_length":5,"skip_if":{"question":"r","answer":"x"}}]}]`,
+		"exclusive choice":     `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"r","version":1,"type":"choice","text":"?","options":["x","y"],"exclusive":"x"}]}]`,
+		"exclusive unknown":    `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"r","version":1,"type":"multi","text":"?","options":["x","y"],"exclusive":"z"}]}]`,
+		"stray ]":              `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"scale","text":"?","min":1,"max":5}]}]]`,
+		"bad nudge":            `[{"id":"a","title":"t","nudge":"loud","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"scale","text":"?","min":1,"max":5}]}]`,
+		"two texts":            `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"text","text":"?","max_length":5},{"id":"r","version":1,"type":"text","text":"?","max_length":5}]}]`,
+		"other on scale":       `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"scale","text":"?","min":1,"max":5,"other":"Annet","max_length":5}]}]`,
+		"other is option":      `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"choice","text":"?","options":["x","Annet"],"other":"Annet","max_length":5}]}]`,
+		"other no limit":       `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"choice","text":"?","options":["x","y"],"other":"Annet"}]}]`,
+		"other too long":       `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"choice","text":"?","options":["x","y"],"other":"Annet","max_length":201}]}]`,
+		"four others":          `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"a","version":1,"type":"choice","text":"?","options":["x","y"],"other":"Annet","max_length":5},{"id":"b","version":1,"type":"choice","text":"?","options":["x","y"],"other":"Annet","max_length":5},{"id":"c","version":1,"type":"choice","text":"?","options":["x","y"],"other":"Annet","max_length":5},{"id":"d","version":1,"type":"choice","text":"?","options":["x","y"],"other":"Annet","max_length":5}]}]`,
+		"limit no other":       `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"choice","text":"?","options":["x","y"],"max_length":5}]}]`,
+		"matrix one item":      `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"matrix","text":"?","min":1,"max":5,"items":[{"id":"i","version":1,"text":"?"}]}]}]`,
+		"matrix item id":       `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"matrix","text":"?","min":1,"max":5,"items":[{"id":"q","version":1,"text":"?"},{"id":"i","version":1,"text":"?"}]}]}]`,
+		"matrix item twice":    `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"i","version":1,"type":"scale","text":"?","min":1,"max":5},{"id":"q","version":1,"type":"matrix","text":"?","min":1,"max":5,"items":[{"id":"i","version":1,"text":"?"},{"id":"j","version":1,"text":"?"}]}]}]`,
+		"matrix no version":    `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"matrix","text":"?","min":1,"max":5,"items":[{"id":"i","text":"?"},{"id":"j","version":1,"text":"?"}]}]}]`,
+		"items on scale":       `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"scale","text":"?","min":1,"max":5,"items":[{"id":"i","version":1,"text":"?"},{"id":"j","version":1,"text":"?"}]}]}]`,
+		"id with slash":        `[{"id":"a/b","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"scale","text":"?","min":1,"max":5}]}]`,
+		"unsure on choice":     `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"r","version":1,"type":"choice","text":"?","options":["x","y"],"unsure":"Vet ikke"}]}]`,
+		"unsure numeric":       `[{"id":"a","title":"t","starts":"2026-01-01","ends":"2026-01-02","questions":[{"id":"q","version":1,"type":"scale","text":"?","min":1,"max":5,"unsure":"0"}]}]`,
 	} {
 		if _, err := loadSurveys([]byte(raw)); err == nil {
 			t.Errorf("%s: accepted", name)
@@ -419,6 +425,67 @@ func TestRequiredMatrixSkippedWhole(t *testing.T) {
 		if _, err := validateAnswers(defs[0], raw); (err == nil) != tc.ok {
 			t.Errorf("%s: %v", name, err)
 		}
+	}
+}
+
+// «Vet ikke» is taken as its label on a matrix item, and nothing else
+// non-numeric is.
+func TestUnsure(t *testing.T) {
+	defs, err := loadSurveys([]byte(testSurveys))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for answers, ok := range map[string]bool{
+		`{"overall":3,"client":"copilot","fast":"Vet ikke","safe":2}`: true,
+		`{"overall":3,"client":"copilot","fast":"vet ikke"}`:          false,
+		`{"overall":"Vet ikke"}`:                                      false,
+	} {
+		var raw map[string]json.RawMessage
+		if err := json.Unmarshal([]byte(answers), &raw); err != nil {
+			t.Fatal(err)
+		}
+		out, err := validateAnswers(defs[0], raw)
+		if (err == nil) != ok {
+			t.Errorf("%s: %v", answers, err)
+		}
+		if ok && out["fast"] != "Vet ikke" {
+			t.Errorf("stored %v", out["fast"])
+		}
+	}
+	two, four := 2, 4
+	mean, agree := scaleStats(versionResult{Options: []optionCount{{Value: "5", Count: &two}, {Value: "Vet ikke", Count: &four}}}, 5)
+	if *mean != 5 || *agree != 1 {
+		t.Errorf("mean %v agree %v", *mean, *agree)
+	}
+}
+
+// skip_if as a list skips when any rule matches, and one rule still
+// marshals as an object for clients that predate lists.
+func TestSkipIfList(t *testing.T) {
+	defs, err := loadSurveys([]byte(strings.Replace(testSurveys, `"skip_if":{"question":"client","answer":"opencode"}`,
+		`"skip_if":[{"question":"client","answer":"opencode"},{"question":"tools","answer":"c"}]`, 1)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for answers, ok := range map[string]bool{
+		`{"overall":3,"client":"opencode"}`:                        true,
+		`{"overall":3,"client":"copilot","tools":["c"]}`:           true,
+		`{"overall":3,"client":"copilot","tools":["c"],"fast":4}`:  false,
+		`{"overall":3,"client":"copilot","tools":["a"],"fast":4}`:  true,
+		`{"overall":3,"client":"opencode","tools":["a"],"safe":2}`: false,
+	} {
+		var raw map[string]json.RawMessage
+		if err := json.Unmarshal([]byte(answers), &raw); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := validateAnswers(defs[0], raw); (err == nil) != ok {
+			t.Errorf("%s: %v", answers, err)
+		}
+	}
+	one, _ := json.Marshal(defs[0].Questions[3].SkipIf)
+	two, _ := json.Marshal(defs[0].Questions[5].SkipIf)
+	if string(one) != `{"question":"client","answer":"copilot"}` || !strings.HasPrefix(string(two), "[") {
+		t.Errorf("marshal: %s %s", one, two)
 	}
 }
 

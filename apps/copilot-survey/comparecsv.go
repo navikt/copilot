@@ -16,7 +16,9 @@ import (
 //
 // mean and agree are on every option row of their version, unrounded; the
 // item's first-to-last test (significance) on every answer row of the item. A
-// wave with nothing counted has one answer row with only excluded.
+// wave with nothing counted has one answer row with only excluded. In the
+// published comparison (hideSmallWaveVersions) a version under 5 has one
+// answer row with n «hidden» and nothing else counted.
 // Free text is never in a comparison.
 func writeCompareCSV(w io.Writer, res compareResult) error {
 	if _, err := w.Write([]byte("\xef\xbb\xbf")); err != nil {
@@ -33,16 +35,21 @@ func writeCompareCSV(w io.Writer, res compareResult) error {
 	waves := func(qid, iid string, br bool, ws []waveCounts, sig significance) {
 		test := []string{floatCell(sig.P), floatCell(sig.PHolm)}
 		for i, wc := range ws {
+			excluded := intCell(wc.Excluded)
 			if len(wc.Versions) == 0 { // nothing counted, but excluded must survive
-				_ = cw.Write(append([]string{"answer", res.Surveys[i].ID, qid, iid, "", strconv.FormatBool(br), "", "", "", strconv.Itoa(wc.Excluded), "", ""}, test...))
+				_ = cw.Write(append([]string{"answer", res.Surveys[i].ID, qid, iid, "", strconv.FormatBool(br), "", "", "", excluded, "", ""}, test...))
 			}
 			for _, v := range wc.Versions {
 				if len(v.Options) == 0 { // e.g. only empty multi answers: keep n
-					_ = cw.Write(append([]string{"answer", res.Surveys[i].ID, qid, iid, strconv.Itoa(v.Version), strconv.FormatBool(br), "", "", intCell(v.N), strconv.Itoa(wc.Excluded), "", ""}, test...))
+					n := intCell(v.N)
+					if v.Hidden {
+						n = "hidden"
+					}
+					_ = cw.Write(append([]string{"answer", res.Surveys[i].ID, qid, iid, strconv.Itoa(v.Version), strconv.FormatBool(br), "", "", n, excluded, "", ""}, test...))
 				}
 				for _, o := range v.Options {
 					_ = cw.Write(append([]string{"answer", res.Surveys[i].ID, qid, iid, strconv.Itoa(v.Version), strconv.FormatBool(br),
-						o.Value, intCell(o.Count), intCell(v.N), strconv.Itoa(wc.Excluded), floatCell(v.Mean), floatCell(v.Agree)}, test...))
+						o.Value, intCell(o.Count), intCell(v.N), excluded, floatCell(v.Mean), floatCell(v.Agree)}, test...))
 				}
 			}
 		}
