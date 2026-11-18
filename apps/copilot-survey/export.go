@@ -72,6 +72,8 @@ type exportRow struct {
 	Answers          map[string]any    `json:"answers"`
 	QuestionVersions map[string]int    `json:"question_versions"`
 	Context          map[string]string `json:"context"`
+	// Codes: the codes of this row's text per field, for the admin CSV.
+	Codes map[string]textCodes `json:"-"`
 }
 
 // runExport reads one JSON object per line (answers, question_versions,
@@ -137,7 +139,7 @@ func newExportRow(answers map[string]any, versions map[string]int, context map[s
 		}
 	}
 	redactValue(answers)
-	return exportRow{answers, versions, ctx}
+	return exportRow{Answers: answers, QuestionVersions: versions, Context: ctx}
 }
 
 func suppressSmallSegments(rows []exportRow) {

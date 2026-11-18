@@ -243,6 +243,12 @@ with a BOM so Excel reads æøå:
 - Free text is masked and hidden texts are empty cells, as in the CLI export.
   Text starting with `=`, `+`, `-` or `@` gets a leading `'` so a spreadsheet
   does not run it as a formula.
+- Once a field has codes ([Free-text coding](#free-text-coding)), three columns
+  per coded field follow: `codes.<field>.final`, `codes.<field>.model`,
+  `codes.<field>.human`, each `category` or `category:onske`, `;` between,
+  empty when not coded. `model` stays empty until the person has coded the
+  text, as on the coding page. They describe the text in the same row, so
+  they add nothing that links it to anything else.
 
 copilot-survey logs the survey id and row count of each export, never the
 content.
@@ -316,7 +322,19 @@ nais cloudsql revoke copilot-survey -t copilot -e prod-gcp --reason "$REASON"
 - Final codes of a text: the decision, else both coders' codes where they are equal, else none yet.
 - Counts are per respondent who wrote in the field. Kappa is Cohen's kappa per category, and per `merge_with` pair, over the texts both coders coded; undefined (`null`) when either coder gave every text the same answer.
 - Publication rule: a category alone at kappa ≥ 0.6; below that as its pair if the pair reaches 0.6; otherwise hidden. In `published`, counts, wish counts and shares under 5 are `null` with `small: true`, and a field with fewer than 5 writers has none. Admin `categories` shows every real count.
+- The model codes with `copilot-survey code` (below), the person on `/admin/undersokelser/{id}/fritekst/koding`.
 - Codes and decisions are deleted with the survey's last row. Before the rows go, `retain` writes the counts to `survey_results` (kind `freetext`: per field `""` with coded and written, per category or pair its count and kappa as `mean`; kind `freetext_onske`: wish counts; `version` is the codebook version). After that the coding page reads them.
+
+#### Model coding
+
+```bash
+# export.csv: «Last ned svar (CSV)» in admin, masked, hidden texts left out.
+GITHUB_TOKEN=$(gh auth token) go run . code --survey q4-2026 --model openai/gpt-4.1 q4-2026-svar.csv > koder.json
+```
+
+One request per distinct masked text and field, with the field's categories, their definitions and the rules as the instruction, temperature 0. An answer that fails the codebook (unknown category, too many codes, `annet` with others) is asked once more, then left out. `koder.json` holds sha256 of each masked text and its codes, no text; upload it on the coding page. The text is masked again before it is sent and hashed, so a CSV from elsewhere is masked too. Stderr says how many texts per field were coded, and for a failure the field, the number and a fixed reason; never the text, and nothing the model or endpoint wrote.
+
+The endpoint is any OpenAI-compatible chat completions URL (`--endpoint`), by default GitHub Models. The token goes only to HTTPS, or HTTP on localhost. Nothing runs in the service: no model credentials or outbound access in the cluster.
 
 ### Final aggregates and retention
 
@@ -411,6 +429,8 @@ go run . analyze q4-2026=q4-2026-svar.csv                                   # = 
 go run . analyze q2-2026=q2-2026-svar.csv q4-2026=q4-2026-svar.csv          # = /compare, JSON
 go run . analyze --csv q2-2026=q2-2026-svar.csv q4-2026=q4-2026-svar.csv    # = /compare?format=csv
 ```
+
+With one survey whose CSV has `codes.*` columns, the JSON also has `freetext`: the coding results the coding page shows (`TestAnalyzeCodingMatchesOnline`).
 
 Survey ids select the embedded definition; a CSV whose columns do not match it is refused. `TestAnalyzeMatchesOnline` holds the promise: rows → export CSV → `readExportCSV` must give byte-identical results and comparison CSV.
 

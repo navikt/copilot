@@ -12,10 +12,11 @@ import (
 
 // storedAnswer is one survey_answers row as the admin aggregates read it.
 type storedAnswer struct {
-	Answers          map[string]any `json:"answers"`
-	QuestionVersions map[string]int `json:"question_versions"`
-	Client           string         `json:"-"` // context.client: web, copilot, forms (import), …
-	Context          map[string]any `json:"-"` // version, os, client, local_models; for the CSV export
+	Answers          map[string]any       `json:"answers"`
+	QuestionVersions map[string]int       `json:"question_versions"`
+	Client           string               `json:"-"` // context.client: web, copilot, forms (import), …
+	Context          map[string]any       `json:"-"` // version, os, client, local_models; for the CSV export
+	Codes            map[string]textCodes `json:"-"` // per field, read back from the CSV's codes columns
 }
 
 type surveySummary struct {

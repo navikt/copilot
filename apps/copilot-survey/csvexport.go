@@ -42,11 +42,32 @@ func (a *surveyAPI) exportCSV(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	cb, coded := a.codebooks[s.Series]
+	var codes map[string]*textCodes
+	if coded && s.Series != "" && a.codes != nil {
+		var err error
+		if codes, err = a.codes(r.Context(), s.ID, cb.Version); err != nil {
+			writeError(w, http.StatusServiceUnavailable, "survey storage unavailable")
+			return
+		}
+	}
 	rows := make([]exportRow, len(stored))
 	for i, st := range stored {
+		rowCodes := map[string]textCodes{}
+		for _, f := range cb.Fields {
+			raw, _ := st.Answers[f.ID].(string)
+			if c := codes[hiddenKey(f.ID, textHash(raw))]; raw != "" && c != nil && !hidden[hiddenKey(f.ID, textHash(raw))] {
+				t := *c
+				if t.Human == nil {
+					t.Model = nil // blind coding: the model's codes wait for the person's
+				}
+				rowCodes[f.ID] = t
+			}
+		}
 		rows[i] = newExportRow(st.Answers, st.QuestionVersions, st.Context, func(field, raw string) bool {
 			return hidden[hiddenKey(field, textHash(raw))]
 		})
+		rows[i].Codes = rowCodes
 	}
 	rand.Shuffle(len(rows), func(i, j int) { rows[i], rows[j] = rows[j], rows[i] })
 
@@ -124,6 +145,14 @@ func writeExportCSV(w io.Writer, s survey, rows []exportRow) {
 	for _, k := range exportCSVContext {
 		cols = append(cols, column{"context." + k, func(r exportRow) string { return r.Context[k] }})
 	}
+	for _, f := range freetextFields(s) {
+		if !slices.ContainsFunc(rows, func(r exportRow) bool { _, ok := r.Codes[f.ID]; return ok }) {
+			continue
+		}
+		for _, coder := range codeColumns {
+			cols = append(cols, column{"codes." + f.ID + "." + coder, func(r exportRow) string { return codesCell(r.Codes[f.ID], coder) }})
+		}
+	}
 
 	_, _ = w.Write([]byte("\xef\xbb\xbf")) // BOM: Excel then reads æøå as UTF-8
 	cw := csv.NewWriter(w)
@@ -139,6 +168,37 @@ func writeExportCSV(w io.Writer, s survey, rows []exportRow) {
 		_ = cw.Write(line)
 	}
 	cw.Flush()
+}
+
+// codeColumns are the coders whose codes follow, per coded field, as
+// «codes.<field>.<coder>»: final codes first, then each coder's.
+var codeColumns = []string{"final", "model", "human"}
+
+// codesCell writes codes as «category» or «category:onske», «;» between;
+// empty when that coder has not coded the text.
+func codesCell(t textCodes, coder string) string {
+	codes := map[string][]code{"final": t.final(), "model": t.Model, "human": t.Human}[coder]
+	parts := make([]string, len(codes))
+	for i, c := range codes {
+		parts[i] = c.Category
+		if c.Onske {
+			parts[i] += ":onske"
+		}
+	}
+	return strings.Join(parts, ";")
+}
+
+// parseCodesCell is codesCell's inverse; nil for an empty cell.
+func parseCodesCell(cell string) []code {
+	if cell == "" {
+		return nil
+	}
+	var out []code
+	for _, p := range strings.Split(cell, ";") {
+		cat, wish := strings.CutSuffix(p, ":onske")
+		out = append(out, code{cat, wish})
+	}
+	return out
 }
 
 // multiColumns are q's options, then any value a row picked that is no
