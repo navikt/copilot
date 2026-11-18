@@ -675,7 +675,7 @@ func TestAuditMCP_LogsFields_BoundsMethod_And_NoSecretsOrArgs(t *testing.T) {
 	for _, line := range strings.Split(strings.TrimSpace(logBuf.String()), "\n") {
 		var entry map[string]any
 		if json.Unmarshal([]byte(line), &entry) == nil && entry["msg"] == "audit mcp" {
-			foundAudit = entry
+			foundAudit = flatAudit(entry)
 		}
 	}
 	if foundAudit == nil {
@@ -1152,7 +1152,7 @@ routes:
 				case "route disabled by kill switch":
 					foundWarn = entry
 				case "audit mcp":
-					foundAudit = entry
+					foundAudit = flatAudit(entry)
 				}
 			}
 			if foundWarn == nil {

@@ -17,6 +17,36 @@ import (
 	"testing"
 )
 
+// flatAudit maps the AuthZEN-shaped audit record onto flat keys so tests can
+// assert single fields; TestAuditMCP_AuthZENShape pins the real shape.
+func flatAudit(e map[string]any) map[string]any {
+	get := func(path ...string) any {
+		var v any = e
+		for _, k := range path {
+			m, _ := v.(map[string]any)
+			v = m[k]
+		}
+		return v
+	}
+	decision := "deny"
+	if get("decision", "decision") == true {
+		decision = "allow"
+	}
+	return map[string]any{
+		"navident":        get("subject", "id"),
+		"client_id":       get("subject", "properties", "client_id"),
+		"method":          get("action", "name"),
+		"tool":            get("action", "properties", "tool"),
+		"route":           "/mcp/" + fmt.Sprint(get("resource", "id")),
+		"decision":        decision,
+		"decision_reason": get("decision", "reason"),
+		"header_mismatch": get("context", "header_mismatch"),
+		"outcome":         get("context", "outcome"),
+		"duration_ms":     get("context", "duration_ms"),
+		"raw":             e,
+	}
+}
+
 // auditPost sends body through the gateway and returns the audit entry and the
 // body upstream received.
 func auditPost(t *testing.T, body string) (map[string]any, []byte, int) {
@@ -72,7 +102,7 @@ func auditToolsHeaders(t *testing.T, method string, tools map[string]bool, body 
 	for _, line := range strings.Split(strings.TrimSpace(logBuf.String()), "\n") {
 		var e map[string]any
 		if json.Unmarshal([]byte(line), &e) == nil && e["msg"] == "audit mcp" {
-			audit = e
+			audit = flatAudit(e)
 		}
 	}
 	if audit == nil {
@@ -344,5 +374,27 @@ func TestAuditMCP_HeaderMismatch(t *testing.T) {
 		if code != http.StatusOK || audit["header_mismatch"] != tc.want {
 			t.Errorf("%v: got code %d header_mismatch %v, want %v", tc.hdrs, code, audit["header_mismatch"], tc.want)
 		}
+	}
+}
+
+func TestAuditMCP_AuthZENShape(t *testing.T) {
+	audit, _, _ := auditToolsHeaders(t, http.MethodPost, map[string]bool{"search": true},
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"delete","arguments":{"a":"top-secret-arg"}}}`,
+		http.Header{"Mcp-Name": {"search"}})
+	raw := audit["raw"].(map[string]any)
+	ctx := raw["context"].(map[string]any)
+	if id, _ := ctx["request_id"].(string); len(id) != 26 {
+		t.Errorf("request_id %q, want 26 base32 characters", id)
+	}
+	ctx["request_id"], ctx["duration_ms"] = "ID", 0
+	delete(raw, "time")
+	got, _ := json.Marshal(raw)
+	want := `{"action":{"name":"tools/call","properties":{"tool":"delete"}},` +
+		`"context":{"duration_ms":0,"header_mismatch":true,"http_method":"POST","outcome":"tool_denied","request_id":"ID","scan_incomplete":false},` +
+		`"decision":{"decision":false,"reason":"not_listed"},"level":"INFO","msg":"audit mcp",` +
+		`"resource":{"id":"team-etterlevelse/etterlevelse","properties":{"backend":"dev-gcp:team-etterlevelse:nav-etterlevelse-mcp"},"type":"mcp_route"},` +
+		`"subject":{"id":"Z123456","properties":{"client_id":"` + fmt.Sprint(audit["client_id"]) + `"},"type":"user"}}`
+	if audit["client_id"] == "" || string(got) != want {
+		t.Errorf("audit record\n got %s\nwant %s", got, want)
 	}
 }

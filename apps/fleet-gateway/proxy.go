@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -105,19 +106,43 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 		decisionReason := ""
 		headerMismatch := false
 
+		requestID := rand.Text()
+
+		// One OpenID AuthZEN-shaped record per decision (owner decision 2026-11-18, #2342).
+		// decision is true only when the gateway's own checks let the request through;
+		// context.outcome tells what happened after that.
 		defer func() {
+			reason := decisionReason
+			if decision != "allow" && (decision == "" || reason == "") {
+				reason = outcome
+			}
 			slog.Info("audit mcp",
-				"navident", sanitizeLogValue(navIdent),
-				"client_id", sanitizeLogValue(clientID),
-				"route", route.Route,
-				"http_method", sanitizeLogValue(r.Method),
-				"method", sanitizeLogValue(rpcMethod),
-				"tool", sanitizeLogValue(toolName),
-				"decision", decision,
-				"decision_reason", decisionReason,
-				"header_mismatch", headerMismatch,
-				"outcome", outcome,
-				"duration_ms", g.now().Sub(start).Milliseconds(),
+				slog.Group("subject",
+					"type", "user",
+					"id", sanitizeLogValue(navIdent),
+					slog.Group("properties", "client_id", sanitizeLogValue(clientID)),
+				),
+				slog.Group("action",
+					"name", sanitizeLogValue(rpcMethod),
+					slog.Group("properties", "tool", sanitizeLogValue(toolName)),
+				),
+				slog.Group("resource",
+					"type", "mcp_route",
+					"id", strings.TrimPrefix(route.Route, "/mcp/"),
+					slog.Group("properties", "backend", route.Target),
+				),
+				slog.Group("context",
+					"request_id", requestID,
+					"http_method", sanitizeLogValue(r.Method),
+					"scan_incomplete", strings.Contains(toolName, auditIncomplete),
+					"header_mismatch", headerMismatch,
+					"outcome", outcome,
+					"duration_ms", g.now().Sub(start).Milliseconds(),
+				),
+				slog.Group("decision",
+					"decision", decision == "allow",
+					"reason", reason,
+				),
 			)
 		}()
 

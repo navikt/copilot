@@ -31,7 +31,7 @@ Expected: login succeeds, `whoami` returns your NAVident.
 kubectl -n $NS logs -l app=fleet-gateway --prefix --tail=-1 --since=10m | grep '"audit mcp"' | tail -5
 ```
 
-Expected: lines with `navident`, `route=/mcp/copilot/onboarding`, `outcome` ok.
+Expected: lines with your NAVident in `subject.id`, `resource.id` `copilot/onboarding`, `decision.decision` `true` and `context.outcome` `ok`.
 
 ## 3. Pod restart keeps the session
 
@@ -90,10 +90,11 @@ kubectl -n $NS logs -l app=fleet-gateway --prefix --tail=-1 --since=1h > /tmp/fg
 grep -c '"audit mcp"' /tmp/fgw.log
 grep -E -i 'eyJ[A-Za-z0-9_-]{10,}|bearer [A-Za-z0-9._~+/=-]{10,}|"(access_token|refresh_token|client_secret|id_token)":"|[A-Za-z0-9_-]{100,}' /tmp/fgw.log | wc -l
 grep -E -o '"navident":"[^"]*"' /tmp/fgw.log | sort -u
+grep -E -o '"subject":\{"type":"user","id":"[^"]*"' /tmp/fgw.log | sort -u
 rm /tmp/fgw.log
 ```
 
-Expected: audit count above 0. The token grep prints `0`: no JWT (`eyJ...`), no bearer value, no JSON field holding a token, and no long base64url run such as a sealed or Entra refresh token. Field names like `refresh_token_received` do not match. Any match is a leak until shown otherwise. The navident values are only NAVidents (one letter, six digits). No e-mail, name or token in any line.
+Expected: audit count above 0. The token grep prints `0`: no JWT (`eyJ...`), no bearer value, no JSON field holding a token, and no long base64url run such as a sealed or Entra refresh token. Field names like `refresh_token_received` do not match. Any match is a leak until shown otherwise. The navident and `subject.id` values are only NAVidents (one letter, six digits). No e-mail, name or token in any line.
 
 ## Result
 
