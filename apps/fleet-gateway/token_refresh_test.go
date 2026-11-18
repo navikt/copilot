@@ -152,7 +152,7 @@ func TestRefreshToken_HappyPathAndMCP(t *testing.T) {
 	}
 
 	// MCP call using at2 must succeed and exchange the refreshed Entra access token via Texas.
-	mcpReq := httptest.NewRequest(http.MethodPost, "/mcp/etterlevelse", strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"tools/list"}`))
+	mcpReq := httptest.NewRequest(http.MethodPost, "/mcp/team-etterlevelse/etterlevelse", strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"tools/list"}`))
 	mcpReq.Header.Set("Authorization", "Bearer "+at2)
 	mcpRec := httptest.NewRecorder()
 	te.handler.ServeHTTP(mcpRec, mcpReq)
@@ -433,7 +433,7 @@ func TestRevoke_RefreshTokenAndAccessToken(t *testing.T) {
 	if code3 != http.StatusOK || len(body3) != 0 {
 		t.Fatalf("expected 200 {} on /revoke AT, got %d (%v)", code3, body3)
 	}
-	mcpReq := httptest.NewRequest(http.MethodPost, "/mcp/etterlevelse", strings.NewReader(`{}`))
+	mcpReq := httptest.NewRequest(http.MethodPost, "/mcp/team-etterlevelse/etterlevelse", strings.NewReader(`{}`))
 	mcpReq.Header.Set("Authorization", "Bearer "+at2)
 	mcpRec := httptest.NewRecorder()
 	te.handler.ServeHTTP(mcpRec, mcpReq)
@@ -466,7 +466,7 @@ func TestRevoke_ClientMismatchAndRequiredClientID(t *testing.T) {
 	if code != http.StatusOK || len(body) != 0 {
 		t.Fatalf("expected 200 {} on /revoke AT mismatch, got %d (%v)", code, body)
 	}
-	mcpReq := httptest.NewRequest(http.MethodPost, "/mcp/etterlevelse", strings.NewReader(`{}`))
+	mcpReq := httptest.NewRequest(http.MethodPost, "/mcp/team-etterlevelse/etterlevelse", strings.NewReader(`{}`))
 	mcpReq.Header.Set("Authorization", "Bearer "+at1)
 	mcpRec := httptest.NewRecorder()
 	te.handler.ServeHTTP(mcpRec, mcpReq)
@@ -494,7 +494,7 @@ func TestRevoke_ClientMismatchAndRequiredClientID(t *testing.T) {
 	if code != http.StatusOK || len(body) != 0 {
 		t.Fatalf("expected 200 {} on /revoke AT with owner, got %d (%v)", code, body)
 	}
-	mcpReq2 := httptest.NewRequest(http.MethodPost, "/mcp/etterlevelse", strings.NewReader(`{}`))
+	mcpReq2 := httptest.NewRequest(http.MethodPost, "/mcp/team-etterlevelse/etterlevelse", strings.NewReader(`{}`))
 	mcpReq2.Header.Set("Authorization", "Bearer "+at1)
 	mcpRec2 := httptest.NewRecorder()
 	te.handler.ServeHTTP(mcpRec2, mcpReq2)
@@ -548,7 +548,7 @@ func TestRefreshToken_ClientAndResourceMismatch(t *testing.T) {
 		"grant_type":    {"refresh_token"},
 		"refresh_token": {rt1},
 		"client_id":     {te.clientID},
-		"resource":      {"https://fleet-gateway.intern.dev.nav.no/mcp/other"},
+		"resource":      {"https://fleet-gateway.intern.dev.nav.no/mcp/copilot/other"},
 	})
 	if status != http.StatusBadRequest || body["error"] != "invalid_grant" {
 		t.Fatalf("expected 400 invalid_grant on resource mismatch, got %d (%v)", status, body)
@@ -616,7 +616,7 @@ func runTwoInstanceRefreshTests(t *testing.T, shared SessionStore, rtKeys string
 		t.Fatalf("expected access_token and refresh_token from B, got %v", respB)
 	}
 
-	mcpReq := httptest.NewRequest(http.MethodPost, "/mcp/etterlevelse", strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"tools/list"}`))
+	mcpReq := httptest.NewRequest(http.MethodPost, "/mcp/team-etterlevelse/etterlevelse", strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"tools/list"}`))
 	mcpReq.Header.Set("Authorization", "Bearer "+atB)
 	mcpRec := httptest.NewRecorder()
 	handlerA.ServeHTTP(mcpRec, mcpReq)
@@ -1184,5 +1184,22 @@ func TestRefreshToken_GraceRechecksFamilyAfterRevoke(t *testing.T) {
 	}
 	if _, ok, err = te.gw.graceResponse(ctx, payload.JTI, payload.FID); err != nil || ok {
 		t.Fatalf("grace pair served after /revoke: %v %v", ok, err)
+	}
+}
+
+// A refresh token bound to a resource that no longer matches a route must fail with
+// invalid_grant (forcing re-login) instead of minting an unusable access token.
+func TestRefreshToken_RetiredResourceInvalidGrant(t *testing.T) {
+	te := newClientEncryptedTestEnv(t, "k1:"+testKeyBase64(t, false))
+	_, rt1, _ := te.obtainTokensForResource(te.resource)
+
+	delete(te.gw.cfg.AllowedResources, te.resource)
+	status, body := te.postToken(url.Values{
+		"grant_type":    {"refresh_token"},
+		"refresh_token": {rt1},
+		"client_id":     {te.clientID},
+	})
+	if status != http.StatusBadRequest || body["error"] != "invalid_grant" {
+		t.Fatalf("expected 400 invalid_grant for retired resource, got %d (%v)", status, body)
 	}
 }

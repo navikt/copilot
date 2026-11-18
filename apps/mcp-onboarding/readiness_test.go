@@ -271,7 +271,7 @@ func newTestMCPHandler(githubClient *GitHubClient) *MCPHandler {
 	if err := ds.LoadManifest(); err != nil {
 		panic("failed to load manifest: " + err.Error())
 	}
-	return NewMCPHandler(githubClient, ds)
+	return NewMCPHandler(githubClient, ds, "http://localhost:8080")
 }
 
 func callTool(h *MCPHandler, toolName string, args map[string]interface{}, user *UserContext) *JSONRPCResponse {

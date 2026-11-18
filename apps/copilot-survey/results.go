@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"slices"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -114,6 +115,8 @@ type versionResult struct {
 	// N is respondents who answered this version (people, also for multi).
 	N       *int          `json:"n"`
 	Options []optionCount `json:"options"`
+	// Hidden: published results left out a small group; N and Options are null.
+	Hidden bool `json:"hidden,omitempty"`
 }
 
 type itemResult struct {
@@ -171,7 +174,136 @@ func (a *surveyAPI) publishedResults(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusNotFound, "unknown survey")
 		return
 	}
-	writeJSON(w, aggregateTally(a.surveys[i], t, now))
+	res := aggregateTally(a.surveys[i], t, now)
+	res.Channels = mergeSmallChannels(res.Channels)
+	hideSmallVersions(&res)
+	writeJSON(w, res)
+}
+
+// mergeSmallChannels folds every channel under minSegment into «annet», the
+// export's rule for one context value. Admin /results keeps them apart.
+func mergeSmallChannels(channels map[string]int) map[string]int {
+	if channels == nil {
+		return nil
+	}
+	out := map[string]int{}
+	for c, n := range channels {
+		if n < minSegment {
+			c = merged
+		}
+		out[c] += n
+	}
+	return out
+}
+
+// small is a group of 1 to minSegment-1: shown, its answers could be told apart.
+func small(n int) bool { return n > 0 && n < minSegment }
+
+// hide removes a version's counts, n and statistics.
+func (v *versionResult) hide() { v.N, v.Options, v.Hidden = nil, nil, true }
+
+// hideSmallVersions hides every version under minSegment respondents in
+// published /results: one person answering an old version would otherwise
+// show their answer.
+func hideSmallVersions(res *surveyResults) {
+	hide := func(vs []versionResult) {
+		for i := range vs {
+			if vs[i].N != nil && small(*vs[i].N) {
+				vs[i].hide()
+			}
+		}
+	}
+	for qi := range res.Questions {
+		hide(res.Questions[qi].Versions)
+		for ii := range res.Questions[qi].Items {
+			hide(res.Questions[qi].Items[ii].Versions)
+		}
+	}
+}
+
+// hideSmallWaveVersions hides every version under minSegment respondents in
+// a published comparison, as hideSmallVersions does in /results, and the
+// item's test when the first or last wave has one. Holm keeps the hidden
+// items (owner decision). It drops excluded, which is 0 without the rule.
+func hideSmallWaveVersions(res *compareResult) {
+	hide := func(sig *significance, ws []waveCounts) {
+		for i := range ws {
+			ws[i].Excluded = nil
+			for vi := range ws[i].Versions {
+				v := &ws[i].Versions[vi]
+				if v.N == nil || !small(*v.N) {
+					continue
+				}
+				v.hide()
+				v.Mean, v.Agree = nil, nil
+				if i == 0 || i == len(ws)-1 {
+					*sig = significance{}
+				}
+			}
+		}
+	}
+	for qi := range res.Questions {
+		q := &res.Questions[qi]
+		hide(&q.significance, q.Waves)
+		for ii := range q.Items {
+			hide(&q.Items[ii].significance, q.Items[ii].Waves)
+		}
+	}
+}
+
+// publishedCompare compares the last four closed, published waves of a
+// series that have at least minSegment rows, oldest first (#2229). Channels
+// are left out, and so are versions under minSegment (hideSmallWaveVersions).
+// Unlike compare, the last wave's skip_if is not applied to earlier waves:
+// each wave counts its own answers as its /results does, so no difference
+// between the two can single out a small group (owner decision, #2271). The
+// test then compares groups that are not quite alike. An unknown series, or
+// fewer than two such waves, is 404. Unlike compare it reads only rows, so a
+// wave whose rows are deleted drops out.
+func (a *surveyAPI) publishedCompare(w http.ResponseWriter, r *http.Request) {
+	now, series := a.now(), r.URL.Query().Get("series")
+	candidates := slices.Clone(a.surveys)
+	slices.SortFunc(candidates, func(x, y survey) int { return strings.Compare(y.Starts, x.Starts) }) // newest first
+	var waves []survey
+	var rows [][]storedAnswer
+	for _, s := range candidates {
+		if len(waves) == 4 {
+			break
+		}
+		if series == "" || s.Series != series || !s.Published || s.status(now) != "stengt" {
+			continue
+		}
+		rs, err := a.read(r, s.ID)
+		if err != nil {
+			writeError(w, http.StatusServiceUnavailable, "survey storage unavailable")
+			return
+		}
+		if len(rs) >= minSegment {
+			waves, rows = append([]survey{s}, waves...), append([][]storedAnswer{rs}, rows...)
+		}
+	}
+	if len(waves) < 2 {
+		writeError(w, http.StatusNotFound, "unknown series")
+		return
+	}
+	last := &waves[len(waves)-1]
+	last.Questions = slices.Clone(last.Questions)
+	for i := range last.Questions {
+		last.Questions[i].SkipIf = nil
+	}
+	res := compareWavesResult(waves, rows, now)
+	for i := range res.Surveys {
+		res.Surveys[i].Channels = nil
+	}
+	hideSmallWaveVersions(&res)
+	if r.URL.Query().Get("format") == "csv" {
+		w.Header().Set("Content-Type", "text/csv; charset=utf-8")
+		w.Header().Set("Content-Disposition", `attachment; filename="sammenligning-`+series+`.csv"`)
+		w.Header().Set("Cache-Control", "no-store")
+		_ = writeCompareCSV(w, res)
+		return
+	}
+	writeJSON(w, res)
 }
 
 // aggregate counts answers per question and question version. Free text is

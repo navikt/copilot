@@ -1,7 +1,7 @@
 import { BodyShort, Heading, VStack } from "@navikt/ds-react";
 import { Table, TableBody, TableDataCell, TableHeader, TableHeaderCell, TableRow } from "@/components/aksel-table";
 import { formatNumber } from "@/lib/format";
-import type { QuestionResult, Survey, SurveyQuestion, VersionResult } from "@/lib/survey";
+import { UNDER_FIVE, type QuestionResult, type Survey, type SurveyQuestion, type VersionResult } from "@/lib/survey";
 import { nText, unsureLabel } from "./[id]/likert";
 import { fill, Legend, LikertBar } from "./likert-bar";
 
@@ -30,6 +30,12 @@ function VersionTable({
   unsure?: string;
 }) {
   const n = v.n;
+  if (v.hidden)
+    return (
+      <BodyShort size="small">
+        {caption}: {UNDER_FIVE} svar. Tallene vises ikke.
+      </BodyShort>
+    );
   if (!v.options || n === null) return null;
   return (
     <div className="overflow-x-auto">

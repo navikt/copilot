@@ -30,9 +30,10 @@ type waveStat struct {
 
 // waveCounts is one question or item in one wave, index-aligned with
 // compareResult.Surveys. Excluded is how many answers the comparison rule
-// dropped (see compare).
+// dropped (see compare); always set by compare, nil in the published series,
+// which has no such rule.
 type waveCounts struct {
-	Excluded int        `json:"excluded"`
+	Excluded *int       `json:"excluded,omitempty"`
 	Versions []waveStat `json:"versions"`
 }
 
@@ -308,37 +309,46 @@ func compareTallies(waves []survey, tallies []waveTally, now time.Time) compareR
 }
 
 // asked finds the question or matrix item id in s as asked there: its
-// version and scale maximum.
-func asked(s survey, id string) (version, top int, ok bool) {
+// version, scale maximum and type (scale for a matrix item).
+func asked(s survey, id string) (version, top int, typ string, ok bool) {
 	for _, q := range s.Questions {
 		if q.ID == id {
-			return q.Version, q.Max, true
+			return q.Version, q.Max, q.Type, true
 		}
 		for _, it := range q.Items {
 			if it.ID == id {
-				return it.Version, q.Max, true
+				return it.Version, q.Max, "scale", true
 			}
 		}
 	}
-	return 0, 0, false
+	return 0, 0, "", false
 }
 
 // compareWaves counts q in every wave after the skip rule, and reports a
 // break when the waves did not all ask, or answer, the same single version.
 // A wave's declared version counts even without answers; a wave that did
-// not ask the question at all does not break the series.
+// not ask the question at all does not break the series. A wave that asked
+// the id as another type (free text, say) has no counts and breaks it.
 func compareWaves(q question, waves []survey, tallies []waveTally) ([]waveCounts, bool) {
 	out := make([]waveCounts, len(tallies))
 	seen := map[int]bool{}
+	broken := false
 	for i, t := range tallies {
 		top := q.Max
-		if v, m, ok := asked(waves[i], q.ID); ok {
+		v, m, typ, ok := asked(waves[i], q.ID)
+		if ok {
 			seen[v], top = true, m
 		}
-		kept := t.Keys[q.ID]
-		if id := skipSetID(skipRulesOf(q)); id != "" {
-			kept, out[i].Excluded = without(kept, t.Skipped[id][q.ID])
+		if ok && typ != q.Type {
+			zero := 0
+			out[i].Excluded, out[i].Versions, broken = &zero, []waveStat{}, true
+			continue
 		}
+		kept, excluded := t.Keys[q.ID], 0
+		if id := skipSetID(skipRulesOf(q)); id != "" {
+			kept, excluded = without(kept, t.Skipped[id][q.ID])
+		}
+		out[i].Excluded = &excluded
 		out[i].Versions = []waveStat{}
 		for _, vr := range versionsFrom(q, kept) {
 			ws := waveStat{versionResult: vr}
@@ -349,7 +359,7 @@ func compareWaves(q question, waves []survey, tallies []waveTally) ([]waveCounts
 			seen[vr.Version] = true
 		}
 	}
-	return out, len(seen) > 1
+	return out, broken || len(seen) > 1
 }
 
 // without is all minus skipped, as tallyKey would count the rows left, and
