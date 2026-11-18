@@ -1,3 +1,13 @@
+# Få og forutsigbare PR-er: én oppføring per økosystem, alle kataloger samlet
+# med `directories`, fast tidspunkt mandag morgen. Per økosystem blir det
+# høyst tre PR-er: minor+patch, major og sikkerhet.
+# Referanse: https://docs.github.com/en/code-security/dependabot/working-with-dependabot/dependabot-options-reference
+#
+# Bevisst utelatt:
+# - docker: basebildene bruker flytende tagger (golang:1.26-alpine,
+#   distroless, chainguard), og Go-versjonen styres av go.mod.
+# - pip (cli/nav-pilot/internal/local/requirements.txt): regenereres med
+#   hasher fra versjonene i runtime.go. Sikkerhetsvarsler kommer uansett.
 version: 2
 registries:
   # Pakker fra GitHub Packages (@nais/apm fra #2026) krever token også for
@@ -17,6 +27,8 @@ updates:
       day: "monday"
       time: "06:00"
       timezone: "Europe/Oslo"
+    cooldown:
+      default-days: 7
     groups:
       github-actions:
         patterns:
@@ -27,9 +39,45 @@ updates:
         # med filas eget manifest og workflowen sluttet å kjøre (#443).
         exclude-patterns:
           - "*.lock.yml"
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 3
 
-  # my-copilot (Next.js)
+  # Alle Go-moduler i én oppføring. Én PR per gruppe på tvers av katalogene.
+  - package-ecosystem: "gomod"
+    directories:
+      - "/apps/copilot-adoption"
+      - "/apps/copilot-api"
+      - "/apps/copilot-cli"
+      - "/apps/copilot-metrics"
+      - "/apps/copilot-survey"
+      - "/apps/fleet-gateway"
+      - "/apps/mcp-onboarding"
+      - "/apps/mcp-registry"
+      - "/apps/fleet-gateway/echo"
+      - "/cli/nav-pilot"
+      - "/scripts/generate-docs"
+      - "/scripts/generate-retired"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Oslo"
+    cooldown:
+      default-days: 7
+      semver-major-days: 14
+    groups:
+      go-minor-patch:
+        applies-to: version-updates
+        update-types: ["minor", "patch"]
+      go-major:
+        applies-to: version-updates
+        update-types: ["major"]
+      go-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
+    open-pull-requests-limit: 3
+
+  # my-copilot (Next.js, pnpm)
   - package-ecosystem: "npm"
     directory: "/apps/my-copilot"
     registries:
@@ -39,24 +87,22 @@ updates:
       day: "monday"
       time: "06:00"
       timezone: "Europe/Oslo"
+    cooldown:
+      default-days: 7
+      semver-major-days: 14
     groups:
-      nextjs-core:
+      npm-minor-patch:
+        applies-to: version-updates
+        update-types: ["minor", "patch"]
+      # Major-oppgraderinger (next, react, @navikt/ds-*, eslint …) i egen PR
+      # som et menneske vurderer.
+      npm-major:
+        applies-to: version-updates
+        update-types: ["major"]
+      npm-security:
+        applies-to: security-updates
         patterns:
-          - "next"
-          - "react"
-          - "react-dom"
-      navikt:
-        patterns:
-          - "@navikt/*"
-      dev-dependencies:
-        dependency-type: "development"
-      production-dependencies:
-        dependency-type: "production"
-        exclude-patterns:
-          - "next"
-          - "react"
-          - "react-dom"
-          - "@navikt/*"
+          - "*"
     ignore:
       # TypeScript 7 er holdt tilbake på 6.x. eslint-config-next trekker inn
       # typescript-eslint, som per 8.70.0 (siste) sier `typescript: ">=4.8.4
@@ -67,161 +113,7 @@ updates:
       # og eslint-config-next har fått den versjonen.
       - dependency-name: "typescript"
         versions: [">=7"]
-    open-pull-requests-limit: 5
-
-  # copilot-api (Go)
-  - package-ecosystem: "gomod"
-    directory: "/apps/copilot-api"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "06:00"
-      timezone: "Europe/Oslo"
-    groups:
-      copilot-api-go:
-        patterns:
-          - "*"
-    open-pull-requests-limit: 5
-
-  # copilot-adoption (Go)
-  - package-ecosystem: "gomod"
-    directory: "/apps/copilot-adoption"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "06:00"
-      timezone: "Europe/Oslo"
-    groups:
-      copilot-adoption-go:
-        patterns:
-          - "*"
-    open-pull-requests-limit: 5
-
-  # copilot-cli (Go)
-  - package-ecosystem: "gomod"
-    directory: "/apps/copilot-cli"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "06:00"
-      timezone: "Europe/Oslo"
-    groups:
-      copilot-cli-go:
-        patterns:
-          - "*"
-    open-pull-requests-limit: 5
-
-  # copilot-survey (Go)
-  - package-ecosystem: "gomod"
-    directory: "/apps/copilot-survey"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "06:00"
-      timezone: "Europe/Oslo"
-    groups:
-      copilot-survey-go:
-        patterns:
-          - "*"
-    open-pull-requests-limit: 5
-
-  # copilot-metrics (Go)
-  - package-ecosystem: "gomod"
-    directory: "/apps/copilot-metrics"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "06:00"
-      timezone: "Europe/Oslo"
-    groups:
-      copilot-metrics-go:
-        patterns:
-          - "*"
-    open-pull-requests-limit: 5
-
-  # fleet-gateway (Go)
-  - package-ecosystem: "gomod"
-    directory: "/apps/fleet-gateway"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "06:00"
-      timezone: "Europe/Oslo"
-    groups:
-      fleet-gateway-go:
-        patterns:
-          - "*"
-    open-pull-requests-limit: 5
-
-  # mcp-onboarding (Go)
-  - package-ecosystem: "gomod"
-    directory: "/apps/mcp-onboarding"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "06:00"
-      timezone: "Europe/Oslo"
-    groups:
-      mcp-onboarding-go:
-        patterns:
-          - "*"
-    open-pull-requests-limit: 5
-
-  # mcp-registry (Go)
-  - package-ecosystem: "gomod"
-    directory: "/apps/mcp-registry"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "06:00"
-      timezone: "Europe/Oslo"
-    groups:
-      mcp-registry-go:
-        patterns:
-          - "*"
-    open-pull-requests-limit: 5
-
-  # nav-pilot installer (Go)
-  - package-ecosystem: "gomod"
-    directory: "/cli/nav-pilot"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "06:00"
-      timezone: "Europe/Oslo"
-    groups:
-      nav-pilot-go:
-        patterns:
-          - "*"
-    open-pull-requests-limit: 5
-
-  # generate-docs (Go)
-  - package-ecosystem: "gomod"
-    directory: "/scripts/generate-docs"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "06:00"
-      timezone: "Europe/Oslo"
-    groups:
-      generate-docs-go:
-        patterns:
-          - "*"
-    open-pull-requests-limit: 5
-
-  # generate-retired (Go)
-  - package-ecosystem: "gomod"
-    directory: "/scripts/generate-retired"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "06:00"
-      timezone: "Europe/Oslo"
-    groups:
-      generate-retired-go:
-        patterns:
-          - "*"
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 3
 
   # Frozen benchmark fixture: run results record its fixture hash, so bumps
   # would invalidate the baselines. Limit 0 turns off version updates here.
