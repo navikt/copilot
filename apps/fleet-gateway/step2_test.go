@@ -697,8 +697,8 @@ func TestAuditMCP_LogsFields_BoundsMethod_And_NoSecretsOrArgs(t *testing.T) {
 		t.Fatal("expected duration_ms in audit log")
 	}
 	loggedMethod, _ := foundAudit["method"].(string)
-	if len(loggedMethod) != maxAuditMethodLen {
-		t.Fatalf("expected bounded method length %d, got %d", maxAuditMethodLen, len(loggedMethod))
+	if len(loggedMethod) != maxAuditMethodLen+len(`"..."`) || !strings.HasSuffix(loggedMethod, `"...`) {
+		t.Fatalf("expected method quoted and cut at %d with a ... marker, got %q", maxAuditMethodLen, loggedMethod)
 	}
 
 	allLogs := logBuf.String()

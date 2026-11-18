@@ -32,6 +32,11 @@ func auditPostTools(t *testing.T, tools map[string]bool, body string) (map[strin
 
 func auditTools(t *testing.T, method string, tools map[string]bool, body string) (map[string]any, []byte, int) {
 	t.Helper()
+	return auditToolsHeaders(t, method, tools, body, nil)
+}
+
+func auditToolsHeaders(t *testing.T, method string, tools map[string]bool, body string, hdrs http.Header) (map[string]any, []byte, int) {
+	t.Helper()
 	var logBuf bytes.Buffer
 	old := slog.Default()
 	slog.SetDefault(slog.New(slog.NewJSONHandler(&logBuf, &slog.HandlerOptions{Level: slog.LevelInfo})))
@@ -57,6 +62,9 @@ func auditTools(t *testing.T, method string, tools map[string]bool, body string)
 	req := httptest.NewRequest(method, "/mcp/team-etterlevelse/etterlevelse", strings.NewReader(body))
 	req.Header.Set("Authorization", "Bearer "+gwToken)
 	req.Header.Set("Content-Type", "application/json")
+	for k, v := range hdrs {
+		req.Header[k] = v
+	}
 	rec := httptest.NewRecorder()
 	te.handler.ServeHTTP(rec, req)
 
@@ -100,7 +108,7 @@ func TestAuditMCP_ToolName_LogInjection(t *testing.T) {
 	if strings.ContainsAny(tool, "\n\r") {
 		t.Fatalf("tool contains line breaks: %q", tool)
 	}
-	if !strings.HasPrefix(tool, "evil") || len(tool) > maxAuditMethodLen {
+	if !strings.HasPrefix(tool, `"evil\n{`) {
 		t.Fatalf("unexpected sanitised tool %q", tool)
 	}
 	if audit["navident"] != "Z123456" {
@@ -208,7 +216,7 @@ func TestExtractJSONRPCAudit_BatchEscapedMethod(t *testing.T) {
 func TestExtractJSONRPCAudit_BatchNameCannotForgeEntries(t *testing.T) {
 	_, tool := extractJSONRPCAudit([]byte(`[{"method":"tools/call","params":{"name":"a\",\"b"}}]`))
 	var names []string
-	if err := json.Unmarshal([]byte(tool), &names); err != nil || len(names) != 1 || names[0] != `a","b` {
+	if err := json.Unmarshal([]byte(tool), &names); err != nil || len(names) != 1 || names[0] != `"a\",\"b"` {
 		t.Fatalf("got %q", tool)
 	}
 }
@@ -303,5 +311,87 @@ func TestExtractJSONRPCAudit_IncompleteScanIsMarked(t *testing.T) {
 	}
 	if _, tool := extractJSONRPCAudit([]byte(`[` + call + `,[[1]]]`)); tool != `["hidden"]` {
 		t.Errorf("complete batch: got %q", tool)
+	}
+}
+
+func TestAuditMCP_MarksUnusualMethodAndTool(t *testing.T) {
+	for _, tc := range []struct{ body, method, tool string }{
+		{`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"whoami "}}`, "tools/call", `"whoami "`},
+		{`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"whoami\u0000"}}`, "tools/call", `"whoami\x00"`},
+		{`{"jsonrpc":"2.0","id":1,"method":"tools/\u200bcall"}`, `"tools/\u200bcall"`, ""},
+		{`{"jsonrpc":"2.0","id":1,"method":"tools/call\ufeff"}`, `"tools/call\ufeff"`, ""},
+	} {
+		audit, _, _ := auditPostTools(t, map[string]bool{"whoami": true}, tc.body)
+		if audit["method"] != tc.method || audit["tool"] != tc.tool {
+			t.Errorf("%s: got method %v tool %v, want %s / %s", tc.body, audit["method"], audit["tool"], tc.method, tc.tool)
+		}
+	}
+}
+
+func TestAuditMCP_HeaderMismatch(t *testing.T) {
+	body := `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"search"}}`
+	for _, tc := range []struct {
+		hdrs http.Header
+		want bool
+	}{
+		{http.Header{}, false},
+		{http.Header{"Mcp-Method": {"tools/call"}, "Mcp-Name": {"search"}}, false},
+		{http.Header{"Mcp-Name": {"=?base64?c2VhcmNo?="}}, false},
+		{http.Header{"Mcp-Method": {"tools/list"}}, true},
+		{http.Header{"Mcp-Name": {"delete"}}, true},
+	} {
+		audit, _, code := auditToolsHeaders(t, http.MethodPost, nil, body, tc.hdrs)
+		if code != http.StatusOK || audit["header_mismatch"] != tc.want {
+			t.Errorf("%v: got code %d header_mismatch %v, want %v", tc.hdrs, code, audit["header_mismatch"], tc.want)
+		}
+	}
+}
+
+func TestMCPHeadersMismatch_ComparesRawValues(t *testing.T) {
+	long := strings.Repeat("a", 70)
+	call := func(name string) string {
+		return `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":` + name + `}}`
+	}
+	for _, tc := range []struct {
+		body, name string
+		want       bool
+	}{
+		{call(`"søk"`), "=?base64?c8O4aw==?=", false},
+		{call(`"` + long + `"`), long, false},
+		{call(`"` + long + `"`), long + "b", true},
+		{call(`"whoami\u0000"`), `"whoami\x00"`, true},
+		{call(`"whoami "`), `"whoami "`, true},
+		{call(`"...incomplete"`), "other", true},
+		{call(`"...incomplete"`), "...incomplete", false},
+	} {
+		a := scanJSONRPCAudit([]byte(tc.body))
+		h := http.Header{"Mcp-Method": {"tools/call"}, "Mcp-Name": {tc.name}}
+		if got := mcpHeadersMismatch(h, a); got != tc.want {
+			t.Errorf("%s vs %q: mismatch %v, want %v", tc.body, tc.name, got, tc.want)
+		}
+	}
+}
+
+func TestScanJSONRPCAudit_IncompleteIsNotAToolName(t *testing.T) {
+	if a := scanJSONRPCAudit([]byte(`{"method":"tools/call","params":{"name":"...incomplete"}}`)); a.incomplete {
+		t.Fatalf("tool named ...incomplete set incomplete: %+v", a)
+	}
+	if a := scanJSONRPCAudit([]byte(`[{"method":"tools/call","params":{"name":"...incomplete"}}]`)); a.incomplete {
+		t.Fatalf("batch tool named ...incomplete set incomplete: %+v", a)
+	}
+	for _, body := range []string{`{"method":"ping"}x`, `[{"method":"tools/call","params":{"name":"a","name":"b"}}]`, "\ufeff{}"} {
+		if a := scanJSONRPCAudit([]byte(body)); !a.incomplete {
+			t.Errorf("%q: want incomplete, got %+v", body, a)
+		}
+	}
+}
+
+func TestAuditField_QuotesQuoteAndBackslash(t *testing.T) {
+	literal, nul := auditField(`"whoami\x00"`), auditField("whoami\x00")
+	if literal == nul {
+		t.Fatalf("literal and NUL names both log as %s", nul)
+	}
+	if got := auditField(`a\b`); got != `"a\\b"` {
+		t.Errorf("backslash: got %s", got)
 	}
 }
