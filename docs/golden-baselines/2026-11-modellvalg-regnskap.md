@@ -1,7 +1,9 @@
 # Modellvalg november 2026: regnskap og fremdrift
 
 Plan: [2026-11-modellvalg-plan.md](2026-11-modellvalg-plan.md), låst på `ac35a630` (#2396).
-Myk ramme: 5 700 credits. Gren: `benchmark-2026-11-run`.
+Myk ramme: ~~5 700~~ 6 500 credits (eierbeslutning 18. november 2026, se tillegget i planen). Gren: `benchmark-2026-11-run`.
+
+Regel 5 (eierbeslutning 18. november 2026): stopp hvis faktisk > 1,5 × (estimat + 5,91).
 
 Faktisk kostnad per arm = agentkall (`-usage.psv`) + dommer (`-judge-credits.psv`) + innloggingsprobe (målt i trinn 0) per kjøring av `nav-pilot-golden.sh`.
 
@@ -17,17 +19,17 @@ Faktisk kostnad per arm = agentkall (`-usage.psv`) + dommer (`-judge-credits.psv
 
 Brukt etter trinn 0: **217.72**.
 
+## Fremdrift
+
+- Trinn 0 ferdig (utfall i tillegget i planen).
+- 18. november 2026, eierbeslutninger (avvik fra planen, se tillegget): proben legges til estimatet i regel 5, rammen er 6 500, og D1 trinn 1 prøves én gang til. Andre forsøk: krav 3 (kostnad per oppgave) holder ikke, så D1 stopper etter planen. Eieren avgjør før trinn B.
+- Trinn A kjøres én arm om gangen med `run-arms.sh` (lokal hjelpefil): stopper ved reservasjon over rammen, last > 8, ufullstendige bruksdata, feil modell/nivå/klient, forkastede kjøringer eller regel 5.
+- Fortsette for hånd: legg neste linje fra planens matrise A inn i `2026-11-modellvalg-a.matrix` (`<mai>` = `low`), legg inn reservasjonen nederst i tabellen, kjør `COPILOT_AUTO_UPDATE=false python3 scripts/benchmark-matrix.py docs/golden-baselines/2026-11-modellvalg-a.matrix --jobs 1`, og kontroller og regn etter planen.
+- Brukt hittil = brukt etter trinn 0 + summen av «Faktisk» i tabellen under.
+
 ## Trinn A
+
 
 | Arm | Estimat | Reservert (brukt + estimat) | Agent | Dommer | Probe | Faktisk | Bestått | Status |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| coding mai-code-2-flash low | 5 | 222.72 | 3.58 | 0 | 5.91 | 9.49 | 30/30 sjekker, 15/15 oppgaver | ferdig; **over 1,5 × estimat (7,5) bare pga. proben → stopp etter regel 5** |
-
-Brukt etter arm 1: **227.21**.
-
-## Fremdrift
-
-- Trinn 0 ferdig (utfall i tillegget i planen). D1 trinn 1 ikke fullført: mangler API-nøkkel til Artificial Analysis.
-- Trinn A: arm 1 ferdig. **Stoppet etter regel 5** (arm > 1,5 × estimat). Årsak: innloggingsproben (5,91 per kjøring) er ikke med i estimatene. Agentkallene alene (3,58) var under estimatet.
-- Venter på eieren: godkjenne at proben legges til estimatet per arm (eller at regel 5 vurderes uten proben). Uten det vil også `coding mai-code-1.1-flash` (20), alle `research`-armene, `kafka mai-code-2-flash` (5) og `rust`-armene med estimat ≤ 11 trolig bryte regel 5.
-- Fortsette: legg neste linje fra planens matrise A inn i `2026-11-modellvalg-a.matrix` (`<mai>` = `low`), reserver i tabellen over, kjør `COPILOT_AUTO_UPDATE=false python3 scripts/benchmark-matrix.py docs/golden-baselines/2026-11-modellvalg-a.matrix --jobs 1`, kontroller og regn etter planen.
+| coding mai-code-2-flash low | 5 | 222.72 | 3.58 | 0 | 5.91 | 9.49 | 30/30 sjekker, 15/15 oppgaver | ferdig; stoppet først på regel 5 (7,5), innenfor etter eierbeslutningen (1,5 × 10,91 = 16,4) |

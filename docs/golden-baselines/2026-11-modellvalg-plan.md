@@ -374,3 +374,25 @@ Røykprøver, `research` n = 1, rådata i [2026-11-modellvalg-0/](2026-11-modell
 Trinn 1 for D1 er ikke fullført: ingen API-nøkkel til Artificial Analysis på maskinen, og nettstedet svarte ikke (tidsavbrudd). Søkeresultater fra artificialanalysis.ai viser Intelligence Index 41 for GPT-6.2 Sol (low) og 35 for GPT-6.1 Sol (low), men kodingsindeks, kostnad per oppgave, indeksversjon og samme-dag-krav er ikke kontrollert. D1 må avklares før trinn B.
 
 Forbruk i trinn 0: ≈ 217,7 credits mot estimatet ≈ 25 (se [regnskapet](2026-11-modellvalg-regnskap.md)).
+
+### 18. november 2026: eierbeslutninger etter arm 1 i trinn A
+
+Avvik fra planen, besluttet av eieren etter at arm 1 stoppet på regel 5:
+
+1. Innloggingsproben (5,91 credits per kjøring av testoppsettet) legges til estimatet per arm. Regel 5 måles mot 1,5 × (estimat + probe). Arm 1 (9,49 mot 1,5 × 10,91) er dermed innenfor.
+2. Den myke rammen økes fra 5 700 til 6 500 credits. Reglene for reservasjon og stopp er uendret.
+3. D1 trinn 1 prøves én gang til mot Artificial Analysis. Går det ikke, fortsetter trinn A, og eieren avgjør D1 før trinn B.
+
+### 18. november 2026: D1 trinn 1, andre forsøk
+
+Kilde: modellsidene [gpt-6-2-sol](https://artificialanalysis.ai/models/gpt-6-2-sol) og [gpt-6-1-sol](https://artificialanalysis.ai/models/gpt-6-1-sol), hentet 2026-11-18 19:24 UTC. API-et (`/api/v2/data/llms/models`) svarer 410, så tallene er lest fra dataene som ligger i sidene. Begge sidene viser Intelligence Index v5.0.1. Ingen av variantene er merket som estimert. Varianten er Low for begge.
+
+| Krav | GPT-6.2 Sol (low) | GPT-6.1 Sol (low) | Utfall |
+| --- | --- | --- | --- |
+| 1. Intelligence Index høyst 1 poeng lavere | 40,6 | 34,8 | holder |
+| 2. Kodingsindeks ikke lavere | ikke publisert i v5.0.1. Terminal-Bench 4.0: 37,9 %, FrontierCode 2.0: 31,4 % | 30,8 %, 20,2 % | ingen kodingsindeks. Kodingsevalueringene er høyere |
+| 3. Kostnad per oppgave ikke høyere | 0,184 USD | 0,161 USD | **holder ikke** (+14 %) |
+| 4. Ingen `estimated` | ingen merking | ingen merking | holder |
+| 5. Samme versjon, samme dag, høyst 30 dager | v5.0.1, 18.11. | v5.0.1, 18.11. | holder |
+
+Krav 3 holder ikke. Etter planen stopper D1 da («D1 feiler trinn 1: D1 stopper»). Eieren avgjør før trinn B. Øyeblikksbildet er ikke lagret i copilot-intern ennå.
