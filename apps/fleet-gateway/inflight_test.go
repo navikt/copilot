@@ -11,6 +11,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -532,4 +533,84 @@ func TestSSEStreamsDoNotRetainRequestBody(t *testing.T) {
 	if growth > 24*mib {
 		t.Fatalf("heap growth %.2f MiB exceeds 24 MiB", float64(growth)/mib)
 	}
+}
+
+// A request shed at the SSE cap was allowed by no check: the audit says
+// decision false with the outcome as reason, and the metric has no allow.
+func TestSSECapShedIsNotAuditedAsAllow(t *testing.T) {
+	var logBuf syncBuf
+	old := slog.Default()
+	slog.SetDefault(slog.New(slog.NewJSONHandler(&logBuf, &slog.HandlerOptions{Level: slog.LevelInfo})))
+	t.Cleanup(func() { slog.SetDefault(old) })
+
+	te := newTestEnv(t)
+	te.gw.cfg.MCPMaxSSE = 1
+	te.gw.cfg.SSEMaxDuration = 10 * time.Second
+	te.gw.cfg.SSEIdleTimeout = 10 * time.Second
+	te.handler = te.gw.routes()
+	stop := make(chan struct{})
+	te.upstreamServer.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.WriteHeader(http.StatusOK)
+		w.(http.Flusher).Flush()
+		select {
+		case <-stop:
+		case <-r.Context().Done():
+		}
+	})
+	token := te.obtainAccessTokenForResource(te.resource)
+	ts := httptest.NewServer(te.handler)
+	defer ts.Close()
+	defer close(stop)
+
+	route := te.gw.cfg.Routes[0].Route
+	req, _ := http.NewRequest(http.MethodPost, ts.URL+route, strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"tools/list"}`))
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json, text/event-stream")
+	resp, err := ts.Client().Do(req) //nolint:gosec // test server URL
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	allow := mcpRequestsTotal.WithLabelValues(route, "sse_over_capacity", "allow")
+	before := testutil.ToFloat64(allow)
+	if code := capPost(t, ts, token, "?sse=1"); code != http.StatusServiceUnavailable {
+		t.Fatalf("second SSE stream: code %d, want 503", code)
+	}
+	if got := testutil.ToFloat64(allow); got != before {
+		t.Errorf("shed counted as decision=allow: %v -> %v", before, got)
+	}
+	var found bool
+	for _, line := range strings.Split(logBuf.String(), "\n") {
+		if !strings.Contains(line, `"outcome":"sse_over_capacity"`) {
+			continue
+		}
+		found = true
+		if !strings.Contains(line, `"decision":{"decision":false,"context":{"reason":"sse_over_capacity"}}`) {
+			t.Errorf("audit line not decision=false reason=sse_over_capacity:\n%s", line)
+		}
+	}
+	if !found {
+		t.Fatalf("no audit line with outcome sse_over_capacity:\n%s", logBuf.String())
+	}
+}
+
+// syncBuf lets the test read the log while server goroutines still write.
+type syncBuf struct {
+	mu sync.Mutex
+	b  bytes.Buffer
+}
+
+func (s *syncBuf) Write(p []byte) (int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.b.Write(p)
+}
+
+func (s *syncBuf) String() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.b.String()
 }
