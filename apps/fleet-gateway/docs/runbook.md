@@ -32,7 +32,7 @@ curl -s -o /dev/null -w '%{http_code}\n' $URL/health $URL/ready
 kubectl -n $NS logs -l app=fleet-gateway --prefix --tail=-1 --since=30m | grep '"audit '
 ```
 
-Audit lines: `audit mcp` (route, tool, decision, outcome, NAVident), `audit login`, `audit refresh`, `audit dcr`. A killed route logs `route disabled by kill switch`. Logs are ordinary stdout; retention in the platform log store is unverified (#2317 F1). A saved query for Grafana Loki or Kibana is not yet recorded: add it here after the drill.
+Audit lines: `audit mcp` in OpenID AuthZEN shape (`subject.id` NAVident, `resource.id` route, `action.properties.tool`, `decision.decision`, `decision.context.reason`, `context.outcome`; see the README), `audit login`, `audit refresh`, `audit dcr`. A killed route logs `route disabled by kill switch`. Logs are ordinary stdout; retention in the platform log store is unverified (#2317 F1). A saved query for Grafana Loki or Kibana is not yet recorded: add it here after the drill.
 
 ## Kill switches
 
@@ -90,7 +90,7 @@ Remove the `client_id` from `ALLOWED_CLIENT_IDS` in `.nais/<env>-gcp.yaml` and d
 
 1. `curl -s -o /dev/null -w '%{http_code}\n' $URL/.well-known/oauth-protected-resource/mcp/<namespace>/<name>` prints `200`.
 2. One login with your own user through a real client.
-3. One tool call (`whoami`); an `audit mcp` line with `outcome` ok appears. Full version: [t7-prod-test.md](t7-prod-test.md).
+3. One tool call (`whoami`); an `audit mcp` line with `context.outcome` `ok` and `decision.decision` `true` appears. Full version: [t7-prod-test.md](t7-prod-test.md).
 
 ## Contacts
 
