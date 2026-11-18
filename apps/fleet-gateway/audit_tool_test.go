@@ -251,34 +251,65 @@ func TestExtractJSONRPCAudit_BatchNameCannotForgeEntries(t *testing.T) {
 	}
 }
 
-// peakHeapDuring runs f and returns the peak heap above the level before f,
-// sampled concurrently. GOGC=1 collects garbage almost at once, so the peak is
-// close to what f holds live rather than to GC pacing.
-func peakHeapDuring(f func()) uint64 {
+// peakLiveHeap runs f and returns the most heap any GC during f found live,
+// above the level before f. GOGC=1 runs a GC almost every allocation step.
+// It reads /gc/heap/live:bytes, which counts only what a GC marked, not
+// /memory/classes/heap/objects:bytes, which also counts garbage not yet
+// swept: in CI that made a transient 1 MiB decoder buffer read +8 MiB, and a
+// sampler that had not yet been scheduled read +0.0 MiB (#2366). The sampler
+// signals before f starts, and a GC plus a last read after f catches what f
+// still holds when it returns.
+//
+// Scope: this measures retained live heap, not every transient allocation.
+// /gc/heap/live:bytes moves only when a mark cycle completes, so one large
+// buffer that f allocates and drops between cycles can read +0.0 MiB (seen
+// for a filled 16 MiB slice at -cpu 1). The bound it guards is what the scan
+// keeps reachable; the retained-buffer control below proves it sees that.
+//
+// Objects allocated while a GC is marking count as live for that cycle, so a
+// busy machine can still add floating garbage to one run. That error only
+// ever adds, while what f retains shows in every run, so the minimum of three
+// runs is the estimate.
+func peakLiveHeap(f func()) uint64 {
+	m := peakLiveHeapOnce(f)
+	for range 2 {
+		m = min(m, peakLiveHeapOnce(f))
+	}
+	return m
+}
+
+func peakLiveHeapOnce(f func()) uint64 {
 	defer debug.SetGCPercent(debug.SetGCPercent(1))
-	sample := []metrics.Sample{{Name: "/memory/classes/heap/objects:bytes"}}
+	sample := []metrics.Sample{{Name: "/gc/heap/live:bytes"}}
 	read := func() uint64 { metrics.Read(sample); return sample[0].Value.Uint64() }
 	runtime.GC()
 	base := read()
 	var peak atomic.Uint64
-	done := make(chan struct{})
-	stopped := make(chan struct{})
+	bump := func() {
+		if v := read(); v > peak.Load() {
+			peak.Store(v)
+		}
+	}
+	started, done, stopped := make(chan struct{}), make(chan struct{}), make(chan struct{})
 	go func() {
 		defer close(stopped)
+		close(started)
 		for {
-			if v := read(); v > peak.Load() {
-				peak.Store(v)
-			}
+			bump()
 			select {
 			case <-done:
 				return
 			default:
+				runtime.Gosched()
 			}
 		}
 	}()
+	<-started
 	f()
 	close(done)
 	<-stopped
+	runtime.GC()
+	bump()
 	if p := peak.Load(); p > base {
 		return p - base
 	}
@@ -308,12 +339,33 @@ func TestExtractJSONRPCAudit_BoundedHeap(t *testing.T) {
 		if len(body) > maxMCPRequestBodyBytes {
 			t.Fatalf("%s: body %d bytes over cap", name, len(body))
 		}
-		peak := peakHeapDuring(func() { extractJSONRPCAudit(body) })
-		t.Logf("%s: peak heap +%.1f MiB", name, float64(peak)/(1<<20))
+		peak := peakLiveHeap(func() { extractJSONRPCAudit(body) })
+		t.Logf("%s: peak live heap +%.1f MiB", name, float64(peak)/(1<<20))
 		if peak > 8<<20 {
-			t.Errorf("%s: peak heap +%d MiB for a %d-byte body, want < 8 MiB", name, peak>>20, len(body))
+			t.Errorf("%s: peak live heap +%d MiB for a %d-byte body, want < 8 MiB", name, peak>>20, len(body))
 		}
 	}
+	// Control: decoding the whole body, as the scan did before #2309, holds
+	// ~20 MiB live for {} members. If the helper cannot see that, it is blind.
+	body := cases["empty objects"]
+	if naive := peakLiveHeap(func() { var v []json.RawMessage; _ = json.Unmarshal(body, &v) }); naive <= 8<<20 {
+		t.Errorf("control: naive Unmarshal peak live heap +%.1f MiB, want > 8 MiB; peakLiveHeap cannot detect the old behaviour", float64(naive)/(1<<20))
+	}
+	// Control: one 16 MiB buffer that is still reachable when f returns must
+	// read over 8 MiB, so a single large retained allocation is not missed.
+	// Each run keeps its own buffer: reusing one variable left the previous
+	// run's buffer in the next run's baseline, so min-of-3 read +0.0 MiB.
+	var kept [][]byte
+	if big := peakLiveHeap(func() {
+		buf := make([]byte, 16<<20)
+		for i := range buf {
+			buf[i] = 1
+		}
+		kept = append(kept, buf)
+	}); big <= 8<<20 {
+		t.Errorf("control: retained 16 MiB buffer read +%.1f MiB, want > 8 MiB", float64(big)/(1<<20))
+	}
+	runtime.KeepAlive(kept)
 }
 
 func TestExtractJSONRPCAudit_IncompleteScanIsMarked(t *testing.T) {
