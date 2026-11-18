@@ -224,6 +224,18 @@ func (s *server) echoHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var env mcpEnvelope
+	_ = json.Unmarshal(trimmed, &env)
+	now := time.Now()
+	if !isLegacyMCPRequest(r, env) {
+		serveModernEcho(w, r, env, json.RawMessage(bytes.TrimSpace(rpc.ID)), claims, now)
+		return
+	}
+	if !mcpLegacyAllowed(now) {
+		writeMCPError(w, http.StatusBadRequest, nil, mcpUnsupportedVersion(r.Header.Get("MCP-Protocol-Version"), now))
+		return
+	}
+
 	isNotification := len(bytes.TrimSpace(rpc.ID)) == 0 || bytes.Equal(bytes.TrimSpace(rpc.ID), []byte("null"))
 	if strings.HasPrefix(rpc.Method, "notifications/") && isNotification {
 		w.WriteHeader(http.StatusAccepted)
@@ -246,6 +258,7 @@ func (s *server) echoHandler(w http.ResponseWriter, r *http.Request) {
 					"name":        "whoami",
 					"description": "Return validated Entra claims from Texas introspection",
 					"inputSchema": map[string]any{"type": "object", "properties": map[string]any{}},
+					"annotations": whoamiAnnotations,
 				},
 			},
 		}
@@ -438,4 +451,48 @@ func main() {
 	if err := httpServer.Shutdown(shutdownCtx); err != nil {
 		slog.Error("server shutdown failed", "error", err)
 	}
+}
+
+// whoamiAnnotations are client hints, never a security boundary.
+var whoamiAnnotations = map[string]bool{"readOnlyHint": true, "destructiveHint": false, "idempotentHint": true, "openWorldHint": false}
+
+// serveModernEcho answers a 2026-07-28 request: stateless, no initialize.
+func serveModernEcho(w http.ResponseWriter, r *http.Request, env mcpEnvelope, id json.RawMessage, claims *echoClaims, now time.Time) {
+	var rpcID any
+	if len(id) > 0 {
+		rpcID = id
+	}
+	if e := validateModernMCPRequest(r, env, now); e != nil {
+		writeMCPError(w, http.StatusBadRequest, rpcID, e)
+		return
+	}
+	if strings.HasPrefix(env.Method, "notifications/") {
+		w.WriteHeader(http.StatusAccepted)
+		return
+	}
+	var result any
+	var extra map[string]any
+	switch env.Method {
+	case "server/discover":
+		result = mcpDiscoverResult(map[string]any{"tools": map[string]any{}}, now)
+	case "tools/list":
+		result = map[string]any{"tools": []map[string]any{{
+			"name":        "whoami",
+			"description": "Return validated Entra claims from Texas introspection",
+			"inputSchema": map[string]any{"type": "object", "properties": map[string]any{}},
+			"annotations": whoamiAnnotations,
+		}}}
+		extra = map[string]any{"ttlMs": mcpDiscoverTTLMilliseconds, "cacheScope": "private"}
+	case "tools/call":
+		if env.Params.Name != "whoami" {
+			writeJSON(w, http.StatusOK, map[string]any{"jsonrpc": "2.0", "id": rpcID, "error": mcpRPCError{Code: -32602, Message: "unknown tool"}})
+			return
+		}
+		claimsJSON, _ := json.Marshal(claims)
+		result = map[string]any{"content": []map[string]string{{"type": "text", "text": string(claimsJSON)}}, "claims": claims}
+	default:
+		writeMCPError(w, http.StatusNotFound, rpcID, &mcpRPCError{Code: mcpCodeMethodNotFound, Message: "Method not found"})
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"jsonrpc": "2.0", "id": rpcID, "result": mcpModernResult(result, "fleet-echo", "1.0.0", extra)})
 }

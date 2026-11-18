@@ -157,6 +157,7 @@ func TestEchoAuthValidation(t *testing.T) {
 }
 
 func TestEchoMCPEndpoints_ReturnsClaimsNeverTokens(t *testing.T) {
+	t.Setenv(mcpLegacyUntilEnv, "2999-01-01") // initialize-era flow
 	var (
 		mu              sync.Mutex
 		gotTexasPayload map[string]string
@@ -245,4 +246,12 @@ func TestEchoMCPEndpoints_ReturnsClaimsNeverTokens(t *testing.T) {
 	if !strings.Contains(callRec.Body.String(), "Z123456") {
 		t.Fatalf("expected NAVident in tools/call response, got %s", callRec.Body.String())
 	}
+}
+
+func TestMCP2026Compliance(t *testing.T) {
+	srv, _ := newTestServer(t, func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(w, http.StatusOK, map[string]any{"active": true, "idtyp": "user", "NAVident": "Z123456", "azp": "gw-client-123", "aud": "api://dev-gcp.copilot.fleet-echo", "scp": "access_as_user", "sub": "sub-123"})
+	})
+	// GET stays a claims diagnostic for gateway debugging, so it is not checked for 405.
+	runMCP2026Compliance(t, mcpComplianceTarget{handler: srv.routes(), tool: "whoami", header: map[string]string{"Authorization": "Bearer test-token"}})
 }
