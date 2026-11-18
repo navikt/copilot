@@ -20,7 +20,7 @@ Ingen måling her flytter en pinne. Hvert bytte tas i en egen PR etter rapporten
 
 | # | Spørsmål | Kandidat | Kontroll (innehaver) | Testpakker | Mulige utfall |
 | --- | --- | --- | --- | --- | --- |
-| D1 | Standardmodell for `@nav-pilot` | `gpt-6.2-sol` | `gpt-6.1-sol` | pin-protokollen trinn 1 og 2, `coding` | går videre til trinn 3 / beholder 6.1 Sol / ikke avgjort |
+| D1 | Standardmodell for `@nav-pilot` | `gpt-6.2-sol` | `gpt-6.1-sol` | pin-protokollen trinn 1 og 2, `coding` | bytt (via trinn 3) ved dokumentert gevinst / behold 6.1 Sol / ikke avgjort |
 | D2 | Billige roller: `@research`, `@kafka`, `@rust`, og utforskende `@worker` og malpromptene | `mai-code-2-flash`, `mai-code-1.1-flash` | `gpt-6-luna` (research, kafka, worker, maler), `claude-haiku-5.5` (rust) | `research`, `kafka`, `rust`, `coding` | bytt / behold / ikke avgjort, per rolle og kandidat |
 | D3 | `@code-review` | `gpt-6.2-astra` | `claude-opus-5.5` | `review` (rv1–rv8); `planning` (test 2–5) bare som informasjon | bytt på review / behold Opus, Astra som reserve / behold Opus |
 | D4 | Reserve for `@accessibility` og `@forfatter`, utforskende for `@aksel` | `claude-opus-5.5` | `claude-sonnet-5.5` | `--agent accessibility` (uu1–uu5), `norsk` | Opus godkjent som reserve / ikke godkjent |
@@ -151,15 +151,26 @@ COPILOT_AUTO_UPDATE=false ./scripts/nav-pilot-golden.sh --agent accessibility --
 
 Mindre versjon (samme modellinje og innsatsnivå), så pin-protokollens trinn 1, 2 og 3 gjelder.
 
+**Like god er ikke nok.** 6.2 Sol erstatter 6.1 Sol bare hvis kravene 1 og 2 under holder, og i tillegg er det en dokumentert gevinst (krav 3). Holder kravene, men ikke gevinsten, beholdes 6.1 Sol, som i D2. Begrunnelse:
+
+- Modellene har samme listepris, så et bytte gir ingen sikker besparelse.
+- Et bytte av standardmodell har en kostnad for alle: ny atferd å bli vant til og nye spørsmål til brukerstøtte.
+- n = 5 viser ikke at modellene er like gode. En modell som bommer i 10 % av kjøringene, består en test 5/5 med 59 % sannsynlighet (0,9⁵). At begge består, betyr lite.
+
 1. **Trinn 1** etter pin-protokollen: Artificial Analysis-indeksen høyst 1 poeng lavere enn 6.1 Sol, kodingsindeksen ikke lavere, kostnad per oppgave ikke høyere, ingen `estimated`, tall høyst 30 dager gamle, begge modellene fra samme indeksversjon samme dag. Mangler 6.2 Sol i indeksene, går D1 videre bare hvis eieren godkjenner det, og saken merkes med at silingen mangler.
 2. **Trinn 2** etter pin-protokollen:
    - Ingen bekreftet bom på sikkerhetstestene 3, 5, 7b, 8b, 9, 9c og 9d. Grensetilfelle teller som bom.
    - De andre testene: høyst én bestått kjøring under 6.1 Sol i samme måling.
    - **Består 6.1 Sol en test i færre enn 4 av 5 kjøringer, er D1 «ikke avgjort».** Testen repareres, og begge armene kjøres på nytt på trinn 2 før D1 går videre. Den nye kjøringen er en ny arm med egen reservasjon.
    - Median credits per fullført kjøring høyst 110 % av 6.1 Sol, med fullstendige kostnadsdata.
-3. `coding` er informasjon: 6.2 Sol skal ikke bestå færre oppgaver enn 6.1 Sol. Avvik rapporteres, men stopper ikke D1.
+3. **Dokumentert gevinst**, minst én av:
+   - (a) **billigere:** median credits per fullført kjøring av hele testsettet er lavere enn for 6.1 Sol, og Mann–Whitney ensidig p < 0,05 (hypotese H_kost). Kostnadsdata må være fullstendige.
+   - (b) **bedre:** flere beståtte kjøringer enn 6.1 Sol på minst én av de tolv testene i trinn 2 (2, 3, 4, 5, 7, 7b, 8, 8b, 9, 9b, 9c, 9d), og Fisher ensidig p < 0,05 for den testen (hypotesene H_2 … H_9d).
 
-Består 6.2 Sol, går den til trinn 3 (trinnvis utrulling) i en egen PR.
+   p-verdiene Holm-korrigeres over gevinsthypotesene i D1, se [Statistikk](#statistikk). Det kreves ingen bestemt størrelse på gevinsten utover signifikans (eierbeslutning).
+4. `coding` er informasjon: 6.2 Sol skal ikke bestå færre oppgaver enn 6.1 Sol. Avvik rapporteres, men stopper ikke D1.
+
+Holder kravene 1–3, går 6.2 Sol til trinn 3 (trinnvis utrulling) i en egen PR. Ellers beholdes 6.1 Sol.
 
 ### D2: billige roller
 
@@ -230,7 +241,10 @@ Bare et signal. Uten trinn 4 kan MAI Code 2 ikke bli standardmodell eller pinnes
 | Credits per kjøring | Mann–Whitney U, eksakt | ensidig, kandidat billigere | p < 0,05 etter Holm |
 
 - Retningen er bestemt på forhånd, derfor ensidig. Tidligere målinger i [modellvalg.md](../modellvalg.md) oppga tosidig p. Begge rapporteres, men beslutningen bruker den ensidige.
-- Holm-familiene: D2 åtte hypoteser (to kandidater × fire roller), D3 tre (rv5, rv6, rv7), D5 én. D1 og D4 avgjøres av regler, ikke tester. Der rapporteres p-verdiene bare som informasjon.
+- Holm-familiene: D1 gevinsthypotesene (se under), D2 åtte hypoteser (to kandidater × fire roller), D3 tre (rv5, rv6, rv7), D5 én. D4 avgjøres av regler, ikke tester. Der rapporteres p-verdiene bare som informasjon.
+- **Holm-familien for D1** er H_kost og H_t for hver av de tolv testene i trinn 2, til sammen 13 hypoteser. D1 er bare avgjort når 6.1 Sol består hver test i minst 4 av 5 kjøringer. Da er den beste mulige p-verdien for en H_t 0,5 (5/5 mot 4/5), og ingen H_t kan forkastes. Etter Tarones regel teller hypoteser som ikke kan nå p < 0,05 ved noe utfall, ikke med i Holm-korreksjonen. Det endrer ikke feilgarantien, fordi en hypotese som aldri forkastes, ikke kan gi en falsk positiv. Telleren er derfor m = 1, og H_kost testes mot 0,05. Med alle 13 i telleren ville terskelen vært 0,05/13 = 0,0038, under den minste mulige p-verdien 0,004, og D1 kunne aldri vist gevinst.
+- **Konsekvens:** med n = 5 kan D1 i praksis bare vise gevinst som lavere kostnad (a). Gevinst (b) kan ikke oppfylles i denne målingen.
+- **Gevinstkravet har ingen størrelsesterskel** utover signifikans, for D1 og D2 (eierbeslutning).
 - **Hver beslutning har sin egen feilgaranti.** Holm holder sannsynligheten for minst én falsk positiv under 5 % innenfor én familie. Det er ingen korreksjon på tvers av D1–D5. Sannsynligheten for minst én falsk positiv et sted i rapporten er derfor høyere enn 5 %.
 - Med 5 mot 5 er de minste mulige p-verdiene: Fisher 0,004 (5/5 mot 0/5) og 0,024 (5/5 mot 1/5, 4/5 mot 0/5), mens 5/5 mot 2/5 gir 0,083. Mann–Whitney gir 0,004 ved full separasjon, 0,008 med én ombytting, og under 0,05 bare når U ≤ 4.
 - Konsekvens for D2 (Holm over åtte): den minste p-verdien må være under 0,05/8 = 0,00625. Bare full separasjon (0,004) holder. Én ombytting (0,008) holder bare hvis minst to andre hypoteser allerede er forkastet.

@@ -58,6 +58,7 @@ def selftest():
     check(close(fisher_greater(4, 5, 0, 5), 6 / 252))
     check(close(fisher_greater(5, 5, 2, 5), 21 / 252))
     check(fisher_greater(3, 5, 3, 5) > 0.5)
+    check(close(fisher_greater(5, 5, 4, 5), 0.5))  # D1: best case once the control has 4/5
     # U = 0..5 give cumulative 1, 2, 4, 7, 12, 19 of 252 splits.
     for u, want in enumerate((1, 2, 4, 7, 12, 19)):
         # The largest x sits above u of the y values.
@@ -68,6 +69,8 @@ def selftest():
     # Holm over eight: full separations survive, a lone 2/252 does not.
     check(all(p < 0.05 for p in holm([1 / 252] * 8)))
     check(holm([2 / 252] + [0.5] * 7)[0] > 0.05)
+    # D1: thirteen in the count would sink even a full separation (0.05/13 < 1/252).
+    check(holm([1 / 252] + [1.0] * 12)[0] > 0.05)
     check(all(close(g, w) for g, w in zip(holm([0.01, 0.04, 0.03]), [0.03, 0.06, 0.06])))
     print("benchmark-stats selftest passed")
 
