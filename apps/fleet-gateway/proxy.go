@@ -271,8 +271,9 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 			return
 		}
 		if r.Method == http.MethodPost {
-			rpcMethod, toolName = extractJSONRPCAudit(reqBody)
-			headerMismatch = mcpHeadersMismatch(r.Header, rpcMethod, toolName)
+			audit := scanJSONRPCAudit(reqBody)
+			rpcMethod, toolName = audit.method, audit.tool
+			headerMismatch = mcpHeadersMismatch(r.Header, audit)
 			if route.allowedTools != nil {
 				allow, reason := toolPolicyDecision(reqBody, route.allowedTools)
 				decisionReason = reason
@@ -651,15 +652,16 @@ func mcpHeadersValid(h http.Header) bool {
 // mcpHeadersMismatch reports whether Mcp-Method or Mcp-Name disagrees with the
 // audited body. The body is the truth; the headers only feed this audit field.
 // Mcp-Name is compared for tools/call only, where the audit has the tool name.
-func mcpHeadersMismatch(h http.Header, method, tool string) bool {
-	if m := h.Get("Mcp-Method"); m != "" && m != method {
+// Headers are compared with the raw body values, never the quoted audit form.
+func mcpHeadersMismatch(h http.Header, a rpcAudit) bool {
+	if m := h.Get("Mcp-Method"); m != "" && decodeMCPHeaderValue(m) != a.rawMethod {
 		return true
 	}
 	name := h.Get("Mcp-Name")
-	if name == "" || method != "tools/call" || tool == auditIncomplete {
+	if name == "" || a.rawMethod != "tools/call" || a.incomplete {
 		return false
 	}
-	return decodeMCPHeaderValue(name) != tool
+	return decodeMCPHeaderValue(name) != a.rawTool
 }
 
 // decodeMCPHeaderValue undoes the spec's =?base64?...?= wrapping for non-ASCII values.
@@ -710,11 +712,28 @@ func isEventStream(contentType string) bool {
 	return err == nil && strings.EqualFold(mediaType, "text/event-stream")
 }
 
-// auditIncomplete marks an audit line whose scan stopped before the end of the
-// body, so a name the upstream reads past that point is never logged as absent.
+// auditIncomplete is the display marker for a scan that stopped before the end
+// of the body, so a name the upstream reads past that point is never logged as
+// absent. Code reads rpcAudit.incomplete, never this string: a tool may be
+// named "...incomplete".
 const auditIncomplete = "...incomplete"
 
-// extractJSONRPCAudit returns the JSON-RPC method and, for tools/call, the tool
+// rpcAudit is what the audit line records about a JSON-RPC body. method and
+// tool are display values (quoted by auditField); rawMethod and rawTool are the
+// decoded body values, for comparison with Mcp-Method and Mcp-Name.
+type rpcAudit struct {
+	method, tool       string
+	rawMethod, rawTool string
+	incomplete         bool
+}
+
+// extractJSONRPCAudit returns the display method and tool of scanJSONRPCAudit.
+func extractJSONRPCAudit(body []byte) (method, tool string) {
+	a := scanJSONRPCAudit(body)
+	return a.method, a.tool
+}
+
+// scanJSONRPCAudit returns the JSON-RPC method and, for tools/call, the tool
 // name. Arguments are never decoded into anything that is logged. A batch is
 // logged as method "batch" with the names of up to maxAuditBatchTools
 // tools/call entries as a JSON array, so a name cannot forge extra entries. The
@@ -727,27 +746,29 @@ const auditIncomplete = "...incomplete"
 // decoder walks the whole body and keeps only method and params, never a slice
 // of members or a map of keys: a 1 MiB body of {} members or of 50k keys
 // otherwise cost tens of MiB, near the pod's 64 MiB limit.
-func extractJSONRPCAudit(body []byte) (method, tool string) {
+func scanJSONRPCAudit(body []byte) rpcAudit {
+	incomplete := rpcAudit{tool: auditIncomplete, incomplete: true}
 	dec := json.NewDecoder(bytes.NewReader(body))
 	tok, err := dec.Token()
 	if err != nil {
 		// A body the scan cannot start on (a UTF-8 BOM, say, which some upstream
 		// parsers accept) must not log as if it carried no call.
 		if len(body) > 0 {
-			return "", auditIncomplete
+			return incomplete
 		}
-		return "", ""
+		return rpcAudit{}
 	}
 	switch tok {
 	case json.Delim('{'):
 		m, params, ok := auditScanObject(dec)
 		if !ok || !auditAtEOF(dec) {
-			return "", auditIncomplete
+			return incomplete
 		}
 		return auditMethodTool(m, params)
 	case json.Delim('['):
 		var tools []string
 		complete := true
+		batchIncomplete := false
 		for complete && dec.More() {
 			tok, err := dec.Token()
 			if err != nil {
@@ -763,8 +784,9 @@ func extractJSONRPCAudit(body []byte) (method, tool string) {
 				complete = false
 				break
 			}
-			// name is set only for tools/call, also when m is quoted as unusual.
-			if m, name := auditMethodTool(m, params); name != "" || m == "tools/call" {
+			if a := auditMethodTool(m, params); a.rawMethod == "tools/call" || a.incomplete {
+				name := a.tool
+				batchIncomplete = batchIncomplete || a.incomplete
 				if len(tools) == maxAuditBatchTools {
 					tools = append(tools, "...")
 					break
@@ -772,19 +794,21 @@ func extractJSONRPCAudit(body []byte) (method, tool string) {
 				tools = append(tools, name)
 			}
 		}
+		batch := rpcAudit{method: "batch", rawMethod: "batch", incomplete: batchIncomplete}
 		if len(tools) <= maxAuditBatchTools {
 			// More() is also false on a syntax error, so require the closing ']'.
 			if tok, err := dec.Token(); !complete || err != nil || tok != json.Delim(']') || !auditAtEOF(dec) {
 				tools = append(tools, auditIncomplete)
+				batch.incomplete = true
 			}
 		}
-		if len(tools) == 0 {
-			return "batch", ""
+		if len(tools) > 0 {
+			list, _ := json.Marshal(tools)
+			batch.tool = string(list)
 		}
-		list, _ := json.Marshal(tools)
-		return "batch", string(list)
+		return batch
 	}
-	return "", ""
+	return rpcAudit{}
 }
 
 // auditAtEOF reports whether only whitespace follows the top-level value.
@@ -807,22 +831,23 @@ func auditKeyAmbiguous(key json.Token, want string, seen *bool) bool {
 
 // auditMethodTool decodes the raw method and, for tools/call, params.name. A
 // field of the wrong type is left empty without dropping the other.
-func auditMethodTool(rawMethod, params json.RawMessage) (method, tool string) {
+func auditMethodTool(rawMethod, params json.RawMessage) rpcAudit {
 	method, tool, ambiguous := rpcMethodTool(rawMethod, params)
 	if ambiguous {
-		return auditField(method), auditIncomplete
+		return rpcAudit{method: auditField(method), tool: auditIncomplete, rawMethod: method, incomplete: true}
 	}
-	return auditField(method), auditField(tool)
+	return rpcAudit{method: auditField(method), tool: auditField(tool), rawMethod: method, rawTool: tool}
 }
 
-// auditField returns s as is when it is short visible ASCII, which every MCP
-// method and tool name is. Anything else (spaces, NUL, U+200B, U+FEFF, U+00A0)
+// auditField returns s as is when it is short visible ASCII without a quote or
+// backslash, which every MCP method and tool name is. A quote or backslash is
+// quoted too, or a literal name could read like the quoted form of another. Anything else (spaces, NUL, U+200B, U+FEFF, U+00A0)
 // is logged Go-quoted and ASCII-escaped, so "whoami " can never read as the
 // listed tool whoami and an invisible character never hides in the audit line.
 func auditField(s string) string {
 	visible := len(s) <= maxAuditMethodLen
 	for i := 0; visible && i < len(s); i++ {
-		visible = s[i] > 0x20 && s[i] < 0x7f
+		visible = s[i] > 0x20 && s[i] < 0x7f && s[i] != '"' && s[i] != '\\'
 	}
 	if visible {
 		return s
