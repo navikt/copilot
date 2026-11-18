@@ -113,7 +113,8 @@ func (a *surveyAPI) compare(w http.ResponseWriter, r *http.Request) {
 		}
 		for id, set := range skipSets([]survey{last}) {
 			for _, k := range set.Keys {
-				if _, ok := stored.Skipped[id][k]; !ok {
+				// No answers to k in this wave: nothing to exclude.
+				if _, ok := stored.Skipped[id][k]; !ok && len(stored.Keys[k]) > 0 {
 					writeError(w, http.StatusConflict, s.ID+": the answers are deleted, and the stored counts were written before "+last.ID+"'s skip_if existed")
 					return
 				}

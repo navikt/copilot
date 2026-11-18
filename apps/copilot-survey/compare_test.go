@@ -217,6 +217,18 @@ func TestCompareAfterRowsDeleted(t *testing.T) {
 	_ = json.Unmarshal([]byte(wantJSON), &res)
 	checkCompare(t, res)
 
+	// A later definition adds a statement under the same skip_if. The
+	// stored tallies predate it, but no wave answered it: nothing to
+	// exclude, same output before and after the rows are deleted.
+	grid := &api.surveys[1].Questions[1]
+	grid.Items = append(slices.Clone(grid.Items), matrixItem{ID: "new", Version: 1, Text: "New."})
+	data = waveRows()
+	wantJSON, wantCSV = compareBodies(t, api, "spring,autumn")
+	data = map[string][]storedAnswer{}
+	if j, c := compareBodies(t, api, "spring,autumn"); j != wantJSON || c != wantCSV {
+		t.Fatalf("new statement after deletion:\n%s\nwant\n%s", j, wantJSON)
+	}
+
 	api.surveys[1].Questions[1].SkipIf = &skipRule{Question: "tools", Answer: "a"}
 	if rec := do(makeRouter(testAuthenticator(t), api), "GET", "/api/v1/admin/surveys/compare?ids=spring,autumn", adminToken, ""); rec.Code != 409 {
 		t.Fatalf("skip rule missing from the stored tally: %d %s", rec.Code, rec.Body)
@@ -375,5 +387,73 @@ func TestSkipSetUnionStored(t *testing.T) {
 	gotV, gotX := keptFast(t, *stored, id)
 	if gotX != wantX || !reflect.DeepEqual(gotV, wantV) || *gotV[0].N != 5 || *gotV[0].Options[5].Count != 1 {
 		t.Fatalf("stored: excluded %d kept %+v, want %d %+v", gotX, gotV, wantX, wantV)
+	}
+}
+
+// TestImportInvalidatesAggregates (COPILOT_SURVEY_TEST_DB_URL): a corrected
+// import with as many rows drops the wave's aggregates and skip counts, so
+// close-out counts the new rows, and compare after deletion matches them.
+func TestImportInvalidatesAggregates(t *testing.T) {
+	url := os.Getenv("COPILOT_SURVEY_TEST_DB_URL")
+	if url == "" {
+		t.Skip("COPILOT_SURVEY_TEST_DB_URL not set")
+	}
+	ctx := t.Context()
+	st, err := openSurveyStore(ctx, url)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.pool.Close()
+	_, _ = st.pool.Exec(ctx, `DELETE FROM survey_participation; DELETE FROM survey_answers; DELETE FROM survey_results; DELETE FROM survey_skip_results`)
+	now := time.Date(2026, 11, 15, 0, 0, 0, 0, time.UTC)
+	api := compareAPI(t, st.answers)
+	api.now, api.finalCompare = func() time.Time { return now }, st.finalCompare
+	st.defs = api.surveys
+	importSpring := func(fast string) []storedAnswer {
+		var answers []map[string]any
+		var rows []storedAnswer
+		for _, r := range waveRows()["spring"] {
+			if r.Answers["tools"].([]any)[0] == "a" {
+				r.Answers["fast"] = json.Number(fast)
+			}
+			b, _ := json.Marshal(r.Answers)
+			var a map[string]any
+			_ = json.Unmarshal(b, &a)
+			answers = append(answers, a)
+			r.Answers, r.Context = a, map[string]any{"client": "forms"}
+			rows = append(rows, r)
+		}
+		if _, err := writeImport(ctx, url, api.surveys[0], answers, now.AddDate(1, 0, 0)); err != nil {
+			t.Fatal(err)
+		}
+		return rows
+	}
+	autumn := waveRows()["autumn"]
+	for i, r := range autumn {
+		resp := response{SurveyID: "autumn", Answers: r.Answers, QuestionVersions: r.QuestionVersions,
+			Context: techContext{Version: "web", OS: "linux", Client: r.Client}, DeleteAfter: now.AddDate(1, 0, 0)}
+		if _, err := st.submit(ctx, "autumn", string(rune('a'+i)), now, resp); err != nil {
+			t.Fatal(err)
+		}
+	}
+	importSpring("5")
+	st.closeOut(ctx, now)
+	corrected := importSpring("2")
+	var left int
+	_ = st.pool.QueryRow(ctx, `SELECT (SELECT count(*) FROM survey_results WHERE survey_id = 'spring') + (SELECT count(*) FROM survey_skip_results WHERE survey_id = 'spring')`).Scan(&left)
+	if left != 0 {
+		t.Fatalf("import left %d aggregate rows for spring", left)
+	}
+	st.closeOut(ctx, now)
+	want := compareWavesResult(api.surveys, [][]storedAnswer{mergeClients(corrected), mergeClients(autumn)}, now)
+	_, _ = st.pool.Exec(ctx, `DELETE FROM survey_answers WHERE survey_id = 'spring'`)
+	got := getCompare(t, api, "spring,autumn")
+	wj, _ := json.Marshal(want)
+	gj, _ := json.Marshal(got)
+	if string(wj) != string(gj) {
+		t.Fatalf("after corrected import and deletion:\n%s\nwant\n%s", gj, wj)
+	}
+	if s := got.Questions[1].Items[0].Waves[0]; s.Excluded != 2 || *s.Versions[0].Mean != 2 {
+		t.Fatalf("spring fast: %+v", s)
 	}
 }

@@ -263,7 +263,8 @@ texts are rewritten (`null` drops an answer). The mapping holds no answers.
   cut to the question's `max_length`, the bound a submission is held to.
   Errors name the question, never the answer.
 - Reruns are safe: one transaction deletes the survey's rows and inserts them
-  again.
+  again. It also deletes the survey's aggregates (`survey_results`,
+  `survey_skip_results`), so the next close-out counts the new rows.
 - `--dry-run` prints rows, answers per question and each normalisation with
   its count. It prints no answers and needs no database.
 - Never commit the export or anything derived from its rows.
@@ -402,4 +403,4 @@ Closed formulas only, so the admin page and `analyze` give the same numbers with
 
 `compare` reads a wave's rows while they exist. Once they are deleted it reads the wave's aggregates instead and gives the same JSON and CSV (`TestCompareStoreAfterRetention`). The skip rule needs each answer, so the aggregates hold, in `survey_skip_results`, for every `skip_if` rule set in any definition and each question or statement it skips there, the answer counts among the respondents the set skips. A set is keyed by its rules, sorted, as JSON; a respondent any rule in the set skips is counted once, so overlapping rules give the union. Compare subtracts them. With `survey_results` that is a cross table of the rule's answer against those answers only: the same numbers compare already shows as `excluded` and kept counts, small cells included, and nothing per row.
 
-The daily job rewrites these counts for every closed survey whose rows are all still there, so a `skip_if` in a new definition is picked up as soon as it is deployed. Retention (`extendRetention`) keeps a wave's rows until the next wave in the series has closed, and that wave's definition is deployed before it opens, so its rule is always stored in time. A rule that first appears after a wave's rows are deleted cannot be applied to that wave: compare answers 409 for it.
+The daily job rewrites these counts for every closed survey whose rows are all still there, so a `skip_if` in a new definition is picked up as soon as it is deployed. Retention (`extendRetention`) keeps a wave's rows until the next wave in the series has closed, and that wave's definition is deployed before it opens, so its rule is always stored in time. A rule that first appears after a wave's rows are deleted cannot be applied to that wave: compare answers 409 for it, unless the wave has no answers to the questions the rule skips.

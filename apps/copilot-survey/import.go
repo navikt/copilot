@@ -227,8 +227,10 @@ func pick(a map[string]any, q question, vals []string, stats importStats) error 
 }
 
 // writeImport replaces the survey's rows in one transaction, so a rerun
-// leaves no duplicates. Rows are shuffled, as submissions are, so their
-// order says nothing about when someone answered.
+// leaves no duplicates. Its aggregates go too, under finalize's lock, so
+// close-out counts the new rows instead of mixing old totals with new skip
+// counts. Rows are shuffled, as submissions are, so their order says nothing
+// about when someone answered.
 func writeImport(ctx context.Context, dbURL string, s survey, rows []map[string]any, deleteAfter time.Time) (int, error) {
 	store, err := openSurveyStore(ctx, dbURL)
 	if err != nil {
@@ -241,6 +243,9 @@ func writeImport(ctx context.Context, dbURL string, s survey, rows []map[string]
 	}
 	rand.Shuffle(len(rows), func(i, j int) { rows[i], rows[j] = rows[j], rows[i] })
 	batch := &pgx.Batch{}
+	batch.Queue(`SELECT pg_advisory_xact_lock(hashtext('survey_results:' || $1))`, s.ID)
+	batch.Queue(`DELETE FROM survey_results WHERE survey_id = $1`, s.ID)
+	batch.Queue(`DELETE FROM survey_skip_results WHERE survey_id = $1`, s.ID)
 	batch.Queue(`DELETE FROM survey_answers WHERE survey_id = $1`, s.ID)
 	for _, a := range rows {
 		v := map[string]int{}
