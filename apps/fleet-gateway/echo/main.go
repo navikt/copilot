@@ -231,7 +231,11 @@ func (s *server) echoHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !mcpLegacyAllowed(now) {
-		writeMCPError(w, http.StatusBadRequest, nil, mcpUnsupportedVersion(r.Header.Get("MCP-Protocol-Version"), now))
+		var id any // null only when the request carried no id
+		if v := bytes.TrimSpace(rpc.ID); len(v) > 0 {
+			id = json.RawMessage(v)
+		}
+		writeMCPError(w, http.StatusBadRequest, id, mcpUnsupportedVersion(r.Header.Get("MCP-Protocol-Version"), now))
 		return
 	}
 

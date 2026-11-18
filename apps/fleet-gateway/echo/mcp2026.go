@@ -7,9 +7,11 @@ package main
 // and https://modelcontextprotocol.io/specification/2026-07-28/basic/versioning
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -66,11 +68,9 @@ func mcpSupportedVersions(now time.Time) []string {
 }
 
 // isLegacyMCPRequest reports whether a request uses initialize-era semantics:
-// an initialize call, or no 2026-07-28 marker in either header or _meta.
+// no 2026-07-28 marker in either header or _meta. The method plays no part,
+// so an initialize that declares 2026-07-28 still gets its headers checked.
 func isLegacyMCPRequest(r *http.Request, env mcpEnvelope) bool {
-	if env.Method == "initialize" {
-		return true
-	}
 	if env.metaVersion() != "" {
 		return false
 	}
@@ -118,11 +118,33 @@ func validateModernMCPRequest(r *http.Request, env mcpEnvelope, now time.Time) *
 	case "resources/read":
 		want, named = env.Params.URI, true
 	}
-	if named && r.Header.Get("Mcp-Name") != want {
-		return mismatch("Mcp-Name header does not match params")
+	if named {
+		got, ok := decodeMCPHeaderValue(r.Header.Get("Mcp-Name"))
+		if !ok {
+			return mismatch("Mcp-Name header has a malformed base64 value")
+		}
+		if got != want {
+			return mismatch("Mcp-Name header does not match params")
+		}
 	}
 	// No tool here declares x-mcp-header, so there are no Mcp-Param-* headers to check.
 	return nil
+}
+
+// decodeMCPHeaderValue decodes the transport's =?base64?...?= sentinel form;
+// any other value is returned as is. ok is false for a malformed encoding.
+// https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#value-encoding
+func decodeMCPHeaderValue(v string) (string, bool) {
+	inner, found := strings.CutPrefix(v, "=?base64?")
+	if !found {
+		return v, true
+	}
+	inner, found = strings.CutSuffix(inner, "?=")
+	if !found {
+		return "", false
+	}
+	b, err := base64.StdEncoding.DecodeString(inner)
+	return string(b), err == nil
 }
 
 // mcpModernResult adds the fields every 2026-07-28 result carries.
