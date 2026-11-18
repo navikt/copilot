@@ -26,6 +26,7 @@ const SPEC_URL = "https://modelcontextprotocol.io/specification/2026-07-28";
 const TOC: TocItem[] = [
   { id: "forutsetninger", label: "Forutsetninger" },
   { id: "krav-til-serveren", label: "Krav til serveren" },
+  { id: "autorisasjon", label: "Hvem får bruke serveren" },
   { id: "steg", label: "Steg for steg" },
   { id: "feil", label: "Vanlige feil" },
   { id: "ikke-gjor", label: "Dette må dere ikke gjøre" },
@@ -40,6 +41,9 @@ const INBOUND_YAML = `spec:
       enabled: true
       tenant: nav.no
       allowAllUsers: true
+      claims:
+        groups:
+          - id: <gruppe-ID for teamet>
   accessPolicy:
     inbound:
       rules:
@@ -82,6 +86,12 @@ if gatewayClientID == "" {
     return errors.New("fleet-gateway mangler i AZURE_APP_PRE_AUTHORIZED_APPS")
 }`;
 
+const GROUP_CHECK = `// Etter at Texas har godkjent tokenet. groups er gruppe-ID-ene (GUID)
+// som appen selv har listet i azure.application.claims.groups.
+if !slices.Contains(claims.Groups, teamGroupID) {
+    return errForbidden // 403
+}`;
+
 const OUTBOUND_YAML = `outbound_rules:
   - application: <app>
     namespace: <namespace>`;
@@ -106,9 +116,10 @@ const CHECKLIST = [
   "MCP-serveren støtter protokoll 2026-07-28 over streamable HTTP og kjører på Nais",
   "Serveren svarer på server/discover og bruker ikke sesjoner",
   "Serveren sjekker Mcp-Method og Mcp-Name (-32020 ved avvik) og svarer -32022 på protokollversjoner den ikke støtter",
-  "azure.application har enabled, tenant: nav.no og allowAllUsers: true",
+  "azure.application har enabled, tenant: nav.no og allowAllUsers: true, med teamets grupper i claims.groups",
   "fleet-gateway står i accessPolicy.inbound",
   "Appen sjekker aud, idtyp, NAVident og azp med Texas",
+  "Appen sjekker groups i tokenet og avviser brukere utenfor teamets gruppe",
   "Appen logger aldri tokenet",
   "Ruten er testet i dev før prod",
 ];
@@ -153,7 +164,15 @@ export default function FleetGatewayForTeamPage() {
             <code className={code}>azure.application</code>, med <code className={code}>tenant: nav.no</code> og{" "}
             <code className={code}>allowAllUsers: true</code>.
           </li>
-          <li>Teamet bestemmer selv hvilke verktøy serveren har, og hvem som får bruke dem.</li>
+          <li>
+            Teamet bestemmer selv hvilke verktøy serveren har, og hvem som får bruke dem. Gatewayen slipper inn alle
+            Nav-ansatte som logger inn, og begrenser bare hvilke verktøy ruten tillater. Brukerstyringen gjør serveren
+            deres, se{" "}
+            <a href="#autorisasjon" className={linkClass}>
+              Hvem får bruke serveren
+            </a>
+            .
+          </li>
           <li>
             Samme manifest fungerer i begge miljøer. Inbound-regelen har ingen <code className={code}>cluster</code>, så
             den gjelder fleet-gateway i samme klynge som appen.
@@ -206,6 +225,49 @@ export default function FleetGatewayForTeamPage() {
             .
           </li>
         </Bullets>
+      </VStack>
+
+      <VStack gap="space-12">
+        <LinkableHeading id="autorisasjon" size="medium" level="2">
+          Hvem får bruke serveren
+        </LinkableHeading>
+        <BodyLong>
+          Gatewayen autentiserer brukeren og sjekker at verktøyet står i <code className={code}>tools</code>. Den
+          sjekker ikke hvem som får bruke verktøyet. Med <code className={code}>allowAllUsers: true</code> kommer alle
+          Nav-ansatte som logger inn gjennom til serveren, med mindre serverens egen kode avviser dem. Teamet
+          autoriserer selv.
+        </BodyLong>
+        <BodyLong>
+          Tokenet serveren får (OBO) har bare de gruppene serveren selv har listet i{" "}
+          <code className={code}>azure.application.claims.groups</code>. Gatewayen sender ikke med gruppene den selv
+          kjenner til, og serveren kan ikke lese andre gruppemedlemskap fra tokenet. Det er samme modell som med
+          Wonderwall: tjenesten lister gruppene, Entra filtrerer, og koden sjekker.
+        </BodyLong>
+        <Bullets>
+          <li>
+            List teamets gruppe i <code className={code}>claims.groups</code> (se manifestet i steg 1).
+          </li>
+          <li>
+            Sjekk <code className={code}>groups</code> i tokenet, etter sjekkene i steg 2, og svar 403 når teamets
+            gruppe-ID mangler.
+          </li>
+          <li>
+            Uten egen <code className={code}>claims.groups</code> og med{" "}
+            <code className={code}>allowAllUsers: true</code> har tokenet bare Nais sin alle-brukere-gruppe, så en
+            gruppesjekk har ingenting å slå opp.
+          </li>
+        </Bullets>
+        <CodeBlock filename="Go-utdrag: gruppesjekk">{GROUP_CHECK}</CodeBlock>
+        <BodyLong>
+          Alternativet er <code className={code}>allowAllUsers: false</code> med gruppene i{" "}
+          <code className={code}>claims.groups</code>. Da skal Entra avvise brukere utenfor gruppene når gatewayen
+          veksler tokenet (<code className={code}>AADSTS50105</code>). Dette er ikke testet gjennom gatewayen ennå (
+          <a href="https://github.com/navikt/copilot/issues/2321" className={linkClass}>
+            #2321
+          </a>
+          ), og brukeren får feilen som <code className={code}>upstream_token_error</code>. Bruk gruppesjekken i koden
+          til det er verifisert.
+        </BodyLong>
       </VStack>
 
       <VStack gap="space-12">

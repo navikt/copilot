@@ -65,6 +65,8 @@ In route files (`version: 2`) every route lists the tools it allows in `tools: [
 
 On every route, `passAllTools` included, a `GET` or `DELETE` with a body gets `400` and is logged as `deny`/`ambiguous`: MCP defines no body for them, so a `tools/call` sent that way is never forwarded.
 
+The gateway authenticates the user and checks the tool against the route allowlist. It does not decide which users may use a team's server: the OBO token carries only the groups the team's app lists in `azure.application.claims.groups`, and the team's server checks them (same model as Wonderwall). Emergency stop: `nais app set env` with `GATEWAY_DISABLED=true` stops every route in about 30 s; see the [runbook](docs/runbook.md).
+
 Key rotation takes two deploys (append the new key last, then promote it) and keeps the old key for 30+ days. See the [runbook](docs/runbook.md). Unknown or tampered values fail closed.
 
 Empty `ALLOWED_CLIENT_IDS` or `ALLOWED_REDIRECT_URIS` fails closed at startup.
@@ -104,7 +106,7 @@ Useful panels in Grafana:
 - Latency per route: `histogram_quantile(0.95, sum by (le, route) (rate(fleet_gateway_mcp_request_duration_seconds_bucket[5m])))`
 - Failures per route: `sum by (route, outcome) (rate(fleet_gateway_mcp_requests_total{outcome!="ok"}[5m]))`
 
-Alerts are in `.nais/app.yaml` and go to `#github-copilot-alerts`: no ready pods, more than 2 restarts in 15 minutes, more than 10 % 5xx (only with over 20 requests in 5 minutes), and more than 5 `upstream_token_error` in 10 minutes. An idle SSE stream that ends in `stream_error` does not trigger them, since its status 200 has already been sent. The alert series start at zero at startup, so the first burst counts. To test in dev, scale to zero (`kubectl -n copilot scale deploy fleet-gateway --replicas=0`). `FleetGatewayNoReadyPods` fires after 2 minutes.
+Alerts are in `.nais/app.yaml` and go to `#github-copilot-alerts`: no ready pods, more than 2 restarts in 15 minutes, more than 10 % 5xx (only with over 20 requests in 5 minutes), and more than 5 `upstream_token_error` in 10 minutes. An idle SSE stream that ends in `stream_error` does not trigger them, since its status 200 has already been sent. The alert series start at zero at startup, so the first burst counts. To test in dev, stop the app with `nais app stop fleet-gateway -t copilot -e dev-gcp` (it asks for confirmation in an interactive terminal) and restore it with `nais app set replicas fleet-gateway --min 1 --max 2 -t copilot -e dev-gcp`. `FleetGatewayNoReadyPods` fires after 2 minutes; in the 2026-11-18 drill it reached Slack after about 3.5 minutes. Alerts go to the channel set per environment in Nais Console. See the [runbook](docs/runbook.md).
 
 ## Audit record
 

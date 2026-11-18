@@ -3162,6 +3162,7 @@
       "apps/my-copilot/src/lib/nav-items.ts"
     ],
     "anchors": {
+      "autorisasjon": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/verktoy/fleet-gateway/for-team/page.tsx"],
       "drift": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/verktoy/fleet-gateway/for-team/page.tsx"],
       "feil": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/verktoy/fleet-gateway/for-team/page.tsx"],
       "forutsetninger": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/verktoy/fleet-gateway/for-team/page.tsx"],
