@@ -114,11 +114,11 @@ You are %NAME%.
 		{
 			name:  "display name maps to the provider-qualified id",
 			agent: "aksel",
-			model: "Claude Sonnet 4.6",
+			model: "Claude Sonnet 5.5",
 			want: `---
 description: Plan and build Nav applications
 mode: subagent
-model: github-copilot/claude-sonnet-4.6
+model: github-copilot/claude-sonnet-5.5
 ---
 
 
@@ -142,11 +142,11 @@ You are code-review.
 		{
 			name:  "a primary agent keeps its model",
 			agent: "nav-pilot-opus",
-			model: "Claude Opus 4.6",
+			model: "Claude Opus 5.5",
 			want: `---
 description: Plan and build Nav applications
 mode: primary
-model: github-copilot/claude-opus-4.6
+model: github-copilot/claude-opus-5.5
 permission:
   question: allow
 ---

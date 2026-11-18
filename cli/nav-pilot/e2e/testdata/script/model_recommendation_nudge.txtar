@@ -24,16 +24,16 @@ grep '\-\-agent\ngrillmester\n' $WORK/fake/cplt.log
 
 # A model of your own that differs: asked once. Enter keeps it, and it wins
 # over the pin through the session copy of the agent.
-exec nav-pilot config set model gpt-5.5
+exec nav-pilot config set model gpt-6-sol
 cp $WORK/pin-6.1.md .github/agents/grillmester.agent.md
 rm $WORK/fake/cplt.log
 exec pty-run -wait 'Follow the agentpakke' -send '\r' -- nav-pilot
 stdout 'The plattform agentpakke recommends GPT-6\.1 Sol\.'
-stdout 'Your setting is GPT-5\.5\.'
+stdout 'Your setting is GPT-6 Sol\.'
 # Names, as the Model line shows them, not ids; and no "now".
 ! stdout 'now recommends|recommends gpt-6\.1-sol|You have model'
 grep '\-\-agent\nnav-pilot-session:grillmester\n' $WORK/fake/cplt.log
-grep '\-\-model\ngpt-5\.5\n' $WORK/fake/cplt.log
+grep '\-\-model\ngpt-6-sol\n' $WORK/fake/cplt.log
 exec pty-run -- nav-pilot
 ! stdout 'agentpakke recommends'
 
@@ -42,9 +42,9 @@ exec pty-run -- nav-pilot
 cp $WORK/pin-6.2.md .github/agents/grillmester.agent.md
 rm $WORK/fake/cplt.log
 exec pty-run -wait 'Follow the agentpakke' -send '\x03' -- nav-pilot
-stdout 'agentpakke recommends gpt-6\.2-sol'
-grep 'model = "gpt-5.5"' $WORK/home/config.toml
-grep '\-\-model\ngpt-5\.5\n' $WORK/fake/cplt.log
+stdout 'agentpakke recommends GPT-6\.2 Sol'
+grep 'model = "gpt-6-sol"' $WORK/home/config.toml
+grep '\-\-model\ngpt-6-sol\n' $WORK/fake/cplt.log
 exec pty-run -- nav-pilot
 ! stdout 'agentpakke recommends'
 
@@ -58,7 +58,7 @@ grep '\-\-model\ngpt-6\.1-sol\n' $WORK/fake/cplt.log
 # Without a terminal: one line with both commands.
 cp $WORK/pin-6.2.md .github/agents/grillmester.agent.md
 exec nav-pilot -- -p hi
-stderr 'The plattform agentpakke recommends gpt-6\.2-sol; your setting is GPT-6\.1 Sol\. To switch: nav-pilot config set model gpt-6\.2-sol\. To follow the agentpakke: nav-pilot config unset model\.'
+stderr 'The plattform agentpakke recommends GPT-6\.2 Sol; your setting is GPT-6\.1 Sol\. To switch: nav-pilot config set model gpt-6\.2-sol\. To follow the agentpakke: nav-pilot config unset model\.'
 
 -- pin-6.1.md --
 ---

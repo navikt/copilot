@@ -40,7 +40,7 @@ func writeTestConfig(t *testing.T, content string) string {
 }
 
 func TestBuildConfigPageEntries(t *testing.T) {
-	writeTestConfig(t, "version = 1\nmodel = \"gpt-5.5\"\nask_user = false\n")
+	writeTestConfig(t, "version = 1\nmodel = \"gpt-6-sol\"\nask_user = false\n")
 
 	cfg, err := readConfig()
 	if err != nil {
@@ -68,7 +68,7 @@ func TestBuildConfigPageEntries(t *testing.T) {
 	}{
 		{"client", "copilot", "default"},
 		{"source", defaultSourceRepo, "default"},
-		{"model", "GPT-5.5 (gpt-5.5)", "file"},
+		{"model", "GPT-6 Sol (gpt-6-sol)", "file"},
 		{"mode", "default", "default"},
 		{"reasoning_effort", "", "unset"},
 		{"context_tier", "", "unset"},
@@ -101,7 +101,7 @@ func TestModelValueLabel(t *testing.T) {
 	tests := []struct {
 		model, want string
 	}{
-		{"gpt-5.5", "GPT-5.5 (gpt-5.5)"},
+		{"gpt-6-sol", "GPT-6 Sol (gpt-6-sol)"},
 		{"some-unknown-model", "some-unknown-model"},
 		{"", ""},
 	}

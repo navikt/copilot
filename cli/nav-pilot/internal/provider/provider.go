@@ -69,7 +69,7 @@ type Provider interface {
 // advisory text. It is not a default: opencode gets no forced model unless a
 // user or an agentpakke names one (see [ToOpenCodeModel]), so there is no
 // single id to point to — this is just a well-formed example.
-const openCodeModelFormatExample = openCodeProviderPrefix + "claude-opus-4.8"
+const openCodeModelFormatExample = openCodeProviderPrefix + "claude-opus-5.5"
 
 // openCodeProviderPrefix is the opencode provider that cplt authenticates
 // opencode against. Bare Copilot-style model ids are mapped under it.
@@ -123,7 +123,7 @@ func isOpenCodeUnsetModel(model string) bool {
 // unless an agentpakke names a concrete model — opencode picks a sensible,
 // account-aware model on its own when given none (verified live), so
 // nav-pilot no longer forces one. Ids that already carry a provider ("/")
-// pass through; bare Copilot-style ids (e.g. "claude-opus-4.8") gain the
+// pass through; bare Copilot-style ids (e.g. "claude-opus-5.5") gain the
 // github-copilot prefix.
 func ToOpenCodeModel(model string) string {
 	if isOpenCodeUnsetModel(model) {
@@ -302,7 +302,7 @@ func (openCodeProvider) ValidateModel(model string) error {
 	}
 	// A bare id is a Copilot id: ToOpenCodeModel runs it as github-copilot/<id>.
 	if strings.Count(model, "/") > 1 || strings.HasPrefix(model, "/") || strings.HasSuffix(model, "/") {
-		return fmt.Errorf("model %q must be a Copilot id (claude-opus-4.8) or provider/model for opencode (e.g. %q)", model, openCodeModelFormatExample)
+		return fmt.Errorf("model %q must be a Copilot id (claude-opus-5.5) or provider/model for opencode (e.g. %q)", model, openCodeModelFormatExample)
 	}
 	return nil
 }

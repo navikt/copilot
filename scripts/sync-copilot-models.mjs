@@ -45,10 +45,47 @@ const PRICING_FILE = new URL(
 // silent catalog drop. Keep this list short and justify every entry.
 const PINNED = [
   { id: "auto", label: "Auto (let Copilot pick)" },
-  // Delisted from GitHub's price list 2026-09-05 but still launches; see
-  // docs/modellvalg.md. Remove once it stops resolving at launch.
-  { id: "claude-opus-4.6", label: "Claude Opus 4.6" },
+  // Enabled in Nav (Copilot CLI picker, 2026-11-18) and priced by GitHub, but
+  // not yet in the models.dev catalog. Ids follow the pricing names the same
+  // way mai-code-1.1-flash does. Drop each pin once the catalog carries it.
+  { id: "gpt-6.2-astra", label: "GPT-6.2 Astra" },
+  { id: "gpt-6.2-sol", label: "GPT-6.2 Sol" },
+  { id: "mai-code-2", label: "MAI Code 2" },
+  { id: "mai-code-2-flash", label: "MAI Code 2 Flash" },
 ];
+
+// Models Nav has turned off in its Copilot policy, so they would fail at
+// launch. Source: the Copilot CLI model picker under Nav's policy, checked
+// 2026-11-18. A model not listed here shows up as soon as models.dev carries
+// it; add it here when Nav turns it off. Mirrors NAV_DISABLED_MODELS in
+// apps/my-copilot/src/lib/model-policy.ts.
+const NAV_DISABLED = new Set([
+  "claude-fable-5",
+  "claude-fable-5.1",
+  "claude-fable-5.2",
+  "claude-haiku-4.5",
+  "claude-opus-4.7",
+  "claude-opus-4.8",
+  "claude-opus-4.8-fast",
+  "claude-opus-5",
+  "claude-sonnet-4.6",
+  "claude-sonnet-5",
+  "gemini-3.5-flash",
+  "gemini-3.6-flash",
+  "gemini-3.7-flash",
+  "gpt-5-mini",
+  "gpt-5.4",
+  "gpt-5.4-mini",
+  "gpt-5.4-nano",
+  "gpt-5.5",
+  "gpt-5.6-luna",
+  "gpt-5.6-sol",
+  "gpt-5.6-terra",
+  "grok-4.5",
+  "grok-4.6",
+  "grok-4.7",
+  "kimi-k2.7-code",
+]);
 
 // A real github-copilot catalog carries dozens of models. Anything below this
 // is a broken or truncated feed, not a real shrink, and must not overwrite the
@@ -96,7 +133,7 @@ function parseCatalog(catalog) {
 }
 
 /**
- * Merge the catalog with PINNED and sort by id. Catalog labels win over a
+ * Merge the catalog with PINNED, drop NAV_DISABLED, and sort by id. Catalog labels win over a
  * pinned label for the same id, so a model that returns to the catalog keeps
  * its fresh name. Throws if the catalog is below the floor, so a broken feed
  * cannot shrink the picker to just the pinned entries.
@@ -109,7 +146,9 @@ function buildTable(catalogEntries) {
   }
   const byId = new Map();
   for (const p of PINNED) byId.set(p.id, { id: p.id, label: p.label });
-  for (const e of catalogEntries) byId.set(e.id, { id: e.id, label: e.label });
+  for (const e of catalogEntries) {
+    if (!NAV_DISABLED.has(e.id)) byId.set(e.id, { id: e.id, label: e.label });
+  }
   return [...byId.values()].sort((a, b) =>
     a.id < b.id ? -1 : a.id > b.id ? 1 : 0,
   );
@@ -245,6 +284,7 @@ export {
   reconcile,
   generateGo,
   MIN_CATALOG_MODELS,
+  NAV_DISABLED,
 };
 
 if (

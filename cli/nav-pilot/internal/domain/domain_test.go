@@ -17,7 +17,7 @@ func TestValidateModelValue(t *testing.T) {
 		input   string
 		wantErr bool
 	}{
-		{"valid simple", "claude-opus-4.8", false},
+		{"valid simple", "claude-opus-5.5", false},
 		{"valid with slash", "anthropic/claude-3-5-sonnet", false},
 		{"valid auto", "auto", false},
 		{"empty", "", true},
@@ -49,7 +49,7 @@ func TestValidateOptionalModel(t *testing.T) {
 	if err := ValidateOptionalModel("   "); err != nil {
 		t.Errorf("ValidateOptionalModel(blank) = %v, want nil", err)
 	}
-	if err := ValidateOptionalModel("claude-opus-4.8"); err != nil {
+	if err := ValidateOptionalModel("claude-opus-5.5"); err != nil {
 		t.Errorf("ValidateOptionalModel(valid) = %v, want nil", err)
 	}
 	if err := ValidateOptionalModel("bad model!"); err == nil {
@@ -393,14 +393,14 @@ func TestOpenCodeModelForLabel(t *testing.T) {
 		in   string
 		want string
 	}{
-		{name: "display name", in: "Claude Sonnet 4.6", want: "github-copilot/claude-sonnet-4.6"},
+		{name: "display name", in: "Claude Sonnet 5.5", want: "github-copilot/claude-sonnet-5.5"},
 		{name: "display name with digits and hyphens", in: "GPT-5.3-Codex", want: "github-copilot/gpt-5.3-codex"},
-		{name: "the id itself is accepted", in: "claude-opus-4.6", want: "github-copilot/claude-opus-4.6"},
-		{name: "case insensitive", in: "claude sonnet 4.6", want: "github-copilot/claude-sonnet-4.6"},
-		{name: "surrounding space", in: "  Claude Opus 5  ", want: "github-copilot/claude-opus-5"},
+		{name: "the id itself is accepted", in: "claude-opus-5.5", want: "github-copilot/claude-opus-5.5"},
+		{name: "case insensitive", in: "claude sonnet 5.5", want: "github-copilot/claude-sonnet-5.5"},
+		{name: "surrounding space", in: "  Claude Opus 5.5  ", want: "github-copilot/claude-opus-5.5"},
 		{name: "empty", in: "", want: ""},
 		{name: "unknown name resolves to nothing", in: "Claude Sonnet 9000", want: ""},
-		{name: "already qualified is not a known name", in: "github-copilot/claude-opus-5", want: ""},
+		{name: "already qualified is not a known name", in: "github-copilot/claude-opus-5.5", want: ""},
 		{name: "auto id resolves to nothing, opencode rejects it", in: "auto", want: ""},
 		{name: "auto label resolves to nothing, opencode rejects it", in: "Auto (let Copilot pick)", want: ""},
 	}
@@ -420,7 +420,7 @@ func TestCopilotModelIDForLabel(t *testing.T) {
 	}{
 		{in: "Auto (let Copilot pick)", want: "auto"},
 		{in: "auto", want: "auto"},
-		{in: "Claude Opus 5", want: "claude-opus-5"},
+		{in: "Claude Opus 5.5", want: "claude-opus-5.5"},
 		{in: "unknown", want: ""},
 	}
 	for _, tt := range tests {

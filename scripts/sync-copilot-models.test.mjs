@@ -69,10 +69,14 @@ test("buildTable is sorted, non-empty, and includes pinned and catalog entries",
     "catalog powerful model must be available",
   );
   assert.ok(
-    ids.includes("claude-opus-4.6"),
-    "delisted-but-working model must be retained",
+    ids.includes("mai-code-2-flash"),
+    "pinned model missing from the catalog must be retained",
   );
-  assert.ok(ids.includes("gpt-5.5"), "catalog model must be present");
+  assert.ok(!ids.includes("gpt-5.5"), "model Nav has turned off is dropped");
+  assert.ok(
+    !ids.includes("claude-sonnet-4.6"),
+    "model Nav has turned off is dropped",
+  );
   assert.deepEqual(ids, [...ids].sort(), "table must be sorted by id");
   assert.ok(table.length > 0);
 });
@@ -88,7 +92,7 @@ test("generateGo emits a DO NOT EDIT header and one line per model", () => {
   const go = generateGo(buildTable(parseCatalog(FEED)));
   assert.match(go, /DO NOT EDIT/);
   assert.match(go, /var KnownCopilotModels = \[\]ModelChoice\{/);
-  assert.match(go, /\{ID: "gpt-5.5", Label: "GPT-5.5"\},/);
+  assert.match(go, /\{ID: "gpt-6-luna", Label: "GPT-6 Luna"\},/);
 });
 
 // --- Mutation-checks: a bad feed must error, not empty the list. ---
@@ -185,5 +189,11 @@ test("reconcile surfaces divergence in explicit buckets, not silent drops", () =
     rec.catalogNotPriced.includes("grok-4.6"),
     "unpriced catalog model is surfaced, not dropped",
   );
-  assert.deepEqual(rec.pinned, ["auto", "claude-opus-4.6"]);
+  assert.deepEqual(rec.pinned, [
+    "auto",
+    "gpt-6.2-astra",
+    "gpt-6.2-sol",
+    "mai-code-2",
+    "mai-code-2-flash",
+  ]);
 });

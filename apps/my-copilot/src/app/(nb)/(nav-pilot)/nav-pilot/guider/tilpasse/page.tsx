@@ -27,10 +27,10 @@ version = 1
 # Klient (copilot er standard)
 client = "opencode"
 
-# Modell. En Copilot-id som claude-opus-4.8 virker for copilot og opencode;
-# opencode kjører den som github-copilot/claude-opus-4.8.
+# Modell. En Copilot-id som claude-opus-5.5 virker for copilot og opencode;
+# opencode kjører den som github-copilot/claude-opus-5.5.
 # Uten modell velger klienten selv.
-# model = "claude-opus-4.8"
+# model = "claude-opus-5.5"
 
 # Modus (default | plan | autopilot), bare Copilot
 # mode = "default"
