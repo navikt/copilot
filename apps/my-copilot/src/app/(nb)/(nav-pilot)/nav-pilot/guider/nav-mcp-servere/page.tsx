@@ -19,6 +19,7 @@ const TOC: TocItem[] = [
   { id: "copilot-cli", label: "Copilot CLI" },
   { id: "opencode", label: "OpenCode" },
   { id: "nav-pilot", label: "nav-pilot" },
+  { id: "protokollversjon", label: "Protokollversjon" },
   { id: "innlogging", label: "Innlogging" },
   { id: "hjelp", label: "Hjelp" },
 ];
@@ -27,7 +28,8 @@ const OPENCODE_JSON = `{
   "mcp": {
     "onboarding": {
       "type": "remote",
-      "url": "https://fleet-gateway.intern.nav.no/mcp/copilot/onboarding"
+      "url": "https://fleet-gateway.intern.nav.no/mcp/copilot/onboarding",
+      "protocol": "2026-07-28"
     }
   }
 }`;
@@ -40,7 +42,14 @@ export default function NavMcpServerePage() {
           Før du starter
         </LinkableHeading>
         <Bullets>
-          <li>Du må være på naisdevice. Ellers når du ikke serveren.</li>
+          <li>
+            Foreløpig bare internt: du må være på naisdevice for å nå{" "}
+            <code className={code}>fleet-gateway.intern.nav.no</code>. En ekstern gateway med offentlig ingress er{" "}
+            <a href="https://github.com/navikt/copilot/issues/2297" className={linkClass}>
+              planlagt (#2297)
+            </a>
+            . Den vil kreve en Nav-administrert enhet, og DCR blir slått av eksternt.
+          </li>
           <li>
             Finn serveren i{" "}
             <NextLink href="/verktoy" className={linkClass}>
@@ -90,6 +99,35 @@ export default function NavMcpServerePage() {
           <code className={code}>nav-pilot mcp enable &lt;navn&gt;</code> slår på en server fra registeret. Vi har ikke
           testet dette mot Navs egne MCP-servere ennå. Virker det ikke, bruk Copilot CLI eller OpenCode direkte.
         </BodyLong>
+      </VStack>
+
+      <VStack gap="space-12">
+        <LinkableHeading id="protokollversjon" size="medium" level="2">
+          Protokollversjon
+        </LinkableHeading>
+        <Bullets>
+          <li>
+            OpenCode 2.x: sett <code className={code}>&quot;protocol&quot;: &quot;2026-07-28&quot;</code> på serveren i{" "}
+            <code className={code}>opencode.json</code>. OpenCode 1.19 støtter ikke{" "}
+            <code className={code}>2026-07-28</code>.
+          </li>
+          <li>
+            Copilot CLI fra og med versjon <code className={code}>1.0.107</code>
+            forhandler protokollen automatisk.
+          </li>
+          <li>
+            <code className={code}>nav-pilot</code> skal sette protokollen automatisk fra{" "}
+            <code className={code}>protocolVersions</code> i registeret (
+            <a href="https://github.com/navikt/copilot/pull/2375" className={linkClass}>
+              planlagt i #2375
+            </a>
+            , registerfeltet er lagt til i{" "}
+            <a href="https://github.com/navikt/copilot/pull/2379" className={linkClass}>
+              #2379
+            </a>
+            ).
+          </li>
+        </Bullets>
       </VStack>
 
       <VStack gap="space-12">
