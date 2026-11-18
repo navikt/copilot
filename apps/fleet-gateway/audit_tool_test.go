@@ -353,12 +353,15 @@ func TestExtractJSONRPCAudit_BoundedHeap(t *testing.T) {
 	}
 	// Control: one 16 MiB buffer that is still reachable when f returns must
 	// read over 8 MiB, so a single large retained allocation is not missed.
-	var kept []byte
+	// Each run keeps its own buffer: reusing one variable left the previous
+	// run's buffer in the next run's baseline, so min-of-3 read +0.0 MiB.
+	var kept [][]byte
 	if big := peakLiveHeap(func() {
-		kept = make([]byte, 16<<20)
-		for i := range kept {
-			kept[i] = 1
+		buf := make([]byte, 16<<20)
+		for i := range buf {
+			buf[i] = 1
 		}
+		kept = append(kept, buf)
 	}); big <= 8<<20 {
 		t.Errorf("control: retained 16 MiB buffer read +%.1f MiB, want > 8 MiB", float64(big)/(1<<20))
 	}
