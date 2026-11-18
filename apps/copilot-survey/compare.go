@@ -169,14 +169,9 @@ type skipSet struct {
 	Keys  []string
 }
 
-// skipRulesOf is q's skip_if rules, sorted and without duplicates.
-// shortcut: one rule until skip_if becomes a list (#2267); then return the list here.
-func skipRulesOf(q question) []skipRule {
-	if q.SkipIf == nil {
-		return nil
-	}
-	return []skipRule{*q.SkipIf}
-}
+// skipRulesOf is q's skip_if rules; skipSetID makes their order and
+// duplicates irrelevant.
+func skipRulesOf(q question) []skipRule { return q.SkipIf }
 
 // skipSetID is the canonical key of a rule set: its rules sorted, without
 // duplicates, as JSON. "" for none.
@@ -190,11 +185,6 @@ func skipSetID(rules []skipRule) string {
 	})
 	b, _ := json.Marshal(slices.Compact(rules))
 	return string(b)
-}
-
-// skipsAny: some rule in rules skips answers.
-func skipsAny(rules []skipRule, answers map[string]any) bool {
-	return slices.ContainsFunc(rules, func(r skipRule) bool { return r.skipped(answers) })
 }
 
 // skipSets is every skip_if rule set in defs, by skipSetID, with the
@@ -235,7 +225,7 @@ func rowsTally(s survey, rows []storedAnswer, sets map[string]skipSet) waveTally
 		t.Channels[row.Client]++
 	}
 	for id, set := range sets {
-		skipped := slices.DeleteFunc(slices.Clone(rows), func(row storedAnswer) bool { return !skipsAny(set.Rules, row.Answers) })
+		skipped := slices.DeleteFunc(slices.Clone(rows), func(row storedAnswer) bool { return !skipRules(set.Rules).skipped(row.Answers) })
 		t.Skipped[id] = tallyRows(s, skipped).Keys
 	}
 	return t

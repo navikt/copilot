@@ -236,7 +236,7 @@ func TestCompareAfterRowsDeleted(t *testing.T) {
 		t.Fatalf("new statement after deletion:\n%s\nwant\n%s", j, wantJSON)
 	}
 
-	api.surveys[1].Questions[1].SkipIf = &skipRule{Question: "tools", Answer: "a"}
+	api.surveys[1].Questions[1].SkipIf = skipRules{{Question: "tools", Answer: "a"}}
 	if rec := do(makeRouter(testAuthenticator(t), api), "GET", "/api/v1/admin/surveys/compare?ids=spring,autumn", adminToken, ""); rec.Code != 409 {
 		t.Fatalf("skip rule missing from the stored tally: %d %s", rec.Code, rec.Body)
 	}
@@ -478,5 +478,122 @@ func TestCompareTypeChange(t *testing.T) {
 	if !tools.Break || len(tools.Waves[0].Versions) != 0 || *tools.Waves[1].Versions[0].N != 5 ||
 		tools.Waves[0].Excluded == nil || *tools.Waves[0].Excluded != 0 { // admin always says excluded
 		t.Errorf("free text counted: %+v", tools)
+	}
+}
+
+// Autumn skips fast for a = x or b = p, as a skip_if list in the definition.
+// Spring asked fast of everyone: one respondent matches both rules, one each
+// matches only one, five match neither. The union drops 3, not 4.
+const listSkipSurveys = `[
+{"id":"lspring","title":"Vår","starts":"2026-03-01","ends":"2026-03-31","questions":[
+ {"id":"a","version":1,"type":"choice","text":"A?","options":["x","y"]},
+ {"id":"b","version":1,"type":"choice","text":"B?","options":["p","q"]},
+ {"id":"fast","version":1,"type":"scale","text":"Fast?","min":1,"max":5}]},
+{"id":"lautumn","title":"Høst","starts":"2026-10-01","ends":"2026-10-31","questions":[
+ {"id":"a","version":1,"type":"choice","text":"A?","options":["x","y"]},
+ {"id":"b","version":1,"type":"choice","text":"B?","options":["p","q"]},
+ {"id":"fast","version":1,"type":"scale","text":"Fast?","min":1,"max":5,
+  "skip_if":[{"question":"b","answer":"p"},{"question":"a","answer":"x"}]}]}]`
+
+func listSkipRows() map[string][]storedAnswer {
+	out := map[string][]storedAnswer{}
+	add := func(id, answers string) {
+		r := row(answers, `{"a":1,"b":1,"fast":1}`)
+		r.Client, r.Context = "web", map[string]any{"client": "web"}
+		out[id] = append(out[id], r)
+	}
+	for _, a := range []string{`{"a":"x","b":"p","fast":1}`, `{"a":"x","b":"q","fast":1}`, `{"a":"y","b":"p","fast":2}`,
+		`{"a":"y","b":"q","fast":2}`, `{"a":"y","b":"q","fast":3}`, `{"a":"y","b":"q","fast":4}`, `{"a":"y","b":"q","fast":5}`, `{"a":"y","b":"q","fast":5}`} {
+		add("lspring", a)
+	}
+	for range 5 {
+		add("lautumn", `{"a":"y","b":"q","fast":3}`)
+	}
+	add("lautumn", `{"a":"x","b":"q"}`)
+	return out
+}
+
+func listSkipAPI(t *testing.T, read func(context.Context, string) ([]storedAnswer, error)) *surveyAPI {
+	t.Helper()
+	defs, err := loadSurveys([]byte(listSkipSurveys))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(defs[1].Questions[2].SkipIf) != 2 {
+		t.Fatalf("skip_if list not read: %+v", defs[1].Questions[2].SkipIf)
+	}
+	return &surveyAPI{surveys: defs, answers: read, now: func() time.Time { return time.Date(2026, 11, 15, 0, 0, 0, 0, time.UTC) }}
+}
+
+func checkListSkip(t *testing.T, body string) {
+	t.Helper()
+	var res compareResult
+	if err := json.Unmarshal([]byte(body), &res); err != nil {
+		t.Fatal(err)
+	}
+	fast := res.Questions[2]
+	if s := fast.Waves[0]; fast.ID != "fast" || *s.Excluded != 3 || *s.Versions[0].N != 5 || *s.Versions[0].Mean != 3.8 {
+		t.Fatalf("spring fast: union of the skip_if list not applied once: %+v", s)
+	}
+	if fast.P == nil {
+		t.Fatalf("fast not tested: %+v", fast)
+	}
+}
+
+// TestCompareSkipIfList: the union, and the same JSON and CSV before and
+// after the rows are deleted (stored tallies as close-out writes them).
+func TestCompareSkipIfList(t *testing.T) {
+	data := listSkipRows()
+	api := listSkipAPI(t, func(_ context.Context, id string) ([]storedAnswer, error) { return data[id], nil })
+	stored := map[string]waveTally{}
+	for _, s := range api.surveys {
+		stored[s.ID] = rowsTally(s, mergeClients(data[s.ID]), skipSets(api.surveys))
+	}
+	api.finalCompare = func(_ context.Context, id string) (*waveTally, error) {
+		t := stored[id]
+		return &t, nil
+	}
+	wantJSON, wantCSV := compareBodies(t, api, "lspring,lautumn")
+	checkListSkip(t, wantJSON)
+	data = map[string][]storedAnswer{}
+	if j, c := compareBodies(t, api, "lspring,lautumn"); j != wantJSON || c != wantCSV {
+		t.Fatalf("after deletion:\n%s\nwant\n%s", c, wantCSV)
+	}
+}
+
+// TestCompareSkipIfListStore is TestCompareSkipIfList on Postgres
+// (COPILOT_SURVEY_TEST_DB_URL), with close-out writing the tallies.
+func TestCompareSkipIfListStore(t *testing.T) {
+	url := os.Getenv("COPILOT_SURVEY_TEST_DB_URL")
+	if url == "" {
+		t.Skip("COPILOT_SURVEY_TEST_DB_URL not set")
+	}
+	ctx := t.Context()
+	st, err := openSurveyStore(ctx, url)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.pool.Close()
+	_, _ = st.pool.Exec(ctx, `DELETE FROM survey_answers; DELETE FROM survey_results; DELETE FROM survey_skip_results`)
+	api := listSkipAPI(t, st.answers)
+	api.finalCompare, st.defs = st.finalCompare, api.surveys
+	for id, rows := range listSkipRows() {
+		for _, r := range rows {
+			aj, _ := json.Marshal(r.Answers)
+			vj, _ := json.Marshal(r.QuestionVersions)
+			cj, _ := json.Marshal(r.Context)
+			if _, err = st.pool.Exec(ctx, `INSERT INTO survey_answers VALUES ($1, $2, $3, $4, '2027-01-01')`, id, aj, vj, cj); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	st.closeOut(ctx, api.now())
+	wantJSON, wantCSV := compareBodies(t, api, "lspring,lautumn")
+	checkListSkip(t, wantJSON)
+	if _, err = st.pool.Exec(ctx, `DELETE FROM survey_answers`); err != nil {
+		t.Fatal(err)
+	}
+	if j, c := compareBodies(t, api, "lspring,lautumn"); j != wantJSON || c != wantCSV {
+		t.Fatalf("after deletion:\n%s\nwant\n%s", c, wantCSV)
 	}
 }
