@@ -1115,6 +1115,9 @@ func run(args []string) error {
 		// --dry-run is what sync does without --apply, and wins over it: a
 		// command line that says both must not write.
 		apply = apply && !dryRun
+		if apply {
+			mcpBackfillOpenCodeProtocol(providerpkg.CachedMCPRegistryEntries())
+		}
 		syncAsk = apply && !yes
 		defer func() { syncAsk = false }()
 		return runWithCommandTelemetry("sync", telemetryMode(), syncScope, func() error {

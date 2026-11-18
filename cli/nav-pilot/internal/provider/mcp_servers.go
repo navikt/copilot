@@ -350,6 +350,46 @@ func SetMCPServer(client, name string, entry json.RawMessage, e MCPServerEntry, 
 	})
 }
 
+// BackfillOpenCodeProtocol adds the registry protocol to the OpenCode entry
+// under key when it has none. An existing protocol, a non-remote entry, or a
+// registry entry without 2026-07-28 changes nothing.
+func BackfillOpenCodeProtocol(key string, e MCPServerEntry) (string, MCPConfigChange, error) {
+	if key == "" {
+		return "", MCPConfigChange{}, nil
+	}
+	var p string
+	ch, err := editMCPConfig(MCPClientOpenCode, key, func(top, servers *jsonObject) (json.RawMessage, bool, error) {
+		raw, ok := servers.vals[key]
+		if !ok {
+			return nil, false, nil
+		}
+		entry, err := parseJSONObject(raw)
+		if err != nil {
+			return nil, false, nil
+		}
+		if _, has := entry.vals["protocol"]; has {
+			return nil, false, nil
+		}
+		var typ string
+		if err := json.Unmarshal(entry.vals["type"], &typ); err != nil || typ != "remote" {
+			return nil, false, nil
+		}
+		// Empty URL on purpose: backfill only from the registry protocolVersions.
+		p = openCodeProtocol(e.ProtocolVersions, "")
+		if p == "" {
+			return nil, false, nil
+		}
+		v, _ := json.Marshal(p)
+		entry.set("protocol", v)
+		servers.set(key, entry.marshal())
+		return nil, true, nil
+	})
+	if err != nil || !ch.Changed {
+		return "", ch, err
+	}
+	return p, ch, nil
+}
+
 // RemoveMCPServer drops name from the client's config. Absent is no change.
 // For OpenCode its permission rules go too (dropOpenCodeRules); tools is the
 // registry's tool list for it, nil when unknown.
