@@ -142,6 +142,11 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 					"http_method", sanitizeLogValue(r.Method),
 					"scan_incomplete", scanIncomplete,
 					"header_mismatch", headerMismatch,
+					"protocol_version", auditProtocolVersion(r.Header.Get("Mcp-Protocol-Version")),
+					slog.Group("mcp_headers",
+						"method", r.Header.Get("Mcp-Method") != "",
+						"name", r.Header.Get("Mcp-Name") != "",
+					),
 					"outcome", outcome,
 					"duration_ms", g.now().Sub(start).Milliseconds(),
 				),
@@ -1082,4 +1087,13 @@ func sanitizeAuditMethod(method string) string {
 		b.WriteRune(r)
 	}
 	return b.String()
+}
+
+// auditProtocolVersion caps MCP-Protocol-Version at 32 bytes and quotes it like
+// other audit values; it records which revision clients send before enforcing one.
+func auditProtocolVersion(v string) string {
+	if len(v) > 32 {
+		v = v[:32]
+	}
+	return auditField(v)
 }

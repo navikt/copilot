@@ -31,7 +31,7 @@ Expected: login succeeds, `whoami` returns your NAVident.
 kubectl -n $NS logs -l app=fleet-gateway --prefix --tail=-1 --since=10m | grep '"audit mcp"' | tail -5
 ```
 
-Expected: lines with your NAVident in `subject.id`, `resource.id` `copilot/onboarding`, `decision.decision` `true` and `context.outcome` `ok`.
+Expected: lines with your NAVident in `subject.id`, `resource.id` `copilot/onboarding`, `decision.decision` `true` and `context.outcome` `ok`. Note `context.protocol_version` and `context.mcp_headers` for each client (Copilot CLI, OpenCode): they show which MCP revision it sends.
 
 ## 3. Pod restart keeps the session
 

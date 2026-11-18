@@ -380,7 +380,7 @@ func TestAuditMCP_HeaderMismatch(t *testing.T) {
 func TestAuditMCP_AuthZENShape(t *testing.T) {
 	audit, _, _ := auditToolsHeaders(t, http.MethodPost, map[string]bool{"search": true},
 		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"delete","arguments":{"a":"top-secret-arg"}}}`,
-		http.Header{"Mcp-Name": {"search"}})
+		http.Header{"Mcp-Name": {"search"}, "Mcp-Protocol-Version": {"2026-07-28"}})
 	raw := audit["raw"].(map[string]any)
 	ctx := raw["context"].(map[string]any)
 	if id, _ := ctx["request_id"].(string); len(id) != 26 {
@@ -390,7 +390,7 @@ func TestAuditMCP_AuthZENShape(t *testing.T) {
 	delete(raw, "time")
 	got, _ := json.Marshal(raw)
 	want := `{"action":{"name":"tools/call","properties":{"tool":"delete"}},` +
-		`"context":{"duration_ms":0,"header_mismatch":true,"http_method":"POST","outcome":"tool_denied","request_id":"ID","scan_incomplete":false},` +
+		`"context":{"duration_ms":0,"header_mismatch":true,"http_method":"POST","mcp_headers":{"method":false,"name":true},"outcome":"tool_denied","protocol_version":"2026-07-28","request_id":"ID","scan_incomplete":false},` +
 		`"decision":{"context":{"reason":"not_listed"},"decision":false},"level":"INFO","msg":"audit mcp",` +
 		`"resource":{"id":"team-etterlevelse/etterlevelse","properties":{"backend":"dev-gcp:team-etterlevelse:nav-etterlevelse-mcp"},"type":"mcp_route"},` +
 		`"subject":{"id":"Z123456","properties":{"client_id":"` + fmt.Sprint(audit["client_id"]) + `"},"type":"user"}}`
@@ -472,6 +472,19 @@ func TestAuditMCP_ScanIncompleteFromScan(t *testing.T) {
 		ctx := audit["raw"].(map[string]any)["context"].(map[string]any)
 		if ctx["scan_incomplete"] != tc.want {
 			t.Errorf("%s: scan_incomplete %v, want %v", tc.body, ctx["scan_incomplete"], tc.want)
+		}
+	}
+}
+
+func TestAuditProtocolVersion(t *testing.T) {
+	for in, want := range map[string]string{
+		"":                      "",
+		"2025-06-18":            "2025-06-18",
+		strings.Repeat("9", 40): strings.Repeat("9", 32),
+		"2026-07-28 x":          `"2026-07-28 x"`,
+	} {
+		if got := auditProtocolVersion(in); got != want {
+			t.Errorf("%q: got %q, want %q", in, got, want)
 		}
 	}
 }
