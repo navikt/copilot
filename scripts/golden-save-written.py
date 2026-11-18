@@ -70,29 +70,32 @@ def read(root_fd, rel, limit):
 
 def main():
     root_fd = os.open(sys.argv[1], os.O_RDONLY | os.O_NOFOLLOW | os.O_DIRECTORY)
-    out = sys.stdout.buffer
-    budget = PER_CALL
-    for rel in sys.stdin.read().splitlines():
-        name = rel.rsplit("/", 1)[-1]
-        if name.startswith(".") or not name.endswith(COPY) or any(w in name.lower() for w in SECRET_WORDS):
-            out.write(f"=== {rel} (skipped: not a source file)\n".encode())
-            continue
-        if budget <= 0:
-            out.write(f"=== {rel} (skipped: {PER_CALL}-byte limit for this call reached)\n".encode())
-            continue
-        limit = min(PER_FILE, budget)
-        try:
-            data, more = read(root_fd, rel, limit)
-        except Skip as e:
-            out.write(f"=== {rel} (skipped: {e})\n".encode())
-        except FileNotFoundError:
-            out.write(f"=== {rel} (deleted)\n".encode())
-        except OSError:
-            out.write(f"=== {rel} (skipped: symlink or not a regular file)\n".encode())
-        else:
-            budget -= len(data)
-            note = f" (truncated at {limit} bytes)" if more else ""
-            out.write(f"=== {rel}{note}\n".encode() + data + b"\n")
+    try:
+        out = sys.stdout.buffer
+        budget = PER_CALL
+        for rel in sys.stdin.read().splitlines():
+            name = rel.rsplit("/", 1)[-1]
+            if name.startswith(".") or not name.endswith(COPY) or any(w in name.lower() for w in SECRET_WORDS):
+                out.write(f"=== {rel} (skipped: not a source file)\n".encode())
+                continue
+            if budget <= 0:
+                out.write(f"=== {rel} (skipped: {PER_CALL}-byte limit for this call reached)\n".encode())
+                continue
+            limit = min(PER_FILE, budget)
+            try:
+                data, more = read(root_fd, rel, limit)
+            except Skip as e:
+                out.write(f"=== {rel} (skipped: {e})\n".encode())
+            except FileNotFoundError:
+                out.write(f"=== {rel} (deleted)\n".encode())
+            except OSError:
+                out.write(f"=== {rel} (skipped: symlink or not a regular file)\n".encode())
+            else:
+                budget -= len(data)
+                note = f" (truncated at {limit} bytes)" if more else ""
+                out.write(f"=== {rel}{note}\n".encode() + data + b"\n")
+    finally:
+        os.close(root_fd)
 
 
 if __name__ == "__main__":
