@@ -284,6 +284,41 @@ routes:
 			wantError: "must match /mcp/<namespace>/<name>",
 		},
 		{
+			name:      "path namespace differs from target namespace fails closed",
+			content:   "version: 1\nroutes:\n  - route: /mcp/other/a\n    team: t\n    target: c:n:a\n    upstream_url: http://a.n\n",
+			wantError: "must equal target namespace",
+		},
+		{
+			name:      "single-segment path fails closed",
+			content:   "version: 1\nroutes:\n  - route: /mcp/a\n    team: t\n    target: c:n:a\n    upstream_url: http://a.n\n",
+			wantError: "must match /mcp/<namespace>/<name>",
+		},
+		{
+			name:      "three-segment path fails closed",
+			content:   "version: 1\nroutes:\n  - route: /mcp/n/a/b\n    team: t\n    target: c:n:a\n    upstream_url: http://a.n\n",
+			wantError: "must match /mcp/<namespace>/<name>",
+		},
+		{
+			name:      "trailing slash fails closed",
+			content:   "version: 1\nroutes:\n  - route: /mcp/n/a/\n    team: t\n    target: c:n:a\n    upstream_url: http://a.n\n",
+			wantError: "must match /mcp/<namespace>/<name>",
+		},
+		{
+			name:      "dot-dot segment fails closed",
+			content:   "version: 1\nroutes:\n  - route: /mcp/n/..\n    team: t\n    target: c:n:a\n    upstream_url: http://a.n\n",
+			wantError: "invalid route segment",
+		},
+		{
+			name:      "percent in segment fails closed",
+			content:   "version: 1\nroutes:\n  - route: /mcp/n/a%2Fb\n    team: t\n    target: c:n:a\n    upstream_url: http://a.n\n",
+			wantError: "invalid character",
+		},
+		{
+			name:      "namespace case mismatch fails closed",
+			content:   "version: 1\nroutes:\n  - route: /mcp/N/a\n    team: t\n    target: c:n:a\n    upstream_url: http://a.n\n",
+			wantError: "must equal target namespace",
+		},
+		{
 			name:      "invalid target format fails closed",
 			content:   "version: 1\nroutes:\n  - route: /mcp/x/a\n    team: t\n    target: dev-gcp:only-two\n    upstream_url: http://a.only-two\n",
 			wantError: "expected cluster:namespace:app",
