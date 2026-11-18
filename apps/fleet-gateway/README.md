@@ -2,7 +2,7 @@
 
 OAuth 2.1 authorization server fronting Microsoft Entra ID for Nav's internal MCP gateway.
 
-The gateway is live in prod (2026-11-17) for a controlled pilot. It runs the authorization server (protected resource metadata, authorization server metadata, CIMD and DCR client registration, consent, Entra authorization-code redemption and refresh) and routes calls to team MCP servers with Texas OBO. See `docs/mcp-gateway-plan.md` for phases and status.
+The gateway is live in prod (2026-11-17) for a controlled pilot. It runs the authorization server (protected resource metadata, authorization server metadata, CIMD and DCR client registration, consent, Entra authorization-code redemption and refresh) and routes calls to team MCP servers with Texas OBO. See the [plan and decisions log](https://github.com/navikt/copilot/issues/2351) for phases and status.
 
 ## Endpoints
 
@@ -78,4 +78,4 @@ mise run build    # Build binary to bin/fleet-gateway
 
 ## References
 
-- [MCP gateway plan](../../docs/mcp-gateway-plan.md)
+- [MCP gateway plan](https://github.com/navikt/copilot/issues/2351)
