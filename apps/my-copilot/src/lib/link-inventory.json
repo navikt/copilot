@@ -3146,5 +3146,9 @@
       "sjekkliste": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/verktoy/fleet-gateway/for-team/page.tsx"],
       "steg": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/verktoy/fleet-gateway/for-team/page.tsx"]
     }
+  },
+  "/nyheter/undersokelsen-hosten-2026": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/undersokelsen-hosten-2026/page.tsx"],
+    "anchors": {}
   }
 }
