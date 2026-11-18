@@ -27,6 +27,9 @@ permissions:
 
 jobs:
   build:
+    # A failing Postgres test stops the deploy.
+    needs: db-test
+    if: ${{ !cancelled() && needs.db-test.result == 'success' }}
     uses: ./.github/workflows/mise-build-deploy-nais.yaml
     with:
       working-directory: apps/mcp-registry
@@ -41,11 +44,12 @@ jobs:
   db-test:
     name: Postgres tests
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
     services:
       postgres:
-        image: postgres:17
+        image: postgres:18@sha256:2ea8630df176ad090ec92136dee850397c5af8781e4bcf2e4162593691c61bbc
         env:
           POSTGRES_PASSWORD: test
         ports:
