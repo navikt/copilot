@@ -675,7 +675,7 @@ func TestAuditMCP_LogsFields_BoundsMethod_And_NoSecretsOrArgs(t *testing.T) {
 	for _, line := range strings.Split(strings.TrimSpace(logBuf.String()), "\n") {
 		var entry map[string]any
 		if json.Unmarshal([]byte(line), &entry) == nil && entry["msg"] == "audit mcp" {
-			foundAudit = entry
+			foundAudit = flatAudit(entry)
 		}
 	}
 	if foundAudit == nil {
@@ -697,8 +697,8 @@ func TestAuditMCP_LogsFields_BoundsMethod_And_NoSecretsOrArgs(t *testing.T) {
 		t.Fatal("expected duration_ms in audit log")
 	}
 	loggedMethod, _ := foundAudit["method"].(string)
-	if len(loggedMethod) != maxAuditMethodLen {
-		t.Fatalf("expected bounded method length %d, got %d", maxAuditMethodLen, len(loggedMethod))
+	if len(loggedMethod) != maxAuditMethodLen+len(`"..."`) || !strings.HasSuffix(loggedMethod, `"...`) {
+		t.Fatalf("expected method quoted and cut at %d with a ... marker, got %q", maxAuditMethodLen, loggedMethod)
 	}
 
 	allLogs := logBuf.String()
@@ -1073,16 +1073,18 @@ func TestProxy_KillSwitch(t *testing.T) {
 				writeJSON(w, http.StatusOK, map[string]any{"jsonrpc": "2.0", "id": 1, "result": "ok"})
 			})
 
-			routesYAML := `version: 1
+			routesYAML := `version: 2
 routes:
   - route: /mcp/team-etterlevelse/etterlevelse
     team: team-etterlevelse
     target: dev-gcp:team-etterlevelse:nav-etterlevelse-mcp
     upstream_url: http://nav-etterlevelse-mcp.team-etterlevelse
+    passAllTools: true
   - route: /mcp/team-sec/disabled
     team: team-sec
     target: dev-gcp:team-sec:sec-mcp
     upstream_url: http://sec-mcp.team-sec
+    passAllTools: true
     enabled: false
 `
 			parsedRoutes, err := parseAndValidatePilotRoutes([]byte(routesYAML))
@@ -1152,7 +1154,7 @@ routes:
 				case "route disabled by kill switch":
 					foundWarn = entry
 				case "audit mcp":
-					foundAudit = entry
+					foundAudit = flatAudit(entry)
 				}
 			}
 			if foundWarn == nil {

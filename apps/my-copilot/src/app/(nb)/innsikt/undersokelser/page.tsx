@@ -20,6 +20,9 @@ export default async function PublishedSurveysPage() {
   const res = await getPublishedSurveys(token);
   if (res.status === "not-found") notFound();
   const surveys = res.status === "error" ? null : res.data.surveys;
+  // A series with two or more published waves has a comparison page.
+  const inSeries = (surveys ?? []).flatMap((s) => (s.series ? [s.series] : []));
+  const series = [...new Set(inSeries.filter((name, i) => inSeries.indexOf(name) !== i))];
 
   return (
     <InsightPage
@@ -69,6 +72,11 @@ export default async function PublishedSurveysPage() {
             </TableBody>
           </Table>
         )}
+        {series.map((name) => (
+          <Link key={name} href={`/innsikt/undersokelser/serie/${name}`}>
+            Se utviklingen over tid{series.length > 1 ? ` (${name})` : ""}
+          </Link>
+        ))}
       </InsightSection>
     </InsightPage>
   );

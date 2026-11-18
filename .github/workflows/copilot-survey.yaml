@@ -27,6 +27,8 @@ permissions:
 
 jobs:
   build:
+    # A failing Postgres test stops the deploy.
+    needs: db-test
     uses: ./.github/workflows/mise-build-deploy-nais.yaml
     with:
       working-directory: apps/copilot-survey
@@ -38,3 +40,34 @@ jobs:
       deploy-pr-to-dev: false
       nais-team: copilot
       nais-clusters: '["dev-gcp", "prod-gcp"]'
+  # Runs the Postgres-backed tests, which skip without COPILOT_SURVEY_TEST_DB_URL.
+  db-test:
+    name: Postgres tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    defaults:
+      run:
+        working-directory: apps/copilot-survey
+    env:
+      COPILOT_SURVEY_TEST_DB_URL: postgres://postgres:test@localhost:5432/postgres?sslmode=disable
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+      - uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # ratchet:jdx/mise-action@v5.2.8
+        with:
+          experimental: true
+          working_directory: apps/copilot-survey
+      - run: go test -count=1 -p 1 ./...

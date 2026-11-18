@@ -50,6 +50,7 @@ const DYNAMIC: Record<string, (value: string) => boolean> = {
   "/videos/[id]": () => true,
   // Survey ids live in copilot-survey; the page answers 404 to an unknown one.
   "/innsikt/undersokelser/[id]": (s) => /^[a-z0-9-]{1,64}$/.test(s),
+  "/innsikt/undersokelser/serie/[series]": (s) => /^[a-z0-9-]{1,64}$/.test(s),
   "/admin/undersokelser/[id]": (s) => /^[a-z0-9-]{1,64}$/.test(s),
   "/admin/undersokelser/[id]/fritekst": (s) => /^[a-z0-9-]{1,64}$/.test(s),
 };

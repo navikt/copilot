@@ -6,6 +6,7 @@ import (
 	"math/rand/v2"
 	"os"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -169,8 +170,9 @@ func TestFinalAggregates(t *testing.T) {
 
 	// Rare client/OS/version combinations merge into "annet" in kind='context'
 	// without hiding a channel that has >= 5 total respondents in kind='channel'.
-	for i := range 5 {
-		cj, _ := json.Marshal(map[string]any{"client": "web", "os": "linux", "version": string(rune('a' + i)), "local_models": false})
+	// Every value is held by 5 rows, every combination by 2 or 3.
+	for i := range 10 {
+		cj, _ := json.Marshal(map[string]any{"client": []string{"web", "copilot"}[i/5], "os": []string{"linux", "darwin"}[(i/5+i%5/3)%2], "version": "2026.06", "local_models": false})
 		if _, err = st.pool.Exec(ctx, `INSERT INTO survey_answers VALUES ('w2', '{"overall":4}', '{"overall":1}', $1, '2026-12-27')`, cj); err != nil {
 			t.Fatal(err)
 		}
@@ -178,11 +180,11 @@ func TestFinalAggregates(t *testing.T) {
 	if _, err = finalize(ctx, st.pool, st.defs, second, now, true); err != nil {
 		t.Fatal(err)
 	}
-	if ctxCount("w2", "client", "web") != 0 || ctxCount("w2", "client", "annet") != 5 {
+	if ctxCount("w2", "client", "web") != 0 || ctxCount("w2", "client", "annet") != 10 {
 		t.Fatal("expected rare context segments to merge into annet")
 	}
-	if f, fErr := st.final(ctx, "w2"); fErr != nil || !reflect.DeepEqual(f.Channels, map[string]int{"web": 5}) {
-		t.Fatalf("expected channel count to preserve web=5: got %v, err %v", f, fErr)
+	if f, fErr := st.final(ctx, "w2"); fErr != nil || !reflect.DeepEqual(f.Channels, map[string]int{"web": 5, "copilot": 5}) {
+		t.Fatalf("expected channel counts to preserve web=5, copilot=5: got %v, err %v", f, fErr)
 	}
 
 	// No rows: nothing written, so a later import still gets aggregated.
@@ -226,5 +228,142 @@ func TestResultsReadFinalForClosed(t *testing.T) {
 	if !strings.Contains(rec.Body.String(), `"id":"old","title":"Old","starts":"2025-01-01","ends":"2025-01-31","status":"stengt","responses":6`) ||
 		!strings.Contains(rec.Body.String(), `"status":"åpen","responses":1`) {
 		t.Fatal(rec.Body.String())
+	}
+}
+
+// TestRetainWaitsForSkipCounts (Postgres, COPILOT_SURVEY_TEST_DB_URL):
+// expired rows stay until their skip counts are written, and go after, or
+// once the rows no longer match the stored total.
+func TestRetainWaitsForSkipCounts(t *testing.T) {
+	url := os.Getenv("COPILOT_SURVEY_TEST_DB_URL")
+	if url == "" {
+		t.Skip("COPILOT_SURVEY_TEST_DB_URL not set")
+	}
+	ctx := t.Context()
+	st, err := openSurveyStore(ctx, url)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.pool.Close()
+	_, _ = st.pool.Exec(ctx, `DELETE FROM survey_answers; DELETE FROM survey_results; DELETE FROM survey_skip_results`)
+	defs, err := loadSurveys([]byte(compareSurveys))
+	if err != nil {
+		t.Fatal(err)
+	}
+	noRule := slices.Clone(defs)
+	noRule[1].Questions = slices.Clone(defs[1].Questions)
+	noRule[1].Questions[1].SkipIf = nil
+	now := time.Date(2026, 11, 15, 0, 0, 0, 0, time.UTC)
+	for id, rows := range waveRows() {
+		for _, r := range rows {
+			aj, _ := json.Marshal(r.Answers)
+			vj, _ := json.Marshal(r.QuestionVersions)
+			cj, _ := json.Marshal(r.Context)
+			if _, err := st.pool.Exec(ctx, `INSERT INTO survey_answers VALUES ($1, $2, $3, $4, '2026-01-01')`, id, aj, vj, cj); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	count := func(id string) (n int) {
+		_ = st.pool.QueryRow(ctx, `SELECT count(*) FROM survey_answers WHERE survey_id = $1`, id).Scan(&n)
+		return n
+	}
+	block := func(on bool) {
+		q := `ALTER TABLE survey_skip_results DROP CONSTRAINT IF EXISTS skip_block`
+		if on {
+			q = `ALTER TABLE survey_skip_results ADD CONSTRAINT skip_block CHECK (false) NOT VALID`
+		}
+		if _, err := st.pool.Exec(ctx, q); err != nil {
+			t.Fatal(err)
+		}
+	}
+	defer block(false)
+
+	// Aggregates written before autumn's skip_if existed: no skip counts.
+	st.defs = noRule
+	st.closeOut(ctx, now)
+	// autumn loses a row: its stored total no longer matches.
+	_, _ = st.pool.Exec(ctx, `DELETE FROM survey_answers WHERE ctid = (SELECT ctid FROM survey_answers WHERE survey_id = 'autumn' LIMIT 1)`)
+
+	// The rule is deployed, but its counts cannot be written.
+	st.defs = defs
+	block(true)
+	st.retain(ctx, now)
+	if count("spring") != 6 || count("autumn") != 0 {
+		t.Fatalf("while skip counts are missing: spring %d (want 6 kept), autumn %d (want 0)", count("spring"), count("autumn"))
+	}
+	block(false)
+	st.retain(ctx, now)
+	if count("spring") != 0 {
+		t.Fatalf("after skip counts are written: spring %d rows", count("spring"))
+	}
+	var marker int
+	_ = st.pool.QueryRow(ctx, `SELECT count(*) FROM survey_skip_results WHERE survey_id = 'spring' AND version = -1`).Scan(&marker)
+	if marker != 2 { // fast and slow
+		t.Fatalf("spring skip counts: %d pairs", marker)
+	}
+}
+
+// TestRetainImportRace (COPILOT_SURVEY_TEST_DB_URL): an import that lands
+// between retain deciding a survey's expired rows may go and deleting them
+// must not lose its rows. retain pauses at purgeHook; the import runs, or
+// waits on the survey's lock; then retain goes on.
+func TestRetainImportRace(t *testing.T) {
+	url := os.Getenv("COPILOT_SURVEY_TEST_DB_URL")
+	if url == "" {
+		t.Skip("COPILOT_SURVEY_TEST_DB_URL not set")
+	}
+	ctx := t.Context()
+	st, err := openSurveyStore(ctx, url)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.pool.Close()
+	_, _ = st.pool.Exec(ctx, `DELETE FROM survey_answers; DELETE FROM survey_results; DELETE FROM survey_skip_results`)
+	defs, err := loadSurveys([]byte(compareSurveys))
+	if err != nil {
+		t.Fatal(err)
+	}
+	st.defs = defs
+	now := time.Date(2026, 11, 15, 0, 0, 0, 0, time.UTC)
+	expired := now.AddDate(0, -1, 0)
+	var spring []map[string]any
+	for _, r := range waveRows()["spring"] {
+		spring = append(spring, r.Answers)
+	}
+	if _, err = writeImport(ctx, url, defs[0], spring, expired); err != nil {
+		t.Fatal(err)
+	}
+	st.closeOut(ctx, now)
+
+	paused, release := make(chan struct{}), make(chan struct{})
+	st.purgeHook = func(id string) {
+		if id == "spring" {
+			close(paused)
+			<-release
+		}
+	}
+	retained := make(chan struct{})
+	go func() { st.retain(ctx, now); close(retained) }()
+	<-paused
+	imported := make(chan error, 1)
+	go func() { _, ierr := writeImport(ctx, url, defs[0], spring, expired); imported <- ierr }()
+	// Until the import has finished, or waits on an advisory lock.
+	for deadline := time.Now().Add(10 * time.Second); ; time.Sleep(10 * time.Millisecond) {
+		var waiting int
+		_ = st.pool.QueryRow(ctx, `SELECT count(*) FROM pg_stat_activity WHERE wait_event_type = 'Lock' AND wait_event = 'advisory'`).Scan(&waiting)
+		if waiting > 0 || len(imported) > 0 || time.Now().After(deadline) {
+			break
+		}
+	}
+	close(release)
+	<-retained
+	if err = <-imported; err != nil {
+		t.Fatal(err)
+	}
+	var rows, results int
+	_ = st.pool.QueryRow(ctx, `SELECT (SELECT count(*) FROM survey_answers WHERE survey_id = 'spring'), (SELECT count(*) FROM survey_results WHERE survey_id = 'spring')`).Scan(&rows, &results)
+	if rows != 6 || results != 0 {
+		t.Fatalf("after the race: %d rows, %d aggregate rows; want 6 rows waiting for close-out", rows, results)
 	}
 }

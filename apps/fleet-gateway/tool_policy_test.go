@@ -86,7 +86,7 @@ func TestToolPolicy_NonPostBody(t *testing.T) {
 }
 
 func TestToolPolicy_RouteFilesAreV2(t *testing.T) {
-	for _, f := range []string{"pilot-routes.dev.yaml", "pilot-routes.prod.yaml"} {
+	for _, f := range []string{"pilot-routes.yaml", "pilot-routes.dev.yaml", "pilot-routes.prod.yaml"} {
 		raw, err := os.ReadFile(f) //nolint:gosec // fixed repo file names
 		if err != nil {
 			t.Fatal(err)
@@ -108,8 +108,6 @@ func TestToolPolicy_RouteFile(t *testing.T) {
 		"v2 blank tool":      route("    tools: [\" a\"]\n"),
 		"v2 duplicate tool":  route("    tools: [a, a]\n"),
 		"v2 tools + passAll": route("    tools: [a]\n    passAllTools: true\n"),
-		"v1 with tools":      strings.Replace(route("    tools: [a]\n"), "version: 2", "version: 1", 1),
-		"v1 with passAll":    strings.Replace(route("    passAllTools: true\n"), "version: 2", "version: 1", 1),
 		"passAll false only": route("    passAllTools: false\n"),
 	}
 	for name, y := range bad {
@@ -125,13 +123,40 @@ func TestToolPolicy_RouteFile(t *testing.T) {
 	if err != nil || rs[0].allowedTools != nil {
 		t.Fatalf("passAll route must not enforce: %v", err)
 	}
-	rs, err = parseAndValidatePilotRoutes([]byte(strings.Replace(route(""), "version: 2", "version: 1", 1)))
-	if err != nil || rs[0].allowedTools != nil {
-		t.Fatalf("v1 route must load as pass-all: %v", err)
+	_, err = parseAndValidatePilotRoutes([]byte(strings.Replace(route("    tools: [a]\n"), "version: 2", "version: 1", 1)))
+	if err == nil || !strings.Contains(err.Error(), "version 1 is no longer supported") {
+		t.Fatalf("v1 must be rejected with a clear error: %v", err)
 	}
 	for _, f := range []string{"pilot-routes.dev.yaml", "pilot-routes.prod.yaml", ""} {
 		if _, err := (fileRouteSource{path: f}).Routes(); err != nil {
 			t.Errorf("%q: %v", f, err)
 		}
+	}
+}
+
+// The audit list stops at maxAuditBatchTools; the policy must still read every member.
+func TestToolPolicy_BatchPastDisplayCap(t *testing.T) {
+	call := func(name string) string {
+		return `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"` + name + `"}}`
+	}
+	head := "[" + strings.Repeat(call("whoami")+",", maxAuditBatchTools+1)
+	cases := []struct {
+		name, body, reason string
+		code               int
+	}{
+		{"disallowed", head + call("delete_all") + "]", reasonNotListed, http.StatusForbidden},
+		{"duplicate name", head + `{"method":"tools/call","params":{"name":"whoami","name":"delete_all"}}]`, reasonAmbiguous, http.StatusBadRequest},
+		{"trailing data", head + call("whoami") + "]" + call("delete_all"), reasonAmbiguous, http.StatusBadRequest},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			audit, got, code := auditPostTools(t, policyTools, tc.body)
+			if code != tc.code || audit["decision_reason"] != tc.reason || got != nil {
+				t.Fatalf("code=%d reason=%v forwarded=%v", code, audit["decision_reason"], got != nil)
+			}
+			if tc.name != "disallowed" && audit["raw"].(map[string]any)["context"].(map[string]any)["scan_incomplete"] != true {
+				t.Fatalf("audit scan_incomplete=%v, want true", audit["scan_incomplete"])
+			}
+		})
 	}
 }
