@@ -152,6 +152,7 @@ set -e
 python3 scripts/benchmark-sjekk.py --selftest
 python3 -m unittest discover -s scripts -p 'test_blindspot_judge.py'
 python3 scripts/benchmark-summary.py --selftest
+python3 scripts/benchmark-stats.py --selftest
 python3 scripts/benchmark-summary.py --check
 """
 
