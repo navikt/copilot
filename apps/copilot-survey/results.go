@@ -258,14 +258,15 @@ func hideSmallWaveVersions(res *compareResult) {
 // each wave counts its own answers as its /results does, so no difference
 // between the two can single out a small group (owner decision, #2271). The
 // test then compares groups that are not quite alike. An unknown series, or
-// fewer than two such waves, is 404. Like compare it reads rows, so a wave
-// whose rows are deleted drops out.
+// fewer than two such waves, is 404. Each wave is read as its /results is
+// (tally): from its aggregates once closed, so it stays after its rows are
+// deleted.
 func (a *surveyAPI) publishedCompare(w http.ResponseWriter, r *http.Request) {
 	now, series := a.now(), r.URL.Query().Get("series")
 	candidates := slices.Clone(a.surveys)
 	slices.SortFunc(candidates, func(x, y survey) int { return strings.Compare(y.Starts, x.Starts) }) // newest first
 	var waves []survey
-	var rows [][]storedAnswer
+	var tallies []waveTally
 	for _, s := range candidates {
 		if len(waves) == 4 {
 			break
@@ -273,13 +274,14 @@ func (a *surveyAPI) publishedCompare(w http.ResponseWriter, r *http.Request) {
 		if series == "" || s.Series != series || !s.Published || s.status(now) != "stengt" {
 			continue
 		}
-		rs, err := a.read(r, s.ID)
+		t, err := a.tally(r, s)
 		if err != nil {
 			writeError(w, http.StatusServiceUnavailable, "survey storage unavailable")
 			return
 		}
-		if len(rs) >= minSegment {
-			waves, rows = append([]survey{s}, waves...), append([][]storedAnswer{rs}, rows...)
+		if t.Responses >= minSegment {
+			waves = append([]survey{s}, waves...)
+			tallies = append([]waveTally{{Responses: t.Responses, Keys: t.Keys}}, tallies...)
 		}
 	}
 	if len(waves) < 2 {
@@ -291,7 +293,7 @@ func (a *surveyAPI) publishedCompare(w http.ResponseWriter, r *http.Request) {
 	for i := range last.Questions {
 		last.Questions[i].SkipIf = nil
 	}
-	res := compareWavesResult(waves, rows, now)
+	res := compareTallies(waves, tallies, now)
 	for i := range res.Surveys {
 		res.Surveys[i].Channels = nil
 	}
@@ -341,10 +343,6 @@ func aggregateTally(s survey, t surveyTally, now time.Time) surveyResults {
 		res.Questions = append(res.Questions, qr)
 	}
 	return res
-}
-
-func countVersions(q question, rows []storedAnswer) []versionResult {
-	return versionsFrom(q, tallyKey(q.ID, rows))
 }
 
 // versionsFrom turns one answer key's tally into the API's versions, with

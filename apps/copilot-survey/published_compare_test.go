@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -232,5 +233,87 @@ func TestPublishedResultsSmallVersion(t *testing.T) {
 	}
 	if adm := scaleA(adminToken, "/api/v1/admin/surveys/old/results"); len(adm) != 2 || adm[1].Hidden || *adm[1].N != 1 {
 		t.Errorf("admin: %+v", adm)
+	}
+}
+
+// TestPublishedCompareAfterRetention (COPILOT_SURVEY_TEST_DB_URL): the
+// published series reads each wave as its /results does, so it is
+// byte-identical, JSON and CSV, before and after each wave's rows are
+// deleted, and every wave matches its published /results.
+func TestPublishedCompareAfterRetention(t *testing.T) {
+	url := os.Getenv("COPILOT_SURVEY_TEST_DB_URL")
+	if url == "" {
+		t.Skip("COPILOT_SURVEY_TEST_DB_URL not set")
+	}
+	ctx := t.Context()
+	st, err := openSurveyStore(ctx, url)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.pool.Close()
+	_, _ = st.pool.Exec(ctx, `DELETE FROM survey_answers; DELETE FROM survey_results; DELETE FROM survey_skip_results`)
+	api := compareAPI(t, st.answers)
+	api.now, api.final = func() time.Time { return time.Date(2026, 11, 15, 0, 0, 0, 0, time.UTC) }, st.final
+	for i := range api.surveys {
+		api.surveys[i].Series, api.surveys[i].Published = "dev", true
+	}
+	st.defs = api.surveys
+	for id, rows := range waveRows() {
+		for _, r := range rows {
+			aj, _ := json.Marshal(r.Answers)
+			vj, _ := json.Marshal(r.QuestionVersions)
+			cj, _ := json.Marshal(r.Context)
+			if _, err = st.pool.Exec(ctx, `INSERT INTO survey_answers VALUES ($1, $2, $3, $4, '2027-01-01')`, id, aj, vj, cj); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	st.closeOut(ctx, api.now())
+	h := makeRouter(testAuthenticator(t), api)
+	const path = "/api/v1/surveys/published/compare?series=dev"
+	series := func() (string, string) {
+		t.Helper()
+		j, c := do(h, "GET", path, webToken, ""), do(h, "GET", path+"&format=csv", webToken, "")
+		if j.Code != 200 || c.Code != 200 {
+			t.Fatalf("series: %d %s / %d", j.Code, j.Body, c.Code)
+		}
+		return j.Body.String(), c.Body.String()
+	}
+	matchesResults := func(body string) {
+		t.Helper()
+		var cmp compareResult
+		_ = json.Unmarshal([]byte(body), &cmp)
+		for wi, m := range cmp.Surveys {
+			var res surveyResults
+			if rec := do(h, "GET", "/api/v1/surveys/"+m.ID+"/results", webToken, ""); rec.Code != 200 || json.Unmarshal(rec.Body.Bytes(), &res) != nil {
+				t.Fatalf("%s results: %d %s", m.ID, rec.Code, rec.Body)
+			}
+			versions := map[string][]versionResult{}
+			for _, q := range res.Questions {
+				versions[q.ID] = q.Versions
+				for _, it := range q.Items {
+					versions[it.ID] = it.Versions
+				}
+			}
+			for _, q := range cmp.Questions {
+				if q.Items == nil {
+					sameAsResults(t, q.Waves[wi], versions[q.ID])
+				}
+				for _, it := range q.Items {
+					sameAsResults(t, it.Waves[wi], versions[it.ID])
+				}
+			}
+		}
+	}
+	wantJSON, wantCSV := series()
+	matchesResults(wantJSON)
+	for _, id := range []string{"spring", "autumn"} {
+		if _, err = st.pool.Exec(ctx, `DELETE FROM survey_answers WHERE survey_id = $1`, id); err != nil {
+			t.Fatal(err)
+		}
+		if j, c := series(); j != wantJSON || c != wantCSV {
+			t.Fatalf("after %s's rows are deleted:\n%s\nwant\n%s", id, j, wantJSON)
+		}
+		matchesResults(wantJSON)
 	}
 }

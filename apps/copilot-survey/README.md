@@ -32,7 +32,7 @@ status routes only.
 | `GET` | `/api/v1/surveys/{id}/results` | my-copilot user | Admin `/results` for a closed, `published` survey with at least 5 answers, with every channel under 5 merged into `annet` as in the export, and every version under 5 respondents `"hidden": true` with `n` and `options` null. 404 otherwise |
 | `GET` | `/api/v1/admin/surveys` | admin | All surveys with status (kommende, åpen, stengt) and written answers |
 | `GET` | `/api/v1/admin/surveys/{id}/results` | admin | Counts per option and question version, no free text. Fewer than 5 answers in the whole survey: nothing. Otherwise every count is real; `suppressed` is always `false` at option level (kept for old clients) |
-| `GET` | `/api/v1/admin/surveys/compare?ids=a,b` | admin | Two to four waves, oldest first, question by question after the last wave's definition: n, counts, mean and share agreeing (top two steps) per version, `break` where the waves asked different versions, a first-to-last test per scale item ([Significance](#significance)), answers per `context.client` merged under 5 as in the export. The last wave's `skip_if` applies to every wave, so spring statement answers from people who do not use KI tools are dropped (`excluded`) as autumn skips them. A wave under 5 answers has no counts. `&format=csv`: the same numbers in long form, see [Same numbers locally](#same-numbers-locally) |
+| `GET` | `/api/v1/admin/surveys/compare?ids=a,b` | admin | Two to four waves, oldest first, question by question after the last wave's definition: n, counts, mean and share agreeing (top two steps) per version, `break` where the waves asked different versions, a first-to-last test per scale item ([Significance](#significance)), answers per `context.client` merged under 5 as in the export. The last wave's `skip_if` applies to every wave, so spring statement answers from people who do not use KI tools are dropped (`excluded`) as autumn skips them. A wave under 5 answers has no counts. A closed wave whose answers are deleted is read from its aggregates (409 if they lack the last wave's `skip_if`, see [Same numbers locally](#same-numbers-locally)). `&format=csv`: the same numbers in long form, see [Same numbers locally](#same-numbers-locally) |
 | `GET` | `/api/v1/admin/surveys/{id}/freetext` | admin | Free text per field (text questions and `<id>.other`), masked as in the export, random order, each text on its own: no row id, no other answers. Hidden texts left out. Visible while open (owner, 2026-10-13) |
 | `POST` | `/api/v1/admin/surveys/{id}/freetext/hide` | admin | `{"token": "..."}` from the list above: hides that text in admin and the export. 204, or 404 for an unknown token |
 | `GET` | `/api/v1/admin/surveys/{id}/export.csv` | admin | Every response as one CSV row, see [CSV export in admin](#csv-export-in-admin). 410 when a closed survey's rows are deleted and only aggregates remain |
@@ -137,6 +137,12 @@ Residual risks, for the privacy review:
   per login; the `CopilotSurveySubmissionBurst` alert in `.nais/app.yaml`
   fires when `survey_submissions_total` grows by more than 20 in 5 minutes,
   all surveys and statuses summed. See the accepted risk in `SECURITY.md`.
+- Small cells in the stored aggregates: `survey_results` and
+  `survey_skip_results` keep counts under 5 as they are, also after the rows
+  are deleted, as `/results` and `compare` show them. `survey_skip_results`
+  is a cross table of a `skip_if` answer against the questions it skips
+  there. Accepted by the owner on 2026-11-17; it belongs in the privacy
+  assessment.
 - Free text: the answers that can name their author ("as the only Rust dev
   on team X"): a `text` question (at most one per survey) and the short text
   of an «other» option (at most 200 characters each, at most three per
@@ -261,7 +267,8 @@ texts are rewritten (`null` drops an answer). The mapping holds no answers.
   cut to the question's `max_length`, the bound a submission is held to.
   Errors name the question, never the answer.
 - Reruns are safe: one transaction deletes the survey's rows and inserts them
-  again.
+  again. It also deletes the survey's aggregates (`survey_results`,
+  `survey_skip_results`), so the next close-out counts the new rows.
 - `--dry-run` prints rows, answers per question and each normalisation with
   its count. It prints no answers and needs no database.
 - Never commit the export or anything derived from its rows.
@@ -299,7 +306,7 @@ matrix items. Free text is not stored there. Context (client, OS, version as
 year.month, local models) is counted with the export's k ≥ 5 rule: values
 held by fewer than 5 rows become «annet». The job writes aggregates once per
 survey and leaves existing ones alone, since the rows may be partly deleted
-by then. A closed survey without rows gets none, so a later import can still
+by then; only the skip counts compare needs are rewritten while every row is still there (see [Same numbers locally](#same-numbers-locally)). A closed survey without rows gets none, so a later import can still
 be aggregated.
 
 `/api/v1/admin/surveys/{id}/results` and the survey list read the aggregates
@@ -313,8 +320,16 @@ rows' `delete_after` is set to that wave's last day. A date that is already
 later is never moved earlier: `retention_days` (q2-2026: 730 days, to
 2028-04-30) or the default 180 days wins when it is longer. Until the next
 wave closes, `delete_after` stays as written.
-Expired rows of a defined survey are deleted only once it has aggregates, so
-a failed close-out is retried the next day rather than losing the counts.
+Expired rows of a defined survey are deleted only once it has aggregates and
+skip counts for every `skip_if` rule set in the definitions (`survey_skip_results`),
+so a failed close-out is retried the next day rather than losing the counts.
+The job logs `survey: rows kept until skip counts are written` with the
+survey id while it waits. Rows that no longer match the stored total (partly
+deleted) cannot give skip counts and are deleted as before.
+
+A `skip_if` that first appears two or more waves later, after a wave's rows
+are deleted, cannot be applied to that wave: `compare` answers 409 (owner,
+2026-11-17).
 
 `copilot-survey aggregate --survey <id>` writes (or rewrites) a closed
 survey's aggregates from its rows in one transaction, replacing any. The
@@ -390,4 +405,6 @@ Every scale or matrix item that the first and the last wave answered in the same
 
 Closed formulas only, so the admin page and `analyze` give the same numbers with no seed. There is no confidence interval: a Welch interval for the mean tests something else than the rank test and disagreed with it (`tilfredshet`), so one test gives one answer. Spring against autumn 2026 tests 7 statements; only `teknisk-kompetanse` holds after correction (`p` 0.0031, `p_holm` 0.022).
 
-`compare` reads rows, not the stored aggregates, because the skip rule needs each answer. Once a wave's rows are deleted it can no longer be compared: keep its comparison CSV.
+`compare` reads a wave's rows while they exist. Once they are deleted it reads the wave's aggregates instead and gives the same JSON and CSV (`TestCompareStoreAfterRetention`). The skip rule needs each answer, so the aggregates hold, in `survey_skip_results`, for every `skip_if` rule set in any definition and each question or statement it skips there, the answer counts among the respondents the set skips. A set is keyed by its rules, sorted, as JSON; a respondent any rule in the set skips is counted once, so overlapping rules give the union. Compare subtracts them. With `survey_results` that is a cross table of the rule's answer against those answers only: the same numbers compare already shows as `excluded` and kept counts, small cells included, and nothing per row.
+
+The daily job rewrites these counts for every closed survey whose rows are all still there, so a `skip_if` in a new definition is picked up as soon as it is deployed. Retention (`extendRetention`) keeps a wave's rows until the next wave in the series has closed, and that wave's definition is deployed before it opens, so its rule is always stored in time. A rule that first appears after a wave's rows are deleted cannot be applied to that wave: compare answers 409 for it, unless the wave has no answers to the questions the rule skips.
