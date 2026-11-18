@@ -17,6 +17,36 @@ import (
 	"testing"
 )
 
+// flatAudit maps the AuthZEN-shaped audit record onto flat keys so tests can
+// assert single fields; TestAuditMCP_AuthZENShape pins the real shape.
+func flatAudit(e map[string]any) map[string]any {
+	get := func(path ...string) any {
+		var v any = e
+		for _, k := range path {
+			m, _ := v.(map[string]any)
+			v = m[k]
+		}
+		return v
+	}
+	decision := "deny"
+	if get("decision", "decision") == true {
+		decision = "allow"
+	}
+	return map[string]any{
+		"navident":        get("subject", "id"),
+		"client_id":       get("subject", "properties", "client_id"),
+		"method":          get("action", "name"),
+		"tool":            get("action", "properties", "tool"),
+		"route":           "/mcp/" + fmt.Sprint(get("resource", "id")),
+		"decision":        decision,
+		"decision_reason": get("decision", "context", "reason"),
+		"header_mismatch": get("context", "header_mismatch"),
+		"outcome":         get("context", "outcome"),
+		"duration_ms":     get("context", "duration_ms"),
+		"raw":             e,
+	}
+}
+
 // auditPost sends body through the gateway and returns the audit entry and the
 // body upstream received.
 func auditPost(t *testing.T, body string) (map[string]any, []byte, int) {
@@ -72,7 +102,7 @@ func auditToolsHeaders(t *testing.T, method string, tools map[string]bool, body 
 	for _, line := range strings.Split(strings.TrimSpace(logBuf.String()), "\n") {
 		var e map[string]any
 		if json.Unmarshal([]byte(line), &e) == nil && e["msg"] == "audit mcp" {
-			audit = e
+			audit = flatAudit(e)
 		}
 	}
 	if audit == nil {
@@ -347,6 +377,28 @@ func TestAuditMCP_HeaderMismatch(t *testing.T) {
 	}
 }
 
+func TestAuditMCP_AuthZENShape(t *testing.T) {
+	audit, _, _ := auditToolsHeaders(t, http.MethodPost, map[string]bool{"search": true},
+		`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"delete","arguments":{"a":"top-secret-arg"}}}`,
+		http.Header{"Mcp-Name": {"search"}, "Mcp-Protocol-Version": {"2026-07-28"}})
+	raw := audit["raw"].(map[string]any)
+	ctx := raw["context"].(map[string]any)
+	if id, _ := ctx["request_id"].(string); len(id) != 26 {
+		t.Errorf("request_id %q, want 26 base32 characters", id)
+	}
+	ctx["request_id"], ctx["duration_ms"] = "ID", 0
+	delete(raw, "time")
+	got, _ := json.Marshal(raw)
+	want := `{"action":{"name":"tools/call","properties":{"tool":"delete"}},` +
+		`"context":{"duration_ms":0,"header_mismatch":true,"http_method":"POST","mcp_headers":{"method":false,"name":true},"outcome":"tool_denied","protocol_version":"2026-07-28","request_id":"ID","scan_incomplete":false},` +
+		`"decision":{"context":{"reason":"not_listed"},"decision":false},"level":"INFO","msg":"audit mcp",` +
+		`"resource":{"id":"team-etterlevelse/etterlevelse","properties":{"backend":"dev-gcp:team-etterlevelse:nav-etterlevelse-mcp"},"type":"mcp_route"},` +
+		`"subject":{"id":"Z123456","properties":{"client_id":"` + fmt.Sprint(audit["client_id"]) + `"},"type":"user"}}`
+	if audit["client_id"] == "" || string(got) != want {
+		t.Errorf("audit record\n got %s\nwant %s", got, want)
+	}
+}
+
 func TestMCPHeadersMismatch_ComparesRawValues(t *testing.T) {
 	long := strings.Repeat("a", 70)
 	call := func(name string) string {
@@ -393,5 +445,46 @@ func TestAuditField_QuotesQuoteAndBackslash(t *testing.T) {
 	}
 	if got := auditField(`a\b`); got != `"a\\b"` {
 		t.Errorf("backslash: got %s", got)
+	}
+}
+
+func TestAuditMCP_UnauthenticatedHasNoSubject(t *testing.T) {
+	audit, _, code := auditToolsHeaders(t, http.MethodPost, nil, `{"method":"ping"}`,
+		http.Header{"Authorization": {"Bearer not-a-token"}})
+	raw := audit["raw"].(map[string]any)
+	if code != http.StatusUnauthorized {
+		t.Fatalf("code %d, want 401", code)
+	}
+	if _, ok := raw["subject"]; ok {
+		t.Errorf("unauthenticated record has subject %v; AuthZEN requires subject.id", raw["subject"])
+	}
+}
+
+func TestAuditMCP_ScanIncompleteFromScan(t *testing.T) {
+	for _, tc := range []struct {
+		body string
+		want bool
+	}{
+		{`{"method":"tools/call","params":{"name":"...incomplete"}}`, false},
+		{`{"method":"ping"}x`, true},
+	} {
+		audit, _, _ := auditPost(t, tc.body)
+		ctx := audit["raw"].(map[string]any)["context"].(map[string]any)
+		if ctx["scan_incomplete"] != tc.want {
+			t.Errorf("%s: scan_incomplete %v, want %v", tc.body, ctx["scan_incomplete"], tc.want)
+		}
+	}
+}
+
+func TestAuditProtocolVersion(t *testing.T) {
+	for in, want := range map[string]string{
+		"":                      "",
+		"2025-06-18":            "2025-06-18",
+		strings.Repeat("9", 40): strings.Repeat("9", 32),
+		"2026-07-28 x":          `"2026-07-28 x"`,
+	} {
+		if got := auditProtocolVersion(in); got != want {
+			t.Errorf("%q: got %q, want %q", in, got, want)
+		}
 	}
 }

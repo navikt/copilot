@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -104,21 +105,57 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 		decision := ""
 		decisionReason := ""
 		headerMismatch := false
+		scanIncomplete := false
 
+		requestID := rand.Text()
+
+		// One OpenID AuthZEN-shaped record per decision (owner decision 2026-11-18, #2342).
+		// decision is true only when the gateway's own checks let the request through;
+		// context.outcome tells what happened after that.
 		defer func() {
-			slog.Info("audit mcp",
-				"navident", sanitizeLogValue(navIdent),
-				"client_id", sanitizeLogValue(clientID),
-				"route", route.Route,
-				"http_method", sanitizeLogValue(r.Method),
-				"method", sanitizeLogValue(rpcMethod),
-				"tool", sanitizeLogValue(toolName),
-				"decision", decision,
-				"decision_reason", decisionReason,
-				"header_mismatch", headerMismatch,
-				"outcome", outcome,
-				"duration_ms", g.now().Sub(start).Milliseconds(),
-			)
+			reason := decisionReason
+			if decision != "allow" && (decision == "" || reason == "") {
+				reason = outcome
+			}
+			var attrs []any
+			// AuthZEN 1.0 §5.1 makes subject.id REQUIRED, so an unauthenticated
+			// request has no subject rather than one with an empty id.
+			if navIdent != "" {
+				attrs = append(attrs, slog.Group("subject",
+					"type", "user",
+					"id", sanitizeLogValue(navIdent),
+					slog.Group("properties", "client_id", sanitizeLogValue(clientID)),
+				))
+			}
+			slog.Info("audit mcp", append(attrs,
+				slog.Group("action",
+					"name", sanitizeLogValue(rpcMethod),
+					slog.Group("properties", "tool", sanitizeLogValue(toolName)),
+				),
+				slog.Group("resource",
+					"type", "mcp_route",
+					"id", strings.TrimPrefix(route.Route, "/mcp/"),
+					slog.Group("properties", "backend", route.Target),
+				),
+				slog.Group("context",
+					"request_id", requestID,
+					"http_method", sanitizeLogValue(r.Method),
+					"scan_incomplete", scanIncomplete,
+					"header_mismatch", headerMismatch,
+					"protocol_version", sanitizeLogValue(auditProtocolVersion(r.Header.Get("Mcp-Protocol-Version"))),
+					slog.Group("mcp_headers",
+						"method", r.Header.Get("Mcp-Method") != "",
+						"name", r.Header.Get("Mcp-Name") != "",
+					),
+					"outcome", outcome,
+					"duration_ms", g.now().Sub(start).Milliseconds(),
+				),
+				// AuthZEN 1.0 §5.5: decision boolean plus optional context.
+				slog.Group("decision",
+					"decision", decision == "allow",
+					slog.Group("context", "reason", reason),
+				),
+			)...)
 		}()
 
 		switch r.Method {
@@ -272,7 +309,7 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 		}
 		if r.Method == http.MethodPost {
 			audit := scanJSONRPCAudit(reqBody)
-			rpcMethod, toolName = audit.method, audit.tool
+			rpcMethod, toolName, scanIncomplete = audit.method, audit.tool, audit.incomplete
 			headerMismatch = mcpHeadersMismatch(r.Header, audit)
 			if route.allowedTools != nil {
 				allow, reason := toolPolicyDecision(reqBody, route.allowedTools)
@@ -787,20 +824,20 @@ func scanJSONRPCAudit(body []byte) rpcAudit {
 			if a := auditMethodTool(m, params); a.rawMethod == "tools/call" || a.incomplete {
 				name := a.tool
 				batchIncomplete = batchIncomplete || a.incomplete
-				if len(tools) == maxAuditBatchTools {
+				// The cap limits only the logged list; the scan reads every member.
+				switch {
+				case len(tools) < maxAuditBatchTools:
+					tools = append(tools, name)
+				case len(tools) == maxAuditBatchTools:
 					tools = append(tools, "...")
-					break
 				}
-				tools = append(tools, name)
 			}
 		}
 		batch := rpcAudit{method: "batch", rawMethod: "batch", incomplete: batchIncomplete}
-		if len(tools) <= maxAuditBatchTools {
-			// More() is also false on a syntax error, so require the closing ']'.
-			if tok, err := dec.Token(); !complete || err != nil || tok != json.Delim(']') || !auditAtEOF(dec) {
-				tools = append(tools, auditIncomplete)
-				batch.incomplete = true
-			}
+		// More() is also false on a syntax error, so require the closing ']'.
+		if tok, err := dec.Token(); !complete || err != nil || tok != json.Delim(']') || !auditAtEOF(dec) {
+			tools = append(tools, auditIncomplete)
+			batch.incomplete = true
 		}
 		if len(tools) > 0 {
 			list, _ := json.Marshal(tools)
@@ -1050,4 +1087,13 @@ func sanitizeAuditMethod(method string) string {
 		b.WriteRune(r)
 	}
 	return b.String()
+}
+
+// auditProtocolVersion caps MCP-Protocol-Version at 32 bytes and quotes it like
+// other audit values; it records which revision clients send before enforcing one.
+func auditProtocolVersion(v string) string {
+	if len(v) > 32 {
+		v = v[:32]
+	}
+	return auditField(v)
 }
