@@ -7,6 +7,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -126,6 +127,12 @@ func runMCP2026Compliance(t *testing.T, tgt mcpComplianceTarget) {
 		{name: "Mcp-Method mismatch", body: modernBody("tools/list", nil), hdr: modernHeaders("server/discover", ""), status: 400, code: mcpCodeHeaderMismatch},
 		{name: "Mcp-Method missing", body: modernBody("tools/list", nil), hdr: with(modernHeaders("tools/list", ""), "Mcp-Method", ""), status: 400, code: mcpCodeHeaderMismatch},
 		{name: "Mcp-Name mismatch", body: modernBody("tools/call", callParams()), hdr: modernHeaders("tools/call", "other_tool"), status: 400, code: mcpCodeHeaderMismatch},
+		{name: "Mcp-Name base64 sentinel matches", body: modernBody("tools/call", callParams()), hdr: modernHeaders("tools/call", "=?base64?"+base64.StdEncoding.EncodeToString([]byte(tgt.tool))+"?="), status: 200},
+		{name: "Mcp-Name base64 sentinel mismatch", body: modernBody("tools/call", callParams()), hdr: modernHeaders("tools/call", "=?base64?"+base64.StdEncoding.EncodeToString([]byte("other_tool"))+"?="), status: 400, code: mcpCodeHeaderMismatch},
+		{name: "Mcp-Name malformed base64", body: modernBody("tools/call", callParams()), hdr: modernHeaders("tools/call", "=?base64?!!!?="), status: 400, code: mcpCodeHeaderMismatch},
+		{name: "notification-named method with id is 404", body: modernBody("notifications/example", nil), hdr: modernHeaders("notifications/example", ""), status: 404, code: mcpCodeMethodNotFound},
+		{name: "modern initialize in legacy window gets headers checked", legacy: "2999-01-01", body: modernBody("initialize", nil), hdr: modernHeaders("tools/list", ""), status: 400, code: mcpCodeHeaderMismatch},
+		{name: "modern initialize with unsupported header version in legacy window", legacy: "2999-01-01", body: modernBody("initialize", nil), hdr: with(modernHeaders("initialize", ""), "MCP-Protocol-Version", "2099-01-01"), status: 400, code: mcpCodeUnsupportedVersion},
 		{name: "Mcp-Name missing", body: modernBody("tools/call", callParams()), hdr: modernHeaders("tools/call", ""), status: 400, code: mcpCodeHeaderMismatch},
 		{name: "unknown method is 404", body: modernBody("nope/nope", nil), hdr: modernHeaders("nope/nope", ""), status: 404, code: mcpCodeMethodNotFound},
 		{name: "ping is removed", body: modernBody("ping", nil), hdr: modernHeaders("ping", ""), status: 404, code: mcpCodeMethodNotFound},
@@ -158,6 +165,9 @@ func runMCP2026Compliance(t *testing.T, tgt mcpComplianceTarget) {
 			}
 			if tc.code != 0 && errCode(out) != tc.code {
 				t.Fatalf("error code = %d, want %d; body %s", errCode(out), tc.code, rec.Body.String())
+			}
+			if tc.code != 0 && out["id"] != float64(1) {
+				t.Errorf("error id = %v, want 1 (request id must be kept)", out["id"])
 			}
 			if tc.code == mcpCodeUnsupportedVersion {
 				e, _ := out["error"].(map[string]any)

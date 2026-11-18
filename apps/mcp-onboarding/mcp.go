@@ -134,7 +134,9 @@ func (h *MCPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if !mcpLegacyAllowed(now) {
-			writeMCPError(w, http.StatusBadRequest, nil, mcpUnsupportedVersion(r.Header.Get("MCP-Protocol-Version"), now))
+			var rpc JSONRPCRequest
+			_ = json.Unmarshal(body, &rpc)
+			writeMCPError(w, http.StatusBadRequest, rpc.ID, mcpUnsupportedVersion(r.Header.Get("MCP-Protocol-Version"), now))
 			return
 		}
 		r.Body = io.NopCloser(bytes.NewReader(body))
@@ -1441,7 +1443,7 @@ func (h *MCPHandler) serveModern(w http.ResponseWriter, r *http.Request, body []
 		writeMCPError(w, http.StatusBadRequest, req.ID, e)
 		return
 	}
-	if strings.HasPrefix(req.Method, "notifications/") {
+	if strings.HasPrefix(req.Method, "notifications/") && req.ID == nil {
 		w.WriteHeader(http.StatusAccepted)
 		return
 	}
