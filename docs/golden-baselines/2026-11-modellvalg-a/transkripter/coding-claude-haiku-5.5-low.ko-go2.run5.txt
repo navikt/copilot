@@ -1,0 +1,29 @@
+Jeg starter med å kjøre testene i `ytelse/` for å se hva som feiler.
+
+ $ Shell Run go tests in ytelse 14 lines…
+   cd ytelse 2>/dev/null && pwd; cd
+   /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.kImu0d/repo && ls
+   ytelse && cd ytelse && go test ./... 2>&1 | head -100
+
+ $ Shell Show ytelse source and tests 38 lines…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.kImu0d/repo/ytelse
+   && cat rapport.go utbetaling.go ytelse_test.go go.mod
+
+Testene kaller `Utbetaling` og `Rapport` med en grad-parameter (prosent av full ytelse), som koden ikke har. Jeg legger til parameteren i koden og lar testene stå uendret.
+
+ GO Edit ytelse/utbetaling.go +4 -3
+
+ GO Edit ytelse/rapport.go +2 -2
+
+ $ Shell Vet and run ytelse tests 1 line…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.kImu0d/repo/ytelse
+   && go vet ./... && go test ./... 2>&1
+
+`go test ./...` i `ytelse/` er grønt nå. Testene er uendret.
+
+Endringene:
+- `Utbetaling(grunnlag, grad int)` regner dagsats som `grunnlag * grad / (100 * 260)`. Grad er prosent av full ytelse.
+- `Rapport(navn, grunnlag, grad int)` sender grad videre til `Utbetaling`.
+
+`go vet` er også rent.
+

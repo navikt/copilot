@@ -3969,6 +3969,271 @@
     {
       "date": "2026-11-18",
       "suite": "coding",
+      "model": "claude-haiku-5.5",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "low",
+      "ran_at": "low",
+      "cli_version": "1.0.114-0",
+      "n": 5,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "ko1",
+          "description": "Go: testene er grønne etterpå",
+          "passed": 5
+        },
+        {
+          "id": "ko2",
+          "description": "Go: endrer bare filen med feilen",
+          "passed": 5
+        },
+        {
+          "id": "ko3",
+          "description": "TS: testen er grønn etterpå",
+          "passed": 5
+        },
+        {
+          "id": "ko4",
+          "description": "TS: endrer bare filen med feilen",
+          "passed": 5
+        },
+        {
+          "id": "ko5",
+          "description": "Go, to filer: testene er grønne etterpå",
+          "passed": 5
+        },
+        {
+          "id": "ko6",
+          "description": "Go, to filer: endrer bare de to filene med feilen",
+          "passed": 5
+        }
+      ],
+      "credits": {
+        "median": 1.883,
+        "mean": 1.805
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 40.9
+      },
+      "source": "docs/golden-baselines/2026-11-modellvalg-a/coding-claude-haiku-5.5-low.txt"
+    },
+    {
+      "date": "2026-11-18",
+      "suite": "coding",
+      "model": "gpt-6-luna",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "medium",
+      "ran_at": "medium",
+      "cli_version": "1.0.114-0",
+      "n": 5,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "ko1",
+          "description": "Go: testene er grønne etterpå",
+          "passed": 5
+        },
+        {
+          "id": "ko2",
+          "description": "Go: endrer bare filen med feilen",
+          "passed": 5
+        },
+        {
+          "id": "ko3",
+          "description": "TS: testen er grønn etterpå",
+          "passed": 5
+        },
+        {
+          "id": "ko4",
+          "description": "TS: endrer bare filen med feilen",
+          "passed": 5
+        },
+        {
+          "id": "ko5",
+          "description": "Go, to filer: testene er grønne etterpå",
+          "passed": 2
+        },
+        {
+          "id": "ko6",
+          "description": "Go, to filer: endrer bare de to filene med feilen",
+          "passed": 2
+        }
+      ],
+      "credits": {
+        "median": 1.996,
+        "mean": 1.987
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 118.1
+      },
+      "source": "docs/golden-baselines/2026-11-modellvalg-a/coding-gpt-6-luna-medium.txt"
+    },
+    {
+      "date": "2026-11-18",
+      "suite": "coding",
+      "model": "gpt-6.1-sol",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "low",
+      "ran_at": "low",
+      "cli_version": "1.0.114-0",
+      "n": 5,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "ko1",
+          "description": "Go: testene er grønne etterpå",
+          "passed": 5
+        },
+        {
+          "id": "ko2",
+          "description": "Go: endrer bare filen med feilen",
+          "passed": 5
+        },
+        {
+          "id": "ko3",
+          "description": "TS: testen er grønn etterpå",
+          "passed": 5
+        },
+        {
+          "id": "ko4",
+          "description": "TS: endrer bare filen med feilen",
+          "passed": 5
+        },
+        {
+          "id": "ko5",
+          "description": "Go, to filer: testene er grønne etterpå",
+          "passed": 5
+        },
+        {
+          "id": "ko6",
+          "description": "Go, to filer: endrer bare de to filene med feilen",
+          "passed": 5
+        }
+      ],
+      "credits": {
+        "median": 29.266,
+        "mean": 29.705
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 72.6
+      },
+      "source": "docs/golden-baselines/2026-11-modellvalg-a/coding-gpt-6.1-sol-low.txt"
+    },
+    {
+      "date": "2026-11-18",
+      "suite": "coding",
+      "model": "mai-code-1.1-flash",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "low",
+      "ran_at": "low",
+      "cli_version": "1.0.114-0",
+      "n": 5,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "ko1",
+          "description": "Go: testene er grønne etterpå",
+          "passed": 5
+        },
+        {
+          "id": "ko2",
+          "description": "Go: endrer bare filen med feilen",
+          "passed": 5
+        },
+        {
+          "id": "ko3",
+          "description": "TS: testen er grønn etterpå",
+          "passed": 5
+        },
+        {
+          "id": "ko4",
+          "description": "TS: endrer bare filen med feilen",
+          "passed": 5
+        },
+        {
+          "id": "ko5",
+          "description": "Go, to filer: testene er grønne etterpå",
+          "passed": 5
+        },
+        {
+          "id": "ko6",
+          "description": "Go, to filer: endrer bare de to filene med feilen",
+          "passed": 5
+        }
+      ],
+      "credits": {
+        "median": 2.762,
+        "mean": 2.732
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 86.8
+      },
+      "source": "docs/golden-baselines/2026-11-modellvalg-a/coding-mai-code-1.1-flash-low.txt"
+    },
+    {
+      "date": "2026-11-18",
+      "suite": "coding",
+      "model": "mai-code-2",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "low",
+      "ran_at": "low",
+      "cli_version": "1.0.114-0",
+      "n": 5,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "ko1",
+          "description": "Go: testene er grønne etterpå",
+          "passed": 5
+        },
+        {
+          "id": "ko2",
+          "description": "Go: endrer bare filen med feilen",
+          "passed": 5
+        },
+        {
+          "id": "ko3",
+          "description": "TS: testen er grønn etterpå",
+          "passed": 5
+        },
+        {
+          "id": "ko4",
+          "description": "TS: endrer bare filen med feilen",
+          "passed": 5
+        },
+        {
+          "id": "ko5",
+          "description": "Go, to filer: testene er grønne etterpå",
+          "passed": 5
+        },
+        {
+          "id": "ko6",
+          "description": "Go, to filer: endrer bare de to filene med feilen",
+          "passed": 5
+        }
+      ],
+      "credits": {
+        "median": 5.107,
+        "mean": 5.547
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 85.3
+      },
+      "source": "docs/golden-baselines/2026-11-modellvalg-a/coding-mai-code-2-low.txt"
+    },
+    {
+      "date": "2026-11-18",
+      "suite": "coding",
       "model": "mai-code-2-flash",
       "model_verified": true,
       "subagent_models": [],
@@ -4018,6 +4283,522 @@
         "median": 74.7
       },
       "source": "docs/golden-baselines/2026-11-modellvalg-a/coding-mai-code-2-flash-low.txt"
+    },
+    {
+      "date": "2026-11-18",
+      "suite": "kafka",
+      "model": "claude-haiku-5.5",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "low",
+      "ran_at": "low",
+      "cli_version": "1.0.114-0",
+      "n": 5,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "kf1",
+          "description": "Kafka-konsument: samme hendelse utbetales én gang, og offset commites etter behandling",
+          "passed": 5
+        },
+        {
+          "id": "kf2",
+          "description": "Kafka-konsument: endrer bare i prosjektet med feilen",
+          "passed": 5
+        },
+        {
+          "id": "kf3",
+          "description": "Kafka-hendelse: nytt felt, gamle meldinger og ukjente felt leses",
+          "passed": 5
+        },
+        {
+          "id": "kf4",
+          "description": "Kafka-hendelse: endrer bare i prosjektet med hendelsen",
+          "passed": 5
+        }
+      ],
+      "credits": {
+        "median": 1.724,
+        "mean": 1.896
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 65.0
+      },
+      "source": "docs/golden-baselines/2026-11-modellvalg-a/kafka-claude-haiku-5.5-low.txt"
+    },
+    {
+      "date": "2026-11-18",
+      "suite": "kafka",
+      "model": "gpt-6-luna",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "medium",
+      "ran_at": "medium",
+      "cli_version": "1.0.114-0",
+      "n": 5,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "kf1",
+          "description": "Kafka-konsument: samme hendelse utbetales én gang, og offset commites etter behandling",
+          "passed": 5
+        },
+        {
+          "id": "kf2",
+          "description": "Kafka-konsument: endrer bare i prosjektet med feilen",
+          "passed": 5
+        },
+        {
+          "id": "kf3",
+          "description": "Kafka-hendelse: nytt felt, gamle meldinger og ukjente felt leses",
+          "passed": 5
+        },
+        {
+          "id": "kf4",
+          "description": "Kafka-hendelse: endrer bare i prosjektet med hendelsen",
+          "passed": 5
+        }
+      ],
+      "credits": {
+        "median": 2.291,
+        "mean": 2.445
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 167.7
+      },
+      "source": "docs/golden-baselines/2026-11-modellvalg-a/kafka-gpt-6-luna-medium.txt"
+    },
+    {
+      "date": "2026-11-18",
+      "suite": "kafka",
+      "model": "mai-code-1.1-flash",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "low",
+      "ran_at": "low",
+      "cli_version": "1.0.114-0",
+      "n": 5,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "kf1",
+          "description": "Kafka-konsument: samme hendelse utbetales én gang, og offset commites etter behandling",
+          "passed": 4
+        },
+        {
+          "id": "kf2",
+          "description": "Kafka-konsument: endrer bare i prosjektet med feilen",
+          "passed": 5
+        },
+        {
+          "id": "kf3",
+          "description": "Kafka-hendelse: nytt felt, gamle meldinger og ukjente felt leses",
+          "passed": 5
+        },
+        {
+          "id": "kf4",
+          "description": "Kafka-hendelse: endrer bare i prosjektet med hendelsen",
+          "passed": 5
+        }
+      ],
+      "credits": {
+        "median": 3.117,
+        "mean": 3.149
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 104.5
+      },
+      "source": "docs/golden-baselines/2026-11-modellvalg-a/kafka-mai-code-1.1-flash-low.txt"
+    },
+    {
+      "date": "2026-11-18",
+      "suite": "kafka",
+      "model": "mai-code-2-flash",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "low",
+      "ran_at": "low",
+      "cli_version": "1.0.114-0",
+      "n": 5,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "kf1",
+          "description": "Kafka-konsument: samme hendelse utbetales én gang, og offset commites etter behandling",
+          "passed": 4
+        },
+        {
+          "id": "kf2",
+          "description": "Kafka-konsument: endrer bare i prosjektet med feilen",
+          "passed": 5
+        },
+        {
+          "id": "kf3",
+          "description": "Kafka-hendelse: nytt felt, gamle meldinger og ukjente felt leses",
+          "passed": 5
+        },
+        {
+          "id": "kf4",
+          "description": "Kafka-hendelse: endrer bare i prosjektet med hendelsen",
+          "passed": 5
+        }
+      ],
+      "credits": {
+        "median": 0.669,
+        "mean": 0.669
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 78.4
+      },
+      "source": "docs/golden-baselines/2026-11-modellvalg-a/kafka-mai-code-2-flash-low.txt"
+    },
+    {
+      "date": "2026-11-18",
+      "suite": "research",
+      "model": "claude-haiku-5.5",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "low",
+      "ran_at": "low",
+      "cli_version": "1.0.114-0",
+      "n": 5,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "re1",
+          "description": "Riktig fil og linje for hver bruk av konstanten",
+          "passed": 5
+        },
+        {
+          "id": "re2",
+          "description": "Sier at funksjonen ikke kalles, uten å dikte opp filer",
+          "passed": 5
+        },
+        {
+          "id": "re3",
+          "description": "Oppsummerer i høyst tre punkter",
+          "passed": 5
+        },
+        {
+          "id": "re4",
+          "description": "Oppsummeringen nevner endepunktet",
+          "passed": 5
+        }
+      ],
+      "credits": {
+        "median": 1.23,
+        "mean": 1.266
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 36.9
+      },
+      "source": "docs/golden-baselines/2026-11-modellvalg-a/research-claude-haiku-5.5-low.txt"
+    },
+    {
+      "date": "2026-11-18",
+      "suite": "research",
+      "model": "gpt-6-luna",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "medium",
+      "ran_at": "medium",
+      "cli_version": "1.0.114-0",
+      "n": 5,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "re1",
+          "description": "Riktig fil og linje for hver bruk av konstanten",
+          "passed": 5
+        },
+        {
+          "id": "re2",
+          "description": "Sier at funksjonen ikke kalles, uten å dikte opp filer",
+          "passed": 5
+        },
+        {
+          "id": "re3",
+          "description": "Oppsummerer i høyst tre punkter",
+          "passed": 5
+        },
+        {
+          "id": "re4",
+          "description": "Oppsummeringen nevner endepunktet",
+          "passed": 5
+        }
+      ],
+      "credits": {
+        "median": 1.075,
+        "mean": 1.063
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 54.7
+      },
+      "source": "docs/golden-baselines/2026-11-modellvalg-a/research-gpt-6-luna-medium.txt"
+    },
+    {
+      "date": "2026-11-18",
+      "suite": "research",
+      "model": "mai-code-1.1-flash",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "low",
+      "ran_at": "low",
+      "cli_version": "1.0.114-0",
+      "n": 5,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "re1",
+          "description": "Riktig fil og linje for hver bruk av konstanten",
+          "passed": 5
+        },
+        {
+          "id": "re2",
+          "description": "Sier at funksjonen ikke kalles, uten å dikte opp filer",
+          "passed": 5
+        },
+        {
+          "id": "re3",
+          "description": "Oppsummerer i høyst tre punkter",
+          "passed": 5
+        },
+        {
+          "id": "re4",
+          "description": "Oppsummeringen nevner endepunktet",
+          "passed": 5
+        }
+      ],
+      "credits": {
+        "median": 1.488,
+        "mean": 1.495
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 65.3
+      },
+      "source": "docs/golden-baselines/2026-11-modellvalg-a/research-mai-code-1.1-flash-low.txt"
+    },
+    {
+      "date": "2026-11-18",
+      "suite": "research",
+      "model": "mai-code-2-flash",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "low",
+      "ran_at": "low",
+      "cli_version": "1.0.114-0",
+      "n": 5,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "re1",
+          "description": "Riktig fil og linje for hver bruk av konstanten",
+          "passed": 5
+        },
+        {
+          "id": "re2",
+          "description": "Sier at funksjonen ikke kalles, uten å dikte opp filer",
+          "passed": 5
+        },
+        {
+          "id": "re3",
+          "description": "Oppsummerer i høyst tre punkter",
+          "passed": 5
+        },
+        {
+          "id": "re4",
+          "description": "Oppsummeringen nevner endepunktet",
+          "passed": 5
+        }
+      ],
+      "credits": {
+        "median": 0.226,
+        "mean": 0.246
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 37.5
+      },
+      "source": "docs/golden-baselines/2026-11-modellvalg-a/research-mai-code-2-flash-low.txt"
+    },
+    {
+      "date": "2026-11-18",
+      "suite": "rust",
+      "model": "claude-haiku-5.5",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "low",
+      "ran_at": "low",
+      "cli_version": "1.0.114-0",
+      "n": 5,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "rs1",
+          "description": "Rust: lånefeilen er rettet, og køen tømmes i riktig rekkefølge",
+          "passed": 5
+        },
+        {
+          "id": "rs2",
+          "description": "Rust: endrer bare i craten med feilen",
+          "passed": 5
+        },
+        {
+          "id": "rs3",
+          "description": "Rust: feiltyper med thiserror og en test per feil",
+          "passed": 5
+        },
+        {
+          "id": "rs4",
+          "description": "Rust: endrer bare i craten med parseren",
+          "passed": 5
+        }
+      ],
+      "credits": {
+        "median": 0.933,
+        "mean": 0.952
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 34.7
+      },
+      "source": "docs/golden-baselines/2026-11-modellvalg-a/rust-claude-haiku-5.5-low.txt"
+    },
+    {
+      "date": "2026-11-18",
+      "suite": "rust",
+      "model": "gpt-6-luna",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "medium",
+      "ran_at": "medium",
+      "cli_version": "1.0.114-0",
+      "n": 5,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "rs1",
+          "description": "Rust: lånefeilen er rettet, og køen tømmes i riktig rekkefølge",
+          "passed": 5
+        },
+        {
+          "id": "rs2",
+          "description": "Rust: endrer bare i craten med feilen",
+          "passed": 5
+        },
+        {
+          "id": "rs3",
+          "description": "Rust: feiltyper med thiserror og en test per feil",
+          "passed": 5
+        },
+        {
+          "id": "rs4",
+          "description": "Rust: endrer bare i craten med parseren",
+          "passed": 5
+        }
+      ],
+      "credits": {
+        "median": 1.405,
+        "mean": 1.374
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 107.4
+      },
+      "source": "docs/golden-baselines/2026-11-modellvalg-a/rust-gpt-6-luna-medium.txt"
+    },
+    {
+      "date": "2026-11-18",
+      "suite": "rust",
+      "model": "mai-code-1.1-flash",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "low",
+      "ran_at": "low",
+      "cli_version": "1.0.114-0",
+      "n": 5,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "rs1",
+          "description": "Rust: lånefeilen er rettet, og køen tømmes i riktig rekkefølge",
+          "passed": 5
+        },
+        {
+          "id": "rs2",
+          "description": "Rust: endrer bare i craten med feilen",
+          "passed": 5
+        },
+        {
+          "id": "rs3",
+          "description": "Rust: feiltyper med thiserror og en test per feil",
+          "passed": 5
+        },
+        {
+          "id": "rs4",
+          "description": "Rust: endrer bare i craten med parseren",
+          "passed": 5
+        }
+      ],
+      "credits": {
+        "median": 1.143,
+        "mean": 1.161
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 50.8
+      },
+      "source": "docs/golden-baselines/2026-11-modellvalg-a/rust-mai-code-1.1-flash-low.txt"
+    },
+    {
+      "date": "2026-11-18",
+      "suite": "rust",
+      "model": "mai-code-2-flash",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "low",
+      "ran_at": "low",
+      "cli_version": "1.0.114-0",
+      "n": 5,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "rs1",
+          "description": "Rust: lånefeilen er rettet, og køen tømmes i riktig rekkefølge",
+          "passed": 5
+        },
+        {
+          "id": "rs2",
+          "description": "Rust: endrer bare i craten med feilen",
+          "passed": 5
+        },
+        {
+          "id": "rs3",
+          "description": "Rust: feiltyper med thiserror og en test per feil",
+          "passed": 5
+        },
+        {
+          "id": "rs4",
+          "description": "Rust: endrer bare i craten med parseren",
+          "passed": 5
+        }
+      ],
+      "credits": {
+        "median": 0.33,
+        "mean": 0.362
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 54.6
+      },
+      "source": "docs/golden-baselines/2026-11-modellvalg-a/rust-mai-code-2-flash-low.txt"
     }
   ]
 }

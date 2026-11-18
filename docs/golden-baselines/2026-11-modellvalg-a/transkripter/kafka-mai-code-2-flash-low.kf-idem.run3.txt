@@ -1,0 +1,117 @@
+ ● skill(kafka)
+
+Jeg kartlegger konsumentens polling, commit og utbetalingsgrensesnitt før endringen.
+
+ / Search "vedtak-konsument/**/*" 4 files found
+
+ / Search "VedtakKonsument|commitSync|commitAsync|enable\.auto|enableAuto" in *.{kt,j… 4 lines found
+
+ ● Read vedtak-konsument/src/main/kotlin/no/nav/vedtak/VedtakKonsument.kt 23 lines read
+
+ ● Read vedtak-konsument/src/test/kotlin/no/nav/vedtak/VedtakKonsumentTest.kt 25 lines read
+
+ / Search "**/*.instructions.md" in .github 17 files found
+
+ ● Read vedtak-konsument/build.gradle.kts 20 lines read
+
+ MD Read .github/instructions/testing-kotlin.instructions.md 185 lines read
+
+ MD Read .github/instructions/testing.instructions.md 112 lines read
+
+ ✗ Read /private/var/files/doesnotexist Permission denied because no interactive user response was …
+   Approval check
+     └ ✗ Denied, no one to approve read path (/private/var/files/doesnotexist)
+   Permission denied because no interactive user response was available. Retry in an interactive 
+   session so the user can approve it, or try an alternative that does not require this permission.
+
+ / Search "eventId|eventID|processed|behandlet|Utbetaling|VedtakKonsument" in *.kt 9 lines found
+
+ ● Edit  Edit vedtak-konsument/src/main/kotlin/no/nav/vedtak/VedtakKonsument.kt (+4 -1)  Edit vedta…
+
+ ● Edit  Edit vedtak-konsument/src/main/kotlin/no/nav/vedtak/VedtakKonsument.kt (+2 -1)
+
+ ✗ Shell Bygger og kjører Gradle-testene i vedtak-konsument Failed with exit code 1  > Task :checkK…
+   cd vedtak-konsument && gradle test
+   > Task :checkKotlinGradlePluginConfigurationErrors SKIPPED
+   > Task :processResources NO-SOURCE
+   > Task :processTestResources NO-SOURCE
+   > Task :compileKotlin
+   > Task :compileJava NO-SOURCE
+   > Task :classes UP-TO-DATE
+   > Task :jar
+   
+   e: file:///private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.e8RyeJ/repo/v
+   edtak-konsument/src/test/kotlin/no/nav/vedtak/VedtakKonsumentTest.kt:24:25 No value passed for 
+   parameter 'utbetaling'.
+   > Task :compileTestKotlin FAILED
+   e: file:///private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.e8RyeJ/repo/v
+   edtak-konsument/src/test/kotlin/no/nav/vedtak/VedtakKonsumentTest.kt:24:55 Argument type 
+   mismatch: actual type is 'kotlin.Function2<ERROR CLASS: Unknown return lambda parameter type, 
+   ERROR CLASS: Unknown return lambda parameter type, ERROR CLASS: Unknown return lambda parameter 
+   type>', but 'kotlin.collections.MutableSet<kotlin.String>' was expected.
+   e: file:///private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.e8RyeJ/repo/v
+   edtak-konsument/src/test/kotlin/no/nav/vedtak/VedtakKonsumentTest.kt:24:57 Cannot infer type for 
+   this parameter. Please specify it explicitly.
+   e: file:///private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.e8RyeJ/repo/v
+   edtak-konsument/src/test/kotlin/no/nav/vedtak/VedtakKonsumentTest.kt:24:61 Cannot infer type for 
+   this parameter. Please specify it explicitly.
+   e: file:///private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.e8RyeJ/repo/v
+   edtak-konsument/src/test/kotlin/no/nav/vedtak/VedtakKonsumentTest.kt:33:25 No value passed for 
+   parameter 'utbetaling'.
+   e: file:///private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.e8RyeJ/repo/v
+   edtak-konsument/src/test/kotlin/no/nav/vedtak/VedtakKonsumentTest.kt:33:35 Argument type 
+   mismatch: actual type is 'kotlin.Function2<ERROR CLASS: Unknown return lambda parameter type, 
+   ERROR CLASS: Unknown return lambda parameter type, ERROR CLASS: Unknown return lambda parameter 
+   type>', but 'kotlin.collections.MutableSet<kotlin.String>' was expected.
+   e: file:///private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.e8RyeJ/repo/v
+   edtak-konsument/src/test/kotlin/no/nav/vedtak/VedtakKonsumentTest.kt:33:37 Cannot infer type for 
+   this parameter. Please specify it explicitly.
+   e: file:///private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.e8RyeJ/repo/v
+   edtak-konsument/src/test/kotlin/no/nav/vedtak/VedtakKonsumentTest.kt:33:41 Cannot infer type for 
+   this parameter. Please specify it explicitly.
+   e: file:///private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.e8RyeJ/repo/v
+   edtak-konsument/src/test/kotlin/no/nav/vedtak/VedtakKonsumentTest.kt:43:29 No value passed for 
+   parameter 'utbetaling'.
+   e: file:///private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.e8RyeJ/repo/v
+   edtak-konsument/src/test/kotlin/no/nav/vedtak/VedtakKonsumentTest.kt:43:39 Argument type 
+   mismatch: actual type is 'kotlin.Function2<ERROR CLASS: Unknown return lambda parameter type, 
+   ERROR CLASS: Unknown return lambda parameter type, ERROR CLASS: Unknown return lambda parameter 
+   type>', but 'kotlin.collections.MutableSet<kotlin.String>' was expected.
+   e: file:///private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.e8RyeJ/repo/v
+   edtak-konsument/src/test/kotlin/no/nav/vedtak/VedtakKonsumentTest.kt:43:41 Cannot infer type for 
+   this parameter. Please specify it explicitly.
+   e: file:///private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.e8RyeJ/repo/v
+   edtak-konsument/src/test/kotlin/no/nav/vedtak/VedtakKonsumentTest.kt:43:44 Cannot infer type for 
+   this parameter. Please specify it explicitly.
+   
+   FAILURE: Build failed with an exception.
+   
+   * What went wrong:
+   Execution failed for task ':compileTestKotlin'.
+   > A failure occurred while executing org.jetbrains.kotlin.compilerRunner.GradleCompilerRunnerWith
+   Workers$GradleKotlinCompilerWorkAction
+      > Compilation error. See log for more details
+   
+   * Try:
+   > Run with --stacktrace option to get the stack trace.
+   > Run with --info or --debug option to get more log output.
+   > Run with --scan to get full insights.
+   > Get more help at https://help.gradle.org.
+   
+   BUILD FAILED in 1s
+   3 actionable tasks: 3 executed
+   Failed with exit code 1
+
+ ● Edit  Edit vedtak-konsument/src/main/kotlin/no/nav/vedtak/VedtakKonsument.kt (+6 -1)
+
+ $ Shell Bygger og kjører Gradle-testene etter konstruktørrettingen 14 lines…
+   cd vedtak-konsument && gradle test
+
+Rettet `VedtakKonsument`:
+
+- Samme `eventId` utbetales bare én gang.
+- Offset commites først etter vellykket behandling av alle meldinger.
+- Ved betalingsfeil bevares offset for retry.
+
+`gradle test` i `vedtak-konsument/` gikk grønt.
+

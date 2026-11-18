@@ -1,0 +1,29 @@
+ ● skill(klarsprak)
+
+ ● List directory . 5 files found
+
+ ● List directory src 1 file found
+
+ MD Read README.md 4 lines read
+
+ ● Read build.gradle.kts 12 lines read
+
+ ● List directory src/main 1 file found
+
+ ● List directory src/main/kotlin 1 file found
+
+ / Search "." in **/*.{kt,yaml,yml} 5 files found
+
+ ● Read src/main/kotlin/no/nav/demo/App.kt 15 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/Config.kt 4 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/Routes.kt 19 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/Oppgave.kt 9 lines read
+
+ YM Read nais.yaml 12 lines read
+
+- Demo-tjenesten tilbyr et Ktor-API med endepunktet `GET /api/oppgaver`.
+- Endepunktet returnerer to forhåndsdefinerte oppgaver som JSON. Tjenesten er satt opp til å kjøre på Nais.
+

@@ -1,0 +1,23 @@
+ / Search "slettOppgave" No matches found
+
+ / Search "slett.*oppgave|oppgave.*slett" No matches found
+
+ / Search "**/*.{ts,tsx,js,jsx,jsx,kt,kts,java,py,go,rs,cs,php,rb,swift,scala}" 5 files found
+
+ ● Read src/main/kotlin/no/nav/demo/Oppgave.kt L1:250 (9 lines read)
+
+ ● Read src/main/kotlin/no/nav/demo/Routes.kt L1:250 (19 lines read)
+
+ / Search "slettOppgave|deleteOppgave|Oppgave.*delete|slett.*Oppgave" No matches found
+
+ / Search "fun\s+slett|slett\s*\(" No matches found
+
+Det finnes ingen kall til funksjonen slettOppgave i dette repoet.
+
+Jeg søkte etter:
+- slettOppgave
+- slettOppgave(...)
+- varianter som slettOppgave, deleteOppgave, slett.*Oppgave
+
+Resultat: ingen treff, så det finnes ikke fil/linje med et kall til funksjonen i denne koden.
+

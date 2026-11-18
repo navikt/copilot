@@ -1,0 +1,20 @@
+ $ Shell Inspect vedtak-parser crate 32 lines…
+   cd vedtak-parser && find . -type f -not -path './target/*' | head -50 && cat Cargo.toml && cat
+   src/*.rs
+
+ $ Shell Add thiserror dependency 3 lines…
+   cd vedtak-parser && cargo add thiserror 2>&1 | tail -3
+
+ RS Edit vedtak-parser/src/lib.rs +43 -5
+
+ $ Shell Run cargo test in vedtak-parser 19 lines…
+   cd vedtak-parser && cargo test 2>&1 | tail -20
+
+`les` i `vedtak-parser/src/lib.rs` returnerer nå `Result<Vedtak, VedtakFeil>` og panikker ikke lenger.
+
+- **`VedtakFeil`** (thiserror): `ManglerId`, `ManglerBelop` og `UgyldigBelop(String)`. Feilmeldingen for `UgyldigBelop` inneholder den ugyldige teksten.
+- **Tomt beløp** (`"v1;"`) og manglende beløpsfelt (`"v1"`) gir `ManglerBelop`.
+- **Tests:** én per feil, pluss den eksisterende gyldig-linje-testen. `cargo test` gir 4 av 4 grønne.
+
+Jeg la til `thiserror` som avhengighet i `Cargo.toml`.
+

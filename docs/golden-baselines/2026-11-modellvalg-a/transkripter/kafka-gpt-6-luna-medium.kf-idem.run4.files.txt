@@ -1,0 +1,96 @@
+=== ./vedtak-konsument/src/main/kotlin/no/nav/vedtak/VedtakKonsument.kt
+package no.nav.vedtak
+
+import org.apache.kafka.clients.consumer.Consumer
+import java.time.Duration
+
+fun interface Utbetaling {
+    fun utbetal(eventId: String, belop: Int)
+}
+
+// Leser vedtak fra topicen og utbetaler. Verdien i hver melding er "eventId;belop".
+class VedtakKonsument(
+    private val consumer: Consumer<String, String>,
+    private val utbetaling: Utbetaling,
+) {
+    private val utbetalteEventer = mutableSetOf<String>()
+
+    fun poll() {
+        val records = consumer.poll(Duration.ofMillis(100))
+        for (record in records) {
+            val (eventId, belop) = record.value().split(";")
+            if (eventId in utbetalteEventer) continue
+
+            utbetaling.utbetal(eventId, belop.toInt())
+            utbetalteEventer.add(eventId)
+        }
+        if (!records.isEmpty) consumer.commitSync()
+    }
+}
+
+=== ./vedtak-konsument/src/test/kotlin/no/nav/vedtak/VedtakKonsumentTest.kt
+package no.nav.vedtak
+
+import org.apache.kafka.clients.consumer.ConsumerRecord
+import org.apache.kafka.clients.consumer.MockConsumer
+import org.apache.kafka.clients.consumer.OffsetResetStrategy
+import org.apache.kafka.common.TopicPartition
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+
+class VedtakKonsumentTest {
+    private val tp = TopicPartition("vedtak", 0)
+
+    private class TrackingConsumer : MockConsumer<String, String>(OffsetResetStrategy.EARLIEST) {
+        var commitCount = 0
+
+        override fun commitSync() {
+            commitCount++
+            super.commitSync()
+        }
+    }
+
+    private fun consumer(vararg verdier: String) = TrackingConsumer().apply {
+        assign(listOf(tp))
+        updateBeginningOffsets(mapOf(tp to 0L))
+        verdier.forEachIndexed { i, v -> addRecord(ConsumerRecord("vedtak", 0, i.toLong(), "sak-1", v)) }
+    }
+
+    @Test
+    fun `utbetaler hvert vedtak`() {
+        val utbetalt = mutableListOf<String>()
+        val consumer = consumer("e1;100", "e2;200")
+        VedtakKonsument(consumer) { id, _ ->
+            assertEquals(0, consumer.commitCount)
+            utbetalt += id
+        }.poll()
+        assertEquals(listOf("e1", "e2"), utbetalt)
+        assertEquals(1, consumer.commitCount)
+    }
+
+    @Test
+    fun `utbetaler ikke samme eventId på nytt`() {
+        val utbetalt = mutableListOf<String>()
+        val consumer = consumer("e1;100")
+        val konsument = VedtakKonsument(consumer) { id, _ -> utbetalt += id }
+
+        konsument.poll()
+        consumer.addRecord(ConsumerRecord("vedtak", 0, 1L, "sak-1", "e1;100"))
+        konsument.poll()
+
+        assertEquals(listOf("e1"), utbetalt)
+        assertEquals(2, consumer.commitCount)
+    }
+
+    @Test
+    fun `committer ikke offset når utbetaling feiler`() {
+        val consumer = consumer("e1;100")
+        val konsument = VedtakKonsument(consumer) { _, _ -> error("utbetaling feilet") }
+
+        assertFailsWith<IllegalStateException> { konsument.poll() }
+
+        assertEquals(0, consumer.commitCount)
+    }
+}
+

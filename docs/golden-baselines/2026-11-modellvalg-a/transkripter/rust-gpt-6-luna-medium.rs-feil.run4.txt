@@ -1,0 +1,82 @@
+ ● skill(rust-development)
+
+ / Search "vedtak-parser/**/*" 2 files found
+
+ / Search "Vedtak|parse|panic!|unwrap\(" (vedtak-parser) 7 lines found
+
+ ✗ Shell Check working tree changes and repository root Failed with exit code 128  fatal: not a git…
+   git status --short && git rev-parse --show-toplevel
+   fatal: not a git repository (or any of the parent directories): .git
+   Failed with exit code 128
+
+ RS Read vedtak-parser/src/lib.rs 24 lines read
+
+ TM Read vedtak-parser/Cargo.toml 6 lines read
+
+ / Search "**/Cargo.toml" 2 files found
+
+ TM Read saksko/Cargo.toml 6 lines read
+
+ / Search "**/Cargo.lock" No matches found
+
+ / Search "thiserror|VedtakFeil|fn les\(" 4 lines found
+
+ ● Edit  Edit vedtak-parser/Cargo.toml (+1)  Edit vedtak-parser/src/lib.rs (+52 -5)
+
+ ✗ Shell Run vedtak-parser tests Failed with exit code 101  error: could not find `Cargo.toml` in `…
+   cargo test
+   error: could not find `Cargo.toml` in 
+   `/private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.OpPHtq/repo` or any 
+   parent directory
+   Failed with exit code 101
+
+ $ Shell Run vedtak-parser tests 25 lines…
+   cd vedtak-parser && cargo test
+
+ ● Read vedtak-parser/Cargo.lock L1:80 (65 lines read)
+
+ / Search "vedtak-parser/*" 2 files found
+
+ ✗ Shell Check Rust formatting Failed with exit code 1  `cargo metadata` exited with an error: erro…
+   cargo fmt --check
+   `cargo metadata` exited with an error: error: could not find `Cargo.toml` in 
+   `/private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.OpPHtq/repo` or any 
+   parent directory
+   
+   This utility formats all bin and lib files of the current crate using rustfmt.
+   
+   Usage: cargo fmt [OPTIONS] [-- <rustfmt_options>...]
+   
+   Arguments:
+     [rustfmt_options]...  Options passed to rustfmt
+   
+   Options:
+     -q, --quiet
+             No output printed to stdout
+     -v, --verbose
+             Use verbose output
+         --version
+             Print rustfmt version and exit
+     -p, --package <package>...
+             Specify package to format
+         --manifest-path <manifest-path>
+             Specify path to Cargo.toml
+         --message-format <message-format>
+             Specify message-format: short|json|human
+         --all
+             Format all packages, and also their local path-based dependencies
+         --check
+             Run rustfmt in check mode
+     -h, --help
+             Print help
+   Failed with exit code 1
+
+ $ Shell Check vedtak-parser formatting No Content
+   cargo fmt --manifest-path vedtak-parser/Cargo.toml --check
+
+ ● Edit  Delete vedtak-parser/Cargo.lock (-65)
+
+`les` returnerer nå `Result<Vedtak, VedtakFeil>`. La til `VedtakFeil` med `thiserror` og tester for manglende ID, manglende beløp og ugyldig beløp, inkludert feilmeldingen.
+
+`cargo test` i `vedtak-parser/` bestod: 4 tester. `cargo fmt --check` bestod.
+

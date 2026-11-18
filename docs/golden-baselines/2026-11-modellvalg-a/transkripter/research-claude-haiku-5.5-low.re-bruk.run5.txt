@@ -1,0 +1,8 @@
+ / Search "maksAntall" 3 lines found
+
+`maksAntall` brukes på tre steder:
+
+1. **Definisjon:** `src/main/kotlin/no/nav/demo/Config.kt:4`, `const val maksAntall = 100`
+2. **Bruk:** `src/main/kotlin/no/nav/demo/Routes.kt:16`, `oppgaver.take(maksAntall)`
+3. **Bruk i logg:** `src/main/kotlin/no/nav/demo/App.kt:10`, `println("starter demo-tjeneste, maksAntall=$maksAntall")`
+

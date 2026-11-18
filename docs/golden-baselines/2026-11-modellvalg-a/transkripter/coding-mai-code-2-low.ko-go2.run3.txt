@@ -1,0 +1,25 @@
+Jeg undersøker feilen i `ytelse/` og retter produksjonskoden uten å endre testene.
+
+ MD Read .github/instructions/golang.instructions.md 547 lines read
+
+ MD Read .github/instructions/security-owasp.instructions.md 12 lines read
+
+ / Search "ytelse/**" 4 files found
+
+ GO Read ytelse/utbetaling.go 6 lines read
+
+ GO Read ytelse/rapport.go 8 lines read
+
+ GO Read ytelse/ytelse_test.go 21 lines read
+
+ ● Read ytelse/go.mod 3 lines read
+
+ ● Edit  Edit ytelse/utbetaling.go (+9 -3)  Edit ytelse/rapport.go (+2 -2)
+
+ ● Edit  Edit ytelse/utbetaling.go (+3 -1)
+
+ $ Shell Format Go files and run tests 1 line…
+   cd ytelse && gofmt -w utbetaling.go rapport.go && go test ./...
+
+`ytelse/` bruker nå ytelsesgrad i både `Utbetaling` og `Rapport`. Eksisterende kall uten grad beholder 100 % som standard. `go test ./...` passerer.
+

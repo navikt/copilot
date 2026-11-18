@@ -1,0 +1,22 @@
+ ✗ skill(rust-development)
+   Provide either "skill" or both "server" and "uri", never both selectors
+
+ ● skill(rust-development)
+
+ / Search "**/*.rs" 2 files found
+
+ / Search "behandle_neste" in *.rs 2 lines found
+
+ RS Read saksko/src/lib.rs 50 lines read
+
+ ● Edit  Edit saksko/src/lib.rs (+2 -2)
+
+ ● Edit  Edit saksko/src/lib.rs (+4 -2)
+
+ $ Shell Run the saksko crate tests 14 lines…
+   cd saksko && cargo test
+
+Rettet lånefeilen i `saksko/src/lib.rs` ved å fjerne saken direkte før den legges til i behandlingsloggen.
+
+`cargo test` i `saksko/` går nå grønt: 1 test passed.
+

@@ -1,0 +1,31 @@
+ ● skill(rust-development)
+
+ $ Shell Inspect repo layout and find the Rust project directory 11 lines…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.RZi2cT/repo && pwd
+   && find . -maxdepth 2 -type d | sed 's#^./##' | sort | head -200
+
+ TM Read vedtak-parser/Cargo.toml L1:200 (6 lines read)
+
+ / Search "Vedtak|vedtak|parse\s*\(" (vedtak-parser) 7 lines found
+
+ RS Read vedtak-parser/src/lib.rs L1:220 (24 lines read)
+
+ TM Edit vedtak-parser/Cargo.toml +1
+
+ RS Edit vedtak-parser/src/lib.rs +43 -5
+
+Jeg har endret parseren til å returnere Result og lagt til feiltestene. Nå kjører jeg den målrettede Rust-testen i vedtak-parser.
+
+ $ Shell Run the Rust test suite for the vedtak parser crate 26 lines…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.RZi2cT/repo/vedtak-p
+   arser && cargo test
+
+Fikset i vedtak-parser:
+
+- `les(...)` returnerer `Result<Vedtak, VedtakFeil>`
+- `VedtakFeil` er en `thiserror`-enum med `ManglerId`, `ManglerBelop` og `UgyldigBelop(String)`
+- Feilmeldingen for ugyldig beløp inkluderer den faktiske teksten, f.eks. `ugyldig beløp: abc`
+- La til en test for hver feil og en gyldig case
+
+`cargo test` i `vedtak-parser/` passerer: 4 tester, 0 feil.
+

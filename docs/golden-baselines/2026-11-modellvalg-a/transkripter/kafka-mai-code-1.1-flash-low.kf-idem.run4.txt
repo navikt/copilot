@@ -1,0 +1,48 @@
+ MD Read .github/instructions/kotlin.instructions.md L1:220 (220 lines read)
+
+ / Search "class\s+VedtakKonsument|VedtakKonsument\s*\(" 3 lines found
+
+Jeg skal rette konsumenten i stedet for å endre mer enn nødvendig, og verifisere med den spesifiserte Gradle-testen.
+
+ ● Read vedtak-konsument/src/main/kotlin/no/nav/vedtak/VedtakKonsument.kt L1:220 (23 lines read)
+
+ ● Read vedtak-konsument/src/test/kotlin/no/nav/vedtak/VedtakKonsumentTest.kt L1:220 (25 lines read)
+
+ / Search "commitSync\(|poll\(|VedtakKonsument\(" 5 lines found
+
+ / Search "**/build.gradle*" 3 files found
+
+Jeg har funnet rotårsaken: offsets ble committed før behandling, og samme eventId ble behandlet uten deduping. Jeg retter dette med en liten stateful dedupe og commit etter fersk vellykket batch.
+
+ ● Edit vedtak-konsument/src/main/kotlin/no/nav/vedtak/VedtakKonsument.kt +19 -4
+
+ ● Edit vedtak-konsument/src/test/kotlin/no/nav/vedtak/VedtakKonsumentTest.kt +28
+
+ ✗ Shell Run the targeted… /bin/bash: ./gradlew: No such file or directory Failed with exit code 127
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.BOVGgm/repo/vedtak-k
+   onsument && ./gradlew test --no-daemon
+
+Gradle wrapper ligger ikke i underkatalogen, så jeg henter prosjektets faktisk byggkommando og kjører samme mål i riktig rot.
+
+ $ Shell Locate Gradle wrapper and project root 15 lines…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.BOVGgm/repo && ls
+   -la && find . -maxdepth 2 -name gradlew -o -name gradlew.bat -o -name settings.gradle* -o -name
+   build.gradle*
+
+ $ Shell Run gradle test in the vedtak-konsument module 19 lines…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.BOVGgm/repo/vedtak-k
+   onsument && gradle test --no-daemon
+
+Rettet `VedtakKonsument` slik at den:
+- deduperer `eventId` og betaler samme vedtak bare én gang
+- først kaller `consumer.commitSync()` etter at alle meldinger i batchen er behandlet
+- ikke committer offset når utbetaling feiler, så Kafka kan retrye meldingen
+
+Konstruktøren er uendret, så `VedtakKonsument(consumer, utbetaling)` fungerer fortsatt.
+
+Verifisert med:
+- `cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.BOVGgm/repo/vedtak-konsument && gradle test --no-daemon`
+
+Resultat:
+- `BUILD SUCCESSFUL`
+

@@ -1,0 +1,20 @@
+ $ Shell Inspect slug directory and test 16 lines…
+   cd slug 2>/dev/null && ls -la && cat slug.test.ts; ls;
+
+ $ Shell Run slug test 32 lines…
+   cd slug && node --test slug.test.ts 2>&1 | tail -60
+
+ $ Shell Show slug implementation 10 lines…
+   cd slug && cat slug.ts
+
+The trailing-trim step is missing: the comment promises no dashes at the ends, but the code never strips them.
+
+ TS Edit slug/slug.ts +2 -1
+
+ $ Shell Rerun slug test 2 lines…
+   cd slug && node --test slug.test.ts 2>&1 | grep -E "^ℹ (pass|fail)"
+
+Feilen var i `slug/slug.ts`. Funksjonen fjernet ikke bindestreker i begynnelsen og slutten, selv om kommentaren sier at det skal skje. Input `"  Hei på deg!  "` ga `-hei-pa-deg-`.
+
+Jeg la til `.replace(/^-+|-+$/g, "")` etter erstatningen av tegn. Testen passer nå (1 pass, 0 fail). Testfilen er ikke endret.
+

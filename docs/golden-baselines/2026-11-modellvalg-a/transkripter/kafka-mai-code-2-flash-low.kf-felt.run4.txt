@@ -1,0 +1,31 @@
+ ● skill(kafka)
+
+Jeg avgrenser endringen til hendelsesmodellen og testene som dekker bakoverkompatibilitet.
+
+ / Search "VedtakFattet|sakstype" in *.{kt,kts,java,md} 5 lines found
+
+ / Search "**/*Vedtak*" 4 files found
+
+ / Search "**/build.gradle*" 3 files found
+
+ MD Read .github/instructions/kotlin.instructions.md too large, not read
+
+ ● Read vedtak-hendelse/src/main/kotlin/no/nav/vedtak/VedtakFattet.kt 18 lines read
+
+ ● Read vedtak-hendelse/src/test/kotlin/no/nav/vedtak/VedtakFattetTest.kt 11 lines read
+
+ ● Read vedtak-konsument/src/main/kotlin/no/nav/vedtak/VedtakKonsument.kt 23 lines read
+
+ ● Read vedtak-konsument/src/test/kotlin/no/nav/vedtak/VedtakKonsumentTest.kt 25 lines read
+
+ MD Read .github/instructions/testing-kotlin.instructions.md 185 lines read
+
+ ● Edit  Edit vedtak-hendelse/src/main/kotlin/no/nav/vedtak/VedtakFattet.kt (+9)  Edit vedtak-hende…
+
+ $ Shell Kjører Gradle-testene i vedtak-hendelse 14 lines…
+   cd vedtak-hendelse && gradle test
+
+La til `Sakstype` med verdiene `ORDINAER`, `KLAGE` og `ANKE`. `VedtakFattet.sakstype` default er `ORDINAER`, og ukjente felt ignoreres.
+
+`gradle test` i `vedtak-hendelse/` besto.
+
