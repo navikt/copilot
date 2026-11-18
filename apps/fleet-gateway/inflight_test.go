@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"github.com/prometheus/client_golang/prometheus/testutil"
 	"io"
 	"log/slog"
 	"net/http"
@@ -39,8 +40,14 @@ func TestInFlightCapRejectsWithAudit(t *testing.T) {
 	first := make(chan int, 1)
 	go func() { first <- capPost(t, ts, token, "") }()
 	<-entered
+	shed := httpRequestsTotal.WithLabelValues("503", "cap")
+	beforeShed := testutil.ToFloat64(shed)
 	if code := capPost(t, ts, token, ""); code != http.StatusServiceUnavailable {
 		t.Fatalf("over cap: code %d, want 503", code)
+	}
+	// Labelled so FleetGatewayHigh5xxRate does not count the cap as a failure.
+	if got := testutil.ToFloat64(shed); got != beforeShed+1 {
+		t.Errorf("over-cap 503 not labelled reason=cap: %v -> %v", beforeShed, got)
 	}
 	close(release)
 	if code := <-first; code != http.StatusOK {

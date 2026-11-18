@@ -25,6 +25,7 @@ func (s slots) tryAcquire() (release func(), ok bool) {
 
 // writeOverCapacity answers 503 with Retry-After instead of queueing.
 func writeOverCapacity(w http.ResponseWriter, what string) {
+	markShed(w, "cap")
 	w.Header().Set("Retry-After", "1")
 	writeJSON(w, http.StatusServiceUnavailable, map[string]string{
 		"error":   "too_many_requests",

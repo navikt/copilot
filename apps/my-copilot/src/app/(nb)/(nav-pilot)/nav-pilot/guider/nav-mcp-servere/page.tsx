@@ -19,6 +19,7 @@ const TOC: TocItem[] = [
   { id: "copilot-cli", label: "Copilot CLI" },
   { id: "opencode", label: "OpenCode" },
   { id: "nav-pilot", label: "nav-pilot" },
+  { id: "protokollversjon", label: "Protokollversjon" },
   { id: "innlogging", label: "Innlogging" },
   { id: "hjelp", label: "Hjelp" },
 ];
@@ -40,7 +41,14 @@ export default function NavMcpServerePage() {
           Før du starter
         </LinkableHeading>
         <Bullets>
-          <li>Du må være på naisdevice. Ellers når du ikke serveren.</li>
+          <li>
+            Foreløpig bare internt: du må være på naisdevice for å nå{" "}
+            <code className={code}>fleet-gateway.intern.nav.no</code>. En ekstern gateway med offentlig ingress er{" "}
+            <a href="https://github.com/navikt/copilot/issues/2297" className={linkClass}>
+              planlagt (#2297)
+            </a>
+            . Den vil kreve en Nav-administrert enhet, og DCR blir slått av eksternt.
+          </li>
           <li>
             Finn serveren i{" "}
             <NextLink href="/verktoy" className={linkClass}>
@@ -80,6 +88,16 @@ export default function NavMcpServerePage() {
         <BodyLong>
           Logg ut med <code className={code}>opencode mcp logout onboarding</code>.
         </BodyLong>
+        <BodyLong>
+          nav-pilot setter <code className={code}>protocol</code> selv, ut fra protokollversjonene i MCP-registeret.
+          Konfigurerer du OpenCode 2.x for hånd, bruker du{" "}
+          <code className={code}>&quot;protocol&quot;: &quot;auto&quot;</code>. Bruk{" "}
+          <code className={code}>&quot;2026-07-28&quot;</code> bare når registeret oppgir den som eneste versjon. Se{" "}
+          <a href="#protokollversjon" className={linkClass}>
+            Protokollversjon
+          </a>
+          .
+        </BodyLong>
       </VStack>
 
       <VStack gap="space-12">
@@ -90,6 +108,33 @@ export default function NavMcpServerePage() {
           <code className={code}>nav-pilot mcp enable &lt;navn&gt;</code> slår på en server fra registeret. Vi har ikke
           testet dette mot Navs egne MCP-servere ennå. Virker det ikke, bruk Copilot CLI eller OpenCode direkte.
         </BodyLong>
+      </VStack>
+
+      <VStack gap="space-12">
+        <LinkableHeading id="protokollversjon" size="medium" level="2">
+          Protokollversjon
+        </LinkableHeading>
+        <Bullets>
+          <li>
+            OpenCode 2.x: <code className={code}>&quot;protocol&quot;: &quot;2026-07-28&quot;</code> virker bare mot
+            servere som støtter revisjonen. <code className={code}>onboarding</code> gjør ikke det ennå (
+            <a href="https://github.com/navikt/copilot/pull/2365" className={linkClass}>
+              #2365
+            </a>
+            ). Bruk <code className={code}>&quot;protocol&quot;: &quot;auto&quot;</code> til da.
+          </li>
+          <li>
+            OpenCode 1.19 støtter ikke <code className={code}>2026-07-28</code> og bruker eldre protokoll.
+          </li>
+          <li>
+            Copilot CLI prøver <code className={code}>2026-07-28</code> først og faller tilbake til eldre protokoll.
+            Bruk versjon <code className={code}>1.0.107</code> eller nyere.
+          </li>
+          <li>
+            <code className={code}>nav-pilot</code> setter <code className={code}>protocol</code> selv på nye
+            OpenCode-oppføringer, ut fra <code className={code}>protocolVersions</code> i MCP-registeret.
+          </li>
+        </Bullets>
       </VStack>
 
       <VStack gap="space-12">

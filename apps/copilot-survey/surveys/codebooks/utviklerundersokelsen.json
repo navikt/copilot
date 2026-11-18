@@ -1,0 +1,515 @@
+{
+  "series": "utviklerundersokelsen",
+  "version": 1,
+  "rules": [
+    "Hver kode er en kategori pluss onske (true/false). onske er false når svaret forteller om noe som har skjedd eller hvordan respondenten har det, og true når svaret ber om, foreslår eller ønsker noe. Definisjonene beskriver temaet som erfaring; et ønske om det samme (mer av nytten, mindre av problemet) får samme kategori med onske: true. Samme kategori kan få begge i ett svar, som to koder.",
+    "Kod hva svaret handler om, ikke hvem som skriver. Rolle (utvikler, designer, leder, ikke-utvikler) kodes ikke. En ikke-kodende oppgave kodes etter hva KI-en gjorde, som enhver annen oppgave.",
+    "Gi 1 til max_codes koder per svar (kategori og onske teller som én kode). Passer flere, velg de som fyller mest av svaret. annet brukes alltid alene.",
+    "store-loft og raskere utelukker hverandre. Skillet er hva som ellers ville skjedd: sier svaret at arbeidet ellers ikke ville blitt gjort, var for stort eller aldri ble prioritert, er det store-loft; ellers, når poenget er at noe gikk fortere enn for hånd, er det raskere. Migrering, modernisering, arvtaker og samme endring i mange apper er store-loft også når svaret ikke sier det (konvensjon: slikt arbeid er program over tid, ikke en enkeltoppgave).",
+    "Hver kategori har én retning, nytte eller problem. Et svar med både positivt og negativt får en kode for hver. Å avkrefte et problem («jeg har ikke mistet noe») kodes ikke som problemet.",
+    "En kategori krever at svaret sier noe om temaet, ikke bare nevner et ord. Kod ikke det du tror respondenten mener. Et kort svar på ett eller to ord kodes når det tilsvarer et punkt i «ta med» (som «analyse» eller «utforske»), ellers annet.",
+    "I tvil mellom to kategorier: følg «hold utenfor», som sier hvor tilfellet hører hjemme.",
+    "Hvert felt koder bare med sitt eget kategorisett (fields[].categories). Peker «hold utenfor» på en kategori som ikke er i feltets sett, brukes annet.",
+    "onske per felt: kodes betyr at koderen avgjør det per kode; alltid og aldri betyr at det er gitt av spørsmålet (en-endring spør etter en endring, verktoy og verdi etter bruk)."
+  ],
+  "fields": [
+    {
+      "id": "opplevelse",
+      "onske": "kodes",
+      "max_codes": 3,
+      "categories": [
+        "store-loft",
+        "raskere",
+        "finne-feil",
+        "forsta-og-dokumentere",
+        "arbeidsflyt",
+        "kompetansetap",
+        "belastning-team",
+        "skrasikker",
+        "medgjorlig",
+        "for-mye",
+        "friksjon",
+        "informasjon",
+        "motstand",
+        "annet"
+      ]
+    },
+    {
+      "id": "verdi.other",
+      "onske": "aldri",
+      "max_codes": 2,
+      "categories": [
+        "forsta-og-dokumentere",
+        "arbeidsflyt",
+        "prototyping",
+        "sok-og-research",
+        "ingen-verdi",
+        "annet"
+      ]
+    },
+    {
+      "id": "en-endring.other",
+      "onske": "alltid",
+      "max_codes": 2,
+      "categories": [
+        "friksjon",
+        "informasjon",
+        "belastning-team",
+        "skrasikker",
+        "medgjorlig",
+        "for-mye",
+        "motstand",
+        "arbeidsflyt",
+        "annet"
+      ]
+    },
+    {
+      "id": "verktoy.other",
+      "onske": "aldri",
+      "max_codes": 3,
+      "categories": [
+        "copilot-annen-flate",
+        "andre-kodeverktoy",
+        "chat-assistent",
+        "lokale-modeller",
+        "annet"
+      ]
+    }
+  ],
+  "categories": [
+    {
+      "id": "store-loft",
+      "name": "Store løft som ellers ikke ble gjort",
+      "kind": "nytte",
+      "merge_with": "raskere",
+      "definition": "KI gjør det mulig å ta arbeid som ellers ikke ville blitt gjort: det var for stort, for kjedelig eller ble aldri prioritert. Ofte et program over tid, som migrering, modernisering, en etterfølger for en gammel tjeneste, nedbetaling av teknisk gjeld, samme endring i mange apper eller dokumentasjon som var ansett som for stor.",
+      "include": [
+        "Svaret sier at arbeidet ellers ikke ville blitt gjort, prioritert eller tatt på seg.",
+        "Migrering, modernisering eller en etterfølger for en eksisterende tjeneste.",
+        "Nedbetaling av teknisk gjeld eller opprydding i stor skala.",
+        "Samme endring rullet ut i mange apper eller repoer.",
+        "Dokumentasjon eller kartlegging som var ansett som for stor (kodes også forsta-og-dokumentere)."
+      ],
+      "exclude": [
+        "Arbeid som ville blitt gjort uansett, men gikk fortere: raskere.",
+        "Én avgrenset refaktorering eller oppgradering uten at det sies at den ellers ble liggende: raskere.",
+        "Finne årsaken til en feil eller et ytelsesproblem: finne-feil.",
+        "Refaktorering KI-en gjorde uten å bli bedt om det: for-mye."
+      ],
+      "examples": [
+        "Vi fikk endelig skilt ut den gamle rapportmodulen i egen tjeneste, noe som hadde stått på lista i tre år.",
+        "Agenten oppgraderte avhengighetene i en gammel app vi ikke turte å røre, og alt bygget etterpå."
+      ]
+    },
+    {
+      "id": "raskere",
+      "name": "Raskere enn for hånd",
+      "kind": "nytte",
+      "merge_with": "store-loft",
+      "definition": "KI gjør arbeid som ville blitt gjort uansett, men raskere: ny kode, en funksjon, et verktøy eller en prototyp, ofte på første forsøk, en avgrenset refaktorering, kodefullføring, eller å komme i gang i et språk eller rammeverk respondenten ikke behersker.",
+      "include": [
+        "Ny funksjon, komponent, app eller prototyp som virket nesten med en gang.",
+        "En avgrenset refaktorering eller oppgradering som gikk fort.",
+        "Kodefullføring som skrev det respondenten så for seg.",
+        "Komme i gang med ny teknologi eller gjøre endringer i en kodebase respondenten ikke behersker.",
+        "Timer eller dager spart på en oppgave."
+      ],
+      "exclude": [
+        "Svaret sier at arbeidet ellers ikke ville blitt gjort: store-loft.",
+        "Arbeidsmåten som forklaring på resultatet (planlegging, agenter, skills): arbeidsflyt, i tillegg.",
+        "At resultatet virket, men respondenten ikke forstår det: kompetansetap, i tillegg."
+      ],
+      "examples": [
+        "Jeg beskrev et lite internt verktøy, og etter en halvtime hadde jeg noe kollegene kunne bruke.",
+        "Jeg har aldri skrevet Rust, men fikk laget en fungerende kommandolinjeapp på en dag."
+      ]
+    },
+    {
+      "id": "finne-feil",
+      "name": "Finne feil og sårbarheter",
+      "kind": "nytte",
+      "merge_with": "forsta-og-dokumentere",
+      "definition": "KI finner årsaken til en kjent feil, eller oppdager feil, sårbarheter og svakheter som ingen hadde sett: feilsøking, funn i kodegjennomgang, sikkerhetsfunn og svakheter i en plan.",
+      "include": [
+        "Rotårsak funnet i logger, sporinger, metrikker eller kode, også på tvers av repoer.",
+        "Kodegjennomgang som fanget en reell feil eller sårbarhet.",
+        "En agent som avslører feil i en annen agents arbeid.",
+        "Påpeker en svakhet i plan, spesifikasjon eller tekst før arbeidet er gjort."
+      ],
+      "exclude": [
+        "Falske funn eller feil diagnose: skrasikker.",
+        "Retting etter Nav-konvensjoner eller teamets regler: arbeidsflyt.",
+        "Et problem som ble løst uten at det går fram at det var en feil: annet, hvis ingen annen kategori passer.",
+        "At kodegjennomgang tar lang tid eller belaster teamet: belastning-team."
+      ],
+      "examples": [
+        "Agenten koblet en tidsavbruddsfeil i dev til en manglende indeks før jeg rakk å åpne databasen.",
+        "Kodegjennomgangen pekte på en manglende tilgangssjekk som tre av oss hadde oversett."
+      ]
+    },
+    {
+      "id": "forsta-og-dokumentere",
+      "name": "Forstå og dokumentere",
+      "kind": "nytte",
+      "merge_with": "finne-feil",
+      "definition": "KI hjelper med å forstå, kartlegge eller dokumentere noe som finnes: kode, systemer, arkitektur, data og dokumenter. Gjelder også ikke-kodende oppgaver som å analysere regneark eller sammenstille dokumenter.",
+      "include": [
+        "Forklaring av ukjent kode eller hvordan en funksjon virker.",
+        "Kartlegging av arkitektur, flyt eller avhengigheter.",
+        "Generert dokumentasjon, API-beskrivelse eller oversikt.",
+        "Analyse av data, regneark eller dokumenter."
+      ],
+      "exclude": [
+        "Lære en ny teknologi for å bygge noe: raskere.",
+        "Finne årsaken til en feil: finne-feil.",
+        "Dokumentasjon som ble for lang eller ingen ba om: for-mye."
+      ],
+      "examples": [
+        "Jeg ba om en forklaring av hvordan vedtak flyter mellom tre tjenester og fikk et diagram jeg kunne bruke i møtet.",
+        "Jeg fikk en sammenstilling av hvilke Kafka-topics hver app leser og skriver, som vi har manglet lenge."
+      ]
+    },
+    {
+      "id": "arbeidsflyt",
+      "name": "Arbeidsmåte og kontekst som virker",
+      "kind": "nytte",
+      "definition": "Respondenten beskriver en måte å jobbe med KI på som gir effekt: planlegging før koding, agenter som jobber selvstendig eller parallelt, underagenter som kontrollerer, KI som sparringspartner, og tilpasning til Nav og teamet med skills, instruksjoner, MCP-servere eller nav-pilot.",
+      "include": [
+        "Planleggingsmodus, eller å planlegge sammen før agenten koder.",
+        "Delegere implementasjonen til agenter og gå gjennom resultatet.",
+        "Flere agenter parallelt eller på tvers av repoer, eller en agent som kontrollerer en annen.",
+        "Overgangen fra chat til agent eller CLI beskrevet som et vendepunkt.",
+        "Skills, instruksjoner eller MCP-servere som gjør resultatet bedre, eller KI som følger Nav-konvensjoner.",
+        "KI som sparringspartner eller gummiand."
+      ],
+      "exclude": [
+        "Bare hva agenten fikk til: kategorien for resultatet (store-loft, raskere, finne-feil, forsta-og-dokumentere).",
+        "Å få oppsettet til å virke: friksjon."
+      ],
+      "examples": [
+        "Vi har bygget opp instruksjoner for rammeverket vårt, og nå treffer agenten konvensjonene uten at vi minner den på det.",
+        "Jeg lar én agent skrive og en annen gå gjennom, og det fanger det meste før jeg ser på det."
+      ]
+    },
+    {
+      "id": "kompetansetap",
+      "name": "Egen forståelse, læring og eierskap",
+      "kind": "problem",
+      "merge_with": "belastning-team",
+      "definition": "Respondenten opplever at KI svekker egen forståelse, læring, ferdigheter eller eierskap til koden: blir rusten eller lat, mister oversikt, kan ikke forklare koden, tenker mindre selv.",
+      "include": [
+        "Forstår ikke koden KI-en laget, eller kan ikke forklare valg i egen PR.",
+        "Har mindre oversikt over egen kodebase enn før.",
+        "Lærer mindre, blir rusten, tenker mindre selv, eller lar KI-en lokke frem enkleste vei.",
+        "Opplever koden som noe annet enn sin egen."
+      ],
+      "exclude": [
+        "Kolleger som ikke forstår sin egen kode: belastning-team.",
+        "Tapt glede eller motivasjon uten tap av forståelse: motstand.",
+        "Bevisst begrenset bruk uten at et tap er beskrevet: annet."
+      ],
+      "examples": [
+        "Etter noen måneder med agenter merket jeg at jeg ikke lenger kunne skrive en enkel spørring uten hjelp.",
+        "Jeg merker at jeg leser det agenten har laget mindre nøye nå enn i starten, og husker lite av det etterpå."
+      ]
+    },
+    {
+      "id": "belastning-team",
+      "name": "Belastning på kolleger og team",
+      "kind": "problem",
+      "merge_with": "kompetansetap",
+      "definition": "KI-bruk hos andre skaper ekstra arbeid eller risiko for teamet: store eller uforståelige PR-er, kolleger som ikke forstår eller kan forklare sin egen kode, kodegjennomgang som flaskehals, mindre faglig diskusjon og uklare krav til hvem som kan bidra med kode.",
+      "include": [
+        "Flere, større eller vanskeligere PR-er å gå gjennom.",
+        "Kolleger som ikke kan forklare koden de har levert, eller viser til hva KI-en sa i stedet for å begrunne.",
+        "Kodegjennomgang som flaskehals, eller som mister læringsverdi og fellesskap.",
+        "Spørsmål om krav, opplæring og sikkerhet når folk uten utviklerbakgrunn bidrar med kode."
+      ],
+      "exclude": [
+        "Respondentens egen forståelse: kompetansetap.",
+        "KI-en lager for mye kode, uten at belastningen på andre er beskrevet: for-mye."
+      ],
+      "examples": [
+        "Jeg bruker nå mer av dagen på å godkjenne andres endringer enn på mine egne oppgaver.",
+        "En ny kollega leverte en stor endring i en tjeneste hen aldri hadde jobbet i, og vi måtte bruke to dager på å gå den gjennom sammen."
+      ]
+    },
+    {
+      "id": "skrasikker",
+      "name": "Feil som presenteres som riktig",
+      "kind": "problem",
+      "merge_with": "medgjorlig",
+      "definition": "KI tar feil eller lykkes ikke, ofte med stor sikkerhet: hallusinasjoner, gjetting, troverdig kode som er feil, falske funn og svært ujevn kvalitet. Kjernen er at feilen kommer fra KI-en.",
+      "include": [
+        "Hallusinasjoner og feilinformasjon.",
+        "Kode som ikke kjører, eller som virker overbevisende og er feil.",
+        "Falske funn i kodegjennomgang, eller overfladisk diagnose.",
+        "Løsninger som bygger på antakelser agenten ikke har sjekket.",
+        "Svært ulikt resultat fra gang til gang, eller vanskelig å vite hva som er sjekket.",
+        "KI-en innrømmer en feil den faktisk har gjort."
+      ],
+      "exclude": [
+        "KI-en følger brukerens feil i stedet for å si fra: medgjorlig.",
+        "KI-en gjør mer enn den ble bedt om: for-mye.",
+        "Tid brukt på å få verktøyet til å virke: friksjon."
+      ],
+      "examples": [
+        "Den viste til en konfigurasjonsnøkkel som ikke finnes, og insisterte på det to ganger.",
+        "Testene var grønne, men de testet ikke det funksjonen faktisk gjør."
+      ]
+    },
+    {
+      "id": "medgjorlig",
+      "name": "For enig med brukeren",
+      "kind": "problem",
+      "merge_with": "skrasikker",
+      "definition": "KI er for medgjørlig: går med på brukerens feil valg, utfordrer ikke antagelser og gir etter for innvendinger uten å vurdere dem. Kjernen er at feilen eller retningen kommer fra brukeren.",
+      "include": [
+        "Hjelper villig med en feil teknologi, metode eller retning.",
+        "Stiller ikke spørsmål ved antagelsene brukeren kommer med.",
+        "Snur straks når brukeren protesterer, også når den hadde rett."
+      ],
+      "exclude": [
+        "KI-en tar feil på egen hånd: skrasikker.",
+        "KI-en innrømmer en feil den faktisk har gjort: skrasikker.",
+        "KI-en utfordret brukeren og hadde rett: finne-feil."
+      ],
+      "examples": [
+        "Jeg ba om en løsning med feil datastruktur, og den bygget den uten å nevne at det fantes en enklere vei.",
+        "Da jeg sa at den tok feil, ga den meg rett, selv om det var jeg som tok feil."
+      ]
+    },
+    {
+      "id": "for-mye",
+      "name": "Gjør for mye eller annet enn bedt om",
+      "kind": "problem",
+      "definition": "KI gjør mer enn oppgaven trenger eller ble bedt om: overkomplisert kode, mange filer og linjer, lange kommentarer og svar, endringer utenfor oppgaven, handlinger ingen ba om, og forbruk av tokens eller penger uten tilsvarende verdi.",
+      "include": [
+        "Overkomplisert løsning, mange nye filer eller tusenvis av linjer for en liten oppgave.",
+        "Lange kommentarer, svar eller dokumentasjon ingen ba om.",
+        "Endringer i kode utenfor oppgaven, eller som overskriver brukerens endringer.",
+        "Handlinger ingen ba om, som å opprette en PR.",
+        "Høyt tokenforbruk eller kostnad."
+      ],
+      "exclude": [
+        "Store PR-er beskrevet som et problem for de som skal gå gjennom dem: belastning-team.",
+        "Koden er feil: skrasikker.",
+        "Agenten forholder seg ikke til sandkasse eller tilganger: friksjon."
+      ],
+      "examples": [
+        "Jeg ba om å rette en skrivefeil i en feilmelding og fikk et nytt rammeverk for feilhåndtering.",
+        "Agenten oppdaterte også versjonsnummeret på tre avhengigheter, uten at det hadde noe med oppgaven å gjøre."
+      ]
+    },
+    {
+      "id": "friksjon",
+      "name": "Oppsett, tilgang og verktøy som ikke virker",
+      "kind": "problem",
+      "merge_with": "informasjon",
+      "definition": "Tid og frustrasjon går med til å få verktøyene til å virke eller til å få tilgang: oppsett og konfigurasjon, sandkasse og rettigheter, lisenser, manglende tilgang til data, modeller eller verktøy, og integrasjoner som er til bry.",
+      "include": [
+        "Lokalt oppsett, konfigurasjon eller kjøring som ikke virker.",
+        "Sandkasse og rettigheter, også en agent som ikke respekterer dem.",
+        "Lisensregler, begrensninger i verktøyet (som kontekstvindu, plattformstøtte, standardmodell), eller mangel på tilgang til data, modeller eller verktøy.",
+        "Mer tid på å få verktøyet til å virke enn på selve oppgaven."
+      ],
+      "exclude": [
+        "Uklar informasjon eller retningslinjer om hva som er lov: informasjon.",
+        "Kostnad og tokenforbruk: for-mye.",
+        "Tid brukt på feil svar: skrasikker."
+      ],
+      "examples": [
+        "Det tok en hel dag å få agenten til å kjøre testene lokalt.",
+        "Den prøver stadig kommandoer sandkassen ikke tillater, så jeg må avbryte og forklare."
+      ]
+    },
+    {
+      "id": "informasjon",
+      "name": "Informasjon, opplæring og retningslinjer",
+      "kind": "problem",
+      "merge_with": "friksjon",
+      "definition": "Respondenten opplever for mye, for lite eller uklar informasjon om KI-verktøyene: overveldende innhold, mangel på opplæring, uklart hva som er lov eller trygt, dokumentasjon som er vanskelig å forstå, eller å føle seg utenfor.",
+      "include": [
+        "For mye informasjon, nyheter eller tips, vanskelig å vite hva som er viktig.",
+        "Dokumentasjon eller veiledning som er vanskelig å forstå eller følge.",
+        "Uklart hva som er lov, trygt eller god praksis.",
+        "Føler seg utenfor eller hengt etter fordi opplæring mangler.",
+        "Ønske om mer opplæring, tydeligere veiledning eller dokumentert effekt (onske: true)."
+      ],
+      "exclude": [
+        "Tekniske problemer med oppsett eller tilgang: friksjon."
+      ],
+      "examples": [
+        "Jeg finner ikke ut hvilken av de fire veiledningene om agenter som gjelder for teamet mitt.",
+        "Jeg vet fortsatt ikke om jeg har lov til å lime inn feilmeldinger fra produksjon."
+      ]
+    },
+    {
+      "id": "motstand",
+      "name": "Motstand, etikk og arbeidsglede",
+      "kind": "problem",
+      "definition": "Prinsipiell motstand mot KI, etiske eller samfunnsmessige innvendinger, skepsis til nytten, eller at KI tar bort glede og motivasjon i arbeidet.",
+      "include": [
+        "Vil ikke bruke KI, eller opplever den som påtvunget.",
+        "Etiske, økonomiske, miljømessige eller samfunnsmessige innvendinger, eller opplevd press om å ta KI i bruk.",
+        "Uttrykt skepsis til nytten.",
+        "Mindre glede ved å kode, eller mindre motivasjon i jobben."
+      ],
+      "exclude": [
+        "Tap av ferdigheter eller forståelse: kompetansetap.",
+        "Skepsis som følge av en konkret feil KI-en gjorde: skrasikker."
+      ],
+      "examples": [
+        "Det håndverket jeg likte best ved jobben, er det første som forsvinner.",
+        "Jeg mener vi tar i bruk dette for fort, uten å vite hva det koster oss på sikt."
+      ]
+    },
+    {
+      "id": "annet",
+      "name": "Ikke kodbart eller annet",
+      "kind": "annet",
+      "definition": "Svaret passer ikke i noen kategori i feltets sett, eller er for kort eller uklart til å kodes. Brukes alltid alene.",
+      "include": [
+        "Generell begeistring eller misnøye uten innhold.",
+        "Et ønske eller spørsmål som ikke passer i noen kategori (onske: true).",
+        "Ros for at en oppgave eller et problem ble løst, uten at det går fram hva slags oppgave det var.",
+        "Tekst uten mening, som en strek eller «nei», eller kommentarer til selve undersøkelsen."
+      ],
+      "exclude": [
+        "Alt som passer i en annen kategori."
+      ],
+      "examples": [
+        "Fint verktøy, fortsett sånn.",
+        "Spørsmålet var vanskelig å svare på."
+      ]
+    },
+    {
+      "id": "prototyping",
+      "name": "Prototyper og utforsking",
+      "kind": "nytte",
+      "definition": "KI brukes til prototyper, utforske muligheter eller idémyldring, der målet er å se hva som er mulig, ikke å levere produksjonskode.",
+      "include": [
+        "Klikkbare prototyper eller skisser.",
+        "Utforske løsninger, idémyldring."
+      ],
+      "exclude": [
+        "Ny kode eller funksjon som skal i bruk: raskere.",
+        "Planlegging og spesifisering av en oppgave: arbeidsflyt."
+      ],
+      "examples": [
+        "Teste tre varianter av et skjema med brukere samme uke.",
+        "Prøve ut ideer før vi bestemmer oss."
+      ]
+    },
+    {
+      "id": "sok-og-research",
+      "name": "Søk og research",
+      "kind": "nytte",
+      "definition": "KI brukes som søkemotor eller researchverktøy: finne informasjon, få svar på avgrensede spørsmål, oppsummere hvordan andre har løst noe, teknisk støtte.",
+      "include": [
+        "Erstatning for nettsøk eller oppslag i dokumentasjon.",
+        "Research og oppsummering av kilder.",
+        "Svar på avgrensede tekniske spørsmål."
+      ],
+      "exclude": [
+        "Forstå eller dokumentere egen kode eller egne systemer: forsta-og-dokumentere."
+      ],
+      "examples": [
+        "Slå opp syntaks raskere enn i dokumentasjonen.",
+        "Finne ut hva som finnes av biblioteker for noe."
+      ]
+    },
+    {
+      "id": "ingen-verdi",
+      "name": "Bruker ikke eller ser ingen verdi",
+      "kind": "noytral",
+      "definition": "Svaret sier at respondenten ikke bruker KI-verktøy, ikke har begynt ennå, at spørsmålet ikke er relevant, eller at verktøyene ikke gir verdi.",
+      "include": [
+        "Bruker ikke KI, eller skal ta det i bruk.",
+        "Ikke relevant, ingen.",
+        "Ser ikke at det hjelper."
+      ],
+      "exclude": [
+        "Begrunnet motstand mot KI: motstand."
+      ],
+      "examples": [
+        "Har ikke prøvd ennå.",
+        "Ingenting foreløpig."
+      ]
+    },
+    {
+      "id": "copilot-annen-flate",
+      "name": "GitHub Copilot på en flate som ikke står i listen",
+      "kind": "noytral",
+      "merge_with": "andre-kodeverktoy",
+      "definition": "GitHub Copilot brukt i en flate listen ikke nevner: Copilot-appen eller desktop, andre editorer, nav-pilot.",
+      "include": [
+        "Copilot-appen eller Copilot Desktop.",
+        "Copilot i en editor som ikke står i listen.",
+        "nav-pilot."
+      ],
+      "exclude": [
+        "Microsoft 365 Copilot: chat-assistent.",
+        "Kodeverktøy fra andre enn GitHub: andre-kodeverktoy."
+      ],
+      "examples": [
+        "Copilot i Emacs.",
+        "GitHub Copilot-appen på Mac."
+      ]
+    },
+    {
+      "id": "andre-kodeverktoy",
+      "name": "Kodeverktøy fra andre enn GitHub",
+      "kind": "noytral",
+      "merge_with": "copilot-annen-flate",
+      "definition": "Kodeagenter, harnesser og editorer fra andre enn GitHub, også når de brukes privat.",
+      "include": [
+        "Kodeagenter og CLI-er som Codex, Gemini CLI eller Claude Code.",
+        "Editorer med innebygd KI, som Cursor eller Zed.",
+        "Egne eller åpne harnesser."
+      ],
+      "exclude": [
+        "Generelle chat-assistenter: chat-assistent.",
+        "Lokale modeller: lokale-modeller."
+      ],
+      "examples": [
+        "Windsurf.",
+        "Aider i terminalen."
+      ]
+    },
+    {
+      "id": "chat-assistent",
+      "name": "Generelle chat-assistenter",
+      "kind": "noytral",
+      "definition": "Chat-assistenter som ikke er kodeverktøy: ChatGPT, Microsoft 365 Copilot, Gemini, Perplexity eller KI i nettleseren.",
+      "include": [
+        "ChatGPT eller Microsoft 365 Copilot, også innebygd i operativsystemet.",
+        "Gemini- eller Perplexity-chat.",
+        "En chat i nettleseren uten at verktøyet er navngitt."
+      ],
+      "exclude": [
+        "Copilot i editor, CLI eller app: copilot-annen-flate."
+      ],
+      "examples": [
+        "Claude.ai i nettleseren.",
+        "Le Chat."
+      ]
+    },
+    {
+      "id": "lokale-modeller",
+      "name": "Lokale modeller",
+      "kind": "noytral",
+      "definition": "Modeller som kjøres på egen maskin, og verktøy for det.",
+      "include": [
+        "Ollama, LM Studio eller lignende."
+      ],
+      "exclude": [
+        "Ønske om lokale modeller i en-endring: friksjon."
+      ],
+      "examples": [
+        "LM Studio.",
+        "llama.cpp."
+      ]
+    }
+  ]
+}

@@ -204,7 +204,9 @@ func TestPublishedRoutes(t *testing.T) {
 		}
 	}
 
-	// Closed published survey ("old") returns 200 with channels and without free text.
+	// Closed published survey ("old") returns 200 without free text, and with
+	// channels under 5 merged as in the export (web 4 and copilot 2: annet 6).
+	// Admin keeps them apart.
 	resRec := do(h, "GET", "/api/v1/surveys/old/results", webToken, "")
 	if resRec.Code != 200 {
 		t.Fatalf("old results: %d %s", resRec.Code, resRec.Body)
@@ -216,8 +218,13 @@ func TestPublishedRoutes(t *testing.T) {
 	if json.Unmarshal(resRec.Body.Bytes(), &got) != nil {
 		t.Fatal(resRec.Body)
 	}
-	if got.Responses != 6 || got.Channels["web"] != 4 || got.Channels["copilot"] != 2 {
+	if got.Responses != 6 || len(got.Channels) != 1 || got.Channels["annet"] != 6 {
 		t.Fatalf("unexpected results: %+v", got)
+	}
+	var admin surveyResults
+	if json.Unmarshal(do(h, "GET", "/api/v1/admin/surveys/old/results", adminToken, "").Body.Bytes(), &admin) != nil ||
+		admin.Channels["web"] != 4 || admin.Channels["copilot"] != 2 {
+		t.Fatalf("admin channels: %+v", admin.Channels)
 	}
 
 	// Below 5 responses: excluded from published list and 404 on direct fetch.

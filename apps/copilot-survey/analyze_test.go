@@ -131,14 +131,14 @@ func (failWriter) Write([]byte) (int, error) { return 0, io.ErrClosedPipe }
 func TestCompareCSVEdges(t *testing.T) {
 	res := compareResult{
 		Surveys:   []waveMeta{{surveySummary: surveySummary{ID: "spring"}}},
-		Questions: []compareQuestion{{ID: "q", Waves: []waveCounts{{Excluded: 6, Versions: []waveStat{}}}}},
+		Questions: []compareQuestion{{ID: "q", Waves: []waveCounts{{Excluded: new(6), Versions: []waveStat{}}}}},
 	}
 	var buf bytes.Buffer
 	if err := writeCompareCSV(&buf, res); err != nil || !strings.Contains(buf.String(), "answer,spring,q,,,false,,,,6,,") {
 		t.Errorf("all excluded lost: %v\n%s", err, buf.String())
 	}
 	five := 5
-	res.Questions[0].Waves[0] = waveCounts{Versions: []waveStat{{versionResult: versionResult{Version: 1, N: &five, Options: []optionCount{}}}}}
+	res.Questions[0].Waves[0] = waveCounts{Excluded: new(0), Versions: []waveStat{{versionResult: versionResult{Version: 1, N: &five, Options: []optionCount{}}}}}
 	buf.Reset()
 	if _ = writeCompareCSV(&buf, res); !strings.Contains(buf.String(), "answer,spring,q,,1,false,,,5,0,,") {
 		t.Errorf("version without options lost:\n%s", buf.String())

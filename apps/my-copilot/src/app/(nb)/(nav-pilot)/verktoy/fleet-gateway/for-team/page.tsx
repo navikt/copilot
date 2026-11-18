@@ -20,13 +20,17 @@ const APPLY_URL = "https://github.com/navikt/copilot/issues/new?template=fleet-g
 const HELP_URL = "https://nav-it.slack.com/archives/C0ASJSZK8P8";
 const ROUTES_URL = "https://github.com/navikt/copilot/tree/main/apps/fleet-gateway";
 const ECHO_URL = "https://github.com/navikt/copilot/blob/main/apps/fleet-gateway/echo/main.go";
+const ECHO_TREE_URL = "https://github.com/navikt/copilot/tree/main/apps/fleet-gateway/echo";
+const SPEC_URL = "https://modelcontextprotocol.io/specification/2026-07-28";
 
 const TOC: TocItem[] = [
   { id: "forutsetninger", label: "Forutsetninger" },
+  { id: "krav-til-serveren", label: "Krav til serveren" },
   { id: "steg", label: "Steg for steg" },
   { id: "feil", label: "Vanlige feil" },
   { id: "ikke-gjor", label: "Dette må dere ikke gjøre" },
   { id: "drift", label: "Test, drift og avvikling" },
+  { id: "planlagt", label: "Planlagt og kjente begrensninger" },
   { id: "sjekkliste", label: "Sjekkliste" },
 ];
 
@@ -92,13 +96,16 @@ const OPENCODE_JSON = `{
   "mcp": {
     "<navn>": {
       "type": "remote",
-      "url": "https://fleet-gateway.intern.nav.no/mcp/<namespace>/<navn>"
+      "url": "https://fleet-gateway.intern.nav.no/mcp/<namespace>/<navn>",
+      "protocol": "2026-07-28"
     }
   }
 }`;
 
 const CHECKLIST = [
-  "MCP-serveren støtter streamable HTTP og kjører på Nais",
+  "MCP-serveren støtter protokoll 2026-07-28 over streamable HTTP og kjører på Nais",
+  "Serveren svarer på server/discover og bruker ikke sesjoner",
+  "Serveren sjekker Mcp-Method og Mcp-Name (-32020 ved avvik) og svarer -32022 på protokollversjoner den ikke støtter",
   "azure.application har enabled, tenant: nav.no og allowAllUsers: true",
   "fleet-gateway står i accessPolicy.inbound",
   "Appen sjekker aud, idtyp, NAVident og azp med Texas",
@@ -134,7 +141,13 @@ export default function FleetGatewayForTeamPage() {
           Forutsetninger
         </LinkableHeading>
         <Bullets>
-          <li>Serveren snakker MCP over streamable HTTP.</li>
+          <li>
+            Serveren snakker MCP-protokoll{" "}
+            <a href={SPEC_URL} className={linkClass}>
+              2026-07-28
+            </a>{" "}
+            over streamable HTTP fra start.
+          </li>
           <li>
             Appen kjører på Nais i dev-gcp eller prod-gcp med Entra ID slått på i{" "}
             <code className={code}>azure.application</code>, med <code className={code}>tenant: nav.no</code> og{" "}
@@ -144,6 +157,53 @@ export default function FleetGatewayForTeamPage() {
           <li>
             Samme manifest fungerer i begge miljøer. Inbound-regelen har ingen <code className={code}>cluster</code>, så
             den gjelder fleet-gateway i samme klynge som appen.
+          </li>
+        </Bullets>
+      </VStack>
+
+      <VStack gap="space-12">
+        <LinkableHeading id="krav-til-serveren" size="medium" level="2">
+          Krav til serveren
+        </LinkableHeading>
+        <BodyLong>
+          Serveren må støtte MCP-revisjon{" "}
+          <a href={SPEC_URL} className={linkClass}>
+            2026-07-28
+          </a>{" "}
+          fra start. Gatewayen håndhever ikke kravet ennå. Den gjør det når klientene er over på revisjonen (
+          <a href="https://github.com/navikt/copilot/issues/2367" className={linkClass}>
+            #2367
+          </a>
+          ).
+        </BodyLong>
+        <Bullets>
+          <li>
+            Svar på <code className={code}>server/discover</code>. Revisjonen har verken{" "}
+            <code className={code}>initialize</code> eller sesjoner.
+          </li>
+          <li>
+            Sjekk <code className={code}>Mcp-Method</code> og <code className={code}>Mcp-Name</code> mot innholdet i
+            forespørselen. Svar 400 med <code className={code}>-32020</code> hvis en av dem mangler eller ikke stemmer.
+          </li>
+          <li>
+            Svar 400 med <code className={code}>-32022</code> når klienten ber om en protokollversjon serveren ikke
+            støtter.
+          </li>
+          <li>
+            Eldre klienter, som OpenCode 1.19, trenger <code className={code}>initialize</code> i en overgangsperiode.
+            fleet-echo støtter dem til en fast dato med <code className={code}>MCP_LEGACY_PROTOCOL_UNTIL</code>.
+          </li>
+          <li>
+            Referanse:{" "}
+            <a href={ECHO_TREE_URL} className={linkClass}>
+              fleet-echo
+            </a>{" "}
+            (<code className={code}>apps/fleet-gateway/echo</code>), med samsvarstest.{" "}
+            <code className={code}>mcp-onboarding</code> får samme støtte i{" "}
+            <a href="https://github.com/navikt/copilot/pull/2365" className={linkClass}>
+              #2365
+            </a>
+            .
           </li>
         </Bullets>
       </VStack>
@@ -352,6 +412,19 @@ export default function FleetGatewayForTeamPage() {
             .
           </li>
         </Bullets>
+      </VStack>
+
+      <VStack gap="space-12">
+        <LinkableHeading id="planlagt" size="medium" level="2">
+          Planlagt og kjente begrensninger
+        </LinkableHeading>
+        <BodyLong>
+          Grenser, revisjonslogging og planlagte endringer står under{" "}
+          <NextLink href="/verktoy/fleet-gateway#planlagt" className={linkClass}>
+            Planlagt og kjente begrensninger på oversiktssiden
+          </NextLink>
+          .
+        </BodyLong>
       </VStack>
 
       <VStack gap="space-12">

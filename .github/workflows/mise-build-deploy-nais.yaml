@@ -75,6 +75,11 @@ on:
         required: false
         type: boolean
         default: false
+      check-on-pr:
+        description: 'Run the Check job on pull requests and make the Docker build and PR deploy wait for it. Default false: ci.yaml already checks PRs.'
+        required: false
+        type: boolean
+        default: false
       artifact-registry:
         description: 'Docker registry for artifacts'
         required: false
@@ -213,7 +218,11 @@ jobs:
     env:
       GITHUB_PACKAGES_TOKEN: ${{ github.token }}
     needs: [setup]
-    if: ${{ always() && (needs.setup.result == 'success' || needs.setup.result == 'skipped') }}
+    # Skipped on pull requests unless check-on-pr: ci.yaml runs the same
+    # install/lint/check per app as the required `ci-ok` gate. Push to main
+    # still checks before deploy. check-on-pr is for apps whose PR deploy
+    # must wait for tests.
+    if: ${{ (github.event_name != 'pull_request' || inputs.check-on-pr) && always() && (needs.setup.result == 'success' || needs.setup.result == 'skipped') }}
     strategy:
       fail-fast: false
       matrix:
@@ -328,7 +337,9 @@ jobs:
 
   docker:
     name: Build Docker Image
-    if: ${{ inputs.builds-docker && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository) }}
+    # !cancelled() plus explicit results, because lint is skipped on PRs
+    # unless check-on-pr, where it must have succeeded.
+    if: ${{ !cancelled() && needs.meta.result == 'success' && needs.build.result == 'success' && (needs.lint.result == 'success' || (needs.lint.result == 'skipped' && !inputs.check-on-pr)) && inputs.builds-docker && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository) }}
     permissions:
       contents: read
       packages: read
@@ -402,12 +413,14 @@ jobs:
 
   deploy-pr:
     name: Deploy PR to dev
-    if: ${{ inputs.deploy-pr-to-dev && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
+    # !cancelled(): the skipped lint job upstream would otherwise skip this too.
+    # With check-on-pr, lint must have succeeded.
+    if: ${{ !cancelled() && needs.meta.result == 'success' && needs.docker.result == 'success' && (needs.lint.result == 'success' || (needs.lint.result == 'skipped' && !inputs.check-on-pr)) && inputs.deploy-pr-to-dev && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
     runs-on: ubuntu-latest
     permissions:
       id-token: write
       contents: read
-    needs: [meta, docker]
+    needs: [meta, lint, docker]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
       - name: Resolve paths

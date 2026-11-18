@@ -101,8 +101,9 @@ type question struct {
 	Other  string `json:"other,omitempty"`
 	MaxLen int    `json:"max_length,omitempty"` // text, and other's free text, in characters
 	// SkipIf skips this question when an earlier choice or multi question's
-	// answer is, or includes, the given option.
-	SkipIf *skipRule `json:"skip_if,omitempty"`
+	// answer is, or includes, the given option. In JSON one rule or a list;
+	// the question is skipped when any rule matches.
+	SkipIf skipRules `json:"skip_if,omitempty"`
 	// Items are a matrix's statements, all on its scale (min, max, labels).
 	// Each is answered, versioned and stored as if it were a scale question
 	// of its own, so an item compares with a separate scale question of the
@@ -123,11 +124,43 @@ type skipRule struct {
 	Answer   string `json:"answer"`
 }
 
-// skipped reports whether rule applies to the canonical answers so far.
-func (r *skipRule) skipped(answers map[string]any) bool {
-	if r == nil {
-		return false
+type skipRules []skipRule
+
+// UnmarshalJSON takes one rule (every survey before #2230) or a list.
+func (rs *skipRules) UnmarshalJSON(b []byte) error {
+	if len(b) > 0 && b[0] == '{' {
+		var r skipRule
+		err := decodeStrict(b, &r) // a custom Unmarshaler loses the outer decoder's DisallowUnknownFields
+		*rs = skipRules{r}
+		return err
 	}
+	return decodeStrict(b, (*[]skipRule)(rs))
+}
+
+// MarshalJSON keeps one rule an object, so older clients still read it.
+func (rs skipRules) MarshalJSON() ([]byte, error) {
+	if len(rs) == 1 {
+		return json.Marshal(rs[0])
+	}
+	return json.Marshal([]skipRule(rs))
+}
+
+// skipped reports whether any rule applies to the canonical answers so far.
+func (rs skipRules) skipped(answers map[string]any) bool {
+	return slices.ContainsFunc(rs, func(r skipRule) bool { return r.skipped(answers) })
+}
+
+// matched returns the question of the first rule that applies, for errors.
+func (rs skipRules) matched(answers map[string]any) string {
+	for _, r := range rs {
+		if r.skipped(answers) {
+			return r.Question
+		}
+	}
+	return ""
+}
+
+func (r skipRule) skipped(answers map[string]any) bool {
 	switch v := answers[r.Question].(type) {
 	case string:
 		return v == r.Answer
@@ -183,6 +216,9 @@ func loadSurveys(raw []byte) ([]survey, error) {
 }
 
 func decodeStrict(raw []byte, v any) error {
+	if err := rejectDuplicateKeys(raw); err != nil {
+		return err
+	}
 	dec := json.NewDecoder(bytes.NewReader(raw))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(v); err != nil {
@@ -192,6 +228,46 @@ func decodeStrict(raw []byte, v any) error {
 		return errors.New("trailing data")
 	}
 	return nil
+}
+
+// rejectDuplicateKeys refuses an object that names a key twice at any depth,
+// ignoring case as encoding/json does. encoding/json merges the two values
+// and jq keeps the last, so check-frozen-surveys.sh and the server would
+// read different definitions.
+func rejectDuplicateKeys(raw []byte) error {
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	var walk func() error
+	walk = func() error {
+		tok, err := dec.Token()
+		if err != nil {
+			return err
+		}
+		if tok != json.Delim('{') && tok != json.Delim('[') {
+			return nil
+		}
+		var seen []string
+		for dec.More() {
+			if tok == json.Delim('{') {
+				k, kerr := dec.Token()
+				if kerr != nil {
+					return kerr
+				}
+				key, _ := k.(string)
+				for _, s := range seen {
+					if strings.EqualFold(s, key) {
+						return fmt.Errorf("duplicate key %q", key)
+					}
+				}
+				seen = append(seen, key)
+			}
+			if werr := walk(); werr != nil {
+				return werr
+			}
+		}
+		_, err = dec.Token()
+		return err
+	}
+	return walk()
 }
 
 // atEOF reports whether nothing but whitespace follows the value dec read.
@@ -239,10 +315,11 @@ func validateSurveys(surveys []survey) error {
 				(q.Other == "" || q.Type == "choice" || q.Type == "multi") &&
 				(q.Unsure == "" || q.Type == "scale" || q.Type == "matrix") && !numeric(q.Unsure) &&
 				(q.Exclusive == "" || q.Type == "multi" && slices.Contains(q.Options, q.Exclusive))
-			if q.SkipIf != nil {
-				j := slices.IndexFunc(s.Questions[:i], func(p question) bool { return p.ID == q.SkipIf.Question })
+			ok = ok && (q.SkipIf == nil || len(q.SkipIf) > 0)
+			for _, r := range q.SkipIf {
+				j := slices.IndexFunc(s.Questions[:i], func(p question) bool { return p.ID == r.Question })
 				ok = ok && j >= 0 && (s.Questions[j].Type == "choice" || s.Questions[j].Type == "multi") &&
-					slices.Contains(s.Questions[j].Options, q.SkipIf.Answer)
+					slices.Contains(s.Questions[j].Options, r.Answer)
 			}
 			qseen[q.ID] = true
 			switch q.Type {
@@ -417,7 +494,7 @@ func validateAnswers(s survey, raw map[string]json.RawMessage) (map[string]any, 
 		hasOther = hasOther && q.Other != "" && string(other) != "null"
 		if q.SkipIf.skipped(out) {
 			if (ok && string(v) != "null") || hasOther {
-				return nil, fmt.Errorf("question %q is skipped for this answer to %q", q.ID, q.SkipIf.Question)
+				return nil, fmt.Errorf("question %q is skipped for this answer to %q", q.ID, q.SkipIf.matched(out))
 			}
 			continue
 		}
@@ -584,12 +661,22 @@ type surveyAPI struct {
 	answers func(ctx context.Context, surveyID string) ([]storedAnswer, error)
 	// final reads a closed survey's aggregates; nil, nil when it has none.
 	final func(ctx context.Context, surveyID string) (*surveyTally, error)
+	// finalCompare reads what compare needs from a closed survey's
+	// aggregates (surveyStore.finalCompare); nil, nil when it has none.
+	finalCompare func(ctx context.Context, surveyID string) (*waveTally, error)
 	// hidden and hide read and add free texts hidden by an admin
 	// (surveyStore.hidden, surveyStore.hide). Nil without storage.
 	hidden func(ctx context.Context, surveyID string) (map[string]bool, error)
 	hide   func(ctx context.Context, surveyID, field, hash string) error
 	// textKey keys the free-text tokens (freetext.go); random per process.
 	textKey []byte
+	// codebooks by series (codebook.go). codes, saveCodes and finalCoding
+	// read and write free-text codes and their stored counts
+	// (surveyStore.codes, saveCodes, finalCoding). Nil without storage.
+	codebooks   map[string]codebook
+	codes       func(ctx context.Context, surveyID string, version int) (map[string]*textCodes, error)
+	saveCodes   func(ctx context.Context, surveyID, field, hash, coder string, version int, codes []code, by string) error
+	finalCoding func(ctx context.Context, surveyID string, version int) (map[string]fieldTally, error)
 }
 
 // open: active, inside its window and with a key. A survey without a key

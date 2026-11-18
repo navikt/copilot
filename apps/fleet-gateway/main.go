@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -242,11 +243,12 @@ func (g *Gateway) loggingMiddleware(next http.Handler) http.Handler {
 		if r.URL.Path == "/health" || r.URL.Path == "/ready" {
 			return
 		}
+		observeHTTPRequest(wrapped.statusCode, wrapped.reason)
 		// Never log query strings, headers, tokens, codes, or verifiers.
 		slog.Info("request completed",
 			"method", sanitizeLogValue(r.Method),
 			"path", sanitizeLogValue(r.URL.Path),
-			"status", wrapped.statusCode,
+			"status", sanitizeLogValue(strconv.Itoa(wrapped.statusCode)),
 			"duration_ms", g.now().Sub(start).Milliseconds(),
 		)
 	})
@@ -289,6 +291,7 @@ func mcpWriteTimeout(read, token, upstream, margin time.Duration) time.Duration 
 type statusResponseWriter struct {
 	http.ResponseWriter
 	statusCode int
+	reason     string // set by markShed; labels deliberate 5xx in metrics
 }
 
 func (w *statusResponseWriter) WriteHeader(code int) {
@@ -489,6 +492,7 @@ func main() {
 		ReadTimeout:       serverReadTimeout,
 		WriteTimeout:      mcpWriteTimeout(serverReadTimeout, defaultOutboundTimeout, cfg.ProxyHeaderTimeout, 5*time.Second),
 		IdleTimeout:       60 * time.Second,
+		MaxHeaderBytes:    maxRequestHeaderBytes,
 	}
 
 	slog.Info("Starting fleet-gateway",
@@ -502,6 +506,15 @@ func main() {
 		"rt_storage", cfg.RTStorage,
 	)
 
+	routesLoaded.Set(float64(len(cfg.Routes)))
+	initMetrics(cfg.Routes)
+	metrics := metricsServer(":" + getEnv("METRICS_PORT", "9090"))
+	go func() {
+		if err := metrics.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			slog.Error("Metrics server failed", "error", err)
+		}
+	}()
+
 	go func() {
 		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			slog.Error("Server failed", "error", err)
@@ -514,6 +527,7 @@ func main() {
 
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
+	_ = metrics.Shutdown(shutdownCtx)
 	if err := server.Shutdown(shutdownCtx); err != nil {
 		slog.Error("Server shutdown failed", "error", err)
 	}

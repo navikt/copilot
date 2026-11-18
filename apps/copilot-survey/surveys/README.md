@@ -74,13 +74,21 @@ level: answers are not linked to a person across waves (see
   people answer it. Same `id` and
   `version` in two waves means the results compare; a higher `version` means
   they do not, and the pull request says why.
-- Once a survey has opened (`active` and `starts` reached), its `id` and
-  `questions` are frozen; CI (`check-frozen-surveys.sh`) refuses a change.
-  A version bump does not help mid-wave: an answer is stored with the
-  server's versions, not the ones the respondent saw, and nav-pilot caches
-  definitions for up to a day. A change waits for the next wave. Every other
-  field (`title`, `intro`, `nudge`, `series`, `min_cli_version`, `active`,
-  `starts`, `ends`) may still change.
+- Once a survey has started (`starts` reached, `active` or not), its `id`,
+  `questions`, `starts` and `environments` are frozen; CI
+  (`check-frozen-surveys.sh`) refuses a change. A version bump does not help
+  mid-wave: an answer is stored with the server's versions, not the ones the
+  respondent saw, and nav-pilot caches definitions for up to a day. A change
+  waits for the next wave. `active` does not count and `starts` and
+  `environments` are frozen, so a pull request that sets `active: false`,
+  moves `starts` later or makes the survey dev-only cannot open the way for
+  the next to change the questions. Every other field (`title`, `intro`,
+  `nudge`, `series`, `min_cli_version`, `active`, `ends`) may still change.
+  A dev-only test survey (`environments` without `prod-gcp`, such as
+  `dev-e2e-test`) is not frozen.
+- A definition may not repeat a key, also not one that differs only in
+  case: jq keeps the last, Go merges them, so the check and the server would
+  read different definitions. The server and CI refuse it.
 - A question that is dropped is simply absent; its `id` is never reused for
   something else.
 - `construct` names what a question measures (for analysis) and `reverse`
@@ -161,6 +169,10 @@ warns at start while the key is still in the secret.
   it is the answer most likely to name its author.
 - `skip_if`: skip this question when an earlier `choice` answer is, or
   `multi` answer includes, `answer`. On a `matrix` it skips every item.
+  A list of rules skips when any matches; nav-pilot reads lists from
+  2026.11.18, so a survey with one sets `min_cli_version` at least that.
+  In a comparison, a rule on a question an earlier wave did not ask drops
+  nobody from that wave.
 - `required`: must be answered unless skipped. With `skip_if`, a required
   question is required for those who are asked it and left out for the rest.
 - `environments`: NAIS clusters that load the survey (`dev-gcp`, `prod-gcp`).
@@ -184,6 +196,26 @@ anything that identifies anyone; and both go through a redaction pass before
 analysis and are never quoted next to their segment values. A survey keeps to
 one `text` question and at most three `other` options, each capped at 200
 characters: they say what the listed options missed, not how someone feels.
+
+### Codebooks
+
+Free text is coded with a codebook per series, [`codebooks/<series>.json`](codebooks/)
+([schema](codebooks/schema.json), checked by `TestCodebooksMatchSchema`). Each
+field codes with its own subset of one category pool. A code is a category
+plus `onske` (a wish, or an experience), so wishes and experiences are counted
+apart. The version is locked before coding; waves compare only when coded with
+the same version, so q2-2026 and q4-2026 are coded with the same one.
+
+- Coders: a model through Copilot on masked text, and one person, the survey
+  owner. The person belongs to the team that builds the tools, so the human
+  coder is not neutral; kappa is published with that role named.
+- A category is published for a wave only when Cohen's kappa between the two
+  coders is at least 0.6. Below that it is published together with its
+  `merge_with` partner, if the partner is coded in the same field and the pair
+  reaches 0.6; otherwise it is hidden. Counts under 5 show as «<5», and so do
+  the percentages and CSV cells derived from them. No quotes.
+- Examples in a codebook are synthetic, never a quote from an answer.
+- Storage, coding and counts: [Free-text coding](../README.md#free-text-coding).
 
 ## End-to-end test in dev
 

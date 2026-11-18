@@ -3,6 +3,8 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -43,6 +45,11 @@ const (
 	mcpParamHeaderPrefix   = "Mcp-Param-"
 	maxMCPParamHeaders     = 32
 	maxMCPParamHeaderBytes = 4096 // name + value
+	// Mcp-Name carries a tool name, resource URI or prompt name; Mcp-Method a method.
+	maxMCPNameHeaderBytes = 1024
+	// MaxHeaderBytes covers every Mcp-Param-* at its cap (128 KiB), a bearer token
+	// and the other headers with room to spare; Go's default is 1 MiB.
+	maxRequestHeaderBytes = 192 << 10
 )
 
 var allowedUpstreamResponseHeaders = map[string]bool{
@@ -101,20 +108,59 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 		toolName := ""
 		decision := ""
 		decisionReason := ""
+		headerMismatch := false
+		scanIncomplete := false
 
+		requestID := rand.Text()
+
+		// One OpenID AuthZEN-shaped record per decision (owner decision 2026-11-18, #2342).
+		// decision is true only when the gateway's own checks let the request through;
+		// context.outcome tells what happened after that.
 		defer func() {
-			slog.Info("audit mcp",
-				"navident", sanitizeLogValue(navIdent),
-				"client_id", sanitizeLogValue(clientID),
-				"route", route.Route,
-				"http_method", sanitizeLogValue(r.Method),
-				"method", sanitizeLogValue(rpcMethod),
-				"tool", sanitizeLogValue(toolName),
-				"decision", decision,
-				"decision_reason", decisionReason,
-				"outcome", outcome,
-				"duration_ms", g.now().Sub(start).Milliseconds(),
-			)
+			observeMCPRequest(route.Route, outcome, decision, g.now().Sub(start))
+			reason := decisionReason
+			if decision != "allow" && (decision == "" || reason == "") {
+				reason = outcome
+			}
+			var attrs []any
+			// AuthZEN 1.0 §5.1 makes subject.id REQUIRED, so an unauthenticated
+			// request has no subject rather than one with an empty id.
+			if navIdent != "" {
+				attrs = append(attrs, slog.Group("subject",
+					"type", "user",
+					"id", sanitizeLogValue(navIdent),
+					slog.Group("properties", "client_id", sanitizeLogValue(clientID)),
+				))
+			}
+			slog.Info("audit mcp", append(attrs,
+				slog.Group("action",
+					"name", sanitizeLogValue(rpcMethod),
+					slog.Group("properties", "tool", sanitizeLogValue(toolName)),
+				),
+				slog.Group("resource",
+					"type", "mcp_route",
+					"id", strings.TrimPrefix(route.Route, "/mcp/"),
+					slog.Group("properties", "backend", route.Target),
+				),
+				slog.Group("context",
+					"request_id", requestID,
+					"http_method", sanitizeLogValue(r.Method),
+					"scan_incomplete", scanIncomplete,
+					"header_mismatch", headerMismatch,
+					"protocol_version", sanitizeLogValue(auditProtocolVersion(r.Header.Get("Mcp-Protocol-Version"))),
+					slog.Group("mcp_headers",
+						"method", r.Header.Get("Mcp-Method") != "",
+						"name", r.Header.Get("Mcp-Name") != "",
+					),
+					"outcome", outcome,
+					"duration_ms", g.now().Sub(start).Milliseconds(),
+				),
+				// AuthZEN 1.0 §5.5: decision boolean plus optional context.
+				slog.Group("decision",
+					"decision", decision == "allow",
+					slog.Group("context", "reason", reason),
+				),
+			)...)
 		}()
 
 		switch r.Method {
@@ -131,6 +177,7 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 
 		if g.cfg.GatewayDisabled || route.isDisabled() {
 			outcome = "disabled"
+			markShed(w, "disabled")
 			slog.Warn("route disabled by kill switch", "route", route.Route, "global", g.cfg.GatewayDisabled)
 			w.Header().Set("Retry-After", "300")
 			writeJSON(w, http.StatusServiceUnavailable, map[string]string{
@@ -261,11 +308,11 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 			return
 		}
 
-		if !mcpParamHeadersWithinLimits(r.Header) {
+		if !mcpHeadersValid(r.Header) {
 			outcome = "bad_request"
 			writeJSON(w, http.StatusBadRequest, map[string]string{
 				"error":   "invalid_request",
-				"message": "too many or too large Mcp-Param-* headers",
+				"message": "too many, too large, duplicate or non-ASCII Mcp-* headers",
 			})
 			return
 		}
@@ -286,7 +333,9 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 			return
 		}
 		if r.Method == http.MethodPost {
-			rpcMethod, toolName = extractJSONRPCAudit(reqBody)
+			audit := scanJSONRPCAudit(reqBody)
+			rpcMethod, toolName, scanIncomplete = audit.method, audit.tool, audit.incomplete
+			headerMismatch = mcpHeadersMismatch(r.Header, audit)
 			if route.allowedTools != nil {
 				allow, reason := toolPolicyDecision(reqBody, route.allowedTools)
 				decisionReason = reason
@@ -689,15 +738,33 @@ func isMCPParamHeader(name string) bool {
 	return len(ck) > len(mcpParamHeaderPrefix) && strings.HasPrefix(ck, mcpParamHeaderPrefix)
 }
 
-func mcpParamHeadersWithinLimits(h http.Header) bool {
+// mcpHeadersValid caps Mcp-Param-*, Mcp-Name and Mcp-Method, rejects a repeated
+// Mcp-Name or Mcp-Method, and rejects obs-text (0x80-0xFF) in any Mcp-* value:
+// the spec requires ASCII, and upstreams that ignore these headers never check.
+func mcpHeadersValid(h http.Header) bool {
 	n := 0
 	for k, vals := range h {
-		if !isMCPParamHeader(k) {
+		ck := textproto.CanonicalMIMEHeaderKey(k)
+		if !strings.HasPrefix(ck, "Mcp-") {
 			continue
 		}
 		for _, v := range vals {
-			n++
-			if n > maxMCPParamHeaders || len(k)+len(v) > maxMCPParamHeaderBytes {
+			for i := 0; i < len(v); i++ {
+				if v[i] >= 0x80 {
+					return false
+				}
+			}
+		}
+		switch {
+		case isMCPParamHeader(ck):
+			for _, v := range vals {
+				n++
+				if n > maxMCPParamHeaders || len(ck)+len(v) > maxMCPParamHeaderBytes {
+					return false
+				}
+			}
+		case ck == "Mcp-Name" || ck == "Mcp-Method":
+			if len(vals) > 1 || len(vals[0]) > maxMCPNameHeaderBytes {
 				return false
 			}
 		}
@@ -705,8 +772,35 @@ func mcpParamHeadersWithinLimits(h http.Header) bool {
 	return true
 }
 
+// mcpHeadersMismatch reports whether Mcp-Method or Mcp-Name disagrees with the
+// audited body. The body is the truth; the headers only feed this audit field.
+// Mcp-Name is compared for tools/call only, where the audit has the tool name.
+// Headers are compared with the raw body values, never the quoted audit form.
+func mcpHeadersMismatch(h http.Header, a rpcAudit) bool {
+	if m := h.Get("Mcp-Method"); m != "" && decodeMCPHeaderValue(m) != a.rawMethod {
+		return true
+	}
+	name := h.Get("Mcp-Name")
+	if name == "" || a.rawMethod != "tools/call" || a.incomplete {
+		return false
+	}
+	return decodeMCPHeaderValue(name) != a.rawTool
+}
+
+// decodeMCPHeaderValue undoes the spec's =?base64?...?= wrapping for non-ASCII values.
+func decodeMCPHeaderValue(v string) string {
+	if inner, ok := strings.CutPrefix(v, "=?base64?"); ok {
+		if inner, ok = strings.CutSuffix(inner, "?="); ok {
+			if b, err := base64.StdEncoding.DecodeString(inner); err == nil {
+				return string(b)
+			}
+		}
+	}
+	return v
+}
+
 // copyMCPParamHeaders forwards Mcp-Param-* unchanged, as the spec requires of intermediaries.
-// Callers must check mcpParamHeadersWithinLimits first.
+// Callers must check mcpHeadersValid first.
 func copyMCPParamHeaders(dst, src http.Header) {
 	connTokens := connectionHeaderTokens(src)
 	for k, vals := range src {
@@ -754,11 +848,28 @@ func isEventStream(contentType string) bool {
 	return err == nil && strings.EqualFold(mediaType, "text/event-stream")
 }
 
-// auditIncomplete marks an audit line whose scan stopped before the end of the
-// body, so a name the upstream reads past that point is never logged as absent.
+// auditIncomplete is the display marker for a scan that stopped before the end
+// of the body, so a name the upstream reads past that point is never logged as
+// absent. Code reads rpcAudit.incomplete, never this string: a tool may be
+// named "...incomplete".
 const auditIncomplete = "...incomplete"
 
-// extractJSONRPCAudit returns the JSON-RPC method and, for tools/call, the tool
+// rpcAudit is what the audit line records about a JSON-RPC body. method and
+// tool are display values (quoted by auditField); rawMethod and rawTool are the
+// decoded body values, for comparison with Mcp-Method and Mcp-Name.
+type rpcAudit struct {
+	method, tool       string
+	rawMethod, rawTool string
+	incomplete         bool
+}
+
+// extractJSONRPCAudit returns the display method and tool of scanJSONRPCAudit.
+func extractJSONRPCAudit(body []byte) (method, tool string) {
+	a := scanJSONRPCAudit(body)
+	return a.method, a.tool
+}
+
+// scanJSONRPCAudit returns the JSON-RPC method and, for tools/call, the tool
 // name. Arguments are never decoded into anything that is logged. A batch is
 // logged as method "batch" with the names of up to maxAuditBatchTools
 // tools/call entries as a JSON array, so a name cannot forge extra entries. The
@@ -771,27 +882,29 @@ const auditIncomplete = "...incomplete"
 // decoder walks the whole body and keeps only method and params, never a slice
 // of members or a map of keys: a 1 MiB body of {} members or of 50k keys
 // otherwise cost tens of MiB, near the pod's 64 MiB limit.
-func extractJSONRPCAudit(body []byte) (method, tool string) {
+func scanJSONRPCAudit(body []byte) rpcAudit {
+	incomplete := rpcAudit{tool: auditIncomplete, incomplete: true}
 	dec := json.NewDecoder(bytes.NewReader(body))
 	tok, err := dec.Token()
 	if err != nil {
 		// A body the scan cannot start on (a UTF-8 BOM, say, which some upstream
 		// parsers accept) must not log as if it carried no call.
 		if len(body) > 0 {
-			return "", auditIncomplete
+			return incomplete
 		}
-		return "", ""
+		return rpcAudit{}
 	}
 	switch tok {
 	case json.Delim('{'):
 		m, params, ok := auditScanObject(dec)
 		if !ok || !auditAtEOF(dec) {
-			return "", auditIncomplete
+			return incomplete
 		}
 		return auditMethodTool(m, params)
 	case json.Delim('['):
 		var tools []string
 		complete := true
+		batchIncomplete := false
 		for complete && dec.More() {
 			tok, err := dec.Token()
 			if err != nil {
@@ -807,27 +920,31 @@ func extractJSONRPCAudit(body []byte) (method, tool string) {
 				complete = false
 				break
 			}
-			if m, name := auditMethodTool(m, params); m == "tools/call" {
-				if len(tools) == maxAuditBatchTools {
+			if a := auditMethodTool(m, params); a.rawMethod == "tools/call" || a.incomplete {
+				name := a.tool
+				batchIncomplete = batchIncomplete || a.incomplete
+				// The cap limits only the logged list; the scan reads every member.
+				switch {
+				case len(tools) < maxAuditBatchTools:
+					tools = append(tools, name)
+				case len(tools) == maxAuditBatchTools:
 					tools = append(tools, "...")
-					break
 				}
-				tools = append(tools, name)
 			}
 		}
-		if len(tools) <= maxAuditBatchTools {
-			// More() is also false on a syntax error, so require the closing ']'.
-			if tok, err := dec.Token(); !complete || err != nil || tok != json.Delim(']') || !auditAtEOF(dec) {
-				tools = append(tools, auditIncomplete)
-			}
+		batch := rpcAudit{method: "batch", rawMethod: "batch", incomplete: batchIncomplete}
+		// More() is also false on a syntax error, so require the closing ']'.
+		if tok, err := dec.Token(); !complete || err != nil || tok != json.Delim(']') || !auditAtEOF(dec) {
+			tools = append(tools, auditIncomplete)
+			batch.incomplete = true
 		}
-		if len(tools) == 0 {
-			return "batch", ""
+		if len(tools) > 0 {
+			list, _ := json.Marshal(tools)
+			batch.tool = string(list)
 		}
-		list, _ := json.Marshal(tools)
-		return "batch", string(list)
+		return batch
 	}
-	return "", ""
+	return rpcAudit{}
 }
 
 // auditAtEOF reports whether only whitespace follows the top-level value.
@@ -850,12 +967,32 @@ func auditKeyAmbiguous(key json.Token, want string, seen *bool) bool {
 
 // auditMethodTool decodes the raw method and, for tools/call, params.name. A
 // field of the wrong type is left empty without dropping the other.
-func auditMethodTool(rawMethod, params json.RawMessage) (method, tool string) {
+func auditMethodTool(rawMethod, params json.RawMessage) rpcAudit {
 	method, tool, ambiguous := rpcMethodTool(rawMethod, params)
 	if ambiguous {
-		return sanitizeAuditMethod(method), auditIncomplete
+		return rpcAudit{method: auditField(method), tool: auditIncomplete, rawMethod: method, incomplete: true}
 	}
-	return sanitizeAuditMethod(method), sanitizeAuditMethod(tool)
+	return rpcAudit{method: auditField(method), tool: auditField(tool), rawMethod: method, rawTool: tool}
+}
+
+// auditField returns s as is when it is short visible ASCII without a quote or
+// backslash, which every MCP method and tool name is. A quote or backslash is
+// quoted too, or a literal name could read like the quoted form of another. Anything else (spaces, NUL, U+200B, U+FEFF, U+00A0)
+// is logged Go-quoted and ASCII-escaped, so "whoami " can never read as the
+// listed tool whoami and an invisible character never hides in the audit line.
+func auditField(s string) string {
+	visible := len(s) <= maxAuditMethodLen
+	for i := 0; visible && i < len(s); i++ {
+		visible = s[i] > 0x20 && s[i] < 0x7f && s[i] != '"' && s[i] != '\\'
+	}
+	if visible {
+		return s
+	}
+	trunc := ""
+	if r := []rune(s); len(r) > maxAuditMethodLen {
+		s, trunc = string(r[:maxAuditMethodLen]), "..."
+	}
+	return strconv.QuoteToASCII(s) + trunc
 }
 
 // rpcMethodTool returns the unsanitized method and, for tools/call, the
@@ -1049,4 +1186,13 @@ func sanitizeAuditMethod(method string) string {
 		b.WriteRune(r)
 	}
 	return b.String()
+}
+
+// auditProtocolVersion caps MCP-Protocol-Version at 32 bytes and quotes it like
+// other audit values; it records which revision clients send before enforcing one.
+func auditProtocolVersion(v string) string {
+	if len(v) > 32 {
+		v = v[:32]
+	}
+	return auditField(v)
 }
