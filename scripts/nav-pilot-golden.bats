@@ -411,6 +411,14 @@ case "$p" in
       printf '%s\n' "🔴 Rød sone: avrundingen er skrevet, beregningen skriver du selv." "**Sjekkliste for rød sone**" "- [ ] avrundingen ved 50 øre"
       exit 0
     fi
+    # leaky: also writes a secret, a path with a space, a symlinked file and a
+    # symlinked directory, both pointing at $LEAK_DIR outside the workspace.
+    if [[ "$BENCH_MODE" == leaky ]]; then
+      printf 'TOKEN=hemmelig-verdi\n' >.env
+      printf 'MELLOMROM_OK\n' >"src/Med mellomrom.kt"
+      rm README.md && ln -s "$LEAK_DIR/utenfor.txt" README.md
+      rm -rf src/main/kotlin/no/nav/demo && ln -s "$LEAK_DIR/demo" src/main/kotlin/no/nav/demo
+    fi
     over=false; [[ "$p" == *"Implementer rød sone"* ]] && over=true
     impl=false
     case "$BENCH_MODE" in
@@ -786,6 +794,21 @@ run_suite() {
   run_suite good --agent nav-pilot --only 9
   [ "$status" -eq 0 ]
   grep -q '^=== ./src/main/' "$SHIM/transkripter/b.t9.run1.files.txt"
+}
+
+@test "saved written files: no secret, symlink or outside path is copied, and a space keeps its content" {
+  export LEAK_DIR="$SHIM/leak"
+  mkdir -p "$LEAK_DIR/demo"
+  echo UTENFOR_FIL >"$LEAK_DIR/utenfor.txt"
+  echo UTENFOR_DIR >"$LEAK_DIR/demo/Config.kt"
+  run_suite leaky --agent nav-pilot --only 9
+  f="$SHIM/transkripter/b.t9.run1.files.txt"
+  grep -q '^MELLOMROM_OK$' "$f"
+  run grep -E 'hemmelig-verdi|UTENFOR' "$f"
+  [ "$status" -eq 1 ]
+  grep -qx '=== ./.env (skipped: may hold a secret)' "$f"
+  grep -qx '=== ./README.md (skipped: symlink)' "$f"
+  grep -qx '=== ./src/main/kotlin/no/nav/demo/Config.kt (skipped: outside the workspace)' "$f"
 }
 
 @test "coding: a fix passes, editing the test fails scope, doing nothing fails tests" {

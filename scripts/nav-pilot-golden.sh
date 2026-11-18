@@ -1505,11 +1505,23 @@ ws_written_files() {
 }
 # ws_save_written: the files the last call wrote, as text, to keep beside its
 # transcript. 9/9c/9d judge that code, and seed_ws wipes $WS before the next
-# prompt, so without this a red row cannot be read back (#2396).
+# prompt, so without this a red row cannot be read back (#2396). The copy ends
+# up in docs/, so a likely secret, a symlink and anything that resolves outside
+# $WS are named, never copied. Paths come from the fingerprint whole, spaces
+# and all: `cksum` prints checksum, size, path.
 ws_save_written() {
-  local f
-  for f in $(ws_written_files); do
-    if [[ -f "$WS/$f" ]]; then printf '=== %s\n' "$f"; cat "$WS/$f"; echo; else printf '=== %s (deleted)\n' "$f"; fi
+  local f real root
+  root="$(cd "$WS" && pwd -P)"
+  diff "$FP_BEFORE" "$FP_AFTER" | sed -nE 's/^[<>] [0-9]+ [0-9]+ //p' | sort -u | while IFS= read -r f; do
+    case "${f##*/}" in
+      .env* | *.pem | *.key | id_* | .npmrc | credentials*)
+        printf '=== %s (skipped: may hold a secret)\n' "$f"; continue ;;
+    esac
+    if [[ -L "$WS/$f" ]]; then printf '=== %s (skipped: symlink)\n' "$f"; continue; fi
+    if [[ ! -e "$WS/$f" ]]; then printf '=== %s (deleted)\n' "$f"; continue; fi
+    real="$(cd "$(dirname "$WS/$f")" 2>/dev/null && pwd -P)/${f##*/}"
+    if [[ "$real" != "$root"/* || ! -f "$real" ]]; then printf '=== %s (skipped: outside the workspace)\n' "$f"; continue; fi
+    printf '=== %s\n' "$f"; cat "$real"; echo
   done
 }
 
