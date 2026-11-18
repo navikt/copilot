@@ -257,7 +257,14 @@ func TestExtractJSONRPCAudit_BatchNameCannotForgeEntries(t *testing.T) {
 // /memory/classes/heap/objects:bytes, which also counts garbage not yet
 // swept: in CI that made a transient 1 MiB decoder buffer read +8 MiB, and a
 // sampler that had not yet been scheduled read +0.0 MiB (#2366). The sampler
-// signals before f starts, and a last read after f catches the final cycle.
+// signals before f starts, and a GC plus a last read after f catches what f
+// still holds when it returns.
+//
+// Scope: this measures retained live heap, not every transient allocation.
+// /gc/heap/live:bytes moves only when a mark cycle completes, so one large
+// buffer that f allocates and drops between cycles can read +0.0 MiB (seen
+// for a filled 16 MiB slice at -cpu 1). The bound it guards is what the scan
+// keeps reachable; the retained-buffer control below proves it sees that.
 //
 // Objects allocated while a GC is marking count as live for that cycle, so a
 // busy machine can still add floating garbage to one run. That error only
@@ -301,6 +308,7 @@ func peakLiveHeapOnce(f func()) uint64 {
 	f()
 	close(done)
 	<-stopped
+	runtime.GC()
 	bump()
 	if p := peak.Load(); p > base {
 		return p - base
@@ -343,6 +351,18 @@ func TestExtractJSONRPCAudit_BoundedHeap(t *testing.T) {
 	if naive := peakLiveHeap(func() { var v []json.RawMessage; _ = json.Unmarshal(body, &v) }); naive <= 8<<20 {
 		t.Errorf("control: naive Unmarshal peak live heap +%.1f MiB, want > 8 MiB; peakLiveHeap cannot detect the old behaviour", float64(naive)/(1<<20))
 	}
+	// Control: one 16 MiB buffer that is still reachable when f returns must
+	// read over 8 MiB, so a single large retained allocation is not missed.
+	var kept []byte
+	if big := peakLiveHeap(func() {
+		kept = make([]byte, 16<<20)
+		for i := range kept {
+			kept[i] = 1
+		}
+	}); big <= 8<<20 {
+		t.Errorf("control: retained 16 MiB buffer read +%.1f MiB, want > 8 MiB", float64(big)/(1<<20))
+	}
+	runtime.KeepAlive(kept)
 }
 
 func TestExtractJSONRPCAudit_IncompleteScanIsMarked(t *testing.T) {
