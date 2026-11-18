@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { notFound } from "next/navigation";
-import { Alert, BodyShort, Box, Link, VStack } from "@navikt/ds-react";
+import { Alert, BodyShort, Box, HStack, Link, VStack } from "@navikt/ds-react";
 import { PageHero } from "@/components/page-hero";
 import ErrorState from "@/components/error-state";
 import { SectionSkeleton } from "@/components/section-skeleton";
@@ -38,7 +38,10 @@ export default async function SurveyFreetextPage({ params }: { params: Promise<{
           paddingInline={{ xs: "space-16", sm: "space-20", md: "space-32", lg: "space-40" }}
         >
           <VStack gap="space-24">
-            <Link href={`/admin/undersokelser/${id}`}>Tilbake til resultatene</Link>
+            <HStack gap="space-24">
+              <Link href={`/admin/undersokelser/${id}`}>Tilbake til resultatene</Link>
+              <Link href={`/admin/undersokelser/${id}/fritekst/koding`}>Kod fritekstsvarene</Link>
+            </HStack>
             <Alert variant="warning" size="small">
               E-postadresser, telefonnumre, fødselsnumre, IP-adresser, brukernavn og lenker er maskert. Navn er ikke
               maskert. Skjul svar som kan peke ut en person.
