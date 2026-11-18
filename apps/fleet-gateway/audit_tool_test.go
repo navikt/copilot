@@ -246,7 +246,7 @@ func TestExtractJSONRPCAudit_BatchEscapedMethod(t *testing.T) {
 func TestExtractJSONRPCAudit_BatchNameCannotForgeEntries(t *testing.T) {
 	_, tool := extractJSONRPCAudit([]byte(`[{"method":"tools/call","params":{"name":"a\",\"b"}}]`))
 	var names []string
-	if err := json.Unmarshal([]byte(tool), &names); err != nil || len(names) != 1 || names[0] != `a","b` {
+	if err := json.Unmarshal([]byte(tool), &names); err != nil || len(names) != 1 || names[0] != `"a\",\"b"` {
 		t.Fatalf("got %q", tool)
 	}
 }
@@ -396,5 +396,54 @@ func TestAuditMCP_AuthZENShape(t *testing.T) {
 		`"subject":{"id":"Z123456","properties":{"client_id":"` + fmt.Sprint(audit["client_id"]) + `"},"type":"user"}}`
 	if audit["client_id"] == "" || string(got) != want {
 		t.Errorf("audit record\n got %s\nwant %s", got, want)
+	}
+}
+
+func TestMCPHeadersMismatch_ComparesRawValues(t *testing.T) {
+	long := strings.Repeat("a", 70)
+	call := func(name string) string {
+		return `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":` + name + `}}`
+	}
+	for _, tc := range []struct {
+		body, name string
+		want       bool
+	}{
+		{call(`"søk"`), "=?base64?c8O4aw==?=", false},
+		{call(`"` + long + `"`), long, false},
+		{call(`"` + long + `"`), long + "b", true},
+		{call(`"whoami\u0000"`), `"whoami\x00"`, true},
+		{call(`"whoami "`), `"whoami "`, true},
+		{call(`"...incomplete"`), "other", true},
+		{call(`"...incomplete"`), "...incomplete", false},
+	} {
+		a := scanJSONRPCAudit([]byte(tc.body))
+		h := http.Header{"Mcp-Method": {"tools/call"}, "Mcp-Name": {tc.name}}
+		if got := mcpHeadersMismatch(h, a); got != tc.want {
+			t.Errorf("%s vs %q: mismatch %v, want %v", tc.body, tc.name, got, tc.want)
+		}
+	}
+}
+
+func TestScanJSONRPCAudit_IncompleteIsNotAToolName(t *testing.T) {
+	if a := scanJSONRPCAudit([]byte(`{"method":"tools/call","params":{"name":"...incomplete"}}`)); a.incomplete {
+		t.Fatalf("tool named ...incomplete set incomplete: %+v", a)
+	}
+	if a := scanJSONRPCAudit([]byte(`[{"method":"tools/call","params":{"name":"...incomplete"}}]`)); a.incomplete {
+		t.Fatalf("batch tool named ...incomplete set incomplete: %+v", a)
+	}
+	for _, body := range []string{`{"method":"ping"}x`, `[{"method":"tools/call","params":{"name":"a","name":"b"}}]`, "\ufeff{}"} {
+		if a := scanJSONRPCAudit([]byte(body)); !a.incomplete {
+			t.Errorf("%q: want incomplete, got %+v", body, a)
+		}
+	}
+}
+
+func TestAuditField_QuotesQuoteAndBackslash(t *testing.T) {
+	literal, nul := auditField(`"whoami\x00"`), auditField("whoami\x00")
+	if literal == nul {
+		t.Fatalf("literal and NUL names both log as %s", nul)
+	}
+	if got := auditField(`a\b`); got != `"a\\b"` {
+		t.Errorf("backslash: got %s", got)
 	}
 }
