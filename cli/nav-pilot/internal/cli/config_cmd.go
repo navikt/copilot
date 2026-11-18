@@ -62,7 +62,7 @@ var configKeyDefs = []configKeyDef{
 	{
 		name:        "model",
 		kind:        keyKindString,
-		description: "Model id (e.g. auto, claude-opus-4.8, gpt-5.5). Format-validated; the catalog is checked downstream.",
+		description: "Model id (e.g. auto, claude-opus-5.5, gpt-6.1-sol). Format-validated; the catalog is checked downstream.",
 		allowed:     nil,
 		defaultVal:  "",
 		flag:        "--model",
@@ -361,11 +361,9 @@ client = "copilot"
 # Corresponds to nav-pilot flag: --source
 # source = "navikt/copilot"
 
-# Model id. Common Copilot models: auto, claude-opus-5.5, claude-sonnet-5,
-# claude-haiku-4.5, claude-opus-4.8, claude-opus-4.7,
-# gpt-6-sol, gpt-6-luna, gpt-5.6-terra, gpt-5.5, gpt-5.4, gpt-5.3-codex,
-# gpt-5.4-mini, gpt-5-mini, gemini-3.6-flash, gemini-3.5-flash,
-# kimi-k2.7-code, kimi-k3.
+# Model id. Common Copilot models: auto, claude-opus-5.5, claude-sonnet-5.5,
+# claude-haiku-5.5, gpt-6.1-sol, gpt-6-sol, gpt-6-luna, gpt-5.3-codex,
+# gemini-3.8-flash, mai-code-2-flash, kimi-k3.
 # For opencode (launched via cplt → GitHub Copilot provider): a bare Copilot id
 # is mapped to github-copilot/<id>, or set a full provider/model id directly.
 # Format-validated locally; the model catalog is checked by the downstream CLI.

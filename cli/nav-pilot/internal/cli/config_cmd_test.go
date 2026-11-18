@@ -37,8 +37,8 @@ func TestValidateOptionalModel_WhitespaceOnly(t *testing.T) {
 
 func TestValidateOptionalModel_ValidIDs(t *testing.T) {
 	for _, id := range []string{
-		"gpt-5.5",
-		"claude-opus-4.8",
+		"gpt-6-sol",
+		"claude-opus-5.5",
 		"auto",
 		"anthropic/claude-3-5-sonnet",
 		"gpt-5.3-codex",
@@ -246,7 +246,7 @@ func TestCmdConfigExplain_SingleKeyModel(t *testing.T) {
 	if explainErr != nil {
 		t.Fatalf("cmdConfigExplain(\"model\") returned error: %v", explainErr)
 	}
-	for _, want := range []string{"claude-opus-4.8", "gpt-5.5", "any well-formed id"} {
+	for _, want := range []string{"claude-opus-5.5", "gpt-6-sol", "any well-formed id"} {
 		if !strings.Contains(out, want) {
 			t.Errorf("expected %q in model explain output, got: %q", want, out)
 		}
@@ -386,22 +386,22 @@ func TestConfigHints_ProviderQualifiedModelTriggersHint(t *testing.T) {
 }
 
 func TestConfigHints_GithubCopilotPrefixTriggersHint(t *testing.T) {
-	m := "github-copilot/claude-sonnet-4.6"
+	m := "github-copilot/claude-sonnet-5.5"
 	cfg := &Config{Version: 1, Model: &m}
 	hints := configAdvice(cfg, false)
 	if len(hints) != 1 {
 		t.Fatalf("expected 1 hint for github-copilot/ prefixed model, got %d: %v", len(hints), hints)
 	}
-	if !strings.Contains(hints[0], "claude-sonnet-4.6") {
+	if !strings.Contains(hints[0], "claude-sonnet-5.5") {
 		t.Errorf("hint missing canonical short-id: %s", hints[0])
 	}
-	if !strings.Contains(hints[0], "github-copilot/claude-sonnet-4.6") {
+	if !strings.Contains(hints[0], "github-copilot/claude-sonnet-5.5") {
 		t.Errorf("hint missing original model: %s", hints[0])
 	}
 }
 
 func TestConfigHints_CanonicalShortIdNoHint(t *testing.T) {
-	for _, m := range []string{"claude-sonnet-4.6", "gpt-5.5", "auto", "gemini-3.5-flash"} {
+	for _, m := range []string{"claude-sonnet-5.5", "gpt-6-sol", "auto", "gemini-3.8-flash"} {
 		m := m
 		t.Run(m, func(t *testing.T) {
 			cfg := &Config{Version: 1, Model: &m}
@@ -472,10 +472,10 @@ func TestCmdConfig_NoArgsJSONAndPageFallback(t *testing.T) {
 // A commented-out key must not be rewritten while an active one exists: that
 // defines the key twice and leaves the config unparseable.
 func TestWriteConfigKey_PrefersActiveLineOverComment(t *testing.T) {
-	path := writeTempConfig(t, "version = 1\n# model = \"auto\"\nclient = \"copilot\"\nmodel = \"gpt-5.5\"\n")
+	path := writeTempConfig(t, "version = 1\n# model = \"auto\"\nclient = \"copilot\"\nmodel = \"gpt-6-sol\"\n")
 	t.Setenv("NAV_PILOT_CONFIG", path)
 
-	if _, err := writeConfigKey("model", "claude-opus-4.8"); err != nil {
+	if _, err := writeConfigKey("model", "claude-opus-5.5"); err != nil {
 		t.Fatalf("writeConfigKey: %v", err)
 	}
 
@@ -483,8 +483,8 @@ func TestWriteConfigKey_PrefersActiveLineOverComment(t *testing.T) {
 	if err != nil {
 		t.Fatalf("config no longer parses: %v", err)
 	}
-	if cfg.Model == nil || *cfg.Model != "claude-opus-4.8" {
-		t.Errorf("model = %v, want claude-opus-4.8", cfg.Model)
+	if cfg.Model == nil || *cfg.Model != "claude-opus-5.5" {
+		t.Errorf("model = %v, want claude-opus-5.5", cfg.Model)
 	}
 
 	data, err := os.ReadFile(path)

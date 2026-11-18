@@ -294,7 +294,7 @@ func TestValidateConfig_UnknownLogLevel(t *testing.T) {
 }
 
 func TestValidateConfig_ModelFormatValidation(t *testing.T) {
-	good := []string{"auto", "gpt-5.5", "claude-opus-4.8", "anthropic/claude-3-5-sonnet", "some_model"}
+	good := []string{"auto", "gpt-6-sol", "claude-opus-5.5", "anthropic/claude-3-5-sonnet", "some_model"}
 	for _, m := range good {
 		m := m
 		cfg := &Config{Version: 1, Model: &m}
@@ -1065,7 +1065,7 @@ func TestValidateKeyValue(t *testing.T) {
 		{"version", "abc", true},
 		{"model", "any-model-name", false},              // well-formed
 		{"model", "gpt-4-turbo-preview", false},         // well-formed
-		{"model", "claude-opus-4.8", false},             // dots allowed
+		{"model", "claude-opus-5.5", false},             // dots allowed
 		{"model", "anthropic/claude-3-5-sonnet", false}, // provider/model
 		{"model", "", true},                             // empty rejected
 		{"model", "gpt 4o", true},                       // space rejected
@@ -1131,10 +1131,10 @@ func TestIsKnownCopilotModel(t *testing.T) {
 		id   string
 		want bool
 	}{
-		{"claude-sonnet-4.6", true},
-		{"Claude-Sonnet-4.6", true}, // case-insensitive
+		{"claude-sonnet-5.5", true},
+		{"Claude-Sonnet-5.5", true}, // case-insensitive
 		{"auto", true},
-		{"gpt-5.5", true},
+		{"gpt-6-sol", true},
 		{"sonnet", false}, // alias, not a real id
 		{"opus", false},
 		{"", false},
@@ -1149,7 +1149,7 @@ func TestIsKnownCopilotModel(t *testing.T) {
 
 func TestKnownCopilotModelIDs(t *testing.T) {
 	got := knownCopilotModelIDs()
-	for _, want := range []string{"auto", "claude-sonnet-4.6", "gpt-5.5", "gemini-3.5-flash"} {
+	for _, want := range []string{"auto", "claude-sonnet-5.5", "gpt-6-sol", "gemini-3.8-flash"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("knownCopilotModelIDs() = %q, missing %q", got, want)
 		}
@@ -1215,7 +1215,7 @@ func TestConfigAdvisories_UnrecognizedCopilotModel(t *testing.T) {
 }
 
 func TestConfigAdvisories_KnownCopilotModel_NoWarning(t *testing.T) {
-	cfg, meta := decodeConfigForTest(t, "version = 1\nclient = \"copilot\"\nmodel = \"claude-opus-4.8\"\n")
+	cfg, meta := decodeConfigForTest(t, "version = 1\nclient = \"copilot\"\nmodel = \"claude-opus-5.5\"\n")
 	if w := configAdvisories(cfg, meta); len(w) != 0 {
 		t.Errorf("configAdvisories() = %v, want no warnings for known model", w)
 	}
@@ -1223,14 +1223,14 @@ func TestConfigAdvisories_KnownCopilotModel_NoWarning(t *testing.T) {
 
 func TestConfigAdvisories_NonCopilotModel_NoWarning(t *testing.T) {
 	// Known Nav-curated opencode model must not generate any warning.
-	cfg, meta := decodeConfigForTest(t, "version = 1\nclient = \"opencode\"\nmodel = \"github-copilot/gpt-5.6-luna\"\n")
+	cfg, meta := decodeConfigForTest(t, "version = 1\nclient = \"opencode\"\nmodel = \"github-copilot/gpt-6-luna\"\n")
 	if w := configAdvisories(cfg, meta); len(w) != 0 {
 		t.Errorf("configAdvisories() = %v, want no warnings for known opencode model", w)
 	}
 }
 
 func TestConfigAdvisories_KnownOpenCodeModel_NoWarning(t *testing.T) {
-	cfg, meta := decodeConfigForTest(t, "version = 1\nclient = \"opencode\"\nmodel = \"github-copilot/claude-opus-4.6\"\n")
+	cfg, meta := decodeConfigForTest(t, "version = 1\nclient = \"opencode\"\nmodel = \"github-copilot/claude-opus-5.5\"\n")
 	if w := configAdvisories(cfg, meta); len(w) != 0 {
 		t.Errorf("configAdvisories() = %v, want no warnings for known opencode model", w)
 	}
@@ -1260,19 +1260,19 @@ func TestValidateModelForClient(t *testing.T) {
 		{"google/gemini-2-0-flash", "opencode", false, ""},
 		// opencode: bare id (no slash) — must error
 		// opencode: a bare Copilot id runs as github-copilot/<id>
-		{"claude-opus-4.8", "opencode", false, ""},
-		{"gpt-5.5", "opencode", false, ""},
+		{"claude-opus-5.5", "opencode", false, ""},
+		{"gpt-6-sol", "opencode", false, ""},
 		// opencode: double-slash — must error
 		{"a/b/c", "opencode", true, "provider/model"},
 		// opencode: trailing slash (empty model part) — must error
 		{"anthropic/", "opencode", true, "provider/model"},
 		// copilot: bare id is fine
-		{"claude-opus-4.8", "copilot", false, ""},
-		{"gpt-5.5", "copilot", false, ""},
+		{"claude-opus-5.5", "copilot", false, ""},
+		{"gpt-6-sol", "copilot", false, ""},
 		// copilot: provider/model is also fine (allowed by validateModelValue)
 		{"anthropic/claude-sonnet-4-5", "copilot", false, ""},
 		// empty client: acts like base validation only
-		{"claude-opus-4.8", "", false, ""},
+		{"claude-opus-5.5", "", false, ""},
 		// always-invalid (base validateModelValue failures)
 		{"", "copilot", true, ""},
 		{" bad", "opencode", true, ""},
@@ -1301,11 +1301,11 @@ func TestIsKnownOpenCodeModel(t *testing.T) {
 		id   string
 		want bool
 	}{
-		{"github-copilot/claude-opus-4.8", true},
-		{"github-copilot/gpt-5.5", true},
-		{strings.ToUpper("github-copilot/claude-opus-4.8"), true}, // case-insensitive
+		{"github-copilot/claude-opus-5.5", true},
+		{"github-copilot/gpt-6-sol", true},
+		{strings.ToUpper("github-copilot/claude-opus-5.5"), true}, // case-insensitive
 		{"anthropic/claude-3-5-sonnet", false},                    // direct provider, not in list
-		{"claude-opus-4.8", false},                                // bare copilot id, not opencode
+		{"claude-opus-5.5", false},                                // bare copilot id, not opencode
 		{"", false},
 	}
 	for _, c := range cases {
@@ -1317,7 +1317,7 @@ func TestIsKnownOpenCodeModel(t *testing.T) {
 
 func TestKnownOpenCodeModelIDs(t *testing.T) {
 	got := knownOpenCodeModelIDs()
-	for _, want := range []string{"github-copilot/claude-opus-4.8", "github-copilot/gpt-5.5"} {
+	for _, want := range []string{"github-copilot/claude-opus-5.5", "github-copilot/gpt-6-sol"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("knownOpenCodeModelIDs() = %q, missing %q", got, want)
 		}
@@ -1328,7 +1328,7 @@ func TestKnownOpenCodeModelIDs(t *testing.T) {
 // opencode, which runs it as github-copilot/<id>, and draws no advisory.
 func TestValidateConfigProblems_OpenCodeBareModel(t *testing.T) {
 	client := "opencode"
-	model := "claude-opus-4.8"
+	model := "claude-opus-5.5"
 	cfg := &Config{Version: 1, Client: &client, Model: &model}
 	if problems := validateConfigProblems(cfg); len(problems) != 0 {
 		t.Fatalf("problems = %v, want none for a bare Copilot id", problems)
@@ -1364,13 +1364,13 @@ func TestLoadConfigForLaunch_NoFile(t *testing.T) {
 
 func TestLoadConfigForLaunch_ValidConfig(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.toml")
-	writeFileForTest(t, path, "version = 1\nclient = \"copilot\"\nmode = \"autopilot\"\nmodel = \"claude-opus-4.8\"\n")
+	writeFileForTest(t, path, "version = 1\nclient = \"copilot\"\nmode = \"autopilot\"\nmodel = \"claude-opus-5.5\"\n")
 	t.Setenv("NAV_PILOT_CONFIG", path)
 	resolved, err := loadConfigForLaunch(CLIOverrides{})
 	if err != nil {
 		t.Fatalf("loadConfigForLaunch() error = %v, want nil", err)
 	}
-	if resolved.Mode != "autopilot" || resolved.Model != "claude-opus-4.8" {
+	if resolved.Mode != "autopilot" || resolved.Model != "claude-opus-5.5" {
 		t.Errorf("loadConfigForLaunch() = %+v", resolved)
 	}
 }

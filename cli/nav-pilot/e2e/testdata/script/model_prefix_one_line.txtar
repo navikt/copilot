@@ -16,15 +16,15 @@ exec nav-pilot install plattform --source $WORK/plattform --repo --yes
 
 exec nav-pilot --sync --source $WORK/plattform -- -p x
 ! stderr 'not a recognized Copilot model id'
-grep '^--model\nclaude-opus-4.7\n' $WORK/fake/cplt.log
+grep '^--model\nclaude-opus-5.5\n' $WORK/fake/cplt.log
 
 exec nav-pilot config validate
-stdout 'copilot runs claude-opus-4.7 \(github-copilot/ prefix dropped\)'
+stdout 'copilot runs claude-opus-5.5 \(github-copilot/ prefix dropped\)'
 ! stdout 'translates automatically'
 
 -- config --
 version = 1
-model = "github-copilot/claude-opus-4.7"
+model = "github-copilot/claude-opus-5.5"
 -- plattform/.nav-pilot/agentpakke.json --
 {"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","skills":"skills"},"clients":{"copilot":{"primaryAgents":["grillmester"]}}}
 -- plattform/agents/grillmester.agent.md --

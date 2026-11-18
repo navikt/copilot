@@ -15,8 +15,12 @@ describe("Navs modellpolicy", () => {
     expect(isNavAllowedModel("Claude Opus 4.8 (fast mode) (preview)")).toBe(false);
     expect(isNavAllowedModel("GPT-6 Sol (Default, ≤ 272K)")).toBe(true);
     expect(isNavAllowedModel("GPT-6.1 Sol (Long context, 272K)")).toBe(true);
-    expect(isNavAllowedModel("Claude Opus 4.8")).toBe(true);
-    expect(isNavAllowedModel("Claude Sonnet 5")).toBe(true);
+    expect(isNavAllowedModel("Claude Opus 4.8")).toBe(false);
+    expect(isNavAllowedModel("Claude Sonnet 5")).toBe(false);
+    expect(isNavAllowedModel("GPT-5.6 Luna (Default, ≤ 200K)")).toBe(false);
+    expect(isNavAllowedModel("GPT-6.2 Sol (Default, ≤ 272K)")).toBe(true);
+    expect(isNavAllowedModel("MAI Code 2 Flash")).toBe(true);
+    expect(isNavAllowedModel("Claude Opus 5.5")).toBe(true);
   });
 
   it("regner en ny modell som aktivert til Nav slår den av", () => {
@@ -52,7 +56,7 @@ describe("nav-pilots modellvalg", () => {
       NAV_PILOT_MODEL_CHOICES.find((choice) => choice.purpose === "Aksel, tilgjengelighet og norsk tekst")
     ).toMatchObject({
       primary: "Claude Sonnet 5.5",
-      fallbacks: ["Claude Sonnet 5"],
+      fallbacks: ["Claude Opus 5.5"],
     });
     expect(
       NAV_PILOT_MODEL_CHOICES.find((choice) => choice.purpose === "Rask oppretting av Aksel-komponenter")?.primary
@@ -71,6 +75,10 @@ describe("nav-pilots modellvalg", () => {
       "Rust-agent",
       "Research og faste maler",
       "Høyrisikoplanlegging og kodegjennomgang",
+    ]);
+    expect(navPilotPurposesFor("Claude Opus 5.5")).toEqual([
+      "Høyrisikoplanlegging og kodegjennomgang",
+      "Aksel, tilgjengelighet og norsk tekst",
     ]);
   });
 });

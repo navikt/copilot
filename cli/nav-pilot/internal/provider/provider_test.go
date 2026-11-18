@@ -95,8 +95,8 @@ func TestKnownModelHelpers(t *testing.T) {
 	if KnownCopilotModelIDs() == "" {
 		t.Error("KnownCopilotModelIDs() = empty")
 	}
-	if !IsKnownOpenCodeModel("github-copilot/claude-opus-4.8") {
-		t.Error("IsKnownOpenCodeModel(github-copilot/claude-opus-4.8) = false")
+	if !IsKnownOpenCodeModel("github-copilot/claude-opus-5.5") {
+		t.Error("IsKnownOpenCodeModel(github-copilot/claude-opus-5.5) = false")
 	}
 	if KnownOpenCodeModelIDs() == "" {
 		t.Error("KnownOpenCodeModelIDs() = empty")
@@ -115,12 +115,12 @@ func TestCopilotProvider_ValidateModel(t *testing.T) {
 
 func TestCopilotProvider_ModelAdvisory(t *testing.T) {
 	var p Provider = copilotProvider{}
-	if msg := p.ModelAdvisory("claude-sonnet-4.6"); msg != "" {
+	if msg := p.ModelAdvisory("claude-sonnet-5.5"); msg != "" {
 		t.Errorf("ModelAdvisory(known) = %q, want empty", msg)
 	}
-	// Regression: claude-opus-5 is GA in Copilot and must not warn (#425).
-	if msg := p.ModelAdvisory("claude-opus-5"); msg != "" {
-		t.Errorf("ModelAdvisory(claude-opus-5) = %q, want empty", msg)
+	// Turned off in Nav (2026-11-18), so it leaves the picker and warns.
+	if msg := p.ModelAdvisory("claude-opus-5"); msg == "" {
+		t.Error("ModelAdvisory(claude-opus-5) = empty, want advisory")
 	}
 	if msg := p.ModelAdvisory("sonnet"); msg == "" {
 		t.Error("ModelAdvisory(unknown) = empty, want advisory")
@@ -187,13 +187,13 @@ func TestOpenCodeProvider_ValidateModel(t *testing.T) {
 
 func TestOpenCodeProvider_ModelAdvisory(t *testing.T) {
 	var p Provider = openCodeProvider{}
-	if msg := p.ModelAdvisory("github-copilot/claude-opus-4.8"); msg != "" {
+	if msg := p.ModelAdvisory("github-copilot/claude-opus-5.5"); msg != "" {
 		t.Errorf("ModelAdvisory(known) = %q, want empty", msg)
 	}
 	if msg := p.ModelAdvisory("anthropic/claude-3-5-sonnet"); msg == "" {
 		t.Error("ModelAdvisory(uncurated valid shape) = empty, want advisory")
 	}
-	if msg := p.ModelAdvisory("claude-opus-4.8"); msg != "" {
+	if msg := p.ModelAdvisory("claude-opus-5.5"); msg != "" {
 		t.Errorf("ModelAdvisory(bare known id) = %q, want empty", msg)
 	}
 	if msg := p.ModelAdvisory("auto"); msg != "" {

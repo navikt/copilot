@@ -79,18 +79,18 @@ func TestInstalledModelPins(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	write("pinned.agent.md", "---\nname: pinned\nmodel: Claude Sonnet 5\n---\n")
+	write("pinned.agent.md", "---\nname: pinned\nmodel: Claude Sonnet 5.5\n---\n")
 	write("inherits.agent.md", "---\nname: inherits\n---\n")
-	write("notanagent.md", "---\nmodel: Claude Sonnet 5\n---\n")
+	write("notanagent.md", "---\nmodel: Claude Sonnet 5.5\n---\n")
 
 	pins := installedModelPins(scope)
 	if len(pins) != 1 {
 		t.Fatalf("installedModelPins = %+v, want exactly the one pinned agent", pins)
 	}
-	if pins[0].Agent != "pinned" || pins[0].Label != "Claude Sonnet 5" {
-		t.Errorf("pin = %+v, want agent \"pinned\" on \"Claude Sonnet 5\"", pins[0])
+	if pins[0].Agent != "pinned" || pins[0].Label != "Claude Sonnet 5.5" {
+		t.Errorf("pin = %+v, want agent \"pinned\" on \"Claude Sonnet 5.5\"", pins[0])
 	}
-	if pins[0].ID != "claude-sonnet-5" {
+	if pins[0].ID != "claude-sonnet-5.5" {
 		t.Errorf("pin id = %q, want the resolved Copilot id", pins[0].ID)
 	}
 }

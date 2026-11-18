@@ -51,8 +51,9 @@ export const NAV_PILOT_MODEL_CHOICES: NavPilotModelChoice[] = [
   {
     purpose: "Research og faste maler",
     primary: "GPT-6 Luna",
-    fallbacks: ["GPT-5.6 Luna", "GPT-5.3-Codex"],
-    reason: "Besto samme krav som GPT-5.6 Luna i blokkeringsskjermen 23. september, til lavere pris.",
+    fallbacks: ["MAI Code 2 Flash", "GPT-5.3-Codex"],
+    reason:
+      "Besto samme krav som GPT-5.6 Luna i blokkeringsskjermen 23. september, til lavere pris. Reserven MAI Code 2 Flash er i samme prisklasse, men ikke målt.",
   },
   {
     purpose: "Høyrisikoplanlegging og kodegjennomgang",
@@ -63,9 +64,9 @@ export const NAV_PILOT_MODEL_CHOICES: NavPilotModelChoice[] = [
   {
     purpose: "Aksel, tilgjengelighet og norsk tekst",
     primary: "Claude Sonnet 5.5",
-    fallbacks: ["Claude Sonnet 5"],
+    fallbacks: ["Claude Opus 5.5"],
     reason:
-      "Besto 24 av 25 tilgjengelighetssjekker 12. oktober 2026 (uu1–uu5, fem kjøringer hver) og 20 av 20 norsksjekker 1. oktober. GPT-6 Luna kostet omtrent en niendedel, men besto bare 15 av 25: den viste aldri til WCAG-kriterier og spurte aldri før den skrev en egen ARIA-rolle.",
+      "Besto 24 av 25 tilgjengelighetssjekker 12. oktober 2026 (uu1–uu5, fem kjøringer hver) og 20 av 20 norsksjekker 1. oktober. GPT-6 Luna kostet omtrent en niendedel, men besto bare 15 av 25: den viste aldri til WCAG-kriterier og spurte aldri før den skrev en egen ARIA-rolle. Reserven Claude Opus 5.5 er ikke målt på disse oppgavene.",
     source: "https://github.com/navikt/copilot/tree/main/docs/golden-baselines/2026-10-12-sonnet-5-5-aksel",
   },
   {
@@ -80,24 +81,36 @@ export const NAV_PILOT_MODEL_CHOICES: NavPilotModelChoice[] = [
  * Models Nav has turned off in GitHub Copilot. Every other model counts as
  * enabled, so a new model shows up on /priser without a code change. Add a model
  * here when Nav turns it off. Names are without the price-tier suffix, as
- * normalizeModelName returns them.
+ * normalizeModelName returns them. Last checked against the Copilot CLI picker
+ * 2026-11-18.
  */
 const NAV_DISABLED_MODELS = new Set([
   "GPT-5 mini",
   "GPT-5.4",
   "GPT-5.4 mini",
+  "GPT-5.4 nano",
   "GPT-5.5",
+  "GPT-5.6 Luna",
+  "GPT-5.6 Sol",
+  "GPT-5.6 Terra",
   "Claude Haiku 4.5",
   "Claude Sonnet 4",
   "Claude Sonnet 4.6",
+  "Claude Sonnet 5",
   "Claude Opus 4.7",
+  "Claude Opus 4.8",
   "Claude Opus 4.8 (fast mode)",
   "Claude Opus 5",
   "Claude Fable 5",
   "Claude Fable 5.1",
+  "Claude Fable 5.2",
   "Gemini 3.5 Flash",
   "Gemini 3.6 Flash",
   "Gemini 3.7 Flash",
+  "Grok 4.5",
+  "Grok 4.6",
+  "Grok 4.7",
+  "Kimi K2.7 Code",
 ]);
 
 export function normalizeModelName(model: string): string {

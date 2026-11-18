@@ -55,7 +55,7 @@ describe("prissiden", () => {
       target: { value: "0.2" },
     });
 
-    expect(radFor("GPT-5.6 Luna (Default, ≤ 200K)")).toBeInTheDocument();
+    expect(radFor("GPT-6.1 Terra (Default, ≤ 272K)")).toBeInTheDocument();
     expect(within(pristabell()).queryByText("GPT-6 Luna (Default, ≤ 272K)")).toBeNull();
     expect(within(pristabell()).queryByText("GPT-5.3-Codex (Default)")).toBeNull();
 
@@ -66,12 +66,12 @@ describe("prissiden", () => {
       target: { value: "Gemini 3.8" },
     });
     expect(radFor("Gemini 3.8 Flash (Default)")).toBeInTheDocument();
-    expect(within(pristabell()).queryByText("GPT-5.6 Luna (Default, ≤ 200K)")).toBeNull();
+    expect(within(pristabell()).queryByText("GPT-6.1 Terra (Default, ≤ 272K)")).toBeNull();
 
     fireEvent.change(screen.getByRole("searchbox", { name: "Filtrer modeller" }), {
       target: { value: "" },
     });
-    expect(radFor("GPT-5.6 Luna (Default, ≤ 200K)")).toBeInTheDocument();
+    expect(radFor("GPT-6.1 Terra (Default, ≤ 272K)")).toBeInTheDocument();
   });
 
   it("viser kampanjepris og cache write for synlige modeller", () => {

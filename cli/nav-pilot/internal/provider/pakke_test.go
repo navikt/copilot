@@ -20,7 +20,7 @@ func TestSetActivePakke(t *testing.T) {
 		Name: "grillmester",
 		Clients: map[string]agentpakke.ClientEntry{
 			"copilot":  {PrimaryAgents: []string{"grillmester"}},
-			"opencode": {PrimaryAgents: []string{"grillmester", "sous"}, DefaultModel: "github-copilot/claude-opus-5"},
+			"opencode": {PrimaryAgents: []string{"grillmester", "sous"}, DefaultModel: "github-copilot/claude-opus-5.5"},
 			// No primaryAgents. There is no fallback to the built-in
 			// default's persona (WP3): the manifest is authoritative, and
 			// schemas/agentpakke-v1.json makes this shape unrepresentable in a
@@ -38,7 +38,7 @@ func TestSetActivePakke(t *testing.T) {
 	if got := PrimaryAgent("pi"); got != "" {
 		t.Errorf("PrimaryAgent(pi) = %q, want \"\" — no fallback to the built-in persona", got)
 	}
-	if got := ToOpenCodeModel(""); got != "github-copilot/claude-opus-5" {
+	if got := ToOpenCodeModel(""); got != "github-copilot/claude-opus-5.5" {
 		t.Errorf("ToOpenCodeModel(\"\") = %q, want the active pakke's default model", got)
 	}
 	if got := OpenCodeArgs(domain.ResolvedConfig{}); got[3] != "grillmester" {
@@ -184,8 +184,8 @@ func TestBuildCopilotArgsPakkeModel(t *testing.T) {
 		},
 		{
 			name:     "pakke declaration supplies the default model",
-			declared: "claude-opus-5",
-			want:     []string{"--agent", "nav-pilot", "--model", "claude-opus-5"},
+			declared: "claude-opus-5.5",
+			want:     []string{"--agent", "nav-pilot", "--model", "claude-opus-5.5"},
 		},
 		{
 			name:     "explicit inherit emits no model",
@@ -194,9 +194,9 @@ func TestBuildCopilotArgsPakkeModel(t *testing.T) {
 		},
 		{
 			name:      "the user's own model beats the declaration",
-			declared:  "claude-opus-5",
-			userModel: "gpt-5.5",
-			want:      []string{"--agent", "nav-pilot", "--model", "gpt-5.5"},
+			declared:  "claude-opus-5.5",
+			userModel: "gpt-6-sol",
+			want:      []string{"--agent", "nav-pilot", "--model", "gpt-6-sol"},
 		},
 	}
 
@@ -234,9 +234,9 @@ func TestResolvedModelNotice(t *testing.T) {
 	pinningPakke := &agentpakke.Manifest{
 		Name: "grillmester",
 		Clients: map[string]agentpakke.ClientEntry{
-			"copilot":  {PrimaryAgents: []string{"grillmester"}, DefaultModel: "claude-opus-5"},
-			"opencode": {PrimaryAgents: []string{"grillmester"}, DefaultModel: "github-copilot/claude-opus-5"},
-			"pi":       {PrimaryAgents: []string{"grillmester"}, DefaultModel: "claude-opus-5"},
+			"copilot":  {PrimaryAgents: []string{"grillmester"}, DefaultModel: "claude-opus-5.5"},
+			"opencode": {PrimaryAgents: []string{"grillmester"}, DefaultModel: "github-copilot/claude-opus-5.5"},
+			"pi":       {PrimaryAgents: []string{"grillmester"}, DefaultModel: "claude-opus-5.5"},
 		},
 	}
 	inheritPakke := &agentpakke.Manifest{
@@ -266,15 +266,15 @@ func TestResolvedModelNotice(t *testing.T) {
 			name:   "opencode with the user's own model",
 			pakke:  navPakke,
 			client: "opencode",
-			model:  "claude-opus-5",
-			want:   "Model: Claude Opus 5 (your setting)",
+			model:  "claude-opus-5.5",
+			want:   "Model: Claude Opus 5.5 (your setting)",
 		},
 		{
 			name:   "copilot with the user's own model",
 			pakke:  navPakke,
 			client: "copilot",
-			model:  "claude-opus-5",
-			want:   "Model: Claude Opus 5 (your setting)",
+			model:  "claude-opus-5.5",
+			want:   "Model: Claude Opus 5.5 (your setting)",
 		},
 		{
 			// Nothing pinned anywhere: the client picks, and there is nothing
@@ -288,7 +288,7 @@ func TestResolvedModelNotice(t *testing.T) {
 			name:   "a pakke's own declaration is named after that pakke",
 			pakke:  pinningPakke,
 			client: "copilot",
-			want:   "Model: Claude Opus 5 (grillmester default)",
+			want:   "Model: Claude Opus 5.5 (grillmester default)",
 		},
 		{
 			// "inherit" means the staged launch passes no --model at all, and
@@ -306,14 +306,14 @@ func TestResolvedModelNotice(t *testing.T) {
 			name:   "pi names the model the user set",
 			pakke:  navPakke,
 			client: "pi",
-			model:  "claude-opus-5",
-			want:   "Model: Claude Opus 5 (your setting)",
+			model:  "claude-opus-5.5",
+			want:   "Model: Claude Opus 5.5 (your setting)",
 		},
 		{
 			name:   "pi names the model the pakke declares",
 			pakke:  pinningPakke,
 			client: "pi",
-			want:   "Model: Claude Opus 5 (grillmester default)",
+			want:   "Model: Claude Opus 5.5 (grillmester default)",
 		},
 		{
 			// A pakke still declaring the legacy alias must be reported as
@@ -335,11 +335,11 @@ func TestResolvedModelNotice(t *testing.T) {
 			pakke: &agentpakke.Manifest{
 				Name: "grillmester",
 				Clients: map[string]agentpakke.ClientEntry{
-					"opencode": {PrimaryAgents: []string{"grillmester"}, DefaultModel: "claude-opus-5"},
+					"opencode": {PrimaryAgents: []string{"grillmester"}, DefaultModel: "claude-opus-5.5"},
 				},
 			},
 			client: "opencode",
-			want:   "Model: Claude Opus 5 (grillmester default)",
+			want:   "Model: Claude Opus 5.5 (grillmester default)",
 		},
 		{
 			// The user's "auto" isn't a real setting for opencode — it resolves
@@ -350,12 +350,12 @@ func TestResolvedModelNotice(t *testing.T) {
 			pakke: &agentpakke.Manifest{
 				Name: "grillmester",
 				Clients: map[string]agentpakke.ClientEntry{
-					"opencode": {PrimaryAgents: []string{"grillmester"}, DefaultModel: "github-copilot/claude-opus-5"},
+					"opencode": {PrimaryAgents: []string{"grillmester"}, DefaultModel: "github-copilot/claude-opus-5.5"},
 				},
 			},
 			client: "opencode",
 			model:  "auto",
-			want:   "Model: Claude Opus 5 (grillmester default)",
+			want:   "Model: Claude Opus 5.5 (grillmester default)",
 		},
 	}
 
@@ -399,7 +399,7 @@ func TestResolvedModelNotice(t *testing.T) {
 func TestPiNoticeNamesTheForwardedModel(t *testing.T) {
 	t.Cleanup(func() { SetActivePakke(nil) })
 
-	r := domain.ResolvedConfig{Client: "pi", Model: "claude-opus-5", AskUser: true}
+	r := domain.ResolvedConfig{Client: "pi", Model: "claude-opus-5.5", AskUser: true}
 	for _, w := range PiUnsupportedConfigWarnings(r) {
 		if strings.Contains(w, "model") {
 			t.Errorf("pi must not warn about a model it forwards, got %q", w)

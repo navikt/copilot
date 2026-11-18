@@ -648,7 +648,7 @@ func PrintModelAvailabilityHint(model string) {
 		return
 	}
 	if strings.Contains(model, "/") {
-		fmt.Printf("%s Model %s is not a Copilot model id (Copilot takes ids like claude-opus-4.8), so Copilot may reject it.\n\n",
+		fmt.Printf("%s Model %s is not a Copilot model id (Copilot takes ids like claude-opus-5.5), so Copilot may reject it.\n\n",
 			domain.Yellow("⚠"), domain.Bold(model))
 		return
 	}
