@@ -1,0 +1,19 @@
+ / Search "slettOppgave" No matches found
+
+ ● List directory . 5 files found
+
+ / Search "slett_?oppgave|deleteOppgave|slettOppg" No matches found
+
+ / Search "src/**/*" 4 files found
+
+ / Search "slett|delete|remove|oppgave" (src) 10 lines found
+
+Ingen steder i koden kaller `slettOppgave`, og funksjonen er heller ikke definert i repoet. Jeg søkte gjennom hele repoet, også uten å skille mellom store og små bokstaver og med varianter som `slett_oppgave` og `deleteOppgave`.
+
+Det som finnes for oppgaver:
+- `src/main/kotlin/no/nav/demo/Oppgave.kt:6` definerer `data class Oppgave`
+- `src/main/kotlin/no/nav/demo/Routes.kt:15` har bare `GET /api/oppgaver`, ingen ruter for sletting
+- `src/main/kotlin/no/nav/demo/App.kt:13` kaller `oppgaveRoutes()`
+
+Funksjonen ligger kanskje i et annet repo eller på en annen branch.
+

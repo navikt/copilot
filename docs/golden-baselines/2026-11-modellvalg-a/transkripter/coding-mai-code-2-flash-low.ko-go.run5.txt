@@ -1,0 +1,34 @@
+Jeg lokaliserer feilen og kjører den minste relevante testen før jeg endrer produksjonskoden.
+
+ / Search "**/*.go" 5 files found
+
+ / Search "*" 34 files found
+
+ / Search "frister" 3 files found
+
+ GO Read frister/frist_test.go 26 lines read
+
+ GO Read frister/frist.go 16 lines read
+
+ MD Read .github/instructions/golang.instructions.md 547 lines read
+
+ ✗ Shell Run frister package tests before fix Failed with exit code 1  --- FAIL: TestFrist (0.00s) …
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.kkPA58/repo/frister
+   && go test ./...
+   --- FAIL: TestFrist (0.00s)
+       frist_test.go:23: Frist(2026-09-05) = 2026-10-18, want 2026-10-19
+   FAIL
+   FAIL    example.com/frister     0.203s
+   FAIL
+   Failed with exit code 1
+
+ ● Edit  Edit frister/frist.go (+1 -1)
+
+ $ Shell Format fix and rerun frister tests 1 line…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.kkPA58/repo/frister
+   && gofmt -w frist.go && go test ./...
+
+Feilen var at en frist som falt på en lørdag ble flyttet én dag til søndag i stedet for to dager til mandag.
+
+Rettet i `frister/frist.go`. `go test ./...` går nå grønt i `frister/`.
+

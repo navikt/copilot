@@ -1,0 +1,8 @@
+ / Search "slettOppgave" No matches found
+
+ / Search "slett_?oppgave|deleteOppgave|oppgave.*(slett|delete)" No matches found
+
+Fant ingen treff på `slettOppgave` i koden (heller ikke varianter som `slett_oppgave`, `deleteOppgave` eller lignende, uavhengig av store/små bokstaver). Funksjonen finnes ikke i denne mappen, så det er heller ingen kall å oppgi fil og linje for.
+
+Hvis den ligger i et annet repo eller under et annet navn, gi meg det, så søker jeg der.
+

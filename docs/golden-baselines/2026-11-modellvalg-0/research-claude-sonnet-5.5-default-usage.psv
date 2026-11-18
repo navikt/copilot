@@ -1,0 +1,27 @@
+# golden-prompt EXACT MODEL USAGE
+# agent:        research
+# suite:        research
+# date:         2026-11-18
+# revision:     ac35a630
+# personaHash:  bfd27dcb2ee26f091fbc71c847ebdf211ee307dc6c41d565ea73a5ae8667ba32
+# harnessHash:  31303b66a044df68da77f1ba539f6a0a98cf0aabc6733992e11c37f4979c6eb4
+# model:        claude-sonnet-5.5
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.114-0.
+# effort:       CLI default
+# context:      CLI default
+# instructions: 17 installed, 4 always-on
+# repeat:       1
+# fixture:      4263008951
+# prompts:      all
+# source:       assistant_usage_events
+#
+# slug|run|session_id|event_id|turn_index|model|reasoning_effort|input_tokens|output_tokens|cache_read_tokens|cache_write_tokens|reasoning_tokens|total_nano_aiu|duration_ms|time_to_first_token_ms|finish_reason|agent_id|parent_tool_call_id
+re-bruk|1|b1374b7b-c743-4a90-897b-d4936e1ffa24|24566|0|claude-sonnet-5.5|medium|29826|98|1343|28479|0|7231980000|1179|783.608458|tool_calls||
+re-bruk|1|b1374b7b-c743-4a90-897b-d4936e1ffa24|24567|0|claude-sonnet-5.5|medium|30076|197|29822|252|0|558620000|1917|1813.5353759999998|stop||
+re-ingen|1|7ca2ec89-8a59-4e83-8bb1-a25f3d8b8793|24568|0|claude-sonnet-5.5|medium|29824|99|12646|17174|0|4519760000|1291|879.943084|tool_calls||
+re-ingen|1|7ca2ec89-8a59-4e83-8bb1-a25f3d8b8793|24569|0|claude-sonnet-5.5|medium|29933|145|29820|111|0|471350000|1360|656.349|tool_calls||
+re-ingen|1|7ca2ec89-8a59-4e83-8bb1-a25f3d8b8793|24570|0|claude-sonnet-5.5|medium|30088|151|29931|155|0|489460000|1907|1900.561416|stop||
+re-sammendrag|1|f4747ba8-2efe-4b10-878b-5349ffea7f95|24571|0|claude-sonnet-5.5|medium|29816|48|12646|17166|0|4466760000|957|833.805625|tool_calls||
+re-sammendrag|1|f4747ba8-2efe-4b10-878b-5349ffea7f95|24572|0|claude-sonnet-5.5|medium|30341|363|29812|527|0|793270000|2330|698.9699580000001|tool_calls||
+re-sammendrag|1|f4747ba8-2efe-4b10-878b-5349ffea7f95|24573|0|claude-sonnet-5.5|medium|42213|290|30339|11870|91|3561690000|2804|2248.604542|stop||

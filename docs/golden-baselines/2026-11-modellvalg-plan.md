@@ -347,4 +347,30 @@ Estimatene bygger på tidligere målinger (median credits per kjøring), skalert
 
 ## Tillegg
 
-Ingen ennå.
+### 18. november 2026: utfall av trinn 0
+
+Låst på `ac35a630`. Bare utfall fylles inn. Regler og kriterier er uendret.
+
+Preflight: `bats scripts/nav-pilot-golden.bats` 82/82, `mise run benchmark:check` grønn, `mise where java@21` gir `21.0.13+9.0.LTS`, Copilot CLI `1.0.114-0` med `COPILOT_AUTO_UPDATE=false`. Ingen testpakke i trinn A trenger Docker.
+
+Blindsonedommeren på 1.0.114-0: 73/75 (0,973, `pass`), 6,70 credits, hash `4f59e7585b68a79d` i [blindsone-dommer-kontroller.psv](blindsone-dommer-kontroller.psv).
+
+Innloggingsproben: 5,91 credits per kjøring av `nav-pilot-golden.sh` (standardmodell `gpt-6.1-sol`, `medium`, 23,6k tokens skrevet til cache). Estimatene i planen har ikke med proben.
+
+Røykprøver, `research` n = 1, rådata i [2026-11-modellvalg-0/](2026-11-modellvalg-0/):
+
+| Modell | Kjørt med | Bruksrader | Valgt nivå | Forventet i bruksradene | Credits (uten probe) |
+| --- | --- | --- | --- | --- | --- |
+| `mai-code-2-flash` | `--effort low` | 7 × `low` | `low` | `low` | 0,32 |
+| `mai-code-1.1-flash` | `--effort low` | 18 × `low` | `low` | `low` | 2,03 |
+| `mai-code-2` | `--effort low` | 12 × `low` | `low` | `low` | 4,91 |
+| `gpt-6.2-astra` | `--effort low` | 10 × `low` | `low` | `low` | 67,34 |
+| `gpt-6.2-sol` | `--effort low` | 13 × `low` | `low` | `low` | 17,78 |
+| `claude-opus-5.5` (D4) | uten `--effort` | 11 × `medium` | `default` | `medium` | 49,28 |
+| `claude-sonnet-5.5` (D4) | uten `--effort` | 8 × `medium` | `default` | `medium` | 22,09 |
+
+`<mai>` = `low` for alle tre MAI-modellene. `<astra>` = `low`. Ingen modell utgår.
+
+Trinn 1 for D1 er ikke fullført: ingen API-nøkkel til Artificial Analysis på maskinen, og nettstedet svarte ikke (tidsavbrudd). Søkeresultater fra artificialanalysis.ai viser Intelligence Index 41 for GPT-6.2 Sol (low) og 35 for GPT-6.1 Sol (low), men kodingsindeks, kostnad per oppgave, indeksversjon og samme-dag-krav er ikke kontrollert. D1 må avklares før trinn B.
+
+Forbruk i trinn 0: ≈ 217,7 credits mot estimatet ≈ 25 (se [regnskapet](2026-11-modellvalg-regnskap.md)).

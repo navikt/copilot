@@ -1,0 +1,30 @@
+Jeg lokaliserer feilen i `frister/` og kjører den minste relevante testen før jeg endrer koden.
+
+ / Search "frister/**" 3 files found
+
+ / Search "**/{AGENTS.md,.github/copilot-instructions.md,.github/copilot-review-in… No matches found
+
+ GO Read frister/frist.go 16 lines read
+
+ GO Read frister/frist_test.go 26 lines read
+
+ ● Read frister/go.mod 3 lines read
+
+ ✗ Shell Run frister Go tests before fix Failed with exit code 1  --- FAIL: TestFrist (0.00s) frist…
+   cd frister && go test ./...
+   --- FAIL: TestFrist (0.00s)
+       frist_test.go:23: Frist(2026-09-05) = 2026-10-18, want 2026-10-19
+   FAIL
+   FAIL    example.com/frister     0.026s
+   FAIL
+   Failed with exit code 1
+
+ ● Edit  Edit frister/frist.go (+1 -1)
+
+ $ Shell Run frister Go test suite after fix 1 line…
+   cd frister && go test ./...
+
+Feilen var i helgejusteringen: lørdag ble flyttet én dag til søndag i stedet for to dager til mandag. Rettet i `frister/frist.go`.
+
+`go test ./...` i `frister/` går nå grønt.
+
