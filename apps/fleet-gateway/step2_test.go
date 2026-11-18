@@ -1249,6 +1249,24 @@ func TestProxy_MCPSessionIDBoundToUser(t *testing.T) {
 	}
 }
 
+// Two namespaces sharing a route name: the 404 must not point at an arbitrary team's route.
+func TestOldRoutePathAmbiguousNameOmitsNewURL(t *testing.T) {
+	te := newTestEnv(t)
+	dup := te.gw.cfg.Routes[0]
+	dup.Route = "/mcp/other-ns/" + dup.Route[strings.LastIndex(dup.Route, "/")+1:]
+	dup.FullRouteID = te.gw.cfg.BaseURL + dup.Route
+	te.gw.cfg.Routes = append(te.gw.cfg.Routes, dup)
+
+	name := dup.Route[strings.LastIndex(dup.Route, "/")+1:]
+	rec := httptest.NewRecorder()
+	te.handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/mcp/"+name, nil))
+	var body map[string]string
+	_ = json.Unmarshal(rec.Body.Bytes(), &body)
+	if rec.Code != http.StatusNotFound || body["new_url"] != "" {
+		t.Fatalf("want 404 without new_url, got %d %v", rec.Code, body)
+	}
+}
+
 // The retired /mcp/<name> path is not an alias: 404, with the new URL in the body (#2342 §3.3).
 func TestOldRoutePathReturns404WithNewURL(t *testing.T) {
 	te := newTestEnv(t)

@@ -1186,3 +1186,20 @@ func TestRefreshToken_GraceRechecksFamilyAfterRevoke(t *testing.T) {
 		t.Fatalf("grace pair served after /revoke: %v %v", ok, err)
 	}
 }
+
+// A refresh token bound to a resource that no longer matches a route must fail with
+// invalid_grant (forcing re-login) instead of minting an unusable access token.
+func TestRefreshToken_RetiredResourceInvalidGrant(t *testing.T) {
+	te := newClientEncryptedTestEnv(t, "k1:"+testKeyBase64(t, false))
+	_, rt1, _ := te.obtainTokensForResource(te.resource)
+
+	delete(te.gw.cfg.AllowedResources, te.resource)
+	status, body := te.postToken(url.Values{
+		"grant_type":    {"refresh_token"},
+		"refresh_token": {rt1},
+		"client_id":     {te.clientID},
+	})
+	if status != http.StatusBadRequest || body["error"] != "invalid_grant" {
+		t.Fatalf("expected 400 invalid_grant for retired resource, got %d (%v)", status, body)
+	}
+}

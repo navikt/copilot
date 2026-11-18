@@ -382,6 +382,13 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	// A resource that no longer matches a route (retired or moved) would mint a token no route accepts: force re-login.
+	if !g.cfg.AllowedResources[payload.Resource] {
+		outcome = "resource_retired"
+		bad(http.StatusBadRequest, "invalid_grant", "resource no longer available; log in again")
+		return
+	}
+
 	issuedAt := time.Unix(payload.IAT, 0).UTC()
 	// Absolute expiry is fixed in the RT at issue time, so raising SESSION_MAX_AGE
 	// later cannot revive old tokens.

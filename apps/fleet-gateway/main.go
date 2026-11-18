@@ -178,12 +178,18 @@ func (g *Gateway) oldRoutePathHandler(w http.ResponseWriter, r *http.Request) {
 		"error":             "not_found",
 		"error_description": "MCP routes moved to /mcp/<namespace>/<name>. Update your MCP client config and log in again.",
 	}
-	for _, route := range g.cfg.Routes {
+	// Two namespaces may share a route name: only hint when the match is unique.
+	var match *PilotRoute
+	matches := 0
+	for i, route := range g.cfg.Routes {
 		if strings.HasSuffix(route.Route, "/"+r.PathValue("name")) {
-			body["new_url"] = route.FullRouteID
-			body["error_description"] = "This route moved to " + route.FullRouteID + ". Update your MCP client config and log in again."
-			break
+			match = &g.cfg.Routes[i]
+			matches++
 		}
+	}
+	if matches == 1 {
+		body["new_url"] = match.FullRouteID
+		body["error_description"] = "This route moved to " + match.FullRouteID + ". Update your MCP client config and log in again."
 	}
 	writeJSON(w, http.StatusNotFound, body)
 }
