@@ -79,14 +79,15 @@ For installation and usage instructions, see the [main README](../../README.md#m
 
 ## Configuration
 
-| Environment Variable   | Description                         | Default                 |
-| ---------------------- | ----------------------------------- | ----------------------- |
-| `PORT`                 | Server port                         | `8080`                  |
-| `BASE_URL`             | Public URL for OAuth redirects      | `http://localhost:8080` |
-| `GITHUB_CLIENT_ID`     | GitHub OAuth App client ID          | (required)              |
-| `GITHUB_CLIENT_SECRET` | GitHub OAuth App client secret      | (required)              |
-| `ALLOWED_ORGANIZATION` | GitHub org users must belong to     | `navikt`                |
-| `LOG_LEVEL`            | Log level: DEBUG, INFO, WARN, ERROR | `INFO`                  |
+| Environment Variable        | Description                                                                | Default                 |
+| --------------------------- | -------------------------------------------------------------------------- | ----------------------- |
+| `PORT`                      | Server port                                                                | `8080`                  |
+| `BASE_URL`                  | Public URL for OAuth redirects                                             | `http://localhost:8080` |
+| `GITHUB_CLIENT_ID`          | GitHub OAuth App client ID                                                 | (required)              |
+| `GITHUB_CLIENT_SECRET`      | GitHub OAuth App client secret                                             | (required)              |
+| `ALLOWED_ORGANIZATION`      | GitHub org users must belong to                                            | `navikt`                |
+| `LOG_LEVEL`                 | Log level: DEBUG, INFO, WARN, ERROR                                        | `INFO`                  |
+| `MCP_LEGACY_PROTOCOL_UNTIL` | Serve initialize-era MCP clients until this date (`YYYY-MM-DD`, exclusive) | unset: 2026-07-28 only  |
 
 ## Setup
 
@@ -135,6 +136,7 @@ mise run lint       # Run golangci-lint
 The customizations manifest is **embedded** into the binary at compile time using Go's `embed` directive. This ensures the manifest is always available and cannot get out of sync with the binary.
 
 **Generating the manifest:**
+
 ```bash
 mise generate    # or: go run ./cmd/generate-manifest
 ```
@@ -162,13 +164,13 @@ Deployed to Nais using the reusable `mise-build-deploy-nais` workflow.
 
 Exposed via `GET /metrics` in Prometheus format.
 
-| Metric                          | Type      | Labels                          | Description                                                                              |
-| ------------------------------- | --------- | ------------------------------- | ---------------------------------------------------------------------------------------- |
-| `http_requests_total`           | Counter   | `method`, `path`, `status_code` | HTTP requests by method, path, and status                                                |
-| `http_request_duration_seconds` | Histogram | `method`, `path`                | HTTP request latency                                                                     |
-| `mcp_tool_calls_total`          | Counter   | `tool`, `status`                | MCP tool invocations                                                                     |
-| `oauth_flows_total`             | Counter   | `stage`, `result`               | OAuth flow outcomes (authorize, callback, token)                                         |
-| `authenticated_users_total`     | Counter   | —                               | Total successful authentications                                                         |
+| Metric                          | Type      | Labels                          | Description                                                      |
+| ------------------------------- | --------- | ------------------------------- | ---------------------------------------------------------------- |
+| `http_requests_total`           | Counter   | `method`, `path`, `status_code` | HTTP requests by method, path, and status                        |
+| `http_request_duration_seconds` | Histogram | `method`, `path`                | HTTP request latency                                             |
+| `mcp_tool_calls_total`          | Counter   | `tool`, `status`                | MCP tool invocations                                             |
+| `oauth_flows_total`             | Counter   | `stage`, `result`               | OAuth flow outcomes (authorize, callback, token)                 |
+| `authenticated_users_total`     | Counter   | —                               | Total successful authentications                                 |
 | `token_store_size`              | Gauge     | `type`                          | Current size of token stores (`active_tokens`, `refresh_tokens`) |
 
 `path` is bounded to the registered routes; any other path is recorded as `other`, so an
@@ -197,6 +199,25 @@ This server is registered in Nav's MCP registry:
 - **Server Name**: `io.github.navikt/mcp-onboarding`
 - **Version**: 2.0.0
 - **Capabilities**: OAuth 2.1, Hello World tools, Nav Copilot customization discovery
+
+## MCP Protocol Version
+
+The server targets MCP revision [2026-07-28](https://modelcontextprotocol.io/specification/2026-07-28/changelog):
+stateless requests, `server/discover`, no sessions, and validation of the
+`MCP-Protocol-Version`, `Mcp-Method` and `Mcp-Name` headers against the body
+([request metadata](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#request-metadata)).
+A mismatch gets HTTP 400 with error `-32020`; an unsupported version gets HTTP 400
+with `-32022` and the supported versions in `data.supported`.
+
+Clients that still start with `initialize` (OpenCode 1.19, OpenCode 2.x with its
+default `protocol: legacy`, and older IDE clients) are served only while
+`MCP_LEGACY_PROTOCOL_UNTIL` is set to a future date. The end of that window is not
+a fixed date: it is set when OpenCode 2.x is the default in nav-pilot (tracked in
+#2367). `.nais/app.yaml` sets `2028-12-31` as a placeholder, to be moved earlier
+once that happens. After the date, or with the variable unset, `initialize` and the
+`GET` stream are refused. Record the reason when you move the date in #2367.
+
+`mcp2026_compliance_test.go` checks the required behaviours row by row.
 
 ## Client Compatibility
 
