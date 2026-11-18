@@ -142,6 +142,9 @@ func validateServerEntry(server *StaticServerData, index int, existingNames map[
 	if err := validateAudience(server.Audience); err != nil {
 		return fmt.Errorf("server[%d].%w", index, err)
 	}
+	if err := validateProtocolVersions(server.ProtocolVersions); err != nil {
+		return fmt.Errorf("server[%d].%w", index, err)
+	}
 
 	if server.Meta != nil && server.Meta.Broker != nil {
 		if err := validateBroker(server.Meta.Broker, server.Tools, index); err != nil {
@@ -446,14 +449,16 @@ func isLoopbackHost(host string) bool {
 // Static allowlist.json entries are PR-reviewed and may use the richer
 // StaticServerData shape; submissions and the DB rows they produce may not.
 type Submission struct {
-	Name        string             `json:"name"`
-	Description string             `json:"description"`
-	Version     string             `json:"version"`
-	WebsiteURL  string             `json:"websiteUrl,omitempty"`
-	Repository  *Repository        `json:"repository,omitempty"`
-	Owner       string             `json:"owner"`
-	Audience    *Audience          `json:"audience,omitempty"`
-	Remotes     []SubmissionRemote `json:"remotes"`
+	Name        string      `json:"name"`
+	Description string      `json:"description"`
+	Version     string      `json:"version"`
+	WebsiteURL  string      `json:"websiteUrl,omitempty"`
+	Repository  *Repository `json:"repository,omitempty"`
+	Owner       string      `json:"owner"`
+	Audience    *Audience   `json:"audience,omitempty"`
+	// ProtocolVersions is checked by validateProtocolVersions.
+	ProtocolVersions []string           `json:"protocolVersions,omitempty"`
+	Remotes          []SubmissionRemote `json:"remotes"`
 }
 
 // SubmissionRemote is a remote transport with type and url only.
@@ -517,6 +522,34 @@ func validateAudience(a *Audience) error {
 	return nil
 }
 
+const maxProtocolVersions = 10
+
+// validateProtocolVersions is the one check for protocolVersions, shared by
+// allowlist.json and the write API. nil means unknown. Format only: a new MCP
+// revision must not need a registry release.
+func validateProtocolVersions(v []string) error {
+	if v == nil {
+		return nil
+	}
+	if len(v) == 0 {
+		return errors.New("protocolVersions must list at least one revision; leave it out if unknown")
+	}
+	if len(v) > maxProtocolVersions {
+		return fmt.Errorf("protocolVersions has %d entries, at most %d allowed", len(v), maxProtocolVersions)
+	}
+	seen := make(map[string]bool, len(v))
+	for i, rev := range v {
+		if _, err := time.Parse(time.DateOnly, rev); err != nil {
+			return fmt.Errorf("protocolVersions[%d] is invalid: must be a dated MCP revision YYYY-MM-DD", i)
+		}
+		if seen[rev] {
+			return fmt.Errorf("protocolVersions[%d] is a duplicate", i)
+		}
+		seen[rev] = true
+	}
+	return nil
+}
+
 // validateSubmission decodes entryJSON strictly into a Submission, validates it
 // and returns it with its re-marshaled canonical JSON. It guards both the
 // write API and DB rows at reload.
@@ -559,6 +592,9 @@ func validateSubmission(entryJSON []byte) (*Submission, []byte, error) {
 	}
 	if err := validateAudience(sub.Audience); err != nil {
 		return nil, nil, &validationFieldError{field: "audience", err: err}
+	}
+	if err := validateProtocolVersions(sub.ProtocolVersions); err != nil {
+		return nil, nil, &validationFieldError{field: "protocolVersions", err: err}
 	}
 	if len(sub.Remotes) == 0 {
 		return nil, nil, &validationFieldError{field: "remotes", err: errors.New("at least one remote is required")}
