@@ -13,10 +13,12 @@ import (
 	"mime"
 	"net"
 	"net/http"
+	"net/http/httptrace"
 	"net/textproto"
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 	"unicode"
@@ -403,6 +405,13 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 		}
 		upCtx, upCancel := context.WithCancel(r.Context())
 		defer upCancel()
+		reqWrote := make(chan struct{})
+		var wroteOnce sync.Once
+		upCtx = httptrace.WithClientTrace(upCtx, &httptrace.ClientTrace{
+			WroteRequest: func(httptrace.WroteRequestInfo) {
+				wroteOnce.Do(func() { close(reqWrote) })
+			},
+		})
 
 		upReq, err := http.NewRequestWithContext(upCtx, r.Method, targetURL, bodyReader)
 		if err != nil {
@@ -509,7 +518,19 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 			// Drop references to the buffered request body (up to 1 MiB) before
 			// streaming so long-lived SSE connections do not pin it on the heap
 			// via locals, resp.Request -> upReq, or Transport's rewind copy in readLoop.
-			bodyBuf.Store(nil)
+			// Wait for WroteRequest so an HTTP/1.1 upstream flushing headers early still gets the full body.
+			select {
+			case <-reqWrote:
+				bodyBuf.Store(nil)
+			default:
+				go func() {
+					select {
+					case <-reqWrote:
+					case <-upCtx.Done():
+					}
+					bodyBuf.Store(nil)
+				}()
+			}
 			reqBody = nil    //nolint:ineffassign // drop heap reference before long-lived SSE stream
 			bodyReader = nil //nolint:ineffassign // drop heap reference before long-lived SSE stream
 			upReq.Body = nil

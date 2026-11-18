@@ -319,8 +319,13 @@ func TestSSECapCheckedBeforeUpstream(t *testing.T) {
 		t.Fatalf("first stream: code %d", resp.StatusCode)
 	}
 	before := hits.Load()
+	shed := httpRequestsTotal.WithLabelValues("503", "cap")
+	beforeShed := testutil.ToFloat64(shed)
 	if code := capPost(t, ts, token, "?sse=1"); code != http.StatusServiceUnavailable {
 		t.Fatalf("over SSE cap: code %d, want 503", code)
+	}
+	if got := testutil.ToFloat64(shed); got != beforeShed+1 {
+		t.Errorf("over-cap 503 not labelled reason=cap: %v -> %v", beforeShed, got)
 	}
 	if hits.Load() != before {
 		t.Fatalf("upstream called %d times for a request refused at the SSE cap", hits.Load()-before)
@@ -376,11 +381,91 @@ func TestPerRouteInFlightCap(t *testing.T) {
 	first := make(chan int, 1)
 	go func() { first <- capPost(t, ts, token, "") }()
 	<-entered
+	shed := httpRequestsTotal.WithLabelValues("503", "cap")
+	beforeShed := testutil.ToFloat64(shed)
 	if code := capPost(t, ts, token, ""); code != http.StatusServiceUnavailable {
 		t.Fatalf("second request on a route at its cap: code %d, want 503", code)
 	}
+	if got := testutil.ToFloat64(shed); got != beforeShed+1 {
+		t.Errorf("over-cap 503 not labelled reason=cap: %v -> %v", beforeShed, got)
+	}
 	if free := cap(te.gw.inFlight) - len(te.gw.inFlight); free != 3 {
 		t.Fatalf("global slots free = %d, want 3 (route cap must refuse before taking a global slot)", free)
+	}
+}
+
+func largeJSONRPCPayload() []byte {
+	const prefix = `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"x","arguments":{"data":"`
+	const suffix = `"}}}`
+	return []byte(prefix + strings.Repeat("a", maxMCPRequestBodyBytes-len(prefix)-len(suffix)-64) + suffix)
+}
+
+func TestSSEEarlyFlushUpstreamGetsFullBody(t *testing.T) {
+	te := newTestEnv(t)
+	te.gw.cfg.MCPMaxSSE = 16
+	te.gw.cfg.SSEMaxDuration = 10 * time.Second
+	te.gw.cfg.SSEIdleTimeout = 10 * time.Second
+	te.handler = te.gw.routes()
+
+	payload := largeJSONRPCPayload()
+	var gotLen atomic.Int64
+	var readErr atomic.Value
+	te.upstreamServer.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("sse") != "1" {
+			writeJSON(w, http.StatusOK, map[string]any{"jsonrpc": "2.0", "id": 1, "result": map[string]any{}})
+			return
+		}
+		if err := http.NewResponseController(w).EnableFullDuplex(); err != nil {
+			readErr.Store(err.Error())
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.WriteHeader(http.StatusOK)
+		w.(http.Flusher).Flush()
+
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			readErr.Store(err.Error())
+			return
+		}
+		gotLen.Store(int64(len(body)))
+		_, _ = io.WriteString(w, "data: "+strconv.Itoa(len(body))+"\n\n")
+		w.(http.Flusher).Flush()
+	})
+
+	token := te.obtainAccessTokenForResource(te.resource)
+	ts := httptest.NewServer(te.handler)
+	defer ts.Close()
+
+	req, err := http.NewRequest(http.MethodPost, ts.URL+te.gw.cfg.Routes[0].Route+"?sse=1", bytes.NewReader(payload))
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json, text/event-stream")
+	resp, err := ts.Client().Do(req) //nolint:gosec // test server URL
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("SSE early flush: code %d, want 200", resp.StatusCode)
+	}
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("reading SSE response: %v", err)
+	}
+	if errMsg, _ := readErr.Load().(string); errMsg != "" {
+		t.Fatalf("upstream read error: %s", errMsg)
+	}
+	if got := gotLen.Load(); got != int64(len(payload)) {
+		t.Fatalf("upstream received %d bytes, want %d", got, len(payload))
+	}
+	wantEvent := "data: " + strconv.Itoa(len(payload)) + "\n\n"
+	if !strings.Contains(string(respBody), wantEvent) {
+		t.Fatalf("client SSE response = %q, want %q", string(respBody), wantEvent)
 	}
 }
 
@@ -407,9 +492,7 @@ func TestSSEStreamsDoNotRetainRequestBody(t *testing.T) {
 	defer ts.Close()
 	defer close(stop)
 
-	const prefix = `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"x","arguments":{"data":"`
-	const suffix = `"}}}`
-	payload := []byte(prefix + strings.Repeat("a", maxMCPRequestBodyBytes-len(prefix)-len(suffix)-64) + suffix)
+	payload := largeJSONRPCPayload()
 
 	runtime.GC()
 	runtime.GC()
