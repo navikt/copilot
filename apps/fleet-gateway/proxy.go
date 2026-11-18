@@ -113,6 +113,7 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 		// decision is true only when the gateway's own checks let the request through;
 		// context.outcome tells what happened after that.
 		defer func() {
+			observeMCPRequest(route.Route, outcome, decision, g.now().Sub(start))
 			reason := decisionReason
 			if decision != "allow" && (decision == "" || reason == "") {
 				reason = outcome
@@ -172,6 +173,7 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 
 		if g.cfg.GatewayDisabled || route.isDisabled() {
 			outcome = "disabled"
+			markShed(w, "disabled")
 			slog.Warn("route disabled by kill switch", "route", route.Route, "global", g.cfg.GatewayDisabled)
 			w.Header().Set("Retry-After", "300")
 			writeJSON(w, http.StatusServiceUnavailable, map[string]string{
