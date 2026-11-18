@@ -35,12 +35,15 @@ status routes only.
 | `GET` | `/api/v1/admin/surveys/compare?ids=a,b` | admin | Two to four waves, oldest first, question by question after the last wave's definition: n, counts, mean and share agreeing (top two steps) per version, `break` where the waves asked different versions, a first-to-last test per scale item ([Significance](#significance)), answers per `context.client` merged under 5 as in the export. The last wave's `skip_if` applies to every wave, so spring statement answers from people who do not use KI tools are dropped (`excluded`) as autumn skips them. A wave under 5 answers has no counts. A closed wave whose answers are deleted is read from its aggregates (409 if they lack the last wave's `skip_if`, see [Same numbers locally](#same-numbers-locally)). `&format=csv`: the same numbers in long form, see [Same numbers locally](#same-numbers-locally) |
 | `GET` | `/api/v1/admin/surveys/{id}/freetext` | admin | Free text per field (text questions and `<id>.other`), masked as in the export, random order, each text on its own: no row id, no other answers. Hidden texts left out. Visible while open (owner, 2026-10-13) |
 | `POST` | `/api/v1/admin/surveys/{id}/freetext/hide` | admin | `{"token": "..."}` from the list above: hides that text in admin and the export. 204, or 404 for an unknown token |
+| `GET` | `/api/v1/admin/surveys/{id}/freetext/coding` | admin | Coding, see [Free-text coding](#free-text-coding): the codebook's fields, progress, one masked text the person has not coded (`next`), open disagreements with both coders' codes, and the results per field and category. 404 when the survey's series has no codebook |
+| `POST` | `/api/v1/admin/surveys/{id}/freetext/coding` | admin | `{"token", "coder": "human" \| "final", "codes": [{"category", "onske"}]}`. `human` once per text (409 after), answered with the model's codes; `final` decides a disagreement (409 until both have coded) |
+| `POST` | `/api/v1/admin/surveys/{id}/freetext/coding/model` | admin | The model's codes as `copilot-survey code` writes them, keyed by sha256 of the masked text. Replaces earlier model codes; 409 for another codebook version. Answers `{"saved", "unmatched"}` |
 | `GET` | `/api/v1/admin/surveys/{id}/export.csv` | admin | Every response as one CSV row, see [CSV export in admin](#csv-export-in-admin). 410 when a closed survey's rows are deleted and only aggregates remain |
 | `GET` | `/health`, `/ready`, `/metrics` | none | Probes and Prometheus (`survey_submissions_total{survey,status}`, `survey_cli_nameid_unexpected_domain_total`) |
 
 Admin: a my-copilot user token whose `groups` claim holds `COPILOT_ADMIN_GROUP_ID`. Every route under `/api/v1/admin/` passes that one check. A token copilot-survey does not accept at all gets 401; every accepted caller who is not an admin (a my-copilot user outside the group, copilot-cli) gets 404, as in copilot-api and my-copilot.
 
-Residual risk in published results (owner accepted 2026-11-17, #2271): published `/results` and the series hide a version under 5 respondents, but not the survey's total or the n of other questions. If a filter question (one a later `skip_if` reads) was asked in two versions in the same wave and one is hidden, the total minus the shown version, together with the n of the questions it gates, can show that a small group, possibly one person, answered the hidden version and so skipped or did not skip. That needs a question to change version inside an opened wave, which `check-frozen-surveys.sh` is there to stop. It runs in the CI job `copilot-survey` on pull requests and the merge queue, diffs every changed `surveys/*.json` against the base commit, and refuses any change to `id` or `questions` of a survey that in the base was `active` with `starts` on or before today (UTC); a deleted file counts as a change. Verified 2026-11-17 against `q4-2026`: a version bump is refused, and so is turning `active` off, bumping and turning it on again in one pull request. It does not stop the same across pull requests: one that only sets `active: false` passes, and a later one that changes the questions and sets `active: true` again passes too, since its base is no longer active. Review is the only guard there.
+Residual risk in published results (owner accepted 2026-11-17, #2271): published `/results` and the series hide a version under 5 respondents, but not the survey's total or the n of other questions. If a filter question (one a later `skip_if` reads) was asked in two versions in the same wave and one is hidden, the total minus the shown version, together with the n of the questions it gates, can show that a small group, possibly one person, answered the hidden version and so skipped or did not skip. That needs a question to change version inside an opened wave, which `check-frozen-surveys.sh` is there to stop. It runs in the CI job `copilot-survey` on pull requests and the merge queue, diffs every changed `surveys/*.json` against the base commit, and refuses any change to `id`, `questions`, `starts` or `environments` of a prod survey (`environments` includes `prod-gcp`) that in the base had `starts` on or before today (UTC), whether `active` or not; a deleted file counts as a change. Setting `active: false` or moving `starts` in one pull request therefore does not open the questions to the next (#2374). It also refuses a definition with duplicate keys, including keys that differ only in case, since Go merges them and the check would compare something else than what is served.
 
 Residual risk: results are visible while a survey is open. An admin who polls `/results` during an open survey can see one new answer appear and, if they know who just answered, attribute it. Answers are written as they arrive, so nothing blunts this; only showing results after close would. The owner accepted this risk on 2026-10-13. Mitigations: admin-only access and the k≥5 threshold. The DPO assessment should reflect this residual risk. The same holds for `/freetext`, which has no threshold: a text that appears right after a known person answered is theirs.
 
@@ -298,6 +301,23 @@ psql "$DB_URL" -c "SELECT count(*) FROM survey_answers WHERE survey_id = 'q2-202
 nais cloudsql revoke copilot-survey -t copilot -e prod-gcp --reason "$REASON"
 ```
 
+### Free-text coding
+
+#2239. Codebook per series in [`surveys/codebooks/`](surveys/codebooks/), rules in
+[`surveys/README.md`](surveys/README.md#codebooks). Code in `codebook.go`, `coding.go`.
+
+| Table | Columns |
+| --- | --- |
+| `survey_freetext_codes` | `survey_id`, `field`, `text_hash` (sha256 of the raw text, as `survey_freetext_hidden`), `coder` (`model`, `human`, `final`), `category`, `onske`, `codebook_version` |
+| `survey_freetext_decisions` | `survey_id`, `field`, `text_hash`, `decided_by` (the admin's e-mail), `decided_at` |
+
+- No row id: identical texts in a field share codes. Hidden texts are not coded or counted.
+- The person codes blind: the model's codes come back only in the answer to saving their own, and their codes cannot be changed after. A disagreement is settled with `final`, which logs who and when, never the text.
+- Final codes of a text: the decision, else both coders' codes where they are equal, else none yet.
+- Counts are per respondent who wrote in the field. Kappa is Cohen's kappa per category, and per `merge_with` pair, over the texts both coders coded; undefined (`null`) when either coder gave every text the same answer.
+- Publication rule: a category alone at kappa ≥ 0.6; below that as its pair if the pair reaches 0.6; otherwise hidden. In `published`, counts, wish counts and shares under 5 are `null` with `small: true`, and a field with fewer than 5 writers has none. Admin `categories` shows every real count.
+- Codes and decisions are deleted with the survey's last row. Before the rows go, `retain` writes the counts to `survey_results` (kind `freetext`: per field `""` with coded and written, per category or pair its count and kappa as `mean`; kind `freetext_onske`: wish counts; `version` is the codebook version). After that the coding page reads them.
+
 ### Final aggregates and retention
 
 When a survey closes, the daily retention job (`retain`) writes its counts to `survey_results`: respondents, count per
@@ -326,6 +346,10 @@ so a failed close-out is retried the next day rather than losing the counts.
 The job logs `survey: rows kept until skip counts are written` with the
 survey id while it waits. Rows that no longer match the stored total (partly
 deleted) cannot give skip counts and are deleted as before.
+
+Coding counts (see [Free-text coding](#free-text-coding)) are written in the
+same transaction that deletes a survey's expired rows, while every row is
+still there; if that fails, the rows stay. `aggregate` leaves them alone.
 
 A `skip_if` that first appears two or more waves later, after a wave's rows
 are deleted, cannot be applied to that wave: `compare` answers 409 (owner,

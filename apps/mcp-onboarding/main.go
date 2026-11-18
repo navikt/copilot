@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -242,11 +244,11 @@ func loggingMiddleware(next http.Handler) http.Handler {
 		recordHTTPMetrics(r.Method, r.URL.Path, wrapped.statusCode, duration)
 
 		slog.Info("request",
-			"method", r.Method,
-			"path", r.URL.Path,
-			"status", wrapped.statusCode,
+			"method", sanitizeLogValue(r.Method),
+			"path", sanitizeLogValue(r.URL.Path),
+			"status", sanitizeLogValue(strconv.Itoa(wrapped.statusCode)),
 			"duration_ms", duration.Milliseconds(),
-			"remote_addr", r.RemoteAddr,
+			"remote_addr", sanitizeLogValue(r.RemoteAddr),
 		)
 	})
 }
@@ -269,4 +271,10 @@ func (rw *responseWriter) Flush() {
 
 func (rw *responseWriter) Unwrap() http.ResponseWriter {
 	return rw.ResponseWriter
+}
+
+// sanitizeLogValue strips CR/LF so request-derived values cannot forge log lines.
+func sanitizeLogValue(s string) string {
+	s = strings.ReplaceAll(s, "\n", "")
+	return strings.ReplaceAll(s, "\r", "")
 }

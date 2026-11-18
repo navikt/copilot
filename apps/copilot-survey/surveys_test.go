@@ -338,6 +338,27 @@ func TestShippedSurveys(t *testing.T) {
 	}
 }
 
+// TestDuplicateKeysRefused: encoding/json merges a duplicate "questions" into
+// the next one, so a min could change unseen by check-frozen-surveys.sh.
+func TestDuplicateKeysRefused(t *testing.T) {
+	q := `{"id":"a","version":1,"type":"scale","text":"?","min":0,"max":4}`
+	head := `{"id":"w","title":"T","starts":"2000-01-01","ends":"2000-02-01",`
+	for name, def := range map[string]string{
+		"top level":     head + `"questions":[{"min":2}],"questions":[` + q + `]}`,
+		"other case":    head + `"Questions":[{"min":2}],"questions":[` + q + `]}`,
+		"in a question": head + `"questions":[{"min":2,` + q[1:] + `]}`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			if _, err := loadSurveys([]byte("[" + def + "]")); err == nil || !strings.Contains(err.Error(), "duplicate key") {
+				t.Fatalf("err = %v, want duplicate key", err)
+			}
+		})
+	}
+	if _, err := loadSurveys([]byte("[" + head + `"questions":[` + q + `,{"id":"b","version":1,"type":"scale","text":"?","min":0,"max":4}]}]`)); err != nil {
+		t.Fatalf("same keys in sibling objects: %v", err)
+	}
+}
+
 // TestActivateInDevOnly: SURVEY_ACTIVE_IDS opens a survey in dev-gcp and
 // nowhere else, and the shipped dummy is inactive on its own.
 func TestActivateInDevOnly(t *testing.T) {

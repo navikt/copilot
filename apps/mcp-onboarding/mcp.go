@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -72,9 +73,18 @@ type InitializeResult struct {
 }
 
 type Tool struct {
-	Name        string          `json:"name"`
-	Description string          `json:"description"`
-	InputSchema json.RawMessage `json:"inputSchema"`
+	Name        string           `json:"name"`
+	Description string           `json:"description"`
+	InputSchema json.RawMessage  `json:"inputSchema"`
+	Annotations *ToolAnnotations `json:"annotations,omitempty"`
+}
+
+// ToolAnnotations are hints for clients, never a security boundary.
+type ToolAnnotations struct {
+	ReadOnlyHint    bool `json:"readOnlyHint"`
+	DestructiveHint bool `json:"destructiveHint"`
+	IdempotentHint  bool `json:"idempotentHint"`
+	OpenWorldHint   bool `json:"openWorldHint"`
 }
 
 type ListToolsResult struct {
@@ -100,11 +110,36 @@ func (h *MCPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	accept := r.Header.Get("Accept")
 
 	if r.Method == "GET" {
+		// The GET stream is removed in 2026-07-28; only legacy clients get it.
+		if !mcpLegacyAllowed(time.Now()) {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
 		h.handleSSE(w, r)
 		return
 	}
 
 	if r.Method == "POST" {
+		r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			h.writeError(w, nil, -32700, "Parse error", nil)
+			return
+		}
+		var env mcpEnvelope
+		_ = json.Unmarshal(body, &env)
+		now := time.Now()
+		if !isLegacyMCPRequest(r, env) {
+			h.serveModern(w, r, body, env, now)
+			return
+		}
+		if !mcpLegacyAllowed(now) {
+			var rpc JSONRPCRequest
+			_ = json.Unmarshal(body, &rpc)
+			writeMCPError(w, http.StatusBadRequest, rpc.ID, mcpUnsupportedVersion(r.Header.Get("MCP-Protocol-Version"), now))
+			return
+		}
+		r.Body = io.NopCloser(bytes.NewReader(body))
 		if accept == "text/event-stream" || accept == "application/json, text/event-stream" {
 			h.handleStreamableHTTP(w, r)
 		} else {
@@ -527,6 +562,11 @@ func (h *MCPHandler) handleListTools(req *JSONRPCRequest) *JSONRPCResponse {
 				"required": ["org"]
 			}`),
 		},
+	}
+
+	// Every tool only reads; the GitHub-backed ones reach outside this server.
+	for i := range tools {
+		tools[i].Annotations = &ToolAnnotations{ReadOnlyHint: true, OpenWorldHint: true}
 	}
 
 	return &JSONRPCResponse{
@@ -1390,4 +1430,40 @@ func GetUserFromContext(ctx context.Context) *UserContext {
 		return &UserContext{Login: "anonymous", ID: 0}
 	}
 	return user
+}
+
+// serveModern answers a 2026-07-28 request: stateless, no initialize.
+func (h *MCPHandler) serveModern(w http.ResponseWriter, r *http.Request, body []byte, env mcpEnvelope, now time.Time) {
+	var req JSONRPCRequest
+	if err := json.Unmarshal(body, &req); err != nil {
+		writeMCPError(w, http.StatusBadRequest, nil, &mcpRPCError{Code: mcpCodeParseError, Message: "Parse error"})
+		return
+	}
+	if e := validateModernMCPRequest(r, env, now); e != nil {
+		writeMCPError(w, http.StatusBadRequest, req.ID, e)
+		return
+	}
+	if strings.HasPrefix(req.Method, "notifications/") && req.ID == nil {
+		w.WriteHeader(http.StatusAccepted)
+		return
+	}
+	var resp *JSONRPCResponse
+	var extra map[string]any
+	switch req.Method {
+	case "server/discover":
+		resp = &JSONRPCResponse{JSONRPC: "2.0", ID: req.ID, Result: mcpDiscoverResult(ServerCapabilities{Tools: &ToolsCapability{}}, now)}
+	case "tools/list":
+		resp = h.handleListTools(&req)
+		extra = map[string]any{"ttlMs": mcpDiscoverTTLMilliseconds, "cacheScope": "private"}
+	case "tools/call":
+		resp = h.handleCallTool(&req, GetUserFromContext(r.Context()))
+	default:
+		writeMCPError(w, http.StatusNotFound, req.ID, &mcpRPCError{Code: mcpCodeMethodNotFound, Message: "Method not found"})
+		return
+	}
+	if resp.Error == nil {
+		resp.Result = mcpModernResult(resp.Result, "mcp-onboarding", version, extra)
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(resp)
 }

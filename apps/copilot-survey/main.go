@@ -56,7 +56,12 @@ func main() {
 	activateInDev(defs, os.Getenv("NAIS_CLUSTER_NAME"), os.Getenv("SURVEY_ACTIVE_IDS"))
 	auth := newAuthenticator(config.NaisTokenIntrospectionEndpoint, config.AzurePreAuthorizedApps)
 	lookup := newNameIDClient(config.CopilotAPIURL, newTexasClient(config.NaisTokenEndpoint, config.CopilotAPIAudience))
-	surveys := &surveyAPI{surveys: defs, keys: surveyKeys(defs, time.Now()), emailFor: lookup.emailFor, now: time.Now, textKey: make([]byte, 32)}
+	codebooks, err := loadCodebooks(surveyFiles)
+	if err != nil {
+		slog.Error("Invalid codebooks", "error", err)
+		os.Exit(1)
+	}
+	surveys := &surveyAPI{surveys: defs, keys: surveyKeys(defs, time.Now()), emailFor: lookup.emailFor, now: time.Now, textKey: make([]byte, 32), codebooks: codebooks}
 	_, _ = rand.Read(surveys.textKey) // crypto/rand: never fails
 
 	ctx := context.Background()
@@ -74,6 +79,10 @@ func main() {
 		store.defs = defs
 		surveys.hidden = store.hidden
 		surveys.hide = store.hide
+		store.codebooks = codebooks
+		surveys.codes = store.codes
+		surveys.saveCodes = store.saveCodes
+		surveys.finalCoding = store.finalCoding
 		go store.purgeExpired(ctx, time.Now)
 	}
 	slog.Info("Starting copilot-survey", "port", config.Port, "storage", store != nil,

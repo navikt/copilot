@@ -1,7 +1,7 @@
 /**
  * GitHub Copilot model pricing data.
  * Source: https://docs.github.com/en/copilot/reference/copilot-billing/models-and-pricing
- * Last updated: 2026-11-17
+ * Last updated: 2026-11-18
  *
  * All prices are per 1 million tokens in USD.
  * 1 AI credit = $0.01 USD.
@@ -182,6 +182,46 @@ export const MODEL_PRICING: ModelPrice[] = [
     cachedInput: 0.1,
     cacheWrite: 2.5,
     output: 7.5,
+  },
+  {
+    model: "GPT-6.2 Astra (Default, ≤ 272K)",
+    provider: "OpenAI",
+    category: "Powerful",
+    status: "GA",
+    input: 8,
+    cachedInput: 0.4,
+    cacheWrite: 10,
+    output: 40,
+  },
+  {
+    model: "GPT-6.2 Astra (Long context, 272K)",
+    provider: "OpenAI",
+    category: "Powerful",
+    status: "GA",
+    input: 16,
+    cachedInput: 0.8,
+    cacheWrite: 20,
+    output: 60,
+  },
+  {
+    model: "GPT-6.2 Sol (Default, ≤ 272K)",
+    provider: "OpenAI",
+    category: "Powerful",
+    status: "GA",
+    input: 2,
+    cachedInput: 0.1,
+    cacheWrite: 2.5,
+    output: 10,
+  },
+  {
+    model: "GPT-6.2 Sol (Long context, 272K)",
+    provider: "OpenAI",
+    category: "Powerful",
+    status: "GA",
+    input: 4,
+    cachedInput: 0.2,
+    cacheWrite: 5,
+    output: 15,
   },
   // Anthropic
   {
@@ -367,6 +407,28 @@ export const MODEL_PRICING: ModelPrice[] = [
     cachedInput: 0.02,
     output: 1.2,
   },
+  {
+    model: "MAI Code 2",
+    provider: "Microsoft",
+    category: "Powerful",
+    status: "GA",
+    input: 0.5,
+    cachedInput: 0.025,
+    output: 2.5,
+    promotionEndsOn: "2027-05-17",
+    note: "MAI Code 2 is available at the promotional pricing of $0.50 per 1M input tokens, $0.025 per 1M cached input tokens, and $2.50 per 1M output tokens until May 17, 2027. Starting May 17, 2027, pricing is $1.00 per 1M input tokens, $0.05 per 1M cached input tokens, and $5.00 per 1M output tokens.",
+  },
+  {
+    model: "MAI Code 2 Flash",
+    provider: "Microsoft",
+    category: "Lightweight",
+    status: "GA",
+    input: 0.05,
+    cachedInput: 0.005,
+    output: 0.25,
+    promotionEndsOn: "2027-05-17",
+    note: "MAI Code 2 Flash is available at the promotional pricing of $0.05 per 1M input tokens, $0.005 per 1M cached input tokens, and $0.25 per 1M output tokens until May 17, 2027. Starting May 17, 2027, pricing is $0.10 per 1M input tokens, $0.01 per 1M cached input tokens, and $0.50 per 1M output tokens.",
+  },
   // Moonshot AI
   {
     model: "Kimi K3",
@@ -380,4 +442,4 @@ export const MODEL_PRICING: ModelPrice[] = [
 ];
 
 export const PRICING_SOURCE_URL = "https://docs.github.com/en/copilot/reference/copilot-billing/models-and-pricing";
-export const PRICING_LAST_UPDATED = "2026-11-17";
+export const PRICING_LAST_UPDATED = "2026-11-18";

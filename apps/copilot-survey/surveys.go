@@ -216,6 +216,9 @@ func loadSurveys(raw []byte) ([]survey, error) {
 }
 
 func decodeStrict(raw []byte, v any) error {
+	if err := rejectDuplicateKeys(raw); err != nil {
+		return err
+	}
 	dec := json.NewDecoder(bytes.NewReader(raw))
 	dec.DisallowUnknownFields()
 	if err := dec.Decode(v); err != nil {
@@ -225,6 +228,46 @@ func decodeStrict(raw []byte, v any) error {
 		return errors.New("trailing data")
 	}
 	return nil
+}
+
+// rejectDuplicateKeys refuses an object that names a key twice at any depth,
+// ignoring case as encoding/json does. encoding/json merges the two values
+// and jq keeps the last, so check-frozen-surveys.sh and the server would
+// read different definitions.
+func rejectDuplicateKeys(raw []byte) error {
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	var walk func() error
+	walk = func() error {
+		tok, err := dec.Token()
+		if err != nil {
+			return err
+		}
+		if tok != json.Delim('{') && tok != json.Delim('[') {
+			return nil
+		}
+		var seen []string
+		for dec.More() {
+			if tok == json.Delim('{') {
+				k, kerr := dec.Token()
+				if kerr != nil {
+					return kerr
+				}
+				key, _ := k.(string)
+				for _, s := range seen {
+					if strings.EqualFold(s, key) {
+						return fmt.Errorf("duplicate key %q", key)
+					}
+				}
+				seen = append(seen, key)
+			}
+			if werr := walk(); werr != nil {
+				return werr
+			}
+		}
+		_, err = dec.Token()
+		return err
+	}
+	return walk()
 }
 
 // atEOF reports whether nothing but whitespace follows the value dec read.
@@ -627,6 +670,13 @@ type surveyAPI struct {
 	hide   func(ctx context.Context, surveyID, field, hash string) error
 	// textKey keys the free-text tokens (freetext.go); random per process.
 	textKey []byte
+	// codebooks by series (codebook.go). codes, saveCodes and finalCoding
+	// read and write free-text codes and their stored counts
+	// (surveyStore.codes, saveCodes, finalCoding). Nil without storage.
+	codebooks   map[string]codebook
+	codes       func(ctx context.Context, surveyID string, version int) (map[string]*textCodes, error)
+	saveCodes   func(ctx context.Context, surveyID, field, hash, coder string, version int, codes []code, by string) error
+	finalCoding func(ctx context.Context, surveyID string, version int) (map[string]fieldTally, error)
 }
 
 // open: active, inside its window and with a key. A survey without a key

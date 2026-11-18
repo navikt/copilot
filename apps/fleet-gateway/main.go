@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -242,7 +243,7 @@ func (g *Gateway) loggingMiddleware(next http.Handler) http.Handler {
 		slog.Info("request completed",
 			"method", sanitizeLogValue(r.Method),
 			"path", sanitizeLogValue(r.URL.Path),
-			"status", wrapped.statusCode,
+			"status", sanitizeLogValue(strconv.Itoa(wrapped.statusCode)),
 			"duration_ms", g.now().Sub(start).Milliseconds(),
 		)
 	})

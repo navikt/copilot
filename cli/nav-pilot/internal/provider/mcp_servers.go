@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"slices"
@@ -36,6 +37,9 @@ type MCPServerEntry struct {
 	// ToolRisk the class of each that is more than a read (mcp_tools.go).
 	Tools    []string          `json:"tools,omitempty"`
 	ToolRisk map[string]string `json:"toolRisk,omitempty"`
+	// ProtocolVersions is the registry's protocolVersions (_meta): the MCP
+	// revisions the server supports. Nil when the registry does not say.
+	ProtocolVersions []string `json:"protocolVersions,omitempty"`
 	// Meta is the server.json's own _meta: the broker extension, when cplt
 	// runs the server on the host for the sandbox (mcp_broker.go in cli).
 	Meta struct {
@@ -231,6 +235,9 @@ func MCPClientEntry(client string, e MCPServerEntry, c MCPToolChoice) (json.RawM
 		var m map[string]any
 		if client == MCPClientOpenCode {
 			m = map[string]any{"type": "remote", "url": r.URL, "enabled": true}
+			if p := openCodeProtocol(e.ProtocolVersions, r.URL); p != "" {
+				m["protocol"] = p
+			}
 		} else {
 			t := "http"
 			if r.Type == "sse" {
@@ -256,6 +263,36 @@ func MCPClientEntry(client string, e MCPServerEntry, c MCPToolChoice) (json.RawM
 		return nil, fmt.Errorf("the registry lists no remote or package for %s", e.Name)
 	}
 	return json.Marshal(v)
+}
+
+// openCodeNavProtocol is the MCP revision OpenCode 2.x can pin per server
+// (`protocol`: legacy, auto or 2026-07-28; default legacy):
+// https://opencode.ai/docs/mcp-servers/#protocol-version. OpenCode 1.x ignores it.
+const openCodeNavProtocol = "2026-07-28"
+
+// openCodeProtocol picks OpenCode's `protocol` from the registry's
+// protocolVersions: only 2026-07-28 pins it, 2026-07-28 among older revisions
+// gets auto. Without 2026-07-28, an https nav.no remote gets auto and any
+// other remote keeps OpenCode's default ("").
+func openCodeProtocol(versions []string, remoteURL string) string {
+	switch {
+	case len(versions) == 1 && versions[0] == openCodeNavProtocol:
+		return openCodeNavProtocol
+	case slices.Contains(versions, openCodeNavProtocol), isNavMCPURL(remoteURL):
+		return "auto"
+	}
+	return ""
+}
+
+// isNavMCPURL is true for an https URL on nav.no or a subdomain: the Nav-owned
+// servers, fleet-gateway routes included. Other hosts keep OpenCode's default.
+func isNavMCPURL(raw string) bool {
+	u, err := url.Parse(raw)
+	if err != nil || u.Scheme != "https" {
+		return false
+	}
+	h := strings.ToLower(u.Hostname())
+	return h == "nav.no" || strings.HasSuffix(h, ".nav.no")
 }
 
 // registryHeaders is the fixed headers the registry sets on the first
