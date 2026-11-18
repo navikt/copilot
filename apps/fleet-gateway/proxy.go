@@ -17,6 +17,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 	"unicode"
 )
@@ -393,9 +394,12 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 		}
 
 		targetURL := buildUpstreamURL(route.ParsedURL, r.URL.RawQuery)
+		var bodyBuf atomic.Pointer[[]byte]
 		var bodyReader io.Reader
 		if len(reqBody) > 0 {
-			bodyReader = bytes.NewReader(reqBody)
+			b := reqBody
+			bodyBuf.Store(&b)
+			bodyReader = &droppableBytes{b: &bodyBuf}
 		}
 		upCtx, upCancel := context.WithCancel(r.Context())
 		defer upCancel()
@@ -408,6 +412,12 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 				"message": "failed to build upstream request",
 			})
 			return
+		}
+		if len(reqBody) > 0 {
+			upReq.ContentLength = int64(len(reqBody))
+			upReq.GetBody = func() (io.ReadCloser, error) {
+				return &droppableBytes{b: &bodyBuf}, nil
+			}
 		}
 
 		copyAllowlistedHeaders(upReq.Header, r.Header, allowedUpstreamRequestHeaders)
@@ -496,6 +506,14 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 				return
 			}
 			releaseSlot()
+			// Drop references to the buffered request body (up to 1 MiB) before
+			// streaming so long-lived SSE connections do not pin it on the heap
+			// via locals, resp.Request -> upReq, or Transport's rewind copy in readLoop.
+			bodyBuf.Store(nil)
+			reqBody = nil    //nolint:ineffassign // drop heap reference before long-lived SSE stream
+			bodyReader = nil //nolint:ineffassign // drop heap reference before long-lived SSE stream
+			upReq.Body = nil
+			upReq.GetBody = nil
 			copyAllowlistedHeaders(w.Header(), resp.Header, allowedUpstreamResponseHeaders)
 			rc := http.NewResponseController(w)
 			_ = rc.SetWriteDeadline(time.Time{})
@@ -593,6 +611,26 @@ func readChunks(r io.Reader, limit int64) ([][]byte, int64, error) {
 	}
 	return chunks, total, nil
 }
+
+// droppableBytes streams a buffered body via a shared slice pointer so the SSE
+// branch can release the underlying array even when net/http.Transport cloned
+// upReq in setupRewindBody and kept the clone on persistConn.readLoop.
+type droppableBytes struct {
+	b   *atomic.Pointer[[]byte]
+	off int
+}
+
+func (d *droppableBytes) Read(p []byte) (int, error) {
+	bp := d.b.Load()
+	if bp == nil || d.off >= len(*bp) {
+		return 0, io.EOF
+	}
+	n := copy(p, (*bp)[d.off:])
+	d.off += n
+	return n, nil
+}
+
+func (d *droppableBytes) Close() error { return nil }
 
 func streamSSE(
 	ctx context.Context,

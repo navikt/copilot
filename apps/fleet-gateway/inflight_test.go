@@ -383,3 +383,70 @@ func TestPerRouteInFlightCap(t *testing.T) {
 		t.Fatalf("global slots free = %d, want 3 (route cap must refuse before taking a global slot)", free)
 	}
 }
+
+func TestSSEStreamsDoNotRetainRequestBody(t *testing.T) {
+	te := newTestEnv(t)
+	te.gw.cfg.MCPMaxSSE = 64
+	te.gw.cfg.SSEMaxDuration = 10 * time.Second
+	te.gw.cfg.SSEIdleTimeout = 10 * time.Second
+	te.handler = te.gw.routes()
+
+	stop := make(chan struct{})
+	te.upstreamServer.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.Copy(io.Discard, r.Body)
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.WriteHeader(http.StatusOK)
+		w.(http.Flusher).Flush()
+		select {
+		case <-stop:
+		case <-r.Context().Done():
+		}
+	})
+	token := te.obtainAccessTokenForResource(te.resource)
+	ts := httptest.NewServer(te.handler)
+	defer ts.Close()
+	defer close(stop)
+
+	const prefix = `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"x","arguments":{"data":"`
+	const suffix = `"}}}`
+	payload := []byte(prefix + strings.Repeat("a", maxMCPRequestBodyBytes-len(prefix)-len(suffix)-64) + suffix)
+
+	runtime.GC()
+	runtime.GC()
+	var base runtime.MemStats
+	runtime.ReadMemStats(&base)
+
+	for i := range 64 {
+		req, err := http.NewRequest(http.MethodPost, ts.URL+te.gw.cfg.Routes[0].Route, bytes.NewReader(payload))
+		if err != nil {
+			t.Fatal(err)
+		}
+		req.Header.Set("Authorization", "Bearer "+token)
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Accept", "application/json, text/event-stream")
+		resp, err := ts.Client().Do(req) //nolint:gosec // test server URL
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer func() { _ = resp.Body.Close() }()
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("SSE stream %d: code %d", i, resp.StatusCode)
+		}
+	}
+
+	runtime.GC()
+	runtime.GC()
+	var after runtime.MemStats
+	runtime.ReadMemStats(&after)
+
+	const mib = 1 << 20
+	var growth uint64
+	if after.HeapAlloc > base.HeapAlloc {
+		growth = after.HeapAlloc - base.HeapAlloc
+	}
+	t.Logf("heap growth across 64 open SSE streams: %.2f MiB (baseline %.2f MiB, after %.2f MiB)",
+		float64(growth)/mib, float64(base.HeapAlloc)/mib, float64(after.HeapAlloc)/mib)
+	if growth > 24*mib {
+		t.Fatalf("heap growth %.2f MiB exceeds 24 MiB", float64(growth)/mib)
+	}
+}
