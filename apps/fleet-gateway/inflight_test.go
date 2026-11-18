@@ -10,6 +10,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -85,6 +86,7 @@ func TestSSEStreamsDoNotStarveToolCalls(t *testing.T) {
 		req, _ := http.NewRequest(http.MethodPost, ts.URL+te.gw.cfg.Routes[0].Route+"?sse=1", strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"x"}}`))
 		req.Header.Set("Authorization", "Bearer "+token)
 		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Accept", "application/json, text/event-stream")
 		resp, err := ts.Client().Do(req) //nolint:gosec // test server URL
 		if err != nil {
 			t.Fatal(err)
@@ -109,6 +111,9 @@ func capPost(t *testing.T, ts *httptest.Server, token, query string) int {
 	req, _ := http.NewRequest(http.MethodPost, ts.URL+"/mcp/team-etterlevelse/etterlevelse"+query, strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"tools/list"}`))
 	req.Header.Set("Authorization", "Bearer "+token)
 	req.Header.Set("Content-Type", "application/json")
+	if strings.Contains(query, "sse") {
+		req.Header.Set("Accept", "application/json, text/event-stream")
+	}
 	resp, err := ts.Client().Do(req) //nolint:gosec // test server URL
 	if err != nil {
 		t.Error(err)
@@ -232,5 +237,142 @@ func TestMemoryBudgetFitsManifests(t *testing.T) {
 			t.Fatalf("%s: gomemlimit %.0f MiB, memory_limit %.0f MiB; want budget %.0f MiB <= gomemlimit <= 90 %% of limit",
 				f, vars["gomemlimit"]/mib, vars["memory_limit"]/mib, budget/mib)
 		}
+	}
+}
+
+// A body that stops short of its Content-Length is a failed upstream read,
+// not a complete response: 502 stream_error, never a truncated 200.
+func TestTruncatedUpstreamBodyIs502(t *testing.T) {
+	var logBuf bytes.Buffer
+	old := slog.Default()
+	slog.SetDefault(slog.New(slog.NewJSONHandler(&logBuf, &slog.HandlerOptions{Level: slog.LevelInfo})))
+	t.Cleanup(func() { slog.SetDefault(old) })
+
+	te := newTestEnv(t)
+	te.upstreamServer.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		conn, buf, err := w.(http.Hijacker).Hijack()
+		if err != nil {
+			t.Error(err)
+			return
+		}
+		defer func() { _ = conn.Close() }()
+		_, _ = buf.WriteString("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 1000\r\n\r\n" + strings.Repeat("x", 100))
+		_ = buf.Flush()
+	})
+	token := te.obtainAccessTokenForResource(te.resource)
+	ts := httptest.NewServer(te.handler)
+	defer ts.Close()
+	if code := capPost(t, ts, token, ""); code != http.StatusBadGateway {
+		t.Fatalf("truncated body: code %d, want 502", code)
+	}
+	if !strings.Contains(logBuf.String(), `"outcome":"stream_error"`) {
+		t.Fatalf("no audit line with outcome stream_error:\n%s", logBuf.String())
+	}
+}
+
+// The SSE cap is checked before the upstream call: a 503 must mean the tool
+// never ran, and no session was bound.
+func TestSSECapCheckedBeforeUpstream(t *testing.T) {
+	te := newTestEnv(t)
+	te.gw.cfg.MCPMaxSSE = 1
+	te.gw.cfg.SSEMaxDuration = 10 * time.Second
+	te.gw.cfg.SSEIdleTimeout = 10 * time.Second
+	te.handler = te.gw.routes()
+	var hits atomic.Int32
+	stop := make(chan struct{})
+	te.upstreamServer.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hits.Add(1)
+		w.Header().Set("Mcp-Session-Id", "s-"+strconv.Itoa(int(hits.Load())))
+		if r.URL.Query().Get("sse") == "" {
+			writeJSON(w, http.StatusOK, map[string]any{"jsonrpc": "2.0", "id": 1, "result": map[string]any{}})
+			return
+		}
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.WriteHeader(http.StatusOK)
+		w.(http.Flusher).Flush()
+		select {
+		case <-stop:
+		case <-r.Context().Done():
+		}
+	})
+	token := te.obtainAccessTokenForResource(te.resource)
+	ts := httptest.NewServer(te.handler)
+	defer ts.Close()
+	defer close(stop)
+
+	req, _ := http.NewRequest(http.MethodPost, ts.URL+te.gw.cfg.Routes[0].Route+"?sse=1", strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"tools/list"}`))
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Accept", "application/json, text/event-stream")
+	resp, err := ts.Client().Do(req) //nolint:gosec // test server URL
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("first stream: code %d", resp.StatusCode)
+	}
+	before := hits.Load()
+	if code := capPost(t, ts, token, "?sse=1"); code != http.StatusServiceUnavailable {
+		t.Fatalf("over SSE cap: code %d, want 503", code)
+	}
+	if hits.Load() != before {
+		t.Fatalf("upstream called %d times for a request refused at the SSE cap", hits.Load()-before)
+	}
+	if _, found, _ := te.gw.store.Get(t.Context(), kindMCPSession, te.gw.cfg.Routes[0].Route+"\ns-2"); found {
+		t.Fatal("session bound for a request refused at the SSE cap")
+	}
+}
+
+// The in-flight slot is taken after authentication, so requests with bogus
+// bearers get 401 even when every slot is held.
+func TestBogusBearerDoesNotTakeSlot(t *testing.T) {
+	te := newTestEnv(t)
+	te.gw.cfg.MCPMaxInFlight = 1
+	te.handler = te.gw.routes()
+	release := make(chan struct{})
+	entered := make(chan struct{}, 1)
+	te.upstreamServer.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		entered <- struct{}{}
+		<-release
+		writeJSON(w, http.StatusOK, map[string]any{"jsonrpc": "2.0", "id": 1, "result": map[string]any{}})
+	})
+	token := te.obtainAccessTokenForResource(te.resource)
+	ts := httptest.NewServer(te.handler)
+	defer ts.Close()
+	defer close(release) // before ts.Close, so a failed assertion cannot hang it
+	first := make(chan int, 1)
+	go func() { first <- capPost(t, ts, token, "") }()
+	<-entered
+	if code := capPost(t, ts, "bogus", ""); code != http.StatusUnauthorized {
+		t.Fatalf("bogus bearer with all slots held: code %d, want 401", code)
+	}
+}
+
+// One route cannot hold every global slot: MCP_MAX_IN_FLIGHT_PER_ROUTE caps it
+// below MCP_MAX_IN_FLIGHT.
+func TestPerRouteInFlightCap(t *testing.T) {
+	te := newTestEnv(t)
+	te.gw.cfg.MCPMaxInFlight = 4
+	te.gw.cfg.MCPMaxInFlightPerRoute = 1
+	te.handler = te.gw.routes()
+	release := make(chan struct{})
+	entered := make(chan struct{}, 1)
+	te.upstreamServer.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		entered <- struct{}{}
+		<-release
+		writeJSON(w, http.StatusOK, map[string]any{"jsonrpc": "2.0", "id": 1, "result": map[string]any{}})
+	})
+	token := te.obtainAccessTokenForResource(te.resource)
+	ts := httptest.NewServer(te.handler)
+	defer ts.Close()
+	defer close(release) // before ts.Close, so a failed assertion cannot hang it
+	first := make(chan int, 1)
+	go func() { first <- capPost(t, ts, token, "") }()
+	<-entered
+	if code := capPost(t, ts, token, ""); code != http.StatusServiceUnavailable {
+		t.Fatalf("second request on a route at its cap: code %d, want 503", code)
+	}
+	if free := cap(te.gw.inFlight) - len(te.gw.inFlight); free != 3 {
+		t.Fatalf("global slots free = %d, want 3 (route cap must refuse before taking a global slot)", free)
 	}
 }
