@@ -76,7 +76,12 @@ func TestCodebooksMatchSchema(t *testing.T) {
 			}
 			kind[cat.ID] = cat.Kind
 		}
+		fieldSeen := map[string]bool{}
 		for _, f := range cb.Fields {
+			if fieldSeen[f.ID] {
+				t.Errorf("%s: field %s twice", name, f.ID)
+			}
+			fieldSeen[f.ID] = true
 			if !seriesHasFreetext(defs, cb.Series, f.ID) {
 				t.Errorf("%s: no survey in series %s has free-text field %s", name, cb.Series, f.ID)
 			}
