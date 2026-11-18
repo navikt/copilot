@@ -136,4 +136,4 @@ Alerts route per environment to the channel set in Nais Console, not necessarily
 - [x] `nais app stop fleet-gateway -t copilot -e dev-gcp` (dev-gcp, 2026-11-18, 19:43:39 UTC).
 - [x] `FleetGatewayNoReadyPods` reached Slack at 19:47 UTC, about 3.5 min after the stop. The team's dev alert channel was changed in Nais Console during the drill, so treat 3.5 min as an upper bound.
 - [x] `nais app set replicas fleet-gateway --min 1 --max 2 -t copilot -e dev-gcp`; `/ready` returned 200 at 19:48:18 UTC.
-- [ ] Alert resolve time: not recorded.
+- [x] Alert resolve time: RESOLVED reached Slack at 19:52 UTC (2026-11-18), about 4 min after restore (`/ready` 200 at 19:48:18 UTC).
