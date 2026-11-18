@@ -154,6 +154,11 @@ type NavRegistryMeta struct {
 	// Audience names the teams the server is meant for. Visibility, not
 	// access control: the registry stays public. No audience means everyone.
 	Audience *Audience `json:"audience,omitempty"`
+	// ProtocolVersions lists the MCP protocol revisions the server supports,
+	// as dated strings such as "2026-07-28". The official server.json schema
+	// (2025-12-11) has no such field. Clients such as nav-pilot pick the
+	// protocol from it. Absent means unknown.
+	ProtocolVersions []string `json:"protocolVersions,omitempty"`
 }
 
 // Audience is validated by validateAudience, for allowlist.json and the write API alike.
@@ -197,6 +202,7 @@ type StaticServerData struct {
 	SandboxHosts      []string           `json:"sandboxHosts,omitempty"`
 	ToolRisk          map[string]string  `json:"toolRisk,omitempty"`
 	Audience          *Audience          `json:"audience,omitempty"`
+	ProtocolVersions  []string           `json:"protocolVersions,omitempty"`
 	Remotes           []Transport        `json:"remotes,omitempty"`
 	Packages          []Package          `json:"packages,omitempty"`
 	Meta              *ServerMeta        `json:"_meta,omitempty"`
