@@ -287,6 +287,7 @@ func (r *sseTestRecorder) Flush() {
 }
 
 func TestMCPHandler_HandleSSE_EmptyBodyStaysOpen(t *testing.T) {
+	t.Setenv(mcpLegacyUntilEnv, "2999-01-01") // the GET stream exists only for legacy clients
 	h := newSimpleMCPHandler()
 	handler := loggingMiddleware(h)
 

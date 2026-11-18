@@ -47,6 +47,9 @@ spec:
       value: "{{allowed_organization}}"
     - name: LOG_LEVEL
       value: "{{log_level}}"
+    # Serves initialize-era MCP clients (OpenCode default) until this date. See README.
+    - name: MCP_LEGACY_PROTOCOL_UNTIL
+      value: "2027-03-31"
   envFrom:
     - secret: mcp-onboarding-secrets
   {{#if fleet_gateway_inbound}}
