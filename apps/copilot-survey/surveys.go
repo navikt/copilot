@@ -130,11 +130,11 @@ type skipRules []skipRule
 func (rs *skipRules) UnmarshalJSON(b []byte) error {
 	if len(b) > 0 && b[0] == '{' {
 		var r skipRule
-		err := json.Unmarshal(b, &r)
+		err := decodeStrict(b, &r) // a custom Unmarshaler loses the outer decoder's DisallowUnknownFields
 		*rs = skipRules{r}
 		return err
 	}
-	return json.Unmarshal(b, (*[]skipRule)(rs))
+	return decodeStrict(b, (*[]skipRule)(rs))
 }
 
 // MarshalJSON keeps one rule an object, so older clients still read it.
