@@ -1,6 +1,7 @@
-version: 1
+version: 2
 routes:
   - route: /mcp/team-etterlevelse/etterlevelse
     team: team-etterlevelse
     target: dev-gcp:team-etterlevelse:nav-etterlevelse-mcp
     upstream_url: http://nav-etterlevelse-mcp.team-etterlevelse
+    passAllTools: true

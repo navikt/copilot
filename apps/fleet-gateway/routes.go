@@ -33,7 +33,7 @@ type PilotRoute struct {
 	// Tools is the version 2 allowlist of tool names for tools/call.
 	Tools []string `yaml:"tools,omitempty" json:"tools,omitempty"`
 	// PassAllTools is operator-only: a version 2 route without Tools forwards
-	// every tools/call. Version 1 routes behave as if it were set.
+	// every tools/call.
 	PassAllTools bool `yaml:"passAllTools,omitempty" json:"passAllTools,omitempty"`
 
 	Cluster     string   `yaml:"-" json:"-"`
@@ -88,11 +88,14 @@ func parseAndValidatePilotRoutes(raw []byte) ([]PilotRoute, error) {
 	if err := dec.Decode(&extra); err != io.EOF {
 		return nil, errors.New("pilot routes config must contain a single YAML/JSON document")
 	}
-	if doc.Version != 1 && doc.Version != 2 {
+	if doc.Version == 1 {
+		return nil, errors.New("pilot routes version 1 is no longer supported: it passed every tool call; set version: 2 and list tools per route (or passAllTools: true, operator only)")
+	}
+	if doc.Version != 2 {
 		return nil, fmt.Errorf("unsupported pilot routes version %d", doc.Version)
 	}
 	for i := range doc.Routes {
-		if err := applyToolPolicy(&doc.Routes[i], doc.Version); err != nil {
+		if err := applyToolPolicy(&doc.Routes[i]); err != nil {
 			return nil, err
 		}
 	}
@@ -102,14 +105,8 @@ func parseAndValidatePilotRoutes(raw []byte) ([]PilotRoute, error) {
 // applyToolPolicy validates tools and passAllTools and builds the allowlist.
 // Version 2 denies by default: a route must list tools or be marked
 // passAllTools by the operator, not both.
-func applyToolPolicy(r *PilotRoute, version int) error {
+func applyToolPolicy(r *PilotRoute) error {
 	name := strings.TrimSpace(r.Route)
-	if version == 1 {
-		if r.Tools != nil || r.PassAllTools {
-			return fmt.Errorf("route %q: tools and passAllTools require version 2", name)
-		}
-		return nil
-	}
 	if r.Tools == nil {
 		if !r.PassAllTools {
 			return fmt.Errorf("route %q: version 2 routes must declare tools (or passAllTools, set by the operator)", name)
