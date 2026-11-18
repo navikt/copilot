@@ -2,6 +2,12 @@
 
 Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, prompts og samlinger.
 
+## 2026-11-18
+
+### Nav-servere i OpenCode bruker ny MCP-protokoll
+
+- **`nav-pilot mcp enable` for OpenCode**: Når nav-pilot legger til en MCP-server på nav.no (for eksempel fleet-gateway), settes `"protocol": "2026-07-28"` på oppføringen. Det gjelder bare nye oppføringer og bare OpenCode 2.x, som ellers starter med den eldre protokollen. En oppføring du har lagt til selv, og en `protocol` du har satt selv, endres aldri (#2367).
+
 ## 2026-11-16
 
 ### `repo-baseline-audit`: sjekk oppsettet av et repo

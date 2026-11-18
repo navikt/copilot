@@ -80,6 +80,10 @@ export default function NavMcpServerePage() {
         <BodyLong>
           Logg ut med <code className={code}>opencode mcp logout onboarding</code>.
         </BodyLong>
+        <BodyLong>
+          Bruker du OpenCode 2.x direkte, legger du til <code className={code}>"protocol": "2026-07-28"</code> på
+          serveroppføringen. nav-pilot gjør det selv for nye oppføringer.
+        </BodyLong>
       </VStack>
 
       <VStack gap="space-12">

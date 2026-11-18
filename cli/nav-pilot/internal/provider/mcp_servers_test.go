@@ -546,3 +546,44 @@ func TestMCPConfigOpenCodeDuplicateFlatAndNativeRemovedTogether(t *testing.T) {
 		t.Errorf("config lost timeout: %s", got)
 	}
 }
+
+func TestOpenCodeNavProtocol(t *testing.T) {
+	for url, want := range map[string]bool{
+		"https://aksel-mcp.nav.no/mcp":    true,
+		"https://x.intern.dev.nav.no/mcp": true,
+		"https://nav.no/mcp":              true,
+		"http://x.nav.no/mcp":             false,
+		"https://evilnav.no/mcp":          false,
+		"https://nav.no.example.com/mcp":  false,
+		"https://mcp.figma.com/mcp":       false,
+	} {
+		e := MCPServerEntry{Remotes: []MCPRemote{{Type: "streamable-http", URL: url}}}
+		raw, err := MCPClientEntry(MCPClientOpenCode, e, MCPToolChoice{All: true})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := strings.Contains(string(raw), `"protocol":"2026-07-28"`); got != want {
+			t.Errorf("%s: protocol set = %v, want %v (%s)", url, got, want, raw)
+		}
+		// Copilot's config never gets the key.
+		c, _ := MCPClientEntry(MCPClientCopilot, e, MCPToolChoice{All: true})
+		if strings.Contains(string(c), "protocol") {
+			t.Errorf("copilot entry has protocol: %s", c)
+		}
+	}
+}
+
+// An existing entry, with the user's own protocol, is kept as it is.
+func TestSetMCPServerKeepsUserProtocol(t *testing.T) {
+	mcpConfigEnv(t)
+	e := MCPServerEntry{Name: "no.nav/x", Remotes: []MCPRemote{{URL: "https://x.nav.no/mcp"}}}
+	user := json.RawMessage(`{"type":"remote","url":"https://x.nav.no/mcp","enabled":true,"protocol":"legacy"}`)
+	if _, err := SetMCPServer(MCPClientOpenCode, e.Name, user, e, MCPToolChoice{All: true}); err != nil {
+		t.Fatal(err)
+	}
+	entry, _ := MCPClientEntry(MCPClientOpenCode, e, MCPToolChoice{All: true})
+	ch, err := SetMCPServer(MCPClientOpenCode, e.Name, entry, e, MCPToolChoice{All: true})
+	if err != nil || ch.Changed || !strings.Contains(string(ch.Existing), `"legacy"`) {
+		t.Fatalf("overwrote user entry: %+v, %v", ch, err)
+	}
+}
