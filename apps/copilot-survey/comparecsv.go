@@ -19,7 +19,11 @@ import (
 // wave with nothing counted has one answer row with only excluded. In the
 // published comparison (hideSmallWaveVersions) a version under 5 has one
 // answer row with n «hidden» and nothing else counted.
-// Free text is never in a comparison.
+// The published series adds coded free text (publishedCoding): a
+// freetext row per published category or merged pair with its count and n
+// (respondents who wrote in the field) and a freetext_onske row with the
+// wishes among them; version is the codebook's. Counts under 5 are «<5».
+// Never a text.
 func writeCompareCSV(w io.Writer, res compareResult) error {
 	if _, err := w.Write([]byte("\xef\xbb\xbf")); err != nil {
 		return err
@@ -58,6 +62,22 @@ func writeCompareCSV(w io.Writer, res compareResult) error {
 		waves(q.ID, "", q.Break, q.Waves, q.significance)
 		for _, it := range q.Items {
 			waves(q.ID, it.ID, it.Break, it.Waves, it.significance)
+		}
+	}
+	for _, wf := range res.Freetext {
+		for _, f := range wf.Fields {
+			for _, c := range f.Published {
+				for _, row := range []struct {
+					kind string
+					n    *int
+				}{{"freetext", c.Count}, {"freetext_onske", c.Onske}} {
+					count := intCell(row.n)
+					if row.n == nil {
+						count = "<5"
+					}
+					_ = cw.Write([]string{row.kind, wf.Survey, f.ID, "", strconv.Itoa(wf.CodebookVersion), "false", c.ID, count, strconv.Itoa(f.Written), "", "", "", "", ""})
+				}
+			}
 		}
 	}
 	cw.Flush()

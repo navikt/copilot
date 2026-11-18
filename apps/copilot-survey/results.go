@@ -255,6 +255,7 @@ func hideSmallWaveVersions(res *compareResult) {
 // publishedCompare compares the last four closed, published waves of a
 // series that have at least minSegment rows, oldest first (#2229). Channels
 // are left out, and so are versions under minSegment (hideSmallWaveVersions).
+// Coded free text comes along per wave as publishedCoding gives it.
 // Unlike compare, the last wave's skip_if is not applied to earlier waves:
 // each wave counts its own answers as its /results does, so no difference
 // between the two can single out a small group (owner decision, #2271). The
@@ -299,6 +300,16 @@ func (a *surveyAPI) publishedCompare(w http.ResponseWriter, r *http.Request) {
 		res.Surveys[i].Channels = nil
 	}
 	hideSmallWaveVersions(&res)
+	for _, s := range waves {
+		wf, err := a.publishedCoding(r.Context(), s)
+		if err != nil {
+			writeError(w, http.StatusServiceUnavailable, "survey storage unavailable")
+			return
+		}
+		if wf != nil {
+			res.Freetext = append(res.Freetext, *wf)
+		}
+	}
 	if r.URL.Query().Get("format") == "csv" {
 		w.Header().Set("Content-Type", "text/csv; charset=utf-8")
 		w.Header().Set("Content-Disposition", `attachment; filename="sammenligning-`+series+`.csv"`)

@@ -330,8 +330,25 @@ export type CompareQuestion = Significance & {
   waves?: WaveCounts[];
   items?: CompareItem[];
 };
-/** GET /api/v1/admin/surveys/compare: waves oldest first, every waves[] index-aligned with surveys. */
-export type SurveyComparison = { surveys: WaveMeta[]; questions: CompareQuestion[] };
+/** One wave's coded free text in the published series: fully coded fields, published categories only. */
+export type WaveFreetext = {
+  survey_id: string;
+  codebook_version: number;
+  coders: string;
+  fields: {
+    id: string;
+    question: string;
+    other?: string;
+    written: number;
+    coded: number;
+    published: CodedCategory[];
+  }[];
+};
+/**
+ * GET /api/v1/admin/surveys/compare: waves oldest first, every waves[] index-aligned with surveys. freetext only in
+ * the published series.
+ */
+export type SurveyComparison = { surveys: WaveMeta[]; questions: CompareQuestion[]; freetext?: WaveFreetext[] };
 
 export async function getSurveyComparison(userToken: string, ids: string[]): Promise<AdminResult<SurveyComparison>> {
   if (ids.length < 2 || ids.length > 4 || !ids.every((id) => /^[a-z0-9-]{1,64}$/.test(id)))

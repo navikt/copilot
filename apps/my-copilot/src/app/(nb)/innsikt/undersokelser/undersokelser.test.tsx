@@ -195,6 +195,43 @@ describe("/innsikt/undersokelser", () => {
       "href",
       "/api/survey/compare/export?series=utviklerundersokelsen"
     );
+    expect(screen.queryByRole("heading", { name: "Fritekst, kodet" })).not.toBeInTheDocument();
+  });
+
+  it("shows coded free text as counts per category, «<5» for small groups", async () => {
+    const wave = { status: "stengt", suppressed: false, channels: null, starts: "", ends: "", responses: 20 } as const;
+    const category = { kappa: 0.8, status: "published" as const };
+    respond(200, {
+      surveys: [
+        { ...wave, id: "var-2026", title: "Utviklerundersøkelsen våren 2026" },
+        { ...wave, id: "host-2026", title: "Utviklerundersøkelsen høsten 2026" },
+      ],
+      questions: [],
+      freetext: [
+        {
+          survey_id: "host-2026",
+          codebook_version: 1,
+          coders: "modell og en fra verktøyteamet",
+          fields: [
+            {
+              id: "opplevelse",
+              question: "Hva er din mest minneverdige opplevelse?",
+              written: 12,
+              coded: 12,
+              published: [
+                { ...category, id: "raskere", name: "Raskere enn for hånd", count: 6, onske: 0, share: 0.5 },
+                { ...category, id: "friksjon", name: "Friksjon", count: null, onske: null, share: null, small: true },
+              ],
+            },
+          ],
+        },
+      ],
+    } satisfies SurveyComparison);
+    render(await PublishedSeriesPage({ params: Promise.resolve({ series: "utviklerundersokelsen" }) }));
+    expect(screen.getByRole("heading", { name: "Fritekst, kodet" })).toBeInTheDocument();
+    expect(screen.getByText(/modell og en fra verktøyteamet/)).toBeInTheDocument();
+    expect(screen.getByRole("row", { name: /Raskere enn for hånd 6 50\s% 0 0,80/ })).toBeInTheDocument();
+    expect(screen.getByRole("row", { name: /Friksjon <5 <5 <5 0,80/ })).toBeInTheDocument();
   });
 
   it("maps an unknown series or a bad slug to notFound", async () => {
