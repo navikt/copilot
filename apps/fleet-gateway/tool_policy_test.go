@@ -133,3 +133,29 @@ func TestToolPolicy_RouteFile(t *testing.T) {
 		}
 	}
 }
+// The audit list stops at maxAuditBatchTools; the policy must still read every member.
+func TestToolPolicy_BatchPastDisplayCap(t *testing.T) {
+	call := func(name string) string {
+		return `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"` + name + `"}}`
+	}
+	head := "[" + strings.Repeat(call("whoami")+",", maxAuditBatchTools+1)
+	cases := []struct {
+		name, body, reason string
+		code               int
+	}{
+		{"disallowed", head + call("delete_all") + "]", reasonNotListed, http.StatusForbidden},
+		{"duplicate name", head + `{"method":"tools/call","params":{"name":"whoami","name":"delete_all"}}]`, reasonAmbiguous, http.StatusBadRequest},
+		{"trailing data", head + call("whoami") + "]" + call("delete_all"), reasonAmbiguous, http.StatusBadRequest},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			audit, got, code := auditPostTools(t, policyTools, tc.body)
+			if code != tc.code || audit["decision_reason"] != tc.reason || got != nil {
+				t.Fatalf("code=%d reason=%v forwarded=%v", code, audit["decision_reason"], got != nil)
+			}
+			if tc.name != "disallowed" && audit["raw"].(map[string]any)["context"].(map[string]any)["scan_incomplete"] != true {
+				t.Fatalf("audit scan_incomplete=%v, want true", audit["scan_incomplete"])
+			}
+		})
+	}
+}

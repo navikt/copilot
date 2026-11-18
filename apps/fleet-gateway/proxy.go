@@ -142,7 +142,7 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 					"http_method", sanitizeLogValue(r.Method),
 					"scan_incomplete", scanIncomplete,
 					"header_mismatch", headerMismatch,
-					"protocol_version", auditProtocolVersion(r.Header.Get("Mcp-Protocol-Version")),
+					"protocol_version", sanitizeLogValue(auditProtocolVersion(r.Header.Get("Mcp-Protocol-Version"))),
 					slog.Group("mcp_headers",
 						"method", r.Header.Get("Mcp-Method") != "",
 						"name", r.Header.Get("Mcp-Name") != "",
@@ -824,20 +824,20 @@ func scanJSONRPCAudit(body []byte) rpcAudit {
 			if a := auditMethodTool(m, params); a.rawMethod == "tools/call" || a.incomplete {
 				name := a.tool
 				batchIncomplete = batchIncomplete || a.incomplete
-				if len(tools) == maxAuditBatchTools {
+				// The cap limits only the logged list; the scan reads every member.
+				switch {
+				case len(tools) < maxAuditBatchTools:
+					tools = append(tools, name)
+				case len(tools) == maxAuditBatchTools:
 					tools = append(tools, "...")
-					break
 				}
-				tools = append(tools, name)
 			}
 		}
 		batch := rpcAudit{method: "batch", rawMethod: "batch", incomplete: batchIncomplete}
-		if len(tools) <= maxAuditBatchTools {
-			// More() is also false on a syntax error, so require the closing ']'.
-			if tok, err := dec.Token(); !complete || err != nil || tok != json.Delim(']') || !auditAtEOF(dec) {
-				tools = append(tools, auditIncomplete)
-				batch.incomplete = true
-			}
+		// More() is also false on a syntax error, so require the closing ']'.
+		if tok, err := dec.Token(); !complete || err != nil || tok != json.Delim(']') || !auditAtEOF(dec) {
+			tools = append(tools, auditIncomplete)
+			batch.incomplete = true
 		}
 		if len(tools) > 0 {
 			list, _ := json.Marshal(tools)
