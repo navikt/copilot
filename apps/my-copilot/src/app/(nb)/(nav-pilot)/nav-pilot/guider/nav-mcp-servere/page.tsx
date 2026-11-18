@@ -82,7 +82,7 @@ export default function NavMcpServerePage() {
         </BodyLong>
         <BodyLong>
           Bruker du OpenCode 2.x direkte, legger du til <code className={code}>"protocol": "2026-07-28"</code> på
-          serveroppføringen. nav-pilot gjør det selv for nye oppføringer.
+          serveroppføringen. nav-pilot gjør det selv for nye oppføringer, ut fra protokollversjonene i MCP-registeret.
         </BodyLong>
       </VStack>
 

@@ -194,10 +194,11 @@ func askMCPRegistry(base string) (mcpRegistry, error) {
 						Status string `json:"status"`
 					} `json:"io.modelcontextprotocol.registry/official"`
 					Nav struct {
-						Setup        []MCPSetupStep    `json:"setupInstructions"`
-						SandboxHosts []string          `json:"sandboxHosts"`
-						Tools        []string          `json:"tools"`
-						ToolRisk     map[string]string `json:"toolRisk"`
+						Setup            []MCPSetupStep    `json:"setupInstructions"`
+						SandboxHosts     []string          `json:"sandboxHosts"`
+						Tools            []string          `json:"tools"`
+						ToolRisk         map[string]string `json:"toolRisk"`
+						ProtocolVersions []string          `json:"protocolVersions"`
 					} `json:"io.github.navikt/registry"`
 				} `json:"_meta"`
 			} `json:"servers"`
@@ -217,6 +218,7 @@ func askMCPRegistry(base string) (mcpRegistry, error) {
 			e.SandboxHosts = s.Meta.Nav.SandboxHosts
 			e.Tools = s.Meta.Nav.Tools
 			e.ToolRisk = s.Meta.Nav.ToolRisk
+			e.ProtocolVersions = s.Meta.Nav.ProtocolVersions
 			reg.Entries = append(reg.Entries, e)
 			if e.Meta.Broker != nil && e.Name != "" {
 				if reg.Brokered == nil {

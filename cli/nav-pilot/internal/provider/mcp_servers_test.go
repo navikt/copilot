@@ -246,13 +246,13 @@ func TestConfiguredMCPServers(t *testing.T) {
 	}
 }
 
-// Status, setup steps and sandbox hosts come from _meta, where the registry serves them.
+// Status, setup steps, sandbox hosts and protocol versions come from _meta, where the registry serves them.
 func TestAskMCPRegistryEntries(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(`{"servers":[{"server":{"name":"com.microsoft/playwright-mcp","description":"d",
 			"packages":[{"registryType":"npm","identifier":"@playwright/mcp","version":"0.0.80"}]},
 			"_meta":{"io.modelcontextprotocol.registry/official":{"status":"deprecated"},
-			"io.github.navikt/registry":{"setupInstructions":[{"title":"t","commands":["cplt config set sandbox.allow_cache_exec ms-playwright"]}],"sandboxHosts":["api.example"]}}}]}`))
+			"io.github.navikt/registry":{"setupInstructions":[{"title":"t","commands":["cplt config set sandbox.allow_cache_exec ms-playwright"]}],"sandboxHosts":["api.example"],"protocolVersions":["2026-07-28"]}}}]}`))
 	}))
 	defer srv.Close()
 	reg, err := askMCPRegistry(srv.URL)
@@ -260,7 +260,7 @@ func TestAskMCPRegistryEntries(t *testing.T) {
 		t.Fatalf("askMCPRegistry = %+v, %v", reg, err)
 	}
 	e := reg.Entries[0]
-	if e.Status != "deprecated" || e.Usable() || len(e.Setup) != 1 || e.Packages[0].Version != "0.0.80" || !slices.Equal(e.SandboxHosts, []string{"api.example"}) {
+	if e.Status != "deprecated" || e.Usable() || len(e.Setup) != 1 || e.Packages[0].Version != "0.0.80" || !slices.Equal(e.SandboxHosts, []string{"api.example"}) || !slices.Equal(e.ProtocolVersions, []string{"2026-07-28"}) {
 		t.Errorf("entry = %+v", e)
 	}
 }
@@ -547,30 +547,53 @@ func TestMCPConfigOpenCodeDuplicateFlatAndNativeRemovedTogether(t *testing.T) {
 	}
 }
 
-func TestOpenCodeNavProtocol(t *testing.T) {
-	for url, want := range map[string]bool{
-		"https://aksel-mcp.nav.no/mcp":    true,
-		"https://x.intern.dev.nav.no/mcp": true,
-		"https://nav.no/mcp":              true,
-		"http://x.nav.no/mcp":             false,
-		"https://evilnav.no/mcp":          false,
-		"https://nav.no.example.com/mcp":  false,
-		"https://mcp.figma.com/mcp":       false,
-	} {
-		e := MCPServerEntry{Remotes: []MCPRemote{{Type: "streamable-http", URL: url}}}
+func TestOpenCodeProtocol(t *testing.T) {
+	cases := []struct {
+		name, url string
+		versions  []string
+		want      string // "" means no protocol key
+	}{
+		{"only 2026-07-28 pins", "https://mcp.example.com/mcp", []string{"2026-07-28"}, "2026-07-28"},
+		{"only 2026-07-28 on nav", "https://x.nav.no/mcp", []string{"2026-07-28"}, "2026-07-28"},
+		{"mixed gets auto", "https://mcp.example.com/mcp", []string{"2026-07-28", "2025-11-25"}, "auto"},
+		{"older only on nav", "https://x.nav.no/mcp", []string{"2025-11-25"}, "auto"},
+		{"older only elsewhere", "https://mcp.example.com/mcp", []string{"2025-11-25"}, ""},
+		{"absent on nav", "https://aksel-mcp.nav.no/mcp", nil, "auto"},
+		{"absent on nav apex", "https://nav.no/mcp", nil, "auto"},
+		{"absent on intern nav", "https://x.intern.dev.nav.no/mcp", nil, "auto"},
+		{"absent on http nav", "http://x.nav.no/mcp", nil, ""},
+		{"absent on evilnav", "https://evilnav.no/mcp", nil, ""},
+		{"absent on nav.no.example", "https://nav.no.example.com/mcp", nil, ""},
+		{"absent elsewhere", "https://mcp.figma.com/mcp", nil, ""},
+	}
+	for _, tc := range cases {
+		e := MCPServerEntry{Remotes: []MCPRemote{{Type: "streamable-http", URL: tc.url}}, ProtocolVersions: tc.versions}
 		raw, err := MCPClientEntry(MCPClientOpenCode, e, MCPToolChoice{All: true})
 		if err != nil {
 			t.Fatal(err)
 		}
-		if got := strings.Contains(string(raw), `"protocol":"2026-07-28"`); got != want {
-			t.Errorf("%s: protocol set = %v, want %v (%s)", url, got, want, raw)
+		var got struct {
+			Protocol *string `json:"protocol"`
+		}
+		if err := json.Unmarshal(raw, &got); err != nil {
+			t.Fatal(err)
+		}
+		if g := ptrOr(got.Protocol); g != tc.want || (tc.want == "") != (got.Protocol == nil) {
+			t.Errorf("%s: protocol %q, want %q (%s)", tc.name, g, tc.want, raw)
 		}
 		// Copilot's config never gets the key.
 		c, _ := MCPClientEntry(MCPClientCopilot, e, MCPToolChoice{All: true})
 		if strings.Contains(string(c), "protocol") {
-			t.Errorf("copilot entry has protocol: %s", c)
+			t.Errorf("%s: copilot entry has protocol: %s", tc.name, c)
 		}
 	}
+}
+
+func ptrOr(p *string) string {
+	if p == nil {
+		return ""
+	}
+	return *p
 }
 
 // An existing entry, with the user's own protocol, is kept as it is.
