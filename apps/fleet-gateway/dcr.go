@@ -123,6 +123,7 @@ func (g *Gateway) registerHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if errors.Is(err, errStoreFull) {
 			w.Header().Set("Retry-After", "3600")
+			markShed(w, "store_full")
 			fail(http.StatusServiceUnavailable, "temporarily_unavailable", "client registration capacity reached")
 			return
 		}

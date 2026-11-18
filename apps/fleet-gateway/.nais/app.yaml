@@ -50,6 +50,9 @@ spec:
     - secret: fleet-gateway-rt-keys # key RT_KEYS = "kid:base64key,..." (newest first); created by a human
   {{/if}}
   env:
+    # Soft heap limit below the container limit, so GC runs before an OOM kill (README, Memory and limits).
+    - name: GOMEMLIMIT
+      value: "{{gomemlimit}}"
     - name: SESSION_STORE
       value: "{{session_store}}"
     - name: SESSION_MAX_AGE
@@ -142,7 +145,7 @@ spec:
             app: fleet-gateway
           annotations:
             summary: More than 10 % of fleet-gateway responses are 5xx
-            description: Deliberate 503s (kill switch, capacity cap) carry a non-empty reason label and are not counted.
+            description: Deliberate 503s (kill switch, in-flight cap, store quota, concurrent refresh) carry a non-empty reason label and are not counted.
             consequence: Users get errors on login or MCP calls.
             action: "Break down `fleet_gateway_mcp_requests_total` by route and outcome, then read the `audit mcp` log lines for that route."
         - alert: FleetGatewayUpstreamTokenErrors

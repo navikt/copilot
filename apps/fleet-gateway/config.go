@@ -29,6 +29,10 @@ const (
 	defaultSessionTTL                       = time.Hour
 	defaultCIMDTTL                          = 5 * time.Minute
 	defaultOutboundTimeout                  = 10 * time.Second
+	defaultUpstreamTimeout                  = 60 * time.Second // MCP tool calls; headers and body each get this long
+	defaultMCPMaxInFlight                   = 16
+	defaultMCPMaxInFlightPerRoute           = 8
+	defaultMCPMaxSSE                        = 64 // ~40 KiB each: a 32 KiB read buffer plus the connection
 	defaultPendingCap                       = 1024
 	defaultCodeCap                          = 1024
 	defaultSessionCap                       = 4096
@@ -91,6 +95,9 @@ type Config struct {
 	CookieVerifyKeys        [][]byte // extra keys accepted on verify only (older RT_KEYS entries)
 	HTTPClient              *http.Client
 	ProxyHeaderTimeout      time.Duration
+	MCPMaxInFlight          int // concurrent buffered /mcp/* requests per pod
+	MCPMaxInFlightPerRoute  int // concurrent buffered requests per route, under MCPMaxInFlight
+	MCPMaxSSE               int // concurrent SSE response streams per pod
 	SSEMaxDuration          time.Duration
 	SSEIdleTimeout          time.Duration
 	SSEMaxBytes             int64
@@ -198,7 +205,10 @@ func loadConfigFromEnv() (*Config, error) {
 		CookieSecret:            cookieKeys[0],
 		CookieVerifyKeys:        cookieKeys[1:],
 		HTTPClient:              newHardenedHTTPClient(defaultOutboundTimeout),
-		ProxyHeaderTimeout:      defaultOutboundTimeout,
+		ProxyHeaderTimeout:      getEnvDuration("UPSTREAM_TIMEOUT", defaultUpstreamTimeout),
+		MCPMaxInFlight:          getEnvInt("MCP_MAX_IN_FLIGHT", defaultMCPMaxInFlight),
+		MCPMaxInFlightPerRoute:  getEnvInt("MCP_MAX_IN_FLIGHT_PER_ROUTE", defaultMCPMaxInFlightPerRoute),
+		MCPMaxSSE:               getEnvInt("MCP_MAX_SSE", defaultMCPMaxSSE),
 		SSEMaxDuration:          getEnvDuration("SSE_MAX_DURATION", defaultSSEMaxDuration),
 		SSEIdleTimeout:          getEnvDuration("SSE_IDLE_TIMEOUT", defaultSSEIdleTimeout),
 		SSEMaxBytes:             getEnvInt64("SSE_MAX_BYTES", defaultSSEMaxBytes),
@@ -319,7 +329,16 @@ func validateConfig(cfg *Config) error {
 		cfg.HTTPClient = newHardenedHTTPClient(defaultOutboundTimeout)
 	}
 	if cfg.ProxyHeaderTimeout <= 0 {
-		cfg.ProxyHeaderTimeout = defaultOutboundTimeout
+		cfg.ProxyHeaderTimeout = defaultUpstreamTimeout
+	}
+	if cfg.MCPMaxInFlight <= 0 {
+		cfg.MCPMaxInFlight = defaultMCPMaxInFlight
+	}
+	if cfg.MCPMaxInFlightPerRoute <= 0 {
+		cfg.MCPMaxInFlightPerRoute = defaultMCPMaxInFlightPerRoute
+	}
+	if cfg.MCPMaxSSE <= 0 {
+		cfg.MCPMaxSSE = defaultMCPMaxSSE
 	}
 	if cfg.SSEMaxDuration <= 0 {
 		cfg.SSEMaxDuration = defaultSSEMaxDuration

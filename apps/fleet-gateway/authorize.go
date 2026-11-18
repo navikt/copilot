@@ -284,6 +284,7 @@ func (g *Gateway) redirectToEntra(w http.ResponseWriter, r *http.Request, p *pen
 	p.Created = g.now()
 	if err := g.putPending(r.Context(), kindPendingEntra, entraState, p); err != nil {
 		if errors.Is(err, errStoreFull) {
+			markShed(w, "store_full")
 			http.Error(w, "too many pending authorizations", http.StatusServiceUnavailable)
 			return
 		}
@@ -587,6 +588,7 @@ func (g *Gateway) callbackHandler(w http.ResponseWriter, r *http.Request) {
 	p.Issued = issued
 	if err := g.putPending(r.Context(), kindPendingConsent, consentID, p); err != nil {
 		if errors.Is(err, errStoreFull) {
+			markShed(w, "store_full")
 			http.Error(w, "too many pending authorizations", http.StatusServiceUnavailable)
 			return
 		}
@@ -602,6 +604,7 @@ func (g *Gateway) callbackHandler(w http.ResponseWriter, r *http.Request) {
 func (g *Gateway) issueCode(w http.ResponseWriter, r *http.Request, p *pendingAuth, gwCode string, issued *issuedCode) {
 	if err := g.putCode(r.Context(), gwCode, issued); err != nil {
 		if errors.Is(err, errStoreFull) {
+			markShed(w, "store_full")
 			http.Error(w, "too many active authorization codes", http.StatusServiceUnavailable)
 			return
 		}

@@ -40,6 +40,10 @@ The gateway is live in prod (2026-11-17) for a controlled pilot. It runs the aut
 | `ENTRA_SCOPE` | No | `openid api://<own client id>/.default` (plus `offline_access` for `refresh`) | Scope requested from Entra |
 | `COOKIE_SIGNING_SECRET` | No | HKDF subkey of the primary `RT_KEYS` key; random only outside Nais | HMAC key (>= 32 bytes) for the `__Host-fleet_entra_state` cookie. On Nais (`NAIS_CLUSTER_NAME` set) startup fails if neither this nor `RT_KEYS` is set |
 | `PORT` | No | `8080` | HTTP listen port |
+| `UPSTREAM_TIMEOUT` | No | `60s` | Time the MCP server gets to send response headers, and again to finish a non-SSE body. SSE uses `SSE_IDLE_TIMEOUT` and `SSE_MAX_DURATION` instead |
+| `MCP_MAX_IN_FLIGHT` | No | `16` | Concurrent buffered `/mcp/*` requests per pod. Over the cap: `503` with `Retry-After: 1` |
+| `MCP_MAX_IN_FLIGHT_PER_ROUTE` | No | `8` | Concurrent buffered requests per route, within `MCP_MAX_IN_FLIGHT`, so one slow upstream cannot hold every slot |
+| `MCP_MAX_SSE` | No | `64` | Concurrent SSE response streams per pod, counted apart from `MCP_MAX_IN_FLIGHT` |
 | `METRICS_PORT` | No | `9090` | Port for `/metrics`. It has no ingress |
 | `LOG_LEVEL` | No | `INFO` | `DEBUG`, `INFO`, `WARN`, or `ERROR` |
 
@@ -65,13 +69,32 @@ Key rotation takes two deploys (append the new key last, then promote it) and ke
 
 Empty `ALLOWED_CLIENT_IDS` or `ALLOWED_REDIRECT_URIS` fails closed at startup.
 
+## Memory and limits
+
+Worst case per buffered MCP call, at the size limits:
+
+| Part | MiB |
+|---|---|
+| Response body, read in 32 KiB chunks (no `io.ReadAll` growth) | 10.03 |
+| Request body (1 MiB) through `io.ReadAll`, which allocates about 2.25x the body (measured: 23.5 MB for 10 MiB), plus JSON parsing for tool policy | 4 |
+| Connection and transport buffers | 0.1 |
+| **Per call** | **~14.1** |
+
+`MCP_MAX_IN_FLIGHT` = 16 calls: 16 x 14.1 = 226 MiB. `MCP_MAX_SSE` = 64 streams at about 48 KiB each (32 KiB read buffer plus connection buffers): 3 MiB. Go runtime, route config and session caches: about 30 MiB. Total: about 259 MiB.
+
+Both clusters therefore run with a 384 Mi limit, a 128 Mi request and `GOMEMLIMIT=320MiB` (83 % of the limit), so the garbage collector works harder before the kernel kills the pod. The figures are arithmetic plus one allocation measurement, not a load test. Raise `MCP_MAX_IN_FLIGHT` or the body limits only together with `memory_limit` and `gomemlimit`; `TestMemoryBudgetFitsManifests` checks the sum against both manifests.
+
+A request takes its in-flight slot after the bearer token is checked and before the body is read, so requests with invalid tokens get `401`, never a slot. A `GET`, or a request whose `Accept` admits `text/event-stream`, also reserves an `MCP_MAX_SSE` slot before the upstream call, so a `503` always means the tool did not run. A JSON reply hands the SSE slot back. An event stream hands back the in-flight slot and may stay open for `SSE_MAX_DURATION`. An event stream the client did not accept gets `502` with outcome `upstream_unexpected_sse`. Over either cap the gateway answers `503` with `Retry-After: 1`, writes an `audit mcp` line with outcome `over_capacity` or `sse_over_capacity`, and counts it in the metrics. A truncated upstream body, shorter than its `Content-Length`, gets `502` with outcome `stream_error`.
+
+`WriteTimeout` is derived in code (`mcpWriteTimeout`): read timeout (10 s) + team-token exchange (10 s) + 2 x `UPSTREAM_TIMEOUT` (headers, then body) + 5 s margin. With the defaults that is 145 s.
+
 ## Metrics and alerts
 
 Prometheus scrapes `/metrics` on port 9090. That port has no ingress, so the public host does not serve `/metrics`. No label carries a user identifier.
 
 | Metric | Labels | What it shows |
 |---|---|---|
-| `fleet_gateway_http_requests_total` | `code`, `reason` | All responses except `/health` and `/ready`. `reason` is empty except on deliberate 503s: `disabled` (kill switch). The 5xx alert counts only `reason=""` |
+| `fleet_gateway_http_requests_total` | `code`, `reason` | All responses except `/health` and `/ready`. `reason` is empty except on deliberate 503s: `disabled` (kill switch), `cap` (in-flight or SSE limit), `store_full` (store quota reached), `refresh_in_flight` (concurrent refresh of the same token). The 5xx alert counts only `reason=""` |
 | `fleet_gateway_mcp_requests_total` | `route`, `outcome`, `decision` | MCP calls. `outcome` matches the `audit mcp` log line, for example `ok`, `upstream_token_error`, `store_error` or `upstream_502` |
 | `fleet_gateway_mcp_request_duration_seconds` | `route` | Time per MCP call, token exchange and upstream included. An SSE stream counts until it ends |
 | `fleet_gateway_routes_loaded` | none | Routes loaded at startup |

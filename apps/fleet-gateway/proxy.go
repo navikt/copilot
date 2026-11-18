@@ -94,6 +94,10 @@ func newHardenedProxyClient(headerTimeout time.Duration) *http.Client {
 func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 	fullRouteURL := g.cfg.BaseURL + route.Route
 	prmURL := g.cfg.BaseURL + "/.well-known/oauth-protected-resource" + route.Route
+	var routeInFlight slots // nil, like g.inFlight, for Gateways built without routes()
+	if g.inFlight != nil {
+		routeInFlight = make(slots, min(g.cfg.MCPMaxInFlightPerRoute, cap(g.inFlight)))
+	}
 
 	return func(w http.ResponseWriter, r *http.Request) {
 		start := g.now()
@@ -265,6 +269,25 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 			}
 		}
 
+		// After auth, so bogus bearers cannot take slots; before the body read,
+		// since the cap bounds buffered memory. The route cap comes first so one
+		// slow upstream cannot hold every global slot.
+		releaseRouteSlot, ok := routeInFlight.tryAcquire()
+		if !ok {
+			outcome = "over_capacity"
+			writeOverCapacity(w, "MCP requests on this route")
+			return
+		}
+		defer releaseRouteSlot()
+		releaseGlobalSlot, ok := g.inFlight.tryAcquire()
+		if !ok {
+			outcome = "over_capacity"
+			writeOverCapacity(w, "MCP requests")
+			return
+		}
+		defer releaseGlobalSlot()
+		releaseSlot := func() { releaseGlobalSlot(); releaseRouteSlot() }
+
 		r.Body = http.MaxBytesReader(w, r.Body, maxMCPRequestBodyBytes)
 		reqBody, err := io.ReadAll(r.Body)
 		if err != nil {
@@ -323,6 +346,21 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 					return
 				}
 			}
+		}
+
+		// Reserve the SSE slot before the upstream call: a 503 after the tool
+		// already ran, or after a session was bound, would lie to the client.
+		// A request that accepts SSE holds one until the response proves it JSON.
+		releaseStream, streamReserved := func() {}, false
+		if r.Method == http.MethodGet || acceptsEventStream(r.Header) {
+			release, ok := g.sseStreams.tryAcquire()
+			if !ok {
+				outcome = "sse_over_capacity"
+				writeOverCapacity(w, "SSE streams")
+				return
+			}
+			releaseStream, streamReserved = release, true
+			defer releaseStream()
 		}
 
 		if g.TeamTokens == nil {
@@ -446,6 +484,18 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 		}
 
 		if isEventStream(resp.Header.Get("Content-Type")) {
+			// A stream buffers nothing but may stay open for SSE_MAX_DURATION:
+			// move it from the in-flight cap to its own so streams cannot starve tool calls.
+			if !streamReserved {
+				// The client did not accept SSE, so no slot was reserved (MCP forbids this reply).
+				outcome = "upstream_unexpected_sse"
+				writeJSON(w, http.StatusBadGateway, map[string]string{
+					"error":   "upstream_error",
+					"message": "upstream answered with an event stream the client did not accept",
+				})
+				return
+			}
+			releaseSlot()
 			copyAllowlistedHeaders(w.Header(), resp.Header, allowedUpstreamResponseHeaders)
 			rc := http.NewResponseController(w)
 			_ = rc.SetWriteDeadline(time.Time{})
@@ -458,6 +508,8 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 			}
 			return
 		}
+
+		releaseStream()
 
 		maxRespBytes := g.cfg.MaxResponseBodyBytes
 		if maxRespBytes <= 0 {
@@ -477,7 +529,7 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 			bodyTimeout = defaultOutboundTimeout
 		}
 		bodyTimer := time.AfterFunc(bodyTimeout, upCancel)
-		respBody, err := io.ReadAll(io.LimitReader(resp.Body, maxRespBytes+1))
+		respBody, respLen, err := readChunks(resp.Body, maxRespBytes+1)
 		bodyTimer.Stop()
 		if err != nil {
 			outcome = "stream_error"
@@ -487,7 +539,7 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 			})
 			return
 		}
-		if int64(len(respBody)) > maxRespBytes {
+		if respLen > maxRespBytes {
 			outcome = "response_too_large"
 			writeJSON(w, http.StatusBadGateway, map[string]string{
 				"error":   "response_too_large",
@@ -498,8 +550,8 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 
 		copyAllowlistedHeaders(w.Header(), resp.Header, allowedUpstreamResponseHeaders)
 		w.WriteHeader(resp.StatusCode)
-		if len(respBody) > 0 {
-			if _, err := w.Write(respBody); err != nil {
+		for _, chunk := range respBody {
+			if _, err := w.Write(chunk); err != nil {
 				outcome = "stream_error"
 				return
 			}
@@ -508,6 +560,38 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 			outcome = fmt.Sprintf("upstream_%d", resp.StatusCode)
 		}
 	}
+}
+
+// readChunks reads up to limit bytes in fixed 32 KiB chunks. Unlike io.ReadAll
+// it never reallocates, so a body costs its size in memory, not up to ~2x
+// plus the discarded backing arrays.
+func readChunks(r io.Reader, limit int64) ([][]byte, int64, error) {
+	const chunkSize = 32 << 10
+	var chunks [][]byte
+	var total int64
+	for total < limit {
+		buf := make([]byte, min(chunkSize, limit-total))
+		n := 0
+		for n < len(buf) {
+			m, err := r.Read(buf[n:])
+			n += m
+			// Only io.EOF is a clean end. io.ErrUnexpectedEOF means the body
+			// stopped short of its Content-Length; io.ReadFull would hide that.
+			if err == io.EOF { //nolint:errorlint // Read returns io.EOF itself, never wrapped
+				total += int64(n)
+				if n > 0 {
+					chunks = append(chunks, buf[:n])
+				}
+				return chunks, total, nil
+			}
+			if err != nil {
+				return nil, total + int64(n), err
+			}
+		}
+		chunks = append(chunks, buf)
+		total += int64(n)
+	}
+	return chunks, total, nil
 }
 
 func streamSSE(
@@ -741,6 +825,19 @@ func connectionHeaderTokens(h http.Header) map[string]bool {
 		}
 	}
 	return tokens
+}
+
+// acceptsEventStream reports whether the Accept header admits text/event-stream.
+func acceptsEventStream(h http.Header) bool {
+	for _, v := range h.Values("Accept") {
+		for _, part := range strings.Split(v, ",") {
+			mt, _, err := mime.ParseMediaType(strings.TrimSpace(part))
+			if err == nil && (mt == "text/event-stream" || mt == "text/*" || mt == "*/*") {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func isEventStream(contentType string) bool {

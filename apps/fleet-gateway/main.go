@@ -28,6 +28,8 @@ type Gateway struct {
 	limiter     *ipRateLimiter
 	proxyClient *http.Client
 	refreshWait time.Duration // how long a concurrent refresh waits for the winner's grace pair
+	inFlight    slots         // buffered MCP calls; bounds memory (see README, Memory and limits)
+	sseStreams  slots         // open SSE response streams; they buffer nothing, so get their own cap
 
 	wellKnownMu         sync.RWMutex
 	wellKnownGroup      singleflight.Group
@@ -165,6 +167,9 @@ func (g *Gateway) routes() http.Handler {
 	if g.cfg.DCREnabled {
 		mux.HandleFunc("POST /register", g.rateLimitMiddleware(g.registerHandler))
 	}
+	// Shared by all MCP routes.
+	g.inFlight = make(slots, g.cfg.MCPMaxInFlight)
+	g.sseStreams = make(slots, g.cfg.MCPMaxSSE)
 	for _, route := range g.cfg.Routes {
 		mux.HandleFunc(route.Route, g.mcpHandler(route))
 	}
@@ -270,6 +275,17 @@ func truncateLogValue(s string, maxChars int) string {
 		count++
 	}
 	return s
+}
+
+const serverReadTimeout = 10 * time.Second
+
+// mcpWriteTimeout is the server's WriteTimeout. Go starts it when the request
+// headers are read, so it must cover the slowest non-SSE MCP call end to end:
+// the request body (read), one team-token exchange (token), the upstream's
+// headers and then its body (upstream each), plus a margin for store lookups.
+// SSE clears its own deadline.
+func mcpWriteTimeout(read, token, upstream, margin time.Duration) time.Duration {
+	return read + token + 2*upstream + margin
 }
 
 type statusResponseWriter struct {
@@ -473,8 +489,8 @@ func main() {
 		Addr:              ":" + cfg.Port,
 		Handler:           gw.routes(),
 		ReadHeaderTimeout: 5 * time.Second,
-		ReadTimeout:       10 * time.Second,
-		WriteTimeout:      15 * time.Second,
+		ReadTimeout:       serverReadTimeout,
+		WriteTimeout:      mcpWriteTimeout(serverReadTimeout, defaultOutboundTimeout, cfg.ProxyHeaderTimeout, 5*time.Second),
 		IdleTimeout:       60 * time.Second,
 		MaxHeaderBytes:    maxRequestHeaderBytes,
 	}

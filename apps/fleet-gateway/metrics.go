@@ -44,8 +44,10 @@ func observeHTTPRequest(code int, reason string) {
 	httpRequestsTotal.WithLabelValues(strconv.Itoa(code), reason).Inc()
 }
 
-// markShed labels a deliberate refusal (kill switch, capacity) so the 5xx
-// alert can tell it apart from real failures.
+// markShed labels a deliberate 503 so the 5xx alert can tell it apart from
+// real failures: "disabled" (kill switch), "cap" (in-flight/SSE limits),
+// "store_full" (store quota reached), "refresh_in_flight" (concurrent refresh).
+// Store errors and upstream failures stay unlabelled and count.
 func markShed(w http.ResponseWriter, reason string) {
 	for {
 		if sw, ok := w.(*statusResponseWriter); ok {

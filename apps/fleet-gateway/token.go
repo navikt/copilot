@@ -309,6 +309,7 @@ func (g *Gateway) handleAuthorizationCodeGrant(w http.ResponseWriter, r *http.Re
 
 	if err := g.putSession(r.Context(), hashToken(accessToken), &issued.Session, ttl); err != nil {
 		if errors.Is(err, errStoreFull) {
+			markShed(w, "store_full")
 			bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store capacity reached")
 			return
 		}
@@ -475,6 +476,7 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 		outcome = "refresh_in_flight"
 		retry := min(refreshPendingTTL, absExpiry.Sub(g.now()), g.cfg.RefreshGraceWindow/2)
 		w.Header().Set("Retry-After", strconv.Itoa(max(1, int(retry.Seconds()))))
+		markShed(w, "refresh_in_flight")
 		bad(http.StatusServiceUnavailable, "temporarily_unavailable", "refresh in progress, retry later")
 		return
 	}
@@ -589,6 +591,7 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 	if err = g.putSession(r.Context(), hashToken(accessToken), newSess, ttl); err != nil {
 		outcome = "store_error"
 		if errors.Is(err, errStoreFull) {
+			markShed(w, "store_full")
 			bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store capacity reached")
 			return
 		}

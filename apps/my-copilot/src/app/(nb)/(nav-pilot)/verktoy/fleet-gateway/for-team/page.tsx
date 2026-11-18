@@ -385,6 +385,16 @@ export default function FleetGatewayForTeamPage() {
         <Bullets>
           <li>Test i prod på samme måte som i dev, med prod-adressen.</li>
           <li>En innlogging varer i 12 timer. Godkjenningen av klienten huskes i 30 dager.</li>
+          <li>
+            Grenser per kall: forespørselen kan være opptil 1 MiB og svaret opptil 10 MiB. Serveren må sende svarhodene
+            innen 60 sekunder, og et vanlig svar må være ferdig innen 60 nye sekunder. Svarer dere med SSE (
+            <code className={code}>text/event-stream</code>), gjelder i stedet 16 MiB, maks 10 minutter og at det ikke
+            går mer enn 60 sekunder mellom hendelsene.
+          </li>
+          <li>
+            Hver gateway-pod tar 16 vanlige MCP-kall og 64 åpne SSE-strømmer samtidig. Kall over taket får{" "}
+            <code className={code}>503</code> med <code className={code}>Retry-After</code>.
+          </li>
           <li>Gatewayen logger hvert kall med NAV-ident, rute og MCP-metode. Tilgang til data styrer dere i appen.</li>
           <li>
             Stenge en rute: PR som setter <code className={code}>enabled: false</code> på ruten. Ruten svarer{" "}
