@@ -1073,16 +1073,18 @@ func TestProxy_KillSwitch(t *testing.T) {
 				writeJSON(w, http.StatusOK, map[string]any{"jsonrpc": "2.0", "id": 1, "result": "ok"})
 			})
 
-			routesYAML := `version: 1
+			routesYAML := `version: 2
 routes:
   - route: /mcp/team-etterlevelse/etterlevelse
     team: team-etterlevelse
     target: dev-gcp:team-etterlevelse:nav-etterlevelse-mcp
     upstream_url: http://nav-etterlevelse-mcp.team-etterlevelse
+    passAllTools: true
   - route: /mcp/team-sec/disabled
     team: team-sec
     target: dev-gcp:team-sec:sec-mcp
     upstream_url: http://sec-mcp.team-sec
+    passAllTools: true
     enabled: false
 `
 			parsedRoutes, err := parseAndValidatePilotRoutes([]byte(routesYAML))

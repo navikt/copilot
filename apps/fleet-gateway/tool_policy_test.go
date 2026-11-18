@@ -86,7 +86,7 @@ func TestToolPolicy_NonPostBody(t *testing.T) {
 }
 
 func TestToolPolicy_RouteFilesAreV2(t *testing.T) {
-	for _, f := range []string{"pilot-routes.dev.yaml", "pilot-routes.prod.yaml"} {
+	for _, f := range []string{"pilot-routes.yaml", "pilot-routes.dev.yaml", "pilot-routes.prod.yaml"} {
 		raw, err := os.ReadFile(f) //nolint:gosec // fixed repo file names
 		if err != nil {
 			t.Fatal(err)
@@ -108,8 +108,6 @@ func TestToolPolicy_RouteFile(t *testing.T) {
 		"v2 blank tool":      route("    tools: [\" a\"]\n"),
 		"v2 duplicate tool":  route("    tools: [a, a]\n"),
 		"v2 tools + passAll": route("    tools: [a]\n    passAllTools: true\n"),
-		"v1 with tools":      strings.Replace(route("    tools: [a]\n"), "version: 2", "version: 1", 1),
-		"v1 with passAll":    strings.Replace(route("    passAllTools: true\n"), "version: 2", "version: 1", 1),
 		"passAll false only": route("    passAllTools: false\n"),
 	}
 	for name, y := range bad {
@@ -125,9 +123,9 @@ func TestToolPolicy_RouteFile(t *testing.T) {
 	if err != nil || rs[0].allowedTools != nil {
 		t.Fatalf("passAll route must not enforce: %v", err)
 	}
-	rs, err = parseAndValidatePilotRoutes([]byte(strings.Replace(route(""), "version: 2", "version: 1", 1)))
-	if err != nil || rs[0].allowedTools != nil {
-		t.Fatalf("v1 route must load as pass-all: %v", err)
+	_, err = parseAndValidatePilotRoutes([]byte(strings.Replace(route("    tools: [a]\n"), "version: 2", "version: 1", 1)))
+	if err == nil || !strings.Contains(err.Error(), "version 1 is no longer supported") {
+		t.Fatalf("v1 must be rejected with a clear error: %v", err)
 	}
 	for _, f := range []string{"pilot-routes.dev.yaml", "pilot-routes.prod.yaml", ""} {
 		if _, err := (fileRouteSource{path: f}).Routes(); err != nil {
