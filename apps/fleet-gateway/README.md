@@ -56,7 +56,7 @@ Routes in `pilot-routes.yaml` (`PILOT_ROUTES_FILE`) support an optional `enabled
 
 In `version: 2` route files every route lists the tools it allows in `tools: [...]`; the gateway rejects any other `tools/call`, and any ambiguous JSON-RPC body (case-variant or duplicate keys, trailing data), with a JSON-RPC error and does not forward it. Only the operator sets `passAllTools: true` instead, for a route that forwards every call. `version: 1` files load unchanged and pass every call.
 
-Key rotation: prepend a new `kid:key`, deploy, drop the old entry after `SESSION_MAX_AGE` plus one deploy. Unknown or tampered values fail closed.
+Key rotation takes two deploys (append the new key last, then promote it) and keeps the old key for 30+ days. See the [runbook](docs/runbook.md). Unknown or tampered values fail closed.
 
 Empty `ALLOWED_CLIENT_IDS` or `ALLOWED_REDIRECT_URIS` fails closed at startup.
 
