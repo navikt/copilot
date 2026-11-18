@@ -487,3 +487,70 @@ func (s *surveyStore) finalCoding(ctx context.Context, surveyID string, version 
 	})
 	return out, err
 }
+
+// coders names who coded, published with kappa: the human coder is not
+// neutral (surveys/README.md#codebooks).
+const coders = "modell og en fra verktøyteamet"
+
+// waveFreetext is one wave's published coding.
+type waveFreetext struct {
+	Survey          string       `json:"survey_id"`
+	CodebookVersion int          `json:"codebook_version"`
+	Coders          string       `json:"coders"`
+	Fields          []codedField `json:"fields"`
+}
+
+// publishedCoding is s's coding as the published series shows it: only
+// fields where every text has final codes and at least minSegment wrote,
+// only published categories with «<5» applied. nil when none.
+func (a *surveyAPI) publishedCoding(ctx context.Context, s survey) (*waveFreetext, error) {
+	cb, ok := a.codebooks[s.Series]
+	if !ok || s.Series == "" || a.codes == nil {
+		return nil, nil
+	}
+	t, err := a.codingTally(ctx, s, cb)
+	if err != nil {
+		return nil, err
+	}
+	return publishedFreetext(s, cb, t), nil
+}
+
+// publishedFreetext is publishedCoding from counts, for `analyze` too.
+func publishedFreetext(s survey, cb codebook, t map[string]fieldTally) *waveFreetext {
+	wf := waveFreetext{Survey: s.ID, CodebookVersion: cb.Version, Coders: coders, Fields: []codedField{}}
+	for _, f := range codingResults(s, cb, t) {
+		if f.Published == nil || f.Coded != f.Written {
+			continue
+		}
+		f.Categories = nil
+		wf.Fields = append(wf.Fields, f)
+	}
+	if len(wf.Fields) == 0 {
+		return nil
+	}
+	return &wf
+}
+
+// codingTally is a survey's coding counts: live while it has rows, else
+// as stored when they were deleted.
+func (a *surveyAPI) codingTally(ctx context.Context, s survey, cb codebook) (map[string]fieldTally, error) {
+	if a.answers == nil || a.hidden == nil {
+		return nil, errNoStorage
+	}
+	rows, err := a.answers(ctx, s.ID)
+	if err != nil {
+		return nil, err
+	}
+	if len(rows) == 0 && a.finalCoding != nil {
+		return a.finalCoding(ctx, s.ID, cb.Version)
+	}
+	hidden, err := a.hidden(ctx, s.ID)
+	if err != nil {
+		return nil, err
+	}
+	codes, err := a.codes(ctx, s.ID, cb.Version)
+	if err != nil {
+		return nil, err
+	}
+	return tallyAll(cb, respondentCodes(cb, rows, hidden, codes)), nil
+}

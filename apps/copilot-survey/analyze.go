@@ -212,6 +212,10 @@ func runAnalyze(args []string, out io.Writer, now time.Time) error {
 	if err != nil {
 		return err
 	}
+	cbs, err := loadCodebooks(surveyFiles)
+	if err != nil {
+		return err
+	}
 	var waves []survey
 	var rows [][]storedAnswer
 	for _, a := range args {
@@ -242,14 +246,22 @@ func runAnalyze(args []string, out io.Writer, now time.Time) error {
 			surveyResults
 			Freetext []codedField `json:"freetext,omitempty"`
 		}{surveyResults: aggregate(waves[0], rows[0], now)}
-		if cbs, err := loadCodebooks(surveyFiles); err != nil {
-			return err
-		} else if cb, ok := cbs[waves[0].Series]; ok && waves[0].Series != "" && slices.ContainsFunc(rows[0], func(r storedAnswer) bool { return r.Codes != nil }) {
+		if cb, ok := cbs[waves[0].Series]; ok && waves[0].Series != "" && slices.ContainsFunc(rows[0], func(r storedAnswer) bool { return r.Codes != nil }) {
 			res.Freetext = codingResults(waves[0], cb, tallyAll(cb, csvCodes(cb, rows[0])))
 		}
 		return encodeJSON(out, res)
 	}
 	res := compareWavesResult(waves, rows, now)
+	// Coded free text as the published series shows it, from CSVs with codes.
+	for i, s := range waves {
+		cb, ok := cbs[s.Series]
+		if !ok || s.Series == "" || !slices.ContainsFunc(rows[i], func(r storedAnswer) bool { return r.Codes != nil }) {
+			continue
+		}
+		if wf := publishedFreetext(s, cb, tallyAll(cb, csvCodes(cb, rows[i]))); wf != nil {
+			res.Freetext = append(res.Freetext, *wf)
+		}
+	}
 	if asCSV {
 		return writeCompareCSV(out, res)
 	}

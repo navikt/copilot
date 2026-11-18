@@ -62,6 +62,8 @@ type compareQuestion struct {
 type compareResult struct {
 	Surveys   []waveMeta        `json:"surveys"`
 	Questions []compareQuestion `json:"questions"`
+	// Freetext: the published coding per wave, published series only.
+	Freetext []waveFreetext `json:"freetext,omitempty"`
 }
 
 // compare lines up two to four waves question by question

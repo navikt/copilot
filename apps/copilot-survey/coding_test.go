@@ -427,3 +427,79 @@ func TestAnalyzeCodingMatchesOnline(t *testing.T) {
 		t.Errorf("results %s", a)
 	}
 }
+
+// TestPublishedCoding: the published series carries a wave's coded fields
+// once every text in them is final, published categories only, «<5» in the
+// JSON and the CSV, and nothing an admin alone sees.
+func TestPublishedCoding(t *testing.T) {
+	defs, _ := loadSurveys([]byte(testSurveys))
+	mk := func(id, starts, ends string) survey {
+		s := defs[0]
+		s.ID, s.Series, s.Published, s.Active, s.Starts, s.Ends = id, "dev", true, false, starts, ends
+		return s
+	}
+	data := map[string][]storedAnswer{}
+	for i := range 10 {
+		text := []string{"rask", "rask", "treg", "rask", "annet svar"}[i%5]
+		data["spring"] = append(data["spring"], row(`{"overall":3,"comment":"`+text+`"}`, `{"overall":1,"comment":1}`))
+		data["autumn"] = append(data["autumn"], row(`{"overall":3,"comment":"`+text+`"}`, `{"overall":1,"comment":1}`))
+	}
+	codes := map[string]map[string]*textCodes{"spring": {}, "autumn": {}}
+	for _, id := range []string{"spring", "autumn"} {
+		codes[id][hiddenKey("comment", textHash("rask"))] = &textCodes{Model: []code{{"a", false}}, Human: []code{{"a", false}}}
+		codes[id][hiddenKey("comment", textHash("treg"))] = &textCodes{Model: []code{{"b", true}}, Human: []code{{"b", true}}}
+		codes[id][hiddenKey("comment", textHash("annet svar"))] = &textCodes{Model: []code{{"annet", false}}, Human: []code{{"annet", false}}}
+	}
+	codes["autumn"][hiddenKey("comment", textHash("treg"))].Human = []code{{"c", false}} // undecided
+	api := &surveyAPI{
+		surveys: []survey{mk("spring", "2026-03-01", "2026-03-31"), mk("autumn", "2026-09-01", "2026-09-30")},
+		now:     func() time.Time { return time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC) },
+		answers: func(_ context.Context, id string) ([]storedAnswer, error) { return data[id], nil },
+		hidden:  func(context.Context, string) (map[string]bool, error) { return map[string]bool{}, nil },
+		codes: func(_ context.Context, id string, _ int) (map[string]*textCodes, error) {
+			return codes[id], nil
+		},
+		codebooks: map[string]codebook{"dev": testCodebook},
+	}
+	h := makeRouter(testAuthenticator(t), api)
+	rec := do(h, "GET", "/api/v1/surveys/published/compare?series=dev", webToken, "")
+	var got compareResult
+	if rec.Code != 200 || json.Unmarshal(rec.Body.Bytes(), &got) != nil {
+		t.Fatalf("%d %s", rec.Code, rec.Body)
+	}
+	if len(got.Freetext) != 1 || got.Freetext[0].Survey != "spring" || got.Freetext[0].Coders == "" {
+		t.Fatalf("freetext %+v", got.Freetext)
+	}
+	f := got.Freetext[0].Fields
+	if len(f) != 1 || f[0].ID != "comment" || f[0].Categories != nil {
+		t.Fatalf("fields %+v", f)
+	}
+	var pub []string
+	for _, c := range f[0].Published {
+		pub = append(pub, fmt.Sprint(c.ID, ":", deref(c.Count), ":", c.Small))
+	}
+	// a 6 of 10 (kappa 1); b 2, small; annet 2 and kappa 1, small.
+	if strings.Join(pub, " ") != "a:6:false b:<nil>:true annet:<nil>:true" {
+		t.Errorf("published %v", pub)
+	}
+	rec = do(h, "GET", "/api/v1/surveys/published/compare?series=dev&format=csv", webToken, "")
+	body := rec.Body.String()
+	for _, want := range []string{"freetext,spring,comment,,1,false,a,6,10,", "freetext,spring,comment,,1,false,b,<5,10,", "freetext_onske,spring,comment,,1,false,a,0,10,"} {
+		if !strings.Contains(body, want) {
+			t.Errorf("CSV lacks %q:\n%s", want, body)
+		}
+	}
+	if strings.Contains(body, "autumn,comment") || strings.Contains(body, "rask") {
+		t.Errorf("CSV has an unfinished wave or a text:\n%s", body)
+	}
+	// After the rows are deleted the stored counts give the same.
+	stored := tallyAll(testCodebook, respondentCodes(testCodebook, data["spring"], nil, codes["spring"]))
+	data["spring"] = nil
+	api.finalCoding = func(context.Context, string, int) (map[string]fieldTally, error) { return stored, nil }
+	wf, err := api.publishedCoding(t.Context(), api.surveys[0])
+	x, _ := json.Marshal(got.Freetext[0])
+	y, _ := json.Marshal(wf)
+	if err != nil || string(x) != string(y) {
+		t.Errorf("after deletion %v\nbefore %s\nafter  %s", err, x, y)
+	}
+}
