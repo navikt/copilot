@@ -141,7 +141,7 @@ Three layers must all hold before a route opens to wider use:
 
 The pilot accepts direct clients (Copilot CLI via CIMD, OpenCode via DCR) on a naisdevice ingress. Teams apply through the issue template [fleet-gateway: Pilotsøknad](https://github.com/navikt/copilot/issues/new?template=fleet-gateway-pilot.yml) in navikt/copilot until the self-service form ([#2099](https://github.com/navikt/copilot/issues/2099)) exists. Preliminary user docs: [ki-utvikling.nav.no/verktoy/fleet-gateway](https://ki-utvikling.nav.no/verktoy/fleet-gateway) (added in a separate PR).
 
-**Team guide.** A team connects its MCP server in four steps: add fleet-gateway (`copilot` namespace, `dev-gcp`) to `accessPolicy.inbound`; validate the token with Texas introspection and check `idtyp`, NAVident and `azp` itself; apply so team copilot adds the route to `pilot-routes.dev.yaml` and the server to `accessPolicy.outbound`; test against `https://fleet-gateway.intern.dev.nav.no/mcp/<namespace>/<name>` from cplt. Details and a token-check example: [ki-utvikling.nav.no/verktoy/fleet-gateway/for-team](https://ki-utvikling.nav.no/verktoy/fleet-gateway/for-team).
+**Team guide.** A team connects its MCP server in four steps: add fleet-gateway (`copilot` namespace, `dev-gcp`) to `accessPolicy.inbound`; validate the token with Texas introspection and check `idtyp`, NAVident and `azp` itself; apply so team copilot adds the route to `pilot-routes.dev.yaml` and the server to `accessPolicy.outbound`; test against `https://fleet-gateway.intern.dev.nav.no/mcp/<route>` from cplt. Details and a token-check example: [ki-utvikling.nav.no/verktoy/fleet-gateway/for-team](https://ki-utvikling.nav.no/verktoy/fleet-gateway/for-team).
 
 **Deferred: team-scoped access ([#2209](https://github.com/navikt/copilot/issues/2209)).** Owner decision 2026-11-17: teams authorize in their own MCP, and the pilot list has no `required_group`. If it returns, fleet-gateway checks the user's Entra group per route before the OBO call. nav-pilot may then show only the servers that match the user's teams, but that is convenience: a client can be changed, so the check in fleet-gateway is the control.
 
@@ -186,10 +186,6 @@ In order. Who may join the pilot: see [Onboarding and pilot control](#onboarding
 3. Where the refresh-token encryption key lives: Nais secret or KMS.
 
 ## Decisions log
-
-### 2026-11-17: route path is `/mcp/<namespace>/<name>`
-
-Owner decision on [#2342](https://github.com/navikt/copilot/issues/2342) §3.3: routes move from `/mcp/<name>` to `/mcp/<namespace>/<name>`, with no alias. The namespace segment must equal the route's target namespace. The old path answers `404` with the new URL; it is not forwarded. The route URL is the OAuth `resource` and part of the consent key, so every pilot user logs in and consents again. The registry entry keeps its name `io.github.navikt/fleet-gateway-onboarding`; only its URL changes. A rename to `<namespace>.<route>` waits for the control service (§7).
 
 ### 2026-11-17: declarative route configuration
 
