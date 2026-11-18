@@ -411,6 +411,14 @@ case "$p" in
       printf '%s\n' "🔴 Rød sone: avrundingen er skrevet, beregningen skriver du selv." "**Sjekkliste for rød sone**" "- [ ] avrundingen ved 50 øre"
       exit 0
     fi
+    # leaky: also writes a secret, a path with a space, a symlinked file and a
+    # symlinked directory, both pointing at $LEAK_DIR outside the workspace.
+    if [[ "$BENCH_MODE" == leaky ]]; then
+      printf 'TOKEN=hemmelig-verdi\n' >.env
+      printf 'MELLOMROM_OK\n' >"src/Med mellomrom.kt"
+      rm README.md && ln -s "$LEAK_DIR/utenfor.txt" README.md
+      rm -rf src/main/kotlin/no/nav/demo && ln -s "$LEAK_DIR/demo" src/main/kotlin/no/nav/demo
+    fi
     over=false; [[ "$p" == *"Implementer rød sone"* ]] && over=true
     impl=false
     case "$BENCH_MODE" in
@@ -782,6 +790,90 @@ run_suite() {
   [ ! -e "$SHIM/transkripter/b.x.run1.txt" ]
 }
 
+@test "--save-baseline keeps the files a call wrote beside its transcript" {
+  run_suite good --agent nav-pilot --only 9
+  [ "$status" -eq 0 ]
+  grep -q '^=== ./src/main/' "$SHIM/transkripter/b.t9.run1.files.txt"
+}
+
+@test "saved written files: no secret, symlink or outside path is copied, and a space keeps its content" {
+  export LEAK_DIR="$SHIM/leak"
+  mkdir -p "$LEAK_DIR/demo"
+  echo UTENFOR_FIL >"$LEAK_DIR/utenfor.txt"
+  echo UTENFOR_DIR >"$LEAK_DIR/demo/Config.kt"
+  run_suite leaky --agent nav-pilot --only 9
+  f="$SHIM/transkripter/b.t9.run1.files.txt"
+  grep -q '^MELLOMROM_OK$' "$f"
+  run grep -E 'hemmelig-verdi|UTENFOR' "$f"
+  [ "$status" -eq 1 ]
+  grep -qx '=== ./.env (skipped: not a source file)' "$f"
+  grep -qx '=== ./README.md (skipped: symlink or not a regular file)' "$f"
+  grep -qx '=== ./src/main/kotlin/no/nav/demo/Config.kt (skipped: symlink or not a regular file)' "$f"
+}
+
+@test "golden-save-written: a file or parent swapped for a symlink during the read is not followed" {
+  local ws="$SHIM/ws" ute="$SHIM/ute"
+  mkdir -p "$ws/a" "$ute/a"
+  echo INNE_F >"$ws/a/F.kt"; echo INNE_G >"$ws/G.kt"
+  echo UTENFOR >"$ute/a/F.kt"; echo UTENFOR >"$ute/G.kt"
+  # Swaps after the parent is open and before the file is: G.kt for a symlink,
+  # and the directory a/ for a symlink to a directory outside.
+  cat >"$SHIM/hook" <<EOF
+#!/bin/bash
+case "\$1" in
+  ./G.kt) rm "$ws/G.kt" && ln -s "$ute/G.kt" "$ws/G.kt" ;;
+  ./a/F.kt) mv "$ws/a" "$ws/a.gammel" && ln -s "$ute/a" "$ws/a" ;;
+esac
+EOF
+  chmod +x "$SHIM/hook"
+  printf './G.kt\n./a/F.kt\n' >"$SHIM/paths"
+  run env GOLDEN_SAVE_WRITTEN_HOOK="$SHIM/hook" python3 "$BATS_TEST_DIRNAME/golden-save-written.py" "$ws" <"$SHIM/paths"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"=== ./G.kt (skipped: symlink or not a regular file)"* ]]
+  grep -A1 -x '=== ./a/F.kt' <<<"$output" | grep -qx INNE_F
+  [[ "$output" != *UTENFOR* ]]
+}
+
+@test "golden-save-written: a hard link to a file outside is not copied" {
+  local ws="$SHIM/ws" ute="$SHIM/ute"
+  mkdir -p "$ws" "$ute"
+  echo UTENFOR >"$ute/H.kt"
+  ln "$ute/H.kt" "$ws/H.kt"
+  echo './H.kt' >"$SHIM/paths"
+  run python3 "$BATS_TEST_DIRNAME/golden-save-written.py" "$ws" <"$SHIM/paths"
+  [ "$status" -eq 0 ]
+  [ "$output" = "=== ./H.kt (skipped: hard link)" ]
+}
+
+@test "golden-save-written: 256 KiB per file and 2 MiB per call, marked when cut" {
+  local ws="$SHIM/ws" i
+  mkdir -p "$ws"
+  head -c 300000 /dev/zero | tr '\0' a >"$ws/A.kt"
+  for i in 1 2 3 4 5 6 7 8 9; do head -c 250000 /dev/zero | tr '\0' b >"$ws/F$i.kt"; done
+  (cd "$ws" && find . -type f | sort) >"$SHIM/paths"
+  python3 "$BATS_TEST_DIRNAME/golden-save-written.py" "$ws" <"$SHIM/paths" >"$SHIM/out"
+  grep -qx '=== ./A.kt (truncated at 262144 bytes)' "$SHIM/out"
+  [ "$(grep -A1 -x '=== ./A.kt (truncated at 262144 bytes)' "$SHIM/out" | tail -1 | wc -c)" -eq 262145 ]
+  # 262 144 + 7 × 250 000 leaves 85 008 bytes for F8 and none for F9.
+  grep -qx '=== ./F8.kt (truncated at 85008 bytes)' "$SHIM/out"
+  grep -qx '=== ./F9.kt (skipped: 2097152-byte limit for this call reached)' "$SHIM/out"
+  [ "$(wc -c <"$SHIM/out")" -lt 2200000 ]
+}
+
+@test "golden-save-written: secret-looking and non-source files are named, not copied" {
+  local ws="$SHIM/ws" f
+  mkdir -p "$ws/.docker"
+  for f in .netrc .pypirc k.p12 k.pfx k.jks k.keystore .git-credentials .docker/config.json kubeconfig prod.tfvars \
+    kubeconfig.yaml client-secret.yaml .env.md; do echo HEMMELIG >"$ws/$f"; done
+  echo KODE >"$ws/App.kt"
+  (cd "$ws" && find . -type f | sort) >"$SHIM/paths"
+  run python3 "$BATS_TEST_DIRNAME/golden-save-written.py" "$ws" <"$SHIM/paths"
+  [ "$status" -eq 0 ]
+  grep -A1 -x '=== ./App.kt' <<<"$output" | grep -qx KODE
+  [[ "$output" != *HEMMELIG* ]]
+  [ "$(grep -c '(skipped: not a source file)' <<<"$output")" -eq 13 ]
+}
+
 @test "coding: a fix passes, editing the test fails scope, doing nothing fails tests" {
   command -v go >/dev/null && command -v node >/dev/null || skip "needs go and node"
   run_suite good --suite coding
@@ -925,6 +1017,9 @@ EOF
   grep -q '^# controls: *controls n=2 agree=2' "$SHIM/b-judge.psv"
   grep -q '^7|1|1|0|0|0|0.0||$' "$SHIM/b-judge.psv"
   grep -q '^7b|1|1|0|1|0|0.0|Hvem konsumerer topicen?|$' "$SHIM/b-judge.psv"
+  # The judge's spend, controls included, is saved with the arm.
+  grep -qx 'controls|0|0.00' "$SHIM/b-judge-credits.psv"
+  grep -qx '7b|1|0.0' "$SHIM/b-judge-credits.psv"
 }
 
 @test "planning judge: every judge spend lands live in judge-credits.psv" {
