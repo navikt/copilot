@@ -69,7 +69,7 @@ Prometheus scrapes `/metrics` on port 9090. That port has no ingress, so the pub
 
 | Metric | Labels | What it shows |
 |---|---|---|
-| `fleet_gateway_http_requests_total` | `code` | All responses except `/health` and `/ready` |
+| `fleet_gateway_http_requests_total` | `code`, `reason` | All responses except `/health` and `/ready`. `reason` is empty except on deliberate 503s: `disabled` (kill switch). The 5xx alert counts only `reason=""` |
 | `fleet_gateway_mcp_requests_total` | `route`, `outcome`, `decision` | MCP calls. `outcome` matches the `audit mcp` log line, for example `ok`, `upstream_token_error`, `store_error` or `upstream_502` |
 | `fleet_gateway_mcp_request_duration_seconds` | `route` | Time per MCP call, token exchange and upstream included. An SSE stream counts until it ends |
 | `fleet_gateway_routes_loaded` | none | Routes loaded at startup |
@@ -79,7 +79,7 @@ Useful panels in Grafana:
 - Latency per route: `histogram_quantile(0.95, sum by (le, route) (rate(fleet_gateway_mcp_request_duration_seconds_bucket[5m])))`
 - Failures per route: `sum by (route, outcome) (rate(fleet_gateway_mcp_requests_total{outcome!="ok"}[5m]))`
 
-Alerts are in `.nais/app.yaml` and go to `#github-copilot-alerts`: no ready pods, more than 2 restarts in 15 minutes, more than 10 % 5xx (only with over 20 requests in 5 minutes), and more than 5 `upstream_token_error` in 10 minutes. An idle SSE stream that ends in `stream_error` does not trigger them, since its status 200 has already been sent. To test in dev, scale to zero (`kubectl -n copilot scale deploy fleet-gateway --replicas=0`). `FleetGatewayNoReadyPods` fires after 2 minutes.
+Alerts are in `.nais/app.yaml` and go to `#github-copilot-alerts`: no ready pods, more than 2 restarts in 15 minutes, more than 10 % 5xx (only with over 20 requests in 5 minutes), and more than 5 `upstream_token_error` in 10 minutes. An idle SSE stream that ends in `stream_error` does not trigger them, since its status 200 has already been sent. The alert series start at zero at startup, so the first burst counts. To test in dev, scale to zero (`kubectl -n copilot scale deploy fleet-gateway --replicas=0`). `FleetGatewayNoReadyPods` fires after 2 minutes.
 
 ## Security
 

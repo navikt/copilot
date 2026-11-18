@@ -128,6 +128,7 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 
 		if g.cfg.GatewayDisabled || route.isDisabled() {
 			outcome = "disabled"
+			markShed(w, "disabled")
 			slog.Warn("route disabled by kill switch", "route", route.Route, "global", g.cfg.GatewayDisabled)
 			w.Header().Set("Retry-After", "300")
 			writeJSON(w, http.StatusServiceUnavailable, map[string]string{

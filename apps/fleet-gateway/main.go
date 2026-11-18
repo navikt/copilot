@@ -237,7 +237,7 @@ func (g *Gateway) loggingMiddleware(next http.Handler) http.Handler {
 		if r.URL.Path == "/health" || r.URL.Path == "/ready" {
 			return
 		}
-		observeHTTPRequest(wrapped.statusCode)
+		observeHTTPRequest(wrapped.statusCode, wrapped.reason)
 		// Never log query strings, headers, tokens, codes, or verifiers.
 		slog.Info("request completed",
 			"method", sanitizeLogValue(r.Method),
@@ -274,6 +274,7 @@ func truncateLogValue(s string, maxChars int) string {
 type statusResponseWriter struct {
 	http.ResponseWriter
 	statusCode int
+	reason     string // set by markShed; labels deliberate 5xx in metrics
 }
 
 func (w *statusResponseWriter) WriteHeader(code int) {
@@ -488,6 +489,7 @@ func main() {
 	)
 
 	routesLoaded.Set(float64(len(cfg.Routes)))
+	initMetrics(cfg.Routes)
 	metrics := metricsServer(":" + getEnv("METRICS_PORT", "9090"))
 	go func() {
 		if err := metrics.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {

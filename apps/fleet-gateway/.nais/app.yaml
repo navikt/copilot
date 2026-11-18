@@ -131,7 +131,7 @@ spec:
             action: "Run `kubectl -n copilot describe pod -l app=fleet-gateway` and look at Last State."
         - alert: FleetGatewayHigh5xxRate
           expr: |
-            sum(rate(fleet_gateway_http_requests_total{namespace="copilot", code=~"5.."}[5m]))
+            sum(rate(fleet_gateway_http_requests_total{namespace="copilot", code=~"5..", reason=""}[5m]))
               / sum(rate(fleet_gateway_http_requests_total{namespace="copilot"}[5m])) > 0.1
             and sum(increase(fleet_gateway_http_requests_total{namespace="copilot"}[5m])) > 20
           for: 5m
@@ -142,6 +142,7 @@ spec:
             app: fleet-gateway
           annotations:
             summary: More than 10 % of fleet-gateway responses are 5xx
+            description: Deliberate 503s (kill switch, capacity cap) carry a non-empty reason label and are not counted.
             consequence: Users get errors on login or MCP calls.
             action: "Break down `fleet_gateway_mcp_requests_total` by route and outcome, then read the `audit mcp` log lines for that route."
         - alert: FleetGatewayUpstreamTokenErrors

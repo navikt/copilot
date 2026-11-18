@@ -15,8 +15,8 @@ import (
 var (
 	httpRequestsTotal = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "fleet_gateway_http_requests_total",
-		Help: "HTTP requests answered by fleet-gateway, by status code. Excludes /health and /ready.",
-	}, []string{"code"})
+		Help: "HTTP requests answered by fleet-gateway, by status code. Excludes /health and /ready. reason is empty except for deliberate 503s (disabled: kill switch).",
+	}, []string{"code", "reason"})
 
 	mcpRequestsTotal = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "fleet_gateway_mcp_requests_total",
@@ -40,8 +40,40 @@ func observeMCPRequest(route, outcome, decision string, d time.Duration) {
 	mcpRequestDuration.WithLabelValues(route).Observe(d.Seconds())
 }
 
-func observeHTTPRequest(code int) {
-	httpRequestsTotal.WithLabelValues(strconv.Itoa(code)).Inc()
+func observeHTTPRequest(code int, reason string) {
+	httpRequestsTotal.WithLabelValues(strconv.Itoa(code), reason).Inc()
+}
+
+// markShed labels a deliberate refusal (kill switch, capacity) so the 5xx
+// alert can tell it apart from real failures.
+func markShed(w http.ResponseWriter, reason string) {
+	for {
+		if sw, ok := w.(*statusResponseWriter); ok {
+			sw.reason = reason
+			return
+		}
+		u, ok := w.(interface{ Unwrap() http.ResponseWriter })
+		if !ok {
+			return
+		}
+		w = u.Unwrap()
+	}
+}
+
+// initMetrics creates the series the alerts read, at zero, before traffic.
+// CounterVec creates a series on first Inc, so increase() would miss a first
+// burst that lands between two scrapes.
+func initMetrics(routes []PilotRoute) {
+	for _, code := range []string{"200", "500", "502", "503", "504"} {
+		httpRequestsTotal.WithLabelValues(code, "")
+	}
+	httpRequestsTotal.WithLabelValues("503", "disabled")
+	for _, r := range routes {
+		for _, o := range []string{"ok", "upstream_token_error", "upstream_error"} {
+			mcpRequestsTotal.WithLabelValues(r.Route, o, "allow")
+		}
+		mcpRequestsTotal.WithLabelValues(r.Route, "disabled", "")
+	}
 }
 
 // metricsServer serves /metrics on its own port, which has no ingress.
