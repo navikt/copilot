@@ -133,6 +133,7 @@ func TestToolPolicy_RouteFile(t *testing.T) {
 		}
 	}
 }
+
 // The audit list stops at maxAuditBatchTools; the policy must still read every member.
 func TestToolPolicy_BatchPastDisplayCap(t *testing.T) {
 	call := func(name string) string {
