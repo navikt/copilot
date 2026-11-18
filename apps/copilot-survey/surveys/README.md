@@ -86,6 +86,9 @@ level: answers are not linked to a person across waves (see
   `nudge`, `series`, `min_cli_version`, `active`, `ends`) may still change.
   A dev-only test survey (`environments` without `prod-gcp`, such as
   `dev-e2e-test`) is not frozen.
+- A definition may not repeat a key, also not one that differs only in
+  case: jq keeps the last, Go merges them, so the check and the server would
+  read different definitions. The server and CI refuse it.
 - A question that is dropped is simply absent; its `id` is never reused for
   something else.
 - `construct` names what a question measures (for analysis) and `reverse`

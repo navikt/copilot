@@ -22,9 +22,20 @@ fi
 today=$(date -u +%F)
 fail=0
 for f in $(git diff --no-renames --name-only "$base" HEAD -- ':(top)apps/copilot-survey/surveys/*.json'); do
+  new=$(git show "HEAD:$f" 2>/dev/null || echo '{}')
+  # jq keeps the last of two equal keys and Go merges them (decodeStrict),
+  # so the check below would compare something other than what is served.
+  # Equal keys show as a stream that differs from the parsed value's; keys
+  # equal but for case (Go folds them) as a clash after ascii_downcase.
+  if [[ "$(jq -c --stream . <<<"$new")" != "$(jq -c . <<<"$new" | jq -c --stream .)" ]] ||
+    ! jq -e '[.. | objects | keys | map(ascii_downcase) | length == (unique | length)] | all' <<<"$new" >/dev/null ||
+    ! jq -e '[.. | objects | keys[] | test("^[ -~]*$")] | all' <<<"$new" >/dev/null; then
+    echo "::error file=$f::$f has a duplicate key (also one that differs only in case) or a non-ASCII key; definitions may have neither."
+    fail=1
+    continue
+  fi
   old=$(git show "$base:$f" 2>/dev/null) || continue # new file
   jq -e --arg today "$today" '.starts <= $today and ((.environments // ["prod-gcp"]) | index("prod-gcp"))' <<<"$old" >/dev/null || continue
-  new=$(git show "HEAD:$f" 2>/dev/null || echo '{}')
   if [[ "$(jq -cS '[.id, .questions, .starts, .environments]' <<<"$old")" != "$(jq -cS '[.id, .questions, .starts, .environments]' <<<"$new")" ]]; then
     echo "::error file=$f::$f has started: its id, questions, starts and environments are frozen. Change them in a new wave (new id), see surveys/README.md."
     fail=1

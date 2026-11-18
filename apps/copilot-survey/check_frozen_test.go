@@ -34,6 +34,10 @@ func TestCheckFrozenSurveys(t *testing.T) {
 		{"started, paused and retitled", started, `{"id":"w","title":"U","active":false,"starts":"2000-01-01","ends":"2000-03-01","questions":[{"id":"a","version":1}]}`, false},
 		{"not started, questions changed", future, `{"id":"w","title":"T","active":true,"starts":"2999-01-01","ends":"2999-02-01","questions":[{"id":"a","version":2}]}`, false},
 		{"new file", "", started, false},
+		// jq keeps the last "questions", encoding/json merges min into it.
+		{"started, duplicate questions key", started, `{"id":"w","title":"T","active":true,"starts":"2000-01-01","ends":"2000-02-01","questions":[{"min":2}],"questions":[{"id":"a","version":1}]}`, true},
+		{"started, key differing in case", started, `{"id":"w","title":"T","active":true,"starts":"2000-01-01","ends":"2000-02-01","Questions":[{"min":2}],"questions":[{"id":"a","version":1}]}`, true},
+		{"new file, duplicate key", "", `{"id":"w","id":"w","title":"T","starts":"2999-01-01","ends":"2999-02-01","questions":[]}`, true},
 		{"dev-only, started, questions changed", `{"id":"w","title":"T","environments":["dev-gcp"],"active":false,"starts":"2000-01-01","ends":"2000-02-01","questions":[{"id":"a","version":1}]}`, `{"id":"w","title":"T","environments":["dev-gcp"],"active":false,"starts":"2000-01-01","ends":"2000-02-01","questions":[{"id":"a","version":2}]}`, false},
 		{"prod-only, started, questions changed", `{"id":"w","title":"T","environments":["prod-gcp"],"active":false,"starts":"2000-01-01","ends":"2000-02-01","questions":[{"id":"a","version":1}]}`, `{"id":"w","title":"T","environments":["prod-gcp"],"active":false,"starts":"2000-01-01","ends":"2000-02-01","questions":[{"id":"a","version":2}]}`, true},
 		// The first of two pull requests that would make a prod survey dev-only.
