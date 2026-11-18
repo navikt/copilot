@@ -61,20 +61,34 @@ func (a *surveyAPI) codingTexts(w http.ResponseWriter, r *http.Request) (survey,
 // respondentCodes is, per codebook field, the codes of every respondent's
 // visible text in it, one entry per respondent.
 func respondentCodes(cb codebook, rows []storedAnswer, hidden map[string]bool, codes map[string]*textCodes) map[string][]textCodes {
+	return codesPerField(cb, rows, func(_ storedAnswer, field, raw string) (textCodes, bool) {
+		key := hiddenKey(field, textHash(raw))
+		var tc textCodes
+		if c := codes[key]; c != nil {
+			tc = *c
+		}
+		return tc, !hidden[key]
+	})
+}
+
+// csvCodes is respondentCodes for rows read back from the admin CSV, which
+// carry their codes and no hidden text: what `analyze` counts.
+func csvCodes(cb codebook, rows []storedAnswer) map[string][]textCodes {
+	return codesPerField(cb, rows, func(row storedAnswer, field, _ string) (textCodes, bool) { return row.Codes[field], true })
+}
+
+func codesPerField(cb codebook, rows []storedAnswer, codesOf func(row storedAnswer, field, raw string) (textCodes, bool)) map[string][]textCodes {
 	out := map[string][]textCodes{}
 	for _, f := range cb.Fields {
 		out[f.ID] = []textCodes{}
 		for _, row := range rows {
 			raw, _ := row.Answers[f.ID].(string)
-			key := hiddenKey(f.ID, textHash(raw))
-			if raw == "" || hidden[key] {
+			if raw == "" {
 				continue
 			}
-			var tc textCodes
-			if c := codes[key]; c != nil {
-				tc = *c
+			if tc, ok := codesOf(row, f.ID, raw); ok {
+				out[f.ID] = append(out[f.ID], tc)
 			}
-			out[f.ID] = append(out[f.ID], tc)
 		}
 	}
 	return out

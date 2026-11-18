@@ -37,6 +37,13 @@ func main() {
 		}
 		return
 	}
+	if len(os.Args) > 1 && os.Args[1] == "code" {
+		if err := runCode(os.Args[2:], os.Stdout, os.Stderr, os.Getenv("GITHUB_TOKEN")); err != nil {
+			fmt.Fprintln(os.Stderr, "code:", err)
+			os.Exit(1)
+		}
+		return
+	}
 	if len(os.Args) > 1 && os.Args[1] == "analyze" {
 		if err := runAnalyze(os.Args[2:], os.Stdout, time.Now()); err != nil {
 			fmt.Fprintln(os.Stderr, "analyze:", err)

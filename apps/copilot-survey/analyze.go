@@ -66,6 +66,15 @@ func readExportCSV(s survey, r io.Reader) ([]storedAnswer, error) {
 	for _, k := range exportCSVContext {
 		want = append(want, "context."+k)
 	}
+	var coded []string
+	for _, f := range freetextFields(s) {
+		if _, ok := col["codes."+f.ID+".final"]; ok {
+			coded = append(coded, f.ID)
+			for _, c := range codeColumns {
+				want = append(want, "codes."+f.ID+"."+c)
+			}
+		}
+	}
 	if !slices.Equal(head, want) {
 		return nil, fmt.Errorf("columns do not match survey %s:\n got  %s\n want %s", s.ID, strings.Join(head, ","), strings.Join(want, ","))
 	}
@@ -157,6 +166,15 @@ func readExportCSV(s survey, r io.Reader) ([]storedAnswer, error) {
 				row.Context[k] = v
 			}
 		}
+		for _, f := range coded {
+			cell := func(c string) []code { return parseCodesCell(rec[col["codes."+f+"."+c]]) }
+			if t := (textCodes{Final: cell("final"), Model: cell("model"), Human: cell("human")}); t.Final != nil || t.Model != nil || t.Human != nil {
+				if row.Codes == nil {
+					row.Codes = map[string]textCodes{}
+				}
+				row.Codes[f] = t
+			}
+		}
 		row.Client, _ = row.Context["client"].(string)
 		rows = append(rows, row)
 	}
@@ -220,7 +238,16 @@ func runAnalyze(args []string, out io.Writer, now time.Time) error {
 		if asCSV {
 			return errors.New("--csv is for comparisons")
 		}
-		return encodeJSON(out, aggregate(waves[0], rows[0], now))
+		res := struct {
+			surveyResults
+			Freetext []codedField `json:"freetext,omitempty"`
+		}{surveyResults: aggregate(waves[0], rows[0], now)}
+		if cbs, err := loadCodebooks(surveyFiles); err != nil {
+			return err
+		} else if cb, ok := cbs[waves[0].Series]; ok && waves[0].Series != "" && slices.ContainsFunc(rows[0], func(r storedAnswer) bool { return r.Codes != nil }) {
+			res.Freetext = codingResults(waves[0], cb, tallyAll(cb, csvCodes(cb, rows[0])))
+		}
+		return encodeJSON(out, res)
 	}
 	res := compareWavesResult(waves, rows, now)
 	if asCSV {

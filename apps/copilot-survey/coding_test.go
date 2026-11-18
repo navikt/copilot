@@ -378,3 +378,52 @@ func TestCodingSurvivesPurge(t *testing.T) {
 		t.Errorf("aggregate wiped the coding counts: %d, then %d", n, ft())
 	}
 }
+
+// TestAnalyzeCodingMatchesOnline: the coding results from the admin CSV's
+// codes columns, as `analyze` counts them, equal the coding page's.
+func TestAnalyzeCodingMatchesOnline(t *testing.T) {
+	var rows []storedAnswer
+	for i := range 12 {
+		text := []string{"rask", "treg", "=formel", "mail a@b.no", "skjult"}[i%5]
+		rows = append(rows, row(`{"overall":3,"comment":"`+text+`","editor":["Annet"],"editor.other":"nano"}`, `{"overall":1,"comment":1,"editor":1}`))
+	}
+	rows = append(rows, row(`{"overall":2}`, `{"overall":1}`))
+	api := adminAPI(t, rows)
+	f := withFakeCodes(api)
+	h := makeRouter(testAuthenticator(t), api)
+	for _, c := range []struct {
+		field, text  string
+		model, human []code
+		final        []code
+	}{
+		{"comment", "rask", []code{{"a", false}}, []code{{"a", false}}, nil},
+		{"comment", "treg", []code{{"b", false}}, []code{{"c", true}}, []code{{"c", true}}},
+		{"comment", "=formel", []code{{"annet", false}}, []code{{"d", false}, {"e", true}}, nil}, // undecided
+		{"comment", "mail a@b.no", []code{{"a", true}}, nil, nil},                                // human not yet
+		{"comment", "skjult", []code{{"a", false}}, []code{{"a", false}}, nil},
+		{"editor.other", "nano", []code{{"a", false}}, []code{{"a", false}}, nil},
+	} {
+		f.codes[hiddenKey(c.field, textHash(c.text))] = &textCodes{Model: c.model, Human: c.human, Final: c.final}
+	}
+	_ = api.hide(t.Context(), "q4-2026", "comment", textHash("skjult"))
+	online, _ := getCoding(t, h)
+
+	rec := do(h, "GET", "/api/v1/admin/surveys/q4-2026/export.csv", adminToken, "")
+	if rec.Code != 200 || !strings.Contains(rec.Body.String(), "codes.comment.final,codes.comment.model,codes.comment.human") || strings.Contains(rec.Body.String(), "a@b.no") {
+		t.Fatalf("%d %s", rec.Code, rec.Body)
+	}
+	got, err := readExportCSV(api.surveys[0], rec.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	local := codingResults(api.surveys[0], testCodebook, tallyAll(testCodebook, csvCodes(testCodebook, got)))
+	a, _ := json.Marshal(online.Results)
+	b, _ := json.Marshal(local)
+	if string(a) != string(b) {
+		t.Errorf("analyze differs\nonline %s\ncsv    %s", a, b)
+	}
+	// Control: 10 respondents wrote a visible comment, 6 of them coded.
+	if !strings.Contains(string(a), `"id":"comment","question":"Anything else?","written":10,"coded":6`) {
+		t.Errorf("results %s", a)
+	}
+}
