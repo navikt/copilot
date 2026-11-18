@@ -12,7 +12,7 @@ export const metadata: Metadata = {
     "For team som vil tilby en MCP-server til resten av Nav. fleet-gateway tar seg av innloggingen, så dere slipper å bygge OAuth.",
 };
 
-const PLAN_URL = "https://github.com/navikt/copilot/blob/main/docs/mcp-gateway-plan.md";
+const PLAN_URL = "https://github.com/navikt/copilot/issues/2351";
 const HELP_URL = "https://nav-it.slack.com/archives/C0ASJSZK8P8";
 
 const TOC: TocItem[] = [

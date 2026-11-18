@@ -27,7 +27,7 @@ const OPENCODE_JSON = `{
   "mcp": {
     "onboarding": {
       "type": "remote",
-      "url": "https://fleet-gateway.intern.nav.no/mcp/onboarding"
+      "url": "https://fleet-gateway.intern.nav.no/mcp/copilot/onboarding"
     }
   }
 }`;
@@ -47,7 +47,7 @@ export default function NavMcpServerePage() {
               verktøykatalogen
             </NextLink>
             . Der står adressen, for eksempel{" "}
-            <code className={code}>https://fleet-gateway.intern.nav.no/mcp/onboarding</code>.
+            <code className={code}>https://fleet-gateway.intern.nav.no/mcp/copilot/onboarding</code>.
           </li>
           <li>
             Eksemplene under bruker <code className={code}>onboarding</code>. Bytt ut navn og adresse med serveren du

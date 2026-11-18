@@ -2,7 +2,7 @@
 
 OAuth 2.1 authorization server fronting Microsoft Entra ID for Nav's internal MCP gateway.
 
-The gateway is live in prod (2026-11-17) for a controlled pilot. It runs the authorization server (protected resource metadata, authorization server metadata, CIMD and DCR client registration, consent, Entra authorization-code redemption and refresh) and routes calls to team MCP servers with Texas OBO. See `docs/mcp-gateway-plan.md` for phases and status.
+The gateway is live in prod (2026-11-17) for a controlled pilot. It runs the authorization server (protected resource metadata, authorization server metadata, CIMD and DCR client registration, consent, Entra authorization-code redemption and refresh) and routes calls to team MCP servers with Texas OBO. See the [plan and decisions log](https://github.com/navikt/copilot/issues/2351) for phases and status.
 
 ## Endpoints
 
@@ -52,13 +52,38 @@ The gateway is live in prod (2026-11-17) for a controlled pilot. It runs the aut
 | `RT_KEYS` | With `postgres` or `client-encrypted` | — | `kid:base64key,...` (32-byte keys, newest first encrypts, all decrypt). Also seals every value in the session store |
 | `GATEWAY_DISABLED` | No | `false` | Set to `true` to disable all `/mcp/*` routes (`503`, `Retry-After: 300`) |
 
+A route path is `/mcp/<namespace>/<name>`, and `<namespace>` must equal the namespace in `target` (for example `/mcp/copilot/onboarding`). The old `/mcp/<name>` paths answer `404` with the new URL in `new_url`; they are not forwarded.
+
 Routes in `pilot-routes.yaml` (`PILOT_ROUTES_FILE`) support an optional `enabled: false` field to disable a single route (`503`, `Retry-After: 300`) while keeping it validated and registered.
 
-Key rotation: prepend a new `kid:key`, deploy, drop the old entry after `SESSION_MAX_AGE` plus one deploy. Unknown or tampered values fail closed.
+In route files (`version: 2`) every route lists the tools it allows in `tools: [...]`; the gateway rejects any other `tools/call`, and any ambiguous JSON-RPC body (case-variant or duplicate keys, trailing data), with a JSON-RPC error and does not forward it. Only the operator sets `passAllTools: true` instead, for a route that forwards every call. `version: 1` files are rejected at startup with an error.
+
+On every route, `passAllTools` included, a `GET` or `DELETE` with a body gets `400` and is logged as `deny`/`ambiguous`: MCP defines no body for them, so a `tools/call` sent that way is never forwarded.
+
+Key rotation takes two deploys (append the new key last, then promote it) and keeps the old key for 30+ days. See the [runbook](docs/runbook.md). Unknown or tampered values fail closed.
 
 Empty `ALLOWED_CLIENT_IDS` or `ALLOWED_REDIRECT_URIS` fails closed at startup.
 
+## Audit record
+
+Every request to an MCP route logs one JSON line with `msg` `audit mcp` in the OpenID AuthZEN Access Evaluation shape (owner decision 2026-11-18, #2342):
+
+```json
+{"msg":"audit mcp",
+ "subject":{"type":"user","id":"Z123456","properties":{"client_id":"<oauth client>"}},
+ "action":{"name":"tools/call","properties":{"tool":"search"}},
+ "resource":{"type":"mcp_route","id":"copilot/onboarding","properties":{"backend":"prod-gcp:copilot:mcp-onboarding"}},
+ "context":{"request_id":"<26 chars>","http_method":"POST","scan_incomplete":false,"header_mismatch":false,"protocol_version":"2026-07-28","mcp_headers":{"method":true,"name":true},"outcome":"ok","duration_ms":12},
+ "decision":{"decision":true,"context":{"reason":"listed"}}}
+```
+
+`decision.decision` is `true` only when the gateway's own checks let the request through; `context.outcome` says what happened after that (for example `upstream_error`). `decision.context.reason` is the tool policy reason (`listed`, `pass_all`, `not_tools_call`, `not_listed`, `ambiguous`) or, for a request stopped earlier, the outcome (`unauthorized`, `disabled`, `bad_request`, ...). `context.scan_incomplete` is `true` when the body scan stopped before the end. `context.protocol_version` is the `MCP-Protocol-Version` header (capped at 32 bytes, `""` if absent) and `context.mcp_headers` says whether `Mcp-Method` and `Mcp-Name` were sent: evidence of which MCP revision clients use before the gateway enforces 2026-07-28. A request without a valid token has no `subject`: AuthZEN 1.0 requires `subject.id`, and there is no identity to put there. Tool arguments and tokens are never logged. The flat fields of earlier versions (`navident`, `route`, `method`, `tool`, `decision_reason`, `outcome`) are gone; no dashboard or alert in this repository read them.
+
 ## Security
+
+MCP request metadata headers: `Mcp-Name` and `Mcp-Method` may appear once and hold at most 1024 bytes; `Mcp-Param-*` is capped at 32 headers of 4096 bytes each. A value in any `Mcp-*` header with a byte in 0x80–0xFF (obs-text) is rejected. These requests get `400` before any token exchange. The server sets `MaxHeaderBytes` to 192 KiB, enough for every `Mcp-Param-*` at its cap plus a bearer token. The gateway never decides anything on these headers; the JSON-RPC body is the truth. The `audit mcp` record sets `context.header_mismatch: true` when `Mcp-Method` or (for `tools/call`) `Mcp-Name` disagrees with the body.
+
+The audit record logs `action.name` and `action.properties.tool` as they are when they are short visible ASCII. Anything else (spaces, control characters, invisible characters such as U+200B) is logged Go-quoted and escaped, for example `"whoami "`, so a denied name never reads as a listed tool.
 
 Accepted risk (owner decision 2026-11-17): consent is remembered for 30 days and loopback redirect URIs accept any port. Another process on the developer's machine can start a login as an allowlisted public client and get a token without a click, through browser SSO and the remembered consent. PKCE does not help, because the attacker starts the flow. This is the same threat model as public-client logins in the az and gh CLIs. Mitigations: tokens are scoped to fleet-gateway, sessions are capped at 12 hours, and tokens can be revoked.
 
@@ -76,4 +101,4 @@ mise run build    # Build binary to bin/fleet-gateway
 
 ## References
 
-- [MCP gateway plan](../../docs/mcp-gateway-plan.md)
+- [MCP gateway plan](https://github.com/navikt/copilot/issues/2351)

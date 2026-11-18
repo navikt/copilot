@@ -82,16 +82,17 @@ const OUTBOUND_YAML = `outbound_rules:
   - application: <app>
     namespace: <namespace>`;
 
-const ROUTE_YAML = `- route: /mcp/<navn>
+const ROUTE_YAML = `- route: /mcp/<namespace>/<navn>
   team: <team>
   target: <klynge>:<namespace>:<app>
-  upstream_url: http://<app>.<namespace>/<sti-til-mcp>`;
+  upstream_url: http://<app>.<namespace>/<sti-til-mcp>
+  tools: [<verktøy>, <verktøy>]`;
 
 const OPENCODE_JSON = `{
   "mcp": {
     "<navn>": {
       "type": "remote",
-      "url": "https://fleet-gateway.intern.nav.no/mcp/<navn>"
+      "url": "https://fleet-gateway.intern.nav.no/mcp/<namespace>/<navn>"
     }
   }
 }`;
@@ -223,7 +224,8 @@ export default function FleetGatewayForTeamPage() {
                     <code className={code}>.nais/prod-gcp.yaml</code>, med <code className={code}>namespace</code> når
                     appen ligger i et annet namespace enn <code className={code}>copilot</code>.{" "}
                     <code className={code}>upstream_url</code> er den interne adressen med full sti til MCP-endepunktet,
-                    i samme namespace som <code className={code}>target</code>.
+                    i samme namespace som <code className={code}>target</code>. <code className={code}>tools</code> er
+                    listen over verktøy ruten slipper gjennom; andre <code className={code}>tools/call</code> avvises.
                   </BodyLong>
                   <CodeBlock filename="apps/fleet-gateway/pilot-routes.<miljø>.yaml">{ROUTE_YAML}</CodeBlock>
                   <CodeBlock filename="apps/fleet-gateway/.nais/<klynge>.yaml">{OUTBOUND_YAML}</CodeBlock>
@@ -239,9 +241,13 @@ export default function FleetGatewayForTeamPage() {
               content: (
                 <VStack gap="space-8">
                   <BodyLong>
-                    Adressen blir <code className={code}>https://fleet-gateway.intern.nav.no/mcp/&lt;navn&gt;</code> i
-                    prod og <code className={code}>https://fleet-gateway.intern.dev.nav.no/mcp/&lt;navn&gt;</code> i
-                    dev. Dere må være på naisdevice.
+                    Adressen blir{" "}
+                    <code className={code}>https://fleet-gateway.intern.nav.no/mcp/&lt;namespace&gt;/&lt;navn&gt;</code>{" "}
+                    i prod og{" "}
+                    <code className={code}>
+                      https://fleet-gateway.intern.dev.nav.no/mcp/&lt;namespace&gt;/&lt;navn&gt;
+                    </code>{" "}
+                    i dev. Dere må være på naisdevice.
                   </BodyLong>
                   <CodeBlock filename="opencode.json">{OPENCODE_JSON}</CodeBlock>
                   <CodeBlock filename="Terminal">{"opencode mcp auth <navn>\nopencode"}</CodeBlock>

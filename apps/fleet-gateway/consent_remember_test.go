@@ -112,7 +112,7 @@ func TestConsent_PageBannerAndFormAction(t *testing.T) {
 	}
 
 	body, h := page()
-	if strings.Contains(body, "Unverified client") {
+	if strings.Contains(body, "uverifisert verktøy") {
 		t.Fatal("allowlisted client shown as unverified")
 	}
 	if csp := h.Get("Content-Security-Policy"); !strings.Contains(csp, "form-action 'self' http://127.0.0.1:") {
@@ -126,7 +126,7 @@ func TestConsent_PageBannerAndFormAction(t *testing.T) {
 	resp := te.callback(st, sc)
 	raw, _ := io.ReadAll(resp.Body)
 	_ = resp.Body.Close()
-	if !strings.Contains(string(raw), "Unverified client") {
+	if !strings.Contains(string(raw), "uverifisert verktøy") {
 		t.Fatal("expected unverified banner for a client off the allowlist")
 	}
 }

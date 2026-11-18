@@ -205,7 +205,7 @@ func newTestEnv(t *testing.T) *testEnv {
 
 	te.clientID = te.cimdServer.URL + "/oauth-client.json"
 	baseURL := "https://fleet-gateway.intern.dev.nav.no"
-	te.resource = baseURL + "/mcp/etterlevelse"
+	te.resource = baseURL + "/mcp/team-etterlevelse/etterlevelse"
 
 	cfg := &Config{
 		Port:                "8080",
@@ -215,7 +215,7 @@ func newTestEnv(t *testing.T) *testEnv {
 		AllowedRedirectURIs: map[string]bool{te.redirectURI: true},
 		Routes: []PilotRoute{
 			{
-				Route:       "/mcp/etterlevelse",
+				Route:       "/mcp/team-etterlevelse/etterlevelse",
 				Team:        "team-etterlevelse",
 				Target:      "dev-gcp:team-etterlevelse:nav-etterlevelse-mcp",
 				UpstreamURL: "http://nav-etterlevelse-mcp.team-etterlevelse",
@@ -454,7 +454,7 @@ func TestMetadataEndpoints(t *testing.T) {
 		},
 		{
 			name:       "protected resource metadata pilot route path",
-			path:       "/.well-known/oauth-protected-resource/mcp/etterlevelse",
+			path:       "/.well-known/oauth-protected-resource/mcp/team-etterlevelse/etterlevelse",
 			wantStatus: http.StatusOK,
 			wantField:  "resource",
 			wantValue:  te.resource,

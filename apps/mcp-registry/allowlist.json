@@ -127,7 +127,7 @@
       "remotes": [
         {
           "type": "streamable-http",
-          "url": "https://fleet-gateway.{{domain_internal}}/mcp/onboarding"
+          "url": "https://fleet-gateway.{{domain_internal}}/mcp/copilot/onboarding"
         }
       ]
     },

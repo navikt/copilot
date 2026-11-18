@@ -30,13 +30,31 @@ type PilotRoute struct {
 	Target      string `yaml:"target" json:"target"`
 	UpstreamURL string `yaml:"upstream_url" json:"upstream_url"`
 	Enabled     *bool  `yaml:"enabled,omitempty" json:"enabled,omitempty"`
+	// Tools is the version 2 allowlist of tool names for tools/call.
+	Tools []string `yaml:"tools,omitempty" json:"tools,omitempty"`
+	// PassAllTools is operator-only: a version 2 route without Tools forwards
+	// every tools/call.
+	PassAllTools bool `yaml:"passAllTools,omitempty" json:"passAllTools,omitempty"`
 
 	Cluster     string   `yaml:"-" json:"-"`
 	Namespace   string   `yaml:"-" json:"-"`
 	App         string   `yaml:"-" json:"-"`
 	ParsedURL   *url.URL `yaml:"-" json:"-"`
 	FullRouteID string   `yaml:"-" json:"-"`
+	// allowedTools is set when the route enforces a tool allowlist; nil passes all.
+	allowedTools map[string]bool
 }
+
+// RouteSource supplies the validated pilot routes. The route file is the only
+// implementation today; the control service (#2334) becomes the second.
+type RouteSource interface {
+	Routes() ([]PilotRoute, error)
+}
+
+// fileRouteSource reads routes from PILOT_ROUTES_FILE, or the embedded default.
+type fileRouteSource struct{ path string }
+
+func (s fileRouteSource) Routes() ([]PilotRoute, error) { return loadPilotRoutes(s.path) }
 
 func (r PilotRoute) isDisabled() bool {
 	return r.Enabled != nil && !*r.Enabled
@@ -70,10 +88,48 @@ func parseAndValidatePilotRoutes(raw []byte) ([]PilotRoute, error) {
 	if err := dec.Decode(&extra); err != io.EOF {
 		return nil, errors.New("pilot routes config must contain a single YAML/JSON document")
 	}
-	if doc.Version != 1 {
+	if doc.Version == 1 {
+		return nil, errors.New("pilot routes version 1 is no longer supported: it passed every tool call; set version: 2 and list tools per route (or passAllTools: true, operator only)")
+	}
+	if doc.Version != 2 {
 		return nil, fmt.Errorf("unsupported pilot routes version %d", doc.Version)
 	}
+	for i := range doc.Routes {
+		if err := applyToolPolicy(&doc.Routes[i]); err != nil {
+			return nil, err
+		}
+	}
 	return validatePilotRoutes(doc.Routes)
+}
+
+// applyToolPolicy validates tools and passAllTools and builds the allowlist.
+// Version 2 denies by default: a route must list tools or be marked
+// passAllTools by the operator, not both.
+func applyToolPolicy(r *PilotRoute) error {
+	name := strings.TrimSpace(r.Route)
+	if r.Tools == nil {
+		if !r.PassAllTools {
+			return fmt.Errorf("route %q: version 2 routes must declare tools (or passAllTools, set by the operator)", name)
+		}
+		return nil
+	}
+	if r.PassAllTools {
+		return fmt.Errorf("route %q: tools and passAllTools are mutually exclusive", name)
+	}
+	if len(r.Tools) == 0 {
+		return fmt.Errorf("route %q: tools must not be empty", name)
+	}
+	r.allowedTools = make(map[string]bool, len(r.Tools))
+	for _, t := range r.Tools {
+		if t == "" || strings.TrimSpace(t) != t {
+			return fmt.Errorf("route %q: invalid tool name %q", name, t)
+		}
+		if r.allowedTools[t] {
+			return fmt.Errorf("route %q: duplicate tool %q", name, t)
+		}
+		r.allowedTools[t] = true
+	}
+	return nil
 }
 
 func validatePilotRoutes(routes []PilotRoute) ([]PilotRoute, error) {
@@ -89,7 +145,8 @@ func validatePilotRoutes(routes []PilotRoute) ([]PilotRoute, error) {
 		r.Target = strings.TrimSpace(r.Target)
 		r.UpstreamURL = strings.TrimSpace(r.UpstreamURL)
 
-		if err := validatePilotRoutePath(r.Route); err != nil {
+		ns, err := validatePilotRoutePath(r.Route)
+		if err != nil {
 			return nil, fmt.Errorf("route[%d] invalid route %q: %w", i, r.Route, err)
 		}
 		if seen[r.Route] {
@@ -101,9 +158,13 @@ func validatePilotRoutes(routes []PilotRoute) ([]PilotRoute, error) {
 			return nil, fmt.Errorf("route %q: team is required", r.Route)
 		}
 
-		cluster, ns, app, err := parseTarget(r.Target)
+		cluster, targetNS, app, err := parseTarget(r.Target)
 		if err != nil {
 			return nil, fmt.Errorf("route %q: %w", r.Route, err)
+		}
+		// Path is /mcp/<namespace>/<name> (#2342 §3.3): the first segment is the owning namespace.
+		if ns != targetNS {
+			return nil, fmt.Errorf("route %q: path namespace %q must equal target namespace %q", r.Route, ns, targetNS)
 		}
 		r.Cluster = cluster
 		r.Namespace = ns
@@ -120,27 +181,30 @@ func validatePilotRoutes(routes []PilotRoute) ([]PilotRoute, error) {
 	return out, nil
 }
 
-func validatePilotRoutePath(route string) error {
+// validatePilotRoutePath checks /mcp/<namespace>/<name> and returns the namespace.
+func validatePilotRoutePath(route string) (string, error) {
 	if !strings.HasPrefix(route, "/mcp/") {
-		return errors.New("must start with /mcp/")
+		return "", errors.New("must start with /mcp/")
 	}
-	name := strings.TrimPrefix(route, "/mcp/")
-	if name == "" || strings.Contains(name, "/") {
-		return errors.New("must match /mcp/<name> with a single non-empty segment")
+	segs := strings.Split(strings.TrimPrefix(route, "/mcp/"), "/")
+	if len(segs) != 2 {
+		return "", errors.New("must match /mcp/<namespace>/<name>")
 	}
-	for i := 0; i < len(name); i++ {
-		c := name[i]
-		isLower := c >= 'a' && c <= 'z'
-		isUpper := c >= 'A' && c <= 'Z'
-		isDigit := c >= '0' && c <= '9'
-		if !isLower && !isUpper && !isDigit && c != '-' && c != '_' && c != '.' {
-			return fmt.Errorf("invalid character %q in route name", c)
+	for _, seg := range segs {
+		if seg == "" || seg == "." || seg == ".." {
+			return "", errors.New("invalid route segment")
+		}
+		for i := 0; i < len(seg); i++ {
+			c := seg[i]
+			isLower := c >= 'a' && c <= 'z'
+			isUpper := c >= 'A' && c <= 'Z'
+			isDigit := c >= '0' && c <= '9'
+			if !isLower && !isUpper && !isDigit && c != '-' && c != '_' && c != '.' {
+				return "", fmt.Errorf("invalid character %q in route segment", c)
+			}
 		}
 	}
-	if name == "." || name == ".." {
-		return errors.New("invalid route segment")
-	}
-	return nil
+	return segs[0], nil
 }
 
 func parseTarget(target string) (cluster, namespace, app string, err error) {

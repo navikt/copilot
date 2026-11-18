@@ -21,12 +21,14 @@ import (
 type MCPHandler struct {
 	githubClient     *GitHubClient
 	discoveryService *discovery.Service
+	baseURL          string
 }
 
-func NewMCPHandler(githubClient *GitHubClient, discoveryService *discovery.Service) *MCPHandler {
+func NewMCPHandler(githubClient *GitHubClient, discoveryService *discovery.Service, baseURL string) *MCPHandler {
 	return &MCPHandler{
 		githubClient:     githubClient,
 		discoveryService: discoveryService,
+		baseURL:          baseURL,
 	}
 }
 
@@ -607,7 +609,7 @@ func (h *MCPHandler) handleCallTool(req *JSONRPCRequest, user *UserContext) (res
 
 	if user.NAVident != "" && !entraTools[params.Name] {
 		return &JSONRPCResponse{JSONRPC: "2.0", ID: req.ID, Result: CallToolResult{
-			Content: []TextContent{{Type: "text", Text: githubLoginRequired}},
+			Content: []TextContent{{Type: "text", Text: githubLoginRequired(h.baseURL)}},
 			IsError: true,
 		}}
 	}
