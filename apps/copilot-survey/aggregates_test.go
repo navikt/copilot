@@ -303,3 +303,67 @@ func TestRetainWaitsForSkipCounts(t *testing.T) {
 		t.Fatalf("spring skip counts: %d pairs", marker)
 	}
 }
+
+// TestRetainImportRace (COPILOT_SURVEY_TEST_DB_URL): an import that lands
+// between retain deciding a survey's expired rows may go and deleting them
+// must not lose its rows. retain pauses at purgeHook; the import runs, or
+// waits on the survey's lock; then retain goes on.
+func TestRetainImportRace(t *testing.T) {
+	url := os.Getenv("COPILOT_SURVEY_TEST_DB_URL")
+	if url == "" {
+		t.Skip("COPILOT_SURVEY_TEST_DB_URL not set")
+	}
+	ctx := t.Context()
+	st, err := openSurveyStore(ctx, url)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer st.pool.Close()
+	_, _ = st.pool.Exec(ctx, `DELETE FROM survey_answers; DELETE FROM survey_results; DELETE FROM survey_skip_results`)
+	defs, err := loadSurveys([]byte(compareSurveys))
+	if err != nil {
+		t.Fatal(err)
+	}
+	st.defs = defs
+	now := time.Date(2026, 11, 15, 0, 0, 0, 0, time.UTC)
+	expired := now.AddDate(0, -1, 0)
+	var spring []map[string]any
+	for _, r := range waveRows()["spring"] {
+		spring = append(spring, r.Answers)
+	}
+	if _, err = writeImport(ctx, url, defs[0], spring, expired); err != nil {
+		t.Fatal(err)
+	}
+	st.closeOut(ctx, now)
+
+	paused, release := make(chan struct{}), make(chan struct{})
+	st.purgeHook = func(id string) {
+		if id == "spring" {
+			close(paused)
+			<-release
+		}
+	}
+	retained := make(chan struct{})
+	go func() { st.retain(ctx, now); close(retained) }()
+	<-paused
+	imported := make(chan error, 1)
+	go func() { _, ierr := writeImport(ctx, url, defs[0], spring, expired); imported <- ierr }()
+	// Until the import has finished, or waits on an advisory lock.
+	for deadline := time.Now().Add(10 * time.Second); ; time.Sleep(10 * time.Millisecond) {
+		var waiting int
+		_ = st.pool.QueryRow(ctx, `SELECT count(*) FROM pg_stat_activity WHERE wait_event_type = 'Lock' AND wait_event = 'advisory'`).Scan(&waiting)
+		if waiting > 0 || len(imported) > 0 || time.Now().After(deadline) {
+			break
+		}
+	}
+	close(release)
+	<-retained
+	if err = <-imported; err != nil {
+		t.Fatal(err)
+	}
+	var rows, results int
+	_ = st.pool.QueryRow(ctx, `SELECT (SELECT count(*) FROM survey_answers WHERE survey_id = 'spring'), (SELECT count(*) FROM survey_results WHERE survey_id = 'spring')`).Scan(&rows, &results)
+	if rows != 6 || results != 0 {
+		t.Fatalf("after the race: %d rows, %d aggregate rows; want 6 rows waiting for close-out", rows, results)
+	}
+}
