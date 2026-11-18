@@ -148,7 +148,8 @@ func validatePilotRoutes(routes []PilotRoute) ([]PilotRoute, error) {
 		r.Target = strings.TrimSpace(r.Target)
 		r.UpstreamURL = strings.TrimSpace(r.UpstreamURL)
 
-		if err := validatePilotRoutePath(r.Route); err != nil {
+		ns, err := validatePilotRoutePath(r.Route)
+		if err != nil {
 			return nil, fmt.Errorf("route[%d] invalid route %q: %w", i, r.Route, err)
 		}
 		if seen[r.Route] {
@@ -160,9 +161,13 @@ func validatePilotRoutes(routes []PilotRoute) ([]PilotRoute, error) {
 			return nil, fmt.Errorf("route %q: team is required", r.Route)
 		}
 
-		cluster, ns, app, err := parseTarget(r.Target)
+		cluster, targetNS, app, err := parseTarget(r.Target)
 		if err != nil {
 			return nil, fmt.Errorf("route %q: %w", r.Route, err)
+		}
+		// Path is /mcp/<namespace>/<name> (#2342 §3.3): the first segment is the owning namespace.
+		if ns != targetNS {
+			return nil, fmt.Errorf("route %q: path namespace %q must equal target namespace %q", r.Route, ns, targetNS)
 		}
 		r.Cluster = cluster
 		r.Namespace = ns
@@ -179,27 +184,30 @@ func validatePilotRoutes(routes []PilotRoute) ([]PilotRoute, error) {
 	return out, nil
 }
 
-func validatePilotRoutePath(route string) error {
+// validatePilotRoutePath checks /mcp/<namespace>/<name> and returns the namespace.
+func validatePilotRoutePath(route string) (string, error) {
 	if !strings.HasPrefix(route, "/mcp/") {
-		return errors.New("must start with /mcp/")
+		return "", errors.New("must start with /mcp/")
 	}
-	name := strings.TrimPrefix(route, "/mcp/")
-	if name == "" || strings.Contains(name, "/") {
-		return errors.New("must match /mcp/<name> with a single non-empty segment")
+	segs := strings.Split(strings.TrimPrefix(route, "/mcp/"), "/")
+	if len(segs) != 2 {
+		return "", errors.New("must match /mcp/<namespace>/<name>")
 	}
-	for i := 0; i < len(name); i++ {
-		c := name[i]
-		isLower := c >= 'a' && c <= 'z'
-		isUpper := c >= 'A' && c <= 'Z'
-		isDigit := c >= '0' && c <= '9'
-		if !isLower && !isUpper && !isDigit && c != '-' && c != '_' && c != '.' {
-			return fmt.Errorf("invalid character %q in route name", c)
+	for _, seg := range segs {
+		if seg == "" || seg == "." || seg == ".." {
+			return "", errors.New("invalid route segment")
+		}
+		for i := 0; i < len(seg); i++ {
+			c := seg[i]
+			isLower := c >= 'a' && c <= 'z'
+			isUpper := c >= 'A' && c <= 'Z'
+			isDigit := c >= '0' && c <= '9'
+			if !isLower && !isUpper && !isDigit && c != '-' && c != '_' && c != '.' {
+				return "", fmt.Errorf("invalid character %q in route segment", c)
+			}
 		}
 	}
-	if name == "." || name == ".." {
-		return errors.New("invalid route segment")
-	}
-	return nil
+	return segs[0], nil
 }
 
 func parseTarget(target string) (cluster, namespace, app string, err error) {

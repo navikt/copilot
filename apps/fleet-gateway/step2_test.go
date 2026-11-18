@@ -45,7 +45,7 @@ func (te *testEnv) obtainAccessTokenForResource(resource string) string {
 func TestGatewayAccessToken_HashedStorage_ResourceBinding_AndExpiry(t *testing.T) {
 	te := newTestEnv(t)
 	te.gw.cfg.Routes = append(te.gw.cfg.Routes, PilotRoute{
-		Route:       "/mcp/restricted",
+		Route:       "/mcp/team-sec/restricted",
 		Team:        "team-sec",
 		Target:      "dev-gcp:team-sec:sec-mcp",
 		UpstreamURL: "http://sec-mcp.team-sec",
@@ -81,7 +81,7 @@ func TestGatewayAccessToken_HashedStorage_ResourceBinding_AndExpiry(t *testing.T
 	}
 
 	// PRM exposes each listed route and rejects unlisted routes.
-	prmReq := httptest.NewRequest(http.MethodGet, "/.well-known/oauth-protected-resource/mcp/restricted", nil)
+	prmReq := httptest.NewRequest(http.MethodGet, "/.well-known/oauth-protected-resource/mcp/team-sec/restricted", nil)
 	prmRec := httptest.NewRecorder()
 	te.handler.ServeHTTP(prmRec, prmReq)
 	if prmRec.Code != http.StatusOK {
@@ -89,12 +89,12 @@ func TestGatewayAccessToken_HashedStorage_ResourceBinding_AndExpiry(t *testing.T
 	}
 	var prm map[string]any
 	_ = json.Unmarshal(prmRec.Body.Bytes(), &prm)
-	if prm["resource"] != te.gw.cfg.BaseURL+"/mcp/restricted" {
+	if prm["resource"] != te.gw.cfg.BaseURL+"/mcp/team-sec/restricted" {
 		t.Fatalf("unexpected PRM resource %v", prm["resource"])
 	}
 
 	// Unlisted route returns 404.
-	unlistedReq := httptest.NewRequest(http.MethodPost, "/mcp/unlisted", strings.NewReader(`{"jsonrpc":"2.0","method":"tools/list"}`))
+	unlistedReq := httptest.NewRequest(http.MethodPost, "/mcp/team-sec/unlisted", strings.NewReader(`{"jsonrpc":"2.0","method":"tools/list"}`))
 	unlistedReq.Header.Set("Authorization", "Bearer "+token)
 	unlistedRec := httptest.NewRecorder()
 	te.handler.ServeHTTP(unlistedRec, unlistedReq)
@@ -103,7 +103,7 @@ func TestGatewayAccessToken_HashedStorage_ResourceBinding_AndExpiry(t *testing.T
 	}
 
 	// Missing Bearer returns 401 with WWW-Authenticate resource_metadata.
-	noAuthReq := httptest.NewRequest(http.MethodPost, "/mcp/etterlevelse", strings.NewReader(`{}`))
+	noAuthReq := httptest.NewRequest(http.MethodPost, "/mcp/team-etterlevelse/etterlevelse", strings.NewReader(`{}`))
 	noAuthRec := httptest.NewRecorder()
 	te.handler.ServeHTTP(noAuthRec, noAuthReq)
 	if noAuthRec.Code != http.StatusUnauthorized {
@@ -113,8 +113,8 @@ func TestGatewayAccessToken_HashedStorage_ResourceBinding_AndExpiry(t *testing.T
 		t.Fatalf("expected WWW-Authenticate resource_metadata, got %q", wwwAuth)
 	}
 
-	// Token bound to /mcp/etterlevelse cannot call /mcp/restricted (403).
-	wrongResReq := httptest.NewRequest(http.MethodPost, "/mcp/restricted", strings.NewReader(`{}`))
+	// Token bound to /mcp/team-etterlevelse/etterlevelse cannot call /mcp/team-sec/restricted (403).
+	wrongResReq := httptest.NewRequest(http.MethodPost, "/mcp/team-sec/restricted", strings.NewReader(`{}`))
 	wrongResReq.Header.Set("Authorization", "Bearer "+token)
 	wrongResRec := httptest.NewRecorder()
 	te.handler.ServeHTTP(wrongResRec, wrongResReq)
@@ -124,8 +124,8 @@ func TestGatewayAccessToken_HashedStorage_ResourceBinding_AndExpiry(t *testing.T
 
 	// No group gate on the route (required_group removed 2026-11-17): a token
 	// bound to the route reaches it; the team MCP authorizes.
-	restrictedTok := te.obtainAccessTokenForResource(te.gw.cfg.BaseURL + "/mcp/restricted")
-	routeReq := httptest.NewRequest(http.MethodPost, "/mcp/restricted", strings.NewReader(`{"jsonrpc":"2.0","method":"tools/list"}`))
+	restrictedTok := te.obtainAccessTokenForResource(te.gw.cfg.BaseURL + "/mcp/team-sec/restricted")
+	routeReq := httptest.NewRequest(http.MethodPost, "/mcp/team-sec/restricted", strings.NewReader(`{"jsonrpc":"2.0","method":"tools/list"}`))
 	routeReq.Header.Set("Authorization", "Bearer "+restrictedTok)
 	routeRec := httptest.NewRecorder()
 	te.handler.ServeHTTP(routeRec, routeReq)
@@ -135,7 +135,7 @@ func TestGatewayAccessToken_HashedStorage_ResourceBinding_AndExpiry(t *testing.T
 
 	// Expiry: advancing past session TTL returns 401.
 	te.advance(2 * time.Hour)
-	expReq := httptest.NewRequest(http.MethodPost, "/mcp/etterlevelse", strings.NewReader(`{}`))
+	expReq := httptest.NewRequest(http.MethodPost, "/mcp/team-etterlevelse/etterlevelse", strings.NewReader(`{}`))
 	expReq.Header.Set("Authorization", "Bearer "+token)
 	expRec := httptest.NewRecorder()
 	te.handler.ServeHTTP(expRec, expReq)
@@ -200,7 +200,7 @@ func TestProxy_OBO_Headers_StreamableHTTP_SSE_Limits_And_Redirects(t *testing.T)
 	gwToken := te.obtainAccessTokenForResource(te.resource)
 
 	// 1. POST with hop-by-hop headers, Cookie, and gateway Authorization.
-	req := httptest.NewRequest(http.MethodPost, "/mcp/etterlevelse?foo=bar", strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"tools/list"}`))
+	req := httptest.NewRequest(http.MethodPost, "/mcp/team-etterlevelse/etterlevelse?foo=bar", strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"tools/list"}`))
 	req.Header.Set("Authorization", "Bearer "+gwToken)
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Cookie", "fleet_csrf=secret-cookie")
@@ -244,7 +244,7 @@ func TestProxy_OBO_Headers_StreamableHTTP_SSE_Limits_And_Redirects(t *testing.T)
 	// 2. GET SSE streaming passthrough via real HTTP server to test flushing.
 	ts := httptest.NewServer(te.handler)
 	defer ts.Close()
-	sseReq, _ := http.NewRequest(http.MethodGet, ts.URL+"/mcp/etterlevelse", nil)
+	sseReq, _ := http.NewRequest(http.MethodGet, ts.URL+"/mcp/team-etterlevelse/etterlevelse", nil)
 	sseReq.Header.Set("Authorization", "Bearer "+gwToken)
 	sseReq.Header.Set("Accept", "text/event-stream")
 	sseResp, err := ts.Client().Do(sseReq) //nolint:gosec // test server URL
@@ -270,7 +270,7 @@ func TestProxy_OBO_Headers_StreamableHTTP_SSE_Limits_And_Redirects(t *testing.T)
 	}
 
 	// 3. DELETE passthrough.
-	delReq := httptest.NewRequest(http.MethodDelete, "/mcp/etterlevelse", nil)
+	delReq := httptest.NewRequest(http.MethodDelete, "/mcp/team-etterlevelse/etterlevelse", nil)
 	delReq.Header.Set("Authorization", "Bearer "+gwToken)
 	delRec := httptest.NewRecorder()
 	te.handler.ServeHTTP(delRec, delReq)
@@ -279,7 +279,7 @@ func TestProxy_OBO_Headers_StreamableHTTP_SSE_Limits_And_Redirects(t *testing.T)
 	}
 
 	// 4. Unsupported method returns 405.
-	putReq := httptest.NewRequest(http.MethodPut, "/mcp/etterlevelse", nil)
+	putReq := httptest.NewRequest(http.MethodPut, "/mcp/team-etterlevelse/etterlevelse", nil)
 	putReq.Header.Set("Authorization", "Bearer "+gwToken)
 	putRec := httptest.NewRecorder()
 	te.handler.ServeHTTP(putRec, putReq)
@@ -289,7 +289,7 @@ func TestProxy_OBO_Headers_StreamableHTTP_SSE_Limits_And_Redirects(t *testing.T)
 
 	// 5. Oversized request body returns 413.
 	bigBody := bytes.Repeat([]byte("a"), maxMCPRequestBodyBytes+10)
-	bigReq := httptest.NewRequest(http.MethodPost, "/mcp/etterlevelse", bytes.NewReader(bigBody))
+	bigReq := httptest.NewRequest(http.MethodPost, "/mcp/team-etterlevelse/etterlevelse", bytes.NewReader(bigBody))
 	bigReq.Header.Set("Authorization", "Bearer "+gwToken)
 	bigRec := httptest.NewRecorder()
 	te.handler.ServeHTTP(bigRec, bigReq)
@@ -301,7 +301,7 @@ func TestProxy_OBO_Headers_StreamableHTTP_SSE_Limits_And_Redirects(t *testing.T)
 	te.upstreamServer.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "https://evil.example/", http.StatusFound)
 	})
-	redirReq := httptest.NewRequest(http.MethodPost, "/mcp/etterlevelse", strings.NewReader(`{}`))
+	redirReq := httptest.NewRequest(http.MethodPost, "/mcp/team-etterlevelse/etterlevelse", strings.NewReader(`{}`))
 	redirReq.Header.Set("Authorization", "Bearer "+gwToken)
 	redirRec := httptest.NewRecorder()
 	te.handler.ServeHTTP(redirRec, redirReq)
@@ -315,7 +315,7 @@ func TestProxy_OBO_Headers_StreamableHTTP_SSE_Limits_And_Redirects(t *testing.T)
 		time.Sleep(200 * time.Millisecond)
 		w.WriteHeader(http.StatusOK)
 	})
-	slowReq := httptest.NewRequest(http.MethodPost, "/mcp/etterlevelse", strings.NewReader(`{}`))
+	slowReq := httptest.NewRequest(http.MethodPost, "/mcp/team-etterlevelse/etterlevelse", strings.NewReader(`{}`))
 	slowReq.Header.Set("Authorization", "Bearer "+gwToken)
 	slowRec := httptest.NewRecorder()
 	te.handler.ServeHTTP(slowRec, slowReq)
@@ -400,7 +400,7 @@ func TestStrategyRefresh_Rotation_And_Concurrency(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			req := httptest.NewRequest(http.MethodPost, "/mcp/etterlevelse", strings.NewReader(`{"method":"tools/list"}`))
+			req := httptest.NewRequest(http.MethodPost, "/mcp/team-etterlevelse/etterlevelse", strings.NewReader(`{"method":"tools/list"}`))
 			req.Header.Set("Authorization", "Bearer "+gwToken)
 			rec := httptest.NewRecorder()
 			te.handler.ServeHTTP(rec, req)
@@ -412,7 +412,7 @@ func TestStrategyRefresh_Rotation_And_Concurrency(t *testing.T) {
 	wg.Wait()
 
 	// Sequential second call must send the rotated RT ("rt-1")!
-	req2 := httptest.NewRequest(http.MethodPost, "/mcp/etterlevelse", strings.NewReader(`{"method":"tools/call"}`))
+	req2 := httptest.NewRequest(http.MethodPost, "/mcp/team-etterlevelse/etterlevelse", strings.NewReader(`{"method":"tools/call"}`))
 	req2.Header.Set("Authorization", "Bearer "+gwToken)
 	rec2 := httptest.NewRecorder()
 	te.handler.ServeHTTP(rec2, req2)
@@ -507,7 +507,7 @@ func TestErrorMapping_AADSTS65001_And_NoRawEntraLeak(t *testing.T) {
 				})
 			}
 
-			req := httptest.NewRequest(http.MethodPost, "/mcp/etterlevelse", strings.NewReader(`{"method":"tools/list"}`))
+			req := httptest.NewRequest(http.MethodPost, "/mcp/team-etterlevelse/etterlevelse", strings.NewReader(`{"method":"tools/list"}`))
 			req.Header.Set("Authorization", "Bearer "+gwToken)
 			rec := httptest.NewRecorder()
 			te.handler.ServeHTTP(rec, req)
@@ -662,7 +662,7 @@ func TestAuditMCP_LogsFields_BoundsMethod_And_NoSecretsOrArgs(t *testing.T) {
 	longMethod := strings.Repeat("m", 120)
 	secretArg := "super-secret-tool-argument-value"
 	body := fmt.Sprintf(`{"jsonrpc":"2.0","id":1,"method":%q,"params":{"name":"my_tool","arguments":{"secret":%q}}}`, longMethod, secretArg)
-	req := httptest.NewRequest(http.MethodPost, "/mcp/etterlevelse", strings.NewReader(body))
+	req := httptest.NewRequest(http.MethodPost, "/mcp/team-etterlevelse/etterlevelse", strings.NewReader(body))
 	req.Header.Set("Authorization", "Bearer "+gwToken)
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
@@ -687,8 +687,8 @@ func TestAuditMCP_LogsFields_BoundsMethod_And_NoSecretsOrArgs(t *testing.T) {
 	if foundAudit["client_id"] != te.clientID {
 		t.Fatalf("expected client_id=%q, got %v", te.clientID, foundAudit["client_id"])
 	}
-	if foundAudit["route"] != "/mcp/etterlevelse" {
-		t.Fatalf("expected route=/mcp/etterlevelse, got %v", foundAudit["route"])
+	if foundAudit["route"] != "/mcp/team-etterlevelse/etterlevelse" {
+		t.Fatalf("expected route=/mcp/team-etterlevelse/etterlevelse, got %v", foundAudit["route"])
 	}
 	if foundAudit["outcome"] != "ok" {
 		t.Fatalf("expected outcome=ok, got %v", foundAudit["outcome"])
@@ -747,7 +747,7 @@ func TestProxy_StrictHeaderAllowlists(t *testing.T) {
 
 	gwToken := te.obtainAccessTokenForResource(te.resource)
 
-	req := httptest.NewRequest(http.MethodPost, "/mcp/etterlevelse", strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"tools/list"}`))
+	req := httptest.NewRequest(http.MethodPost, "/mcp/team-etterlevelse/etterlevelse", strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"tools/list"}`))
 	req.Host = "spoofed-host.example"
 	req.Header.Set("Authorization", "Bearer "+gwToken)
 	req.Header.Set("Content-Type", "application/json")
@@ -857,7 +857,7 @@ func TestProxy_SSEBounds_And_NonSSEResponseLimit(t *testing.T) {
 		ts := httptest.NewServer(te.handler)
 		defer ts.Close()
 
-		req, _ := http.NewRequest(http.MethodGet, ts.URL+"/mcp/etterlevelse", nil)
+		req, _ := http.NewRequest(http.MethodGet, ts.URL+"/mcp/team-etterlevelse/etterlevelse", nil)
 		req.Header.Set("Authorization", "Bearer "+gwToken)
 		resp, err := ts.Client().Do(req) //nolint:gosec // test server URL
 		if err != nil {
@@ -898,7 +898,7 @@ func TestProxy_SSEBounds_And_NonSSEResponseLimit(t *testing.T) {
 		ts := httptest.NewServer(te.handler)
 		defer ts.Close()
 
-		req, _ := http.NewRequest(http.MethodGet, ts.URL+"/mcp/etterlevelse", nil)
+		req, _ := http.NewRequest(http.MethodGet, ts.URL+"/mcp/team-etterlevelse/etterlevelse", nil)
 		req.Header.Set("Authorization", "Bearer "+gwToken)
 		resp, err := ts.Client().Do(req) //nolint:gosec // test server URL
 		if err != nil {
@@ -944,7 +944,7 @@ func TestProxy_SSEBounds_And_NonSSEResponseLimit(t *testing.T) {
 		ts := httptest.NewServer(te.handler)
 		defer ts.Close()
 
-		req, _ := http.NewRequest(http.MethodGet, ts.URL+"/mcp/etterlevelse", nil)
+		req, _ := http.NewRequest(http.MethodGet, ts.URL+"/mcp/team-etterlevelse/etterlevelse", nil)
 		req.Header.Set("Authorization", "Bearer "+gwToken)
 		resp, err := ts.Client().Do(req) //nolint:gosec // test server URL
 		if err != nil {
@@ -981,7 +981,7 @@ func TestProxy_SSEBounds_And_NonSSEResponseLimit(t *testing.T) {
 		defer ts.Close()
 
 		ctx, cancel := context.WithCancel(t.Context())
-		req, _ := http.NewRequestWithContext(ctx, http.MethodGet, ts.URL+"/mcp/etterlevelse", nil)
+		req, _ := http.NewRequestWithContext(ctx, http.MethodGet, ts.URL+"/mcp/team-etterlevelse/etterlevelse", nil)
 		req.Header.Set("Authorization", "Bearer "+gwToken)
 		resp, err := ts.Client().Do(req) //nolint:gosec // test server URL
 		if err != nil {
@@ -1013,7 +1013,7 @@ func TestProxy_SSEBounds_And_NonSSEResponseLimit(t *testing.T) {
 		})
 
 		gwToken := te.obtainAccessTokenForResource(te.resource)
-		req := httptest.NewRequest(http.MethodPost, "/mcp/etterlevelse", strings.NewReader(`{"method":"tools/list"}`))
+		req := httptest.NewRequest(http.MethodPost, "/mcp/team-etterlevelse/etterlevelse", strings.NewReader(`{"method":"tools/list"}`))
 		req.Header.Set("Authorization", "Bearer "+gwToken)
 		rec := httptest.NewRecorder()
 		te.handler.ServeHTTP(rec, req)
@@ -1048,13 +1048,13 @@ func TestProxy_KillSwitch(t *testing.T) {
 	}{
 		{
 			name:       "route enabled:false returns 503",
-			targetPath: "/mcp/disabled",
+			targetPath: "/mcp/team-sec/disabled",
 			wantGlobal: false,
 		},
 		{
 			name:            "GatewayDisabled returns 503",
 			gatewayDisabled: "true",
-			targetPath:      "/mcp/etterlevelse",
+			targetPath:      "/mcp/team-etterlevelse/etterlevelse",
 			wantGlobal:      true,
 		},
 	}
@@ -1075,11 +1075,11 @@ func TestProxy_KillSwitch(t *testing.T) {
 
 			routesYAML := `version: 1
 routes:
-  - route: /mcp/etterlevelse
+  - route: /mcp/team-etterlevelse/etterlevelse
     team: team-etterlevelse
     target: dev-gcp:team-etterlevelse:nav-etterlevelse-mcp
     upstream_url: http://nav-etterlevelse-mcp.team-etterlevelse
-  - route: /mcp/disabled
+  - route: /mcp/team-sec/disabled
     team: team-sec
     target: dev-gcp:team-sec:sec-mcp
     upstream_url: http://sec-mcp.team-sec
@@ -1186,7 +1186,7 @@ func TestProxy_MCPSessionIDBoundToUser(t *testing.T) {
 	te.mu.Unlock()
 	tokA := te.obtainAccessTokenForResource(te.resource)
 
-	reqA1 := httptest.NewRequest(http.MethodPost, "/mcp/etterlevelse", strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"initialize"}`))
+	reqA1 := httptest.NewRequest(http.MethodPost, "/mcp/team-etterlevelse/etterlevelse", strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"initialize"}`))
 	reqA1.Header.Set("Authorization", "Bearer "+tokA)
 	recA1 := httptest.NewRecorder()
 	te.handler.ServeHTTP(recA1, reqA1)
@@ -1205,7 +1205,7 @@ func TestProxy_MCPSessionIDBoundToUser(t *testing.T) {
 	tokB := te.obtainAccessTokenForResource(te.resource)
 
 	callsBeforeB := upstreamCalls.Load()
-	reqB := httptest.NewRequest(http.MethodPost, "/mcp/etterlevelse", strings.NewReader(`{"jsonrpc":"2.0","id":2,"method":"tools/list"}`))
+	reqB := httptest.NewRequest(http.MethodPost, "/mcp/team-etterlevelse/etterlevelse", strings.NewReader(`{"jsonrpc":"2.0","id":2,"method":"tools/list"}`))
 	reqB.Header.Set("Authorization", "Bearer "+tokB)
 	reqB.Header.Set("Mcp-Session-Id", mcpSessID)
 	recB := httptest.NewRecorder()
@@ -1225,7 +1225,7 @@ func TestProxy_MCPSessionIDBoundToUser(t *testing.T) {
 	}
 
 	// A second Mcp-Session-Id header cannot smuggle A's id past the check.
-	reqDup := httptest.NewRequest(http.MethodPost, "/mcp/etterlevelse", strings.NewReader(`{"jsonrpc":"2.0","id":2,"method":"tools/list"}`))
+	reqDup := httptest.NewRequest(http.MethodPost, "/mcp/team-etterlevelse/etterlevelse", strings.NewReader(`{"jsonrpc":"2.0","id":2,"method":"tools/list"}`))
 	reqDup.Header.Set("Authorization", "Bearer "+tokB)
 	reqDup.Header.Add("Mcp-Session-Id", "fresh-id-b")
 	reqDup.Header.Add("Mcp-Session-Id", mcpSessID)
@@ -1236,7 +1236,7 @@ func TestProxy_MCPSessionIDBoundToUser(t *testing.T) {
 	}
 
 	// User A still gets through with that Mcp-Session-Id.
-	reqA2 := httptest.NewRequest(http.MethodPost, "/mcp/etterlevelse", strings.NewReader(`{"jsonrpc":"2.0","id":3,"method":"tools/list"}`))
+	reqA2 := httptest.NewRequest(http.MethodPost, "/mcp/team-etterlevelse/etterlevelse", strings.NewReader(`{"jsonrpc":"2.0","id":3,"method":"tools/list"}`))
 	reqA2.Header.Set("Authorization", "Bearer "+tokA)
 	reqA2.Header.Set("Mcp-Session-Id", mcpSessID)
 	recA2 := httptest.NewRecorder()
@@ -1246,5 +1246,41 @@ func TestProxy_MCPSessionIDBoundToUser(t *testing.T) {
 	}
 	if upstreamCalls.Load() != callsBeforeB+1 {
 		t.Fatalf("expected user A request to reach upstream, got %d calls", upstreamCalls.Load()-callsBeforeB)
+	}
+}
+
+// Two namespaces sharing a route name: the 404 must not point at an arbitrary team's route.
+func TestOldRoutePathAmbiguousNameOmitsNewURL(t *testing.T) {
+	te := newTestEnv(t)
+	dup := te.gw.cfg.Routes[0]
+	dup.Route = "/mcp/other-ns/" + dup.Route[strings.LastIndex(dup.Route, "/")+1:]
+	dup.FullRouteID = te.gw.cfg.BaseURL + dup.Route
+	te.gw.cfg.Routes = append(te.gw.cfg.Routes, dup)
+
+	name := dup.Route[strings.LastIndex(dup.Route, "/")+1:]
+	rec := httptest.NewRecorder()
+	te.handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/mcp/"+name, nil))
+	var body map[string]string
+	_ = json.Unmarshal(rec.Body.Bytes(), &body)
+	if rec.Code != http.StatusNotFound || body["new_url"] != "" {
+		t.Fatalf("want 404 without new_url, got %d %v", rec.Code, body)
+	}
+}
+
+// The retired /mcp/<name> path is not an alias: 404, with the new URL in the body (#2342 §3.3).
+func TestOldRoutePathReturns404WithNewURL(t *testing.T) {
+	te := newTestEnv(t)
+	for _, method := range []string{http.MethodGet, http.MethodPost} {
+		req := httptest.NewRequest(method, "/mcp/etterlevelse", strings.NewReader(`{}`))
+		rec := httptest.NewRecorder()
+		te.handler.ServeHTTP(rec, req)
+		if rec.Code != http.StatusNotFound {
+			t.Fatalf("%s: want 404, got %d", method, rec.Code)
+		}
+		var body map[string]string
+		_ = json.Unmarshal(rec.Body.Bytes(), &body)
+		if want := te.gw.cfg.BaseURL + "/mcp/team-etterlevelse/etterlevelse"; body["new_url"] != want {
+			t.Fatalf("%s: new_url = %q, want %q", method, body["new_url"], want)
+		}
 	}
 }

@@ -167,7 +167,31 @@ func (g *Gateway) routes() http.Handler {
 	for _, route := range g.cfg.Routes {
 		mux.HandleFunc(route.Route, g.mcpHandler(route))
 	}
+	mux.HandleFunc("/mcp/{name}", g.oldRoutePathHandler)
 	return g.loggingMiddleware(mux)
+}
+
+// oldRoutePathHandler answers the retired /mcp/<name> paths with a 404 that names
+// the new /mcp/<namespace>/<name> URL. It does not proxy: there is no alias (#2342 §3.3).
+func (g *Gateway) oldRoutePathHandler(w http.ResponseWriter, r *http.Request) {
+	body := map[string]string{
+		"error":             "not_found",
+		"error_description": "MCP routes moved to /mcp/<namespace>/<name>. Update your MCP client config and log in again.",
+	}
+	// Two namespaces may share a route name: only hint when the match is unique.
+	var match *PilotRoute
+	matches := 0
+	for i, route := range g.cfg.Routes {
+		if strings.HasSuffix(route.Route, "/"+r.PathValue("name")) {
+			match = &g.cfg.Routes[i]
+			matches++
+		}
+	}
+	if matches == 1 {
+		body["new_url"] = match.FullRouteID
+		body["error_description"] = "This route moved to " + match.FullRouteID + ". Update your MCP client config and log in again."
+	}
+	writeJSON(w, http.StatusNotFound, body)
 }
 
 func healthHandler(w http.ResponseWriter, _ *http.Request) {

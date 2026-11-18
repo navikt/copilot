@@ -100,7 +100,7 @@ func TestToolPolicy_RouteFilesAreV2(t *testing.T) {
 
 func TestToolPolicy_RouteFile(t *testing.T) {
 	route := func(extra string) string {
-		return "version: 2\nroutes:\n  - route: /mcp/x\n    team: t\n    target: dev-gcp:t:x\n    upstream_url: http://x.t/\n" + extra
+		return "version: 2\nroutes:\n  - route: /mcp/t/x\n    team: t\n    target: dev-gcp:t:x\n    upstream_url: http://x.t/\n" + extra
 	}
 	bad := map[string]string{
 		"v2 no tools":        route(""),

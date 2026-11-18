@@ -82,7 +82,7 @@ const OUTBOUND_YAML = `outbound_rules:
   - application: <app>
     namespace: <namespace>`;
 
-const ROUTE_YAML = `- route: /mcp/<navn>
+const ROUTE_YAML = `- route: /mcp/<namespace>/<navn>
   team: <team>
   target: <klynge>:<namespace>:<app>
   upstream_url: http://<app>.<namespace>/<sti-til-mcp>
@@ -92,7 +92,7 @@ const OPENCODE_JSON = `{
   "mcp": {
     "<navn>": {
       "type": "remote",
-      "url": "https://fleet-gateway.intern.nav.no/mcp/<navn>"
+      "url": "https://fleet-gateway.intern.nav.no/mcp/<namespace>/<navn>"
     }
   }
 }`;
@@ -241,9 +241,13 @@ export default function FleetGatewayForTeamPage() {
               content: (
                 <VStack gap="space-8">
                   <BodyLong>
-                    Adressen blir <code className={code}>https://fleet-gateway.intern.nav.no/mcp/&lt;navn&gt;</code> i
-                    prod og <code className={code}>https://fleet-gateway.intern.dev.nav.no/mcp/&lt;navn&gt;</code> i
-                    dev. Dere må være på naisdevice.
+                    Adressen blir{" "}
+                    <code className={code}>https://fleet-gateway.intern.nav.no/mcp/&lt;namespace&gt;/&lt;navn&gt;</code>{" "}
+                    i prod og{" "}
+                    <code className={code}>
+                      https://fleet-gateway.intern.dev.nav.no/mcp/&lt;namespace&gt;/&lt;navn&gt;
+                    </code>{" "}
+                    i dev. Dere må være på naisdevice.
                   </BodyLong>
                   <CodeBlock filename="opencode.json">{OPENCODE_JSON}</CodeBlock>
                   <CodeBlock filename="Terminal">{"opencode mcp auth <navn>\nopencode"}</CodeBlock>

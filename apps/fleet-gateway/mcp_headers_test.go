@@ -29,7 +29,7 @@ func TestProxy_ForwardsMCPRequestMetadataHeaders(t *testing.T) {
 	gwToken := te.obtainAccessTokenForResource(te.resource)
 
 	post := func(hdrs map[string]string) *httptest.ResponseRecorder {
-		req := httptest.NewRequest(http.MethodPost, "/mcp/etterlevelse", strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"search"}}`))
+		req := httptest.NewRequest(http.MethodPost, "/mcp/team-etterlevelse/etterlevelse", strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"search"}}`))
 		req.Header.Set("Authorization", "Bearer "+gwToken)
 		req.Header.Set("Content-Type", "application/json")
 		for k, v := range hdrs {
