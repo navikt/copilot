@@ -610,3 +610,110 @@ func TestSetMCPServerKeepsUserProtocol(t *testing.T) {
 		t.Fatalf("overwrote user entry: %+v, %v", ch, err)
 	}
 }
+
+func TestBackfillOpenCodeProtocol(t *testing.T) {
+	cases := []struct {
+		name     string
+		entry    string
+		versions []string
+		url      string
+		wantRet  string
+		wantVal  string
+		wantChg  bool
+	}{
+		{
+			name:     "only 2026-07-28",
+			entry:    `{"type":"remote","url":"https://x.example/mcp"}`,
+			versions: []string{"2026-07-28"},
+			url:      "https://x.example/mcp",
+			wantRet:  "2026-07-28",
+			wantVal:  "2026-07-28",
+			wantChg:  true,
+		},
+		{
+			name:     "2026-07-28 with older",
+			entry:    `{"type":"remote","url":"https://x.example/mcp"}`,
+			versions: []string{"2024-11-05", "2026-07-28"},
+			url:      "https://x.example/mcp",
+			wantRet:  "auto",
+			wantVal:  "auto",
+			wantChg:  true,
+		},
+		{
+			name:     "older only",
+			entry:    `{"type":"remote","url":"https://x.example/mcp"}`,
+			versions: []string{"2024-11-05"},
+			url:      "https://x.example/mcp",
+		},
+		{
+			name:    "nil versions with nav.no url",
+			entry:   `{"type":"remote","url":"https://x.nav.no/mcp"}`,
+			url:     "https://x.nav.no/mcp",
+			wantRet: "auto",
+			wantVal: "auto",
+			wantChg: true,
+		},
+		{
+			name:  "nil versions with non-nav https url",
+			entry: `{"type":"remote","url":"https://example.com/mcp"}`,
+			url:   "https://example.com/mcp",
+		},
+		{
+			name:     "existing user protocol kept",
+			entry:    `{"type":"remote","url":"https://x.example/mcp","protocol":"legacy"}`,
+			versions: []string{"2026-07-28"},
+			url:      "https://x.example/mcp",
+			wantVal:  "legacy",
+		},
+		{
+			name:     "local entry ignored",
+			entry:    `{"type":"local","command":["npx","x"]}`,
+			versions: []string{"2026-07-28"},
+		},
+		{
+			name:     "registry name with different url",
+			entry:    `{"type":"remote","url":"https://other.example/mcp"}`,
+			versions: []string{"2026-07-28"},
+			url:      "https://x.example/mcp",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			home := mcpConfigEnv(t)
+			wantPath := filepath.Join(home, ".config", "opencode", "opencode.json")
+			gotPath, err := MCPConfigPath(MCPClientOpenCode)
+			if err != nil || gotPath != wantPath {
+				t.Fatalf("MCPConfigPath = %q, %v; want %q", gotPath, err, wantPath)
+			}
+			writeFile(t, gotPath, fmt.Sprintf(`{"mcp":{"no.nav/x":%s}}`, tc.entry))
+			e := MCPServerEntry{
+				Name:             "no.nav/x",
+				ProtocolVersions: tc.versions,
+			}
+			if tc.url != "" {
+				e.Remotes = []MCPRemote{{URL: tc.url}}
+			}
+			p, ch, err := BackfillOpenCodeProtocol("no.nav/x", e)
+			if err != nil {
+				t.Fatalf("BackfillOpenCodeProtocol: %v", err)
+			}
+			if p != tc.wantRet || ch.Changed != tc.wantChg || ch.Path != wantPath {
+				t.Fatalf("got p=%q ch=%+v; want p=%q changed=%v path=%q", p, ch, tc.wantRet, tc.wantChg, wantPath)
+			}
+			var cfg struct {
+				MCP map[string]map[string]any `json:"mcp"`
+			}
+			if err := json.Unmarshal([]byte(readFile(t, wantPath)), &cfg); err != nil {
+				t.Fatal(err)
+			}
+			gotVal, _ := cfg.MCP["no.nav/x"]["protocol"].(string)
+			if gotVal != tc.wantVal {
+				t.Errorf("protocol in file = %q, want %q", gotVal, tc.wantVal)
+			}
+			p2, ch2, err2 := BackfillOpenCodeProtocol("no.nav/x", e)
+			if err2 != nil || p2 != "" || ch2.Changed {
+				t.Fatalf("second call = p=%q ch=%+v err=%v; want no-op", p2, ch2, err2)
+			}
+		})
+	}
+}
