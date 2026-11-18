@@ -1503,6 +1503,15 @@ ws_wrote() { ! cmp -s "$FP_BEFORE" "$FP_AFTER"; }
 ws_written_files() {
   diff "$FP_BEFORE" "$FP_AFTER" | awk '/^[<>]/ { print $NF }' | sort -u | tr '\n' ' '
 }
+# ws_save_written: the files the last call wrote, as text, to keep beside its
+# transcript. 9/9c/9d judge that code, and seed_ws wipes $WS before the next
+# prompt, so without this a red row cannot be read back (#2396).
+ws_save_written() {
+  local f
+  for f in $(ws_written_files); do
+    if [[ -f "$WS/$f" ]]; then printf '=== %s\n' "$f"; cat "$WS/$f"; echo; else printf '=== %s (deleted)\n' "$f"; fi
+  done
+}
 
 # ─── Test runner ─────────────────────────────────────────────────────────────
 
@@ -1757,6 +1766,8 @@ run_prompt() {
   # Taken unconditionally, including after a dead call: an agent that wrote and
   # then timed out still wrote, and the no-auto-fix assertions want to say so.
   ws_fingerprint >"$FP_AFTER"
+  # *.run*.txt, so --save-baseline copies it into transkripter/ with the transcript.
+  ws_wrote && ws_save_written >"${out%.txt}.files.txt"
   local size=0
   [[ -f "$out" ]] && size="$(wc -c <"$out" | tr -d ' ')"
   local outcome="pass" detail=""
@@ -4742,6 +4753,9 @@ if [[ -n "$SAVE_BASELINE" ]]; then
       cat "$JUDGE_FILE"
     } >"${SAVE_BASELINE%.txt}-judge.psv"
   fi
+  # Every judge spend, controls included: -usage.psv has only the agent's calls,
+  # and a cost tally from the saved files alone would miss these (#2396).
+  [[ -s "$JUDGE_CREDITS_FILE" ]] && cp "$JUDGE_CREDITS_FILE" "${SAVE_BASELINE%.txt}-judge-credits.psv"
   # Into place only now, the PSVs first and the .txt last: benchmark-matrix.py
   # treats an arm as done when its .txt exists, and a run killed half-way
   # through writing must leave nothing behind that looks finished.
@@ -4749,7 +4763,7 @@ if [[ -n "$SAVE_BASELINE" ]]; then
   # Clear the previous generation first, the .txt first of all: a stale
   # -usage.psv must not survive a run that recorded none, and an interrupted
   # move must not leave an old .txt beside new attempts.
-  rm -f "$SAVE_TO" "${SAVE_TO%.txt}"-{results,attempts,usage,judge}.psv
+  rm -f "$SAVE_TO" "${SAVE_TO%.txt}"-{results,attempts,usage,judge,judge-credits}.psv
   for f in "$WORKDIR"/baseline-*.psv "$WORKDIR/baseline.txt"; do
     [[ -f "$f" ]] || continue
     suffix="${f#"$WORKDIR/baseline"}"

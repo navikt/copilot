@@ -782,6 +782,12 @@ run_suite() {
   [ ! -e "$SHIM/transkripter/b.x.run1.txt" ]
 }
 
+@test "--save-baseline keeps the files a call wrote beside its transcript" {
+  run_suite good --agent nav-pilot --only 9
+  [ "$status" -eq 0 ]
+  grep -q '^=== ./src/main/' "$SHIM/transkripter/b.t9.run1.files.txt"
+}
+
 @test "coding: a fix passes, editing the test fails scope, doing nothing fails tests" {
   command -v go >/dev/null && command -v node >/dev/null || skip "needs go and node"
   run_suite good --suite coding
@@ -925,6 +931,9 @@ EOF
   grep -q '^# controls: *controls n=2 agree=2' "$SHIM/b-judge.psv"
   grep -q '^7|1|1|0|0|0|0.0||$' "$SHIM/b-judge.psv"
   grep -q '^7b|1|1|0|1|0|0.0|Hvem konsumerer topicen?|$' "$SHIM/b-judge.psv"
+  # The judge's spend, controls included, is saved with the arm.
+  grep -qx 'controls|0|0.00' "$SHIM/b-judge-credits.psv"
+  grep -qx '7b|1|0.0' "$SHIM/b-judge-credits.psv"
 }
 
 @test "planning judge: every judge spend lands live in judge-credits.psv" {

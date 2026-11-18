@@ -11,11 +11,15 @@ The decision rules these feed are in docs/golden-baselines/2026-11-modellvalg-pl
 
 import sys
 from itertools import combinations
+import math
 from math import comb
 
 
 def fisher_greater(a, na, b, nb):
     """P(X >= a) for the hypergeometric: a of na successes against b of nb."""
+    # Counts are typed in by hand: a typo must stop here, not print a small p.
+    if not (na >= 1 and nb >= 1 and 0 <= a <= na and 0 <= b <= nb):
+        raise ValueError(f"fisher: want 0 <= a <= na, 0 <= b <= nb, na and nb >= 1; got {a} {na} {b} {nb}")
     k, n = a + b, na + nb
     return sum(comb(k, x) * comb(n - k, na - x) for x in range(a, min(k, na) + 1)) / comb(n, na)
 
@@ -23,6 +27,8 @@ def fisher_greater(a, na, b, nb):
 def mann_whitney_less(xs, ys):
     """Exact P(U <= observed), U counting pairs where x > y (ties count 1/2). Small x is the alternative."""
     pooled, nx = list(xs) + list(ys), len(xs)
+    if not xs or not ys or not all(math.isfinite(v) for v in pooled):
+        raise ValueError("mw: both samples must be non-empty and finite")
     if comb(len(pooled), nx) > 2_000_000:
         sys.exit("mann_whitney_less: too many splits for exact enumeration")
 
@@ -36,6 +42,8 @@ def mann_whitney_less(xs, ys):
 
 
 def holm(ps):
+    if not ps or not all(0 <= p <= 1 for p in ps):
+        raise ValueError(f"holm: want one or more p-values in [0, 1], got {ps}")
     order = sorted(range(len(ps)), key=lambda i: ps[i])
     out, running = [0.0] * len(ps), 0.0
     for rank, i in enumerate(order):
@@ -72,10 +80,26 @@ def selftest():
     # D1: thirteen in the count would sink even a full separation (0.05/13 < 1/252).
     check(holm([1 / 252] + [1.0] * 12)[0] > 0.05)
     check(all(close(g, w) for g, w in zip(holm([0.01, 0.04, 0.03]), [0.03, 0.06, 0.06])))
+    # Impossible input is an error, never a p-value.
+    for bad in (lambda: fisher_greater(6, 5, 0, 5), lambda: fisher_greater(-1, 5, 0, 5),
+                lambda: fisher_greater(0, 0, 0, 5), lambda: mann_whitney_less([], [1.0]),
+                lambda: mann_whitney_less([float("nan")], [1.0]), lambda: holm([]), lambda: holm([1.2])):
+        try:
+            bad()
+        except ValueError:
+            continue
+        raise AssertionError("impossible input was accepted")
     print("benchmark-stats selftest passed")
 
 
 def main(argv):
+    try:
+        return run(argv)
+    except ValueError as e:
+        sys.exit(f"error: {e}")
+
+
+def run(argv):
     if argv[:1] == ["--selftest"]:
         selftest()
         return 0
