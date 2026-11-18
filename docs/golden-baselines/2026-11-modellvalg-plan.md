@@ -262,7 +262,7 @@ Stoppregler i trinn B:
 - **D3:** Astra består færre kjøringer enn Opus på en av rv1–rv7, eller Astras credits per kjøring er over 2 × Opus' median i begge silingskjøringene. D3 stopper, og Opus beholdes.
 - **D4:** reell bom på uu2 eller uu3 i begge kjøringene. Da er B_O ≥ 2, og Opus kan ikke godkjennes.
 
-Trinn B kan bare stoppe en beslutning, aldri avgjøre den som et bytte. Et godt silingsresultat gir ingen tidlig suksessbeslutning. Armen fylles på til n = 5 i trinn C og vurderes der. Observasjonene fra B beholdes og rapporteres også når beslutningen stoppes. Stoppede armer rapporteres som «ikke videreført», og dagens modell beholdes.
+Trinn B kan bare stoppe en beslutning, aldri avgjøre den som et bytte. Et godt silingsresultat gir ingen tidlig suksessbeslutning. Armen fylles på til n = 5 i trinn C og vurderes der. Observasjonene fra B beholdes og rapporteres også når beslutningen stoppes. Stoppede armer rapporteres som «ikke videreført», og dagens modell beholdes. Stoppreglene er en forsiktig siling og koster styrke: de kan stoppe en arm som ville ha vunnet ved n = 5. For eksempel kan Astra koste [3, 3, 1, 1, 1] mot Opus' [1, 1, 1, 1, 1], slik at de to første kjøringene stopper D3, mens medianen ved n = 5 hadde holdt. Et stopp viser derfor ikke at det endelige kravet ville feilet. Det øker heller ikke risikoen for falske funn.
 
 Trinnene kjøres i rekkefølge. B starter ikke før A er lest og vurdert. Det samme gjelder C.
 
