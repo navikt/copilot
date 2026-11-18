@@ -129,8 +129,11 @@ Run in dev first (`kubectl config use-context dev-gcp`, `URL=https://fleet-gatew
 
 ## Alert drill
 
-The owner runs this; agents do not. In dev only. `nais app stop` and `nais app set replicas` ask for interactive confirmation and refuse without a terminal, and developer accounts cannot scale with kubectl. Not measured on 2026-11-18; the Alertmanager is not reachable with developer rights (no `pods/portforward` in `nais-system`).
+Run in dev only. `nais app stop` and `nais app set replicas` ask for interactive confirmation and refuse without a terminal, so the owner runs them. Developer accounts cannot scale with kubectl, and the Alertmanager is not reachable with developer rights (no `pods/portforward` in `nais-system`).
 
-- [ ] `kubectl -n copilot scale deploy/fleet-gateway --replicas=0`.
-- [ ] An alert reaches #github-copilot-alerts. Time from scale-down: ____
-- [ ] `kubectl -n copilot scale deploy/fleet-gateway --replicas=<original>` (check with `get deploy` first); alert resolves. Time: ____
+Alerts route per environment to the channel set in Nais Console, not necessarily #github-copilot-alerts.
+
+- [x] `nais app stop fleet-gateway -t copilot -e dev-gcp` (dev-gcp, 2026-11-18, 19:43:39 UTC).
+- [x] `FleetGatewayNoReadyPods` reached Slack at 19:47 UTC, about 3.5 min after the stop. The team's dev alert channel was changed in Nais Console during the drill, so treat 3.5 min as an upper bound.
+- [x] `nais app set replicas fleet-gateway --min 1 --max 2 -t copilot -e dev-gcp`; `/ready` returned 200 at 19:48:18 UTC.
+- [ ] Alert resolve time: not recorded.
