@@ -42,6 +42,7 @@ The gateway is live in prod (2026-11-17) for a controlled pilot. It runs the aut
 | `PORT` | No | `8080` | HTTP listen port |
 | `UPSTREAM_TIMEOUT` | No | `60s` | Time the MCP server gets to send response headers, and again to finish a non-SSE body. SSE uses `SSE_IDLE_TIMEOUT` and `SSE_MAX_DURATION` instead |
 | `MCP_MAX_IN_FLIGHT` | No | `16` | Concurrent buffered `/mcp/*` requests per pod. Over the cap: `503` with `Retry-After: 1` |
+| `MCP_MAX_IN_FLIGHT_PER_ROUTE` | No | `8` | Concurrent buffered requests per route, within `MCP_MAX_IN_FLIGHT`, so one slow upstream cannot hold every slot |
 | `MCP_MAX_SSE` | No | `64` | Concurrent SSE response streams per pod, counted apart from `MCP_MAX_IN_FLIGHT` |
 | `LOG_LEVEL` | No | `INFO` | `DEBUG`, `INFO`, `WARN`, or `ERROR` |
 
@@ -80,7 +81,7 @@ Worst case per buffered MCP call, at the size limits:
 
 Both clusters therefore run with a 384 Mi limit, a 128 Mi request and `GOMEMLIMIT=320MiB` (83 % of the limit), so the garbage collector works harder before the kernel kills the pod. The figures are arithmetic plus one allocation measurement, not a load test. Raise `MCP_MAX_IN_FLIGHT` or the body limits only together with `memory_limit` and `gomemlimit`; `TestMemoryBudgetFitsManifests` checks the sum against both manifests.
 
-An SSE stream holds its in-flight slot only until the upstream answers with `text/event-stream`. It then moves to the `MCP_MAX_SSE` cap and may stay open for `SSE_MAX_DURATION`, so open streams never block tool calls. Over either cap the gateway answers `503` with `Retry-After: 1`, writes an `audit mcp` line with outcome `over_capacity` or `sse_over_capacity`, and counts it in the metrics.
+A request takes its in-flight slot after the bearer token is checked and before the body is read, so requests with invalid tokens get `401`, never a slot. A `GET`, or a request whose `Accept` admits `text/event-stream`, also reserves an `MCP_MAX_SSE` slot before the upstream call, so a `503` always means the tool did not run. A JSON reply hands the SSE slot back. An event stream hands back the in-flight slot and may stay open for `SSE_MAX_DURATION`. An event stream the client did not accept gets `502` with outcome `upstream_unexpected_sse`. Over either cap the gateway answers `503` with `Retry-After: 1`, writes an `audit mcp` line with outcome `over_capacity` or `sse_over_capacity`, and counts it in the metrics. A truncated upstream body, shorter than its `Content-Length`, gets `502` with outcome `stream_error`.
 
 `WriteTimeout` is derived in code (`mcpWriteTimeout`): read timeout (10 s) + team-token exchange (10 s) + 2 x `UPSTREAM_TIMEOUT` (headers, then body) + 5 s margin. With the defaults that is 145 s.
 
