@@ -55,3 +55,5 @@ Kan du sende diffen? Signeringsfeil skal stoppe sendingen.		0	#2437 review 3
 	Nøkkelen lastes fra Vault ved oppstart. Hvilken Kotlin-versjon bruker modulen?	0	#2465: context, tooling
 	Usignerte records avvises av konsumentene. Kan du lenke til fiksen i monorepoet?	0	#2465: context, reference only
 	Ved signeringsfeil kaster lokal kode unntaket videre uten å endre headerne. Skal denne oppførselen dokumenteres?	0	#2465: context, docs
+	Jeg har lest koden.\n\nBare i testdobben, bl.a. sendes usignerte records videre. Skal denne oppførselen beholdes?	0	#2475 r2 Astra: qualifier across bl.a.	1
+	Jeg har lest koden.\n\nVed signeringsfeil, bl.a. når nøkkelen mangler, sendes usignerte records videre. Skal denne oppførselen beholdes?	1	#2475 r2: bl.a. inside a production statement	
