@@ -801,3 +801,22 @@ func TestMCPClientEntryUsesChosenRemoteHeaders(t *testing.T) {
 		t.Errorf("github readonly entry = %s", raw)
 	}
 }
+
+// RefreshMCPRegistry rewrites a cache that is still inside its day.
+func TestRefreshMCPRegistryRewritesFreshCache(t *testing.T) {
+	reg := testRegistry()
+	reg.URL = "https://registry.test"
+	reg.Entries = []MCPServerEntry{{Name: "com.figma/figma-mcp"}}
+	mcpEnv(t, `{"mcpServers": {}}`, reg, nil)
+	reg.Entries = append(reg.Entries, MCPServerEntry{Name: "io.github.navikt/newcomer"})
+	fetchMCPRegistry = func(string) (mcpRegistry, error) { return reg, nil }
+	if _, entries, _, err := MCPRegistryServers(); err != nil || len(entries) != 1 {
+		t.Fatalf("fresh cache: %+v %v", entries, err)
+	}
+	if err := RefreshMCPRegistry(); err != nil {
+		t.Fatal(err)
+	}
+	if _, entries, _, err := MCPRegistryServers(); err != nil || len(entries) != 2 {
+		t.Errorf("after refresh: %+v %v", entries, err)
+	}
+}

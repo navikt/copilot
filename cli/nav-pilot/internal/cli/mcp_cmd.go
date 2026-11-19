@@ -33,6 +33,7 @@ import (
 // Test seams.
 var (
 	mcpRegistryServers = providerpkg.MCPRegistryServers
+	mcpRegistryRefresh = providerpkg.RefreshMCPRegistry
 	mcpConfigured      = providerpkg.ConfiguredMCPServers
 	mcpCpltPath        = func() string { p, _ := findCplt(); return p }
 	mcpCpltConfigGet   = cpltConfigGet
@@ -57,7 +58,7 @@ func mcpNoteStale(stale error) {
 func cmdMCP(args []string) error {
 	mcpLoginStates = map[string]string{} // one probe per run
 	var client string
-	var jsonOut, dryRun, yes bool
+	var jsonOut, refresh, dryRun, yes bool
 	var pos []string
 	var topts mcpToolOpts
 	toolFlag := false
@@ -65,6 +66,8 @@ func cmdMCP(args []string) error {
 		switch a := args[i]; a {
 		case "--json":
 			jsonOut = true
+		case "--refresh":
+			refresh = true
 		case "-n", "--dry-run":
 			dryRun = true
 		case "-y", "--yes":
@@ -113,6 +116,9 @@ func cmdMCP(args []string) error {
 	if toolFlag && pos[0] != "enable" {
 		return errMCPToolsFlag
 	}
+	if refresh && pos[0] != "list" && pos[0] != "ls" && pos[0] != "enable" {
+		return fmt.Errorf("--refresh is for mcp list and mcp enable")
+	}
 	if (dryRun || yes) && pos[0] != "prune" {
 		return fmt.Errorf("--dry-run and --yes are only for mcp prune")
 	}
@@ -124,7 +130,7 @@ func cmdMCP(args []string) error {
 		if len(pos) > 1 {
 			return fmt.Errorf("mcp list takes no arguments\n\n%s", mcpUsage)
 		}
-		return cmdMCPList(jsonOut)
+		return cmdMCPList(jsonOut, refresh)
 	case "prune":
 		if len(pos) > 1 {
 			return fmt.Errorf("mcp prune takes no arguments\n\n%s", mcpUsage)
@@ -149,15 +155,15 @@ func cmdMCP(args []string) error {
 		// the client list is asked for only when one is written.
 		clients := func() ([]string, error) { return mcpClients(client) }
 		if pos[0] == "enable" {
-			return cmdMCPEnable(pos[1:], clients, topts, jsonOut)
+			return cmdMCPEnable(pos[1:], clients, topts, jsonOut, refresh)
 		}
 		return cmdMCPDisable(pos[1:], clients)
 	}
 	return fmt.Errorf("unknown mcp command %q\n\n%s", pos[0], mcpUsage)
 }
 
-const mcpUsage = `Usage: nav-pilot mcp [list] [--json]
-       nav-pilot mcp enable <name>... [--client copilot|opencode] [--tools a,b | --all-tools] [--allow-host-exec] [--json]
+const mcpUsage = `Usage: nav-pilot mcp [list] [--json] [--refresh]
+       nav-pilot mcp enable <name>... [--client copilot|opencode] [--tools a,b | --all-tools] [--allow-host-exec] [--json] [--refresh]
        nav-pilot mcp disable <name>... [--client copilot|opencode]
        nav-pilot mcp prune [--dry-run] [--yes] [--client copilot|opencode]
 
@@ -209,7 +215,12 @@ type mcpReport struct {
 	Servers         []mcpServerRow `json:"servers"`
 }
 
-func cmdMCPList(jsonOut bool) error {
+func cmdMCPList(jsonOut, refresh bool) error {
+	if refresh {
+		if err := mcpRegistryRefresh(); err != nil {
+			return fmt.Errorf("could not read Nav's MCP registry again: %w", err)
+		}
+	}
 	registry, entries, stale, err := mcpRegistryServers()
 	if err != nil {
 		return fmt.Errorf("could not list MCP servers: %w", err)
@@ -861,7 +872,24 @@ func mcpFail(name string, err error) {
 	fmt.Fprintf(os.Stderr, "%s %s: %v\n", red("✗"), safe(name, 64), err)
 }
 
-func cmdMCPEnable(names []string, clientsOf func() ([]string, error), topts mcpToolOpts, jsonOut bool) error {
+func cmdMCPEnable(names []string, clientsOf func() ([]string, error), topts mcpToolOpts, jsonOut, refresh bool) error {
+	// A name the cache does not know may be newer than the cache: read the
+	// registry once more before failing on it.
+	if !refresh {
+		if _, entries, _, err := mcpRegistryServers(); err == nil {
+			for _, name := range names {
+				if _, err := mcpResolve(entries, name); err != nil && strings.Contains(err.Error(), "is not in Nav's MCP registry") {
+					refresh = true
+					break
+				}
+			}
+		}
+	}
+	if refresh {
+		if err := mcpRegistryRefresh(); err != nil {
+			fmt.Fprintf(os.Stderr, "nav-pilot: could not read Nav's MCP registry again: %v\n", err)
+		}
+	}
 	registry, entries, stale, err := mcpRegistryServers()
 	if err != nil {
 		return fmt.Errorf("could not reach Nav's MCP registry, so nothing was changed: %w", err)

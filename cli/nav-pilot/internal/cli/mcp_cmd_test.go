@@ -37,10 +37,11 @@ func mcpTestEntries() []providerpkg.MCPServerEntry {
 }
 
 type mcpFakes struct {
-	verdicts map[string]string // cplt check net target -> probe name
-	config   map[string]string // cplt config get key -> value
-	probes   []string
-	recorded [][]providerpkg.MCPHost
+	verdicts  map[string]string // cplt check net target -> probe name
+	config    map[string]string // cplt config get key -> value
+	probes    []string
+	recorded  [][]providerpkg.MCPHost
+	refreshes int
 }
 
 // mcpCmdEnv isolates HOME, answers the registry, cplt and the consent record
@@ -57,6 +58,9 @@ func mcpCmdEnv(t *testing.T, st providerpkg.MCPHostState) *mcpFakes {
 		return "https://registry.test", mcpTestEntries(), nil, nil
 	}
 	narrowMCPApproval = func() ([]string, error) { return nil, nil }
+	prevRefresh := mcpRegistryRefresh
+	t.Cleanup(func() { mcpRegistryRefresh = prevRefresh })
+	mcpRegistryRefresh = func() error { f.refreshes++; return nil }
 	mcpCpltPath = func() string { return "/fake/cplt" }
 	t.Cleanup(providerpkg.StubMCPPolicy("")) // never ask gh
 	mcpCpltConfigGet = func(_, key string) string { return f.config[key] }
@@ -635,5 +639,44 @@ func TestMCPFixesQuoteInterpolatedValues(t *testing.T) {
 	})
 	if strings.Contains(out, "\x1b[2K") || strings.Contains(out, "\x1b[31m") || strings.Contains(out, "line2\n") {
 		t.Errorf("printMCPProblems emitted raw escape or injected newline: %q", out)
+	}
+}
+
+func TestMCPRefreshFlag(t *testing.T) {
+	f := mcpCmdEnv(t, providerpkg.MCPHostState{})
+	if err := cmdMCP([]string{"list", "--refresh", "--json"}); err != nil || f.refreshes != 1 {
+		t.Fatalf("list --refresh: %v, refreshes %d", err, f.refreshes)
+	}
+	if err := cmdMCP([]string{"list", "--json"}); err != nil || f.refreshes != 1 {
+		t.Fatalf("list: %v, refreshes %d", err, f.refreshes)
+	}
+	if err := cmdMCP([]string{"disable", "x", "--refresh"}); err == nil {
+		t.Error("disable --refresh: want an error")
+	}
+}
+
+// A name missing from the cache is read again once; a name that is there is not.
+func TestMCPEnableRefreshesOnUnknownName(t *testing.T) {
+	f := mcpCmdEnv(t, providerpkg.MCPHostState{})
+	fresh := append(mcpTestEntries(), providerpkg.MCPServerEntry{Name: "io.github.navikt/newcomer", Status: "active", Remotes: []providerpkg.MCPRemote{{Type: "streamable-http", URL: "https://newcomer.example/mcp"}}})
+	mcpRegistryServers = func() (string, []providerpkg.MCPServerEntry, error, error) {
+		if f.refreshes > 0 {
+			return "https://registry.test", fresh, nil, nil
+		}
+		return "https://registry.test", mcpTestEntries(), nil, nil
+	}
+	if err := cmdMCP([]string{"enable", "newcomer", "--client", "copilot"}); err != nil {
+		t.Fatalf("enable after refresh: %v", err)
+	}
+	if b, _ := os.ReadFile(copilotMCPPath()); !strings.Contains(string(b), "https://newcomer.example/mcp") {
+		t.Errorf("config not written for refreshed entry:\n%s", b)
+	}
+	if f.refreshes != 1 {
+		t.Errorf("unknown name: refreshes %d, want 1", f.refreshes)
+	}
+	f.refreshes = 0
+	_ = cmdMCP([]string{"enable", "does-not-exist", "--client", "copilot"})
+	if f.refreshes != 1 {
+		t.Errorf("name in neither: refreshes %d, want exactly 1", f.refreshes)
 	}
 }
