@@ -12,7 +12,14 @@ tags:
   - dolly
 ---
 
-Nav har en intern MCP-gateway i pilot. To MCP-servere som bare leser er klare gjennom den: Felles kodeverk (`io.github.navikt/kodeverk`) og Dolly (`io.github.navikt/dolly`).
+KI-agenter kan nå hente data fra Navs egne systemer, ikke bare fra koden. Den nye MCP-gatewayen gjør det mulig. Den er i pilot, og de to første tjenestene er klare: Felles kodeverk og Dolly.
+
+Gatewayen er fellesinngangen for MCP-servere i Nav. Brukeren logger inn med Nav-kontoen, og hvert kall logges med hvem som spurte. Teamene bestemmer selv hva agentene får se, og trenger ikke bygge innlogging selv. Det legger grunnen for agenter som jobber med Navs egne data på en trygg måte, og flere tjenester kan kobles på etter hvert.
+
+- **Felles kodeverk** er Navs felles lister over koder som systemene bruker, for eksempel postnummer, land, valuta og ytelsestyper. Med serveren `io.github.navikt/kodeverk` kan agenten slå opp hva en kode betyr, for eksempel at postnummer `0150` er OSLO.
+- **Dolly** er Navs verktøy for å lage syntetiske testpersoner i testmiljøene. Med serveren `io.github.navikt/dolly` kan agenten finne testpersonene dine og se om en bestilling gikk gjennom i hvert system.
+
+Begge serverne leser bare.
 
 Kom i gang slik:
 
