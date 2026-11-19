@@ -363,6 +363,18 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 					writeToolDenied(w, reason)
 					return
 				}
+				// The upstream gets these headers unchanged; one that dispatches on Mcp-Name
+				// would run a tool the allowlist never saw. MCP 2026-07-28 answers -32020.
+				if headerMismatch {
+					decision, decisionReason = "deny", reasonHeaderMismatch
+					outcome = "tool_denied"
+					writeJSON(w, http.StatusBadRequest, map[string]any{
+						"jsonrpc": "2.0",
+						"id":      nil,
+						"error":   map[string]any{"code": -32020, "message": "Mcp-Method or Mcp-Name does not match the request body"},
+					})
+					return
+				}
 			}
 		}
 
@@ -1182,6 +1194,8 @@ const (
 	reasonNotCall   = "not_tools_call"
 	reasonNotListed = "not_listed"
 	reasonAmbiguous = "ambiguous"
+	// reasonHeaderMismatch: Mcp-Method/Mcp-Name disagree with the body on a route with an allowlist.
+	reasonHeaderMismatch = "header_mismatch"
 )
 
 // toolPolicyDecision decides a POST body against a route's tool allowlist,
