@@ -259,6 +259,11 @@ def is_question(q, na):
     q = q.rstrip(" .\"'«»“”")
     if q.endswith("?") or INDIRECT.search(q):
         return True
+    # secq only, so the blind-spot judge stays as calibrated: a quote that runs on past
+    # its «?» into the next sentence still holds a question, and «trenger også å vite»
+    # is indirect. Both rejected correct verdicts in the first secq controls (2026-11-19).
+    if KIND == "secq" and ("?" in q or re.search(r"trenger også å vite", q, re.I)):
+        return True
     # Any occurrence counts, and markdown such as **...**? normalises to «... ?».
     return re.search(re.escape(q) + r"[\s\"'»”]*\?", na) is not None
 
