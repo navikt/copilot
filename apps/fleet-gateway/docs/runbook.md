@@ -131,6 +131,10 @@ Remove the `client_id` from `ALLOWED_CLIENT_IDS` in `.nais/<env>-gcp.yaml` and d
 - Loss or corruption: recreate empty. **Warning:** this drops the `revoked` denylist while client-held refresh tokens stay decryptable with the unchanged `RT_KEYS`, so revoked or already-used tokens can pass replay checks again if Entra still accepts them. Rotate `RT_KEYS` (drop the old key, see above) whenever the database is lost. Everything in it is short-lived (sessions 12 h, consent 30 days, DCR clients up to 180 days). Users log in again; migrations run at startup. OpenCode users may need `opencode mcp logout <name>` first (unverified).
 - Backups: Nais Postgres defaults (automated backups, retention) are **unverified**; none are required for this design.
 
+## Hashed store keys rollout
+
+The deploy that hashes the store keys for authorization codes, consent ids and Entra `state` (#2454) can fail one login per user during the rolling update: the login starts on a new pod and finishes on an old one, which cannot find the hashed row. The user logs in again. Nothing to do after the rollout. Remove the plaintext-key fallback in `store_gateway.go` (`shortcut:` comment) once a pending/code TTL has passed.
+
 ## Post-deploy smoke (three steps)
 
 1. `curl -s -o /dev/null -w '%{http_code}\n' $URL/.well-known/oauth-protected-resource/mcp/<namespace>/<name>` prints `200`.
