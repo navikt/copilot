@@ -171,7 +171,7 @@ func TestCIMDStaleFallback(t *testing.T) {
 	})
 
 	t.Run("non-retryable status evicts cache and prevents subsequent 503 fallback", func(t *testing.T) {
-		for _, status := range []int{http.StatusNotFound, http.StatusGone} {
+		for _, status := range []int{http.StatusNotFound, http.StatusGone, http.StatusMovedPermanently, http.StatusFound} {
 			t.Run(http.StatusText(status), func(t *testing.T) {
 				var mu sync.Mutex
 				respStatus := 0
@@ -182,10 +182,14 @@ func TestCIMDStaleFallback(t *testing.T) {
 					st := respStatus
 					mu.Unlock()
 					if st != 0 {
+						hdr := make(http.Header)
+						if st >= 300 && st < 400 {
+							hdr.Set("Location", "https://example.com/redirect")
+						}
 						return &http.Response{
 							StatusCode: st,
 							Body:       http.NoBody,
-							Header:     make(http.Header),
+							Header:     hdr,
 						}, nil
 					}
 					return nil, nil

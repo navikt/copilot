@@ -250,6 +250,12 @@ func (g *Gateway) fetchCIMD(ctx context.Context, clientID string) (*clientMetada
 
 	resp, err := g.cfg.HTTPClient.Do(req) //nolint:gosec // URL validated against AllowedClientIDs allowlist
 	if err != nil {
+		if resp != nil {
+			_ = resp.Body.Close()
+			if !retryableCIMDStatus(resp.StatusCode) {
+				return evictAndErr(err)
+			}
+		}
 		return fallbackOrErr(err)
 	}
 	defer func() { _ = resp.Body.Close() }()
