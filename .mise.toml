@@ -23,7 +23,7 @@ shellcheck = "latest"
 bats = "latest"
 
 [env]
-APPS = "copilot-adoption copilot-api copilot-cli copilot-survey copilot-metrics fleet-gateway mcp-onboarding mcp-registry my-copilot"
+APPS = "copilot-adoption copilot-api copilot-cli copilot-survey copilot-metrics fleet-gateway mcp-kodeverk mcp-onboarding mcp-registry my-copilot"
 APPS_WITH_GENERATE = "copilot-api mcp-onboarding my-copilot"
 # Skip Go's VCS stamping (vcs.revision in the binary). Nothing here reads it:
 # nav-pilot takes version/commit from -ldflags, and the Dockerfiles and the
