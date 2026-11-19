@@ -209,6 +209,12 @@ type cachedCIMD struct {
 	fetchedAt time.Time
 }
 
+func retryableCIMDStatus(code int) bool {
+	return code == http.StatusRequestTimeout ||
+		code == http.StatusTooManyRequests ||
+		(code >= http.StatusInternalServerError && code < 600)
+}
+
 func (g *Gateway) fetchCIMD(ctx context.Context, clientID string) (*clientMetadata, error) {
 	stale, hasStale := g.cimdCache.Get(clientID)
 	if hasStale && g.now().Before(stale.fetchedAt.Add(defaultCIMDTTL)) {
@@ -230,6 +236,11 @@ func (g *Gateway) fetchCIMD(ctx context.Context, clientID string) (*clientMetada
 		return nil, err
 	}
 
+	evictAndErr := func(err error) (*clientMetadata, error) {
+		g.cimdCache.Pop(clientID)
+		return nil, err
+	}
+
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, clientID, nil)
 	if err != nil {
 		return fallbackOrErr(err)
@@ -239,26 +250,36 @@ func (g *Gateway) fetchCIMD(ctx context.Context, clientID string) (*clientMetada
 
 	resp, err := g.cfg.HTTPClient.Do(req) //nolint:gosec // URL validated against AllowedClientIDs allowlist
 	if err != nil {
+		if resp != nil {
+			_ = resp.Body.Close()
+			if !retryableCIMDStatus(resp.StatusCode) {
+				return evictAndErr(err)
+			}
+		}
 		return fallbackOrErr(err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
-		return fallbackOrErr(fmt.Errorf("unexpected CIMD status %d", resp.StatusCode))
+		err := fmt.Errorf("unexpected CIMD status %d", resp.StatusCode)
+		if retryableCIMDStatus(resp.StatusCode) {
+			return fallbackOrErr(err)
+		}
+		return evictAndErr(err)
 	}
 
 	var doc clientMetadata
 	if err := json.NewDecoder(io.LimitReader(resp.Body, maxCIMDBodyBytes)).Decode(&doc); err != nil {
-		return fallbackOrErr(fmt.Errorf("decode CIMD: %w", err))
+		return evictAndErr(fmt.Errorf("decode CIMD: %w", err))
 	}
 	if doc.ClientID != clientID {
-		return nil, errors.New("CIMD client_id does not match request URL")
+		return evictAndErr(errors.New("CIMD client_id does not match request URL"))
 	}
 	if doc.TokenEndpointAuthMethod != "" && doc.TokenEndpointAuthMethod != "none" {
-		return nil, fmt.Errorf("unsupported token_endpoint_auth_method %q", doc.TokenEndpointAuthMethod)
+		return evictAndErr(fmt.Errorf("unsupported token_endpoint_auth_method %q", doc.TokenEndpointAuthMethod))
 	}
 	if len(doc.RedirectURIs) == 0 {
-		return nil, errors.New("CIMD redirect_uris is empty")
+		return evictAndErr(errors.New("CIMD redirect_uris is empty"))
 	}
 	if doc.ClientName == "" {
 		doc.ClientName = doc.ClientID
