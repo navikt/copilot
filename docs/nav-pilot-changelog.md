@@ -2,6 +2,13 @@
 
 Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, prompts og samlinger.
 
+## 2026-11-19
+
+### Onboarding-serveren går via gatewayen
+
+- **`nav-pilot mcp enable mcp-onboarding`**: Nye oppføringer for `io.github.navikt/mcp-onboarding` bruker nå gatewayen, og du logger inn med Entra ID første gang. Har du allerede serveren, beholder nav-pilot adressen du har, og den virker som før. Bytt til gatewayen slik: `nav-pilot mcp disable mcp-onboarding && nav-pilot mcp enable mcp-onboarding`.
+- **Kodeverk har nytt navn**: Kodeverk-serveren heter nå `io.github.navikt/kodeverk` («Felles kodeverk») i MCP-registeret.
+
 ## 2026-11-18
 
 ### Strengere sjekk av lokale MCP-servere i OpenCode
