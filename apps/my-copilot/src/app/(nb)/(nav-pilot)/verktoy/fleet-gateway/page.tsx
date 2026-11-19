@@ -35,7 +35,7 @@ const PILOT_SERVERS = [
   {
     title: "Dolly",
     id: "io.github.navikt/dolly",
-    summary: "Slår opp og søker etter syntetiske testpersoner, grupper og bestillinger i Dolly, kun for lesing.",
+    summary: "Lister gruppene dine i Dolly, viser testpersonene i en gruppe og sjekker status på bestillinger. Kun for lesing.",
     example: "«Hvilke testpersoner ligger i Dolly-gruppen til teamet mitt?»",
     command: "nav-pilot mcp enable dolly",
     codeUrl: "https://github.com/navikt/copilot/tree/main/apps/mcp-dolly",
