@@ -469,7 +469,9 @@ def unfenced(text):
             yield line
             continue
         item = re.match(r" *(?:[-*+]|\d{1,9}[.)])(?: +|$)", body)
-        while stack and ind < stack[-1] and (blank or item):
+        # A fence is no lazy continuation: it belongs to the item it is indented under.
+        opener = not item and fence_re.match(body[ind:])
+        while stack and ind < stack[-1] and (blank or item or opener):
             stack.pop()
         base = stack[-1] if stack else 0
         code = ind >= base + 4 and (blank or code)
@@ -499,8 +501,8 @@ def quote_located(key, nq, answer):
         heading = re.compile(r"\s{0,3}#{1,6}\s")
         # A heading declares on its own when text follows «Rød sone:» in it (#2475 review).
         # A pointer («se neste punkt», «kommer i fase 3») declares nothing.
-        declares = re.compile(r"(rød.?sone|red zone)\S*\s*[:—–,]\s*(?!\W*(se|jf|følger|kommer|nedenfor|under|"
-                              r"senere|tbd|tba|todo)\b)\S*[^\W_]", re.I)
+        declares = re.compile(r"(rød.?sone|red zone)\S*\s*[:—–,]\s*(?!\W*(se\s|jf\b|kommer\b|følger\b|tbd\b|"
+                              r"tba\b|todo\b|(nedenfor|under|senere)\W*$))\S*[^\W_]", re.I)
         return re.search(r"rød.?sone|red zone", nq, re.I) is not None and any(
             not heading.match(text[i]) or declares.search(text[i])
             or (i + 1 < len(text) and not heading.match(text[i + 1])) for i in lines)

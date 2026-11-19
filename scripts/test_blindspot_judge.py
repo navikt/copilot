@@ -564,6 +564,11 @@ class CheckJudgeTests(unittest.TestCase):
         for h in ("## 🔴 Rød sone: se neste punkt", "## 🔴 Rød sone: kommer i fase 3", "## 🔴 Rød sone — TBD"):
             self.assertFalse(judge.parse_vote(rv_vote(judge, rodsone=h), h)["rodsone"], h)
         self.assertIn("declares nothing itself", judge.RUBRIC)
+        # #2475 review, round 4: a pointer is a phrase, not a first word.
+        for h in ("## 🔴 Rød sone: under", "## 🔴 Rød sone: følger nedenfor"):
+            self.assertFalse(judge.parse_vote(rv_vote(judge, rodsone=h), h)["rodsone"], h)
+        h = "## 🔴 Rød sone: under migreringen må du selv validere signaturen"
+        self.assertTrue(judge.parse_vote(rv_vote(judge, rodsone=h), h)["rodsone"])
 
     def test_list_containers_open_close_and_restore(self):
         # #2475 review, round 3.
@@ -574,6 +579,9 @@ class CheckJudgeTests(unittest.TestCase):
         h = "    ## 🔴 Rød sone: tokenvalidering"
         self.assertIn(h, u("- outer\n  - inner\n\n  Parent paragraph.\n\n" + h))
         self.assertEqual(u("- a\n  ```\n  kode\n- b"), ["- a", "- b"])
+        # #2475 review, round 4: a fence right under a nested item, no blank line, closes it.
+        self.assertEqual(u("- outer\n  - inner\n  ~~~\n  ## 🔴 Rød sone: tokenvalidering\n  ~~~\n- neste"),
+                         ["- outer", "  - inner", "- neste"])
 
     def test_code_under_a_list_item_is_code(self):
         judge = load_judge(BS_JUDGE_KIND="t4")
