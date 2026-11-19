@@ -1007,3 +1007,24 @@ func TestServersListHandler_KodeverkTitle(t *testing.T) {
 	}
 	t.Fatal("io.github.navikt/kodeverk not listed")
 }
+
+// nav-pilot writes the first remote for new entries, so the gateway must come first.
+func TestServersListHandler_OnboardingGatewayFirst(t *testing.T) {
+	w := httptest.NewRecorder()
+	serversListHandler(w, httptest.NewRequest(http.MethodGet, "/v0.1/servers", nil), testConfig())
+	var response ServerListResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+		t.Fatal(err)
+	}
+	for _, sr := range response.Servers {
+		if sr.Server.Name != "io.github.navikt/mcp-onboarding" {
+			continue
+		}
+		r := sr.Server.Remotes
+		if len(r) != 2 || !strings.Contains(r[0].URL, "/mcp/copilot/onboarding") || !strings.Contains(r[1].URL, "mcp-onboarding.") {
+			t.Fatalf("remotes = %+v, want gateway then direct", r)
+		}
+		return
+	}
+	t.Fatal("io.github.navikt/mcp-onboarding not listed")
+}
