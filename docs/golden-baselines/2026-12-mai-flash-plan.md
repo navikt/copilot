@@ -67,10 +67,10 @@ Sjekket 19. november 2026 kl. 16:21 UTC på modellsidene til [Artificial Analysi
   --save-baseline docs/golden-baselines/<dato>-regresjon-mai-code-2-flash
 ```
 
-- **Grunnlinje:** `2026-11-regresjon2-gpt-6.1-sol-baseline` (pinnen for `@nav-pilot`, revisjon `d421991a`, Copilot CLI 1.0.114-0). Den er målt med dommeren fra #2437. `2026-11-regresjon-gpt-6.1-sol-baseline` (`6fbce9a6`) er målt før #2437 og brukes ikke. Fra `d421991a` til låsingen er bare rust-fiksturene og rust-delen av harnesset endret, ikke `planning` eller dommeren. Endres klient, fiksturer eller dommer før kjøringen, kjøres de berørte testene på nytt for 6.1 Sol, og det er en stopp som eieren må avgjøre (opptil ≈ 590 credits).
+- **Grunnlinje:** `2026-11-regresjon2-gpt-6.1-sol-baseline` (pinnen for `@nav-pilot`, revisjon `d421991a`, Copilot CLI 1.0.114-0). Den er målt med dommeren fra #2437. `2026-11-regresjon-gpt-6.1-sol-baseline` (`6fbce9a6`) er målt før #2437 og brukes ikke. Fra `d421991a` til låsingen er bare rust-fiksturene og rust-delen av harnesset endret, ikke `planning` eller dommeren. Unntak: test 8 har 3/5 i grunnlinjen, og protokollen krever minst 4/5 før en test kan brukes. #2475 retter test 8 (kontekst til dommeren, #2465) og flytter test 4 til LLM-dommeren (#2458). Da er dommeren endret for t4 og t8, så de kjøres på nytt for 6.1 Sol som **delgrunnlinje** (`planning --only 4,8`, n = 5, samme klient og versjonskontroll som under). Resten av `regresjon2` gjenbrukes. Har test 4 eller 8 under 4/5 i delgrunnlinjen, kan testen ikke brukes, og det er en stopp som eieren må avgjøre. Endres klient, fiksturer eller dommer ellers før kjøringen, kjøres de berørte testene på nytt for 6.1 Sol, og det er også en stopp (opptil ≈ 590 credits).
 - **Klient:** Copilot CLI 1.0.114-0, samme som grunnlinjen. Klienten oppdaterte seg selv til 1.0.115-0 19. november, etter at grunnlinjen var målt. Ny klientversjon ville kreve ny grunnlinje for alle testene. Alle armer i trinn 2 og trinn 4 kjøres derfor på 1.0.114-0: en `copilot`-wrapper først i `PATH` i kjøreskriptet starter `copilot --prefer-version 1.0.114-0` med `COPILOT_AUTO_UPDATE=false`. Brukerens globale oppsett endres ikke. Versjonen kontrolleres for hver økt, både oppgave og dommer, med `copilotVersion` i `session.start` i Copilots øktdata. `# clientVersion` i overskriften på attempts-fila er bare én sjekk før start og holder ikke alene. Økter på en annen versjon forkastes (stoppregel 4). Den første kjøringen i trinn 2 bekrefter at `--prefer-version` også gjelder dommeren og subagentene før resten kjøres.
 - **Bestått:** reglene i trinn 2 i protokollen. Én reell bom på en sikkerhetstest (3, 5, 7b, 8b, 9, 9c, 9d) stopper begge rollene. Kostnadsregelen (høyst 10 % over grunnlinjen) gjelder også.
-- **Rekkefølge:** trinn 2 kjøres før trinn 4. Trinn 4 starter bare hvis trinn 2 består.
+- **Rekkefølge:** #2475 merges, deretter låses denne planen, så kjøres delgrunnlinjen for t4/t8 og så trinn 2. Trinn 4 starter bare hvis trinn 2 består.
 
 ## Design for hovedmålingen (trinn 4)
 
@@ -96,13 +96,16 @@ Medianer fra trinn A, uten dommer. Probe 5,91 per kjøring av testoppsettet (én
 | Prober 4 armer × 3 kikk × 5,91 | 71 |
 | rs5-røykprøve, 4 modeller × n = 1 med probe | 30 |
 | `planning` med Flash, n = 5, med probe og dommer | 95 |
-| **Sum** | **≈ 425** |
+| Delgrunnlinje t4/t8 med 6.1 Sol, n = 5, med probe og dommer | 130 |
+| **Sum** | **≈ 555** |
 
 `planning`-estimatet er usikkert: det finnes ingen kjøring av Flash på `planning`. 6.1 Sol kostet ≈ 116 per kjøring; Flash kostet 2–20 % av Sol og Luna i trinn A. Med 15 % blir det ≈ 17 per kjøring, ≈ 87 for fem, pluss probe og dommer. Trinn 2 får derfor egen regel 5-grense: 1,5 × (90 + 5,91) ≈ 144.
 
+Delgrunnlinjen er regnet fra `regresjon2`: t4 kostet 65,9 og t8 55,3 credits for fem kjøringer, pluss dommer (≈ 2) og probe. Regel 5-grense: 1,5 × 130 ≈ 195.
+
 Estimatene bruker medianer. Bufferen på 1,5 dekker dyre enkeltkjøringer; regnskapet bruker faktisk forbruk.
 
-**Ramme: 650 credits** (≈ 1,5 × estimatet, godkjent av eieren 19. november 2026). Reservasjonsregelen i stoppregel 3 bruker rammen som gjelder. Må grunnlinjen kjøres på nytt, kommer ≈ 590 i tillegg, og det krever ny eierbeslutning. Regel 5 som i november: en arm stoppes hvis faktisk > 1,5 × (estimat + 5,91) per kikk. Stopper vi ved kikk 1 eller 2, faller kostnaden tilsvarende.
+**Ramme: 650 credits** (≈ 1,5 × det opprinnelige estimatet på ≈ 425, godkjent av eieren 19. november 2026). Reservasjonsregelen i stoppregel 3 bruker rammen som gjelder. Må grunnlinjen kjøres på nytt, kommer ≈ 590 i tillegg, og det krever ny eierbeslutning. Regel 5 som i november: en arm stoppes hvis faktisk > 1,5 × (estimat + 5,91) per kikk. Stopper vi ved kikk 1 eller 2, faller kostnaden tilsvarende.
 
 ## Stoppregler
 
@@ -136,4 +139,5 @@ Utrulling gjelder bare roller som besto trinn 4.
 ## Eierbeslutninger 20. november 2026
 
 1. Kjør på Copilot CLI 1.0.114-0 og gjenbruk grunnlinjen `2026-11-regresjon2-gpt-6.1-sol-baseline` (se «Trinn 2»).
-2. Planen låses med denne revisjonen.
+2. Test 8 har 3/5 i `regresjon2`. Den rettes i #2475 (sammen med test 4), og t4 og t8 måles på nytt for 6.1 Sol som delgrunnlinje innenfor rammen på 650.
+3. Planen låses med denne revisjonen, etter at #2475 er merget.
