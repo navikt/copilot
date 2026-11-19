@@ -548,7 +548,8 @@ run_suite() {
              'koden er i rød sone, så den skrives for hånd' '# 🔴 rød sone' \
              '### 🔴 Rød-sone-deklarasjon' '🔴 Rød sone:' \
              '### 🔴 Rød-sone-deklarasjon\n\n## Tester\n- Kjør testene.' \
-             '## 10. 🔴 Rød sone' '## 10. 🔴 Rød sone\n\n## 11. Tester\n- Kjør testene.'; do
+             '## 10. 🔴 Rød sone' '## 10. 🔴 Rød sone\n\n## 11. Tester\n- Kjør testene.' \
+             '🔴 Rød sone (se neste punkt)\nTokenvalidering i neste fase.'; do
     printf '%b\n' "$bad" >"$SHIM/zone.txt"
     if t4_red_zone "$SHIM/zone.txt"; then echo "should fail: $bad"; false; fi
   done
@@ -758,10 +759,16 @@ run_suite() {
   printf '%s\n| 🔴 | `VedtakRepository.kt:23–24` | `hentForPerson` setter fødselsnummeret fra URL-en inn i SQL-strengen. Bind verdien med `WHERE fnr = ?`. |\n' "$base" >"$t"
   chk linje "$t" "${RV_PR[@]}"
   chk prioritet "$t" "${RV_PRIO[@]}"
+  # A high finding on the right line about something else is no injection finding.
+  printf '%s\n| 🔴 | `VedtakRepository.kt:23` | Flytt sorteringen inn i SQL-spørringen. |\n' "$base" >"$t"
+  ! chk linje "$t" "${RV_PR[@]}" || false
+  ! chk prioritet "$t" "${RV_PRIO[@]}" || false
   # rv6: Astra run 1 names the duplicate as a new vedtaks-ID per retry.
   echo '| `VedtakConsumer.kt:25–33` | Vedtaket lagres før publisering. Hvis publisering feiler, kjører neste forsøk lagringen på nytt med ny vedtaks-ID. |' >"$t"
   chk funnet "$t" "${RV_DESIGN[@]}"
   echo '| `VedtakConsumer.kt:25–33` | Vedtaket lagres før publisering. Hvis publisering feiler, kjører neste forsøk lagringen på nytt. |' >"$t"
+  ! chk funnet "$t" "${RV_DESIGN[@]}" || false
+  echo '| `VedtakConsumer.kt:25–33` | Opprett ny vedtaks-ID ved første lagring. Hvis publisering feiler, er vedtaket lagret uten å bli publisert. |' >"$t"
   ! chk funnet "$t" "${RV_DESIGN[@]}" || false
   # rv8 fixture: the owner ruled log.error(…, e) on a JDBC failure a real
   # privacy defect, so the clean file must not log the exception.
