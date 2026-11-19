@@ -578,6 +578,27 @@ func TestLockout_DrainAudit(t *testing.T) {
 	}
 }
 
+func TestLockout_SweepAllDrainsAudit(t *testing.T) {
+	ctx := context.Background()
+	te := withLockoutKey(t, newTestEnv(t))
+
+	if _, err := te.gw.lockOutUser(ctx, te.navIdent, "op1"); err != nil {
+		t.Fatalf("lockOutUser: %v", err)
+	}
+
+	var buf bytes.Buffer
+	prev := slog.Default()
+	slog.SetDefault(slog.New(slog.NewJSONHandler(&buf, nil)))
+	defer slog.SetDefault(prev)
+
+	te.gw.sweepAll()
+
+	got := buf.String()
+	if !strings.Contains(got, "audit lockout") || !strings.Contains(got, `"action":"lock"`) {
+		t.Fatalf("expected sweepAll to drain lockout audit log, got %s", got)
+	}
+}
+
 func TestLockout_NoExpiryAfter400Days(t *testing.T) {
 	ctx := context.Background()
 	te := withLockoutKey(t, newTestEnv(t))
