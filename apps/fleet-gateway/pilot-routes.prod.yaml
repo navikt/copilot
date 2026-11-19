@@ -5,3 +5,15 @@ routes:
     target: prod-gcp:copilot:mcp-onboarding
     upstream_url: http://mcp-onboarding.copilot/mcp/gw
     passAllTools: true
+  - route: /mcp/copilot/kodeverk
+    team: copilot
+    target: prod-gcp:copilot:mcp-kodeverk
+    upstream_url: http://mcp-kodeverk.copilot/
+    enabled: false
+    tools:
+      - list_kodeverk
+      - get_kodeverk_koder
+      - get_kodeverk_betydninger
+      - list_hierarkier
+      - get_hierarki_noder
+      - search_kodeverk
