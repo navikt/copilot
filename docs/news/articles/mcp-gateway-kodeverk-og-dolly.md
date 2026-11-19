@@ -46,6 +46,20 @@ Oppsettet virker i Copilot CLI, OpenCode og andre MCP-klienter. I pilotperioden 
 
 Takk til team-rocket (Felles kodeverk) og team Dolly for samarbeidet om tilgang og oppsett.
 
+## Bruk syntetiske testdata, ikke produksjonsdata
+
+Testdata skal være syntetiske. Pseudonymiserte data fra produksjon er fortsatt opplysninger om ekte personer. Med Dolly-serveren kan agenten hente syntetiske testpersoner rett inn i arbeidet ditt, så det blir enklere å la produksjonsdata ligge.
+
+Lag først en gruppe med testpersoner i [Dolly](https://dolly.ekstern.dev.nav.no). Spør så agenten, for eksempel:
+
+- «Hent identene i Dolly-gruppen min `Copilot`, og lag testfiksturer for dem i `src/test/resources`.»
+- «Skriv en integrasjonstest mot q1 som bruker testpersonene i Dolly-gruppe 11962.»
+- «Bestilling 180273 gikk ikke gjennom. Hvilke systemer feilet, og hva betyr feilen?»
+- «Sjekk at alle testpersonene i gruppen min er levert til PDL før jeg kjører testene.»
+- «Bytt ut de hardkodede fødselsnumrene i denne testen med testpersoner fra Dolly-gruppen min.»
+
+Agenten finner gruppene dine, henter identene og leser status per system. Den kan ikke opprette testpersoner ennå. Det gjør du i Dolly. Opprettelse fra agenten kommer når grupper har tilgangskontroll.
+
 ## Tilby teamets egen MCP-server
 
 Har teamet ditt en tjeneste på Nais som dere vil tilby som MCP-server, står krav, tokenvalidering og fremgangsmåte i [veiledningen for team på ki-utvikling.nav.no/verktoy/fleet-gateway/for-team](https://ki-utvikling.nav.no/verktoy/fleet-gateway/for-team).
