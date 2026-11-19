@@ -11,9 +11,13 @@ import (
 	"strings"
 )
 
+// Per-request worst-case memory: body 4 MiB + ReadAll growth up to 2x transient (8 MiB) +
+// decoded nested maps ~8x body (32 MiB) => ~44 MiB.
+// With maxConcurrentUpstream = 2: 2 * ~44 MiB = ~88 MiB + ~20 MiB baseline < 200 MiB GOMEMLIMIT < 256 Mi pod limit.
 const (
-	maxUpstreamBodyBytes = 8 << 20 // 8 MiB
-	consumerID           = "mcp-kodeverk"
+	maxUpstreamBodyBytes  = 4 << 20 // 4 MiB
+	maxConcurrentUpstream = 2
+	consumerID            = "mcp-kodeverk"
 )
 
 type upstreamStatusError struct {

@@ -2,12 +2,15 @@ package main
 
 import (
 	"bytes"
+	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -114,6 +117,48 @@ func TestHealthAndReady(t *testing.T) {
 		if rec.Code != http.StatusOK {
 			t.Fatalf("%s returned %d, want 200", path, rec.Code)
 		}
+	}
+
+	var readyBody map[string]string
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/ready", nil))
+	if err := json.Unmarshal(rec.Body.Bytes(), &readyBody); err != nil || readyBody["status"] != "ready" {
+		t.Fatalf("/ready body = %s, want status=ready", rec.Body.String())
+	}
+
+	incompleteCases := []struct {
+		name   string
+		mutate func(*config)
+	}{
+		{"missing IntrospectionEndpoint", func(c *config) { c.IntrospectionEndpoint = "" }},
+		{"missing ExchangeEndpoint", func(c *config) { c.ExchangeEndpoint = "" }},
+		{"missing GatewayClientID", func(c *config) { c.GatewayClientID = "" }},
+		{"missing KodeverkScope", func(c *config) { c.KodeverkScope = "" }},
+	}
+	for _, tc := range incompleteCases {
+		t.Run(tc.name, func(t *testing.T) {
+			s := newTestServer(t, func(_ http.ResponseWriter, _ *http.Request) {
+				t.Fatal("texas must not be called for probe endpoints")
+			}, nil)
+			tc.mutate(s.cfg)
+			h := s.routes()
+
+			healthRec := httptest.NewRecorder()
+			h.ServeHTTP(healthRec, httptest.NewRequest(http.MethodGet, "/health", nil))
+			if healthRec.Code != http.StatusOK {
+				t.Fatalf("/health returned %d, want 200", healthRec.Code)
+			}
+
+			readyRec := httptest.NewRecorder()
+			h.ServeHTTP(readyRec, httptest.NewRequest(http.MethodGet, "/ready", nil))
+			if readyRec.Code != http.StatusServiceUnavailable {
+				t.Fatalf("/ready returned %d, want 503", readyRec.Code)
+			}
+			var body map[string]string
+			if err := json.Unmarshal(readyRec.Body.Bytes(), &body); err != nil || body["status"] != "not_ready" {
+				t.Fatalf("/ready body = %s, want status=not_ready", readyRec.Body.String())
+			}
+		})
 	}
 }
 
@@ -867,7 +912,10 @@ func TestTexasExchangeErrorDoesNotLeakBodyOrToken(t *testing.T) {
 	}
 }
 
-func TestUpstreamLimitReader8MiB(t *testing.T) {
+func TestUpstreamLimitReader4MiB(t *testing.T) {
+	if maxUpstreamBodyBytes != 4<<20 {
+		t.Fatalf("maxUpstreamBodyBytes = %d, want %d", maxUpstreamBodyBytes, 4<<20)
+	}
 	srv := newTestServer(t, defaultTexasHandler("obo-tok"), func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
@@ -879,10 +927,315 @@ func TestUpstreamLimitReader8MiB(t *testing.T) {
 	_, out := callToolModern(t, srv.routes(), "in", "list_kodeverk", map[string]any{})
 	txt, isErr := extractToolText(t, out)
 	if !isErr {
-		t.Fatalf("expected error for >8 MiB upstream body, got %s", txt)
+		t.Fatalf("expected error for >4 MiB upstream body, got %s", txt)
 	}
 	if !strings.Contains(txt, "exceeded") {
 		t.Fatalf("unexpected error text: %q", txt)
+	}
+}
+
+func TestUpstreamConcurrencySemaphore(t *testing.T) {
+	var (
+		inFlight    atomic.Int32
+		maxInFlight atomic.Int32
+	)
+	entered := make(chan struct{}, 10)
+	release := make(chan struct{})
+
+	srv := newTestServer(t, defaultTexasHandler("obo-tok"), func(w http.ResponseWriter, _ *http.Request) {
+		cur := inFlight.Add(1)
+		for {
+			prev := maxInFlight.Load()
+			if cur <= prev || maxInFlight.CompareAndSwap(prev, cur) {
+				break
+			}
+		}
+		entered <- struct{}{}
+		<-release
+		inFlight.Add(-1)
+		writeJSON(w, http.StatusOK, map[string]any{"kodeverksnavn": []string{"Landkoder"}})
+	})
+	h := srv.routes()
+
+	const totalRequests = 6
+	var wg sync.WaitGroup
+	for range totalRequests {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			rec, out := callToolModern(t, h, "in", "list_kodeverk", map[string]any{})
+			if rec.Code != http.StatusOK {
+				t.Errorf("status = %d, body = %s", rec.Code, rec.Body.String())
+				return
+			}
+			_, isErr := extractToolText(t, out)
+			if isErr {
+				t.Errorf("unexpected tool error: %+v", out)
+			}
+		}()
+	}
+
+	// Wait for the first two requests to block inside upstream.
+	for range maxConcurrentUpstream {
+		<-entered
+	}
+	// Give queued goroutines a moment to attempt entry, then verify cap holds.
+	time.Sleep(30 * time.Millisecond)
+	if got := maxInFlight.Load(); got > maxConcurrentUpstream {
+		close(release)
+		wg.Wait()
+		t.Fatalf("max in-flight = %d, want <= %d", got, maxConcurrentUpstream)
+	}
+
+	// While slots are full, a cancelled context must return an error result immediately.
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+	defer cancel()
+	b, _ := json.Marshal(modernBody("tools/call", map[string]any{"name": "list_kodeverk", "arguments": map[string]any{}}))
+	req := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(b)).WithContext(ctx)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer in")
+	for k, v := range modernHeaders("tools/call", "list_kodeverk") {
+		req.Header.Set(k, v)
+	}
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	var cancelOut map[string]any
+	_ = json.Unmarshal(rec.Body.Bytes(), &cancelOut)
+	if _, isErr := extractToolText(t, cancelOut); !isErr {
+		close(release)
+		wg.Wait()
+		t.Fatalf("expected error result on cancelled ctx while waiting for semaphore: %+v", cancelOut)
+	}
+
+	close(release)
+	wg.Wait()
+
+	if got := maxInFlight.Load(); got != maxConcurrentUpstream {
+		t.Fatalf("max in-flight = %d, want %d", got, maxConcurrentUpstream)
+	}
+}
+
+func TestSearchKodeverkLanguageFallback(t *testing.T) {
+	betydninger := map[string][]betydning{
+		"K1": {{
+			GyldigFra: "2000-01-01",
+			GyldigTil: "9999-12-31",
+			Beskrivelser: map[string]beskrivelse{
+				"en": {Term: "English term", Tekst: "English text"},
+				"nn": {Term: "Nynorsk term", Tekst: "Nynorsk text"},
+			},
+		}},
+		"K2": {{
+			GyldigFra: "2000-01-01",
+			GyldigTil: "9999-12-31",
+			Beskrivelser: map[string]beskrivelse{
+				"sv": {Term: "Svensk term", Tekst: "Svensk text"},
+				"da": {Term: "Dansk term", Tekst: "Dansk text"},
+			},
+		}},
+	}
+
+	// Run repeatedly to catch map-iteration nondeterminism.
+	for range 20 {
+		txt, err := buildSearchKodeverkCodesResult("K1", "Test", 25, betydninger)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var res struct {
+			Matches []searchCodeMatch `json:"matches"`
+		}
+		if err = json.Unmarshal([]byte(txt), &res); err != nil {
+			t.Fatal(err)
+		}
+		if len(res.Matches) != 1 || res.Matches[0].Term != "Nynorsk term" || res.Matches[0].Tekst != "Nynorsk text" {
+			t.Fatalf("expected deterministic nn fallback over en, got %+v", res.Matches)
+		}
+
+		txt2, err := buildSearchKodeverkCodesResult("K2", "Test", 25, betydninger)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var res2 struct {
+			Matches []searchCodeMatch `json:"matches"`
+		}
+		if err = json.Unmarshal([]byte(txt2), &res2); err != nil {
+			t.Fatal(err)
+		}
+		if len(res2.Matches) != 1 || res2.Matches[0].Term != "Dansk term" {
+			t.Fatalf("expected lexicographically smallest key da over sv, got %+v", res2.Matches)
+		}
+	}
+}
+
+func TestHierarkiNoderDepthFallbackMultipleRoots(t *testing.T) {
+	hugeText := strings.Repeat("Z", maxToolResultBytes+4096)
+	noder := make(map[string]hierarkinode, 10)
+	for i := range 10 {
+		code := fmt.Sprintf("ROOT_%02d", i)
+		noder[code] = hierarkinode{
+			Kode:   code,
+			Termer: map[string]string{"nb": code},
+			Undernoder: map[string]hierarkinode{
+				"L2": {
+					Kode:   "L2",
+					Termer: map[string]string{"nb": "Level 2"},
+					Undernoder: map[string]hierarkinode{
+						"L3": {
+							Kode:   "L3",
+							Termer: map[string]string{"nb": "Level 3"},
+							Undernoder: map[string]hierarkinode{
+								"L4": {
+									Kode:    "L4",
+									Termer:  map[string]string{"nb": "Level 4"},
+									Tekster: map[string]string{"nb": hugeText},
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+	}
+
+	txt, err := buildHierarkiNoderResult("Stor", 4, 50, hierarkiNoderResponse{
+		Hierarkinivaaer: []string{"1", "2", "3", "4"},
+		Noder:           noder,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(txt) > maxToolResultBytes {
+		t.Fatalf("result size %d exceeds %d", len(txt), maxToolResultBytes)
+	}
+	var res struct {
+		Total     int                     `json:"total"`
+		Returned  int                     `json:"returned"`
+		Truncated bool                    `json:"truncated"`
+		Noder     map[string]hierarkinode `json:"noder"`
+	}
+	if err := json.Unmarshal([]byte(txt), &res); err != nil {
+		t.Fatal(err)
+	}
+	if res.Total != 10 || res.Returned != 10 || !res.Truncated || len(res.Noder) != 10 {
+		t.Fatalf("got total=%d returned=%d truncated=%v len=%d; want total=10 returned=10 truncated=true",
+			res.Total, res.Returned, res.Truncated, len(res.Noder))
+	}
+	if len(res.Noder["ROOT_00"].Undernoder["L2"].Undernoder["L3"].Undernoder) != 0 {
+		t.Fatal("expected depth 4 nodes to be pruned at fallback depth 3")
+	}
+}
+
+func TestJSONRPCIDValidation(t *testing.T) {
+	srv := newTestServer(t, defaultTexasHandler("obo-tok"), func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(w, http.StatusOK, map[string]any{"kodeverksnavn": []string{"Landkoder"}})
+	})
+	h := srv.routes()
+
+	sendRaw := func(t *testing.T, legacy string, body string, hdr map[string]string) (*httptest.ResponseRecorder, map[string]any) {
+		t.Helper()
+		t.Setenv(mcpLegacyUntilEnv, legacy)
+		req := httptest.NewRequest(http.MethodPost, "/", strings.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Authorization", "Bearer test-token")
+		for k, v := range hdr {
+			req.Header.Set(k, v)
+		}
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, req)
+		var out map[string]any
+		if rec.Body.Len() > 0 {
+			_ = json.Unmarshal(rec.Body.Bytes(), &out)
+		}
+		return rec, out
+	}
+
+	assertInvalidRequest := func(t *testing.T, rec *httptest.ResponseRecorder, out map[string]any) {
+		t.Helper()
+		if rec.Code != http.StatusBadRequest {
+			t.Fatalf("status = %d, want 400; body=%s", rec.Code, rec.Body.String())
+		}
+		if got := errCode(out); got != -32600 {
+			t.Fatalf("error code = %d, want -32600; body=%s", got, rec.Body.String())
+		}
+		if idVal, hasID := out["id"]; !hasID || idVal != nil {
+			t.Fatalf("id = %v (present=%v), want null", idVal, hasID)
+		}
+	}
+
+	t.Run("tools/list without id modern", func(t *testing.T) {
+		b := modernBody("tools/list", nil)
+		delete(b, "id")
+		raw, _ := json.Marshal(b)
+		rec, out := sendRaw(t, "", string(raw), modernHeaders("tools/list", ""))
+		assertInvalidRequest(t, rec, out)
+	})
+
+	t.Run("tools/list without id legacy", func(t *testing.T) {
+		rec, out := sendRaw(t, "2999-01-01", `{"jsonrpc":"2.0","method":"tools/list"}`, nil)
+		assertInvalidRequest(t, rec, out)
+	})
+
+	t.Run("tools/call with id null modern", func(t *testing.T) {
+		b := modernBody("tools/call", map[string]any{"name": "list_kodeverk", "arguments": map[string]any{}})
+		b["id"] = nil
+		raw, _ := json.Marshal(b)
+		rec, out := sendRaw(t, "", string(raw), modernHeaders("tools/call", "list_kodeverk"))
+		assertInvalidRequest(t, rec, out)
+	})
+
+	t.Run("tools/call with id null legacy", func(t *testing.T) {
+		rec, out := sendRaw(t, "2999-01-01", `{"jsonrpc":"2.0","id":null,"method":"tools/call","params":{"name":"list_kodeverk","arguments":{}}}`, nil)
+		assertInvalidRequest(t, rec, out)
+	})
+
+	t.Run("notifications/initialized with id null modern", func(t *testing.T) {
+		b := modernBody("notifications/initialized", nil)
+		b["id"] = nil
+		raw, _ := json.Marshal(b)
+		rec, out := sendRaw(t, "", string(raw), modernHeaders("notifications/initialized", ""))
+		assertInvalidRequest(t, rec, out)
+	})
+
+	t.Run("notifications/initialized with id null legacy", func(t *testing.T) {
+		rec, out := sendRaw(t, "2999-01-01", `{"jsonrpc":"2.0","id":null,"method":"notifications/initialized"}`, nil)
+		assertInvalidRequest(t, rec, out)
+	})
+
+	t.Run("notifications/initialized with no id modern returns 202", func(t *testing.T) {
+		b := modernBody("notifications/initialized", nil)
+		delete(b, "id")
+		raw, _ := json.Marshal(b)
+		rec, _ := sendRaw(t, "", string(raw), modernHeaders("notifications/initialized", ""))
+		if rec.Code != http.StatusAccepted {
+			t.Fatalf("status = %d, want 202; body=%s", rec.Code, rec.Body.String())
+		}
+	})
+
+	t.Run("notifications/initialized with no id legacy returns 202", func(t *testing.T) {
+		rec, _ := sendRaw(t, "2999-01-01", `{"jsonrpc":"2.0","method":"notifications/initialized"}`, nil)
+		if rec.Code != http.StatusAccepted {
+			t.Fatalf("status = %d, want 202; body=%s", rec.Code, rec.Body.String())
+		}
+	})
+}
+
+func TestMcpMethodBase64Header(t *testing.T) {
+	srv := newTestServer(t, defaultTexasHandler("obo-tok"), nil)
+	tgt := mcpComplianceTarget{
+		handler: srv.routes(),
+		tool:    "list_kodeverk",
+		header:  map[string]string{"Authorization": "Bearer test-token"},
+	}
+
+	encoded := "=?base64?" + base64.StdEncoding.EncodeToString([]byte("tools/list")) + "?="
+	rec, _ := mcpCall(t, tgt, http.MethodPost, modernBody("tools/list", nil), with(modernHeaders("tools/list", ""), "Mcp-Method", encoded))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("base64 Mcp-Method status = %d, want 200; body=%s", rec.Code, rec.Body.String())
+	}
+
+	recBad, outBad := mcpCall(t, tgt, http.MethodPost, modernBody("tools/list", nil), with(modernHeaders("tools/list", ""), "Mcp-Method", "=?base64?!!!?="))
+	if recBad.Code != http.StatusBadRequest || errCode(outBad) != mcpCodeHeaderMismatch {
+		t.Fatalf("malformed base64 Mcp-Method: status=%d code=%d body=%s", recBad.Code, errCode(outBad), recBad.Body.String())
 	}
 }
 

@@ -352,6 +352,14 @@ func (s *server) handleToolCall(ctx context.Context, inboundToken, toolName stri
 }
 
 func (s *server) execWithOBO(ctx context.Context, inboundToken string, fn func(oboToken string) (string, error)) map[string]any {
+	if s.upstreamSem != nil {
+		select {
+		case s.upstreamSem <- struct{}{}:
+			defer func() { <-s.upstreamSem }()
+		case <-ctx.Done():
+			return toolErrorResult(ctx.Err().Error())
+		}
+	}
 	oboToken, err := s.exchangeToken(ctx, inboundToken)
 	if err != nil {
 		return toolErrorResult(err.Error())
@@ -1048,7 +1056,7 @@ func buildHierarkiNoderResult(navn string, maxDepth, limit int, resp hierarkiNod
 	}
 
 	// First try full maxDepth with fitCappedJSON; if even 1 root node at maxDepth
-	// exceeds 128 KiB, try reducing depth before dropping the last root node.
+	// exceeds 128 KiB, try reducing depth and fitting as many roots as possible.
 	text, err := fitCappedJSON(len(rootKeys), truncated, func(n int, trunc bool) any {
 		return renderWithDepth(maxDepth, n, trunc)
 	})
@@ -1061,9 +1069,17 @@ func buildHierarkiNoderResult(navn string, maxDepth, limit int, resp hierarkiNod
 		}
 		if json.Unmarshal([]byte(text), &check) == nil && check.Returned == 0 {
 			for d := maxDepth - 1; d >= 1; d-- {
-				b, err := json.Marshal(renderWithDepth(d, 1, true))
-				if err == nil && len(b) <= maxToolResultBytes {
-					return string(b), nil
+				cand, candErr := fitCappedJSON(len(rootKeys), true, func(n int, trunc bool) any {
+					return renderWithDepth(d, n, trunc)
+				})
+				if candErr != nil {
+					return "", candErr
+				}
+				var candCheck struct {
+					Returned int `json:"returned"`
+				}
+				if json.Unmarshal([]byte(cand), &candCheck) == nil && candCheck.Returned > 0 {
+					return cand, nil
 				}
 			}
 		}
@@ -1115,6 +1131,26 @@ func buildSearchKodeverkNamesResult(query string, limit int, names []string) (st
 	})
 }
 
+func pickBeskrivelse(beskrivelser map[string]beskrivelse) beskrivelse {
+	if len(beskrivelser) == 0 {
+		return beskrivelse{}
+	}
+	for _, lang := range []string{"nb", "nn", "no", "en"} {
+		if d, ok := beskrivelser[lang]; ok {
+			return d
+		}
+	}
+	first := true
+	var bestKey string
+	for k := range beskrivelser {
+		if first || k < bestKey {
+			bestKey = k
+			first = false
+		}
+	}
+	return beskrivelser[bestKey]
+}
+
 func buildSearchKodeverkCodesResult(query, kodeverksnavn string, limit int, betydninger map[string][]betydning) (string, error) {
 	codes := make([]string, 0, len(betydninger))
 	for k := range betydninger {
@@ -1134,13 +1170,7 @@ func buildSearchKodeverkCodesResult(query, kodeverksnavn string, limit int, bety
 			continue
 		}
 		for _, bet := range bets {
-			desc, hasNB := bet.Beskrivelser["nb"]
-			if !hasNB {
-				for _, d := range bet.Beskrivelser {
-					desc = d
-					break
-				}
-			}
+			desc := pickBeskrivelse(bet.Beskrivelser)
 			termMatch := strings.Contains(strings.ToLower(desc.Term), lower)
 			if codeMatch || termMatch {
 				matches = append(matches, searchCodeMatch{

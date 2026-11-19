@@ -140,7 +140,12 @@ func validateModernMCPRequest(r *http.Request, env mcpEnvelope, now time.Time) *
 		return invalid("missing _meta " + mcpMetaClientCapabilities + " (use {} for none)")
 	case env.metaVersion() != h:
 		return mismatch("MCP-Protocol-Version header does not match _meta " + mcpMetaProtocolVersion)
-	case r.Header.Get("Mcp-Method") != env.Method:
+	}
+	gotMethod, ok := decodeMCPHeaderValue(r.Header.Get("Mcp-Method"))
+	if !ok {
+		return mismatch("Mcp-Method header has a malformed base64 value")
+	}
+	if gotMethod != env.Method {
 		return mismatch("Mcp-Method header does not match method")
 	}
 	want, named := "", false

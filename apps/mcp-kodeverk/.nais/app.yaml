@@ -40,6 +40,8 @@ spec:
       value: "{{kodeverk_url}}"
     - name: KODEVERK_SCOPE
       value: "{{kodeverk_scope}}"
+    - name: GOMEMLIMIT
+      value: "200MiB"
     # MCP 2026-07-28 is the target. Initialize-era clients (OpenCode default)
     # are served until this date; unset means 2026-07-28 only. See echo/mcp2026.go.
     # Placeholder: the window ends when OpenCode 2.x is the default in nav-pilot (#2367); move this date earlier then.

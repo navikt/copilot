@@ -36,4 +36,4 @@ All serialized tool payloads are capped at 128 KiB and set `truncated: true` if 
 
 ## Dev-GCP Tenant Caveat
 
-`kodeverk-api` in `dev-gcp` uses the `trygdeetaten.no` Entra tenant, whereas `mcp-kodeverk` (and `fleet-gateway`) uses `nav.no`. Because Entra OBO cannot cross tenants, Texas OBO token exchange against `kodeverk-api` in `dev-gcp` is expected to fail unless both apps share the same tenant.
+`kodeverk-api` in `dev-gcp` uses the `trygdeetaten.no` Entra tenant, whereas `mcp-kodeverk` (and `fleet-gateway`) uses `nav.no`. Because Entra OBO cannot cross tenants, Texas OBO token exchange against `kodeverk-api` in `dev-gcp` is expected to fail unless both apps share the same tenant. For this reason, the `/mcp/copilot/kodeverk` route in `apps/fleet-gateway/pilot-routes.dev.yaml` is disabled (`enabled: false`).

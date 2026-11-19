@@ -80,21 +80,23 @@ func loadConfigFromEnv() (*config, error) {
 }
 
 type server struct {
-	cfg      *config
-	kodeverk *kodeverkClient
+	cfg         *config
+	kodeverk    *kodeverkClient
+	upstreamSem chan struct{}
 }
 
 func newServer(cfg *config) *server {
 	return &server{
-		cfg:      cfg,
-		kodeverk: newKodeverkClient(cfg.KodeverkURL, cfg.HTTPClient),
+		cfg:         cfg,
+		kodeverk:    newKodeverkClient(cfg.KodeverkURL, cfg.HTTPClient),
+		upstreamSem: make(chan struct{}, maxConcurrentUpstream),
 	}
 }
 
 func (s *server) routes() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", healthHandler)
-	mux.HandleFunc("GET /ready", readyHandler)
+	mux.HandleFunc("GET /ready", s.readyHandler)
 	mux.HandleFunc("/", s.mcpHandler)
 	return mux
 }
@@ -103,7 +105,11 @@ func healthHandler(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "healthy"})
 }
 
-func readyHandler(w http.ResponseWriter, _ *http.Request) {
+func (s *server) readyHandler(w http.ResponseWriter, _ *http.Request) {
+	if s.cfg.IntrospectionEndpoint == "" || s.cfg.ExchangeEndpoint == "" || s.cfg.GatewayClientID == "" || s.cfg.KodeverkScope == "" {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"status": "not_ready"})
+		return
+	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ready"})
 }
 
@@ -160,11 +166,13 @@ func (s *server) mcpHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rawID := bytes.TrimSpace(rpc.ID)
+	isNullID := bytes.Equal(rawID, []byte("null"))
 	var rpcID any
-	if len(rawID) > 0 && !bytes.Equal(rawID, []byte("null")) {
+	if len(rawID) > 0 && !isNullID {
 		rpcID = json.RawMessage(rawID)
 	}
-	if rpc.Method == "" {
+	isNotification := strings.HasPrefix(rpc.Method, "notifications/")
+	if rpc.Method == "" || isNullID || (!isNotification && len(rawID) == 0) {
 		writeMCPError(w, http.StatusBadRequest, rpcID, &mcpRPCError{Code: -32600, Message: "Invalid Request"})
 		return
 	}
@@ -185,8 +193,7 @@ func (s *server) mcpHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	isNotification := len(rawID) == 0 || bytes.Equal(rawID, []byte("null"))
-	if strings.HasPrefix(rpc.Method, "notifications/") && isNotification {
+	if isNotification && len(rawID) == 0 {
 		w.WriteHeader(http.StatusAccepted)
 		return
 	}
@@ -213,10 +220,6 @@ func (s *server) mcpHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if isNotification {
-		writeJSON(w, http.StatusOK, result)
-		return
-	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"jsonrpc": "2.0",
 		"id":      json.RawMessage(rawID),

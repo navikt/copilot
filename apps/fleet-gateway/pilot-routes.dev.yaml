@@ -14,6 +14,7 @@ routes:
     team: copilot
     target: dev-gcp:copilot:mcp-kodeverk
     upstream_url: http://mcp-kodeverk.copilot/
+    enabled: false
     tools:
       - list_kodeverk
       - get_kodeverk_koder
