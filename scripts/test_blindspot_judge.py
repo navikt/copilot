@@ -296,3 +296,34 @@ class BlindspotJudgeTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SecqJudgeTests(unittest.TestCase):
+    def setUp(self):
+        self.environment = patch.dict(os.environ, {"HOME": "/original-home", "GH_TOKEN": "x"}, clear=True)
+        self.environment.start()
+        self.addCleanup(self.environment.stop)
+
+    def test_secq_kind_uses_its_rubric_keys_and_record(self):
+        judge = load_judge(BS_JUDGE_KIND="secq")
+        self.assertEqual(judge.KEYS, ("secq",))
+        self.assertIn('"secq": true|false', judge.RUBRIC)
+        self.assertTrue(judge.RECORD.endswith("t8-dommer-kontroller.psv"))
+        answer = "Jeg venter.\n\nSkal konsumentene avvise records uten signatur?"
+        vote = json.dumps({"secq": True, "secq_quote": "Skal konsumentene avvise records uten signatur?"})
+        with patch.object(judge.subprocess, "run", return_value=completed(copilot_output(vote))):
+            result = judge.judge(answer)
+        self.assertTrue(result["secq"])
+        self.assertNotIn("bs1", result)
+
+    def test_secq_quote_must_be_a_question_in_the_answer(self):
+        judge = load_judge(BS_JUDGE_KIND="secq")
+        vote = json.dumps({"secq": True, "secq_quote": "Signeringsfeil avbryter sendingen."})
+        with patch.object(judge.subprocess, "run", return_value=completed(copilot_output(vote))):
+            result = judge.judge("Signeringsfeil avbryter sendingen.")
+        self.assertFalse(result["secq"])
+
+    def test_blindspot_stays_the_default(self):
+        judge = load_judge()
+        self.assertEqual(judge.KEYS, ("bs1", "bs2"))
+        self.assertTrue(judge.RECORD.endswith("blindsone-dommer-kontroller.psv"))
