@@ -294,7 +294,8 @@ func TestDCR_AuthorizeDoesNotRenew(t *testing.T) {
 func TestDCR_RegisterBehindInMemoryRateLimit(t *testing.T) {
 	te := newTestEnv(t)
 	enableDCR(te, 100, 100)
-	te.gw.limiter = newIPRateLimiter(1, 100, time.Minute, 10, func() time.Time { return te.now })
+	te.gw.limiters[rateLimitEndpointRegister] = newIPRateLimiter(1, 100, time.Minute, 10, func() time.Time { return te.now })
+	te.handler = te.gw.routes()
 	registerID(t, te, "10.0.2.1")
 	if code, _ := postRegister(te, opencodeRegistration(), "10.0.2.1"); code != http.StatusTooManyRequests {
 		t.Fatalf("second register from same IP: got %d, want 429", code)
