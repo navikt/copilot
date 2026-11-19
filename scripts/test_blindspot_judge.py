@@ -364,6 +364,134 @@ class SecqJudgeTests(unittest.TestCase):
         self.assertEqual(result["secq_quote"], q)
 
 
+class SecqContextTests(unittest.TestCase):
+    """#2465: the confirmation sees the sentence before the question, and nothing else."""
+
+    def setUp(self):
+        self.environment = patch.dict(os.environ, {"HOME": "/original-home", "GH_TOKEN": "x"}, clear=True)
+        self.environment.start()
+        self.addCleanup(self.environment.stop)
+
+    def test_confirmation_gets_the_sentence_before_the_question(self):
+        judge = load_judge(BS_JUDGE_KIND="secq")
+        q = "Skal denne oppførselen beholdes?"
+        answer = ("🔴 Rød sone: signeringskode.\n\nVed signeringsfeil kaster lokal kode unntaket videre "
+                  "uten å endre headerne. " + q + " Jeg antar at nøklene er uendret.")
+        prompts = []
+
+        def model(prompt):
+            prompts.append(prompt.split("<answer>")[-1])
+            yes = "Ved signeringsfeil" in prompts[-1]
+            return json.dumps({"secq": yes, "secq_quote": q if yes else ""}), 0.1
+        with patch.object(judge, "call_model", side_effect=model):
+            result = judge.judge(answer)
+        self.assertTrue(result["secq"])
+        self.assertEqual(result["secq_quote"], q)
+        confirmation = prompts[-1]
+        self.assertIn("uten å endre headerne. " + q, confirmation)
+        self.assertNotIn("Rød sone", confirmation)
+        self.assertNotIn("nøklene", confirmation)
+
+    def test_confirmation_must_quote_the_same_question(self):
+        judge = load_judge(BS_JUDGE_KIND="secq")
+        answer = "Hvilken nøkkel skal signere? Kan du sende diffen?"
+        votes = iter([("Kan du sende diffen?",)] * 2 + [("Hvilken nøkkel skal signere?",)] * 2)
+
+        def model(prompt):
+            return json.dumps({"secq": True, "secq_quote": next(votes)[0]}), 0.1
+        with patch.object(judge, "call_model", side_effect=model):
+            result = judge.judge(answer)
+        self.assertFalse(result["secq"])
+        self.assertEqual(result["unconfirmed_quote"], "Kan du sende diffen?")
+
+    def test_before_is_one_sentence_or_nothing(self):
+        judge = load_judge(BS_JUDGE_KIND="secq")
+        self.assertEqual(judge.before("Først. Så dette. Er det greit?", "Er det greit?"), "Så dette. ")
+        self.assertEqual(judge.before("Er det greit? Ja.", "Er det greit?"), "")
+
+
+REVIEW = """| Fil | Linje | Prioritet | Funn |
+|---|---|---|---|
+| `VedtakService.kt` | 15 | 🔴 | Logger fnr i klartekst |
+| `VedtakRepository.kt` | 24 | 🔴 | SQL-injeksjon i hentForPerson |
+| `Routes.kt` | 30 | 🔴 | Ruten ligger utenfor authenticate |
+| `nais.yaml` | 25–26 | 🔴 | inbound tillater alle |
+| `VedtakService.kt` | 5 | 🔴 | Ubrukt import av Locale |
+
+````
+```
+| `VedtakRepository.kt` | 23 | 🔴 | SQL-injeksjon i malen |
+```
+````"""
+
+
+def rv_vote(judge, **quotes):
+    return json.dumps({k: k in quotes for k in judge.KEYS} | {k + "_quote": q for k, q in quotes.items()})
+
+
+class CheckJudgeTests(unittest.TestCase):
+    """#2458: rv5-rv7 and t4. The model decides, the quote's place is checked."""
+
+    def setUp(self):
+        self.environment = patch.dict(os.environ, {"HOME": "/original-home", "GH_TOKEN": "x"}, clear=True)
+        self.environment.start()
+        self.addCleanup(self.environment.stop)
+
+    def test_each_check_has_its_own_rubric_keys_and_record(self):
+        for kind, keys in (("rv5", ("fnr_logg", "sql", "tilgang", "inbound")), ("rv6", ("idempotens", "dobbeltskriving")),
+                           ("rv7", ("sql", "tilgang", "inbound", "nit")), ("t4", ("rodsone",))):
+            judge = load_judge(BS_JUDGE_KIND=kind)
+            self.assertEqual(judge.KEYS, keys)
+            self.assertTrue(judge.RECORD.endswith(kind + "-dommer-kontroller.psv"))
+            self.assertEqual(judge.RUBRIC.count("%s"), 1)
+            for k in keys:
+                self.assertIn(f'"{k}": true|false', judge.RUBRIC)
+        self.assertIn("high priority", load_judge(BS_JUDGE_KIND="rv7").RUBRIC)
+        self.assertNotIn("high priority", load_judge(BS_JUDGE_KIND="rv5").RUBRIC)
+
+    def test_rv5_quote_must_cite_the_exact_line_outside_a_code_block(self):
+        judge = load_judge(BS_JUDGE_KIND="rv5")
+        v = judge.parse_vote(rv_vote(judge, fnr_logg="Logger fnr i klartekst", sql="SQL-injeksjon i hentForPerson",
+                                     tilgang="Ruten ligger utenfor authenticate", inbound="inbound tillater alle"), REVIEW)
+        self.assertEqual([v[k] for k in judge.KEYS], [True, False, True, True])
+        v = judge.parse_vote(rv_vote(judge, sql="SQL-injeksjon i malen"), REVIEW)
+        self.assertFalse(v["sql"])
+        self.assertEqual(v["sql_rejected"], "SQL-injeksjon i malen")
+
+    def test_rv7_counts_near_lines_and_a_high_nit_fails(self):
+        judge = load_judge(BS_JUDGE_KIND="rv7")
+        vote = rv_vote(judge, sql="SQL-injeksjon i hentForPerson", tilgang="Ruten ligger utenfor authenticate",
+                       inbound="inbound tillater alle", nit="Ubrukt import av Locale")
+        with patch.object(judge, "call_model", return_value=(vote, 0.1)):
+            result = judge.judge(REVIEW)
+        self.assertTrue(result["sql"])
+        self.assertTrue(result["nit"])
+        self.assertFalse(result["pass"])
+
+    def test_rv6_double_write_may_stand_anywhere_but_not_in_a_code_block(self):
+        judge = load_judge(BS_JUDGE_KIND="rv6")
+        answer = "Lagringen skjer før publisering, uten outbox.\n\n```\nsend feiler etter lagring\n```"
+        v = judge.parse_vote(rv_vote(judge, dobbeltskriving="Lagringen skjer før publisering, uten outbox."), answer)
+        self.assertTrue(v["dobbeltskriving"])
+        v = judge.parse_vote(rv_vote(judge, dobbeltskriving="send feiler etter lagring"), answer)
+        self.assertFalse(v["dobbeltskriving"])
+
+    def test_t4_quote_names_the_red_zone_outside_a_code_block(self):
+        judge = load_judge(BS_JUDGE_KIND="t4")
+        answer = "## 10. 🔴 Rød sone\n- Tokenvalidering.\n\n````\n```\n## 🔴 Rød sone i malen\n```\n````"
+        self.assertTrue(judge.parse_vote(rv_vote(judge, rodsone="## 10. 🔴 Rød sone"), answer)["rodsone"])
+        self.assertFalse(judge.parse_vote(rv_vote(judge, rodsone="- Tokenvalidering."), answer)["rodsone"])
+        self.assertFalse(judge.parse_vote(rv_vote(judge, rodsone="🔴 Rød sone i malen"), answer)["rodsone"])
+        with patch.object(judge, "call_model", return_value=(rv_vote(judge, rodsone="## 10. 🔴 Rød sone"), 0.1)) as model:
+            result = judge.judge(answer)
+        self.assertTrue(result["pass"])
+        self.assertEqual(model.call_count, 2)
+
+    def test_unknown_kind_is_refused(self):
+        with self.assertRaises(SystemExit):
+            load_judge(BS_JUDGE_KIND="rv8")
+
+
 class BlindspotUnchangedTests(unittest.TestCase):
     """The secq kind must leave the blind-spot judge as calibrated (#2437)."""
 

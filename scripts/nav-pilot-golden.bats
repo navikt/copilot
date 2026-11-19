@@ -503,6 +503,20 @@ if '"secq"' in p:
     q = next((q for q in qs if re.search(r"avvise|godta at|signering feiler", q)), "")
     print(json.dumps({"secq": bool(q), "secq_quote": q}))
     sys.exit()
+# rv5-rv7 and t4 (#2458): the first line naming the defect, quoted whole; rv7
+# only on a 🔴 line. Where the quote sits is the judge script's to check.
+WORDS = {"fnr_logg": "fnr i klartekst", "sql": "SQL-injeksjon", "tilgang": "authenticate",
+         "inbound": "inbound", "idempotens": "idempotens", "dobbeltskriving": "outbox",
+         "nit": "Ubrukt import", "rodsone": "Rød sone"}
+keys = re.findall(r'"(\w+)": true\|false', p)
+if keys and keys[0] in WORDS:
+    out = {}
+    for k in keys:
+        l = next((l.strip() for l in a.splitlines() if WORDS[k] in l
+                  and ("🔴" in l or '"nit"' not in p)), "")
+        out[k], out[k + "_quote"] = bool(l), l
+    print(json.dumps(out))
+    sys.exit()
 q1 = next((q for q in qs if "konsumerer topicen" in q), "")
 q2 = next((q for q in qs if "Hvem leser de to" in q), "")
 print(json.dumps({"bs1": bool(q1), "bs1_quote": q1, "bs2": bool(q2), "bs2_quote": q2}))
@@ -512,6 +526,11 @@ EOF
     'Hvem konsumerer topicen?' 'Skal fnr lagres som String eller Long?' >"$SHIM/controls.tsv"
   printf 'question\tanswer\texpected_secq\tsource\n%s\t\t1\tstub\n%s\t\t0\tstub\n' \
     'Skal konsumentene avvise usignerte records?' 'Kan du lenke til fiksen?' >"$SHIM/secq-controls.tsv"
+  local review='| `VedtakService.kt` | 15 | 🔴 | Logger fnr i klartekst |\n| `VedtakRepository.kt` | 23 | 🔴 | SQL-injeksjon |\n| `Routes.kt` | 30 | 🔴 | Utenfor authenticate |\n| `nais.yaml` | 25 | 🔴 | inbound tillater alle |\n| `VedtakConsumer.kt` | 25 | 🔴 | Mangler idempotens og outbox |\n| `VedtakService.kt` | 5 | 💭 | Ubrukt import |'
+  printf 'answer\texpected_fnr_logg\texpected_sql\texpected_tilgang\texpected_inbound\tsource\n%s\t1\t1\t1\t1\tstub\n' "$review" >"$SHIM/rv5-controls.tsv"
+  printf 'answer\texpected_idempotens\texpected_dobbeltskriving\tsource\n%s\t1\t1\tstub\n' "$review" >"$SHIM/rv6-controls.tsv"
+  printf 'answer\texpected_sql\texpected_tilgang\texpected_inbound\texpected_nit\tsource\n%s\t1\t1\t1\t0\tstub\n' "$review" >"$SHIM/rv7-controls.tsv"
+  printf 'answer\texpected_rodsone\tsource\n%s\t1\tstub\n%s\t0\tstub\n' '🔴 Rød sone: tokenvalidering' 'Fase 2: plan uten deklarasjon' >"$SHIM/t4-controls.tsv"
 }
 
 run_suite() {
@@ -521,6 +540,7 @@ run_suite() {
   GOLDEN_FIXTURES="${BATS_TEST_DIRNAME}/golden-fixtures" BENCH_MODE="$mode" NAV_PILOT_GOLDEN_USAGE_DB="$SHIM/none.db" PATH="$SHIM:$PATH" \
     BS_JUDGE_CMD="$SHIM/judge-stub" BS_JUDGE_RECORD="$SHIM/record.psv" BS_JUDGE_CONTROLS="${BS_JUDGE_CONTROLS:-$SHIM/controls.tsv}" \
     BS_JUDGE_SECQ_CONTROLS="${BS_JUDGE_SECQ_CONTROLS:-$SHIM/secq-controls.tsv}" \
+    BS_JUDGE_CHECK_CONTROLS_DIR="${BS_JUDGE_CHECK_CONTROLS_DIR:-$SHIM}" \
     run /bin/bash "$SCRIPT" "$@" --save-baseline "$SHIM/b.txt"
 }
 
@@ -702,13 +722,13 @@ run_suite() {
   grep -q '^rv8|1|pass|.*|0 spurious high-priority rows' "$SHIM/b-results.psv"
   run_suite wrongfile "${only[@]}"
   [ "$status" -eq 1 ]
-  grep -q '^rv5|1|fail|.*fnr-logg' "$SHIM/b-results.psv"
+  grep -q '^rv5|1|fail|.*judge: fnr_logg=no;.*regex (raw): fail.*fnr-logg' "$SHIM/b-results.psv"
   grep -q '^rv6|1|pass|' "$SHIM/b-results.psv"
   run_suite noidem "${only[@]}"
-  grep -q '^rv6|1|fail|.*idempotens' "$SHIM/b-results.psv"
+  grep -q '^rv6|1|fail|.*judge: idempotens=no;.*regex (raw): fail.*idempotens' "$SHIM/b-results.psv"
   grep -q '^rv5|1|pass|' "$SHIM/b-results.psv"
   run_suite sqllav "${only[@]}"
-  grep -q '^rv7|1|fail|.*sql not marked high' "$SHIM/b-results.psv"
+  grep -q '^rv7|1|fail|.*judge: sql=no;.*regex (raw): fail, priority: sql not marked high' "$SHIM/b-results.psv"
   grep -q '^rv5|1|pass|' "$SHIM/b-results.psv"
   run_suite invented "${only[@]}"
   grep -q '^rv8|1|fail|.*1 spurious high-priority row' "$SHIM/b-results.psv"
@@ -1243,7 +1263,7 @@ EOF
   printf 'question\tanswer\texpected_secq\tsource\n%s\t\t1\tstub\n' 'Kan du lenke til fiksen?' >"$SHIM/bad-secq.tsv"
   BS_JUDGE_SECQ_CONTROLS="$SHIM/bad-secq.tsv" run_suite good --agent nav-pilot --only 8
   [ "$status" -ne 0 ]
-  grep -q '^8|1|error|.*security-question judge controls' "$SHIM/b-results.psv"
+  grep -q '^8|1|error|.*secq judge controls' "$SHIM/b-results.psv"
   run_suite count --agent nav-pilot --only 8b
   [ "$status" -eq 1 ]
   grep -q '^8b|1|fail|' "$SHIM/b-results.psv"
@@ -1611,6 +1631,8 @@ EOF
 }
 
 run_opencode_t4() {
+  make_judge_stub
+  BS_JUDGE_CMD="$SHIM/judge-stub" BS_JUDGE_RECORD="$SHIM/record.psv" BS_JUDGE_CHECK_CONTROLS_DIR="$SHIM" \
   XDG_DATA_HOME="${OC_DATA:-$SHIM/data}" XDG_STATE_HOME="$SHIM/state" PATH="$SHIM:$(dirname "$(command -v go)"):/usr/bin:/bin" run /bin/bash "$SCRIPT" \
     --client opencode --model stub --only 4 --repeat 1 --save-baseline "$SHIM/b.txt"
 }
