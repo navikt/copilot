@@ -245,6 +245,16 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 				return
 			}
 			owner, found, getErr := g.store.Get(r.Context(), kindMCPSession, route.Route+"\n"+reqSessionID)
+			if errors.Is(getErr, errSealUnknownKID) {
+				// Fail closed: treating the row as missing would let any caller ride the owner's upstream session.
+				outcome = "mcp_session_unverifiable"
+				slog.Warn("mcp session binding sealed with unknown key id", "route", route.Route)
+				writeJSON(w, http.StatusForbidden, map[string]string{
+					"error":   "forbidden",
+					"message": "Mcp-Session-Id cannot be verified; start a new MCP session",
+				})
+				return
+			}
 			if getErr != nil {
 				outcome = "store_error"
 				slog.Warn("mcp session lookup failed", "route", route.Route, "error", getErr)
@@ -361,6 +371,19 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 					decision = "deny"
 					outcome = "tool_denied"
 					writeToolDenied(w, reason)
+					return
+				}
+				// The upstream gets these headers unchanged; one that dispatches on Mcp-Name
+				// would run a tool the allowlist never saw. MCP 2026-07-28 answers -32020.
+				// Mcp-Name only has a meaning on a single complete tools/call; on a batch or any other method it is spoofing.
+				if headerMismatch || (r.Header.Get("Mcp-Name") != "" && (audit.rawMethod != "tools/call" || audit.incomplete)) {
+					decision, decisionReason = "deny", reasonHeaderMismatch
+					outcome = "tool_denied"
+					writeJSON(w, http.StatusBadRequest, map[string]any{
+						"jsonrpc": "2.0",
+						"id":      nil,
+						"error":   map[string]any{"code": -32020, "message": "Mcp-Method or Mcp-Name does not match the request body"},
+					})
 					return
 				}
 			}
@@ -1182,6 +1205,8 @@ const (
 	reasonNotCall   = "not_tools_call"
 	reasonNotListed = "not_listed"
 	reasonAmbiguous = "ambiguous"
+	// reasonHeaderMismatch: Mcp-Method/Mcp-Name disagree with the body on a route with an allowlist.
+	reasonHeaderMismatch = "header_mismatch"
 )
 
 // toolPolicyDecision decides a POST body against a route's tool allowlist,

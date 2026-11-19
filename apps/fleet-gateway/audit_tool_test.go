@@ -540,3 +540,27 @@ func TestAuditProtocolVersion(t *testing.T) {
 		}
 	}
 }
+
+func TestToolPolicy_HeaderMismatchDeniedOnAllowlist(t *testing.T) {
+	body := `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"search"}}`
+	tools := map[string]bool{"search": true}
+	_, got, code := auditToolsHeaders(t, http.MethodPost, tools, body, http.Header{"Mcp-Name": {"delete"}})
+	if code != http.StatusBadRequest || got != nil {
+		t.Fatalf("mismatch on allowlist: code %d, forwarded %q; want 400 and nothing forwarded", code, got)
+	}
+	audit, got, code := auditToolsHeaders(t, http.MethodPost, tools, body, http.Header{"Mcp-Name": {"search"}})
+	if code != http.StatusOK || got == nil || audit["header_mismatch"] != false {
+		t.Fatalf("matching headers: code %d", code)
+	}
+	for name, b := range map[string]string{
+		"batch":      "[" + body + "]",
+		"tools/list": `{"jsonrpc":"2.0","id":1,"method":"tools/list"}`,
+	} {
+		if _, got, code := auditToolsHeaders(t, http.MethodPost, tools, b, http.Header{"Mcp-Name": {"delete"}}); code != http.StatusBadRequest || got != nil {
+			t.Fatalf("%s with Mcp-Name: code %d, forwarded %q; want 400 and nothing forwarded", name, code, got)
+		}
+	}
+	if _, _, code := auditToolsHeaders(t, http.MethodPost, nil, body, http.Header{"Mcp-Name": {"delete"}}); code != http.StatusOK {
+		t.Fatalf("passAllTools route must keep forwarding on mismatch, got %d", code)
+	}
+}
