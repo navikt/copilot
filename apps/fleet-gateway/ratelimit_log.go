@@ -6,18 +6,23 @@ import (
 )
 
 const (
-	defaultRateLimitLogCap    = 4096
-	defaultRateLimitLogWindow = time.Minute
+	defaultRateLimitLogCap       = 4096
+	defaultRateLimitLogGlobalCap = 100
+	defaultRateLimitLogWindow    = time.Minute
 )
 
 // rateLimitLogSampler samples rate-limit warnings so each client IP emits at
-// most one log line per window while keeping memory bounded.
+// most one log line per window and total warnings per window are globally
+// capped, while keeping memory bounded.
 type rateLimitLogSampler struct {
-	mu       sync.Mutex
-	lastSeen map[string]time.Time
-	window   time.Duration
-	maxSize  int
-	now      func() time.Time
+	mu          sync.Mutex
+	lastSeen    map[string]time.Time
+	window      time.Duration
+	maxSize     int
+	globalMax   int
+	windowStart time.Time
+	count       int
+	now         func() time.Time
 }
 
 func newRateLimitLogSampler(window time.Duration, maxSize int, now func() time.Time) *rateLimitLogSampler {
@@ -31,10 +36,11 @@ func newRateLimitLogSampler(window time.Duration, maxSize int, now func() time.T
 		maxSize = 1
 	}
 	return &rateLimitLogSampler{
-		lastSeen: make(map[string]time.Time),
-		window:   window,
-		maxSize:  maxSize,
-		now:      now,
+		lastSeen:  make(map[string]time.Time),
+		window:    window,
+		maxSize:   maxSize,
+		globalMax: defaultRateLimitLogGlobalCap,
+		now:       now,
 	}
 }
 
@@ -47,6 +53,15 @@ func (s *rateLimitLogSampler) Allow(ip string) bool {
 	if last, ok := s.lastSeen[ip]; ok && now.Before(last.Add(s.window)) {
 		return false
 	}
+
+	if s.windowStart.IsZero() || !now.Before(s.windowStart.Add(s.window)) {
+		s.windowStart = now
+		s.count = 0
+	}
+	if s.count >= s.globalMax {
+		return false
+	}
+	s.count++
 
 	if _, ok := s.lastSeen[ip]; !ok && len(s.lastSeen) >= s.maxSize {
 		s.evictOldestLocked()
