@@ -5,6 +5,7 @@ import (
 	_ "embed"
 	"errors"
 	"fmt"
+	"github.com/navikt/copilot/fleet-gateway/internal/config"
 	"io"
 	"net"
 	"net/url"
@@ -221,7 +222,7 @@ func parseTarget(target string) (cluster, namespace, app string, err error) {
 }
 
 func validateInternalUpstreamURL(raw, namespace string) (*url.URL, error) {
-	if err := validateHTTPURL(raw, false); err != nil {
+	if err := config.ValidateHTTPURL(raw, false); err != nil {
 		return nil, err
 	}
 	u, err := url.Parse(raw)

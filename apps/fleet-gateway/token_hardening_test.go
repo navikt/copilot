@@ -33,16 +33,6 @@ func TestSeal_RejectsOversizedPlaintext(t *testing.T) {
 	}
 }
 
-func TestValidatePostgresURL_ErrorDoesNotLeakDSN(t *testing.T) {
-	err := validatePostgresURL("postgres://user:s3cretpw@host:notaport/db")
-	if err == nil {
-		t.Fatal("expected error")
-	}
-	if strings.Contains(err.Error(), "s3cretpw") {
-		t.Fatalf("error leaks DSN: %v", err)
-	}
-}
-
 func TestRefreshToken_LegacyGroupsStillAcceptedAndNewTokenSmall(t *testing.T) {
 	te := newClientEncryptedTestEnv(t, "k1:"+testKeyBase64(t, false))
 	groups := make([]string, 0, 100)

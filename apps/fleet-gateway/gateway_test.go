@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/navikt/copilot/fleet-gateway/internal/config"
 	"io"
 	"log/slog"
 	"net/http"
@@ -238,7 +239,7 @@ func newTestEnv(t *testing.T) *testEnv {
 		AzureWellKnownURL:       te.entraServer.URL + "/.well-known/openid-configuration",
 		AzureTokenEndpoint:      te.entraServer.URL + "/token",
 		CookieSecret:            []byte("0123456789abcdef0123456789abcdef"),
-		HTTPClient:              newHardenedHTTPClient(5 * time.Second),
+		HTTPClient:              config.NewHardenedHTTPClient(5 * time.Second),
 		ProxyHeaderTimeout:      5 * time.Second,
 		PendingCap:              1024,
 		CodeCap:                 1024,
