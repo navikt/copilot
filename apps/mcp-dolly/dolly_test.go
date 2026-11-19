@@ -291,6 +291,62 @@ func TestCreateOrderOwnershipAndRequestShape(t *testing.T) {
 			t.Fatal("POST /bestilling was called for a group owned by another user")
 		}
 	})
+
+	rejectCases := []struct {
+		name      string
+		callerID  string
+		groupResp func(w http.ResponseWriter, r *http.Request)
+	}{
+		{"group without opprettetAv.brukerId is rejected before POST", "caller-123", func(w http.ResponseWriter, _ *http.Request) {
+			writeJSON(w, http.StatusOK, map[string]any{"id": 42})
+		}},
+		{"missing brukerId on both endpoints is rejected before POST", "", func(w http.ResponseWriter, _ *http.Request) {
+			writeJSON(w, http.StatusOK, map[string]any{"id": 42})
+		}},
+		{"whitespace brukerId on both endpoints is rejected before POST", " ", func(w http.ResponseWriter, _ *http.Request) {
+			writeJSON(w, http.StatusOK, map[string]any{"id": 42, "opprettetAv": map[string]any{"brukerId": " "}})
+		}},
+		{"404 on group lookup is rejected before POST", "caller-123", func(w http.ResponseWriter, r *http.Request) {
+			http.NotFound(w, r)
+		}},
+	}
+	for _, tc := range rejectCases {
+		t.Run(tc.name, func(t *testing.T) {
+			var (
+				mu         sync.Mutex
+				postCalled bool
+			)
+			srv := newTestServer(t, defaultTexasHandler("obo-tok"), func(w http.ResponseWriter, r *http.Request) {
+				if r.Method == http.MethodPost {
+					mu.Lock()
+					postCalled = true
+					mu.Unlock()
+				}
+				switch r.URL.Path {
+				case "/api/v1/bruker/current":
+					writeJSON(w, http.StatusOK, map[string]any{"brukerId": tc.callerID})
+				case "/api/v1/gruppe/42/page/0":
+					tc.groupResp(w, r)
+				default:
+					writeJSON(w, http.StatusCreated, map[string]any{"id": 99})
+				}
+			})
+
+			_, out := callToolModern(t, srv.routes(), "in", "create_order", map[string]any{
+				"gruppeId":     42,
+				"antall":       2,
+				"environments": []string{"q1"},
+			})
+			if txt, isErr := extractToolText(t, out); !isErr {
+				t.Fatalf("expected rejection, got success: %q", txt)
+			}
+			mu.Lock()
+			defer mu.Unlock()
+			if postCalled {
+				t.Fatal("POST /bestilling was called although group ownership could not be verified")
+			}
+		})
+	}
 }
 
 func TestCreateOrderPerUserRollingQuota(t *testing.T) {
@@ -299,6 +355,7 @@ func TestCreateOrderPerUserRollingQuota(t *testing.T) {
 		mu         sync.Mutex
 		activeUser = "Z123456"
 		postCount  int
+		failPost   bool
 	)
 
 	srv := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
@@ -328,10 +385,19 @@ func TestCreateOrderPerUserRollingQuota(t *testing.T) {
 			writeJSON(w, http.StatusOK, map[string]any{"brukerId": "b1"})
 		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/gruppe/42/page/0":
 			writeJSON(w, http.StatusOK, map[string]any{"id": 42, "opprettetAv": map[string]any{"brukerId": "b1"}})
+		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/gruppe/43/page/0":
+			writeJSON(w, http.StatusOK, map[string]any{"id": 43, "opprettetAv": map[string]any{"brukerId": "someone-else"}})
 		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/gruppe/42/bestilling":
 			mu.Lock()
-			postCount++
+			fail := failPost
+			if !fail {
+				postCount++
+			}
 			mu.Unlock()
+			if fail {
+				http.Error(w, "upstream failure", http.StatusInternalServerError)
+				return
+			}
 			writeJSON(w, http.StatusCreated, map[string]any{"id": 1})
 		default:
 			http.NotFound(w, r)
@@ -342,6 +408,31 @@ func TestCreateOrderPerUserRollingQuota(t *testing.T) {
 		defer mu.Unlock()
 		return now
 	}
+
+	// Failed orders must refund their reservation: an unowned group and an
+	// upstream 500 must not count against the 20-person quota.
+	_, out := callToolModern(t, srv.routes(), "in", "create_order", map[string]any{
+		"gruppeId":     43,
+		"antall":       5,
+		"environments": []string{"q1"},
+	})
+	if txt, isErr := extractToolText(t, out); !isErr {
+		t.Fatalf("order on unowned group should fail, got: %s", txt)
+	}
+	mu.Lock()
+	failPost = true
+	mu.Unlock()
+	_, out = callToolModern(t, srv.routes(), "in", "create_order", map[string]any{
+		"gruppeId":     42,
+		"antall":       5,
+		"environments": []string{"q1"},
+	})
+	if txt, isErr := extractToolText(t, out); !isErr {
+		t.Fatalf("order with upstream 500 should fail, got: %s", txt)
+	}
+	mu.Lock()
+	failPost = false
+	mu.Unlock()
 
 	// 4 orders of 5 persons = 20 persons (fills the 24h quota for Z123456).
 	for i := range 4 {
@@ -368,7 +459,7 @@ func TestCreateOrderPerUserRollingQuota(t *testing.T) {
 	mu.Lock()
 	now = now.Add(23 * time.Hour)
 	mu.Unlock()
-	_, out := callToolModern(t, srv.routes(), "in", "create_order", map[string]any{
+	_, out = callToolModern(t, srv.routes(), "in", "create_order", map[string]any{
 		"gruppeId":     42,
 		"antall":       1,
 		"environments": []string{"q1"},

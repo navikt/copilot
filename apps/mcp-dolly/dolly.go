@@ -135,7 +135,7 @@ func (c *dollyClient) currentBrukerID(ctx context.Context, token string) (string
 	var b struct {
 		BrukerID string `json:"brukerId"`
 	}
-	if err := json.Unmarshal(body, &b); err != nil || b.BrukerID == "" {
+	if err := json.Unmarshal(body, &b); err != nil || strings.TrimSpace(b.BrukerID) == "" {
 		return "", fmt.Errorf("dolly-backend returned no brukerId")
 	}
 	return b.BrukerID, nil
@@ -153,7 +153,7 @@ func (c *dollyClient) groupOwnerBrukerID(ctx context.Context, token string, grup
 			BrukerID string `json:"brukerId"`
 		} `json:"opprettetAv"`
 	}
-	if err := json.Unmarshal(body, &g); err != nil || g.OpprettetAv.BrukerID == "" {
+	if err := json.Unmarshal(body, &g); err != nil || strings.TrimSpace(g.OpprettetAv.BrukerID) == "" {
 		return "", fmt.Errorf("dolly-backend returned no group owner")
 	}
 	return g.OpprettetAv.BrukerID, nil

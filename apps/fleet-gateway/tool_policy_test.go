@@ -132,15 +132,15 @@ func TestToolPolicy_RouteFile(t *testing.T) {
 			t.Errorf("%q: %v", f, err)
 		}
 	}
-	prodRoutes, err := (fileRouteSource{path: "pilot-routes.prod.yaml"}).Routes()
-	if err != nil {
-		t.Fatal(err)
+	prodRoutes, prodErr := (fileRouteSource{path: "pilot-routes.prod.yaml"}).Routes()
+	if prodErr != nil {
+		t.Fatal(prodErr)
 	}
 	var foundDolly bool
 	for _, r := range prodRoutes {
 		if r.Route == "/mcp/copilot/dolly" {
 			foundDolly = true
-			if r.allowedTools["create_order"] {
+			if len(r.allowedTools) == 0 || r.allowedTools["create_order"] {
 				t.Fatal("/mcp/copilot/dolly in pilot-routes.prod.yaml must stay read-only until ROS sign-off (must not allow create_order)")
 			}
 		}

@@ -381,7 +381,15 @@ func parseCreateOrder(fields map[string]json.RawMessage, now time.Time) (int64, 
 		if envErr != nil {
 			return 0, dollyBestillingRequest{}, envErr
 		}
-		if env != "q1" && env != "q2" && env != "q4" {
+		// Map validated input to constants so only allowlisted literals reach the audit log.
+		switch env {
+		case "q1":
+			env = "q1"
+		case "q2":
+			env = "q2"
+		case "q4":
+			env = "q4"
+		default:
 			return 0, dollyBestillingRequest{}, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "environments must be a subset of q1, q2, q4"}
 		}
 		if seenEnvs[env] {
