@@ -2,3 +2,4 @@
 4a16bccecf9e87a3|2026-11-19|claude-haiku-5.5|low|22|22|1.000|3.43|pass
 e030c2261100d670|2026-11-19|claude-haiku-5.5|low|22|19|0.864|3.66|fail|rows=8,11,13
 983a4098eec56b91|2026-11-19|claude-haiku-5.5|low|22|21|0.955|3.58|pass|rows=13
+ed404cb00abdef2a|2026-11-19|claude-haiku-5.5|low|23|23|1.000|3.60|pass
