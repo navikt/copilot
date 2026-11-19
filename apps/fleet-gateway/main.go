@@ -24,7 +24,7 @@ type Gateway struct {
 	now         func() time.Time
 	store       SessionStore
 	rtKeys      *keyRing
-	cimdCache   *ttlMap[*clientMetadata]
+	cimdCache   *ttlMap[cachedCIMD]
 	limiter     *ipRateLimiter
 	proxyClient *http.Client
 	refreshWait time.Duration // how long a concurrent refresh waits for the winner's grace pair
@@ -72,7 +72,7 @@ func newGateway(cfg *Config, now func() time.Time) (*Gateway, error) {
 		now:         now,
 		store:       store,
 		rtKeys:      rtKeys,
-		cimdCache:   newTTLMap[*clientMetadata](cfg.CIMDCap, now),
+		cimdCache:   newTTLMap[cachedCIMD](cfg.CIMDCap, now),
 		limiter:     newIPRateLimiter(cfg.RateLimitRequests, cfg.RateLimitGlobalRequests, cfg.RateLimitWindow, cfg.RateLimitCap, now),
 		proxyClient: newHardenedProxyClient(cfg.ProxyHeaderTimeout),
 		refreshWait: 5 * time.Second,

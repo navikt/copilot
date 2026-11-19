@@ -205,35 +205,52 @@ func isLoopbackRedirect(u *url.URL) bool {
 	return true
 }
 
+type cachedCIMD struct {
+	doc       *clientMetadata
+	fetchedAt time.Time
+}
+
 func (g *Gateway) fetchCIMD(ctx context.Context, clientID string) (*clientMetadata, error) {
-	if cached, ok := g.cimdCache.Get(clientID); ok {
-		return cached, nil
+	stale, hasStale := g.cimdCache.Get(clientID)
+	if hasStale && g.now().Before(stale.fetchedAt.Add(defaultCIMDTTL)) {
+		return stale.doc, nil
 	}
 
 	if err := validateHTTPURL(clientID, false); err != nil {
 		return nil, fmt.Errorf("invalid client_id URL: %w", err)
 	}
 
+	fallbackOrErr := func(err error) (*clientMetadata, error) {
+		if hasStale && g.now().Before(stale.fetchedAt.Add(cimdStaleMax)) {
+			slog.Warn("CIMD fetch failed, serving stale document",
+				"client_id", sanitizeLogValue(clientID),
+				"age", g.now().Sub(stale.fetchedAt).Round(time.Second).String(),
+				"error", sanitizeLogValue(err.Error()))
+			return stale.doc, nil
+		}
+		return nil, err
+	}
+
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, clientID, nil)
 	if err != nil {
-		return nil, err
+		return fallbackOrErr(err)
 	}
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("User-Agent", "fleet-gateway/1.0")
 
 	resp, err := g.cfg.HTTPClient.Do(req) //nolint:gosec // URL validated against AllowedClientIDs allowlist
 	if err != nil {
-		return nil, err
+		return fallbackOrErr(err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected CIMD status %d", resp.StatusCode)
+		return fallbackOrErr(fmt.Errorf("unexpected CIMD status %d", resp.StatusCode))
 	}
 
 	var doc clientMetadata
 	if err := json.NewDecoder(io.LimitReader(resp.Body, maxCIMDBodyBytes)).Decode(&doc); err != nil {
-		return nil, fmt.Errorf("decode CIMD: %w", err)
+		return fallbackOrErr(fmt.Errorf("decode CIMD: %w", err))
 	}
 	if doc.ClientID != clientID {
 		return nil, errors.New("CIMD client_id does not match request URL")
@@ -248,7 +265,7 @@ func (g *Gateway) fetchCIMD(ctx context.Context, clientID string) (*clientMetada
 		doc.ClientName = doc.ClientID
 	}
 
-	g.cimdCache.Set(clientID, &doc, defaultCIMDTTL)
+	g.cimdCache.Set(clientID, cachedCIMD{doc: &doc, fetchedAt: g.now()}, cimdStaleMax)
 	return &doc, nil
 }
 
