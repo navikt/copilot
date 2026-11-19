@@ -866,12 +866,49 @@ func cmdMCPEnable(names []string, clientsOf func() ([]string, error), topts mcpT
 	return nil
 }
 
+// mcpBackfillOpenCodeProtocol adds a missing protocol to OpenCode entries of
+// these registry servers, one line per entry it changes.
+func mcpBackfillOpenCodeProtocol(entries []providerpkg.MCPServerEntry) {
+	if len(entries) == 0 {
+		return
+	}
+	byName := make(map[string]providerpkg.MCPServerEntry, len(entries))
+	for _, e := range entries {
+		byName[e.Name] = e
+	}
+	for _, key := range providerpkg.MCPConfigKeys(providerpkg.MCPClientOpenCode) {
+		name := providerpkg.OpenCodeRegistryNameFor(key, entries)
+		if name == "" {
+			continue
+		}
+		e, ok := byName[name]
+		if !ok {
+			continue
+		}
+		p, ch, err := providerpkg.BackfillOpenCodeProtocol(key, e)
+		if err != nil {
+			if errors.Is(err, providerpkg.ErrMCPConfigHasComments) {
+				continue
+			}
+			fmt.Printf("%s Could not set protocol on %s: %v\n", yellow("⚠"), safe(key, 64), err)
+			continue
+		}
+		if p == "" {
+			continue
+		}
+		fmt.Printf("%s Set protocol %q on %s in %s, from the registry\n", green("✓"), p, safe(key, 64), ch.Path)
+	}
+}
+
 // mcpEnableIn writes the server into the client's config with the chosen
 // tools. An entry already there is kept, unless the user chose tools
 // (explicit): then only its tools change. The bool is whether it wrote a
 // new entry.
 func mcpEnableIn(client string, e providerpkg.MCPServerEntry, c providerpkg.MCPToolChoice, explicit bool) (bool, error) {
 	key := providerpkg.MCPConfigKeyFor(client, e)
+	if client == providerpkg.MCPClientOpenCode && key != "" {
+		mcpBackfillOpenCodeProtocol([]providerpkg.MCPServerEntry{e})
+	}
 	if key != "" && explicit {
 		ch, err := providerpkg.SetMCPServerTools(client, key, e, c)
 		if errors.Is(err, providerpkg.ErrMCPConfigHasComments) {

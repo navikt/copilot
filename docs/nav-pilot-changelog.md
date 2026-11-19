@@ -4,9 +4,14 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ## 2026-11-18
 
+### Strengere sjekk av lokale MCP-servere i OpenCode
+
+- **OpenCode-oppstart**: En lokal MCP-server som starter en pakke med `npx`, `bunx`, `pnpm dlx` eller `yarn dlx` og `-p`/`--package`, godtas nå bare når ingen kommando følger etter pakken. Står det en kommando etter, slår nav-pilot av serveren. Skriv i stedet pakkenavnet direkte, for eksempel `npx @playwright/mcp` (#2405).
+
 ### Nav-servere i OpenCode bruker ny MCP-protokoll
 
 - **`nav-pilot mcp enable` for OpenCode**: nav-pilot setter `protocol` på nye MCP-oppføringer ut fra feltet `protocolVersions` i MCP-registeret. En server som bare støtter 2026-07-28 (for eksempel fleet-gateway) får `"protocol": "2026-07-28"`. En server som også støtter eldre revisjoner får `"auto"`, og det samme gjør servere på nav.no når registeret ikke oppgir versjoner. Det gjelder bare OpenCode 2.x, som ellers starter med den eldre protokollen. En oppføring du har lagt til selv, og en `protocol` du har satt selv, endres aldri (#2367).
+- **Eksisterende OpenCode-oppføringer får `protocol`**: `nav-pilot mcp enable` og `nav-pilot sync --apply` legger til `protocol` på en OpenCode-oppføring som mangler feltet, ut fra `protocolVersions` i registeret. Bare 2026-07-28 gir `"2026-07-28"`, 2026-07-28 sammen med eldre revisjoner gir `"auto"`, og det samme gjør servere på nav.no når registeret ikke oppgir versjoner. Ellers legges ingenting til. En `protocol` du har satt selv, endres aldri. nav-pilot skriver én linje når den legger til feltet (#2395).
 
 ## 2026-11-16
 

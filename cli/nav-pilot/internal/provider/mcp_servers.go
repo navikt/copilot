@@ -350,6 +350,52 @@ func SetMCPServer(client, name string, entry json.RawMessage, e MCPServerEntry, 
 	})
 }
 
+// BackfillOpenCodeProtocol adds the registry protocol to the OpenCode entry
+// under key when it has none. It uses the same rule as creation
+// (openCodeProtocol), so an https nav.no remote without protocolVersions gets
+// "auto"; an existing protocol, a non-remote entry, or any other remote without
+// 2026-07-28 changes nothing.
+func BackfillOpenCodeProtocol(key string, e MCPServerEntry) (string, MCPConfigChange, error) {
+	if key == "" {
+		return "", MCPConfigChange{}, nil
+	}
+	var p string
+	ch, err := editMCPConfig(MCPClientOpenCode, key, func(top, servers *jsonObject) (json.RawMessage, bool, error) {
+		raw, ok := servers.vals[key]
+		if !ok {
+			return nil, false, nil
+		}
+		entry, err := parseJSONObject(raw)
+		if err != nil {
+			return nil, false, nil
+		}
+		if _, has := entry.vals["protocol"]; has {
+			return nil, false, nil
+		}
+		var typ string
+		if err := json.Unmarshal(entry.vals["type"], &typ); err != nil || typ != "remote" {
+			return nil, false, nil
+		}
+		var u string
+		_ = json.Unmarshal(entry.vals["url"], &u)
+		if !openCodeMatchesRemoteURL(e, u) {
+			return nil, false, nil
+		}
+		p = openCodeProtocol(e.ProtocolVersions, u)
+		if p == "" {
+			return nil, false, nil
+		}
+		v, _ := json.Marshal(p)
+		entry.set("protocol", v)
+		servers.set(key, entry.marshal())
+		return nil, true, nil
+	})
+	if err != nil || !ch.Changed {
+		return "", ch, err
+	}
+	return p, ch, nil
+}
+
 // RemoveMCPServer drops name from the client's config. Absent is no change.
 // For OpenCode its permission rules go too (dropOpenCodeRules); tools is the
 // registry's tool list for it, nil when unknown.
@@ -808,6 +854,20 @@ func registryOf(entries []MCPServerEntry) mcpRegistry {
 	return reg
 }
 
+func openCodeMatchesRemoteURL(e MCPServerEntry, rawURL string) bool {
+	if rawURL == "" {
+		return false
+	}
+	nu := normalizeMCPURL(rawURL)
+	for _, r := range e.Remotes {
+		if r.URL != "" && normalizeMCPURL(r.URL) == nu {
+			return true
+		}
+	}
+	// enable writes GitHub's read-only endpoint; it is the same server.
+	return e.GitHubReadonlyURL() != "" && IsGitHubReadonlyURL(rawURL)
+}
+
 func openCodeRegistryName(entries []MCPServerEntry, key string, s mcpServer) string {
 	pkg := localPackage(s.Command)
 	if i := strings.LastIndex(pkg, "@"); i > 0 {
@@ -817,13 +877,7 @@ func openCodeRegistryName(entries []MCPServerEntry, key string, s mcpServer) str
 		if e.Name == key {
 			return e.Name
 		}
-		for _, r := range e.Remotes {
-			if s.Type == "remote" && normalizeMCPURL(r.URL) == normalizeMCPURL(s.URL) {
-				return e.Name
-			}
-		}
-		// enable writes GitHub's read-only endpoint; it is the same server.
-		if ro := e.GitHubReadonlyURL(); s.Type == "remote" && ro != "" && IsGitHubReadonlyURL(s.URL) {
+		if s.Type == "remote" && openCodeMatchesRemoteURL(e, s.URL) {
 			return e.Name
 		}
 		for _, p := range e.Packages {

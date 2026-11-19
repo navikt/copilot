@@ -65,9 +65,13 @@ In route files (`version: 2`) every route lists the tools it allows in `tools: [
 
 On every route, `passAllTools` included, a `GET` or `DELETE` with a body gets `400` and is logged as `deny`/`ambiguous`: MCP defines no body for them, so a `tools/call` sent that way is never forwarded.
 
+The gateway authenticates the user and checks the tool against the route allowlist. It does not decide which users may use a team's server: the OBO token carries only the groups the team's app lists in `azure.application.claims.groups`, and the team's server checks them (same model as Wonderwall). Emergency stop: `nais app set env` with `GATEWAY_DISABLED=true` stops every route in about 35 s (34 s measured in dev, 2026-11-18); see the [runbook](docs/runbook.md).
+
 Key rotation takes two deploys (append the new key last, then promote it) and keeps the old key for 30+ days. See the [runbook](docs/runbook.md). Unknown or tampered values fail closed.
 
 Empty `ALLOWED_CLIENT_IDS` or `ALLOWED_REDIRECT_URIS` fails closed at startup.
+
+Fetched CIMD documents are cached for 5 minutes; if a refresh fails with a transport, non-200 status, or decode error, the last valid document is served for up to 24 hours.
 
 ## Memory and limits
 
@@ -98,13 +102,14 @@ Prometheus scrapes `/metrics` on port 9090. That port has no ingress, so the pub
 | `fleet_gateway_mcp_requests_total` | `route`, `outcome`, `decision` | MCP calls. `outcome` matches the `audit mcp` log line, for example `ok`, `upstream_token_error`, `store_error` or `upstream_502` |
 | `fleet_gateway_mcp_request_duration_seconds` | `route` | Time per MCP call, token exchange and upstream included. An SSE stream counts until it ends |
 | `fleet_gateway_routes_loaded` | none | Routes loaded at startup |
+| `fleet_gateway_rate_limited_total` | `endpoint` | Requests rejected with `429` by the in-memory rate limiter on `authorize`, `token`, `revoke`, or `register` |
 
 Useful panels in Grafana:
 
 - Latency per route: `histogram_quantile(0.95, sum by (le, route) (rate(fleet_gateway_mcp_request_duration_seconds_bucket[5m])))`
 - Failures per route: `sum by (route, outcome) (rate(fleet_gateway_mcp_requests_total{outcome!="ok"}[5m]))`
 
-Alerts are in `.nais/app.yaml` and go to `#github-copilot-alerts`: no ready pods, more than 2 restarts in 15 minutes, more than 10 % 5xx (only with over 20 requests in 5 minutes), and more than 5 `upstream_token_error` in 10 minutes. An idle SSE stream that ends in `stream_error` does not trigger them, since its status 200 has already been sent. The alert series start at zero at startup, so the first burst counts. To test in dev, scale to zero (`kubectl -n copilot scale deploy fleet-gateway --replicas=0`). `FleetGatewayNoReadyPods` fires after 2 minutes.
+Alerts are in `.nais/app.yaml` and go to `#github-copilot-alerts`: no ready pods, more than 2 restarts in 15 minutes, more than 10 % 5xx (only with over 20 requests in 5 minutes), and more than 5 `upstream_token_error` in 10 minutes. An idle SSE stream that ends in `stream_error` does not trigger them, since its status 200 has already been sent. The alert series start at zero at startup, so the first burst counts. To test in dev, stop the app with `nais app stop fleet-gateway -t copilot -e dev-gcp` (it asks for confirmation in an interactive terminal) and restore it with `nais app set replicas fleet-gateway --min 1 --max 2 -t copilot -e dev-gcp`. `FleetGatewayNoReadyPods` fires after 2 minutes; in the 2026-11-18 drill it reached Slack after about 3.5 minutes (an upper bound). The `AlertmanagerConfig` in the manifest names `#github-copilot-alerts`, while the runbook notes that alerts follow the channel set per environment in Nais Console. Which of the two decides is not verified, so check both channels. See the [runbook](docs/runbook.md).
 
 ## Audit record
 
@@ -130,6 +135,14 @@ The audit record logs `action.name` and `action.properties.tool` as they are whe
 Accepted risk (owner decision 2026-11-17): consent is remembered for 30 days and loopback redirect URIs accept any port. Another process on the developer's machine can start a login as an allowlisted public client and get a token without a click, through browser SSO and the remembered consent. PKCE does not help, because the attacker starts the flow. This is the same threat model as public-client logins in the az and gh CLIs. Mitigations: tokens are scoped to fleet-gateway, sessions are capped at 12 hours, and tokens can be revoked.
 
 DCR clients must register `grant_types` as `[authorization_code]` (the default) or `[authorization_code, refresh_token]`. Only the latter get a gateway refresh token.
+
+### Rate limits
+
+Each unauthenticated endpoint, `/authorize`, `/token`, `/revoke`, and `/register`, has its own in-memory rate limiter. By default each limiter allows 30 requests per minute per IP via `RATE_LIMIT_REQUESTS`, 300 requests per minute globally via `RATE_LIMIT_GLOBAL_REQUESTS`, and up to 4096 IP buckets via `RATE_LIMIT_MAP_CAP`. Traffic to one endpoint cannot exhaust another endpoint's budget. When the IP table stays full after sweeping expired windows, a new IP evicts the bucket with the earliest reset time instead of failing closed, while the global ceiling still applies.
+
+### Client IP
+
+The rate-limit key is the last valid IP in `X-Forwarded-For`, which the Nais ingress appends, falling back to `RemoteAddr` when absent or unparseable. Earlier client-supplied entries are ignored. This is only safe because the pod is reachable only through the ingress, and is not yet verified on an external host (#2360).
 
 ## Development
 

@@ -12,16 +12,21 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
-	"slices"
 	"strconv"
 	"time"
 )
 
 const (
 	rtSealAAD = "fgw-rt-v1"
-	// maxRefreshTokenLen fits a sealed RT carrying ~200 Entra group GUIDs plus the
-	// Entra RT and metadata (base64 expands by 4/3). Still bounded.
-	maxRefreshTokenLen = 16 * 1024
+	// maxRefreshTokenLen is the expected upper bound for newly issued sealed
+	// refresh tokens without groups: a ~2 KiB Entra RT plus metadata seals and
+	// base64-encodes to ~3.1 KiB (3148 B measured), so 4 KiB leaves headroom
+	// (~2x over a typical ~1 KiB Entra RT).
+	maxRefreshTokenLen = 4 * 1024
+	// maxLegacyRefreshTokenLen keeps the prior 16 KiB read-side cap so refresh
+	// tokens issued before groups were dropped (up to ~200 group GUIDs) are not
+	// rejected until they expire.
+	maxLegacyRefreshTokenLen = 16 * 1024
 	// refreshPendingTTL is how long an in-flight refresh blocks concurrent use of
 	// the same RT; after a transient upstream failure it is also the retry delay.
 	refreshPendingTTL = 60 * time.Second
@@ -33,7 +38,6 @@ type gatewaySession struct {
 	EntraToken   string    `json:"entra_token,omitempty"`
 	RefreshToken string    `json:"refresh_token,omitempty"` //nolint:gosec // serialized only into SessionStore (sealed with RT_KEYS in Postgres)
 	NAVIdent     string    `json:"nav_ident"`
-	Groups       []string  `json:"groups,omitempty"`
 	IssuedAt     time.Time `json:"issued_at"`
 	Expiry       time.Time `json:"expiry"`
 }
@@ -49,16 +53,15 @@ type issuedCode struct {
 }
 
 type rtPayload struct {
-	V        int      `json:"v"`
-	JTI      string   `json:"jti"`
-	FID      string   `json:"fid"` // token family, constant across rotations
-	IAT      int64    `json:"iat"`
-	EXP      int64    `json:"exp"` // absolute session end, fixed at issue time
-	ClientID string   `json:"client_id"`
-	Resource string   `json:"resource"`
-	NAVIdent string   `json:"nav_ident"`
-	Groups   []string `json:"groups,omitempty"`
-	EntraRT  string   `json:"entra_rt"` //nolint:gosec // encrypted inside AES-GCM sealed client refresh token
+	V        int    `json:"v"`
+	JTI      string `json:"jti"`
+	FID      string `json:"fid"` // token family, constant across rotations
+	IAT      int64  `json:"iat"`
+	EXP      int64  `json:"exp"` // absolute session end, fixed at issue time
+	ClientID string `json:"client_id"`
+	Resource string `json:"resource"`
+	NAVIdent string `json:"nav_ident"`
+	EntraRT  string `json:"entra_rt"` //nolint:gosec // encrypted inside AES-GCM sealed client refresh token
 }
 
 func (g *Gateway) sealRefreshToken(p rtPayload) (string, error) {
@@ -254,6 +257,17 @@ func (g *Gateway) handleAuthorizationCodeGrant(w http.ResponseWriter, r *http.Re
 		return
 	}
 
+	userGone, err := g.userRevoked(r.Context(), issued.Session.NAVIdent, issued.Session.IssuedAt)
+	if err != nil {
+		slog.Warn("user lockout check failed", "error", err)
+		bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store unavailable")
+		return
+	}
+	if userGone {
+		bad(http.StatusBadRequest, "invalid_grant", "session revoked")
+		return
+	}
+
 	now := g.now()
 	if issued.Session.IssuedAt.IsZero() {
 		issued.Session.IssuedAt = now
@@ -298,7 +312,6 @@ func (g *Gateway) handleAuthorizationCodeGrant(w http.ResponseWriter, r *http.Re
 			ClientID: issued.Session.ClientID,
 			Resource: issued.Session.Resource,
 			NAVIdent: issued.Session.NAVIdent,
-			Groups:   issued.Session.Groups,
 			EntraRT:  issued.EntraRT,
 		})
 		if err != nil {
@@ -338,7 +351,7 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 	}()
 
 	rawRT := r.PostFormValue("refresh_token")
-	if rawRT == "" || len(rawRT) > maxRefreshTokenLen {
+	if rawRT == "" || len(rawRT) > maxLegacyRefreshTokenLen {
 		outcome = "invalid_request"
 		bad(http.StatusBadRequest, "invalid_grant", "invalid refresh token")
 		return
@@ -404,6 +417,16 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 		outcome = "store_error"
 		slog.Warn("refresh token denylist failed", "error", err)
 		bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store unavailable")
+	}
+	userGone, err := g.userRevoked(r.Context(), payload.NAVIdent, issuedAt)
+	if err != nil {
+		unavailable(err)
+		return
+	}
+	if userGone {
+		outcome = "user_revoked"
+		bad(http.StatusBadRequest, "invalid_grant", "session revoked")
+		return
 	}
 	famKey := "fam:" + payload.FID
 	revoked, err := g.store.IsRevoked(r.Context(), famKey)
@@ -569,7 +592,6 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 		ClientID: payload.ClientID,
 		Resource: payload.Resource,
 		NAVIdent: payload.NAVIdent,
-		Groups:   slices.Clone(payload.Groups),
 		EntraRT:  newEntraRT,
 	})
 	if err != nil {
@@ -584,7 +606,6 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 		EntraToken:   newAT,
 		RefreshToken: "",
 		NAVIdent:     payload.NAVIdent,
-		Groups:       slices.Clone(payload.Groups),
 		IssuedAt:     issuedAt,
 		Expiry:       sessExpiry,
 	}
@@ -663,7 +684,7 @@ func (g *Gateway) revokeHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	token := r.PostFormValue("token")
-	if token != "" && len(token) <= maxRefreshTokenLen {
+	if token != "" && len(token) <= maxLegacyRefreshTokenLen {
 		tokenHash := hashToken(token)
 		sess, ok, err := g.getSession(r.Context(), tokenHash)
 		if err != nil {

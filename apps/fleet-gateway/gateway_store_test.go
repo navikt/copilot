@@ -542,3 +542,124 @@ func TestSealedSessionUnknownKID_Returns401(t *testing.T) {
 		t.Fatalf("expected row with unknown kid to be kept for key rollout, got ok=%v err=%v", ok, err)
 	}
 }
+
+func TestPendingAndCode_HashedKeysAndPlaintextFallback(t *testing.T) {
+	te := newTestEnv(t)
+	ctx := context.Background()
+
+	t.Run("putPending and popPending hash key", func(t *testing.T) {
+		key := "plain-pending-state"
+		want := &pendingAuth{
+			ClientID:    te.clientID,
+			RedirectURI: te.redirectURI,
+			State:       "client-state",
+			Resource:    te.resource,
+		}
+		if err := te.gw.putPending(ctx, kindPendingEntra, key, want); err != nil {
+			t.Fatalf("putPending: %v", err)
+		}
+		if _, ok, err := te.gw.store.Get(ctx, kindPendingEntra, key); err != nil || ok {
+			t.Fatalf("expected no row under plaintext key, got ok=%v err=%v", ok, err)
+		}
+		if _, ok, err := te.gw.store.Get(ctx, kindPendingEntra, hashToken(key)); err != nil || !ok {
+			t.Fatalf("expected row under hashToken(key), got ok=%v err=%v", ok, err)
+		}
+
+		got, ok, err := te.gw.popPending(ctx, kindPendingEntra, key)
+		if err != nil || !ok {
+			t.Fatalf("popPending: ok=%v err=%v", ok, err)
+		}
+		if got.ClientID != want.ClientID || got.State != want.State {
+			t.Fatalf("popPending mismatch: got %+v, want %+v", got, want)
+		}
+		if _, ok, err := te.gw.popPending(ctx, kindPendingEntra, key); err != nil || ok {
+			t.Fatalf("expected second popPending to miss, got ok=%v err=%v", ok, err)
+		}
+	})
+
+	t.Run("putCode and popCode hash key", func(t *testing.T) {
+		code := "plain-auth-code"
+		want := &issuedCode{
+			ClientID:    te.clientID,
+			RedirectURI: te.redirectURI,
+			Resource:    te.resource,
+			Session: gatewaySession{
+				NAVIdent: "Z123456",
+			},
+		}
+		if err := te.gw.putCode(ctx, code, want); err != nil {
+			t.Fatalf("putCode: %v", err)
+		}
+		if _, ok, err := te.gw.store.Get(ctx, kindCode, code); err != nil || ok {
+			t.Fatalf("expected no row under plaintext code, got ok=%v err=%v", ok, err)
+		}
+		if _, ok, err := te.gw.store.Get(ctx, kindCode, hashToken(code)); err != nil || !ok {
+			t.Fatalf("expected row under hashToken(code), got ok=%v err=%v", ok, err)
+		}
+
+		got, ok, err := te.gw.popCode(ctx, code)
+		if err != nil || !ok {
+			t.Fatalf("popCode: ok=%v err=%v", ok, err)
+		}
+		if got.ClientID != want.ClientID || got.Session.NAVIdent != want.Session.NAVIdent {
+			t.Fatalf("popCode mismatch: got %+v, want %+v", got, want)
+		}
+		if _, ok, err := te.gw.popCode(ctx, code); err != nil || ok {
+			t.Fatalf("expected second popCode to miss, got ok=%v err=%v", ok, err)
+		}
+	})
+
+	t.Run("popPending falls back to plaintext key", func(t *testing.T) {
+		key := "legacy-plain-consent"
+		want := &pendingAuth{
+			ClientID: te.clientID,
+			State:    "legacy-state",
+		}
+		raw, err := json.Marshal(want)
+		if err != nil {
+			t.Fatalf("marshal: %v", err)
+		}
+		if putErr := te.gw.store.Put(ctx, kindPendingConsent, key, raw, defaultPendingTTL); putErr != nil {
+			t.Fatalf("store.Put: %v", putErr)
+		}
+
+		got, ok, err := te.gw.popPending(ctx, kindPendingConsent, key)
+		if err != nil || !ok {
+			t.Fatalf("popPending fallback: ok=%v err=%v", ok, err)
+		}
+		if got.ClientID != want.ClientID || got.State != want.State {
+			t.Fatalf("popPending fallback mismatch: got %+v, want %+v", got, want)
+		}
+		if _, ok, err := te.gw.store.Get(ctx, kindPendingConsent, key); err != nil || ok {
+			t.Fatalf("expected plaintext row to be popped, got ok=%v err=%v", ok, err)
+		}
+	})
+
+	t.Run("popCode falls back to plaintext key", func(t *testing.T) {
+		code := "legacy-plain-code"
+		want := &issuedCode{
+			ClientID: te.clientID,
+			Session: gatewaySession{
+				NAVIdent: "Z654321",
+			},
+		}
+		raw, err := json.Marshal(want)
+		if err != nil {
+			t.Fatalf("marshal: %v", err)
+		}
+		if putErr := te.gw.store.Put(ctx, kindCode, code, raw, defaultCodeTTL); putErr != nil {
+			t.Fatalf("store.Put: %v", putErr)
+		}
+
+		got, ok, err := te.gw.popCode(ctx, code)
+		if err != nil || !ok {
+			t.Fatalf("popCode fallback: ok=%v err=%v", ok, err)
+		}
+		if got.ClientID != want.ClientID || got.Session.NAVIdent != want.Session.NAVIdent {
+			t.Fatalf("popCode fallback mismatch: got %+v, want %+v", got, want)
+		}
+		if _, ok, err := te.gw.store.Get(ctx, kindCode, code); err != nil || ok {
+			t.Fatalf("expected plaintext code row to be popped, got ok=%v err=%v", ok, err)
+		}
+	})
+}

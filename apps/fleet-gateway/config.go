@@ -28,12 +28,13 @@ const (
 	defaultConsentTTL                       = 30 * 24 * time.Hour
 	defaultSessionTTL                       = time.Hour
 	defaultCIMDTTL                          = 5 * time.Minute
+	cimdStaleMax                            = 24 * time.Hour
 	defaultOutboundTimeout                  = 10 * time.Second
 	defaultUpstreamTimeout                  = 60 * time.Second // MCP tool calls; headers and body each get this long
 	defaultMCPMaxInFlight                   = 16
 	defaultMCPMaxInFlightPerRoute           = 8
 	defaultMCPMaxSSE                        = 64 // ~40 KiB each: a 32 KiB read buffer plus the connection
-	defaultPendingCap                       = 1024
+	defaultPendingCap                       = 4096
 	defaultCodeCap                          = 1024
 	defaultSessionCap                       = 4096
 	defaultMCPSessionUserCap                = 64
@@ -124,6 +125,7 @@ type Config struct {
 	ConsentTTL              time.Duration
 	RTKeys                  string
 	RTStorage               string
+	LockoutKey              string
 	Store                   SessionStore
 }
 
@@ -235,6 +237,7 @@ func loadConfigFromEnv() (*Config, error) {
 		ConsentTTL:              getEnvDuration("CONSENT_TTL", defaultConsentTTL),
 		RTKeys:                  rtKeys,
 		RTStorage:               rtStorage,
+		LockoutKey:              strings.TrimSpace(os.Getenv("LOCKOUT_KEY")),
 	}
 
 	if err := validateConfig(cfg); err != nil {
@@ -324,6 +327,10 @@ func validateConfig(cfg *Config) error {
 	}
 	if len(cfg.CookieSecret) < 32 {
 		return errors.New("cookie signing secret must be at least 32 bytes")
+	}
+	cfg.LockoutKey = strings.TrimSpace(cfg.LockoutKey)
+	if cfg.LockoutKey != "" && len(cfg.LockoutKey) < 32 {
+		return errors.New("LOCKOUT_KEY must be at least 32 bytes")
 	}
 	if cfg.HTTPClient == nil {
 		cfg.HTTPClient = newHardenedHTTPClient(defaultOutboundTimeout)

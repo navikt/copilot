@@ -331,6 +331,7 @@ func validMCPPackageSpec(pkg string) bool {
 // non-flag argument of a package runner (npx, bunx, uvx, pnpm dlx, yarn dlx,
 // pipx run), or the command itself. Only that position counts, so a package
 // name passed to some other program as data does not make it that package.
+// With a package flag, no further operand is allowed because it would choose the executable.
 func localPackage(command []string) string {
 	if len(command) == 0 || strings.HasPrefix(command[0], ".") {
 		return ""
@@ -363,9 +364,10 @@ func localPackage(command []string) string {
 	for k := 0; k < len(rest); k++ {
 		a := rest[k]
 		if !strings.HasPrefix(a, "-") {
-			if pkg == "" {
-				pkg = strings.ToLower(a)
+			if pkg != "" {
+				return ""
 			}
+			pkg = strings.ToLower(a)
 			for _, rem := range rest[k+1:] {
 				if rem == "-p" || rem == "--package" || rem == "-c" || rem == "--call" ||
 					strings.HasPrefix(rem, "--package=") || strings.HasPrefix(rem, "--call=") {
