@@ -39,16 +39,20 @@ func TestInFlightCapRejectsWithAudit(t *testing.T) {
 		<-release
 		writeJSON(w, http.StatusOK, map[string]any{"jsonrpc": "2.0", "id": 1, "result": map[string]any{}})
 	})
-	token := te.obtainAccessTokenForResource(te.resource)
+	tokenA := te.obtainAccessTokenForResource(te.resource)
+	te.mu.Lock()
+	te.navIdent = "B654321"
+	te.mu.Unlock()
+	tokenB := te.obtainAccessTokenForResource(te.resource)
 	ts := httptest.NewServer(te.handler)
 	defer ts.Close()
 
 	first := make(chan int, 1)
-	go func() { first <- capPost(t, ts, token, "") }()
+	go func() { first <- capPost(t, ts, tokenA, "") }()
 	<-entered
 	shed := httpRequestsTotal.WithLabelValues("503", "cap")
 	beforeShed := testutil.ToFloat64(shed)
-	if code := capPost(t, ts, token, ""); code != http.StatusServiceUnavailable {
+	if code := capPost(t, ts, tokenB, ""); code != http.StatusServiceUnavailable {
 		t.Fatalf("over cap: code %d, want 503", code)
 	}
 	// Labelled so FleetGatewayHigh5xxRate does not count the cap as a failure.
@@ -62,7 +66,7 @@ func TestInFlightCapRejectsWithAudit(t *testing.T) {
 	if !strings.Contains(logBuf.String(), `"msg":"audit mcp"`) || !strings.Contains(logBuf.String(), `"outcome":"over_capacity"`) {
 		t.Fatalf("no audit mcp line with outcome over_capacity:\n%s", logBuf.String())
 	}
-	if code := capPost(t, ts, token, ""); code != http.StatusOK {
+	if code := capPost(t, ts, tokenA, ""); code != http.StatusOK {
 		t.Fatalf("after release: code %d, want 200 (slot not freed)", code)
 	}
 }
@@ -73,6 +77,7 @@ func TestSSEStreamsDoNotStarveToolCalls(t *testing.T) {
 	te := newTestEnv(t)
 	te.gw.cfg.MCPMaxInFlight = 2
 	te.gw.cfg.MCPMaxSSE = 16
+	te.gw.cfg.MCPMaxSSEPerUser = 32
 	te.gw.cfg.SSEMaxDuration = 10 * time.Second
 	te.gw.cfg.SSEIdleTimeout = 10 * time.Second
 	te.handler = te.gw.routes()
@@ -588,6 +593,7 @@ func TestSSEEarlyFlushRetryUpstreamGetsFullBody(t *testing.T) {
 func TestSSEStreamsDoNotRetainRequestBody(t *testing.T) {
 	te := newTestEnv(t)
 	te.gw.cfg.MCPMaxSSE = 64
+	te.gw.cfg.MCPMaxSSEPerUser = 64
 	te.gw.cfg.SSEMaxDuration = 10 * time.Second
 	te.gw.cfg.SSEIdleTimeout = 10 * time.Second
 	te.handler = te.gw.routes()

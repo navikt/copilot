@@ -272,8 +272,24 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 		}
 
 		// After auth, so bogus bearers cannot take slots; before the body read,
-		// since the cap bounds buffered memory. The route cap comes first so one
+		// since the cap bounds buffered memory. The per-user cap comes first so
+		// one user cannot fill a route or pod; the route cap comes next so one
 		// slow upstream cannot hold every global slot.
+		userKey := g.mcpSessionUserKey(sess.NAVIdent)
+		releaseUserSlot, ok := g.userInFlight.tryAcquire(userKey)
+		if !ok {
+			outcome = "user_cap"
+			decision = "deny"
+			decisionReason = "user_cap"
+			markShed(w, "user_cap")
+			w.Header().Set("Retry-After", "1")
+			writeJSON(w, http.StatusServiceUnavailable, map[string]string{
+				"error":   "too_many_requests",
+				"message": "too many concurrent MCP requests for this user; retry shortly",
+			})
+			return
+		}
+		defer releaseUserSlot()
 		releaseRouteSlot, ok := routeInFlight.tryAcquire()
 		if !ok {
 			outcome = "over_capacity"
@@ -288,7 +304,7 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 			return
 		}
 		defer releaseGlobalSlot()
-		releaseSlot := func() { releaseGlobalSlot(); releaseRouteSlot() }
+		releaseSlot := func() { releaseGlobalSlot(); releaseRouteSlot(); releaseUserSlot() }
 
 		r.Body = http.MaxBytesReader(w, r.Body, maxMCPRequestBodyBytes)
 		reqBody, err := io.ReadAll(r.Body)
@@ -355,7 +371,21 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 		// A request that accepts SSE holds one until the response proves it JSON.
 		releaseStream, streamReserved := func() {}, false
 		if r.Method == http.MethodGet || acceptsEventStream(r.Header) {
-			release, ok := g.sseStreams.tryAcquire()
+			releaseUserStream, ok := g.userSSE.tryAcquire(userKey)
+			if !ok {
+				outcome = "user_sse_cap"
+				decision = "deny"
+				decisionReason = "user_sse_cap"
+				markShed(w, "user_sse_cap")
+				w.Header().Set("Retry-After", "1")
+				writeJSON(w, http.StatusServiceUnavailable, map[string]string{
+					"error":   "too_many_requests",
+					"message": "too many concurrent SSE streams for this user; retry shortly",
+				})
+				return
+			}
+			defer releaseUserStream()
+			releaseGlobalStream, ok := g.sseStreams.tryAcquire()
 			if !ok {
 				// Shed, not a decision: same as over_capacity above.
 				decision, decisionReason = "", ""
@@ -363,8 +393,9 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 				writeOverCapacity(w, "SSE streams")
 				return
 			}
-			releaseStream, streamReserved = release, true
-			defer releaseStream()
+			defer releaseGlobalStream()
+			releaseStream = func() { releaseGlobalStream(); releaseUserStream() }
+			streamReserved = true
 		}
 
 		if g.TeamTokens == nil {

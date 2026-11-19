@@ -35,7 +35,9 @@ type Gateway struct {
 	proxyClient  *http.Client
 	refreshWait  time.Duration // how long a concurrent refresh waits for the winner's grace pair
 	inFlight     slots         // buffered MCP calls; bounds memory (see README, Memory and limits)
+	userInFlight *userSlots    // concurrent buffered MCP calls per user on this pod
 	sseStreams   slots         // open SSE response streams; they buffer nothing, so get their own cap
+	userSSE      *userSlots    // concurrent open SSE response streams per user on this pod
 
 	wellKnownMu         sync.RWMutex
 	wellKnownGroup      singleflight.Group
@@ -232,7 +234,9 @@ func (g *Gateway) routes() http.Handler {
 	}
 	// Shared by all MCP routes.
 	g.inFlight = make(slots, g.cfg.MCPMaxInFlight)
+	g.userInFlight = &userSlots{max: min(g.cfg.MCPMaxInFlightPerUser, g.cfg.MCPMaxInFlight)}
 	g.sseStreams = make(slots, g.cfg.MCPMaxSSE)
+	g.userSSE = &userSlots{max: g.cfg.MCPMaxSSEPerUser}
 	for _, route := range g.cfg.Routes {
 		mux.HandleFunc(route.Route, g.mcpHandler(route))
 	}
