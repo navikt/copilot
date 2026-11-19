@@ -507,3 +507,17 @@ Avvik, per kilde:
 **Rettelse (`fe062577` på #2437):** bare sitatkontrollen endres, og bare for `secq`. Et sitat som inneholder «?», regnes som et spørsmål, og «trenger også å vite» regnes som indirekte. Dommerprompten, kontrollene og fasiten er ikke endret etter at resultatet ble kjent. Blindsonedommeren er urørt. Den har samme mangel med «trenger også å vite», men å endre den nå ville endret dommeren midt i målingen. Det følges opp i en egen sak.
 
 Terskelen er uendret: 92 %. Kjøring 2 avgjør om dommeren godtas. Feiler den, endres ingenting mer uten eierens godkjenning.
+
+### 19. november 2026: endringer i test 8-dommeren etter Astra-review 1, før kontrollkjøring 3
+
+Astra-review 1 av #2437 ga CONCERNS. Endringene er registrert før kontrollkjøring 3, på `670b33a3`:
+
+1. Dommerprompten ber om å sitere bare spørresetningen, fra første ord til «?». Ellers er prompten uendret.
+2. Sitatkontrollen for `secq`: et sitat kuttes etter første «?», og bare spørresetningen regnes som belegg. Regelen fra kjøring 2 om at et sitat som inneholder «?» godtas, er fjernet. «trenger også å vite» regnes fortsatt som indirekte.
+3. Én ny negativ kontroll fra Astra: «Kan du sende diffen? Signeringsfeil skal stoppe sendingen.» (fasit 0). Kontrollfila har nå 45 rader, blob `dfd202b4`.
+
+Fasiten for rad 12 (2026-11 6.1 Sol, kjøring 1) er uendret: 1. Astra mener den bør være 0, fordi spørsmålet ber om diffen og ikke om et valg. Fasiten ble satt før dommeren kjørte og endres ikke etter at resultatet er kjent. Uenigheten står her, og eieren avgjør.
+
+Kontrollkjøringene på de samme radene er kalibrering, ikke uavhengig validering (Astra). Terskelen er uendret: 92 %, nå høyst 3 avvik av 45.
+
+Blindsonedommeren dømmer som før (samme prompt, nøkler, stemmeregel og sitatkontroll), men hashen endres fordi hashen dekker skriptfila. D1-reruns kjører derfor blindsonekontrollene én gang til (≈ 7 credits).
