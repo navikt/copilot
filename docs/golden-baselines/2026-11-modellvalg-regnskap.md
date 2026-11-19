@@ -109,3 +109,5 @@ Brukt i alt: **4 818,91**. Ny kjøring av D1 trinn 2 (≈ 1 080 + 2 prober + bli
 
 Rå og reparert score etter #2450 (bare informasjon, utfallet i denne målingen bruker rå score): review Astra rv5 4→5, rv6 4→5, rv7 2→3; review Opus uendret; planning Opus test 4 0→5. D3 blir ikke endret (rv3 1/5 og rv4 0/5 mot Opus 4/5).
 
+
+**19. november 2026, kontrollkjøring 4 og review (utenfor armene):** secq-kontroller 6,74, blindsonekontroller 6,63, Astra-review av #2450 (siste endring) 6,00 og av #2437 (ny runde) 5,42. Til sammen 24,79. Brukt i alt: **4 843,70**.
