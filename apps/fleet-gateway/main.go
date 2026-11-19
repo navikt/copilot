@@ -19,6 +19,8 @@ import (
 	"time"
 
 	"golang.org/x/sync/singleflight"
+
+	"github.com/navikt/copilot/fleet-gateway/internal/audit"
 )
 
 // Gateway implements the fleet-gateway OAuth 2.1 authorization server and MCP proxy.
@@ -323,11 +325,7 @@ func (g *Gateway) loggingMiddleware(next http.Handler) http.Handler {
 
 const maxLogErrorLen = 64
 
-func sanitizeLogValue(s string) string {
-	s = strings.ReplaceAll(s, "\n", "")
-	s = strings.ReplaceAll(s, "\r", "")
-	return s
-}
+func sanitizeLogValue(s string) string { return audit.Sanitize(s) }
 
 func truncateLogValue(s string, maxChars int) string {
 	s = sanitizeLogValue(s)

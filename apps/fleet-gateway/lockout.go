@@ -14,6 +14,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/navikt/copilot/fleet-gateway/internal/audit"
 )
 
 // Store TTL 0 means expire now, so lockout records, the marker, and the audit outbox use a 100-year TTL.
@@ -34,13 +36,7 @@ type lockoutRecord struct {
 	Blocked       bool  `json:"blocked"`
 }
 
-type lockoutAuditEntry struct {
-	ID       string `json:"id"`
-	Action   string `json:"action"`
-	UserKey  string `json:"user_key"`
-	Operator string `json:"operator"`
-	At       int64  `json:"at"`
-}
+type lockoutAuditEntry = audit.LockoutEntry
 
 func parseLockoutRecord(raw []byte) (lockoutRecord, error) {
 	s := strings.TrimSpace(string(raw))
@@ -225,14 +221,7 @@ func (g *Gateway) drainLockoutAudit(ctx context.Context) {
 	}
 	loggedIDs := make(map[string]struct{}, len(entries))
 	for _, e := range entries {
-		slog.Info("audit lockout",
-			"outcome", "ok",
-			"id", e.ID,
-			"action", e.Action,
-			"user_key", e.UserKey,
-			"operator", sanitizeLogValue(e.Operator),
-			"at", e.At,
-		)
+		audit.LogLockout(e)
 		loggedIDs[e.ID] = struct{}{}
 	}
 
