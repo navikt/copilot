@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"maps"
 	"net"
 	"net/url"
@@ -13,11 +14,30 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 )
 
 var serverNameRegex = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9.-]*/[a-zA-Z0-9][a-zA-Z0-9._-]*$`)
 var hostRegex = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$`)
 var tagRegex = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
+
+func decodeStaticRegistry(data []byte) (StaticRegistryData, error) {
+	var staticData StaticRegistryData
+	dec := json.NewDecoder(bytes.NewReader(data))
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&staticData); err != nil {
+		return StaticRegistryData{}, err
+	}
+	var trailing any
+	if err := dec.Decode(&trailing); !errors.Is(err, io.EOF) {
+		if err != nil {
+			return StaticRegistryData{}, fmt.Errorf("unexpected trailing data after JSON object: %w", err)
+		}
+		return StaticRegistryData{}, errors.New("unexpected trailing data after JSON object")
+	}
+	return staticData, nil
+}
 
 func validateAllowListFile() error {
 	data, err := os.ReadFile("allowlist.json")
@@ -25,8 +45,8 @@ func validateAllowListFile() error {
 		return fmt.Errorf("cannot read allowlist.json: %v", err)
 	}
 
-	var staticData StaticRegistryData
-	if err := json.Unmarshal(data, &staticData); err != nil {
+	staticData, err := decodeStaticRegistry(data)
+	if err != nil {
 		return fmt.Errorf("invalid JSON format: %v", err)
 	}
 
@@ -230,6 +250,8 @@ func validateBroker(b *BrokerExtension, tools []string, index int) error {
 	return nil
 }
 
+const maxSetupCommandLength = 500
+
 func validateSetupInstruction(instruction *SetupInstruction, serverIndex, instructionIndex int) error {
 	prefix := fmt.Sprintf("server[%d].setupInstructions[%d]", serverIndex, instructionIndex)
 	if strings.TrimSpace(instruction.Title) == "" {
@@ -244,6 +266,12 @@ func validateSetupInstruction(instruction *SetupInstruction, serverIndex, instru
 	for commandIndex, command := range instruction.Commands {
 		if strings.TrimSpace(command) == "" {
 			return fmt.Errorf("%s.commands[%d]: command cannot be empty", prefix, commandIndex)
+		}
+		if utf8.RuneCountInString(command) > maxSetupCommandLength {
+			return fmt.Errorf("%s.commands[%d]: command exceeds %d characters", prefix, commandIndex, maxSetupCommandLength)
+		}
+		if strings.IndexFunc(command, unicode.IsControl) != -1 {
+			return fmt.Errorf("%s.commands[%d]: command cannot contain control characters", prefix, commandIndex)
 		}
 	}
 	return nil
@@ -336,7 +364,21 @@ func validateURL(rawURL string) error {
 	if err != nil {
 		return fmt.Errorf("invalid url format: %v", err)
 	}
-	return validatePublicHost(u.Hostname())
+	host := u.Hostname()
+	if host == "" {
+		return errors.New("url must have a host")
+	}
+	switch u.Scheme {
+	case "https":
+	case "http":
+		// Loopback servers (e.g. local IDE MCP plugins) legitimately bind plain HTTP.
+		if !isLoopbackHost(host) {
+			return fmt.Errorf("url must use https scheme, got %q", u.Scheme)
+		}
+	default:
+		return fmt.Errorf("url must use https scheme, got %q", u.Scheme)
+	}
+	return validatePublicHost(host)
 }
 
 // internalHostSuffixes are domains only reachable inside Nav. The registry is

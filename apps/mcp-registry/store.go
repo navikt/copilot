@@ -61,8 +61,8 @@ func (s *Store) loadStatic() ([]ServerResponse, map[string]bool, error) {
 	}
 
 	// Same validation as startup, so a bad file never replaces the last good set.
-	var raw StaticRegistryData
-	if err = json.Unmarshal(data, &raw); err != nil {
+	raw, err := decodeStaticRegistry(data)
+	if err != nil {
 		return nil, nil, fmt.Errorf("parsing static allowlist JSON: %w", err)
 	}
 	if err = validateRegistry(&raw); err != nil {
@@ -78,8 +78,8 @@ func (s *Store) loadStatic() ([]ServerResponse, map[string]bool, error) {
 		return nil, nil, fmt.Errorf("getting file info for static allowlist: %w", err)
 	}
 
-	var staticData StaticRegistryData
-	if err := json.Unmarshal(data, &staticData); err != nil {
+	staticData, err := decodeStaticRegistry(data)
+	if err != nil {
 		return nil, nil, fmt.Errorf("parsing static allowlist JSON: %w", err)
 	}
 

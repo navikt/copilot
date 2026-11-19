@@ -285,7 +285,13 @@ func TestStore_StaticLoadFailureKeepsLastGoodSet(t *testing.T) {
 	}
 	before, _ := store.GetServers()
 
-	for _, bad := range []string{"{broken", `{"servers":[]}`, `{"servers":[{"name":"bad name"}]}`} {
+	for _, bad := range []string{
+		"{broken",
+		`{"servers":[]}`,
+		`{"servers":[{"name":"bad name"}]}`,
+		`{"servers":[{"name":"io.github.test/s","description":"d","version":"1","protocolVersion":["2026-07-28"]}]}`,
+		`{"servers":[{"name":"io.github.test/s","description":"d","version":"1","sandboxHost":["api.figma.com"]}]}`,
+	} {
 		if err := os.WriteFile(path, []byte(bad), 0o600); err != nil {
 			t.Fatal(err)
 		}
