@@ -441,17 +441,35 @@ def bench():
 
 
 def unfenced(text):
-    """Lines outside fenced code blocks; a fence closes only on its own character, at least as long."""
-    fence = None
+    """Lines outside code blocks. A fence closes only on its own character, at least as long.
+    Indentation counts from the open list item, so a fence or an indented block under
+    «- punkt» is code too (#2475 review)."""
+    fence, base, code, blank = None, 0, False, True
     for line in text.splitlines():
-        m = re.match(r"(?:\s{0,3}>)*\s{0,3}(`{3,}|~{3,})(.*)", line)
+        body = re.sub(r"^(?: {0,3}>)+ ?", "", line)
+        ind = len(body) - len(body.lstrip(" "))
+        m = re.match(r"(`{3,}|~{3,})(.*)", body.lstrip(" "))
         if fence:
             if m and m.group(1)[0] == fence[0] and len(m.group(1)) >= len(fence) and not m.group(2).strip():
                 fence = None
-        elif m:
-            fence = m.group(1)
-        else:
+            continue
+        if not body.strip():
+            blank = True
             yield line
+            continue
+        code = ind >= base + 4 and (blank or code)
+        blank = False
+        if code:
+            continue
+        if m and ind <= base + 3:
+            fence = m.group(1)
+            continue
+        item = re.match(r" *(?:[-*+]|\d{1,9}[.)])(?: +|$)", body)
+        if item:
+            base = len(item.group(0))
+        elif ind < base:
+            base = 0
+        yield line
 
 
 def quote_located(key, nq, answer):
@@ -464,8 +482,11 @@ def quote_located(key, nq, answer):
     lines = [i for i, l in enumerate(text) if nq in norm(l)]
     if KIND == "t4":
         heading = re.compile(r"\s{0,3}#{1,6}\s")
+        # A heading declares on its own when text follows «Rød sone:» in it (#2475 review).
+        declares = re.compile(r"(rød.?sone|red zone)\S*\s*[:—–,]\s*\S*[^\W_]", re.I)
         return re.search(r"rød.?sone|red zone", nq, re.I) is not None and any(
-            not heading.match(text[i]) or (i + 1 < len(text) and not heading.match(text[i + 1])) for i in lines)
+            not heading.match(text[i]) or declares.search(text[i])
+            or (i + 1 < len(text) and not heading.match(text[i + 1])) for i in lines)
     if RV_LOC[key] is None:
         return bool(lines)
     b = bench()
@@ -540,10 +561,28 @@ def before(answer, q):
     na, nq = norm("\n".join(unfenced(answer))), norm(q)
     out, i = [], na.find(nq)
     while i >= 0 and len(out) < 3:
-        prev = re.split(r"(?<=[.!?])\s+", na[:i].rstrip())[-1][-400:] if i else ""
+        prev = sentences(na[:i].rstrip())[-1] if i else ""
+        if len(prev) > 600:  # keep the start, where a qualifier stands
+            prev = prev[:300] + " … " + prev[-300:]
         out.append(prev + " " if prev else "")
         i = na.find(nq, i + 1)
     return out or [""]
+
+
+# «bl.a.», «f.eks.» and the like end no sentence, so «Bare i testdobben, bl.a. sendes …»
+# keeps its qualifier (#2475 review). A sentence ends at . ! ? before a capital or a mark.
+ABBREV = re.compile(r"(?:\b(?:bl\.a|f\.eks|dvs|m\.m|osv|mv|ca|jf|evt|inkl|ekskl|ifm|nr|pkt|ref|vs|e\.g|i\.e|etc"
+                    r"|o\.l|m\.a|pga|iht|mht|tlf|kap)\.|\b\w\.)$", re.I)
+
+
+def sentences(text):
+    out, start = [], 0
+    for m in re.finditer(r"[.!?]\s+(?=[^\s\wæøå]|[A-ZÆØÅ0-9])", text):
+        if m.group(0)[0] == "." and ABBREV.search(text[start:m.start() + 1]):
+            continue
+        out.append(text[start:m.start() + 1])
+        start = m.end()
+    return out + [text[start:]]
 
 
 def wrap(question):
@@ -643,6 +682,7 @@ def controls(path):
         credits += res["credits"]
         if "error" in res:
             errors += 1
+            missed += r.get("required") == "1"  # an unusable required row is no pass (#2475 review)
             print(f"row {i}: judge error: {res['error']}: {label(r)}", file=sys.stderr)
             continue
         want = tuple(r["expected_" + k] == "1" for k in KEYS)

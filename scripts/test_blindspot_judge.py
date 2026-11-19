@@ -417,6 +417,15 @@ class SecqContextTests(unittest.TestCase):
                                       "Er det ønsket?"),
                          ["Loggen går til stdout. ", "Usignerte records sendes. "])
 
+    def test_abbreviations_and_length_keep_the_qualifier(self):
+        judge = load_judge(BS_JUDGE_KIND="secq")
+        q = "Skal denne oppførselen beholdes?"
+        for abbr in ("bl.a.", "f.eks.", "dvs.", "m.m."):
+            ctx = f"Bare i testdobben, {abbr} sendes usignerte records videre. "
+            self.assertEqual(judge.before("Jeg har lest koden. " + ctx + q, q), [ctx])
+        long = "Bare i testdobben sendes " + "records " * 120 + "videre. "
+        self.assertTrue(judge.before(long + q, q)[0].startswith("Bare i testdobben"))
+
     def test_a_question_in_a_code_block_is_no_question(self):
         judge = load_judge(BS_JUDGE_KIND="secq")
         a = "Jeg venter.\n\n```\n// Skal konsumentene avvise records uten signatur?\n```"
@@ -539,6 +548,49 @@ class CheckJudgeTests(unittest.TestCase):
         self.assertEqual(status, 1, err.getvalue()[:300])
         self.assertIn("agree=30", out.getvalue())
         self.assertIn("required_missed=1", out.getvalue())
+
+    def test_a_declaring_heading_needs_no_body(self):
+        judge = load_judge(BS_JUDGE_KIND="t4")
+        h = "## 🔴 Rød sone: tokenvalidering og tilgangskontroll"
+        self.assertTrue(judge.parse_vote(rv_vote(judge, rodsone=h), h + "\n## 11. Tester\n- Kjør.")["rodsone"])
+        self.assertTrue(judge.parse_vote(rv_vote(judge, rodsone=h), h)["rodsone"])
+        bare = "## 🔴 Rød sone (skriv selv)"
+        self.assertFalse(judge.parse_vote(rv_vote(judge, rodsone=bare), bare + "\n## 11. Tester")["rodsone"])
+
+    def test_code_under_a_list_item_is_code(self):
+        judge = load_judge(BS_JUDGE_KIND="t4")
+        h = "## 🔴 Rød sone: tokenvalidering"
+        for listed in ("- Malen:\n\n    ```\n    " + h + "\n    ```",
+                       "1. Malen:\n\n       ~~~\n       " + h + "\n       ~~~",
+                       "- Malen:\n\n      " + h):
+            self.assertFalse(judge.parse_vote(rv_vote(judge, rodsone=h), listed)["rodsone"], listed)
+        self.assertEqual(list(judge.unfenced("- punkt\n  - under\n    fortsatt tekst")),
+                         ["- punkt", "  - under", "    fortsatt tekst"])
+
+    def test_a_required_row_with_a_judge_error_fails_and_is_not_cached(self):
+        with tempfile.TemporaryDirectory() as d:
+            record = Path(d) / "rec.psv"
+            judge = load_judge(BS_JUDGE_KIND="t4", BS_JUDGE_RECORD=str(record))
+            path = Path(d) / "c.tsv"
+            rows = "".join(f"## 🔴 Rød sone {i}\\n- Tokenvalidering.\t1\tok\t\n" for i in range(19))
+            path.write_text("answer\texpected_rodsone\tsource\trequired\n" + rows
+                            + "Ubrukelig.\t1\tmust\t1\n", encoding="utf-8")
+
+            def votes(p):
+                a = p.split("<answer>")[-1]
+                if "Ubrukelig" in a:
+                    return "not json", 0.0
+                return json.dumps({"rodsone": True, "rodsone_quote": "## 🔴 Rød sone " + a.split("Rød sone ")[-1].split("\n")[0]}), 0.0
+            out = io.StringIO()
+            with patch.dict(os.environ, {"BS_JUDGE_CMD": "echo stub"}), \
+                    patch.object(judge, "call_model", side_effect=votes), contextlib.redirect_stdout(out), \
+                    contextlib.redirect_stderr(io.StringIO()):
+                status = judge.controls(str(path))
+                key = judge.controls_hash(path.read_bytes())
+                self.assertIsNone(judge.cached(key))
+        self.assertEqual(status, 1, out.getvalue())
+        self.assertIn("agree=19 errors=1", out.getvalue())
+        self.assertIn("status=fail", out.getvalue())
 
     def test_unknown_kind_is_refused(self):
         with self.assertRaises(SystemExit):
