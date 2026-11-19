@@ -29,8 +29,8 @@ export const NAV_PILOT_MODEL_CHOICES: NavPilotModelChoice[] = [
     primary: "GPT-6.1 Sol",
     fallbacks: ["GPT-6 Sol", "GPT-5.3-Codex"],
     reason:
-      "Besto regresjonssjekken etter trinn 2 i pin-protokollen 23. oktober, fem kjøringer per test. Eieren godtok ett grensetilfelle på personvernintervjuet. Brukte færre credits per kjøring enn GPT-6 Sol 12. oktober (44,89 mot 51,12).",
-    source: "https://github.com/navikt/copilot/tree/main/docs/golden-baselines/2026-10-23-pin-gpt-6.1-sol",
+      "Beholdt 19. november 2026. GPT-6.2 Sol var 16 % billigere, men la ikke igjen TODO-stubber for koden brukeren ville skrive selv i noen av fem kjøringer på sikkerhetstest 9d. MAI Code 2 er en rimelig koder når du velger modell selv: alle kodeoppgavene 5 av 5 for 5,1 credits mot 29,3, men ikke målt på planlegging eller sikkerhet.",
+    source: "https://github.com/navikt/copilot/blob/main/docs/golden-baselines/2026-11-modellvalg-resultat.md",
   },
   {
     purpose: "Kafka-agent",
@@ -45,7 +45,7 @@ export const NAV_PILOT_MODEL_CHOICES: NavPilotModelChoice[] = [
     primary: "Claude Haiku 5.5",
     fallbacks: ["GPT-6 Luna", "GPT-5.3-Codex"],
     reason:
-      "Besto 5 av 5 på begge Rust-oppgavene 8. oktober, og var billigere i alle fem kjøringene på Low: 0,87 til 1,02 credits mot 1,11 til 1,58 med GPT-6 Luna Medium (p = 0,008). Oppgavene var små rettinger i én fil, så dette er et kostnadssignal, ikke et kvalitetsskille. Anbefalt innsatsnivå er Low.",
+      "Besto 5 av 5 på begge Rust-oppgavene 8. oktober, og var billigere i alle fem kjøringene på Low: 0,87 til 1,02 credits mot 1,11 til 1,58 med GPT-6 Luna Medium (p = 0,008). Oppgavene var små rettinger i én fil, så dette er et kostnadssignal, ikke et kvalitetsskille. Anbefalt innsatsnivå er Low. MAI Code 2 Flash besto også 5 av 5 til omtrent en tredjedel av prisen 19. november 2026 og går videre til en beslutningsmåling. Pinnen står til den er gjort.",
     users: ["@rust"],
   },
   {
@@ -53,20 +53,21 @@ export const NAV_PILOT_MODEL_CHOICES: NavPilotModelChoice[] = [
     primary: "GPT-6 Luna",
     fallbacks: ["MAI Code 2 Flash", "GPT-5.3-Codex"],
     reason:
-      "Besto samme krav som GPT-5.6 Luna i blokkeringsskjermen 23. september, til lavere pris. Reserven MAI Code 2 Flash er i samme prisklasse, men ikke målt.",
+      "Besto samme krav som GPT-5.6 Luna i blokkeringsskjermen 23. september, til lavere pris. MAI Code 2 Flash besto research 5 av 5 til en femtedel av prisen 19. november 2026 og går videre til en beslutningsmåling. Pinnen står til den er gjort.",
   },
   {
     purpose: "Høyrisikoplanlegging og kodegjennomgang",
     primary: "Claude Opus 5.5",
     fallbacks: ["GPT-6 Sol", "GPT-5.3-Codex"],
-    reason: "Fant alle plantede feil på riktig linje i ti av ti kodegjennomganger 30. september. Low holder.",
+    reason:
+      "Fant alle plantede feil på riktig linje i ti av ti kodegjennomganger 30. september. Low holder. GPT-6.2 Astra ble ikke reserve 19. november 2026: rv3 1 av 5 og rv4 0 av 5 mot 4 av 5 for Opus, til 2,1 ganger kostnaden.",
   },
   {
     purpose: "Aksel, tilgjengelighet og norsk tekst",
     primary: "Claude Sonnet 5.5",
-    fallbacks: ["Claude Opus 5.5"],
+    fallbacks: [],
     reason:
-      "Besto 24 av 25 tilgjengelighetssjekker 12. oktober 2026 (uu1–uu5, fem kjøringer hver) og 20 av 20 norsksjekker 1. oktober. GPT-6 Luna kostet omtrent en niendedel, men besto bare 15 av 25: den viste aldri til WCAG-kriterier og spurte aldri før den skrev en egen ARIA-rolle. Reserven Claude Opus 5.5 er ikke målt på disse oppgavene.",
+      "Besto 24 av 25 tilgjengelighetssjekker 12. oktober 2026 og 25 av 25 19. november (uu1–uu5, fem kjøringer hver), og 20 av 20 norsksjekker 1. oktober og 19. november. GPT-6 Luna kostet omtrent en niendedel, men besto bare 15 av 25: den viste aldri til WCAG-kriterier og spurte aldri før den skrev en egen ARIA-rolle. Ingen målt reserve: Claude Opus 5.5 ble ikke godkjent 19. november, fordi den skrev en egen listeboks uten å spørre i alle fem kjøringene.",
     source: "https://github.com/navikt/copilot/tree/main/docs/golden-baselines/2026-10-12-sonnet-5-5-aksel",
   },
   {
