@@ -94,8 +94,14 @@ Remove the current key from `RT_KEYS` (replace it with a fresh key, no old entry
 
 Use alongside blocking the user in Entra when one account must be cut off immediately without waiting up to 12 h (`SESSION_MAX_AGE`) for Entra expiry or refresh.
 
+### Prerequisite: `LOCKOUT_KEY`
+
+The gateway reads `LOCKOUT_KEY` (at least 32 random bytes, for example `openssl rand -base64 32`) from a Nais secret created by the owner in Nais Console for `dev-gcp` and `prod-gcp` and attached to `fleet-gateway`. Never rotate or delete `LOCKOUT_KEY`: lockout records are keyed by it, and starting the gateway without it fails by design once any lockout record exists. It is separate from `RT_KEYS` so a global logout or `RT_KEYS` change does not lift lockouts. Without `LOCKOUT_KEY`, the `lockout` command refuses to run.
+
+### Run and undo
+
 ```sh
-kubectl exec -n copilot deploy/fleet-gateway -- env OPERATOR=<your-ident> /app/main lockout <NAVident>
+kubectl exec -n copilot deploy/fleet-gateway -- /app/main lockout --operator <your-ident> <NAVident>
 ```
 
 Effect:
@@ -105,15 +111,15 @@ Effect:
 - Remembered consent is deleted lazily on the next login.
 - Other users are unaffected.
 
-The command writes an `audit lockout` line (`outcome=ok`, `action=lock`, `user_key`, `operator`) to stdout / Loki; plaintext `NAVident` is never logged. The lockout blocks the user (including new logins) until undone; also block the user in Entra if they should not regain access later.
+The command writes the record and queues an audit entry in Postgres. Within about 30 s, the running gateway writes the `audit lockout` line (`outcome=ok`, `action=lock`, `user_key`, `operator`, `at`) to stdout / Loki, where you can grep for it as in [Health and logs](#health-and-logs); plaintext `NAVident` is never logged. The lockout lasts until undone (no expiry); also block the user in Entra if they should not regain access later.
 
 To undo a lockout:
 
 ```sh
-kubectl exec -n copilot deploy/fleet-gateway -- env OPERATOR=<your-ident> /app/main lockout --undo <NAVident>
+kubectl exec -n copilot deploy/fleet-gateway -- /app/main lockout --undo --operator <your-ident> <NAVident>
 ```
 
-This lifts the block for new logins only and writes an `audit lockout` line with `action=undo`. Sessions, authorization codes, refresh tokens and remembered consent issued before the lockout stay invalid permanently. `kubectl exec` is the v1 mechanism; an operator API behind internal ingress is tracked in #2435.
+This lifts the block for new logins only and queues an `audit lockout` line with `action=undo`, logged by the gateway within about 30 s. Sessions, authorization codes, refresh tokens and remembered consent issued before the lockout stay invalid permanently. `kubectl exec` is the v1 mechanism; an operator API behind internal ingress is tracked in #2435.
 
 ## Block one client
 

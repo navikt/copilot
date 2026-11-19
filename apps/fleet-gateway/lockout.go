@@ -16,9 +16,27 @@ import (
 	"time"
 )
 
+// Store TTL 0 means expire now, so lockout records, the marker, and the audit outbox use a 100-year TTL.
+const lockoutNoExpiry = 100 * 365 * 24 * time.Hour
+
+const (
+	userRevokedMarkerKey  = "any"
+	lockoutAuditOutboxKey = "lockout"
+	userLockoutKeyInfo    = "fleet-gateway user-lockout hmac v1"
+)
+
+// Records keyed with the old RT_KEYS scheme are not migrated (none exist in prod).
+
 type lockoutRecord struct {
 	RevokedBefore int64 `json:"revoked_before"`
 	Blocked       bool  `json:"blocked"`
+}
+
+type lockoutAuditEntry struct {
+	Action   string `json:"action"`
+	UserKey  string `json:"user_key"`
+	Operator string `json:"operator"`
+	At       int64  `json:"at"`
 }
 
 func parseLockoutRecord(raw []byte) (lockoutRecord, error) {
@@ -37,25 +55,18 @@ func parseLockoutRecord(raw []byte) (lockoutRecord, error) {
 	return lockoutRecord{RevokedBefore: sec, Blocked: true}, nil
 }
 
-const userLockoutKeyInfo = "fleet-gateway user-lockout hmac v1"
-
-func deriveUserKeys(rtKeys *keyRing) ([][]byte, error) {
-	if rtKeys == nil || len(rtKeys.entries) == 0 {
-		secret := make([]byte, 32)
-		if _, err := rand.Read(secret); err != nil {
-			return nil, fmt.Errorf("generate user lockout key: %w", err)
-		}
-		return [][]byte{secret}, nil
+func deriveMCPUserKey(lockoutKey []byte, rtKeys *keyRing) ([]byte, error) {
+	if len(lockoutKey) > 0 {
+		return lockoutKey, nil
 	}
-	keys := make([][]byte, 0, len(rtKeys.entries))
-	for _, e := range rtKeys.entries {
-		k, err := hkdf.Key(sha256.New, e.key[:], nil, userLockoutKeyInfo, 32)
-		if err != nil {
-			return nil, err
-		}
-		keys = append(keys, k)
+	if rtKeys != nil && len(rtKeys.entries) > 0 {
+		return hkdf.Key(sha256.New, rtKeys.entries[0].key[:], nil, userLockoutKeyInfo, 32)
 	}
-	return keys, nil
+	secret := make([]byte, 32)
+	if _, err := rand.Read(secret); err != nil {
+		return nil, fmt.Errorf("generate mcp user key: %w", err)
+	}
+	return secret, nil
 }
 
 func userKeyWith(key []byte, navIdent string) string {
@@ -66,35 +77,34 @@ func userKeyWith(key []byte, navIdent string) string {
 }
 
 func (g *Gateway) userKey(navIdent string) string {
-	if len(g.userKeys) == 0 {
+	if len(g.lockoutKey) == 0 {
 		return ""
 	}
-	return userKeyWith(g.userKeys[0], navIdent)
+	return userKeyWith(g.lockoutKey, navIdent)
 }
 
-func (g *Gateway) lockoutTTL() time.Duration {
-	var ttl time.Duration
-	if g.cfg != nil {
-		ttl = max(g.cfg.SessionMaxAge, g.cfg.ConsentTTL)
+func (g *Gateway) mcpSessionUserKey(navIdent string) string {
+	if len(g.mcpUserKey) > 0 {
+		return userKeyWith(g.mcpUserKey, navIdent)
 	}
-	if ttl <= 0 {
-		ttl = max(defaultSessionMaxAge, defaultConsentTTL)
+	return g.userKey(navIdent)
+}
+
+func (g *Gateway) nowTime() time.Time {
+	if g.now == nil {
+		return time.Now().UTC()
 	}
-	return ttl + 24*time.Hour
+	return g.now().UTC()
 }
 
 func (g *Gateway) lockOutUser(ctx context.Context, navIdent, operator string) (time.Time, error) {
 	if strings.TrimSpace(navIdent) == "" {
 		return time.Time{}, errors.New("empty navIdent")
 	}
-	if len(g.userKeys) == 0 {
-		return time.Time{}, errors.New("user lockout keys not initialized")
+	if len(g.lockoutKey) == 0 {
+		return time.Time{}, errors.New("lockout key not initialized")
 	}
-	nowFn := g.now
-	if nowFn == nil {
-		nowFn = time.Now
-	}
-	now := nowFn().UTC()
+	now := g.nowTime()
 	key := g.userKey(navIdent)
 	val, err := json.Marshal(lockoutRecord{
 		RevokedBefore: now.Unix(),
@@ -103,10 +113,20 @@ func (g *Gateway) lockOutUser(ctx context.Context, navIdent, operator string) (t
 	if err != nil {
 		return time.Time{}, err
 	}
-	if err := g.store.Put(ctx, kindUserRevoked, key, val, g.lockoutTTL()); err != nil {
+	if err := g.store.Put(ctx, kindUserRevoked, key, val, lockoutNoExpiry); err != nil {
 		return time.Time{}, err
 	}
-	slog.Info("audit lockout", "outcome", "ok", "action", "lock", "user_key", key, "operator", sanitizeLogValue(operator))
+	if err := g.store.Put(ctx, kindUserRevokedMarker, userRevokedMarkerKey, []byte("1"), lockoutNoExpiry); err != nil {
+		return time.Time{}, err
+	}
+	if err := g.appendLockoutAudit(ctx, lockoutAuditEntry{
+		Action:   "lock",
+		UserKey:  key,
+		Operator: operator,
+		At:       now.Unix(),
+	}); err != nil {
+		return time.Time{}, err
+	}
 	return now, nil
 }
 
@@ -114,8 +134,8 @@ func (g *Gateway) undoLockout(ctx context.Context, navIdent, operator string) er
 	if strings.TrimSpace(navIdent) == "" {
 		return errors.New("empty navIdent")
 	}
-	if len(g.userKeys) == 0 {
-		return errors.New("user lockout keys not initialized")
+	if len(g.lockoutKey) == 0 {
+		return errors.New("lockout key not initialized")
 	}
 	rec, found, err := g.revokedAt(ctx, navIdent)
 	if err != nil {
@@ -130,43 +150,76 @@ func (g *Gateway) undoLockout(ctx context.Context, navIdent, operator string) er
 		if err != nil {
 			return err
 		}
-		if err := g.store.Put(ctx, kindUserRevoked, key, val, g.lockoutTTL()); err != nil {
+		if err := g.store.Put(ctx, kindUserRevoked, key, val, lockoutNoExpiry); err != nil {
 			return err
 		}
-		for _, k := range g.userKeys[1:] {
-			if err := g.store.Delete(ctx, kindUserRevoked, userKeyWith(k, navIdent)); err != nil {
-				return err
-			}
+	}
+	return g.appendLockoutAudit(ctx, lockoutAuditEntry{
+		Action:   "undo",
+		UserKey:  key,
+		Operator: operator,
+		At:       g.nowTime().Unix(),
+	})
+}
+
+// shortcut: Get+Put is not atomic; a drain racing an append can re-log entries (duplicates, never loss). Fine for a rare operator action.
+func (g *Gateway) appendLockoutAudit(ctx context.Context, entry lockoutAuditEntry) error {
+	raw, ok, err := g.store.Get(ctx, kindAuditOutbox, lockoutAuditOutboxKey)
+	if err != nil {
+		return err
+	}
+	var entries []lockoutAuditEntry
+	if ok {
+		if err = json.Unmarshal(raw, &entries); err != nil {
+			return fmt.Errorf("parse lockout audit outbox: %w", err)
 		}
 	}
-	slog.Info("audit lockout", "outcome", "ok", "action", "undo", "user_key", key, "operator", sanitizeLogValue(operator))
-	return nil
+	entries = append(entries, entry)
+	val, err := json.Marshal(entries)
+	if err != nil {
+		return err
+	}
+	return g.store.Put(ctx, kindAuditOutbox, lockoutAuditOutboxKey, val, lockoutNoExpiry)
+}
+
+func (g *Gateway) drainLockoutAudit(ctx context.Context) {
+	raw, ok, err := g.store.Pop(ctx, kindAuditOutbox, lockoutAuditOutboxKey)
+	if err != nil {
+		slog.Warn("drain lockout audit outbox failed", "error", err)
+		return
+	}
+	if !ok {
+		return
+	}
+	var entries []lockoutAuditEntry
+	if err := json.Unmarshal(raw, &entries); err != nil {
+		slog.Warn("parse lockout audit outbox failed", "error", err)
+		return
+	}
+	for _, e := range entries {
+		slog.Info("audit lockout",
+			"outcome", "ok",
+			"action", e.Action,
+			"user_key", e.UserKey,
+			"operator", sanitizeLogValue(e.Operator),
+			"at", e.At,
+		)
+	}
 }
 
 func (g *Gateway) revokedAt(ctx context.Context, navIdent string) (lockoutRecord, bool, error) {
-	if strings.TrimSpace(navIdent) == "" || len(g.userKeys) == 0 {
+	if strings.TrimSpace(navIdent) == "" || len(g.lockoutKey) == 0 {
 		return lockoutRecord{}, false, nil
 	}
-	var latest lockoutRecord
-	found := false
-	for _, k := range g.userKeys {
-		raw, ok, err := g.store.Get(ctx, kindUserRevoked, userKeyWith(k, navIdent))
-		if err != nil {
-			return lockoutRecord{}, false, err
-		}
-		if !ok {
-			continue
-		}
-		rec, err := parseLockoutRecord(raw)
-		if err != nil {
-			return lockoutRecord{}, false, err
-		}
-		if !found || rec.RevokedBefore > latest.RevokedBefore {
-			latest = rec
-			found = true
-		}
+	raw, ok, err := g.store.Get(ctx, kindUserRevoked, userKeyWith(g.lockoutKey, navIdent))
+	if err != nil || !ok {
+		return lockoutRecord{}, false, err
 	}
-	return latest, found, nil
+	rec, err := parseLockoutRecord(raw)
+	if err != nil {
+		return lockoutRecord{}, false, err
+	}
+	return rec, true, nil
 }
 
 func (g *Gateway) userRevoked(ctx context.Context, navIdent string, issuedAt time.Time) (bool, error) {

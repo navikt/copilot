@@ -3,7 +3,9 @@ package main
 import (
 	"context"
 	"errors"
+	"flag"
 	"fmt"
+	"io"
 	"log/slog"
 	"net"
 	"net/http"
@@ -24,7 +26,8 @@ type Gateway struct {
 	now         func() time.Time
 	store       SessionStore
 	rtKeys      *keyRing
-	userKeys    [][]byte // HMAC keys for user-level store keys; [0] is primary for writes, all are checked on read
+	lockoutKey  []byte // HMAC key for lockout records (LOCKOUT_KEY); empty disables lockout checks
+	mcpUserKey  []byte // HMAC key for kindMCPSessionUser counters
 	cimdCache   *ttlMap[cachedCIMD]
 	limiter     *ipRateLimiter
 	proxyClient *http.Client
@@ -57,13 +60,26 @@ func newGateway(cfg *Config, now func() time.Time) (*Gateway, error) {
 	if cfg.RTStorage == rtStorageClientEncrypted && rtKeys == nil {
 		return nil, errors.New("RT_KEYS is required when RT_STORAGE=client-encrypted")
 	}
-	userKeys, err := deriveUserKeys(rtKeys)
+	var lockoutKey []byte
+	if trimmed := strings.TrimSpace(cfg.LockoutKey); trimmed != "" {
+		if len(trimmed) < 32 {
+			return nil, errors.New("LOCKOUT_KEY must be at least 32 bytes")
+		}
+		lockoutKey = []byte(trimmed)
+	}
+	mcpUserKey, err := deriveMCPUserKey(lockoutKey, rtKeys)
 	if err != nil {
-		return nil, fmt.Errorf("derive user keys: %w", err)
+		return nil, fmt.Errorf("derive mcp user key: %w", err)
 	}
 	store, ownedStore, err := buildSessionStore(cfg, now, rtKeys)
 	if err != nil {
 		return nil, fmt.Errorf("initialize session store: %w", err)
+	}
+	if err = checkLockoutMarker(store, lockoutKey); err != nil {
+		if ownedStore {
+			store.Close()
+		}
+		return nil, err
 	}
 	teamTokens, err := newTeamTokenSource(cfg, store, now)
 	if err != nil {
@@ -77,13 +93,30 @@ func newGateway(cfg *Config, now func() time.Time) (*Gateway, error) {
 		now:         now,
 		store:       store,
 		rtKeys:      rtKeys,
-		userKeys:    userKeys,
+		lockoutKey:  lockoutKey,
+		mcpUserKey:  mcpUserKey,
 		cimdCache:   newTTLMap[cachedCIMD](cfg.CIMDCap, now),
 		limiter:     newIPRateLimiter(cfg.RateLimitRequests, cfg.RateLimitGlobalRequests, cfg.RateLimitWindow, cfg.RateLimitCap, now),
 		proxyClient: newHardenedProxyClient(cfg.ProxyHeaderTimeout),
 		refreshWait: 5 * time.Second,
 		TeamTokens:  teamTokens,
 	}, nil
+}
+
+func checkLockoutMarker(store SessionStore, lockoutKey []byte) error {
+	if len(lockoutKey) > 0 {
+		return nil
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	_, exists, err := store.Get(ctx, kindUserRevokedMarker, userRevokedMarkerKey)
+	if err != nil {
+		return fmt.Errorf("check lockout marker: %w", err)
+	}
+	if exists {
+		return errors.New("LOCKOUT_KEY is missing but lockout records exist; set the LOCKOUT_KEY secret")
+	}
+	return nil
 }
 
 func buildSessionStore(cfg *Config, now func() time.Time, rtKeys *keyRing) (SessionStore, bool, error) {
@@ -152,6 +185,7 @@ func (g *Gateway) sweepAll() {
 	if _, err := g.store.Sweep(ctx); err != nil {
 		slog.Warn("session store sweep failed", "error", err)
 	}
+	g.drainLockoutAudit(ctx)
 	g.cimdCache.Sweep()
 	g.limiter.Sweep()
 }
@@ -543,29 +577,47 @@ func main() {
 	}
 }
 
-func parseLockoutArgs(args []string) (undo bool, navIdent string, err error) {
-	var rawIdent string
-	switch {
-	case len(args) == 1 && !strings.HasPrefix(args[0], "-"):
-		rawIdent = args[0]
-	case len(args) == 2 && args[0] == "--undo" && !strings.HasPrefix(args[1], "-"):
-		undo = true
-		rawIdent = args[1]
-	default:
-		return false, "", errors.New("usage: fleet-gateway lockout [--undo] <NAVident>")
+func parseLockoutArgs(args []string) (undo bool, operator, navIdent string, err error) {
+	fs := flag.NewFlagSet("lockout", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	fs.BoolVar(&undo, "undo", false, "lift lockout for new logins")
+	fs.StringVar(&operator, "operator", "", "operator NAVident")
+	if err := fs.Parse(args); err != nil {
+		return false, "", "", errors.New("usage: fleet-gateway lockout [--undo] --operator <ident> <NAVident>")
 	}
-	navIdent = strings.ToUpper(strings.TrimSpace(rawIdent))
+	operator = strings.TrimSpace(operator)
+	if operator == "" {
+		return false, "", "", errors.New("lockout: --operator is required")
+	}
+	rest := fs.Args()
+	if len(rest) != 1 {
+		return false, "", "", errors.New("usage: fleet-gateway lockout [--undo] --operator <ident> <NAVident>")
+	}
+	navIdent = strings.ToUpper(strings.TrimSpace(rest[0]))
 	if navIdent == "" {
-		return false, "", errors.New("lockout: NAVident must not be empty")
+		return false, "", "", errors.New("lockout: NAVident must not be empty")
 	}
 	if strings.HasPrefix(navIdent, "-") {
-		return false, "", errors.New("usage: fleet-gateway lockout [--undo] <NAVident>")
+		return false, "", "", errors.New("usage: fleet-gateway lockout [--undo] --operator <ident> <NAVident>")
 	}
-	return undo, navIdent, nil
+	return undo, operator, navIdent, nil
+}
+
+func checkLockoutConfig(cfg *Config) error {
+	if cfg == nil {
+		return errors.New("lockout: nil config")
+	}
+	if strings.ToLower(strings.TrimSpace(cfg.SessionStore)) != "postgres" {
+		return errors.New("lockout: SESSION_STORE must be postgres; with the memory store the command cannot reach the running gateway")
+	}
+	if strings.TrimSpace(cfg.LockoutKey) == "" {
+		return errors.New("lockout: LOCKOUT_KEY is not set")
+	}
+	return nil
 }
 
 func runLockout(args []string) int {
-	undo, navIdent, err := parseLockoutArgs(args)
+	undo, operator, navIdent, err := parseLockoutArgs(args)
 	if err != nil {
 		_, _ = fmt.Fprintln(os.Stderr, err)
 		return 1
@@ -574,6 +626,10 @@ func runLockout(args []string) int {
 	cfg, err := loadConfigFromEnv()
 	if err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "lockout: configuration validation failed: %v\n", err)
+		return 1
+	}
+	if err = checkLockoutConfig(cfg); err != nil {
+		_, _ = fmt.Fprintln(os.Stderr, err)
 		return 1
 	}
 
@@ -589,11 +645,6 @@ func runLockout(args []string) int {
 	}
 	defer gw.store.Close()
 
-	operator := strings.TrimSpace(os.Getenv("OPERATOR"))
-	if operator == "" {
-		operator = "cli"
-	}
-
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
@@ -602,15 +653,14 @@ func runLockout(args []string) int {
 			_, _ = fmt.Fprintf(os.Stderr, "lockout: %v\n", err)
 			return 1
 		}
-		_, _ = fmt.Fprintf(os.Stdout, "lockout removed user_key=%s\n", gw.userKey(navIdent)) //nolint:gosec // userKey is hex-encoded HMAC printed to CLI stdout
+		_, _ = fmt.Fprintf(os.Stdout, "lockout undo recorded user_key=%s; the gateway logs the audit line within 30s\n", gw.userKey(navIdent)) //nolint:gosec // userKey is hex-encoded HMAC printed to CLI stdout
 		return 0
 	}
 
-	at, err := gw.lockOutUser(ctx, navIdent, operator)
-	if err != nil {
+	if _, err := gw.lockOutUser(ctx, navIdent, operator); err != nil {
 		_, _ = fmt.Fprintf(os.Stderr, "lockout: %v\n", err)
 		return 1
 	}
-	_, _ = fmt.Fprintf(os.Stdout, "locked out user_key=%s at %s\n", gw.userKey(navIdent), at.UTC().Format(time.RFC3339)) //nolint:gosec // userKey is hex-encoded HMAC printed to CLI stdout
+	_, _ = fmt.Fprintf(os.Stdout, "lockout recorded user_key=%s; the gateway logs the audit line within 30s\n", gw.userKey(navIdent)) //nolint:gosec // userKey is hex-encoded HMAC printed to CLI stdout
 	return 0
 }

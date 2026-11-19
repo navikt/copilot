@@ -465,7 +465,7 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 				return // already ours; skipping keeps the per-user count exact
 			}
 			// shortcut: Get+Put on the counter is not atomic across pods, so the cap is approximate; fine as defence in depth.
-			userKey := g.userKey(sess.NAVIdent)
+			userKey := g.mcpSessionUserKey(sess.NAVIdent)
 			count := 0
 			if raw, ok, cntErr := g.store.Get(r.Context(), kindMCPSessionUser, userKey); cntErr == nil && ok {
 				count, _ = strconv.Atoi(string(raw))
@@ -484,7 +484,7 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 		if r.Method == http.MethodDelete && ownsReqSession && resp.StatusCode < 300 {
 			// Pop, not Delete: only the request that removed the binding frees the slot,
 			// so concurrent DELETEs of one session cannot decrement twice.
-			userKey := g.userKey(sess.NAVIdent)
+			userKey := g.mcpSessionUserKey(sess.NAVIdent)
 			if _, removed, delErr := g.store.Pop(r.Context(), kindMCPSession, route.Route+"\n"+reqSessionID); delErr != nil {
 				slog.Warn("mcp session unbind failed", "route", route.Route, "error", delErr)
 			} else if raw, ok, cntErr := g.store.Get(r.Context(), kindMCPSessionUser, userKey); removed && cntErr == nil && ok {

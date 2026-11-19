@@ -139,7 +139,7 @@ func mcpDelete(te *testEnv, token, sessionID string) int {
 }
 
 func mcpUserCount(te *testEnv) string {
-	raw, _, err := te.gw.store.Get(context.Background(), kindMCPSessionUser, te.gw.userKey(te.navIdent))
+	raw, _, err := te.gw.store.Get(context.Background(), kindMCPSessionUser, te.gw.mcpSessionUserKey(te.navIdent))
 	if err != nil {
 		te.t.Fatalf("store get: %v", err)
 	}

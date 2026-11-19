@@ -125,6 +125,7 @@ type Config struct {
 	ConsentTTL              time.Duration
 	RTKeys                  string
 	RTStorage               string
+	LockoutKey              string
 	Store                   SessionStore
 }
 
@@ -236,6 +237,7 @@ func loadConfigFromEnv() (*Config, error) {
 		ConsentTTL:              getEnvDuration("CONSENT_TTL", defaultConsentTTL),
 		RTKeys:                  rtKeys,
 		RTStorage:               rtStorage,
+		LockoutKey:              strings.TrimSpace(os.Getenv("LOCKOUT_KEY")),
 	}
 
 	if err := validateConfig(cfg); err != nil {
@@ -325,6 +327,10 @@ func validateConfig(cfg *Config) error {
 	}
 	if len(cfg.CookieSecret) < 32 {
 		return errors.New("cookie signing secret must be at least 32 bytes")
+	}
+	cfg.LockoutKey = strings.TrimSpace(cfg.LockoutKey)
+	if cfg.LockoutKey != "" && len(cfg.LockoutKey) < 32 {
+		return errors.New("LOCKOUT_KEY must be at least 32 bytes")
 	}
 	if cfg.HTTPClient == nil {
 		cfg.HTTPClient = newHardenedHTTPClient(defaultOutboundTimeout)
