@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/http/httptrace"
 	"os"
 	"runtime"
 	"strconv"
@@ -690,6 +691,82 @@ func TestSSEBlockedDownstreamReleasesSlotOnCancel(t *testing.T) {
 	}
 	if code := capPost(t, ts, token, "?sse=1&probe=1"); code != http.StatusOK {
 		t.Fatalf("follow-up SSE request with MCPMaxSSE=1: code %d, want 200", code)
+	}
+}
+
+// Cancelling an SSE stream must not leave a stale write deadline that cuts a
+// subsequent request on a keep-alive connection.
+func TestSSECancelDoesNotCutFollowUpKeepAlive(t *testing.T) {
+	te := newTestEnv(t)
+	te.gw.cfg.SSEMaxDuration = 30 * time.Millisecond
+	te.gw.cfg.SSEIdleTimeout = 30 * time.Millisecond
+	te.handler = te.gw.routes()
+
+	te.upstreamServer.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.Copy(io.Discard, r.Body)
+		if r.URL.Query().Get("sse") == "1" {
+			w.Header().Set("Content-Type", "text/event-stream")
+			w.WriteHeader(http.StatusOK)
+			if flusher, ok := w.(http.Flusher); ok {
+				flusher.Flush()
+			}
+			_, _ = io.WriteString(w, "data: hi\n\n")
+			if flusher, ok := w.(http.Flusher); ok {
+				flusher.Flush()
+			}
+			<-r.Context().Done()
+			return
+		}
+		time.Sleep(200 * time.Millisecond)
+		writeJSON(w, http.StatusOK, map[string]any{"jsonrpc": "2.0", "id": 1, "result": map[string]any{"ok": true}})
+	})
+
+	token := te.obtainAccessTokenForResource(te.resource)
+	route := te.gw.cfg.Routes[0].Route
+	ts := httptest.NewServer(te.handler)
+	defer ts.Close()
+
+	client := &http.Client{
+		Transport: &http.Transport{
+			MaxConnsPerHost:     1,
+			MaxIdleConnsPerHost: 1,
+		},
+	}
+	defer client.CloseIdleConnections()
+
+	for i := range 20 {
+		sseReq, _ := http.NewRequest(http.MethodPost, ts.URL+route+"?sse=1", strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"tools/list"}`))
+		sseReq.Header.Set("Authorization", "Bearer "+token)
+		sseReq.Header.Set("Content-Type", "application/json")
+		sseReq.Header.Set("Accept", "application/json, text/event-stream")
+		sseResp, err := client.Do(sseReq) //nolint:gosec // test server URL
+		if err != nil {
+			t.Fatalf("iter %d sse Do: %v", i, err)
+		}
+		_, sseReadErr := io.Copy(io.Discard, sseResp.Body)
+		_ = sseResp.Body.Close()
+
+		var reused atomic.Bool
+		followReq, _ := http.NewRequest(http.MethodPost, ts.URL+route, strings.NewReader(`{"jsonrpc":"2.0","id":2,"method":"tools/list"}`))
+		followReq.Header.Set("Authorization", "Bearer "+token)
+		followReq.Header.Set("Content-Type", "application/json")
+		followReq = followReq.WithContext(httptrace.WithClientTrace(followReq.Context(), &httptrace.ClientTrace{
+			GotConn: func(info httptrace.GotConnInfo) {
+				reused.Store(info.Reused)
+			},
+		}))
+		followResp, err := client.Do(followReq) //nolint:gosec // test server URL
+		if err != nil {
+			t.Fatalf("iter %d follow-up Do (reused=%v, sseReadErr=%v): %v", i, reused.Load(), sseReadErr, err)
+		}
+		body, readErr := io.ReadAll(followResp.Body)
+		_ = followResp.Body.Close()
+		if readErr != nil {
+			t.Fatalf("iter %d follow-up read (reused=%v, sseReadErr=%v): %v", i, reused.Load(), sseReadErr, readErr)
+		}
+		if followResp.StatusCode != http.StatusOK || !strings.Contains(string(body), `"ok": true`) {
+			t.Fatalf("iter %d follow-up status=%d body=%q", i, followResp.StatusCode, body)
+		}
 	}
 }
 
