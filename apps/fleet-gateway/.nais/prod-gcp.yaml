@@ -14,6 +14,7 @@ allowed_redirect_uris: "http://127.0.0.1:62471/callback,http://127.0.0.1/,http:/
 dcr_enabled: "true"
 pilot_routes_file: "/app/pilot-routes.prod.yaml"
 outbound_rules:
+  - application: mcp-dolly
   - application: mcp-kodeverk
   - application: mcp-onboarding
 ingresses:

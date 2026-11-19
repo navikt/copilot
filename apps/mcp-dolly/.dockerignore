@@ -1,0 +1,21 @@
+# Git
+.git
+.gitignore
+README.md
+
+# Documentation
+*.md
+
+# Testing
+*_test.go
+test/
+
+# Build artifacts
+bin/
+*.exe
+*.test
+*.out
+coverage.*
+
+# Backup files
+*.backup
