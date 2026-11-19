@@ -2,11 +2,13 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"github.com/prometheus/client_golang/prometheus/testutil"
 	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"net/http/httptrace"
 	"os"
 	"runtime"
 	"strconv"
@@ -457,6 +459,116 @@ func TestSSEEarlyFlushUpstreamGetsFullBody(t *testing.T) {
 	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		t.Fatalf("reading SSE response: %v", err)
+	}
+	if errMsg, _ := readErr.Load().(string); errMsg != "" {
+		t.Fatalf("upstream read error: %s", errMsg)
+	}
+	if got := gotLen.Load(); got != int64(len(payload)) {
+		t.Fatalf("upstream received %d bytes, want %d", got, len(payload))
+	}
+	wantEvent := "data: " + strconv.Itoa(len(payload)) + "\n\n"
+	if !strings.Contains(string(respBody), wantEvent) {
+		t.Fatalf("client SSE response = %q, want %q", string(respBody), wantEvent)
+	}
+}
+
+type roundTripperFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripperFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+
+func TestSSEEarlyFlushRetryUpstreamGetsFullBody(t *testing.T) {
+	te := newTestEnv(t)
+	te.gw.cfg.MCPMaxSSE = 16
+	te.gw.cfg.SSEMaxDuration = 10 * time.Second
+	te.gw.cfg.SSEIdleTimeout = 10 * time.Second
+	te.handler = te.gw.routes()
+
+	base := te.gw.proxyClient.Transport
+	var attempts atomic.Int32
+	te.gw.proxyClient.Transport = roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+		if attempts.Add(1) == 1 {
+			var head [64]byte
+			if _, err := io.ReadFull(req.Body, head[:]); err != nil {
+				return nil, err
+			}
+			_ = req.Body.Close()
+			if trace := httptrace.ContextClientTrace(req.Context()); trace != nil && trace.WroteRequest != nil {
+				trace.WroteRequest(httptrace.WroteRequestInfo{Err: errors.New("simulated connection reset")})
+			}
+			if req.GetBody == nil {
+				return nil, errors.New("expected non-nil req.GetBody on retry")
+			}
+			retryBody, err := req.GetBody()
+			if err != nil {
+				return nil, err
+			}
+			retryReq := req.Clone(req.Context())
+			retryReq.Body = retryBody
+			retryReq.GetBody = req.GetBody
+			return base.RoundTrip(retryReq)
+		}
+		return base.RoundTrip(req)
+	})
+
+	payload := largeJSONRPCPayload()
+	var gotLen atomic.Int64
+	var readErr atomic.Value
+	clientGotHeaders := make(chan struct{})
+	upstreamDone := make(chan struct{})
+	te.upstreamServer.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer close(upstreamDone)
+		if err := http.NewResponseController(w).EnableFullDuplex(); err != nil {
+			readErr.Store(err.Error())
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.WriteHeader(http.StatusOK)
+		w.(http.Flusher).Flush()
+
+		select {
+		case <-clientGotHeaders:
+		case <-t.Context().Done():
+			return
+		}
+
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			readErr.Store(err.Error())
+			return
+		}
+		gotLen.Store(int64(len(body)))
+		_, _ = io.WriteString(w, "data: "+strconv.Itoa(len(body))+"\n\n")
+		w.(http.Flusher).Flush()
+	})
+
+	token := te.obtainAccessTokenForResource(te.resource)
+	ts := httptest.NewServer(te.handler)
+	defer ts.Close()
+
+	req, err := http.NewRequest(http.MethodPost, ts.URL+te.gw.cfg.Routes[0].Route+"?sse=1", bytes.NewReader(payload))
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json, text/event-stream")
+	resp, err := ts.Client().Do(req) //nolint:gosec // test server URL
+	close(clientGotHeaders)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("SSE early flush retry: code %d, want 200", resp.StatusCode)
+	}
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("reading SSE response: %v", err)
+	}
+	<-upstreamDone
+	if attempts.Load() != 1 {
+		t.Fatalf("proxy attempts = %d, want 1 outer call that retried via GetBody", attempts.Load())
 	}
 	if errMsg, _ := readErr.Load().(string); errMsg != "" {
 		t.Fatalf("upstream read error: %s", errMsg)
