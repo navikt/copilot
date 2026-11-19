@@ -70,12 +70,14 @@ type hierarkinode struct {
 type kodeverkClient struct {
 	baseURL    string
 	httpClient *http.Client
+	cache      *responseCache
 }
 
 func newKodeverkClient(baseURL string, httpClient *http.Client) *kodeverkClient {
 	return &kodeverkClient{
 		baseURL:    strings.TrimRight(baseURL, "/"),
 		httpClient: httpClient,
+		cache:      newResponseCache(),
 	}
 }
 
@@ -83,6 +85,10 @@ func (c *kodeverkClient) getJSON(ctx context.Context, token, path string, query 
 	target := c.baseURL + path
 	if len(query) > 0 {
 		target += "?" + query.Encode()
+	}
+
+	if body, ok := c.cache.get(target); ok {
+		return decodeKodeverkJSON(body, dst)
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, target, nil)
@@ -109,6 +115,14 @@ func (c *kodeverkClient) getJSON(ctx context.Context, token, path string, query 
 		return fmt.Errorf("kodeverk-api response exceeded %d bytes", maxUpstreamBodyBytes)
 	}
 
+	if err := decodeKodeverkJSON(body, dst); err != nil {
+		return err
+	}
+	c.cache.put(target, body)
+	return nil
+}
+
+func decodeKodeverkJSON(body []byte, dst any) error {
 	if err := json.Unmarshal(body, dst); err != nil {
 		return fmt.Errorf("invalid JSON from kodeverk-api")
 	}

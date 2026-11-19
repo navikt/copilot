@@ -13,7 +13,11 @@ All tools are read-only (`readOnlyHint: true`, `openWorldHint: false`) and use `
 - `get_hierarki_noder` — fetch hierarchy node tree with optional `spraak`, `maxDepth` (default 3, max 10), and root node `limit` (default 50, max 100).
 - `search_kodeverk` — search kodeverk names (when `kodeverksnavn` is omitted) or codes and Norwegian Bokmål (`nb`) terms within a kodeverk (`query` 2–64 characters, `limit` default 25, max 50).
 
-All serialized tool payloads are capped at 128 KiB and set `truncated: true` if items are reduced to fit.
+All serialized tool payloads are capped at 32 KiB and set `truncated: true` if items are reduced to fit. When more items exist, the result says how many and gives the next `offset` (also as `nextOffset` in `structuredContent`).
+
+Each tool declares an `outputSchema` and returns `structuredContent` (MCP 2026-07-28), plus the same JSON as a text block for older clients.
+
+Upstream responses are cached in memory for 10 minutes, bounded to 32 MiB and shared across users: kodeverk-api returns the same reference data to every caller. Tokens are still validated and exchanged on every call. Errors are not cached.
 
 ## Environment Variables
 

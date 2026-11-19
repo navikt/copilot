@@ -809,7 +809,7 @@ func TestFilterAndKodeLengthLimits(t *testing.T) {
 	}
 }
 
-func TestSizeCap128KiB(t *testing.T) {
+func TestSizeCap32KiB(t *testing.T) {
 	bigText := strings.Repeat("A", 3000)
 	betydninger := make(map[string][]betydning, 100)
 	for i := range 100 {
@@ -836,7 +836,7 @@ func TestSizeCap128KiB(t *testing.T) {
 		t.Fatalf("unexpected tool error: %s", txt)
 	}
 	if len(txt) > maxToolResultBytes {
-		t.Fatalf("serialized tool text length %d exceeds 128 KiB (%d)", len(txt), maxToolResultBytes)
+		t.Fatalf("serialized tool text length %d exceeds 32 KiB (%d)", len(txt), maxToolResultBytes)
 	}
 	var res struct {
 		Total       int                    `json:"total"`
