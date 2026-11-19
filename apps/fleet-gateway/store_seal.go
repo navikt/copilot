@@ -196,9 +196,9 @@ func newSealedStore(inner SessionStore, keys *keyRing) *sealedStore {
 	}
 }
 
-// Lockout records hold only a timestamp under an HMAC key and must stay readable after RT_KEYS is replaced (global logout must not lift or break lockouts).
+// Lockout records, the marker and the audit outbox hold only HMAC keys, timestamps and operator idents, and must stay readable after RT_KEYS is replaced (global logout must not lift lockouts or lose audit lines).
 func unsealedKind(kind string) bool {
-	return kind == kindUserRevoked || kind == kindUserRevokedMarker
+	return kind == kindUserRevoked || kind == kindUserRevokedMarker || kind == kindAuditOutbox
 }
 
 func sealAAD(kind, key string) []byte {

@@ -20,9 +20,10 @@ import (
 const lockoutNoExpiry = 100 * 365 * 24 * time.Hour
 
 const (
-	userRevokedMarkerKey  = "any"
-	lockoutAuditOutboxKey = "lockout"
-	userLockoutKeyInfo    = "fleet-gateway user-lockout hmac v1"
+	userRevokedMarkerKey       = "any"
+	lockoutAuditOutboxKey      = "lockout"
+	userLockoutKeyInfo         = "fleet-gateway user-lockout hmac v1"
+	lockoutKeyFingerprintLabel = "fleet-gateway/lockout-key-fingerprint/v1"
 )
 
 // Records keyed with the old RT_KEYS scheme are not migrated (none exist in prod).
@@ -33,6 +34,7 @@ type lockoutRecord struct {
 }
 
 type lockoutAuditEntry struct {
+	ID       string `json:"id"`
 	Action   string `json:"action"`
 	UserKey  string `json:"user_key"`
 	Operator string `json:"operator"`
@@ -67,6 +69,12 @@ func deriveMCPUserKey(lockoutKey []byte, rtKeys *keyRing) ([]byte, error) {
 		return nil, fmt.Errorf("generate mcp user key: %w", err)
 	}
 	return secret, nil
+}
+
+func lockoutKeyFingerprint(key []byte) string {
+	mac := hmac.New(sha256.New, key)
+	_, _ = mac.Write([]byte(lockoutKeyFingerprintLabel))
+	return hex.EncodeToString(mac.Sum(nil))
 }
 
 func userKeyWith(key []byte, navIdent string) string {
@@ -116,7 +124,7 @@ func (g *Gateway) lockOutUser(ctx context.Context, navIdent, operator string) (t
 	if err := g.store.Put(ctx, kindUserRevoked, key, val, lockoutNoExpiry); err != nil {
 		return time.Time{}, err
 	}
-	if err := g.store.Put(ctx, kindUserRevokedMarker, userRevokedMarkerKey, []byte("1"), lockoutNoExpiry); err != nil {
+	if err := g.store.Put(ctx, kindUserRevokedMarker, userRevokedMarkerKey, []byte(lockoutKeyFingerprint(g.lockoutKey)), lockoutNoExpiry); err != nil {
 		return time.Time{}, err
 	}
 	if err := g.appendLockoutAudit(ctx, lockoutAuditEntry{
@@ -162,8 +170,15 @@ func (g *Gateway) undoLockout(ctx context.Context, navIdent, operator string) er
 	})
 }
 
-// shortcut: Get+Put is not atomic; a drain racing an append can re-log entries (duplicates, never loss). Fine for a rare operator action.
+// shortcut: Get+Put/Delete is not atomic; drain logs before removing logged IDs, so crashes or failed writes produce duplicates rather than losing entries (duplicates possible, never loss). Fine for a rare operator action.
 func (g *Gateway) appendLockoutAudit(ctx context.Context, entry lockoutAuditEntry) error {
+	if entry.ID == "" {
+		var idBuf [16]byte
+		if _, err := rand.Read(idBuf[:]); err != nil {
+			return fmt.Errorf("generate lockout audit id: %w", err)
+		}
+		entry.ID = hex.EncodeToString(idBuf[:])
+	}
 	raw, ok, err := g.store.Get(ctx, kindAuditOutbox, lockoutAuditOutboxKey)
 	if err != nil {
 		return err
@@ -183,7 +198,7 @@ func (g *Gateway) appendLockoutAudit(ctx context.Context, entry lockoutAuditEntr
 }
 
 func (g *Gateway) drainLockoutAudit(ctx context.Context) {
-	raw, ok, err := g.store.Pop(ctx, kindAuditOutbox, lockoutAuditOutboxKey)
+	raw, ok, err := g.store.Get(ctx, kindAuditOutbox, lockoutAuditOutboxKey)
 	if err != nil {
 		slog.Warn("drain lockout audit outbox failed", "error", err)
 		return
@@ -192,18 +207,55 @@ func (g *Gateway) drainLockoutAudit(ctx context.Context) {
 		return
 	}
 	var entries []lockoutAuditEntry
-	if err := json.Unmarshal(raw, &entries); err != nil {
+	if err = json.Unmarshal(raw, &entries); err != nil {
 		slog.Warn("parse lockout audit outbox failed", "error", err)
 		return
 	}
+	loggedIDs := make(map[string]struct{}, len(entries))
 	for _, e := range entries {
 		slog.Info("audit lockout",
 			"outcome", "ok",
+			"id", e.ID,
 			"action", e.Action,
 			"user_key", e.UserKey,
 			"operator", sanitizeLogValue(e.Operator),
 			"at", e.At,
 		)
+		loggedIDs[e.ID] = struct{}{}
+	}
+
+	raw, ok, err = g.store.Get(ctx, kindAuditOutbox, lockoutAuditOutboxKey)
+	if err != nil {
+		slog.Warn("re-read lockout audit outbox failed", "error", err)
+		return
+	}
+	if !ok {
+		return
+	}
+	var current []lockoutAuditEntry
+	if err = json.Unmarshal(raw, &current); err != nil {
+		slog.Warn("parse lockout audit outbox failed", "error", err)
+		return
+	}
+	remaining := make([]lockoutAuditEntry, 0, len(current))
+	for _, e := range current {
+		if _, logged := loggedIDs[e.ID]; !logged {
+			remaining = append(remaining, e)
+		}
+	}
+	if len(remaining) == 0 {
+		if err = g.store.Delete(ctx, kindAuditOutbox, lockoutAuditOutboxKey); err != nil {
+			slog.Warn("delete lockout audit outbox failed", "error", err)
+		}
+		return
+	}
+	val, err := json.Marshal(remaining)
+	if err != nil {
+		slog.Warn("marshal lockout audit outbox failed", "error", err)
+		return
+	}
+	if err = g.store.Put(ctx, kindAuditOutbox, lockoutAuditOutboxKey, val, lockoutNoExpiry); err != nil {
+		slog.Warn("update lockout audit outbox failed", "error", err)
 	}
 }
 
