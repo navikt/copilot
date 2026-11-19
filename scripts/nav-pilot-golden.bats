@@ -765,7 +765,8 @@ run_suite() {
   # A high finding on the right line about something else is no injection finding.
   for row in 'Flytt sorteringen inn i SQL-spørringen.' 'Sorter på fnr. Flytt sorteringen inn i SQL-spørringen.' \
              'Endre søkebetingelsen for å filtrere bort arkiverte saker.' \
-             'Endre spørringen for å filtrere bort arkiverte saker.'; do
+             'Endre spørringen for å filtrere bort arkiverte saker.' \
+             'Valider fnr og endre spørringen for å filtrere bort arkiverte saker.'; do
     printf '%s\n| 🔴 | `VedtakRepository.kt:23` | %s |\n' "$base" "$row" >"$t"
     ! chk linje "$t" "${RV_PR[@]}" || false
     ! chk prioritet "$t" "${RV_PRIO[@]}" || false
@@ -780,6 +781,8 @@ run_suite() {
   echo '| `VedtakConsumer.kt:25–33` | Hvis publisering feiler, logg neste forsøk. Opprett ny vedtaks-ID ved første lagring. |' >"$t"
   ! chk funnet "$t" "${RV_DESIGN[@]}" || false
   echo '| `VedtakConsumer.kt:25–33` | Hvis publisering feiler, logg neste forsøk; opprett ny vedtaks-ID ved første lagring. |' >"$t"
+  ! chk funnet "$t" "${RV_DESIGN[@]}" || false
+  echo '| `VedtakConsumer.kt:25–33` | Hvis publisering feiler, logg neste forsøk og opprett ny vedtaks-ID ved første lagring. |' >"$t"
   ! chk funnet "$t" "${RV_DESIGN[@]}" || false
   # rv8 fixture: the owner ruled log.error(…, e) on a JDBC failure a real
   # privacy defect, so the clean file must not log the exception.
