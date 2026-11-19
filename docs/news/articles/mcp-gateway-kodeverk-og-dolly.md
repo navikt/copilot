@@ -48,7 +48,7 @@ Takk til team-rocket (Felles kodeverk) og team Dolly for samarbeidet om tilgang 
 
 ## Bruk syntetiske testdata, ikke produksjonsdata
 
-Testdata skal være syntetiske. Pseudonymiserte data fra produksjon er fortsatt opplysninger om ekte personer. Med Dolly-serveren kan agenten hente syntetiske testpersoner rett inn i arbeidet ditt, så det blir enklere å la produksjonsdata ligge.
+Med KI-agenter er det enklere enn noen gang å bruke syntetiske testdata, uten å risikere at personopplysninger kommer på avveie. Pseudonymiserte data fra produksjon er fortsatt opplysninger om ekte personer. Med Dolly-serveren henter agenten syntetiske testpersoner rett inn i arbeidet ditt, så produksjonsdata kan bli liggende.
 
 Lag først en gruppe med testpersoner i [Dolly](https://dolly.ekstern.dev.nav.no). Spør så agenten, for eksempel:
 
