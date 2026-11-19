@@ -75,6 +75,7 @@ type Repository struct {
 type ServerJSON struct {
 	Schema      string      `json:"$schema"`
 	Name        string      `json:"name"`
+	Title       string      `json:"title,omitempty"`
 	Description string      `json:"description"`
 	Version     string      `json:"version"`
 	WebsiteURL  string      `json:"websiteUrl,omitempty"`
@@ -189,6 +190,7 @@ type ServerListResponse struct {
 type StaticServerData struct {
 	Schema            string             `json:"$schema,omitempty"`
 	Name              string             `json:"name"`
+	Title             string             `json:"title,omitempty"`
 	Description       string             `json:"description"`
 	Version           string             `json:"version"`
 	Status            string             `json:"status,omitempty"`

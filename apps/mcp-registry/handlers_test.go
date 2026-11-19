@@ -989,3 +989,21 @@ func TestNaisBrokerServed(t *testing.T) {
 	}
 	t.Fatal("Nais server missing from list response")
 }
+
+func TestServersListHandler_KodeverkTitle(t *testing.T) {
+	w := httptest.NewRecorder()
+	serversListHandler(w, httptest.NewRequest(http.MethodGet, "/v0.1/servers", nil), testConfig())
+	var response ServerListResponse
+	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
+		t.Fatal(err)
+	}
+	for _, sr := range response.Servers {
+		if sr.Server.Name == "io.github.navikt/kodeverk" {
+			if sr.Server.Title != "Felles kodeverk" {
+				t.Fatalf("title = %q, want %q", sr.Server.Title, "Felles kodeverk")
+			}
+			return
+		}
+	}
+	t.Fatal("io.github.navikt/kodeverk not listed")
+}

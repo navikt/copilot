@@ -115,6 +115,7 @@ func serverToResponse(s StaticServerData, defaultUpdatedAt time.Time) ServerResp
 		Server: ServerJSON{
 			Schema:      CurrentSchemaURL,
 			Name:        s.Name,
+			Title:       s.Title,
 			Description: s.Description,
 			Version:     s.Version,
 			WebsiteURL:  s.WebsiteURL,
