@@ -10,7 +10,7 @@ metadata:
 
 # MCP Server Authoring
 
-Build an MCP server that Nav teams can run behind fleet-gateway. Workflow adapted from Anthropic's `mcp-builder` (Apache-2.0, see `NOTICE`; attribution file in this directory); the Nav layer is added.
+Build an MCP server that Nav teams can run behind fleet-gateway. Workflow adapted from Anthropic's `mcp-builder` (Apache-2.0, see `NOTICE`); the Nav layer is added.
 
 ## When to Use
 
@@ -31,7 +31,7 @@ Build an MCP server that Nav teams can run behind fleet-gateway. Workflow adapte
 Reference: [fleet-gateway for teams](https://ki-utvikling.nav.no/verktoy/fleet-gateway/for-team).
 
 - [ ] No public ingress. Clients reach the server only through fleet-gateway.
-- [ ] Validate every token with Texas introspection. Check audience (issued to your server), `azp == <cluster>:copilot:fleet-gateway` (e.g. `prod-gcp:copilot:fleet-gateway`), and that a `NAVident` claim exists. Reject app (machine) tokens. Fail closed when config is missing.
+- [ ] Validate every token with Texas introspection. Check audience (issued to your server), that a `NAVident` claim exists, and that `azp` is fleet-gateway's Entra client ID. `azp` holds the client ID, not the name: find the entry named `<cluster>:copilot:fleet-gateway` (e.g. `prod-gcp:copilot:fleet-gateway`) in `AZURE_APP_PRE_AUTHORIZED_APPS` using `NAIS_CLUSTER_NAME`, and compare `azp` with its `clientId` (see `apps/mcp-kodeverk/auth.go`). Reject app (machine) tokens. Fail closed when the lookup or any config fails.
 - [ ] 401 for missing/invalid/expired token, 403 for missing rights. Never use the session id as authentication.
 - [ ] Call your own API with Texas OBO. Never forward the incoming token (token passthrough).
 - [ ] `accessPolicy.inbound` allows fleet-gateway only; `accessPolicy.outbound` allows your API and Texas only.
@@ -40,7 +40,7 @@ Reference: [fleet-gateway for teams](https://ki-utvikling.nav.no/verktoy/fleet-g
 Protocol:
 
 - Implement MCP `2026-07-28`; keep the legacy-version window the gateway still supports (check the registry's listed protocol versions).
-- Where a tool param is mirrored in an `Mcp-*` header, header and body must agree. On mismatch return JSON-RPC `-32020` (header mismatch).
+- Always validate the `MCP-Protocol-Version`, `Mcp-Method` and (for `tools/call`) `Mcp-Name` headers against the body, and reject a missing mandatory header. Do this even when no tool mirrors a param. Answer a mismatch with HTTP `400` and JSON-RPC `-32020`. Validate `Mcp-Param-*` headers too where a tool declares them (see `apps/mcp-kodeverk/mcp2026_compliance_test.go`).
 - Answer `405` to `GET` when you offer no stream.
 - Set a request body cap (`MaxBytesReader` in Go) and timeouts on every upstream call; server write timeout above the sum of upstream timeouts.
 
@@ -64,7 +64,7 @@ Protocol:
 
 - [ ] Small default page size, hard page cap, deterministic order.
 - [ ] Return `truncated: true`, `nextOffset` and one sentence on how to narrow the search.
-- [ ] Response byte cap (kodeverk uses 128 KiB).
+- [ ] Response byte cap (kodeverk uses 32 KiB).
 - [ ] `structuredContent` + `outputSchema`, and the same JSON serialised in a text block for legacy clients.
 - [ ] Only needed fields; translate ids to names; optional `response_format` (`concise`/`detailed`).
 - [ ] Timeouts on all upstream calls; limit concurrent upstream calls; collapse identical calls (`singleflight`).
@@ -85,6 +85,7 @@ One ROS per server. Template: `fleet-gateway/ros-mcp-server-mal.md` in the priva
 
 - Registry: add an entry to `apps/mcp-registry/allowlist.json`. The `name` (e.g. `io.github.navikt/kodeverk`) must not contain the transport.
 - Gateway: add a route to `apps/fleet-gateway/pilot-routes.prod.yaml` (and dev) with an explicit `tools:` list. Only the operator uses `passAllTools`. `tools` in the route and in the registry must match.
+- Network: the route alone does not make the server reachable. Add the server to `outbound_rules` in `apps/fleet-gateway/.nais/dev-gcp.yaml` and `.nais/prod-gcp.yaml` (`application`, plus `namespace` when the server is outside `copilot`).
 
 ## OWASP MCP Top 10 mapping
 
