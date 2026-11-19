@@ -1,0 +1,49 @@
+ ✗ Shell Read file Failed with exit code 1       1    package no.nav.demo 2 3 import org.slf4j.Logg…
+   cat -n src/main/kotlin/no/nav/demo/UserRepo.kt; ls; ls src/test 2>/dev/null
+   1       package no.nav.demo
+        2  
+        3  import org.slf4j.LoggerFactory
+        4  
+        5  private val logger = LoggerFactory.getLogger("UserRepo")
+        6  
+        7  fun finnBruker(fnr: String): String? {
+        8      logger.info("Slår opp bruker fnr=$fnr")
+        9      val query = "SELECT navn FROM bruker WHERE fnr = '$fnr'"
+       10      return try {
+       11          session.run(queryOf(query).map { it.string("navn") }.asSingle)
+       12      } catch (e: Exception) {
+       13          null
+       14      }
+       15  }
+   build.gradle.kts
+   nais.yaml
+   README.md
+   src
+   Failed with exit code 1
+
+### Oppsummering
+Funksjonen er kort, men har to blokkere: SQL-injeksjon og fødselsnummer i loggen. Den skjuler også alle feil. Jeg kjørte ikke `mise check` fordi repoet ikke har mise-oppsett. Fant heller ingen tester under `src/test`.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|-----|-------|-----------|---------|
+| `UserRepo.kt` | 9 | 🔴 | SQL-injeksjon: `fnr` settes rett inn i SQL-strengen |
+| `UserRepo.kt` | 8 | 🔴 | Fødselsnummer (personopplysning) skrives til applikasjonsloggen |
+| `UserRepo.kt` | 12–14 | 🟡 | `catch (e: Exception)` sluker alle feil og returnerer `null` |
+| `UserRepo.kt` | 11 | 🟡 | `session` er en udeklarert global, så avhengigheten er skjult og vanskelig å teste |
+| `UserRepo.kt` | – | 🟡 | Ingen tester for oppslaget |
+
+### Detaljer
+
+**Linje 9, SQL-injeksjon.** Input som `' OR '1'='1` endrer spørringen og kan lekke eller endre data. Bruk parameter:
+```kotlin
+session.run(queryOf("SELECT navn FROM bruker WHERE fnr = ?", fnr).map { it.string("navn") }.asSingle)
+```
+
+**Linje 8, fødselsnummer i loggen.** Applikasjonslogger har bred tilgang og lang lagringstid. Å logge fødselsnummer bryter personvernreglene. Fjern feltet eller logg en intern ID. Trengs revisjonsspor, skal det gå gjennom en egen `auditLogger` i CEF-format.
+
+**Linje 12–14, feil blir borte.** Når databasen er nede, ser det ut som at brukeren ikke finnes, og ingen får vite om feilen. Ta bare imot forventede feil, og logg dem uten personopplysninger. Ellers kast dem videre med kontekst.
+
+Still gjerne spørsmål om valgene over.
+

@@ -1,0 +1,23 @@
+# golden-prompt SIZE MEASUREMENT: RECORDED, NOT A TARGET
+# Nothing asserts against these numbers, and no run fails because it
+# missed them. They describe one agent, one revision, one model, one day.
+# Only comparable with another run made the same way (--compare).
+# agent:        rust
+# suite:        rust
+# date:         2026-11-18
+# revision:     6ef38f72
+# personaHash:  e1cb55806cd87d8c2b71832e5049d2490b65f6eb7e933b5c74618324f50defc5
+# harnessHash:  31303b66a044df68da77f1ba539f6a0a98cf0aabc6733992e11c37f4979c6eb4
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.114-0.
+# model:        gpt-6-luna
+# effort:       medium
+# context:      CLI default
+# repeats:      5
+# instructions: 17 installed, 4 always-on
+# fixture:      588445031
+# prompts:      all
+#
+# slug|runs|bytes_median|bytes_min|bytes_max|lines_median|lines_min|lines_max|words_median|words_min|words_max|elapsed_ms_median|elapsed_ms_min|elapsed_ms_max
+rs-borrow|5|3427|2315|4467|80|60|104|391|295|493|42277|35640|50847
+rs-feil|5|2886|1654|4434|78|43|123|341|190|521|56563|45922|72903

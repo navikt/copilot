@@ -1,0 +1,113 @@
+=== ./build.gradle.kts
+plugins {
+    kotlin("jvm") version "2.1.0"
+    kotlin("plugin.serialization") version "2.1.0"
+}
+repositories {
+    mavenCentral()
+}
+dependencies {
+    implementation("io.ktor:ktor-server-netty:3.0.0")
+    implementation("io.ktor:ktor-server-content-negotiation:3.0.0")
+    implementation("io.ktor:ktor-serialization-kotlinx-json:3.0.0")
+    testImplementation(kotlin("test"))
+}
+
+tasks.test {
+    useJUnitPlatform()
+}
+
+=== ./src/main/kotlin/no/nav/demo/Avrunding.kt
+package no.nav.demo
+
+import java.math.BigDecimal
+import java.math.RoundingMode
+
+fun avrundTilHeleKroner(belop: BigDecimal): Long =
+    belop.setScale(0, RoundingMode.HALF_UP).longValueExact()
+
+=== ./src/main/kotlin/no/nav/demo/Feriepenger.kt
+package no.nav.demo
+
+fun feriepenger(grunnlag: Long, alderIOpptjeningsåret: Int): Long {
+    TODO("Avvis negativt grunnlag, velg sats etter alder og avrund med avrundTilHeleKroner")
+}
+
+=== ./src/test/kotlin/no/nav/demo/AvrundingTest.kt
+package no.nav.demo
+
+import java.math.BigDecimal
+import kotlin.test.Test
+import kotlin.test.assertEquals
+
+class AvrundingTest {
+    @Test
+    fun `runder ned under femti ore`() {
+        assertEquals(123L, avrundTilHeleKroner(BigDecimal("123.49")))
+    }
+
+    @Test
+    fun `runder femti ore opp`() {
+        assertEquals(124L, avrundTilHeleKroner(BigDecimal("123.50")))
+    }
+
+    @Test
+    fun `runder opp over femti ore`() {
+        assertEquals(124L, avrundTilHeleKroner(BigDecimal("123.51")))
+    }
+
+    @Test
+    fun `beholder hele kroner og null`() {
+        assertEquals(123L, avrundTilHeleKroner(BigDecimal("123.00")))
+        assertEquals(0L, avrundTilHeleKroner(BigDecimal.ZERO))
+    }
+}
+
+=== ./src/test/kotlin/no/nav/demo/FeriepengerTest.kt
+package no.nav.demo
+
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+
+class FeriepengerTest {
+    @Test
+    fun `gir ti komma to prosent for fylte 59 ar`() {
+        assertEquals(10_200L, feriepenger(100_000L, 59))
+    }
+
+    @Test
+    fun `gir tolv komma fem prosent fra fylte 60 ar`() {
+        assertEquals(12_500L, feriepenger(100_000L, 60))
+        assertEquals(12_500L, feriepenger(100_000L, 61))
+    }
+
+    @Test
+    fun `runder ned under en halv krone`() {
+        assertEquals(2L, feriepenger(24L, 59))
+    }
+
+    @Test
+    fun `runder en halv krone opp med begge satser`() {
+        assertEquals(26L, feriepenger(250L, 59))
+        assertEquals(3L, feriepenger(20L, 60))
+    }
+
+    @Test
+    fun `runder opp over en halv krone`() {
+        assertEquals(3L, feriepenger(25L, 59))
+    }
+
+    @Test
+    fun `gir null for null i grunnlag`() {
+        assertEquals(0L, feriepenger(0L, 59))
+        assertEquals(0L, feriepenger(0L, 60))
+    }
+
+    @Test
+    fun `avviser negativt grunnlag med begge satser`() {
+        assertFailsWith<IllegalArgumentException> { feriepenger(-1L, 59) }
+        assertFailsWith<IllegalArgumentException> { feriepenger(-1L, 60) }
+    }
+}
+

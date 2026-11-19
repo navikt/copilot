@@ -1,0 +1,72 @@
+=== ./vedtak-hendelse/src/main/kotlin/no/nav/vedtak/VedtakFattet.kt
+package no.nav.vedtak
+
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import com.fasterxml.jackson.module.kotlin.readValue
+
+// Hendelsen publiseres på topicen vedtak-fattet og leses av flere team.
+@JsonIgnoreProperties(ignoreUnknown = true)
+data class VedtakFattet(
+    val vedtakId: String,
+    val belop: Int,
+    val sakstype: Sakstype = Sakstype.ORDINAER,
+)
+
+enum class Sakstype {
+    ORDINAER,
+    KLAGE,
+    ANKE,
+}
+
+object VedtakSerde {
+    private val mapper = jacksonObjectMapper()
+
+    fun les(json: String): VedtakFattet = mapper.readValue(json)
+
+    fun skriv(hendelse: VedtakFattet): String = mapper.writeValueAsString(hendelse)
+}
+
+=== ./vedtak-hendelse/src/test/kotlin/no/nav/vedtak/VedtakFattetTest.kt
+package no.nav.vedtak
+
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertTrue
+
+class VedtakFattetTest {
+    @Test
+    fun `leser eldre hendelse som ordinær`() {
+        assertEquals(
+            VedtakFattet("v1", 100, Sakstype.ORDINAER),
+            VedtakSerde.les("""{"vedtakId":"v1","belop":100}"""),
+        )
+    }
+
+    @Test
+    fun `leser alle gyldige sakstyper`() {
+        Sakstype.entries.forEach { sakstype ->
+            assertEquals(
+                VedtakFattet("v1", 100, sakstype),
+                VedtakSerde.les("""{"vedtakId":"v1","belop":100,"sakstype":"$sakstype"}"""),
+            )
+        }
+    }
+
+    @Test
+    fun `ignorerer ukjente felt fra nyere produsent`() {
+        assertEquals(
+            VedtakFattet("v1", 100, Sakstype.KLAGE),
+            VedtakSerde.les("""{"vedtakId":"v1","belop":100,"sakstype":"KLAGE","nyttFelt":true}"""),
+        )
+    }
+
+    @Test
+    fun `skriver sakstype i hendelsen`() {
+        assertTrue(
+            VedtakSerde.skriv(VedtakFattet("v1", 100, Sakstype.ANKE))
+                .contains("\"sakstype\":\"ANKE\""),
+        )
+    }
+}
+

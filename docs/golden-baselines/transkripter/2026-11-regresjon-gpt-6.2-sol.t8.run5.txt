@@ -1,0 +1,33 @@
+ ● skill(klarsprak)
+
+ ✗ Shell Find signing code and repo instructions Failed with exit code 1  total 24 drwxr-xr-x    8 …
+   ls -la; rg -il 'signatur|signature|signering' | head -25; ls AGENTS.md
+   .github/copilot{,-review}-instructions.md
+   total 24
+   drwxr-xr-x    8 hans  staff   256 Nov 18 23:24 .
+   drwx------  249 hans  staff  7968 Nov 18 23:24 ..
+   drwxr-xr-x    4 hans  staff   128 Nov 18 23:24 .github
+   -rw-r--r--    1 hans  staff   340 Nov 18 23:24 build.gradle.kts
+   drwxr-xr-x    3 hans  staff    96 Nov 18 23:24 lib
+   -rw-r--r--    1 hans  staff   216 Nov 18 23:24 nais.yaml
+   -rw-r--r--    1 hans  staff   166 Nov 18 23:24 README.md
+   drwxr-xr-x    3 hans  staff    96 Nov 18 23:24 src
+   lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningHeaders.kt
+   lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningProducerInterceptor.kt
+   ls: .github/copilot-instructions.md: No such file or directory
+   ls: .github/copilot-review-instructions.md: No such file or directory
+   ls: AGENTS.md: No such file or directory
+   Failed with exit code 1
+
+ ● skill(kafka)
+
+ $ Shell Read signer and locate verification context 63 lines…
+   cat lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/*.kt; find src .github -type f; cat
+   README.md
+
+Ingen kode endret. `SigningProducerInterceptor.onSend` legger til `x-paw-signature` og `x-paw-signing-key-id` uten å fjerne gamle verdier. Repoet har allerede `stripSigningHeaders` for begge. Jeg har ikke sett referanseendringen i Paw sitt interne monorepo.
+
+🔴 Rød sone: Kafka-signering. Hvilke konsumenter verifiserer signaturen? Hvis `signer.sign` feiler ved omsignering, skal meldingen stoppes, eller skal den opprinnelige signaturen beholdes? Del også diffen fra monorepoet, slik at samme feiloppførsel kan bekreftes her.
+
+Blindsoner reist: 2/11 (#3 feilhåndtering, #6 konsumenter). Endringen gjelder bare signeringsheadere, ikke payload, tilgang, nøkkelhåndtering eller drift.
+

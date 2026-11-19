@@ -1,0 +1,32 @@
+# golden-prompt EXACT MODEL USAGE
+# agent:        research
+# suite:        research
+# date:         2026-11-18
+# revision:     ac35a630
+# personaHash:  bfd27dcb2ee26f091fbc71c847ebdf211ee307dc6c41d565ea73a5ae8667ba32
+# harnessHash:  31303b66a044df68da77f1ba539f6a0a98cf0aabc6733992e11c37f4979c6eb4
+# model:        gpt-6.2-sol
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.114-0.
+# effort:       low
+# context:      CLI default
+# instructions: 17 installed, 4 always-on
+# repeat:       1
+# fixture:      4263008951
+# prompts:      all
+# source:       assistant_usage_events
+#
+# slug|run|session_id|event_id|turn_index|model|reasoning_effort|input_tokens|output_tokens|cache_read_tokens|cache_write_tokens|reasoning_tokens|total_nano_aiu|duration_ms|time_to_first_token_ms|finish_reason|agent_id|parent_tool_call_id
+re-bruk|1|38da0547-d63c-4d7e-b8b9-645a29549137|24540|0|gpt-6.2-sol|low|17828|19|0|17825|0|4475850000|1574|1355.292792|tool_calls||
+re-bruk|1|38da0547-d63c-4d7e-b8b9-645a29549137|24541|0|gpt-6.2-sol|low|23529|34|17825|5701|0|1638100000|2036|1633.6874579999999|tool_calls||
+re-bruk|1|38da0547-d63c-4d7e-b8b9-645a29549137|24542|0|gpt-6.2-sol|low|23657|97|23526|128|0|364860000|2377|1295.149999|stop||
+re-ingen|1|d3d885e9-af84-4cd8-aa91-26214e8795a9|24543|0|gpt-6.2-sol|low|17827|19|6633|11191|0|2883680000|1431|1275.504126|tool_calls||
+re-ingen|1|d3d885e9-af84-4cd8-aa91-26214e8795a9|24544|0|gpt-6.2-sol|low|23528|34|17824|5701|0|1638090000|2119|1516.9026669999998|tool_calls||
+re-ingen|1|d3d885e9-af84-4cd8-aa91-26214e8795a9|24545|0|gpt-6.2-sol|low|23577|58|23525|49|0|306100000|2325|1410.070876|tool_calls||
+re-ingen|1|d3d885e9-af84-4cd8-aa91-26214e8795a9|24546|0|gpt-6.2-sol|low|23659|41|23574|82|0|297840000|1849|1454.771917|tool_calls||
+re-ingen|1|d3d885e9-af84-4cd8-aa91-26214e8795a9|24547|0|gpt-6.2-sol|low|23900|35|23656|241|0|332410000|1893|1349.2105000000001|stop||
+re-sammendrag|1|f3240acd-c64f-4a62-be15-520f2ce89951|24548|0|gpt-6.2-sol|low|17818|19|6633|11182|0|2881430000|1618|1469.846791|tool_calls||
+re-sammendrag|1|f3240acd-c64f-4a62-be15-520f2ce89951|24549|0|gpt-6.2-sol|low|23519|58|17815|5701|0|1662000000|2506|1410.870749|tool_calls||
+re-sammendrag|1|f3240acd-c64f-4a62-be15-520f2ce89951|24550|0|gpt-6.2-sol|low|23601|91|23516|82|0|347260000|2460|2444.289333|tool_calls||
+re-sammendrag|1|f3240acd-c64f-4a62-be15-520f2ce89951|24551|0|gpt-6.2-sol|low|24724|32|23598|1123|0|549330000|1938|1588.835083|tool_calls||
+re-sammendrag|1|f3240acd-c64f-4a62-be15-520f2ce89951|24552|0|gpt-6.2-sol|low|25147|49|24721|423|0|402560000|1870|1196.148291|stop||

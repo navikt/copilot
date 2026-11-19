@@ -1,0 +1,45 @@
+ / Search "*" 28 files found
+
+ ● skill(klarsprak)
+
+ MD Read README.md 4 lines read
+
+ ● Read lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningProducerIntercepto  22 lines re…
+        r.kt
+
+ ● Read lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningHeaders.kt 11 lines read
+
+ ● Read build.gradle.kts 12 lines read
+
+ / Search "sign|Signing|stripSigningHeaders" in *.kt 12 lines found
+
+ / Search "{AGENTS.md,.github/copilot-instructions.md,.github/copilot-review-instr… No matches found
+
+ $ Shell Finn PAW-repoet med referanseimplementasjonen 1 line…
+   gh search repos paw --owner navikt --limit 20 --json name,url
+
+ $ Shell Sjekk tilgang til det interne PAW-monorepoet 1 line…
+   gh repo view navikt/paw-arbeidssoekerregisteret-monorepo-intern --json name,url
+
+ $ Shell Finn signeringskoden i referanserepoet 11 lines…
+   gh api repos/navikt/paw-arbeidssoekerregisteret-monorepo-intern/git/trees/main?recursive=1 --jq
+   '.tree[] | select(.path | test("[Ss]ign.*\\.kt$")) | .path'
+
+ $ Shell Les hvordan referansen erstatter signeringsheaders 214 lines…
+   gh api repos/navikt/paw-arbeidssoekerregisteret-monorepo-intern/contents/lib/kafka-signing/src/ma
+   in/kotlin/no/nav/paw/kafka/signing/KafkaMessageSigner.kt --jq .content | base64 --decode && gh
+   api repos/navikt/paw-arbeidssoekerregisteret-monorepo-intern/contents/lib/kafka-signing/src/main/
+   kotlin/no/nav/paw/kafka/signing/SigningProducerInterceptor.kt --jq .content | base64 --decode
+
+**Fase 1: Fullt omfang, fordi endringen berører signering. Ingen filer er endret.**
+
+Jeg har lest referansen i PAWs interne monorepo og signeringskoden her. Referansen fjerner gamle signeringsheaders før nye legges til. Her finnes allerede `stripSigningHeaders`, men `SigningProducerInterceptor` bruker den ikke.
+
+🔴 Rød sone: signeringsprosessen, forstå dette grundig.
+
+Ved signeringsfeil kaster dagens kode unntaket før headers endres. Skal vi bevare denne oppførselen og først fjerne gamle headers når ny signatur er beregnet?
+
+Repoet mangler `AGENTS.md` og Copilot-instruksjonsfilene for kode og review. Disse kan opprettes med `nav-pilot init`.
+
+Blindsoner reist: 1/11 (#3 feilhåndtering; øvrige avklart av koden eller ikke relevante fordi payload, mottakere, tilgang, signeringsformat og nøkkelhåndtering er uendret).
+

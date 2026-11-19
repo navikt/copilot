@@ -1,0 +1,35 @@
+ TX Read src/app/komponenter/StatusPanel.tsx 19 lines read
+
+ MD Read .github/instructions/accessibility.instructions.md 121 lines read
+
+ ✗ Shell Check Aksel dependency Failed with exit code 2  build.gradle.kts nais.yaml README.md src g…
+   cat > /dev/null <<< ""; cd
+   /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.uSyFe7/repo && ls; grep
+   -n "ds-react" package.json
+   build.gradle.kts
+   nais.yaml
+   README.md
+   src
+   grep: package.json: No such file or directory
+   Failed with exit code 2
+
+ TX Edit src/app/komponenter/StatusPanel.tsx +12 -8
+
+ TX Edit src/app/komponenter/StatusPanel.tsx +1
+
+Jeg har rettet `src/app/komponenter/StatusPanel.tsx`. Jeg har ikke kjørt noe. Repoet har ingen `package.json`, så jeg kunne ikke sjekke at `@navikt/ds-react` er installert.
+
+| Funn | WCAG | Rettelse |
+|---|---|---|
+| `<div onClick>` uten rolle og tastatur | 2.1.1, 4.1.2 | Aksel `Button` |
+| `outline: none` | 2.4.7 | Fjernet, Aksel gir synlig fokus |
+| `tabIndex={5}` | 2.4.3 | Fjernet |
+| Statustekst i rød og grønn med inline-stil | 1.4.1, 1.4.3 | Aksel `Tag` (`error` eller `success`) |
+| Ikonknapp uten navn | 4.1.2 | `Button` med `<TrashIcon title="Slett" />` |
+
+Utover dette:
+- Knappen «Vis detaljer» har `aria-expanded`, men komponenten viser ikke noe innhold når `apen` er true. Legg til et panel og koble det med `aria-controls`.
+- Vurder en bekreftelse (Modal) før sletting, jf. WCAG 3.3.4.
+- Props mangler typer.
+- «Slett» kan få mer kontekst når flere paneler vises på samme side.
+

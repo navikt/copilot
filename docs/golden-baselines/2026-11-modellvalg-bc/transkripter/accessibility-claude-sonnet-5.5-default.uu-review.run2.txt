@@ -1,0 +1,30 @@
+ TX Read src/app/komponenter/StatusPanel.tsx 19 lines read
+
+ MD Read .github/instructions/accessibility.instructions.md 121 lines read
+
+Jeg fant flere brudd og retter dem med Aksel-komponenter.
+
+ TX Create src/app/komponenter/StatusPanel.tsx Path already exists
+
+ TX Edit src/app/komponenter/StatusPanel.tsx +22 -8
+
+ ✗ Shell Check project deps Failed with exit code 1  build.gradle.kts nais.yaml README.md src
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.uSyFe7/repo && ls;
+   ls node_modules/@navikt 2>/dev/null
+
+Jeg rettet `StatusPanel.tsx`, men har ikke kjørt noe. Prosjektet har ingen `node_modules`, og filen er ikke verifisert med axe eller tastatur.
+
+**Funn og rettinger**
+- **`<div onClick>` uten rolle eller tastatur** (WCAG 2.1.1, 4.1.2): byttet til Aksel `Button` med `aria-expanded`.
+- **`outline: none`** (2.4.7): fjernet. `Button` har synlig fokus.
+- **`tabIndex={5}`** (2.4.3): fjernet. Elementet er ikke interaktivt, og `tabIndex` over 0 er forbudt.
+- **Status kun med farge, og grønn tekst gir for lav kontrast** (1.4.1, 1.4.3): byttet til `Tag`. Den viser statusteksten og har Aksel-kontrast.
+- **Statusendringer annonseres ikke** (4.1.3): la til `role="status"`.
+- **Ikonknapp uten navn** (4.1.2): `Button` med `<TrashIcon title="Slett" />`.
+- **Manglende typer:** props er nå typet.
+
+**Gjenstår**
+- `apen` styrer ingenting synlig. Detaljpanelet mangler, så `aria-expanded` har ingenting å peke på. Legg til panelet og koble det med `aria-controls`.
+- «Slett» er en destruktiv handling. Vurder en bekreftelse (3.3.4) og en mer presis tittel, for eksempel «Slett vedtak».
+- `@navikt/ds-react` må ligge i `package.json` hvis det ikke gjør det allerede.
+

@@ -1,0 +1,78 @@
+ ● skill(jackson-3-migration)
+
+ ● skill(klarsprak)
+
+ $ Shell git status -sb; git --no-pager log -5 --oneline; git branch -a; git ls-files; ja… 34 lines…
+   git status -sb; git --no-pager log -5 --oneline; git branch -a; git ls-files; java -version
+
+ $ Shell Les migreringsdiff og byggoppsett 128 lines…
+   git --no-pager diff main...HEAD; rg -n '.' build.gradle.kts src/main; command -v gradle; ls -a
+
+ ✗ Shell  Permission denied because no interactive user response was available. Retry in an interact
+   gradle --version; /usr/libexec/java_home -V; cat README.md; git grep -n -E
+   'lesSoker|sendMottatt|sendSoker|JsonNode'
+   Approval check
+     └ ✗ Denied, no one to approve shell path (/usr/libexec/java_home)
+   Permission denied because no interactive user response was available. Retry in an interactive 
+   session so the user can approve it, or try an alternative that does not require this permission.
+
+ $ Shell Sjekk Gradle-versjon 13 lines…
+   gradle --version
+
+ ✗ Shell Bygg og kontroller Jackson-avhengigheter Failed with exit code 1  To honour the JVM settin…
+   gradle --no-daemon --console=plain build dependencyInsight --dependency jackson --configuration
+   compileClasspath
+   To honour the JVM settings for this build a single-use Daemon process will be forked. For more on
+    this, please refer to 
+   https://docs.gradle.org/8.14.7/userguide/gradle_daemon.html#sec:disabling_the_daemon in the 
+   Gradle documentation.
+   Daemon will be stopped at the end of the build 
+   
+   FAILURE: Build failed with an exception.
+   
+   * What went wrong:
+   A problem occurred configuring root project 'repo'.
+   > 27.0.1.0.2
+   
+   * Try:
+   > Run with --stacktrace option to get the stack trace.
+   > Run with --info or --debug option to get more log output.
+   > Run with --scan to get full insights.
+   > Get more help at https://help.gradle.org.
+   
+   BUILD FAILED in 2s
+   Failed with exit code 1
+
+ ✗ Shell  Permission denied because no interactive user response was available. Retry in an interact
+   mise ls java; ls /Library/Java/JavaVirtualMachines; cat README.md; git status --short
+   Approval check
+     └ ✗ Denied, no one to approve shell path (/Library/Java/JavaVirtualMachines)
+   Permission denied because no interactive user response was available. Retry in an interactive 
+   session so the user can approve it, or try an alternative that does not require this permission.
+
+ $ Shell mise ls java 1 line…
+   mise ls java
+
+ $ Shell mise exec java@21 -- gradle --no-daemon --console=plain build dependencyInsight … 10 lines…
+   mise exec java@21 -- gradle --no-daemon --console=plain build dependencyInsight --dependency
+   jackson --configuration compileClasspath; git status --short
+
+ $ Shell mise exec java@21 gradle@8 -- gradle --no-daemon --console=plain build dependen… 153 lines…
+   mise exec java@21 gradle@8 -- gradle --no-daemon --console=plain build dependencyInsight
+   --dependency jackson --configuration compileClasspath
+
+ $ Shell Kontroller kallsteder og genererte filer 21 lines…
+   git grep -n -E 'lesSoker|sendMottatt|sendSoker|JsonNode'; javap -p -c -classpath
+   build/classes/kotlin/main no.nav.demo.SoknadKt | grep -E
+   'Node\.map|writeValueAsString|readValue'; git status --short; ls -a
+
+ $ Shell Fjern mapper generert av evalueringen No Content
+   rm -r .gradle .kotlin build && git status --short
+
+**Jackson 3.1-migreringen bygger på JDK 21, men jeg ville avklart Kafka-kompatibiliteten før merge.** Compilens classpath har ingen Jackson 2-versjoner av `core` eller `databind`. `jackson-annotations:2.21` er forventet. Ktor bruker `kotlinx.serialization` for HTTP og trenger ingen oppgradering for denne migreringen.
+
+- [Soknad.kt:14–25](src/main/kotlin/no/nav/demo/Soknad.kt#L14-L25): Jackson 3 sorterer JSON-feltene alfabetisk som standard. På `soknad-mottatt` kommer dermed `mottatt` før `soknadId`. Feltnavnene er uendret, og `LocalDate` skal fortsatt være en ISO-dato. Vanlige JSON-lesere tåler endret rekkefølge, men konsumenter som sammenligner rå JSON, kan få problemer.
+- [Soknad.kt:18](src/main/kotlin/no/nav/demo/Soknad.kt#L18): `lesSoker` avviser nå ekstra JSON-innhold etter første objekt fordi `FAIL_ON_TRAILING_TOKENS` er på som standard. Funksjonen har ingen kallsteder i repoet, så jeg fant ingen aktiv flyt som påvirkes.
+
+Gradle fant ingen tester. Før merge ville jeg sammenlignet faktiske payloads mot `main` for begge Kafka-topicene med syntetiske data og avklart om konsumentene krever identisk JSON. Ingen kildefiler ble endret.
+

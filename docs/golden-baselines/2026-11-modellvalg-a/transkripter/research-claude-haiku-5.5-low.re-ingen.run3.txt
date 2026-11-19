@@ -1,0 +1,8 @@
+ / Search "slettOppgave" No matches found
+
+ / Search "(?i)slett.?oppgave|slettoppgave|delete.?oppgave" No matches found
+
+Jeg fant ingen kall til `slettOppgave` i `/private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.w9xrWK/repo`. Søket var case-insensitivt og dekket både `slettOppgave` og varianter med bindestrek eller understrek.
+
+Hvis funksjonen finnes under et annet navn, kan du oppgi det, eller peke meg til riktig repo.
+

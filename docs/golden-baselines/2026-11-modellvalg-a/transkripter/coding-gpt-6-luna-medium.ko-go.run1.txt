@@ -1,0 +1,42 @@
+ / Search ".github/instructions/golang.instructions.md" 1 file found
+
+ / Search "frister/**" 3 files found
+
+ / Search "**/AGENTS.md" No matches found
+
+ ✗ Shell Check working tree changes Failed with exit code 128  fatal: not a git repository (or any …
+   git status --short --branch
+   fatal: not a git repository (or any of the parent directories): .git
+   Failed with exit code 128
+
+ GO Read frister/frist_test.go 26 lines read
+
+ MD Read .github/instructions/golang.instructions.md 547 lines read
+
+ GO Read frister/frist.go 16 lines read
+
+ ● Read frister/go.mod 3 lines read
+
+ ✗ Shell Run frister tests before fix Failed with exit code 1  --- FAIL: TestFrist (0.00s) frist_te…
+   cd frister && go test ./...
+   --- FAIL: TestFrist (0.00s)
+       frist_test.go:23: Frist(2026-09-05) = 2026-10-18, want 2026-10-19
+   FAIL
+   FAIL    example.com/frister     0.207s
+   FAIL
+   Failed with exit code 1
+
+ ● Edit  Edit frister/frist.go (+1 -1)
+
+ $ Shell Verify frister tests pass 1 line…
+   cd frister && go test ./...
+
+Rettet `frist.go`: Når fristen faller på lørdag, flyttes den nå to dager til mandag. `go test ./...` i `frister/` passerer.
+
+🔴 Rød sone: Fristberegningen er forretningslogikk.
+
+**Sjekkliste for rød sone**
+- [ ] Kontroller at lørdag flyttes til mandag, søndag flyttes én dag, og ukedager ikke endres. Se på `TestFrist`.
+
+Kan du fortelle meg hva denne koden gjør og hvorfor du valgte denne tilnærmingen?
+

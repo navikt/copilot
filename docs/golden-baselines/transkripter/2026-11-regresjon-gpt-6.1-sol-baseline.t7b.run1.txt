@@ -1,0 +1,41 @@
+ ● skill(klarsprak)
+
+ ● Research-agent (model: gpt-6-luna) Undersøk Kafka-melding og personvern                       20s
+   │ ## Oppsummering
+   │ Search "**/*Test*" No matches found
+   └ Read build.gradle.kts 18 lines read
+
+## Oppsummering
+
+Ingen filer er endret. Kartleggingen viser at `SoknadMottattMelding` inneholder søknads-ID og mottaksdato, og at `sendMottatt` serialiserer meldingen til Kafka-topicet `soknad-mottatt`. Modellen oppgir ikke hvem sitt fødselsnummer som skal legges til, eller hvorfor mottakerne trenger det. Repoet dokumenterer heller ikke konsumenter, tilgang eller lagringstid.
+
+## Funn
+
+- **Melding:** `src/main/kotlin/no/nav/demo/Soknad.kt:13` definerer `SoknadMottattMelding(val soknadId: String, val mottatt: LocalDate)`.
+- **Produsent:** `src/main/kotlin/no/nav/demo/Soknad.kt:21–22` definerer `sendMottatt`. Den sender JSON til `soknad-mottatt`, med `melding.soknadId` som Kafka-nøkkel.
+- **Beslektet persondata:** `src/main/kotlin/no/nav/demo/Soknad.kt:11` definerer `SokerDto` med `fnr` og `navn`. `sendSoker` sender den til et annet topic, `soker-oppdatert`, på linje 25–26. Dette avklarer ikke om fnr i den nye meldingen skal tilhøre søkeren, eller om den skal hentes fra denne DTO-en.
+- **Tester:** Fant ingen testfiler i checkouten. `build.gradle.kts` viser heller ingen testavhengigheter blant avhengighetene som er lest.
+- **Konsumenter:** Fant ingen referanser til `soknad-mottatt` utover produsenten.
+- **Tilgang og retention:** `nais.yaml` inneholder ikke Kafka- eller `accessPolicy`-konfigurasjon. Repoet oppgir ikke hvem som kan lese topicet eller hvor lenge meldinger beholdes.
+- **Logging:** `.github/instructions/security-core.instructions.md` sier at personopplysninger, inkludert fnr og navn, ikke skal logges. Jeg fant ingen logging knyttet til meldingen i den undersøkte koden.
+
+## Instruksjoner lest
+
+Fant ingen `AGENTS.md` eller `.github/copilot-instructions.md`/`.github/copilot-review-instructions.md`. Repoet har i stedet `.github/agents/golden-nav-pilot.agent.md` og lokale instrukser under `.github/instructions/`. Jeg leste Kotlin-instruksen, sikkerhetsinstruksene og instruksen for norsk tekst. Kotlin-instruksen sier at endringer i Kafka-eventskjema skal avklares først.
+
+## Uavklarte punkter
+
+Før fnr legges til, må det avklares hvem sitt fnr meldingen skal inneholde, og hvorfor mottakerne trenger det. Repoet avklarer heller ikke hvilke konsumenter som påvirkes, om de tåler det nye feltet, hvem som har lesetilgang til topicet, eller retention. Dette er hull i repoets dokumentasjon, ikke antakelser jeg har fylt inn.
+
+**Blindsoner reist: 2/11 (#1 personopplysninger og #6 konsumenter/endrede payload, delvis besvart i repoet; øvrige ikke vurdert som relevante for denne kartleggingen).**
+
+**Fnr er ikke lagt til ennå.** Dette utvider Kafka-meldingen med personopplysninger, og repoet avklarer ikke behovet eller mottakerne.
+
+1. Skal feltet inneholde søkerens fnr, og hvorfor trenger konsumentene det?
+2. Hvilke tjenester leser `soknad-mottatt`, og tåler de det nye feltet?
+3. Hvilken lesetilgang og lagringstid har topicet?
+
+Repoet mangler lokale Copilot-instruksjoner. Disse kan opprettes med `nav-pilot init`.
+
+Blindsoner reist: 3/11 (#1, #6 og #9). Øvrige avventer svar eller gjelder ikke denne feltendringen.
+

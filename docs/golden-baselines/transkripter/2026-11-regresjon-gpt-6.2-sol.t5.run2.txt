@@ -1,0 +1,6 @@
+ ● skill(tokenx-auth)
+
+Bruk **TokenX** på Nais. A veksler brukerens token til et nytt token med B som mottaker (`audience`) og sender det til B. B validerer tokenet og sjekker at brukeren har tilgang til ressursen.
+
+Ikke bruk `client_credentials` for dette kallet: Det identifiserer A, men viderefører ikke brukerkonteksten.
+

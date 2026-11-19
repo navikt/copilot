@@ -1,0 +1,19 @@
+ ● skill(klarsprak)
+
+ $ Shell ls -a; rg --files --hidden | head -35 36 lines…
+   ls -a; rg --files --hidden | head -35
+
+ ● skill(kafka)
+
+ $ Shell cat lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/{SigningHeaders,Signing… 46 lines…
+   cat lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/{SigningHeaders,SigningProducerIntercept
+   or}.kt nais.yaml; rg -in 'fnr|fødselsnummer|consumer' README.md src lib
+
+**Fase 1: Personvern.** Jeg har ikke endret koden. `Periode` har allerede et `fnr`-felt, men signaturinterceptoren signerer bare payloaden. Et fødselsnummer i en egen Kafka-header blir dermed ikke dekket av dagens signatur. Repoet viser ikke hvem som leser recordene eller om headerne kan havne i logger.
+
+Hvilke konsumenter trenger fødselsnummeret for sporing, og hvorfor holder det ikke med en korrelasjons-ID som ikke er avledet av fødselsnummeret? Kan dere bekrefte at headeren ikke blir logget?
+
+Repoet mangler lokal Copilot-konfigurasjon. Den kan settes opp med `nav-pilot init`.
+
+Blindsoner reist: 1/11 (#1 personvern). Ingen endring i hvem som kan lese topicet er foreslått. Øvrige punkter avhenger av om sporing krever fødselsnummer.
+

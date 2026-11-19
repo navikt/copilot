@@ -496,8 +496,13 @@ make_judge_stub() {
   cat >"$SHIM/judge-stub" <<'EOF'
 #!/usr/bin/env python3
 import json, re, sys
-a = sys.stdin.read().split("<answer>")[-1]
+p = sys.stdin.read()
+a = p.split("<answer>")[-1]
 qs = [q for q in re.split(r"(?<=[.!?])\s+", " ".join(a.split())) if q.endswith("?")]
+if '"secq"' in p:
+    q = next((q for q in qs if re.search(r"avvise|godta at|signering feiler", q)), "")
+    print(json.dumps({"secq": bool(q), "secq_quote": q}))
+    sys.exit()
 q1 = next((q for q in qs if "konsumerer topicen" in q), "")
 q2 = next((q for q in qs if "Hvem leser de to" in q), "")
 print(json.dumps({"bs1": bool(q1), "bs1_quote": q1, "bs2": bool(q2), "bs2_quote": q2}))
@@ -505,6 +510,8 @@ EOF
   chmod +x "$SHIM/judge-stub"
   printf 'question\texpected_bs1\texpected_bs2\tsource\n%s\t1\t0\tstub\n%s\t0\t0\tstub\n' \
     'Hvem konsumerer topicen?' 'Skal fnr lagres som String eller Long?' >"$SHIM/controls.tsv"
+  printf 'question\tanswer\texpected_secq\tsource\n%s\t\t1\tstub\n%s\t\t0\tstub\n' \
+    'Skal konsumentene avvise usignerte records?' 'Kan du lenke til fiksen?' >"$SHIM/secq-controls.tsv"
 }
 
 run_suite() {
@@ -513,6 +520,7 @@ run_suite() {
   make_judge_stub
   GOLDEN_FIXTURES="${BATS_TEST_DIRNAME}/golden-fixtures" BENCH_MODE="$mode" NAV_PILOT_GOLDEN_USAGE_DB="$SHIM/none.db" PATH="$SHIM:$PATH" \
     BS_JUDGE_CMD="$SHIM/judge-stub" BS_JUDGE_RECORD="$SHIM/record.psv" BS_JUDGE_CONTROLS="${BS_JUDGE_CONTROLS:-$SHIM/controls.tsv}" \
+    BS_JUDGE_SECQ_CONTROLS="${BS_JUDGE_SECQ_CONTROLS:-$SHIM/secq-controls.tsv}" \
     run /bin/bash "$SCRIPT" "$@" --save-baseline "$SHIM/b.txt"
 }
 
@@ -1227,6 +1235,15 @@ EOF
   done
   run_suite indirect --agent nav-pilot --only 8
   [ "$status" -eq 0 ]
+  # The judge's verdict and spend are recorded: the quote on a pass, credits per call.
+  grep -q '^8|1|pass|.*godta at' "$SHIM/b-results.psv"
+  grep -q '^8|1|' "$SHIM/b-judge-credits.psv"
+  grep -q '^controls-secq|0|' "$SHIM/b-judge-credits.psv"
+  # Controls the judge gets wrong give a harness error, not a verdict.
+  printf 'question\tanswer\texpected_secq\tsource\n%s\t\t1\tstub\n' 'Kan du lenke til fiksen?' >"$SHIM/bad-secq.tsv"
+  BS_JUDGE_SECQ_CONTROLS="$SHIM/bad-secq.tsv" run_suite good --agent nav-pilot --only 8
+  [ "$status" -ne 0 ]
+  grep -q '^8|1|error|.*security-question judge controls' "$SHIM/b-results.psv"
   run_suite count --agent nav-pilot --only 8b
   [ "$status" -eq 1 ]
   grep -q '^8b|1|fail|' "$SHIM/b-results.psv"

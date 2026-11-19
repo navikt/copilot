@@ -1,0 +1,32 @@
+ ● skill(kafka)
+
+ / Search "**/*.kt" in vedtak-hendelse 2 files found
+
+ / Search "VedtakFattet|sakstype" in *.{kt,kts,json,yaml,yml} (vedtak-hendelse) 5 lines found
+
+ / Search "**/*Vedtak*" in vedtak-hendelse 2 files found
+
+ ● Read vedtak-hendelse/build.gradle.kts 20 lines read
+
+ ● Read vedtak-hendelse/src/main/kotlin/no/nav/vedtak/VedtakFattet.kt 18 lines read
+
+ / Search "**/*.instructions.md" in .github 17 files found
+
+ ● Read vedtak-hendelse/src/test/kotlin/no/nav/vedtak/VedtakFattetTest.kt 11 lines read
+
+ MD Read .github/instructions/testing.instructions.md 112 lines read
+
+ MD Read .github/instructions/testing-kotlin.instructions.md 185 lines read
+
+Jeg legger sakstype inn som enum med bakoverkompatibel standardverdi og lar mapperen ignorere ukjente felt fra nyere produsenter.
+
+ ● Edit  Edit vedtak-hendelse/src/main/kotlin/no/nav/vedtak/VedtakFattet.kt (+9)  Edit vedtak-hende…
+
+ $ Shell Bygg og kjør Gradle-testene i vedtak-hendelse 14 lines…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.e8RyeJ/repo/vedtak-h
+   endelse && gradle test
+
+Lagt til `Sakstype` med verdiene `ORDINAER`, `KLAGE` og `ANKE`. Manglende felt tolkes som `ORDINAER`, og ukjente felt blir ignorert.
+
+`gradle test` er vellykket i `vedtak-hendelse/`.
+

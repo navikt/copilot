@@ -1,0 +1,25 @@
+# golden-prompt SIZE MEASUREMENT: RECORDED, NOT A TARGET
+# Nothing asserts against these numbers, and no run fails because it
+# missed them. They describe one agent, one revision, one model, one day.
+# Only comparable with another run made the same way (--compare).
+# agent:        code-review
+# suite:        review
+# date:         2026-11-18
+# revision:     6fbce9a6
+# personaHash:  9d50afc2daa1a11c7749a9370f080455acfa7638d25fc9f46895482acaf3a20d
+# harnessHash:  31303b66a044df68da77f1ba539f6a0a98cf0aabc6733992e11c37f4979c6eb4
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.114-0.
+# model:        gpt-6.2-astra
+# effort:       low
+# context:      CLI default
+# repeats:      5
+# instructions: 17 installed, 4 always-on
+# fixture:      2929655385
+# prompts:      rv1,rv2,rv3,rv4,rv5,rv6,rv7,rv8
+#
+# slug|runs|bytes_median|bytes_min|bytes_max|lines_median|lines_min|lines_max|words_median|words_min|words_max|elapsed_ms_median|elapsed_ms_min|elapsed_ms_max
+cr-kotlin|5|1434|1363|1482|25|25|25|197|183|200|18956|15872|23794
+cr-tsx|5|2205|1878|3400|36|33|68|305|265|324|24054|18585|28138
+rv-pr|5|3763|3463|18563|37|36|426|504|465|1637|41383|37167|43103
+rv-clean|5|1463|1017|1882|28|22|39|177|124|223|25783|21129|34882

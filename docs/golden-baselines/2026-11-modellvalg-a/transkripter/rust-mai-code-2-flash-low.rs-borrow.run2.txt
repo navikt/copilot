@@ -1,0 +1,19 @@
+ ● skill(rust-development)
+
+ / Search "**/*.rs" 2 files found
+
+ / Search "behandle_neste" 2 lines found
+
+ RS Read saksko/src/lib.rs 50 lines read
+
+ ● Edit  Edit saksko/src/lib.rs (+2 -3)
+
+ ● Edit  Edit saksko/src/lib.rs (+3)
+
+ $ Shell Run the saksko crate tests 14 lines…
+   cd saksko && cargo test
+
+Rettet lånefeilen i `behandle_neste` ved å flytte `remove(0)` før mutasjon av behandlingsloggen.
+
+`cargo test` i `saksko/` går grønt: 1 test passert.
+

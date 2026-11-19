@@ -1,0 +1,29 @@
+ / Search "*" 34 files found
+
+ ✗ Shell Run Go tests in repository Failed with exit code 1  FAIL  ./... [setup failed] # ./... pat…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.kkPA58/repo && go
+   test ./...
+   FAIL    ./... [setup failed]
+   # ./...
+   pattern ./...: directory prefix . does not contain main module or its selected dependencies
+   FAIL
+   Failed with exit code 1
+
+ ● List directory ytelse 4 files found
+
+ GO Read ytelse/ytelse_test.go 21 lines read
+
+ GO Read ytelse/rapport.go 8 lines read
+
+ GO Read ytelse/utbetaling.go 6 lines read
+
+ MD Read .github/instructions/golang.instructions.md 547 lines read
+
+ ● Edit  Edit ytelse/utbetaling.go (+3 -3)  Edit ytelse/rapport.go (+2 -2)
+
+ $ Shell Format changed Go files and run ytelse tests 1 line…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.kkPA58/repo/ytelse
+   && gofmt -w utbetaling.go rapport.go && go test ./...
+
+`ytelse/` er nå grønn: `go test ./...` passerer.
+

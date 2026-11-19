@@ -1,0 +1,16 @@
+ ● skill(klarsprak)
+
+ / Search "*.md" 21 files found
+
+ MD Read utkast.md 11 lines read
+
+ MD Read fakta.md 6 lines read
+
+ MD Read .github/agents/golden-forfatter.agent.md 464 lines read
+
+ MD Create notis.md +7
+
+Notisen ligger i `notis.md` og er omtrent 55 ord. Den dekker alt i `fakta.md`: hva agenten sjekker, at den kjører automatisk på pull requests som endrer `docs/`, hvordan team slår den av, startdato og Slack-kanal.
+
+Jeg har ikke lagt til noe som ikke står i fakta. Årstallet mangler i kilden, så datoen står som «mandag 5. oktober».
+

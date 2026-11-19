@@ -564,7 +564,7 @@ func TestRefreshToken_ClientAndResourceMismatch(t *testing.T) {
 	}
 	status, body = te.postToken(url.Values{
 		"grant_type":    {"refresh_token"},
-		"refresh_token": {strings.Repeat("a", maxRefreshTokenLen+1)},
+		"refresh_token": {strings.Repeat("a", maxLegacyRefreshTokenLen+1)},
 		"client_id":     {te.clientID},
 	})
 	if status != http.StatusBadRequest || body["error"] != "invalid_grant" {

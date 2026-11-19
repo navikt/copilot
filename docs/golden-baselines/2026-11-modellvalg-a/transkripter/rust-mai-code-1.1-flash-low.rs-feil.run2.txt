@@ -1,0 +1,33 @@
+ ● update_todo todos: "- [ ] Inspect vedtak-parser and current failing behavior -… TODO list updated
+
+ / Search "vedtak-parser|Vedtak|VedtakFeil" 5 lines found
+
+ RS Read vedtak-parser/src/lib.rs L1:200 (24 lines read)
+
+ TM Read vedtak-parser/Cargo.toml L1:200 (6 lines read)
+
+ RS Edit vedtak-parser/src/lib.rs +49 -5
+
+ TM Edit vedtak-parser/Cargo.toml +1
+
+Jeg har rettet parseren til Result-API og legger til feilhåndling med denneerror. Nå kjører jeg den målrettede Rust-testen i vedtak-parser.
+
+ $ Shell Run Rust tests for vedtak-parser 26 lines…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.RZi2cT/repo/vedtak-p
+   arser && cargo test
+
+Parseren returnerer nå Result<Vedtak, VedtakFeil> i stedet for å panikke ved ugyldig input. Jeg brukte thiserror med variantene ManglerId, ManglerBelop og UgyldigBelop(String), hvor den ugyldige teksten blir inkludert i feilmeldingen.
+
+Jeg la også inn en test for hver feil og en gyldig case:
+- ManglerId
+- ManglerBelop
+- UgyldigBelop(String)
+- gyldig linje
+
+Kjørte cargo test i vedtak-parser:
+- 4 tester kjørt
+- 4 bestod
+- 0 feilet
+
+
+

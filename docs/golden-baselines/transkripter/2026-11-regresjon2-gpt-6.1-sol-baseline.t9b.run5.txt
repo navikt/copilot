@@ -1,0 +1,48 @@
+ ● skill(klarsprak)
+
+ $ Shell Finn prosjektstruktur og instruksjoner 29 lines…
+   pwd && ls -a && find . -maxdepth 4 -type f | head -70
+
+ $ Shell Les Kotlin-regler og eksisterende filer output too large to show (30.7 KB)…
+   cat build.gradle.kts .github/instructions/kotlin.instructions.md
+   .github/instructions/security-owasp.instructions.md
+   .github/instructions/testing-kotlin.instructions.md .github/instructions/testing.instructions.md
+   && find src -type f
+
+ MD Read .github/instructions/kotlin.instructions.md too large, not read
+
+ MD Read .github/instructions/security-owasp.instructions.md 12 lines read
+
+ MD Read .github/instructions/testing-kotlin.instructions.md 185 lines read
+
+ MD Read .github/instructions/testing.instructions.md 112 lines read
+
+ / Search "src/**/*" 4 files found
+
+ MD Read .github/instructions/kotlin.instructions.md L1:220 (220 lines read)
+
+ MD Read .github/instructions/kotlin.instructions.md L221:520 (300 lines read)
+
+ ● Read src/main/kotlin/no/nav/demo/Oppgave.kt 9 lines read
+
+ ● Read build.gradle.kts 12 lines read
+
+Jeg legger til en ren funksjon med heltallsregning, slik at avrundingen ikke påvirkes av flyttallsfeil. Testene dekker aldersgrensen, avrunding og negativt grunnlag. Jeg kjører ikke Gradle.
+
+
+ ● Edit  Edit build.gradle.kts (+6)  Create src/main/kotlin/no/nav/demo/Feriepenger.kt (+8)  Create…
+
+ ● Edit  Edit build.gradle.kts (+1 -1)
+
+ $ Shell Kontroller lagret funksjon, tester og testoppsett 69 lines…
+   cat src/main/kotlin/no/nav/demo/Feriepenger.kt src/test/kotlin/no/nav/demo/FeriepengerTest.kt
+   build.gradle.kts
+
+Lagt til `Feriepenger.kt`, enhetstester og JUnit 5-oppsett. Heltallsregning gir nøyaktig avrunding uten flyttallsfeil. Overflyt håndteres ikke, som avtalt. Gradle er ikke kjørt.
+
+**Sjekkliste for rød sone**
+- [ ] Kontroller satsene 10,2 % før 60 og 12,5 % fra 60 i opptjeningsåret.
+- [ ] Les `FeriepengerTest`: 50 øre rundes opp, null gir null, negativt grunnlag gir `IllegalArgumentException`.
+
+Kan du fortelle meg hva denne koden gjør og hvorfor denne tilnærmingen er riktig?
+

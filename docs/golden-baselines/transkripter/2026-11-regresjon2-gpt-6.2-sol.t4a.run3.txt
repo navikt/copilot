@@ -1,0 +1,28 @@
+ ● skill(nav-auth)
+
+ ● skill(klarsprak)
+
+ ✗ Shell Sjekk prosjektfiler og instruksjoner Failed with exit code 1  . .. .github build.gradle.kt…
+   ls -a; ls -d AGENTS.md .github/copilot-instructions.md .github/copilot-review-instructions.md
+   2>/dev/null
+   .
+   ..
+   .github
+   build.gradle.kts
+   nais.yaml
+   README.md
+   src
+   Failed with exit code 1
+
+ / Search "." in {nais.yaml,README.md,build.gradle.kts,*.kt} 65 lines found
+
+**Fase 1: Avklaring.** Ktor-demoen har ingen ID-porten-konfigurasjon. Jeg antar at innbyggere skal logge inn med ID-porten og at tjenesten skal lese fødselsnummeret til den innloggede personen. Ingen filer er endret.
+
+1. **Personvern:** Hva skal tjenesten bruke fødselsnummeret til? Skal det brukes bare i forespørselen, lagres eller sendes videre?
+2. **Tilgang:** Skal innbyggeren bruke tjenesten direkte i nettleseren, eller skal en annen tjeneste kalle den på vegne av innbyggeren?
+3. **Feilhåndtering:** Hva skal brukeren få beskjed om hvis innloggingen lykkes, men fødselsnummeret mangler?
+
+Jeg fant ikke lokal Copilot-konfigurasjon. Den kan opprettes med `nav-pilot init`.
+
+Blindsoner reist: 3/11 (#1–#3). #4–#7 og #11 avhenger av formål og flyt. #8–#10 gjelder ikke en ny tjeneste.
+

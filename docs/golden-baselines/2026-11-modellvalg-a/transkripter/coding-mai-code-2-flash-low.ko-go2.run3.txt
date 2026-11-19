@@ -1,0 +1,30 @@
+Jeg finner først hvor ytelsestesten feiler og leser den tilhørende koden.
+
+ / Search "ytelse/**" 4 files found
+
+ ✗ Shell Run the ytelse Go test suite Failed with exit code 1  # example.com/ytelse [example.com/yt…
+   cd ytelse && go test ./...
+   # example.com/ytelse [example.com/ytelse.test]
+   ./ytelse_test.go:11:36: too many arguments in call to Utbetaling
+           have (int, int)
+           want (int)
+   ./ytelse_test.go:18:36: too many arguments in call to Rapport
+           have (string, number, number)
+           want (string, int)
+   FAIL    example.com/ytelse [build failed]
+   FAIL
+   Failed with exit code 1
+
+ GO Read ytelse/utbetaling.go 6 lines read
+
+ GO Read ytelse/rapport.go 8 lines read
+
+ GO Read ytelse/ytelse_test.go 21 lines read
+
+ ● Edit  Edit ytelse/utbetaling.go (+9 -3)  Edit ytelse/rapport.go (+2 -2)
+
+ $ Shell Run the ytelse Go tests after implementation 1 line…
+   cd ytelse && go test ./...
+
+`go test ./...` i `ytelse/` går nå grønt.
+

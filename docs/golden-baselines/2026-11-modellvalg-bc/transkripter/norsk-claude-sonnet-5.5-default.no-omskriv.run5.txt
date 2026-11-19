@@ -1,0 +1,23 @@
+ / Search "**/utkast.md" 1 file found
+
+ ● skill(klarsprak)
+
+ MD Read utkast.md 11 lines read
+
+ ● Create utkast.md.new +1
+
+ ✗ Shell Remove stray temp file Tool 'bash' does not exist.
+   rm /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.IHPT6d/repo/utkast.m
+   d.new
+
+ MD Edit utkast.md +5 -7
+
+`utkast.md` er skrevet om til ca. 76 ord (mål: høyst 90), og alle fakta er med.
+
+- **Fjernet:** KI-markører («banebrytende», «sømløs», «avgjørende», «i en tid der», «fremtiden ser lys ut», «avslutningsvis»).
+- **Rettet:** nynorsk-innblanding («ikkje», «sjølv», «berre», «mykje», «tilgjengeleg»).
+- **Språk:** «AI» er byttet til «KI», og «feil» er byttet til «bugs».
+- **Struktur:** Teksten er aktiv og går rett på sak.
+
+Jeg lagde ved et uhell en tom fil, `utkast.md.new`, ved siden av. Jeg har ikke bash og kunne ikke slette den, så den må fjernes manuelt.
+

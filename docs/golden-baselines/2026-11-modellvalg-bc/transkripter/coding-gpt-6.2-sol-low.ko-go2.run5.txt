@@ -1,0 +1,21 @@
+ ● skill(klarsprak)
+
+ $ Shell ls -a; ls -la ytelse; ls .github/instructions 34 lines…
+   ls -a; ls -la ytelse; ls .github/instructions
+
+ $ Shell cat ytelse/*; cat .github/instructions/{golang,security-owasp}.instructions.md;… 597 lines…
+   cat ytelse/*; cat .github/instructions/{golang,security-owasp}.instructions.md; rg -n
+   'Gradert|Utbetaling|Rapport|ytelse' README.md frister slug src | head -35
+
+ ● Edit  Edit ytelse/utbetaling.go (+5 -3)  Edit ytelse/rapport.go (+2 -2)
+
+ $ Shell cd ytelse && go test ./... && go vet ./... && test -z "$(gofmt -l rapport.go utbet… 1 line…
+   cd ytelse && go test ./... && go vet ./... && test -z "$(gofmt -l rapport.go utbetaling.go)"
+
+`go test ./...` i `ytelse/` går grønt. Testene er uendret.
+
+`Utbetaling` beregner dagsatsen med graden som prosent av full ytelse og runder av til slutt. `Rapport` bruker samme beregning.
+
+**Sjekkliste for rød sone**
+- [ ] Kontroller at 100 % gir full dagsats, at 50 % gir halv sats før avrunding, og at rapporten viser beløpet fra `Utbetaling`. Se `TestUtbetaling` og `TestRapport`.
+

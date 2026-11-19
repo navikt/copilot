@@ -1,0 +1,37 @@
+ ● List directory . 7 files found
+
+ / Search "VedtakKonsument|eventId|offset|commit|consumer.*utbetaling|utbetaler|utbe… 27 lines found
+
+ MD Read .github/instructions/kotlin.instructions.md L1:220 (220 lines read)
+
+ ● Read vedtak-konsument/src/main/kotlin/no/nav/vedtak/VedtakKonsument.kt L1:200 (23 lines read)
+
+ ● Read vedtak-konsument/src/test/kotlin/no/nav/vedtak/VedtakKonsumentTest.kt L1:220 (25 lines read)
+
+ ● Read vedtak-konsument/build.gradle.kts L1:220 (20 lines read)
+
+ / Search "VedtakKonsument\(" 2 lines found
+
+ ● Edit vedtak-konsument/src/main/kotlin/no/nav/vedtak/VedtakKonsument.kt +14 -2
+
+ ● Edit vedtak-konsument/src/test/kotlin/no/nav/vedtak/VedtakKonsumentTest.kt +32 -2
+
+Jeg retter konsumenten slik at den deduperer eventId, håndterer feil før commit, og verifiserer med gradle test.
+
+ ✗ Shell Run Kotlin tests… /bin/bash: ./gradlew: No such file or directory Failed with exit code 127
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.BOVGgm/repo/vedtak-k
+   onsument && ./gradlew test --quiet
+
+ $ Shell Run Gradle tests in the project directory No Content
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.BOVGgm/repo/vedtak-k
+   onsument && gradle test --quiet
+
+Rettet i `vedtak-konsument`:
+
+- samme `eventId` betales kun én gang via in-memory dedupe
+- `commitSync()` kjøres først etter at alle meldinger i pollen er behandlet
+- hvis `utbetaling` kaster, commites offset ikke, så meldingen blir forsøkt på nytt
+- konstruktøren er fortsatt `VedtakKonsument(consumer, utbetaling)`
+
+Kjørte også testene i `vedtak-konsument` med `gradle test` — de passerer.
+

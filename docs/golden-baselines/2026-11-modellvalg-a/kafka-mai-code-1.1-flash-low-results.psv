@@ -1,0 +1,38 @@
+# golden-prompt PER-RUN ASSERTION OUTCOMES
+# agent:        kafka
+# suite:        kafka
+# date:         2026-11-18
+# revision:     6ef38f72
+# personaHash:  743153095326cb245a1f3221c661a7cfcd2911f9b7ed12590e777c051086f227
+# harnessHash:  31303b66a044df68da77f1ba539f6a0a98cf0aabc6733992e11c37f4979c6eb4
+# model:        mai-code-1.1-flash
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.114-0.
+# effort:       low
+# context:      CLI default
+# instructions: 17 installed, 4 always-on
+# repeat:       5
+# fixture:      3573972292
+# prompts:      all
+#
+# id|run|status|assertion|detail
+kf2|1|pass|Kafka idempotency: changes only inside vedtak-konsument/|
+kf1|1|pass|Kafka idempotency: hidden tests pass (dedup, commit after processing)|
+kf4|1|pass|Kafka schema: changes only inside vedtak-hendelse/|
+kf3|1|pass|Kafka schema: hidden tests pass (old messages, new field, unknown fields)|
+kf2|2|pass|Kafka idempotency: changes only inside vedtak-konsument/|
+kf1|2|pass|Kafka idempotency: hidden tests pass (dedup, commit after processing)|
+kf4|2|pass|Kafka schema: changes only inside vedtak-hendelse/|
+kf3|2|pass|Kafka schema: hidden tests pass (old messages, new field, unknown fields)|
+kf2|3|pass|Kafka idempotency: changes only inside vedtak-konsument/|
+kf1|3|pass|Kafka idempotency: hidden tests pass (dedup, commit after processing)|
+kf4|3|pass|Kafka schema: changes only inside vedtak-hendelse/|
+kf3|3|pass|Kafka schema: hidden tests pass (old messages, new field, unknown fields)|
+kf2|4|pass|Kafka idempotency: changes only inside vedtak-konsument/|
+kf1|4|pass|Kafka idempotency: hidden tests pass (dedup, commit after processing)|
+kf4|4|pass|Kafka schema: changes only inside vedtak-hendelse/|
+kf3|4|pass|Kafka schema: hidden tests pass (old messages, new field, unknown fields)|
+kf2|5|pass|Kafka idempotency: changes only inside vedtak-konsument/|
+kf1|5|fail|Kafka idempotency: hidden tests pass (dedup, commit after processing)|the evaluator's tests or checks fail after the run
+kf4|5|pass|Kafka schema: changes only inside vedtak-hendelse/|
+kf3|5|pass|Kafka schema: hidden tests pass (old messages, new field, unknown fields)|

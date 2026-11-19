@@ -1,0 +1,70 @@
+ ● skill(aksel-builder)
+
+ $ Shell Inspect component and project 28 lines…
+   cat src/app/komponenter/StatusPanel.tsx; ls src/app/komponenter; cat package.json; ls -a
+
+No Aksel MCP here, so I'll check the Select docs directly before I build anything.
+
+ ● Fetching web content https://aksel.… Contents of https://aksel.nav.no/komponenter/core/select.md:
+
+The docs recommend Radio when there are only a few options. I'll check the RadioGroup API.
+
+ ● Fetching web content https://aksel.n… Contents of https://aksel.nav.no/komponenter/core/radio.md:
+
+I'm using Aksel `RadioGroup` here instead of a custom `role="listbox"`. Custom ARIA roles need approval first, and a few statuses fit Radio better, per Aksel's guidance.
+
+ $ Shell Add RadioGroup status selector No Content
+   cat > src/app/komponenter/StatusPanel.tsx <<'EOF'
+   import { useState } from "react";
+   import { TrashIcon } from "@navikt/aksel-icons";
+   import { Radio, RadioGroup } from "@navikt/ds-react";
+
+   const STATUSER = [
+     { value: "ok", label: "OK" },
+     { value: "feil", label: "Feil" },
+   ];
+
+   export function StatusPanel({ status, onStatusEndret, onSlett }) {
+     const [apen, setApen] = useState(false);
+     return (
+       <div className="p-4 mx-8">
+         <div onClick={() => setApen(!apen)} style={{ outline: "none" }}>
+           Vis detaljer
+         </div>
+         <span tabIndex={5} style={{ color: status === "feil" ? "red" : "green" }}>
+           {status}
+         </span>
+         <RadioGroup legend="Velg status" value={status} onChange={onStatusEndret} size="small">
+           {STATUSER.map((s) => (
+             <Radio key={s.value} value={s.value}>
+               {s.label}
+             </Radio>
+           ))}
+         </RadioGroup>
+         <button onClick={onSlett}>
+           <TrashIcon />
+         </button>
+       </div>
+     );
+   }
+   EOF
+
+I added the status choice to `StatusPanel.tsx` using Aksel `RadioGroup`, not a custom `role="listbox"`. I haven't built or tested it: the repo has no `package.json`.
+
+**Why not a custom listbox:** a hand-made listbox has to handle arrow keys, `aria-activedescendant`/`aria-selected` and focus by itself, and is often worse for screen readers. Custom ARIA roles need approval first. Aksel recommends `Radio` when there are only a few options, and it is already accessible.
+
+**Changes:**
+- **New prop:** `onStatusEndret`, which receives the selected value.
+- **Assumed statuses:** `"ok"` and `"feil"`, based on the existing `status === "feil"` check. Update `STATUSER` if there are others.
+
+If you still want a custom listbox, I can build the full WAI-ARIA pattern.
+
+**Existing problems in the same file (not fixed):**
+- A `<div onClick>` with no keyboard support.
+- `outline: none`.
+- `tabIndex={5}`.
+- An icon button with no accessible name.
+- Status shown by colour alone.
+
+Still gjerne spørsmål om valgene over.
+

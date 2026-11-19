@@ -1,0 +1,23 @@
+ ● skill(nav-auth)
+
+ ● skill(klarsprak)
+
+ $ Shell Sjekk lokal prosjektkonfigurasjon 11 lines…
+   ls -a; ls -a .github
+
+ $ Shell Les tjenestens rammer 32 lines…
+   cat nais.yaml README.md build.gradle.kts; rg --files src
+
+ / Search "**/*test*" 3 files found
+
+ / Search "." (src) 38 lines found
+
+**Fase 1: Avklare formål og tilgang.** Repoet inneholder en Ktor-demo på Nais uten konfigurert innlogging. Jeg antar at den nye tjenesten skal lese fødselsnummeret til den innloggede innbyggeren. Ingen filer er endret.
+
+1. Hva skal tjenesten bruke fødselsnummeret til? Skal den også behandle D-nummer eller andre personopplysninger? Skal nummeret brukes i samme forespørsel, lagres eller sendes videre? Oppgi i så fall lagringstid eller mottaker.
+2. Skal innbyggere bruke tjenesten direkte i nettleseren, eller skal en annen Nav-tjeneste kalle den på vegne av innbyggeren? Skal den nye tjenesten erstatte demoen eller ligge ved siden av den?
+
+`AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md` mangler. De kan opprettes med `nav-pilot init`.
+
+Blindsoner reist: 3/11 (#1 personvern, #2 tilgang, #8 forholdet til demoen). #3–#7, #9 og #11 avhenger av flyten og kravene; #10 gjelder bare hvis demoen skal avvikles.
+

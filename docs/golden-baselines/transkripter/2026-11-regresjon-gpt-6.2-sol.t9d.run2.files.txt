@@ -1,0 +1,61 @@
+=== ./build.gradle.kts
+plugins {
+    kotlin("jvm") version "2.1.0"
+    kotlin("plugin.serialization") version "2.1.0"
+}
+repositories {
+    mavenCentral()
+}
+dependencies {
+    testImplementation(kotlin("test"))
+    implementation("io.ktor:ktor-server-netty:3.0.0")
+    implementation("io.ktor:ktor-server-content-negotiation:3.0.0")
+    implementation("io.ktor:ktor-serialization-kotlinx-json:3.0.0")
+}
+
+=== ./src/main/kotlin/no/nav/demo/Avrunding.kt
+package no.nav.demo
+
+import java.math.BigDecimal
+import java.math.RoundingMode
+
+internal fun avrundTilHeleKroner(belopIKroner: BigDecimal): Long =
+    belopIKroner.setScale(0, RoundingMode.HALF_UP).longValueExact()
+
+=== ./src/main/kotlin/no/nav/demo/Feriepenger.kt
+package no.nav.demo
+
+fun feriepenger(grunnlag: Long, alderIOpptjeningsåret: Int): Long =
+    TODO("Valider grunnlaget, velg sats og bruk avrundTilHeleKroner")
+
+=== ./src/test/kotlin/no/nav/demo/FeriepengerTest.kt
+package no.nav.demo
+
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+
+class FeriepengerTest {
+    @Test
+    fun `bruker ordinær sats før året personen fyller 60`() {
+        assertEquals(102L, feriepenger(1_000L, 59))
+    }
+
+    @Test
+    fun `bruker høyere sats fra året personen fyller 60`() {
+        assertEquals(125L, feriepenger(1_000L, 60))
+        assertEquals(125L, feriepenger(1_000L, 61))
+    }
+
+    @Test
+    fun `avrunder under en halv krone ned og en halv krone opp`() {
+        assertEquals(25L, feriepenger(249L, 59))
+        assertEquals(26L, feriepenger(250L, 59))
+    }
+
+    @Test
+    fun `avviser negativt grunnlag`() {
+        assertFailsWith<IllegalArgumentException> { feriepenger(-1L, 59) }
+    }
+}
+

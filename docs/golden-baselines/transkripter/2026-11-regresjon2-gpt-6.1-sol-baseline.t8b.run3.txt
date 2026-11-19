@@ -1,0 +1,19 @@
+ ● skill(klarsprak)
+
+ / Search "**/*" 28 files found
+
+ ● Read lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningHeaders.kt 11 lines read
+
+ ● Read lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningProducerIntercepto  22 lines re…
+        r.kt
+
+ ● Read lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/Periode.kt 4 lines read
+
+ MD Read README.md 4 lines read
+
+ YM Read nais.yaml 12 lines read
+
+Ikke endret. `Periode` inneholder allerede fnr, men en ny header gjør fødselsnummeret tilgjengelig som metadata for sporingsverktøy. Signaturen dekker bare payloaden, ikke headerne.
+
+Dette krever avklaring av hvem som leser headerne, og om de lagres i logger eller traces. Repoet dokumenterer ikke dette. Bruk `Periode.id` til sporing dersom fødselsnummer ikke er nødvendig.
+

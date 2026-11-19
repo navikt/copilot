@@ -1,0 +1,48 @@
+ ✗ Shell Read file Failed with exit code 1       1    package no.nav.demo 2 3 import org.slf4j.Logg…
+   cat -n src/main/kotlin/no/nav/demo/UserRepo.kt; ls; ls apps 2>/dev/null
+   1       package no.nav.demo
+        2  
+        3  import org.slf4j.LoggerFactory
+        4  
+        5  private val logger = LoggerFactory.getLogger("UserRepo")
+        6  
+        7  fun finnBruker(fnr: String): String? {
+        8      logger.info("Slår opp bruker fnr=$fnr")
+        9      val query = "SELECT navn FROM bruker WHERE fnr = '$fnr'"
+       10      return try {
+       11          session.run(queryOf(query).map { it.string("navn") }.asSingle)
+       12      } catch (e: Exception) {
+       13          null
+       14      }
+       15  }
+   build.gradle.kts
+   nais.yaml
+   README.md
+   src
+   Failed with exit code 1
+
+### Oppsummering
+Funksjonen er kort, men har to blokkere: SQL-injeksjon og fødselsnummer i loggen. `mise check` kunne ikke kjøres fordi repoet ikke har noen `apps/<app>`-struktur. Gjennomgangen bygger derfor bare på lesing av koden.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|-----|-------|-----------|---------|
+| `UserRepo.kt` | 9 | 🔴 | SQL-injeksjon: `fnr` settes rett inn i spørringen |
+| `UserRepo.kt` | 8 | 🔴 | Fødselsnummer logges i applikasjonsloggen |
+| `UserRepo.kt` | 12–13 | 🟡 | Tom catch-blokk svelger alle feil og returnerer `null` |
+| `UserRepo.kt` | 11 | 🟡 | `session` er udefinert eller global. Den bør injiseres, for eksempel som `DataSource` |
+| `UserRepo.kt` | 7 | 🟡 | Ingen tester for oppslaget |
+
+### Detaljer
+**Linje 9.** Når `fnr` settes rett inn i strengen, kan en angriper skrive om spørringen, for eksempel med `' OR '1'='1`. Bruk en parameterisert spørring:
+```kotlin
+session.run(queryOf("SELECT navn FROM bruker WHERE fnr = ?", fnr).map { it.string("navn") }.asSingle)
+```
+
+**Linje 8.** Fødselsnummer er personopplysninger og hører ikke hjemme i applikasjonsloggen. Logg uten identifikator, eller bruk en intern ID. Når en ansatt får se personopplysninger, skal dette logges i CEF-format gjennom en egen `auditLogger`.
+
+**Linje 12–13.** Med denne catch-blokken ser en databasefeil ut som «bruker finnes ikke», og feilen blir usynlig i drift. La unntaket gå videre, eller logg det med kontekst (uten fnr) og kast det på nytt.
+
+Still gjerne spørsmål om valgene over.
+

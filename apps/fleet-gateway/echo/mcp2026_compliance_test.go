@@ -56,6 +56,12 @@ func modernBody(method string, params map[string]any) map[string]any {
 	return map[string]any{"jsonrpc": "2.0", "id": 1, "method": method, "params": params}
 }
 
+// withoutMeta drops one _meta key from a modern body.
+func withoutMeta(body map[string]any, key string) map[string]any {
+	delete(body["params"].(map[string]any)["_meta"].(map[string]any), key)
+	return body
+}
+
 func modernHeaders(method, name string) map[string]string {
 	h := map[string]string{"MCP-Protocol-Version": mcpModernVersion, "Mcp-Method": method}
 	if name != "" {
@@ -123,7 +129,7 @@ func runMCP2026Compliance(t *testing.T, tgt mcpComplianceTarget) {
 		{name: "Mcp-Session-Id is ignored", body: modernBody("server/discover", nil), hdr: with(modernHeaders("server/discover", ""), "Mcp-Session-Id", "stale"), status: 200},
 		{name: "missing MCP-Protocol-Version", body: modernBody("tools/list", nil), hdr: with(modernHeaders("tools/list", ""), "MCP-Protocol-Version", ""), status: 400, code: mcpCodeHeaderMismatch},
 		{name: "unsupported MCP-Protocol-Version", body: modernBody("tools/list", nil), hdr: with(modernHeaders("tools/list", ""), "MCP-Protocol-Version", "2099-01-01"), status: 400, code: mcpCodeUnsupportedVersion},
-		{name: "header version without _meta version", body: map[string]any{"jsonrpc": "2.0", "id": 1, "method": "tools/list"}, hdr: modernHeaders("tools/list", ""), status: 400, code: mcpCodeHeaderMismatch},
+		{name: "header version without _meta is -32602", body: map[string]any{"jsonrpc": "2.0", "id": 1, "method": "tools/list"}, hdr: modernHeaders("tools/list", ""), status: 400, code: mcpCodeInvalidParams},
 		{name: "Mcp-Method mismatch", body: modernBody("tools/list", nil), hdr: modernHeaders("server/discover", ""), status: 400, code: mcpCodeHeaderMismatch},
 		{name: "Mcp-Method missing", body: modernBody("tools/list", nil), hdr: with(modernHeaders("tools/list", ""), "Mcp-Method", ""), status: 400, code: mcpCodeHeaderMismatch},
 		{name: "Mcp-Name mismatch", body: modernBody("tools/call", callParams()), hdr: modernHeaders("tools/call", "other_tool"), status: 400, code: mcpCodeHeaderMismatch},
@@ -137,6 +143,35 @@ func runMCP2026Compliance(t *testing.T, tgt mcpComplianceTarget) {
 		{name: "initialize refused outside legacy window", body: map[string]any{"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": map[string]any{"protocolVersion": "2025-06-18"}}, status: 400, code: mcpCodeUnsupportedVersion},
 		{name: "initialize refused after legacy window closed", legacy: "2000-01-01", body: map[string]any{"jsonrpc": "2.0", "id": 1, "method": "initialize"}, status: 400, code: mcpCodeUnsupportedVersion},
 		{name: "initialize served inside legacy window", legacy: "2999-01-01", body: map[string]any{"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": map[string]any{"protocolVersion": "2025-06-18"}}, status: 200},
+		// Required _meta fields absent from params are InvalidParams (-32602), not HeaderMismatch (-32020).
+		// https://modelcontextprotocol.io/specification/2026-07-28/schema#requestmetaobject
+		{name: "missing _meta protocolVersion is -32602", body: withoutMeta(modernBody("tools/list", nil), mcpMetaProtocolVersion), hdr: modernHeaders("tools/list", ""), status: 400, code: mcpCodeInvalidParams},
+		{name: "missing _meta clientCapabilities is -32602", body: withoutMeta(modernBody("tools/list", nil), mcpMetaClientCapabilities), hdr: modernHeaders("tools/list", ""), status: 400, code: mcpCodeInvalidParams},
+		{name: "non-object clientCapabilities is -32602", body: func() map[string]any {
+			b := modernBody("tools/list", nil)
+			b["params"].(map[string]any)["_meta"].(map[string]any)[mcpMetaClientCapabilities] = "none"
+			return b
+		}(), hdr: modernHeaders("tools/list", ""), status: 400, code: mcpCodeInvalidParams},
+		{name: "_meta protocolVersion differing from header stays -32020", body: func() map[string]any {
+			b := modernBody("tools/list", nil)
+			b["params"].(map[string]any)["_meta"].(map[string]any)[mcpMetaProtocolVersion] = "2025-06-18"
+			return b
+		}(), hdr: modernHeaders("tools/list", ""), status: 400, code: mcpCodeHeaderMismatch},
+		// Transport rule 5: only a message without id is a notification (202).
+		{name: "initialize echoes a supported requested version", legacy: "2999-01-01", body: map[string]any{"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": map[string]any{"protocolVersion": "2025-06-18"}}, hdr: map[string]string{"Accept": "application/json"}, status: 200,
+			check: func(t *testing.T, r map[string]any) {
+				if r["protocolVersion"] != "2025-06-18" {
+					t.Errorf("protocolVersion = %v, want 2025-06-18", r["protocolVersion"])
+				}
+			}},
+		{name: "initialize offers newest legacy version for an unknown one", legacy: "2999-01-01", body: map[string]any{"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": map[string]any{"protocolVersion": "1999-01-01"}}, hdr: map[string]string{"Accept": "application/json"}, status: 200,
+			check: func(t *testing.T, r map[string]any) {
+				if r["protocolVersion"] != "2025-11-25" {
+					t.Errorf("protocolVersion = %v, want 2025-11-25", r["protocolVersion"])
+				}
+			}},
+		// Transport rule 5: only a message without id is a notification (202).
+		{name: "notifications/* with an id is a request, not 202", body: modernBody("notifications/initialized", nil), hdr: modernHeaders("notifications/initialized", ""), status: 404, code: mcpCodeMethodNotFound},
 	}
 	if tgt.checkGET {
 		cases = append(cases, struct {
@@ -148,7 +183,16 @@ func runMCP2026Compliance(t *testing.T, tgt mcpComplianceTarget) {
 			code     int
 			check    func(t *testing.T, result map[string]any)
 			httpVerb string
-		}{name: "GET stream removed", httpVerb: http.MethodGet, status: 405})
+		}{name: "GET stream removed", httpVerb: http.MethodGet, status: 405}, struct {
+			name     string
+			legacy   string
+			body     map[string]any
+			hdr      map[string]string
+			status   int
+			code     int
+			check    func(t *testing.T, result map[string]any)
+			httpVerb string
+		}{name: "DELETE session removed", httpVerb: http.MethodDelete, status: 405})
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -160,6 +204,9 @@ func runMCP2026Compliance(t *testing.T, tgt mcpComplianceTarget) {
 			rec, out := mcpCall(t, tgt, verb, tc.body, tc.hdr)
 			if rec.Code != tc.status {
 				t.Fatalf("status = %d, want %d; body %s", rec.Code, tc.status, rec.Body.String())
+			}
+			if tc.status == 405 && rec.Header().Get("Allow") != http.MethodPost {
+				t.Errorf("Allow = %q, want POST", rec.Header().Get("Allow"))
 			}
 			if tc.code != 0 && errCode(out) != tc.code {
 				t.Fatalf("error code = %d, want %d; body %s", errCode(out), tc.code, rec.Body.String())

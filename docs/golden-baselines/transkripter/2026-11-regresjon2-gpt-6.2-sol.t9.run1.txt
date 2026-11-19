@@ -1,0 +1,15 @@
+ ● skill(klarsprak)
+
+ $ Shell Find Kotlin project files 32 lines…
+   ls -a; rg --files --hidden -g '!.git' | head -40
+
+ $ Shell Read Kotlin and test conventions output too large to show (30.7 KB)…
+   cat build.gradle.kts src/main/kotlin/no/nav/demo/Oppgave.kt
+   .github/instructions/{kotlin,security-owasp,testing,testing-kotlin}.instructions.md
+
+ ● Edit  Edit build.gradle.kts (+1)  Create src/main/kotlin/no/nav/demo/Feriepenger.kt (+5)  Create…
+
+La til `Feriepenger.kt` med funksjonssignaturen og enhetstester for satsene, 60-årsgrensen, avrunding, null og negativt grunnlag. Jeg kjørte ikke Gradle. Testene vil ikke passere før `TODO` er erstattet.
+
+🔴 Rød sone: Selve beregningen står igjen fordi feriepengereglene er nye for teamet. Bruk heltallsregning for å unngå flyttallsfeil ved avrunding, og avvis negativt grunnlag før du beregner beløpet.
+

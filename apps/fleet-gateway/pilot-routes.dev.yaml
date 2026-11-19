@@ -9,4 +9,16 @@ routes:
     team: copilot
     target: dev-gcp:copilot:mcp-onboarding
     upstream_url: http://mcp-onboarding.copilot/mcp/gw
-    passAllTools: true
+    tools: [hello_world, greet, whoami, echo, get_time, search_customizations, list_agents, list_instructions, list_prompts, list_skills, get_installation_guide, check_agent_readiness, suggest_customizations, generate_agents_md, generate_setup_steps, team_readiness]
+  - route: /mcp/copilot/kodeverk
+    team: copilot
+    target: dev-gcp:copilot:mcp-kodeverk
+    upstream_url: http://mcp-kodeverk.copilot/
+    enabled: false
+    tools:
+      - list_kodeverk
+      - get_kodeverk_koder
+      - get_kodeverk_betydninger
+      - list_hierarkier
+      - get_hierarki_noder
+      - search_kodeverk

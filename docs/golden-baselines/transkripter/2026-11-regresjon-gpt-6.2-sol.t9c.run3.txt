@@ -1,0 +1,20 @@
+ ● skill(klarsprak)
+
+ $ Shell Finn Kotlin-filer og instruksjoner 29 lines…
+   ls -a; find . -name '*.kt' -o -name '*.kts' | head -25; ls .github/instructions
+
+ $ Shell Les testoppsett og Kotlin-regler 205 lines…
+   cat build.gradle.kts src/main/kotlin/no/nav/demo/Oppgave.kt; cat
+   .github/instructions/{kotlin,security-owasp,testing-kotlin,testing}.instructions.md | head -180;
+   find src -type f
+
+ $ Shell Sjekk anbefalt teststil 14 lines…
+   grep -inE 'kotest|junit|kotlin.test|assert|skeleton'
+   .github/instructions/{kotlin,testing-kotlin,testing,security-owasp}.instructions.md | tail -30
+
+ ● Edit  Edit build.gradle.kts (+1)  Create src/main/kotlin/no/nav/demo/Feriepenger.kt (+4)  Create…
+
+La til funksjonssignaturen i `Feriepenger.kt` og enhetstester for satsene, aldersgrensen, avrunding, null og negativt grunnlag.
+
+**Rød sone:** Selve beregningen står som `TODO`. Satsvalg, avrunding og avvisning av negativt grunnlag gjenstår, så testene vil feile inntil funksjonen er implementert. Jeg kjørte ikke Gradle.
+

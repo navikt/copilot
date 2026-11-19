@@ -1,0 +1,32 @@
+ ● skill(klarsprak)
+
+ / Search "**/*" 25 files found
+
+ MD Read .github/instructions/kotlin.instructions.md too large, not read
+
+ MD Read .github/instructions/security-owasp.instructions.md 12 lines read
+
+ MD Read .github/instructions/testing-kotlin.instructions.md 185 lines read
+
+ MD Read .github/instructions/testing.instructions.md 112 lines read
+
+ ● Read build.gradle.kts 12 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/Oppgave.kt 9 lines read
+
+Dette er en avgrenset endring uten nye dataflyter. Jeg implementerer avrundingen og lager en stub med tester for feriepengereglene, som du skriver selv. `worker` er ikke tilgjengelig, så jeg gjør endringen direkte. Gradle kjøres ikke.
+
+
+ ● Edit  Edit build.gradle.kts (+1)  Create src/main/kotlin/no/nav/demo/Avrunding.kt (+7)  Create s…
+
+Implementert `Avrunding.kt` med `BigDecimal` og `HALF_UP`, som unngår flyttallsfeil og runder 50 øre opp. Lagt til avrundingstester, feriepengertester og testavhengighet.
+
+`Feriepenger.kt` er en TODO-stub for deg. Testene dekker satsene, aldersgrensen, avrunding, null og negativt grunnlag. Feriepengertestene feiler frem til implementasjonen er ferdig. Gradle er ikke kjørt.
+
+🔴 Rød sone: feriepengereglene skriver du selv.
+
+**Sjekkliste for rød sone**
+- [ ] Kontroller avrundingen mot `AvrundingTest`: under 50 øre ned, fra 50 øre opp.
+
+Kan du fortelle meg hva avrundingskoden gjør og hvorfor denne tilnærmingen er riktig?
+

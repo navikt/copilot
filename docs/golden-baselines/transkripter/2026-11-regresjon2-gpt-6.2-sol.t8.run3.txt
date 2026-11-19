@@ -1,0 +1,15 @@
+ ● skill(klarsprak)
+
+ $ Shell Find signing code and repo configuration 10 lines…
+   ls -a; rg -li 'signature|signering' | head -25
+
+ $ Shell Read signer and locate verifier 51 lines…
+   cat lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/*.kt; ls -a .github; rg --files | head
+   -40
+
+**Fase 1: Avklaring.** Ingen filer er endret. `SigningProducerInterceptor` legger til `x-paw-signature` og `x-paw-signing-key-id` uten å fjerne gamle verdier. Repoet har allerede `stripSigningHeaders` for begge. Jeg legger til grunn at payload, nøkkelvalg og mottakere skal være uendret.
+
+Jeg har ikke kunnet sammenligne med Paw sitt interne monorepo. Kan du dele den relevante diffen og bekrefte om de gamle headerne skal være fjernet også dersom `signer.sign(...)` feiler?
+
+Blindsoner reist: 1/11 (#3, feilhåndtering). De øvrige er ikke reist fordi endringen er avgrenset til to eksisterende signeringsheadere.
+

@@ -1,0 +1,40 @@
+ $ Shell Show diff 350 lines…
+   git --no-pager diff main...vedtak-kafka --stat; git --no-pager diff main...vedtak-kafka | head
+   -400
+
+ $ Shell Try mise check 8 lines…
+   ls; command -v mise && timeout 120 mise check 2>&1 | tail -15
+
+### Oppsummering
+Branchen bør ikke merges slik den er. Strukturen er ryddig, med eget repository, eget service-lag og en injiserbar ID-generator. Jeg fant likevel seks blokkere, og flere av dem lekker eller eksponerer fødselsnummer (fnr). `mise check` kunne ikke kjøre fordi repoet ikke har noen mise-tasks. Funnene bygger derfor bare på manuell gjennomlesning.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|---|---|---|---|
+| `VedtakRepository.kt` | 23 | 🔴 | SQL-injeksjon: `fnr` settes rett inn i SQL-strengen |
+| `Routes.kt` | 30–33 | 🔴 | `GET /api/vedtak/{fnr}` krever ingen autentisering, og fnr står i URL-en |
+| `Routes.kt` | 25–28 | 🔴 | Ingen sjekk av at kallet gjelder brukerens egen sak, og ingen validering av fnr |
+| `App.kt` | 39–42 | 🔴 | JWT-oppsettet mangler verifier, issuer og audience, så tokenet blir ikke validert |
+| `VedtakService.kt` | 15 | 🔴 | `log.info("behandler $fnr")` logger personopplysninger |
+| `nais.yaml` | 23–26 | 🔴 | `accessPolicy.inbound` slipper inn alle apper i alle namespaces |
+| `VedtakConsumer.kt` | 22–28 | 🔴 | Melding som ikke kan leses, eller feil etter tre forsøk, stopper konsumenttråden for godt. Appen fortsetter å rapportere at den er frisk. |
+| `VedtakConsumer.kt` | 32–34 | 🔴 | Ikke idempotent: et nytt forsøk eller en ny levering gir et nytt vedtak og en ny melding |
+| `Routes.kt` | 31 | 🟡 | `!!` på path-parameter, og fnr i URL havner i access-logger |
+| `build.gradle.kts` | 13 | 🟡 | Ekstra `dependencies`-blokk. Den bør slås sammen med den eksisterende. |
+| `App.kt` | 22 | 🟡 | Hikari har bare JDBC-URL. Bruker og passord mangler, og det finnes ingen Flyway-migrering for tabellen `vedtak`. |
+| — | — | 🟡 | Ingen tester for service, repository eller consumer |
+| `VedtakService.kt` | 20 | 💭 | `LocalDate.now()` er avhengig av klokka. Injiser en `Clock`. |
+| `VedtakService.kt` | 4 | 💭 | Ubrukt import av `Locale` |
+
+### Detaljer
+- **SQL-injeksjon:** Bruk `queryOf("SELECT * FROM vedtak WHERE fnr = ? ORDER BY vedtaksdato DESC", fnr)`. Med dagens kode kan hvem som helst lese hele tabellen eller endre data, særlig fordi endepunktet er åpent.
+- **GET-endepunktet:** Flytt det inn under `authenticate`, og hent fnr fra tokenets `pid`-claim i stedet for path eller body. Da får brukeren bare se egne vedtak, og fnr havner ikke i URL-er og logger.
+- **JWT:** Bruk `verifier(jwkProvider, TOKEN_X_ISSUER)`, og sjekk at `aud` er lik `TOKEN_X_CLIENT_ID`. Dagens `validate` godtar ethvert token som har en audience.
+- **Konsument:** Fang feil per melding og send dem til en dead-letter-kø (DLQ) eller retry-tabell. Alternativt kan readiness feile når tråden dør. Lag `vedtakId` deterministisk ut fra `soknadId`, eller bruk en unik constraint og upsert. Ellers kan søkeren få dobbelt vedtak når en melding leveres på nytt.
+- **accessPolicy:** List konkrete konsumenter. Et åpent inbound-oppsett kombinert med svak JWT-validering gjør alle feilene over lettere å utnytte.
+
+🔴 Rød sone: autentisering, tilgangskontroll og vedtakslogikk. Gå nøye gjennom disse delene.
+
+Still gjerne spørsmål om valgene over.
+

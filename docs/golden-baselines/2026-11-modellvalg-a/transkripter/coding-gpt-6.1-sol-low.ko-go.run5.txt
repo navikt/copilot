@@ -1,0 +1,35 @@
+ / Search "{frister/**,.github/instructions/golang.instructions.md,.github/instructio… 5 files found
+
+ GO Read frister/frist.go 16 lines read
+
+ GO Read frister/frist_test.go 26 lines read
+
+ MD Read .github/instructions/golang.instructions.md 547 lines read
+
+ MD Read .github/instructions/security-owasp.instructions.md 12 lines read
+
+ ✗ Shell Reproduser feil i frister-testene Failed with exit code 1  --- FAIL: TestFrist (0.00s) fri…
+   cd frister && go test ./...
+   --- FAIL: TestFrist (0.00s)
+       frist_test.go:23: Frist(2026-09-05) = 2026-10-18, want 2026-10-19
+   FAIL
+   FAIL    example.com/frister     0.012s
+   FAIL
+   Failed with exit code 1
+
+ ● skill(klarsprak)
+
+ ● Edit  Edit frister/frist.go (+1 -1)
+
+ $ Shell Verifiser tester, Go-analyse og formatering 1 line…
+   cd frister && go test ./... && go vet ./... && test -z "$(gofmt -l frist.go)"
+
+Rettet `frister/frist.go`: Lørdagsfrister flyttes nå to dager til mandag, ikke én dag til søndag. Testene er uendret, og `go test ./...` i `frister/` går grønt.
+
+🔴 Rød sone: fristberegning, gå gjennom denne nøye.
+
+**Sjekkliste for rød sone**
+- [ ] Kontroller helgeregelen i `TestFrist`: lørdag +2 dager, søndag +1 dag, hverdager uendret.
+
+Kan du fortelle meg hva denne koden gjør og hvorfor denne tilnærmingen er riktig?
+

@@ -1,0 +1,23 @@
+ ● skill(nav-auth)
+
+ ● skill(klarsprak)
+
+ $ Shell ls -a; for f in AGENTS.md .github/copilot-instructions.md .github/copilot-review-… 7 lines…
+   ls -a; for f in AGENTS.md .github/copilot-instructions.md .github/copilot-review-instructions.md;
+   do if test -f "$f"; then printf '%s\n' "$f"; fi; done
+
+ $ Shell Les tjenestens prosjektoppsett 32 lines…
+   cat README.md nais.yaml; find src -type f; cat build.gradle.kts
+
+ / Search "^" in *.kt 47 lines found
+
+**Fase 1: Avklar tjenestens formål og tilgang.** Repoet inneholder en Ktor-demo på Nais uten ID-porten-oppsett. Jeg antar at fødselsnummeret tilhører den innloggede personen. Ingen filer er endret.
+
+1. Hva trenger tjenesten fødselsnummeret til? Skal den bruke det i samme forespørsel, lagre det eller sende det videre? Skal den behandle andre personopplysninger?
+2. Skal innbyggeren bruke tjenesten direkte i nettleseren, eller skal en annen Nav-tjeneste kalle den på vegne av innbyggeren? Krever tjenesten et bestemt sikkerhetsnivå i ID-porten?
+3. Hvilket team skal eie tjenesten, og hvilke andre tjenester avhenger den av? Hva skal innbyggeren oppleve hvis innlogging eller en avhengighet feiler?
+
+Repoet mangler `AGENTS.md` og begge Copilot-instruksjonsfilene. De kan settes opp med `nav-pilot init`.
+
+Blindsoner reist: 4/11 (#1–#3 og #5). Måling og teststrategi avklares når flyten er kjent (#4, #7). Ingen eksisterende konsumenter, migrering eller utfasing er identifisert (#6, #8–#10). Læringsbehov er ikke avklart (#11).
+

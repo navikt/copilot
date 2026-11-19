@@ -1,0 +1,59 @@
+=== ./build.gradle.kts
+plugins {
+    kotlin("jvm") version "2.1.0"
+    kotlin("plugin.serialization") version "2.1.0"
+}
+repositories {
+    mavenCentral()
+}
+dependencies {
+    testImplementation(kotlin("test-junit"))
+    implementation("io.ktor:ktor-server-netty:3.0.0")
+    implementation("io.ktor:ktor-server-content-negotiation:3.0.0")
+    implementation("io.ktor:ktor-serialization-kotlinx-json:3.0.0")
+}
+
+=== ./src/main/kotlin/no/nav/demo/Feriepenger.kt
+package no.nav.demo
+
+fun feriepenger(grunnlag: Long, alderIOpptjeningsåret: Int): Long {
+    require(grunnlag >= 0) { "Feriepengegrunnlaget kan ikke være negativt" }
+
+    val satsIPromille = if (alderIOpptjeningsåret >= 60) 125L else 102L
+    return (grunnlag * satsIPromille + 500) / 1_000
+}
+
+=== ./src/test/kotlin/no/nav/demo/FeriepengerTest.kt
+package no.nav.demo
+
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+
+class FeriepengerTest {
+    @Test
+    fun `satsen øker fra og med året personen fyller 60`() {
+        assertEquals(102L, feriepenger(1_000, 59))
+        assertEquals(125L, feriepenger(1_000, 60))
+        assertEquals(125L, feriepenger(1_000, 61))
+    }
+
+    @Test
+    fun `beløpet avrundes til nærmeste krone med en halv krone opp`() {
+        assertEquals(25L, feriepenger(249, 59))
+        assertEquals(26L, feriepenger(250, 59))
+        assertEquals(26L, feriepenger(251, 59))
+        assertEquals(1L, feriepenger(4, 60))
+    }
+
+    @Test
+    fun `null i grunnlag gir null i feriepenger`() {
+        assertEquals(0L, feriepenger(0, 60))
+    }
+
+    @Test
+    fun `negativt grunnlag avvises`() {
+        assertFailsWith<IllegalArgumentException> { feriepenger(-1, 59) }
+    }
+}
+

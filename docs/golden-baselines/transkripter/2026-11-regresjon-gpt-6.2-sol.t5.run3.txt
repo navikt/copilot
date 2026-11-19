@@ -1,0 +1,8 @@
+ ● skill(tokenx-auth)
+
+ ● skill(klarsprak)
+
+Bruk **TokenX** på Nais når A kaller B på vegne av en innlogget bruker. A veksler brukerens token inn i et token med B som mottaker (`audience`). B validerer tokenet og sjekker at brukeren har tilgang til ressursen.
+
+`client_credentials` passer for kall uten brukerkontekst: Det identifiserer A, ikke brukeren.
+

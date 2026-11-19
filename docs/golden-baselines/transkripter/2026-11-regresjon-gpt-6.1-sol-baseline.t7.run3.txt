@@ -1,0 +1,72 @@
+ ● skill(jackson-3-migration)
+
+ ● skill(klarsprak)
+
+ / Search "{AGENTS.md,build.gradle.kts,settings.gradle.kts,gradle/libs.versions.toml,.… 1 file found
+
+ $ Shell Inspect branch changes and Java baseline 7 lines…
+   git status --short && git --no-pager diff --stat && git --no-pager log -5 --oneline && git branch
+   -a && java -version
+
+ $ Shell Read migration diff and repository files 66 lines…
+   git --no-pager diff main...HEAD && find . -maxdepth 4 -type f -not -path './.git/*' | sort
+
+ ● Read src/main/kotlin/no/nav/demo/Soknad.kt 26 lines read
+
+ ● Read build.gradle.kts 17 lines read
+
+ MD Read README.md 4 lines read
+
+ MD Read ~/.copilot/skills/jackson-3-migration/references/rename-and-defaults.md 139 lines read
+
+ $ Shell Find test/build tooling and tracked files 27 lines…
+   git ls-files && command -v gradle || true
+
+ ● Read src/main/kotlin/no/nav/demo/Routes.kt 19 lines read
+
+ / Search "jackson|mapper|\.map\s*\{|\.map\(|æ|ø|å" in *.kt (src) 8 lines found
+
+ ● Read src/main/kotlin/no/nav/demo/App.kt 15 lines read
+
+ ✗ Shell Verify build and resolved Jackson dependencies Failed with exit code 1  To honour the JVM …
+   gradle --no-daemon --console=plain build dependencyInsight --dependency jackson --configuration
+   compileClasspath
+   To honour the JVM settings for this build a single-use Daemon process will be forked. For more on
+    this, please refer to 
+   https://docs.gradle.org/8.14.7/userguide/gradle_daemon.html#sec:disabling_the_daemon in the 
+   Gradle documentation.
+   Daemon will be stopped at the end of the build 
+   
+   FAILURE: Build failed with an exception.
+   
+   * What went wrong:
+   A problem occurred configuring root project 'repo'.
+   > 27.0.1.0.2
+   
+   * Try:
+   > Run with --stacktrace option to get the stack trace.
+   > Run with --info or --debug option to get more log output.
+   > Run with --scan to get full insights.
+   > Get more help at https://help.gradle.org.
+   
+   BUILD FAILED in 2s
+   Failed with exit code 1
+
+ ✗ Shell  Permission denied because no interactive user response was available. Retry in an interact
+   /usr/libexec/java_home -V 2>&1; mise ls java --installed
+   Approval check
+     └ ✗ Denied, no one to approve shell path (/usr/libexec/java_home)
+   Permission denied because no interactive user response was available. Retry in an interactive 
+   session so the user can approve it, or try an alternative that does not require this permission.
+
+**Migreringen ser riktig ut, men er ikke verifisert klar for merge.** Diffen mot `main` omfatter to filer.
+
+- Jackson-avhengighetene og importene er flyttet til 3.1.0. Builder-oppsettet registrerer Kotlin-modulen riktig.
+- Fjerning av `jackson-datatype-jsr310` er riktig: Java Time-støtte er innebygd. Standardformatet bevarer den tidligere ISO-serialiseringen av `LocalDate`.
+- Ktor 3.0.0 er ikke en migreringsfeil her: HTTP-laget bruker kotlinx.serialization, ikke Jackson.
+- Ingen gamle Jackson-importer, mapper-mutasjoner eller utsatte `JsonNode.map`-kall i kildekoden.
+
+**Gjenstår før godkjenning:** Repoet mangler tester som dokumenterer kompatibiliteten til `lesSoker` og Kafka-payloadene. Jackson 3 endrer blant annet feltrekkefølge og avviser etterfølgende JSON-innhold som standard. Test disse forskjellene og round-trip for datoen.
+
+Bygg og avhengighetskontroll stoppet under konfigurering med `27.0.1.0.2` på installert Java 27. Forsøket på å finne en kompatibel JDK ble nektet av kjøremiljøet. Kompilering og eventuell transitiv Jackson 2 er derfor uavklart. Ingen filer endret.
+

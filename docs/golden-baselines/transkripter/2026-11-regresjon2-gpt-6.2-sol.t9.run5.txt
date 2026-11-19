@@ -1,0 +1,17 @@
+ ● skill(klarsprak)
+
+ $ Shell ls -a; find . -name '*.kt' -o -name '*.kts' -o -name '*.instructions.md' | head … 29 lines…
+   ls -a; find . -name '*.kt' -o -name '*.kts' -o -name '*.instructions.md' | head -40
+
+ $ Shell Les Kotlin- og testkonvensjoner output too large to show (30.7 KB)…
+   cat build.gradle.kts src/main/kotlin/no/nav/demo/Oppgave.kt
+   .github/instructions/{kotlin,security-owasp,testing,testing-kotlin}.instructions.md
+
+ / Search "Kotest|JUnit|assertFails|TODO" in *testing*kotlin* 4 lines found
+
+ ● Edit  Create src/main/kotlin/no/nav/demo/Feriepenger.kt (+4)  Edit build.gradle.kts (+1)  Create…
+
+La til `Feriepenger.kt` med funksjonssignaturen og enhetstester for satsbyttet ved 60 år, avrunding rundt 50 øre, nullgrunnlag og negativt grunnlag. Gradle ble ikke kjørt.
+
+🔴 **Rød sone:** Selve beregningen står som `TODO`. Testene forventes å feile til teamet har implementert satsvalg, avrunding og avvisning av negativt grunnlag.
+

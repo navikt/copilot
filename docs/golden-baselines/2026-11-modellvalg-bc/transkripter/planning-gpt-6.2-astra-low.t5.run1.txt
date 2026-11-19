@@ -1,0 +1,6 @@
+ ● skill(tokenx-auth)
+
+Bruk **TokenX** når A kaller B på vegne av en innbygger som er innlogget via ID-porten. A veksler brukerens token til et nytt token med B som mottaker (`aud`).
+
+For en Nav-ansatt innlogget via Entra ID bruker A **Entra ID On-Behalf-Of**. Ikke bruk `client_credentials` i noen av tilfellene: Da representerer tokenet tjeneste A, ikke brukeren.
+

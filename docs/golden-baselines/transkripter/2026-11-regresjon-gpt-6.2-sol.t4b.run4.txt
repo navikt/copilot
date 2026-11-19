@@ -1,0 +1,21 @@
+ ● skill(nav-plan)
+
+ ● skill(api-design)
+
+## Fase 2: Plan for navneoppslag
+
+**Bruk den eksisterende Next.js-frontenden som eneste inngang.** Innbyggeren logger inn med ID-porten via Wonderwall. Next.js-serveren veksler brukertokenet med TokenX og kaller et internt Ktor-API. Det gir én ekstra tjenestegrense, men nettleseren trenger verken tilgang til Ktor eller et TokenX-token.
+
+| Område | Plan |
+|---|---|
+| Identitet og tilgang | Ktor validerer TokenX-tokenets signatur, utsteder, mottaker og utløp, og sjekker at klienten er den avtalte Next.js-appen. Ktor henter personidentifikatoren fra `pid` i det validerte tokenet, aldri fra URL, skjema eller en separat header. Planen antar sikkerhetsnivå `idporten-loa-high`. |
+| PDL | Ktor gjør et synkront GraphQL-oppslag og ber om navn, ikke andre personopplysninger. Bekreft PDLs krav til klienttilgang, token og eventuell videreføring av brukerkontekst før implementering. Ved utilgjengelig PDL eller tidsavbrudd svarer API-et `503`. Logg feilkategori uten navn, fødselsnummer, token eller rå PDL-data. Ingen kø. |
+| API og personvern | `GET /api/me/navn` returnerer kun `{"navn":"…"}`. Dokumenter kontrakten i OpenAPI. Manglende eller ugyldig token gir `401`, og gyldig token uten tilgang gir `403`. Feilsvar bruker `application/problem+json`. Sett `Cache-Control: no-store` også på svaret fra Next.js til nettleseren. Ingen database eller applikasjonscache. Dokumenter den konkrete lovhjemmelen, formålet og eventuelle krav til tilgangslogging før produksjon. |
+| Kode og Nais | Skill API-rute, tokenvalidering og PDL-klient i Ktor. Legg tokenvekslingen i en serversidemodul i Next.js. Bruk eksplisitt `accessPolicy`: bare Next.js inn til Ktor, ingen offentlig ingress til Ktor, og bare nødvendige PDL- og autentiseringsavhengigheter ut. Sett opp helseendepunkter og Prometheus, med `15m` CPU-request og `256Mi` minne-request som startpunkt. |
+| Tester og deploy | Test at ugyldig token, feil klient og manglende `pid` stopper kallet før PDL. Test navneoppslag, tidsavbrudd, `503` og fravær av personopplysninger i loggene. GitHub Actions bygger og tester før deploy til dev. Kjør innloggingsflyten i dev med en syntetisk testperson før godkjent produksjonsdeploy. |
+| Drift og rollback | Mål antall oppslag per minutt og andel feilende PDL-kall, uten personidentifikatorer i metrikker. Varsle ved vedvarende høy feilandel med nok trafikk til at målingen gir mening. Etter deploy, kontroller innlogging, navnevisning, avvisning av uautoriserte kall og at målingene kommer inn. Ved feil, slå av navnevisningen og rull tilbake frontend-integrasjonen først. Dokumenter rekkefølgen og feilsøking i driftsveiledningen. |
+
+**🔴 Rød sone:** Gå gjennom Wonderwall, TokenX-validering, bindingen mellom `pid` og oppslaget, og PDL-tilgangen grundig. Teamet bør skrive disse delene selv. Ingen filer er endret.
+
+Fase 2 stopper her. Neste fase er gjennomgang av planen, ikke implementering.
+

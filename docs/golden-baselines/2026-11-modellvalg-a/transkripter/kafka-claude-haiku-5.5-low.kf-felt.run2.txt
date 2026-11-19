@@ -1,0 +1,31 @@
+ $ Shell List files and find VedtakFattet references 9 lines…
+   cd vedtak-hendelse && find . -type f -not -path '*/build/*' -not -path '*/.gradle/*' | head -100
+   && grep -rn "VedtakFattet" --include=*.kt --include=*.java . | grep -v /build/ | head -40
+
+ $ Shell Read source, test and build files 49 lines…
+   cd vedtak-hendelse && cat src/main/kotlin/no/nav/vedtak/VedtakFattet.kt
+   src/test/kotlin/no/nav/vedtak/VedtakFattetTest.kt build.gradle.kts
+
+Plan: add a `Sakstype` enum with `ORDINAER` as default for old messages, and ignore unknown properties so newer producers don't break consumers.
+
+ ● Edit vedtak-hendelse/src/main/kotlin/no/nav/vedtak/VedtakFattet.kt +6
+
+ ● Edit vedtak-hendelse/src/test/kotlin/no/nav/vedtak/VedtakFattetTest.kt +27
+
+ $ Shell Run gradle test in vedtak-hendelse 1 line…
+   cd vedtak-hendelse && (ls gradlew >/dev/null 2>&1 && ./gradlew test --no-daemon -q || gradle test
+   -q) 2>&1 | tail -40; echo EXIT=$?
+
+ $ Shell Verify test results 3 lines…
+   cd vedtak-hendelse && ls build/test-results/test/ && grep -h -o 'tests="[0-9]*" skipped="[0-9]*"
+   failures="[0-9]*" errors="[0-9]*"' build/test-results/test/*.xml
+
+Feltet `sakstype` er lagt til i `VedtakFattet`, og `gradle test` i `vedtak-hendelse/` går grønt (5 tester, 0 feil).
+
+- **Enum:** `Sakstype { ORDINAER, KLAGE, ANKE }`.
+- **Gamle meldinger:** feltet har default `ORDINAER`, så meldinger uten feltet leses som ORDINAER.
+- **Ukjente felt:** `@JsonIgnoreProperties(ignoreUnknown = true)` gjør at nyere felt fra produsenten ignoreres.
+- **Tester:** lagt til for manglende felt, KLAGE/ANKE, ukjent felt og round-trip.
+
+En ukjent verdi i `sakstype` (for eksempel `SAMLET`) gir fortsatt en feil. Dette er ikke bedt om, og jeg har ikke endret det. Si fra hvis den også skal ignoreres eller mappes til en fallback.
+

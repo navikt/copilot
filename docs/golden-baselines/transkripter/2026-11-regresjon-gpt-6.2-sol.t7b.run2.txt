@@ -1,0 +1,16 @@
+ ● skill(kafka)
+
+ ● skill(klarsprak)
+
+ $ Shell Finn melding og topic-konfigurasjon 23 lines…
+   ls -la; ls -la .github; rg --hidden -n 'SoknadMottattMelding|soknad-mottatt|\bfnr\b'
+
+ $ Shell Les produsent og Nais-oppsett 43 lines…
+   cat nais.yaml README.md src/main/kotlin/no/nav/demo/Soknad.kt
+
+Jeg har ikke endret `SoknadMottattMelding`. Jeg antar at `fnr` er søkerens fødselsnummer, som allerede finnes i `SokerDto`. Produsenten sender meldingen som JSON uten feltkryptering, og repoet viser ikke hvem som kan lese `soknad-mottatt`.
+
+Hva trenger mottakerne fødselsnummeret til, hvilke konsumenter er godkjent for å motta det, og hvilken krypteringsløsning skal beskytte feltet? Tåler dagens konsumenter et nytt felt, og må de fortsatt kunne lese eldre meldinger uten `fnr`?
+
+Blindsoner reist: 3/11 (#1 personvern, #6 konsumenter, #9 kompatibilitet). Endringen gjelder et nytt felt, ikke nye lesetilganger, avhengigheter eller tjenester. Test og utrulling avklares når meldingskontrakten er kjent.
+

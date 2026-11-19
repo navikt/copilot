@@ -1,0 +1,8 @@
+ / Search "maksAntall" 3 lines found
+
+`maksAntall` er definert og brukt tre steder (søk uten skille på store og små bokstaver ga ingen flere treff):
+
+- `src/main/kotlin/no/nav/demo/Config.kt:4`: definisjon, `const val maksAntall = 100`
+- `src/main/kotlin/no/nav/demo/Routes.kt:16`: `oppgaver.take(maksAntall)` begrenser antall oppgaver i responsen
+- `src/main/kotlin/no/nav/demo/App.kt:10`: skrives ut i oppstartsmeldingen
+

@@ -1,0 +1,40 @@
+ ● skill(klarsprak)
+
+ ✗ Shell Finn filer og testfeil Failed with exit code 1  . .. .github build.gradle.kts frister nais…
+   ls -a; ls -a frister; cd frister && go test ./...
+   .
+   ..
+   .github
+   build.gradle.kts
+   frister
+   nais.yaml
+   README.md
+   slug
+   src
+   ytelse
+   .
+   ..
+   frist_test.go
+   frist.go
+   go.mod
+   --- FAIL: TestFrist (0.00s)
+       frist_test.go:23: Frist(2026-09-05) = 2026-10-18, want 2026-10-19
+   FAIL
+   FAIL    example.com/frister     0.172s
+   FAIL
+   Failed with exit code 1
+
+ $ Shell Les fristlogikk og regler 601 lines…
+   cat frister/frist{,_test}.go; for f in
+   .github/instructions/{golang,security-owasp}.instructions.md; do if test -f "$f"; then cat "$f";
+   fi; done
+
+ ● Edit  Edit frister/frist.go (+1 -1)
+
+ $ Shell Verifiser fristberegningen 1 line…
+   cd frister && test -z "$(gofmt -l frist.go)" && go test ./...
+
+Rettet `frister/frist.go`: Klagefrister som faller på en lørdag, flyttes nå til mandag i stedet for søndag.
+
+`go test ./...` i `frister/` passerer. Testene er uendret.
+

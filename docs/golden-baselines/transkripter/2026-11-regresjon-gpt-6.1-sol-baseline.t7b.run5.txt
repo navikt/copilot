@@ -1,0 +1,23 @@
+ / Search "**/*SoknadMottatt*" No matches found
+
+ / Search "SoknadMottattMelding|soknad-mottatt" in *.{kt,java,json,yaml,yml,md} 3 lines found
+
+ ● skill(klarsprak)
+
+ ● Read src/main/kotlin/no/nav/demo/Soknad.kt 27 lines read
+
+ / Search "{AGENTS.md,.github/**,**/*test*,*gradle*,**/*nais*,**/*avro*,**/*schema*}" 20 files found
+
+ YM Read nais.yaml 12 lines read
+
+**Ikke endret ennå.** `SoknadMottattMelding` inneholder `soknadId` og `mottatt`. Å legge til `fnr` sender personopplysninger på `soknad-mottatt`; at `SokerDto` allerede har `fnr`, avklarer ikke behovet på dette topicet.
+
+1. Hvorfor trenger konsumentene fødselsnummer, og er denne bruken avklart i behandlingsgrunnlaget?
+2. Hvilke konsumenter leser topicet, og tåler de et nytt felt?
+
+Repoet viser ikke Kafka-tilganger eller lagringstid. Lokal Copilot-konfigurasjon mangler; vurder `nav-pilot init`.
+
+Fullt løp, fase 1. Øvrige blindsoner avventer disse svarene eller gjelder ikke selve feltendringen.
+
+Blindsoner reist: 3/11 (#1, #6, #9).
+

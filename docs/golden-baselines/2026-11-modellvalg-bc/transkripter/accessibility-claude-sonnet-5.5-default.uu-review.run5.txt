@@ -1,0 +1,26 @@
+ TX Read src/app/komponenter/StatusPanel.tsx 19 lines read
+
+ MD Read .github/instructions/accessibility.instructions.md 121 lines read
+
+ ✗ Shell Check Aksel version  Failed with exit code 2
+   grep -h '"version"' node_modules/@navikt/ds-react/package.json 2>/dev/null; grep -n "ds-react"
+   package.json 2>/dev/null
+
+ TX Edit src/app/komponenter/StatusPanel.tsx +20 -8
+
+Jeg fant fem UU-feil i `StatusPanel.tsx` og rettet dem. Jeg har ikke kjørt noen test eller bygg, og `@navikt/ds-react` er ikke installert i repoet. Jeg har derfor ikke sjekket at Tag-variantene `error-moderate` og `success-moderate` finnes i versjonen dere bruker.
+
+| Funn | WCAG | Retting |
+|---|---|---|
+| `<div onClick>` uten rolle og tastaturstøtte | 2.1.1, 4.1.2 | Aksel `Button` med `aria-expanded` |
+| `outline: none` fjernet fokusindikatoren | 2.4.7 | Fjernet. `Button` har egen fokusindikator |
+| `tabIndex={5}` på et ikke-interaktivt `<span>` | 2.4.3 | Fjernet |
+| Status vist bare med rød eller grønn tekst, og kontrasten er usikker | 1.4.1, 1.4.3 | Aksel `Tag` med tekst og kontrastsikre farger |
+| Slett-knappen hadde bare ikon og ingen tilgjengelig navn | 4.1.2 | `Button` med `TrashIcon title="Slett"` |
+
+Jeg la også til typer på props (`StatusPanelProps`).
+
+**Åpne punkter**
+- `apen` styrer ingen synlig innhold, så «Vis detaljer» åpner ingenting. Når detaljpanelet finnes, legg til `aria-controls` som peker på det.
+- Vurder en mer spesifikk tittel på slett-knappen, for eksempel «Slett vedtak», som forteller hva som slettes.
+

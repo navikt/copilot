@@ -1,0 +1,29 @@
+ / Search "**/*slug*" 2 files found
+
+ ✗ Shell Run the failing slug test to see the… Could not find 'slug.test.ts' Failed with exit code 1
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.qenq4R/repo && node
+   --test slug.test.ts
+
+ TS Read slug/slug.test.ts L1:200 (9 lines read)
+
+ TS Read slug/slug.ts L1:200 (10 lines read)
+
+ MD Read .github/instructions/testing-typescript.instructions.md L1:220 (100 lines read)
+
+ TS Edit slug/slug.ts +2 -1
+
+Jeg rettet feilen i slug-logikken: den fjernet ikke bindestrek i starten/slutten etter at øvrige tegn ble konvertert. Nå verifiserer jeg testen.
+
+ $ Shell Verify the slug fix against the provided test 9 lines…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.qenq4R/repo/slug &&
+   node --test slug.test.ts
+
+Feilen var at funksjonen erstattet ugyldige tegn med bindestrek, men lot bindestrek stå i starten og slutten av strengen. Jeg endret den til å trimme leading/trailing bindestreker etter normaliseringen. Testen passer nå.
+
+Kjørte:
+- node --test slug.test.ts
+
+Resultat:
+- 1 test passerte
+- 0 feilet
+

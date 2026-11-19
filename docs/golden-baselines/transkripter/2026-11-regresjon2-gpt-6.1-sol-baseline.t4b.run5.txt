@@ -1,0 +1,68 @@
+ ● skill(nav-auth)
+
+ ● skill(nav-plan)
+
+ ● skill(api-design)
+
+## Fase 2: Plan
+
+**Vi beholder Ktor som backend og bruker eksisterende Next.js som BFF.** Wonderwall håndterer ID-porten-innlogging foran Next.js. TokenX bevarer brukerens identitet videre til backend og PDL, fremfor maskinautentisering som ville mistet brukerkonteksten. Dette gir to tokenutvekslinger, men holder tokens unna nettleserkoden.
+
+### Flyt og tilgang
+
+1. Innbyggeren logger inn via Wonderwall med ID-porten. Vi legger høyt sikkerhetsnivå til grunn.
+2. Nettleseren kaller en serverroute i Next.js med sesjonscookie.
+3. Next.js utveksler ID-porten-tokenet til et TokenX-token med Ktor-tjenesten som audience.
+4. Ktor validerer signatur, issuer, audience, levetid og tillatt kallerapplikasjon før den leser fødselsnummer fra tokenets dokumenterte identitetsclaim.
+5. Ktor utveksler det mottatte tokenet til PDL-audience og henter innbyggerens navn.
+
+Backend tar **ikke** imot fødselsnummer fra URL, request-body eller vilkårlige headere. Dermed kan innbyggeren ikke velge en annen person å slå opp.
+
+### API og personvern
+
+Foreslått kontrakt: `GET /api/meg` returnerer navn. Fødselsnummer brukes bare internt til PDL-oppslaget og returneres ikke til frontend uten et konkret behov.
+
+Antakelse: ingen database, varig lagring eller persondatacache. Svar får `Cache-Control: no-store`, også gjennom Next.js. Lovhjemmelen og formålet dokumenteres konkret før produksjon; «lovhjemmel» alene identifiserer ikke behandlingsgrunnlaget.
+
+| Situasjon | Resultat |
+|---|---|
+| Manglende eller ugyldig token | `401` |
+| Gyldig token fra ikke tillatt applikasjon | `403` |
+| PDL utilgjengelig eller timeout | `503`, generisk problemdetalj og sanitert feillogg |
+| PDL svarer med GraphQL-feil | Feilen klassifiseres selv om HTTP-status er `200`; ingen falsk suksess |
+| Uventet intern feil | `500`, uten interne detaljer |
+
+Ingen automatisk retry i første versjon. PDL-kall får avgrenset timeout. Logger inneholder feilkategori og teknisk korrelasjons-ID, aldri fødselsnummer, navn, tokens eller rå PDL-svar.
+
+### Filer og plattform
+
+Vi beholder `nais.yaml` og samler Ktor-oppstart, konfigurasjon, auth, API og PDL-klient i egne Kotlin-filer. Tester følger samme inndeling. Ingen database eller migrasjoner.
+
+Nais-oppsettet skal ha:
+- TokenX på backend og Next.js, ID-porten/Wonderwall på Next.js.
+- Eksplisitt inbound-regel til backend kun fra Next.js, og nødvendig outbound-tilgang til PDL og tokeninfrastruktur.
+- Ingen offentlig ingress til backend. Eksakte appnavn, namespace, PDL-adresse og audiences verifiseres per miljø før konfigurasjonen ferdigstilles.
+- Eksisterende health-endpoints, separat metrikk-endpoint og startressurser på `15m` CPU-request, `256Mi` minne-request og `512Mi` minnegrense. Ingen CPU-grense.
+
+PDL-tilgang må være godkjent for formålet. Nødvendige behandlingsopplysninger og headere følger PDLs kontrakt. Secrets og nøkler kommer fra Nais, ikke kildekoden.
+
+### Tester og drift
+
+Ktor-integrasjonstester bruker MockOAuth2Server og en simulert PDL-server. De dekker gyldig flyt, ugyldig signatur, feil issuer/audience, utløpt token, feil kaller og at oppslaget alltid gjelder tokenets person. PDL-tester dekker timeout, utilgjengelighet og GraphQL-feil. Testene kontrollerer også at feil ikke lekker personopplysninger.
+
+En frontendtest dekker innlogging, visning av navn og forståelig feilmelding med mulighet til å prøve igjen ved `503`.
+
+Prometheus måler antall oppslag per minutt og feilandel, med egne tellere for PDL-feil og timeout. Ingen personidentifikatorer i labels. Foreløpig alarmgrense er over 5 % serverfeil i fem minutter ved minst 20 kall; terskelen justeres etter faktisk trafikk. PDL-nedetid skal ikke få liveness til å restarte tjenesten.
+
+### Levering og rollback
+
+CI kjører bygg, tester og lint før image-bygg. Actions SHA-pinnes med minimale permissions. Deploy går til dev først, deretter kontrollert produksjonsdeploy.
+
+Før produksjon verifiseres innlogging, tillatte kallere, oppslag med syntetiske testpersoner i dev, `503`-håndtering og fravær av persondata i logger. Endringsbeskrivelse, driftsrutine og verifiseringssjekkliste inngår i leveransen, uten separate dokumentfiler med mindre dere ønsker det.
+
+Rollback betyr å deaktivere frontendfunksjonen og rulle tilbake berørte images og konfigurasjon. Ingen data må migreres tilbake.
+
+**🔴 Rød sone: tokenvalidering, tokenutveksling, binding mellom innlogget person og PDL-oppslag samt håndtering av personopplysninger.** TokenX og Wonderwall er også nye konsepter for teamet. Ved levering er standarden stubs for disse delene; full implementasjon krever uttrykkelig beskjed om å implementere rød sone.
+
+Planen er klar for godkjenning før fase 3, der sikkerhetsperspektivet gjennomgås separat. Still gjerne spørsmål om valgene over.
+

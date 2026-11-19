@@ -15,7 +15,6 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -205,35 +204,52 @@ func isLoopbackRedirect(u *url.URL) bool {
 	return true
 }
 
+type cachedCIMD struct {
+	doc       *clientMetadata
+	fetchedAt time.Time
+}
+
 func (g *Gateway) fetchCIMD(ctx context.Context, clientID string) (*clientMetadata, error) {
-	if cached, ok := g.cimdCache.Get(clientID); ok {
-		return cached, nil
+	stale, hasStale := g.cimdCache.Get(clientID)
+	if hasStale && g.now().Before(stale.fetchedAt.Add(defaultCIMDTTL)) {
+		return stale.doc, nil
 	}
 
 	if err := validateHTTPURL(clientID, false); err != nil {
 		return nil, fmt.Errorf("invalid client_id URL: %w", err)
 	}
 
+	fallbackOrErr := func(err error) (*clientMetadata, error) {
+		if hasStale && g.now().Before(stale.fetchedAt.Add(cimdStaleMax)) {
+			slog.Warn("CIMD fetch failed, serving stale document",
+				"client_id", sanitizeLogValue(clientID),
+				"age", g.now().Sub(stale.fetchedAt).Round(time.Second).String(),
+				"error", sanitizeLogValue(err.Error()))
+			return stale.doc, nil
+		}
+		return nil, err
+	}
+
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, clientID, nil)
 	if err != nil {
-		return nil, err
+		return fallbackOrErr(err)
 	}
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("User-Agent", "fleet-gateway/1.0")
 
 	resp, err := g.cfg.HTTPClient.Do(req) //nolint:gosec // URL validated against AllowedClientIDs allowlist
 	if err != nil {
-		return nil, err
+		return fallbackOrErr(err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("unexpected CIMD status %d", resp.StatusCode)
+		return fallbackOrErr(fmt.Errorf("unexpected CIMD status %d", resp.StatusCode))
 	}
 
 	var doc clientMetadata
 	if err := json.NewDecoder(io.LimitReader(resp.Body, maxCIMDBodyBytes)).Decode(&doc); err != nil {
-		return nil, fmt.Errorf("decode CIMD: %w", err)
+		return fallbackOrErr(fmt.Errorf("decode CIMD: %w", err))
 	}
 	if doc.ClientID != clientID {
 		return nil, errors.New("CIMD client_id does not match request URL")
@@ -248,7 +264,7 @@ func (g *Gateway) fetchCIMD(ctx context.Context, clientID string) (*clientMetada
 		doc.ClientName = doc.ClientID
 	}
 
-	g.cimdCache.Set(clientID, &doc, defaultCIMDTTL)
+	g.cimdCache.Set(clientID, cachedCIMD{doc: &doc, fetchedAt: g.now()}, cimdStaleMax)
 	return &doc, nil
 }
 
@@ -503,11 +519,10 @@ func (g *Gateway) callbackHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	navIdent := ""
-	groups := make(map[string]bool)
-	extractIdentityFromClaims(idClaims, &navIdent, groups)
+	extractIdentityFromClaims(idClaims, &navIdent)
 	if at != "" {
 		if atClaims, parseErr := parseJWTClaims(at); parseErr == nil {
-			extractIdentityFromClaims(atClaims, &navIdent, groups)
+			extractIdentityFromClaims(atClaims, &navIdent)
 		}
 	}
 	if navIdent == "" {
@@ -518,12 +533,6 @@ func (g *Gateway) callbackHandler(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-
-	groupList := make([]string, 0, len(groups))
-	for grp := range groups {
-		groupList = append(groupList, grp)
-	}
-	sort.Strings(groupList)
 
 	issuedAt := g.now()
 	sessionTTL := computeSessionTTL(out["expires_in"], g.cfg.SessionMaxAge)
@@ -542,7 +551,6 @@ func (g *Gateway) callbackHandler(w http.ResponseWriter, r *http.Request) {
 		EntraToken:   at,
 		RefreshToken: sessRT,
 		NAVIdent:     navIdent,
-		Groups:       groupList,
 		IssuedAt:     issuedAt,
 		Expiry:       issuedAt.Add(sessionTTL),
 	}
@@ -837,20 +845,13 @@ func parseJWTClaims(rawJWT string) (map[string]any, error) {
 	return claims, nil
 }
 
-func extractIdentityFromClaims(claims map[string]any, navIdent *string, groups map[string]bool) {
+func extractIdentityFromClaims(claims map[string]any, navIdent *string) {
 	if claims == nil {
 		return
 	}
 	if *navIdent == "" {
 		if v, ok := claims["NAVident"].(string); ok {
 			*navIdent = strings.TrimSpace(v)
-		}
-	}
-	if rawGroups, ok := claims["groups"].([]any); ok {
-		for _, g := range rawGroups {
-			if gs, ok := g.(string); ok && gs != "" {
-				groups[gs] = true
-			}
 		}
 	}
 }
@@ -875,5 +876,5 @@ func logAccessTokenShape(at string) {
 	if json.Unmarshal(raw, &c) != nil {
 		return
 	}
-	slog.Info("entra access token shape", "aud", fmt.Sprint(c.Aud), "ver", c.Ver, "azp", c.Azp, "scp", c.Scp)
+	slog.Debug("entra access token shape", "aud", fmt.Sprint(c.Aud), "ver", c.Ver, "azp", c.Azp, "scp", c.Scp)
 }

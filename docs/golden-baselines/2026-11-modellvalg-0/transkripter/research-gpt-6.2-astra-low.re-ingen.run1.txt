@@ -1,0 +1,10 @@
+ ● skill(klarsprak)
+
+ / Search "\bslettOppgave\b" No matches found
+
+ ● List directory . 5 files found
+
+ / Search "slettOppgave" (src) No matches found
+
+Jeg fant ingen kall til `slettOppgave` i prosjektet. Funksjonsnavnet ga ingen treff, så det er ingen filer eller linjenumre å oppgi.
+

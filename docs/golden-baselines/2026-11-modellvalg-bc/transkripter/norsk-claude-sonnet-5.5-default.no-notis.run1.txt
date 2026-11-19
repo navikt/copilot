@@ -1,0 +1,8 @@
+ ● skill(klarsprak)
+
+ MD Read fakta.md 6 lines read
+
+ MD Create notis.md +7
+
+Notisen ligger i `notis.md`, ca. 55 ord. Den dekker alle fem punktene fra `fakta.md`: hva agenten sjekker, at den kjører automatisk på PR-er under `docs/`, hvordan teamene slår den av, startdatoen mandag 5. oktober og Slack-kanalen for tilbakemeldinger.
+

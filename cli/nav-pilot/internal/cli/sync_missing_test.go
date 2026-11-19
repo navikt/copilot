@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/navikt/copilot/cli/nav-pilot/internal/provider"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
 )
 
@@ -153,6 +154,46 @@ func TestSyncApplyDeclinedWritesNoIgnoredState(t *testing.T) {
 	}
 	if !bytes.Equal(before, after) {
 		t.Errorf("declining sync --apply wrote the state file:\nbefore: %s\nafter:  %s", before, after)
+	}
+}
+
+func TestSyncRepoApplyLeavesUserOpenCodeConfig(t *testing.T) {
+	dir, _ := missingScope(t)
+	t.Chdir(dir)
+
+	ocPath, err := provider.MCPConfigPath(provider.MCPClientOpenCode)
+	if err != nil {
+		t.Fatal(err)
+	}
+	before := []byte(`{"mcp":{"no.nav/x":{"type":"remote","url":"https://x.nav.no/mcp","enabled":true}}}`)
+	if err := os.MkdirAll(filepath.Dir(ocPath), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(ocPath, before, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	cachePath := filepath.Join(filepath.Dir(os.Getenv("NAV_PILOT_CONFIG")), "mcp-registry.json")
+	cacheJSON := `{"at":"2026-01-01T00:00:00Z","schema":3,"registry":{"Servers":{"no.nav/x":["https://x.nav.no/mcp"]},"Entries":[{"name":"no.nav/x","protocolVersions":["2026-07-28"],"remotes":[{"type":"streamable-http","url":"https://x.nav.no/mcp"}]}]}}`
+	if err := os.WriteFile(cachePath, []byte(cacheJSON), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if got := provider.CachedMCPRegistryEntries(); len(got) != 1 || got[0].Name != "no.nav/x" {
+		t.Fatalf("CachedMCPRegistryEntries() = %+v, want 1 entry", got)
+	}
+
+	var runErr error
+	stdout, _ := captureRun(t, func() { runErr = run([]string{"sync", "--repo", "--apply", "--yes"}) })
+	if runErr != nil {
+		t.Fatalf("sync --repo --apply --yes: %v\n%s", runErr, stdout)
+	}
+
+	after, err := os.ReadFile(ocPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(before, after) {
+		t.Errorf("sync --repo --apply modified user OpenCode config:\nbefore: %s\nafter:  %s", before, after)
 	}
 }
 

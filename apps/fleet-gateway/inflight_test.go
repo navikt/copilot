@@ -1,16 +1,22 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
+	"errors"
+	"fmt"
 	"github.com/prometheus/client_golang/prometheus/testutil"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"net/http/httptrace"
 	"os"
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -319,8 +325,13 @@ func TestSSECapCheckedBeforeUpstream(t *testing.T) {
 		t.Fatalf("first stream: code %d", resp.StatusCode)
 	}
 	before := hits.Load()
+	shed := httpRequestsTotal.WithLabelValues("503", "cap")
+	beforeShed := testutil.ToFloat64(shed)
 	if code := capPost(t, ts, token, "?sse=1"); code != http.StatusServiceUnavailable {
 		t.Fatalf("over SSE cap: code %d, want 503", code)
+	}
+	if got := testutil.ToFloat64(shed); got != beforeShed+1 {
+		t.Errorf("over-cap 503 not labelled reason=cap: %v -> %v", beforeShed, got)
 	}
 	if hits.Load() != before {
 		t.Fatalf("upstream called %d times for a request refused at the SSE cap", hits.Load()-before)
@@ -376,10 +387,514 @@ func TestPerRouteInFlightCap(t *testing.T) {
 	first := make(chan int, 1)
 	go func() { first <- capPost(t, ts, token, "") }()
 	<-entered
+	shed := httpRequestsTotal.WithLabelValues("503", "cap")
+	beforeShed := testutil.ToFloat64(shed)
 	if code := capPost(t, ts, token, ""); code != http.StatusServiceUnavailable {
 		t.Fatalf("second request on a route at its cap: code %d, want 503", code)
+	}
+	if got := testutil.ToFloat64(shed); got != beforeShed+1 {
+		t.Errorf("over-cap 503 not labelled reason=cap: %v -> %v", beforeShed, got)
 	}
 	if free := cap(te.gw.inFlight) - len(te.gw.inFlight); free != 3 {
 		t.Fatalf("global slots free = %d, want 3 (route cap must refuse before taking a global slot)", free)
 	}
+}
+
+func largeJSONRPCPayload() []byte {
+	const prefix = `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"x","arguments":{"data":"`
+	const suffix = `"}}}`
+	return []byte(prefix + strings.Repeat("a", maxMCPRequestBodyBytes-len(prefix)-len(suffix)-64) + suffix)
+}
+
+func TestSSEEarlyFlushUpstreamGetsFullBody(t *testing.T) {
+	te := newTestEnv(t)
+	te.gw.cfg.MCPMaxSSE = 16
+	te.gw.cfg.SSEMaxDuration = 10 * time.Second
+	te.gw.cfg.SSEIdleTimeout = 10 * time.Second
+	te.handler = te.gw.routes()
+
+	payload := largeJSONRPCPayload()
+	var gotLen atomic.Int64
+	var readErr atomic.Value
+	te.upstreamServer.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("sse") != "1" {
+			writeJSON(w, http.StatusOK, map[string]any{"jsonrpc": "2.0", "id": 1, "result": map[string]any{}})
+			return
+		}
+		if err := http.NewResponseController(w).EnableFullDuplex(); err != nil {
+			readErr.Store(err.Error())
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.WriteHeader(http.StatusOK)
+		w.(http.Flusher).Flush()
+
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			readErr.Store(err.Error())
+			return
+		}
+		gotLen.Store(int64(len(body)))
+		_, _ = io.WriteString(w, "data: "+strconv.Itoa(len(body))+"\n\n")
+		w.(http.Flusher).Flush()
+	})
+
+	token := te.obtainAccessTokenForResource(te.resource)
+	ts := httptest.NewServer(te.handler)
+	defer ts.Close()
+
+	req, err := http.NewRequest(http.MethodPost, ts.URL+te.gw.cfg.Routes[0].Route+"?sse=1", bytes.NewReader(payload))
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json, text/event-stream")
+	resp, err := ts.Client().Do(req) //nolint:gosec // test server URL
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("SSE early flush: code %d, want 200", resp.StatusCode)
+	}
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("reading SSE response: %v", err)
+	}
+	if errMsg, _ := readErr.Load().(string); errMsg != "" {
+		t.Fatalf("upstream read error: %s", errMsg)
+	}
+	if got := gotLen.Load(); got != int64(len(payload)) {
+		t.Fatalf("upstream received %d bytes, want %d", got, len(payload))
+	}
+	wantEvent := "data: " + strconv.Itoa(len(payload)) + "\n\n"
+	if !strings.Contains(string(respBody), wantEvent) {
+		t.Fatalf("client SSE response = %q, want %q", string(respBody), wantEvent)
+	}
+}
+
+type roundTripperFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripperFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+
+func TestSSEEarlyFlushRetryUpstreamGetsFullBody(t *testing.T) {
+	te := newTestEnv(t)
+	te.gw.cfg.MCPMaxSSE = 16
+	te.gw.cfg.SSEMaxDuration = 10 * time.Second
+	te.gw.cfg.SSEIdleTimeout = 10 * time.Second
+	te.handler = te.gw.routes()
+
+	base := te.gw.proxyClient.Transport
+	var attempts atomic.Int32
+	te.gw.proxyClient.Transport = roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+		if attempts.Add(1) == 1 {
+			var head [64]byte
+			if _, err := io.ReadFull(req.Body, head[:]); err != nil {
+				return nil, err
+			}
+			_ = req.Body.Close()
+			if trace := httptrace.ContextClientTrace(req.Context()); trace != nil && trace.WroteRequest != nil {
+				trace.WroteRequest(httptrace.WroteRequestInfo{Err: errors.New("simulated connection reset")})
+			}
+			if req.GetBody == nil {
+				return nil, errors.New("expected non-nil req.GetBody on retry")
+			}
+			retryBody, err := req.GetBody()
+			if err != nil {
+				return nil, err
+			}
+			retryReq := req.Clone(req.Context())
+			retryReq.Body = retryBody
+			retryReq.GetBody = req.GetBody
+			return base.RoundTrip(retryReq)
+		}
+		return base.RoundTrip(req)
+	})
+
+	payload := largeJSONRPCPayload()
+	var gotLen atomic.Int64
+	var readErr atomic.Value
+	clientGotHeaders := make(chan struct{})
+	upstreamDone := make(chan struct{})
+	te.upstreamServer.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer close(upstreamDone)
+		if err := http.NewResponseController(w).EnableFullDuplex(); err != nil {
+			readErr.Store(err.Error())
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.WriteHeader(http.StatusOK)
+		w.(http.Flusher).Flush()
+
+		select {
+		case <-clientGotHeaders:
+		case <-t.Context().Done():
+			return
+		}
+
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			readErr.Store(err.Error())
+			return
+		}
+		gotLen.Store(int64(len(body)))
+		_, _ = io.WriteString(w, "data: "+strconv.Itoa(len(body))+"\n\n")
+		w.(http.Flusher).Flush()
+	})
+
+	token := te.obtainAccessTokenForResource(te.resource)
+	ts := httptest.NewServer(te.handler)
+	defer ts.Close()
+
+	req, err := http.NewRequest(http.MethodPost, ts.URL+te.gw.cfg.Routes[0].Route+"?sse=1", bytes.NewReader(payload))
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json, text/event-stream")
+	resp, err := ts.Client().Do(req) //nolint:gosec // test server URL
+	close(clientGotHeaders)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("SSE early flush retry: code %d, want 200", resp.StatusCode)
+	}
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("reading SSE response: %v", err)
+	}
+	<-upstreamDone
+	if attempts.Load() != 1 {
+		t.Fatalf("proxy attempts = %d, want 1 outer call that retried via GetBody", attempts.Load())
+	}
+	if errMsg, _ := readErr.Load().(string); errMsg != "" {
+		t.Fatalf("upstream read error: %s", errMsg)
+	}
+	if got := gotLen.Load(); got != int64(len(payload)) {
+		t.Fatalf("upstream received %d bytes, want %d", got, len(payload))
+	}
+	wantEvent := "data: " + strconv.Itoa(len(payload)) + "\n\n"
+	if !strings.Contains(string(respBody), wantEvent) {
+		t.Fatalf("client SSE response = %q, want %q", string(respBody), wantEvent)
+	}
+}
+
+func TestSSEStreamsDoNotRetainRequestBody(t *testing.T) {
+	te := newTestEnv(t)
+	te.gw.cfg.MCPMaxSSE = 64
+	te.gw.cfg.SSEMaxDuration = 10 * time.Second
+	te.gw.cfg.SSEIdleTimeout = 10 * time.Second
+	te.handler = te.gw.routes()
+
+	stop := make(chan struct{})
+	te.upstreamServer.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.Copy(io.Discard, r.Body)
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.WriteHeader(http.StatusOK)
+		w.(http.Flusher).Flush()
+		select {
+		case <-stop:
+		case <-r.Context().Done():
+		}
+	})
+	token := te.obtainAccessTokenForResource(te.resource)
+	ts := httptest.NewServer(te.handler)
+	defer ts.Close()
+	defer close(stop)
+
+	payload := largeJSONRPCPayload()
+
+	runtime.GC()
+	runtime.GC()
+	var base runtime.MemStats
+	runtime.ReadMemStats(&base)
+
+	for i := range 64 {
+		req, err := http.NewRequest(http.MethodPost, ts.URL+te.gw.cfg.Routes[0].Route, bytes.NewReader(payload))
+		if err != nil {
+			t.Fatal(err)
+		}
+		req.Header.Set("Authorization", "Bearer "+token)
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Accept", "application/json, text/event-stream")
+		resp, err := ts.Client().Do(req) //nolint:gosec // test server URL
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer func() { _ = resp.Body.Close() }()
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("SSE stream %d: code %d", i, resp.StatusCode)
+		}
+	}
+
+	runtime.GC()
+	runtime.GC()
+	var after runtime.MemStats
+	runtime.ReadMemStats(&after)
+
+	const mib = 1 << 20
+	var growth uint64
+	if after.HeapAlloc > base.HeapAlloc {
+		growth = after.HeapAlloc - base.HeapAlloc
+	}
+	t.Logf("heap growth across 64 open SSE streams: %.2f MiB (baseline %.2f MiB, after %.2f MiB)",
+		float64(growth)/mib, float64(base.HeapAlloc)/mib, float64(after.HeapAlloc)/mib)
+	if growth > 24*mib {
+		t.Fatalf("heap growth %.2f MiB exceeds 24 MiB", float64(growth)/mib)
+	}
+}
+
+// A request shed at the SSE cap was allowed by no check: the audit says
+// decision false with the outcome as reason, and the metric has no allow.
+func TestSSECapShedIsNotAuditedAsAllow(t *testing.T) {
+	var logBuf syncBuf
+	old := slog.Default()
+	slog.SetDefault(slog.New(slog.NewJSONHandler(&logBuf, &slog.HandlerOptions{Level: slog.LevelInfo})))
+	t.Cleanup(func() { slog.SetDefault(old) })
+
+	te := newTestEnv(t)
+	te.gw.cfg.MCPMaxSSE = 1
+	te.gw.cfg.SSEMaxDuration = 10 * time.Second
+	te.gw.cfg.SSEIdleTimeout = 10 * time.Second
+	te.handler = te.gw.routes()
+	stop := make(chan struct{})
+	te.upstreamServer.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.WriteHeader(http.StatusOK)
+		w.(http.Flusher).Flush()
+		select {
+		case <-stop:
+		case <-r.Context().Done():
+		}
+	})
+	token := te.obtainAccessTokenForResource(te.resource)
+	ts := httptest.NewServer(te.handler)
+	defer ts.Close()
+	defer close(stop)
+
+	route := te.gw.cfg.Routes[0].Route
+	req, _ := http.NewRequest(http.MethodPost, ts.URL+route, strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"tools/list"}`))
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json, text/event-stream")
+	resp, err := ts.Client().Do(req) //nolint:gosec // test server URL
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	allow := mcpRequestsTotal.WithLabelValues(route, "sse_over_capacity", "allow")
+	before := testutil.ToFloat64(allow)
+	if code := capPost(t, ts, token, "?sse=1"); code != http.StatusServiceUnavailable {
+		t.Fatalf("second SSE stream: code %d, want 503", code)
+	}
+	if got := testutil.ToFloat64(allow); got != before {
+		t.Errorf("shed counted as decision=allow: %v -> %v", before, got)
+	}
+	var found bool
+	for _, line := range strings.Split(logBuf.String(), "\n") {
+		if !strings.Contains(line, `"outcome":"sse_over_capacity"`) {
+			continue
+		}
+		found = true
+		if !strings.Contains(line, `"decision":{"decision":false,"context":{"reason":"sse_over_capacity"}}`) {
+			t.Errorf("audit line not decision=false reason=sse_over_capacity:\n%s", line)
+		}
+	}
+	if !found {
+		t.Fatalf("no audit line with outcome sse_over_capacity:\n%s", logBuf.String())
+	}
+}
+
+// A downstream client that stops reading must not pin the SSE handler and its
+// MCP_MAX_SSE slot past SSE_MAX_DURATION / SSE_IDLE_TIMEOUT.
+func TestSSEBlockedDownstreamReleasesSlotOnCancel(t *testing.T) {
+	te := newTestEnv(t)
+	te.gw.cfg.MCPMaxSSE = 1
+	te.gw.cfg.SSEMaxDuration = 300 * time.Millisecond
+	te.gw.cfg.SSEIdleTimeout = 200 * time.Millisecond
+	te.gw.cfg.SSEMaxBytes = 64 << 20
+	te.handler = te.gw.routes()
+
+	stop := make(chan struct{})
+	chunk := []byte("data: " + strings.Repeat("x", 64*1024) + "\n\n")
+	te.upstreamServer.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.Copy(io.Discard, r.Body)
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.WriteHeader(http.StatusOK)
+		if r.URL.Query().Get("probe") == "1" {
+			_, _ = io.WriteString(w, "data: ok\n\n")
+			return
+		}
+		flusher, _ := w.(http.Flusher)
+		if flusher != nil {
+			flusher.Flush()
+		}
+		for {
+			select {
+			case <-stop:
+				return
+			case <-r.Context().Done():
+				return
+			default:
+			}
+			if _, err := w.Write(chunk); err != nil {
+				return
+			}
+			if flusher != nil {
+				flusher.Flush()
+			}
+		}
+	})
+
+	token := te.obtainAccessTokenForResource(te.resource)
+	route := te.gw.cfg.Routes[0].Route
+	firstDone := make(chan struct{})
+	var firstOnce sync.Once
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == route && r.URL.Query().Get("probe") == "" {
+			defer firstOnce.Do(func() { close(firstDone) })
+		}
+		te.handler.ServeHTTP(w, r)
+	}))
+	defer ts.Close()
+	defer close(stop)
+
+	conn, err := net.Dial("tcp", ts.Listener.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = conn.Close() }()
+
+	reqBody := `{"jsonrpc":"2.0","id":1,"method":"tools/list"}`
+	reqStr := fmt.Sprintf(
+		"POST %s HTTP/1.1\r\nHost: %s\r\nAuthorization: Bearer %s\r\nContent-Type: application/json\r\nAccept: application/json, text/event-stream\r\nContent-Length: %d\r\n\r\n%s",
+		route, ts.Listener.Addr().String(), token, len(reqBody), reqBody,
+	)
+	if _, err = io.WriteString(conn, reqStr); err != nil {
+		t.Fatal(err)
+	}
+
+	statusLine, err := bufio.NewReaderSize(conn, 512).ReadString('\n')
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(statusLine, "200 OK") {
+		t.Fatalf("first SSE stream status line = %q, want 200 OK", statusLine)
+	}
+
+	// Never drain conn further so TCP buffers fill and streamSSE's w.Write blocks.
+	select {
+	case <-firstDone:
+	case <-time.After(5 * time.Second):
+		t.Fatalf("SSE handler stayed blocked past timeout (sseSlots=%d/%d)",
+			len(te.gw.sseStreams), cap(te.gw.sseStreams))
+	}
+
+	if used := len(te.gw.sseStreams); used != 0 {
+		t.Fatalf("SSE slot still held after handler returned: %d", used)
+	}
+	if code := capPost(t, ts, token, "?sse=1&probe=1"); code != http.StatusOK {
+		t.Fatalf("follow-up SSE request with MCPMaxSSE=1: code %d, want 200", code)
+	}
+}
+
+// Cancelling an SSE stream must not leave a stale write deadline that cuts a
+// subsequent request on a keep-alive connection.
+func TestSSECancelDoesNotCutFollowUpKeepAlive(t *testing.T) {
+	te := newTestEnv(t)
+	te.gw.cfg.SSEMaxDuration = 30 * time.Millisecond
+	te.gw.cfg.SSEIdleTimeout = 30 * time.Millisecond
+	te.handler = te.gw.routes()
+
+	te.upstreamServer.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.Copy(io.Discard, r.Body)
+		if r.URL.Query().Get("sse") == "1" {
+			w.Header().Set("Content-Type", "text/event-stream")
+			w.WriteHeader(http.StatusOK)
+			if flusher, ok := w.(http.Flusher); ok {
+				flusher.Flush()
+			}
+			_, _ = io.WriteString(w, "data: hi\n\n")
+			if flusher, ok := w.(http.Flusher); ok {
+				flusher.Flush()
+			}
+			<-r.Context().Done()
+			return
+		}
+		time.Sleep(200 * time.Millisecond)
+		writeJSON(w, http.StatusOK, map[string]any{"jsonrpc": "2.0", "id": 1, "result": map[string]any{"ok": true}})
+	})
+
+	token := te.obtainAccessTokenForResource(te.resource)
+	route := te.gw.cfg.Routes[0].Route
+	ts := httptest.NewServer(te.handler)
+	defer ts.Close()
+
+	client := &http.Client{
+		Transport: &http.Transport{
+			MaxConnsPerHost:     1,
+			MaxIdleConnsPerHost: 1,
+		},
+	}
+	defer client.CloseIdleConnections()
+
+	for i := range 20 {
+		sseReq, _ := http.NewRequest(http.MethodPost, ts.URL+route+"?sse=1", strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"tools/list"}`))
+		sseReq.Header.Set("Authorization", "Bearer "+token)
+		sseReq.Header.Set("Content-Type", "application/json")
+		sseReq.Header.Set("Accept", "application/json, text/event-stream")
+		sseResp, err := client.Do(sseReq) //nolint:gosec // test server URL
+		if err != nil {
+			t.Fatalf("iter %d sse Do: %v", i, err)
+		}
+		_, sseReadErr := io.Copy(io.Discard, sseResp.Body)
+		_ = sseResp.Body.Close()
+
+		var reused atomic.Bool
+		followReq, _ := http.NewRequest(http.MethodPost, ts.URL+route, strings.NewReader(`{"jsonrpc":"2.0","id":2,"method":"tools/list"}`))
+		followReq.Header.Set("Authorization", "Bearer "+token)
+		followReq.Header.Set("Content-Type", "application/json")
+		followReq = followReq.WithContext(httptrace.WithClientTrace(followReq.Context(), &httptrace.ClientTrace{
+			GotConn: func(info httptrace.GotConnInfo) {
+				reused.Store(info.Reused)
+			},
+		}))
+		followResp, err := client.Do(followReq) //nolint:gosec // test server URL
+		if err != nil {
+			t.Fatalf("iter %d follow-up Do (reused=%v, sseReadErr=%v): %v", i, reused.Load(), sseReadErr, err)
+		}
+		body, readErr := io.ReadAll(followResp.Body)
+		_ = followResp.Body.Close()
+		if readErr != nil {
+			t.Fatalf("iter %d follow-up read (reused=%v, sseReadErr=%v): %v", i, reused.Load(), sseReadErr, readErr)
+		}
+		if followResp.StatusCode != http.StatusOK || !strings.Contains(string(body), `"ok": true`) {
+			t.Fatalf("iter %d follow-up status=%d body=%q", i, followResp.StatusCode, body)
+		}
+	}
+}
+
+// syncBuf lets the test read the log while server goroutines still write.
+type syncBuf struct {
+	mu sync.Mutex
+	b  bytes.Buffer
+}
+
+func (s *syncBuf) Write(p []byte) (int, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.b.Write(p)
+}
+
+func (s *syncBuf) String() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.b.String()
 }
