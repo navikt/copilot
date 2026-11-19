@@ -111,3 +111,5 @@ Rå og reparert score etter #2450 (bare informasjon, utfallet i denne målingen 
 
 
 **19. november 2026, kontrollkjøring 4 og review (utenfor armene):** secq-kontroller 6,74, blindsonekontroller 6,63, Astra-review av #2450 (siste endring) 6,00 og av #2437 (ny runde) 5,42. Til sammen 24,79. Brukt i alt: **4 843,70**.
+
+**19. november 2026, review (utenfor armene):** Astra-review av #2450 `7f470ba7` (FAIL) koster 6,00. Kontrollen av fasitendringen for rad 12 i #2437 koster 4,75 + 2,35, der første forsøk feilet fordi diffen var avkortet. Til sammen 13,10. Brukt i alt: **4 856,80**.
