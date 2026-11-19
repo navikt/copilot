@@ -658,14 +658,19 @@ func TestMCPRefreshFlag(t *testing.T) {
 // A name missing from the cache is read again once; a name that is there is not.
 func TestMCPEnableRefreshesOnUnknownName(t *testing.T) {
 	f := mcpCmdEnv(t, providerpkg.MCPHostState{})
-	fresh := append(mcpTestEntries(), providerpkg.MCPServerEntry{Name: "io.github.navikt/newcomer", Status: "active"})
+	fresh := append(mcpTestEntries(), providerpkg.MCPServerEntry{Name: "io.github.navikt/newcomer", Status: "active", Remotes: []providerpkg.MCPRemote{{Type: "streamable-http", URL: "https://newcomer.example/mcp"}}})
 	mcpRegistryServers = func() (string, []providerpkg.MCPServerEntry, error, error) {
 		if f.refreshes > 0 {
 			return "https://registry.test", fresh, nil, nil
 		}
 		return "https://registry.test", mcpTestEntries(), nil, nil
 	}
-	_ = cmdMCP([]string{"enable", "newcomer", "--client", "copilot"})
+	if err := cmdMCP([]string{"enable", "newcomer", "--client", "copilot"}); err != nil {
+		t.Fatalf("enable after refresh: %v", err)
+	}
+	if b, _ := os.ReadFile(copilotMCPPath()); !strings.Contains(string(b), "https://newcomer.example/mcp") {
+		t.Errorf("config not written for refreshed entry:\n%s", b)
+	}
 	if f.refreshes != 1 {
 		t.Errorf("unknown name: refreshes %d, want 1", f.refreshes)
 	}
