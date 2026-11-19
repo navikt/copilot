@@ -192,10 +192,13 @@ RV_DEFECTS = {
     "tilgang": "Routes.kt line 30: GET /api/vedtak/{fnr} lies outside authenticate, so anyone can read "
                "vedtak (missing authentication or access control).",
     "inbound": "nais.yaml lines 25-26: accessPolicy.inbound allows every application or namespace (\"*\").",
-    "idempotens": "a retry or a redelivery stores the vedtak again: duplicate vedtak, a new id per attempt, "
-                  "no idempotency key or ON CONFLICT (VedtakConsumer.kt 25-33, VedtakRepository.kt 14).",
+    "idempotens": "a retry, a redelivery or a restart can store the same vedtak more than once: duplicate "
+                  "vedtak, for example with a new id on each attempt, and no idempotency key or ON CONFLICT "
+                  "(VedtakConsumer.kt 25-33, VedtakRepository.kt 14). Advice alone about which id to create, "
+                  "or about logging attempts, is not this finding.",
     "dobbeltskriving": "the vedtak is saved before it is published, with no transaction or outbox: the save "
-                       "can succeed while the publish fails.",
+                       "can succeed while the publish fails. A sentence saying the vedtak is saved and then the "
+                       "send fails counts, also inside another finding.",
     "nit": "VedtakService.kt line 5: the unused import (Locale).",
 }
 RV_KEYS = {"rv5": ("fnr_logg", "sql", "tilgang", "inbound"), "rv6": ("idempotens", "dobbeltskriving"),
