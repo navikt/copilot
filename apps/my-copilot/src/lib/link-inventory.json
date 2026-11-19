@@ -214,6 +214,10 @@
     "sources": ["docs/news/articles/alpha-decide.md", "docs/news/articles/nav-pilot-alpha-decide.md"],
     "anchors": {}
   },
+  "/images/mcp-gateway-kall.svg": {
+    "sources": ["docs/news/articles/mcp-gateway-kodeverk-og-dolly.md"],
+    "anchors": {}
+  },
   "/images/nav-pilot-decide-threshold.svg": {
     "sources": ["docs/news/articles/nav-pilot-alpha-decide.md"],
     "anchors": {}
@@ -1620,7 +1624,8 @@
       "apps/my-copilot/src/app/(nb)/(nav-pilot)/verktoy/fleet-gateway/page.tsx",
       "apps/my-copilot/src/app/(nb)/(nav-pilot)/verktoy/page.tsx",
       "apps/my-copilot/src/app/sitemap.ts",
-      "apps/my-copilot/src/components/nav-pilot/doc-pages.ts"
+      "apps/my-copilot/src/components/nav-pilot/doc-pages.ts",
+      "docs/news/articles/mcp-gateway-kodeverk-og-dolly.md"
     ],
     "anchors": {
       "copilot-cli": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/nav-mcp-servere/page.tsx"],
@@ -2587,6 +2592,10 @@
     "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx", "apps/my-copilot/src/app/sitemap.ts"],
     "anchors": {}
   },
+  "/nyheter/mcp-gateway-kodeverk-og-dolly": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx", "apps/my-copilot/src/app/sitemap.ts"],
+    "anchors": {}
+  },
   "/nyheter/mcp-i-nav-pilot": {
     "sources": [
       "apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx",
@@ -3124,6 +3133,7 @@
       "docs/README.prompts.md",
       "docs/README.skills.md",
       "docs/news/articles/kvalitet-foran-fart.md",
+      "docs/news/articles/mcp-gateway-kodeverk-og-dolly.md",
       "docs/news/articles/nav-pilot-mcp-og-cplt-init.md",
       "docs/news/articles/nye-tilpasninger-mars-2026.md"
     ],
@@ -3163,7 +3173,8 @@
     "sources": [
       "apps/my-copilot/src/app/(nb)/(nav-pilot)/verktoy/fleet-gateway/for-team/page.tsx",
       "apps/my-copilot/src/app/(nb)/(nav-pilot)/verktoy/fleet-gateway/page.tsx",
-      "apps/my-copilot/src/lib/nav-items.ts"
+      "apps/my-copilot/src/lib/nav-items.ts",
+      "docs/news/articles/mcp-gateway-kodeverk-og-dolly.md"
     ],
     "anchors": {
       "autorisasjon": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/verktoy/fleet-gateway/for-team/page.tsx"],
