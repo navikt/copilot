@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"strings"
 	"testing"
 
@@ -166,5 +167,24 @@ func TestMCPPrunable(t *testing.T) {
 		if got := mcpPrunable(ns, name); got != want {
 			t.Errorf("mcpPrunable(%q) = %v, want %v", name, got, want)
 		}
+	}
+}
+
+// A registry answer from the cache may predate a server the user enabled,
+// so a stale answer prunes nothing.
+func TestMCPPruneRefusesStaleRegistry(t *testing.T) {
+	copilot, oc := mcpPruneEnv(t, mcpPruneOpenCode)
+	prev := mcpRegistryServers
+	t.Cleanup(func() { mcpRegistryServers = prev })
+	mcpRegistryServers = func() (string, []providerpkg.MCPServerEntry, error, error) {
+		reg, entries, _, err := prev()
+		return reg, entries, errors.New("offline"), err
+	}
+	beforeC, beforeO := readFile(t, copilot), readFile(t, oc)
+	if err := cmdMCP([]string{"prune", "--yes"}); err == nil {
+		t.Fatal("prune ran on a stale registry")
+	}
+	if readFile(t, copilot) != beforeC || readFile(t, oc) != beforeO {
+		t.Error("stale prune changed a config")
 	}
 }

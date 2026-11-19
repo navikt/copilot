@@ -1266,7 +1266,10 @@ func cmdMCPPrune(clientFlag string, dryRun, yes bool) error {
 	if len(entries) == 0 {
 		return fmt.Errorf("the MCP registry returned no servers, so nothing was changed")
 	}
-	mcpNoteStale(stale)
+	if stale != nil {
+		// A cached answer can miss servers added since; pruning by it would delete valid entries.
+		return fmt.Errorf("could not read Nav's MCP registry again (%v), so nothing was changed", stale)
+	}
 
 	clients := []string{providerpkg.MCPClientCopilot, providerpkg.MCPClientOpenCode}
 	if clientFlag != "" {
