@@ -196,11 +196,19 @@ func newSealedStore(inner SessionStore, keys *keyRing) *sealedStore {
 	}
 }
 
+// Lockout records hold only a timestamp under an HMAC key and must stay readable after RT_KEYS is replaced (global logout must not lift or break lockouts).
+func unsealedKind(kind string) bool {
+	return kind == kindUserRevoked || kind == kindUserRevokedMarker
+}
+
 func sealAAD(kind, key string) []byte {
 	return []byte(kind + "\x00" + key)
 }
 
 func (s *sealedStore) Put(ctx context.Context, kind, key string, val []byte, ttl time.Duration) error {
+	if unsealedKind(kind) {
+		return s.inner.Put(ctx, kind, key, val, ttl)
+	}
 	blob, err := s.keys.Seal(sealAAD(kind, key), val)
 	if err != nil {
 		return err
@@ -209,6 +217,9 @@ func (s *sealedStore) Put(ctx context.Context, kind, key string, val []byte, ttl
 }
 
 func (s *sealedStore) PutEvict(ctx context.Context, kind, key string, val []byte, ttl time.Duration) (bool, error) {
+	if unsealedKind(kind) {
+		return s.inner.PutEvict(ctx, kind, key, val, ttl)
+	}
 	blob, err := s.keys.Seal(sealAAD(kind, key), val)
 	if err != nil {
 		return false, err
@@ -217,6 +228,9 @@ func (s *sealedStore) PutEvict(ctx context.Context, kind, key string, val []byte
 }
 
 func (s *sealedStore) Get(ctx context.Context, kind, key string) ([]byte, bool, error) {
+	if unsealedKind(kind) {
+		return s.inner.Get(ctx, kind, key)
+	}
 	blob, ok, err := s.inner.Get(ctx, kind, key)
 	if err != nil || !ok {
 		return nil, ok, err
@@ -229,6 +243,9 @@ func (s *sealedStore) Get(ctx context.Context, kind, key string) ([]byte, bool, 
 }
 
 func (s *sealedStore) Pop(ctx context.Context, kind, key string) ([]byte, bool, error) {
+	if unsealedKind(kind) {
+		return s.inner.Pop(ctx, kind, key)
+	}
 	blob, ok, err := s.inner.Pop(ctx, kind, key)
 	if err != nil || !ok {
 		return nil, ok, err

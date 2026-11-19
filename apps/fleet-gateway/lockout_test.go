@@ -656,3 +656,52 @@ func TestLockout_NewGatewayMarkerCheck(t *testing.T) {
 		t.Fatalf("newGateway with failing marker Get: got %v, want error containing boom", err)
 	}
 }
+
+func TestLockout_SurvivesRTKeyReplacement(t *testing.T) {
+	ctx := context.Background()
+	clk := newFakeClock(time.Date(2026, 11, 16, 12, 0, 0, 0, time.UTC))
+	inner := newMemoryStore(clk.Now, nil)
+
+	krA, err := parseKeyRing("k1:" + testKeyBase64(t, false))
+	if err != nil {
+		t.Fatalf("parseKeyRing A: %v", err)
+	}
+	krB, err := parseKeyRing("k2:" + testKeyBase64(t, false))
+	if err != nil {
+		t.Fatalf("parseKeyRing B: %v", err)
+	}
+
+	storeA := newSealedStore(inner, krA)
+	storeB := newSealedStore(inner, krB)
+
+	gwA := &Gateway{
+		now:        clk.Now,
+		store:      storeA,
+		lockoutKey: []byte(testLockoutKey),
+	}
+	if _, lockErr := gwA.lockOutUser(ctx, "Z123456", "op1"); lockErr != nil {
+		t.Fatalf("lockOutUser: %v", lockErr)
+	}
+
+	gwB := &Gateway{
+		now:        clk.Now,
+		store:      storeB,
+		lockoutKey: []byte(testLockoutKey),
+	}
+	if revoked, revErr := gwB.userRevoked(ctx, "Z123456", clk.Now()); revErr != nil || !revoked {
+		t.Fatalf("userRevoked across RT_KEYS replacement: revoked=%v err=%v, want true nil", revoked, revErr)
+	}
+
+	const wantMsg = "LOCKOUT_KEY is missing but lockout records exist; set the LOCKOUT_KEY secret"
+	if err := checkLockoutMarker(storeB, nil); err == nil || err.Error() != wantMsg {
+		t.Fatalf("checkLockoutMarker(storeB, nil): got %v, want %q", err, wantMsg)
+	}
+
+	// PutEvict and Pop also pass unsealed lockout kinds directly through.
+	if _, err := storeA.PutEvict(ctx, kindUserRevoked, "evict-key", []byte(`{"revoked_before":1,"blocked":true}`), lockoutNoExpiry); err != nil {
+		t.Fatalf("PutEvict unsealed kind: %v", err)
+	}
+	if got, ok, err := storeB.Pop(ctx, kindUserRevoked, "evict-key"); err != nil || !ok || !bytes.Equal(got, []byte(`{"revoked_before":1,"blocked":true}`)) {
+		t.Fatalf("Pop unsealed kind across key rings: got=%q ok=%v err=%v", got, ok, err)
+	}
+}
