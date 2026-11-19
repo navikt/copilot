@@ -478,11 +478,17 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 		outcome = "client_canceled"
 		return
 	}
+	// Detach from client cancellation before claiming pend:<jti> so a client abort
+	// during the claim or Entra call cannot leave pend:<jti> held for
+	// refreshPendingTTL with the jti unburned and no grace pair.
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), defaultOutboundTimeout)
+	defer cancel()
+
 	pendExpiry := g.now().Add(refreshPendingTTL)
 	if pendExpiry.After(absExpiry) {
 		pendExpiry = absExpiry
 	}
-	won, err := g.store.RevokeOnce(r.Context(), "pend:"+payload.JTI, pendExpiry)
+	won, err := g.store.RevokeOnce(ctx, "pend:"+payload.JTI, pendExpiry)
 	if err != nil {
 		unavailable(err)
 		return
@@ -509,12 +515,6 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 		bad(http.StatusServiceUnavailable, "temporarily_unavailable", "refresh in progress, retry later")
 		return
 	}
-
-	// Detach from client cancellation once the pending claim is held and Entra
-	// may already be redeeming the upstream RT; otherwise a client abort leaves
-	// pend:<jti> held for refreshPendingTTL with the jti unburned and no grace pair.
-	ctx, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), defaultOutboundTimeout)
-	defer cancel()
 
 	out, status, body, err := g.redeemEntraRefreshToken(ctx, payload.EntraRT)
 	if err != nil || status >= 500 || status == http.StatusTooManyRequests {
@@ -727,7 +727,7 @@ func (g *Gateway) revokeHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		payload, err := g.openRefreshToken(token)
 		if err != nil {
-			if errors.Is(err, errSealUnknownKID) {
+			if errors.Is(err, errSealUnknownKID) && len(token) != 43 {
 				slog.Warn("revoke refresh token unknown key id", "error", err)
 				w.Header().Set("Retry-After", "5")
 				bad(http.StatusServiceUnavailable, "temporarily_unavailable", "refresh token key unavailable")

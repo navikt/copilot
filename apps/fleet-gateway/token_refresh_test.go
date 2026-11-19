@@ -1368,3 +1368,72 @@ func TestRefreshToken_ClientCancelCompletesRefreshAndServesGracePair(t *testing.
 		t.Fatalf("expected access_token and refresh_token from grace window, got %v", body)
 	}
 }
+
+func TestRefreshToken_CancelDuringPendingClaimDoesNotBlockSubsequentRefresh(t *testing.T) {
+	te := newClientEncryptedTestEnv(t, "k1:"+testKeyBase64(t, false))
+	te.gw.refreshWait = 0
+	_, rt, _ := te.obtainTokensForResource(te.resource)
+
+	// 1. Already-canceled request context must not claim pend:<jti>.
+	preCanceledCtx, preCancel := context.WithCancel(context.Background())
+	preCancel()
+	preReq := httptest.NewRequest(http.MethodPost, "/token", strings.NewReader(refreshForm(te, rt).Encode())).WithContext(preCanceledCtx)
+	preReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	te.handler.ServeHTTP(httptest.NewRecorder(), preReq)
+
+	// 2. Client disconnect while pend:<jti> RevokeOnce is in flight must use the
+	// detached context so a committed pending claim completes instead of stranding
+	// pend:<jti> for 60s.
+	origStore := te.gw.store
+	reqCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	te.gw.store = &failingStore{
+		SessionStore: origStore,
+		onRevokeOnce: func(ctx context.Context, jti string, expiresAt time.Time) (bool, error) {
+			won, err := origStore.RevokeOnce(context.WithoutCancel(ctx), jti, expiresAt)
+			if strings.HasPrefix(jti, "pend:") {
+				cancel()
+			}
+			if err == nil {
+				err = ctx.Err()
+			}
+			return won && err == nil, err
+		},
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/token", strings.NewReader(refreshForm(te, rt).Encode())).WithContext(reqCtx)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	te.handler.ServeHTTP(httptest.NewRecorder(), req)
+
+	te.gw.store = origStore
+	status, body := te.postToken(refreshForm(te, rt))
+	if status != http.StatusOK {
+		t.Fatalf("subsequent refresh after canceled pending claim: expected 200, got %d (%v)", status, body)
+	}
+}
+
+func TestRevoke_Opaque43CharUnknownTokenTwiceReturns200(t *testing.T) {
+	te := newClientEncryptedTestEnv(t, "k1:"+testKeyBase64(t, false))
+
+	// A 32-byte random access token encodes to 43 base64url chars; if its leading
+	// byte is a plausible kid length (1..19) for an unknown kid, openRefreshToken
+	// returns errSealUnknownKID once the session has expired or been deleted.
+	raw := make([]byte, 32)
+	raw[0] = 2
+	raw[1] = 'k'
+	raw[2] = '9'
+	tok := base64.RawURLEncoding.EncodeToString(raw)
+	if len(tok) != 43 {
+		t.Fatalf("expected 43-char opaque token, got %d", len(tok))
+	}
+	if _, err := te.gw.openRefreshToken(tok); !errors.Is(err, errSealUnknownKID) {
+		t.Fatalf("test premise: expected errSealUnknownKID from openRefreshToken, got %v", err)
+	}
+
+	for attempt := 1; attempt <= 2; attempt++ {
+		code, body := postRevoke(te.handler, tok, te.clientID)
+		if code != http.StatusOK || len(body) != 0 {
+			t.Fatalf("attempt %d: expected 200 {} revoking 43-char unknown token, got %d (%v)", attempt, code, body)
+		}
+	}
+}
