@@ -1,6 +1,9 @@
 package main
 
 import (
+	"context"
+	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -40,17 +43,109 @@ func TestValidatePostgresURL_ErrorDoesNotLeakDSN(t *testing.T) {
 	}
 }
 
-func TestRefreshToken_ManyGroupsRoundTrip(t *testing.T) {
+func TestRefreshToken_LegacyGroupsStillAcceptedAndNewTokenSmall(t *testing.T) {
 	te := newClientEncryptedTestEnv(t, "k1:"+testKeyBase64(t, false))
+	groups := make([]string, 0, 100)
 	for i := 0; i < 100; i++ {
-		te.groups = append(te.groups, fmt.Sprintf("%08d-aaaa-bbbb-cccc-dddddddddddd", i))
+		groups = append(groups, fmt.Sprintf("%08d-aaaa-bbbb-cccc-dddddddddddd", i))
 	}
+	te.groups = append(te.groups, groups...)
+
+	// Newly issued RTs ignore groups from Entra claims and stay under maxRefreshTokenLen.
+	_, newRT, _ := te.obtainTokensForResource(te.resource)
+	if len(newRT) > maxRefreshTokenLen {
+		t.Fatalf("new RT should stay under maxRefreshTokenLen (%d), got %d", maxRefreshTokenLen, len(newRT))
+	}
+
+	// Build a legacy RT payload JSON by hand with a "groups" array exceeding maxRefreshTokenLen.
+	now := te.gw.now()
+	legacyJSON, err := json.Marshal(map[string]any{
+		"v":         1,
+		"jti":       "legacy-jti-1",
+		"fid":       "legacy-fid-1",
+		"iat":       now.Unix(),
+		"exp":       now.Add(12 * time.Hour).Unix(),
+		"client_id": te.clientID,
+		"resource":  te.resource,
+		"nav_ident": te.navIdent,
+		"groups":    groups,
+		"entra_rt":  "entra-legacy-rt",
+	})
+	if err != nil {
+		t.Fatalf("marshal legacy RT payload: %v", err)
+	}
+	blob, err := te.gw.rtKeys.Seal([]byte(rtSealAAD), legacyJSON)
+	if err != nil {
+		t.Fatalf("seal legacy RT payload: %v", err)
+	}
+	legacyRT := base64.RawURLEncoding.EncodeToString(blob)
+	if len(legacyRT) <= maxRefreshTokenLen {
+		t.Fatalf("test premise: legacy RT with 100 groups must exceed maxRefreshTokenLen (%d), got %d", maxRefreshTokenLen, len(legacyRT))
+	}
+	if len(legacyRT) > maxLegacyRefreshTokenLen {
+		t.Fatalf("test premise: legacy RT must stay within maxLegacyRefreshTokenLen (%d), got %d", maxLegacyRefreshTokenLen, len(legacyRT))
+	}
+
+	status, body := te.refresh(legacyRT)
+	if status != http.StatusOK {
+		t.Fatalf("refresh with legacy many-groups RT: %d (%v)", status, body)
+	}
+	rotatedRT, _ := body["refresh_token"].(string)
+	if rotatedRT == "" || len(rotatedRT) > maxRefreshTokenLen {
+		t.Fatalf("rotated RT must be non-empty and <= %d, got len=%d", maxRefreshTokenLen, len(rotatedRT))
+	}
+	rotatedBlob, err := base64.RawURLEncoding.DecodeString(rotatedRT)
+	if err != nil {
+		t.Fatalf("decode rotated RT: %v", err)
+	}
+	rotatedPlain, err := te.gw.rtKeys.Open([]byte(rtSealAAD), rotatedBlob)
+	if err != nil {
+		t.Fatalf("open rotated RT: %v", err)
+	}
+	var rotatedMap map[string]any
+	if err = json.Unmarshal(rotatedPlain, &rotatedMap); err != nil {
+		t.Fatalf("unmarshal rotated RT: %v", err)
+	}
+	if _, hasGroups := rotatedMap["groups"]; hasGroups {
+		t.Fatalf("rotated RT must not contain groups key: %s", string(rotatedPlain))
+	}
+
+	// Legacy session JSON with a "groups" key must also decode from the session store.
+	legacySessJSON, err := json.Marshal(map[string]any{
+		"client_id":   te.clientID,
+		"resource":    te.resource,
+		"entra_token": te.entraToken,
+		"nav_ident":   te.navIdent,
+		"groups":      groups,
+		"issued_at":   now,
+		"expiry":      now.Add(time.Hour),
+	})
+	if err != nil {
+		t.Fatalf("marshal legacy session: %v", err)
+	}
+	sessHash := hashToken("legacy-access-token")
+	if err = te.gw.store.Put(context.Background(), kindSession, sessHash, legacySessJSON, time.Hour); err != nil {
+		t.Fatalf("put legacy session: %v", err)
+	}
+	gotSess, ok, err := te.gw.getSession(context.Background(), sessHash)
+	if err != nil || !ok {
+		t.Fatalf("get legacy session: ok=%v err=%v", ok, err)
+	}
+	if gotSess.NAVIdent != te.navIdent || gotSess.EntraToken != te.entraToken {
+		t.Fatalf("unexpected decoded legacy session: %+v", gotSess)
+	}
+}
+
+func TestRefreshToken_RealisticSizeWithoutGroups(t *testing.T) {
+	te := newClientEncryptedTestEnv(t, "k1:"+testKeyBase64(t, false))
+	te.mu.Lock()
+	te.entraRefreshToken = strings.Repeat("r", 2048)
+	te.mu.Unlock()
+
 	_, rt, _ := te.obtainTokensForResource(te.resource)
-	if len(rt) <= 4096 {
-		t.Fatalf("test premise: RT must exceed the old 4096 limit, got %d", len(rt))
-	}
-	if status, body := te.refresh(rt); status != http.StatusOK {
-		t.Fatalf("refresh with 100 groups: %d (%v)", status, body)
+	t.Logf("sealed RT length with 2 KiB Entra RT = %d (maxRefreshTokenLen = %d)", len(rt), maxRefreshTokenLen)
+	if len(rt) > maxRefreshTokenLen {
+		t.Fatalf("sealed RT with 2 KiB Entra RT (%d bytes) exceeds maxRefreshTokenLen (%d)", len(rt), maxRefreshTokenLen)
 	}
 }
 
