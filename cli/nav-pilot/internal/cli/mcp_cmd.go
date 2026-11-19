@@ -1284,7 +1284,6 @@ func cmdMCPPrune(clientFlag string, dryRun, yes bool) error {
 			namespaces[ns] = true
 		}
 	}
-	conf := mcpConfigured(entries)
 
 	var plans []mcpPrunePlan
 	removable, skipped := 0, 0
@@ -1293,25 +1292,13 @@ func cmdMCPPrune(clientFlag string, dryRun, yes bool) error {
 		if len(fileKeys) == 0 {
 			continue
 		}
+		// Read the keys straight from the file (both OpenCode layouts, disabled
+		// entries included): the registry's URL/package matching misses
+		// renamed servers that kept their URL.
 		var candidates []string
-		if client == providerpkg.MCPClientCopilot && hasComments {
-			// copilotMCPServerNames uses strict JSON, so commented files are
-			// missing from conf.CopilotOther; inspect stripped keys directly.
-			for _, k := range fileKeys {
-				if !listed[k] && mcpPrunable(namespaces, k) {
-					candidates = append(candidates, k)
-				}
-			}
-			sort.Strings(candidates)
-		} else {
-			other := conf.CopilotOther
-			if client == providerpkg.MCPClientOpenCode {
-				other = conf.OpenCodeOther
-			}
-			for _, k := range other {
-				if slices.Contains(fileKeys, k) && mcpPrunable(namespaces, k) {
-					candidates = append(candidates, k)
-				}
+		for _, k := range fileKeys {
+			if !listed[k] && mcpPrunable(namespaces, k) {
+				candidates = append(candidates, k)
 			}
 		}
 		if len(candidates) == 0 {

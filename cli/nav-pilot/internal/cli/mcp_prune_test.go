@@ -188,3 +188,31 @@ func TestMCPPruneRefusesStaleRegistry(t *testing.T) {
 		t.Error("stale prune changed a config")
 	}
 }
+
+// Obsolete keys are found in the file itself: a renamed server that kept its
+// URL, a disabled entry and a nested OpenCode 2 entry all go; the user's own
+// servers, also in reverse-DNS form under an unknown namespace, stay.
+func TestMCPPruneFindsRenamedDisabledAndNested(t *testing.T) {
+	_, oc := mcpPruneEnv(t, `{"mcp": {
+	"io.github.navikt/old-name": {"type": "remote", "url": "https://mcp.figma.com/mcp"},
+	"io.github.navikt/off": {"type": "remote", "url": "https://off.example/mcp", "enabled": false},
+	"mine": {"type": "remote", "url": "https://mine.example/mcp"},
+	"io.someone.else/tool": {"type": "remote", "url": "https://t.example/mcp"},
+	"servers": {
+		"io.github.navikt/nested-gone": {"type": "remote", "url": "https://n.example/mcp"},
+		"nested-mine": {"type": "remote", "url": "https://nm.example/mcp"}}}}`)
+	if err := cmdMCP([]string{"prune", "--yes", "--client", "opencode"}); err != nil {
+		t.Fatal(err)
+	}
+	got := readFile(t, oc)
+	for _, gone := range []string{"old-name", "io.github.navikt/off", "nested-gone"} {
+		if strings.Contains(got, gone) {
+			t.Errorf("%s not pruned:\n%s", gone, got)
+		}
+	}
+	for _, kept := range []string{"mine", "io.someone.else/tool", "nested-mine"} {
+		if !strings.Contains(got, kept) {
+			t.Errorf("%s was removed:\n%s", kept, got)
+		}
+	}
+}
