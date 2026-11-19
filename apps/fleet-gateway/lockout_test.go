@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"encoding/json"
 	"errors"
 	"log/slog"
@@ -14,7 +15,8 @@ import (
 	"time"
 )
 
-const testLockoutKey = "0123456789abcdef0123456789abcdef"
+// Generated per run so no key-shaped literal lives in the source.
+var testLockoutKey = rand.Text()
 
 func withLockoutKey(t *testing.T, te *testEnv) *testEnv {
 	t.Helper()
