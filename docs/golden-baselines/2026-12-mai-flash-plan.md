@@ -1,6 +1,6 @@
-# MAI Code 2 Flash på `@research` og `@rust`: forhåndsregistrering (utkast)
+# MAI Code 2 Flash på `@research` og `@rust`: forhåndsregistrering
 
-Status: **utkast, ikke låst.** Eierbeslutninger 19. november 2026 er lagt inn (se «Eierbeslutninger»). Ingen modellkjøringer før planen er låst og merget.
+Status: **låst 20. november 2026.** Eierbeslutningene 19. og 20. november 2026 er lagt inn (se «Eierbeslutninger»). Ingen modellkjøringer før denne revisjonen er merget. Endringer etter låsing føres i et tillegg med dato og eierbeslutning.
 
 Grunnlag: D2 i [2026-11-modellvalg-plan.md](https://github.com/navikt/copilot/blob/benchmark-2026-11-run/docs/golden-baselines/2026-11-modellvalg-plan.md) og trinn A i regnskapet (#2397). Protokoll: [pin-protokoll.md](../pin-protokoll.md).
 
@@ -40,7 +40,7 @@ Hovedversjon etter protokollen (ny leverandør og modellfamilie): trinn 1, 2, 4 
 
 | Trinn | Her | Merknad |
 | --- | --- | --- |
-| 1 Siling, eksterne tall | **Siling mangler** (se under) | Eieren avgjør om målingen kan starte uten |
+| 1 Siling, eksterne tall | **Siling mangler** (se under) | Eieren har bestemt at målingen starter uten |
 | 2 Regresjonssjekk | `planning`-suiten som i protokollen, pluss rollesuitene | Se «Trinn 2» |
 | 4 Full måling | Hovedmålingen under | |
 | 3 Utrulling | Etter bestått trinn 4 | Se «Trinnvis utrulling» |
@@ -55,7 +55,7 @@ Sjekket 19. november 2026 kl. 16:21 UTC på modellsidene til [Artificial Analysi
 | GPT-6 Luna | `/models/gpt-6-luna` | Finnes |
 | Claude Haiku 5.5 | `/models/claude-haiku-5-5` | Finnes |
 
-**Siling mangler.** Kandidaten finnes ikke i indeksene, så krav 1–3 kan ikke vurderes. Etter protokollen venter en ny modellfamilie til den finnes i indeksene, med mindre eieren bestemmer noe annet. Tallene for Luna og Haiku er ikke lagret her, fordi de ikke kan sammenlignes med noe.
+**Siling mangler.** Kandidaten finnes ikke i indeksene, så krav 1–3 kan ikke vurderes. Etter protokollen venter en ny modellfamilie til den finnes i indeksene, med mindre eieren bestemmer noe annet. Eieren bestemte 19. november 2026 å starte uten siling (se «Eierbeslutninger»). Tallene for Luna og Haiku er ikke lagret her, fordi de ikke kan sammenlignes med noe.
 
 ## Trinn 2: regresjonssjekk
 
@@ -67,7 +67,8 @@ Sjekket 19. november 2026 kl. 16:21 UTC på modellsidene til [Artificial Analysi
   --save-baseline docs/golden-baselines/<dato>-regresjon-mai-code-2-flash
 ```
 
-- **Grunnlinje:** `2026-11-regresjon-gpt-6.1-sol-baseline` (pinnen for `@nav-pilot`, Copilot CLI 1.0.114-0) gjenbrukes hvis klient, fiksturer og dommer er uendret. Ellers kjøres de berørte testene på nytt for 6.1 Sol, og det er en stopp som eieren må avgjøre (opptil ≈ 590 credits).
+- **Grunnlinje:** `2026-11-regresjon2-gpt-6.1-sol-baseline` (pinnen for `@nav-pilot`, revisjon `d421991a`, Copilot CLI 1.0.114-0). Den er målt med dommeren fra #2437. `2026-11-regresjon-gpt-6.1-sol-baseline` (`6fbce9a6`) er målt før #2437 og brukes ikke. Fra `d421991a` til låsingen er bare rust-fiksturene og rust-delen av harnesset endret, ikke `planning` eller dommeren. Endres klient, fiksturer eller dommer før kjøringen, kjøres de berørte testene på nytt for 6.1 Sol, og det er en stopp som eieren må avgjøre (opptil ≈ 590 credits).
+- **Klient:** Copilot CLI 1.0.114-0, samme som grunnlinjen. Klienten oppdaterte seg selv til 1.0.115-0 19. november, etter at grunnlinjen var målt. Ny klientversjon ville kreve ny grunnlinje for alle testene. Alle armer i trinn 2 og trinn 4 kjøres derfor på 1.0.114-0: en `copilot`-wrapper først i `PATH` i kjøreskriptet starter `copilot --prefer-version 1.0.114-0` med `COPILOT_AUTO_UPDATE=false`. Brukerens globale oppsett endres ikke. `clientVersion` kontrolleres for hver kjøring, og kjøringer på en annen versjon forkastes (stoppregel 4).
 - **Bestått:** reglene i trinn 2 i protokollen. Én reell bom på en sikkerhetstest (3, 5, 7b, 8b, 9, 9c, 9d) stopper begge rollene. Kostnadsregelen (høyst 10 % over grunnlinjen) gjelder også.
 - **Rekkefølge:** trinn 2 kjøres før trinn 4. Trinn 4 starter bare hvis trinn 2 består.
 
@@ -130,7 +131,9 @@ Utrulling gjelder bare roller som besto trinn 4.
 3. rs5 godkjent, laget i #2470.
 4. n opptil 72 per arm og kikk ved 24, 48 og 72 er godkjent. Rammen er 650 credits. Ny kjøring av grunnlinjen (≈ 590) krever fortsatt ny beslutning.
 5. Rollene avgjøres hver for seg.
+6. Start uten siling, selv om MAI Code 2 Flash ikke finnes hos Artificial Analysis. Saken merkes med at silingen mangler.
 
-## Åpne beslutninger for eieren
+## Eierbeslutninger 20. november 2026
 
-1. Starte uten siling (MAI Code 2 Flash finnes ikke hos Artificial Analysis), eller vente.
+1. Kjør på Copilot CLI 1.0.114-0 og gjenbruk grunnlinjen `2026-11-regresjon2-gpt-6.1-sol-baseline` (se «Trinn 2»).
+2. Planen låses med denne revisjonen.
