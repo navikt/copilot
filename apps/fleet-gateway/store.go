@@ -19,7 +19,10 @@ const (
 	kindMCPSession         = "mcp_session"
 	kindMCPSessionUser     = "mcp_session_user" // per-user count of mcp_session bindings
 	kindDCRClient          = "dcr_client"
-	kindRefreshGrace       = "refresh_grace" // pair issued for a rotated RT, keyed by its jti
+	kindRefreshGrace       = "refresh_grace"       // pair issued for a rotated RT, keyed by its jti
+	kindUserRevoked        = "user_revoked"        // per-user lockout record keyed by HMAC(NAVident)
+	kindUserRevokedMarker  = "user_revoked_marker" // set when a lockout record is written; startup refuses without LOCKOUT_KEY
+	kindAuditOutbox        = "audit_outbox"        // queued audit entries written by CLI, drained by server sweeper
 )
 
 var errStoreFull = errors.New("store capacity reached")

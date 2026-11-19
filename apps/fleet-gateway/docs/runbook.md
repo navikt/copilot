@@ -88,7 +88,38 @@ Whether the pods pick up a changed secret without a restart is unverified; resta
 
 ## Log everyone out
 
-Remove the current key from `RT_KEYS` (replace it with a fresh key, no old entry) and restart. All sealed values become unreadable. Sessions and refresh tokens fail and users log in again. Consent, DCR client and MCP session reads fail with 503 (see Rotate `RT_KEYS`) until those rows expire or are deleted from the `items` table; DCR clients must re-register. This is the only per-user-agnostic revoke today. **There is no tool to cut off one user** on the gateway side: sessions are keyed by token hash, with no index by NAVident. For a single user, revoke in Entra; Entra revocation takes effect at the next refresh or expiry. The worst case is up to 12 h (`computeSessionTTL` uses Entra `expires_in`, capped at `SESSION_MAX_AGE`) unless the sessions are revoked server-side (rotate `RT_KEYS` as above).
+Remove the current key from `RT_KEYS` (replace it with a fresh key, no old entry) and restart. All sealed values become unreadable. Sessions and refresh tokens fail and users log in again. Consent, DCR client and MCP session reads fail with 503 (see Rotate `RT_KEYS`) until those rows expire or are deleted from the `items` table; DCR clients must re-register. For a single user, see [Lock out one user](#lock-out-one-user) instead.
+
+## Lock out one user
+
+Use alongside blocking the user in Entra when one account must be cut off immediately without waiting up to 12 h (`SESSION_MAX_AGE`) for Entra expiry or refresh.
+
+### Prerequisite: `LOCKOUT_KEY`
+
+The gateway reads `LOCKOUT_KEY` (at least 32 random bytes, for example `openssl rand -base64 32`) from a Nais secret, created by the owner in Nais Console for `dev-gcp` and `prod-gcp` as secret `fleet-gateway-lockout-key`; after that, add `- secret: fleet-gateway-lockout-key` under `envFrom` in `.nais/app.yaml` (not done yet, because a missing secret stops the pod from starting). Never rotate or delete `LOCKOUT_KEY`: lockout records are keyed by it, and starting the gateway without it fails by design once any lockout record exists. It is separate from `RT_KEYS` so a global logout or `RT_KEYS` change does not lift lockouts. Without `LOCKOUT_KEY`, the `lockout` command refuses to run. Lockout records written before `LOCKOUT_KEY` existed (keyed from `RT_KEYS`) are not migrated; none exist in prod.
+
+### Run and undo
+
+```sh
+kubectl exec -n copilot deploy/fleet-gateway -- /app/main lockout --operator <your-ident> <NAVident>
+```
+
+Effect:
+
+- `/mcp/*` rejects the user's sessions with `401` and deletes the session row on lookup.
+- `/token` rejects authorization codes (including new logins) and refresh tokens with `invalid_grant` (`session revoked`).
+- Remembered consent is deleted lazily on the next login.
+- Other users are unaffected.
+
+The command writes the record and queues an audit entry in Postgres. Within about 30 s, the running gateway writes the `audit lockout` line (`outcome=ok`, `action=lock`, `user_key`, `operator`, `at`) to stdout / Loki, where you can grep for it as in [Health and logs](#health-and-logs); plaintext `NAVident` is never logged. The lockout lasts until undone (no expiry); also block the user in Entra if they should not regain access later.
+
+To undo a lockout:
+
+```sh
+kubectl exec -n copilot deploy/fleet-gateway -- /app/main lockout --undo --operator <your-ident> <NAVident>
+```
+
+This lifts the block for new logins only and queues an `audit lockout` line with `action=undo`, logged by the gateway within about 30 s. Sessions, authorization codes, refresh tokens and remembered consent issued before the lockout stay invalid permanently. `kubectl exec` is the v1 mechanism; an operator API behind internal ingress is tracked in #2435.
 
 ## Block one client
 
