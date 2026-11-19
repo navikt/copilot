@@ -1645,6 +1645,9 @@ run_opencode_t4() {
   [ "$status" -eq 0 ]
   grep -q -- "--session ses_stub Her er svarene" "$SHIM/calls"
   [ -z "$(grep -- "--session" "$SHIM/calls" | grep -- "--title")" ]
+  # The judge decides test 4 (#2458); the word list is reported beside it.
+  grep -q '^4|1|pass|.*rodsone=🔴 Rød sone: tokenvalidering og fnr-lagring.; regex (raw): pass' "$SHIM/b-results.psv"
+  grep -q '^controls-t4|0|' "$SHIM/b-judge-credits.psv"
 }
 
 @test "opencode v2: usage rows come from session export, credits estimert (#1721)" {
