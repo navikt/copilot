@@ -20,16 +20,17 @@ import (
 
 // Gateway implements the fleet-gateway OAuth 2.1 authorization server and MCP proxy.
 type Gateway struct {
-	cfg         *Config
-	now         func() time.Time
-	store       SessionStore
-	rtKeys      *keyRing
-	cimdCache   *ttlMap[cachedCIMD]
-	limiter     *ipRateLimiter
-	proxyClient *http.Client
-	refreshWait time.Duration // how long a concurrent refresh waits for the winner's grace pair
-	inFlight    slots         // buffered MCP calls; bounds memory (see README, Memory and limits)
-	sseStreams  slots         // open SSE response streams; they buffer nothing, so get their own cap
+	cfg          *Config
+	now          func() time.Time
+	store        SessionStore
+	rtKeys       *keyRing
+	cimdCache    *ttlMap[cachedCIMD]
+	limiters     map[string]*ipRateLimiter
+	rateLimitLog *rateLimitLogSampler
+	proxyClient  *http.Client
+	refreshWait  time.Duration // how long a concurrent refresh waits for the winner's grace pair
+	inFlight     slots         // buffered MCP calls; bounds memory (see README, Memory and limits)
+	sseStreams   slots         // open SSE response streams; they buffer nothing, so get their own cap
 
 	wellKnownMu         sync.RWMutex
 	wellKnownGroup      singleflight.Group
@@ -67,16 +68,21 @@ func newGateway(cfg *Config, now func() time.Time) (*Gateway, error) {
 		}
 		return nil, fmt.Errorf("initialize team token source: %w", err)
 	}
+	limiters := make(map[string]*ipRateLimiter, len(rateLimitedEndpoints))
+	for _, ep := range rateLimitedEndpoints {
+		limiters[ep] = newIPRateLimiter(cfg.RateLimitRequests, cfg.RateLimitGlobalRequests, cfg.RateLimitWindow, cfg.RateLimitCap, now)
+	}
 	return &Gateway{
-		cfg:         cfg,
-		now:         now,
-		store:       store,
-		rtKeys:      rtKeys,
-		cimdCache:   newTTLMap[cachedCIMD](cfg.CIMDCap, now),
-		limiter:     newIPRateLimiter(cfg.RateLimitRequests, cfg.RateLimitGlobalRequests, cfg.RateLimitWindow, cfg.RateLimitCap, now),
-		proxyClient: newHardenedProxyClient(cfg.ProxyHeaderTimeout),
-		refreshWait: 5 * time.Second,
-		TeamTokens:  teamTokens,
+		cfg:          cfg,
+		now:          now,
+		store:        store,
+		rtKeys:       rtKeys,
+		cimdCache:    newTTLMap[cachedCIMD](cfg.CIMDCap, now),
+		limiters:     limiters,
+		rateLimitLog: newRateLimitLogSampler(defaultRateLimitLogWindow, defaultRateLimitLogCap, now),
+		proxyClient:  newHardenedProxyClient(cfg.ProxyHeaderTimeout),
+		refreshWait:  5 * time.Second,
+		TeamTokens:   teamTokens,
 	}, nil
 }
 
@@ -147,7 +153,12 @@ func (g *Gateway) sweepAll() {
 		slog.Warn("session store sweep failed", "error", err)
 	}
 	g.cimdCache.Sweep()
-	g.limiter.Sweep()
+	for _, l := range g.limiters {
+		l.Sweep()
+	}
+	if g.rateLimitLog != nil {
+		g.rateLimitLog.Sweep()
+	}
 }
 
 func (g *Gateway) routes() http.Handler {
@@ -158,14 +169,14 @@ func (g *Gateway) routes() http.Handler {
 	mux.HandleFunc("GET /.well-known/oauth-protected-resource", g.prmHandler)
 	mux.HandleFunc("GET /.well-known/oauth-protected-resource/{rest...}", g.prmHandler)
 	mux.HandleFunc("GET /.well-known/oauth-authorization-server", g.asMetadataHandler)
-	mux.HandleFunc("GET /authorize", g.rateLimitMiddleware(g.authorizeHandler))
+	mux.HandleFunc("GET /authorize", g.rateLimitMiddleware(rateLimitEndpointAuthorize, g.limiters[rateLimitEndpointAuthorize], g.authorizeHandler))
 	mux.HandleFunc("POST /consent", g.consentPostHandler)
 	mux.HandleFunc("GET /static/consent.css", consentCSSHandler)
 	mux.HandleFunc("GET /oauth2/callback", g.callbackHandler)
-	mux.HandleFunc("POST /token", g.rateLimitMiddleware(g.tokenHandler))
-	mux.HandleFunc("POST /revoke", g.rateLimitMiddleware(g.revokeHandler))
+	mux.HandleFunc("POST /token", g.rateLimitMiddleware(rateLimitEndpointToken, g.limiters[rateLimitEndpointToken], g.tokenHandler))
+	mux.HandleFunc("POST /revoke", g.rateLimitMiddleware(rateLimitEndpointRevoke, g.limiters[rateLimitEndpointRevoke], g.revokeHandler))
 	if g.cfg.DCREnabled {
-		mux.HandleFunc("POST /register", g.rateLimitMiddleware(g.registerHandler))
+		mux.HandleFunc("POST /register", g.rateLimitMiddleware(rateLimitEndpointRegister, g.limiters[rateLimitEndpointRegister], g.registerHandler))
 	}
 	// Shared by all MCP routes.
 	g.inFlight = make(slots, g.cfg.MCPMaxInFlight)
@@ -303,10 +314,14 @@ func (w *statusResponseWriter) Unwrap() http.ResponseWriter {
 	return w.ResponseWriter
 }
 
-func (g *Gateway) rateLimitMiddleware(next http.HandlerFunc) http.HandlerFunc {
+func (g *Gateway) rateLimitMiddleware(endpoint string, limiter *ipRateLimiter, next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ip := extractClientIP(r)
-		if !g.limiter.Allow(ip) {
+		if limiter != nil && !limiter.Allow(ip) {
+			observeRateLimited(endpoint)
+			if g.rateLimitLog == nil || g.rateLimitLog.Allow(ip) {
+				slog.Warn("rate limited", "endpoint", endpoint)
+			}
 			w.Header().Set("Retry-After", "60")
 			if r.URL.Path == "/token" || r.URL.Path == "/revoke" {
 				writeJSON(w, http.StatusTooManyRequests, map[string]string{
@@ -428,7 +443,7 @@ func (l *ipRateLimiter) Allow(ip string) bool {
 		if !ok && len(l.buckets) >= l.maxSize {
 			l.sweepLocked(now)
 			if len(l.buckets) >= l.maxSize {
-				return false
+				l.evictOldestLocked()
 			}
 		}
 		l.buckets[ip] = rateWindow{count: 1, resetAt: now.Add(l.window)}
@@ -459,6 +474,22 @@ func (l *ipRateLimiter) sweepLocked(now time.Time) int {
 		}
 	}
 	return removed
+}
+
+func (l *ipRateLimiter) evictOldestLocked() {
+	var oldestIP string
+	var oldestReset time.Time
+	first := true
+	for ip, b := range l.buckets {
+		if first || b.resetAt.Before(oldestReset) {
+			oldestIP = ip
+			oldestReset = b.resetAt
+			first = false
+		}
+	}
+	if !first {
+		delete(l.buckets, oldestIP)
+	}
 }
 
 func main() {
