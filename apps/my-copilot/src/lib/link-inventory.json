@@ -214,6 +214,10 @@
     "sources": ["docs/news/articles/alpha-decide.md", "docs/news/articles/nav-pilot-alpha-decide.md"],
     "anchors": {}
   },
+  "/images/mcp-gateway-kall.svg": {
+    "sources": ["docs/news/articles/mcp-gateway-kodeverk-og-dolly.md"],
+    "anchors": {}
+  },
   "/images/nav-pilot-decide-threshold.svg": {
     "sources": ["docs/news/articles/nav-pilot-alpha-decide.md"],
     "anchors": {}

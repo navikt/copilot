@@ -16,6 +16,8 @@ KI-agenter kan nå hente data fra Navs egne systemer, ikke bare fra koden. Den n
 
 Gatewayen er fellesinngangen for MCP-servere i Nav. Brukeren logger inn med Nav-kontoen, og hvert kall logges med hvem som spurte. Teamene bestemmer selv hva agentene får se, og trenger ikke bygge innlogging selv. Det legger grunnen for agenter som jobber med Navs egne data på en trygg måte, og flere tjenester kan kobles på etter hvert.
 
+![Copilot CLI eller OpenCode på utviklermaskinen logger inn og holder tokenene selv, og sender kallet til fleet-gateway med innlogging via Entra. Gatewayen henter et OBO-token fra Texas og kaller teamets MCP-server, som sjekker tokenet.](/images/mcp-gateway-kall.svg)
+
 - **Felles kodeverk** er Navs felles lister over koder som systemene bruker, for eksempel postnummer, land, valuta og ytelsestyper. Med serveren `io.github.navikt/kodeverk` kan agenten slå opp hva en kode betyr, for eksempel at postnummer `0150` er OSLO.
 - **Dolly** er Navs verktøy for å lage syntetiske testpersoner i testmiljøene. Med serveren `io.github.navikt/dolly` kan agenten finne testpersonene dine og se om en bestilling gikk gjennom i hvert system.
 
