@@ -35,6 +35,9 @@ func TestAcceptsEventStream_QZero(t *testing.T) {
 		"text/event-stream;q=0":                   false,
 		"application/json, text/event-stream;q=0": false,
 		"*/*;q=0.0, application/json":             false,
+		"text/event-stream;q=0, */*;q=1":          false,
+		"*/*;q=1, text/event-stream;q=0":          false,
+		"text/event-stream;q=1, */*;q=0":          true,
 		"text/event-stream;q=0.5":                 true,
 		"application/json, text/event-stream":     true,
 	} {

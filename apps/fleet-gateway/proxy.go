@@ -977,19 +977,32 @@ func connectionHeaderTokens(h http.Header) map[string]bool {
 }
 
 // acceptsEventStream reports whether the Accept header admits text/event-stream.
+// The most specific matching range decides (RFC 9110 12.5.1), so
+// "text/event-stream;q=0, */*;q=1" refuses a stream.
 func acceptsEventStream(h http.Header) bool {
+	best, bestQ := -1, 0.0
 	for _, v := range h.Values("Accept") {
 		for _, part := range strings.Split(v, ",") {
 			mt, params, err := mime.ParseMediaType(strings.TrimSpace(part))
-			if q, qerr := strconv.ParseFloat(params["q"], 64); qerr == nil && q == 0 {
-				continue // q=0 means "not acceptable"
+			if err != nil {
+				continue
 			}
-			if err == nil && (mt == "text/event-stream" || mt == "text/*" || mt == "*/*") {
-				return true
+			spec := map[string]int{"text/event-stream": 3, "text/*": 2, "*/*": 1}[mt]
+			if spec == 0 {
+				continue
+			}
+			q := 1.0
+			if raw, ok := params["q"]; ok {
+				if f, qerr := strconv.ParseFloat(raw, 64); qerr == nil {
+					q = f
+				}
+			}
+			if spec > best || (spec == best && q > bestQ) {
+				best, bestQ = spec, q
 			}
 		}
 	}
-	return false
+	return best > 0 && bestQ > 0
 }
 
 func isEventStream(contentType string) bool {
