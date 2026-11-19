@@ -314,6 +314,37 @@ When `NAIS_CLUSTER_NAME` is unset (local development):
 
 ---
 
+## fleet-gateway (apps/fleet-gateway)
+
+OAuth 2.1 authorization server in front of Microsoft Entra ID plus an MCP proxy to team MCP servers. It is internal only today behind naisdevice ingress. Public ingress comes later and needs a new security review. See [plan issue #2351](https://github.com/navikt/copilot/issues/2351) and [apps/fleet-gateway/docs/runbook.md](apps/fleet-gateway/docs/runbook.md).
+
+### Trust boundaries and flow
+
+```
+client (Copilot CLI via CIMD, OpenCode via DCR)
+  -> fleet-gateway (login against Entra as confidential client)
+  -> Texas OBO exchange
+  -> team MCP server (accessPolicy.inbound admits only fleet-gateway)
+```
+
+Every team MCP server must validate the OBO token, check that `azp` is `fleet-gateway`, and require `NAVident`. Texas does not check `azp` or reject app tokens, so each team MCP server must enforce those checks itself.
+
+### Controls
+
+- **Consent.** Remembered 30 days per `NAVident`, `client_id` and route via `CONSENT_TTL`. `/revoke` clears it. DCR clients show as unverified on the consent page.
+- **Session store and refresh tokens.** Sessions live in Postgres via `SESSION_STORE=postgres`, sealed with `RT_KEYS` using AES-256-GCM, and capped at 12 hours via `SESSION_MAX_AGE`. Refresh tokens are client-encrypted. The gateway seals the Entra refresh token inside the gateway refresh token held by the client and stores nothing server-side.
+- **Tool allowlist.** Each route in `pilot-routes.<env>.yaml` lists its allowed tools. The gateway rejects other `tools/call` requests and ambiguous JSON-RPC bodies. MCP `readOnlyHint` is untrusted and never a security boundary.
+- **Audit.** Every MCP request writes one `audit mcp` line in OpenID AuthZEN shape to stdout with `NAVident`, route, tool and decision. Tool arguments and tokens are never logged. Logs ship to Loki, stay 90 days, and are readable by all teams, owner-accepted.
+- **Kill switches.** Disable one route with `enabled: false` in `pilot-routes.<env>.yaml`, or stop all `/mcp/*` routes with `GATEWAY_DISABLED=true` returning `503`. Procedures are in [apps/fleet-gateway/docs/runbook.md](apps/fleet-gateway/docs/runbook.md).
+
+### Accepted risks
+
+- **Silent login by a local process.** Consent is remembered for 30 days and loopback redirect URIs accept any port, the same model as the `az` and `gh` CLIs. Mitigations are tokens scoped to `fleet-gateway`, 12-hour sessions and revocation. Revisit when the first route with write tools or citizen data arrives, or when ingress becomes public.
+- **DCR enabled on internal ingress.** Dynamic client registration stays on while ingress is naisdevice-only, with flood limits tracked in #2279. Revisit before any public ingress.
+- **Client-encrypted refresh token.** Whoever holds `RT_KEYS` and the Entra client secret can redeem every sealed Entra refresh token for up to 90 days. Revisit if the refresh-token strategy in #2090 changes or before public ingress.
+- **No high availability.** A Postgres outage makes `/ready` fail and all calls fail.
+- **Audit readable by all teams.** Loki retains audit logs for 90 days and all teams can read them, owner-accepted.
+
 ## OpenCode providers (nav-pilot)
 
 nav-pilot sets the session's `enabled_providers` to `github-copilot` and, when
