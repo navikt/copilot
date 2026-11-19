@@ -47,10 +47,12 @@ func validateHTTPURL(raw string) error {
 	return nil
 }
 
-// extractGatewayClientID extracts fleet-gateway's Entra client ID from
-// AZURE_APP_PRE_AUTHORIZED_APPS, failing closed on malformed JSON or multiple matches.
-func extractGatewayClientID(raw string) (string, error) {
-	if strings.TrimSpace(raw) == "" {
+// extractGatewayClientID extracts fleet-gateway's Entra client ID in this cluster
+// from AZURE_APP_PRE_AUTHORIZED_APPS, failing closed on unset cluster, malformed JSON,
+// or zero/multiple matches.
+func extractGatewayClientID(raw, cluster string) (string, error) {
+	cluster = strings.TrimSpace(cluster)
+	if strings.TrimSpace(raw) == "" || cluster == "" {
 		return "", nil
 	}
 	var apps []struct {
@@ -62,10 +64,7 @@ func extractGatewayClientID(raw string) (string, error) {
 	}
 	var matches []string
 	for _, app := range apps {
-		parts := strings.Split(app.Name, ":")
-		isGateway := (len(parts) == 3 && parts[1] == "copilot" && parts[2] == "fleet-gateway") ||
-			(len(parts) == 1 && parts[0] == "fleet-gateway")
-		if isGateway && app.ClientID != "" {
+		if app.Name == cluster+":copilot:fleet-gateway" && app.ClientID != "" {
 			matches = append(matches, app.ClientID)
 		}
 	}

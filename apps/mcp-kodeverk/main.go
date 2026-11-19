@@ -57,7 +57,7 @@ func loadConfigFromEnv() (*config, error) {
 		return nil, fmt.Errorf("invalid KODEVERK_URL: %w", err)
 	}
 
-	gatewayClientID, err := extractGatewayClientID(os.Getenv("AZURE_APP_PRE_AUTHORIZED_APPS"))
+	gatewayClientID, err := extractGatewayClientID(os.Getenv("AZURE_APP_PRE_AUTHORIZED_APPS"), os.Getenv("NAIS_CLUSTER_NAME"))
 	if err != nil {
 		return nil, err
 	}

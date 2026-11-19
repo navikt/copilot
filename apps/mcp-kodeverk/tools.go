@@ -17,7 +17,11 @@ import (
 	"unicode/utf8"
 )
 
-const maxToolResultBytes = 128 * 1024
+const (
+	maxToolResultBytes = 128 * 1024
+	maxFilterLen       = 64
+	maxKodeLen         = 128
+)
 
 var (
 	namePattern   = regexp.MustCompile(`^[A-Za-z0-9æøåÆØÅ_-]{1,100}$`)
@@ -44,6 +48,7 @@ func toolDefinitions() []map[string]any {
 					"filter": map[string]any{
 						"type":        "string",
 						"description": "Optional case-insensitive substring filter on kodeverk name.",
+						"maxLength":   maxFilterLen,
 					},
 					"limit": map[string]any{
 						"type":        "integer",
@@ -78,6 +83,7 @@ func toolDefinitions() []map[string]any {
 					"filter": map[string]any{
 						"type":        "string",
 						"description": "Optional case-insensitive substring filter on code value.",
+						"maxLength":   maxFilterLen,
 					},
 					"limit": map[string]any{
 						"type":        "integer",
@@ -112,6 +118,7 @@ func toolDefinitions() []map[string]any {
 					"kode": map[string]any{
 						"type":        "string",
 						"description": "Optional exact code filter.",
+						"maxLength":   maxKodeLen,
 					},
 					"ekskluderUgyldige": map[string]any{
 						"type":        "boolean",
@@ -158,6 +165,7 @@ func toolDefinitions() []map[string]any {
 					"filter": map[string]any{
 						"type":        "string",
 						"description": "Optional case-insensitive substring filter on hierarchy name.",
+						"maxLength":   maxFilterLen,
 					},
 					"limit": map[string]any{
 						"type":        "integer",
@@ -535,6 +543,9 @@ func parseListArgs(raw json.RawMessage, requireKodeverksnavn bool) (listArgs, *m
 		if err != nil {
 			return listArgs{}, err
 		}
+		if utf8.RuneCountInString(s) > maxFilterLen {
+			return listArgs{}, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "filter must be at most 64 characters"}
+		}
 		out.filter = s
 	}
 	if v, ok := fields["limit"]; ok {
@@ -610,6 +621,9 @@ func parseBetydningerArgs(raw json.RawMessage) (betydningerArgs, *mcpRPCError) {
 		}
 		if s == "" {
 			return betydningerArgs{}, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "kode must not be empty"}
+		}
+		if utf8.RuneCountInString(s) > maxKodeLen {
+			return betydningerArgs{}, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "kode must be at most 128 characters"}
 		}
 		out.kode = s
 		out.hasKode = true

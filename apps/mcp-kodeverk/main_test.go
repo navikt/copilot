@@ -144,34 +144,63 @@ func TestExtractGatewayClientID(t *testing.T) {
 	tests := []struct {
 		name    string
 		raw     string
+		cluster string
 		want    string
 		wantErr bool
 	}{
 		{
-			name: "valid fleet-gateway entry",
-			raw:  `[{"name":"dev-gcp:copilot:fleet-gateway","clientId":"gw-123"}]`,
-			want: "gw-123",
+			name:    "matching cluster ok",
+			raw:     `[{"name":"dev-gcp:copilot:fleet-gateway","clientId":"gw-123"}]`,
+			cluster: "dev-gcp",
+			want:    "gw-123",
 		},
 		{
-			name: "missing fleet-gateway yields empty",
-			raw:  `[{"name":"dev-gcp:copilot:other","clientId":"other-123"}]`,
-			want: "",
+			name:    "other cluster rejected",
+			raw:     `[{"name":"prod-gcp:copilot:fleet-gateway","clientId":"gw-prod"}]`,
+			cluster: "dev-gcp",
+			want:    "",
 		},
 		{
-			name: "ambiguous multiple matches fail closed",
-			raw:  `[{"name":"dev-gcp:copilot:fleet-gateway","clientId":"gw-1"},{"name":"prod-gcp:copilot:fleet-gateway","clientId":"gw-2"}]`,
-			want: "",
+			name:    "other namespace rejected",
+			raw:     `[{"name":"dev-gcp:other:fleet-gateway","clientId":"gw-other-ns"}]`,
+			cluster: "dev-gcp",
+			want:    "",
 		},
 		{
-			name:    "malformed json fails",
+			name:    "other app rejected",
+			raw:     `[{"name":"dev-gcp:copilot:other","clientId":"other-123"}]`,
+			cluster: "dev-gcp",
+			want:    "",
+		},
+		{
+			name:    "bare fleet-gateway rejected",
+			raw:     `[{"name":"fleet-gateway","clientId":"gw-bare"}]`,
+			cluster: "dev-gcp",
+			want:    "",
+		},
+		{
+			name:    "empty cluster rejected",
+			raw:     `[{"name":"dev-gcp:copilot:fleet-gateway","clientId":"gw-123"}]`,
+			cluster: "",
+			want:    "",
+		},
+		{
+			name:    "duplicates yield empty",
+			raw:     `[{"name":"dev-gcp:copilot:fleet-gateway","clientId":"gw-1"},{"name":"dev-gcp:copilot:fleet-gateway","clientId":"gw-2"}]`,
+			cluster: "dev-gcp",
+			want:    "",
+		},
+		{
+			name:    "malformed json errors",
 			raw:     `{not-json`,
+			cluster: "dev-gcp",
 			wantErr: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := extractGatewayClientID(tt.raw)
+			got, err := extractGatewayClientID(tt.raw, tt.cluster)
 			if (err != nil) != tt.wantErr {
 				t.Fatalf("err=%v, wantErr=%v", err, tt.wantErr)
 			}
@@ -620,11 +649,15 @@ func TestInputValidationTable(t *testing.T) {
 		{"limit zero", "list_kodeverk", map[string]any{"limit": 0}},
 		{"limit over 200", "list_kodeverk", map[string]any{"limit": 201}},
 		{"negative offset", "list_kodeverk", map[string]any{"offset": -1}},
+		{"list_kodeverk filter over max", "list_kodeverk", map[string]any{"filter": strings.Repeat("a", maxFilterLen+1)}},
+		{"get_kodeverk_koder filter over max", "get_kodeverk_koder", map[string]any{"kodeverksnavn": "Land", "filter": strings.Repeat("ø", maxFilterLen+1)}},
+		{"list_hierarkier filter over max", "list_hierarkier", map[string]any{"filter": strings.Repeat("a", maxFilterLen+1)}},
 		{"missing kodeverksnavn", "get_kodeverk_koder", map[string]any{}},
 		{"bad kodeverksnavn path traversal", "get_kodeverk_koder", map[string]any{"kodeverksnavn": "../web/api"}},
 		{"bad kodeverksnavn slash", "get_kodeverk_koder", map[string]any{"kodeverksnavn": "a/b"}},
 		{"bad kodeverksnavn spaces", "get_kodeverk_koder", map[string]any{"kodeverksnavn": "a b"}},
 		{"bad kodeverksnavn too long", "get_kodeverk_koder", map[string]any{"kodeverksnavn": strings.Repeat("a", 101)}},
+		{"betydninger kode over max", "get_kodeverk_betydninger", map[string]any{"kodeverksnavn": "Land", "kode": strings.Repeat("ø", maxKodeLen+1)}},
 		{"betydninger limit over 100", "get_kodeverk_betydninger", map[string]any{"kodeverksnavn": "Land", "limit": 101}},
 		{"betydninger bad date", "get_kodeverk_betydninger", map[string]any{"kodeverksnavn": "Land", "oppslagsdato": "2025-02-30"}},
 		{"betydninger bad date format", "get_kodeverk_betydninger", map[string]any{"kodeverksnavn": "Land", "oppslagsdato": "17-05-2025"}},
@@ -654,6 +687,78 @@ func TestInputValidationTable(t *testing.T) {
 			}
 			if got := errCode(out); got != mcpCodeInvalidParams {
 				t.Fatalf("error code = %d, want %d; body=%s", got, mcpCodeInvalidParams, rec.Body.String())
+			}
+		})
+	}
+}
+
+func TestFilterAndKodeLengthLimits(t *testing.T) {
+	kodeverkFake := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v1/kodeverk":
+			writeJSON(w, http.StatusOK, map[string]any{"kodeverksnavn": []string{"Landkoder"}})
+		case "/api/v1/kodeverk/Landkoder/koder":
+			writeJSON(w, http.StatusOK, map[string]any{"koder": []string{"NOR"}})
+		case "/api/v1/kodeverk/Landkoder/koder/betydninger":
+			writeJSON(w, http.StatusOK, map[string]any{"betydninger": map[string][]betydning{}})
+		case "/api/v1/hierarki":
+			writeJSON(w, http.StatusOK, map[string]any{"hierarkinavn": []string{"Geografi"}})
+		default:
+			http.NotFound(w, r)
+		}
+	})
+	srv := newTestServer(t, defaultTexasHandler("obo-tok"), kodeverkFake)
+	h := srv.routes()
+
+	accepted := []struct {
+		name string
+		tool string
+		args map[string]any
+	}{
+		{"list_kodeverk filter at limit (multibyte runes)", "list_kodeverk", map[string]any{"filter": strings.Repeat("ø", maxFilterLen)}},
+		{"get_kodeverk_koder filter at limit", "get_kodeverk_koder", map[string]any{"kodeverksnavn": "Landkoder", "filter": strings.Repeat("a", maxFilterLen)}},
+		{"list_hierarkier filter at limit", "list_hierarkier", map[string]any{"filter": strings.Repeat("a", maxFilterLen)}},
+		{"get_kodeverk_betydninger kode at limit (multibyte runes)", "get_kodeverk_betydninger", map[string]any{"kodeverksnavn": "Landkoder", "kode": strings.Repeat("ø", maxKodeLen)}},
+	}
+	for _, tt := range accepted {
+		t.Run(tt.name, func(t *testing.T) {
+			rec, out := callToolModern(t, h, "in", tt.tool, tt.args)
+			if rec.Code != http.StatusOK {
+				t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
+			}
+			if got := errCode(out); got != 0 {
+				t.Fatalf("unexpected rpc error %d: %s", got, rec.Body.String())
+			}
+			_, isErr := extractToolText(t, out)
+			if isErr {
+				t.Fatalf("unexpected tool error: %s", rec.Body.String())
+			}
+		})
+	}
+
+	rejected := []struct {
+		name    string
+		tool    string
+		args    map[string]any
+		wantMsg string
+	}{
+		{"list_kodeverk filter over limit", "list_kodeverk", map[string]any{"filter": strings.Repeat("ø", maxFilterLen+1)}, "filter must be at most 64 characters"},
+		{"get_kodeverk_koder filter over limit", "get_kodeverk_koder", map[string]any{"kodeverksnavn": "Landkoder", "filter": strings.Repeat("a", maxFilterLen+1)}, "filter must be at most 64 characters"},
+		{"list_hierarkier filter over limit", "list_hierarkier", map[string]any{"filter": strings.Repeat("a", maxFilterLen+1)}, "filter must be at most 64 characters"},
+		{"get_kodeverk_betydninger kode over limit", "get_kodeverk_betydninger", map[string]any{"kodeverksnavn": "Landkoder", "kode": strings.Repeat("ø", maxKodeLen+1)}, "kode must be at most 128 characters"},
+	}
+	for _, tt := range rejected {
+		t.Run(tt.name, func(t *testing.T) {
+			rec, out := callToolModern(t, h, "in", tt.tool, tt.args)
+			if rec.Code != http.StatusOK {
+				t.Fatalf("status=%d body=%s", rec.Code, rec.Body.String())
+			}
+			if got := errCode(out); got != mcpCodeInvalidParams {
+				t.Fatalf("error code = %d, want %d; body=%s", got, mcpCodeInvalidParams, rec.Body.String())
+			}
+			errObj, _ := out["error"].(map[string]any)
+			if msg, _ := errObj["message"].(string); msg != tt.wantMsg {
+				t.Fatalf("error message = %q, want %q", msg, tt.wantMsg)
 			}
 		})
 	}

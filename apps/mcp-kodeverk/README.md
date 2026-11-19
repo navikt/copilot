@@ -31,7 +31,7 @@ All serialized tool payloads are capped at 128 KiB and set `truncated: true` if 
 ## Authentication Chain
 
 1. Inbound requests from `fleet-gateway` carry an Entra OBO bearer token.
-2. `mcp-kodeverk` validates the token via Texas introspection (`NAIS_TOKEN_INTROSPECTION_ENDPOINT`), rejecting app tokens (`idtyp=app` or `access_as_application`), missing `NAVident`, or `azp` not matching `fleet-gateway` from `AZURE_APP_PRE_AUTHORIZED_APPS`.
+2. `mcp-kodeverk` validates the token via Texas introspection (`NAIS_TOKEN_INTROSPECTION_ENDPOINT`), rejecting app tokens (`idtyp=app` or `access_as_application`), missing `NAVident`, or `azp` not matching `$NAIS_CLUSTER_NAME:copilot:fleet-gateway` from `AZURE_APP_PRE_AUTHORIZED_APPS`.
 3. Each `tools/call` exchanges the inbound bearer token via Texas OBO (`NAIS_TOKEN_EXCHANGE_ENDPOINT`) for `KODEVERK_SCOPE` and calls `kodeverk-api` with `Authorization: Bearer <obo_token>`, `Nav-Call-Id`, and `Nav-Consumer-Id: mcp-kodeverk`.
 
 ## Dev-GCP Tenant Caveat
