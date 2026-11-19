@@ -684,6 +684,10 @@ func streamSSE(
 
 	stopAfter := context.AfterFunc(streamCtx, func() {
 		_ = body.Close()
+		// Wake a blocked downstream Write (no server WriteTimeout on SSE) on cancellation.
+		if rc != nil {
+			_ = rc.SetWriteDeadline(time.Now())
+		}
 	})
 	defer stopAfter()
 
