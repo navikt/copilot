@@ -296,3 +296,27 @@ func TestRefreshToken_TransientUpstreamDoesNotBurnRT(t *testing.T) {
 		t.Fatalf("RT must survive a transient failure, got %d (%v)", status, body)
 	}
 }
+
+func TestRefreshToken_RevokeSurvivesRaisedSessionMaxAge(t *testing.T) {
+	te := newClientEncryptedTestEnv(t, "k1:"+testKeyBase64(t, false))
+	_, rt1, _ := te.obtainTokensForResource(te.resource)
+
+	// Lower SessionMaxAge before refreshing rt1; its denylist TTL must stay pinned
+	// to rt1's EXP so raising SessionMaxAge later cannot make rt1 replayable.
+	te.gw.cfg.SessionMaxAge = time.Hour
+	status, body := te.refresh(rt1)
+	if status != http.StatusOK {
+		t.Fatalf("first refresh: %d (%v)", status, body)
+	}
+	rt2, _ := body["refresh_token"].(string)
+
+	te.advance(2 * time.Hour)
+	te.gw.cfg.SessionMaxAge = 24 * time.Hour
+
+	if status, body := te.refresh(rt1); status != http.StatusBadRequest || body["error"] != "invalid_grant" {
+		t.Fatalf("replay of used RT after raising SessionMaxAge: got %d (%v), want 400 invalid_grant", status, body)
+	}
+	if status, body := te.refresh(rt2); status != http.StatusBadRequest || body["error"] != "invalid_grant" {
+		t.Fatalf("newest RT in family must be revoked after replay: got %d (%v), want 400 invalid_grant", status, body)
+	}
+}

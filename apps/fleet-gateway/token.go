@@ -411,7 +411,8 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 	// Absolute expiry is fixed in the RT at issue time, so raising SESSION_MAX_AGE
 	// later cannot revive old tokens; lowering SESSION_MAX_AGE also shortens it
 	// to match putSessionInStore/getSessionFromStore.
-	absExpiry := time.Unix(payload.EXP, 0).UTC()
+	rtExpiry := time.Unix(payload.EXP, 0).UTC()
+	absExpiry := rtExpiry
 	if g.cfg.SessionMaxAge > 0 {
 		if maxExpiry := issuedAt.Add(g.cfg.SessionMaxAge); maxExpiry.Before(absExpiry) {
 			absExpiry = maxExpiry
@@ -468,7 +469,7 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 		}
 		// Replay: someone holds an already-rotated RT. Kill the family so a thief
 		// who refreshed first loses the newest RT too.
-		if err = g.store.Revoke(r.Context(), famKey, absExpiry); err != nil {
+		if err = g.store.Revoke(r.Context(), famKey, rtExpiry); err != nil {
 			unavailable(err)
 			return
 		}
@@ -538,7 +539,7 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 		}
 	}
 	if status != http.StatusOK {
-		if err = g.store.Revoke(r.Context(), payload.JTI, absExpiry); err != nil {
+		if err = g.store.Revoke(r.Context(), payload.JTI, rtExpiry); err != nil {
 			unavailable(err)
 			return
 		}
@@ -640,7 +641,7 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 	} else if perr := g.store.Put(r.Context(), kindRefreshGrace, payload.JTI, raw, graceTTL); perr != nil {
 		slog.Warn("store refresh grace failed", "error", perr)
 	}
-	if err = g.store.Revoke(r.Context(), payload.JTI, absExpiry); err != nil {
+	if err = g.store.Revoke(r.Context(), payload.JTI, rtExpiry); err != nil {
 		unavailable(err)
 		return
 	}
