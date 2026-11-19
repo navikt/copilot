@@ -20,16 +20,17 @@ import (
 
 // Gateway implements the fleet-gateway OAuth 2.1 authorization server and MCP proxy.
 type Gateway struct {
-	cfg         *Config
-	now         func() time.Time
-	store       SessionStore
-	rtKeys      *keyRing
-	cimdCache   *ttlMap[cachedCIMD]
-	limiters    map[string]*ipRateLimiter
-	proxyClient *http.Client
-	refreshWait time.Duration // how long a concurrent refresh waits for the winner's grace pair
-	inFlight    slots         // buffered MCP calls; bounds memory (see README, Memory and limits)
-	sseStreams  slots         // open SSE response streams; they buffer nothing, so get their own cap
+	cfg          *Config
+	now          func() time.Time
+	store        SessionStore
+	rtKeys       *keyRing
+	cimdCache    *ttlMap[cachedCIMD]
+	limiters     map[string]*ipRateLimiter
+	rateLimitLog *rateLimitLogSampler
+	proxyClient  *http.Client
+	refreshWait  time.Duration // how long a concurrent refresh waits for the winner's grace pair
+	inFlight     slots         // buffered MCP calls; bounds memory (see README, Memory and limits)
+	sseStreams   slots         // open SSE response streams; they buffer nothing, so get their own cap
 
 	wellKnownMu         sync.RWMutex
 	wellKnownGroup      singleflight.Group
@@ -72,15 +73,16 @@ func newGateway(cfg *Config, now func() time.Time) (*Gateway, error) {
 		limiters[ep] = newIPRateLimiter(cfg.RateLimitRequests, cfg.RateLimitGlobalRequests, cfg.RateLimitWindow, cfg.RateLimitCap, now)
 	}
 	return &Gateway{
-		cfg:         cfg,
-		now:         now,
-		store:       store,
-		rtKeys:      rtKeys,
-		cimdCache:   newTTLMap[cachedCIMD](cfg.CIMDCap, now),
-		limiters:    limiters,
-		proxyClient: newHardenedProxyClient(cfg.ProxyHeaderTimeout),
-		refreshWait: 5 * time.Second,
-		TeamTokens:  teamTokens,
+		cfg:          cfg,
+		now:          now,
+		store:        store,
+		rtKeys:       rtKeys,
+		cimdCache:    newTTLMap[cachedCIMD](cfg.CIMDCap, now),
+		limiters:     limiters,
+		rateLimitLog: newRateLimitLogSampler(defaultRateLimitLogWindow, defaultRateLimitLogCap, now),
+		proxyClient:  newHardenedProxyClient(cfg.ProxyHeaderTimeout),
+		refreshWait:  5 * time.Second,
+		TeamTokens:   teamTokens,
 	}, nil
 }
 
@@ -153,6 +155,9 @@ func (g *Gateway) sweepAll() {
 	g.cimdCache.Sweep()
 	for _, l := range g.limiters {
 		l.Sweep()
+	}
+	if g.rateLimitLog != nil {
+		g.rateLimitLog.Sweep()
 	}
 }
 
@@ -314,7 +319,9 @@ func (g *Gateway) rateLimitMiddleware(endpoint string, limiter *ipRateLimiter, n
 		ip := extractClientIP(r)
 		if limiter != nil && !limiter.Allow(ip) {
 			observeRateLimited(endpoint)
-			slog.Warn("rate limited", "endpoint", endpoint)
+			if g.rateLimitLog == nil || g.rateLimitLog.Allow(ip) {
+				slog.Warn("rate limited", "endpoint", endpoint)
+			}
 			w.Header().Set("Retry-After", "60")
 			if r.URL.Path == "/token" || r.URL.Path == "/revoke" {
 				writeJSON(w, http.StatusTooManyRequests, map[string]string{
