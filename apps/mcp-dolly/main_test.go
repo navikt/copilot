@@ -182,6 +182,43 @@ func TestConfigValidation(t *testing.T) {
 	if cfg.DollyURL != "https://dolly-backend.example" {
 		t.Fatalf("DollyURL = %q", cfg.DollyURL)
 	}
+	if cfg.EnableCreateOrder {
+		t.Fatal("EnableCreateOrder must default to false")
+	}
+
+	t.Setenv("MCP_DOLLY_ENABLE_CREATE_ORDER", "false")
+	cfg, err = loadConfigFromEnv()
+	if err != nil || cfg.EnableCreateOrder {
+		t.Fatalf("EnableCreateOrder with false = %v, err = %v", cfg, err)
+	}
+
+	t.Setenv("MCP_DOLLY_ENABLE_CREATE_ORDER", "true")
+	cfg, err = loadConfigFromEnv()
+	if err != nil || !cfg.EnableCreateOrder {
+		t.Fatalf("EnableCreateOrder with true = %v, err = %v", cfg, err)
+	}
+
+	t.Setenv("MCP_DOLLY_ENABLE_CREATE_ORDER", "not-a-bool")
+	if _, err := loadConfigFromEnv(); err == nil {
+		t.Fatal("expected error for invalid MCP_DOLLY_ENABLE_CREATE_ORDER")
+	}
+}
+
+func TestServerWriteTimeoutCoversUpstreamCalls(t *testing.T) {
+	t.Setenv("DOLLY_URL", "https://dolly-backend.example")
+	t.Setenv("NAIS_TOKEN_EXCHANGE_ENDPOINT", "http://texas.nais/exchange")
+	t.Setenv("NAIS_TOKEN_INTROSPECTION_ENDPOINT", "http://texas.nais/introspect")
+	cfg, err := loadConfigFromEnv()
+	if err != nil {
+		t.Fatalf("loadConfigFromEnv: %v", err)
+	}
+	srv := newServer(cfg)
+	httpSrv := newHTTPServer(cfg, srv.routes())
+	minWriteTimeout := httpSrv.ReadTimeout + maxUpstreamCalls*cfg.HTTPClient.Timeout
+	if httpSrv.WriteTimeout < minWriteTimeout {
+		t.Fatalf("WriteTimeout = %v, want >= %v (ReadTimeout %v + %d * HTTPClient.Timeout %v)",
+			httpSrv.WriteTimeout, minWriteTimeout, httpSrv.ReadTimeout, maxUpstreamCalls, cfg.HTTPClient.Timeout)
+	}
 }
 
 func TestExtractGatewayClientID(t *testing.T) {

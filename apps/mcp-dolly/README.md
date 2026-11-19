@@ -1,19 +1,23 @@
 # mcp-dolly
 
-Read-only MCP server for Dolly, Nav's test data tool (`dolly-backend`, namespace `dolly`, `dev-gcp`). It runs in namespace `copilot` behind `fleet-gateway` and has no ingress.
+MCP server for Dolly, Nav's test data tool (`dolly-backend`, namespace `dolly`, `dev-gcp`). It runs in namespace `copilot` behind `fleet-gateway` and has no ingress.
 
-The server only reads. Tools that create, change or delete test data are left out on purpose: Dolly has no access control on groups yet, so anyone can change anyone's groups. Write tools wait until Dolly has group access control or this server enforces ownership itself (#2457). `POST /api/v1/gruppe/{id}/bestilling/fraidenter` must never be used.
+`POST /api/v1/gruppe/{id}/bestilling/fraidenter` must never be used.
 
 ## Tools
 
-All tools call `dolly-backend` with `GET` only. `pageSize` defaults to 20, max 50.
+Read tools call `dolly-backend` with `GET` only. `pageSize` defaults to 20, max 50.
 
-- `dolly_current_user` — `GET /api/v1/bruker/current`
-- `dolly_list_groups` — the caller's groups: `GET /api/v1/bruker/current`, then `GET /api/v1/gruppe?brukerId=…&pageNo=&pageSize=`
-- `dolly_get_group` — `GET /api/v1/gruppe/{gruppeId}/page/{pageNo}?pageSize=`
-- `dolly_search` — `kind: gruppe` calls `GET /api/v1/gruppe/soekGruppe?fragment=`, `kind: bestilling` calls `GET /api/v1/bestilling/soekBestilling?fragment=` (fragment 1–100 characters)
-- `dolly_get_order` — `GET /api/v1/bestilling/{bestillingId}`
-- `dolly_list_group_orders` — `GET /api/v1/bestilling/gruppe/{gruppeId}?page=&pageSize=`
+- `dolly_current_user`: `GET /api/v1/bruker/current`
+- `dolly_list_groups`: the caller's groups (`GET /api/v1/bruker/current`, then `GET /api/v1/gruppe?brukerId=…&pageNo=&pageSize=`)
+- `dolly_get_group`: `GET /api/v1/gruppe/{gruppeId}/page/{pageNo}?pageSize=`
+- `dolly_search`: `kind: gruppe` calls `GET /api/v1/gruppe/soekGruppe?fragment=`, `kind: bestilling` calls `GET /api/v1/bestilling/soekBestilling?fragment=` (fragment 1 to 100 characters)
+- `dolly_get_order`: `GET /api/v1/bestilling/{bestillingId}`
+- `dolly_list_group_orders`: `GET /api/v1/bestilling/gruppe/{gruppeId}?page=&pageSize=`
+
+Write tool (not listed on the prod gateway route until ROS sign-off):
+
+- `create_order`: `POST /api/v1/gruppe/{gruppeId}/bestilling` (`RsDollyBestillingRequest`). Verifies group ownership (`opprettetAv.brukerId` against `/api/v1/bruker/current`), caps `antall` at 1 to 5, restricts `environments` to a subset of `q1`, `q2`, `q4`, enforces a per-user quota of 20 persons per rolling 24h in memory per pod keyed by hashed `NAVident`, and writes one audit log line per order without person data.
 
 Upstream bodies are capped at 1 MiB and tool results at 128 KiB. Logs never contain response bodies, idents or tokens.
 

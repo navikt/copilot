@@ -1,4 +1,4 @@
-// Package main implements mcp-dolly, a read-only MCP server over Dolly (Nav test data) in dev-gcp.
+// Package main implements mcp-dolly, an MCP server over Dolly (Nav test data) in dev-gcp.
 package main
 
 import (
@@ -12,18 +12,22 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
 )
 
 const (
-	defaultPort       = "8080"
-	defaultDollyURL   = "https://dolly-backend.ekstern.dev.nav.no"
-	maxRequestBytes   = 1 << 20
-	httpClientTimeout = 10 * time.Second
-	serverName        = "mcp-dolly"
-	serverVersion     = "1.0.0"
+	defaultPort        = "8080"
+	defaultDollyURL    = "https://dolly-backend.ekstern.dev.nav.no"
+	maxRequestBytes    = 1 << 20
+	httpClientTimeout  = 10 * time.Second
+	serverReadTimeout  = 10 * time.Second
+	maxUpstreamCalls   = 5 // introspect + OBO exchange + 3 Dolly calls (create_order)
+	serverWriteTimeout = serverReadTimeout + maxUpstreamCalls*httpClientTimeout + 5*time.Second
+	serverName         = "mcp-dolly"
+	serverVersion      = "2.0.0"
 )
 
 type config struct {
@@ -34,6 +38,7 @@ type config struct {
 	GatewayClientID       string
 	DollyURL              string
 	DollyScope            string
+	EnableCreateOrder     bool
 	HTTPClient            *http.Client
 }
 
@@ -62,6 +67,11 @@ func loadConfigFromEnv() (*config, error) {
 		return nil, err
 	}
 
+	enableCreateOrder, err := getEnvBool("MCP_DOLLY_ENABLE_CREATE_ORDER")
+	if err != nil {
+		return nil, err
+	}
+
 	return &config{
 		Port:                  getEnv("PORT", defaultPort),
 		LogLevel:              parseLogLevel(getEnv("LOG_LEVEL", "INFO")),
@@ -70,6 +80,7 @@ func loadConfigFromEnv() (*config, error) {
 		GatewayClientID:       gatewayClientID,
 		DollyURL:              strings.TrimRight(dollyURL, "/"),
 		DollyScope:            strings.TrimSpace(os.Getenv("DOLLY_SCOPE")),
+		EnableCreateOrder:     enableCreateOrder,
 		HTTPClient: &http.Client{
 			Timeout: httpClientTimeout,
 			CheckRedirect: func(*http.Request, []*http.Request) error {
@@ -83,6 +94,8 @@ type server struct {
 	cfg         *config
 	dolly       *dollyClient
 	upstreamSem chan struct{}
+	quota       *userQuota
+	now         func() time.Time
 }
 
 func newServer(cfg *config) *server {
@@ -90,6 +103,8 @@ func newServer(cfg *config) *server {
 		cfg:         cfg,
 		dolly:       newDollyClient(cfg.DollyURL, cfg.HTTPClient),
 		upstreamSem: make(chan struct{}, maxConcurrentUpstream),
+		quota:       newUserQuota(),
+		now:         time.Now,
 	}
 }
 
@@ -120,7 +135,7 @@ func (s *server) mcpHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err := s.validateToken(r.Context(), token)
+	navIdent, err := s.validateToken(r.Context(), token)
 	if err != nil {
 		switch {
 		case errors.Is(err, errUnauthorized):
@@ -183,9 +198,9 @@ func (s *server) mcpHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	now := time.Now()
+	now := s.now()
 	if !isLegacyMCPRequest(r, env) {
-		s.serveModern(w, r, env, rawID, token, now)
+		s.serveModern(w, r, env, rawID, token, navIdent, now)
 		return
 	}
 	if !mcpLegacyAllowed(now) {
@@ -210,9 +225,9 @@ func (s *server) mcpHandler(w http.ResponseWriter, r *http.Request) {
 		// Initialize-era revisions require an empty result; serveModern still rejects ping.
 		result = map[string]any{}
 	case "tools/list":
-		result = map[string]any{"tools": toolDefinitions()}
+		result = map[string]any{"tools": toolDefinitions(s.cfg.EnableCreateOrder)}
 	case "tools/call":
-		res, rpcErr := s.handleToolCall(r.Context(), token, env.Params.Name, env.Params.Arguments)
+		res, rpcErr := s.handleToolCall(r.Context(), token, navIdent, env.Params.Name, env.Params.Arguments)
 		if rpcErr != nil {
 			writeMCPError(w, http.StatusOK, rpcID, rpcErr)
 			return
@@ -230,7 +245,7 @@ func (s *server) mcpHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (s *server) serveModern(w http.ResponseWriter, r *http.Request, env mcpEnvelope, id json.RawMessage, token string, now time.Time) {
+func (s *server) serveModern(w http.ResponseWriter, r *http.Request, env mcpEnvelope, id json.RawMessage, token, navIdent string, now time.Time) {
 	var rpcID any
 	if len(id) > 0 {
 		rpcID = id
@@ -250,10 +265,10 @@ func (s *server) serveModern(w http.ResponseWriter, r *http.Request, env mcpEnve
 	case "server/discover":
 		result = mcpDiscoverResult(map[string]any{"tools": map[string]any{}}, now)
 	case "tools/list":
-		result = map[string]any{"tools": toolDefinitions()}
+		result = map[string]any{"tools": toolDefinitions(s.cfg.EnableCreateOrder)}
 		extra = map[string]any{"ttlMs": mcpDiscoverTTLMilliseconds, "cacheScope": "private"}
 	case "tools/call":
-		res, rpcErr := s.handleToolCall(r.Context(), token, env.Params.Name, env.Params.Arguments)
+		res, rpcErr := s.handleToolCall(r.Context(), token, navIdent, env.Params.Name, env.Params.Arguments)
 		if rpcErr != nil {
 			writeMCPError(w, http.StatusOK, rpcID, rpcErr)
 			return
@@ -290,6 +305,18 @@ func getEnv(key, fallback string) string {
 	return fallback
 }
 
+func getEnvBool(key string) (bool, error) {
+	v := strings.TrimSpace(os.Getenv(key))
+	if v == "" {
+		return false, nil
+	}
+	b, err := strconv.ParseBool(v)
+	if err != nil {
+		return false, fmt.Errorf("invalid %s %q: %w", key, v, err)
+	}
+	return b, nil
+}
+
 func parseLogLevel(raw string) slog.Level {
 	switch strings.ToUpper(strings.TrimSpace(raw)) {
 	case "DEBUG":
@@ -300,6 +327,17 @@ func parseLogLevel(raw string) slog.Level {
 		return slog.LevelError
 	default:
 		return slog.LevelInfo
+	}
+}
+
+func newHTTPServer(cfg *config, handler http.Handler) *http.Server {
+	return &http.Server{
+		Addr:              ":" + cfg.Port,
+		Handler:           handler,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       serverReadTimeout,
+		WriteTimeout:      serverWriteTimeout,
+		IdleTimeout:       60 * time.Second,
 	}
 }
 
@@ -324,14 +362,7 @@ func main() {
 	}
 
 	srv := newServer(cfg)
-	httpServer := &http.Server{
-		Addr:              ":" + cfg.Port,
-		Handler:           srv.routes(),
-		ReadHeaderTimeout: 5 * time.Second,
-		ReadTimeout:       10 * time.Second,
-		WriteTimeout:      35 * time.Second,
-		IdleTimeout:       60 * time.Second,
-	}
+	httpServer := newHTTPServer(cfg, srv.routes())
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()

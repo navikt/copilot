@@ -3,12 +3,20 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/hmac"
+	"crypto/rand"
+	"crypto/sha256"
+	"crypto/subtle"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 	"unicode"
 	"unicode/utf8"
 )
@@ -19,6 +27,11 @@ const (
 	defaultPageSize    = 20
 	maxPageNo          = 10000
 	maxFragmentLen     = 100
+	minOrderAntall     = 1
+	maxOrderAntall     = 5
+	maxOrderAge        = 120
+	dailyPersonQuota   = 20
+	quotaWindow        = 24 * time.Hour
 )
 
 // readOnlyAnnotations are client hints, never a security boundary.
@@ -27,6 +40,13 @@ var readOnlyAnnotations = map[string]bool{
 	"destructiveHint": false,
 	"idempotentHint":  true,
 	"openWorldHint":   false,
+}
+
+var writeOrderAnnotations = map[string]bool{
+	"readOnlyHint":    false,
+	"destructiveHint": false,
+	"idempotentHint":  false,
+	"openWorldHint":   true,
 }
 
 func intProp(desc string, minimum, maximum int) map[string]any {
@@ -53,9 +73,15 @@ func tool(name, desc string, required []string, props map[string]any) map[string
 	return map[string]any{"name": name, "description": desc, "inputSchema": schema, "annotations": readOnlyAnnotations}
 }
 
-func toolDefinitions() []map[string]any {
+func writeTool(name, desc string, required []string, props map[string]any) map[string]any {
+	t := tool(name, desc, required, props)
+	t["annotations"] = writeOrderAnnotations
+	return t
+}
+
+func toolDefinitions(enableCreateOrder bool) []map[string]any {
 	gruppeID := intProp("Dolly test group id (gruppeId).", 1, 1<<53)
-	return []map[string]any{
+	tools := []map[string]any{
 		tool("dolly_current_user", "Get the signed-in user's Dolly profile (brukerId, team).", nil, map[string]any{}),
 		tool("dolly_list_groups", "List the signed-in user's Dolly test groups (testgrupper), paginated.", nil, withPaging(map[string]any{})),
 		tool("dolly_get_group", "Get one Dolly test group with a page of its test persons (identer).", []string{"gruppeId"},
@@ -70,9 +96,30 @@ func toolDefinitions() []map[string]any {
 		tool("dolly_list_group_orders", "List orders (bestillinger) with status for a Dolly test group, paginated.", []string{"gruppeId"},
 			withPaging(map[string]any{"gruppeId": gruppeID})),
 	}
+	if enableCreateOrder {
+		tools = append(tools, writeTool("create_order",
+			"Create an order (bestilling) for 1-5 synthetic test persons in a Dolly group owned by the signed-in user. Always confirm with the user (gruppeId, antall, environments, and any person attributes) before calling this tool.",
+			[]string{"gruppeId", "antall", "environments"},
+			map[string]any{
+				"gruppeId": gruppeID,
+				"antall":   intProp("Number of synthetic test persons to create (1-5).", minOrderAntall, maxOrderAntall),
+				"environments": map[string]any{
+					"type":        "array",
+					"description": "Target test environments (non-empty subset of q1, q2, q4).",
+					"minItems":    1,
+					"maxItems":    3,
+					"uniqueItems": true,
+					"items":       map[string]any{"type": "string", "enum": []string{"q1", "q2", "q4"}},
+				},
+				"minAlder": intProp("Optional minimum age in years (0-120).", 0, maxOrderAge),
+				"maxAlder": intProp("Optional maximum age in years (0-120, >= minAlder).", 0, maxOrderAge),
+				"kjoenn":   map[string]any{"type": "string", "enum": []string{"MANN", "KVINNE", "UKJENT"}, "description": "Optional gender (MANN, KVINNE, or UKJENT)."},
+			}))
+	}
+	return tools
 }
 
-func (s *server) handleToolCall(ctx context.Context, inboundToken, toolName string, rawArgs json.RawMessage) (any, *mcpRPCError) {
+func (s *server) handleToolCall(ctx context.Context, inboundToken, navIdent, toolName string, rawArgs json.RawMessage) (any, *mcpRPCError) {
 	var fields map[string]json.RawMessage
 	var rpcErr *mcpRPCError
 	allow := func(keys ...string) bool {
@@ -188,9 +235,246 @@ func (s *server) handleToolCall(ctx context.Context, inboundToken, toolName stri
 		q := url.Values{"page": {strconv.Itoa(pageNo)}, "pageSize": {strconv.Itoa(pageSize)}}
 		return get(fmt.Sprintf("/api/v1/bestilling/gruppe/%d", id), q), nil
 
+	case "create_order":
+		if !s.cfg.EnableCreateOrder {
+			return nil, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "unknown tool"}
+		}
+		if !allow("gruppeId", "antall", "environments", "minAlder", "maxAlder", "kjoenn") {
+			return nil, rpcErr
+		}
+		gruppeID, orderReq, e := parseCreateOrder(fields, s.now())
+		if e != nil {
+			return nil, e
+		}
+		userHash := s.quota.hashUser(navIdent)
+		release, ok := s.quota.reserve(userHash, orderReq.Antall, s.now())
+		if !ok {
+			return toolErrorResult(fmt.Sprintf("daily quota of %d test persons per 24h exceeded", dailyPersonQuota)), nil
+		}
+		committed := false
+		defer func() {
+			if !committed {
+				release()
+			}
+		}()
+		return s.execWithOBO(ctx, inboundToken, func(tok string) (string, error) {
+			brukerID, err := s.dolly.currentBrukerID(ctx, tok)
+			if err != nil {
+				return "", err
+			}
+			ownerID, err := s.dolly.groupOwnerBrukerID(ctx, tok, gruppeID)
+			if err != nil {
+				return "", err
+			}
+			if subtle.ConstantTimeCompare([]byte(ownerID), []byte(brukerID)) != 1 {
+				return "", fmt.Errorf("group %d is not owned by the current user", gruppeID)
+			}
+			b, refund, err := s.dolly.createOrder(ctx, tok, gruppeID, orderReq)
+			if err != nil {
+				if !refund {
+					committed = true
+				}
+				return "", err
+			}
+			committed = true
+			slog.Info("audit dolly create_order",
+				"gruppeId", gruppeID,
+				"antall", orderReq.Antall,
+				"environments", orderReq.Environments,
+			)
+			return capResult(b)
+		}), nil
+
 	default:
 		return nil, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "unknown tool"}
 	}
+}
+
+// shortcut: per-pod quota, move to Postgres if more replicas
+type userQuota struct {
+	mu      sync.Mutex
+	hmacKey [32]byte
+	nextID  uint64
+	entries map[string][]quotaEntry
+}
+
+type quotaEntry struct {
+	id     uint64
+	at     time.Time
+	antall int
+}
+
+func newUserQuota() *userQuota {
+	var key [32]byte
+	_, _ = rand.Read(key[:])
+	return &userQuota{
+		hmacKey: key,
+		entries: make(map[string][]quotaEntry),
+	}
+}
+
+func (q *userQuota) reserve(userHash string, antall int, now time.Time) (func(), bool) {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+
+	cutoff := now.Add(-quotaWindow)
+	existing := q.entries[userHash]
+	kept := existing[:0]
+	used := 0
+	for _, e := range existing {
+		if e.at.After(cutoff) {
+			kept = append(kept, e)
+			used += e.antall
+		}
+	}
+	if used+antall > dailyPersonQuota {
+		if len(kept) == 0 {
+			delete(q.entries, userHash)
+		} else {
+			q.entries[userHash] = kept
+		}
+		return nil, false
+	}
+	q.nextID++
+	id := q.nextID
+	q.entries[userHash] = append(kept, quotaEntry{id: id, at: now, antall: antall})
+	return func() {
+		q.mu.Lock()
+		defer q.mu.Unlock()
+		cur := q.entries[userHash]
+		for i, e := range cur {
+			if e.id == id {
+				cur = append(cur[:i], cur[i+1:]...)
+				break
+			}
+		}
+		if len(cur) == 0 {
+			delete(q.entries, userHash)
+		} else {
+			q.entries[userHash] = cur
+		}
+	}, true
+}
+
+func (q *userQuota) hashUser(navIdent string) string {
+	mac := hmac.New(sha256.New, q.hmacKey[:])
+	mac.Write([]byte(navIdent))
+	return hex.EncodeToString(mac.Sum(nil))
+}
+
+func parseCreateOrder(fields map[string]json.RawMessage, now time.Time) (int64, dollyBestillingRequest, *mcpRPCError) {
+	gruppeID, e := parseID(fields, "gruppeId")
+	if e != nil {
+		return 0, dollyBestillingRequest{}, e
+	}
+
+	rawAntall, ok := fields["antall"]
+	if !ok {
+		return 0, dollyBestillingRequest{}, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "antall is required"}
+	}
+	antall, e := parseStrictInt(rawAntall, "antall")
+	if e != nil {
+		return 0, dollyBestillingRequest{}, e
+	}
+	if antall < minOrderAntall || antall > maxOrderAntall {
+		return 0, dollyBestillingRequest{}, &mcpRPCError{Code: mcpCodeInvalidParams, Message: fmt.Sprintf("antall must be %d to %d", minOrderAntall, maxOrderAntall)}
+	}
+
+	rawEnvs, ok := fields["environments"]
+	if !ok {
+		return 0, dollyBestillingRequest{}, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "environments is required"}
+	}
+	var envItems []json.RawMessage
+	if len(rawEnvs) == 0 || rawEnvs[0] != '[' || json.Unmarshal(rawEnvs, &envItems) != nil {
+		return 0, dollyBestillingRequest{}, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "environments must be an array of strings"}
+	}
+	if len(envItems) < 1 || len(envItems) > 3 {
+		return 0, dollyBestillingRequest{}, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "environments must contain 1 to 3 entries from q1, q2, q4"}
+	}
+	seenEnvs := make(map[string]bool, len(envItems))
+	envs := make([]string, 0, len(envItems))
+	for _, item := range envItems {
+		env, envErr := parseStrictString(bytes.TrimSpace(item), "environments")
+		if envErr != nil {
+			return 0, dollyBestillingRequest{}, envErr
+		}
+		// Map validated input to constants so only allowlisted literals reach the audit log.
+		switch env {
+		case "q1":
+			env = "q1"
+		case "q2":
+			env = "q2"
+		case "q4":
+			env = "q4"
+		default:
+			return 0, dollyBestillingRequest{}, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "environments must be a subset of q1, q2, q4"}
+		}
+		if seenEnvs[env] {
+			return 0, dollyBestillingRequest{}, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "environments must not contain duplicates"}
+		}
+		seenEnvs[env] = true
+		envs = append(envs, env)
+	}
+
+	opprett := dollyOpprettNyPerson{
+		Identtype: "FNR",
+		Syntetisk: true,
+	}
+	var minAlder, maxAlder int
+	var hasMin, hasMax bool
+	if rawMin, ok := fields["minAlder"]; ok {
+		minAlder, e = parseStrictInt(rawMin, "minAlder")
+		if e != nil {
+			return 0, dollyBestillingRequest{}, e
+		}
+		if minAlder < 0 || minAlder > maxOrderAge {
+			return 0, dollyBestillingRequest{}, &mcpRPCError{Code: mcpCodeInvalidParams, Message: fmt.Sprintf("minAlder must be 0 to %d", maxOrderAge)}
+		}
+		hasMin = true
+	}
+	if rawMax, ok := fields["maxAlder"]; ok {
+		maxAlder, e = parseStrictInt(rawMax, "maxAlder")
+		if e != nil {
+			return 0, dollyBestillingRequest{}, e
+		}
+		if maxAlder < 0 || maxAlder > maxOrderAge {
+			return 0, dollyBestillingRequest{}, &mcpRPCError{Code: mcpCodeInvalidParams, Message: fmt.Sprintf("maxAlder must be 0 to %d", maxOrderAge)}
+		}
+		hasMax = true
+	}
+	if hasMin && hasMax && minAlder > maxAlder {
+		return 0, dollyBestillingRequest{}, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "minAlder must not exceed maxAlder"}
+	}
+	today := now.UTC()
+	if hasMax {
+		opprett.FoedtEtter = today.AddDate(-(maxAlder + 1), 0, 1).Format("2006-01-02T00:00:00")
+	}
+	if hasMin {
+		opprett.FoedtFoer = today.AddDate(-minAlder, 0, 0).Format("2006-01-02T00:00:00")
+	}
+
+	var person *dollyPersonDTO
+	if rawKjoenn, ok := fields["kjoenn"]; ok {
+		kjoenn, kErr := parseStrictString(rawKjoenn, "kjoenn")
+		if kErr != nil {
+			return 0, dollyBestillingRequest{}, kErr
+		}
+		switch kjoenn {
+		case "MANN", "KVINNE", "UKJENT":
+			person = &dollyPersonDTO{Kjoenn: []dollyKjoennDTO{{Kjoenn: kjoenn}}}
+		default:
+			return 0, dollyBestillingRequest{}, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "kjoenn must be MANN, KVINNE, or UKJENT"}
+		}
+	}
+
+	return gruppeID, dollyBestillingRequest{
+		Antall:       antall,
+		Environments: envs,
+		Pdldata: dollyPdlPerson{
+			OpprettNyPerson: opprett,
+			Person:          person,
+		},
+	}, nil
 }
 
 func capResult(b []byte) (string, error) {
