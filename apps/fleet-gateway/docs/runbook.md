@@ -166,7 +166,7 @@ Run in dev first (`kubectl config use-context dev-gcp`, `URL=https://fleet-gatew
 
 Run in dev only. `nais app stop` and `nais app set replicas` ask for interactive confirmation and refuse without a terminal, so the owner runs them. Developer accounts cannot scale with kubectl, and the Alertmanager is not reachable with developer rights (no `pods/portforward` in `nais-system`).
 
-Alerts route per environment to the channel set in Nais Console, not necessarily #github-copilot-alerts.
+Alerts go to `#github-copilot-alerts`. Nais Console sets the channel per environment; for team copilot it is `#github-copilot-alerts` in both dev and prod (confirmed 2026-11-18). If alerts stop arriving, check the Console setting first.
 
 - [x] `nais app stop fleet-gateway -t copilot -e dev-gcp` (dev-gcp, 2026-11-18, 19:43:39 UTC).
 - [x] `FleetGatewayNoReadyPods` reached Slack at 19:47 UTC, about 3.5 min after the stop. The team's dev alert channel was changed in Nais Console during the drill, so treat 3.5 min as an upper bound.
