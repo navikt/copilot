@@ -490,3 +490,20 @@ Fasiten er satt før dommeren har kjørt. Den er satt av Claude Opus 5.5, som ko
 
 **Begrensning:** Fasiten for de ekte svarene er bare positiv, så de negative kontrollene er konstruerte. Kontrollene kan derfor ikke vise hvor ofte dommeren godtar et ekte svar uten sikkerhetsspørsmål.
 
+
+### 19. november 2026: første kontrollkjøring for test 8-dommeren og rettelse av sitatkontrollen
+
+Kontrollkjøring 1 på `8e5d25cf`: 40 av 44 (90,9 %), 4,31 credits, status `fail` (`t8-dommer-kontroller.psv`, hash `f7a5e4ea64fb7adc`). Etter tillegget over godtas ikke dommeren. Kjøringen startet da 1-minuttslasten var 10,5, over grensen på 8 i planen. Den gjør bare API-kall, men det er et avvik.
+
+Avvik, per kilde:
+
+| Rad | Kilde | Fasit | Dom | Årsak |
+| --- | --- | --- | --- | --- |
+| 3 | 2026-10-23 6 Sol, kjøring 2 | 1 | 0 | Modellen sa ja, men sitatet gikk forbi «?» inn i neste setning, og sitatkontrollen avviste det |
+| 43 | bats `indirect` | 1 | 0 | Modellen sa ja, men sitatkontrollen kjenner «trenger å vite», ikke «trenger også å vite» |
+| 30 | konstruert («Hvordan skal signeringsfeil staves?») | 0 | 1 | Modellen tok feil |
+| 12 | 2026-11 6.1 Sol, kjøring 1 | 1 | 0 | Modellen sa nei. Spørsmålet ber om diffen «så vi kan avklare … oppførsel dersom signeringen feiler». Fasiten kan diskuteres |
+
+**Rettelse (`fe062577` på #2437):** bare sitatkontrollen endres, og bare for `secq`. Et sitat som inneholder «?», regnes som et spørsmål, og «trenger også å vite» regnes som indirekte. Dommerprompten, kontrollene og fasiten er ikke endret etter at resultatet ble kjent. Blindsonedommeren er urørt. Den har samme mangel med «trenger også å vite», men å endre den nå ville endret dommeren midt i målingen. Det følges opp i en egen sak.
+
+Terskelen er uendret: 92 %. Kjøring 2 avgjør om dommeren godtas. Feiler den, endres ingenting mer uten eierens godkjenning.
