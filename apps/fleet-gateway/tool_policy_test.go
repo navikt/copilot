@@ -132,6 +132,22 @@ func TestToolPolicy_RouteFile(t *testing.T) {
 			t.Errorf("%q: %v", f, err)
 		}
 	}
+	prodRoutes, err := (fileRouteSource{path: "pilot-routes.prod.yaml"}).Routes()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var foundDolly bool
+	for _, r := range prodRoutes {
+		if r.Route == "/mcp/copilot/dolly" {
+			foundDolly = true
+			if r.allowedTools["create_order"] {
+				t.Fatal("/mcp/copilot/dolly in pilot-routes.prod.yaml must stay read-only until ROS sign-off (must not allow create_order)")
+			}
+		}
+	}
+	if !foundDolly {
+		t.Fatal("missing /mcp/copilot/dolly in pilot-routes.prod.yaml")
+	}
 }
 
 // The audit list stops at maxAuditBatchTools; the policy must still read every member.

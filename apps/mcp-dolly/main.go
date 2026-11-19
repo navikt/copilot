@@ -1,4 +1,4 @@
-// Package main implements mcp-dolly, a read-only MCP server over Dolly (Nav test data) in dev-gcp.
+// Package main implements mcp-dolly, an MCP server over Dolly (Nav test data) in dev-gcp.
 package main
 
 import (
@@ -23,7 +23,7 @@ const (
 	maxRequestBytes   = 1 << 20
 	httpClientTimeout = 10 * time.Second
 	serverName        = "mcp-dolly"
-	serverVersion     = "1.0.0"
+	serverVersion     = "2.0.0"
 )
 
 type config struct {
@@ -83,6 +83,8 @@ type server struct {
 	cfg         *config
 	dolly       *dollyClient
 	upstreamSem chan struct{}
+	quota       *userQuota
+	now         func() time.Time
 }
 
 func newServer(cfg *config) *server {
@@ -90,6 +92,8 @@ func newServer(cfg *config) *server {
 		cfg:         cfg,
 		dolly:       newDollyClient(cfg.DollyURL, cfg.HTTPClient),
 		upstreamSem: make(chan struct{}, maxConcurrentUpstream),
+		quota:       newUserQuota(),
+		now:         time.Now,
 	}
 }
 
@@ -120,7 +124,7 @@ func (s *server) mcpHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err := s.validateToken(r.Context(), token)
+	navIdent, err := s.validateToken(r.Context(), token)
 	if err != nil {
 		switch {
 		case errors.Is(err, errUnauthorized):
@@ -183,9 +187,9 @@ func (s *server) mcpHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	now := time.Now()
+	now := s.now()
 	if !isLegacyMCPRequest(r, env) {
-		s.serveModern(w, r, env, rawID, token, now)
+		s.serveModern(w, r, env, rawID, token, navIdent, now)
 		return
 	}
 	if !mcpLegacyAllowed(now) {
@@ -212,7 +216,7 @@ func (s *server) mcpHandler(w http.ResponseWriter, r *http.Request) {
 	case "tools/list":
 		result = map[string]any{"tools": toolDefinitions()}
 	case "tools/call":
-		res, rpcErr := s.handleToolCall(r.Context(), token, env.Params.Name, env.Params.Arguments)
+		res, rpcErr := s.handleToolCall(r.Context(), token, navIdent, env.Params.Name, env.Params.Arguments)
 		if rpcErr != nil {
 			writeMCPError(w, http.StatusOK, rpcID, rpcErr)
 			return
@@ -230,7 +234,7 @@ func (s *server) mcpHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (s *server) serveModern(w http.ResponseWriter, r *http.Request, env mcpEnvelope, id json.RawMessage, token string, now time.Time) {
+func (s *server) serveModern(w http.ResponseWriter, r *http.Request, env mcpEnvelope, id json.RawMessage, token, navIdent string, now time.Time) {
 	var rpcID any
 	if len(id) > 0 {
 		rpcID = id
@@ -253,7 +257,7 @@ func (s *server) serveModern(w http.ResponseWriter, r *http.Request, env mcpEnve
 		result = map[string]any{"tools": toolDefinitions()}
 		extra = map[string]any{"ttlMs": mcpDiscoverTTLMilliseconds, "cacheScope": "private"}
 	case "tools/call":
-		res, rpcErr := s.handleToolCall(r.Context(), token, env.Params.Name, env.Params.Arguments)
+		res, rpcErr := s.handleToolCall(r.Context(), token, navIdent, env.Params.Name, env.Params.Arguments)
 		if rpcErr != nil {
 			writeMCPError(w, http.StatusOK, rpcID, rpcErr)
 			return

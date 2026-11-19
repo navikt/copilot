@@ -10,6 +10,7 @@ routes:
     target: prod-gcp:copilot:mcp-dolly
     upstream_url: http://mcp-dolly.copilot/
     enabled: true
+    # Stays read-only until ROS sign-off (copilot-intern fleet-gateway/ros-mcp-dolly.md, MD-05); do not add create_order yet.
     tools:
       - dolly_current_user
       - dolly_list_groups
