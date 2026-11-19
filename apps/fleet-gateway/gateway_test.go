@@ -72,7 +72,16 @@ func newTestEnv(t *testing.T) *testEnv {
 				"client_id":                  te.cimdServer.URL + "/oauth-client.json",
 				"client_name":                "cplt test client",
 				"redirect_uris":              []string{te.redirectURI},
-				"grant_types":                []string{"authorization_code"},
+				"grant_types":                []string{"authorization_code", "refresh_token"},
+				"response_types":             []string{"code"},
+				"token_endpoint_auth_method": "none",
+			})
+		case "/other-client.json":
+			writeJSON(w, http.StatusOK, map[string]any{
+				"client_id":                  te.cimdServer.URL + "/other-client.json",
+				"client_name":                "other test client",
+				"redirect_uris":              []string{te.redirectURI},
+				"grant_types":                []string{"authorization_code", "refresh_token"},
 				"response_types":             []string{"code"},
 				"token_endpoint_auth_method": "none",
 			})
@@ -1146,6 +1155,46 @@ func TestCallback_RequiresNAVident(t *testing.T) {
 		code := te.obtainAuthCode(verifier)
 		if code == "" {
 			t.Fatal("expected auth code when NAVident is present in access_token")
+		}
+	})
+}
+
+func TestCallback_RequiresAccessTokenForOBO(t *testing.T) {
+	verifier := "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG"
+
+	t.Run("obo rejects empty access_token even when id_token is present", func(t *testing.T) {
+		te := newTestEnv(t)
+		te.mu.Lock()
+		te.entraToken = ""
+		te.mu.Unlock()
+
+		entraState, stateCookie := te.startLogin(verifier)
+		resp := te.callback(entraState, stateCookie)
+		_ = resp.Body.Close()
+		if resp.StatusCode != http.StatusFound {
+			t.Fatalf("expected 302 redirect, got %d", resp.StatusCode)
+		}
+		loc, err := url.Parse(resp.Header.Get("Location"))
+		if err != nil {
+			t.Fatalf("invalid redirect location: %v", err)
+		}
+		if loc.Query().Get("error") != "server_error" {
+			t.Fatalf("expected server_error when access_token empty in obo mode, got %q (%s)", loc.Query().Get("error"), loc.Query().Get("error_description"))
+		}
+	})
+
+	t.Run("refresh strategy accepts empty access_token when id_token is present", func(t *testing.T) {
+		te := newTestEnv(t)
+		te.gw.cfg.TeamTokenStrategy = strategyRefresh
+		te.mu.Lock()
+		te.entraToken = ""
+		te.mu.Unlock()
+
+		entraState, stateCookie := te.startLogin(verifier)
+		resp := te.callback(entraState, stateCookie)
+		_ = resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("expected consent page (200) in refresh mode, got %d", resp.StatusCode)
 		}
 	})
 }

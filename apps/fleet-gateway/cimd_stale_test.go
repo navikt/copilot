@@ -194,6 +194,22 @@ func TestCIMDStaleFallback(t *testing.T) {
 				name: "empty redirect_uris",
 				body: `{"client_id":%q,"redirect_uris":[],"token_endpoint_auth_method":"none"}`,
 			},
+			{
+				name: "grant_types without authorization_code",
+				body: `{"client_id":%q,"redirect_uris":["http://127.0.0.1:38249/callback"],"grant_types":["refresh_token"],"token_endpoint_auth_method":"none"}`,
+			},
+			{
+				name: "empty grant_types",
+				body: `{"client_id":%q,"redirect_uris":["http://127.0.0.1:38249/callback"],"grant_types":[],"token_endpoint_auth_method":"none"}`,
+			},
+			{
+				name: "response_types without code",
+				body: `{"client_id":%q,"redirect_uris":["http://127.0.0.1:38249/callback"],"response_types":["token"],"token_endpoint_auth_method":"none"}`,
+			},
+			{
+				name: "empty response_types",
+				body: `{"client_id":%q,"redirect_uris":["http://127.0.0.1:38249/callback"],"response_types":[],"token_endpoint_auth_method":"none"}`,
+			},
 		}
 
 		for _, tc := range cases {
@@ -236,6 +252,60 @@ func TestCIMDStaleFallback(t *testing.T) {
 					t.Fatalf("%s: expected 400 on invalid 200 document, got %d", tc.name, rec.Code)
 				}
 			})
+		}
+	})
+}
+
+func TestCIMD_GrantTypesAndResponseTypes(t *testing.T) {
+	const verifier = "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG"
+
+	setCIMD := func(te *testEnv, docJSON string) {
+		wrapCIMDTransport(te, func(*http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader(docJSON)),
+				Header:     make(http.Header),
+			}, nil
+		})
+	}
+
+	t.Run("absent grant_types and response_types keeps mayRefresh=true", func(t *testing.T) {
+		te := newClientEncryptedTestEnv(t, "k1:"+testKeyBase64(t, false))
+		setCIMD(te, `{"client_id":"`+te.clientID+`","redirect_uris":["`+te.redirectURI+`"],"token_endpoint_auth_method":"none"}`)
+		_, rt, _ := te.obtainTokensForResource(te.resource)
+		if rt == "" {
+			t.Fatal("expected refresh_token when CIMD grant_types is absent")
+		}
+	})
+
+	t.Run("grant_types without refresh_token disables refresh", func(t *testing.T) {
+		te := newClientEncryptedTestEnv(t, "k1:"+testKeyBase64(t, false))
+		setCIMD(te, `{"client_id":"`+te.clientID+`","redirect_uris":["`+te.redirectURI+`"],"grant_types":["authorization_code"],"response_types":["code"],"token_endpoint_auth_method":"none"}`)
+		at, rt, _ := te.obtainTokensForResource(te.resource)
+		if at == "" || rt != "" {
+			t.Fatalf("expected access_token without refresh_token, got at=%q rt=%q", at, rt)
+		}
+		status, body := te.refresh("opaque")
+		if status != http.StatusBadRequest || body["error"] != "unauthorized_client" {
+			t.Fatalf("expected 400 unauthorized_client, got %d (%v)", status, body)
+		}
+	})
+
+	t.Run("invalid grant_types or response_types rejected at authorize", func(t *testing.T) {
+		for _, doc := range []string{
+			`{"client_id":%q,"redirect_uris":[%q],"grant_types":["refresh_token"]}`,
+			`{"client_id":%q,"redirect_uris":[%q],"response_types":["token"]}`,
+		} {
+			te := newTestEnv(t)
+			payload := strings.Replace(doc, "%q", `"`+te.clientID+`"`, 1)
+			payload = strings.Replace(payload, "%q", `"`+te.redirectURI+`"`, 1)
+			setCIMD(te, payload)
+			req := httptest.NewRequest(http.MethodGet, te.authorizeURL(nil, verifier), nil)
+			rec := httptest.NewRecorder()
+			te.handler.ServeHTTP(rec, req)
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("expected 400 for %s, got %d", payload, rec.Code)
+			}
 		}
 	})
 }

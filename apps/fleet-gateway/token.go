@@ -217,11 +217,15 @@ func (g *Gateway) handleAuthorizationCodeGrant(w http.ResponseWriter, r *http.Re
 	// Look the client up before the code is consumed: a store error here answers
 	// 503 Retry-After and the retry still finds the code. The client_id is
 	// checked against the code below.
-	_, mayRefresh, err := g.clientGrants(r.Context(), r.PostFormValue("client_id"))
+	known, mayRefresh, err := g.clientGrants(r.Context(), r.PostFormValue("client_id"))
 	if err != nil {
 		slog.Warn("load registered client failed", "error", err)
 		w.Header().Set("Retry-After", "5")
 		bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store unavailable")
+		return
+	}
+	if !known {
+		bad(http.StatusBadRequest, "invalid_grant", "invalid client")
 		return
 	}
 
@@ -405,8 +409,14 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 
 	issuedAt := time.Unix(payload.IAT, 0).UTC()
 	// Absolute expiry is fixed in the RT at issue time, so raising SESSION_MAX_AGE
-	// later cannot revive old tokens.
+	// later cannot revive old tokens; lowering SESSION_MAX_AGE also shortens it
+	// to match putSessionInStore/getSessionFromStore.
 	absExpiry := time.Unix(payload.EXP, 0).UTC()
+	if g.cfg.SessionMaxAge > 0 {
+		if maxExpiry := issuedAt.Add(g.cfg.SessionMaxAge); maxExpiry.Before(absExpiry) {
+			absExpiry = maxExpiry
+		}
+	}
 	if !g.now().Before(absExpiry) {
 		outcome = "session_max_age_expired"
 		bad(http.StatusBadRequest, "invalid_grant", "session expired")
