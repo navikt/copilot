@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/hmac"
 	"errors"
 	"flag"
 	"fmt"
@@ -110,19 +111,30 @@ func newGateway(cfg *Config, now func() time.Time) (*Gateway, error) {
 }
 
 func checkLockoutMarker(store SessionStore, lockoutKey []byte) error {
-	if len(lockoutKey) > 0 {
-		return nil
-	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	_, exists, err := store.Get(ctx, kindUserRevokedMarker, userRevokedMarkerKey)
+	marker, exists, err := store.Get(ctx, kindUserRevokedMarker, userRevokedMarkerKey)
 	if err != nil {
 		return fmt.Errorf("check lockout marker: %w", err)
 	}
-	if exists {
+	if !exists {
+		return nil
+	}
+	if len(lockoutKey) == 0 {
 		return errors.New("LOCKOUT_KEY is missing but lockout records exist; set the LOCKOUT_KEY secret")
 	}
-	return nil
+	want := []byte(lockoutKeyFingerprint(lockoutKey))
+	if hmac.Equal(marker, want) {
+		return nil
+	}
+	if hmac.Equal(marker, []byte("1")) {
+		if err := store.Put(ctx, kindUserRevokedMarker, userRevokedMarkerKey, want, lockoutNoExpiry); err != nil {
+			return fmt.Errorf("update lockout marker: %w", err)
+		}
+		slog.Warn("legacy lockout marker upgraded to key fingerprint")
+		return nil
+	}
+	return errors.New("LOCKOUT_KEY does not match the key the existing lockout records were written with (changing it would lift all lockouts; restore the old key)")
 }
 
 func buildSessionStore(cfg *Config, now func() time.Time, rtKeys *keyRing) (SessionStore, bool, error) {
