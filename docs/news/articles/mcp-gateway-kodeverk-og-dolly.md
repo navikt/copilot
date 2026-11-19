@@ -36,9 +36,8 @@ Gatewayen står foran interne MCP-servere på Nais og tar seg av innloggingen me
 
 Oppsettet virker i Copilot CLI, OpenCode og andre MCP-klienter. I pilotperioden er gatewayen bare tilgjengelig internt via naisdevice. Gatewayen revisjonslogger hvert kall med NAVident, rute, MCP-metode og verktøy.
 
-## To nye MCP-servere
+## Dette kan serverne
 
-Begge serverne leser bare.
 
 - **Felles kodeverk (`io.github.navikt/kodeverk`).** Slå opp publiserte kodeverk, koder og betydninger i Nav, for eksempel at postnummer `0150` er `OSLO`.
 - **Dolly (`io.github.navikt/dolly`).** List opp testgruppene dine i Dolly, se identene til syntetiske testpersoner og sjekk bestillingsstatus per fagsystem, som `PDL`, `TESTNORGE` og `PEN`. Du trenger en gruppe med testpersoner i Dolly fra før. Verktøy for å opprette testdata kommer senere, når grupper har tilgangskontroll.
