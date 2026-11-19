@@ -165,6 +165,7 @@ jobs:
               - 'scripts/install.sh'
               - 'scripts/publish-release.sh'
               - 'scripts/*.bats'
+              - 'scripts/skill-selvutlosning-probe.sh'
               - '.github/workflows/copilot-customization-sync.yml'
               - 'skills/**'
               - 'agents/**'
@@ -694,7 +695,7 @@ jobs:
   # ── PR body template check ─────────────────────────────────────────────────
   # Ensures pull requests include the required sections from
   # .github/pull_request_template.md and do not use Norwegian issue-closing
-  # keywords that GitHub ignores. Automated bots and sync branches are exempt.
+  # keywords that GitHub ignores. Automated bots are exempt.
 
   pr-body-check:
     name: pr-body-check
@@ -709,22 +710,13 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_BODY: ${{ github.event.pull_request.body }}
           ACTOR: ${{ github.event.pull_request.user.login }}
-          HEAD_REF: ${{ github.head_ref }}
         run: |
           python3 - <<'PY'
           import os, re, subprocess, sys
 
           actor = os.environ.get("ACTOR", "")
-          head_ref = os.environ.get("HEAD_REF", "")
-          exempt_prefixes = (
-              "copilot-sync/",
-              "pricing-sync/",
-              "agentpakke-sweep/",
-              "dependabot/",
-              "release/",
-          )
-          if actor.endswith("[bot]") or head_ref.startswith(exempt_prefixes):
-              print(f"Skipping PR body check for automated PR (actor={actor}, ref={head_ref})")
+          if actor.endswith("[bot]"):
+              print(f"Skipping PR body check for automated bot PR (actor={actor})")
               sys.exit(0)
 
           body = os.environ.get("PR_BODY") or ""
