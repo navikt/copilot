@@ -71,6 +71,8 @@ Key rotation takes two deploys (append the new key last, then promote it) and ke
 
 Empty `ALLOWED_CLIENT_IDS` or `ALLOWED_REDIRECT_URIS` fails closed at startup.
 
+Fetched CIMD documents are cached for 5 minutes; if a refresh fails with a transport, non-200 status, or decode error, the last valid document is served for up to 24 hours.
+
 ## Memory and limits
 
 Worst case per buffered MCP call, at the size limits:

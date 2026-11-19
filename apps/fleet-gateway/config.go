@@ -28,6 +28,7 @@ const (
 	defaultConsentTTL                       = 30 * 24 * time.Hour
 	defaultSessionTTL                       = time.Hour
 	defaultCIMDTTL                          = 5 * time.Minute
+	cimdStaleMax                            = 24 * time.Hour
 	defaultOutboundTimeout                  = 10 * time.Second
 	defaultUpstreamTimeout                  = 60 * time.Second // MCP tool calls; headers and body each get this long
 	defaultMCPMaxInFlight                   = 16
