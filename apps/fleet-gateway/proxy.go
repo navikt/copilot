@@ -13,7 +13,6 @@ import (
 	"mime"
 	"net"
 	"net/http"
-	"net/http/httptrace"
 	"net/textproto"
 	"net/url"
 	"strconv"
@@ -399,21 +398,21 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 
 		targetURL := buildUpstreamURL(route.ParsedURL, r.URL.RawQuery)
 		var bodyBuf atomic.Pointer[[]byte]
+		// Track the latest reader so a failed attempt cannot drop the buffer during a retry.
+		var latestBodyDone atomic.Pointer[chan struct{}]
+		newBodyReader := func() *droppableBytes {
+			done := make(chan struct{})
+			latestBodyDone.Store(&done)
+			return &droppableBytes{b: &bodyBuf, done: done}
+		}
 		var bodyReader io.Reader
 		if len(reqBody) > 0 {
 			b := reqBody
 			bodyBuf.Store(&b)
-			bodyReader = &droppableBytes{b: &bodyBuf}
+			bodyReader = newBodyReader()
 		}
 		upCtx, upCancel := context.WithCancel(r.Context())
 		defer upCancel()
-		reqWrote := make(chan struct{})
-		var wroteOnce sync.Once
-		upCtx = httptrace.WithClientTrace(upCtx, &httptrace.ClientTrace{
-			WroteRequest: func(httptrace.WroteRequestInfo) {
-				wroteOnce.Do(func() { close(reqWrote) })
-			},
-		})
 
 		upReq, err := http.NewRequestWithContext(upCtx, r.Method, targetURL, bodyReader)
 		if err != nil {
@@ -427,7 +426,7 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 		if len(reqBody) > 0 {
 			upReq.ContentLength = int64(len(reqBody))
 			upReq.GetBody = func() (io.ReadCloser, error) {
-				return &droppableBytes{b: &bodyBuf}, nil
+				return newBodyReader(), nil
 			}
 		}
 
@@ -520,18 +519,21 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 			// Drop references to the buffered request body (up to 1 MiB) before
 			// streaming so long-lived SSE connections do not pin it on the heap
 			// via locals, resp.Request -> upReq, or Transport's rewind copy in readLoop.
-			// Wait for WroteRequest so an HTTP/1.1 upstream flushing headers early still gets the full body.
-			select {
-			case <-reqWrote:
-				bodyBuf.Store(nil)
-			default:
-				go func() {
-					select {
-					case <-reqWrote:
-					case <-upCtx.Done():
-					}
+			// Wait for the latest reader to copy all bytes so an early-flushing upstream gets the full body.
+			if donePtr := latestBodyDone.Load(); donePtr != nil {
+				done := *donePtr
+				select {
+				case <-done:
 					bodyBuf.Store(nil)
-				}()
+				default:
+					go func() {
+						select {
+						case <-done:
+						case <-upCtx.Done():
+						}
+						bodyBuf.Store(nil)
+					}()
+				}
 			}
 			reqBody = nil    //nolint:ineffassign // drop heap reference before long-lived SSE stream
 			bodyReader = nil //nolint:ineffassign // drop heap reference before long-lived SSE stream
@@ -639,21 +641,36 @@ func readChunks(r io.Reader, limit int64) ([][]byte, int64, error) {
 // branch can release the underlying array even when net/http.Transport cloned
 // upReq in setupRewindBody and kept the clone on persistConn.readLoop.
 type droppableBytes struct {
-	b   *atomic.Pointer[[]byte]
-	off int
+	b        *atomic.Pointer[[]byte]
+	off      int
+	done     chan struct{}
+	doneOnce sync.Once
+}
+
+func (d *droppableBytes) markDone() {
+	if d.done != nil {
+		d.doneOnce.Do(func() { close(d.done) })
+	}
 }
 
 func (d *droppableBytes) Read(p []byte) (int, error) {
 	bp := d.b.Load()
 	if bp == nil || d.off >= len(*bp) {
+		d.markDone()
 		return 0, io.EOF
 	}
 	n := copy(p, (*bp)[d.off:])
 	d.off += n
+	if d.off >= len(*bp) {
+		d.markDone()
+	}
 	return n, nil
 }
 
-func (d *droppableBytes) Close() error { return nil }
+func (d *droppableBytes) Close() error {
+	d.markDone()
+	return nil
+}
 
 func streamSSE(
 	ctx context.Context,
