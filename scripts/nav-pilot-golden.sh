@@ -2361,8 +2361,10 @@ t4_red_zone() {
       section=1
     }
     line ~ /^[#*[:space:]]*🔴[*[:space:]]*rød-sone-deklarasjon[*[:space:]]*$/ { section=1 }
+    /^[[:space:]]*(```|~~~)/ { fence=!fence }
     # A heading only: «## 10. 🔴 Rød sone», «### 10. 🔴 Rød-sone-deklarasjon (skriv selv)» (2026-11, #2450).
-    line ~ /^ ? ? ?##?#?#?#?#?[ \t]+([0-9]+\.[[:space:]]*)?🔴[*[:space:]]*rød[- ]sone(-deklarasjon)?[*[:space:]]*(\(.*\))?[*:[:space:]]*$/ { section=1 }
+    # Not inside a fence, where `# 🔴 rød sone` is a comment in a file listing.
+    !fence && line ~ /^ ? ? ?##?#?#?#?#?[ \t]+([0-9]+\.[[:space:]]*)?🔴[*[:space:]]*rød[- ]sone(-deklarasjon)?[*[:space:]]*(\(.*\))?[*:[:space:]]*$/ { section=1 }
     END { exit !found }
   ' "$1"
 }
@@ -3602,7 +3604,7 @@ DESC_RV4="TSX: every planted defect cited on its line"
 # file's row cite no line. The same rule holds for every arm.
 RV_PR=(
   'fnr-logg=(logg|logger|log|info).{0,80}(fnr|fødselsnummer|pii|personopplys|persondata|personinfo)|(fnr|fødselsnummer|pii|personopplys|persondata).{0,80}logg@VedtakService.kt:15'
-  'sql=injeksjon|injection|parametr|parameteri|parameterbind|bind (verdien|parameteren|fnr)|(direkte|rett) inn i (sql|spørring)|(fnr|fødselsnummer\w*|verdien|inndata|input)\b[^.;!?]{0,40}inn i (sql|spørring)|(injek|injection|sql|parameter|bind)[^.;!?]{0,60}endre spørringen|endre spørringen[^.;!?]{0,60}(injek|injection|sql|parameter|bind)|interpol|konkaten|concat|prepared|bindevariab|sammensl@VedtakRepository.kt:23'
+  'sql=injeksjon|injection|parametr|parameteri|parameterbind|(direkte|rett) inn i (sql|spørring)|endre spørringen|bind (verdien|parameteren|fnr)\b|interpol|konkaten|concat|prepared|bindevariab|sammensl@VedtakRepository.kt:23'
   'tilgang=authenticate|autentiser|autentis|tokenx|tilgangskontroll|auth|ubeskyttet|åpent|uten tilgang@Routes.kt:30'
   'inbound=inbound|accesspolicy|wildcard|"\*"|alle applikasjoner|all applications|alle apper|any application@nais.yaml:25,26'
 )
@@ -3627,14 +3629,14 @@ RV_PR=(
 # review-persona transcripts. Opus runs 4, 6 and 8 there still fail: they
 # never say the save can succeed while the publish fails.
 RV_DESIGN=(
-  'idempotens=idempoten|duplikat|duplis|duplicate|dedup|on conflict|upsert|(flere|nye|nytt) vedtak|ny (uuid|id\b)|(neste|nytt|hvert) forsøk (kjører |gjør )?(lagringen|lagrer|oppretter|setter inn)[^.;!?]{0,40}ny vedtaks-?id|(lagring|lagringen|innsetting)\w* på nytt[^.;!?]{0,20}ny vedtaks-?id|ny vedtaks-?id[^.;!?]{0,20}(per|for hvert|ved hvert|ved nytt) (forsøk|retry)@VedtakConsumer.kt:25,32,33'
-  'idempotens=idempoten|duplikat|duplis|duplicate|dedup|on conflict|upsert|(flere|nye|nytt) vedtak|ny (uuid|id\b)|(neste|nytt|hvert) forsøk (kjører |gjør )?(lagringen|lagrer|oppretter|setter inn)[^.;!?]{0,40}ny vedtaks-?id|(lagring|lagringen|innsetting)\w* på nytt[^.;!?]{0,20}ny vedtaks-?id|ny vedtaks-?id[^.;!?]{0,20}(per|for hvert|ved hvert|ved nytt) (forsøk|retry)@VedtakRepository.kt:14'
+  'idempotens=idempoten|duplikat|duplis|duplicate|dedup|on conflict|upsert|(flere|nye|nytt) vedtak|ny (uuid|id\b)|lagr\w* på nytt med ny vedtaks-?id@VedtakConsumer.kt:25,32,33'
+  'idempotens=idempoten|duplikat|duplis|duplicate|dedup|on conflict|upsert|(flere|nye|nytt) vedtak|ny (uuid|id\b)|lagr\w* på nytt med ny vedtaks-?id@VedtakRepository.kt:14'
   'dobbeltskriving=outbox|atomisk|atomic|transaksjon|transaction|dual.?write|send.{0,20}feiler|publiser\w* (feiler|mislykkes)|(?<![\wæøå])feil(er|et|ede|ende)\W{1,3}(producer\.)?(send\b|publiser)|(send|publish)\w*\W{1,3}(fails|failed)|(før|etter) (den |det )?(blir )?(kafka-)?publiser|uten å (være|bli) publisert|feil(er)? etter (database|db|lagring|innsetting|databaseinnsetting)@0'
 )
 # rv7: the SQL, access and nais.yaml inbound «*» findings are marked high;
 # the unused import is not. Only the Priority cell is read (#1443).
 RV_PRIO=(
-  'sql=injeksjon|injection|parametr|parameteri|parameterbind|bind (verdien|parameteren|fnr)|(direkte|rett) inn i (sql|spørring)|(fnr|fødselsnummer\w*|verdien|inndata|input)\b[^.;!?]{0,40}inn i (sql|spørring)|(injek|injection|sql|parameter|bind)[^.;!?]{0,60}endre spørringen|endre spørringen[^.;!?]{0,60}(injek|injection|sql|parameter|bind)|interpol|konkaten|concat|prepared|bindevariab|sammensl@VedtakRepository.kt:23'
+  'sql=injeksjon|injection|parametr|parameteri|parameterbind|(direkte|rett) inn i (sql|spørring)|endre spørringen|bind (verdien|parameteren|fnr)\b|interpol|konkaten|concat|prepared|bindevariab|sammensl@VedtakRepository.kt:23'
   'tilgang=authenticate|autentiser|autentis|tokenx|tilgangskontroll|auth|ubeskyttet|åpent|uten tilgang@Routes.kt:30'
   'inbound=inbound|accesspolicy|wildcard|"\*"|alle applikasjoner|all applications|alle apper|any application@nais.yaml:25,26'
   '!nit=ubrukt|unused|import|Locale@VedtakService.kt:5'
