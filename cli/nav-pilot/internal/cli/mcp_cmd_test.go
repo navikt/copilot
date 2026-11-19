@@ -346,7 +346,7 @@ func TestMCPCommandIsOffTheHotPath(t *testing.T) {
 	// The entry point, user-scope sync --apply's protocol backfill (#2395), and
 	// the read-only reports doctor and the host consent share with mcp list.
 	allowed := map[string]bool{"cli.go:cmdMCP": true, "sync.go:mcpBackfillOpenCodeProtocol": true, "doctor.go:reportMCPTools": true, "mcp_consent.go:mcpLoopbackNote": true}
-	writers := map[string]bool{"MCPRegistryServers": true, "SetMCPServer": true, "RemoveMCPServer": true, "MCPConfigKeys": true, "ConfiguredMCPServers": true, "MCPClientEntry": true, "MCPConfigKeyFor": true, "NarrowMCPApproval": true, "SetMCPServerTools": true}
+	writers := map[string]bool{"MCPRegistryServers": true, "SetMCPServer": true, "RemoveMCPServer": true, "MCPConfigKeys": true, "ConfiguredMCPServers": true, "MCPClientEntry": true, "MCPConfigKeyFor": true, "NarrowMCPApproval": true, "SetMCPServerTools": true, "RemoveMCPServers": true, "MCPConfigKeysAndComments": true}
 	var files []string
 	for _, dir := range []string{".", "../provider"} {
 		m, _ := filepath.Glob(filepath.Join(dir, "*.go"))
