@@ -22,6 +22,7 @@ const lockoutNoExpiry = 100 * 365 * 24 * time.Hour
 const (
 	userRevokedMarkerKey       = "any"
 	lockoutAuditOutboxKey      = "lockout"
+	lockoutAuditCASAttempts    = 10
 	userLockoutKeyInfo         = "fleet-gateway user-lockout hmac v1"
 	lockoutKeyFingerprintLabel = "fleet-gateway/lockout-key-fingerprint/v1"
 )
@@ -170,7 +171,7 @@ func (g *Gateway) undoLockout(ctx context.Context, navIdent, operator string) er
 	})
 }
 
-// shortcut: Get+Put/Delete is not atomic; drain logs before removing logged IDs, so crashes or failed writes produce duplicates rather than losing entries (duplicates possible, never loss). Fine for a rare operator action.
+// shortcut: drain logs before CAS-removing logged IDs, so a crash or failed write between log and remove produces duplicates rather than losing entries. Fine for a rare operator action.
 func (g *Gateway) appendLockoutAudit(ctx context.Context, entry lockoutAuditEntry) error {
 	if entry.ID == "" {
 		var idBuf [16]byte
@@ -179,22 +180,33 @@ func (g *Gateway) appendLockoutAudit(ctx context.Context, entry lockoutAuditEntr
 		}
 		entry.ID = hex.EncodeToString(idBuf[:])
 	}
-	raw, ok, err := g.store.Get(ctx, kindAuditOutbox, lockoutAuditOutboxKey)
-	if err != nil {
-		return err
-	}
-	var entries []lockoutAuditEntry
-	if ok {
-		if err = json.Unmarshal(raw, &entries); err != nil {
-			return fmt.Errorf("parse lockout audit outbox: %w", err)
+	for range lockoutAuditCASAttempts {
+		raw, ok, err := g.store.Get(ctx, kindAuditOutbox, lockoutAuditOutboxKey)
+		if err != nil {
+			return err
+		}
+		var entries []lockoutAuditEntry
+		var oldVal []byte
+		if ok {
+			oldVal = raw
+			if err = json.Unmarshal(raw, &entries); err != nil {
+				return fmt.Errorf("parse lockout audit outbox: %w", err)
+			}
+		}
+		entries = append(entries, entry)
+		val, err := json.Marshal(entries)
+		if err != nil {
+			return err
+		}
+		swapped, err := g.store.CompareAndSwap(ctx, kindAuditOutbox, lockoutAuditOutboxKey, oldVal, val, lockoutNoExpiry)
+		if err != nil {
+			return err
+		}
+		if swapped {
+			return nil
 		}
 	}
-	entries = append(entries, entry)
-	val, err := json.Marshal(entries)
-	if err != nil {
-		return err
-	}
-	return g.store.Put(ctx, kindAuditOutbox, lockoutAuditOutboxKey, val, lockoutNoExpiry)
+	return errors.New("append lockout audit outbox: conflict after retries")
 }
 
 func (g *Gateway) drainLockoutAudit(ctx context.Context) {
@@ -224,39 +236,55 @@ func (g *Gateway) drainLockoutAudit(ctx context.Context) {
 		loggedIDs[e.ID] = struct{}{}
 	}
 
-	raw, ok, err = g.store.Get(ctx, kindAuditOutbox, lockoutAuditOutboxKey)
-	if err != nil {
-		slog.Warn("re-read lockout audit outbox failed", "error", err)
-		return
-	}
-	if !ok {
-		return
-	}
-	var current []lockoutAuditEntry
-	if err = json.Unmarshal(raw, &current); err != nil {
-		slog.Warn("parse lockout audit outbox failed", "error", err)
-		return
-	}
-	remaining := make([]lockoutAuditEntry, 0, len(current))
-	for _, e := range current {
-		if _, logged := loggedIDs[e.ID]; !logged {
-			remaining = append(remaining, e)
+	currentRaw := raw
+	current := entries
+	for attempt := range lockoutAuditCASAttempts {
+		if attempt > 0 {
+			currentRaw, ok, err = g.store.Get(ctx, kindAuditOutbox, lockoutAuditOutboxKey)
+			if err != nil {
+				slog.Warn("re-read lockout audit outbox failed", "error", err)
+				return
+			}
+			if !ok {
+				return
+			}
+			current = nil
+			if err = json.Unmarshal(currentRaw, &current); err != nil {
+				slog.Warn("parse lockout audit outbox failed", "error", err)
+				return
+			}
+		}
+		remaining := make([]lockoutAuditEntry, 0, len(current))
+		for _, e := range current {
+			if _, logged := loggedIDs[e.ID]; !logged {
+				remaining = append(remaining, e)
+			}
+		}
+		if len(remaining) == len(current) {
+			return
+		}
+		var newVal []byte
+		if len(remaining) > 0 {
+			newVal, err = json.Marshal(remaining)
+			if err != nil {
+				slog.Warn("marshal lockout audit outbox failed", "error", err)
+				return
+			}
+		}
+		swapped, casErr := g.store.CompareAndSwap(ctx, kindAuditOutbox, lockoutAuditOutboxKey, currentRaw, newVal, lockoutNoExpiry)
+		if casErr != nil {
+			if newVal == nil {
+				slog.Warn("delete lockout audit outbox failed", "error", casErr)
+			} else {
+				slog.Warn("update lockout audit outbox failed", "error", casErr)
+			}
+			return
+		}
+		if swapped {
+			return
 		}
 	}
-	if len(remaining) == 0 {
-		if err = g.store.Delete(ctx, kindAuditOutbox, lockoutAuditOutboxKey); err != nil {
-			slog.Warn("delete lockout audit outbox failed", "error", err)
-		}
-		return
-	}
-	val, err := json.Marshal(remaining)
-	if err != nil {
-		slog.Warn("marshal lockout audit outbox failed", "error", err)
-		return
-	}
-	if err = g.store.Put(ctx, kindAuditOutbox, lockoutAuditOutboxKey, val, lockoutNoExpiry); err != nil {
-		slog.Warn("update lockout audit outbox failed", "error", err)
-	}
+	slog.Warn("update lockout audit outbox failed", "error", "conflict after retries")
 }
 
 func (g *Gateway) revokedAt(ctx context.Context, navIdent string) (lockoutRecord, bool, error) {

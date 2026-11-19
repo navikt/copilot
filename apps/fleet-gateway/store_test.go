@@ -376,6 +376,164 @@ func runStoreContract(t *testing.T, factory storeFactory) {
 			}
 		}
 	})
+
+	t.Run("compare and swap", func(t *testing.T) {
+		clk := newFakeClock(time.Date(2026, 11, 17, 10, 0, 0, 0, time.UTC))
+		store := factory(t, clk.Now, nil)
+		defer store.Close()
+		ctx := context.Background()
+
+		// Use an unsealed kind so SealedMemory also exercises the CAS contract.
+		const kind = kindUserRevoked
+		const key = "cas-key"
+
+		type casStep struct {
+			name     string
+			advance  time.Duration
+			seed     []byte
+			seedTTL  time.Duration
+			oldVal   []byte
+			newVal   []byte
+			wantSwap bool
+			wantLive bool
+			wantVal  []byte
+		}
+
+		steps := []casStep{
+			{
+				name:     "nil-to-nil on absent row",
+				oldVal:   nil,
+				newVal:   nil,
+				wantSwap: true,
+				wantLive: false,
+			},
+			{
+				name:     "insert-if-absent",
+				oldVal:   nil,
+				newVal:   []byte("v1"),
+				wantSwap: true,
+				wantLive: true,
+				wantVal:  []byte("v1"),
+			},
+			{
+				name:     "nil-to-nil conflicts on live row",
+				oldVal:   nil,
+				newVal:   nil,
+				wantSwap: false,
+				wantLive: true,
+				wantVal:  []byte("v1"),
+			},
+			{
+				name:     "insert-if-absent conflict",
+				oldVal:   nil,
+				newVal:   []byte("v2"),
+				wantSwap: false,
+				wantLive: true,
+				wantVal:  []byte("v1"),
+			},
+			{
+				name:     "update conflict",
+				oldVal:   []byte("wrong"),
+				newVal:   []byte("v2"),
+				wantSwap: false,
+				wantLive: true,
+				wantVal:  []byte("v1"),
+			},
+			{
+				name:     "update match",
+				oldVal:   []byte("v1"),
+				newVal:   []byte("v2"),
+				wantSwap: true,
+				wantLive: true,
+				wantVal:  []byte("v2"),
+			},
+			{
+				name:     "delete conflict",
+				oldVal:   []byte("v1"),
+				newVal:   nil,
+				wantSwap: false,
+				wantLive: true,
+				wantVal:  []byte("v2"),
+			},
+			{
+				name:     "delete match",
+				oldVal:   []byte("v2"),
+				newVal:   nil,
+				wantSwap: true,
+				wantLive: false,
+			},
+			{
+				name:     "update missing row",
+				oldVal:   []byte("v2"),
+				newVal:   []byte("v3"),
+				wantSwap: false,
+				wantLive: false,
+			},
+			{
+				name:     "delete missing row",
+				oldVal:   []byte("v2"),
+				newVal:   nil,
+				wantSwap: false,
+				wantLive: false,
+			},
+			{
+				name:     "update expired row fails",
+				seed:     []byte("exp"),
+				seedTTL:  10 * time.Second,
+				advance:  10 * time.Second,
+				oldVal:   []byte("exp"),
+				newVal:   []byte("nope"),
+				wantSwap: false,
+				wantLive: false,
+			},
+			{
+				name:     "delete expired row fails",
+				seed:     []byte("exp"),
+				seedTTL:  10 * time.Second,
+				advance:  10 * time.Second,
+				oldVal:   []byte("exp"),
+				newVal:   nil,
+				wantSwap: false,
+				wantLive: false,
+			},
+			{
+				name:     "insert-if-absent succeeds over expired row",
+				seed:     []byte("exp2"),
+				seedTTL:  10 * time.Second,
+				advance:  10 * time.Second,
+				oldVal:   nil,
+				newVal:   []byte("fresh"),
+				wantSwap: true,
+				wantLive: true,
+				wantVal:  []byte("fresh"),
+			},
+		}
+
+		for _, tc := range steps {
+			if tc.seed != nil {
+				if err := store.Put(ctx, kind, key, tc.seed, tc.seedTTL); err != nil {
+					t.Fatalf("%s: seed Put: %v", tc.name, err)
+				}
+			}
+			if tc.advance > 0 {
+				clk.Advance(tc.advance)
+			}
+			swapped, err := store.CompareAndSwap(ctx, kind, key, tc.oldVal, tc.newVal, time.Minute)
+			if err != nil {
+				t.Fatalf("%s: CompareAndSwap err: %v", tc.name, err)
+			}
+			if swapped != tc.wantSwap {
+				t.Fatalf("%s: swapped=%v, want %v", tc.name, swapped, tc.wantSwap)
+			}
+			got, ok, err := store.Get(ctx, kind, key)
+			if err != nil {
+				t.Fatalf("%s: Get err: %v", tc.name, err)
+			}
+			if ok != tc.wantLive || (tc.wantLive && !bytes.Equal(got, tc.wantVal)) {
+				t.Fatalf("%s: Get=(%q, %v), want (%q, %v)", tc.name, got, ok, tc.wantVal, tc.wantLive)
+			}
+		}
+	})
 }
 
 func TestStoreContract_Memory(t *testing.T) {
@@ -545,6 +703,52 @@ func TestSealedStore_SecurityAndKeyRotation(t *testing.T) {
 	}
 	if _, ok, err := sealed1.Pop(ctx, kindCode, "sess-1"); err == nil || ok {
 		t.Fatalf("expected AAD mismatch error on kind swap, got ok=%v err=%v", ok, err)
+	}
+
+	// CompareAndSwap refuses sealed kinds.
+	if swapped, casErr := sealed1.CompareAndSwap(ctx, kindSession, "sess-cas", nil, []byte("v"), time.Hour); casErr == nil || swapped {
+		t.Fatalf("expected error for CompareAndSwap on sealed kind, got swapped=%v err=%v", swapped, casErr)
+	}
+}
+
+func TestSealedStore_AuditOutboxLegacy(t *testing.T) {
+	kr1, err := parseKeyRing("k1:" + testKeyBase64(t, false))
+	if err != nil {
+		t.Fatalf("parseKeyRing k1 failed: %v", err)
+	}
+	krOnlyK2, err := parseKeyRing("k2:" + testKeyBase64(t, true))
+	if err != nil {
+		t.Fatalf("parseKeyRing k2 failed: %v", err)
+	}
+
+	clk := newFakeClock(time.Date(2026, 11, 17, 10, 0, 0, 0, time.UTC))
+	inner := newMemoryStore(clk.Now, nil)
+	sealed1 := newSealedStore(inner, kr1)
+	sealedOnlyK2 := newSealedStore(inner, krOnlyK2)
+	ctx := context.Background()
+
+	legacyOutboxPlain := []byte(`[{"id":"1"}]`)
+	legacyOutboxBlob, err := kr1.Seal(sealAAD(kindAuditOutbox, lockoutAuditOutboxKey), legacyOutboxPlain)
+	if err != nil {
+		t.Fatalf("Seal legacy outbox failed: %v", err)
+	}
+	if putErr := inner.Put(ctx, kindAuditOutbox, lockoutAuditOutboxKey, legacyOutboxBlob, time.Hour); putErr != nil {
+		t.Fatalf("inner Put legacy outbox failed: %v", putErr)
+	}
+	if _, ok, getErr := sealedOnlyK2.Get(ctx, kindAuditOutbox, lockoutAuditOutboxKey); getErr == nil || ok {
+		t.Fatalf("expected error on legacy outbox Get with wrong key, got ok=%v err=%v", ok, getErr)
+	}
+	if swapped, casErr := sealedOnlyK2.CompareAndSwap(ctx, kindAuditOutbox, lockoutAuditOutboxKey, legacyOutboxPlain, []byte(`[]`), time.Hour); casErr == nil || swapped {
+		t.Fatalf("expected error on legacy outbox CAS with wrong key, got swapped=%v err=%v", swapped, casErr)
+	}
+	if swapped, casErr := sealed1.CompareAndSwap(ctx, kindAuditOutbox, lockoutAuditOutboxKey, nil, []byte(`[]`), time.Hour); casErr != nil || swapped {
+		t.Fatalf("expected conflict on legacy outbox CAS with oldVal=nil, got swapped=%v err=%v", swapped, casErr)
+	}
+	if swapped, casErr := sealed1.CompareAndSwap(ctx, kindAuditOutbox, lockoutAuditOutboxKey, []byte(`[{"id":"wrong"}]`), []byte(`[]`), time.Hour); casErr != nil || swapped {
+		t.Fatalf("expected conflict on legacy outbox CAS with mismatched oldVal, got swapped=%v err=%v", swapped, casErr)
+	}
+	if popped, ok, popErr := sealed1.Pop(ctx, kindAuditOutbox, lockoutAuditOutboxKey); popErr != nil || !ok || !bytes.Equal(popped, legacyOutboxPlain) {
+		t.Fatalf("expected legacy outbox Pop to unseal, got %q ok=%v err=%v", popped, ok, popErr)
 	}
 }
 

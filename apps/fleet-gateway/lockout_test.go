@@ -805,6 +805,7 @@ func assertValidAuditID(t *testing.T, v any) string {
 type auditHookStore struct {
 	SessionStore
 	onAuditGet func()
+	onAuditCAS func()
 	putErr     error
 	deleteErr  error
 }
@@ -831,6 +832,23 @@ func (s *auditHookStore) Delete(ctx context.Context, kind, key string) error {
 		return s.deleteErr
 	}
 	return s.SessionStore.Delete(ctx, kind, key)
+}
+
+func (s *auditHookStore) CompareAndSwap(ctx context.Context, kind, key string, oldVal, newVal []byte, ttl time.Duration) (bool, error) {
+	if kind == kindAuditOutbox {
+		if s.onAuditCAS != nil {
+			hook := s.onAuditCAS
+			s.onAuditCAS = nil
+			hook()
+		}
+		if newVal == nil && s.deleteErr != nil {
+			return false, s.deleteErr
+		}
+		if newVal != nil && s.putErr != nil {
+			return false, s.putErr
+		}
+	}
+	return s.SessionStore.CompareAndSwap(ctx, kind, key, oldVal, newVal, ttl)
 }
 
 func runLockoutFingerprintAndAuditContract(t *testing.T, newStore func(t *testing.T, now func() time.Time) SessionStore) {
@@ -1065,6 +1083,169 @@ func runLockoutFingerprintAndAuditContract(t *testing.T, newStore func(t *testin
 		}
 		if _, ok, err := base.Get(ctx, kindAuditOutbox, lockoutAuditOutboxKey); err != nil || ok {
 			t.Fatalf("expected outbox deleted after retry: ok=%v err=%v", ok, err)
+		}
+	})
+
+	t.Run("drain keeps entry appended between re-read and CAS write", func(t *testing.T) {
+		clk := newFakeClock(time.Date(2026, 11, 16, 12, 0, 0, 0, time.UTC))
+		base := newStore(t, clk.Now)
+		hooked := &auditHookStore{SessionStore: base}
+		gw := &Gateway{
+			now:        clk.Now,
+			store:      hooked,
+			lockoutKey: []byte(testLockoutKey),
+		}
+
+		if _, err := gw.lockOutUser(ctx, "Z111111", "op-first"); err != nil {
+			t.Fatalf("lockOutUser: %v", err)
+		}
+		// Conflict on the first CAS (forces drain to re-read), then conflict again
+		// between drain's re-read and its CAS write.
+		hooked.onAuditCAS = func() {
+			if err := gw.undoLockout(ctx, "Z111111", "op-between-1"); err != nil {
+				t.Errorf("undoLockout before first CAS: %v", err)
+			}
+			hooked.onAuditCAS = func() {
+				if _, err := gw.lockOutUser(ctx, "Z222222", "op-between-2"); err != nil {
+					t.Errorf("lockOutUser between re-read and CAS: %v", err)
+				}
+			}
+		}
+
+		var buf bytes.Buffer
+		prev := slog.Default()
+		slog.SetDefault(slog.New(slog.NewJSONHandler(&buf, nil)))
+		defer slog.SetDefault(prev)
+
+		gw.drainLockoutAudit(ctx)
+		lines1 := parseJSONLogLines(t, buf.Bytes())
+		if len(lines1) != 1 || lines1[0]["operator"] != "op-first" {
+			t.Fatalf("first drain expected only op-first (no re-log on CAS retry), got %s", buf.String())
+		}
+
+		buf.Reset()
+		gw.drainLockoutAudit(ctx)
+		lines2 := parseJSONLogLines(t, buf.Bytes())
+		if len(lines2) != 2 || lines2[0]["operator"] != "op-between-1" || lines2[1]["operator"] != "op-between-2" {
+			t.Fatalf("second drain expected both interleaved entries, got %s", buf.String())
+		}
+		if _, ok, err := base.Get(ctx, kindAuditOutbox, lockoutAuditOutboxKey); err != nil || ok {
+			t.Fatalf("expected empty outbox after second drain: ok=%v err=%v", ok, err)
+		}
+	})
+
+	t.Run("two concurrent appends are both kept", func(t *testing.T) {
+		clk := newFakeClock(time.Date(2026, 11, 16, 12, 0, 0, 0, time.UTC))
+		store := newStore(t, clk.Now)
+		gw := &Gateway{
+			now:        clk.Now,
+			store:      store,
+			lockoutKey: []byte(testLockoutKey),
+		}
+
+		start := make(chan struct{})
+		errs := make(chan error, 2)
+		go func() {
+			<-start
+			_, err := gw.lockOutUser(ctx, "Z444444", "op-conc-1")
+			errs <- err
+		}()
+		go func() {
+			<-start
+			errs <- gw.undoLockout(ctx, "Z555555", "op-conc-2")
+		}()
+		close(start)
+		for range 2 {
+			if err := <-errs; err != nil {
+				t.Fatalf("concurrent append failed: %v", err)
+			}
+		}
+
+		var buf bytes.Buffer
+		prev := slog.Default()
+		slog.SetDefault(slog.New(slog.NewJSONHandler(&buf, nil)))
+		defer slog.SetDefault(prev)
+
+		gw.drainLockoutAudit(ctx)
+		lines := parseJSONLogLines(t, buf.Bytes())
+		if len(lines) != 2 {
+			t.Fatalf("expected 2 logged entries, got %s", buf.String())
+		}
+		ops := map[string]bool{}
+		for _, l := range lines {
+			op, _ := l["operator"].(string)
+			ops[op] = true
+			assertValidAuditID(t, l["id"])
+		}
+		if !ops["op-conc-1"] || !ops["op-conc-2"] {
+			t.Fatalf("expected both op-conc-1 and op-conc-2, got %v", ops)
+		}
+		if _, ok, err := store.Get(ctx, kindAuditOutbox, lockoutAuditOutboxKey); err != nil || ok {
+			t.Fatalf("expected outbox empty after drain: ok=%v err=%v", ok, err)
+		}
+	})
+
+	t.Run("legacy sealed outbox fixture can be appended and drained", func(t *testing.T) {
+		clk := newFakeClock(time.Date(2026, 11, 16, 12, 0, 0, 0, time.UTC))
+		store := newStore(t, clk.Now)
+		sealed, ok := store.(*sealedStore)
+		if !ok {
+			t.Fatal("expected *sealedStore")
+		}
+		gw := &Gateway{
+			now:        clk.Now,
+			store:      store,
+			lockoutKey: []byte(testLockoutKey),
+		}
+
+		legacyEntries := []lockoutAuditEntry{{
+			ID:       "0123456789abcdef0123456789abcdef",
+			Action:   "lock",
+			UserKey:  userKeyWith([]byte(testLockoutKey), "Z999999"),
+			Operator: "op-legacy-sealed",
+			At:       clk.Now().Unix(),
+		}}
+		plaintext, err := json.Marshal(legacyEntries)
+		if err != nil {
+			t.Fatal(err)
+		}
+		blob, err := sealed.keys.Seal(sealAAD(kindAuditOutbox, lockoutAuditOutboxKey), plaintext)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := sealed.inner.Put(ctx, kindAuditOutbox, lockoutAuditOutboxKey, blob, lockoutNoExpiry); err != nil {
+			t.Fatal(err)
+		}
+
+		if _, err := gw.lockOutUser(ctx, "Z888888", "op-new-after-legacy"); err != nil {
+			t.Fatalf("lockOutUser on legacy sealed outbox: %v", err)
+		}
+		var buf bytes.Buffer
+		prev := slog.Default()
+		slog.SetDefault(slog.New(slog.NewJSONHandler(&buf, nil)))
+		defer slog.SetDefault(prev)
+
+		gw.drainLockoutAudit(ctx)
+		lines := parseJSONLogLines(t, buf.Bytes())
+		if len(lines) != 2 || lines[0]["operator"] != "op-legacy-sealed" || lines[1]["operator"] != "op-new-after-legacy" {
+			t.Fatalf("expected both legacy sealed and appended entries drained, got %s", buf.String())
+		}
+		if _, ok, err := store.Get(ctx, kindAuditOutbox, lockoutAuditOutboxKey); err != nil || ok {
+			t.Fatalf("expected outbox deleted after drain: ok=%v err=%v", ok, err)
+		}
+
+		// Also verify draining directly from a legacy sealed row without an append.
+		if err := sealed.inner.Put(ctx, kindAuditOutbox, lockoutAuditOutboxKey, blob, lockoutNoExpiry); err != nil {
+			t.Fatal(err)
+		}
+		buf.Reset()
+		gw.drainLockoutAudit(ctx)
+		lines2 := parseJSONLogLines(t, buf.Bytes())
+		if len(lines2) != 1 || lines2[0]["operator"] != "op-legacy-sealed" {
+			t.Fatalf("expected direct drain of legacy sealed outbox, got %s", buf.String())
+		}
+		if _, ok, err := store.Get(ctx, kindAuditOutbox, lockoutAuditOutboxKey); err != nil || ok {
+			t.Fatalf("expected outbox deleted after direct legacy drain: ok=%v err=%v", ok, err)
 		}
 	})
 }
