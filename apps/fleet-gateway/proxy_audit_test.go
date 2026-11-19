@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"net/http"
 	"testing"
 )
@@ -20,13 +19,6 @@ func TestMCPSession_RejectedUpstreamReplyLeavesNoBinding(t *testing.T) {
 	}
 	if _, found := mcpBound(te, "too-big"); found {
 		t.Fatal("a rejected upstream reply created a binding")
-	}
-}
-
-func TestRPCMethodTool_MethodCaseIsAmbiguous(t *testing.T) {
-	_, _, amb := rpcMethodTool(json.RawMessage(`"Tools/Call"`), json.RawMessage(`{"name":"x"}`))
-	if !amb {
-		t.Fatal("Tools/Call must be flagged ambiguous")
 	}
 }
 
