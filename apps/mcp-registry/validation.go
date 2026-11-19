@@ -54,6 +54,17 @@ func validateAllowListFile() error {
 }
 
 func validateRegistry(data *StaticRegistryData) error {
+	return validateRegistryEntries(nil, data)
+}
+
+func validateSubstitutedRegistry(raw, data *StaticRegistryData) error {
+	if len(data.Servers) != len(raw.Servers) {
+		return fmt.Errorf("server count changed after substitution (%d -> %d)", len(raw.Servers), len(data.Servers))
+	}
+	return validateRegistryEntries(raw, data)
+}
+
+func validateRegistryEntries(raw, data *StaticRegistryData) error {
 	if len(data.Servers) == 0 {
 		return fmt.Errorf("registry must contain at least one server")
 	}
@@ -61,7 +72,11 @@ func validateRegistry(data *StaticRegistryData) error {
 	serverNames := make(map[string]bool)
 
 	for i := range data.Servers {
-		if err := validateServerEntry(&data.Servers[i], i, serverNames); err != nil {
+		var rawServer *StaticServerData
+		if raw != nil {
+			rawServer = &raw.Servers[i]
+		}
+		if err := validateServerEntry(&data.Servers[i], rawServer, i, serverNames); err != nil {
 			return err
 		}
 		serverNames[data.Servers[i].Name] = true
@@ -70,7 +85,7 @@ func validateRegistry(data *StaticRegistryData) error {
 	return nil
 }
 
-func validateServerEntry(server *StaticServerData, index int, existingNames map[string]bool) error {
+func validateServerEntry(server, rawServer *StaticServerData, index int, existingNames map[string]bool) error {
 	if err := validateName(server.Name, index); err != nil {
 		return err
 	}
@@ -93,8 +108,16 @@ func validateServerEntry(server *StaticServerData, index int, existingNames map[
 		}
 	}
 
+	if rawServer != nil && len(server.Remotes) != len(rawServer.Remotes) {
+		return fmt.Errorf("server[%d]: remote count changed after substitution", index)
+	}
+
 	for j := range server.Remotes {
-		if err := validateTransport(&server.Remotes[j], index, j); err != nil {
+		var rawRemote *Transport
+		if rawServer != nil {
+			rawRemote = &rawServer.Remotes[j]
+		}
+		if err := validateTransport(&server.Remotes[j], rawRemote, index, j); err != nil {
 			return err
 		}
 	}
@@ -332,7 +355,7 @@ func validateStatus(status string, index int) error {
 
 var templateVarRegex = regexp.MustCompile(`\{\{[a-zA-Z_][a-zA-Z0-9_]*\}\}`)
 
-func validateTransport(transport *Transport, serverIndex, remoteIndex int) error {
+func validateTransport(transport, rawTransport *Transport, serverIndex, remoteIndex int) error {
 	if strings.TrimSpace(transport.Type) == "" {
 		return fmt.Errorf("server[%d].remotes[%d]: 'type' is required and cannot be empty", serverIndex, remoteIndex)
 	}
@@ -348,7 +371,13 @@ func validateTransport(transport *Transport, serverIndex, remoteIndex int) error
 		if strings.TrimSpace(transport.URL) == "" {
 			return fmt.Errorf("server[%d].remotes[%d]: 'url' is required for %s transport", serverIndex, remoteIndex, transport.Type)
 		}
-		if err := validateURL(transport.URL); err != nil {
+		var err error
+		if rawTransport == nil {
+			err = validateURL(transport.URL)
+		} else {
+			err = validateSubstitutedURL(rawTransport.URL, transport.URL)
+		}
+		if err != nil {
 			return fmt.Errorf("server[%d].remotes[%d]: %v", serverIndex, remoteIndex, err)
 		}
 	}
@@ -364,21 +393,87 @@ func validateURL(rawURL string) error {
 	if err != nil {
 		return fmt.Errorf("invalid url format: %v", err)
 	}
+	host, err := validateURLSchemeAndHost(u)
+	if err != nil {
+		return err
+	}
+	return validatePublicHost(host)
+}
+
+func validateSubstitutedURL(rawURL, subURL string) error {
+	u, err := url.Parse(subURL)
+	if err != nil {
+		return fmt.Errorf("invalid url format: %v", err)
+	}
+	host, err := validateURLSchemeAndHost(u)
+	if err != nil {
+		return err
+	}
+	if u.User != nil {
+		return errors.New("userinfo is not allowed in url")
+	}
+	if !isLoopbackHost(host) && !hostRegex.MatchString(strings.ToLower(host)) {
+		return fmt.Errorf("url host %q is invalid", host)
+	}
+	if rawURL != subURL {
+		if err := validateSubstitutionBoundary(rawURL, u); err != nil {
+			return err
+		}
+	}
+	return validateHost(host, urlHostHasInternalTemplate(rawURL))
+}
+
+func validateURLSchemeAndHost(u *url.URL) (string, error) {
 	host := u.Hostname()
 	if host == "" {
-		return errors.New("url must have a host")
+		return "", errors.New("url must have a host")
 	}
 	switch u.Scheme {
 	case "https":
 	case "http":
 		// Loopback servers (e.g. local IDE MCP plugins) legitimately bind plain HTTP.
 		if !isLoopbackHost(host) {
-			return fmt.Errorf("url must use https scheme, got %q", u.Scheme)
+			return "", fmt.Errorf("url must use https scheme, got %q", u.Scheme)
 		}
 	default:
-		return fmt.Errorf("url must use https scheme, got %q", u.Scheme)
+		return "", fmt.Errorf("url must use https scheme, got %q", u.Scheme)
 	}
-	return validatePublicHost(host)
+	return host, nil
+}
+
+func validateSubstitutionBoundary(rawURL string, subU *url.URL) error {
+	rawU, err := url.Parse(templateVarRegex.ReplaceAllString(rawURL, "placeholder"))
+	if err != nil {
+		return fmt.Errorf("invalid raw url format: %v", err)
+	}
+	if subU.Scheme != rawU.Scheme {
+		return fmt.Errorf("substituted url scheme %q does not match %q", subU.Scheme, rawU.Scheme)
+	}
+	if subU.Port() != rawU.Port() {
+		return fmt.Errorf("substituted url port %q does not match %q", subU.Port(), rawU.Port())
+	}
+	if strings.Contains(rawU.Host, "placeholder") {
+		if !strings.Contains(rawU.Path, "placeholder") && subU.Path != rawU.Path {
+			return fmt.Errorf("substituted host changed url path from %q to %q", rawU.Path, subU.Path)
+		}
+		if !strings.Contains(rawU.RawQuery, "placeholder") && subU.RawQuery != rawU.RawQuery {
+			return errors.New("substituted host changed url query")
+		}
+		if !strings.Contains(rawU.Fragment, "placeholder") && subU.Fragment != rawU.Fragment {
+			return errors.New("substituted host changed url fragment")
+		}
+	}
+	return nil
+}
+
+func urlHostHasInternalTemplate(rawURL string) bool {
+	replaced := strings.ReplaceAll(rawURL, "{{domain_internal}}", "__domain_internal__")
+	replaced = templateVarRegex.ReplaceAllString(replaced, "placeholder")
+	u, err := url.Parse(replaced)
+	if err != nil {
+		return false
+	}
+	return strings.Contains(u.Hostname(), "__domain_internal__")
 }
 
 // internalHostSuffixes are domains only reachable inside Nav. The registry is
@@ -386,9 +481,16 @@ func validateURL(rawURL string) error {
 var internalHostSuffixes = []string{".intern.nav.no", ".intern.dev.nav.no", ".svc.cluster.local", ".adeo.no"}
 
 func validatePublicHost(host string) error {
+	return validateHost(host, false)
+}
+
+func validateHost(host string, allowNavInternal bool) error {
 	h := "." + strings.TrimSuffix(strings.ToLower(host), ".")
 	for _, suffix := range internalHostSuffixes {
 		if strings.HasSuffix(h, suffix) {
+			if allowNavInternal && (suffix == ".intern.nav.no" || suffix == ".intern.dev.nav.no") {
+				continue
+			}
 			return fmt.Errorf("url host %q is internal (%s); team MCPs go through the gateway", host, strings.TrimPrefix(suffix, "."))
 		}
 	}

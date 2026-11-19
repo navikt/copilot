@@ -82,6 +82,11 @@ func (s *Store) loadStatic() ([]ServerResponse, map[string]bool, error) {
 	if err != nil {
 		return nil, nil, fmt.Errorf("parsing static allowlist JSON: %w", err)
 	}
+	if s.config != nil {
+		if err = validateSubstitutedRegistry(&raw, &staticData); err != nil {
+			return nil, nil, fmt.Errorf("validating static allowlist after substitution: %w", err)
+		}
+	}
 
 	updatedAt := fileInfo.ModTime().UTC()
 	servers := make([]ServerResponse, 0, len(staticData.Servers))

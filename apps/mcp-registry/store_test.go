@@ -305,6 +305,154 @@ func TestStore_StaticLoadFailureKeepsLastGoodSet(t *testing.T) {
 	}
 }
 
+func TestStore_StaticPostSubstitutionValidation(t *testing.T) {
+	allowlistWithURL := func(url string) []byte {
+		return []byte(`{"servers":[{"name":"io.github.navikt/test-mcp","description":"Test MCP server","version":"1.0.0","remotes":[{"type":"streamable-http","url":"` + url + `"}]}]}`)
+	}
+
+	tests := []struct {
+		name           string
+		rawURL         string
+		domainInternal string
+		domainExternal string
+		wantErr        bool
+		wantURL        string
+	}{
+		{
+			name:           "(a) template domain_internal with intern.nav.no loads OK",
+			rawURL:         "https://mcp.{{domain_internal}}/mcp",
+			domainInternal: "intern.nav.no",
+			domainExternal: "ekstern.nav.no",
+			wantErr:        false,
+			wantURL:        "https://mcp.intern.nav.no/mcp",
+		},
+		{
+			name:           "(a) template domain_internal with intern.dev.nav.no loads OK",
+			rawURL:         "https://mcp.{{domain_internal}}/mcp",
+			domainInternal: "intern.dev.nav.no",
+			domainExternal: "ekstern.dev.nav.no",
+			wantErr:        false,
+			wantURL:        "https://mcp.intern.dev.nav.no/mcp",
+		},
+		{
+			name:           "(b) non-template literal x.intern.nav.no is rejected",
+			rawURL:         "https://x.intern.nav.no/mcp",
+			domainInternal: "intern.nav.no",
+			domainExternal: "ekstern.nav.no",
+			wantErr:        true,
+		},
+		{
+			name:           "(c) template with slash in DomainInternal is rejected",
+			rawURL:         "https://mcp.{{domain_internal}}/mcp",
+			domainInternal: "evil.example.com/x",
+			domainExternal: "ekstern.nav.no",
+			wantErr:        true,
+		},
+		{
+			name:           "(c) template with spaces in DomainInternal is rejected",
+			rawURL:         "https://mcp.{{domain_internal}}/mcp",
+			domainInternal: "bad host.nav.no",
+			domainExternal: "ekstern.nav.no",
+			wantErr:        true,
+		},
+		{
+			name:           "(c) template with scheme in DomainInternal is rejected",
+			rawURL:         "https://{{domain_internal}}/mcp",
+			domainInternal: "http://evil.example.com",
+			domainExternal: "ekstern.nav.no",
+			wantErr:        true,
+		},
+		{
+			name:           "(c) template with empty DomainInternal is rejected",
+			rawURL:         "https://mcp.{{domain_internal}}/mcp",
+			domainInternal: "",
+			domainExternal: "ekstern.nav.no",
+			wantErr:        true,
+		},
+		{
+			name:           "(d) domain_external resolving to intern.nav.no is rejected",
+			rawURL:         "https://mcp.{{domain_external}}/mcp",
+			domainInternal: "intern.nav.no",
+			domainExternal: "intern.nav.no",
+			wantErr:        true,
+		},
+		{
+			name:           "(d) domain_external resolving to intern.dev.nav.no is rejected",
+			rawURL:         "https://mcp.{{domain_external}}/mcp",
+			domainInternal: "intern.dev.nav.no",
+			domainExternal: "x.intern.dev.nav.no",
+			wantErr:        true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "allowlist.json")
+			if err := os.WriteFile(path, allowlistWithURL(tc.rawURL), 0o600); err != nil {
+				t.Fatal(err)
+			}
+			cfg := &Config{
+				DomainInternal: tc.domainInternal,
+				DomainExternal: tc.domainExternal,
+			}
+			store := NewStore(cfg, path, nil)
+			servers, err := store.GetServers()
+			if tc.wantErr {
+				if err == nil {
+					t.Fatalf("expected error from GetServers on invalid allowlist, got %d servers", len(servers))
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected GetServers error: %v", err)
+			}
+			if len(servers) != 1 || len(servers[0].Server.Remotes) != 1 {
+				t.Fatalf("unexpected servers shape: %+v", servers)
+			}
+			if got := servers[0].Server.Remotes[0].URL; got != tc.wantURL {
+				t.Errorf("remote URL = %q, want %q", got, tc.wantURL)
+			}
+		})
+	}
+
+	t.Run("reload failure after bad substitution keeps last good set", func(t *testing.T) {
+		path := filepath.Join(t.TempDir(), "allowlist.json")
+		if err := os.WriteFile(path, allowlistWithURL("https://mcp.{{domain_internal}}/mcp"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		cfg := &Config{
+			DomainInternal: "intern.nav.no",
+			DomainExternal: "ekstern.nav.no",
+		}
+		store := NewStore(cfg, path, nil)
+		before, err := store.GetServers()
+		if err != nil {
+			t.Fatalf("initial load failed: %v", err)
+		}
+		wantGoodURL := "https://mcp.intern.nav.no/mcp"
+		if before[0].Server.Remotes[0].URL != wantGoodURL {
+			t.Fatalf("initial URL = %q, want %q", before[0].Server.Remotes[0].URL, wantGoodURL)
+		}
+
+		for _, badDomain := range []string{"evil.example.com/x", "bad host.nav.no", "http://evil.example.com"} {
+			cfg.DomainInternal = badDomain
+			if _, _, loadErr := store.loadStatic(); loadErr == nil {
+				t.Fatalf("loadStatic(%q) succeeded, want error", badDomain)
+			}
+			if err := store.Reload(t.Context()); err != nil {
+				t.Fatalf("Reload(%q) returned %v, want nil when keeping last good static set", badDomain, err)
+			}
+			after, err := store.GetServers()
+			if err != nil {
+				t.Fatalf("GetServers after bad reload failed: %v", err)
+			}
+			if len(after) != len(before) || after[0].Server.Remotes[0].URL != wantGoodURL {
+				t.Fatalf("last good set changed after %q: got %+v", badDomain, after)
+			}
+		}
+	})
+}
+
 func TestStore_ReloadBoundsStalledDBLoad(t *testing.T) {
 	old := dbLoadTimeout
 	dbLoadTimeout = 50 * time.Millisecond
