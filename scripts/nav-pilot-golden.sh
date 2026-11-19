@@ -321,7 +321,8 @@ fail_preflight() {
 #                                     no invented callers, at most three points
 #   kafka     kafka        kf1-kf4    Kotlin consumer: idempotency and commit
 #                                     after processing; a backward-compatible field
-#   rust      rust         rs1-rs4    a borrow error; thiserror errors with tests
+#   rust      rust         rs1-rs6    a borrow error; thiserror errors with tests;
+#                                     dedup that survives a failed payment
 #   delegation nav-pilot   d1-d4      which models ran, read from the client's
 #                                     debug log: Opus in Fase 3, a worker on a
 #                                     3-file feature, none on a rename, research
@@ -368,7 +369,7 @@ case "$GROUP" in
   coding)        VALID_IDS="ko1 ko2 ko3 ko4 ko5 ko6" ;;
   research)      VALID_IDS="re1 re2 re3 re4" ;;
   kafka)         VALID_IDS="kf1 kf2 kf3 kf4" ;;
-  rust)          VALID_IDS="rs1 rs2 rs3 rs4" ;;
+  rust)          VALID_IDS="rs1 rs2 rs3 rs4 rs5 rs6" ;;
   delegation)    VALID_IDS="d1 d2 d3 d4" ;;
   security-champion) VALID_IDS="sc1 sc2 sc3" ;;
   *) fail_preflight \
@@ -1364,6 +1365,7 @@ eval_project() {
 kf_konsument() { eval_project "$1" kafka vedtak-konsument; }
 kf_hendelse()  { eval_project "$1" kafka vedtak-hendelse; }
 rs_saksko()    { eval_project "$1" rust saksko; }
+rs_mottak()    { eval_project "$1" rust meldingsmottak; }
 # Behaviour is not enough here: the task names thiserror and asks for tests.
 # The pristine crate has one #[test]; the task wants one per error variant.
 rs_parser() {
@@ -1383,7 +1385,7 @@ if [[ "$GROUP" == "kafka" || "$GROUP" == "rust" ]]; then
     checks="kf_konsument kf_hendelse"
   else
     command -v cargo >/dev/null 2>&1 || fail_preflight "--suite rust needs cargo on PATH" "The rust suite is local-only: install cargo (not in .mise.toml)."
-    checks="rs_saksko rs_parser"
+    checks="rs_saksko rs_parser rs_mottak"
   fi
   cp -R "$GF/$GROUP/workspace/." "$TEMPLATE/"
   # Three controls per check: the pristine fixture fails, the known fix
@@ -4222,7 +4224,7 @@ coding_task() {
   fi
 }
 
-# ─── kafka and rust suites: the agents fix realistic tasks (kf1-kf4, rs1-rs4) ─
+# ─── kafka and rust suites: the agents fix realistic tasks (kf1-kf4, rs1-rs6) ─
 # agent_task <slug> <prompt> <check fn> <project> <id> <desc> <id> <desc>
 # The check runs the evaluator's hidden tests; scope is every changed file
 # inside <project>/, so adding tests is fine and touching anything else is not.
@@ -4271,6 +4273,9 @@ run_pass_rust() {
   agent_task rs-feil "les i vedtak-parser/ får panikk på ugyldig input. Endre den til å returnere Result<Vedtak, VedtakFeil>. VedtakFeil skal være en enum laget med thiserror, med variantene ManglerId (tom id), ManglerBelop og UgyldigBelop(String), der strengen er den ugyldige teksten, og den skal stå i feilmeldingen. Skriv en test for hver feil. Kjør cargo test i vedtak-parser/." \
     rs_parser vedtak-parser \
     rs3 "Rust errors: hidden tests pass, thiserror used, a test per error" rs4 "Rust errors: changes only inside vedtak-parser/"
+  agent_task rs-mottak "Vi utbetaler dobbelt når samme melding leveres på nytt. Rett Mottak::motta i meldingsmottak/ slik at samme id bare utbetales én gang. En melding der utbetalingen feilet, leveres på nytt senere. Kjør cargo test i meldingsmottak/." \
+    rs_mottak meldingsmottak \
+    rs5 "Rust dedup: hidden tests pass (one payment per id, a failed payment is retried)" rs6 "Rust dedup: changes only inside meldingsmottak/"
 }
 
 run_pass_coding() {
