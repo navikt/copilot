@@ -7,6 +7,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -14,6 +15,27 @@ import (
 	"strings"
 	"time"
 )
+
+type lockoutRecord struct {
+	RevokedBefore int64 `json:"revoked_before"`
+	Blocked       bool  `json:"blocked"`
+}
+
+func parseLockoutRecord(raw []byte) (lockoutRecord, error) {
+	s := strings.TrimSpace(string(raw))
+	if strings.HasPrefix(s, "{") {
+		var rec lockoutRecord
+		if err := json.Unmarshal([]byte(s), &rec); err != nil {
+			return lockoutRecord{}, fmt.Errorf("parse lockout record: %w", err)
+		}
+		return rec, nil
+	}
+	sec, err := strconv.ParseInt(s, 10, 64)
+	if err != nil {
+		return lockoutRecord{}, fmt.Errorf("parse lockout timestamp: %w", err)
+	}
+	return lockoutRecord{RevokedBefore: sec, Blocked: true}, nil
+}
 
 const userLockoutKeyInfo = "fleet-gateway user-lockout hmac v1"
 
@@ -62,7 +84,7 @@ func (g *Gateway) lockoutTTL() time.Duration {
 }
 
 func (g *Gateway) lockOutUser(ctx context.Context, navIdent, operator string) (time.Time, error) {
-	if navIdent == "" {
+	if strings.TrimSpace(navIdent) == "" {
 		return time.Time{}, errors.New("empty navIdent")
 	}
 	if len(g.userKeys) == 0 {
@@ -74,7 +96,13 @@ func (g *Gateway) lockOutUser(ctx context.Context, navIdent, operator string) (t
 	}
 	now := nowFn().UTC()
 	key := g.userKey(navIdent)
-	val := []byte(strconv.FormatInt(now.Unix(), 10))
+	val, err := json.Marshal(lockoutRecord{
+		RevokedBefore: now.Unix(),
+		Blocked:       true,
+	})
+	if err != nil {
+		return time.Time{}, err
+	}
 	if err := g.store.Put(ctx, kindUserRevoked, key, val, g.lockoutTTL()); err != nil {
 		return time.Time{}, err
 	}
@@ -89,36 +117,52 @@ func (g *Gateway) undoLockout(ctx context.Context, navIdent, operator string) er
 	if len(g.userKeys) == 0 {
 		return errors.New("user lockout keys not initialized")
 	}
-	for _, k := range g.userKeys {
-		if err := g.store.Delete(ctx, kindUserRevoked, userKeyWith(k, navIdent)); err != nil {
+	rec, found, err := g.revokedAt(ctx, navIdent)
+	if err != nil {
+		return err
+	}
+	key := g.userKey(navIdent)
+	if found {
+		val, err := json.Marshal(lockoutRecord{
+			RevokedBefore: rec.RevokedBefore,
+			Blocked:       false,
+		})
+		if err != nil {
 			return err
 		}
+		if err := g.store.Put(ctx, kindUserRevoked, key, val, g.lockoutTTL()); err != nil {
+			return err
+		}
+		for _, k := range g.userKeys[1:] {
+			if err := g.store.Delete(ctx, kindUserRevoked, userKeyWith(k, navIdent)); err != nil {
+				return err
+			}
+		}
 	}
-	slog.Info("audit lockout", "outcome", "ok", "action", "undo", "user_key", g.userKey(navIdent), "operator", sanitizeLogValue(operator))
+	slog.Info("audit lockout", "outcome", "ok", "action", "undo", "user_key", key, "operator", sanitizeLogValue(operator))
 	return nil
 }
 
-func (g *Gateway) revokedAt(ctx context.Context, navIdent string) (time.Time, bool, error) {
-	if navIdent == "" || len(g.userKeys) == 0 {
-		return time.Time{}, false, nil
+func (g *Gateway) revokedAt(ctx context.Context, navIdent string) (lockoutRecord, bool, error) {
+	if strings.TrimSpace(navIdent) == "" || len(g.userKeys) == 0 {
+		return lockoutRecord{}, false, nil
 	}
-	var latest time.Time
+	var latest lockoutRecord
 	found := false
 	for _, k := range g.userKeys {
 		raw, ok, err := g.store.Get(ctx, kindUserRevoked, userKeyWith(k, navIdent))
 		if err != nil {
-			return time.Time{}, false, err
+			return lockoutRecord{}, false, err
 		}
 		if !ok {
 			continue
 		}
-		sec, err := strconv.ParseInt(strings.TrimSpace(string(raw)), 10, 64)
+		rec, err := parseLockoutRecord(raw)
 		if err != nil {
-			return time.Time{}, false, fmt.Errorf("parse lockout timestamp: %w", err)
+			return lockoutRecord{}, false, err
 		}
-		ts := time.Unix(sec, 0).UTC()
-		if !found || ts.After(latest) {
-			latest = ts
+		if !found || rec.RevokedBefore > latest.RevokedBefore {
+			latest = rec
 			found = true
 		}
 	}
@@ -126,9 +170,9 @@ func (g *Gateway) revokedAt(ctx context.Context, navIdent string) (time.Time, bo
 }
 
 func (g *Gateway) userRevoked(ctx context.Context, navIdent string, issuedAt time.Time) (bool, error) {
-	revoked, ok, err := g.revokedAt(ctx, navIdent)
+	rec, ok, err := g.revokedAt(ctx, navIdent)
 	if err != nil || !ok {
 		return false, err
 	}
-	return issuedAt.Unix() <= revoked.Unix(), nil
+	return rec.Blocked || issuedAt.Unix() <= rec.RevokedBefore, nil
 }

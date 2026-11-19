@@ -43,12 +43,34 @@ func TestLockout_SessionRejectedForTargetUserOnly(t *testing.T) {
 		t.Fatalf("user B after A locked out: got %d, want 200", rec.Code)
 	}
 
-	// Session issued in a later second after lockout works.
+	// While blocked (before undo), even a session or login in a later second is rejected.
 	te.advance(time.Second)
 	te.navIdent = "Z111111"
-	tokenAAfter := te.obtainAccessTokenForResource(te.resource)
-	if rec := mcpPost(te, tokenAAfter, ""); rec.Code != http.StatusOK {
-		t.Fatalf("user A new session after lockout: got %d, want 200", rec.Code)
+	verifier := "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG"
+	codeAfter := te.obtainAuthCode(verifier)
+	status, body := te.postToken(url.Values{
+		"grant_type":    {"authorization_code"},
+		"code":          {codeAfter},
+		"client_id":     {te.clientID},
+		"redirect_uri":  {te.redirectURI},
+		"resource":      {te.resource},
+		"code_verifier": {verifier},
+	})
+	if status != http.StatusBadRequest || body["error"] != "invalid_grant" || body["error_description"] != "session revoked" {
+		t.Fatalf("login while blocked: got %d %v, want 400 invalid_grant (session revoked)", status, body)
+	}
+	postLockoutHash := hashToken("post-lockout-session")
+	if err := te.gw.putSession(ctx, postLockoutHash, &gatewaySession{
+		ClientID: te.clientID,
+		Resource: te.resource,
+		NAVIdent: "Z111111",
+		IssuedAt: te.now,
+		Expiry:   te.now.Add(time.Hour),
+	}, time.Hour); err != nil {
+		t.Fatalf("putSession: %v", err)
+	}
+	if _, ok, err := te.gw.getSession(ctx, postLockoutHash); err != nil || ok {
+		t.Fatalf("session issued after lockout second while blocked: ok=%v err=%v, want ok=false err=nil", ok, err)
 	}
 }
 
@@ -272,6 +294,9 @@ func TestLockout_Undo(t *testing.T) {
 
 	issuedBefore := te.now
 	tokBefore, rtBefore, _ := te.obtainTokensForResource(te.resource)
+	if te.asksConsent() {
+		t.Fatal("expected remembered consent before lockout")
+	}
 
 	if _, err := te.gw.lockOutUser(ctx, te.navIdent, "op1"); err != nil {
 		t.Fatalf("lockOutUser: %v", err)
@@ -279,29 +304,116 @@ func TestLockout_Undo(t *testing.T) {
 	if revoked, err := te.gw.userRevoked(ctx, te.navIdent, issuedBefore); err != nil || !revoked {
 		t.Fatalf("userRevoked during lockout: revoked=%v err=%v, want true nil", revoked, err)
 	}
+	if revoked, err := te.gw.userRevoked(ctx, te.navIdent, issuedBefore.Add(time.Second)); err != nil || !revoked {
+		t.Fatalf("userRevoked for later timestamp during lockout: revoked=%v err=%v, want true nil", revoked, err)
+	}
 
 	if err := te.gw.undoLockout(ctx, te.navIdent, "op2"); err != nil {
 		t.Fatalf("undoLockout: %v", err)
 	}
-	if revoked, err := te.gw.userRevoked(ctx, te.navIdent, issuedBefore); err != nil || revoked {
-		t.Fatalf("userRevoked after undo: revoked=%v err=%v, want false nil", revoked, err)
+	if revoked, err := te.gw.userRevoked(ctx, te.navIdent, issuedBefore); err != nil || !revoked {
+		t.Fatalf("userRevoked for pre-lockout timestamp after undo: revoked=%v err=%v, want true nil", revoked, err)
 	}
-	if _, ok, err := te.gw.getSession(ctx, hashToken(tokBefore)); err != nil || !ok {
-		t.Fatalf("getSession after undo: ok=%v err=%v, want true nil", ok, err)
+	if _, ok, err := te.gw.getSession(ctx, hashToken(tokBefore)); err != nil || ok {
+		t.Fatalf("pre-lockout getSession after undo: ok=%v err=%v, want false nil", ok, err)
 	}
 	status, body := te.postToken(url.Values{
 		"grant_type":    {"refresh_token"},
 		"client_id":     {te.clientID},
 		"refresh_token": {rtBefore},
 	})
-	if status != http.StatusOK || body["access_token"] == "" {
-		t.Fatalf("refresh after undo: got %d %v, want 200", status, body)
+	if status != http.StatusBadRequest || body["error"] != "invalid_grant" || body["error_description"] != "session revoked" {
+		t.Fatalf("pre-lockout refresh after undo: got %d %v, want 400 invalid_grant (session revoked)", status, body)
+	}
+	if !te.asksConsent() {
+		t.Fatal("expected pre-lockout remembered consent to stay rejected after undo")
 	}
 
+	te.advance(time.Second)
 	tokAfter := te.obtainAccessTokenForResource(te.resource)
 	if rec := mcpPost(te, tokAfter, ""); rec.Code != http.StatusOK {
 		t.Fatalf("new session after undo: got %d, want 200", rec.Code)
 	}
+}
+
+func TestLockout_UndoNoOpWhenNoRow(t *testing.T) {
+	ctx := context.Background()
+	te := newTestEnv(t)
+
+	if err := te.gw.undoLockout(ctx, te.navIdent, "op-noop"); err != nil {
+		t.Fatalf("undoLockout with no row: %v", err)
+	}
+	if _, ok, err := te.gw.store.Get(ctx, kindUserRevoked, te.gw.userKey(te.navIdent)); err != nil || ok {
+		t.Fatalf("expected no row written on no-op undo: ok=%v err=%v", ok, err)
+	}
+}
+
+func TestLockout_LegacyPlainIntRecord(t *testing.T) {
+	ctx := context.Background()
+	te := newTestEnv(t)
+
+	lockSec := te.now.Unix()
+	key := te.gw.userKey(te.navIdent)
+	if err := te.gw.store.Put(ctx, kindUserRevoked, key, []byte("1700000000"), te.gw.lockoutTTL()); err != nil {
+		t.Fatalf("put legacy lockout row: %v", err)
+	}
+	// Even a timestamp far after 1700000000 is blocked because legacy rows parse as blocked=true.
+	if revoked, err := te.gw.userRevoked(ctx, te.navIdent, time.Unix(lockSec, 0).UTC()); err != nil || !revoked {
+		t.Fatalf("legacy plain-int row should block later timestamp: revoked=%v err=%v", revoked, err)
+	}
+
+	if err := te.gw.undoLockout(ctx, te.navIdent, "op-legacy"); err != nil {
+		t.Fatalf("undoLockout on legacy row: %v", err)
+	}
+	if revoked, err := te.gw.userRevoked(ctx, te.navIdent, time.Unix(1700000000, 0).UTC()); err != nil || !revoked {
+		t.Fatalf("legacy timestamp <= N should remain revoked after undo: revoked=%v err=%v", revoked, err)
+	}
+	if revoked, err := te.gw.userRevoked(ctx, te.navIdent, time.Unix(1700000001, 0).UTC()); err != nil || revoked {
+		t.Fatalf("timestamp > N should be allowed after undo: revoked=%v err=%v", revoked, err)
+	}
+}
+
+func TestLockout_MultiKeyMerging(t *testing.T) {
+	ctx := context.Background()
+	keyA := "k1:" + testKeyBase64(t, false)
+	keyB := "k2:" + testKeyBase64(t, false)
+	te := newClientEncryptedTestEnv(t, keyB+","+keyA)
+
+	primaryKey := userKeyWith(te.gw.userKeys[0], te.navIdent)
+	secondaryKey := userKeyWith(te.gw.userKeys[1], te.navIdent)
+	ttl := te.gw.lockoutTTL()
+
+	t.Run("max revoked_before wins with its blocked flag", func(t *testing.T) {
+		if err := te.gw.store.Put(ctx, kindUserRevoked, primaryKey, []byte(`{"revoked_before":100,"blocked":false}`), ttl); err != nil {
+			t.Fatal(err)
+		}
+		if err := te.gw.store.Put(ctx, kindUserRevoked, secondaryKey, []byte(`{"revoked_before":200,"blocked":true}`), ttl); err != nil {
+			t.Fatal(err)
+		}
+		rec, ok, err := te.gw.revokedAt(ctx, te.navIdent)
+		if err != nil || !ok {
+			t.Fatalf("revokedAt: ok=%v err=%v", ok, err)
+		}
+		if rec.RevokedBefore != 200 || !rec.Blocked {
+			t.Fatalf("got %+v, want {RevokedBefore:200 Blocked:true}", rec)
+		}
+	})
+
+	t.Run("primary wins on tie", func(t *testing.T) {
+		if err := te.gw.store.Put(ctx, kindUserRevoked, primaryKey, []byte(`{"revoked_before":200,"blocked":false}`), ttl); err != nil {
+			t.Fatal(err)
+		}
+		if err := te.gw.store.Put(ctx, kindUserRevoked, secondaryKey, []byte(`{"revoked_before":200,"blocked":true}`), ttl); err != nil {
+			t.Fatal(err)
+		}
+		rec, ok, err := te.gw.revokedAt(ctx, te.navIdent)
+		if err != nil || !ok {
+			t.Fatalf("revokedAt: ok=%v err=%v", ok, err)
+		}
+		if rec.RevokedBefore != 200 || rec.Blocked {
+			t.Fatalf("got %+v, want {RevokedBefore:200 Blocked:false}", rec)
+		}
+	})
 }
 
 func TestLockout_UndoRemovesNonPrimaryRingKey(t *testing.T) {
@@ -339,29 +451,60 @@ func TestLockout_UndoRemovesNonPrimaryRingKey(t *testing.T) {
 	if err := gwBA.undoLockout(ctx, te.navIdent, "op2"); err != nil {
 		t.Fatalf("undoLockout with ring B,A: %v", err)
 	}
-	if revoked, err := te.gw.userRevoked(ctx, te.navIdent, issuedBefore); err != nil || revoked {
-		t.Fatalf("ring-A userRevoked after undo: revoked=%v err=%v, want false nil", revoked, err)
+	// Non-primary keyA row must have been deleted; primary keyB row keeps revoked_before with blocked=false.
+	if _, ok, err := gwBA.store.Get(ctx, kindUserRevoked, userKeyWith(userKeysBA[1], te.navIdent)); err != nil || ok {
+		t.Fatalf("non-primary keyA row after undo: ok=%v err=%v, want ok=false err=nil", ok, err)
 	}
-	if _, ok, err := te.gw.getSession(ctx, hashToken(tok)); err != nil || !ok {
-		t.Fatalf("ring-A getSession after undo: ok=%v err=%v, want true nil", ok, err)
+	if _, ok, err := gwBA.store.Get(ctx, kindUserRevoked, gwBA.userKey(te.navIdent)); err != nil || !ok {
+		t.Fatalf("primary keyB row after undo: ok=%v err=%v, want ok=true err=nil", ok, err)
+	}
+	if revoked, err := gwBA.userRevoked(ctx, te.navIdent, issuedBefore); err != nil || !revoked {
+		t.Fatalf("ring-B,A userRevoked for pre-lockout timestamp after undo: revoked=%v err=%v, want true nil", revoked, err)
+	}
+	if _, ok, err := gwBA.getSession(ctx, hashToken(tok)); err != nil || ok {
+		t.Fatalf("ring-B,A pre-lockout getSession after undo: ok=%v err=%v, want false nil", ok, err)
+	}
+	if revoked, err := gwBA.userRevoked(ctx, te.navIdent, issuedBefore.Add(time.Second)); err != nil || revoked {
+		t.Fatalf("ring-B,A userRevoked for post-undo timestamp: revoked=%v err=%v, want false nil", revoked, err)
 	}
 }
 
 func TestRunLockout_CLIArgs(t *testing.T) {
+	tests := []struct {
+		name      string
+		args      []string
+		wantUndo  bool
+		wantIdent string
+		wantErr   bool
+	}{
+		{name: "none", args: nil, wantErr: true},
+		{name: "blank", args: []string{"  "}, wantErr: true},
+		{name: "flag only", args: []string{"-x"}, wantErr: true},
+		{name: "extra arg", args: []string{"a", "b"}, wantErr: true},
+		{name: "undo alone", args: []string{"--undo"}, wantErr: true},
+		{name: "undo extra arg", args: []string{"--undo", "a", "b"}, wantErr: true},
+		{name: "undo blank", args: []string{"--undo", "  "}, wantErr: true},
+		{name: "undo flag", args: []string{"--undo", "-x"}, wantErr: true},
+		{name: "valid lock", args: []string{" z123456 "}, wantUndo: false, wantIdent: "Z123456"},
+		{name: "valid undo", args: []string{"--undo", " z123456 "}, wantUndo: true, wantIdent: "Z123456"},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			undo, ident, err := parseLockoutArgs(tc.args)
+			if tc.wantErr {
+				if err == nil {
+					t.Fatalf("parseLockoutArgs(%v): got (%v, %q, nil), want error", tc.args, undo, ident)
+				}
+				return
+			}
+			if err != nil || undo != tc.wantUndo || ident != tc.wantIdent {
+				t.Fatalf("parseLockoutArgs(%v): got (%v, %q, %v), want (%v, %q, nil)", tc.args, undo, ident, err, tc.wantUndo, tc.wantIdent)
+			}
+		})
+	}
+
 	if code := runLockout(nil); code == 0 {
-		t.Fatal("expected non-zero exit code for missing arg")
-	}
-	if code := runLockout([]string{"   "}); code == 0 {
-		t.Fatal("expected non-zero exit code for blank arg")
-	}
-	if code := runLockout([]string{"Z123456", "extra"}); code == 0 {
-		t.Fatal("expected non-zero exit code for extra arg")
-	}
-	if code := runLockout([]string{"--undo"}); code == 0 {
-		t.Fatal("expected non-zero exit code for --undo without NAVident")
-	}
-	if code := runLockout([]string{"--undo", "a", "b"}); code == 0 {
-		t.Fatal("expected non-zero exit code for --undo with extra arg")
+		t.Fatal("expected non-zero exit code for invalid args")
 	}
 
 	setBaseValidEnv(t)

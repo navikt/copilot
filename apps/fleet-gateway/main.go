@@ -543,8 +543,7 @@ func main() {
 	}
 }
 
-func runLockout(args []string) int {
-	var undo bool
+func parseLockoutArgs(args []string) (undo bool, navIdent string, err error) {
 	var rawIdent string
 	switch {
 	case len(args) == 1 && !strings.HasPrefix(args[0], "-"):
@@ -553,12 +552,22 @@ func runLockout(args []string) int {
 		undo = true
 		rawIdent = args[1]
 	default:
-		_, _ = fmt.Fprintln(os.Stderr, "usage: fleet-gateway lockout [--undo] <NAVident>")
-		return 1
+		return false, "", errors.New("usage: fleet-gateway lockout [--undo] <NAVident>")
 	}
-	navIdent := strings.ToUpper(strings.TrimSpace(rawIdent))
+	navIdent = strings.ToUpper(strings.TrimSpace(rawIdent))
 	if navIdent == "" {
-		_, _ = fmt.Fprintln(os.Stderr, "lockout: NAVident must not be empty")
+		return false, "", errors.New("lockout: NAVident must not be empty")
+	}
+	if strings.HasPrefix(navIdent, "-") {
+		return false, "", errors.New("usage: fleet-gateway lockout [--undo] <NAVident>")
+	}
+	return undo, navIdent, nil
+}
+
+func runLockout(args []string) int {
+	undo, navIdent, err := parseLockoutArgs(args)
+	if err != nil {
+		_, _ = fmt.Fprintln(os.Stderr, err)
 		return 1
 	}
 

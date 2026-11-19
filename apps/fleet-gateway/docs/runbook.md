@@ -100,12 +100,12 @@ kubectl exec -n copilot deploy/fleet-gateway -- env OPERATOR=<your-ident> /app/m
 
 Effect:
 
-- `/mcp/*` rejects sessions issued at or before the lockout timestamp with `401` and deletes the session row on lookup.
-- `/token` rejects pre-lockout authorization codes and refresh tokens with `invalid_grant` (`session revoked`).
-- Remembered consent created at or before the lockout is deleted lazily on the next login.
+- `/mcp/*` rejects the user's sessions with `401` and deletes the session row on lookup.
+- `/token` rejects authorization codes (including new logins) and refresh tokens with `invalid_grant` (`session revoked`).
+- Remembered consent is deleted lazily on the next login.
 - Other users are unaffected.
 
-The command writes an `audit lockout` line (`outcome=ok`, `action=lock`, `user_key`, `operator`) to stdout / Loki; plaintext `NAVident` is never logged. A new login after the lockout gets a fresh session because the lockout only invalidates sessions, codes, refresh tokens and consent issued at or before it — so the user must also be blocked in Entra.
+The command writes an `audit lockout` line (`outcome=ok`, `action=lock`, `user_key`, `operator`) to stdout / Loki; plaintext `NAVident` is never logged. The lockout blocks the user (including new logins) until undone; also block the user in Entra if they should not regain access later.
 
 To undo a lockout:
 
@@ -113,7 +113,7 @@ To undo a lockout:
 kubectl exec -n copilot deploy/fleet-gateway -- env OPERATOR=<your-ident> /app/main lockout --undo <NAVident>
 ```
 
-This removes the lockout record and writes an `audit lockout` line with `action=undo`. Sessions issued before the lockout that have not expired become valid again, so lift the Entra block first only when the user should regain access. `kubectl exec` is the v1 mechanism; an operator API behind internal ingress is tracked in #2435.
+This lifts the block for new logins only and writes an `audit lockout` line with `action=undo`. Sessions, authorization codes, refresh tokens and remembered consent issued before the lockout stay invalid permanently. `kubectl exec` is the v1 mechanism; an operator API behind internal ingress is tracked in #2435.
 
 ## Block one client
 
