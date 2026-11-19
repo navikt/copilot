@@ -32,7 +32,7 @@ curl -s -o /dev/null -w '%{http_code}\n' $URL/health $URL/ready
 kubectl -n $NS logs -l app=fleet-gateway --prefix --tail=-1 --since=30m | grep '"audit '
 ```
 
-Audit lines: `audit mcp` in OpenID AuthZEN shape (`subject.id` NAVident, `resource.id` route, `action.properties.tool`, `decision.decision`, `decision.context.reason`, `context.outcome`; see the README), `audit login`, `audit refresh`, `audit dcr`. A killed route logs `route disabled by kill switch`. Logs are ordinary stdout; retention in the platform log store is unverified (#2317 F1). A saved query for Grafana Loki or Kibana is not yet recorded: add it here after the drill.
+Audit lines: `audit mcp` in OpenID AuthZEN shape (`subject.id` NAVident, `resource.id` route, `action.properties.tool`, `decision.decision`, `decision.context.reason`, `context.outcome`; see the README), `audit login`, `audit refresh`, `audit dcr`. A killed route logs `route disabled by kill switch`. Logs are ordinary stdout. Owner decision 2026-11-18: audit lines go to Loki; retention measured at 90 days or more, but the limit is not confirmed by the platform team. A saved query for Grafana Loki or Kibana is not yet recorded: add it here after the drill.
 
 ## Kill switches
 
