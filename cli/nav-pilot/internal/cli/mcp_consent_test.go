@@ -470,3 +470,14 @@ func TestMCPConsentPreservesOtherClientAllowlist(t *testing.T) {
 		t.Fatalf("after copilot launch sync, allowlist lost a host:\n%s", got)
 	}
 }
+
+func TestMCPManualCommandsQuotesHost(t *testing.T) {
+	got := mcpManualCommands([]providerpkg.MCPHost{{Host: "a;b.example", Private: true}})
+	want := []string{
+		"cplt config set allow.domains 'a;b.example'",
+		"cplt config set proxy.allow_private_domains 'a;b.example'",
+	}
+	if !slices.Equal(got, want) {
+		t.Errorf("mcpManualCommands = %q, want %q", got, want)
+	}
+}

@@ -377,7 +377,7 @@ func checkPrivateDomain(host string) error {
 	if h == "" {
 		return fmt.Errorf("%q is not a valid domain name", host)
 	}
-	if ps, icann := publicsuffix.PublicSuffix(h); icann && ps == h {
+	if ps, _ := publicsuffix.PublicSuffix(h); ps == h {
 		return fmt.Errorf("%q is a public suffix; name a specific host instead", host)
 	}
 	if (h == "nav.no" || strings.HasSuffix(h, ".nav.no")) && len(strings.Split(h, ".")) < 3 {

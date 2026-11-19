@@ -580,7 +580,11 @@ func TestMCPFixesQuoteInterpolatedValues(t *testing.T) {
 			URL: "https://evil$(id).example/mcp",
 		}},
 		Setup: []providerpkg.MCPSetupStep{
-			{Title: "bad value", Commands: []string{"cplt config set allow.domains a.example;rm"}},
+			{Title: "single quoted", Commands: []string{"cplt config set allow.domains 'api.example.com'"}},
+			{Title: "double quoted", Commands: []string{`cplt config set allow.domains "dbl.example.com"`}},
+			{Title: "plain", Commands: []string{"cplt config set allow.domains plain.example.com"}},
+			{Title: "semicolon", Commands: []string{"cplt config set allow.domains a.example;rm"}},
+			{Title: "unterminated quote", Commands: []string{"cplt config set allow.domains 'unterminated.example.com"}},
 			{Title: "bad key", Commands: []string{"cplt config set bad;key val"}},
 			{Title: "upper key", Commands: []string{"cplt config set BAD_KEY val"}},
 			{Title: "slash key", Commands: []string{"cplt config set a/b val"}},
@@ -602,7 +606,9 @@ func TestMCPFixesQuoteInterpolatedValues(t *testing.T) {
 	wantAll := []string{
 		"nav-pilot mcp disable 'io.example/old $(id)'",
 		"cplt config set allow.domains 'evil$(id).example'",
-		"cplt config set allow.domains 'a.example;rm'",
+		"cplt config set allow.domains api.example.com",
+		"cplt config set allow.domains dbl.example.com",
+		"cplt config set allow.domains plain.example.com",
 		"nav-pilot mcp disable 'old $(id)' --client copilot && nav-pilot mcp enable 'io.example/old $(id)' --client copilot",
 		"nav-pilot mcp disable 'my $(touch w)' --client copilot, or ask for it in the registry: " + providerpkg.MCPRegistryHelpURL,
 	}
@@ -612,8 +618,11 @@ func TestMCPFixesQuoteInterpolatedValues(t *testing.T) {
 		}
 	}
 	for _, fix := range fixes {
-		if strings.Contains(fix, "bad;key") || strings.Contains(fix, "BAD_KEY") || strings.Contains(fix, "a/b") {
-			t.Errorf("invalid cplt config key emitted runnable command: %q", fix)
+		if strings.Contains(fix, "api.example.com") && strings.Contains(fix, "'") {
+			t.Errorf("quoted setup command left stray apostrophes in fix: %q", fix)
+		}
+		if strings.Contains(fix, "a.example") || strings.Contains(fix, "unterminated") || strings.Contains(fix, "bad;key") || strings.Contains(fix, "BAD_KEY") || strings.Contains(fix, "a/b") {
+			t.Errorf("invalid setup command emitted runnable fix: %q", fix)
 		}
 	}
 

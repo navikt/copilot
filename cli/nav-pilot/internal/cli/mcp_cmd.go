@@ -561,6 +561,76 @@ func mcpPackageProblems(e providerpkg.MCPServerEntry, cpltPath string) []mcpProb
 
 var cpltConfigKeyRe = regexp.MustCompile(`^[a-z0-9_.]+$`)
 
+// splitPOSIXWords splits a setup command into words, honouring single quotes,
+// double quotes with \" \\ \$ \` escapes, and backslash escapes outside quotes.
+// Commands with unterminated quotes or unquoted shell metacharacters are rejected.
+func splitPOSIXWords(s string) ([]string, bool) {
+	var words []string
+	var cur strings.Builder
+	inWord := false
+	for i := 0; i < len(s); i++ {
+		switch c := s[i]; c {
+		case ' ', '\t':
+			if inWord {
+				words = append(words, cur.String())
+				cur.Reset()
+				inWord = false
+			}
+		case '\'':
+			inWord = true
+			i++
+			start := i
+			for i < len(s) && s[i] != '\'' {
+				i++
+			}
+			if i >= len(s) {
+				return nil, false
+			}
+			cur.WriteString(s[start:i])
+		case '"':
+			inWord = true
+			i++
+			for i < len(s) && s[i] != '"' {
+				if s[i] == '\\' {
+					if i+1 >= len(s) {
+						return nil, false
+					}
+					switch next := s[i+1]; next {
+					case '"', '\\', '$', '`':
+						cur.WriteByte(next)
+						i += 2
+						continue
+					}
+				}
+				if s[i] == '$' || s[i] == '`' {
+					return nil, false // the shell would expand it; the Fix must not differ
+				}
+				cur.WriteByte(s[i])
+				i++
+			}
+			if i >= len(s) {
+				return nil, false
+			}
+		case '\\':
+			if i+1 >= len(s) || s[i+1] == '\n' || s[i+1] == '\r' {
+				return nil, false
+			}
+			i++
+			inWord = true
+			cur.WriteByte(s[i])
+		case ';', '&', '|', '<', '>', '(', ')', '$', '`', '\n', '\r':
+			return nil, false
+		default:
+			inWord = true
+			cur.WriteByte(c)
+		}
+	}
+	if inWord {
+		words = append(words, cur.String())
+	}
+	return words, true
+}
+
 // mcpSetupProblems is the registry's own `cplt config set <key> <value>`
 // setup steps that the user's cplt config does not have yet.
 func mcpSetupProblems(e providerpkg.MCPServerEntry, cpltPath string) []mcpProblem {
@@ -570,8 +640,8 @@ func mcpSetupProblems(e providerpkg.MCPServerEntry, cpltPath string) []mcpProble
 	var out []mcpProblem
 	for _, s := range e.Setup {
 		for _, c := range s.Commands {
-			f := strings.Fields(c)
-			if len(f) != 5 || f[0] != "cplt" || f[1] != "config" || f[2] != "set" {
+			f, ok := splitPOSIXWords(c)
+			if !ok || len(f) != 5 || f[0] != "cplt" || f[1] != "config" || f[2] != "set" {
 				continue
 			}
 			if !cpltConfigKeyRe.MatchString(f[3]) {
