@@ -150,32 +150,57 @@ func MCPRegistryServers() (registry string, servers []MCPServerEntry, stale, err
 	return c.Registry.URL, c.Registry.Entries, stale, nil
 }
 
-// NarrowMCPApproval cuts the recorded MCP host approval down to the hosts the
-// servers in either client's user config still need, by the cached registry
-// answer, and returns the hosts it dropped. Nothing changes without an
-// approval or a cache.
+// NarrowMCPApproval cuts each client's recorded MCP host approval down to the
+// hosts the servers in that client's user config still need, by the cached
+// registry answer, and returns the hosts no longer granted for either client.
+// Nothing changes without an approval or a cache.
 func NarrowMCPApproval() (gone []string, err error) {
-	rec, err := readMCPRecord()
-	if err != nil || rec == nil || !rec.Approved {
-		return nil, err
-	}
 	c, ok := readMCPRegistryCache()
 	if !ok {
 		return nil, nil
 	}
-	cur := matchMCPHosts(c.Registry, copilotMCPServerNames(), openCodeUserMCPServers())
-	var keep []MCPHost
-	for _, h := range recordedMCPHosts(rec) {
-		if slices.ContainsFunc(cur.Hosts, func(o MCPHost) bool { return o.Host == h.Host }) {
-			keep = append(keep, h)
-		} else {
-			gone = append(gone, h.Host)
+	var dropped []string
+	for _, client := range []string{MCPClientCopilot, MCPClientOpenCode} {
+		rec, err := readMCPRecordFor(client)
+		if err != nil {
+			return nil, err
+		}
+		if rec == nil || !rec.Approved {
+			continue
+		}
+		copilot, openCode := configuredMCPServersFor(client)
+		cur := matchMCPHosts(c.Registry, copilot, openCode)
+		var keep []MCPHost
+		var clientGone []string
+		for _, h := range recordedMCPHosts(rec) {
+			if slices.ContainsFunc(cur.Hosts, func(o MCPHost) bool { return o.Host == h.Host }) {
+				keep = append(keep, h)
+			} else {
+				clientGone = append(clientGone, h.Host)
+			}
+		}
+		if len(clientGone) == 0 {
+			continue
+		}
+		if err := RecordMCPHostsFor(client, keep, true); err != nil {
+			return nil, err
+		}
+		for _, h := range clientGone {
+			if !slices.Contains(dropped, h) {
+				dropped = append(dropped, h)
+			}
 		}
 	}
-	if len(gone) == 0 {
+	if len(dropped) == 0 {
 		return nil, nil
 	}
-	return gone, RecordMCPHosts(keep, true)
+	stillAllowed := MCPAllowlistHosts()
+	for _, h := range dropped {
+		if !slices.Contains(stillAllowed, h) {
+			gone = append(gone, h)
+		}
+	}
+	return gone, nil
 }
 
 // MCP clients nav-pilot can write a server into.
@@ -196,14 +221,7 @@ func MCPConfigPath(client string) (string, error) {
 		}
 		return filepath.Join(home, ".copilot", "mcp-config.json"), nil
 	case MCPClientOpenCode:
-		dir := artifacts.OpenCodeConfigDir()
-		p := filepath.Join(dir, "opencode.json")
-		if _, err := os.Stat(p); errors.Is(err, os.ErrNotExist) {
-			if _, err := os.Stat(filepath.Join(dir, "opencode.jsonc")); err == nil {
-				return filepath.Join(dir, "opencode.jsonc"), nil
-			}
-		}
-		return p, nil
+		return resolveOpenCodeConfigFile(artifacts.OpenCodeConfigDir()), nil
 	}
 	return "", fmt.Errorf("unknown client %q: use copilot or opencode", client)
 }
@@ -225,13 +243,7 @@ func MCPClientEntry(client string, e MCPServerEntry, c MCPToolChoice) (json.RawM
 	tools := copilotTools(c)
 	switch {
 	case len(e.Remotes) > 0:
-		r := e.Remotes[0]
-		if c.URL != "" {
-			r.URL = c.URL
-		} else if ro := e.GitHubReadonlyURL(); ro != "" {
-			// GitHub's full endpoint only when the choice names it.
-			r.URL = ro
-		}
+		r, _ := chosenRemote(e, c)
 		var m map[string]any
 		if client == MCPClientOpenCode {
 			m = map[string]any{"type": "remote", "url": r.URL, "enabled": true}
@@ -272,13 +284,15 @@ const openCodeNavProtocol = "2026-07-28"
 
 // openCodeProtocol picks OpenCode's `protocol` from the registry's
 // protocolVersions: only 2026-07-28 pins it, 2026-07-28 among older revisions
-// gets auto. Without 2026-07-28, an https nav.no remote gets auto and any
-// other remote keeps OpenCode's default ("").
+// gets auto. Only when protocolVersions is unknown (empty), an https nav.no
+// remote gets auto; explicit older revisions keep OpenCode's default ("").
 func openCodeProtocol(versions []string, remoteURL string) string {
 	switch {
 	case len(versions) == 1 && versions[0] == openCodeNavProtocol:
 		return openCodeNavProtocol
-	case slices.Contains(versions, openCodeNavProtocol), isNavMCPURL(remoteURL):
+	case slices.Contains(versions, openCodeNavProtocol):
+		return "auto"
+	case len(versions) == 0 && isNavMCPURL(remoteURL):
 		return "auto"
 	}
 	return ""
@@ -295,15 +309,47 @@ func isNavMCPURL(raw string) bool {
 	return h == "nav.no" || strings.HasSuffix(h, ".nav.no")
 }
 
-// registryHeaders is the fixed headers the registry sets on the first
-// remote, such as GitHub's X-MCP-Readonly, or nil. An explicit choice of
-// another URL (GitHub's full endpoint) is the user's own opt-in and gets none.
+// chosenRemote selects the registry remote for c: c.URL (else GitHub's
+// read-only endpoint, else Remotes[0]) matched against e.Remotes by normalized
+// URL. matched is true when a listed remote matched the target URL.
+func chosenRemote(e MCPServerEntry, c MCPToolChoice) (r MCPRemote, matched bool) {
+	if len(e.Remotes) == 0 {
+		return MCPRemote{}, false
+	}
+	target := e.Remotes[0].URL
+	if c.URL != "" {
+		target = c.URL
+	} else if ro := e.GitHubReadonlyURL(); ro != "" {
+		// GitHub's full endpoint only when the choice names it.
+		target = ro
+	}
+	nu := normalizeMCPURL(target)
+	for _, cand := range e.Remotes {
+		if normalizeMCPURL(cand.URL) == nu {
+			return cand, true
+		}
+	}
+	r = e.Remotes[0]
+	r.URL = target
+	return r, false
+}
+
+// registryHeaders is the fixed headers the registry sets on the chosen remote,
+// such as GitHub's X-MCP-Readonly, or nil. An explicit choice of GitHub's full
+// endpoint or an unlisted URL is the user's own opt-in and gets none.
 func registryHeaders(e MCPServerEntry, c MCPToolChoice) map[string]string {
-	if len(e.Remotes) == 0 || (c.URL != "" && !IsGitHubReadonlyURL(c.URL)) {
+	if len(e.Remotes) == 0 {
+		return nil
+	}
+	if e.GitHubReadonlyURL() != "" && c.URL != "" && !IsGitHubReadonlyURL(c.URL) {
+		return nil
+	}
+	r, matched := chosenRemote(e, c)
+	if !matched && c.URL != "" && !IsGitHubReadonlyURL(c.URL) {
 		return nil
 	}
 	var h map[string]string
-	for _, kv := range e.Remotes[0].Headers {
+	for _, kv := range r.Headers {
 		if kv.Name != "" && kv.Value != "" {
 			if h == nil {
 				h = map[string]string{}

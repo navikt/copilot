@@ -250,13 +250,22 @@ func SetMCPServerTools(client, key string, e MCPServerEntry, c MCPToolChoice) (M
 			// Switching endpoint switches the registry's headers with it.
 			// Only the registry's own header names change; the user's
 			// other headers (Authorization, say) stay as they are.
-			if len(e.Remotes) > 0 && len(e.Remotes[0].Headers) > 0 {
+			hasRegistryHeaders := false
+			for _, rem := range e.Remotes {
+				if len(rem.Headers) > 0 {
+					hasRegistryHeaders = true
+					break
+				}
+			}
+			if hasRegistryHeaders {
 				hs := map[string]json.RawMessage{}
 				if raw, ok := entry.vals["headers"]; ok && json.Unmarshal(raw, &hs) != nil {
 					return nil, false, errors.New(key + " has headers that are not an object, so nav-pilot left it alone")
 				}
-				for _, kv := range e.Remotes[0].Headers {
-					delete(hs, kv.Name)
+				for _, rem := range e.Remotes {
+					for _, kv := range rem.Headers {
+						delete(hs, kv.Name)
+					}
 				}
 				for k, v := range registryHeaders(e, c) {
 					hs[k], _ = json.Marshal(v)
@@ -330,6 +339,9 @@ func MCPToolsOn(client, key string, e MCPServerEntry) (st MCPToolState, ok bool)
 	if err != nil {
 		return st, false
 	}
+	if client == MCPClientOpenCode {
+		servers = openCodeAllServers(servers)
+	}
 	var entry struct {
 		URL   string          `json:"url"`
 		Tools json.RawMessage `json:"tools"`
@@ -341,12 +353,7 @@ func MCPToolsOn(client, key string, e MCPServerEntry) (st MCPToolState, ok bool)
 	if client == MCPClientOpenCode {
 		var rules [][2]string
 		if perm, err := parseJSONObject(top.vals["permission"]); err == nil {
-			for _, k := range perm.keys {
-				var v string
-				if json.Unmarshal(perm.vals[k], &v) == nil {
-					rules = append(rules, [2]string{k, v})
-				}
-			}
+			rules = openCodeStringRules(perm)
 		}
 		on := func(tool string) bool { return openCodeAllows(rules, openCodeToolID(key, tool)) }
 		// A tool the registry has never heard of stands for the ones the

@@ -9,12 +9,14 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"regexp"
 	"slices"
 	"sort"
 	"strings"
 	"sync"
 	"text/tabwriter"
 	"time"
+	"unicode"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
@@ -264,14 +266,31 @@ func printMCPReport(rep mcpReport) {
 	fmt.Printf("\nEnable: %s\n", bold("nav-pilot mcp enable <name>... [--client copilot|opencode]"))
 }
 
+func safeFix(s string) string {
+	var b strings.Builder
+	for _, r := range s {
+		switch {
+		case r == '\n' || r == '\r' || r == '\t':
+			b.WriteByte(' ')
+		case unicode.IsControl(r) || unicode.Is(unicode.Cf, r) || unicode.Is(unicode.Zl, r) || unicode.Is(unicode.Zp, r):
+			b.WriteRune('\uFFFD')
+		default:
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
 func printMCPProblems(problems []mcpProblem) {
 	for _, p := range problems {
 		who := safe(p.Server, 64)
 		if p.Client != "" {
 			who += " (" + p.Client + ")"
 		}
-		fmt.Printf("  %s %s: %s\n", yellow("⚠"), who, p.Problem)
-		fmt.Printf("      Fix: %s\n", bold(p.Fix))
+		fmt.Printf("  %s %s: %s\n", yellow("⚠"), who, safe(p.Problem, 0))
+		if p.Fix != "" {
+			fmt.Printf("      Fix: %s\n", bold(safeFix(p.Fix)))
+		}
 	}
 }
 
@@ -369,7 +388,7 @@ func diagnoseMCP(registry string, entries []providerpkg.MCPServerEntry, conf pro
 			}
 		}
 		if !e.Usable() {
-			add(mcpProblem{Server: e.Name, Problem: "marked " + safe(e.Status, 32) + " in the registry; it still runs, but cannot be enabled for new installs", Fix: "nav-pilot mcp disable " + e.Name})
+			add(mcpProblem{Server: e.Name, Problem: "marked " + safe(e.Status, 32) + " in the registry; it still runs, but cannot be enabled for new installs", Fix: "nav-pilot mcp disable " + shellQuote(e.Name)})
 		}
 		// Remotes and sandboxHosts both: a package server can name hosts too.
 		for _, u := range mcpEntryURLs(e) {
@@ -471,7 +490,7 @@ func mcpRemoteHost(server, raw, cpltPath, mode string, st providerpkg.MCPHostSta
 	switch {
 	case verdict == "BLOCKED-PORT" || loopback:
 		p.Problem += " (localhost port " + port + " is closed in the sandbox)"
-		p.Fix = "cplt config set allow.localhost " + port
+		p.Fix = "cplt config set allow.localhost " + shellQuote(port)
 		return row, p
 	case row.Consent == "allowed" && row.DNS == "unknown" && verdict == "BLOCKED-PRIVATE-RESOLVED":
 		p.Problem += " (it resolves to a private address, but its DNS lookup failed when you allowed it, so nav-pilot does not waive it yet)"
@@ -493,10 +512,10 @@ func mcpRemoteHost(server, raw, cpltPath, mode string, st providerpkg.MCPHostSta
 	switch verdict {
 	case "BLOCKED-PRIVATE-RESOLVED":
 		p.Problem += " (it resolves to a private address)"
-		p.Fix = "cplt config set proxy.allow_private_domains " + host
+		p.Fix = "cplt config set proxy.allow_private_domains " + shellQuote(host)
 	case "BLOCKED-ALLOWLIST":
 		p.Problem += " (not in the allowlist)"
-		p.Fix = "cplt config set allow.domains " + host
+		p.Fix = "cplt config set allow.domains " + shellQuote(host)
 	default:
 		p.Problem += " (" + strings.ToLower(strings.TrimPrefix(verdict, "BLOCKED-")) + ")"
 		p.Fix = cpltFix
@@ -526,7 +545,7 @@ func mcpConsentOf(host string, st providerpkg.MCPHostState) string {
 func mcpPackageProblems(e providerpkg.MCPServerEntry, cpltPath string) []mcpProblem {
 	runtime, _ := e.Packages[0].Launch()
 	if runtime == "" {
-		return []mcpProblem{{Server: e.Name, Problem: "a " + e.Packages[0].RegistryType + " package, which nav-pilot has no launch recipe for", Fix: "configure it by hand; see " + e.Name + " in the registry"}}
+		return []mcpProblem{{Server: e.Name, Problem: "a " + e.Packages[0].RegistryType + " package, which nav-pilot has no launch recipe for", Fix: "configure it by hand; see " + safe(e.Name, 64) + " in the registry"}}
 	}
 	var out []mcpProblem
 	if _, err := mcpLookPath(runtime); err != nil {
@@ -539,6 +558,8 @@ func mcpPackageProblems(e providerpkg.MCPServerEntry, cpltPath string) []mcpProb
 	}
 	return out
 }
+
+var cpltConfigKeyRe = regexp.MustCompile(`^[a-z0-9_.]+$`)
 
 // mcpSetupProblems is the registry's own `cplt config set <key> <value>`
 // setup steps that the user's cplt config does not have yet.
@@ -553,8 +574,15 @@ func mcpSetupProblems(e providerpkg.MCPServerEntry, cpltPath string) []mcpProble
 			if len(f) != 5 || f[0] != "cplt" || f[1] != "config" || f[2] != "set" {
 				continue
 			}
+			if !cpltConfigKeyRe.MatchString(f[3]) {
+				continue
+			}
 			if !mcpCpltHas(cpltPath, f[3], f[4]) {
-				out = append(out, mcpProblem{Server: e.Name, Problem: "the registry's setup needs " + f[3] + " to include " + f[4], Fix: safe(c, 200)})
+				out = append(out, mcpProblem{
+					Server:  e.Name,
+					Problem: "the registry's setup needs " + safe(f[3], 64) + " to include " + safe(f[4], 128),
+					Fix:     "cplt config set " + shellQuote(f[3]) + " " + shellQuote(f[4]),
+				})
 			}
 		}
 	}
@@ -580,12 +608,12 @@ func mcpUnlisted(entries []providerpkg.MCPServerEntry, key, client string) mcpPr
 	}
 	for _, e := range entries {
 		if short := e.Name[strings.LastIndex(e.Name, "/")+1:]; strings.EqualFold(short, key) {
-			p.Problem += "; the registry's name for it is " + e.Name
-			p.Fix = fmt.Sprintf("nav-pilot mcp disable %s --client %s && nav-pilot mcp enable %s --client %s", key, client, e.Name, client)
+			p.Problem += "; the registry's name for it is " + safe(e.Name, 64)
+			p.Fix = fmt.Sprintf("nav-pilot mcp disable %s --client %s && nav-pilot mcp enable %s --client %s", shellQuote(key), shellQuote(client), shellQuote(e.Name), shellQuote(client))
 			return p
 		}
 	}
-	p.Fix = fmt.Sprintf("nav-pilot mcp disable %s --client %s, or ask for it in the registry: %s", key, client, providerpkg.MCPRegistryHelpURL)
+	p.Fix = fmt.Sprintf("nav-pilot mcp disable %s --client %s, or ask for it in the registry: %s", shellQuote(key), shellQuote(client), providerpkg.MCPRegistryHelpURL)
 	return p
 }
 
@@ -767,9 +795,9 @@ func cmdMCPEnable(names []string, clientsOf func() ([]string, error), topts mcpT
 		case len(e.Remotes) == 0 && len(e.Packages) == 0:
 			// Only cplt can run such a server (a host CLI), and this registry
 			// answer has no broker extension for it yet.
-			err = fmt.Errorf("the registry does not offer %s through cplt yet, so nothing was written. Fix: nav-pilot update, or wait until the registry is deployed and run nav-pilot mcp enable %s again", e.Name, e.Name)
+			err = fmt.Errorf("the registry does not offer %s through cplt yet, so nothing was written. Fix: nav-pilot update, or wait until the registry is deployed and run nav-pilot mcp enable %s again", e.Name, shellQuote(e.Name))
 		case jsonOut:
-			err = fmt.Errorf("--json is only for servers cplt runs on the host. Fix: nav-pilot mcp enable %s", e.Name)
+			err = fmt.Errorf("--json is only for servers cplt runs on the host. Fix: nav-pilot mcp enable %s", shellQuote(e.Name))
 		default:
 			managed = append(managed, e)
 			continue
@@ -832,7 +860,7 @@ func cmdMCPEnable(names []string, clientsOf func() ([]string, error), topts mcpT
 			// every client.
 			var hints []string
 			for _, c := range wrote {
-				h := "nav-pilot mcp enable " + e.Name + " --client " + c + " --tools <a,b>"
+				h := "nav-pilot mcp enable " + shellQuote(e.Name) + " --client " + shellQuote(c) + " --tools <a,b>"
 				if len(e.HostExecTools()) > 0 {
 					h += " --allow-host-exec"
 				}
@@ -964,14 +992,14 @@ func mcpEnableIn(client string, e providerpkg.MCPServerEntry, c providerpkg.MCPT
 		fmt.Printf("  Tools on: %s\n", mcpDescribeChoice(e, c))
 	case ch.Existing != nil:
 		fmt.Printf("%s %s already has an entry for %s that differs from the registry's; kept yours.\n  To change only its tools: %s\n  To replace it: %s\n",
-			dim("•"), ch.Path, e.Name, bold(fmt.Sprintf("nav-pilot mcp enable %s --client %s --tools <a,b> (or --all-tools)", e.Name, client)),
-			bold(fmt.Sprintf("nav-pilot mcp disable %s --client %s && nav-pilot mcp enable %s --client %s", e.Name, client, e.Name, client)))
+			dim("•"), ch.Path, e.Name, bold(fmt.Sprintf("nav-pilot mcp enable %s --client %s --tools <a,b> (or --all-tools)", shellQuote(e.Name), shellQuote(client))),
+			bold(fmt.Sprintf("nav-pilot mcp disable %s --client %s && nav-pilot mcp enable %s --client %s", shellQuote(e.Name), shellQuote(client), shellQuote(e.Name), shellQuote(client))))
 	default:
 		fmt.Printf("%s %s is already enabled for %s in %s\n", dim("•"), e.Name, client, ch.Path)
 	}
 	short := e.Name[strings.LastIndex(e.Name, "/")+1:]
 	if client == providerpkg.MCPClientCopilot && short != e.Name && slices.Contains(providerpkg.MCPConfigKeys(client), short) {
-		fmt.Printf("%s Your config also has %s, which Copilot's org policy blocks. Remove it: %s\n", yellow("⚠"), short, bold("nav-pilot mcp disable "+short+" --client copilot"))
+		fmt.Printf("%s Your config also has %s, which Copilot's org policy blocks. Remove it: %s\n", yellow("⚠"), short, bold("nav-pilot mcp disable "+shellQuote(short)+" --client copilot"))
 	}
 	return ch.Changed, nil
 }

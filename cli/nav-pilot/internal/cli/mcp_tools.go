@@ -74,7 +74,7 @@ func mcpChooseTools(e providerpkg.MCPServerEntry, o mcpToolOpts) (providerpkg.MC
 		// A registry without tool lists (an older answer, say) cannot tell
 		// a safe tool from a risky one.
 		if e.Loopback() && !o.all {
-			return providerpkg.MCPToolChoice{}, fmt.Errorf("the registry lists no tools for %s, which runs on your machine outside the sandbox; to turn on every tool anyway: nav-pilot mcp enable %s --all-tools", e.Name, e.Name)
+			return providerpkg.MCPToolChoice{}, fmt.Errorf("the registry lists no tools for %s, which runs on your machine outside the sandbox; to turn on every tool anyway: nav-pilot mcp enable %s --all-tools", e.Name, shellQuote(e.Name))
 		}
 		if o.tools != nil {
 			return providerpkg.MCPToolChoice{}, fmt.Errorf("the registry lists no tools for %s to pick from; use --all-tools", e.Name)
@@ -129,7 +129,7 @@ func mcpChooseTools(e providerpkg.MCPServerEntry, o mcpToolOpts) (providerpkg.MC
 		}
 	}
 	if !c.All && len(c.Tools) == 0 {
-		return c, fmt.Errorf("no tools left to turn on for %s, so nothing was changed. To remove it: nav-pilot mcp disable %s", e.Name, e.Name)
+		return c, fmt.Errorf("no tools left to turn on for %s, so nothing was changed. To remove it: nav-pilot mcp disable %s", e.Name, shellQuote(e.Name))
 	}
 
 	if ro := e.GitHubReadonlyURL(); ro != "" {
@@ -229,13 +229,18 @@ func (i mcpToolsInfo) cell(e providerpkg.MCPServerEntry) string {
 // mcpNarrowFix is the command that turns the server down to its default
 // tools in the client.
 func mcpNarrowFix(e providerpkg.MCPServerEntry, client string) string {
-	cmd := fmt.Sprintf("nav-pilot mcp enable %s --client %s --tools %s", e.Name, client, strings.Join(e.DefaultTools(), ","))
+	def := e.DefaultTools()
+	quoted := make([]string, len(def))
+	for i, t := range def {
+		quoted[i] = shellQuote(t)
+	}
+	cmd := fmt.Sprintf("nav-pilot mcp enable %s --client %s --tools %s", shellQuote(e.Name), shellQuote(client), strings.Join(quoted, ","))
 	if len(e.Tools) == 0 {
 		// Nothing to pick from: a fresh entry is GitHub's read-only
 		// endpoint, or for another server the way to turn it off.
-		cmd = fmt.Sprintf("nav-pilot mcp disable %s --client %s", e.Name, client)
+		cmd = fmt.Sprintf("nav-pilot mcp disable %s --client %s", shellQuote(e.Name), shellQuote(client))
 		if e.GitHubReadonlyURL() != "" {
-			cmd += fmt.Sprintf(" && nav-pilot mcp enable %s --client %s", e.Name, client)
+			cmd += fmt.Sprintf(" && nav-pilot mcp enable %s --client %s", shellQuote(e.Name), shellQuote(client))
 		}
 	}
 	return cmd
@@ -304,7 +309,7 @@ func mcpLoopbackFix(e providerpkg.MCPServerEntry, clients []string) string {
 	// client.
 	var fixes []string
 	for _, c := range clients {
-		fixes = append(fixes, "nav-pilot mcp enable "+e.Name+" --client "+c+" --tools <a,b>")
+		fixes = append(fixes, "nav-pilot mcp enable "+shellQuote(e.Name)+" --client "+shellQuote(c)+" --tools <a,b>")
 	}
 	return strings.Join(fixes, " && ")
 }

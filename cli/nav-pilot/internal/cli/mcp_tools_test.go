@@ -544,3 +544,20 @@ func TestMCPToolHintsNameTheClient(t *testing.T) {
 		}
 	}
 }
+
+func TestMCPToolsQuoteFixes(t *testing.T) {
+	e := providerpkg.MCPServerEntry{
+		Name:  "io.example/srv $(id)",
+		Tools: []string{"read$(id)", "ok"},
+	}
+	gotNarrow := mcpNarrowFix(e, "copilot")
+	wantNarrow := "nav-pilot mcp enable 'io.example/srv $(id)' --client copilot --tools 'read$(id)',ok"
+	if gotNarrow != wantNarrow {
+		t.Errorf("mcpNarrowFix = %q, want %q", gotNarrow, wantNarrow)
+	}
+	gotLoopback := mcpLoopbackFix(e, []string{"opencode"})
+	wantLoopback := "nav-pilot mcp enable 'io.example/srv $(id)' --client opencode --tools <a,b>"
+	if gotLoopback != wantLoopback {
+		t.Errorf("mcpLoopbackFix = %q, want %q", gotLoopback, wantLoopback)
+	}
+}

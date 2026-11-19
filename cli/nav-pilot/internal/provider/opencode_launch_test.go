@@ -508,6 +508,39 @@ func TestOpenCodeConfigPath_EmptyHome_ReturnsAbsolute(t *testing.T) {
 	}
 }
 
+func TestOpenCodeConfigPath_FallsBackToJSONC(t *testing.T) {
+	old := ConfigPathOverride
+	ConfigPathOverride = ""
+	defer func() { ConfigPathOverride = old }()
+
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("XDG_CONFIG_HOME", "")
+
+	dir := filepath.Join(home, ".config", "opencode")
+	jsonPath := filepath.Join(dir, "opencode.json")
+	jsoncPath := filepath.Join(dir, "opencode.jsonc")
+
+	if got := openCodeConfigPath(); got != jsonPath {
+		t.Fatalf("neither exists: got %q, want %q", got, jsonPath)
+	}
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(jsoncPath, []byte("{}\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if got := openCodeConfigPath(); got != jsoncPath {
+		t.Fatalf("only opencode.jsonc exists: got %q, want %q", got, jsoncPath)
+	}
+	if err := os.WriteFile(jsonPath, []byte("{}\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if got := openCodeConfigPath(); got != jsonPath {
+		t.Fatalf("both exist: got %q, want %q", got, jsonPath)
+	}
+}
+
 func TestOpenCodeNavContextDir_EmptyHome_ReturnsAbsolute(t *testing.T) {
 	t.Setenv("XDG_CONFIG_HOME", "")
 	old := NavContextDirOverride

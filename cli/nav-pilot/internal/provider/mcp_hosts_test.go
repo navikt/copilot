@@ -485,3 +485,65 @@ func TestUninstallKeepsTheMCPAnswer(t *testing.T) {
 		t.Errorf("MCP answer after uninstall: %v %v", rec, err)
 	}
 }
+
+func TestOpenCodeLocalPackageCustomKeySandboxHosts(t *testing.T) {
+	reg := mcpRegistry{
+		Remotes:  map[string]bool{},
+		Packages: map[string]bool{"@example/pkg": true},
+		Servers:  map[string][]string{},
+		Entries: []MCPServerEntry{{
+			Name:         "io.example/pkg",
+			Packages:     []MCPPackage{{RegistryType: "npm", Identifier: "@example/pkg", Version: "1.0.0"}},
+			SandboxHosts: []string{"api.example.org"},
+		}},
+	}
+	got := matchMCPHosts(reg, nil, map[string]mcpServer{
+		"my-pkg": {Type: "local", Command: []string{"npx", "@example/pkg@1.0.0"}},
+	})
+	if names := got.Names(); !slices.Equal(names, []string{"api.example.org"}) {
+		t.Fatalf("hosts = %v, want [api.example.org]", names)
+	}
+	if !slices.Equal(got.Hosts[0].Servers, []string{"io.example/pkg"}) {
+		t.Errorf("servers = %v, want [io.example/pkg]", got.Hosts[0].Servers)
+	}
+}
+
+func TestMCPConsentLegacyFallbackAndPerClientIsolation(t *testing.T) {
+	mcpEnv(t, `{"mcpServers": {"com.figma/figma-mcp": {}}}`, testRegistry(), nil)
+	writeFile(t, filepath.Join(openCodeConfigDir(), "opencode.json"),
+		`{"mcp": {"onb": {"type": "remote", "url": "https://mcp-onboarding.intern.nav.no/mcp"}}}`)
+	protectingCplt(t)
+
+	user, err := domain.ScopeUser()
+	if err != nil {
+		t.Fatal(err)
+	}
+	legacyHosts := []MCPHost{{Host: "mcp.figma.com", Servers: []string{"com.figma/figma-mcp"}}}
+	block, _ := json.Marshal(legacyHosts)
+	if err := artifacts.WriteProposalConsent(artifacts.ProposalConsent{
+		Scope: user.Name, Root: user.RootDir, Pakke: MCPConsentSource,
+		Hash: mcpHostsHash(legacyHosts), Block: string(block),
+		CpltStamp: minCpltStampProtectingNavPilotState, Approved: true,
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	MCPClient = MCPClientCopilot
+	t.Cleanup(func() { MCPClient = "" })
+	st, err := ReadMCPHostState()
+	if err != nil || st.Pending != nil || !slices.Equal(mcpHostNames(st.Grant), []string{"mcp.figma.com"}) {
+		t.Fatalf("copilot legacy fallback = %+v, %v", st, err)
+	}
+
+	MCPClient = MCPClientOpenCode
+	if err := RecordMCPHosts([]MCPHost{{Host: "mcp-onboarding.intern.nav.no", Servers: []string{"io.github.navikt/mcp-onboarding"}, Private: true}}, true); err != nil {
+		t.Fatal(err)
+	}
+	if got := MCPAllowlistHosts(); !slices.Equal(got, []string{"mcp-onboarding.intern.nav.no", "mcp.figma.com"}) {
+		t.Errorf("allowlist hosts = %v, want both clients", got)
+	}
+	legacyRec, err := artifacts.ReadProposalConsent(user, MCPConsentSource)
+	if err != nil || legacyRec == nil || !legacyRec.Approved {
+		t.Errorf("legacy record overwritten or lost: %+v, %v", legacyRec, err)
+	}
+}
