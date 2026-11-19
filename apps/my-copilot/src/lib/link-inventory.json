@@ -3151,6 +3151,10 @@
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/verktoy/fleet-gateway/for-team/page.tsx",
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/verktoy/fleet-gateway/page.tsx"
       ],
+      "servere-i-piloten": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/verktoy/fleet-gateway/for-team/page.tsx",
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/verktoy/fleet-gateway/page.tsx"
+      ],
       "sok": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/verktoy/fleet-gateway/page.tsx"],
       "status": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/verktoy/fleet-gateway/page.tsx"]
     }

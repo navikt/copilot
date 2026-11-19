@@ -222,6 +222,18 @@ export default function FleetGatewayForTeamPage() {
             <a href="https://github.com/navikt/copilot/pull/2365" className={linkClass}>
               #2365
             </a>
+            .{" "}
+            <a href="https://github.com/navikt/copilot/tree/main/apps/mcp-kodeverk" className={linkClass}>
+              mcp-kodeverk
+            </a>{" "}
+            og{" "}
+            <a href="https://github.com/navikt/copilot/tree/main/apps/mcp-dolly" className={linkClass}>
+              mcp-dolly
+            </a>{" "}
+            er referanseimplementasjoner for servere i piloten, se{" "}
+            <NextLink href="/verktoy/fleet-gateway#servere-i-piloten" className={linkClass}>
+              Servere i piloten
+            </NextLink>
             .
           </li>
         </Bullets>
