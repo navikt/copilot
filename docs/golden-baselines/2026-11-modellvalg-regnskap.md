@@ -96,3 +96,16 @@ Utenfor armene (ikke testoppsettet, men Copilot-credits): review av #2437 med gp
 
 Neste: D1 trinn 2 på nytt (≈ 1 080 + 2 prober) etter at reparasjonen av test 8 er godkjent og merget. Med det blir forbruket ≈ 5 830.
 
+**19. november 2026, test 8-dommeren og reparasjons-PR-er (utenfor armene):**
+
+| Post | Credits |
+| --- | --- |
+| secq-kontroller, kjøring 1–3 (Haiku) | 12,86 |
+| Diagnose av rad 3 og 43 (Haiku) | 0,26 |
+| Astra-review av #2437 og #2450, runde 1 og 2 | 64,17 |
+| **Sum** | **77,29** |
+
+Brukt i alt: **4 818,91**. Ny kjøring av D1 trinn 2 (≈ 1 080 + 2 prober + blindsone- og secq-kontroller, ≈ 1 100) gir ≈ 5 920 av 6 500.
+
+Rå og reparert score etter #2450 (bare informasjon, utfallet i denne målingen bruker rå score): review Astra rv5 4→5, rv6 4→5, rv7 2→3; review Opus uendret; planning Opus test 4 0→5. D3 blir ikke endret (rv3 1/5 og rv4 0/5 mot Opus 4/5).
+
