@@ -278,23 +278,14 @@ func (g *Gateway) renewClient(ctx context.Context, clientID string) {
 }
 
 // clientGrants loads a client once: known is true for allowlisted or live DCR
-// clients, mayRefresh honours the grant_types a DCR or CIMD client registered
-// (RFC 7591 2: default authorization_code only for DCR; CIMD clients without
-// grant_types may refresh). A store or CIMD fetch error is returned so callers
-// answer 503, not a client error.
+// clients, mayRefresh honours the grant_types a DCR client registered (RFC 7591
+// 2: default authorization_code only). Allowlisted CIMD clients may refresh. A
+// store error is returned so callers answer 503, not a client error.
 func (g *Gateway) clientGrants(ctx context.Context, clientID string) (known, mayRefresh bool, err error) {
 	if clientID == "" {
 		return false, false, nil
 	}
 	if g.cfg.AllowedClientIDs[clientID] {
-		var doc *clientMetadata
-		doc, err = g.fetchCIMD(ctx, clientID)
-		if err != nil {
-			return false, false, err
-		}
-		if doc.GrantTypes != nil {
-			return true, slices.Contains(doc.GrantTypes, "refresh_token"), nil
-		}
 		return true, true, nil
 	}
 	meta, ok, err := g.registeredClient(ctx, clientID)

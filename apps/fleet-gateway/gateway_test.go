@@ -72,7 +72,7 @@ func newTestEnv(t *testing.T) *testEnv {
 				"client_id":                  te.cimdServer.URL + "/oauth-client.json",
 				"client_name":                "cplt test client",
 				"redirect_uris":              []string{te.redirectURI},
-				"grant_types":                []string{"authorization_code", "refresh_token"},
+				"grant_types":                []string{"authorization_code"},
 				"response_types":             []string{"code"},
 				"token_endpoint_auth_method": "none",
 			})

@@ -275,12 +275,6 @@ func (g *Gateway) fetchCIMD(ctx context.Context, clientID string) (*clientMetada
 	if len(doc.RedirectURIs) == 0 {
 		return nil, errors.New("CIMD redirect_uris is empty")
 	}
-	if doc.GrantTypes != nil && !slices.Contains(doc.GrantTypes, "authorization_code") {
-		return nil, errors.New("CIMD grant_types must include authorization_code")
-	}
-	if doc.ResponseTypes != nil && !slices.Contains(doc.ResponseTypes, "code") {
-		return nil, errors.New("CIMD response_types must include code")
-	}
 	if doc.ClientName == "" {
 		doc.ClientName = doc.ClientID
 	}
