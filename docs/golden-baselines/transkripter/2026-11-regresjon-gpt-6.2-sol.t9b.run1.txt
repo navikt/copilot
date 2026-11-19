@@ -1,0 +1,51 @@
+ ● skill(klarsprak)
+
+ ✗ Shell ls -a; find . -type f \( -name '*.kt' -o -name '*.kts' -o -name '… Failed with exit code 1…
+   ls -a; find . -type f \( -name '*.kt' -o -name '*.kts' -o -name '*.instructions.md' -o -name
+   AGENTS.md \) | head -40; command -v kotlinc
+   .
+   ..
+   .github
+   build.gradle.kts
+   nais.yaml
+   README.md
+   src
+   ./build.gradle.kts
+   ./.github/instructions/deliberate-ai-use.instructions.md
+   ./.github/instructions/performance.instructions.md
+   ./.github/instructions/docker.instructions.md
+   ./.github/instructions/accessibility.instructions.md
+   ./.github/instructions/cplt-sandbox.instructions.md
+   ./.github/instructions/output-style.instructions.md
+   ./.github/instructions/database.instructions.md
+   ./.github/instructions/nextjs-aksel.instructions.md
+   ./.github/instructions/github-actions.instructions.md
+   ./.github/instructions/golang.instructions.md
+   ./.github/instructions/testing-typescript.instructions.md
+   ./.github/instructions/security-core.instructions.md
+   ./.github/instructions/kotlin.instructions.md
+   ./.github/instructions/security-owasp.instructions.md
+   ./.github/instructions/testing-kotlin.instructions.md
+   ./.github/instructions/testing.instructions.md
+   ./.github/instructions/norwegian-text.instructions.md
+   ./src/main/kotlin/no/nav/demo/App.kt
+   ./src/main/kotlin/no/nav/demo/Oppgave.kt
+   ./src/main/kotlin/no/nav/demo/Routes.kt
+   ./src/main/kotlin/no/nav/demo/Config.kt
+   Failed with exit code 1
+
+ $ Shell Les Kotlin-oppsett og konvensjoner output too large to show (30.7 KB)…
+   cat build.gradle.kts src/main/kotlin/no/nav/demo/Oppgave.kt
+   .github/instructions/{kotlin,security-owasp,testing-kotlin,testing}.instructions.md; ls .github
+
+ ● Edit  Edit build.gradle.kts (+1)  Create src/main/kotlin/no/nav/demo/Feriepenger.kt (+8)  Create…
+
+La til `feriepenger` i `Feriepenger.kt` og enhetstester for aldersgrensen, avrunding, null og negativt grunnlag. Gradle ble ikke kjørt.
+
+🔴 Rød sone: Beregningen bruker heltall og satser i promille. Det unngår flyttallsfeil ved avrunding, slik at nøyaktig 50 øre rundes opp.
+
+**Sjekkliste for rød sone**
+- [ ] Se i `FeriepengerTest.kt` at satsen er 10,2 % ved 59 år og 12,5 % fra 60 år, at nøyaktig 50 øre rundes opp, og at negativt grunnlag gir `IllegalArgumentException`.
+
+Kan du fortelle meg hva denne koden gjør og hvorfor denne tilnærmingen er riktig?
+

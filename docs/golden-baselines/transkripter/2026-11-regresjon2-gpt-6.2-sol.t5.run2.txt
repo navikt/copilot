@@ -1,0 +1,6 @@
+ ● skill(tokenx-auth)
+
+Bruk **TokenX** på Nais når tjeneste A kaller tjeneste B på vegne av en innlogget bruker. A veksler brukertokenet inn i et token med B som mottaker (`audience`). B validerer tokenet og sjekker at brukeren har tilgang til ressursen.
+
+Ikke videresend tokenet som er utstedt til A. `client_credentials` identifiserer tjenesten, ikke brukeren.
+

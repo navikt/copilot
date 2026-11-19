@@ -1,0 +1,25 @@
+# golden-prompt PER-RUN ATTEMPTS
+# agent:        kafka
+# suite:        kafka
+# date:         2026-11-18
+# revision:     6ef38f72
+# personaHash:  743153095326cb245a1f3221c661a7cfcd2911f9b7ed12590e777c051086f227
+# harnessHash:  31303b66a044df68da77f1ba539f6a0a98cf0aabc6733992e11c37f4979c6eb4
+# model:        claude-haiku-5.5
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.114-0.
+# effort:       low
+# context:      CLI default
+# usage_complete: true
+#
+# slug|run|exit_code|outcome|bytes|elapsed_ms|usage_complete|detail
+kf-idem|1|0|pass|5019|78333|true|
+kf-felt|1|0|pass|1791|22006|true|
+kf-idem|2|0|pass|6602|29019|true|
+kf-felt|2|0|pass|1823|22400|true|
+kf-idem|3|0|pass|3215|45156|true|
+kf-felt|3|0|pass|1465|19873|true|
+kf-idem|4|0|pass|3366|38649|true|
+kf-felt|4|0|pass|1729|26300|true|
+kf-idem|5|0|pass|3265|52518|true|
+kf-felt|5|0|pass|2022|22042|true|

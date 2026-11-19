@@ -1,0 +1,54 @@
+ ● skill(klarsprak)
+
+ ✗ Shell ls -a; find . -name '*.kt' | head -25; ls .github/instructions; c… Failed with exit code 1…
+   ls -a; find . -name '*.kt' | head -25; ls .github/instructions; command -v kotlinc
+   .
+   ..
+   .github
+   build.gradle.kts
+   nais.yaml
+   README.md
+   src
+   ./src/main/kotlin/no/nav/demo/App.kt
+   ./src/main/kotlin/no/nav/demo/Oppgave.kt
+   ./src/main/kotlin/no/nav/demo/Routes.kt
+   ./src/main/kotlin/no/nav/demo/Config.kt
+   accessibility.instructions.md
+   cplt-sandbox.instructions.md
+   database.instructions.md
+   deliberate-ai-use.instructions.md
+   docker.instructions.md
+   github-actions.instructions.md
+   golang.instructions.md
+   kotlin.instructions.md
+   nextjs-aksel.instructions.md
+   norwegian-text.instructions.md
+   output-style.instructions.md
+   performance.instructions.md
+   security-core.instructions.md
+   security-owasp.instructions.md
+   testing-kotlin.instructions.md
+   testing-typescript.instructions.md
+   testing.instructions.md
+   Failed with exit code 1
+
+ MD Read .github/instructions/kotlin.instructions.md too large, not read
+
+ MD Read .github/instructions/security-owasp.instructions.md 12 lines read
+
+ MD Read .github/instructions/kotlin.instructions.md L1:75 (75 lines read)
+
+ ● Edit  Create src/main/kotlin/no/nav/demo/Avrunding.kt (+7)
+
+Implementerte `avrundTilHeleKroner` i `Avrunding.kt`. Funksjonen tar et eksakt desimalbeløp i kroner og returnerer `Long`. `BigDecimal` unngår flyttallsfeil ved grensen på 50 øre.
+
+Jeg lot `Feriepenger.kt` og enhetstestene være urørt. Gradle ble ikke kjørt.
+
+🔴 Rød sone: avrunding av feriepenger.
+
+**Sjekkliste for rød sone**
+
+- [ ] Sjekk at testene dekker at 10,49 kr blir 10 kr, mens 10,50 og 10,51 kr blir 11 kr. Send inn det uavrundede beløpet.
+
+Kan du fortelle meg hva denne koden gjør og hvorfor denne tilnærmingen er riktig?
+

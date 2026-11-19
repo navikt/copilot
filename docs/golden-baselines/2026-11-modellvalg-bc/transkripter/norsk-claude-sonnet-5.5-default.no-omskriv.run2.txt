@@ -1,0 +1,18 @@
+ ● skill(klarsprak)
+
+ / Search "**/utkast.md" 1 file found
+
+ MD Read utkast.md 11 lines read
+
+ ● Create utkast.md.new +1
+
+ MD Edit utkast.md +4 -6
+
+`utkast.md` er språkvasket og kortet ned til ca. 84 ord. Jeg har ikke talt ordene med et verktøy.
+
+- **Fakta:** Alle fakta står igjen. Det gjelder tilgjengelighet fra mandag, hva agenten sjekker, at den bare foreslår rettelser, at den ikke erstatter menneskelig gjennomgang, konfig-flagget og Slack-kanalen.
+- **Fjernet:** Nynorsk (ikkje, sjølv, berre, mykje, tilgjengeleg), KI-markører (banebrytende, sømløs, avgjørende), «Avslutningsvis»-avsnittet og «lys framtid»-frasen.
+- **Språk:** «AI» er endret til «KI», og passiv er endret til aktiv.
+
+Jeg opprettet ved en feil en tom hjelpefil, `utkast.md.new`, som jeg ikke kan slette herfra. Slett den manuelt.
+

@@ -1,0 +1,22 @@
+ ● skill(klarsprak)
+
+ ● skill(security-review)
+
+ ● Read src/main/kotlin/no/nav/demo/sak/SakService.kt 58 lines read
+
+ $ Shell Kjør prosjektsjekk og finn relaterte filer 17 lines…
+   mise check; ls -a; find src -type f
+
+ $ Shell Sjekk byggoppsett og bekreft linjenumre 39 lines…
+   cat build.gradle.kts README.md; nl -ba src/main/kotlin/no/nav/demo/sak/SakService.kt | tail -15
+
+**Ett forbedringspunkt, ingen blokkerende funn i `SakService.kt`.**
+
+| Linje | Prioritet | Funn |
+|---|---|---|
+| 55 | 🟡 Forslag | `service.sakerFor(fnr)` kjører et synkront JDBC-oppslag på tråden som håndterer forespørselen. Hvis databasen svarer tregt, kan andre forespørsler bli stående i kø. Flytt databasekallet til `Dispatchers.IO`. |
+
+Ruten bruker `pid` fra TokenX-prinsipalen, ikke en personidentifikator fra forespørselsparametrene. SQL-spørringen filtrerer på denne verdien med en bundet parameter. Loggkallet maskerer alle sifrene.
+
+Gjennomgangen er statisk. Prosjektet har ingen `mise check`-oppgave.
+

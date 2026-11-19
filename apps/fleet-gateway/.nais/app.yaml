@@ -52,6 +52,7 @@ spec:
       - name: {{postgres}}
   envFrom:
     - secret: fleet-gateway-rt-keys # key RT_KEYS = "kid:base64key,..." (newest first); created by a human
+    - secret: fleet-gateway-lockout-key # key LOCKOUT_KEY (at least 32 bytes); created by a human in dev-gcp and prod-gcp (#2436)
   {{/if}}
   env:
     # Soft heap limit below the container limit, so GC runs before an OOM kill (README, Memory and limits).

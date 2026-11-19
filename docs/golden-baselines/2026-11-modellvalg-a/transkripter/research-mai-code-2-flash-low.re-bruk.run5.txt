@@ -1,0 +1,8 @@
+ / Search "**/*" 25 files found
+
+ / Search "maksAntall" 3 lines found
+
+- `src/main/kotlin/no/nav/demo/Config.kt:4` definerer konstanten.
+- `src/main/kotlin/no/nav/demo/Routes.kt:16` bruker den i `oppgaver.take(maksAntall)`.
+- `src/main/kotlin/no/nav/demo/App.kt:10` skriver den ut i en logglinje.
+

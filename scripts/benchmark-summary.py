@@ -76,6 +76,8 @@ CHECKS = {
     "rs2": ("rs2", "Rust: endrer bare i craten med feilen"),
     "rs3": ("rs3", "Rust: feiltyper med thiserror og en test per feil"),
     "rs4": ("rs4", "Rust: endrer bare i craten med parseren"),
+    "rs5": ("rs5", "Rust: samme id utbetales én gang, og en feilet utbetaling utbetales ved ny levering"),
+    "rs6": ("rs6", "Rust: endrer bare i craten med meldingsmottaket"),
     "re4": ("re4", "Oppsummeringen nevner endepunktet"),
 }
 

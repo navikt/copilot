@@ -1,0 +1,55 @@
+ ● skill(nav-plan)
+
+ ● skill(nav-auth)
+
+ ● skill(api-design)
+
+## Fase 2: Plan
+
+**Vi bruker eksisterende Next.js som BFF foran en stateless Ktor-tjeneste.** Wonderwall håndterer innlogging ved frontend, og TokenX viderefører brukeridentiteten til backend og PDL. Dette holder tokens utenfor nettleserkoden, men krever to token exchanges fremfor direkte nettleserkall til backend.
+
+**Antakelser:** Ingen varig lagring eller persondatacache. Bare innlogget brukers navn hentes. Konkret lovhjemmel, PDL-behandlingsnummer og nødvendige tilganger må være dokumentert før produksjonssetting.
+
+### Flyt og API
+
+1. Innbygger logger inn gjennom ID-porten og Wonderwall ved Next.js-applikasjonen.
+2. Nettleseren kaller samme-origin BFF-route med sesjonscookie. BFF validerer innkommende token og veksler det til et TokenX-token med backend som audience.
+3. Ktor validerer signatur, issuer, audience, levetid og tillatt kaller. Fødselsnummer hentes fra validert brukeridentitet, aldri fra klientens parametere.
+4. Backend veksler tokenet videre til PDL og henter kun nødvendige navnefelt gjennom PDLs GraphQL-API.
+
+Backend tilbyr `GET /api/meg`. Responsen inneholder navn, ikke fødselsnummer. API- og BFF-responser bruker `Cache-Control: no-store`; Next.js skal heller ikke cache oppslaget.
+
+Manglende eller ugyldig token gir `401`; manglende tilgang gir `403`. PDL-utilgjengelighet og timeout gir `503`, uten automatisk retry. GraphQL-feil må vurderes selv ved HTTP `200`; manglende data skal ikke skjules som et vellykket svar. Feil returneres som `application/problem+json`, uten rå feilmeldinger fra PDL.
+
+### Implementasjon og Nais
+
+| Område | Plan |
+|---|---|
+| Ktor | Skill konfigurasjon, auth, `/api/meg`, PDL-klient og feiloversetting. Bruk etablerte Nav-biblioteker for tokenvalidering og exchange. |
+| Next.js | Serverbasert BFF-route og API-klient i eksisterende frontend. Ingen ny frontend eller direkte backend-ingress. |
+| Auth | ID-porten og Wonderwall på frontend; TokenX på frontend og backend. Ingen Azure client_credentials. |
+| Tilgang | Eksplisitt inbound fra kun frontend til backend og outbound fra backend til PDL. PDL må også godkjenne backend som konsument. Eksakte navn og audiences fastsettes per miljø. |
+| Ressurser | Start med CPU-request `15m`, minne-request `256Mi`, minnegrense `512Mi`, to replikaer. Ingen CPU-grense. JVM-minne tilpasses containeren. |
+| Helse | Behold `/internal/isalive` og `/internal/isready`. PDL-nedetid skal ikke utløse omstart av ellers frisk backend. |
+| Lagring | Ingen database, Flyway eller kø. Secrets og miljøverdier leveres gjennom Nais, ikke kildekoden. |
+
+### Personvern og observabilitet
+
+Logg PDL-feil med kontrollert feilkategori, status og teknisk korrelasjons-ID uten persondata. Ikke logg fødselsnummer, navn, tokens, request-/response-body eller ukontrollerte exception-meldinger. Lovhjemmel er behandlingsgrunnlaget; PDL-konfigurasjon erstatter ikke dokumentasjonen av dette.
+
+Mål antall oppslag per minutt og andel feilende kall med tellere uten personidentifiserende labels. Skill avviste auth-kall fra tekniske feil, og mål PDL-latens. Foreslått startalarm er over 5 % tekniske feil i fem minutter med minst 20 kall; terskelen justeres etter trafikken.
+
+### Tester og levering
+
+- Ktor-integrasjonstester med MockOAuth2Server dekker ugyldig signatur, feil issuer/audience, utløpt token, manglende personidentitet og ikke-tillatt kaller. Verifiser at avviste kall aldri når PDL.
+- Mock PDL og token exchange: korrekt bruker og audience, vellykket navneoppslag, timeout, HTTP-feil og GraphQL-feil. Kontroller at logger og feilresponser ikke lekker persondata.
+- BFF-tester dekker token exchange, feilpropagering og fravær av caching. Test innlogging og navnevisning i dev med syntetiske testpersoner.
+- CI kjører formattering, tester og bygg før image publiseres. Actions SHA-pinnes med minimale permissions. Deploy til dev først, deretter godkjent prod-deploy.
+- Før prod: bekreft PDL-tilgang, negativ auth-test, navneoppslag, `503` ved simulert PDL-nedetid og fungerende metrikker. Rollback gjenoppretter forrige frontend-image og deaktiverer den nye flyten; ingen data må migreres.
+
+### Rød sone og fasegrense
+
+🔴 Rød sone: tokenvalidering, TokenX, eierskapskontroll og persondatahåndtering. Dette må teamet forstå grundig. Ved levering lager jeg som standard bare stubs og testskjeletter for disse delene; full implementasjon krever en eksplisitt bestilling.
+
+Planen er klar for fase 3, review fra fem perspektiver, inkludert separat sikkerhetsvurdering. Ingen kode eller konfigurasjon er endret. Still gjerne spørsmål om valgene over.
+

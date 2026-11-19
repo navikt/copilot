@@ -1,0 +1,42 @@
+ / Search "**/Cargo.toml" 2 files found
+
+ / Search "behandle_neste" 2 lines found
+
+ ● update_todo todos: "- [ ] Inspect borrow issue in saksko behandle_neste - [ ] … TODO list updated
+
+ RS Read saksko/src/lib.rs L1:220 (50 lines read)
+
+ ✗ Shell Run targeted Rust tests for saksko to reproduce compile issue Failed with exit code 101  e…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.RZi2cT/repo/saksko
+   && cargo test --quiet
+   error[E0502]: cannot borrow `self.saker` as mutable because it is also borrowed as immutable
+     --> src/lib.rs:31:9
+      |
+   30 |         let sak = self.saker.first()?;
+      |                   ---------- immutable borrow occurs here
+   31 |         self.saker.remove(0);
+      |         ^^^^^^^^^^^^^^^^^^^^ mutable borrow occurs here
+   32 |         self.behandlet.push(sak.id.clone());
+      |                             ------ immutable borrow later used here
+   
+   For more information about this error, try `rustc --explain E0502`.
+   error: could not compile `saksko` (lib) due to 1 previous error
+   error: could not compile `saksko` (lib test) due to 1 previous error
+   Failed with exit code 101
+
+Jeg retter selve lånefeilen i `behandle_neste` ved å klone saken før jeg fjerner den fra vektoren, uten å endre funksjonens semantikk.
+
+ RS Edit saksko/src/lib.rs +2 -2
+
+ $ Shell Verify the borrow fix makes saksko tests pass 8 lines…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.RZi2cT/repo/saksko
+   && cargo test --quiet
+
+Fikset. Feilen var at `self.saker.first()` ga en immutable borrow som levde for lenge, så `self.saker.remove(0)` fikk lånekonflikt. Jeg klonet første sak før jeg fjernet den fra vektoren, uten å endre funksjonens semantikk.
+
+Resultat:
+- `cargo test --quiet` i `saksko/` passerer
+- 1 test grønn, 0 feilet
+
+
+

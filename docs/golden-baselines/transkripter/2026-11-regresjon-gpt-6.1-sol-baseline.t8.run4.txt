@@ -1,0 +1,38 @@
+ / Search "*" 28 files found
+
+ ● Read lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningProducerIntercepto  22 lines re…
+        r.kt
+
+ ● Read lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningHeaders.kt 11 lines read
+
+ $ Shell Find reference monorepo 1 line…
+   gh search repos 'paw monorepo org:navikt' --limit 5 --json name,url
+
+ $ Shell Locate reference signing implementation 58 lines…
+   gh api repos/navikt/paw-arbeidssoekerregisteret-monorepo-intern/git/trees/main?recursive=1 --jq
+   '.tree[] | select(.path | test("Signing|signing")) | .path'
+
+ ● Read build.gradle.kts 12 lines read
+
+ ● Read lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/Periode.kt 4 lines read
+
+ $ Shell Read reference header replacement 159 lines…
+   gh api repos/navikt/paw-arbeidssoekerregisteret-monorepo-intern/contents/lib/kafka-signing/src/ma
+   in/kotlin/no/nav/paw/kafka/signing/SigningProducerInterceptor.kt --jq .content | base64 --decode;
+   gh api repos/navikt/paw-arbeidssoekerregisteret-monorepo-intern/contents/lib/kafka-signing/src/ma
+   in/kotlin/no/nav/paw/kafka/signing/SigningHeaders.kt --jq .content | base64 --decode
+
+ ● skill(klarsprak)
+
+**Ikke endret ennå.** Dette berører signeringskode og krever et stopp i fase 1 (fullt løp; budsjett ca. 500 tokens per fase).
+
+Jeg har lest referansen i internmonorepoet: interceptoren fjerner begge signeringsheaderne før nye legges til. Her legger `SigningProducerInterceptor` dem til uten å fjerne gamle. Hjelperen `stripSigningHeaders` finnes allerede. Jeg antar at payload, mottakere og nøkkelhåndtering skal være uendret.
+
+🔴 Rød sone: signering, gå gjennom denne nøye.
+
+Ved signeringsfeil: skal eksisterende headere beholdes, slik dagens lokale kode gjør, eller fjernes slik at meldingen ikke kan sendes med en gammel signatur? Hvilke konsumenter verifiserer signaturen?
+
+Repoet mangler `AGENTS.md` og lokale Copilot-instruksjonsfiler for utvikling og review. Disse kan opprettes med `nav-pilot init`.
+
+Blindsoner reist: 2/11 (#3 og #6 stilt; øvrige gjelder uendret payload, tilgang og nøkkelhåndtering eller avklares i planfasen).
+

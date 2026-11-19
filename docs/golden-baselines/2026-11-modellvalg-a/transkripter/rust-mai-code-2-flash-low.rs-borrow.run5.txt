@@ -1,0 +1,43 @@
+ ● skill(rust-development)
+
+I’m locating `behandle_neste` and reproducing the compiler error before the focused fix.
+
+ / Search "**/Cargo.toml" 2 files found
+
+ / Search "behandle_neste" in *.rs 2 lines found
+
+ RS Read saksko/src/lib.rs 50 lines read
+
+ TM Read saksko/Cargo.toml 6 lines read
+
+ ● Edit  Edit saksko/src/lib.rs (+2 -2)
+
+ ● Edit  Edit saksko/src/lib.rs (+4 -2)
+
+ ✗ Shell Format-check and run the saksko tests Failed with exit code 1  Diff in /private/var/folder…
+   cd saksko && cargo fmt --check && cargo test
+   Diff in /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.msghjr/repo/sak
+   sko/src/lib.rs:43:
+        #[test]
+        fn behandler_eldste_forst() {
+            let mut ko = Saksko::default();
+   -        ko.legg_til(Sak { id: "s1".into(), prioritet: 1 });
+   -        ko.legg_til(Sak { id: "s2".into(), prioritet: 2 });
+   +        ko.legg_til(Sak {
+   +            id: "s1".into(),
+   +            prioritet: 1,
+   +        });
+   +        ko.legg_til(Sak {
+   +            id: "s2".into(),
+   +            prioritet: 2,
+   +        });
+            assert_eq!(ko.behandle_neste().map(|s| s.id), Some("s1".to_string()));
+            assert_eq!(ko.antall(), 1);
+            assert_eq!(ko.behandlet(), ["s1".to_string()]);
+   Failed with exit code 1
+
+ $ Shell Format the crate and run its tests 14 lines…
+   cd saksko && cargo fmt && cargo test
+
+Rettet lånefeilen i `behandle_neste` ved å flytte saken ut av køen før behandlingsloggen oppdateres. `cargo test` i `saksko/` går grønt.
+

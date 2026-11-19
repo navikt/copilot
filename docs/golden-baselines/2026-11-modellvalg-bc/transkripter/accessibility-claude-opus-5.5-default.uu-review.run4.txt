@@ -1,0 +1,54 @@
+Jeg leser komponenten og UU-instruksjonene.
+
+ TX Read src/app/komponenter/StatusPanel.tsx 19 lines read
+
+ MD Read .github/instructions/accessibility.instructions.md 121 lines read
+
+## UU-gjennomgang av `StatusPanel.tsx`
+
+Jeg fant 5 brudd på WCAG 2.1 AA. To av dem stopper tastatur- og skjermleserbrukere helt. Jeg har ikke endret filen.
+
+| # | Linje | Problem | WCAG |
+|---|---|---|---|
+| 1 | `<div onClick>` «Vis detaljer» | Elementet kan ikke nås med tastatur. Det har ingen rolle og ingen `aria-expanded`, så skjermlesere sier ikke at det er en knapp eller om den er åpen. `apen` styrer heller ikke noe innhold ennå. | 2.1.1, 4.1.2 |
+| 2 | `style={{ outline: "none" }}` | Fjerner fokusmarkeringen uten å erstatte den. | 2.4.7 |
+| 3 | `tabIndex={5}` på `<span>` | En verdi over 0 ødelegger tab-rekkefølgen. Status er ikke interaktivt og skal ikke kunne få fokus. | 2.4.3 |
+| 4 | `color: "red"` / `"green"` | Ren `red` mot hvit bakgrunn gir 4:1 i kontrast og stryker. Fargen bærer også meningen alene, uten ikon eller variant. Hvis status endres mens siden er åpen, får skjermleseren ikke beskjed. | 1.4.3, 1.4.1, 4.1.3 |
+| 5 | `<button><TrashIcon /></button>` | Knappen har ikke et tilgjengelig navn, så skjermleseren sier bare «knapp». | 4.1.2, 1.1.1 |
+
+Andre funn:
+- Sletting skjer uten bekreftelse. Vurder en `Modal` for å bekrefte (3.3.4).
+- Komponenten bruker `useState` uten `"use client"` og feiler derfor i App Router.
+
+## Forslag med Aksel
+
+```tsx
+"use client";
+import { Button, ReadMore, Tag } from "@navikt/ds-react";
+import { TrashIcon } from "@navikt/aksel-icons";
+
+type Props = { status: "ok" | "feil"; onSlett: () => void };
+
+export function StatusPanel({ status, onSlett }: Props) {
+  return (
+    <div className="p-4 mx-8">
+      <ReadMore header="Vis detaljer">{/* detaljinnhold */}</ReadMore>
+      <div role="status">
+        <Tag variant={status === "feil" ? "error" : "success"}>
+          {status === "feil" ? "Feil" : "OK"}
+        </Tag>
+      </div>
+      <Button
+        variant="tertiary"
+        icon={<TrashIcon title="Slett" />}
+        onClick={onSlett}
+      />
+    </div>
+  );
+}
+```
+
+`ReadMore` gir riktig knapperolle, tastaturstøtte, `aria-expanded` og fokusmarkering. Hvis panelet skal være mer framtredende, passer `ExpansionCard` bedre.
+
+Sjekk etterpå at du kan tabbe gjennom komponenten med tastatur, og kjør axe. Si fra hvis jeg skal gjøre endringene.
+

@@ -1,0 +1,20 @@
+ / Search "**/AGENTS.md" No matches found
+
+ / Search "slug/**" 2 files found
+
+ ✗ Shell Run slug test suite Could not find 'slug.test.ts' Failed with exit code 1
+   node --test slug.test.ts
+
+ MD Read .github/instructions/security-owasp.instructions.md 12 lines read
+
+ TS Read slug/slug.ts 10 lines read
+
+ TS Read slug/slug.test.ts 9 lines read
+
+ ● Edit  Edit slug/slug.ts (+2 -1)
+
+ $ Shell Verify slug tests 9 lines…
+   cd slug && node --test slug.test.ts
+
+Feilen er rettet i `slug/slug.ts`: bindestreker fjernes nå fra starten og slutten av sluggen. `node --test slug/slug.test.ts` passerer.
+

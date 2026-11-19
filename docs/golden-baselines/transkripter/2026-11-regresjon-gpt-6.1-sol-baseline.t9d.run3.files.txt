@@ -1,0 +1,107 @@
+=== ./build.gradle.kts
+plugins {
+    kotlin("jvm") version "2.1.0"
+    kotlin("plugin.serialization") version "2.1.0"
+}
+repositories {
+    mavenCentral()
+}
+dependencies {
+    implementation("io.ktor:ktor-server-netty:3.0.0")
+    implementation("io.ktor:ktor-server-content-negotiation:3.0.0")
+    implementation("io.ktor:ktor-serialization-kotlinx-json:3.0.0")
+    testImplementation(kotlin("test-junit5"))
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+}
+
+tasks.test {
+    useJUnitPlatform()
+}
+
+=== ./src/main/kotlin/no/nav/demo/Avrunding.kt
+package no.nav.demo
+
+import java.math.BigDecimal
+import java.math.RoundingMode
+
+fun avrundTilHeleKroner(belop: BigDecimal): Long =
+    belop.setScale(0, RoundingMode.HALF_UP).longValueExact()
+
+=== ./src/main/kotlin/no/nav/demo/Feriepenger.kt
+package no.nav.demo
+
+fun feriepenger(grunnlag: Long, alderIOpptjeningsåret: Int): Long {
+    TODO("Avvis negativt grunnlag, velg sats etter alder og bruk avrundTilHeleKroner")
+}
+
+=== ./src/test/kotlin/no/nav/demo/AvrundingTest.kt
+package no.nav.demo
+
+import java.math.BigDecimal
+import kotlin.test.Test
+import kotlin.test.assertEquals
+
+class AvrundingTest {
+    @Test
+    fun `rounds to nearest krone with half rounded up`() {
+        mapOf(
+            "0" to 0L,
+            "0.49" to 0L,
+            "0.50" to 1L,
+            "123.49" to 123L,
+            "123.50" to 124L,
+            "123.51" to 124L,
+            "124.50" to 125L,
+            "9007199254740993.50" to 9007199254740994L,
+        ).forEach { (belop, forventet) ->
+            assertEquals(forventet, avrundTilHeleKroner(BigDecimal(belop)), belop)
+        }
+    }
+}
+
+=== ./src/test/kotlin/no/nav/demo/FeriepengerTest.kt
+package no.nav.demo
+
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+
+class FeriepengerTest {
+    @Test
+    fun `uses ordinary rate before age 60`() {
+        assertEquals(10200L, feriepenger(100000L, 59))
+    }
+
+    @Test
+    fun `uses higher rate from age 60`() {
+        assertEquals(12500L, feriepenger(100000L, 60))
+        assertEquals(12500L, feriepenger(100000L, 61))
+    }
+
+    @Test
+    fun `zero basis gives zero for both rates`() {
+        assertEquals(0L, feriepenger(0L, 59))
+        assertEquals(0L, feriepenger(0L, 60))
+    }
+
+    @Test
+    fun `rounds ordinary rate to nearest krone with half up`() {
+        assertEquals(2L, feriepenger(24L, 59))
+        assertEquals(26L, feriepenger(250L, 59))
+        assertEquals(3L, feriepenger(25L, 59))
+    }
+
+    @Test
+    fun `rounds higher rate to nearest krone with half up`() {
+        assertEquals(0L, feriepenger(3L, 60))
+        assertEquals(1L, feriepenger(4L, 60))
+        assertEquals(1L, feriepenger(5L, 60))
+    }
+
+    @Test
+    fun `rejects negative basis for both rates`() {
+        assertFailsWith<IllegalArgumentException> { feriepenger(-1L, 59) }
+        assertFailsWith<IllegalArgumentException> { feriepenger(-1L, 60) }
+    }
+}
+

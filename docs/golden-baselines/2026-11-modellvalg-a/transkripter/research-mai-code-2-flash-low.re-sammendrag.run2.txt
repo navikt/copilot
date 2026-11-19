@@ -1,0 +1,20 @@
+ / Search "**/{README*.md,package.json,build.gradle*,pom.xml,Cargo.toml,go.mod}" 2 files found
+
+ / Search "*" 25 files found
+
+Jeg undersøker tjenestens routes og startlogikk for å holde oppsummeringen kort og korrekt.
+
+ ● Read src/main/kotlin/no/nav/demo/Routes.kt 19 lines read
+
+ MD Read README.md 4 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/Oppgave.kt 9 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/App.kt 15 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/Config.kt 4 lines read
+
+- Kjører en liten Ktor-tjeneste på Nais.
+- Eksponerer REST-endepunktet `/api/oppgaver`.
+- Returnerer JSON med oppgaver, begrenset av `maksAntall`.
+

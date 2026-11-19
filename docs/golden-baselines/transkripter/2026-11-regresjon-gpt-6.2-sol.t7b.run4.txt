@@ -1,0 +1,18 @@
+ ● skill(kafka)
+
+ / Search "SoknadMottattMelding|soknad-mottatt" 3 lines found
+
+ $ Shell Sjekk Kafka-melding og konfigurasjon 38 lines…
+   ls -a; ls -a .github; cat src/main/kotlin/no/nav/demo/Soknad.kt
+
+ / Search "kafka|fnr|soknad-mottatt" in {nais.yaml,README.md} No matches found
+
+**Fase 1: Avklaring.** Jeg har ikke endret koden. `SoknadMottattMelding` inneholder i dag bare `soknadId` og `mottatt`. Å legge til `fnr` betyr at fødselsnummer blir tilgjengelig for leserne av `soknad-mottatt`. Jeg fant ingen dokumentasjon på hvem som leser topicen eller hvordan fødselsnummer skal beskyttes der.
+
+1. Hva trenger mottakerne fødselsnummeret til, hvilke konsumenter har tilgang til topicen, og hvilken feltkryptering er godkjent for dem?
+2. Tåler dagens konsumenter et nytt felt, og må de fortsatt kunne lese eldre meldinger uten `fnr`?
+
+Repoet mangler lokal Copilot-konfigurasjon. Den kan opprettes med `nav-pilot init`.
+
+Blindsoner reist: 3/11 (#1 personvern, #6 konsumenter, #9 kompatibilitet). Ingen endring i hvem som kan lese er foreslått. Øvrige punkter gjelder ikke denne avklaringen eller vurderes i planen.
+

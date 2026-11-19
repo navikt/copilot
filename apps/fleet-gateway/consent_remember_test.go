@@ -146,7 +146,7 @@ func TestConsent_RollingDeployNeverSkipsConsent(t *testing.T) {
 		if _, ok, _ := te.gw.store.Get(ctx, "pending_entra", st); ok {
 			t.Fatal("new flow wrote the kind old pods pop")
 		}
-		if _, ok, _ := te.gw.store.Get(ctx, kindPendingEntra, st); !ok {
+		if _, ok, _ := te.gw.store.Get(ctx, kindPendingEntra, hashToken(st)); !ok {
 			t.Fatal("new flow did not store its pending state")
 		}
 	})
@@ -155,7 +155,7 @@ func TestConsent_RollingDeployNeverSkipsConsent(t *testing.T) {
 		te := newTestEnv(t)
 		_ = te.obtainAuthCode(consentVerifier) // consent now remembered
 		st, sc := te.startLogin(consentVerifier)
-		raw, ok, err := te.gw.store.Pop(ctx, kindPendingEntra, st)
+		raw, ok, err := te.gw.store.Pop(ctx, kindPendingEntra, hashToken(st))
 		if err != nil || !ok {
 			t.Fatalf("pop: %v %v", ok, err)
 		}

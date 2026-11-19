@@ -1,0 +1,68 @@
+ ● skill(klarsprak)
+
+ ● skill(aksel-builder)
+
+ $ Shell Les komponenten med linjenumre 19 lines…
+   nl -ba src/app/komponenter/StatusPanel.tsx
+
+ ✗ Shell Finn prosjektregler og kjør mise check Failed with exit code 1  . .. .github build.gradle.…
+   ls -a; rg --files --hidden -g '!node_modules' -g '!.git' | head -80; mise check
+   .
+   ..
+   .github
+   build.gradle.kts
+   nais.yaml
+   README.md
+   src
+   src/main/kotlin/no/nav/demo/Config.kt
+   src/main/kotlin/no/nav/demo/UserRepo.kt
+   src/main/kotlin/no/nav/demo/Routes.kt
+   src/main/kotlin/no/nav/demo/Oppgave.kt
+   src/main/kotlin/no/nav/demo/App.kt
+   src/app/komponenter/StatusPanel.tsx
+   .github/agents/golden-code-review.agent.md
+   .github/instructions/norwegian-text.instructions.md
+   .github/instructions/testing.instructions.md
+   .github/instructions/testing-kotlin.instructions.md
+   .github/instructions/security-owasp.instructions.md
+   .github/instructions/kotlin.instructions.md
+   .github/instructions/security-core.instructions.md
+   .github/instructions/testing-typescript.instructions.md
+   .github/instructions/golang.instructions.md
+   .github/instructions/github-actions.instructions.md
+   .github/instructions/nextjs-aksel.instructions.md
+   .github/instructions/database.instructions.md
+   .github/instructions/output-style.instructions.md
+   .github/instructions/cplt-sandbox.instructions.md
+   .github/instructions/accessibility.instructions.md
+   .github/instructions/docker.instructions.md
+   .github/instructions/performance.instructions.md
+   .github/instructions/deliberate-ai-use.instructions.md
+   nais.yaml
+   build.gradle.kts
+   README.md
+   mise ERROR no tasks defined in 
+   /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.tJpC35/repo. Are you in
+    a project directory?
+   mise ERROR Version: 2026.11.10 macos-arm64 (2026-11-18)
+   mise ERROR Run with --verbose or MISE_VERBOSE=1 for more information
+   Failed with exit code 1
+
+ MD Read ~/.copilot/skills/aksel-builder/references/accessibility.md 84 lines read
+
+ $ Shell Sjekk lokale krav til tilgjengelighet og stil 104 lines…
+   cat .github/instructions/{accessibility,nextjs-aksel}.instructions.md | head -100; cat README.md
+   | head -30
+
+**Tre feil bør stoppe merge:** «Vis detaljer» viser ingenting, kontrollen kan ikke brukes med tastatur, og sletteknappen mangler et tilgjengelig navn.
+
+| Linje i `StatusPanel.tsx` | Prioritet | Funn og anbefaling |
+|---|---|---|
+| 8 | 🔴 | Klikk endrer `apen`, men komponenten bruker aldri verdien til å vise detaljer. La `apen` styre både detaljinnholdet og `aria-expanded`. |
+| 8 | 🔴 | En `div` med `onClick` kan ikke nås med Tab eller aktiveres med Enter eller mellomrom. Bruk en knapp med synlig fokus i stedet for `outline: "none"`. |
+| 14–15 | 🔴 | Sletteknappen inneholder bare et ikon. En skjermleser får ikke vite hva knappen gjør. Legg til synlig tekst eller `aria-label="Slett"`. |
+| 11 | 🟡 | `tabIndex={5}` flytter statisk tekst foran kontrollene i den vanlige tabulatorrekkefølgen. Fjern `tabIndex`; skjermlesere kan fortsatt lese statusen. |
+| 11 | 🟡 | `red` og `green` følger ikke temaet. Rød tekst på hvit bakgrunn har omtrent 4:1 kontrast, under kravet på 4,5:1 for vanlig tekst. Bruk tematilpassede statusfarger og behold statusteksten. |
+
+`mise check` kunne ikke kjøre fordi prosjektet ikke definerer noen mise-oppgaver.
+

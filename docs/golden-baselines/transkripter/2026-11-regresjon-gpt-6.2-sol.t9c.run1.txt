@@ -1,0 +1,15 @@
+ ● skill(klarsprak)
+
+ $ Shell ls -a; find . -name '*.kt' -o -name '*.kts' -o -name '*.instructions.md' 29 lines…
+   ls -a; find . -name '*.kt' -o -name '*.kts' -o -name '*.instructions.md'
+
+ $ Shell Read Kotlin and test conventions output too large to show (30.7 KB)…
+   cat build.gradle.kts src/main/kotlin/no/nav/demo/Oppgave.kt
+   .github/instructions/{kotlin,security-owasp,testing,testing-kotlin}.instructions.md
+
+ ● Edit  Edit build.gradle.kts (+1)  Create src/main/kotlin/no/nav/demo/Feriepenger.kt (+4)  Create…
+
+La til `Feriepenger.kt` med funksjonssignaturen og enhetstester for satsgrensen ved 60 år, avrunding rundt 50 øre, null og negativt grunnlag.
+
+**Rød sone:** Selve beregningen og valideringen står igjen som `TODO`. Testene vil feile til funksjonen er implementert. Jeg kjørte ikke Gradle.
+

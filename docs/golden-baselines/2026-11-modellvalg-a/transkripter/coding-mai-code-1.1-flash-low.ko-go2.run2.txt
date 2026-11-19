@@ -1,0 +1,32 @@
+ ● List directory . 8 files found
+
+ / Search "**/ytelse/**" 4 files found
+
+ GO Read ytelse/ytelse_test.go L1:220 (21 lines read)
+
+ GO Read ytelse/utbetaling.go L1:220 (6 lines read)
+
+ GO Read ytelse/rapport.go L1:220 (8 lines read)
+
+Jeg ser på den konkrete feilen i ytelse-modulen og retter koden etter den nye "gradering" av ytelse, ikke testene.
+
+ / Search "grad|ytelse|Utbetaling\(|Rapport\(" 27 lines found
+
+ GO Edit ytelse/utbetaling.go +4 -3
+
+ GO Edit ytelse/rapport.go +3 -3
+
+Jeg har oppdatert beregningen til å ta hensyn til grad. Nå verifiserer jeg med den riktige Go-testkommandoen i ytelse-katalogen.
+
+ $ Shell Run Go tests in the ytelse module to verify grading fix 1 line…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.qenq4R/repo/ytelse
+   && go test ./...
+
+Løst. Koden er oppdatert til å beregne dagsats etter grad, og rapporten bruker samme logikk.
+
+Verifisert:
+- cd ytelse && go test ./...
+- Resultat: ok
+
+
+

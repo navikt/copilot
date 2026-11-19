@@ -1,0 +1,26 @@
+ ● skill(nav-auth)
+
+ ● skill(klarsprak)
+
+ $ Shell Sjekk lokal prosjektkonfigurasjon 7 lines…
+   ls -a; for f in AGENTS.md .github/copilot-instructions.md .github/copilot-review-instructions.md;
+   do if test -f "$f"; then printf '%s\n' "$f"; cat "$f"; fi; done
+
+ / Search "(?i)idporten|tokenx|accessPolicy|fødselsnummer|fnr|ktor|spring" 57 lines found
+
+ $ Shell Les manifest og tjenesteoversikt 24 lines…
+   cat nais.yaml README.md; ls -a .github; find src -type f
+
+**Fase 1: Avklare bruk av fødselsnummer og tilgang**
+
+Repoet inneholder `demo-tjeneste`, en Ktor-tjeneste på Nais. Manifestet angir verken ID-porten eller tilgangsregler. Jeg antar at fødselsnummeret gjelder den innloggede personen. Ingen filer er endret.
+
+1. Hvilken oppgave skal tjenesten løse, og hvorfor trenger den fødselsnummer fremfor en annen brukeridentifikator? Skal nummeret bare brukes i forespørselen, eller også lagres eller sendes videre? I så fall: hvor lenge eller til hvem?
+2. Skal innbyggeren bruke tjenesten direkte i nettleseren, eller skal en annen Nav-tjeneste kalle den på vegne av innbyggeren? Hvilket innloggingsnivå krever oppgaven?
+3. Hva skal brukeren få beskjed om hvis innloggingen feiler eller fødselsnummeret mangler? Hvilket signal viser at tjenesten virker, uten å logge fødselsnummer eller token?
+4. Skal vi bygge videre på `demo-tjeneste` eller opprette en egen tjeneste? Hvilket team skal eie den, og er det andre team eller systemer som skal bruke den?
+
+`AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md` mangler. De kan settes opp med `nav-pilot init`.
+
+Blindsoner reist: 6/11 (#1–#6). Teststrategi og ny teknologi (#7, #11) vurderes når flyten er avklart. Ingen migrering, bakoverkompatibilitet eller utfasing er identifisert (#8–#10).
+

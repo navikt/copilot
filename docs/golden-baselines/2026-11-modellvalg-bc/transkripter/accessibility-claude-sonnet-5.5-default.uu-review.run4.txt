@@ -1,0 +1,52 @@
+ TX Read src/app/komponenter/StatusPanel.tsx 19 lines read
+
+ MD Read .github/instructions/accessibility.instructions.md 121 lines read
+
+ $ Shell Check deps and usages 6 lines…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.uSyFe7/repo && ls;
+   grep -E "ds-react|aksel|\"next\"|\"react\"" package.json; grep -rn "StatusPanel" src | head
+
+ $ Shell Rewrite component with accessible markup No Content
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.uSyFe7/repo && cat >
+   src/app/komponenter/StatusPanel.tsx <<'EOF'
+   import { useState } from "react";
+   import { Button, Tag } from "@navikt/ds-react";
+   import { TrashIcon } from "@navikt/aksel-icons";
+
+   interface StatusPanelProps {
+     status: string;
+     onSlett: () => void;
+   }
+
+   export function StatusPanel({ status, onSlett }: StatusPanelProps) {
+     const [apen, setApen] = useState(false);
+     return (
+       <div className="p-4 mx-8">
+         <Button variant="tertiary" aria-expanded={apen} onClick={() => setApen(!apen)}>
+           Vis detaljer
+         </Button>
+         <Tag variant={status === "feil" ? "error" : "success"}>{status}</Tag>
+         <Button
+           variant="tertiary"
+           onClick={onSlett}
+           icon={<TrashIcon title="Slett" />}
+         />
+       </div>
+     );
+   }
+   EOF
+
+Jeg har rettet `StatusPanel.tsx`. Jeg har ikke kjørt typesjekk eller axe, fordi repoet mangler `package.json`.
+
+**Funn og rettinger**
+- **`<div onClick>` med `outline: none`** (2.1.1, 2.4.7): ikke tastaturbetjent og uten fokusindikator. Erstattet med Aksel `Button` med `aria-expanded={apen}`.
+- **`tabIndex={5}` på `<span>`** (2.4.3): `tabIndex` over 0 er forbudt, og et ikke-interaktivt element skal ikke i tab-rekkefølgen. Fjernet.
+- **Farge som eneste signal** (1.4.1, 1.4.3): rød og grønn tekst gir lav kontrast og skiller dårlig for fargeblinde. Erstattet med `Tag` med variant `error` eller `success`, og statusteksten vises fortsatt.
+- **Ikonknapp uten navn** (4.1.2): `<TrashIcon />` hadde ingen tilgjengelig tekst. Nå er det `Button` med `TrashIcon title="Slett"`.
+- **Typer:** la til `StatusPanelProps` (var implisitt `any`).
+
+**Åpne punkter**
+- `apen` styrer ikke noe innhold. Når detaljpanelet finnes, legg til `aria-controls` med panelets id.
+- «Slett» bør få kontekst hvis det finnes flere paneler, for eksempel «Slett {status}».
+- Jeg antok at `@navikt/ds-react` er installert. Det kunne jeg ikke verifisere uten `package.json`.
+

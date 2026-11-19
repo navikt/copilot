@@ -1,0 +1,9 @@
+=== ./notis.md
+# KI-agent sjekker norsk tekst i docs/
+
+KI-agenten for kodegjennomgang finner nå nynorske former og typiske KI-moteord i norsk tekst. Den kjører automatisk på pull requests som endrer filer under `docs/`.
+
+Funksjonen er tilgjengelig fra mandag 5. oktober. Team som vil slå den av, setter `review.norsk = false` i `.nav-pilot/config.toml`.
+
+Send tilbakemeldinger til Slack-kanalen #ki-utvikling.
+

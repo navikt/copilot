@@ -1,0 +1,25 @@
+# golden-prompt PER-RUN ATTEMPTS
+# agent:        forfatter
+# suite:        norsk
+# date:         2026-11-18
+# revision:     6fbce9a6
+# personaHash:  81d4560449214a21214d98a7a50847f0f2cb5e1372a24d1071a404ed8c3042e6
+# harnessHash:  31303b66a044df68da77f1ba539f6a0a98cf0aabc6733992e11c37f4979c6eb4
+# model:        claude-opus-5.5
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.114-0.
+# effort:       CLI default
+# context:      CLI default
+# usage_complete: true
+#
+# slug|run|exit_code|outcome|bytes|elapsed_ms|usage_complete|detail
+no-omskriv|1|0|pass|879|30850|true|
+no-notis|1|0|pass|527|21151|true|
+no-omskriv|2|0|pass|915|29349|true|
+no-notis|2|0|pass|558|22740|true|
+no-omskriv|3|0|pass|809|29405|true|
+no-notis|3|0|pass|568|20910|true|
+no-omskriv|4|0|pass|1020|25622|true|
+no-notis|4|0|pass|607|22580|true|
+no-omskriv|5|0|pass|840|29448|true|
+no-notis|5|0|pass|717|27623|true|

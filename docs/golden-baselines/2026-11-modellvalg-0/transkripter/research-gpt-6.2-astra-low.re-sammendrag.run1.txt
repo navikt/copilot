@@ -1,0 +1,9 @@
+ ● skill(klarsprak)
+
+ / Search "**/*" 25 files found
+
+ / Search "." (src, README.md) 41 lines found
+
+- Demotjenesten tilbyr et skrivebeskyttet REST-API. `GET /api/oppgaver` returnerer oppgaver med ID og tittel i JSON-format.
+- Listen inneholder to faste eksempeloppgaver: «Registrer søknad» og «Send vedtaksbrev». Tjenesten lister dem opp, men utfører dem ikke.
+

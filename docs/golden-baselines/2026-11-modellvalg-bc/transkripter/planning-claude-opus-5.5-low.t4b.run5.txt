@@ -1,0 +1,73 @@
+# Fase 2: Plan
+
+Jeg har brukt svarene dine som grunnlag. Planen har tre åpne antakelser:
+
+- Next.js-frontenden kjører allerede bak Wonderwall med ID-porten.
+- Backend er Ktor. Dette er bare en antakelse, fordi `build.gradle.kts` ikke viser hvilket rammeverk dere bruker.
+- PDL tar imot TokenX-token med innbyggerkontekst. Dette må dere bekrefte med PDL-teamet.
+
+## 1. Arkitekturbeslutninger
+| Område | Valg | Begrunnelse |
+|---|---|---|
+| Innlogging | ID-porten + Wonderwall i frontend, TokenX fra frontend til backend | Innbyggerens kontekst følger med helt fram til PDL |
+| Kall fra backend til PDL | TokenX-utveksling med innbyggerens token, pluss `Behandlingsnummer`-header | Gir revisjonsspor per innbygger. Jeg har valgt bort Azure client_credentials, fordi da mister dere innbyggerkonteksten |
+| Kommunikasjon | REST: `GET /api/person` | Svaret er synkront, og det finnes bare én konsument |
+| Lagring | Ingen database | Tjenesten slår bare opp data. Dataminimering |
+
+Det viktigste valget er at backend henter fnr fra `pid`-claimet i det validerte tokenet. Fnr tas aldri imot som parameter. Dermed kan en innbygger bare slå opp seg selv, og eierskapet er sjekket allerede i innloggingen.
+
+## 2. Struktur
+```
+src/main/kotlin/no/nav/demo/
+  Application.kt          # Ktor-oppsett, helseendepunkter, /metrics
+  auth/TokenXAuth.kt      # 🔴 validering av token, uthenting av pid
+  pdl/PdlClient.kt        # 🔴 TokenX-utveksling + GraphQL-kall
+  person/PersonRoute.kt   # GET /api/person, feilene gjøres om til 503
+src/test/kotlin/...       # MockOAuth2Server, MockEngine for PDL
+```
+
+## 3. Nais-manifest
+- `tokenx.enabled: true`
+- `accessPolicy.inbound`: bare `<frontend-app>`
+- `accessPolicy.outbound`: PDL-apiet (`pdl-api` i namespace `pdl`) og PDL-ets vertsnavn under `external`
+- `resources.requests`: `cpu: 15m`, `memory: 256Mi`
+- `resources.limits`: `memory: 512Mi`, ingen CPU-grense
+- Prometheus-skraping på `/internal/metrics`
+
+## 4. CI/CD
+GitHub Actions bygger og tester med Gradle, bygger image med `nais/docker-build-push` og deployer med `nais/deploy` til dev og så til prod. Alle actions festes til SHA, og jobbene får minimale `permissions`.
+
+## 5. Database
+Ikke relevant, fordi tjenesten ikke lagrer noe.
+
+## 6. Tester
+| Komponent | Testnivå |
+|---|---|
+| Innlogging | MockOAuth2Server. Disse skal gi 401: token uten `pid`, feil `aud` og utløpt token |
+| PDL-klient | MockEngine. Skal gi 200 ved suksess, og 503 når PDL svarer 5xx eller tidsavbrudd |
+| Route | `testApplication`, ende til ende inne i appen |
+
+## 7. Sikkerhetssjekkliste
+- Fnr og navn logges aldri. Feil logges med kall-ID og statuskode.
+- `toString` på domeneobjektene maskerer fnr og navn.
+- Det skal finnes en egen behandling i Behandlingskatalogen, og den skal være knyttet til lovhjemmelen.
+- Svaret har `Cache-Control: no-store`.
+- Begge PDL-tidsavbruddene er satt til 3 s, både for tilkobling og for forespørsel.
+
+## 8. Migrering
+Ikke relevant, fordi dette er en ny tjeneste. Rulles noe tilbake, deployer dere forrige image på nytt.
+
+## 9. Leveransedokumenter og observerbarhet
+- **Metrikker:** telleren `person_oppslag_total{status}` gir både oppslag per minutt og andel feil. Histogrammet `pdl_kall_duration_seconds` måler hvor lang tid PDL-kallene tar.
+- **Varsel:** utløses når mer enn 5 % av kallene feiler i 5 minutter.
+- **Etter deploy:** Lever leveres med et endringsdokument og en sjekkliste til bruk etter deploy.
+
+## 10. 🔴 Rød-sone-deklarasjon
+Dette skriver utviklerne selv. Jeg leverer bare teststrukturer og tomme funksjoner:
+- `TokenXAuth.kt`: validering av token (`iss`, `aud`, `exp`) og uthenting av `pid`. Dette er sikkerhetskritisk og nytt for teamet.
+- `PdlClient.kt`: TokenX-utvekslingen. Dette er også nytt for teamet.
+
+Jeg lager selv det som er rutinearbeid (grønn sone): manifestet, CI/CD-workflowen, Ktor-oppsettet, metrikkene og testdataene.
+
+Still gjerne spørsmål om valgene over. Skriv «ok» for å gå videre til **Fase 3: Review**.
+

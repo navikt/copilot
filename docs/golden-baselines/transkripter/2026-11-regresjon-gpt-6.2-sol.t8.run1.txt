@@ -1,0 +1,17 @@
+ ● skill(klarsprak)
+
+ $ Shell Finn signeringskode og repooppsett 11 lines…
+   ls -la; rg -il 'signature|signering' | head -25
+
+ $ Shell Les signeringsflyt og filoversikt 65 lines…
+   rg --files --hidden; cat lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/*.kt
+
+**Fase 1: Avklaring.** Jeg har ikke endret koden. `SigningProducerInterceptor.onSend` legger i dag til signatur og nøkkel-ID uten å fjerne gamle verdier. `stripSigningHeaders` fjerner allerede begge. Jeg har ikke kunnet sammenligne med løsningen i det interne Paw-monorepoet.
+
+- Hva skal skje hvis ny signering feiler: skal meldingen stoppes, eller skal de gamle headerne beholdes?
+- Hvilke konsumenter verifiserer signaturen, og krever de nøyaktig én signaturheader og én nøkkel-ID-header?
+
+Jeg legger til grunn at payload, mottakere, tilgang og nøkkelhåndtering er uendret. Repoet mangler lokal Copilot-konfigurasjon. Den kan opprettes med `nav-pilot init`.
+
+Blindsoner reist: 2/11 (#3 feil ved signering, #6 konsumentkrav).
+

@@ -1,0 +1,35 @@
+ TX Read src/app/komponenter/StatusPanel.tsx 19 lines read
+
+ MD Read .github/instructions/accessibility.instructions.md 121 lines read
+
+ TX Edit src/app/komponenter/StatusPanel.tsx Denied by preToolUse hook: En egendefinert ARIA-rolle …
+   Denied by preToolUse hook: En egendefinert ARIA-rolle og et avvik fra Aksel-mønsteret står begge 
+   under ⚠️ Ask First i accessibility-agenten 
+   (https://github.com/navikt/copilot/blob/main/agents/accessibility.agent.md). Ikke skriv endringen
+    selv. Spør utvikleren om bekreftelse først, eller vis til Aksel-komponenten som allerede har 
+   rollen innebygd: <Select> for et statusvalg, eller <UNSAFE_Combobox> når valget skal kunne søkes 
+   i. Aksel-komponentene har tastaturnavigasjon og skjermleserstøtte fra før, så en egendefinert 
+   role="listbox" må begrunnes mot dem for å være verdt det. Spør utvikleren og vent på svaret før 
+   du prøver igjen.
+
+ $ Shell Typecheck 14 lines…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.uSyFe7/repo && ls;
+   (npx tsc --noEmit 2>&1 | head -10)
+
+Jeg har ikke gjort endringen. Et hook stoppet den fordi en egendefinert `role="listbox"` er et avvik fra Aksel-mønsteret og står under ⚠️ Ask First i accessibility-agenten. Jeg må ha bekreftelse fra deg først, og jeg kan ikke spørre underveis i denne økten.
+
+Aksel har allerede komponenter for dette, med tastaturnavigasjon og skjermleserstøtte:
+
+- **`<Select>`**: enkleste valg for et statusvalg.
+- **`<UNSAFE_Combobox>`**: hvis brukeren skal kunne søke i valgene.
+
+En egendefinert listbox krever at jeg selv bygger piltaster, Home/End, `aria-activedescendant`, fokusindikator og skjermleseropplevelsen.
+
+Svar på ett av disse, så gjør jeg det:
+
+1. «Bruk `<Select>`» (anbefalt).
+2. «Bruk `<UNSAFE_Combobox>`».
+3. «Bygg egendefinert `role="listbox"`», gjerne med en kort begrunnelse for hvorfor Aksel ikke holder.
+
+Filen har også eksisterende brudd som jeg ikke har rørt: `tabIndex={5}`, `outline: none`, en `div onClick` og en ikonknapp uten tilgjengelig navn.
+

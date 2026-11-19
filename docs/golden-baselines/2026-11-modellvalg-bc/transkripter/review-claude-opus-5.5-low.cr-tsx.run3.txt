@@ -1,0 +1,33 @@
+ $ Shell Read file 23 lines…
+   cat -n src/app/komponenter/StatusPanel.tsx; ls; cat package.json 2>/dev/null | head -30
+
+### Oppsummering
+Komponenten er liten, men har flere brudd på universell utforming som blokkerer merge. Jeg fant ingen `package.json` eller `mise`-oppsett i repoet, så `mise check` ble ikke kjørt. Funnene under kommer fra manuell gjennomlesing.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|---|---|---|---|
+| `StatusPanel.tsx` | 8 | 🔴 | En klikkbar `<div>` kan ikke nås med tastatur og har ingen rolle. |
+| `StatusPanel.tsx` | 8 | 🔴 | `outline: "none"` fjerner fokusmarkeringen (WCAG 2.4.7). |
+| `StatusPanel.tsx` | 14–16 | 🔴 | Knappen med bare ikon mangler tilgjengelig navn (WCAG 4.1.2). |
+| `StatusPanel.tsx` | 11 | 🔴 | `tabIndex={5}` gir feil fokusrekkefølge (WCAG 2.4.3). Et `<span>` som ikke kan brukes til noe, skal heller ikke kunne få fokus. |
+| `StatusPanel.tsx` | 11 | 🔴 | Status vises bare med farge (WCAG 1.4.1), og `"green"` på hvit bakgrunn kan gi for lav kontrast. |
+| `StatusPanel.tsx` | 1 | 🔴 | `useState` uten `"use client"` gir byggefeil når komponenten importeres fra en Server Component i App Router. |
+| `StatusPanel.tsx` | 8–10 | 🟡 | `apen` endres, men styrer ikke noe innhold. Det mangler både detaljvisning og `aria-expanded`. |
+| `StatusPanel.tsx` | 4 | 🟡 | Props mangler typer, så de blir implisitt `any`. Bruk for eksempel `status: "ok" \| "feil"` og `onSlett: () => void`. |
+| `StatusPanel.tsx` | 14 | 🟡 | Sletting skjer uten bekreftelse. Det er en irreversibel handling, så bruk Aksel `Modal` eller en bekreftelsesdialog. |
+| `StatusPanel.tsx` | 7, 11 | 🟡 | Hardkodede farger og Tailwind i stedet for Aksel-tokens og komponenter (`Box`, `Tag`, `Button`). |
+
+### Forslag til retning
+```tsx
+"use client";
+import { ExpansionCard, Tag, Button } from "@navikt/ds-react";
+// ...
+<Tag variant={status === "feil" ? "error" : "success"}>{status}</Tag>
+<Button variant="tertiary" icon={<TrashIcon aria-hidden />} onClick={onSlett}>
+  Slett
+</Button>
+```
+Aksel-komponentene `ExpansionCard` eller `ReadMore` gir tastaturstøtte, fokusmarkering og `aria-expanded` uten at du må lage det selv.
+

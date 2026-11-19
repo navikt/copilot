@@ -1,0 +1,15 @@
+ ● skill(klarsprak)
+
+ $ Shell ls -a; find . -maxdepth 9 -type f | head -70 32 lines…
+   ls -a; find . -maxdepth 9 -type f | head -70
+
+ $ Shell Les Kotlin- og testkonvensjoner output too large to show (30.7 KB)…
+   cat build.gradle.kts src/main/kotlin/no/nav/demo/Oppgave.kt
+   .github/instructions/{kotlin,security-owasp,testing-kotlin,testing}.instructions.md
+
+ ● Edit  Edit build.gradle.kts (+1)  Create src/main/kotlin/no/nav/demo/Feriepenger.kt (+5)  Create…
+
+La til `Feriepenger.kt` med funksjonssignaturen og en `TODO`. Enhetstestene beskriver satsene ved 59, 60 og 61 år, avrunding ved 50 øre, nullgrunnlag og avvisning av negativt grunnlag. Gradle ble ikke kjørt.
+
+**Rød sone:** Selve beregningen gjenstår for teamet. Bruk heltallsregning for å unngå flyttallsfeil ved avrunding, og velg sats ut fra alderen personen fyller i opptjeningsåret, ikke alderen på utbetalingsdatoen.
+

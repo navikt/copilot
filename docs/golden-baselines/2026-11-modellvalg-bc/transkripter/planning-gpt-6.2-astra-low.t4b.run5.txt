@@ -1,0 +1,21 @@
+ ● skill(nav-plan)
+
+ ● skill(api-design)
+
+ ● skill(tokenx-auth)
+
+**Fase 2: Plan for oppslag av eget navn.** Innbyggeren logger inn med ID-porten via Wonderwall i den eksisterende Next.js-frontenden. Jeg foreslår en egen, intern Ktor-tjeneste for PDL-oppslaget. Det gir ett ekstra kall sammenlignet med å legge oppslaget i Next.js, men nettleseren trenger verken tilgang til Ktor eller et token til PDL. Demoens `/api/oppgaver` forblir uendret.
+
+| Del | Plan |
+|---|---|
+| Identitet og tilgang | Next.js-serveren veksler innbyggerens token til et TokenX-token med Ktor som mottaker. Ktor kontrollerer signatur, utsteder, mottaker, utløpstid og at kallet kommer fra riktig frontend. Først da leser Ktor `pid` og veksler tokenet videre med PDL som mottaker. Ingen oppslag med maskinidentitet. |
+| API og personvern | `GET /api/meg/navn` tar ingen personidentifikator fra klienten. Ktor bruker utelukkende `pid` fra det validerte tokenet og ber PDL om gjeldende navn. Frontenden får bare navnet, med `Cache-Control: no-store`. Jeg legger til grunn at oppslaget ikke skal lagres: ingen database eller deling av hurtiglagrede svar mellom brukere. |
+| Feil og drift | Ved tidsavbrudd eller utilgjengelig PDL får frontenden `503` og kan vise «Vi klarte ikke å hente navnet ditt. Prøv igjen senere.» Ingen kø. Logg feilkategori og tilfeldig korrelasjons-ID, aldri token, fødselsnummer, navn eller rått PDL-svar. Mål oppslag per minutt og andel feilende kall, og varsle ved vedvarende høy feilandel. |
+| Kode og Nais | Skill mellom ruten, tokenvalideringen og PDL-klienten. Ktor får ingen offentlig ingress. Sett eksplisitt `accessPolicy` for frontend → Ktor og Ktor → PDL, med riktig app og namespace per miljø. Sett opp Prometheus og helsesjekker. En PDL-feil skal ikke få Nais til å starte friske pods på nytt. |
+| Tester | Bruk MockOAuth2Server og en simulert PDL. Test at to innbyggere får hvert sitt navn, at klienten ikke kan overstyre identiteten, og at feil mottaker, feil klient eller manglende `pid` stopper kallet **før PDL**. Test også at PDL-tidsavbrudd gir `503` uten personopplysninger i loggen. |
+| Levering | GitHub Actions kjører testene, bygger ett image og deployer til dev først. Før produksjon: dokumenter konkret lovhjemmel og behandlingsformål, bekreft PDL-tilgang og påkrevde behandlingsopplysninger, og prøv hele innloggingsflyten med en testbruker. Aktiver frontend-kallet sist. Ved feil kan teamet slå det av uten å endre innloggingen. Beskriv dette i driftsrutinen sammen med målingene og sjekkene etter deploy. |
+
+🔴 **Rød sone: Teamet skriver selv** Wonderwall-integrasjonen, TokenX-valideringen og tokenvekslingen, samt koblingen mellom validert `pid` og PDL-oppslaget. Den viktigste regelen er at innbyggeren ikke kan velge hvem tjenesten slår opp. For disse delene er leveransen i utgangspunktet testskjeletter og stubbkode.
+
+Planen er klar for godkjenning før fase 3. Ingen kode eller konfigurasjon er endret.
+

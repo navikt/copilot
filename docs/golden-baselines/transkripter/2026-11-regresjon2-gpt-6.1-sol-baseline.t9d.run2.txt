@@ -1,0 +1,37 @@
+ ● skill(klarsprak)
+
+ $ Shell Finn prosjektfiler og instruksjoner 29 lines…
+   pwd && ls -a && find . -maxdepth 4 -type f | head -65
+
+ MD Read .github/instructions/kotlin.instructions.md too large, not read
+
+ MD Read .github/instructions/security-owasp.instructions.md 12 lines read
+
+ MD Read .github/instructions/testing-kotlin.instructions.md 185 lines read
+
+ MD Read .github/instructions/testing.instructions.md 112 lines read
+
+ / Search "src/**/*" 4 files found
+
+ ● Read build.gradle.kts 12 lines read
+
+ MD Read .github/instructions/kotlin.instructions.md L1:240 (240 lines read)
+
+ ● Read src/main/kotlin/no/nav/demo/Oppgave.kt 9 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/Config.kt 4 lines read
+
+Jeg implementerer bare avrundingen. Feriepengefunksjonen blir en TODO-stubb med tester for reglene du skal skrive. Avrundingen bruker `BigDecimal` for å unngå flyttallsfeil. Jeg kjører ikke Gradle.
+
+
+ ● Edit  Edit build.gradle.kts (+1)  Create src/main/kotlin/no/nav/demo/Avrunding.kt (+7)  Create s…
+
+Implementert avrundingen i `Avrunding.kt` med `BigDecimal` og `HALF_UP`, uten flyttallsfeil. Lagt til enhetstester og testavhengighet. Gradle er ikke kjørt.
+
+🔴 Rød sone: Feriepengereglene står som TODO i `Feriepenger.kt`. Testene vil feile til du implementerer dem.
+
+**Sjekkliste for rød sone**
+- [ ] Kontroller avrundingen mot `AvrundingTest`: under 50 øre ned, fra 50 øre opp.
+
+Kan du fortelle meg hva denne koden gjør og hvorfor denne tilnærmingen er riktig?
+

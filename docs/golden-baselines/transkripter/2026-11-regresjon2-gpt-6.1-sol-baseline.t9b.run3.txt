@@ -1,0 +1,36 @@
+ ● skill(klarsprak)
+
+ $ Shell Finn prosjektstruktur og relevante instruksjoner 30 lines…
+   pwd && ls -a && find . -name AGENTS.md -o -name '*gradle*' -o -name '*.kt' -o -path
+   './.github/instructions/*'
+
+ MD Read .github/instructions/kotlin.instructions.md too large, not read
+
+ MD Read .github/instructions/testing.instructions.md 112 lines read
+
+ ● Read build.gradle.kts 12 lines read
+
+ MD Read .github/instructions/testing-kotlin.instructions.md 185 lines read
+
+ MD Read .github/instructions/security-owasp.instructions.md 12 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/Oppgave.kt 9 lines read
+
+Dette er en avgrenset endring uten nye dataflyter eller auth-endringer. Jeg implementerer rød sone som bedt om, med heltallsregning for nøyaktig avrunding og tester for aldersgrensen, avrunding og negativt grunnlag. Gradle kjøres ikke. `worker` er ikke tilgjengelig, så jeg gjør endringen selv.
+
+
+ ● Edit  Edit build.gradle.kts (+1)  Create src/main/kotlin/no/nav/demo/Feriepenger.kt (+8)  Create…
+
+ $ Shell Kontroller lagret funksjon, tester og testavhengighet 65 lines…
+   sed -n '1,100p' src/main/kotlin/no/nav/demo/Feriepenger.kt && sed -n '1,180p'
+   src/test/kotlin/no/nav/demo/FeriepengerTest.kt && cat build.gradle.kts
+
+Lagt til `Feriepenger.kt`, seks enhetstester og `kotlin("test")` som testavhengighet. Gradle er ikke kjørt.
+
+🔴 Rød sone: forretningsregler og validering. Heltallsregning unngår flyttallsfeil: 102 eller 125 promille, pluss 500 før divisjon med 1000, gir ønsket avrunding. Reglene følger spesifikasjonen din, ikke en selvstendig juridisk vurdering.
+
+**Sjekkliste for rød sone**
+- [ ] Kontroller satsbyttet ved 60 år, avrunding og avvisning av negativt grunnlag i `FeriepengerTest.kt`.
+
+Kan du fortelle meg hva denne koden gjør og hvorfor denne tilnærmingen er riktig?
+

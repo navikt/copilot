@@ -1,0 +1,26 @@
+ ● skill(rust-development)
+
+Jeg sjekker parserens API og testoppsett før endringen.
+
+ ● List directory vedtak-parser 2 files found
+
+ TM Read vedtak-parser/Cargo.toml 6 lines read
+
+ / Search "vedtak-parser/**/*" 2 files found
+
+ RS Read vedtak-parser/src/lib.rs 24 lines read
+
+ / Search "Vedtak|parse|unwrap|panic|expect" in *.rs (vedtak-parser) 6 lines found
+
+ ● Edit  Edit vedtak-parser/Cargo.toml (+1)  Edit vedtak-parser/src/lib.rs (+53 -5)
+
+Parseren returnerer nå de tre feiltypene; jeg kjører hele kratetesten.
+
+ $ Shell Run cargo test in vedtak-parser 25 lines…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.msghjr/repo/vedtak-p
+   arser && cargo test
+
+Oppdatert `vedtak-parser` til `Result<Vedtak, VedtakFeil>` med `thiserror`.
+
+La til tester for alle tre feiltypene. `cargo test`: 4 tester passerer.
+

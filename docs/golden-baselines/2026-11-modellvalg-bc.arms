@@ -1,0 +1,11 @@
+d docs/golden-baselines/2026-11-regresjon-gpt-6.2-sol gpt-6.2-sol low 580 --suite planning --model gpt-6.2-sol --only 2,3,4,5,7,7b,8,8b,9,9b,9c,9d --effort low --repeat 5
+d docs/golden-baselines/2026-11-regresjon-gpt-6.1-sol-baseline gpt-6.1-sol low 580 --suite planning --model gpt-6.1-sol --only 2,3,4,5,7,7b,8,8b,9,9b,9c,9d --effort low --repeat 5
+m docs/golden-baselines/2026-11-modellvalg-bc.matrix review claude-opus-5.5 low low 293
+m docs/golden-baselines/2026-11-modellvalg-bc.matrix review gpt-6.2-astra low low 1000
+m docs/golden-baselines/2026-11-modellvalg-bc.matrix planning claude-opus-5.5 low low 254
+m docs/golden-baselines/2026-11-modellvalg-bc.matrix planning gpt-6.2-astra low low 575
+m docs/golden-baselines/2026-11-modellvalg-bc.matrix norsk claude-opus-5.5 default medium 175
+m docs/golden-baselines/2026-11-modellvalg-bc.matrix norsk claude-sonnet-5.5 default medium 93
+d docs/golden-baselines/2026-11-modellvalg-bc/accessibility-claude-opus-5.5-default claude-opus-5.5 medium 285 --agent accessibility --model claude-opus-5.5 --repeat 5
+d docs/golden-baselines/2026-11-modellvalg-bc/accessibility-claude-sonnet-5.5-default claude-sonnet-5.5 medium 144 --agent accessibility --model claude-sonnet-5.5 --repeat 5
+m docs/golden-baselines/2026-11-modellvalg-bc.matrix coding gpt-6.2-sol low low 130

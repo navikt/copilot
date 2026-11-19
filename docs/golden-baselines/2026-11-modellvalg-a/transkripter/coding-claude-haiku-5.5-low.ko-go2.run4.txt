@@ -1,0 +1,20 @@
+ $ Shell List ytelse and run its tests 14 lines…
+   cd ytelse 2>/dev/null && pwd && ls -R | head -100 && (go test ./... 2>&1 | head -80)
+
+ $ Shell Read ytelse source and tests 38 lines…
+   cd ytelse && cat go.mod utbetaling.go rapport.go ytelse_test.go
+
+ GO Edit ytelse/utbetaling.go +3 -3
+
+ GO Edit ytelse/rapport.go +2 -2
+
+ $ Shell Run ytelse tests 1 line…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.kImu0d/repo/ytelse
+   && go test ./... 2>&1 | tail -20
+
+`go test ./...` i `ytelse/` er nå grønt. Testene er uendret.
+
+Endringer:
+- `utbetaling.go`: `Utbetaling(grunnlag, grad int)` beregner `grunnlag * grad / 100 / 260`, rundet ned. Grad er prosent av full ytelse.
+- `rapport.go`: `Rapport(navn, grunnlag, grad int)` sender grad videre til `Utbetaling`.
+

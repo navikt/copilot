@@ -1,0 +1,47 @@
+ ● skill(klarsprak)
+
+ $ Shell Se filer og repo-instruksjoner 9 lines…
+   pwd && ls -a
+
+ ● Read build.gradle.kts 12 lines read
+
+ / Search "**/*" 28 files found
+
+ ● Read lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningHeaders.kt 11 lines read
+
+ MD Read README.md 4 lines read
+
+ ● Read lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningProducerIntercepto  22 lines re…
+        r.kt
+
+ ● Read lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/Periode.kt 4 lines read
+
+ $ Shell Finn Paw-repoet med referanseimplementasjonen 1 line…                                    9s
+   gh repo list navikt --limit 1000 --json name --jq '.[] | select(.name |
+   test("paw.*(intern|mono)|arbeidssoekerregisteret.*intern")) | .name'
+
+ $ Shell Finn internt Paw-monorepo 11 lines…                                                     26s
+   gh repo list navikt --limit 3000 --json name --jq '.[] | select(.name |
+   test("paw|arbeidssoekerregisteret")) | .name'
+
+ $ Shell Finn signeringskode i referanserepoet 11 lines…
+   gh api repos/navikt/paw-arbeidssoekerregisteret-monorepo-intern/git/trees/main?recursive=1 --jq
+   '.tree[] | select(.path | test("[Ss]ign.*\\.kt$")) | .path'
+
+ $ Shell Les hvordan referansen erstatter signeringsheaders 215 lines…
+   gh api repos/navikt/paw-arbeidssoekerregisteret-monorepo-intern/contents/lib/kafka-signing/src/ma
+   in/kotlin/no/nav/paw/kafka/signing/SigningProducerInterceptor.kt -H 'Accept:
+   application/vnd.github.raw+json' && gh api repos/navikt/paw-arbeidssoekerregisteret-monorepo-inte
+   rn/contents/lib/kafka-signing/src/main/kotlin/no/nav/paw/kafka/signing/KafkaMessageSigner.kt -H
+   'Accept: application/vnd.github.raw+json'
+
+**Fase 1: Fullt omfang, fordi endringen berører signering. Ingen filer er endret.**
+
+Jeg har lest referansen i `paw-arbeidssoekerregisteret-monorepo-intern`. Der fjernes begge signeringsheaderne etter vellykket signering, før nye legges til. Her legger `SigningProducerInterceptor.onSend` til nye uten å fjerne gamle. Hjelperen `stripSigningHeaders` finnes allerede og fjerner begge.
+
+Jeg legger til grunn at payload, mottakere og nøkkelhåndtering skal være uendret. Skal en signeringsfeil fortsatt avbryte før eksisterende headere fjernes, slik dagens kode gjør? Referansen fanger derimot feilen og returnerer meldingen.
+
+Repoet mangler `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`. Disse kan opprettes med `nav-pilot init`.
+
+Blindsoner reist: 1/11 (#3 feilhåndtering; #1–#2 ikke utløst av uendrede data og tilganger; #5–#6 og #9 avgrenset av referansen; #7 ingen tester funnet; #4, #8 og #10–#11 ikke relevante for den avgrensede endringen).
+

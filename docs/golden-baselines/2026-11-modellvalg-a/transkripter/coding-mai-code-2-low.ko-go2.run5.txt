@@ -1,0 +1,42 @@
+ ● skill(klarsprak)
+
+ ● update_todo todos: "- [in_progress] Kartlegge testfeil og forventet graderings… TODO list updated
+
+ MD Read .github/instructions/golang.instructions.md 547 lines read
+
+ MD Read .github/instructions/security-owasp.instructions.md 12 lines read
+
+ / Search "**/*" 34 files found
+
+ GO Read ytelse/utbetaling.go 6 lines read
+
+ GO Read ytelse/rapport.go 8 lines read
+
+ GO Read ytelse/ytelse_test.go 21 lines read
+
+ ● Read ytelse/go.mod 3 lines read
+
+ ✗ Shell Run failing Go tests Failed with exit code 1  # example.com/ytelse [example.com/ytelse.tes…
+   cd ytelse && go test ./...
+   # example.com/ytelse [example.com/ytelse.test]
+   ./ytelse_test.go:11:36: too many arguments in call to Utbetaling
+           have (int, int)
+           want (int)
+   ./ytelse_test.go:18:36: too many arguments in call to Rapport
+           have (string, number, number)
+           want (string, int)
+   FAIL    example.com/ytelse [build failed]
+   FAIL
+   Failed with exit code 1
+
+ ● Edit  Edit ytelse/utbetaling.go (+8 -3)  Edit ytelse/rapport.go (+2 -2)
+
+ ● update_todo todos: "- [completed] Kartlegge testfeil og forventet graderingslo… TODO list updated
+
+ $ Shell Format code and run Go tests 1 line…
+   cd ytelse && gofmt -w utbetaling.go rapport.go && go test ./...
+
+Testene går grønt. `Utbetaling` bruker nå ytelsesgraden, og `Rapport` sender graden videre. Eksisterende kall uten grad bruker fortsatt 100 %.
+
+`cd ytelse && go test ./...` fullførte med `ok`.
+

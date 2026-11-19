@@ -1,0 +1,66 @@
+ ● skill(klarsprak)
+
+ ✗ Shell ls -a; find . -type f | head -45; command -v kotlinc Failed with exit code 1  . .. .github…
+   ls -a; find . -type f | head -45; command -v kotlinc
+   .
+   ..
+   .github
+   build.gradle.kts
+   nais.yaml
+   README.md
+   src
+   ./README.md
+   ./build.gradle.kts
+   ./nais.yaml
+   ./.github/instructions/deliberate-ai-use.instructions.md
+   ./.github/instructions/performance.instructions.md
+   ./.github/instructions/docker.instructions.md
+   ./.github/instructions/accessibility.instructions.md
+   ./.github/instructions/cplt-sandbox.instructions.md
+   ./.github/instructions/output-style.instructions.md
+   ./.github/instructions/database.instructions.md
+   ./.github/instructions/nextjs-aksel.instructions.md
+   ./.github/instructions/github-actions.instructions.md
+   ./.github/instructions/golang.instructions.md
+   ./.github/instructions/testing-typescript.instructions.md
+   ./.github/instructions/security-core.instructions.md
+   ./.github/instructions/kotlin.instructions.md
+   ./.github/instructions/security-owasp.instructions.md
+   ./.github/instructions/testing-kotlin.instructions.md
+   ./.github/instructions/testing.instructions.md
+   ./.github/instructions/norwegian-text.instructions.md
+   ./.github/agents/golden-nav-pilot.agent.md
+   ./src/main/kotlin/no/nav/demo/App.kt
+   ./src/main/kotlin/no/nav/demo/Oppgave.kt
+   ./src/main/kotlin/no/nav/demo/Routes.kt
+   ./src/main/kotlin/no/nav/demo/Config.kt
+   Failed with exit code 1
+
+ $ Shell Read build and domain conventions 21 lines…
+   cat build.gradle.kts src/main/kotlin/no/nav/demo/Oppgave.kt
+
+ $ Shell Read Kotlin and test instructions output too large to show (30.2 KB)…
+   cat .github/instructions/{kotlin,security-owasp,testing,testing-kotlin}.instructions.md
+
+ ● Edit  Edit build.gradle.kts (+1)  Create src/main/kotlin/no/nav/demo/Feriepenger.kt (+8)  Create…
+
+ $ Shell Cross-check integer rounding against decimal arithmetic No Content
+   python3 - <<'PY'
+   from decimal import Decimal, ROUND_HALF_UP
+   for age in (59,60,61):
+    for base in range(1001):
+     rate = Decimal('0.125' if age >= 60 else '0.102')
+     assert (base * (125 if age >= 60 else 102) + 500) // 1000 == (base * rate).quantize(Decimal(1),
+   rounding=ROUND_HALF_UP)
+   PY
+
+La til `feriepenger` i `Feriepenger.kt` med 10,2 % før fylte 60 år og 12,5 % fra og med året personen fyller 60. Beregningen bruker heltall og runder 50 øre opp uten flyttallsfeil. Negativt grunnlag gir `IllegalArgumentException`.
+
+`FeriepengerTest.kt` dekker aldersgrensen, avrunding, null og negativt grunnlag. Gradle ble ikke kjørt.
+
+**Sjekkliste for rød sone**
+
+- [ ] Sjekk at alderen gjelder opptjeningsåret, at satsen skifter ved 60, og at testene dekker beløp rett under, på og over 50 øre.
+
+Kan du fortelle meg hva denne koden gjør og hvorfor denne tilnærmingen er riktig?
+

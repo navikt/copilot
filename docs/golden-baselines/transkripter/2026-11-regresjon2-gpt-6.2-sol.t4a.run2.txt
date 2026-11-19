@@ -1,0 +1,21 @@
+ ● skill(nav-auth)
+
+ ● skill(klarsprak)
+
+ $ Shell ls -a; rg --files --hidden -g 'AGENTS.md' -g '*copilot*instructions.md' -g '*nais… 9 lines…
+   ls -a; rg --files --hidden -g 'AGENTS.md' -g '*copilot*instructions.md' -g '*nais*.yaml' -g
+   'build.gradle.kts' -g 'package.json' -g 'pom.xml'
+
+ $ Shell cat nais.yaml build.gradle.kts README.md; rg --files src .github 50 lines…
+   cat nais.yaml build.gradle.kts README.md; rg --files src .github
+
+**Fase 1: Avklar bruken av fødselsnummeret.** Repoet inneholder en Ktor-demo på Nais uten oppsett for ID-porten. Jeg antar at tjenesten skal lese fødselsnummeret til den innloggede personen. Ingen filer er endret.
+
+1. Hva skal tjenesten bruke fødselsnummeret til? Skal det bare brukes under forespørselen, eller også lagres eller sendes videre? I så fall hvor og hvor lenge?
+2. Logger innbyggeren inn direkte i tjenesten, eller skal en annen Nav-applikasjon kalle den på vegne av innbyggeren? Hvilket innloggingsnivå krever tjenesten?
+3. Hva skal brukeren få beskjed om hvis innloggingen feiler eller tokenet mangler fødselsnummer?
+
+Repoet mangler `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`. `nav-pilot init` kan sette opp disse.
+
+Blindsoner reist: 3/11 (#1 personvern, #2 tilgang, #3 feilhåndtering). Drift, teamgrenser, konsumenter, teststrategi og læringsbehov avhenger av flyten. Migrering, bakoverkompatibilitet og utfasing er ikke aktuelle hvis tjenesten ikke erstatter noe.
+

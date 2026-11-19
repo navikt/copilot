@@ -576,7 +576,6 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 			rc := http.NewResponseController(w)
 			_ = rc.SetWriteDeadline(time.Time{})
 			w.WriteHeader(resp.StatusCode)
-			_ = rc.Flush()
 			if streamErr := streamSSE(upCtx, w, rc, resp.Body, g.cfg.SSEMaxDuration, g.cfg.SSEIdleTimeout, g.cfg.SSEMaxBytes); streamErr != nil {
 				outcome = "stream_error"
 			} else if resp.StatusCode >= 400 {
@@ -748,6 +747,10 @@ func streamSSE(
 		}
 	}()
 
+	if ferr := flushSSE(rc); ferr != nil {
+		return ferr
+	}
+
 	var totalBytes int64
 	buf := make([]byte, 32*1024)
 	for {
@@ -765,14 +768,18 @@ func streamSSE(
 					if _, werr := w.Write(buf[:remaining]); werr != nil {
 						return werr
 					}
-					_ = rc.Flush()
+					if ferr := flushSSE(rc); ferr != nil {
+						return ferr
+					}
 				}
 				return errors.New("sse max bytes exceeded")
 			}
 			if _, werr := w.Write(buf[:n]); werr != nil {
 				return werr
 			}
-			_ = rc.Flush()
+			if ferr := flushSSE(rc); ferr != nil {
+				return ferr
+			}
 			totalBytes += int64(n)
 			if idleTimer != nil {
 				idleTimer.Reset(idleTimeout)
@@ -788,6 +795,16 @@ func streamSSE(
 			return err
 		}
 	}
+}
+
+func flushSSE(rc *http.ResponseController) error {
+	if rc == nil {
+		return nil
+	}
+	if err := rc.Flush(); err != nil && !errors.Is(err, http.ErrNotSupported) {
+		return err
+	}
+	return nil
 }
 
 // writeToolDenied answers a denied POST with a JSON-RPC error and never

@@ -1,0 +1,25 @@
+**TokenX.** A bytter brukerens token mot et token med B som audience. Brukerkonteksten følger med, så B ser hvem sluttbrukeren er, og revisjonssporet beholdes.
+
+```yaml
+# Begge apper
+spec:
+  tokenx:
+    enabled: true
+
+# Tjeneste B
+spec:
+  accessPolicy:
+    inbound:
+      rules:
+        - application: tjeneste-a
+          namespace: <team-a>   # utelat ved samme namespace
+```
+
+A kaller B med `Authorization: Bearer <utvekslet token>`. B validerer `aud`, `iss` og tilgangen til ressursen.
+
+Velg ikke Entra ID client_credentials her. Da mister B brukerkonteksten og revisjonssporet. Den passer bare for batchjobber uten bruker.
+
+🔴 Rød sone: B må validere tokenet og sjekke at brukeren eier ressursen. Gå gjennom denne koden nøye.
+
+Still gjerne spørsmål om valgene over.
+

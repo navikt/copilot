@@ -1,0 +1,33 @@
+=== ./src/app/komponenter/StatusPanel.tsx
+import { useState } from "react";
+import { TrashIcon } from "@navikt/aksel-icons";
+import { Button, Tag } from "@navikt/ds-react";
+
+interface StatusPanelProps {
+  status: string;
+  onSlett: () => void;
+}
+
+export function StatusPanel({ status, onSlett }: StatusPanelProps) {
+  const [apen, setApen] = useState(false);
+  return (
+    <div className="p-4 mx-8">
+      <Button
+        variant="tertiary"
+        aria-expanded={apen}
+        onClick={() => setApen(!apen)}
+      >
+        Vis detaljer
+      </Button>
+      <Tag variant={status === "feil" ? "error-moderate" : "success-moderate"}>
+        {status}
+      </Tag>
+      <Button
+        variant="tertiary"
+        icon={<TrashIcon title="Slett" />}
+        onClick={onSlett}
+      />
+    </div>
+  );
+}
+

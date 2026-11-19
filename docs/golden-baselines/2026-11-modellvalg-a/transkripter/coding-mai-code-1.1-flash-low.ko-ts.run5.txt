@@ -1,0 +1,35 @@
+ / Search "slug" 7 lines found
+
+ ✗ Shell Run targeted slug test to reproduce … Could not find 'slug.test.ts' Failed with exit code 1
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.qenq4R/repo && node
+   --test slug.test.ts
+
+ / Search "**/slug.ts" 1 file found
+
+ / Search "**/slug.test.ts" 1 file found
+
+ TS Read slug/slug.test.ts L1:200 (9 lines read)
+
+ TS Read slug/slug.ts L1:200 (10 lines read)
+
+Jeg har funnet feilen: funksjonen fjerner ikke bindestrek i starten/slutten, og den håndterer ikke ekstra whitespace/tegn riktig rundt kanter. Jeg retter dette i koden.
+
+ TS Edit slug/slug.ts +3 -1
+
+ $ Shell Verify slug regression fix with targeted test 9 lines…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.qenq4R/repo/slug &&
+   node --test slug.test.ts
+
+Feilen lå i `slug.ts`: funksjonen erstattet uønskede tegn med bindestrek, men trimmet ikke whitespace og fjernet ikke bindestreker i starten/slutten. Det ga for eksempel `"  Hei på deg!  "` som `"--hei-pa-deg--"` i stedet for `"hei-pa-deg"`.
+
+Retten:
+- `trim()` før normalisering
+- fjerne bindestreker i begge ender etter erstatningen
+
+Verifisert med:
+- `cd slug && node --test slug.test.ts`
+
+Resultat:
+- 1 test bestod
+- 0 feil
+

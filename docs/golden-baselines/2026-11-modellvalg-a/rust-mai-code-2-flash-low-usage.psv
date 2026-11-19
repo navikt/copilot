@@ -1,0 +1,88 @@
+# golden-prompt EXACT MODEL USAGE
+# agent:        rust
+# suite:        rust
+# date:         2026-11-18
+# revision:     6ef38f72
+# personaHash:  e1cb55806cd87d8c2b71832e5049d2490b65f6eb7e933b5c74618324f50defc5
+# harnessHash:  31303b66a044df68da77f1ba539f6a0a98cf0aabc6733992e11c37f4979c6eb4
+# model:        mai-code-2-flash
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.114-0.
+# effort:       low
+# context:      CLI default
+# instructions: 17 installed, 4 always-on
+# repeat:       5
+# fixture:      588445031
+# prompts:      all
+# source:       assistant_usage_events
+#
+# slug|run|session_id|event_id|turn_index|model|reasoning_effort|input_tokens|output_tokens|cache_read_tokens|cache_write_tokens|reasoning_tokens|total_nano_aiu|duration_ms|time_to_first_token_ms|finish_reason|agent_id|parent_tool_call_id
+rs-borrow|1|d4bdc538-4b2a-41e9-b536-233cc4f4c215|25715|0|mai-code-2-flash|low|16979|55|1536|0|25|79358000|2798|2726.760541|tool_calls||
+rs-borrow|1|d4bdc538-4b2a-41e9-b536-233cc4f4c215|25716|0|mai-code-2-flash|low|17066|28|16896|0|8|9998000|2442|2115.141582|tool_calls||
+rs-borrow|1|d4bdc538-4b2a-41e9-b536-233cc4f4c215|25717|0|mai-code-2-flash|low|19891|85|16896|0|8|25548000|2596|2566.221958|tool_calls||
+rs-borrow|1|d4bdc538-4b2a-41e9-b536-233cc4f4c215|25718|0|mai-code-2-flash|low|20072|63|18944|0|0|16687000|1855|1500.815626|tool_calls||
+rs-borrow|1|d4bdc538-4b2a-41e9-b536-233cc4f4c215|25719|0|mai-code-2-flash|low|20506|176|19968|0|38|17074000|2606|1799.663709|tool_calls||
+rs-borrow|1|d4bdc538-4b2a-41e9-b536-233cc4f4c215|25720|0|mai-code-2-flash|low|20746|207|19968|0|85|19049000|3006|2296.656833|tool_calls||
+rs-borrow|1|d4bdc538-4b2a-41e9-b536-233cc4f4c215|25721|0|mai-code-2-flash|low|21017|39|19968|0|0|16204000|1433|1051.688083|tool_calls||
+rs-borrow|1|d4bdc538-4b2a-41e9-b536-233cc4f4c215|25722|0|mai-code-2-flash|low|21289|56|19968|0|0|17989000|1664|1019.5656260000001|stop||
+rs-feil|1|e93d4c5a-b913-42c5-98f5-6ac5cf1e26ca|25723|0|mai-code-2-flash|low|17038|58|13824|0|12|24432000|2708|1987.4727500000001|tool_calls||
+rs-feil|1|e93d4c5a-b913-42c5-98f5-6ac5cf1e26ca|25724|0|mai-code-2-flash|low|19930|198|16896|0|0|28568000|2265|2260.393334|tool_calls||
+rs-feil|1|e93d4c5a-b913-42c5-98f5-6ac5cf1e26ca|25725|0|mai-code-2-flash|low|20283|151|18944|0|0|19942000|1966|1916.954583|tool_calls||
+rs-feil|1|e93d4c5a-b913-42c5-98f5-6ac5cf1e26ca|25726|0|mai-code-2-flash|low|21470|232|19968|0|16|23294000|2738|2647.871584|tool_calls||
+rs-feil|1|e93d4c5a-b913-42c5-98f5-6ac5cf1e26ca|25727|0|mai-code-2-flash|low|24562|408|20992|0|319|38546000|4932|4821.413501|tool_calls||
+rs-feil|1|e93d4c5a-b913-42c5-98f5-6ac5cf1e26ca|25728|0|mai-code-2-flash|low|25029|98|24064|0|8|19307000|1873|1831.921167|tool_calls||
+rs-feil|1|e93d4c5a-b913-42c5-98f5-6ac5cf1e26ca|25729|0|mai-code-2-flash|low|25335|1097|24064|0|287|45812000|8602|4357.829417000001|tool_calls||
+rs-feil|1|e93d4c5a-b913-42c5-98f5-6ac5cf1e26ca|25730|0|mai-code-2-flash|low|26547|54|25088|0|10|21189000|2192|1576.4260839999997|tool_calls||
+rs-feil|1|e93d4c5a-b913-42c5-98f5-6ac5cf1e26ca|25731|0|mai-code-2-flash|low|26974|69|26112|0|7|19091000|2581|2413.338042|stop||
+rs-borrow|2|bd22e130-dcb1-4d70-b95a-74d5932d7dc6|25732|0|mai-code-2-flash|low|16979|33|13824|0|13|23512000|2181|1874.5756249999997|tool_calls||
+rs-borrow|2|bd22e130-dcb1-4d70-b95a-74d5932d7dc6|25733|0|mai-code-2-flash|low|19831|80|16896|0|8|25123000|1843|1813.425666|tool_calls||
+rs-borrow|2|bd22e130-dcb1-4d70-b95a-74d5932d7dc6|25734|0|mai-code-2-flash|low|20007|63|18944|0|0|16362000|1313|1024.900459|tool_calls||
+rs-borrow|2|bd22e130-dcb1-4d70-b95a-74d5932d7dc6|25735|0|mai-code-2-flash|low|20441|181|1536|0|54|99818000|2950|2127.913583|tool_calls||
+rs-borrow|2|bd22e130-dcb1-4d70-b95a-74d5932d7dc6|25736|0|mai-code-2-flash|low|20686|167|18944|0|67|22357000|3250|2477.8533340000004|tool_calls||
+rs-borrow|2|bd22e130-dcb1-4d70-b95a-74d5932d7dc6|25737|0|mai-code-2-flash|low|20917|58|19968|0|13|16179000|1752|1683.453|tool_calls||
+rs-borrow|2|bd22e130-dcb1-4d70-b95a-74d5932d7dc6|25738|0|mai-code-2-flash|low|21208|55|19968|0|0|17559000|1763|1030.568374|stop||
+rs-feil|2|b7e37ace-96f1-4166-be56-16541f06cecd|25739|0|mai-code-2-flash|low|17033|48|13824|0|28|24157000|2455|1982.252626|tool_calls||
+rs-feil|2|b7e37ace-96f1-4166-be56-16541f06cecd|25740|0|mai-code-2-flash|low|19885|332|16896|0|109|31693000|4656|2850.4632920000004|tool_calls||
+rs-feil|2|b7e37ace-96f1-4166-be56-16541f06cecd|25741|0|mai-code-2-flash|low|20402|166|16896|0|0|30128000|2224|2118.511334|tool_calls||
+rs-feil|2|b7e37ace-96f1-4166-be56-16541f06cecd|25742|0|mai-code-2-flash|low|21142|1152|19968|0|370|44654000|9629|5632.147876|tool_calls||
+rs-feil|2|b7e37ace-96f1-4166-be56-16541f06cecd|25743|0|mai-code-2-flash|low|22409|123|13824|0|10|52912000|2200|1704.835084|tool_calls||
+rs-feil|2|b7e37ace-96f1-4166-be56-16541f06cecd|25744|0|mai-code-2-flash|low|22905|49|22016|0|0|16678000|2605|2018.3069169999999|stop||
+rs-borrow|3|8c1f70e5-7b84-4784-aaf3-005c524f8281|25745|0|mai-code-2-flash|low|16980|37|13824|0|17|23617000|2996|2533.244417|tool_calls||
+rs-borrow|3|8c1f70e5-7b84-4784-aaf3-005c524f8281|25746|0|mai-code-2-flash|low|19832|139|16896|0|9|26603000|2261|1693.229709|tool_calls||
+rs-borrow|3|8c1f70e5-7b84-4784-aaf3-005c524f8281|25747|0|mai-code-2-flash|low|20166|105|16896|0|12|27423000|1624|1527.2882069999998|tool_calls||
+rs-borrow|3|8c1f70e5-7b84-4784-aaf3-005c524f8281|25748|0|mai-code-2-flash|low|20929|245|19968|0|98|20914000|2943|2736.538541|tool_calls||
+rs-borrow|3|8c1f70e5-7b84-4784-aaf3-005c524f8281|25749|0|mai-code-2-flash|low|21238|56|19968|0|9|17734000|1660|1583.216125|tool_calls||
+rs-borrow|3|8c1f70e5-7b84-4784-aaf3-005c524f8281|25750|0|mai-code-2-flash|low|21557|60|20992|0|15|14821000|1769|1692.915624|tool_calls||
+rs-borrow|3|8c1f70e5-7b84-4784-aaf3-005c524f8281|25751|0|mai-code-2-flash|low|21850|51|20992|0|0|16061000|1891|1328.643916|stop||
+rs-feil|3|bafdb234-e4ca-411b-b779-4d9f382f9d03|25752|0|mai-code-2-flash|low|17034|34|13824|0|14|23812000|1953|1884.5925419999999|tool_calls||
+rs-feil|3|bafdb234-e4ca-411b-b779-4d9f382f9d03|25753|0|mai-code-2-flash|low|19886|228|16896|0|0|29098000|3022|828.330083|tool_calls||
+rs-feil|3|bafdb234-e4ca-411b-b779-4d9f382f9d03|25754|0|mai-code-2-flash|low|20236|138|16896|0|0|28598000|1832|1754.970542|tool_calls||
+rs-feil|3|bafdb234-e4ca-411b-b779-4d9f382f9d03|25755|0|mai-code-2-flash|low|21116|1107|19968|0|316|43399000|8611|4501.235791|tool_calls||
+rs-feil|3|bafdb234-e4ca-411b-b779-4d9f382f9d03|25756|0|mai-code-2-flash|low|22338|52|20992|0|8|18526000|2113|1392.689375|tool_calls||
+rs-feil|3|bafdb234-e4ca-411b-b779-4d9f382f9d03|25757|0|mai-code-2-flash|low|22758|65|22016|0|0|16343000|1752|1646.5967910000002|stop||
+rs-borrow|4|5da70cc2-48fa-4771-845d-86994f9df1ab|25758|0|mai-code-2-flash|low|16978|33|13824|0|13|23507000|2328|1756.9516250000001|tool_calls||
+rs-borrow|4|5da70cc2-48fa-4771-845d-86994f9df1ab|25759|0|mai-code-2-flash|low|19830|188|16896|0|8|27818000|3208|1378.432042|tool_calls||
+rs-borrow|4|5da70cc2-48fa-4771-845d-86994f9df1ab|25760|0|mai-code-2-flash|low|20286|63|16896|0|0|26973000|1916|1694.188708|tool_calls||
+rs-borrow|4|5da70cc2-48fa-4771-845d-86994f9df1ab|25761|0|mai-code-2-flash|low|20720|343|19968|0|154|22319000|4206|3208.783375|tool_calls||
+rs-borrow|4|5da70cc2-48fa-4771-845d-86994f9df1ab|25762|0|mai-code-2-flash|low|21127|34|19968|0|0|16629000|1305|1128.580625|tool_calls||
+rs-borrow|4|5da70cc2-48fa-4771-845d-86994f9df1ab|25763|0|mai-code-2-flash|low|21394|58|20992|0|0|13956000|1878|1204.890042|stop||
+rs-feil|4|de21f2d0-9369-445d-b5ba-0feb3aaedc56|25764|0|mai-code-2-flash|low|17035|46|13824|0|26|24117000|3533|3097.155875|tool_calls||
+rs-feil|4|de21f2d0-9369-445d-b5ba-0feb3aaedc56|25765|0|mai-code-2-flash|low|19887|146|16896|0|8|27053000|2542|1615.1913339999999|tool_calls||
+rs-feil|4|de21f2d0-9369-445d-b5ba-0feb3aaedc56|25766|0|mai-code-2-flash|low|20176|22|13824|0|0|39222000|1177|1112.271166|tool_calls||
+rs-feil|4|de21f2d0-9369-445d-b5ba-0feb3aaedc56|25767|0|mai-code-2-flash|low|20382|973|19968|0|187|36379000|9212|3761.9675429999998|tool_calls||
+rs-feil|4|de21f2d0-9369-445d-b5ba-0feb3aaedc56|25768|0|mai-code-2-flash|low|21470|52|19968|0|8|18794000|1653|1488.822751|tool_calls||
+rs-feil|4|de21f2d0-9369-445d-b5ba-0feb3aaedc56|25769|0|mai-code-2-flash|low|21878|47|16896|0|0|34533000|1734|1171.30375|stop||
+rs-borrow|5|fce3ed6d-bf9b-47fe-ad63-19708088742b|25770|0|mai-code-2-flash|low|16976|43|13824|0|23|23747000|3265|2590.2477510000003|tool_calls||
+rs-borrow|5|fce3ed6d-bf9b-47fe-ad63-19708088742b|25771|0|mai-code-2-flash|low|19828|194|16896|0|8|27958000|2636|1973.4906660000001|tool_calls||
+rs-borrow|5|fce3ed6d-bf9b-47fe-ad63-19708088742b|25772|0|mai-code-2-flash|low|20302|139|16896|0|0|28953000|1658|1599.1464170000002|tool_calls||
+rs-borrow|5|fce3ed6d-bf9b-47fe-ad63-19708088742b|25773|0|mai-code-2-flash|low|20848|223|19968|0|46|19959000|2913|2207.476541|tool_calls||
+rs-borrow|5|fce3ed6d-bf9b-47fe-ad63-19708088742b|25774|0|mai-code-2-flash|low|21135|282|19968|0|103|22869000|4135|2604.128334|tool_calls||
+rs-borrow|5|fce3ed6d-bf9b-47fe-ad63-19708088742b|25775|0|mai-code-2-flash|low|21481|63|20992|0|15|14516000|1837|1794.085458|tool_calls||
+rs-borrow|5|fce3ed6d-bf9b-47fe-ad63-19708088742b|25776|0|mai-code-2-flash|low|21807|64|20992|0|20|16171000|2387|2279.488|tool_calls||
+rs-borrow|5|fce3ed6d-bf9b-47fe-ad63-19708088742b|25777|0|mai-code-2-flash|low|22104|49|20992|0|0|17281000|1458|930.387999|stop||
+rs-feil|5|597489d3-f927-45e6-9fd5-ff2d08f8b23f|25778|0|mai-code-2-flash|low|17037|42|13824|0|22|24027000|4379|4300.501167|tool_calls||
+rs-feil|5|597489d3-f927-45e6-9fd5-ff2d08f8b23f|25779|0|mai-code-2-flash|low|19889|143|16896|0|28|26988000|2763|1878.373708|tool_calls||
+rs-feil|5|597489d3-f927-45e6-9fd5-ff2d08f8b23f|25780|0|mai-code-2-flash|low|20224|141|16896|0|0|28613000|1885|1878.966542|tool_calls||
+rs-feil|5|597489d3-f927-45e6-9fd5-ff2d08f8b23f|25781|0|mai-code-2-flash|low|20585|1084|19968|0|277|40169000|11194|7839.442417|tool_calls||
+rs-feil|5|597489d3-f927-45e6-9fd5-ff2d08f8b23f|25782|0|mai-code-2-flash|low|21784|55|19968|0|10|20439000|2608|2358.987542|tool_calls||
+rs-feil|5|597489d3-f927-45e6-9fd5-ff2d08f8b23f|25783|0|mai-code-2-flash|low|22212|52|20992|0|0|17896000|1912|1298.7963340000001|stop||

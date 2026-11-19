@@ -1,0 +1,37 @@
+ ● skill(kafka)
+
+ / Search "vedtak-konsument/**/*" 4 files found
+
+ / Search "*" 33 files found
+
+ MD Read .github/instructions/kotlin.instructions.md too large, not read
+
+ MD Read .github/instructions/testing-kotlin.instructions.md 185 lines read
+
+ ● Read vedtak-konsument/src/test/kotlin/no/nav/vedtak/VedtakKonsumentTest.kt 25 lines read
+
+ MD Read .github/instructions/testing.instructions.md 112 lines read
+
+ ● Read vedtak-konsument/src/main/kotlin/no/nav/vedtak/VedtakKonsument.kt 23 lines read
+
+ ● Read vedtak-konsument/build.gradle.kts 20 lines read
+
+ ✗ Edit  Failed to parse patch: Update file hunk for path '/private/var/folders/8q/l5h25q1s1tn8wp0p…
+   Failed to parse patch: Update file hunk for path 
+   '/private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden-e8RyeJ/repo/vedtak-kon
+   sument/src/test/kotlin/no/nav/vedtak/VedtakKonsumentTest.kt' is empty (line 28)
+
+ ● Edit  Edit vedtak-konsument/src/main/kotlin/no/nav/vedtak/VedtakKonsument.kt (+11 -2)
+
+ ● Edit  Edit vedtak-konsument/src/main/kotlin/no/nav/vedtak/VedtakKonsument.kt (+3 -7)  Edit vedta…
+
+ $ Shell Run vedtak consumer Gradle tests 14 lines…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.e8RyeJ/repo/vedtak-k
+   onsument && gradle test
+
+Rettet `VedtakKonsument`:
+
+- Samme `eventId` utbetales bare én gang.
+- Offset commites først etter at alle meldinger er behandlet.
+- Ved utbetalingsfeil commites ikke offset.
+

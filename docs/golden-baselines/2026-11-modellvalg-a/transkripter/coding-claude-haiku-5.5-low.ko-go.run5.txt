@@ -1,0 +1,18 @@
+ $ Shell Run frister tests to see failures 6 lines…
+   cd frister 2>/dev/null || cd "$(find . -type d -name frister | head -1)"; pwd; go test ./... 2>&1
+   | head -80
+
+ $ Shell List and show frister Go source 45 lines…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.kImu0d/repo/frister
+   && ls && cat *.go | head -200
+
+The bug is in the Saturday branch: it adds one day, which lands on Sunday. Moving a Saturday to Monday needs two days. Sunday's +1 is already correct.
+
+ GO Edit frister/frist.go +1 -1
+
+ $ Shell Rerun frister tests after fix 1 line…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.kImu0d/repo/frister
+   && go test ./... 2>&1
+
+Feilen lå i `frister/frist.go`: når fristen falt på en lørdag, ble den flyttet én dag til søndag i stedet for to dager til mandag. Jeg endret lørdagsgrenen til `AddDate(0, 0, 2)`. Søndagsgrenen var riktig og er uendret. `go test ./...` i `frister/` er nå grønt. Testfilen er ikke endret.
+

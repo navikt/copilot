@@ -1,0 +1,18 @@
+ ● skill(klarsprak)
+
+ MD Read fakta.md 6 lines read
+
+ / Search "*" 27 files found
+
+ MD Create notis.md +7
+
+Jeg har skrevet notisen og lagret den i `notis.md`. Den er på omtrent 50 ord, og alt innholdet kommer fra `fakta.md`:
+
+- Agenten sjekker norsk tekst for nynorske former og KI-moteord.
+- Den kjører automatisk på pull requests som endrer filer under `docs/`.
+- Teamet kan slå den av med `review.norsk = false` i `.nav-pilot/config.toml`.
+- Den er tilgjengelig fra mandag 5. oktober.
+- Tilbakemeldinger går til Slack-kanalen #ki-utvikling.
+
+Jeg beholdt datoen slik den står i `fakta.md`. 5. oktober 2026 er allerede passert, så hvis notisen publiseres nå, bør du skrive «siden 5. oktober» i stedet.
+

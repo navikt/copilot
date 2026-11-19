@@ -1,0 +1,33 @@
+ ● update_todo todos: "- [ ] Inspect VedtakKonsument logic and tests - [ ] Fix id… TODO list updated
+
+ / Search "class\s+VedtakKonsument|VedtakKonsument\(" in **/*.kt 3 lines found
+
+ ● Read vedtak-konsument/src/main/kotlin/no/nav/vedtak/VedtakKonsument.kt L1:220 (23 lines read)
+
+ ● Read vedtak-konsument/src/test/kotlin/no/nav/vedtak/VedtakKonsumentTest.kt L1:220 (25 lines read)
+
+Jeg retter logikken i konsumenten: håndter idempotens og commit-flyt før jeg kjører Gradle-testene i vedtak-konsument.
+
+ ● Read vedtak-konsument/build.gradle.kts L1:220 (20 lines read)
+
+ / Search "eventId|utbetal\(|commitSync\(|poll\(" in **/*.{kt,java} 8 lines found
+
+ ● Edit vedtak-konsument/src/main/kotlin/no/nav/vedtak/VedtakKonsument.kt +11 -2
+
+ ● Edit vedtak-konsument/src/test/kotlin/no/nav/vedtak/VedtakKonsumentTest.kt +25
+
+ $ Shell Run Gradle tests for the Kafka consumer module 17 lines…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.BOVGgm/repo/vedtak-k
+   onsument && gradle test --console=plain
+
+Jeg rettet konsumenten slik at den:
+- holder rede på allerede utbetalte `eventId` og hopper over duplikater
+- først kaller `commitSync()` etter at hele batchen er prosessert, så offset ikke blir commitet før utbetalingene er gjennomført
+
+Konstruktøren med bare `consumer` og `utbetaling` er uendret. Jeg la også inn tester for duplikat-eventer og for at offset ikke commites ved feil.
+
+Resultat:
+- `cd vedtak-konsument && gradle test` → BUILD SUCCESSFUL
+
+Valget er et idempotens- og offset-sikkerhetsvalg: vi unngår doble utbetalinger ved re-delivery, men vi unngår også å fjerne meldinger fra Kafka før de faktisk er håndtert. Still gjerne spørsmål om valgene over.
+

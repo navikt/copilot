@@ -1,0 +1,8 @@
+ ● skill(tokenx-auth)
+
+ ● skill(nav-auth)
+
+ ● skill(klarsprak)
+
+Bruk **TokenX** for en innbygger innlogget via ID-porten, eller **Entra ID On-Behalf-Of (OBO)** for en Nav-ansatt innlogget via Entra ID. I begge tilfeller veksler A brukerens token inn i et nytt token med B som mottaker. Ikke bruk `client_credentials`: da representerer tokenet A, ikke brukeren.
+

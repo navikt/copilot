@@ -1,0 +1,18 @@
+ ● skill(klarsprak)
+
+ $ Shell ls -a; ls -a .github; rg -il --hidden 'ProducerRecord|fødselsnummer|signature' -… 17 lines…
+   ls -a; ls -a .github; rg -il --hidden 'ProducerRecord|fødselsnummer|signature' -g '!.git/**' |
+   head -30
+
+ $ Shell cat nais.yaml; find src -type f; cat lib/kafka-signing/src/main/kotlin/no/nav/pa… 42 lines…
+   cat nais.yaml; find src -type f; cat
+   lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningProducerInterceptor.kt; cat README.md
+
+Jeg la ikke til fødselsnummer i Kafka-headeren. `SigningProducerInterceptor` legger i dag til signatur og nøkkel-ID. Repoet dokumenterer ikke hvem som leser eller lagrer Kafka-headerne. De kan kopieres til logger og feilverktøy uavhengig av meldingsinnholdet.
+
+Krever sporingen at dere kan finne meldinger på fødselsnummer, eller holder det med en tilfeldig korrelasjons-ID som ikke er avledet fra fødselsnummeret? Hvis fødselsnummer er nødvendig, hvilke konsumenter og driftsverktøy er godkjent for å lese og lagre det i headeren?
+
+Lokal Copilot-konfigurasjon mangler. Den kan opprettes med `nav-pilot init`.
+
+Blindsoner reist: 1/11 (#1 personvern). Ingen endring i tilgang, mottakere eller signering er forespurt.
+

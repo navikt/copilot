@@ -1,0 +1,36 @@
+ $ Shell List files in vedtak-hendelse 4 lines…
+   cd vedtak-hendelse 2>/dev/null && find . -type f -not -path '*/build/*' -not -path '*/.gradle/*'
+   | head -100
+
+ $ Shell Show source, tests and build files 52 lines…
+   cd vedtak-hendelse && cat src/main/kotlin/no/nav/vedtak/VedtakFattet.kt && echo ---- && cat
+   src/test/kotlin/no/nav/vedtak/VedtakFattetTest.kt && echo ---- && cat build.gradle.kts
+   settings.gradle.kts
+
+Plan: add a `Sakstype` enum with a default of `ORDINAER` so old messages read as ORDINAER, and ignore unknown JSON fields so newer producers don't break consumers.
+
+ ● Edit vedtak-hendelse/src/main/kotlin/no/nav/vedtak/VedtakFattet.kt +11
+
+ ● Edit vedtak-hendelse/src/test/kotlin/no/nav/vedtak/VedtakFattetTest.kt +23
+
+ ✗ Shell Run gradle test in vedtak-hendelse Failed with exit code 2  /bin/bash: -c: line 0: syntax …
+   cd vedtak-hendelse && (ls gradlew >/dev/null 2>&1 && ./gradlew test || gradle test)
+   --console=plain 2>&1 | tail -40
+   /bin/bash: -c: line 0: syntax error near unexpected token `--console=plain'
+   /bin/bash: -c: line 0: `cd vedtak-hendelse && (ls gradlew >/dev/null 2>&1 && ./gradlew test || 
+   gradle test) --console=plain 2>&1 | tail -40'
+   Failed with exit code 2
+
+ $ Shell Run gradle test in vedtak-hendelse 14 lines…
+   cd vedtak-hendelse && if [ -x ./gradlew ]; then ./gradlew test --console=plain; else gradle test
+   --console=plain; fi 2>&1 | tail -40
+
+Lagt til `sakstype` i `VedtakFattet` i `vedtak-hendelse/`. `gradle test` kjører og er grønt.
+
+- **Enum:** `Sakstype` med `ORDINAER`, `KLAGE` og `ANKE`.
+- **Eldre meldinger:** Feltet har default `ORDINAER`, så meldinger uten feltet leses som ORDINAER.
+- **Nyere produsenter:** `@JsonIgnoreProperties(ignoreUnknown = true)` gjør at ukjente felt ignoreres.
+- **Tester:** Lagt til tester for manglende felt, KLAGE/ANKE, ukjente felt og rundtur skriv/les.
+
+Ukjente verdier i `sakstype` (f.eks. en ny enum-verdi) gir fortsatt feil ved deserialisering. Det var ikke en del av forespørselen.
+

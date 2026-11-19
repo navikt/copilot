@@ -1,0 +1,36 @@
+ ● skill(klarsprak)
+
+ $ Shell Finn prosjektstruktur og instruksjoner 29 lines…
+   pwd && ls -a && find . -maxdepth 4 -type f | head -60
+
+ $ Shell Les Kotlin-mønstre og testoppsett output too large to show (30.7 KB)…
+   find src -type f && cat build.gradle.kts .github/instructions/kotlin.instructions.md
+   .github/instructions/testing-kotlin.instructions.md .github/instructions/testing.instructions.md
+   .github/instructions/security-owasp.instructions.md
+
+ MD Read .github/instructions/kotlin.instructions.md too large, not read
+
+ MD Read .github/instructions/testing-kotlin.instructions.md 185 lines read
+
+ MD Read .github/instructions/testing.instructions.md 112 lines read
+
+ MD Read .github/instructions/security-owasp.instructions.md 12 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/Oppgave.kt 9 lines read
+
+Jeg implementerer avrundingen og legger inn en stub for `feriepenger` med tester som beskriver kravene. Satsvalg og validering blir stående til deg. Jeg kjører ikke Gradle.
+
+
+ ● Edit  Edit build.gradle.kts (+5)  Create src/main/kotlin/no/nav/demo/Avrunding.kt (+7)  Create s…
+
+ / Search "." (src/main/kotlin/no/nav/demo/Avrunding.kt, src/main/kotlin/no/nav/demo… 83 lines found
+
+Implementert `Avrunding.kt` med `BigDecimal` og `HALF_UP`, som unngår flyttallsfeil. Lagt til tester og JUnit-oppsett. `Feriepenger.kt` er en TODO-stub til deg; testene vil feile til den er implementert. Gradle er ikke kjørt.
+
+🔴 Rød sone: feriepengereglene og avrundingen må forstås grundig.
+
+**Sjekkliste for rød sone**
+- [ ] Kontroller `avrundTilKrone` og `AvrundingTest`: under 50 øre rundes ned, fra 50 øre opp.
+
+Kan du fortelle meg hva denne koden gjør og hvorfor denne tilnærmingen er riktig?
+

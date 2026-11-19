@@ -1,0 +1,21 @@
+ ● skill(nav-auth)
+
+ ● skill(klarsprak)
+
+ $ Shell Sjekk tjeneste og lokal konfigurasjon 5 lines…
+   ls -A; for f in AGENTS.md .github/copilot-instructions.md .github/copilot-review-instructions.md;
+   do if test -f "$f"; then printf '%s\n' "$f"; fi; done
+
+ / Search "^" in {nais.yaml,README.md,*.kt} 63 lines found
+
+**Fase 1: Avklaring før implementering.** Arbeidsmappen inneholder en Ktor-demo med et Nais-manifest, men ingen ID-porten-konfigurasjon. Jeg tolker «ny tjeneste» som en innbyggertjeneste som leser den innloggede personens fødselsnummer. Ingen filer er endret.
+
+1. **Personvern:** Hva skal tjenesten bruke fødselsnummeret til, og skal den lagre eller dele det? I så fall: hvor lenge, og med hvem?
+2. **Tilgang:** Logger innbyggeren inn direkte i tjenesten, eller skal en annen Nav-applikasjon kalle den på vegne av innbyggeren? Krever tjenesten sikkerhetsnivå Høyt?
+3. **Feilhåndtering og drift:** Hva skal innbyggeren kunne gjøre hvis innloggingen feiler? Hvordan skal teamet oppdage at innloggingen svikter, uten å logge fødselsnummer eller token?
+4. **Omfang og eierskap:** Skal vi bygge videre på demoen eller opprette en separat tjeneste? Hvilket team skal eie den, og hvilke systemer skal bruke den?
+
+Lokal Copilot-konfigurasjon mangler (`AGENTS.md`, `.github/copilot-instructions.md`, `.github/copilot-review-instructions.md`). `nav-pilot init` kan sette den opp.
+
+Blindsoner reist: 6/11 (#1–#6). Teststrategi og læringsbehov avklares når flyten er kjent (#7, #11). Migrering, bakoverkompatibilitet og avvikling er ikke aktuelle så lenge tjenesten ikke erstatter noe (#8–#10).
+

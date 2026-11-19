@@ -15,8 +15,8 @@ const audienceSub = `{"name":"io.github.navikt/aud","description":"Audience test
 // validateAllowlistBytes runs the allowlist.json path: the same decode and
 // validation as validateAllowListFile and Store.Reload.
 func validateAllowlistBytes(b []byte) error {
-	var data StaticRegistryData
-	if err := json.Unmarshal(b, &data); err != nil {
+	data, err := decodeStaticRegistry(b)
+	if err != nil {
 		return err
 	}
 	return validateRegistry(&data)

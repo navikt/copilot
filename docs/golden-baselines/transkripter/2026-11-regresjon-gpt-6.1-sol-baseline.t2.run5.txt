@@ -1,0 +1,30 @@
+ ● skill(klarsprak)
+
+ $ Shell Se etter prosjektfiler og lokale instruksjoner 7 lines…
+   ls -a
+
+ YM Read nais.yaml 12 lines read
+
+ ● Read build.gradle.kts 12 lines read
+
+ MD Read README.md 4 lines read
+
+ / Search "{.github/**,src/**,AGENTS.md}" 22 files found
+
+ / Search "." in src/**/*.kt 38 lines found
+
+**Fase 1: Avklaring.** Dette er full løype fordi tjenesten skal håndtere fødselsnummer og ny autentisering. Repoet har en Ktor-demo uten auth. Jeg antar at fødselsnummeret gjelder den innloggede personen.
+
+1. Hva skal tjenesten bruke fødselsnummeret til? Skal det lagres eller sendes videre, og behandles andre personopplysninger?
+2. Kommer brukeren direkte fra nettleseren, eller kaller en annen tjeneste med brukerens innlogging? Skal tjenesten bare gi tilgang til egne data?
+3. Skal vi utvide demoen eller opprette en separat tjeneste? Hvilket team eier tjenesten og eventuelle avhengigheter?
+4. Hva skal brukeren kunne gjøre etter innlogging, og hva skal skje hvis en avhengighet er utilgjengelig?
+
+🔴 Rød sone: autentisering og behandling av fødselsnummer. Ingen kode er endret.
+
+Repoet mangler `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`. De kan opprettes med `nav-pilot init`.
+
+Fasebudsjett: intervju ca. 1 000 tokens, plan 2 000, review 1 500, levering etter avklart omfang. Tester og driftsmålinger avklares når brukerflyten er kjent. Kompatibilitet og avvikling er foreløpig ikke relevante for en ny tjeneste.
+
+Blindsoner reist: 6/11 (#1–#6 stilt; #7 og #11 utsatt; #8–#10 foreløpig ikke relevante).
+

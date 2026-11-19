@@ -1,0 +1,28 @@
+ $ Shell Check repo files 12 lines…
+   ls -a; ls .github 2>/dev/null; ls AGENTS.md .github/copilot-instructions.md
+   .github/copilot-review-instructions.md 2>&1 | head
+
+ $ Shell Read repo signals 32 lines…
+   cat nais.yaml build.gradle.kts README.md | head -80; find src -type f | head -20
+
+**Fase 1: Intervju.** Dette er Full-nivå: ny tjeneste, ny innlogging og fødselsnummer (fnr).
+
+Jeg har sett på repoet. Det er en Ktor-tjeneste (`demo-tjeneste`) i Kotlin. `nais.yaml` mangler `idporten`, `tokenx` og `accessPolicy`. Repoet mangler også `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`. Kjør `nav-pilot init` for å legge dem til.
+
+Jeg antar at innbyggere logger inn i nettleseren med ID-porten. Da gir Wonderwall et token med fnr i `pid`-claimet. Jeg antar også at tjenesten bygges videre på det eksisterende Ktor-oppsettet.
+
+**Spørsmål:**
+
+1. **Personvern ⚠️** Fnr er gitt. Hvilke andre personopplysninger behandler tjenesten, for eksempel navn, helse eller ytelser? Skal fnr lagres, eller bare brukes i forespørselen?
+2. **Tilgangsstyring ⚠️** Logger innbyggeren inn direkte, med en egen frontend og Wonderwall? Eller får tjenesten kall fra en frontend eller BFF med TokenX? Kaller andre tjenester denne?
+3. **Feilhåndtering:** Hvilke tjenester avhenger den av, for eksempel PDL? Hva skal skje når de er nede?
+4. **Observerbarhet:** Hvilken forretningsmetrikk viser at tjenesten virker?
+5. **Teamgrenser:** Eier dere hele flyten, eller kaller dere API-er fra andre team med TokenX?
+6. **Konsekvenser av endringen:** Hvem bruker API-et?
+7. **Teststrategi:** Er MockOAuth2Server greit for testing av innlogging?
+11. **Kompetanse:** Har teamet brukt ID-porten eller TokenX før? Tokenvalidering og eierskapssjekk på fnr er 🔴 rød sone.
+
+Blindsoner reist: 8/11 (#1–#7 og #11 stilt. #8, #9 og #10 er ikke relevante fordi tjenesten er ny og ikke erstatter en eksisterende løsning.)
+
+Jeg venter på svarene før jeg går videre til Fase 2.
+

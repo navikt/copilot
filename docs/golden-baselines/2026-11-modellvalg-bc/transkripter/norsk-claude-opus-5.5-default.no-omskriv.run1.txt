@@ -1,0 +1,21 @@
+ ● skill(klarsprak)
+
+ MD Read utkast.md 11 lines read
+
+ ● Create utkast.md.new +1
+
+Jeg skriver den nye teksten til utkast.md.
+
+ MD Edit utkast.md +3 -7
+
+ MD Read utkast.md 7 lines read
+
+Jeg har språkvasket utkast.md og kortet den ned til omtrent 77 ord, overskriften medregnet. Alle fakta står igjen.
+
+- **Fjernet KI-markører:** «I en tid der», «banebrytende», «sømløs», «spiller en avgjørende rolle», «Det er viktig å påpeke», «Avslutningsvis» og «fremtiden ser lys ut».
+- **Rettet nynorsk til bokmål:** ikkje, sjølv, berre, mykje og tilgjengeleg.
+- **AI → KI.**
+- **Klarere tekst:** Nyheten (tilgjengelig fra mandag) står nå først. Jeg har byttet passiv til aktiv form og skrevet «du» i stedet for «utvikleren».
+
+Jeg opprettet ved en feil en tom fil, `utkast.md.new`. Jeg har ikke verktøy for å slette filer, så du må slette den selv.
+

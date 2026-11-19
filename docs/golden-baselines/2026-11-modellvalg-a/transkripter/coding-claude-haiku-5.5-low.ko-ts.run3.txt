@@ -1,0 +1,21 @@
+ $ Shell Inspect slug directory and test file 16 lines…
+   cd slug 2>/dev/null && ls -la && cat slug.test.ts; ls slug* 2>/dev/null
+
+ $ Shell Run slug tests with node --test 32 lines…
+   cd slug 2>/dev/null; node --test slug.test.ts 2>&1 | tail -60
+
+ $ Shell Show slug implementation 10 lines…
+   cd slug; cat slug.ts
+
+The implementation never trims the leading and trailing hyphens its own comment promises to remove. I'll fix that in `slug.ts`.
+
+ TS Edit slug/slug.ts +2 -1
+
+ $ Shell Rerun slug tests after fix 2 lines…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.kImu0d/repo/slug &&
+   node --test slug.test.ts 2>&1 | grep -E "^ℹ (pass|fail)"
+
+Feilen lå i `slug/slug.ts`: funksjonen fjernet ikke bindestreker i endene, selv om kommentaren sier det. `"  Hei på deg!  "` ga `-hei-pa-deg-`.
+
+Jeg la til `.replace(/^-+|-+$/g, "")` etter den eksisterende erstatningen. Testen er uendret, og `node --test slug.test.ts` passerer nå (1 pass, 0 fail).
+

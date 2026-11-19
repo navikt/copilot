@@ -1,0 +1,30 @@
+ $ Shell List repo contents 9 lines…
+   ls -a; ls .github 2>/dev/null
+
+ $ Shell Read repo signals 32 lines…
+   cat nais.yaml build.gradle.kts README.md; find src -type f | head -30
+
+Nivå: **Full**. Det er en ny tjeneste med ny autentisering (ID-porten) og fødselsnummer (fnr). Jeg stopper derfor etter Fase 1 og venter på svarene dine.
+
+**Fase 1: Intervju**
+
+Dette fant jeg i repoet:
+- `demo-tjeneste` er bygget med Ktor 3 og Kotlin 2.1.
+- `nais.yaml` har verken `idporten`, `tokenx` eller `accessPolicy`.
+- Ingen database og ingen Kafka.
+- `AGENTS.md`, `.github/copilot-instructions.md` og `copilot-review-instructions.md` mangler. Jeg anbefaler `nav-pilot init`.
+
+Jeg antar at innbyggeren logger inn i nettleseren, og at fnr hentes fra `pid`-claimet i ID-porten-tokenet.
+
+**Spørsmål:**
+1. **Personvern ⚠️:** Hva skal fnr brukes til? Skal det lagres, logges, sendes videre eller bare brukes som oppslagsnøkkel? Behandler tjenesten andre persondata, for eksempel navn, helse eller ytelser?
+2. **Tilgangskontroll ⚠️:** Har tjenesten eget frontend med Wonderwall, eller kalles den av et annet frontend eller BFF via TokenX? Hvilke apper skal stå i `accessPolicy.inbound`? Hvilket sikkerhetsnivå (`acr`) kreves, `idporten-loa-high` eller `substantial`?
+3. **Feilhåndtering:** Hvilke tjenester kaller den videre, for eksempel PDL? Hva skal skje når de er nede?
+4. **Observerbarhet:** Hvilken forretningsmetrikk viser at tjenesten virker?
+5. **Teamgrenser:** Eier dere hele flyten, eller avhenger dere av andre team?
+6. **Endringspåvirkning:** Hvem bruker API-et?
+7. **Teststrategi:** Er MockOAuth2Server greit å bruke i testene?
+11. **Kompetanse:** Er ID-porten eller TokenX nytt for teamet? I så fall er det kandidat til 🔴 rød sone.
+
+Blindsoner reist: 8/11 (#1–#7 og #11 stilt; #8–#10 ikke relevant, fordi dette er en ny tjeneste uten eksisterende brukere eller noe som skal fases ut)
+

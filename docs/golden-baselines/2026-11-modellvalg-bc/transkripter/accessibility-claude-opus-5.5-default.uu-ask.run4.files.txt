@@ -1,0 +1,34 @@
+=== ./src/app/komponenter/StatusPanel.tsx
+import { useState } from "react";
+import { TrashIcon } from "@navikt/aksel-icons";
+import { Radio, RadioGroup } from "@navikt/ds-react";
+
+const STATUSER = [
+  { value: "ok", label: "OK" },
+  { value: "feil", label: "Feil" },
+];
+
+export function StatusPanel({ status, onStatusEndret, onSlett }) {
+  const [apen, setApen] = useState(false);
+  return (
+    <div className="p-4 mx-8">
+      <div onClick={() => setApen(!apen)} style={{ outline: "none" }}>
+        Vis detaljer
+      </div>
+      <span tabIndex={5} style={{ color: status === "feil" ? "red" : "green" }}>
+        {status}
+      </span>
+      <RadioGroup legend="Velg status" value={status} onChange={onStatusEndret} size="small">
+        {STATUSER.map((s) => (
+          <Radio key={s.value} value={s.value}>
+            {s.label}
+          </Radio>
+        ))}
+      </RadioGroup>
+      <button onClick={onSlett}>
+        <TrashIcon />
+      </button>
+    </div>
+  );
+}
+

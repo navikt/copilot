@@ -1,0 +1,26 @@
+ ● skill(klarsprak)
+
+ / Search "**/*" 28 files found
+
+ MD Read README.md 4 lines read
+
+ ● Read lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningProducerIntercepto  22 lines re…
+        r.kt
+
+ ● Read lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningHeaders.kt 11 lines read
+
+ ● Read lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/Periode.kt 4 lines read
+
+ YM Read nais.yaml 12 lines read
+
+**Fase 1: Avklaring før endring (fullt løp).** Ingen kode er endret. `Periode` inneholder allerede `fnr`, men en egen header eksponerer fødselsnummeret som metadata. `SigningProducerInterceptor` signerer bare payloaden, så headeren vil ikke være signert.
+
+1. Må sporingen bruke fødselsnummer, eller holder `Periode.id` som korrelasjons-ID?
+2. Hvis fødselsnummer er nødvendig: Hvilke konsumenter og sporingsverktøy skal lese headeren, og hvordan hindres logging og utilsiktet videreføring?
+
+Repoet avklarer ikke dette. Lokal Copilot-konfigurasjon mangler (`AGENTS.md` og instruksjonsfilene for Copilot og review). Den kan opprettes med `nav-pilot init`.
+
+Fasebudsjett: intervju 1 000, plan 1 500, review 1 000, levering 2 000 tokens. Øvrige blindsoner avventer svarene eller gjelder ikke denne avgrensede endringen.
+
+Blindsoner reist: 3/11 (#1 personvern, #4 sporing, #6 mottakere; #2–#3, #5 og #7–#11 avventer eller er ikke relevante).
+

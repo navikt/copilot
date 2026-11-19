@@ -46,6 +46,7 @@ jobs:
       copilot-survey: ${{ steps.reuse.outputs.reuse != 'true' && steps.filter.outputs.copilot-survey || 'false' }}
       copilot-metrics: ${{ steps.reuse.outputs.reuse != 'true' && steps.filter.outputs.copilot-metrics || 'false' }}
       fleet-gateway: ${{ steps.reuse.outputs.reuse != 'true' && steps.filter.outputs.fleet-gateway || 'false' }}
+      mcp-kodeverk: ${{ steps.reuse.outputs.reuse != 'true' && steps.filter.outputs.mcp-kodeverk || 'false' }}
       mcp-onboarding: ${{ steps.reuse.outputs.reuse != 'true' && steps.filter.outputs.mcp-onboarding || 'false' }}
       mcp-registry: ${{ steps.reuse.outputs.reuse != 'true' && steps.filter.outputs.mcp-registry || 'false' }}
       my-copilot: ${{ steps.reuse.outputs.reuse != 'true' && steps.filter.outputs.my-copilot || 'false' }}
@@ -132,6 +133,11 @@ jobs:
               - '.github/workflows/fleet-gateway.yaml'
               - '.github/workflows/mise-build-deploy-nais.yaml'
               - '.github/workflows/ci.yaml'
+            mcp-kodeverk:
+              - 'apps/mcp-kodeverk/**'
+              - '.github/workflows/mcp-kodeverk.yaml'
+              - '.github/workflows/mise-build-deploy-nais.yaml'
+              - '.github/workflows/ci.yaml'
             mcp-onboarding:
               - 'apps/mcp-onboarding/**'
               - 'agents/**'
@@ -165,6 +171,7 @@ jobs:
               - 'scripts/install.sh'
               - 'scripts/publish-release.sh'
               - 'scripts/*.bats'
+              - 'scripts/skill-selvutlosning-probe.sh'
               - '.github/workflows/copilot-customization-sync.yml'
               - 'skills/**'
               - 'agents/**'
@@ -393,6 +400,32 @@ jobs:
           mise run install
           mise run lint
           mise run check
+
+  mcp-kodeverk:
+    name: mcp-kodeverk
+    needs: changes
+    if: needs.changes.outputs.mcp-kodeverk == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: apps/mcp-kodeverk
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # ratchet:actions/cache@v6.1.0
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+      - uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # ratchet:jdx/mise-action@v5.2.8
+        with:
+          experimental: true
+      - run: mise run install
+      - run: mise run lint
+      - run: mise run check
 
   mcp-onboarding:
     name: mcp-onboarding
@@ -694,7 +727,7 @@ jobs:
   # ── PR body template check ─────────────────────────────────────────────────
   # Ensures pull requests include the required sections from
   # .github/pull_request_template.md and do not use Norwegian issue-closing
-  # keywords that GitHub ignores. Automated bots and sync branches are exempt.
+  # keywords that GitHub ignores. Automated bots are exempt.
 
   pr-body-check:
     name: pr-body-check
@@ -709,22 +742,13 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           PR_BODY: ${{ github.event.pull_request.body }}
           ACTOR: ${{ github.event.pull_request.user.login }}
-          HEAD_REF: ${{ github.head_ref }}
         run: |
           python3 - <<'PY'
           import os, re, subprocess, sys
 
           actor = os.environ.get("ACTOR", "")
-          head_ref = os.environ.get("HEAD_REF", "")
-          exempt_prefixes = (
-              "copilot-sync/",
-              "pricing-sync/",
-              "agentpakke-sweep/",
-              "dependabot/",
-              "release/",
-          )
-          if actor.endswith("[bot]") or head_ref.startswith(exempt_prefixes):
-              print(f"Skipping PR body check for automated PR (actor={actor}, ref={head_ref})")
+          if actor.endswith("[bot]"):
+              print(f"Skipping PR body check for automated bot PR (actor={actor})")
               sys.exit(0)
 
           body = os.environ.get("PR_BODY") or ""
@@ -803,6 +827,7 @@ jobs:
       - copilot-survey
       - copilot-metrics
       - fleet-gateway
+      - mcp-kodeverk
       - mcp-onboarding
       - mcp-registry
       - my-copilot

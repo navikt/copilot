@@ -1,0 +1,18 @@
+ ● skill(kafka)
+
+ $ Shell Find event and topic configuration 10 lines…
+   ls -a; rg -n 'SoknadMottattMelding|soknad-mottatt' --hidden -g '!.git/**'
+
+ $ Shell Check payload, consumers and repo guidance 52 lines…
+   cat nais.yaml README.md src/main/kotlin/no/nav/demo/Soknad.kt; ls -a .github; rg --files src
+
+**Fase 1: Avklaring.** Jeg har ikke endret koden. `soknad-mottatt` sender i dag `soknadId` og `mottatt` som JSON. Repoet dokumenterer ikke hvem som leser topicen, eller hvordan fødselsnummer skal beskyttes.
+
+1. Hvilke konsumenter trenger fødselsnummeret, og er alle som kan lese topicen autorisert til å motta det?
+2. Hvilken kryptering skal brukes for `fnr` i meldingen?
+3. Tåler dagens konsumenter det nye feltet, og skal de kunne lese eldre meldinger uten `fnr`?
+
+Jeg fant ikke repo-lokal Copilot-konfigurasjon. Den kan opprettes med `nav-pilot init`.
+
+Blindsoner reist: 4/11 (#1 personvern, #2 tilgang, #6 konsumenter, #9 kompatibilitet). De øvrige gjelder ikke denne avklaringen av meldingskontrakten.
+

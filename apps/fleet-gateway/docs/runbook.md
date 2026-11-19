@@ -131,6 +131,10 @@ Remove the `client_id` from `ALLOWED_CLIENT_IDS` in `.nais/<env>-gcp.yaml` and d
 - Loss or corruption: recreate empty. **Warning:** this drops the `revoked` denylist while client-held refresh tokens stay decryptable with the unchanged `RT_KEYS`, so revoked or already-used tokens can pass replay checks again if Entra still accepts them. Rotate `RT_KEYS` (drop the old key, see above) whenever the database is lost. Everything in it is short-lived (sessions 12 h, consent 30 days, DCR clients up to 180 days). Users log in again; migrations run at startup. OpenCode users may need `opencode mcp logout <name>` first (unverified).
 - Backups: Nais Postgres defaults (automated backups, retention) are **unverified**; none are required for this design.
 
+## Hashed store keys rollout
+
+The deploy that hashes the store keys for authorization codes, consent ids and Entra `state` (#2454) can fail one login per user during the rolling update: the login starts on a new pod and finishes on an old one, which cannot find the hashed row. The user logs in again. Nothing to do after the rollout. Remove the plaintext-key fallback in `store_gateway.go` (`shortcut:` comment) once a pending/code TTL has passed.
+
 ## Post-deploy smoke (three steps)
 
 1. `curl -s -o /dev/null -w '%{http_code}\n' $URL/.well-known/oauth-protected-resource/mcp/<namespace>/<name>` prints `200`.
@@ -162,7 +166,7 @@ Run in dev first (`kubectl config use-context dev-gcp`, `URL=https://fleet-gatew
 
 Run in dev only. `nais app stop` and `nais app set replicas` ask for interactive confirmation and refuse without a terminal, so the owner runs them. Developer accounts cannot scale with kubectl, and the Alertmanager is not reachable with developer rights (no `pods/portforward` in `nais-system`).
 
-Alerts route per environment to the channel set in Nais Console, not necessarily #github-copilot-alerts.
+Alerts go to `#github-copilot-alerts`. Nais Console sets the channel per environment; for team copilot it is `#github-copilot-alerts` in both dev and prod (confirmed 2026-11-18). If alerts stop arriving, check the Console setting first.
 
 - [x] `nais app stop fleet-gateway -t copilot -e dev-gcp` (dev-gcp, 2026-11-18, 19:43:39 UTC).
 - [x] `FleetGatewayNoReadyPods` reached Slack at 19:47 UTC, about 3.5 min after the stop. The team's dev alert channel was changed in Nais Console during the drill, so treat 3.5 min as an upper bound.

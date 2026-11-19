@@ -274,6 +274,114 @@ func (s *pgxStore) Delete(ctx context.Context, kind, key string) error {
 	return err
 }
 
+func (s *pgxStore) CompareAndSwap(ctx context.Context, kind, key string, oldVal, newVal []byte, ttl time.Duration) (bool, error) {
+	now := s.now().UTC()
+	expiresAt := now.Add(ttl)
+
+	if oldVal == nil {
+		if newVal == nil {
+			var live bool
+			err := s.pool.QueryRow(ctx, `
+				SELECT EXISTS(SELECT 1 FROM items WHERE kind = $1 AND key = $2 AND expires_at > $3)`,
+				kind, key, now,
+			).Scan(&live)
+			if err != nil {
+				return false, err
+			}
+			return !live, nil
+		}
+
+		if capLimit, hasCap := s.caps[kind]; hasCap && capLimit > 0 {
+			return s.compareAndSwapInsertCapped(ctx, kind, key, newVal, expiresAt, now, capLimit)
+		}
+
+		tag, err := s.pool.Exec(ctx, `
+			INSERT INTO items (kind, key, value, expires_at, created_at)
+			VALUES ($1, $2, $3, $4, $5)
+			ON CONFLICT (kind, key) DO UPDATE SET
+				value = EXCLUDED.value,
+				expires_at = EXCLUDED.expires_at,
+				created_at = EXCLUDED.created_at
+			WHERE items.expires_at <= $5`,
+			kind, key, newVal, expiresAt, now,
+		)
+		if err != nil {
+			return false, err
+		}
+		return tag.RowsAffected() == 1, nil
+	}
+
+	if newVal == nil {
+		tag, err := s.pool.Exec(ctx, `
+			DELETE FROM items
+			WHERE kind = $1 AND key = $2 AND value = $3 AND expires_at > $4`,
+			kind, key, oldVal, now,
+		)
+		if err != nil {
+			return false, err
+		}
+		return tag.RowsAffected() == 1, nil
+	}
+
+	tag, err := s.pool.Exec(ctx, `
+		UPDATE items
+		SET value = $4, expires_at = $5, created_at = $6
+		WHERE kind = $1 AND key = $2 AND value = $3 AND expires_at > $6`,
+		kind, key, oldVal, newVal, expiresAt, now,
+	)
+	if err != nil {
+		return false, err
+	}
+	return tag.RowsAffected() == 1, nil
+}
+
+func (s *pgxStore) compareAndSwapInsertCapped(ctx context.Context, kind, key string, newVal []byte, expiresAt, now time.Time, capLimit int) (bool, error) {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return false, err
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	if _, execErr := tx.Exec(ctx, `SELECT pg_advisory_xact_lock($1)`, kindAdvisoryLockID(kind)); execErr != nil {
+		return false, execErr
+	}
+
+	var liveCount int
+	var keyLive bool
+	if scanErr := tx.QueryRow(ctx, `
+		SELECT count(*), COALESCE(bool_or(key = $3), false)
+		FROM items
+		WHERE kind = $1 AND expires_at > $2`,
+		kind, now, key,
+	).Scan(&liveCount, &keyLive); scanErr != nil {
+		return false, scanErr
+	}
+	if keyLive {
+		return false, nil
+	}
+	if liveCount >= capLimit {
+		return false, errStoreFull
+	}
+
+	tag, err := tx.Exec(ctx, `
+		INSERT INTO items (kind, key, value, expires_at, created_at)
+		VALUES ($1, $2, $3, $4, $5)
+		ON CONFLICT (kind, key) DO UPDATE SET
+			value = EXCLUDED.value,
+			expires_at = EXCLUDED.expires_at,
+			created_at = EXCLUDED.created_at
+		WHERE items.expires_at <= $5`,
+		kind, key, newVal, expiresAt, now,
+	)
+	if err != nil {
+		return false, err
+	}
+	if commitErr := tx.Commit(ctx); commitErr != nil {
+		return false, commitErr
+	}
+	return tag.RowsAffected() == 1, nil
+}
+
 func (s *pgxStore) Revoke(ctx context.Context, jti string, expiresAt time.Time) error {
 	_, err := s.pool.Exec(ctx, `
 		INSERT INTO revoked (jti, expires_at)

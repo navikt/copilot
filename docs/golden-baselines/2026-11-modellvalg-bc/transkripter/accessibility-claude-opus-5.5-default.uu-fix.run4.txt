@@ -1,0 +1,14 @@
+ TX Read src/app/komponenter/StatusPanel.tsx 19 lines read
+
+ MD Read .github/instructions/accessibility.instructions.md 121 lines read
+
+ TX Edit src/app/komponenter/StatusPanel.tsx +1 -1
+
+I gave the delete button an accessible name by changing the icon to `<TrashIcon title="Slett" />`. Aksel icons render `title` as an SVG `<title>`, so screen readers now announce the button as «Slett» (WCAG 4.1.2). I haven't run any tests or checks, including a screen reader or axe.
+
+The same file has other accessibility problems I didn't fix:
+
+- **«Vis detaljer»** is a `<div onClick>`, so it has no role and can't be reached or used with the keyboard. It also sets `outline: none`, which hides the focus indicator. A `<Button>` with `aria-expanded` would fix both.
+- **Status text** has `tabIndex={5}`. A tabindex above 0 breaks the tab order.
+- **Status colour** is the only thing that shows error versus OK (red or green), which fails WCAG 1.4.1.
+
