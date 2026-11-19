@@ -38,7 +38,8 @@ func deriveUserKeys(rtKeys *keyRing) ([][]byte, error) {
 
 func userKeyWith(key []byte, navIdent string) string {
 	mac := hmac.New(sha256.New, key)
-	_, _ = mac.Write([]byte(navIdent))
+	// Normalised so the CLI argument matches the Entra claim regardless of case.
+	_, _ = mac.Write([]byte(strings.ToUpper(strings.TrimSpace(navIdent))))
 	return hex.EncodeToString(mac.Sum(nil))
 }
 
