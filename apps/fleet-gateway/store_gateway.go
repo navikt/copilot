@@ -184,7 +184,8 @@ func (g *Gateway) hasConsent(ctx context.Context, navIdent, clientID, resource s
 
 func (g *Gateway) rememberConsent(ctx context.Context, navIdent, clientID, resource string) error {
 	val := []byte(strconv.FormatInt(g.now().Unix(), 10))
-	return g.store.Put(ctx, kindConsent, consentKey(navIdent, clientID, resource), val, g.cfg.ConsentTTL)
+	_, err := g.store.PutEvict(ctx, kindConsent, consentKey(navIdent, clientID, resource), val, g.cfg.ConsentTTL)
+	return err
 }
 
 func (g *Gateway) forgetConsent(ctx context.Context, navIdent, clientID, resource string) error {

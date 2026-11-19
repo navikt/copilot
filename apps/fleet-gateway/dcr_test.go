@@ -451,3 +451,98 @@ func TestDCR_StoreErrorIsTemporary(t *testing.T) {
 		t.Fatalf("code retry after store recovery: got %d %s, want 200", rec.Code, rec.Body.String())
 	}
 }
+
+func TestDCR_CodeGrantRejectsUnknownAndUnreadableClient(t *testing.T) {
+	verifier := "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG"
+
+	t.Run("evicted or disabled client cannot redeem code", func(t *testing.T) {
+		te := newClientEncryptedTestEnv(t, "k1:"+testKeyBase64(t, false))
+		enableDCR(te, 1, 10)
+		te.redirectURI = "http://127.0.0.1:19876/mcp/oauth/callback"
+
+		id1 := registerID(t, te, "10.0.0.10")
+		te.clientID = id1
+		code1 := te.obtainAuthCode(verifier)
+
+		// Evict id1 by registering another client when cap=1.
+		id2 := registerID(t, te, "10.0.0.11")
+		te.clientID = id2
+		code2 := te.obtainAuthCode(verifier)
+
+		status, body := te.postToken(url.Values{
+			"grant_type":    {"authorization_code"},
+			"code":          {code1},
+			"client_id":     {id1},
+			"redirect_uri":  {te.redirectURI},
+			"resource":      {te.resource},
+			"code_verifier": {verifier},
+		})
+		if status != http.StatusBadRequest || body["error"] != "invalid_grant" {
+			t.Fatalf("evicted DCR client code exchange: got %d %v, want 400 invalid_grant", status, body)
+		}
+
+		// Disable DCR between /authorize and /token.
+		te.gw.cfg.DCREnabled = false
+		status, body = te.postToken(url.Values{
+			"grant_type":    {"authorization_code"},
+			"code":          {code2},
+			"client_id":     {id2},
+			"redirect_uri":  {te.redirectURI},
+			"resource":      {te.resource},
+			"code_verifier": {verifier},
+		})
+		if status != http.StatusBadRequest || body["error"] != "invalid_grant" {
+			t.Fatalf("disabled DCR client code exchange: got %d %v, want 400 invalid_grant", status, body)
+		}
+	})
+
+	t.Run("unreadable dcr_client row from removed RT_KEYS returns 400 invalid_grant", func(t *testing.T) {
+		k1 := testKeyBase64(t, false)
+		k2 := testKeyBase64(t, false)
+		te := newClientEncryptedTestEnv(t, "k1:"+k1)
+		te.gw.cfg.DCREnabled = true
+		te.gw.cfg.DCRClientTTL = 24 * time.Hour
+		te.gw.cfg.DCRClientMaxAge = 72 * time.Hour
+		te.gw.cfg.DCRRateLimitRequests = 10
+		te.gw.cfg.DCRRateLimitGlobal = 100
+		te.handler = te.gw.routes()
+
+		id := registerID(t, te, "10.0.0.12")
+		te.redirectURI = "http://127.0.0.1:19876/mcp/oauth/callback"
+		te.clientID = id
+		code := te.obtainAuthCode(verifier)
+
+		// Rotate RT_KEYS to k2 only: dcr_client row sealed with k1 becomes errSealUnknownKID.
+		kr2, err := parseKeyRing("k2:" + k2)
+		if err != nil {
+			t.Fatal(err)
+		}
+		te.gw.rtKeys = kr2
+		if ss, ok := te.gw.store.(*sealedStore); ok {
+			ss.keys = kr2
+		} else {
+			t.Fatalf("expected sealedStore, got %T", te.gw.store)
+		}
+
+		status, body := te.postToken(url.Values{
+			"grant_type":    {"authorization_code"},
+			"code":          {code},
+			"client_id":     {id},
+			"redirect_uri":  {te.redirectURI},
+			"resource":      {te.resource},
+			"code_verifier": {verifier},
+		})
+		if status != http.StatusBadRequest || body["error"] != "invalid_grant" {
+			t.Fatalf("unreadable dcr_client code exchange: got %d %v, want 400 invalid_grant", status, body)
+		}
+
+		status, body = te.postToken(url.Values{
+			"grant_type":    {"refresh_token"},
+			"refresh_token": {"opaque"},
+			"client_id":     {id},
+		})
+		if status != http.StatusBadRequest || body["error"] != "invalid_grant" {
+			t.Fatalf("unreadable dcr_client refresh: got %d %v, want 400 invalid_grant", status, body)
+		}
+	})
+}

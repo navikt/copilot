@@ -221,12 +221,26 @@ func (g *Gateway) registeredClient(ctx context.Context, clientID string) (*clien
 		return nil, false, nil
 	}
 	raw, ok, err := g.store.Get(ctx, kindDCRClient, clientID)
-	if err != nil || !ok {
+	if err != nil {
+		if errors.Is(err, errSealUnknownKID) {
+			slog.Warn("dcr client row sealed with unknown key id, treating as missing")
+			return nil, false, nil
+		}
+		if errors.Is(err, errSealDecrypt) || errors.Is(err, errSealMalformed) {
+			slog.Warn("unreadable dcr client row, treating as missing", "reason", err.Error())
+			_ = g.store.Delete(ctx, kindDCRClient, clientID)
+			return nil, false, nil
+		}
 		return nil, false, err
+	}
+	if !ok {
+		return nil, false, nil
 	}
 	var rec dcrClient
 	if err := json.Unmarshal(raw, &rec); err != nil {
-		return nil, false, err
+		slog.Warn("unreadable dcr client row, treating as missing", "reason", err.Error())
+		_ = g.store.Delete(ctx, kindDCRClient, clientID)
+		return nil, false, nil
 	}
 	return &rec.clientMetadata, true, nil
 }

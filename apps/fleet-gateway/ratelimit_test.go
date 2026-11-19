@@ -214,6 +214,22 @@ func TestRateLimit_MetricsAndWarnLog(t *testing.T) {
 		t.Fatalf("authorize rate_limited_total = %v, want %v", got, beforeAuth+1)
 	}
 
+	beforeConsent := testutil.ToFloat64(rateLimitedTotal.WithLabelValues(rateLimitEndpointConsent))
+	consentClientIP := "198.51.100.79"
+	for i := 0; i < 2; i++ {
+		req := httptest.NewRequest(http.MethodPost, "/consent", strings.NewReader("id=missing&csrf=bad"))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		req.RemoteAddr = consentClientIP + ":4323"
+		rec := httptest.NewRecorder()
+		te.handler.ServeHTTP(rec, req)
+		if i == 1 && rec.Code != http.StatusTooManyRequests {
+			t.Fatalf("consent second request: got %d, want 429", rec.Code)
+		}
+	}
+	if got := testutil.ToFloat64(rateLimitedTotal.WithLabelValues(rateLimitEndpointConsent)); got != beforeConsent+1 {
+		t.Fatalf("consent rate_limited_total = %v, want %v", got, beforeConsent+1)
+	}
+
 	logs := logBuf.String()
 	if !strings.Contains(logs, `"msg":"rate limited"`) {
 		t.Fatalf("expected slog warning 'rate limited' in logs, got %s", logs)

@@ -196,8 +196,23 @@ func isLoopbackRedirect(u *url.URL) bool {
 		if err != nil || (h != "127.0.0.1" && h != "::1") {
 			return false
 		}
+		if !isASCIIDigits(port) {
+			return false
+		}
 		n, err := strconv.Atoi(port)
 		if err != nil || n < 1 || n > 65535 {
+			return false
+		}
+	}
+	return true
+}
+
+func isASCIIDigits(s string) bool {
+	if s == "" {
+		return false
+	}
+	for i := 0; i < len(s); i++ {
+		if s[i] < '0' || s[i] > '9' {
 			return false
 		}
 	}
@@ -495,7 +510,8 @@ func (g *Gateway) callbackHandler(w http.ResponseWriter, r *http.Request) {
 	at, _ := out["access_token"].(string)
 	idt, _ := out["id_token"].(string)
 	logAccessTokenShape(at)
-	if err != nil || status != http.StatusOK || (at == "" && idt == "") {
+	missingToken := (at == "" && idt == "") || (at == "" && g.cfg.TeamTokenStrategy != strategyRefresh)
+	if err != nil || status != http.StatusOK || missingToken {
 		errType, _ := out["error"].(string)
 		slog.Warn("audit login", "outcome", "code_redeem_failed", "status", status, "error", sanitizeLogValue(errType), "client_id", sanitizeLogValue(p.ClientID), "resource", sanitizeLogValue(p.Resource))
 		back(url.Values{
@@ -748,7 +764,11 @@ func clearEntraStateCookie(w http.ResponseWriter) {
 
 func redirectWithValues(w http.ResponseWriter, r *http.Request, base *url.URL, v url.Values) {
 	target := *base
-	target.RawQuery = v.Encode()
+	q := target.Query()
+	for k, vals := range v {
+		q[k] = vals
+	}
+	target.RawQuery = q.Encode()
 	http.Redirect(w, r, target.String(), http.StatusFound)
 }
 

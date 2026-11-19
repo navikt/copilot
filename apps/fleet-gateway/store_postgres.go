@@ -93,15 +93,32 @@ func newPostgresStore(ctx context.Context, databaseURL string, now func() time.T
 	}
 	s.pool = rtPool
 	// Fail at startup, not on first login, if the runtime role cannot use the tables.
-	if _, err = rtPool.Exec(ctx, `SELECT 1 FROM items LIMIT 1`); err != nil {
+	if err = checkPGRuntimeTables(ctx, func(ctx context.Context, q string) error {
+		_, execErr := rtPool.Exec(ctx, q)
+		return execErr
+	}); err != nil {
 		rtPool.Close()
-		return nil, fmt.Errorf("runtime role cannot read items: %w", err)
-	}
-	if _, err = rtPool.Exec(ctx, `SELECT 1 FROM counters LIMIT 1`); err != nil {
-		rtPool.Close()
-		return nil, fmt.Errorf("runtime role cannot read counters: %w", err)
+		return nil, err
 	}
 	return s, nil
+}
+
+var pgRuntimeTableChecks = []struct {
+	table string
+	query string
+}{
+	{"items", `SELECT 1 FROM items LIMIT 1`},
+	{"revoked", `SELECT 1 FROM revoked LIMIT 1`},
+	{"counters", `SELECT 1 FROM counters LIMIT 1`},
+}
+
+func checkPGRuntimeTables(ctx context.Context, exec func(context.Context, string) error) error {
+	for _, c := range pgRuntimeTableChecks {
+		if err := exec(ctx, c.query); err != nil {
+			return fmt.Errorf("runtime role cannot read %s: %w", c.table, err)
+		}
+	}
+	return nil
 }
 
 func (s *pgxStore) migrate(ctx context.Context) error {

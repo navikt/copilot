@@ -42,6 +42,7 @@ var (
 
 const (
 	rateLimitEndpointAuthorize = "authorize"
+	rateLimitEndpointConsent   = "consent"
 	rateLimitEndpointToken     = "token"
 	rateLimitEndpointRevoke    = "revoke"
 	rateLimitEndpointRegister  = "register"
@@ -49,6 +50,7 @@ const (
 
 var rateLimitedEndpoints = []string{
 	rateLimitEndpointAuthorize,
+	rateLimitEndpointConsent,
 	rateLimitEndpointToken,
 	rateLimitEndpointRevoke,
 	rateLimitEndpointRegister,
