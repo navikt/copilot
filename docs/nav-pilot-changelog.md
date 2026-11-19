@@ -13,6 +13,11 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 - **Protokoll og headere**: En eksplisitt eldre `protocolVersions` i registeret overstyres ikke lenger av at serveren ligger på nav.no. Headere hentes fra endepunktet som er valgt, ikke alltid det første. Registerets `sandboxHosts` for lokale OpenCode-pakker med egen nøkkel kommer nå med i godkjenningen.
 - **Agentpakker**: `allow_private_domains` avviser et offentlig suffiks (som `co.uk`) og en bar `nav.no`, fordi cplt også matcher underdomener. Navngi en bestemt vert.
 
+### Onboarding-serveren går via gatewayen
+
+- **`nav-pilot mcp enable mcp-onboarding`**: Nye oppføringer for `io.github.navikt/mcp-onboarding` bruker nå gatewayen, og du logger inn med Entra ID første gang. Har du allerede serveren, beholder nav-pilot adressen du har, og den virker som før. Bytt til gatewayen slik: `nav-pilot mcp disable mcp-onboarding && nav-pilot mcp enable mcp-onboarding`.
+- **Kodeverk har nytt navn**: Kodeverk-serveren heter nå `io.github.navikt/kodeverk` («Felles kodeverk») i MCP-registeret.
+
 ## 2026-11-18
 
 ### Strengere sjekk av lokale MCP-servere i OpenCode

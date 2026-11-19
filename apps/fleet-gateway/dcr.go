@@ -44,13 +44,18 @@ func (g *Gateway) registerHandler(w http.ResponseWriter, r *http.Request) {
 	fail := func(status int, code, desc string) {
 		writeJSON(w, status, map[string]string{"error": code, "error_description": desc})
 	}
-	allowed, err := g.allowRegistration(r.Context(), extractClientIP(r))
+	ip := extractClientIP(r)
+	allowed, err := g.allowRegistration(r.Context(), ip)
 	if err != nil {
 		slog.Warn("dcr rate limit failed", "error", err)
 		fail(http.StatusServiceUnavailable, "temporarily_unavailable", "session store unavailable")
 		return
 	}
 	if !allowed {
+		observeRateLimited(rateLimitEndpointRegister)
+		if g.rateLimitLog == nil || g.rateLimitLog.Allow(rateLimitEndpointRegister+"\x00"+ip) {
+			slog.Warn("rate limited", "endpoint", rateLimitEndpointRegister)
+		}
 		w.Header().Set("Retry-After", "3600")
 		fail(http.StatusTooManyRequests, "temporarily_unavailable", "registration rate limit exceeded")
 		return
