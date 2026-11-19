@@ -131,6 +131,10 @@ jobs:
             fleet-gateway:
               - 'apps/fleet-gateway/**'
               - 'apps/mcp-registry/allowlist.json'
+              # TestProdRouteToolsExist reads these servers' tool lists (#2447).
+              - 'apps/mcp-onboarding/**'
+              - 'apps/mcp-kodeverk/**'
+              - 'apps/mcp-dolly/**'
               - '.github/workflows/fleet-gateway.yaml'
               - '.github/workflows/mise-build-deploy-nais.yaml'
               - '.github/workflows/ci.yaml'
