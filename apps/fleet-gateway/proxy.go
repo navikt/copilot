@@ -13,7 +13,6 @@ import (
 	"mime"
 	"net"
 	"net/http"
-	"net/http/httptrace"
 	"net/textproto"
 	"net/url"
 	"strconv"
@@ -399,21 +398,21 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 
 		targetURL := buildUpstreamURL(route.ParsedURL, r.URL.RawQuery)
 		var bodyBuf atomic.Pointer[[]byte]
+		// Track the latest reader so a failed attempt cannot drop the buffer during a retry.
+		var latestBodyDone atomic.Pointer[chan struct{}]
+		newBodyReader := func() *droppableBytes {
+			done := make(chan struct{})
+			latestBodyDone.Store(&done)
+			return &droppableBytes{b: &bodyBuf, done: done}
+		}
 		var bodyReader io.Reader
 		if len(reqBody) > 0 {
 			b := reqBody
 			bodyBuf.Store(&b)
-			bodyReader = &droppableBytes{b: &bodyBuf}
+			bodyReader = newBodyReader()
 		}
 		upCtx, upCancel := context.WithCancel(r.Context())
 		defer upCancel()
-		reqWrote := make(chan struct{})
-		var wroteOnce sync.Once
-		upCtx = httptrace.WithClientTrace(upCtx, &httptrace.ClientTrace{
-			WroteRequest: func(httptrace.WroteRequestInfo) {
-				wroteOnce.Do(func() { close(reqWrote) })
-			},
-		})
 
 		upReq, err := http.NewRequestWithContext(upCtx, r.Method, targetURL, bodyReader)
 		if err != nil {
@@ -427,7 +426,7 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 		if len(reqBody) > 0 {
 			upReq.ContentLength = int64(len(reqBody))
 			upReq.GetBody = func() (io.ReadCloser, error) {
-				return &droppableBytes{b: &bodyBuf}, nil
+				return newBodyReader(), nil
 			}
 		}
 
@@ -466,8 +465,9 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 				return // already ours; skipping keeps the per-user count exact
 			}
 			// shortcut: Get+Put on the counter is not atomic across pods, so the cap is approximate; fine as defence in depth.
+			userKey := g.mcpSessionUserKey(sess.NAVIdent)
 			count := 0
-			if raw, ok, cntErr := g.store.Get(r.Context(), kindMCPSessionUser, sess.NAVIdent); cntErr == nil && ok {
+			if raw, ok, cntErr := g.store.Get(r.Context(), kindMCPSessionUser, userKey); cntErr == nil && ok {
 				count, _ = strconv.Atoi(string(raw))
 			}
 			if count >= g.cfg.MCPSessionUserCap {
@@ -478,18 +478,19 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 				slog.Warn("mcp session bind failed", "route", route.Route, "error", putErr)
 				return
 			}
-			_ = g.store.Put(r.Context(), kindMCPSessionUser, sess.NAVIdent, []byte(strconv.Itoa(count+1)), mcpSessionTTL)
+			_ = g.store.Put(r.Context(), kindMCPSessionUser, userKey, []byte(strconv.Itoa(count+1)), mcpSessionTTL)
 		}
 		// A terminated session frees its binding and the user's slot under the cap.
 		if r.Method == http.MethodDelete && ownsReqSession && resp.StatusCode < 300 {
 			// Pop, not Delete: only the request that removed the binding frees the slot,
 			// so concurrent DELETEs of one session cannot decrement twice.
+			userKey := g.mcpSessionUserKey(sess.NAVIdent)
 			if _, removed, delErr := g.store.Pop(r.Context(), kindMCPSession, route.Route+"\n"+reqSessionID); delErr != nil {
 				slog.Warn("mcp session unbind failed", "route", route.Route, "error", delErr)
-			} else if raw, ok, cntErr := g.store.Get(r.Context(), kindMCPSessionUser, sess.NAVIdent); removed && cntErr == nil && ok {
+			} else if raw, ok, cntErr := g.store.Get(r.Context(), kindMCPSessionUser, userKey); removed && cntErr == nil && ok {
 				// shortcut: same non-atomic Get+Put as bindMCPSession; the cap stays approximate.
 				if count, _ := strconv.Atoi(string(raw)); count > 0 {
-					_ = g.store.Put(r.Context(), kindMCPSessionUser, sess.NAVIdent, []byte(strconv.Itoa(count-1)), mcpSessionTTL)
+					_ = g.store.Put(r.Context(), kindMCPSessionUser, userKey, []byte(strconv.Itoa(count-1)), mcpSessionTTL)
 				}
 			}
 		}
@@ -520,18 +521,21 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 			// Drop references to the buffered request body (up to 1 MiB) before
 			// streaming so long-lived SSE connections do not pin it on the heap
 			// via locals, resp.Request -> upReq, or Transport's rewind copy in readLoop.
-			// Wait for WroteRequest so an HTTP/1.1 upstream flushing headers early still gets the full body.
-			select {
-			case <-reqWrote:
-				bodyBuf.Store(nil)
-			default:
-				go func() {
-					select {
-					case <-reqWrote:
-					case <-upCtx.Done():
-					}
+			// Wait for the latest reader to copy all bytes so an early-flushing upstream gets the full body.
+			if donePtr := latestBodyDone.Load(); donePtr != nil {
+				done := *donePtr
+				select {
+				case <-done:
 					bodyBuf.Store(nil)
-				}()
+				default:
+					go func() {
+						select {
+						case <-done:
+						case <-upCtx.Done():
+						}
+						bodyBuf.Store(nil)
+					}()
+				}
 			}
 			reqBody = nil    //nolint:ineffassign // drop heap reference before long-lived SSE stream
 			bodyReader = nil //nolint:ineffassign // drop heap reference before long-lived SSE stream
@@ -541,7 +545,6 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 			rc := http.NewResponseController(w)
 			_ = rc.SetWriteDeadline(time.Time{})
 			w.WriteHeader(resp.StatusCode)
-			_ = rc.Flush()
 			if streamErr := streamSSE(upCtx, w, rc, resp.Body, g.cfg.SSEMaxDuration, g.cfg.SSEIdleTimeout, g.cfg.SSEMaxBytes); streamErr != nil {
 				outcome = "stream_error"
 			} else if resp.StatusCode >= 400 {
@@ -639,21 +642,36 @@ func readChunks(r io.Reader, limit int64) ([][]byte, int64, error) {
 // branch can release the underlying array even when net/http.Transport cloned
 // upReq in setupRewindBody and kept the clone on persistConn.readLoop.
 type droppableBytes struct {
-	b   *atomic.Pointer[[]byte]
-	off int
+	b        *atomic.Pointer[[]byte]
+	off      int
+	done     chan struct{}
+	doneOnce sync.Once
+}
+
+func (d *droppableBytes) markDone() {
+	if d.done != nil {
+		d.doneOnce.Do(func() { close(d.done) })
+	}
 }
 
 func (d *droppableBytes) Read(p []byte) (int, error) {
 	bp := d.b.Load()
 	if bp == nil || d.off >= len(*bp) {
+		d.markDone()
 		return 0, io.EOF
 	}
 	n := copy(p, (*bp)[d.off:])
 	d.off += n
+	if d.off >= len(*bp) {
+		d.markDone()
+	}
 	return n, nil
 }
 
-func (d *droppableBytes) Close() error { return nil }
+func (d *droppableBytes) Close() error {
+	d.markDone()
+	return nil
+}
 
 func streamSSE(
 	ctx context.Context,
@@ -682,10 +700,25 @@ func streamSSE(
 		defer idleTimer.Stop()
 	}
 
+	cbDone := make(chan struct{})
 	stopAfter := context.AfterFunc(streamCtx, func() {
+		defer close(cbDone)
+		// Set write deadline before waking body.Read so it cannot land after ServeHTTP returns.
+		if rc != nil {
+			_ = rc.SetWriteDeadline(time.Now())
+		}
 		_ = body.Close()
 	})
-	defer stopAfter()
+	defer func() {
+		// stopAfter does not wait for a running callback; wait here before releasing the conn.
+		if !stopAfter() {
+			<-cbDone
+		}
+	}()
+
+	if ferr := flushSSE(rc); ferr != nil {
+		return ferr
+	}
 
 	var totalBytes int64
 	buf := make([]byte, 32*1024)
@@ -704,14 +737,18 @@ func streamSSE(
 					if _, werr := w.Write(buf[:remaining]); werr != nil {
 						return werr
 					}
-					_ = rc.Flush()
+					if ferr := flushSSE(rc); ferr != nil {
+						return ferr
+					}
 				}
 				return errors.New("sse max bytes exceeded")
 			}
 			if _, werr := w.Write(buf[:n]); werr != nil {
 				return werr
 			}
-			_ = rc.Flush()
+			if ferr := flushSSE(rc); ferr != nil {
+				return ferr
+			}
 			totalBytes += int64(n)
 			if idleTimer != nil {
 				idleTimer.Reset(idleTimeout)
@@ -727,6 +764,16 @@ func streamSSE(
 			return err
 		}
 	}
+}
+
+func flushSSE(rc *http.ResponseController) error {
+	if rc == nil {
+		return nil
+	}
+	if err := rc.Flush(); err != nil && !errors.Is(err, http.ErrNotSupported) {
+		return err
+	}
+	return nil
 }
 
 // writeToolDenied answers a denied POST with a JSON-RPC error and never

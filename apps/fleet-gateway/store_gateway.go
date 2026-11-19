@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
+	"strconv"
 	"time"
 )
 
@@ -16,11 +17,11 @@ func (g *Gateway) putPending(ctx context.Context, kind, key string, p *pendingAu
 	if err != nil {
 		return err
 	}
-	return g.store.Put(ctx, kind, key, raw, defaultPendingTTL)
+	return g.store.Put(ctx, kind, hashToken(key), raw, defaultPendingTTL)
 }
 
 func (g *Gateway) popPending(ctx context.Context, kind, key string) (*pendingAuth, bool, error) {
-	raw, ok, err := g.store.Pop(ctx, kind, key)
+	raw, ok, err := g.popHashed(ctx, kind, key)
 	if err != nil || !ok {
 		return nil, ok, err
 	}
@@ -39,11 +40,11 @@ func (g *Gateway) putCode(ctx context.Context, code string, c *issuedCode) error
 	if err != nil {
 		return err
 	}
-	return g.store.Put(ctx, kindCode, code, raw, defaultCodeTTL)
+	return g.store.Put(ctx, kindCode, hashToken(code), raw, defaultCodeTTL)
 }
 
 func (g *Gateway) popCode(ctx context.Context, code string) (*issuedCode, bool, error) {
-	raw, ok, err := g.store.Pop(ctx, kindCode, code)
+	raw, ok, err := g.popHashed(ctx, kindCode, code)
 	if err != nil || !ok {
 		return nil, ok, err
 	}
@@ -54,12 +55,33 @@ func (g *Gateway) popCode(ctx context.Context, code string) (*issuedCode, bool, 
 	return &c, true, nil
 }
 
+func (g *Gateway) popHashed(ctx context.Context, kind, key string) ([]byte, bool, error) {
+	raw, ok, err := g.store.Pop(ctx, kind, hashToken(key))
+	if err == nil && !ok {
+		// shortcut: plaintext-key fallback for rows written before this change; remove after one pending/code TTL (defaultPendingTTL/defaultCodeTTL) has passed since deploy
+		raw, ok, err = g.store.Pop(ctx, kind, key)
+	}
+	return raw, ok, err
+}
+
 func (g *Gateway) putSession(ctx context.Context, hash string, s *gatewaySession, ttl time.Duration) error {
 	return putSessionInStore(ctx, g.store, g.now, g.cfg.SessionMaxAge, hash, s, ttl)
 }
 
 func (g *Gateway) getSession(ctx context.Context, hash string) (*gatewaySession, bool, error) {
-	return getSessionFromStore(ctx, g.store, g.now, g.cfg.SessionMaxAge, hash)
+	sess, ok, err := getSessionFromStore(ctx, g.store, g.now, g.cfg.SessionMaxAge, hash)
+	if err != nil || !ok {
+		return sess, ok, err
+	}
+	revoked, err := g.userRevoked(ctx, sess.NAVIdent, sess.IssuedAt)
+	if err != nil {
+		return nil, false, err
+	}
+	if revoked {
+		_ = g.store.Delete(ctx, kindSession, hash)
+		return nil, false, nil
+	}
+	return sess, true, nil
 }
 
 func putSessionInStore(ctx context.Context, store SessionStore, nowFn func() time.Time, maxAge time.Duration, hash string, s *gatewaySession, ttl time.Duration) error {
@@ -137,12 +159,32 @@ func consentKey(navIdent, clientID, resource string) string {
 }
 
 func (g *Gateway) hasConsent(ctx context.Context, navIdent, clientID, resource string) (bool, error) {
-	_, ok, err := g.store.Get(ctx, kindConsent, consentKey(navIdent, clientID, resource))
-	return ok, err
+	key := consentKey(navIdent, clientID, resource)
+	raw, ok, err := g.store.Get(ctx, kindConsent, key)
+	if err != nil || !ok {
+		return ok, err
+	}
+	created := time.Unix(0, 0).UTC()
+	if s := string(raw); s != "1" {
+		if sec, parseErr := strconv.ParseInt(s, 10, 64); parseErr == nil {
+			created = time.Unix(sec, 0).UTC()
+		}
+	}
+	revoked, err := g.userRevoked(ctx, navIdent, created)
+	if err != nil {
+		return false, err
+	}
+	if revoked {
+		// Delete lazily at read time: consent keys are hashed per (user, client, resource) and cannot be enumerated per user.
+		_ = g.store.Delete(ctx, kindConsent, key)
+		return false, nil
+	}
+	return true, nil
 }
 
 func (g *Gateway) rememberConsent(ctx context.Context, navIdent, clientID, resource string) error {
-	return g.store.Put(ctx, kindConsent, consentKey(navIdent, clientID, resource), []byte("1"), g.cfg.ConsentTTL)
+	val := []byte(strconv.FormatInt(g.now().Unix(), 10))
+	return g.store.Put(ctx, kindConsent, consentKey(navIdent, clientID, resource), val, g.cfg.ConsentTTL)
 }
 
 func (g *Gateway) forgetConsent(ctx context.Context, navIdent, clientID, resource string) error {

@@ -4,7 +4,7 @@ routes:
     team: copilot
     target: prod-gcp:copilot:mcp-onboarding
     upstream_url: http://mcp-onboarding.copilot/mcp/gw
-    passAllTools: true
+    tools: [hello_world, greet, whoami, echo, get_time, search_customizations, list_agents, list_instructions, list_prompts, list_skills, get_installation_guide, check_agent_readiness, suggest_customizations, generate_agents_md, generate_setup_steps, team_readiness]
   - route: /mcp/copilot/kodeverk
     team: copilot
     target: prod-gcp:copilot:mcp-kodeverk
