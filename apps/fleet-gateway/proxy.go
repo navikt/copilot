@@ -18,6 +18,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/navikt/copilot/fleet-gateway/internal/audit"
 	"github.com/navikt/copilot/fleet-gateway/internal/policy"
 )
 
@@ -127,49 +128,18 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 		// context.outcome tells what happened after that.
 		defer func() {
 			observeMCPRequest(route.Route, outcome, decision, g.now().Sub(start))
-			reason := decisionReason
-			if decision != "allow" && (decision == "" || reason == "") {
-				reason = outcome
-			}
-			var attrs []any
-			// AuthZEN 1.0 §5.1 makes subject.id REQUIRED, so an unauthenticated
-			// request has no subject rather than one with an empty id.
-			if navIdent != "" {
-				attrs = append(attrs, slog.Group("subject",
-					"type", "user",
-					"id", sanitizeLogValue(navIdent),
-					slog.Group("properties", "client_id", sanitizeLogValue(clientID)),
-				))
-			}
-			slog.Info("audit mcp", append(attrs,
-				slog.Group("action",
-					"name", sanitizeLogValue(rpcMethod),
-					slog.Group("properties", "tool", sanitizeLogValue(toolName)),
-				),
-				slog.Group("resource",
-					"type", "mcp_route",
-					"id", strings.TrimPrefix(route.Route, "/mcp/"),
-					slog.Group("properties", "backend", route.Target),
-				),
-				slog.Group("context",
-					"request_id", requestID,
-					"http_method", sanitizeLogValue(r.Method),
-					"scan_incomplete", scanIncomplete,
-					"header_mismatch", headerMismatch,
-					"protocol_version", sanitizeLogValue(policy.ProtocolVersion(r.Header.Get("Mcp-Protocol-Version"))),
-					slog.Group("mcp_headers",
-						"method", r.Header.Get("Mcp-Method") != "",
-						"name", r.Header.Get("Mcp-Name") != "",
-					),
-					"outcome", outcome,
-					"duration_ms", g.now().Sub(start).Milliseconds(),
-				),
-				// AuthZEN 1.0 §5.5: decision boolean plus optional context.
-				slog.Group("decision",
-					"decision", decision == "allow",
-					slog.Group("context", "reason", reason),
-				),
-			)...)
+			audit.LogMCP(audit.MCP{
+				NAVIdent: navIdent, ClientID: clientID,
+				Method: rpcMethod, Tool: toolName,
+				Route: strings.TrimPrefix(route.Route, "/mcp/"), Backend: route.Target,
+				RequestID: requestID, HTTPMethod: r.Method,
+				ScanIncomplete: scanIncomplete, HeaderMismatch: headerMismatch,
+				ProtocolVersion: policy.ProtocolVersion(r.Header.Get("Mcp-Protocol-Version")),
+				HasMcpMethod:    r.Header.Get("Mcp-Method") != "",
+				HasMcpName:      r.Header.Get("Mcp-Name") != "",
+				Outcome:         outcome, DurationMS: g.now().Sub(start).Milliseconds(),
+				Decision: decision, DecisionReason: decisionReason,
+			})
 		}()
 
 		switch r.Method {
