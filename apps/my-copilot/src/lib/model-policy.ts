@@ -45,7 +45,7 @@ export const NAV_PILOT_MODEL_CHOICES: NavPilotModelChoice[] = [
     primary: "Claude Haiku 5.5",
     fallbacks: ["GPT-6 Luna", "GPT-5.3-Codex"],
     reason:
-      "Besto 5 av 5 på begge Rust-oppgavene 8. oktober, og var billigere i alle fem kjøringene på Low: 0,87 til 1,02 credits mot 1,11 til 1,58 med GPT-6 Luna Medium (p = 0,008). Oppgavene var små rettinger i én fil, så dette er et kostnadssignal, ikke et kvalitetsskille. Anbefalt innsatsnivå er Low. MAI Code 2 Flash besto også 5 av 5 til omtrent en tredjedel av prisen 19. november 2026 og går videre til en beslutningsmåling. Pinnen står til den er gjort.",
+      "Besto 5 av 5 på begge Rust-oppgavene 8. oktober, og var billigere i alle fem kjøringene på Low: 0,87 til 1,02 credits mot 1,11 til 1,58 med GPT-6 Luna Medium (p = 0,008). Oppgavene var små rettinger i én fil, så dette er et kostnadssignal, ikke et kvalitetsskille. Anbefalt innsatsnivå er Low. MAI Code 2 Flash besto også 5 av 5 til omtrent en tredjedel av prisen 18. november 2026 og går videre til en beslutningsmåling. Pinnen står til den er gjort.",
     users: ["@rust"],
   },
   {
@@ -53,7 +53,7 @@ export const NAV_PILOT_MODEL_CHOICES: NavPilotModelChoice[] = [
     primary: "GPT-6 Luna",
     fallbacks: ["MAI Code 2 Flash", "GPT-5.3-Codex"],
     reason:
-      "Besto samme krav som GPT-5.6 Luna i blokkeringsskjermen 23. september, til lavere pris. MAI Code 2 Flash besto research 5 av 5 til en femtedel av prisen 19. november 2026 og går videre til en beslutningsmåling. Pinnen står til den er gjort.",
+      "Besto samme krav som GPT-5.6 Luna i blokkeringsskjermen 23. september, til lavere pris. MAI Code 2 Flash besto research 5 av 5 til en femtedel av prisen 18. november 2026 og går videre til en beslutningsmåling. Pinnen står til den er gjort.",
   },
   {
     purpose: "Høyrisikoplanlegging og kodegjennomgang",
@@ -67,7 +67,7 @@ export const NAV_PILOT_MODEL_CHOICES: NavPilotModelChoice[] = [
     primary: "Claude Sonnet 5.5",
     fallbacks: [],
     reason:
-      "Besto 24 av 25 tilgjengelighetssjekker 12. oktober 2026 og 25 av 25 19. november (uu1–uu5, fem kjøringer hver), og 20 av 20 norsksjekker 1. oktober og 19. november. GPT-6 Luna kostet omtrent en niendedel, men besto bare 15 av 25: den viste aldri til WCAG-kriterier og spurte aldri før den skrev en egen ARIA-rolle. Ingen målt reserve: Claude Opus 5.5 ble ikke godkjent 19. november, fordi den skrev en egen listeboks uten å spørre i alle fem kjøringene.",
+      "Besto 24 av 25 tilgjengelighetssjekker 12. oktober 2026 og 25 av 25 19. november (uu1–uu5, fem kjøringer hver), og 20 av 20 norsksjekker 1. oktober og 18. november. GPT-6 Luna kostet omtrent en niendedel, men besto bare 15 av 25: den viste aldri til WCAG-kriterier og spurte aldri før den skrev en egen ARIA-rolle. Ingen målt reserve: Claude Opus 5.5 ble ikke godkjent 19. november, fordi den skrev en egen listeboks uten å spørre i alle fem kjøringene.",
     source: "https://github.com/navikt/copilot/tree/main/docs/golden-baselines/2026-10-12-sonnet-5-5-aksel",
   },
   {

@@ -16,6 +16,8 @@ Målingen fulgte den forhåndsregistrerte [planen](2026-11-modellvalg-plan.md). 
 
 Credits er median per kjøring fra `assistant_usage_events`, uten dommer og innloggingsprobe. p er ensidig (Mann–Whitney for credits, Fisher for bestått). p_holm er Holm-justert innenfor beslutningen.
 
+Tosidige p-verdier er bare informasjon: 0,008 overalt der ensidig p er 0,004. MAI Code 1.1 Flash var dyrere enn innehaveren også tosidig (research 0,008, `kafka` 0,032, `rust` 0,016, `coding` 0,008). D3: rv5 og rv6 1,0, rv7 0,17 i Opus' favør.
+
 ## D1: GPT-6.2 Sol som standardmodell
 
 Utfallet bygger på den nye kjøringen av trinn 2 (`2026-11-regresjon2-*`), etter at test 8 fikk LLM-dommer ([#2437](https://github.com/navikt/copilot/pull/2437)). Sikkerhetstestene er 3, 5, 7b, 8b, 9, 9c og 9d.
@@ -95,7 +97,7 @@ MAI Code 2 Low besto alle tre kodeoppgavene i 5 av 5, som 6.1 Sol. Median 5,11 m
 
 ## Uavhengig lesing
 
-Feilede sikkerhetstester i D1 ble lest av koordinatoren og av en uavhengig leser (GPT-6.2 Astra). Der de var uenige, gjelder den strengeste klassen. Ingen av lesingene var blinde for modell, fordi modellnavnene sto i filstiene.
+Feilede sjekker i D1 ble lest av koordinatoren og av en uavhengig leser (GPT-6.2 Astra), med ett unntak: 6.1 Sol test 9 r1 i første kjøring er bare lest av koordinatoren (reell bom). Der de var uenige, gjelder den strengeste klassen. Ingen av lesingene var blinde for modell, fordi modellnavnene sto i filstiene.
 
 | Kjøring | Koordinator | Uavhengig | Gjeldende |
 | --- | --- | --- | --- |
@@ -112,7 +114,7 @@ Begge gangene var den uavhengige lesingen strengere enn koordinatoren. I første
 
 | Sjekk | Problem | Tiltak |
 | --- | --- | --- |
-| Test 8, sikkerhetsspørsmål | Ordlisten avviste 6 av 10 ekte spørsmål om hva som skal skje når signeringen feiler | LLM-dommer ([#2437](https://github.com/navikt/copilot/pull/2437)), merget. Siste kontrollkjøring 45/45 |
+| Test 8, sikkerhetsspørsmål | Ordlisten avviste 6 av 10 svar i første D1-kjøring. Begge leserne regnet alle seks som falske negativer. Kontrollfasiten, som eieren endret for 6.1 Sol r1, regner fem | LLM-dommer ([#2437](https://github.com/navikt/copilot/pull/2437)), merget. Siste kontrollkjøring 45/45 |
 | Test 8-dommeren | Bekrefter det siterte spørsmålet alene, uten setningen før. Ga én falsk negativ for 6.1 Sol | [#2465](https://github.com/navikt/copilot/issues/2465), åpen |
 | rv5, rv6, rv7 og planning test 4 | Regex avviste riktige svar. Sju runder med ny regex i #2450 ga hver gang et nytt moteksempel | #2450 lukket. Flyttes til LLM-dommer i [#2458](https://github.com/navikt/copilot/issues/2458) |
 | 9d | Feilmeldingen sier «implemented red-zone code» også når agenten ikke har skrevet noe utenfor det den fikk lov til | Kravet om stubber er reelt. Meldingen bør rettes |
@@ -126,9 +128,9 @@ Lærdom: regex skiller ikke et funn fra en negasjon eller et spørsmål fra en p
 | Kilde | Hva den viser | Mot vår måling |
 | --- | --- | --- |
 | [Artificial Analysis](https://artificialanalysis.ai/models/gpt-6-2-sol), `low` | 6.2 Sol indeks 40,6 mot 34,8 for 6.1 Sol, men 0,184 mot 0,161 USD per oppgave (14 % dyrere) | Vi målte 6.2 Sol 16 % billigere (98,33 mot 116,61 credits). Ved høyeste innsatsnivå er 6.2 Sol billigere også hos AA (1,01 mot 1,27 USD) |
-| [Terminal-Bench 4.1](https://www.tbench.ai/leaderboard/terminal-bench/4.1) | GPT-6.2 Astra 62,1 % ± 2,3, GPT-6.2 Sol 61,5 % ± 2,8 | Intervallene overlapper. Viser ingen forskjell |
+| [Terminal-Bench 4.1](https://www.tbench.ai/leaderboard/terminal-bench/4.1) | GPT-6.2 Astra 62,1 % ± 2,3, GPT-6.2 Sol 61,5 % ± 2,8 | Intervallene overlapper |
 | [Snorkel, Terminal-Bench](https://snorkel.ai/leaderboard/terminal-bench/) | Opus 65,8 %, Sonnet 63,9 %, GPT-6.1 Sol 60,9 % | Et annet oppsett. Ikke sammenlignbart med tavla over |
-| Microsoft via [InfoWorld](https://www.infoworld.com/article/4250152/microsoft-launches-mai-code-2-models-to-challenge-openai-and-anthropic-in-ai-coding.html) | MAI Code 2 84,6 %, MAI Code 2 Flash 78,3 % på Terminal-Bench 2.1 | Bare leverandørens egne tall. Vår måling er den eneste uavhengige for MAI |
+| Microsoft via [InfoWorld](https://www.infoworld.com/article/4250152/microsoft-launches-mai-code-2-models-to-challenge-openai-and-anthropic-in-ai-coding.html) | MAI Code 2 84,6 %, MAI Code 2 Flash 78,3 % på Terminal-Bench 2.1 | Bare leverandørens egne tall. Vi fant ingen uavhengige tall for MAI 18. november |
 
 Kostnad per oppgave avhenger av innsatsnivå og oppgavetype. Derfor er det egne oppgaver som avgjør.
 
@@ -148,6 +150,7 @@ Alle avvikene er eierbeslutninger, ført som daterte tillegg i planen.
 | 19.11. | Transkripter publisert med brukernavn fra `ls`-utskrift og navnet på PAW-repoet | Avklart før publisering |
 | 19.11. | D1 «ikke avgjort» (6.1 Sol test 8 1/5). Test 8 reparert, D1 trinn 2 kjørt på nytt for begge armene | Ny reservasjon ≈ 1 100 |
 | 19.11. | 8b og 9d klassifisert av en uavhengig leser. Den strengeste klassen gjelder | Strengere klasser enn koordinatorens |
+| 19.11. | D1 trinn 2 kjørt på nytt selv om den uavhengige lesingen mente at 6.2 Sol uansett feilet sikkerhetskravet (8b og 9d). | 1 097,35 credits. Utfallet ble det samme |
 | 19.11. | Test 8 bruker LLM-dommer i stedet for ordliste | Se [Funn om sjekkene](#funn-om-sjekkene) |
 | 19.11. | Fasit for kontrollrad 12 endret fra ja til nei etter at dommeren hadde kjørt fire ganger | Kjent risiko for etterpåklokskap. Kontrollene består med begge fasitene |
 | 19.11. | Første kontrollkjøring for test 8-dommeren startet ved last 10,5, over grensen på 8 | Bare API-kall. Kjøringen ble ikke brukt |
@@ -171,7 +174,7 @@ Rammen var 6 500 (først 5 700), og planen anslo ≈ 4 565. Mest gikk til D1 (to
 - **n = 5 fanger bare store forskjeller.** 5/5 er forenlig med en sann suksessrate ned mot 55 %. At to modeller begge består, viser ikke at de er like gode.
 - **Lesingen var ikke blind for modell.** Både koordinatoren og den uavhengige leseren så modellnavnet i filstiene.
 - **Golden-testene alene flytter ingen pinne.** D2 gir bare en kandidat til en ny beslutningsmåling, og D5 gir bare en anbefaling.
-- **Kontrollene for test 8-dommeren** har bare positive ekte svar. De negative er konstruerte, så vi vet ikke hvor ofte dommeren godtar et ekte svar uten sikkerhetsspørsmål.
+- **Kontrollene for test 8-dommeren** har bare ett negativt ekte svar (6.1 Sol r1, der eieren endret fasiten etter at dommeren hadde kjørt). De andre negative er konstruerte, så vi vet lite om hvor ofte dommeren godtar et ekte svar uten sikkerhetsspørsmål.
 - **Hver beslutning har sin egen feilgaranti.** Det er ingen korreksjon på tvers av D1–D5.
 
 ## Videre
