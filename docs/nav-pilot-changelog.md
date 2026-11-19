@@ -6,6 +6,7 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ### Rettelser i MCP-oppsett og agentpakker
 
+- **`nav-pilot mcp prune`**: Fjerner oppføringer som `nav-pilot` har skrevet (i registerets navnerom) og som ikke lenger finnes i Navs MCP-register, på tvers av Copilot CLI og OpenCode. Servere du har lagt inn selv, blir stående urørt. Filer med kommentarer eller etterfølgende komma blir ikke endret, og kommandoen sier hvilke filer det gjelder. Bruk `--dry-run` for å se hva som ville blitt fjernet, og `--yes` for å hoppe over bekreftelsen (#2469).
 - **Kommandoer du skal kopiere**: Linjene «Fix:» i `nav-pilot mcp list` og `nav-pilot doctor` setter nå servernavn, nøkler og verter i enkle anførselstegn der det trengs, så teksten fra registeret eller konfigurasjonen ikke kan tolkes som shell-syntaks. En `cplt config set`-nøkkel i registerets oppsett må bestå av `a-z`, `0-9`, `_` og `.`. Ellers viser nav-pilot ingen kommando.
 - **Godkjente MCP-verter per klient**: Godkjenningen lagres nå per klient (`mcp:registry:copilot` og `mcp:registry:opencode`), og tillatelseslisten for cplt samler vertene fra begge. Å slå på en server for OpenCode fjerner ikke lenger vertene du godkjente for Copilot. Eksisterende godkjenninger gjelder videre uten nytt spørsmål.
 - **OpenCode-konfig**: Er det bare `opencode.jsonc` i `~/.config/opencode`, bruker oppstarten den filen i stedet for å lage en egen `opencode.json` som `opencode.jsonc` overstyrer.
