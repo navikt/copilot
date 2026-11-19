@@ -6,6 +6,10 @@ Plan: [2026-12-mai-flash-plan.md](2026-12-mai-flash-plan.md). Ramme 650 credits.
 | --- | --- | --- | --- | --- | --- |
 | 2026-11-19 17:05 | Trinn 2, forhåndssjekk | 0 | 0 | 0 | Stopp før kjøring, se under |
 
+## Estimat for neste steg (20. november 2026)
+
+Delgrunnlinje t4/t8 med 6.1 Sol: ≈ 130 (oppgaver, dommer og probe), pluss ≈ 7 når blindsonedommeren kontrollerer seg selv på nytt etter at #2475 endrer skript-hashen. Reservasjon ≈ 137. Starter først når #2475 og #2473 er merget.
+
 ## Stopp 19. november 2026: grunnlinjen kan ikke gjenbrukes
 
 - Copilot CLI har oppdatert seg selv til `1.0.115-0` (pakkebuffer 19. november 17:30). Begge grunnlinjene for 6.1 Sol er målt på `1.0.114-0`. Ny klientversjon gjør alle testene berørt, og ny kjøring av grunnlinjen (≈ 590) krever eierbeslutning.
