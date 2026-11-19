@@ -359,11 +359,11 @@ func (g *Gateway) rateLimitMiddleware(endpoint string, limiter *ipRateLimiter, n
 		ip := extractClientIP(r)
 		if limiter != nil && !limiter.Allow(ip) {
 			observeRateLimited(endpoint)
-			if g.rateLimitLog == nil || g.rateLimitLog.Allow(ip) {
+			if g.rateLimitLog == nil || g.rateLimitLog.Allow(endpoint+"\x00"+ip) {
 				slog.Warn("rate limited", "endpoint", endpoint)
 			}
 			w.Header().Set("Retry-After", "60")
-			if r.URL.Path == "/token" || r.URL.Path == "/revoke" {
+			if r.URL.Path == "/token" || r.URL.Path == "/revoke" || r.URL.Path == "/register" {
 				writeJSON(w, http.StatusTooManyRequests, map[string]string{
 					"error":             "temporarily_unavailable",
 					"error_description": "rate limit exceeded",

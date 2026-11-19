@@ -359,8 +359,15 @@ func validateConfig(cfg *Config) error {
 	if cfg.MaxResponseBodyBytes <= 0 {
 		cfg.MaxResponseBodyBytes = maxMCPResponseBodyBytes
 	}
+	if cfg.RateLimitCap <= 0 {
+		cfg.RateLimitCap = defaultRateLimitCap
+	}
 	if cfg.RateLimitGlobalRequests <= 0 {
 		cfg.RateLimitGlobalRequests = defaultRateLimitGlobalRequests
+	}
+	// Below that, a full map evicts live buckets and resets throttled IPs inside the window (ipRateLimiter.Allow).
+	if cfg.RateLimitCap < cfg.RateLimitGlobalRequests {
+		cfg.RateLimitCap = cfg.RateLimitGlobalRequests
 	}
 	switch strings.ToLower(strings.TrimSpace(cfg.SessionStore)) {
 	case "", "memory":
