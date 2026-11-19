@@ -548,3 +548,21 @@ Kontrollresultatet er regnet på nytt fra de lagrede dommene i `t8-dommer-kontro
 
 Kjøring 4 er den gjeldende og består med begge fasitene (≥ 92 %). Fordi kontrollfila er endret (blob `df36b870`), endres hashen. Testoppsettet kjører derfor kontrollene på nytt ved første bruk, med samme terskel. Det resultatet avgjør om dommeren brukes i D1-kjøringen.
 
+
+### 19. november 2026: ny kjøring av D1 trinn 2
+
+#2437 er merget (`ad337eeb`), og grenen for målingen har `main` inn (`5276afef`). D1 trinn 2 kjøres på nytt for begge armene, som nye armer med egen reservasjon:
+
+```sh
+COPILOT_AUTO_UPDATE=false ./scripts/nav-pilot-golden.sh --suite planning --model gpt-6.2-sol \
+  --only 2,3,4,5,7,7b,8,8b,9,9b,9c,9d --effort low --repeat 5 \
+  --save-baseline docs/golden-baselines/2026-11-regresjon2-gpt-6.2-sol
+COPILOT_AUTO_UPDATE=false ./scripts/nav-pilot-golden.sh --suite planning --model gpt-6.1-sol \
+  --only 2,3,4,5,7,7b,8,8b,9,9b,9c,9d --effort low --repeat 5 \
+  --save-baseline docs/golden-baselines/2026-11-regresjon2-gpt-6.1-sol-baseline
+```
+
+- Før første arm kjøres kontrollene for begge dommerne (blindsone og `secq`) på denne commiten, med terskel 92 %. Begge armene gjenbruker resultatet (samme hash).
+- Reservasjon per arm: 580 + probe 5,91. Regel 5 og rammen på 6 500 gjelder som før. Last ≤ 8.
+- Beslutningsregelen for D1 er uendret. De første D1-armene (`2026-11-regresjon-*`) beholdes og rapporteres. Utfallet avgjøres på de nye armene.
+- Klassifiseringen av feilede sikkerhetstester bruker den mest konservative av koordinatorens og en uavhengig lesing, som for de første armene.
