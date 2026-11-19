@@ -2,9 +2,13 @@ package main
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"slices"
 	"strings"
@@ -75,10 +79,9 @@ func TestToolsHitOnlyExpectedGETPaths(t *testing.T) {
 }
 
 func TestToolsListAndAnnotations(t *testing.T) {
-	var names []string
-	for _, d := range toolDefinitions() {
+	checkTool := func(t *testing.T, d map[string]any) string {
+		t.Helper()
 		name := d["name"].(string)
-		names = append(names, name)
 		ann := d["annotations"].(map[string]bool)
 		if name == "create_order" {
 			wantAnn := map[string]bool{
@@ -96,23 +99,37 @@ func TestToolsListAndAnnotations(t *testing.T) {
 			if !strings.Contains(strings.ToLower(desc), "confirm with the user") {
 				t.Fatalf("create_order description %q must instruct agent to confirm with the user first", desc)
 			}
-			continue
+			return name
 		}
 		if ann["readOnlyHint"] != true || ann["destructiveHint"] != false || ann["idempotentHint"] != true || ann["openWorldHint"] != false {
 			t.Fatalf("%s has unexpected annotations: %+v", name, ann)
 		}
+		return name
 	}
-	want := []string{
+
+	readOnlyWant := []string{
 		"dolly_current_user",
 		"dolly_list_groups",
 		"dolly_get_group",
 		"dolly_search",
 		"dolly_get_order",
 		"dolly_list_group_orders",
-		"create_order",
 	}
-	if !slices.Equal(names, want) {
-		t.Fatalf("tools = %v, want %v", names, want)
+	var disabledNames []string
+	for _, d := range toolDefinitions(false) {
+		disabledNames = append(disabledNames, checkTool(t, d))
+	}
+	if !slices.Equal(disabledNames, readOnlyWant) {
+		t.Fatalf("tools (disabled) = %v, want %v", disabledNames, readOnlyWant)
+	}
+
+	var enabledNames []string
+	for _, d := range toolDefinitions(true) {
+		enabledNames = append(enabledNames, checkTool(t, d))
+	}
+	enabledWant := append(slices.Clone(readOnlyWant), "create_order")
+	if !slices.Equal(enabledNames, enabledWant) {
+		t.Fatalf("tools (enabled) = %v, want %v", enabledNames, enabledWant)
 	}
 }
 
@@ -159,6 +176,7 @@ func TestInvalidArgumentsNeverReachUpstream(t *testing.T) {
 	}
 	for _, tc := range cases {
 		srv, got := recordingDolly(t)
+		srv.cfg.EnableCreateOrder = true
 		_, out := callToolModern(t, srv.routes(), "in", tc.tool, tc.args)
 		if _, ok := out["error"]; !ok {
 			t.Errorf("%s %v: expected JSON-RPC error, got %+v", tc.tool, tc.args, out)
@@ -207,6 +225,7 @@ func TestCreateOrderOwnershipAndRequestShape(t *testing.T) {
 				http.NotFound(w, r)
 			}
 		})
+		srv.cfg.EnableCreateOrder = true
 		srv.now = func() time.Time { return fixedNow }
 
 		_, out := callToolModern(t, srv.routes(), "in", "create_order", map[string]any{
@@ -243,7 +262,7 @@ func TestCreateOrderOwnershipAndRequestShape(t *testing.T) {
 		if parsed.Pdldata.OpprettNyPerson.Identtype != "FNR" || !parsed.Pdldata.OpprettNyPerson.Syntetisk {
 			t.Fatalf("unexpected opprettNyPerson: %+v", parsed.Pdldata.OpprettNyPerson)
 		}
-		if parsed.Pdldata.OpprettNyPerson.FoedtEtter != "1986-11-19T00:00:00" ||
+		if parsed.Pdldata.OpprettNyPerson.FoedtEtter != "1985-11-20T00:00:00" ||
 			parsed.Pdldata.OpprettNyPerson.FoedtFoer != "2001-11-19T00:00:00" {
 			t.Fatalf("unexpected age bounds: %+v", parsed.Pdldata.OpprettNyPerson)
 		}
@@ -275,6 +294,7 @@ func TestCreateOrderOwnershipAndRequestShape(t *testing.T) {
 				writeJSON(w, http.StatusCreated, map[string]any{"id": 99})
 			}
 		})
+		srv.cfg.EnableCreateOrder = true
 
 		_, out := callToolModern(t, srv.routes(), "in", "create_order", map[string]any{
 			"gruppeId":     42,
@@ -331,6 +351,7 @@ func TestCreateOrderOwnershipAndRequestShape(t *testing.T) {
 					writeJSON(w, http.StatusCreated, map[string]any{"id": 99})
 				}
 			})
+			srv.cfg.EnableCreateOrder = true
 
 			_, out := callToolModern(t, srv.routes(), "in", "create_order", map[string]any{
 				"gruppeId":     42,
@@ -395,7 +416,7 @@ func TestCreateOrderPerUserRollingQuota(t *testing.T) {
 			}
 			mu.Unlock()
 			if fail {
-				http.Error(w, "upstream failure", http.StatusInternalServerError)
+				http.Error(w, "bad order", http.StatusBadRequest)
 				return
 			}
 			writeJSON(w, http.StatusCreated, map[string]any{"id": 1})
@@ -403,14 +424,15 @@ func TestCreateOrderPerUserRollingQuota(t *testing.T) {
 			http.NotFound(w, r)
 		}
 	})
+	srv.cfg.EnableCreateOrder = true
 	srv.now = func() time.Time {
 		mu.Lock()
 		defer mu.Unlock()
 		return now
 	}
 
-	// Failed orders must refund their reservation: an unowned group and an
-	// upstream 500 must not count against the 20-person quota.
+	// Failed orders that provably did not reach Dolly or returned 4xx must refund
+	// their reservation: an unowned group and a 400 must not count against the 20-person quota.
 	_, out := callToolModern(t, srv.routes(), "in", "create_order", map[string]any{
 		"gruppeId":     43,
 		"antall":       5,
@@ -428,7 +450,7 @@ func TestCreateOrderPerUserRollingQuota(t *testing.T) {
 		"environments": []string{"q1"},
 	})
 	if txt, isErr := extractToolText(t, out); !isErr {
-		t.Fatalf("order with upstream 500 should fail, got: %s", txt)
+		t.Fatalf("order with upstream 400 should fail, got: %s", txt)
 	}
 	mu.Lock()
 	failPost = false
@@ -436,23 +458,31 @@ func TestCreateOrderPerUserRollingQuota(t *testing.T) {
 
 	// 4 orders of 5 persons = 20 persons (fills the 24h quota for Z123456).
 	for i := range 4 {
-		_, out := callToolModern(t, srv.routes(), "in", "create_order", map[string]any{
+		_, orderOut := callToolModern(t, srv.routes(), "in", "create_order", map[string]any{
 			"gruppeId":     42,
 			"antall":       5,
 			"environments": []string{"q1"},
 		})
-		if txt, isErr := extractToolText(t, out); isErr {
+		if txt, isErr := extractToolText(t, orderOut); isErr {
 			t.Fatalf("order %d failed unexpectedly: %s", i+1, txt)
 		}
 	}
 
-	// Verify the quota map is keyed by hashed NAVident, never plaintext NAVident.
+	// Verify the quota map is keyed by HMAC-SHA256 of NAVident (never plaintext or plain SHA-256).
+	plainSHA := sha256.Sum256([]byte("Z123456"))
+	plainSHAHex := hex.EncodeToString(plainSHA[:])
+	hmacKey := srv.quota.hashUser("Z123456")
+	otherQuota := newUserQuota()
+	if otherQuota.hashUser("Z123456") == hmacKey {
+		t.Fatal("expected per-instance random HMAC key for quota hashing")
+	}
 	srv.quota.mu.Lock()
 	_, hasPlain := srv.quota.entries["Z123456"]
-	_, hasHashed := srv.quota.entries[hashUser("Z123456")]
+	_, hasPlainSHA := srv.quota.entries[plainSHAHex]
+	_, hasHashed := srv.quota.entries[hmacKey]
 	srv.quota.mu.Unlock()
-	if hasPlain || !hasHashed {
-		t.Fatalf("quota keys: hasPlain=%v hasHashed=%v, want hashed NAVident key", hasPlain, hasHashed)
+	if hasPlain || hasPlainSHA || !hasHashed {
+		t.Fatalf("quota keys: hasPlain=%v hasPlainSHA=%v hasHashed=%v, want HMAC key only", hasPlain, hasPlainSHA, hasHashed)
 	}
 
 	// 21st person within 24h (at +23h) must be rejected without calling POST.
@@ -506,6 +536,7 @@ func TestCreateOrderAuditLog(t *testing.T) {
 	t.Cleanup(func() { slog.SetDefault(prevLogger) })
 
 	srv, _ := recordingDolly(t)
+	srv.cfg.EnableCreateOrder = true
 	srv.now = func() time.Time { return time.Date(2026, 11, 19, 12, 0, 0, 0, time.UTC) }
 
 	_, out := callToolModern(t, srv.routes(), "in", "create_order", map[string]any{
@@ -521,7 +552,18 @@ func TestCreateOrderAuditLog(t *testing.T) {
 	}
 
 	rawLogs := logBuf.String()
-	for _, forbidden := range []string{"Z123456", "b 1&x", "KVINNE", "foedtEtter", "foedtFoer", "1991-", "1998-"} {
+	plainSHA := sha256.Sum256([]byte("Z123456"))
+	for _, forbidden := range []string{
+		"Z123456",
+		srv.quota.hashUser("Z123456"),
+		hex.EncodeToString(plainSHA[:]),
+		"b 1&x",
+		"KVINNE",
+		"foedtEtter",
+		"foedtFoer",
+		"1990-",
+		"1998-",
+	} {
 		if strings.Contains(rawLogs, forbidden) {
 			t.Fatalf("audit log leaked %q: %s", forbidden, rawLogs)
 		}
@@ -544,8 +586,8 @@ func TestCreateOrderAuditLog(t *testing.T) {
 		t.Fatalf("got %d audit lines, want 1; logs=%s", len(auditLines), rawLogs)
 	}
 	entry := auditLines[0]
-	if entry["user"] != hashUser("Z123456") {
-		t.Fatalf("audit user = %v, want %s", entry["user"], hashUser("Z123456"))
+	if _, hasUser := entry["user"]; hasUser {
+		t.Fatalf("audit log must not contain user field: %+v", entry)
 	}
 	if entry["gruppeId"] != float64(42) || entry["antall"] != float64(2) {
 		t.Fatalf("audit gruppeId/antall = %v/%v, want 42/2", entry["gruppeId"], entry["antall"])
@@ -553,6 +595,13 @@ func TestCreateOrderAuditLog(t *testing.T) {
 	envs, _ := entry["environments"].([]any)
 	if len(envs) != 2 || envs[0] != "q1" || envs[1] != "q4" {
 		t.Fatalf("audit environments = %v, want [q1 q4]", entry["environments"])
+	}
+	for k := range entry {
+		switch k {
+		case "time", "level", "msg", "gruppeId", "antall", "environments":
+		default:
+			t.Fatalf("unexpected field %q in audit log: %+v", k, entry)
+		}
 	}
 }
 
@@ -571,5 +620,302 @@ func TestResultCapAndStatusMapping(t *testing.T) {
 	_, out = callToolModern(t, srv.routes(), "in", "dolly_get_order", map[string]any{"bestillingId": 2})
 	if txt, isErr := extractToolText(t, out); !isErr || !strings.Contains(txt, "denied access") {
 		t.Fatalf("expected access error, got %q", txt)
+	}
+}
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+
+func TestCreateOrderQuotaRefundRules(t *testing.T) {
+	var (
+		mu       sync.Mutex
+		postMode string
+		failDial bool
+	)
+
+	srv := newTestServer(t, defaultTexasHandler("obo-tok"), func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/bruker/current":
+			writeJSON(w, http.StatusOK, map[string]any{"brukerId": "b1"})
+		case r.Method == http.MethodGet && r.URL.Path == "/api/v1/gruppe/42/page/0":
+			writeJSON(w, http.StatusOK, map[string]any{"id": 42, "opprettetAv": map[string]any{"brukerId": "b1"}})
+		case r.Method == http.MethodPost && r.URL.Path == "/api/v1/gruppe/42/bestilling":
+			mu.Lock()
+			mode := postMode
+			mu.Unlock()
+			switch mode {
+			case "4xx":
+				http.Error(w, "invalid", http.StatusUnprocessableEntity)
+			case "5xx":
+				http.Error(w, "upstream failure", http.StatusInternalServerError)
+			case "timeout":
+				time.Sleep(150 * time.Millisecond)
+				writeJSON(w, http.StatusCreated, map[string]any{"id": 1})
+			case "bad201json":
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusCreated)
+				_, _ = w.Write([]byte(`{"id":`))
+			case "truncated201":
+				w.Header().Set("Content-Type", "application/json")
+				w.Header().Set("Content-Length", "100")
+				w.WriteHeader(http.StatusCreated)
+				_, _ = w.Write([]byte(`{"id":1}`))
+				if fl, ok := w.(http.Flusher); ok {
+					fl.Flush()
+				}
+				if hj, ok := w.(http.Hijacker); ok {
+					if conn, _, err := hj.Hijack(); err == nil {
+						_ = conn.Close()
+					}
+				}
+			default:
+				writeJSON(w, http.StatusCreated, map[string]any{"id": 1})
+			}
+		default:
+			http.NotFound(w, r)
+		}
+	})
+	srv.cfg.EnableCreateOrder = true
+	baseTransport := srv.cfg.HTTPClient.Transport
+	if baseTransport == nil {
+		baseTransport = http.DefaultTransport
+	}
+	srv.dolly.httpClient = &http.Client{
+		Timeout: 60 * time.Millisecond,
+		Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+			mu.Lock()
+			dialErr := failDial && r.Method == http.MethodPost
+			mu.Unlock()
+			if dialErr {
+				return nil, &net.OpError{Op: "dial", Net: "tcp", Err: errors.New("connection refused")}
+			}
+			return baseTransport.RoundTrip(r)
+		}),
+	}
+
+	callOrder := func(antall int) (string, bool) {
+		_, out := callToolModern(t, srv.routes(), "in", "create_order", map[string]any{
+			"gruppeId":     42,
+			"antall":       antall,
+			"environments": []string{"q1"},
+		})
+		return extractToolText(t, out)
+	}
+
+	usedQuota := func() int {
+		srv.quota.mu.Lock()
+		defer srv.quota.mu.Unlock()
+		total := 0
+		for _, e := range srv.quota.entries[srv.quota.hashUser("Z123456")] {
+			total += e.antall
+		}
+		return total
+	}
+
+	// 1. Dial error before POST leaves client -> provably did not reach Dolly -> MUST refund.
+	mu.Lock()
+	failDial = true
+	mu.Unlock()
+	if txt, isErr := callOrder(5); !isErr {
+		t.Fatalf("expected error on dial failure, got %q", txt)
+	}
+	if got := usedQuota(); got != 0 {
+		t.Fatalf("usedQuota after pre-send dial error = %d, want 0 (refunded)", got)
+	}
+	mu.Lock()
+	failDial = false
+	mu.Unlock()
+
+	// 2. Dolly 4xx -> MUST refund.
+	mu.Lock()
+	postMode = "4xx"
+	mu.Unlock()
+	if txt, isErr := callOrder(5); !isErr {
+		t.Fatalf("expected error on 4xx, got %q", txt)
+	}
+	if got := usedQuota(); got != 0 {
+		t.Fatalf("usedQuota after 4xx = %d, want 0 (refunded)", got)
+	}
+
+	// 3. POST timeout -> POST reached Dolly -> MUST NOT refund.
+	mu.Lock()
+	postMode = "timeout"
+	mu.Unlock()
+	if txt, isErr := callOrder(5); !isErr {
+		t.Fatalf("expected error on timeout, got %q", txt)
+	}
+	if got := usedQuota(); got != 5 {
+		t.Fatalf("usedQuota after timeout = %d, want 5 (not refunded)", got)
+	}
+
+	// 4. Unparseable 201 JSON body -> order may exist -> MUST NOT refund.
+	mu.Lock()
+	postMode = "bad201json"
+	mu.Unlock()
+	if txt, isErr := callOrder(5); !isErr {
+		t.Fatalf("expected error on invalid 201 JSON, got %q", txt)
+	}
+	if got := usedQuota(); got != 10 {
+		t.Fatalf("usedQuota after invalid 201 JSON = %d, want 10 (not refunded)", got)
+	}
+
+	// 5. Truncated 201 body -> order may exist -> MUST NOT refund.
+	mu.Lock()
+	postMode = "truncated201"
+	mu.Unlock()
+	if txt, isErr := callOrder(5); !isErr {
+		t.Fatalf("expected error on truncated 201 body, got %q", txt)
+	}
+	if got := usedQuota(); got != 15 {
+		t.Fatalf("usedQuota after truncated 201 body = %d, want 15 (not refunded)", got)
+	}
+
+	// 6. Upstream 5xx -> order may exist -> MUST NOT refund.
+	mu.Lock()
+	postMode = "5xx"
+	mu.Unlock()
+	if txt, isErr := callOrder(5); !isErr {
+		t.Fatalf("expected error on 5xx, got %q", txt)
+	}
+	if got := usedQuota(); got != 20 {
+		t.Fatalf("usedQuota after 5xx = %d, want 20 (not refunded)", got)
+	}
+
+	// Quota is now full (20/20); next order must be rejected by quota.
+	mu.Lock()
+	postMode = "ok"
+	mu.Unlock()
+	if txt, isErr := callOrder(1); !isErr || !strings.Contains(txt, "quota") {
+		t.Fatalf("expected quota rejection after non-refunded failures, got isErr=%v txt=%q", isErr, txt)
+	}
+}
+
+func TestCreateOrderFeatureGate(t *testing.T) {
+	listToolNames := func(t *testing.T, handler http.Handler) []string {
+		t.Helper()
+		rec, out := mcpCall(t, mcpComplianceTarget{
+			handler: handler,
+			header:  map[string]string{"Authorization": "Bearer in"},
+		}, http.MethodPost, modernBody("tools/list", nil), modernHeaders("tools/list", ""))
+		if rec.Code != http.StatusOK {
+			t.Fatalf("tools/list status = %d, body = %s", rec.Code, rec.Body.String())
+		}
+		res, _ := out["result"].(map[string]any)
+		tools, _ := res["tools"].([]any)
+		names := make([]string, 0, len(tools))
+		for _, item := range tools {
+			m, _ := item.(map[string]any)
+			names = append(names, m["name"].(string))
+		}
+		return names
+	}
+
+	t.Run("disabled by default", func(t *testing.T) {
+		srv, got := recordingDolly(t)
+		if srv.cfg.EnableCreateOrder {
+			t.Fatal("expected EnableCreateOrder default false")
+		}
+		names := listToolNames(t, srv.routes())
+		if slices.Contains(names, "create_order") {
+			t.Fatalf("create_order must not be listed when disabled: %v", names)
+		}
+
+		_, out := callToolModern(t, srv.routes(), "in", "create_order", map[string]any{
+			"gruppeId":     42,
+			"antall":       1,
+			"environments": []string{"q1"},
+		})
+		if errCode(out) != mcpCodeInvalidParams {
+			t.Fatalf("expected JSON-RPC error %d when disabled, got %+v", mcpCodeInvalidParams, out)
+		}
+		if reqs := got(); len(reqs) != 0 {
+			t.Fatalf("disabled create_order reached upstream: %+v", reqs)
+		}
+	})
+
+	t.Run("enabled when configured", func(t *testing.T) {
+		srv, got := recordingDolly(t)
+		srv.cfg.EnableCreateOrder = true
+		names := listToolNames(t, srv.routes())
+		if !slices.Contains(names, "create_order") {
+			t.Fatalf("create_order must be listed when enabled: %v", names)
+		}
+
+		_, out := callToolModern(t, srv.routes(), "in", "create_order", map[string]any{
+			"gruppeId":     42,
+			"antall":       1,
+			"environments": []string{"q1"},
+		})
+		if txt, isErr := extractToolText(t, out); isErr {
+			t.Fatalf("enabled create_order failed: %s", txt)
+		}
+		if reqs := got(); len(reqs) != 3 || reqs[2].method != http.MethodPost {
+			t.Fatalf("expected POST /bestilling when enabled, got %+v", reqs)
+		}
+	})
+}
+
+func TestCreateOrderAgeRangeBounds(t *testing.T) {
+	now := time.Date(2026, 11, 19, 12, 0, 0, 0, time.UTC)
+	cases := []struct {
+		name      string
+		args      map[string]any
+		wantEtter string
+		wantFoer  string
+	}{
+		{
+			name:      "minAlder equals maxAlder covers full year",
+			args:      map[string]any{"gruppeId": 1, "antall": 1, "environments": []string{"q1"}, "minAlder": 25, "maxAlder": 25},
+			wantEtter: "2000-11-20T00:00:00",
+			wantFoer:  "2001-11-19T00:00:00",
+		},
+		{
+			name:      "age 0 covers full year",
+			args:      map[string]any{"gruppeId": 1, "antall": 1, "environments": []string{"q1"}, "minAlder": 0, "maxAlder": 0},
+			wantEtter: "2025-11-20T00:00:00",
+			wantFoer:  "2026-11-19T00:00:00",
+		},
+		{
+			name:      "only minAlder set",
+			args:      map[string]any{"gruppeId": 1, "antall": 1, "environments": []string{"q1"}, "minAlder": 18},
+			wantEtter: "",
+			wantFoer:  "2008-11-19T00:00:00",
+		},
+		{
+			name:      "only maxAlder set",
+			args:      map[string]any{"gruppeId": 1, "antall": 1, "environments": []string{"q1"}, "maxAlder": 67},
+			wantEtter: "1958-11-20T00:00:00",
+			wantFoer:  "",
+		},
+		{
+			name:      "range 25 to 40",
+			args:      map[string]any{"gruppeId": 1, "antall": 1, "environments": []string{"q1"}, "minAlder": 25, "maxAlder": 40},
+			wantEtter: "1985-11-20T00:00:00",
+			wantFoer:  "2001-11-19T00:00:00",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			rawArgs, err := json.Marshal(tc.args)
+			if err != nil {
+				t.Fatalf("marshal args: %v", err)
+			}
+			fields, rpcErr := decodeArgMap(rawArgs, map[string]bool{
+				"gruppeId": true, "antall": true, "environments": true, "minAlder": true, "maxAlder": true,
+			})
+			if rpcErr != nil {
+				t.Fatalf("decodeArgMap: %+v", rpcErr)
+			}
+			_, req, rpcErr := parseCreateOrder(fields, now)
+			if rpcErr != nil {
+				t.Fatalf("parseCreateOrder: %+v", rpcErr)
+			}
+			got := req.Pdldata.OpprettNyPerson
+			if got.FoedtEtter != tc.wantEtter || got.FoedtFoer != tc.wantFoer {
+				t.Fatalf("FoedtEtter=%q FoedtFoer=%q, want %q / %q", got.FoedtEtter, got.FoedtFoer, tc.wantEtter, tc.wantFoer)
+			}
+		})
 	}
 }

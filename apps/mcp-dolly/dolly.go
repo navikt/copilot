@@ -5,12 +5,15 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"net/http/httptrace"
 	"net/url"
 	"strconv"
 	"strings"
+	"sync/atomic"
 )
 
 // Per-request worst-case memory: body 1 MiB + ReadAll growth + json.Compact copy => ~4 MiB.
@@ -80,13 +83,35 @@ func (c *dollyClient) get(ctx context.Context, token, path string, query url.Val
 
 // createOrder is the only write call to Dolly: POST /api/v1/gruppe/{gruppeId}/bestilling.
 // /api/v1/gruppe/{id}/bestilling/fraidenter must never be used.
-func (c *dollyClient) createOrder(ctx context.Context, token string, gruppeID int64, order dollyBestillingRequest) ([]byte, error) {
+// refund reports whether a failed call may safely return the reserved quota:
+// only when the request provably did not reach Dolly or Dolly answered a 4xx.
+func (c *dollyClient) createOrder(ctx context.Context, token string, gruppeID int64, order dollyBestillingRequest) ([]byte, bool, error) {
 	payload, err := json.Marshal(order)
 	if err != nil {
-		return nil, fmt.Errorf("encode dolly order: %w", err)
+		return nil, true, fmt.Errorf("encode dolly order: %w", err)
 	}
 	target := fmt.Sprintf("%s/api/v1/gruppe/%d/bestilling", c.baseURL, gruppeID)
-	return c.doJSON(ctx, http.MethodPost, token, target, payload)
+	var reqSent atomic.Bool
+	traceCtx := httptrace.WithClientTrace(ctx, &httptrace.ClientTrace{
+		WroteHeaders: func() { reqSent.Store(true) },
+		WroteRequest: func(info httptrace.WroteRequestInfo) {
+			if info.Err == nil {
+				reqSent.Store(true)
+			}
+		},
+	})
+	body, err := c.doJSON(traceCtx, http.MethodPost, token, target, payload)
+	if err == nil {
+		return body, false, nil
+	}
+	if !reqSent.Load() {
+		return nil, true, err
+	}
+	var statusErr *upstreamStatusError
+	if errors.As(err, &statusErr) && statusErr.status >= http.StatusBadRequest && statusErr.status < http.StatusInternalServerError {
+		return nil, true, err
+	}
+	return nil, false, err
 }
 
 func (c *dollyClient) doJSON(ctx context.Context, method, token, target string, reqBody []byte) ([]byte, error) {

@@ -3,6 +3,8 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/hmac"
+	"crypto/rand"
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/hex"
@@ -77,9 +79,9 @@ func writeTool(name, desc string, required []string, props map[string]any) map[s
 	return t
 }
 
-func toolDefinitions() []map[string]any {
+func toolDefinitions(enableCreateOrder bool) []map[string]any {
 	gruppeID := intProp("Dolly test group id (gruppeId).", 1, 1<<53)
-	return []map[string]any{
+	tools := []map[string]any{
 		tool("dolly_current_user", "Get the signed-in user's Dolly profile (brukerId, team).", nil, map[string]any{}),
 		tool("dolly_list_groups", "List the signed-in user's Dolly test groups (testgrupper), paginated.", nil, withPaging(map[string]any{})),
 		tool("dolly_get_group", "Get one Dolly test group with a page of its test persons (identer).", []string{"gruppeId"},
@@ -93,7 +95,9 @@ func toolDefinitions() []map[string]any {
 		}),
 		tool("dolly_list_group_orders", "List orders (bestillinger) with status for a Dolly test group, paginated.", []string{"gruppeId"},
 			withPaging(map[string]any{"gruppeId": gruppeID})),
-		writeTool("create_order",
+	}
+	if enableCreateOrder {
+		tools = append(tools, writeTool("create_order",
 			"Create an order (bestilling) for 1-5 synthetic test persons in a Dolly group owned by the signed-in user. Always confirm with the user (gruppeId, antall, environments, and any person attributes) before calling this tool.",
 			[]string{"gruppeId", "antall", "environments"},
 			map[string]any{
@@ -110,8 +114,9 @@ func toolDefinitions() []map[string]any {
 				"minAlder": intProp("Optional minimum age in years (0-120).", 0, maxOrderAge),
 				"maxAlder": intProp("Optional maximum age in years (0-120, >= minAlder).", 0, maxOrderAge),
 				"kjoenn":   map[string]any{"type": "string", "enum": []string{"MANN", "KVINNE", "UKJENT"}, "description": "Optional gender (MANN, KVINNE, or UKJENT)."},
-			}),
+			}))
 	}
+	return tools
 }
 
 func (s *server) handleToolCall(ctx context.Context, inboundToken, navIdent, toolName string, rawArgs json.RawMessage) (any, *mcpRPCError) {
@@ -231,6 +236,9 @@ func (s *server) handleToolCall(ctx context.Context, inboundToken, navIdent, too
 		return get(fmt.Sprintf("/api/v1/bestilling/gruppe/%d", id), q), nil
 
 	case "create_order":
+		if !s.cfg.EnableCreateOrder {
+			return nil, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "unknown tool"}
+		}
 		if !allow("gruppeId", "antall", "environments", "minAlder", "maxAlder", "kjoenn") {
 			return nil, rpcErr
 		}
@@ -238,7 +246,7 @@ func (s *server) handleToolCall(ctx context.Context, inboundToken, navIdent, too
 		if e != nil {
 			return nil, e
 		}
-		userHash := hashUser(navIdent)
+		userHash := s.quota.hashUser(navIdent)
 		release, ok := s.quota.reserve(userHash, orderReq.Antall, s.now())
 		if !ok {
 			return toolErrorResult(fmt.Sprintf("daily quota of %d test persons per 24h exceeded", dailyPersonQuota)), nil
@@ -261,13 +269,15 @@ func (s *server) handleToolCall(ctx context.Context, inboundToken, navIdent, too
 			if subtle.ConstantTimeCompare([]byte(ownerID), []byte(brukerID)) != 1 {
 				return "", fmt.Errorf("group %d is not owned by the current user", gruppeID)
 			}
-			b, err := s.dolly.createOrder(ctx, tok, gruppeID, orderReq)
+			b, refund, err := s.dolly.createOrder(ctx, tok, gruppeID, orderReq)
 			if err != nil {
+				if !refund {
+					committed = true
+				}
 				return "", err
 			}
 			committed = true
 			slog.Info("audit dolly create_order",
-				"user", userHash,
 				"gruppeId", gruppeID,
 				"antall", orderReq.Antall,
 				"environments", orderReq.Environments,
@@ -283,6 +293,7 @@ func (s *server) handleToolCall(ctx context.Context, inboundToken, navIdent, too
 // shortcut: per-pod quota, move to Postgres if more replicas
 type userQuota struct {
 	mu      sync.Mutex
+	hmacKey [32]byte
 	nextID  uint64
 	entries map[string][]quotaEntry
 }
@@ -294,7 +305,12 @@ type quotaEntry struct {
 }
 
 func newUserQuota() *userQuota {
-	return &userQuota{entries: make(map[string][]quotaEntry)}
+	var key [32]byte
+	_, _ = rand.Read(key[:])
+	return &userQuota{
+		hmacKey: key,
+		entries: make(map[string][]quotaEntry),
+	}
 }
 
 func (q *userQuota) reserve(userHash string, antall int, now time.Time) (func(), bool) {
@@ -340,9 +356,10 @@ func (q *userQuota) reserve(userHash string, antall int, now time.Time) (func(),
 	}, true
 }
 
-func hashUser(navIdent string) string {
-	sum := sha256.Sum256([]byte(navIdent))
-	return hex.EncodeToString(sum[:])
+func (q *userQuota) hashUser(navIdent string) string {
+	mac := hmac.New(sha256.New, q.hmacKey[:])
+	mac.Write([]byte(navIdent))
+	return hex.EncodeToString(mac.Sum(nil))
 }
 
 func parseCreateOrder(fields map[string]json.RawMessage, now time.Time) (int64, dollyBestillingRequest, *mcpRPCError) {
@@ -428,11 +445,12 @@ func parseCreateOrder(fields map[string]json.RawMessage, now time.Time) (int64, 
 	if hasMin && hasMax && minAlder > maxAlder {
 		return 0, dollyBestillingRequest{}, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "minAlder must not exceed maxAlder"}
 	}
+	today := now.UTC()
 	if hasMax {
-		opprett.FoedtEtter = now.UTC().AddDate(-maxAlder, 0, 0).Format("2006-01-02T00:00:00")
+		opprett.FoedtEtter = today.AddDate(-(maxAlder + 1), 0, 1).Format("2006-01-02T00:00:00")
 	}
 	if hasMin {
-		opprett.FoedtFoer = now.UTC().AddDate(-minAlder, 0, 0).Format("2006-01-02T00:00:00")
+		opprett.FoedtFoer = today.AddDate(-minAlder, 0, 0).Format("2006-01-02T00:00:00")
 	}
 
 	var person *dollyPersonDTO
