@@ -1,0 +1,3 @@
+#!/bin/sh
+# Holder klienten på grunnlinjens versjon, se planen (trinn 2, «Klient»).
+COPILOT_AUTO_UPDATE=false exec /opt/homebrew/bin/copilot --prefer-version 1.0.114-0 "$@"
