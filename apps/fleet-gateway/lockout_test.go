@@ -16,7 +16,7 @@ import (
 )
 
 // Generated per run so no key-shaped literal lives in the source.
-var testLockoutKey = rand.Text()
+var testLockoutKey = rand.Text() + rand.Text() // 52 chars; LOCKOUT_KEY needs >= 32
 
 func withLockoutKey(t *testing.T, te *testEnv) *testEnv {
 	t.Helper()
