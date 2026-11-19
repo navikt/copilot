@@ -1,0 +1,19 @@
+ ● skill(klarsprak)
+
+ $ Shell ls -a; find . -type f | head -45 32 lines…
+   ls -a; find . -type f | head -45
+
+ / Search "." (build.gradle.kts, src/main/kotlin/no/nav/demo/Oppgave.kt, .github/in… 127 lines found
+
+ ● Edit  Edit build.gradle.kts (+1)  Create src/main/kotlin/no/nav/demo/Feriepenger.kt (+8)  Create…
+
+ ● Edit  Edit src/test/kotlin/no/nav/demo/FeriepengerTest.kt (+1 -1)
+
+La til `feriepenger` med enhetstester. Funksjonen bruker 10,2 % før året personen fyller 60 og 12,5 % fra og med det året. Den bruker heltallsregning for å runde 50 øre opp uten flyttallsfeil og avviser negativt grunnlag med `IllegalArgumentException`. Gradle ble ikke kjørt.
+
+**Sjekkliste for rød sone**
+
+- [ ] Kontroller satsbyttet ved 60 år, avrunding rundt 50 øre og avvisning av negativt grunnlag i `FeriepengerTest.kt`.
+
+Kan du fortelle meg hva denne koden gjør og hvorfor denne tilnærmingen er riktig?
+

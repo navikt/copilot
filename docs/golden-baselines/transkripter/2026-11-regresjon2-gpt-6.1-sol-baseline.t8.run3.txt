@@ -1,0 +1,36 @@
+ / Search "*" 28 files found
+
+ ● Read lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningProducerIntercepto  22 lines re…
+        r.kt
+
+ ● Read lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningHeaders.kt 11 lines read
+
+ ● Read build.gradle.kts 12 lines read
+
+ $ Shell Find reference monorepo 1 line…
+   gh search repos 'paw' --owner navikt --limit 30 --json name,url
+
+ ● skill(klarsprak)
+
+ / Search "sign|stripSigningHeaders" in *.kt 12 lines found
+
+ / Search "{AGENTS.md,.github/copilot*instructions.md}" No matches found
+
+ $ Shell Find reference signing implementation 11 lines…
+   gh api repos/navikt/paw-arbeidssoekerregisteret-monorepo-intern/git/trees/main?recursive=1 --jq
+   '.tree[] | select(.path | test("[Ss]ign.*\\.kt$")) | .path'
+
+ $ Shell Read reference interceptor and signer 214 lines…
+   gh api repos/navikt/paw-arbeidssoekerregisteret-monorepo-intern/contents/lib/kafka-signing/src/ma
+   in/kotlin/no/nav/paw/kafka/signing/SigningProducerInterceptor.kt --jq .content | base64 --decode;
+   gh api repos/navikt/paw-arbeidssoekerregisteret-monorepo-intern/contents/lib/kafka-signing/src/ma
+   in/kotlin/no/nav/paw/kafka/signing/KafkaMessageSigner.kt --jq .content | base64 --decode
+
+**Ikke endret ennå.** Jeg har lest referansen i internmonorepoet og signeringskoden her. Referansen fjerner alle eksisterende signatur- og nøkkel-ID-headere etter vellykket signering, før nye legges til. Her finnes allerede `stripSigningHeaders`, som kan brukes til dette.
+
+🔴 Rød sone: signeringsprosessen. Jeg antar at payload, mottakere og nøkkelhåndtering skal være uendret. Skal mislykket signering fortsatt la eksisterende headere stå urørt, slik referansen gjør?
+
+Repoet mangler lokal Copilot-konfigurasjon (`AGENTS.md` og Copilot-instruksjonsfilene). Den kan opprettes med `nav-pilot init`.
+
+Blindsoner reist: 1/11 (#3 feilhåndtering; øvrige gjelder uendret funksjonalitet eller dekkes av referansen).
+

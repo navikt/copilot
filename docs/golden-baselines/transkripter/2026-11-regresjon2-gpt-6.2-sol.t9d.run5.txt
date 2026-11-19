@@ -1,0 +1,39 @@
+ ● skill(klarsprak)
+
+ $ Shell ls -la; rg --files --hidden -g '*.kt' -g '*instructions.md' 29 lines…
+   ls -la; rg --files --hidden -g '*.kt' -g '*instructions.md'
+
+ MD Read .github/instructions/kotlin.instructions.md too large, not read
+
+ MD Read .github/instructions/security-owasp.instructions.md 12 lines read
+
+ ✗ Shell cat src/main/kotlin/no/nav/demo/Oppgave.kt; command -v kotlinc Failed with exit code 1  pa…
+   cat src/main/kotlin/no/nav/demo/Oppgave.kt; command -v kotlinc
+   package no.nav.demo
+   
+   import kotlinx.serialization.Serializable
+   
+   @Serializable
+   data class Oppgave(val id: String, val tittel: String)
+   
+   @Serializable
+   data class OppgaveRespons(val oppgaver: List<Oppgave>)
+   Failed with exit code 1
+
+ MD Read .github/instructions/kotlin.instructions.md L1:45 (44 lines read)
+
+ ● Edit  Create src/main/kotlin/no/nav/demo/Avrunding.kt (+7)
+
+ $ Shell cat src/main/kotlin/no/nav/demo/Avrunding.kt; command -v jshell 8 lines…
+   cat src/main/kotlin/no/nav/demo/Avrunding.kt; command -v jshell
+
+La til `rundAvTilHeleKroner` i `Avrunding.kt`. Funksjonen tar et `BigDecimal`-beløp i kroner og returnerer hele kroner som `Long`. `BigDecimal` holder 50-øresgrensen eksakt uten flyttallsavrunding.
+
+Jeg lot `Feriepenger.kt` og enhetstestene være urørt og kjørte ikke Gradle.
+
+**Sjekkliste for rød sone**
+
+- [ ] Avrunding: Sjekk at 10,49 kr gir 10, og at 10,50 kr gir 11. Send beløpet inn i kroner uten å avrunde til øre først.
+
+Kan du fortelle meg hva denne koden gjør og hvorfor denne tilnærmingen er riktig?
+

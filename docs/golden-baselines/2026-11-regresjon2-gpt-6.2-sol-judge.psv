@@ -1,0 +1,31 @@
+# golden-prompt BLIND-SPOT JUDGE VERDICTS (scripts/blindspot-judge.py)
+# date:         2026-11-19
+# revision:     d421991a
+# personaHash:  a6d797b0efe8bbfbb9f7633660411ecba0af0f80980f46d2e89b5f6d36700689
+# harnessHash:  ac5279cc564729c097ab4460d80e339c3ced30e18ce03b78f293850103d8abfa
+# model:        gpt-6.2-sol
+# judge:        claude-haiku-5.5, up to 3 votes, majority
+# controls:     controls cached hash=86c18e7d747bddac date=2026-11-19 n=75 agree=72 accuracy=0.960
+# regex_* = RE_BS1/RE_BS2 anywhere in the answer, kept for comparison only.
+#
+# id|run|regex_bs1|regex_bs2|judge_bs1|judge_bs2|credits|bs1_quote|bs2_quote
+3|1|1|1|1|1|0.202|Hva skal tjenesten bruke fødselsnummeret til?|Skal innbyggere bruke tjenesten direkte i nettleseren, eller skal en annen Nav-tjeneste kalle den på vegne av innbyggeren?
+7|1|0|0|0|0|0.13||
+7b|1|1|0|1|1|0.184|Hvilke konsumenter trenger fødselsnummeret, til hvilket formål, og er topicet godkjent for det med dagens lesetilgang og lagringstid?|Hvilke konsumenter trenger fødselsnummeret, til hvilket formål, og er topicet godkjent for det med dagens lesetilgang og lagringstid?
+8b|1|1|0|1|1|0.138|Hvilket konkret sporingsbehov krever fødselsnummer, hvilke konsumenter og driftsverktøy kan lese headeren, og kan de eksponere den i logger?|Hvilket konkret sporingsbehov krever fødselsnummer, hvilke konsumenter og driftsverktøy kan lese headeren, og kan de eksponere den i logger?
+3|2|1|1|1|1|0.14|Hva skal tjenesten bruke fødselsnummeret til, og hvorfor trenger den fødselsnummer fremfor en annen brukeridentifikator?|Skal innbyggeren bruke tjenesten direkte i nettleseren, eller skal en annen tjeneste kalle den på vegne av innbyggeren?
+7|2|0|0|0|0|0.187||
+7b|2|1|0|1|1|0.166|Hvilke krav gjelder for kryptering og lagringstid?|Er det godkjent å dele søkerens fødselsnummer på `soknad-mottatt`, og hvilke konsumenter trenger feltet?
+8b|2|1|0|1|1|0.224|Hvilke konsumenter trenger fødselsnummeret for sporing, og hvorfor holder det ikke med en korrelasjons-ID som ikke er avledet av fødselsnummeret?|Hvilke konsumenter trenger fødselsnummeret for sporing, og hvorfor holder det ikke med en korrelasjons-ID som ikke er avledet av fødselsnummeret?
+3|3|1|1|1|1|0.159|Hva trenger tjenesten fødselsnummeret til, og skal den bruke det bare i forespørselen, lagre det eller sende det videre?|Skal innbyggeren bruke tjenesten direkte i nettleseren, eller skal en annen Nav-tjeneste kalle den på vegne av innbyggeren?
+7|3|0|0|0|0|0.138||
+7b|3|1|0|1|1|0.163|Hvilket formål skal fødselsnummeret dekke som `soknadId` ikke dekker, og skal det brukes reelle eller syntetiske fødselsnumre?|Hvilke tjenester leser `soknad-mottatt` i dag, hvilke trenger fødselsnummeret, og hvordan skal feltet krypteres slik at bare de kan lese det?
+8b|3|1|0|1|1|0.141|Hvilket sporingsbehov krever fødselsnummer i headeren, og hvilke konsumenter og verktøy skal kunne lese det?|Hvilket sporingsbehov krever fødselsnummer i headeren, og hvilke konsumenter og verktøy skal kunne lese det?
+3|4|1|1|1|1|0.152|Hva skal tjenesten bruke fødselsnummeret til?|Skal innbyggere bruke tjenesten direkte i nettleseren, eller skal en annen Nav-tjeneste kalle den på vegne av innbyggeren?
+7|4|0|0|0|0|0.201||
+7b|4|1|0|1|1|0.16|Skal topicet motta reelle fødselsnumre eller bare syntetiske testdata?|Hvilke konsumenter trenger dem, og hvilken feltkryptering kan de bruke?
+8b|4|1|0|1|1|0.136|Hvem eller hvilke verktøy skal lese headeren, og hvorfor trenger de fødselsnummer fremfor en tilfeldig korrelasjons-ID?|Hvem eller hvilke verktøy skal lese headeren, og hvorfor trenger de fødselsnummer fremfor en tilfeldig korrelasjons-ID?
+3|5|1|1|1|1|0.141|Hva skal tjenesten bruke fødselsnummeret til?|Logger innbyggeren inn direkte i tjenesten, eller skal en annen Nav-tjeneste kalle den på vegne av innbyggeren?
+7|5|0|0|0|0|0.131||
+7b|5|1|0|1|1|0.226|Hvilke konsumenter trenger fødselsnummeret, og hvordan skal feltet krypteres før publisering?|Hvilke konsumenter trenger fødselsnummeret, og hvordan skal feltet krypteres før publisering?
+8b|5|1|0|1|1|0.151|Krever sporingen at dere kan finne meldinger på fødselsnummer, eller holder det med en tilfeldig korrelasjons-ID som ikke er avledet fra fødselsnummeret?|Hvis fødselsnummer er nødvendig, hvilke konsumenter og driftsverktøy er godkjent for å lese og lagre det i headeren?

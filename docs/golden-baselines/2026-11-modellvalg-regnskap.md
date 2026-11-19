@@ -120,3 +120,18 @@ Rå og reparert score etter #2450 (bare informasjon, utfallet i denne målingen 
 
 | Arm | Estimat | Reservert (brukt + estimat) | Agent | Dommer | Probe | Faktisk | Bestått | Status |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 2026-11-regresjon2-gpt-6.2-sol | 580 | 5454.72 | 489.02 | 4.32 | 5.91 | 499.25 | 2 5/5 3 5/5 4 5/5 5 5/5 7b 5/5 7 5/5 8b 5/5 8 5/5 9b 5/5 9c 5/5 9d 0/5 9 5/5 | ferdig |
+| 2026-11-regresjon2-gpt-6.1-sol-baseline | 580 | 5953.97 | 588.11 | 4.08 | 5.91 | 598.1 | 2 5/5 3 5/5 4 5/5 5 5/5 7b 5/5 7 5/5 8b 4/5 8 3/5 9b 5/5 9c 5/5 9d 5/5 9 5/5 | ferdig; 1 kall fra andre økter på samme modell i vinduet |
+
+**D1 ferdig 19. november 2026 kl. 15:50, brukt 5 966,16 av 6 500.** Begge armene har fullstendige bruksdata, riktig modell og nivå og klient 1.0.114-0, og ingen er forkastet.
+
+## Sluttutfall etter reglene
+
+| Beslutning | Utfall | Grunnlag |
+| --- | --- | --- |
+| D1 GPT-6.2 Sol som standardmodell | **Behold 6.1 Sol** | Krav 2 er ikke oppfylt: 9d 0/5 for 6.2 Sol, grensetilfeller som teller som bom. I tillegg består 6.1 Sol test 8 i bare 3/5 (sjekkens tall), og det gir «ikke avgjort». Kostnadsgevinsten holder: median 98,3 mot 116,6 credits, p 0,004. AA: kostnad per oppgave +14 %. |
+| D2 billige roller | MAI Code 2 Flash **videre til beslutningsmåling** for `@research` og `@rust`, **anbefaling** (utforskende) for `@worker`. `@kafka`: behold Luna. MAI Code 1.1 Flash: behold overalt | Holm-p 0,032 for de tre. kf-idem 4/5 mot 5/5 |
+| D3 Astra på `@code-review` | **Behold Opus** (ikke reserve) | rv3 1/5 og rv4 0/5 mot 4/5 for Opus, rv7 2/5, og kostnaden er 2,14 × Opus. Med reparerte sjekker (#2450) er utfallet det samme |
+| D4 Opus som reserve | **Ikke godkjent** | U_O = 20 < 23 og B_O = 5 (uu3). Sonnet 25/25. `norsk` 5/5 for begge |
+| D5 MAI Code 2 som koder | **Anbefales** | Alle oppgavene 5/5 mot 6.1 Sol, median 5,1 mot 29,3, p 0,004 |
+

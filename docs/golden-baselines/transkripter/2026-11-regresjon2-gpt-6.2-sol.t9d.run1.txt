@@ -1,0 +1,20 @@
+ ● skill(klarsprak)
+
+ $ Shell Find Kotlin source and instructions 28 lines…
+   ls -a; find . -name '*.kt' -o -name '*.instructions.md'
+
+ MD Read .github/instructions/kotlin.instructions.md too large, not read
+
+ MD Read .github/instructions/security-owasp.instructions.md 12 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/Oppgave.kt 9 lines read
+
+ ● Edit  Create src/main/kotlin/no/nav/demo/Avrunding.kt (+7)
+
+La til `rundTilHeleKroner` i `Avrunding.kt`. Funksjonen tar et `BigDecimal`-beløp i kroner og runder 50 øre opp uten flyttallsfeil. Feriepengeberegningen og enhetstestene overlater jeg til deg. Gradle ble ikke kjørt.
+
+**Sjekkliste for rød sone**
+- [ ] Sjekk at 10,49 kr blir 10 kr, at 10,50 kr blir 11 kr, og at feriepengeberegningen ikke runder før den kaller funksjonen.
+
+Kan du fortelle meg hva denne koden gjør og hvorfor denne tilnærmingen er riktig?
+

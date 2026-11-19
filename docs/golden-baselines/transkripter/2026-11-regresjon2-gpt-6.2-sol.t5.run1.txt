@@ -1,0 +1,8 @@
+ ● skill(tokenx-auth)
+
+ ● skill(klarsprak)
+
+Bruk **TokenX** på Nais når A kaller B på vegne av en innlogget bruker. A veksler inn brukerens token i et nytt token med B som mottaker. B validerer tokenet og sjekker hva brukeren har tilgang til.
+
+Hvis brukertokenet kommer fra **Entra ID**, bruk Entra ID On-Behalf-Of (OBO). `client_credentials` passer bare for kall uten brukerkontekst, fordi det identifiserer tjenesten, ikke brukeren.
+

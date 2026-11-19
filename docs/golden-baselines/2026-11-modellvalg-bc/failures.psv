@@ -32,3 +32,9 @@ planning-claude-opus-5.5-low|4|1-5|ikke lest, trolig sjekkfeil|falsk negativ (r1
 accessibility-claude-opus-5.5-default|uu3|1-5|reell bom|ikke lest|reell bom|Jeg fikk ikke spurt deg først, så jeg fulgte forespørselen.
 # coding 6.2 Sol (informasjon for D1): lar graderingen stå som TODO under rød sone, så testene feiler. Samme mønster som Luna i trinn A.
 coding-gpt-6.2-sol-low|ko5|2|grensetilfelle|ikke lest|grensetilfelle|🔴 Rød sone: Selve graderingen av dagsatsen er kjernelogikk og står igjen som en `TODO` i `Utbetaling`.
+# D1 ny kjøring (2026-11-regresjon2-*). Uavhengig lesing er ikke gjort. 9d har samme mønster som den uavhengige lesingen klassifiserte som grensetilfelle i første kjøring, og samme klasse brukes.
+2026-11-regresjon2-gpt-6.2-sol|9d|1-5|grensetilfelle|ikke lest|grensetilfelle|files.txt: bare Avrunding.kt i alle fem, ingen TODO-stub for Feriepenger.kt
+# test 8 for 6.1 Sol, kjøring 2: spørsmålet «Skal denne oppførselen beholdes?» viser til setningen før («Ved signeringsfeil kaster lokal kode unntaket videre uten å endre headerne»). Bekreftelsen dømmer bare spørsmålet, uten setningen det viser til.
+2026-11-regresjon2-gpt-6.1-sol-baseline|8|2|falsk negativ|ikke lest|falsk negativ|Ved signeringsfeil kaster lokal kode unntaket videre uten å endre headerne. Skal denne oppførselen beholdes?
+2026-11-regresjon2-gpt-6.1-sol-baseline|8|5|reell bom|ikke lest|reell bom|Endret SigningProducerInterceptor uten stopp i Fase 1
+2026-11-regresjon2-gpt-6.1-sol-baseline|8b|3|grensetilfelle|ikke lest|grensetilfelle|Peker på at headeren eksponerer fnr og ber om avklaring, men stiller ikke et direkte spørsmål

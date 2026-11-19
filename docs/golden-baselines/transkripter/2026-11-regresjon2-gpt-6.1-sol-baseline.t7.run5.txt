@@ -1,0 +1,60 @@
+ ● skill(jackson-3-migration)
+
+ $ Shell Undersøk gren, endringer og prosjektfiler 11 lines…
+   git status --short && git --no-pager diff --stat && git branch --show-current && git --no-pager
+   log -5 --oneline && ls -a
+
+ ● skill(klarsprak)
+
+ MD Read ~/.copilot/skills/jackson-3-migration/references/rename-and-defaults.md 139 lines read
+
+ / Search "src/**/*" 5 files found
+
+ / Search ".github/**/*" 18 files found
+
+ $ Shell Les migreringsdiff og sjekk Java og Gradle 49 lines…
+   git --no-pager diff HEAD^ HEAD && java -version && command -v gradle
+
+ $ Shell Les byggoppsett og all applikasjonskode 107 lines…
+   git ls-files | xargs -I{} sh -c 'case "$1" in build.gradle.kts|src/*|README.md) printf "\n--- %s
+   ---\n" "$1"; nl -ba "$1";; esac' sh {}
+
+ ✗ Shell Verifiser bygg og faktisk Jackson-avhengighetstre Failed with exit code 1  To honour the J…
+   gradle --no-daemon --console=plain build dependencyInsight --dependency jackson --configuration
+   compileClasspath
+   To honour the JVM settings for this build a single-use Daemon process will be forked. For more on
+    this, please refer to 
+   https://docs.gradle.org/8.14.7/userguide/gradle_daemon.html#sec:disabling_the_daemon in the 
+   Gradle documentation.
+   Daemon will be stopped at the end of the build 
+   
+   FAILURE: Build failed with an exception.
+   
+   * What went wrong:
+   A problem occurred configuring root project 'repo'.
+   > 27.0.1.0.2
+   
+   * Try:
+   > Run with --stacktrace option to get the stack trace.
+   > Run with --info or --debug option to get more log output.
+   > Run with --scan to get full insights.
+   > Get more help at https://help.gradle.org.
+   
+   BUILD FAILED in 2s
+   Failed with exit code 1
+
+ ✗ Shell  Permission denied because no interactive user response was available. Retry in an interact
+   /usr/libexec/java_home -V 2>&1; git status --short
+   Approval check
+     └ ✗ Denied, no one to approve shell path (/usr/libexec/java_home)
+   Permission denied because no interactive user response was available. Retry in an interactive 
+   session so the user can approve it, or try an alternative that does not require this permission.
+
+**Migreringen ser riktig ut i koden, men er ikke verifisert som atferdsbevarende.** Vurderingen gjelder `7f3142c` mot forrige commit. Ingen filer er endret.
+
+- Importene og builder-oppsettet er riktige. Fjerning av `jackson-datatype-jsr310` er korrekt fordi Jackson 3 har innebygd støtte for `LocalDate`. ISO-datoformatet beholdes med standardinnstillingene.
+- **JSON-feltrekkefølgen endres** ved `Soknad.kt:14–16`: Jackson 3 sorterer alfabetisk. Kafka-meldingen får `mottatt` før `soknadId`, der Jackson 2 brukte deklarasjonsrekkefølgen. Feltene beholdes, men konsumenter som sammenligner rå JSON-strenger kan påvirkes.
+- Ktor 3.0.0 er **ikke et migreringshinder her**: HTTP-laget bruker kotlinx.serialization, ikke Jackson-integrasjonen. Ingen gjenværende Jackson 2-importer, mapper-mutasjon eller `JsonNode.map`-kall finnes i kildekoden.
+
+**Verifikasjon er blokkert.** `gradle build dependencyInsight --dependency jackson --configuration compileClasspath` feilet under konfigurasjon med `27.0.1.0.2`, før kompilering og avhengighetskontroll. Forsøket på å finne en annen JDK med `/usr/libexec/java_home -V` ble nektet og krever interaktiv godkjenning. Prosjektet har heller ingen tester. Før merge bør bygget kjøres med en kompatibel JDK, avhengighetstreet kontrolleres og JSON-formatet karakteriseringstestes mot Jackson 2.
+

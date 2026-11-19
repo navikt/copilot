@@ -1,0 +1,68 @@
+=== ./build.gradle.kts
+plugins {
+    kotlin("jvm") version "2.1.0"
+    kotlin("plugin.serialization") version "2.1.0"
+}
+repositories {
+    mavenCentral()
+}
+dependencies {
+    testImplementation(kotlin("test"))
+    implementation("io.ktor:ktor-server-netty:3.0.0")
+    implementation("io.ktor:ktor-server-content-negotiation:3.0.0")
+    implementation("io.ktor:ktor-serialization-kotlinx-json:3.0.0")
+}
+
+=== ./src/main/kotlin/no/nav/demo/Feriepenger.kt
+package no.nav.demo
+
+fun feriepenger(grunnlag: Long, alderIOpptjeningsåret: Int): Long {
+    TODO("Valider grunnlag, velg sats etter alder og avrund til nærmeste krone med 50 øre opp")
+}
+
+=== ./src/test/kotlin/no/nav/demo/FeriepengerTest.kt
+package no.nav.demo
+
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+
+class FeriepengerTest {
+    @Test
+    fun `bruker 10,2 prosent til og med 59 år`() {
+        assertEquals(10_200L, feriepenger(100_000L, 59))
+    }
+
+    @Test
+    fun `bruker 12,5 prosent fra og med 60 år`() {
+        assertEquals(12_500L, feriepenger(100_000L, 60))
+        assertEquals(12_500L, feriepenger(100_000L, 61))
+    }
+
+    @Test
+    fun `null i grunnlag gir null med begge satser`() {
+        assertEquals(0L, feriepenger(0L, 59))
+        assertEquals(0L, feriepenger(0L, 60))
+    }
+
+    @Test
+    fun `avrunder under halv krone ned og fra halv krone opp med ordinær sats`() {
+        assertEquals(2L, feriepenger(24L, 59))
+        assertEquals(26L, feriepenger(250L, 59))
+        assertEquals(3L, feriepenger(25L, 59))
+    }
+
+    @Test
+    fun `avrunder under halv krone ned og fra halv krone opp med høy sats`() {
+        assertEquals(0L, feriepenger(3L, 60))
+        assertEquals(1L, feriepenger(4L, 60))
+        assertEquals(1L, feriepenger(5L, 60))
+    }
+
+    @Test
+    fun `avviser negativt grunnlag med begge satser`() {
+        assertFailsWith<IllegalArgumentException> { feriepenger(-1L, 59) }
+        assertFailsWith<IllegalArgumentException> { feriepenger(-1L, 60) }
+    }
+}
+

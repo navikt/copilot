@@ -1,0 +1,186 @@
+ ● skill(klarsprak)
+
+ $ Shell ls -la; find . -type f | head -60 33 lines…
+   ls -la; find . -type f | head -60
+
+ ✗ Shell cat build.gradle.kts src/main/kotlin/no/nav/demo/Oppgave.kt; head… Failed with exit code 1…
+   cat build.gradle.kts src/main/kotlin/no/nav/demo/Oppgave.kt; head -35
+   .github/instructions/{kotlin,security-owasp,testing-kotlin,testing}.instructions.md; command -v
+   kotlinc
+   plugins {
+       kotlin("jvm") version "2.1.0"
+       kotlin("plugin.serialization") version "2.1.0"
+   }
+   repositories {
+       mavenCentral()
+   }
+   dependencies {
+       implementation("io.ktor:ktor-server-netty:3.0.0")
+       implementation("io.ktor:ktor-server-content-negotiation:3.0.0")
+       implementation("io.ktor:ktor-serialization-kotlinx-json:3.0.0")
+   }
+   package no.nav.demo
+   
+   import kotlinx.serialization.Serializable
+   
+   @Serializable
+   data class Oppgave(val id: String, val tittel: String)
+   
+   @Serializable
+   data class OppgaveRespons(val oppgaver: List<Oppgave>)
+   ==> .github/instructions/kotlin.instructions.md <==
+   ---
+   name: Kotlin Backend Patterns
+   description: "Kotlin-backendmønstre for Nav: Ktor og Rapids & Rivers, Spring Boot, database, 
+   auth, testing og feilhåndtering."
+   applyTo: "**/*.kt"
+   ---
+   
+   Kotlin backend patterns for Nav: Ktor and Rapids & Rivers, Spring Boot, database access, auth, 
+   testing, and error handling.
+   
+   > **Pick one half.** A file path cannot tell Ktor from Spring Boot, so this file covers both. 
+   Decide from the file itself: `RapidApplication`, `routing`, `River`, `embeddedServer` means Ktor;
+    `@RestController`, `@Service`, `@SpringBootApplication` means Spring Boot. Apply the matching 
+   half and ignore the other. Ktor is the most widely used framework for new Kotlin backends in Nav,
+    but Spring Boot is actively used by many teams, and teams choose for themselves. For migrating 
+   between them, see [$java-to-kotlin](../skills/java-to-kotlin/).
+   
+   # Kotlin Backend Standards
+   
+   ## Ktor and Rapids & Rivers
+   
+   ### Application Structure
+   
+   Use the ApplicationBuilder pattern for bootstrapping applications:
+   
+   ```kotlin
+   class ApplicationBuilder(configuration: Map<String, String>) {
+       private val meterRegistry = PrometheusMeterRegistry(PrometheusConfig.DEFAULT)
+       private val dataSource = PostgresDataSourceBuilder.dataSource
+       private val rapidsConnection: RapidsConnection
+   
+       init {
+           rapidsConnection = RapidApplication.create(configuration)
+           // Register rivers and event handlers
+       }
+   
+       fun start() {
+           rapidsConnection.start()
+       }
+   }
+   ```
+   
+   
+   ==> .github/instructions/security-owasp.instructions.md <==
+   ---
+   description: "Hvor OWASP Top 10:2025-mønstrene for Kotlin, Go, Java og TypeScript ligger: 
+   tilgangskontroll, feilkonfigurasjon, forsyningskjede, kryptografi, injeksjon, logging og 
+   feilhåndtering."
+   applyTo: "**/*.{kt,go,java,ts,tsx}"
+   ---
+   
+   # Security Essentials
+   
+   The rules that always apply (logging, secrets, queries, ownership, `azp`, TLS) are in 
+   `security-core.instructions.md`, which is loaded in every session. If it is not installed next to
+    this file, tell the developer to install it: 
+   https://github.com/navikt/copilot/blob/main/instructions/security-core.instructions.md
+   
+   For detailed OWASP Top 10:2025 code-level patterns (Kotlin, Go, Java, Node.js), invoke the 
+   `$security-owasp` skill.
+   For scanning workflows (trivy, zizmor, govulncheck), use the `$security-review` skill.
+   For architecture-level threat modeling, use `@security-champion`.
+   
+   ==> .github/instructions/testing-kotlin.instructions.md <==
+   ---
+   name: Kotlin Testing
+   description: "Kotlin-spesifikke testmønstre for Nav: Kotest-matchers, TestRapid, Testcontainers 
+   og MockOAuth2Server."
+   applyTo: "**/*.test.{kt,kts}"
+   ---
+   
+   # Kotlin Testing (Kotest & JUnit 5)
+   
+   Kotlin-specific test patterns for Nav: Kotest-matchers, TestRapid, Testcontainers, and 
+   MockOAuth2Server.
+   
+   ## Test Structure
+   
+   ```kotlin
+   import io.kotest.matchers.shouldBe
+   import io.kotest.matchers.shouldNotBe
+   import org.junit.jupiter.api.Test
+   import org.junit.jupiter.api.BeforeAll
+   
+   class ServiceTest {
+       companion object {
+           @BeforeAll
+           @JvmStatic
+           fun setup() {
+               // Setup code
+           }
+       }
+   
+       @Test
+       fun `should process event correctly`() {
+           // Arrange
+           val input = createTestInput()
+   
+           // Act
+           val result = service.process(input)
+   
+   
+   ==> .github/instructions/testing.instructions.md <==
+   ---
+   name: Testing Standards
+   description: "Felles testprinsipper for Nav. Språkspesifikke eksempler finnes i egne 
+   instruksjoner for Kotlin og TypeScript."
+   applyTo: "**/*.test.{ts,tsx,kt,kts}"
+   ---
+   
+   # Testing Standards
+   
+   Common testing principles for Nav. Language-specific examples can be found in separate 
+   instructions for [Kotlin](testing-kotlin.instructions.md) and 
+   [TypeScript](testing-typescript.instructions.md).
+   
+   ## Test Coverage
+   
+   ### Coverage Requirements
+   
+   - **Utilities in `lib/`**: 80%+ coverage required
+   - **Business logic**: 70%+ coverage required
+   - **API routes**: Test happy path + error cases
+   - **Repositories**: Test CRUD operations
+   - **Event handlers**: Test event processing + publishing
+   
+   ## Test Naming
+   
+   ```kotlin
+   // ✅ Good - describes behavior
+   `should create user when valid data provided`
+   `should throw exception when email is invalid`
+   `should publish event after successful processing`
+   
+   // ❌ Bad - not descriptive
+   `test1`
+   `createUserTest`
+   `testValidation`
+   ```
+   
+   ## Test Strategy
+   Failed with exit code 1
+
+ ● Edit  Edit build.gradle.kts (+1)  Create src/main/kotlin/no/nav/demo/Feriepenger.kt (+9)  Create…
+
+La til `feriepenger` i `Feriepenger.kt` og enhetstester i `FeriepengerTest.kt`. Gradle ble ikke kjørt.
+
+🔴 Rød sone: Beregningen bruker heltall og satser i promille for å unngå flyttallsfeil ved avrunding. Ved å legge til en halv krone før heltallsdivisjonen rundes nøyaktig 50 øre opp.
+
+**Sjekkliste for rød sone**
+
+- [ ] Se i `FeriepengerTest.kt` at satsen er 10,2 % ved 59 år og 12,5 % fra og med 60 år, at beløp rett under 50 øre rundes ned og nøyaktig 50 øre rundes opp, og at negativt grunnlag gir `IllegalArgumentException`.
+
+Kan du fortelle meg hva denne koden gjør og hvorfor denne tilnærmingen er riktig?
+

@@ -1,0 +1,30 @@
+ ● skill(nav-auth)
+
+ ● skill(klarsprak)
+
+ $ Shell Sjekk prosjektfiler og Copilot-oppsett 7 lines…
+   ls -a; for f in AGENTS.md .github/copilot-instructions.md .github/copilot-review-instructions.md;
+   do if test -f "$f"; then printf '\n%s\n' "$f"; cat "$f"; fi; done
+
+ / Search "idporten|tokenx|accessPolicy|fødselsnummer|fnr|pid|ktor" 61 lines found
+
+ YM Read nais.yaml 12 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/Routes.kt 19 lines read
+
+**Fase 1: Avklar hva tjenesten skal bruke fødselsnummeret til**
+
+Repoet inneholder en Ktor-demo uten ID-porten-oppsett eller `accessPolicy`. Jeg antar at en innbygger skal logge inn med ID-porten, og at tjenesten skal lese innbyggerens eget fødselsnummer. Jeg har ikke endret kode eller konfigurasjon.
+
+1. Hva trenger tjenesten fødselsnummeret til? Skal det bare brukes under forespørselen, eller skal det lagres eller sendes videre? I så fall: hvor lenge eller til hvem? Behandler tjenesten andre personopplysninger?
+2. Skal innbyggeren bruke tjenesten direkte i nettleseren, eller skal en annen Nav-tjeneste kalle den på vegne av innbyggeren?
+3. Hva skal brukeren kunne gjøre hvis innloggingen feiler eller tokenet mangler fødselsnummer?
+4. Hvilket mål viser at tjenesten fungerer, uten å logge fødselsnummer eller token?
+5. Hvilket team eier tjenesten, og er den avhengig av andre team eller systemer enn ID-porten?
+6. Finnes det et testmiljø og syntetiske testidentiteter for innloggingsflyten?
+7. Har teamet erfaring med ID-porten og tokenvalidering, eller bør vi gå gjennom den delen sammen?
+
+`AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md` mangler. Bruk `nav-pilot init` hvis dere vil legge til prosjektlokalt Copilot-oppsett.
+
+Blindsoner reist: 8/11 (#1–#7 og #11; #8–#10 gjelder først hvis tjenesten erstatter eller endrer en eksisterende løsning).
+

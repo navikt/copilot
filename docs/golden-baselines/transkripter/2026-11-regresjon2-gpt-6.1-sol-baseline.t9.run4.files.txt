@@ -1,0 +1,68 @@
+=== ./build.gradle.kts
+plugins {
+    kotlin("jvm") version "2.1.0"
+    kotlin("plugin.serialization") version "2.1.0"
+}
+repositories {
+    mavenCentral()
+}
+dependencies {
+    implementation("io.ktor:ktor-server-netty:3.0.0")
+    implementation("io.ktor:ktor-server-content-negotiation:3.0.0")
+    implementation("io.ktor:ktor-serialization-kotlinx-json:3.0.0")
+    testImplementation(kotlin("test"))
+}
+
+=== ./src/main/kotlin/no/nav/demo/Feriepenger.kt
+package no.nav.demo
+
+fun feriepenger(grunnlag: Long, alderIOpptjeningsåret: Int): Long {
+    TODO("Implement holiday pay rates, half-up rounding and negative-basis validation")
+}
+
+=== ./src/test/kotlin/no/nav/demo/FeriepengerTest.kt
+package no.nav.demo
+
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+
+class FeriepengerTest {
+    @Test
+    fun `uses standard rate below age 60`() {
+        assertEquals(10_200L, feriepenger(100_000L, 59))
+    }
+
+    @Test
+    fun `uses higher rate from age 60 onwards`() {
+        assertEquals(12_500L, feriepenger(100_000L, 60))
+        assertEquals(12_500L, feriepenger(100_000L, 61))
+    }
+
+    @Test
+    fun `rounds standard rate to nearest krone with halves up`() {
+        assertEquals(2L, feriepenger(24L, 59))
+        assertEquals(26L, feriepenger(250L, 59))
+        assertEquals(3L, feriepenger(25L, 59))
+    }
+
+    @Test
+    fun `rounds higher rate to nearest krone with halves up`() {
+        assertEquals(0L, feriepenger(3L, 60))
+        assertEquals(1L, feriepenger(4L, 60))
+        assertEquals(1L, feriepenger(5L, 60))
+    }
+
+    @Test
+    fun `zero basis gives zero for both rates`() {
+        assertEquals(0L, feriepenger(0L, 59))
+        assertEquals(0L, feriepenger(0L, 60))
+    }
+
+    @Test
+    fun `rejects negative basis for both rates`() {
+        assertFailsWith<IllegalArgumentException> { feriepenger(-1L, 59) }
+        assertFailsWith<IllegalArgumentException> { feriepenger(-1L, 60) }
+    }
+}
+

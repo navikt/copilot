@@ -1,0 +1,53 @@
+ ● skill(klarsprak)
+
+ ✗ Shell Finn Kotlin-kode og instrukser Failed with exit code 1  . .. .github build.gradle.kts nais…
+   ls -a; find . -name '*.kt' -o -name '*instructions.md'; command -v kotlinc
+   .
+   ..
+   .github
+   build.gradle.kts
+   nais.yaml
+   README.md
+   src
+   ./.github/instructions/deliberate-ai-use.instructions.md
+   ./.github/instructions/performance.instructions.md
+   ./.github/instructions/docker.instructions.md
+   ./.github/instructions/accessibility.instructions.md
+   ./.github/instructions/cplt-sandbox.instructions.md
+   ./.github/instructions/output-style.instructions.md
+   ./.github/instructions/database.instructions.md
+   ./.github/instructions/nextjs-aksel.instructions.md
+   ./.github/instructions/github-actions.instructions.md
+   ./.github/instructions/golang.instructions.md
+   ./.github/instructions/testing-typescript.instructions.md
+   ./.github/instructions/security-core.instructions.md
+   ./.github/instructions/kotlin.instructions.md
+   ./.github/instructions/security-owasp.instructions.md
+   ./.github/instructions/testing-kotlin.instructions.md
+   ./.github/instructions/testing.instructions.md
+   ./.github/instructions/norwegian-text.instructions.md
+   ./src/main/kotlin/no/nav/demo/App.kt
+   ./src/main/kotlin/no/nav/demo/Oppgave.kt
+   ./src/main/kotlin/no/nav/demo/Routes.kt
+   ./src/main/kotlin/no/nav/demo/Config.kt
+   Failed with exit code 1
+
+ MD Read .github/instructions/kotlin.instructions.md too large, not read
+
+ MD Read .github/instructions/security-owasp.instructions.md 12 lines read
+
+ / Search "^package |BigDecimal|round" in *.kt 4 lines found
+
+ / Search "^#|BigDecimal|internal" (.github/instructions/kotlin.instructions.md) 34 lines found
+
+ ● Edit  Create src/main/kotlin/no/nav/demo/Avrunding.kt (+7)
+
+Implementerte bare avrundingen i `Avrunding.kt`. `rundTilNærmesteKrone` tar et beløp i kroner som `BigDecimal` og returnerer hele kroner som `Long`. `HALF_UP` runder 50 øre opp uten flyttallsfeil. Feriepengefunksjonen og enhetstestene er ikke lagt til. Jeg kjørte ikke Gradle.
+
+🔴 Rød sone: avrunding av pengebeløp.
+
+**Sjekkliste for rød sone**
+- [ ] Sjekk at 10,49 kr blir 10 kr, og at både 10,50 kr og 10,51 kr blir 11 kr. Send inn det uavrundede beløpet fra feriepengeberegningen.
+
+Kan du fortelle meg hva denne koden gjør og hvorfor denne tilnærmingen er riktig?
+

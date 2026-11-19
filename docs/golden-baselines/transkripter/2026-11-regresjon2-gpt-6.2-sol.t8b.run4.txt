@@ -1,0 +1,15 @@
+ ● skill(klarsprak)
+
+ $ Shell Finn record-produsent og persondata 10 lines…
+   ls -a; rg -il --hidden 'ProducerRecord|signature-header|signaturheader|fødselsnummer' -g
+   '!.git/**' | head -40
+
+ $ Shell Sjekk eksisterende felter, headere og tilgang 19 lines…
+   cat nais.yaml; rg -n 'fnr|ident|headers\(' src lib; ls -a .github
+
+Jeg har ikke lagt til headeren. `Periode` har allerede `fnr` i payloaden, men en ny Kafka-header gjør fødselsnummeret tilgjengelig også for verktøy som leser headere uten å lese payloaden.
+
+**Personvern:** Hvem eller hvilke verktøy skal lese headeren, og hvorfor trenger de fødselsnummer fremfor en tilfeldig korrelasjons-ID? Jeg fant ingen repo-lokal Copilot-konfigurasjon. Den kan opprettes med `nav-pilot init`.
+
+Blindsoner reist: 1/11 (#1). Tilgang til selve topicet endres ikke. Øvrige tekniske avklaringer kan vente til sporingsbehovet er avklart.
+

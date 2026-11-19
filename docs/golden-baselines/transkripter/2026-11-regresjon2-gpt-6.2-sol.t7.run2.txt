@@ -1,0 +1,146 @@
+ ● skill(jackson-3-migration)
+
+ $ Shell git status --short --branch; git log -6 --oneline; git branch -a; ls -a; java -v… 21 lines…
+   git status --short --branch; git log -6 --oneline; git branch -a; ls -a; java -version; rg -n
+   'tools\.jackson|com\.fasterxml\.jackson|ktor-serialization-jackson' | head -100
+
+ ● skill(klarsprak)
+
+ ✗ Shell  Permission denied because no interactive user response was available. Retry in an interact
+   command -v gradle; ls -a .github; ls -a | grep gradle; /usr/libexec/java_home -V 2>&1
+   Approval check
+     └ ✗ Denied, no one to approve shell path (/usr/libexec/java_home)
+   Permission denied because no interactive user response was available. Retry in an interactive 
+   session so the user can approve it, or try an alternative that does not require this permission.
+
+ $ Shell git --no-pager diff main...HEAD; git ls-files 71 lines…
+   git --no-pager diff main...HEAD; git ls-files
+
+ ✗ Shell command -v gradle; command -v kotlinc; cat build.gradle.kts; nl… Failed with exit code 127…
+   command -v gradle; command -v kotlinc; cat build.gradle.kts; nl -ba
+   src/main/kotlin/no/nav/demo/Soknad.kt; rg -n 'ContentNegotiation|lesSoker|publiser|soknad' src;
+   ./gradlew build
+   /Users/hans/.local/share/mise/installs/gradle/8/gradle-8.14.7/bin/gradle
+   plugins {
+       kotlin("jvm") version "2.1.0"
+       kotlin("plugin.serialization") version "2.1.0"
+   }
+   repositories {
+       mavenCentral()
+   }
+   dependencies {
+       implementation("io.ktor:ktor-server-netty:3.0.0")
+       implementation("io.ktor:ktor-server-content-negotiation:3.0.0")
+       implementation("io.ktor:ktor-serialization-kotlinx-json:3.0.0")
+   }
+   dependencies {
+       implementation("tools.jackson.core:jackson-databind:3.1.0")
+       implementation("tools.jackson.module:jackson-module-kotlin:3.1.0")
+       implementation("org.apache.kafka:kafka-clients:3.9.0")
+   }
+        1  package no.nav.demo
+        2  
+        3  import tools.jackson.databind.json.JsonMapper
+        4  import tools.jackson.module.kotlin.kotlinModule
+        5  import tools.jackson.module.kotlin.readValue
+        6  import org.apache.kafka.clients.producer.KafkaProducer
+        7  import org.apache.kafka.clients.producer.ProducerRecord
+        8  import java.time.LocalDate
+        9  
+       10  data class SokerDto(val fnr: String, val navn: String)
+       11  
+       12  data class SoknadMottattMelding(val soknadId: String, val mottatt: LocalDate)
+       13  
+       14  val mapper: JsonMapper = JsonMapper.builder()
+       15      .addModule(kotlinModule())
+       16      .build()
+       17  
+       18  fun lesSoker(json: String): SokerDto = mapper.readValue(json)
+       19  
+       20  fun sendMottatt(producer: KafkaProducer<String, String>, melding: SoknadMottattMelding) {
+       21      producer.send(ProducerRecord("soknad-mottatt", melding.soknadId, 
+   mapper.writeValueAsString(melding)))
+       22  }
+       23  
+       24  fun sendSoker(producer: KafkaProducer<String, String>, soker: SokerDto) {
+       25      producer.send(ProducerRecord("soker-oppdatert", soker.fnr, 
+   mapper.writeValueAsString(soker)))
+       26  }
+   src/main/kotlin/no/nav/demo/Soknad.kt:12:data class SoknadMottattMelding(val soknadId: String, 
+   val mottatt: LocalDate)
+   src/main/kotlin/no/nav/demo/Soknad.kt:18:fun lesSoker(json: String): SokerDto = 
+   mapper.readValue(json)
+   src/main/kotlin/no/nav/demo/Soknad.kt:21:    producer.send(ProducerRecord("soknad-mottatt", 
+   melding.soknadId, mapper.writeValueAsString(melding)))
+   src/main/kotlin/no/nav/demo/App.kt:7:import 
+   io.ktor.server.plugins.contentnegotiation.ContentNegotiation
+   src/main/kotlin/no/nav/demo/App.kt:12:        install(ContentNegotiation) { json() }
+   /bin/bash: ./gradlew: No such file or directory
+   Failed with exit code 127
+
+ ✗ Shell gradle --no-daemon --console=plain build dependencies --configura… Failed with exit code 1…
+   gradle --no-daemon --console=plain build dependencies --configuration compileClasspath
+   To honour the JVM settings for this build a single-use Daemon process will be forked. For more on
+    this, please refer to 
+   https://docs.gradle.org/8.14.7/userguide/gradle_daemon.html#sec:disabling_the_daemon in the 
+   Gradle documentation.
+   Daemon will be stopped at the end of the build 
+   
+   FAILURE: Build failed with an exception.
+   
+   * What went wrong:
+   A problem occurred configuring root project 'repo'.
+   > 27.0.1.0.2
+   
+   * Try:
+   > Run with --stacktrace option to get the stack trace.
+   > Run with --info or --debug option to get more log output.
+   > Run with --scan to get full insights.
+   > Get more help at https://help.gradle.org.
+   
+   BUILD FAILED in 2s
+   Failed with exit code 1
+
+ ✗ Shell  Permission denied because no interactive user response was available. Retry in an interact
+   ls /Library/Java/JavaVirtualMachines; mise ls java; rg -n '\.map\b|årsak|ønsket' src; git status
+   --short
+   Approval check
+     └ ✗ Denied, no one to approve shell path (/Library/Java/JavaVirtualMachines)
+   Permission denied because no interactive user response was available. Retry in an interactive 
+   session so the user can approve it, or try an alternative that does not require this permission.
+
+ $ Shell mise ls java; rg -n '\.map\b|årsak|ønsket' src; git status --short 2 lines…
+   mise ls java; rg -n '\.map\b|årsak|ønsket' src; git status --short
+
+ ✗ Shell mise exec java@21 -- gradle --no-daemon --console=plain build dep… Failed with exit code 1…
+   mise exec java@21 -- gradle --no-daemon --console=plain build dependencies --configuration
+   compileClasspath
+   mise ERROR "gradle" couldn't exec process: No such file or directory
+   
+   gradle is installed but not activated — it is not in any config file.
+   To activate it, run:
+     mise use gradle
+   To run it without changing any config file, run:
+     mise exec gradle -- gradle
+   mise ERROR Version: 2026.11.10 macos-arm64 (2026-11-18)
+   mise ERROR Run with --verbose or MISE_VERBOSE=1 for more information
+   Failed with exit code 1
+
+ $ Shell mise exec java@21 gradle@8 -- gradle --no-daemon --console=plain build depen… 216 lines… 5s
+   mise exec java@21 gradle@8 -- gradle --no-daemon --console=plain build dependencies
+   --configuration compileClasspath
+
+ $ Shell javap -p -c $(find build/classes/kotlin/main -name '*.class') | grep -E 'databin… 17 lines…
+   javap -p -c $(find build/classes/kotlin/main -name '*.class') | grep -E 'databind/[^
+   ]*Node\.map:'; git status --short; ls -a .gradle build
+
+ $ Shell rm -r .gradle build && git status --short No Content
+   rm -r .gradle build && git status --short
+
+**Jackson 3.1-migreringen bygger på Java 21, men jeg ville ventet med å merge til Kafka-kompatibiliteten er verifisert.** `compileClasspath` har ingen Jackson 2 `core` eller `databind`; `jackson-annotations:2.21` er forventet. Jeg fant ingen kall til `JsonNode.map()` i bytekoden. Ktor bruker fortsatt `kotlinx.serialization` for HTTP og trenger ingen oppgradering for denne migreringen.
+
+- [`Soknad.kt:14`](src/main/kotlin/no/nav/demo/Soknad.kt#L14): Den nye mapperen sorterer JSON-feltene alfabetisk som standard. På `soknad-mottatt` kommer dermed `mottatt` før `soknadId`. Feltnavnene er uendret, og `LocalDate` skal fortsatt være en ISO-dato. Sjekk at ingen konsumenter sammenligner rå JSON eller avhenger av feltrekkefølgen.
+- [`Soknad.kt:18`](src/main/kotlin/no/nav/demo/Soknad.kt#L18): `lesSoker` ignorerer nå ukjente felter som standard, men avviser innhold etter det første JSON-objektet. Det er en atferdsendring som bør være eksplisitt.
+
+Branchen har ingen tester. Før merge: sammenlign Kafka-payloadene fra `main` og `jackson-3` med syntetiske data, og legg til tester som låser ønsket oppførsel for `lesSoker`. Ingen filer endret.
+

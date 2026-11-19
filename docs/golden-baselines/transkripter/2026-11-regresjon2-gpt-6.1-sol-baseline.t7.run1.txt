@@ -1,0 +1,192 @@
+ ● skill(jackson-3-migration)
+
+ $ Shell Inspect branch changes and project layout 10 lines…
+   git status --short && git --no-pager diff --stat && git --no-pager log -5 --oneline && ls -a
+
+ ● skill(klarsprak)
+
+ / Search "**/*" 26 files found
+
+ $ Shell Read migration diff and check Java tooling 49 lines…
+   git --no-pager diff 4115b23..HEAD && java -version && command -v gradle || true
+
+ MD Read ~/.copilot/skills/jackson-3-migration/references/rename-and-defaults.md 139 lines read
+
+ MD Read ~/.copilot/skills/jackson-3-migration/references/kotlin-cleanup.md 186 lines read
+
+ ✗ Shell Read application and validate build and Jackson dependencies Failed with exit code 1  plug…
+   cat build.gradle.kts src/main/kotlin/no/nav/demo/*.kt README.md nais.yaml && git ls-files &&
+   gradle --no-daemon --console=plain build dependencyInsight --dependency jackson --configuration
+   compileClasspath
+   plugins {
+       kotlin("jvm") version "2.1.0"
+       kotlin("plugin.serialization") version "2.1.0"
+   }
+   repositories {
+       mavenCentral()
+   }
+   dependencies {
+       implementation("io.ktor:ktor-server-netty:3.0.0")
+       implementation("io.ktor:ktor-server-content-negotiation:3.0.0")
+       implementation("io.ktor:ktor-serialization-kotlinx-json:3.0.0")
+   }
+   dependencies {
+       implementation("tools.jackson.core:jackson-databind:3.1.0")
+       implementation("tools.jackson.module:jackson-module-kotlin:3.1.0")
+       implementation("org.apache.kafka:kafka-clients:3.9.0")
+   }
+   package no.nav.demo
+   
+   import io.ktor.serialization.kotlinx.json.json
+   import io.ktor.server.application.install
+   import io.ktor.server.engine.embeddedServer
+   import io.ktor.server.netty.Netty
+   import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
+   
+   fun main() {
+       println("starter demo-tjeneste, maksAntall=$maksAntall")
+       embeddedServer(Netty, port = 8080) {
+           install(ContentNegotiation) { json() }
+           oppgaveRoutes()
+       }.start(wait = true)
+   }
+   package no.nav.demo
+   
+   // Maks antall oppgaver som returneres i én respons.
+   const val maksAntall = 100
+   package no.nav.demo
+   
+   import kotlinx.serialization.Serializable
+   
+   @Serializable
+   data class Oppgave(val id: String, val tittel: String)
+   
+   @Serializable
+   data class OppgaveRespons(val oppgaver: List<Oppgave>)
+   package no.nav.demo
+   
+   import io.ktor.server.application.Application
+   import io.ktor.server.response.respond
+   import io.ktor.server.routing.get
+   import io.ktor.server.routing.routing
+   
+   private val oppgaver = listOf(
+       Oppgave("1", "Registrer søknad"),
+       Oppgave("2", "Send vedtaksbrev"),
+   )
+   
+   fun Application.oppgaveRoutes() {
+       routing {
+           get("/api/oppgaver") {
+               call.respond(OppgaveRespons(oppgaver.take(maksAntall)))
+           }
+       }
+   }
+   package no.nav.demo
+   
+   import tools.jackson.databind.json.JsonMapper
+   import tools.jackson.module.kotlin.kotlinModule
+   import tools.jackson.module.kotlin.readValue
+   import org.apache.kafka.clients.producer.KafkaProducer
+   import org.apache.kafka.clients.producer.ProducerRecord
+   import java.time.LocalDate
+   
+   data class SokerDto(val fnr: String, val navn: String)
+   
+   data class SoknadMottattMelding(val soknadId: String, val mottatt: LocalDate)
+   
+   val mapper: JsonMapper = JsonMapper.builder()
+       .addModule(kotlinModule())
+       .build()
+   
+   fun lesSoker(json: String): SokerDto = mapper.readValue(json)
+   
+   fun sendMottatt(producer: KafkaProducer<String, String>, melding: SoknadMottattMelding) {
+       producer.send(ProducerRecord("soknad-mottatt", melding.soknadId, 
+   mapper.writeValueAsString(melding)))
+   }
+   
+   fun sendSoker(producer: KafkaProducer<String, String>, soker: SokerDto) {
+       producer.send(ProducerRecord("soker-oppdatert", soker.fnr, mapper.writeValueAsString(soker)))
+   }
+   # demo-tjeneste
+   
+   En liten Ktor-tjeneste for demonstrasjon. Tjenesten eksponerer et REST-API
+   og kjører på Nais. Dokumentasjonen er dessverre ikke helt komplet enda.
+   apiVersion: nais.io/v1alpha1
+   kind: Application
+   metadata:
+     name: demo-tjeneste
+     namespace: demo
+   spec:
+     image: {{image}}
+     port: 8080
+     liveness:
+       path: /internal/isalive
+     readiness:
+       path: /internal/isready
+   .github/agents/golden-nav-pilot.agent.md
+   .github/instructions/accessibility.instructions.md
+   .github/instructions/cplt-sandbox.instructions.md
+   .github/instructions/database.instructions.md
+   .github/instructions/deliberate-ai-use.instructions.md
+   .github/instructions/docker.instructions.md
+   .github/instructions/github-actions.instructions.md
+   .github/instructions/golang.instructions.md
+   .github/instructions/kotlin.instructions.md
+   .github/instructions/nextjs-aksel.instructions.md
+   .github/instructions/norwegian-text.instructions.md
+   .github/instructions/output-style.instructions.md
+   .github/instructions/performance.instructions.md
+   .github/instructions/security-core.instructions.md
+   .github/instructions/security-owasp.instructions.md
+   .github/instructions/testing-kotlin.instructions.md
+   .github/instructions/testing-typescript.instructions.md
+   .github/instructions/testing.instructions.md
+   README.md
+   build.gradle.kts
+   nais.yaml
+   src/main/kotlin/no/nav/demo/App.kt
+   src/main/kotlin/no/nav/demo/Config.kt
+   src/main/kotlin/no/nav/demo/Oppgave.kt
+   src/main/kotlin/no/nav/demo/Routes.kt
+   src/main/kotlin/no/nav/demo/Soknad.kt
+   To honour the JVM settings for this build a single-use Daemon process will be forked. For more on
+    this, please refer to 
+   https://docs.gradle.org/8.14.7/userguide/gradle_daemon.html#sec:disabling_the_daemon in the 
+   Gradle documentation.
+   Daemon will be stopped at the end of the build 
+   
+   FAILURE: Build failed with an exception.
+   
+   * What went wrong:
+   A problem occurred configuring root project 'repo'.
+   > 27.0.1.0.2
+   
+   * Try:
+   > Run with --stacktrace option to get the stack trace.
+   > Run with --info or --debug option to get more log output.
+   > Run with --scan to get full insights.
+   > Get more help at https://help.gradle.org.
+   
+   BUILD FAILED in 2s
+   Failed with exit code 1
+
+ ✗ Shell  Permission denied because no interactive user response was available. Retry in an interact
+   /usr/libexec/java_home -V 2>&1; git status --short; nl -ba src/main/kotlin/no/nav/demo/Soknad.kt;
+   nl -ba build.gradle.kts
+   Approval check
+     └ ✗ Denied, no one to approve shell path (/usr/libexec/java_home)
+   Permission denied because no interactive user response was available. Retry in an interactive 
+   session so the user can approve it, or try an alternative that does not require this permission.
+
+**Migreringen ser teknisk riktig ut, men bakoverkompatibilitet er ikke dokumentert.** Vurdert mot `4115b23` (Jackson 2).
+
+- **Endret meldingsformat:** `Soknad.kt:14–16` bruker Jackson 3-standarder. Alfabetisk feltsortering endrer rekkefølgen i `SoknadMottattMelding` fra `soknadId, mottatt` til `mottatt, soknadId`. JSON-strukturen er ellers lik, men tekstbasert sammenligning påvirkes.
+- **Strengere lesing:** `lesSoker` avviser nå etterfølgende JSON-innhold med standardinnstillingen `FAIL_ON_TRAILING_TOKENS`. Avklar om dette er ønsket.
+- **Mangler regresjonstester:** Repoet har ingen tester som bekrefter DTO-round-trip, ISO-format for `LocalDate` eller kompatibilitet for Kafka-meldingene.
+
+Builderen og Kotlin-modulen er korrekt satt opp. Fjerningen av `jackson-datatype-jsr310` er riktig fordi Java Time-støtte er innebygd. Ingen gamle Jackson-importer, mapper-mutasjon eller `JsonNode.map`-kall finnes. Ktor bruker kotlinx.serialization, så Jackson-migreringen krever ikke Ktor-oppgradering.
+
+**Verifisering blokkert:** Byggforsøket feilet under konfigurering med JDK `27.0.1.0.2`. Forsøket på å finne en kompatibel installert JDK med `/usr/libexec/java_home -V` ble nektet og krever interaktiv godkjenning. Bygg, tester og faktisk dependency tree er derfor ikke verifisert. Ingen filer er endret.
+

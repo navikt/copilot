@@ -1,0 +1,24 @@
+ ● skill(klarsprak)
+
+ / Search "**/*" 25 files found
+
+ MD Read .github/instructions/kotlin.instructions.md too large, not read
+
+ MD Read .github/instructions/security-owasp.instructions.md 12 lines read
+
+ ● Read build.gradle.kts 12 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/Oppgave.kt 9 lines read
+
+ MD Read .github/instructions/testing-kotlin.instructions.md 185 lines read
+
+ MD Read .github/instructions/testing.instructions.md 112 lines read
+
+ ● Edit  Edit build.gradle.kts (+1)  Create src/main/kotlin/no/nav/demo/Feriepenger.kt (+5)  Create…
+
+Lagt til `Feriepenger.kt` med en `TODO`-stub, enhetstester for satsene, aldersgrensen, avrunding, null og negativt grunnlag, samt `kotlin("test")`.
+
+🔴 Rød sone: Beregningen er ny forretningslogikk for teamet. Etter prosjektreglene er selve implementasjonen derfor overlatt til dere, ikke ferdigstilt. Bruk heltallsregning for å unngå flyttallsfeil ved 50-øresgrensen.
+
+Gradle er ikke kjørt. Testene vil feile til stubben er implementert.
+
