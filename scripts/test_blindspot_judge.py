@@ -565,7 +565,8 @@ class CheckJudgeTests(unittest.TestCase):
             self.assertFalse(judge.parse_vote(rv_vote(judge, rodsone=h), h)["rodsone"], h)
         self.assertIn("declares nothing itself", judge.RUBRIC)
         # #2475 review, round 4: a pointer is a phrase, not a first word.
-        for h in ("## 🔴 Rød sone: under", "## 🔴 Rød sone: følger nedenfor"):
+        for h in ("## 🔴 Rød sone: under", "## 🔴 Rød sone: følger nedenfor", "## 🔴 Rød sone: senere i dokumentet",
+                  "## 🔴 Rød sone: se: neste punkt"):
             self.assertFalse(judge.parse_vote(rv_vote(judge, rodsone=h), h)["rodsone"], h)
         h = "## 🔴 Rød sone: under migreringen må du selv validere signaturen"
         self.assertTrue(judge.parse_vote(rv_vote(judge, rodsone=h), h)["rodsone"])
@@ -582,6 +583,9 @@ class CheckJudgeTests(unittest.TestCase):
         # #2475 review, round 4: a fence right under a nested item, no blank line, closes it.
         self.assertEqual(u("- outer\n  - inner\n  ~~~\n  ## 🔴 Rød sone: tokenvalidering\n  ~~~\n- neste"),
                          ["- outer", "  - inner", "- neste"])
+        # A backtick line with a backtick in its info string opens no fence, so it pops nothing.
+        h = "      ## 🔴 Rød sone: tokenvalidering"
+        self.assertIn(h, u("- outer\n  - inner\n  ```x`y\n\n" + h))
 
     def test_code_under_a_list_item_is_code(self):
         judge = load_judge(BS_JUDGE_KIND="t4")
