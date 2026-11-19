@@ -3604,7 +3604,7 @@ DESC_RV4="TSX: every planted defect cited on its line"
 # file's row cite no line. The same rule holds for every arm.
 RV_PR=(
   'fnr-logg=(logg|logger|log|info).{0,80}(fnr|fødselsnummer|pii|personopplys|persondata|personinfo)|(fnr|fødselsnummer|pii|personopplys|persondata).{0,80}logg@VedtakService.kt:15'
-  'sql=injeksjon|injection|parametr|parameteri|parameterbind|(direkte|rett) inn i (sql|spørring)|endre spørringen|bind (verdien|parameteren|fnr)\b|interpol|konkaten|concat|prepared|bindevariab|sammensl@VedtakRepository.kt:23'
+  'sql=injeksjon|injection|parametr|parameteri|parameterbind|(direkte|rett) inn i (sql|spørring)|endre spørringen|bind verdien med\b|interpol|konkaten|concat|prepared|bindevariab|sammensl@VedtakRepository.kt:23'
   'tilgang=authenticate|autentiser|autentis|tokenx|tilgangskontroll|auth|ubeskyttet|åpent|uten tilgang@Routes.kt:30'
   'inbound=inbound|accesspolicy|wildcard|"\*"|alle applikasjoner|all applications|alle apper|any application@nais.yaml:25,26'
 )
@@ -3636,7 +3636,7 @@ RV_DESIGN=(
 # rv7: the SQL, access and nais.yaml inbound «*» findings are marked high;
 # the unused import is not. Only the Priority cell is read (#1443).
 RV_PRIO=(
-  'sql=injeksjon|injection|parametr|parameteri|parameterbind|(direkte|rett) inn i (sql|spørring)|endre spørringen|bind (verdien|parameteren|fnr)\b|interpol|konkaten|concat|prepared|bindevariab|sammensl@VedtakRepository.kt:23'
+  'sql=injeksjon|injection|parametr|parameteri|parameterbind|(direkte|rett) inn i (sql|spørring)|endre spørringen|bind verdien med\b|interpol|konkaten|concat|prepared|bindevariab|sammensl@VedtakRepository.kt:23'
   'tilgang=authenticate|autentiser|autentis|tokenx|tilgangskontroll|auth|ubeskyttet|åpent|uten tilgang@Routes.kt:30'
   'inbound=inbound|accesspolicy|wildcard|"\*"|alle applikasjoner|all applications|alle apper|any application@nais.yaml:25,26'
   '!nit=ubrukt|unused|import|Locale@VedtakService.kt:5'

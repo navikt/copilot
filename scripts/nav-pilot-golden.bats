@@ -766,7 +766,8 @@ run_suite() {
   # A high finding on the right line about something else is no injection finding.
   for row in 'Flytt sorteringen inn i SQL-spørringen.' 'Sorter på fnr. Flytt sorteringen inn i SQL-spørringen.' \
              'Endre søkebetingelsen for å filtrere bort arkiverte saker.' \
-             'Binder opp en tråd per kall.'; do
+             'Binder opp en tråd per kall.' 'Oppslaget mangler eierskapskontroll. Bind fnr til innlogget bruker.' \
+             'Bind verdien til innlogget bruker.'; do
     printf '%s\n| 🔴 | `VedtakRepository.kt:23` | %s |\n' "$base" "$row" >"$t"
     ! chk linje "$t" "${RV_PR[@]}" || false
     ! chk prioritet "$t" "${RV_PRIO[@]}" || false
