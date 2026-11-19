@@ -1,0 +1,13 @@
+=== ./slug/slug.ts
+// Lager en URL-vennlig slug av en tittel: små bokstaver, æ/ø/å blir ae/o/a,
+// alt annet enn a-z og 0-9 blir bindestrek, og ingen bindestrek i endene.
+export function slug(tittel: string): string {
+  return tittel
+    .toLowerCase()
+    .replace(/æ/g, "ae")
+    .replace(/ø/g, "o")
+    .replace(/å/g, "a")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+

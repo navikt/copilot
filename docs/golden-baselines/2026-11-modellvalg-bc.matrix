@@ -4,3 +4,4 @@ planning  claude-opus-5.5     low      5   # 254
 planning  gpt-6.2-astra       low      5   # 575
 norsk     claude-opus-5.5     default  5   # 175
 norsk     claude-sonnet-5.5   default  5   # 93
+coding    gpt-6.2-sol         low      5   # 130

@@ -86,3 +86,13 @@ Armfil (kjøres i rekkefølge med `run-arms.sh`): D1 6.2 Sol (580), D1 6.1 Sol (
 
 **Stopp 19. november 2026 kl. 00:5x, regel 5:** accessibility Opus kostet 440,46, over grensen 1,5 × (285 + 5,91) = 436,4 (agent 434,55, median 82,2 per kjøring mot planens ≈ 57). Brukt: **4 353,83**. Gjenstår: accessibility Sonnet (144) og coding 6.2 Sol (130), som venter på eieren. I D1 6.1 Sol kommer «1 kall fra andre økter» fra testoppsettets innloggingsprobe (`gpt-6.1-sol`).
 
+**19. november 2026, eierbeslutning (avvik, se tillegget i planen):** de to siste armene er godkjent tross stoppet på regel 5. De kjøres med samme regler.
+| accessibility-claude-sonnet-5.5-default | 144 | 4503.74 | 188.34 | 0.00 | 5.91 | 194.25 | uu1 5/5 uu2 5/5 uu3 5/5 uu4 5/5 uu5 5/5 | ferdig |
+| coding gpt-6.2-sol low | 130 | 4683.99 | 136.48 | 0.00 | 5.91 | 142.39 | ko1 5/5 ko2 5/5 ko3 5/5 ko4 5/5 ko5 4/5 ko6 5/5 | ferdig |
+
+**B+C ferdig 19. november 2026 kl. 09:45, brukt 4 690,47 av 6 500.** De to siste armene holdt seg innenfor regel 5.
+
+Utenfor armene (ikke testoppsettet, men Copilot-credits): review av #2437 med gpt-6.2-astra, to runder, 30,49 + 20,66 = 51,15. Med dette er forbruket **4 741,62**.
+
+Neste: D1 trinn 2 på nytt (≈ 1 080 + 2 prober) etter at reparasjonen av test 8 er godkjent og merget. Med det blir forbruket ≈ 5 830.
+

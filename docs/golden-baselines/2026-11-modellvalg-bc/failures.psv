@@ -29,3 +29,5 @@ review-claude-opus-5.5-low|rv6|1|ikke lest|
 planning-claude-opus-5.5-low|4|1-5|ikke lest, trolig sjekkfeil|se 2026-10-01-batch3/failures.psv
 # D4: uu3 i alle fem kjøringene. Skriver en egen listboks uten å spørre, og sier selv at den avviker fra Aksel.
 accessibility-claude-opus-5.5-default|uu3|1-5|reell bom|Jeg fikk ikke spurt deg først, så jeg fulgte forespørselen.
+# coding 6.2 Sol (informasjon for D1): lar graderingen stå som TODO under rød sone, så testene feiler. Samme mønster som Luna i trinn A.
+coding-gpt-6.2-sol-low|ko5|2|grensetilfelle|🔴 Rød sone: Selve graderingen av dagsatsen er kjernelogikk og står igjen som en `TODO` i `Utbetaling`.

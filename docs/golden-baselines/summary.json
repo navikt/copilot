@@ -1,5 +1,5 @@
 {
-  "generated": "2026-11-18",
+  "generated": "2026-11-19",
   "runs": [
     {
       "date": "2026-09-30",
@@ -5097,6 +5097,59 @@
         "median": 54.6
       },
       "source": "docs/golden-baselines/2026-11-modellvalg-a/rust-mai-code-2-flash-low.txt"
+    },
+    {
+      "date": "2026-11-19",
+      "suite": "coding",
+      "model": "gpt-6.2-sol",
+      "model_verified": true,
+      "subagent_models": [],
+      "effort": "low",
+      "ran_at": "low",
+      "cli_version": "1.0.114-0",
+      "n": 5,
+      "smoke": false,
+      "checks": [
+        {
+          "id": "ko1",
+          "description": "Go: testene er grønne etterpå",
+          "passed": 5
+        },
+        {
+          "id": "ko2",
+          "description": "Go: endrer bare filen med feilen",
+          "passed": 5
+        },
+        {
+          "id": "ko3",
+          "description": "TS: testen er grønn etterpå",
+          "passed": 5
+        },
+        {
+          "id": "ko4",
+          "description": "TS: endrer bare filen med feilen",
+          "passed": 5
+        },
+        {
+          "id": "ko5",
+          "description": "Go, to filer: testene er grønne etterpå",
+          "passed": 4
+        },
+        {
+          "id": "ko6",
+          "description": "Go, to filer: endrer bare de to filene med feilen",
+          "passed": 5
+        }
+      ],
+      "credits": {
+        "median": 27.402,
+        "mean": 27.297
+      },
+      "usage_complete": true,
+      "wall_seconds": {
+        "median": 61.5
+      },
+      "source": "docs/golden-baselines/2026-11-modellvalg-bc/coding-gpt-6.2-sol-low.txt"
     }
   ]
 }

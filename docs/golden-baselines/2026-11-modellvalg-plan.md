@@ -412,3 +412,31 @@ Gjennomføring (valgt av den som kjører, innenfor beslutningen over):
 - D4 `accessibility` kjøres med `--repeat 5` og lagres i `2026-11-modellvalg-bc/accessibility-<modell>-default`.
 - D1 trinn 2 kjøres med protokollens eksakte kommandoer og stier. Silingen av D1 (`7b,9,9b,9c,9d`, n = 2) kjøres ikke. Den hadde bare en stoppfunksjon og telles ikke med i trinn 2 (se [Matrise](#matrise)).
 - Arm `coding mai-code-2` i trinn A ble avbrutt i run 1 av en omstart av OpenCode-serveren, som drepte kjøringen. Ingenting ble lagret, og armen kjøres på nytt fra start. Kostnaden for det avbrutte forsøket (3,74 + probe) står i regnskapet.
+
+### 19. november 2026: eierbeslutninger etter stoppet på regel 5
+
+Avvik fra forhåndsregistreringen, besluttet av eieren:
+
+1. De to siste armene i B+C, `accessibility` Sonnet og `coding` 6.2 Sol, kjøres selv om regel 5 stoppet `accessibility` Opus (440,46 mot grensen 436,4). Reglene er ellers de samme.
+2. Transkriptene publiseres med brukernavnet fra `ls`-utskrift og navnet på PAW-repoet slik de står.
+3. D1 er «ikke avgjort» fordi 6.1 Sol består test 8 i 1 av 5 kjøringer. Sjekken for test 8 repareres i en egen PR mot `main`, og D1 trinn 2 kjøres på nytt for begge armene (ny reservasjon ≈ 1 080). Det skjer først når reparasjons-PR-en er merget. Reparasjonen forhåndsregistreres i et eget tillegg under, med test mot de eksisterende svarene fra begge armene. Sjekkene i 8b og 9d repareres bare hvis den uavhengige lesingen viser at de er for snevre.
+4. 9d og 8b for 6.2 Sol klassifiseres av en uavhengig leser, ikke av den som kjører målingen. Klassene «falsk negativ (bekreftes av eier)» i `2026-11-modellvalg-bc/failures.psv` er foreløpige.
+
+### 19. november 2026: forhåndsregistrering av reparasjonen av test 8 (utkast)
+
+Status: utkast. PR [#2437](https://github.com/navikt/copilot/pull/2437) har fått BLOCK i to gjennomganger med gpt-6.2-astra og er ikke merget. D1 trinn 2 kjøres ikke på nytt før eieren har godkjent den endelige sjekken og PR-en er merget. Teksten oppdateres hvis sjekken endres.
+
+**Hva som endres:** bare porten i test 8 som krever et sikkerhetsspørsmål (`scripts/nav-pilot-golden.sh`). Den gamle porten (`RE_ASK_SECQ`: nøkkel, verifiser, avvis, usignert, feilmodus) er uendret og er fortsatt første vei til bestått. I tillegg består en setning som har et feilord (`feiler|feilet|ved feil|signeringsfeil|mislykk`), et ord for signering eller header (`signer|signatur|header`) og et beslutningsord (`skal`, `bør`, `oppførsel`). Sjekkene i 8b og 9d er ikke endret.
+
+**Hvorfor:** alle de avviste t8-svarene i D1 stilte et spørsmål om hva som skal skje når signeringen feiler, men ordlisten godtok bare «feilmodus» (se `2026-11-modellvalg-bc/failures.psv`).
+
+**Test mot eksisterende svar:** alle de 20 publiserte t8-svarene, fra begge armene og fra 2026-10-23. Den gamle porten gjenskaper de lagrede utfallene.
+
+| Arm | Før | Etter |
+| --- | --- | --- |
+| 2026-10-23 6 Sol | 5/5 | 5/5 |
+| 2026-10-23 6.1 Sol | 1/5 | 5/5 |
+| 2026-11 6.1 Sol | 1/5 | 5/5 |
+| 2026-11 6.2 Sol | 3/5 | 5/5 |
+
+Endringen tar opp igjen alle avvisningene i begge armene og gir ingen arm en fordel på de kjente svarene. Ulempen er at test 8 ikke lenger skiller mellom disse armene. Gjennomgangen påpeker at det verken viser at regelen er nøytral eller at den er skjev, og at en leksikalsk regel fortsatt kan godta konstruerte spørsmål («Skal jeg sende loggen når signeringen feiler?») og avvise ekte spørsmål uten beslutningsord («Beholder vi den gamle signaturen hvis signeringen feiler?»).

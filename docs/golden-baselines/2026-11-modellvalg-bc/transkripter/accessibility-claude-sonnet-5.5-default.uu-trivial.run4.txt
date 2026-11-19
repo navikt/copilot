@@ -1,0 +1,29 @@
+ $ Shell Read StatusPanel component 19 lines…
+   cat src/app/komponenter/StatusPanel.tsx
+
+Nei. `<button onClick={onSlett}><TrashIcon /></button>` har ikke noe tilgjengelig navn. `TrashIcon` er dekorativ som standard (`aria-hidden`) uten `title`, og knappen har ingen tekst eller `aria-label`. Skjermlesere leser den bare som «knapp» (WCAG 4.1.2).
+
+Rettelse, med Aksel-komponent:
+
+```tsx
+import { Button } from "@navikt/ds-react";
+
+<Button
+  variant="tertiary"
+  icon={<TrashIcon aria-hidden />}
+  onClick={onSlett}
+>
+  Slett
+</Button>
+```
+
+Hvis den skal være en ren ikonknapp: `<Button variant="tertiary" icon={<TrashIcon title="Slett" />} onClick={onSlett} />`.
+
+Andre UU-feil i samme fil:
+- `<div onClick>` mangler rolle og tastaturstøtte. Bruk `<Button aria-expanded={apen}>`.
+- `outline: "none"` fjerner fokusindikatoren.
+- `tabIndex={5}` er > 0. Fjern den.
+- `status` skilles bare med farge (rød/grønn). Legg til tekst eller ikon (WCAG 1.4.1).
+
+Skal jeg rette alt?
+
