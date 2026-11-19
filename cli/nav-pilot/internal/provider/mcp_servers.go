@@ -459,6 +459,55 @@ func RemoveMCPServer(client, name string, tools []string) (MCPConfigChange, erro
 	})
 }
 
+// RemoveMCPServers drops each named server from the client's config in a single
+// atomic rewrite, returning the names that were present and removed. For
+// OpenCode it checks both mcp.servers.<name> and flat mcp.<name> entries and
+// drops each removed server's permission rules.
+func RemoveMCPServers(client string, names []string) ([]string, MCPConfigChange, error) {
+	if len(names) == 0 {
+		return nil, MCPConfigChange{}, nil
+	}
+	var removed []string
+	ch, err := editMCPConfigDoc(client, func(top, servers *jsonObject) (json.RawMessage, bool, error) {
+		if client == MCPClientOpenCode {
+			native, nested := openCodeNativeServers(*servers)
+			for _, name := range names {
+				raw, hasFlat := servers.vals[name]
+				flat := hasFlat && name != "servers" && (name != "timeout" || isOpenCodeServerJSON(raw))
+				delFlat := flat && servers.del(name)
+				delNested := nested && native.del(name)
+				if delFlat || delNested {
+					removed = append(removed, name)
+				}
+			}
+			if len(removed) == 0 {
+				return nil, false, nil
+			}
+			if nested {
+				servers.set("servers", native.marshal())
+			}
+			remaining := openCodeAllServers(*servers).keys
+			for _, name := range removed {
+				dropOpenCodeRules(top, name, nil, remaining)
+			}
+			return nil, true, nil
+		}
+		for _, name := range names {
+			if servers.del(name) {
+				removed = append(removed, name)
+			}
+		}
+		if len(removed) == 0 {
+			return nil, false, nil
+		}
+		return nil, true, nil
+	})
+	if err != nil || !ch.Changed {
+		return nil, ch, err
+	}
+	return removed, ch, nil
+}
+
 // openCodeBuiltinPermissions is OpenCode's own permission keys with an
 // underscore, the ones a server's tool prefix can look like ("external_"
 // and external_directory).
@@ -499,29 +548,39 @@ func dropOpenCodeRules(top *jsonObject, name string, tools, others []string) {
 
 // MCPConfigKeys is the server names in the client's user config, in order.
 func MCPConfigKeys(client string) []string {
+	_, keys, hasComments := MCPConfigKeysAndComments(client)
+	if hasComments && client != MCPClientOpenCode {
+		return nil
+	}
+	return keys
+}
+
+// MCPConfigKeysAndComments returns the client's user config path, the server
+// keys found after stripping JSONC comments/trailing commas, and whether the
+// file contains comments or trailing commas that prevent safe rewriting.
+func MCPConfigKeysAndComments(client string) (path string, keys []string, hasComments bool) {
 	path, err := MCPConfigPath(client)
 	if err != nil {
-		return nil
+		return "", nil, false
 	}
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return nil
+		return path, nil, false
 	}
-	if client == MCPClientOpenCode {
-		data = stripJSONC(data)
-	}
-	top, err := parseJSONObject(data)
+	stripped := stripJSONC(data)
+	hasComments = len(bytes.TrimSpace(data)) > 0 && !bytes.Equal(stripped, data)
+	top, err := parseJSONObject(stripped)
 	if err != nil {
-		return nil
+		return path, nil, hasComments
 	}
 	servers, err := parseJSONObject(top.vals[mcpServersKey(client)])
 	if err != nil {
-		return nil
+		return path, nil, hasComments
 	}
 	if client == MCPClientOpenCode {
-		return openCodeAllServers(servers).keys
+		return path, openCodeAllServers(servers).keys, hasComments
 	}
-	return servers.keys
+	return path, servers.keys, hasComments
 }
 
 // openCodeAllServers is every server under mcp: flat mcp.<name> entries and,
@@ -617,6 +676,38 @@ func openCodeUserServerDefs() map[string]mcpServer {
 }
 
 func editMCPConfig(client, name string, edit func(top, servers *jsonObject) (json.RawMessage, bool, error)) (MCPConfigChange, error) {
+	return editMCPConfigDoc(client, func(top, servers *jsonObject) (json.RawMessage, bool, error) {
+		// A config in opencode 2's own layout is edited there, not beside it.
+		target := servers
+		native, nested := jsonObject{}, false
+		flat := false
+		if client == MCPClientOpenCode {
+			// A flat server beside mcp.servers is edited where it is.
+			native, nested = openCodeNativeServers(*servers)
+			if raw, ok := servers.vals[name]; ok {
+				flat = name != "servers" && (name != "timeout" || isOpenCodeServerJSON(raw))
+			}
+			_, inNative := native.vals[name]
+			if nested && (inNative || !flat) {
+				target = &native
+			}
+		}
+		existing, changed, err := edit(top, target)
+		if err != nil || !changed {
+			return existing, changed, err
+		}
+		// Drop any shadowed flat duplicate when editing/removing the nested entry.
+		if target == &native && flat {
+			servers.del(name)
+		}
+		if nested {
+			servers.set("servers", native.marshal())
+		}
+		return existing, true, nil
+	})
+}
+
+func editMCPConfigDoc(client string, edit func(top, servers *jsonObject) (json.RawMessage, bool, error)) (MCPConfigChange, error) {
 	path, err := MCPConfigPath(client)
 	if err != nil {
 		return MCPConfigChange{}, err
@@ -662,36 +753,14 @@ func editMCPConfig(client, name string, edit func(top, servers *jsonObject) (jso
 	if _, ok := top.vals[key]; !ok {
 		top.set(key, json.RawMessage(`{}`))
 	}
-	// A config in opencode 2's own layout is edited there, not beside it.
-	target := &servers
-	native, nested := jsonObject{}, false
-	flat := false
-	if client == MCPClientOpenCode {
-		// A flat server beside mcp.servers is edited where it is.
-		native, nested = openCodeNativeServers(servers)
-		if raw, ok := servers.vals[name]; ok {
-			flat = name != "servers" && (name != "timeout" || isOpenCodeServerJSON(raw))
-		}
-		_, inNative := native.vals[name]
-		if nested && (inNative || !flat) {
-			target = &native
-		}
-	}
 	before := compactJSON(top.marshal())
-	existing, changed, err := edit(&top, target)
+	existing, changed, err := edit(&top, &servers)
 	if err != nil {
 		return ch, fmt.Errorf("%s: %w", ch.Path, err)
 	}
 	ch.Existing = existing
 	if !changed {
 		return ch, nil
-	}
-	// Drop any shadowed flat duplicate when editing/removing the nested entry.
-	if target == &native && flat {
-		servers.del(name)
-	}
-	if nested {
-		servers.set("servers", native.marshal())
 	}
 	top.set(key, servers.marshal())
 	// Unchanged is no write, so the backup of the last real change stays.

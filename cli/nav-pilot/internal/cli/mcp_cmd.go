@@ -23,10 +23,12 @@ import (
 	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
 )
 
-// nav-pilot mcp list|enable|disable: the MCP servers in Nav's registry, what
-// the user's clients have configured, and what stands between a configured
-// server and a working one under cplt. list only reads. enable and disable
-// are the only paths that write a client config, and only the one asked for.
+// nav-pilot mcp list|enable|disable|prune: the MCP servers in Nav's registry,
+// what the user's clients have configured, and what stands between a
+// configured server and a working one under cplt. list only reads. enable,
+// disable and prune are the only paths that write a client config: enable and
+// disable only the one asked for, prune only registry-named entries the
+// registry no longer lists.
 
 // Test seams.
 var (
@@ -55,7 +57,7 @@ func mcpNoteStale(stale error) {
 func cmdMCP(args []string) error {
 	mcpLoginStates = map[string]string{} // one probe per run
 	var client string
-	var jsonOut bool
+	var jsonOut, dryRun, yes bool
 	var pos []string
 	var topts mcpToolOpts
 	toolFlag := false
@@ -63,6 +65,10 @@ func cmdMCP(args []string) error {
 		switch a := args[i]; a {
 		case "--json":
 			jsonOut = true
+		case "-n", "--dry-run":
+			dryRun = true
+		case "-y", "--yes":
+			yes = true
 		case "--tools":
 			if i+1 >= len(args) {
 				return fmt.Errorf("--tools requires a comma-separated list of tool names")
@@ -107,6 +113,9 @@ func cmdMCP(args []string) error {
 	if toolFlag && pos[0] != "enable" {
 		return errMCPToolsFlag
 	}
+	if (dryRun || yes) && pos[0] != "prune" {
+		return fmt.Errorf("--dry-run and --yes are only for mcp prune")
+	}
 	if topts.all && topts.tools != nil {
 		return fmt.Errorf("--tools and --all-tools: pick one")
 	}
@@ -116,6 +125,14 @@ func cmdMCP(args []string) error {
 			return fmt.Errorf("mcp list takes no arguments\n\n%s", mcpUsage)
 		}
 		return cmdMCPList(jsonOut)
+	case "prune":
+		if len(pos) > 1 {
+			return fmt.Errorf("mcp prune takes no arguments\n\n%s", mcpUsage)
+		}
+		if jsonOut {
+			return fmt.Errorf("--json is for mcp list and mcp enable")
+		}
+		return cmdMCPPrune(client, dryRun, yes)
 	case "enable", "disable":
 		// Only the servers named: never all of them by omission.
 		if len(pos) < 2 {
@@ -142,6 +159,7 @@ func cmdMCP(args []string) error {
 const mcpUsage = `Usage: nav-pilot mcp [list] [--json]
        nav-pilot mcp enable <name>... [--client copilot|opencode] [--tools a,b | --all-tools] [--allow-host-exec] [--json]
        nav-pilot mcp disable <name>... [--client copilot|opencode]
+       nav-pilot mcp prune [--dry-run] [--yes] [--client copilot|opencode]
 
 A server cplt runs on the host gets its read tools by default.
 --all-tools, or a write tool named in --tools, also allows its writes.`
@@ -1211,4 +1229,219 @@ func fixOf(p *mcpProblem) string {
 		return ""
 	}
 	return p.Fix
+}
+
+// mcpRegistryNameRe matches the registry's reverse-DNS <namespace>/<name>
+// format, the key nav-pilot mcp enable writes. A dot in the namespace is
+// required, so short names and plain org/server keys are never matched.
+var mcpRegistryNameRe = regexp.MustCompile(`^[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)+/[a-zA-Z0-9][a-zA-Z0-9._-]*$`)
+
+// mcpPrunable is whether name looks like an entry nav-pilot wrote: the
+// registry's format, under a namespace the registry still has servers in.
+// A server the user added under any other name is never touched.
+func mcpPrunable(namespaces map[string]bool, name string) bool {
+	ns, _, ok := strings.Cut(name, "/")
+	return ok && namespaces[ns] && mcpRegistryNameRe.MatchString(name)
+}
+
+func mcpEntryWord(n int) string {
+	if n == 1 {
+		return "entry"
+	}
+	return "entries"
+}
+
+type mcpPrunePlan struct {
+	client      string
+	path        string
+	keys        []string
+	hasComments bool
+}
+
+func cmdMCPPrune(clientFlag string, dryRun, yes bool) error {
+	_, entries, stale, err := mcpRegistryServers()
+	if err != nil {
+		return fmt.Errorf("could not reach Nav's MCP registry, so nothing was changed: %w", err)
+	}
+	if len(entries) == 0 {
+		return fmt.Errorf("the MCP registry returned no servers, so nothing was changed")
+	}
+	mcpNoteStale(stale)
+
+	clients := []string{providerpkg.MCPClientCopilot, providerpkg.MCPClientOpenCode}
+	if clientFlag != "" {
+		clients = []string{clientFlag}
+	}
+
+	listed := make(map[string]bool, len(entries))
+	namespaces := map[string]bool{}
+	for _, e := range entries {
+		listed[e.Name] = true
+		if ns, _, ok := strings.Cut(e.Name, "/"); ok {
+			namespaces[ns] = true
+		}
+	}
+	conf := mcpConfigured(entries)
+
+	var plans []mcpPrunePlan
+	removable, skipped := 0, 0
+	for _, client := range clients {
+		path, fileKeys, hasComments := providerpkg.MCPConfigKeysAndComments(client)
+		if len(fileKeys) == 0 {
+			continue
+		}
+		var candidates []string
+		if client == providerpkg.MCPClientCopilot && hasComments {
+			// copilotMCPServerNames uses strict JSON, so commented files are
+			// missing from conf.CopilotOther; inspect stripped keys directly.
+			for _, k := range fileKeys {
+				if !listed[k] && mcpPrunable(namespaces, k) {
+					candidates = append(candidates, k)
+				}
+			}
+			sort.Strings(candidates)
+		} else {
+			other := conf.CopilotOther
+			if client == providerpkg.MCPClientOpenCode {
+				other = conf.OpenCodeOther
+			}
+			for _, k := range other {
+				if slices.Contains(fileKeys, k) && mcpPrunable(namespaces, k) {
+					candidates = append(candidates, k)
+				}
+			}
+		}
+		if len(candidates) == 0 {
+			continue
+		}
+		plans = append(plans, mcpPrunePlan{client: client, path: path, keys: candidates, hasComments: hasComments})
+		if hasComments {
+			skipped += len(candidates)
+		} else {
+			removable += len(candidates)
+		}
+	}
+
+	if removable == 0 && skipped == 0 {
+		fmt.Printf("%s Nothing to prune.\n", dim("•"))
+		return nil
+	}
+
+	printCommentSkip := func(p mcpPrunePlan, dry bool) {
+		quoted := make([]string, len(p.keys))
+		for i, k := range p.keys {
+			quoted[i] = fmt.Sprintf("%q", safe(k, 64))
+		}
+		verb := "did"
+		if dry {
+			verb = "would"
+		}
+		fmt.Printf("%s %s has comments or trailing commas, so nav-pilot %s not change it; remove %s from it yourself\n",
+			yellow("⚠"), p.path, verb, strings.Join(quoted, ", "))
+	}
+
+	if dryRun {
+		for _, p := range plans {
+			if p.hasComments {
+				continue
+			}
+			for _, k := range p.keys {
+				fmt.Printf("%s Would remove %s for %s in %s\n", dim("•"), bold(safe(k, 64)), p.client, p.path)
+			}
+		}
+		for _, p := range plans {
+			if p.hasComments {
+				printCommentSkip(p, true)
+			}
+		}
+		switch {
+		case removable > 0 && skipped > 0:
+			fmt.Printf("Dry run: would remove %d %s, skip %d in commented file(s).\n", removable, mcpEntryWord(removable), skipped)
+		case removable > 0:
+			fmt.Printf("Dry run: would remove %d %s.\n", removable, mcpEntryWord(removable))
+		default:
+			fmt.Printf("Dry run: nothing would be changed; %d %s skipped in commented file(s).\n", skipped, mcpEntryWord(skipped))
+		}
+		return nil
+	}
+
+	if removable == 0 {
+		for _, p := range plans {
+			printCommentSkip(p, false)
+		}
+		fmt.Printf("Removed 0 entries; skipped %d %s in commented file(s).\n", skipped, mcpEntryWord(skipped))
+		return nil
+	}
+
+	commentedPrinted := false
+	if !yes {
+		for _, p := range plans {
+			if p.hasComments {
+				continue
+			}
+			for _, k := range p.keys {
+				fmt.Printf("  %s %s (%s, %s)\n", dim("•"), safe(k, 64), p.client, p.path)
+			}
+		}
+		for _, p := range plans {
+			if p.hasComments {
+				printCommentSkip(p, false)
+				commentedPrinted = true
+			}
+		}
+		if !isInteractive() {
+			return fmt.Errorf("without a terminal to ask, pass --yes to remove %d %s (or --dry-run to preview)", removable, mcpEntryWord(removable))
+		}
+		if !mcpAsk(fmt.Sprintf("Remove %d MCP %s no longer in Nav's MCP registry?", removable, mcpEntryWord(removable))) {
+			fmt.Println(dim("Cancelled. Nothing was changed."))
+			return nil
+		}
+	}
+
+	removedCount, failed := 0, 0
+	var backups []string
+	for _, p := range plans {
+		if p.hasComments {
+			if !commentedPrinted {
+				printCommentSkip(p, false)
+			}
+			continue
+		}
+		removedKeys, ch, err := providerpkg.RemoveMCPServers(p.client, p.keys)
+		if errors.Is(err, providerpkg.ErrMCPConfigHasComments) {
+			skipped += len(p.keys)
+			printCommentSkip(p, false)
+			continue
+		}
+		if err != nil {
+			mcpFail(p.client, err)
+			failed++
+			continue
+		}
+		for _, k := range removedKeys {
+			fmt.Printf("%s Removed %s for %s in %s\n", green("✓"), bold(safe(k, 64)), p.client, ch.Path)
+			removedCount++
+		}
+		if ch.Backup != "" {
+			backups = append(backups, ch.Backup)
+		}
+	}
+
+	if removedCount > 0 {
+		dropMCPHosts()
+	}
+
+	summary := fmt.Sprintf("Removed %d %s", removedCount, mcpEntryWord(removedCount))
+	if skipped > 0 {
+		summary += fmt.Sprintf("; skipped %d in commented file(s)", skipped)
+	}
+	if len(backups) > 0 {
+		summary += fmt.Sprintf(" (previous file(s): %s)", strings.Join(backups, ", "))
+	}
+	fmt.Println(summary + ".")
+
+	if failed > 0 {
+		return fmt.Errorf("%d client config(s) could not be changed", failed)
+	}
+	return nil
 }
