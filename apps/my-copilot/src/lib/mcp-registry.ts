@@ -8,6 +8,7 @@ const MCP_REGISTRY_PUBLIC_URL = process.env.MCP_REGISTRY_PUBLIC_URL || MCP_REGIS
 interface ServerResponse {
   server: {
     name: string;
+    title?: string;
     description: string;
     version: string;
     websiteUrl?: string;
@@ -102,7 +103,7 @@ async function fetchMcpServers(): Promise<McpServerCustomization[]> {
         const hasLaunchRecipe = Boolean(s.server.remotes?.length || s.server.packages?.length);
         return {
           id: `mcp-${s.server.name}`,
-          name: formatServerName(s.server.name),
+          name: s.server.title || formatServerName(s.server.name),
           serverId: s.server.name,
           description: s.server.description,
           type: "mcp" as const,
