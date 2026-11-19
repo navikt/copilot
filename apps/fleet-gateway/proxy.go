@@ -86,6 +86,8 @@ func newHardenedProxyClient(headerTimeout time.Duration) *http.Client {
 			TLSHandshakeTimeout:   5 * time.Second,
 			ResponseHeaderTimeout: headerTimeout,
 			IdleConnTimeout:       90 * time.Second,
+			// Go's default is 10 MiB, outside the in-flight memory budget.
+			MaxResponseHeaderBytes: 64 << 10,
 		},
 		CheckRedirect: func(*http.Request, []*http.Request) error {
 			return errors.New("redirects refused")
@@ -528,10 +530,13 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 		// Bind only ids the upstream issued on a successful response (MCP streamable HTTP).
 		// A client-supplied id is never bound; an unbound one passes through for stateless upstreams.
 		// A DELETE ends the session, so an id echoed on its response is not bound again.
-		if resp.StatusCode < 300 && r.Method != http.MethodDelete {
-			for _, id := range resp.Header.Values("Mcp-Session-Id") {
-				if id != "" && len(id) <= maxMCPSessionIDBytes {
-					bindMCPSession(id)
+		// The binding waits until the reply is accepted, so a 502 below leaves none.
+		bindUpstreamSessions := func() {
+			if resp.StatusCode < 300 && r.Method != http.MethodDelete {
+				for _, id := range resp.Header.Values("Mcp-Session-Id") {
+					if id != "" && len(id) <= maxMCPSessionIDBytes {
+						bindMCPSession(id)
+					}
 				}
 			}
 		}
@@ -548,6 +553,7 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 				})
 				return
 			}
+			bindUpstreamSessions()
 			releaseSlot()
 			// Drop references to the buffered request body (up to 1 MiB) before
 			// streaming so long-lived SSE connections do not pin it on the heap
@@ -623,6 +629,7 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 			return
 		}
 
+		bindUpstreamSessions()
 		copyAllowlistedHeaders(w.Header(), resp.Header, allowedUpstreamResponseHeaders)
 		w.WriteHeader(resp.StatusCode)
 		for _, chunk := range respBody {
@@ -970,7 +977,10 @@ func connectionHeaderTokens(h http.Header) map[string]bool {
 func acceptsEventStream(h http.Header) bool {
 	for _, v := range h.Values("Accept") {
 		for _, part := range strings.Split(v, ",") {
-			mt, _, err := mime.ParseMediaType(strings.TrimSpace(part))
+			mt, params, err := mime.ParseMediaType(strings.TrimSpace(part))
+			if q, qerr := strconv.ParseFloat(params["q"], 64); qerr == nil && q == 0 {
+				continue // q=0 means "not acceptable"
+			}
 			if err == nil && (mt == "text/event-stream" || mt == "text/*" || mt == "*/*") {
 				return true
 			}
@@ -1140,7 +1150,7 @@ func auditField(s string) string {
 // that only reads as tools/call once control characters or spaces are dropped.
 func rpcMethodTool(rawMethod, params json.RawMessage) (method, tool string, ambiguous bool) {
 	_ = json.Unmarshal(rawMethod, &method)
-	if sanitizeAuditMethod(method) != "tools/call" {
+	if !strings.EqualFold(sanitizeAuditMethod(method), "tools/call") {
 		return method, "", false
 	}
 	if method != "tools/call" {
