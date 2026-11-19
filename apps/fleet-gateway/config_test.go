@@ -2,8 +2,6 @@ package main
 
 import (
 	"fmt"
-	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -143,36 +141,6 @@ func TestLoadConfig_FailClosed(t *testing.T) {
 				t.Fatalf("expected error containing %q, got %v", tt.wantError, err)
 			}
 		})
-	}
-}
-
-func TestHardenedHTTPClient_RefusesRedirectsAndTimesOut(t *testing.T) {
-	redirectServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "/other", http.StatusFound)
-	}))
-	defer redirectServer.Close()
-
-	client := newHardenedHTTPClient(100 * time.Millisecond)
-	resp1, err := client.Get(redirectServer.URL)
-	if resp1 != nil {
-		_ = resp1.Body.Close()
-	}
-	if err == nil {
-		t.Fatal("expected redirect to be refused")
-	}
-
-	slowServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		time.Sleep(300 * time.Millisecond)
-		w.WriteHeader(http.StatusOK)
-	}))
-	defer slowServer.Close()
-
-	resp2, err := client.Get(slowServer.URL)
-	if resp2 != nil {
-		_ = resp2.Body.Close()
-	}
-	if err == nil {
-		t.Fatal("expected slow request to time out")
 	}
 }
 

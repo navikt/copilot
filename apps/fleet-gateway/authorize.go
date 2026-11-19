@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/navikt/copilot/fleet-gateway/internal/config"
 	"io"
 	"log/slog"
 	"net"
@@ -236,7 +237,7 @@ func (g *Gateway) fetchCIMD(ctx context.Context, clientID string) (*clientMetada
 		return stale.doc, nil
 	}
 
-	if err := validateHTTPURL(clientID, false); err != nil {
+	if err := config.ValidateHTTPURL(clientID, false); err != nil {
 		return nil, fmt.Errorf("invalid client_id URL: %w", err)
 	}
 
@@ -425,7 +426,7 @@ func (g *Gateway) entraAuthorizeEndpoint(ctx context.Context) (string, error) {
 		if err := json.NewDecoder(io.LimitReader(resp.Body, maxCIMDBodyBytes)).Decode(&metadata); err != nil {
 			return "", fmt.Errorf("decode well-known: %w", err)
 		}
-		if err := validateHTTPURL(metadata.AuthorizationEndpoint, false); err != nil {
+		if err := config.ValidateHTTPURL(metadata.AuthorizationEndpoint, false); err != nil {
 			return "", fmt.Errorf("invalid authorization_endpoint in well-known: %w", err)
 		}
 

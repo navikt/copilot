@@ -6,6 +6,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/navikt/copilot/fleet-gateway/internal/config"
 	"io"
 	"log/slog"
 	"net"
@@ -597,7 +598,7 @@ func main() {
 
 	routesLoaded.Set(float64(len(cfg.Routes)))
 	initMetrics(cfg.Routes)
-	metrics := metricsServer(":" + getEnv("METRICS_PORT", "9090"))
+	metrics := metricsServer(":" + config.Get("METRICS_PORT", "9090"))
 	go func() {
 		if err := metrics.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			slog.Error("Metrics server failed", "error", err)
