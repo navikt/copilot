@@ -773,6 +773,22 @@
     },
     {
       "type": "skill",
+      "name": "mcp-server-authoring",
+      "displayName": "mcp-server-authoring",
+      "description": "Skriv og registrer MCP-servere bak fleet-gateway: verktøydesign, Texas-auth, effektivitet, ROS og OWASP MCP Top 10",
+      "filePath": "skills/mcp-server-authoring/SKILL.md",
+      "contentHash": "b5708cfdcc45503ee4ec927aab6632390971d7c943663909a29e8d41d94b1908",
+      "installUrl": "",
+      "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/mcp-server-authoring/SKILL.md",
+      "references": [
+        {
+          "path": "NOTICE",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/mcp-server-authoring/NOTICE"
+        }
+      ]
+    },
+    {
+      "type": "skill",
       "name": "nais",
       "displayName": "nais",
       "description": "Nais-deployment, GCP-ressurser, pod-lifecycle og feilsøking på plattformen",
