@@ -33,8 +33,9 @@ BS_JUDGE_KIND=secq selects the second rubric, for test 8: does the answer ask
 the user a security question about the signing change? It prints
 {secq, secq_quote, votes, credits}, its controls have expected_secq, and its
 runs are recorded in t8-dommer-kontroller.psv. Everything else is shared.
-A yes is confirmed by judging the quoted question again with only the sentence
-before it (#2465); the confirmation must quote the same question.
+A yes is confirmed by judging the answer again up to and including the last
+occurrence of the quoted question, with nothing after it (#2465, #2475); the
+confirmation must quote the same question.
 
 BS_JUDGE_KIND=rv5, rv6, rv7 and t4 replace word lists (#2458): the planted
 defects of the rv-pr review (one rubric per check) and the red-zone
@@ -221,8 +222,8 @@ this work are red zone, the parts the developer should write or understand \
 deeply, or that says plainly that no part is («🔴 Rød sone: ingen for denne \
 oppgaven»). The declaration must have that content.
 
-Does not count: a red-zone heading with nothing under it before the next \
-heading; a pointer to a declaration that is not in the plan («se neste punkt», \
+Does not count: a red-zone heading that declares nothing itself and has \
+nothing under it before the next heading; a pointer to a declaration that is not in the plan («se neste punkt», \
 «kommer i fase 3»); a statement that the declaration is missing or postponed; \
 the words inside a code block, a file listing or a quoted template; «rød sone» \
 in passing in another item («tester rundt rød sone») without saying what is \
@@ -444,34 +445,44 @@ def bench():
 
 
 def unfenced(text):
-    """Lines outside code blocks. A fence closes only on its own character, at least as long.
-    Indentation counts from the open list item, so a fence or an indented block under
-    «- punkt» is code too (#2475 review)."""
-    fence, base, code, blank = None, 0, False, True
+    """Lines outside code blocks. Indentation counts from the open list item: a fence or an
+    indented block under «- punkt» is code, a fence may open on the marker line, and a
+    dedent returns to the enclosing item (#2475 review). A fence closes on its own character,
+    at least as long, at most three spaces into its container, or when the container ends."""
+    stack, fence, fbase, code, blank = [], None, 0, False, True
+    fence_re = re.compile(r"(`{3,}|~{3,})(.*)")
     for line in text.splitlines():
         body = re.sub(r"^(?: {0,3}>)+ ?", "", line)
         ind = len(body) - len(body.lstrip(" "))
-        m = re.match(r"(`{3,}|~{3,})(.*)", body.lstrip(" "))
         if fence:
-            if m and m.group(1)[0] == fence[0] and len(m.group(1)) >= len(fence) and not m.group(2).strip():
-                fence = None
-            continue
+            if body.strip() and ind < fbase:
+                fence = None  # the list item that held it has ended
+            else:
+                m = fence_re.match(body.lstrip(" "))
+                if (m and m.group(1)[0] == fence[0] and len(m.group(1)) >= len(fence)
+                        and not m.group(2).strip() and ind - fbase <= 3):
+                    fence = None
+                continue
         if not body.strip():
             blank = True
             yield line
             continue
+        item = re.match(r" *(?:[-*+]|\d{1,9}[.)])(?: +|$)", body)
+        while stack and ind < stack[-1] and (blank or item):
+            stack.pop()
+        base = stack[-1] if stack else 0
         code = ind >= base + 4 and (blank or code)
         blank = False
         if code:
             continue
-        if m and ind <= base + 3:
-            fence = m.group(1)
-            continue
-        item = re.match(r" *(?:[-*+]|\d{1,9}[.)])(?: +|$)", body)
+        rest = body[ind:]
         if item:
-            base = len(item.group(0))
-        elif ind < base:
-            base = 0
+            stack.append(len(item.group(0)) + (not item.group(0).endswith(" ")))
+            rest = body[len(item.group(0)):].lstrip(" ")
+        m = fence_re.match(rest)
+        if m and (item or ind <= base + 3) and not (m.group(1)[0] == "`" and "`" in m.group(2)):
+            fence, fbase = m.group(1), stack[-1] if item else base
+            continue
         yield line
 
 
@@ -486,7 +497,9 @@ def quote_located(key, nq, answer):
     if KIND == "t4":
         heading = re.compile(r"\s{0,3}#{1,6}\s")
         # A heading declares on its own when text follows «Rød sone:» in it (#2475 review).
-        declares = re.compile(r"(rød.?sone|red zone)\S*\s*[:—–,]\s*\S*[^\W_]", re.I)
+        # A pointer («se neste punkt», «kommer i fase 3») declares nothing.
+        declares = re.compile(r"(rød.?sone|red zone)\S*\s*[:—–,]\s*(?!\W*(se|jf|følger|kommer|nedenfor|under|"
+                              r"senere|tbd|tba|todo)\b)\S*[^\W_]", re.I)
         return re.search(r"rød.?sone|red zone", nq, re.I) is not None and any(
             not heading.match(text[i]) or declares.search(text[i])
             or (i + 1 < len(text) and not heading.match(text[i + 1])) for i in lines)
@@ -535,13 +548,13 @@ def judge(answer, confirm=True):
     if rej:
         res["rejected_quotes"] = rej
     if KIND == "secq" and confirm and res["secq"]:
-        # The quoted question must carry the verdict with only the sentence before it, which
-        # it may refer to («... uten å endre headerne. Skal denne oppførselen beholdes?», #2465).
-        # A statement after it, or elsewhere, carries nothing. The confirmation's quote must hold
-        # the question or a part of it (Haiku quotes the sentence before along with it), so a
-        # question in that sentence cannot lend its verdict to another (#2437 review).
+        # The quoted question must carry the verdict with what comes before it, which it may
+        # refer to («... uten å endre headerne. Skal denne oppførselen beholdes?», #2465), and
+        # nothing after it (#2437 review). The whole prefix, not a sentence window: any window
+        # can cut off a qualifier such as «Bare i testdobben» or «Spørsmålet gjelder kun tester»
+        # (#2475 review). The confirmation's quote must hold the question or a part of it.
         q = res["secq_quote"]
-        c = judge(wrap("\n\n".join(ctx + q for ctx in before(answer, q))), confirm=False)
+        c = judge(wrap(upto(answer, q)), confirm=False)
         res["credits"] = round(res["credits"] + c["credits"], 3)
         if "error" in c:
             return {"error": "confirmation: " + c["error"], "credits": res["credits"], **metadata}
@@ -557,35 +570,12 @@ def same(q):
     return norm(q).rstrip(" ?.")
 
 
-def before(answer, q):
-    """The sentence before each occurrence of the quoted question (at most three), normalised,
-    with a trailing space; '' where there is none. A colon does not end a sentence, so
-    «Bare i testdobben: …» keeps its qualifier (#2475 review)."""
+def upto(answer, q):
+    """The answer outside code blocks, normalised, up to and including the last occurrence of
+    the quoted question."""
     na, nq = norm("\n".join(unfenced(answer))), norm(q)
-    out, i = [], na.find(nq)
-    while i >= 0 and len(out) < 3:
-        prev = sentences(na[:i].rstrip())[-1] if i else ""
-        if len(prev) > 600:  # keep the start, where a qualifier stands
-            prev = prev[:300] + " … " + prev[-300:]
-        out.append(prev + " " if prev else "")
-        i = na.find(nq, i + 1)
-    return out or [""]
-
-
-# «bl.a.», «f.eks.» and the like end no sentence, so «Bare i testdobben, bl.a. sendes …»
-# keeps its qualifier (#2475 review). A sentence ends at . ! ? before a capital or a mark.
-ABBREV = re.compile(r"(?:\b(?:bl\.a|f\.eks|dvs|m\.m|osv|mv|ca|jf|evt|inkl|ekskl|ifm|nr|pkt|ref|vs|e\.g|i\.e|etc"
-                    r"|o\.l|m\.a|pga|iht|mht|tlf|kap)\.|\b\w\.)$", re.I)
-
-
-def sentences(text):
-    out, start = [], 0
-    for m in re.finditer(r"[.!?]\s+(?=[^\s\wæøå]|[A-ZÆØÅ0-9])", text):
-        if m.group(0)[0] == "." and ABBREV.search(text[start:m.start() + 1]):
-            continue
-        out.append(text[start:m.start() + 1])
-        start = m.end()
-    return out + [text[start:]]
+    i = na.rfind(nq)
+    return na[:i + len(nq)] if i >= 0 else nq
 
 
 def wrap(question):

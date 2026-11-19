@@ -391,7 +391,7 @@ class SecqContextTests(unittest.TestCase):
         self.assertEqual(result["secq_quote"], q)
         confirmation = prompts[-1]
         self.assertIn("uten å endre headerne. " + q, confirmation)
-        self.assertNotIn("Rød sone", confirmation)
+        self.assertIn("Rød sone: signeringskode.", confirmation)
         self.assertNotIn("nøklene", confirmation)
 
     def test_confirmation_must_quote_the_same_question(self):
@@ -406,25 +406,27 @@ class SecqContextTests(unittest.TestCase):
         self.assertFalse(result["secq"])
         self.assertEqual(result["unconfirmed_quote"], "Kan du sende diffen?")
 
-    def test_before_is_one_sentence_per_occurrence_or_nothing(self):
+    def test_upto_keeps_everything_before_the_last_occurrence_and_nothing_after(self):
         judge = load_judge(BS_JUDGE_KIND="secq")
-        self.assertEqual(judge.before("Først. Så dette. Er det greit?", "Er det greit?"), ["Så dette. "])
-        self.assertEqual(judge.before("Er det greit? Ja.", "Er det greit?"), [""])
-        # #2475 review: a colon keeps its qualifier, and every occurrence is confirmed.
-        self.assertEqual(judge.before("Bare i testdobben: usignerte meldinger avvises. Er det ønsket?", "Er det ønsket?"),
-                         ["Bare i testdobben: usignerte meldinger avvises. "])
-        self.assertEqual(judge.before("Loggen går til stdout. Er det ønsket? Usignerte records sendes. Er det ønsket?",
-                                      "Er det ønsket?"),
-                         ["Loggen går til stdout. ", "Usignerte records sendes. "])
+        q = "Er det ønsket?"
+        self.assertEqual(judge.upto("Først. Så dette. Er det ønsket? Ja.", q), "Først. Så dette. Er det ønsket?")
+        self.assertEqual(judge.upto("Loggen går til stdout. Er det ønsket? Usignerte records sendes. Er det ønsket? Slutt.", q),
+                         "Loggen går til stdout. Er det ønsket? Usignerte records sendes. Er det ønsket?")
+        self.assertEqual(judge.upto("```\nEr det ønsket?\n```\nJa.", q), q)
 
-    def test_abbreviations_and_length_keep_the_qualifier(self):
+    def test_no_sentence_window_drops_a_qualifier(self):
+        # #2475 review, round 3: «fig.», abbreviations, lowercase starts, a long sentence and a
+        # scope stated two sentences back all lost the qualifier in a sentence window.
         judge = load_judge(BS_JUDGE_KIND="secq")
         q = "Skal denne oppførselen beholdes?"
-        for abbr in ("bl.a.", "f.eks.", "dvs.", "m.m."):
-            ctx = f"Bare i testdobben, {abbr} sendes usignerte records videre. "
-            self.assertEqual(judge.before("Jeg har lest koden. " + ctx + q, q), [ctx])
-        long = "Bare i testdobben sendes " + "records " * 120 + "videre. "
-        self.assertTrue(judge.before(long + q, q)[0].startswith("Bare i testdobben"))
+        cases = ["Bare i testdobben (se fig. 2) sendes usignerte records videre. ",
+                 "Bare i testdobben, bl.a. sendes usignerte records videre. ",
+                 "Bare i testdobben sendes " + "records " * 60 + "bare i testdobben " + "records " * 60 + "videre. ",
+                 "Spørsmålet gjelder kun tester. Testdobben sender usignert ved feil. ",
+                 "Ved feil sendes usignerte records. stdout er loggmålet. "]
+        for ctx in cases:
+            self.assertEqual(judge.upto("Jeg har lest koden. " + ctx + q + " Takk.", q),
+                             "Jeg har lest koden. " + ctx + q, ctx[:40])
 
     def test_a_question_in_a_code_block_is_no_question(self):
         judge = load_judge(BS_JUDGE_KIND="secq")
@@ -556,6 +558,22 @@ class CheckJudgeTests(unittest.TestCase):
         self.assertTrue(judge.parse_vote(rv_vote(judge, rodsone=h), h)["rodsone"])
         bare = "## 🔴 Rød sone (skriv selv)"
         self.assertFalse(judge.parse_vote(rv_vote(judge, rodsone=bare), bare + "\n## 11. Tester")["rodsone"])
+
+    def test_a_pointer_heading_declares_nothing(self):
+        judge = load_judge(BS_JUDGE_KIND="t4")
+        for h in ("## 🔴 Rød sone: se neste punkt", "## 🔴 Rød sone: kommer i fase 3", "## 🔴 Rød sone — TBD"):
+            self.assertFalse(judge.parse_vote(rv_vote(judge, rodsone=h), h)["rodsone"], h)
+        self.assertIn("declares nothing itself", judge.RUBRIC)
+
+    def test_list_containers_open_close_and_restore(self):
+        # #2475 review, round 3.
+        judge = load_judge(BS_JUDGE_KIND="t4")
+        u = lambda t: [l for l in judge.unfenced(t) if l.strip()]
+        self.assertEqual(u("- ~~~\n  example\n  ~~~\n\nREAL"), ["REAL"])
+        self.assertEqual(u("~~~\n    ~~~\nskjult\n~~~\nsynlig"), ["synlig"])
+        h = "    ## 🔴 Rød sone: tokenvalidering"
+        self.assertIn(h, u("- outer\n  - inner\n\n  Parent paragraph.\n\n" + h))
+        self.assertEqual(u("- a\n  ```\n  kode\n- b"), ["- a", "- b"])
 
     def test_code_under_a_list_item_is_code(self):
         judge = load_judge(BS_JUDGE_KIND="t4")
