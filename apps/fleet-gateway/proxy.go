@@ -497,11 +497,13 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 			if found {
 				return // already ours; skipping keeps the per-user count exact
 			}
-			// shortcut: Get+Put on the counter is not atomic across pods, so the cap is approximate; fine as defence in depth.
+			// Count live rows: a counter drifted when session rows expired without decrementing.
+			// shortcut: count-then-put is not atomic across pods, so the cap is approximate; fine as defence in depth.
 			userKey := g.mcpSessionUserKey(sess.NAVIdent)
-			count := 0
-			if raw, ok, cntErr := g.store.Get(r.Context(), kindMCPSessionUser, userKey); cntErr == nil && ok {
-				count, _ = strconv.Atoi(string(raw))
+			count, cntErr := g.store.CountPrefix(r.Context(), kindMCPSessionUser, userKey+":")
+			if cntErr != nil {
+				slog.Warn("mcp session bind skipped: count failed", "route", route.Route, "error", cntErr)
+				return
 			}
 			if count >= g.cfg.MCPSessionUserCap {
 				slog.Warn("mcp session bind skipped: per-user cap reached", "route", route.Route, "navident", sanitizeLogValue(navIdent))
@@ -511,20 +513,17 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 				slog.Warn("mcp session bind failed", "route", route.Route, "error", putErr)
 				return
 			}
-			_ = g.store.Put(r.Context(), kindMCPSessionUser, userKey, []byte(strconv.Itoa(count+1)), mcpSessionTTL)
+			_ = g.store.Put(r.Context(), kindMCPSessionUser, userKey+":"+key, []byte("1"), mcpSessionTTL)
 		}
 		// A terminated session frees its binding and the user's slot under the cap.
 		if r.Method == http.MethodDelete && ownsReqSession && resp.StatusCode < 300 {
 			// Pop, not Delete: only the request that removed the binding frees the slot,
 			// so concurrent DELETEs of one session cannot decrement twice.
-			userKey := g.mcpSessionUserKey(sess.NAVIdent)
-			if _, removed, delErr := g.store.Pop(r.Context(), kindMCPSession, route.Route+"\n"+reqSessionID); delErr != nil {
+			key := route.Route + "\n" + reqSessionID
+			if _, removed, delErr := g.store.Pop(r.Context(), kindMCPSession, key); delErr != nil {
 				slog.Warn("mcp session unbind failed", "route", route.Route, "error", delErr)
-			} else if raw, ok, cntErr := g.store.Get(r.Context(), kindMCPSessionUser, userKey); removed && cntErr == nil && ok {
-				// shortcut: same non-atomic Get+Put as bindMCPSession; the cap stays approximate.
-				if count, _ := strconv.Atoi(string(raw)); count > 0 {
-					_ = g.store.Put(r.Context(), kindMCPSessionUser, userKey, []byte(strconv.Itoa(count-1)), mcpSessionTTL)
-				}
+			} else if removed {
+				_ = g.store.Delete(r.Context(), kindMCPSessionUser, g.mcpSessionUserKey(sess.NAVIdent)+":"+key)
 			}
 		}
 		// Bind only ids the upstream issued on a successful response (MCP streamable HTTP).
@@ -922,6 +921,10 @@ func mcpHeadersValid(h http.Header) bool {
 // audited body. The body is the truth; the headers only feed this audit field.
 // Mcp-Name is compared for tools/call only, where the audit has the tool name.
 // Headers are compared with the raw body values, never the quoted audit form.
+// Only POST is checked: GET and DELETE carry no body (one is rejected above),
+// so there is nothing for the headers to disagree with. Mcp-Method and Mcp-Name
+// are forwarded either way and never decide policy, so a Connection-listed
+// Mcp-* header on those methods changes no decision and needs no audit flag.
 func mcpHeadersMismatch(h http.Header, a rpcAudit) bool {
 	if m := h.Get("Mcp-Method"); m != "" && decodeMCPHeaderValue(m) != a.rawMethod {
 		return true
