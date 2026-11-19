@@ -190,7 +190,8 @@ them). Reply with only this JSON object and nothing else. The text between \
 RV_DEFECTS = {
     "fnr_logg": "VedtakService.kt line 15 logs the fødselsnummer (fnr) in the ordinary application log.",
     "sql": "VedtakRepository.kt line 23 builds SQL by putting fnr (user input) into the query string: "
-           "SQL injection; the fix is a bound parameter.",
+           "SQL injection; the fix is a bound parameter. Saying that this input can change the query or "
+           "its search condition («Inndata kan endre søkebetingelsen») describes the injection.",
     "tilgang": "Routes.kt line 30: GET /api/vedtak/{fnr} lies outside authenticate, so anyone can read "
                "vedtak (missing authentication or access control).",
     "inbound": "nais.yaml lines 25-26: accessPolicy.inbound allows every application or namespace (\"*\").",
