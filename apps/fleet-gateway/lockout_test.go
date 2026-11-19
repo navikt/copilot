@@ -265,6 +265,88 @@ func TestLockout_Postgres(t *testing.T) {
 	}
 }
 
+func TestLockout_Undo(t *testing.T) {
+	ctx := context.Background()
+	rtKeys := "k1:" + testKeyBase64(t, false)
+	te := newClientEncryptedTestEnv(t, rtKeys)
+
+	issuedBefore := te.now
+	tokBefore, rtBefore, _ := te.obtainTokensForResource(te.resource)
+
+	if _, err := te.gw.lockOutUser(ctx, te.navIdent, "op1"); err != nil {
+		t.Fatalf("lockOutUser: %v", err)
+	}
+	if revoked, err := te.gw.userRevoked(ctx, te.navIdent, issuedBefore); err != nil || !revoked {
+		t.Fatalf("userRevoked during lockout: revoked=%v err=%v, want true nil", revoked, err)
+	}
+
+	if err := te.gw.undoLockout(ctx, te.navIdent, "op2"); err != nil {
+		t.Fatalf("undoLockout: %v", err)
+	}
+	if revoked, err := te.gw.userRevoked(ctx, te.navIdent, issuedBefore); err != nil || revoked {
+		t.Fatalf("userRevoked after undo: revoked=%v err=%v, want false nil", revoked, err)
+	}
+	if _, ok, err := te.gw.getSession(ctx, hashToken(tokBefore)); err != nil || !ok {
+		t.Fatalf("getSession after undo: ok=%v err=%v, want true nil", ok, err)
+	}
+	status, body := te.postToken(url.Values{
+		"grant_type":    {"refresh_token"},
+		"client_id":     {te.clientID},
+		"refresh_token": {rtBefore},
+	})
+	if status != http.StatusOK || body["access_token"] == "" {
+		t.Fatalf("refresh after undo: got %d %v, want 200", status, body)
+	}
+
+	tokAfter := te.obtainAccessTokenForResource(te.resource)
+	if rec := mcpPost(te, tokAfter, ""); rec.Code != http.StatusOK {
+		t.Fatalf("new session after undo: got %d, want 200", rec.Code)
+	}
+}
+
+func TestLockout_UndoRemovesNonPrimaryRingKey(t *testing.T) {
+	ctx := context.Background()
+	keyA := "k1:" + testKeyBase64(t, false)
+	keyB := "k2:" + testKeyBase64(t, false)
+	ringBA := keyB + "," + keyA
+
+	te := newClientEncryptedTestEnv(t, keyA)
+	issuedBefore := te.now
+	tok := te.obtainAccessTokenForResource(te.resource)
+
+	if _, err := te.gw.lockOutUser(ctx, te.navIdent, "op1"); err != nil {
+		t.Fatalf("lockOutUser with keyA: %v", err)
+	}
+
+	innerStore := te.gw.store.(*sealedStore).inner
+	krBA, err := parseKeyRing(ringBA)
+	if err != nil {
+		t.Fatalf("parseKeyRing B,A: %v", err)
+	}
+	userKeysBA, err := deriveUserKeys(krBA)
+	if err != nil {
+		t.Fatalf("deriveUserKeys B,A: %v", err)
+	}
+	gwBA := &Gateway{
+		cfg:        te.gw.cfg,
+		now:        te.gw.now,
+		store:      newSealedStore(innerStore, krBA),
+		rtKeys:     krBA,
+		userKeys:   userKeysBA,
+		TeamTokens: te.gw.TeamTokens,
+	}
+
+	if err := gwBA.undoLockout(ctx, te.navIdent, "op2"); err != nil {
+		t.Fatalf("undoLockout with ring B,A: %v", err)
+	}
+	if revoked, err := te.gw.userRevoked(ctx, te.navIdent, issuedBefore); err != nil || revoked {
+		t.Fatalf("ring-A userRevoked after undo: revoked=%v err=%v, want false nil", revoked, err)
+	}
+	if _, ok, err := te.gw.getSession(ctx, hashToken(tok)); err != nil || !ok {
+		t.Fatalf("ring-A getSession after undo: ok=%v err=%v, want true nil", ok, err)
+	}
+}
+
 func TestRunLockout_CLIArgs(t *testing.T) {
 	if code := runLockout(nil); code == 0 {
 		t.Fatal("expected non-zero exit code for missing arg")
@@ -275,10 +357,19 @@ func TestRunLockout_CLIArgs(t *testing.T) {
 	if code := runLockout([]string{"Z123456", "extra"}); code == 0 {
 		t.Fatal("expected non-zero exit code for extra arg")
 	}
+	if code := runLockout([]string{"--undo"}); code == 0 {
+		t.Fatal("expected non-zero exit code for --undo without NAVident")
+	}
+	if code := runLockout([]string{"--undo", "a", "b"}); code == 0 {
+		t.Fatal("expected non-zero exit code for --undo with extra arg")
+	}
 
 	setBaseValidEnv(t)
 	t.Setenv("OPERATOR", "Z999999")
 	if code := runLockout([]string{" z123456 "}); code != 0 {
 		t.Fatalf("expected 0 exit code for valid lockout invocation, got %d", code)
+	}
+	if code := runLockout([]string{"--undo", " z123456 "}); code != 0 {
+		t.Fatalf("expected 0 exit code for valid lockout --undo invocation, got %d", code)
 	}
 }

@@ -544,11 +544,19 @@ func main() {
 }
 
 func runLockout(args []string) int {
-	if len(args) != 1 {
-		_, _ = fmt.Fprintln(os.Stderr, "usage: fleet-gateway lockout <NAVident>")
+	var undo bool
+	var rawIdent string
+	switch {
+	case len(args) == 1 && !strings.HasPrefix(args[0], "-"):
+		rawIdent = args[0]
+	case len(args) == 2 && args[0] == "--undo" && !strings.HasPrefix(args[1], "-"):
+		undo = true
+		rawIdent = args[1]
+	default:
+		_, _ = fmt.Fprintln(os.Stderr, "usage: fleet-gateway lockout [--undo] <NAVident>")
 		return 1
 	}
-	navIdent := strings.ToUpper(strings.TrimSpace(args[0]))
+	navIdent := strings.ToUpper(strings.TrimSpace(rawIdent))
 	if navIdent == "" {
 		_, _ = fmt.Fprintln(os.Stderr, "lockout: NAVident must not be empty")
 		return 1
@@ -579,6 +587,15 @@ func runLockout(args []string) int {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
+
+	if undo {
+		if err = gw.undoLockout(ctx, navIdent, operator); err != nil {
+			_, _ = fmt.Fprintf(os.Stderr, "lockout: %v\n", err)
+			return 1
+		}
+		_, _ = fmt.Fprintf(os.Stdout, "lockout removed user_key=%s\n", gw.userKey(navIdent)) //nolint:gosec // userKey is hex-encoded HMAC printed to CLI stdout
+		return 0
+	}
 
 	at, err := gw.lockOutUser(ctx, navIdent, operator)
 	if err != nil {

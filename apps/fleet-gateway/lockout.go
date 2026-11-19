@@ -78,8 +78,24 @@ func (g *Gateway) lockOutUser(ctx context.Context, navIdent, operator string) (t
 	if err := g.store.Put(ctx, kindUserRevoked, key, val, g.lockoutTTL()); err != nil {
 		return time.Time{}, err
 	}
-	slog.Info("audit lockout", "outcome", "ok", "user_key", key, "operator", sanitizeLogValue(operator))
+	slog.Info("audit lockout", "outcome", "ok", "action", "lock", "user_key", key, "operator", sanitizeLogValue(operator))
 	return now, nil
+}
+
+func (g *Gateway) undoLockout(ctx context.Context, navIdent, operator string) error {
+	if strings.TrimSpace(navIdent) == "" {
+		return errors.New("empty navIdent")
+	}
+	if len(g.userKeys) == 0 {
+		return errors.New("user lockout keys not initialized")
+	}
+	for _, k := range g.userKeys {
+		if err := g.store.Delete(ctx, kindUserRevoked, userKeyWith(k, navIdent)); err != nil {
+			return err
+		}
+	}
+	slog.Info("audit lockout", "outcome", "ok", "action", "undo", "user_key", g.userKey(navIdent), "operator", sanitizeLogValue(operator))
+	return nil
 }
 
 func (g *Gateway) revokedAt(ctx context.Context, navIdent string) (time.Time, bool, error) {
