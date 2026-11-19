@@ -8,6 +8,7 @@ const MCP_REGISTRY_PUBLIC_URL = process.env.MCP_REGISTRY_PUBLIC_URL || MCP_REGIS
 interface ServerResponse {
   server: {
     name: string;
+    title?: string;
     description: string;
     version: string;
     websiteUrl?: string;
