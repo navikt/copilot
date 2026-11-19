@@ -365,7 +365,8 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 				}
 				// The upstream gets these headers unchanged; one that dispatches on Mcp-Name
 				// would run a tool the allowlist never saw. MCP 2026-07-28 answers -32020.
-				if headerMismatch {
+				// Mcp-Name only has a meaning on a single complete tools/call; on a batch or any other method it is spoofing.
+				if headerMismatch || (r.Header.Get("Mcp-Name") != "" && (audit.rawMethod != "tools/call" || audit.incomplete)) {
 					decision, decisionReason = "deny", reasonHeaderMismatch
 					outcome = "tool_denied"
 					writeJSON(w, http.StatusBadRequest, map[string]any{
