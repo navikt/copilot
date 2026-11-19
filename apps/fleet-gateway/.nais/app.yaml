@@ -5,6 +5,10 @@ metadata:
   namespace: copilot
   labels:
     team: copilot
+  annotations:
+    # HAProxy cuts after 60 s by default; must exceed the gateway's 145 s WriteTimeout (#2383).
+    haproxy.org/timeout-server: "150s"
+    haproxy.org/timeout-client: "150s"
 spec:
   image: {{image}}
   port: 8080
