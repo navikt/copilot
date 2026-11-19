@@ -150,7 +150,8 @@ who may read the topic. A question that only names signing or a failure, such as
 «Kan du sende loggen når signeringen feiler?», does not count: it must ask how \
 the system should behave. Behaviour that the answer places only in tests, a \
 test double, a mock or an example is not the system's: a question about keeping \
-it does not count.
+it there does not count. A question whether the production system should behave \
+that way does count.
 
 If secq is true, quote only that question sentence, from its first word to its \
 «?» (or the end of an indirect question), exactly as it appears in the answer \
