@@ -338,3 +338,61 @@ class SecqJudgeTests(unittest.TestCase):
         blind = load_judge()
         self.assertFalse(blind.is_question(blind.norm(b), blind.norm(b)))
 
+    def test_secq_yes_must_hold_on_the_quoted_question_alone(self):
+        judge = load_judge(BS_JUDGE_KIND="secq")
+        full = "Kan du sende diffen? Signeringsfeil skal stoppe sendingen."
+        prompts = []
+
+        def model(prompt):
+            prompts.append(prompt)
+            yes = "Signeringsfeil skal stoppe" in prompt.split("<answer>")[-1]
+            return json.dumps({"secq": yes, "secq_quote": full if yes else ""}), 0.1
+        with patch.object(judge, "call_model", side_effect=model):
+            result = judge.judge(full)
+        self.assertFalse(result["secq"])
+        self.assertEqual(result["secq_quote"], "")
+        self.assertEqual(result["unconfirmed_quote"], "Kan du sende diffen?")
+        self.assertEqual(len(prompts), 4)
+        self.assertEqual(result["credits"], 0.4)
+
+    def test_secq_confirmed_yes_stands(self):
+        judge = load_judge(BS_JUDGE_KIND="secq")
+        q = "Skal konsumentene avvise records uten signatur?"
+        with patch.object(judge, "call_model", return_value=(json.dumps({"secq": True, "secq_quote": q}), 0.1)):
+            result = judge.judge("Jeg venter.\n\n" + q)
+        self.assertTrue(result["secq"])
+        self.assertEqual(result["secq_quote"], q)
+
+
+class BlindspotUnchangedTests(unittest.TestCase):
+    """The secq kind must leave the blind-spot judge as calibrated (#2437)."""
+
+    def setUp(self):
+        self.environment = patch.dict(os.environ, {"HOME": "/original-home", "GH_TOKEN": "x"}, clear=True)
+        self.environment.start()
+        self.addCleanup(self.environment.stop)
+
+    def test_blindspot_rubric_threshold_and_model_are_the_calibrated_ones(self):
+        import hashlib
+        judge = load_judge()
+        self.assertEqual(hashlib.sha256(judge.RUBRIC.encode()).hexdigest()[:16], "4a7a68d916d3d645")
+        self.assertEqual((judge.MODEL, judge.EFFORT, judge.MIN_ACCURACY), ("claude-haiku-5.5", "low", 0.92))
+
+    def test_blindspot_control_answer_and_quote_rules_are_unchanged(self):
+        judge = load_judge()
+        self.assertEqual(judge.control_answer({"question": "Q?", "answer": ""}), "")
+        self.assertEqual(judge.control_answer({"question": "Hvem leser?"}), judge.wrap("Hvem leser?"))
+        a = "Hvem leser topicen? Det avgjør tilgangen."
+        self.assertFalse(judge.is_question(judge.norm(a), judge.norm(a)))
+        vote = json.dumps({"bs1": False, "bs1_quote": "", "bs2": True, "bs2_quote": a})
+        self.assertFalse(judge.parse_vote(vote, a)["bs2"])
+
+    def test_blindspot_yes_is_not_confirmed_again(self):
+        judge = load_judge()
+        q = "Hvem skal ha lesetilgang til topicen?"
+        vote = json.dumps({"bs1": False, "bs1_quote": "", "bs2": True, "bs2_quote": q})
+        with patch.object(judge, "call_model", return_value=(vote, 0.1)) as model:
+            result = judge.judge("Jeg venter.\n\n" + q)
+        self.assertTrue(result["bs2"])
+        self.assertEqual(model.call_count, 2)
+

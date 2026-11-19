@@ -322,7 +322,7 @@ def parse_vote(text, answer):
     return out
 
 
-def judge(answer):
+def judge(answer, confirm=True):
     prompt = RUBRIC % escape_answer(answer)
     votes, credits, tries = [], 0.0, 0
     metadata = {"usage_unavailable": True} if CLIENT == "opencode" and not os.environ.get("BS_JUDGE_CMD") else {}
@@ -355,6 +355,15 @@ def judge(answer):
     rej = [v[k + "_rejected"] for v in votes for k in KEYS if k + "_rejected" in v]
     if rej:
         res["rejected_quotes"] = rej
+    if KIND == "secq" and confirm and res["secq"]:
+        # The quoted question alone must carry the verdict, or a yes resting on a
+        # statement next to an unrelated question would stand (#2437 review).
+        c = judge(wrap(res["secq_quote"]), confirm=False)
+        res["credits"] = round(res["credits"] + c["credits"], 3)
+        if "error" in c:
+            return {"error": "confirmation: " + c["error"], "credits": res["credits"], **metadata}
+        if not c["secq"]:
+            res["unconfirmed_quote"], res["secq"], res["secq_quote"] = res["secq_quote"], False, ""
     return res
 
 
@@ -363,7 +372,8 @@ def wrap(question):
 
 
 def control_answer(row):
-    if row.get("answer"):
+    # secq controls have both columns; a blind-spot file has one, as before.
+    if "answer" in row and (KIND != "secq" or row["answer"]):
         return row["answer"].replace("\\n", "\n")
     return wrap(row["question"])
 
