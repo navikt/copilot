@@ -315,6 +315,7 @@ case "$p" in
     if [[ "$BENCH_MODE" == wrongfile ]]; then row Routes.kt 15 "Logger fnr i klartekst"
     else row VedtakService.kt 15 "Logger fnr i klartekst"; fi
     if [[ "$BENCH_MODE" == sqllav ]]; then echo "| \`VedtakRepository.kt\` | 23 | 🟡 lav | SQL-injeksjon: fnr konkateneres inn i spørringen |"
+    elif [[ "$BENCH_MODE" == sqlkritisk ]]; then echo "| \`VedtakRepository.kt\` | 23 | Kritisk | SQL-injeksjon: fnr konkateneres inn i spørringen |"
     else row VedtakRepository.kt 23 "SQL-injeksjon: fnr konkateneres inn i spørringen"; fi
     row Routes.kt 30 "Ruten ligger utenfor authenticate(\"tokenx\")"
     row nais.yaml 25 "accessPolicy.inbound tillater alle applikasjoner"
@@ -730,6 +731,9 @@ run_suite() {
   run_suite sqllav "${only[@]}"
   grep -q '^rv7|1|fail|.*judge: sql=no;.*regex (raw): fail, priority: sql not marked high' "$SHIM/b-results.psv"
   grep -q '^rv5|1|pass|' "$SHIM/b-results.psv"
+  # The verdict is the judge's: here the word list passes rv7 and the stub, which reads only 🔴, does not.
+  run_suite sqlkritisk "${only[@]}"
+  grep -q '^rv7|1|fail|.*judge: sql=no;.*regex (raw): pass' "$SHIM/b-results.psv"
   run_suite invented "${only[@]}"
   grep -q '^rv8|1|fail|.*1 spurious high-priority row' "$SHIM/b-results.psv"
   run_suite lgtm "${only[@]}"
@@ -1624,7 +1628,8 @@ while [[ \$# -gt 1 ]]; do [[ "\$1" == --title ]] && printf '%s' "\$2" >"$SHIM/ti
 case "\$1" in
   *"svar kun med ordet OK"*) echo OK ;;
   *"ny tjeneste"*) printf '%s\n' "Før jeg planlegger trenger jeg svar:" "1. Hvem kaller tjenesten?" "2. Hvilke data lagres?" "3. Hva skjer når PDL er nede?" "4. Hvor lenge lagres fnr?" "5. Hvem har tilgang?" ;;
-  *) printf '%s\n' "**Fase 2: Plan.**" "🔴 Rød sone: tokenvalidering og fnr-lagring." ;;
+  *) if [[ -n "\${T4_HEADING:-}" ]]; then printf '%s\n' "**Fase 2: Plan.**" "## 10. 🔴 Rød sone" "- Tokenvalidering."
+     else printf '%s\n' "**Fase 2: Plan.**" "🔴 Rød sone: tokenvalidering og fnr-lagring."; fi ;;
 esac
 EOF
   chmod +x "$SHIM/opencode"
@@ -1648,6 +1653,11 @@ run_opencode_t4() {
   # The judge decides test 4 (#2458); the word list is reported beside it.
   grep -q '^4|1|pass|.*rodsone=🔴 Rød sone: tokenvalidering og fnr-lagring.; regex (raw): pass' "$SHIM/b-results.psv"
   grep -q '^controls-t4|0|' "$SHIM/b-judge-credits.psv"
+  # The verdict is the judge's, not the word list's: a heading form the list misses passes.
+  make_opencode_shim
+  T4_HEADING=1 run_opencode_t4
+  [ "$status" -eq 0 ]
+  grep -q '^4|1|pass|.*rodsone=## 10. 🔴 Rød sone; regex (raw): fail' "$SHIM/b-results.psv"
 }
 
 @test "opencode v2: usage rows come from session export, credits estimert (#1721)" {

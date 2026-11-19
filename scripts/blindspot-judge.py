@@ -401,7 +401,8 @@ def parse_vote(text, answer):
         return None
     if not isinstance(v, dict) or not all(isinstance(v.get(k), bool) for k in KEYS):
         return None
-    na = norm(answer)
+    # secq: a question in a code block is no question to the user (#2475 review).
+    na = norm("\n".join(unfenced(answer)) if KIND == "secq" else answer)
     out = {}
     for k in KEYS:
         q = str(v.get(k + "_quote") or "")
@@ -413,6 +414,8 @@ def parse_vote(text, answer):
             ok = v.get(k) is True and bool(nq) and nq in na and is_question(nq, na)
         else:
             ok = v.get(k) is True and bool(nq) and quote_located(k, nq, answer)
+        if k == "nit" and v.get(k) is True and not ok:
+            return None  # unverified evidence of a fault is no evidence it is absent: vote again
         out[k], out[k + "_quote"] = ok, (q if ok else "")
         if v.get(k) is True and not ok:
             out[k + "_rejected"] = q
@@ -441,7 +444,7 @@ def unfenced(text):
     """Lines outside fenced code blocks; a fence closes only on its own character, at least as long."""
     fence = None
     for line in text.splitlines():
-        m = re.match(r" {0,3}(`{3,}|~{3,})(.*)", line)
+        m = re.match(r"(?:\s{0,3}>)*\s{0,3}(`{3,}|~{3,})(.*)", line)
         if fence:
             if m and m.group(1)[0] == fence[0] and len(m.group(1)) >= len(fence) and not m.group(2).strip():
                 fence = None
@@ -453,17 +456,24 @@ def unfenced(text):
 
 def quote_located(key, nq, answer):
     """The judgement stays with the model; where a quote sits is checked here. It must be on one
-    line outside a code block. t4: that line names the red zone. rv: the line cites the
-    defect's file and line the way benchmark-sjekk.py reads it, exactly for rv5 (linje),
-    within NEAR for rv6 and rv7 (funnet, prioritet)."""
-    lines = [l for l in unfenced(answer) if nq in norm(l)]
+    line outside a code block. t4: that line names the red zone, and a heading has content
+    before the next heading. rv: the line cites the defect's file and line the way
+    benchmark-sjekk.py reads it, exactly for rv5 (linje), within NEAR for rv6 and rv7
+    (funnet, prioritet), and no other cited row holds the quote (#2475 review)."""
+    text = [l for l in unfenced(answer) if l.strip()]
+    lines = [i for i, l in enumerate(text) if nq in norm(l)]
     if KIND == "t4":
-        return bool(lines) and re.search(r"rød.?sone|red zone", nq, re.I) is not None
+        heading = re.compile(r"\s{0,3}#{1,6}\s")
+        return re.search(r"rød.?sone|red zone", nq, re.I) is not None and any(
+            not heading.match(text[i]) or (i + 1 < len(text) and not heading.match(text[i + 1])) for i in lines)
     if RV_LOC[key] is None:
-        return nq in norm("\n".join(unfenced(answer)))
+        return bool(lines)
     b = bench()
+    cited = [text[i] for i in lines if b.locations(text[i])]
+    if len(cited) > 1:
+        return False
     near = 0 if KIND == "rv5" else b.NEAR
-    return any(abs(c - w) <= near for l in lines for f, want in RV_LOC[key]
+    return any(abs(c - w) <= near for l in cited for f, want in RV_LOC[key]
                for c in b.lines_in(l, f) for w in want)
 
 
@@ -507,7 +517,7 @@ def judge(answer, confirm=True):
         # the question or a part of it (Haiku quotes the sentence before along with it), so a
         # question in that sentence cannot lend its verdict to another (#2437 review).
         q = res["secq_quote"]
-        c = judge(wrap(before(answer, q) + q), confirm=False)
+        c = judge(wrap("\n\n".join(ctx + q for ctx in before(answer, q))), confirm=False)
         res["credits"] = round(res["credits"] + c["credits"], 3)
         if "error" in c:
             return {"error": "confirmation: " + c["error"], "credits": res["credits"], **metadata}
@@ -524,12 +534,16 @@ def same(q):
 
 
 def before(answer, q):
-    """The sentence before the quoted question, normalised, with a trailing space; '' if none."""
-    na, nq = norm(answer), norm(q)
-    i = na.find(nq)
-    if i <= 0:
-        return ""
-    return re.split(r"(?<=[.!?:])\s+", na[:i].rstrip())[-1][-400:] + " "
+    """The sentence before each occurrence of the quoted question (at most three), normalised,
+    with a trailing space; '' where there is none. A colon does not end a sentence, so
+    «Bare i testdobben: …» keeps its qualifier (#2475 review)."""
+    na, nq = norm("\n".join(unfenced(answer))), norm(q)
+    out, i = [], na.find(nq)
+    while i >= 0 and len(out) < 3:
+        prev = re.split(r"(?<=[.!?])\s+", na[:i].rstrip())[-1][-400:] if i else ""
+        out.append(prev + " " if prev else "")
+        i = na.find(nq, i + 1)
+    return out or [""]
 
 
 def wrap(question):
@@ -624,7 +638,7 @@ def controls(path):
     if rows and not transport_error:
         with ThreadPoolExecutor(jobs) as ex:
             results.extend(ex.map(lambda r: judge(control_answer(r)), rows[1:]))
-    agree, credits, errors, bad = 0, 0.0, 0, []
+    agree, credits, errors, bad, missed = 0, 0.0, 0, [], 0
     for i, (r, res) in enumerate(zip(rows, results), start=2):  # line 1 is the header
         credits += res["credits"]
         if "error" in res:
@@ -637,13 +651,15 @@ def controls(path):
             agree += 1
         else:
             bad.append(str(i))
+            # A row marked required is a behaviour the judge exists for; the floor alone would hide a miss.
+            missed += r.get("required") == "1"
             show = lambda vals: " ".join(f"{k}={int(v)}" for k, v in zip(KEYS, vals))
             print(f"row {i}: want {show(want)}, judge {show(got)} ({r['source']}): {label(r)}", file=sys.stderr)
     acc = agree / len(rows) if rows else 0.0
-    status = "fail" if transport_error or errors * 10 > len(rows) or acc < MIN_ACCURACY else (
+    status = "fail" if transport_error or errors * 10 > len(rows) or acc < MIN_ACCURACY or missed else (
         "band" if acc < TARGET_ACCURACY else "pass")
     print(f"controls n={len(rows)} agree={agree} errors={errors} accuracy={acc:.3f} credits={credits:.2f} "
-          f"status={status}{usage}")
+          f"status={status}{f' required_missed={missed}' if missed else ''}{usage}")
     if RECORD:
         with open(RECORD, "a", encoding="utf-8") as f:
             f.write(f"{key}|{datetime.date.today()}|{MODEL if not os.environ.get('BS_JUDGE_CMD') else 'stub'}|"

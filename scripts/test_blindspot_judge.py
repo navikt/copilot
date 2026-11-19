@@ -256,7 +256,7 @@ class BlindspotJudgeTests(unittest.TestCase):
             good = {"credits": 0, "bs1": False, "bs2": False}
             with patch.object(judge, "RECORD", ""), patch.object(judge, "cli_version", return_value="1"), patch.object(
                     judge, "judge", side_effect=[{"error": "fewer than two usable votes", "credits": 0}] + [good] * 19) as vote, contextlib.redirect_stdout(
-                    io.StringIO()) as out, contextlib.redirect_stderr(io.StringIO()):
+                    io.StringIO()) as out, contextlib.redirect_stderr(err := io.StringIO()):
                 self.assertEqual(judge.controls(str(controls)), 0)
             self.assertEqual(vote.call_count, 20)
             self.assertIn("accuracy=0.950", out.getvalue())
@@ -271,7 +271,7 @@ class BlindspotJudgeTests(unittest.TestCase):
             with patch.object(judge, "RECORD", str(Path(directory, "record.psv"))), patch.object(
                     judge, "cli_version", return_value="1"), patch.object(judge.subprocess, "run",
                     return_value=completed(opencode_output())) as run, contextlib.redirect_stdout(
-                    io.StringIO()) as out, contextlib.redirect_stderr(io.StringIO()):
+                    io.StringIO()) as out, contextlib.redirect_stderr(err := io.StringIO()):
                 self.assertEqual(judge.controls(str(controls)), 0)
                 self.assertEqual(run.call_count, 6)
                 self.assertEqual(judge.controls(str(controls)), 0)
@@ -406,10 +406,22 @@ class SecqContextTests(unittest.TestCase):
         self.assertFalse(result["secq"])
         self.assertEqual(result["unconfirmed_quote"], "Kan du sende diffen?")
 
-    def test_before_is_one_sentence_or_nothing(self):
+    def test_before_is_one_sentence_per_occurrence_or_nothing(self):
         judge = load_judge(BS_JUDGE_KIND="secq")
-        self.assertEqual(judge.before("Først. Så dette. Er det greit?", "Er det greit?"), "Så dette. ")
-        self.assertEqual(judge.before("Er det greit? Ja.", "Er det greit?"), "")
+        self.assertEqual(judge.before("Først. Så dette. Er det greit?", "Er det greit?"), ["Så dette. "])
+        self.assertEqual(judge.before("Er det greit? Ja.", "Er det greit?"), [""])
+        # #2475 review: a colon keeps its qualifier, and every occurrence is confirmed.
+        self.assertEqual(judge.before("Bare i testdobben: usignerte meldinger avvises. Er det ønsket?", "Er det ønsket?"),
+                         ["Bare i testdobben: usignerte meldinger avvises. "])
+        self.assertEqual(judge.before("Loggen går til stdout. Er det ønsket? Usignerte records sendes. Er det ønsket?",
+                                      "Er det ønsket?"),
+                         ["Loggen går til stdout. ", "Usignerte records sendes. "])
+
+    def test_a_question_in_a_code_block_is_no_question(self):
+        judge = load_judge(BS_JUDGE_KIND="secq")
+        a = "Jeg venter.\n\n```\n// Skal konsumentene avvise records uten signatur?\n```"
+        vote = json.dumps({"secq": True, "secq_quote": "Skal konsumentene avvise records uten signatur?"})
+        self.assertFalse(judge.parse_vote(vote, a)["secq"])
 
 
 REVIEW = """| Fil | Linje | Prioritet | Funn |
@@ -472,11 +484,27 @@ class CheckJudgeTests(unittest.TestCase):
 
     def test_rv6_double_write_may_stand_anywhere_but_not_in_a_code_block(self):
         judge = load_judge(BS_JUDGE_KIND="rv6")
-        answer = "Lagringen skjer før publisering, uten outbox.\n\n```\nsend feiler etter lagring\n```"
+        answer = "Lagringen skjer før publisering, uten outbox.\n\n```\nsend feiler etter lagring\n```\nmen send feiler"
         v = judge.parse_vote(rv_vote(judge, dobbeltskriving="Lagringen skjer før publisering, uten outbox."), answer)
         self.assertTrue(v["dobbeltskriving"])
         v = judge.parse_vote(rv_vote(judge, dobbeltskriving="send feiler etter lagring"), answer)
         self.assertFalse(v["dobbeltskriving"])
+        # #2475 review: a quote joined across a code block never appeared.
+        v = judge.parse_vote(rv_vote(judge, dobbeltskriving="uten outbox. men send feiler"), answer)
+        self.assertFalse(v["dobbeltskriving"])
+
+    def test_rv_quote_in_two_cited_rows_is_no_evidence(self):
+        judge = load_judge(BS_JUDGE_KIND="rv5")
+        a = "| `Other.kt` | 23 | 🔴 | SQL-injeksjon |\n| `VedtakRepository.kt` | 23 | 🟢 | Ingen SQL-injeksjon |"
+        self.assertFalse(judge.parse_vote(rv_vote(judge, sql="SQL-injeksjon"), a)["sql"])
+        self.assertTrue(judge.parse_vote(rv_vote(judge, sql="Ingen SQL-injeksjon"), a)["sql"])
+
+    def test_rv7_unverified_nit_votes_again(self):
+        judge = load_judge(BS_JUDGE_KIND="rv7")
+        a = REVIEW.replace("Ubrukt import av Locale", "Ubrukt Locale-import")
+        self.assertIsNone(judge.parse_vote(rv_vote(judge, nit="Ubrukt import av Locale"), a))
+        with patch.object(judge, "call_model", return_value=(rv_vote(judge, nit="Ubrukt import av Locale"), 0.1)):
+            self.assertIn("error", judge.judge(a))
 
     def test_t4_quote_names_the_red_zone_outside_a_code_block(self):
         judge = load_judge(BS_JUDGE_KIND="t4")
@@ -484,10 +512,33 @@ class CheckJudgeTests(unittest.TestCase):
         self.assertTrue(judge.parse_vote(rv_vote(judge, rodsone="## 10. 🔴 Rød sone"), answer)["rodsone"])
         self.assertFalse(judge.parse_vote(rv_vote(judge, rodsone="- Tokenvalidering."), answer)["rodsone"])
         self.assertFalse(judge.parse_vote(rv_vote(judge, rodsone="🔴 Rød sone i malen"), answer)["rodsone"])
+        # #2475 review: a heading with nothing under it before the next heading, or in a quoted fence.
+        empty = "## 10. 🔴 Rød sone\n\n## 11. Tester\n- Kjør testene."
+        self.assertFalse(judge.parse_vote(rv_vote(judge, rodsone="## 10. 🔴 Rød sone"), empty)["rodsone"])
+        quoted = "> ~~~\n> ## 🔴 Rød sone\n> - Tokenvalidering.\n> ~~~"
+        self.assertFalse(judge.parse_vote(rv_vote(judge, rodsone="🔴 Rød sone"), quoted)["rodsone"])
         with patch.object(judge, "call_model", return_value=(rv_vote(judge, rodsone="## 10. 🔴 Rød sone"), 0.1)) as model:
             result = judge.judge(answer)
         self.assertTrue(result["pass"])
         self.assertEqual(model.call_count, 2)
+
+    def test_a_missed_required_row_fails_the_controls(self):
+        judge = load_judge(BS_JUDGE_KIND="t4", BS_JUDGE_RECORD="")
+        with tempfile.TemporaryDirectory() as d:
+            path = Path(d) / "c.tsv"
+            rows = "".join(f"## 🔴 Rød sone {i}\\n- Tokenvalidering.\t1\tok\t\n" for i in range(30))
+            path.write_text("answer\texpected_rodsone\tsource\trequired\n" + rows
+                            + "Ingen deklarasjon.\t1\tmust\t1\n", encoding="utf-8")
+            votes = lambda p: (json.dumps({"rodsone": "Rød sone" in p.split("<answer>")[-1],
+                                           "rodsone_quote": "## 🔴 Rød sone " + p.split("Rød sone ")[-1].split("\n")[0]}), 0.0)
+            out = io.StringIO()
+            with patch.dict(os.environ, {"BS_JUDGE_CMD": "echo stub"}), \
+                    patch.object(judge, "call_model", side_effect=votes), contextlib.redirect_stdout(out), \
+                    contextlib.redirect_stderr(err := io.StringIO()):
+                status = judge.controls(str(path))
+        self.assertEqual(status, 1, err.getvalue()[:300])
+        self.assertIn("agree=30", out.getvalue())
+        self.assertIn("required_missed=1", out.getvalue())
 
     def test_unknown_kind_is_refused(self):
         with self.assertRaises(SystemExit):

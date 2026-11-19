@@ -1969,6 +1969,8 @@ print(int(r["bs1"]), int(r["bs2"]), "unknown" if r.get("usage_unavailable") else
 # there is no verdict. Credits go to judge-credits.psv like the blind-spot
 # judge's, controls as `controls-<kind>`.
 SECQ_CONTROLS_FILE="${BS_JUDGE_SECQ_CONTROLS:-$REPO_ROOT/scripts/golden-fixtures/t8-secq-controls.tsv}"
+# Per-invocation state, never inherited: an exported value would skip the controls.
+unset JUDGE_CONTROLS_secq JUDGE_CONTROLS_rv5 JUDGE_CONTROLS_rv6 JUDGE_CONTROLS_rv7 JUDGE_CONTROLS_t4
 judge_check() {
   local kind="$1" id="$2" answer="$3" out file st var="JUDGE_CONTROLS_$1"
   JPASS=0; JQUOTE=""; JUDGE_DETAIL=""
@@ -1989,13 +1991,15 @@ judge_check() {
   if [[ "${!var:-}" == FAILED* ]]; then
     JUDGE_DETAIL="harness error: $kind judge controls ${!var#FAILED: }"; return 2
   fi
-  if ! out="$(BS_JUDGE_KIND="$kind" python3 "$BS_JUDGE" judge "$answer" 2>&1)"; then
+  # stdout holds only the verdict JSON; a warning on stderr must not break decoding it.
+  if ! out="$(BS_JUDGE_KIND="$kind" python3 "$BS_JUDGE" judge "$answer" 2>"$WORKDIR/judge-$kind.err")" \
+     || ! python3 -c 'import json, sys; r = json.loads(sys.argv[1]); assert isinstance(r.get("pass", r.get("secq")), bool)' "$out" 2>/dev/null; then
     JC="$(python3 -c 'import json, sys
 try:
  r = json.loads(sys.argv[1].strip().splitlines()[-1]); print("unknown" if r.get("usage_unavailable") else r["credits"])
-except Exception: print(0)' "$out")"
+except Exception: print("unknown")' "$out")"
     printf '%s|%s|%s\n' "$id" "$RUN" "$JC" >>"$JUDGE_CREDITS_FILE"
-    JUDGE_DETAIL="harness error: $kind judge: $(head -c 200 <<<"$out")"; return 2
+    JUDGE_DETAIL="harness error: $kind judge: $(head -c 200 <<<"$out$(cat "$WORKDIR/judge-$kind.err")")"; return 2
   fi
   IFS=$'\t' read -r JPASS JC JQUOTE < <(python3 -c '
 import json, sys
