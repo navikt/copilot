@@ -187,3 +187,24 @@ func TestMCPSession_ConcurrentDeletesFreeOneSlot(t *testing.T) {
 		t.Fatalf("user count = %q after concurrent DELETEs of one session, want 1", got)
 	}
 }
+
+type unknownKIDBindingStore struct{ SessionStore }
+
+func (s unknownKIDBindingStore) Get(ctx context.Context, kind, key string) ([]byte, bool, error) {
+	if kind == kindMCPSession {
+		return nil, false, fmt.Errorf("get: %w", errSealUnknownKID)
+	}
+	return s.SessionStore.Get(ctx, kind, key)
+}
+
+func TestMCPSession_UnknownKIDBindingFailsClosed(t *testing.T) {
+	te := newTestEnv(t)
+	none := ""
+	setUpstreamSessionID(te, &none)
+	token := te.obtainAccessTokenForResource(te.resource)
+	te.gw.store = unknownKIDBindingStore{te.gw.store}
+	rec := mcpPost(te, token, "sealed-with-old-key")
+	if rec.Code != http.StatusForbidden || !strings.Contains(rec.Body.String(), "start a new MCP session") {
+		t.Fatalf("got %d %s, want 403 telling the client to start a new session", rec.Code, rec.Body.String())
+	}
+}
