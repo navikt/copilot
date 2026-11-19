@@ -257,6 +257,17 @@ func (g *Gateway) handleAuthorizationCodeGrant(w http.ResponseWriter, r *http.Re
 		return
 	}
 
+	userGone, err := g.userRevoked(r.Context(), issued.Session.NAVIdent, issued.Session.IssuedAt)
+	if err != nil {
+		slog.Warn("user lockout check failed", "error", err)
+		bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store unavailable")
+		return
+	}
+	if userGone {
+		bad(http.StatusBadRequest, "invalid_grant", "session revoked")
+		return
+	}
+
 	now := g.now()
 	if issued.Session.IssuedAt.IsZero() {
 		issued.Session.IssuedAt = now
@@ -406,6 +417,16 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 		outcome = "store_error"
 		slog.Warn("refresh token denylist failed", "error", err)
 		bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store unavailable")
+	}
+	userGone, err := g.userRevoked(r.Context(), payload.NAVIdent, issuedAt)
+	if err != nil {
+		unavailable(err)
+		return
+	}
+	if userGone {
+		outcome = "user_revoked"
+		bad(http.StatusBadRequest, "invalid_grant", "session revoked")
+		return
 	}
 	famKey := "fam:" + payload.FID
 	revoked, err := g.store.IsRevoked(r.Context(), famKey)

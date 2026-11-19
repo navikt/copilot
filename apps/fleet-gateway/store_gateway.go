@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log/slog"
+	"strconv"
 	"time"
 )
 
@@ -59,7 +60,19 @@ func (g *Gateway) putSession(ctx context.Context, hash string, s *gatewaySession
 }
 
 func (g *Gateway) getSession(ctx context.Context, hash string) (*gatewaySession, bool, error) {
-	return getSessionFromStore(ctx, g.store, g.now, g.cfg.SessionMaxAge, hash)
+	sess, ok, err := getSessionFromStore(ctx, g.store, g.now, g.cfg.SessionMaxAge, hash)
+	if err != nil || !ok {
+		return sess, ok, err
+	}
+	revoked, err := g.userRevoked(ctx, sess.NAVIdent, sess.IssuedAt)
+	if err != nil {
+		return nil, false, err
+	}
+	if revoked {
+		_ = g.store.Delete(ctx, kindSession, hash)
+		return nil, false, nil
+	}
+	return sess, true, nil
 }
 
 func putSessionInStore(ctx context.Context, store SessionStore, nowFn func() time.Time, maxAge time.Duration, hash string, s *gatewaySession, ttl time.Duration) error {
@@ -137,12 +150,32 @@ func consentKey(navIdent, clientID, resource string) string {
 }
 
 func (g *Gateway) hasConsent(ctx context.Context, navIdent, clientID, resource string) (bool, error) {
-	_, ok, err := g.store.Get(ctx, kindConsent, consentKey(navIdent, clientID, resource))
-	return ok, err
+	key := consentKey(navIdent, clientID, resource)
+	raw, ok, err := g.store.Get(ctx, kindConsent, key)
+	if err != nil || !ok {
+		return ok, err
+	}
+	created := time.Unix(0, 0).UTC()
+	if s := string(raw); s != "1" {
+		if sec, parseErr := strconv.ParseInt(s, 10, 64); parseErr == nil {
+			created = time.Unix(sec, 0).UTC()
+		}
+	}
+	revoked, err := g.userRevoked(ctx, navIdent, created)
+	if err != nil {
+		return false, err
+	}
+	if revoked {
+		// Delete lazily at read time: consent keys are hashed per (user, client, resource) and cannot be enumerated per user.
+		_ = g.store.Delete(ctx, kindConsent, key)
+		return false, nil
+	}
+	return true, nil
 }
 
 func (g *Gateway) rememberConsent(ctx context.Context, navIdent, clientID, resource string) error {
-	return g.store.Put(ctx, kindConsent, consentKey(navIdent, clientID, resource), []byte("1"), g.cfg.ConsentTTL)
+	val := []byte(strconv.FormatInt(g.now().Unix(), 10))
+	return g.store.Put(ctx, kindConsent, consentKey(navIdent, clientID, resource), val, g.cfg.ConsentTTL)
 }
 
 func (g *Gateway) forgetConsent(ctx context.Context, navIdent, clientID, resource string) error {

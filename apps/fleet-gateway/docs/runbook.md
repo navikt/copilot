@@ -88,7 +88,24 @@ Whether the pods pick up a changed secret without a restart is unverified; resta
 
 ## Log everyone out
 
-Remove the current key from `RT_KEYS` (replace it with a fresh key, no old entry) and restart. All sealed values become unreadable. Sessions and refresh tokens fail and users log in again. Consent, DCR client and MCP session reads fail with 503 (see Rotate `RT_KEYS`) until those rows expire or are deleted from the `items` table; DCR clients must re-register. This is the only per-user-agnostic revoke today. **There is no tool to cut off one user** on the gateway side: sessions are keyed by token hash, with no index by NAVident. For a single user, revoke in Entra; Entra revocation takes effect at the next refresh or expiry. The worst case is up to 12 h (`computeSessionTTL` uses Entra `expires_in`, capped at `SESSION_MAX_AGE`) unless the sessions are revoked server-side (rotate `RT_KEYS` as above).
+Remove the current key from `RT_KEYS` (replace it with a fresh key, no old entry) and restart. All sealed values become unreadable. Sessions and refresh tokens fail and users log in again. Consent, DCR client and MCP session reads fail with 503 (see Rotate `RT_KEYS`) until those rows expire or are deleted from the `items` table; DCR clients must re-register. For a single user, see [Lock out one user](#lock-out-one-user) instead.
+
+## Lock out one user
+
+Use alongside blocking the user in Entra when one account must be cut off immediately without waiting up to 12 h (`SESSION_MAX_AGE`) for Entra expiry or refresh.
+
+```sh
+kubectl exec -n copilot deploy/fleet-gateway -- env OPERATOR=<your-ident> /app/main lockout <NAVident>
+```
+
+Effect:
+
+- `/mcp/*` rejects sessions issued at or before the lockout timestamp with `401` and deletes the session row on lookup.
+- `/token` rejects pre-lockout authorization codes and refresh tokens with `invalid_grant` (`session revoked`).
+- Remembered consent created at or before the lockout is deleted lazily on the next login.
+- Other users are unaffected.
+
+The command writes an `audit lockout` line (`outcome=ok`, `user_key`, `operator`) to stdout / Loki; plaintext `NAVident` is never logged. There is no unlock command: a new login after the lockout gets a fresh session because the lockout only invalidates sessions, codes, refresh tokens and consent issued at or before it — so the user must also be blocked in Entra.
 
 ## Block one client
 

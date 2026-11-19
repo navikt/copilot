@@ -24,6 +24,7 @@ type Gateway struct {
 	now         func() time.Time
 	store       SessionStore
 	rtKeys      *keyRing
+	userKeys    [][]byte // HMAC keys for user-level store keys; [0] is primary for writes, all are checked on read
 	cimdCache   *ttlMap[cachedCIMD]
 	limiter     *ipRateLimiter
 	proxyClient *http.Client
@@ -56,6 +57,10 @@ func newGateway(cfg *Config, now func() time.Time) (*Gateway, error) {
 	if cfg.RTStorage == rtStorageClientEncrypted && rtKeys == nil {
 		return nil, errors.New("RT_KEYS is required when RT_STORAGE=client-encrypted")
 	}
+	userKeys, err := deriveUserKeys(rtKeys)
+	if err != nil {
+		return nil, fmt.Errorf("derive user keys: %w", err)
+	}
 	store, ownedStore, err := buildSessionStore(cfg, now, rtKeys)
 	if err != nil {
 		return nil, fmt.Errorf("initialize session store: %w", err)
@@ -72,6 +77,7 @@ func newGateway(cfg *Config, now func() time.Time) (*Gateway, error) {
 		now:         now,
 		store:       store,
 		rtKeys:      rtKeys,
+		userKeys:    userKeys,
 		cimdCache:   newTTLMap[cachedCIMD](cfg.CIMDCap, now),
 		limiter:     newIPRateLimiter(cfg.RateLimitRequests, cfg.RateLimitGlobalRequests, cfg.RateLimitWindow, cfg.RateLimitCap, now),
 		proxyClient: newHardenedProxyClient(cfg.ProxyHeaderTimeout),
@@ -462,6 +468,10 @@ func (l *ipRateLimiter) sweepLocked(now time.Time) int {
 }
 
 func main() {
+	if len(os.Args) >= 2 && os.Args[1] == "lockout" {
+		os.Exit(runLockout(os.Args[2:]))
+	}
+
 	cfg, err := loadConfigFromEnv()
 	if err != nil {
 		slog.Error("Configuration validation failed", "error", err)
@@ -531,4 +541,50 @@ func main() {
 	if err := server.Shutdown(shutdownCtx); err != nil {
 		slog.Error("Server shutdown failed", "error", err)
 	}
+}
+
+func runLockout(args []string) int {
+	if len(args) != 1 {
+		_, _ = fmt.Fprintln(os.Stderr, "usage: fleet-gateway lockout <NAVident>")
+		return 1
+	}
+	navIdent := strings.ToUpper(strings.TrimSpace(args[0]))
+	if navIdent == "" {
+		_, _ = fmt.Fprintln(os.Stderr, "lockout: NAVident must not be empty")
+		return 1
+	}
+
+	cfg, err := loadConfigFromEnv()
+	if err != nil {
+		_, _ = fmt.Fprintf(os.Stderr, "lockout: configuration validation failed: %v\n", err)
+		return 1
+	}
+
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+		Level: cfg.LogLevel,
+	}))
+	slog.SetDefault(logger)
+
+	gw, err := newGateway(cfg, nil)
+	if err != nil {
+		_, _ = fmt.Fprintf(os.Stderr, "lockout: initialize gateway: %v\n", err)
+		return 1
+	}
+	defer gw.store.Close()
+
+	operator := strings.TrimSpace(os.Getenv("OPERATOR"))
+	if operator == "" {
+		operator = "cli"
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+
+	at, err := gw.lockOutUser(ctx, navIdent, operator)
+	if err != nil {
+		_, _ = fmt.Fprintf(os.Stderr, "lockout: %v\n", err)
+		return 1
+	}
+	_, _ = fmt.Fprintf(os.Stdout, "locked out user_key=%s at %s\n", gw.userKey(navIdent), at.UTC().Format(time.RFC3339)) //nolint:gosec // userKey is hex-encoded HMAC printed to CLI stdout
+	return 0
 }

@@ -20,6 +20,7 @@ const (
 	kindMCPSessionUser     = "mcp_session_user" // per-user count of mcp_session bindings
 	kindDCRClient          = "dcr_client"
 	kindRefreshGrace       = "refresh_grace" // pair issued for a rotated RT, keyed by its jti
+	kindUserRevoked        = "user_revoked"  // per-user lockout timestamp (unix seconds) keyed by HMAC(NAVident)
 )
 
 var errStoreFull = errors.New("store capacity reached")
