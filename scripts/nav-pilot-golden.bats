@@ -471,10 +471,10 @@ case "$p" in
     else echo "- Den svarer på HTTP-kall med en liste oppgaver."; fi
     echo "- Den kjører på port 8080 på Nais."
     [[ "$BENCH_MODE" == good ]] || { echo "- Den har helsesjekker."; echo "- Den bruker kotlinx.serialization."; } ;;
-  *vedtak-konsument/*|*vedtak-hendelse/*|*saksko/*|*vedtak-parser/*)
+  *vedtak-konsument/*|*vedtak-hendelse/*|*saksko/*|*vedtak-parser/*|*meldingsmottak/*)
     # good/wrong overlay the fixture's known and tempting wrong fix; stray
     # also writes outside the project. The group dir is read off the cwd.
-    proj="$(printf '%s' "$p" | grep -oE 'vedtak-konsument|vedtak-hendelse|saksko|vedtak-parser' | head -1)"
+    proj="$(printf '%s' "$p" | grep -oE 'vedtak-konsument|vedtak-hendelse|saksko|vedtak-parser|meldingsmottak' | head -1)"
     grp=kafka; [[ -f Cargo.toml || -d saksko ]] && grp=rust
     case "$BENCH_MODE" in
       good|wrong|stray) m="$BENCH_MODE"; [[ "$m" == stray ]] && m=good
@@ -919,7 +919,7 @@ EOF
   suites="kafka rust"
   mise where java@21 >/dev/null 2>&1 || { suites=rust; echo "# kafka skipped: needs java@21 from mise (mise install java@21)" >&3; }
   for suite in $suites; do
-    if [[ $suite == kafka ]]; then ok="kf1 kf3"; scope="kf2 kf4"; else ok="rs1 rs3"; scope="rs2 rs4"; fi
+    if [[ $suite == kafka ]]; then ok="kf1 kf3"; scope="kf2 kf4"; else ok="rs1 rs3 rs5"; scope="rs2 rs4 rs6"; fi
     run_suite good --suite $suite
     [ "$status" -eq 0 ]
     run_suite wrong --suite $suite
