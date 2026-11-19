@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"strings"
 	"sync"
 	"time"
 )
@@ -50,6 +51,8 @@ type SessionStore interface {
 	// so concurrent callers cannot take the freed slot. evicted reports whether
 	// an item was dropped.
 	PutEvict(ctx context.Context, kind, key string, val []byte, ttl time.Duration) (evicted bool, err error)
+	// CountPrefix counts the live items of kind whose key starts with prefix.
+	CountPrefix(ctx context.Context, kind, prefix string) (int, error)
 	Sweep(ctx context.Context) (int, error)
 	Ping(ctx context.Context) error
 	Close()
@@ -332,6 +335,22 @@ func (s *memoryStore) Incr(ctx context.Context, key string, window time.Duration
 	c.count++
 	s.counts[key] = c
 	return c.count, nil
+}
+
+func (s *memoryStore) CountPrefix(ctx context.Context, kind, prefix string) (int, error) {
+	if err := ctx.Err(); err != nil {
+		return 0, err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	now := s.now()
+	n := 0
+	for key, entry := range s.items[kind] {
+		if strings.HasPrefix(key, prefix) && now.Before(entry.expiresAt) {
+			n++
+		}
+	}
+	return n, nil
 }
 
 func (s *memoryStore) Sweep(ctx context.Context) (int, error) {

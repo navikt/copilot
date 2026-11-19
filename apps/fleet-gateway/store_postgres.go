@@ -457,6 +457,17 @@ func (s *pgxStore) Incr(ctx context.Context, key string, window time.Duration) (
 	return n, err
 }
 
+func (s *pgxStore) CountPrefix(ctx context.Context, kind, prefix string) (int, error) {
+	var n int
+	err := s.pool.QueryRow(ctx, `
+		SELECT count(*)
+		FROM items
+		WHERE kind = $1 AND starts_with(key, $2) AND expires_at > $3`,
+		kind, prefix, s.now().UTC(),
+	).Scan(&n)
+	return n, err
+}
+
 func (s *pgxStore) Sweep(ctx context.Context) (int, error) {
 	now := s.now().UTC()
 	tag1, err := s.pool.Exec(ctx, `DELETE FROM items WHERE expires_at <= $1`, now)

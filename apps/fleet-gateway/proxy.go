@@ -86,6 +86,8 @@ func newHardenedProxyClient(headerTimeout time.Duration) *http.Client {
 			TLSHandshakeTimeout:   5 * time.Second,
 			ResponseHeaderTimeout: headerTimeout,
 			IdleConnTimeout:       90 * time.Second,
+			// Go's default is 10 MiB, outside the in-flight memory budget.
+			MaxResponseHeaderBytes: 64 << 10,
 		},
 		CheckRedirect: func(*http.Request, []*http.Request) error {
 			return errors.New("redirects refused")
@@ -518,11 +520,13 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 			if found {
 				return // already ours; skipping keeps the per-user count exact
 			}
-			// shortcut: Get+Put on the counter is not atomic across pods, so the cap is approximate; fine as defence in depth.
+			// Count live rows: a counter drifted when session rows expired without decrementing.
+			// shortcut: count-then-put is not atomic across pods, so the cap is approximate; fine as defence in depth.
 			userKey := g.mcpSessionUserKey(sess.NAVIdent)
-			count := 0
-			if raw, ok, cntErr := g.store.Get(r.Context(), kindMCPSessionUser, userKey); cntErr == nil && ok {
-				count, _ = strconv.Atoi(string(raw))
+			count, cntErr := g.store.CountPrefix(r.Context(), kindMCPSessionUser, userKey+":")
+			if cntErr != nil {
+				slog.Warn("mcp session bind skipped: count failed", "route", route.Route, "error", cntErr)
+				return
 			}
 			if count >= g.cfg.MCPSessionUserCap {
 				slog.Warn("mcp session bind skipped: per-user cap reached", "route", route.Route, "navident", sanitizeLogValue(navIdent))
@@ -532,29 +536,29 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 				slog.Warn("mcp session bind failed", "route", route.Route, "error", putErr)
 				return
 			}
-			_ = g.store.Put(r.Context(), kindMCPSessionUser, userKey, []byte(strconv.Itoa(count+1)), mcpSessionTTL)
+			_ = g.store.Put(r.Context(), kindMCPSessionUser, userKey+":"+key, []byte("1"), mcpSessionTTL)
 		}
 		// A terminated session frees its binding and the user's slot under the cap.
 		if r.Method == http.MethodDelete && ownsReqSession && resp.StatusCode < 300 {
 			// Pop, not Delete: only the request that removed the binding frees the slot,
 			// so concurrent DELETEs of one session cannot decrement twice.
-			userKey := g.mcpSessionUserKey(sess.NAVIdent)
-			if _, removed, delErr := g.store.Pop(r.Context(), kindMCPSession, route.Route+"\n"+reqSessionID); delErr != nil {
+			key := route.Route + "\n" + reqSessionID
+			if _, removed, delErr := g.store.Pop(r.Context(), kindMCPSession, key); delErr != nil {
 				slog.Warn("mcp session unbind failed", "route", route.Route, "error", delErr)
-			} else if raw, ok, cntErr := g.store.Get(r.Context(), kindMCPSessionUser, userKey); removed && cntErr == nil && ok {
-				// shortcut: same non-atomic Get+Put as bindMCPSession; the cap stays approximate.
-				if count, _ := strconv.Atoi(string(raw)); count > 0 {
-					_ = g.store.Put(r.Context(), kindMCPSessionUser, userKey, []byte(strconv.Itoa(count-1)), mcpSessionTTL)
-				}
+			} else if removed {
+				_ = g.store.Delete(r.Context(), kindMCPSessionUser, g.mcpSessionUserKey(sess.NAVIdent)+":"+key)
 			}
 		}
 		// Bind only ids the upstream issued on a successful response (MCP streamable HTTP).
 		// A client-supplied id is never bound; an unbound one passes through for stateless upstreams.
 		// A DELETE ends the session, so an id echoed on its response is not bound again.
-		if resp.StatusCode < 300 && r.Method != http.MethodDelete {
-			for _, id := range resp.Header.Values("Mcp-Session-Id") {
-				if id != "" && len(id) <= maxMCPSessionIDBytes {
-					bindMCPSession(id)
+		// The binding waits until the reply is accepted, so a 502 below leaves none.
+		bindUpstreamSessions := func() {
+			if resp.StatusCode < 300 && r.Method != http.MethodDelete {
+				for _, id := range resp.Header.Values("Mcp-Session-Id") {
+					if id != "" && len(id) <= maxMCPSessionIDBytes {
+						bindMCPSession(id)
+					}
 				}
 			}
 		}
@@ -571,6 +575,7 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 				})
 				return
 			}
+			bindUpstreamSessions()
 			releaseSlot()
 			// Drop references to the buffered request body (up to 1 MiB) before
 			// streaming so long-lived SSE connections do not pin it on the heap
@@ -646,6 +651,7 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 			return
 		}
 
+		bindUpstreamSessions()
 		copyAllowlistedHeaders(w.Header(), resp.Header, allowedUpstreamResponseHeaders)
 		w.WriteHeader(resp.StatusCode)
 		for _, chunk := range respBody {
@@ -938,6 +944,10 @@ func mcpHeadersValid(h http.Header) bool {
 // audited body. The body is the truth; the headers only feed this audit field.
 // Mcp-Name is compared for tools/call only, where the audit has the tool name.
 // Headers are compared with the raw body values, never the quoted audit form.
+// Only POST is checked: GET and DELETE carry no body (one is rejected above),
+// so there is nothing for the headers to disagree with. Mcp-Method and Mcp-Name
+// are forwarded either way and never decide policy, so a Connection-listed
+// Mcp-* header on those methods changes no decision and needs no audit flag.
 func mcpHeadersMismatch(h http.Header, a rpcAudit) bool {
 	if m := h.Get("Mcp-Method"); m != "" && decodeMCPHeaderValue(m) != a.rawMethod {
 		return true
@@ -990,16 +1000,32 @@ func connectionHeaderTokens(h http.Header) map[string]bool {
 }
 
 // acceptsEventStream reports whether the Accept header admits text/event-stream.
+// The most specific matching range decides (RFC 9110 12.5.1), so
+// "text/event-stream;q=0, */*;q=1" refuses a stream.
 func acceptsEventStream(h http.Header) bool {
+	best, bestQ := -1, 0.0
 	for _, v := range h.Values("Accept") {
 		for _, part := range strings.Split(v, ",") {
-			mt, _, err := mime.ParseMediaType(strings.TrimSpace(part))
-			if err == nil && (mt == "text/event-stream" || mt == "text/*" || mt == "*/*") {
-				return true
+			mt, params, err := mime.ParseMediaType(strings.TrimSpace(part))
+			if err != nil {
+				continue
+			}
+			spec := map[string]int{"text/event-stream": 3, "text/*": 2, "*/*": 1}[mt]
+			if spec == 0 {
+				continue
+			}
+			q := 1.0
+			if raw, ok := params["q"]; ok {
+				if f, qerr := strconv.ParseFloat(raw, 64); qerr == nil {
+					q = f
+				}
+			}
+			if spec > best || (spec == best && q > bestQ) {
+				best, bestQ = spec, q
 			}
 		}
 	}
-	return false
+	return best > 0 && bestQ > 0
 }
 
 func isEventStream(contentType string) bool {
@@ -1163,7 +1189,7 @@ func auditField(s string) string {
 // that only reads as tools/call once control characters or spaces are dropped.
 func rpcMethodTool(rawMethod, params json.RawMessage) (method, tool string, ambiguous bool) {
 	_ = json.Unmarshal(rawMethod, &method)
-	if sanitizeAuditMethod(method) != "tools/call" {
+	if !strings.EqualFold(sanitizeAuditMethod(method), "tools/call") {
 		return method, "", false
 	}
 	if method != "tools/call" {

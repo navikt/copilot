@@ -329,6 +329,11 @@ func (s *sealedStore) Incr(ctx context.Context, key string, window time.Duration
 	return s.inner.Incr(ctx, key, window)
 }
 
+// Keys are never sealed, so a prefix count runs on the inner store.
+func (s *sealedStore) CountPrefix(ctx context.Context, kind, prefix string) (int, error) {
+	return s.inner.CountPrefix(ctx, kind, prefix)
+}
+
 func (s *sealedStore) Sweep(ctx context.Context) (int, error) {
 	return s.inner.Sweep(ctx)
 }

@@ -307,6 +307,32 @@ func runStoreContract(t *testing.T, factory storeFactory) {
 		}
 	})
 
+	t.Run("count prefix counts live rows only", func(t *testing.T) {
+		clk := newFakeClock(time.Date(2026, 11, 17, 10, 0, 0, 0, time.UTC))
+		store := factory(t, clk.Now, nil)
+		defer store.Close()
+		ctx := context.Background()
+
+		puts := []struct {
+			kind, key string
+			ttl       time.Duration
+		}{
+			{"k", "u1:a", time.Hour}, {"k", "u1:b", time.Minute}, {"k", "u2:a", time.Hour}, {"other", "u1:a", time.Hour},
+		}
+		for _, p := range puts {
+			if err := store.Put(ctx, p.kind, p.key, []byte("1"), p.ttl); err != nil {
+				t.Fatalf("Put: %v", err)
+			}
+		}
+		if n, err := store.CountPrefix(ctx, "k", "u1:"); err != nil || n != 2 {
+			t.Fatalf("CountPrefix = %d, %v; want 2", n, err)
+		}
+		clk.Advance(2 * time.Minute)
+		if n, err := store.CountPrefix(ctx, "k", "u1:"); err != nil || n != 1 {
+			t.Fatalf("CountPrefix after expiry = %d, %v; want 1", n, err)
+		}
+	})
+
 	t.Run("incr fixed window", func(t *testing.T) {
 		clk := newFakeClock(time.Date(2026, 11, 17, 10, 0, 0, 0, time.UTC))
 		store := factory(t, clk.Now, nil)
