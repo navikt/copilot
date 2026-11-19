@@ -34,7 +34,7 @@ const (
 	defaultMCPMaxInFlight                   = 16
 	defaultMCPMaxInFlightPerRoute           = 8
 	defaultMCPMaxSSE                        = 64 // ~40 KiB each: a 32 KiB read buffer plus the connection
-	defaultPendingCap                       = 1024
+	defaultPendingCap                       = 4096
 	defaultCodeCap                          = 1024
 	defaultSessionCap                       = 4096
 	defaultMCPSessionUserCap                = 64

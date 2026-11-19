@@ -33,7 +33,30 @@ var (
 		Name: "fleet_gateway_routes_loaded",
 		Help: "Number of MCP routes loaded from the route file at startup.",
 	})
+
+	rateLimitedTotal = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "fleet_gateway_rate_limited_total",
+		Help: "Requests rejected by the per-IP or global rate limiter, by endpoint.",
+	}, []string{"endpoint"})
 )
+
+const (
+	rateLimitEndpointAuthorize = "authorize"
+	rateLimitEndpointToken     = "token"
+	rateLimitEndpointRevoke    = "revoke"
+	rateLimitEndpointRegister  = "register"
+)
+
+var rateLimitedEndpoints = []string{
+	rateLimitEndpointAuthorize,
+	rateLimitEndpointToken,
+	rateLimitEndpointRevoke,
+	rateLimitEndpointRegister,
+}
+
+func observeRateLimited(endpoint string) {
+	rateLimitedTotal.WithLabelValues(endpoint).Inc()
+}
 
 func observeMCPRequest(route, outcome, decision string, d time.Duration) {
 	mcpRequestsTotal.WithLabelValues(route, outcome, decision).Inc()
@@ -71,6 +94,9 @@ func initMetrics(routes []PilotRoute) {
 	}
 	for _, reason := range []string{"disabled", "cap", "store_full", "refresh_in_flight"} {
 		httpRequestsTotal.WithLabelValues("503", reason)
+	}
+	for _, ep := range rateLimitedEndpoints {
+		rateLimitedTotal.WithLabelValues(ep)
 	}
 	for _, r := range routes {
 		for _, o := range []string{"ok", "upstream_token_error", "upstream_error"} {

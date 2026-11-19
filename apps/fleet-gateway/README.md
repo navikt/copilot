@@ -102,6 +102,7 @@ Prometheus scrapes `/metrics` on port 9090. That port has no ingress, so the pub
 | `fleet_gateway_mcp_requests_total` | `route`, `outcome`, `decision` | MCP calls. `outcome` matches the `audit mcp` log line, for example `ok`, `upstream_token_error`, `store_error` or `upstream_502` |
 | `fleet_gateway_mcp_request_duration_seconds` | `route` | Time per MCP call, token exchange and upstream included. An SSE stream counts until it ends |
 | `fleet_gateway_routes_loaded` | none | Routes loaded at startup |
+| `fleet_gateway_rate_limited_total` | `endpoint` | Requests rejected with `429` by the in-memory rate limiter on `authorize`, `token`, `revoke`, or `register` |
 
 Useful panels in Grafana:
 
@@ -134,6 +135,14 @@ The audit record logs `action.name` and `action.properties.tool` as they are whe
 Accepted risk (owner decision 2026-11-17): consent is remembered for 30 days and loopback redirect URIs accept any port. Another process on the developer's machine can start a login as an allowlisted public client and get a token without a click, through browser SSO and the remembered consent. PKCE does not help, because the attacker starts the flow. This is the same threat model as public-client logins in the az and gh CLIs. Mitigations: tokens are scoped to fleet-gateway, sessions are capped at 12 hours, and tokens can be revoked.
 
 DCR clients must register `grant_types` as `[authorization_code]` (the default) or `[authorization_code, refresh_token]`. Only the latter get a gateway refresh token.
+
+### Rate limits
+
+Each unauthenticated endpoint, `/authorize`, `/token`, `/revoke`, and `/register`, has its own in-memory rate limiter. By default each limiter allows 30 requests per minute per IP via `RATE_LIMIT_REQUESTS`, 300 requests per minute globally via `RATE_LIMIT_GLOBAL_REQUESTS`, and up to 4096 IP buckets via `RATE_LIMIT_MAP_CAP`. Traffic to one endpoint cannot exhaust another endpoint's budget. When the IP table stays full after sweeping expired windows, a new IP evicts the bucket with the earliest reset time instead of failing closed, while the global ceiling still applies.
+
+### Client IP
+
+The rate-limit key is the last valid IP in `X-Forwarded-For`, which the Nais ingress appends, falling back to `RemoteAddr` when absent or unparseable. Earlier client-supplied entries are ignored. This is only safe because the pod is reachable only through the ingress, and is not yet verified on an external host (#2360).
 
 ## Development
 

@@ -164,6 +164,18 @@ spec:
             summary: More than 5 deliberate 503s (store_full or cap) per 5 minutes for 15 minutes; the reason label says which
             consequence: "store_full: new logins and registrations fail. cap: MCP calls get 503 over capacity."
             action: "store_full: count rows per kind in the session store and look for a client registering in a loop. cap: check `fleet_gateway_mcp_requests_total` by route and slow upstreams."
+        - alert: FleetGatewaySustainedRateLimiting
+          expr: sum by (endpoint) (increase(fleet_gateway_rate_limited_total{namespace="copilot"}[5m])) > 20
+          for: 15m
+          labels:
+            namespace: copilot
+            severity: warning
+            alert_type: custom
+            app: fleet-gateway
+          annotations:
+            summary: More than 20 rate-limited requests per 5 minutes for 15 minutes on an unauthenticated endpoint; the endpoint label says which
+            consequence: Clients on that endpoint get 429 Too Many Requests from the per-IP or global limit.
+            action: "Check `fleet_gateway_rate_limited_total` by endpoint and search pod logs for `rate limited`."
         - alert: FleetGatewayUpstreamTokenErrors
           expr: sum(increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome="upstream_token_error"}[10m])) > 5
           labels:
