@@ -245,6 +245,16 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 				return
 			}
 			owner, found, getErr := g.store.Get(r.Context(), kindMCPSession, route.Route+"\n"+reqSessionID)
+			if errors.Is(getErr, errSealUnknownKID) {
+				// Fail closed: treating the row as missing would let any caller ride the owner's upstream session.
+				outcome = "mcp_session_unverifiable"
+				slog.Warn("mcp session binding sealed with unknown key id", "route", route.Route)
+				writeJSON(w, http.StatusForbidden, map[string]string{
+					"error":   "forbidden",
+					"message": "Mcp-Session-Id cannot be verified; start a new MCP session",
+				})
+				return
+			}
 			if getErr != nil {
 				outcome = "store_error"
 				slog.Warn("mcp session lookup failed", "route", route.Route, "error", getErr)
