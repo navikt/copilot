@@ -35,35 +35,47 @@ func (c *responseCache) get(key string) ([]byte, bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	e, ok := c.entries[key]
-	if !ok || !c.now().Before(e.expires) {
+	if !ok {
+		return nil, false
+	}
+	if !c.now().Before(e.expires) {
+		c.remove(key)
 		return nil, false
 	}
 	return e.body, true
 }
 
 func (c *responseCache) put(key string, body []byte) {
-	if len(body) > cacheMaxBytes {
+	entrySize := len(key) + len(body)
+	if entrySize > cacheMaxBytes {
 		return
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if old, ok := c.entries[key]; ok {
-		c.size -= len(old.body)
-		delete(c.entries, key)
-		for i, k := range c.order {
-			if k == key {
-				c.order = append(c.order[:i], c.order[i+1:]...)
-				break
-			}
+	c.remove(key)
+	now := c.now()
+	for len(c.order) > 0 && !now.Before(c.entries[c.order[0]].expires) {
+		c.remove(c.order[0])
+	}
+	for c.size+entrySize > cacheMaxBytes && len(c.order) > 0 {
+		c.remove(c.order[0])
+	}
+	c.entries[key] = cacheEntry{body: body, expires: now.Add(cacheTTL)}
+	c.order = append(c.order, key)
+	c.size += entrySize
+}
+
+func (c *responseCache) remove(key string) {
+	old, ok := c.entries[key]
+	if !ok {
+		return
+	}
+	c.size -= len(key) + len(old.body)
+	delete(c.entries, key)
+	for i, k := range c.order {
+		if k == key {
+			c.order = append(c.order[:i], c.order[i+1:]...)
+			break
 		}
 	}
-	for c.size+len(body) > cacheMaxBytes && len(c.order) > 0 {
-		oldest := c.order[0]
-		c.order = c.order[1:]
-		c.size -= len(c.entries[oldest].body)
-		delete(c.entries, oldest)
-	}
-	c.entries[key] = cacheEntry{body: body, expires: c.now().Add(cacheTTL)}
-	c.order = append(c.order, key)
-	c.size += len(body)
 }

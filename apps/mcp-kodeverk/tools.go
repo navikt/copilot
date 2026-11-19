@@ -36,18 +36,42 @@ var readOnlyAnnotations = map[string]bool{
 	"openWorldHint":   false,
 }
 
-// toolOutputs names each tool's main result field and its JSON type, and
+type fieldSpec struct {
+	name, typ string
+	required  bool
+}
+
+// toolOutputs lists each tool's tool-specific structuredContent fields and
 // whether the tool pages with offset. toolDefinitions builds outputSchema from it.
 var toolOutputs = map[string]struct {
-	key, typ  string
 	hasOffset bool
+	fields    []fieldSpec
 }{
-	"list_kodeverk":            {"kodeverksnavn", "array", true},
-	"get_kodeverk_koder":       {"koder", "array", true},
-	"get_kodeverk_betydninger": {"betydninger", "object", true},
-	"list_hierarkier":          {"hierarkinavn", "array", true},
-	"get_hierarki_noder":       {"noder", "object", false},
-	"search_kodeverk":          {"", "", false}, // kodeverk or matches, depending on kodeverksnavn
+	"list_kodeverk": {true, []fieldSpec{
+		{"kodeverksnavn", "array", true},
+	}},
+	"get_kodeverk_koder": {true, []fieldSpec{
+		{"kodeverksnavn", "string", true},
+		{"koder", "array", true},
+	}},
+	"get_kodeverk_betydninger": {true, []fieldSpec{
+		{"kodeverksnavn", "string", true},
+		{"betydninger", "object", true},
+	}},
+	"list_hierarkier": {true, []fieldSpec{
+		{"hierarkinavn", "array", true},
+	}},
+	"get_hierarki_noder": {false, []fieldSpec{
+		{"hierarkinavn", "string", true},
+		{"hierarkinivaaer", "array", true},
+		{"noder", "object", true},
+	}},
+	"search_kodeverk": {false, []fieldSpec{
+		{"query", "string", true},
+		{"kodeverksnavn", "string", false},
+		{"kodeverk", "array", false},
+		{"matches", "array", false},
+	}},
 }
 
 func toolDefinitions() []map[string]any {
@@ -65,9 +89,11 @@ func toolDefinitions() []map[string]any {
 			props["nextOffset"] = map[string]any{"type": "integer", "description": "Offset for the next page; absent on the last page."}
 			required = append(required, "offset")
 		}
-		if o.key != "" {
-			props[o.key] = map[string]any{"type": o.typ}
-			required = append(required, o.key)
+		for _, f := range o.fields {
+			props[f.name] = map[string]any{"type": f.typ}
+			if f.required {
+				required = append(required, f.name)
+			}
 		}
 		d["outputSchema"] = map[string]any{"type": "object", "properties": props, "required": required}
 	}
@@ -419,18 +445,39 @@ func toolResult(text string) map[string]any {
 	content := []map[string]string{{"type": "text", "text": text}}
 	total, _ := structured["total"].(float64)
 	returned, _ := structured["returned"].(float64)
-	if offset, ok := structured["offset"].(float64); ok {
+	truncated, _ := structured["truncated"].(bool)
+	offset, hasOffset := structured["offset"].(float64)
+	if hasOffset && int(returned) > 0 {
 		if rest := int(total) - int(offset) - int(returned); rest > 0 {
 			next := int(offset) + int(returned)
 			structured["nextOffset"] = next
+			narrow := "filter"
+			if _, ok := structured["betydninger"]; ok {
+				narrow = "kode"
+			}
 			content = append(content, map[string]string{"type": "text", "text": fmt.Sprintf(
-				"%d more items. Next page: call again with offset=%d, or narrow the request (filter or kode).", rest, next)})
+				"%d more items. Next page: call again with offset=%d, or narrow the request (%s).", rest, next, narrow)})
 		}
-	} else if truncated, _ := structured["truncated"].(bool); truncated || total > returned {
-		content = append(content, map[string]string{"type": "text", "text": fmt.Sprintf(
-			"%d of %d shown. Narrow the query or kodeverksnavn, or lower maxDepth, to see the rest.", int(returned), int(total))})
+	} else if truncated || (!hasOffset && total > returned) {
+		content = append(content, map[string]string{"type": "text", "text": truncationHint(structured, int(returned), int(total))})
 	}
 	return map[string]any{"content": content, "structuredContent": structured}
+}
+
+func truncationHint(structured map[string]any, returned, total int) string {
+	if _, ok := structured["noder"]; ok {
+		if returned == total {
+			return fmt.Sprintf("%d of %d root nodes shown; deeper levels omitted. Increase maxDepth or narrow spraak to see deeper nodes.", returned, total)
+		}
+		return fmt.Sprintf("%d of %d root nodes shown. Lower maxDepth, narrow spraak, or increase limit to see more root nodes.", returned, total)
+	}
+	if _, ok := structured["query"]; ok {
+		return fmt.Sprintf("%d of %d shown. Narrow query or kodeverksnavn to see the rest.", returned, total)
+	}
+	if _, ok := structured["betydninger"]; ok {
+		return fmt.Sprintf("%d of %d shown: single item exceeds the 32 KiB limit. Narrow with kode, spraak, or oppslagsdato, or advance offset.", returned, total)
+	}
+	return fmt.Sprintf("%d of %d shown: single item exceeds the 32 KiB limit. Narrow with filter or advance offset.", returned, total)
 }
 
 func toolErrorResult(msg string) map[string]any {
@@ -939,6 +986,14 @@ func fitCappedJSON(totalItems int, alreadyTruncated bool, render func(n int, tru
 	return string(fallback), nil
 }
 
+func nextPageOffset(offset, returned, total int) *int {
+	if returned > 0 && total-offset-returned > 0 {
+		next := offset + returned
+		return &next
+	}
+	return nil
+}
+
 func buildListKodeverkResult(names []string, filter string, limit, offset int) (string, error) {
 	page, total := filterAndPaginateStrings(names, filter, limit, offset)
 	return fitCappedJSON(len(page), false, func(n int, truncated bool) any {
@@ -946,12 +1001,14 @@ func buildListKodeverkResult(names []string, filter string, limit, offset int) (
 			Total         int      `json:"total"`
 			Returned      int      `json:"returned"`
 			Offset        int      `json:"offset"`
+			NextOffset    *int     `json:"nextOffset,omitempty"`
 			Truncated     bool     `json:"truncated,omitempty"`
 			Kodeverksnavn []string `json:"kodeverksnavn"`
 		}{
 			Total:         total,
 			Returned:      n,
 			Offset:        offset,
+			NextOffset:    nextPageOffset(offset, n, total),
 			Truncated:     truncated,
 			Kodeverksnavn: page[:n],
 		}
@@ -966,6 +1023,7 @@ func buildGetKodeverkKoderResult(navn string, koder []string, filter string, lim
 			Total         int      `json:"total"`
 			Returned      int      `json:"returned"`
 			Offset        int      `json:"offset"`
+			NextOffset    *int     `json:"nextOffset,omitempty"`
 			Truncated     bool     `json:"truncated,omitempty"`
 			Koder         []string `json:"koder"`
 		}{
@@ -973,6 +1031,7 @@ func buildGetKodeverkKoderResult(navn string, koder []string, filter string, lim
 			Total:         total,
 			Returned:      n,
 			Offset:        offset,
+			NextOffset:    nextPageOffset(offset, n, total),
 			Truncated:     truncated,
 			Koder:         page[:n],
 		}
@@ -986,12 +1045,14 @@ func buildListHierarkierResult(names []string, filter string, limit, offset int)
 			Total        int      `json:"total"`
 			Returned     int      `json:"returned"`
 			Offset       int      `json:"offset"`
+			NextOffset   *int     `json:"nextOffset,omitempty"`
 			Truncated    bool     `json:"truncated,omitempty"`
 			Hierarkinavn []string `json:"hierarkinavn"`
 		}{
 			Total:        total,
 			Returned:     n,
 			Offset:       offset,
+			NextOffset:   nextPageOffset(offset, n, total),
 			Truncated:    truncated,
 			Hierarkinavn: page[:n],
 		}
@@ -1025,6 +1086,7 @@ func buildBetydningerResult(navn, kode string, hasKode bool, limit, offset int, 
 			Total         int                    `json:"total"`
 			Returned      int                    `json:"returned"`
 			Offset        int                    `json:"offset"`
+			NextOffset    *int                   `json:"nextOffset,omitempty"`
 			Truncated     bool                   `json:"truncated,omitempty"`
 			Betydninger   map[string][]betydning `json:"betydninger"`
 		}{
@@ -1032,6 +1094,7 @@ func buildBetydningerResult(navn, kode string, hasKode bool, limit, offset int, 
 			Total:         total,
 			Returned:      n,
 			Offset:        offset,
+			NextOffset:    nextPageOffset(offset, n, total),
 			Truncated:     truncated,
 			Betydninger:   subset,
 		}
@@ -1116,7 +1179,7 @@ func buildHierarkiNoderResult(navn string, maxDepth, limit int, resp hierarkiNod
 	}
 
 	// First try full maxDepth with fitCappedJSON; if even 1 root node at maxDepth
-	// exceeds 128 KiB, try reducing depth and fitting as many roots as possible.
+	// exceeds 32 KiB, try reducing depth and fitting as many roots as possible.
 	text, err := fitCappedJSON(len(rootKeys), truncated, func(n int, trunc bool) any {
 		return renderWithDepth(maxDepth, n, trunc)
 	})

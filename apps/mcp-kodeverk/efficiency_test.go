@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -38,6 +39,17 @@ func TestPaginationHintNamesRemainingAndNextOffset(t *testing.T) {
 	if len(content) != 2 {
 		t.Fatalf("want data and hint blocks, got %d", len(content))
 	}
+	txt := content[0].(map[string]any)["text"].(string)
+	if len(txt) > maxToolResultBytes {
+		t.Fatalf("text length %d exceeds %d", len(txt), maxToolResultBytes)
+	}
+	var textDecoded map[string]any
+	if err := json.Unmarshal([]byte(txt), &textDecoded); err != nil {
+		t.Fatalf("unmarshal text block: %v", err)
+	}
+	if textDecoded["nextOffset"] != float64(60) {
+		t.Fatalf("text block nextOffset = %v, want 60", textDecoded["nextOffset"])
+	}
 	hint := content[1].(map[string]any)["text"].(string)
 	if !strings.Contains(hint, "60 more items") || !strings.Contains(hint, "offset=60") {
 		t.Fatalf("hint = %q", hint)
@@ -55,8 +67,49 @@ func TestPaginationHintNamesRemainingAndNextOffset(t *testing.T) {
 	// Last page: no hint, no nextOffset.
 	_, out = callToolModern(t, srv.routes(), "in", "list_kodeverk", map[string]any{"limit": 50, "offset": 100})
 	res = toolResultMap(t, out)
-	if len(res["content"].([]any)) != 1 || res["structuredContent"].(map[string]any)["nextOffset"] != nil {
-		t.Fatalf("last page should carry no hint: %+v", res)
+	lastTxt, _ := extractToolText(t, out)
+	if len(res["content"].([]any)) != 1 || res["structuredContent"].(map[string]any)["nextOffset"] != nil || strings.Contains(lastTxt, "nextOffset") {
+		t.Fatalf("last page should carry no hint or nextOffset: %+v", res)
+	}
+}
+
+func TestSingleItemExceedingCapDoesNotLoopNextOffset(t *testing.T) {
+	huge := strings.Repeat("X", maxToolResultBytes+1024)
+	betydninger := map[string][]betydning{
+		"HUGE": {{
+			GyldigFra: "2000-01-01",
+			GyldigTil: "9999-12-31",
+			Beskrivelser: map[string]beskrivelse{
+				"nb": {Term: "Huge", Tekst: huge},
+			},
+		}},
+	}
+	srv := newTestServer(t, defaultTexasHandler("obo"), func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(w, http.StatusOK, map[string]any{"betydninger": betydninger})
+	})
+	_, out := callToolModern(t, srv.routes(), "in", "get_kodeverk_betydninger", map[string]any{
+		"kodeverksnavn": "Stor",
+		"offset":        0,
+	})
+	res := toolResultMap(t, out)
+	sc := res["structuredContent"].(map[string]any)
+	if sc["returned"] != float64(0) || sc["truncated"] != true {
+		t.Fatalf("want returned=0 truncated=true, got %+v", sc)
+	}
+	if _, hasNext := sc["nextOffset"]; hasNext {
+		t.Fatalf("must not advertise non-advancing nextOffset when returned==0: %+v", sc)
+	}
+	content := res["content"].([]any)
+	if len(content) != 2 {
+		t.Fatalf("want data and truncation hint blocks, got %d", len(content))
+	}
+	txt := content[0].(map[string]any)["text"].(string)
+	if strings.Contains(txt, "nextOffset") {
+		t.Fatalf("text block must not contain nextOffset when returned==0: %s", txt)
+	}
+	hint := content[1].(map[string]any)["text"].(string)
+	if strings.Contains(hint, "offset=0") || !strings.Contains(hint, "32 KiB") {
+		t.Fatalf("unexpected hint for oversized single item: %q", hint)
 	}
 }
 
@@ -74,29 +127,169 @@ func TestEveryToolHasOutputSchemaAndExample(t *testing.T) {
 }
 
 func TestStructuredContentMatchesTextAndSchema(t *testing.T) {
-	srv := newTestServer(t, defaultTexasHandler("obo"), func(w http.ResponseWriter, _ *http.Request) {
-		writeJSON(w, http.StatusOK, map[string]any{"koder": []string{"0150", "0151"}})
+	srv := newTestServer(t, defaultTexasHandler("obo"), func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v1/kodeverk":
+			writeJSON(w, http.StatusOK, map[string]any{"kodeverksnavn": []string{"Landkoder", "Postnummer"}})
+		case "/api/v1/kodeverk/Postnummer/koder":
+			writeJSON(w, http.StatusOK, map[string]any{"koder": []string{"0150", "0151"}})
+		case "/api/v1/kodeverk/Postnummer/koder/betydninger":
+			writeJSON(w, http.StatusOK, map[string]any{
+				"betydninger": map[string]any{
+					"0150": []map[string]any{
+						{"gyldigFra": "2000-01-01", "gyldigTil": "9999-12-31", "beskrivelser": map[string]any{"nb": map[string]any{"term": "OSLO", "tekst": "OSLO"}}},
+					},
+				},
+			})
+		case "/api/v1/hierarki":
+			writeJSON(w, http.StatusOK, map[string]any{"hierarkinavn": []string{"Geografi"}})
+		case "/api/v1/hierarki/Geografi/noder":
+			writeJSON(w, http.StatusOK, map[string]any{
+				"hierarkinivaaer": []string{"Land"},
+				"noder":           map[string]any{"NOR": map[string]any{"kode": "NOR", "termer": map[string]any{"nb": "Norge"}}},
+			})
+		default:
+			http.NotFound(w, r)
+		}
 	})
-	_, out := callToolModern(t, srv.routes(), "in", "get_kodeverk_koder", map[string]any{"kodeverksnavn": "Postnummer"})
-	res := toolResultMap(t, out)
-	sc, ok := res["structuredContent"].(map[string]any)
-	if !ok {
-		t.Fatalf("no structuredContent: %+v", res)
-	}
-	var schema map[string]any
+
+	schemas := map[string]map[string]any{}
 	for _, d := range toolDefinitions() {
-		if d["name"] == "get_kodeverk_koder" {
-			schema = d["outputSchema"].(map[string]any)
+		schemas[d["name"].(string)] = d["outputSchema"].(map[string]any)
+	}
+
+	calls := []struct {
+		name string
+		tool string
+		args map[string]any
+	}{
+		{"list_kodeverk", "list_kodeverk", map[string]any{"limit": 1}},
+		{"get_kodeverk_koder", "get_kodeverk_koder", map[string]any{"kodeverksnavn": "Postnummer", "limit": 1}},
+		{"get_kodeverk_betydninger", "get_kodeverk_betydninger", map[string]any{"kodeverksnavn": "Postnummer"}},
+		{"list_hierarkier", "list_hierarkier", map[string]any{}},
+		{"get_hierarki_noder", "get_hierarki_noder", map[string]any{"hierarkinavn": "Geografi"}},
+		{"search_kodeverk names", "search_kodeverk", map[string]any{"query": "Post"}},
+		{"search_kodeverk codes", "search_kodeverk", map[string]any{"query": "OSLO", "kodeverksnavn": "Postnummer"}},
+	}
+
+	for _, tc := range calls {
+		t.Run(tc.name, func(t *testing.T) {
+			_, out := callToolModern(t, srv.routes(), "in", tc.tool, tc.args)
+			res := toolResultMap(t, out)
+			sc, ok := res["structuredContent"].(map[string]any)
+			if !ok {
+				t.Fatalf("no structuredContent: %+v", res)
+			}
+			schema := schemas[tc.tool]
+			props := schema["properties"].(map[string]any)
+			for _, reqKey := range schema["required"].([]string) {
+				if _, ok := sc[reqKey]; !ok {
+					t.Errorf("%s: structuredContent lacks required %q", tc.name, reqKey)
+				}
+			}
+			for k := range sc {
+				if _, ok := props[k]; !ok {
+					t.Errorf("%s: structuredContent field %q missing from outputSchema properties (%v)", tc.name, k, props)
+				}
+			}
+			txt, _ := extractToolText(t, out)
+			var fromText map[string]any
+			if err := json.Unmarshal([]byte(txt), &fromText); err != nil {
+				t.Fatalf("%s: text block invalid JSON: %v", tc.name, err)
+			}
+			for k, v := range sc {
+				if fmt.Sprintf("%v", fromText[k]) != fmt.Sprintf("%v", v) {
+					t.Errorf("%s: text block key %q = %v, structuredContent = %v", tc.name, k, fromText[k], v)
+				}
+			}
+		})
+	}
+}
+
+func TestTruncationHintsOnlySuggestSupportedArguments(t *testing.T) {
+	srv := newTestServer(t, defaultTexasHandler("obo"), func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v1/kodeverk":
+			writeJSON(w, http.StatusOK, map[string]any{"kodeverksnavn": []string{"Landkoder", "LandkoderISO2", "Landkoderalle"}})
+		case "/api/v1/hierarki/Geografi/noder":
+			writeJSON(w, http.StatusOK, map[string]any{
+				"hierarkinivaaer": []string{"Verdensdel", "Land"},
+				"noder": map[string]any{
+					"EUR": map[string]any{
+						"kode":       "EUR",
+						"undernoder": map[string]any{"NOR": map[string]any{"kode": "NOR"}},
+					},
+					"ASI": map[string]any{
+						"kode": "ASI",
+					},
+				},
+			})
+		default:
+			http.NotFound(w, r)
 		}
-	}
-	for _, k := range schema["required"].([]string) {
-		if _, ok := sc[k]; !ok {
-			t.Errorf("structuredContent lacks required %q", k)
+	})
+
+	t.Run("get_hierarki_noder depth truncation suggests increasing maxDepth", func(t *testing.T) {
+		_, out := callToolModern(t, srv.routes(), "in", "get_hierarki_noder", map[string]any{
+			"hierarkinavn": "Geografi",
+			"maxDepth":     1,
+			"limit":        10,
+		})
+		content := toolResultMap(t, out)["content"].([]any)
+		if len(content) != 2 {
+			t.Fatalf("expected hint block, got %d blocks", len(content))
 		}
-	}
-	if txt, _ := extractToolText(t, out); !strings.Contains(txt, `"0150"`) {
-		t.Fatalf("legacy text block missing data: %s", txt)
-	}
+		hint := content[1].(map[string]any)["text"].(string)
+		if !strings.Contains(hint, "Increase maxDepth") {
+			t.Fatalf("depth-truncated hint should suggest increasing maxDepth, got %q", hint)
+		}
+		for _, forbidden := range []string{"query", "kodeverksnavn", "lower maxDepth", "Lower maxDepth", "filter", "kode"} {
+			if strings.Contains(hint, forbidden) {
+				t.Fatalf("hint %q mentions unsupported or counterproductive %q", hint, forbidden)
+			}
+		}
+	})
+
+	t.Run("get_hierarki_noder root truncation suggests supported args only", func(t *testing.T) {
+		_, out := callToolModern(t, srv.routes(), "in", "get_hierarki_noder", map[string]any{
+			"hierarkinavn": "Geografi",
+			"maxDepth":     2,
+			"limit":        1,
+		})
+		content := toolResultMap(t, out)["content"].([]any)
+		if len(content) != 2 {
+			t.Fatalf("expected hint block, got %d blocks", len(content))
+		}
+		hint := content[1].(map[string]any)["text"].(string)
+		if !strings.Contains(hint, "Lower maxDepth") && !strings.Contains(hint, "increase limit") {
+			t.Fatalf("root-truncated hint = %q", hint)
+		}
+		for _, forbidden := range []string{"query", "kodeverksnavn", "filter", "kode"} {
+			if strings.Contains(hint, forbidden) {
+				t.Fatalf("hint %q mentions unsupported argument %q", hint, forbidden)
+			}
+		}
+	})
+
+	t.Run("search_kodeverk truncation suggests query or kodeverksnavn, not maxDepth", func(t *testing.T) {
+		_, out := callToolModern(t, srv.routes(), "in", "search_kodeverk", map[string]any{
+			"query": "Land",
+			"limit": 1,
+		})
+		content := toolResultMap(t, out)["content"].([]any)
+		if len(content) != 2 {
+			t.Fatalf("expected hint block, got %d blocks", len(content))
+		}
+		hint := content[1].(map[string]any)["text"].(string)
+		if !strings.Contains(hint, "query") || !strings.Contains(hint, "kodeverksnavn") {
+			t.Fatalf("search_kodeverk hint = %q", hint)
+		}
+		for _, forbidden := range []string{"maxDepth", "filter", "spraak", "offset"} {
+			if strings.Contains(hint, forbidden) {
+				t.Fatalf("hint %q mentions unsupported argument %q", hint, forbidden)
+			}
+		}
+	})
 }
 
 func TestUpstreamCacheSharedAndKeyedByQuery(t *testing.T) {
@@ -142,6 +335,9 @@ func TestResponseCacheExpiresAndBounds(t *testing.T) {
 	now := time.Unix(0, 0)
 	c.now = func() time.Time { return now }
 	c.put("a", []byte("x"))
+	if c.size != len("a")+len("x") {
+		t.Fatalf("size = %d, want %d (len(key)+len(body))", c.size, len("a")+len("x"))
+	}
 	if _, ok := c.get("a"); !ok {
 		t.Fatal("fresh entry missing")
 	}
@@ -149,13 +345,20 @@ func TestResponseCacheExpiresAndBounds(t *testing.T) {
 	if _, ok := c.get("a"); ok {
 		t.Fatal("expired entry served")
 	}
-	big := make([]byte, cacheMaxBytes/2+1)
-	c.put("b", big)
-	c.put("c", big)
-	if _, ok := c.get("b"); ok {
-		t.Fatal("oldest entry not evicted over byte bound")
+	if _, exists := c.entries["a"]; exists || len(c.order) != 0 || c.size != 0 {
+		t.Fatalf("expired entry not deleted on get: entries=%d order=%d size=%d", len(c.entries), len(c.order), c.size)
 	}
-	if c.size > cacheMaxBytes {
-		t.Fatalf("size %d over bound", c.size)
+
+	// Verify key length counts toward cacheMaxBytes eviction.
+	halfBody := make([]byte, cacheMaxBytes/2)
+	longKey1 := strings.Repeat("k", 16)
+	longKey2 := strings.Repeat("m", 16)
+	c.put(longKey1, halfBody)
+	c.put(longKey2, halfBody)
+	if _, ok := c.get(longKey1); ok {
+		t.Fatal("oldest entry not evicted when len(key)+len(body) exceeded cacheMaxBytes")
+	}
+	if c.size != len(longKey2)+len(halfBody) || c.size > cacheMaxBytes {
+		t.Fatalf("size = %d, want %d (<= %d)", c.size, len(longKey2)+len(halfBody), cacheMaxBytes)
 	}
 }
