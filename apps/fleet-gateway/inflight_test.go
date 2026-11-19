@@ -1,11 +1,14 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"errors"
+	"fmt"
 	"github.com/prometheus/client_golang/prometheus/testutil"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/http/httptrace"
@@ -706,6 +709,175 @@ func TestSSECapShedIsNotAuditedAsAllow(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("no audit line with outcome sse_over_capacity:\n%s", logBuf.String())
+	}
+}
+
+// A downstream client that stops reading must not pin the SSE handler and its
+// MCP_MAX_SSE slot past SSE_MAX_DURATION / SSE_IDLE_TIMEOUT.
+func TestSSEBlockedDownstreamReleasesSlotOnCancel(t *testing.T) {
+	te := newTestEnv(t)
+	te.gw.cfg.MCPMaxSSE = 1
+	te.gw.cfg.SSEMaxDuration = 300 * time.Millisecond
+	te.gw.cfg.SSEIdleTimeout = 200 * time.Millisecond
+	te.gw.cfg.SSEMaxBytes = 64 << 20
+	te.handler = te.gw.routes()
+
+	stop := make(chan struct{})
+	chunk := []byte("data: " + strings.Repeat("x", 64*1024) + "\n\n")
+	te.upstreamServer.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.Copy(io.Discard, r.Body)
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.WriteHeader(http.StatusOK)
+		if r.URL.Query().Get("probe") == "1" {
+			_, _ = io.WriteString(w, "data: ok\n\n")
+			return
+		}
+		flusher, _ := w.(http.Flusher)
+		if flusher != nil {
+			flusher.Flush()
+		}
+		for {
+			select {
+			case <-stop:
+				return
+			case <-r.Context().Done():
+				return
+			default:
+			}
+			if _, err := w.Write(chunk); err != nil {
+				return
+			}
+			if flusher != nil {
+				flusher.Flush()
+			}
+		}
+	})
+
+	token := te.obtainAccessTokenForResource(te.resource)
+	route := te.gw.cfg.Routes[0].Route
+	firstDone := make(chan struct{})
+	var firstOnce sync.Once
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == route && r.URL.Query().Get("probe") == "" {
+			defer firstOnce.Do(func() { close(firstDone) })
+		}
+		te.handler.ServeHTTP(w, r)
+	}))
+	defer ts.Close()
+	defer close(stop)
+
+	conn, err := net.Dial("tcp", ts.Listener.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = conn.Close() }()
+
+	reqBody := `{"jsonrpc":"2.0","id":1,"method":"tools/list"}`
+	reqStr := fmt.Sprintf(
+		"POST %s HTTP/1.1\r\nHost: %s\r\nAuthorization: Bearer %s\r\nContent-Type: application/json\r\nAccept: application/json, text/event-stream\r\nContent-Length: %d\r\n\r\n%s",
+		route, ts.Listener.Addr().String(), token, len(reqBody), reqBody,
+	)
+	if _, err = io.WriteString(conn, reqStr); err != nil {
+		t.Fatal(err)
+	}
+
+	statusLine, err := bufio.NewReaderSize(conn, 512).ReadString('\n')
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(statusLine, "200 OK") {
+		t.Fatalf("first SSE stream status line = %q, want 200 OK", statusLine)
+	}
+
+	// Never drain conn further so TCP buffers fill and streamSSE's w.Write blocks.
+	select {
+	case <-firstDone:
+	case <-time.After(5 * time.Second):
+		t.Fatalf("SSE handler stayed blocked past timeout (sseSlots=%d/%d)",
+			len(te.gw.sseStreams), cap(te.gw.sseStreams))
+	}
+
+	if used := len(te.gw.sseStreams); used != 0 {
+		t.Fatalf("SSE slot still held after handler returned: %d", used)
+	}
+	if code := capPost(t, ts, token, "?sse=1&probe=1"); code != http.StatusOK {
+		t.Fatalf("follow-up SSE request with MCPMaxSSE=1: code %d, want 200", code)
+	}
+}
+
+// Cancelling an SSE stream must not leave a stale write deadline that cuts a
+// subsequent request on a keep-alive connection.
+func TestSSECancelDoesNotCutFollowUpKeepAlive(t *testing.T) {
+	te := newTestEnv(t)
+	te.gw.cfg.SSEMaxDuration = 30 * time.Millisecond
+	te.gw.cfg.SSEIdleTimeout = 30 * time.Millisecond
+	te.handler = te.gw.routes()
+
+	te.upstreamServer.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.Copy(io.Discard, r.Body)
+		if r.URL.Query().Get("sse") == "1" {
+			w.Header().Set("Content-Type", "text/event-stream")
+			w.WriteHeader(http.StatusOK)
+			if flusher, ok := w.(http.Flusher); ok {
+				flusher.Flush()
+			}
+			_, _ = io.WriteString(w, "data: hi\n\n")
+			if flusher, ok := w.(http.Flusher); ok {
+				flusher.Flush()
+			}
+			<-r.Context().Done()
+			return
+		}
+		time.Sleep(200 * time.Millisecond)
+		writeJSON(w, http.StatusOK, map[string]any{"jsonrpc": "2.0", "id": 1, "result": map[string]any{"ok": true}})
+	})
+
+	token := te.obtainAccessTokenForResource(te.resource)
+	route := te.gw.cfg.Routes[0].Route
+	ts := httptest.NewServer(te.handler)
+	defer ts.Close()
+
+	client := &http.Client{
+		Transport: &http.Transport{
+			MaxConnsPerHost:     1,
+			MaxIdleConnsPerHost: 1,
+		},
+	}
+	defer client.CloseIdleConnections()
+
+	for i := range 20 {
+		sseReq, _ := http.NewRequest(http.MethodPost, ts.URL+route+"?sse=1", strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"tools/list"}`))
+		sseReq.Header.Set("Authorization", "Bearer "+token)
+		sseReq.Header.Set("Content-Type", "application/json")
+		sseReq.Header.Set("Accept", "application/json, text/event-stream")
+		sseResp, err := client.Do(sseReq) //nolint:gosec // test server URL
+		if err != nil {
+			t.Fatalf("iter %d sse Do: %v", i, err)
+		}
+		_, sseReadErr := io.Copy(io.Discard, sseResp.Body)
+		_ = sseResp.Body.Close()
+
+		var reused atomic.Bool
+		followReq, _ := http.NewRequest(http.MethodPost, ts.URL+route, strings.NewReader(`{"jsonrpc":"2.0","id":2,"method":"tools/list"}`))
+		followReq.Header.Set("Authorization", "Bearer "+token)
+		followReq.Header.Set("Content-Type", "application/json")
+		followReq = followReq.WithContext(httptrace.WithClientTrace(followReq.Context(), &httptrace.ClientTrace{
+			GotConn: func(info httptrace.GotConnInfo) {
+				reused.Store(info.Reused)
+			},
+		}))
+		followResp, err := client.Do(followReq) //nolint:gosec // test server URL
+		if err != nil {
+			t.Fatalf("iter %d follow-up Do (reused=%v, sseReadErr=%v): %v", i, reused.Load(), sseReadErr, err)
+		}
+		body, readErr := io.ReadAll(followResp.Body)
+		_ = followResp.Body.Close()
+		if readErr != nil {
+			t.Fatalf("iter %d follow-up read (reused=%v, sseReadErr=%v): %v", i, reused.Load(), sseReadErr, readErr)
+		}
+		if followResp.StatusCode != http.StatusOK || !strings.Contains(string(body), `"ok": true`) {
+			t.Fatalf("iter %d follow-up status=%d body=%q", i, followResp.StatusCode, body)
+		}
 	}
 }
 

@@ -699,10 +699,21 @@ func streamSSE(
 		defer idleTimer.Stop()
 	}
 
+	cbDone := make(chan struct{})
 	stopAfter := context.AfterFunc(streamCtx, func() {
+		defer close(cbDone)
+		// Set write deadline before waking body.Read so it cannot land after ServeHTTP returns.
+		if rc != nil {
+			_ = rc.SetWriteDeadline(time.Now())
+		}
 		_ = body.Close()
 	})
-	defer stopAfter()
+	defer func() {
+		// stopAfter does not wait for a running callback; wait here before releasing the conn.
+		if !stopAfter() {
+			<-cbDone
+		}
+	}()
 
 	var totalBytes int64
 	buf := make([]byte, 32*1024)
