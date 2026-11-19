@@ -17,11 +17,11 @@ func (g *Gateway) putPending(ctx context.Context, kind, key string, p *pendingAu
 	if err != nil {
 		return err
 	}
-	return g.store.Put(ctx, kind, key, raw, defaultPendingTTL)
+	return g.store.Put(ctx, kind, hashToken(key), raw, defaultPendingTTL)
 }
 
 func (g *Gateway) popPending(ctx context.Context, kind, key string) (*pendingAuth, bool, error) {
-	raw, ok, err := g.store.Pop(ctx, kind, key)
+	raw, ok, err := g.popHashed(ctx, kind, key)
 	if err != nil || !ok {
 		return nil, ok, err
 	}
@@ -40,11 +40,11 @@ func (g *Gateway) putCode(ctx context.Context, code string, c *issuedCode) error
 	if err != nil {
 		return err
 	}
-	return g.store.Put(ctx, kindCode, code, raw, defaultCodeTTL)
+	return g.store.Put(ctx, kindCode, hashToken(code), raw, defaultCodeTTL)
 }
 
 func (g *Gateway) popCode(ctx context.Context, code string) (*issuedCode, bool, error) {
-	raw, ok, err := g.store.Pop(ctx, kindCode, code)
+	raw, ok, err := g.popHashed(ctx, kindCode, code)
 	if err != nil || !ok {
 		return nil, ok, err
 	}
@@ -53,6 +53,15 @@ func (g *Gateway) popCode(ctx context.Context, code string) (*issuedCode, bool, 
 		return nil, false, err
 	}
 	return &c, true, nil
+}
+
+func (g *Gateway) popHashed(ctx context.Context, kind, key string) ([]byte, bool, error) {
+	raw, ok, err := g.store.Pop(ctx, kind, hashToken(key))
+	if err == nil && !ok {
+		// shortcut: plaintext-key fallback for rows written before this change; remove after one pending/code TTL (defaultPendingTTL/defaultCodeTTL) has passed since deploy
+		raw, ok, err = g.store.Pop(ctx, kind, key)
+	}
+	return raw, ok, err
 }
 
 func (g *Gateway) putSession(ctx context.Context, hash string, s *gatewaySession, ttl time.Duration) error {

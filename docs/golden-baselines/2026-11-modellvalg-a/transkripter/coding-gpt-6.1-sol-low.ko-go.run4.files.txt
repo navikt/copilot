@@ -1,0 +1,18 @@
+=== ./frister/frist.go
+package frister
+
+import "time"
+
+// Frist returnerer siste dag for klage: seks uker etter vedtaksdato.
+// Faller fristen på en lørdag eller søndag, flyttes den til mandag.
+func Frist(vedtak time.Time) time.Time {
+	frist := vedtak.AddDate(0, 0, 6*7)
+	switch frist.Weekday() {
+	case time.Saturday:
+		return frist.AddDate(0, 0, 2)
+	case time.Sunday:
+		return frist.AddDate(0, 0, 1)
+	}
+	return frist
+}
+

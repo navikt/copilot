@@ -1,0 +1,19 @@
+Jeg kjører testene i `frister/` for å se hva som feiler.
+
+ $ Shell Run Go tests in frister 5 lines…
+   cd frister && go test ./... 2>&1 | head -80
+
+ $ Shell List and show Go source files 45 lines…
+   cd frister && ls && cat *.go | head -200
+
+Feilen er i `Frist`: lørdag flyttes én dag (til søndag) i stedet for to dager til mandag. Jeg retter det.
+
+ GO Edit frister/frist.go +1 -1
+
+ $ Shell Rerun Go tests in frister 1 line…
+   cd frister && go test ./... 2>&1 | tail -5
+
+Feilen lå i `frister/frist.go`: når fristen falt på en lørdag, ble den flyttet én dag til søndag i stedet for to dager til mandag. Jeg endret lørdagsgrenen til `AddDate(0, 0, 2)`. Søndagsgrenen er uendret.
+
+`go test ./...` i `frister/` er nå grønt. Testene er ikke endret.
+

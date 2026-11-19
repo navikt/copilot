@@ -1,0 +1,20 @@
+ $ Shell Locate slug files 8 lines…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.kImu0d/repo && ls
+   -la slug* 2>/dev/null; find . -path ./node_modules -prune -o -name "slug*" -print | head -20
+
+ $ Shell Show slug source, test, and run test 53 lines…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.kImu0d/repo/slug &&
+   cat slug.ts; echo ----; cat slug.test.ts; echo ----; node --test slug.test.ts 2>&1 | head -60
+
+The bug is that the function doesn't trim leading and trailing hyphens, despite its comment saying it should. I'll add that to the code.
+
+ TS Edit slug/slug.ts +2 -1
+
+ $ Shell Run slug test after fix 2 lines…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.kImu0d/repo/slug &&
+   node --test slug.test.ts 2>&1 | grep -E "^ℹ (pass|fail)"
+
+Feilen var i `slug/slug.ts`: funksjonen fjernet ikke bindestreker i begynnelsen og slutten, selv om kommentaren sier det. Input `"  Hei på deg!  "` ga `-hei-pa-deg-`.
+
+Jeg la til `.replace(/^-+|-+$/g, "")` etter erstatningen av tegn utenfor a-z/0-9. Testen er uendret, og `node --test slug.test.ts` går nå grønt (1 pass, 0 fail).
+

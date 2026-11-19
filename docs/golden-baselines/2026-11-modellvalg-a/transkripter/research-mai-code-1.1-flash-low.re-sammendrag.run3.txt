@@ -1,0 +1,20 @@
+ ● List directory . 5 files found
+
+ / Search "**/{README*,readme*,package.json,pom.xml,build.gradle,build.gradle.kts,go.… 2 files found
+
+ MD Read README.md L1:220 (4 lines read)
+
+ ● Read build.gradle.kts L1:220 (12 lines read)
+
+ ● List directory src 1 file found
+
+ / Search "embeddedServer|routing|Application|call\(|get\(|post\(" in **/*.kt (src) 8 lines found
+
+ ● Read src/main/kotlin/no/nav/demo/App.kt L1:200 (15 lines read)
+
+ ● Read src/main/kotlin/no/nav/demo/Routes.kt L1:220 (19 lines read)
+
+- Dette er en liten Ktor-demo-tjeneste som starter på port 8080 og er ment for å vise et enkelt REST-API i Nav-miljøet.
+- Den eksponerer endepunktet /api/oppgaver, som returnerer en liste med oppgaver i JSON-format, for eksempel “Registrer søknad” og “Send vedtaksbrev”.
+- Tjenesten er bygget for å kjøre på Nais og brukes som enkel demonstrasjon av en Kotlin-backend med Ktor og JSON-serialisering.
+

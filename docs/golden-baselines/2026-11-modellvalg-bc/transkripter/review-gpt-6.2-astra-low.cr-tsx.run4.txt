@@ -1,0 +1,36 @@
+ ● skill(aksel-builder)
+
+ ● skill(klarsprak)
+
+ $ Shell Les komponenten og finn prosjektreglene 53 lines…
+   nl -ba src/app/komponenter/StatusPanel.tsx; ls -a; rg --files --hidden | head -80
+
+ ✗ Shell Kjør prosjektsjekkene Failed with exit code 1  mise ERROR no tasks defined in /private/var…
+   mise check
+   mise ERROR no tasks defined in 
+   /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.tJpC35/repo. Are you in
+    a project directory?
+   mise ERROR Version: 2026.11.10 macos-arm64 (2026-11-18)
+   mise ERROR Run with --verbose or MISE_VERBOSE=1 for more information
+   Failed with exit code 1
+
+ $ Shell Finn relevant Aksel-dokumentasjon 6 lines…
+   curl -fsSL --max-time 5 ]8;id=md-1tr6tgx;https://aksel.nav.no/llm.mdhttps://aksel.nav.no/llm.md]8;;]8;; | grep -iE 'box|stack|heading|bodyshort' | ]8;;
+   head -10
+
+ $ Shell Sjekk lokale krav til tilgjengelighet og avstand 227 lines…
+   cat .github/instructions/{accessibility,nextjs-aksel}.instructions.md README.md; curl -fsSL
+   --max-time 5 ]8;id=md-2vrrz9;https://aksel.nav.no/komponenter/primitives/box.mdhttps://aksel.nav.no/komponenter/primitives/box.md]8;;]8;; | head -c 350]8;;
+
+**Tre funn bør rettes før merge:** «Vis detaljer» viser ingenting, kontrollen kan ikke brukes med tastatur, og sletteknappen mangler et tilgjengelig navn.
+
+| Linje i `StatusPanel.tsx` | Prioritet | Funn |
+|---|---|---|
+| 5, 8–10 | 🔴 | Klikk endrer `apen`, men komponenten viser samme innhold uansett. La `apen` styre detaljvisningen, og knytt `aria-expanded` til samme verdi. |
+| 8–10 | 🔴 | «Vis detaljer» er en `div` med `onClick`. Brukeren kan verken nå den med Tab eller aktivere den med Enter eller mellomrom. Bruk en knapp med synlig fokus, og fjern `outline: "none"`. |
+| 14–16 | 🔴 | Sletteknappen inneholder kun et ikon. Gi knappen et navn som forteller skjermleserbrukere hva den sletter, enten med synlig tekst eller `aria-label`. |
+| 11 | 🟡 | `tabIndex={5}` flytter statisk statustekst foran vanlige knapper og lenker i tabulatorrekkefølgen. Fjern attributtet. Skjermlesere kan fortsatt lese teksten. |
+| 11 | 🟡 | Hardkodet `red` gir bare 4,0:1 i kontrast på hvit bakgrunn, under WCAG-kravet på 4,5:1 for vanlig tekst. Bruk tematilpassede statusfarger og sjekk kontrasten mot panelets bakgrunn. |
+
+`mise check` kunne ikke kjøre fordi prosjektet ikke definerer noen mise-oppgaver.
+

@@ -1,0 +1,6 @@
+ ● skill(nav-auth)
+
+**TokenX** for innlogget innbygger: A veksler brukertokenet til et token med B som audience. Brukerkonteksten bevares.
+
+For en **Nav-ansatt med Entra ID** bruker dere **On-Behalf-Of (OBO)**. Ikke bruk `client_credentials`: det representerer tjenesten, ikke brukeren.
+

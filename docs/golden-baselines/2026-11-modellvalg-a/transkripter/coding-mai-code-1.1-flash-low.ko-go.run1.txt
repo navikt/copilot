@@ -1,0 +1,69 @@
+ ✗ Shell Inspect repository layout and run failing Go tests in frister Failed with exit code 1  /va…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.qenq4R/repo && pwd
+   && ls -la && echo '---' && find . -maxdepth 2 -type d | sed 's#^./##' | sort | head -200 && echo
+   '--- TEST ---' && cd frister && go test ./...
+   /var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.qenq4R/repo
+   total 24
+   drwxr-xr-x  10 hans  staff  320 Nov 18 20:26 .
+   drwx------  13 hans  staff  416 Nov 18 20:26 ..
+   drwxr-xr-x   4 hans  staff  128 Nov 18 20:26 .github
+   -rw-r--r--   1 hans  staff  340 Nov 18 20:26 build.gradle.kts
+   drwxr-xr-x   5 hans  staff  160 Nov 18 20:26 frister
+   -rw-r--r--   1 hans  staff  216 Nov 18 20:26 nais.yaml
+   -rw-r--r--   1 hans  staff  166 Nov 18 20:26 README.md
+   drwxr-xr-x   4 hans  staff  128 Nov 18 20:26 slug
+   drwxr-xr-x   3 hans  staff   96 Nov 18 20:26 src
+   drwxr-xr-x   6 hans  staff  192 Nov 18 20:26 ytelse
+   ---
+   .
+   .github
+   .github/agents
+   .github/instructions
+   frister
+   slug
+   src
+   src/main
+   ytelse
+   --- TEST ---
+   --- FAIL: TestFrist (0.00s)
+       frist_test.go:23: Frist(2026-09-05) = 2026-10-18, want 2026-10-19
+   FAIL
+   FAIL    example.com/frister     0.174s
+   FAIL
+   Failed with exit code 1
+
+ GO Read frister/frist.go L1:220 (16 lines read)
+
+ GO Read frister/frist_test.go L1:220 (26 lines read)
+
+Jeg har funnet feilen i logikken: fristen beregnes med en dag for lite når den faller på helg. Jeg retter dette i selve funksjonen og verifiserer med `go test ./...`.
+
+ ● update_todo todos: "- [ ] Inspect frist logic and confirm rule - [ ] Fix date … TODO list updated
+
+ / Search "Frist\(|frist|klage|helg|lørdag|søndag" 16 lines found
+
+ $ Shell Check the weekday math behind the deadline calculation for the weekend cases 9 lines…
+   python - <<'PY'
+   import datetime
+   for s in ['2026-09-05','2026-09-06','2026-09-01']:
+       d=datetime.date.fromisoformat(s)
+       for delta in [42,43]:
+           x=d+datetime.timedelta(days=delta)
+           print(s, ' +', delta, x, x.weekday())
+   PY
+
+ GO Edit frister/frist.go +1 -1
+
+ $ Shell Verify the deadline fix makes all Go tests pass in frister 1 line…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.qenq4R/repo/frister
+   && go test ./...
+
+Retta i `frister/frist.go`: når fristen faller på en lørdag, ble den bare flyttet én dag, mens reglen er at lørdag og søndag skal hoppe til mandag, og lørdag trenger 2 dager for å komme til mandag.
+
+Endringen:
+- `time.Saturday` → `+2` dager
+- `time.Sunday` → `+1` dag
+
+Verifisert med:
+- `cd frister && go test ./...` → grønt.
+

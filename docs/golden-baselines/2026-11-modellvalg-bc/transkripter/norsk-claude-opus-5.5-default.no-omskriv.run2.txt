@@ -1,0 +1,18 @@
+ ● skill(klarsprak)
+
+ MD Read utkast.md 11 lines read
+
+ ● Create utkast.md.tmp +1
+
+ MD Edit utkast.md +5 -5
+
+Jeg har skrevet den språkvaskede teksten tilbake til `utkast.md`. Den er nå rundt 77 ord inkludert overskriften, og alle fakta er med.
+
+- **Nyheten først:** Teksten starter nå med at alle team kan bruke agenten fra mandag.
+- **KI-markører:** Jeg tok bort «I en tid der», «banebrytende», «sømløs», «spiller en avgjørende rolle», «Det er viktig å påpeke», «Avslutningsvis» og «fremtiden ser lys ut».
+- **Nynorsk:** «ikkje», «sjølv», «berre», «mykje» og «tilgjengeleg» er rettet til bokmål eller strøket.
+- **AI → KI:** «AI-agent» er endret til «KI-agent».
+- **Aktiv form:** «slås av» og «tas imot» er nå «Slå av» og «Send».
+
+Jeg opprettet ved en feil en tom fil, `utkast.md.tmp`, og fikk ikke slettet den med verktøyene jeg hadde. Den kan slettes.
+

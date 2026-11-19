@@ -1,0 +1,27 @@
+ $ Shell Read file 63 lines…
+   cat -n src/main/kotlin/no/nav/demo/sak/SakService.kt; ls; ls src/main/kotlin/no/nav/demo/sak
+
+Jeg fant ingen blokkere i `SakService.kt`. Jeg kjørte ikke `mise check`, og jeg så ikke etter tester. Vurderingen bygger bare på kodelesing.
+
+### Sammendrag
+Sikkerheten ser riktig ut:
+- **Eierskap:** fødselsnummeret hentes fra `pid`-claimet i TokenX-tokenet, ikke fra en parameter brukeren sender inn. Brukeren kan bare se sine egne saker.
+- **SQL:** spørringen er parameterisert.
+- **Logging:** loggene inneholder ikke fødselsnummeret.
+
+🔴 Rød sone: autentisering og tilgangskontroll (linje 48–55), gå gjennom denne nøye.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|---|---|---|---|
+| `SakService.kt` | 41 | 🟡 | Feilloggen tar bare med klassenavnet og mister stacktrace og årsak. |
+| `SakService.kt` | 38–43 | 🟡 | Jeg fant ingen tester for `sakerFor` eller for ruten med og uten `pid`. |
+| `SakService.kt` | 47–58 | 💭 | Ruten ligger i samme fil som service og repository. Lagdelingen blir tydeligere med en egen `SakRoutes.kt`. |
+| `SakService.kt` | 20, 37 | 💭 | `maskert()` gir alltid `***********`, så loggfeltet sier ingenting. Bruk heller en ikke-sensitiv ID (sak-ID eller korrelasjons-ID), eller fjern feltet. |
+
+### Detaljer
+**Linje 41:** Det er riktig å ikke logge `e.message`. Feilmeldinger fra PostgreSQL kan inneholde parameterverdier, altså fødselsnummeret. Uten stacktrace blir feil i produksjon likevel vanskelige å feilsøke. Et alternativ er å logge rotårsakens klassenavn og SQLState (`(e as? SQLException)?.sqlState`), med full stacktrace i secure logs. Fordelen er bedre feilsøking. Ulempen er at oppsettet blir litt mer komplisert.
+
+Still gjerne spørsmål om valgene over.
+

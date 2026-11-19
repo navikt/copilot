@@ -1,0 +1,76 @@
+=== ./build.gradle.kts
+plugins {
+    kotlin("jvm") version "2.1.0"
+    kotlin("plugin.serialization") version "2.1.0"
+}
+repositories {
+    mavenCentral()
+}
+dependencies {
+    implementation("io.ktor:ktor-server-netty:3.0.0")
+    implementation("io.ktor:ktor-server-content-negotiation:3.0.0")
+    implementation("io.ktor:ktor-serialization-kotlinx-json:3.0.0")
+    testImplementation("io.kotest:kotest-runner-junit5:5.9.1")
+    testImplementation("io.kotest:kotest-assertions-core:5.9.1")
+}
+
+tasks.test {
+    useJUnitPlatform()
+}
+
+=== ./src/main/kotlin/no/nav/demo/Feriepenger.kt
+package no.nav.demo
+
+fun feriepenger(grunnlag: Long, alderIOpptjeningsåret: Int): Long {
+    TODO("Implementer satsvalg, avvis negativt grunnlag og rund til nærmeste krone med 50 øre opp")
+}
+
+=== ./src/test/kotlin/no/nav/demo/FeriepengerTest.kt
+package no.nav.demo
+
+import io.kotest.assertions.throwables.shouldThrow
+import io.kotest.core.spec.style.FunSpec
+import io.kotest.matchers.shouldBe
+
+class FeriepengerTest : FunSpec({
+    test("bruker 10,2 prosent året personen fyller 59") {
+        feriepenger(100_000L, 59) shouldBe 10_200L
+    }
+
+    test("bruker 12,5 prosent året personen fyller 60") {
+        feriepenger(100_000L, 60) shouldBe 12_500L
+    }
+
+    test("bruker 12,5 prosent etter fylte 60") {
+        feriepenger(100_000L, 61) shouldBe 12_500L
+    }
+
+    test("null grunnlag gir null med begge satser") {
+        feriepenger(0L, 59) shouldBe 0L
+        feriepenger(0L, 60) shouldBe 0L
+    }
+
+    test("avrunder ned under 50 øre med 10,2 prosent") {
+        feriepenger(53L, 59) shouldBe 5L
+    }
+
+    test("avrunder 50 øre og beløp over opp med 10,2 prosent") {
+        feriepenger(250L, 59) shouldBe 26L
+        feriepenger(251L, 59) shouldBe 26L
+    }
+
+    test("avrunder ned under 50 øre med 12,5 prosent") {
+        feriepenger(3L, 60) shouldBe 0L
+    }
+
+    test("avrunder 50 øre og beløp over opp med 12,5 prosent") {
+        feriepenger(4L, 60) shouldBe 1L
+        feriepenger(5L, 60) shouldBe 1L
+    }
+
+    test("avviser negativt grunnlag med begge satser") {
+        shouldThrow<IllegalArgumentException> { feriepenger(-1L, 59) }
+        shouldThrow<IllegalArgumentException> { feriepenger(-1L, 60) }
+    }
+})
+

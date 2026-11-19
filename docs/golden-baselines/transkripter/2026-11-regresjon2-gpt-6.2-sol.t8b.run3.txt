@@ -1,0 +1,15 @@
+ ● skill(klarsprak)
+
+ / Search "ProducerRecord|signature|signatur|fnr" 14 lines found
+
+ $ Shell ls -a; ls -a .github; find lib -type f | head -25 15 lines…
+   ls -a; ls -a .github; find lib -type f | head -25
+
+Jeg la ikke til fødselsnummer i Kafka-headeren. `Periode` har allerede `fnr`, men en egen header gjør fødselsnummeret tilgjengelig også for verktøy som leser metadata uten å lese payloaden.
+
+**Personvern:** Hvilket sporingsbehov krever fødselsnummer i headeren, og hvilke konsumenter og verktøy skal kunne lese det? Hvis målet er å følge samme hendelse gjennom flere tjenester, kan en korrelasjons-ID som ikke er avledet fra fødselsnummeret dekke behovet.
+
+Repoet mangler lokal Copilot-konfigurasjon. Den kan opprettes med `nav-pilot init`.
+
+Blindsoner reist: 1/11 (#1 personvern, inkludert hvem som kan lese headeren). De øvrige er ikke avklart i denne fasen: forespørselen endrer ikke tilgangsreglene, og videre avklaringer avhenger av sporingsbehovet.
+

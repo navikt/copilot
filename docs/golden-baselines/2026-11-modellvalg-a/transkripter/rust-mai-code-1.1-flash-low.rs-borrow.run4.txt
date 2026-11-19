@@ -1,0 +1,43 @@
+ ✗ Shell Locate the failing Rust function and reproduce the compile error Failed with exit code 101…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.RZi2cT/repo && rg -n
+   "behandle_neste|behandle.*neste|neste" saksko -S && cargo test --manifest-path saksko/Cargo.toml
+   --quiet
+   saksko/src/lib.rs:29:    pub fn behandle_neste(&mut self) -> Option<Sak> {
+   saksko/src/lib.rs:46:        assert_eq!(ko.behandle_neste().map(|s| s.id), 
+   Some("s1".to_string()));
+   error[E0502]: cannot borrow `self.saker` as mutable because it is also borrowed as immutable
+     --> src/lib.rs:31:9
+      |
+   30 |         let sak = self.saker.first()?;
+      |                   ---------- immutable borrow occurs here
+   31 |         self.saker.remove(0);
+      |         ^^^^^^^^^^^^^^^^^^^^ mutable borrow occurs here
+   32 |         self.behandlet.push(sak.id.clone());
+      |                             ------ immutable borrow later used here
+   
+   For more information about this error, try `rustc --explain E0502`.
+   error: could not compile `saksko` (lib) due to 1 previous error
+   error: could not compile `saksko` (lib test) due to 1 previous error
+   Failed with exit code 101
+
+ ● update_todo todos: "- [ ] Fix borrow error in `behandle_neste` without changin… TODO list updated
+
+ RS Read saksko/src/lib.rs L1:220 (50 lines read)
+
+ RS Edit saksko/src/lib.rs +2 -2
+
+ $ Shell Verify the borrow fix compiles and the Rust test passes 8 lines…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.RZi2cT/repo && cargo
+   test --manifest-path saksko/Cargo.toml --quiet
+
+ ● update_todo todos: "- [x] Fix borrow error in `behandle_neste` without changin… TODO list updated
+
+Feilen var at `self.saker.first()` ga en immutable borrow som levde for lenge, og så ble samme vektor mutably lånt i `remove(0)`. Jeg løste det ved å klone først elementet før vi fjerner det:
+
+- `let sak = self.saker.first().cloned()?;`
+- `self.saker.remove(0);`
+- `self.behandlet.push(sak.id.clone());`
+- `Some(sak)`
+
+Dette bevarer funksjonens oppførsel, men unngår lånekonflikten. `cargo test --manifest-path saksko/Cargo.toml --quiet` går grønt.
+

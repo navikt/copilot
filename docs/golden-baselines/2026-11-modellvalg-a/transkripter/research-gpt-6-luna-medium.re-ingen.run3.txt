@@ -1,0 +1,8 @@
+ ● List directory . 5 files found
+
+ / Search "slettOppgave" No matches found
+
+ / Search "slett|Oppgave" 11 lines found
+
+Jeg fant ingen kall til `slettOppgave` i koden. Søket fant heller ingen funksjonsdefinisjon med det navnet.
+

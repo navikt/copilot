@@ -1,0 +1,39 @@
+ ● skill(kafka)
+
+ ● Research-agent (model: gpt-6-luna) Kartlegg Kafka-melding og personvern                       32s
+   │ ## Oppsummering
+   │ Read src/main/kotlin/no/nav/demo/Routes.kt 19 lines read
+   └ Search "soknad-mottatt|sendMottatt|SoknadMottattMelding|fnr" 10 lines found
+
+## Oppsummering
+
+Repoet viser et mulig fnr-opphav i `SokerDto`, men dokumenterer ikke at dette er personen som hører til en mottatt søknad, eller hvorfor `soknad-mottatt`-konsumenter trenger fnr. Meldingsmodellen og produsentfunksjonen finnes, men repoet inneholder ingen tester eller Kafka-/topic-konfigurasjon som avklarer mottakere, tilgang eller lagring. Dette er derfor ikke nok grunnlag til å fastslå personvernformål eller konsumentkompatibilitet.
+
+## Funn
+
+- **Modell og produsent:** `src/main/kotlin/no/nav/demo/Soknad.kt:13` definerer `SoknadMottattMelding` med `soknadId` og `mottatt`, uten fnr. `sendMottatt` sender JSON-serialisert melding til `soknad-mottatt`, med `soknadId` som Kafka-nøkkel (`:21–23`).
+- **Eksisterende fnr-kilde:** Samme fil definerer `SokerDto(fnr, navn)` (`:11`) og `lesSoker` som deserialiserer den (`:19`). `sendSoker` sender denne DTO-en til en annen topic, `soker-oppdatert`, med fnr som Kafka-nøkkel (`:25–27`). Ingen kode kobler `SokerDto` til søknadsmeldingen eller `sendMottatt`.
+- **Tester:** Repoet har ingen testfiler; filoversikten viser bare fem Kotlin-filer under `src/main`. Dermed finnes det ingen repo-test som beskriver meldingsformatet eller verifiserer hva `sendMottatt` publiserer.
+- **Topic, tilgang og sikkerhet:** `nais.yaml` inneholder kun grunnleggende Nais-appmetadata, port og helseendepunkter. Den angir ikke Kafka-topic, ACL/tilgangspolicy, retention eller krypteringsoppsett. `build.gradle.kts` har Kafka-klientavhengighet (`kafka-clients:3.9.0`), men avhengigheten sier ikke hvordan produksjonsmiljøet er konfigurert.
+- **Dokumentert formål og mottakere:** `README.md` beskriver bare tjenesten som en liten Ktor-demonstrasjon med REST-API og sier at dokumentasjonen er ufullstendig. Ingen repo-dokumentasjon beskriver formålet med fnr på `soknad-mottatt` eller hvem som konsumerer topicet.
+- **Instruksjonsfiler:** Fant ikke repo-lokal `AGENTS.md`, `.github/copilot-instructions.md` eller `.github/copilot-review-instructions.md`. `.github/agents/golden-nav-pilot.agent.md` finnes, men er ikke en av de etterspurte filene.
+
+## Hva repoet ikke avklarer
+
+Repoet fastslår ikke behandlingsformål og nødvendighet for fnr i søknadsmeldingen, datakategori utover at det finnes et felt kalt `fnr`, eller hvem som får tilgang til meldingen og hvor lenge den lagres. Det dokumenterer heller ikke kryptering, ACL-er eller hvordan eksisterende konsumenter håndterer et ekstra JSON-felt. At produsenten serialiserer modellen til JSON viser at en modellendring kan endre payloaden, men sier ikke om konsumentene tåler det.
+
+**Konklusjon:** Fase 1-avklaringen mangler grunnleggende opplysninger om formål, nødvendighet, mottakere og konsumentkompatibilitet. Repoet alene gir ikke grunnlag for å vurdere om fnr bør legges til.
+
+ ● skill(klarsprak)
+
+**Ingen kode er endret.** Fnr i `SoknadMottattMelding` utvider delingen av personopplysninger. Repoet har `SokerDto.fnr`, men dokumenterer ikke koblingen til søknaden eller mottakerne på `soknad-mottatt`.
+
+Før endringen trenger jeg disse avklaringene:
+1. Er det søkerens fødselsnummer som skal sendes, og hvorfor trenger konsumentene det?
+2. Hvilke konsumenter mottar meldingen, og hvordan sikres tilgang, kryptering og lagringstid?
+3. Tåler eksisterende konsumenter det nye feltet?
+
+Repo-lokal Copilot-konfigurasjon mangler. Den kan opprettes med `nav-pilot init`.
+
+Blindsoner reist: 3/11 (#1, #6, #9). Øvrige avklaringer utsettes til formål og mottakere er kjent.
+

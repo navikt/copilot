@@ -1,0 +1,42 @@
+ ● skill(klarsprak)
+
+ $ Shell Finn prosjektstruktur og lokale instruksjoner 28 lines…
+   ls -a && find . -maxdepth 4 -type f | head -70
+
+ MD Read .github/instructions/kotlin.instructions.md too large, not read
+
+ MD Read .github/instructions/testing.instructions.md 112 lines read
+
+ ● Read build.gradle.kts 12 lines read
+
+ MD Read .github/instructions/testing-kotlin.instructions.md 185 lines read
+
+ / Search "src/**/*" 4 files found
+
+ MD Read .github/instructions/security-owasp.instructions.md 12 lines read
+
+ MD Read .github/instructions/kotlin.instructions.md L1:260 (260 lines read)
+
+ MD Read .github/instructions/kotlin.instructions.md L261:580 (320 lines read)
+
+ ● Read src/main/kotlin/no/nav/demo/Oppgave.kt 9 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/Routes.kt 19 lines read
+
+Dette er en avgrenset endring, men selve beregningen er rød sone fordi reglene er nye for teamet. Jeg legger inn funksjonsstub og tester som beskriver kravene, uten å implementere forretningslogikken. Gradle kjøres ikke.
+
+
+ ● Edit  Edit build.gradle.kts (+1)  Create src/main/kotlin/no/nav/demo/Feriepenger.kt (+5)  Create…
+
+ ● Edit  Edit src/test/kotlin/no/nav/demo/FeriepengerTest.kt (+4 -4)
+
+ ● Read src/test/kotlin/no/nav/demo/FeriepengerTest.kt 44 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/Feriepenger.kt 5 lines read
+
+ ● Read build.gradle.kts 13 lines read
+
+Lagt til `Feriepenger.kt` som TODO-stub, enhetstester for satsene, 60-årsgrensen, avrunding, null og negativt grunnlag, samt testavhengighet. Gradle er ikke kjørt.
+
+🔴 Rød sone: forretningslogikken gjenstår fordi reglene er nye for teamet. Testene beskriver kravene, men vil feile til dere implementerer funksjonen. Løftet om gjennomgang etterpå er ikke en eksplisitt bestilling på å implementere rød sone.
+

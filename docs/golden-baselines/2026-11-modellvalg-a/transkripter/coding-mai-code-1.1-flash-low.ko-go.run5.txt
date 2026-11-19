@@ -1,0 +1,42 @@
+ / Search "frister" 3 files found
+
+ $ Shell List repo directories to locate frister module 10 lines…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.qenq4R/repo && find
+   . -maxdepth 3 -type d | sed 's#^./##' | sort | head -200
+
+ GO Read /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.q  Path does not…
+         enq1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.qenq4R/repo/frister/frist_te
+         st.go
+   Path does not exist
+
+ GO Read frister/frist.go L1:250 (16 lines read)
+
+Jeg kjører testen lokalt for å bekrefte feilen, og retter deretter selve logikken i frister-pakken.
+
+ ✗ Shell Run Go tests for frister package to confirm the failing behavior Failed with exit code 1  …
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.qenq4R/repo/frister
+   && go test ./...
+   --- FAIL: TestFrist (0.00s)
+       frist_test.go:23: Frist(2026-09-05) = 2026-10-18, want 2026-10-19
+   FAIL
+   FAIL    example.com/frister     0.022s
+   FAIL
+   Failed with exit code 1
+
+ GO Read frister/frist_test.go L1:200 (26 lines read)
+
+ GO Edit frister/frist.go +1 -1
+
+Jeg fant feilen: lørdager ble flyttet til søndag i stedet for mandag. Nå verifiserer jeg rettelsen mot hele pakken.
+
+ $ Shell Verify the frister package passes after fixing the weekend deadline shift logic 1 line…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.qenq4R/repo/frister
+   && go test ./...
+
+Rettet i `frister/frist.go`.
+
+Feilen var at fristen ble flyttet fra lørdag til søndag i stedet for til mandag. Når fristen faller på lørdag, må den flyttes 2 dager (til mandag), mens søndag flyttes 1 dag.
+
+Verifisert:
+- `cd frister && go test ./...` → grønt.
+

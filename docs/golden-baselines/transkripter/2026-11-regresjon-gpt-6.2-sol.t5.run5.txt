@@ -1,0 +1,6 @@
+ ● skill(tokenx-auth)
+
+Bruk **TokenX** på Nais når A kaller B på vegne av en innlogget bruker med ID-porten. A veksler brukertokenet til et token med B som mottaker. B validerer tokenet og sjekker at brukeren har tilgang til ressursen.
+
+Hvis brukeren er innlogget med **Entra ID**, bruk **On-Behalf-Of (OBO)** i stedet. `client_credentials` passer ikke her: det identifiserer tjenesten, ikke brukeren.
+

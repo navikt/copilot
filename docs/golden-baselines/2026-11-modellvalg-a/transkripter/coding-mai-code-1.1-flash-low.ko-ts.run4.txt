@@ -1,0 +1,30 @@
+ / Search "**/*slug*" 2 files found
+
+ ✗ Shell Run the failing slug test to reprodu… Could not find 'slug.test.ts' Failed with exit code 1
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.qenq4R/repo && node
+   --test slug.test.ts
+
+ TS Read slug/slug.test.ts L1:220 (9 lines read)
+
+ TS Read slug/slug.ts L1:220 (10 lines read)
+
+Jeg retter funksjonen i `slug.ts` slik at den normaliserer whitespace, fjerner ekstra bindestreker og trimmer endene, uten å endre testen.
+
+ TS Edit slug/slug.ts +3 -1
+
+ $ Shell Verify the slug fix against the provided test 9 lines…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.qenq4R/repo/slug &&
+   node --test slug.test.ts
+
+Løst.
+
+Feilen var i `slug.ts`: funksjonen erstattet ugyldige tegn med `-`, men trimmet ikke kantbindestreker og lot flere bindestreker bli stående. Det ga feil for tekst som `"  Hei på deg!  "`.
+
+Jeg rettet det ved å:
+- fjerne bindestreker i starten og slutten
+- slå sammen flere bindestreker til én
+- beholde den øvrige normaliseringen (`æ/ø/å`, små bokstaver, ugyldige tegn til `-`)
+
+Verifisert:
+- `cd slug && node --test slug.test.ts` passerer.
+

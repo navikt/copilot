@@ -1,0 +1,38 @@
+# golden-prompt PER-RUN ASSERTION OUTCOMES
+# agent:        forfatter
+# suite:        norsk
+# date:         2026-11-18
+# revision:     6fbce9a6
+# personaHash:  81d4560449214a21214d98a7a50847f0f2cb5e1372a24d1071a404ed8c3042e6
+# harnessHash:  31303b66a044df68da77f1ba539f6a0a98cf0aabc6733992e11c37f4979c6eb4
+# model:        claude-sonnet-5.5
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.114-0.
+# effort:       CLI default
+# context:      CLI default
+# instructions: 17 installed, 4 always-on
+# repeat:       5
+# fixture:      3498918618
+# prompts:      all
+#
+# id|run|status|assertion|detail
+no1|1|pass|both texts are free of nynorsk forms|
+no2|1|pass|both texts are free of KI markers|
+no3|1|pass|neither text says «AI»|
+no4|1|pass|both texts are 30-90 words|
+no1|2|pass|both texts are free of nynorsk forms|
+no2|2|pass|both texts are free of KI markers|
+no3|2|pass|neither text says «AI»|
+no4|2|pass|both texts are 30-90 words|
+no1|3|pass|both texts are free of nynorsk forms|
+no2|3|pass|both texts are free of KI markers|
+no3|3|pass|neither text says «AI»|
+no4|3|pass|both texts are 30-90 words|
+no1|4|pass|both texts are free of nynorsk forms|
+no2|4|pass|both texts are free of KI markers|
+no3|4|pass|neither text says «AI»|
+no4|4|pass|both texts are 30-90 words|
+no1|5|pass|both texts are free of nynorsk forms|
+no2|5|pass|both texts are free of KI markers|
+no3|5|pass|neither text says «AI»|
+no4|5|pass|both texts are 30-90 words|

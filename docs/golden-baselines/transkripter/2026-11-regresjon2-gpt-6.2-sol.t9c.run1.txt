@@ -1,0 +1,15 @@
+ ● skill(klarsprak)
+
+ $ Shell ls -a; find . -type f | head -40 32 lines…
+   ls -a; find . -type f | head -40
+
+ $ Shell Les Kotlin- og testkonvensjoner output too large to show (30.7 KB)…
+   cat build.gradle.kts src/main/kotlin/no/nav/demo/Oppgave.kt
+   .github/instructions/{kotlin,security-owasp,testing-kotlin,testing}.instructions.md
+
+ ● Edit  Edit build.gradle.kts (+1)  Create src/main/kotlin/no/nav/demo/Feriepenger.kt (+4)  Create…
+
+La til `Feriepenger.kt` med funksjonssignaturen og enhetstester for satsene, aldersgrensen, avrundingen og null eller negativt grunnlag. Gradle ble ikke kjørt.
+
+🔴 **Rød sone:** Selve beregningen står som `TODO`. Testene vil feile til teamet har implementert feriepengereglene.
+

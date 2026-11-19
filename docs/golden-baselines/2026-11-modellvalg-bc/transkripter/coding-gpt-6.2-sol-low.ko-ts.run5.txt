@@ -1,0 +1,53 @@
+ ● skill(klarsprak)
+
+ MD Read .github/instructions/security-owasp.instructions.md 12 lines read
+
+ / Search "slug/*" 2 files found
+
+ ✗ Shell Kjør slug-testene Failed with exit code 1  ✖ slug (0.598542ms) ℹ tests 1 ℹ suites 0 ℹ pass…
+   cd slug && node --test slug.test.ts
+   ✖ slug (0.598542ms)
+   ℹ tests 1
+   ℹ suites 0
+   ℹ pass 0
+   ℹ fail 1
+   ℹ cancelled 0
+   ℹ skipped 0
+   ℹ todo 0
+   ℹ duration_ms 59.523709
+   
+   ✖ failing tests:
+   
+   test at slug.test.ts:5:1
+   ✖ slug (0.598542ms)
+     AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+     + actual - expected
+     
+     + '-hei-pa-deg-'
+     - 'hei-pa-deg'
+     
+         at TestContext.<anonymous> (file:///private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T
+   /nav-pilot-golden.nbpj8S/repo/slug/slug.test.ts:7:10)
+         at Test.runInAsyncScope (node:async_hooks:227:14)
+         at Test.run (node:internal/test_runner/test:1402:25)
+         at Test.start (node:internal/test_runner/test:1262:17)
+         at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+       generatedMessage: true,
+       code: 'ERR_ASSERTION',
+       actual: '-hei-pa-deg-',
+       expected: 'hei-pa-deg',
+       operator: 'strictEqual',
+       diff: 'simple'
+     }
+   Failed with exit code 1
+
+ $ Shell Les slug-koden og testen 19 lines…
+   cat slug/slug.ts slug/slug.test.ts
+
+ ● Edit  Edit slug/slug.ts (+2 -1)
+
+ $ Shell Bekreft at slug-testen består 9 lines…
+   cd slug && node --test slug.test.ts
+
+Rettet `slug/slug.ts`: Funksjonen fjerner nå bindestreker i starten og slutten av sluggen. `node --test slug.test.ts` består uten endringer i testen.
+

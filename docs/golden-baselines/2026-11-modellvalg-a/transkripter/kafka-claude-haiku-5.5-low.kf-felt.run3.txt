@@ -1,0 +1,28 @@
+ $ Shell List vedtak-hendelse files and find VedtakFattet 6 lines…
+   cd vedtak-hendelse 2>/dev/null && find . -type f -not -path "*/build/*" -not -path "*/.gradle/*"
+   | head -100 && grep -ril "VedtakFattet" . --exclude-dir=build --exclude-dir=.gradle
+
+ $ Shell Show event source, test and build file 51 lines…
+   cd vedtak-hendelse && cat src/main/kotlin/no/nav/vedtak/VedtakFattet.kt && echo ---- && cat
+   src/test/kotlin/no/nav/vedtak/VedtakFattetTest.kt && echo ---- && cat build.gradle.kts
+
+Endrer datamodellen og Serde: `sakstype` får default `ORDINAER` for gamle meldinger, og ukjente felt ignoreres.
+
+ ● Edit vedtak-hendelse/src/main/kotlin/no/nav/vedtak/VedtakFattet.kt +11
+
+ ● Edit vedtak-hendelse/src/test/kotlin/no/nav/vedtak/VedtakFattetTest.kt +22 -2
+
+ $ Shell Run gradle tests in vedtak-hendelse 15 lines…
+   cd vedtak-hendelse && (./gradlew test --console=plain 2>&1 || gradle test --console=plain 2>&1) |
+   tail -40
+
+Lagt til `sakstype` i `VedtakFattet` (`vedtak-hendelse/src/main/kotlin/no/nav/vedtak/VedtakFattet.kt`):
+
+- `enum class Sakstype { ORDINAER, KLAGE, ANKE }`.
+- Feltet har default `ORDINAER`, så meldinger uten feltet leses som ORDINAER.
+- `FAIL_ON_UNKNOWN_PROPERTIES` er av, så felt fra nyere produsenter ignoreres.
+
+Tester i `VedtakFattetTest.kt` dekker manglende felt, KLAGE/ANKE, ukjente felt og rundtur. `gradle test` går grønt (4 tester).
+
+Merk: repoet har ingen `gradlew`, så jeg brukte systemets `gradle`.
+

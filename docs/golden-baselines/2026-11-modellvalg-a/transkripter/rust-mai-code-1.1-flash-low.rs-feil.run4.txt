@@ -1,0 +1,28 @@
+ ● update_todo todos: "- [ ] Inspect vedtak-parser and rust instructions - [ ] Im… TODO list updated
+
+ $ Shell List repo files to locate Rust project and instructions 26 lines…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.RZi2cT/repo && pwd
+   && find . -maxdepth 3 -type f | sed 's#^./##' | sort | head -200
+
+ TM Read vedtak-parser/Cargo.toml L1:200 (6 lines read)
+
+ RS Read vedtak-parser/src/lib.rs L1:250 (24 lines read)
+
+Need narrow check: if other code expects `les` to return `Vedtak`, fix API only within this crate and tests.
+
+ / Search "vedtak-parser|les\("|VedtakFeil|ManglerId|UgyldigBelop|ManglerBelop" 2 lines found
+
+ TM Edit vedtak-parser/Cargo.toml +1
+
+ RS Edit vedtak-parser/src/lib.rs +52 -6
+
+I’ve changed the parser to return a rich error enum and added the requested failure tests. Verifying with the crate’s Rust test suite now.
+
+ $ Shell Run Rust tests for the vedtak parser crate 26 lines…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.RZi2cT/repo/vedtak-p
+   arser && cargo test
+
+Fikset i `vedtak-parser`. `les` returnerer nå `Result<Vedtak, VedtakFeil>`, med `thiserror`-enumen `ManglerId`, `ManglerBelop` og `UgyldigBelop(String)`, og feilmeldingen inkluderer den ugyldige teksten.
+
+Jeg la også til en test for hver feil. `cargo test` i `vedtak-parser/` passerer.
+

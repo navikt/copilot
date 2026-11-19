@@ -1,0 +1,66 @@
+=== ./vedtak-hendelse/src/main/kotlin/no/nav/vedtak/VedtakFattet.kt
+package no.nav.vedtak
+
+import com.fasterxml.jackson.databind.DeserializationFeature
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import com.fasterxml.jackson.module.kotlin.readValue
+
+// Hendelsen publiseres på topicen vedtak-fattet og leses av flere team.
+data class VedtakFattet(
+    val vedtakId: String,
+    val belop: Int,
+    // Meldinger uten feltet er publisert før sakstype ble lagt til, og leses som ORDINAER.
+    val sakstype: Sakstype = Sakstype.ORDINAER,
+)
+
+enum class Sakstype {
+    ORDINAER,
+    KLAGE,
+    ANKE,
+}
+
+object VedtakSerde {
+    // Ukjente felt fra nyere produsenter skal ignoreres, ikke feile.
+    private val mapper = jacksonObjectMapper()
+        .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false)
+
+    fun les(json: String): VedtakFattet = mapper.readValue(json)
+
+    fun skriv(hendelse: VedtakFattet): String = mapper.writeValueAsString(hendelse)
+}
+
+=== ./vedtak-hendelse/src/test/kotlin/no/nav/vedtak/VedtakFattetTest.kt
+package no.nav.vedtak
+
+import kotlin.test.Test
+import kotlin.test.assertEquals
+
+class VedtakFattetTest {
+    @Test
+    fun `leser en hendelse uten sakstype som ORDINAER`() {
+        assertEquals(VedtakFattet("v1", 100, Sakstype.ORDINAER), VedtakSerde.les("""{"vedtakId":"v1","belop":100}"""))
+    }
+
+    @Test
+    fun `leser sakstype KLAGE og ANKE`() {
+        assertEquals(Sakstype.KLAGE, VedtakSerde.les("""{"vedtakId":"v1","belop":100,"sakstype":"KLAGE"}""").sakstype)
+        assertEquals(Sakstype.ANKE, VedtakSerde.les("""{"vedtakId":"v1","belop":100,"sakstype":"ANKE"}""").sakstype)
+    }
+
+    @Test
+    fun `ignorerer ukjente felt fra nyere produsent`() {
+        assertEquals(
+            VedtakFattet("v1", 100, Sakstype.KLAGE),
+            VedtakSerde.les("""{"vedtakId":"v1","belop":100,"sakstype":"KLAGE","nyttFelt":"x"}"""),
+        )
+    }
+
+    @Test
+    fun `skriver sakstype`() {
+        assertEquals(
+            VedtakFattet("v1", 100, Sakstype.ANKE),
+            VedtakSerde.les(VedtakSerde.skriv(VedtakFattet("v1", 100, Sakstype.ANKE))),
+        )
+    }
+}
+

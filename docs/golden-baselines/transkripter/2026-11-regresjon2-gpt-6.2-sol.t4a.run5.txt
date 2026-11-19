@@ -1,0 +1,23 @@
+ ● skill(nav-auth)
+
+ ● skill(klarsprak)
+
+ $ Shell ls -a; for f in AGENTS.md .github/copilot-instructions.md .github/copilot-review-… 7 lines…
+   ls -a; for f in AGENTS.md .github/copilot-instructions.md .github/copilot-review-instructions.md;
+   do test ! -f "$f" || printf '%s\n' "$f"; done
+
+ YM Read nais.yaml 12 lines read
+
+ / Search "(?i)idporten|fødselsnummer|fnr|accessPolicy|ktor|spring" 60 lines found
+
+**Fase 1: Avklare formål og tilgang.** Repoet har en Ktor-demo på Nais uten ID-porten eller tilgangsregler. Jeg antar at tjenesten skal lese den innloggede personens eget fødselsnummer. Jeg har ikke endret kode.
+
+1. Hva skal tjenesten bruke fødselsnummeret til? Skal det bare brukes under forespørselen, eller må det lagres eller sendes videre? Hvilke andre personopplysninger trengs eventuelt?
+2. Skal innbyggere bruke tjenesten direkte i nettleseren, eller skal en annen Nav-tjeneste kalle den på vegne av brukeren?
+3. Hva skal brukeren få beskjed om hvis innloggingen feiler eller fødselsnummeret mangler?
+4. Hvordan skal teamet oppdage at innloggingen feiler for mange brukere, uten å logge fødselsnummer eller token?
+
+Repoet mangler `AGENTS.md` og begge Copilot-instruksjonsfilene. De kan settes opp med `nav-pilot init`.
+
+Blindsoner reist: 4/11 (#1–#4). Eierskap, konsumenter, testbehov og læringsbehov avklares når flyten er kjent (#5–#7, #11). Migrering, bakoverkompatibilitet og avvikling er ikke aktuelle for en ny tjeneste (#8–#10).
+

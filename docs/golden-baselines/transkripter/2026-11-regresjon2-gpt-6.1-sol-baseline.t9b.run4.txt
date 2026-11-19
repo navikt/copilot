@@ -1,0 +1,38 @@
+ ● skill(klarsprak)
+
+ / Search "**/*" 25 files found
+
+ MD Read .github/instructions/kotlin.instructions.md too large, not read
+
+ ● Read build.gradle.kts 12 lines read
+
+ MD Read .github/instructions/testing-kotlin.instructions.md 185 lines read
+
+ MD Read .github/instructions/testing.instructions.md 112 lines read
+
+ MD Read .github/instructions/security-owasp.instructions.md 12 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/Oppgave.kt 9 lines read
+
+Dette er en avgrenset endring uten ny dataflyt eller auth-endringer. Beregningen er rød sone og implementeres som du ber om. Jeg bruker heltallsregning for nøyaktig avrunding uten flyttallsfeil, og legger til teststøtten som mangler. Gradle kjøres ikke.
+
+
+ ● Edit  Edit build.gradle.kts (+6)  Create src/main/kotlin/no/nav/demo/Feriepenger.kt (+8)  Create…
+
+ ● Edit  Edit src/test/kotlin/no/nav/demo/FeriepengerTest.kt (+4 -4)
+
+ ● Read src/test/kotlin/no/nav/demo/FeriepengerTest.kt 44 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/Feriepenger.kt 8 lines read
+
+ ● Read build.gradle.kts 18 lines read
+
+Lagt til `Feriepenger.kt`, enhetstester og JUnit 5-teststøtte. Heltallsregning gir nøyaktig avrunding uten flyttallsfeil. Gradle er ikke kjørt, som avtalt.
+
+**Sjekkliste for rød sone**
+- [ ] Kontroller satsene 10,2 % før 60 år og 12,5 % fra 60 år mot alderstestene.
+- [ ] Gjennomgå avrundingstestene: under 50 øre ned, fra 50 øre opp.
+- [ ] Kontroller at null gir null og negativt grunnlag gir `IllegalArgumentException`.
+
+Kan du fortelle meg hva denne koden gjør og hvorfor denne tilnærmingen er riktig?
+

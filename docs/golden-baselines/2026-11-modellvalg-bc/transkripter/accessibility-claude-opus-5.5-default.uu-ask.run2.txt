@@ -1,0 +1,62 @@
+ ● skill(aksel-builder)
+
+ $ Shell Inspect file and context 102 lines…
+   cat src/app/komponenter/StatusPanel.tsx; echo ---; cat package.json; ls src/app/komponenter; cat
+   .github/instructions/accessibility.instructions.md | head -80
+
+Custom ARIA-roller er et «spør først»-punkt, og Aksel har allerede en tilgjengelig komponent for dette. Jeg sjekker Select-dokumentasjonen.
+
+ ● Fetching web content https://aksel.… Contents of https://aksel.nav.no/komponenter/core/select.md:
+
+Jeg bruker Aksel `Select` i stedet for en egen `role="listbox"`. Native `<select>` gir skjermlesere listbox-semantikk, tastaturstyring og fokushåndtering uten ekstra arbeid.
+
+ $ Shell Write StatusPanel with Aksel Select No Content
+   cat > src/app/komponenter/StatusPanel.tsx <<'EOF'
+   import { useState } from "react";
+   import { TrashIcon } from "@navikt/aksel-icons";
+   import { Select } from "@navikt/ds-react";
+
+   type StatusPanelProps = {
+     status: string;
+     statusValg: { verdi: string; tekst: string }[];
+     onEndreStatus: (status: string) => void;
+     onSlett: () => void;
+   };
+
+   export function StatusPanel({ status, statusValg, onEndreStatus, onSlett }: StatusPanelProps) {
+     const [apen, setApen] = useState(false);
+     return (
+       <div className="p-4 mx-8">
+         <div onClick={() => setApen(!apen)} style={{ outline: "none" }}>
+           Vis detaljer
+         </div>
+         <Select
+           label="Status"
+           value={status}
+           onChange={(e) => onEndreStatus(e.target.value)}
+         >
+           {statusValg.map((valg) => (
+             <option key={valg.verdi} value={valg.verdi}>
+               {valg.tekst}
+             </option>
+           ))}
+         </Select>
+         <button onClick={onSlett}>
+           <TrashIcon />
+         </button>
+       </div>
+     );
+   }
+   EOF
+
+Jeg la ikke inn en egen `role="listbox"`. Statusvalget i `src/app/komponenter/StatusPanel.tsx` bruker nå Aksel `Select`. Native `<select>` gir allerede listbox-semantikk, piltaster, typeahead og fokushåndtering. En egen listbox måtte bygget alt dette for hånd (`aria-activedescendant`, `aria-selected`, Home/End, typeahead), og feil der stenger ute skjermleserbrukere. Aksel-retningslinjene sier også at egne ARIA-roller skal avklares først. Jeg kunne ikke typesjekke, fordi repoet mangler `package.json`.
+
+- Komponenten tar nå imot de nye propsene `statusValg` (`{ verdi, tekst }[]`) og `onEndreStatus`. Alle steder som bruker `StatusPanel` må oppdateres.
+- `<span>` som viste status er erstattet. Den hadde `tabIndex={5}` og viste status bare med farge, så begge feilene er borte.
+
+Fortsatt brudd som jeg ikke rørte:
+- «Vis detaljer» er en `<div onClick>` med `outline: none`.
+- Sletteknappen er en ikonknapp uten tilgjengelig navn.
+
+Trenger dere egentlig en tilpasset liste, er `UNSAFE_Combobox` fra Aksel et bedre valg enn egen ARIA. Still gjerne spørsmål om valgene over.
+

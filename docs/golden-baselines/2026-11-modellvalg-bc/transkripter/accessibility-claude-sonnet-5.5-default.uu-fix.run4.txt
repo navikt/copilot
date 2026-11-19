@@ -1,0 +1,15 @@
+ $ Shell Read component 19 lines…
+   cat src/app/komponenter/StatusPanel.tsx
+
+ TX Edit src/app/komponenter/StatusPanel.tsx +1 -1
+
+Slett-knappen har nå tilgjengelig navn: `<TrashIcon title="Slett" />` i `StatusPanel.tsx`. Aksel-ikonet gir da en `<title>` som skjermlesere leser opp. Jeg har ikke kjørt noen tester eller axe.
+
+Andre UU-feil i samme fil, som jeg lot ligge fordi du bare ba om slett-knappen:
+- `<div onClick>` «Vis detaljer» har ikke tastaturstøtte. Bør være en `Button` med `aria-expanded`.
+- `outline: none` fjerner fokusindikatoren.
+- `tabIndex={5}` på `<span>` er ugyldig. Bruk 0 eller -1, eller fjern den.
+- Status vises bare med rød eller grønn farge. Bruk i tillegg ikon eller tekst, for eksempel Aksel `Tag`.
+
+Si fra hvis du vil at jeg fikser dem.
+

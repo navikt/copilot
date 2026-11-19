@@ -1,0 +1,68 @@
+ ● skill(klarsprak)
+
+ ✗ Shell ls -la; ls -la frister .github/instructions; cd frister && go tes… Failed with exit code 1…
+   ls -la; ls -la frister .github/instructions; cd frister && go test ./...
+   total 24
+   drwxr-xr-x  10 hans  staff   320 Nov 19 09:41 .
+   drwx------  43 hans  staff  1376 Nov 19 09:41 ..
+   drwxr-xr-x   4 hans  staff   128 Nov 19 09:41 .github
+   -rw-r--r--   1 hans  staff   340 Nov 19 09:41 build.gradle.kts
+   drwxr-xr-x   5 hans  staff   160 Nov 19 09:41 frister
+   -rw-r--r--   1 hans  staff   216 Nov 19 09:41 nais.yaml
+   -rw-r--r--   1 hans  staff   166 Nov 19 09:41 README.md
+   drwxr-xr-x   4 hans  staff   128 Nov 19 09:41 slug
+   drwxr-xr-x   3 hans  staff    96 Nov 19 09:41 src
+   drwxr-xr-x   6 hans  staff   192 Nov 19 09:41 ytelse
+   .github/instructions:
+   total 272
+   drwxr-xr-x  19 hans  staff    608 Nov 19 09:41 .
+   drwxr-xr-x   4 hans  staff    128 Nov 19 09:41 ..
+   -rw-r--r--   1 hans  staff   3431 Nov 19 09:41 accessibility.instructions.md
+   -rw-r--r--   1 hans  staff    769 Nov 19 09:41 cplt-sandbox.instructions.md
+   -rw-r--r--   1 hans  staff   7809 Nov 19 09:41 database.instructions.md
+   -rw-r--r--   1 hans  staff   2300 Nov 19 09:41 deliberate-ai-use.instructions.md
+   -rw-r--r--   1 hans  staff   6582 Nov 19 09:41 docker.instructions.md
+   -rw-r--r--   1 hans  staff   5152 Nov 19 09:41 github-actions.instructions.md
+   -rw-r--r--   1 hans  staff  14633 Nov 19 09:41 golang.instructions.md
+   -rw-r--r--   1 hans  staff  22643 Nov 19 09:41 kotlin.instructions.md
+   -rw-r--r--   1 hans  staff   5603 Nov 19 09:41 nextjs-aksel.instructions.md
+   -rw-r--r--   1 hans  staff   3017 Nov 19 09:41 norwegian-text.instructions.md
+   -rw-r--r--   1 hans  staff   4785 Nov 19 09:41 output-style.instructions.md
+   -rw-r--r--   1 hans  staff  12337 Nov 19 09:41 performance.instructions.md
+   -rw-r--r--   1 hans  staff    889 Nov 19 09:41 security-core.instructions.md
+   -rw-r--r--   1 hans  staff    852 Nov 19 09:41 security-owasp.instructions.md
+   -rw-r--r--   1 hans  staff   4127 Nov 19 09:41 testing-kotlin.instructions.md
+   -rw-r--r--   1 hans  staff   2243 Nov 19 09:41 testing-typescript.instructions.md
+   -rw-r--r--   1 hans  staff   3295 Nov 19 09:41 testing.instructions.md
+   
+   frister:
+   total 24
+   drwxr-xr-x   5 hans  staff  160 Nov 19 09:41 .
+   drwxr-xr-x  10 hans  staff  320 Nov 19 09:41 ..
+   -rw-r--r--   1 hans  staff  547 Nov 19 09:41 frist_test.go
+   -rw-r--r--   1 hans  staff  400 Nov 19 09:41 frist.go
+   -rw-r--r--   1 hans  staff   36 Nov 19 09:41 go.mod
+   --- FAIL: TestFrist (0.00s)
+       frist_test.go:23: Frist(2026-09-05) = 2026-10-18, want 2026-10-19
+   FAIL
+   FAIL    example.com/frister     0.015s
+   FAIL
+   Failed with exit code 1
+
+ GO Read frister/frist.go 16 lines read
+
+ GO Read frister/frist_test.go 26 lines read
+
+ MD Read .github/instructions/golang.instructions.md 547 lines read
+
+ MD Read .github/instructions/security-owasp.instructions.md 12 lines read
+
+ ● Edit  Edit frister/frist.go (+1 -1)
+
+ $ Shell cd frister && test -z "$(gofmt -l frist.go)" && go test ./... 1 line…
+   cd frister && test -z "$(gofmt -l frist.go)" && go test ./...
+
+Rettet `frister/frist.go`: Klagefrister som faller på en lørdag, flyttes nå til mandag i stedet for søndag. Søndagsfrister flyttes fortsatt én dag.
+
+`go test ./...` i `frister/` består uten endringer i testene.
+

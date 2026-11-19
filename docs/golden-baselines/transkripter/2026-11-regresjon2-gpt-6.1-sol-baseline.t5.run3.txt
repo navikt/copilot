@@ -1,0 +1,2 @@
+**TokenX** for kall fra tjeneste A til tjeneste B med brukerkontekst. A veksler brukerens token til et token med B som målgruppe. Entra ID `client_credentials` passer ikke her: det representerer tjenesten, ikke brukeren.
+

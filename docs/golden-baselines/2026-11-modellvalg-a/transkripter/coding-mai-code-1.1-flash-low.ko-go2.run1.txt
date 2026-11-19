@@ -1,0 +1,55 @@
+ ● update_todo todos: "- [ ] Inspect failing Go project and reproduce test failur… TODO list updated
+
+ $ Shell Inspect repository layout and locate the ytelse directory 21 lines…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.qenq4R/repo && pwd
+   && ls -la && find . -maxdepth 2 -type d | sed 's#^./##' | sort | head -200
+
+ ✗ Shell Reproduce the Go test failures in the ytelse project Failed with exit code 1  # example.co…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.qenq4R/repo/ytelse
+   && go test ./...
+   # example.com/ytelse [example.com/ytelse.test]
+   ./ytelse_test.go:11:36: too many arguments in call to Utbetaling
+           have (int, int)
+           want (int)
+   ./ytelse_test.go:18:36: too many arguments in call to Rapport
+           have (string, number, number)
+           want (string, int)
+   FAIL    example.com/ytelse [build failed]
+   FAIL
+   Failed with exit code 1
+
+ GO Read ytelse/ytelse.go Path does not exist
+
+ GO Read ytelse/ytelse_test.go L1:220 (21 lines read)
+
+Jeg har feilen reproducerbar; nå leser jeg den faktiske Go-koden i ytelse for å rette kontrakten uten å endre testene.
+
+ / Search "**/*.go" 5 files found
+
+ $ Shell List files in ytelse project 4 lines…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.qenq4R/repo && find
+   ytelse -maxdepth 2 -type f -print
+
+ GO Read ytelse/rapport.go L1:220 (8 lines read)
+
+ GO Read ytelse/utbetaling.go L1:220 (6 lines read)
+
+ GO Edit ytelse/utbetaling.go +7 -3
+
+ GO Edit ytelse/rapport.go +3 -3
+
+Koden er justert til å ta imot grad og beregne dagssats etter grad, og jeg verifiserer med `go test ./...` i ytelse.
+
+ $ Shell Verify the ytelse package passes its Go tests after fixing the grading logic 1 line…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.qenq4R/repo/ytelse
+   && go test ./...
+
+Løst.
+
+Jeg endret koden i `ytelse` slik at:
+- `Utbetaling` tar nå både `grunnlag` og `grad`
+- `Rapport` tar nå `navn`, `grunnlag` og `grad`
+- beregningen bruker gradert ytelse som prosent av full ytelse og deler på 260 virkedager
+
+Dette gjør at `go test ./...` i `ytelse/` går grønt uten å endre testene.
+

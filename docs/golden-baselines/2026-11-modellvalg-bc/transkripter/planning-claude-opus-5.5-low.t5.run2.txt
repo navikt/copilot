@@ -1,0 +1,12 @@
+**TokenX.** A bytter brukerens token til et nytt token med B som audience. Brukerkonteksten følger da med hele veien til B.
+
+- **A:** `tokenx.enabled: true` i Nais-manifestet. Gjør token exchange mot `TOKEN_X_TOKEN_ENDPOINT` med audience `<cluster>:<namespace>:B`.
+- **B:** `tokenx.enabled: true` og `accessPolicy.inbound.rules` med A. Validerer tokenet mot `TOKEN_X_ISSUER` og `TOKEN_X_CLIENT_ID`.
+- **A sitt outbound:** `accessPolicy.outbound.rules` med B.
+
+Bruk ikke Entra ID `client_credentials` her. Da mister B brukerkonteksten og audit-sporet.
+
+Unntak: Er brukeren en saksbehandler som er logget inn med Entra ID, bruker du Entra ID On-Behalf-Of (OBO) i stedet for TokenX.
+
+Si «forklar» for detaljer, eller se `$tokenx-auth`.
+

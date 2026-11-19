@@ -1,0 +1,67 @@
+ ● skill(jackson-3-migration)
+
+ ● skill(klarsprak)
+
+ $ Shell git status -sb; git --no-pager log -6 --oneline; git branch -a; git ls-files | h… 34 lines…
+   git status -sb; git --no-pager log -6 --oneline; git branch -a; git ls-files | head -65; java
+   -version
+
+ $ Shell Les migreringsdiff og byggoppsett 59 lines…
+   git --no-pager diff main; git grep -n -E 'jackson|jvmToolchain'; command -v gradle; ls -a
+
+ ✗ Shell  Permission denied because no interactive user response was available. Retry in an interact
+   for f in build.gradle.kts src/main/kotlin/no/nav/demo/{Soknad,App,Routes,Oppgave,Config}.kt
+   README.md; do echo "$f"; nl -ba "$f"; done; /usr/libexec/java_home -V
+   Approval check
+     └ ✗ Denied, no one to approve shell path (/usr/libexec/java_home)
+   Permission denied because no interactive user response was available. Retry in an interactive 
+   session so the user can approve it, or try an alternative that does not require this permission.
+
+ ✗ Shell Bygg og sjekk Jackson-avhengigheter Failed with exit code 1  To honour the JVM settings fo…
+   gradle --no-daemon --console=plain build dependencyInsight --dependency jackson --configuration
+   compileClasspath
+   To honour the JVM settings for this build a single-use Daemon process will be forked. For more on
+    this, please refer to 
+   https://docs.gradle.org/8.14.7/userguide/gradle_daemon.html#sec:disabling_the_daemon in the 
+   Gradle documentation.
+   Daemon will be stopped at the end of the build 
+   
+   FAILURE: Build failed with an exception.
+   
+   * What went wrong:
+   A problem occurred configuring root project 'repo'.
+   > 27.0.1.0.2
+   
+   * Try:
+   > Run with --stacktrace option to get the stack trace.
+   > Run with --info or --debug option to get more log output.
+   > Run with --scan to get full insights.
+   > Get more help at https://help.gradle.org.
+   
+   BUILD FAILED in 2s
+   Failed with exit code 1
+
+ ✗ Shell  Permission denied because no interactive user response was available. Retry in an interact
+   git grep -n -E '.' -- build.gradle.kts src/main README.md; ls /Library/Java/JavaVirtualMachines;
+   mise ls java
+   Approval check
+     └ ✗ Denied, no one to approve shell path (/Library/Java/JavaVirtualMachines)
+   Permission denied because no interactive user response was available. Retry in an interactive 
+   session so the user can approve it, or try an alternative that does not require this permission.
+
+ / Search "." in *.{kt,kts} 74 lines found
+
+ ✗ Shell  Permission denied because no interactive user response was available. Retry in an interact
+   git ls-files 'src/test/**'; git status --short; /usr/libexec/java_home -V
+   Approval check
+     └ ✗ Denied, no one to approve shell path (/usr/libexec/java_home)
+   Permission denied because no interactive user response was available. Retry in an interactive 
+   session so the user can approve it, or try an alternative that does not require this permission.
+
+**Jeg ville ikke godkjent migreringen som bakoverkompatibel ennå.** Branchen har flyttet Jackson-koden til `tools.jackson` 3.1.0, men den nye mapperen endrer standardinnstillingene for både lesing og skriving av JSON.
+
+- [Soknad.kt:18](src/main/kotlin/no/nav/demo/Soknad.kt#L18): `lesSoker` vil som standard ignorere ukjente felter som Jackson 2 avviste, og avvise ekstra JSON-tokens etter objektet som Jackson 2 godtok.
+- [Soknad.kt:21](src/main/kotlin/no/nav/demo/Soknad.kt#L21): Jackson 3 sorterer feltene alfabetisk som standard. På `soknad-mottatt` kommer dermed `mottatt` før `soknadId`. Det endrer JSON-bytene, ikke feltene. `LocalDate` skal fortsatt sendes som en ISO-dato, men det er ikke verifisert.
+
+Ktor 3.0 er ikke en sperre: [HTTP-rutene bruker `kotlinx.serialization`](src/main/kotlin/no/nav/demo/App.kt#L12), ikke Jackson. Jeg fant ingen gamle Jackson-importer eller `JsonNode.map`-kall i kildekoden. Gradle stoppet under konfigurering med `27.0.1.0.2` på JDK 27, så verken bygget eller den transitive avhengighetsgrafen ble verifisert. Før merge: kjør på JDK 21 og sammenlign de to Kafka-payloadene og parserens akseptregler mot `main` med karakteriseringstester.
+

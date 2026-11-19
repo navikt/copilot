@@ -1,0 +1,28 @@
+ TX Read src/app/komponenter/StatusPanel.tsx 19 lines read
+
+ $ Shell Check repo and run mise check 7 lines…
+   ls; mise check 2>&1 | tail -5
+
+## Oppsummering
+
+Komponenten er liten, men har sju feil. Fire av dem stopper tastatur- og skjermleserbrukere, og WCAG 2.1 AA er lovpålagt. `mise check` kunne ikke kjøres fordi repoet ikke har noen mise-tasks, så funnene under bygger bare på å lese koden.
+
+## Funn
+
+| Linje | Prioritet | Problem |
+|---|---|---|
+| 1 | 🔴 | `"use client"` mangler. `useState` i App Router gir feil i en Server Component. |
+| 8 | 🔴 | `<div onClick>` har ingen rolle og ingen tastaturstøtte. Den kan ikke nås med Tab og ikke aktiveres med Enter eller Space. |
+| 8 | 🔴 | `outline: "none"` fjerner fokusindikatoren uten å erstatte den (WCAG 2.4.7). |
+| 14–16 | 🔴 | Ikonknappen har ikke noe tilgjengelig navn, så en skjermleser leser bare «knapp». Bruk `<Button icon={<TrashIcon title="Slett" />} />` fra Aksel. |
+| 11 | 🔴 | `tabIndex={5}` bryter den naturlige tabrekkefølgen. Et `span` som ikke er interaktivt skal ikke kunne få fokus. |
+| 11 | 🟡 | Status vises bare med rød eller grønn farge (WCAG 1.4.1), og hardkodede farger følger ikke tema eller kontrastkrav. Bruk Aksel `Tag` eller `Alert` med `variant="error"` eller `"success"`. |
+| 4 | 🟡 | Props mangler typer, så `status` og `onSlett` blir implisitt `any`. |
+| 5/8 | 🟡 | `apen` styrer ingenting som vises, så «Vis detaljer» gjør ingenting. Bruk `ReadMore` eller `ExpansionCard` fra Aksel, som har `aria-expanded` innebygd. |
+| 14 | 🟡 | Sletting skjer uten at brukeren må bekrefte. Vurder en `Modal` med bekreftelse. |
+| 7 | 💭 | `p-4 mx-8`: bruk `Box` eller `VStack` med spacing-tokens hvis prosjektet krever det. |
+
+## Detaljer
+
+Kjernen er at egne `div`- og `button`-løsninger erstatter Aksel-komponenter. `Button`, `ReadMore` og `Tag` gir rolle, fokushåndtering, tastaturstøtte og kontrast uten ekstra kode, og løser de fire tilgjengelighetsblokkerne over. Jeg har ikke endret noe i koden.
+

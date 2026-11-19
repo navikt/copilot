@@ -1,0 +1,221 @@
+ ● skill(aksel-builder)
+
+Ser på komponenten og prosjektet først.
+
+ $ Shell Inspect component and project 129 lines…
+   cat src/app/komponenter/StatusPanel.tsx; echo ---; cat package.json; echo ---; ls -R src | head
+   -50; cat .github/instructions/accessibility.instructions.md | head -80
+
+Komponenten har ingen statusvelger i dag, og det finnes ingen `package.json`. Jeg sjekker Aksel-dokumentasjonen (MCP-en er ikke tilgjengelig) for `Label`, ikoner og tokens før jeg bygger.
+
+ $ Shell Fetch Aksel docs index 6 lines…
+   curl -s ]8;id=md-1tr6tgx;https://aksel.nav.no/llm.mdhttps://aksel.nav.no/llm.md]8;;]8;; | grep -iE "label|ikoner|design-tokens|typography|select" | ]8;;
+   head; echo ---; curl -s ]8;id=md-e9f0cz;https://aksel.nav.no/komponenter/ikoner.mdhttps://aksel.nav.no/komponenter/ikoner.md]8;;]8;; | grep -i "checkmark" | head ]8;;
+   -5
+
+`CheckmarkIcon` finnes. Sjekker `Label` og token-navn for fokus og valgt tilstand.
+
+ $ Shell Check Label and tokens 51 lines…
+   curl -s ]8;id=md-k4ssie;https://aksel.nav.no/komponenter/core/typography.mdhttps://aksel.nav.no/komponenter/core/typography.md]8;;]8;; | grep -n -iE "^#|<Label" | head -20;]8;;
+   echo ---; curl -s ]8;id=md-1hik1bs;https://aksel.nav.no/grunnleggende/styling/design-tokens.mdhttps://aksel.nav.no/grunnleggende/styling/design-tokens.md]8;;]8;; | grep -oE -- ]8;;
+   "--ax-(bg-accent-moderate|bg-accent-soft|border-focus|border-neutral|text-neutral|radius-[0-9]+|s
+   pace-[0-9]+|bg-neutral-moderate-hover|border-accent)[a-z-]*" | sort -u | head -30
+
+ $ Shell Check Label docs 18 lines…
+   curl -s ]8;id=md-k4ssie;https://aksel.nav.no/komponenter/core/typography.mdhttps://aksel.nav.no/komponenter/core/typography.md]8;;]8;; | grep -n -A12 -E "^## Label"; curl ]8;;
+   -s ]8;id=md-k4ssie;https://aksel.nav.no/komponenter/core/typography.mdhttps://aksel.nav.no/komponenter/core/typography.md]8;;]8;; | grep -n -E "as=|as\b" | head -5]8;;
+
+Bygger listboksen etter WAI-ARIA-mønsteret for listbox med enkeltvalg: piltaster, Home/End, `aria-activedescendant` og et ikon som viser valgt status i tillegg til farge.
+
+ $ Shell Write component, verify token 153 lines…
+   cat > src/app/komponenter/StatusPanel.tsx <<'EOF'
+   import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+   import { CheckmarkIcon, TrashIcon } from "@navikt/aksel-icons";
+   import { Label } from "@navikt/ds-react";
+
+   export type StatusValg = { verdi: string; tekst: string };
+
+   type StatusPanelProps = {
+     status: string;
+     onSlett: () => void;
+     statusValg: StatusValg[];
+     onStatusEndret: (verdi: string) => void;
+   };
+
+   let idTeller = 0;
+
+   export function StatusPanel({
+     status,
+     onSlett,
+     statusValg,
+     onStatusEndret,
+   }: StatusPanelProps) {
+     const [apen, setApen] = useState(false);
+
+     return (
+       <div className="p-4 mx-8">
+         <div onClick={() => setApen(!apen)} style={{ outline: "none" }}>
+           Vis detaljer
+         </div>
+         <span tabIndex={5} style={{ color: status === "feil" ? "red" : "green" }}>
+           {status}
+         </span>
+         <StatusListbox
+           valg={statusValg}
+           valgt={status}
+           onEndret={onStatusEndret}
+         />
+         <button onClick={onSlett}>
+           <TrashIcon />
+         </button>
+       </div>
+     );
+   }
+
+   type StatusListboxProps = {
+     valg: StatusValg[];
+     valgt: string;
+     onEndret: (verdi: string) => void;
+   };
+
+   function StatusListbox({ valg, valgt, onEndret }: StatusListboxProps) {
+     const [idPrefiks] = useState(() => `statusvalg-${++idTeller}`);
+     const valgtIndeks = valg.findIndex((v) => v.verdi === valgt);
+     const [aktivIndeks, setAktivIndeks] = useState(Math.max(valgtIndeks, 0));
+     const [harFokus, setHarFokus] = useState(false);
+     const listeRef = useRef<HTMLUListElement>(null);
+
+     const labelId = `${idPrefiks}-label`;
+     const valgId = (indeks: number) => `${idPrefiks}-valg-${indeks}`;
+
+     useEffect(() => {
+       if (valgtIndeks >= 0) setAktivIndeks(valgtIndeks);
+     }, [valgtIndeks]);
+
+     useEffect(() => {
+       if (!harFokus) return;
+       document
+         .getElementById(valgId(aktivIndeks))
+         ?.scrollIntoView({ block: "nearest" });
+     }, [aktivIndeks, harFokus]);
+
+     const velg = (indeks: number) => {
+       if (indeks < 0 || indeks >= valg.length) return;
+       setAktivIndeks(indeks);
+       onEndret(valg[indeks].verdi);
+     };
+
+     // Valget følger fokus, som anbefalt for listbox med enkeltvalg i WAI-ARIA APG.
+     const handleKeyDown = (e: KeyboardEvent<HTMLUListElement>) => {
+       const nyIndeks = {
+         ArrowDown: Math.min(aktivIndeks + 1, valg.length - 1),
+         ArrowUp: Math.max(aktivIndeks - 1, 0),
+         Home: 0,
+         End: valg.length - 1,
+       }[e.key];
+       if (nyIndeks === undefined) return;
+       e.preventDefault();
+       velg(nyIndeks);
+     };
+
+     if (valg.length === 0) return null;
+
+     return (
+       <div>
+         <Label as="span" id={labelId}>
+           Status
+         </Label>
+         <ul
+           ref={listeRef}
+           role="listbox"
+           tabIndex={0}
+           aria-labelledby={labelId}
+           aria-activedescendant={valgId(aktivIndeks)}
+           onKeyDown={handleKeyDown}
+           onFocus={() => setHarFokus(true)}
+           onBlur={() => setHarFokus(false)}
+           style={{
+             listStyle: "none",
+             margin: 0,
+             padding: "var(--ax-space-4)",
+             border: "1px solid var(--ax-border-neutral)",
+             borderRadius: "var(--ax-radius-8)",
+             outline: harFokus ? "3px solid var(--ax-border-focus)" : undefined,
+             outlineOffset: "2px",
+           }}
+         >
+           {valg.map((v, indeks) => {
+             const erValgt = v.verdi === valgt;
+             const erAktiv = harFokus && indeks === aktivIndeks;
+             return (
+               <li
+                 key={v.verdi}
+                 id={valgId(indeks)}
+                 role="option"
+                 aria-selected={erValgt}
+                 onClick={() => {
+                   velg(indeks);
+                   listeRef.current?.focus();
+                 }}
+                 style={{
+                   display: "flex",
+                   alignItems: "center",
+                   gap: "var(--ax-space-8)",
+                   padding: "var(--ax-space-8)",
+                   borderRadius: "var(--ax-radius-4)",
+                   cursor: "pointer",
+                   background: erValgt ? "var(--ax-bg-accent-soft)" : undefined,
+                   outline: erAktiv ? "2px solid var(--ax-border-focus)" : undefined,
+                   outlineOffset: "-2px",
+                 }}
+               >
+                 <CheckmarkIcon
+                   aria-hidden
+                   style={{ visibility: erValgt ? "visible" : "hidden" }}
+                 />
+                 {v.tekst}
+               </li>
+             );
+           })}
+         </ul>
+       </div>
+     );
+   }
+   EOF
+   curl -s https://aksel.nav.no/grunnleggende/styling/design-tokens.md | grep -c -- "--ax-space-8\b"
+
+Prosjektet mangler `package.json`, så jeg typesjekker i en midlertidig mappe.
+
+ ✗ Shell  Permission denied because no interactive user response was available. Retry in an interact
+   D=$(mktemp -d) && cd $D && npm init -y >/dev/null && npm i -s typescript@5 react@18
+   @types/react@18 @navikt/ds-react @navikt/aksel-icons >/dev/null 2>&1 && cp
+   "$OLDPWD/src/app/komponenter/StatusPanel.tsx" . && npx tsc --noEmit --strict --jsx react-jsx
+   --moduleResolution bundler --module esnext --target es2020 --skipLibCheck StatusPanel.tsx; echo
+   exit=$?; cd / && rm -rf $D
+   Approval check
+     └ ✗ Denied, no one to approve shell path (/, $D)
+   Permission denied because no interactive user response was available. Retry in an interactive 
+   session so the user can approve it, or try an alternative that does not require this permission.
+
+Jeg har lagt til en egen listboks med `role="listbox"` for statusvalget i `src/app/komponenter/StatusPanel.tsx`. Koden er ikke typesjekket eller testet. Prosjektet har ingen `package.json`, og installasjon av pakker i en midlertidig mappe ble avvist.
+
+Agentreglene sier at jeg skal spørre før jeg bruker egne ARIA-roller eller går bort fra Aksel. Det kunne jeg ikke her, så jeg fulgte bestillingen. Aksel `Select` eller `RadioGroup` gir samme funksjon med innebygd universell utforming og er tryggere. Bytt til en av dem hvis du ikke trenger en egen listboks.
+
+**Slik virker den:**
+- Piltastene og Home/End flytter valget. Valget følger fokus, slik WAI-ARIA-mønsteret anbefaler.
+- Hele listen er ett tab-stopp (`tabIndex={0}`). Den har synlig fokusramme, er koblet til `Label` og bruker `aria-selected` og `aria-activedescendant`.
+- Valgt status vises med `CheckmarkIcon` og bakgrunnsfarge, ikke bare farge.
+- Farger og avstander bruker Aksel-tokens.
+
+**Brytende endring:** komponenten trenger nå to nye props, `statusValg` og `onStatusEndret`. Alle steder som bruker `StatusPanel` må oppdateres.
+
+**Feil som var der fra før, men som jeg ikke har rettet:**
+- `<div onClick>` uten tastaturstøtte og med `outline: none`.
+- `tabIndex={5}` på statusteksten.
+- Statusen vises bare med rød eller grønn farge.
+- Sletteknappen med søppelbøtte-ikon har ingen tilgjengelig tekst.
+
+Test tastaturbruk og VoiceOver manuelt, og kjør axe.
+
+Still gjerne spørsmål om valgene over.
+

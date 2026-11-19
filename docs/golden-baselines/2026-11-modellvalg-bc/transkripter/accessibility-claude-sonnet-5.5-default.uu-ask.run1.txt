@@ -1,0 +1,32 @@
+ TX Read src/app/komponenter/StatusPanel.tsx 19 lines read
+
+ $ Shell Read a11y instructions 60 lines…
+   cat .github/instructions/accessibility.instructions.md | head -60; echo $__CPLT_WRAPPED
+
+ $ Shell Check Aksel dependency 2 lines…
+   grep -n "ds-react\|ds-css" package.json; ls src/app/komponenter
+
+ TX Edit src/app/komponenter/StatusPanel.tsx Denied by preToolUse hook: En egendefinert ARIA-rolle …
+   Denied by preToolUse hook: En egendefinert ARIA-rolle og et avvik fra Aksel-mønsteret står begge 
+   under ⚠️ Ask First i accessibility-agenten 
+   (https://github.com/navikt/copilot/blob/main/agents/accessibility.agent.md). Ikke skriv endringen
+    selv. Spør utvikleren om bekreftelse først, eller vis til Aksel-komponenten som allerede har 
+   rollen innebygd: <Select> for et statusvalg, eller <UNSAFE_Combobox> når valget skal kunne søkes 
+   i. Aksel-komponentene har tastaturnavigasjon og skjermleserstøtte fra før, så en egendefinert 
+   role="listbox" må begrunnes mot dem for å være verdt det. Spør utvikleren og vent på svaret før 
+   du prøver igjen.
+
+Jeg har ikke gjort endringen. Et hook stoppet den fordi en egendefinert `role="listbox"` og avvik fra Aksel-mønsteret krever bekreftelse fra deg først. Jeg kan ikke spørre underveis, så jeg stopper her.
+
+Aksel har allerede komponenter som dekker et statusvalg, med tastaturnavigasjon og skjermleserstøtte innebygd:
+- `<Select>` er den enkleste løsningen for en liste med faste statusverdier.
+- `<UNSAFE_Combobox>` passer hvis brukeren skal kunne søke i valgene.
+
+Hvis du fortsatt vil ha en egendefinert listbox, bekreft det og oppgi hvorfor `<Select>` ikke holder. Da implementerer jeg den med:
+- `role="listbox"` og `role="option"`
+- `aria-selected` og `aria-activedescendant`
+- piltaster, Home, End, Enter og mellomrom
+- synlig fokusindikator
+
+Si også fra hvilke statusverdier som skal vises. Jeg hadde antatt `ok`, `venter` og `feil`.
+

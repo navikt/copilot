@@ -1,0 +1,14 @@
+ ● skill(klarsprak)
+
+ $ Shell Finn signeringskode og repofiler 11 lines…
+   ls -la; rg -li 'signature|signering' --glob '!*.lock' | head -25
+
+ $ Shell Les signeringsflyt og prosjektstruktur 62 lines…
+   find .github lib src -type f; cat lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/*.kt
+
+**Fase 1: Avklaring før kodeendring.** Ingen filer er endret. `SigningProducerInterceptor.onSend` legger til `x-paw-signature` og `x-paw-signing-key-id` uten å fjerne gamle verdier. `stripSigningHeaders` fjerner begge. Jeg har ikke kunnet sammenligne med endringen i Paws interne monorepo. Den lokale koden tilsier at endringen kan avgrenses til signeringsheaderne, uten å endre payload, mottakere, tilgang eller nøkkelhåndtering.
+
+Ved signeringsfeil: Skal produsenten stoppe sendingen, eller skal meldingen kunne sendes videre uten signeringsheadere? Hvilke konsumenter verifiserer signaturen i dag?
+
+Blindsoner reist: 2/11 (#3 feilhåndtering, #6 konsumenter).
+

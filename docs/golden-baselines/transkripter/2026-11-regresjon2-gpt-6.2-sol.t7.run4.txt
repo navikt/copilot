@@ -1,0 +1,134 @@
+ ● skill(jackson-3-migration)
+
+ $ Shell git status --short --branch; git log -5 --oneline; git branch -a; ls -a; java -v… 42 lines…
+   git status --short --branch; git log -5 --oneline; git branch -a; ls -a; java -version; git
+   ls-files | head -80
+
+ ● skill(klarsprak)
+
+ ✗ Shell Inspect migration and build tooling Failed with exit code 1  diff --git a/build.gradle.kts…
+   git --no-pager diff main...HEAD; git grep -n -E 'jackson|\.map\('; command -v gradle; ls -l
+   gradlew
+   diff --git a/build.gradle.kts b/build.gradle.kts
+   index c438d9d..0808666 100644
+   --- a/build.gradle.kts
+   +++ b/build.gradle.kts
+   @@ -11,8 +11,7 @@ dependencies {
+        implementation("io.ktor:ktor-serialization-kotlinx-json:3.0.0")
+    }
+    dependencies {
+   -    implementation("com.fasterxml.jackson.core:jackson-databind:2.18.2")
+   -    implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.18.2")
+   -    implementation("com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.18.2")
+   +    implementation("tools.jackson.core:jackson-databind:3.1.0")
+   +    implementation("tools.jackson.module:jackson-module-kotlin:3.1.0")
+        implementation("org.apache.kafka:kafka-clients:3.9.0")
+    }
+   diff --git a/src/main/kotlin/no/nav/demo/Soknad.kt b/src/main/kotlin/no/nav/demo/Soknad.kt
+   index d06f1d9..51a725d 100644
+   --- a/src/main/kotlin/no/nav/demo/Soknad.kt
+   +++ b/src/main/kotlin/no/nav/demo/Soknad.kt
+   @@ -1,9 +1,8 @@
+    package no.nav.demo
+    
+   -import com.fasterxml.jackson.databind.ObjectMapper
+   -import com.fasterxml.jackson.databind.SerializationFeature
+   -import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+   -import com.fasterxml.jackson.module.kotlin.readValue
+   +import tools.jackson.databind.json.JsonMapper
+   +import tools.jackson.module.kotlin.kotlinModule
+   +import tools.jackson.module.kotlin.readValue
+    import org.apache.kafka.clients.producer.KafkaProducer
+    import org.apache.kafka.clients.producer.ProducerRecord
+    import java.time.LocalDate
+   @@ -12,9 +11,9 @@ data class SokerDto(val fnr: String, val navn: String)
+    
+    data class SoknadMottattMelding(val soknadId: String, val mottatt: LocalDate)
+    
+   -val mapper: ObjectMapper = jacksonObjectMapper()
+   -    .findAndRegisterModules()
+   -    .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
+   +val mapper: JsonMapper = JsonMapper.builder()
+   +    .addModule(kotlinModule())
+   +    .build()
+    
+    fun lesSoker(json: String): SokerDto = mapper.readValue(json)
+    
+   build.gradle.kts:14:    implementation("tools.jackson.core:jackson-databind:3.1.0")
+   build.gradle.kts:15:    implementation("tools.jackson.module:jackson-module-kotlin:3.1.0")
+   src/main/kotlin/no/nav/demo/Soknad.kt:3:import tools.jackson.databind.json.JsonMapper
+   src/main/kotlin/no/nav/demo/Soknad.kt:4:import tools.jackson.module.kotlin.kotlinModule
+   src/main/kotlin/no/nav/demo/Soknad.kt:5:import tools.jackson.module.kotlin.readValue
+   /Users/hans/.local/share/mise/installs/gradle/8/gradle-8.14.7/bin/gradle
+   ls: gradlew: No such file or directory
+   Failed with exit code 1
+
+ ✗ Shell  Permission denied because no interactive user response was available. Retry in an interact
+   cat build.gradle.kts; nl -ba src/main/kotlin/no/nav/demo/Soknad.kt; cat
+   src/main/kotlin/no/nav/demo/{App,Routes}.kt; /usr/libexec/java_home -V; gradle --no-daemon
+   --console=plain build dependencyInsight --dependency jackson --configuration compileClasspath
+   Approval check
+     └ ✗ Denied, no one to approve shell path (/usr/libexec/java_home)
+   Permission denied because no interactive user response was available. Retry in an interactive 
+   session so the user can approve it, or try an alternative that does not require this permission.
+
+ $ Shell Read build and JSON call sites 77 lines…
+   cat build.gradle.kts; nl -ba src/main/kotlin/no/nav/demo/Soknad.kt; cat
+   src/main/kotlin/no/nav/demo/{App,Routes}.kt; git ls-files 'src/test/**'
+
+ ✗ Shell Run build and dependency analysis Failed with exit code 1  To honour the JVM settings for …
+   gradle --no-daemon --console=plain build dependencyInsight --dependency jackson --configuration
+   compileClasspath
+   To honour the JVM settings for this build a single-use Daemon process will be forked. For more on
+    this, please refer to 
+   https://docs.gradle.org/8.14.7/userguide/gradle_daemon.html#sec:disabling_the_daemon in the 
+   Gradle documentation.
+   Daemon will be stopped at the end of the build 
+   
+   FAILURE: Build failed with an exception.
+   
+   * What went wrong:
+   A problem occurred configuring root project 'repo'.
+   > 27.0.1.0.2
+   
+   * Try:
+   > Run with --stacktrace option to get the stack trace.
+   > Run with --info or --debug option to get more log output.
+   > Run with --scan to get full insights.
+   > Get more help at https://help.gradle.org.
+   
+   BUILD FAILED in 2s
+   Failed with exit code 1
+
+ ✗ Shell  Permission denied because no interactive user response was available. Retry in an interact
+   ls ~/.local/share/mise/installs/java; /usr/libexec/java_home -V; git grep -n -E
+   'lesSoker|sendMottatt|sendSoker|JsonNode'
+   Approval check
+     └ ✗ Denied, no one to approve shell path (/usr/libexec/java_home)
+   Permission denied because no interactive user response was available. Retry in an interactive 
+   session so the user can approve it, or try an alternative that does not require this permission.
+
+ $ Shell Find JDKs and JSON usages 7 lines…
+   ls ~/.local/share/mise/installs/java; git grep -n -E 'lesSoker|sendMottatt|sendSoker|JsonNode'
+
+ $ Shell Verify Jackson resolution and build on Java 21 153 lines…                                5s
+   JAVA_HOME="$HOME/.local/share/mise/installs/java/21" gradle --no-daemon --console=plain
+   dependencyInsight --dependency jackson --configuration compileClasspath build
+
+ $ Shell Confirm mapper bytecode and documented defaults 15 lines…
+   git status --short; javap -p -c build/classes/kotlin/main/no/nav/demo/SoknadKt.class | grep -E
+   'Node\.map|writeValueAsString|readValue'; curl -fsSL
+   ]8;id=md-2s45u2;https://raw.githubusercontent.com/FasterXML/jackson/main/jackson3/MIGRATING_TO_JACKSON_3.mdhttps://raw.githubusercontent.com/FasterXML/jackson/main/jackson3/MIGRATING_TO_JACKSON_3.md]8;;]8;; | ]8;;
+   grep -E 'FAIL_ON_UNKNOWN_PROPERTIES|FAIL_ON_TRAILING_TOKENS|SORT_PROPERTIES_ALPHABETICALLY|WRITE_
+   DATES_AS_TIMESTAMPS'
+
+ $ Shell Clean generated build artifacts 2 lines…
+   git clean -fd -- .gradle/ build/ && git status --short
+
+**Migreringen bygger på Java 21, men JSON-kompatibiliteten er ikke verifisert.** Jeg ville ventet med merge til de to endringene i standardoppførsel er avklart. Branchen har ingen tester.
+
+- **Innlesing:** [`lesSoker`](src/main/kotlin/no/nav/demo/Soknad.kt#L18) ignorerer nå ukjente felter som Jackson 2 avviste, og avviser ekstra JSON etter første verdi som Jackson 2 godtok. Test begge tilfellene og gjør ønsket oppførsel eksplisitt.
+- **Kafka:** [`sendMottatt` og `sendSoker`](src/main/kotlin/no/nav/demo/Soknad.kt#L20) får alfabetisk feltrekkefølge som standard. Feltnavnene er uendret, og `LocalDate` skal fortsatt bli en ISO-dato. Sammenlign JSON fra begge brancher, og avklar om konsumentene krever identisk tekst eller bare samme felter og verdier.
+
+Kompileringsklassestien har Jackson 3.1.0 uten Jackson 2 `core` eller `databind`. `jackson-annotations:2.21` er forventet. Ktor bruker fortsatt `kotlinx.serialization`, så HTTP-serialiseringen berøres ikke. Ingen filer endret.
+

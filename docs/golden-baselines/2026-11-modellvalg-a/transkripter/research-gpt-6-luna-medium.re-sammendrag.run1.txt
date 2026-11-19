@@ -1,0 +1,26 @@
+ ● skill(klarsprak)
+
+ ● List directory . 5 files found
+
+ / Search "*" 25 files found
+
+ / Search "**/package.json" No matches found
+
+ / Search "**/README*" 1 file found
+
+ / Search "**/*.{go,kt,py,ts,tsx,java,md,yml,yaml}" 24 files found
+
+ ● Read src/main/kotlin/no/nav/demo/Oppgave.kt 9 lines read
+
+ MD Read README.md 4 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/App.kt 15 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/Routes.kt 19 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/Config.kt 4 lines read
+
+- En liten Ktor-demotjeneste som kjører på Nais.
+- Tilbyr endepunktet `GET /api/oppgaver`, som returnerer en JSON-liste med oppgaver.
+- Oppgavene er faste, og tjenesten sender maksimalt 100 per svar.
+

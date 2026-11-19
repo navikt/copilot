@@ -1,0 +1,19 @@
+ ● skill(nav-plan)
+
+ ● skill(api-design)
+
+## Fase 2: Plan
+
+**Bruk den eksisterende Next.js-frontenden som BFF, og hold Ktor-tjenesten intern.** Innbyggeren logger inn med ID-porten via Wonderwall og kaller frontenden på samme origin. Next.js bytter brukertokenet med TokenX for Ktor-tjenesten. Det gir én offentlig inngang, men krever at teamet setter opp og tester tokenbyttet.
+
+| Område | Plan |
+|---|---|
+| Identitet og tilgang | Ktor validerer TokenX-tokenets signatur, utsteder, mottaker og utløp, og sjekker at det kommer fra den godkjente frontenden. Tjenesten leser fødselsnummeret fra `pid` i det validerte tokenet, aldri fra klientinput. Bruk innloggingsnivå `idporten-loa-high` som foreløpig krav. |
+| API og PDL | `GET /api/meg` returnerer bare navnet til den innloggede personen, med `Cache-Control: no-store` både i Ktor og Next.js. Ktor ber PDL bare om navnefeltene frontenden trenger. Bekreft godkjent PDL-scope og behandlingsnummer før integrasjonen bygges. |
+| Personvern | Dokumenter den konkrete lovhjemmelen og formålet før produksjon. Fødselsnummer og navn behandles under forespørselen, uten database, cache eller kø. Ingen personopplysninger, token eller PDL-payload i logger, traces eller metrikker. |
+| Feilhåndtering | Manglende eller ugyldig token gir `401`. Et gyldig token uten påkrevd identitet eller innloggingsnivå gir `403`. PDL-timeout eller utilgjengelighet gir `503` med en kort Problem Details-respons og en strukturert logg med feilkategori. Ingen kø eller dead-letter. |
+| Nais og CI/CD | Behold `App.kt` og `Config.kt`, og skill ut ruten, tokenvalideringen og PDL-klienten. Ktor får ingen offentlig ingress. Sett eksplisitt `accessPolicy`: bare Next.js inn, og bare nødvendige PDL- og tokenendepunkter ut. Behold interne helsesjekker, legg til Prometheus og start med `15m` CPU-request og `256Mi` minne-request, uten CPU-limit. GitHub Actions bygger og tester før deploy til dev, deretter prod. |
+| Tester og drift | Test at klienten ikke kan velge en annen persons identitet, at ugyldige token avvises, og at PDL-timeout gir `503` uten personopplysninger i loggen. Kjør hele flyten i dev med testidentiteter. Mål PDL-oppslag per minutt og andel feilende PDL-kall. Varsle ved vedvarende høy feilandel. Dokumenter feilsøking og verifisering etter deploy. Ved rollback slår teamet av funksjonen i frontenden først og ruller deretter tilbake Ktor-deployen. |
+
+**🔴 Rød sone:** Teamet skriver og går gjennom Wonderwall-oppsettet, TokenX-bytte og -validering, bindingen mellom tokenidentitet og PDL-oppslag, og tilgangen til PDL. Øvrig oppsett og testkode kan delegeres. Ingen filer er endret.
+

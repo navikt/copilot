@@ -1,0 +1,34 @@
+ / Search "*" 28 files found
+
+ ● skill(klarsprak)
+
+ ● Read lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningHeaders.kt 11 lines read
+
+ ● Read lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningProducerIntercepto  22 lines re…
+        r.kt
+
+ ● Read build.gradle.kts 12 lines read
+
+ $ Shell Find reference monorepo 1 line…
+   gh search repos 'paw monorepo org:navikt' --limit 10 --json name,url
+
+ $ Shell Locate reference signing implementation 11 lines…
+   gh api 'repos/navikt/paw-arbeidssoekerregisteret-monorepo-intern/git/trees/main?recursive=1' --jq
+   '.tree[] | select(.path | test("[Ss]ign.*\\.kt$")) | .path'
+
+ $ Shell Read reference signing and interceptor 215 lines…
+   gh api repos/navikt/paw-arbeidssoekerregisteret-monorepo-intern/contents/lib/kafka-signing/src/ma
+   in/kotlin/no/nav/paw/kafka/signing/KafkaMessageSigner.kt -H 'Accept:
+   application/vnd.github.raw+json' && gh api
+   repos/navikt/paw-arbeidssoekerregisteret-monorepo-intern/contents/lib/kafka-signing/src/main/kotl
+   in/no/nav/paw/kafka/signing/SigningProducerInterceptor.kt -H 'Accept:
+   application/vnd.github.raw+json'
+
+**Dette berører signering og er full kategori, fase 1. Ingen filer er endret.** Jeg har lest lokal interceptor og referansen i `paw-arbeidssoekerregisteret-monorepo-intern`. Referansen fjerner eksisterende signeringsheaders etter at signaturen er beregnet, før nye headers legges til. Lokalt finnes allerede `stripSigningHeaders`, men interceptoren bruker den ikke.
+
+🔴 Rød sone: signeringsprosessen, forstå denne grundig. Ved vellykket signering kan vi gjenbruke helperen og bevare øvrige headers, payload og nøkkelhåndtering. Skal gamle signeringsheaders også fjernes hvis `signer.sign()` feiler, eller skal recorden forbli uendret som i dag?
+
+Repoet mangler `AGENTS.md` og lokale Copilot-instruksjonsfiler for utvikling og review. Disse kan opprettes med `nav-pilot init`. Anslått fasebudsjett: intervju 500, plan 500, review 500, levering 1 000 tokens.
+
+Blindsoner reist: 1/11 (#3 feilhåndtering; øvrige avklart av uendret payload, mottakere og nøkler, eller ikke relevante for denne avgrensede endringen).
+

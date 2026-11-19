@@ -1,0 +1,34 @@
+ ● List directory . 8 files found
+
+ MD Read .github/instructions/golang.instructions.md 547 lines read
+
+ MD Read .github/instructions/security-owasp.instructions.md 12 lines read
+
+Jeg kjører først hele testsuiten i `frister/` og kartlegger bare Go-filene som trengs for å spore feilen.
+
+ ● List directory frister 3 files found
+
+ / Search "**/*.go" in frister 2 files found
+
+ ✗ Shell Run Go tests in frister Failed with exit code 1  --- FAIL: TestFrist (0.00s) frist_test.go…
+   cd frister && go test ./...
+   --- FAIL: TestFrist (0.00s)
+       frist_test.go:23: Frist(2026-09-05) = 2026-10-18, want 2026-10-19
+   FAIL
+   FAIL    example.com/frister     0.022s
+   FAIL
+   Failed with exit code 1
+
+ GO Read frister/frist.go 16 lines read
+
+ GO Read frister/frist_test.go 26 lines read
+
+ ● Edit  Edit frister/frist.go (+1 -1)
+
+ $ Shell Format code and rerun Go tests 1 line…
+   cd frister && gofmt -w frist.go && go test ./...
+
+Rettet `frister/frist.go`: en frist på lørdag flyttes nå to dager til mandag, ikke én dag til søndag. `go test ./...` går grønt i `frister/`.
+
+🔴 Rød sone: fristberegningen er domene­logikk. Still gjerne spørsmål om valgene over.
+

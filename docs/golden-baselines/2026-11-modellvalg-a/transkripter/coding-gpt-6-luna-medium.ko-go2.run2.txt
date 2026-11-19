@@ -1,0 +1,54 @@
+ / Search "{AGENTS.md,.github/copilot-instructions.md,.github/copilot-review-instruct… 2 files found
+
+ / Search "**/*" in ytelse 4 files found
+
+ ✗ Shell Check repository state Failed with exit code 128  fatal: not a git repository (or any of t…
+   git status --short --branch
+   fatal: not a git repository (or any of the parent directories): .git
+   Failed with exit code 128
+
+ GO Read ytelse/utbetaling.go 6 lines read
+
+ GO Read ytelse/rapport.go 8 lines read
+
+ GO Read ytelse/ytelse_test.go 21 lines read
+
+ ● Read ytelse/go.mod 3 lines read
+
+ MD Read .github/instructions/golang.instructions.md 547 lines read
+
+ MD Read .github/instructions/testing.instructions.md 112 lines read
+
+ / Search "**/*" 34 files found
+
+ / Search "Utbetaling\(|Rapport\(" 8 lines found
+
+ ✗ Shell Run ytelse package tests Failed with exit code 1  FAIL  ./... [setup failed] # ./... patte…
+   go test ./...
+   FAIL    ./... [setup failed]
+   # ./...
+   pattern ./...: directory prefix . does not contain main module or its selected dependencies
+   FAIL
+   Failed with exit code 1
+
+ ✗ Shell Run all ytelse Go tests Failed with exit code 1  # example.com/ytelse [example.com/ytelse.…
+   cd ytelse && go test ./...
+   # example.com/ytelse [example.com/ytelse.test]
+   ./ytelse_test.go:11:36: too many arguments in call to Utbetaling
+           have (int, int)
+           want (int)
+   ./ytelse_test.go:18:36: too many arguments in call to Rapport
+           have (string, number, number)
+           want (string, int)
+   FAIL    example.com/ytelse [build failed]
+   FAIL
+   Failed with exit code 1
+
+`go test ./...` i `ytelse/` feiler fordi testene kaller `Utbetaling` og `Rapport` med en graderingsparameter, mens funksjonene bare tar imot grunnlaget. Testene angir også at 50 betyr halv dagsats og 100 full dagsats. Jeg har ikke endret kode eller tester.
+
+🔴 Rød sone: Dette endrer beregning av ytelse, så jeg stopper før jeg skriver koden. Finnes det eksterne kallere som må beholde de gamle funksjonssignaturene, eller kan de endres?
+
+Fant ikke `AGENTS.md` eller Copilot-instruksjonsfilene i repoet. `nav-pilot init` kan legge dem til.
+
+Blindsoner reist: 2/11 (#6 og #9 stilt; #1 og #2 påvirkes ikke; øvrige ikke relevante)
+

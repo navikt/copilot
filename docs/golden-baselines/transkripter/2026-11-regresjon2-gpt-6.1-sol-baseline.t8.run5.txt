@@ -1,0 +1,61 @@
+ / Search "*" 28 files found
+
+ ● Read lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningHeaders.kt 11 lines read
+
+ ● Read lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningProducerIntercepto  22 lines re…
+        r.kt
+
+ ● Read build.gradle.kts 12 lines read
+
+ $ Shell Find reference monorepo 1 line…
+   gh search repos 'paw arbeidssoekerregisteret intern' --owner navikt --json name --limit 5
+
+ ● Read lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/Periode.kt 4 lines read
+
+ / Search "sign|stripSigningHeaders" in *.kt 12 lines found
+
+ $ Shell Check available validation tools and configuration 9 lines…
+   command -v gradle; command -v kotlinc; ls -a
+
+ $ Shell Locate PAW reference repository 1 line…
+   gh search repos paw --owner navikt --json name --limit 50
+
+ $ Shell Read reference monorepo root 22 lines…
+   gh api repos/navikt/paw-arbeidssoekerregisteret-monorepo-intern/git/trees/main --jq '.tree[] |
+   .path'
+
+ $ Shell Locate reference signing implementation 11 lines…
+   gh api 'repos/navikt/paw-arbeidssoekerregisteret-monorepo-intern/git/trees/main?recursive=1' --jq
+   '.tree[] | select(.path | test("[Ss]ign.*\\.kt$")) | .path'
+
+ $ Shell Read reference header replacement and signing behavior 214 lines…
+   gh api repos/navikt/paw-arbeidssoekerregisteret-monorepo-intern/contents/lib/kafka-signing/src/ma
+   in/kotlin/no/nav/paw/kafka/signing/SigningProducerInterceptor.kt --jq .content | base64 --decode;
+   gh api repos/navikt/paw-arbeidssoekerregisteret-monorepo-intern/contents/lib/kafka-signing/src/ma
+   in/kotlin/no/nav/paw/kafka/signing/KafkaMessageSigner.kt --jq .content | base64 --decode
+
+ ● skill(klarsprak)
+
+ ● Edit  Edit lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningProducerInterceptor.kt (+…
+
+ ✗ Shell Run available Gradle verification Failed with exit code 1  FAILURE: Build failed with an e…
+   gradle test --console=plain --quiet
+   FAILURE: Build failed with an exception.
+   
+   * What went wrong:
+   A problem occurred configuring root project 'repo'.
+   > 27.0.1.0.2
+   
+   * Try:
+   > Run with --stacktrace option to get the stack trace.
+   > Run with --info or --debug option to get more log output.
+   > Run with --scan to get full insights.
+   > Get more help at https://help.gradle.org.
+   
+   BUILD FAILED in 2s
+   Failed with exit code 1
+
+`SigningProducerInterceptor` fjerner nå alle eksisterende signeringsheaders før nye legges til, som i intern-monorepoet. Andre headers bevares.
+
+Verifisering er blokkert: Gradle feiler under prosjektkonfigurasjon med `27.0.1.0.2`.
+

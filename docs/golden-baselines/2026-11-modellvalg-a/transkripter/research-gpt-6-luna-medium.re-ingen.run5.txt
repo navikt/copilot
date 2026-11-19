@@ -1,0 +1,12 @@
+ / Search "slettOppgave" No matches found
+
+ / Search "**/*" 25 files found
+
+ ● Read src/main/kotlin/no/nav/demo/Oppgave.kt 9 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/Routes.kt 19 lines read
+
+ / Search "slett|Slett|Oppgave" (src) 5 lines found
+
+Jeg fant ingen kall til `slettOppgave` i koden. Det ser heller ikke ut til at funksjonen er definert her.
+

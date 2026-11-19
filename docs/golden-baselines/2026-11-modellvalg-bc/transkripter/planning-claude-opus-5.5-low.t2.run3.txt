@@ -1,0 +1,31 @@
+ $ Shell Inspect repo 10 lines…
+   ls -a; ls .github .nais 2>/dev/null; cat AGENTS.md 2>/dev/null | head -20
+
+ $ Shell Read manifests 32 lines…
+   cat nais.yaml build.gradle.kts README.md | head -80; find src -type f | head
+
+Dette er Full-nivå: ny tjeneste, ID-porten-autentisering og fødselsnummer (personopplysning). Jeg stopper etter Fase 1 og venter på svarene dine.
+
+**Fase 1: Intervju**
+
+Dette fant jeg i repoet:
+- Det er en Ktor 3-tjeneste (`demo-tjeneste`, namespace `demo`) med Kotlin 2.1.
+- `nais.yaml` har ingen `idporten`, ingen `accessPolicy` og ingen database.
+- `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md` mangler. Kjør `nav-pilot init` for å legge dem til.
+
+Jeg antar at tjenesten er et backend-API bak en frontend for innbyggere (Wonderwall), og at fnr kommer fra `pid`-claimet i tokenet.
+
+**Spørsmål**
+1. **Personvern** ⚠️: Skal fnr bare brukes til oppslag, eller skal det lagres eller sendes videre? Hvilke andre opplysninger behandler tjenesten (navn, helse, ytelser)?
+2. **Tilgangskontroll** ⚠️: Kaller innbyggeren tjenesten direkte via nettleser (ID-porten + Wonderwall), eller går kallet gjennom en frontend eller BFF (TokenX)? Hvilket sikkerhetsnivå trengs (`idporten-loa-high`)?
+3. **Feilhåndtering**: Hvilke tjenester avhenger dere av, for eksempel PDL? Hva skal skje når de er nede?
+4. **Observerbarhet**: Hvilken forretningsmetrikk viser at tjenesten fungerer?
+5. **Teamgrenser**: Hvilke andre team avhenger dere av for dataene?
+6. **Endringspåvirkning**: Hvem skal konsumere API-et?
+7. **Teststrategi**: Finnes det tester i dag? Repoet har ingen testavhengigheter.
+11. **Kompetanse**: Har teamet erfaring med ID-porten og tokenvalidering? Hvis ikke, er dette rød sone.
+
+Disse hoppet jeg over: #8–#10 gjelder ikke en ny tjeneste uten løsning som skal erstattes, migreres eller avvikles.
+
+Blindsoner reist: 8/11 (#1–#7, #11 stilt; #8–#10 ikke relevant)
+

@@ -1,0 +1,17 @@
+ ● skill(klarsprak)
+
+ $ Shell Find signing code and repo configuration 14 lines…
+   ls -a; ls -a .github; rg -il 'signature|signering' | head -25
+
+ / Search "." (lib/kafka-signing) 30 lines found
+
+ / Search "stripSigningHeaders|Signer|verify|monorep" 10 lines found
+
+**Fase 1: Avklaring før kodeendring.** Ingen filer er endret. `SigningProducerInterceptor` legger på `x-paw-signature` og `x-paw-signing-key-id` uten å fjerne gamle verdier. `SigningHeaders.kt` har allerede `stripSigningHeaders` for begge. Jeg antar at payload, signeringsalgoritme og nøkkelhåndtering skal forbli uendret.
+
+Kan du dele den relevante diffen fra Paw-monorepoet? Hvis den ikke avklarer feilhåndteringen: Skal meldingen stoppes hvis ny signering feiler, og hvilke konsumenter verifiserer signaturen?
+
+Repoet mangler `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`. De kan settes opp med `nav-pilot init`.
+
+Blindsoner reist: 2/11 (#3 feilhåndtering, #6 konsumenter). Øvrige gjelder ikke den avgrensede endringen eller følger av at meldingsflyt, tilgang og signeringsformat forblir uendret.
+

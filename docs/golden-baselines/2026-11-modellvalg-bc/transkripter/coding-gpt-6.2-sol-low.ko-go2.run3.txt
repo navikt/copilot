@@ -1,0 +1,17 @@
+ ● skill(klarsprak)
+
+ $ Shell Finn Go-kode og instrukser 39 lines…
+   ls -la; ls -la ytelse; ls .github/instructions; find ytelse -type f
+
+ $ Shell Les ytelseskode og Go-regler 597 lines…
+   cat ytelse/* .github/instructions/{golang,security-owasp}.instructions.md
+
+ ● Edit  Edit ytelse/utbetaling.go (+4 -3)  Edit ytelse/rapport.go (+2 -2)
+
+ $ Shell Sjekk formatering og Go-tester 1 line…
+   cd ytelse && gofmt -l rapport.go utbetaling.go && go test ./...
+
+`go test ./...` i `ytelse/` går grønt uten endringer i testene.
+
+`Utbetaling` bruker graden i prosent før dagsatsen rundes ned til hele kroner. `Rapport` bruker samme beregning.
+

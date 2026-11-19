@@ -1,0 +1,26 @@
+ ● List directory . 5 files found
+
+ / Search "**/{README*,readme*,package.json,go.mod,pom.xml,build.gradle,build.gradle.… 2 files found
+
+ MD Read README.md L1:220 (4 lines read)
+
+ ● List directory src 1 file found
+
+ / Search "routing|Application|call.respond|GET|POST|REST|health|hello" in **/*.{kt,k… 6 lines found
+
+ ● Read src/main/kotlin/no/nav/demo/Routes.kt L1:220 (19 lines read)
+
+ ✗ Read src/main/kotlin/no/nav/demo/Application.kt Path does not exist
+
+ / Search "class Oppgave|data class Oppgave|OppgaveRespons|maksAntall|module\(|embedd… 8 lines found
+
+ ● Read src/main/kotlin/no/nav/demo/Oppgave.kt L1:200 (9 lines read)
+
+ ● Read src/main/kotlin/no/nav/demo/App.kt L1:200 (15 lines read)
+
+ ● Read src/main/kotlin/no/nav/demo/Config.kt L1:100 (4 lines read)
+
+- Dette er en liten Ktor-demo-tjeneste som starter på port 8080 og bruker JSON-serialisering for API-responser.
+- Den eksponerer et REST-endepunkt på `/api/oppgaver`, som returnerer en liste med oppgaver i form av `{ id, tittel }`.
+- Tjenesten er et eksempel på en enkel backend som kan brukes til å vise hvordan et API kan returnere data, med en maksgrense på 100 oppgaver per respons.
+

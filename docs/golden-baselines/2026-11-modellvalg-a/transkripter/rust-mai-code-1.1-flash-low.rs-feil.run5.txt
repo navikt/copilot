@@ -1,0 +1,34 @@
+ ● update_todo todos: "- [ ] Inspect vedtak-parser code and tests - [ ] Implement… TODO list updated
+
+ / Search "**/vedtak-parser/**" 2 files found
+
+ RS Read vedtak-parser/src/lib.rs L1:250 (24 lines read)
+
+ TM Read vedtak-parser/Cargo.toml L1:200 (6 lines read)
+
+ / Search "thiserror|Result<.*Vedtak" 3 lines found
+
+ / Search "**/.github/instructions/*.md" 17 files found
+
+Jeg har funnet feilen: parseren unwrap'er på ugyldig input. Jeg retter det til en `Result`-basert parser og legger inn én test per feilvariant.
+
+ TM Edit vedtak-parser/Cargo.toml +1
+
+ RS Edit vedtak-parser/src/lib.rs +44 -5
+
+ $ Shell Run Rust tests for vedtak-parser 26 lines…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.RZi2cT/repo/vedtak-p
+   arser && cargo test
+
+Fikset i `vedtak-parser`:
+- `les` returnerer nå `Result<Vedtak, VedtakFeil>`.
+- `VedtakFeil` er en `thiserror` enum med:
+  - `ManglerId`
+  - `ManglerBelop`
+  - `UgyldigBelop(String)` med den ugyldige teksten i feilmeldingen
+- La til én test for hver feilvariant, plus gyldig case.
+
+Kjørte `cargo test` i `vedtak-parser/`:
+- 4 tester passerte
+- 0 feilet
+

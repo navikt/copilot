@@ -1,0 +1,59 @@
+ ● skill(nav-plan)
+
+ ● skill(nav-auth)
+
+ ● skill(api-design)
+
+## Fase 2: Plan
+
+**Vi bruker eksisterende Next.js-frontend som BFF, med Wonderwall foran og Kotlin/Ktor som intern backend.** Nettleseren beholder en HttpOnly-sesjonscookie; Next.js håndterer tokenutveksling på serversiden. Dette gir to TokenX-utvekslinger, men unngår å eksponere tokens og et separat backend-endpoint mot nettleseren.
+
+### Flyt og tilgang
+
+1. Innbygger logger inn gjennom ID-porten og Wonderwall foran Next.js.
+2. Next.js validerer brukertokenet og bytter det til et TokenX-token med Ktor-tjenesten som audience.
+3. Ktor validerer signatur, issuer, audience, levetid og tillatt kallerapplikasjon. Fødselsnummer hentes fra det validerte tokenet, aldri fra klientens parametere.
+4. Ktor bytter tokenet videre til PDLs audience og henter bare gjeldende navn for innlogget person.
+
+Vi bruker etablerte auth-biblioteker, ikke egen JWT- eller signeringskode. Azure client credentials velges bort fordi PDL-kallet skal bevare brukerkonteksten.
+
+**Antakelser:** Ingen database eller applikasjonscache for personopplysninger. Kun navn returneres til frontend; fødselsnummer brukes internt til oppslaget. Vi legger høyt innloggingsnivå til grunn, men må verifisere konkret ID-porten-konfigurasjon og PDLs tilgangskrav før implementasjon. Lovhjemmel og behandlingsformål dokumenteres før produksjon.
+
+### API og feilhåndtering
+
+- `GET /api/person` returnerer gjeldende navn for innlogget person. Ingen personidentifikator i URL eller request-body.
+- Både BFF og backend bruker `Cache-Control: no-store`; Next.js må ikke cache personsvaret.
+- Manglende, ugyldig eller utløpt token gir `401`; manglende tilgang gir `403`. Frontend tilbyr ny innlogging ved utløpt sesjon.
+- Utilgjengelig PDL eller timeout gir `503` uten automatisk retry. PDLs GraphQL-feil må håndteres også ved HTTP `200`; tilgangsavslag skal ikke kamufleres som driftsfeil.
+- Feilsvar bruker Problem Details uten personopplysninger. Logger inneholder feilkategori, status og tilfeldig korrelasjons-ID, aldri navn, fødselsnummer, tokens eller rå PDL-responser.
+
+### Filer og plattform
+
+Backend får `Application.kt`, `Config.kt`, `Routes.kt`, auth-integrasjon og en avgrenset `PdlClient.kt`, med tilhørende tester. Eksisterende frontend får en serverbasert API-route og nødvendig auth-integrasjon.
+
+Nais-oppsettet planlegges slik:
+
+| Applikasjon | Konfigurasjon |
+|---|---|
+| Next.js | ID-porten, Wonderwall og TokenX. Eksplisitt outbound-regel til backend. |
+| Ktor | TokenX. Inbound kun fra egen frontend; outbound kun til PDL og nødvendige plattform-endpoints. Ingen offentlig ingress. |
+| Backend-ressurser | CPU-request `15m`, minne-request `256Mi`, minnegrense `512Mi`; ingen CPU-grense. Justeres etter måling. |
+
+Eksakte applikasjonsnavn, namespace, audiences og PDL-behandlingsnummer verifiseres mot miljøet. Eksisterende `/internal/isalive` og `/internal/isready` beholdes. PDL-feil skal ikke gjøre alle podene unready.
+
+### Tester og drift
+
+Auth testes med MockOAuth2Server: gyldig token, feil signatur/issuer/audience, utløpt token og ukjent kaller. Integrasjonstester med simulert PDL dekker navn, timeout, utilgjengelighet og GraphQL-feil. Testene skal også bevise at oppslaget bruker innlogget persons identitet og at personopplysninger ikke havner i logger.
+
+Vi måler PDL-oppslag per minutt, feilandel og responstid med lavkardinalitetslabels, uten brukeridentifikatorer. Dashboard viser både backend-feil og PDL-feil; vedvarende forhøyet feilandel utløser alarm.
+
+CI kjører bygg, tester og lint før image bygges. Actions SHA-pinnes med minimale rettigheter. Deploy går til dev før godkjent produksjonsdeploy. Verifisering i dev dekker innlogging, eget navn, utløpt sesjon og PDL-feil. Rollback gjeninnfører forrige frontend-image og deaktiverer den nye flyten; ingen datamigrasjon trengs.
+
+### Leveranse og rød sone
+
+Endringsbeskrivelse, rollback, driftsrutine og sjekkliste etter deploy inngår i leveransen, uten ekstra dokumentfiler med mindre de bestilles.
+
+🔴 **Rød sone: tokenvalidering, TokenX-utveksling og bindingen mellom innlogget person og PDL-oppslag.** Wonderwall og TokenX er også nye konsepter for teamet. Utgangspunktet er testskjeletter og stubs for disse delene; full implementasjon krever uttrykkelig bestilling.
+
+Planen er klar for fase 3, ikke implementert eller sikkerhetsgodkjent. Bekreft planen før review. Still gjerne spørsmål om valgene over
+

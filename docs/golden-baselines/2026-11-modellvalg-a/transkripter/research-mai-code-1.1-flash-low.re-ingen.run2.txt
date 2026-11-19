@@ -1,0 +1,26 @@
+ / Search "slettOppgave" No matches found
+
+ / Search "**/*.{js,ts,tsx,jsx,py,java,kt,go,cs,rs,php,rb}" 4 files found
+
+ / Search "slett.*Oppgave|Oppgave.*slett|delete.*task|remove.*task" No matches found
+
+ ● Read src/main/kotlin/no/nav/demo/Oppgave.kt L1:250 (9 lines read)
+
+ ● Read src/main/kotlin/no/nav/demo/Routes.kt L1:250 (19 lines read)
+
+ / Search "slettOppgave|slettOppgave\s*\(" in **/* No matches found
+
+ ● Read src/main/kotlin/no/nav/demo/App.kt L1:250 (15 lines read)
+
+ ● Read src/main/kotlin/no/nav/demo/Config.kt L1:250 (4 lines read)
+
+Det finnes ingen kall til `slettOppgave` i dette repoet. Jeg fant 0 treff på `slettOppgave` i hele koden, så det er ingen fil/linje å oppgi.
+
+De relevante filene i prosjektet er:
+- `src/main/kotlin/no/nav/demo/Routes.kt`
+- `src/main/kotlin/no/nav/demo/App.kt`
+- `src/main/kotlin/no/nav/demo/Config.kt`
+- `src/main/kotlin/no/nav/demo/Oppgave.kt`
+
+Men ingen av dem inneholder en definisjon eller et kall til `slettOppgave`.
+

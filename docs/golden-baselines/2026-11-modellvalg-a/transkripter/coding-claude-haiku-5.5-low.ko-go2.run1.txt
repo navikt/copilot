@@ -1,0 +1,29 @@
+Jeg starter med å kjøre testene i `ytelse/` for å se hva som feiler.
+
+ $ Shell Locate ytelse package 6 lines…
+   cd ytelse 2>/dev/null && pwd; cd "$(git rev-parse --show-toplevel 2>/dev/null || pwd)"; ls; find
+   . -path '*/ytelse*' -name '*.go' | head -50
+
+ $ Shell Run go tests in ytelse 9 lines…
+   cd ytelse && go test ./... 2>&1 | head -100
+
+ $ Shell Read source and test files 38 lines…
+   cd ytelse && cat utbetaling.go rapport.go ytelse_test.go go.mod
+
+Testene kaller `Utbetaling(grunnlag, grad)` og `Rapport(navn, grunnlag, grad)`, men koden mangler gradparameteren. Jeg legger den til i koden og lar testene stå urørt.
+
+ GO Edit ytelse/utbetaling.go +3 -2
+
+ GO Edit ytelse/rapport.go +2 -2
+
+ $ Shell Format, vet and run tests 1 line…
+   cd ytelse && gofmt -l . ; go vet ./... && go test ./... 2>&1
+
+`go test ./...` i `ytelse/` er grønt. Testfilen er uendret.
+
+Endringer:
+- `utbetaling.go`: `Utbetaling(grunnlag, grad int)` regner `grunnlag * grad / 100 / 260`, rundet ned. Grad er prosent av full ytelse.
+- `rapport.go`: `Rapport(navn, grunnlag, grad int)` sender grad videre til `Utbetaling`.
+
+`gofmt` og `go vet` gir ingen funn.
+

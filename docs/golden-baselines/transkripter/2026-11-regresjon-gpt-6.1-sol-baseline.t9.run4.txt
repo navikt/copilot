@@ -1,0 +1,35 @@
+ ● skill(klarsprak)
+
+ / Search "{*,.github/**,src/**}" 25 files found
+
+ MD Read .github/instructions/kotlin.instructions.md too large, not read
+
+ ● Read src/main/kotlin/no/nav/demo/Oppgave.kt 9 lines read
+
+ ● Read build.gradle.kts 12 lines read
+
+ MD Read .github/instructions/deliberate-ai-use.instructions.md 30 lines read
+
+ MD Read .github/instructions/testing-kotlin.instructions.md 185 lines read
+
+ MD Read .github/instructions/testing.instructions.md 112 lines read
+
+ / Search "{AGENTS.md,.github/copilot*instructions.md}" No matches found
+
+ / Search "**/*Test*" No matches found
+
+Dette er rød sone: ny forretningslogikk teamet ikke kjenner. Jeg legger til funksjonsstub og tester som beskriver reglene, men lar selve beregningen stå som TODO. `worker` er ikke installert, så jeg gjør endringen selv. Jeg kjører ikke Gradle.
+
+
+ ● Edit  Create src/main/kotlin/no/nav/demo/Feriepenger.kt (+5)  Create src/test/kotlin/no/nav/demo…
+
+ ● Read src/main/kotlin/no/nav/demo/Feriepenger.kt 5 lines read
+
+ ● Read src/test/kotlin/no/nav/demo/FeriepengerTest.kt 44 lines read
+
+ ● Read build.gradle.kts 13 lines read
+
+Lagt til `Feriepenger.kt` med TODO-stub, seks enhetstester og `kotlin("test")` som testavhengighet. Testene dekker satsene, aldersgrensen, avrunding, null og negativt grunnlag.
+
+🔴 Rød sone: forretningslogikk, forstå dette grundig. Beregningen er ikke implementert fordi teamet skal skrive ukjent kjernelogikk selv som standard. Testene vil feile inntil TODO-en erstattes. Gradle er ikke kjørt.
+

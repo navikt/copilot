@@ -1,0 +1,22 @@
+ / Search "**/slug*" 2 files found
+
+ / Search "slug" in **/* 2 files found
+
+ TS Read slug/slug.ts 10 lines read
+
+ TS Read slug/slug.test.ts 9 lines read
+
+ MD Read .github/instructions/security-owasp.instructions.md 12 lines read
+
+ MD Read .github/instructions/testing-typescript.instructions.md 100 lines read
+
+ ✗ Shell Run the requested slug test Could not find 'slug.test.ts' Failed with exit code 1
+   node --test slug.test.ts
+
+ ● Edit  Edit slug/slug.ts (+2 -1)
+
+ $ Shell Run slug tests from their directory 9 lines…
+   cd slug && node --test slug.test.ts
+
+Rettet `slug()` slik at den fjerner bindestreker i starten og slutten. Testen består når den kjøres fra `slug/` med `node --test slug.test.ts`.
+

@@ -1,0 +1,36 @@
+ TX Read src/app/komponenter/StatusPanel.tsx 19 lines read
+
+ MD Read .github/instructions/accessibility.instructions.md 121 lines read
+
+ TX Edit src/app/komponenter/StatusPanel.tsx Denied by preToolUse hook: En egendefinert ARIA-rolle …
+   Denied by preToolUse hook: En egendefinert ARIA-rolle og et avvik fra Aksel-mønsteret står begge 
+   under ⚠️ Ask First i accessibility-agenten 
+   (https://github.com/navikt/copilot/blob/main/agents/accessibility.agent.md). Ikke skriv endringen
+    selv. Spør utvikleren om bekreftelse først, eller vis til Aksel-komponenten som allerede har 
+   rollen innebygd: <Select> for et statusvalg, eller <UNSAFE_Combobox> når valget skal kunne søkes 
+   i. Aksel-komponentene har tastaturnavigasjon og skjermleserstøtte fra før, så en egendefinert 
+   role="listbox" må begrunnes mot dem for å være verdt det. Spør utvikleren og vent på svaret før 
+   du prøver igjen.
+
+Endringen ble blokkert av en hook: en egendefinert `role="listbox"` og avvik fra Aksel-mønsteret krever bekreftelse først. Jeg har ikke skrevet noe i `StatusPanel.tsx`.
+
+Jeg kan ikke vente på svar i denne økten, så jeg stopper her i stedet for å gå rundt blokkeringen.
+
+**Anbefaling:** bruk `<Select>` fra `@navikt/ds-react` for statusvalget. Den har tastaturnavigasjon, skjermleserstøtte og synlig fokus innebygd. Hvis valget skal kunne søkes i, bruk `<UNSAFE_Combobox>`.
+
+**Hvis du likevel vil ha en egendefinert listbox**, bekreft det og begrunn hvorfor Aksel ikke holder. Da implementerer jeg:
+- `<ul role="listbox">` med `aria-activedescendant` og `<li role="option" aria-selected>`
+- piltaster, Home/End og Enter/mellomrom
+- synlig fokusindikator
+
+🔴 Rød sone: tastatur- og ARIA-oppførselen må du gå nøye gjennom og teste med skjermleser.
+
+Filen har også eksisterende UU-brudd som jeg ikke har rørt:
+- `tabIndex={5}`
+- `outline: none` på en klikkbar `<div>`
+- ikonknapp uten tilgjengelig navn
+
+Si fra om du vil at jeg retter dem.
+
+Still gjerne spørsmål om valgene over.
+

@@ -1,0 +1,17 @@
+ $ Shell Run Go tests in frister 8 lines…
+   cd frister 2>/dev/null && go test ./... 2>&1 | head -80; ls
+
+ $ Shell Show source and test files 42 lines…
+   cd frister && cat frist.go frist_test.go
+
+The bug is in the Saturday branch: it adds one day, which lands on Sunday. It should add two days to reach Monday.
+
+ GO Edit frister/frist.go +1 -1
+
+ $ Shell Rerun Go tests in frister 1 line…
+   cd frister && go test ./... 2>&1 | tail -5
+
+Feilen lå i `frister/frist.go`. Når fristen havnet på en lørdag, la koden til én dag og fikk søndag i stedet for mandag. Jeg endret til to dager, slik at lørdag flyttes til mandag. Søndag-grenen (+1) var riktig og er uendret.
+
+`go test ./...` i `frister/` går nå grønt.
+

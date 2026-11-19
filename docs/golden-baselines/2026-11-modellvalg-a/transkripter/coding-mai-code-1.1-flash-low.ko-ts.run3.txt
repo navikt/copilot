@@ -1,0 +1,64 @@
+ / Search "**/*slug*" 2 files found
+
+ $ Shell List repo files to locate project structure 23 lines…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.qenq4R/repo && ls
+   -la && find . -maxdepth 2 -type f | sed 's#^./##' | sort | head -200
+
+ TS Read slug/slug.ts L1:200 (10 lines read)
+
+ TS Read slug/slug.test.ts L1:200 (9 lines read)
+
+ ✗ Shell Run slug tests to confirm the failing behavior Failed with exit code 1  ✖ slug (0.609375ms…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.qenq4R/repo && node
+   --test slug/slug.test.ts
+   ✖ slug (0.609375ms)
+   ℹ tests 1
+   ℹ suites 0
+   ℹ pass 0
+   ℹ fail 1
+   ℹ cancelled 0
+   ℹ skipped 0
+   ℹ todo 0
+   ℹ duration_ms 68.165
+   
+   ✖ failing tests:
+   
+   test at slug/slug.test.ts:5:1
+   ✖ slug (0.609375ms)
+     AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+     + actual - expected
+     
+     + '-hei-pa-deg-'
+     - 'hei-pa-deg'
+     
+         at TestContext.<anonymous> (file:///private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T
+   /nav-pilot-golden.qenq4R/repo/slug/slug.test.ts:7:10)
+         at Test.runInAsyncScope (node:async_hooks:227:14)
+         at Test.run (node:internal/test_runner/test:1402:25)
+         at Test.start (node:internal/test_runner/test:1262:17)
+         at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+       generatedMessage: true,
+       code: 'ERR_ASSERTION',
+       actual: '-hei-pa-deg-',
+       expected: 'hei-pa-deg',
+       operator: 'strictEqual',
+       diff: 'simple'
+     }
+   Failed with exit code 1
+
+ TS Edit slug/slug.ts +2 -1
+
+ $ Shell Verify the slug fix against the provided test 9 lines…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.qenq4R/repo && node
+   --test slug/slug.test.ts
+
+Løst. Feilen var at koden erstattet “ikke-alfanumeriske tegn” med bindestrek, men lot bindestrekene stå i starten og slutten av strengen. Jeg trimmet derfor endene etter normaliseringen.
+
+Resultat:
+- `slug("  Hei på deg!  ")` => `hei-pa-deg`
+- `slug("Økonomi og årsak")` => `okonomi-og-arsak`
+- `slug("Nav/Kontor 2026")` => `nav-kontor-2026`
+
+Validert med:
+- `node --test slug/slug.test.ts` ✅
+

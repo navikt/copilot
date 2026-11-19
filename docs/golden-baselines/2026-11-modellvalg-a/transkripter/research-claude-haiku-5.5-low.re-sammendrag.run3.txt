@@ -1,0 +1,18 @@
+ ● List directory . 5 files found
+
+ / Search "." (README.md) 3 lines found
+
+ YM Read nais.yaml 12 lines read
+
+ / Search "src/**/*.kt" 4 files found
+
+ ● Read src/main/kotlin/no/nav/demo/Routes.kt 19 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/Oppgave.kt 9 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/App.kt 15 lines read
+
+- Ktor-tjeneste (`demo-tjeneste`) som kjører på Nais, med port 8080 og health-endepunkter `/internal/isalive` og `/internal/isready`.
+- Eksponerer `GET /api/oppgaver`, som returnerer en liste med oppgaver ("Registrer søknad", "Send vedtaksbrev"). Antallet begrenses av `maksAntall`.
+- Oppgavene er hardkodet i kode, uten database eller eksterne kall. Dokumentasjonen er ufullstendig, så `Config.kt` er ikke lest.
+

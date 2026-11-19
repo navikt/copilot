@@ -1,0 +1,31 @@
+ ● skill(klarsprak)
+
+ / Search "**/*" 25 files found
+
+ MD Read .github/instructions/kotlin.instructions.md too large, not read
+
+ MD Read .github/instructions/testing-kotlin.instructions.md 185 lines read
+
+ MD Read .github/instructions/testing.instructions.md 112 lines read
+
+ MD Read .github/instructions/security-owasp.instructions.md 12 lines read
+
+ ● Read build.gradle.kts 12 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/Oppgave.kt 9 lines read
+
+Dette er en avgrenset endring uten nye dataflyter, men beregningsregelen er rød sone fordi den er ny for teamet. Jeg lager derfor funksjon med `TODO` og tester som beskriver kravene, ikke selve beregningen. Gradle kjøres ikke. `worker` er ikke installert, så jeg gjør endringen selv.
+
+
+ ● Edit  Edit build.gradle.kts (+1)  Create src/main/kotlin/no/nav/demo/Feriepenger.kt (+5)  Create…
+
+ ● Read src/main/kotlin/no/nav/demo/Feriepenger.kt 5 lines read
+
+ ● Read src/test/kotlin/no/nav/demo/FeriepengerTest.kt 44 lines read
+
+ ● Read build.gradle.kts 13 lines read
+
+Lagt til `Feriepenger.kt` med riktig signatur og `TODO`, samt enhetstester for satser, aldersgrensen, avrunding, null og negativt grunnlag. Testavhengighet er lagt til. Gradle er ikke kjørt.
+
+🔴 Rød sone: Beregningslogikken gjenstår fordi feriepengereglene er nye for teamet. «Jeg ser over alt etterpå» er ikke en eksplisitt bestilling på å implementere rød sone. Testene vil feile til funksjonen er implementert.
+

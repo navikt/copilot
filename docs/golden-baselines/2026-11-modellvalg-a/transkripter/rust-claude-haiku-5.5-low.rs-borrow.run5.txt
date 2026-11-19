@@ -1,0 +1,21 @@
+ $ Shell Locate Cargo projects and behandle_neste usages 4 lines…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.bM0BcN/repo && find
+   . -path ./target -prune -o -name Cargo.toml -print && grep -rn "behandle_neste" --include=*.rs .
+   | head -20
+
+ $ Shell Show saksko source and run cargo test 65 lines…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.bM0BcN/repo/saksko
+   && cat src/lib.rs && cargo test 2>&1 | tail -40
+
+Lånefeilen oppstår fordi `sak` er en lånt referanse inn i `self.saker`, og `remove(0)` tar et mutbart lån mens referansen fortsatt brukes. Jeg flytter elementet ut av køen med `remove(0)` i stedet, så vi eier verdien. Oppførselen er den samme: tom kø gir `None` uten sideeffekter, og eldste sak fjernes, noteres og returneres.
+
+ RS Edit saksko/src/lib.rs +5 -3
+
+ $ Shell Run saksko tests after fix 14 lines…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.bM0BcN/repo/saksko
+   && cargo test 2>&1 | tail -15
+
+Feilen er rettet i `saksko/src/lib.rs`, og `cargo test` i `saksko/` går grønt.
+
+Lånefeilen kom av at `sak` var en referanse inn i `self.saker`, og `remove(0)` trengte et mutbart lån mens referansen fortsatt var i bruk. Nå sjekkes tom kø først, og eldste sak flyttes ut med `remove(0)`. Oppførselen er uendret: tom kø gir `None` uten sideeffekter, og saken fjernes, noteres i `behandlet` og returneres.
+

@@ -1,0 +1,47 @@
+ ● skill(klarsprak)
+
+ $ Shell Inspect repository root 9 lines…
+   pwd && ls -a
+
+ / Search "sign|Sign|header" in *.kt 16 lines found
+
+ ● Read build.gradle.kts 12 lines read
+
+ / Search ".github/**/*" 18 files found
+
+ $ Shell Find reference monorepo No Content                                                       9s
+   gh repo list navikt --limit 1000 --json name --jq '.[] | select(.name |
+   test("paw.*intern|intern.*paw")) | .name'
+
+ ● Read lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningProducerIntercepto  22 lines re…
+        r.kt
+
+ ● Read lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningHeaders.kt 11 lines read
+
+ MD Read README.md 4 lines read
+
+ $ Shell Locate signing reference repository 1 line…
+   gh search repos 'paw intern org:navikt' --limit 10 --json fullName,url
+
+ $ Shell Find reference signing implementation 58 lines…
+   gh api 'repos/navikt/paw-arbeidssoekerregisteret-monorepo-intern/git/trees/main?recursive=1' --jq
+   '.tree[] | select(.path | test("[Ss]ign")) | .path'
+
+ $ Shell Read reference signing and failure handling 214 lines…
+   gh api repos/navikt/paw-arbeidssoekerregisteret-monorepo-intern/contents/lib/kafka-signing/src/ma
+   in/kotlin/no/nav/paw/kafka/signing/SigningProducerInterceptor.kt --jq .content | base64 --decode
+   && gh api repos/navikt/paw-arbeidssoekerregisteret-monorepo-intern/contents/lib/kafka-signing/src
+   /main/kotlin/no/nav/paw/kafka/signing/KafkaMessageSigner.kt --jq .content | base64 --decode
+
+**Fase 1: Signeringskode, full prosess. Ingen filer er endret.**
+
+Jeg har lest `SigningProducerInterceptor.kt`, `SigningHeaders.kt` og referansen i `paw-arbeidssoekerregisteret-monorepo-intern`. Referansen fjerner begge signeringsheaderne før nye legges til. Her finnes allerede `stripSigningHeaders`, men interceptoren bruker den ikke. Jeg legger til grunn uendret payload og nøkkelhåndtering.
+
+🔴 Rød sone: signering, forstå dette grundig.
+
+Ved signeringsfeil kaster dagens kode unntaket før headerne endres. Skal eksisterende signeringsheadere beholdes ved feil, eller fjernes også da?
+
+Repoet mangler `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`. Disse kan opprettes med `nav-pilot init`.
+
+Blindsoner reist: 1/11 (#3 feiloppførsel; øvrige gjelder uendret funksjonalitet eller dekkes av referansen).
+

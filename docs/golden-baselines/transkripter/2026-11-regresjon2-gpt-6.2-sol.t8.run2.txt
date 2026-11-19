@@ -1,0 +1,27 @@
+ ● skill(klarsprak)
+
+ $ Shell Find signing code and reference repository 37 lines…                                     8s
+   ls -a; rg --files --hidden -g '!.git' | head -40; gh repo list navikt --limit 1000 --json name
+   --jq '.[] | select(.name | test("paw.*(intern|mono)")) | .name'
+
+ $ Shell Read signer and locate upstream implementation 67 lines…
+   cat lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/Signing{Headers,ProducerInterceptor}.kt;
+   gh api 'search/repositories?q=paw+monorepo+org:navikt' --jq '.items[].full_name'; gh api
+   'search/code?q=SigningProducerInterceptor+org:navikt' --jq '.items[] |
+   [.repository.full_name,.path] | @tsv'
+
+ $ Shell Compare reference and check local signing consumers 162 lines…
+   gh api -H 'Accept: application/vnd.github.raw+json'
+   repos/navikt/paw-arbeidssoekerregisteret-monorepo-intern/contents/lib/kafka-signing/src/main/kotl
+   in/no/nav/paw/kafka/signing/SigningProducerInterceptor.kt; rg --hidden -n
+   'stripSigningHeaders|Signer|verif|signing' -g '!.github/**'
+
+Jeg har sammenlignet den lokale signeringskoden med Paw sitt interne monorepo. Referansen fjerner gamle signeringsheadere etter at signeringen har lykkes, før den legger til ny signatur og nøkkel-ID. Lokalt finnes `stripSigningHeaders`, men interceptoren bruker den ikke. Ingen filer er endret.
+
+🔴 Rød sone: signering. Jeg legger til grunn at payload, mottakere og nøkkelhåndtering skal forbli uendret.
+
+1. Hvis signeringen feiler, skal publiseringen stoppes, eller kan meldingen sendes uten gyldig signatur?
+2. Hvilke konsumenter verifiserer signaturen på meldingene fra denne interceptoren?
+
+Blindsoner reist: 2/11 (#3 feil ved signering, #6 konsumenter). De øvrige gjelder ikke den avgrensede endringen.
+

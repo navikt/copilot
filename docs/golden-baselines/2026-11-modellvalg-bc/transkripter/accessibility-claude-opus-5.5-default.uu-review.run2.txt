@@ -1,0 +1,67 @@
+Jeg leser komponenten og UU-instruksjonene.
+
+ TX Read src/app/komponenter/StatusPanel.tsx 19 lines read
+
+ MD Read .github/instructions/accessibility.instructions.md 121 lines read
+
+ ✗ Shell Check Aksel deps  Failed with exit code 1
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.APKAmR/repo && cat
+   package.json 2>/dev/null | grep -E '"(@navikt|next|react)' ; ls node_modules/@navikt 2>/dev/null
+
+Jeg fant sju UU-feil i `StatusPanel.tsx`. Fem av dem bryter WCAG 2.1 AA, som er lovkravet. Jeg har ikke endret filen.
+
+### Brudd på WCAG
+
+| # | Linje | Problem | WCAG |
+|---|---|---|---|
+| 1 | `<div onClick>` | Du kan ikke nå eller bruke «Vis detaljer» med tastatur. Skjermlesere oppgir ingen rolle og ingen åpen/lukket-tilstand. | 2.1.1, 4.1.2 |
+| 2 | `outline: "none"` | Inline-stilen fjerner fokusindikatoren uten å erstatte den. | 2.4.7 |
+| 3 | `tabIndex={5}` | Elementet bryter tab-rekkefølgen, og statusteksten blir et tab-stopp selv om den ikke er interaktiv. | 2.4.3 |
+| 4 | `color: red/green` | Bare fargen skiller «feil» fra «ok». Fargeblinde ser ingen forskjell. | 1.4.1 |
+| 5 | `"red"` på hvit bakgrunn | Kontrasten er 4,0:1, mens kravet for normal tekst er 4,5:1. | 1.4.3 |
+| 6 | `<button><TrashIcon /></button>` | Knappen har ikke noe tilgjengelig navn, så skjermleseren sier bare «knapp». | 4.1.2 |
+| 7 | `{status}` | Skjermleseren annonserer ikke når statusen endrer seg. | 4.1.3 |
+
+### Andre funn
+
+- `apen` blir aldri brukt, så «Vis detaljer» viser ikke noe innhold.
+- Sletting skjer uten bekreftelse. Bruk Aksel `Modal` (WCAG 3.3.4).
+- Komponenten bruker native elementer, ikke Aksel-komponenter.
+- Hvis filen er under `src/app/`, mangler `"use client"` for `useState`. Det er ikke en UU-feil.
+
+### Forslag
+
+```tsx
+"use client";
+import { useState } from "react";
+import { BodyShort, Box, Button, Tag } from "@navikt/ds-react";
+import { TrashIcon } from "@navikt/aksel-icons";
+
+type Props = { status: "ok" | "feil"; onSlett: () => void };
+
+export function StatusPanel({ status, onSlett }: Props) {
+  const [apen, setApen] = useState(false);
+  return (
+    <Box padding="4">
+      <Button variant="tertiary" aria-expanded={apen} aria-controls="status-detaljer"
+        onClick={() => setApen(!apen)}>
+        {apen ? "Skjul detaljer" : "Vis detaljer"}
+      </Button>
+      <div id="status-detaljer" hidden={!apen}>{/* detaljer */}</div>
+      <div role="status">
+        <Tag variant={status === "feil" ? "error" : "success"}>
+          Status: {status === "feil" ? "Feil" : "OK"}
+        </Tag>
+      </div>
+      <Button variant="tertiary" icon={<TrashIcon title="Slett" />} onClick={onSlett} />
+    </Box>
+  );
+}
+```
+
+Repoet har ingen `package.json`, så jeg har ikke sjekket Aksel-propsene mot installert versjon. Gjør det før du tar i bruk forslaget. Test med tastatur og axe-core etterpå.
+
+Valget av `Button` med `aria-expanded` i stedet for Aksel `ExpansionCard` beholder dagens layout, men da må du selv koble knappen til panelet. Hvis du vil ha ferdig tilstandshåndtering, er `ExpansionCard` (eller `ReadMore`) alternativet.
+
+Still gjerne spørsmål om valgene over.
+

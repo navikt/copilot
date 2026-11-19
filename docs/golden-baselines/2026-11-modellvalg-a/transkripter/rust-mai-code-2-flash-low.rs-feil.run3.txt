@@ -1,0 +1,23 @@
+ ● skill(rust-development)
+
+I’m tracing the parser and existing tests, then I’ll replace panic paths and add focused cases.
+
+ ● List directory vedtak-parser 2 files found
+
+ TM Read vedtak-parser/Cargo.toml 6 lines read
+
+ / Search "**/*.rs" in vedtak-parser 1 file found
+
+ RS Read vedtak-parser/src/lib.rs 24 lines read
+
+ / Search "**/*" 29 files found
+
+ ● Edit  Edit vedtak-parser/Cargo.toml (+1)  Edit vedtak-parser/src/lib.rs (+53 -5)
+
+ $ Shell Run vedtak-parser Rust tests 25 lines…
+   cd vedtak-parser && cargo test
+
+Endret `vedtak-parser` til å returnere `Result<Vedtak, VedtakFeil>` med `thiserror`.
+
+La til tester for manglende ID, manglende beløp og ugyldig beløp. `cargo test` passerer alle 4 tester.
+

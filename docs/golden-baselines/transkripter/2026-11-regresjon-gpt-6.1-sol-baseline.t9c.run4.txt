@@ -1,0 +1,27 @@
+ ● skill(klarsprak)
+
+ / Search "**/*" 25 files found
+
+ MD Read .github/instructions/kotlin.instructions.md too large, not read
+
+ ● Read build.gradle.kts 12 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/Oppgave.kt 9 lines read
+
+ MD Read .github/instructions/testing-kotlin.instructions.md 185 lines read
+
+ MD Read .github/instructions/testing.instructions.md 112 lines read
+
+ MD Read .github/instructions/security-owasp.instructions.md 12 lines read
+
+Dette er en avgrenset endring, men beregningen er rød sone fordi den er ny domenelogikk for teamet. Jeg legger inn funksjonsstub og tester som beskriver reglene, ikke selve beregningen. Løftet om gjennomgang etterpå er ikke en eksplisitt bestilling om å implementere rød sone. Gradle kjøres ikke.
+
+
+ ● Edit  Edit build.gradle.kts (+1)  Create src/main/kotlin/no/nav/demo/Feriepenger.kt (+5)  Create…
+
+ / Search "." (src/main/kotlin/no/nav/demo/Feriepenger.kt, src/test/kotlin/no/nav/de… 54 lines found
+
+Lagt til `Feriepenger.kt` med funksjonsstub, seks enhetstester og testavhengighet. Testene dekker aldersgrensen, begge satser, avrunding, null og negativt grunnlag.
+
+🔴 Rød sone: ny domenelogikk, forstå dette grundig. Beregningen står som `TODO` for teamets egen implementering. Testene vil feile til den er ferdig. Gradle er ikke kjørt, som avtalt.
+

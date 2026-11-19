@@ -1,0 +1,31 @@
+ / Search "{AGENTS.md,.github/copilot-instructions.md,.github/copilot-review-instruct… 2 files found
+
+ YM Read nais.yaml 12 lines read
+
+Dette er **Full**. Tjenesten er ny, behandler fnr (personopplysninger) og innfører ID-porten-innlogging. Jeg stopper derfor etter Fase 1 (intervju).
+
+**Fase 1: Intervju**
+
+Dette fant jeg i repoet:
+- `nais.yaml` (`demo-tjeneste`, namespace `demo`) har ingen `idporten`, `tokenx` eller `accessPolicy`. Auth er altså helt nytt.
+- `build.gradle.kts` tyder på Kotlin.
+- Repoet har ingen `AGENTS.md`, `.github/copilot-instructions.md` eller `.github/copilot-review-instructions.md`. Kjør gjerne `nav-pilot init`.
+
+**Spørsmål:**
+
+1. **Personvern ⚠️:** fnr kommer fra `pid`-claimet i ID-porten-tokenet. Hva skal fnr brukes til? Skal det lagres, sendes videre (til PDL, Kafka eller et annet API) eller bare brukes til oppslag? Behandler tjenesten andre kategorier, for eksempel navn, helse eller ytelser?
+2. **Tilgangsstyring ⚠️:** Hvem kaller tjenesten?
+   - (a) Innbyggeren direkte via nettleser. Da trengs ID-porten og Wonderwall, og tjenesten trenger en frontend.
+   - (b) En frontend eller BFF som kaller tjenesten med TokenX. Da validerer tjenesten et TokenX-token som inneholder `pid`.
+   - Hvilke apper skal stå i `accessPolicy.inbound`?
+3. **Feilhåndtering:** Hvilke avhengigheter har tjenesten (PDL, database, andre API-er)? Hva skal skje når en av dem er nede?
+4. **Observerbarhet:** Hvilke forretningsmetrikker viser at tjenesten fungerer?
+5. **Teamgrenser:** Eier dere hele flyten, også frontend?
+6. **Endringspåvirkning:** Hvem skal bruke API-et eller hendelsene fra tjenesten?
+7. **Teststrategi:** Er MockOAuth2Server og Testcontainers greit å bruke?
+8. **Ny teknologi:** Har teamet brukt ID-porten eller TokenX før? Hvis ikke, er token-validering en kandidat for 🔴 rød sone.
+
+Disse hoppet jeg over: #8 Modernisering, #9 Bakoverkompatibilitet og #10 Utfasing gjelder ikke, fordi tjenesten er ny.
+
+Blindsoner reist: 8/11 (#1–#7, #11 stilt; #8–#10 ikke relevant for ny tjeneste)
+

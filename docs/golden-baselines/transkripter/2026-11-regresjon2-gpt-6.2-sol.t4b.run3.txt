@@ -1,0 +1,18 @@
+ ● skill(nav-plan)
+
+ ● skill(api-design)
+
+## Fase 2: Plan
+
+**Bruk den eksisterende Next.js-frontenden som eneste inngang for innbyggeren.** Wonderwall håndterer ID-porten-innloggingen foran Next.js på Nais. Next.js gjør et serverkall til den nye, interne Ktor-tjenesten med et TokenX-token utstedt for akkurat den tjenesten. Det gir én offentlig inngang, men krever at teamet verifiserer tokenutveksling og validering i dev før produksjon.
+
+**API og personvern.** Ktor eksponerer `GET /api/me` og returnerer bare navn, med `Cache-Control: no-store`. Tjenesten validerer signatur, utsteder, mottaker og utløp før den leser `pid` fra TokenX-tokenet. Den bruker identiteten derfra til å slå opp navn i PDL, aldri et fødselsnummer fra URL eller forespørselsdata. Ingen database, cache eller kø. Dokumenter den konkrete lovhjemmelen og formålet før produksjon. Bekreft også PDLs krav til token, målgruppe og tilgang for oppslag i innbyggerkontekst. Ikke anta at tokenet til Ktor kan videresendes til PDL.
+
+**Feil og drift.** Manglende eller ugyldig token gir `401`; gyldig token uten påkrevd identitet gir `403` uten PDL-kall. Timeout eller utilgjengelig PDL gir `503` med en generell feilmelding i Problem Details-format. Frontenden viser at oppslaget kan prøves igjen senere. Logg feilkategori og teknisk sporings-ID, aldri fødselsnummer, navn, token eller PDL-payload. Mål PDL-oppslag per minutt og andel feilende PDL-kall. Varsle ved vedvarende høy feilandel med et minste trafikkgrunnlag.
+
+**Nais og leveranse.** Next.js har offentlig ingress med Wonderwall. Ktor har ingen offentlig ingress og en eksplisitt `accessPolicy` som tillater bare Next.js inn og PDL ut, i tillegg til eventuelle nødvendige plattformendepunkter. Del Ktor-koden i API, autentisering og PDL-klient. Sett opp interne helse- og metrikkendepunkter, to replikaer, minnegrense og ingen CPU-grense. CI kjører tester og bygger image før deploy til dev. Produksjon krever verifisert oppslag i dev. Ved rollback av førstegangsleveransen deaktiveres funksjonen i frontenden før den nye tjenesten tas ut av bruk.
+
+**Teststrategi.** Bruk syntetiske identiteter. Test at feil mottaker, utløpt token og manglende `pid` avvises før PDL-kall. Test også at PDL-timeout gir `503`, og at fødselsnummer ikke vises i svar eller logger. Verifiser innlogging, navnevisning og feilmelding fra nettleseren i dev.
+
+🔴 **Rød sone:** Wonderwall-oppsett, TokenX-utveksling, tokenvalidering, bindingen mellom innlogget identitet og PDL-oppslaget, og autorisasjon mot PDL. Teamet bør gå gjennom denne kjeden selv. Ingen kode er skrevet. Neste fase er gjennomgang av planen.
+

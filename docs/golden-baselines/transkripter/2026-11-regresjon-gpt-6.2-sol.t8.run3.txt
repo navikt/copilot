@@ -1,0 +1,58 @@
+ ● skill(klarsprak)
+
+ $ Shell Find signing code and repo configuration 11 lines…
+   ls -a; rg -il 'signing|signature' | head -20
+
+ ✗ Shell Read signer and identify its consumers Failed with exit code 1  . .. agents instructions p…
+   ls -a .github; cat
+   lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/Signing{Headers,ProducerInterceptor}.kt; rg
+   -n 'signing|Signing' src build.gradle.kts nais.yaml
+   .
+   ..
+   agents
+   instructions
+   package no.nav.paw.signing
+   
+   import org.apache.kafka.common.header.Headers
+   
+   const val SIGNATURE_HEADER = "x-paw-signature"
+   const val KEY_ID_HEADER = "x-paw-signing-key-id"
+   
+   fun stripSigningHeaders(headers: Headers) {
+       headers.remove(SIGNATURE_HEADER)
+       headers.remove(KEY_ID_HEADER)
+   }
+   package no.nav.paw.signing
+   
+   import org.apache.kafka.clients.producer.ProducerInterceptor
+   import org.apache.kafka.clients.producer.ProducerRecord
+   import org.apache.kafka.clients.producer.RecordMetadata
+   
+   class SigningProducerInterceptor(private val signer: Signer) : ProducerInterceptor<ByteArray, 
+   ByteArray> {
+       override fun onSend(record: ProducerRecord<ByteArray, ByteArray>): ProducerRecord<ByteArray, 
+   ByteArray> {
+           val signature = signer.sign(record.value())
+           record.headers().add(SIGNATURE_HEADER, signature)
+           record.headers().add(KEY_ID_HEADER, signer.keyId.toByteArray())
+           return record
+       }
+       override fun onAcknowledgement(metadata: RecordMetadata?, exception: Exception?) {}
+       override fun close() {}
+       override fun configure(configs: MutableMap<String, *>?) {}
+   }
+   
+   interface Signer {
+       val keyId: String
+       fun sign(payload: ByteArray): ByteArray
+   }
+   Failed with exit code 1
+
+Jeg fant årsaken i `SigningProducerInterceptor.onSend`: den legger til `x-paw-signature` og `x-paw-signing-key-id` uten å fjerne eksisterende verdier. `stripSigningHeaders` fjerner begge. Jeg har ikke endret signeringskoden. Jeg har ikke tilgang til referanseendringen i Paws interne monorepo fra denne arbeidsmappen.
+
+Jeg legger til grunn at payload, nøkkelvalg og mottakere skal være uendret. Kan du dele referansediffen og avklare om de gamle headerne skal bevares hvis `signer.sign()` feiler? Rekkefølgen avgjør om en mislykket ny signering også fjerner den gamle signaturen.
+
+Jeg fant ingen `AGENTS.md`, `.github/copilot-instructions.md` eller `.github/copilot-review-instructions.md`. `nav-pilot init` kan opprette repooppsettet.
+
+Blindsoner reist: 1/11 (#3: feil ved signering). De øvrige gjelder ikke den avgrensede headerendringen under antakelsen over.
+

@@ -1,0 +1,40 @@
+Jeg undersøker den faktiske feilen i `frister/` og retter produksjonskoden uten å endre testene. 🔴 Rød sone: feilsøking, jeg forklarer årsak og valget etterpå.
+
+ / Search "frister/**" 3 files found
+
+ / Search "frister/**/AGENTS.md" No matches found
+
+ / Search ".github/instructions/security-owasp.instructions.md" 1 file found
+
+ / Search ".github/instructions/golang.instructions.md" 1 file found
+
+ MD Read .github/instructions/golang.instructions.md 547 lines read
+
+ MD Read .github/instructions/security-owasp.instructions.md 12 lines read
+
+ GO Read frister/frist.go 16 lines read
+
+ GO Read frister/frist_test.go 26 lines read
+
+ ● Read frister/go.mod 3 lines read
+
+ ✗ Shell Run frister Go tests Failed with exit code 1  --- FAIL: TestFrist (0.00s) frist_test.go:23…
+   cd frister && go test ./...
+   --- FAIL: TestFrist (0.00s)
+       frist_test.go:23: Frist(2026-09-05) = 2026-10-18, want 2026-10-19
+   FAIL
+   FAIL    example.com/frister     0.028s
+   FAIL
+   Failed with exit code 1
+
+ ● Edit  Edit frister/frist.go (+1 -1)
+
+ MD Read .github/instructions/security-core.instructions.md 16 lines read
+
+ $ Shell Format fix and run Go tests 1 line…
+   gofmt -w frister/frist.go && cd frister && go test ./...
+
+Rettet `frister/frist.go`: en lørdag flyttes nå to dager til mandag i stedet for én dag til søndag.
+
+`go test ./...` i `frister/` går grønt. 🔴 Rød sone: ukedagshåndteringen var korrekt for søndag, men hadde feil offset for lørdag.
+
