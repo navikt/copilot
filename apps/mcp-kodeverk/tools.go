@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	maxToolResultBytes = 128 * 1024
+	maxToolResultBytes = 32 * 1024
 	maxFilterLen       = 64
 	maxKodeLen         = 128
 )
@@ -36,11 +36,49 @@ var readOnlyAnnotations = map[string]bool{
 	"openWorldHint":   false,
 }
 
+// toolOutputs names each tool's main result field and its JSON type, and
+// whether the tool pages with offset. toolDefinitions builds outputSchema from it.
+var toolOutputs = map[string]struct {
+	key, typ  string
+	hasOffset bool
+}{
+	"list_kodeverk":            {"kodeverksnavn", "array", true},
+	"get_kodeverk_koder":       {"koder", "array", true},
+	"get_kodeverk_betydninger": {"betydninger", "object", true},
+	"list_hierarkier":          {"hierarkinavn", "array", true},
+	"get_hierarki_noder":       {"noder", "object", false},
+	"search_kodeverk":          {"", "", false}, // kodeverk or matches, depending on kodeverksnavn
+}
+
 func toolDefinitions() []map[string]any {
+	defs := baseToolDefinitions()
+	for _, d := range defs {
+		o := toolOutputs[d["name"].(string)]
+		props := map[string]any{
+			"total":     map[string]any{"type": "integer"},
+			"returned":  map[string]any{"type": "integer"},
+			"truncated": map[string]any{"type": "boolean"},
+		}
+		required := []string{"total", "returned"}
+		if o.hasOffset {
+			props["offset"] = map[string]any{"type": "integer"}
+			props["nextOffset"] = map[string]any{"type": "integer", "description": "Offset for the next page; absent on the last page."}
+			required = append(required, "offset")
+		}
+		if o.key != "" {
+			props[o.key] = map[string]any{"type": o.typ}
+			required = append(required, o.key)
+		}
+		d["outputSchema"] = map[string]any{"type": "object", "properties": props, "required": required}
+	}
+	return defs
+}
+
+func baseToolDefinitions() []map[string]any {
 	return []map[string]any{
 		{
 			"name":        "list_kodeverk",
-			"description": "List published code sets (kodeverk) in Nav's Felles kodeverk with optional substring filtering and pagination.",
+			"description": "List published code sets (kodeverk) in Nav's Felles kodeverk with optional substring filtering and pagination. Example: {\"filter\": \"post\"} finds Postnummer.",
 			"inputSchema": map[string]any{
 				"type":                 "object",
 				"additionalProperties": false,
@@ -69,7 +107,7 @@ func toolDefinitions() []map[string]any {
 		},
 		{
 			"name":        "get_kodeverk_koder",
-			"description": "List published code keys for a specific kodeverk with optional substring filtering and pagination.",
+			"description": "List published code keys for a specific kodeverk with optional substring filtering and pagination. Example: {\"kodeverksnavn\": \"Landkoder\", \"filter\": \"NO\"}.",
 			"inputSchema": map[string]any{
 				"type":                 "object",
 				"additionalProperties": false,
@@ -104,7 +142,7 @@ func toolDefinitions() []map[string]any {
 		},
 		{
 			"name":        "get_kodeverk_betydninger",
-			"description": "Get code meanings (betydninger) with validity dates and language descriptions for a kodeverk, paginated over sorted codes.",
+			"description": "Get code meanings (betydninger) with validity dates and language descriptions for a kodeverk, paginated over sorted codes. Example: {\"kodeverksnavn\": \"Postnummer\", \"kode\": \"0150\"} returns the poststed for 0150.",
 			"inputSchema": map[string]any{
 				"type":                 "object",
 				"additionalProperties": false,
@@ -157,7 +195,7 @@ func toolDefinitions() []map[string]any {
 		},
 		{
 			"name":        "list_hierarkier",
-			"description": "List published hierarchies in Nav's Felles kodeverk with optional substring filtering and pagination.",
+			"description": "List published hierarchies in Nav's Felles kodeverk with optional substring filtering and pagination. Example: {\"filter\": \"geografi\"}.",
 			"inputSchema": map[string]any{
 				"type":                 "object",
 				"additionalProperties": false,
@@ -186,7 +224,7 @@ func toolDefinitions() []map[string]any {
 		},
 		{
 			"name":        "get_hierarki_noder",
-			"description": "Get the node tree for a hierarchy, bounded by depth and root node limit.",
+			"description": "Get the node tree for a hierarchy, bounded by depth and root node limit. Example: {\"hierarkinavn\": \"Geografi\", \"maxDepth\": 2}.",
 			"inputSchema": map[string]any{
 				"type":                 "object",
 				"additionalProperties": false,
@@ -226,7 +264,7 @@ func toolDefinitions() []map[string]any {
 		},
 		{
 			"name":        "search_kodeverk",
-			"description": "Search kodeverk names or, when kodeverksnavn is specified, search codes and Norwegian Bokmål (nb) terms within that kodeverk.",
+			"description": "Search kodeverk names or, when kodeverksnavn is specified, search codes and Norwegian Bokmål (nb) terms within that kodeverk. Example: {\"query\": \"Oslo\", \"kodeverksnavn\": \"Kommuner\"}.",
 			"inputSchema": map[string]any{
 				"type":                 "object",
 				"additionalProperties": false,
@@ -368,9 +406,31 @@ func (s *server) execWithOBO(ctx context.Context, inboundToken string, fn func(o
 	if err != nil {
 		return toolErrorResult(err.Error())
 	}
-	return map[string]any{
-		"content": []map[string]string{{"type": "text", "text": text}},
+	return toolResult(text)
+}
+
+// toolResult returns the JSON text as structuredContent and as a text block
+// for clients older than 2026-07-28, plus a hint when more items exist.
+func toolResult(text string) map[string]any {
+	var structured map[string]any
+	if err := json.Unmarshal([]byte(text), &structured); err != nil {
+		return map[string]any{"content": []map[string]string{{"type": "text", "text": text}}}
 	}
+	content := []map[string]string{{"type": "text", "text": text}}
+	total, _ := structured["total"].(float64)
+	returned, _ := structured["returned"].(float64)
+	if offset, ok := structured["offset"].(float64); ok {
+		if rest := int(total) - int(offset) - int(returned); rest > 0 {
+			next := int(offset) + int(returned)
+			structured["nextOffset"] = next
+			content = append(content, map[string]string{"type": "text", "text": fmt.Sprintf(
+				"%d more items. Next page: call again with offset=%d, or narrow the request (filter or kode).", rest, next)})
+		}
+	} else if truncated, _ := structured["truncated"].(bool); truncated || total > returned {
+		content = append(content, map[string]string{"type": "text", "text": fmt.Sprintf(
+			"%d of %d shown. Narrow the query or kodeverksnavn, or lower maxDepth, to see the rest.", int(returned), int(total))})
+	}
+	return map[string]any{"content": content, "structuredContent": structured}
 }
 
 func toolErrorResult(msg string) map[string]any {
@@ -804,7 +864,7 @@ func parseSearchArgs(raw json.RawMessage) (searchArgs, *mcpRPCError) {
 	return out, nil
 }
 
-// --- Filtering, pagination, and 128 KiB size capping ---
+// --- Filtering, pagination, and 32 KiB size capping ---
 
 func filterAndPaginateStrings(items []string, filter string, limit, offset int) (page []string, total int) {
 	sorted := make([]string, len(items))
@@ -874,7 +934,7 @@ func fitCappedJSON(totalItems int, alreadyTruncated bool, render func(n int, tru
 		return "", err
 	}
 	if len(fallback) > maxToolResultBytes {
-		return "", errors.New("tool response exceeds 128 KiB limit")
+		return "", errors.New("tool response exceeds 32 KiB limit")
 	}
 	return string(fallback), nil
 }
