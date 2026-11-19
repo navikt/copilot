@@ -9,7 +9,7 @@ routes:
     team: copilot
     target: prod-gcp:copilot:mcp-kodeverk
     upstream_url: http://mcp-kodeverk.copilot/
-    enabled: false
+    enabled: true
     tools:
       - list_kodeverk
       - get_kodeverk_koder
