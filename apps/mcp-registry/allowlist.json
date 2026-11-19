@@ -140,6 +140,29 @@
     },
     {
       "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+      "name": "io.github.navikt/dolly",
+      "title": "Dolly",
+      "description": "Look up Nav synthetic test persons, groups and orders in Dolly (read-only), with Nav login.",
+      "version": "1.0.0",
+      "status": "active",
+      "publishedAt": "2026-11-19T00:00:00Z",
+      "websiteUrl": "https://ki-utvikling.nav.no/verktoy/fleet-gateway",
+      "repository": {
+        "url": "https://github.com/navikt/copilot",
+        "source": "github",
+        "subfolder": "apps/mcp-dolly"
+      },
+      "tags": ["dolly", "test-data", "nav-internal", "gateway"],
+      "protocolVersions": ["2026-07-28", "2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"],
+      "remotes": [
+        {
+          "type": "streamable-http",
+          "url": "https://fleet-gateway.{{domain_internal}}/mcp/copilot/dolly"
+        }
+      ]
+    },
+    {
+      "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
       "name": "io.github.navikt/aksel-mcp",
       "description": "Aksel design system context for frontend/ui development and documentation.",
       "version": "1.0.0",
