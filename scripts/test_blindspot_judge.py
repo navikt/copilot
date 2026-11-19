@@ -328,12 +328,13 @@ class SecqJudgeTests(unittest.TestCase):
         self.assertEqual(judge.KEYS, ("bs1", "bs2"))
         self.assertTrue(judge.RECORD.endswith("blindsone-dommer-kontroller.psv"))
 
-    def test_secq_accepts_a_quote_past_its_question_mark_and_indirect_with_ogsa(self):
+    def test_secq_cuts_a_quote_at_its_question_mark_and_accepts_indirect_with_ogsa(self):
         judge = load_judge(BS_JUDGE_KIND="secq")
-        a = "Skal headerne fjernes før signeringen? Det avgjør om de blir stående."
-        self.assertTrue(judge.is_question(judge.norm(a), judge.norm(a)))
+        a = "Kan du sende diffen? Signeringsfeil skal stoppe sendingen."
+        vote = json.dumps({"secq": True, "secq_quote": a})
+        self.assertEqual(judge.parse_vote(vote, a)["secq_quote"], "Kan du sende diffen?")
         b = "Jeg trenger også å vite hva som skal skje hvis signeringen feiler."
         self.assertTrue(judge.is_question(judge.norm(b), judge.norm(b)))
         blind = load_judge()
-        self.assertFalse(blind.is_question(blind.norm(a), blind.norm(a)))
+        self.assertFalse(blind.is_question(blind.norm(b), blind.norm(b)))
 

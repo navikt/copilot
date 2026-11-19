@@ -43,3 +43,4 @@ Skal verifiserende konsumenter avvise records med flere signaturheadere?		1	bats
 Jeg trenger også å vite hva som skal skje hvis ny signering feiler etter at gamle headere er fjernet.		1	bats indirect
 Skal konsumentene avvise records uten signatur?		1	usignert
 Hvordan roteres signeringsnøkkelen?		1	nøkkelrotasjon
+Kan du sende diffen? Signeringsfeil skal stoppe sendingen.		0	#2437 review 3
