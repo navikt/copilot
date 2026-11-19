@@ -586,6 +586,9 @@ class CheckJudgeTests(unittest.TestCase):
         # A backtick line with a backtick in its info string opens no fence, so it pops nothing.
         h = "      ## 🔴 Rød sone: tokenvalidering"
         self.assertIn(h, u("- outer\n  - inner\n  ```x`y\n\n" + h))
+        # Nor does one too deep to open a fence once the item is left.
+        h = "     ## 🔴 Rød sone: tokenvalidering"
+        self.assertIn(h, u("100. a\n    ~~~\n    b\n\n" + h))
 
     def test_code_under_a_list_item_is_code(self):
         judge = load_judge(BS_JUDGE_KIND="t4")

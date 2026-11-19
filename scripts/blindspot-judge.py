@@ -472,8 +472,14 @@ def unfenced(text):
         # A fence is no lazy continuation: it belongs to the item it is indented under.
         opener = not item and fence_re.match(body[ind:])
         opener = opener and not (opener.group(1)[0] == "`" and "`" in opener.group(2))
-        while stack and ind < stack[-1] and (blank or item or opener):
+        while stack and ind < stack[-1] and (blank or item):
             stack.pop()
+        if opener and not (blank or item):
+            k = len(stack)
+            while k and ind < stack[k - 1]:
+                k -= 1
+            if ind <= (stack[k - 1] if k else 0) + 3:  # only where it really opens a fence
+                del stack[k:]
         base = stack[-1] if stack else 0
         code = ind >= base + 4 and (blank or code)
         blank = False
