@@ -1,0 +1,22 @@
+ ● List directory . 5 files found
+
+ MD Read README.md L1:220 (4 lines read)
+
+ ● List directory src 1 file found
+
+ ● Read build.gradle.kts L1:220 (12 lines read)
+
+ / Search "src/**/*.kt" 4 files found
+
+ ● Read src/main/kotlin/no/nav/demo/Routes.kt L1:220 (19 lines read)
+
+ ● Read src/main/kotlin/no/nav/demo/App.kt L1:220 (15 lines read)
+
+ ● Read src/main/kotlin/no/nav/demo/Oppgave.kt L1:220 (9 lines read)
+
+ ● Read src/main/kotlin/no/nav/demo/Config.kt L1:200 (4 lines read)
+
+- Dette er en liten demo-tjeneste i Kotlin/Ktor som starter på port 8080 og er ment å vise et enkelt REST-API i Nav-miljø.
+- Tjenesten eksponerer endepunktet /api/oppgaver, som returnerer en liste med oppgaver som har id og tittel, og begrenser antallet til maksAntall.
+- Den er bygget for å kjøre på Nais og fungerer som en enkel eksempelservice for hvordan en liten backend kan publiseres og brukes.
+

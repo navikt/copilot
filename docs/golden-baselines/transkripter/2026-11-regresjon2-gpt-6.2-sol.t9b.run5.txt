@@ -1,0 +1,60 @@
+ ● skill(klarsprak)
+
+ ✗ Shell ls -a; find . -type f | head -50; command -v kotlinc Failed with exit code 1  . .. .github…
+   ls -a; find . -type f | head -50; command -v kotlinc
+   .
+   ..
+   .github
+   build.gradle.kts
+   nais.yaml
+   README.md
+   src
+   ./README.md
+   ./build.gradle.kts
+   ./nais.yaml
+   ./.github/instructions/deliberate-ai-use.instructions.md
+   ./.github/instructions/performance.instructions.md
+   ./.github/instructions/docker.instructions.md
+   ./.github/instructions/accessibility.instructions.md
+   ./.github/instructions/cplt-sandbox.instructions.md
+   ./.github/instructions/output-style.instructions.md
+   ./.github/instructions/database.instructions.md
+   ./.github/instructions/nextjs-aksel.instructions.md
+   ./.github/instructions/github-actions.instructions.md
+   ./.github/instructions/golang.instructions.md
+   ./.github/instructions/testing-typescript.instructions.md
+   ./.github/instructions/security-core.instructions.md
+   ./.github/instructions/kotlin.instructions.md
+   ./.github/instructions/security-owasp.instructions.md
+   ./.github/instructions/testing-kotlin.instructions.md
+   ./.github/instructions/testing.instructions.md
+   ./.github/instructions/norwegian-text.instructions.md
+   ./.github/agents/golden-nav-pilot.agent.md
+   ./src/main/kotlin/no/nav/demo/App.kt
+   ./src/main/kotlin/no/nav/demo/Oppgave.kt
+   ./src/main/kotlin/no/nav/demo/Routes.kt
+   ./src/main/kotlin/no/nav/demo/Config.kt
+   Failed with exit code 1
+
+ $ Shell cat build.gradle.kts src/main/kotlin/no/nav/demo/Oppgave.kt; cat .github/instru… 261 lines…
+   cat build.gradle.kts src/main/kotlin/no/nav/demo/Oppgave.kt; cat
+   .github/instructions/{kotlin,security-owasp,testing-kotlin,testing}.instructions.md | head -240
+
+ ● Edit  Edit build.gradle.kts (+1)  Create src/main/kotlin/no/nav/demo/Feriepenger.kt (+8)  Create…
+
+ $ Shell awk 'BEGIN {split("1000 1000 1000 249 250 251 4 0",g); split("59 60 61 59 59 59… No Content
+   awk 'BEGIN {split("1000 1000 1000 249 250 251 4 0",g); split("59 60 61 59 59 59 60 60",a);
+   split("102 125 125 25 26 26 1 0",e); for(i=1;i<=8;i++)
+   if(int((g[i]*(a[i]>=60?125:102)+500)/1000)!=e[i]) exit 1}' && test -f
+   src/test/kotlin/no/nav/demo/FeriepengerTest.kt
+
+La til `feriepenger` i `Feriepenger.kt` og enhetstester i `FeriepengerTest.kt`. Gradle ble ikke kjørt.
+
+🔴 Rød sone: Beregningen bruker heltall og satser i promille for å unngå flyttallsfeil. Å legge til 500 før deling på 1000 gjør at nøyaktig 50 øre rundes opp.
+
+**Sjekkliste for rød sone**
+
+- [ ] Sjekk i `FeriepengerTest.kt` at satsen er 10,2 % ved 59 år og 12,5 % fra og med året personen fyller 60, at beløp rett under 50 øre rundes ned og nøyaktig 50 øre rundes opp, og at negativt grunnlag gir `IllegalArgumentException`.
+
+Kan du fortelle meg hva denne koden gjør og hvorfor denne tilnærmingen er riktig?
+

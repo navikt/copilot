@@ -1,0 +1,98 @@
+Jeg starter med å lese `vedtak-parser/`.
+
+ $ Shell List vedtak-parser files and show source 32 lines…
+   cd vedtak-parser && find . -path ./target -prune -o -type f -print && cat Cargo.toml && cat
+   src/*.rs 2>/dev/null
+
+Plan: legg til `thiserror`, gjør `les` til `Result`, og skriv én test per feil. Feilen for ugyldig beløp inneholder den ugyldige teksten.
+
+ $ Shell Rewrite lib.rs with Result and run cargo test 87 lines…
+   cd vedtak-parser && cat > src/lib.rs <<'EOF'
+   use thiserror::Error;
+
+   /// Et vedtak lest fra en linje i filen fra fagsystemet.
+   #[derive(Debug, PartialEq)]
+   pub struct Vedtak {
+       pub id: String,
+       pub belop: u32,
+   }
+
+   /// Feil ved lesing av en vedtakslinje.
+   #[derive(Debug, PartialEq, Error)]
+   pub enum VedtakFeil {
+       #[error("mangler id")]
+       ManglerId,
+       #[error("mangler beløp")]
+       ManglerBelop,
+       #[error("ugyldig beløp: {0}")]
+       UgyldigBelop(String),
+   }
+
+   /// Leser en linje på formen "id;belop".
+   pub fn les(linje: &str) -> Result<Vedtak, VedtakFeil> {
+       let mut deler = linje.split(';');
+       let id = deler.next().unwrap_or_default();
+       if id.is_empty() {
+           return Err(VedtakFeil::ManglerId);
+       }
+       let belop_tekst = deler.next().unwrap_or_default();
+       if belop_tekst.is_empty() {
+           return Err(VedtakFeil::ManglerBelop);
+       }
+       let belop = belop_tekst
+           .parse()
+           .map_err(|_| VedtakFeil::UgyldigBelop(belop_tekst.to_string()))?;
+       Ok(Vedtak { id: id.to_string(), belop })
+   }
+
+   #[cfg(test)]
+   mod tests {
+       use super::*;
+
+       #[test]
+       fn leser_gyldig_linje() {
+           assert_eq!(les("v1;250"), Ok(Vedtak { id: "v1".into(), belop: 250 }));
+       }
+
+       #[test]
+       fn feiler_med_mangler_id() {
+           assert_eq!(les(";250"), Err(VedtakFeil::ManglerId));
+       }
+
+       #[test]
+       fn feiler_med_mangler_belop() {
+           assert_eq!(les("v1;"), Err(VedtakFeil::ManglerBelop));
+           assert_eq!(les("v1"), Err(VedtakFeil::ManglerBelop));
+       }
+
+       #[test]
+       fn feiler_med_ugyldig_belop_og_viser_teksten() {
+           let feil = les("v1;abc").unwrap_err();
+           assert_eq!(feil, VedtakFeil::UgyldigBelop("abc".into()));
+           assert_eq!(feil.to_string(), "ugyldig beløp: abc");
+       }
+   }
+   EOF
+   cargo test 2>&1 | tail -25
+
+ $ Shell Add thiserror dependency 3 lines…
+   cd vedtak-parser && cargo add thiserror 2>&1 | tail -3
+
+Kompileringen feiler. Jeg sjekker den første feilen og `Cargo.toml`.
+
+ $ Shell Inspect manifest and first compile error 15 lines…
+   cd vedtak-parser && cat Cargo.toml && cargo build 2>&1 | head -20
+
+Build passer nå. De første feilene kom sannsynligvis fra at `cargo add` og `cargo test` kjørte parallelt. Kjører testene på nytt.
+
+ $ Shell Run cargo test in vedtak-parser 13 lines…
+   cd vedtak-parser && cargo test 2>&1 | tail -15
+
+`les` i `vedtak-parser/src/lib.rs` returnerer nå `Result<Vedtak, VedtakFeil>` og panikker ikke lenger.
+
+- **`VedtakFeil`** er en thiserror-enum med `ManglerId`, `ManglerBelop` og `UgyldigBelop(String)`. Feilmeldingen for ugyldig beløp er `ugyldig beløp: <tekst>`.
+- **Tester:** én test per feil, pluss en for gyldig linje. Alle 4 passerer med `cargo test`.
+- **Avhengighet:** `thiserror = "2.0.21"` er lagt til i `Cargo.toml`.
+
+Tomt beløp (`v1;`) og manglende semikolon (`v1`) gir `ManglerBelop`. Id-en blir ikke trimmet.
+

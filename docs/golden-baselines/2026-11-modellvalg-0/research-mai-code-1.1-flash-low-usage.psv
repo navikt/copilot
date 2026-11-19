@@ -1,0 +1,37 @@
+# golden-prompt EXACT MODEL USAGE
+# agent:        research
+# suite:        research
+# date:         2026-11-18
+# revision:     ac35a630
+# personaHash:  bfd27dcb2ee26f091fbc71c847ebdf211ee307dc6c41d565ea73a5ae8667ba32
+# harnessHash:  31303b66a044df68da77f1ba539f6a0a98cf0aabc6733992e11c37f4979c6eb4
+# model:        mai-code-1.1-flash
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.114-0.
+# effort:       low
+# context:      CLI default
+# instructions: 17 installed, 4 always-on
+# repeat:       1
+# fixture:      4263008951
+# prompts:      all
+# source:       assistant_usage_events
+#
+# slug|run|session_id|event_id|turn_index|model|reasoning_effort|input_tokens|output_tokens|cache_read_tokens|cache_write_tokens|reasoning_tokens|total_nano_aiu|duration_ms|time_to_first_token_ms|finish_reason|agent_id|parent_tool_call_id
+re-bruk|1|d137a32c-5724-4f5d-bf8d-1a68ea0ac35d|24497|0|mai-code-1.1-flash|low|16482|175|0|0|64|350640000|4316|3246.042041|tool_calls||
+re-bruk|1|d137a32c-5724-4f5d-bf8d-1a68ea0ac35d|24498|0|mai-code-1.1-flash|low|16875|387|16640|0|128|84420000|2553|2491.968708|tool_calls||
+re-bruk|1|d137a32c-5724-4f5d-bf8d-1a68ea0ac35d|24499|0|mai-code-1.1-flash|low|22656|122|16384|0|0|172848000|2353|1337.7472500000001|stop||
+re-ingen|1|a8916cd4-9c29-4826-ba7a-55dede602883|24500|0|mai-code-1.1-flash|low|16477|133|13824|0|0|96668000|3042|2841.2131249999998|tool_calls||
+re-ingen|1|a8916cd4-9c29-4826-ba7a-55dede602883|24501|0|mai-code-1.1-flash|low|16625|242|16512|0|0|64324000|2924|1989.344875|tool_calls||
+re-ingen|1|a8916cd4-9c29-4826-ba7a-55dede602883|24502|0|mai-code-1.1-flash|low|17132|202|16640|0|0|67360000|2943|1559.316958|tool_calls||
+re-ingen|1|a8916cd4-9c29-4826-ba7a-55dede602883|24503|0|mai-code-1.1-flash|low|22730|225|16384|0|128|186688000|4503|4356.607709000001|tool_calls||
+re-ingen|1|a8916cd4-9c29-4826-ba7a-55dede602883|24504|0|mai-code-1.1-flash|low|22970|157|22912|0|64|65824000|2034|1875.783833|tool_calls||
+re-ingen|1|a8916cd4-9c29-4826-ba7a-55dede602883|24505|0|mai-code-1.1-flash|low|23151|122|23040|0|0|62940000|3169|2313.701833|tool_calls||
+re-ingen|1|a8916cd4-9c29-4826-ba7a-55dede602883|24506|0|mai-code-1.1-flash|low|23892|232|23168|0|128|88656000|2141|1922.78275|tool_calls||
+re-ingen|1|a8916cd4-9c29-4826-ba7a-55dede602883|24507|0|mai-code-1.1-flash|low|24274|364|24064|0|192|96008000|3005|2794.788833|stop||
+re-sammendrag|1|fb59bfab-c3be-4cba-a343-b22ea774ed51|24508|0|mai-code-1.1-flash|low|16469|275|13824|0|64|113548000|3154|3125.211417|tool_calls||
+re-sammendrag|1|fb59bfab-c3be-4cba-a343-b22ea774ed51|24509|0|mai-code-1.1-flash|low|16852|85|16512|0|0|50024000|1693|1533.0835419999999|tool_calls||
+re-sammendrag|1|fb59bfab-c3be-4cba-a343-b22ea774ed51|24510|0|mai-code-1.1-flash|low|17802|302|16384|0|64|97368000|2437|2362.5099170000003|tool_calls||
+re-sammendrag|1|fb59bfab-c3be-4cba-a343-b22ea774ed51|24511|0|mai-code-1.1-flash|low|18489|76|17920|0|0|56340000|1149|956.650542|tool_calls||
+re-sammendrag|1|fb59bfab-c3be-4cba-a343-b22ea774ed51|24512|0|mai-code-1.1-flash|low|23945|303|17792|0|64|195004000|3339|2348.883917|tool_calls||
+re-sammendrag|1|fb59bfab-c3be-4cba-a343-b22ea774ed51|24513|0|mai-code-1.1-flash|low|24856|260|23936|0|0|97472000|2894|2827.563|tool_calls||
+re-sammendrag|1|fb59bfab-c3be-4cba-a343-b22ea774ed51|24514|0|mai-code-1.1-flash|low|25313|191|24832|0|64|82204000|2310|2095.961667|stop||

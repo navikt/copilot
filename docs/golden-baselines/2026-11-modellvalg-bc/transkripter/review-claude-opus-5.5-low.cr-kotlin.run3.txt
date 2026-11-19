@@ -1,0 +1,49 @@
+ ✗ Shell Read file Failed with exit code 1       1    package no.nav.demo 2 3 import org.slf4j.Logg…
+   cat -n src/main/kotlin/no/nav/demo/UserRepo.kt; ls; ls apps 2>/dev/null
+   1       package no.nav.demo
+        2  
+        3  import org.slf4j.LoggerFactory
+        4  
+        5  private val logger = LoggerFactory.getLogger("UserRepo")
+        6  
+        7  fun finnBruker(fnr: String): String? {
+        8      logger.info("Slår opp bruker fnr=$fnr")
+        9      val query = "SELECT navn FROM bruker WHERE fnr = '$fnr'"
+       10      return try {
+       11          session.run(queryOf(query).map { it.string("navn") }.asSingle)
+       12      } catch (e: Exception) {
+       13          null
+       14      }
+       15  }
+   build.gradle.kts
+   nais.yaml
+   README.md
+   src
+   Failed with exit code 1
+
+### Oppsummering
+Funksjonen er kort, men har to blokkere: personnummer skrives til loggen, og det er en SQL-injeksjon. Feil forsvinner i tillegg uten spor. Jeg kjørte ikke `mise check`, fordi repoet ikke har noe mise-oppsett.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|-----|-------|-----------|---------|
+| `UserRepo.kt` | 8 | 🔴 | Fnr skrives til applikasjonsloggen |
+| `UserRepo.kt` | 9 | 🔴 | SQL-injeksjon: `fnr` settes rett inn i SQL-strengen |
+| `UserRepo.kt` | 12–14 | 🟡 | Unntak fanges og forsvinner, og feilen blir `null` |
+| `UserRepo.kt` | 11 | 🟡 | `session` er en global, ukjent avhengighet (ikke definert i filen) |
+| `UserRepo.kt` | – | 🟡 | Ingen tester |
+
+### Detaljer
+
+**Linje 8 (🔴):** Fnr er personopplysning og hører ikke hjemme i applikasjonsloggen. Loggen spres til Loki og andre steder med vid tilgang. Fjern fnr fra loggmeldingen, eller logg en ikke-identifiserende id. Viser oppslaget personopplysninger til en ansatt, skal det auditlogges i CEF-format via egen `auditLogger`.
+
+**Linje 9 (🔴):** Kommer `'; DROP TABLE bruker; --` inn som fnr, kjører databasen det. Bruk en parameterisert spørring:
+```kotlin
+queryOf("SELECT navn FROM bruker WHERE fnr = ?", fnr)
+```
+
+**Linje 12–14 (🟡):** Nå returnerer funksjonen `null` både når brukeren ikke finnes og når databasen er nede. Kalleren kan ikke skille de to tilfellene, og ingen ser feilen. La unntaket gå videre, eller logg det med kontekst (uten fnr) og kast det på nytt. Fang i så fall et smalere unntak, som `SQLException`, ikke `Exception`.
+
+**Linje 11 (🟡):** Send `Session` eller `DataSource` inn som parameter, eller bruk en repo-klasse med konstruktørinjeksjon. Da blir koden testbar.
+

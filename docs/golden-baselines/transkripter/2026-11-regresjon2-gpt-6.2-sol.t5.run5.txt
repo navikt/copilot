@@ -1,0 +1,8 @@
+ ● skill(nav-auth)
+
+ ● skill(klarsprak)
+
+Bruk **TokenX** for brukerkontekst fra ID-porten, og **Entra ID On-Behalf-Of (OBO)** for brukerkontekst fra Entra ID.
+
+A veksler inn brukerens tilgangstoken i et nytt token med B som målgruppe. B validerer tokenet og sjekker at brukeren har tilgang til ressursen. Ikke bruk `client_credentials` her: det identifiserer A, ikke brukeren.
+

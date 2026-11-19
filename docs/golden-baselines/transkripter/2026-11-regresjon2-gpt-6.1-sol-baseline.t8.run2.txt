@@ -1,0 +1,33 @@
+ / Search "*" 28 files found
+
+ ● Read lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningHeaders.kt 11 lines read
+
+ ● Read lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningProducerIntercepto  22 lines re…
+        r.kt
+
+ ● Read build.gradle.kts 12 lines read
+
+ $ Shell Find reference signing implementation 1 line…
+   gh search code 'SigningProducerInterceptor org:navikt' --limit 10 --json repository,path
+
+ $ Shell Read internal reference and local signing usage 173 lines…
+   gh api repos/navikt/paw-arbeidssoekerregisteret-monorepo-intern/contents/lib/kafka-signing/src/ma
+   in/kotlin/no/nav/paw/kafka/signing/SigningProducerInterceptor.kt --jq '.content' | base64
+   --decode; printf '\n--- local callers ---\n'; rg -n
+   'stripSigningHeaders|Signer|SIGNATURE_HEADER|KEY_ID_HEADER' lib src; printf '\n--- local
+   configuration ---\n'; for f in AGENTS.md .github/copilot-instructions.md
+   .github/copilot-review-instructions.md; do if test -f "$f"; then printf '%s exists\n' "$f"; else
+   printf '%s missing\n' "$f"; fi; done
+
+ ● skill(klarsprak)
+
+**Jeg har lest referansen i intern-monorepoet, men har ikke endret kode.** Der fjernes begge signeringsheaderne etter vellykket signering, før nye legges til. Lokalt finnes allerede `stripSigningHeaders`, men interceptoren bruker den ikke.
+
+🔴 Rød sone: signeringskode. Oppgaven krever full fasegang før implementering. Fasebudsjett: intervju 500, plan 500, review 500, levering 1000 tokens.
+
+Ved signeringsfeil kaster lokal kode unntaket videre uten å endre headerne. Skal denne oppførselen beholdes? Jeg antar at payload, nøkler og konsumentenes verifisering forblir uendret.
+
+Repoet mangler `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`. Disse kan opprettes med `nav-pilot init`.
+
+Blindsoner reist: 1/11 (#3 feiloppførsel; #1–#2 og #4–#11 gjelder ikke den avgrensede headerendringen eller er avklart av referansen).
+

@@ -1,0 +1,93 @@
+ ● skill(kafka)
+
+ ● update_todo todos: "- [ ] Inspect vedtak-hendelse event schema, producers, con… TODO list updated
+
+ / Search "vedtak-hendelse/**/*" 4 files found
+
+ ✗ Shell Inspect repository files and working tree Failed with exit code 128  /var/folders/8q/l5h25…
+   pwd && rg --files -g '!*build*' -g '!.gradle' | head -100 && git status --short --branch
+   /var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.qYAKMm/repo
+   src/main/kotlin/no/nav/demo/Config.kt
+   src/main/kotlin/no/nav/demo/Routes.kt
+   src/main/kotlin/no/nav/demo/Oppgave.kt
+   src/main/kotlin/no/nav/demo/App.kt
+   nais.yaml
+   vedtak-hendelse/src/main/kotlin/no/nav/vedtak/VedtakFattet.kt
+   vedtak-hendelse/src/test/kotlin/no/nav/vedtak/VedtakFattetTest.kt
+   vedtak-hendelse/settings.gradle.kts
+   README.md
+   vedtak-konsument/src/main/kotlin/no/nav/vedtak/VedtakKonsument.kt
+   vedtak-konsument/src/test/kotlin/no/nav/vedtak/VedtakKonsumentTest.kt
+   vedtak-konsument/settings.gradle.kts
+   fatal: not a git repository (or any of the parent directories): .git
+   Failed with exit code 128
+
+ ● Read vedtak-konsument/src/main/kotlin/no/nav/vedtak/VedtakKonsument.kt 23 lines read
+
+ ● Read vedtak-hendelse/src/test/kotlin/no/nav/vedtak/VedtakFattetTest.kt 11 lines read
+
+ / Search ".github/instructions/*.md" 17 files found
+
+ ● Read vedtak-hendelse/src/main/kotlin/no/nav/vedtak/VedtakFattet.kt 18 lines read
+
+ ● Read vedtak-hendelse/build.gradle.kts 20 lines read
+
+ ● Read vedtak-konsument/src/test/kotlin/no/nav/vedtak/VedtakKonsumentTest.kt 25 lines read
+
+ MD Read .github/instructions/security-core.instructions.md 16 lines read
+
+ MD Read .github/instructions/testing.instructions.md 112 lines read
+
+ MD Read .github/instructions/testing-kotlin.instructions.md 185 lines read
+
+ MD Read README.md 4 lines read
+
+ ● Read vedtak-hendelse/settings.gradle.kts 1 line read
+
+ ✗ Shell Find event schema usages and Gradle wrapper Failed with exit code 1  ./vedtak-hendelse/src…
+   rg -n 'VedtakFattet|VedtakSerde|sakstype|UnknownProperty|FAIL_ON_UNKNOWN_PROPERTIES' -g '*.kt' -g
+   '*.kts' -g '*.json' -g '*.md' . && ls -la vedtak-hendelse && rg --files -g 'gradlew*' -g
+   'gradle-wrapper.properties'
+   ./vedtak-hendelse/src/main/kotlin/no/nav/vedtak/VedtakFattet.kt:7:data class VedtakFattet(
+   ./vedtak-hendelse/src/main/kotlin/no/nav/vedtak/VedtakFattet.kt:12:object VedtakSerde {
+   ./vedtak-hendelse/src/main/kotlin/no/nav/vedtak/VedtakFattet.kt:15:    fun les(json: String): 
+   VedtakFattet = mapper.readValue(json)
+   ./vedtak-hendelse/src/main/kotlin/no/nav/vedtak/VedtakFattet.kt:17:    fun skriv(hendelse: 
+   VedtakFattet): String = mapper.writeValueAsString(hendelse)
+   ./vedtak-hendelse/src/test/kotlin/no/nav/vedtak/VedtakFattetTest.kt:6:class VedtakFattetTest {
+   ./vedtak-hendelse/src/test/kotlin/no/nav/vedtak/VedtakFattetTest.kt:9:        
+   assertEquals(VedtakFattet("v1", 100), VedtakSerde.les("""{"vedtakId":"v1","belop":100}"""))
+   total 16
+   drwxr-xr-x  5 hans  staff  160 Nov 18 22:17 .
+   drwxr-xr-x  9 hans  staff  288 Nov 18 22:17 ..
+   -rw-r--r--  1 hans  staff  292 Nov 18 22:17 build.gradle.kts
+   -rw-r--r--  1 hans  staff   37 Nov 18 22:17 settings.gradle.kts
+   drwxr-xr-x  4 hans  staff  128 Nov 18 22:17 src
+   Failed with exit code 1
+
+ ● update_todo todos: "- [x] Inspect vedtak-hendelse event schema, producers, con… TODO list updated
+
+ ● Edit  Edit vedtak-hendelse/src/main/kotlin/no/nav/vedtak/VedtakFattet.kt (+9)
+
+ ● Edit  Edit vedtak-hendelse/src/test/kotlin/no/nav/vedtak/VedtakFattetTest.kt (+29)
+
+ ● update_todo todos: "- [x] Inspect vedtak-hendelse event schema, producers, con… TODO list updated
+
+ ● Read vedtak-hendelse/src/main/kotlin/no/nav/vedtak/VedtakFattet.kt 27 lines read
+
+ ● Read vedtak-hendelse/src/test/kotlin/no/nav/vedtak/VedtakFattetTest.kt 40 lines read
+
+ $ Shell Run vedtak-hendelse Gradle tests 14 lines…                                               9s
+   gradle test
+
+ $ Shell Run tests from vedtak-hendelse project 14 lines…
+   cd vedtak-hendelse && gradle test
+
+ ● update_todo todos: "- [x] Inspect vedtak-hendelse event schema, producers, con… TODO list updated
+
+ ● skill(klarsprak)
+
+La til `sakstype` med verdiene `ORDINAER`, `KLAGE` og `ANKE`. Gamle meldinger får `ORDINAER`; ukjente felt ignoreres, mens ukjente enum-verdier fortsatt gir feil. `cd vedtak-hendelse && gradle test` passerer.
+
+Still gjerne spørsmål om valgene over.
+

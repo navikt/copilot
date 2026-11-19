@@ -1,0 +1,66 @@
+ ● skill(rust-development)
+
+ ● update_todo todos: "- [ ] Inspect vedtak-parser and applicable Rust instructio… TODO list updated
+
+ / Search ".github/instructions/*" 17 files found
+
+ / Search "vedtak-parser/**/*" 2 files found
+
+ ✗ Shell Check working tree and parser files Failed with exit code 128  fatal: not a git repository…
+   git status --short && find vedtak-parser -maxdepth 3 -type f -print
+   fatal: not a git repository (or any of the parent directories): .git
+   Failed with exit code 128
+
+ RS Read vedtak-parser/src/lib.rs 24 lines read
+
+ TM Read vedtak-parser/Cargo.toml 6 lines read
+
+ / Search "Vedtak|parse_vedtak|vedtak-parser" 5 lines found
+
+ MD Read .github/instructions/testing.instructions.md 112 lines read
+
+ / Search "vedtak-parser/Cargo.lock" No matches found
+
+ / Search "**/Cargo.toml" 2 files found
+
+ $ Shell Inspect repository and parser directory 16 lines…
+   pwd && ls -la && ls -la vedtak-parser
+
+ TM Read saksko/Cargo.toml 6 lines read
+
+ / Search "thiserror" 3 lines found
+
+ / Search "saksko/Cargo.lock" No matches found
+
+ ● update_todo todos: "- [x] Inspect vedtak-parser and applicable Rust instructio… TODO list updated
+
+ ● Edit  Edit vedtak-parser/Cargo.toml (+1)  Edit vedtak-parser/src/lib.rs (+49 -5)
+
+ $ Shell Format, test, and lint vedtak-parser 40 lines…
+   cd vedtak-parser && cargo fmt --check && cargo test && cargo clippy -- -W clippy::pedantic
+
+ ● update_todo todos: "- [x] Inspect vedtak-parser and applicable Rust instructio… TODO list updated
+
+ ● Edit  Edit vedtak-parser/src/lib.rs (+4)
+
+ $ Shell Re-run parser checks and inspect generated files 29 lines…
+   cd vedtak-parser && cargo fmt --check && cargo test && cargo clippy -- -W clippy::pedantic &&
+   printf '\nGenerated files:\n' && ls -la
+
+ RS Read vedtak-parser/src/lib.rs 72 lines read
+
+ TM Read vedtak-parser/Cargo.toml 7 lines read
+
+ ● Read vedtak-parser/Cargo.lock L1:30 (30 lines read)
+
+ ● update_todo todos: "- [x] Inspect vedtak-parser and applicable Rust instructio… TODO list updated
+
+Parseren returnerer nå `Result<Vedtak, VedtakFeil>`. La til de tre feilvariantene med `thiserror` og én test per feil. `cargo test` besto med 4 tester; `cargo fmt --check` og Clippy besto også.
+
+🔴 Rød sone: Gå nøye gjennom valideringen av inndata.
+
+**Sjekkliste for rød sone**
+- [ ] Kontroller hvordan tom ID og manglende eller ugyldig beløp blir behandlet.
+
+Still gjerne spørsmål om valgene over.
+

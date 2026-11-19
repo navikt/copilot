@@ -1,0 +1,57 @@
+ ● skill(kafka)
+
+ ● update_todo todos: "- [ ] Inspect vedtak-hendelse sources, Gradle setup, and a… TODO list updated
+
+ / Search ".github/instructions/*.md" 17 files found
+
+ / Search "**/*" in vedtak-hendelse 4 files found
+
+ $ Shell Inspect repository state and top-level files 8 lines…
+   git status --short; find . -maxdepth 2 -type f | sort | head -80
+
+ MD Read .github/instructions/kotlin.instructions.md too large, not read
+
+ ● Read vedtak-hendelse/src/main/kotlin/no/nav/vedtak/VedtakFattet.kt 18 lines read
+
+ ● Read vedtak-hendelse/src/test/kotlin/no/nav/vedtak/VedtakFattetTest.kt 11 lines read
+
+ / Search "**/*.{kt,kts,json,yml,yaml}" in vedtak-konsument 4 files found
+
+ ● Read vedtak-hendelse/build.gradle.kts 20 lines read
+
+ MD Read .github/instructions/testing-kotlin.instructions.md 185 lines read
+
+ MD Read .github/instructions/testing.instructions.md 112 lines read
+
+ ● Read vedtak-konsument/src/test/kotlin/no/nav/vedtak/VedtakKonsumentTest.kt 25 lines read
+
+ ● Read vedtak-konsument/build.gradle.kts 20 lines read
+
+ ● Read vedtak-konsument/src/main/kotlin/no/nav/vedtak/VedtakKonsument.kt 23 lines read
+
+ ● Read build.gradle.kts 12 lines read
+
+ / Search "VedtakFattet|VedtakSerde|ObjectMapper|FAIL_ON_UNKNOWN" 8 lines found
+
+ ● update_todo todos: "- [x] Inspect vedtak-hendelse sources, Gradle setup, and a… TODO list updated
+
+ ● Edit  Edit vedtak-hendelse/src/main/kotlin/no/nav/vedtak/VedtakFattet.kt (+9)  Edit vedtak-hende…
+
+ $ Shell Build and test vedtak-hendelse 14 lines…
+   cd vedtak-hendelse && gradle test
+
+ ● Edit  Edit vedtak-hendelse/src/main/kotlin/no/nav/vedtak/VedtakFattet.kt (+1 -1)
+
+ ● Read vedtak-hendelse/src/main/kotlin/no/nav/vedtak/VedtakFattet.kt 27 lines read
+
+ ● Read vedtak-hendelse/src/test/kotlin/no/nav/vedtak/VedtakFattetTest.kt 35 lines read
+
+ $ Shell Re-run vedtak-hendelse tests after final edits 14 lines…
+   cd vedtak-hendelse && gradle test
+
+ ● update_todo todos: "- [x] Inspect vedtak-hendelse sources, Gradle setup, and a… TODO list updated
+
+Lagt til `sakstype` med verdiene `ORDINAER`, `KLAGE` og `ANKE`. Eldre meldinger får `ORDINAER`, og ukjente felt ignoreres for å støtte nyere produsenter. Ugyldige sakstyper avvises. `gradle test` i `vedtak-hendelse/` bestod.
+
+Still gjerne spørsmål om valgene over.
+

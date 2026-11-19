@@ -1,0 +1,30 @@
+# golden-prompt PER-RUN ATTEMPTS
+# agent:        research
+# suite:        research
+# date:         2026-11-18
+# revision:     6ef38f72
+# personaHash:  bfd27dcb2ee26f091fbc71c847ebdf211ee307dc6c41d565ea73a5ae8667ba32
+# harnessHash:  31303b66a044df68da77f1ba539f6a0a98cf0aabc6733992e11c37f4979c6eb4
+# model:        mai-code-2-flash
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.114-0.
+# effort:       low
+# context:      CLI default
+# usage_complete: true
+#
+# slug|run|exit_code|outcome|bytes|elapsed_ms|usage_complete|detail
+re-bruk|1|0|pass|266|10200|true|
+re-ingen|1|0|pass|370|12874|true|
+re-sammendrag|1|0|pass|467|14437|true|
+re-bruk|2|0|pass|342|10867|true|
+re-ingen|2|0|pass|344|13146|true|
+re-sammendrag|2|0|pass|652|18653|true|
+re-bruk|3|0|pass|356|9559|true|
+re-ingen|3|0|pass|438|16336|true|
+re-sammendrag|3|0|pass|582|13847|true|
+re-bruk|4|0|pass|274|9875|true|
+re-ingen|4|0|pass|164|9291|true|
+re-sammendrag|4|0|pass|507|15055|true|
+re-bruk|5|0|pass|298|9291|true|
+re-ingen|5|0|pass|371|13453|true|
+re-sammendrag|5|0|pass|542|12664|true|

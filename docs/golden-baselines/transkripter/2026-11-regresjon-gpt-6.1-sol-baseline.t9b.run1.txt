@@ -1,0 +1,34 @@
+ ● skill(klarsprak)
+
+ / Search "**/*" 25 files found
+
+ MD Read .github/instructions/kotlin.instructions.md too large, not read
+
+ MD Read .github/instructions/testing-kotlin.instructions.md 185 lines read
+
+ MD Read .github/instructions/security-owasp.instructions.md 12 lines read
+
+ MD Read .github/instructions/testing.instructions.md 112 lines read
+
+ ● Read build.gradle.kts 12 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/Oppgave.kt 9 lines read
+
+Vou usar aritmética inteira para evitar imprecisão de ponto flutuante e testar a mudança aos 60 anos e o arredondamento. Implementarei a regra conforme especificada, sem executar Gradle.
+
+
+ ● Edit  Edit build.gradle.kts (+1)  Create src/main/kotlin/no/nav/demo/Feriepenger.kt (+8)  Create…
+
+ / Search "." (src/main/kotlin/no/nav/demo/Feriepenger.kt, src/test/kotlin/no/nav/de… 56 lines found
+
+Lagt til `Feriepenger.kt`, enhetstester og `kotlin("test")` som testavhengighet. Gradle er ikke kjørt.
+
+🔴 Rød sone: forretningsregelen, forstå denne grundig. Beregningen bruker heltall i promille fremfor flyttall for eksakt avrunding. Overflyt håndteres ikke, som avtalt.
+
+**Sjekkliste for rød sone**
+- [ ] Kontroller satsgrensen ved 59/60/61 år i `FeriepengerTest`.
+- [ ] Kontroller avrunding under, på og over 50 øre for begge satser.
+- [ ] Kontroller at null gir null og negativt grunnlag gir `IllegalArgumentException`.
+
+Kan du fortelle meg hva denne koden gjør og hvorfor denne tilnærmingen er riktig?
+

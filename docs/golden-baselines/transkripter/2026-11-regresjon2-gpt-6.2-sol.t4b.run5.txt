@@ -1,0 +1,19 @@
+ ● skill(nav-plan)
+
+ ● skill(api-design)
+
+## Fase 2: Plan for personoppslag
+
+**Forslag: Legg innloggingen i eksisterende Next.js-app og hold Ktor-tjenesten intern.** Wonderwall håndterer ID-porten-innlogging. Next.js-serveren veksler brukertokenet med TokenX for å kalle Ktor. Ktor validerer tokenet for sitt eget API og henter fødselsnummeret fra den verifiserte brukeridentiteten, aldri fra et felt nettleseren sender inn. Før implementering må vi bekrefte med PDL hvilken autentisering, målgruppe og tilgang som gjelder for oppslag med brukerkontekst. Ikke bruk maskintoken som reserve hvis brukerkonteksten går tapt.
+
+| Område | Plan |
+|---|---|
+| API og personvern | `GET /api/me` returnerer bare `navn`, med `Cache-Control: no-store`. Tjenesten ber PDL bare om navnefeltene den trenger. Fødselsnummer og navn brukes under forespørselen, uten database, cache eller kø. Dokumenter lovhjemmelen og hvorfor oppslaget trenger fødselsnummer før produksjonssetting. |
+| Feilhåndtering | Ktor returnerer `401` ved manglende eller ugyldig token og `403` ved gyldig token uten nødvendig tilgang. Ved PDL-nedetid eller timeout returnerer Ktor `503` som Problem Details. Frontend viser en melding om å prøve igjen. Logg feiltype og sporings-ID, aldri token, fødselsnummer, navn eller rått PDL-svar. |
+| Kode og Nais | Behold `App.kt` og `Routes.kt`, og skill ut tokenvalidering og PDL-klient. Aktiver TokenX for Ktor i `nais.yaml`. Ingen offentlig ingress. Sett eksplisitt `accessPolicy`: bare Next.js-appen inn og godkjent PDL-adresse ut. Behold helseendepunktene og legg til Prometheus. Start med `15m` CPU-request og `256Mi` minne-request, uten CPU-limit. |
+| Måling | Vis PDL-oppslag per minutt og andel feilende PDL-kall. Varsle ved vedvarende høy feilandel med nok trafikk til at målingen er nyttig. Bruk bare faste feilkategorier som metriketiketter. |
+| Tester | Test ugyldig token, feil målgruppe, manglende identitet og at klienten ikke kan velge en annen person. Bruk en PDL-stub til å teste navnesvar, timeout og `503`. Kjør hele flyten fra nettleser i dev med testidentiteter. Kontroller at fødselsnummer og token ikke havner i nettlesersvar, logger eller spor. |
+| Levering og rollback | Kjør bygg og tester i GitHub Actions med SHA-pinnede actions og minimale rettigheter. Deploy til dev før prod. Lever API-kontrakt og en kort driftsveiledning for innloggingsfeil og PDL-nedetid. Verifiser innlogging, navneoppslag og metrikker etter deploy. Ved feil, slå av frontend-kallet først og rull deretter tilbake endringen. |
+
+**🔴 Rød sone:** Teamet skriver og går gjennom Wonderwall-oppsettet, TokenX-vekslingen, tokenvalideringen og bindingen mellom innlogget identitet og PDL-oppslaget. Planen stopper her før gjennomgang og implementering.
+

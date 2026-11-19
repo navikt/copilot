@@ -1,0 +1,37 @@
+ ● skill(klarsprak)
+
+ / Search "**/*" 25 files found
+
+ MD Read .github/instructions/kotlin.instructions.md too large, not read
+
+ MD Read .github/instructions/testing.instructions.md 112 lines read
+
+ MD Read .github/instructions/testing-kotlin.instructions.md 185 lines read
+
+ MD Read .github/instructions/security-owasp.instructions.md 12 lines read
+
+ ● Read build.gradle.kts 12 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/Oppgave.kt 9 lines read
+
+Jeg implementerer regelen slik du har spesifisert den, uten å kjøre Gradle. Dette er rød sone: satsvalg og avrunding er ny domenelogikk for teamet. Heltallsregning gir nøyaktig avrunding uten flyttallsfeil; testene dekker aldersgrensen og halve kroner.
+
+
+ ● Edit  Edit build.gradle.kts (+6)  Create src/main/kotlin/no/nav/demo/Feriepenger.kt (+8)  Create…
+
+ ● Edit  Edit src/test/kotlin/no/nav/demo/FeriepengerTest.kt (+4 -4)
+
+ ● Edit  Edit build.gradle.kts (+2 -1)
+
+ ● Edit  Edit build.gradle.kts (+1 -1)
+
+ ● Read build.gradle.kts 19 lines read
+
+Lagt til `Feriepenger.kt`, enhetstester og JUnit 5-oppsett. Beregningen bruker heltall for nøyaktig avrunding. Gradle er ikke kjørt, som avtalt.
+
+**Sjekkliste for rød sone**
+- [ ] Kontroller satsene 10,2 % før 60 år og 12,5 % fra 60 i opptjeningsåret mot testene.
+- [ ] Kontroller avrunding rundt 50 øre, nullgrunnlag og at negativt grunnlag gir `IllegalArgumentException`.
+
+Kan du fortelle meg hva denne koden gjør og hvorfor denne tilnærmingen er riktig?
+

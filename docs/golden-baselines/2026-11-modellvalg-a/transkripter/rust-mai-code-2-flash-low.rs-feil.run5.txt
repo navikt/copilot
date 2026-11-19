@@ -1,0 +1,21 @@
+ ● skill(rust-development)
+
+Jeg kartlegger parseren og eksisterende testmønster før endringen.
+
+ / Search "panic!|unwrap\(|parse|Vedtak" in *.rs (vedtak-parser) 6 lines found
+
+ / Search "**/*" in vedtak-parser 2 files found
+
+ RS Read vedtak-parser/src/lib.rs 24 lines read
+
+ TM Read vedtak-parser/Cargo.toml 6 lines read
+
+ ● Edit  Edit vedtak-parser/Cargo.toml (+1)  Edit vedtak-parser/src/lib.rs (+54 -6)
+
+ $ Shell Run cargo tests for vedtak-parser 25 lines…
+   cd vedtak-parser && cargo test
+
+Endret `les` til `Result<Vedtak, VedtakFeil>` med `thiserror` og tester for alle tre feiltypene.
+
+`cargo test` i `vedtak-parser/`: 4 tester passerte.
+

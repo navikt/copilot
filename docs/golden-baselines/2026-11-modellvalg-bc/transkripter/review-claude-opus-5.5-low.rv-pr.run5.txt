@@ -1,0 +1,43 @@
+ $ Shell Show branch diff 350 lines…
+   git --no-pager diff main...vedtak-kafka --stat; git --no-pager diff main...vedtak-kafka
+
+ $ Shell Check tooling, tests, migrations 10 lines…
+   ls; which mise gradle; git --no-pager log --oneline main..vedtak-kafka; git ls-tree -r
+   --name-only vedtak-kafka | grep -iE "migration|test"
+
+### Oppsummering
+Branchen henter `soknad-behandlet` fra Kafka, fatter vedtak, lagrer dem i Postgres og publiserer `vedtak-fattet`. Den legger også til et vedtak-API. Strukturen med service og repository er grei, og `lagre`/`hentForSak` bruker parameteriserte spørringer. Branchen har likevel flere sikkerhetsfeil som må rettes før merge, og den mangler både tester og Flyway-migrering. Jeg kjørte ikke `mise check`, fordi repoet ikke har noen mise-konfigurasjon.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|---|---|---|---|
+| `VedtakRepository.kt` | 24 | 🔴 | SQL-injeksjon: `fnr` settes rett inn i SQL-strengen |
+| `Routes.kt` | 30–33 | 🔴 | `GET /api/vedtak/{fnr}` ligger utenfor `authenticate` og sjekker ikke eierskap. Hvem som helst kan hente andres vedtak |
+| `Routes.kt` | 30 | 🔴 | Fnr ligger i URL-stien og havner i access-logger. Bruk POST-body eller fnr fra tokenet |
+| `VedtakService.kt` | 15 | 🔴 | `log.info("behandler $fnr")` skriver fnr til applikasjonsloggen |
+| `App.kt` | 39–42 | 🔴 | JWT-oppsettet mangler `verifier` (JWKS/issuer) og sjekker ikke audience mot `TOKEN_X_CLIENT_ID`. Signaturen blir altså ikke validert |
+| `Routes.kt` | 25–28 | 🔴 | POST tar `fnr` fra body uten tilgangskontroll eller validering. Innlogget bruker kan fatte vedtak for hvem som helst |
+| `nais.yaml` | 23–26 | 🔴 | `inbound` tillater `"*"` i alle namespaces |
+| `nais.yaml` | 15 | 🟡 | `pool: nav-dev` er hardkodet, så prod-deploy bruker feil pool |
+| `App.kt` | 26–33 | 🔴 | Kafka mangler SSL-oppsett (`KAFKA_TRUSTSTORE_PATH`, keystore, credstore-passord). Mot Aiven feiler tilkoblingen |
+| `VedtakConsumer.kt` | 24–28 | 🔴 | Ikke idempotent. Ved retry eller rebalansering før `commitSync` lages et nytt vedtak med ny UUID hver gang, og det blir duplikater både i DB og på topic. Bruk `soknadId` som unik nøkkel |
+| `VedtakConsumer.kt` | 24–25 | 🔴 | Poison pill: en melding som ikke lar seg deserialisere, eller feil etter 3 forsøk, kaster unntak og dreper consumer-tråden for godt. Appen fortsetter å svare på `isalive`, så ingen oppdager det |
+| `VedtakConsumer.kt` | 34 | 🟡 | DB-lagring og Kafka-publisering skjer ikke atomisk, så en melding kan gå tapt eller dupliseres. Vurder outbox |
+| `VedtakRepository.kt` | — | 🔴 | Ingen Flyway-migrering for tabellen `vedtak`, og ingen unik constraint |
+| `App.kt` | 23 | 🟡 | `DB_JDBC_URL` er riktig navn bare hvis `envVarPrefix: DB` er satt i nais.yaml, og det er det ikke. Standardnavnet er `NAIS_DATABASE_…_JDBC_URL` |
+| `VedtakService.kt` | 21 | 🟡 | `LocalDate.now()` gjør koden vanskelig å teste. Injiser `Clock`. `Locale` er en ubrukt import |
+| `VedtakService.kt` | 14 | 🟡 | `require` gir `IllegalArgumentException` og dermed 500 i API-et i stedet for 400 |
+| `Routes.kt` | 31 | 🟡 | `!!` på path-parameteren. Route-laget bruker også repository direkte og går forbi service |
+| `build.gradle.kts` | 13 | 💭 | Det finnes nå to `dependencies`-blokker. Slå dem sammen |
+| — | — | 🟡 | Ingen tester for consumer, service eller routes |
+
+### Detaljer om blokkerne
+- **SQL:** bruk `queryOf("SELECT * FROM vedtak WHERE fnr = ? ORDER BY vedtaksdato DESC", fnr)`. Med strengsammensetting kan en angriper lese eller endre alle vedtak.
+- **Auth** 🔴 Rød sone: token-validering. Bruk `jwkProvider(URL(TOKEN_X_JWKS_URI))` og `withIssuer(TOKEN_X_ISSUER)`, og sjekk audience. Hent fnr fra `pid`-claimet i stedet for fra body eller URL. Da blir eierskapet håndhevet automatisk.
+- **Idempotens:** legg til `UNIQUE (soknad_id)` og bruk `INSERT … ON CONFLICT DO NOTHING`. Ved duplikat publiserer du det eksisterende vedtaket på nytt.
+- **Consumer-tråden:** fang feil per melding, send meldinger som ikke kan behandles til en DLQ eller logg dem uten personopplysninger, og la `isready`/`isalive` gjenspeile om consumeren lever.
+- **accessPolicy:** list opp de konkrete konsumentene av API-et.
+
+Still gjerne spørsmål om valgene over.
+

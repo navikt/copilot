@@ -1,0 +1,10 @@
+ ● skill(klarsprak)
+
+ / Search "maksAntall" 3 lines found
+
+`maksAntall` brukes tre steder:
+
+- `src/main/kotlin/no/nav/demo/Routes.kt:16`
+- `src/main/kotlin/no/nav/demo/App.kt:10`
+- Defineres i `src/main/kotlin/no/nav/demo/Config.kt:4`
+

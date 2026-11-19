@@ -1,0 +1,12 @@
+ / Search "**/*.{kt,java,ts,tsx,js,jsx}" 4 files found
+
+ / Search "slettOppgave" No matches found
+
+ ● Read src/main/kotlin/no/nav/demo/Routes.kt 19 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/Oppgave.kt 9 lines read
+
+ / Search "(?i)slett.*oppgave|oppgave.*slett" No matches found
+
+Ingen steder i koden kaller `slettOppgave`; funksjonen finnes ikke i kodebasen.
+

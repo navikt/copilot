@@ -1,0 +1,21 @@
+ ● skill(nav-plan)
+
+ ● skill(api-design)
+
+## Fase 2: Plan for navneoppslag
+
+**Next.js håndterer innlogging med ID-porten og Wonderwall. Ktor-tjenesten gjør navneoppslaget i PDL.** Nettleseren kaller Next.js på samme origin. Next.js bytter brukertokenet via TokenX til et token med Ktor-tjenesten som mottaker. Det gir én offentlig inngang og bevarer brukerkonteksten, men krever at teamet setter opp og tester tokenbyttet mellom tjenestene.
+
+| Område | Plan |
+|---|---|
+| API | `GET /api/person/me` returnerer `{"navn":"…"}` med `Cache-Control: no-store`. Ktor bruker `pid` fra det validerte TokenX-tokenet. API-et tar ikke imot fødselsnummer fra klienten og returnerer det heller ikke. |
+| PDL | Be om kun navnefeltene. Bruk PDLs godkjente autentiseringsoppsett for oppslag på vegne av innbyggeren. Før produksjon må teamet bekrefte PDL-tilgang, tokenkrav, behandlingsnummer og hvilken lovhjemmel som dekker oppslaget. Ikke anta at tokenet utstedt til Ktor også kan brukes mot PDL. |
+| Feil | Avvis manglende eller ugyldig token med `401`. Ved tidsavbrudd eller utilgjengelig PDL returnerer Ktor `503` med et generisk problemsvar. Next.js viser «Vi kan ikke hente navnet ditt akkurat nå. Prøv igjen senere.» Ingen kø eller automatisk retry i første versjon. |
+| Data og drift | Ingen database eller mellomlagring av fødselsnummer og navn. Logg PDL-feil med feilkategori og sporings-ID, uten personopplysninger, token eller rått PDL-svar. Mål oppslag per minutt og andel feilende PDL-kall. Varsle ved vedvarende høy feilandel. |
+| Kode og Nais | Bruk Ktor-oppsettet i repoet, med egne moduler for autentisering og PDL-klient. Aktiver TokenX i `nais.yaml`. Ingen offentlig ingress på Ktor; tillat kun Next.js inn og nødvendige PDL-forbindelser ut. Behold interne helsesjekker, legg til Prometheus og start med `15m` CPU-forespørsel og `256Mi` minneforespørsel. |
+| Test og leveranse | Test gyldig token, feil mottaker, utløpt token, manglende `pid` og at klienten ikke kan velge en annen person. Bruk en PDL-stub for suksess og `503`. Kjør hele innloggingsflyten i dev med testidentiteter. GitHub Actions bygger og tester før deploy til dev. Etter verifisering av innlogging, `503`-håndtering og målinger kan samme image deployes til prod. Ved feil i første produksjonssetting deaktiveres frontend-funksjonen. Dokumenter API-kontrakten og feilsøking i driftsveiledningen. |
+
+🔴 **Rød sone:** Teamet skriver og går gjennom Wonderwall- og TokenX-integrasjonen, tokenvalideringen, koblingen mellom `pid` og PDL-oppslaget og autorisasjonen mot PDL. Den viktigste regelen er at innbyggeren bare kan slå opp sitt eget navn.
+
+Planen stopper før kodeendringer. Neste fase er gjennomgang av planen.
+

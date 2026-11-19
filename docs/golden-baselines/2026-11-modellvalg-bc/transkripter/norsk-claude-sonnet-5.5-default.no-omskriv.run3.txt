@@ -1,0 +1,20 @@
+ ● skill(klarsprak)
+
+ / Search "**/utkast.md" 1 file found
+
+ MD Read utkast.md 11 lines read
+
+ ● Create utkast.md.new +1
+
+ ✗ Shell Remove stray temp file Tool 'bash' does not exist.
+   rm /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.IHPT6d/repo/utkast.m
+   d.new
+
+ MD Edit utkast.md +5 -5
+
+`utkast.md` er språkvasket og kortet ned til rundt 80 ord, med alle fakta bevart.
+
+Jeg fjernet KI-markørene («i en tid der», «banebrytende», «sømløs», «avgjørende», «avslutningsvis», «fremtiden ser lys ut») og nynorsken (`ikkje`, `sjølv`, `berre`, `mykje`, `tilgjengeleg`). «AI» er byttet til «KI».
+
+Jeg fikk ikke slettet en tom hjelpefil jeg opprettet ved en feil: `utkast.md.new` ligger i samme mappe og kan slettes.
+

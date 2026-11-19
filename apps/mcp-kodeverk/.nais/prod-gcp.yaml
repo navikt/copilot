@@ -1,0 +1,9 @@
+replicas_min: "2"
+replicas_max: "2"
+cpu_threshold: "80"
+cpu_request: 50m
+memory_request: 64Mi
+memory_limit: 256Mi
+log_level: "INFO"
+kodeverk_url: "http://kodeverk-api.team-rocket"
+kodeverk_scope: "api://prod-gcp.team-rocket.kodeverk-api/.default"

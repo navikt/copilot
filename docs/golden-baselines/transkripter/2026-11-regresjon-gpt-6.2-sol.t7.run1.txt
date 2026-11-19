@@ -1,0 +1,87 @@
+ ● skill(jackson-3-migration)
+
+ ● skill(klarsprak)
+
+ $ Shell git status -sb; git --no-pager log -6 --oneline; git branch -a; ls -a; java -ver… 16 lines…
+   git status -sb; git --no-pager log -6 --oneline; git branch -a; ls -a; java -version
+
+ ✗ Shell  Permission denied because no interactive user response was available. Retry in an interact
+   git --no-pager diff main...HEAD; git ls-files; command -v gradle || true; ls
+   /Library/Java/JavaVirtualMachines
+   Approval check
+     └ ✗ Denied, no one to approve shell path (/Library/Java/JavaVirtualMachines)
+   Permission denied because no interactive user response was available. Retry in an interactive 
+   session so the user can approve it, or try an alternative that does not require this permission.
+
+ / Search "**/*" 26 files found
+
+ $ Shell command -v gradle 1 line…
+   command -v gradle
+
+ $ Shell git --no-pager diff main...HEAD 44 lines…
+   git --no-pager diff main...HEAD
+
+ / Search "SORT_PROPERTIES|FAIL_ON|ENUM|DATES" (~/.copilot/skills/jackson-3-migratio… 18 lines found
+
+ / Search "." (src, build.gradle.kts, README.md) 77 lines found
+
+ ✗ Shell gradle --no-daemon --console=plain build dependencyInsight --depe… Failed with exit code 1…
+   gradle --no-daemon --console=plain build dependencyInsight --dependency jackson --configuration
+   compileClasspath
+   To honour the JVM settings for this build a single-use Daemon process will be forked. For more on
+    this, please refer to 
+   https://docs.gradle.org/8.14.7/userguide/gradle_daemon.html#sec:disabling_the_daemon in the 
+   Gradle documentation.
+   Daemon will be stopped at the end of the build 
+   
+   FAILURE: Build failed with an exception.
+   
+   * What went wrong:
+   A problem occurred configuring root project 'repo'.
+   > 27.0.1.0.2
+   
+   * Try:
+   > Run with --stacktrace option to get the stack trace.
+   > Run with --info or --debug option to get more log output.
+   > Run with --scan to get full insights.
+   > Get more help at https://help.gradle.org.
+   
+   BUILD FAILED in 2s
+   Failed with exit code 1
+
+ ✗ Shell  Permission denied because no interactive user response was available. Retry in an interact
+   mise ls java; /usr/libexec/java_home -V; git --no-pager grep -n -E
+   'lesSoker|sendMottatt|sendSoker|JsonNode'
+   Approval check
+     └ ✗ Denied, no one to approve shell path (/usr/libexec/java_home)
+   Permission denied because no interactive user response was available. Retry in an interactive 
+   session so the user can approve it, or try an alternative that does not require this permission.
+
+ $ Shell mise ls java 1 line…
+   mise ls java
+
+ ✗ Shell mise exec java@21 -- gradle --no-daemon --console=plain build dep… Failed with exit code 1…
+   mise exec java@21 -- gradle --no-daemon --console=plain build dependencyInsight --dependency
+   jackson --configuration compileClasspath
+   mise ERROR "gradle" couldn't exec process: No such file or directory
+   
+   gradle is installed but not activated — it is not in any config file.
+   To activate it, run:
+     mise use gradle
+   To run it without changing any config file, run:
+     mise exec gradle -- gradle
+   mise ERROR Version: 2026.11.10 macos-arm64 (2026-11-18)
+   mise ERROR Run with --verbose or MISE_VERBOSE=1 for more information
+   Failed with exit code 1
+
+ $ Shell mise exec java@21 gradle@8 -- gradle --no-daemon --console=plain build depen… 153 lines… 7s
+   mise exec java@21 gradle@8 -- gradle --no-daemon --console=plain build dependencyInsight
+   --dependency jackson --configuration compileClasspath
+
+**Jackson 3.1.0-migreringen bygger på JDK 21, men jeg ville ventet med merge til Kafka-formatet er verifisert.** `compileClasspath` har ingen Jackson 2-versjoner av `core` eller `databind`. `jackson-annotations:2.21` er forventet. Ktor 3.0.0 bruker fortsatt `kotlinx.serialization` for HTTP, så Jackson-migreringen krever ingen Ktor-oppgradering.
+
+- **Kafka-formatet kan få ny feltrekkefølge.** I [`Soknad.kt:14`](src/main/kotlin/no/nav/demo/Soknad.kt#L14) bruker mapperen Jackson 3-standardene. Alfabetisk sortering kan flytte `mottatt` foran `soknadId` i `soknad-mottatt`. Det endrer ikke innholdet for konsumenter som parser JSON, men kan bryte dem som sammenligner rå JSON. `mottatt` forventes fortsatt å være en ISO-dato, siden Jackson 2-mapperen slo av tidsstempler og Jackson 3 har dem av som standard.
+- **`lesSoker` blir strengere.** Jackson 3 avviser ekstra JSON-tokens etter det første objektet som standard. Det er en konkret atferdsendring dersom en avsender har sendt slikt innhold.
+
+Bygget rapporterte `test NO-SOURCE`. Før merge: sammenlign payloadene for begge Kafka-topicene mot `main` med syntetiske data, og legg inn en test som gjør forventet avvisning av etterfølgende tokens eksplisitt. Ingen filer ble endret.
+

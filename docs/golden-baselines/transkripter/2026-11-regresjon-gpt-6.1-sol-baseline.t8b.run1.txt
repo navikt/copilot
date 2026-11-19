@@ -1,0 +1,23 @@
+ ● skill(klarsprak)
+
+ / Search "**/*" 28 files found
+
+ ● Read lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningProducerIntercepto  22 lines re…
+        r.kt
+
+ ● Read lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningHeaders.kt 11 lines read
+
+ MD Read README.md 4 lines read
+
+ ● Read lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/Periode.kt 4 lines read
+
+ YM Read nais.yaml 12 lines read
+
+**Fase 1: Avklaring før kodeendring.** `Periode` inneholder allerede fnr, men en ny header eksponerer personopplysningen som metadata. Signaturen dekker i dag bare payload, ikke headere. Ingen filer er endret.
+
+Skal fødselsnummeret brukes til oppslag hos konsumentene, eller havne i logger og sporingsverktøy? Hvilke mottakere får headeren, og hvorfor er ikke `Periode.id` tilstrekkelig for sporing?
+
+Repoet mangler `AGENTS.md` og Copilot-instruksjonsfilene for utvikling og review. Disse kan opprettes med `nav-pilot init`.
+
+Blindsoner reist: 3/11 (#1 personvern, #4 sporing, #6 mottakere). Øvrige avklaringer avventer dette; forespørselen endrer ikke i seg selv tilgang eller signeringsmekanisme.
+

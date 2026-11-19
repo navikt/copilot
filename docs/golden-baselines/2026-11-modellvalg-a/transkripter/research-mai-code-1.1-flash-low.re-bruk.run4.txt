@@ -1,0 +1,10 @@
+ / Search "maksAntall" 3 lines found
+
+Jeg fant tre treff for maksAntall:
+
+- src/main/kotlin/no/nav/demo/Config.kt:4 — const val maksAntall = 100
+- src/main/kotlin/no/nav/demo/Routes.kt:16 — call.respond(OppgaveRespons(oppgaver.take(maksAntall)))
+- src/main/kotlin/no/nav/demo/App.kt:10 — println("starter demo-tjeneste, maksAntall=$maksAntall")
+
+Det betyr at konstanten er definert i Config.kt og brukes i Routes.kt og App.kt.
+

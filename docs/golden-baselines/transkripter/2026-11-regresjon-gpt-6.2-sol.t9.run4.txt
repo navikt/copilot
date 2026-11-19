@@ -1,0 +1,15 @@
+ ● skill(klarsprak)
+
+ $ Shell ls -a; find . -name '*.kt' -o -name '*.instructions.md' 28 lines…
+   ls -a; find . -name '*.kt' -o -name '*.instructions.md'
+
+ $ Shell Les Kotlin- og testkonvensjoner output too large to show (30.7 KB)…
+   cat build.gradle.kts src/main/kotlin/no/nav/demo/Oppgave.kt
+   .github/instructions/{kotlin,security-owasp,testing,testing-kotlin}.instructions.md
+
+ ● Edit  Edit build.gradle.kts (+1)  Create src/main/kotlin/no/nav/demo/Feriepenger.kt (+5)  Create…
+
+La til funksjonssignaturen i `Feriepenger.kt` og enhetstester for 60-årsgrensen, avrunding og negativt grunnlag. Gradle ble ikke kjørt. Testene vil feile til funksjonen er implementert.
+
+**Rød sone:** Selve beregningen står som `TODO`. Bruk heltallsregning med satsene 102 og 125 per tusen for å unngå flyttallsfeil ved avrunding. Avvis negativt grunnlag før beregningen.
+

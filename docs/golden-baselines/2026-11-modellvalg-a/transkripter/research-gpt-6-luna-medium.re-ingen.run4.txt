@@ -1,0 +1,10 @@
+ ● skill(klarsprak)
+
+ / Search "slettOppgave" No matches found
+
+ / Search "**/*" 25 files found
+
+ / Search "slett|Oppgave" (src) 10 lines found
+
+Jeg finner ingen kall til `slettOppgave` i koden. Søk etter navnet ga ingen treff.
+

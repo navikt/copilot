@@ -1,0 +1,29 @@
+ ● skill(klarsprak)
+
+ / Search "{*,.github/**,src/**}" 25 files found
+
+ MD Read .github/instructions/kotlin.instructions.md too large, not read
+
+ ● Read src/main/kotlin/no/nav/demo/Oppgave.kt 9 lines read
+
+ ● Read build.gradle.kts 12 lines read
+
+ / Search "{AGENTS.md,.github/copilot*instructions.md,src/test/**}" No matches found
+
+ MD Read .github/instructions/deliberate-ai-use.instructions.md 30 lines read
+
+ MD Read .github/instructions/testing-kotlin.instructions.md 185 lines read
+
+ MD Read .github/instructions/testing.instructions.md 112 lines read
+
+Dette er ny forretningslogikk for teamet, altså rød sone. Jeg lager funksjonsstubben og tester som beskriver reglene, men lar beregningen stå som `TODO`. Jeg kjører ikke Gradle. Agenten `worker` er ikke tilgjengelig, så jeg gjør endringene selv.
+
+
+ ● Edit  Edit build.gradle.kts (+6)  Create src/main/kotlin/no/nav/demo/Feriepenger.kt (+5)  Create…
+
+ ● Edit  Edit src/test/kotlin/no/nav/demo/FeriepengerTest.kt (+4 -4)
+
+Lagt til `Feriepenger.kt` med `TODO`, enhetstester for satsene, 60-årsgrensen, avrunding, null og negativt grunnlag, samt testavhengigheter.
+
+🔴 Rød sone: forretningslogikk, forstå dette grundig. Beregningen er ikke implementert fordi reglene er nye for teamet. Testene beskriver forventet oppførsel, men vil feile til dere fyller inn funksjonen. Gradle er ikke kjørt.
+

@@ -1,0 +1,25 @@
+ $ Shell Inspect vedtak-parser crate 32 lines…
+   cd vedtak-parser && find . -type f -not -path './target/*' | head -50 && cat Cargo.toml && cat
+   src/*.rs
+
+Crate har ingen `thiserror`-avhengighet, så jeg legger den til med `cargo add` før jeg endrer koden.
+
+ $ Shell Add thiserror dependency 3 lines…
+   cd vedtak-parser && cargo add thiserror 2>&1 | tail -3
+
+ RS Edit vedtak-parser/src/lib.rs +43 -5
+
+ $ Shell Run cargo test in vedtak-parser 19 lines…
+   cd vedtak-parser && cargo test 2>&1 | tail -20
+
+`les` i `vedtak-parser/src/lib.rs` returnerer nå `Result<Vedtak, VedtakFeil>` og panikker ikke lenger.
+
+- **`VedtakFeil`** (thiserror): `ManglerId`, `ManglerBelop` og `UgyldigBelop(String)`. Feilmeldingen for `UgyldigBelop` er `ugyldig beløp: <tekst>`.
+- **Regler:** tom id gir `ManglerId`. Manglende eller tomt beløp gir `ManglerBelop`. Beløp som ikke parser som `u32` gir `UgyldigBelop`.
+- **Avhengighet:** `thiserror` er lagt til i `Cargo.toml` med `cargo add`.
+- **Tester:** én test per feil, pluss den eksisterende testen for gyldig linje.
+
+`cargo test` i `vedtak-parser/` gir 4 passerte tester.
+
+Det finnes ingen andre kallere av `les` i crate-en, så ingen andre filer måtte endres.
+

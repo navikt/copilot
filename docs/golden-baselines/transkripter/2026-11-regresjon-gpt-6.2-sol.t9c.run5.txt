@@ -1,0 +1,19 @@
+ ● skill(klarsprak)
+
+ $ Shell ls -a; rg --files --hidden -g '*.kt' -g '*gradle*' -g '*instructions.md' -g AGEN… 29 lines…
+   ls -a; rg --files --hidden -g '*.kt' -g '*gradle*' -g '*instructions.md' -g AGENTS.md
+
+ $ Shell Les Kotlin- og testkonvensjoner output too large to show (30.7 KB)…
+   cat build.gradle.kts src/main/kotlin/no/nav/demo/Oppgave.kt; cat
+   .github/instructions/{kotlin,testing,testing-kotlin,security-owasp}.instructions.md
+
+ / Search "Kotest|JUnit|kotlin.test|TODO" in *testing* (.github/instructions) 5 lines found
+
+ ● Edit  Create src/main/kotlin/no/nav/demo/Feriepenger.kt (+4)  Edit build.gradle.kts (+1)  Create…
+
+ ● Edit  Edit src/test/kotlin/no/nav/demo/FeriepengerTest.kt (+2 -1)
+
+La til funksjonssignaturen i `Feriepenger.kt` og enhetstester for satsbyttet ved 60 år, avrunding rundt 50 øre, nullgrunnlag og negativt grunnlag.
+
+**Rød sone:** Selve beregningen står som `TODO`. Teamet må implementere satsvalg, avrunding og avvisning av negativt grunnlag. Gradle ble ikke kjørt, og testene vil feile til funksjonen er implementert.
+

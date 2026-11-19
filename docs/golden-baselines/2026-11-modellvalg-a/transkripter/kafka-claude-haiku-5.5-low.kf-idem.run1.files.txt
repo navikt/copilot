@@ -1,0 +1,117 @@
+=== ./vedtak-konsument/src/main/kotlin/no/nav/vedtak/VedtakKonsument.kt
+package no.nav.vedtak
+
+import org.apache.kafka.clients.consumer.Consumer
+import org.apache.kafka.clients.consumer.OffsetAndMetadata
+import org.apache.kafka.common.TopicPartition
+import java.time.Duration
+import java.util.concurrent.ConcurrentHashMap
+
+fun interface Utbetaling {
+    fun utbetal(eventId: String, belop: Int)
+}
+
+// Leser vedtak fra topicen og utbetaler. Verdien i hver melding er "eventId;belop".
+// Offset commites først etter behandling. Ved feil spoles konsumenten tilbake,
+// slik at meldingen leses på nytt. Allerede utbetalte eventId hoppes over.
+class VedtakKonsument(
+    private val consumer: Consumer<String, String>,
+    private val utbetaling: Utbetaling,
+    private val utbetalte: MutableSet<String> = ConcurrentHashMap.newKeySet(),
+) {
+    fun poll() {
+        val records = consumer.poll(Duration.ofMillis(100))
+        val neste = mutableMapOf<TopicPartition, Long>()
+        records.forEach { neste.putIfAbsent(TopicPartition(it.topic(), it.partition()), it.offset()) }
+        val behandlet = mutableMapOf<TopicPartition, OffsetAndMetadata>()
+        try {
+            for (record in records) {
+                val tp = TopicPartition(record.topic(), record.partition())
+                val (eventId, belop) = record.value().split(";")
+                if (utbetalte.add(eventId)) {
+                    try {
+                        utbetaling.utbetal(eventId, belop.toInt())
+                    } catch (e: Exception) {
+                        utbetalte.remove(eventId)
+                        neste[tp] = record.offset()
+                        throw e
+                    }
+                }
+                neste[tp] = record.offset() + 1
+                behandlet[tp] = OffsetAndMetadata(record.offset() + 1)
+            }
+        } finally {
+            if (behandlet.isNotEmpty()) consumer.commitSync(behandlet)
+            // Ved feil spoles hver partisjon til første ikke-behandlede offset, slik at de leses på nytt.
+            neste.forEach { (tp, offset) -> consumer.seek(tp, offset) }
+        }
+    }
+}
+
+=== ./vedtak-konsument/src/test/kotlin/no/nav/vedtak/VedtakKonsumentTest.kt
+package no.nav.vedtak
+
+import org.apache.kafka.clients.consumer.ConsumerRecord
+import org.apache.kafka.clients.consumer.MockConsumer
+import org.apache.kafka.clients.consumer.OffsetResetStrategy
+import org.apache.kafka.common.TopicPartition
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+
+class VedtakKonsumentTest {
+    private val tp = TopicPartition("vedtak", 0)
+
+    private fun consumer(vararg verdier: String) = MockConsumer<String, String>(OffsetResetStrategy.EARLIEST).apply {
+        assign(listOf(tp))
+        updateBeginningOffsets(mapOf(tp to 0L))
+        verdier.forEachIndexed { i, v -> addRecord(ConsumerRecord("vedtak", 0, i.toLong(), "sak-1", v)) }
+    }
+
+    @Test
+    fun `utbetaler hvert vedtak`() {
+        val utbetalt = mutableListOf<String>()
+        VedtakKonsument(consumer("e1;100", "e2;200"), Utbetaling { id, _ -> utbetalt += id }).poll()
+        assertEquals(listOf("e1", "e2"), utbetalt)
+    }
+
+    @Test
+    fun `utbetaler samme eventId bare én gang`() {
+        val utbetalt = mutableListOf<String>()
+        val c = consumer("e1;100", "e1;100")
+        val utbetalte = mutableSetOf<String>()
+        val konsument = VedtakKonsument(c, Utbetaling { id, _ -> utbetalt += id }, utbetalte)
+        konsument.poll()
+        c.addRecord(ConsumerRecord("vedtak", 0, 2L, "sak-1", "e1;100"))
+        konsument.poll()
+        assertEquals(listOf("e1"), utbetalt)
+    }
+
+    @Test
+    fun `commiter offset etter behandling`() {
+        val c = consumer("e1;100", "e2;200")
+        VedtakKonsument(c, Utbetaling { _, _ -> }).poll()
+        assertEquals(2L, c.committed(setOf(tp))[tp]?.offset())
+    }
+
+    @Test
+    fun `feilet utbetaling commiter ikke og meldingen leses på nytt`() {
+        val c = consumer("e1;100", "e2;200")
+        var forsøk = 0
+        val utbetalt = mutableListOf<String>()
+        val konsument = VedtakKonsument(c, Utbetaling { id, _ ->
+            if (id == "e2" && forsøk++ == 0) error("bank nede")
+            utbetalt += id
+        })
+        assertFailsWith<IllegalStateException> { konsument.poll() }
+        assertEquals(1L, c.committed(setOf(tp))[tp]?.offset())
+        assertEquals(1L, c.position(tp))
+
+        // MockConsumer leverer ikke på nytt etter seek, så brokeren simuleres her.
+        c.addRecord(ConsumerRecord("vedtak", 0, 1L, "sak-1", "e2;200"))
+        konsument.poll()
+        assertEquals(listOf("e1", "e2"), utbetalt)
+        assertEquals(2L, c.committed(setOf(tp))[tp]?.offset())
+    }
+}
+

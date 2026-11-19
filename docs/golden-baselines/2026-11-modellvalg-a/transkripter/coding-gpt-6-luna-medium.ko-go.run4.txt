@@ -1,0 +1,36 @@
+ MD Read .github/instructions/golang.instructions.md 547 lines read
+
+ MD Read .github/instructions/testing.instructions.md 112 lines read
+
+ / Search "frister/**/*" 3 files found
+
+ GO Read frister/frist.go 16 lines read
+
+ GO Read frister/frist_test.go 26 lines read
+
+ ● Read frister/go.mod 3 lines read
+
+ ✗ Shell Run frister Go tests Failed with exit code 1  FAIL  ./... [setup failed] # ./... pattern .…
+   go test ./...
+   FAIL    ./... [setup failed]
+   # ./...
+   pattern ./...: directory prefix . does not contain main module or its selected dependencies
+   FAIL
+   Failed with exit code 1
+
+ ✗ Shell Run tests from frister module Failed with exit code 1  --- FAIL: TestFrist (0.00s) frist_t…
+   cd frister && go test ./...
+   --- FAIL: TestFrist (0.00s)
+       frist_test.go:23: Frist(2026-09-05) = 2026-10-18, want 2026-10-19
+   FAIL
+   FAIL    example.com/frister     0.026s
+   FAIL
+   Failed with exit code 1
+
+ ● Edit  Edit frister/frist.go (+1 -1)
+
+ $ Shell Verify frister Go tests 1 line…
+   cd frister && go test ./...
+
+Rettet fristberegningen: Når fristen faller på lørdag, flyttes den nå to dager til mandag. `go test ./...` i `frister/` passerer.
+

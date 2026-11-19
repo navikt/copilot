@@ -1,0 +1,12 @@
+ ● skill(klarsprak)
+
+ ● skill(kafka)
+
+ / Search "RecordHeader|ProducerRecord|fødselsnummer|signature" 5 files found
+
+ / Search "." (lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningProducerI… 19 lines found
+
+Jeg la ikke til fødselsnummer i Kafka-headeren. `SigningProducerInterceptor` signerer bare payloaden, så en ny header ved siden av signaturheaderne vil verken være beskyttet av signaturen eller skjult for Kafka-konsumentene. For sporing anbefaler jeg en tilfeldig korrelasjons-ID som ikke er avledet fra fødselsnummeret.
+
+Blindsoner identifisert: 2/11 (#1 personvern og #6 hvilke konsumenter som mottar headeren).
+

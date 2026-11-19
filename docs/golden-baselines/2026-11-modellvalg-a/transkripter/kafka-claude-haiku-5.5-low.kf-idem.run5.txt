@@ -1,0 +1,56 @@
+Jeg leser konsumenten og testene først.
+
+ $ Shell List files in vedtak-konsument 5 lines…
+   cd vedtak-konsument 2>/dev/null && pwd; find . -path ./build -prune -o -type f -print | grep -v
+   '/\.gradle/' | head -100
+
+ $ Shell Show source, test and build files 71 lines…
+   cd vedtak-konsument && cat src/main/kotlin/no/nav/vedtak/VedtakKonsument.kt; echo ----; cat
+   src/test/kotlin/no/nav/vedtak/VedtakKonsumentTest.kt; echo ----; cat build.gradle.kts
+   settings.gradle.kts
+
+Planen: deduplisere på `eventId` i minnet, flytte `commitSync` etter behandling, og ved feil committe det som er ferdig og seeke tilbake til første ubehandlede offset. Konstruktøren beholder de to parameterne.
+
+ ● Edit vedtak-konsument/src/main/kotlin/no/nav/vedtak/VedtakKonsument.kt +33 -4
+
+Seek-logikken i catch-blokken ble for tung. Jeg forenkler den: bruker `records.partitions()` og seeker hver partisjon til neste ubehandlede offset.
+
+ ● Edit vedtak-konsument/src/main/kotlin/no/nav/vedtak/VedtakKonsument.kt +6 -12
+
+Nå tester. Jeg legger til tre tilfeller i den eksisterende testfilen: dedupe, ingen commit ved feil, og seek tilbake.
+
+ ● Edit vedtak-konsument/src/test/kotlin/no/nav/vedtak/VedtakKonsumentTest.kt +30
+
+ ● Edit vedtak-konsument/src/test/kotlin/no/nav/vedtak/VedtakKonsumentTest.kt +1
+
+ $ Shell Run gradle tests in vedtak-konsument 33 lines…
+   cd vedtak-konsument && (gradle test --no-daemon -q 2>&1 || ./gradlew test --no-daemon -q 2>&1) |
+   tail -40; echo EXIT=$?
+
+Den nye parameteren tar det trailing lambda-et. Konstruktøren skal bare ha `consumer` og `utbetaling`, så jeg gjør settet til en privat felt i stedet.
+
+ ● Edit vedtak-konsument/src/main/kotlin/no/nav/vedtak/VedtakKonsument.kt +2 -1
+
+ $ Shell Run gradle test in vedtak-konsument 17 lines…
+   cd vedtak-konsument && which gradle && gradle test --no-daemon 2>&1 | tail -40
+
+Bygget går grønt. Jeg sjekker at alle testene faktisk kjørte.
+
+ $ Shell Confirm test results and review final source 52 lines…
+   cd vedtak-konsument && grep -ho 'testcase name="[^"]*"\|tests="[0-9]*" skipped="[0-9]*"
+   failures="[0-9]*"' build/test-results/test/*.xml; cat
+   src/main/kotlin/no/nav/vedtak/VedtakKonsument.kt
+
+Rettet i `vedtak-konsument/src/main/kotlin/no/nav/vedtak/VedtakKonsument.kt`. `gradle test` bygger og går grønt med 4 tester, inkludert tre nye.
+
+- **Dedupe:** Hver `eventId` utbetales bare én gang. Utbetalte IDer lagres i et sett i konsumenten, og en ID markeres først etter at utbetalingen lykkes.
+- **Commit etter behandling:** `commitSync` kjøres etter at hele batchen er behandlet, ikke før.
+- **Ved feil:** Konsumenten committer offsetene for meldingene som er ferdige, seeker hver partisjon tilbake til første ubehandlede melding og kaster feilen videre.
+- **Konstruktør:** Fortsatt `VedtakKonsument(consumer, utbetaling)`.
+
+Begrensning: Dedupe-settet ligger i minnet. Etter omstart av prosessen kan en melding som allerede er utbetalt, bli utbetalt igjen hvis offsetcommit feilet. Full sikkerhet krever en persistent lagring av utbetalte eventId-er, for eksempel i databasen med unik nøkkel, og det har jeg ikke laget.
+
+Still gjerne spørsmål om valgene over.
+
+🔴 Rød sone: utbetalingslogikken og offsethåndteringen. Gå gjennom denne nøye.
+

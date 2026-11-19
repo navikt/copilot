@@ -1,0 +1,6 @@
+ ● skill(tokenx-auth)
+
+Bruk **TokenX** når tjeneste A kaller tjeneste B på vegne av en innbygger. A veksler brukerens token inn i et nytt token med B som mottaker (`aud`). B validerer tokenet og sjekker at brukeren har tilgang til ressursen.
+
+Hvis brukeren er en saksbehandler med Entra ID, bruk **Entra ID On-Behalf-Of (OBO)**. `client_credentials` passer bare når A kaller som seg selv, uten brukerkontekst.
+

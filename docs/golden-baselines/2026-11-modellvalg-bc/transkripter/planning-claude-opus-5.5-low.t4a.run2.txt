@@ -1,0 +1,23 @@
+ / Search "{AGENTS.md,.github/copilot-instructions.md,.github/copilot-review-instruct… 2 files found
+
+ YM Read nais.yaml 12 lines read
+
+Dette er **Full**-oppgave: en ny tjeneste med ID-porten-innlogging og fødselsnummer. Vi er i **Fase 1: Intervju**. Jeg stopper her og venter på svarene dine.
+
+**Fra repoet:**
+- Repoet er et Kotlin-prosjekt (`build.gradle.kts`).
+- `nais.yaml` (`demo-tjeneste`) har verken auth eller `accessPolicy`, og den har ingen ressurser (database, Kafka). Repoet svarer derfor ikke på spørsmål om personvern eller tilgang.
+- Repoet mangler `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`. Kjør gjerne `nav-pilot init`.
+
+**Spørsmål:**
+
+1. **Personvern ⚠️:** Hva skal fødselsnummeret brukes til? Skal det lagres, sendes videre (til PDL, Kafka eller et annet API) eller bare brukes til oppslag? Behandler tjenesten andre personopplysninger, for eksempel helse, ytelser eller navn?
+2. **Tilgangskontroll ⚠️:** Logger innbyggeren seg inn i en egen frontend med Wonderwall i denne tjenesten? Eller tar tjenesten imot kall fra en frontend eller BFF med token (TokenX)? Hvilket sikkerhetsnivå trengs (`idporten-loa-high`)?
+3. **Feilhåndtering:** Hva skal skje når en avhengighet er nede? Trengs retry?
+4. **Observerbarhet:** Hvilke forretningsmetrikker viser at tjenesten virker?
+5. **Teamgrenser:** Hvilke andre tjenester kaller dere, og eier dere hele flyten?
+6. **Endringseffekt:** Hvem bruker API-et eller hendelsene?
+11. **Kompetanse:** Har teamet brukt ID-porten og TokenX før? Hvis ikke, blir token-validering 🔴 rød sone.
+
+Blindsoner reist: 7/11 (#1–#6 og #11 er stilt. #7–#10 er ikke relevante fordi tjenesten er ny: ingen eksisterende tester, ingenting å modernisere, ingen gamle konsumenter og ingenting å fase ut.)
+

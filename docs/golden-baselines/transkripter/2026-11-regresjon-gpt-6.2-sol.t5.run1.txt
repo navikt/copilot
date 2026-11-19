@@ -1,0 +1,6 @@
+ ● skill(tokenx-auth)
+
+Bruk **TokenX** når tjeneste A kaller tjeneste B på vegne av en innbygger på Nais. A veksler brukertokenet til et token med B som mottaker (`audience`). B validerer tokenet og sjekker at brukeren har tilgang til ressursen.
+
+Hvis brukertokenet kommer fra **Entra ID** (for eksempel fra en saksbehandler), bruk **Entra ID On-Behalf-Of (OBO)**. Ikke bruk `client_credentials`: det identifiserer tjeneste A, ikke brukeren.
+

@@ -1,0 +1,50 @@
+ ● skill(klarsprak)
+
+ ✗ Shell Finn Kotlin-kilder og prosjektregler Failed with exit code 1  . .. .github build.gradle.kt…
+   ls -a; find . -name '*.kt' -o -name '*.kts' -o -name '*instructions.md' | head -40; command -v
+   kotlinc
+   .
+   ..
+   .github
+   build.gradle.kts
+   nais.yaml
+   README.md
+   src
+   ./build.gradle.kts
+   ./.github/instructions/deliberate-ai-use.instructions.md
+   ./.github/instructions/performance.instructions.md
+   ./.github/instructions/docker.instructions.md
+   ./.github/instructions/accessibility.instructions.md
+   ./.github/instructions/cplt-sandbox.instructions.md
+   ./.github/instructions/output-style.instructions.md
+   ./.github/instructions/database.instructions.md
+   ./.github/instructions/nextjs-aksel.instructions.md
+   ./.github/instructions/github-actions.instructions.md
+   ./.github/instructions/golang.instructions.md
+   ./.github/instructions/testing-typescript.instructions.md
+   ./.github/instructions/security-core.instructions.md
+   ./.github/instructions/kotlin.instructions.md
+   ./.github/instructions/security-owasp.instructions.md
+   ./.github/instructions/testing-kotlin.instructions.md
+   ./.github/instructions/testing.instructions.md
+   ./.github/instructions/norwegian-text.instructions.md
+   ./src/main/kotlin/no/nav/demo/App.kt
+   ./src/main/kotlin/no/nav/demo/Oppgave.kt
+   ./src/main/kotlin/no/nav/demo/Routes.kt
+   ./src/main/kotlin/no/nav/demo/Config.kt
+   Failed with exit code 1
+
+ $ Shell Les byggoppsett og koderegler output too large to show (30.7 KB)…
+   cat build.gradle.kts src/main/kotlin/no/nav/demo/Oppgave.kt
+   .github/instructions/{kotlin,security-owasp,testing,testing-kotlin}.instructions.md
+
+ ● Edit  Edit build.gradle.kts (+1)  Create src/main/kotlin/no/nav/demo/Feriepenger.kt (+9)  Create…
+
+La til `feriepenger` i `Feriepenger.kt` og enhetstester i `FeriepengerTest.kt`. Beregningen bruker heltall i promille for å unngå flyttallsfeil ved avrunding. Gradle ble ikke kjørt, som avtalt.
+
+**Sjekkliste for rød sone**
+
+- [ ] Feriepengeberegning: Sjekk at satsen går fra 10,2 % til 12,5 % i opptjeningsåret personen fyller 60, at nøyaktig 50 øre rundes opp, og at negativt grunnlag gir `IllegalArgumentException`. Se de tre testene i `FeriepengerTest.kt`.
+
+Kan du fortelle meg hva denne koden gjør og hvorfor denne tilnærmingen er riktig?
+

@@ -1,0 +1,20 @@
+ ● skill(nav-auth)
+
+ ● skill(klarsprak)
+
+ $ Shell Se etter tjenestefiler og lokale Copilot-instruksjoner 11 lines…
+   ls -a; ls -a .github
+
+ $ Shell Les dagens dataflyt, tilgangsregler og kode 66 lines…
+   cat README.md nais.yaml build.gradle.kts; rg -n . src | head -50
+
+**Fase 1: Formål og tilgang.** Jeg legger til grunn at dette er en ny tjeneste, og at demoens `/api/oppgaver` skal forbli uendret. `nais.yaml` har verken ID-porten-oppsett eller regler for hvilke apper som kan kalle tjenesten.
+
+1. Hva skal innbyggeren kunne gjøre etter innlogging, og hvorfor trenger tjenesten fødselsnummeret? Er det den eneste personopplysningen tjenesten skal behandle?
+2. Trengs nummeret bare mens forespørselen behandles, eller skal det lagres eller sendes videre? Ved lagring: hvor lenge? Ved deling: hvem skal motta det?
+3. Kommer kallet direkte fra innbyggerens nettleser eller fra en annen Nav-app på vegne av innbyggeren? Skal innbyggeren bare ha tilgang til egne opplysninger?
+
+De lokale Copilot-instruksjonene mangler. De kan opprettes med `nav-pilot init`.
+
+Blindsoner reist: 3/11 (#1 personvern, #2 tilgang, #6 mottakere). #3–5, #7 og #11 avventer formålet. #8–10 gjelder ikke så lenge demoen forblir uendret.
+

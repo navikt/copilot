@@ -1,0 +1,39 @@
+name: mcp-kodeverk build-deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/mcp-kodeverk/**'
+      - '.github/workflows/mcp-kodeverk.yaml'
+      - '.github/workflows/mise-build-deploy-nais.yaml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'apps/mcp-kodeverk/**'
+      - '.github/workflows/mcp-kodeverk.yaml'
+      - '.github/workflows/mise-build-deploy-nais.yaml'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+  id-token: write
+  # Read public npm packages (@nais/apm) from GitHub Packages.
+  packages: read
+
+jobs:
+  build:
+    uses: ./.github/workflows/mise-build-deploy-nais.yaml
+    with:
+      working-directory: apps/mcp-kodeverk
+      mise-setup-tasks: '["install"]'
+      mise-tasks: '["lint", "check"]'
+      deploys-to-nais: true
+      deploy-pr-to-dev: true
+      check-on-pr: true
+      nais-team: copilot
+      nais-clusters: '["dev-gcp", "prod-gcp"]'

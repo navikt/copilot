@@ -1,0 +1,26 @@
+Jeg lokaliserer tester og endrer bare produksjonskoden.
+
+ / Search "frister/**" 3 files found
+
+ ✗ Shell Run Go tests in frister Failed with exit code 1  --- FAIL: TestFrist (0.00s) frist_test.go…
+   cd frister && go test ./...
+   --- FAIL: TestFrist (0.00s)
+       frist_test.go:23: Frist(2026-09-05) = 2026-10-18, want 2026-10-19
+   FAIL
+   FAIL    example.com/frister     0.024s
+   FAIL
+   Failed with exit code 1
+
+ GO Read frister/frist.go 16 lines read
+
+ GO Read frister/frist_test.go 26 lines read
+
+ ● Edit  Edit frister/frist.go (+1 -1)
+
+ $ Shell Verify the frister package tests 1 line…
+   cd frister && go test ./...
+
+Feilen var at en fredag som havner på en lørdag ble flyttet én dag til søndag.
+
+Rettet i `frister/frist.go`: lørdager flyttes nå to dager til mandag. Alle tester i `frister/` går grønt.
+

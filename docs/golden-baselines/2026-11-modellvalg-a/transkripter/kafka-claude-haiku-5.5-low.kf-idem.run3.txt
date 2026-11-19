@@ -1,0 +1,55 @@
+Jeg ser på konsumenten og tilhørende kode først.
+
+ $ Shell List project files and show VedtakKonsument 52 lines…
+   cd vedtak-konsument && find . -type f -not -path "*/build/*" -not -path "*/.gradle/*" | head -100
+   && cat $(find . -name "VedtakKonsument*.kt" -not -path "*/build/*")
+
+Plan: dedup med en `MutableSet` av behandlede eventId-er (valgfri konstruktørparameter, så konstruktøren fortsatt tar bare consumer og utbetaling), og offset commites bare etter at hele batchen er behandlet. Ved feil seekes consumeren tilbake til første ubehandlede offset.
+
+ ● Edit vedtak-konsument/src/main/kotlin/no/nav/vedtak/VedtakKonsument.kt +24 -4
+
+Nå tester: dobbel eventId utbetales én gang, og ved feil commites ikke offset og consumeren spoles tilbake.
+
+ ● Edit vedtak-konsument/src/test/kotlin/no/nav/vedtak/VedtakKonsumentTest.kt +33
+
+ ● Edit vedtak-konsument/src/test/kotlin/no/nav/vedtak/VedtakKonsumentTest.kt +2
+
+ $ Shell Run gradle test in vedtak-konsument 32 lines…
+   cd vedtak-konsument && (ls gradlew >/dev/null 2>&1 && ./gradlew test --no-daemon -q || gradle
+   test -q) 2>&1 | tail -40; echo EXIT=$?
+
+Kompileringsfeil: trailing-lambda-syntaksen passer ikke med en ekstra parameter etter. Retter testkallene til å bruke eksplisitt `Utbetaling`.
+
+ $ Shell Locate constructor calls in test 6 lines…
+   cd vedtak-konsument && grep -n "VedtakKonsument("
+   src/test/kotlin/no/nav/vedtak/VedtakKonsumentTest.kt
+
+ ● Edit vedtak-konsument/src/test/kotlin/no/nav/vedtak/VedtakKonsumentTest.kt +3 -2
+
+ ● Edit vedtak-konsument/src/test/kotlin/no/nav/vedtak/VedtakKonsumentTest.kt +1 -1
+
+ ● Edit vedtak-konsument/src/test/kotlin/no/nav/vedtak/VedtakKonsumentTest.kt +1 -1
+
+ ● Edit vedtak-konsument/src/test/kotlin/no/nav/vedtak/VedtakKonsumentTest.kt +1 -1
+
+ ● Edit vedtak-konsument/src/test/kotlin/no/nav/vedtak/VedtakKonsumentTest.kt +1 -1
+
+ $ Shell Rerun gradle test in vedtak-konsument 1 line…
+   cd vedtak-konsument && (ls gradlew >/dev/null 2>&1 && ./gradlew test --no-daemon -q || gradle
+   test -q) 2>&1 | tail -40; echo EXIT=${PIPESTATUS[0]}
+
+Bygget gikk uten feil. Sjekker testrapporten for å bekrefte at alle tester faktisk kjørte.
+
+ $ Shell Show test results summary 6 lines…
+   cd vedtak-konsument && grep -ho 'testsuite name="[^"]*" tests="[0-9]*" skipped="[0-9]*"
+   failures="[0-9]*" errors="[0-9]*"' build/test-results/test/*.xml; grep -ho 'testcase
+   name="[^"]*"' build/test-results/test/*.xml
+
+`VedtakKonsument` er rettet. `gradle test` i `vedtak-konsument/` gir 5 grønne tester, inkludert fire nye.
+
+- **Dedup:** Hver eventId utbetales bare én gang. Den holdes i et `MutableSet` som er valgfri tredje konstruktørparameter, så `VedtakKonsument(consumer, utbetaling)` fungerer fortsatt.
+- **Commit:** Offset commites etter at hele batchen er behandlet, ikke før.
+- **Feil:** Ved feil seekes consumeren tilbake til første ubehandlede offset og exception kastes videre. Ingen offset commites da.
+
+Begrensning: settet ligger i minnet. Dedup holder ved rebalansering i samme prosess, men ikke etter restart. Hvis det trengs etter restart, må settet lagres i en database, for eksempel med en unik nøkkel på eventId i samme transaksjon som utbetalingen.
+

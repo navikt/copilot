@@ -1,0 +1,39 @@
+ ● skill(klarsprak)
+
+ / Search "**/*" 25 files found
+
+ $ Shell Les Kotlin-mønstre, testregler og byggoppsett output too large to show (30.7 KB)…
+   cat build.gradle.kts src/main/kotlin/no/nav/demo/Oppgave.kt
+   .github/instructions/kotlin.instructions.md .github/instructions/testing.instructions.md
+   .github/instructions/testing-kotlin.instructions.md
+   .github/instructions/security-owasp.instructions.md
+
+ MD Read .github/instructions/kotlin.instructions.md too large, not read
+
+ MD Read .github/instructions/testing.instructions.md 112 lines read
+
+ MD Read .github/instructions/testing-kotlin.instructions.md 185 lines read
+
+ MD Read .github/instructions/security-owasp.instructions.md 12 lines read
+
+ MD Read .github/instructions/kotlin.instructions.md 741 lines read
+
+Jeg implementerer avrundingen og lar satsvalg og validering stå som en `TODO` i `Feriepenger.kt`. Testene beskriver reglene dere skal implementere. Jeg kjører ikke Gradle.
+
+
+ ● Edit  Create src/main/kotlin/no/nav/demo/Avrunding.kt (+7)  Create src/main/kotlin/no/nav/demo/F…
+
+ $ Shell Kontroller lagrede filer og testavhengighet uten Gradle 27 lines…
+   sed -n '1,45p' build.gradle.kts && cat src/main/kotlin/no/nav/demo/Avrunding.kt
+   src/main/kotlin/no/nav/demo/Feriepenger.kt && find src/test/kotlin/no/nav/demo -type f -name
+   '*Test.kt' -print
+
+Implementert avrundingen i `Avrunding.kt` med `BigDecimal` og `HALF_UP`, som unngår flyttallsfeil. `Feriepenger.kt` har en `TODO` for satsvalg og validering. Enhetstester og testavhengighet er lagt til. Feriepengetestene vil feile til du fyller inn funksjonen. Gradle er ikke kjørt.
+
+🔴 Rød sone: avrunding og feriepengeregler, forstå dette grundig.
+
+**Sjekkliste for rød sone**
+- [ ] Kontroller `AvrundingTest`: under 50 øre rundes ned, 50 øre og over rundes opp.
+
+Kan du fortelle meg hva denne koden gjør og hvorfor denne tilnærmingen er riktig?
+

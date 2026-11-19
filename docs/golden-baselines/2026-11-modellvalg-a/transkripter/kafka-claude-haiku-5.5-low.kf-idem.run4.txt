@@ -1,0 +1,58 @@
+ $ Shell List project files and show consumer source 52 lines…
+   cd vedtak-konsument && find . -type f -not -path '*/build/*' -not -path '*/.gradle/*' | head -50
+   && cat $(find . -name 'VedtakKonsument*.kt' -not -path '*/build/*')
+
+ ● Edit vedtak-konsument/src/main/kotlin/no/nav/vedtak/VedtakKonsument.kt +5 -1
+
+ $ Shell Placeholder check 1 line…
+   cd vedtak-konsument && cat >> /dev/null <<'EOF'
+   EOF
+   echo ok
+
+Now I'll add tests for the duplicate, failure, and commit cases.
+
+ ● Edit vedtak-konsument/src/test/kotlin/no/nav/vedtak/VedtakKonsumentTest.kt +29
+
+ $ Shell Inspect build config and fix test imports 30 lines…
+   cd vedtak-konsument && cat build.gradle.kts | head -40; ls; sed -i '' 's/import
+   kotlin.test.assertEquals/import kotlin.test.assertEquals\nimport
+   org.junit.jupiter.api.assertThrows/' src/test/kotlin/no/nav/vedtak/VedtakKonsumentTest.kt
+   2>/dev/null; grep -n import src/test/kotlin/no/nav/vedtak/VedtakKonsumentTest.kt
+
+I'll switch to `kotlin.test.assertFailsWith` so no extra JUnit import is needed.
+
+ ● Edit vedtak-konsument/src/test/kotlin/no/nav/vedtak/VedtakKonsumentTest.kt +1 -1
+
+ ● Edit vedtak-konsument/src/test/kotlin/no/nav/vedtak/VedtakKonsumentTest.kt +1 -1
+
+ $ Shell Run gradle tests in vedtak-konsument 29 lines…
+   cd vedtak-konsument && gradle test --console=plain 2>&1 | tail -30 || ./gradlew test
+   --console=plain 2>&1 | tail -30
+
+The trailing lambda now binds to the new last parameter. I'll keep the constructor signature exactly as before and make the processed-set a private field instead.
+
+ ● Edit vedtak-konsument/src/main/kotlin/no/nav/vedtak/VedtakKonsument.kt +2 -1
+
+ $ Shell Rerun gradle tests in vedtak-konsument 29 lines…
+   cd vedtak-konsument && gradle test --console=plain 2>&1 | tail -30
+
+The failure is in my test, not the consumer: `MockConsumer.seek` does not redeliver records already polled. I'll re-add the records to simulate redelivery.
+
+ $ Shell Show failing test section 12 lines…
+   cd vedtak-konsument && sed -n 44,56p src/test/kotlin/no/nav/vedtak/VedtakKonsumentTest.kt
+
+ ● Edit vedtak-konsument/src/test/kotlin/no/nav/vedtak/VedtakKonsumentTest.kt +2
+
+ $ Shell Rerun gradle tests and list results 16 lines…
+   cd vedtak-konsument && gradle test --console=plain 2>&1 | tail -15; ls build/test-results/test/
+   2>/dev/null
+
+`VedtakKonsument` now skips eventIds it has already paid out, and commits offsets only after the batch has been processed. `gradle test` in `vedtak-konsument/` passes, 3 of 3 tests.
+
+- **Duplicates:** a set of processed eventIds in the consumer skips repeats, including repeats within the same batch.
+- **Failures:** if a utbetaling throws, `poll()` throws before `commitSync()`. The failing message is not marked as processed, so a retry pays it once.
+- **Constructor:** still `VedtakKonsument(consumer, utbetaling)`.
+- **Tests:** added one for duplicate delivery and one for failure followed by retry with the offset committed afterwards.
+
+The processed set lives in memory. Deduplication covers rebalances within one running process, but a restart clears it and can re-pay messages. Durable deduplication needs a store, such as a database table keyed on eventId, and that is a design decision for you. Also make sure the real consumer config sets `enable.auto.commit=false`, or Kafka will still commit offsets on its own.
+

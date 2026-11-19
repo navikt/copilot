@@ -1,0 +1,23 @@
+=== ./ytelse/rapport.go
+package ytelse
+
+import "fmt"
+
+// Rapport beskriver dagsatsen til en bruker.
+func Rapport(navn string, grunnlag int, grad ...int) string {
+	return fmt.Sprintf("%s får %d kr per dag", navn, Utbetaling(grunnlag, grad...))
+}
+
+=== ./ytelse/utbetaling.go
+package ytelse
+
+// Utbetaling gir graderte dagsatsen.
+func Utbetaling(grunnlag int, grad ...int) int {
+	ytelsesgrad := 100
+	if len(grad) > 0 {
+		ytelsesgrad = grad[0]
+	}
+
+	return grunnlag / 260 * ytelsesgrad / 100
+}
+

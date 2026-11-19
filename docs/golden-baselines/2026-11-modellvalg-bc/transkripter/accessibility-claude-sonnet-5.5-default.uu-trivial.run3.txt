@@ -1,0 +1,21 @@
+ / Search "Button|aria-label|title|slett" (src/app/komponenter/StatusPanel.tsx) 3 lines found
+
+ TX Read src/app/komponenter/StatusPanel.tsx 19 lines read
+
+Nei. Slett-knappen (linje 14–16) har ikke tilgjengelig navn. Den inneholder bare `<TrashIcon />` uten `title`, så skjermlesere leser den som «knapp» uten beskrivelse (WCAG 4.1.2 og 1.1.1).
+
+Fiks: bruk Aksel-`Button` med ikon og `title` på ikonet:
+
+```tsx
+import { Button } from "@navikt/ds-react";
+
+<Button variant="tertiary" onClick={onSlett} icon={<TrashIcon title="Slett" />} />
+```
+
+Andre UU-feil i samme fil:
+- Linje 8: `<div onClick>` uten rolle, `tabIndex` og tastaturstøtte, og `outline: none` fjerner fokusindikatoren. Bruk `<Button>` med `aria-expanded`.
+- Linje 11: `tabIndex={5}` er forbudt (> 0). Fjern det.
+- Linje 11: farge (rød/grønn) er eneste statusindikator. Legg til ikon eller tekst.
+
+Skal jeg rette dem?
+

@@ -1,0 +1,25 @@
+ ● skill(klarsprak)
+
+ ● skill(security-owasp)
+
+ ● Read src/main/kotlin/no/nav/demo/UserRepo.kt 15 lines read
+
+ ✗ Shell Kjør prosjektsjekk Failed with exit code 1  mise ERROR no tasks defined in /private/var/fo…
+   mise check
+   mise ERROR no tasks defined in 
+   /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.tJpC35/repo. Are you in
+    a project directory?
+   mise ERROR Version: 2026.11.10 macos-arm64 (2026-11-18)
+   mise ERROR Run with --verbose or MISE_VERBOSE=1 for more information
+   Failed with exit code 1
+
+**To sikkerhetsfeil i `UserRepo.kt` må rettes før merge.**
+
+| Linje | Prioritet | Funn og anbefaling |
+|---|---|---|
+| 8 | 🔴 Blokkerende | `logger.info` skriver hele fødselsnummeret til applikasjonsloggen ved hvert oppslag. Fjern `fnr` fra meldingen. Bruk en korrelasjons-ID hvis oppslaget må kunne spores. |
+| 9 | 🔴 Blokkerende | `fnr` settes direkte inn i SQL-strengen. Inndata kan dermed endre spørringen i stedet for å bli behandlet som en verdi. Bind parameteren med `queryOf("SELECT navn FROM bruker WHERE fnr = ?", fnr)`. |
+| 12–13 | 🟡 Bør rettes | Når databasen er utilgjengelig, returnerer `finnBruker` samme `null` som ved manglende treff. Fjern den brede `catch`-blokken slik at den som kaller funksjonen kan skille et mislykket oppslag fra en ukjent bruker. |
+
+`mise check` kunne ikke kjøre fordi prosjektet ikke definerer noen `mise`-oppgaver.
+

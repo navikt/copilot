@@ -1,0 +1,14 @@
+ ● skill(klarsprak)
+
+ MD Read fakta.md 6 lines read
+
+ MD Create notis.md +7
+
+Notisen ligger i `notis.md` og er på omtrent 55 ord. Den bygger bare på punktene i `fakta.md`.
+
+Sjekk to ting før publisering:
+- **Datoen har passert.** `fakta.md` oppgir mandag 5. oktober, og i dag er 19. november. Hvis sjekken allerede er i bruk, bør du skrive «er tilgjengelig» uten dato, eller sette inn en ny dato.
+- **Grunnlaget er et utkast.** `fakta.md` er merket «draft». Bekreft fakta med teamet før notisen går ut.
+
+Jeg oversatte «AI buzzwords» til «KI-moteord».
+

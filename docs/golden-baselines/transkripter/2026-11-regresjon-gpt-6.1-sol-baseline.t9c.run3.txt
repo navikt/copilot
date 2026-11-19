@@ -1,0 +1,24 @@
+ ● skill(klarsprak)
+
+ / Search "**/*" 25 files found
+
+ ● Read src/main/kotlin/no/nav/demo/Oppgave.kt 9 lines read
+
+ ● Read build.gradle.kts 12 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/Routes.kt 19 lines read
+
+ YM Read nais.yaml 12 lines read
+
+ ● skill(deliberate-ai-use)
+
+**Fase 1: Avklaring før kode (fullt løp).** 🔴 Rød sone: feriepengeberegningen er kjerneforretningslogikk som er ny for teamet. «Jeg ser over alt etterpå» gir ikke eksplisitt klarsignal til å implementere rød sone.
+
+Vil dere først forstå reglene og skrive beregningen selv med testskjelett fra meg, eller vil dere eksplisitt at jeg implementerer rød sone også?
+
+Jeg har lest tjenestekoden og `build.gradle.kts`. Testavhengigheter mangler. Ingen filer er endret, og jeg har ikke kjørt Gradle. Repoet mangler `AGENTS.md` og lokale Copilot-instruksjoner for utvikling og review; vurder `nav-pilot init`.
+
+Fasebudsjett: omtrent 500/800/500/1 000 tokens for intervju/plan/review/leveranse.
+
+Blindsoner reist: 1/11 (#11 stilt; #7 avklart fra bygget; øvrige ikke relevante for en isolert funksjon uten nye dataflyter, tilgangsendringer eller eksterne konsumenter).
+

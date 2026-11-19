@@ -1,0 +1,22 @@
+ / Search "**/utkast.md" 1 file found
+
+ MD Read utkast.md 11 lines read
+
+ ● Create utkast.md.new +9
+
+ ✗ Shell Replace utkast.md with new text, remove temp file, count words Tool 'bash' does not exist.
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.IHPT6d/repo && cat
+   utkast.md.new > utkast.md && rm utkast.md.new && wc -w utkast.md
+
+Ingen bash; jeg redigerer utkast.md direkte.
+
+ ● List directory . 8 files found
+
+ MD Edit utkast.md +4 -6
+
+`utkast.md` er språkvasket og kortet ned til ca. 80 ord. Alle fakta er med. Jeg fjernet markedsspråket («banebrytende», «sømløs», «avgjørende»), nynorsk-ordene, den innledende KI-frasen og den avsluttende oppsummeringen. «AI» er byttet til «KI».
+
+Jeg har ikke talt ordene med et verktøy, bare for hånd. Jeg har heller ikke sammenlignet med `fakta.md`.
+
+Jeg laget ved en feil en midlertidig fil, `utkast.md.new`, og har ikke verktøy for å slette den. Du kan fjerne den.
+

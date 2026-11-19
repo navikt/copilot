@@ -1,0 +1,15 @@
+ ● skill(klarsprak)
+
+ ● skill(kafka)
+
+ $ Shell ls -a; rg --files --hidden -g '!.git' | head -40 36 lines…
+   ls -a; rg --files --hidden -g '!.git' | head -40
+
+ / Search "fnr|header|topic" (lib, nais.yaml, README.md) 10 lines found
+
+Jeg la ikke til headeren. Fødselsnummer ligger allerede i payloaden på `paw.arbeidssokerperioder`, men en egen header gjør det også tilgjengelig for verktøy som leser eller logger metadata uten å lese payloaden.
+
+Hvilket sporingsbehov krever fødselsnummer fremfor en hendelses-ID eller en korrelasjons-ID som ikke er avledet fra fødselsnummer, og hvilke systemer skal kunne lese headeren?
+
+Blindsoner reist: 1/11 (#1 personvern). Endringen forutsetter ingen nye mottakere, tilgangsregler eller endringer i signeringen.
+

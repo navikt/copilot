@@ -1,0 +1,30 @@
+# golden-prompt EXACT MODEL USAGE
+# agent:        research
+# suite:        research
+# date:         2026-11-18
+# revision:     ac35a630
+# personaHash:  bfd27dcb2ee26f091fbc71c847ebdf211ee307dc6c41d565ea73a5ae8667ba32
+# harnessHash:  31303b66a044df68da77f1ba539f6a0a98cf0aabc6733992e11c37f4979c6eb4
+# model:        claude-opus-5.5
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.114-0.
+# effort:       CLI default
+# context:      CLI default
+# instructions: 17 installed, 4 always-on
+# repeat:       1
+# fixture:      4263008951
+# prompts:      all
+# source:       assistant_usage_events
+#
+# slug|run|session_id|event_id|turn_index|model|reasoning_effort|input_tokens|output_tokens|cache_read_tokens|cache_write_tokens|reasoning_tokens|total_nano_aiu|duration_ms|time_to_first_token_ms|finish_reason|agent_id|parent_tool_call_id
+re-bruk|1|d129287b-f04f-4221-9c79-3992637c24e2|24554|0|claude-opus-5.5|medium|29455|98|0|29451|0|14923100000|1629|1179.9987919999999|tool_calls||
+re-bruk|1|d129287b-f04f-4221-9c79-3992637c24e2|24555|0|claude-opus-5.5|medium|29705|307|29451|252|60|1329820000|3813|2399.0401659999998|stop||
+re-ingen|1|ebd3efd8-132a-4664-a727-3972b30fe445|24556|0|claude-opus-5.5|medium|29450|99|12646|16800|0|8852520000|2220|1680.137916|tool_calls||
+re-ingen|1|ebd3efd8-132a-4664-a727-3972b30fe445|24557|0|claude-opus-5.5|medium|29559|272|29446|111|33|1189220000|3639|2560.288583|tool_calls||
+re-ingen|1|ebd3efd8-132a-4664-a727-3972b30fe445|24558|0|claude-opus-5.5|medium|29913|52|29557|354|0|872940000|1815|1568.766875|tool_calls||
+re-ingen|1|ebd3efd8-132a-4664-a727-3972b30fe445|24559|0|claude-opus-5.5|medium|30068|150|29911|155|0|976520000|2419|1425.973208|tool_calls||
+re-ingen|1|ebd3efd8-132a-4664-a727-3972b30fe445|24560|0|claude-opus-5.5|medium|30683|285|30066|615|0|1479620000|4272|4130.349126|stop||
+re-sammendrag|1|5b701bf7-62d9-4ea6-ba30-72b25da386ae|24561|0|claude-opus-5.5|medium|29449|104|12646|16799|0|8862020000|2813|2143.1257499999997|tool_calls||
+re-sammendrag|1|5b701bf7-62d9-4ea6-ba30-72b25da386ae|24562|0|claude-opus-5.5|medium|29582|346|29445|135|0|1349200000|3812|1554.7716670000002|tool_calls||
+re-sammendrag|1|5b701bf7-62d9-4ea6-ba30-72b25da386ae|24563|0|claude-opus-5.5|medium|31990|502|29580|2406|0|2800200000|4837|1429.531541|tool_calls||
+re-sammendrag|1|5b701bf7-62d9-4ea6-ba30-72b25da386ae|24564|0|claude-opus-5.5|medium|42727|316|31986|10737|76|6641820000|4317|2768.1809169999997|stop||

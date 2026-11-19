@@ -1,0 +1,25 @@
+ ● skill(klarsprak)
+
+ / Search "**/*" 25 files found
+
+ MD Read .github/instructions/kotlin.instructions.md too large, not read
+
+ MD Read .github/instructions/testing-kotlin.instructions.md 185 lines read
+
+ MD Read .github/instructions/testing.instructions.md 112 lines read
+
+ MD Read .github/instructions/security-owasp.instructions.md 12 lines read
+
+ ● Read build.gradle.kts 12 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/Oppgave.kt 9 lines read
+
+Dette er rød sone: ny forretningslogikk på et område teamet ikke kjenner. Jeg legger inn funksjonsstub og tester som beskriver reglene, men lar beregningen stå som `TODO`. Gradle kjøres ikke.
+
+
+ ● Edit  Create src/main/kotlin/no/nav/demo/Feriepenger.kt (+5)  Edit build.gradle.kts (+1)  Create…
+
+Lagt til `Feriepenger.kt` med `TODO` og enhetstester for satser, aldersgrensen, avrunding, null og negativt grunnlag. Gradle er ikke kjørt.
+
+🔴 Rød sone: Beregningen er ikke implementert. Siden teamet er nytt på reglene, står forretningslogikken igjen til dere; testene beskriver forventet oppførsel og vil feile til funksjonen er implementert.
+

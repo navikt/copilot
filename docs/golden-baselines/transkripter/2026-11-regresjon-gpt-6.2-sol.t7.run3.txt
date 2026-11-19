@@ -1,0 +1,88 @@
+ ● skill(jackson-3-migration)
+
+ ● skill(klarsprak)
+
+ $ Shell git status --short -b; git --no-pager log -7 --oneline; git branch -a; ls -a; ja… 18 lines…
+   git status --short -b; git --no-pager log -7 --oneline; git branch -a; ls -a; java -version; rg
+   -n 'jackson|jvmToolchain' -g '*.kts' -g '*.toml'
+
+ $ Shell git --no-pager diff main...HEAD; rg --files src .github; command -v gradle; ls -… 81 lines…
+   git --no-pager diff main...HEAD; rg --files src .github; command -v gradle; ls -a ~/.gradle
+   2>/dev/null
+
+ ✗ Shell  Permission denied because no interactive user response was available. Retry in an interact
+   nl -ba build.gradle.kts; grep -nH '^' src/main/kotlin/no/nav/demo/*.kt; /usr/libexec/java_home -V
+   Approval check
+     └ ✗ Denied, no one to approve shell path (/usr/libexec/java_home)
+   Permission denied because no interactive user response was available. Retry in an interactive 
+   session so the user can approve it, or try an alternative that does not require this permission.
+
+ $ Shell git ls-files '*test*' '*gradlew*' '*copilot*' AGENTS.md; git --no-pager log --one… 4 lines…
+   git ls-files '*test*' '*gradlew*' '*copilot*' AGENTS.md; git --no-pager log --oneline main..HEAD
+
+ / Search "." (src, build.gradle.kts) 74 lines found
+
+ ✗ Shell gradle --console=plain build dependencies --configuration compile… Failed with exit code 1…
+   gradle --console=plain build dependencies --configuration compileClasspath
+   Starting a Gradle Daemon (subsequent builds will be faster)
+   
+   FAILURE: Build failed with an exception.
+   
+   * What went wrong:
+   A problem occurred configuring root project 'repo'.
+   > 27.0.1.0.2
+   
+   * Try:
+   > Run with --stacktrace option to get the stack trace.
+   > Run with --info or --debug option to get more log output.
+   > Run with --scan to get full insights.
+   > Get more help at https://help.gradle.org.
+   
+   BUILD FAILED in 2s
+   Failed with exit code 1
+
+ $ Shell ls ~/.local/share/mise/installs/java; git status --short 5 lines…
+   ls ~/.local/share/mise/installs/java; git status --short
+
+ $ Shell ls ~/.local/share/mise/installs/java/21; JAVA_HOME="$HOME/.local/share/mise/ins… 225 lines…
+   ls ~/.local/share/mise/installs/java/21; JAVA_HOME="$HOME/.local/share/mise/installs/java/21"
+   gradle --console=plain build dependencies --configuration compileClasspath
+
+ ✗ Shell  Permission denied because no interactive user response was available. Retry in an interact
+   CP="build/classes/kotlin/main:$(find ~/.gradle/caches/modules-2/files-2.1 \( -path
+   '*/3.1.0/*/*.jar' -o -path '*/jackson-annotations/2.21/*/*.jar' -o -path
+   '*/kotlin-stdlib/2.1.21/*/*.jar' -o -path '*/kotlin-reflect/2.1.21/*/*.jar' \) | paste -sd : -)";
+   "$HOME/.local/share/mise/installs/java/21/bin/jshell" --class-path "$CP" <<'EOF'
+   import no.nav.demo.*;
+   import java.time.*;
+   var m = SoknadKt.getMapper();
+   System.out.println(m.writeValueAsString(new
+   SoknadMottattMelding("demo",LocalDate.of(2026,1,2))));
+   System.out.println(m.isEnabled(tools.jackson.databind.DeserializationFeature.FAIL_ON_UNKNOWN_PROP
+   ERTIES));
+   System.out.println(m.isEnabled(tools.jackson.databind.DeserializationFeature.FAIL_ON_TRAILING_TOK
+   ENS));
+   /exit
+   EOF
+   find build/classes/kotlin/main -name '*.class' -exec javap -p -c {} + | grep -E
+   'databind/.*Node.map:'; git status --short
+   Approval check
+     └ ✗ Denied, no one to approve shell path
+       (/Users/hans/.local/share/mise/installs/java/21/bin/jshell)
+   Permission denied because no interactive user response was available. Retry in an interactive 
+   session so the user can approve it, or try an alternative that does not require this permission.
+
+ $ Shell git status --short; ls -d .gradle build 4 lines…
+   git status --short; ls -d .gradle build
+
+ $ Shell find build/classes/kotlin/main -name '*.class' -exec javap -p -c {} + | grep -E… No Content
+   find build/classes/kotlin/main -name '*.class' -exec javap -p -c {} + | grep -E
+   'databind/.*Node.map:'; rm -r -- .gradle build; git status --short
+
+**Jackson 3.1.0-migreringen bygger på Java 21, men jeg ville ventet med merge til Kafka-kompatibiliteten er verifisert.** Bygget fant ingen tester, og en lokal kjøring av serialiseringen ble blokkert. Ingen filer ble endret.
+
+- **Kafka-payload:** `JsonMapper.builder()` sorterer feltene alfabetisk som standard. I [`sendMottatt`](src/main/kotlin/no/nav/demo/Soknad.kt:20) betyr det at `mottatt` kommer før `soknadId`. Feltnavnene er uendret, og `LocalDate` skal fortsatt skrives som en ISO-dato. Rekkefølgen er normalt uten betydning for JSON-konsumenter, men kan påvirke konsumenter som sammenligner rå JSON.
+- **Innlesing:** [`lesSoker`](src/main/kotlin/no/nav/demo/Soknad.kt:18) får nye standardinnstillinger: Ukjente felt ignoreres, mens ekstra JSON etter det første objektet avvises. Legg til kontrakttester som fastslår om denne oppførselen er ønsket.
+
+Compile classpath inneholder ikke Jackson 2 `core` eller `databind`. `jackson-annotations` 2.21 er forventet, og bytekodesjekken fant ingen `JsonNode.map`-kall. Ktor bruker fortsatt `kotlinx.serialization` for HTTP og trenger ingen oppgradering for denne migreringen.
+

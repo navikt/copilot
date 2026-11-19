@@ -1,0 +1,41 @@
+ ● skill(aksel-builder)
+
+ ● skill(klarsprak)
+
+ TX Read src/app/komponenter/StatusPanel.tsx 19 lines read
+
+ ✗ Shell Sjekk prosjektoppsett og kjør mise check Failed with exit code 1  . .. .github build.gradl…
+   ls -a; mise check
+   .
+   ..
+   .github
+   build.gradle.kts
+   nais.yaml
+   README.md
+   src
+   mise ERROR no tasks defined in 
+   /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.tJpC35/repo. Are you in
+    a project directory?
+   mise ERROR Version: 2026.11.10 macos-arm64 (2026-11-18)
+   mise ERROR Run with --verbose or MISE_VERBOSE=1 for more information
+   Failed with exit code 1
+
+ MD Read ~/.copilot/skills/aksel-builder/references/accessibility.md 84 lines read
+
+ $ Shell Bekreft linjenumre og appstruktur 20 lines…
+   nl -ba src/app/komponenter/StatusPanel.tsx; ls src/app
+
+ ● Fetching web content https://aksel.nav.no/llm.md · url:… Contents of https://aksel.nav.no/llm.md:
+
+**«Vis detaljer» viser ingenting, og sletteknappen mangler et tilgjengelig navn.** Begge bør rettes før merge.
+
+| Linje | Prioritet | Funn og anbefaling |
+|---|---|---|
+| 5, 8 | 🔴 | Klikk endrer `apen`, men ingen detaljer vises eller skjules. La tilstanden styre detaljinnholdet, eller fjern kontrollen hvis det ikke finnes detaljer. |
+| 8 | 🔴 | Tastaturbrukere kan verken nå eller aktivere den klikkbare `div`-en. Bruk en knapp med synlig fokusmarkering i stedet for `outline: "none"`, og la `aria-expanded` følge `apen`. |
+| 14–15 | 🔴 | En skjermleser får ingen tekst som forklarer hva knappen sletter. Gi knappen synlig tekst eller et tilgjengelig navn som beskriver handlingen. |
+| 11 | 🟡 | `tabIndex={5}` flytter statisk statustekst foran vanlige knapper og lenker i tabulatorrekkefølgen. Fjern `tabIndex`; skjermlesere kan fortsatt lese teksten. |
+| 11 | 🟡 | På hvit bakgrunn gir `red` en kontrast på 4:1, under kravet på 4,5:1 for vanlig tekst. Bruk semantiske tekstfarger for status, og behold statusteksten. |
+
+`mise check` kunne ikke kjøre fordi prosjektet ikke definerer noen mise-oppgaver.
+

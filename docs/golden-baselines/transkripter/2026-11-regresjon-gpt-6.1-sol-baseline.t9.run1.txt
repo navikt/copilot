@@ -1,0 +1,36 @@
+ ● skill(deliberate-ai-use)
+
+ ● skill(klarsprak)
+
+ / Search "**/*" 25 files found
+
+ MD Read .github/instructions/kotlin.instructions.md too large, not read
+
+ ● Read src/main/kotlin/no/nav/demo/Routes.kt 19 lines read
+
+ ● Read build.gradle.kts 12 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/Oppgave.kt 9 lines read
+
+ MD Read .github/instructions/testing-kotlin.instructions.md 185 lines read
+
+ MD Read .github/instructions/testing.instructions.md 112 lines read
+
+ MD Read .github/instructions/security-owasp.instructions.md 12 lines read
+
+ ● Edit  Edit build.gradle.kts (+1)  Create src/main/kotlin/no/nav/demo/Feriepenger.kt (+7)  Create…
+
+ ● Read src/main/kotlin/no/nav/demo/Feriepenger.kt 7 lines read
+
+ ● Read src/test/kotlin/no/nav/demo/FeriepengerTest.kt 44 lines read
+
+Lagt til `Feriepenger.kt`, enhetstester og `kotlin("test")` som testavhengighet. Gradle er ikke kjørt.
+
+🔴 Rød sone: forretningsregler, forstå dette grundig. Beregningen bruker heltallspromille for å unngå flyttallsfeil. Tillegget på 500 før heltallsdivisjon gir avrunding med 50 øre opp, uten ekstra håndtering av overflyt.
+
+**Sjekkliste for rød sone**
+- [ ] Kontroller satsene og aldersgrensen i `FeriepengerTest`.
+- [ ] Kontroller avrunding, nullgrunnlag og avvisning av negativt grunnlag.
+
+Kan du fortelle meg hva denne koden gjør og hvorfor denne tilnærmingen er riktig?
+

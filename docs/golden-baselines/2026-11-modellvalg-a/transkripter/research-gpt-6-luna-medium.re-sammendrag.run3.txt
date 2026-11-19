@@ -1,0 +1,22 @@
+ ● skill(klarsprak)
+
+ ● List directory . 5 files found
+
+ / Search "**/{README*,package.json,go.mod,pom.xml,build.gradle*,*.kt,*.go,*.ts,*.tsx… 6 files found
+
+ MD Read README.md 4 lines read
+
+ YM Read nais.yaml 12 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/Config.kt 4 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/Oppgave.kt 9 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/App.kt 15 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/Routes.kt 19 lines read
+
+- En liten Ktor-demotjeneste som kjører på Nais.
+- Eksponerer `GET /api/oppgaver`, som returnerer oppgaver i JSON.
+- Oppgavene er faste, og tjenesten viser opptil 100 per svar. Det finnes to oppgaver i koden nå.
+

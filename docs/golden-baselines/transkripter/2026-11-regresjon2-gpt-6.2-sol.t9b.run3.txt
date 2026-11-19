@@ -1,0 +1,68 @@
+ ● skill(klarsprak)
+
+ ✗ Shell ls -a; find . -type f | head -40; command -v kotlinc Failed with exit code 1  . .. .github…
+   ls -a; find . -type f | head -40; command -v kotlinc
+   .
+   ..
+   .github
+   build.gradle.kts
+   nais.yaml
+   README.md
+   src
+   ./README.md
+   ./build.gradle.kts
+   ./nais.yaml
+   ./.github/instructions/deliberate-ai-use.instructions.md
+   ./.github/instructions/performance.instructions.md
+   ./.github/instructions/docker.instructions.md
+   ./.github/instructions/accessibility.instructions.md
+   ./.github/instructions/cplt-sandbox.instructions.md
+   ./.github/instructions/output-style.instructions.md
+   ./.github/instructions/database.instructions.md
+   ./.github/instructions/nextjs-aksel.instructions.md
+   ./.github/instructions/github-actions.instructions.md
+   ./.github/instructions/golang.instructions.md
+   ./.github/instructions/testing-typescript.instructions.md
+   ./.github/instructions/security-core.instructions.md
+   ./.github/instructions/kotlin.instructions.md
+   ./.github/instructions/security-owasp.instructions.md
+   ./.github/instructions/testing-kotlin.instructions.md
+   ./.github/instructions/testing.instructions.md
+   ./.github/instructions/norwegian-text.instructions.md
+   ./.github/agents/golden-nav-pilot.agent.md
+   ./src/main/kotlin/no/nav/demo/App.kt
+   ./src/main/kotlin/no/nav/demo/Oppgave.kt
+   ./src/main/kotlin/no/nav/demo/Routes.kt
+   ./src/main/kotlin/no/nav/demo/Config.kt
+   Failed with exit code 1
+
+ MD Read .github/instructions/kotlin.instructions.md too large, not read
+
+ MD Read .github/instructions/security-owasp.instructions.md 12 lines read
+
+ $ Shell cat build.gradle.kts src/main/kotlin/no/nav/demo/Oppgave.kt; ls -a .github 25 lines…
+   cat build.gradle.kts src/main/kotlin/no/nav/demo/Oppgave.kt; ls -a .github
+
+ / Search "test|require\(|^##" (.github/instructions/kotlin.instructions.md) 53 lines found
+
+ $ Shell cat .github/instructions/testing-kotlin.instructions.md .github/instructions/te… 144 lines…
+   cat .github/instructions/testing-kotlin.instructions.md
+   .github/instructions/testing.instructions.md | head -145
+
+ ● Edit  Edit build.gradle.kts (+6)  Create src/main/kotlin/no/nav/demo/Feriepenger.kt (+8)  Create…
+
+ $ Shell Sjekk avrundingsverdier uten Gradle No Content
+   awk 'BEGIN { if (int((249*102+500)/1000)!=25 || int((250*102+500)/1000)!=26 ||
+   int((251*102+500)/1000)!=26 || int((4*125+500)/1000)!=1) exit 1 }' && test -s
+   src/test/kotlin/no/nav/demo/FeriepengerTest.kt
+
+La til `feriepenger` i `Feriepenger.kt` med enhetstester for aldersgrensen, avrundingen, null og negativt grunnlag. Gradle ble ikke kjørt.
+
+🔴 Rød sone: Selve beregningen bruker heltall og satser i promille for å unngå flyttallsfeil ved 50 øre.
+
+**Sjekkliste for rød sone**
+
+- [ ] Se i `FeriepengerTest.kt` at satsen er 10,2 % ved 59 år og 12,5 % ved 60 og 61 år, at beløp under 50 øre rundes ned og nøyaktig 50 øre rundes opp, og at negativt grunnlag gir `IllegalArgumentException`.
+
+Kan du fortelle meg hva denne koden gjør og hvorfor denne tilnærmingen er riktig?
+

@@ -333,10 +333,11 @@ func TestRateLimitLogSampler_BoundedEvictsOldest(t *testing.T) {
 		}
 	}
 
-	// Default-cap sampler stays bounded under a large flood of unique IPs.
+	// Default-cap sampler stays bounded under a large flood of unique IPs
+	// spaced across windows so the global per-window cap does not trigger.
 	bounded := newRateLimitLogSampler(defaultRateLimitLogWindow, defaultRateLimitLogCap, func() time.Time { return now })
 	for i := 0; i < defaultRateLimitLogCap+200; i++ {
-		now = now.Add(time.Millisecond)
+		now = now.Add(time.Second)
 		ip := fmt.Sprintf("203.0.%d.%d", i/256, i%256)
 		if !bounded.Allow(ip) {
 			t.Fatalf("unique IP %s first Allow = false, want true", ip)
@@ -406,5 +407,29 @@ func TestRateLimit_Register429JSONAndLogPerEndpoint(t *testing.T) {
 	logs := logBuf.String()
 	if !strings.Contains(logs, `"endpoint":"token"`) || !strings.Contains(logs, `"endpoint":"register"`) {
 		t.Fatalf("expected rate limited logs for both token and register for same IP, got %s", logs)
+	}
+}
+
+func TestRateLimitLogSampler_GlobalCap(t *testing.T) {
+	now := time.Date(2026, 11, 19, 8, 0, 0, 0, time.UTC)
+	s := newRateLimitLogSampler(time.Minute, defaultRateLimitLogCap, func() time.Time { return now })
+
+	allowed := 0
+	for i := 0; i < 10000; i++ {
+		ip := fmt.Sprintf("198.51.%d.%d", i/256, i%256)
+		if s.Allow(ip) {
+			allowed++
+		}
+	}
+	if allowed != defaultRateLimitLogGlobalCap {
+		t.Fatalf("allowed in one window = %d, want %d", allowed, defaultRateLimitLogGlobalCap)
+	}
+	if len(s.lastSeen) != defaultRateLimitLogGlobalCap {
+		t.Fatalf("lastSeen len = %d, want %d", len(s.lastSeen), defaultRateLimitLogGlobalCap)
+	}
+
+	now = now.Add(time.Minute)
+	if !s.Allow("203.0.113.1") {
+		t.Fatal("fresh IP after advancing clock by one window = false, want true")
 	}
 }

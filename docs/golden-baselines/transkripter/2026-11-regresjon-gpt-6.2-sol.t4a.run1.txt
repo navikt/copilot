@@ -1,0 +1,25 @@
+ ● skill(nav-auth)
+
+ ● skill(klarsprak)
+
+ $ Shell Sjekk prosjektfiler og oppsett 9 lines…
+   ls -a; ls .github
+
+ / Search "src/**/*" 4 files found
+
+ / Search "idporten|accessPolicy|pid|fødselsnummer|fnr|ktor|spring" 68 lines found
+
+ $ Shell Les dagens tilgang og endepunkter 35 lines…
+   cat nais.yaml README.md src/main/kotlin/no/nav/demo/Routes.kt
+
+**Fase 1: Avklar formål og tilgang før vi skriver kode.** Jeg antar at vi tar utgangspunkt i Ktor-demoen på Nais. `nais.yaml` har verken ID-porten eller tilgangsregler, og `/api/oppgaver` bruker ikke fødselsnummer i dag. Ingen filer er endret.
+
+1. Hva skal tjenesten bruke fødselsnummeret til, og hvorfor trenger den fødselsnummer fremfor en annen brukeridentifikator? Skal nummeret bare brukes i forespørselen, eller skal det lagres eller sendes videre? I så fall hvor, til hvem og hvor lenge?
+2. Hvem skal kunne kalle tjenesten: innbyggere direkte fra nettleseren, en annen Nav-tjeneste på vegne av innbyggeren, eller begge? Hvilket innloggingsnivå krever brukeroppgaven?
+3. Hva skal brukeren oppleve hvis innloggingen feiler eller fødselsnummeret mangler? Hvilket måltall vil vise at brukeroppgaven lykkes, uten å logge personopplysninger?
+4. Eier teamet hele flyten, eller finnes det andre team eller konsumenter vi må ta hensyn til? Har dere et testmiljø for ID-porten, og er tokenvalidering nytt for teamet?
+
+`AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md` mangler. `nav-pilot init` kan opprette lokal Copilot-konfigurasjon.
+
+Blindsoner reist: 8/11 (#1–#7 og #11). #8–#10 er ikke aktuelle så lenge tjenesten ikke erstatter en eksisterende løsning eller endrer dagens API-kontrakt.
+

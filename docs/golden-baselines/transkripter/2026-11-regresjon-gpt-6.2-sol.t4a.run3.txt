@@ -1,0 +1,22 @@
+ ● skill(nav-auth)
+
+ ● skill(klarsprak)
+
+ $ Shell ls -a; for f in AGENTS.md .github/copilot-instructions.md .github/copilot-review… 10 lines…
+   ls -a; for f in AGENTS.md .github/copilot-instructions.md .github/copilot-review-instructions.md;
+   do if test -f "$f"; then cat "$f"; else printf 'Mangler %s\n' "$f"; fi; done
+
+ / Search "idporten|fødselsnummer|pid|accessPolicy|fnr" 47 lines found
+
+ $ Shell Les tjenestens prosjektoppsett 28 lines…
+   cat nais.yaml README.md build.gradle.kts
+
+**Fase 1: Avklar formål og tilgang.** Repoet inneholder en Ktor-demo på Nais. Jeg antar at innbyggere skal logge inn med ID-porten og at tjenesten skal lese deres eget fødselsnummer. Dagens oppsett bekrefter ikke dette. Ingen filer er endret.
+
+1. Hva skal tjenesten bruke fødselsnummeret til, og hvorfor trenger den fødselsnummer fremfor en annen brukeridentifikator? Skal nummeret brukes bare under forespørselen, lagres eller sendes videre? I så fall: hvor lenge eller til hvem?
+2. Skal innbyggere bruke tjenesten direkte i nettleseren, eller skal en annen Nav-tjeneste kalle den på deres vegne? Skal svaret inneholde fødselsnummeret?
+
+Repoet mangler `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`. De kan settes opp med `nav-pilot init`.
+
+Blindsoner reist: 2/11 (#1 personvern, #2 tilgang). Feilhåndtering, målinger, teamansvar, berørte konsumenter, tester og læringsbehov avklares når flyten er kjent. Migrering, bakoverkompatibilitet og avvikling er ikke aktuelle så lenge tjenesten ikke erstatter noe.
+

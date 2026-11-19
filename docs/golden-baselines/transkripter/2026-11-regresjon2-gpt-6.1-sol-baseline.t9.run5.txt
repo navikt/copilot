@@ -1,0 +1,27 @@
+ ● skill(klarsprak)
+
+ / Search "**/*" 25 files found
+
+ MD Read .github/instructions/kotlin.instructions.md too large, not read
+
+ MD Read .github/instructions/testing-kotlin.instructions.md 185 lines read
+
+ MD Read .github/instructions/testing.instructions.md 112 lines read
+
+ MD Read .github/instructions/security-owasp.instructions.md 12 lines read
+
+ ● Read build.gradle.kts 12 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/Oppgave.kt 9 lines read
+
+Dette er rød sone: nye fagregler og kjerneberegning. Jeg legger til funksjonsstub og tester som beskriver kravene, men lar beregningen stå som `TODO`. Gradle kjøres ikke.
+
+
+ ● Edit  Edit build.gradle.kts (+1)  Create src/main/kotlin/no/nav/demo/Feriepenger.kt (+5)  Create…
+
+Lagt til `Feriepenger.kt` med funksjonsstub, enhetstester og `kotlin("test")` som testavhengighet. Testene dekker aldersgrensen, begge satser, avrunding, null og negativt grunnlag.
+
+🔴 Rød sone: nye fagregler og kjernelogikk. **Beregningen er ikke implementert**: funksjonen har `TODO`, så testene vil feile til teamet har skrevet den. Dette lar dere implementere de ukjente reglene selv, med testene som kravbeskrivelse. Gradle er ikke kjørt.
+
+Still gjerne spørsmål om valgene over
+

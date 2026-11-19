@@ -1,0 +1,26 @@
+ ● skill(nav-auth)
+
+ ● skill(klarsprak)
+
+ $ Shell ls -a; for f in AGENTS.md .github/copilot-instructions.md .github/copilot-review-… 7 lines…
+   ls -a; for f in AGENTS.md .github/copilot-instructions.md .github/copilot-review-instructions.md;
+   do if test -f "$f"; then printf '%s\n' "$f"; fi; done
+
+ $ Shell cat nais.yaml build.gradle.kts; find src -type f 28 lines…
+   cat nais.yaml build.gradle.kts; find src -type f
+
+ $ Shell cat src/main/kotlin/no/nav/demo/{Routes,App}.kt README.md; ls -a .github 42 lines…
+   cat src/main/kotlin/no/nav/demo/{Routes,App}.kt README.md; ls -a .github
+
+**Fase 1: Avgrens tjenesten.** Ktor-demoen har et oppgave-API, men ingen ID-porten-konfigurasjon eller tilgangsregler i `nais.yaml`. Jeg legger til grunn at dette er en ny tjeneste for innbyggere, ikke en endring av oppgave-API-et. Ingen filer er endret.
+
+1. **Personvern (#1):** Hva skal tjenesten bruke fødselsnummeret til? Skal den bare bruke det under forespørselen, eller må den lagre, returnere eller sende det videre? Til hvem i så fall?
+2. **Tilgang (#2):** Skal innbyggere bruke tjenesten direkte i nettleseren, eller skal en annen tjeneste kalle den på vegne av innbyggeren? Hvilket innloggingsnivå krever handlingen?
+3. **Avhengigheter og drift (#3, #4):** Hva skal innbyggeren kunne gjøre etter innlogging, og hvordan vet teamet at handlingen lykkes uten å logge fødselsnummer eller token? Hva skal innbyggeren se hvis innloggingen feiler?
+4. **Eierskap og test (#5–#7):** Hvilket team skal eie tjenesten, finnes det kjente mottakere, og finnes det et ID-porten-testoppsett dere kan gjenbruke?
+5. **Kompetanse (#11):** Er tokenvalidering med ID-porten kjent for teamet, eller bør den delen gjennomgås sammen med utvikleren?
+
+De tre repo-lokale Copilot-konfigurasjonsfilene mangler. De kan opprettes med `nav-pilot init`.
+
+Blindsoner reist: 8/11 (#1–#7 og #11). #8–#10 gjelder ikke så lenge tjenesten ikke erstatter en eksisterende løsning eller kontrakt.
+

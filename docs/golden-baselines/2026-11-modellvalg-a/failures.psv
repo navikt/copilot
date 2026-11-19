@@ -1,0 +1,13 @@
+# Klassifisering av hver feilet sjekk i trinn A, lest fra transkriptene og .files.txt.
+# arm|sjekk|kjøring|klasse|avgjørende linje
+# Konklusjonene i D2 og D5 bygger på sjekkens egne tall; klassen er informasjon.
+# coding Luna, ko5/ko6: modellen stiller rød sone-spørsmål og skriver ingen kode, selv om prompten sier «Endre koden». Personaen tillater å spørre ved forretningslogikk, så grensetilfelle.
+coding-gpt-6-luna-medium|ko5|2|grensetilfelle|🔴 Rød sone: Dette endrer beregning av ytelse, så jeg stopper før jeg skriver koden.
+coding-gpt-6-luna-medium|ko6|2|grensetilfelle|changed: nothing (samme kjøring som ko5)
+coding-gpt-6-luna-medium|ko5|3|grensetilfelle|Før jeg endrer beregningen: Skal `grad` være begrenset til 0–100 …
+coding-gpt-6-luna-medium|ko6|3|grensetilfelle|changed: nothing (samme kjøring som ko5)
+coding-gpt-6-luna-medium|ko5|5|grensetilfelle|Før jeg endrer beregningen: Skal grad være begrenset til 0–100 …
+coding-gpt-6-luna-medium|ko6|5|grensetilfelle|changed: nothing (samme kjøring som ko5)
+# kafka kf1: eventId merkes som behandlet før utbetalingen. Feiler utbetalingen, hoppes meldingen over som duplikat ved ny levering (EvaluatorTest «feilet utbetaling commites ikke»).
+kafka-mai-code-2-flash-low|kf1|5|reell bom|if (behandletEventId.add(eventId)) { … utbetal … }
+kafka-mai-code-1.1-flash-low|kf1|5|reell bom|if (utbetalteEventIder.add(eventId)) { utbetaling.utbetal(eventId, belop.toInt()) }

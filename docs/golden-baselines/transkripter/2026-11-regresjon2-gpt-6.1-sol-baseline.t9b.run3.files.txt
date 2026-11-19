@@ -1,0 +1,71 @@
+=== ./build.gradle.kts
+plugins {
+    kotlin("jvm") version "2.1.0"
+    kotlin("plugin.serialization") version "2.1.0"
+}
+repositories {
+    mavenCentral()
+}
+dependencies {
+    implementation("io.ktor:ktor-server-netty:3.0.0")
+    implementation("io.ktor:ktor-server-content-negotiation:3.0.0")
+    implementation("io.ktor:ktor-serialization-kotlinx-json:3.0.0")
+    testImplementation(kotlin("test"))
+}
+
+=== ./src/main/kotlin/no/nav/demo/Feriepenger.kt
+package no.nav.demo
+
+fun feriepenger(grunnlag: Long, alderIOpptjeningsåret: Int): Long {
+    require(grunnlag >= 0) { "Grunnlag kan ikke være negativt" }
+
+    val promille = if (alderIOpptjeningsåret >= 60) 125L else 102L
+    return (grunnlag * promille + 500) / 1000
+}
+
+=== ./src/test/kotlin/no/nav/demo/FeriepengerTest.kt
+package no.nav.demo
+
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+
+class FeriepengerTest {
+    @Test
+    fun `bruker 10,2 prosent til og med 59 aar`() {
+        assertEquals(10_200L, feriepenger(100_000L, 59))
+    }
+
+    @Test
+    fun `bruker 12,5 prosent fra og med 60 aar`() {
+        assertEquals(12_500L, feriepenger(100_000L, 60))
+        assertEquals(12_500L, feriepenger(100_000L, 61))
+    }
+
+    @Test
+    fun `avrunder til naermeste krone med 50 oere opp ved lav sats`() {
+        assertEquals(25L, feriepenger(249L, 59))
+        assertEquals(26L, feriepenger(250L, 59))
+        assertEquals(26L, feriepenger(251L, 59))
+    }
+
+    @Test
+    fun `avrunder til naermeste krone med 50 oere opp ved hoey sats`() {
+        assertEquals(0L, feriepenger(3L, 60))
+        assertEquals(1L, feriepenger(4L, 60))
+        assertEquals(1L, feriepenger(5L, 60))
+    }
+
+    @Test
+    fun `null i grunnlag gir null ved begge satser`() {
+        assertEquals(0L, feriepenger(0L, 59))
+        assertEquals(0L, feriepenger(0L, 60))
+    }
+
+    @Test
+    fun `avviser negativt grunnlag ved begge satser`() {
+        assertFailsWith<IllegalArgumentException> { feriepenger(-1L, 59) }
+        assertFailsWith<IllegalArgumentException> { feriepenger(-1L, 60) }
+    }
+}
+

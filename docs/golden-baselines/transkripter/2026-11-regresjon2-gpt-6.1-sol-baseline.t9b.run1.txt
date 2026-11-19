@@ -1,0 +1,35 @@
+ ● skill(klarsprak)
+
+ $ Shell Finn Kotlin-kode og lokale instruksjoner 30 lines…
+   pwd && ls -a && find . -name AGENTS.md -o -name build.gradle.kts -o -name '*.kt' -o -path
+   './.github/instructions/*.md'
+
+ $ Shell Les kodestil, testkrav og tilgjengelig kompilator output too large to show (31.6 KB)…
+   cat build.gradle.kts src/main/kotlin/no/nav/demo/Oppgave.kt
+   .github/instructions/kotlin.instructions.md .github/instructions/security-owasp.instructions.md
+   .github/instructions/testing.instructions.md .github/instructions/testing-kotlin.instructions.md
+   && find src/test .github -maxdepth 2 -type f 2>/dev/null; command -v kotlinc || true
+
+ MD Read .github/instructions/kotlin.instructions.md too large, not read
+
+ MD Read .github/instructions/testing-kotlin.instructions.md 185 lines read
+
+ MD Read .github/instructions/testing.instructions.md 112 lines read
+
+ MD Read .github/instructions/security-owasp.instructions.md 12 lines read
+
+ MD Read .github/instructions/kotlin.instructions.md 741 lines read
+
+Jeg bruker heltallsregning for nøyaktig avrunding uten flyttallsfeil. Beregningen følger satsene du oppga, uten å legge til andre feriepengeregler. Gradle blir ikke kjørt.
+
+
+ ● Edit  Edit build.gradle.kts (+1)  Create src/main/kotlin/no/nav/demo/Feriepenger.kt (+8)  Create…
+
+Lagt til `Feriepenger.kt`, enhetstester og testavhengighet. Heltallsregning gir nøyaktig avrunding: 50 øre rundes opp. Gradle er ikke kjørt, som avtalt.
+
+**Sjekkliste for rød sone**
+- [ ] Kontroller satsene mot fagreglene: 10,2 % før 60 år, 12,5 % fra 60.
+- [ ] Gjennomgå `FeriepengerTest`: aldersgrensen, avrunding, null og avvisning av negativt grunnlag.
+
+Kan du fortelle meg hva denne koden gjør og hvorfor denne tilnærmingen er riktig?
+

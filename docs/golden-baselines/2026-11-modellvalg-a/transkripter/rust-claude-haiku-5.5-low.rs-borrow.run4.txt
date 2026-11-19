@@ -1,0 +1,21 @@
+ $ Shell Locate saksko crate and behandle_neste 6 lines…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.bM0BcN/repo && find
+   . -path '*saksko*' -not -path '*/target/*' | head -50 && grep -rn "behandle_neste" --include=*.rs
+   . | grep -v target
+
+ $ Shell Read lib.rs and run cargo test 65 lines…
+   cd saksko && cat src/lib.rs && cargo test 2>&1 | tail -40
+
+Feilen er at `sak` lever som lån inn i `self.saker`, og `remove(0)` trenger et mutable lån før lånet er brukt. Jeg flytter ut saken med `remove(0)` i stedet, som gir en eier. Det gir samme rekkefølge og samme resultat.
+
+ RS Edit saksko/src/lib.rs +5 -3
+
+ $ Shell Run cargo test in saksko 14 lines…
+   cd saksko && cargo test 2>&1 | tail -15
+
+Lånefeilen i `behandle_neste` er rettet, og `cargo test` i `saksko/` går grønt (1 test passerer).
+
+Årsaken var at `sak` var en referanse inn i `self.saker`, og `self.saker.remove(0)` ville mutere køen mens referansen fortsatt var i bruk. Nå fjerner funksjonen eldste sak med `remove(0)` først, og den får eie den. Rekkefølgen er den samme: eldste sak fjernes, id-en noteres i `behandlet`, og saken returneres.
+
+Endringen er i `saksko/src/lib.rs`.
+

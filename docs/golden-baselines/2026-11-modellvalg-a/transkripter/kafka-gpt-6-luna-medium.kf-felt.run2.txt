@@ -1,0 +1,62 @@
+ ● skill(kafka)
+
+ ● update_todo todos: "- [ ] Inspect vedtak-hendelse schema, producer/consumer co… TODO list updated
+
+ / Search ".github/instructions/*" 17 files found
+
+ / Search "vedtak-hendelse/**/*" 4 files found
+
+ $ Shell Check working tree and repository location 2 lines…
+   git status --short; pwd
+
+ MD Read .github/instructions/kotlin.instructions.md too large, not read
+
+ ● Read vedtak-hendelse/src/main/kotlin/no/nav/vedtak/VedtakFattet.kt 18 lines read
+
+ MD Read .github/instructions/testing-kotlin.instructions.md 185 lines read
+
+ ● Read vedtak-hendelse/src/test/kotlin/no/nav/vedtak/VedtakFattetTest.kt 11 lines read
+
+ ● Read vedtak-hendelse/build.gradle.kts 20 lines read
+
+ MD Read .github/instructions/security-core.instructions.md 16 lines read
+
+ MD Read .github/instructions/security-owasp.instructions.md 12 lines read
+
+ MD Read .github/instructions/testing.instructions.md 112 lines read
+
+ ● Read vedtak-hendelse/settings.gradle.kts 1 line read
+
+ ● update_todo todos: "- [x] Inspect vedtak-hendelse schema, producer/consumer co… TODO list updated
+
+ ● Edit  Edit vedtak-hendelse/src/main/kotlin/no/nav/vedtak/VedtakFattet.kt (+9)
+
+ ● Edit  Edit vedtak-hendelse/src/test/kotlin/no/nav/vedtak/VedtakFattetTest.kt (+32 -1)
+
+ ● update_todo todos: "- [x] Inspect vedtak-hendelse schema, producer/consumer co… TODO list updated
+
+ $ Shell Run vedtak-hendelse Gradle tests 14 lines…
+   gradle test
+
+ $ Shell Run tests from vedtak-hendelse 14 lines…
+   cd vedtak-hendelse && gradle test
+
+ ● Read vedtak-hendelse/src/main/kotlin/no/nav/vedtak/VedtakFattet.kt 27 lines read
+
+ ● Read vedtak-hendelse/src/test/kotlin/no/nav/vedtak/VedtakFattetTest.kt 42 lines read
+
+ / Search "VedtakFattet|VedtakSerde|vedtakId" in **/*.{kt,kts} 14 lines found
+
+ ● Edit  Edit vedtak-hendelse/src/main/kotlin/no/nav/vedtak/VedtakFattet.kt (+1 -1)
+
+ ● Edit  Edit vedtak-hendelse/src/test/kotlin/no/nav/vedtak/VedtakFattetTest.kt (+4)
+
+ $ Shell Verify vedtak-hendelse tests after final edits 14 lines…
+   cd vedtak-hendelse && gradle test
+
+ ● update_todo todos: "- [x] Inspect vedtak-hendelse schema, producer/consumer co… TODO list updated
+
+Lagt til `sakstype` med verdiene `ORDINAER`, `KLAGE` og `ANKE`. Manglende felt gir `ORDINAER`, og konsumenten ignorerer ukjente felt. Enum sikrer at sakstypen følger den avtalte verdilista, mens ignorering av ukjente felt gjør lesingen kompatibel med nyere produsenter. `gradle test` i `vedtak-hendelse/` besto.
+
+Still gjerne spørsmål om valgene over.
+

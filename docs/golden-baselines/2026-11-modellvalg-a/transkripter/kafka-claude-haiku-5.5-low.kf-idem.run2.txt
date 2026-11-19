@@ -1,0 +1,146 @@
+Starter med å lese konsumenten og eksisterende tester.
+
+ $ Shell List project files and show VedtakKonsument 52 lines…
+   cd vedtak-konsument && find . -type f -not -path "*/build/*" -not -path "*/.gradle/*" | head -100
+   && cat $(find . -name "VedtakKonsument*.kt" -not -path "*/build/*")
+
+Plan: keep the constructor unchanged, track processed `eventId`s in a private set, and commit offsets only after the whole batch succeeds. Failed batches stay uncommitted, and already-paid events in a retry are skipped.
+
+ $ Shell Rewrite consumer and tests, run gradle test 112 lines…
+   cd vedtak-konsument && cat > src/main/kotlin/no/nav/vedtak/VedtakKonsument.kt <<'EOF'
+   package no.nav.vedtak
+
+   import org.apache.kafka.clients.consumer.Consumer
+   import org.apache.kafka.clients.consumer.OffsetAndMetadata
+   import org.apache.kafka.common.TopicPartition
+   import java.time.Duration
+   import java.util.concurrent.ConcurrentHashMap
+
+   fun interface Utbetaling {
+       fun utbetal(eventId: String, belop: Int)
+   }
+
+   // Leser vedtak fra topicen og utbetaler. Verdien i hver melding er "eventId;belop".
+   // Offset commites først når hele batchen er behandlet. Feiler en utbetaling, blir offset
+   // stående, og meldingen leses på nytt. Allerede utbetalte eventId-er hoppes over.
+   class VedtakKonsument(
+       private val consumer: Consumer<String, String>,
+       private val utbetaling: Utbetaling,
+   ) {
+       // In-memory: overlever rebalansering, men ikke omstart av prosessen.
+       private val utbetalte: MutableSet<String> = ConcurrentHashMap.newKeySet()
+
+       fun poll() {
+           val records = consumer.poll(Duration.ofMillis(100))
+           if (records.isEmpty) return
+
+           val neste = mutableMapOf<TopicPartition, OffsetAndMetadata>()
+           for (record in records) {
+               val (eventId, belop) = record.value().split(";")
+               if (utbetalte.add(eventId).not()) {
+                   // Allerede utbetalt; hopp over
+               } else {
+                   try {
+                       utbetaling.utbetal(eventId, belop.toInt())
+                   } catch (e: Exception) {
+                       utbetalte.remove(eventId)
+                       throw e
+                   }
+               }
+               neste[TopicPartition(record.topic(), record.partition())] =
+   OffsetAndMetadata(record.offset() + 1)
+           }
+           consumer.commitSync(neste)
+       }
+   }
+   EOF
+   cat > src/test/kotlin/no/nav/vedtak/VedtakKonsumentTest.kt <<'EOF'
+   package no.nav.vedtak
+
+   import org.apache.kafka.clients.consumer.ConsumerRecord
+   import org.apache.kafka.clients.consumer.MockConsumer
+   import org.apache.kafka.clients.consumer.OffsetResetStrategy
+   import org.apache.kafka.common.TopicPartition
+   import kotlin.test.Test
+   import kotlin.test.assertEquals
+   import kotlin.test.assertFailsWith
+
+   class VedtakKonsumentTest {
+       private val tp = TopicPartition("vedtak", 0)
+
+       private fun consumer(vararg verdier: String) = MockConsumer<String,
+   String>(OffsetResetStrategy.EARLIEST).apply {
+           assign(listOf(tp))
+           updateBeginningOffsets(mapOf(tp to 0L))
+           verdier.forEachIndexed { i, v -> addRecord(ConsumerRecord("vedtak", 0, i.toLong(),
+   "sak-1", v)) }
+       }
+
+       @Test
+       fun `utbetaler hvert vedtak`() {
+           val utbetalt = mutableListOf<String>()
+           VedtakKonsument(consumer("e1;100", "e2;200")) { id, _ -> utbetalt += id }.poll()
+           assertEquals(listOf("e1", "e2"), utbetalt)
+       }
+
+       @Test
+       fun `utbetaler samme eventId bare én gang ved ny lesing`() {
+           val utbetalt = mutableListOf<String>()
+           val c = consumer("e1;100")
+           val konsument = VedtakKonsument(c) { id, _ -> utbetalt += id }
+           konsument.poll()
+           c.addRecord(ConsumerRecord("vedtak", 0, 1L, "sak-1", "e1;100"))
+           konsument.poll()
+           assertEquals(listOf("e1"), utbetalt)
+       }
+
+       @Test
+       fun `commiter offset etter behandlet batch`() {
+           val c = consumer("e1;100", "e2;200")
+           VedtakKonsument(c) { _, _ -> }.poll()
+           assertEquals(2L, c.committed(setOf(tp))[tp]?.offset())
+       }
+
+       @Test
+       fun `feilet utbetaling committer ikke og meldingen leses på nytt`() {
+           val c = consumer("e1;100", "e2;200")
+           val utbetalt = mutableListOf<String>()
+           var feil = true
+           val konsument = VedtakKonsument(c) { id, _ ->
+               if (id == "e2" && feil) error("utbetaling feilet")
+               utbetalt += id
+           }
+           assertFailsWith<IllegalStateException> { konsument.poll() }
+           assertEquals(null, c.committed(setOf(tp))[tp])
+
+           feil = false
+           c.addRecord(ConsumerRecord("vedtak", 0, 2L, "sak-1", "e2;200"))
+           konsument.poll()
+           assertEquals(listOf("e1", "e2"), utbetalt)
+           assertEquals(3L, c.committed(setOf(tp))[tp]?.offset())
+       }
+   }
+   EOF
+   (./gradlew test --offline -q 2>&1 || gradle test -q 2>&1) | tail -40; echo EXIT=$?
+
+Ingen `gradlew` i prosjektet, så kjører med `gradle test` direkte og sjekker exit-koden.
+
+ $ Shell Run gradle test and show results 17 lines…
+   cd vedtak-konsument && gradle test 2>&1 | tail -30; echo EXIT=${PIPESTATUS[0]}; ls
+   build/test-results/test 2>/dev/null
+
+ $ Shell Force rerun tests and check result counts 5 lines…
+   cd vedtak-konsument && gradle test --rerun-tasks 2>&1 | grep -E "BUILD|FAILED|Test" | tail -15;
+   grep -o 'tests="[0-9]*" skipped="[0-9]*" failures="[0-9]*" errors="[0-9]*"'
+   build/test-results/test/*.xml
+
+`VedtakKonsument` er rettet, og `gradle test` i `vedtak-konsument/` passerer (4 tester, 0 feil).
+
+- **Ingen dobbel utbetaling:** en `eventId` utbetales bare én gang. Den lagres i et in-memory-sett, så den overlever rebalansering, men ikke omstart av prosessen.
+- **Offset commites etter batch:** commit skjer først når hele batchen er behandlet. Ved feil stopper `poll()` uten commit, og meldingen leses på nytt. Allerede utbetalte hoppes over.
+- **Konstruktøren er uendret:** `VedtakKonsument(consumer, utbetaling)` fungerer fortsatt.
+
+Det er en gjenstående risiko: etter omstart av prosessen er settet tomt. Hvis utbetalingen gikk gjennom, men prosessen krasjet før commit, kan vedtaket utbetales på nytt. Full sikkerhet krever en persistent lagring av behandlede eventId-er (for eksempel i databasen som utbetalingen skrives til). Si fra om du vil at jeg legger det til.
+
+Testene dekker dobbel lesing, commit etter batch, og feilet utbetaling uten commit.
+

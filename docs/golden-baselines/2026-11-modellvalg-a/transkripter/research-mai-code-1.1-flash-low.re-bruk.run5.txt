@@ -1,0 +1,20 @@
+ / Search "maksAntall" 3 lines found
+
+ ● Read src/main/kotlin/no/nav/demo/Config.kt L1:40 (4 lines read)
+
+ ● Read src/main/kotlin/no/nav/demo/Routes.kt L1:60 (19 lines read)
+
+ ● Read src/main/kotlin/no/nav/demo/App.kt L1:40 (15 lines read)
+
+Brukene av `maksAntall` i denne kodebasen er:
+
+- `src/main/kotlin/no/nav/demo/Config.kt:4` — deklarasjonen:
+  `const val maksAntall = 100`
+
+- `src/main/kotlin/no/nav/demo/Routes.kt:16` — brukt i `oppgaver.take(maksAntall)`
+
+- `src/main/kotlin/no/nav/demo/App.kt:10` — brukt i loggmelding:
+  `println("starter demo-tjeneste, maksAntall=$maksAntall")`
+
+Det er altså 3 brukspunkter totalt.
+

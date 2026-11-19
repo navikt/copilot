@@ -1,0 +1,33 @@
+ ● skill(klarsprak)
+
+ / Search "**/*" 25 files found
+
+ MD Read .github/instructions/kotlin.instructions.md too large, not read
+
+ ● Read build.gradle.kts 12 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/Oppgave.kt 9 lines read
+
+ MD Read .github/instructions/testing-kotlin.instructions.md 185 lines read
+
+ MD Read .github/instructions/testing.instructions.md 112 lines read
+
+ MD Read .github/instructions/security-owasp.instructions.md 12 lines read
+
+Jeg implementerer regelen som en ren funksjon med heltallsregning, slik at avrundingen ikke påvirkes av flyttallsfeil. Dette er rød sone som avtalt; jeg legger til tester, men kjører ikke Gradle.
+
+
+ ● Edit  Edit build.gradle.kts (+1)  Create src/main/kotlin/no/nav/demo/Feriepenger.kt (+8)  Create…
+
+ ● Read src/main/kotlin/no/nav/demo/Feriepenger.kt 8 lines read
+
+Lagt til `Feriepenger.kt`, enhetstester og `kotlin("test")` som testavhengighet. Gradle er ikke kjørt.
+
+🔴 Rød sone: beregningsregelen er implementert som avtalt. Heltallsregning unngår flyttallsfeil; overflyt håndteres ikke, som spesifisert.
+
+**Sjekkliste for rød sone**
+- [ ] Kontroller satsgrensen 59/60 år og avrunding under, på og over 50 øre i `FeriepengerTest`.
+- [ ] Kontroller at null gir null, og negativt grunnlag gir `IllegalArgumentException`.
+
+Kan du fortelle meg hva denne koden gjør og hvorfor denne tilnærmingen er riktig?
+

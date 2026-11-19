@@ -1,0 +1,62 @@
+ ● List directory . 8 files found
+
+ / Search "*" 34 files found
+
+ / Search "**/*slug*" 2 files found
+
+Jeg kjører den målrettede testen og leser bare `slug`-filene.
+
+ TS Read slug/slug.ts 10 lines read
+
+ TS Read slug/slug.test.ts 9 lines read
+
+ ✗ Shell Run targeted slug test Failed with exit code 1  ✖ slug (0.526958ms) ℹ tests 1 ℹ suites 0 ℹ…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.kkPA58/repo && node
+   --test slug/slug.test.ts
+   ✖ slug (0.526958ms)
+   ℹ tests 1
+   ℹ suites 0
+   ℹ pass 0
+   ℹ fail 1
+   ℹ cancelled 0
+   ℹ skipped 0
+   ℹ todo 0
+   ℹ duration_ms 56.342375
+   
+   ✖ failing tests:
+   
+   test at slug/slug.test.ts:5:1
+   ✖ slug (0.526958ms)
+     AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+     + actual - expected
+     
+     + '-hei-pa-deg-'
+     - 'hei-pa-deg'
+     
+         at TestContext.<anonymous> (file:///private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T
+   /nav-pilot-golden.kkPA58/repo/slug/slug.test.ts:7:10)
+         at Test.runInAsyncScope (node:async_hooks:227:14)
+         at Test.run (node:internal/test_runner/test:1402:25)
+         at Test.start (node:internal/test_runner/test:1262:17)
+         at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17) {
+       generatedMessage: true,
+       code: 'ERR_ASSERTION',
+       actual: '-hei-pa-deg-',
+       expected: 'hei-pa-deg',
+       operator: 'strictEqual',
+       diff: 'simple'
+     }
+   Failed with exit code 1
+
+ ● Edit  Edit slug/slug.ts (+2 -1)
+
+Feilen var manglende trimming av bindestreker; nå verifiserer jeg hele testen på nytt.
+
+ $ Shell Verify slug test passes 9 lines…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.kkPA58/repo && node
+   --test slug/slug.test.ts
+
+Fikset `slug/slug.ts`: bindestreker i start og slutt fjernes nå.
+
+Testen består: 1 pass, 0 fail.
+

@@ -1,0 +1,21 @@
+ ● skill(kafka)
+
+ ● skill(klarsprak)
+
+ $ Shell Find Kafka message and topic 10 lines…
+   ls -a; rg --hidden -n 'SoknadMottattMelding|soknad-mottatt' -g '!.git/**'
+
+ ● Read src/main/kotlin/no/nav/demo/Soknad.kt 27 lines read
+
+ $ Shell Inspect topic access configuration 16 lines…
+   ls -a .github; cat nais.yaml
+
+Jeg har ikke endret koden. `sendMottatt` sender `SoknadMottattMelding` som JSON uten kryptering av selve meldingen. `SokerDto` har allerede `fnr`, men det betyr ikke at fødselsnummer kan deles på `soknad-mottatt`.
+
+1. Hvorfor trenger mottakerne fødselsnummer fremfor `soknadId`, og hvilke av dagens konsumenter er godkjent for å behandle det? Hvordan skal feltet krypteres, og hvor lenge kan meldingene lagres?
+2. Tåler dagens konsumenter et nytt felt, og må de fortsatt kunne lese eldre meldinger uten `fnr`?
+
+Jeg fant ikke `AGENTS.md` eller de repo-lokale Copilot-instruksjonene. `nav-pilot init` kan legge dem til.
+
+Blindsoner reist: 3/11 (#1 personvern, #6 konsumenter, #9 kompatibilitet). Endringen gjelder dataene som deles, ikke hvem som får lesetilgang. Drift, testing og utrulling avklares når meldingskontrakten er avklart.
+

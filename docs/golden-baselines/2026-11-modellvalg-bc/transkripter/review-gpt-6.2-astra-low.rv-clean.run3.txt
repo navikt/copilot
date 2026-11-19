@@ -1,0 +1,39 @@
+ ● skill(security-review)
+
+ ● skill(klarsprak)
+
+ ● Read src/main/kotlin/no/nav/demo/sak/SakService.kt 58 lines read
+
+ / Search "**/*.kt" 6 files found
+
+ ✗ Shell Kjør prosjektkontroller Failed with exit code 1  mise ERROR no tasks defined in /private/v…
+   mise check
+   mise ERROR no tasks defined in 
+   /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.tJpC35/repo. Are you in
+    a project directory?
+   mise ERROR Version: 2026.11.10 macos-arm64 (2026-11-18)
+   mise ERROR Run with --verbose or MISE_VERBOSE=1 for more information
+   Failed with exit code 1
+
+ / Search "tokenx|sakRoutes|io.ktor.server.application.call" in *.kt 5 lines found
+
+ $ Shell Bekreft linjenumre og byggoppsett 22 lines…
+   nl -ba src/main/kotlin/no/nav/demo/sak/SakService.kt | tail -15; ls -a
+
+ $ Shell Les TokenX-oppsettet 37 lines…
+   nl -ba src/main/kotlin/no/nav/demo/App.kt
+
+ $ Shell Sjekk Ktor-versjon og byggverktøy 21 lines…
+   cat build.gradle.kts; command -v gradle
+
+ $ Shell Kontroller kompilering uten nettverk 13 lines…
+   gradle --offline --console=plain compileKotlin 2>&1 | tail -20
+
+**Ingen blokkerende funn.** Ruta henter `pid` fra TokenX-tokenet, ikke fra en forespørselsparameter. SQL-spørringen bruker `pid` som bundet parameter og henter bare denne personens saker. Loggen inneholder ingen sifre fra fødselsnummeret.
+
+| Sted | Prioritet | Funn |
+|---|---|---|
+| `SakService.kt:55` | 🟡 | `service.sakerFor(fnr)` kjører et synkront JDBC-oppslag på tråden som håndterer forespørselen. Hvis databasen svarer tregt, kan også andre forespørsler bli forsinket. Flytt databasekallet til `Dispatchers.IO`. |
+
+Jeg gjennomgikk `SakService.kt` og TokenX-oppsettet i `App.kt`. Jeg kunne ikke bekrefte kompileringen: Prosjektet har ingen `mise check`-oppgave, og Gradle stoppet under konfigureringen før Kotlin-kompileringen startet.
+

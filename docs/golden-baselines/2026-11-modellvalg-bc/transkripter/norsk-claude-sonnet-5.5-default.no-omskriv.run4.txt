@@ -1,0 +1,25 @@
+ / Search "**/utkast.md" 1 file found
+
+ ● skill(klarsprak)
+
+ MD Read utkast.md 11 lines read
+
+ ● Create utkast.md.new +1
+
+ ✗ Shell Remove stray temp file Tool 'bash' does not exist.
+   rm /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.IHPT6d/repo/utkast.m
+   d.new
+
+ MD Create utkast.md Path already exists
+
+ MD Edit utkast.md +5 -5
+
+`utkast.md` er språkvasket og kortet ned til rundt 85 ord, tittelen medregnet. Jeg har ikke telt ordene med noe verktøy.
+
+- **Faktainnhold:** Alle fakta er beholdt, blant annet `review.enabled = false`, `.nav-pilot/config.toml` og #ki-utvikling.
+- **Fjernet:** Svulstige uttrykk (banebrytende, sømløs, avgjørende rolle), innledningen «I en tid der…», «det er viktig å påpeke» og slutten om at framtiden ser lys ut.
+- **Rettet:** Nynorsk er byttet til bokmål (ikkje, sjølv, berre, mykje, tilgjengeleg). «AI» er skrevet «KI».
+- **Aktiv form:** «Tilbakemeldinger tas imot» er skrevet om til «Send tilbakemeldinger».
+
+Jeg opprettet ved en feil en tom fil, `utkast.md.new`, og har ikke verktøy til å slette den. Slett den manuelt.
+

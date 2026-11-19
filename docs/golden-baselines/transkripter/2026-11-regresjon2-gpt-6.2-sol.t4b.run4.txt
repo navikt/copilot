@@ -1,0 +1,26 @@
+ ● skill(nav-plan)
+
+ ● skill(api-design)
+
+ ● skill(tokenx-auth)
+
+ ● Fetching web content https://navikt.gi… Contents of https://navikt.github.io/pdl/#_autentisering:
+
+ ● Fetching web content https://pd… Failed to simplify HTML to markdown. Here is the raw content: 6s
+
+## Fase 2: Plan
+
+**Bruk den eksisterende Next.js-frontenden som BFF, og bygg et internt Ktor-API for navneoppslag.** Innbyggeren logger inn via ID-porten og Wonderwall på frontenden. Nettleseren kaller bare Next.js på samme origin. Next.js bytter brukerens tilgangstoken til et TokenX-token med Ktor-tjenesten som mottaker. Det gir én offentlig inngang og holder tjenestetokenet unna nettleseren, men gjør tokenbyttet til en del av oppslagsflyten.
+
+| Område | Plan |
+|---|---|
+| **Identitet og tilgang** | Ktor validerer signatur, utsteder, mottaker og utløp, og håndhever avtalt sikkerhetsnivå. Fødselsnummeret hentes fra `pid` i det validerte brukertokenet, aldri fra URL, body eller en egen header. Legg sikkerhetsnivå **Høyt** til grunn og verifiser i dev at identitet og nivå følger tokenbyttet. |
+| **PDL** | Gjør et synkront GraphQL-oppslag med fødselsnummeret fra tokenet. Be bare om navnefeltene frontenden trenger. Bekreft tillatt autentiseringsflyt, eventuell kombinasjon av bruker- og tjenestetoken, og riktig behandlingsnummer mot [PDL-dokumentasjonen](https://pdl-docs.ansatt.nav.no/) før implementering. Dokumentasjonen krever innlogging, så dette er ikke verifisert. |
+| **API og personvern** | `GET /api/me/navn` tar ingen personidentifikator og returnerer bare navn med `Cache-Control: no-store`. Ingen database eller applikasjonscache. Dokumenter hjemmel og formål. Returner `401` ved manglende eller ugyldig token, `403` ved utilstrekkelig tilgang og `503` når PDL er utilgjengelig eller tidsfristen utløper. Frontenden viser at brukeren kan prøve igjen. Ingen kø, dead-letter eller automatisk retry i første versjon. |
+| **Nais og CI/CD** | Behold offentlig ingress og Wonderwall på Next.js. Aktiver TokenX på begge applikasjonene. Ktor har ingen offentlig ingress og tillater bare Next.js-applikasjonen inn. Avgrens utgående tilgang til godkjente PDL- og autentiseringsendepunkter. Skill rute, tokenvalidering og PDL-klient i Ktor. GitHub Actions bygger og tester, deployer samme image til dev først og krever godkjenning før prod. |
+| **Tester og drift** | Test med syntetiske identiteter: gyldig oppslag, feil mottaker, utløpt token, manglende `pid`, utilstrekkelig sikkerhetsnivå og PDL-feil, også GraphQL-feil i HTTP `200`. Verifiser hele innloggingsflyten i dev. Mål PDL-oppslag per minutt og andel feilende PDL-kall. Varsle ved vedvarende høy feilandel med et minstevolum. Logg feilkategori og tilfeldig korrelasjons-ID, aldri fødselsnummer, navn, token eller rå PDL-payload. Hold readiness uavhengig av PDL. |
+
+**Utrulling og rollback:** Aktiver frontend-integrasjonen først når oppslag og `503`-håndtering er verifisert i dev. Ved rollback, slå av integrasjonen i frontenden først. Driftsveiledningen skal vise hvordan teamet skiller innloggingsfeil, tokenbyttefeil og PDL-feil.
+
+🔴 **Rød sone:** Teamet skriver og går gjennom Wonderwall- og TokenX-integrasjonen, tokenvalideringen, bindingen mellom innlogget person og PDL-oppslaget, og autorisasjonen mot PDL. Planen stopper her før fase 3, arkitekturgjennomgangen.
+

@@ -1,0 +1,37 @@
+=== ./src/app/komponenter/StatusPanel.tsx
+import { useState } from "react";
+import { TrashIcon } from "@navikt/aksel-icons";
+import { Select } from "@navikt/ds-react";
+
+type StatusPanelProps = {
+  status: string;
+  statusValg: { verdi: string; tekst: string }[];
+  onEndreStatus: (status: string) => void;
+  onSlett: () => void;
+};
+
+export function StatusPanel({ status, statusValg, onEndreStatus, onSlett }: StatusPanelProps) {
+  const [apen, setApen] = useState(false);
+  return (
+    <div className="p-4 mx-8">
+      <div onClick={() => setApen(!apen)} style={{ outline: "none" }}>
+        Vis detaljer
+      </div>
+      <Select
+        label="Status"
+        value={status}
+        onChange={(e) => onEndreStatus(e.target.value)}
+      >
+        {statusValg.map((valg) => (
+          <option key={valg.verdi} value={valg.verdi}>
+            {valg.tekst}
+          </option>
+        ))}
+      </Select>
+      <button onClick={onSlett}>
+        <TrashIcon />
+      </button>
+    </div>
+  );
+}
+

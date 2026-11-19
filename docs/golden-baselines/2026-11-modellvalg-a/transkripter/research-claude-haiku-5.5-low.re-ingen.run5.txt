@@ -1,0 +1,8 @@
+ / Search "slettOppgave" No matches found
+
+ / Search "slett.?oppgave|delete.?oppgave|slett_oppgave" No matches found
+
+Jeg finner ingen kall til `slettOppgave` i koden. Søket var case-insensitivt og dekket også varianter som `slett_oppgave` og `deleteOppgave`, uten treff i `/private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.w9xrWK/repo`.
+
+Funksjonen kan hete noe annet i koden, eller ligge i et annet repo. Si fra hvis du kan oppgi en annen kildekatalog.
+
