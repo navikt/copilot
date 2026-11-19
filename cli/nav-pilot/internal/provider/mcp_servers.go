@@ -159,7 +159,7 @@ func NarrowMCPApproval() (gone []string, err error) {
 	if !ok {
 		return nil, nil
 	}
-	var dropped []string
+	var dropped, stillGranted []string
 	for _, client := range []string{MCPClientCopilot, MCPClientOpenCode} {
 		rec, err := readMCPRecordFor(client)
 		if err != nil {
@@ -179,6 +179,9 @@ func NarrowMCPApproval() (gone []string, err error) {
 				clientGone = append(clientGone, h.Host)
 			}
 		}
+		for _, h := range keep {
+			stillGranted = append(stillGranted, h.Host)
+		}
 		if len(clientGone) == 0 {
 			continue
 		}
@@ -194,9 +197,8 @@ func NarrowMCPApproval() (gone []string, err error) {
 	if len(dropped) == 0 {
 		return nil, nil
 	}
-	stillAllowed := MCPAllowlistHosts()
 	for _, h := range dropped {
-		if !slices.Contains(stillAllowed, h) {
+		if !slices.Contains(stillGranted, h) {
 			gone = append(gone, h)
 		}
 	}

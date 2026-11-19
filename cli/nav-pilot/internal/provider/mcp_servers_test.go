@@ -434,6 +434,9 @@ func TestMCPRegistryServersUsesTheCache(t *testing.T) {
 // still needs.
 func TestNarrowMCPApproval(t *testing.T) {
 	mcpEnv(t, `{"mcpServers": {"io.github.navikt/mcp-onboarding": {}}}`, testRegistry(), nil)
+	prevProbe := probeCpltVersion
+	t.Cleanup(func() { probeCpltVersion = prevProbe })
+	probeCpltVersion = func() (string, error) { return "cplt " + cpltDenyEnv + "-7f0fd16\n", nil }
 	home, _ := os.UserHomeDir()
 	writeFile(t, filepath.Join(openCodeConfigDir(), "opencode.json"),
 		`{"mcp": {"f": {"type": "remote", "url": "https://mcp.figma.com/mcp"}}}`)
