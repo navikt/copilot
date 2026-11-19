@@ -23,8 +23,8 @@ func (s slots) tryAcquire() (release func(), ok bool) {
 	}
 }
 
-// userSlots caps concurrent buffered MCP requests per user on a pod. A nil
-// *userSlots never limits, for Gateways built without routes().
+// userSlots caps concurrent buffered MCP requests or open SSE streams per user
+// on a pod. A nil *userSlots never limits, for Gateways built without routes().
 type userSlots struct {
 	mu  sync.Mutex
 	n   map[string]int

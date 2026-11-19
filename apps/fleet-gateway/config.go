@@ -35,6 +35,7 @@ const (
 	defaultMCPMaxInFlightPerRoute           = 8
 	defaultMCPMaxInFlightPerUser            = 4
 	defaultMCPMaxSSE                        = 64 // ~40 KiB each: a 32 KiB read buffer plus the connection
+	defaultMCPMaxSSEPerUser                 = 4
 	defaultPendingCap                       = 4096
 	defaultCodeCap                          = 1024
 	defaultSessionCap                       = 4096
@@ -101,6 +102,7 @@ type Config struct {
 	MCPMaxInFlightPerRoute  int // concurrent buffered requests per route, under MCPMaxInFlight
 	MCPMaxInFlightPerUser   int // concurrent buffered /mcp/* requests per user per pod
 	MCPMaxSSE               int // concurrent SSE response streams per pod
+	MCPMaxSSEPerUser        int // concurrent SSE response streams per user per pod
 	SSEMaxDuration          time.Duration
 	SSEIdleTimeout          time.Duration
 	SSEMaxBytes             int64
@@ -214,6 +216,7 @@ func loadConfigFromEnv() (*Config, error) {
 		MCPMaxInFlightPerRoute:  getEnvInt("MCP_MAX_IN_FLIGHT_PER_ROUTE", defaultMCPMaxInFlightPerRoute),
 		MCPMaxInFlightPerUser:   getEnvInt("MCP_MAX_IN_FLIGHT_PER_USER", defaultMCPMaxInFlightPerUser),
 		MCPMaxSSE:               getEnvInt("MCP_MAX_SSE", defaultMCPMaxSSE),
+		MCPMaxSSEPerUser:        getEnvInt("MCP_MAX_SSE_PER_USER", defaultMCPMaxSSEPerUser),
 		SSEMaxDuration:          getEnvDuration("SSE_MAX_DURATION", defaultSSEMaxDuration),
 		SSEIdleTimeout:          getEnvDuration("SSE_IDLE_TIMEOUT", defaultSSEIdleTimeout),
 		SSEMaxBytes:             getEnvInt64("SSE_MAX_BYTES", defaultSSEMaxBytes),
@@ -352,6 +355,9 @@ func validateConfig(cfg *Config) error {
 	}
 	if cfg.MCPMaxSSE <= 0 {
 		cfg.MCPMaxSSE = defaultMCPMaxSSE
+	}
+	if cfg.MCPMaxSSEPerUser <= 0 {
+		cfg.MCPMaxSSEPerUser = defaultMCPMaxSSEPerUser
 	}
 	if cfg.SSEMaxDuration <= 0 {
 		cfg.SSEMaxDuration = defaultSSEMaxDuration

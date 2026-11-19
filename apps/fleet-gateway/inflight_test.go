@@ -77,6 +77,7 @@ func TestSSEStreamsDoNotStarveToolCalls(t *testing.T) {
 	te := newTestEnv(t)
 	te.gw.cfg.MCPMaxInFlight = 2
 	te.gw.cfg.MCPMaxSSE = 16
+	te.gw.cfg.MCPMaxSSEPerUser = 32
 	te.gw.cfg.SSEMaxDuration = 10 * time.Second
 	te.gw.cfg.SSEIdleTimeout = 10 * time.Second
 	te.handler = te.gw.routes()
@@ -592,6 +593,7 @@ func TestSSEEarlyFlushRetryUpstreamGetsFullBody(t *testing.T) {
 func TestSSEStreamsDoNotRetainRequestBody(t *testing.T) {
 	te := newTestEnv(t)
 	te.gw.cfg.MCPMaxSSE = 64
+	te.gw.cfg.MCPMaxSSEPerUser = 64
 	te.gw.cfg.SSEMaxDuration = 10 * time.Second
 	te.gw.cfg.SSEIdleTimeout = 10 * time.Second
 	te.handler = te.gw.routes()

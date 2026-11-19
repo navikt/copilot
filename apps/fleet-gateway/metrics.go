@@ -15,7 +15,7 @@ import (
 var (
 	httpRequestsTotal = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "fleet_gateway_http_requests_total",
-		Help: "HTTP requests answered by fleet-gateway, by status code. Excludes /health and /ready. reason is empty except for deliberate 503s (disabled: kill switch, cap: in-flight/SSE cap, user_cap: per-user in-flight cap, store_full: store quota, refresh_in_flight: concurrent refresh).",
+		Help: "HTTP requests answered by fleet-gateway, by status code. Excludes /health and /ready. reason is empty except for deliberate 503s (disabled: kill switch, cap: in-flight/SSE cap, user_cap: per-user in-flight cap, user_sse_cap: per-user SSE cap, store_full: store quota, refresh_in_flight: concurrent refresh).",
 	}, []string{"code", "reason"})
 
 	mcpRequestsTotal = promauto.NewCounterVec(prometheus.CounterOpts{
@@ -69,8 +69,8 @@ func observeHTTPRequest(code int, reason string) {
 
 // markShed labels a deliberate 503 so the 5xx alert can tell it apart from
 // real failures: "disabled" (kill switch), "cap" (in-flight/SSE limits),
-// "user_cap" (per-user in-flight limit), "store_full" (store quota reached),
-// "refresh_in_flight" (concurrent refresh).
+// "user_cap" (per-user in-flight limit), "user_sse_cap" (per-user SSE limit),
+// "store_full" (store quota reached), "refresh_in_flight" (concurrent refresh).
 // Store errors and upstream failures stay unlabelled and count.
 func markShed(w http.ResponseWriter, reason string) {
 	for {
@@ -93,7 +93,7 @@ func initMetrics(routes []PilotRoute) {
 	for _, code := range []string{"200", "500", "502", "503", "504"} {
 		httpRequestsTotal.WithLabelValues(code, "")
 	}
-	for _, reason := range []string{"disabled", "cap", "user_cap", "store_full", "refresh_in_flight"} {
+	for _, reason := range []string{"disabled", "cap", "user_cap", "user_sse_cap", "store_full", "refresh_in_flight"} {
 		httpRequestsTotal.WithLabelValues("503", reason)
 	}
 	for _, ep := range rateLimitedEndpoints {
