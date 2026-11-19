@@ -337,6 +337,10 @@ func refreshMCPRegistry() error {
 	return writeConfigAtomically(path, data)
 }
 
+// RefreshMCPRegistry reads the registry now and rewrites the cache, whatever
+// its age: nav-pilot mcp --refresh, and enable's one retry for an unknown name.
+func RefreshMCPRegistry() error { return refreshMCPRegistry() }
+
 // startMCPRegistryRefresh reads the registry in the background, once per
 // process. The launch does not wait for it; the process waits for nothing at
 // exit either, so a session shorter than the read leaves it to the next one.

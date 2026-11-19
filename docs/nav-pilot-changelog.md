@@ -6,6 +6,7 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ### Rettelser i MCP-oppsett og agentpakker
 
+- **`--refresh` for MCP-registeret**: `nav-pilot mcp list --refresh` og `nav-pilot mcp enable <navn> --refresh` henter registeret på nytt i stedet for å vente ut døgnet hurtiglageret gjelder. `mcp enable` henter også på nytt én gang når navnet du ber om ikke finnes i hurtiglageret.
 - **Kommandoer du skal kopiere**: Linjene «Fix:» i `nav-pilot mcp list` og `nav-pilot doctor` setter nå servernavn, nøkler og verter i enkle anførselstegn der det trengs, så teksten fra registeret eller konfigurasjonen ikke kan tolkes som shell-syntaks. En `cplt config set`-nøkkel i registerets oppsett må bestå av `a-z`, `0-9`, `_` og `.`. Ellers viser nav-pilot ingen kommando.
 - **Godkjente MCP-verter per klient**: Godkjenningen lagres nå per klient (`mcp:registry:copilot` og `mcp:registry:opencode`), og tillatelseslisten for cplt samler vertene fra begge. Å slå på en server for OpenCode fjerner ikke lenger vertene du godkjente for Copilot. Eksisterende godkjenninger gjelder videre uten nytt spørsmål.
 - **OpenCode-konfig**: Er det bare `opencode.jsonc` i `~/.config/opencode`, bruker oppstarten den filen i stedet for å lage en egen `opencode.json` som `opencode.jsonc` overstyrer.
