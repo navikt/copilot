@@ -382,7 +382,9 @@ class SecqContextTests(unittest.TestCase):
         def model(prompt):
             prompts.append(prompt.split("<answer>")[-1])
             yes = "Ved signeringsfeil" in prompts[-1]
-            return json.dumps({"secq": yes, "secq_quote": q if yes else ""}), 0.1
+            # The confirmation quotes the sentence before along with the question, as Haiku did.
+            quote = prompts[-1].split("</answer>")[0].strip().splitlines()[-1] if len(prompts) > 2 else q
+            return json.dumps({"secq": yes, "secq_quote": quote if yes else ""}), 0.1
         with patch.object(judge, "call_model", side_effect=model):
             result = judge.judge(answer)
         self.assertTrue(result["secq"])

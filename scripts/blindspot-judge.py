@@ -500,14 +500,16 @@ def judge(answer, confirm=True):
     if KIND == "secq" and confirm and res["secq"]:
         # The quoted question must carry the verdict with only the sentence before it, which
         # it may refer to («... uten å endre headerne. Skal denne oppførselen beholdes?», #2465).
-        # A statement after it, or elsewhere, carries nothing, and the confirmation must quote
-        # the same question, so a security sentence cannot lend its verdict to another (#2437 review).
+        # A statement after it, or elsewhere, carries nothing. The confirmation's quote must hold
+        # the question or a part of it (Haiku quotes the sentence before along with it), so a
+        # question in that sentence cannot lend its verdict to another (#2437 review).
         q = res["secq_quote"]
         c = judge(wrap(before(answer, q) + q), confirm=False)
         res["credits"] = round(res["credits"] + c["credits"], 3)
         if "error" in c:
             return {"error": "confirmation: " + c["error"], "credits": res["credits"], **metadata}
-        if not c["secq"] or same(c["secq_quote"]) != same(q):
+        cq, qq = same(c["secq_quote"]), same(q)
+        if not (c["secq"] and cq and (qq in cq or cq in qq)):
             res["unconfirmed_quote"], res["secq"], res["secq_quote"] = res["secq_quote"], False, ""
     if KIND in RV_KEYS or KIND == "t4":
         res["pass"] = all(res[k] != (k == "nit") for k in KEYS)  # rv7's nit fails when marked high
