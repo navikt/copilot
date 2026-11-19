@@ -33,6 +33,7 @@ const (
 	defaultUpstreamTimeout                  = 60 * time.Second // MCP tool calls; headers and body each get this long
 	defaultMCPMaxInFlight                   = 16
 	defaultMCPMaxInFlightPerRoute           = 8
+	defaultMCPMaxInFlightPerUser            = 4
 	defaultMCPMaxSSE                        = 64 // ~40 KiB each: a 32 KiB read buffer plus the connection
 	defaultPendingCap                       = 4096
 	defaultCodeCap                          = 1024
@@ -98,6 +99,7 @@ type Config struct {
 	ProxyHeaderTimeout      time.Duration
 	MCPMaxInFlight          int // concurrent buffered /mcp/* requests per pod
 	MCPMaxInFlightPerRoute  int // concurrent buffered requests per route, under MCPMaxInFlight
+	MCPMaxInFlightPerUser   int // concurrent buffered /mcp/* requests per user per pod
 	MCPMaxSSE               int // concurrent SSE response streams per pod
 	SSEMaxDuration          time.Duration
 	SSEIdleTimeout          time.Duration
@@ -210,6 +212,7 @@ func loadConfigFromEnv() (*Config, error) {
 		ProxyHeaderTimeout:      getEnvDuration("UPSTREAM_TIMEOUT", defaultUpstreamTimeout),
 		MCPMaxInFlight:          getEnvInt("MCP_MAX_IN_FLIGHT", defaultMCPMaxInFlight),
 		MCPMaxInFlightPerRoute:  getEnvInt("MCP_MAX_IN_FLIGHT_PER_ROUTE", defaultMCPMaxInFlightPerRoute),
+		MCPMaxInFlightPerUser:   getEnvInt("MCP_MAX_IN_FLIGHT_PER_USER", defaultMCPMaxInFlightPerUser),
 		MCPMaxSSE:               getEnvInt("MCP_MAX_SSE", defaultMCPMaxSSE),
 		SSEMaxDuration:          getEnvDuration("SSE_MAX_DURATION", defaultSSEMaxDuration),
 		SSEIdleTimeout:          getEnvDuration("SSE_IDLE_TIMEOUT", defaultSSEIdleTimeout),
@@ -343,6 +346,9 @@ func validateConfig(cfg *Config) error {
 	}
 	if cfg.MCPMaxInFlightPerRoute <= 0 {
 		cfg.MCPMaxInFlightPerRoute = defaultMCPMaxInFlightPerRoute
+	}
+	if cfg.MCPMaxInFlightPerUser <= 0 {
+		cfg.MCPMaxInFlightPerUser = defaultMCPMaxInFlightPerUser
 	}
 	if cfg.MCPMaxSSE <= 0 {
 		cfg.MCPMaxSSE = defaultMCPMaxSSE

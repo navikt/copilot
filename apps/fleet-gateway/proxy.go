@@ -272,8 +272,23 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 		}
 
 		// After auth, so bogus bearers cannot take slots; before the body read,
-		// since the cap bounds buffered memory. The route cap comes first so one
+		// since the cap bounds buffered memory. The per-user cap comes first so
+		// one user cannot fill a route or pod; the route cap comes next so one
 		// slow upstream cannot hold every global slot.
+		releaseUserSlot, ok := g.userInFlight.tryAcquire(g.mcpSessionUserKey(sess.NAVIdent))
+		if !ok {
+			outcome = "user_cap"
+			decision = "deny"
+			decisionReason = "user_cap"
+			markShed(w, "user_cap")
+			w.Header().Set("Retry-After", "1")
+			writeJSON(w, http.StatusServiceUnavailable, map[string]string{
+				"error":   "too_many_requests",
+				"message": "too many concurrent MCP requests for this user; retry shortly",
+			})
+			return
+		}
+		defer releaseUserSlot()
 		releaseRouteSlot, ok := routeInFlight.tryAcquire()
 		if !ok {
 			outcome = "over_capacity"
@@ -288,7 +303,7 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 			return
 		}
 		defer releaseGlobalSlot()
-		releaseSlot := func() { releaseGlobalSlot(); releaseRouteSlot() }
+		releaseSlot := func() { releaseGlobalSlot(); releaseRouteSlot(); releaseUserSlot() }
 
 		r.Body = http.MaxBytesReader(w, r.Body, maxMCPRequestBodyBytes)
 		reqBody, err := io.ReadAll(r.Body)

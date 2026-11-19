@@ -43,6 +43,7 @@ The gateway is live in prod (2026-11-17) for a controlled pilot. It runs the aut
 | `UPSTREAM_TIMEOUT` | No | `60s` | Time the MCP server gets to send response headers, and again to finish a non-SSE body. SSE uses `SSE_IDLE_TIMEOUT` and `SSE_MAX_DURATION` instead |
 | `MCP_MAX_IN_FLIGHT` | No | `16` | Concurrent buffered `/mcp/*` requests per pod. Over the cap: `503` with `Retry-After: 1` |
 | `MCP_MAX_IN_FLIGHT_PER_ROUTE` | No | `8` | Concurrent buffered requests per route, within `MCP_MAX_IN_FLIGHT`, so one slow upstream cannot hold every slot |
+| `MCP_MAX_IN_FLIGHT_PER_USER` | No | `4` | Concurrent buffered `/mcp/*` requests per user per pod, within `MCP_MAX_IN_FLIGHT`. Over the cap: `503` with `Retry-After: 1` |
 | `MCP_MAX_SSE` | No | `64` | Concurrent SSE response streams per pod, counted apart from `MCP_MAX_IN_FLIGHT` |
 | `METRICS_PORT` | No | `9090` | Port for `/metrics`. It has no ingress |
 | `LOG_LEVEL` | No | `INFO` | `DEBUG`, `INFO`, `WARN`, or `ERROR` |
@@ -98,7 +99,7 @@ Prometheus scrapes `/metrics` on port 9090. That port has no ingress, so the pub
 
 | Metric | Labels | What it shows |
 |---|---|---|
-| `fleet_gateway_http_requests_total` | `code`, `reason` | All responses except `/health` and `/ready`. `reason` is empty except on deliberate 503s: `disabled` (kill switch), `cap` (in-flight or SSE limit), `store_full` (store quota reached), `refresh_in_flight` (concurrent refresh of the same token). The 5xx alert counts only `reason=""` |
+| `fleet_gateway_http_requests_total` | `code`, `reason` | All responses except `/health` and `/ready`. `reason` is empty except on deliberate 503s: `disabled` (kill switch), `cap` (in-flight or SSE limit), `user_cap` (per-user in-flight limit), `store_full` (store quota reached), `refresh_in_flight` (concurrent refresh of the same token). The 5xx alert counts only `reason=""` |
 | `fleet_gateway_mcp_requests_total` | `route`, `outcome`, `decision` | MCP calls. `outcome` matches the `audit mcp` log line, for example `ok`, `upstream_token_error`, `store_error` or `upstream_502` |
 | `fleet_gateway_mcp_request_duration_seconds` | `route` | Time per MCP call, token exchange and upstream included. An SSE stream counts until it ends |
 | `fleet_gateway_routes_loaded` | none | Routes loaded at startup |
