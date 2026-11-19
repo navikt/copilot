@@ -169,9 +169,9 @@ func askMCPHosts(st providerpkg.MCPHostState) {
 func mcpManualCommands(hosts []providerpkg.MCPHost) []string {
 	var out []string
 	for _, h := range hosts {
-		out = append(out, "cplt config set allow.domains "+h.Host)
+		out = append(out, "cplt config set allow.domains "+shellQuote(h.Host))
 		if h.Private {
-			out = append(out, "cplt config set proxy.allow_private_domains "+h.Host)
+			out = append(out, "cplt config set proxy.allow_private_domains "+shellQuote(h.Host))
 		}
 	}
 	return out
@@ -305,6 +305,6 @@ func reportMCPHostsWith(w io.Writer, cpltPath string, refresh func() error) {
 			continue
 		}
 		fmt.Fprintf(w, "      %s %s (MCP) listens on localhost:%s, which the sandbox blocks. Open: %s\n",
-			dim("ℹ"), safe(l.Server, 64), l.Port, bold("cplt config set allow.localhost "+l.Port))
+			dim("ℹ"), safe(l.Server, 64), l.Port, bold("cplt config set allow.localhost "+shellQuote(l.Port)))
 	}
 }

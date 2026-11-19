@@ -4,6 +4,15 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ## 2026-11-19
 
+### Rettelser i MCP-oppsett og agentpakker
+
+- **Kommandoer du skal kopiere**: Linjene «Fix:» i `nav-pilot mcp list` og `nav-pilot doctor` setter nå servernavn, nøkler og verter i enkle anførselstegn der det trengs, så teksten fra registeret eller konfigurasjonen ikke kan tolkes som shell-syntaks. En `cplt config set`-nøkkel i registerets oppsett må bestå av `a-z`, `0-9`, `_` og `.`. Ellers viser nav-pilot ingen kommando.
+- **Godkjente MCP-verter per klient**: Godkjenningen lagres nå per klient (`mcp:registry:copilot` og `mcp:registry:opencode`), og tillatelseslisten for cplt samler vertene fra begge. Å slå på en server for OpenCode fjerner ikke lenger vertene du godkjente for Copilot. Eksisterende godkjenninger gjelder videre uten nytt spørsmål.
+- **OpenCode-konfig**: Er det bare `opencode.jsonc` i `~/.config/opencode`, bruker oppstarten den filen i stedet for å lage en egen `opencode.json` som `opencode.jsonc` overstyrer.
+- **`nav-pilot mcp list` og `doctor` for OpenCode**: Viser nå riktig verktøystatus for oppføringer under `mcp.servers.<navn>` og for avslag skrevet som objekt, som `"github-mcp_*": {"*": "deny"}`.
+- **Protokoll og headere**: En eksplisitt eldre `protocolVersions` i registeret overstyres ikke lenger av at serveren ligger på nav.no. Headere hentes fra endepunktet som er valgt, ikke alltid det første. Registerets `sandboxHosts` for lokale OpenCode-pakker med egen nøkkel kommer nå med i godkjenningen.
+- **Agentpakker**: `allow_private_domains` avviser et offentlig suffiks (som `co.uk`) og en bar `nav.no`, fordi cplt også matcher underdomener. Navngi en bestemt vert.
+
 ### Onboarding-serveren går via gatewayen
 
 - **`nav-pilot mcp enable mcp-onboarding`**: Nye oppføringer for `io.github.navikt/mcp-onboarding` bruker nå gatewayen, og du logger inn med Entra ID første gang. Har du allerede serveren, beholder nav-pilot adressen du har, og den virker som før. Bytt til gatewayen slik: `nav-pilot mcp disable mcp-onboarding && nav-pilot mcp enable mcp-onboarding`.

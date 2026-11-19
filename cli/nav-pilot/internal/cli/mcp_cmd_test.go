@@ -570,3 +570,70 @@ func TestMCPBackfillOpenCodeProtocolTwoKeys(t *testing.T) {
 		t.Errorf("Set protocol lines = %d, want 2\n%s", lines, out)
 	}
 }
+
+func TestMCPFixesQuoteInterpolatedValues(t *testing.T) {
+	f := mcpCmdEnv(t, providerpkg.MCPHostState{})
+	badEntry := providerpkg.MCPServerEntry{
+		Name:   "io.example/old $(id)",
+		Status: "deprecated",
+		Remotes: []providerpkg.MCPRemote{{
+			URL: "https://evil$(id).example/mcp",
+		}},
+		Setup: []providerpkg.MCPSetupStep{
+			{Title: "single quoted", Commands: []string{"cplt config set allow.domains 'api.example.com'"}},
+			{Title: "double quoted", Commands: []string{`cplt config set allow.domains "dbl.example.com"`}},
+			{Title: "plain", Commands: []string{"cplt config set allow.domains plain.example.com"}},
+			{Title: "semicolon", Commands: []string{"cplt config set allow.domains a.example;rm"}},
+			{Title: "unterminated quote", Commands: []string{"cplt config set allow.domains 'unterminated.example.com"}},
+			{Title: "bad key", Commands: []string{"cplt config set bad;key val"}},
+			{Title: "upper key", Commands: []string{"cplt config set BAD_KEY val"}},
+			{Title: "slash key", Commands: []string{"cplt config set a/b val"}},
+		},
+	}
+	f.verdicts["evil$(id).example:443"] = "BLOCKED-ALLOWLIST"
+	entries := append(mcpTestEntries(), badEntry)
+	writeTestFile(t, copilotMCPPath(), `{"mcpServers": {
+		"io.example/old $(id)": {},
+		"old $(id)": {},
+		"my $(touch w)": {}
+	}}`)
+
+	rep := diagnoseMCP("r", entries, mcpConfigured(entries), "")
+	var fixes []string
+	for _, p := range rep.Problems {
+		fixes = append(fixes, p.Fix)
+	}
+	wantAll := []string{
+		"nav-pilot mcp disable 'io.example/old $(id)'",
+		"cplt config set allow.domains 'evil$(id).example'",
+		"cplt config set allow.domains api.example.com",
+		"cplt config set allow.domains dbl.example.com",
+		"cplt config set allow.domains plain.example.com",
+		"nav-pilot mcp disable 'old $(id)' --client copilot && nav-pilot mcp enable 'io.example/old $(id)' --client copilot",
+		"nav-pilot mcp disable 'my $(touch w)' --client copilot, or ask for it in the registry: " + providerpkg.MCPRegistryHelpURL,
+	}
+	for _, w := range wantAll {
+		if !slices.Contains(fixes, w) {
+			t.Errorf("missing quoted fix %q in %q", w, fixes)
+		}
+	}
+	for _, fix := range fixes {
+		if strings.Contains(fix, "api.example.com") && strings.Contains(fix, "'") {
+			t.Errorf("quoted setup command left stray apostrophes in fix: %q", fix)
+		}
+		if strings.Contains(fix, "a.example") || strings.Contains(fix, "unterminated") || strings.Contains(fix, "bad;key") || strings.Contains(fix, "BAD_KEY") || strings.Contains(fix, "a/b") {
+			t.Errorf("invalid setup command emitted runnable fix: %q", fix)
+		}
+	}
+
+	out := captureStdout(func() {
+		printMCPProblems([]mcpProblem{{
+			Server:  "srv\x1b[2K",
+			Problem: "line1\nline2\x1b[31m",
+			Fix:     "cplt config set allow.domains 'a\x1b[2Kb\nc'",
+		}})
+	})
+	if strings.Contains(out, "\x1b[2K") || strings.Contains(out, "\x1b[31m") || strings.Contains(out, "line2\n") {
+		t.Errorf("printMCPProblems emitted raw escape or injected newline: %q", out)
+	}
+}
