@@ -15,7 +15,6 @@ import (
 	"net/http"
 	"net/url"
 	"slices"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -503,11 +502,10 @@ func (g *Gateway) callbackHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	navIdent := ""
-	groups := make(map[string]bool)
-	extractIdentityFromClaims(idClaims, &navIdent, groups)
+	extractIdentityFromClaims(idClaims, &navIdent)
 	if at != "" {
 		if atClaims, parseErr := parseJWTClaims(at); parseErr == nil {
-			extractIdentityFromClaims(atClaims, &navIdent, groups)
+			extractIdentityFromClaims(atClaims, &navIdent)
 		}
 	}
 	if navIdent == "" {
@@ -518,12 +516,6 @@ func (g *Gateway) callbackHandler(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-
-	groupList := make([]string, 0, len(groups))
-	for grp := range groups {
-		groupList = append(groupList, grp)
-	}
-	sort.Strings(groupList)
 
 	issuedAt := g.now()
 	sessionTTL := computeSessionTTL(out["expires_in"], g.cfg.SessionMaxAge)
@@ -542,7 +534,6 @@ func (g *Gateway) callbackHandler(w http.ResponseWriter, r *http.Request) {
 		EntraToken:   at,
 		RefreshToken: sessRT,
 		NAVIdent:     navIdent,
-		Groups:       groupList,
 		IssuedAt:     issuedAt,
 		Expiry:       issuedAt.Add(sessionTTL),
 	}
@@ -837,20 +828,13 @@ func parseJWTClaims(rawJWT string) (map[string]any, error) {
 	return claims, nil
 }
 
-func extractIdentityFromClaims(claims map[string]any, navIdent *string, groups map[string]bool) {
+func extractIdentityFromClaims(claims map[string]any, navIdent *string) {
 	if claims == nil {
 		return
 	}
 	if *navIdent == "" {
 		if v, ok := claims["NAVident"].(string); ok {
 			*navIdent = strings.TrimSpace(v)
-		}
-	}
-	if rawGroups, ok := claims["groups"].([]any); ok {
-		for _, g := range rawGroups {
-			if gs, ok := g.(string); ok && gs != "" {
-				groups[gs] = true
-			}
 		}
 	}
 }
@@ -875,5 +859,5 @@ func logAccessTokenShape(at string) {
 	if json.Unmarshal(raw, &c) != nil {
 		return
 	}
-	slog.Info("entra access token shape", "aud", fmt.Sprint(c.Aud), "ver", c.Ver, "azp", c.Azp, "scp", c.Scp)
+	slog.Debug("entra access token shape", "aud", fmt.Sprint(c.Aud), "ver", c.Ver, "azp", c.Azp, "scp", c.Scp)
 }
