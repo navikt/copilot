@@ -57,3 +57,7 @@ Kan du sende diffen? Signeringsfeil skal stoppe sendingen.		0	#2437 review 3
 	Ved signeringsfeil kaster lokal kode unntaket videre uten å endre headerne. Skal denne oppførselen dokumenteres?	0	#2465: context, docs
 	Jeg har lest koden.\n\nBare i testdobben, bl.a. sendes usignerte records videre. Skal denne oppførselen beholdes?	0	#2475 r2 Astra: qualifier across bl.a.	1
 	Jeg har lest koden.\n\nVed signeringsfeil, bl.a. når nøkkelen mangler, sendes usignerte records videre. Skal denne oppførselen beholdes?	1	#2475 r2: bl.a. inside a production statement	
+	Jeg har lest koden.\n\nSpørsmålet gjelder produksjon. Testdobben sender usignert ved feil. Ønsker du samme oppførsel?	1	#2475 r3 Astra: scope two sentences back, production	1
+	Jeg har lest koden.\n\nSpørsmålet gjelder kun tester. Testdobben sender usignert ved feil. Ønsker du samme oppførsel?	0	#2475 r3 Astra: scope two sentences back, tests only	1
+	Jeg har lest koden.\n\nBare i testdobben (se fig. 2) sendes usignerte records videre. Skal denne oppførselen beholdes?	0	#2475 r3 Astra: qualifier across «fig.»	
+	Jeg har lest koden.\n\nVed feil sendes usignerte records. stdout er loggmålet. Er det ønsket?	0	#2475 r3 Astra: the question follows a logging sentence	
