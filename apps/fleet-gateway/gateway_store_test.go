@@ -274,6 +274,7 @@ type failingStore struct {
 	failDelete     error
 	failRevokeOnce error
 	failRevoke     error
+	failIsRevoked  error
 	failPing       error
 }
 
@@ -317,6 +318,13 @@ func (f *failingStore) RevokeOnce(ctx context.Context, jti string, expiresAt tim
 		return false, f.failRevokeOnce
 	}
 	return f.SessionStore.RevokeOnce(ctx, jti, expiresAt)
+}
+
+func (f *failingStore) IsRevoked(ctx context.Context, jti string) (bool, error) {
+	if f.failIsRevoked != nil {
+		return false, f.failIsRevoked
+	}
+	return f.SessionStore.IsRevoked(ctx, jti)
 }
 
 func (f *failingStore) Ping(ctx context.Context) error {

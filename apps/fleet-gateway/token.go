@@ -38,6 +38,7 @@ type gatewaySession struct {
 	EntraToken   string    `json:"entra_token,omitempty"`
 	RefreshToken string    `json:"refresh_token,omitempty"` //nolint:gosec // serialized only into SessionStore (sealed with RT_KEYS in Postgres)
 	NAVIdent     string    `json:"nav_ident"`
+	FID          string    `json:"fid,omitempty"`
 	IssuedAt     time.Time `json:"issued_at"`
 	Expiry       time.Time `json:"expiry"`
 }
@@ -318,6 +319,7 @@ func (g *Gateway) handleAuthorizationCodeGrant(w http.ResponseWriter, r *http.Re
 			bad(http.StatusInternalServerError, "server_error", "failed to issue token")
 			return
 		}
+		issued.Session.FID = fid
 	}
 
 	if err := g.putSession(r.Context(), hashToken(accessToken), &issued.Session, ttl); err != nil {
@@ -472,6 +474,10 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 	// so a transient Entra failure does not burn the user's RT (retry after the
 	// pending TTL). Trade-off: a crash between Entra success and Revoke leaves the
 	// old RT usable once more after the TTL.
+	if r.Context().Err() != nil {
+		outcome = "client_canceled"
+		return
+	}
 	pendExpiry := g.now().Add(refreshPendingTTL)
 	if pendExpiry.After(absExpiry) {
 		pendExpiry = absExpiry
@@ -504,7 +510,13 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	out, status, body, err := g.redeemEntraRefreshToken(r.Context(), payload.EntraRT)
+	// Detach from client cancellation once the pending claim is held and Entra
+	// may already be redeeming the upstream RT; otherwise a client abort leaves
+	// pend:<jti> held for refreshPendingTTL with the jti unburned and no grace pair.
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), defaultOutboundTimeout)
+	defer cancel()
+
+	out, status, body, err := g.redeemEntraRefreshToken(ctx, payload.EntraRT)
 	if err != nil || status >= 500 || status == http.StatusTooManyRequests {
 		outcome = "upstream_unavailable"
 		slog.Warn("upstream refresh unavailable", "status", status)
@@ -515,7 +527,7 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 	if status == http.StatusOK {
 		// /revoke or a family revoke may have landed while Entra was in flight.
 		for _, k := range []string{famKey, payload.JTI} {
-			gone, rerr := g.store.IsRevoked(r.Context(), k)
+			gone, rerr := g.store.IsRevoked(ctx, k)
 			if rerr != nil {
 				unavailable(rerr)
 				return
@@ -528,7 +540,7 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 		}
 	}
 	if status != http.StatusOK {
-		if err = g.store.Revoke(r.Context(), payload.JTI, absExpiry); err != nil {
+		if err = g.store.Revoke(ctx, payload.JTI, absExpiry); err != nil {
 			unavailable(err)
 			return
 		}
@@ -606,10 +618,11 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 		EntraToken:   newAT,
 		RefreshToken: "",
 		NAVIdent:     payload.NAVIdent,
+		FID:          payload.FID,
 		IssuedAt:     issuedAt,
 		Expiry:       sessExpiry,
 	}
-	if err = g.putSession(r.Context(), hashToken(accessToken), newSess, ttl); err != nil {
+	if err = g.putSession(ctx, hashToken(accessToken), newSess, ttl); err != nil {
 		outcome = "store_error"
 		if errors.Is(err, errStoreFull) {
 			markShed(w, "store_full")
@@ -627,15 +640,15 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 	graceTTL := min(g.cfg.RefreshGraceWindow, absExpiry.Sub(now))
 	if raw, merr := json.Marshal(refreshGrace{AccessToken: accessToken, RefreshToken: newRT, NewJTI: newJTI, Expiry: sessExpiry}); merr != nil {
 		slog.Warn("marshal refresh grace failed", "error", merr)
-	} else if perr := g.store.Put(r.Context(), kindRefreshGrace, payload.JTI, raw, graceTTL); perr != nil {
+	} else if perr := g.store.Put(ctx, kindRefreshGrace, payload.JTI, raw, graceTTL); perr != nil {
 		slog.Warn("store refresh grace failed", "error", perr)
 	}
-	if err = g.store.Revoke(r.Context(), payload.JTI, absExpiry); err != nil {
+	if err = g.store.Revoke(ctx, payload.JTI, absExpiry); err != nil {
 		unavailable(err)
 		return
 	}
 
-	g.renewClient(r.Context(), clientID)
+	g.renewClient(ctx, clientID)
 	writeJSON(w, http.StatusOK, map[string]any{
 		"access_token":  accessToken,
 		"token_type":    "Bearer",
@@ -699,46 +712,57 @@ func (g *Gateway) revokeHandler(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			// Consent first: if its delete fails the session stays, so a retry still finds it.
-			if err := g.forgetConsent(r.Context(), sess.NAVIdent, sess.ClientID, sess.Resource); err != nil {
+			if err = g.forgetConsent(r.Context(), sess.NAVIdent, sess.ClientID, sess.Resource); err != nil {
 				slog.Warn("revoke consent delete failed", "error", err)
 				bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store unavailable")
 				return
 			}
-			if err := g.store.Delete(r.Context(), kindSession, tokenHash); err != nil {
+			if err = g.store.Delete(r.Context(), kindSession, tokenHash); err != nil {
 				slog.Warn("revoke session delete failed", "error", err)
 				bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store unavailable")
 				return
 			}
+			writeJSON(w, http.StatusOK, map[string]any{})
+			return
 		}
-		if payload, err := g.openRefreshToken(token); err == nil {
-			if payload.ClientID != clientID {
-				slog.Warn("revoke client mismatch")
-				writeJSON(w, http.StatusOK, map[string]any{})
+		payload, err := g.openRefreshToken(token)
+		if err != nil {
+			if errors.Is(err, errSealUnknownKID) {
+				slog.Warn("revoke refresh token unknown key id", "error", err)
+				w.Header().Set("Retry-After", "5")
+				bad(http.StatusServiceUnavailable, "temporarily_unavailable", "refresh token key unavailable")
 				return
 			}
-			if err := g.forgetConsent(r.Context(), payload.NAVIdent, payload.ClientID, payload.Resource); err != nil {
-				slog.Warn("revoke consent delete failed", "error", err)
-				bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store unavailable")
-				return
-			}
-			expiresAt := time.Unix(payload.EXP, 0).UTC()
-			if _, err := g.store.RevokeOnce(r.Context(), payload.JTI, expiresAt); err != nil {
-				slog.Warn("revoke refresh token failed", "error", err)
-				bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store unavailable")
-				return
-			}
-			// Revoke the family too (RFC 7009 2.1), so a grace pair already read
-			// by a concurrent replay fails its family recheck.
-			if err := g.store.Revoke(r.Context(), "fam:"+payload.FID, expiresAt); err != nil {
-				slog.Warn("revoke refresh family failed", "error", err)
-				bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store unavailable")
-				return
-			}
-			if err := g.store.Delete(r.Context(), kindRefreshGrace, payload.JTI); err != nil {
-				slog.Warn("revoke refresh grace failed", "error", err)
-				bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store unavailable")
-				return
-			}
+			writeJSON(w, http.StatusOK, map[string]any{})
+			return
+		}
+		if payload.ClientID != clientID {
+			slog.Warn("revoke client mismatch")
+			writeJSON(w, http.StatusOK, map[string]any{})
+			return
+		}
+		if err := g.forgetConsent(r.Context(), payload.NAVIdent, payload.ClientID, payload.Resource); err != nil {
+			slog.Warn("revoke consent delete failed", "error", err)
+			bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store unavailable")
+			return
+		}
+		expiresAt := time.Unix(payload.EXP, 0).UTC()
+		if _, err := g.store.RevokeOnce(r.Context(), payload.JTI, expiresAt); err != nil {
+			slog.Warn("revoke refresh token failed", "error", err)
+			bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store unavailable")
+			return
+		}
+		// Revoke the family too (RFC 7009 2.1), so a grace pair already read
+		// by a concurrent replay fails its family recheck.
+		if err := g.store.Revoke(r.Context(), "fam:"+payload.FID, expiresAt); err != nil {
+			slog.Warn("revoke refresh family failed", "error", err)
+			bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store unavailable")
+			return
+		}
+		if err := g.store.Delete(r.Context(), kindRefreshGrace, payload.JTI); err != nil {
+			slog.Warn("revoke refresh grace failed", "error", err)
+			bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store unavailable")
+			return
 		}
 	}
 

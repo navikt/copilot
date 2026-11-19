@@ -1203,3 +1203,168 @@ func TestRefreshToken_RetiredResourceInvalidGrant(t *testing.T) {
 		t.Fatalf("expected 400 invalid_grant for retired resource, got %d (%v)", status, body)
 	}
 }
+
+func TestRevoke_RefreshTokenInvalidatesAccessToken(t *testing.T) {
+	te := newClientEncryptedTestEnv(t, "k1:"+testKeyBase64(t, false))
+
+	// Both initial AT (authorization_code) and refreshed AT (refresh_token) carry
+	// the RT family id and stop working once the RT is revoked.
+	at1, rt1, _ := te.obtainTokensForResource(te.resource)
+	status, body := te.postToken(refreshForm(te, rt1))
+	if status != http.StatusOK {
+		t.Fatalf("expected 200 on refresh, got %d (%v)", status, body)
+	}
+	at2, _ := body["access_token"].(string)
+	rt2, _ := body["refresh_token"].(string)
+
+	callMCP := func(at string) int {
+		req := httptest.NewRequest(http.MethodPost, "/mcp/team-etterlevelse/etterlevelse", strings.NewReader(`{}`))
+		req.Header.Set("Authorization", "Bearer "+at)
+		rec := httptest.NewRecorder()
+		te.handler.ServeHTTP(rec, req)
+		return rec.Code
+	}
+	if code := callMCP(at1); code != http.StatusOK {
+		t.Fatalf("expected 200 before revoke (at1), got %d", code)
+	}
+	if code := callMCP(at2); code != http.StatusOK {
+		t.Fatalf("expected 200 before revoke (at2), got %d", code)
+	}
+
+	// Store error on the family revocation check must fail closed with 503, not allow or 401.
+	origStore := te.gw.store
+	te.gw.store = &failingStore{
+		SessionStore:  origStore,
+		failIsRevoked: errors.New("db unavailable"),
+	}
+	if code := callMCP(at2); code != http.StatusServiceUnavailable {
+		t.Fatalf("expected 503 when family revocation check errors, got %d", code)
+	}
+	te.gw.store = origStore
+
+	if code, revBody := postRevoke(te.handler, rt2, te.clientID); code != http.StatusOK {
+		t.Fatalf("expected 200 on /revoke RT, got %d (%v)", code, revBody)
+	}
+	if code := callMCP(at1); code != http.StatusUnauthorized {
+		t.Fatalf("expected 401 for at1 after RT revoke, got %d", code)
+	}
+	if code := callMCP(at2); code != http.StatusUnauthorized {
+		t.Fatalf("expected 401 for at2 after RT revoke, got %d", code)
+	}
+	// Session row should also have been deleted on lookup.
+	if _, ok, err := te.gw.store.Get(context.Background(), kindSession, hashToken(at2)); err != nil || ok {
+		t.Fatalf("expected revoked session row deleted, got ok=%v err=%v", ok, err)
+	}
+}
+
+func TestRevoke_UnknownKIDReturns503AndOtherErrorsReturn200(t *testing.T) {
+	te := newClientEncryptedTestEnv(t, "k1:"+testKeyBase64(t, false))
+
+	otherKR, err := parseKeyRing("k99:" + testKeyBase64(t, true))
+	if err != nil {
+		t.Fatalf("parseKeyRing: %v", err)
+	}
+	rawPayload, err := json.Marshal(rtPayload{
+		V:        1,
+		JTI:      "jti-other",
+		FID:      "fid-other",
+		IAT:      te.gw.now().Unix(),
+		EXP:      te.gw.now().Add(time.Hour).Unix(),
+		ClientID: te.clientID,
+		Resource: te.resource,
+		NAVIdent: te.navIdent,
+		EntraRT:  "entra-rt",
+	})
+	if err != nil {
+		t.Fatalf("marshal rtPayload: %v", err)
+	}
+	unknownKIDBlob, err := otherKR.Seal([]byte(rtSealAAD), rawPayload)
+	if err != nil {
+		t.Fatalf("seal unknown kid: %v", err)
+	}
+
+	form := url.Values{
+		"token":     {base64.RawURLEncoding.EncodeToString(unknownKIDBlob)},
+		"client_id": {te.clientID},
+	}
+	req := httptest.NewRequest(http.MethodPost, "/revoke", strings.NewReader(form.Encode()))
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+	te.handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Fatalf("expected 503 on unknown kid revoke, got %d (%s)", rec.Code, rec.Body.String())
+	}
+	if rec.Header().Get("Retry-After") != "5" {
+		t.Fatalf("expected Retry-After: 5, got %q", rec.Header().Get("Retry-After"))
+	}
+	var errBody map[string]any
+	if err = json.Unmarshal(rec.Body.Bytes(), &errBody); err != nil {
+		t.Fatalf("unmarshal 503 body: %v", err)
+	}
+	if errBody["error"] != "temporarily_unavailable" {
+		t.Fatalf("expected error=temporarily_unavailable, got %v", errBody)
+	}
+
+	// Other openRefreshToken failures (wrong AAD / decrypt error, malformed) keep RFC 7009 200 {}.
+	wrongAADBlob, err := te.gw.rtKeys.Seal([]byte("wrong-aad"), rawPayload)
+	if err != nil {
+		t.Fatalf("seal wrong aad: %v", err)
+	}
+	for _, tok := range []string{
+		base64.RawURLEncoding.EncodeToString(wrongAADBlob),
+		"not-even-sealed-token",
+	} {
+		code, body := postRevoke(te.handler, tok, te.clientID)
+		if code != http.StatusOK || len(body) != 0 {
+			t.Fatalf("expected 200 {} for non-unknown-kid open error, got %d (%v)", code, body)
+		}
+	}
+}
+
+func TestRefreshToken_ClientCancelCompletesRefreshAndServesGracePair(t *testing.T) {
+	te := newClientEncryptedTestEnv(t, "k1:"+testKeyBase64(t, false))
+	_, rt, _ := te.obtainTokensForResource(te.resource)
+	payload, err := te.gw.openRefreshToken(rt)
+	if err != nil {
+		t.Fatalf("openRefreshToken: %v", err)
+	}
+
+	entered, release := make(chan struct{}), make(chan struct{})
+	te.mu.Lock()
+	te.entraRefreshHook = func() { close(entered); <-release }
+	te.mu.Unlock()
+
+	reqCtx, cancel := context.WithCancel(context.Background())
+	req := httptest.NewRequest(http.MethodPost, "/token", strings.NewReader(refreshForm(te, rt).Encode())).WithContext(reqCtx)
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	rec := httptest.NewRecorder()
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		te.handler.ServeHTTP(rec, req)
+	}()
+
+	// Wait until the handler has claimed pend:<jti> and is blocked inside Entra,
+	// then abort the client request before releasing Entra.
+	<-entered
+	cancel()
+	close(release)
+	<-done
+
+	// handleRefreshTokenGrant detaches with context.WithoutCancel(r.Context()) after
+	// claiming pend:<jti>, so the Entra call and subsequent store writes (new session,
+	// grace pair, and Revoke(jti)) still complete. An immediate retry therefore sees
+	// the burned jti and receives the rotated pair from the grace window (200 OK)
+	// rather than hanging on 503 refresh_in_flight for refreshPendingTTL.
+	if burned, rerr := te.gw.store.IsRevoked(context.Background(), payload.JTI); rerr != nil || !burned {
+		t.Fatalf("expected old jti to be burned after detached completion, got burned=%v err=%v", burned, rerr)
+	}
+	status, body := te.postToken(refreshForm(te, rt))
+	if status != http.StatusOK {
+		t.Fatalf("immediate retry after canceled refresh: expected 200 grace pair, got %d (%v)", status, body)
+	}
+	if body["access_token"] == "" || body["refresh_token"] == "" {
+		t.Fatalf("expected access_token and refresh_token from grace window, got %v", body)
+	}
+}

@@ -155,6 +155,9 @@ func (kr *keyRing) Open(aad, blob []byte) ([]byte, error) {
 	}
 
 	kid := string(blob[1 : 1+kidLen])
+	if !isValidKID(kid) {
+		return nil, errSealMalformed
+	}
 	nonce := blob[1+kidLen : 1+kidLen+sealNonceSize]
 	ciphertext := blob[1+kidLen+sealNonceSize:]
 
