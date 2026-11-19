@@ -9,7 +9,7 @@ routes:
     team: copilot
     target: prod-gcp:copilot:mcp-dolly
     upstream_url: http://mcp-dolly.copilot/
-    enabled: false
+    enabled: true
     tools:
       - dolly_current_user
       - dolly_list_groups
