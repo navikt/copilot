@@ -489,3 +489,29 @@ func TestDefaultEntraScopeTargetsGateway(t *testing.T) {
 func TestProdPilotRoutesFileValid(t *testing.T) {
 	assertPilotRoutesFileValid(t, "pilot-routes.prod.yaml", "prod-gcp")
 }
+
+func TestLoadConfig_RateLimitCapAtLeastGlobal(t *testing.T) {
+	tests := []struct {
+		name    string
+		cap     string
+		global  string
+		wantCap int
+	}{
+		{name: "cap below global is raised", cap: "10", global: "300", wantCap: 300},
+		{name: "cap above global is kept", cap: "500", global: "300", wantCap: 500},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			setBaseValidEnv(t)
+			t.Setenv("RATE_LIMIT_MAP_CAP", tt.cap)
+			t.Setenv("RATE_LIMIT_GLOBAL_REQUESTS", tt.global)
+			cfg, err := loadConfigFromEnv()
+			if err != nil {
+				t.Fatalf("loadConfigFromEnv: %v", err)
+			}
+			if cfg.RateLimitCap != tt.wantCap {
+				t.Fatalf("RateLimitCap = %d, want %d", cfg.RateLimitCap, tt.wantCap)
+			}
+		})
+	}
+}
