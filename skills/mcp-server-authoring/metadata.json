@@ -1,0 +1,17 @@
+{
+  "description": "Skriv og registrer MCP-servere bak fleet-gateway: verktøydesign, Texas-auth, effektivitet, ROS og OWASP MCP Top 10",
+  "domain": "platform",
+  "tags": [
+    "mcp",
+    "fleet-gateway",
+    "texas",
+    "kotlin",
+    "typescript",
+    "go",
+    "owasp",
+    "security"
+  ],
+  "references": [
+    "NOTICE"
+  ]
+}

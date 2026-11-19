@@ -1,0 +1,9 @@
+This skill is adapted in part from the "mcp-builder" skill in
+https://github.com/anthropics/skills (skills/mcp-builder), licensed under the
+Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0).
+
+Modified by Nav (navikt/copilot): the four-phase workflow structure and the
+tool-design and evaluation ideas were adapted and rewritten; Nav-specific
+material (fleet-gateway, Texas, ROS, registry, OWASP MCP Top 10 mapping) and
+the Kotlin/TypeScript/Go notes were added; the Python guidance was dropped.
+No large verbatim passages are copied.

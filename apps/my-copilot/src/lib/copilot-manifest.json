@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-11-16T17:39:42.080Z",
+  "generatedAt": "2026-11-19T21:36:53.737Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -1320,6 +1320,26 @@
         {
           "prompt": "Lag boilerplate for en Ktor API med Kotliquery og Flyway",
           "scenario": "API-tjeneste med database"
+        }
+      ]
+    },
+    {
+      "id": "mcp-server-authoring",
+      "name": "mcp-server-authoring",
+      "description": "Skriv, test og registrer MCP-servere som kjører bak fleet-gateway på Nais, med Texas-auth, verktøydesign for agenter, ROS og OWASP MCP Top 10",
+      "type": "skill",
+      "domain": "platform",
+      "filePath": "skills/mcp-server-authoring/SKILL.md",
+      "repoPath": "skills/mcp-server-authoring/SKILL.md",
+      "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/mcp-server-authoring/SKILL.md",
+      "contentHash": "710375a6314342c3a02f864c648e7ed6ec06f904561b460853779eff5bfacacc",
+      "installUrl": null,
+      "insidersInstallUrl": null,
+      "tags": ["mcp", "fleet-gateway", "texas", "kotlin", "typescript", "go", "owasp", "security"],
+      "references": [
+        {
+          "path": "NOTICE",
+          "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/mcp-server-authoring/NOTICE"
         }
       ]
     },
