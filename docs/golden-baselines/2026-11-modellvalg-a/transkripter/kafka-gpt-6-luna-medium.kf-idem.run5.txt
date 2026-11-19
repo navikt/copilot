@@ -1,0 +1,64 @@
+ ● skill(kafka)
+
+Jeg undersøker konsumentens commit-oppsett, eventuelle idempotensmønstre og testene før jeg endrer betalingsflyten.
+
+ ● skill(klarsprak)
+
+ MD Read .github/instructions/kotlin.instructions.md too large, not read
+
+ MD Read .github/instructions/security-owasp.instructions.md 12 lines read
+
+ MD Read .github/instructions/testing-kotlin.instructions.md 185 lines read
+
+ MD Read .github/instructions/testing.instructions.md 112 lines read
+
+ / Search "**/*VedtakKonsument*" 2 files found
+
+ / Search "vedtak-konsument/**/*" 4 files found
+
+ ● Read vedtak-konsument/src/main/kotlin/no/nav/vedtak/VedtakKonsument.kt 23 lines read
+
+ MD Read .github/instructions/kotlin.instructions.md L1:160 (160 lines read)
+
+ ● Read vedtak-konsument/src/test/kotlin/no/nav/vedtak/VedtakKonsumentTest.kt 25 lines read
+
+ ● Read vedtak-konsument/build.gradle.kts 20 lines read
+
+ / Search "eventId|event_id|commitSync|enable.auto.commit|commitAsync|offset" in **/*… 5 lines found
+
+ ✗ Shell Check repository changes Failed with exit code 128  fatal: not a git repository (or any of…
+   git status --short --branch
+   fatal: not a git repository (or any of the parent directories): .git
+   Failed with exit code 128
+
+Konsumenten har ingen varig lagring for behandlede eventer. Jeg legger til en prosesslokal eventId-cache, flytter `commitSync()` etter behandlingen av hele batchen og tester både replay og feil under utbetaling.
+
+ ● Edit  Edit vedtak-konsument/src/main/kotlin/no/nav/vedtak/VedtakKonsument.kt (+6 -2)  Edit vedta…
+
+ ● Edit  Edit vedtak-konsument/src/main/kotlin/no/nav/vedtak/VedtakKonsument.kt (+2 -1)
+
+ $ Shell Run Gradle tests in vedtak-konsument 14 lines…
+   gradle test
+
+Den første Gradle-kjøringen fant ingen tester, fordi den kjørte fra repo-roten. Jeg kjører nå testen fra `vedtak-konsument/`, slik du ba om.
+
+ $ Shell Run module Gradle tests 14 lines…
+   cd vedtak-konsument && gradle test
+
+ ● Edit  Edit vedtak-konsument/src/test/kotlin/no/nav/vedtak/VedtakKonsumentTest.kt (+11 -2)
+
+ $ Shell Run module Gradle tests after retry test change 14 lines…
+   cd vedtak-konsument && gradle test
+
+Fikset `VedtakKonsument`: Den registrerer `eventId` etter vellykket utbetaling, hopper over ID-er den allerede har behandlet, og committer først etter at hele batchen er behandlet. Konstruktøren tar fortsatt bare `consumer` og `utbetaling`. `gradle test` i `vedtak-konsument/` består.
+
+Event-ID-cache-en ligger i minnet og overlever derfor ikke en prosessrestart. En varig garanti mot duplikater etter krasj krever at utbetalingen lagrer `eventId` som idempotensnøkkel.
+
+🔴 Rød sone: Gå nøye gjennom hvordan utbetaling og offset-commit henger sammen.
+
+**Sjekkliste for rød sone**
+- [x] Duplikate event-ID-er utbetales ikke på nytt mens konsumenten kjører.
+- [x] Feil ved utbetaling fører ikke til offset-commit.
+
+Still gjerne spørsmål om valgene over.
+

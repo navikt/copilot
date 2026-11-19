@@ -1,0 +1,51 @@
+ ● skill(klarsprak)
+
+Jeg undersøker først testfeilene og prosjektets lokale instruksjoner. Deretter retter jeg produksjonskoden og kjører `go test ./...` fra `frister/`.
+
+ / Search "frister/**" 3 files found
+
+ / Search ".github/copilot-instructions.md" No matches found
+
+ / Search "**/*.go" 5 files found
+
+ / Search "**/AGENTS.md" No matches found
+
+ ● Read frister/go.mod 3 lines read
+
+ GO Read frister/frist.go 16 lines read
+
+ GO Read frister/frist_test.go 26 lines read
+
+ / Search ".github/instructions/golang.instructions.md" 1 file found
+
+ / Search ".github/instructions/testing*.instructions.md" 3 files found
+
+ ✗ Shell Run frister tests Failed with exit code 1  FAIL  ./... [setup failed] # ./... pattern ./..…
+   go test ./...
+   FAIL    ./... [setup failed]
+   # ./...
+   pattern ./...: directory prefix . does not contain main module or its selected dependencies
+   FAIL
+   Failed with exit code 1
+
+ ✗ Shell Run all tests in frister Failed with exit code 1  --- FAIL: TestFrist (0.00s) frist_test.g…
+   cd frister && go test ./...
+   --- FAIL: TestFrist (0.00s)
+       frist_test.go:23: Frist(2026-09-05) = 2026-10-18, want 2026-10-19
+   FAIL
+   FAIL    example.com/frister     0.027s
+   FAIL
+   Failed with exit code 1
+
+ ● Edit  Edit frister/frist.go (+1 -1)
+
+ $ Shell Verify all frister tests pass 1 line…
+   cd frister && go test ./...
+
+ $ Shell Run frister tests without cache 1 line…
+   cd frister && go test -count=1 ./...
+
+Rettet `Frist`: en lørdagsfrist flyttes nå to dager til mandag, ikke én dag til søndag. Søndag flyttes fortsatt én dag.
+
+`cd frister && go test -count=1 ./...` passerer.
+

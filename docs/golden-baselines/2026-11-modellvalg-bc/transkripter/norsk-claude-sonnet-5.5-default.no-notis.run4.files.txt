@@ -1,0 +1,9 @@
+=== ./notis.md
+# Review-agenten sjekker norsk tekst
+
+Fra mandag 5. oktober sjekker KI-review-agenten norsk tekst for nynorsk-former og KI-floskler. Sjekken kjører automatisk på pull requests som endrer filer under `docs/`.
+
+Team som ikke vil bruke den, kan slå den av med `review.norsk = false` i `.nav-pilot/config.toml`.
+
+Send tilbakemeldinger i Slack-kanalen #ki-utvikling.
+

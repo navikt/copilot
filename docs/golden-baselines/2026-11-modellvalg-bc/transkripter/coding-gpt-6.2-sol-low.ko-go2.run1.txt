@@ -1,0 +1,21 @@
+ ● skill(klarsprak)
+
+ $ Shell ls -la; ls -la ytelse; ls .github/instructions 35 lines…
+   ls -la; ls -la ytelse; ls .github/instructions
+
+ / Search "." (ytelse, .github/instructions/golang.instructions.md, .github/instruc… 140 lines found
+
+ ● Edit  Edit ytelse/utbetaling.go (+4 -3)  Edit ytelse/rapport.go (+2 -2)
+
+ $ Shell cd ytelse && gofmt -l rapport.go utbetaling.go && go test ./... 1 line…
+   cd ytelse && gofmt -l rapport.go utbetaling.go && go test ./...
+
+`go test ./...` i `ytelse/` går grønt. Testene er uendret.
+
+`Utbetaling` bruker graden som prosent av full dagsats og runder ned etter gradering, slik at satsen ikke avrundes for tidlig. `Rapport` bruker samme beregning.
+
+**Sjekkliste for rød sone**
+- [ ] Kontroller i `ytelse_test.go` at 100 % gir full dagsats, og at 50 % gir halv sats både i utbetalingen og i rapporten.
+
+Kan du fortelle meg hva denne koden gjør og hvorfor denne tilnærmingen er riktig?
+

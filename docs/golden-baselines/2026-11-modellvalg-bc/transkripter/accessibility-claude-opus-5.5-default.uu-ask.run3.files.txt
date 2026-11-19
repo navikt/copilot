@@ -1,0 +1,154 @@
+=== ./src/app/komponenter/StatusPanel.tsx
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { CheckmarkIcon, TrashIcon } from "@navikt/aksel-icons";
+import { Label } from "@navikt/ds-react";
+
+export type StatusValg = { verdi: string; tekst: string };
+
+type StatusPanelProps = {
+  status: string;
+  onSlett: () => void;
+  statusValg: StatusValg[];
+  onStatusEndret: (verdi: string) => void;
+};
+
+let idTeller = 0;
+
+export function StatusPanel({
+  status,
+  onSlett,
+  statusValg,
+  onStatusEndret,
+}: StatusPanelProps) {
+  const [apen, setApen] = useState(false);
+
+  return (
+    <div className="p-4 mx-8">
+      <div onClick={() => setApen(!apen)} style={{ outline: "none" }}>
+        Vis detaljer
+      </div>
+      <span tabIndex={5} style={{ color: status === "feil" ? "red" : "green" }}>
+        {status}
+      </span>
+      <StatusListbox
+        valg={statusValg}
+        valgt={status}
+        onEndret={onStatusEndret}
+      />
+      <button onClick={onSlett}>
+        <TrashIcon />
+      </button>
+    </div>
+  );
+}
+
+type StatusListboxProps = {
+  valg: StatusValg[];
+  valgt: string;
+  onEndret: (verdi: string) => void;
+};
+
+function StatusListbox({ valg, valgt, onEndret }: StatusListboxProps) {
+  const [idPrefiks] = useState(() => `statusvalg-${++idTeller}`);
+  const valgtIndeks = valg.findIndex((v) => v.verdi === valgt);
+  const [aktivIndeks, setAktivIndeks] = useState(Math.max(valgtIndeks, 0));
+  const [harFokus, setHarFokus] = useState(false);
+  const listeRef = useRef<HTMLUListElement>(null);
+
+  const labelId = `${idPrefiks}-label`;
+  const valgId = (indeks: number) => `${idPrefiks}-valg-${indeks}`;
+
+  useEffect(() => {
+    if (valgtIndeks >= 0) setAktivIndeks(valgtIndeks);
+  }, [valgtIndeks]);
+
+  useEffect(() => {
+    if (!harFokus) return;
+    document
+      .getElementById(valgId(aktivIndeks))
+      ?.scrollIntoView({ block: "nearest" });
+  }, [aktivIndeks, harFokus]);
+
+  const velg = (indeks: number) => {
+    if (indeks < 0 || indeks >= valg.length) return;
+    setAktivIndeks(indeks);
+    onEndret(valg[indeks].verdi);
+  };
+
+  // Valget følger fokus, som anbefalt for listbox med enkeltvalg i WAI-ARIA APG.
+  const handleKeyDown = (e: KeyboardEvent<HTMLUListElement>) => {
+    const nyIndeks = {
+      ArrowDown: Math.min(aktivIndeks + 1, valg.length - 1),
+      ArrowUp: Math.max(aktivIndeks - 1, 0),
+      Home: 0,
+      End: valg.length - 1,
+    }[e.key];
+    if (nyIndeks === undefined) return;
+    e.preventDefault();
+    velg(nyIndeks);
+  };
+
+  if (valg.length === 0) return null;
+
+  return (
+    <div>
+      <Label as="span" id={labelId}>
+        Status
+      </Label>
+      <ul
+        ref={listeRef}
+        role="listbox"
+        tabIndex={0}
+        aria-labelledby={labelId}
+        aria-activedescendant={valgId(aktivIndeks)}
+        onKeyDown={handleKeyDown}
+        onFocus={() => setHarFokus(true)}
+        onBlur={() => setHarFokus(false)}
+        style={{
+          listStyle: "none",
+          margin: 0,
+          padding: "var(--ax-space-4)",
+          border: "1px solid var(--ax-border-neutral)",
+          borderRadius: "var(--ax-radius-8)",
+          outline: harFokus ? "3px solid var(--ax-border-focus)" : undefined,
+          outlineOffset: "2px",
+        }}
+      >
+        {valg.map((v, indeks) => {
+          const erValgt = v.verdi === valgt;
+          const erAktiv = harFokus && indeks === aktivIndeks;
+          return (
+            <li
+              key={v.verdi}
+              id={valgId(indeks)}
+              role="option"
+              aria-selected={erValgt}
+              onClick={() => {
+                velg(indeks);
+                listeRef.current?.focus();
+              }}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "var(--ax-space-8)",
+                padding: "var(--ax-space-8)",
+                borderRadius: "var(--ax-radius-4)",
+                cursor: "pointer",
+                background: erValgt ? "var(--ax-bg-accent-soft)" : undefined,
+                outline: erAktiv ? "2px solid var(--ax-border-focus)" : undefined,
+                outlineOffset: "-2px",
+              }}
+            >
+              <CheckmarkIcon
+                aria-hidden
+                style={{ visibility: erValgt ? "visible" : "hidden" }}
+              />
+              {v.tekst}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+

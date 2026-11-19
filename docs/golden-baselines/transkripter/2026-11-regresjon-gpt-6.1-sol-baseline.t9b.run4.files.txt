@@ -1,0 +1,74 @@
+=== ./build.gradle.kts
+plugins {
+    kotlin("jvm") version "2.1.0"
+    kotlin("plugin.serialization") version "2.1.0"
+}
+repositories {
+    mavenCentral()
+}
+dependencies {
+    implementation("io.ktor:ktor-server-netty:3.0.0")
+    implementation("io.ktor:ktor-server-content-negotiation:3.0.0")
+    implementation("io.ktor:ktor-serialization-kotlinx-json:3.0.0")
+    testImplementation(kotlin("test"))
+}
+
+=== ./src/main/kotlin/no/nav/demo/Feriepenger.kt
+package no.nav.demo
+
+fun feriepenger(grunnlag: Long, alderIOpptjeningsåret: Int): Long {
+    require(grunnlag >= 0) { "Grunnlaget kan ikke være negativt" }
+
+    val promille = if (alderIOpptjeningsåret >= 60) 125L else 102L
+    return (grunnlag * promille + 500) / 1000
+}
+
+=== ./src/test/kotlin/no/nav/demo/FeriepengerTest.kt
+package no.nav.demo
+
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+
+class FeriepengerTest {
+    @Test
+    fun `gir 10,2 prosent før fylte 60 år`() {
+        assertEquals(10_200L, feriepenger(100_000L, 59))
+    }
+
+    @Test
+    fun `gir 12,5 prosent fra og med året personen fyller 60`() {
+        assertEquals(12_500L, feriepenger(100_000L, 60))
+        assertEquals(12_500L, feriepenger(100_000L, 61))
+    }
+
+    @Test
+    fun `gir null for null i grunnlag med begge satser`() {
+        assertEquals(0L, feriepenger(0L, 59))
+        assertEquals(0L, feriepenger(0L, 60))
+    }
+
+    @Test
+    fun `avrunder til nærmeste krone med 50 øre opp for ordinær sats`() {
+        assertEquals(25L, feriepenger(249L, 59))
+        assertEquals(26L, feriepenger(250L, 59))
+        assertEquals(26L, feriepenger(251L, 59))
+    }
+
+    @Test
+    fun `avrunder til nærmeste krone med 50 øre opp for forhøyet sats`() {
+        assertEquals(0L, feriepenger(3L, 60))
+        assertEquals(1L, feriepenger(4L, 60))
+        assertEquals(1L, feriepenger(5L, 60))
+    }
+
+    @Test
+    fun `avviser negativt grunnlag med begge satser`() {
+        for (alder in listOf(59, 60)) {
+            assertFailsWith<IllegalArgumentException> {
+                feriepenger(-1L, alder)
+            }
+        }
+    }
+}
+

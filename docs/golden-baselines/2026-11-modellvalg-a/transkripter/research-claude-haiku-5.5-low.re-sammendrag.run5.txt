@@ -1,0 +1,16 @@
+ ● List directory . 5 files found
+
+ MD Read README.md 4 lines read
+
+ YM Read nais.yaml 12 lines read
+
+ / Search "src/**/*.kt" 4 files found
+
+ ● Read src/main/kotlin/no/nav/demo/Routes.kt 19 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/Oppgave.kt 9 lines read
+
+- Er en liten Ktor-demotjeneste på Nais, med health-endepunktene `/internal/isalive` og `/internal/isready`.
+- Eksponerer `GET /api/oppgaver`, som returnerer en liste med oppgaver (i dag to hardkodede: «Registrer søknad» og «Send vedtaksbrev»).
+- Antall oppgaver begrenses av `maksAntall`. Jeg fant ikke hvor den er definert. README er knapp og sier at dokumentasjonen ikke er komplett.
+

@@ -1,0 +1,9 @@
+=== ./notis.md
+# KI-agenten sjekker norsk tekst i PR-er
+
+Fra mandag 5. oktober sjekker KI-review-agenten at norsk tekst ikke inneholder nynorsk eller KI-buzzord. Agenten kjører automatisk på pull requests som endrer filer under `docs/`.
+
+Team som ikke vil bruke sjekken, kan slå den av med `review.norsk = false` i `.nav-pilot/config.toml`.
+
+Send tilbakemeldinger i Slack-kanalen #ki-utvikling.
+

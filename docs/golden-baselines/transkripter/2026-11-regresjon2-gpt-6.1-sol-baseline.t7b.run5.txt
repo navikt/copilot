@@ -1,0 +1,22 @@
+ ● skill(klarsprak)
+
+ / Search "**/*" 26 files found
+
+ ● Read src/main/kotlin/no/nav/demo/Soknad.kt 27 lines read
+
+ YM Read nais.yaml 12 lines read
+
+ MD Read README.md 4 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/Routes.kt 19 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/Config.kt 4 lines read
+
+**Fase 1: Avklaring før endring.** `SoknadMottattMelding` inneholder nå bare `soknadId` og `mottatt`. `SokerDto` har `fnr`, men repoet dokumenterer ikke hvorfor fødselsnummer skal sendes på `soknad-mottatt`, eller hvilke konsumenter som mottar det.
+
+Hva trenger mottakerne fødselsnummeret til, og er det avklart at de kan behandle det på dette topicet? Hvilke konsumenter berøres, og tåler de det nye feltet?
+
+Ingen kode er endret. Repoet mangler `AGENTS.md` og Copilot-instruksjonsfilene for utvikling og review; disse kan opprettes med `nav-pilot init`. Fasebudsjett: omtrent 500/800/500/800 tokens for intervju, plan, review og levering.
+
+Blindsoner reist: 3/11 (#1, #6, #9). #2 gjelder ikke uendrede tilganger; #3–#5, #7–#8 og #10–#11 utsettes til behov og mottakere er avklart.
+

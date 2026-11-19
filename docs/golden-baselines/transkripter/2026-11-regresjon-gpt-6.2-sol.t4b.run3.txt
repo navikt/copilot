@@ -1,0 +1,33 @@
+ ● skill(nav-plan)
+
+ ● skill(api-design)
+
+ ● skill(tokenx-auth)
+
+ ● skill(observability-setup)
+
+ ● skill(nais)
+
+ ✗ Fetching web content  WebFetchBlockedUrlError: failed to lookup address information: nodename nor
+   WebFetchBlockedUrlError: failed to lookup address information: nodename nor servname provided, or
+    not known
+
+## Fase 2: Plan for navneoppslag
+
+**Behold ID-porten og Wonderwall ved Next.js-frontenden, og la et internt Ktor-API slå opp navnet i PDL.** Nettleseren kaller Next.js på samme origin. Next.js bytter brukertokenet på serveren til et TokenX-token med Ktor som mottaker. Da trenger ikke Ktor offentlig ingress eller egen innloggingsflyt, men teamet må konfigurere og teste tokenbyttet mellom appene.
+
+| Område | Plan |
+|---|---|
+| **Tilgang** | Bruk Wonderwall for nettleserinnlogging. Ktor validerer TokenX-tokenets signatur, utsteder, mottaker og utløp, og godtar bare den godkjente Next.js-klienten. Bruk `pid` fra det validerte tokenet som oppslagsnøkkel. Bekreft i dev at tokenbyttet gir forventet claim og sikkerhetsnivå. Avvis kall som mangler gyldig personidentitet, uten å kalle PDL. |
+| **PDL** | Be om kun navnefeltene tjenesten trenger. Bekreft PDLs godkjente autentiseringsmåte, tilgang, behandlingsnummer og eventuelle krav til brukerbevis før implementering. Ikke anta at PDL godtar TokenX-tokenet som er utstedt til Ktor. Dokumenter den konkrete lovhjemmelen for oppslaget. |
+| **API og data** | Definer `GET /api/me` i OpenAPI. Ingen personidentifikator i URL eller request body. Returner bare navn, ikke fødselsnummer, og sett `Cache-Control: no-store` også i Next.js. Ingen database, cache eller kø. Bruk `401` ved manglende eller ugyldig token, `403` ved manglende tilgang og `503` når PDL er utilgjengelig eller tidsfristen utløper. Returner `application/problem+json` uten personopplysninger eller rå PDL-feil. |
+| **Kode og Nais** | Skill rute, autentisering og PDL-klient i Ktor. Legg BFF-kallet på serversiden i eksisterende Next.js. Sett `tokenx.enabled: true` på begge apper. Ktor får eksplisitt `accessPolicy.inbound` for Next.js alene og `outbound` for godkjent PDL-endepunkt. Behold `/internal/isalive` og `/internal/isready`; et PDL-avbrudd skal ikke gjøre alle podene uklar. Eksponer interne Prometheus-metrikker. Start med `15m` CPU-request, `256Mi` minne-request og `512Mi` minnegrense, uten CPU-grense. |
+| **Drift** | Mål PDL-oppslag per minutt og andel feilende PDL-kall. Vis API-ets `5xx`-andel separat og varsle ved vedvarende PDL-feil. Logg PDL-feil med feilkategori og sporings-ID, uten navn, fødselsnummer, token eller PDL-payload. |
+| **Test og deploy** | Bruk MockOAuth2Server og en PDL-stub til å teste gyldig oppslag, avvist token, feil klient, manglende `pid` og `503` ved PDL-avbrudd. Kontroller at avviste kall ikke når PDL, og at personopplysninger ikke havner i logger eller spor. GitHub Actions kjører test og bygg, deployer til dev og kjører en nettlesertest med syntetisk testbruker før samme image kan gå til prod. |
+
+**Før produksjon:** Skriv en kort driftsveiledning for PDL-feil og kontroller etter deploy at innlogging, navneoppslag, `503`-håndtering og målinger fungerer. Rollback ved første produksjonssetting er å slå av oppslaget i frontenden. Senere kan forrige fungerende image deployes på nytt. Ingen datamigrering eller avvikling trengs.
+
+🔴 **Rød sone:** Wonderwall-oppsett, TokenX-bytte og -validering, koblingen mellom verifisert `pid` og PDL-oppslaget, og PDLs tilgangskrav. Teamet bør gå gjennom denne kjeden og skrive den sikkerhetskritiske koden selv før produksjonssetting.
+
+Ingen filer er endret. Neste fase er gjennomgang av planen.
+

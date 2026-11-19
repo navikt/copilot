@@ -1,0 +1,31 @@
+# golden-prompt EXACT MODEL USAGE
+# agent:        research
+# suite:        research
+# date:         2026-11-18
+# revision:     ac35a630
+# personaHash:  bfd27dcb2ee26f091fbc71c847ebdf211ee307dc6c41d565ea73a5ae8667ba32
+# harnessHash:  31303b66a044df68da77f1ba539f6a0a98cf0aabc6733992e11c37f4979c6eb4
+# model:        mai-code-2
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.114-0.
+# effort:       low
+# context:      CLI default
+# instructions: 17 installed, 4 always-on
+# repeat:       1
+# fixture:      4263008951
+# prompts:      all
+# source:       assistant_usage_events
+#
+# slug|run|session_id|event_id|turn_index|model|reasoning_effort|input_tokens|output_tokens|cache_read_tokens|cache_write_tokens|reasoning_tokens|total_nano_aiu|duration_ms|time_to_first_token_ms|finish_reason|agent_id|parent_tool_call_id
+re-bruk|1|05a425e7-3daa-475a-9c04-3667a40e635b|24516|0|mai-code-2|low|17996|56|0|0|11|913800000|2690|2589.5109159999997|tool_calls||
+re-bruk|1|05a425e7-3daa-475a-9c04-3667a40e635b|24517|0|mai-code-2|low|18146|104|17920|0|16|82100000|5100|4151.15425|stop||
+re-ingen|1|6a61a227-03a4-4138-81fe-1362dcb8ecc1|24518|0|mai-code-2|low|17996|132|11776|0|49|373440000|4549|3615.5338340000003|tool_calls||
+re-ingen|1|6a61a227-03a4-4138-81fe-1362dcb8ecc1|24519|0|mai-code-2|low|18143|97|17920|0|14|80200000|3223|2976.62275|tool_calls||
+re-ingen|1|6a61a227-03a4-4138-81fe-1362dcb8ecc1|24520|0|mai-code-2|low|18255|180|17920|0|12|106550000|4501|2731.875125|tool_calls||
+re-ingen|1|6a61a227-03a4-4138-81fe-1362dcb8ecc1|24521|0|mai-code-2|low|18882|283|17920|0|12|163650000|6076|6008.374043000001|tool_calls||
+re-ingen|1|6a61a227-03a4-4138-81fe-1362dcb8ecc1|24522|0|mai-code-2|low|25717|66|0|0|28|1302350000|4144|4024.4465419999997|stop||
+re-sammendrag|1|029f6a74-36f8-47bf-b682-415993ebaab4|24523|0|mai-code-2|low|17986|48|11776|0|27|351940000|2535|2460.491874|tool_calls||
+re-sammendrag|1|029f6a74-36f8-47bf-b682-415993ebaab4|24524|0|mai-code-2|low|23687|318|17920|0|9|412650000|6190|2896.665751|tool_calls||
+re-sammendrag|1|029f6a74-36f8-47bf-b682-415993ebaab4|24525|0|mai-code-2|low|25030|265|17920|0|12|466550000|4876|4800.930084|tool_calls||
+re-sammendrag|1|029f6a74-36f8-47bf-b682-415993ebaab4|24526|0|mai-code-2|low|26672|285|24576|0|7|237490000|5255|5224.740416|tool_calls||
+re-sammendrag|1|029f6a74-36f8-47bf-b682-415993ebaab4|24527|0|mai-code-2|low|32664|95|26112|0|0|416630000|3732|1836.9883330000002|stop||

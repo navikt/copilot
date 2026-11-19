@@ -1,0 +1,68 @@
+ ● skill(kafka)
+
+ ● update_todo todos: "- [ ] Inspect vedtak-hendelse schema, producers/consumers,… TODO list updated
+
+ ✗ Shell Check working tree changes Failed with exit code 128  fatal: not a git repository (or any …
+   git status --short --branch
+   fatal: not a git repository (or any of the parent directories): .git
+   Failed with exit code 128
+
+ $ Shell List repository files 11 lines…
+   pwd && rg --files -g '!*build*' -g '!*\.gradle*' | head -100
+
+ ● Read /var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.qYAKMm/repo/ve  18 lines …
+        dtak-hendelse/src/main/kotlin/no/nav/vedtak/VedtakFattet.kt
+
+ ● Read /var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.qYAKMm/repo/ve  11 lines …
+        dtak-hendelse/src/test/kotlin/no/nav/vedtak/VedtakFattetTest.kt
+
+ ● Read /var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.qYAKMm/repo/ve  23 lines …
+        dtak-konsument/src/main/kotlin/no/nav/vedtak/VedtakKonsument.kt
+
+ $ Shell Find Gradle files and Kotlin instructions 40 lines…
+   ls -la && rg --files --hidden -g '.github/instructions/**' -g '*gradle*' -g 'settings.gradle*' -g
+   'build.gradle*' -g 'gradlew' -g '*.kt' | head -120
+
+ MD Read /var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.qYAKMm/repo/. 112 lines…
+         github/instructions/testing.instructions.md
+
+ MD Read /var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.qYAKMm/repo/. 185 lines…
+         github/instructions/testing-kotlin.instructions.md
+
+ ● Read /var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.qYAKMm/repo/ve  25 lines …
+        dtak-konsument/src/test/kotlin/no/nav/vedtak/VedtakKonsumentTest.kt
+
+ ● Read /var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.qYAKMm/repo/ve  20 lines …
+        dtak-hendelse/build.gradle.kts
+
+ ● Read /var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.qYAKMm/repo/vedt 1 line …
+        ak-hendelse/settings.gradle.kts
+
+ ● Read /var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.qYAKMm/repo/ve  20 lines …
+        dtak-konsument/build.gradle.kts
+
+ ● update_todo todos: "- [x] Inspect vedtak-hendelse schema, producers/consumers,… TODO list updated
+
+ MD Read /var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.qYAKMm/repo/.  16 lines …
+         github/instructions/security-core.instructions.md
+
+ / Search "VedtakFattet|VedtakSerde|sakstype" in **/*.{kt,kts,md} (/var/folders/8q/l5… 6 lines found
+
+ ● Edit  Edit /var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.qYAKMm/repo/vedtak-…
+
+ ● update_todo todos: "- [x] Inspect vedtak-hendelse schema, producers/consumers,… TODO list updated
+
+ ● Read /var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.qYAKMm/repo/ve  27 lines …
+        dtak-hendelse/src/main/kotlin/no/nav/vedtak/VedtakFattet.kt
+
+ ● Read /var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.qYAKMm/repo/ve  26 lines …
+        dtak-hendelse/src/test/kotlin/no/nav/vedtak/VedtakFattetTest.kt
+
+ $ Shell Run vedtak-hendelse Gradle tests 14 lines…
+   cd /var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.qYAKMm/repo/vedtak-hendelse
+   && gradle test
+
+ ● update_todo todos: "- [x] Inspect vedtak-hendelse schema, producers/consumers,… TODO list updated
+
+La til `sakstype` med verdiene `ORDINAER`, `KLAGE` og `ANKE`. Eldre meldinger får `ORDINAER`, og ukjente felt ignoreres ved lesing. `gradle test` i `vedtak-hendelse/` fullførte med `BUILD SUCCESSFUL`.
+

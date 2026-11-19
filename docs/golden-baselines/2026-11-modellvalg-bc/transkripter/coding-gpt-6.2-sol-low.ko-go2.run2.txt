@@ -1,0 +1,38 @@
+ ● skill(klarsprak)
+
+ $ Shell ls -la; ls -la ytelse; ls .github/instructions 35 lines…
+   ls -la; ls -la ytelse; ls .github/instructions
+
+ $ Shell cat ytelse/*.go; cat .github/instructions/{golang,security-owasp}.instructions.… 594 lines…
+   cat ytelse/*.go; cat .github/instructions/{golang,security-owasp}.instructions.md
+
+ ✗ Shell cd ytelse && go test ./... Failed with exit code 1  # example.com/ytelse [example.com/ytel…
+   cd ytelse && go test ./...
+   # example.com/ytelse [example.com/ytelse.test]
+   ./ytelse_test.go:11:36: too many arguments in call to Utbetaling
+           have (int, int)
+           want (int)
+   ./ytelse_test.go:18:36: too many arguments in call to Rapport
+           have (string, number, number)
+           want (string, int)
+   FAIL    example.com/ytelse [build failed]
+   FAIL
+   Failed with exit code 1
+
+ ● Edit  Edit ytelse/rapport.go (+2 -2)  Edit ytelse/utbetaling.go (+2 -1)
+
+ ✗ Shell cd ytelse && gofmt -l rapport.go utbetaling.go && go test ./... Failed with exit code 1  -…
+   cd ytelse && gofmt -l rapport.go utbetaling.go && go test ./...
+   --- FAIL: TestUtbetaling (0.00s)
+       ytelse_test.go:12: Utbetaling(520000, 50) = 2000, want 1000
+   --- FAIL: TestRapport (0.00s)
+       ytelse_test.go:19: Rapport = "Kari får 2000 kr per dag"
+   FAIL
+   FAIL    example.com/ytelse      0.551s
+   FAIL
+   Failed with exit code 1
+
+`go test ./...` i `ytelse/` kompilerer nå, men to tester feiler fortsatt. `Rapport` sender graden videre til `Utbetaling`, som fortsatt gir 2 000 kr ved 50 % i stedet for 1 000 kr. Testene er uendret.
+
+🔴 Rød sone: Selve graderingen av dagsatsen er kjernelogikk og står igjen som en `TODO` i `Utbetaling`.
+

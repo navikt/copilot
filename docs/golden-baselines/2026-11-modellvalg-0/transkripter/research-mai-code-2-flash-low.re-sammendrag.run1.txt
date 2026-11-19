@@ -1,0 +1,16 @@
+ / Search "{README*,package.json,pom.xml,build.gradle*,settings.gradle*,go.mod,Cargo.… 2 files found
+
+ / Search "*" 25 files found
+
+ ● Read src/main/kotlin/no/nav/demo/Routes.kt 19 lines read
+
+ MD Read README.md 4 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/App.kt 15 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/Oppgave.kt 9 lines read
+
+- Kjører en liten REST-tjeneste med Ktor på port 8080.
+- Eksponerer oppgaver via `GET /api/oppgaver`, begrenset av `maksAntall`.
+- Kjøres som en demoapplikasjon på Nais.
+

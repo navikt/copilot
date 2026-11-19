@@ -1,0 +1,47 @@
+ TX Read src/app/komponenter/StatusPanel.tsx 19 lines read
+
+ $ Shell Run checks 7 lines…
+   ls; mise check 2>&1 | tail -5
+
+### Oppsummering
+Komponenten er liten, men har flere UU-brudd som stopper merge. Tastaturbrukere kan ikke åpne «Vis detaljer». Skjermleserbrukere hører ikke hva sletteknappen gjør. `apen` blir satt, men ingen detaljer vises. Jeg fikk ikke kjørt `mise check`, fordi repoet ikke har mise-tasks.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|-----|-------|-----------|---------|
+| `StatusPanel.tsx` | 8 | 🔴 | `<div onClick>` mangler rolle og tastaturstøtte, så tastaturbrukere kan ikke åpne detaljene (WCAG 2.1.1) |
+| `StatusPanel.tsx` | 8 | 🔴 | `outline: "none"` fjerner fokusindikatoren uten erstatning (WCAG 2.4.7) |
+| `StatusPanel.tsx` | 14–16 | 🔴 | Ikonknappen har ikke noe tilgjengelig navn, så skjermleseren leser bare «knapp» (WCAG 4.1.2) |
+| `StatusPanel.tsx` | 11 | 🔴 | `tabIndex={5}` lager en egen tabulatorrekkefølge. Et ikke-interaktivt `span` skal heller ikke kunne få fokus |
+| `StatusPanel.tsx` | 11 | 🟡 | Status vises bare med farge. Hardkodet `red`/`green` følger ikke tema og kan gi for svak kontrast (WCAG 1.4.1, 1.4.3) |
+| `StatusPanel.tsx` | 5, 8 | 🟡 | `apen` blir aldri brukt i visningen, så klikk har ingen synlig effekt. Mangler også `aria-expanded` |
+| `StatusPanel.tsx` | 15 | 🟡 | Sletting skjer uten bekreftelse. En feilklikk kan slette data |
+| `StatusPanel.tsx` | 4 | 🟡 | Props mangler typer, så `status` og `onSlett` blir implisitt `any` |
+| `StatusPanel.tsx` | 1 | 🟡 | `"use client"` mangler. I App Router feiler `useState` uten den, med mindre forelderen er en klientkomponent |
+| `StatusPanel.tsx` | 7–16 | 💭 | Bruk Aksel (`ReadMore`/`ExpansionCard`, `Tag`, `Button`, `Box`) i stedet for egne div-er og knapper |
+
+### Detaljer
+Aksel-komponenter løser de fleste blokkerne. `ReadMore` håndterer tastatur, fokus og `aria-expanded`. `Tag variant="error"/"success"` viser status med tekst og tema-tokens. Disse API-ene er ikke sjekket mot installert Aksel-versjon. Sjekk dem med `aksel-builder` før bruk.
+
+```tsx
+"use client";
+import { Button, ReadMore, Tag } from "@navikt/ds-react";
+import { TrashIcon } from "@navikt/aksel-icons";
+
+type Props = { status: "ok" | "feil"; onSlett: () => void };
+
+export function StatusPanel({ status, onSlett }: Props) {
+  return (
+    <div className="p-4 mx-8">
+      <ReadMore header="Vis detaljer">{/* detaljer */}</ReadMore>
+      <Tag variant={status === "feil" ? "error" : "success"}>{status}</Tag>
+      <Button variant="tertiary" onClick={onSlett}
+        icon={<TrashIcon title="Slett status" />} />
+    </div>
+  );
+}
+```
+
+Hvis `status` er en sak eller et annet element, bør knappeteksten si hva som blir slettet. Bruk for eksempel «Slett sak 123», ikke bare «Slett status».
+

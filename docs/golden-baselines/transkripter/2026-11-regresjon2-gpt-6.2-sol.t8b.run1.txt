@@ -1,0 +1,12 @@
+ ● skill(klarsprak)
+
+ / Search "signature|fødselsnummer|\bfnr\b|accessPolicy" 8 files found
+
+ / Search "fnr|header|class" (lib/kafka-signing) 8 lines found
+
+Jeg la ikke til headeren. `Periode` har allerede `fnr`, men en egen Kafka-header gjør fødselsnummeret tilgjengelig også for verktøy som leser metadata uten å lese payloaden. Jeg anbefaler en tilfeldig sporings-ID som ikke er avledet fra fødselsnummeret.
+
+Hvilket konkret sporingsbehov krever fødselsnummer, hvilke konsumenter og driftsverktøy kan lese headeren, og kan de eksponere den i logger?
+
+Blindsoner reist: 1/11 (#1 personvern). Øvrige er ikke reist nå fordi forespørselen gjelder ett nytt metadatafelt, uten oppgitt endring i mottakere, tilgang eller signering.
+

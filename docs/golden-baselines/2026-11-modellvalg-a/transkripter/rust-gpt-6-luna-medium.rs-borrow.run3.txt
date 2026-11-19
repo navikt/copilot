@@ -1,0 +1,86 @@
+ ● skill(rust-development)
+
+ ● skill(klarsprak)
+
+ / Search "**/*.rs" 2 files found
+
+ / Search "**/Cargo.toml" 2 files found
+
+ / Search ".github/instructions/*" 17 files found
+
+ $ Shell Inspect repository state and top-level files 11 lines…
+   pwd && git status --short --branch 2>/dev/null || true && ls -la
+
+ RS Read saksko/src/lib.rs 50 lines read
+
+ TM Read saksko/Cargo.toml 6 lines read
+
+ MD Read README.md 4 lines read
+
+ ✗ Shell Run saksko tests to reproduce borrow error Failed with exit code 101     Compiling saksko …
+   cargo test --manifest-path saksko/Cargo.toml
+   Compiling saksko v0.1.0 
+   (/private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.OpPHtq/repo/saksko)
+   error[E0502]: cannot borrow `self.saker` as mutable because it is also borrowed as immutable
+     --> src/lib.rs:31:9
+      |
+   30 |         let sak = self.saker.first()?;
+      |                   ---------- immutable borrow occurs here
+   31 |         self.saker.remove(0);
+      |         ^^^^^^^^^^^^^^^^^^^^ mutable borrow occurs here
+   32 |         self.behandlet.push(sak.id.clone());
+      |                             ------ immutable borrow later used here
+   
+   For more information about this error, try `rustc --explain E0502`.
+   error: could not compile `saksko` (lib) due to 1 previous error
+   warning: build failed, waiting for other jobs to finish...
+   error: could not compile `saksko` (lib test) due to 1 previous error
+   Failed with exit code 101
+
+ ● Edit  Edit saksko/src/lib.rs (+2 -2)
+
+ ✗ Shell Format, lint, and test saksko Failed with exit code 1  Diff in /private/var/folders/8q/l5h…
+   cargo fmt --check --manifest-path saksko/Cargo.toml && cargo clippy --manifest-path
+   saksko/Cargo.toml -- -D warnings && cargo test --manifest-path saksko/Cargo.toml
+   Diff in /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.OpPHtq/repo/sak
+   sko/src/lib.rs:41:
+        #[test]
+        fn behandler_eldste_forst() {
+            let mut ko = Saksko::default();
+   -        ko.legg_til(Sak { id: "s1".into(), prioritet: 1 });
+   -        ko.legg_til(Sak { id: "s2".into(), prioritet: 2 });
+   +        ko.legg_til(Sak {
+   +            id: "s1".into(),
+   +            prioritet: 1,
+   +        });
+   +        ko.legg_til(Sak {
+   +            id: "s2".into(),
+   +            prioritet: 2,
+   +        });
+            assert_eq!(ko.behandle_neste().map(|s| s.id), Some("s1".to_string()));
+            assert_eq!(ko.antall(), 1);
+            assert_eq!(ko.behandlet(), ["s1".to_string()]);
+   Failed with exit code 1
+
+ $ Shell Format saksko and verify formatting No Content
+   cargo fmt --manifest-path saksko/Cargo.toml && cargo fmt --check --manifest-path
+   saksko/Cargo.toml
+
+ $ Shell Inspect the final saksko source diff No Content
+   git diff -- saksko/src/lib.rs 2>/dev/null || true
+
+ $ Shell Run saksko clippy with warnings denied 3 lines…
+   cargo clippy --manifest-path saksko/Cargo.toml -- -D warnings
+
+ $ Shell Run saksko test suite 14 lines…
+   cargo test --manifest-path saksko/Cargo.toml
+
+Flyttet kloningen til før køen endres. Det fjerner lånekonflikten uten å endre funksjonens oppførsel. Testen og Clippy går grønt.
+
+🔴 Rød sone: Gå nøye gjennom logikken i saksbehandlingen.
+
+**Sjekkliste for rød sone**
+- [ ] Kontroller at saken fortsatt fjernes fra køen og registreres som behandlet.
+
+Still gjerne spørsmål om valget.
+

@@ -1,0 +1,20 @@
+ ● skill(nav-auth)
+
+ ● skill(klarsprak)
+
+ $ Shell Se etter tjenestekode, manifest og lokale instruksjoner 36 lines…
+   ls -a && ls -a .github 2>/dev/null; rg --files --hidden -g '!**/.git/**' | head -60
+
+ $ Shell Les dagens tilgangsregler og ruter 35 lines…
+   cat nais.yaml README.md src/main/kotlin/no/nav/demo/Routes.kt
+
+**Fase 1: Formål og tilgang.** Dagens `/api/oppgaver` returnerer en fast liste uten å bruke fødselsnummer. `nais.yaml` har ikke oppsett for ID-porten. Jeg legger derfor til grunn at dette er en ny tjeneste, ikke en endring i demo-API-et.
+
+1. Hva skal den innloggede personen kunne gjøre som krever fødselsnummer? Skal tjenesten behandle andre personopplysninger, eller holder det å bruke fødselsnummeret mens forespørselen pågår?
+2. Skal nettleseren kalle tjenesten direkte etter innlogging, eller skal en annen Nav-applikasjon kalle den på vegne av personen? Skal personen bare ha tilgang til egne opplysninger?
+3. Trenger en annen tjeneste å motta fødselsnummeret? I så fall: hvilken tjeneste, og til hvilket formål?
+
+Jeg har ikke endret kode eller konfigurasjon. Repoet mangler de lokale Copilot-instruksjonsfilene; `nav-pilot init` kan opprette dem. Feilhåndtering, driftsmål, teamansvar og tester avhenger av svarene. Det er ikke oppgitt noen eksisterende løsning som skal migreres eller avvikles, eller noe læringsbehov.
+
+Blindsoner reist: 3/11 (#1 personvern, #2 tilgang, #6 mottakere).
+

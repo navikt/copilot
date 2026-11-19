@@ -1,0 +1,29 @@
+ ● skill(klarsprak)
+
+ $ Shell ls -a; find . -name '*.kt' -o -name '*instructions.md' 28 lines…
+   ls -a; find . -name '*.kt' -o -name '*instructions.md'
+
+ / Search "." (.github/instructions/kotlin.instructions.md, .github/instructions/se… 135 lines found
+
+ ● Edit  Create src/main/kotlin/no/nav/demo/Avrunding.kt (+7)
+
+ ✗ Shell cat src/main/kotlin/no/nav/demo/Avrunding.kt; command -v kotlinc Failed with exit code 1  …
+   cat src/main/kotlin/no/nav/demo/Avrunding.kt; command -v kotlinc
+   package no.nav.demo
+   
+   import java.math.BigDecimal
+   import java.math.RoundingMode
+   
+   internal fun avrundTilHeleKroner(belopIKroner: BigDecimal): Long =
+       belopIKroner.setScale(0, RoundingMode.HALF_UP).longValueExact()
+   Failed with exit code 1
+
+La til `avrundTilHeleKroner` i `Avrunding.kt`. Den tar et `BigDecimal`-beløp i kroner og returnerer nærmeste hele krone som `Long`. `HALF_UP` runder 50 øre opp for positive beløp, uten flyttallsfeil.
+
+Jeg lot `Feriepenger.kt` og enhetstestene stå til deg. Gradle ble ikke kjørt.
+
+**Sjekkliste for rød sone**
+- [ ] Sjekk at beløpet sendes inn i kroner uten å gå via `Double`, og at testene dekker 49, 50 og 51 øre.
+
+Kan du fortelle meg hva denne koden gjør og hvorfor denne tilnærmingen er riktig?
+

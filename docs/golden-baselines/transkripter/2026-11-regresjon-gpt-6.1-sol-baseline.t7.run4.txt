@@ -1,0 +1,81 @@
+ ● skill(jackson-3-migration)
+
+ ● skill(klarsprak)
+
+ MD Read ~/.copilot/skills/jackson-3-migration/references/rename-and-defaults.md 139 lines read
+
+ / Search "{AGENTS.md,.github/*instructions.md,build.gradle.kts,settings.gradle.kts,gr… 1 file found
+
+ $ Shell Inspect branch changes and Java baseline 6 lines…
+   git status --short && git --no-pager diff --stat && git branch --show-current && git --no-pager
+   log -5 --oneline && java -version
+
+ ● Read build.gradle.kts 17 lines read
+
+ $ Shell Read migration diff and repository files 79 lines…
+   git --no-pager diff HEAD^ HEAD && git ls-files && ls -a
+
+ ● update_todo todos: "- [ ] Vurdere mapper, avhengigheter og kallesteder mot Jac… TODO list updated
+
+ ● List directory src/main/kotlin/no/nav/demo 5 files found
+
+ $ Shell Check validation tools and previous mapper 28 lines…
+   command -v gradle || true; command -v kotlin || true; command -v kotlinc || true; git --no-pager
+   show HEAD^:src/main/kotlin/no/nav/demo/Soknad.kt
+
+ ● Read src/main/kotlin/no/nav/demo/Soknad.kt 26 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/App.kt 15 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/Routes.kt 19 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/Oppgave.kt 9 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/Config.kt 4 lines read
+
+ ✗ Shell Verify build and resolved Jackson dependencies Failed with exit code 1  To honour the JVM …
+   gradle --no-daemon --console=plain build dependencyInsight --dependency jackson --configuration
+   compileClasspath
+   To honour the JVM settings for this build a single-use Daemon process will be forked. For more on
+    this, please refer to 
+   https://docs.gradle.org/8.14.7/userguide/gradle_daemon.html#sec:disabling_the_daemon in the 
+   Gradle documentation.
+   Daemon will be stopped at the end of the build 
+   
+   FAILURE: Build failed with an exception.
+   
+   * What went wrong:
+   A problem occurred configuring root project 'repo'.
+   > 27.0.1.0.2
+   
+   * Try:
+   > Run with --stacktrace option to get the stack trace.
+   > Run with --info or --debug option to get more log output.
+   > Run with --scan to get full insights.
+   > Get more help at https://help.gradle.org.
+   
+   BUILD FAILED in 2s
+   Failed with exit code 1
+
+ MD Read README.md 4 lines read
+
+ / Search "jackson|JsonNode|\.map\s*\{|ObjectMapper|JsonMapper|toString\(" in *.{kt,k… 6 lines found
+
+ ✗ Shell  Permission denied because no interactive user response was available. Retry in an interact
+   /usr/libexec/java_home -V 2>&1; mise ls java --installed 2>/dev/null; git status --short
+   Approval check
+     └ ✗ Denied, no one to approve shell path (/usr/libexec/java_home)
+   Permission denied because no interactive user response was available. Retry in an interactive 
+   session so the user can approve it, or try an alternative that does not require this permission.
+
+ ● update_todo todos: "- [x] Vurdere mapper, avhengigheter og kallesteder mot Jac… TODO list updated
+
+**Migreringen ser riktig ut ved kodegjennomgang, men er ikke verifisert klar for merge.** Vurdert `262968a` mot `13eed32`. Ingen sikre migreringsfeil funnet.
+
+- `Soknad.kt:14–16`: Builder og Kotlin-modul er riktig brukt. Jackson 3 har innebygd Java Time-støtte og ISO-datoer som standard, så tidligere `LocalDate`-format skal beholdes.
+- Ktor bruker **kotlinx.serialization**, ikke Jackson. Ktor 3.0.0 trenger derfor ikke oppgraderes for denne endringen.
+- Ingen gamle Jackson-importer, mapper-mutasjon eller `JsonNode.map`-kall funnet.
+- **Kompatibilitet mangler dokumentasjon:** Ingen tester finnes. Test særlig JSON til Kafka og deserialisering i `lesSoker`. Jackson 3 sorterer egenskaper alfabetisk som standard, så feltenes rekkefølge endres.
+
+**Validering blokkert:** `gradle --no-daemon --console=plain build dependencyInsight --dependency jackson --configuration compileClasspath` feilet under prosjektkonfigurasjon med `27.0.1.0.2`. Bygg, tester og faktisk avhengighetstre er derfor ikke bekreftet. Oppslag etter alternativ JDK ble nektet uten interaktiv godkjenning. Kjør kontrollen med en JDK som støttes av Kotlin 2.1.0 og Gradle-oppsettet. Ingen filer endret.
+

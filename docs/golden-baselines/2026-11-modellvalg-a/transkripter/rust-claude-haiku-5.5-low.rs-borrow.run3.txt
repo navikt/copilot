@@ -1,0 +1,20 @@
+Kjører `cargo test` i `saksko/` for å se lånefeilen.
+
+ $ Shell Run cargo test in saksko and locate behandle_neste 18 lines…
+   cd saksko 2>/dev/null || cd "$(dirname $(find . -path '*/saksko/Cargo.toml' -print -quit))"; pwd;
+   cargo test 2>&1 | tail -60; grep -rn "behandle_neste" --include=*.rs . | head -20
+
+ RS Read saksko/src/lib.rs 50 lines read
+
+Lånefeilen oppstår fordi `sak` holder en lånt referanse inn i `self.saker` mens `remove(0)` tar mutabel lån. Jeg flytter ut elementet med `remove(0)` først, etter en tom-sjekk. Oppførselen er den samme.
+
+ RS Edit saksko/src/lib.rs +5 -3
+
+ $ Shell Run cargo test in saksko 14 lines…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.bM0BcN/repo/saksko
+   && cargo test 2>&1 | tail -15
+
+Lånefeilen i `behandle_neste` er rettet i `saksko/src/lib.rs`, og `cargo test` er grønt (1 test passerer).
+
+Feilen var at `sak` var en lånt referanse inn i `self.saker` da `remove(0)` tok mutabelt lån. Nå sjekkes køen for tom først, elementet flyttes ut med `remove(0)`, og id-en noteres før det returneres. Funksjonen gjør det samme som før.
+

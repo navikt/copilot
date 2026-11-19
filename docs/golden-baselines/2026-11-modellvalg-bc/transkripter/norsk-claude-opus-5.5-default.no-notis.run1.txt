@@ -1,0 +1,10 @@
+ ● skill(klarsprak)
+
+ MD Read fakta.md 6 lines read
+
+ MD Create notis.md +7
+
+Notisen ligger i `notis.md` og er på omtrent 50 ord. Alt innholdet kommer fra `fakta.md`, og jeg har ikke lagt til noe.
+
+Én ting bør sjekkes før publisering. `fakta.md` sier at agenten er tilgjengelig fra mandag 5. oktober. Den datoen har allerede vært (i dag er det 19. november 2026), så «tilgjengelig fra» kan virke utdatert. Hvis agenten allerede er i drift, bør du skrive «har vært tilgjengelig siden mandag 5. oktober» i stedet.
+

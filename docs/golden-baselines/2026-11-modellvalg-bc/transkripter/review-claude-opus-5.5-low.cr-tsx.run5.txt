@@ -1,0 +1,22 @@
+ TX Read src/app/komponenter/StatusPanel.tsx 19 lines read
+
+## Gjennomgang av `StatusPanel.tsx`
+
+Komponenten har to feil som må rettes før merge. Statusen kan ikke tas i bruk, og flere UU-krav brytes. Jeg har ikke kjørt `mise check`, fordi mappen ikke er et git-repo og jeg ikke fant en `apps/`-struktur. Funnene under kommer fra gjennomlesing av koden.
+
+| Linje | Prioritet | Problem |
+|---|---|---|
+| 1 | 🔴 | `"use client"` mangler. Filen ligger under `src/app` og bruker `useState` og `onClick`. Uten direktivet blir den en Server Component, og bygget feiler. |
+| 5, 9 | 🔴 | `apen` blir aldri lest. «Vis detaljer» endrer state, men ingenting vises eller skjules. Funksjonen er død kode, eller detaljene mangler. |
+| 8 | 🔴 | `<div onClick>` mangler rolle og tastaturstøtte, så tastaturbrukere kan ikke åpne detaljene. Bruk `<Button variant="tertiary" aria-expanded={apen}>` eller Aksel `ExpansionCard`/`ReadMore`. |
+| 8 | 🔴 | `outline: "none"` fjerner fokusindikatoren uten erstatning. Det bryter WCAG 2.4.7. |
+| 11 | 🔴 | `tabIndex={5}` gir en tabulatorrekkefølge som ikke følger siden. En `span` uten interaksjon skal heller ikke kunne få fokus. Fjern attributtet. |
+| 11 | 🔴 | Status vises bare med farge (WCAG 1.4.1). `"red"` på hvit bakgrunn har kontrast 4,0:1, som er under kravet på 4,5:1. Bruk Aksel `Tag`/`Alert` med `variant="error"`/`"success"`, som gir både semantiske tokens og ikon. |
+| 14–16 | 🔴 | Ikonknappen har ikke noe tilgjengelig navn, så skjermleseren leser bare «knapp». Bruk `<Button variant="tertiary" icon={<TrashIcon title="Slett" />} onClick={onSlett} />`. |
+| 14 | 🟡 | Sletting skjer uten bekreftelse. Ett feilklikk er nok til å miste data. Vurder en Aksel `Modal` som ber om bekreftelse. |
+| 4 | 🟡 | Props mangler typer, og `status` er implisitt `any`. Med `status: "ok" \| "feil"` og `onSlett: () => void` fanger kompilatoren feil bruk. |
+| 7 | 💭 | `p-4 mx-8` er grei Tailwind. Aksel `Box`/`HStack` med spacing-tokens passer bedre med resten av designsystemet. |
+| 2 | 💭 | Ikonimporten er riktig, med navngitt import og tree-shaking. |
+
+Det viktigste er å bytte de egne `div`/`button`/`span`-elementene ut med Aksel-komponenter. Da løses de fleste UU-funnene samtidig.
+

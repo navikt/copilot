@@ -1,0 +1,36 @@
+ ● skill(klarsprak)
+
+ / Search "**/*" 25 files found
+
+ MD Read .github/instructions/kotlin.instructions.md too large, not read
+
+ MD Read .github/instructions/testing-kotlin.instructions.md 185 lines read
+
+ ● Read build.gradle.kts 12 lines read
+
+ MD Read .github/instructions/testing.instructions.md 112 lines read
+
+ MD Read .github/instructions/security-owasp.instructions.md 12 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/Oppgave.kt 9 lines read
+
+Oppgaven er avgrenset, men beregningen er rød sone fordi den innfører faglogikk teamet ikke kjenner. Jeg implementerer som bedt, bruker heltallsregning for nøyaktig avrunding og legger til tester for aldersgrensen, avrunding og negativt grunnlag. Gradle kjøres ikke.
+
+
+ ● Edit  Edit build.gradle.kts (+1)  Create src/main/kotlin/no/nav/demo/Feriepenger.kt (+8)  Create…
+
+ ● Read src/main/kotlin/no/nav/demo/Feriepenger.kt 8 lines read
+
+ ● Read src/test/kotlin/no/nav/demo/FeriepengerTest.kt 47 lines read
+
+Lagt til `Feriepenger.kt`, `FeriepengerTest.kt` og testavhengigheten `kotlin("test")`. Gradle er ikke kjørt.
+
+Heltallsregning med promille unngår flyttallsfeil. Tillegget på 500 før divisjon med 1000 gir avrunding med 50 øre opp, uten egen desimalhåndtering.
+
+**Sjekkliste for rød sone**
+- [ ] Kontroller satsene og overgangen ved 60 år i `FeriepengerTest`.
+- [ ] Kontroller avrunding under, på og over 50 øre for begge satser.
+- [ ] Kontroller at negativt grunnlag gir `IllegalArgumentException`.
+
+Kan du fortelle meg hva denne koden gjør og hvorfor denne tilnærmingen er riktig?
+

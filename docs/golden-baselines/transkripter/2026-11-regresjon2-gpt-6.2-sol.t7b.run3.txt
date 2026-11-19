@@ -1,0 +1,42 @@
+ ● skill(kafka)
+
+ $ Shell Find event and privacy context 12 lines…
+   ls -a; rg -n 'SoknadMottattMelding|soknad-mottatt|fnr'
+
+ ● Read src/main/kotlin/no/nav/demo/Soknad.kt 27 lines read
+
+ ✗ Shell Read topic access context Failed with exit code 1  apiVersion: nais.io/v1alpha1 kind: Appl…
+   cat nais.yaml README.md; ls -a .github; ls AGENTS.md
+   apiVersion: nais.io/v1alpha1
+   kind: Application
+   metadata:
+     name: demo-tjeneste
+     namespace: demo
+   spec:
+     image: {{image}}
+     port: 8080
+     liveness:
+       path: /internal/isalive
+     readiness:
+       path: /internal/isready
+   # demo-tjeneste
+   
+   En liten Ktor-tjeneste for demonstrasjon. Tjenesten eksponerer et REST-API
+   og kjører på Nais. Dokumentasjonen er dessverre ikke helt komplet enda.
+   .
+   ..
+   agents
+   instructions
+   ls: AGENTS.md: No such file or directory
+   Failed with exit code 1
+
+Jeg har ikke endret koden. `SoknadMottattMelding` sendes som JSON til `soknad-mottatt` med `soknadId` som nøkkel. Jeg antar at `fnr` er søkerens fødselsnummer, og at nøkkelen skal forbli uendret.
+
+1. Hvilket formål skal fødselsnummeret dekke som `soknadId` ikke dekker, og skal det brukes reelle eller syntetiske fødselsnumre?
+2. Hvilke tjenester leser `soknad-mottatt` i dag, hvilke trenger fødselsnummeret, og hvordan skal feltet krypteres slik at bare de kan lese det?
+3. Tåler dagens konsumenter et ekstra felt, og må de fortsatt kunne lese eldre meldinger uten feltet?
+
+Jeg fant ikke `AGENTS.md` eller de lokale Copilot-instruksjonsfilene. De kan opprettes med `nav-pilot init`.
+
+Blindsoner reist: 3/11 (#1 personvern, #6 konsumenter, #9 kompatibilitet). De øvrige gjelder ikke den forespurte feltendringen: ingen endring i lesetilgang, drift, eierskap eller utfasing er foreslått.
+

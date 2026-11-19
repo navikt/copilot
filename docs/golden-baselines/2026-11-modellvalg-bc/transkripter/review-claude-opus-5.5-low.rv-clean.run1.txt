@@ -1,0 +1,40 @@
+ $ Shell Read file 63 lines…
+   cat -n src/main/kotlin/no/nav/demo/sak/SakService.kt; ls; ls src/main/kotlin/no/nav/demo/sak/
+
+ $ Shell Check manifest 13 lines…
+   cat nais.yaml; which mise
+
+## Gjennomgang av SakService.kt
+
+Jeg fant ingen blokkere. `mise check` ble ikke kjørt, fordi repoet ikke har noen mise-konfigurasjon eller tester.
+
+**Dette er bra:**
+- Fødselsnummeret hentes fra `pid`-claimet i TokenX-tokenet, ikke fra en parameter brukeren kan styre. Brukeren får dermed bare sine egne saker.
+- SQL-spørringen er parameterisert.
+- Fødselsnummeret maskeres før det logges, og feilmeldingen logger bare navnet på unntaksklassen.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|---|---|---|---|
+| `SakService.kt` | 41 | 🟡 | Stack trace og årsakskjede blir borte. |
+| `SakService.kt` | 38–43 | 🟡 | Feilen logges og kastes videre, så den kan bli logget to ganger. |
+| `SakService.kt` | 37 | 💭 | Den maskerte verdien er bare stjerner og gir ingen informasjon. |
+| `SakService.kt` | 47–58 | 🟡 | Routingen ligger i samme fil som service og repository. |
+| – | – | 🟡 | Tester mangler. |
+| `nais.yaml` | – | 🟡 | `accessPolicy`, `tokenx.enabled` og `resources` mangler. |
+
+### Detaljer
+
+- **Linje 41, stack trace:** Uten stack trace og cause er en databasefeil vanskelig å feilsøke i produksjon. Unntaksklassen er likevel ikke trygg å logge i sin helhet: meldingen fra JDBC kan inneholde parameterverdier, altså fødselsnummer. Logg derfor `e.javaClass.name` sammen med stack trace uten meldingen, eller bruk en egen sanitizer.
+- **Linje 38–43, dobbel logging:** Hvis den globale `StatusPages`-handleren også logger feilen, får dere to loggoppføringer for samme feil. Velg ett sted å logge.
+- **Linje 37, maskering:** Når alle sifrene erstattes med stjerner, kan ikke loggen kobles til noen person eller sak. Det er trygt, men loggen kan like gjerne være `"Henter saker"`. Ønsker dere sporbarhet, logg en intern id eller en korrelasjons-id. Ikke logg deler av fødselsnummeret.
+- **Linje 47–58, struktur:** Én fil med routing, service og repository gjør filen vanskeligere å teste og navigere i. Del dem gjerne i `SakRoutes.kt` og `SakRepository.kt`.
+- **Tester:** Disse tilfellene bør dekkes:
+  - Token uten `pid`-claim gir 401.
+  - Gyldig token returnerer bare innloggedes saker. Test det med MockOAuth2Server og Testcontainers.
+- **nais.yaml:**
+  - Uten `tokenx.enabled: true` kan ikke tjenesten validere TokenX-tokens.
+  - Uten `accessPolicy.inbound` kan ingen tjeneste kalle den.
+  - Ressursgrensene bør settes eksplisitt.
+

@@ -1,0 +1,38 @@
+ ● skill(klarsprak)
+
+ ✗ Shell Finn og kjør fristtestene Failed with exit code 1  total 24 drwxr-xr-x  10 hans  staff   3…
+   ls -la; ls frister; cd frister && go test ./...
+   total 24
+   drwxr-xr-x  10 hans  staff   320 Nov 19 09:43 .
+   drwx------  73 hans  staff  2336 Nov 19 09:44 ..
+   drwxr-xr-x   4 hans  staff   128 Nov 19 09:43 .github
+   -rw-r--r--   1 hans  staff   340 Nov 19 09:43 build.gradle.kts
+   drwxr-xr-x   5 hans  staff   160 Nov 19 09:43 frister
+   -rw-r--r--   1 hans  staff   216 Nov 19 09:43 nais.yaml
+   -rw-r--r--   1 hans  staff   166 Nov 19 09:43 README.md
+   drwxr-xr-x   4 hans  staff   128 Nov 19 09:43 slug
+   drwxr-xr-x   3 hans  staff    96 Nov 19 09:43 src
+   drwxr-xr-x   6 hans  staff   192 Nov 19 09:43 ytelse
+   frist_test.go
+   frist.go
+   go.mod
+   --- FAIL: TestFrist (0.00s)
+       frist_test.go:23: Frist(2026-09-05) = 2026-10-18, want 2026-10-19
+   FAIL
+   FAIL    example.com/frister     0.012s
+   FAIL
+   Failed with exit code 1
+
+ $ Shell Les fristberegning og koderegler 618 lines…
+   cat frister/*.go; ls .github/instructions; cat
+   .github/instructions/{golang,security-owasp}.instructions.md
+
+ ● Edit  Edit frister/frist.go (+1 -1)
+
+ $ Shell Bekreft testene og Go-formateringen 1 line…
+   cd frister && go test ./... && test -z "$(gofmt -l frist.go)"
+
+Rettet `frister/frist.go`: Klagefrister som faller på en lørdag, flyttes nå til mandag i stedet for søndag.
+
+`go test ./...` i `frister/` passerer. Testene er uendret.
+

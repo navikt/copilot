@@ -1,0 +1,26 @@
+ $ Shell Finn ytelse-kode og tester 15 lines…
+   pwd && ls -a && find ytelse -maxdepth 3 -type f
+
+ GO Read ytelse/utbetaling.go 6 lines read
+
+ GO Read ytelse/rapport.go 8 lines read
+
+ GO Read ytelse/ytelse_test.go 21 lines read
+
+ MD Read .github/instructions/golang.instructions.md 547 lines read
+
+ MD Read .github/instructions/security-owasp.instructions.md 12 lines read
+
+ ● skill(klarsprak)
+
+ / Search "Utbetaling\(|Rapport\(" in *.go 8 lines found
+
+ ● Edit  Edit ytelse/utbetaling.go (+3 -3)  Edit ytelse/rapport.go (+2 -2)
+
+ $ Shell Formater og kjør alle testene i ytelse 1 line…
+   cd ytelse && gofmt -w utbetaling.go rapport.go && go test ./...
+
+`go test ./...` i `ytelse/` går grønt. Testene er uendret.
+
+`Utbetaling` tar nå prosentgraden og avrunder etter graderingen. `Rapport` sender graden videre. Dette unngår presisjonstap fra mellomavrunding.
+

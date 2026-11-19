@@ -1,0 +1,21 @@
+Jeg finner hendelsesmodellen og testene først, og avgrenser endringen til vedtak-hendelse/.
+
+ / Search "vedtak-hendelse/**/*" 4 files found
+
+ / Search "VedtakFattet|sakstype|unknown|ignoreUnknown" in *.{kt,kts,java,json} (vedt… 2 files found
+
+ ● Read vedtak-hendelse/src/main/kotlin/no/nav/vedtak/VedtakFattet.kt 18 lines read
+
+ ● Read vedtak-hendelse/src/test/kotlin/no/nav/vedtak/VedtakFattetTest.kt 11 lines read
+
+ ● Read vedtak-hendelse/build.gradle.kts 20 lines read
+
+ ● Edit  Edit vedtak-hendelse/src/main/kotlin/no/nav/vedtak/VedtakFattet.kt (+9)  Edit vedtak-hende…
+
+ $ Shell Run Gradle tests for vedtak-hendelse 14 lines…
+   cd vedtak-hendelse && gradle test
+
+`VedtakFattet` har nå feltet `sakstype: Sakstype` med standardverdien `ORDINAER`.
+
+Konsumenten ignorerer ukjente felt fra nyere produsenter. `gradle test` passer i `vedtak-hendelse/`.
+

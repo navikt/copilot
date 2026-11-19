@@ -1,0 +1,28 @@
+ ● skill(klarsprak)
+
+ ● skill(security-review)
+
+ ● Read src/main/kotlin/no/nav/demo/sak/SakService.kt 58 lines read
+
+ / Search "**/*" 28 files found
+
+ ✗ Shell Kjør prosjektkontroller Failed with exit code 1  mise ERROR no tasks defined in /private/v…
+   mise check
+   mise ERROR no tasks defined in 
+   /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.tJpC35/repo. Are you in
+    a project directory?
+   mise ERROR Version: 2026.11.10 macos-arm64 (2026-11-18)
+   mise ERROR Run with --verbose or MISE_VERBOSE=1 for more information
+   Failed with exit code 1
+
+ $ Shell Kontroller linjenumre og Ktor-versjon 35 lines…
+   nl -ba src/main/kotlin/no/nav/demo/sak/SakService.kt | tail -15; cat build.gradle.kts
+
+**Ingen blokkerende funn i `SakService.kt`.** Ruten bruker `pid` fra TokenX-tokenet til å avgrense SQL-oppslaget til personens egne saker. Spørringen binder fødselsnummeret som parameter, og loggmeldingen inneholder ingen sifre fra det.
+
+| Linje | Prioritet | Funn |
+|---|---|---|
+| `SakService.kt:55` | 🟡 Forslag | `service.sakerFor(fnr)` kjører et blokkerende JDBC-oppslag direkte på tråden som håndterer forespørselen. Når databasen svarer tregt, kan også andre forespørsler bli forsinket. Flytt databasekallet til `Dispatchers.IO` i repositoryet. |
+
+Gjennomgangen dekker ikke konfigurasjonen av TokenX-valideringen. `mise check` kunne ikke kjøre fordi prosjektet ikke definerer noen mise-oppgaver.
+

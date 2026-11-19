@@ -1,0 +1,42 @@
+ ● skill(kafka)
+
+ ● update_todo todos: "- [in_progress] Inspect consumer implementation and tests … TODO list updated
+
+ / Search "VedtakKonsument|eventId|enable\.auto\.commit|auto.commit|commitSync|commit… 8 lines found
+
+ / Search "vedtak-konsument/**/*" 4 files found
+
+ ● Read vedtak-konsument/src/main/kotlin/no/nav/vedtak/VedtakKonsument.kt 23 lines read
+
+ / Search "vedtak-konsument/src/main/**/*" 1 file found
+
+ ● Read vedtak-konsument/src/test/kotlin/no/nav/vedtak/VedtakKonsumentTest.kt 25 lines read
+
+ ● Read vedtak-konsument/build.gradle.kts 20 lines read
+
+ ● Read vedtak-konsument/settings.gradle.kts 1 line read
+
+ / Search "vedtak-konsument/**/*" 4 files found
+
+ / Search "constructor.*consumer|commitSync|commitSync\(|processed|eventId" in *.kt (… 5 lines found
+
+Jeg flytter commit etter vellykket behandling og holder behandlet `eventId`-sett lokalt, slik at to kall på samme melding ikke utbetaler dobbelt.
+
+ ✗ Edit  Failed to parse patch: Update file hunk for path '/Users/hans/.copilot/skills/kafka/metada…
+   Failed to parse patch: Update file hunk for path 
+   '/Users/hans/.copilot/skills/kafka/metadata.json' is empty (line 2)
+
+ ● Edit  Edit vedtak-konsument/src/main/kotlin/no/nav/vedtak/VedtakKonsument.kt (+14 -2)  Edit vedt…
+
+ $ Shell Run VedtakKonsument Gradle tests 14 lines…
+   cd vedtak-konsument && gradle test
+
+ ● update_todo todos: "- [done] Inspect consumer implementation and tests - [done… TODO list updated
+
+Rettet `VedtakKonsument`:
+
+- Samme `eventId` utbetales kun én gang.
+- Offset commites først etter at alle meldinger i batchen er behandlet.
+- Dersom utbetaling feiler, commites ingen offset.
+- Gradle-testene passerer med `gradle test`.
+

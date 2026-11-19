@@ -1,0 +1,30 @@
+ ● Read src/main/kotlin/no/nav/demo/sak/SakService.kt 58 lines read
+
+ $ Shell Run mise check 7 lines…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.TVjBIt/repo && ls;
+   (mise check 2>&1 | tail -5)
+
+### Oppsummering
+Jeg fant ingen blokkere. SQL-spørringen bruker parameter (`?`). Fødselsnummeret kommer fra `pid` i tokenet, ikke fra en request-parameter, så brukeren får bare sine egne saker. `maskert()` erstatter alle tegnene, så fødselsnummeret havner ikke i loggen.
+
+Jeg kunne ikke kjøre `mise check` fordi repoet ikke har definert noen mise-tasks. Funnene under bygger på en manuell gjennomlesning.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|-----|-------|-----------|---------|
+| `SakService.kt` | 40–42 | 🟡 | Feilloggen tar bare med klassenavnet til exceptionet og mister stack trace og årsak. |
+| `SakService.kt` | 55 | 🟡 | Et blokkerende JDBC-kall kjører direkte i Ktor-handleren, uten `Dispatchers.IO`. |
+| `SakService.kt` | 50 | 🟡 | Ingen sjekk av `acr`-claimet, altså innloggingsnivået (for eksempel `idporten-loa-high`). |
+| `SakService.kt` | 37 | 💭 | Linjen logger bare stjerner og gir lite informasjon. |
+| — | — | 🟡 | Ingen tester for ruten eller repositoryet. |
+
+### Detaljer
+- **Linje 40–42:** Feilen blir vanskelig å feilsøke i produksjon. Valget er trolig bevisst, for SQL-feil kan inneholde verdier fra spørringen. Et alternativ er å logge hele exceptionet til securelogs/team-logs og bare en kort melding til vanlig logg. Uten noen av delene blir feilen umulig å spore.
+- **Linje 55:** JDBC-kallet blokkerer en tråd som Ktor bruker til å håndtere requester, og under last kan serveren gå tom for slike tråder. Bruk `withContext(Dispatchers.IO) { service.sakerFor(fnr) }`.
+- **Linje 50:** 🔴 Rød sone: tilgangskontroll. Saksdata om en person bør normalt kreve høyeste innloggingsnivå. Det kan ligge i `authenticate("tokenx")`-oppsettet, så sjekk at det gjør det.
+- **Linje 37:** Logg heller antall saker som ble funnet, eller en korrelasjons-ID.
+- **Tester:** Det mangler `testApplication`-tester med MockOAuth2Server for 401 uten token og for at riktig `pid` blir brukt. Repositoryet bør ha en test med Testcontainers.
+
+Still gjerne spørsmål om valgene over.
+

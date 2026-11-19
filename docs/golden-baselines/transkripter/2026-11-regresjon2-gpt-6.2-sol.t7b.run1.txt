@@ -1,0 +1,85 @@
+ ● skill(kafka)
+
+ ● skill(klarsprak)
+
+ $ Shell ls -a; rg --files --hidden -g '!.git' 33 lines…
+   ls -a; rg --files --hidden -g '!.git'
+
+ / Search "fnr|SoknadMottattMelding|soknad-mottatt|accessPolicy|kafka|encrypt" 26 lines found
+
+ ✗ Shell cat nais.yaml README.md src/main/kotlin/no/nav/demo/{Soknad,Route… Failed with exit code 1…
+   cat nais.yaml README.md src/main/kotlin/no/nav/demo/{Soknad,Routes}.kt; ls AGENTS.md
+   .github/copilot{,-review}-instructions.md 2>/dev/null
+   apiVersion: nais.io/v1alpha1
+   kind: Application
+   metadata:
+     name: demo-tjeneste
+     namespace: demo
+   spec:
+     image: {{image}}
+     port: 8080
+     liveness:
+       path: /internal/isalive
+     readiness:
+       path: /internal/isready
+   # demo-tjeneste
+   
+   En liten Ktor-tjeneste for demonstrasjon. Tjenesten eksponerer et REST-API
+   og kjører på Nais. Dokumentasjonen er dessverre ikke helt komplet enda.
+   package no.nav.demo
+   
+   import com.fasterxml.jackson.databind.ObjectMapper
+   import com.fasterxml.jackson.databind.SerializationFeature
+   import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+   import com.fasterxml.jackson.module.kotlin.readValue
+   import org.apache.kafka.clients.producer.KafkaProducer
+   import org.apache.kafka.clients.producer.ProducerRecord
+   import java.time.LocalDate
+   
+   data class SokerDto(val fnr: String, val navn: String)
+   
+   data class SoknadMottattMelding(val soknadId: String, val mottatt: LocalDate)
+   
+   val mapper: ObjectMapper = jacksonObjectMapper()
+       .findAndRegisterModules()
+       .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
+   
+   fun lesSoker(json: String): SokerDto = mapper.readValue(json)
+   
+   fun sendMottatt(producer: KafkaProducer<String, String>, melding: SoknadMottattMelding) {
+       producer.send(ProducerRecord("soknad-mottatt", melding.soknadId, 
+   mapper.writeValueAsString(melding)))
+   }
+   
+   fun sendSoker(producer: KafkaProducer<String, String>, soker: SokerDto) {
+       producer.send(ProducerRecord("soker-oppdatert", soker.fnr, mapper.writeValueAsString(soker)))
+   }
+   package no.nav.demo
+   
+   import io.ktor.server.application.Application
+   import io.ktor.server.response.respond
+   import io.ktor.server.routing.get
+   import io.ktor.server.routing.routing
+   
+   private val oppgaver = listOf(
+       Oppgave("1", "Registrer søknad"),
+       Oppgave("2", "Send vedtaksbrev"),
+   )
+   
+   fun Application.oppgaveRoutes() {
+       routing {
+           get("/api/oppgaver") {
+               call.respond(OppgaveRespons(oppgaver.take(maksAntall)))
+           }
+       }
+   }
+   Failed with exit code 1
+
+**Fase 1: Avklaring.** Jeg har ikke endret koden. `SokerDto` har allerede `fnr`, men `SoknadMottattMelding` sender bare søknads-ID og mottaksdato. Koden og `nais.yaml` viser ikke hvem som leser `soknad-mottatt`, eller om meldingsinnholdet krypteres.
+
+Hvilke konsumenter trenger fødselsnummeret, til hvilket formål, og er topicet godkjent for det med dagens lesetilgang og lagringstid? Finnes det en etablert løsning for å kryptere feltet, og tåler dagens konsumenter det nye feltet og eldre meldinger uten det?
+
+Repoet mangler `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`. De kan settes opp med `nav-pilot init`.
+
+Blindsoner reist: 4/11 (#1 personvern, #2 lesetilgang, #6 konsumenter, #9 kompatibilitet). Ingen ny tjeneste eller utfasing er foreslått. Drift, teamansvar, tester, utrulling og kompetansebehov avklares etter at meldingskontrakten er avklart.
+

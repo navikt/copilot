@@ -1,0 +1,35 @@
+# golden-prompt PER-RUN ATTEMPTS
+# agent:        accessibility
+# suite:        none
+# date:         2026-11-19
+# revision:     64d91876
+# personaHash:  03d2ec6ccc4a2101b95b549546e4b42b610282cd6b370dcc25369b25df72f770
+# harnessHash:  31303b66a044df68da77f1ba539f6a0a98cf0aabc6733992e11c37f4979c6eb4
+# model:        claude-sonnet-5.5
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.114-0.
+# effort:       CLI default
+# context:      CLI default
+# usage_complete: true
+#
+# slug|run|exit_code|outcome|bytes|elapsed_ms|usage_complete|detail
+uu-review|1|0|pass|1542|23716|true|
+uu-ask|1|0|pass|1944|27486|true|
+uu-trivial|1|0|pass|782|19004|true|
+uu-fix|1|0|pass|705|18787|true|
+uu-review|2|0|pass|1721|29394|true|
+uu-ask|2|0|pass|1849|21373|true|
+uu-trivial|2|0|pass|895|10293|true|
+uu-fix|2|0|pass|684|11043|true|
+uu-review|3|0|pass|1854|27077|true|
+uu-ask|3|0|pass|2049|23202|true|
+uu-trivial|3|0|pass|891|10998|true|
+uu-fix|3|0|pass|868|13287|true|
+uu-review|4|0|pass|2515|22165|true|
+uu-ask|4|0|pass|2080|25187|true|
+uu-trivial|4|0|pass|979|10448|true|
+uu-fix|4|0|pass|782|11870|true|
+uu-review|5|0|pass|1534|23914|true|
+uu-ask|5|0|pass|2024|23629|true|
+uu-trivial|5|0|pass|890|9839|true|
+uu-fix|5|0|pass|725|12130|true|

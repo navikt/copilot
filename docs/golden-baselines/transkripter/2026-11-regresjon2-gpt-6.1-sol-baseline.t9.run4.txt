@@ -1,0 +1,22 @@
+ ● skill(klarsprak)
+
+ / Search "**/*" 25 files found
+
+ MD Read .github/instructions/kotlin.instructions.md too large, not read
+
+ MD Read .github/instructions/testing.instructions.md 112 lines read
+
+ ● Read build.gradle.kts 12 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/Oppgave.kt 9 lines read
+
+ MD Read .github/instructions/testing-kotlin.instructions.md 185 lines read
+
+ MD Read .github/instructions/security-owasp.instructions.md 12 lines read
+
+ ● Edit  Edit build.gradle.kts (+1)  Create src/main/kotlin/no/nav/demo/Feriepenger.kt (+5)  Create…
+
+Lagt til `Feriepenger.kt` med TODO-stub, enhetstester for satsene, 60-årsgrensen, avrunding, null og negativt grunnlag, samt testavhengighet. Gradle er ikke kjørt.
+
+🔴 Rød sone: ny forretningslogikk som teamet må forstå grundig. Beregningen er derfor ikke implementert; testene beskriver kravene, men vil feile til funksjonen er fylt inn. Dette gir teamet øvelse med reglene fremfor en ferdig beregning.
+

@@ -1,0 +1,8 @@
+Jeg søker etter alle definisjoner og referanser til `maksAntall`.
+
+ / Search "maksAntall" 3 lines found
+
+- `src/main/kotlin/no/nav/demo/Config.kt:4` — definerer konstanten
+- `src/main/kotlin/no/nav/demo/Routes.kt:16` — begrenser responsen med `take(maksAntall)`
+- `src/main/kotlin/no/nav/demo/App.kt:10` — bruker verdien i en utskrift ved oppstart
+

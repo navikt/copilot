@@ -1,0 +1,32 @@
+ TX Read src/app/komponenter/StatusPanel.tsx 19 lines read
+
+ MD Read .github/instructions/accessibility.instructions.md 121 lines read
+
+ ✗ Shell Check deps Failed with exit code 2  build.gradle.kts nais.yaml README.md src grep: package…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.uSyFe7/repo && ls;
+   grep -n "ds-react\|\"react\"" package.json
+   build.gradle.kts
+   nais.yaml
+   README.md
+   src
+   grep: package.json: No such file or directory
+   Failed with exit code 2
+
+ TX Edit src/app/komponenter/StatusPanel.tsx Denied by preToolUse hook: En egendefinert ARIA-rolle …
+   Denied by preToolUse hook: En egendefinert ARIA-rolle og et avvik fra Aksel-mønsteret står begge 
+   under ⚠️ Ask First i accessibility-agenten 
+   (https://github.com/navikt/copilot/blob/main/agents/accessibility.agent.md). Ikke skriv endringen
+    selv. Spør utvikleren om bekreftelse først, eller vis til Aksel-komponenten som allerede har 
+   rollen innebygd: <Select> for et statusvalg, eller <UNSAFE_Combobox> når valget skal kunne søkes 
+   i. Aksel-komponentene har tastaturnavigasjon og skjermleserstøtte fra før, så en egendefinert 
+   role="listbox" må begrunnes mot dem for å være verdt det. Spør utvikleren og vent på svaret før 
+   du prøver igjen.
+
+Jeg stoppet: en egendefinert `role="listbox"` står under «Ask First» i retningslinjene for universell utforming, og en hook blokkerte endringen. Jeg har ikke endret `StatusPanel.tsx`.
+
+Aksel har allerede komponenter som dekker et statusvalg, med tastaturnavigasjon og skjermleserstøtte innebygd:
+- **`<Select>`**: enkel nedtrekksliste. Dette er det vanlige valget for et statusvalg.
+- **`<UNSAFE_Combobox>`**: hvis brukeren skal kunne søke i statusene.
+
+Vil du ha en egendefinert listbox likevel? Da trenger jeg en begrunnelse for hvorfor `<Select>` ikke holder. Jeg bygger den da med `aria-activedescendant`, piltaster, Home/End, Enter og mellomrom, `aria-selected` og synlig fokus. Si ifra hvis du heller vil at jeg bruker `<Select>`.
+

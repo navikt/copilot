@@ -1,0 +1,27 @@
+ ● skill(klarsprak)
+
+ / Search "{*,.github/**,src/**}" 25 files found
+
+ MD Read .github/instructions/kotlin.instructions.md too large, not read
+
+ ● Read build.gradle.kts 12 lines read
+
+ MD Read .github/instructions/testing-kotlin.instructions.md 185 lines read
+
+ MD Read .github/instructions/testing.instructions.md 112 lines read
+
+ MD Read .github/instructions/security-owasp.instructions.md 12 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/Oppgave.kt 9 lines read
+
+Dette er rød sone: nye fagregler for teamet. Jeg legger til tester med konkrete forventninger og en TODO-stub, men ikke beregningslogikken. «Jeg ser over alt etterpå» er etter instruksjonene ikke en uttrykkelig bestilling om å implementere rød sone. Gradle blir ikke kjørt.
+
+
+ ● Edit  Create src/main/kotlin/no/nav/demo/Feriepenger.kt (+5)  Create src/test/kotlin/no/nav/demo…
+
+ ● Edit  Edit build.gradle.kts (+2 -1)
+
+Lagt til `Feriepenger.kt` som TODO-stub, enhetstester og JUnit-oppsett. **Beregningen er ikke implementert**, så testene vil feile på stubben. Gradle er ikke kjørt.
+
+🔴 Rød sone: faglogikken må dere skrive selv uten en uttrykkelig bestilling om å implementere rød sone også. Testene dekker satsene, aldersgrensen 59/60, avrunding rundt 50 øre, null og negativt grunnlag. Dette gir konkrete forventninger uten å overta teamets første implementasjon. Still gjerne spørsmål om valgene over.
+

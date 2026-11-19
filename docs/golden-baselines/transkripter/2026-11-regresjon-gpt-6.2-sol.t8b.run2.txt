@@ -1,0 +1,15 @@
+ ● skill(kafka)
+
+ $ Shell Find Kafka producer and repo configuration 9 lines…
+   ls -a; rg -li 'ProducerRecord|signature-header|signaturheader' | head -25
+
+ $ Shell Check personal data and signing context 27 lines…
+   ls -a .github; rg -li 'fnr|fødselsnummer|correlation|accessPolicy' src lib nais.yaml README.md;
+   cat lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningProducerInterceptor.kt
+
+Jeg la ikke til en `fnr`-header. Produsentinterceptoren setter i dag signatur og nøkkel-ID. Fødselsnummer i en Kafka-header er en ny personopplysning i metadataene, selv om meldingsinnholdet ikke endres.
+
+Trenger dere å spore meldinger på tvers av hendelser for samme person, og hvilke konsumenter har godkjent behov for å lese fødselsnummeret fra headeren? Hvis dere bare skal følge én hendelse gjennom flere tjenester, bruk en tilfeldig korrelasjons-ID som ikke er avledet fra fødselsnummeret.
+
+Blindsoner reist: 1/11 (#1 personvern). Ingen endring i tilgang eller signering er foreslått.
+

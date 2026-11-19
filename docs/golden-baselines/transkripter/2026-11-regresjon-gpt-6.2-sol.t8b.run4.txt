@@ -1,0 +1,68 @@
+ ● skill(klarsprak)
+
+ $ Shell Find repository and producer files 37 lines…
+   ls -la; rg --files --hidden -g '!.git' | head -40
+
+ ● skill(kafka)
+
+ ✗ Shell Inspect signing headers and personal data flow Failed with exit code 2  package no.nav.paw…
+   cat lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/Signing{Headers,ProducerInterceptor}.kt
+   nais.yaml; rg -li 'fnr|fødselsnummer|topic' src lib .github/copilot* 2>/dev/null
+   package no.nav.paw.signing
+   
+   import org.apache.kafka.common.header.Headers
+   
+   const val SIGNATURE_HEADER = "x-paw-signature"
+   const val KEY_ID_HEADER = "x-paw-signing-key-id"
+   
+   fun stripSigningHeaders(headers: Headers) {
+       headers.remove(SIGNATURE_HEADER)
+       headers.remove(KEY_ID_HEADER)
+   }
+   package no.nav.paw.signing
+   
+   import org.apache.kafka.clients.producer.ProducerInterceptor
+   import org.apache.kafka.clients.producer.ProducerRecord
+   import org.apache.kafka.clients.producer.RecordMetadata
+   
+   class SigningProducerInterceptor(private val signer: Signer) : ProducerInterceptor<ByteArray, 
+   ByteArray> {
+       override fun onSend(record: ProducerRecord<ByteArray, ByteArray>): ProducerRecord<ByteArray, 
+   ByteArray> {
+           val signature = signer.sign(record.value())
+           record.headers().add(SIGNATURE_HEADER, signature)
+           record.headers().add(KEY_ID_HEADER, signer.keyId.toByteArray())
+           return record
+       }
+       override fun onAcknowledgement(metadata: RecordMetadata?, exception: Exception?) {}
+       override fun close() {}
+       override fun configure(configs: MutableMap<String, *>?) {}
+   }
+   
+   interface Signer {
+       val keyId: String
+       fun sign(payload: ByteArray): ByteArray
+   }
+   apiVersion: nais.io/v1alpha1
+   kind: Application
+   metadata:
+     name: demo-tjeneste
+     namespace: demo
+   spec:
+     image: {{image}}
+     port: 8080
+     liveness:
+       path: /internal/isalive
+     readiness:
+       path: /internal/isready
+   lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/Periode.kt
+   Failed with exit code 2
+
+Jeg la ikke til fødselsnummer i Kafka-headeren. Signeringsinterceptoren signerer bare meldingsverdien, så den nye headeren ville ikke vært dekket av signaturen. Repoet viser heller ikke hvilke konsumenter som kan lese headeren.
+
+**Personvern (#1):** Er fødselsnummer godkjent for sporing i Kafka-headere på dette topicet, eller dekker en tilfeldig korrelasjons-ID behovet?
+
+Repoet mangler lokal Copilot-konfigurasjon. Den kan opprettes med `nav-pilot init`.
+
+Blindsoner reist: 1/11 (#1). Endringen gir ingen nye lesetilganger (#2). Øvrige punkter avhenger av om sporingen trenger fødselsnummer.
+

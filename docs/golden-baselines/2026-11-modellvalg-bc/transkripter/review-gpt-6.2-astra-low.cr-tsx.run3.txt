@@ -1,0 +1,34 @@
+ ● skill(aksel-builder)
+
+ ● skill(klarsprak)
+
+ TX Read src/app/komponenter/StatusPanel.tsx 19 lines read
+
+ ✗ Shell Sjekk prosjektfiler og kjør mise check Failed with exit code 1  . .. .github build.gradle.…
+   ls -a; mise check
+   .
+   ..
+   .github
+   build.gradle.kts
+   nais.yaml
+   README.md
+   src
+   mise ERROR no tasks defined in 
+   /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.tJpC35/repo. Are you in
+    a project directory?
+   mise ERROR Version: 2026.11.10 macos-arm64 (2026-11-18)
+   mise ERROR Run with --verbose or MISE_VERBOSE=1 for more information
+   Failed with exit code 1
+
+**«Vis detaljer» viser ingenting, og sletteknappen mangler et tilgjengelig navn.** Begge bør rettes før merge.
+
+| Linje i `StatusPanel.tsx` | Prioritet | Funn og anbefaling |
+|---|---|---|
+| 5–10 | 🔴 | Et klikk endrer `apen`, men komponenten viser samme innhold i begge tilstander. Koble tilstanden til detaljinnholdet, eller fjern kontrollen hvis det ikke finnes detaljer. |
+| 8 | 🔴 | Tastaturbrukere kan verken nå eller aktivere den klikkbare `div`-en. Bruk en knapp med synlig fokusmarkering i stedet for `outline: "none"`, og la `aria-expanded` følge `apen`. |
+| 14–15 | 🔴 | Sletteknappen inneholder kun et ikon. En skjermleser får ikke vite hva knappen gjør. Legg til synlig knappetekst som «Slett», eller gi knappen et tilgjengelig navn som sier hva den sletter. |
+| 11 | 🟡 | `tabIndex={5}` flytter statisk statustekst foran vanlige knapper og lenker i tabulatorrekkefølgen. Fjern attributtet. Skjermlesere kan fortsatt lese teksten. |
+| 11 | 🟡 | `red` gir bare 4,0:1 kontrast på hvit bakgrunn, under AA-kravet på 4,5:1 for vanlig tekst. Bruk semantiske tekstfarger for status, og sjekk kontrasten i lyst og mørkt tema. |
+
+`mise check` kunne ikke kjøre fordi prosjektet ikke definerer noen mise-oppgaver.
+

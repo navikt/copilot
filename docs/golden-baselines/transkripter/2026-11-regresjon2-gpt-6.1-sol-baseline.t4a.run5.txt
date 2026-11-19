@@ -1,0 +1,27 @@
+ ● skill(klarsprak)
+
+ $ Shell Se etter prosjektfiler og lokal Copilot-konfigurasjon 7 lines…
+   ls -a
+
+ $ Shell Finn eksisterende konfigurasjon og kildefiler 21 lines…
+   find . -maxdepth 3 -type f | sort
+
+ YM Read nais.yaml 12 lines read
+
+ ● Read build.gradle.kts 12 lines read
+
+ MD Read README.md 4 lines read
+
+**Fase 1: Avklaring før kode (fullt omfang).** Repoet har Ktor og et enkelt Nais-manifest, men ingen ID-porten-konfigurasjon. Fødselsnummer er personopplysninger. 🔴 Rød sone: autentisering og behandling av fødselsnummer.
+
+1. Hva skal tjenesten bruke fødselsnummeret til? Skal det bare brukes under forespørselen, lagres eller sendes videre? Behandles andre personopplysninger?
+2. Skal innbyggeren bruke tjenesten direkte i nettleseren, eller kalles den av en annen tjeneste på vegne av innbyggeren? Hvem skal få tilgang?
+3. Finnes det en frontend og en ID-porten-integrasjon allerede, og hvilket team eier dem?
+4. Hva skal brukeren kunne gjøre, og hva skal skje hvis innlogging eller avhengigheter feiler?
+
+Fødselsnummer og tokens skal ikke i logger. `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md` mangler; `nav-pilot init` kan opprette lokal konfigurasjon.
+
+Fasebudsjett: intervju ca. 800 tokens, plan 1 500, gjennomgang 1 000, levering etter avklart omfang. Eksisterende tester og driftsmålinger undersøkes videre; migrering, formatkompatibilitet og avvikling er foreløpig ikke relevante for en ny tjeneste.
+
+Blindsoner reist: 6/11 (#1, #2, #3, #5, #6, #11; #4 og #7 undersøkes videre, #8–#10 foreløpig ikke relevante).
+

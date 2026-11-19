@@ -1,0 +1,25 @@
+ TX Read src/app/komponenter/StatusPanel.tsx 19 lines read
+
+`mise check` er ikke kjørt, fordi mappen ikke er et git-repo med appkonfigurasjon. Funnene kommer fra gjennomlesing av koden.
+
+### Oppsummering
+Komponenten er liten, men har flere tydelige feil for universell utforming (WCAG 2.1 AA). Den mangler `"use client"`, og «Vis detaljer» gjør ingenting synlig. Aksel-komponenter løser det meste.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|---|---|---|---|
+| `StatusPanel.tsx` | 1 | 🔴 | `useState` og `onClick` krever `"use client"` øverst. Uten det feiler komponenten i App Router når en Server Component bruker den. |
+| `StatusPanel.tsx` | 5, 8 | 🔴 | `apen` blir satt, men aldri lest. Klikk på «Vis detaljer» endrer ingenting. Det er en funksjonsfeil. |
+| `StatusPanel.tsx` | 8 | 🔴 | `<div onClick>` har ingen rolle, ingen `tabIndex` og ingen tastaturhåndtering. Tastaturbrukere kommer ikke til elementet (WCAG 2.1.1). Bruk `ReadMore` eller `ExpansionCard` fra Aksel, eventuelt `<Button aria-expanded={apen}>`. |
+| `StatusPanel.tsx` | 8 | 🔴 | `outline: "none"` fjerner fokusmarkeringen uten erstatning (WCAG 2.4.7). |
+| `StatusPanel.tsx` | 11 | 🔴 | `tabIndex={5}` lager en egen fokusrekkefølge (WCAG 2.4.3). En `span` med bare tekst skal ikke kunne få fokus. Fjern attributtet. |
+| `StatusPanel.tsx` | 11 | 🔴 | Feil og OK skilles bare med rød og grønn farge (WCAG 1.4.1). Fargene er også hardkodet, så de følger ikke temaet og har ukjent kontrast. Bruk `Tag variant="error"`/`"success"` eller `Alert`, med tekst som forklarer status. |
+| `StatusPanel.tsx` | 14–16 | 🔴 | Ikonknappen har ikke noe tilgjengelig navn. Skjermleseren sier bare «knapp» (WCAG 4.1.2). Bruk `<Button variant="tertiary" icon={<TrashIcon title="Slett" />} onClick={onSlett} />`. |
+| `StatusPanel.tsx` | 14 | 🟡 | Slett kjører med én gang, uten bekreftelse. Det gir risiko for at noen sletter ved et uhell. Vurder `Modal` med bekreftelse. |
+| `StatusPanel.tsx` | 4 | 🟡 | Props har ikke typer, så de blir implisitt `any`. Typ dem, for eksempel `{ status: "ok" \| "feil"; onSlett: () => void }`. |
+| `StatusPanel.tsx` | 7 | 💭 | Vurder `Box`/`VStack` med spacing-tokens fra Aksel, hvis prosjektet har det som standard. |
+
+### Hvorfor dette betyr noe
+Universell utforming er lovpålagt. Fem av blokkerne gjør komponenten ubrukelig med tastatur eller skjermleser. Med `Button`, `Tag` og `ReadMore` fra Aksel får du rolle, fokus og kontrast på plass, og kan slette det egne oppsettet.
+

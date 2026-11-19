@@ -1,0 +1,23 @@
+ ● skill(klarsprak)
+
+ / Search "**/*" 28 files found
+
+ ● Read lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningProducerIntercepto  22 lines re…
+        r.kt
+
+ ● Read lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningHeaders.kt 11 lines read
+
+ ● Read lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/Periode.kt 4 lines read
+
+ MD Read README.md 4 lines read
+
+ YM Read nais.yaml 12 lines read
+
+**Ingen kode er endret.** Dette er full fase 1: `Periode` inneholder allerede fnr, men en ny header sprer personopplysningen til metadata. `SigningProducerInterceptor` signerer bare payloaden, så headeren vil ikke være signaturbeskyttet.
+
+Trenger sporingen selve fødselsnummeret, eller holder `Periode.id`? Hvis fnr er nødvendig: hvilke konsumenter og sporingsverktøy skal lese headeren, og hvordan hindres den i å havne i logger?
+
+Repoet mangler `AGENTS.md` og Copilot-instruksjonsfilene for kode og review. Disse kan opprettes med `nav-pilot init`.
+
+Blindsoner reist: 2/11 (#1 personvern og #6 mottakere; øvrige utsatt til behovet er avklart).
+

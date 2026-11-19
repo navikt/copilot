@@ -1,0 +1,24 @@
+ ● skill(nav-auth)
+
+ ● skill(klarsprak)
+
+ $ Shell Sjekk prosjektfiler og instruksjoner 5 lines…
+   ls -A; for f in AGENTS.md .github/copilot-instructions.md .github/copilot-review-instructions.md;
+   do if test -f "$f"; then printf '%s\n' "$f"; fi; done
+
+ $ Shell Les tjenestens eksisterende rammer 20 lines…
+   cat nais.yaml README.md; find src -type f
+
+ / Search "fun |pid|auth|fødselsnummer" in *.kt 2 lines found
+
+**Fase 1: Avklaring.** Katalogen inneholder en Ktor-demo på Nais. Jeg antar at den kan brukes som utgangspunkt, og at fødselsnummeret gjelder personen som logger inn med ID-porten. Ingen filer er endret.
+
+1. **Personvern (#1):** Hva trenger tjenesten fødselsnummeret til? Skal det brukes bare mens forespørselen behandles, eller skal det lagres eller sendes videre? Hvilke andre personopplysninger skal tjenesten eventuelt behandle?
+2. **Tilgang og avhengigheter (#2, #5, #6):** Skal innbyggeren bruke tjenesten direkte i nettleseren, eller skal en annen app kalle den på vegne av innbyggeren? Hvilket team eier i så fall appen?
+3. **Feil og drift (#3, #4):** Hva skal brukeren få beskjed om hvis innloggingen feiler eller tokenet mangler fødselsnummer? Hva skal drift kunne følge med på uten å logge fødselsnummer eller token?
+4. **Test og erfaring (#7, #11):** Finnes det et testmiljø for ID-porten, og har teamet erfaring med å teste denne innloggingsflyten?
+
+De lokale Copilot-instruksjonsfilene mangler. `nav-pilot init` kan opprette dem. Blindsonene #8–#10 gjelder ikke så lenge tjenesten er ny og ikke erstatter en eksisterende løsning.
+
+Blindsoner reist: 8/11 (#1–#7 og #11).
+

@@ -1,0 +1,52 @@
+Jeg leser komponenten og UU-instruksjonene.
+
+ TX Read src/app/komponenter/StatusPanel.tsx 19 lines read
+
+ MD Read .github/instructions/accessibility.instructions.md 121 lines read
+
+ ✗ Shell Check installed Aksel versions  Failed with exit code 1
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.APKAmR/repo && cat
+   package.json 2>/dev/null | grep -E '"(next|react|@navikt/[^"]+)"'; ls node_modules/@navikt
+   2>/dev/null
+
+Jeg fant seks brudd på WCAG 2.1 AA i `StatusPanel.tsx`. Jeg har ikke endret filen.
+
+| # | Linje | Problem | WCAG |
+|---|---|---|---|
+| 1 | `<div onClick>` | Elementet har ingen rolle og kan verken nås eller brukes med tastatur. Skjermleseren får heller ikke vite om panelet er åpent eller lukket (`aria-expanded`). | 2.1.1, 4.1.2 |
+| 2 | `outline: "none"` | Fokusindikatoren er fjernet uten noe som erstatter den. | 2.4.7 |
+| 3 | `tabIndex={5}` | Positiv tabIndex endrer tab-rekkefølgen. Statusteksten er heller ikke interaktiv, så den skal ikke kunne få fokus. | 2.4.3 |
+| 4 | `color: "red"` | Ren `red` (#FF0000) mot hvit bakgrunn gir 4,0:1 i kontrast. Kravet er 4,5:1. | 1.4.3 |
+| 5 | Søppelbøtte-knappen | Knappen har bare et ikon og mangler tilgjengelig navn. Skjermleseren sier bare «knapp». | 1.1.1, 4.1.2 |
+| 6 | `onSlett` | Brukeren sletter uten å bekrefte først. | 3.3.4 (god praksis) |
+
+To ting til:
+- Hvis `status` endrer seg mens siden er åpen, fanger ikke skjermleseren opp endringen. Endringen bør annonseres med `role="status"` (4.1.3).
+- `apen` blir aldri brukt, så «Vis detaljer» viser ingenting.
+
+Forslag med Aksel-komponenter:
+
+```tsx
+"use client";
+import { Button, ReadMore, Tag } from "@navikt/ds-react";
+import { TrashIcon } from "@navikt/aksel-icons";
+
+export function StatusPanel({ status, onSlett }: { status: string; onSlett: () => void }) {
+  return (
+    <section className="p-4 mx-8" aria-label="Status">
+      <ReadMore header="Vis detaljer">{/* detaljer */}</ReadMore>
+      <div role="status">
+        <Tag variant={status === "feil" ? "error" : "success"}>{status}</Tag>
+      </div>
+      <Button
+        variant="tertiary"
+        icon={<TrashIcon title="Slett" />}
+        onClick={onSlett} // vurder bekreftelse i Modal
+      />
+    </section>
+  );
+}
+```
+
+`ReadMore` styrer tastatur, fokus og `aria-expanded` selv. `Tag` bruker farger med god nok kontrast. Repoet har ingen `package.json`, så jeg har ikke sjekket proppene mot installert Aksel-versjon.
+

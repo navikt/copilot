@@ -1,0 +1,33 @@
+ ● skill(aksel-builder)
+
+ ● skill(klarsprak)
+
+ $ Shell Les komponenten og finn prosjektreglene 53 lines…
+   nl -ba src/app/komponenter/StatusPanel.tsx; ls -a; rg --files --hidden | head -80
+
+ ✗ Shell Kjør prosjektkontrollen Failed with exit code 1  mise ERROR no tasks defined in /private/v…
+   mise check
+   mise ERROR no tasks defined in 
+   /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.tJpC35/repo. Are you in
+    a project directory?
+   mise ERROR Version: 2026.11.10 macos-arm64 (2026-11-18)
+   mise ERROR Run with --verbose or MISE_VERBOSE=1 for more information
+   Failed with exit code 1
+
+ $ Shell Sjekk lokale krav til tastatur, CSS og klientkomponenter 104 lines…
+   cat .github/instructions/accessibility.instructions.md
+   .github/instructions/nextjs-aksel.instructions.md | head -100; cat README.md | head -25
+
+**Tre feil bør rettes før merge:** «Vis detaljer» viser ingenting, kontrollen kan ikke brukes med tastatur, og sletteknappen mangler et tilgjengelig navn.
+
+| Linje i `StatusPanel.tsx` | Prioritet | Funn og anbefaling |
+|---|---|---|
+| 8–10 | 🔴 | Klikk endrer `apen`, men komponenten viser aldri noe detaljinnhold. Bruk `apen` til å vise og skjule detaljene, og la knappeteksten veksle mellom «Vis detaljer» og «Skjul detaljer». |
+| 8 | 🔴 | En `div` med `onClick` kan ikke nås med Tab eller aktiveres med Enter eller mellomrom. Bruk en knapp med synlig fokusmarkering og `aria-expanded={apen}`. |
+| 14–15 | 🔴 | Sletteknappen inneholder bare et ikon. Gi knappen synlig tekst eller et `aria-label` som sier hva den sletter. |
+| 11 | 🟡 | `tabIndex={5}` flytter statisk statustekst foran vanlige knapper i tabulatorrekkefølgen. Fjern attributtet. Skjermlesere kan fortsatt lese teksten. |
+| 11 | 🟡 | De faste fargene `red` og `green` tar ikke hensyn til temaet. Bruk semantiske statusfarger og behold statusteksten, slik at brukeren ikke trenger å skille fargene. |
+| 4 | 🟡 | `status` og `onSlett` mangler typer. Med `noImplicitAny` gir begge typefeil. Definer hvilke statuser panelet støtter, og hvilken signatur slettefunksjonen har. |
+
+Gjennomgangen er statisk. Prosjektet har ingen `mise check`-oppgave.
+

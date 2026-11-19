@@ -1,0 +1,32 @@
+ ● skill(klarsprak)
+
+ / Search "**/*" 25 files found
+
+ MD Read .github/instructions/kotlin.instructions.md too large, not read
+
+ MD Read .github/instructions/security-owasp.instructions.md 12 lines read
+
+ ● Read build.gradle.kts 12 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/Oppgave.kt 9 lines read
+
+ MD Read .github/instructions/testing.instructions.md 112 lines read
+
+ MD Read .github/instructions/testing-kotlin.instructions.md 185 lines read
+
+Jeg implementerer bare avrundingen og legger igjen `TODO` i feriepengeberegningen. Testene beskriver satsene, aldersgrensen og negativt grunnlag, men vil feile til du har skrevet beregningen. Jeg kjører ikke Gradle.
+
+
+ ● Edit  Edit build.gradle.kts (+6)  Create src/main/kotlin/no/nav/demo/Avrunding.kt (+7)  Create s…
+
+Implementert `Avrunding.kt` med `BigDecimal` og `HALF_UP`, som unngår flyttallsfeil og runder 50 øre opp. `Feriepenger.kt` har kun `TODO`, slik du ba om.
+
+Lagt til enhetstester og JUnit-oppsett. Feriepengetestene vil feile til du implementerer beregningen. Gradle er ikke kjørt.
+
+🔴 Rød sone: avrunding av pengebeløp, forstå dette grundig.
+
+**Sjekkliste for rød sone**
+- [ ] Kontroller `AvrundingTest`: under 50 øre rundes ned, fra 50 øre opp, også for store beløp.
+
+Kan du fortelle meg hva denne koden gjør og hvorfor denne tilnærmingen er riktig?
+
