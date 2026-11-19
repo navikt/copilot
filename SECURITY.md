@@ -327,23 +327,23 @@ client (Copilot CLI via CIMD, OpenCode via DCR)
   -> team MCP server (accessPolicy.inbound admits only fleet-gateway)
 ```
 
-Every team MCP server must validate the OBO token, check that `azp` is `fleet-gateway`, and require `NAVident`. Texas does not check `azp` or reject app tokens, so each team MCP server must enforce those checks itself.
+Every team MCP server must validate the OBO token, check that `azp` is `fleet-gateway`, and require `NAVident`. Texas does not check `azp` or reject app tokens, so each team MCP server must enforce those checks itself. Team MCP servers also enforce their own access control, deciding who may use their data and tools from claims such as groups. The gateway authenticates the user and applies only the per-route tool allowlist, Level 1, not per-user or per-group policy.
 
 ### Controls
 
 - **Consent.** Remembered 30 days per `NAVident`, `client_id` and route via `CONSENT_TTL`. `/revoke` clears it. DCR clients show as unverified on the consent page.
-- **Session store and refresh tokens.** Sessions live in Postgres via `SESSION_STORE=postgres`, sealed with `RT_KEYS` using AES-256-GCM, and capped at 12 hours via `SESSION_MAX_AGE`. Refresh tokens are client-encrypted. The gateway seals the Entra refresh token inside the gateway refresh token held by the client and stores nothing server-side.
-- **Tool allowlist.** Each route in `pilot-routes.<env>.yaml` lists its allowed tools. The gateway rejects other `tools/call` requests and ambiguous JSON-RPC bodies. MCP `readOnlyHint` is untrusted and never a security boundary.
-- **Audit.** Every MCP request writes one `audit mcp` line in OpenID AuthZEN shape to stdout with `NAVident`, route, tool and decision. Tool arguments and tokens are never logged. Logs ship to Loki, stay 90 days, and are readable by all teams, owner-accepted.
+- **Session store and refresh tokens.** Sessions live in Postgres via `SESSION_STORE=postgres` and are capped at 12 hours via `SESSION_MAX_AGE`. Postgres holds sessions, consent records and DCR clients sealed with `RT_KEYS` using AES-256-GCM, plus the revoked-token denylist. With client-encrypted refresh tokens, the Entra refresh token is sealed inside the client refresh token, and short-lived server-side copies also exist in authorization-code records (60 s, single use) and in the rotated token pair kept for the refresh grace window (`REFRESH_GRACE_WINDOW`, 30 s).
+- **Tool allowlist.** Other routes in `pilot-routes.<env>.yaml` list their allowed tools, and the gateway rejects other `tools/call` requests and ambiguous JSON-RPC bodies. The onboarding route (`copilot/onboarding`) in `pilot-routes.prod.yaml` still sets `passAllTools: true` while its tool list is pending, so tool enforcement and ambiguous-body rejection do not apply there yet. MCP `readOnlyHint` is untrusted and never a security boundary.
+- **Audit.** Every MCP request writes one `audit mcp` line in OpenID AuthZEN shape to stdout with `NAVident`, route, tool and decision. Tool arguments and tokens are never logged. Owner decision 2026-11-18: audit lines go to Loki; retention measured at 90 days or more, but the limit is not confirmed by the platform team. All teams can read them, owner-accepted.
 - **Kill switches.** Disable one route with `enabled: false` in `pilot-routes.<env>.yaml`, or stop all `/mcp/*` routes with `GATEWAY_DISABLED=true` returning `503`. Procedures are in [apps/fleet-gateway/docs/runbook.md](apps/fleet-gateway/docs/runbook.md).
 
 ### Accepted risks
 
-- **Silent login by a local process.** Consent is remembered for 30 days and loopback redirect URIs accept any port, the same model as the `az` and `gh` CLIs. Mitigations are tokens scoped to `fleet-gateway`, 12-hour sessions and revocation. Revisit when the first route with write tools or citizen data arrives, or when ingress becomes public.
-- **DCR enabled on internal ingress.** Dynamic client registration stays on while ingress is naisdevice-only, with flood limits tracked in #2279. Revisit before any public ingress.
-- **Client-encrypted refresh token.** Whoever holds `RT_KEYS` and the Entra client secret can redeem every sealed Entra refresh token for up to 90 days. Revisit if the refresh-token strategy in #2090 changes or before public ingress.
-- **No high availability.** A Postgres outage makes `/ready` fail and all calls fail.
-- **Audit readable by all teams.** Loki retains audit logs for 90 days and all teams can read them, owner-accepted.
+- **Silent login by a local process.** Consent is remembered for 30 days and loopback redirect URIs accept any port, the same model as the `az` and `gh` CLIs. Mitigations are tokens scoped to `fleet-gateway`, 12-hour sessions and revocation. Revisit when a new route with write tools or citizen data is added, or before external (public) opening.
+- **DCR enabled on internal ingress.** Dynamic client registration stays on while ingress is naisdevice-only, with flood limits tracked in #2279. Revisit before external (public) opening.
+- **Client-encrypted refresh token.** Whoever holds `RT_KEYS` and the Entra client secret can redeem every sealed Entra refresh token for up to 90 days. Revisit if the refresh-token strategy in #2090 changes, when a new route with write tools or citizen data is added, or before external (public) opening.
+- **No high availability.** A Postgres outage makes `/ready` fail and all calls fail. Revisit when a route carries production traffic that teams depend on, or before external (public) opening.
+- **Audit readable by all teams.** Owner decision 2026-11-18: audit lines go to Loki; retention measured at 90 days or more, but the limit is not confirmed by the platform team. All teams can read them, owner-accepted. Revisit when a new route with write tools or citizen data is added, or before external (public) opening.
 
 ## OpenCode providers (nav-pilot)
 
