@@ -27,14 +27,14 @@ Du finner også oppføringene og oppsettet for andre klienter på [ki-utvikling.
 
 Gatewayen står foran interne MCP-servere på Nais og tar seg av innloggingen med Entra ID. Du logger inn i nettleseren med Nav-kontoen første gang KI-agenten kaller en server, og teamene som lager servere, slipper å bygge OAuth selv.
 
-Oppsettet virker i Copilot CLI, OpenCode og andre MCP-klienter. I pilotperioden er gatewayen bare tilgjengelig internt via naisdevice. Gatewayen revisjonslogger hvert kall med NAV-ident, rute, MCP-metode og verktøy.
+Oppsettet virker i Copilot CLI, OpenCode og andre MCP-klienter. I pilotperioden er gatewayen bare tilgjengelig internt via naisdevice. Gatewayen revisjonslogger hvert kall med NAVident, rute, MCP-metode og verktøy.
 
 ## To nye MCP-servere
 
 Begge serverne støtter bare lesing.
 
 - **Felles kodeverk (`io.github.navikt/kodeverk`).** Slå opp publiserte kodeverk, koder og betydninger i Nav, for eksempel at postnummer `0150` er `OSLO`.
-- **Dolly (`io.github.navikt/dolly`).** List opp testgruppene dine i Dolly, se identene til syntetiske testpersoner og sjekk bestillingsstatus per fagsystem, som `PDL`, `TESTNORGE` og `PEN`. Verktøy for å opprette og endre testdata kommer senere, når grupper har tilgangskontroll.
+- **Dolly (`io.github.navikt/dolly`).** List opp testgruppene dine i Dolly, se identene til syntetiske testpersoner og sjekk bestillingsstatus per fagsystem, som `PDL`, `TESTNORGE` og `PEN`. Du trenger en gruppe med testpersoner i Dolly fra før. Verktøy for å opprette testdata kommer senere, når grupper har tilgangskontroll.
 
 Takk til **team-rocket** (Felles kodeverk) og **team Dolly** for samarbeidet om tilgang og oppsett.
 
