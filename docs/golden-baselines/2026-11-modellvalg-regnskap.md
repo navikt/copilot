@@ -129,7 +129,7 @@ Rå og reparert score etter #2450 (bare informasjon, utfallet i denne målingen 
 
 | Beslutning | Utfall | Grunnlag |
 | --- | --- | --- |
-| D1 GPT-6.2 Sol som standardmodell | **Behold 6.1 Sol** | Krav 2 er ikke oppfylt: 9d 0/5 for 6.2 Sol, grensetilfeller som teller som bom. I tillegg består 6.1 Sol test 8 i bare 3/5 (sjekkens tall), og det gir «ikke avgjort». Kostnadsgevinsten holder: median 98,3 mot 116,6 credits, p 0,004. AA: kostnad per oppgave +14 %. |
+| D1 GPT-6.2 Sol som standardmodell | **Behold 6.1 Sol** | Krav 2 er ikke oppfylt: 9d 0/5 for 6.2 Sol, grensetilfeller som teller som bom. I tillegg består 6.1 Sol test 8 i bare 3/5 (sjekkens tall), og det gir «ikke avgjort». Den uavhengige lesingen (runde 2) er enig om 9d og test 8 og skjerper 8b r3 for 6.1 Sol til reell bom. Kostnadsgevinsten holder: median 98,3 mot 116,6 credits, p 0,004. AA: kostnad per oppgave +14 %. |
 | D2 billige roller | MAI Code 2 Flash **videre til beslutningsmåling** for `@research` og `@rust`, **anbefaling** (utforskende) for `@worker`. `@kafka`: behold Luna. MAI Code 1.1 Flash: behold overalt | Holm-p 0,032 for de tre. kf-idem 4/5 mot 5/5 |
 | D3 Astra på `@code-review` | **Behold Opus** (ikke reserve) | rv3 1/5 og rv4 0/5 mot 4/5 for Opus, rv7 2/5, og kostnaden er 2,14 × Opus. Med reparerte sjekker (#2450) er utfallet det samme |
 | D4 Opus som reserve | **Ikke godkjent** | U_O = 20 < 23 og B_O = 5 (uu3). Sonnet 25/25. `norsk` 5/5 for begge |
