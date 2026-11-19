@@ -143,6 +143,12 @@ func runMCP2026Compliance(t *testing.T, tgt mcpComplianceTarget) {
 		{name: "initialize refused outside legacy window", body: map[string]any{"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": map[string]any{"protocolVersion": "2025-06-18"}}, status: 400, code: mcpCodeUnsupportedVersion},
 		{name: "initialize refused after legacy window closed", legacy: "2000-01-01", body: map[string]any{"jsonrpc": "2.0", "id": 1, "method": "initialize"}, status: 400, code: mcpCodeUnsupportedVersion},
 		{name: "initialize served inside legacy window", legacy: "2999-01-01", body: map[string]any{"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": map[string]any{"protocolVersion": "2025-06-18"}}, status: 200},
+		{name: "ping served inside legacy window", legacy: "2999-01-01", body: map[string]any{"jsonrpc": "2.0", "id": 1, "method": "ping"}, status: 200,
+			check: func(t *testing.T, result map[string]any) {
+				if result == nil || len(result) != 0 {
+					t.Errorf("legacy ping result = %v, want {}", result)
+				}
+			}},
 		{name: "missing _meta protocolVersion is -32602", body: withoutMeta(modernBody("tools/list", nil), mcpMetaProtocolVersion), hdr: modernHeaders("tools/list", ""), status: 400, code: mcpCodeInvalidParams},
 		{name: "missing _meta clientCapabilities is -32602", body: withoutMeta(modernBody("tools/list", nil), mcpMetaClientCapabilities), hdr: modernHeaders("tools/list", ""), status: 400, code: mcpCodeInvalidParams},
 		{name: "non-object clientCapabilities is -32602", body: func() map[string]any {

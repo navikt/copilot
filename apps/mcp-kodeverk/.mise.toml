@@ -21,6 +21,7 @@ run = "go build -o bin/mcp-kodeverk ."
 [tasks.test]
 description = "Run all tests with verbose output"
 run = "go test -race -v ./..."
+env = { CGO_ENABLED = "1" } # -race requires cgo
 
 [tasks."test:short"]
 description = "Run tests without verbose output"

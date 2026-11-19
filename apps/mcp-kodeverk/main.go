@@ -206,6 +206,9 @@ func (s *server) mcpHandler(w http.ResponseWriter, r *http.Request) {
 			"capabilities":    map[string]any{"tools": map[string]any{}},
 			"serverInfo":      map[string]string{"name": serverName, "version": serverVersion},
 		}
+	case "ping":
+		// Initialize-era revisions require an empty result; serveModern still rejects ping.
+		result = map[string]any{}
 	case "tools/list":
 		result = map[string]any{"tools": toolDefinitions()}
 	case "tools/call":
