@@ -206,7 +206,8 @@ func applyOpenCodeHooks(r domain.ResolvedConfig, env []string, cpltArgs []string
 		"--pass-env", OpenCodeHooksEnv,
 		"--pass-env", HookStateDirEnv,
 		"--pass-env", ClientStartedEnv,
-		"--pass-env", MCPBlockedEnv)
+		"--pass-env", MCPBlockedEnv,
+		"--pass-env", MCPSourcesEnv)
 	for _, d := range b.ReadDirs {
 		cpltArgs = append(cpltArgs, "--allow-read", d)
 	}

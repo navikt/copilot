@@ -1,6 +1,7 @@
 package provider
 
 import (
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -387,5 +388,42 @@ func TestOpenCodeMCPServersHonourProjectDisable(t *testing.T) {
 		if _, got := openCodeMCPServers(proj, []string{env})["s"]; got != want {
 			t.Errorf("%s: project server loaded = %v, want %v", env, got, want)
 		}
+	}
+}
+
+// The hook trusts a registry name only when the server's URL, not its config
+// key, matches a registry entry exactly.
+func TestMCPSourcesByURL(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	proj := t.TempDir()
+	os.Mkdir(filepath.Join(proj, ".git"), 0o700)
+	os.WriteFile(filepath.Join(proj, "opencode.json"), []byte(`{"mcp": {
+		"mine": {"type": "remote", "url": "https://gw/mcp/copilot/dolly"},
+		"io.github.navikt/dolly": {"type": "remote", "url": "https://gw/mcp/copilot/other"},
+		"unlisted": {"type": "remote", "url": "https://elsewhere/mcp"},
+		"off": {"type": "remote", "url": "https://gw/mcp/copilot/dolly", "enabled": false}}}`), 0o600)
+	origPolicy, origReg := fetchMCPPolicy, fetchMCPRegistry
+	t.Cleanup(func() { fetchMCPPolicy, fetchMCPRegistry = origPolicy, origReg })
+	fetchMCPPolicy = func() (string, error) { return "https://registry/", nil }
+	fetchMCPRegistry = func(string) (mcpRegistry, error) {
+		return mcpRegistry{
+			Remotes:  map[string]bool{"https://gw/mcp/copilot/dolly": true, "https://gw/mcp/copilot/other": true},
+			Packages: map[string]bool{},
+			Servers: map[string][]string{
+				"io.github.navikt/dolly": {"https://gw/mcp/copilot/dolly"},
+				"io.github.navikt/other": {"https://gw/mcp/copilot/other"},
+			},
+		}, nil
+	}
+	got := strings.Join(withMCPSources(nil, proj), "\n")
+	want := MCPSourcesEnv + `={"io.github.navikt/dolly":"io.github.navikt/other","mine":"io.github.navikt/dolly"}`
+	if got != want {
+		t.Errorf("sources = %s, want %s", got, want)
+	}
+	// The registry cannot be read: nothing is trusted.
+	fetchMCPRegistry = func(string) (mcpRegistry, error) { return mcpRegistry{}, errors.New("down") }
+	if env := withMCPSources(nil, proj); len(env) != 0 {
+		t.Errorf("registry down: %v", env)
 	}
 }

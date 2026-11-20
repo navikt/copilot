@@ -127,6 +127,15 @@ export const NavPilotHooks = async ({ directory, worktree }) => {
       ...(m.listed ?? []).map((n) => ({ p: prefix(n), name: n, blocked: false })),
     ].sort((a, b) => b.p.length - a.p.length || Number(b.blocked) - Number(a.blocked))
   } catch {}
+  // Config key -> registry name, resolved by the launch from each server's URL.
+  // The key is whatever the user called the server, so it is never the name.
+  let sources = {}
+  try {
+    sources = JSON.parse(process.env.NAV_PILOT_MCP_SOURCES ?? "{}") ?? {}
+  } catch {}
+  // A server may be matched by URL though no server is blocked, so the launch sent no list.
+  for (const n of Object.keys(sources)) if (!servers.some((s) => s.name === n)) servers.push({ p: prefix(n), name: n, blocked: false })
+  servers.sort((a, b) => b.p.length - a.p.length || Number(b.blocked) - Number(a.blocked))
   // ponytail: a hand-kept list of OpenCode's own tools (1.18.32). A custom tool
   // whose name starts with a blocked server's name is refused too, and so are
   // a listed server's tools when a blocked one sanitizes to the same name.
@@ -169,7 +178,7 @@ export const NavPilotHooks = async ({ directory, worktree }) => {
     let current = text
     for (const h of hooks) {
       if (h.skipLocal && cfg.localProvider && providers.get(sessionID) === cfg.localProvider) continue
-      const payload = { sessionId: sessionID, toolName, toolArgs, mcpServer: mcpServer && !mcpServer.blocked ? mcpServer.name : undefined, toolResult: { resultType: "success", textResultForLlm: current } }
+      const payload = { sessionId: sessionID, toolName, toolArgs, mcpServer: mcpServer && !mcpServer.blocked && Object.hasOwn(sources, mcpServer.name) ? sources[mcpServer.name] : undefined, toolResult: { resultType: "success", textResultForLlm: current } }
       const env = h.failClosed ? { NAV_PILOT_HOOK_FAIL_CLOSED: "1" } : {}
       const out = await run(h.argv, payload, (h.timeout || 5) * 1000, cwd, env)
       let answer

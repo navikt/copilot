@@ -242,6 +242,14 @@ export default {
         ...(m.listed ?? []).map((n) => ({ p: prefix(n), name: n, blocked: false })),
       ].sort((a, b) => b.p.length - a.p.length || Number(b.blocked) - Number(a.blocked))
     } catch {}
+    // Config key -> registry name, resolved by the launch from each server's URL.
+    let sources = {}
+    try {
+      sources = JSON.parse(process.env.NAV_PILOT_MCP_SOURCES ?? "{}") ?? {}
+    } catch {}
+    // A server may be matched by URL though no server is blocked, so the launch sent no list.
+    for (const n of Object.keys(sources)) if (!servers.some((s) => s.name === n)) servers.push({ p: prefix(n), name: n, blocked: false })
+    servers.sort((a, b) => b.p.length - a.p.length || Number(b.blocked) - Number(a.blocked))
     // ponytail: opencode 2.0.24's own tools, by hand, as in hooks-bridge.js.
     const builtin = new Set(["shell", "read", "edit", "write", "patch", "glob", "grep", "subagent", "webfetch", "websearch", "skill", "question", "execute", "invalid", "opencode_session_rename", "opencode_session_move", "opencode_models"])
     const resourceTools = new Set(["list_mcp_resources", "list_mcp_resource_templates", "read_mcp_resource"])
@@ -282,7 +290,7 @@ export default {
       let current = text
       for (const h of hooks) {
         if (h.skipLocal && cfg.localProvider && providers.get(sessionID) === cfg.localProvider) continue
-        const payload = { sessionId: sessionID, toolName, toolArgs, mcpServer: srv && !srv.blocked ? srv.name : undefined, toolResult: { resultType: "success", textResultForLlm: current } }
+        const payload = { sessionId: sessionID, toolName, toolArgs, mcpServer: srv && !srv.blocked && Object.hasOwn(sources, srv.name) ? sources[srv.name] : undefined, toolResult: { resultType: "success", textResultForLlm: current } }
         const env = h.failClosed ? { NAV_PILOT_HOOK_FAIL_CLOSED: "1" } : {}
         const out = await run(h.argv, payload, (h.timeout || 5) * 1000, cwd, env)
         let answer

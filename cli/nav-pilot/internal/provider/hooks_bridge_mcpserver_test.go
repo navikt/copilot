@@ -5,7 +5,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"testing"
 )
 
@@ -27,14 +26,20 @@ await plugin.setup({ location: { directory: process.cwd() }, session: { hook: as
 await hooks["execute.after"]({ tool: process.argv[2], sessionID: "s", id: "c1", status: "ok", input: {}, result: { content: [{ type: "text", text: "x" }] } })`,
 	}
 	const dolly = "io.github.navikt/dolly"
-	env := `{"listed":["io.github.navikt/dolly","io.github.navikt/dolly_x","other"],"blocked":["io.github.navikt/dolly_evil"]}`
-	tests := []struct{ tool, want string }{
-		{"io_github_navikt_dolly_search", dolly},
-		{"x_io_github_navikt_dolly_search", ""},                         // name merely contains it
-		{"io_github_navikt_dolly-evil_search", ""},                      // different server
-		{"io_github_navikt_dolly_x_search", "io.github.navikt/dolly_x"}, // longest prefix wins
-		{"io_github_navikt_dolly_evil_search", ""},                      // blocked server
-		{"bash", ""},
+	// Config keys, not registry names: "mine" has Dolly's URL, and the key
+	// named like Dolly has another server's URL, so it is listed but not in
+	// the sources.
+	list := `{"listed":["io.github.navikt/dolly","other"],"blocked":["evil"]}`
+	srcs := `{"mine":"io.github.navikt/dolly"}`
+	tests := []struct{ tool, list, srcs, want string }{
+		{"mine_search", list, srcs, dolly},                // Dolly URL under any key
+		{"mine_search", "", srcs, dolly},                  // nothing blocked: no list sent
+		{"io_github_navikt_dolly_search", list, srcs, ""}, // key imitates the name, URL is not Dolly's
+		{"x_mine_search", list, srcs, ""},                 // name merely contains the key
+		{"mine_search", list, "", ""},                     // registry unavailable: no sources
+		{"mine_search", list, "not json", ""},
+		{"evil_search", list, srcs, ""}, // blocked
+		{"bash", list, srcs, ""},
 	}
 	for file, driver := range drivers {
 		for _, tt := range tests {
@@ -51,7 +56,7 @@ await hooks["execute.after"]({ tool: process.argv[2], sessionID: "s", id: "c1", 
 			cfg, _ := json.Marshal(HookBridge{Post: []BridgeHook{{Name: "cap", Argv: []string{"/bin/sh", "-c", "cat > payload.json; echo '{}'"}, Timeout: 3}}})
 			cmd := exec.Command(node, "driver.mjs", tt.tool)
 			cmd.Dir = dir
-			cmd.Env = append(os.Environ(), "NAV_PILOT_OPENCODE_HOOKS="+string(cfg), MCPBlockedEnv+"="+env,
+			cmd.Env = append(os.Environ(), "NAV_PILOT_OPENCODE_HOOKS="+string(cfg), MCPBlockedEnv+"="+tt.list, MCPSourcesEnv+"="+tt.srcs,
 				"NAV_PILOT_DISPATCH_GATE=", "NAV_PILOT_HOOK_STATE_DIR="+dir)
 			if out, err := cmd.CombinedOutput(); err != nil {
 				t.Fatalf("%s %s: %v\n%s", file, tt.tool, err, out)
@@ -67,7 +72,7 @@ await hooks["execute.after"]({ tool: process.argv[2], sessionID: "s", id: "c1", 
 				t.Fatal(err)
 			}
 			if p.MCPServer != tt.want {
-				t.Errorf("%s %q: mcpServer %q, want %q", file, tt.tool, p.MCPServer, strings.TrimSpace(tt.want))
+				t.Errorf("%s %q: mcpServer %q, want %q", file, tt.tool, p.MCPServer, tt.want)
 			}
 		}
 	}
