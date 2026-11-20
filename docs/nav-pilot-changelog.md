@@ -2,6 +2,12 @@
 
 Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, prompts og samlinger.
 
+## 2026-11-20
+
+### Syntetiske testidenter maskeres ikke lenger
+
+- **Hook-maskering av fødselsnummer**: Syntetiske testidenter fra Dolly, Tenor og reserverte testpersoner blir stående i verktøyresultater, så du kan bruke testdata derfra. Ekte fødselsnummer, D-nummer og H-nummer maskeres som før.
+
 ## 2026-11-18
 
 ### Nav-servere i OpenCode bruker ny MCP-protokoll

@@ -197,6 +197,13 @@ func secretValue(g []string) bool {
 //
 // A D-nummer adds 4 to the first digit of the day (41–71), and an H-nummer
 // adds 4 to the first digit of the month (41–52).
+//
+// Synthetic test identities are not masked: Dolly/NAV adds 40 to both day and
+// month (day 41–71 and month 41–52 together, which no real number has: a
+// D-nummer keeps a real month, an H-nummer a real day), Skatteetaten's
+// synthetic population (Tenor) adds 80 to the month (81–92) and its reserved
+// test persons 65 (66–77). The last two already fail the month check below.
+// Month +40 alone is not a marker: real H-nummer use it, so those stay masked.
 func ValidFNR(s string) bool {
 	if len(s) != 11 {
 		return false
@@ -209,6 +216,9 @@ func ValidFNR(s string) bool {
 		d[i] = int(c - '0')
 	}
 	day, month := d[0]*10+d[1], d[2]*10+d[3]
+	if day > 40 && month > 40 {
+		return false
+	}
 	if day > 40 {
 		day -= 40
 	}

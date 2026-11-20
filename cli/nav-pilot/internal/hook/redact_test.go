@@ -28,6 +28,10 @@ func TestValidFNR(t *testing.T) {
 		{"55019041181", true},  // D-nummer: day 15 + 40
 		{"41038541100", true},  // D-nummer: day 01 + 40
 		{"01519041010", true},  // H-nummer: month 11 + 40
+		{"46510000110", false}, // Dolly/NAV synthetic: day 06 + 40, month 11 + 40
+		{"15910000060", false}, // Tenor synthetic: month 11 + 80
+		{"46910000012", false}, // Dolly-style: day 06 + 40, month 11 + 80
+		{"15710000074", false}, // reserved test person: month 06 + 65
 		{"15078545621", false}, // second control digit wrong
 		{"15078545610", false}, // first control digit wrong
 		{"32078545620", false}, // day 32
