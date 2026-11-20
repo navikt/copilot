@@ -98,7 +98,7 @@ func toolDefinitions(enableCreateOrder bool) []map[string]any {
 	}
 	if enableCreateOrder {
 		tools = append(tools, writeTool("create_order",
-			"Create an order (bestilling) for 1-5 synthetic test persons in a Dolly group owned by the signed-in user. Always confirm with the user (gruppeId, antall, environments, and any person attributes) before calling this tool.",
+			"Create an order (bestilling) for 1-5 synthetic test persons in a Dolly group owned by the signed-in user. Two steps. Step 1: call with the order parameters; this only returns a preview (group, antall, environments, attributes, quota left) and a confirmationToken valid for 5 minutes, and orders nothing. Always confirm with the user by showing the preview. Step 2: after the user approves, call again with the identical parameters plus confirmationToken; only then is the order sent and quota charged. The token is single use and bound to the user and the exact parameters.",
 			[]string{"gruppeId", "antall", "environments"},
 			map[string]any{
 				"gruppeId": gruppeID,
@@ -111,9 +111,10 @@ func toolDefinitions(enableCreateOrder bool) []map[string]any {
 					"uniqueItems": true,
 					"items":       map[string]any{"type": "string", "enum": []string{"q1", "q2", "q4"}},
 				},
-				"minAlder": intProp("Optional minimum age in years (0-120).", 0, maxOrderAge),
-				"maxAlder": intProp("Optional maximum age in years (0-120, >= minAlder).", 0, maxOrderAge),
-				"kjoenn":   map[string]any{"type": "string", "enum": []string{"MANN", "KVINNE", "UKJENT"}, "description": "Optional gender (MANN, KVINNE, or UKJENT)."},
+				"minAlder":      intProp("Optional minimum age in years (0-120).", 0, maxOrderAge),
+				"maxAlder":      intProp("Optional maximum age in years (0-120, >= minAlder).", 0, maxOrderAge),
+				"kjoenn":        map[string]any{"type": "string", "enum": []string{"MANN", "KVINNE", "UKJENT"}, "description": "Optional gender (MANN, KVINNE, or UKJENT)."},
+				confirmTokenKey: map[string]any{"type": "string", "description": "Token from the preview (step 2 only). Omit in step 1."},
 			}))
 	}
 	return tools
@@ -239,7 +240,7 @@ func (s *server) handleToolCall(ctx context.Context, inboundToken, navIdent, too
 		if !s.cfg.EnableCreateOrder {
 			return nil, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "unknown tool"}
 		}
-		if !allow("gruppeId", "antall", "environments", "minAlder", "maxAlder", "kjoenn") {
+		if !allow("gruppeId", "antall", "environments", "minAlder", "maxAlder", "kjoenn", confirmTokenKey) {
 			return nil, rpcErr
 		}
 		gruppeID, orderReq, e := parseCreateOrder(fields, s.now())
@@ -247,6 +248,39 @@ func (s *server) handleToolCall(ctx context.Context, inboundToken, navIdent, too
 			return nil, e
 		}
 		userHash := s.quota.hashUser(navIdent)
+		params := paramsHash(fields)
+		rawTok, hasTok := fields[confirmTokenKey]
+		if !hasTok {
+			// Step 1: preview only. Nothing is ordered and no quota is charged.
+			attrs := map[string]json.RawMessage{}
+			for _, k := range []string{"minAlder", "maxAlder", "kjoenn"} {
+				if v, ok := fields[k]; ok {
+					attrs[k] = v
+				}
+			}
+			tok, exp := s.confirm.issue(userHash, params, s.now())
+			preview, _ := json.Marshal(map[string]any{
+				"status": "preview, NOT ordered",
+				"order": map[string]any{
+					"gruppeId":     gruppeID,
+					"antall":       orderReq.Antall,
+					"environments": orderReq.Environments,
+					"attributes":   attrs,
+				},
+				"quotaRemaining":    s.quota.remaining(userHash, s.now()),
+				"confirmationToken": tok,
+				"expiresAt":         exp.UTC().Format(time.RFC3339),
+				"next":              "Show this preview to the user. Only after they approve, call create_order again with the same parameters plus confirmationToken.",
+			})
+			return map[string]any{"content": []map[string]string{{"type": "text", "text": string(preview)}}}, nil
+		}
+		token, e := parseStrictString(rawTok, confirmTokenKey)
+		if e != nil {
+			return nil, e
+		}
+		if err := s.confirm.consume(token, userHash, params, s.now()); err != nil {
+			return toolErrorResult(err.Error()), nil
+		}
 		release, ok := s.quota.reserve(userHash, orderReq.Antall, s.now())
 		if !ok {
 			return toolErrorResult(fmt.Sprintf("daily quota of %d test persons per 24h exceeded", dailyPersonQuota)), nil

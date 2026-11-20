@@ -228,7 +228,7 @@ func TestCreateOrderOwnershipAndRequestShape(t *testing.T) {
 		srv.cfg.EnableCreateOrder = true
 		srv.now = func() time.Time { return fixedNow }
 
-		_, out := callToolModern(t, srv.routes(), "in", "create_order", map[string]any{
+		_, out := callOrderConfirmed(t, srv, map[string]any{
 			"gruppeId":     42,
 			"antall":       3,
 			"environments": []string{"q1", "q2", "q4"},
@@ -296,7 +296,7 @@ func TestCreateOrderOwnershipAndRequestShape(t *testing.T) {
 		})
 		srv.cfg.EnableCreateOrder = true
 
-		_, out := callToolModern(t, srv.routes(), "in", "create_order", map[string]any{
+		_, out := callOrderConfirmed(t, srv, map[string]any{
 			"gruppeId":     42,
 			"antall":       2,
 			"environments": []string{"q1"},
@@ -353,7 +353,7 @@ func TestCreateOrderOwnershipAndRequestShape(t *testing.T) {
 			})
 			srv.cfg.EnableCreateOrder = true
 
-			_, out := callToolModern(t, srv.routes(), "in", "create_order", map[string]any{
+			_, out := callOrderConfirmed(t, srv, map[string]any{
 				"gruppeId":     42,
 				"antall":       2,
 				"environments": []string{"q1"},
@@ -433,7 +433,7 @@ func TestCreateOrderPerUserRollingQuota(t *testing.T) {
 
 	// Failed orders that provably did not reach Dolly or returned 4xx must refund
 	// their reservation: an unowned group and a 400 must not count against the 20-person quota.
-	_, out := callToolModern(t, srv.routes(), "in", "create_order", map[string]any{
+	_, out := callOrderConfirmed(t, srv, map[string]any{
 		"gruppeId":     43,
 		"antall":       5,
 		"environments": []string{"q1"},
@@ -444,7 +444,7 @@ func TestCreateOrderPerUserRollingQuota(t *testing.T) {
 	mu.Lock()
 	failPost = true
 	mu.Unlock()
-	_, out = callToolModern(t, srv.routes(), "in", "create_order", map[string]any{
+	_, out = callOrderConfirmed(t, srv, map[string]any{
 		"gruppeId":     42,
 		"antall":       5,
 		"environments": []string{"q1"},
@@ -458,7 +458,7 @@ func TestCreateOrderPerUserRollingQuota(t *testing.T) {
 
 	// 4 orders of 5 persons = 20 persons (fills the 24h quota for Z123456).
 	for i := range 4 {
-		_, orderOut := callToolModern(t, srv.routes(), "in", "create_order", map[string]any{
+		_, orderOut := callOrderConfirmed(t, srv, map[string]any{
 			"gruppeId":     42,
 			"antall":       5,
 			"environments": []string{"q1"},
@@ -489,7 +489,7 @@ func TestCreateOrderPerUserRollingQuota(t *testing.T) {
 	mu.Lock()
 	now = now.Add(23 * time.Hour)
 	mu.Unlock()
-	_, out = callToolModern(t, srv.routes(), "in", "create_order", map[string]any{
+	_, out = callOrderConfirmed(t, srv, map[string]any{
 		"gruppeId":     42,
 		"antall":       1,
 		"environments": []string{"q1"},
@@ -505,7 +505,7 @@ func TestCreateOrderPerUserRollingQuota(t *testing.T) {
 	// Another user has their own independent 20-person quota.
 	activeUser = "Z654321"
 	mu.Unlock()
-	_, out = callToolModern(t, srv.routes(), "in", "create_order", map[string]any{
+	_, out = callOrderConfirmed(t, srv, map[string]any{
 		"gruppeId":     42,
 		"antall":       5,
 		"environments": []string{"q2"},
@@ -519,7 +519,7 @@ func TestCreateOrderPerUserRollingQuota(t *testing.T) {
 	activeUser = "Z123456"
 	now = now.Add(1*time.Hour + time.Second)
 	mu.Unlock()
-	_, out = callToolModern(t, srv.routes(), "in", "create_order", map[string]any{
+	_, out = callOrderConfirmed(t, srv, map[string]any{
 		"gruppeId":     42,
 		"antall":       5,
 		"environments": []string{"q4"},
@@ -539,7 +539,7 @@ func TestCreateOrderAuditLog(t *testing.T) {
 	srv.cfg.EnableCreateOrder = true
 	srv.now = func() time.Time { return time.Date(2026, 11, 19, 12, 0, 0, 0, time.UTC) }
 
-	_, out := callToolModern(t, srv.routes(), "in", "create_order", map[string]any{
+	_, out := callOrderConfirmed(t, srv, map[string]any{
 		"gruppeId":     42,
 		"antall":       2,
 		"environments": []string{"q1", "q4"},
@@ -695,7 +695,7 @@ func TestCreateOrderQuotaRefundRules(t *testing.T) {
 	}
 
 	callOrder := func(antall int) (string, bool) {
-		_, out := callToolModern(t, srv.routes(), "in", "create_order", map[string]any{
+		_, out := callOrderConfirmed(t, srv, map[string]any{
 			"gruppeId":     42,
 			"antall":       antall,
 			"environments": []string{"q1"},
@@ -821,7 +821,7 @@ func TestCreateOrderFeatureGate(t *testing.T) {
 			t.Fatalf("create_order must not be listed when disabled: %v", names)
 		}
 
-		_, out := callToolModern(t, srv.routes(), "in", "create_order", map[string]any{
+		_, out := callOrderConfirmed(t, srv, map[string]any{
 			"gruppeId":     42,
 			"antall":       1,
 			"environments": []string{"q1"},
@@ -842,7 +842,7 @@ func TestCreateOrderFeatureGate(t *testing.T) {
 			t.Fatalf("create_order must be listed when enabled: %v", names)
 		}
 
-		_, out := callToolModern(t, srv.routes(), "in", "create_order", map[string]any{
+		_, out := callOrderConfirmed(t, srv, map[string]any{
 			"gruppeId":     42,
 			"antall":       1,
 			"environments": []string{"q1"},
