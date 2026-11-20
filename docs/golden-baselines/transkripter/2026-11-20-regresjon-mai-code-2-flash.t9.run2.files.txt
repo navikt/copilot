@@ -1,0 +1,67 @@
+=== ./build.gradle.kts
+plugins {
+    kotlin("jvm") version "2.1.0"
+    kotlin("plugin.serialization") version "2.1.0"
+}
+repositories {
+    mavenCentral()
+}
+dependencies {
+    implementation("io.ktor:ktor-server-netty:3.0.0")
+    implementation("io.ktor:ktor-server-content-negotiation:3.0.0")
+    implementation("io.ktor:ktor-serialization-kotlinx-json:3.0.0")
+    testImplementation("org.junit.jupiter:junit-jupiter:5.11.4")
+}
+
+tasks.test {
+    useJUnitPlatform()
+}
+
+=== ./src/main/kotlin/no/nav/demo/Feriepenger.kt
+package no.nav.demo
+
+import java.math.BigDecimal
+import java.math.RoundingMode
+
+fun feriepenger(grunnlag: Long, alderIOpptjeningsåret: Int): Long {
+    require(grunnlag >= 0) { "Grunnlaget kan ikke være negativt" }
+
+    val sats = if (alderIOpptjeningsåret >= 60) BigDecimal("12.5") else BigDecimal("10.2")
+    return BigDecimal(grunnlag)
+        .multiply(sats)
+        .divide(BigDecimal("100"))
+        .setScale(0, RoundingMode.HALF_UP)
+        .longValueExact()
+}
+
+=== ./src/test/kotlin/no/nav/demo/FeriepengerTest.kt
+package no.nav.demo
+
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.Test
+
+class FeriepengerTest {
+    @Test
+    fun `bruker sats pa 10,2 prosent under 60 ar`() {
+        assertEquals(1020, feriepenger(10_000, 59))
+    }
+
+    @Test
+    fun `bruker sats pa 12,5 prosent fra 60 ar`() {
+        assertEquals(1250, feriepenger(10_000, 60))
+    }
+
+    @Test
+    fun `avrunder 50 ore opp til neste krone`() {
+        assertEquals(3, feriepenger(25, 59))
+    }
+
+    @Test
+    fun `avviser negativt grunnlag`() {
+        assertThrows(IllegalArgumentException::class.java) {
+            feriepenger(-1, 59)
+        }
+    }
+}
+

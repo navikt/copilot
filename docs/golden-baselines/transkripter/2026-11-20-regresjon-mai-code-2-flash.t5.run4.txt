@@ -1,0 +1,4 @@
+Bruk **TokenX** for tjeneste-til-tjeneste med brukerkontekst. `A` veksler brukerens token i TokenX og sender det til `B`.
+
+I Nais-konfigurasjonen må `A` ha `tokenx.enabled: true`; `B` må kreve og validere et gyldig audience-tilpasset TokenX-token.
+

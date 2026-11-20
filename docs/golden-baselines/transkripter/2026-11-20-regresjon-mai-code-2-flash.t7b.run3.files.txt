@@ -1,0 +1,29 @@
+=== ./src/main/kotlin/no/nav/demo/Soknad.kt
+package no.nav.demo
+
+import com.fasterxml.jackson.databind.ObjectMapper
+import com.fasterxml.jackson.databind.SerializationFeature
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+import com.fasterxml.jackson.module.kotlin.readValue
+import org.apache.kafka.clients.producer.KafkaProducer
+import org.apache.kafka.clients.producer.ProducerRecord
+import java.time.LocalDate
+
+data class SokerDto(val fnr: String, val navn: String)
+
+data class SoknadMottattMelding(val soknadId: String, val fnr: String, val mottatt: LocalDate)
+
+val mapper: ObjectMapper = jacksonObjectMapper()
+    .findAndRegisterModules()
+    .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
+
+fun lesSoker(json: String): SokerDto = mapper.readValue(json)
+
+fun sendMottatt(producer: KafkaProducer<String, String>, melding: SoknadMottattMelding) {
+    producer.send(ProducerRecord("soknad-mottatt", melding.soknadId, mapper.writeValueAsString(melding)))
+}
+
+fun sendSoker(producer: KafkaProducer<String, String>, soker: SokerDto) {
+    producer.send(ProducerRecord("soker-oppdatert", soker.fnr, mapper.writeValueAsString(soker)))
+}
+

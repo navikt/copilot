@@ -1,0 +1,80 @@
+ ● skill(jackson-3-migration)
+
+Jeg kartlegger først branchens avhengigheter, eksisterende endringer og Jackson-bruk før jeg vurderer om migreringen er kompatibel eller må følges opp.
+
+ / Search "{build.gradle.kts,settings.gradle.kts,gradle/libs.versions.toml,pom.xml,AGE… 1 file found
+
+ / Search "com\.fasterxml\.jackson|tools\.jackson|jackson-module-kotlin|ktor-serializ… 2 files found
+
+ $ Shell Check branch status and diff summary 1 line…
+   git --no-pager status --short && git --no-pager branch --show-current && git --no-pager diff
+   --stat
+
+ MD Read .github/instructions/kotlin.instructions.md too large, not read
+
+ ● Read build.gradle.kts 17 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/Soknad.kt 26 lines read
+
+ MD Read .github/instructions/security-owasp.instructions.md 12 lines read
+
+ ✗ Shell Check Java and Jackson dependency tree Failed with exit code 1  openjdk version "27.0.1.1"…
+   java -version 2>&1 | head -n 2 && ./gradlew --no-daemon dependencies --configuration
+   compileClasspath | grep -i jackson
+   openjdk version "27.0.1.1" 2026-11-17
+   OpenJDK Runtime Environment Temurin-27.0.1.1+4 (build 27.0.1.1+4)
+   /bin/bash: ./gradlew: No such file or directory
+   Failed with exit code 1
+
+Basisen mangler Gradle-wrapper. Jeg sjekker nå hele kildekoden og diffen for om branchens migrering er komplett eller om den har stiltiende Jackson-3-regresjoner.
+
+ / Search "src/**/*" 5 files found
+
+ / Search "ObjectMapper\(|\.apply\s*\{|\.registerModule|\.configure\(|\.enable\(|\… No matches found
+
+ $ Shell Inspect migration diff No Content
+   git --no-pager diff -- build.gradle.kts src && git --no-pager diff --cached --stat
+
+ $ Shell List project files 8 lines…
+   find . -maxdepth 2 -type f | sort | sed 's#^./##' | head -n 100
+
+ ● Read src/main/kotlin/no/nav/demo/Routes.kt 19 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/App.kt 15 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/Config.kt 4 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/Oppgave.kt 9 lines read
+
+ MD Read README.md 4 lines read
+
+ YM Read nais.yaml 12 lines read
+
+ / Search "**/gradle*/*" No matches found
+
+ / Search "jackson|kotlinx.serialization|Ktor" in *.{kt,kts,toml,yaml,md} 18 lines found
+
+ $ Shell Compare migration commit with parent 49 lines…
+   git --no-pager log -5 --oneline && git --no-pager diff HEAD~1..HEAD --stat && git --no-pager diff
+   HEAD~1..HEAD -- build.gradle.kts src
+
+ / Search "jackson-datatype-jsr310|JavaTimeModule|LocalDate" in *.{kt,kts,toml} 2 lines found
+
+ $ Shell Confirm branch and migration commit 4 lines…
+   git --no-pager status --porcelain=v1 && git --no-pager show --stat --oneline HEAD
+
+ $ Shell Compile Kotlin with available Gradle 17 lines…
+   command -v gradle || true; gradle --no-daemon compileKotlin 2>&1 | head -n 80
+
+**Migreringen er ikke godkjent ennå.**
+
+Funnet:
+- Jackson 3.1.0 er brukt, men JavaTime-modulen er fjernet. `LocalDate`-serialisering kan derfor feile.
+- JDK 27 er i bruk. Prosjektet har verken Gradle-wrapper eller verifisert kompatibilitet med denne JVM-versjonen.
+- `gradle compileKotlin` stopper under Gradle-konfigurasjon og kan ikke brukes som ferdigverifisering.
+- Ingen tester finnes.
+- Ingen Gradle-avhengighetstre er verifisert.
+- Ktor bruker fremdeles `kotlinx.serialization`; Jackson brukes bare for Kafka-meldinger.
+
+**Minste korrigerende tiltak:** legg tilbake JavaTime-støtte for Jackson 3, legg til Gradle-wrapper, bygg med en støttet JDK og kjernede `LocalDate`-serialisering i en test.
+

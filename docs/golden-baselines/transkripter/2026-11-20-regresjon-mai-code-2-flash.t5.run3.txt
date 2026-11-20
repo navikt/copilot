@@ -1,0 +1,4 @@
+Bruk **TokenX** for tjeneste A til tjeneste B med brukerkontekst.
+
+B må ha `tokenx.enabled: true` og måtte validere tokenets subjekter og audience. `A` bør bruke OBO-token for den innloggede brukeren, ikke Entra ID client credentials.
+

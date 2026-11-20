@@ -1,0 +1,4 @@
+Hvilken nyttig handling skal tjenesten utføre med fnr, og hvilke andre Nav-tjenester eller brukere skal få tilgang?
+
+Blindsoner reist: 2/11 (#1 persondata og formål, #2 hvem som skal kalle tjenesten er relevante; øvrige spørsmål avhenger av svarene).
+

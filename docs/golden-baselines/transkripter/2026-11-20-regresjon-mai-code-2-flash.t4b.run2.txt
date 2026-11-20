@@ -1,0 +1,44 @@
+Jeg går videre til planfasen og sjekker bare arkitektursignalene som styrer Nais, auth og testoppsettet.
+
+ / Search "**/{src,app,web,frontend,backend}/**" 4 files found
+
+ / Search "**/{package.json,pom.xml,build.gradle.kts,nais.yaml,application.yaml,appli… 2 files found
+
+ $ Shell Search existing auth and PDL patterns No Content
+   rg -n "idporten|tokenx|wonderwall|PDL|pdl|accessPolicy" --glob '*.yaml' --glob '*.yml' --glob
+   '*.md' --glob '*.json' --glob '*.tsx' --glob '*.kt' --glob '*.go' . | head -80
+
+ YM Read nais.yaml L1:end (12 lines read)
+
+ ● Read build.gradle.kts L1:end (12 lines read)
+
+ ● Read ./src/main/kotlin/no/nav/demo/Config.kt L1:end (4 lines read)
+
+ ● Read ./src/main/kotlin/no/nav/demo/Routes.kt L1:end (19 lines read)
+
+ ● Read ./src/main/kotlin/no/nav/demo/App.kt L1:end (15 lines read)
+
+ ● Read ./src/main/kotlin/no/nav/demo/Oppgave.kt L1:end (9 lines read)
+
+**Fase 2: Plan**
+
+Tjenesten får Next.js som eneste konsument og Wonderwall foran BFF/backend. Innbyggerens ID-porten-sesjon brukes til å hente et ID-porten-token. Backend leser kun `pid` fra et verifisert token, veksler det via TokenX til PDL og returnerer navn til frontend.
+
+| Område | Plan |
+|---|---|
+| Arkitektur | Ktor REST-endepunkt, uten database |
+| Autentisering | Wonderwall + ID-porten til `pid`; ingen Azure eller saksbehandler-roller |
+| PDL-kall | TokenX for service-to-service-kall mot PDL |
+| Feil | PDL-feil gir `503`; logg metadata uten fnr eller navn |
+| Observabilitet | Prometheus-tellere for oppslag/minutt og feilandel, samt health-endepunkter |
+| Nais | `idporten.enabled`, `tokenx.enabled`, `wonderwall.enabled`, eksplisitt `accessPolicy.inbound/outbound` |
+| Test | Ktor `testApplication`, test for gyldig token, manglende token, PDL 503 og data som ikke logges |
+
+Personopplysninger og autentisering er rød sone: `pid`-håndtering, tokenvalidering, TokenX og PDL-kall må gjennomgås grundig. Rød-sone-koden implementeres ikke før du eksplisitt ber om det.
+
+I denne kodebasen finnes ingen Next.js-frontend, så frontendens eksakte adresse må antas og legges inn som eksplisitt inbound-policy.
+
+Blindsoner: 11/11 behandlet. Alle relevante spørsmål er besvart eller løst med repo-antakelsen.
+
+Skal planen godkjennes før implementering?
+

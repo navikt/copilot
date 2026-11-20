@@ -1,0 +1,6 @@
+**Viktig:** fnr i en sporingsheader behandles som personopplysninger.
+
+Hvilken fnr-feltkategori skal brukes, og hvilke mottakere skal kunne lese eller lagre headeren? «fnr», «fødselsnummer» eller «personnummer» må ikke brukes i et sporings-ID-felt. I så fall bør vi bruke en eksisterende personvernsikker sporingsmekanisme.
+
+Blindsoner reist: 1/11 (#1)
+

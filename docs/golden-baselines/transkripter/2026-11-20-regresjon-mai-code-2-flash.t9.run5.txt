@@ -1,0 +1,39 @@
+Jeg sjekker prosjektmønstrene og legger beregningen inn i riktig Kotlin-pakke med små, målrettede tester.
+
+ MD Read ./.github/instructions/kotlin.instructions.md L1:160 (160 lines read)
+
+ MD Read ./.github/instructions/testing-kotlin.instructions.md L1:160 (160 lines read)
+
+ MD Read ~/.cplt-worktrees/dfc0bfe1cee863263871de7ee1fcf246/mai-flash-run/AGENTS.md Permission deni…
+   Approval check
+     └ ✗ Denied, no one to approve read path
+       (/Users/hans/.cplt-worktrees/dfc0bfe1cee...71de7ee1fcf246/mai-flash-run/AGENTS.md)
+   Permission denied because no interactive user response was available. Retry in an interactive 
+   session so the user can approve it, or try an alternative that does not require this permission.
+
+ / Search "**/src/**/*.{kt,kts}" 4 files found
+
+ ● Read build.gradle.kts L1:200 (12 lines read)
+
+ ● Read ./src/main/kotlin/no/nav/demo/Oppgave.kt L1:160 (9 lines read)
+
+ ✗ Read settings.gradle.kts Path does not exist
+
+ / Search "**/src/test/**/*.kt" No matches found
+
+ MD Read AGENTS.md Path does not exist
+
+ ● List directory . 5 files found
+
+ / Search "testImplementation|kotest|junit" in *.kts No matches found
+
+ ● Edit  Create src/main/kotlin/no/nav/demo/Feriepenger.kt (+20)  Create src/test/kotlin/no/nav/dem…
+
+ ● Edit  Edit src/test/kotlin/no/nav/demo/FeriepengerTest.kt (+1 -1)
+
+ $ Shell Review the focused Kotlin changes No Content
+   git --no-pager diff --stat && git --no-pager diff -- src/main/kotlin/no/nav/demo/Feriepenger.kt
+   src/test/kotlin/no/nav/demo/FeriepengerTest.kt build.gradle.kts
+
+La til `Feriepenger.kt`, enhetstester og JUnit-avhengighet i `build.gradle.kts`. Gradle ble ikke kjørt.
+

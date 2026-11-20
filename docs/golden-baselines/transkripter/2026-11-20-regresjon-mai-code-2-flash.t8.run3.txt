@@ -1,0 +1,73 @@
+Jeg kartlegger signeringskode og eksisterende mønster før jeg gjør endringer.
+
+ ● Research-agent (model: gpt-6-luna) Finn signering og headers                                  19s
+   │ ## Oppsummering
+   │ Read lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/Periode.kt 4 lines read
+   └ Read .github/agents/golden-nav-pilot.agent.md L1:50 (50 lines read)
+
+## Oppsummering
+
+Signeringen skjer i Kafka-produsentens `SigningProducerInterceptor`, ikke i en HTTP-header-tjeneste. Den legger på `x-paw-signature` og `x-paw-signing-key-id`. Funksjonen `stripSigningHeaders` fjerner begge headerne før nye signeringsheadere legges til. Jeg fant ingen kallsteder for den funksjonen, ingen valideringskode og ingen tilhørende tester i dette repoet.
+
+## Relevante filer og symboler
+
+- `lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningProducerInterceptor.kt`
+  - `SigningProducerInterceptor.onSend(...)` signerer `record.value()` med `signer.sign(...)`, legger signaturen og `signer.keyId` i Kafka-headere, og returnerer recorden.
+  - `Signer` er et interface med `keyId` og `sign(payload)`.
+- `lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningHeaders.kt`
+  - `SIGNATURE_HEADER` = `x-paw-signature`
+  - `KEY_ID_HEADER` = `x-paw-signing-key-id`
+  - `stripSigningHeaders(headers)` fjerner begge.
+- `lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/Periode.kt`
+  - Kommentar oppgir at `Periode` sendes på Kafka-topicet `paw.arbeidssokerperioder` og signeres av interceptoren.
+- HTTP-header-tjenester: Ingen funnet. HTTP-treffene i instruksjonsfilene er generelle eksempler, ikke implementasjon i tjenesten.
+
+## Tester og konfigurasjon
+
+- Ingen testfiler eller `src/test`-mapper funnet.
+- `build.gradle.kts` har Kotlin JVM/serialization og Ktor-serveravhengigheter, men ingen eksplisitt testavhengighet eller testkonfigurasjon.
+- `nais.yaml` beskriver en Nais-applikasjon med port `8080` og liveness/readiness-endepunkter.
+- Repoets `README.md` beskriver tjenesten som en liten Ktor-demotjeneste.
+
+## Instruksjoner
+
+- Ingen `AGENTS.md` funnet.
+- Relevant repo-instruksjon: `.github/agents/golden-nav-pilot.agent.md`.
+- Relevante instruksjonsfiler: `.github/instructions/kotlin.instructions.md`, `testing.instructions.md`, `testing-kotlin.instructions.md` og sikkerhetsinstruksjonene.
+
+## Testkommando
+
+Det finnes ingen tester i repoet. Den vanlige kommandoen er `./gradlew test`, men repoet har ikke en gradle wrapper i den synlige konfigurasjonen; kjøring krever derfor en tilgjengelig Gradle-installasjon eller wrapper som ikke ble funnet.
+
+ ● Read lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningProducerIntercepto  22 lines re…
+        r.kt
+
+ ● Read lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningHeaders.kt 11 lines read
+
+ MD Read .github/instructions/kotlin.instructions.md too large, not read
+
+ MD Read .github/instructions/testing-kotlin.instructions.md 185 lines read
+
+ / Search "stripSigningHeaders|SIGNATURE_HEADER|KEY_ID_HEADER|SigningProducerIntercep… 9 lines found
+
+Jeg legger fjerningen inn i selve interceptor-hverveiset før signatur og nøkkel-ID legges til, slik at gamle verdier aldri blir liggende.
+
+ ● Read build.gradle.kts 12 lines read
+
+ $ Shell Check repository status No Content
+   cd /Users/hans/.cplt-worktrees/dfc0bfe1cee863263871de7ee1fcf246/mai-flash-run/bench-state/trinn2-
+   mai-flash/tmp/nav-pilot-golden.piGb8t/repo && git --no-pager status --short
+
+ ● Edit  Edit lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningProducerInterceptor.kt (+…
+
+ / Search "gradlew*" No matches found
+
+ $ Shell Verify and inspect change No Content
+   cd /Users/hans/.cplt-worktrees/dfc0bfe1cee863263871de7ee1fcf246/mai-flash-run/bench-state/trinn2-
+   mai-flash/tmp/nav-pilot-golden.piGb8t/repo && git --no-pager diff --check && git --no-pager diff
+   -- lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningProducerInterceptor.kt
+
+Endret `SigningProducerInterceptor` til å fjerne eksisterende signeringsheaders før nye legges på.
+
+**Verifisert:** `git diff --check` passerer. Ingen Gradle-wrapper eller tester finnes i repoet.
+

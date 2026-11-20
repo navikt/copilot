@@ -1,0 +1,71 @@
+**Fase 2: Plan**
+
+Jeg antar følgende:
+
+- Next.js-appen bruker Wonderwall og ID-porten.
+- Nais-backend står bak BFF-endepunktet og har TokenX-konfigurasjon for PDL.
+- PDL-fødselsnummer og navn blir ikke lagret i database eller logger.
+- Tokenets `pid`-claim er fnr og brukes kun for å hente og vise data i aktiv brukerøkt.
+- PDL-svar caches ikke og endringer i PDL-profil vises ved neste oppslag.
+
+**Arkitektur**
+
+1. Next.js autentiserer brukeren med ID-porten via Wonderwall.
+2. Next.js BFF sender innlogget brukers token til backend via TokenX.
+3. Backend validerer tokenet, henter `pid` og spør PDL med service-to-service-token.
+4. Backend returnerer navnet til samme bruker. Feil fra PDL gir `503`.
+5. Fnrs og navn logges ikke. Fødselsnummer brukes kun i variabler og PDL-kall i prosessminne.
+
+**Prosjektstruktur**
+
+- Next.js-rute under `apps/<tjeneste>/src/app/api/...`
+- BFF-autentisering i eksisterende Next.js-frontend
+- Kotlin backend eller Go backend avhenger av eksisterende teamoppsett
+- Nais-manifest for Wonderwall, TokenX, PDL-tilgang og health endpoints
+- Ingen database og ingen migrasjon
+
+**Nais og CI/CD**
+
+- Wonderwall i Next.js-prosessens Nais-manifest.
+- TokenX mellom backend og PDL.
+- Eksplicit `accessPolicy.inbound` kun for frontendens BFF-kall.
+- Ingen CPU limits, kun CPU requests.
+- GitHub Actions bygger, tester, publiserer og deployer med miljøgodkjenning.
+- Health endpoints for liveliness og readiness.
+
+**Feilhåndtering og observasjon**
+
+- PDL-kall har timeout, ingen retry og ingen kø.
+- PDL-feil gir `503 Service Unavailable` og logges med korrelasjons-ID.
+- Metrics: oppslag per minutt og andel PDL-feil.
+- Sporing unngår fnr i trace-id, attributter og loggmeldinger.
+
+**Teststrategi**
+
+- Karakteriseringstester for gyldig, ugyldig og manglende `pid`.
+- PDL-kontraktstester for navn, feil og tidsavbrudd.
+- Ingen lagringstester fordi tjenesten ikke har database.
+- Playwright-test for innlogget innbygger og PDL-feil i Next.js.
+
+🔴 Rød sone: ny autentisering, TokenX-utveksling, ID-porten/Wonderwall og tokenvalidering. Teamet må implementere disse selv eller følge støttede Nav-eksempler før andre genereres.
+
+**Blindsoner avklart:**
+
+1. Personvern avklart.
+2. Tilgang avklart.
+3. Feilbehandling avklart.
+4. Observabilitet avklart.
+5. Teamgrenser avklart.
+6. Konsument avklart.
+7. Testgrunnlag avklart.
+8. Nybygg avklart.
+9. Ingen bakoverkompatibilitet avklart.
+10. Ingen avvikling avklar.
+11. Kompetanse avklart.
+
+Blindsoner reist: 4/11 (#1, #2, #3, #6). Konklusjon: planen kan reviewes.
+
+## Neste fase
+
+Fase 3, teknisk review. Send en bekreftelse for å gå videre.
+

@@ -1,0 +1,34 @@
+Jeg sjekker prosjektets Kotlin-mønstre og eksisterende testoppsett, så funksjonen og testene følger repoets konvensjoner.
+
+ MD Read .github/instructions/kotlin.instructions.md too large, not read
+
+ MD Read .github/instructions/testing-kotlin.instructions.md 185 lines read
+
+ / Search "**/*.kt" 4 files found
+
+ / Search "**/*Test.kt" No matches found
+
+ MD Read .github/instructions/kotlin.instructions.md L1:220 (220 lines read)
+
+ ● Read src/main/kotlin/no/nav/demo/Oppgave.kt 9 lines read
+
+ ● Read build.gradle.kts 12 lines read
+
+ / Search "src/test/**/*.kt" No matches found
+
+ / Search "src/test/**/*" No matches found
+
+ / Search "*" 25 files found
+
+ / Search "kotest|junit|testImplementation|org.junit" in *.{kts,toml,properties} No matches found
+
+ ● Edit  Create src/main/kotlin/no/nav/demo/Feriepenger.kt (+8)  Create src/test/kotlin/no/nav/demo…
+
+ $ Shell Vis endringer uten å kjøre Gradle No Content
+   git --no-pager diff --stat && git --no-pager diff -- src/main/kotlin/no/nav/demo/Feriepenger.kt
+   src/test/kotlin/no/nav/demo/FeriepengerTest.kt build.gradle.kts
+
+La til `Feriepenger.kt` og enhetstester for 10,2 %, 12,5 %, avrunding og negativt grunnlag.
+
+🔴 Rød sone: feriepengereglene er implementert som stub-tidslogikk. Reviewer beregningen nøye.
+

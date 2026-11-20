@@ -1,0 +1,16 @@
+=== ./src/main/kotlin/no/nav/demo/Avrunding.kt
+package no.nav.demo
+
+fun avrundTilNaermesteKrone(beloepIOre: Long): Long {
+    require(beloepIOre >= 0) { "Beløp i øre kan ikke være negativt" }
+    return (beloepIOre + 50) / 100
+}
+
+=== ./src/main/kotlin/no/nav/demo/Feriepenger.kt
+package no.nav.demo
+
+fun feriepenger(grunnlag: Long, alderIOpptjeningsaret: Int): Long {
+    require(grunnlag >= 0) { "Grunnlaget kan ikke være negativt" }
+    TODO("Beregn feriepenger")
+}
+

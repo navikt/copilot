@@ -1,0 +1,117 @@
+ ● skill(jackson-3-migration)
+
+Jeg kartlegger branchens Jackson-avhengigheter, rammeverkversjoner og eksisterende API-bruk før vurderingen.
+
+ / Search "{AGENTS.md,.github/copilot-instructions.md,.github/copilot-review-instructi… 1 file found
+
+ / Search "com\.fasterxml\.jackson|tools\.jackson|jackson[^\n]*:|springBoot|ktor|Jac… 17 lines found
+
+ $ Shell Check branch and working tree 2 lines…
+   git --no-pager status --short --branch && git --no-pager log -1 --oneline
+
+ ● Read build.gradle.kts 17 lines read
+
+ / Search "src/test/**/*" No matches found
+
+ ● Read src/main/kotlin/no/nav/demo/Soknad.kt 26 lines read
+
+ $ Shell Inspect migration commit diff 47 lines…
+   git --no-pager diff --stat HEAD~1..HEAD && git --no-pager diff --no-ext-diff HEAD~1..HEAD
+
+ ✗ Shell Check Java and Jackson dependency tree Failed with exit code 1  openjdk version "27.0.1.1"…
+   java -version 2>&1 | head -n 3 && ./gradlew dependencies --configuration compileClasspath | grep
+   -i jackson
+   openjdk version "27.0.1.1" 2026-11-17
+   OpenJDK Runtime Environment Temurin-27.0.1.1+4 (build 27.0.1.1+4)
+   OpenJDK 64-Bit Server VM Temurin-27.0.1.1+4 (build 27.0.1.1+4, mixed mode, sharing)
+   /bin/bash: ./gradlew: No such file or directory
+   Failed with exit code 1
+
+ / Search "*" 26 files found
+
+ / Search "\.apply\s*\{|\.configure\s*\{|\.enable\s*\(|\.disable\s*\(|\.registerModul… 2 lines found
+
+ $ Shell Audit Jackson imports and dependencies 5 lines…
+   rg -n "com\.fasterxml\.jackson|tools\.jackson|jackson-module|jackson-databind|jackson-datatype"
+   --glob '!**/.git/**' .
+
+ $ Shell Verify clean migration and whitespace No Content
+   git --no-pager status --porcelain=v1 && git --no-pager diff --check HEAD~1..HEAD
+
+ ● Read src/main/kotlin/no/nav/demo/App.kt 15 lines read
+
+ MD Read README.md 4 lines read
+
+ $ Shell Check for installed Gradle 1 line…
+   command -v gradle || true
+
+ $ Shell List migration changed files 2 lines…
+   git --no-pager diff HEAD~1..HEAD --name-only
+
+Jeg kjører den minste verifikasjonen som kan avdekke kompilerings- og API-feil i denne konkrete migreringen.
+
+ $ Shell Check repository status 1 line…
+   git --no-pager diff --check && git --no-pager status --short --branch
+
+ ✗ Shell Audit Jackson dependencies Failed with exit code 1  FAILURE: Build failed with an exceptio…
+   gradle dependencies --configuration compileClasspath | grep -i jackson
+   FAILURE: Build failed with an exception.
+   
+   * What went wrong:
+   A problem occurred configuring root project 'repo'.
+   > 27.0.1.1
+   
+   * Try:
+   > Run with --stacktrace option to get the stack trace.
+   > Run with --info or --debug option to get more log output.
+   > Run with --scan to get full insights.
+   > Get more help at https://help.gradle.org.
+   
+   BUILD FAILED in 3s
+   Failed with exit code 1
+
+ ✗ Shell Compile and run the project tests Failed with exit code 1  Starting a Gradle Daemon (subse…
+   gradle test
+   Starting a Gradle Daemon (subsequent builds will be faster)
+   
+   FAILURE: Build failed with an exception.
+   
+   * What went wrong:
+   A problem occurred configuring root project 'repo'.
+   > 27.0.1.1
+   
+   * Try:
+   > Run with --stacktrace option to get the stack trace.
+   > Run with --info or --debug option to get more log output.
+   > Run with --scan to get full insights.
+   > Get more help at https://help.gradle.org.
+   
+   BUILD FAILED in 3s
+   Failed with exit code 1
+
+Gradle stopper før prosjektet, så jeg sjekker om en støttet lokal JDK kan gi en reell build-vurdering i stedet.
+
+ ✗ Shell  Permission denied because no interactive user response was available. Retry in an interact
+   ls /Library/Java/JavaVirtualMachines 2>/dev/null || true; mise ls java 2>/dev/null | head -n 20
+   Approval check
+     └ ✗ Denied, no one to approve shell path (/Library/Java/JavaVirtualMachines)
+   Permission denied because no interactive user response was available. Retry in an interactive 
+   session so the user can approve it, or try an alternative that does not require this permission.
+
+ $ Shell Summarize migration scope and Kotlin risks 6 lines…
+   git --no-pager diff --stat HEAD~1..HEAD && rg -n "^import com\.fasterxml\.jackson|^import
+   tools\.jackson|ObjectMapper|JsonNode|\.map\s*\{" src build.gradle.kts
+
+ $ Shell Check Gradle compatibility details 13 lines…
+   gradle --version
+
+Migreringen er **ufullstendig**. Hovedrisikoen er at `LocalDate` ikke lenger håndteres fordi `jackson-datatype-jsr310` ble fjernet.
+
+Jeg fant også:
+- Ktor er 3.0.0, men denne appen bruker fortsatt `kotlinx.serialization`; Jackson 3-migreringen påvirker derfor ikke Ktor-integrasjonen direkte.
+- Branchen har ingen tester eller Gradle-wrapper.
+- Ingen resterende Jackson 2-importer er funnet.
+- Gradle-builden kan ikke startes med den installerte JDK 27.0.1.1. Den feiler i Gradle-konfigurasjonen før kildekoden bygges.
+
+Anbefalt rettelse: behold eller reintroduser Java Time-modulen med Jackson 3-coordinate og en round-trip-test for `SoknadMottattMelding.mottatt`. Deretter bygg med en støttet JDK og legg til en test for mapperens datoformat.
+

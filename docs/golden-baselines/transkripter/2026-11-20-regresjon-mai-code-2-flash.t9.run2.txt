@@ -1,0 +1,44 @@
+Jeg sjekker prosjektets Kotlin-mønstre og deretter legger jeg beregningen og testene inn.
+
+ MD Read .github/instructions/kotlin.instructions.md too large, not read
+
+ / Search "**/Feriepenger*.kt" No matches found
+
+ / Search "**/*Feriepenger*Test*.kt" No matches found
+
+ $ Shell Find Kotlin function and validation patterns No Content
+   rg "fun .*\(.*Long.*\): Long|IllegalArgumentException" --glob '*.kt' -n | head -40
+
+ MD Read .github/instructions/kotlin.instructions.md L1:220 (220 lines read)
+
+ / Search "**/*.kt" 4 files found
+
+ MD Read .github/instructions/testing-kotlin.instructions.md L1:180 (179 lines read)
+
+ $ Shell Identify Kotlin test framework and source layout No Content
+   rg "JUnit|Kotest|org.junit|io.kotest" --glob '*.kts' --glob '*.gradle' --glob '*.kt' -n | head
+   -50
+
+ ● Read src/main/kotlin/no/nav/demo/Oppgave.kt 9 lines read
+
+ ● Read build.gradle.kts L1:180 (12 lines read)
+
+ / Search "src/test/**/*.kt" No matches found
+
+ $ Shell Locate Gradle build configuration 1 line…
+   find . -maxdepth 2 -type f -name 'build.gradle*' -o -name 'settings.gradle*' | sort
+
+ ● Edit  Create src/main/kotlin/no/nav/demo/Feriepenger.kt (+15)  Create src/test/kotlin/no/nav/dem…
+
+ $ Shell Verify created source and test files No Content
+   test -f src/main/kotlin/no/nav/demo/Feriepenger.kt && test -f
+   src/test/kotlin/no/nav/demo/FeriepengerTest.kt
+
+ $ Shell Review final Kotlin and test changes No Content
+   git --no-pager diff --stat && git --no-pager diff -- src/main/kotlin/no/nav/demo/Feriepenger.kt
+   src/test/kotlin/no/nav/demo/FeriepengerTest.kt build.gradle.kts
+
+La til `Feriepenger.kt` og enhetstester i `FeriepengerTest.kt`. Lagt til JUnit som testdependency.
+
+Gradle ble ikke kjørt.
+

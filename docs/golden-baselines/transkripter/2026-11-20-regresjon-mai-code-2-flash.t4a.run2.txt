@@ -1,0 +1,24 @@
+Jeg kartlegger repo-signalene før intervjuet; dette er en ny ID-porten-tjeneste med persondata og endret tilgang.
+
+ MD Read SECURITY.md Path does not exist
+
+ / Search "{AGENTS.md,.github/copilot-instructions.md,.github/copilot-review-instr… No matches found
+
+ $ Shell Locate repository instructions and security docs 1 line…
+   pwd && rg --files -g 'AGENTS.md' -g 'copilot-instructions.md' -g 'copilot-review-instructions.md'
+   -g 'SECURITY.md' | head -20
+
+ $ Shell Check repository branch and changes 1 line…
+   git status --short --branch
+
+Ny tjeneste for innbyggere via ID-porten. Jeg antar at den vil lese fnr fra ID-porten-tokenet og bruke det i ett intern Nav-call.
+
+Blindsoner reist: 4/11 (#1 fnr og lagring; #2 hvem som får lese tjenesten; #3 avhengighet ved fnr-sluker nede; #6 hvilke tjenester konsumerer fnr fortsatt uavklart).
+
+Hvilke personopplysninger lagres, og hvilke interne eller eksterne tjenester mottar fnr?
+Hvilken backend skal lese fnr i ID-porten-tokenet?
+Hva skal tjenesten gjøre hvis denne avhengigheten er nede: retry, feilmelding eller lockout?
+Får innbyggere via ID-porten lese egne data, eller finnes det andre tilgangsgrupper?
+
+Repo-konfigurasjonen mangler `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`. Kjør `nav-pilot init` før implementering.
+
