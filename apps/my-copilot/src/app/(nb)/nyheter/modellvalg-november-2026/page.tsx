@@ -212,8 +212,9 @@ export default function ModelChoiceNovemberArticlePage() {
               <ul>
                 <li>
                   <BodyLong>
-                    <strong>Fem kjøringer avdekker bare store forskjeller.</strong> 5 av 5 passer med en reell
-                    suksessrate helt ned mot 55 %. At to modeller begge består, viser ikke at de er like gode.
+                    <strong>Fem kjøringer avdekker bare store forskjeller.</strong> En modell som består 5 av 5, kan i
+                    praksis lykkes bare litt over halvparten av gangene. At to modeller begge består, viser ikke at de
+                    er like gode.
                   </BodyLong>
                 </li>
                 <li>
