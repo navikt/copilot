@@ -242,6 +242,9 @@ func TestCreateOrderOwnershipAndRequestShape(t *testing.T) {
 		}
 
 		wantReqs := []recordedReq{
+			// preview checks ownership, confirm re-checks it
+			{"GET", "/api/v1/bruker/current", ""},
+			{"GET", "/api/v1/gruppe/42/page/0", "pageSize=20"},
 			{"GET", "/api/v1/bruker/current", ""},
 			{"GET", "/api/v1/gruppe/42/page/0", "pageSize=20"},
 			{"POST", "/api/v1/gruppe/42/bestilling", ""},
@@ -850,7 +853,7 @@ func TestCreateOrderFeatureGate(t *testing.T) {
 		if txt, isErr := extractToolText(t, out); isErr {
 			t.Fatalf("enabled create_order failed: %s", txt)
 		}
-		if reqs := got(); len(reqs) != 3 || reqs[2].method != http.MethodPost {
+		if reqs := got(); len(reqs) != 5 || reqs[4].method != http.MethodPost {
 			t.Fatalf("expected POST /bestilling when enabled, got %+v", reqs)
 		}
 	})

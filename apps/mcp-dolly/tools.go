@@ -258,21 +258,26 @@ func (s *server) handleToolCall(ctx context.Context, inboundToken, navIdent, too
 					attrs[k] = v
 				}
 			}
-			tok, exp := s.confirm.issue(userHash, params, s.now())
-			preview, _ := json.Marshal(map[string]any{
-				"status": "preview, NOT ordered",
-				"order": map[string]any{
-					"gruppeId":     gruppeID,
-					"antall":       orderReq.Antall,
-					"environments": orderReq.Environments,
-					"attributes":   attrs,
-				},
-				"quotaRemaining":    s.quota.remaining(userHash, s.now()),
-				"confirmationToken": tok,
-				"expiresAt":         exp.UTC().Format(time.RFC3339),
-				"next":              "Show this preview to the user. Only after they approve, call create_order again with the same parameters plus confirmationToken.",
-			})
-			return map[string]any{"content": []map[string]string{{"type": "text", "text": string(preview)}}}, nil
+			return s.execWithOBO(ctx, inboundToken, func(tok string) (string, error) {
+				if err := s.checkGroupOwner(ctx, tok, gruppeID); err != nil {
+					return "", err
+				}
+				ctok, exp := s.confirm.issue(userHash, params, s.now())
+				preview, _ := json.Marshal(map[string]any{
+					"status": "preview, NOT ordered",
+					"order": map[string]any{
+						"gruppeId":     gruppeID,
+						"antall":       orderReq.Antall,
+						"environments": orderReq.Environments,
+						"attributes":   attrs,
+					},
+					"quotaRemaining":    s.quota.remaining(userHash, s.now()),
+					"confirmationToken": ctok,
+					"expiresAt":         exp.UTC().Format(time.RFC3339),
+					"next":              "Show this preview to the user. Only after they approve, call create_order again with the same parameters plus confirmationToken.",
+				})
+				return string(preview), nil
+			}), nil
 		}
 		token, e := parseStrictString(rawTok, confirmTokenKey)
 		if e != nil {
@@ -292,16 +297,8 @@ func (s *server) handleToolCall(ctx context.Context, inboundToken, navIdent, too
 			}
 		}()
 		return s.execWithOBO(ctx, inboundToken, func(tok string) (string, error) {
-			brukerID, err := s.dolly.currentBrukerID(ctx, tok)
-			if err != nil {
+			if err := s.checkGroupOwner(ctx, tok, gruppeID); err != nil {
 				return "", err
-			}
-			ownerID, err := s.dolly.groupOwnerBrukerID(ctx, tok, gruppeID)
-			if err != nil {
-				return "", err
-			}
-			if subtle.ConstantTimeCompare([]byte(ownerID), []byte(brukerID)) != 1 {
-				return "", fmt.Errorf("group %d is not owned by the current user", gruppeID)
 			}
 			b, refund, err := s.dolly.createOrder(ctx, tok, gruppeID, orderReq)
 			if err != nil {
@@ -322,6 +319,21 @@ func (s *server) handleToolCall(ctx context.Context, inboundToken, navIdent, too
 	default:
 		return nil, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "unknown tool"}
 	}
+}
+
+func (s *server) checkGroupOwner(ctx context.Context, tok string, gruppeID int64) error {
+	brukerID, err := s.dolly.currentBrukerID(ctx, tok)
+	if err != nil {
+		return err
+	}
+	ownerID, err := s.dolly.groupOwnerBrukerID(ctx, tok, gruppeID)
+	if err != nil {
+		return err
+	}
+	if subtle.ConstantTimeCompare([]byte(ownerID), []byte(brukerID)) != 1 {
+		return fmt.Errorf("group %d is not owned by the current user", gruppeID)
+	}
+	return nil
 }
 
 // shortcut: per-pod quota, move to Postgres if more replicas

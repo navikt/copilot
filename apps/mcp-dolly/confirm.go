@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
@@ -16,9 +15,14 @@ import (
 	"time"
 )
 
+type seenToken struct {
+	sig string
+	exp time.Time
+}
+
 const (
+	maxSeenPerUser  = 20
 	confirmTTL      = 5 * time.Minute
-	maxSeenTokens   = 10000
 	confirmTokenKey = "confirmationToken"
 )
 
@@ -30,34 +34,36 @@ var errConfirm = errors.New("confirmation token is invalid, expired or already u
 type orderConfirm struct {
 	mu   sync.Mutex
 	key  [32]byte
-	seen map[string]time.Time // token MAC -> expiry
+	seen map[string][]seenToken // userHash -> outstanding used tokens, oldest first
 }
 
 func newOrderConfirm() *orderConfirm {
-	c := &orderConfirm{seen: make(map[string]time.Time)}
+	c := &orderConfirm{seen: make(map[string][]seenToken)}
 	_, _ = rand.Read(c.key[:])
 	return c
 }
 
-// paramsHash canonicalises the raw order arguments (sorted keys, compacted
-// values, token excluded) so the same parameters always hash the same.
+// paramsHash hashes the parsed order (environments sorted, token excluded) so
+// argument order and whitespace do not matter. Call after parseCreateOrder validated fields.
 func paramsHash(fields map[string]json.RawMessage) string {
-	keys := make([]string, 0, len(fields))
-	for k := range fields {
-		if k != confirmTokenKey {
-			keys = append(keys, k)
+	canon := map[string]any{}
+	for k, v := range fields {
+		switch k {
+		case confirmTokenKey:
+		case "environments":
+			var envs []string
+			_ = json.Unmarshal(v, &envs)
+			sort.Strings(envs)
+			canon[k] = envs
+		default:
+			var x any
+			_ = json.Unmarshal(v, &x)
+			canon[k] = x
 		}
 	}
-	sort.Strings(keys)
-	h := sha256.New()
-	for _, k := range keys {
-		var buf bytes.Buffer
-		if json.Compact(&buf, fields[k]) != nil {
-			buf.Write(fields[k])
-		}
-		h.Write([]byte(k + "=" + buf.String() + "\n"))
-	}
-	return hex.EncodeToString(h.Sum(nil))
+	b, _ := json.Marshal(canon) // map keys are sorted by encoding/json
+	sum := sha256.Sum256(b)
+	return hex.EncodeToString(sum[:])
 }
 
 func (c *orderConfirm) mac(exp, userHash, params string) string {
@@ -92,20 +98,23 @@ func (c *orderConfirm) consume(token, userHash, params string, now time.Time) er
 	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if _, used := c.seen[sig]; used {
-		return errConfirm
-	}
-	if len(c.seen) >= maxSeenTokens {
-		for k, v := range c.seen {
-			if !now.Before(v) {
-				delete(c.seen, k)
-			}
+	// Bounded per user so one user cannot fill the set and affect others.
+	// Evicting a user's oldest used token could allow replay of it, but only
+	// after 20 further confirms within its 5 minutes, which the daily quota caps.
+	var kept []seenToken
+	for _, st := range c.seen[userHash] {
+		if !now.Before(st.exp) {
+			continue
 		}
-		if len(c.seen) >= maxSeenTokens {
-			return errors.New("too many pending confirmations; try again in a few minutes")
+		if st.sig == sig {
+			return errConfirm
 		}
+		kept = append(kept, st)
 	}
-	c.seen[sig] = time.Unix(unix, 0)
+	if len(kept) >= maxSeenPerUser {
+		kept = kept[1:]
+	}
+	c.seen[userHash] = append(kept, seenToken{sig, time.Unix(unix, 0)})
 	return nil
 }
 

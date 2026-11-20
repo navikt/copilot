@@ -184,3 +184,49 @@ func rawFields(t *testing.T, args map[string]any) map[string]json.RawMessage {
 	}
 	return m
 }
+
+func TestConfirmHardening(t *testing.T) {
+	call := func(srv *server, args map[string]any) map[string]any {
+		_, out := callToolModern(t, srv.routes(), "in", "create_order", args)
+		return out
+	}
+
+	t.Run("environment order does not matter", func(t *testing.T) {
+		srv, posts, _ := twoStepServer(t)
+		a := map[string]any{"gruppeId": 42, "antall": 1, "environments": []string{"q1", "q2"}}
+		tok := previewToken(t, call(srv, a))
+		b := map[string]any{"environments": []string{"q2", "q1"}, "antall": 1, "gruppeId": 42, "confirmationToken": tok}
+		if txt, isErr := extractToolText(t, call(srv, b)); isErr || posts() != 1 {
+			t.Fatalf("reordered params rejected: %q posts=%d", txt, posts())
+		}
+	})
+
+	t.Run("preview rejects unowned group without token", func(t *testing.T) {
+		srv, posts, _ := twoStepServer(t)
+		out := call(srv, map[string]any{"gruppeId": 43, "antall": 1, "environments": []string{"q1"}})
+		if previewToken(t, out) != "" || posts() != 0 {
+			t.Fatalf("token issued for unowned group: %+v", out)
+		}
+	})
+
+	t.Run("one user cannot block another", func(t *testing.T) {
+		c := newOrderConfirm()
+		now := time.Date(2026, 11, 19, 12, 0, 0, 0, time.UTC)
+		for range 5 * maxSeenPerUser {
+			tok, _ := c.issue("attacker", "p", now)
+			if err := c.consume(tok, "attacker", "p", now); err != nil {
+				t.Fatalf("attacker consume: %v", err)
+			}
+		}
+		if n := len(c.seen["attacker"]); n != maxSeenPerUser {
+			t.Fatalf("attacker set = %d, want %d", n, maxSeenPerUser)
+		}
+		tok, _ := c.issue("victim", "p", now)
+		if err := c.consume(tok, "victim", "p", now); err != nil {
+			t.Fatalf("victim blocked: %v", err)
+		}
+		if err := c.consume(tok, "victim", "p", now); err == nil {
+			t.Fatal("victim token reusable")
+		}
+	})
+}
