@@ -326,6 +326,9 @@ func (g *Gateway) loggingMiddleware(next http.Handler) http.Handler {
 
 const maxLogErrorLen = 64
 
+// maxLogClientIDLen bounds a client-supplied client_id (CIMD URL or DCR id) in audit lines.
+const maxLogClientIDLen = 256
+
 func sanitizeLogValue(s string) string { return audit.Sanitize(s) }
 
 func truncateLogValue(s string, maxChars int) string {
