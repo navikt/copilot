@@ -456,11 +456,11 @@ func ProtocolVersion(v string) string {
 // ScanIncomplete and HeaderMismatch feed the audit line and are set for POST
 // only. NonPostBody marks a GET or DELETE that carried a body.
 type Decision struct {
-	Allow          bool
-	Reason         string
-	Method, Tool   string
+	Allow        bool
+	Reason       string
+	Method, Tool string
 	// RawTool is the full parsed tool name (Tool is the truncated display value), for matching against an allowlist.
-	RawTool string
+	RawTool        string
 	ScanIncomplete bool
 	HeaderMismatch bool
 	NonPostBody    bool
