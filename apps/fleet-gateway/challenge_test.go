@@ -17,7 +17,9 @@ func TestMCP401Challenge(t *testing.T) {
 	for _, c := range []struct{ name, auth, wantErr string }{
 		{"no credentials", "", ""},
 		{"unknown token", "Bearer nope", `error="invalid_token", `},
-		{"malformed header", "Basic abc", `error="invalid_token", `},
+		{"other scheme", "Basic abc", ""},
+		{"lowercase scheme", "bearer nope", `error="invalid_token", `},
+		{"bearer without token", "Bearer", `error="invalid_token", `},
 	} {
 		req := httptest.NewRequest(http.MethodPost, path, strings.NewReader(`{}`))
 		if c.auth != "" {

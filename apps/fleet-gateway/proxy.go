@@ -170,7 +170,7 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 		token, ok := extractBearerToken(r.Header.Get("Authorization"))
 		if !ok {
 			outcome = "unauthorized"
-			writeUnauthorized(w, prmURL, r.Header.Get("Authorization") != "")
+			writeUnauthorized(w, prmURL, bearerPresented(r.Header.Get("Authorization")))
 			return
 		}
 
@@ -828,6 +828,14 @@ func writeUnauthorized(w http.ResponseWriter, prmURL string, presented bool) {
 		"error":   "invalid_token",
 		"message": "missing, invalid, or expired bearer token",
 	})
+}
+
+// bearerPresented reports whether the request used the Bearer scheme (RFC 6750
+// s3.1: only then does an invalid token earn error="invalid_token"; other
+// schemes get the bare challenge). Scheme match is case-insensitive.
+func bearerPresented(authHeader string) bool {
+	scheme, _, _ := strings.Cut(strings.TrimSpace(authHeader), " ")
+	return strings.EqualFold(scheme, "Bearer")
 }
 
 func extractBearerToken(authHeader string) (string, bool) {
