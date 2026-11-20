@@ -34,6 +34,10 @@ kubectl -n $NS logs -l app=fleet-gateway --prefix --tail=-1 --since=30m | grep '
 
 Audit lines: `audit mcp` in OpenID AuthZEN shape (`subject.id` NAVident, `resource.id` route, `action.properties.tool`, `decision.decision`, `decision.context.reason`, `context.outcome`; see the README), `audit login`, `audit refresh`, `audit dcr`. A killed route logs `route disabled by kill switch`. Logs are ordinary stdout. Owner decision 2026-11-18: audit lines go to Loki; retention measured at 90 days or more, but the limit is not confirmed by the platform team. A saved query for Grafana Loki or Kibana is not yet recorded: add it here after the drill.
 
+## Usage statistics
+
+`hack/fleet-gateway-stats.sh [hours]` (default 24) prints prod counts from Loki and Mimir: HTTP 4xx/5xx by status, method and path; `audit refresh` and `audit login` by outcome and `client_id`; total requests by code. It prints counts only, never NAVident. Needs naisdevice. Metrics in Mimir (verified 2026-11-20): `fleet_gateway_http_requests_total`, `fleet_gateway_mcp_requests_total`, `fleet_gateway_mcp_request_duration_seconds` (histogram), `fleet_gateway_rate_limited_total`, `fleet_gateway_routes_loaded`. Loki returns at most 5000 lines per query, so the Loki counts are a floor on busy days.
+
 ## Kill switches
 
 Both return `503` with `Retry-After: 300` for `/mcp/*`. The check runs before the bearer token is read, so unauthenticated and authenticated callers alike see 503. Login, `/token` and metadata stay up.

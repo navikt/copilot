@@ -125,6 +125,21 @@ That returns `enqueued`, or `failed` with the actual reason: a rejected merge
 param, checks still owing results, and so on. Treating the `pending` response as
 success means retrying a request that has already failed, silently.
 
+## When a pull request is BLOCKED or behind
+
+**Diagnosing BLOCKED.** `gh api repos/navikt/copilot/rules/branches/main` lists
+the rule types on `main`: `code_scanning`, `copilot_code_review`, `pull_request`
+(thread resolution), `required_status_checks`, `merge_queue`. A CodeQL check that
+is `neutral` ("configuration not found") or `skipping` can hold the
+`code_scanning` rule. The API does not name the blocking rule; the PR page in the
+browser does.
+
+**Merging main into a reviewed PR.** Use a merge commit, not a rebase and not a
+force-push. If git auto-resolved files the PR also changes, post
+`git diff <old-merge-base-tip>..HEAD -- <those files>` (or the relevant hunk) on
+the PR. Get a fresh review verdict when the PR's own logic is touched. A merge
+with no overlap keeps the existing verdict.
+
 ## Running the nav-pilot binary in tests or verification
 
 `nav-pilot` writes to the developer's own environment: `~/.copilot/`,
