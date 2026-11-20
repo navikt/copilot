@@ -1,0 +1,81 @@
+=== ./build.gradle.kts
+plugins {
+    kotlin("jvm") version "2.1.0"
+    kotlin("plugin.serialization") version "2.1.0"
+}
+repositories {
+    mavenCentral()
+}
+dependencies {
+    implementation("io.ktor:ktor-server-netty:3.0.0")
+    implementation("io.ktor:ktor-server-content-negotiation:3.0.0")
+    implementation("io.ktor:ktor-serialization-kotlinx-json:3.0.0")
+    testImplementation(kotlin("test"))
+}
+
+=== ./src/main/kotlin/no/nav/demo/Avrunding.kt
+package no.nav.demo
+
+fun avrundTilNaermesteKrone(belopIOre: Long): Long {
+    require(belopIOre >= 0) { "Beløpet kan ikke være negativt" }
+    val heleKroner = belopIOre / 100
+    val resterendeORe = belopIOre % 100
+
+    return if (resterendeORe >= 50) heleKroner + 1 else heleKroner
+}
+
+=== ./src/main/kotlin/no/nav/demo/Feriepenger.kt
+package no.nav.demo
+
+fun feriepenger(grunnlag: Long, alderIOpptjeningsåret: Int): Long {
+    require(grunnlag >= 0) { "Grunnlaget kan ikke være negativt" }
+
+    TODO("Teamet implementerer prosentberegningen")
+}
+
+=== ./src/test/kotlin/no/nav/demo/AvrundingTest.kt
+package no.nav.demo
+
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+
+class AvrundingTest {
+    @Test
+    fun `avrunder under 50 ore ned`() {
+        assertEquals(123, avrundTilNaermesteKrone(12_349))
+    }
+
+    @Test
+    fun `avrunder 50 ore opp`() {
+        assertEquals(124, avrundTilNaermesteKrone(12_350))
+    }
+
+    @Test
+    fun `avrunder over 50 ore opp`() {
+        assertEquals(124, avrundTilNaermesteKrone(12_351))
+    }
+
+    @Test
+    fun `avviser negativt belop`() {
+        assertFailsWith<IllegalArgumentException> {
+            avrundTilNaermesteKrone(-1)
+        }
+    }
+}
+
+=== ./src/test/kotlin/no/nav/demo/FeriepengerTest.kt
+package no.nav.demo
+
+import kotlin.test.Test
+import kotlin.test.assertFailsWith
+
+class FeriepengerTest {
+    @Test
+    fun `avviser negativt grunnlag`() {
+        assertFailsWith<IllegalArgumentException> {
+            feriepenger(-1, 59)
+        }
+    }
+}
+

@@ -1,0 +1,62 @@
+=== ./build.gradle.kts
+plugins {
+    kotlin("jvm") version "2.1.0"
+    kotlin("plugin.serialization") version "2.1.0"
+}
+repositories {
+    mavenCentral()
+}
+dependencies {
+    implementation("io.ktor:ktor-server-netty:3.0.0")
+    implementation("io.ktor:ktor-server-content-negotiation:3.0.0")
+    implementation("io.ktor:ktor-serialization-kotlinx-json:3.0.0")
+    testImplementation(kotlin("test"))
+}
+
+=== ./src/main/kotlin/no/nav/demo/Feriepenger.kt
+package no.nav.demo
+
+import java.math.RoundingMode
+
+fun feriepenger(grunnlag: Long, alderIOpptjeningsåret: Int): Long {
+    require(grunnlag >= 0) { "Grunnlag kan ikke være negativt" }
+
+    val prosent = if (alderIOpptjeningsåret >= 60) 12.5 else 10.2
+    return grunnlag.toBigDecimal()
+        .multiply(java.math.BigDecimal(prosent.toString()))
+        .divide(java.math.BigDecimal(100))
+        .setScale(0, RoundingMode.HALF_UP)
+        .longValueExact()
+}
+
+=== ./src/test/kotlin/no/nav/demo/FeriepengerTest.kt
+package no.nav.demo
+
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
+
+class FeriepengerTest {
+    @Test
+    fun `10,2 prosent for personer under 60 år`() {
+        assertEquals(10, feriepenger(100, 59))
+    }
+
+    @Test
+    fun `12,5 prosent fra og med 60 år`() {
+        assertEquals(13, feriepenger(100, 60))
+    }
+
+    @Test
+    fun `runder 50 øre opp til nærmeste krone`() {
+        assertEquals(8, feriepenger(75, 59))
+    }
+
+    @Test
+    fun `negativt grunnlag gir IllegalArgumentException`() {
+        assertFailsWith<IllegalArgumentException> {
+            feriepenger(-1, 59)
+        }
+    }
+}
+

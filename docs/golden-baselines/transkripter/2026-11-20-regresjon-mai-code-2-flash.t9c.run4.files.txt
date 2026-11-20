@@ -1,0 +1,62 @@
+=== ./build.gradle.kts
+plugins {
+    kotlin("jvm") version "2.1.0"
+    kotlin("plugin.serialization") version "2.1.0"
+}
+repositories {
+    mavenCentral()
+}
+dependencies {
+    implementation("io.ktor:ktor-server-netty:3.0.0")
+    implementation("io.ktor:ktor-server-content-negotiation:3.0.0")
+    implementation("io.ktor:ktor-serialization-kotlinx-json:3.0.0")
+    testImplementation("org.junit.jupiter:junit-jupiter:5.11.3")
+}
+
+tasks.test {
+    useJUnitPlatform()
+}
+
+=== ./src/main/kotlin/no/nav/demo/Feriepenger.kt
+package no.nav.demo
+
+fun feriepenger(grunnlag: Long, alderIOpptjeningsåret: Int): Long {
+    require(grunnlag >= 0) { "Grunnlaget kan ikke være negativt" }
+
+    val satsPromille = if (alderIOpptjeningsåret >= 60) 125 else 102
+    return (grunnlag * satsPromille + 500) / 1000
+}
+
+=== ./src/test/kotlin/no/nav/demo/FeriepengerTest.kt
+package no.nav.demo
+
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.Test
+
+class FeriepengerTest {
+    @Test
+    fun `skal beregne 10,2 prosent for yngre enn 60 ar`() {
+        assertEquals(102, feriepenger(grunnlag = 1000, alderIOpptjeningsåret = 59))
+    }
+
+    @Test
+    fun `skal beregne 12,5 prosent fra og med 60 ar`() {
+        assertEquals(125, feriepenger(grunnlag = 1000, alderIOpptjeningsåret = 60))
+        assertEquals(1250, feriepenger(grunnlag = 10000, alderIOpptjeningsåret = 65))
+    }
+
+    @Test
+    fun `skal runde narmeste krone med 50 ore opp`() {
+        assertEquals(1, feriepenger(grunnlag = 5, alderIOpptjeningsåret = 59))
+        assertEquals(2, feriepenger(grunnlag = 12, alderIOpptjeningsåret = 60))
+    }
+
+    @Test
+    fun `skal gi feil for negativt grunnlag`() {
+        assertThrows(IllegalArgumentException::class.java) {
+            feriepenger(grunnlag = -1, alderIOpptjeningsåret = 59)
+        }
+    }
+}
+

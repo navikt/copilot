@@ -1,0 +1,23 @@
+ ● skill(kafka)
+
+Jeg kartlegger produksjonsstedet og eksisterende kontrakter før jeg endrer meldingsschemaet. Legger til fnr er en personopplysning i eventet, så personvern og kompatibilitet må avklares eksplisitt.
+
+ / Search "{AGENTS.md,.github/copilot-instructions.md,.github/copilot-review-instruc… 17 files found
+
+ / Search "SoknadMottattMelding|soknad-mottatt" in *.{kt,kts,java,go,ts,tsx,md,yaml,y… 3 lines found
+
+ MD Read .github/instructions/kotlin.instructions.md too large, not read
+
+ ● Read src/main/kotlin/no/nav/demo/Soknad.kt 27 lines read
+
+ MD Read .github/instructions/security-owasp.instructions.md 12 lines read
+
+ / Search "**/*Test*.{kt,kts}" No matches found
+
+For å legge til fnr må jeg avklare to ting:
+
+1. Hvem skal konsumere `soknad-mottatt`, og hvilke oppdateringer kreves i deres tilgangsstyring?
+2. Skal fnr lagres i klartekst i payloaden, eller krypteres / erstattes med en ikke-personidentifiserende nøkkel?
+
+Blindsoner reist: 2/11 (#1 personopplysninger, #2 tilgangskontroll). Andre blinde soner vurderes i neste fase.
+

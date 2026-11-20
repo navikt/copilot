@@ -1,0 +1,63 @@
+=== ./src/main/kotlin/no/nav/demo/Avrunding.kt
+package no.nav.demo
+
+fun avrundTilNærmesteKrone(beløpIOre: Long): Long =
+    if (beløpIOre >= 0) {
+        val kroner = beløpIOre / 100
+        val øre = beløpIOre % 100
+        kroner + if (øre >= 50) 1 else 0
+    } else {
+        -avrundTilNærmesteKrone(-beløpIOre)
+    }
+
+=== ./src/main/kotlin/no/nav/demo/Feriepenger.kt
+package no.nav.demo
+
+fun feriepenger(grunnlag: Long, alderIOpptjeningsåret: Int): Long {
+    require(grunnlag >= 0) { "Grunnlaget kan ikke være negativt" }
+    TODO("Beregn sats etter alder og avrund resultatet")
+}
+
+=== ./src/test/kotlin/no/nav/demo/AvrundingTest.kt
+package no.nav.demo
+
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Test
+
+class AvrundingTest {
+    @Test
+    fun `avrunder under halv krone ned`() {
+        assertEquals(100, avrundTilNærmesteKrone(10_049))
+    }
+
+    @Test
+    fun `avrunder halv krone opp`() {
+        assertEquals(101, avrundTilNærmesteKrone(10_050))
+    }
+
+    @Test
+    fun `avrunder over halv krone opp`() {
+        assertEquals(101, avrundTilNærmesteKrone(10_051))
+    }
+
+    @Test
+    fun `avrunder null til null`() {
+        assertEquals(0, avrundTilNærmesteKrone(0))
+    }
+}
+
+=== ./src/test/kotlin/no/nav/demo/FeriepengerTest.kt
+package no.nav.demo
+
+import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.Test
+
+class FeriepengerTest {
+    @Test
+    fun `negativt grunnlag kaster IllegalArgumentException`() {
+        assertThrows(IllegalArgumentException::class.java) {
+            feriepenger(-1, 59)
+        }
+    }
+}
+

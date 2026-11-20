@@ -1,0 +1,40 @@
+ ● skill(klarsprak)
+
+ MD Read AGENTS.md Path does not exist
+
+ MD Read .github/instructions/kotlin.instructions.md too large, not read
+
+ MD Read .github/instructions/golang.instructions.md 547 lines read
+
+ / Search "**/*.kt" 4 files found
+
+Jeg finner hvor kode og tester ligger, og legger avrundingen i egen fil. Resten av feriepengeregningen blir stubs.
+
+ ● Read src/main/kotlin/no/nav/demo/Oppgave.kt 9 lines read
+
+ MD Read .github/instructions/kotlin.instructions.md L1:180 (180 lines read)
+
+ MD Read .github/instructions/testing-kotlin.instructions.md L1:160 (160 lines read)
+
+ / Search "src/test/**/*.kt" No matches found
+
+ / Search "build.gradle*" 1 file found
+
+ ● Read build.gradle.kts 12 lines read
+
+ / Search "src/test/**/*" No matches found
+
+ / Search "*" 25 files found
+
+ ● Edit  Create src/main/kotlin/no/nav/demo/Avrunding.kt (+4)
+
+🔴 Rød sone: avrundingen er implementert som separat grunnfunksjon i `Avrunding.kt`.
+
+`feriepenger()` og enhetstester ble ikke opprettet.
+
+**Sjekkliste for rød sone**
+- [ ] Bruk `avrundTilNaermesteKrone` i feriepengerberegningen
+- [ ] Verifiser at 50 øre rundes opp
+- [ ] Verifiser 10,2 % før 60 år og 12,5 % fra 60 år
+- [ ] Verifiser `IllegalArgumentException` for negativt grunnlag
+

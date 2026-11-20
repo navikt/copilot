@@ -1,0 +1,78 @@
+=== ./build.gradle.kts
+plugins {
+    kotlin("jvm") version "2.1.0"
+    kotlin("plugin.serialization") version "2.1.0"
+}
+repositories {
+    mavenCentral()
+}
+dependencies {
+    implementation("io.ktor:ktor-server-netty:3.0.0")
+    implementation("io.ktor:ktor-server-content-negotiation:3.0.0")
+    implementation("io.ktor:ktor-serialization-kotlinx-json:3.0.0")
+
+    testImplementation("org.junit.jupiter:junit-jupiter:5.11.4")
+}
+
+tasks.test {
+    useJUnitPlatform()
+}
+
+=== ./src/main/kotlin/no/nav/demo/Feriepenger.kt
+package no.nav.demo
+
+import java.math.BigDecimal
+import java.math.RoundingMode
+
+fun feriepenger(grunnlag: Long, alderIOpptjeningsåret: Int): Long {
+    require(grunnlag >= 0) { "Grunnlaget kan ikke være negativt" }
+
+    val sats = if (alderIOpptjeningsåret >= 60) {
+        BigDecimal("12.5")
+    } else {
+        BigDecimal("10.2")
+    }
+
+    return BigDecimal(grunnlag)
+        .multiply(sats)
+        .divide(BigDecimal(100))
+        .setScale(0, RoundingMode.HALF_UP)
+        .longValueExact()
+}
+
+=== ./src/test/kotlin/no/nav/demo/FeriepengerTest.kt
+package no.nav.demo
+
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.Test
+
+class FeriepengerTest {
+    @Test
+    fun `10,2 prosent brukes for personer under 60 år`() {
+        assertEquals(102, feriepenger(1000, 59))
+    }
+
+    @Test
+    fun `12,5 prosent brukes fra og med 60 år`() {
+        assertEquals(125, feriepenger(1000, 60))
+    }
+
+    @Test
+    fun `50 øre rundes opp til nærmeste krone`() {
+        assertEquals(13, feriepenger(100, 60))
+    }
+
+    @Test
+    fun `under 50 øre rundes ned`() {
+        assertEquals(61, feriepenger(600, 59))
+    }
+
+    @Test
+    fun `negativt grunnlag gir IllegalArgumentException`() {
+        assertThrows(IllegalArgumentException::class.java) {
+            feriepenger(-1, 59)
+        }
+    }
+}
+

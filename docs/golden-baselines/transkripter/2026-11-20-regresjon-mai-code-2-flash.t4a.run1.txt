@@ -1,0 +1,22 @@
+Kartlegger relevante repo-signal for å begrense spørsmålene.
+
+ ✗ Search "ID-porten|idporten|fnr|fød" in *.{md,yaml,yml,kt,java,go… Search paths do not exist: repo
+
+ / Search "{AGENTS.md,.github/copilot-instructions.md,.github/copilot-review-instr… No matches found
+
+ / Search "**/{nais.yaml,nais.yml,package.json,build.gradle.kts,pom.xml,settings.grad… 2 files found
+
+ YM Read nais.yaml 12 lines read
+
+ ● Read build.gradle.kts 12 lines read
+
+ / Search "AGENTS.md" No matches found
+
+ / Search ".github/copilot-instructions.md" No matches found
+
+ ● skill(nav-auth)
+
+Hva skal tjenesten lagre eller sende av fødselsnummer, og til hvem? Opplys hvilke fnr-felter, mottakere og loggpunkter som berøres.
+
+Blindsoner reist: 2/11 (#1 personvern, #2 tilgangsstyring anslått som innbygger via ID-porten; #3–#11 ikke relevant foreløpig). Repo-lokale Copilot-filer mangler; kjør `nav-pilot init`.
+

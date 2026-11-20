@@ -1,0 +1,4 @@
+Hvilken nettlesertjeneste skal lese fnr fra ID-porten: **borger**, og fnr brukes som opplysning. Må du lagre fnr, eller bare lese det ved innlogging?
+
+Blindsoner reist: 2/11 (#1 og #2).
+

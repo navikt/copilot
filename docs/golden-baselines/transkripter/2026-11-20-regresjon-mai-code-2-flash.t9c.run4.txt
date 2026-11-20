@@ -1,0 +1,39 @@
+Jeg sjekker prosjektets Kotlin-mønstre og hvor beregningen hører hjemme.
+
+ MD Read .github/instructions/kotlin.instructions.md too large, not read
+
+ MD Read .github/instructions/testing-kotlin.instructions.md 185 lines read
+
+ MD Read AGENTS.md Path does not exist
+
+ / Search "**/*.kt" 4 files found
+
+ ● Read build.gradle.kts 12 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/Oppgave.kt 9 lines read
+
+ / Search "src/test/**/*.kt" No matches found
+
+Jeg lager én liten funksjon og målrettede tester for 10,2 %, 12,5 %, grensen ved 60 år og avrunding.
+
+ ✗ Read settings.gradle.kts Path does not exist
+
+ MD Read .github/instructions/testing.instructions.md 112 lines read
+
+ / Search "src/test/**/*" No matches found
+
+ / Search "gradlew" No matches found
+
+ ● Edit  Create src/main/kotlin/no/nav/demo/Feriepenger.kt (+8)  Create src/test/kotlin/no/nav/demo…
+
+La til `Feriepenger.kt` og enhetstester for satser, grense ved 60 år, avrunding og negativt grunnlag.
+
+`Rød sone: funksjonen er ferdig implementert, gå gjennom beregningen og avrundingen.`
+
+**Sjekkliste for rød sone**
+- [ ] Verifiser at satsene og 60-årsgrensen blir riktige
+- [ ] Verifiser halvøre-avrundingen
+- [ ] Verifiser feilhåndtering av negativt grunnlag
+
+Kan du fortelle meg hva denne koden gjør og hvorfor denne tilnærmingen er riktig?
+

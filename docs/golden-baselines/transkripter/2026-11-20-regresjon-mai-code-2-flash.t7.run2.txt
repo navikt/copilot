@@ -1,0 +1,110 @@
+ ● skill(jackson-3-migration)
+
+Jeg kartlegger branchens dependencies, Jackson-bruk og rammeverk-versjoner før jeg vurderer om migreringen er trygg å starte.
+
+ / Search "**/{build.gradle*,settings.gradle*,gradle/libs.versions.toml,pom.xml}" 1 file found
+
+ / Search "com\.fasterxml\.jackson|tools\.jackson|jackson-module|ktor-serialization-j… 2 files found
+
+ / Search "*" 26 files found
+
+ $ Shell Check branch status and Java version 4 lines…
+   git --no-pager status --short --branch && java -version
+
+ ● Read src/main/kotlin/no/nav/demo/App.kt 15 lines read
+
+ ● Read build.gradle.kts 17 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/Soknad.kt 26 lines read
+
+ / Search "ObjectMapper|JsonMapper|jacksonObjectMapper|JsonNode|ObjectNode|ArrayNode|… 2 lines found
+
+ ● Read src/main/kotlin/no/nav/demo/Routes.kt 19 lines read
+
+ / Search "com\.fasterxml\.jackson|tools\.jackson|jackson[^\n]*" in *.{kt,kts,java,to… 5 lines found
+
+ ✗ Shell Build tests and … /bin/bash: ./gradlew: No such file or directory Failed with exit code 127
+   ./gradlew compileKotlin test && ./gradlew dependencies --configuration runtimeClasspath | grep -i
+   jackson
+
+ ● Read src/main/kotlin/no/nav/demo/Config.kt 4 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/Oppgave.kt 9 lines read
+
+ / Search "gradle/wrapper/*" No matches found
+
+ $ Shell Inspect branch changes and recent commits 2 lines…
+   git --no-pager diff --stat && git --no-pager diff && git --no-pager log -3 --oneline
+
+ $ Shell Compare Jackson migration commit 44 lines…
+   git --no-pager diff f5d5664..HEAD -- build.gradle.kts src/main/kotlin
+
+ $ Shell Summarize migration commit 4 lines…
+   git --no-pager show --stat --oneline HEAD
+
+ $ Shell Check available build tools 1 line…
+   command -v gradle || true; command -v mvn || true
+
+Branchdiffen viser en delvis migrering. Jeg kjører nå baseline-build og avhengighetstre for å skille dokumenterte problemer fra faktisk kompileringsfeil.
+
+ ✗ Shell Check Jackson runtime dependency tree Failed with exit code 1  FAILURE: Build failed with …
+   gradle dependencies --configuration runtimeClasspath | grep -i jackson
+   FAILURE: Build failed with an exception.
+   
+   * What went wrong:
+   A problem occurred configuring root project 'repo'.
+   > 27.0.1.1
+   
+   * Try:
+   > Run with --stacktrace option to get the stack trace.
+   > Run with --info or --debug option to get more log output.
+   > Run with --scan to get full insights.
+   > Get more help at https://help.gradle.org.
+   
+   BUILD FAILED in 390ms
+   Failed with exit code 1
+
+ ✗ Shell Compile Kotlin and run tests Failed with exit code 1  Starting a Gradle Daemon, 1 busy and…
+   gradle compileKotlin test
+   Starting a Gradle Daemon, 1 busy and 1 stopped Daemons could not be reused, use --status for 
+   details
+   
+   FAILURE: Build failed with an exception.
+   
+   * What went wrong:
+   A problem occurred configuring root project 'repo'.
+   > 27.0.1.1
+   
+   * Try:
+   > Run with --stacktrace option to get the stack trace.
+   > Run with --info or --debug option to get more log output.
+   > Run with --scan to get full insights.
+   > Get more help at https://help.gradle.org.
+   
+   BUILD FAILED in 2s
+   Failed with exit code 1
+
+ / Search "src/test/**/*" No matches found
+
+ $ Shell List installed Java runtimes 1 line…
+   mise ls java 2>/dev/null || true
+
+ $ Shell Capture Gradle configuration failure details 79 lines…
+   gradle compileKotlin --stacktrace 2>&1 | head -80
+
+ $ Shell Build with Java 21 and inspect dependencies 28 lines…                                    6s
+   mise exec java@21.0.13+9.0.LTS -- gradle compileKotlin test && mise exec java@21.0.13+9.0.LTS --
+   gradle dependencies --configuration runtimeClasspath | grep -i jackson
+
+Migreringen er teknisk delvis riktig, men ikke tilstrekkelig dokumentert.
+
+- Java 21 og Jackson 3.1.0 oppfyller minimumkravene.
+- Build og Kotlin-kompilering er vellykkede.
+- Ktor 3.0 bruker `kotlinx.serialization`; bytte til `ktor-serialization-jackson3` er derfor ikke nødvendig.
+- Avhengighetstreet inneholder kun Jackson 3 og den forventede `jackson-annotations` 2.21.
+- Ingen resterende Jackson 2-importer eller `JsonNode.map`-bruk finnes.
+
+De største manglene er `findAndRegisterModules()` og `WRITE_DATES_AS_TIMESTAMPS`-konfigurasjonen som ble fjernet. Java-time-serialisering bør verifiseres eksplisitt med en rundturtest for `LocalDate`, og branchens økt bør ligge på Java 21 eller nyere i CI/Gradle.
+
+Anbefaling: Godta ikke migreringen uten en test som serialiserer og leser `SoknadMottattMelding`, og uten Gradle-wrapper eller toolchain-konfigurasjon som låser Java-versjonen.
+

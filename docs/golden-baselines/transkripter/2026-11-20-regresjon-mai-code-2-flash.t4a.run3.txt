@@ -1,0 +1,4 @@
+Hva skal tjenesten gjøre med fødselsnummeret: lagres det, videresendes det, eller brukes det kun for et oppslag?
+
+Blursoner: 1/11 (#1: persondata og bruk må avklares).
+

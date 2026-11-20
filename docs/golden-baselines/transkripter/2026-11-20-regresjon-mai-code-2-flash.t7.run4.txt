@@ -1,0 +1,138 @@
+ ● skill(jackson-3-migration)
+
+Jeg undersøker branchens bygg og Jackson-bruk først, og vurderer migrasjonen uten å endre filer.
+
+ / Search "**/*gradle*" 1 file found
+
+ / Search "*" 26 files found
+
+ / Search "com\.fasterxml\.jackson|tools\.jackson|jackson|SpringBoot|ktor" in *.{kt,k… 4 files found
+
+ $ Shell Check branch state and Java version 4 lines…
+   git --no-pager status --short --branch && java -version 2>&1 | head -n 3
+
+ ● Read build.gradle.kts 17 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/Config.kt 4 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/App.kt 15 lines read
+
+ / Search "jackson|Json|ObjectMapper|JsonNode|\.map\s*\{" in *.kt (src) 4 lines found
+
+ $ Shell Inspect resolved Jackson dependencies 1 line…
+   ./gradlew dependencyInsight --dependency jackson --configuration runtimeClasspath 2>&1 | tail -n
+   80
+
+ ● Read src/main/kotlin/no/nav/demo/Soknad.kt 26 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/Routes.kt 19 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/Oppgave.kt 9 lines read
+
+ $ Shell Check build tooling 10 lines…
+   ls -la && command -v gradle || true
+
+ $ Shell Review migration branch diff No Content
+   git --no-pager diff --stat && git --no-pager diff -- build.gradle.kts src/main/kotlin
+
+ ✗ Shell Run full Gradle build Failed with exit code 1  To honour the JVM settings for this build a…
+   gradle build --no-daemon
+   To honour the JVM settings for this build a single-use Daemon process will be forked. For more on
+    this, please refer to 
+   https://docs.gradle.org/8.14.7/userguide/gradle_daemon.html#sec:disabling_the_daemon in the 
+   Gradle documentation.
+   Daemon will be stopped at the end of the build 
+   
+   FAILURE: Build failed with an exception.
+   
+   * What went wrong:
+   A problem occurred configuring root project 'repo'.
+   > 27.0.1.1
+   
+   * Try:
+   > Run with --stacktrace option to get the stack trace.
+   > Run with --info or --debug option to get more log output.
+   > Run with --scan to get full insights.
+   > Get more help at https://help.gradle.org.
+   
+   BUILD FAILED in 3s
+   Failed with exit code 1
+
+ ✗ Shell Inspect Jackson runtime dependency versions Failed with exit code 1  To honour the JVM set…
+   gradle dependencyInsight --dependency jackson --configuration runtimeClasspath --no-daemon
+   To honour the JVM settings for this build a single-use Daemon process will be forked. For more on
+    this, please refer to 
+   https://docs.gradle.org/8.14.7/userguide/gradle_daemon.html#sec:disabling_the_daemon in the 
+   Gradle documentation.
+   Daemon will be stopped at the end of the build 
+   
+   FAILURE: Build failed with an exception.
+   
+   * What went wrong:
+   A problem occurred configuring root project 'repo'.
+   > 27.0.1.1
+   
+   * Try:
+   > Run with --stacktrace option to get the stack trace.
+   > Run with --info or --debug option to get more log output.
+   > Run with --scan to get full insights.
+   > Get more help at https://help.gradle.org.
+   
+   BUILD FAILED in 4s
+   Failed with exit code 1
+
+ ✗ Shell Check runtime Jackson dependency tree Failed with exit code 1  FAILURE: Build failed with …
+   gradle dependencies --configuration runtimeClasspath --no-daemon | grep -i jackson
+   FAILURE: Build failed with an exception.
+   
+   * What went wrong:
+   A problem occurred configuring root project 'repo'.
+   > 27.0.1.1
+   
+   * Try:
+   > Run with --stacktrace option to get the stack trace.
+   > Run with --info or --debug option to get more log output.
+   > Run with --scan to get full insights.
+   > Get more help at https://help.gradle.org.
+   
+   BUILD FAILED in 4s
+   Failed with exit code 1
+
+Første byggfeil er miljørelatert: Gradle 8.14.7 støtter ikke aktiv JDK 27 i denne konfigurasjonen. Jeg sjekker JDK-alternativer og migrasjonsrisikoene videre.
+
+ YM Read nais.yaml 12 lines read
+
+ MD Read README.md 4 lines read
+
+ $ Shell Search complete Jackson usage 6 lines…
+   rg -n "com\.fasterxml\.jackson|tools\.jackson|JsonNode|ObjectMapper|JsonMapper|\.map\s*\{" --glob
+   '*.{kt,kts,java}' .
+
+ $ Shell Check recent branch history 2 lines…
+   git --no-pager log -5 --oneline --decorate
+
+ $ Shell List installed Java runtimes 1 line…
+   mise ls java 2>/dev/null || true
+
+ $ Shell Compare migration branch against main 47 lines…
+   git --no-pager diff main...HEAD --stat && git --no-pager diff main...HEAD
+
+ $ Shell Inspect runtime Jackson classpath 13 lines…
+   mise exec java@21.0.13+9.0.LTS -- gradle dependencies --configuration runtimeClasspath
+   --no-daemon | grep -i jackson
+
+ $ Shell Build using installed Java 21 19 lines…
+   mise exec java@21.0.13+9.0.LTS -- gradle build --no-daemon
+
+Migreringen til Jackson 3.1.0 ser hovedsakelig korrekt ut:
+
+- JDK 21 og Gradle build passer.
+- Ingen gamle `com.fasterxml.jackson.databind/core` avhengigheter gjenstår.
+- `ObjectMapper` er erstattet av den immutable `JsonMapper` builder-konfigurasjonen.
+- Ingen `JsonNode.map` eller post-builder-mutasjon finnes.
+- Ingen dataflyt eller access control er endret.
+
+**Kritisk mangler:** Ingen tester verifiserer LocalDate, round-trip eller æ/ø/å-felter. `WRITE_DATES_AS_TIMESTAMPS` ble fjernet uten regresjonstest. Jeg ville lagt til minst en test før merging.
+
+Ktor 3.0.0 er ikke knyttet til Jackson 3 her, siden appen bruker `ktor-serialization-kotlinx-json`. Jackson 3.1.0 bør derfor ikke kreve Ktor-opprydding i denne branchen.
+

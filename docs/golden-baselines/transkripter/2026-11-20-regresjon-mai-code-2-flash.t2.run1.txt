@@ -1,0 +1,4 @@
+Hvilke brukeroppgaver skal tjenesten støtte, og hva skal gjøres med fnr?
+
+- **Blindsoner reist:** 2/11 (#1 personopplysninger, #2 tilgangskontroll; resten avklares i neste fase).
+

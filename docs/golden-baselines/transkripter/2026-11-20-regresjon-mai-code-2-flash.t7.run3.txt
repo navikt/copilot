@@ -1,0 +1,141 @@
+ ● skill(jackson-3-migration)
+
+Jeg kartlegger først branchen og migreringsendringen, så rapporterer jeg konkrete risikoer og mangler.
+
+ / Search "{build.gradle.kts,settings.gradle.kts,gradle/libs.versions.toml,**/build.gr… 1 file found
+
+ / Search "com\.fasterxml\.jackson|tools\.jackson|ObjectMapper|JsonMapper|jacksonMapp… 2 files found
+
+ $ Shell Check branch state and recent diff 4 lines…
+   git --no-pager status --short && git --no-pager branch --show-current && git --no-pager diff
+   --stat && git --no-pager diff --stat HEAD~1..HEAD
+
+ ● Read build.gradle.kts 17 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/Soknad.kt 26 lines read
+
+ $ Shell Inspect migration diff and latest commit 1 line…
+   git --no-pager diff -- build.gradle.kts src/main/kotlin/no/nav/demo/Soknad.kt && git --no-pager
+   log -1 --oneline
+
+ / Search "com\.fasterxml\.jackson|tools\.jackson|ObjectMapper|JsonMapper|\.map\s*(\{… 7 lines found
+
+ / Search "{AGENTS.md,.github/copilot-instructions.md,.github/copilot-review-instruct… 5 files found
+
+ ✗ Shell Inspect Jackson de… /bin/bash: ./gradlew: No such file or directory Failed with exit code 1
+   ./gradlew dependencies --configuration compileClasspath | grep -i jackson
+
+ ✗ Shell Check Java and run the Gradle build Failed with exit code 127  openjdk version "27.0.1.1" …
+   java -version && ./gradlew build
+   openjdk version "27.0.1.1" 2026-11-17
+   OpenJDK Runtime Environment Temurin-27.0.1.1+4 (build 27.0.1.1+4)
+   OpenJDK 64-Bit Server VM Temurin-27.0.1.1+4 (build 27.0.1.1+4, mixed mode, sharing)
+   /bin/bash: ./gradlew: No such file or directory
+   Failed with exit code 127
+
+ ● Read src/main/kotlin/no/nav/demo/Config.kt 4 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/App.kt 15 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/Routes.kt 19 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/Oppgave.kt 9 lines read
+
+ $ Shell Review full commit and project files 53 lines…
+   git --no-pager diff HEAD~1..HEAD && find . -maxdepth 2 -type f | sort
+
+Migreringen er fysisk nær, men Jeg kan ikke verifisere via prosjekt-wrapper fordi ingen Gradle-wrapper finnes. Jeg sjekker i stedet med system-Gradle og videre Jackson-avhengigheter.
+
+ MD Read README.md 4 lines read
+
+ $ Shell Search migration state and mapper patterns 7 lines…
+   git --no-pager status --porcelain=v1 && rg -n
+   "com\.fasterxml\.jackson|tools\.jackson|JsonNode|ObjectMapper|JsonMapper|kotlinModule" --glob
+   '*.{kt,java,kts,gradle,toml,xml}' .
+
+ ✗ Shell Check resolved Jackson dependency tree Failed with exit code 1  FAILURE: Build failed with…
+   gradle dependencies --configuration compileClasspath | grep -i jackson
+   FAILURE: Build failed with an exception.
+   
+   * What went wrong:
+   A problem occurred configuring root project 'repo'.
+   > 27.0.1.1
+   
+   * Try:
+   > Run with --stacktrace option to get the stack trace.
+   > Run with --info or --debug option to get more log output.
+   > Run with --scan to get full insights.
+   > Get more help at https://help.gradle.org.
+   
+   BUILD FAILED in 369ms
+   Failed with exit code 1
+
+ ✗ Shell Run build with system Gradle Failed with exit code 1  /Users/hans/.local/share/mise/instal…
+   command -v gradle && gradle --version | head -n 8 && gradle build
+   /Users/hans/.local/share/mise/installs/gradle/8/gradle-8.14.7/bin/gradle
+   
+   ------------------------------------------------------------
+   Gradle 8.14.7
+   ------------------------------------------------------------
+   
+   Build time:    2026-11-11 07:23:35 UTC
+   Revision:      dfb1f683277078a276f14468c4ea8e756ad9128d
+   
+   
+   FAILURE: Build failed with an exception.
+   
+   * What went wrong:
+   A problem occurred configuring root project 'repo'.
+   > 27.0.1.1
+   
+   * Try:
+   > Run with --stacktrace option to get the stack trace.
+   > Run with --info or --debug option to get more log output.
+   > Run with --scan to get full insights.
+   > Get more help at https://help.gradle.org.
+   
+   BUILD FAILED in 327ms
+   Failed with exit code 1
+
+ / Search "**/{gradle-wrapper.properties,gradlew,gradlew.bat,settings.gradle.kts,l… No matches found
+
+ ✗ Shell  Permission denied because no interactive user response was available. Retry in an interact
+   ls -1 /Library/Java/JavaVirtualMachines 2>/dev/null || true; mise ls java 2>/dev/null | head -n
+   20
+   Approval check
+     └ ✗ Denied, no one to approve shell path (/Library/Java/JavaVirtualMachines)
+   Permission denied because no interactive user response was available. Retry in an interactive 
+   session so the user can approve it, or try an alternative that does not require this permission.
+
+ $ Shell Check migration diff cleanliness 1 line…
+   git --no-pager status --short && git --no-pager diff HEAD~1..HEAD --check
+
+ $ Shell Search removed APIs and serialization configuration 2 lines…
+   git --no-pager show HEAD^:build.gradle.kts >/dev/null && rg -n "findAndRegisterModules|Serializat
+   ionFeature|WRITE_DATES_AS_TIMESTAMPS|jackson-datatype|@Json|JsonNode|ObjectMapper|JsonMapper"
+   --glob '*.{kt,java,kts}' .
+
+ ✗ Shell  Permission denied because no interactive user response was available. Retry in an interact
+   /usr/libexec/java_home -V 2>&1 | head -n 20
+   Approval check
+     └ ✗ Denied, no one to approve shell path (/usr/libexec/java_home)
+   Permission denied because no interactive user response was available. Retry in an interactive 
+   session so the user can approve it, or try an alternative that does not require this permission.
+
+ $ Shell Remove generated Gradle cache No Content
+   rm -rf .gradle && git --no-pager status --short
+
+**Evaluering: ikke klar til merge.**
+
+- Jackson 3.1.0 og `tools.jackson.*` er brukte riktige koordinater.
+- Mye av databind-migreringen er mekanisk, og ingen gamle Jackson 2-importer ble funnet.
+- Kritisk risiko: `jackson-datatype-jsr310` ble fjernet. `LocalDate` trenger fortsatt Java Time-modulen i noe som ligner på `tools.jackson.datatype:jackson-datatype-jsr310:3.1.0`; dagens kode kan feile ved serialisering.
+- `Ktor 3.0.0` er under minimum 3.4.0 for Jackson 3-integrasjon, men denne tjenesten bruker foreløpig kun `kotlinx-json`.
+- Ingen Gradle-wrapper finnes. `gradle build` ble blokkert av Kotlin-konfigurasjonen mot installert JDK 27; Java 17 eller nyere er nødvendig, men kompatibel JDK bør låses.
+- Ingen tester ble funnet.
+- To separate `dependencies`-blokker bør slås sammen.
+- Ingen `JsonNode.map` eller post-builder-mutering ble funnet.
+- Æ/ø/å-felt ble ikke funnet, men ingen regresjonstest dekker det.
+
+Neste steg er å verifisere Java Time-modulen, teste round-trip for `LocalDate`, og kjøre build med Gradle-wrapper og støttet JDK.
+

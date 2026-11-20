@@ -1,0 +1,49 @@
+Jeg lager avrundingsfunksjonen og en testbare `TODO`-stubb for feriepengeregningen. Resten blir ikke implementert før du har gjort rød-sone-koden selv.
+
+Blindsoner reist: 0/11 (ingen nye datafelt, mottakere, sikkerhet eller arkitekturbeslutninger i denne endringen).
+
+ MD Read ~/.cplt-worktrees/dfc0bfe1cee863263871de7ee1f  Permission denied because no interactive us…
+         cf246/mai-flash-run/.github/instructions/kotl
+         in.instructions.md
+   Approval check
+     └ ✗ Denied, no one to approve read path
+       (/Users/hans/.cplt-worktrees/dfc0bfe1cee...ub/instructions/kotlin.instructions.md)
+   Permission denied because no interactive user response was available. Retry in an interactive 
+   session so the user can approve it, or try an alternative that does not require this permission.
+
+ MD Read ~/.cplt-worktrees/dfc0bfe1cee863263871de7ee1f  Permission denied because no interactive us…
+         cf246/mai-flash-run/.github/instructions/test
+         ing-kotlin.instructions.md
+   Approval check
+     └ ✗ Denied, no one to approve read path
+       (/Users/hans/.cplt-worktrees/dfc0bfe1cee...uctions/testing-kotlin.instructions.md)
+   Permission denied because no interactive user response was available. Retry in an interactive 
+   session so the user can approve it, or try an alternative that does not require this permission.
+
+ / Search "**/{Feriepenger.kt,Avrunding.kt}" No matches found
+
+ / Search "**/*.kt" 4 files found
+
+ ● Read build.gradle.kts 12 lines read
+
+ MD Read AGENTS.md Path does not exist
+
+ ● Read src/main/kotlin/no/nav/demo/Oppgave.kt 9 lines read
+
+ / Search "src/test/**/*.kt" No matches found
+
+ / Search "src/test/kotlin/**/*.kt" No matches found
+
+ / Search "src/main/kotlin/**/*.kt" 4 files found
+
+ $ Shell Check working tree status No Content
+   git --no-pager status --short
+
+ ● Edit  Create src/main/kotlin/no/nav/demo/Avrunding.kt (+4)  Create src/main/kotlin/no/nav/demo/F…
+
+La til `Avrunding.kt` med avrunding til nærmeste krone ved 50 øre opp.
+
+La `Feriepenger.kt` stå som en `TODO`-stubb. Negativt grunnlag kastes med `IllegalArgumentException`.
+
+Gradle ble ikke kjørt.
+

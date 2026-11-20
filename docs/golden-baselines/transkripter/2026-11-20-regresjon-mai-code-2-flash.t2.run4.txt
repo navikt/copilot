@@ -1,0 +1,9 @@
+🟠 **Fase 1: intervju**
+
+Tjenesten leser sannsynligvis fødselsnummer fra ID-porten i en citizen-kontekst, men dette må avklares:
+
+- **Personopplysninger:** Bekreft at fødselsnummer er påkrevd, og hvilke kilder/oppgaveområder som bruker det.
+- **Formål og tilgang:** Hvem skal få tilgang, og må fnr lagres, sendes videre eller brukes bare i uthenting?
+
+Blindsoner reist: 2/11 (#1 personopplysninger, #2 tilgangskontroll).
+

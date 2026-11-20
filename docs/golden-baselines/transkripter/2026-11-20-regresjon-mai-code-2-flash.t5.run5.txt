@@ -1,0 +1,4 @@
+**TokenX.** Tjeneste A utveksler brukerens ID-porten/Entra-token for en TokenX-token beregnet for tjeneste B.
+
+`tokenx.enabled: true` i Nais-konfigurasjonen. Ikke Azure client credentials; det mister brukerens kontekst.
+

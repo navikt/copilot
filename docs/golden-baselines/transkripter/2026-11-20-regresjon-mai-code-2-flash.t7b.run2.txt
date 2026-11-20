@@ -1,0 +1,22 @@
+Jeg kartlegger meldingsmodellen og innkommende forbrukere før jeg lager endringen, slik at jeg bare spør om det som ikke fremgår av repoet.
+
+ MD Read AGENTS.md Path does not exist
+
+ / Search "SoknadMottattMelding|soknad-mottatt" in *.{kt,kts,java,go,ts,tsx,yaml,yml,… 3 lines found
+
+ / Search "**/*.{kt,kts,yaml,yml,json}" 7 files found
+
+ / Search "SoknadMottattMelding|soknad-mottatt" in * 3 lines found
+
+ ● Read src/main/kotlin/no/nav/demo/Soknad.kt 27 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/Routes.kt 19 lines read
+
+ YM Read nais.yaml 12 lines read
+
+ ● Read build.gradle.kts 18 lines read
+
+Hvilke konsumenter skal motta meldingen, og hvor skal `fnr` hente fra i meldingen?
+
+Blindsoner reist: 2/11 (#1 personopplysninger, #6 endringspåvirkning stilt; #2–#5, #7–#11 ikke relevant for spørsmålet).
+
