@@ -1,6 +1,7 @@
 package main
 
 import (
+	"maps"
 	"net/http"
 	"slices"
 	"strconv"
@@ -69,11 +70,16 @@ var denyReasons = []string{policy.ReasonNotListed, policy.ReasonAmbiguous, polic
 // observeMCPRequest bounds both extra labels: reason only on deny and only from
 // denyReasons; tool only when on the route's explicit list, else "other"
 // (passAllTools routes always give "other").
-func observeMCPRequest(route PilotRoute, outcome, decision, reason, tool string, d time.Duration) {
+func observeMCPRequest(route PilotRoute, outcome, decision, reason, tool, rawTool string, d time.Duration) {
 	if decision != "deny" || !slices.Contains(denyReasons, reason) {
 		reason = ""
 	}
-	if tool != "" && !route.allowedTools[tool] {
+	// tool is the truncated audit value, only used to tell "not a tool call" from "other".
+	switch {
+	case tool == "":
+	case route.allowedTools[rawTool]:
+		tool = rawTool
+	default:
 		tool = "other"
 	}
 	mcpRequestsTotal.WithLabelValues(route.Route, outcome, decision, reason, tool).Inc()
@@ -117,8 +123,11 @@ func initMetrics(routes []PilotRoute) {
 		rateLimitedTotal.WithLabelValues(ep)
 	}
 	for _, r := range routes {
+		tools := append([]string{"", "other"}, slices.Sorted(maps.Keys(r.allowedTools))...)
 		for _, o := range []string{"ok", "upstream_token_error", "upstream_error"} {
-			mcpRequestsTotal.WithLabelValues(r.Route, o, "allow", "", "")
+			for _, tool := range tools {
+				mcpRequestsTotal.WithLabelValues(r.Route, o, "allow", "", tool)
+			}
 		}
 		for _, reason := range denyReasons {
 			o := "tool_denied"

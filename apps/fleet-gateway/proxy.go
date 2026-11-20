@@ -116,6 +116,7 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 		clientID := ""
 		rpcMethod := ""
 		toolName := ""
+		rawTool := ""
 		decision := ""
 		decisionReason := ""
 		headerMismatch := false
@@ -127,7 +128,7 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 		// decision is true only when the gateway's own checks let the request through;
 		// context.outcome tells what happened after that.
 		defer func() {
-			observeMCPRequest(route, outcome, decision, decisionReason, toolName, g.now().Sub(start))
+			observeMCPRequest(route, outcome, decision, decisionReason, toolName, rawTool, g.now().Sub(start))
 			audit.LogMCP(audit.MCP{
 				NAVIdent: navIdent, ClientID: clientID,
 				Method: rpcMethod, Tool: toolName,
@@ -324,6 +325,7 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 
 		pd := policy.Decide(r.Method, route.allowedTools, r.Header, reqBody)
 		rpcMethod, toolName, scanIncomplete, headerMismatch = pd.Method, pd.Tool, pd.ScanIncomplete, pd.HeaderMismatch
+		rawTool = pd.RawTool
 		decision, decisionReason = "allow", pd.Reason
 		if !pd.Allow {
 			decision = "deny"

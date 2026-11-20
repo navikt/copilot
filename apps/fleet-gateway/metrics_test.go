@@ -12,7 +12,7 @@ import (
 )
 
 func TestMetricsRegisteredAndServed(t *testing.T) {
-	observeMCPRequest(PilotRoute{Route: "/mcp/ns/test"}, "upstream_token_error", "", "", "", time.Second)
+	observeMCPRequest(PilotRoute{Route: "/mcp/ns/test"}, "upstream_token_error", "", "", "", "", time.Second)
 	observeHTTPRequest(http.StatusBadGateway, "")
 	routesLoaded.Set(3)
 
@@ -152,7 +152,7 @@ func TestInitMetricsPrecreatesDenySeries(t *testing.T) {
 
 func TestObserveMCPRequestBoundsReason(t *testing.T) {
 	r := PilotRoute{Route: "/mcp/ns/bound", allowedTools: map[string]bool{"a": true}}
-	observeMCPRequest(r, "tool_denied", "deny", "made-up", "zzz", time.Millisecond)
+	observeMCPRequest(r, "tool_denied", "deny", "made-up", "zzz", "zzz", time.Millisecond)
 	if got := testutil.ToFloat64(mcpRequestsTotal.WithLabelValues(r.Route, "tool_denied", "deny", "", "other")); got != 1 {
 		t.Fatalf("unknown reason/tool not collapsed: %v", got)
 	}
@@ -169,4 +169,28 @@ func scrapeMetrics(t *testing.T) string {
 	defer func() { _ = resp.Body.Close() }()
 	b, _ := io.ReadAll(resp.Body)
 	return string(b)
+}
+
+// A listed tool whose name is longer than the audit display cap keeps its own label.
+func TestMCPToolLabelUsesFullName(t *testing.T) {
+	long := strings.Repeat("a", 100)
+	tools := map[string]bool{long: true}
+	c := mcpRequestsTotal.WithLabelValues("/mcp/team-etterlevelse/etterlevelse", "ok", "allow", "", long)
+	before := testutil.ToFloat64(c)
+	auditPostTools(t, tools, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"`+long+`"}}`)
+	if got := testutil.ToFloat64(c); got != before+1 {
+		t.Fatalf("long listed tool series = %v, want %v", got, before+1)
+	}
+}
+
+// increase() needs a zero sample per tool before the first call.
+func TestInitMetricsPrecreatesToolSeries(t *testing.T) {
+	initMetrics([]PilotRoute{{Route: "/mcp/ns/tools", allowedTools: map[string]bool{"search_x": true}}})
+	body := scrapeMetrics(t)
+	for _, tool := range []string{"search_x", "other"} {
+		want := `outcome="upstream_token_error",reason="",route="/mcp/ns/tools",tool="` + tool + `"} 0`
+		if !strings.Contains(body, want) {
+			t.Errorf("/metrics lacks %s", want)
+		}
+	}
 }
