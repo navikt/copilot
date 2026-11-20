@@ -98,7 +98,7 @@ func toolDefinitions(enableCreateOrder bool) []map[string]any {
 	}
 	if enableCreateOrder {
 		tools = append(tools, writeTool("create_order",
-			"Create an order (bestilling) for 1-5 synthetic test persons in a Dolly group owned by the signed-in user. Two steps. Step 1: call with the order parameters; this only returns a preview (group, antall, environments, attributes, quota left) and a confirmationToken valid for 5 minutes, and orders nothing. Always confirm with the user by showing the preview. Step 2: after the user approves, call again with the identical parameters plus confirmationToken; only then is the order sent and quota charged. The token is single use and bound to the user and the exact parameters.",
+			"Create an order (bestilling) for 1-5 synthetic test persons in a Dolly group owned by the signed-in user. Two steps. Step 1: call with the order parameters; this only returns a preview (group, antall, environments, attributes, quota left) and a confirmationToken valid for 5 minutes, and orders nothing. Always confirm with the user by showing the preview. Step 2: after the user approves, call again with the identical parameters plus confirmationToken; only then is the order sent and quota charged. The token is single use and bound to the user and the exact parameters. Defaults are in the preview; only antall, environments, minAlder, maxAlder and kjoenn can be set.",
 			[]string{"gruppeId", "antall", "environments"},
 			map[string]any{
 				"gruppeId": gruppeID,
@@ -119,6 +119,11 @@ func toolDefinitions(enableCreateOrder bool) []map[string]any {
 	}
 	return tools
 }
+
+// orderDefaults is what Dolly applies to every created person (team Dolly, 2026-11-20).
+const orderDefaults = "Each person is created with FNR and gets: fødselsnummer, name, gender, place of birth, date of birth, marital status, residential address, Norwegian citizenship and folkeregister personstatus=bosatt. " +
+	"Unless set: age 30-60, even gender split; children 0-17, parents 60-80; spouse/partner within +/-3 years of the main person; every 20th couple (5%) is same-sex. " +
+	"This tool can only set antall, environments, minAlder, maxAlder and kjoenn (main person); anything else requires the Dolly UI."
 
 func (s *server) handleToolCall(ctx context.Context, inboundToken, navIdent, toolName string, rawArgs json.RawMessage) (any, *mcpRPCError) {
 	var fields map[string]json.RawMessage
@@ -271,6 +276,7 @@ func (s *server) handleToolCall(ctx context.Context, inboundToken, navIdent, too
 						"environments": orderReq.Environments,
 						"attributes":   attrs,
 					},
+					"defaults":          orderDefaults,
 					"quotaRemaining":    s.quota.remaining(userHash, s.now()),
 					"confirmationToken": ctok,
 					"expiresAt":         exp.UTC().Format(time.RFC3339),
