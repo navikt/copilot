@@ -6,7 +6,8 @@ Plan: [2026-12-mai-flash-plan.md](2026-12-mai-flash-plan.md). Ramme 750 credits 
 | --- | --- | --- | --- | --- | --- |
 | 2026-11-19 17:05 | Trinn 2, forhåndssjekk | 0 | 0 | 0 | Stopp før kjøring, se under |
 | 2026-11-20 08:50 | Delgrunnlinje t4/t8, gpt-6.1-sol low, n = 5 | 137 | 100,7 | 100,7 | Stoppet av vakten 09:01: last 15 (stoppregel 4). Probe 5,82 + oppgaver 79,72 (6 økter) + dommer 15,18 (kontroller 14,15). Ufullstendig: 3 av 5 kjøringer |
-| 2026-11-20 09:25 | Trinn 2, planning, mai-code-2-flash low, n = 5 | 117 | | 100,7 | Regel 5: stopp over 144 (planen). Estimat 95 + dommerkontroller ≈ 21. Reservasjon 100,7 + 117 ≤ 750 |
+| 2026-11-20 09:25 | Trinn 2, planning, mai-code-2-flash low, n = 5 | 117 | 16,4 | 117,1 | Regel 5: stopp over 144 (planen). Estimat 95 + dommerkontroller ≈ 21. Reservasjon 100,7 + 117 ≤ 750 | Stoppet 09:32 av 5-minutters last 8,45, etter kjøring 1 av t2–t7. Probe 5,82 + oppgaver 2,59 + dommerkontroller 7,99. Lasten kom fra dommerkontrollene, som kjører 4 parallelle `copilot`-prosesser (`BS_JUDGE_JOBS`, standard 4) |
+| 2026-11-20 09:40 | Trinn 2, nytt forsøk med `BS_JUDGE_JOBS=1` | 117 | | 117,1 | Regel 5: stopp over 144. Reservasjon 117,1 + 117 ≤ 750. Endrer bare hvor mange dommerkall som går samtidig, ikke dommen |
 
 ## Avvik fra planen (eierbeslutninger 20. november 2026)
 
