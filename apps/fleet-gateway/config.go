@@ -9,11 +9,10 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"github.com/navikt/copilot/fleet-gateway/internal/config"
 	"log/slog"
 	"net/http"
-	"net/url"
 	"os"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -33,7 +32,9 @@ const (
 	defaultUpstreamTimeout                  = 60 * time.Second // MCP tool calls; headers and body each get this long
 	defaultMCPMaxInFlight                   = 16
 	defaultMCPMaxInFlightPerRoute           = 8
+	defaultMCPMaxInFlightPerUser            = 4
 	defaultMCPMaxSSE                        = 64 // ~40 KiB each: a 32 KiB read buffer plus the connection
+	defaultMCPMaxSSEPerUser                 = 4
 	defaultPendingCap                       = 4096
 	defaultCodeCap                          = 1024
 	defaultSessionCap                       = 4096
@@ -98,7 +99,9 @@ type Config struct {
 	ProxyHeaderTimeout      time.Duration
 	MCPMaxInFlight          int // concurrent buffered /mcp/* requests per pod
 	MCPMaxInFlightPerRoute  int // concurrent buffered requests per route, under MCPMaxInFlight
+	MCPMaxInFlightPerUser   int // concurrent buffered /mcp/* requests per user per pod
 	MCPMaxSSE               int // concurrent SSE response streams per pod
+	MCPMaxSSEPerUser        int // concurrent SSE response streams per user per pod
 	SSEMaxDuration          time.Duration
 	SSEIdleTimeout          time.Duration
 	SSEMaxBytes             int64
@@ -131,8 +134,8 @@ type Config struct {
 
 func loadConfigFromEnv() (*Config, error) {
 	baseURL := strings.TrimRight(strings.TrimSpace(os.Getenv("BASE_URL")), "/")
-	clientIDs := parseCSVSet(os.Getenv("ALLOWED_CLIENT_IDS"))
-	redirectURIs := parseCSVSet(os.Getenv("ALLOWED_REDIRECT_URIS"))
+	clientIDs := config.CSVSet(os.Getenv("ALLOWED_CLIENT_IDS"))
+	redirectURIs := config.CSVSet(os.Getenv("ALLOWED_REDIRECT_URIS"))
 
 	routes, err := fileRouteSource{path: os.Getenv("PILOT_ROUTES_FILE")}.Routes()
 	if err != nil {
@@ -168,11 +171,11 @@ func loadConfigFromEnv() (*Config, error) {
 		return nil, fmt.Errorf("invalid RT_STORAGE %q: expected client-encrypted or server", rtStorage)
 	}
 
-	dcrEnabled, err := getEnvBool("DCR_ENABLED")
+	dcrEnabled, err := config.Bool("DCR_ENABLED")
 	if err != nil {
 		return nil, err
 	}
-	gatewayDisabled, err := getEnvBool("GATEWAY_DISABLED")
+	gatewayDisabled, err := config.Bool("GATEWAY_DISABLED")
 	if err != nil {
 		return nil, err
 	}
@@ -186,8 +189,8 @@ func loadConfigFromEnv() (*Config, error) {
 	}
 
 	cfg := &Config{
-		Port:                    getEnv("PORT", defaultPort),
-		LogLevel:                parseLogLevel(getEnv("LOG_LEVEL", "INFO")),
+		Port:                    config.Get("PORT", defaultPort),
+		LogLevel:                config.LogLevel(config.Get("LOG_LEVEL", "INFO")),
 		BaseURL:                 baseURL,
 		AllowedClientIDs:        clientIDs,
 		AllowedRedirectURIs:     redirectURIs,
@@ -206,35 +209,37 @@ func loadConfigFromEnv() (*Config, error) {
 		AzureAuthorizeEndpoint:  strings.TrimSpace(os.Getenv("AZURE_OPENID_CONFIG_AUTHORIZATION_ENDPOINT")),
 		CookieSecret:            cookieKeys[0],
 		CookieVerifyKeys:        cookieKeys[1:],
-		HTTPClient:              newHardenedHTTPClient(defaultOutboundTimeout),
-		ProxyHeaderTimeout:      getEnvDuration("UPSTREAM_TIMEOUT", defaultUpstreamTimeout),
-		MCPMaxInFlight:          getEnvInt("MCP_MAX_IN_FLIGHT", defaultMCPMaxInFlight),
-		MCPMaxInFlightPerRoute:  getEnvInt("MCP_MAX_IN_FLIGHT_PER_ROUTE", defaultMCPMaxInFlightPerRoute),
-		MCPMaxSSE:               getEnvInt("MCP_MAX_SSE", defaultMCPMaxSSE),
-		SSEMaxDuration:          getEnvDuration("SSE_MAX_DURATION", defaultSSEMaxDuration),
-		SSEIdleTimeout:          getEnvDuration("SSE_IDLE_TIMEOUT", defaultSSEIdleTimeout),
-		SSEMaxBytes:             getEnvInt64("SSE_MAX_BYTES", defaultSSEMaxBytes),
-		MaxResponseBodyBytes:    getEnvInt64("MAX_RESPONSE_BODY_BYTES", maxMCPResponseBodyBytes),
-		PendingCap:              getEnvInt("PENDING_MAP_CAP", defaultPendingCap),
-		CodeCap:                 getEnvInt("CODE_MAP_CAP", defaultCodeCap),
-		SessionCap:              getEnvInt("SESSION_MAP_CAP", defaultSessionCap),
-		MCPSessionUserCap:       getEnvInt("MCP_SESSION_USER_CAP", defaultMCPSessionUserCap),
+		HTTPClient:              config.NewHardenedHTTPClient(defaultOutboundTimeout),
+		ProxyHeaderTimeout:      config.Duration("UPSTREAM_TIMEOUT", defaultUpstreamTimeout),
+		MCPMaxInFlight:          config.Int("MCP_MAX_IN_FLIGHT", defaultMCPMaxInFlight),
+		MCPMaxInFlightPerRoute:  config.Int("MCP_MAX_IN_FLIGHT_PER_ROUTE", defaultMCPMaxInFlightPerRoute),
+		MCPMaxInFlightPerUser:   config.Int("MCP_MAX_IN_FLIGHT_PER_USER", defaultMCPMaxInFlightPerUser),
+		MCPMaxSSE:               config.Int("MCP_MAX_SSE", defaultMCPMaxSSE),
+		MCPMaxSSEPerUser:        config.Int("MCP_MAX_SSE_PER_USER", defaultMCPMaxSSEPerUser),
+		SSEMaxDuration:          config.Duration("SSE_MAX_DURATION", defaultSSEMaxDuration),
+		SSEIdleTimeout:          config.Duration("SSE_IDLE_TIMEOUT", defaultSSEIdleTimeout),
+		SSEMaxBytes:             config.Int64("SSE_MAX_BYTES", defaultSSEMaxBytes),
+		MaxResponseBodyBytes:    config.Int64("MAX_RESPONSE_BODY_BYTES", maxMCPResponseBodyBytes),
+		PendingCap:              config.Int("PENDING_MAP_CAP", defaultPendingCap),
+		CodeCap:                 config.Int("CODE_MAP_CAP", defaultCodeCap),
+		SessionCap:              config.Int("SESSION_MAP_CAP", defaultSessionCap),
+		MCPSessionUserCap:       config.Int("MCP_SESSION_USER_CAP", defaultMCPSessionUserCap),
 		CIMDCap:                 defaultCIMDCap,
 		DCREnabled:              dcrEnabled,
-		DCRClientTTL:            getEnvDuration("DCR_CLIENT_TTL", defaultDCRClientTTL),
-		DCRClientMaxAge:         getEnvDuration("DCR_CLIENT_MAX_AGE", defaultDCRClientMaxAge),
-		DCRClientCap:            getEnvInt("DCR_CLIENT_CAP", defaultDCRClientCap),
-		DCRRateLimitRequests:    getEnvInt("DCR_RATE_LIMIT_REQUESTS", defaultDCRRateLimitRequests),
-		DCRRateLimitGlobal:      getEnvInt("DCR_RATE_LIMIT_GLOBAL_REQUESTS", defaultDCRRateLimitGlobalRequests),
-		RateLimitCap:            getEnvInt("RATE_LIMIT_MAP_CAP", defaultRateLimitCap),
-		RateLimitRequests:       getEnvInt("RATE_LIMIT_REQUESTS", defaultRateLimitRequests),
-		RateLimitGlobalRequests: getEnvInt("RATE_LIMIT_GLOBAL_REQUESTS", defaultRateLimitGlobalRequests),
+		DCRClientTTL:            config.Duration("DCR_CLIENT_TTL", defaultDCRClientTTL),
+		DCRClientMaxAge:         config.Duration("DCR_CLIENT_MAX_AGE", defaultDCRClientMaxAge),
+		DCRClientCap:            config.Int("DCR_CLIENT_CAP", defaultDCRClientCap),
+		DCRRateLimitRequests:    config.Int("DCR_RATE_LIMIT_REQUESTS", defaultDCRRateLimitRequests),
+		DCRRateLimitGlobal:      config.Int("DCR_RATE_LIMIT_GLOBAL_REQUESTS", defaultDCRRateLimitGlobalRequests),
+		RateLimitCap:            config.Int("RATE_LIMIT_MAP_CAP", defaultRateLimitCap),
+		RateLimitRequests:       config.Int("RATE_LIMIT_REQUESTS", defaultRateLimitRequests),
+		RateLimitGlobalRequests: config.Int("RATE_LIMIT_GLOBAL_REQUESTS", defaultRateLimitGlobalRequests),
 		RateLimitWindow:         defaultRateLimitWindow,
-		SessionStore:            strings.ToLower(getEnv("SESSION_STORE", "memory")),
+		SessionStore:            strings.ToLower(config.Get("SESSION_STORE", "memory")),
 		DatabaseURL:             strings.TrimSpace(os.Getenv("DATABASE_URL")),
-		SessionMaxAge:           getEnvDuration("SESSION_MAX_AGE", defaultSessionMaxAge),
-		RefreshGraceWindow:      getEnvDuration("REFRESH_GRACE_WINDOW", defaultRefreshGraceWindow),
-		ConsentTTL:              getEnvDuration("CONSENT_TTL", defaultConsentTTL),
+		SessionMaxAge:           config.Duration("SESSION_MAX_AGE", defaultSessionMaxAge),
+		RefreshGraceWindow:      config.Duration("REFRESH_GRACE_WINDOW", defaultRefreshGraceWindow),
+		ConsentTTL:              config.Duration("CONSENT_TTL", defaultConsentTTL),
 		RTKeys:                  rtKeys,
 		RTStorage:               rtStorage,
 		LockoutKey:              strings.TrimSpace(os.Getenv("LOCKOUT_KEY")),
@@ -250,14 +255,14 @@ func validateConfig(cfg *Config) error {
 	if cfg == nil {
 		return errors.New("nil config")
 	}
-	if err := validateHTTPURL(cfg.BaseURL, false); err != nil {
+	if err := config.ValidateHTTPURL(cfg.BaseURL, false); err != nil {
 		return fmt.Errorf("invalid BASE_URL: %w", err)
 	}
 	if len(cfg.AllowedClientIDs) == 0 {
 		return errors.New("ALLOWED_CLIENT_IDS must not be empty")
 	}
 	for clientID := range cfg.AllowedClientIDs {
-		if err := validateHTTPURL(clientID, false); err != nil {
+		if err := config.ValidateHTTPURL(clientID, false); err != nil {
 			return fmt.Errorf("invalid ALLOWED_CLIENT_IDS entry %q: %w", clientID, err)
 		}
 	}
@@ -265,7 +270,7 @@ func validateConfig(cfg *Config) error {
 		return errors.New("ALLOWED_REDIRECT_URIS must not be empty")
 	}
 	for redirectURI := range cfg.AllowedRedirectURIs {
-		if err := validateHTTPURL(redirectURI, true); err != nil {
+		if err := config.ValidateHTTPURL(redirectURI, true); err != nil {
 			return fmt.Errorf("invalid ALLOWED_REDIRECT_URIS entry %q: %w", redirectURI, err)
 		}
 	}
@@ -289,13 +294,13 @@ func validateConfig(cfg *Config) error {
 	switch strings.ToLower(strings.TrimSpace(cfg.TeamTokenStrategy)) {
 	case "", strategyOBO:
 		cfg.TeamTokenStrategy = strategyOBO
-		if err := validateHTTPURL(cfg.TexasExchangeEndpoint, false); err != nil {
+		if err := config.ValidateHTTPURL(cfg.TexasExchangeEndpoint, false); err != nil {
 			return fmt.Errorf("invalid NAIS_TOKEN_EXCHANGE_ENDPOINT: %w", err)
 		}
 	case strategyRefresh:
 		cfg.TeamTokenStrategy = strategyRefresh
 		if cfg.TexasExchangeEndpoint != "" {
-			if err := validateHTTPURL(cfg.TexasExchangeEndpoint, false); err != nil {
+			if err := config.ValidateHTTPURL(cfg.TexasExchangeEndpoint, false); err != nil {
 				return fmt.Errorf("invalid NAIS_TOKEN_EXCHANGE_ENDPOINT: %w", err)
 			}
 		}
@@ -309,19 +314,19 @@ func validateConfig(cfg *Config) error {
 	if cfg.AzureClientSecret == "" {
 		return errors.New("AZURE_APP_CLIENT_SECRET is required")
 	}
-	if err := validateHTTPURL(cfg.AzureTokenEndpoint, false); err != nil {
+	if err := config.ValidateHTTPURL(cfg.AzureTokenEndpoint, false); err != nil {
 		return fmt.Errorf("invalid AZURE_OPENID_CONFIG_TOKEN_ENDPOINT: %w", err)
 	}
 	if cfg.AzureAuthorizeEndpoint == "" && cfg.AzureWellKnownURL == "" {
 		return errors.New("AZURE_APP_WELL_KNOWN_URL or AZURE_OPENID_CONFIG_AUTHORIZATION_ENDPOINT is required")
 	}
 	if cfg.AzureAuthorizeEndpoint != "" {
-		if err := validateHTTPURL(cfg.AzureAuthorizeEndpoint, false); err != nil {
+		if err := config.ValidateHTTPURL(cfg.AzureAuthorizeEndpoint, false); err != nil {
 			return fmt.Errorf("invalid AZURE_OPENID_CONFIG_AUTHORIZATION_ENDPOINT: %w", err)
 		}
 	}
 	if cfg.AzureWellKnownURL != "" {
-		if err := validateHTTPURL(cfg.AzureWellKnownURL, false); err != nil {
+		if err := config.ValidateHTTPURL(cfg.AzureWellKnownURL, false); err != nil {
 			return fmt.Errorf("invalid AZURE_APP_WELL_KNOWN_URL: %w", err)
 		}
 	}
@@ -333,7 +338,7 @@ func validateConfig(cfg *Config) error {
 		return errors.New("LOCKOUT_KEY must be at least 32 bytes")
 	}
 	if cfg.HTTPClient == nil {
-		cfg.HTTPClient = newHardenedHTTPClient(defaultOutboundTimeout)
+		cfg.HTTPClient = config.NewHardenedHTTPClient(defaultOutboundTimeout)
 	}
 	if cfg.ProxyHeaderTimeout <= 0 {
 		cfg.ProxyHeaderTimeout = defaultUpstreamTimeout
@@ -344,8 +349,14 @@ func validateConfig(cfg *Config) error {
 	if cfg.MCPMaxInFlightPerRoute <= 0 {
 		cfg.MCPMaxInFlightPerRoute = defaultMCPMaxInFlightPerRoute
 	}
+	if cfg.MCPMaxInFlightPerUser <= 0 {
+		cfg.MCPMaxInFlightPerUser = defaultMCPMaxInFlightPerUser
+	}
 	if cfg.MCPMaxSSE <= 0 {
 		cfg.MCPMaxSSE = defaultMCPMaxSSE
+	}
+	if cfg.MCPMaxSSEPerUser <= 0 {
+		cfg.MCPMaxSSEPerUser = defaultMCPMaxSSEPerUser
 	}
 	if cfg.SSEMaxDuration <= 0 {
 		cfg.SSEMaxDuration = defaultSSEMaxDuration
@@ -359,8 +370,15 @@ func validateConfig(cfg *Config) error {
 	if cfg.MaxResponseBodyBytes <= 0 {
 		cfg.MaxResponseBodyBytes = maxMCPResponseBodyBytes
 	}
+	if cfg.RateLimitCap <= 0 {
+		cfg.RateLimitCap = defaultRateLimitCap
+	}
 	if cfg.RateLimitGlobalRequests <= 0 {
 		cfg.RateLimitGlobalRequests = defaultRateLimitGlobalRequests
+	}
+	// Below that, a full map evicts live buckets and resets throttled IPs inside the window (ipRateLimiter.Allow).
+	if cfg.RateLimitCap < cfg.RateLimitGlobalRequests {
+		cfg.RateLimitCap = cfg.RateLimitGlobalRequests
 	}
 	switch strings.ToLower(strings.TrimSpace(cfg.SessionStore)) {
 	case "", "memory":
@@ -369,7 +387,7 @@ func validateConfig(cfg *Config) error {
 		cfg.SessionStore = "postgres"
 		// Empty DATABASE_URL means the libpq PG* environment (Nais Postgres).
 		if cfg.DatabaseURL != "" || os.Getenv("PGHOST") == "" {
-			if err := validatePostgresURL(cfg.DatabaseURL); err != nil {
+			if err := config.ValidatePostgresURL(cfg.DatabaseURL); err != nil {
 				return fmt.Errorf("invalid DATABASE_URL: %w", err)
 			}
 		}
@@ -454,60 +472,6 @@ func validateConfig(cfg *Config) error {
 	return nil
 }
 
-func validatePostgresURL(raw string) error {
-	trimmed := strings.TrimSpace(raw)
-	if trimmed == "" {
-		return errors.New("empty URL")
-	}
-	u, err := url.Parse(trimmed)
-	if err != nil {
-		// url.Error embeds the raw URL, i.e. the DSN with its password.
-		return errors.New("unparseable URL")
-	}
-	if u.Scheme != "postgres" && u.Scheme != "postgresql" {
-		return fmt.Errorf("unsupported scheme %q", u.Scheme)
-	}
-	if u.Host == "" && u.Query().Get("host") == "" {
-		return errors.New("missing host")
-	}
-	return nil
-}
-
-func validateHTTPURL(raw string, allowQuery bool) error {
-	if raw == "" {
-		return errors.New("empty URL")
-	}
-	u, err := url.Parse(raw)
-	if err != nil {
-		return err
-	}
-	if u.Scheme != "https" && u.Scheme != "http" {
-		return fmt.Errorf("unsupported scheme %q", u.Scheme)
-	}
-	if u.Host == "" {
-		return errors.New("missing host")
-	}
-	if u.User != nil {
-		return errors.New("userinfo not allowed in URL")
-	}
-	if u.Fragment != "" {
-		return errors.New("fragment not allowed in URL")
-	}
-	if !allowQuery && u.RawQuery != "" {
-		return errors.New("query string not allowed in URL")
-	}
-	return nil
-}
-
-func newHardenedHTTPClient(timeout time.Duration) *http.Client {
-	return &http.Client{
-		Timeout: timeout,
-		CheckRedirect: func(*http.Request, []*http.Request) error {
-			return errors.New("redirects refused")
-		},
-	}
-}
-
 // stateCookieKeyInfo is the HKDF label that separates the state-cookie key from
 // the RT_KEYS AES key; the AES key itself is never used for HMAC.
 const stateCookieKeyInfo = "fleet-gateway entra-state cookie hmac v1"
@@ -552,85 +516,6 @@ func loadCookieSecret(raw, rtKeys string, onNais bool) ([][]byte, error) {
 		return nil, errors.New("COOKIE_SIGNING_SECRET must be at least 32 bytes")
 	}
 	return [][]byte{[]byte(trimmed)}, nil
-}
-
-func parseCSVSet(raw string) map[string]bool {
-	out := make(map[string]bool)
-	for _, part := range strings.Split(raw, ",") {
-		item := strings.TrimSpace(part)
-		if item != "" {
-			out[item] = true
-		}
-	}
-	return out
-}
-
-func parseLogLevel(raw string) slog.Level {
-	switch strings.ToUpper(strings.TrimSpace(raw)) {
-	case "DEBUG":
-		return slog.LevelDebug
-	case "WARN", "WARNING":
-		return slog.LevelWarn
-	case "ERROR":
-		return slog.LevelError
-	default:
-		return slog.LevelInfo
-	}
-}
-
-func getEnv(key, fallback string) string {
-	if v := strings.TrimSpace(os.Getenv(key)); v != "" {
-		return v
-	}
-	return fallback
-}
-
-func getEnvBool(key string) (bool, error) {
-	v := strings.TrimSpace(os.Getenv(key))
-	if v == "" {
-		return false, nil
-	}
-	b, err := strconv.ParseBool(v)
-	if err != nil {
-		return false, fmt.Errorf("invalid %s %q: %w", key, v, err)
-	}
-	return b, nil
-}
-
-func getEnvInt(key string, fallback int) int {
-	v := strings.TrimSpace(os.Getenv(key))
-	if v == "" {
-		return fallback
-	}
-	n, err := strconv.Atoi(v)
-	if err != nil || n <= 0 {
-		return fallback
-	}
-	return n
-}
-
-func getEnvInt64(key string, fallback int64) int64 {
-	v := strings.TrimSpace(os.Getenv(key))
-	if v == "" {
-		return fallback
-	}
-	n, err := strconv.ParseInt(v, 10, 64)
-	if err != nil || n <= 0 {
-		return fallback
-	}
-	return n
-}
-
-func getEnvDuration(key string, fallback time.Duration) time.Duration {
-	v := strings.TrimSpace(os.Getenv(key))
-	if v == "" {
-		return fallback
-	}
-	d, err := time.ParseDuration(v)
-	if err != nil || d <= 0 {
-		return fallback
-	}
-	return d
 }
 
 func randomToken() (string, error) {

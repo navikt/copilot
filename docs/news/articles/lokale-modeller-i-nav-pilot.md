@@ -1,7 +1,7 @@
 ---
 title: "nav-pilot lander på bakken"
 date: 2026-08-30
-featured: true
+featured: false
 author: starefossen
 category: praksis
 excerpt: "En lokal modell kan gjøre mekaniske endringer over flere filer. Selve modellkjøringen bruker ingen AI-kreditter, men hovedagenten i skyen gjør det fortsatt."

@@ -327,6 +327,8 @@ func TestProxy_OBO_Headers_StreamableHTTP_SSE_Limits_And_Redirects(t *testing.T)
 func TestStrategyRefresh_Rotation_And_Concurrency(t *testing.T) {
 	te := newTestEnv(t)
 	te.gw.cfg.TeamTokenStrategy = strategyRefresh
+	te.gw.cfg.MCPMaxInFlightPerUser = 8
+	te.handler = te.gw.routes()
 	var err error
 	te.gw.TeamTokens, err = newTeamTokenSource(te.gw.cfg, te.gw.store, func() time.Time {
 		te.mu.Lock()

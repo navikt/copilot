@@ -332,3 +332,24 @@ func TestProposedReadGrantNamesOneFileAndRefusesTheDeniedOnes(t *testing.T) {
 		})
 	}
 }
+
+func TestPrivateDomainRejectsPublicSuffixAndNavApex(t *testing.T) {
+	for _, bad := range []string{"nav.no", "co.uk", "com.au", "org.uk", "github.io", "appspot.com"} {
+		block := `{"reason": "ok", "proxy": {"allow_private_domains": ["` + bad + `"]}}`
+		if err := Validate([]byte(proposeManifest(block))); err == nil {
+			t.Errorf("Validate accepted %q; want refusal", bad)
+		}
+		if err := checkPrivateDomain(bad); err == nil {
+			t.Errorf("checkPrivateDomain accepted %q; want refusal", bad)
+		}
+	}
+	for _, good := range []string{"intern.nav.no", "foo.intern.nav.no", "sub.intern.nav.no", "mimir.nav.cloud.nais.io"} {
+		block := `{"reason": "ok", "proxy": {"allow_private_domains": ["` + good + `"]}}`
+		if err := Validate([]byte(proposeManifest(block))); err != nil {
+			t.Errorf("Validate rejected %q: %v", good, err)
+		}
+		if err := checkPrivateDomain(good); err != nil {
+			t.Errorf("checkPrivateDomain rejected %q: %v", good, err)
+		}
+	}
+}

@@ -1,0 +1,43 @@
+ ✗ Shell Run failing Go tests Failed with exit code 1  . .. .github build.gradle.kts frister nais.y…
+   ls -a; ls -a frister; cd frister && go test ./...
+   .
+   ..
+   .github
+   build.gradle.kts
+   frister
+   nais.yaml
+   README.md
+   slug
+   src
+   ytelse
+   .
+   ..
+   frist_test.go
+   frist.go
+   go.mod
+   --- FAIL: TestFrist (0.00s)
+       frist_test.go:23: Frist(2026-09-05) = 2026-10-18, want 2026-10-19
+   FAIL
+   FAIL    example.com/frister     0.015s
+   FAIL
+   Failed with exit code 1
+
+ $ Shell Read deadline code and guidance 601 lines…
+   cat frister/frist*.go; cat .github/instructions/{golang,security-owasp}.instructions.md
+
+ ● skill(klarsprak)
+
+ ● Edit  Edit frister/frist.go (+1 -1)
+
+ $ Shell Verify deadline fix 1 line…
+   cd frister && gofmt -l frist.go && go test ./...
+
+`go test ./...` passerer i `frister/`. Testene er uendret.
+
+**Rød sone: beregning av klagefrist.** `Frist` flytter nå lørdagsfrister to kalenderdager frem til mandag, ikke én dag til søndag.
+
+**Sjekkliste for rød sone**
+- [ ] Se i `TestFrist` at både lørdag og søndag flyttes til mandag, mens en ukedag forblir uendret.
+
+Kan du fortelle meg hva denne koden gjør og hvorfor denne tilnærmingen er riktig?
+

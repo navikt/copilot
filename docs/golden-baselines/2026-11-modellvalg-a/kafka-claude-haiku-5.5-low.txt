@@ -1,0 +1,23 @@
+# golden-prompt SIZE MEASUREMENT: RECORDED, NOT A TARGET
+# Nothing asserts against these numbers, and no run fails because it
+# missed them. They describe one agent, one revision, one model, one day.
+# Only comparable with another run made the same way (--compare).
+# agent:        kafka
+# suite:        kafka
+# date:         2026-11-18
+# revision:     6ef38f72
+# personaHash:  743153095326cb245a1f3221c661a7cfcd2911f9b7ed12590e777c051086f227
+# harnessHash:  31303b66a044df68da77f1ba539f6a0a98cf0aabc6733992e11c37f4979c6eb4
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.114-0.
+# model:        claude-haiku-5.5
+# effort:       low
+# context:      CLI default
+# repeats:      5
+# instructions: 17 installed, 4 always-on
+# fixture:      3573972292
+# prompts:      all
+#
+# slug|runs|bytes_median|bytes_min|bytes_max|lines_median|lines_min|lines_max|words_median|words_min|words_max|elapsed_ms_median|elapsed_ms_min|elapsed_ms_max
+kf-idem|5|3366|3215|6602|58|55|146|423|376|676|45156|29019|78333
+kf-felt|5|1791|1465|2022|30|28|36|216|174|271|22042|19873|26300

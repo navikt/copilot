@@ -1,0 +1,18 @@
+ ● skill(klarsprak)
+
+ $ Shell ls -a; find . -name '*.kt' -o -name '*.kts' | head -25 12 lines…
+   ls -a; find . -name '*.kt' -o -name '*.kts' | head -25
+
+ $ Shell cat build.gradle.kts src/main/kotlin/no/nav/demo/Oppgave.kt; ls .github/instruct… 38 lines…
+   cat build.gradle.kts src/main/kotlin/no/nav/demo/Oppgave.kt; ls .github/instructions
+
+ $ Shell cat .github/instructions/{kotlin,security-owasp,testing-kotlin,testing}.instruct… 31 lines…
+   cat .github/instructions/{kotlin,security-owasp,testing-kotlin,testing}.instructions.md | grep
+   -iE 'junit|kotest|testImplementation|require|skill'
+
+ ● Edit  Edit build.gradle.kts (+1)  Create src/main/kotlin/no/nav/demo/Feriepenger.kt (+4)  Create…
+
+La til `Feriepenger.kt` med funksjonssignaturen og enhetstester for satsgrensen ved 60 år, avrunding rundt 50 øre, null og negativt grunnlag.
+
+**Rød sone:** Selve beregningen står som `TODO`. Teamet må fylle inn validering, satsvalg og avrunding før testene kan bestå. Jeg kjørte ikke Gradle.
+

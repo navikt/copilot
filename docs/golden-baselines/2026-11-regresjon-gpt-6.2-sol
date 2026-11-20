@@ -1,0 +1,33 @@
+# golden-prompt SIZE MEASUREMENT: RECORDED, NOT A TARGET
+# Nothing asserts against these numbers, and no run fails because it
+# missed them. They describe one agent, one revision, one model, one day.
+# Only comparable with another run made the same way (--compare).
+# agent:        nav-pilot
+# suite:        planning
+# date:         2026-11-18
+# revision:     6fbce9a6
+# personaHash:  a6d797b0efe8bbfbb9f7633660411ecba0af0f80980f46d2e89b5f6d36700689
+# harnessHash:  31303b66a044df68da77f1ba539f6a0a98cf0aabc6733992e11c37f4979c6eb4
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.114-0.
+# model:        gpt-6.2-sol
+# effort:       low
+# context:      CLI default
+# repeats:      5
+# instructions: 17 installed, 4 always-on
+# fixture:      4263008951
+# prompts:      2,3,4,5,7,7b,8,8b,9,9b,9c,9d
+#
+# slug|runs|bytes_median|bytes_min|bytes_max|lines_median|lines_min|lines_max|words_median|words_min|words_max|elapsed_ms_median|elapsed_ms_min|elapsed_ms_max
+t2|5|1735|1272|1990|25|19|26|234|167|263|21811|18063|22948
+t4a|5|1511|1347|1712|22|22|25|196|172|223|19683|18042|23492
+t4b|5|2971|2457|3692|21|15|33|404|329|496|21191|15143|24859
+t5|5|388|330|448|6|6|8|53|48|64|10153|9777|11215
+t7|5|4567|2620|5216|78|34|88|583|328|639|46723|27709|47438
+t7b|5|1120|1018|1165|18|16|22|140|129|156|18300|15858|21278
+t8|5|1126|1010|2647|17|15|58|133|122|249|17079|15387|18714
+t8b|5|1014|645|2686|15|12|68|127|71|238|17208|15693|20673
+t9|5|937|856|1040|15|15|16|110|101|126|20914|20691|21572
+t9b|5|2419|2094|8525|51|49|239|233|176|862|24544|22641|26281
+t9c|5|1019|825|1082|18|15|20|108|98|123|22613|21108|25352
+t9d|5|1865|856|2668|45|17|61|176|103|292|23487|18398|26010

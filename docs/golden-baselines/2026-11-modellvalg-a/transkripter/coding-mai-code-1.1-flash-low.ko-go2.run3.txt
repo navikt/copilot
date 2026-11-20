@@ -1,0 +1,24 @@
+ MD Read .github/instructions/golang.instructions.md L1:220 (219 lines read)
+
+ / Search "**/ytelse/**" 4 files found
+
+ GO Read ytelse/ytelse_test.go L1:260 (21 lines read)
+
+ GO Read ytelse/utbetaling.go L1:260 (6 lines read)
+
+ GO Read ytelse/rapport.go L1:260 (8 lines read)
+
+ GO Edit ytelse/utbetaling.go +4 -3
+
+ GO Edit ytelse/rapport.go +2 -2
+
+ $ Shell Run Go tests for ytelse package 1 line…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.qenq4R/repo/ytelse
+   && go test ./...
+
+Koden er oppdatert til å beregne dagsats ut fra grad, og `go test ./...` i `ytelse/` går grønt.
+
+Endringen:
+- `Utbetaling(grunnlag, grad int)` bruker nå grad i beregningen.
+- `Rapport(navn, grunnlag, grad)` sender grad videre til beregningen.
+

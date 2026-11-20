@@ -132,6 +132,22 @@ func TestToolPolicy_RouteFile(t *testing.T) {
 			t.Errorf("%q: %v", f, err)
 		}
 	}
+	prodRoutes, prodErr := (fileRouteSource{path: "pilot-routes.prod.yaml"}).Routes()
+	if prodErr != nil {
+		t.Fatal(prodErr)
+	}
+	var foundDolly bool
+	for _, r := range prodRoutes {
+		if r.Route == "/mcp/copilot/dolly" {
+			foundDolly = true
+			if len(r.allowedTools) == 0 {
+				t.Fatal("/mcp/copilot/dolly in pilot-routes.prod.yaml must keep an explicit tools list")
+			}
+		}
+	}
+	if !foundDolly {
+		t.Fatal("missing /mcp/copilot/dolly in pilot-routes.prod.yaml")
+	}
 }
 
 // The audit list stops at maxAuditBatchTools; the policy must still read every member.

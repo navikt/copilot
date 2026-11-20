@@ -1,0 +1,25 @@
+ ● skill(security-review)
+
+ ● skill(klarsprak)
+
+ ● Read src/main/kotlin/no/nav/demo/UserRepo.kt 15 lines read
+
+ ✗ Shell Kjør prosjektkontrollen Failed with exit code 1  mise ERROR no tasks defined in /private/v…
+   mise check
+   mise ERROR no tasks defined in 
+   /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.tJpC35/repo. Are you in
+    a project directory?
+   mise ERROR Version: 2026.11.10 macos-arm64 (2026-11-18)
+   mise ERROR Run with --verbose or MISE_VERBOSE=1 for more information
+   Failed with exit code 1
+
+**BLOCK: To sikkerhetsfeil i `UserRepo.kt` må rettes før merge.**
+
+| Linje | Prioritet | Funn og anbefaling |
+|---|---|---|
+| 8 | 🔴 Blokkerende | `logger.info` skriver hele fødselsnummeret til applikasjonsloggen ved hvert oppslag. Fjern `fnr` fra meldingen. Bruk en korrelasjons-ID hvis oppslaget må kunne spores. |
+| 9 | 🔴 Blokkerende | `fnr` settes direkte inn i SQL-teksten. Inndata kan dermed endre spørringen. Bind verdien som parameter: `queryOf("SELECT navn FROM bruker WHERE fnr = ?", fnr)`. |
+| 12–13 | 🟡 Bør rettes | `catch (e: Exception)` returnerer `null` også når databasen er utilgjengelig. Kalleren kan da ikke skille «bruker finnes ikke» fra «oppslaget feilet». La databasefeilen gå videre, og bruk `null` kun når spørringen ikke gir treff. |
+
+Gjennomgangen dekker den oppgitte filen. `mise check` kunne ikke kjøre fordi prosjektet ikke definerer noen mise-oppgaver.
+

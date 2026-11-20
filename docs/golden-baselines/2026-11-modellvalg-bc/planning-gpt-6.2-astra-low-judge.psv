@@ -1,0 +1,16 @@
+# golden-prompt BLIND-SPOT JUDGE VERDICTS (scripts/blindspot-judge.py)
+# date:         2026-11-18
+# revision:     6fbce9a6
+# personaHash:  a6d797b0efe8bbfbb9f7633660411ecba0af0f80980f46d2e89b5f6d36700689
+# harnessHash:  31303b66a044df68da77f1ba539f6a0a98cf0aabc6733992e11c37f4979c6eb4
+# model:        gpt-6.2-astra
+# judge:        claude-haiku-5.5, up to 3 votes, majority
+# controls:     controls cached hash=4f59e7585b68a79d date=2026-11-18 n=75 agree=73 accuracy=0.973
+# regex_* = RE_BS1/RE_BS2 anywhere in the answer, kept for comparison only.
+#
+# id|run|regex_bs1|regex_bs2|judge_bs1|judge_bs2|credits|bs1_quote|bs2_quote
+3|1|1|1|1|1|0.189|Trenger tjenesten fødselsnummeret bare mens den behandler forespørselen, eller må den lagre eller sende det videre?|Skal innbyggeren bruke tjenesten direkte i nettleseren, eller skal en annen Nav-applikasjon kalle den på vegne av innbyggeren?
+3|2|1|1|1|1|0.164|Hva skal tjenesten bruke fødselsnummeret til?|Hvem skal kalle tjenesten: innbyggerens nettleser etter innlogging i ID-porten, eller en annen Nav-app på vegne av innbyggeren?
+3|3|1|1|1|1|0.154|Hva trenger tjenesten fødselsnummeret til? Holder det å bruke det mens forespørselen behandles, eller må det lagres, sendes videre eller kobles til andre personopplysninger?|Skal innbyggeren bruke tjenesten direkte og bare få tilgang til egne opplysninger, eller skal en annen Nav-applikasjon kalle tjenesten på innbyggerens vegne? Hvilken applikasjon i så fall?
+3|4|1|1|1|1|0.176|Trenger tjenesten andre personopplysninger?|Skal innbyggeren bruke tjenesten direkte og bare få tilgang til egne opplysninger, eller skal en annen Nav-applikasjon kalle tjenesten på innbyggerens vegne?
+3|5|1|0|1|1|0.164|Trenger en annen tjeneste å motta fødselsnummeret?|Skal nettleseren kalle tjenesten direkte etter innlogging, eller skal en annen Nav-applikasjon kalle den på vegne av personen?

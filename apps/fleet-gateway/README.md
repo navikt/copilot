@@ -43,7 +43,9 @@ The gateway is live in prod (2026-11-17) for a controlled pilot. It runs the aut
 | `UPSTREAM_TIMEOUT` | No | `60s` | Time the MCP server gets to send response headers, and again to finish a non-SSE body. SSE uses `SSE_IDLE_TIMEOUT` and `SSE_MAX_DURATION` instead |
 | `MCP_MAX_IN_FLIGHT` | No | `16` | Concurrent buffered `/mcp/*` requests per pod. Over the cap: `503` with `Retry-After: 1` |
 | `MCP_MAX_IN_FLIGHT_PER_ROUTE` | No | `8` | Concurrent buffered requests per route, within `MCP_MAX_IN_FLIGHT`, so one slow upstream cannot hold every slot |
+| `MCP_MAX_IN_FLIGHT_PER_USER` | No | `4` | Concurrent buffered `/mcp/*` requests per user per pod, within `MCP_MAX_IN_FLIGHT`. Over the cap: `503` with `Retry-After: 1` |
 | `MCP_MAX_SSE` | No | `64` | Concurrent SSE response streams per pod, counted apart from `MCP_MAX_IN_FLIGHT` |
+| `MCP_MAX_SSE_PER_USER` | No | `4` | Concurrent SSE response streams per user per pod, within `MCP_MAX_SSE`. Over the cap: `503` with `Retry-After: 1` |
 | `METRICS_PORT` | No | `9090` | Port for `/metrics`. It has no ingress |
 | `LOG_LEVEL` | No | `INFO` | `DEBUG`, `INFO`, `WARN`, or `ERROR` |
 
@@ -98,18 +100,18 @@ Prometheus scrapes `/metrics` on port 9090. That port has no ingress, so the pub
 
 | Metric | Labels | What it shows |
 |---|---|---|
-| `fleet_gateway_http_requests_total` | `code`, `reason` | All responses except `/health` and `/ready`. `reason` is empty except on deliberate 503s: `disabled` (kill switch), `cap` (in-flight or SSE limit), `store_full` (store quota reached), `refresh_in_flight` (concurrent refresh of the same token). The 5xx alert counts only `reason=""` |
-| `fleet_gateway_mcp_requests_total` | `route`, `outcome`, `decision` | MCP calls. `outcome` matches the `audit mcp` log line, for example `ok`, `upstream_token_error`, `store_error` or `upstream_502` |
+| `fleet_gateway_http_requests_total` | `code`, `reason` | All responses except `/health` and `/ready`. `reason` is empty except on deliberate 503s: `disabled` (kill switch), `cap` (in-flight or SSE limit), `user_cap` (per-user in-flight limit), `user_sse_cap` (per-user SSE limit), `store_full` (store quota reached), `refresh_in_flight` (concurrent refresh of the same token). The 5xx alert counts only `reason=""` |
+| `fleet_gateway_mcp_requests_total` | `route`, `outcome`, `decision`, `reason`, `tool` | MCP calls. `reason` is set on `deny` only; `tool` is the called tool if on the route list, else `other`. `outcome` matches the `audit mcp` log line, for example `ok`, `upstream_token_error`, `store_error` or `upstream_502` |
 | `fleet_gateway_mcp_request_duration_seconds` | `route` | Time per MCP call, token exchange and upstream included. An SSE stream counts until it ends |
 | `fleet_gateway_routes_loaded` | none | Routes loaded at startup |
-| `fleet_gateway_rate_limited_total` | `endpoint` | Requests rejected with `429` by the in-memory rate limiter on `authorize`, `token`, `revoke`, or `register` |
+| `fleet_gateway_rate_limited_total` | `oauth_endpoint` | Requests rejected with `429` by the in-memory rate limiter on `authorize`, `token`, `revoke`, or `register` |
 
 Useful panels in Grafana:
 
 - Latency per route: `histogram_quantile(0.95, sum by (le, route) (rate(fleet_gateway_mcp_request_duration_seconds_bucket[5m])))`
 - Failures per route: `sum by (route, outcome) (rate(fleet_gateway_mcp_requests_total{outcome!="ok"}[5m]))`
 
-Alerts are in `.nais/app.yaml` and go to `#github-copilot-alerts`: no ready pods, more than 2 restarts in 15 minutes, more than 10 % 5xx (only with over 20 requests in 5 minutes), and more than 5 `upstream_token_error` in 10 minutes. An idle SSE stream that ends in `stream_error` does not trigger them, since its status 200 has already been sent. The alert series start at zero at startup, so the first burst counts. To test in dev, stop the app with `nais app stop fleet-gateway -t copilot -e dev-gcp` (it asks for confirmation in an interactive terminal) and restore it with `nais app set replicas fleet-gateway --min 1 --max 2 -t copilot -e dev-gcp`. `FleetGatewayNoReadyPods` fires after 2 minutes; in the 2026-11-18 drill it reached Slack after about 3.5 minutes (an upper bound). The `AlertmanagerConfig` in the manifest names `#github-copilot-alerts`, while the runbook notes that alerts follow the channel set per environment in Nais Console. Which of the two decides is not verified, so check both channels. See the [runbook](docs/runbook.md).
+Alerts are in `.nais/app.yaml` and go to `#github-copilot-alerts`: no ready pods, more than 2 restarts in 15 minutes, more than 10 % 5xx (only with over 20 requests in 5 minutes), and more than 5 `upstream_token_error` in 10 minutes. An idle SSE stream that ends in `stream_error` does not trigger them, since its status 200 has already been sent. The alert series start at zero at startup, so the first burst counts. To test in dev, stop the app with `nais app stop fleet-gateway -t copilot -e dev-gcp` (it asks for confirmation in an interactive terminal) and restore it with `nais app set replicas fleet-gateway --min 1 --max 2 -t copilot -e dev-gcp`. `FleetGatewayNoReadyPods` fires after 2 minutes; in the 2026-11-18 drill it reached Slack after about 3.5 minutes (an upper bound). The team's alert channel in Nais Console is also `#github-copilot-alerts`, in both dev and prod (confirmed 2026-11-18). See the [runbook](docs/runbook.md).
 
 ## Audit record
 

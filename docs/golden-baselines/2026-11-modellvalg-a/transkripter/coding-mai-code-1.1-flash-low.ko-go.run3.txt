@@ -1,0 +1,28 @@
+ / Search "frister|frister/" 3 lines found
+
+ / Search "**/*.go" 5 files found
+
+ MD Read .github/instructions/golang.instructions.md L1:220 (219 lines read)
+
+ GO Read frister/frist.go L1:220 (16 lines read)
+
+ GO Read frister/frist_test.go L1:220 (26 lines read)
+
+ ✗ Shell Run frister Go tests to reproduce failing behavior Failed with exit code 1  --- FAIL: Test…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.qenq4R/repo/frister
+   && go test ./...
+   --- FAIL: TestFrist (0.00s)
+       frist_test.go:23: Frist(2026-09-05) = 2026-10-18, want 2026-10-19
+   FAIL
+   FAIL    example.com/frister     0.251s
+   FAIL
+   Failed with exit code 1
+
+ GO Edit frister/frist.go +1 -1
+
+ $ Shell Verify the frister package passes its tests after the fix 1 line…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.qenq4R/repo/frister
+   && go test ./...
+
+Feilen lå i logikken for helg: når fristen faller på en lørdag, ble den flyttet til søndag i stedet for mandag. Jeg rettet dette i `frister/frist.go`, og `go test ./...` i `frister/` går nå grønt.
+

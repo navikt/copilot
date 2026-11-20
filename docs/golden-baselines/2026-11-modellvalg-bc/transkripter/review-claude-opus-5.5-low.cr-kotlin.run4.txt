@@ -1,0 +1,35 @@
+ $ Shell Read file 19 lines…
+   cat -n src/main/kotlin/no/nav/demo/UserRepo.kt; ls
+
+Jeg kjørte ikke `mise check`, fordi prosjektet ikke har noen mise-konfigurasjon. `session` er heller ikke definert eller importert i fila, så den kompilerer neppe som den står.
+
+### Oppsummering
+Funksjonen er kort og lett å lese, men den har to blokkerende sikkerhetsfeil og svelger alle feil i stillhet.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|---|---|---|---|
+| `UserRepo.kt` | 9 | 🔴 | SQL-injeksjon: `fnr` settes rett inn i SQL-strengen |
+| `UserRepo.kt` | 8 | 🔴 | Fødselsnummer skrives til applikasjonsloggen |
+| `UserRepo.kt` | 12–13 | 🟡 | Alle unntak svelges og blir til `null` |
+| `UserRepo.kt` | 11 | 🟡 | `session` er udefinert, og det er uklart hvordan tilkoblingen håndteres |
+| `UserRepo.kt` | – | 🟡 | Ingen tester for oppslaget |
+
+### Detaljer
+
+**Linje 9, SQL-injeksjon.** En verdi som `' OR '1'='1` endrer hva spørringen gjør. Bruk parameterisert spørring:
+```kotlin
+queryOf("SELECT navn FROM bruker WHERE fnr = ?", fnr)
+```
+
+**Linje 8, fødselsnummer i loggen.** Fødselsnummer er personopplysninger og hører ikke hjemme i vanlige logger. Applikasjonslogger har bred tilgang og lang lagringstid. Fjern linjen, eller logg en ikke-identifiserende ID. Hvis oppslaget skal auditlogges, skal det skrives i CEF-format gjennom en egen `auditLogger`.
+
+**Linje 12–13, svelgede feil.** Koden gir `null` både når brukeren ikke finnes og når databasen er nede, så kalleren kan ikke skille de to tilfellene. Fjern catch-blokken, eller logg feilen uten fødselsnummer og kast den videre med kontekst.
+
+**Linje 11, udefinert `session`.** Ta inn en `DataSource` som parameter, og bruk `using(sessionOf(dataSource)) { ... }` slik at sesjonen alltid lukkes.
+
+🔴 Rød sone: oppslag på personopplysninger og inputvalidering. Gå nøye gjennom disse delene.
+
+Spør gjerne hvis noe av dette er uklart.
+

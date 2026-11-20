@@ -80,6 +80,31 @@ func TestMCPToolsOn(t *testing.T) {
 	}
 }
 
+func TestMCPToolsOnOpenCodeV2AndObjectRules(t *testing.T) {
+	home := mcpConfigEnv(t)
+	writeFile(t, filepath.Join(home, ".config", "opencode", "opencode.json"), `{
+		"mcp": {
+			"servers": {
+				"com.jetbrains/intellij": {"type": "remote", "url": "http://127.0.0.1:64342/sse"}
+			}
+		},
+		"permission": {
+			"com_jetbrains_intellij_*": {"*": "deny"},
+			"com_jetbrains_intellij_read_file": "allow"
+		}
+	}`)
+	got, ok := MCPToolsOn(MCPClientOpenCode, "com.jetbrains/intellij", intellij)
+	if !ok {
+		t.Fatal("MCPToolsOn failed to read opencode 2 mcp.servers.<name> entry")
+	}
+	if got.URL != "http://127.0.0.1:64342/sse" {
+		t.Errorf("URL = %q, want http://127.0.0.1:64342/sse", got.URL)
+	}
+	if got.All || !slices.Equal(got.On, []string{"read_file"}) {
+		t.Errorf("got = %+v, want All=false On=[read_file]", got)
+	}
+}
+
 // A cache from before tool lists is read again: an old answer would let
 // enable turn on every tool of a server it cannot class.
 func TestMCPRegistryCacheSchema(t *testing.T) {

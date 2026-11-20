@@ -1,0 +1,4 @@
+**TokenX** for kall fra tjeneste A til B med brukerkontekst. A veksler brukerens token til et token med B som audience. B validerer tokenet og sjekker brukerens tilgang.
+
+Ikke bruk Entra ID `client_credentials`: det representerer tjenesten, ikke brukeren.
+

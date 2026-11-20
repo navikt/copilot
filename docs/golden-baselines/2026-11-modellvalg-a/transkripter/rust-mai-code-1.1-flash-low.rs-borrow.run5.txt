@@ -1,0 +1,22 @@
+ / Search "behandle_neste" 2 lines found
+
+ / Search "**/Cargo.toml" 2 files found
+
+ MD Read .github/instructions/rust.instructions.md Path does not exist
+
+ RS Read saksko/src/lib.rs L1:220 (50 lines read)
+
+ RS Edit saksko/src/lib.rs +2 -3
+
+ RS Edit saksko/src/lib.rs +5 -1
+
+ $ Shell Run Rust tests for saksko to verify borrow fix compiles and passes 8 lines…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.RZi2cT/repo/saksko
+   && cargo test --quiet
+
+Rettet lånefeilen i `saksko/src/lib.rs` ved å unngå å holde et immutable lån (`&Sak`) mens vi gjør en samtidig mutabel operasjon på samme vektor. Nå sjekker funksjonen først om køen er tom, fjerner deretter den eldste saken, oppdaterer `behandlet` og returnerer samme sak som før.
+
+Verifisert:
+- `cd saksko && cargo test --quiet`
+- Resultat: 1 test passing, 0 failed.
+

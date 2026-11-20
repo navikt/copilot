@@ -93,3 +93,37 @@ func TestLoopbackRandomPort_EndToEnd(t *testing.T) {
 		t.Fatalf("token exchange: %d %v", status, body)
 	}
 }
+
+func TestIsLoopbackRedirect_RejectsNonDigitPort(t *testing.T) {
+	for _, rawHost := range []string{"127.0.0.1:+80", "[::1]:+80", "127.0.0.1:-80", "127.0.0.1:0"} {
+		u := &url.URL{Scheme: "http", Host: rawHost, Path: "/callback"}
+		if isLoopbackRedirect(u) {
+			t.Errorf("isLoopbackRedirect(%q) = true, want false", rawHost)
+		}
+	}
+	if !isLoopbackRedirect(&url.URL{Scheme: "http", Host: "127.0.0.1:8080", Path: "/callback"}) {
+		t.Error("isLoopbackRedirect with valid numeric port = false, want true")
+	}
+}
+
+func TestRedirectWithValues_PreservesRegisteredQuery(t *testing.T) {
+	base, err := url.Parse("http://127.0.0.1:38249/callback?foo=bar&keep=1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/authorize", nil)
+	redirectWithValues(rec, req, base, url.Values{
+		"code":  {"gw-code"},
+		"state": {"st-1"},
+		"iss":   {"https://gw.example"},
+	})
+	loc, err := url.Parse(rec.Header().Get("Location"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	q := loc.Query()
+	if q.Get("foo") != "bar" || q.Get("keep") != "1" || q.Get("code") != "gw-code" || q.Get("state") != "st-1" || q.Get("iss") != "https://gw.example" {
+		t.Fatalf("merged redirect query = %v", q)
+	}
+}

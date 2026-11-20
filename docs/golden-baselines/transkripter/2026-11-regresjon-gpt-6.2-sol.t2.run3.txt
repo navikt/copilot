@@ -1,0 +1,25 @@
+ ● skill(nav-auth)
+
+ ● skill(klarsprak)
+
+ $ Shell Sjekk tjenestefiler og Copilot-oppsett 13 lines…
+   ls -la; ls -la .github
+
+ $ Shell Les prosjektets utgangspunkt 32 lines…
+   cat nais.yaml README.md build.gradle.kts; find src -type f
+
+**Fase 1: Avklare formål og tilgang**
+
+Prosjektet har en Ktor-demo med et Nais-manifest, men manifestet viser ingen ID-porten-konfigurasjon eller tilgangsregler. Fødselsnummer er en personopplysning. Jeg har ikke endret kode.
+
+1. Hva skal tjenesten bruke fødselsnummeret til? Trenger den selve nummeret, eller holder det å kjenne igjen den innloggede brukeren? Skal tjenesten lagre det, sende det videre eller bare bruke det i samme forespørsel? Behandler den andre personopplysninger?
+2. Skal innbyggere bruke tjenesten direkte i nettleseren, eller skal en annen tjeneste kalle den på vegne av brukeren?
+3. Hva skal brukeren oppleve hvis innloggingen feiler eller ID-porten ikke leverer fødselsnummer?
+4. Hvordan skal teamet oppdage at innloggingen feiler i drift, uten å logge personopplysninger?
+5. Hvilket team skal eie tjenesten, og hvilke systemer eller team avhenger den av?
+6. Hvilke testmiljøer og syntetiske testidentiteter har teamet tilgjengelig?
+
+Prosjektet mangler `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`. Bruk `nav-pilot init` for å sette opp prosjektinstruksjonene. Fasebudsjett: ca. 500 tokens til avklaring, 1 200 til plan, 800 til gjennomgang og 2 000 til leveranse.
+
+Blindsoner reist: 8/11 (#1–#7 og #11. Spørsmålene om tilgang og avhengigheter dekker også hvem som blir berørt. Innlogging og personvern er rød sone. #8–#10 gjelder ikke så lenge tjenesten ikke erstatter en eksisterende løsning).
+

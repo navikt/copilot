@@ -1,0 +1,18 @@
+ ● skill(klarsprak)
+
+ MD Read utkast.md 11 lines read
+
+ ● Create utkast.md.tmp +1
+
+ MD Edit utkast.md +3 -7
+
+Språkvasken er ferdig. `utkast.md` har nå omtrent 80 ord, og alle fakta er med.
+
+- **Nyheten først:** Teksten starter med at agenten er tilgjengelig fra mandag.
+- **KI-markører:** Jeg fjernet «i en tid der», «banebrytende», «sømløs», «avgjørende rolle», «det er viktig å påpeke», «avslutningsvis» og «fremtiden ser lys ut».
+- **Nynorsk:** «ikkje», «sjølv», «berre», «mykje» og «tilgjengeleg» er rettet til bokmål.
+- **AI → KI:** Teksten bruker nå «KI-agent».
+- **Aktiv form:** «slås av» ble til «Slå av», og «tas imot» ble til «Send tilbakemeldinger».
+
+Jeg opprettet ved et uhell også fila `utkast.md.tmp`, og jeg har ikke verktøy til å slette den. Du kan slette den selv.
+

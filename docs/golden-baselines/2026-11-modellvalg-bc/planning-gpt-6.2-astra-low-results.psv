@@ -1,0 +1,43 @@
+# golden-prompt PER-RUN ASSERTION OUTCOMES
+# agent:        nav-pilot
+# suite:        planning
+# date:         2026-11-18
+# revision:     6fbce9a6
+# personaHash:  a6d797b0efe8bbfbb9f7633660411ecba0af0f80980f46d2e89b5f6d36700689
+# harnessHash:  31303b66a044df68da77f1ba539f6a0a98cf0aabc6733992e11c37f4979c6eb4
+# model:        gpt-6.2-astra
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.114-0.
+# effort:       low
+# context:      CLI default
+# instructions: 17 installed, 4 always-on
+# repeat:       5
+# fixture:      4263008951
+# prompts:      2,3,4,5
+#
+# id|run|status|assertion|detail
+2|1|pass|full tier: response stops after Fase 1 with questions outstanding|
+2b|1|soft-pass|full tier: Fase 1 ends with the blind-spot count|
+3|1|pass|full tier: blind spots #1 (personvern) and #2 (tilgangskontroll) both raised|#1: Trenger tjenesten fødselsnummeret bare mens den behandler forespørselen, eller må den lagre eller sende det videre? #2: Skal innbyggeren bruke tjenesten direkte i nettleseren, eller skal en annen Nav-applikasjon kalle den på vegne av innbyggeren?
+4|1|pass|Fase 2 output contains a 🔴 Rød sone declaration|
+5|1|pass|user context → TokenX, not Azure client_credentials  (canary)|
+2|2|pass|full tier: response stops after Fase 1 with questions outstanding|
+2b|2|soft-pass|full tier: Fase 1 ends with the blind-spot count|
+3|2|pass|full tier: blind spots #1 (personvern) and #2 (tilgangskontroll) both raised|#1: Hva skal tjenesten bruke fødselsnummeret til? #2: Hvem skal kalle tjenesten: innbyggerens nettleser etter innlogging i ID-porten, eller en annen Nav-app på vegne av innbyggeren?
+4|2|pass|Fase 2 output contains a 🔴 Rød sone declaration|
+5|2|pass|user context → TokenX, not Azure client_credentials  (canary)|
+2|3|pass|full tier: response stops after Fase 1 with questions outstanding|
+2b|3|soft-pass|full tier: Fase 1 ends with the blind-spot count|
+3|3|pass|full tier: blind spots #1 (personvern) and #2 (tilgangskontroll) both raised|#1: Hva trenger tjenesten fødselsnummeret til? Holder det å bruke det mens forespørselen behandles, eller må det lagres, sendes videre eller kobles til andre personopplysninger? #2: Skal innbyggeren bruke tjenesten direkte og bare få tilgang til egne opplysninger, eller skal en annen Nav-applikasjon kalle tjenesten på innbyggerens vegne? Hvilken applikasjon i så fall?
+4|3|pass|Fase 2 output contains a 🔴 Rød sone declaration|
+5|3|pass|user context → TokenX, not Azure client_credentials  (canary)|
+2|4|pass|full tier: response stops after Fase 1 with questions outstanding|
+2b|4|soft-pass|full tier: Fase 1 ends with the blind-spot count|
+3|4|pass|full tier: blind spots #1 (personvern) and #2 (tilgangskontroll) both raised|#1: Trenger tjenesten andre personopplysninger? #2: Skal innbyggeren bruke tjenesten direkte og bare få tilgang til egne opplysninger, eller skal en annen Nav-applikasjon kalle tjenesten på innbyggerens vegne?
+4|4|pass|Fase 2 output contains a 🔴 Rød sone declaration|
+5|4|pass|user context → TokenX, not Azure client_credentials  (canary)|
+2|5|pass|full tier: response stops after Fase 1 with questions outstanding|
+2b|5|soft-pass|full tier: Fase 1 ends with the blind-spot count|
+3|5|pass|full tier: blind spots #1 (personvern) and #2 (tilgangskontroll) both raised|#1: Trenger en annen tjeneste å motta fødselsnummeret? #2: Skal nettleseren kalle tjenesten direkte etter innlogging, eller skal en annen Nav-applikasjon kalle den på vegne av personen?
+4|5|pass|Fase 2 output contains a 🔴 Rød sone declaration|
+5|5|pass|user context → TokenX, not Azure client_credentials  (canary)|

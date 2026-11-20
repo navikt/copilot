@@ -37,10 +37,11 @@ func mcpTestEntries() []providerpkg.MCPServerEntry {
 }
 
 type mcpFakes struct {
-	verdicts map[string]string // cplt check net target -> probe name
-	config   map[string]string // cplt config get key -> value
-	probes   []string
-	recorded [][]providerpkg.MCPHost
+	verdicts  map[string]string // cplt check net target -> probe name
+	config    map[string]string // cplt config get key -> value
+	probes    []string
+	recorded  [][]providerpkg.MCPHost
+	refreshes int
 }
 
 // mcpCmdEnv isolates HOME, answers the registry, cplt and the consent record
@@ -57,6 +58,9 @@ func mcpCmdEnv(t *testing.T, st providerpkg.MCPHostState) *mcpFakes {
 		return "https://registry.test", mcpTestEntries(), nil, nil
 	}
 	narrowMCPApproval = func() ([]string, error) { return nil, nil }
+	prevRefresh := mcpRegistryRefresh
+	t.Cleanup(func() { mcpRegistryRefresh = prevRefresh })
+	mcpRegistryRefresh = func() error { f.refreshes++; return nil }
 	mcpCpltPath = func() string { return "/fake/cplt" }
 	t.Cleanup(providerpkg.StubMCPPolicy("")) // never ask gh
 	mcpCpltConfigGet = func(_, key string) string { return f.config[key] }
@@ -346,7 +350,7 @@ func TestMCPCommandIsOffTheHotPath(t *testing.T) {
 	// The entry point, user-scope sync --apply's protocol backfill (#2395), and
 	// the read-only reports doctor and the host consent share with mcp list.
 	allowed := map[string]bool{"cli.go:cmdMCP": true, "sync.go:mcpBackfillOpenCodeProtocol": true, "doctor.go:reportMCPTools": true, "mcp_consent.go:mcpLoopbackNote": true}
-	writers := map[string]bool{"MCPRegistryServers": true, "SetMCPServer": true, "RemoveMCPServer": true, "MCPConfigKeys": true, "ConfiguredMCPServers": true, "MCPClientEntry": true, "MCPConfigKeyFor": true, "NarrowMCPApproval": true, "SetMCPServerTools": true}
+	writers := map[string]bool{"MCPRegistryServers": true, "SetMCPServer": true, "RemoveMCPServer": true, "MCPConfigKeys": true, "ConfiguredMCPServers": true, "MCPClientEntry": true, "MCPConfigKeyFor": true, "NarrowMCPApproval": true, "SetMCPServerTools": true, "RemoveMCPServers": true, "MCPConfigKeysAndComments": true}
 	var files []string
 	for _, dir := range []string{".", "../provider"} {
 		m, _ := filepath.Glob(filepath.Join(dir, "*.go"))
@@ -568,5 +572,111 @@ func TestMCPBackfillOpenCodeProtocolTwoKeys(t *testing.T) {
 	}
 	if lines != 2 {
 		t.Errorf("Set protocol lines = %d, want 2\n%s", lines, out)
+	}
+}
+
+func TestMCPFixesQuoteInterpolatedValues(t *testing.T) {
+	f := mcpCmdEnv(t, providerpkg.MCPHostState{})
+	badEntry := providerpkg.MCPServerEntry{
+		Name:   "io.example/old $(id)",
+		Status: "deprecated",
+		Remotes: []providerpkg.MCPRemote{{
+			URL: "https://evil$(id).example/mcp",
+		}},
+		Setup: []providerpkg.MCPSetupStep{
+			{Title: "single quoted", Commands: []string{"cplt config set allow.domains 'api.example.com'"}},
+			{Title: "double quoted", Commands: []string{`cplt config set allow.domains "dbl.example.com"`}},
+			{Title: "plain", Commands: []string{"cplt config set allow.domains plain.example.com"}},
+			{Title: "semicolon", Commands: []string{"cplt config set allow.domains a.example;rm"}},
+			{Title: "unterminated quote", Commands: []string{"cplt config set allow.domains 'unterminated.example.com"}},
+			{Title: "bad key", Commands: []string{"cplt config set bad;key val"}},
+			{Title: "upper key", Commands: []string{"cplt config set BAD_KEY val"}},
+			{Title: "slash key", Commands: []string{"cplt config set a/b val"}},
+		},
+	}
+	f.verdicts["evil$(id).example:443"] = "BLOCKED-ALLOWLIST"
+	entries := append(mcpTestEntries(), badEntry)
+	writeTestFile(t, copilotMCPPath(), `{"mcpServers": {
+		"io.example/old $(id)": {},
+		"old $(id)": {},
+		"my $(touch w)": {}
+	}}`)
+
+	rep := diagnoseMCP("r", entries, mcpConfigured(entries), "")
+	var fixes []string
+	for _, p := range rep.Problems {
+		fixes = append(fixes, p.Fix)
+	}
+	wantAll := []string{
+		"nav-pilot mcp disable 'io.example/old $(id)'",
+		"cplt config set allow.domains 'evil$(id).example'",
+		"cplt config set allow.domains api.example.com",
+		"cplt config set allow.domains dbl.example.com",
+		"cplt config set allow.domains plain.example.com",
+		"nav-pilot mcp disable 'old $(id)' --client copilot && nav-pilot mcp enable 'io.example/old $(id)' --client copilot",
+		"nav-pilot mcp disable 'my $(touch w)' --client copilot, or ask for it in the registry: " + providerpkg.MCPRegistryHelpURL,
+	}
+	for _, w := range wantAll {
+		if !slices.Contains(fixes, w) {
+			t.Errorf("missing quoted fix %q in %q", w, fixes)
+		}
+	}
+	for _, fix := range fixes {
+		if strings.Contains(fix, "api.example.com") && strings.Contains(fix, "'") {
+			t.Errorf("quoted setup command left stray apostrophes in fix: %q", fix)
+		}
+		if strings.Contains(fix, "a.example") || strings.Contains(fix, "unterminated") || strings.Contains(fix, "bad;key") || strings.Contains(fix, "BAD_KEY") || strings.Contains(fix, "a/b") {
+			t.Errorf("invalid setup command emitted runnable fix: %q", fix)
+		}
+	}
+
+	out := captureStdout(func() {
+		printMCPProblems([]mcpProblem{{
+			Server:  "srv\x1b[2K",
+			Problem: "line1\nline2\x1b[31m",
+			Fix:     "cplt config set allow.domains 'a\x1b[2Kb\nc'",
+		}})
+	})
+	if strings.Contains(out, "\x1b[2K") || strings.Contains(out, "\x1b[31m") || strings.Contains(out, "line2\n") {
+		t.Errorf("printMCPProblems emitted raw escape or injected newline: %q", out)
+	}
+}
+
+func TestMCPRefreshFlag(t *testing.T) {
+	f := mcpCmdEnv(t, providerpkg.MCPHostState{})
+	if err := cmdMCP([]string{"list", "--refresh", "--json"}); err != nil || f.refreshes != 1 {
+		t.Fatalf("list --refresh: %v, refreshes %d", err, f.refreshes)
+	}
+	if err := cmdMCP([]string{"list", "--json"}); err != nil || f.refreshes != 1 {
+		t.Fatalf("list: %v, refreshes %d", err, f.refreshes)
+	}
+	if err := cmdMCP([]string{"disable", "x", "--refresh"}); err == nil {
+		t.Error("disable --refresh: want an error")
+	}
+}
+
+// A name missing from the cache is read again once; a name that is there is not.
+func TestMCPEnableRefreshesOnUnknownName(t *testing.T) {
+	f := mcpCmdEnv(t, providerpkg.MCPHostState{})
+	fresh := append(mcpTestEntries(), providerpkg.MCPServerEntry{Name: "io.github.navikt/newcomer", Status: "active", Remotes: []providerpkg.MCPRemote{{Type: "streamable-http", URL: "https://newcomer.example/mcp"}}})
+	mcpRegistryServers = func() (string, []providerpkg.MCPServerEntry, error, error) {
+		if f.refreshes > 0 {
+			return "https://registry.test", fresh, nil, nil
+		}
+		return "https://registry.test", mcpTestEntries(), nil, nil
+	}
+	if err := cmdMCP([]string{"enable", "newcomer", "--client", "copilot"}); err != nil {
+		t.Fatalf("enable after refresh: %v", err)
+	}
+	if b, _ := os.ReadFile(copilotMCPPath()); !strings.Contains(string(b), "https://newcomer.example/mcp") {
+		t.Errorf("config not written for refreshed entry:\n%s", b)
+	}
+	if f.refreshes != 1 {
+		t.Errorf("unknown name: refreshes %d, want 1", f.refreshes)
+	}
+	f.refreshes = 0
+	_ = cmdMCP([]string{"enable", "does-not-exist", "--client", "copilot"})
+	if f.refreshes != 1 {
+		t.Errorf("name in neither: refreshes %d, want exactly 1", f.refreshes)
 	}
 }

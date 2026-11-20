@@ -1,0 +1,10 @@
+ ● skill(klarsprak)
+
+ / Search "**/{fakta,notis}.md" 1 file found
+
+ MD Read fakta.md 6 lines read
+
+ MD Create notis.md +7
+
+Notisen er lagret i `notis.md` (ca. 55 ord, bokmål). Den dekker alle fem punktene i `fakta.md`: hva agenten sjekker, at den kjører automatisk på pull requests under `docs/`, hvordan teamene slår den av, startdatoen mandag 5. oktober og Slack-kanalen for tilbakemeldinger.
+

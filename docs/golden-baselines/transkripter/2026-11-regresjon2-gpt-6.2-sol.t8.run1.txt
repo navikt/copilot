@@ -1,0 +1,20 @@
+ ● skill(klarsprak)
+
+ $ Shell Finn signeringskode og repofiler 39 lines…
+   ls -la; rg --files --hidden -g '!.git' | head -40; rg -in 'signatur|signature' -l | head -25
+
+ $ Shell Les signeringsflyt og sjekk GitHub-tilgang 44 lines…
+   cat lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/Signing{Headers,ProducerInterceptor}.kt;
+   git remote -v; gh repo list navikt --limit 10 --json name --jq '.[].name'
+
+ $ Shell Let etter referanserepo og bruk av signeringsheadere 5 lines…
+   gh repo list navikt --limit 100 --json name --jq '.[] | select(.name |
+   test("paw.*(intern|monorepo)")).name'; rg -n
+   'stripSigningHeaders|SigningProducerInterceptor|x-paw-sign' .
+
+Jeg har ikke endret signeringskoden. `SigningProducerInterceptor.onSend` legger til nye headere uten å fjerne de gamle, men repoet har allerede `stripSigningHeaders`, som fjerner både `x-paw-signature` og `x-paw-signing-key-id`. Jeg fant ikke referanseimplementasjonen i Paw-monorepoet. `AGENTS.md` og Copilot-instruksjonene på reponivå mangler også. De kan opprettes med `nav-pilot init`.
+
+Jeg legger til grunn at payload, mottakere, tilgang og nøkkelhåndtering er uendret. Hvilke konsumenter verifiserer signaturen, og skal de kunne motta meldingen med de gamle signeringsheaderne hvis ny signering feiler?
+
+Blindsoner reist: 2/11 (#3 feilhåndtering, #6 konsumenter). Resten gjelder uendrede forhold eller avklares når referansen og konsumentkravene er kjent.
+

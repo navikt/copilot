@@ -113,7 +113,7 @@ Commands:
   alpha local <cmd>       Run a model on this machine (alpha; off until you run 'alpha local init')
   alpha decide "<q>"      Ask the local model a multiple-choice question (alpha; see 'alpha decide --help')
   models [filter]         List the models the client can use, the current one marked
-  mcp [list|enable|disable]  List Nav's MCP servers and what stops yours from working; enable or disable some
+  mcp [list|enable|disable|prune]  List Nav's MCP servers and what stops yours from working; enable, disable or prune some
   plugins                 Show this repo's own OpenCode plugins and hook gates, and answer again whether to load them
   auth <login|status|logout>  Authenticate with GitHub for copilot-cli usage lookups
   usage                   Show your GitHub Copilot usage (requires 'auth login')

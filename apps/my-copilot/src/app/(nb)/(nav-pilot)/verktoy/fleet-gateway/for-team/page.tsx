@@ -222,6 +222,18 @@ export default function FleetGatewayForTeamPage() {
             <a href="https://github.com/navikt/copilot/pull/2365" className={linkClass}>
               #2365
             </a>
+            .{" "}
+            <a href="https://github.com/navikt/copilot/tree/main/apps/mcp-kodeverk" className={linkClass}>
+              mcp-kodeverk
+            </a>{" "}
+            og{" "}
+            <a href="https://github.com/navikt/copilot/tree/main/apps/mcp-dolly" className={linkClass}>
+              mcp-dolly
+            </a>{" "}
+            er referanseimplementasjoner for servere i piloten, se{" "}
+            <NextLink href="/verktoy/fleet-gateway#servere-i-piloten" className={linkClass}>
+              Servere i piloten
+            </NextLink>
             .
           </li>
         </Bullets>
@@ -455,8 +467,9 @@ export default function FleetGatewayForTeamPage() {
             går mer enn 60 sekunder mellom hendelsene.
           </li>
           <li>
-            Hver gateway-pod tar 16 vanlige MCP-kall og 64 åpne SSE-strømmer samtidig. Kall over taket får{" "}
-            <code className={code}>503</code> med <code className={code}>Retry-After</code>.
+            Hver gateway-pod tar 16 vanlige MCP-kall og 64 åpne SSE-strømmer samtidig. Hver bruker kan ha høyst 4
+            samtidige kall per pod. Kall over taket får <code className={code}>503</code> med{" "}
+            <code className={code}>Retry-After</code>.
           </li>
           <li>Gatewayen logger hvert kall med NAV-ident, rute og MCP-metode. Tilgang til data styrer dere i appen.</li>
           <li>

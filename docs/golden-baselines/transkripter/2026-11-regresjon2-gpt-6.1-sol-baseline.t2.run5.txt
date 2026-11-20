@@ -1,0 +1,34 @@
+ ● skill(klarsprak)
+
+ ● List directory . 5 files found
+
+ YM Read nais.yaml 12 lines read
+
+ MD Read README.md 4 lines read
+
+ ● Read build.gradle.kts 12 lines read
+
+ / Search "{AGENTS.md,.github/**,src/**}" 22 files found
+
+ ● Read src/main/kotlin/no/nav/demo/Routes.kt 19 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/App.kt 15 lines read
+
+**Fase 1: Avklaring (fullt omfang).** Repoet er en Ktor-demo uten auth i rutene jeg har lest. `nais.yaml` har ikke ID-porten-konfigurasjon. Ingen kode er endret.
+
+Jeg legger til grunn at fødselsnummeret gjelder innlogget bruker. Før vi lager planen:
+
+1. Hva skal tjenesten bruke fødselsnummeret til? Skal det lagres eller sendes videre, og behandles andre personopplysninger?
+2. Kommer brukeren direkte fra nettleseren, eller kalles tjenesten via en frontend/BFF eller annen tjeneste? Hvem skal få tilgang?
+3. Skal denne demoen bygges videre på, eller skal vi opprette en separat tjeneste? Hvilket team eier den?
+4. Hva skal brukeren kunne gjøre, og hva skal skje når innlogging eller avhengigheter feiler?
+5. Hvilke tester og driftsmål skal vise at flyten virker?
+
+🔴 Rød sone: autentisering og behandling av fødselsnummer må forstås grundig. Fødselsnummer og tokens skal ikke logges.
+
+Repoet mangler `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`. `nav-pilot init` kan opprette lokal Copilot-konfigurasjon.
+
+Omtrentlig tokenbudsjett per fase: intervju 1 000, plan 2 000, review 1 500, levering 3 000.
+
+Blindsoner reist: 8/11 (#1–#7 og #11); #8–#10 gjelder først dersom tjenesten erstatter noe eller har eksisterende konsumenter.
+

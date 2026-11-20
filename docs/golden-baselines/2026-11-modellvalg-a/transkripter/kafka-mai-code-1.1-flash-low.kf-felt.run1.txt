@@ -1,0 +1,39 @@
+ ● update_todo todos: "- [ ] Finn VedtakFattet-modellen og eksisterende tester - … TODO list updated
+
+ MD Read .github/instructions/kotlin.instructions.md L1:220 (220 lines read)
+
+ / Search "VedtakFattet|sakstype|Vedtak Fattet" 5 lines found
+
+ / Search "**/vedtak-hendelse/**" 4 files found
+
+ ● Read vedtak-hendelse/src/main/kotlin/no/nav/vedtak/VedtakFattet.kt L1:220 (18 lines read)
+
+ ● Read vedtak-hendelse/src/test/kotlin/no/nav/vedtak/VedtakFattetTest.kt L1:220 (11 lines read)
+
+ ● Read vedtak-hendelse/build.gradle.kts L1:220 (20 lines read)
+
+Jeg har funnet modellen og testene. Nå oppdaterer jeg serialisering/deserialisering slik at gamle meldinger får default `ORDINAER`, og ukjente felter ikke stopper lesing.
+
+ ● Edit vedtak-hendelse/src/main/kotlin/no/nav/vedtak/VedtakFattet.kt +9
+
+ ● Edit vedtak-hendelse/src/test/kotlin/no/nav/vedtak/VedtakFattetTest.kt +21 -2
+
+ $ Shell Run Gradle tests for the vedtak-hendelse project 14 lines…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.BOVGgm/repo/vedtak-h
+   endelse && gradle test --console=plain
+
+Fikset i vedtak-hendelse:
+
+- la til enum `Sakstype` med verdiene `ORDINAER`, `KLAGE`, `ANKE`
+- la `sakstype` inn i `VedtakFattet` med default `ORDINAER`
+- satte Jackson til å ignorere ukjente felter ved deserialisering, slik at ferskere med nye felt ikke gjør at gamle meldinger feiler
+- la til tester for:
+  - gammel melding uten `sakstype`
+  - melding med `sakstype`
+  - melding med ukjent felt
+
+Verifisert med:
+- `cd vedtak-hendelse && gradle test`
+
+Resultat: BUILD SUCCESSFUL.
+

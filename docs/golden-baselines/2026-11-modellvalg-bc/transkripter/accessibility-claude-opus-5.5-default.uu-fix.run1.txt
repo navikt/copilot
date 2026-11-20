@@ -1,0 +1,15 @@
+ TX Read src/app/komponenter/StatusPanel.tsx 19 lines read
+
+ MD Read .github/instructions/accessibility.instructions.md 121 lines read
+
+ TX Edit src/app/komponenter/StatusPanel.tsx +1 -1
+
+Jeg har gitt slett-knappen et tilgjengelig navn ved å endre ikonet til `<TrashIcon title="Slett" />`. Aksel-ikoner legger `title` inn som `<title>` i SVG-en, så skjermlesere leser knappen som «Slett». Jeg har ikke kjørt tester eller axe på endringen.
+
+Jeg så også andre UU-feil i samme komponent, som jeg ikke har rørt:
+- `<div onClick>` mangler rolle og tastaturstøtte, og `outline: none` fjerner fokusindikatoren. Bytt den ut med `<Button aria-expanded>`.
+- Elementet med `tabIndex={5}` bryter fokusrekkefølgen.
+- Statusen vises bare med rød eller grønn farge.
+
+Si fra hvis jeg skal fikse disse også.
+

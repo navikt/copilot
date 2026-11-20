@@ -1,0 +1,21 @@
+ $ Shell Locate saksko crate and behandle_neste 9 lines…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.bM0BcN/repo && ls &&
+   find . -path '*saksko*' -name '*.rs' -not -path '*/target/*' | head -50 && grep -rn
+   "behandle_neste" --include=*.rs . | grep -v target | head
+
+ $ Shell Show saksko source and run cargo test 71 lines…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.bM0BcN/repo/saksko
+   && cat src/lib.rs && cat Cargo.toml && cargo test 2>&1 | tail -40
+
+Lånefeilen oppstår fordi `sak` er en referanse inn i `self.saker`, som lever til etter `remove(0)`. Jeg klonar saken før den fjernes, så lånet slipper.
+
+ RS Edit saksko/src/lib.rs +2 -2
+
+ $ Shell Run saksko tests 14 lines…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.bM0BcN/repo/saksko
+   && cargo test 2>&1 | tail -15
+
+Lånefeilen i `behandle_neste` er rettet, og `cargo test` i `saksko/` går grønt (1 test passerer).
+
+Endringen er i `saksko/src/lib.rs`: `sak` klones fra `self.saker.first()?` før `remove(0)`, og funksjonen returnerer den klonede saken. Oppførselen er den samme: eldste sak tas ut, id legges i `behandlet`, og saken returneres.
+

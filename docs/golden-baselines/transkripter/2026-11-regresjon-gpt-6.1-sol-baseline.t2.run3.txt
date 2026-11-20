@@ -1,0 +1,41 @@
+ ● skill(klarsprak)
+
+ $ Shell Se etter prosjekt og lokal Copilot-konfigurasjon 8 lines…
+   pwd && ls -a
+
+ ● List directory .github 2 files found
+
+ YM Read nais.yaml 12 lines read
+
+ ● Read build.gradle.kts 12 lines read
+
+ MD Read README.md 4 lines read
+
+ / Search "src/**/*" 4 files found
+
+ ● Read src/main/kotlin/no/nav/demo/Routes.kt 19 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/Oppgave.kt 9 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/App.kt 15 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/Config.kt 4 lines read
+
+**Fase 1: Avklaring (fullt løp).** Repoet har en liten Ktor-tjeneste, men ingen auth i koden eller ID-porten-konfigurasjon i `nais.yaml`. Ingen kode er endret.
+
+Jeg antar at tjenesten skal lese fødselsnummeret til den innloggede personen. Før vi velger løsning:
+
+1. Hva skal fødselsnummeret brukes til? Skal tjenesten behandle andre personopplysninger, lagre fødselsnummeret eller sende det videre, og i så fall til hvem?
+2. Skal innbyggeren bruke tjenesten direkte i nettleseren, eller skal en annen tjeneste kalle den på innbyggerens vegne?
+3. Skal vi bygge videre på demoen eller opprette en separat tjeneste? Har dere krav til språk og framework?
+4. Hva skal brukeren kunne gjøre, og hva skal skje hvis innlogging eller avhengigheter feiler?
+5. Hvilket team eier tjenesten og eventuelle integrasjoner, og hvordan skal dere måle at den fungerer uten personopplysninger i logger eller metrikker?
+
+🔴 Rød sone: autentisering og behandling av fødselsnummer krever grundig forståelse.
+
+Repoet mangler `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`. Disse kan opprettes med `nav-pilot init`.
+
+Omtrentlig tokenbudsjett: intervju 1 000, plan 2 000, review 1 500, levering 3 000.
+
+Blindsoner reist: 7/11 (#1–#6 og #11; #7 avklares når funksjonen er kjent, #8–#10 gjelder ikke foreløpig siden du ber om en ny tjeneste).
+

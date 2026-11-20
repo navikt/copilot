@@ -1,0 +1,15 @@
+ TX Read src/app/komponenter/StatusPanel.tsx 19 lines read
+
+ MD Read .github/instructions/accessibility.instructions.md 121 lines read
+
+ TX Edit src/app/komponenter/StatusPanel.tsx +1 -1
+
+Slett-knappen har nå et tilgjengelig navn. Jeg har lagt til `title="Slett"` på `<TrashIcon />`. Aksel-ikonet gjør `title` om til en `<title>` i SVG-en, og skjermlesere leser da knappen som «Slett» (WCAG 4.1.2). Jeg har ikke testet med skjermleser eller axe.
+
+Andre UU-feil i samme fil, som jeg ikke har rørt:
+- **«Vis detaljer» er en `<div onClick>`.** Den kan ikke nås med tastatur, mangler `aria-expanded` og har `outline: none` (2.1.1, 2.4.7). Bytt til `<Button>`.
+- **`tabIndex={5}` på status.** Verdier over 0 roter til tab-rekkefølgen (2.4.3).
+- **Status vises bare med farge** (rød/grønn) (1.4.1).
+
+Vil du at jeg fikser disse også?
+

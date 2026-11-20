@@ -1,0 +1,19 @@
+ ● skill(nav-auth)
+
+ ● skill(klarsprak)
+
+ $ Shell ls -la; ls -la .github 13 lines…
+   ls -la; ls -la .github
+
+ $ Shell cat README.md nais.yaml build.gradle.kts; find src -type f 32 lines…
+   cat README.md nais.yaml build.gradle.kts; find src -type f
+
+**Fase 1: Avklaring før implementering.** Jeg fant en Ktor-demo på Nais uten ID-porten-konfigurasjon. Jeg antar at innbyggere skal logge inn med ID-porten, og at tjenesten trenger fødselsnummeret til den innloggede. Ingen filer er endret.
+
+1. Hva skal tjenesten bruke fødselsnummeret til, og hva er behandlingsgrunnlaget? Skal nummeret brukes bare under forespørselen, lagres eller sendes videre? I så fall hvor og hvor lenge?
+2. Skal innbyggeren bruke tjenesten direkte i nettleseren, eller skal en annen Nav-tjeneste kalle den på vegne av innbyggeren? Hvilket innloggingsnivå kreves?
+
+Repoet mangler `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`. De kan settes opp med `nav-pilot init`.
+
+Blindsoner reist: 2/11 (#1 personvern, #2 tilgang). Feilhåndtering, drift, avhengigheter og testing avklares når dataflyten er kjent. Migrering, bakoverkompatibilitet og avvikling gjelder ikke en ny tjeneste. Læringsbehov vurderes når innloggingsflyten er avklart.
+

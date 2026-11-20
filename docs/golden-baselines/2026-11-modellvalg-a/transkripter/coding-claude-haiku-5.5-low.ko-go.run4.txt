@@ -1,0 +1,29 @@
+ ✗ Shell  Permission denied because no interactive user response was available. Retry in an interact
+   cd frister 2>/dev/null || cd repo/frister; pwd; ls; go test ./... 2>&1 | head -80
+   Approval check
+     └ ✗ Denied, no one to approve shell path
+       (/private/var/folders/8q/l5h25q1s1tn8wp0...t-golden.kImu0d/repo/repo/frister/test,
+       /private/var/folders/8q/l5h25q1s1tn8wp0...ot-golden.kImu0d/repo/repo/frister/...)
+   Permission denied because no interactive user response was available. Retry in an interactive 
+   session so the user can approve it, or try an alternative that does not require this permission.
+
+ ● List directory . 8 files found
+
+ / Search "frister/**/*.go" 2 files found
+
+ GO Read frister/frist.go 16 lines read
+
+ GO Read frister/frist_test.go 26 lines read
+
+The bug: Saturday falls through to `AddDate(0,0,1)`, which lands on Sunday instead of Monday. Saturday needs +2 days.
+
+ GO Edit frister/frist.go +1 -1
+
+ $ Shell Run go tests in frister 1 line…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.kImu0d/repo/frister
+   && go test ./... 2>&1 | tail -20
+
+Feilen lå i `frister/frist.go`: lørdag fikk +1 dag og endte på søndag i stedet for mandag. Jeg endret lørdagsgrenen til +2 dager. Søndagsgrenen var allerede riktig.
+
+`go test ./...` i `frister/` går nå grønt. Testene er ikke endret.
+

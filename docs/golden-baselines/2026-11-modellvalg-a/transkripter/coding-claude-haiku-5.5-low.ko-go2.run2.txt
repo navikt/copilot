@@ -1,0 +1,45 @@
+ $ Shell Run tests in ytelse to see failures 21 lines…
+   cd ytelse 2>/dev/null && pwd; cd
+   /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.kImu0d/repo && ls && ls
+   ytelse && cd ytelse && go test ./... 2>&1 | head -80
+
+ ✗ Shell  Permission denied because no interactive user response was available. Retry in an interact
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.kImu0d/repo/ytelse/y
+   telse && cat go.mod utbetaling.go rapport.go ytelse_test.go; ls ../frister ../slug ../src
+   2>/dev/null | head; cat ../README.md | head -60
+   Approval check
+     └ ✗ Denied, no one to approve shell path
+       (/private/var/folders/8q/l5h25q1s1tn8wp0...olden.kImu0d/repo/ytelse/ytelse/go.mod,
+       /private/var/folders/8q/l5h25q1s1tn8wp0...Imu0d/repo/ytelse/ytelse/utbetaling.go, +6 more)
+   Permission denied because no interactive user response was available. Retry in an interactive 
+   session so the user can approve it, or try an alternative that does not require this permission.
+
+ GO Read ytelse/ytelse/rapport.go Path does not exist
+
+ GO Read ytelse/ytelse/utbetaling.go Path does not exist
+
+ GO Read ytelse/ytelse/ytelse_test.go Path does not exist
+
+ GO Read ytelse/utbetaling.go 6 lines read
+
+ GO Read ytelse/rapport.go 8 lines read
+
+ GO Read ytelse/ytelse_test.go 21 lines read
+
+Testene kaller `Utbetaling` og `Rapport` med en ekstra `grad`-parameter (prosent av full ytelse). Jeg legger til parameteren i koden og beholder testene uendret.
+
+ GO Edit ytelse/utbetaling.go +4 -3
+
+ GO Edit ytelse/rapport.go +2 -2
+
+ $ Shell Run go vet and tests in ytelse 1 line…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.kImu0d/repo/ytelse
+   && go vet ./... && go test ./...
+
+`go test ./...` i `ytelse/` er grønt nå. Jeg endret bare koden, ikke testene.
+
+- **`utbetaling.go`**: `Utbetaling(grunnlag, grad int)` regner `grunnlag * grad / (260 * 100)`. Deling gjøres til slutt for å unngå avrundingstap.
+- **`rapport.go`**: `Rapport(navn, grunnlag, grad int)` sender `grad` videre.
+
+Begge funksjonene har fått oppdatert doc-kommentar. `go vet` er også rent.
+

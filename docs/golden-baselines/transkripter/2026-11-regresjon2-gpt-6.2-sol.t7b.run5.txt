@@ -1,0 +1,18 @@
+ ● skill(kafka)
+
+ ● skill(klarsprak)
+
+ $ Shell Find Kafka message and configuration 16 lines…
+   ls -la; ls -la .github; rg --hidden -n 'SoknadMottattMelding|soknad-mottatt' -g '!.git/**'
+
+ $ Shell cat src/main/kotlin/no/nav/demo/Soknad.kt nais.yaml README.md; rg --files --hidd… 69 lines…
+   cat src/main/kotlin/no/nav/demo/Soknad.kt nais.yaml README.md; rg --files --hidden
+
+Jeg har ikke lagt til `fnr` i `SoknadMottattMelding`. `Soknad.kt` sender meldingen som JSON til `soknad-mottatt`, og repoet viser verken hvem som kan lese topicet eller hvordan fødselsnummeret skal beskyttes.
+
+Hvilke konsumenter trenger fødselsnummeret, og hvordan skal feltet krypteres før publisering? Kan de eksisterende konsumentene lese både gamle meldinger uten `fnr` og nye meldinger med feltet?
+
+Repoet mangler `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`. De kan settes opp med `nav-pilot init`.
+
+Blindsoner reist: 3/11 (#1 personvern, #6 konsumenter, #9 bakoverkompatibilitet). De øvrige gjelder ikke denne feltendringen eller vurderes når meldingskontrakten er avklart.
+

@@ -1,0 +1,27 @@
+ ● skill(klarsprak)
+
+ ● Research-agent (model: gpt-6-luna) Kartlegg Kafka-melding og personvern                       23s
+   │ ## Funn
+   │ Read .github/instructions/testing-kotlin.instructions.md 185 lines read
+   └ Read .github/instructions/security-core.instructions.md 16 lines read
+
+## Funn
+
+- `src/main/kotlin/no/nav/demo/Soknad.kt:11` definerer `SoknadMottattMelding` med `soknadId` og `mottatt`. Produsenten `sendMottatt` serialiserer meldingen til JSON og sender den til `soknad-mottatt` (`:21–22`).
+- Mulig kilde til fnr finnes i samme fil: `SokerDto` har `fnr` (`:11`), og `sendSoker` sender den til en annen topic, `soker-oppdatert` (`:25–26`). Jeg finner ingen kobling som viser hvordan fnr skal knyttes til en bestemt søknad eller brukes i `sendMottatt`.
+- Ingen tester, Kafka-konsumenter eller ytterligere topic-konfigurasjon er funnet i repoet. `build.gradle.kts` har Kafka-klientavhengighet, men beskriver ikke topic-egenskaper.
+- `nais.yaml` inneholder ikke Kafka-tilgangspolicy eller andre tilgangsregler. README.md beskriver tjenesten som en liten demonstrasjonstjeneste og sier at dokumentasjonen er ufullstendig.
+- Repoet dokumenterer ikke formålet med fnr i denne meldingen, behandlingsgrunnlag, mottakere/tilgang eller retensjon. Dette kan derfor ikke bekreftes ut fra kodebasen.
+
+Jeg har ikke endret kode. Fant ingen `AGENTS.md`, `.github/copilot-instructions.md` eller `.github/copilot-review-instructions.md`. Leste relevante lokale instruksjoner, blant annet `.github/agents/golden-nav-pilot.agent.md` og instruksjonene for Kotlin, testing, sikkerhet og norsk tekst.
+
+**Før eventuell endring må personvernformålet avklares:** Er fnr nødvendig i `soknad-mottatt`-meldingen, og hva er det konkrete formålet og behandlingsgrunnlaget for å sende det til topicen? Blindsoner reist: 1/11 (#1 stilt; #2–#11 ikke relevant for denne avklaringen).
+
+Fnr finnes i `SokerDto`, men repoet dokumenterer ikke hvorfor mottakerne på `soknad-mottatt` trenger det. Ingen kode er endret.
+
+Hva skal fnr brukes til på denne topicen, hva er behandlingsgrunnlaget, og hvilke konsumenter skal motta det? Hvor skal `sendMottatt` hente søkerens fnr fra?
+
+Repoet mangler lokal Copilot-konfigurasjon. Den kan opprettes med `nav-pilot init`.
+
+Blindsoner reist: 3/11 (#1 personvern, #5 dataansvar og #6 mottakere; øvrige avventes til dataflyten er avklart).
+

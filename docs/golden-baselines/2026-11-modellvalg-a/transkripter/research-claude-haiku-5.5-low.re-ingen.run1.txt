@@ -1,0 +1,16 @@
+ / Search "slettOppgave" No matches found
+
+ / Search "slett.?oppgave" No matches found
+
+ / Search "**/*" 25 files found
+
+Søket fant ingen treff for `slettOppgave`. Jeg sjekker kildefilene for å se hvordan sletting faktisk er navngitt.
+
+ ● Read src/main/kotlin/no/nav/demo/Oppgave.kt 9 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/Routes.kt 19 lines read
+
+Funksjonen `slettOppgave` kalles ingen steder i koden. Jeg søkte etter både `slettOppgave` og `slett.?oppgave` (case-insensitive) i hele repoet, uten treff.
+
+Repoet har heller ingen definisjon av `slettOppgave`. Oppgave-koden ligger i `src/main/kotlin/no/nav/demo/Oppgave.kt` og `Routes.kt`, og har bare `GET /api/oppgaver`. Det finnes ingen sletteendepunkt eller slettelogikk.
+

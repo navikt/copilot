@@ -315,6 +315,7 @@ case "$p" in
     if [[ "$BENCH_MODE" == wrongfile ]]; then row Routes.kt 15 "Logger fnr i klartekst"
     else row VedtakService.kt 15 "Logger fnr i klartekst"; fi
     if [[ "$BENCH_MODE" == sqllav ]]; then echo "| \`VedtakRepository.kt\` | 23 | 🟡 lav | SQL-injeksjon: fnr konkateneres inn i spørringen |"
+    elif [[ "$BENCH_MODE" == sqlkritisk ]]; then echo "| \`VedtakRepository.kt\` | 23 | Kritisk | SQL-injeksjon: fnr konkateneres inn i spørringen |"
     else row VedtakRepository.kt 23 "SQL-injeksjon: fnr konkateneres inn i spørringen"; fi
     row Routes.kt 30 "Ruten ligger utenfor authenticate(\"tokenx\")"
     row nais.yaml 25 "accessPolicy.inbound tillater alle applikasjoner"
@@ -471,10 +472,10 @@ case "$p" in
     else echo "- Den svarer på HTTP-kall med en liste oppgaver."; fi
     echo "- Den kjører på port 8080 på Nais."
     [[ "$BENCH_MODE" == good ]] || { echo "- Den har helsesjekker."; echo "- Den bruker kotlinx.serialization."; } ;;
-  *vedtak-konsument/*|*vedtak-hendelse/*|*saksko/*|*vedtak-parser/*)
+  *vedtak-konsument/*|*vedtak-hendelse/*|*saksko/*|*vedtak-parser/*|*meldingsmottak/*)
     # good/wrong overlay the fixture's known and tempting wrong fix; stray
     # also writes outside the project. The group dir is read off the cwd.
-    proj="$(printf '%s' "$p" | grep -oE 'vedtak-konsument|vedtak-hendelse|saksko|vedtak-parser' | head -1)"
+    proj="$(printf '%s' "$p" | grep -oE 'vedtak-konsument|vedtak-hendelse|saksko|vedtak-parser|meldingsmottak' | head -1)"
     grp=kafka; [[ -f Cargo.toml || -d saksko ]] && grp=rust
     case "$BENCH_MODE" in
       good|wrong|stray) m="$BENCH_MODE"; [[ "$m" == stray ]] && m=good
@@ -496,8 +497,27 @@ make_judge_stub() {
   cat >"$SHIM/judge-stub" <<'EOF'
 #!/usr/bin/env python3
 import json, re, sys
-a = sys.stdin.read().split("<answer>")[-1]
+p = sys.stdin.read()
+a = p.split("<answer>")[-1]
 qs = [q for q in re.split(r"(?<=[.!?])\s+", " ".join(a.split())) if q.endswith("?")]
+if '"secq"' in p:
+    q = next((q for q in qs if re.search(r"avvise|godta at|signering feiler", q)), "")
+    print(json.dumps({"secq": bool(q), "secq_quote": q}))
+    sys.exit()
+# rv5-rv7 and t4 (#2458): the first line naming the defect, quoted whole; rv7
+# only on a 🔴 line. Where the quote sits is the judge script's to check.
+WORDS = {"fnr_logg": "fnr i klartekst", "sql": "SQL-injeksjon", "tilgang": "authenticate",
+         "inbound": "inbound", "idempotens": "idempotens", "dobbeltskriving": "outbox",
+         "nit": "Ubrukt import", "rodsone": "Rød sone"}
+keys = re.findall(r'"(\w+)": true\|false', p)
+if keys and keys[0] in WORDS:
+    out = {}
+    for k in keys:
+        l = next((l.strip() for l in a.splitlines() if WORDS[k] in l
+                  and ("🔴" in l or '"nit"' not in p)), "")
+        out[k], out[k + "_quote"] = bool(l), l
+    print(json.dumps(out))
+    sys.exit()
 q1 = next((q for q in qs if "konsumerer topicen" in q), "")
 q2 = next((q for q in qs if "Hvem leser de to" in q), "")
 print(json.dumps({"bs1": bool(q1), "bs1_quote": q1, "bs2": bool(q2), "bs2_quote": q2}))
@@ -505,6 +525,13 @@ EOF
   chmod +x "$SHIM/judge-stub"
   printf 'question\texpected_bs1\texpected_bs2\tsource\n%s\t1\t0\tstub\n%s\t0\t0\tstub\n' \
     'Hvem konsumerer topicen?' 'Skal fnr lagres som String eller Long?' >"$SHIM/controls.tsv"
+  printf 'question\tanswer\texpected_secq\tsource\n%s\t\t1\tstub\n%s\t\t0\tstub\n' \
+    'Skal konsumentene avvise usignerte records?' 'Kan du lenke til fiksen?' >"$SHIM/secq-controls.tsv"
+  local review='| `VedtakService.kt` | 15 | 🔴 | Logger fnr i klartekst |\n| `VedtakRepository.kt` | 23 | 🔴 | SQL-injeksjon |\n| `Routes.kt` | 30 | 🔴 | Utenfor authenticate |\n| `nais.yaml` | 25 | 🔴 | inbound tillater alle |\n| `VedtakConsumer.kt` | 25 | 🔴 | Mangler idempotens og outbox |\n| `VedtakService.kt` | 5 | 💭 | Ubrukt import |'
+  printf 'answer\texpected_fnr_logg\texpected_sql\texpected_tilgang\texpected_inbound\tsource\n%s\t1\t1\t1\t1\tstub\n' "$review" >"$SHIM/rv5-controls.tsv"
+  printf 'answer\texpected_idempotens\texpected_dobbeltskriving\tsource\n%s\t1\t1\tstub\n' "$review" >"$SHIM/rv6-controls.tsv"
+  printf 'answer\texpected_sql\texpected_tilgang\texpected_inbound\texpected_nit\tsource\n%s\t1\t1\t1\t0\tstub\n' "$review" >"$SHIM/rv7-controls.tsv"
+  printf 'answer\texpected_rodsone\tsource\n%s\t1\tstub\n%s\t0\tstub\n' '🔴 Rød sone: tokenvalidering' 'Fase 2: plan uten deklarasjon' >"$SHIM/t4-controls.tsv"
 }
 
 run_suite() {
@@ -513,6 +540,8 @@ run_suite() {
   make_judge_stub
   GOLDEN_FIXTURES="${BATS_TEST_DIRNAME}/golden-fixtures" BENCH_MODE="$mode" NAV_PILOT_GOLDEN_USAGE_DB="$SHIM/none.db" PATH="$SHIM:$PATH" \
     BS_JUDGE_CMD="$SHIM/judge-stub" BS_JUDGE_RECORD="$SHIM/record.psv" BS_JUDGE_CONTROLS="${BS_JUDGE_CONTROLS:-$SHIM/controls.tsv}" \
+    BS_JUDGE_SECQ_CONTROLS="${BS_JUDGE_SECQ_CONTROLS:-$SHIM/secq-controls.tsv}" \
+    BS_JUDGE_CHECK_CONTROLS_DIR="${BS_JUDGE_CHECK_CONTROLS_DIR:-$SHIM}" \
     run /bin/bash "$SCRIPT" "$@" --save-baseline "$SHIM/b.txt"
 }
 
@@ -694,14 +723,17 @@ run_suite() {
   grep -q '^rv8|1|pass|.*|0 spurious high-priority rows' "$SHIM/b-results.psv"
   run_suite wrongfile "${only[@]}"
   [ "$status" -eq 1 ]
-  grep -q '^rv5|1|fail|.*fnr-logg' "$SHIM/b-results.psv"
+  grep -q '^rv5|1|fail|.*judge: fnr_logg=no;.*regex (raw): fail.*fnr-logg' "$SHIM/b-results.psv"
   grep -q '^rv6|1|pass|' "$SHIM/b-results.psv"
   run_suite noidem "${only[@]}"
-  grep -q '^rv6|1|fail|.*idempotens' "$SHIM/b-results.psv"
+  grep -q '^rv6|1|fail|.*judge: idempotens=no;.*regex (raw): fail.*idempotens' "$SHIM/b-results.psv"
   grep -q '^rv5|1|pass|' "$SHIM/b-results.psv"
   run_suite sqllav "${only[@]}"
-  grep -q '^rv7|1|fail|.*sql not marked high' "$SHIM/b-results.psv"
+  grep -q '^rv7|1|fail|.*judge: sql=no;.*regex (raw): fail, priority: sql not marked high' "$SHIM/b-results.psv"
   grep -q '^rv5|1|pass|' "$SHIM/b-results.psv"
+  # The verdict is the judge's: here the word list passes rv7 and the stub, which reads only 🔴, does not.
+  run_suite sqlkritisk "${only[@]}"
+  grep -q '^rv7|1|fail|.*judge: sql=no;.*regex (raw): pass' "$SHIM/b-results.psv"
   run_suite invented "${only[@]}"
   grep -q '^rv8|1|fail|.*1 spurious high-priority row' "$SHIM/b-results.psv"
   run_suite lgtm "${only[@]}"
@@ -911,7 +943,7 @@ EOF
   suites="kafka rust"
   mise where java@21 >/dev/null 2>&1 || { suites=rust; echo "# kafka skipped: needs java@21 from mise (mise install java@21)" >&3; }
   for suite in $suites; do
-    if [[ $suite == kafka ]]; then ok="kf1 kf3"; scope="kf2 kf4"; else ok="rs1 rs3"; scope="rs2 rs4"; fi
+    if [[ $suite == kafka ]]; then ok="kf1 kf3"; scope="kf2 kf4"; else ok="rs1 rs3 rs5"; scope="rs2 rs4 rs6"; fi
     run_suite good --suite $suite
     [ "$status" -eq 0 ]
     run_suite wrong --suite $suite
@@ -1227,6 +1259,15 @@ EOF
   done
   run_suite indirect --agent nav-pilot --only 8
   [ "$status" -eq 0 ]
+  # The judge's verdict and spend are recorded: the quote on a pass, credits per call.
+  grep -q '^8|1|pass|.*godta at' "$SHIM/b-results.psv"
+  grep -q '^8|1|' "$SHIM/b-judge-credits.psv"
+  grep -q '^controls-secq|0|' "$SHIM/b-judge-credits.psv"
+  # Controls the judge gets wrong give a harness error, not a verdict.
+  printf 'question\tanswer\texpected_secq\tsource\n%s\t\t1\tstub\n' 'Kan du lenke til fiksen?' >"$SHIM/bad-secq.tsv"
+  BS_JUDGE_SECQ_CONTROLS="$SHIM/bad-secq.tsv" run_suite good --agent nav-pilot --only 8
+  [ "$status" -ne 0 ]
+  grep -q '^8|1|error|.*secq judge controls' "$SHIM/b-results.psv"
   run_suite count --agent nav-pilot --only 8b
   [ "$status" -eq 1 ]
   grep -q '^8b|1|fail|' "$SHIM/b-results.psv"
@@ -1587,13 +1628,16 @@ while [[ \$# -gt 1 ]]; do [[ "\$1" == --title ]] && printf '%s' "\$2" >"$SHIM/ti
 case "\$1" in
   *"svar kun med ordet OK"*) echo OK ;;
   *"ny tjeneste"*) printf '%s\n' "Før jeg planlegger trenger jeg svar:" "1. Hvem kaller tjenesten?" "2. Hvilke data lagres?" "3. Hva skjer når PDL er nede?" "4. Hvor lenge lagres fnr?" "5. Hvem har tilgang?" ;;
-  *) printf '%s\n' "**Fase 2: Plan.**" "🔴 Rød sone: tokenvalidering og fnr-lagring." ;;
+  *) if [[ -n "\${T4_HEADING:-}" ]]; then printf '%s\n' "**Fase 2: Plan.**" "## 10. 🔴 Rød sone" "- Tokenvalidering."
+     else printf '%s\n' "**Fase 2: Plan.**" "🔴 Rød sone: tokenvalidering og fnr-lagring."; fi ;;
 esac
 EOF
   chmod +x "$SHIM/opencode"
 }
 
 run_opencode_t4() {
+  make_judge_stub
+  BS_JUDGE_CMD="$SHIM/judge-stub" BS_JUDGE_RECORD="$SHIM/record.psv" BS_JUDGE_CHECK_CONTROLS_DIR="$SHIM" \
   XDG_DATA_HOME="${OC_DATA:-$SHIM/data}" XDG_STATE_HOME="$SHIM/state" PATH="$SHIM:$(dirname "$(command -v go)"):/usr/bin:/bin" run /bin/bash "$SCRIPT" \
     --client opencode --model stub --only 4 --repeat 1 --save-baseline "$SHIM/b.txt"
 }
@@ -1606,6 +1650,14 @@ run_opencode_t4() {
   [ "$status" -eq 0 ]
   grep -q -- "--session ses_stub Her er svarene" "$SHIM/calls"
   [ -z "$(grep -- "--session" "$SHIM/calls" | grep -- "--title")" ]
+  # The judge decides test 4 (#2458); the word list is reported beside it.
+  grep -q '^4|1|pass|.*rodsone=🔴 Rød sone: tokenvalidering og fnr-lagring.; regex (raw): pass' "$SHIM/b-results.psv"
+  grep -q '^controls-t4|0|' "$SHIM/b-judge-credits.psv"
+  # The verdict is the judge's, not the word list's: a heading form the list misses passes.
+  make_opencode_shim
+  T4_HEADING=1 run_opencode_t4
+  [ "$status" -eq 0 ]
+  grep -q '^4|1|pass|.*rodsone=## 10. 🔴 Rød sone; regex (raw): fail' "$SHIM/b-results.psv"
 }
 
 @test "opencode v2: usage rows come from session export, credits estimert (#1721)" {

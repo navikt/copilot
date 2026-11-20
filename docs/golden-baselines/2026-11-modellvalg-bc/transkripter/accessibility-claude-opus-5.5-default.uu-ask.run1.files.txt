@@ -1,0 +1,154 @@
+=== ./src/app/komponenter/StatusPanel.tsx
+import { useEffect, useId, useRef, useState, type KeyboardEvent } from "react";
+import { CheckmarkIcon, TrashIcon } from "@navikt/aksel-icons";
+
+export type StatusValg = { verdi: string; tekst: string };
+
+const STANDARD_STATUSVALG: StatusValg[] = [
+  { verdi: "ok", tekst: "OK" },
+  { verdi: "feil", tekst: "Feil" },
+];
+
+type StatusPanelProps = {
+  status: string;
+  onSlett: () => void;
+  onStatusEndre?: (status: string) => void;
+  statusvalg?: StatusValg[];
+};
+
+export function StatusPanel({
+  status,
+  onSlett,
+  onStatusEndre,
+  statusvalg = STANDARD_STATUSVALG,
+}: StatusPanelProps) {
+  const [apen, setApen] = useState(false);
+
+  return (
+    <div className="p-4 mx-8">
+      <div onClick={() => setApen(!apen)} style={{ outline: "none" }}>
+        Vis detaljer
+      </div>
+      <span tabIndex={5} style={{ color: status === "feil" ? "red" : "green" }}>
+        {status}
+      </span>
+      <StatusListbox
+        valg={statusvalg}
+        valgt={status}
+        onVelg={(verdi) => onStatusEndre?.(verdi)}
+      />
+      <button onClick={onSlett}>
+        <TrashIcon />
+      </button>
+    </div>
+  );
+}
+
+type StatusListboxProps = {
+  valg: StatusValg[];
+  valgt: string;
+  onVelg: (verdi: string) => void;
+};
+
+function StatusListbox({ valg, valgt, onVelg }: StatusListboxProps) {
+  const id = useId();
+  const labelId = `${id}-label`;
+  const valgId = (indeks: number) => `${id}-valg-${indeks}`;
+
+  const valgtIndeks = valg.findIndex((v) => v.verdi === valgt);
+  const [aktivIndeks, setAktivIndeks] = useState(Math.max(valgtIndeks, 0));
+  const [harFokus, setHarFokus] = useState(false);
+  const listeRef = useRef<HTMLUListElement>(null);
+
+  useEffect(() => {
+    if (valgtIndeks >= 0) setAktivIndeks(valgtIndeks);
+  }, [valgtIndeks]);
+
+  useEffect(() => {
+    document.getElementById(valgId(aktivIndeks))?.scrollIntoView({ block: "nearest" });
+  }, [aktivIndeks]);
+
+  const velg = (indeks: number) => {
+    setAktivIndeks(indeks);
+    onVelg(valg[indeks].verdi);
+  };
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLUListElement>) => {
+    const siste = valg.length - 1;
+    switch (event.key) {
+      case "ArrowDown":
+        setAktivIndeks((i) => Math.min(i + 1, siste));
+        break;
+      case "ArrowUp":
+        setAktivIndeks((i) => Math.max(i - 1, 0));
+        break;
+      case "Home":
+        setAktivIndeks(0);
+        break;
+      case "End":
+        setAktivIndeks(siste);
+        break;
+      case "Enter":
+      case " ":
+        velg(aktivIndeks);
+        break;
+      default:
+        return;
+    }
+    event.preventDefault();
+  };
+
+  if (valg.length === 0) return null;
+
+  return (
+    <div>
+      <span id={labelId}>Status</span>
+      <ul
+        ref={listeRef}
+        role="listbox"
+        tabIndex={0}
+        aria-labelledby={labelId}
+        aria-activedescendant={valgId(aktivIndeks)}
+        onKeyDown={handleKeyDown}
+        onFocus={() => setHarFokus(true)}
+        onBlur={() => setHarFokus(false)}
+        style={{ listStyle: "none", margin: 0, padding: 0, border: "1px solid #6a6a6a" }}
+      >
+        {valg.map((v, indeks) => {
+          const erValgt = v.verdi === valgt;
+          const erAktiv = harFokus && indeks === aktivIndeks;
+          return (
+            <li
+              key={v.verdi}
+              id={valgId(indeks)}
+              role="option"
+              aria-selected={erValgt}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => {
+                listeRef.current?.focus();
+                velg(indeks);
+              }}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "0.5rem",
+                padding: "0.5rem",
+                cursor: "pointer",
+                outline: erAktiv ? "2px solid #0067c5" : undefined,
+                outlineOffset: "-2px",
+                fontWeight: erValgt ? 600 : undefined,
+              }}
+            >
+              <CheckmarkIcon
+                aria-hidden
+                style={{ visibility: erValgt ? "visible" : "hidden" }}
+              />
+              {v.tekst}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+

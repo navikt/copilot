@@ -1,0 +1,23 @@
+ ● skill(nav-plan)
+
+ ● skill(api-design)
+
+**Fase 2: Plan for navneoppslag for innlogget innbygger**
+
+Bruk eksisterende Next.js som eneste inngang og en ny, intern Ktor-tjeneste for PDL-oppslag. Tjenesten henter navnet til den innloggede innbyggeren og returnerer bare navnet. Fødselsnummeret brukes i oppslaget, men lagres ikke og sendes ikke tilbake til nettleseren.
+
+| Område | Plan |
+|---|---|
+| Innlogging og tilgang | Wonderwall håndterer innlogging med ID-porten foran Next.js. Next.js bytter brukertokenet med TokenX til et token med Ktor-tjenesten som mottaker. Ktor validerer signatur, utsteder, mottaker og utløp, og bruker identiteten fra det validerte tokenet. API-et tar ikke imot fødselsnummer fra klienten. |
+| PDL | Ktor ber PDL om navnefeltet. Bekreft PDLs krav til tjenestetoken, eventuell videresending av brukerkontekst, tilgang og tema før integrasjonen bygges. Ikke anta at TokenX-tokenet til Ktor også kan brukes mot PDL. Dokumenter hvilken lovhjemmel som dekker oppslaget før produksjonssetting. |
+| API og feil | `GET /api/me/navn` returnerer `200` med `{ "navn": "…" }` og `Cache-Control: no-store`. Manglende eller ugyldig token gir `401`; gyldig token uten nødvendig tilgang gir `403`. PDL-nedetid eller tidsavbrudd gir `503` med et generisk problemsvar. Next.js viser at oppslaget kan prøves igjen. Ingen kø eller automatiske omforsøk i første versjon. |
+| Kode og data | Skill tokenvalidering, rute og PDL-klient i Ktor. Legg tokenbytte og API-kall på serversiden i Next.js. Ingen database, Flyway eller cache for personopplysninger. Beskriv API-kontrakten i OpenAPI. |
+| Nais og CI/CD | Ingen offentlig ingress på Ktor. Sett eksplisitt `accessPolicy`: bare Next.js inn, og bare nødvendige PDL- og autentiseringsavhengigheter ut. Sett opp helseendepunkter og Prometheus. Start med `15m` CPU-request og `256Mi` minne-request, uten CPU-limit. GitHub Actions bygger og tester, deployer til dev først og krever godkjenning før prod. |
+| Tester og drift | Test at ugyldige tokens og manglende identitet aldri fører til PDL-kall. Test også at klienten ikke kan velge en annen person, at vellykkede svar bare inneholder navn, og at PDL-nedetid gir `503`. Kjør hele innloggings- og oppslagsflyten med syntetisk testbruker i dev. Mål PDL-oppslag per minutt og andel feilende oppslag. Logg feilkategori og teknisk korrelasjons-ID, aldri token, fødselsnummer, navn eller PDL-payload. |
+
+**Utrulling og rollback:** Hold navnevisningen av i Next.js til hele flyten er verifisert i dev. Etter produksjonssetting, sjekk at innlogging og navnevisning fungerer, at bare Next.js når backend, og at målinger og logger ikke inneholder personopplysninger. Varsle ved vedvarende høy feilandel med et minstevolum for å unngå støy. Ved feil slås navnevisningen av først. Før disse stegene inn i driftsveiledningen.
+
+🔴 **Rød sone:** Teamet skriver og går gjennom Wonderwall- og TokenX-integrasjonen, tokenvalideringen, koblingen mellom innlogget identitet og PDL-oppslaget, og tilgangsoppsettet mot PDL. Bruk syntetiske testdata for å lære flyten fra nettleser til PDL.
+
+Neste fase er gjennomgang av planen, med PDLs tilgangskrav som viktigste åpne punkt. Ingen filer er endret.
+

@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"strings"
 	"sync"
 	"time"
 )
@@ -34,6 +36,10 @@ type SessionStore interface {
 	Get(ctx context.Context, kind, key string) ([]byte, bool, error)
 	Pop(ctx context.Context, kind, key string) ([]byte, bool, error)
 	Delete(ctx context.Context, kind, key string) error
+	// CompareAndSwap atomically replaces the live value for (kind, key) with new
+	// (nil deletes) if the current live value equals old (nil means no live row),
+	// returning whether the swap occurred.
+	CompareAndSwap(ctx context.Context, kind, key string, oldVal, newVal []byte, ttl time.Duration) (bool, error)
 	Revoke(ctx context.Context, jti string, expiresAt time.Time) error
 	RevokeOnce(ctx context.Context, jti string, expiresAt time.Time) (bool, error)
 	IsRevoked(ctx context.Context, jti string) (bool, error)
@@ -45,6 +51,8 @@ type SessionStore interface {
 	// so concurrent callers cannot take the freed slot. evicted reports whether
 	// an item was dropped.
 	PutEvict(ctx context.Context, kind, key string, val []byte, ttl time.Duration) (evicted bool, err error)
+	// CountPrefix counts the live items of kind whose key starts with prefix.
+	CountPrefix(ctx context.Context, kind, prefix string) (int, error)
 	Sweep(ctx context.Context) (int, error)
 	Ping(ctx context.Context) error
 	Close()
@@ -197,6 +205,72 @@ func (s *memoryStore) Delete(ctx context.Context, kind, key string) error {
 	return nil
 }
 
+func (s *memoryStore) CompareAndSwap(ctx context.Context, kind, key string, oldVal, newVal []byte, ttl time.Duration) (bool, error) {
+	if err := ctx.Err(); err != nil {
+		return false, err
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	now := s.now()
+	bucket := s.items[kind]
+	var entry memoryItem
+	var live bool
+	if bucket != nil {
+		var exists bool
+		entry, exists = bucket[key]
+		if exists {
+			if now.Before(entry.expiresAt) {
+				live = true
+			} else {
+				delete(bucket, key)
+			}
+		}
+	}
+
+	if oldVal == nil {
+		if live {
+			return false, nil
+		}
+		if newVal == nil {
+			return true, nil
+		}
+		if capLimit, hasCap := s.caps[kind]; hasCap && capLimit > 0 {
+			s.sweepKindLocked(kind, now)
+			if len(bucket) >= capLimit {
+				return false, errStoreFull
+			}
+		}
+		if bucket == nil {
+			bucket = make(map[string]memoryItem)
+			s.items[kind] = bucket
+		}
+		copied := make([]byte, len(newVal))
+		copy(copied, newVal)
+		bucket[key] = memoryItem{
+			value:     copied,
+			expiresAt: now.Add(ttl),
+		}
+		return true, nil
+	}
+
+	if !live || !bytes.Equal(entry.value, oldVal) {
+		return false, nil
+	}
+	if newVal == nil {
+		delete(bucket, key)
+		return true, nil
+	}
+	copied := make([]byte, len(newVal))
+	copy(copied, newVal)
+	bucket[key] = memoryItem{
+		value:     copied,
+		expiresAt: now.Add(ttl),
+	}
+	return true, nil
+}
+
 func (s *memoryStore) Revoke(ctx context.Context, jti string, expiresAt time.Time) error {
 	if err := ctx.Err(); err != nil {
 		return err
@@ -261,6 +335,22 @@ func (s *memoryStore) Incr(ctx context.Context, key string, window time.Duration
 	c.count++
 	s.counts[key] = c
 	return c.count, nil
+}
+
+func (s *memoryStore) CountPrefix(ctx context.Context, kind, prefix string) (int, error) {
+	if err := ctx.Err(); err != nil {
+		return 0, err
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	now := s.now()
+	n := 0
+	for key, entry := range s.items[kind] {
+		if strings.HasPrefix(key, prefix) && now.Before(entry.expiresAt) {
+			n++
+		}
+	}
+	return n, nil
 }
 
 func (s *memoryStore) Sweep(ctx context.Context) (int, error) {

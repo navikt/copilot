@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
+	"golang.org/x/net/publicsuffix"
 )
 
 // policies.propose: the sandbox configuration an agentpakke asks the installing
@@ -356,10 +357,31 @@ func (m *Manifest) checkPropose() error {
 	if proposal == nil {
 		return nil
 	}
+	for _, declared := range proposal.AllowPrivateDomains() {
+		if err := checkPrivateDomain(declared); err != nil {
+			return fmt.Errorf("policies.propose.cplt.proxy.allow_private_domains: %w", err)
+		}
+	}
 	for _, declared := range proposal.AllowRead() {
 		if err := checkReadGrant(declared); err != nil {
 			return fmt.Errorf("policies.propose.cplt.allow.read: %w", err)
 		}
+	}
+	return nil
+}
+
+// checkPrivateDomain refuses a proposed allow_private_domains entry that is a
+// public suffix or a bare apex under nav.no, because cplt matches subdomains.
+func checkPrivateDomain(host string) error {
+	h := strings.TrimSuffix(strings.ToLower(strings.TrimSpace(host)), ".")
+	if h == "" {
+		return fmt.Errorf("%q is not a valid domain name", host)
+	}
+	if ps, _ := publicsuffix.PublicSuffix(h); ps == h {
+		return fmt.Errorf("%q is a public suffix; name a specific host instead", host)
+	}
+	if (h == "nav.no" || strings.HasSuffix(h, ".nav.no")) && len(strings.Split(h, ".")) < 3 {
+		return fmt.Errorf("%q is too broad; name a specific host with at least 3 labels under nav.no", host)
 	}
 	return nil
 }

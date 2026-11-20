@@ -1,0 +1,49 @@
+ ● skill(klarsprak)
+
+ $ Shell Find Kotlin source and tests 32 lines…
+   ls -a; find . -maxdepth 9 -type f | head -65
+
+ ✗ Shell Read Kotlin and test conventions Failed with exit code 1  Output too large to read at once…
+   cat build.gradle.kts src/main/kotlin/no/nav/demo/Oppgave.kt
+   .github/instructions/{kotlin,security-owasp,testing-kotlin,testing}.instructions.md; command -v
+   kotlinc
+   Output too large to read at once (30.7 KB). Saved to: /var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc000
+   0gn/T/1795040745211-copilot-tool-output-22351-153ef2ab-b8e6-44cc-85fb-8d8ca14a3409.txt
+   Consider using tools like rg (for searching), head/tail (for viewing start/end), view with 
+   view_range (for specific sections), or jq (for JSON) to examine portions of the output.
+   
+   Preview (first 500 chars):
+   plugins {
+       kotlin("jvm") version "2.1.0"
+       kotlin("plugin.serialization") version "2.1.0"
+   }
+   repositories {
+       mavenCentral()
+   }
+   dependencies {
+       implementation("io.ktor:ktor-server-netty:3.0.0")
+       implementation("io.ktor:ktor-server-content-negotiation:3.0.0")
+       implementation("io.ktor:ktor-serialization-kotlinx-json:3.0.0")
+   }
+   package no.nav.demo
+   
+   import kotlinx.serialization.Serializable
+   
+   @Serializable
+   data class Oppgave(val id: String, val tittel: String)
+   
+   @Serializable
+   data class O
+   Failed with exit code 1
+
+ ● Edit  Edit build.gradle.kts (+1)  Create src/main/kotlin/no/nav/demo/Feriepenger.kt (+7)  Create…
+
+La til `feriepenger` i `Feriepenger.kt` og enhetstester i `FeriepengerTest.kt`. Beregningen bruker heltall for å unngå flyttallsfeil ved avrunding. Gradle ble ikke kjørt, som avtalt.
+
+🔴 Rød sone: satsvalg, avrunding og validering av grunnlaget.
+
+**Sjekkliste for rød sone**
+- [ ] Kontroller i `FeriepengerTest.kt` at satsen er 10,2 % ved 59 år og 12,5 % fra 60 år, at beløp under 50 øre rundes ned og 50 øre eller mer rundes opp, og at negativt grunnlag gir `IllegalArgumentException`.
+
+Kan du fortelle meg hva denne koden gjør og hvorfor denne tilnærmingen er riktig?
+

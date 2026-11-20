@@ -1,0 +1,140 @@
+ ● skill(kafka)
+
+ ● update_todo todos: "- [ ] Inspect vedtak-hendelse schema, producers/consumers,… TODO list updated
+
+ $ Shell List repository files 13 lines…
+   pwd && rg --files -g '!*build*' -g '!*.jar' | head -150
+
+ / Search "unknown|ignoreUnknown|FAIL_ON_UNKNOWN|sakstype" 2 lines found
+
+ / Search "VedtakFattet|vedtak-hendelse" 6 lines found
+
+ MD Read .github/instructions/kotlin.instructions.md too large, not read
+
+ ● Read vedtak-hendelse/src/main/kotlin/no/nav/vedtak/VedtakFattet.kt 18 lines read
+
+ ● Read vedtak-hendelse/src/test/kotlin/no/nav/vedtak/VedtakFattetTest.kt 11 lines read
+
+ ● Read vedtak-konsument/src/main/kotlin/no/nav/vedtak/VedtakKonsument.kt 23 lines read
+
+ ● Read vedtak-konsument/src/test/kotlin/no/nav/vedtak/VedtakKonsumentTest.kt 25 lines read
+
+ MD Read .github/instructions/testing-kotlin.instructions.md 185 lines read
+
+ ● Read vedtak-hendelse/settings.gradle.kts 1 line read
+
+ ● Read vedtak-konsument/settings.gradle.kts 1 line read
+
+ / Search "VedtakSerde|VedtakFattet\(|jacksonObjectMapper|FAIL_ON_UNKNOWN_PROPERTIES"… 5 lines found
+
+ $ Shell Find Gradle project files 7 lines…
+   find vedtak-hendelse vedtak-konsument -maxdepth 3 -type f -print | sort && find . -maxdepth 2
+   -name 'build.gradle*' -o -name 'gradlew'
+
+ ● Read build.gradle.kts 12 lines read
+
+ ● Read vedtak-hendelse/build.gradle.kts 20 lines read
+
+ ● Read vedtak-konsument/build.gradle.kts 20 lines read
+
+ ● Read vedtak-hendelse/src/main/kotlin/no/nav/vedtak/VedtakFattet.kt 18 lines read
+
+ ● update_todo todos: "- [x] Inspect vedtak-hendelse schema, producers/consumers,… TODO list updated
+
+ ● Edit  Edit vedtak-hendelse/src/main/kotlin/no/nav/vedtak/VedtakFattet.kt (+9)
+
+ ● Edit  Edit vedtak-hendelse/src/test/kotlin/no/nav/vedtak/VedtakFattetTest.kt (+23 -2)
+
+ ● update_todo todos: "- [x] Inspect vedtak-hendelse schema, producers/consumers,… TODO list updated
+
+ $ Shell Run vedtak-hendelse Gradle tests 14 lines…
+   gradle test
+
+ $ Shell Run module Gradle tests 14 lines…
+   cd vedtak-hendelse && gradle test
+
+ $ Shell Confirm Gradle test execution details 4 lines…
+   find vedtak-hendelse/build/test-results/test -type f -maxdepth 1 -print -exec sed -n '1,3p' {} \;
+
+ ✗ Shell Review event schema changes Failed with exit code 1  diff --git a/vedtak-hendelse/src/main…
+   git diff -- vedtak-hendelse/src/main/kotlin/no/nav/vedtak/VedtakFattet.kt
+   vedtak-hendelse/src/test/kotlin/no/nav/vedtak/VedtakFattetTest.kt && git status --short
+   diff --git a/vedtak-hendelse/src/main/kotlin/no/nav/vedtak/VedtakFattet.kt 
+   b/vedtak-hendelse/src/test/kotlin/no/nav/vedtak/VedtakFattetTest.kt
+   index 5993e91..641cbce 100644
+   --- a/vedtak-hendelse/src/main/kotlin/no/nav/vedtak/VedtakFattet.kt
+   +++ b/vedtak-hendelse/src/test/kotlin/no/nav/vedtak/VedtakFattetTest.kt
+   @@ -1,27 +1,32 @@
+    package no.nav.vedtak
+    
+   -import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
+   -import com.fasterxml.jackson.module.kotlin.readValue
+   -import com.fasterxml.jackson.annotation.JsonIgnoreProperties
+   +import kotlin.test.Test
+   +import kotlin.test.assertEquals
+    
+   -// Hendelsen publiseres på topicen vedtak-fattet og leses av flere team.
+   -@JsonIgnoreProperties(ignoreUnknown = true)
+   -data class VedtakFattet(
+   -    val vedtakId: String,
+   -    val belop: Int,
+   -    val sakstype: Sakstype = Sakstype.ORDINAER,
+   -)
+   +class VedtakFattetTest {
+   +    @Test
+   +    fun `leser eldre hendelse som ordinær`() {
+   +        assertEquals(
+   +            VedtakFattet("v1", 100, Sakstype.ORDINAER),
+   +            VedtakSerde.les("""{"vedtakId":"v1","belop":100}"""),
+   +        )
+   +    }
+    
+   -enum class Sakstype {
+   -    ORDINAER,
+   -    KLAGE,
+   -    ANKE,
+   -}
+   -
+   -object VedtakSerde {
+   -    private val mapper = jacksonObjectMapper()
+   -
+   -    fun les(json: String): VedtakFattet = mapper.readValue(json)
+   +    @Test
+   +    fun `leser alle gyldige sakstyper`() {
+   +        Sakstype.entries.forEach { sakstype ->
+   +            assertEquals(
+   +                VedtakFattet("v1", 100, sakstype),
+   +                VedtakSerde.les("""{"vedtakId":"v1","belop":100,"sakstype":"$sakstype"}"""),
+   +            )
+   +        }
+   +    }
+    
+   -    fun skriv(hendelse: VedtakFattet): String = mapper.writeValueAsString(hendelse)
+   +    @Test
+   +    fun `ignorerer ukjente felt fra nyere produsent`() {
+   +        assertEquals(
+   +            VedtakFattet("v1", 100, Sakstype.KLAGE),
+   +            
+   VedtakSerde.les("""{"vedtakId":"v1","belop":100,"sakstype":"KLAGE","nyttFelt":true}"""),
+   +        )
+   +    }
+    }
+   Failed with exit code 1
+
+ ● Edit  Edit vedtak-hendelse/src/main/kotlin/no/nav/vedtak/VedtakFattet.kt (+1 -1)  Edit vedtak-he…
+
+ ● Edit  Edit vedtak-hendelse/src/test/kotlin/no/nav/vedtak/VedtakFattetTest.kt (+1 -1)
+
+ ● update_todo todos: "- [x] Inspect vedtak-hendelse schema, producers/consumers,… TODO list updated
+
+ $ Shell Run module Gradle tests 14 lines…
+   cd vedtak-hendelse && gradle test
+
+ ● skill(klarsprak)
+
+ ● update_todo todos: "- [x] Inspect vedtak-hendelse schema, producers/consumers,… TODO list updated
+
+La til `sakstype` som enum (`ORDINAER`, `KLAGE`, `ANKE`), med `ORDINAER` som standard for eldre meldinger. `VedtakFattet` ignorerer ukjente felt, slik at nyere produsenter ikke stopper konsumenter; feltene blir ikke bevart ved serialisering. `gradle test` i `vedtak-hendelse/` besto med fire tester.
+
+Still gjerne spørsmål om valgene over.
+

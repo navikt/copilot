@@ -1,0 +1,36 @@
+ ● skill(klarsprak)
+
+ ● Research-agent (model: gpt-6-luna) Finne signering og referanse                               33s
+   │ ## Oppsummering
+   │ Get file or directory contents  MCP server 'github-mcp-server': failed to resolve git reference
+   └ Get file or directory contents  MCP server 'github-mcp-server': failed to resolve git reference
+
+## Oppsummering
+
+Ingen filer er endret. Lokalt finnes en funksjon som fjerner begge signeringsheaderne, men produsentinterceptoren kaller den ikke før den legger til nye headers.
+
+## Funn
+
+- `lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningHeaders.kt:5–10` definerer `x-paw-signature` og `x-paw-signing-key-id`. `stripSigningHeaders` fjerner begge.
+- `lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningProducerInterceptor.kt:8–12` signerer `record.value()` og legger deretter til signatur- og nøkkel-ID-headeren. Den fjerner ikke eksisterende headers først. Interceptoren får signerer inn som konstruktørparameter; `Signer`-grensesnittet på linje 19–21 eksponerer `keyId` og `sign(payload)`.
+- `lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/Periode.kt:3–4` sier at `Periode` sendes på Kafka-topicet `paw.arbeidssokerperioder` og signeres av interceptoren.
+- Fant ingen lokale testfiler for signering. `build.gradle.kts` viser heller ingen Kafka- eller testavhengigheter. `nais.yaml` inneholder ingen synlig konfigurasjon for signeringsnøkler.
+
+## Referanse og begrensninger
+
+GitHub-kodesøk identifiserte `navikt/paw-arbeidssoekerregisteret-monorepo-intern` som monorepoet. Søket bekrefter at det finnes en `SigningProducerInterceptor.kt` der, men direkte lesing av privatrepoet ble blokkert av GitHub-organisasjonens SAML-tilgangskontroll. Jeg kan derfor ikke bekrefte referansefilens presise kode eller testdekning. Søketreff i repoets README-er beskriver konsumentverifisering med `x-paw-signing-key-id` for oppslag av offentlig nøkkel; dette er ikke en kontroll av den interne referansefiksen.
+
+**Konkrete headers:** `x-paw-signature` og `x-paw-signing-key-id`. Lokalt er den synlige rekkefølgen ved ny signering: signer payload, legg til signaturheader, legg til nøkkel-ID-header. Det gjenstår å verifisere i internrepoet om begge fjernes etter signering og umiddelbart før de nye legges til.
+
+**Nøkkelhåndtering og verifiserende konsumenter:** Lokalt er bare `Signer`-grensesnittet synlig; nøkkellagring, lasting og konsumentenes verifisering er ikke representert i de undersøkte filene. Referansens implementasjon og relevante tester kunne ikke leses på grunn av tilgangsbegrensningen.
+
+## Tester og videre avklaring
+
+Det finnes ingen lokale signeringstester å vise til, og referansetestene kunne ikke inspiseres. Før eventuell endring bør referansen og testene leses med tilgang til privatrepoet, og det bør avklares om verifiserende konsumenter forventer én signaturheader og én nøkkel-ID-header per record, samt hvordan nøklene lastes og roteres.
+
+Signeringen legger nå til `x-paw-signature` og `x-paw-signing-key-id` uten å fjerne eksisterende verdier. Hjelpefunksjonen `stripSigningHeaders` finnes allerede. Ingen filer er endret.
+
+🔴 Rød sone: signering. Dette krever full fasegang. Referansefiksen i PAWs internrepo kunne ikke leses på grunn av SAML-tilgangskontroll. Kan du dele diffen, inkludert eventuelle tester, så vi kan avklare rekkefølge og oppførsel dersom signeringen feiler før vi endrer sikkerhetskritisk kode?
+
+Blindsoner reist: 2/11 (#3 feilhåndtering og #7 tester; øvrige gjelder uendret flyt eller avklares fra referansen).
+

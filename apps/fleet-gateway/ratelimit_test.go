@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
@@ -159,7 +160,7 @@ func TestRateLimit_MetricsAndWarnLog(t *testing.T) {
 	defer func() { _ = resp.Body.Close() }()
 	metricsBody, _ := io.ReadAll(resp.Body)
 	for _, ep := range rateLimitedEndpoints {
-		want := `fleet_gateway_rate_limited_total{endpoint="` + ep + `"}`
+		want := `fleet_gateway_rate_limited_total{oauth_endpoint="` + ep + `"}`
 		if !strings.Contains(string(metricsBody), want) {
 			t.Errorf("/metrics missing pre-initialized series %s", want)
 		}
@@ -211,6 +212,22 @@ func TestRateLimit_MetricsAndWarnLog(t *testing.T) {
 	}
 	if got := testutil.ToFloat64(rateLimitedTotal.WithLabelValues(rateLimitEndpointAuthorize)); got != beforeAuth+1 {
 		t.Fatalf("authorize rate_limited_total = %v, want %v", got, beforeAuth+1)
+	}
+
+	beforeConsent := testutil.ToFloat64(rateLimitedTotal.WithLabelValues(rateLimitEndpointConsent))
+	consentClientIP := "198.51.100.79"
+	for i := 0; i < 2; i++ {
+		req := httptest.NewRequest(http.MethodPost, "/consent", strings.NewReader("id=missing&csrf=bad"))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		req.RemoteAddr = consentClientIP + ":4323"
+		rec := httptest.NewRecorder()
+		te.handler.ServeHTTP(rec, req)
+		if i == 1 && rec.Code != http.StatusTooManyRequests {
+			t.Fatalf("consent second request: got %d, want 429", rec.Code)
+		}
+	}
+	if got := testutil.ToFloat64(rateLimitedTotal.WithLabelValues(rateLimitEndpointConsent)); got != beforeConsent+1 {
+		t.Fatalf("consent rate_limited_total = %v, want %v", got, beforeConsent+1)
 	}
 
 	logs := logBuf.String()
@@ -332,10 +349,11 @@ func TestRateLimitLogSampler_BoundedEvictsOldest(t *testing.T) {
 		}
 	}
 
-	// Default-cap sampler stays bounded under a large flood of unique IPs.
+	// Default-cap sampler stays bounded under a large flood of unique IPs
+	// spaced across windows so the global per-window cap does not trigger.
 	bounded := newRateLimitLogSampler(defaultRateLimitLogWindow, defaultRateLimitLogCap, func() time.Time { return now })
 	for i := 0; i < defaultRateLimitLogCap+200; i++ {
-		now = now.Add(time.Millisecond)
+		now = now.Add(time.Second)
 		ip := fmt.Sprintf("203.0.%d.%d", i/256, i%256)
 		if !bounded.Allow(ip) {
 			t.Fatalf("unique IP %s first Allow = false, want true", ip)
@@ -355,5 +373,79 @@ func TestRateLimitLogSampler_BoundedEvictsOldest(t *testing.T) {
 	}
 	if len(bounded.lastSeen) != 0 {
 		t.Fatalf("lastSeen len after Sweep = %d, want 0", len(bounded.lastSeen))
+	}
+}
+
+func TestRateLimit_Register429JSONAndLogPerEndpoint(t *testing.T) {
+	var logBuf bytes.Buffer
+	prevLogger := slog.Default()
+	slog.SetDefault(slog.New(slog.NewJSONHandler(&logBuf, nil)))
+	t.Cleanup(func() {
+		slog.SetDefault(prevLogger)
+	})
+
+	te := newTestEnv(t)
+	te.gw.cfg.DCREnabled = true
+	te.gw.limiters[rateLimitEndpointToken] = newIPRateLimiter(1, 100, time.Minute, 10, func() time.Time { return te.now })
+	te.gw.limiters[rateLimitEndpointRegister] = newIPRateLimiter(1, 100, time.Minute, 10, func() time.Time { return te.now })
+	te.handler = te.gw.routes()
+
+	clientIP := "198.51.100.88"
+	for i := 0; i < 2; i++ {
+		req := httptest.NewRequest(http.MethodPost, "/token", strings.NewReader("grant_type=authorization_code"))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		req.RemoteAddr = clientIP + ":5001"
+		te.handler.ServeHTTP(httptest.NewRecorder(), req)
+	}
+
+	var regRec *httptest.ResponseRecorder
+	for i := 0; i < 2; i++ {
+		req := httptest.NewRequest(http.MethodPost, "/register", strings.NewReader(`{}`))
+		req.Header.Set("Content-Type", "application/json")
+		req.RemoteAddr = clientIP + ":5002"
+		regRec = httptest.NewRecorder()
+		te.handler.ServeHTTP(regRec, req)
+	}
+	if regRec.Code != http.StatusTooManyRequests {
+		t.Fatalf("/register second request: got %d, want 429", regRec.Code)
+	}
+	if ct := regRec.Header().Get("Content-Type"); !strings.Contains(ct, "application/json") {
+		t.Fatalf("/register 429 Content-Type = %q, want application/json", ct)
+	}
+	var body map[string]string
+	if err := json.Unmarshal(regRec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("/register 429 body is not valid JSON: %v (%q)", err, regRec.Body.String())
+	}
+	if body["error"] != "temporarily_unavailable" {
+		t.Fatalf("/register 429 error = %q, want temporarily_unavailable (body=%q)", body["error"], regRec.Body.String())
+	}
+
+	logs := logBuf.String()
+	if !strings.Contains(logs, `"endpoint":"token"`) || !strings.Contains(logs, `"endpoint":"register"`) {
+		t.Fatalf("expected rate limited logs for both token and register for same IP, got %s", logs)
+	}
+}
+
+func TestRateLimitLogSampler_GlobalCap(t *testing.T) {
+	now := time.Date(2026, 11, 19, 8, 0, 0, 0, time.UTC)
+	s := newRateLimitLogSampler(time.Minute, defaultRateLimitLogCap, func() time.Time { return now })
+
+	allowed := 0
+	for i := 0; i < 10000; i++ {
+		ip := fmt.Sprintf("198.51.%d.%d", i/256, i%256)
+		if s.Allow(ip) {
+			allowed++
+		}
+	}
+	if allowed != defaultRateLimitLogGlobalCap {
+		t.Fatalf("allowed in one window = %d, want %d", allowed, defaultRateLimitLogGlobalCap)
+	}
+	if len(s.lastSeen) != defaultRateLimitLogGlobalCap {
+		t.Fatalf("lastSeen len = %d, want %d", len(s.lastSeen), defaultRateLimitLogGlobalCap)
+	}
+
+	now = now.Add(time.Minute)
+	if !s.Allow("203.0.113.1") {
+		t.Fatal("fresh IP after advancing clock by one window = false, want true")
 	}
 }

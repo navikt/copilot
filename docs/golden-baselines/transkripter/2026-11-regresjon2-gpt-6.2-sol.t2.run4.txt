@@ -1,0 +1,24 @@
+ ● skill(klarsprak)
+
+ ● skill(nav-auth)
+
+ $ Shell Sjekk prosjektfiler og instruksjoner 13 lines…
+   ls -la; ls -la .github
+
+ $ Shell Les tjenestens eksisterende oppsett 79 lines…
+   cat README.md nais.yaml build.gradle.kts; rg --files src; rg -n '.*' src
+
+**Fase 1: Avklar hva tjenesten skal gjøre**
+
+Repoet inneholder en Ktor-demo med et åpent oppgave-API. Nais-manifestet har ikke ID-porten konfigurert. Jeg antar at tjenesten skal lese den innloggede personens eget fødselsnummer. Ingen kode er endret.
+
+1. **Personvern (#1):** Hva skal tjenesten bruke fødselsnummeret til? Skal den bare bruke det mens den behandler forespørselen, eller også lagre, returnere eller sende det videre?
+2. **Tilgang (#2):** Skal innbyggere bruke tjenesten direkte i nettleseren, eller skal en annen Nav-tjeneste kalle den på vegne av innbyggeren? Skal det åpne oppgave-API-et forbli åpent?
+3. **Feil og drift (#3, #4):** Hva skal brukeren kunne gjøre hvis innloggingen feiler eller fødselsnummeret mangler? Hvilket resultat skal dere måle for å vite at tjenesten virker, uten å logge fødselsnummer eller token?
+4. **Ansvar og avhengigheter (#5, #6):** Eier teamet hele flyten, eller er andre team eller systemer avhengige av tjenesten?
+5. **Tester og rød sone (#7, #11):** Har dere en testklient i ID-portens testmiljø, og vil dere selv skrive tokenvalideringen med støtte fra tester?
+
+`AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md` mangler. Dere kan sette opp prosjektinstruksjoner med `nav-pilot init`.
+
+Blindsoner reist: 8/11 (#8–#10 gjelder først hvis tjenesten erstatter noe eksisterende).
+

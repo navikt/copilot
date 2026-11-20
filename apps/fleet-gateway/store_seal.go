@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/aes"
 	"crypto/cipher"
@@ -196,9 +197,9 @@ func newSealedStore(inner SessionStore, keys *keyRing) *sealedStore {
 	}
 }
 
-// Lockout records hold only a timestamp under an HMAC key and must stay readable after RT_KEYS is replaced (global logout must not lift or break lockouts).
+// Lockout records, the marker and the audit outbox hold only HMAC keys, timestamps and operator idents, and must stay readable after RT_KEYS is replaced (global logout must not lift lockouts or lose audit lines).
 func unsealedKind(kind string) bool {
-	return kind == kindUserRevoked || kind == kindUserRevokedMarker
+	return kind == kindUserRevoked || kind == kindUserRevokedMarker || kind == kindAuditOutbox
 }
 
 func sealAAD(kind, key string) []byte {
@@ -227,9 +228,25 @@ func (s *sealedStore) PutEvict(ctx context.Context, kind, key string, val []byte
 	return s.inner.PutEvict(ctx, kind, key, blob, ttl)
 }
 
+// Legacy audit outbox rows written before kindAuditOutbox became unsealed start with the key-id header rather than '['.
+func (s *sealedStore) decodeUnsealed(kind, key string, raw []byte) ([]byte, error) {
+	if kind != kindAuditOutbox || (len(raw) > 0 && raw[0] == '[') {
+		return raw, nil
+	}
+	return s.keys.Open(sealAAD(kind, key), raw)
+}
+
 func (s *sealedStore) Get(ctx context.Context, kind, key string) ([]byte, bool, error) {
 	if unsealedKind(kind) {
-		return s.inner.Get(ctx, kind, key)
+		raw, ok, err := s.inner.Get(ctx, kind, key)
+		if err != nil || !ok {
+			return nil, ok, err
+		}
+		decoded, err := s.decodeUnsealed(kind, key, raw)
+		if err != nil {
+			return nil, false, err
+		}
+		return decoded, true, nil
 	}
 	blob, ok, err := s.inner.Get(ctx, kind, key)
 	if err != nil || !ok {
@@ -244,7 +261,15 @@ func (s *sealedStore) Get(ctx context.Context, kind, key string) ([]byte, bool, 
 
 func (s *sealedStore) Pop(ctx context.Context, kind, key string) ([]byte, bool, error) {
 	if unsealedKind(kind) {
-		return s.inner.Pop(ctx, kind, key)
+		raw, ok, err := s.inner.Pop(ctx, kind, key)
+		if err != nil || !ok {
+			return nil, ok, err
+		}
+		decoded, err := s.decodeUnsealed(kind, key, raw)
+		if err != nil {
+			return nil, false, err
+		}
+		return decoded, true, nil
 	}
 	blob, ok, err := s.inner.Pop(ctx, kind, key)
 	if err != nil || !ok {
@@ -261,6 +286,33 @@ func (s *sealedStore) Delete(ctx context.Context, kind, key string) error {
 	return s.inner.Delete(ctx, kind, key)
 }
 
+func (s *sealedStore) CompareAndSwap(ctx context.Context, kind, key string, oldVal, newVal []byte, ttl time.Duration) (bool, error) {
+	if !unsealedKind(kind) {
+		return false, fmt.Errorf("sealed store: compare-and-swap unsupported for sealed kind %q", kind)
+	}
+	if kind != kindAuditOutbox || oldVal == nil {
+		return s.inner.CompareAndSwap(ctx, kind, key, oldVal, newVal, ttl)
+	}
+	raw, ok, err := s.inner.Get(ctx, kind, key)
+	if err != nil {
+		return false, err
+	}
+	if !ok {
+		return false, nil
+	}
+	if len(raw) > 0 && raw[0] == '[' {
+		return s.inner.CompareAndSwap(ctx, kind, key, oldVal, newVal, ttl)
+	}
+	plaintext, err := s.keys.Open(sealAAD(kind, key), raw)
+	if err != nil {
+		return false, err
+	}
+	if !bytes.Equal(plaintext, oldVal) {
+		return false, nil
+	}
+	return s.inner.CompareAndSwap(ctx, kind, key, raw, newVal, ttl)
+}
+
 func (s *sealedStore) Revoke(ctx context.Context, jti string, expiresAt time.Time) error {
 	return s.inner.Revoke(ctx, jti, expiresAt)
 }
@@ -275,6 +327,11 @@ func (s *sealedStore) IsRevoked(ctx context.Context, jti string) (bool, error) {
 
 func (s *sealedStore) Incr(ctx context.Context, key string, window time.Duration) (int, error) {
 	return s.inner.Incr(ctx, key, window)
+}
+
+// Keys are never sealed, so a prefix count runs on the inner store.
+func (s *sealedStore) CountPrefix(ctx context.Context, kind, prefix string) (int, error) {
+	return s.inner.CountPrefix(ctx, kind, prefix)
 }
 
 func (s *sealedStore) Sweep(ctx context.Context) (int, error) {

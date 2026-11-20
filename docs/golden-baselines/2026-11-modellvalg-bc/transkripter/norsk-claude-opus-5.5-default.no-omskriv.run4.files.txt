@@ -1,0 +1,11 @@
+=== ./utkast.md
+# Ny kodegjennomgang i nav-pilot
+
+Fra mandag kan alle team bruke en KI-agent til kodegjennomgang i nav-pilot.
+
+Agenten leser endringene i pull requesten og kommenterer linje for linje. Den finner feil i tilgangsstyring, logging av personopplysninger og manglende tester. Agenten endrer ikke koden selv. Den foreslår rettelser som du kan godta eller avvise.
+
+Agenten gjør det enklere å finne feil tidlig, men erstatter ikke en menneskelig gjennomgang.
+
+Slå av agenten med `review.enabled = false` i `.nav-pilot/config.toml`. Send tilbakemeldinger i Slack-kanalen #ki-utvikling.
+

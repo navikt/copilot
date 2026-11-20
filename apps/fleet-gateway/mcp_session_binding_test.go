@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -139,11 +140,11 @@ func mcpDelete(te *testEnv, token, sessionID string) int {
 }
 
 func mcpUserCount(te *testEnv) string {
-	raw, _, err := te.gw.store.Get(context.Background(), kindMCPSessionUser, te.gw.mcpSessionUserKey(te.navIdent))
+	n, err := te.gw.store.CountPrefix(context.Background(), kindMCPSessionUser, te.gw.mcpSessionUserKey(te.navIdent)+":")
 	if err != nil {
-		te.t.Fatalf("store get: %v", err)
+		te.t.Fatalf("count: %v", err)
 	}
-	return string(raw)
+	return strconv.Itoa(n)
 }
 
 func TestMCPSession_DeleteDoesNotRebindEchoedID(t *testing.T) {
@@ -185,5 +186,49 @@ func TestMCPSession_ConcurrentDeletesFreeOneSlot(t *testing.T) {
 	wg.Wait()
 	if got := mcpUserCount(te); got != "1" {
 		t.Fatalf("user count = %q after concurrent DELETEs of one session, want 1", got)
+	}
+}
+
+// A session row that expired must free its cap slot; the old counter never shrank.
+func TestMCPSession_ExpiredRowFreesCapSlot(t *testing.T) {
+	te := newTestEnv(t)
+	te.gw.cfg.MCPSessionUserCap = 1
+	issued := "up-0"
+	setUpstreamSessionID(te, &issued)
+	token := te.obtainAccessTokenForResource(te.resource)
+	if rec := mcpPost(te, token, ""); rec.Code != http.StatusOK {
+		t.Fatalf("got %d", rec.Code)
+	}
+	// Expire the first binding's rows without a DELETE.
+	key := "/mcp/team-etterlevelse/etterlevelse\nup-0"
+	_ = te.gw.store.Delete(context.Background(), kindMCPSession, key)
+	_ = te.gw.store.Delete(context.Background(), kindMCPSessionUser, te.gw.mcpSessionUserKey(te.navIdent)+":"+key)
+	issued = "up-1"
+	if rec := mcpPost(te, token, ""); rec.Code != http.StatusOK {
+		t.Fatalf("got %d", rec.Code)
+	}
+	if _, found := mcpBound(te, "up-1"); !found {
+		t.Fatal("slot of an expired session was not freed")
+	}
+}
+
+type unknownKIDBindingStore struct{ SessionStore }
+
+func (s unknownKIDBindingStore) Get(ctx context.Context, kind, key string) ([]byte, bool, error) {
+	if kind == kindMCPSession {
+		return nil, false, fmt.Errorf("get: %w", errSealUnknownKID)
+	}
+	return s.SessionStore.Get(ctx, kind, key)
+}
+
+func TestMCPSession_UnknownKIDBindingFailsClosed(t *testing.T) {
+	te := newTestEnv(t)
+	none := ""
+	setUpstreamSessionID(te, &none)
+	token := te.obtainAccessTokenForResource(te.resource)
+	te.gw.store = unknownKIDBindingStore{te.gw.store}
+	rec := mcpPost(te, token, "sealed-with-old-key")
+	if rec.Code != http.StatusForbidden || !strings.Contains(rec.Body.String(), "start a new MCP session") {
+		t.Fatalf("got %d %s, want 403 telling the client to start a new session", rec.Code, rec.Body.String())
 	}
 }

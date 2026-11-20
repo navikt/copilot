@@ -1,0 +1,43 @@
+ ● skill(klarsprak)
+
+ $ Shell Finn prosjektfiler og lokal konfigurasjon 9 lines…
+   pwd && ls -a
+
+ ● Read build.gradle.kts 12 lines read
+
+ / Search "sign|header" in *.kt 15 lines found
+
+ / Search "**/*" 28 files found
+
+ ● Read lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningProducerIntercepto  22 lines re…
+        r.kt
+
+ ● Read lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/Periode.kt 4 lines read
+
+ ● Read lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningHeaders.kt 11 lines read
+
+ $ Shell Finn PAW-monorepoets referanseimplementasjon 1 line…
+   gh search repos paw --owner navikt --limit 20 --json name,url
+
+ $ Shell Sjekk tilgang til det interne PAW-monorepoet 1 line…
+   gh api repos/navikt/paw-arbeidssoekerregisteret-monorepo-intern --jq '{full_name,default_branch}'
+
+ $ Shell Finn signeringsimplementasjonen i referanserepoet 11 lines…
+   gh api 'repos/navikt/paw-arbeidssoekerregisteret-monorepo-intern/git/trees/main?recursive=1' --jq
+   '.tree[] | select(.path | test("[Ss]ign.*\\.kt$")) | .path'
+
+ $ Shell Les hvordan referansen erstatter eksisterende signeringsheaders 215 lines…
+   gh api repos/navikt/paw-arbeidssoekerregisteret-monorepo-intern/contents/lib/kafka-signing/src/ma
+   in/kotlin/no/nav/paw/kafka/signing/SigningProducerInterceptor.kt -H 'Accept:
+   application/vnd.github.raw+json' && gh api repos/navikt/paw-arbeidssoekerregisteret-monorepo-inte
+   rn/contents/lib/kafka-signing/src/main/kotlin/no/nav/paw/kafka/signing/KafkaMessageSigner.kt -H
+   'Accept: application/vnd.github.raw+json'
+
+Jeg har lest referansen i PAWs interne monorepo og signeringskoden her. Referansen fjerner begge signeringsheaderne etter vellykket signering, før de nye legges til. Her finnes allerede `stripSigningHeaders`, men interceptoren bruker den ikke.
+
+🔴 Rød sone: signeringskode. Ingen filer er endret. Skal endringen følge samme feiloppførsel som referansen, altså la eksisterende headere stå dersom signeringen feiler?
+
+Repoet mangler `AGENTS.md` og lokale Copilot-instruksjoner for kode og review. Disse kan opprettes med `nav-pilot init`.
+
+Blindsoner reist: 1/11 (#3 stilt; øvrige avklart av koden eller ikke relevante for uendret payload, mottakere og nøkkelhåndtering).
+

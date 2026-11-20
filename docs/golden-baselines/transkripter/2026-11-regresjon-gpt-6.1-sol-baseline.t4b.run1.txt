@@ -1,0 +1,57 @@
+ ● skill(nav-plan)
+
+ ● skill(api-design)
+
+## Fase 2: plan
+
+**Vi bygger en stateless Ktor-tjeneste bak eksisterende Next.js-frontend.** Jeg antar ingen lagring eller caching av fødselsnummer og navn, og at frontend bare trenger navnet. Konkret lovhjemmel og formål dokumenteres før produksjon.
+
+### Flyt og autentisering
+
+`Nettleser → Wonderwall / Next.js → Ktor → PDL`
+
+- Wonderwall håndterer ID-porten-innlogging foran Next.js. Nettleseren bruker sesjonscookie, ikke tokens i JavaScript.
+- Next.js-serveren veksler brukerens token med TokenX til Ktor-tjenestens audience.
+- Ktor validerer signatur, issuer, audience og levetid med et etablert JWT-bibliotek. Fødselsnummer hentes fra det validerte TokenX-tokenet, aldri fra klientens parametere.
+- Ktor veksler tokenet videre til PDLs audience. PDL får brukerens kontekst, ikke et rent maskintoken.
+
+Dette plasserer tokenhåndteringen på serveren og begrenser oppslag til innlogget person. Det gir to tokenvekslinger, men unngår å eksponere backend direkte mot nettleseren. PDL-tilgang, audience og nødvendige behandlingsopplysninger må verifiseres før integrasjonen aktiveres.
+
+### API og feilhåndtering
+
+- `GET /api/meg` returnerer kun nødvendige navnefelt. Ingen fødselsnummer i URL eller respons.
+- `Cache-Control: no-store` gjelder både backend og Next.js-ruten. Ingen persondata i delt cache.
+- Manglende eller ugyldig autentisering gir `401`; manglende tilgang gir `403`.
+- PDL-utilgjengelighet og timeout gir `503`, uten automatisk retry i første versjon. PDL-feil i GraphQL-responser må også håndteres, selv ved HTTP `200`.
+- Feil returneres som Problem Details uten persondata. Logger inneholder feilkategori, status og tilfeldig korrelasjons-ID, aldri tokens, fødselsnummer, navn eller rå PDL-responser.
+
+### Filer og plattform
+
+Behold eksisterende `nais.yaml` og `build.gradle.kts`. Legg til avgrensede filer for oppstart, miljøkonfigurasjon, tokenhåndtering, PDL-klient og `/api/meg`, med tilhørende tester. Frontend trenger en serverrute og håndtering av innlogging og `503`; frontend-koden er ikke tilgjengelig her.
+
+Nais-oppsettet skal ha:
+- TokenX aktivert i Ktor. ID-porten/Wonderwall konfigureres på frontend.
+- Eksplisitt inbound-regel kun for frontend og outbound-tilgang til PDL. Frontend får outbound-tilgang til Ktor. Faktiske appnavn og namespace må brukes.
+- Eksisterende helsesjekker, Prometheus-endpoint og ingen offentlig backend-ingress.
+- Startressurser på `15m` CPU og `256Mi` minne, minnegrense `512Mi`, ingen CPU-grense. Juster etter målinger.
+
+Ingen database, Flyway, kø eller nye lagringsressurser.
+
+### Tester og drift
+
+Ktor-integrasjonstester med lokal tokenutsteder og simulert PDL skal dekke gyldig flyt, ugyldig signatur, feil issuer/audience, utløpt token, manglende identitet og avviste kallere. Testene skal bevise at klienten ikke kan velge en annen persons fødselsnummer, og at PDL-feil og timeout gir riktig respons uten datalekkasje.
+
+Frontend får en test av innlogging, navnevisning og forståelig feilmelding ved `503`. Dev-verifisering bruker syntetiske identiteter.
+
+Mål antall oppslagsforsøk og feilandel, med egne kategorier for PDL-feil og autentiseringsfeil. Ingen personidentifikatorer i metrikker eller traces. Dashboard viser oppslag per minutt og feilandel; foreløpig alarmgrense er over 5 % serverfeil i ti minutter, med minste trafikkgrunnlag for å unngå støy.
+
+### Levering og rollback
+
+CI kjører kompilering, tester og lint før image-bygg. Actions SHA-pinnes med minimale rettigheter. Deploy til dev først, deretter kontrollert produksjonssetting.
+
+Leveransen beskriver API-kontrakten, lovhjemmel/formål og en kort runbook. Etter deploy kontrolleres innlogging, eget navn, avvist uautorisert tilgang, `503` ved simulert PDL-feil og at logger er uten persondata. Ved feil rulles frontend-integrasjonen tilbake eller deaktiveres; backend rulles tilbake til forrige image når et slikt finnes.
+
+**🔴 Rød sone: autentisering, TokenX-veksling, binding til egen identitet og håndtering av persondata.** Wonderwall og TokenX er også nye konsepter for teamet. Uten eksplisitt bestilling om å implementere disse delene leveres bare stubs og testskjeletter for dem.
+
+Planen er klar for fase 3, review. Still gjerne spørsmål om valgene over.
+

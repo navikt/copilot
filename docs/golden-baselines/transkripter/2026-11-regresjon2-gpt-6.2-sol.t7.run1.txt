@@ -1,0 +1,30 @@
+ ● skill(jackson-3-migration)
+
+ ● skill(klarsprak)
+
+ $ Shell Inspect branch and Java baseline 34 lines…
+   git status -sb; git --no-pager log --oneline -8; git branch -a; git ls-files | head -80; java
+   -version
+
+ $ Shell Review migration diff and tooling 57 lines…
+   git --no-pager diff main...HEAD; rg -n 'jackson|\.map\(|\.map \{' src; command -v gradle; ls -a
+
+ ✗ Shell  Permission denied because no interactive user response was available. Retry in an interact
+   gradle --no-daemon build dependencyInsight --dependency jackson --configuration compileClasspath;
+   /usr/libexec/java_home -V
+   Approval check
+     └ ✗ Denied, no one to approve shell path (/usr/libexec/java_home)
+   Permission denied because no interactive user response was available. Retry in an interactive 
+   session so the user can approve it, or try an alternative that does not require this permission.
+
+ $ Shell Trace JSON contracts and consumers 89 lines…
+   for f in build.gradle.kts src/main/kotlin/no/nav/demo/{Soknad,App,Routes}.kt README.md; do echo
+   "$f"; nl -ba "$f"; done; rg -n 'lesSoker|SoknadMottattMelding|publiser' .
+
+**Jeg ville ikke godkjent Jackson 3-migreringen som bakoverkompatibel ennå.** Avhengighetene og mapperen er migrert til Jackson 3.1.0, men de nye standardinnstillingene endrer hvordan koden leser og skriver JSON.
+
+1. [`Soknad.kt:14–18`](src/main/kotlin/no/nav/demo/Soknad.kt#L14-L18): `lesSoker` ignorerer nå ukjente felter, som Jackson 2 avviste. Motsatt avviser Jackson 3 ekstra JSON-tokens etter objektet, som Jackson 2 godtok. Lås ønsket oppførsel med tester for begge tilfellene.
+2. [`Soknad.kt:20–25`](src/main/kotlin/no/nav/demo/Soknad.kt#L20-L25): Jackson 3 sorterer JSON-feltene alfabetisk som standard. I `soknad-mottatt` kommer dermed `mottatt` før `soknadId`. Feltene er de samme, og datoen skal fortsatt være en ISO-streng. Sammenlign gammel og ny Kafka-payload med representative meldinger. Krev identiske bytes bare hvis en konsument er avhengig av det.
+
+Ktor bruker fortsatt `kotlinx.serialization`, så Ktor 3.0.0 er ikke til hinder for denne migreringen. Jeg fant ingen Jackson 2-importer eller `JsonNode.map`-kall i kildekoden. Miljøet nektet å kjøre Gradle, så bygg og faktisk avhengighetstre er ikke verifisert. Ingen filer er endret.
+

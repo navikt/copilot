@@ -1,0 +1,30 @@
+ $ Shell List vedtak-hendelse files 24 lines…
+   cd vedtak-hendelse && find . -type f -not -path '*/build/*' -not -path '*/.gradle/*' | head -100
+   && cat build.gradle* 2>/dev/null | head -80
+
+ $ Shell Show source and test files 30 lines…
+   cd vedtak-hendelse && cat src/main/kotlin/no/nav/vedtak/VedtakFattet.kt; echo ----; cat
+   src/test/kotlin/no/nav/vedtak/VedtakFattetTest.kt
+
+Plan: add a `Sakstype` enum with `sakstype` defaulting to `ORDINAER` for old messages, and turn off `FAIL_ON_UNKNOWN_PROPERTIES` so newer producers' extra fields don't break reading.
+
+ ● Edit vedtak-hendelse/src/main/kotlin/no/nav/vedtak/VedtakFattet.kt +11
+
+ ● Edit vedtak-hendelse/src/test/kotlin/no/nav/vedtak/VedtakFattetTest.kt +29
+
+ $ Shell Run gradle test in vedtak-hendelse 15 lines…
+   cd vedtak-hendelse && (which gradle && gradle test --console=plain 2>&1 | tail -40) || echo
+   NO_GRADLE
+
+ $ Shell Confirm test counts from results 1 line…
+   cd vedtak-hendelse && grep -h -o 'tests="[0-9]*" skipped="[0-9]*" failures="[0-9]*"
+   errors="[0-9]*"' build/test-results/test/*.xml
+
+`VedtakFattet` har nå feltet `sakstype` med enum `ORDINAER`, `KLAGE` og `ANKE`. `gradle test` i `vedtak-hendelse/` går grønt, 5 tester uten feil.
+
+- **Eldre meldinger:** `sakstype` har default `ORDINAER`, så meldinger uten feltet leses som ORDINAER.
+- **Nyere produsenter:** `FAIL_ON_UNKNOWN_PROPERTIES` er slått av, så ukjente felt ignoreres i stedet for å feile lesingen.
+- **Endringer:** `src/main/kotlin/no/nav/vedtak/VedtakFattet.kt` og `src/test/kotlin/no/nav/vedtak/VedtakFattetTest.kt`. Testene dekker gammel melding, lesing av sakstype, ukjent felt og skriving.
+
+Ukjente verdier i `sakstype` (en ny enum-verdi) feiler fortsatt. Det var ikke en del av kravet, så jeg har ikke endret det.
+

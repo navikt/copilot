@@ -1,0 +1,31 @@
+ TX Read src/app/komponenter/StatusPanel.tsx 19 lines read
+
+ MD Read .github/instructions/accessibility.instructions.md 121 lines read
+
+ TX Edit src/app/komponenter/StatusPanel.tsx Denied by preToolUse hook: En egendefinert ARIA-rolle …
+   Denied by preToolUse hook: En egendefinert ARIA-rolle og et avvik fra Aksel-mønsteret står begge 
+   under ⚠️ Ask First i accessibility-agenten 
+   (https://github.com/navikt/copilot/blob/main/agents/accessibility.agent.md). Ikke skriv endringen
+    selv. Spør utvikleren om bekreftelse først, eller vis til Aksel-komponenten som allerede har 
+   rollen innebygd: <Select> for et statusvalg, eller <UNSAFE_Combobox> når valget skal kunne søkes 
+   i. Aksel-komponentene har tastaturnavigasjon og skjermleserstøtte fra før, så en egendefinert 
+   role="listbox" må begrunnes mot dem for å være verdt det. Spør utvikleren og vent på svaret før 
+   du prøver igjen.
+
+Jeg har ikke gjort endringen. Et hook stoppet den, og jeg kan ikke spørre deg underveis. Egendefinert `role="listbox"` står under «Ask First» i UU-reglene, og Aksel har allerede komponenter for dette.
+
+Bekreft ett av disse, så gjør jeg det:
+
+1. **`<Select>` fra `@navikt/ds-react`** (anbefalt). Det er en standard `<select>` med rollen, tastaturnavigasjon og skjermleserstøtte innebygd.
+2. **`<UNSAFE_Combobox>`** hvis statusvalget skal kunne søkes i.
+3. **Egendefinert `role="listbox"`** hvis du har en begrunnelse mot Aksel-komponentene. Da bygger jeg den med `aria-activedescendant`, piltaster, Home/End, `aria-selected` og synlig fokus.
+
+Filen har også eksisterende UU-brudd som jeg ikke har rørt:
+- `<div onClick>` uten rolle eller tastaturstøtte.
+- `outline: none`.
+- `tabIndex={5}`.
+- En ikonknapp uten tilgjengelig navn.
+- Farge som eneste informasjon.
+
+Si fra hvis jeg skal rette disse i samme omgang.
+

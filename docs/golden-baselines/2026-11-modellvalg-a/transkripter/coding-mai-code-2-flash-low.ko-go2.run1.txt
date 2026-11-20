@@ -1,0 +1,24 @@
+Jeg finner testforventningene og justerer implementasjonen uten å røre testene.
+
+ / Search "ytelse/**/*.go" 3 files found
+
+ / Search "*" 34 files found
+
+ / Search "grader|performance|ytelse" in *.go 3 files found
+
+ MD Read .github/instructions/golang.instructions.md 547 lines read
+
+ GO Read ytelse/utbetaling.go 6 lines read
+
+ GO Read ytelse/rapport.go 8 lines read
+
+ GO Read ytelse/ytelse_test.go 21 lines read
+
+ ● Edit  Edit ytelse/utbetaling.go (+3 -3)  Edit ytelse/rapport.go (+2 -2)
+
+ $ Shell Formatter Go-filer og kjører ytelse-testene 1 line…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.kkPA58/repo/ytelse
+   && gofmt -w utbetaling.go rapport.go && go test ./...
+
+`go test ./...` i `ytelse/` går nå grønt.
+

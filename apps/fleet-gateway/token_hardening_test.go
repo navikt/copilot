@@ -33,16 +33,6 @@ func TestSeal_RejectsOversizedPlaintext(t *testing.T) {
 	}
 }
 
-func TestValidatePostgresURL_ErrorDoesNotLeakDSN(t *testing.T) {
-	err := validatePostgresURL("postgres://user:s3cretpw@host:notaport/db")
-	if err == nil {
-		t.Fatal("expected error")
-	}
-	if strings.Contains(err.Error(), "s3cretpw") {
-		t.Fatalf("error leaks DSN: %v", err)
-	}
-}
-
 func TestRefreshToken_LegacyGroupsStillAcceptedAndNewTokenSmall(t *testing.T) {
 	te := newClientEncryptedTestEnv(t, "k1:"+testKeyBase64(t, false))
 	groups := make([]string, 0, 100)
@@ -159,6 +149,37 @@ func TestRefreshToken_ExpIsAbsoluteAcrossMaxAgeChange(t *testing.T) {
 	}
 }
 
+func TestRefreshToken_LoweredMaxAgeRejectsAndClampsRefresh(t *testing.T) {
+	t.Run("rejects refresh past lowered SessionMaxAge", func(t *testing.T) {
+		te := newClientEncryptedTestEnv(t, "k1:"+testKeyBase64(t, false))
+		_, rt, _ := te.obtainTokensForResource(te.resource)
+		te.gw.cfg.SessionMaxAge = time.Hour
+		te.advance(2 * time.Hour)
+		if status, body := te.refresh(rt); status != http.StatusBadRequest || body["error"] != "invalid_grant" {
+			t.Fatalf("expected 400 invalid_grant after SessionMaxAge lowered past elapsed time, got %d (%v)", status, body)
+		}
+	})
+
+	t.Run("clamps expires_in and issued session stays alive within lowered SessionMaxAge", func(t *testing.T) {
+		te := newClientEncryptedTestEnv(t, "k1:"+testKeyBase64(t, false))
+		_, rt, _ := te.obtainTokensForResource(te.resource)
+		te.gw.cfg.SessionMaxAge = time.Hour
+		te.advance(45 * time.Minute)
+		status, body := te.refresh(rt)
+		if status != http.StatusOK {
+			t.Fatalf("expected 200 within lowered SessionMaxAge, got %d (%v)", status, body)
+		}
+		exp, _ := body["expires_in"].(float64)
+		if exp <= 0 || exp > 900 {
+			t.Fatalf("expected expires_in clamped to remaining <=900s, got %v", exp)
+		}
+		at, _ := body["access_token"].(string)
+		if _, ok, err := te.gw.getSession(context.Background(), hashToken(at)); err != nil || !ok {
+			t.Fatalf("issued session must be readable from store: ok=%v err=%v", ok, err)
+		}
+	})
+}
+
 func TestRefreshToken_ReplayRevokesFamily(t *testing.T) {
 	te := newClientEncryptedTestEnv(t, "k1:"+testKeyBase64(t, false))
 	_, rt1, _ := te.obtainTokensForResource(te.resource)
@@ -263,5 +284,29 @@ func TestRefreshToken_TransientUpstreamDoesNotBurnRT(t *testing.T) {
 	te.advance(refreshPendingTTL + time.Second)
 	if status, body := te.refresh(rt); status != http.StatusOK {
 		t.Fatalf("RT must survive a transient failure, got %d (%v)", status, body)
+	}
+}
+
+func TestRefreshToken_RevokeSurvivesRaisedSessionMaxAge(t *testing.T) {
+	te := newClientEncryptedTestEnv(t, "k1:"+testKeyBase64(t, false))
+	_, rt1, _ := te.obtainTokensForResource(te.resource)
+
+	// Lower SessionMaxAge before refreshing rt1; its denylist TTL must stay pinned
+	// to rt1's EXP so raising SessionMaxAge later cannot make rt1 replayable.
+	te.gw.cfg.SessionMaxAge = time.Hour
+	status, body := te.refresh(rt1)
+	if status != http.StatusOK {
+		t.Fatalf("first refresh: %d (%v)", status, body)
+	}
+	rt2, _ := body["refresh_token"].(string)
+
+	te.advance(2 * time.Hour)
+	te.gw.cfg.SessionMaxAge = 24 * time.Hour
+
+	if status, body := te.refresh(rt1); status != http.StatusBadRequest || body["error"] != "invalid_grant" {
+		t.Fatalf("replay of used RT after raising SessionMaxAge: got %d (%v), want 400 invalid_grant", status, body)
+	}
+	if status, body := te.refresh(rt2); status != http.StatusBadRequest || body["error"] != "invalid_grant" {
+		t.Fatalf("newest RT in family must be revoked after replay: got %d (%v), want 400 invalid_grant", status, body)
 	}
 }

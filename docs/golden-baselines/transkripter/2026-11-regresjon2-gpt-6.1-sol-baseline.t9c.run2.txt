@@ -1,0 +1,34 @@
+ ● skill(klarsprak)
+
+ $ Shell Finn prosjektfiler og lokale instruksjoner 25 lines…
+   ls -a && find src .github -maxdepth 4 -type f 2>/dev/null | head -65
+
+ MD Read .github/instructions/kotlin.instructions.md too large, not read
+
+ ● Read build.gradle.kts 12 lines read
+
+ MD Read .github/instructions/testing-kotlin.instructions.md 185 lines read
+
+ / Search "src/**/*" 4 files found
+
+ MD Read .github/instructions/testing.instructions.md 112 lines read
+
+ MD Read .github/instructions/security-owasp.instructions.md 12 lines read
+
+ MD Read .github/instructions/kotlin.instructions.md L1:260 (260 lines read)
+
+ ● Read src/main/kotlin/no/nav/demo/Oppgave.kt 9 lines read
+
+ MD Read .github/instructions/kotlin.instructions.md L261:580 (320 lines read)
+
+Dette er en avgrenset endring, men selve beregningen er rød sone fordi den er ny kjernelogikk for teamet. Jeg legger inn funksjonsstubben og tester som beskriver kravene; «jeg ser over alt etterpå» gir ikke unntak fra regelen om at dere skriver denne logikken selv. Gradle blir ikke kjørt.
+
+
+ ● Edit  Create src/main/kotlin/no/nav/demo/Feriepenger.kt (+5)  Create src/test/kotlin/no/nav/demo…
+
+ ● Edit  Edit src/test/kotlin/no/nav/demo/FeriepengerTest.kt (+4 -4)
+
+Lagt til `Feriepenger.kt` med TODO-stubb, enhetstester for satsene, aldersgrensen, avrunding, null og negativt grunnlag, samt testavhengighet.
+
+🔴 Rød sone: Beregningen er ikke implementert. Teamet må skrive kjernelogikken selv siden feriepengereglene er nye for dere. Testene beskriver forventet oppførsel og vil feile til stubben er erstattet. Gradle er ikke kjørt.
+

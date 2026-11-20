@@ -31,13 +31,26 @@ var NavContextDirOverride string
 
 // openCodeConfigPath returns the path to opencode's global config.
 // Honors ConfigPathOverride (test seam).
+// Falls back to opencode.jsonc when opencode.json is absent and opencode.jsonc
+// exists, matching MCPConfigPath(MCPClientOpenCode).
 // Falls back to os.TempDir() when the home directory cannot be resolved so the
 // returned path is always absolute.
 func openCodeConfigPath() string {
 	if ConfigPathOverride != "" {
 		return ConfigPathOverride
 	}
-	return filepath.Join(openCodeConfigDir(), "opencode.json")
+	return resolveOpenCodeConfigFile(openCodeConfigDir())
+}
+
+func resolveOpenCodeConfigFile(dir string) string {
+	p := filepath.Join(dir, "opencode.json")
+	if _, err := os.Stat(p); errors.Is(err, os.ErrNotExist) {
+		jsonc := filepath.Join(dir, "opencode.jsonc")
+		if _, err := os.Stat(jsonc); err == nil {
+			return jsonc
+		}
+	}
+	return p
 }
 
 // openCodeConfigDir is where opencode reads its own configuration.

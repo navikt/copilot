@@ -6,9 +6,11 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/navikt/copilot/fleet-gateway/internal/config"
 	"io"
 	"log/slog"
 	"net"
@@ -21,6 +23,19 @@ import (
 )
 
 const entraStateCookieName = "__Host-fleet_entra_state"
+
+// maxEntraStateCookies caps the state cookies a browser holds, so abandoned
+// logins cannot grow the Cookie header until requests are refused (431).
+const maxEntraStateCookies = 8
+
+// entraStateCookieFor names the per-login state cookie, so parallel logins
+// (several gateway routes authenticating at once) don't overwrite each other.
+// The set is bounded by MaxAge (defaultPendingTTL): cookies expire on their own,
+// and the callback clears its own. Each is ~100 bytes.
+func entraStateCookieFor(state string) string {
+	h := sha256.Sum256([]byte(state))
+	return entraStateCookieName + "_" + hex.EncodeToString(h[:4])
+}
 
 type pendingAuth struct {
 	ClientID      string    `json:"client_id"`
@@ -196,8 +211,23 @@ func isLoopbackRedirect(u *url.URL) bool {
 		if err != nil || (h != "127.0.0.1" && h != "::1") {
 			return false
 		}
+		if !isASCIIDigits(port) {
+			return false
+		}
 		n, err := strconv.Atoi(port)
 		if err != nil || n < 1 || n > 65535 {
+			return false
+		}
+	}
+	return true
+}
+
+func isASCIIDigits(s string) bool {
+	if s == "" {
+		return false
+	}
+	for i := 0; i < len(s); i++ {
+		if s[i] < '0' || s[i] > '9' {
 			return false
 		}
 	}
@@ -209,13 +239,19 @@ type cachedCIMD struct {
 	fetchedAt time.Time
 }
 
+func retryableCIMDStatus(code int) bool {
+	return code == http.StatusRequestTimeout ||
+		code == http.StatusTooManyRequests ||
+		(code >= http.StatusInternalServerError && code < 600)
+}
+
 func (g *Gateway) fetchCIMD(ctx context.Context, clientID string) (*clientMetadata, error) {
 	stale, hasStale := g.cimdCache.Get(clientID)
 	if hasStale && g.now().Before(stale.fetchedAt.Add(defaultCIMDTTL)) {
 		return stale.doc, nil
 	}
 
-	if err := validateHTTPURL(clientID, false); err != nil {
+	if err := config.ValidateHTTPURL(clientID, false); err != nil {
 		return nil, fmt.Errorf("invalid client_id URL: %w", err)
 	}
 
@@ -230,6 +266,11 @@ func (g *Gateway) fetchCIMD(ctx context.Context, clientID string) (*clientMetada
 		return nil, err
 	}
 
+	evictAndErr := func(err error) (*clientMetadata, error) {
+		g.cimdCache.Pop(clientID)
+		return nil, err
+	}
+
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, clientID, nil)
 	if err != nil {
 		return fallbackOrErr(err)
@@ -239,26 +280,36 @@ func (g *Gateway) fetchCIMD(ctx context.Context, clientID string) (*clientMetada
 
 	resp, err := g.cfg.HTTPClient.Do(req) //nolint:gosec // URL validated against AllowedClientIDs allowlist
 	if err != nil {
+		if resp != nil {
+			_ = resp.Body.Close()
+			if !retryableCIMDStatus(resp.StatusCode) {
+				return evictAndErr(err)
+			}
+		}
 		return fallbackOrErr(err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
-		return fallbackOrErr(fmt.Errorf("unexpected CIMD status %d", resp.StatusCode))
+		err := fmt.Errorf("unexpected CIMD status %d", resp.StatusCode)
+		if retryableCIMDStatus(resp.StatusCode) {
+			return fallbackOrErr(err)
+		}
+		return evictAndErr(err)
 	}
 
 	var doc clientMetadata
 	if err := json.NewDecoder(io.LimitReader(resp.Body, maxCIMDBodyBytes)).Decode(&doc); err != nil {
-		return fallbackOrErr(fmt.Errorf("decode CIMD: %w", err))
+		return evictAndErr(fmt.Errorf("decode CIMD: %w", err))
 	}
 	if doc.ClientID != clientID {
-		return nil, errors.New("CIMD client_id does not match request URL")
+		return evictAndErr(errors.New("CIMD client_id does not match request URL"))
 	}
 	if doc.TokenEndpointAuthMethod != "" && doc.TokenEndpointAuthMethod != "none" {
-		return nil, fmt.Errorf("unsupported token_endpoint_auth_method %q", doc.TokenEndpointAuthMethod)
+		return evictAndErr(fmt.Errorf("unsupported token_endpoint_auth_method %q", doc.TokenEndpointAuthMethod))
 	}
 	if len(doc.RedirectURIs) == 0 {
-		return nil, errors.New("CIMD redirect_uris is empty")
+		return evictAndErr(errors.New("CIMD redirect_uris is empty"))
 	}
 	if doc.ClientName == "" {
 		doc.ClientName = doc.ClientID
@@ -309,8 +360,22 @@ func (g *Gateway) redirectToEntra(w http.ResponseWriter, r *http.Request, p *pen
 		return
 	}
 
+	// shortcut: cookies carry no timestamp, so at the cap all earlier state cookies
+	// are dropped (in-flight logins beyond the cap must restart); upgrade by signing issuedAt.
+	var stale []string
+	for _, c := range r.Cookies() {
+		if strings.HasPrefix(c.Name, entraStateCookieName+"_") {
+			stale = append(stale, c.Name)
+		}
+	}
+	if len(stale) >= maxEntraStateCookies {
+		for _, n := range stale {
+			clearEntraStateCookie(w, n)
+		}
+	}
+
 	http.SetCookie(w, &http.Cookie{
-		Name:     entraStateCookieName,
+		Name:     entraStateCookieFor(entraState),
 		Value:    g.signEntraState(entraState),
 		Path:     "/",
 		HttpOnly: true,
@@ -389,7 +454,7 @@ func (g *Gateway) entraAuthorizeEndpoint(ctx context.Context) (string, error) {
 		if err := json.NewDecoder(io.LimitReader(resp.Body, maxCIMDBodyBytes)).Decode(&metadata); err != nil {
 			return "", fmt.Errorf("decode well-known: %w", err)
 		}
-		if err := validateHTTPURL(metadata.AuthorizationEndpoint, false); err != nil {
+		if err := config.ValidateHTTPURL(metadata.AuthorizationEndpoint, false); err != nil {
 			return "", fmt.Errorf("invalid authorization_endpoint in well-known: %w", err)
 		}
 
@@ -415,9 +480,17 @@ func (g *Gateway) callbackHandler(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	queryState := q.Get("state")
 
-	clearEntraStateCookie(w)
-
-	cookie, err := r.Cookie(entraStateCookieName)
+	name := entraStateCookieFor(queryState)
+	cookie, err := r.Cookie(name)
+	if err != nil {
+		// Rollout compat: logins started before the per-login cookie used a fixed name.
+		name = entraStateCookieName
+		cookie, err = r.Cookie(name)
+	}
+	clearEntraStateCookie(w, entraStateCookieFor(queryState))
+	if err == nil && name == entraStateCookieName {
+		clearEntraStateCookie(w, entraStateCookieName)
+	}
 	if err != nil || !g.verifyEntraStateCookie(cookie.Value, queryState) {
 		http.Error(w, "state binding cookie missing or invalid; start the login again", http.StatusForbidden)
 		return
@@ -474,7 +547,8 @@ func (g *Gateway) callbackHandler(w http.ResponseWriter, r *http.Request) {
 	at, _ := out["access_token"].(string)
 	idt, _ := out["id_token"].(string)
 	logAccessTokenShape(at)
-	if err != nil || status != http.StatusOK || (at == "" && idt == "") {
+	missingToken := (at == "" && idt == "") || (at == "" && g.cfg.TeamTokenStrategy != strategyRefresh)
+	if err != nil || status != http.StatusOK || missingToken {
 		errType, _ := out["error"].(string)
 		slog.Warn("audit login", "outcome", "code_redeem_failed", "status", status, "error", sanitizeLogValue(errType), "client_id", sanitizeLogValue(p.ClientID), "resource", sanitizeLogValue(p.Resource))
 		back(url.Values{
@@ -713,9 +787,9 @@ func (g *Gateway) verifyEntraStateCookie(cookieVal, queryState string) bool {
 	return subtle.ConstantTimeCompare([]byte(parts[0]), []byte(queryState)) == 1
 }
 
-func clearEntraStateCookie(w http.ResponseWriter) {
+func clearEntraStateCookie(w http.ResponseWriter, name string) {
 	http.SetCookie(w, &http.Cookie{
-		Name:     entraStateCookieName,
+		Name:     name,
 		Value:    "",
 		Path:     "/",
 		HttpOnly: true,
@@ -727,7 +801,11 @@ func clearEntraStateCookie(w http.ResponseWriter) {
 
 func redirectWithValues(w http.ResponseWriter, r *http.Request, base *url.URL, v url.Values) {
 	target := *base
-	target.RawQuery = v.Encode()
+	q := target.Query()
+	for k, vals := range v {
+		q[k] = vals
+	}
+	target.RawQuery = q.Encode()
 	http.Redirect(w, r, target.String(), http.StatusFound)
 }
 

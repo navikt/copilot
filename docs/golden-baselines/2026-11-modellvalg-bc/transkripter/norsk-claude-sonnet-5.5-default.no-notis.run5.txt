@@ -1,0 +1,8 @@
+ ● skill(klarsprak)
+
+ MD Read fakta.md 6 lines read
+
+ MD Create notis.md +7
+
+Jeg har lagret notisen i `notis.md`. Den er på rundt 60 ord, bokmål, og dekker alle fem punktene i `fakta.md`. Jeg har ikke telt ordene med et verktøy.
+

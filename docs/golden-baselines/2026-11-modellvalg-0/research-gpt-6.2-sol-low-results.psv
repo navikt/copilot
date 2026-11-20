@@ -1,0 +1,22 @@
+# golden-prompt PER-RUN ASSERTION OUTCOMES
+# agent:        research
+# suite:        research
+# date:         2026-11-18
+# revision:     ac35a630
+# personaHash:  bfd27dcb2ee26f091fbc71c847ebdf211ee307dc6c41d565ea73a5ae8667ba32
+# harnessHash:  31303b66a044df68da77f1ba539f6a0a98cf0aabc6733992e11c37f4979c6eb4
+# model:        gpt-6.2-sol
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.114-0.
+# effort:       low
+# context:      CLI default
+# instructions: 17 installed, 4 always-on
+# repeat:       1
+# fixture:      4263008951
+# prompts:      all
+#
+# id|run|status|assertion|detail
+re1|1|pass|every use of maksAntall cited on its line|
+re2|1|pass|says slettOppgave has no callers and invents no file|
+re3|1|pass|summary keeps to at most three points|
+re4|1|pass|summary names the endpoint|

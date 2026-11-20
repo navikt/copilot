@@ -1,0 +1,18 @@
+ ● skill(nav-auth)
+
+ ● skill(klarsprak)
+
+ $ Shell Sjekk prosjektfiler og lokale instruksjoner 7 lines…
+   ls -A; ls -A .github
+
+ / Search "." (README.md, nais.yaml, build.gradle.kts, src) 65 lines found
+
+**Fase 1: Avklar formål og tilgang.** Jeg tolker «ny tjeneste» som en egen tjeneste. Dagens Ktor-app returnerer en fast liste fra `/api/oppgaver`, og `nais.yaml` har ingen konfigurasjon for ID-porten.
+
+1. Hva skal den innloggede personen kunne gjøre, og hvorfor trenger tjenesten fødselsnummeret? Skal den bruke nummeret bare i den aktuelle forespørselen, lagre det eller sende det videre? Skal den behandle andre personopplysninger?
+2. Hvem skal kalle tjenesten: personens nettleser direkte, eller en annen Nav-app på personens vegne? Skal personen bare ha tilgang til egne opplysninger?
+
+Ingen filer er endret. De lokale Copilot-instruksjonsfilene mangler; `nav-pilot init` kan opprette dem. Feilhåndtering, drift, teamansvar, konsumenter, tester og læringsbehov kan avklares når bruken er kjent. Migrering, bakoverkompatibilitet og avvikling er ikke aktuelle så lenge dagens API forblir uendret.
+
+Blindsoner reist: 2/11 (#1 personvern, #2 tilgangskontroll).
+

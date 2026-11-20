@@ -1,0 +1,45 @@
+ ● skill(kafka)
+
+Jeg kartlegger konsumentens poll/commit-flyt og eksisterende tester før endringen.
+
+ MD Read .github/instructions/kotlin.instructions.md too large, not read
+
+ MD Read .github/instructions/testing-kotlin.instructions.md 185 lines read
+
+ / Search "vedtak-konsument/**/*test*" No matches found
+
+ / Search "vedtak-konsument/**/*.{kt,kts,java}" 4 files found
+
+ MD Read .github/instructions/kotlin.instructions.md too large, not read
+
+ ● Read vedtak-konsument/src/test/kotlin/no/nav/vedtak/VedtakKonsumentTest.kt 25 lines read
+
+ ● Read vedtak-konsument/src/main/kotlin/no/nav/vedtak/VedtakKonsument.kt 23 lines read
+
+ ● Read vedtak-konsument/build.gradle.kts 20 lines read
+
+ / Search "vedtak-konsument/*" 2 files found
+
+ / Search "VedtakKonsument|Utbetaling|eventId" in *.{kt,kts,md} 19 lines found
+
+ ● Edit  Edit vedtak-konsument/src/main/kotlin/no/nav/vedtak/VedtakKonsument.kt (+6 -2)  Edit vedta…
+
+Endringen er på plass. Nå kjører jeg den målrettede Gradle-testpakken.
+
+ ✗ Shell Run Gradle tests… /bin/bash: ./gradlew: No such file or directory Failed with exit code 127
+   cd vedtak-konsument && ./gradlew test
+
+Modulen har ingen Gradle-wrapper; kjører den installerte Gradle-versjonen direkte.
+
+ $ Shell Run Gradle test task directly 14 lines…
+   cd vedtak-konsument && gradle test
+
+Rettet `VedtakKonsument`:
+
+- Samme `eventId` utbetales bare én gang.
+- Offset commites først etter alle meldinger er behandlet.
+- Mislykket utbetaling hindrer commit.
+- To-argument-konstruktøren er bevart.
+
+`gradle test` i `vedtak-konsument/` fullfører uten feil.
+

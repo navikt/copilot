@@ -1,0 +1,30 @@
+ ● skill(klarsprak)
+
+Jeg kartlegger først inngangspunkt, dokumentasjon og hovedflyt slik at oppsummeringen bygger på tjenestens faktiske kode.
+
+ ● List directory . 5 files found
+
+ / Search "Application|fun main|SpringBootApplication|createServer|routes|endpoint|l… 42 lines found
+
+ / Search "**/{README*,package.json,pom.xml,build.gradle*,go.mod,Cargo.toml,pyproject… 2 files found
+
+ MD Read README.md 4 lines read
+
+ ● Read build.gradle.kts 12 lines read
+
+ YM Read nais.yaml 12 lines read
+
+ / Search "src/**/*" 4 files found
+
+ ● Read src/main/kotlin/no/nav/demo/App.kt 15 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/Oppgave.kt 9 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/Routes.kt 19 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/Config.kt 4 lines read
+
+- Kjører en liten Ktor-tjeneste på port 8080 og leverer JSON via REST.
+- `GET /api/oppgaver` returnerer en fast liste med oppgaver, begrenset av `maksAntall` (100).
+- Kan deployes på Nais med liveness- og readiness-endepunktene `/internal/isalive` og `/internal/isready`; disse mangler imidlertid i kodebasen.
+

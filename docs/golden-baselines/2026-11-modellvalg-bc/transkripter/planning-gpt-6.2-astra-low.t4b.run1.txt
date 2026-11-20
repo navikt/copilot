@@ -1,0 +1,24 @@
+ ● skill(nav-plan)
+
+ ● skill(tokenx-auth)
+
+ ● skill(api-design)
+
+**Fase 2: Plan for oppslag av eget navn**
+
+Den eksisterende Next.js-frontenden håndterer innlogging med ID-porten og Wonderwall. En ny, intern Ktor-tjeneste henter navnet fra PDL. Nettleseren kan be om «mitt navn», men kan aldri velge hvilken person tjenesten slår opp. Demoens `/api/oppgaver` forblir uendret.
+
+1. **Innlogging og tilgang.** Nettleseren bruker en sesjonscookie. Next.js veksler brukerens token via TokenX til et token for Ktor-tjenesten. Ktor validerer signatur, utsteder, mottaker og utløp, og sjekker at kallet kommer fra riktig frontend med påkrevd innloggingsnivå. Først da leser tjenesten `pid` og veksler tokenet på nytt, denne gangen med PDL som mottaker. De to vekslingene koster et ekstra ledd, men gjør at hvert token bare gjelder for sin mottaker. Høyt innloggingsnivå er en planforutsetning, ikke et avklart krav.
+
+2. **API og personvern.** `GET /api/meg/navn` tar ingen personidentifikator som parameter. Ktor bruker `pid` fra det validerte tokenet til å spørre PDL om gjeldende navn, og returnerer bare navnet. Både Ktor og Next.js setter `Cache-Control: no-store`; ingen av dem lagrer oppslaget. Før produksjon dokumenterer teamet formålet og den konkrete lovhjemmelen, og bekrefter behandlingsnummer og tilgang hos PDL.
+
+3. **Feil og drift.** Manglende eller ugyldig token gir `401`; en autentisert klient uten tilgang får `403`. Ingen av delene skal utløse et PDL-kall. Ved tidsavbrudd eller utilgjengelig PDL returnerer tjenesten `503` uten kø eller utsatt behandling. Frontenden gir innbyggeren mulighet til å prøve igjen. Loggen inneholder feilkategori og tilfeldig korrelasjons-ID, aldri fødselsnummer, navn, token eller rått PDL-svar. Mål antall oppslag per minutt og andelen som ender med `5xx`; vis avviste kall separat, og varsle ved vedvarende høy feilandel.
+
+4. **Kode og Nais.** Legg ruten i `api/`, tokenvalideringen i `auth/` og PDL-klienten i `pdl/`. Ktor får ingen offentlig ingress. `nais.yaml` aktiverer TokenX og tillater bare Next.js-appen inn og PDL ut som fagtjeneste. Bruk faktiske appnavn og namespace per miljø. Sett opp interne helse- og metrikkendepunkter; et PDL-avbrudd skal ikke utløse omstart av friske pods. Ingen database eller migrering.
+
+5. **Test og produksjonssetting.** Bruk syntetiske identiteter, testutsteder og en simulert PDL-tjeneste. Den viktigste testen bruker to innbyggere og viser at hver bare får sitt eget navn. Test også feil mottaker, feil klient, manglende `pid` og PDL-tidsavbrudd. GitHub Actions kjører testene før bygg. Deploy først til dev og prøv hele innloggingsflyten med en testbruker. Aktiver frontendkallet i produksjon først når oppslaget, loggene og målingene er kontrollert. Ved feil kan teamet deaktivere frontendkallet uten datamigrering.
+
+🔴 **Rød sone: Teamet skriver selv** integrasjonen med Wonderwall og TokenX, tokenvalideringen og koblingen mellom validert `pid` og PDL-oppslaget. Planlagt støtte er testskjeletter og stubbkode for disse delene.
+
+Planen er klar for godkjenning før fase 3.
+

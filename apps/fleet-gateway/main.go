@@ -2,9 +2,11 @@ package main
 
 import (
 	"context"
+	"crypto/hmac"
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/navikt/copilot/fleet-gateway/internal/config"
 	"io"
 	"log/slog"
 	"net"
@@ -18,6 +20,8 @@ import (
 	"time"
 
 	"golang.org/x/sync/singleflight"
+
+	"github.com/navikt/copilot/fleet-gateway/internal/audit"
 )
 
 // Gateway implements the fleet-gateway OAuth 2.1 authorization server and MCP proxy.
@@ -34,7 +38,9 @@ type Gateway struct {
 	proxyClient  *http.Client
 	refreshWait  time.Duration // how long a concurrent refresh waits for the winner's grace pair
 	inFlight     slots         // buffered MCP calls; bounds memory (see README, Memory and limits)
+	userInFlight *userSlots    // concurrent buffered MCP calls per user on this pod
 	sseStreams   slots         // open SSE response streams; they buffer nothing, so get their own cap
+	userSSE      *userSlots    // concurrent open SSE response streams per user on this pod
 
 	wellKnownMu         sync.RWMutex
 	wellKnownGroup      singleflight.Group
@@ -110,19 +116,30 @@ func newGateway(cfg *Config, now func() time.Time) (*Gateway, error) {
 }
 
 func checkLockoutMarker(store SessionStore, lockoutKey []byte) error {
-	if len(lockoutKey) > 0 {
-		return nil
-	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	_, exists, err := store.Get(ctx, kindUserRevokedMarker, userRevokedMarkerKey)
+	marker, exists, err := store.Get(ctx, kindUserRevokedMarker, userRevokedMarkerKey)
 	if err != nil {
 		return fmt.Errorf("check lockout marker: %w", err)
 	}
-	if exists {
+	if !exists {
+		return nil
+	}
+	if len(lockoutKey) == 0 {
 		return errors.New("LOCKOUT_KEY is missing but lockout records exist; set the LOCKOUT_KEY secret")
 	}
-	return nil
+	want := []byte(lockoutKeyFingerprint(lockoutKey))
+	if hmac.Equal(marker, want) {
+		return nil
+	}
+	if hmac.Equal(marker, []byte("1")) {
+		if err := store.Put(ctx, kindUserRevokedMarker, userRevokedMarkerKey, want, lockoutNoExpiry); err != nil {
+			return fmt.Errorf("update lockout marker: %w", err)
+		}
+		slog.Warn("legacy lockout marker upgraded to key fingerprint")
+		return nil
+	}
+	return errors.New("LOCKOUT_KEY does not match the key the existing lockout records were written with (changing it would lift all lockouts; restore the old key)")
 }
 
 func buildSessionStore(cfg *Config, now func() time.Time, rtKeys *keyRing) (SessionStore, bool, error) {
@@ -210,7 +227,7 @@ func (g *Gateway) routes() http.Handler {
 	mux.HandleFunc("GET /.well-known/oauth-protected-resource/{rest...}", g.prmHandler)
 	mux.HandleFunc("GET /.well-known/oauth-authorization-server", g.asMetadataHandler)
 	mux.HandleFunc("GET /authorize", g.rateLimitMiddleware(rateLimitEndpointAuthorize, g.limiters[rateLimitEndpointAuthorize], g.authorizeHandler))
-	mux.HandleFunc("POST /consent", g.consentPostHandler)
+	mux.HandleFunc("POST /consent", g.rateLimitMiddleware(rateLimitEndpointConsent, g.limiters[rateLimitEndpointConsent], g.consentPostHandler))
 	mux.HandleFunc("GET /static/consent.css", consentCSSHandler)
 	mux.HandleFunc("GET /oauth2/callback", g.callbackHandler)
 	mux.HandleFunc("POST /token", g.rateLimitMiddleware(rateLimitEndpointToken, g.limiters[rateLimitEndpointToken], g.tokenHandler))
@@ -220,7 +237,9 @@ func (g *Gateway) routes() http.Handler {
 	}
 	// Shared by all MCP routes.
 	g.inFlight = make(slots, g.cfg.MCPMaxInFlight)
+	g.userInFlight = &userSlots{max: min(g.cfg.MCPMaxInFlightPerUser, g.cfg.MCPMaxInFlight)}
 	g.sseStreams = make(slots, g.cfg.MCPMaxSSE)
+	g.userSSE = &userSlots{max: g.cfg.MCPMaxSSEPerUser}
 	for _, route := range g.cfg.Routes {
 		mux.HandleFunc(route.Route, g.mcpHandler(route))
 	}
@@ -307,11 +326,7 @@ func (g *Gateway) loggingMiddleware(next http.Handler) http.Handler {
 
 const maxLogErrorLen = 64
 
-func sanitizeLogValue(s string) string {
-	s = strings.ReplaceAll(s, "\n", "")
-	s = strings.ReplaceAll(s, "\r", "")
-	return s
-}
+func sanitizeLogValue(s string) string { return audit.Sanitize(s) }
 
 func truncateLogValue(s string, maxChars int) string {
 	s = sanitizeLogValue(s)
@@ -359,11 +374,11 @@ func (g *Gateway) rateLimitMiddleware(endpoint string, limiter *ipRateLimiter, n
 		ip := extractClientIP(r)
 		if limiter != nil && !limiter.Allow(ip) {
 			observeRateLimited(endpoint)
-			if g.rateLimitLog == nil || g.rateLimitLog.Allow(ip) {
+			if g.rateLimitLog == nil || g.rateLimitLog.Allow(endpoint+"\x00"+ip) {
 				slog.Warn("rate limited", "endpoint", endpoint)
 			}
 			w.Header().Set("Retry-After", "60")
-			if r.URL.Path == "/token" || r.URL.Path == "/revoke" {
+			if r.URL.Path == "/token" || r.URL.Path == "/revoke" || r.URL.Path == "/register" {
 				writeJSON(w, http.StatusTooManyRequests, map[string]string{
 					"error":             "temporarily_unavailable",
 					"error_description": "rate limit exceeded",
@@ -583,7 +598,7 @@ func main() {
 
 	routesLoaded.Set(float64(len(cfg.Routes)))
 	initMetrics(cfg.Routes)
-	metrics := metricsServer(":" + getEnv("METRICS_PORT", "9090"))
+	metrics := metricsServer(":" + config.Get("METRICS_PORT", "9090"))
 	go func() {
 		if err := metrics.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			slog.Error("Metrics server failed", "error", err)

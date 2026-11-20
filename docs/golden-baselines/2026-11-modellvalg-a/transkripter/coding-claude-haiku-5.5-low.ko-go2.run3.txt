@@ -1,0 +1,25 @@
+Jeg ser på `ytelse/` og testene som feiler.
+
+ $ Shell List ytelse dir and run go tests 13 lines…
+   cd ytelse 2>/dev/null && ls -R | head -100 && go test ./... 2>&1 | head -80
+
+ $ Shell Show source and test files 38 lines…
+   cd ytelse && cat rapport.go utbetaling.go ytelse_test.go go.mod
+
+Testene forventer en ny `grad`-parameter (prosent). Jeg legger den inn i både `Utbetaling` og `Rapport`.
+
+ GO Edit ytelse/utbetaling.go +3 -2
+
+ GO Edit ytelse/rapport.go +2 -2
+
+ $ Shell Run ytelse tests 1 line…
+   cd ytelse && go test ./... 2>&1 | tail -20
+
+`go test ./...` i `ytelse/` er grønt. Testene er uendret.
+
+Endringer:
+- `utbetaling.go`: `Utbetaling(grunnlag, grad int)` regner `grunnlag * grad / (100 * 260)`. Resultatet rundes ned, som før.
+- `rapport.go`: `Rapport(navn, grunnlag, grad int)` sender `grad` videre til `Utbetaling`.
+
+Kallere utenfor `ytelse/` er ikke sjekket. Hvis noen kaller `Rapport` eller `Utbetaling`, må de oppdateres.
+

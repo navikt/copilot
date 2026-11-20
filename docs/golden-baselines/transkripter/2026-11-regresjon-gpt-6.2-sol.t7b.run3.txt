@@ -1,0 +1,22 @@
+ ● skill(kafka)
+
+ ● skill(klarsprak)
+
+ / Search "{AGENTS.md,.github/copilot*instructions.md}" No matches found
+
+ / Search "SoknadMottattMelding|soknad-mottatt" 3 lines found
+
+ / Search "fnr|fødselsnummer|kind: Topic|encrypt|retention" 3 files found
+
+ $ Shell Les Kafka-produsent og repooppsett 38 lines…
+   cat src/main/kotlin/no/nav/demo/Soknad.kt; ls -a; ls -a .github
+
+**Fase 1: Avklaring.** Koden er uendret. `sendMottatt` serialiserer hele `SoknadMottattMelding` til JSON, så et nytt `fnr`-felt ville blitt publisert uten feltkryptering.
+
+1. Hva trenger konsumentene fødselsnummeret til, og hvordan skal feltet krypteres slik at bare de som trenger det, kan lese det?
+2. Hvilke tjenester leser `soknad-mottatt` i dag, og tåler de at nye meldinger har `fnr` mens eldre meldinger mangler feltet?
+
+Repoet mangler `AGENTS.md` og Copilot-oppsett i `.github`. Det kan legges til med `nav-pilot init`.
+
+Blindsoner reist: 3/11 (#1 personvern, #6 konsumenter, #9 kompatibilitet). Tilgangsreglene forutsettes uendret. Drift, testing og utrulling hører til planen. Ingen utfasing eller ny teknologi er foreslått.
+

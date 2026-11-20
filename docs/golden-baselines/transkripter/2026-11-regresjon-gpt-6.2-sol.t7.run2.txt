@@ -1,0 +1,34 @@
+ ● skill(jackson-3-migration)
+
+ ● skill(klarsprak)
+
+ $ Shell Finn migreringsdiff og Java-versjon 34 lines…
+   git status -sb; git --no-pager log -6 --oneline; git branch -a; git ls-files; java -version
+
+ $ Shell Les kode og kontrakt med linjenumre 72 lines…
+   git grep -n . -- src README.md nais.yaml
+
+ $ Shell Les diff og finn Gradle 57 lines…
+   git --no-pager diff main; git grep -n -E 'map\(|\.map |ObjectMapper|jackson|enum class' -- src;
+   command -v gradle; ls -a
+
+ ✗ Shell  Permission denied because no interactive user response was available. Retry in an interact
+   cat -n build.gradle.kts; /usr/libexec/java_home -V; gradle --no-daemon --console=plain build
+   dependencies --configuration compileClasspath
+   Approval check
+     └ ✗ Denied, no one to approve shell path (/usr/libexec/java_home)
+   Permission denied because no interactive user response was available. Retry in an interactive 
+   session so the user can approve it, or try an alternative that does not require this permission.
+
+ ● Read build.gradle.kts 17 lines read
+
+ / Search "SORT_PROPERTIES|TRAILING|WRITE_DATES|UNKNOWN" (~/.copilot/skills/jackson-… 12 lines found
+
+**Jackson 3.1.0-migreringen ser riktig ut i koden, men er ikke verifisert som bakoverkompatibel.** Jeg ville ventet med merge til Kafka-formatet er testet mot `main`. Ingen filer er endret.
+
+- **Kafka-payload:** Jackson 3 sorterer JSON-feltene alfabetisk som standard. På `soknad-mottatt` kommer derfor `mottatt` før `soknadId`. Datoen skal fortsatt være en ISO-8601-streng, og feltnavn og Kafka-nøkler er uendret. Feltrekkefølgen er normalt uten betydning for JSON-konsumenter, men rå strengsammenligning kan feile. Se [`Soknad.kt:12–21`](src/main/kotlin/no/nav/demo/Soknad.kt#L12-L21).
+- **Innlesing:** `lesSoker` avviser nå JSON med ekstra tokens etter objektet fordi Jackson 3 har `FAIL_ON_TRAILING_TOKENS` på som standard. Det er en konkret atferdsendring for slike inndata. Se [`Soknad.kt:18`](src/main/kotlin/no/nav/demo/Soknad.kt#L18).
+- **Avhengigheter:** Begge direkte Jackson-avhengighetene er på 3.1.0. Jeg fant ingen gamle Jackson-importer, mutasjon etter at mapperen er bygd, eller `JsonNode.map`-kall. Ktor 3.0 bruker fortsatt `kotlinx.serialization` for HTTP, så minimumskravet for Ktors Jackson 3-integrasjon gjelder ikke her.
+
+Gradle-kjøringen ble avvist i den ikke-interaktive økten. Bygg og transitive avhengigheter er derfor ikke bekreftet. Før merge: Kjør bygget, sjekk `compileClasspath` for Jackson 2 `core` og `databind`, og sammenlign payloadene for begge Kafka-topicene mot `main` med syntetiske testdata.
+

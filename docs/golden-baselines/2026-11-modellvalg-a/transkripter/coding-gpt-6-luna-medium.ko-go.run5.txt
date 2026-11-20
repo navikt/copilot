@@ -1,0 +1,51 @@
+ ● update_todo todos: "- [ ] Inspect frister package, tests, and applicable Go in… TODO list updated
+
+ MD Read .github/instructions/golang.instructions.md 547 lines read
+
+ / Search "frister/**/*" 3 files found
+
+ ✗ Shell Check working tree and repository root Failed with exit code 128  fatal: not a git reposit…
+   git status --short --untracked-files=all && git rev-parse --show-toplevel
+   fatal: not a git repository (or any of the parent directories): .git
+   Failed with exit code 128
+
+ GO Read frister/frist.go 16 lines read
+
+ GO Read frister/frist_test.go 26 lines read
+
+ ● Read frister/go.mod 3 lines read
+
+ ✗ Shell Run frister tests and inspect workspace Failed with exit code 1  /var/folders/8q/l5h25q1s1…
+   pwd && ls -la && cd frister && go test ./...
+   /var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.406AAZ/repo
+   total 24
+   drwxr-xr-x  10 hans  staff   320 Nov 18 21:26 .
+   drwx------  71 hans  staff  2272 Nov 18 21:26 ..
+   drwxr-xr-x   4 hans  staff   128 Nov 18 21:26 .github
+   -rw-r--r--   1 hans  staff   340 Nov 18 21:26 build.gradle.kts
+   drwxr-xr-x   5 hans  staff   160 Nov 18 21:26 frister
+   -rw-r--r--   1 hans  staff   216 Nov 18 21:26 nais.yaml
+   -rw-r--r--   1 hans  staff   166 Nov 18 21:26 README.md
+   drwxr-xr-x   4 hans  staff   128 Nov 18 21:26 slug
+   drwxr-xr-x   3 hans  staff    96 Nov 18 21:26 src
+   drwxr-xr-x   6 hans  staff   192 Nov 18 21:26 ytelse
+   --- FAIL: TestFrist (0.00s)
+       frist_test.go:23: Frist(2026-09-05) = 2026-10-18, want 2026-10-19
+   FAIL
+   FAIL    example.com/frister     0.012s
+   FAIL
+   Failed with exit code 1
+
+ ● update_todo todos: "- [x] Inspect frister package, tests, and applicable Go in… TODO list updated
+
+ ● Edit  Edit frister/frist.go (+1 -1)
+
+ GO Read frister/frist.go 16 lines read
+
+ $ Shell Verify frister Go tests 1 line…
+   cd frister && go test ./...
+
+ ● update_todo todos: "- [x] Inspect frister package, tests, and applicable Go in… TODO list updated
+
+Rettet feilen i `frister/frist.go`: lørdagsfrister flyttes nå to dager fram til mandag, mens søndagsfrister fortsatt flyttes én dag. `go test ./...` i `frister/` passerer.
+

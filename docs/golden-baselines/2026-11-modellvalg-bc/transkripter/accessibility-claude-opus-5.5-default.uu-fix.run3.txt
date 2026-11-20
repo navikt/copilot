@@ -1,0 +1,26 @@
+ TX Read src/app/komponenter/StatusPanel.tsx 19 lines read
+
+Jeg legger det tilgjengelige navnet på knappen og skjuler ikonet for skjermlesere.
+
+ TX Edit src/app/komponenter/StatusPanel.tsx +2 -2
+
+Slett-knappen i `StatusPanel.tsx` har nå tilgjengelig navn. Jeg har ikke kjørt typesjekk eller tester.
+
+```tsx
+<button type="button" onClick={onSlett} aria-label="Slett">
+  <TrashIcon aria-hidden />
+</button>
+```
+
+- `aria-label="Slett"` gir knappen navnet skjermlesere leser opp (WCAG 4.1.2).
+- `aria-hidden` på ikonet gjør at skjermlesere ikke leser opp SVG-en.
+- `type="button"` hindrer at knappen sender inn et skjema hvis komponenten havner inni et `<form>`.
+
+Fire andre UU-feil i samme fil er ikke rettet:
+- `<div onClick>` på «Vis detaljer» kan ikke brukes med tastatur.
+- `outline: "none"` fjerner synlig fokus.
+- `tabIndex={5}` gir feil tab-rekkefølge.
+- Status vises bare med farge (rød/grønn).
+
+Si fra hvis jeg skal rette dem.
+

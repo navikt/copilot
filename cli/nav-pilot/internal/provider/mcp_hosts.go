@@ -43,9 +43,25 @@ import (
 // A registry that does not answer changes nothing: the approved set stays in
 // force and the launch says so in one line.
 
-// MCPConsentSource is the consent-store key for the MCP registry hosts. The
-// colon keeps it apart from every pakke name (^[a-z][a-z0-9-]*$).
+// MCPConsentSource is the legacy consent-store key for MCP registry hosts.
+// Per-client records live under MCPConsentSource + ":" + <client>, with
+// MCPConsentSource read as a fallback so existing approvals stay valid.
+// The colon keeps every key apart from pakke names (^[a-z][a-z0-9-]*$).
 const MCPConsentSource = "mcp:registry"
+
+func mcpConsentClient() string {
+	if MCPClient == MCPClientOpenCode {
+		return MCPClientOpenCode
+	}
+	return MCPClientCopilot
+}
+
+func mcpConsentSourceFor(client string) string {
+	if client == MCPClientOpenCode {
+		return MCPConsentSource + ":" + MCPClientOpenCode
+	}
+	return MCPConsentSource + ":" + MCPClientCopilot
+}
 
 // MCPHost is one host the configured MCP servers need, and which of them.
 type MCPHost struct {
@@ -131,7 +147,11 @@ var MCPClient string
 // say, not the user's: counted, a cloned repository would put a host of its
 // choosing on the consent screen, and one Yes grants it to every launch.
 func configuredMCPServers() (copilot []string, openCode map[string]mcpServer) {
-	if MCPClient == "opencode" {
+	return configuredMCPServersFor(MCPClient)
+}
+
+func configuredMCPServersFor(client string) (copilot []string, openCode map[string]mcpServer) {
+	if client == MCPClientOpenCode {
 		return nil, openCodeUserMCPServers()
 	}
 	return copilotMCPServerNames(), nil
@@ -203,13 +223,18 @@ func matchMCPHosts(reg mcpRegistry, copilot []string, openCode map[string]mcpSer
 			extra(name)
 			continue
 		}
-		if s.Type == "remote" {
+		switch s.Type {
+		case "remote":
 			// The registry's URL and name, not the config's: they match
 			// once normalized, only the registry's URL is trusted, and the
 			// consent screen says "(Nav's MCP registry)" after the name.
 			if r, ok := byURL[normalizeMCPURL(s.URL)]; ok {
 				add(r.name, r.url)
 				extra(r.name)
+			}
+		case "local":
+			if rname := openCodeRegistryName(reg.Entries, name, s); rname != "" {
+				extra(rname)
 			}
 		}
 	}
@@ -228,12 +253,16 @@ func matchMCPHosts(reg mcpRegistry, copilot []string, openCode map[string]mcpSer
 // background for the next launch, and no cache counts as a registry that did
 // not answer, so the approved set stays and nothing is asked.
 func resolveMCPHosts() (MCPHosts, error) {
-	copilot, openCode := configuredMCPServers()
+	return resolveMCPHostsFor(mcpConsentClient(), true)
+}
+
+func resolveMCPHostsFor(client string, refresh bool) (MCPHosts, error) {
+	copilot, openCode := configuredMCPServersFor(client)
 	if len(copilot)+len(openCode) == 0 {
 		return MCPHosts{}, nil
 	}
 	c, ok := readMCPRegistryCache()
-	if !ok || time.Since(c.At) > mcpRegistryTTL {
+	if refresh && (!ok || time.Since(c.At) > mcpRegistryTTL) {
 		startMCPRegistryRefresh()
 	}
 	if !ok {
@@ -242,9 +271,8 @@ func resolveMCPHosts() (MCPHosts, error) {
 	return matchMCPHosts(c.Registry, copilot, openCode), nil
 }
 
-// currentMCPHosts is resolveMCPHosts once per process: the launch pre-flight
-// and the launch flags ask the same question. A var so tests answer it.
-var currentMCPHosts = sync.OnceValues(resolveMCPHosts)
+// currentMCPHosts is resolveMCPHosts; a var so tests answer it.
+var currentMCPHosts = resolveMCPHosts
 
 // The registry's answer is cached in nav-pilot's state directory, which cplt
 // denies to the session like the consent record beside it. A day old is
@@ -308,6 +336,10 @@ func refreshMCPRegistry() error {
 	}
 	return writeConfigAtomically(path, data)
 }
+
+// RefreshMCPRegistry reads the registry now and rewrites the cache, whatever
+// its age: nav-pilot mcp --refresh, and enable's one retry for an unknown name.
+func RefreshMCPRegistry() error { return refreshMCPRegistry() }
 
 // startMCPRegistryRefresh reads the registry in the background, once per
 // process. The launch does not wait for it; the process waits for nothing at
@@ -376,7 +408,8 @@ func ClassifyMCPHosts(hosts []MCPHost) []MCPHost {
 // what it finds under the same approval. Call it after any question, so the
 // answer it rewrites is the latest.
 func ReclassifyMCPHostsInBackground() {
-	rec, err := readMCPRecord()
+	client := mcpConsentClient()
+	rec, err := readMCPRecordFor(client)
 	if err != nil || rec == nil || !rec.Approved {
 		return
 	}
@@ -401,7 +434,7 @@ func ReclassifyMCPHostsInBackground() {
 		if changed {
 			// ponytail: read-modify-write without a compare; a second
 			// nav-pilot answering in the same second can lose to this.
-			_ = RecordMCPHosts(hosts, true)
+			_ = RecordMCPHostsFor(client, hosts, true)
 		}
 	})
 }
@@ -492,9 +525,17 @@ func ReadMCPHostState() (MCPHostState, error) {
 }
 
 func readMCPRecord() (*artifacts.ProposalConsent, error) {
+	return readMCPRecordFor(mcpConsentClient())
+}
+
+func readMCPRecordFor(client string) (*artifacts.ProposalConsent, error) {
 	user, err := domain.ScopeUser()
 	if err != nil {
 		return nil, err
+	}
+	rec, err := artifacts.ReadProposalConsent(user, mcpConsentSourceFor(client))
+	if err != nil || rec != nil {
+		return rec, err
 	}
 	return artifacts.ReadProposalConsent(user, MCPConsentSource)
 }
@@ -502,6 +543,12 @@ func readMCPRecord() (*artifacts.ProposalConsent, error) {
 // RecordMCPHosts records an answer about hosts as classified by
 // [ClassifyMCPHosts]: the private ones are the launch's waiver flags.
 func RecordMCPHosts(hosts []MCPHost, approve bool) error {
+	return RecordMCPHostsFor(mcpConsentClient(), hosts, approve)
+}
+
+// RecordMCPHostsFor records an answer about hosts under the named client's
+// consent key.
+func RecordMCPHostsFor(client string, hosts []MCPHost, approve bool) error {
 	user, err := domain.ScopeUser()
 	if err != nil {
 		return err
@@ -513,7 +560,7 @@ func RecordMCPHosts(hosts []MCPHost, approve bool) error {
 	rec := artifacts.ProposalConsent{
 		Scope:     user.Name,
 		Root:      user.RootDir,
-		Pakke:     MCPConsentSource,
+		Pakke:     mcpConsentSourceFor(client),
 		Hash:      mcpHostsHash(hosts),
 		Block:     string(block),
 		CpltStamp: CpltStamp(),
@@ -537,16 +584,27 @@ func privateMCPHosts(hosts []MCPHost) []string {
 }
 
 // MCPAllowlistHosts is the hosts nav-pilot's allowlist file carries for MCP
-// servers: every granted host, private ones included, because under an
-// allowlist cplt checks the list before it checks the address. Nil when
-// nothing is approved or the record cannot be trusted.
+// servers: every granted host across both clients, private ones included,
+// because under an allowlist cplt checks the list before it checks the
+// address. Nil when nothing is approved or the record cannot be trusted.
 //
 // No cplt probe: the allowlist file sits in the same state directory as the
 // record, so under a cplt that does not deny that directory the file is the
 // session's to write anyway, and the probe would protect nothing.
 func MCPAllowlistHosts() []string {
-	grant := mcpGrant(false, false)
-	return mcpHostNames(grant)
+	if MCPHostsOff {
+		return nil
+	}
+	var all []string
+	for _, client := range []string{MCPClientCopilot, MCPClientOpenCode} {
+		for _, h := range mcpGrantFor(client, false, false) {
+			if !slices.Contains(all, h.Host) {
+				all = append(all, h.Host)
+			}
+		}
+	}
+	sort.Strings(all)
+	return all
 }
 
 // mcpPrivateDomainFlags is the launch's --allow-private-domain flags for the
@@ -587,10 +645,14 @@ func mcpGrantServers(grant []MCPHost, hosts []string) []string {
 // launch flags, the one use that probes cplt, and only for a record that
 // waives a private host: a grant that changes no flag needs no probe.
 func mcpGrant(say, flags bool) []MCPHost {
+	return mcpGrantFor(mcpConsentClient(), say, flags)
+}
+
+func mcpGrantFor(client string, say, flags bool) []MCPHost {
 	if MCPHostsOff {
 		return nil
 	}
-	rec, err := readMCPRecord()
+	rec, err := readMCPRecordFor(client)
 	if err != nil {
 		if say {
 			fmt.Fprintf(os.Stderr, "%s MCP servers: no registry hosts are granted: %v\n", domain.Yellow("⚠"), err)
@@ -610,7 +672,13 @@ func mcpGrant(say, flags bool) []MCPHost {
 		}
 		return nil
 	}
-	cur, fetchErr := currentMCPHosts()
+	var cur MCPHosts
+	var fetchErr error
+	if client == mcpConsentClient() {
+		cur, fetchErr = currentMCPHosts()
+	} else {
+		cur, fetchErr = resolveMCPHostsFor(client, false)
+	}
 	st := mcpHostState(cur, fetchErr, rec)
 	if fetchErr != nil && say && len(st.Grant) > 0 {
 		fmt.Fprintf(os.Stderr, "%s MCP servers: %v; keeping the %d MCP host(s) approved before.\n",

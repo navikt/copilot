@@ -1,0 +1,16 @@
+ ● skill(klarsprak)
+
+ $ Shell Finn Kotlin-kode og instrukser 28 lines…
+   ls -a; find . -name '*.kt' | head -20; ls .github/instructions
+
+ $ Shell Les testoppsett og kodemønstre 119 lines…
+   cat build.gradle.kts src/main/kotlin/no/nav/demo/Oppgave.kt; head -25
+   .github/instructions/{kotlin,security-owasp,testing,testing-kotlin}.instructions.md; find src
+   -type f
+
+ ● Edit  Create src/main/kotlin/no/nav/demo/Feriepenger.kt (+5)  Edit build.gradle.kts (+1)  Create…
+
+La til funksjonsstubben i `Feriepenger.kt` og enhetstester for satsbyttet ved 60 år, avrunding rundt 50 øre, nullgrunnlag og negativt grunnlag.
+
+🔴 Rød sone: Selve beregningen står som `TODO`. Bruk heltallsregning for å unngå at flyttallsavrunding påvirker 50-øregrensen. Jeg kjørte ikke Gradle.
+

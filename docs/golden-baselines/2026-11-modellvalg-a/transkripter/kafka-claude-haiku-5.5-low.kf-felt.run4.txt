@@ -1,0 +1,30 @@
+ $ Shell List vedtak-hendelse files 25 lines…
+   cd vedtak-hendelse 2>/dev/null && find . -type f -not -path '*/build/*' -not -path '*/.gradle/*'
+   | head -100 && cat build.gradle* settings.gradle* 2>/dev/null | head -80
+
+ $ Shell Show event source and test 30 lines…
+   cd vedtak-hendelse && cat src/main/kotlin/no/nav/vedtak/VedtakFattet.kt && echo ---- && cat
+   src/test/kotlin/no/nav/vedtak/VedtakFattetTest.kt
+
+Planen: legge til en `Sakstype`-enum med default `ORDINAER` (så gamle meldinger leses riktig), og slå av `FAIL_ON_UNKNOWN_PROPERTIES` så nyere felt ikke knekker konsumenten.
+
+ ● Edit vedtak-hendelse/src/main/kotlin/no/nav/vedtak/VedtakFattet.kt +11
+
+ ● Edit vedtak-hendelse/src/test/kotlin/no/nav/vedtak/VedtakFattetTest.kt +24 -2
+
+ $ Shell Run gradle test in vedtak-hendelse 2 lines…
+   cd vedtak-hendelse && (ls gradlew 2>/dev/null; which gradle) ; gradle test --no-daemon -q 2>&1 |
+   tail -40; echo EXIT=${PIPESTATUS[0]}
+
+ $ Shell Verify test results 1 line…
+   cd vedtak-hendelse && grep -ho 'tests="[0-9]*" skipped="[0-9]*" failures="[0-9]*"
+   errors="[0-9]*"' build/test-results/test/*.xml
+
+Feltet `sakstype` er lagt til i `VedtakFattet` med enumen `Sakstype` (`ORDINAER`, `KLAGE`, `ANKE`).
+
+- **Gamle meldinger:** Feltet har default `ORDINAER`, så meldinger uten feltet leses som `ORDINAER`.
+- **Nyere produsenter:** `VedtakSerde` slår av `FAIL_ON_UNKNOWN_PROPERTIES`, så ukjente felt ignoreres.
+- **Test:** `gradle test` kjørte 4 tester, alle grønne. Jeg la til tester for default, `KLAGE`/`ANKE`, ukjent felt og skriving.
+
+Ukjent *verdi* i `sakstype` (f.eks. en fremtidig enum-verdi) vil fortsatt feile deserialiseringen. Det dekker ikke kravet ditt, så jeg har ikke løst det.
+

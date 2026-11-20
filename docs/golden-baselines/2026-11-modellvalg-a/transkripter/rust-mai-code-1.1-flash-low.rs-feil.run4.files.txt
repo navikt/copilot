@@ -1,0 +1,82 @@
+=== ./vedtak-parser/Cargo.lock (skipped: not a source file)
+=== ./vedtak-parser/Cargo.toml
+[package]
+name = "vedtak-parser"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+thiserror = "1"
+
+=== ./vedtak-parser/src/lib.rs
+use thiserror::Error;
+
+/// Et vedtak lest fra en linje i filen fra fagsystemet.
+#[derive(Debug, PartialEq)]
+pub struct Vedtak {
+    pub id: String,
+    pub belop: u32,
+}
+
+#[derive(Debug, PartialEq, Eq, Error)]
+pub enum VedtakFeil {
+    #[error("mangler id")]
+    ManglerId,
+    #[error("mangler beløp")]
+    ManglerBelop,
+    #[error("ugyldig beløp: {0}")]
+    UgyldigBelop(String),
+}
+
+/// Leser en linje på formen "id;belop".
+pub fn les(linje: &str) -> Result<Vedtak, VedtakFeil> {
+    let (id, belop) = linje
+        .split_once(';')
+        .ok_or(VedtakFeil::ManglerBelop)?;
+
+    if id.trim().is_empty() {
+        return Err(VedtakFeil::ManglerId);
+    }
+
+    if belop.trim().is_empty() {
+        return Err(VedtakFeil::ManglerBelop);
+    }
+
+    let belop: u32 = belop
+        .trim()
+        .parse()
+        .map_err(|_| VedtakFeil::UgyldigBelop(belop.to_string()))?;
+
+    Ok(Vedtak {
+        id: id.to_string(),
+        belop,
+    })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn leser_gyldig_linje() {
+        assert_eq!(les("v1;250"), Ok(Vedtak { id: "v1".into(), belop: 250 }));
+    }
+
+    #[test]
+    fn gir_feil_for_tom_id() {
+        assert_eq!(les(";250"), Err(VedtakFeil::ManglerId));
+    }
+
+    #[test]
+    fn gir_feil_for_mangler_belop() {
+        assert_eq!(les("v1;"), Err(VedtakFeil::ManglerBelop));
+    }
+
+    #[test]
+    fn gir_feil_for_ugyldig_belop() {
+        let feil = les("v1;abc").unwrap_err();
+        assert_eq!(feil, VedtakFeil::UgyldigBelop("abc".to_string()));
+        assert_eq!(feil.to_string(), "ugyldig beløp: abc");
+    }
+}
+

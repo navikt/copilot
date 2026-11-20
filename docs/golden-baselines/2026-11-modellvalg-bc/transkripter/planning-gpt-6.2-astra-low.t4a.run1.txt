@@ -1,0 +1,21 @@
+ ● skill(nav-auth)
+
+ ● skill(klarsprak)
+
+ $ Shell Sjekk eksisterende tjeneste og lokale instruksjoner 13 lines…
+   ls -la; ls -la .github
+
+ $ Shell Les tjenestebeskrivelse, manifest og eksisterende kode 79 lines…
+   cat README.md nais.yaml build.gradle.kts; find src -type f -print -exec cat {} \;
+
+**Fase 1: Avklar formål og tilgang.** Dagens Ktor-demo returnerer den samme oppgavelisten til alle. `nais.yaml` har verken ID-porten eller `accessPolicy`. Jeg antar at du mener den innloggedes eget fødselsnummer.
+
+1. Hva skal tjenesten bruke fødselsnummeret til? Trenger den også andre personopplysninger?
+2. Skal innbyggeren bruke tjenesten direkte i nettleseren, eller skal en annen Nav-applikasjon kalle den på vegne av innbyggeren? Hvilket innloggingsnivå krever oppgaven?
+3. Holder det å bruke nummeret mens forespørselen behandles? Hvis det må lagres eller sendes videre: Hvor lenge trengs det, og hvem skal få det? Fødselsnummer og token skal ikke i logger.
+4. Skal tjenesten kjøre separat fra `demo-tjeneste`, eller skal den overta `/api/oppgaver`? Hvis den skal overta: Hvilke klienter bruker API-et i dag?
+
+Repoet mangler `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`. `nav-pilot init` kan opprette dem. Omtrentlig fasebudsjett i tokens: intervju 500, plan 1 000, gjennomgang 800, levering 2 000.
+
+Blindsoner reist: 6/11 (#1, #2, #5, #6, #8 og #9). Feilhåndtering, driftsmål og tester avhenger av formålet (#3, #4, #7). Ingen utfasing eller læringsmål er oppgitt (#10, #11).
+

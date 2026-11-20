@@ -1,0 +1,72 @@
+ ● skill(nav-auth)
+
+ ● skill(nav-plan)
+
+ ● skill(api-design)
+
+## Fase 2: Plan
+
+**Vi bygger en stateless Ktor-backend bak den eksisterende Next.js-frontenden.** Jeg antar at navn skal vises til innbyggeren, at fødselsnummer ikke trenger å returneres til nettleseren, og at ingen personopplysninger skal lagres.
+
+### Flyt og autentisering
+
+`Nettleser → Wonderwall / Next.js-BFF → Ktor → PDL`
+
+- Wonderwall håndterer ID-porten-innlogging og sesjon foran Next.js. Token skal ikke eksponeres til klientkode.
+- Next.js-serveren veksler brukerens token til et TokenX-token med Ktor-tjenesten som audience.
+- Ktor validerer signatur, issuer, audience, utløp og tillatt kallende applikasjon. Fødselsnummer hentes fra det validerte tokenets dokumenterte identitetsclaim, aldri fra klientinput.
+- Ktor veksler tokenet videre til PDLs audience og henter bare nødvendige navnefelt. PDL-tilgang og behandlingsnummer må være godkjent før integrasjonstesten.
+
+BFF-en holder tokenhåndteringen utenfor nettleserkoden og begrenser backendtilgang til egen frontend. Det gir et ekstra serverkall sammenlignet med direkte nettlesertilgang, men bevarer brukerkonteksten hele veien til PDL. Azure client credentials brukes ikke som erstatning for brukertoken.
+
+### API og feilhåndtering
+
+| Kontrakt | Oppførsel |
+|---|---|
+| `GET /api/meg` | Returnerer navn for innlogget bruker, uten fødselsnummer |
+| Manglende eller ugyldig token | `401` |
+| Gyldig token uten nødvendig tilgang | `403` |
+| PDL utilgjengelig eller timeout | `503`, uten automatisk retry |
+| Uventet intern feil | `500`, ingen interne detaljer i responsen |
+
+Feil følger Problem Details-formatet. PDLs GraphQL-feil må håndteres også når HTTP-status er `200`; manglende navn skal ikke skjules som en vellykket tom respons. Personresponsen får `Cache-Control: no-store`, og Next.js skal ikke cache den.
+
+PDL-feil logges med feilkategori, status og tilfeldig korrelasjons-ID. Logger og traces skal aldri inneholde fødselsnummer, navn, token, GraphQL-variabler eller rå PDL-respons.
+
+### Implementering og plattform
+
+Vi bruker repoets Ktor-oppsett som utgangspunkt, uten å videreføre demoendepunktet som person-API.
+
+| Område | Plan |
+|---|---|
+| Kotlin | Egne filer for autentisering, `/api/meg`, PDL-klient, tokenveksling og feilrespons |
+| Konfigurasjon | Miljøvariabler fra Nais, obligatoriske verdier kontrolleres ved oppstart |
+| Next.js | Serverbasert BFF-rute og tilstand for innlogging, navn og feil med ny prøving |
+| Lagring | Ingen database, Flyway, kø eller persondatacache |
+| Nais backend | TokenX aktivert, ingen offentlig ingress |
+| Tilgangspolicy | Eksplisitt inbound fra Next.js-appen og outbound til PDL samt nødvendige identitetstjenester |
+| Ressurser | Start med CPU-request `15m`, minne-request `256Mi`, minnegrense `512Mi`, ingen CPU-grense |
+| Helse | Eksisterende `/internal/isalive` og `/internal/isready`; PDL-nedetid skal ikke utløse omstart |
+
+Appnavn, namespace, audiences, PDL-adresse og eksisterende frontendkonfigurasjon må verifiseres før konkrete manifester skrives. Ingen nye GCP-ressurser er nødvendige.
+
+### Tester, drift og levering
+
+- **Autentisering:** MockOAuth2Server-tester for gyldig token, feil signatur/issuer/audience, utløpt token, manglende identitet og ikke-tillatt kaller.
+- **PDL:** Stubbet integrasjonstest for navneoppslag, riktig brukerkontekst, timeout, HTTP-feil og GraphQL-feil. Bare syntetiske testpersoner.
+- **Brukerreise:** Innlogging, visning av eget navn, utløpt sesjon og PDL-feil med mulighet til å prøve igjen.
+- **Observabilitet:** Tell oppslagsforsøk og feil med lavkardinalitetslabels. Dashboard viser oppslag per minutt og feilandel; alarmer på vedvarende feilandel med minste trafikkgrunnlag. Ingen personidentifikatorer i metrikker.
+- **CI/CD:** Bygg, tester og lint før image-bygg. SHA-pinnede actions, minimale permissions og deploy til dev før godkjent produksjonsdeploy.
+- **Verifisering:** Test hele flyten i dev, inkludert avvist uautorisert kall og simulert PDL-nedetid. Kontroller at logger og traces er fri for personopplysninger.
+- **Rollback:** Deaktiver frontendinngangen og rull tilbake frontend/backend til sist fungerende image. Ingen datamigrering kreves.
+
+API-kontrakt, driftsrutiner og rollback beskrives i eksisterende README ved levering, uten separate planfiler.
+
+### Rød sone
+
+🔴 **Rød sone: tokenvalidering, tokenveksling, tilgangskontroll og koblingen mellom innlogget identitet og PDL-oppslag. Forstå dette grundig.**
+
+TokenX og Wonderwall er nytt for teamet. Standardleveransen for disse delene blir derfor testskjeletter og stubs som teamet implementerer, med mindre du uttrykkelig ber meg implementere dem også.
+
+**Planen er klar for godkjenning før fase 3, review.** Ingen kode er endret. Still gjerne spørsmål om valgene over.
+

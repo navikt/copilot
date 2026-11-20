@@ -1,0 +1,30 @@
+ / Search "ytelse" 4 files found
+
+ / Search "**/ytelse/**" 4 files found
+
+ ✗ Shell Check working tree changes Failed with exit code 128  fatal: not a git repository (or any …
+   git status --short --branch
+   fatal: not a git repository (or any of the parent directories): .git
+   Failed with exit code 128
+
+ GO Read ytelse/utbetaling.go 6 lines read
+
+ GO Read ytelse/rapport.go 8 lines read
+
+ MD Read .github/instructions/golang.instructions.md 547 lines read
+
+ GO Read ytelse/ytelse_test.go 21 lines read
+
+ ● Read ytelse/go.mod 3 lines read
+
+ ● skill(klarsprak)
+
+ ● Edit  Edit ytelse/utbetaling.go (+3 -3)  Edit ytelse/rapport.go (+2 -2)
+
+ $ Shell Format and test ytelse package 1 line…
+   cd ytelse && gofmt -w utbetaling.go rapport.go && go test ./...
+
+Endret `Utbetaling` til å beregne dagsatsen etter graderingsprosenten, og oppdaterte `Rapport` til å sende graden videre. Testene er uendret.
+
+`go test ./...` i `ytelse/` går grønt.
+

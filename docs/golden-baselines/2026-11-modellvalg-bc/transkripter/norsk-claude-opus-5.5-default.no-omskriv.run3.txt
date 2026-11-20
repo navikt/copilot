@@ -1,0 +1,18 @@
+ ● skill(klarsprak)
+
+ MD Read utkast.md 11 lines read
+
+ ● Create utkast.md.new +1
+
+ MD Edit utkast.md +4 -6
+
+Jeg har språkvasket `utkast.md`. Teksten er nå omtrent 80 ord, og alle fakta står igjen.
+
+- **Nyheten først:** Teksten starter med at agenten er tilgjengelig fra mandag.
+- **KI-markører:** «I en tid der», «banebrytende», «sømløs», «avgjørende rolle», «Det er viktig å påpeke» og «Avslutningsvis … fremtiden ser lys ut» er fjernet.
+- **AI → KI** i teksten.
+- **Nynorsk rettet til bokmål:** ikkje, sjølv, berre, mykje og tilgjengeleg.
+- **Passiv til aktiv form:** «slås av» og «tas imot» er skrevet om.
+
+Ved et uhell opprettet jeg en ekstra fil, `utkast.md.new`. Den inneholder bare ett tegn. Jeg har ikke verktøy for å slette filer, så du må slette den selv.
+

@@ -1,0 +1,38 @@
+ ● skill(klarsprak)
+
+Jeg undersøker testfeilene i `frister/` og sporer årsaken til kildekoden før jeg endrer noe.
+
+ / Search "frister/**" 3 files found
+
+ $ Shell Locate Go coding instructions 2 lines…
+   find .github/instructions -maxdepth 1 -type f -name 'golang.instructions.md' -o -name
+   'security-owasp.instructions.md'
+
+ ✗ Shell Run Go tests in frister Failed with exit code 1  --- FAIL: TestFrist (0.00s) frist_test.go…
+   cd frister && go test ./...
+   --- FAIL: TestFrist (0.00s)
+       frist_test.go:23: Frist(2026-09-05) = 2026-10-18, want 2026-10-19
+   FAIL
+   FAIL    example.com/frister     0.013s
+   FAIL
+   Failed with exit code 1
+
+ MD Read .github/instructions/security-owasp.instructions.md 12 lines read
+
+ GO Read frister/frist.go 16 lines read
+
+ GO Read frister/frist_test.go 26 lines read
+
+ MD Read .github/instructions/golang.instructions.md 547 lines read
+
+ ● Read frister/go.mod 3 lines read
+
+ ● Edit  Edit frister/frist.go (+1 -1)
+
+ $ Shell Verify Go tests in frister 1 line…
+   cd frister && go test ./...
+
+Rettet `frister/frist.go`: lørdagsfrister flyttes nå to dager frem til mandag, ikke én dag til søndag.
+
+`go test ./...` i `frister/` går grønt.
+

@@ -59,6 +59,31 @@ func TestConsentPage_CSRFFailureIsFriendlyPage(t *testing.T) {
 	}
 }
 
+func TestConsentPage_CSRFFailurePreservesPendingConsent(t *testing.T) {
+	te := newTestEnv(t)
+	id, csrf, cookie, _ := te.startAuthorizeAndConsent(consentVerifier)
+
+	// Missing cookie and mismatched form CSRF must be rejected without popping the pending row.
+	missingCookieResp := te.postConsent(id, csrf, nil, "approve")
+	_ = missingCookieResp.Body.Close()
+	if missingCookieResp.StatusCode != http.StatusForbidden {
+		t.Fatalf("expected 403 on missing CSRF cookie, got %d", missingCookieResp.StatusCode)
+	}
+
+	wrongCSRFResp := te.postConsent(id, "wrong", cookie, "approve")
+	_ = wrongCSRFResp.Body.Close()
+	if wrongCSRFResp.StatusCode != http.StatusForbidden {
+		t.Fatalf("expected 403 on wrong CSRF token, got %d", wrongCSRFResp.StatusCode)
+	}
+
+	// The user's legitimate submission still finds the pending consent row and succeeds.
+	resp := te.postConsent(id, csrf, cookie, "approve")
+	defer func() { _ = resp.Body.Close() }()
+	if code := te.clientCode(resp); code == "" {
+		t.Fatal("expected valid consent submission to succeed after CSRF failure")
+	}
+}
+
 func TestConsentCSSHandler(t *testing.T) {
 	rec := httptest.NewRecorder()
 	consentCSSHandler(rec, httptest.NewRequest(http.MethodGet, "/static/consent.css", nil))
