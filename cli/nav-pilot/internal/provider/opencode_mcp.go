@@ -693,6 +693,11 @@ func expandUnquotedEnv(b []byte, getenv func(string) string) []byte {
 // the org's registry does not list, and says which on stderr. With no server
 // configured it asks nothing, so most launches never touch the network.
 func applyOpenCodeMCPPolicy(env []string, projectDir string) []string {
+	// Both are the launch's own answer, never inherited from the shell or a
+	// repo's .envrc: a value set there would unmask idents or lift blocks.
+	env = slices.DeleteFunc(env, func(e string) bool {
+		return strings.HasPrefix(e, MCPSourcesEnv+"=") || strings.HasPrefix(e, MCPBlockedEnv+"=")
+	})
 	env = applyOpenCodeMCPPolicyOff(env, projectDir)
 	return withMCPSources(env, projectDir)
 }

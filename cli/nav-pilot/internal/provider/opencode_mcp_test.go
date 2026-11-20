@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -401,6 +402,7 @@ func TestMCPSourcesByURL(t *testing.T) {
 	os.WriteFile(filepath.Join(proj, "opencode.json"), []byte(`{"mcp": {
 		"mine": {"type": "remote", "url": "https://gw/mcp/copilot/dolly"},
 		"io.github.navikt/dolly": {"type": "remote", "url": "https://gw/mcp/copilot/other"},
+		"amb": {"type": "remote", "url": "https://gw/mcp/copilot/twice"},
 		"unlisted": {"type": "remote", "url": "https://elsewhere/mcp"},
 		"off": {"type": "remote", "url": "https://gw/mcp/copilot/dolly", "enabled": false}}}`), 0o600)
 	origPolicy, origReg := fetchMCPPolicy, fetchMCPRegistry
@@ -408,11 +410,13 @@ func TestMCPSourcesByURL(t *testing.T) {
 	fetchMCPPolicy = func() (string, error) { return "https://registry/", nil }
 	fetchMCPRegistry = func(string) (mcpRegistry, error) {
 		return mcpRegistry{
-			Remotes:  map[string]bool{"https://gw/mcp/copilot/dolly": true, "https://gw/mcp/copilot/other": true},
+			Remotes:  map[string]bool{"https://gw/mcp/copilot/dolly": true, "https://gw/mcp/copilot/other": true, "https://gw/mcp/copilot/twice": true},
 			Packages: map[string]bool{},
 			Servers: map[string][]string{
-				"io.github.navikt/dolly": {"https://gw/mcp/copilot/dolly"},
-				"io.github.navikt/other": {"https://gw/mcp/copilot/other"},
+				"io.github.navikt/dolly":   {"https://gw/mcp/copilot/dolly"},
+				"io.github.navikt/other":   {"https://gw/mcp/copilot/other"},
+				"io.github.navikt/twice-a": {"https://gw/mcp/copilot/twice"},
+				"io.github.navikt/twice-b": {"https://gw/mcp/copilot/twice"},
 			},
 		}, nil
 	}
@@ -425,5 +429,32 @@ func TestMCPSourcesByURL(t *testing.T) {
 	fetchMCPRegistry = func(string) (mcpRegistry, error) { return mcpRegistry{}, errors.New("down") }
 	if env := withMCPSources(nil, proj); len(env) != 0 {
 		t.Errorf("registry down: %v", env)
+	}
+}
+
+// A value inherited from the shell or a repo's .envrc is never passed on: the
+// launch's own answer replaces it, or nothing does.
+func TestMCPEnvNotInherited(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	proj := t.TempDir()
+	os.Mkdir(filepath.Join(proj, ".git"), 0o700)
+	os.WriteFile(filepath.Join(proj, "opencode.json"), []byte(`{"mcp": {"x": {"type": "remote", "url": "https://x/mcp"}}}`), 0o600)
+	origPolicy, origReg := fetchMCPPolicy, fetchMCPRegistry
+	t.Cleanup(func() { fetchMCPPolicy, fetchMCPRegistry = origPolicy, origReg })
+	fetchMCPPolicy = func() (string, error) { return "https://registry/", nil }
+	fetchMCPRegistry = func(string) (mcpRegistry, error) {
+		return mcpRegistry{Remotes: map[string]bool{"https://x/mcp": true}, Packages: map[string]bool{},
+			Servers: map[string][]string{"a": {"https://x/mcp"}, "b": {"https://x/mcp"}}}, nil
+	}
+	inherited := []string{MCPSourcesEnv + `={"x":"io.github.navikt/dolly"}`, MCPBlockedEnv + `={"blocked":[],"listed":["x"]}`, "KEEP=1"}
+	env := applyOpenCodeMCPPolicy(slices.Clone(inherited), proj)
+	if all := strings.Join(env, "\n"); strings.Contains(all, "dolly") || strings.Contains(all, MCPBlockedEnv) || !strings.Contains(all, "KEEP=1") {
+		t.Errorf("inherited value reached the bridge: %v", env)
+	}
+	// No registry: nothing is set, and the inherited values are gone.
+	fetchMCPPolicy = func() (string, error) { return "", nil }
+	if all := strings.Join(applyOpenCodeMCPPolicy(slices.Clone(inherited), proj), "\n"); strings.Contains(all, "MCP_") {
+		t.Errorf("inherited value survived without a registry: %s", all)
 	}
 }
