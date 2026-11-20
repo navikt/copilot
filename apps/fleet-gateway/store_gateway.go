@@ -81,6 +81,16 @@ func (g *Gateway) getSession(ctx context.Context, hash string) (*gatewaySession,
 		_ = g.store.Delete(ctx, kindSession, hash)
 		return nil, false, nil
 	}
+	if sess.FID != "" {
+		famRevoked, err := g.store.IsRevoked(ctx, "fam:"+sess.FID)
+		if err != nil {
+			return nil, false, err
+		}
+		if famRevoked {
+			_ = g.store.Delete(ctx, kindSession, hash)
+			return nil, false, nil
+		}
+	}
 	return sess, true, nil
 }
 
