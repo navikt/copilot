@@ -277,11 +277,8 @@ func (g *Gateway) handleAuthorizationCodeGrant(w http.ResponseWriter, r *http.Re
 	if issued.Session.IssuedAt.IsZero() {
 		issued.Session.IssuedAt = now
 	}
-	if g.cfg.SessionMaxAge > 0 {
-		maxExpiry := issued.Session.IssuedAt.Add(g.cfg.SessionMaxAge)
-		if issued.Session.Expiry.After(maxExpiry) {
-			issued.Session.Expiry = maxExpiry
-		}
+	if maxExpiry := issued.Session.IssuedAt.Add(g.cfg.SessionAbsoluteMaxAge); issued.Session.Expiry.After(maxExpiry) {
+		issued.Session.Expiry = maxExpiry
 	}
 	ttl := issued.Session.Expiry.Sub(now)
 	if ttl <= 0 {
@@ -313,7 +310,7 @@ func (g *Gateway) handleAuthorizationCodeGrant(w http.ResponseWriter, r *http.Re
 			JTI:      jti,
 			FID:      fid,
 			IAT:      issued.Session.IssuedAt.Unix(),
-			EXP:      issued.Session.IssuedAt.Add(g.cfg.SessionMaxAge).Unix(),
+			EXP:      g.rtExpiry(issued.Session.IssuedAt, now).Unix(),
 			ClientID: issued.Session.ClientID,
 			Resource: issued.Session.Resource,
 			NAVIdent: issued.Session.NAVIdent,
@@ -347,6 +344,19 @@ func (g *Gateway) handleAuthorizationCodeGrant(w http.ResponseWriter, r *http.Re
 	}
 	g.renewClient(r.Context(), issued.Session.ClientID)
 	writeJSON(w, http.StatusOK, resp)
+}
+
+// rtExpiry is when a refresh token issued at now stops working: the idle
+// timeout from now, never later than the hard cap from the original login.
+func (g *Gateway) rtExpiry(loginAt, now time.Time) time.Time {
+	return minTime(now.Add(g.cfg.SessionIdleTimeout), loginAt.Add(g.cfg.SessionAbsoluteMaxAge))
+}
+
+func minTime(a, b time.Time) time.Time {
+	if b.Before(a) {
+		return b
+	}
+	return a
 }
 
 func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request, bad func(int, string, string)) {
@@ -410,18 +420,19 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 	}
 
 	issuedAt := time.Unix(payload.IAT, 0).UTC()
-	// Absolute expiry is fixed in the RT at issue time, so raising SESSION_MAX_AGE
-	// later cannot revive old tokens; lowering SESSION_MAX_AGE also shortens it
-	// to match putSessionInStore/getSessionFromStore.
+	// payload.IAT is the original login and never changes across rotations, so
+	// refreshing cannot move the hard cap. A legacy RT carries the same IAT, so
+	// it is treated as login time. payload.EXP is the idle deadline: each
+	// rotation moves it forward (rtExpiry), up to the hard cap.
 	rtExpiry := time.Unix(payload.EXP, 0).UTC()
-	absExpiry := rtExpiry
-	if g.cfg.SessionMaxAge > 0 {
-		if maxExpiry := issuedAt.Add(g.cfg.SessionMaxAge); maxExpiry.Before(absExpiry) {
-			absExpiry = maxExpiry
-		}
-	}
+	absExpiry := issuedAt.Add(g.cfg.SessionAbsoluteMaxAge)
 	if !g.now().Before(absExpiry) {
 		outcome = "session_max_age_expired"
+		bad(http.StatusBadRequest, "invalid_grant", "session expired")
+		return
+	}
+	if !g.now().Before(rtExpiry) {
+		outcome = "session_idle_expired"
 		bad(http.StatusBadRequest, "invalid_grant", "session expired")
 		return
 	}
@@ -469,9 +480,10 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 			writeJSON(w, http.StatusOK, resp)
 			return
 		}
-		// Replay: someone holds an already-rotated RT. Kill the family so a thief
+		// Replay: someone holds an already-rotated RT. Kill the family (until the
+		// hard cap: later rotations live past this token's own EXP) so a thief
 		// who refreshed first loses the newest RT too.
-		if err = g.store.Revoke(r.Context(), famKey, rtExpiry); err != nil {
+		if err = g.store.Revoke(r.Context(), famKey, absExpiry); err != nil {
 			unavailable(err)
 			return
 		}
@@ -611,7 +623,7 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 		JTI:      newJTI,
 		FID:      payload.FID,
 		IAT:      payload.IAT,
-		EXP:      payload.EXP,
+		EXP:      g.rtExpiry(issuedAt, now).Unix(),
 		ClientID: payload.ClientID,
 		Resource: payload.Resource,
 		NAVIdent: payload.NAVIdent,
@@ -765,7 +777,7 @@ func (g *Gateway) revokeHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		// Revoke the family too (RFC 7009 2.1), so a grace pair already read
 		// by a concurrent replay fails its family recheck.
-		if err := g.store.Revoke(r.Context(), "fam:"+payload.FID, expiresAt); err != nil {
+		if err := g.store.Revoke(r.Context(), "fam:"+payload.FID, time.Unix(payload.IAT, 0).UTC().Add(g.cfg.SessionAbsoluteMaxAge)); err != nil {
 			slog.Warn("revoke refresh family failed", "error", err)
 			bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store unavailable")
 			return

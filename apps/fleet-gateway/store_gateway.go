@@ -65,11 +65,11 @@ func (g *Gateway) popHashed(ctx context.Context, kind, key string) ([]byte, bool
 }
 
 func (g *Gateway) putSession(ctx context.Context, hash string, s *gatewaySession, ttl time.Duration) error {
-	return putSessionInStore(ctx, g.store, g.now, g.cfg.SessionMaxAge, hash, s, ttl)
+	return putSessionInStore(ctx, g.store, g.now, g.cfg.SessionAbsoluteMaxAge, hash, s, ttl)
 }
 
 func (g *Gateway) getSession(ctx context.Context, hash string) (*gatewaySession, bool, error) {
-	sess, ok, err := getSessionFromStore(ctx, g.store, g.now, g.cfg.SessionMaxAge, hash)
+	sess, ok, err := getSessionFromStore(ctx, g.store, g.now, g.cfg.SessionAbsoluteMaxAge, hash)
 	if err != nil || !ok {
 		return sess, ok, err
 	}

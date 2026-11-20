@@ -14,7 +14,7 @@ The gateway is live in prod (2026-11-17) for a controlled pilot. It runs the aut
 - `POST /consent` — Consent submission with CSRF cookie check. The page is shown after the Entra login, and only when the user has no remembered consent for this client and route
 - `GET /oauth2/callback` — Entra ID reply URL, verified against signed `__Host-fleet_entra_state` cookie
 - `POST /token` — Single-use, 60-second authorization code exchange with PKCE verification
-- `POST /token` also accepts `grant_type=refresh_token` when `RT_STORAGE=client-encrypted` (single-use rotation, absolute `SESSION_MAX_AGE` cap)
+- `POST /token` also accepts `grant_type=refresh_token` when `RT_STORAGE=client-encrypted` (single-use rotation; sliding: each refresh moves the idle deadline, `SESSION_ABSOLUTE_MAX_AGE` from the original login is a hard cap)
 - `POST /revoke` — RFC 7009 revocation of an access token or refresh token
 - `GET /health` — Liveness probe
 - `GET /ready` — Readiness probe
@@ -52,7 +52,9 @@ The gateway is live in prod (2026-11-17) for a controlled pilot. It runs the aut
 | `TEAM_TOKEN_STRATEGY` | No | `obo` | `obo` (Texas OBO) or `refresh` (Entra refresh token held in the session; needs `RT_STORAGE=server`) |
 | `SESSION_STORE` | No | `memory` | `memory` (tests/local; lost on restart, not shared across replicas) or `postgres` |
 | `DATABASE_URL` | No | — | Postgres URL override. If empty, pgx reads the libpq `PG*` variables that Nais Postgres injects (TLS client certs, PgBouncer transaction mode; simple query protocol, no session state). Migrations run with the unprefixed admin `PG*` credentials; the running store uses the `READWRITE_PG*` runtime credentials |
-| `SESSION_MAX_AGE` | No | `12h` | Absolute session lifetime from login; refresh never extends it |
+| `SESSION_MAX_AGE` | No | `12h` | Longest life of one access token session (Entra `expires_in` is capped at it) |
+| `SESSION_ABSOLUTE_MAX_AGE` | No | `7d` | Hard cap from the original login (`iat` in the refresh token); refresh never extends it. Must be at least `SESSION_MAX_AGE`. Audit reason `session_max_age_expired`. An external host sets a shorter value (#2363) |
+| `SESSION_IDLE_TIMEOUT` | No | `12h` | A refresh token dies this long after it was issued; each successful refresh issues a new one (sliding), never past the hard cap. Audit reason `session_idle_expired`. Only with `RT_STORAGE=client-encrypted`; `RT_STORAGE=server` sessions are capped by `SESSION_ABSOLUTE_MAX_AGE` only |
 | `REFRESH_GRACE_WINDOW` | No | `30s` | How long the immediately previous refresh token may be reused. Reuse inside the window returns the same token pair; reuse after it revokes the whole token family |
 | `CONSENT_TTL` | No | `720h` | How long a consent is remembered per NAVident, client_id and route. `/revoke` clears it |
 | `RT_STORAGE` | No | `client-encrypted` if `RT_KEYS` set, else none | `client-encrypted`: the Entra refresh token is sealed (AES-256-GCM) inside the gateway refresh token returned to the client; nothing is stored. `server`: refresh token stays in the session store, no client refresh token |

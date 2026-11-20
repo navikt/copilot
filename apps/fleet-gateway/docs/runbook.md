@@ -10,7 +10,7 @@ OAuth 2.1 authorization server in front of Microsoft Entra ID, plus a reverse pr
 
 | Dependency | Used for | If it is down |
 | --- | --- | --- |
-| Entra (`login.microsoftonline.com`) | Login, refresh | Login and refresh fail. Existing access tokens keep working until they expire (Entra `expires_in`, capped at `SESSION_MAX_AGE`, 12 h) |
+| Entra (`login.microsoftonline.com`) | Login, refresh | Login and refresh fail. Existing access tokens keep working until they expire (Entra `expires_in`, capped at `SESSION_MAX_AGE`, 12 h; refresh slides the session up to `SESSION_ABSOLUTE_MAX_AGE`, 7 d from login) |
 | Texas (Nais token exchange) | OBO token to the upstream | Every `/mcp/*` call fails |
 | Nais Postgres (`fleet-gateway`) | Sessions, consent, DCR clients, counters | `/ready` fails, see below |
 | `RT_KEYS` secret `fleet-gateway-rt-keys` | Seals refresh tokens and every store value; also signs the Entra state cookie | Startup fails on Nais without it |
@@ -92,7 +92,7 @@ Remove the current key from `RT_KEYS` (replace it with a fresh key, no old entry
 
 ## Lock out one user
 
-Use alongside blocking the user in Entra when one account must be cut off immediately without waiting up to 12 h (`SESSION_MAX_AGE`) for Entra expiry or refresh.
+Use alongside blocking the user in Entra when one account must be cut off immediately without waiting for Entra expiry or refresh. Lock-out compares against the original login time, so it kills a session that refresh has kept alive; the `audit refresh` outcome is `user_revoked`. Without it a refreshing client lives up to 7 d (`SESSION_ABSOLUTE_MAX_AGE`) from login, idle sessions end after 12 h (`SESSION_IDLE_TIMEOUT`).
 
 ### Prerequisite: `LOCKOUT_KEY`
 

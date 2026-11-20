@@ -153,7 +153,7 @@ func TestRefreshToken_LoweredMaxAgeRejectsAndClampsRefresh(t *testing.T) {
 	t.Run("rejects refresh past lowered SessionMaxAge", func(t *testing.T) {
 		te := newClientEncryptedTestEnv(t, "k1:"+testKeyBase64(t, false))
 		_, rt, _ := te.obtainTokensForResource(te.resource)
-		te.gw.cfg.SessionMaxAge = time.Hour
+		te.gw.cfg.SessionAbsoluteMaxAge = time.Hour
 		te.advance(2 * time.Hour)
 		if status, body := te.refresh(rt); status != http.StatusBadRequest || body["error"] != "invalid_grant" {
 			t.Fatalf("expected 400 invalid_grant after SessionMaxAge lowered past elapsed time, got %d (%v)", status, body)
@@ -163,7 +163,7 @@ func TestRefreshToken_LoweredMaxAgeRejectsAndClampsRefresh(t *testing.T) {
 	t.Run("clamps expires_in and issued session stays alive within lowered SessionMaxAge", func(t *testing.T) {
 		te := newClientEncryptedTestEnv(t, "k1:"+testKeyBase64(t, false))
 		_, rt, _ := te.obtainTokensForResource(te.resource)
-		te.gw.cfg.SessionMaxAge = time.Hour
+		te.gw.cfg.SessionAbsoluteMaxAge = time.Hour
 		te.advance(45 * time.Minute)
 		status, body := te.refresh(rt)
 		if status != http.StatusOK {
@@ -293,7 +293,7 @@ func TestRefreshToken_RevokeSurvivesRaisedSessionMaxAge(t *testing.T) {
 
 	// Lower SessionMaxAge before refreshing rt1; its denylist TTL must stay pinned
 	// to rt1's EXP so raising SessionMaxAge later cannot make rt1 replayable.
-	te.gw.cfg.SessionMaxAge = time.Hour
+	te.gw.cfg.SessionAbsoluteMaxAge = time.Hour
 	status, body := te.refresh(rt1)
 	if status != http.StatusOK {
 		t.Fatalf("first refresh: %d (%v)", status, body)
