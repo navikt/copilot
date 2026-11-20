@@ -168,9 +168,9 @@ func TestPerUserInFlightCap(t *testing.T) {
 
 	shed := httpRequestsTotal.WithLabelValues("503", "user_cap")
 	beforeShed := testutil.ToFloat64(shed)
-	mcpDeny := mcpRequestsTotal.WithLabelValues(route, "user_cap", "deny")
+	mcpDeny := mcpRequestsTotal.WithLabelValues(route, "user_cap", "deny", "user_cap", "")
 	beforeDeny := testutil.ToFloat64(mcpDeny)
-	mcpAllow := mcpRequestsTotal.WithLabelValues(route, "user_cap", "allow")
+	mcpAllow := mcpRequestsTotal.WithLabelValues(route, "user_cap", "allow", "", "")
 	beforeAllow := testutil.ToFloat64(mcpAllow)
 
 	// (a) Next call for user A gets 503 with Retry-After and user_cap shed/audit.
@@ -357,9 +357,9 @@ func TestPerUserSSECap(t *testing.T) {
 
 	shed := httpRequestsTotal.WithLabelValues("503", "user_sse_cap")
 	beforeShed := testutil.ToFloat64(shed)
-	mcpDeny := mcpRequestsTotal.WithLabelValues(route, "user_sse_cap", "deny")
+	mcpDeny := mcpRequestsTotal.WithLabelValues(route, "user_sse_cap", "deny", "user_sse_cap", "")
 	beforeDeny := testutil.ToFloat64(mcpDeny)
-	mcpAllow := mcpRequestsTotal.WithLabelValues(route, "user_sse_cap", "allow")
+	mcpAllow := mcpRequestsTotal.WithLabelValues(route, "user_sse_cap", "allow", "", "")
 	beforeAllow := testutil.ToFloat64(mcpAllow)
 
 	// (a) 5th concurrent SSE stream for user A gets 503 with reason=user_sse_cap.

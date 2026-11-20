@@ -166,7 +166,7 @@ spec:
             consequence: "store_full: new logins and registrations fail. cap: MCP calls get 503 over capacity."
             action: "store_full: count rows per kind in the session store and look for a client registering in a loop. cap: check `fleet_gateway_mcp_requests_total` by route and slow upstreams."
         - alert: FleetGatewaySustainedRateLimiting
-          expr: sum by (endpoint) (increase(fleet_gateway_rate_limited_total{namespace="copilot"}[5m])) > 20
+          expr: sum by (oauth_endpoint) (increase(fleet_gateway_rate_limited_total{namespace="copilot"}[5m])) > 20
           for: 15m
           labels:
             namespace: copilot

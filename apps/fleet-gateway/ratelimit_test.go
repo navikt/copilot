@@ -160,7 +160,7 @@ func TestRateLimit_MetricsAndWarnLog(t *testing.T) {
 	defer func() { _ = resp.Body.Close() }()
 	metricsBody, _ := io.ReadAll(resp.Body)
 	for _, ep := range rateLimitedEndpoints {
-		want := `fleet_gateway_rate_limited_total{endpoint="` + ep + `"}`
+		want := `fleet_gateway_rate_limited_total{oauth_endpoint="` + ep + `"}`
 		if !strings.Contains(string(metricsBody), want) {
 			t.Errorf("/metrics missing pre-initialized series %s", want)
 		}

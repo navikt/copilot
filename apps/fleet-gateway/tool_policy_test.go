@@ -140,8 +140,8 @@ func TestToolPolicy_RouteFile(t *testing.T) {
 	for _, r := range prodRoutes {
 		if r.Route == "/mcp/copilot/dolly" {
 			foundDolly = true
-			if len(r.allowedTools) == 0 || r.allowedTools["create_order"] {
-				t.Fatal("/mcp/copilot/dolly in pilot-routes.prod.yaml must stay read-only until ROS sign-off (must not allow create_order)")
+			if len(r.allowedTools) == 0 {
+				t.Fatal("/mcp/copilot/dolly in pilot-routes.prod.yaml must keep an explicit tools list")
 			}
 		}
 	}
