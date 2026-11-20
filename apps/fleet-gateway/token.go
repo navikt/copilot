@@ -352,8 +352,10 @@ func (g *Gateway) handleAuthorizationCodeGrant(w http.ResponseWriter, r *http.Re
 func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request, bad func(int, string, string)) {
 	outcome := "ok"
 	navIdent := ""
+	// Bounded: the value is client-supplied and not yet validated.
+	clientID := r.PostFormValue("client_id")
 	defer func() {
-		slog.Info("audit refresh", "outcome", outcome, "navident", sanitizeLogValue(navIdent))
+		slog.Info("audit refresh", "outcome", outcome, "navident", sanitizeLogValue(navIdent), "client_id", truncateLogValue(clientID, maxLogClientIDLen))
 	}()
 
 	rawRT := r.PostFormValue("refresh_token")
@@ -363,7 +365,6 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	clientID := r.PostFormValue("client_id")
 	known, mayRefresh, err := g.clientGrants(r.Context(), clientID)
 	if err != nil {
 		outcome = "store_error"
