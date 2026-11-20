@@ -1,3 +1,12 @@
 #!/bin/sh
 # Holder klienten på grunnlinjens versjon, se planen (trinn 2, «Klient»).
-COPILOT_AUTO_UPDATE=false exec /opt/homebrew/bin/copilot --prefer-version 1.0.114-0 "$@"
+COPILOT_AUTO_UPDATE=false /opt/homebrew/bin/copilot --prefer-version 1.0.114-0 "$@"
+rc=$?
+# Dommeren kjører i en midlertidig COPILOT_HOME som slettes etterpå: logg versjonen før det.
+if [ -n "$COPILOT_HOME" ] && [ -n "$BENCH_VERSION_LOG" ]; then
+  for f in "$COPILOT_HOME"/session-state/*/events.jsonl; do
+    [ -f "$f" ] || continue
+    head -1 "$f" | python3 -c 'import json,sys; d=json.loads(sys.stdin.readline())["data"]; print("%s|%s|%s" % (d.get("sessionId"), d.get("copilotVersion"), d.get("selectedModel")))' >>"$BENCH_VERSION_LOG" 2>/dev/null
+  done
+fi
+exit $rc

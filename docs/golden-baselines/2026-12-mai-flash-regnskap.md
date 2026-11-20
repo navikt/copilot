@@ -5,6 +5,7 @@ Plan: [2026-12-mai-flash-plan.md](2026-12-mai-flash-plan.md). Ramme 650 credits.
 | Tidspunkt (UTC) | Trinn/arm | Reservert | Faktisk | Sum brukt | Merknad |
 | --- | --- | --- | --- | --- | --- |
 | 2026-11-19 17:05 | Trinn 2, forhåndssjekk | 0 | 0 | 0 | Stopp før kjøring, se under |
+| 2026-11-20 08:50 | Delgrunnlinje t4/t8, gpt-6.1-sol low, n = 5 | 137 | | 0 | Regel 5: stopp over 205. Reservasjon 0 + 137 ≤ 650 |
 
 ## Estimat for neste steg (20. november 2026)
 
