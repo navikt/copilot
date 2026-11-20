@@ -262,6 +262,9 @@ func hintFor(loc []string, msg string) string {
 			if len(loc) == 3 {
 				return "a proposal must carry a reason; it is shown verbatim to the person asked to approve it"
 			}
+			if len(loc) >= 5 && loc[3] == "proxy" && loc[4] == "allow_private_domains" {
+				return "name a specific host, not a bare apex like nav.no or a public suffix"
+			}
 			if len(loc) >= 5 && loc[3] == "allow" && loc[4] == "read" {
 				return `a read grant names one file under the home directory, written "~/<dir>/<name>.<ext>"; ` +
 					"a directory is refused because cplt grants everything beneath it, and so is any path at or under " +

@@ -1,0 +1,17 @@
+ ● skill(klarsprak)
+
+ $ Shell ls -a; rg --files --hidden -g '*.kt' -g '*instructions.md' -g 'AGENTS.md' -g '*.… 29 lines…
+   ls -a; rg --files --hidden -g '*.kt' -g '*instructions.md' -g 'AGENTS.md' -g '*.kts' | head -60
+
+ $ Shell cat build.gradle.kts src/main/kotlin/no/nav/demo/Oppgave.kt; ls -a .github; ls … 206 lines…
+   cat build.gradle.kts src/main/kotlin/no/nav/demo/Oppgave.kt; ls -a .github; ls src; cat
+   .github/instructions/{kotlin,security-owasp,testing,testing-kotlin}.instructions.md | head -180
+
+ ● Edit  Edit build.gradle.kts (+1)  Create src/main/kotlin/no/nav/demo/Feriepenger.kt (+4)  Create…
+
+ ● Edit  Edit src/test/kotlin/no/nav/demo/FeriepengerTest.kt (+3 -3)
+
+La til `Feriepenger.kt` med funksjonssignaturen og enhetstester for satsene, 60-årsgrensen, avrunding ved 50 øre, null og negativt grunnlag. Gradle ble ikke kjørt.
+
+🔴 **Rød sone:** Selve beregningen står som `TODO`. Bruk heltallsregning når dere implementerer den, slik at nøyaktig 50 øre rundes opp uten flyttallsfeil.
+

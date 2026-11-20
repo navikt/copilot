@@ -1,0 +1,20 @@
+ $ Shell Run Go tests in frister 6 lines…
+   cd frister 2>/dev/null || cd "$(find . -type d -name frister -not -path '*/node_modules/*' | head
+   -1)"; pwd; go test ./... 2>&1 | tail -60
+
+ $ Shell Show frister source and tests 45 lines…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.kImu0d/repo/frister
+   && ls && cat *.go | head -200
+
+Feilen er i `Frist`: lørdag flyttes én dag (til søndag) i stedet for to (til mandag). Retter den.
+
+ GO Edit frister/frist.go +1 -1
+
+ $ Shell Rerun Go tests in frister 1 line…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.kImu0d/repo/frister
+   && go test ./... 2>&1 | tail -5
+
+Testene går nå grønne.
+
+Feilen lå i `frister/frist.go`: når fristen falt på en lørdag, ble den flyttet én dag til søndag i stedet for to dager til mandag. Jeg endret lørdagsgrenen til `AddDate(0, 0, 2)`. Søndagsgrenen var riktig og er uendret. Testfilen er ikke endret.
+

@@ -1,0 +1,30 @@
+ $ Shell Read file 19 lines…
+   cat -n src/main/kotlin/no/nav/demo/UserRepo.kt; ls
+
+### Oppsummering
+Funksjonen er kort, men har to blokkere: SQL-injeksjon og fnr i loggen. I tillegg skjuler den feil. Jeg kjørte ikke `mise check`, fordi repoet ikke har en `apps/<app>`-struktur. Vurderingen bygger på at jeg leste koden.
+
+### Funn
+
+| Fil | Linje | Prioritet | Problem |
+|-----|-------|-----------|---------|
+| `UserRepo.kt` | 9 | 🔴 | SQL-injeksjon: `fnr` settes rett inn i SQL-strengen |
+| `UserRepo.kt` | 8 | 🔴 | Fødselsnummer logges i applikasjonsloggen |
+| `UserRepo.kt` | 12–14 | 🟡 | Svelger alle unntak og returnerer `null` |
+| `UserRepo.kt` | 11 | 🟡 | `session` er ikke definert eller injisert her |
+| – | – | 🟡 | Ingen tester |
+
+### Detaljer
+**Linje 9:** En verdi som `' OR '1'='1` returnerer vilkårlige rader. Bruk parameter:
+```kotlin
+session.run(queryOf("SELECT navn FROM bruker WHERE fnr = ?", fnr).map { it.string("navn") }.asSingle)
+```
+
+**Linje 8:** Fnr er personopplysning og hører ikke hjemme i vanlig logg. Fjern linjen eller logg en ikke-identifiserende ID. Revisjonslogging skal gå via en egen `auditLogger` i CEF-format.
+
+**Linje 12–14:** Når en databasefeil returnerer `null`, ser den ut som «bruker finnes ikke». Det skjuler driftsfeil. La unntaket gå videre, eller logg det uten personopplysninger og kast det på nytt med kontekst.
+
+**Linje 11:** Det er uklart hvor `session` kommer fra. Ta inn `DataSource` eller `Session` som avhengighet, så funksjonen kan testes.
+
+🔴 Rød sone: databasespørring og håndtering av personopplysninger. Gå gjennom disse nøye.
+

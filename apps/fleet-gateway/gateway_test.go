@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/navikt/copilot/fleet-gateway/internal/config"
 	"io"
 	"log/slog"
 	"net/http"
@@ -73,6 +74,15 @@ func newTestEnv(t *testing.T) *testEnv {
 				"client_name":                "cplt test client",
 				"redirect_uris":              []string{te.redirectURI},
 				"grant_types":                []string{"authorization_code"},
+				"response_types":             []string{"code"},
+				"token_endpoint_auth_method": "none",
+			})
+		case "/other-client.json":
+			writeJSON(w, http.StatusOK, map[string]any{
+				"client_id":                  te.cimdServer.URL + "/other-client.json",
+				"client_name":                "other test client",
+				"redirect_uris":              []string{te.redirectURI},
+				"grant_types":                []string{"authorization_code", "refresh_token"},
 				"response_types":             []string{"code"},
 				"token_endpoint_auth_method": "none",
 			})
@@ -229,7 +239,7 @@ func newTestEnv(t *testing.T) *testEnv {
 		AzureWellKnownURL:       te.entraServer.URL + "/.well-known/openid-configuration",
 		AzureTokenEndpoint:      te.entraServer.URL + "/token",
 		CookieSecret:            []byte("0123456789abcdef0123456789abcdef"),
-		HTTPClient:              newHardenedHTTPClient(5 * time.Second),
+		HTTPClient:              config.NewHardenedHTTPClient(5 * time.Second),
 		ProxyHeaderTimeout:      5 * time.Second,
 		PendingCap:              1024,
 		CodeCap:                 1024,
@@ -318,7 +328,7 @@ func (te *testEnv) followToEntra(req *http.Request) (entraState string, stateCoo
 		te.t.Fatalf("invalid Entra redirect location: %v", err)
 	}
 	for _, c := range resp.Cookies() {
-		if c.Name == entraStateCookieName {
+		if strings.HasPrefix(c.Name, entraStateCookieName) {
 			stateCookie = c
 		}
 	}
@@ -829,14 +839,14 @@ func TestCallback_StateCookieBinding(t *testing.T) {
 		{
 			name: "forged state cookie signature fails with 403",
 			mutate: func(_ *testEnv, state *string, cookie **http.Cookie) {
-				*cookie = &http.Cookie{Name: entraStateCookieName, Value: *state + ".forged-signature"}
+				*cookie = &http.Cookie{Name: entraStateCookieFor(*state), Value: *state + ".forged-signature"}
 			},
 			wantStatus: http.StatusForbidden,
 		},
 		{
 			name: "cookie signed for different state fails with 403",
-			mutate: func(te *testEnv, _ *string, cookie **http.Cookie) {
-				*cookie = &http.Cookie{Name: entraStateCookieName, Value: te.gw.signEntraState("other-state")}
+			mutate: func(te *testEnv, state *string, cookie **http.Cookie) {
+				*cookie = &http.Cookie{Name: entraStateCookieFor(*state), Value: te.gw.signEntraState("other-state")}
 			},
 			wantStatus: http.StatusForbidden,
 		},
@@ -847,7 +857,7 @@ func TestCallback_StateCookieBinding(t *testing.T) {
 			te := newTestEnv(t)
 			entraState, stateCookie := te.startLogin(verifier)
 
-			if stateCookie.Name != "__Host-fleet_entra_state" || stateCookie.Path != "/" || stateCookie.Domain != "" ||
+			if stateCookie.Name != entraStateCookieFor(entraState) || stateCookie.Path != "/" || stateCookie.Domain != "" ||
 				!stateCookie.HttpOnly || !stateCookie.Secure || stateCookie.SameSite != http.SameSiteLaxMode {
 				t.Fatalf("unexpected state cookie attributes: %+v", stateCookie)
 			}
@@ -961,7 +971,9 @@ func TestMapCapsAndRateLimit(t *testing.T) {
 			name: "per-IP rate limit enforced on authorize and token",
 			run: func(t *testing.T) {
 				te := newTestEnv(t)
-				te.gw.limiter = newIPRateLimiter(2, 100, time.Minute, 10, func() time.Time { return te.now })
+				for _, ep := range rateLimitedEndpoints {
+					te.gw.limiters[ep] = newIPRateLimiter(2, 100, time.Minute, 10, func() time.Time { return te.now })
+				}
 				te.handler = te.gw.routes()
 
 				for i := 0; i < 2; i++ {
@@ -1006,7 +1018,7 @@ func TestMapCapsAndRateLimit(t *testing.T) {
 			name: "X-Forwarded-For uses last trusted ingress IP and enforces global ceiling",
 			run: func(t *testing.T) {
 				te := newTestEnv(t)
-				te.gw.limiter = newIPRateLimiter(2, 4, time.Minute, 10, func() time.Time { return te.now })
+				te.gw.limiters[rateLimitEndpointAuthorize] = newIPRateLimiter(2, 4, time.Minute, 10, func() time.Time { return te.now })
 				te.handler = te.gw.routes()
 
 				// Spoofing earlier XFF entries cannot bypass per-IP limit keyed on the last entry.
@@ -1148,6 +1160,46 @@ func TestCallback_RequiresNAVident(t *testing.T) {
 	})
 }
 
+func TestCallback_RequiresAccessTokenForOBO(t *testing.T) {
+	verifier := "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG"
+
+	t.Run("obo rejects empty access_token even when id_token is present", func(t *testing.T) {
+		te := newTestEnv(t)
+		te.mu.Lock()
+		te.entraToken = ""
+		te.mu.Unlock()
+
+		entraState, stateCookie := te.startLogin(verifier)
+		resp := te.callback(entraState, stateCookie)
+		_ = resp.Body.Close()
+		if resp.StatusCode != http.StatusFound {
+			t.Fatalf("expected 302 redirect, got %d", resp.StatusCode)
+		}
+		loc, err := url.Parse(resp.Header.Get("Location"))
+		if err != nil {
+			t.Fatalf("invalid redirect location: %v", err)
+		}
+		if loc.Query().Get("error") != "server_error" {
+			t.Fatalf("expected server_error when access_token empty in obo mode, got %q (%s)", loc.Query().Get("error"), loc.Query().Get("error_description"))
+		}
+	})
+
+	t.Run("refresh strategy accepts empty access_token when id_token is present", func(t *testing.T) {
+		te := newTestEnv(t)
+		te.gw.cfg.TeamTokenStrategy = strategyRefresh
+		te.mu.Lock()
+		te.entraToken = ""
+		te.mu.Unlock()
+
+		entraState, stateCookie := te.startLogin(verifier)
+		resp := te.callback(entraState, stateCookie)
+		_ = resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("expected consent page (200) in refresh mode, got %d", resp.StatusCode)
+		}
+	})
+}
+
 func TestHostCookies_ClearedWithPathRoot(t *testing.T) {
 	verifier := "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG"
 	te := newTestEnv(t)
@@ -1160,7 +1212,7 @@ func TestHostCookies_ClearedWithPathRoot(t *testing.T) {
 	cbResp := te.callback(entraState, stateCookie) //nolint:bodyclose // parseConsentPage closes it
 	var clearedState *http.Cookie
 	for _, c := range cbResp.Cookies() {
-		if c.Name == "__Host-fleet_entra_state" {
+		if c.Name == stateCookie.Name {
 			clearedState = c
 		}
 	}
@@ -1255,5 +1307,91 @@ func TestLogInjection_SanitizedAndEntraErrorTruncated(t *testing.T) {
 	if !sawRequestCompleted || !sawEntraError || !sawCIMDFailed {
 		t.Fatalf("missing expected log entries (req=%v entraErr=%v cimd=%v):\n%s",
 			sawRequestCompleted, sawEntraError, sawCIMDFailed, logBuf.String())
+	}
+}
+
+func TestCallback_ParallelLoginsEachKeepOwnStateCookie(t *testing.T) {
+	te := newTestEnv(t)
+	type login struct {
+		state, nonce, challenge string
+		cookie                  *http.Cookie
+	}
+	var logins []login
+	for _, v := range []string{"abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG", "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFH"} {
+		s, c := te.startLogin(v)
+		logins = append(logins, login{s, te.lastEntraNonce, te.lastEntraChallenge, c})
+	}
+	if logins[0].cookie.Name == logins[1].cookie.Name {
+		t.Fatalf("parallel logins share cookie name %q", logins[0].cookie.Name)
+	}
+	for i, l := range logins {
+		te.mu.Lock() // the mock answers for the login being completed
+		te.lastEntraNonce, te.lastEntraChallenge = l.nonce, l.challenge
+		te.mu.Unlock()
+		req := httptest.NewRequest(http.MethodGet, "/oauth2/callback?code=entra-code-123&state="+url.QueryEscape(l.state), nil)
+		for _, o := range logins { // the browser sends every state cookie
+			req.AddCookie(o.cookie)
+		}
+		rec := httptest.NewRecorder()
+		te.handler.ServeHTTP(rec, req)
+		resp := rec.Result()
+		cleared := 0
+		for _, c := range resp.Cookies() {
+			if strings.HasPrefix(c.Name, entraStateCookieName) && c.MaxAge < 0 {
+				cleared++
+				if c.Name != l.cookie.Name {
+					t.Fatalf("login %d cleared foreign cookie %q", i+1, c.Name)
+				}
+			}
+		}
+		if cleared != 1 {
+			t.Fatalf("login %d cleared %d state cookies, want 1", i+1, cleared)
+		}
+		if resp.StatusCode == http.StatusOK {
+			id, csrf, cookie, _ := te.parseConsentPage(resp)
+			resp = te.postConsent(id, csrf, cookie, "approve")
+		}
+		_ = te.clientCode(resp) // 302 to the client redirect_uri with a gateway code
+	}
+}
+
+func TestAuthorize_StateCookieCountIsCapped(t *testing.T) {
+	te := newTestEnv(t)
+	for n := 0; n <= maxEntraStateCookies+3; n++ {
+		req := httptest.NewRequest(http.MethodGet, te.authorizeURL(nil, "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG"), nil)
+		held := map[string]bool{}
+		for i := 0; i < n; i++ {
+			name := entraStateCookieName + "_" + string(rune('a'+i)) + "0000000"
+			req.AddCookie(&http.Cookie{Name: name, Value: "x"})
+			held[name] = true
+		}
+		rec := httptest.NewRecorder()
+		te.handler.ServeHTTP(rec, req)
+		for _, c := range rec.Result().Cookies() {
+			if !strings.HasPrefix(c.Name, entraStateCookieName+"_") {
+				continue
+			}
+			if c.MaxAge < 0 {
+				delete(held, c.Name)
+			} else {
+				held[c.Name] = true
+			}
+		}
+		if len(held) > maxEntraStateCookies {
+			t.Fatalf("with %d existing cookies the browser ends with %d, cap %d", n, len(held), maxEntraStateCookies)
+		}
+	}
+}
+
+func TestCallback_LegacyFixedNameCookieAccepted(t *testing.T) {
+	te := newTestEnv(t)
+	state, c := te.startLogin("abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG")
+	legacy := &http.Cookie{Name: entraStateCookieName, Value: c.Value}
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/callback?code=entra-code&state="+url.QueryEscape(state), nil)
+	req.AddCookie(legacy)
+	rec := httptest.NewRecorder()
+	te.handler.ServeHTTP(rec, req)
+	if rec.Code == http.StatusForbidden {
+		t.Fatal("legacy fixed-name cookie rejected")
 	}
 }

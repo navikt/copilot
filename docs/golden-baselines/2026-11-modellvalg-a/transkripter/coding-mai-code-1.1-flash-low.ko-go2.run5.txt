@@ -1,0 +1,63 @@
+ ● update_todo todos: "- [ ] Inspect failing Go tests in `ytelse` - [ ] Fix imple… TODO list updated
+
+ ✗ Shell Inspect repo and run failing Go tests in ytelse Failed with exit code 1  total 24 drwxr-xr…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.qenq4R/repo && ls
+   -la && echo '---' && ls -la ytelse && echo '---' && go test ./...
+   total 24
+   drwxr-xr-x  10 hans  staff   320 Nov 18 20:32 .
+   drwx------  83 hans  staff  2656 Nov 18 20:32 ..
+   drwxr-xr-x   4 hans  staff   128 Nov 18 20:32 .github
+   -rw-r--r--   1 hans  staff   340 Nov 18 20:32 build.gradle.kts
+   drwxr-xr-x   5 hans  staff   160 Nov 18 20:32 frister
+   -rw-r--r--   1 hans  staff   216 Nov 18 20:32 nais.yaml
+   -rw-r--r--   1 hans  staff   166 Nov 18 20:32 README.md
+   drwxr-xr-x   4 hans  staff   128 Nov 18 20:32 slug
+   drwxr-xr-x   3 hans  staff    96 Nov 18 20:32 src
+   drwxr-xr-x   6 hans  staff   192 Nov 18 20:32 ytelse
+   ---
+   total 32
+   drwxr-xr-x   6 hans  staff  192 Nov 18 20:32 .
+   drwxr-xr-x  10 hans  staff  320 Nov 18 20:32 ..
+   -rw-r--r--   1 hans  staff   35 Nov 18 20:32 go.mod
+   -rw-r--r--   1 hans  staff  200 Nov 18 20:32 rapport.go
+   -rw-r--r--   1 hans  staff  154 Nov 18 20:32 utbetaling.go
+   -rw-r--r--   1 hans  staff  533 Nov 18 20:32 ytelse_test.go
+   ---
+   FAIL    ./... [setup failed]
+   # ./...
+   pattern ./...: directory prefix . does not contain main module or its selected dependencies
+   FAIL
+   Failed with exit code 1
+
+ GO Read ytelse/ytelse_test.go L1:220 (21 lines read)
+
+ GO Read ytelse/utbetaling.go L1:220 (6 lines read)
+
+ GO Read ytelse/rapport.go L1:220 (8 lines read)
+
+I’ve narrowed it to the `ytelse` package: the current implementation is using the old single-argument formula, while the grading requirement expects a percentage-based calculation. I’m matching the code to the intended contract before fixing it.
+
+ MD Read README.md L1:200 (4 lines read)
+
+ / Search "Utbetaling\(|Rapport\(|grad|ytelse" 27 lines found
+
+ GO Edit ytelse/utbetaling.go +4 -3
+
+ GO Edit ytelse/rapport.go +3 -3
+
+The fix is in place. I’m running the Go test command in the `ytelse` module itself to confirm the grading logic matches the contract.
+
+ $ Shell Verify Go tests in ytelse pass after fixing grading logic 1 line…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.qenq4R/repo/ytelse
+   && go test ./...
+
+Endret beregningen i `ytelse` til å bruke grad som prosent av full ytelse:
+- `Utbetaling(grunnlag, grad)` beregner nå dagsatsen som `grunnlag * grad / (260 * 100)`
+- `Rapport` tar også med graden i beregningen
+
+Verifisert med:
+- `cd .../ytelse && go test ./...`
+
+Resultat:
+- `ok   example.com/ytelse`
+

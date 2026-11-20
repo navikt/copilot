@@ -1,0 +1,78 @@
+# Fase 2: Plan
+
+**Antakelser:** Next.js-frontenden kjører Wonderwall med ID-porten. Backend-en er Kotlin med Ktor, fordi repoet har `build.gradle.kts`. Tjenesten lagrer ingenting. PDL tar imot TokenX-token med brukerkontekst. Det siste må teamet bekrefte med PDL før vi bygger.
+
+## 1. Arkitekturbeslutninger
+- **Auth inn:** Innbyggeren logger inn i Next.js med ID-porten via Wonderwall. Frontenden veksler tokenet med TokenX og kaller backend-en. Backend-en validerer TokenX-tokenet: `iss`, `aud` = egen klient-ID, `exp` og `acr` = `idporten-loa-high`.
+- **Fødselsnummer** kommer **bare** fra `pid`-claimet i tokenet. Det kommer aldri fra path, query eller body. Dermed kan innbyggeren bare slå opp seg selv, og eierskapssjekken følger av designet.
+- **Auth ut:** Backend-en veksler tokenet med TokenX for å kalle PDL (GraphQL) med brukerkontekst. Vi bruker ikke client_credentials, for da mister vi revisjonssporet.
+- **Kommunikasjon:** Synkron REST, `GET /api/person/navn`. Svaret er `{ "navn": ... }`. Fødselsnummeret står ikke i svaret.
+- **Lagring:** ingen database og ingen Kafka.
+- **Avveining:** Valideringen og vekslingen med TokenX er nytt for teamet, og den legger til ett nettverkshopp. Alternativet var at backend-en tok imot ID-porten-tokenet direkte. Det forkastet vi, fordi tokenet da får feil audience og frontenden må sende ID-porten-tokenet videre.
+
+## 2. Prosjektstruktur
+```
+src/main/kotlin/no/nav/demo/
+  Application.kt        # Ktor, health, metrics
+  auth/TokenValidering.kt   🔴
+  auth/TokenXClient.kt      🔴 (token exchange)
+  pdl/PdlClient.kt          # GraphQL hentPerson(navn)
+  api/NavnRoute.kt
+src/test/kotlin/...     # MockOAuth2Server, WireMock PDL
+```
+
+## 3. Nais-manifest (endringer)
+```yaml
+spec:
+  tokenx: { enabled: true }
+  accessPolicy:
+    inbound:
+      rules: [{ application: <frontend-app>, namespace: demo }]
+    outbound:
+      rules: [{ application: pdl-api, namespace: pdl, cluster: <cluster> }]
+  resources:
+    requests: { cpu: 15m, memory: 256Mi }
+    limits: { memory: 512Mi }
+  prometheus: { enabled: true, path: /internal/metrics }
+  observability: { autoInstrumentation: { enabled: true, runtime: java } }
+```
+Manifestet setter ingen CPU-limit, og `ingress` brukes bare internt.
+
+## 4. CI/CD
+GitHub Actions bygger, kjører tester, bygger image med `nais/docker-build-push` og deployer med `nais/deploy` til dev og så prod. Alle actions pinnes til SHA, og jobbene får minimale `permissions` (`id-token: write` for deploy).
+
+## 5. Database
+Ikke relevant, siden tjenesten ikke lagrer noe.
+
+## 6. Teststrategi
+- **Auth-tester** med MockOAuth2Server: 401 uten token, 401 ved feil `aud`, feil `acr` eller utløpt token, og 200 med gyldig token.
+- **PDL-klienten** med WireMock: Gir PDL 5xx eller timeout, svarer tjenesten 503. Mangler personen, svarer tjenesten 404.
+- **Eierskap:** En test viser at fødselsnummer i input ignoreres.
+
+## 7. Sikkerhetssjekkliste
+- Fødselsnummer og navn skal aldri havne i logger, `toString` eller feilmeldinger. Logg en korrelasjons-ID i stedet.
+- Timeout mot PDL: 3 s, uten retry.
+- Feilsvar følger RFC 7807 og lekker ikke detaljer fra PDL.
+- Svaret får `Cache-Control: no-store`.
+- Behandlingsgrunnlaget (lovhjemmel) og behandlingen dokumenteres i teamets behandlingsoversikt.
+
+## 8. Migrering
+Ikke relevant. Rollback er å deploye forrige image.
+
+## 9. Leveransedokumenter
+- **Endringsdokument** og plan for utrulling: dev, deretter prod.
+- **Observerbarhet:** `navn_oppslag_total{status}` gir oppslag per minutt og andel feil. `pdl_kall_duration`.
+- **Alarm** når feilandelen er over 5 % i 5 minutter.
+- **Sjekkliste etter deploy:** innlogget kall i dev gir 200, uinnlogget kall gir 401, og metrikkene vises.
+
+## 10. 🔴 Rød-sone-deklarasjon (skriv selv)
+- **`TokenValidering.kt`:** validering av TokenX-tokenet (`iss`, `aud`, `acr`, `exp`) og uttrekk av `pid`.
+- **`TokenXClient.kt`:** veksling av token mot PDL-audience.
+- **Regelen om at fødselsnummer bare kommer fra tokenet.**
+
+Fordi TokenX er nytt for teamet, lager nav-pilot bare testskjeletter og stubber for disse delene.
+
+**Åpne punkter:** Bekreft med PDL at de tar imot TokenX. Oppgi også navnet på frontend-appen og hvilket cluster tjenesten skal kjøre i.
+
+Bekreft planen, så går jeg videre til **Fase 3: Review**. Still gjerne spørsmål om valgene over.
+

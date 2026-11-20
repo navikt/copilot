@@ -122,6 +122,7 @@ func cmdSync(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bool
 	if adopted != "" && !jsonOutput {
 		noteAdoptedSource(scope, adopted)
 	}
+	syncCancelled = false
 	err = syncScope(scope, ref, sourceRepo, adopted, apply, jsonOutput)
 	// errUpdatesAvailable is a successful check, not a failure: the source was
 	// fetched and read. Recording only on nil left every pre-tracking scope
@@ -129,6 +130,9 @@ func cmdSync(scope *InstallScope, ref, sourceRepo string, apply, jsonOutput bool
 	// pakke identity — "do exactly what the tool says, nothing happens" (#877).
 	if adopted != "" && (err == nil || errors.Is(err, errUpdatesAvailable)) {
 		recordAdoptedSource(scope, adopted)
+	}
+	if apply && scope.IsUser() && !syncCancelled && (err == nil || errors.Is(err, errUpdatesAvailable)) {
+		mcpBackfillOpenCodeProtocol(providerpkg.CachedMCPRegistryEntries())
 	}
 	return syncFailed(scope, err, jsonOutput)
 }
@@ -801,6 +805,7 @@ func syncScope(scope *InstallScope, ref, sourceRepo, adopted string, apply, json
 			return fmt.Errorf("could not ask: %w\n\n  Apply without asking:  %s", err, bold("nav-pilot sync --apply --yes"))
 		}
 		if err != nil || !ok {
+			syncCancelled = true
 			fmt.Println(dim("Cancelled. Nothing was changed."))
 			return nil
 		}
@@ -2047,6 +2052,9 @@ func orphanedPin(scope *InstallScope, state *StateFile) error {
 // syncAsk is set by run() for `sync --apply` without --yes. Functions called
 // directly, as the tests and `nav-pilot --sync` do, are not asked.
 var syncAsk bool
+
+// syncCancelled is set by syncScope when the user declines sync deletions.
+var syncCancelled bool
 
 // askSyncDeletions is the question sync --apply asks before removing files.
 // Overridable in tests.

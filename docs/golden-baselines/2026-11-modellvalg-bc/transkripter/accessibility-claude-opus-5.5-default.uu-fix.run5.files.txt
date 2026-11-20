@@ -1,0 +1,21 @@
+=== ./src/app/komponenter/StatusPanel.tsx
+import { useState } from "react";
+import { TrashIcon } from "@navikt/aksel-icons";
+
+export function StatusPanel({ status, onSlett }) {
+  const [apen, setApen] = useState(false);
+  return (
+    <div className="p-4 mx-8">
+      <div onClick={() => setApen(!apen)} style={{ outline: "none" }}>
+        Vis detaljer
+      </div>
+      <span tabIndex={5} style={{ color: status === "feil" ? "red" : "green" }}>
+        {status}
+      </span>
+      <button onClick={onSlett}>
+        <TrashIcon title="Slett" />
+      </button>
+    </div>
+  );
+}
+

@@ -49,3 +49,14 @@ regexTarget = "line"
 # e2e-testscript-filene bærer kopier av det samme manifestet som fixtures.
 paths = ['''cli/nav-pilot/internal/local/models\.json''', '''cli/nav-pilot/e2e/testdata/script/[^/]+\.txtar''']
 regexes = ['''"key":\s*"[a-z0-9][a-z0-9.\-]*"''']
+
+# Falsk positiv: fast dummy-nøkkel som tidligere lå i lockout-testene
+# for fleet-gateway (#2434). Verdien er en åpenbar placeholder, ikke en
+# ekte nøkkel, og testene genererer nå nøkkelen ved kjøring. Oppføringen
+# dekker bare commitene som allerede er pushet. Godkjent av eier
+# 2026-11-19.
+[[allowlists]]
+description = "Dummy test key in fleet-gateway lockout tests, owner-approved 2026-11-19 (#2434)"
+condition = "AND"
+paths = ['''apps/fleet-gateway/lockout_test\.go''']
+regexes = ['''0123456789abcdef0123456789abcdef''']

@@ -1,0 +1,15 @@
+ ● skill(klarsprak)
+
+ $ Shell ls -a; find . -name '*.kt' -o -name '*instructions.md' | head -40 28 lines…
+   ls -a; find . -name '*.kt' -o -name '*instructions.md' | head -40
+
+ $ Shell cat build.gradle.kts src/main/kotlin/no/nav/demo/Oppgave.kt; head -25 .github/in… 65 lines…
+   cat build.gradle.kts src/main/kotlin/no/nav/demo/Oppgave.kt; head -25
+   .github/instructions/{kotlin,security-owasp}.instructions.md; find src -type f
+
+ ● Edit  Edit build.gradle.kts (+1)  Create src/main/kotlin/no/nav/demo/Feriepenger.kt (+5)  Create…
+
+La til `Feriepenger.kt` med funksjonssignaturen og enhetstester for satsbyttet ved 60 år, avrunding rundt 50 øre, nullgrunnlag og negativt grunnlag. Gradle ble ikke kjørt. Testene vil ikke passere før funksjonen er implementert.
+
+**Rød sone:** Selve beregningen står som `TODO` fordi den er ny domenelogikk for teamet. Bruk alderen personen fyller i opptjeningsåret, ikke alderen på utbetalingstidspunktet. Heltallsregning i tusendeler gir eksakt avrunding ved 50 øre uten flyttall.
+

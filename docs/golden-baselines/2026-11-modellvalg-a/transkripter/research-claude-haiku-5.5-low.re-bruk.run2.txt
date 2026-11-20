@@ -1,0 +1,8 @@
+ / Search "maksAntall" 3 lines found
+
+`maksAntall` er definert i `Config.kt` og brukes to steder:
+
+- `src/main/kotlin/no/nav/demo/Config.kt:4`: definisjon (`const val maksAntall = 100`)
+- `src/main/kotlin/no/nav/demo/Routes.kt:16`: `oppgaver.take(maksAntall)`
+- `src/main/kotlin/no/nav/demo/App.kt:10`: logges ved oppstart (`maksAntall=$maksAntall`)
+

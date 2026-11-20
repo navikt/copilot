@@ -4,4 +4,30 @@ routes:
     team: copilot
     target: prod-gcp:copilot:mcp-onboarding
     upstream_url: http://mcp-onboarding.copilot/mcp/gw
-    passAllTools: true
+    tools: [hello_world, greet, whoami, echo, get_time, search_customizations, list_agents, list_instructions, list_prompts, list_skills, get_installation_guide, check_agent_readiness, suggest_customizations, generate_agents_md, generate_setup_steps, team_readiness]
+  - route: /mcp/copilot/dolly
+    team: copilot
+    target: prod-gcp:copilot:mcp-dolly
+    upstream_url: http://mcp-dolly.copilot/
+    enabled: true
+    # create_order turned on after ROS sign-off (copilot-intern fleet-gateway/ros-mcp-dolly.md, MD-05) and team Dolly's OK.
+    tools:
+      - dolly_current_user
+      - dolly_list_groups
+      - dolly_get_group
+      - dolly_search
+      - dolly_get_order
+      - dolly_list_group_orders
+      - create_order
+  - route: /mcp/copilot/kodeverk
+    team: copilot
+    target: prod-gcp:copilot:mcp-kodeverk
+    upstream_url: http://mcp-kodeverk.copilot/
+    enabled: true
+    tools:
+      - list_kodeverk
+      - get_kodeverk_koder
+      - get_kodeverk_betydninger
+      - list_hierarkier
+      - get_hierarki_noder
+      - search_kodeverk

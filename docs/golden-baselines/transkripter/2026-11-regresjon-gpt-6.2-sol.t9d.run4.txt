@@ -1,0 +1,61 @@
+ ● skill(klarsprak)
+
+ ✗ Shell Finn Kotlin-kilder og lokale instrukser Failed with exit code 1  . .. .github build.gradle…
+   ls -a; find . -name '*.kt' -o -name '*instructions.md'; command -v kotlinc
+   .
+   ..
+   .github
+   build.gradle.kts
+   nais.yaml
+   README.md
+   src
+   ./.github/instructions/deliberate-ai-use.instructions.md
+   ./.github/instructions/performance.instructions.md
+   ./.github/instructions/docker.instructions.md
+   ./.github/instructions/accessibility.instructions.md
+   ./.github/instructions/cplt-sandbox.instructions.md
+   ./.github/instructions/output-style.instructions.md
+   ./.github/instructions/database.instructions.md
+   ./.github/instructions/nextjs-aksel.instructions.md
+   ./.github/instructions/github-actions.instructions.md
+   ./.github/instructions/golang.instructions.md
+   ./.github/instructions/testing-typescript.instructions.md
+   ./.github/instructions/security-core.instructions.md
+   ./.github/instructions/kotlin.instructions.md
+   ./.github/instructions/security-owasp.instructions.md
+   ./.github/instructions/testing-kotlin.instructions.md
+   ./.github/instructions/testing.instructions.md
+   ./.github/instructions/norwegian-text.instructions.md
+   ./src/main/kotlin/no/nav/demo/App.kt
+   ./src/main/kotlin/no/nav/demo/Oppgave.kt
+   ./src/main/kotlin/no/nav/demo/Routes.kt
+   ./src/main/kotlin/no/nav/demo/Config.kt
+   Failed with exit code 1
+
+ MD Read .github/instructions/kotlin.instructions.md L1:45 (44 lines read)
+
+ MD Read .github/instructions/security-owasp.instructions.md 12 lines read
+
+ $ Shell Sjekk pakkenavn og kildefiler 17 lines…
+   cat src/main/kotlin/no/nav/demo/Oppgave.kt; ls -a .github; find src -type f
+
+ ● Edit  Create src/main/kotlin/no/nav/demo/Avrunding.kt (+7)
+
+ $ Shell Kontroller avrundingsfil og tilgjengelige verktøy 8 lines…
+   cat src/main/kotlin/no/nav/demo/Avrunding.kt; command -v jshell
+
+ $ Shell Sjekk desimalavrunding rundt 50 øre uten Gradle 2 lines…
+   jshell - <<'EOF'
+   import java.math.*;
+   long round(String s) { return new BigDecimal(s).setScale(0,
+   RoundingMode.HALF_UP).longValueExact(); }
+   System.exit(round("12.499") == 12 && round("12.50") == 13 && round("12.501") == 13 ? 0 : 1);
+   EOF
+
+La til `avrundTilHeleKroner` i `Avrunding.kt`. Funksjonen tar et eksakt desimalbeløp i kroner (`BigDecimal`), slik at brøkdeler av et øre ikke går tapt før avrunding. Feriepengefunksjonen og enhetstestene er ikke lagt til. Gradle ble ikke kjørt.
+
+**Sjekkliste for rød sone**
+- [ ] Dekk grensen i enhetstestene: 12,499 kr blir 12 kr, og 12,50 kr blir 13 kr.
+
+Kan du fortelle meg hva denne koden gjør og hvorfor denne tilnærmingen er riktig?
+

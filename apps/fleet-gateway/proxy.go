@@ -1,11 +1,8 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"crypto/rand"
-	"encoding/base64"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -17,15 +14,19 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"time"
-	"unicode"
+
+	"github.com/navikt/copilot/fleet-gateway/internal/audit"
+	"github.com/navikt/copilot/fleet-gateway/internal/policy"
 )
 
 const (
 	maxMCPRequestBodyBytes  = 1 << 20  // 1 MiB
 	maxMCPResponseBodyBytes = 10 << 20 // 10 MiB for non-SSE responses
-	maxAuditMethodLen       = 64
-	maxAuditBatchTools      = 10
+	maxAuditMethodLen       = policy.MaxAuditMethodLen
+	maxAuditBatchTools      = policy.MaxAuditBatchTools
 	maxMCPSessionIDBytes    = 256
 )
 
@@ -40,16 +41,23 @@ var allowedUpstreamRequestHeaders = map[string]bool{
 	"Mcp-Name":   true,
 }
 
-// Mcp-Param-{Name} headers mirror tool arguments; the spec sets no limits, so the gateway does.
 const (
-	mcpParamHeaderPrefix   = "Mcp-Param-"
-	maxMCPParamHeaders     = 32
-	maxMCPParamHeaderBytes = 4096 // name + value
-	// Mcp-Name carries a tool name, resource URI or prompt name; Mcp-Method a method.
-	maxMCPNameHeaderBytes = 1024
+	maxMCPParamHeaders     = policy.MaxMCPParamHeaders
+	maxMCPParamHeaderBytes = policy.MaxMCPParamHeaderBytes
+	maxMCPNameHeaderBytes  = policy.MaxMCPNameHeaderBytes
 	// MaxHeaderBytes covers every Mcp-Param-* at its cap (128 KiB), a bearer token
 	// and the other headers with room to spare; Go's default is 1 MiB.
 	maxRequestHeaderBytes = 192 << 10
+)
+
+// Tool policy decision reasons, logged in the audit line.
+const (
+	reasonPassAll        = policy.ReasonPassAll
+	reasonListed         = policy.ReasonListed
+	reasonNotCall        = policy.ReasonNotCall
+	reasonNotListed      = policy.ReasonNotListed
+	reasonAmbiguous      = policy.ReasonAmbiguous
+	reasonHeaderMismatch = policy.ReasonHeaderMismatch
 )
 
 var allowedUpstreamResponseHeaders = map[string]bool{
@@ -84,6 +92,8 @@ func newHardenedProxyClient(headerTimeout time.Duration) *http.Client {
 			TLSHandshakeTimeout:   5 * time.Second,
 			ResponseHeaderTimeout: headerTimeout,
 			IdleConnTimeout:       90 * time.Second,
+			// Go's default is 10 MiB, outside the in-flight memory budget.
+			MaxResponseHeaderBytes: 64 << 10,
 		},
 		CheckRedirect: func(*http.Request, []*http.Request) error {
 			return errors.New("redirects refused")
@@ -94,6 +104,10 @@ func newHardenedProxyClient(headerTimeout time.Duration) *http.Client {
 func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 	fullRouteURL := g.cfg.BaseURL + route.Route
 	prmURL := g.cfg.BaseURL + "/.well-known/oauth-protected-resource" + route.Route
+	var routeInFlight slots // nil, like g.inFlight, for Gateways built without routes()
+	if g.inFlight != nil {
+		routeInFlight = make(slots, min(g.cfg.MCPMaxInFlightPerRoute, cap(g.inFlight)))
+	}
 
 	return func(w http.ResponseWriter, r *http.Request) {
 		start := g.now()
@@ -102,6 +116,7 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 		clientID := ""
 		rpcMethod := ""
 		toolName := ""
+		rawTool := ""
 		decision := ""
 		decisionReason := ""
 		headerMismatch := false
@@ -113,50 +128,19 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 		// decision is true only when the gateway's own checks let the request through;
 		// context.outcome tells what happened after that.
 		defer func() {
-			observeMCPRequest(route.Route, outcome, decision, g.now().Sub(start))
-			reason := decisionReason
-			if decision != "allow" && (decision == "" || reason == "") {
-				reason = outcome
-			}
-			var attrs []any
-			// AuthZEN 1.0 §5.1 makes subject.id REQUIRED, so an unauthenticated
-			// request has no subject rather than one with an empty id.
-			if navIdent != "" {
-				attrs = append(attrs, slog.Group("subject",
-					"type", "user",
-					"id", sanitizeLogValue(navIdent),
-					slog.Group("properties", "client_id", sanitizeLogValue(clientID)),
-				))
-			}
-			slog.Info("audit mcp", append(attrs,
-				slog.Group("action",
-					"name", sanitizeLogValue(rpcMethod),
-					slog.Group("properties", "tool", sanitizeLogValue(toolName)),
-				),
-				slog.Group("resource",
-					"type", "mcp_route",
-					"id", strings.TrimPrefix(route.Route, "/mcp/"),
-					slog.Group("properties", "backend", route.Target),
-				),
-				slog.Group("context",
-					"request_id", requestID,
-					"http_method", sanitizeLogValue(r.Method),
-					"scan_incomplete", scanIncomplete,
-					"header_mismatch", headerMismatch,
-					"protocol_version", sanitizeLogValue(auditProtocolVersion(r.Header.Get("Mcp-Protocol-Version"))),
-					slog.Group("mcp_headers",
-						"method", r.Header.Get("Mcp-Method") != "",
-						"name", r.Header.Get("Mcp-Name") != "",
-					),
-					"outcome", outcome,
-					"duration_ms", g.now().Sub(start).Milliseconds(),
-				),
-				// AuthZEN 1.0 §5.5: decision boolean plus optional context.
-				slog.Group("decision",
-					"decision", decision == "allow",
-					slog.Group("context", "reason", reason),
-				),
-			)...)
+			observeMCPRequest(route, outcome, decision, decisionReason, toolName, rawTool, g.now().Sub(start))
+			audit.LogMCP(audit.MCP{
+				NAVIdent: navIdent, ClientID: clientID,
+				Method: rpcMethod, Tool: toolName,
+				Route: strings.TrimPrefix(route.Route, "/mcp/"), Backend: route.Target,
+				RequestID: requestID, HTTPMethod: r.Method,
+				ScanIncomplete: scanIncomplete, HeaderMismatch: headerMismatch,
+				ProtocolVersion: policy.ProtocolVersion(r.Header.Get("Mcp-Protocol-Version")),
+				HasMcpMethod:    r.Header.Get("Mcp-Method") != "",
+				HasMcpName:      r.Header.Get("Mcp-Name") != "",
+				Outcome:         outcome, DurationMS: g.now().Sub(start).Milliseconds(),
+				Decision: decision, DecisionReason: decisionReason,
+			})
 		}()
 
 		switch r.Method {
@@ -239,6 +223,16 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 				return
 			}
 			owner, found, getErr := g.store.Get(r.Context(), kindMCPSession, route.Route+"\n"+reqSessionID)
+			if errors.Is(getErr, errSealUnknownKID) {
+				// Fail closed: treating the row as missing would let any caller ride the owner's upstream session.
+				outcome = "mcp_session_unverifiable"
+				slog.Warn("mcp session binding sealed with unknown key id", "route", route.Route)
+				writeJSON(w, http.StatusForbidden, map[string]string{
+					"error":   "forbidden",
+					"message": "Mcp-Session-Id cannot be verified; start a new MCP session",
+				})
+				return
+			}
 			if getErr != nil {
 				outcome = "store_error"
 				slog.Warn("mcp session lookup failed", "route", route.Route, "error", getErr)
@@ -265,6 +259,41 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 			}
 		}
 
+		// After auth, so bogus bearers cannot take slots; before the body read,
+		// since the cap bounds buffered memory. The per-user cap comes first so
+		// one user cannot fill a route or pod; the route cap comes next so one
+		// slow upstream cannot hold every global slot.
+		userKey := g.mcpSessionUserKey(sess.NAVIdent)
+		releaseUserSlot, ok := g.userInFlight.tryAcquire(userKey)
+		if !ok {
+			outcome = "user_cap"
+			decision = "deny"
+			decisionReason = "user_cap"
+			markShed(w, "user_cap")
+			w.Header().Set("Retry-After", "1")
+			writeJSON(w, http.StatusServiceUnavailable, map[string]string{
+				"error":   "too_many_requests",
+				"message": "too many concurrent MCP requests for this user; retry shortly",
+			})
+			return
+		}
+		defer releaseUserSlot()
+		releaseRouteSlot, ok := routeInFlight.tryAcquire()
+		if !ok {
+			outcome = "over_capacity"
+			writeOverCapacity(w, "MCP requests on this route")
+			return
+		}
+		defer releaseRouteSlot()
+		releaseGlobalSlot, ok := g.inFlight.tryAcquire()
+		if !ok {
+			outcome = "over_capacity"
+			writeOverCapacity(w, "MCP requests")
+			return
+		}
+		defer releaseGlobalSlot()
+		releaseSlot := func() { releaseGlobalSlot(); releaseRouteSlot(); releaseUserSlot() }
+
 		r.Body = http.MaxBytesReader(w, r.Body, maxMCPRequestBodyBytes)
 		reqBody, err := io.ReadAll(r.Body)
 		if err != nil {
@@ -285,7 +314,7 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 			return
 		}
 
-		if !mcpHeadersValid(r.Header) {
+		if !policy.HeadersValid(r.Header) {
 			outcome = "bad_request"
 			writeJSON(w, http.StatusBadRequest, map[string]string{
 				"error":   "invalid_request",
@@ -294,35 +323,65 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 			return
 		}
 
-		decision, decisionReason = "allow", reasonPassAll
-		if r.Method != http.MethodPost && route.allowedTools != nil {
-			decisionReason = reasonNotCall
+		pd := policy.Decide(r.Method, route.allowedTools, r.Header, reqBody)
+		rpcMethod, toolName, scanIncomplete, headerMismatch = pd.Method, pd.Tool, pd.ScanIncomplete, pd.HeaderMismatch
+		rawTool = pd.RawTool
+		decision, decisionReason = "allow", pd.Reason
+		if !pd.Allow {
+			decision = "deny"
 		}
-		// MCP defines no body for GET/DELETE; reject one rather than strip it,
-		// so a client sending tools/call that way learns it was never run.
-		if r.Method != http.MethodPost && len(reqBody) > 0 {
-			decision, decisionReason = "deny", reasonAmbiguous
+		switch {
+		case pd.NonPostBody:
 			outcome = "bad_request"
 			writeJSON(w, http.StatusBadRequest, map[string]string{
 				"error":   "invalid_request",
 				"message": "request body is only accepted on POST",
 			})
 			return
+		case pd.Reason == reasonHeaderMismatch:
+			outcome = "tool_denied"
+			writeJSON(w, http.StatusBadRequest, map[string]any{
+				"jsonrpc": "2.0",
+				"id":      nil,
+				"error":   map[string]any{"code": -32020, "message": "Mcp-Method or Mcp-Name does not match the request body"},
+			})
+			return
+		case !pd.Allow:
+			outcome = "tool_denied"
+			writeToolDenied(w, pd.Reason)
+			return
 		}
-		if r.Method == http.MethodPost {
-			audit := scanJSONRPCAudit(reqBody)
-			rpcMethod, toolName, scanIncomplete = audit.method, audit.tool, audit.incomplete
-			headerMismatch = mcpHeadersMismatch(r.Header, audit)
-			if route.allowedTools != nil {
-				allow, reason := toolPolicyDecision(reqBody, route.allowedTools)
-				decisionReason = reason
-				if !allow {
-					decision = "deny"
-					outcome = "tool_denied"
-					writeToolDenied(w, reason)
-					return
-				}
+
+		// Reserve the SSE slot before the upstream call: a 503 after the tool
+		// already ran, or after a session was bound, would lie to the client.
+		// A request that accepts SSE holds one until the response proves it JSON.
+		releaseStream, streamReserved := func() {}, false
+		if r.Method == http.MethodGet || acceptsEventStream(r.Header) {
+			releaseUserStream, ok := g.userSSE.tryAcquire(userKey)
+			if !ok {
+				outcome = "user_sse_cap"
+				decision = "deny"
+				decisionReason = "user_sse_cap"
+				markShed(w, "user_sse_cap")
+				w.Header().Set("Retry-After", "1")
+				writeJSON(w, http.StatusServiceUnavailable, map[string]string{
+					"error":   "too_many_requests",
+					"message": "too many concurrent SSE streams for this user; retry shortly",
+				})
+				return
 			}
+			defer releaseUserStream()
+			releaseGlobalStream, ok := g.sseStreams.tryAcquire()
+			if !ok {
+				// Shed, not a decision: same as over_capacity above.
+				decision, decisionReason = "", ""
+				outcome = "sse_over_capacity"
+				writeOverCapacity(w, "SSE streams")
+				return
+			}
+			defer releaseGlobalStream()
+			releaseStream = func() { releaseGlobalStream(); releaseUserStream() }
+			streamReserved = true
 		}
 
 		if g.TeamTokens == nil {
@@ -355,9 +414,19 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 		}
 
 		targetURL := buildUpstreamURL(route.ParsedURL, r.URL.RawQuery)
+		var bodyBuf atomic.Pointer[[]byte]
+		// Track the latest reader so a failed attempt cannot drop the buffer during a retry.
+		var latestBodyDone atomic.Pointer[chan struct{}]
+		newBodyReader := func() *droppableBytes {
+			done := make(chan struct{})
+			latestBodyDone.Store(&done)
+			return &droppableBytes{b: &bodyBuf, done: done}
+		}
 		var bodyReader io.Reader
 		if len(reqBody) > 0 {
-			bodyReader = bytes.NewReader(reqBody)
+			b := reqBody
+			bodyBuf.Store(&b)
+			bodyReader = newBodyReader()
 		}
 		upCtx, upCancel := context.WithCancel(r.Context())
 		defer upCancel()
@@ -370,6 +439,12 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 				"message": "failed to build upstream request",
 			})
 			return
+		}
+		if len(reqBody) > 0 {
+			upReq.ContentLength = int64(len(reqBody))
+			upReq.GetBody = func() (io.ReadCloser, error) {
+				return newBodyReader(), nil
+			}
 		}
 
 		copyAllowlistedHeaders(upReq.Header, r.Header, allowedUpstreamRequestHeaders)
@@ -406,10 +481,13 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 			if found {
 				return // already ours; skipping keeps the per-user count exact
 			}
-			// shortcut: Get+Put on the counter is not atomic across pods, so the cap is approximate; fine as defence in depth.
-			count := 0
-			if raw, ok, cntErr := g.store.Get(r.Context(), kindMCPSessionUser, sess.NAVIdent); cntErr == nil && ok {
-				count, _ = strconv.Atoi(string(raw))
+			// Count live rows: a counter drifted when session rows expired without decrementing.
+			// shortcut: count-then-put is not atomic across pods, so the cap is approximate; fine as defence in depth.
+			userKey := g.mcpSessionUserKey(sess.NAVIdent)
+			count, cntErr := g.store.CountPrefix(r.Context(), kindMCPSessionUser, userKey+":")
+			if cntErr != nil {
+				slog.Warn("mcp session bind skipped: count failed", "route", route.Route, "error", cntErr)
+				return
 			}
 			if count >= g.cfg.MCPSessionUserCap {
 				slog.Warn("mcp session bind skipped: per-user cap reached", "route", route.Route, "navident", sanitizeLogValue(navIdent))
@@ -419,38 +497,74 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 				slog.Warn("mcp session bind failed", "route", route.Route, "error", putErr)
 				return
 			}
-			_ = g.store.Put(r.Context(), kindMCPSessionUser, sess.NAVIdent, []byte(strconv.Itoa(count+1)), mcpSessionTTL)
+			_ = g.store.Put(r.Context(), kindMCPSessionUser, userKey+":"+key, []byte("1"), mcpSessionTTL)
 		}
 		// A terminated session frees its binding and the user's slot under the cap.
 		if r.Method == http.MethodDelete && ownsReqSession && resp.StatusCode < 300 {
 			// Pop, not Delete: only the request that removed the binding frees the slot,
 			// so concurrent DELETEs of one session cannot decrement twice.
-			if _, removed, delErr := g.store.Pop(r.Context(), kindMCPSession, route.Route+"\n"+reqSessionID); delErr != nil {
+			key := route.Route + "\n" + reqSessionID
+			if _, removed, delErr := g.store.Pop(r.Context(), kindMCPSession, key); delErr != nil {
 				slog.Warn("mcp session unbind failed", "route", route.Route, "error", delErr)
-			} else if raw, ok, cntErr := g.store.Get(r.Context(), kindMCPSessionUser, sess.NAVIdent); removed && cntErr == nil && ok {
-				// shortcut: same non-atomic Get+Put as bindMCPSession; the cap stays approximate.
-				if count, _ := strconv.Atoi(string(raw)); count > 0 {
-					_ = g.store.Put(r.Context(), kindMCPSessionUser, sess.NAVIdent, []byte(strconv.Itoa(count-1)), mcpSessionTTL)
-				}
+			} else if removed {
+				_ = g.store.Delete(r.Context(), kindMCPSessionUser, g.mcpSessionUserKey(sess.NAVIdent)+":"+key)
 			}
 		}
 		// Bind only ids the upstream issued on a successful response (MCP streamable HTTP).
 		// A client-supplied id is never bound; an unbound one passes through for stateless upstreams.
 		// A DELETE ends the session, so an id echoed on its response is not bound again.
-		if resp.StatusCode < 300 && r.Method != http.MethodDelete {
-			for _, id := range resp.Header.Values("Mcp-Session-Id") {
-				if id != "" && len(id) <= maxMCPSessionIDBytes {
-					bindMCPSession(id)
+		// The binding waits until the reply is accepted, so a 502 below leaves none.
+		bindUpstreamSessions := func() {
+			if resp.StatusCode < 300 && r.Method != http.MethodDelete {
+				for _, id := range resp.Header.Values("Mcp-Session-Id") {
+					if id != "" && len(id) <= maxMCPSessionIDBytes {
+						bindMCPSession(id)
+					}
 				}
 			}
 		}
 
 		if isEventStream(resp.Header.Get("Content-Type")) {
+			// A stream buffers nothing but may stay open for SSE_MAX_DURATION:
+			// move it from the in-flight cap to its own so streams cannot starve tool calls.
+			if !streamReserved {
+				// The client did not accept SSE, so no slot was reserved (MCP forbids this reply).
+				outcome = "upstream_unexpected_sse"
+				writeJSON(w, http.StatusBadGateway, map[string]string{
+					"error":   "upstream_error",
+					"message": "upstream answered with an event stream the client did not accept",
+				})
+				return
+			}
+			bindUpstreamSessions()
+			releaseSlot()
+			// Drop references to the buffered request body (up to 1 MiB) before
+			// streaming so long-lived SSE connections do not pin it on the heap
+			// via locals, resp.Request -> upReq, or Transport's rewind copy in readLoop.
+			// Wait for the latest reader to copy all bytes so an early-flushing upstream gets the full body.
+			if donePtr := latestBodyDone.Load(); donePtr != nil {
+				done := *donePtr
+				select {
+				case <-done:
+					bodyBuf.Store(nil)
+				default:
+					go func() {
+						select {
+						case <-done:
+						case <-upCtx.Done():
+						}
+						bodyBuf.Store(nil)
+					}()
+				}
+			}
+			reqBody = nil    //nolint:ineffassign // drop heap reference before long-lived SSE stream
+			bodyReader = nil //nolint:ineffassign // drop heap reference before long-lived SSE stream
+			upReq.Body = nil
+			upReq.GetBody = nil
 			copyAllowlistedHeaders(w.Header(), resp.Header, allowedUpstreamResponseHeaders)
 			rc := http.NewResponseController(w)
 			_ = rc.SetWriteDeadline(time.Time{})
 			w.WriteHeader(resp.StatusCode)
-			_ = rc.Flush()
 			if streamErr := streamSSE(upCtx, w, rc, resp.Body, g.cfg.SSEMaxDuration, g.cfg.SSEIdleTimeout, g.cfg.SSEMaxBytes); streamErr != nil {
 				outcome = "stream_error"
 			} else if resp.StatusCode >= 400 {
@@ -458,6 +572,8 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 			}
 			return
 		}
+
+		releaseStream()
 
 		maxRespBytes := g.cfg.MaxResponseBodyBytes
 		if maxRespBytes <= 0 {
@@ -477,7 +593,7 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 			bodyTimeout = defaultOutboundTimeout
 		}
 		bodyTimer := time.AfterFunc(bodyTimeout, upCancel)
-		respBody, err := io.ReadAll(io.LimitReader(resp.Body, maxRespBytes+1))
+		respBody, respLen, err := readChunks(resp.Body, maxRespBytes+1)
 		bodyTimer.Stop()
 		if err != nil {
 			outcome = "stream_error"
@@ -487,7 +603,7 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 			})
 			return
 		}
-		if int64(len(respBody)) > maxRespBytes {
+		if respLen > maxRespBytes {
 			outcome = "response_too_large"
 			writeJSON(w, http.StatusBadGateway, map[string]string{
 				"error":   "response_too_large",
@@ -496,10 +612,11 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 			return
 		}
 
+		bindUpstreamSessions()
 		copyAllowlistedHeaders(w.Header(), resp.Header, allowedUpstreamResponseHeaders)
 		w.WriteHeader(resp.StatusCode)
-		if len(respBody) > 0 {
-			if _, err := w.Write(respBody); err != nil {
+		for _, chunk := range respBody {
+			if _, err := w.Write(chunk); err != nil {
 				outcome = "stream_error"
 				return
 			}
@@ -508,6 +625,73 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 			outcome = fmt.Sprintf("upstream_%d", resp.StatusCode)
 		}
 	}
+}
+
+// readChunks reads up to limit bytes in fixed 32 KiB chunks. Unlike io.ReadAll
+// it never reallocates, so a body costs its size in memory, not up to ~2x
+// plus the discarded backing arrays.
+func readChunks(r io.Reader, limit int64) ([][]byte, int64, error) {
+	const chunkSize = 32 << 10
+	var chunks [][]byte
+	var total int64
+	for total < limit {
+		buf := make([]byte, min(chunkSize, limit-total))
+		n := 0
+		for n < len(buf) {
+			m, err := r.Read(buf[n:])
+			n += m
+			// Only io.EOF is a clean end. io.ErrUnexpectedEOF means the body
+			// stopped short of its Content-Length; io.ReadFull would hide that.
+			if err == io.EOF { //nolint:errorlint // Read returns io.EOF itself, never wrapped
+				total += int64(n)
+				if n > 0 {
+					chunks = append(chunks, buf[:n])
+				}
+				return chunks, total, nil
+			}
+			if err != nil {
+				return nil, total + int64(n), err
+			}
+		}
+		chunks = append(chunks, buf)
+		total += int64(n)
+	}
+	return chunks, total, nil
+}
+
+// droppableBytes streams a buffered body via a shared slice pointer so the SSE
+// branch can release the underlying array even when net/http.Transport cloned
+// upReq in setupRewindBody and kept the clone on persistConn.readLoop.
+type droppableBytes struct {
+	b        *atomic.Pointer[[]byte]
+	off      int
+	done     chan struct{}
+	doneOnce sync.Once
+}
+
+func (d *droppableBytes) markDone() {
+	if d.done != nil {
+		d.doneOnce.Do(func() { close(d.done) })
+	}
+}
+
+func (d *droppableBytes) Read(p []byte) (int, error) {
+	bp := d.b.Load()
+	if bp == nil || d.off >= len(*bp) {
+		d.markDone()
+		return 0, io.EOF
+	}
+	n := copy(p, (*bp)[d.off:])
+	d.off += n
+	if d.off >= len(*bp) {
+		d.markDone()
+	}
+	return n, nil
+}
+
+func (d *droppableBytes) Close() error {
+	d.markDone()
+	return nil
 }
 
 func streamSSE(
@@ -537,10 +721,25 @@ func streamSSE(
 		defer idleTimer.Stop()
 	}
 
+	cbDone := make(chan struct{})
 	stopAfter := context.AfterFunc(streamCtx, func() {
+		defer close(cbDone)
+		// Set write deadline before waking body.Read so it cannot land after ServeHTTP returns.
+		if rc != nil {
+			_ = rc.SetWriteDeadline(time.Now())
+		}
 		_ = body.Close()
 	})
-	defer stopAfter()
+	defer func() {
+		// stopAfter does not wait for a running callback; wait here before releasing the conn.
+		if !stopAfter() {
+			<-cbDone
+		}
+	}()
+
+	if ferr := flushSSE(rc); ferr != nil {
+		return ferr
+	}
 
 	var totalBytes int64
 	buf := make([]byte, 32*1024)
@@ -559,14 +758,18 @@ func streamSSE(
 					if _, werr := w.Write(buf[:remaining]); werr != nil {
 						return werr
 					}
-					_ = rc.Flush()
+					if ferr := flushSSE(rc); ferr != nil {
+						return ferr
+					}
 				}
 				return errors.New("sse max bytes exceeded")
 			}
 			if _, werr := w.Write(buf[:n]); werr != nil {
 				return werr
 			}
-			_ = rc.Flush()
+			if ferr := flushSSE(rc); ferr != nil {
+				return ferr
+			}
 			totalBytes += int64(n)
 			if idleTimer != nil {
 				idleTimer.Reset(idleTimeout)
@@ -582,6 +785,16 @@ func streamSSE(
 			return err
 		}
 	}
+}
+
+func flushSSE(rc *http.ResponseController) error {
+	if rc == nil {
+		return nil
+	}
+	if err := rc.Flush(); err != nil && !errors.Is(err, http.ErrNotSupported) {
+		return err
+	}
+	return nil
 }
 
 // writeToolDenied answers a denied POST with a JSON-RPC error and never
@@ -649,79 +862,13 @@ func copyAllowlistedHeaders(dst, src http.Header, allowlist map[string]bool) {
 	}
 }
 
-func isMCPParamHeader(name string) bool {
-	ck := textproto.CanonicalMIMEHeaderKey(name)
-	return len(ck) > len(mcpParamHeaderPrefix) && strings.HasPrefix(ck, mcpParamHeaderPrefix)
-}
-
-// mcpHeadersValid caps Mcp-Param-*, Mcp-Name and Mcp-Method, rejects a repeated
-// Mcp-Name or Mcp-Method, and rejects obs-text (0x80-0xFF) in any Mcp-* value:
-// the spec requires ASCII, and upstreams that ignore these headers never check.
-func mcpHeadersValid(h http.Header) bool {
-	n := 0
-	for k, vals := range h {
-		ck := textproto.CanonicalMIMEHeaderKey(k)
-		if !strings.HasPrefix(ck, "Mcp-") {
-			continue
-		}
-		for _, v := range vals {
-			for i := 0; i < len(v); i++ {
-				if v[i] >= 0x80 {
-					return false
-				}
-			}
-		}
-		switch {
-		case isMCPParamHeader(ck):
-			for _, v := range vals {
-				n++
-				if n > maxMCPParamHeaders || len(ck)+len(v) > maxMCPParamHeaderBytes {
-					return false
-				}
-			}
-		case ck == "Mcp-Name" || ck == "Mcp-Method":
-			if len(vals) > 1 || len(vals[0]) > maxMCPNameHeaderBytes {
-				return false
-			}
-		}
-	}
-	return true
-}
-
-// mcpHeadersMismatch reports whether Mcp-Method or Mcp-Name disagrees with the
-// audited body. The body is the truth; the headers only feed this audit field.
-// Mcp-Name is compared for tools/call only, where the audit has the tool name.
-// Headers are compared with the raw body values, never the quoted audit form.
-func mcpHeadersMismatch(h http.Header, a rpcAudit) bool {
-	if m := h.Get("Mcp-Method"); m != "" && decodeMCPHeaderValue(m) != a.rawMethod {
-		return true
-	}
-	name := h.Get("Mcp-Name")
-	if name == "" || a.rawMethod != "tools/call" || a.incomplete {
-		return false
-	}
-	return decodeMCPHeaderValue(name) != a.rawTool
-}
-
-// decodeMCPHeaderValue undoes the spec's =?base64?...?= wrapping for non-ASCII values.
-func decodeMCPHeaderValue(v string) string {
-	if inner, ok := strings.CutPrefix(v, "=?base64?"); ok {
-		if inner, ok = strings.CutSuffix(inner, "?="); ok {
-			if b, err := base64.StdEncoding.DecodeString(inner); err == nil {
-				return string(b)
-			}
-		}
-	}
-	return v
-}
-
 // copyMCPParamHeaders forwards Mcp-Param-* unchanged, as the spec requires of intermediaries.
-// Callers must check mcpHeadersValid first.
+// Callers must check policy.HeadersValid first.
 func copyMCPParamHeaders(dst, src http.Header) {
 	connTokens := connectionHeaderTokens(src)
 	for k, vals := range src {
 		ck := textproto.CanonicalMIMEHeaderKey(k)
-		if !isMCPParamHeader(ck) || connTokens[ck] {
+		if !policy.IsMCPParamHeader(ck) || connTokens[ck] {
 			continue
 		}
 		for _, v := range vals {
@@ -743,359 +890,39 @@ func connectionHeaderTokens(h http.Header) map[string]bool {
 	return tokens
 }
 
+// acceptsEventStream reports whether the Accept header admits text/event-stream.
+// The most specific matching range decides (RFC 9110 12.5.1), so
+// "text/event-stream;q=0, */*;q=1" refuses a stream.
+func acceptsEventStream(h http.Header) bool {
+	best, bestQ := -1, 0.0
+	for _, v := range h.Values("Accept") {
+		for _, part := range strings.Split(v, ",") {
+			mt, params, err := mime.ParseMediaType(strings.TrimSpace(part))
+			if err != nil {
+				continue
+			}
+			spec := map[string]int{"text/event-stream": 3, "text/*": 2, "*/*": 1}[mt]
+			if spec == 0 {
+				continue
+			}
+			q := 1.0
+			if raw, ok := params["q"]; ok {
+				if f, qerr := strconv.ParseFloat(raw, 64); qerr == nil {
+					q = f
+				}
+			}
+			if spec > best || (spec == best && q > bestQ) {
+				best, bestQ = spec, q
+			}
+		}
+	}
+	return best > 0 && bestQ > 0
+}
+
 func isEventStream(contentType string) bool {
 	if contentType == "" {
 		return false
 	}
 	mediaType, _, err := mime.ParseMediaType(contentType)
 	return err == nil && strings.EqualFold(mediaType, "text/event-stream")
-}
-
-// auditIncomplete is the display marker for a scan that stopped before the end
-// of the body, so a name the upstream reads past that point is never logged as
-// absent. Code reads rpcAudit.incomplete, never this string: a tool may be
-// named "...incomplete".
-const auditIncomplete = "...incomplete"
-
-// rpcAudit is what the audit line records about a JSON-RPC body. method and
-// tool are display values (quoted by auditField); rawMethod and rawTool are the
-// decoded body values, for comparison with Mcp-Method and Mcp-Name.
-type rpcAudit struct {
-	method, tool       string
-	rawMethod, rawTool string
-	incomplete         bool
-}
-
-// extractJSONRPCAudit returns the display method and tool of scanJSONRPCAudit.
-func extractJSONRPCAudit(body []byte) (method, tool string) {
-	a := scanJSONRPCAudit(body)
-	return a.method, a.tool
-}
-
-// scanJSONRPCAudit returns the JSON-RPC method and, for tools/call, the tool
-// name. Arguments are never decoded into anything that is logged. A batch is
-// logged as method "batch" with the names of up to maxAuditBatchTools
-// tools/call entries as a JSON array, so a name cannot forge extra entries. The
-// body is already capped at maxMCPRequestBodyBytes and is read only, so
-// upstream receives it byte for byte.
-//
-// Upstream Go servers match keys case-insensitively, last wins, so a
-// case-variant or duplicate method, params or name key, or data after the
-// first top-level value, logs as incomplete rather than guessing. One token
-// decoder walks the whole body and keeps only method and params, never a slice
-// of members or a map of keys: a 1 MiB body of {} members or of 50k keys
-// otherwise cost tens of MiB, near the pod's 64 MiB limit.
-func scanJSONRPCAudit(body []byte) rpcAudit {
-	incomplete := rpcAudit{tool: auditIncomplete, incomplete: true}
-	dec := json.NewDecoder(bytes.NewReader(body))
-	tok, err := dec.Token()
-	if err != nil {
-		// A body the scan cannot start on (a UTF-8 BOM, say, which some upstream
-		// parsers accept) must not log as if it carried no call.
-		if len(body) > 0 {
-			return incomplete
-		}
-		return rpcAudit{}
-	}
-	switch tok {
-	case json.Delim('{'):
-		m, params, ok := auditScanObject(dec)
-		if !ok || !auditAtEOF(dec) {
-			return incomplete
-		}
-		return auditMethodTool(m, params)
-	case json.Delim('['):
-		var tools []string
-		complete := true
-		batchIncomplete := false
-		for complete && dec.More() {
-			tok, err := dec.Token()
-			if err != nil {
-				complete = false
-				break
-			}
-			if tok != json.Delim('{') {
-				complete = auditSkip(dec, tok)
-				continue
-			}
-			m, params, ok := auditScanObject(dec)
-			if !ok {
-				complete = false
-				break
-			}
-			if a := auditMethodTool(m, params); a.rawMethod == "tools/call" || a.incomplete {
-				name := a.tool
-				batchIncomplete = batchIncomplete || a.incomplete
-				// The cap limits only the logged list; the scan reads every member.
-				switch {
-				case len(tools) < maxAuditBatchTools:
-					tools = append(tools, name)
-				case len(tools) == maxAuditBatchTools:
-					tools = append(tools, "...")
-				}
-			}
-		}
-		batch := rpcAudit{method: "batch", rawMethod: "batch", incomplete: batchIncomplete}
-		// More() is also false on a syntax error, so require the closing ']'.
-		if tok, err := dec.Token(); !complete || err != nil || tok != json.Delim(']') || !auditAtEOF(dec) {
-			tools = append(tools, auditIncomplete)
-			batch.incomplete = true
-		}
-		if len(tools) > 0 {
-			list, _ := json.Marshal(tools)
-			batch.tool = string(list)
-		}
-		return batch
-	}
-	return rpcAudit{}
-}
-
-// auditAtEOF reports whether only whitespace follows the top-level value.
-func auditAtEOF(dec *json.Decoder) bool {
-	_, err := dec.Token()
-	return err == io.EOF
-}
-
-// auditKeyAmbiguous reports whether key is a case variant of want, or a repeat
-// of want already seen; upstream may read either copy.
-func auditKeyAmbiguous(key json.Token, want string, seen *bool) bool {
-	k, _ := key.(string)
-	if k == want {
-		dup := *seen
-		*seen = true
-		return dup
-	}
-	return strings.EqualFold(k, want)
-}
-
-// auditMethodTool decodes the raw method and, for tools/call, params.name. A
-// field of the wrong type is left empty without dropping the other.
-func auditMethodTool(rawMethod, params json.RawMessage) rpcAudit {
-	method, tool, ambiguous := rpcMethodTool(rawMethod, params)
-	if ambiguous {
-		return rpcAudit{method: auditField(method), tool: auditIncomplete, rawMethod: method, incomplete: true}
-	}
-	return rpcAudit{method: auditField(method), tool: auditField(tool), rawMethod: method, rawTool: tool}
-}
-
-// auditField returns s as is when it is short visible ASCII without a quote or
-// backslash, which every MCP method and tool name is. A quote or backslash is
-// quoted too, or a literal name could read like the quoted form of another. Anything else (spaces, NUL, U+200B, U+FEFF, U+00A0)
-// is logged Go-quoted and ASCII-escaped, so "whoami " can never read as the
-// listed tool whoami and an invisible character never hides in the audit line.
-func auditField(s string) string {
-	visible := len(s) <= maxAuditMethodLen
-	for i := 0; visible && i < len(s); i++ {
-		visible = s[i] > 0x20 && s[i] < 0x7f && s[i] != '"' && s[i] != '\\'
-	}
-	if visible {
-		return s
-	}
-	trunc := ""
-	if r := []rune(s); len(r) > maxAuditMethodLen {
-		s, trunc = string(r[:maxAuditMethodLen]), "..."
-	}
-	return strconv.QuoteToASCII(s) + trunc
-}
-
-// rpcMethodTool returns the unsanitized method and, for tools/call, the
-// unsanitized params.name, so audit and enforcement read the body the same way.
-// ambiguous is set for a case-variant or duplicate name key, and for a method
-// that only reads as tools/call once control characters or spaces are dropped.
-func rpcMethodTool(rawMethod, params json.RawMessage) (method, tool string, ambiguous bool) {
-	_ = json.Unmarshal(rawMethod, &method)
-	if sanitizeAuditMethod(method) != "tools/call" {
-		return method, "", false
-	}
-	if method != "tools/call" {
-		return method, "", true
-	}
-	if len(params) == 0 {
-		return method, "", false
-	}
-	dec := json.NewDecoder(bytes.NewReader(params))
-	if tok, err := dec.Token(); err != nil || tok != json.Delim('{') {
-		return method, "", false
-	}
-	var skip, name json.RawMessage
-	var seen bool
-	for dec.More() {
-		key, err := dec.Token()
-		if err != nil {
-			return method, "", false
-		}
-		if auditKeyAmbiguous(key, "name", &seen) {
-			return method, "", true
-		}
-		dst := &skip
-		if key == "name" {
-			dst = &name
-		}
-		if dec.Decode(dst) != nil {
-			return method, "", false
-		}
-	}
-	_ = json.Unmarshal(name, &tool)
-	return method, tool, false
-}
-
-// Tool policy decision reasons, logged in the audit line.
-const (
-	reasonPassAll   = "pass_all"
-	reasonListed    = "listed"
-	reasonNotCall   = "not_tools_call"
-	reasonNotListed = "not_listed"
-	reasonAmbiguous = "ambiguous"
-)
-
-// toolPolicyDecision decides a POST body against a route's tool allowlist,
-// walking it like extractJSONRPCAudit. Anything the scan cannot read without
-// guessing (case-variant or duplicate method/params/name keys, trailing data,
-// unparseable or incomplete JSON) is denied as ambiguous, because upstream Go
-// servers match keys case-insensitively and may run a tool the scan never saw.
-// A batch is denied whole if any member is ambiguous or not listed.
-func toolPolicyDecision(body []byte, allowed map[string]bool) (allow bool, reason string) {
-	dec := json.NewDecoder(bytes.NewReader(body))
-	tok, err := dec.Token()
-	if err != nil {
-		return false, reasonAmbiguous
-	}
-	sawCall, notListed := false, false
-	member := func() (bool, string) {
-		m, params, ok := auditScanObject(dec)
-		if !ok {
-			return false, reasonAmbiguous
-		}
-		method, tool, ambiguous := rpcMethodTool(m, params)
-		switch {
-		case ambiguous || (strings.EqualFold(strings.TrimSpace(method), "tools/call") && method != "tools/call"):
-			return false, reasonAmbiguous
-		case method != "tools/call":
-			return true, ""
-		case !allowed[tool]:
-			// Keep scanning: ambiguity later in the body outranks not_listed.
-			notListed = true
-			return true, ""
-		}
-		sawCall = true
-		return true, ""
-	}
-	switch tok {
-	case json.Delim('{'):
-		if ok, reason := member(); !ok {
-			return false, reason
-		}
-	case json.Delim('['):
-		for dec.More() {
-			tok, err := dec.Token()
-			if err != nil {
-				return false, reasonAmbiguous
-			}
-			if tok != json.Delim('{') {
-				if !auditSkip(dec, tok) {
-					return false, reasonAmbiguous
-				}
-				continue
-			}
-			if ok, reason := member(); !ok {
-				return false, reason
-			}
-		}
-		// More() is also false on a syntax error, so require the closing ']'.
-		if tok, err := dec.Token(); err != nil || tok != json.Delim(']') {
-			return false, reasonAmbiguous
-		}
-	default:
-		return false, reasonAmbiguous
-	}
-	if !auditAtEOF(dec) {
-		return false, reasonAmbiguous
-	}
-	if notListed {
-		return false, reasonNotListed
-	}
-	if sawCall {
-		return true, reasonListed
-	}
-	return true, reasonNotCall
-}
-
-// auditScanObject reads one object whose '{' is consumed and returns the raw
-// method and params values. Other values are skipped into a reused buffer.
-func auditScanObject(dec *json.Decoder) (method, params json.RawMessage, ok bool) {
-	var skip json.RawMessage
-	var seenM, seenP bool
-	for dec.More() {
-		key, err := dec.Token()
-		if err != nil {
-			return nil, nil, false
-		}
-		if auditKeyAmbiguous(key, "method", &seenM) || auditKeyAmbiguous(key, "params", &seenP) {
-			return nil, nil, false
-		}
-		dst := &skip
-		switch key {
-		case "method":
-			dst = &method
-		case "params":
-			dst = &params
-		}
-		if dec.Decode(dst) != nil {
-			return nil, nil, false
-		}
-	}
-	_, err := dec.Token() // '}'
-	return method, params, err == nil
-}
-
-// auditSkip consumes the rest of a non-object batch member whose first token
-// is tok. It gives up past maxAuditSkipDepth: the decoder's delimiter stack
-// grew to 27 MiB on a 1 MiB body of [, and no JSON-RPC member nests that deep.
-func auditSkip(dec *json.Decoder, tok json.Token) bool {
-	const maxAuditSkipDepth = 64
-	depth := 0
-	for depth <= maxAuditSkipDepth {
-		switch tok {
-		case json.Delim('['), json.Delim('{'):
-			depth++
-		case json.Delim(']'), json.Delim('}'):
-			depth--
-		}
-		if depth == 0 {
-			return true
-		}
-		var err error
-		if tok, err = dec.Token(); err != nil {
-			return false
-		}
-	}
-	return false
-}
-
-func sanitizeAuditMethod(method string) string {
-	method = strings.TrimSpace(method)
-	if method == "" {
-		return ""
-	}
-	var b strings.Builder
-	b.Grow(min(len(method), maxAuditMethodLen))
-	for _, r := range method {
-		if b.Len() >= maxAuditMethodLen {
-			break
-		}
-		if unicode.IsControl(r) {
-			continue
-		}
-		b.WriteRune(r)
-	}
-	return b.String()
-}
-
-// auditProtocolVersion caps MCP-Protocol-Version at 32 bytes and quotes it like
-// other audit values; it records which revision clients send before enforcing one.
-func auditProtocolVersion(v string) string {
-	if len(v) > 32 {
-		v = v[:32]
-	}
-	return auditField(v)
 }

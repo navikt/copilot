@@ -1,0 +1,15 @@
+ ● skill(klarsprak)
+
+ $ Shell ls -a; find . -type f | head -40 32 lines…
+   ls -a; find . -type f | head -40
+
+ $ Shell cat build.gradle.kts src/main/kotlin/no/nav/demo/Oppgave.kt; head -25 .github/i… 115 lines…
+   cat build.gradle.kts src/main/kotlin/no/nav/demo/Oppgave.kt; head -25
+   .github/instructions/{kotlin,security-owasp,testing,testing-kotlin}.instructions.md
+
+ ● Edit  Edit build.gradle.kts (+1)  Create src/main/kotlin/no/nav/demo/Feriepenger.kt (+5)  Create…
+
+La til `Feriepenger.kt` med funksjonssignaturen og enhetstester for satsene, aldersgrensen, avrundingen og negativt grunnlag. Gradle ble ikke kjørt.
+
+**Rød sone:** Selve beregningen står som `TODO`. Testene beskriver reglene teamet skal implementere, men vil ikke passere før funksjonen er ferdig.
+

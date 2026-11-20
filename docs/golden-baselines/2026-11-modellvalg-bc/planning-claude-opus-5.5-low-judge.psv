@@ -1,0 +1,16 @@
+# golden-prompt BLIND-SPOT JUDGE VERDICTS (scripts/blindspot-judge.py)
+# date:         2026-11-18
+# revision:     6fbce9a6
+# personaHash:  a6d797b0efe8bbfbb9f7633660411ecba0af0f80980f46d2e89b5f6d36700689
+# harnessHash:  31303b66a044df68da77f1ba539f6a0a98cf0aabc6733992e11c37f4979c6eb4
+# model:        claude-opus-5.5
+# judge:        claude-haiku-5.5, up to 3 votes, majority
+# controls:     controls cached hash=4f59e7585b68a79d date=2026-11-18 n=75 agree=73 accuracy=0.973
+# regex_* = RE_BS1/RE_BS2 anywhere in the answer, kept for comparison only.
+#
+# id|run|regex_bs1|regex_bs2|judge_bs1|judge_bs2|credits|bs1_quote|bs2_quote
+3|1|1|1|1|1|0.15|Lagrer, logger eller sender dere fnr videre?|Hvilke apper skal stå i `accessPolicy.inbound`?
+3|2|1|1|1|1|0.173|Hva gjør tjenesten med fnr?|Hvem kaller API-et?
+3|3|1|1|1|1|0.164|Skal fnr bare brukes til oppslag, eller skal det lagres eller sendes videre?|Hvem skal konsumere API-et?
+3|4|1|1|1|1|0.143|Hva skal fnr brukes til?|Hvilke apper skal stå i `accessPolicy.inbound`?
+3|5|1|1|1|1|0.117|Hva skal fnr brukes til? Skal det lagres, sendes videre (til PDL, Kafka eller et annet API) eller bare brukes til oppslag?|Hvem kaller tjenesten?

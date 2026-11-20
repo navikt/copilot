@@ -1,0 +1,9 @@
+=== ./src/main/kotlin/no/nav/demo/Avrunding.kt
+package no.nav.demo
+
+import java.math.BigDecimal
+import java.math.RoundingMode
+
+internal fun rundTilNærmesteKrone(beløpIKroner: BigDecimal): Long =
+    beløpIKroner.setScale(0, RoundingMode.HALF_UP).longValueExact()
+

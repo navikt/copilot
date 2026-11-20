@@ -1,0 +1,60 @@
+ ● skill(rust-development)
+
+ ● skill(klarsprak)
+
+ / Search "behandle_neste" 2 lines found
+
+ / Search "**/Cargo.toml" 2 files found
+
+ ✗ Shell Inspect repository state and top-level files Failed with exit code 128  /var/folders/8q/l5…
+   pwd && git status --short --branch && ls -la
+   /var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.OpPHtq/repo
+   fatal: not a git repository (or any of the parent directories): .git
+   Failed with exit code 128
+
+ RS Read saksko/src/lib.rs 50 lines read
+
+ TM Read saksko/Cargo.toml 6 lines read
+
+ $ Shell List project files and local instructions 15 lines…
+   ls -la && find . -maxdepth 2 -type f -print | sort | head -80
+
+ ● Edit  Edit saksko/src/lib.rs (+2 -2)
+
+ ✗ Shell Format, lint, and test the Rust crate Failed with exit code 1  Diff in /private/var/folder…
+   cd saksko && cargo fmt --check && cargo clippy -- -W clippy::pedantic && cargo test
+   Diff in /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.OpPHtq/repo/sak
+   sko/src/lib.rs:41:
+        #[test]
+        fn behandler_eldste_forst() {
+            let mut ko = Saksko::default();
+   -        ko.legg_til(Sak { id: "s1".into(), prioritet: 1 });
+   -        ko.legg_til(Sak { id: "s2".into(), prioritet: 2 });
+   +        ko.legg_til(Sak {
+   +            id: "s1".into(),
+   +            prioritet: 1,
+   +        });
+   +        ko.legg_til(Sak {
+   +            id: "s2".into(),
+   +            prioritet: 2,
+   +        });
+            assert_eq!(ko.behandle_neste().map(|s| s.id), Some("s1".to_string()));
+            assert_eq!(ko.antall(), 1);
+            assert_eq!(ko.behandlet(), ["s1".to_string()]);
+   Failed with exit code 1
+
+ $ Shell Lint saksko with Clippy 32 lines…
+   cd saksko && cargo clippy -- -W clippy::pedantic
+
+ $ Shell Run saksko tests 14 lines…
+   cd saksko && cargo test
+
+Rettet `behandle_neste` ved å hente en eid kopi av saken før køen endres. Funksjonen gjør det samme, og `cargo test` passerer: 1 test grønn.
+
+🔴 Rød sone: Dette løser lånefeilen ved å skille lesingen fra den muterende fjerningen. `cargo fmt --check` melder om formatering i testdataene, som jeg lot være å endre.
+
+**Sjekkliste for rød sone**
+- [ ] Forklar hvorfor kopien må tas før `remove(0)`.
+
+Still gjerne spørsmål om valgene over.
+

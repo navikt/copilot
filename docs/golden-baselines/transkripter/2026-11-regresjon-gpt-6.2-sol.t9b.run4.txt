@@ -1,0 +1,239 @@
+ ● skill(klarsprak)
+
+ $ Shell ls -la; find . -type f | head -60 33 lines…
+   ls -la; find . -type f | head -60
+
+ ✗ Shell cat build.gradle.kts src/main/kotlin/no/nav/demo/Oppgave.kt; cat … Failed with exit code 1…
+   cat build.gradle.kts src/main/kotlin/no/nav/demo/Oppgave.kt; cat
+   .github/instructions/{kotlin,security-owasp,testing,testing-kotlin}.instructions.md | head -180;
+   command -v kotlinc
+   plugins {
+       kotlin("jvm") version "2.1.0"
+       kotlin("plugin.serialization") version "2.1.0"
+   }
+   repositories {
+       mavenCentral()
+   }
+   dependencies {
+       implementation("io.ktor:ktor-server-netty:3.0.0")
+       implementation("io.ktor:ktor-server-content-negotiation:3.0.0")
+       implementation("io.ktor:ktor-serialization-kotlinx-json:3.0.0")
+   }
+   package no.nav.demo
+   
+   import kotlinx.serialization.Serializable
+   
+   @Serializable
+   data class Oppgave(val id: String, val tittel: String)
+   
+   @Serializable
+   data class OppgaveRespons(val oppgaver: List<Oppgave>)
+   ---
+   name: Kotlin Backend Patterns
+   description: "Kotlin-backendmønstre for Nav: Ktor og Rapids & Rivers, Spring Boot, database, 
+   auth, testing og feilhåndtering."
+   applyTo: "**/*.kt"
+   ---
+   
+   Kotlin backend patterns for Nav: Ktor and Rapids & Rivers, Spring Boot, database access, auth, 
+   testing, and error handling.
+   
+   > **Pick one half.** A file path cannot tell Ktor from Spring Boot, so this file covers both. 
+   Decide from the file itself: `RapidApplication`, `routing`, `River`, `embeddedServer` means Ktor;
+    `@RestController`, `@Service`, `@SpringBootApplication` means Spring Boot. Apply the matching 
+   half and ignore the other. Ktor is the most widely used framework for new Kotlin backends in Nav,
+    but Spring Boot is actively used by many teams, and teams choose for themselves. For migrating 
+   between them, see [$java-to-kotlin](../skills/java-to-kotlin/).
+   
+   # Kotlin Backend Standards
+   
+   ## Ktor and Rapids & Rivers
+   
+   ### Application Structure
+   
+   Use the ApplicationBuilder pattern for bootstrapping applications:
+   
+   ```kotlin
+   class ApplicationBuilder(configuration: Map<String, String>) {
+       private val meterRegistry = PrometheusMeterRegistry(PrometheusConfig.DEFAULT)
+       private val dataSource = PostgresDataSourceBuilder.dataSource
+       private val rapidsConnection: RapidsConnection
+   
+       init {
+           rapidsConnection = RapidApplication.create(configuration)
+           // Register rivers and event handlers
+       }
+   
+       fun start() {
+           rapidsConnection.start()
+       }
+   }
+   ```
+   
+   ### Configuration Pattern
+   
+   Use sealed classes for environment-specific configuration with compile-time safety:
+   
+   ```kotlin
+   sealed class ApplicationConfig {
+       abstract val database: DatabaseConfig
+       abstract val kafka: KafkaConfig
+       abstract val http: HttpConfig
+   
+       data class Dev(
+           override val database: DatabaseConfig,
+           override val kafka: KafkaConfig,
+           override val http: HttpConfig
+       ) : ApplicationConfig()
+   
+       data class Prod(...) : ApplicationConfig()
+       data class Local(...) : ApplicationConfig()
+   }
+   
+   // Usage
+   val config = when (environment) {
+       "prod" -> ApplicationConfig.Prod(...)
+       "dev" -> ApplicationConfig.Dev(...)
+       else -> ApplicationConfig.Local(...)
+   }
+   ```
+   
+   ### Database Access (Kotliquery)
+   
+   Use Kotliquery with HikariCP connection pooling. This is Nav's standard — not JPA/Hibernate.
+   
+   ```kotlin
+   object PostgresDataSourceBuilder {
+       val dataSource by lazy {
+           HikariDataSource().apply {
+               jdbcUrl = getOrThrow(DB_URL_KEY)
+               maximumPoolSize = 5 // Start low in K8s; scale up if needed
+               minimumIdle = 1
+           }
+       }
+   }
+   
+   // Repository pattern with interface
+   class RepositoryPostgres(private val dataSource: DataSource) : Repository {
+       override fun save(entity: Entity): Long {
+           return using(sessionOf(dataSource)) { session ->
+               session.run(
+                   queryOf(
+                       "INSERT INTO table (col1, col2) VALUES (?, ?)",
+                       entity.col1, entity.col2
+                   ).asUpdateAndReturnGeneratedKey
+               ) ?: throw Exception("Failed to insert")
+           }
+       }
+   
+       override fun findById(id: Long): Entity? {
+           return using(sessionOf(dataSource)) { session ->
+               session.run(
+                   queryOf("SELECT * FROM table WHERE id = ?", id)
+                       .map { row ->
+                           Entity(
+                               id = row.long("id"),
+                               col1 = row.string("col1")
+                           )
+                       }.asSingle
+               )
+           }
+       }
+   }
+   ```
+   
+   #### Kotliquery Patterns
+   
+   ```kotlin
+   // ✅ Batch insert
+   fun saveAll(entities: List<Entity>) = using(sessionOf(dataSource)) { session ->
+       session.batchPreparedNamedStatement(
+           "INSERT INTO table (col1, col2) VALUES (:col1, :col2)",
+           entities.map { mapOf("col1" to it.col1, "col2" to it.col2) }
+       )
+   }
+   
+   // ✅ Row mapper as extension function
+   private fun Row.toEntity() = Entity(
+       id = long("id"),
+       name = string("name"),
+       description = stringOrNull("description"),
+       createdAt = localDateTime("created_at"),
+   )
+   ```
+   
+   ### Transaction Patterns
+   
+   JDBC connections are thread-bound. `ThreadLocal` values do not propagate to new coroutines.
+   Never use `launch`, `async`, or other coroutine builders inside a transaction block.
+   
+   #### Simple single-block transaction
+   
+   Works when all operations happen in the same place:
+   
+   ```kotlin
+   fun transferFunds(fromId: Long, toId: Long, amount: BigDecimal) =
+       using(sessionOf(dataSource)) { session ->
+           session.transaction { tx ->
+               tx.run(queryOf("UPDATE accounts SET balance = balance - ? WHERE id = ?", amount, 
+   fromId).asUpdate)
+               tx.run(queryOf("UPDATE accounts SET balance = balance + ? WHERE id = ?", amount, 
+   toId).asUpdate)
+           }
+       }
+   ```
+   
+   #### Explicit transaction parameter
+   
+   Recommended when the transaction spans multiple layers. Type-safe and easy to follow:
+   
+   ```kotlin
+   class DbTransaction(val session: TransactionalSession)
+   
+   fun <T> transaction(dataSource: DataSource, block: DbTransaction.() -> T): T =
+       sessionOf(dataSource).use { session ->
+           session.transaction { tx -> DbTransaction(tx).block() }
+       }
+   
+   // Repository methods take DbTransaction as receiver
+   fun DbTransaction.saveOrder(order: Order): Long =
+       session.run(
+           queryOf("INSERT INTO orders (product, amount) VALUES (?, ?)", order.product, 
+   order.amount)
+               .asUpdateAndReturnGeneratedKey
+       ) ?: error("Failed to insert order")
+   
+   // Usage — everything runs in the same transaction without ThreadLocal
+   transaction(dataSource) {
+       val orderId = saveOrder(order)
+       updateInventory(order.productId, -order.quantity)
+   }
+   ```
+   
+   #### ThreadLocal-based transaction
+   
+   Pragmatic for existing layered architectures where many service methods already call 
+   repositories.
+   Repositories automatically reuse the active transaction:
+   
+   ```kotlin
+   object Database {
+       private lateinit var dataSource: DataSource
+   Failed with exit code 1
+
+ $ Shell cat .github/instructions/{security-owasp,testing,testing-kotlin}.instructions.m… 332 lines…
+   cat .github/instructions/{security-owasp,testing,testing-kotlin}.instructions.md; sed -n
+   '181,999p' .github/instructions/kotlin.instructions.md | grep '^#'
+
+ ● Edit  Edit build.gradle.kts (+1)  Create src/main/kotlin/no/nav/demo/Feriepenger.kt (+8)  Create…
+
+La til `feriepenger` i `Feriepenger.kt`. Funksjonen bruker 10,2 % før året personen fyller 60 og 12,5 % fra og med det året. Heltallsregning gir nøyaktig avrunding uten flyttallsfeil: 50 øre rundes opp.
+
+Enhetstestene dekker aldersgrensen, avrunding, null og negativt grunnlag. Gradle ble ikke kjørt.
+
+**Sjekkliste for rød sone**
+
+- [ ] Kontroller i `FeriepengerTest.kt` at satsen skifter ved 60, at 50 øre rundes opp med begge satsene, og at negativt grunnlag gir `IllegalArgumentException`.
+
+Kan du fortelle meg hva denne koden gjør og hvorfor denne tilnærmingen er riktig?
+

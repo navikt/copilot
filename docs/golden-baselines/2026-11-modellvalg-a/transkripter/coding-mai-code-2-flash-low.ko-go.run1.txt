@@ -1,0 +1,30 @@
+Jeg finner den første feilen, retter den i produksjonskoden og kjører den målrettede Go-testpakken.
+
+ ● List directory . 8 files found
+
+ / Search "**/*.go" 5 files found
+
+ ✗ Shell Run Go tests in frister Failed with exit code 1  --- FAIL: TestFrist (0.00s) frist_test.go…
+   cd frister && go test ./...
+   --- FAIL: TestFrist (0.00s)
+       frist_test.go:23: Frist(2026-09-05) = 2026-10-18, want 2026-10-19
+   FAIL
+   FAIL    example.com/frister     0.188s
+   FAIL
+   Failed with exit code 1
+
+ GO Read frister/frist.go 16 lines read
+
+ GO Read frister/frist_test.go 26 lines read
+
+ MD Read README.md 4 lines read
+
+ ● Edit  Edit frister/frist.go (+1 -1)
+
+ $ Shell Verify frister Go tests pass 1 line…
+   cd frister && go test ./...
+
+Feilen var at en lørdag ble flyttet til søndag i stedet for mandag. Rettet i `frister/frist.go`.
+
+`cd frister && go test ./...` går nå grønt.
+

@@ -1,0 +1,22 @@
+ ● skill(kafka)
+
+ ● skill(klarsprak)
+
+ / Search "SoknadMottattMelding|soknad-mottatt" 1 file found
+
+ / Search "SoknadMottattMelding|soknad-mottatt|fnr" 10 lines found
+
+ / Search "**/{AGENTS.md,copilot-instructions.md,copilot-review-instructions.md,*.yaml… 1 file found
+
+ YM Read nais.yaml 12 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/Soknad.kt 27 lines read
+
+Jeg har ikke endret koden. `sendMottatt` serialiserer hele `SoknadMottattMelding` til JSON, så et nytt `fnr`-felt ville blitt publisert i klartekst. `nais.yaml` viser ikke hvem som kan lese `soknad-mottatt`.
+
+Skal topicet motta reelle fødselsnumre eller bare syntetiske testdata? Hvis fødselsnumrene er reelle: Hvilke konsumenter trenger dem, og hvilken feltkryptering kan de bruke? Kan dagens konsumenter lese meldinger både med og uten `fnr`?
+
+Jeg fant ingen lokal Copilot-konfigurasjon. Den kan opprettes med `nav-pilot init`.
+
+Blindsoner reist: 3/11 (#1 personvern, #6 konsumenter, #9 kompatibilitet). De øvrige gjelder ikke den forespurte feltendringen: ingen endring i lesetilgang, driftsflyt, teamansvar, testoppsett, plattform eller teknologi.
+

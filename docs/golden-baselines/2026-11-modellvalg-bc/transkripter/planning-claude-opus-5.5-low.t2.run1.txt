@@ -1,0 +1,27 @@
+ / Search "{AGENTS.md,.github/copilot-instructions.md,.github/copilot-review-instruct… 2 files found
+
+ YM Read nais.yaml 12 lines read
+
+**Fase 1: Intervju.** Dette er Full-nivå: ny tjeneste, ny autentisering og fødselsnummer (fnr).
+
+Dette fant jeg i repoet:
+- `build.gradle.kts` tyder på en Kotlin-backend.
+- `nais.yaml` (`demo-tjeneste`) har helsesjekker, men ingen `idporten`, `tokenx` eller `accessPolicy`.
+- `AGENTS.md` og `.github/copilot-instructions.md` mangler. Kjør gjerne `nav-pilot init`.
+
+Antakelse: Innbyggeren logger inn med ID-porten, og fnr hentes fra `pid`-claimet i tokenet.
+
+**Spørsmål**
+1. **Personvern:** Lagrer, logger eller sender dere fnr videre? Behandler dere andre personopplysninger, for eksempel helse- eller ytelsesdata?
+2. **Tilgang:** Kaller nettleseren tjenesten direkte via Wonderwall (ID-porten)? Eller går kallet gjennom en frontend eller BFF som veksler token med TokenX? Hvilke apper skal stå i `accessPolicy.inbound`?
+3. **Feilhåndtering:** Hvilke avhengigheter har tjenesten, for eksempel PDL? Hva skal skje når de er nede?
+4. **Observerbarhet:** Hvilken forretningsmetrikk viser at tjenesten fungerer?
+5. **Teamgrenser:** Eier dere hele flyten?
+6. **Konsumenter:** Hvem kaller API-et?
+7. **Tester:** Bruker dere MockOAuth2Server til tokentester?
+8. **Ny teknologi:** Er ID-porten eller TokenX nytt for teamet? I så fall hører tokenvalideringen til rød sone.
+
+Blindsoner reist: 8/11 (#1, #2, #3, #4, #5, #6, #7, #11 stilt; #8–#10 er ikke relevante fordi tjenesten er ny og ikke endrer noe eksisterende)
+
+Jeg venter på svarene dine før jeg går videre til Fase 2.
+

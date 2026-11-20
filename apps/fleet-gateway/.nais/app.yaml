@@ -5,6 +5,10 @@ metadata:
   namespace: copilot
   labels:
     team: copilot
+  annotations:
+    # HAProxy cuts after 60 s by default; must exceed the gateway's 145 s WriteTimeout (#2383).
+    haproxy.org/timeout-server: "150s"
+    haproxy.org/timeout-client: "150s"
 spec:
   image: {{image}}
   port: 8080
@@ -48,8 +52,12 @@ spec:
       - name: {{postgres}}
   envFrom:
     - secret: fleet-gateway-rt-keys # key RT_KEYS = "kid:base64key,..." (newest first); created by a human
+    - secret: fleet-gateway-lockout-key # key LOCKOUT_KEY (at least 32 bytes); created by a human in dev-gcp and prod-gcp (#2436)
   {{/if}}
   env:
+    # Soft heap limit below the container limit, so GC runs before an OOM kill (README, Memory and limits).
+    - name: GOMEMLIMIT
+      value: "{{gomemlimit}}"
     - name: SESSION_STORE
       value: "{{session_store}}"
     - name: SESSION_MAX_AGE
@@ -142,9 +150,33 @@ spec:
             app: fleet-gateway
           annotations:
             summary: More than 10 % of fleet-gateway responses are 5xx
-            description: Deliberate 503s (kill switch, capacity cap) carry a non-empty reason label and are not counted.
+            description: Deliberate 503s (kill switch, in-flight cap, store quota, concurrent refresh) carry a non-empty reason label and are not counted.
             consequence: Users get errors on login or MCP calls.
             action: "Break down `fleet_gateway_mcp_requests_total` by route and outcome, then read the `audit mcp` log lines for that route."
+        - alert: FleetGatewaySustainedShedding
+          expr: sum by (reason) (increase(fleet_gateway_http_requests_total{namespace="copilot", code="503", reason=~"store_full|cap"}[5m])) > 5
+          for: 15m
+          labels:
+            namespace: copilot
+            severity: warning
+            alert_type: custom
+            app: fleet-gateway
+          annotations:
+            summary: More than 5 deliberate 503s (store_full or cap) per 5 minutes for 15 minutes; the reason label says which
+            consequence: "store_full: new logins and registrations fail. cap: MCP calls get 503 over capacity."
+            action: "store_full: count rows per kind in the session store and look for a client registering in a loop. cap: check `fleet_gateway_mcp_requests_total` by route and slow upstreams."
+        - alert: FleetGatewaySustainedRateLimiting
+          expr: sum by (oauth_endpoint) (increase(fleet_gateway_rate_limited_total{namespace="copilot"}[5m])) > 20
+          for: 15m
+          labels:
+            namespace: copilot
+            severity: warning
+            alert_type: custom
+            app: fleet-gateway
+          annotations:
+            summary: More than 20 rate-limited requests per 5 minutes for 15 minutes on an unauthenticated endpoint; the endpoint label says which
+            consequence: Clients on that endpoint get 429 Too Many Requests from the per-IP or global limit.
+            action: "Check `fleet_gateway_rate_limited_total` by endpoint and search pod logs for `rate limited`."
         - alert: FleetGatewayUpstreamTokenErrors
           expr: sum(increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome="upstream_token_error"}[10m])) > 5
           labels:

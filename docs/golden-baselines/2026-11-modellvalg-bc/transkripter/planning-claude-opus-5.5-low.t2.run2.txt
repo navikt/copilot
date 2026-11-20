@@ -1,0 +1,29 @@
+ / Search "{AGENTS.md,.github/copilot-instructions.md,.github/copilot-review-instruct… 2 files found
+
+ YM Read nais.yaml 12 lines read
+
+ ● Read build.gradle.kts 12 lines read
+
+**Full-tier (Fase 1: Intervju).** Dette er en ny tjeneste med ny autentisering og fødselsnummer, som er personopplysninger.
+
+**Hva jeg har lest i repoet:**
+- Repoet er et Kotlin/Ktor 3-prosjekt (`demo-tjeneste`, namespace `demo`). Det har ingen database og ingen Kafka.
+- `nais.yaml` mangler både `idporten`, `accessPolicy` og `resources`.
+- Mappen mangler `AGENTS.md` og `.github/copilot-instructions.md`. Jeg anbefaler å kjøre `nav-pilot init`.
+
+**Antakelse:** Innbyggere logger inn i nettleseren via ID-porten og Wonderwall. Fnr hentes fra `pid`-claimet i tokenet.
+
+**Spørsmål:**
+1. **Personvern ⚠️:** Hva gjør tjenesten med fnr? Skal det lagres, sendes videre (til PDL eller en annen tjeneste) eller bare brukes til oppslag? Behandler dere andre personopplysninger, for eksempel helse eller ytelser?
+2. **Tilgang ⚠️:** Kaller innbyggeren tjenesten direkte, eller går kallet via en frontend eller BFF? Hvis det går via en frontend, trenger vi TokenX i stedet for ID-porten direkte. Hvilket sikkerhetsnivå krever dere (`idporten-loa-high` eller `substantial`)?
+3. **Feilhåndtering:** Hvilke tjenester avhenger denne av, og hva skal skje når de er nede?
+4. **Observerbarhet:** Hvilke forretningsmetrikker viser at tjenesten fungerer?
+5. **Teamgrenser:** Eier teamet hele flyten, eller er dere avhengige av andre team?
+6. **Konsumenter:** Hvem kaller API-et?
+7. **Teststrategi:** Er MockOAuth2Server greit å bruke i testene?
+8. **Kompetanse:** Har teamet erfaring med ID-porten og TokenX? Tokenvalidering er 🔴 rød sone.
+
+Disse er hoppet over fordi tjenesten er ny: modernisering (#8), bakoverkompatibilitet (#9) og utfasing (#10).
+
+Blindsoner reist: 8/11 (#1–#7, #11 stilt; #8–#10 ikke relevant)
+

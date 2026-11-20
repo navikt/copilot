@@ -1,0 +1,17 @@
+ ● skill(klarsprak)
+
+ $ Shell ls -a; find . -type f | head -40 32 lines…
+   ls -a; find . -type f | head -40
+
+ $ Shell Read Kotlin and test conventions output too large to show (30.7 KB)…
+   cat build.gradle.kts src/main/kotlin/no/nav/demo/Oppgave.kt
+   .github/instructions/{kotlin,security-owasp,testing-kotlin,testing}.instructions.md
+
+ / Search "Kotest|JUnit|kotlin.test" (.github/instructions) 6 lines found
+
+ ● Edit  Create src/main/kotlin/no/nav/demo/Feriepenger.kt (+4)  Create src/test/kotlin/no/nav/demo…
+
+La til `Feriepenger.kt` med funksjonssignaturen og en `TODO`, samt Kotest-tester for begge satsene, 60-årsgrensen, avrunding rundt 50 øre, null og negativt grunnlag. Gradle ble ikke kjørt.
+
+🔴 **Rød sone:** Selve beregningen gjenstår. Skriv den med heltallsregning for å unngå at flyttall påvirker avrundingen ved nøyaktig 50 øre.
+

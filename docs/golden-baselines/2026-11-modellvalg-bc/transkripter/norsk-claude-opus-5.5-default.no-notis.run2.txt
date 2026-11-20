@@ -1,0 +1,10 @@
+ ● skill(klarsprak)
+
+ MD Read fakta.md 6 lines read
+
+ MD Create notis.md +7
+
+Jeg har skrevet notisen og lagret den i `notis.md`. Den er på rundt 55 ord og bygger bare på punktene i `fakta.md`. Der står det «AI», men notisen bruker «KI» («KI-agenten», «KI-moteord»).
+
+Sjekk datoen før publisering. `fakta.md` sier at funksjonen kommer mandag 5. oktober, men i dag er det 19. november 2026. Jeg har latt «tilgjengelig fra mandag 5. oktober» stå som i kilden, men hvis funksjonen alt er i bruk, passer «tilgjengelig siden 5. oktober» bedre.
+

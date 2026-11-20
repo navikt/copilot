@@ -1,0 +1,46 @@
+ ✗ Shell Inspect project and run Go tests in frister to capture the failin… Failed with exit code 1…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.qenq4R/repo && pwd
+   && ls -la && echo '--- frister ---' && ls -la frister && echo '--- running tests ---' && cd
+   frister && go test ./...
+   /var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.qenq4R/repo
+   total 24
+   drwxr-xr-x  10 hans  staff  320 Nov 18 20:27 .
+   drwx------  28 hans  staff  896 Nov 18 20:27 ..
+   drwxr-xr-x   4 hans  staff  128 Nov 18 20:27 .github
+   -rw-r--r--   1 hans  staff  340 Nov 18 20:27 build.gradle.kts
+   drwxr-xr-x   5 hans  staff  160 Nov 18 20:27 frister
+   -rw-r--r--   1 hans  staff  216 Nov 18 20:27 nais.yaml
+   -rw-r--r--   1 hans  staff  166 Nov 18 20:27 README.md
+   drwxr-xr-x   4 hans  staff  128 Nov 18 20:27 slug
+   drwxr-xr-x   3 hans  staff   96 Nov 18 20:27 src
+   drwxr-xr-x   6 hans  staff  192 Nov 18 20:27 ytelse
+   --- frister ---
+   total 24
+   drwxr-xr-x   5 hans  staff  160 Nov 18 20:27 .
+   drwxr-xr-x  10 hans  staff  320 Nov 18 20:27 ..
+   -rw-r--r--   1 hans  staff  547 Nov 18 20:27 frist_test.go
+   -rw-r--r--   1 hans  staff  400 Nov 18 20:27 frist.go
+   -rw-r--r--   1 hans  staff   36 Nov 18 20:27 go.mod
+   --- running tests ---
+   --- FAIL: TestFrist (0.00s)
+       frist_test.go:23: Frist(2026-09-05) = 2026-10-18, want 2026-10-19
+   FAIL
+   FAIL    example.com/frister     0.025s
+   FAIL
+   Failed with exit code 1
+
+ GO Read frister/frist.go L1:220 (16 lines read)
+
+ GO Read frister/frist_test.go L1:220 (26 lines read)
+
+ GO Edit frister/frist.go +1 -1
+
+ $ Shell Verify the go fix makes the frister test suite pass. 1 line…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.qenq4R/repo/frister
+   && go test ./...
+
+Rettet feilen i `frister/frist.go`: når fristen falt på en lørdag, ble den flyttet én dag for mye og endte på søndag i stedet for mandag. Korreksjonen er at lørdag flyttes to dager, søndag én dag.
+
+Verifisert:
+- `cd frister && go test ./...` → grønt.
+

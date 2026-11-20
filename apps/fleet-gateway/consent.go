@@ -96,6 +96,13 @@ func (g *Gateway) consentPostHandler(w http.ResponseWriter, r *http.Request) {
 	formCSRF := r.PostFormValue("csrf")
 	cookie, cookieErr := r.Cookie(csrfCookieName)
 
+	if consentID == "" || cookieErr != nil || formCSRF == "" ||
+		subtle.ConstantTimeCompare([]byte(cookie.Value), []byte(formCSRF)) != 1 {
+		renderErrorPage(w, http.StatusForbidden, "Forespørselen er utløpt",
+			"Vi kunne ikke bekrefte svaret ditt. Siden kan ha vært åpen for lenge, du kan allerede ha svart, eller svaret kom fra en annen fane.", startAgain)
+		return
+	}
+
 	clearCSRFCookie(w)
 
 	p, ok, err := g.popPending(r.Context(), kindPendingConsent, consentID)
@@ -104,9 +111,7 @@ func (g *Gateway) consentPostHandler(w http.ResponseWriter, r *http.Request) {
 		renderErrorPage(w, http.StatusServiceUnavailable, "Tjenesten er ikke tilgjengelig", "Gatewayen får ikke kontakt med lageret sitt akkurat nå.", "Vent litt, og logg så inn på nytt fra verktøyet ditt.")
 		return
 	}
-	if !ok || cookieErr != nil || formCSRF == "" ||
-		subtle.ConstantTimeCompare([]byte(cookie.Value), []byte(formCSRF)) != 1 ||
-		subtle.ConstantTimeCompare([]byte(formCSRF), []byte(p.CSRF)) != 1 {
+	if !ok || subtle.ConstantTimeCompare([]byte(formCSRF), []byte(p.CSRF)) != 1 {
 		renderErrorPage(w, http.StatusForbidden, "Forespørselen er utløpt",
 			"Vi kunne ikke bekrefte svaret ditt. Siden kan ha vært åpen for lenge, du kan allerede ha svart, eller svaret kom fra en annen fane.", startAgain)
 		return

@@ -2,8 +2,9 @@ replicas_min: "2"
 replicas_max: "2"
 cpu_threshold: "80"
 cpu_request: 50m
-memory_request: 32Mi
-memory_limit: 64Mi
+memory_request: 128Mi
+memory_limit: 384Mi
+gomemlimit: 320MiB
 log_level: "INFO"
 base_url: "https://fleet-gateway.intern.nav.no"
 allowed_client_ids: "https://ki-utvikling.nav.no/cplt/oauth-client.json,https://github.com/copilot/cli/client-metadata.json,https://opencode.ai/oauth/opencode/client.json"
@@ -13,6 +14,8 @@ allowed_redirect_uris: "http://127.0.0.1:62471/callback,http://127.0.0.1/,http:/
 dcr_enabled: "true"
 pilot_routes_file: "/app/pilot-routes.prod.yaml"
 outbound_rules:
+  - application: mcp-dolly
+  - application: mcp-kodeverk
   - application: mcp-onboarding
 ingresses:
   - https://fleet-gateway.intern.nav.no

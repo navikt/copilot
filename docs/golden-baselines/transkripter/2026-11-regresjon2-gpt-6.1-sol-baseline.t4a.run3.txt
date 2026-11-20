@@ -1,0 +1,23 @@
+ ● skill(klarsprak)
+
+ / Search "{AGENTS.md,.github/copilot-instructions.md,.github/copilot-review-instruct… 2 files found
+
+ YM Read nais.yaml 12 lines read
+
+ ● Read build.gradle.kts 12 lines read
+
+**Fase 1: Avklaring før vi lager tjenesten.** Dette er full løype fordi tjenesten innfører autentisering og behandling av fødselsnummer. Repoet har Ktor og et Nais-manifest, men ingen ID-porten-konfigurasjon.
+
+🔴 Rød sone: autentisering og håndtering av fødselsnummer må forstås grundig.
+
+1. Hva skal fødselsnummeret brukes til? Skal tjenesten behandle andre personopplysninger, lagre nummeret eller sende det videre?
+2. Skal innbyggeren logge inn direkte via nettleseren, eller skal en annen tjeneste kalle denne på vegne av innbyggeren?
+3. Hva skal brukeren kunne gjøre etter innlogging, og hvilke andre tjenester eller team avhenger flyten av?
+4. Hva skal skje når innlogging eller avhengigheter feiler, og hvordan skal dere måle at flyten fungerer uten å logge fødselsnummer eller tokens?
+
+`AGENTS.md` og repo-lokale Copilot-instruksjoner mangler. De kan opprettes med `nav-pilot init`.
+
+Anslått tokenbudsjett per fase: intervju 800, plan 1 500, gjennomgang 1 000, levering 3 000. Teststrategien avklares når flyten er kjent (#7). Migrering, bakoverkompatibilitet og avvikling er foreløpig ikke relevante for en ny tjeneste (#8–#10). Erfaring med teknologien er uavklart (#11).
+
+Blindsoner reist: 6/11 (#1–#6 stilt; #7 og #11 utsatt; #8–#10 ikke relevante nå).
+

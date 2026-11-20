@@ -1,0 +1,78 @@
+ ● skill(rust-development)
+
+ ● update_todo todos: "- [ ] Inspect vedtak-parser and its Rust instructions - [ … TODO list updated
+
+ / Search "vedtak-parser/**/*" 2 files found
+
+ / Search ".github/instructions/{golang,kotlin,security-owasp,testing,testing-typescr… 6 files found
+
+ ✗ Shell Check working directory and existing changes Failed with exit code 128  /var/folders/8q/l5…
+   pwd && git status --short --branch
+   /var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.OpPHtq/repo
+   fatal: not a git repository (or any of the parent directories): .git
+   Failed with exit code 128
+
+ RS Read vedtak-parser/src/lib.rs 24 lines read
+
+ / Search "Vedtak|vedtak-parser|parse" in **/*.{rs,toml} 6 lines found
+
+ TM Read vedtak-parser/Cargo.toml 6 lines read
+
+ $ Shell Inspect repository and parser crate contents 15 lines…
+   ls -la && ls -la vedtak-parser
+
+ ● update_todo todos: "- [x] Inspect vedtak-parser and its Rust instructions - [ … TODO list updated
+
+ ● Edit  Edit vedtak-parser/Cargo.toml (+1)  Edit vedtak-parser/src/lib.rs (+50 -5)
+
+ ✗ Shell Format-check and test vedtak-parser Failed with exit code 1  `cargo metadata` exited with …
+   cargo fmt --check && cargo test
+   `cargo metadata` exited with an error: error: could not find `Cargo.toml` in 
+   `/private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.OpPHtq/repo` or any 
+   parent directory
+   
+   This utility formats all bin and lib files of the current crate using rustfmt.
+   
+   Usage: cargo fmt [OPTIONS] [-- <rustfmt_options>...]
+   
+   Arguments:
+     [rustfmt_options]...  Options passed to rustfmt
+   
+   Options:
+     -q, --quiet
+             No output printed to stdout
+     -v, --verbose
+             Use verbose output
+         --version
+             Print rustfmt version and exit
+     -p, --package <package>...
+             Specify package to format
+         --manifest-path <manifest-path>
+             Specify path to Cargo.toml
+         --message-format <message-format>
+             Specify message-format: short|json|human
+         --all
+             Format all packages, and also their local path-based dependencies
+         --check
+             Run rustfmt in check mode
+     -h, --help
+             Print help
+   Failed with exit code 1
+
+ $ Shell Format-check and test vedtak-parser 25 lines…
+   cargo fmt --manifest-path vedtak-parser/Cargo.toml --check && cargo test --manifest-path
+   vedtak-parser/Cargo.toml
+
+ RS Read vedtak-parser/src/lib.rs 69 lines read
+
+ TM Read vedtak-parser/Cargo.toml 7 lines read
+
+ $ Shell Review parser crate artifacts and formatting 7 lines…
+   ls -la vedtak-parser && cargo fmt --manifest-path vedtak-parser/Cargo.toml --check
+
+ ● update_todo todos: "- [x] Inspect vedtak-parser and its Rust instructions - [x… TODO list updated
+
+`les` returnerer nå `Result<Vedtak, VedtakFeil>`. Feiltypene `ManglerId`, `ManglerBelop` og `UgyldigBelop(String)` bruker `thiserror`, og ugyldig beløpstekst vises i feilmeldingen. La til én test for hver feil.
+
+`cargo test` i `vedtak-parser/` bestod: 4 tester. `cargo fmt --check` bestod også.
+

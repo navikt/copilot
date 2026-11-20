@@ -1,0 +1,67 @@
+ / Search "**/frister/**" 3 files found
+
+ $ Shell Locate Go module and frister directory 7 lines…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.qenq4R/repo && find
+   . -maxdepth 3 -type d -name frister -o -path './frister' -print && find . -maxdepth 3 -type f \(
+   -name '*.go' -o -name 'go.mod' \) | sed 's#^./##' | head -200
+
+ GO Read frister/frist.go L1:250 (16 lines read)
+
+ GO Read frister/frist_test.go L1:250 (26 lines read)
+
+Jeg kjører målrettet testen i frister for å bekrefte feilen før jeg retter koden.
+
+ ✗ Shell Run Go tests in frister to reproduce failure Failed with exit code 1  --- FAIL: TestFrist …
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.qenq4R/repo/frister
+   && go test ./...
+   --- FAIL: TestFrist (0.00s)
+       frist_test.go:23: Frist(2026-09-05) = 2026-10-18, want 2026-10-19
+   FAIL
+   FAIL    example.com/frister     0.027s
+   FAIL
+   Failed with exit code 1
+
+ $ Shell Probe date logic in isolated Go snippet 21 lines…
+   cat <<'EOF' >/tmp/check.go
+   package main
+   import (
+     "fmt"
+     "time"
+   )
+   func Frist(vedtak time.Time) time.Time {
+       frist := vedtak.AddDate(0, 0, 6*7)
+       fmt.Println("vedtak", vedtak.Format("2006-01-02"), "frist", frist.Format("2006-01-02"),
+   frist.Weekday())
+       switch frist.Weekday() {
+       case time.Saturday:
+           return frist.AddDate(0, 0, 1)
+       case time.Sunday:
+           return frist.AddDate(0, 0, 1)
+       }
+       return frist
+   }
+   func main(){
+       v,_:=time.Parse("2006-01-02","2026-09-05")
+       fmt.Println(Frist(v).Format("2006-01-02"))
+   }
+   EOF
+   go run /tmp/check.go
+
+Jeg fant feilen: koden flytter bare én dag ved helg, men lørdag må gå til mandag via to dager. Jeg retter dette i funksjonen uten å endre testene.
+
+ GO Edit frister/frist.go +1 -1
+
+ $ Shell Verify the weekend adjustment fixes the Go tests in frister 1 line…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.qenq4R/repo/frister
+   && go test ./...
+
+Fikset i `frister/frist.go`.
+
+Feilen var at frister som falt på lørdag ble flyttet én dag, men de skal flyttes til mandag. Lørdag må derfor gå +2 dager, mens søndag går +1 dag.
+
+Bekreftet med:
+`cd .../frister && go test ./...`
+
+Resultat:
+`ok   example.com/frister`
+

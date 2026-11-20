@@ -1,0 +1,10 @@
+ ● skill(klarsprak)
+
+ / Search "maksAntall" 3 lines found
+
+`maksAntall` brukes her:
+
+- `src/main/kotlin/no/nav/demo/Config.kt:4` – deklareres.
+- `src/main/kotlin/no/nav/demo/Routes.kt:16` – begrenser antall oppgaver i svaret.
+- `src/main/kotlin/no/nav/demo/App.kt:10` – skrives ut ved oppstart.
+

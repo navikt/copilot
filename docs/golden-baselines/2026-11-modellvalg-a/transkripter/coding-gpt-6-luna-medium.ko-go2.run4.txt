@@ -1,0 +1,46 @@
+ ● skill(rust-development)
+
+ / Search "**/*" 34 files found
+
+ / Search "ytelse|Ytelse|grader|gradering" 5 files found
+
+ GO Read ytelse/utbetaling.go 6 lines read
+
+ GO Read ytelse/rapport.go 8 lines read
+
+ GO Read ytelse/ytelse_test.go 21 lines read
+
+ ● Read ytelse/go.mod 3 lines read
+
+ MD Read .github/instructions/golang.instructions.md 547 lines read
+
+ MD Read .github/instructions/security-owasp.instructions.md 12 lines read
+
+ / Search "Utbetaling\(|Rapport\(" in *.go 8 lines found
+
+ ✗ Shell Run ytelse Go tests Failed with exit code 1  # example.com/ytelse [example.com/ytelse.test…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.406AAZ/repo/ytelse
+   && go test ./...
+   # example.com/ytelse [example.com/ytelse.test]
+   ./ytelse_test.go:11:36: too many arguments in call to Utbetaling
+           have (int, int)
+           want (int)
+   ./ytelse_test.go:18:36: too many arguments in call to Rapport
+           have (string, number, number)
+           want (string, int)
+   FAIL    example.com/ytelse [build failed]
+   FAIL
+   Failed with exit code 1
+
+ ● Edit  Edit ytelse/utbetaling.go (+3 -3)  Edit ytelse/rapport.go (+2 -2)
+
+ GO Read ytelse/utbetaling.go 6 lines read
+
+ GO Read ytelse/rapport.go 8 lines read
+
+ $ Shell Verify ytelse Go tests 1 line…
+   cd /private/var/folders/8q/l5h25q1s1tn8wp0p_d2nc4qc0000gn/T/nav-pilot-golden.406AAZ/repo/ytelse
+   && go test ./...
+
+Oppdaterte `Utbetaling` og `Rapport` til å ta med ytelsesgrad og beregne gradert dagsats. Testene er uendret, og `go test ./...` i `ytelse/` går grønt.
+

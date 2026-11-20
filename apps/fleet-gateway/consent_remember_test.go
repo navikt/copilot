@@ -146,7 +146,7 @@ func TestConsent_RollingDeployNeverSkipsConsent(t *testing.T) {
 		if _, ok, _ := te.gw.store.Get(ctx, "pending_entra", st); ok {
 			t.Fatal("new flow wrote the kind old pods pop")
 		}
-		if _, ok, _ := te.gw.store.Get(ctx, kindPendingEntra, st); !ok {
+		if _, ok, _ := te.gw.store.Get(ctx, kindPendingEntra, hashToken(st)); !ok {
 			t.Fatal("new flow did not store its pending state")
 		}
 	})
@@ -155,7 +155,7 @@ func TestConsent_RollingDeployNeverSkipsConsent(t *testing.T) {
 		te := newTestEnv(t)
 		_ = te.obtainAuthCode(consentVerifier) // consent now remembered
 		st, sc := te.startLogin(consentVerifier)
-		raw, ok, err := te.gw.store.Pop(ctx, kindPendingEntra, st)
+		raw, ok, err := te.gw.store.Pop(ctx, kindPendingEntra, hashToken(st))
 		if err != nil || !ok {
 			t.Fatalf("pop: %v %v", ok, err)
 		}
@@ -194,5 +194,38 @@ func TestConsent_RevokeKeepsSessionWhenConsentDeleteFails(t *testing.T) {
 	}
 	if _, ok, _ := inner.Get(context.Background(), kindSession, hashToken(at)); !ok {
 		t.Fatal("session deleted although consent delete failed")
+	}
+}
+
+func TestConsent_EvictsOldestAtCap(t *testing.T) {
+	ctx := context.Background()
+	te := newTestEnv(t)
+	te.gw.store.Close()
+	te.gw.store = newMemoryStore(te.gw.now, map[string]int{kindConsent: 2})
+
+	if err := te.gw.rememberConsent(ctx, "A100001", te.clientID, te.resource); err != nil {
+		t.Fatalf("first rememberConsent: %v", err)
+	}
+	te.advance(time.Hour)
+	if err := te.gw.rememberConsent(ctx, "A100002", te.clientID, te.resource); err != nil {
+		t.Fatalf("second rememberConsent: %v", err)
+	}
+	te.advance(time.Hour)
+	// Cap is 2: third consent must succeed by evicting the earliest-expiring one (A100001).
+	if err := te.gw.rememberConsent(ctx, te.navIdent, te.clientID, te.resource); err != nil {
+		t.Fatalf("third rememberConsent at cap: %v", err)
+	}
+
+	okNew, err := te.gw.hasConsent(ctx, te.navIdent, te.clientID, te.resource)
+	if err != nil || !okNew {
+		t.Fatalf("expected newest consent to be remembered: ok=%v err=%v", okNew, err)
+	}
+	okKept, err := te.gw.hasConsent(ctx, "A100002", te.clientID, te.resource)
+	if err != nil || !okKept {
+		t.Fatalf("expected second consent to remain: ok=%v err=%v", okKept, err)
+	}
+	okEvicted, err := te.gw.hasConsent(ctx, "A100001", te.clientID, te.resource)
+	if err != nil || okEvicted {
+		t.Fatalf("expected oldest consent to be evicted: ok=%v err=%v", okEvicted, err)
 	}
 }

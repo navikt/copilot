@@ -1,0 +1,22 @@
+ ● skill(klarsprak)
+
+ / Search "**/*" 26 files found
+
+ YM Read nais.yaml 12 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/Soknad.kt 27 lines read
+
+ MD Read README.md 4 lines read
+
+ / Search "SoknadMottattMelding|soknad-mottatt|fnr" in *.kt 5 lines found
+
+**Fase 1: Avklaring.** Ingen filer er endret. `SoknadMottattMelding` inneholder nå `soknadId` og `mottatt`. Fnr finnes i `SokerDto`, men det dokumenterer ikke behovet for å sende det på `soknad-mottatt`.
+
+1. Hvem sitt fødselsnummer skal feltet inneholde, og hvorfor trenger konsumentene det fremfor `soknadId`?
+2. Hvilke konsumenter mottar meldingen, og er behandling av fnr og topicets lagringstid avklart for disse?
+3. Tåler eksisterende konsumenter det nye feltet?
+
+Dette er full løype fordi meldingen får en ny personopplysning. Repoet mangler lokal Copilot-konfigurasjon (`AGENTS.md` og Copilot-instruksjonsfilene). Den kan opprettes med `nav-pilot init`.
+
+Blindsoner reist: 3/11 (#1, #6, #9; øvrige utsatt til behovet er avklart eller ikke relevante nå).
+

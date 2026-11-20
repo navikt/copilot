@@ -1,0 +1,20 @@
+ ● skill(klarsprak)
+
+ $ Shell ls -la; rg --files --hidden -g '!.git' | head -40; rg -in 'signature|signering' … 41 lines…
+   ls -la; rg --files --hidden -g '!.git' | head -40; rg -in 'signature|signering' | head -40
+
+ $ Shell cat lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/Signing{Headers,Produce… 45 lines…
+   cat lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/Signing{Headers,ProducerInterceptor}.kt;
+   cat README.md; rg -n 'paw|Signer|removeSigning' build.gradle.kts src lib .github/agents
+
+**Fase 1: Avklaring før kodeendring.** Ingen filer er endret. `SigningProducerInterceptor.onSend` legger til signatur og nøkkel-ID uten å fjerne gamle verdier. Repoet har allerede `stripSigningHeaders`, som fjerner begge. Jeg legger til grunn at payload, mottakere og nøkkelhåndtering skal være uendret.
+
+🔴 Rød sone: Kafka-signering. Jeg fant verken referanseendringen fra Paw-monorepoet eller verifikasjonskoden i denne utsjekken.
+
+- Kan du dele referansediffen? Hvis den ikke viser feiltilfellet: Skal meldingen beholde de gamle signeringsheaderne hvis ny signering feiler, eller skal meldingen ikke sendes?
+- Hvilke konsumenter verifiserer signaturen, og forventer de nøyaktig én signaturheader og én nøkkel-ID?
+
+Repoet mangler `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`. De kan settes opp med `nav-pilot init`.
+
+Blindsoner reist: 2/11 (#3 feil ved signering, #6 verifiserende konsumenter). Ingen ny dataflyt eller tilgangsendring. Test og kompatibilitet avklares når referansen og konsumentkravene er kjent.
+

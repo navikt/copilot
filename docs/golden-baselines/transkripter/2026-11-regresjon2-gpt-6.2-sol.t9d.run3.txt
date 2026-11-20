@@ -1,0 +1,53 @@
+ ● skill(klarsprak)
+
+ ✗ Shell ls -a; find . -name '*.kt' -o -name '*.instructions.md' | head -4… Failed with exit code 1…
+   ls -a; find . -name '*.kt' -o -name '*.instructions.md' | head -40; command -v kotlinc
+   .
+   ..
+   .github
+   build.gradle.kts
+   nais.yaml
+   README.md
+   src
+   ./.github/instructions/deliberate-ai-use.instructions.md
+   ./.github/instructions/performance.instructions.md
+   ./.github/instructions/docker.instructions.md
+   ./.github/instructions/accessibility.instructions.md
+   ./.github/instructions/cplt-sandbox.instructions.md
+   ./.github/instructions/output-style.instructions.md
+   ./.github/instructions/database.instructions.md
+   ./.github/instructions/nextjs-aksel.instructions.md
+   ./.github/instructions/github-actions.instructions.md
+   ./.github/instructions/golang.instructions.md
+   ./.github/instructions/testing-typescript.instructions.md
+   ./.github/instructions/security-core.instructions.md
+   ./.github/instructions/kotlin.instructions.md
+   ./.github/instructions/security-owasp.instructions.md
+   ./.github/instructions/testing-kotlin.instructions.md
+   ./.github/instructions/testing.instructions.md
+   ./.github/instructions/norwegian-text.instructions.md
+   ./src/main/kotlin/no/nav/demo/App.kt
+   ./src/main/kotlin/no/nav/demo/Oppgave.kt
+   ./src/main/kotlin/no/nav/demo/Routes.kt
+   ./src/main/kotlin/no/nav/demo/Config.kt
+   Failed with exit code 1
+
+ $ Shell Read Kotlin and test conventions output too large to show (30.7 KB)…
+   cat src/main/kotlin/no/nav/demo/Oppgave.kt build.gradle.kts
+   .github/instructions/{kotlin,security-owasp,testing,testing-kotlin}.instructions.md
+
+ ● Edit  Create src/main/kotlin/no/nav/demo/Avrunding.kt (+7)
+
+ $ Shell Verify rounding source and tools 8 lines…
+   cat src/main/kotlin/no/nav/demo/Avrunding.kt; command -v jshell
+
+Implementerte avrundingen i `Avrunding.kt`. `rundTilNærmesteKrone` tar et `BigDecimal` i kroner og returnerer hele kroner som `Long`. Desimalregning gjør at 50 øre rundes opp uten flyttallsfeil.
+
+Jeg lot `Feriepenger.kt` og enhetstestene stå til deg. Gradle ble ikke kjørt.
+
+**Sjekkliste for rød sone**
+
+- [ ] Sjekk at 10,49 kr blir 10 kr, og at 10,50 kr og 10,51 kr blir 11 kr. Send inn det uavrundede beløpet i kroner.
+
+Kan du fortelle meg hva denne koden gjør og hvorfor denne tilnærmingen er riktig?
+

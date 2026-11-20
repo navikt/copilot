@@ -1,0 +1,7 @@
+# Evaluator-owned: overwrites the agent's manifest, so test discovery cannot be switched off.
+[package]
+name = "meldingsmottak"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]

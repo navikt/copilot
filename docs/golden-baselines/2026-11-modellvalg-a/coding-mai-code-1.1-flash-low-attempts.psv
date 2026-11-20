@@ -1,0 +1,30 @@
+# golden-prompt PER-RUN ATTEMPTS
+# agent:        nav-pilot
+# suite:        coding
+# date:         2026-11-18
+# revision:     f07499c6
+# personaHash:  a6d797b0efe8bbfbb9f7633660411ecba0af0f80980f46d2e89b5f6d36700689
+# harnessHash:  31303b66a044df68da77f1ba539f6a0a98cf0aabc6733992e11c37f4979c6eb4
+# model:        mai-code-1.1-flash
+# client:       copilot
+# clientVersion: GitHub Copilot CLI 1.0.114-0.
+# effort:       low
+# context:      CLI default
+# usage_complete: true
+#
+# slug|run|exit_code|outcome|bytes|elapsed_ms|usage_complete|detail
+ko-go|1|0|pass|2703|35923|true|
+ko-ts|1|0|pass|1126|20536|true|
+ko-go2|1|0|pass|2242|33213|true|
+ko-go|2|0|pass|2092|22652|true|
+ko-ts|2|0|pass|2574|23616|true|
+ko-go2|2|0|pass|968|28724|true|
+ko-go|3|0|pass|1114|28156|true|
+ko-ts|3|0|pass|2274|24027|true|
+ko-go2|3|0|pass|766|22478|true|
+ko-go|4|0|pass|2334|35027|true|
+ko-ts|4|0|pass|1187|28313|true|
+ko-go2|4|0|pass|1902|31097|true|
+ko-go|5|0|pass|1757|28814|true|
+ko-ts|5|0|pass|1264|27332|true|
+ko-go2|5|0|pass|2718|30691|true|

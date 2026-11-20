@@ -1,0 +1,14 @@
+ / Search "slettOppgave" No matches found
+
+ / Search "slett.?oppgave" No matches found
+
+ / Search "**/*" 25 files found
+
+ / Search "slett|delete|remove" (src) No matches found
+
+Ingen steder i koden kaller `slettOppgave`. Jeg søkte etter `slettOppgave` (også case-insensitivt, og med varianten `slett.?oppgave`) i hele repoet, og fant ingen treff.
+
+Det finnes heller ingen slette-funksjon i `src/`: søk etter `slett`, `delete` og `remove` ga ingen treff. Kildefilene er `Config.kt`, `Routes.kt`, `Oppgave.kt` og `App.kt` under `src/main/kotlin/no/nav/demo/`.
+
+Hvis funksjonen finnes under et annet navn, kan du si hvilket, så søker jeg på det.
+

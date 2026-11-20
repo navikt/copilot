@@ -947,6 +947,59 @@ func TestValidateRegistry_RequiredFields(t *testing.T) {
 				},
 				errorMsg: "command cannot be empty",
 			},
+			{
+				name: "command with newline",
+				instruction: SetupInstruction{
+					Title:       "Install dependency",
+					Description: "Run before first use.",
+					Commands:    []string{"echo ok\nrm -rf /"},
+				},
+				errorMsg: "control characters",
+			},
+			{
+				name: "command with carriage return",
+				instruction: SetupInstruction{
+					Title:       "Install dependency",
+					Description: "Run before first use.",
+					Commands:    []string{"echo ok\recho evil"},
+				},
+				errorMsg: "control characters",
+			},
+			{
+				name: "command with escape sequence",
+				instruction: SetupInstruction{
+					Title:       "Install dependency",
+					Description: "Run before first use.",
+					Commands:    []string{"echo \x1b[31mhi"},
+				},
+				errorMsg: "control characters",
+			},
+			{
+				name: "command with tab",
+				instruction: SetupInstruction{
+					Title:       "Install dependency",
+					Description: "Run before first use.",
+					Commands:    []string{"echo\tindented"},
+				},
+				errorMsg: "control characters",
+			},
+			{
+				name: "command exceeds max length",
+				instruction: SetupInstruction{
+					Title:       "Install dependency",
+					Description: "Run before first use.",
+					Commands:    []string{strings.Repeat("a", maxSetupCommandLength+1)},
+				},
+				errorMsg: "exceeds",
+			},
+			{
+				name: "command at max length",
+				instruction: SetupInstruction{
+					Title:       "Install dependency",
+					Description: "Run before first use.",
+					Commands:    []string{strings.Repeat("a", maxSetupCommandLength)},
+				},
+			},
 		}
 
 		for _, tt := range tests {
@@ -1062,5 +1115,84 @@ func TestValidateURLChecksHostBesideTemplates(t *testing.T) {
 	}
 	if err := validateURL("https://mcp.{{domain_internal}}/mcp"); err != nil {
 		t.Errorf("templated host refused: %v", err)
+	}
+}
+
+func TestValidateURLSchemeAndHost(t *testing.T) {
+	tests := []struct {
+		name    string
+		rawURL  string
+		wantErr bool
+	}{
+		{name: "https remote", rawURL: "https://aksel-mcp.nav.no/mcp", wantErr: false},
+		{name: "https templated", rawURL: "https://mcp.{{domain_internal}}/mcp", wantErr: false},
+		{name: "http ipv4 loopback", rawURL: "http://127.0.0.1:64342/sse", wantErr: false},
+		{name: "http localhost", rawURL: "http://localhost:3846/mcp", wantErr: false},
+		{name: "http ipv6 loopback", rawURL: "http://[::1]:3846/mcp", wantErr: false},
+		{name: "http non-loopback", rawURL: "http://example.com/mcp", wantErr: true},
+		{name: "ftp scheme", rawURL: "ftp://example.com/mcp", wantErr: true},
+		{name: "scheme-less path", rawURL: "example.com/mcp", wantErr: true},
+		{name: "scheme-less double slash", rawURL: "//example.com/mcp", wantErr: true},
+		{name: "hostless https", rawURL: "https:///mcp", wantErr: true},
+		{name: "hostless port only", rawURL: "https://:8080/mcp", wantErr: true},
+		{name: "templated scheme", rawURL: "{{scheme}}://example.com/mcp", wantErr: true},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := validateURL(tc.rawURL)
+			if (err != nil) != tc.wantErr {
+				t.Errorf("validateURL(%q) = %v, wantErr=%v", tc.rawURL, err, tc.wantErr)
+			}
+		})
+	}
+}
+
+func TestDecodeStaticRegistry_RejectsUnknownFields(t *testing.T) {
+	allowlistBytes, err := os.ReadFile("allowlist.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	substituted := substituteVariables(allowlistBytes, &Config{
+		DomainInternal: "intern.dev.nav.no",
+		DomainExternal: "ekstern.dev.nav.no",
+	})
+
+	tests := []struct {
+		name    string
+		raw     []byte
+		wantErr bool
+	}{
+		{name: "current allowlist.json", raw: allowlistBytes, wantErr: false},
+		{name: "substituted allowlist.json", raw: substituted, wantErr: false},
+		{
+			name:    "misspelled protocolVersion",
+			raw:     []byte(`{"servers":[{"name":"io.github.test/s","description":"d","version":"1","protocolVersion":["2026-07-28"]}]}`),
+			wantErr: true,
+		},
+		{
+			name:    "misspelled sandboxHost",
+			raw:     []byte(`{"servers":[{"name":"io.github.test/s","description":"d","version":"1","sandboxHost":["api.figma.com"]}]}`),
+			wantErr: true,
+		},
+		{
+			name:    "unknown top-level key",
+			raw:     []byte(`{"servers":[{"name":"io.github.test/s","description":"d","version":"1"}],"extra":1}`),
+			wantErr: true,
+		},
+		{
+			name:    "trailing json object",
+			raw:     []byte(`{"servers":[{"name":"io.github.test/s","description":"d","version":"1"}]}{"extra":1}`),
+			wantErr: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := decodeStaticRegistry(tc.raw)
+			if (err != nil) != tc.wantErr {
+				t.Errorf("decodeStaticRegistry(%s) err = %v, wantErr=%v", tc.name, err, tc.wantErr)
+			}
+		})
 	}
 }

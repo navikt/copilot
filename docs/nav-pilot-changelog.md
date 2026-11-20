@@ -6,13 +6,37 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ### Syntetiske testidenter maskeres ikke lenger
 
-- **Hook-maskering av fødselsnummer**: Syntetiske testidenter fra Dolly, Tenor og reserverte testpersoner blir stående i verktøyresultater, så du kan bruke testdata derfra. Ekte fødselsnummer, D-nummer og H-nummer maskeres som før.
+- **Hook-maskering av fødselsnummer**: Syntetiske testidenter fra Tenor og reserverte testpersoner blir stående i verktøyresultater, så du kan bruke testdata derfra. Ekte fødselsnummer, D-nummer og H-nummer maskeres som før.
+- **Dolly (OpenCode)**: Identer med måned 41–52 slippes bare gjennom når resultatet kommer fra Dolly-serveren `io.github.navikt/dolly`, siden et ekte H-nummer har samme mønster. Fra andre kilder, og i Copilot CLI der nav-pilot ikke kjenner serveren bak et verktøykall, maskeres de som før.
+
+## 2026-11-19
+
+### Rettelser i MCP-oppsett og agentpakker
+
+- **`--refresh` for MCP-registeret**: `nav-pilot mcp list --refresh` og `nav-pilot mcp enable <navn> --refresh` henter registeret på nytt i stedet for å vente ut døgnet hurtiglageret gjelder. `mcp enable` henter også på nytt én gang når navnet du ber om ikke finnes i hurtiglageret.
+- **`nav-pilot mcp prune`**: Fjerner oppføringer som `nav-pilot` har skrevet (i registerets navnerom) og som ikke lenger finnes i Navs MCP-register, på tvers av Copilot CLI og OpenCode. Servere du har lagt inn selv, blir stående urørt. Filer med kommentarer eller etterfølgende komma blir ikke endret, og kommandoen sier hvilke filer det gjelder. Bruk `--dry-run` for å se hva som ville blitt fjernet, og `--yes` for å hoppe over bekreftelsen (#2469).
+- **Kommandoer du skal kopiere**: Linjene «Fix:» i `nav-pilot mcp list` og `nav-pilot doctor` setter nå servernavn, nøkler og verter i enkle anførselstegn der det trengs, så teksten fra registeret eller konfigurasjonen ikke kan tolkes som shell-syntaks. En `cplt config set`-nøkkel i registerets oppsett må bestå av `a-z`, `0-9`, `_` og `.`. Ellers viser nav-pilot ingen kommando.
+- **Godkjente MCP-verter per klient**: Godkjenningen lagres nå per klient (`mcp:registry:copilot` og `mcp:registry:opencode`), og tillatelseslisten for cplt samler vertene fra begge. Å slå på en server for OpenCode fjerner ikke lenger vertene du godkjente for Copilot. Eksisterende godkjenninger gjelder videre uten nytt spørsmål.
+- **OpenCode-konfig**: Er det bare `opencode.jsonc` i `~/.config/opencode`, bruker oppstarten den filen i stedet for å lage en egen `opencode.json` som `opencode.jsonc` overstyrer.
+- **`nav-pilot mcp list` og `doctor` for OpenCode**: Viser nå riktig verktøystatus for oppføringer under `mcp.servers.<navn>` og for avslag skrevet som objekt, som `"github-mcp_*": {"*": "deny"}`.
+- **Protokoll og headere**: En eksplisitt eldre `protocolVersions` i registeret overstyres ikke lenger av at serveren ligger på nav.no. Headere hentes fra endepunktet som er valgt, ikke alltid det første. Registerets `sandboxHosts` for lokale OpenCode-pakker med egen nøkkel kommer nå med i godkjenningen.
+- **Agentpakker**: `allow_private_domains` avviser et offentlig suffiks (som `co.uk`) og en bar `nav.no`, fordi cplt også matcher underdomener. Navngi en bestemt vert.
+
+### Onboarding-serveren går via gatewayen
+
+- **`nav-pilot mcp enable mcp-onboarding`**: Nye oppføringer for `io.github.navikt/mcp-onboarding` bruker nå gatewayen, og du logger inn med Entra ID første gang. Har du allerede serveren, beholder nav-pilot adressen du har, og den virker som før. Bytt til gatewayen slik: `nav-pilot mcp disable mcp-onboarding && nav-pilot mcp enable mcp-onboarding`.
+- **Kodeverk har nytt navn**: Kodeverk-serveren heter nå `io.github.navikt/kodeverk` («Felles kodeverk») i MCP-registeret.
 
 ## 2026-11-18
+
+### Strengere sjekk av lokale MCP-servere i OpenCode
+
+- **OpenCode-oppstart**: En lokal MCP-server som starter en pakke med `npx`, `bunx`, `pnpm dlx` eller `yarn dlx` og `-p`/`--package`, godtas nå bare når ingen kommando følger etter pakken. Står det en kommando etter, slår nav-pilot av serveren. Skriv i stedet pakkenavnet direkte, for eksempel `npx @playwright/mcp` (#2405).
 
 ### Nav-servere i OpenCode bruker ny MCP-protokoll
 
 - **`nav-pilot mcp enable` for OpenCode**: nav-pilot setter `protocol` på nye MCP-oppføringer ut fra feltet `protocolVersions` i MCP-registeret. En server som bare støtter 2026-07-28 (for eksempel fleet-gateway) får `"protocol": "2026-07-28"`. En server som også støtter eldre revisjoner får `"auto"`, og det samme gjør servere på nav.no når registeret ikke oppgir versjoner. Det gjelder bare OpenCode 2.x, som ellers starter med den eldre protokollen. En oppføring du har lagt til selv, og en `protocol` du har satt selv, endres aldri (#2367).
+- **Eksisterende OpenCode-oppføringer får `protocol`**: `nav-pilot mcp enable` og `nav-pilot sync --apply` legger til `protocol` på en OpenCode-oppføring som mangler feltet, ut fra `protocolVersions` i registeret. Bare 2026-07-28 gir `"2026-07-28"`, 2026-07-28 sammen med eldre revisjoner gir `"auto"`, og det samme gjør servere på nav.no når registeret ikke oppgir versjoner. Ellers legges ingenting til. En `protocol` du har satt selv, endres aldri. nav-pilot skriver én linje når den legger til feltet (#2395).
 
 ## 2026-11-16
 

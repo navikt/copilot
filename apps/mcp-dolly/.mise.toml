@@ -1,0 +1,52 @@
+[tools]
+go = "1.26"
+golangci-lint = "2.10.1"
+
+[tasks.version]
+description = "Generate version string (YYYYMMDD-gitsha)"
+run = "echo $(date +%Y.%m.%d)-$(date +%H.%M)-$(git rev-parse --short HEAD)"
+
+[tasks.install]
+description = "Download dependencies"
+run = "go mod download"
+
+[tasks.update]
+description = "Update all Go dependencies"
+run = ["go get -u ./...", "go mod tidy"]
+
+[tasks.build]
+description = "Build the Go application"
+run = "go build -o bin/mcp-dolly ."
+
+[tasks.test]
+description = "Run all tests with verbose output"
+run = "go test -race -v ./..."
+env = { CGO_ENABLED = "1" } # -race requires cgo
+
+[tasks."test:short"]
+description = "Run tests without verbose output"
+run = "go test ./..."
+
+[tasks.lint]
+description = "Run linters (golangci-lint)"
+run = "golangci-lint run --allow-parallel-runners ./..."
+
+[tasks.fmt]
+description = "Format code with gofmt"
+run = ["gofmt -w .", "go mod tidy"]
+
+[tasks.vet]
+description = "Run go vet for static analysis"
+run = "go vet ./..."
+
+[tasks.staticcheck]
+description = "Run staticcheck for advanced static analysis"
+run = "go run honnef.co/go/tools/cmd/staticcheck@v0.7.0 ./..."
+
+[tasks.check]
+description = "Run all checks (fmt, vet, staticcheck, lint, test)"
+depends = ["fmt", "vet", "staticcheck", "lint", "test:short"]
+
+[env]
+GO111MODULE = "on"
+CGO_ENABLED = "0"

@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"os"
 	"path/filepath"
@@ -387,5 +388,96 @@ func TestSyncAllowlistDropsRetiredSeeds(t *testing.T) {
 	after, _ := os.ReadFile(path)
 	if want := string(fresh) + "custom.example\n"; string(after) != want {
 		t.Errorf("after sync:\n%s\nwant:\n%s", after, want)
+	}
+}
+
+// Approve mcp.figma.com for copilot, then `mcp enable X --client opencode`:
+// the copilot consent and cplt-allowed-domains.txt keep mcp.figma.com alongside
+// opencode's host (#2408).
+func TestMCPConsentPreservesOtherClientAllowlist(t *testing.T) {
+	f := mcpCmdEnv(t, providerpkg.MCPHostState{})
+	_ = f
+	// Wire real host-consent and registry resolution in isolated HOME.
+	readMCPHostState = providerpkg.ReadMCPHostState
+	recordMCPHosts = providerpkg.RecordMCPHosts
+	classifyMCPHosts = func(h []providerpkg.MCPHost) []providerpkg.MCPHost { return h }
+	isInteractive = func() bool { return true }
+	prevProtects := cpltProtectsNavPilotState
+	cpltProtectsNavPilotState = func() bool { return true }
+	t.Cleanup(func() { cpltProtectsNavPilotState = prevProtects })
+	prevAsk := askProposalConsent
+	askProposalConsent = func(_, _ string, approve *bool) error { *approve = true; return nil }
+	t.Cleanup(func() { askProposalConsent = prevAsk })
+	t.Cleanup(providerpkg.StubCpltVersion("cplt 2026.10.22-172931-b37a8ab"))
+	t.Cleanup(func() { providerpkg.MCPClient = "" })
+
+	// Seed cache with the test registry entries so resolveMCPHostsFor reads them offline.
+	entries := mcpTestEntries()
+	reg := map[string][]string{
+		"com.figma/figma-mcp":             {"https://mcp.figma.com/mcp"},
+		"io.github.navikt/mcp-onboarding": {"https://mcp-onboarding.intern.nav.no/mcp"},
+	}
+	cacheDir := filepath.Dir(navAllowedDomainsPath())
+	if err := os.MkdirAll(cacheDir, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	cacheData, _ := json.Marshal(map[string]any{
+		"at":     "2099-01-01T00:00:00Z",
+		"schema": 3,
+		"registry": map[string]any{
+			"URL":     "https://registry.test",
+			"Servers": reg,
+			"Entries": entries,
+			"Remotes": map[string]bool{
+				"https://mcp.figma.com/mcp":                true,
+				"https://mcp-onboarding.intern.nav.no/mcp": true,
+			},
+		},
+	})
+	writeTestFile(t, filepath.Join(cacheDir, "mcp-registry.json"), string(cacheData))
+
+	if _, err := writeNavAllowedDomains(); err != nil {
+		t.Fatal(err)
+	}
+	writeTestFile(t, copilotMCPPath(), `{"mcpServers": {"com.figma/figma-mcp": {"type": "http", "url": "https://mcp.figma.com/mcp"}}}`)
+	noteMCPHostConsent("copilot", true)
+
+	got, err := os.ReadFile(navAllowedDomainsPath())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(got), "mcp.figma.com") {
+		t.Fatalf("after copilot approval, allowlist missing mcp.figma.com:\n%s", got)
+	}
+
+	_ = captureStdout(func() {
+		if err := cmdMCP([]string{"enable", "mcp-onboarding", "--client", "opencode"}); err != nil {
+			t.Fatal(err)
+		}
+	})
+	got, err = os.ReadFile(navAllowedDomainsPath())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(got), "mcp.figma.com") || !strings.Contains(string(got), "mcp-onboarding.intern.nav.no") {
+		t.Fatalf("after opencode enable, allowlist lost copilot host or omitted opencode host:\n%s", got)
+	}
+
+	// Launching copilot again must not drop opencode's host from the file.
+	noteMCPHostConsent("copilot", false)
+	got, _ = os.ReadFile(navAllowedDomainsPath())
+	if !strings.Contains(string(got), "mcp.figma.com") || !strings.Contains(string(got), "mcp-onboarding.intern.nav.no") {
+		t.Fatalf("after copilot launch sync, allowlist lost a host:\n%s", got)
+	}
+}
+
+func TestMCPManualCommandsQuotesHost(t *testing.T) {
+	got := mcpManualCommands([]providerpkg.MCPHost{{Host: "a;b.example", Private: true}})
+	want := []string{
+		"cplt config set allow.domains 'a;b.example'",
+		"cplt config set proxy.allow_private_domains 'a;b.example'",
+	}
+	if !slices.Equal(got, want) {
+		t.Errorf("mcpManualCommands = %q, want %q", got, want)
 	}
 }

@@ -1,0 +1,120 @@
+# Fase 2: Plan
+
+Antakelser jeg har lagt til grunn:
+- Tjenesten heter fortsatt `demo-tjeneste` og ligger i namespace `demo`.
+- Frontend er appen `demo-frontend` i samme namespace.
+- PDL godtar TokenX for innbyggerkall. Dette må dere bekrefte med PDL-teamet, sammen med hvilket behandlingsnummer dere skal sende.
+
+## 1. Arkitekturvalg
+
+| Område | Valg |
+|---|---|
+| Innlogging av innbygger | ID-porten og Wonderwall i Next.js-frontenden, som dere har fra før |
+| Frontend → backend | TokenX. Frontenden bytter ID-porten-tokenet og sender det videre. Backend henter fnr fra `pid`-claimet. |
+| Backend → PDL | TokenX-bytte på vegne av innbyggeren, med headeren `Behandlingsnummer` |
+| Kommunikasjon | Synkront REST-kall: `GET /api/person/meg` |
+| Lagring | Ingen database. Fnr og navn lagres ikke. |
+
+Fnr leses bare fra tokenet. API-et tar aldri imot fnr som parameter, så en innbygger kan bare slå opp seg selv. Eierskapssjekken ligger dermed i selve designet. Valget gjør det umulig å slå opp andre personer, men tjenesten kan ikke brukes til å slå opp på vegne av andre senere. Jeg forkastet Azure client_credentials mot PDL fordi brukerkonteksten da forsvinner fra revisjonssporet.
+
+## 2. Prosjektstruktur
+
+```
+src/main/kotlin/no/nav/demo/
+  App.kt              # Ktor-oppsett, auth-plugin, metrikker
+  Config.kt           # TOKEN_X_*, PDL_URL og PDL_SCOPE fra miljøvariabler
+  auth/TokenXAuth.kt  # JWT-validering 🔴
+  auth/TokenExchange.kt # TokenX-bytte mot PDL 🔴
+  pdl/PdlClient.kt    # GraphQL-kall hentNavn
+  Routes.kt           # GET /api/person/meg
+src/test/kotlin/...   # MockOAuth2Server + MockEngine
+```
+
+Nye avhengigheter: `ktor-server-auth-jwt`, `ktor-client-cio`, `ktor-server-metrics-micrometer`, `micrometer-registry-prometheus`, `no.nav.security:mock-oauth2-server` (kun test) og `logstash-logback-encoder`.
+
+## 3. Nais-manifest (`nais.yaml`)
+
+```yaml
+spec:
+  tokenx:
+    enabled: true
+  accessPolicy:
+    inbound:
+      rules:
+        - application: demo-frontend
+    outbound:
+      rules:
+        - application: pdl-api
+          namespace: pdl
+          cluster: prod-gcp   # dev-gcp i dev
+  resources:
+    requests: { cpu: 15m, memory: 256Mi }
+    limits: { memory: 512Mi }
+  prometheus: { enabled: true, path: /internal/metrics }
+  observability:
+    autoInstrumentation: { enabled: true, runtime: java }
+```
+
+Backend skal ikke ha `idporten.enabled`, fordi innloggingen skjer i frontenden. Frontenden må få en outbound-regel til `demo-tjeneste` og `tokenx.enabled: true`. Det er en egen endring i frontend-repoet.
+
+## 4. CI/CD
+
+GitHub Actions med disse stegene:
+1. Bygg og test med Gradle.
+2. Bygg og push image med `nais/docker-build-push`.
+3. Deploy med `nais/deploy` til dev-gcp, og til prod-gcp ved push til `main`.
+
+Actions pinnes til SHA, og `permissions` holdes til minimum (`contents: read`, `id-token: write`). Repoet mangler Dockerfile, så vi legger til en med en Chainguard JRE og kjøring som non-root.
+
+## 5. Database
+
+Ikke relevant. Tjenesten lagrer ingenting.
+
+## 6. Teststrategi
+
+| Nivå | Hva testes |
+|---|---|
+| Integrasjonstest, `testApplication` + MockOAuth2Server | Gyldig token gir 200. Mangler token, feil audience, feil issuer eller utløpt token gir 401. Token uten `pid` gir 401. |
+| Klienttest, Ktor `MockEngine` | PDL svarer OK og navnet hentes. PDL svarer 5xx eller tidsavbrudd, og tjenesten gir 503. PDL svarer med `errors`-felt. |
+| Loggtest | Ingen loggutskrift inneholder fnr eller navn. |
+
+## 7. Sikkerhetssjekkliste
+
+Personopplysningene er fnr og navn, behandlet med lovhjemmel.
+
+- [ ] Tokenet valideres for `iss`, `aud` (`TOKEN_X_CLIENT_ID`), `exp` og signatur mot JWKS.
+- [ ] `acr` er `idporten-loa-high`, hvis dere krever høyt sikkerhetsnivå. Dette må avklares.
+- [ ] Fnr og navn logges aldri. Logger bruker kall-ID.
+- [ ] `toString` på person-modellen maskerer fnr.
+- [ ] Svaret har `Cache-Control: no-store`.
+- [ ] Behandlingsnummer avklares med PDL-teamet.
+- [ ] Teamet oppdaterer behandlingsoversikten og vurderer om en DPIA trengs.
+
+## 8. Migreringsstrategi
+
+Ikke relevant. Tjenesten er nybygd.
+
+## 9. Leveransedokumenter og observerbarhet
+
+Endringsdokumentet beskriver rollback: redeploy av forrige image, eller fjerning av inbound-regelen i frontenden.
+
+Metrikker:
+- `oppslag_total{resultat=ok|feil|pdl_nede}`, som gir antall oppslag per minutt og andel feilende kall.
+- `pdl_kall_varighet_seconds` for svartiden mot PDL.
+
+Varsel: feilandel over 5 % i 5 minutter. Det kommer en sjekkliste for verifisering etter deploy i dev.
+
+## 10. 🔴 Rød sone
+
+TokenX og Wonderwall er nye for teamet, så disse delene skriver dere selv. Jeg leverer testskjeletter og stubber med `TODO`:
+
+1. **Tokenvalidering** (`TokenXAuth.kt`): issuer, audience, `acr` og uthenting av `pid`.
+2. **TokenX-bytte** (`TokenExchange.kt`): `client_assertion` signert med `TOKEN_X_PRIVATE_JWK`, og token-caching.
+3. **Feilmapping fra PDL til 503** og logging uten personopplysninger.
+
+Dette lager jeg ferdig (grønn sone): Ktor-oppsett, `PdlClient` uten auth-logikk, metrikker, `nais.yaml`, Dockerfile, workflow og tester rundt rød sone.
+
+**Budsjett:** Fase 3 er en kort gjennomgang med sikkerhetsagenten. Fase 4 er omtrent 10 filer.
+
+Si fra om dere godkjenner planen eller vil endre noe, så går jeg videre til Fase 3 (review). Spør gjerne om valgene over.
+

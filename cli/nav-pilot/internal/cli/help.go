@@ -155,6 +155,7 @@ state, and exits non-zero only when there is no answer yet.
 	"mcp": `Usage: nav-pilot mcp [list] [--json]
        nav-pilot mcp enable <name>... [--client copilot|opencode] [--tools a,b | --all-tools] [--allow-host-exec]
        nav-pilot mcp disable <name>... [--client copilot|opencode]
+       nav-pilot mcp prune [--dry-run] [--yes] [--client copilot|opencode]
 
 list shows the servers in Nav's MCP registry, which of them Copilot CLI and
 OpenCode have configured, and first, every problem that keeps a configured
@@ -187,14 +188,22 @@ full endpoint, and gives the command that narrows them.
 disable removes each named server from the client configs, and stops
 allowing hosts in the sandbox that no other configured MCP server needs.
 
-Both take one or more names and change only those. Each name succeeds or
-fails on its own; the exit code is 1 if any failed.
+prune removes every server nav-pilot wrote (in the registry's namespace) that
+is no longer in Nav's MCP registry, across installed client configs, and updates
+sandbox host approvals. Servers you added yourself are left alone, and files
+with comments or trailing commas are skipped and named. Asks before removing
+unless --yes is given; --dry-run shows what would be removed.
+
+enable and disable take one or more names and change only those. Each name
+succeeds or fails on its own; the exit code is 1 if any failed.
 
 Flags:
-  --client <name>         copilot or opencode (default: each of them that is installed)
+  --client <name>         copilot or opencode (default: each of them that is installed; prune checks both)
   --tools <a,b>           enable: turn on exactly these tools
   --all-tools             enable: turn on every tool, also those the server adds later
   --allow-host-exec       enable: allow tools that run outside the sandbox without asking
+  -n, --dry-run           prune: show what would be removed without changing anything
+  -y, --yes               prune: remove without asking, also without a terminal
   --json                  list as JSON
 `,
 	"survey": `Usage: nav-pilot survey [--json]

@@ -12,6 +12,9 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/navikt/copilot/cli/nav-pilot/internal/artifacts"
+	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 )
 
 func mcpConfigEnv(t *testing.T) string {
@@ -426,22 +429,45 @@ func TestMCPRegistryServersUsesTheCache(t *testing.T) {
 	}
 }
 
-// disable narrows the approval to the hosts either client's servers still
-// need; a host only OpenCode needs stays even when Copilot is the default.
+// disable narrows each client's approval to the hosts its servers still
+// need, migrates a legacy combined record, and keeps hosts the other client
+// still needs.
 func TestNarrowMCPApproval(t *testing.T) {
 	mcpEnv(t, `{"mcpServers": {"io.github.navikt/mcp-onboarding": {}}}`, testRegistry(), nil)
+	prevProbe := probeCpltVersion
+	t.Cleanup(func() { probeCpltVersion = prevProbe })
+	probeCpltVersion = func() (string, error) { return "cplt " + cpltDenyEnv + "-7f0fd16\n", nil }
 	home, _ := os.UserHomeDir()
 	writeFile(t, filepath.Join(openCodeConfigDir(), "opencode.json"),
 		`{"mcp": {"f": {"type": "remote", "url": "https://mcp.figma.com/mcp"}}}`)
-	approvedMCP(t, []MCPHost{{Host: "mcp.figma.com"}, {Host: "mcp-onboarding.intern.nav.no", Private: true}, {Host: "gone.example"}})
+	user, err := domain.ScopeUser()
+	if err != nil {
+		t.Fatal(err)
+	}
+	block, _ := json.Marshal([]MCPHost{{Host: "mcp.figma.com"}, {Host: "mcp-onboarding.intern.nav.no", Private: true}, {Host: "gone.example"}})
+	if err := artifacts.WriteProposalConsent(artifacts.ProposalConsent{
+		Scope: user.Name, Root: user.RootDir, Pakke: MCPConsentSource,
+		Block: string(block), CpltStamp: CpltStamp(), Approved: true,
+		Hosts: []string{"mcp-onboarding.intern.nav.no"},
+	}); err != nil {
+		t.Fatal(err)
+	}
 	gone, err := NarrowMCPApproval()
 	if err != nil || strings.Join(gone, ",") != "gone.example" {
 		t.Fatalf("gone = %v, %v", gone, err)
 	}
-	rec, _ := readMCPRecord()
+	rec, _ := readMCPRecordFor(MCPClientCopilot)
 	kept := recordedMCPHosts(rec)
-	if !rec.Approved || len(kept) != 2 || !slices.ContainsFunc(kept, func(h MCPHost) bool { return h.Private }) {
-		t.Errorf("kept = %+v", kept)
+	if !rec.Approved || len(kept) != 1 || kept[0].Host != "mcp-onboarding.intern.nav.no" || !kept[0].Private {
+		t.Errorf("copilot kept = %+v", kept)
+	}
+	ocRec, _ := readMCPRecordFor(MCPClientOpenCode)
+	ocKept := recordedMCPHosts(ocRec)
+	if !ocRec.Approved || len(ocKept) != 1 || ocKept[0].Host != "mcp.figma.com" {
+		t.Errorf("opencode kept = %+v", ocKept)
+	}
+	if got := MCPAllowlistHosts(); !slices.Equal(got, []string{"mcp-onboarding.intern.nav.no", "mcp.figma.com"}) {
+		t.Errorf("allowlist hosts = %v", got)
 	}
 
 	if err := os.Remove(mcpRegistryCachePath()); err != nil {
@@ -556,7 +582,7 @@ func TestOpenCodeProtocol(t *testing.T) {
 		{"only 2026-07-28 pins", "https://mcp.example.com/mcp", []string{"2026-07-28"}, "2026-07-28"},
 		{"only 2026-07-28 on nav", "https://x.nav.no/mcp", []string{"2026-07-28"}, "2026-07-28"},
 		{"mixed gets auto", "https://mcp.example.com/mcp", []string{"2026-07-28", "2025-11-25"}, "auto"},
-		{"older only on nav", "https://x.nav.no/mcp", []string{"2025-11-25"}, "auto"},
+		{"older only on nav", "https://x.nav.no/mcp", []string{"2025-11-25"}, ""},
 		{"older only elsewhere", "https://mcp.example.com/mcp", []string{"2025-11-25"}, ""},
 		{"absent on nav", "https://aksel-mcp.nav.no/mcp", nil, "auto"},
 		{"absent on nav apex", "https://nav.no/mcp", nil, "auto"},
@@ -608,5 +634,189 @@ func TestSetMCPServerKeepsUserProtocol(t *testing.T) {
 	ch, err := SetMCPServer(MCPClientOpenCode, e.Name, entry, e, MCPToolChoice{All: true})
 	if err != nil || ch.Changed || !strings.Contains(string(ch.Existing), `"legacy"`) {
 		t.Fatalf("overwrote user entry: %+v, %v", ch, err)
+	}
+}
+
+func TestBackfillOpenCodeProtocol(t *testing.T) {
+	cases := []struct {
+		name     string
+		entry    string
+		versions []string
+		url      string
+		wantRet  string
+		wantVal  string
+		wantChg  bool
+	}{
+		{
+			name:     "only 2026-07-28",
+			entry:    `{"type":"remote","url":"https://x.example/mcp"}`,
+			versions: []string{"2026-07-28"},
+			url:      "https://x.example/mcp",
+			wantRet:  "2026-07-28",
+			wantVal:  "2026-07-28",
+			wantChg:  true,
+		},
+		{
+			name:     "2026-07-28 with older",
+			entry:    `{"type":"remote","url":"https://x.example/mcp"}`,
+			versions: []string{"2024-11-05", "2026-07-28"},
+			url:      "https://x.example/mcp",
+			wantRet:  "auto",
+			wantVal:  "auto",
+			wantChg:  true,
+		},
+		{
+			name:     "older only",
+			entry:    `{"type":"remote","url":"https://x.example/mcp"}`,
+			versions: []string{"2024-11-05"},
+			url:      "https://x.example/mcp",
+		},
+		{
+			name:     "older only on nav",
+			entry:    `{"type":"remote","url":"https://x.nav.no/mcp"}`,
+			versions: []string{"2025-11-25"},
+			url:      "https://x.nav.no/mcp",
+		},
+		{
+			name:    "nil versions with nav.no url",
+			entry:   `{"type":"remote","url":"https://x.nav.no/mcp"}`,
+			url:     "https://x.nav.no/mcp",
+			wantRet: "auto",
+			wantVal: "auto",
+			wantChg: true,
+		},
+		{
+			name:  "nil versions with non-nav https url",
+			entry: `{"type":"remote","url":"https://example.com/mcp"}`,
+			url:   "https://example.com/mcp",
+		},
+		{
+			name:     "existing user protocol kept",
+			entry:    `{"type":"remote","url":"https://x.example/mcp","protocol":"legacy"}`,
+			versions: []string{"2026-07-28"},
+			url:      "https://x.example/mcp",
+			wantVal:  "legacy",
+		},
+		{
+			name:     "local entry ignored",
+			entry:    `{"type":"local","command":["npx","x"]}`,
+			versions: []string{"2026-07-28"},
+		},
+		{
+			name:     "registry name with different url",
+			entry:    `{"type":"remote","url":"https://other.example/mcp"}`,
+			versions: []string{"2026-07-28"},
+			url:      "https://x.example/mcp",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			home := mcpConfigEnv(t)
+			wantPath := filepath.Join(home, ".config", "opencode", "opencode.json")
+			gotPath, err := MCPConfigPath(MCPClientOpenCode)
+			if err != nil || gotPath != wantPath {
+				t.Fatalf("MCPConfigPath = %q, %v; want %q", gotPath, err, wantPath)
+			}
+			writeFile(t, gotPath, fmt.Sprintf(`{"mcp":{"no.nav/x":%s}}`, tc.entry))
+			e := MCPServerEntry{
+				Name:             "no.nav/x",
+				ProtocolVersions: tc.versions,
+			}
+			if tc.url != "" {
+				e.Remotes = []MCPRemote{{URL: tc.url}}
+			}
+			p, ch, err := BackfillOpenCodeProtocol("no.nav/x", e)
+			if err != nil {
+				t.Fatalf("BackfillOpenCodeProtocol: %v", err)
+			}
+			if p != tc.wantRet || ch.Changed != tc.wantChg || ch.Path != wantPath {
+				t.Fatalf("got p=%q ch=%+v; want p=%q changed=%v path=%q", p, ch, tc.wantRet, tc.wantChg, wantPath)
+			}
+			var cfg struct {
+				MCP map[string]map[string]any `json:"mcp"`
+			}
+			if err := json.Unmarshal([]byte(readFile(t, wantPath)), &cfg); err != nil {
+				t.Fatal(err)
+			}
+			gotVal, _ := cfg.MCP["no.nav/x"]["protocol"].(string)
+			if gotVal != tc.wantVal {
+				t.Errorf("protocol in file = %q, want %q", gotVal, tc.wantVal)
+			}
+			p2, ch2, err2 := BackfillOpenCodeProtocol("no.nav/x", e)
+			if err2 != nil || p2 != "" || ch2.Changed {
+				t.Fatalf("second call = p=%q ch=%+v err=%v; want no-op", p2, ch2, err2)
+			}
+		})
+	}
+}
+
+func TestMCPClientEntryUsesChosenRemoteHeaders(t *testing.T) {
+	type hdr = struct {
+		Name  string `json:"name"`
+		Value string `json:"value"`
+	}
+	multi := MCPServerEntry{
+		Name: "io.example/multi",
+		Remotes: []MCPRemote{
+			{Type: "streamable-http", URL: "https://a.example/mcp", Headers: []hdr{{Name: "X-First", Value: "1"}}},
+			{Type: "sse", URL: "https://b.example/sse", Headers: []hdr{{Name: "X-Second", Value: "2"}}},
+		},
+	}
+	raw, err := MCPClientEntry(MCPClientCopilot, multi, MCPToolChoice{All: true, URL: "https://b.example/sse"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got struct {
+		Type    string            `json:"type"`
+		URL     string            `json:"url"`
+		Headers map[string]string `json:"headers"`
+	}
+	if err := json.Unmarshal(raw, &got); err != nil {
+		t.Fatal(err)
+	}
+	if got.Type != "sse" || got.URL != "https://b.example/sse" || !maps.Equal(got.Headers, map[string]string{"X-Second": "2"}) {
+		t.Errorf("multi remote entry = %s", raw)
+	}
+
+	gh := MCPServerEntry{
+		Name: "io.github.navikt/github-mcp",
+		Remotes: []MCPRemote{
+			{Type: "streamable-http", URL: githubMCPURL},
+			{Type: "streamable-http", URL: githubMCPReadonlyURL, Headers: []hdr{{Name: "X-MCP-Readonly", Value: "true"}}},
+		},
+	}
+	raw, err = MCPClientEntry(MCPClientOpenCode, gh, MCPToolChoice{All: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got = struct {
+		Type    string            `json:"type"`
+		URL     string            `json:"url"`
+		Headers map[string]string `json:"headers"`
+	}{}
+	if err := json.Unmarshal(raw, &got); err != nil {
+		t.Fatal(err)
+	}
+	if got.URL != githubMCPReadonlyURL || !maps.Equal(got.Headers, map[string]string{"X-MCP-Readonly": "true"}) {
+		t.Errorf("github readonly entry = %s", raw)
+	}
+}
+
+// RefreshMCPRegistry rewrites a cache that is still inside its day.
+func TestRefreshMCPRegistryRewritesFreshCache(t *testing.T) {
+	reg := testRegistry()
+	reg.URL = "https://registry.test"
+	reg.Entries = []MCPServerEntry{{Name: "com.figma/figma-mcp"}}
+	mcpEnv(t, `{"mcpServers": {}}`, reg, nil)
+	reg.Entries = append(reg.Entries, MCPServerEntry{Name: "io.github.navikt/newcomer"})
+	fetchMCPRegistry = func(string) (mcpRegistry, error) { return reg, nil }
+	if _, entries, _, err := MCPRegistryServers(); err != nil || len(entries) != 1 {
+		t.Fatalf("fresh cache: %+v %v", entries, err)
+	}
+	if err := RefreshMCPRegistry(); err != nil {
+		t.Fatal(err)
+	}
+	if _, entries, _, err := MCPRegistryServers(); err != nil || len(entries) != 2 {
+		t.Errorf("after refresh: %+v %v", entries, err)
 	}
 }

@@ -1,0 +1,25 @@
+ ● skill(klarsprak)
+
+ $ Shell Se prosjektfiler og lokale instruksjoner 9 lines…
+   pwd && ls -a
+
+ / Search "fnr|header|signature|signatur|logging|person" (src, README.md, nais.yaml,… 23 lines found
+
+ $ Shell Les tjenestebeskrivelse og finn record-kode 39 lines…
+   find src lib -type f && cat README.md nais.yaml build.gradle.kts && ls -a .github
+
+ ● Read lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningHeaders.kt 11 lines read
+
+ ● Read lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningProducerIntercepto  22 lines re…
+        r.kt
+
+ ● Read lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/Periode.kt 4 lines read
+
+**Ikke endret: FNR i en Kafka-header utvider personopplysningene i metadataene.** `Periode.fnr` finnes allerede i payloaden på `paw.arbeidssokerperioder`, men repoet dokumenterer ikke om headere eksporteres til logger eller sporingssystemer. Signaturen dekker bare payloaden, ikke en ny FNR-header.
+
+Er fødselsnummer nødvendig for sporingen, eller kan `Periode.id` brukes? Hvis FNR er nødvendig: hvilke systemer skal lese headeren, og hvordan hindres logging og videreeksport?
+
+Dette er full behandling, fase 1, fordi personopplysningshåndteringen endres. Repoet mangler `AGENTS.md` og Copilot-instruksjonsfilene på rotnivå i `.github`; de kan opprettes med `nav-pilot init`. Øvrige avklaringer avventer dette personvernvalget.
+
+Blindsoner reist: 2/11 (#1 personvern, #6 mottakere; øvrige ikke relevante nå eller avventer avklaringen).
+

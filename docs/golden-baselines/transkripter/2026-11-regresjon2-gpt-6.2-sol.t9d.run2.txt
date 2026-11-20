@@ -1,0 +1,65 @@
+ ● skill(klarsprak)
+
+ ✗ Shell ls -a; find . -type f | head -40; command -v kotlinc Failed with exit code 1  . .. .github…
+   ls -a; find . -type f | head -40; command -v kotlinc
+   .
+   ..
+   .github
+   build.gradle.kts
+   nais.yaml
+   README.md
+   src
+   ./README.md
+   ./build.gradle.kts
+   ./nais.yaml
+   ./.github/instructions/deliberate-ai-use.instructions.md
+   ./.github/instructions/performance.instructions.md
+   ./.github/instructions/docker.instructions.md
+   ./.github/instructions/accessibility.instructions.md
+   ./.github/instructions/cplt-sandbox.instructions.md
+   ./.github/instructions/output-style.instructions.md
+   ./.github/instructions/database.instructions.md
+   ./.github/instructions/nextjs-aksel.instructions.md
+   ./.github/instructions/github-actions.instructions.md
+   ./.github/instructions/golang.instructions.md
+   ./.github/instructions/testing-typescript.instructions.md
+   ./.github/instructions/security-core.instructions.md
+   ./.github/instructions/kotlin.instructions.md
+   ./.github/instructions/security-owasp.instructions.md
+   ./.github/instructions/testing-kotlin.instructions.md
+   ./.github/instructions/testing.instructions.md
+   ./.github/instructions/norwegian-text.instructions.md
+   ./.github/agents/golden-nav-pilot.agent.md
+   ./src/main/kotlin/no/nav/demo/App.kt
+   ./src/main/kotlin/no/nav/demo/Oppgave.kt
+   ./src/main/kotlin/no/nav/demo/Routes.kt
+   ./src/main/kotlin/no/nav/demo/Config.kt
+   Failed with exit code 1
+
+ MD Read .github/instructions/kotlin.instructions.md too large, not read
+
+ MD Read .github/instructions/security-owasp.instructions.md 12 lines read
+
+ $ Shell cat build.gradle.kts src/main/kotlin/no/nav/demo/Oppgave.kt 21 lines…
+   cat build.gradle.kts src/main/kotlin/no/nav/demo/Oppgave.kt
+
+ / Search "^#|BigDecimal" (.github/instructions/kotlin.instructions.md) 34 lines found
+
+ ● Edit  Create src/main/kotlin/no/nav/demo/Avrunding.kt (+7)
+
+ $ Shell Sjekk avrundingsgrensen uten Gradle 5 lines…
+   jshell --feedback concise - <<'EOF'
+   import java.math.*;
+   for (var sample : new String[]{"0.49", "0.50", "0.51", "1.00"}) System.out.println(new
+   BigDecimal(sample).setScale(0, RoundingMode.HALF_UP).longValueExact());
+   /exit
+   EOF
+
+Implementerte avrundingen i `Avrunding.kt`. `rundTilNærmesteKrone` tar et beløp i kroner som `BigDecimal` og returnerer hele kroner som `Long`. `BigDecimal` holder 50-øresgrensen eksakt uten flyttall. Feriepengefunksjonen og enhetstestene overlater jeg til deg. Gradle ble ikke kjørt.
+
+**Sjekkliste for rød sone**
+
+- [ ] Sjekk avrundingen med 49, 50 og 51 øre: forvent henholdsvis 0, 1 og 1 krone. Sørg for at feriepengefunksjonen avviser negativt grunnlag før avrunding.
+
+Kan du fortelle meg hva denne koden gjør og hvorfor denne tilnærmingen er riktig?
+

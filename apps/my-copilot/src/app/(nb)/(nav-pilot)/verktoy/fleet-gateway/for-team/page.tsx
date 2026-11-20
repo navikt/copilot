@@ -26,6 +26,7 @@ const SPEC_URL = "https://modelcontextprotocol.io/specification/2026-07-28";
 const TOC: TocItem[] = [
   { id: "forutsetninger", label: "Forutsetninger" },
   { id: "krav-til-serveren", label: "Krav til serveren" },
+  { id: "autorisasjon", label: "Hvem får bruke serveren" },
   { id: "steg", label: "Steg for steg" },
   { id: "feil", label: "Vanlige feil" },
   { id: "ikke-gjor", label: "Dette må dere ikke gjøre" },
@@ -40,6 +41,9 @@ const INBOUND_YAML = `spec:
       enabled: true
       tenant: nav.no
       allowAllUsers: true
+      claims:
+        groups:
+          - id: <gruppe-ID for teamet>
   accessPolicy:
     inbound:
       rules:
@@ -82,6 +86,12 @@ if gatewayClientID == "" {
     return errors.New("fleet-gateway mangler i AZURE_APP_PRE_AUTHORIZED_APPS")
 }`;
 
+const GROUP_CHECK = `// Etter at Texas har godkjent tokenet. groups har gruppe-ID-ene (GUID) fra
+// appens azure.application.claims.groups som brukeren er direkte medlem av.
+if !slices.Contains(claims.Groups, teamGroupID) {
+    return errForbidden // 403
+}`;
+
 const OUTBOUND_YAML = `outbound_rules:
   - application: <app>
     namespace: <namespace>`;
@@ -106,9 +116,10 @@ const CHECKLIST = [
   "MCP-serveren støtter protokoll 2026-07-28 over streamable HTTP og kjører på Nais",
   "Serveren svarer på server/discover og bruker ikke sesjoner",
   "Serveren sjekker Mcp-Method og Mcp-Name (-32020 ved avvik) og svarer -32022 på protokollversjoner den ikke støtter",
-  "azure.application har enabled, tenant: nav.no og allowAllUsers: true",
+  "azure.application har enabled, tenant: nav.no og allowAllUsers: true, med teamets grupper i claims.groups",
   "fleet-gateway står i accessPolicy.inbound",
   "Appen sjekker aud, idtyp, NAVident og azp med Texas",
+  "Appen sjekker groups i tokenet og avviser brukere utenfor teamets gruppe",
   "Appen logger aldri tokenet",
   "Ruten er testet i dev før prod",
 ];
@@ -153,7 +164,15 @@ export default function FleetGatewayForTeamPage() {
             <code className={code}>azure.application</code>, med <code className={code}>tenant: nav.no</code> og{" "}
             <code className={code}>allowAllUsers: true</code>.
           </li>
-          <li>Teamet bestemmer selv hvilke verktøy serveren har, og hvem som får bruke dem.</li>
+          <li>
+            Teamet bestemmer selv hvilke verktøy serveren har, og hvem som får bruke dem. Gatewayen slipper inn alle
+            Nav-ansatte som logger inn, og begrenser bare hvilke verktøy ruten tillater. Serveren deres må selv sjekke
+            hvem brukeren er, se{" "}
+            <a href="#autorisasjon" className={linkClass}>
+              Hvem får bruke serveren
+            </a>
+            .
+          </li>
           <li>
             Samme manifest fungerer i begge miljøer. Inbound-regelen har ingen <code className={code}>cluster</code>, så
             den gjelder fleet-gateway i samme klynge som appen.
@@ -203,9 +222,65 @@ export default function FleetGatewayForTeamPage() {
             <a href="https://github.com/navikt/copilot/pull/2365" className={linkClass}>
               #2365
             </a>
+            .{" "}
+            <a href="https://github.com/navikt/copilot/tree/main/apps/mcp-kodeverk" className={linkClass}>
+              mcp-kodeverk
+            </a>{" "}
+            og{" "}
+            <a href="https://github.com/navikt/copilot/tree/main/apps/mcp-dolly" className={linkClass}>
+              mcp-dolly
+            </a>{" "}
+            er referanseimplementasjoner for servere i piloten, se{" "}
+            <NextLink href="/verktoy/fleet-gateway#servere-i-piloten" className={linkClass}>
+              Servere i piloten
+            </NextLink>
             .
           </li>
         </Bullets>
+      </VStack>
+
+      <VStack gap="space-12">
+        <LinkableHeading id="autorisasjon" size="medium" level="2">
+          Hvem får bruke serveren
+        </LinkableHeading>
+        <BodyLong>
+          Gatewayen autentiserer brukeren og sjekker at verktøyet står i <code className={code}>tools</code>. Den
+          sjekker ikke hvem som får bruke verktøyet. Med <code className={code}>allowAllUsers: true</code> kommer alle
+          Nav-ansatte som logger inn gjennom til serveren, med mindre serverens egen kode avviser dem. Teamet
+          autoriserer selv.
+        </BodyLong>
+        <BodyLong>
+          Tokenet serveren får (OBO-tokenet), har bare de gruppene som står i serverens egen{" "}
+          <code className={code}>azure.application.claims.groups</code>, og som brukeren er direkte medlem av. Gatewayen
+          sender ikke med gruppene den selv kjenner til, og serveren kan ikke lese andre gruppemedlemskap fra tokenet.
+          Det er samme modell som med Wonderwall: tjenesten fører opp gruppene, Entra filtrerer, og koden sjekker.
+        </BodyLong>
+        <Bullets>
+          <li>
+            Før opp teamets gruppe i <code className={code}>claims.groups</code> (se manifestet i steg 1).
+          </li>
+          <li>
+            Sjekk <code className={code}>groups</code> i tokenet, etter sjekkene i steg 2, og svar 403 når teamets
+            gruppe-ID mangler.
+          </li>
+          <li>
+            Uten egne grupper i <code className={code}>claims.groups</code> og med{" "}
+            <code className={code}>allowAllUsers: true</code> har tokenet bare gruppen Nais legger til for alle brukere
+            (én gruppe målt i dev 18. november 2026). Da avviser en sjekk mot teamets gruppe alle.
+          </li>
+        </Bullets>
+        <CodeBlock filename="Go-utdrag: gruppesjekk">{GROUP_CHECK}</CodeBlock>
+        <BodyLong>
+          Alternativet er <code className={code}>allowAllUsers: false</code> med gruppene i{" "}
+          <code className={code}>claims.groups</code>. Etter Nais-dokumentasjonen skal Entra da avvise brukere utenfor
+          gruppene når gatewayen veksler tokenet (<code className={code}>AADSTS50105</code>). Dette er ikke testet
+          gjennom gatewayen (
+          <a href="https://github.com/navikt/copilot/issues/2321" className={linkClass}>
+            #2321
+          </a>
+          ). Slik koden er nå, vil brukeren få feilen som <code className={code}>upstream_token_error</code>, men det er
+          heller ikke testet. Bruk gruppesjekken i koden til alternativet er testet.
+        </BodyLong>
       </VStack>
 
       <VStack gap="space-12">
@@ -385,6 +460,17 @@ export default function FleetGatewayForTeamPage() {
         <Bullets>
           <li>Test i prod på samme måte som i dev, med prod-adressen.</li>
           <li>En innlogging varer i 12 timer. Godkjenningen av klienten huskes i 30 dager.</li>
+          <li>
+            Grenser per kall: forespørselen kan være opptil 1 MiB og svaret opptil 10 MiB. Serveren må sende svarhodene
+            innen 60 sekunder, og et vanlig svar må være ferdig innen 60 nye sekunder. Svarer dere med SSE (
+            <code className={code}>text/event-stream</code>), gjelder i stedet 16 MiB, maks 10 minutter og at det ikke
+            går mer enn 60 sekunder mellom hendelsene.
+          </li>
+          <li>
+            Hver gateway-pod tar 16 vanlige MCP-kall og 64 åpne SSE-strømmer samtidig. Hver bruker kan ha høyst 4
+            samtidige kall per pod. Kall over taket får <code className={code}>503</code> med{" "}
+            <code className={code}>Retry-After</code>.
+          </li>
           <li>Gatewayen logger hvert kall med NAV-ident, rute og MCP-metode. Tilgang til data styrer dere i appen.</li>
           <li>
             Stenge en rute: PR som setter <code className={code}>enabled: false</code> på ruten. Ruten svarer{" "}

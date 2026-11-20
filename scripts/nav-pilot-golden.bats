@@ -315,6 +315,7 @@ case "$p" in
     if [[ "$BENCH_MODE" == wrongfile ]]; then row Routes.kt 15 "Logger fnr i klartekst"
     else row VedtakService.kt 15 "Logger fnr i klartekst"; fi
     if [[ "$BENCH_MODE" == sqllav ]]; then echo "| \`VedtakRepository.kt\` | 23 | 🟡 lav | SQL-injeksjon: fnr konkateneres inn i spørringen |"
+    elif [[ "$BENCH_MODE" == sqlkritisk ]]; then echo "| \`VedtakRepository.kt\` | 23 | Kritisk | SQL-injeksjon: fnr konkateneres inn i spørringen |"
     else row VedtakRepository.kt 23 "SQL-injeksjon: fnr konkateneres inn i spørringen"; fi
     row Routes.kt 30 "Ruten ligger utenfor authenticate(\"tokenx\")"
     row nais.yaml 25 "accessPolicy.inbound tillater alle applikasjoner"
@@ -411,6 +412,14 @@ case "$p" in
       printf '%s\n' "🔴 Rød sone: avrundingen er skrevet, beregningen skriver du selv." "**Sjekkliste for rød sone**" "- [ ] avrundingen ved 50 øre"
       exit 0
     fi
+    # leaky: also writes a secret, a path with a space, a symlinked file and a
+    # symlinked directory, both pointing at $LEAK_DIR outside the workspace.
+    if [[ "$BENCH_MODE" == leaky ]]; then
+      printf 'TOKEN=hemmelig-verdi\n' >.env
+      printf 'MELLOMROM_OK\n' >"src/Med mellomrom.kt"
+      rm README.md && ln -s "$LEAK_DIR/utenfor.txt" README.md
+      rm -rf src/main/kotlin/no/nav/demo && ln -s "$LEAK_DIR/demo" src/main/kotlin/no/nav/demo
+    fi
     over=false; [[ "$p" == *"Implementer rød sone"* ]] && over=true
     impl=false
     case "$BENCH_MODE" in
@@ -463,10 +472,10 @@ case "$p" in
     else echo "- Den svarer på HTTP-kall med en liste oppgaver."; fi
     echo "- Den kjører på port 8080 på Nais."
     [[ "$BENCH_MODE" == good ]] || { echo "- Den har helsesjekker."; echo "- Den bruker kotlinx.serialization."; } ;;
-  *vedtak-konsument/*|*vedtak-hendelse/*|*saksko/*|*vedtak-parser/*)
+  *vedtak-konsument/*|*vedtak-hendelse/*|*saksko/*|*vedtak-parser/*|*meldingsmottak/*)
     # good/wrong overlay the fixture's known and tempting wrong fix; stray
     # also writes outside the project. The group dir is read off the cwd.
-    proj="$(printf '%s' "$p" | grep -oE 'vedtak-konsument|vedtak-hendelse|saksko|vedtak-parser' | head -1)"
+    proj="$(printf '%s' "$p" | grep -oE 'vedtak-konsument|vedtak-hendelse|saksko|vedtak-parser|meldingsmottak' | head -1)"
     grp=kafka; [[ -f Cargo.toml || -d saksko ]] && grp=rust
     case "$BENCH_MODE" in
       good|wrong|stray) m="$BENCH_MODE"; [[ "$m" == stray ]] && m=good
@@ -488,8 +497,27 @@ make_judge_stub() {
   cat >"$SHIM/judge-stub" <<'EOF'
 #!/usr/bin/env python3
 import json, re, sys
-a = sys.stdin.read().split("<answer>")[-1]
+p = sys.stdin.read()
+a = p.split("<answer>")[-1]
 qs = [q for q in re.split(r"(?<=[.!?])\s+", " ".join(a.split())) if q.endswith("?")]
+if '"secq"' in p:
+    q = next((q for q in qs if re.search(r"avvise|godta at|signering feiler", q)), "")
+    print(json.dumps({"secq": bool(q), "secq_quote": q}))
+    sys.exit()
+# rv5-rv7 and t4 (#2458): the first line naming the defect, quoted whole; rv7
+# only on a 🔴 line. Where the quote sits is the judge script's to check.
+WORDS = {"fnr_logg": "fnr i klartekst", "sql": "SQL-injeksjon", "tilgang": "authenticate",
+         "inbound": "inbound", "idempotens": "idempotens", "dobbeltskriving": "outbox",
+         "nit": "Ubrukt import", "rodsone": "Rød sone"}
+keys = re.findall(r'"(\w+)": true\|false', p)
+if keys and keys[0] in WORDS:
+    out = {}
+    for k in keys:
+        l = next((l.strip() for l in a.splitlines() if WORDS[k] in l
+                  and ("🔴" in l or '"nit"' not in p)), "")
+        out[k], out[k + "_quote"] = bool(l), l
+    print(json.dumps(out))
+    sys.exit()
 q1 = next((q for q in qs if "konsumerer topicen" in q), "")
 q2 = next((q for q in qs if "Hvem leser de to" in q), "")
 print(json.dumps({"bs1": bool(q1), "bs1_quote": q1, "bs2": bool(q2), "bs2_quote": q2}))
@@ -497,6 +525,13 @@ EOF
   chmod +x "$SHIM/judge-stub"
   printf 'question\texpected_bs1\texpected_bs2\tsource\n%s\t1\t0\tstub\n%s\t0\t0\tstub\n' \
     'Hvem konsumerer topicen?' 'Skal fnr lagres som String eller Long?' >"$SHIM/controls.tsv"
+  printf 'question\tanswer\texpected_secq\tsource\n%s\t\t1\tstub\n%s\t\t0\tstub\n' \
+    'Skal konsumentene avvise usignerte records?' 'Kan du lenke til fiksen?' >"$SHIM/secq-controls.tsv"
+  local review='| `VedtakService.kt` | 15 | 🔴 | Logger fnr i klartekst |\n| `VedtakRepository.kt` | 23 | 🔴 | SQL-injeksjon |\n| `Routes.kt` | 30 | 🔴 | Utenfor authenticate |\n| `nais.yaml` | 25 | 🔴 | inbound tillater alle |\n| `VedtakConsumer.kt` | 25 | 🔴 | Mangler idempotens og outbox |\n| `VedtakService.kt` | 5 | 💭 | Ubrukt import |'
+  printf 'answer\texpected_fnr_logg\texpected_sql\texpected_tilgang\texpected_inbound\tsource\n%s\t1\t1\t1\t1\tstub\n' "$review" >"$SHIM/rv5-controls.tsv"
+  printf 'answer\texpected_idempotens\texpected_dobbeltskriving\tsource\n%s\t1\t1\tstub\n' "$review" >"$SHIM/rv6-controls.tsv"
+  printf 'answer\texpected_sql\texpected_tilgang\texpected_inbound\texpected_nit\tsource\n%s\t1\t1\t1\t0\tstub\n' "$review" >"$SHIM/rv7-controls.tsv"
+  printf 'answer\texpected_rodsone\tsource\n%s\t1\tstub\n%s\t0\tstub\n' '🔴 Rød sone: tokenvalidering' 'Fase 2: plan uten deklarasjon' >"$SHIM/t4-controls.tsv"
 }
 
 run_suite() {
@@ -505,6 +540,8 @@ run_suite() {
   make_judge_stub
   GOLDEN_FIXTURES="${BATS_TEST_DIRNAME}/golden-fixtures" BENCH_MODE="$mode" NAV_PILOT_GOLDEN_USAGE_DB="$SHIM/none.db" PATH="$SHIM:$PATH" \
     BS_JUDGE_CMD="$SHIM/judge-stub" BS_JUDGE_RECORD="$SHIM/record.psv" BS_JUDGE_CONTROLS="${BS_JUDGE_CONTROLS:-$SHIM/controls.tsv}" \
+    BS_JUDGE_SECQ_CONTROLS="${BS_JUDGE_SECQ_CONTROLS:-$SHIM/secq-controls.tsv}" \
+    BS_JUDGE_CHECK_CONTROLS_DIR="${BS_JUDGE_CHECK_CONTROLS_DIR:-$SHIM}" \
     run /bin/bash "$SCRIPT" "$@" --save-baseline "$SHIM/b.txt"
 }
 
@@ -686,14 +723,17 @@ run_suite() {
   grep -q '^rv8|1|pass|.*|0 spurious high-priority rows' "$SHIM/b-results.psv"
   run_suite wrongfile "${only[@]}"
   [ "$status" -eq 1 ]
-  grep -q '^rv5|1|fail|.*fnr-logg' "$SHIM/b-results.psv"
+  grep -q '^rv5|1|fail|.*judge: fnr_logg=no;.*regex (raw): fail.*fnr-logg' "$SHIM/b-results.psv"
   grep -q '^rv6|1|pass|' "$SHIM/b-results.psv"
   run_suite noidem "${only[@]}"
-  grep -q '^rv6|1|fail|.*idempotens' "$SHIM/b-results.psv"
+  grep -q '^rv6|1|fail|.*judge: idempotens=no;.*regex (raw): fail.*idempotens' "$SHIM/b-results.psv"
   grep -q '^rv5|1|pass|' "$SHIM/b-results.psv"
   run_suite sqllav "${only[@]}"
-  grep -q '^rv7|1|fail|.*sql not marked high' "$SHIM/b-results.psv"
+  grep -q '^rv7|1|fail|.*judge: sql=no;.*regex (raw): fail, priority: sql not marked high' "$SHIM/b-results.psv"
   grep -q '^rv5|1|pass|' "$SHIM/b-results.psv"
+  # The verdict is the judge's: here the word list passes rv7 and the stub, which reads only 🔴, does not.
+  run_suite sqlkritisk "${only[@]}"
+  grep -q '^rv7|1|fail|.*judge: sql=no;.*regex (raw): pass' "$SHIM/b-results.psv"
   run_suite invented "${only[@]}"
   grep -q '^rv8|1|fail|.*1 spurious high-priority row' "$SHIM/b-results.psv"
   run_suite lgtm "${only[@]}"
@@ -782,6 +822,90 @@ run_suite() {
   [ ! -e "$SHIM/transkripter/b.x.run1.txt" ]
 }
 
+@test "--save-baseline keeps the files a call wrote beside its transcript" {
+  run_suite good --agent nav-pilot --only 9
+  [ "$status" -eq 0 ]
+  grep -q '^=== ./src/main/' "$SHIM/transkripter/b.t9.run1.files.txt"
+}
+
+@test "saved written files: no secret, symlink or outside path is copied, and a space keeps its content" {
+  export LEAK_DIR="$SHIM/leak"
+  mkdir -p "$LEAK_DIR/demo"
+  echo UTENFOR_FIL >"$LEAK_DIR/utenfor.txt"
+  echo UTENFOR_DIR >"$LEAK_DIR/demo/Config.kt"
+  run_suite leaky --agent nav-pilot --only 9
+  f="$SHIM/transkripter/b.t9.run1.files.txt"
+  grep -q '^MELLOMROM_OK$' "$f"
+  run grep -E 'hemmelig-verdi|UTENFOR' "$f"
+  [ "$status" -eq 1 ]
+  grep -qx '=== ./.env (skipped: not a source file)' "$f"
+  grep -qx '=== ./README.md (skipped: symlink or not a regular file)' "$f"
+  grep -qx '=== ./src/main/kotlin/no/nav/demo/Config.kt (skipped: symlink or not a regular file)' "$f"
+}
+
+@test "golden-save-written: a file or parent swapped for a symlink during the read is not followed" {
+  local ws="$SHIM/ws" ute="$SHIM/ute"
+  mkdir -p "$ws/a" "$ute/a"
+  echo INNE_F >"$ws/a/F.kt"; echo INNE_G >"$ws/G.kt"
+  echo UTENFOR >"$ute/a/F.kt"; echo UTENFOR >"$ute/G.kt"
+  # Swaps after the parent is open and before the file is: G.kt for a symlink,
+  # and the directory a/ for a symlink to a directory outside.
+  cat >"$SHIM/hook" <<EOF
+#!/bin/bash
+case "\$1" in
+  ./G.kt) rm "$ws/G.kt" && ln -s "$ute/G.kt" "$ws/G.kt" ;;
+  ./a/F.kt) mv "$ws/a" "$ws/a.gammel" && ln -s "$ute/a" "$ws/a" ;;
+esac
+EOF
+  chmod +x "$SHIM/hook"
+  printf './G.kt\n./a/F.kt\n' >"$SHIM/paths"
+  run env GOLDEN_SAVE_WRITTEN_HOOK="$SHIM/hook" python3 "$BATS_TEST_DIRNAME/golden-save-written.py" "$ws" <"$SHIM/paths"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"=== ./G.kt (skipped: symlink or not a regular file)"* ]]
+  grep -A1 -x '=== ./a/F.kt' <<<"$output" | grep -qx INNE_F
+  [[ "$output" != *UTENFOR* ]]
+}
+
+@test "golden-save-written: a hard link to a file outside is not copied" {
+  local ws="$SHIM/ws" ute="$SHIM/ute"
+  mkdir -p "$ws" "$ute"
+  echo UTENFOR >"$ute/H.kt"
+  ln "$ute/H.kt" "$ws/H.kt"
+  echo './H.kt' >"$SHIM/paths"
+  run python3 "$BATS_TEST_DIRNAME/golden-save-written.py" "$ws" <"$SHIM/paths"
+  [ "$status" -eq 0 ]
+  [ "$output" = "=== ./H.kt (skipped: hard link)" ]
+}
+
+@test "golden-save-written: 256 KiB per file and 2 MiB per call, marked when cut" {
+  local ws="$SHIM/ws" i
+  mkdir -p "$ws"
+  head -c 300000 /dev/zero | tr '\0' a >"$ws/A.kt"
+  for i in 1 2 3 4 5 6 7 8 9; do head -c 250000 /dev/zero | tr '\0' b >"$ws/F$i.kt"; done
+  (cd "$ws" && find . -type f | sort) >"$SHIM/paths"
+  python3 "$BATS_TEST_DIRNAME/golden-save-written.py" "$ws" <"$SHIM/paths" >"$SHIM/out"
+  grep -qx '=== ./A.kt (truncated at 262144 bytes)' "$SHIM/out"
+  [ "$(grep -A1 -x '=== ./A.kt (truncated at 262144 bytes)' "$SHIM/out" | tail -1 | wc -c)" -eq 262145 ]
+  # 262 144 + 7 × 250 000 leaves 85 008 bytes for F8 and none for F9.
+  grep -qx '=== ./F8.kt (truncated at 85008 bytes)' "$SHIM/out"
+  grep -qx '=== ./F9.kt (skipped: 2097152-byte limit for this call reached)' "$SHIM/out"
+  [ "$(wc -c <"$SHIM/out")" -lt 2200000 ]
+}
+
+@test "golden-save-written: secret-looking and non-source files are named, not copied" {
+  local ws="$SHIM/ws" f
+  mkdir -p "$ws/.docker"
+  for f in .netrc .pypirc k.p12 k.pfx k.jks k.keystore .git-credentials .docker/config.json kubeconfig prod.tfvars \
+    kubeconfig.yaml client-secret.yaml .env.md; do echo HEMMELIG >"$ws/$f"; done
+  echo KODE >"$ws/App.kt"
+  (cd "$ws" && find . -type f | sort) >"$SHIM/paths"
+  run python3 "$BATS_TEST_DIRNAME/golden-save-written.py" "$ws" <"$SHIM/paths"
+  [ "$status" -eq 0 ]
+  grep -A1 -x '=== ./App.kt' <<<"$output" | grep -qx KODE
+  [[ "$output" != *HEMMELIG* ]]
+  [ "$(grep -c '(skipped: not a source file)' <<<"$output")" -eq 13 ]
+}
+
 @test "coding: a fix passes, editing the test fails scope, doing nothing fails tests" {
   command -v go >/dev/null && command -v node >/dev/null || skip "needs go and node"
   run_suite good --suite coding
@@ -819,7 +943,7 @@ run_suite() {
   suites="kafka rust"
   mise where java@21 >/dev/null 2>&1 || { suites=rust; echo "# kafka skipped: needs java@21 from mise (mise install java@21)" >&3; }
   for suite in $suites; do
-    if [[ $suite == kafka ]]; then ok="kf1 kf3"; scope="kf2 kf4"; else ok="rs1 rs3"; scope="rs2 rs4"; fi
+    if [[ $suite == kafka ]]; then ok="kf1 kf3"; scope="kf2 kf4"; else ok="rs1 rs3 rs5"; scope="rs2 rs4 rs6"; fi
     run_suite good --suite $suite
     [ "$status" -eq 0 ]
     run_suite wrong --suite $suite
@@ -925,6 +1049,9 @@ EOF
   grep -q '^# controls: *controls n=2 agree=2' "$SHIM/b-judge.psv"
   grep -q '^7|1|1|0|0|0|0.0||$' "$SHIM/b-judge.psv"
   grep -q '^7b|1|1|0|1|0|0.0|Hvem konsumerer topicen?|$' "$SHIM/b-judge.psv"
+  # The judge's spend, controls included, is saved with the arm.
+  grep -qx 'controls|0|0.00' "$SHIM/b-judge-credits.psv"
+  grep -qx '7b|1|0.0' "$SHIM/b-judge-credits.psv"
 }
 
 @test "planning judge: every judge spend lands live in judge-credits.psv" {
@@ -1132,6 +1259,15 @@ EOF
   done
   run_suite indirect --agent nav-pilot --only 8
   [ "$status" -eq 0 ]
+  # The judge's verdict and spend are recorded: the quote on a pass, credits per call.
+  grep -q '^8|1|pass|.*godta at' "$SHIM/b-results.psv"
+  grep -q '^8|1|' "$SHIM/b-judge-credits.psv"
+  grep -q '^controls-secq|0|' "$SHIM/b-judge-credits.psv"
+  # Controls the judge gets wrong give a harness error, not a verdict.
+  printf 'question\tanswer\texpected_secq\tsource\n%s\t\t1\tstub\n' 'Kan du lenke til fiksen?' >"$SHIM/bad-secq.tsv"
+  BS_JUDGE_SECQ_CONTROLS="$SHIM/bad-secq.tsv" run_suite good --agent nav-pilot --only 8
+  [ "$status" -ne 0 ]
+  grep -q '^8|1|error|.*secq judge controls' "$SHIM/b-results.psv"
   run_suite count --agent nav-pilot --only 8b
   [ "$status" -eq 1 ]
   grep -q '^8b|1|fail|' "$SHIM/b-results.psv"
@@ -1492,13 +1628,16 @@ while [[ \$# -gt 1 ]]; do [[ "\$1" == --title ]] && printf '%s' "\$2" >"$SHIM/ti
 case "\$1" in
   *"svar kun med ordet OK"*) echo OK ;;
   *"ny tjeneste"*) printf '%s\n' "Før jeg planlegger trenger jeg svar:" "1. Hvem kaller tjenesten?" "2. Hvilke data lagres?" "3. Hva skjer når PDL er nede?" "4. Hvor lenge lagres fnr?" "5. Hvem har tilgang?" ;;
-  *) printf '%s\n' "**Fase 2: Plan.**" "🔴 Rød sone: tokenvalidering og fnr-lagring." ;;
+  *) if [[ -n "\${T4_HEADING:-}" ]]; then printf '%s\n' "**Fase 2: Plan.**" "## 10. 🔴 Rød sone" "- Tokenvalidering."
+     else printf '%s\n' "**Fase 2: Plan.**" "🔴 Rød sone: tokenvalidering og fnr-lagring."; fi ;;
 esac
 EOF
   chmod +x "$SHIM/opencode"
 }
 
 run_opencode_t4() {
+  make_judge_stub
+  BS_JUDGE_CMD="$SHIM/judge-stub" BS_JUDGE_RECORD="$SHIM/record.psv" BS_JUDGE_CHECK_CONTROLS_DIR="$SHIM" \
   XDG_DATA_HOME="${OC_DATA:-$SHIM/data}" XDG_STATE_HOME="$SHIM/state" PATH="$SHIM:$(dirname "$(command -v go)"):/usr/bin:/bin" run /bin/bash "$SCRIPT" \
     --client opencode --model stub --only 4 --repeat 1 --save-baseline "$SHIM/b.txt"
 }
@@ -1511,6 +1650,14 @@ run_opencode_t4() {
   [ "$status" -eq 0 ]
   grep -q -- "--session ses_stub Her er svarene" "$SHIM/calls"
   [ -z "$(grep -- "--session" "$SHIM/calls" | grep -- "--title")" ]
+  # The judge decides test 4 (#2458); the word list is reported beside it.
+  grep -q '^4|1|pass|.*rodsone=🔴 Rød sone: tokenvalidering og fnr-lagring.; regex (raw): pass' "$SHIM/b-results.psv"
+  grep -q '^controls-t4|0|' "$SHIM/b-judge-credits.psv"
+  # The verdict is the judge's, not the word list's: a heading form the list misses passes.
+  make_opencode_shim
+  T4_HEADING=1 run_opencode_t4
+  [ "$status" -eq 0 ]
+  grep -q '^4|1|pass|.*rodsone=## 10. 🔴 Rød sone; regex (raw): fail' "$SHIM/b-results.psv"
 }
 
 @test "opencode v2: usage rows come from session export, credits estimert (#1721)" {

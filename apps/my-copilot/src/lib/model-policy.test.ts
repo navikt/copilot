@@ -56,7 +56,7 @@ describe("nav-pilots modellvalg", () => {
       NAV_PILOT_MODEL_CHOICES.find((choice) => choice.purpose === "Aksel, tilgjengelighet og norsk tekst")
     ).toMatchObject({
       primary: "Claude Sonnet 5.5",
-      fallbacks: ["Claude Opus 5.5"],
+      fallbacks: [],
     });
     expect(
       NAV_PILOT_MODEL_CHOICES.find((choice) => choice.purpose === "Rask oppretting av Aksel-komponenter")?.primary
@@ -76,9 +76,6 @@ describe("nav-pilots modellvalg", () => {
       "Research og faste maler",
       "Høyrisikoplanlegging og kodegjennomgang",
     ]);
-    expect(navPilotPurposesFor("Claude Opus 5.5")).toEqual([
-      "Høyrisikoplanlegging og kodegjennomgang",
-      "Aksel, tilgjengelighet og norsk tekst",
-    ]);
+    expect(navPilotPurposesFor("Claude Opus 5.5")).toEqual(["Høyrisikoplanlegging og kodegjennomgang"]);
   });
 });

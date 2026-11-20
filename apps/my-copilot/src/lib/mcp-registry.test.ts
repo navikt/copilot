@@ -71,6 +71,7 @@ describe("getMcpServers", () => {
             {
               server: {
                 name: "io.github.navikt/github-mcp",
+                title: "GitHub",
                 description: "GitHub tools.",
                 version: "1.0.0",
                 remotes: [{ type: "streamable-http", url: "https://mcp.nav.no/mcp" }],
@@ -101,7 +102,7 @@ describe("getMcpServers", () => {
       setupInstructions,
     });
     expect(servers[1]).toMatchObject({
-      name: "github-mcp",
+      name: "GitHub",
       serverId: "io.github.navikt/github-mcp",
       remotes: [{ type: "streamable-http", url: "https://mcp.nav.no/mcp" }],
     });

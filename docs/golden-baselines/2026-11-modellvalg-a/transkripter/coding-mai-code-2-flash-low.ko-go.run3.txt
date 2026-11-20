@@ -1,0 +1,26 @@
+Jeg lokaliserer den konkrete feilen i `frister/`, retter den i koden og kjører målrettet test ved siden av hele testpakken.
+
+ / Search "frister/**" 3 files found
+
+ ✗ Shell Kjører Go-testene i frister Failed with exit code 1  --- FAIL: TestFrist (0.00s) frist_tes…
+   cd frister && go test ./...
+   --- FAIL: TestFrist (0.00s)
+       frist_test.go:23: Frist(2026-09-05) = 2026-10-18, want 2026-10-19
+   FAIL
+   FAIL    example.com/frister     0.026s
+   FAIL
+   Failed with exit code 1
+
+ GO Read frister/frist.go 16 lines read
+
+ GO Read frister/frist_test.go 26 lines read
+
+ ● Edit  Edit frister/frist.go (+1 -1)
+
+ $ Shell Formatterer og kjører Go-testene 1 line…
+   cd frister && gofmt -w frist.go && go test ./...
+
+`Frist` flyttet nå lørdagsfrister to dager, til mandag, i stedet for bare én dag til søndag.
+
+`go test ./...` i `frister/` går grønt.
+

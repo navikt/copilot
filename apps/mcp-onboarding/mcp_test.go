@@ -41,8 +41,8 @@ func TestMCPHandler_Initialize(t *testing.T) {
 	if result.ServerInfo.Version != version {
 		t.Errorf("expected server version %q, got %q", version, result.ServerInfo.Version)
 	}
-	if result.ProtocolVersion != "2024-11-05" {
-		t.Errorf("expected protocol version '2024-11-05', got %q", result.ProtocolVersion)
+	if result.ProtocolVersion != "2025-11-25" {
+		t.Errorf("expected protocol version '2025-11-25', got %q", result.ProtocolVersion)
 	}
 	if result.Capabilities.Tools == nil {
 		t.Error("expected tools capability to be set")

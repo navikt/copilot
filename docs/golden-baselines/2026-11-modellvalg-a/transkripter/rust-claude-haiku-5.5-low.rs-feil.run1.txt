@@ -1,0 +1,18 @@
+ $ Shell Inspect vedtak-parser crate 32 lines…
+   cd vedtak-parser && find . -not -path './target*' -type f | head -50 && cat Cargo.toml && cat
+   src/*.rs
+
+ $ Shell Add thiserror dependency 3 lines…
+   cd vedtak-parser && cargo add thiserror 2>&1 | tail -3
+
+ RS Edit vedtak-parser/src/lib.rs +42 -5
+
+ $ Shell Run cargo tests in vedtak-parser 19 lines…
+   cd vedtak-parser && cargo test 2>&1 | tail -20
+
+`les` i `vedtak-parser/src/lib.rs` returnerer nå `Result<Vedtak, VedtakFeil>` i stedet for å panikke. `cargo test` går igjennom: 4 tester, inkludert én per feil.
+
+- `VedtakFeil` er en thiserror-enum med `ManglerId`, `ManglerBelop` og `UgyldigBelop(String)`. Feilmeldingen for `UgyldigBelop` inneholder den ugyldige teksten.
+- Et beløp som mangler helt, eller er tomt (`"v1;"`), gir `ManglerBelop`. Det er en tolkning av kravet.
+- Jeg la til `thiserror` som avhengighet i `Cargo.toml`.
+

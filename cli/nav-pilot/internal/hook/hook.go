@@ -42,10 +42,15 @@ type Payload struct {
 	HasResult  bool
 	// Cwd is the session's working directory, which both dialects send.
 	Cwd string
+	// MCPServer is the registry name of the MCP server the tool belongs to,
+	// when the client says. Only the OpenCode bridge does: it knows the server
+	// from its own list. Copilot CLI sends none, so nothing is trusted there.
+	MCPServer string
 }
 
 type wirePayload struct {
 	Cwd        string          `json:"cwd"`
+	MCPServer  string          `json:"mcpServer"`
 	SessionID  string          `json:"sessionId"`
 	ToolName   string          `json:"toolName"`
 	ToolArgs   json.RawMessage `json:"toolArgs"`
@@ -69,7 +74,7 @@ func ParsePayload(b []byte) (Payload, error) {
 	if err := json.Unmarshal(b, &w); err != nil {
 		return Payload{}, err
 	}
-	p := Payload{SessionID: w.SessionID, ToolName: w.ToolName, ToolArgs: w.ToolArgs, Cwd: w.Cwd}
+	p := Payload{SessionID: w.SessionID, ToolName: w.ToolName, ToolArgs: w.ToolArgs, Cwd: w.Cwd, MCPServer: w.MCPServer}
 	if p.SessionID == "" {
 		p.SessionID = w.SessionIDSnake
 	}

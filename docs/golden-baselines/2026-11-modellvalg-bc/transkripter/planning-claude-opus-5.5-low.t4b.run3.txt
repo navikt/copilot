@@ -1,0 +1,67 @@
+# Fase 2: Plan
+
+Antakelser jeg har gjort:
+- Next.js-frontenden kjører allerede bak Wonderwall med ID-porten.
+- Frontenden kaller backend med TokenX.
+- Innbyggeren slår bare opp seg selv. Fnr hentes fra tokenets `pid`, aldri fra en parameter i forespørselen.
+
+## 1. Arkitekturvalg
+- **Autentisering:** Frontenden veksler ID-porten-tokenet til et TokenX-token for `demo-tjeneste`. Backend validerer TokenX-tokenet (`issuer`, `audience = TOKEN_X_CLIENT_ID`, `exp`, `acr = idporten-loa-high`) og henter fnr fra `pid`. Ingen `fnr`-parameter i API-et gir ingen IDOR.
+  - Fordel: innbyggerkonteksten følger kallet hele veien.
+  - Ulempe: TokenX er nytt for teamet.
+  - Jeg forkastet å la backend være ID-porten-klient selv. Med en BFF foran ville det gitt to innloggingsflyter.
+- **Kall til PDL:** Backend veksler TokenX-tokenet videre til `pdl-api`, slik at oppslaget skjer på vegne av brukeren. Azure `client_credentials` er forkastet fordi vi da mister brukerkonteksten.
+- **Kommunikasjon:** synkron REST, `GET /api/person/meg` → `{ navn }`.
+- **Lagring:** ingen. Uten database slipper vi Flyway og lagringstid for personopplysninger.
+
+## 2. Struktur
+`App.kt`, `Config.kt` (sealed class per miljø), `auth/TokenValidering.kt`, `auth/TokenXKlient.kt`, `pdl/PdlKlient.kt`, `Routes.kt`, og testene under `src/test/kotlin/...`.
+
+## 3. Nais-manifest
+- `tokenx.enabled: true`
+- `accessPolicy.inbound`: frontend-appen. `accessPolicy.outbound`: `pdl-api` i namespace `pdl`.
+- Ressurser: `requests` med `cpu: 15m` og `memory: 256Mi`, `limits.memory: 512Mi`. Ingen CPU-grense.
+- Prometheus-scraping på `/internal/metrics`. Logger og tracing med `observability.autoInstrumentation`.
+
+## 4. CI/CD
+GitHub Actions med SHA-pinnede actions og `permissions: id-token: write, contents: read`. Workflowen kjører build, test, `nais/docker-build-push` og `nais/deploy` til dev, deretter til prod.
+
+## 5. Database
+Ikke relevant, siden tjenesten ikke lagrer noe.
+
+## 6. Teststrategi
+- **Ruter:** `testApplication` med MockOAuth2Server, som kan utstede gyldige og ugyldige tokener.
+- **Avvisning med 401:** tokener med feil `audience`, utløpt tid, feil `acr` eller manglende `pid`.
+- **PDL-klienten:** MockEngine eller WireMock. PDL med feilsvar skal gi 503.
+
+## 7. Sikkerhetssjekkliste
+- Fnr og navn logges aldri. Det gjelder også `toString`, unntak og MDC.
+- Feilresponsene lekker ikke svar fra PDL.
+- Hemmeligheter kommer fra miljøvariablene som Nais injiserer.
+- Behandlingen trenger en oppføring i behandlingskatalogen med lovhjemmel.
+
+## 8. Migrering
+Ikke relevant. Rollback er redeploy av forrige image.
+
+## 9. Leveransedokumenter
+- **Endringsdokument**
+- **Observerbarhet:**
+  - Metrikker: `person_oppslag_total{status}` (gir oppslag per minutt og feilandel) og `pdl_kall_duration`.
+  - Alert når feilandelen er over 5 % i 5 minutter.
+- **Sjekkliste etter deploy:** 401 uten token, 200 med token i dev, 503 når PDL er nede.
+
+## 10. 🔴 Rød sone
+| Del | Hvorfor |
+|---|---|
+| Tokenvalidering (`issuer`, `audience`, `acr`, `pid`) | Sikkerhetskritisk, og nytt for teamet |
+| TokenX-vekslingen til PDL | Nytt konsept |
+| Henting av fnr fra token og eierskapsregelen (bare eget fnr) | Tilgangskontroll |
+
+Utvikleren skriver disse delene selv. Jeg lager testskjeletter og stubber.
+
+**Grønn sone:** Nais-manifest, workflow, Config, ruteoppsett, metrikker og testdata.
+
+Valgene som betyr mest er TokenX hele veien og ingen lagring. Still gjerne spørsmål om valgene over.
+
+Bekreft planen, så går jeg videre til fase 3 (review).
+

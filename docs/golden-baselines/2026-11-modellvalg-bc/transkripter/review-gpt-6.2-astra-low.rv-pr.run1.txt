@@ -1,0 +1,37 @@
+ ● skill(kafka)
+
+ ● skill(security-review)
+
+ ● skill(klarsprak)
+
+ $ Shell Les branchdiff og finn prosjektets sjekker 375 lines…
+   git status -sb; git branch -a; git --no-pager diff main...vedtak-kafka; git ls-files | head -80
+
+ $ Shell Kontroller linjenumre og oppsett 137 lines…
+   for f in nais.yaml src/main/kotlin/no/nav/demo/{App,Routes}.kt; do nl -ba "$f"; done; cat
+   build.gradle.kts README.md
+
+ $ Shell Kjør prosjektsjekk og se etter Gradle 4 lines…
+   mise check; command -v gradle
+
+ $ Shell Forsøk Gradle-sjekken med lokale avhengigheter 15 lines…
+   gradle --offline check --console=plain 2>&1 | tail -20
+
+**Ikke merge `vedtak-kafka` i `main` ennå.** Tjenesten kan utlevere vedtak uten innlogging, og en Kafka-melding som behandles på nytt, kan opprette flere vedtak for samme søknad.
+
+| Sted | Funn som må rettes før merge |
+|---|---|
+| `Routes.kt:30–32` | GET-ruten ligger utenfor `authenticate` og returnerer vedtak for fødselsnummeret i URL-en. Krev innlogging og kontroller lesetilgangen. Ved selvbetjening bør personoppslaget bruke identiteten fra tokenet, ikke fra URL-en. |
+| `VedtakRepository.kt:23–24` | `hentForPerson` setter fødselsnummeret fra URL-en direkte inn i SQL-strengen. Det gjør spørringen sårbar for SQL-injeksjon. Bind verdien med `?`, slik `hentForSak` allerede gjør. |
+| `Routes.kt:25–27` | POST-ruten lar klienten velge person, sak og utfall uten å kontrollere at innringeren har rett til å fatte vedtak i saken. Autentisering alene gir ikke den retten. |
+| `App.kt:40–42` | JWT-oppsettet mangler en TokenX-verifikator. `validate` sjekker heller ikke at `aud` inneholder denne tjenestens klient-ID. Konfigurer signaturkontroll mot TokenX og kontroller forventet utsteder og mottaker. |
+| `nais.yaml:25–26` | `application: "*"` og `namespace: "*"` åpner innkommende trafikk fra alle apper i alle namespaces i clusteret. Tillat bare appene som skal kalle tjenesten. |
+| `VedtakService.kt:15` | Hvert kall til `fattVedtak` skriver fødselsnummeret til den ordinære applikasjonsloggen. Fjern fødselsnummeret fra logglinjen. |
+| `VedtakConsumer.kt:25–33` | Vedtaket lagres før publisering. Hvis publisering feiler, kjører neste forsøk lagringen på nytt med ny vedtaks-ID. Et krasj etter publisering, men før `commitSync()`, har samme problem. Bruk `soknadId` som en unik nøkkel i databasen, og sørg for at ny publisering gjenbruker det lagrede vedtaket. |
+| `VedtakConsumer.kt:24–25, 46` | Ugyldig JSON eller en feil etter siste forsøk avslutter konsumenttråden mens HTTP-serveren fortsetter. Håndter ugyldige meldinger eksplisitt, og la en terminal konsumentfeil stoppe prosessen eller utløse kontrollert omstart. |
+| `App.kt:26–35` | Kafka-klientene bruker standardprotokollen `PLAINTEXT`. De kan derfor ikke koble til Nais-brokerne med påkrevd mTLS. Konfigurer `SSL` og bruk nøkkel- og tillitslageret fra Nais for begge klientene. |
+| `App.kt:23` | Hikari krever `DB_JDBC_URL`, men manifestet setter ikke denne variabelen. Med det viste oppsettet mangler tilkoblingsadressen ved oppstart. Koble Hikari til databasevariablene Nais oppretter. |
+| `VedtakRepository.kt:14` | Manifestet oppretter databasen, men branchen har ingen migrering som oppretter tabellen `vedtak`. På en ny database feiler både lagring og oppslag. Kjør en skjemamigrering før tjenesten tar imot trafikk og Kafka-meldinger. |
+
+Jeg gjennomgikk alle åtte endrede filer i `main...vedtak-kafka`. Ingen tester ble kjørt: prosjektet definerer ingen `mise check`-oppgave, og `gradle --offline check` stoppet under prosjektkonfigurasjonen.
+

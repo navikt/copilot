@@ -12,6 +12,7 @@ RUN go mod download
 
 COPY *.go pilot-routes.yaml pilot-routes.dev.yaml pilot-routes.prod.yaml ./
 COPY web/ ./web/
+COPY internal/ ./internal/
 
 RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -trimpath -ldflags="-s -w" -o main .
 

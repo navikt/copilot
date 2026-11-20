@@ -40,6 +40,12 @@ The gateway is live in prod (2026-11-17) for a controlled pilot. It runs the aut
 | `ENTRA_SCOPE` | No | `openid api://<own client id>/.default` (plus `offline_access` for `refresh`) | Scope requested from Entra |
 | `COOKIE_SIGNING_SECRET` | No | HKDF subkey of the primary `RT_KEYS` key; random only outside Nais | HMAC key (>= 32 bytes) for the `__Host-fleet_entra_state` cookie. On Nais (`NAIS_CLUSTER_NAME` set) startup fails if neither this nor `RT_KEYS` is set |
 | `PORT` | No | `8080` | HTTP listen port |
+| `UPSTREAM_TIMEOUT` | No | `60s` | Time the MCP server gets to send response headers, and again to finish a non-SSE body. SSE uses `SSE_IDLE_TIMEOUT` and `SSE_MAX_DURATION` instead |
+| `MCP_MAX_IN_FLIGHT` | No | `16` | Concurrent buffered `/mcp/*` requests per pod. Over the cap: `503` with `Retry-After: 1` |
+| `MCP_MAX_IN_FLIGHT_PER_ROUTE` | No | `8` | Concurrent buffered requests per route, within `MCP_MAX_IN_FLIGHT`, so one slow upstream cannot hold every slot |
+| `MCP_MAX_IN_FLIGHT_PER_USER` | No | `4` | Concurrent buffered `/mcp/*` requests per user per pod, within `MCP_MAX_IN_FLIGHT`. Over the cap: `503` with `Retry-After: 1` |
+| `MCP_MAX_SSE` | No | `64` | Concurrent SSE response streams per pod, counted apart from `MCP_MAX_IN_FLIGHT` |
+| `MCP_MAX_SSE_PER_USER` | No | `4` | Concurrent SSE response streams per user per pod, within `MCP_MAX_SSE`. Over the cap: `503` with `Retry-After: 1` |
 | `METRICS_PORT` | No | `9090` | Port for `/metrics`. It has no ingress |
 | `LOG_LEVEL` | No | `INFO` | `DEBUG`, `INFO`, `WARN`, or `ERROR` |
 
@@ -61,9 +67,32 @@ In route files (`version: 2`) every route lists the tools it allows in `tools: [
 
 On every route, `passAllTools` included, a `GET` or `DELETE` with a body gets `400` and is logged as `deny`/`ambiguous`: MCP defines no body for them, so a `tools/call` sent that way is never forwarded.
 
+The gateway authenticates the user and checks the tool against the route allowlist. It does not decide which users may use a team's server: the OBO token carries only the groups the team's app lists in `azure.application.claims.groups`, and the team's server checks them (same model as Wonderwall). Emergency stop: `nais app set env` with `GATEWAY_DISABLED=true` stops every route in about 35 s (34 s measured in dev, 2026-11-18); see the [runbook](docs/runbook.md).
+
 Key rotation takes two deploys (append the new key last, then promote it) and keeps the old key for 30+ days. See the [runbook](docs/runbook.md). Unknown or tampered values fail closed.
 
 Empty `ALLOWED_CLIENT_IDS` or `ALLOWED_REDIRECT_URIS` fails closed at startup.
+
+Fetched CIMD documents are cached for 5 minutes; if a refresh fails with a transport, non-200 status, or decode error, the last valid document is served for up to 24 hours.
+
+## Memory and limits
+
+Worst case per buffered MCP call, at the size limits:
+
+| Part | MiB |
+|---|---|
+| Response body, read in 32 KiB chunks (no `io.ReadAll` growth) | 10.03 |
+| Request body (1 MiB) through `io.ReadAll`, which allocates about 2.25x the body (measured: 23.5 MB for 10 MiB), plus JSON parsing for tool policy | 4 |
+| Connection and transport buffers | 0.1 |
+| **Per call** | **~14.1** |
+
+`MCP_MAX_IN_FLIGHT` = 16 calls: 16 x 14.1 = 226 MiB. `MCP_MAX_SSE` = 64 streams at about 48 KiB each (32 KiB read buffer plus connection buffers): 3 MiB. Go runtime, route config and session caches: about 30 MiB. Total: about 259 MiB.
+
+Both clusters therefore run with a 384 Mi limit, a 128 Mi request and `GOMEMLIMIT=320MiB` (83 % of the limit), so the garbage collector works harder before the kernel kills the pod. The figures are arithmetic plus one allocation measurement, not a load test. Raise `MCP_MAX_IN_FLIGHT` or the body limits only together with `memory_limit` and `gomemlimit`; `TestMemoryBudgetFitsManifests` checks the sum against both manifests.
+
+A request takes its in-flight slot after the bearer token is checked and before the body is read, so requests with invalid tokens get `401`, never a slot. A `GET`, or a request whose `Accept` admits `text/event-stream`, also reserves an `MCP_MAX_SSE` slot before the upstream call, so a `503` always means the tool did not run. A JSON reply hands the SSE slot back. An event stream hands back the in-flight slot and may stay open for `SSE_MAX_DURATION`. An event stream the client did not accept gets `502` with outcome `upstream_unexpected_sse`. Over either cap the gateway answers `503` with `Retry-After: 1`, writes an `audit mcp` line with outcome `over_capacity` or `sse_over_capacity`, and counts it in the metrics. A truncated upstream body, shorter than its `Content-Length`, gets `502` with outcome `stream_error`.
+
+`WriteTimeout` is derived in code (`mcpWriteTimeout`): read timeout (10 s) + team-token exchange (10 s) + 2 x `UPSTREAM_TIMEOUT` (headers, then body) + 5 s margin. With the defaults that is 145 s.
 
 ## Metrics and alerts
 
@@ -71,17 +100,18 @@ Prometheus scrapes `/metrics` on port 9090. That port has no ingress, so the pub
 
 | Metric | Labels | What it shows |
 |---|---|---|
-| `fleet_gateway_http_requests_total` | `code`, `reason` | All responses except `/health` and `/ready`. `reason` is empty except on deliberate 503s: `disabled` (kill switch). The 5xx alert counts only `reason=""` |
-| `fleet_gateway_mcp_requests_total` | `route`, `outcome`, `decision` | MCP calls. `outcome` matches the `audit mcp` log line, for example `ok`, `upstream_token_error`, `store_error` or `upstream_502` |
+| `fleet_gateway_http_requests_total` | `code`, `reason` | All responses except `/health` and `/ready`. `reason` is empty except on deliberate 503s: `disabled` (kill switch), `cap` (in-flight or SSE limit), `user_cap` (per-user in-flight limit), `user_sse_cap` (per-user SSE limit), `store_full` (store quota reached), `refresh_in_flight` (concurrent refresh of the same token). The 5xx alert counts only `reason=""` |
+| `fleet_gateway_mcp_requests_total` | `route`, `outcome`, `decision`, `reason`, `tool` | MCP calls. `reason` is set on `deny` only; `tool` is the called tool if on the route list, else `other`. `outcome` matches the `audit mcp` log line, for example `ok`, `upstream_token_error`, `store_error` or `upstream_502` |
 | `fleet_gateway_mcp_request_duration_seconds` | `route` | Time per MCP call, token exchange and upstream included. An SSE stream counts until it ends |
 | `fleet_gateway_routes_loaded` | none | Routes loaded at startup |
+| `fleet_gateway_rate_limited_total` | `oauth_endpoint` | Requests rejected with `429` by the in-memory rate limiter on `authorize`, `token`, `revoke`, or `register` |
 
 Useful panels in Grafana:
 
 - Latency per route: `histogram_quantile(0.95, sum by (le, route) (rate(fleet_gateway_mcp_request_duration_seconds_bucket[5m])))`
 - Failures per route: `sum by (route, outcome) (rate(fleet_gateway_mcp_requests_total{outcome!="ok"}[5m]))`
 
-Alerts are in `.nais/app.yaml` and go to `#github-copilot-alerts`: no ready pods, more than 2 restarts in 15 minutes, more than 10 % 5xx (only with over 20 requests in 5 minutes), and more than 5 `upstream_token_error` in 10 minutes. An idle SSE stream that ends in `stream_error` does not trigger them, since its status 200 has already been sent. The alert series start at zero at startup, so the first burst counts. To test in dev, scale to zero (`kubectl -n copilot scale deploy fleet-gateway --replicas=0`). `FleetGatewayNoReadyPods` fires after 2 minutes.
+Alerts are in `.nais/app.yaml` and go to `#github-copilot-alerts`: no ready pods, more than 2 restarts in 15 minutes, more than 10 % 5xx (only with over 20 requests in 5 minutes), and more than 5 `upstream_token_error` in 10 minutes. An idle SSE stream that ends in `stream_error` does not trigger them, since its status 200 has already been sent. The alert series start at zero at startup, so the first burst counts. To test in dev, stop the app with `nais app stop fleet-gateway -t copilot -e dev-gcp` (it asks for confirmation in an interactive terminal) and restore it with `nais app set replicas fleet-gateway --min 1 --max 2 -t copilot -e dev-gcp`. `FleetGatewayNoReadyPods` fires after 2 minutes; in the 2026-11-18 drill it reached Slack after about 3.5 minutes (an upper bound). The team's alert channel in Nais Console is also `#github-copilot-alerts`, in both dev and prod (confirmed 2026-11-18). See the [runbook](docs/runbook.md).
 
 ## Audit record
 
@@ -107,6 +137,14 @@ The audit record logs `action.name` and `action.properties.tool` as they are whe
 Accepted risk (owner decision 2026-11-17): consent is remembered for 30 days and loopback redirect URIs accept any port. Another process on the developer's machine can start a login as an allowlisted public client and get a token without a click, through browser SSO and the remembered consent. PKCE does not help, because the attacker starts the flow. This is the same threat model as public-client logins in the az and gh CLIs. Mitigations: tokens are scoped to fleet-gateway, sessions are capped at 12 hours, and tokens can be revoked.
 
 DCR clients must register `grant_types` as `[authorization_code]` (the default) or `[authorization_code, refresh_token]`. Only the latter get a gateway refresh token.
+
+### Rate limits
+
+Each unauthenticated endpoint, `/authorize`, `/token`, `/revoke`, and `/register`, has its own in-memory rate limiter. By default each limiter allows 30 requests per minute per IP via `RATE_LIMIT_REQUESTS`, 300 requests per minute globally via `RATE_LIMIT_GLOBAL_REQUESTS`, and up to 4096 IP buckets via `RATE_LIMIT_MAP_CAP`. Traffic to one endpoint cannot exhaust another endpoint's budget. When the IP table stays full after sweeping expired windows, a new IP evicts the bucket with the earliest reset time instead of failing closed, while the global ceiling still applies.
+
+### Client IP
+
+The rate-limit key is the last valid IP in `X-Forwarded-For`, which the Nais ingress appends, falling back to `RemoteAddr` when absent or unparseable. Earlier client-supplied entries are ignored. This is only safe because the pod is reachable only through the ingress, and is not yet verified on an external host (#2360).
 
 ## Development
 

@@ -1,0 +1,15 @@
+ ● skill(klarsprak)
+
+ $ Shell ls -a; ls .github; rg -il 'signature|signering' | head -25 12 lines…
+   ls -a; ls .github; rg -il 'signature|signering' | head -25
+
+ $ Shell cat lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/*.kt; rg -n 'signing|Si… 54 lines…
+   cat lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/*.kt; rg -n 'signing|Signing' src
+   build.gradle.kts README.md nais.yaml; ls .github/instructions
+
+**Fase 1: Avklaring.** Jeg har ikke endret koden. `SigningProducerInterceptor` legger til signatur og nøkkel-ID uten å fjerne gamle verdier. Repoet har allerede `stripSigningHeaders` for begge. Jeg fant ikke referanseendringen fra internmonorepoet i dette repoet.
+
+Kan du dele den relevante diffen fra internmonorepoet? Hvis den ikke viser feilhåndteringen: Hva skal skje med meldingen hvis `signer.sign(...)` feiler under resignering?
+
+Blindsoner reist: 1/11 (#3: feilhåndtering). Endringen forutsetter uendret payload, mottaker og tilgang. Øvrige punkter avklares ved behov i planen.
+

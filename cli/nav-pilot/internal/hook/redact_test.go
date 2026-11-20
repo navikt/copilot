@@ -130,3 +130,38 @@ func TestRedactLeavesOrdinaryOutputAlone(t *testing.T) {
 		}
 	}
 }
+
+// Dolly's synthetic idents have month +40, like a real H-number, so they pass
+// only when the result is known to come from the Dolly server.
+func TestRedactDollyMonth40(t *testing.T) {
+	const ident = "01519041010" // month 11 + 40, day 01: also a valid H-number
+	for _, tt := range []struct {
+		name   string
+		opts   RedactOptions
+		masked bool
+	}{
+		{"dolly", RedactOptions{FNR: true, DollySource: true}, false},
+		{"other source", RedactOptions{FNR: true}, true},
+	} {
+		out, _ := Redact("person "+ident, tt.opts)
+		if got := !strings.Contains(out, ident); got != tt.masked {
+			t.Errorf("%s: masked=%v, want %v: %q", tt.name, got, tt.masked, out)
+		}
+	}
+	// Dolly source does not open real numbers or D-numbers.
+	for _, id := range []string{"15078545620", "55019041181"} {
+		if out, _ := Redact(id, RedactOptions{FNR: true, DollySource: true}); strings.Contains(out, id) {
+			t.Errorf("%s from Dolly was left unmasked", id)
+		}
+	}
+}
+
+func TestParsePayloadMCPServer(t *testing.T) {
+	p, err := ParsePayload([]byte(`{"toolName":"x","mcpServer":"io.github.navikt/dolly"}`))
+	if err != nil || p.MCPServer != DollyServer {
+		t.Errorf("got %q, %v", p.MCPServer, err)
+	}
+	if p, _ := ParsePayload([]byte(`{"toolName":"x"}`)); p.MCPServer != "" {
+		t.Errorf("no field, got %q", p.MCPServer)
+	}
+}

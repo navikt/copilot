@@ -1,0 +1,65 @@
+ ● skill(jackson-3-migration)
+
+ ● skill(klarsprak)
+
+ $ Shell git status --short --branch; git log -6 --oneline; git branch -a; git ls-files |… 34 lines…
+   git status --short --branch; git log -6 --oneline; git branch -a; git ls-files | head -70; java
+   -version
+
+ ✗ Shell  Permission denied because no interactive user response was available. Retry in an interact
+   git --no-pager diff main...HEAD; ls -a; command -v gradle; /usr/libexec/java_home -V; rg -n '.'
+   src/main/kotlin/no/nav/demo/{App,Routes,Soknad,Oppgave}.kt
+   Approval check
+     └ ✗ Denied, no one to approve shell path (/usr/libexec/java_home)
+   Permission denied because no interactive user response was available. Retry in an interactive 
+   session so the user can approve it, or try an alternative that does not require this permission.
+
+ / Search "." (build.gradle.kts, src, README.md) 77 lines found
+
+ $ Shell git --no-pager diff main...HEAD; command -v gradle; ls -a 54 lines…
+   git --no-pager diff main...HEAD; command -v gradle; ls -a
+
+ ✗ Shell  Permission denied because no interactive user response was available. Retry in an interact
+   gradle --version; /usr/libexec/java_home -V; git --no-pager grep -n -E
+   'lesSoker|soknad-mottatt|soker-oppdatert|JsonNode'
+   Approval check
+     └ ✗ Denied, no one to approve shell path (/usr/libexec/java_home)
+   Permission denied because no interactive user response was available. Retry in an interactive 
+   session so the user can approve it, or try an alternative that does not require this permission.
+
+ ✗ Shell Verify Gradle build and Jackson dependencies Failed with exit code 1  Starting a Gradle Da…
+   gradle build dependencyInsight --dependency jackson --configuration compileClasspath
+   Starting a Gradle Daemon (subsequent builds will be faster)
+   
+   FAILURE: Build failed with an exception.
+   
+   * What went wrong:
+   A problem occurred configuring root project 'repo'.
+   > 27.0.1.0.2
+   
+   * Try:
+   > Run with --stacktrace option to get the stack trace.
+   > Run with --info or --debug option to get more log output.
+   > Run with --scan to get full insights.
+   > Get more help at https://help.gradle.org.
+   
+   BUILD FAILED in 2s
+   Failed with exit code 1
+
+ ✗ Shell  Permission denied because no interactive user response was available. Retry in an interact
+   ls /Users/hans/.local/share/mise/installs/java; /usr/libexec/java_home -V
+   Approval check
+     └ ✗ Denied, no one to approve shell path (/Users/hans/.local/share/mise/installs/java,
+       /usr/libexec/java_home)
+   Permission denied because no interactive user response was available. Retry in an interactive 
+   session so the user can approve it, or try an alternative that does not require this permission.
+
+ / Search "lesSoker|sendMottatt|sendSoker|JsonNode|com\.fasterxml|tools\.jackson" 8 lines found
+
+**Jeg ville ventet med å merge.** Byttet til Jackson 3.1.0 ser riktig ut i kildekoden, men den nye mapperen endrer hvordan søknads-JSON skrives og leses. Ingen filer er endret.
+
+- **Kafka-JSON får ny feltrekkefølge.** Jackson 3 sorterer feltene alfabetisk som standard. På `soknad-mottatt` kommer `mottatt` før `soknadId` ([`Soknad.kt:12`](src/main/kotlin/no/nav/demo/Soknad.kt#L12)). Feltnavnene er uendret, og datoen skal fortsatt skrives som ISO-8601. Vanlige JSON-lesere tåler ny rekkefølge, men konsumenter som sammenligner rå JSON kan bli berørt. Ingen slike konsumenter er synlige i repoet.
+- **`lesSoker` endrer hva den godtar.** Jackson 3 ignorerer ukjente felt som standard, men avviser ekstra JSON etter første verdi ([`Soknad.kt:18`](src/main/kotlin/no/nav/demo/Soknad.kt#L18)). Lås ønsket oppførsel med tester for begge tilfellene.
+
+Ktor bruker fortsatt `kotlinx.serialization`, så HTTP-endepunktet trenger ikke en Ktor-oppgradering for denne migreringen. Jeg fant ingen Jackson 2-importer eller `JsonNode.map`-kall i kildekoden. Gradle stoppet under konfigurering med Java `27.0.1.0.2`, så bygg og avhengighetstre er ikke verifisert. Før merge: kjør på en JDK Gradle-versjonen støtter, og sammenlign Kafka-payloadene mot `main` med syntetiske testdata.
+

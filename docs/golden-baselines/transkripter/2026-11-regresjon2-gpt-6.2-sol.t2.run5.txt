@@ -1,0 +1,23 @@
+ ● skill(nav-auth)
+
+ ● skill(klarsprak)
+
+ $ Shell Sjekk tjenestefiler og Copilot-oppsett 13 lines…
+   ls -la; ls -la .github 2>/dev/null
+
+ $ Shell cat nais.yaml README.md build.gradle.kts; find src -type f 32 lines…
+   cat nais.yaml README.md build.gradle.kts; find src -type f
+
+ / Search "get\(|post\(|fnr|pid|auth" (src) 1 line found
+
+**Fase 1: Avklar formål og tilgang.** Jeg fant en Ktor-demo på Nais med `/api/oppgaver`, men ingen ID-porten-konfigurasjon. Jeg antar at du vil opprette en egen tjeneste. Ingen filer er endret.
+
+1. **Personvern:** Hva skal tjenesten bruke fødselsnummeret til? Skal det bare brukes under forespørselen, eller må det lagres eller sendes videre? Behandler tjenesten andre personopplysninger?
+2. **Tilgang:** Logger innbyggeren inn direkte i tjenesten, eller skal en annen Nav-tjeneste kalle den på vegne av innbyggeren? Hvilket sikkerhetsnivå krever brukerreisen?
+3. **Feilhåndtering:** Hva skal brukeren få beskjed om hvis innloggingen feiler eller tokenet mangler fødselsnummer?
+4. **Drift og eierskap:** Hvilket team eier tjenesten, og hvilket signal uten personopplysninger skal vise at brukerreisen fungerer?
+
+Repoet mangler `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`. `nav-pilot init` kan sette opp disse.
+
+Blindsoner reist: 6/11 (#1–#6). Tester avklares når flyten er kjent (#7). Ingen migrering, bakoverkompatibilitet eller utfasing er identifisert (#8–#10). Læringsbehov vurderes når innloggingsflyten er avklart (#11).
+

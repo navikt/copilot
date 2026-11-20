@@ -12,16 +12,21 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
-	"slices"
 	"strconv"
 	"time"
 )
 
 const (
 	rtSealAAD = "fgw-rt-v1"
-	// maxRefreshTokenLen fits a sealed RT carrying ~200 Entra group GUIDs plus the
-	// Entra RT and metadata (base64 expands by 4/3). Still bounded.
-	maxRefreshTokenLen = 16 * 1024
+	// maxRefreshTokenLen is the expected upper bound for newly issued sealed
+	// refresh tokens without groups: a ~2 KiB Entra RT plus metadata seals and
+	// base64-encodes to ~3.1 KiB (3148 B measured), so 4 KiB leaves headroom
+	// (~2x over a typical ~1 KiB Entra RT).
+	maxRefreshTokenLen = 4 * 1024
+	// maxLegacyRefreshTokenLen keeps the prior 16 KiB read-side cap so refresh
+	// tokens issued before groups were dropped (up to ~200 group GUIDs) are not
+	// rejected until they expire.
+	maxLegacyRefreshTokenLen = 16 * 1024
 	// refreshPendingTTL is how long an in-flight refresh blocks concurrent use of
 	// the same RT; after a transient upstream failure it is also the retry delay.
 	refreshPendingTTL = 60 * time.Second
@@ -33,7 +38,6 @@ type gatewaySession struct {
 	EntraToken   string    `json:"entra_token,omitempty"`
 	RefreshToken string    `json:"refresh_token,omitempty"` //nolint:gosec // serialized only into SessionStore (sealed with RT_KEYS in Postgres)
 	NAVIdent     string    `json:"nav_ident"`
-	Groups       []string  `json:"groups,omitempty"`
 	IssuedAt     time.Time `json:"issued_at"`
 	Expiry       time.Time `json:"expiry"`
 }
@@ -49,16 +53,15 @@ type issuedCode struct {
 }
 
 type rtPayload struct {
-	V        int      `json:"v"`
-	JTI      string   `json:"jti"`
-	FID      string   `json:"fid"` // token family, constant across rotations
-	IAT      int64    `json:"iat"`
-	EXP      int64    `json:"exp"` // absolute session end, fixed at issue time
-	ClientID string   `json:"client_id"`
-	Resource string   `json:"resource"`
-	NAVIdent string   `json:"nav_ident"`
-	Groups   []string `json:"groups,omitempty"`
-	EntraRT  string   `json:"entra_rt"` //nolint:gosec // encrypted inside AES-GCM sealed client refresh token
+	V        int    `json:"v"`
+	JTI      string `json:"jti"`
+	FID      string `json:"fid"` // token family, constant across rotations
+	IAT      int64  `json:"iat"`
+	EXP      int64  `json:"exp"` // absolute session end, fixed at issue time
+	ClientID string `json:"client_id"`
+	Resource string `json:"resource"`
+	NAVIdent string `json:"nav_ident"`
+	EntraRT  string `json:"entra_rt"` //nolint:gosec // encrypted inside AES-GCM sealed client refresh token
 }
 
 func (g *Gateway) sealRefreshToken(p rtPayload) (string, error) {
@@ -214,11 +217,15 @@ func (g *Gateway) handleAuthorizationCodeGrant(w http.ResponseWriter, r *http.Re
 	// Look the client up before the code is consumed: a store error here answers
 	// 503 Retry-After and the retry still finds the code. The client_id is
 	// checked against the code below.
-	_, mayRefresh, err := g.clientGrants(r.Context(), r.PostFormValue("client_id"))
+	known, mayRefresh, err := g.clientGrants(r.Context(), r.PostFormValue("client_id"))
 	if err != nil {
 		slog.Warn("load registered client failed", "error", err)
 		w.Header().Set("Retry-After", "5")
 		bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store unavailable")
+		return
+	}
+	if !known {
+		bad(http.StatusBadRequest, "invalid_grant", "invalid client")
 		return
 	}
 
@@ -251,6 +258,17 @@ func (g *Gateway) handleAuthorizationCodeGrant(w http.ResponseWriter, r *http.Re
 	if !isValidCodeVerifier(verifier) ||
 		subtle.ConstantTimeCompare([]byte(pkceS256(verifier)), []byte(issued.Challenge)) != 1 {
 		bad(http.StatusBadRequest, "invalid_grant", "PKCE verification failed")
+		return
+	}
+
+	userGone, err := g.userRevoked(r.Context(), issued.Session.NAVIdent, issued.Session.IssuedAt)
+	if err != nil {
+		slog.Warn("user lockout check failed", "error", err)
+		bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store unavailable")
+		return
+	}
+	if userGone {
+		bad(http.StatusBadRequest, "invalid_grant", "session revoked")
 		return
 	}
 
@@ -298,7 +316,6 @@ func (g *Gateway) handleAuthorizationCodeGrant(w http.ResponseWriter, r *http.Re
 			ClientID: issued.Session.ClientID,
 			Resource: issued.Session.Resource,
 			NAVIdent: issued.Session.NAVIdent,
-			Groups:   issued.Session.Groups,
 			EntraRT:  issued.EntraRT,
 		})
 		if err != nil {
@@ -309,6 +326,7 @@ func (g *Gateway) handleAuthorizationCodeGrant(w http.ResponseWriter, r *http.Re
 
 	if err := g.putSession(r.Context(), hashToken(accessToken), &issued.Session, ttl); err != nil {
 		if errors.Is(err, errStoreFull) {
+			markShed(w, "store_full")
 			bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store capacity reached")
 			return
 		}
@@ -337,7 +355,7 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 	}()
 
 	rawRT := r.PostFormValue("refresh_token")
-	if rawRT == "" || len(rawRT) > maxRefreshTokenLen {
+	if rawRT == "" || len(rawRT) > maxLegacyRefreshTokenLen {
 		outcome = "invalid_request"
 		bad(http.StatusBadRequest, "invalid_grant", "invalid refresh token")
 		return
@@ -391,8 +409,15 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 
 	issuedAt := time.Unix(payload.IAT, 0).UTC()
 	// Absolute expiry is fixed in the RT at issue time, so raising SESSION_MAX_AGE
-	// later cannot revive old tokens.
-	absExpiry := time.Unix(payload.EXP, 0).UTC()
+	// later cannot revive old tokens; lowering SESSION_MAX_AGE also shortens it
+	// to match putSessionInStore/getSessionFromStore.
+	rtExpiry := time.Unix(payload.EXP, 0).UTC()
+	absExpiry := rtExpiry
+	if g.cfg.SessionMaxAge > 0 {
+		if maxExpiry := issuedAt.Add(g.cfg.SessionMaxAge); maxExpiry.Before(absExpiry) {
+			absExpiry = maxExpiry
+		}
+	}
 	if !g.now().Before(absExpiry) {
 		outcome = "session_max_age_expired"
 		bad(http.StatusBadRequest, "invalid_grant", "session expired")
@@ -403,6 +428,16 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 		outcome = "store_error"
 		slog.Warn("refresh token denylist failed", "error", err)
 		bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store unavailable")
+	}
+	userGone, err := g.userRevoked(r.Context(), payload.NAVIdent, issuedAt)
+	if err != nil {
+		unavailable(err)
+		return
+	}
+	if userGone {
+		outcome = "user_revoked"
+		bad(http.StatusBadRequest, "invalid_grant", "session revoked")
+		return
 	}
 	famKey := "fam:" + payload.FID
 	revoked, err := g.store.IsRevoked(r.Context(), famKey)
@@ -434,7 +469,7 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 		}
 		// Replay: someone holds an already-rotated RT. Kill the family so a thief
 		// who refreshed first loses the newest RT too.
-		if err = g.store.Revoke(r.Context(), famKey, absExpiry); err != nil {
+		if err = g.store.Revoke(r.Context(), famKey, rtExpiry); err != nil {
 			unavailable(err)
 			return
 		}
@@ -475,6 +510,7 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 		outcome = "refresh_in_flight"
 		retry := min(refreshPendingTTL, absExpiry.Sub(g.now()), g.cfg.RefreshGraceWindow/2)
 		w.Header().Set("Retry-After", strconv.Itoa(max(1, int(retry.Seconds()))))
+		markShed(w, "refresh_in_flight")
 		bad(http.StatusServiceUnavailable, "temporarily_unavailable", "refresh in progress, retry later")
 		return
 	}
@@ -503,7 +539,7 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 		}
 	}
 	if status != http.StatusOK {
-		if err = g.store.Revoke(r.Context(), payload.JTI, absExpiry); err != nil {
+		if err = g.store.Revoke(r.Context(), payload.JTI, rtExpiry); err != nil {
 			unavailable(err)
 			return
 		}
@@ -567,7 +603,6 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 		ClientID: payload.ClientID,
 		Resource: payload.Resource,
 		NAVIdent: payload.NAVIdent,
-		Groups:   slices.Clone(payload.Groups),
 		EntraRT:  newEntraRT,
 	})
 	if err != nil {
@@ -582,13 +617,13 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 		EntraToken:   newAT,
 		RefreshToken: "",
 		NAVIdent:     payload.NAVIdent,
-		Groups:       slices.Clone(payload.Groups),
 		IssuedAt:     issuedAt,
 		Expiry:       sessExpiry,
 	}
 	if err = g.putSession(r.Context(), hashToken(accessToken), newSess, ttl); err != nil {
 		outcome = "store_error"
 		if errors.Is(err, errStoreFull) {
+			markShed(w, "store_full")
 			bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store capacity reached")
 			return
 		}
@@ -606,7 +641,7 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 	} else if perr := g.store.Put(r.Context(), kindRefreshGrace, payload.JTI, raw, graceTTL); perr != nil {
 		slog.Warn("store refresh grace failed", "error", perr)
 	}
-	if err = g.store.Revoke(r.Context(), payload.JTI, absExpiry); err != nil {
+	if err = g.store.Revoke(r.Context(), payload.JTI, rtExpiry); err != nil {
 		unavailable(err)
 		return
 	}
@@ -660,7 +695,7 @@ func (g *Gateway) revokeHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	token := r.PostFormValue("token")
-	if token != "" && len(token) <= maxRefreshTokenLen {
+	if token != "" && len(token) <= maxLegacyRefreshTokenLen {
 		tokenHash := hashToken(token)
 		sess, ok, err := g.getSession(r.Context(), tokenHash)
 		if err != nil {

@@ -1,0 +1,140 @@
+=== ./src/app/komponenter/StatusPanel.tsx
+import { useId, useState, type KeyboardEvent } from "react";
+import { CheckmarkIcon, TrashIcon } from "@navikt/aksel-icons";
+
+type Statusvalg = { verdi: string; tekst: string };
+
+type StatusPanelProps = {
+  status: string;
+  statusvalg: Statusvalg[];
+  onEndreStatus: (verdi: string) => void;
+  onSlett: () => void;
+};
+
+export function StatusPanel({ status, statusvalg, onEndreStatus, onSlett }: StatusPanelProps) {
+  const [apen, setApen] = useState(false);
+  return (
+    <div className="p-4 mx-8">
+      <div onClick={() => setApen(!apen)} style={{ outline: "none" }}>
+        Vis detaljer
+      </div>
+      <span tabIndex={5} style={{ color: status === "feil" ? "red" : "green" }}>
+        {status}
+      </span>
+      <StatusListbox valg={statusvalg} valgt={status} onVelg={onEndreStatus} />
+      <button onClick={onSlett}>
+        <TrashIcon />
+      </button>
+    </div>
+  );
+}
+
+type StatusListboxProps = {
+  valg: Statusvalg[];
+  valgt: string;
+  onVelg: (verdi: string) => void;
+};
+
+// Single-select listbox etter WAI-ARIA APG: fokus blir på <ul>, aktivt valg pekes ut med
+// aria-activedescendant. Piltaster flytter, Enter/mellomrom velger, slik at onVelg ikke
+// kalles for hvert tastetrykk.
+function StatusListbox({ valg, valgt, onVelg }: StatusListboxProps) {
+  const id = useId();
+  const labelId = `${id}-label`;
+  const valgtIndeks = valg.findIndex((v) => v.verdi === valgt);
+  const [aktivIndeks, setAktivIndeks] = useState(Math.max(valgtIndeks, 0));
+  const [harFokus, setHarFokus] = useState(false);
+
+  const opsjonId = (indeks: number) => `${id}-opsjon-${indeks}`;
+
+  const velg = (indeks: number) => {
+    setAktivIndeks(indeks);
+    onVelg(valg[indeks].verdi);
+  };
+
+  const onKeyDown = (event: KeyboardEvent<HTMLUListElement>) => {
+    if (valg.length === 0) return;
+    const sisteIndeks = valg.length - 1;
+    switch (event.key) {
+      case "ArrowDown":
+        setAktivIndeks((i) => Math.min(i + 1, sisteIndeks));
+        break;
+      case "ArrowUp":
+        setAktivIndeks((i) => Math.max(i - 1, 0));
+        break;
+      case "Home":
+        setAktivIndeks(0);
+        break;
+      case "End":
+        setAktivIndeks(sisteIndeks);
+        break;
+      case "Enter":
+      case " ":
+        velg(aktivIndeks);
+        break;
+      default:
+        return;
+    }
+    event.preventDefault();
+  };
+
+  return (
+    <div>
+      <span id={labelId}>Status</span>
+      <ul
+        role="listbox"
+        aria-labelledby={labelId}
+        aria-activedescendant={valg.length > 0 ? opsjonId(aktivIndeks) : undefined}
+        tabIndex={0}
+        onKeyDown={onKeyDown}
+        onFocus={() => {
+          setHarFokus(true);
+          if (valgtIndeks >= 0) setAktivIndeks(valgtIndeks);
+        }}
+        onBlur={() => setHarFokus(false)}
+        style={{
+          listStyle: "none",
+          margin: 0,
+          padding: "var(--ax-space-4)",
+          border: "1px solid var(--ax-border-neutral)",
+          borderRadius: "var(--ax-radius-4)",
+          background: "var(--ax-bg-default)",
+          outline: harFokus ? "3px solid var(--ax-border-focus)" : undefined,
+          outlineOffset: "2px",
+        }}
+      >
+        {valg.map((v, indeks) => {
+          const erValgt = v.verdi === valgt;
+          const erAktiv = harFokus && indeks === aktivIndeks;
+          return (
+            <li
+              key={v.verdi}
+              id={opsjonId(indeks)}
+              role="option"
+              aria-selected={erValgt}
+              onClick={() => velg(indeks)}
+              onMouseMove={() => setAktivIndeks(indeks)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "var(--ax-space-8)",
+                padding: "var(--ax-space-8) var(--ax-space-12)",
+                borderRadius: "var(--ax-radius-2)",
+                cursor: "pointer",
+                color: "var(--ax-text-neutral)",
+                background: erValgt ? "var(--ax-bg-accent-moderate)" : undefined,
+                outline: erAktiv ? "2px solid var(--ax-border-focus)" : undefined,
+                outlineOffset: "-2px",
+              }}
+            >
+              {/* Hake i tillegg til bakgrunnsfarge, så valgt tilstand ikke formidles bare med farge (WCAG 1.4.1) */}
+              <CheckmarkIcon aria-hidden style={{ visibility: erValgt ? "visible" : "hidden" }} />
+              {v.tekst}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+

@@ -1,0 +1,14 @@
+ / Search "slettOppgave" No matches found
+
+ / Search "**/*.{ts,tsx,js,jsx,kt,java,go}" 4 files found
+
+ / Search "Slett|slett|Oppgave|oppgave" in *.{ts,tsx,js,jsx,kt,java,go} 4 files found
+
+ ● Read src/main/kotlin/no/nav/demo/Routes.kt 19 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/Oppgave.kt 9 lines read
+
+ / Search "[Ss]lett|delete|remove" in *.kt (src) No matches found
+
+Funksjonen `slettOppgave` kalles ingen steder i koden.
+

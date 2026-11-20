@@ -1,0 +1,30 @@
+ MD Read .github/instructions/golang.instructions.md 547 lines read
+
+ MD Read .github/instructions/security-owasp.instructions.md 12 lines read
+
+ / Search "frister/**" 3 files found
+
+Jeg kjører testene først og leser implementasjonen og forventningene samlet.
+
+ GO Read frister/frist.go 16 lines read
+
+ GO Read frister/frist_test.go 26 lines read
+
+ ● Read frister/go.mod 3 lines read
+
+ ✗ Shell Run Go tests in frister Failed with exit code 1  --- FAIL: TestFrist (0.00s) frist_test.go…
+   cd frister && go test ./...
+   --- FAIL: TestFrist (0.00s)
+       frist_test.go:23: Frist(2026-09-05) = 2026-10-18, want 2026-10-19
+   FAIL
+   FAIL    example.com/frister     0.191s
+   FAIL
+   Failed with exit code 1
+
+ ● Edit  Edit frister/frist.go (+1 -1)
+
+ $ Shell Format code and verify Go tests 1 line…
+   cd frister && gofmt -w frist.go && go test ./...
+
+Rettet `frister/frist.go`: frist som lander på lørdag flyttes nå to dager til mandag. `go test ./...` i `frister/` er grønn.
+

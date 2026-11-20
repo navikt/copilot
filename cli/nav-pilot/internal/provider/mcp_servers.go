@@ -150,32 +150,59 @@ func MCPRegistryServers() (registry string, servers []MCPServerEntry, stale, err
 	return c.Registry.URL, c.Registry.Entries, stale, nil
 }
 
-// NarrowMCPApproval cuts the recorded MCP host approval down to the hosts the
-// servers in either client's user config still need, by the cached registry
-// answer, and returns the hosts it dropped. Nothing changes without an
-// approval or a cache.
+// NarrowMCPApproval cuts each client's recorded MCP host approval down to the
+// hosts the servers in that client's user config still need, by the cached
+// registry answer, and returns the hosts no longer granted for either client.
+// Nothing changes without an approval or a cache.
 func NarrowMCPApproval() (gone []string, err error) {
-	rec, err := readMCPRecord()
-	if err != nil || rec == nil || !rec.Approved {
-		return nil, err
-	}
 	c, ok := readMCPRegistryCache()
 	if !ok {
 		return nil, nil
 	}
-	cur := matchMCPHosts(c.Registry, copilotMCPServerNames(), openCodeUserMCPServers())
-	var keep []MCPHost
-	for _, h := range recordedMCPHosts(rec) {
-		if slices.ContainsFunc(cur.Hosts, func(o MCPHost) bool { return o.Host == h.Host }) {
-			keep = append(keep, h)
-		} else {
-			gone = append(gone, h.Host)
+	var dropped, stillGranted []string
+	for _, client := range []string{MCPClientCopilot, MCPClientOpenCode} {
+		rec, err := readMCPRecordFor(client)
+		if err != nil {
+			return nil, err
+		}
+		if rec == nil || !rec.Approved {
+			continue
+		}
+		copilot, openCode := configuredMCPServersFor(client)
+		cur := matchMCPHosts(c.Registry, copilot, openCode)
+		var keep []MCPHost
+		var clientGone []string
+		for _, h := range recordedMCPHosts(rec) {
+			if slices.ContainsFunc(cur.Hosts, func(o MCPHost) bool { return o.Host == h.Host }) {
+				keep = append(keep, h)
+			} else {
+				clientGone = append(clientGone, h.Host)
+			}
+		}
+		for _, h := range keep {
+			stillGranted = append(stillGranted, h.Host)
+		}
+		if len(clientGone) == 0 {
+			continue
+		}
+		if err := RecordMCPHostsFor(client, keep, true); err != nil {
+			return nil, err
+		}
+		for _, h := range clientGone {
+			if !slices.Contains(dropped, h) {
+				dropped = append(dropped, h)
+			}
 		}
 	}
-	if len(gone) == 0 {
+	if len(dropped) == 0 {
 		return nil, nil
 	}
-	return gone, RecordMCPHosts(keep, true)
+	for _, h := range dropped {
+		if !slices.Contains(stillGranted, h) {
+			gone = append(gone, h)
+		}
+	}
+	return gone, nil
 }
 
 // MCP clients nav-pilot can write a server into.
@@ -196,14 +223,7 @@ func MCPConfigPath(client string) (string, error) {
 		}
 		return filepath.Join(home, ".copilot", "mcp-config.json"), nil
 	case MCPClientOpenCode:
-		dir := artifacts.OpenCodeConfigDir()
-		p := filepath.Join(dir, "opencode.json")
-		if _, err := os.Stat(p); errors.Is(err, os.ErrNotExist) {
-			if _, err := os.Stat(filepath.Join(dir, "opencode.jsonc")); err == nil {
-				return filepath.Join(dir, "opencode.jsonc"), nil
-			}
-		}
-		return p, nil
+		return resolveOpenCodeConfigFile(artifacts.OpenCodeConfigDir()), nil
 	}
 	return "", fmt.Errorf("unknown client %q: use copilot or opencode", client)
 }
@@ -225,13 +245,7 @@ func MCPClientEntry(client string, e MCPServerEntry, c MCPToolChoice) (json.RawM
 	tools := copilotTools(c)
 	switch {
 	case len(e.Remotes) > 0:
-		r := e.Remotes[0]
-		if c.URL != "" {
-			r.URL = c.URL
-		} else if ro := e.GitHubReadonlyURL(); ro != "" {
-			// GitHub's full endpoint only when the choice names it.
-			r.URL = ro
-		}
+		r, _ := chosenRemote(e, c)
 		var m map[string]any
 		if client == MCPClientOpenCode {
 			m = map[string]any{"type": "remote", "url": r.URL, "enabled": true}
@@ -272,13 +286,15 @@ const openCodeNavProtocol = "2026-07-28"
 
 // openCodeProtocol picks OpenCode's `protocol` from the registry's
 // protocolVersions: only 2026-07-28 pins it, 2026-07-28 among older revisions
-// gets auto. Without 2026-07-28, an https nav.no remote gets auto and any
-// other remote keeps OpenCode's default ("").
+// gets auto. Only when protocolVersions is unknown (empty), an https nav.no
+// remote gets auto; explicit older revisions keep OpenCode's default ("").
 func openCodeProtocol(versions []string, remoteURL string) string {
 	switch {
 	case len(versions) == 1 && versions[0] == openCodeNavProtocol:
 		return openCodeNavProtocol
-	case slices.Contains(versions, openCodeNavProtocol), isNavMCPURL(remoteURL):
+	case slices.Contains(versions, openCodeNavProtocol):
+		return "auto"
+	case len(versions) == 0 && isNavMCPURL(remoteURL):
 		return "auto"
 	}
 	return ""
@@ -295,15 +311,47 @@ func isNavMCPURL(raw string) bool {
 	return h == "nav.no" || strings.HasSuffix(h, ".nav.no")
 }
 
-// registryHeaders is the fixed headers the registry sets on the first
-// remote, such as GitHub's X-MCP-Readonly, or nil. An explicit choice of
-// another URL (GitHub's full endpoint) is the user's own opt-in and gets none.
+// chosenRemote selects the registry remote for c: c.URL (else GitHub's
+// read-only endpoint, else Remotes[0]) matched against e.Remotes by normalized
+// URL. matched is true when a listed remote matched the target URL.
+func chosenRemote(e MCPServerEntry, c MCPToolChoice) (r MCPRemote, matched bool) {
+	if len(e.Remotes) == 0 {
+		return MCPRemote{}, false
+	}
+	target := e.Remotes[0].URL
+	if c.URL != "" {
+		target = c.URL
+	} else if ro := e.GitHubReadonlyURL(); ro != "" {
+		// GitHub's full endpoint only when the choice names it.
+		target = ro
+	}
+	nu := normalizeMCPURL(target)
+	for _, cand := range e.Remotes {
+		if normalizeMCPURL(cand.URL) == nu {
+			return cand, true
+		}
+	}
+	r = e.Remotes[0]
+	r.URL = target
+	return r, false
+}
+
+// registryHeaders is the fixed headers the registry sets on the chosen remote,
+// such as GitHub's X-MCP-Readonly, or nil. An explicit choice of GitHub's full
+// endpoint or an unlisted URL is the user's own opt-in and gets none.
 func registryHeaders(e MCPServerEntry, c MCPToolChoice) map[string]string {
-	if len(e.Remotes) == 0 || (c.URL != "" && !IsGitHubReadonlyURL(c.URL)) {
+	if len(e.Remotes) == 0 {
+		return nil
+	}
+	if e.GitHubReadonlyURL() != "" && c.URL != "" && !IsGitHubReadonlyURL(c.URL) {
+		return nil
+	}
+	r, matched := chosenRemote(e, c)
+	if !matched && c.URL != "" && !IsGitHubReadonlyURL(c.URL) {
 		return nil
 	}
 	var h map[string]string
-	for _, kv := range e.Remotes[0].Headers {
+	for _, kv := range r.Headers {
 		if kv.Name != "" && kv.Value != "" {
 			if h == nil {
 				h = map[string]string{}
@@ -350,6 +398,52 @@ func SetMCPServer(client, name string, entry json.RawMessage, e MCPServerEntry, 
 	})
 }
 
+// BackfillOpenCodeProtocol adds the registry protocol to the OpenCode entry
+// under key when it has none. It uses the same rule as creation
+// (openCodeProtocol), so an https nav.no remote without protocolVersions gets
+// "auto"; an existing protocol, a non-remote entry, or any other remote without
+// 2026-07-28 changes nothing.
+func BackfillOpenCodeProtocol(key string, e MCPServerEntry) (string, MCPConfigChange, error) {
+	if key == "" {
+		return "", MCPConfigChange{}, nil
+	}
+	var p string
+	ch, err := editMCPConfig(MCPClientOpenCode, key, func(top, servers *jsonObject) (json.RawMessage, bool, error) {
+		raw, ok := servers.vals[key]
+		if !ok {
+			return nil, false, nil
+		}
+		entry, err := parseJSONObject(raw)
+		if err != nil {
+			return nil, false, nil
+		}
+		if _, has := entry.vals["protocol"]; has {
+			return nil, false, nil
+		}
+		var typ string
+		if err := json.Unmarshal(entry.vals["type"], &typ); err != nil || typ != "remote" {
+			return nil, false, nil
+		}
+		var u string
+		_ = json.Unmarshal(entry.vals["url"], &u)
+		if !openCodeMatchesRemoteURL(e, u) {
+			return nil, false, nil
+		}
+		p = openCodeProtocol(e.ProtocolVersions, u)
+		if p == "" {
+			return nil, false, nil
+		}
+		v, _ := json.Marshal(p)
+		entry.set("protocol", v)
+		servers.set(key, entry.marshal())
+		return nil, true, nil
+	})
+	if err != nil || !ch.Changed {
+		return "", ch, err
+	}
+	return p, ch, nil
+}
+
 // RemoveMCPServer drops name from the client's config. Absent is no change.
 // For OpenCode its permission rules go too (dropOpenCodeRules); tools is the
 // registry's tool list for it, nil when unknown.
@@ -363,6 +457,55 @@ func RemoveMCPServer(client, name string, tools []string) (MCPConfigChange, erro
 		}
 		return nil, true, nil
 	})
+}
+
+// RemoveMCPServers drops each named server from the client's config in a single
+// atomic rewrite, returning the names that were present and removed. For
+// OpenCode it checks both mcp.servers.<name> and flat mcp.<name> entries and
+// drops each removed server's permission rules.
+func RemoveMCPServers(client string, names []string) ([]string, MCPConfigChange, error) {
+	if len(names) == 0 {
+		return nil, MCPConfigChange{}, nil
+	}
+	var removed []string
+	ch, err := editMCPConfigDoc(client, func(top, servers *jsonObject) (json.RawMessage, bool, error) {
+		if client == MCPClientOpenCode {
+			native, nested := openCodeNativeServers(*servers)
+			for _, name := range names {
+				raw, hasFlat := servers.vals[name]
+				flat := hasFlat && name != "servers" && (name != "timeout" || isOpenCodeServerJSON(raw))
+				delFlat := flat && servers.del(name)
+				delNested := nested && native.del(name)
+				if delFlat || delNested {
+					removed = append(removed, name)
+				}
+			}
+			if len(removed) == 0 {
+				return nil, false, nil
+			}
+			if nested {
+				servers.set("servers", native.marshal())
+			}
+			remaining := openCodeAllServers(*servers).keys
+			for _, name := range removed {
+				dropOpenCodeRules(top, name, nil, remaining)
+			}
+			return nil, true, nil
+		}
+		for _, name := range names {
+			if servers.del(name) {
+				removed = append(removed, name)
+			}
+		}
+		if len(removed) == 0 {
+			return nil, false, nil
+		}
+		return nil, true, nil
+	})
+	if err != nil || !ch.Changed {
+		return nil, ch, err
+	}
+	return removed, ch, nil
 }
 
 // openCodeBuiltinPermissions is OpenCode's own permission keys with an
@@ -405,29 +548,39 @@ func dropOpenCodeRules(top *jsonObject, name string, tools, others []string) {
 
 // MCPConfigKeys is the server names in the client's user config, in order.
 func MCPConfigKeys(client string) []string {
+	_, keys, hasComments := MCPConfigKeysAndComments(client)
+	if hasComments && client != MCPClientOpenCode {
+		return nil
+	}
+	return keys
+}
+
+// MCPConfigKeysAndComments returns the client's user config path, the server
+// keys found after stripping JSONC comments/trailing commas, and whether the
+// file contains comments or trailing commas that prevent safe rewriting.
+func MCPConfigKeysAndComments(client string) (path string, keys []string, hasComments bool) {
 	path, err := MCPConfigPath(client)
 	if err != nil {
-		return nil
+		return "", nil, false
 	}
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return nil
+		return path, nil, false
 	}
-	if client == MCPClientOpenCode {
-		data = stripJSONC(data)
-	}
-	top, err := parseJSONObject(data)
+	stripped := stripJSONC(data)
+	hasComments = len(bytes.TrimSpace(data)) > 0 && !bytes.Equal(stripped, data)
+	top, err := parseJSONObject(stripped)
 	if err != nil {
-		return nil
+		return path, nil, hasComments
 	}
 	servers, err := parseJSONObject(top.vals[mcpServersKey(client)])
 	if err != nil {
-		return nil
+		return path, nil, hasComments
 	}
 	if client == MCPClientOpenCode {
-		return openCodeAllServers(servers).keys
+		return path, openCodeAllServers(servers).keys, hasComments
 	}
-	return servers.keys
+	return path, servers.keys, hasComments
 }
 
 // openCodeAllServers is every server under mcp: flat mcp.<name> entries and,
@@ -523,6 +676,38 @@ func openCodeUserServerDefs() map[string]mcpServer {
 }
 
 func editMCPConfig(client, name string, edit func(top, servers *jsonObject) (json.RawMessage, bool, error)) (MCPConfigChange, error) {
+	return editMCPConfigDoc(client, func(top, servers *jsonObject) (json.RawMessage, bool, error) {
+		// A config in opencode 2's own layout is edited there, not beside it.
+		target := servers
+		native, nested := jsonObject{}, false
+		flat := false
+		if client == MCPClientOpenCode {
+			// A flat server beside mcp.servers is edited where it is.
+			native, nested = openCodeNativeServers(*servers)
+			if raw, ok := servers.vals[name]; ok {
+				flat = name != "servers" && (name != "timeout" || isOpenCodeServerJSON(raw))
+			}
+			_, inNative := native.vals[name]
+			if nested && (inNative || !flat) {
+				target = &native
+			}
+		}
+		existing, changed, err := edit(top, target)
+		if err != nil || !changed {
+			return existing, changed, err
+		}
+		// Drop any shadowed flat duplicate when editing/removing the nested entry.
+		if target == &native && flat {
+			servers.del(name)
+		}
+		if nested {
+			servers.set("servers", native.marshal())
+		}
+		return existing, true, nil
+	})
+}
+
+func editMCPConfigDoc(client string, edit func(top, servers *jsonObject) (json.RawMessage, bool, error)) (MCPConfigChange, error) {
 	path, err := MCPConfigPath(client)
 	if err != nil {
 		return MCPConfigChange{}, err
@@ -568,36 +753,14 @@ func editMCPConfig(client, name string, edit func(top, servers *jsonObject) (jso
 	if _, ok := top.vals[key]; !ok {
 		top.set(key, json.RawMessage(`{}`))
 	}
-	// A config in opencode 2's own layout is edited there, not beside it.
-	target := &servers
-	native, nested := jsonObject{}, false
-	flat := false
-	if client == MCPClientOpenCode {
-		// A flat server beside mcp.servers is edited where it is.
-		native, nested = openCodeNativeServers(servers)
-		if raw, ok := servers.vals[name]; ok {
-			flat = name != "servers" && (name != "timeout" || isOpenCodeServerJSON(raw))
-		}
-		_, inNative := native.vals[name]
-		if nested && (inNative || !flat) {
-			target = &native
-		}
-	}
 	before := compactJSON(top.marshal())
-	existing, changed, err := edit(&top, target)
+	existing, changed, err := edit(&top, &servers)
 	if err != nil {
 		return ch, fmt.Errorf("%s: %w", ch.Path, err)
 	}
 	ch.Existing = existing
 	if !changed {
 		return ch, nil
-	}
-	// Drop any shadowed flat duplicate when editing/removing the nested entry.
-	if target == &native && flat {
-		servers.del(name)
-	}
-	if nested {
-		servers.set("servers", native.marshal())
 	}
 	top.set(key, servers.marshal())
 	// Unchanged is no write, so the backup of the last real change stays.
@@ -808,6 +971,20 @@ func registryOf(entries []MCPServerEntry) mcpRegistry {
 	return reg
 }
 
+func openCodeMatchesRemoteURL(e MCPServerEntry, rawURL string) bool {
+	if rawURL == "" {
+		return false
+	}
+	nu := normalizeMCPURL(rawURL)
+	for _, r := range e.Remotes {
+		if r.URL != "" && normalizeMCPURL(r.URL) == nu {
+			return true
+		}
+	}
+	// enable writes GitHub's read-only endpoint; it is the same server.
+	return e.GitHubReadonlyURL() != "" && IsGitHubReadonlyURL(rawURL)
+}
+
 func openCodeRegistryName(entries []MCPServerEntry, key string, s mcpServer) string {
 	pkg := localPackage(s.Command)
 	if i := strings.LastIndex(pkg, "@"); i > 0 {
@@ -817,13 +994,7 @@ func openCodeRegistryName(entries []MCPServerEntry, key string, s mcpServer) str
 		if e.Name == key {
 			return e.Name
 		}
-		for _, r := range e.Remotes {
-			if s.Type == "remote" && normalizeMCPURL(r.URL) == normalizeMCPURL(s.URL) {
-				return e.Name
-			}
-		}
-		// enable writes GitHub's read-only endpoint; it is the same server.
-		if ro := e.GitHubReadonlyURL(); s.Type == "remote" && ro != "" && IsGitHubReadonlyURL(s.URL) {
+		if s.Type == "remote" && openCodeMatchesRemoteURL(e, s.URL) {
 			return e.Name
 		}
 		for _, p := range e.Packages {

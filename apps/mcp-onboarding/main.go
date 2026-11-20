@@ -125,13 +125,12 @@ func main() {
 
 	oauthServer.RegisterRoutes(mux)
 
-	mux.Handle("GET /mcp", authMiddleware.Authenticate(mcpHandler))
-	mux.Handle("POST /mcp", authMiddleware.Authenticate(mcpHandler))
-
+	var entra func(http.Handler) http.Handler
 	if entraAuth != nil {
-		mux.Handle("POST /mcp/gw", entraAuth.Authenticate(mcpHandler))
+		entra = entraAuth.Authenticate
 		slog.Info("entra mode enabled for fleet-gateway", "path", "/mcp/gw")
 	}
+	registerMCPRoutes(mux, mcpHandler, authMiddleware.Authenticate, entra)
 
 	mux.HandleFunc("GET /health", handleHealth)
 	mux.HandleFunc("GET /ready", handleReady)
@@ -176,6 +175,25 @@ func main() {
 	if err := server.Shutdown(shutdownCtx); err != nil {
 		slog.Error("Server shutdown failed", "error", err)
 	}
+}
+
+// registerMCPRoutes mounts /mcp (and /mcp/gw when entra is set). 2026-07-28 has no
+// GET stream or DELETE session, so those answer 405 instead of the catch-all 404:
+// https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#earlier-streamable-http-revisions
+func registerMCPRoutes(mux *http.ServeMux, mcp http.Handler, auth, entra func(http.Handler) http.Handler) {
+	mux.Handle("GET /mcp", auth(mcp))
+	mux.Handle("POST /mcp", auth(mcp))
+	mux.Handle("DELETE /mcp", auth(http.HandlerFunc(methodNotAllowedPost)))
+	if entra != nil {
+		mux.Handle("POST /mcp/gw", entra(mcp))
+		mux.Handle("GET /mcp/gw", entra(http.HandlerFunc(methodNotAllowedPost)))
+		mux.Handle("DELETE /mcp/gw", entra(http.HandlerFunc(methodNotAllowedPost)))
+	}
+}
+
+func methodNotAllowedPost(w http.ResponseWriter, _ *http.Request) {
+	w.Header().Set("Allow", http.MethodPost)
+	http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 }
 
 func handleHealth(w http.ResponseWriter, _ *http.Request) {

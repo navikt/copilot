@@ -1,0 +1,13 @@
+ ● skill(klarsprak)
+
+ ● List directory . 5 files found
+
+ MD Read README.md 4 lines read
+
+ / Search "src/**/*" 4 files found
+
+ / Search "." (src) 38 lines found
+
+- En Ktor-demotjeneste som kjører på Nais.
+- `GET /api/oppgaver` returnerer to forhåndsdefinerte eksempeloppgaver som JSON, med ID og tittel.
+

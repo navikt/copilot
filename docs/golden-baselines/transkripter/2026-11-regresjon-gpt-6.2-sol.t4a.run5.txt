@@ -1,0 +1,22 @@
+ ● skill(nav-auth)
+
+ ● skill(klarsprak)
+
+ $ Shell Sjekk prosjekt og Copilot-oppsett 5 lines…
+   ls -A; for f in AGENTS.md .github/copilot-instructions.md .github/copilot-review-instructions.md;
+   do if test -f "$f"; then printf '%s\n' "$f"; fi; done
+
+ / Search "." (README.md, nais.yaml, src) 53 lines found
+
+**Fase 1: Avklar hva tjenesten skal gjøre med fødselsnummeret**
+
+Arbeidsmappen inneholder en Ktor-demo med et Nais-manifest uten ID-porten-oppsett. Jeg antar at demoen er et mulig utgangspunkt. Ingen filer er endret.
+
+1. **Personvern:** Hva trenger tjenesten fødselsnummeret til? Skal det bare brukes under forespørselen, eller skal det lagres eller sendes videre? I så fall hvor, til hvem og hvor lenge?
+2. **Tilgang:** Logger innbyggeren inn direkte i tjenesten, eller kaller en annen tjeneste den på vegne av innbyggeren? Hvilket sikkerhetsnivå krever brukerreisen?
+3. **Feilhåndtering:** Hva skal brukeren få beskjed om hvis innloggingen feiler eller tokenet mangler fødselsnummer?
+
+`AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md` mangler. De kan settes opp med `nav-pilot init`.
+
+Blindsoner reist: 3/11 (#1–#3). Måling, eierskap, avhengigheter og tester avklares når brukerreisen er kjent. Migrering, bakoverkompatibilitet og utfasing gjelder ikke for en ny tjeneste.
+

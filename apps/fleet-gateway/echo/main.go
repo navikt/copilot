@@ -249,7 +249,7 @@ func (s *server) echoHandler(w http.ResponseWriter, r *http.Request) {
 	switch rpc.Method {
 	case "initialize":
 		result = map[string]any{
-			"protocolVersion": "2025-03-26",
+			"protocolVersion": mcpNegotiateLegacyVersion(env.Params.ProtocolVersion),
 			"capabilities":    map[string]any{"tools": map[string]any{}},
 			"serverInfo":      map[string]string{"name": "fleet-echo", "version": "1.0.0"},
 			"claims":          claims,
@@ -469,7 +469,8 @@ func serveModernEcho(w http.ResponseWriter, r *http.Request, env mcpEnvelope, id
 		writeMCPError(w, http.StatusBadRequest, rpcID, e)
 		return
 	}
-	if strings.HasPrefix(env.Method, "notifications/") {
+	// A notification has no id; with one it is a request and falls through to -32601.
+	if strings.HasPrefix(env.Method, "notifications/") && len(id) == 0 {
 		w.WriteHeader(http.StatusAccepted)
 		return
 	}

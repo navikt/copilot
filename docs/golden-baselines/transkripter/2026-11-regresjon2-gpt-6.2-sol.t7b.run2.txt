@@ -1,0 +1,21 @@
+ ● skill(kafka)
+
+ ● skill(klarsprak)
+
+ $ Shell Find Kafka message and privacy context 15 lines…
+   ls -a; ls AGENTS.md .github/copilot{,-review}-instructions.md; rg -n
+   'SoknadMottattMelding|soknad-mottatt|fnr'
+
+ / Search "sendMottatt|retention|accessPolicy|krypter" 4 files found
+
+ $ Shell Read service and Kafka configuration 40 lines…
+   cat README.md nais.yaml; ls -R .github
+
+Jeg har ikke endret `SoknadMottattMelding`. Den sender i dag søknads-ID og mottaksdato til `soknad-mottatt`. Jeg antar at `fnr` er søkerens fødselsnummer. Koden viser at tjenesten allerede håndterer fødselsnummer, men ikke at de kan deles på dette topicet.
+
+Er det godkjent å dele søkerens fødselsnummer på `soknad-mottatt`, og hvilke konsumenter trenger feltet? Hvilke krav gjelder for kryptering og lagringstid? Kan dagens konsumenter lese meldingen med et ekstra felt? Finnes det kontrakttester som dekker dette?
+
+Repoet mangler `AGENTS.md`, `.github/copilot-instructions.md` og `.github/copilot-review-instructions.md`. De kan settes opp med `nav-pilot init`.
+
+Blindsoner reist: 4/11 (#1, #6, #7 og #9). Endringen gjelder meldingsinnholdet, ikke lesetilgang, feilhåndtering, overvåking, teameierskap, modernisering, avvikling eller ny teknologi.
+

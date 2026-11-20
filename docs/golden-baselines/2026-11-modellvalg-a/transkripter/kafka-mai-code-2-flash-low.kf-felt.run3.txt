@@ -1,0 +1,29 @@
+Jeg kartlegger modell og serialisering, og legger endringen inn der både publisering og konsumering dekker retrokompatibilitet.
+
+ ● List directory . 7 files found
+
+ / Search "vedtak-hendelse/**/*" 4 files found
+
+ / Search "VedtakFattet|sakstype|Sakstype" in *.{kt,kts,json} (vedtak-hendelse) 5 lines found
+
+ ● Read vedtak-hendelse/build.gradle.kts 20 lines read
+
+ ● List directory vedtak-konsument/src/main 1 file found
+
+ ● Read vedtak-hendelse/src/test/kotlin/no/nav/vedtak/VedtakFattetTest.kt 11 lines read
+
+ ● Read vedtak-hendelse/src/main/kotlin/no/nav/vedtak/VedtakFattet.kt 18 lines read
+
+ ● Edit  Edit vedtak-hendelse/src/main/kotlin/no/nav/vedtak/VedtakFattet.kt (+11 -1)  Edit vedtak-h…
+
+ ● Read vedtak-hendelse/src/test/kotlin/no/nav/vedtak/VedtakFattetTest.kt 17 lines read
+
+ ● Edit  Edit vedtak-hendelse/src/test/kotlin/no/nav/vedtak/VedtakFattetTest.kt (+27 -3)
+
+ $ Shell Run vedtak-hendelse Gradle tests 14 lines…
+   cd vedtak-hendelse && gradle test
+
+La til `Sakstype` i `VedtakFattet` med verdiene `ORDINAER`, `KLAGE` og `ANKE`.
+
+Manglende `sakstype` gir `ORDINAER`, og ukjente felter fra nyere produsenter ignoreres. `gradle test` fullføres.
+
