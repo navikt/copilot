@@ -1,7 +1,7 @@
 #!/bin/sh
 # Én arm, frakoblet: bench-bin/run.sh <navn> <grense i credits> <argumenter til nav-pilot-golden.sh>
 # Vaktsløyfen stopper armen ved forbruk over grensen (regel 5), ukjent bruk,
-# feil klientversjon (oppgave eller dommer) eller last over 8 to minutter på rad.
+# feil klientversjon (oppgave eller dommer) eller 5-minutters last over 8 (eierbeslutning 20. november).
 set -u
 name=$1 limit=$2; shift 2
 wt=$(cd "$(dirname "$0")/.." && pwd)
@@ -16,7 +16,6 @@ hp=$!
 echo "$hp" >"$run/harness.pid"
 
 (
-  high=0
   while kill -0 "$hp" 2>/dev/null; do
     sleep 60
     w=$(ls -d "$run"/tmp/nav-pilot-golden.* 2>/dev/null | head -1)
@@ -35,9 +34,8 @@ echo "$hp" >"$run/harness.pid"
     fi
     bad=$(cut -d'|' -f2 "$BENCH_VERSION_LOG" | grep -v -x 1.0.114-0 | head -1)
     [ -n "$bad" ] && reason="dommerøkt på $bad"
-    l1=$(sysctl -n vm.loadavg | awk '{print int($2)}')
-    if [ "$l1" -gt 8 ]; then high=$((high + 1)); else high=0; fi
-    [ "$high" -ge 2 ] && reason="last $l1"
+    l5=$(sysctl -n vm.loadavg | awk '{print $3}')
+    awk -v l="$l5" 'BEGIN{exit !(l > 8)}' && reason="5-minutters last $l5"
     if [ -n "$reason" ]; then
       echo "$reason" >"$run/stopped"
       pkill -TERM -P "$hp"; kill -TERM "$hp"
