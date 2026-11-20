@@ -100,7 +100,7 @@ func TestCreateOrderTwoStep(t *testing.T) {
 		if isErr || previewToken(t, out) == "" {
 			t.Fatalf("no preview: %q", txt)
 		}
-		for _, want := range []string{`"gruppeId":42`, `"antall":2`, `"q1"`, `"MANN"`, `"quotaRemaining":20`} {
+		for _, want := range []string{`"gruppeId":42`, `"antall":2`, `"q1"`, `"MANN"`, `"quotaRemaining":20`, `"defaults":"Each person is created with FNR`, `folkeregister personstatus=bosatt`} {
 			if !strings.Contains(txt, want) {
 				t.Errorf("preview missing %s: %s", want, txt)
 			}

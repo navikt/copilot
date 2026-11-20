@@ -19,6 +19,8 @@ Write tool (not listed on the prod gateway route until ROS sign-off):
 
 - `create_order`: two-step. The first call returns a preview and a single-use `confirmationToken` (5 min, HMAC-bound to the user and the exact parameters, per-pod seen-set) and orders nothing; only a second call with the token orders and charges quota. `POST /api/v1/gruppe/{gruppeId}/bestilling` (`RsDollyBestillingRequest`). Verifies group ownership (`opprettetAv.brukerId` against `/api/v1/bruker/current`), caps `antall` at 1 to 5, restricts `environments` to a subset of `q1`, `q2`, `q4`, enforces a per-user quota of 20 persons per rolling 24h in memory per pod keyed by hashed `NAVident`, and writes one audit log line per order without person data.
 
+  The preview carries a `defaults` line (team Dolly, 2026-11-20): persons get FNR, name, gender, place of birth, date of birth, marital status, residential address, Norwegian citizenship and `personstatus=bosatt`; age 30-60 and even gender split unless set; children 0-17, parents 60-80; spouse within ±3 years; every 20th couple (5%) same-sex. Only `antall`, `environments`, `minAlder`, `maxAlder` and `kjoenn` can be set here; anything else needs the Dolly UI.
+
 Upstream bodies are capped at 1 MiB and tool results at 128 KiB. Logs never contain response bodies, idents or tokens.
 
 ## Configuration
