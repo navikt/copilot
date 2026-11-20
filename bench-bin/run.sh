@@ -11,7 +11,7 @@ export PATH="$wt/bench-bin:$PATH" TMPDIR="$run/tmp" BENCH_VERSION_LOG="$run/judg
 : >"$BENCH_VERSION_LOG"
 cd "$wt" || exit 1
 
-nohup ./scripts/nav-pilot-golden.sh "$@" >"$run/harness.log" 2>&1 &
+nohup ./scripts/nav-pilot-golden.sh --keep "$@" >"$run/harness.log" 2>&1 &
 hp=$!
 echo "$hp" >"$run/harness.pid"
 
