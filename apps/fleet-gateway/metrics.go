@@ -1,13 +1,17 @@
 package main
 
 import (
+	"maps"
 	"net/http"
+	"slices"
 	"strconv"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+
+	"github.com/navikt/copilot/fleet-gateway/internal/policy"
 )
 
 // Metrics carry no user identifiers: labels are limited to values from the
@@ -20,8 +24,8 @@ var (
 
 	mcpRequestsTotal = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "fleet_gateway_mcp_requests_total",
-		Help: "MCP proxy requests by route, outcome and tool-policy decision.",
-	}, []string{"route", "outcome", "decision"})
+		Help: "MCP proxy requests by route, outcome and tool-policy decision. reason is set on deny only (not_listed, ambiguous, header_mismatch, user_cap, user_sse_cap). tool is the called tool when it is on the route's explicit list, else other; empty when the request is not a tool call.",
+	}, []string{"route", "outcome", "decision", "reason", "tool"})
 
 	mcpRequestDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
 		Name:    "fleet_gateway_mcp_request_duration_seconds",
@@ -36,8 +40,8 @@ var (
 
 	rateLimitedTotal = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "fleet_gateway_rate_limited_total",
-		Help: "Requests rejected by the per-IP or global rate limiter, by endpoint.",
-	}, []string{"endpoint"})
+		Help: "Requests rejected by the per-IP or global rate limiter, by OAuth endpoint.",
+	}, []string{"oauth_endpoint"})
 )
 
 const (
@@ -60,9 +64,26 @@ func observeRateLimited(endpoint string) {
 	rateLimitedTotal.WithLabelValues(endpoint).Inc()
 }
 
-func observeMCPRequest(route, outcome, decision string, d time.Duration) {
-	mcpRequestsTotal.WithLabelValues(route, outcome, decision).Inc()
-	mcpRequestDuration.WithLabelValues(route).Observe(d.Seconds())
+// denyReasons is the closed set of reason values on decision="deny".
+var denyReasons = []string{policy.ReasonNotListed, policy.ReasonAmbiguous, policy.ReasonHeaderMismatch, "user_cap", "user_sse_cap"}
+
+// observeMCPRequest bounds both extra labels: reason only on deny and only from
+// denyReasons; tool only when on the route's explicit list, else "other"
+// (passAllTools routes always give "other").
+func observeMCPRequest(route PilotRoute, outcome, decision, reason, tool, rawTool string, d time.Duration) {
+	if decision != "deny" || !slices.Contains(denyReasons, reason) {
+		reason = ""
+	}
+	// tool is the truncated audit value, only used to tell "not a tool call" from "other".
+	switch {
+	case tool == "":
+	case route.allowedTools[rawTool]:
+		tool = rawTool
+	default:
+		tool = "other"
+	}
+	mcpRequestsTotal.WithLabelValues(route.Route, outcome, decision, reason, tool).Inc()
+	mcpRequestDuration.WithLabelValues(route.Route).Observe(d.Seconds())
 }
 
 func observeHTTPRequest(code int, reason string) {
@@ -102,10 +123,21 @@ func initMetrics(routes []PilotRoute) {
 		rateLimitedTotal.WithLabelValues(ep)
 	}
 	for _, r := range routes {
+		tools := append([]string{"", "other"}, slices.Sorted(maps.Keys(r.allowedTools))...)
 		for _, o := range []string{"ok", "upstream_token_error", "upstream_error"} {
-			mcpRequestsTotal.WithLabelValues(r.Route, o, "allow")
+			for _, tool := range tools {
+				mcpRequestsTotal.WithLabelValues(r.Route, o, "allow", "", tool)
+			}
 		}
-		mcpRequestsTotal.WithLabelValues(r.Route, "disabled", "")
+		for _, reason := range denyReasons {
+			o := "tool_denied"
+			switch reason {
+			case "user_cap", "user_sse_cap":
+				o = reason
+			}
+			mcpRequestsTotal.WithLabelValues(r.Route, o, "deny", reason, "")
+		}
+		mcpRequestsTotal.WithLabelValues(r.Route, "disabled", "", "", "")
 	}
 }
 

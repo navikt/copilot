@@ -456,9 +456,11 @@ func ProtocolVersion(v string) string {
 // ScanIncomplete and HeaderMismatch feed the audit line and are set for POST
 // only. NonPostBody marks a GET or DELETE that carried a body.
 type Decision struct {
-	Allow          bool
-	Reason         string
-	Method, Tool   string
+	Allow        bool
+	Reason       string
+	Method, Tool string
+	// RawTool is the full parsed tool name (Tool is the truncated display value), for matching against an allowlist.
+	RawTool        string
 	ScanIncomplete bool
 	HeaderMismatch bool
 	NonPostBody    bool
@@ -481,6 +483,7 @@ func Decide(httpMethod string, allowed map[string]bool, h http.Header, body []by
 	}
 	audit := scanJSONRPCAudit(body)
 	d.Method, d.Tool, d.ScanIncomplete = audit.method, audit.tool, audit.incomplete
+	d.RawTool = audit.rawTool
 	d.HeaderMismatch = mcpHeadersMismatch(h, audit)
 	if allowed == nil {
 		return d
