@@ -5,9 +5,9 @@ import { ArrowLeftIcon } from "@navikt/aksel-icons";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Modellvalget i november 2026: ingen bytter, én ny anbefaling",
+  title: "Modellvalget i november 2026: ingen agent byttet modell",
   description:
-    "Vi testet nye og billigere modeller på Navs egne oppgaver. Agentene beholder modellene sine, og MAI Code 2 er et rimelig valg når du velger modell selv til vanlig koding.",
+    "Vi testet nye og billigere modeller på Navs egne oppgaver. Ingen agent byttet modell, men MAI Code 2 er et rimelig valg når du velger modell selv til vanlig koding.",
   robots: { index: false, follow: false },
 };
 
@@ -19,7 +19,7 @@ const outcomes: { question: string; outcome: string; why: string }[] = [
   {
     question: "Standardmodell for @nav-pilot",
     outcome: "GPT-6.1 Sol beholdes",
-    why: "GPT-6.2 Sol var 16 % billigere. Men i én av sikkerhetstestene la den ikke igjen stubbene for koden brukeren skulle skrive selv, i alle fem kjøringene.",
+    why: "GPT-6.2 Sol var 16 % billigere, men i alle fem kjøringene av én sikkerhetstest la den ikke igjen stubbene for koden brukeren skulle skrive selv. Også GPT-6.1 Sol hadde svakheter: én reell bom på en annen sikkerhetstest, og 3 av 5 på en vanlig test. Utfallet ble derfor formelt «ikke avgjort», og da beholdes dagens modell.",
   },
   {
     question: "Kodegjennomgang med @code-review",
@@ -39,7 +39,7 @@ const outcomes: { question: string; outcome: string; why: string }[] = [
   {
     question: "Billige roller: @research, @rust og @kafka",
     outcome: "GPT-6 Luna og Claude Haiku 5.5 beholdes",
-    why: "MAI Code 2 Flash var billigere og løste oppgavene for @research og @rust, men besto ikke sikkerhetstestene i planleggingsoppgavene. På @kafka bommet den på én oppgave.",
+    why: "MAI Code 2 Flash var billigere og løste oppgavene for @research og @rust, men besto ikke sikkerhetstestene i planleggingsoppgavene. På @kafka besto den én oppgave i bare 4 av 5 kjøringer.",
   },
 ];
 
@@ -70,15 +70,15 @@ export default function ModelChoiceNovemberArticlePage() {
                 </Tag>
               </HStack>
               <Heading size="xlarge" level="1">
-                Modellvalget i november 2026: ingen bytter, én ny anbefaling
+                Modellvalget i november 2026: ingen agent byttet modell
               </Heading>
             </VStack>
 
             <article className="prose max-w-none">
               <BodyLong spacing>
                 De fleste agentene i nav-pilot har en fast modell. I november testet vi om nyere eller billigere
-                modeller burde ta over noen av rollene. Svaret ble nei for alle rollene vi testet. MAI Code 2 er likevel
-                et godt og rimelig valg når du selv velger modell til vanlig koding.
+                modeller burde ta over noen av rollene. Ingen agent byttet modell. MAI Code 2 er likevel et godt og
+                rimelig valg når du selv velger modell til vanlig koding.
               </BodyLong>
 
               <Heading size="medium" level="2" spacing>
@@ -86,10 +86,10 @@ export default function ModelChoiceNovemberArticlePage() {
               </Heading>
               <BodyLong spacing>
                 Eksterne rangeringer er et nyttig utgangspunkt, men de svarer ikke på spørsmålet vårt. Artificial
-                Analysis anslo at GPT-6.2 Sol var 14 % dyrere enn GPT-6.1 Sol per oppgave på innsatsnivået low. På våre
-                oppgaver var den 16 % billigere. På Terminal-Bench 4.1 fikk GPT-6.2 Astra 62,1 % og GPT-6.2 Sol 61,5 %,
-                men usikkerhetsintervallene overlapper, så tavla skiller dem ikke. For MAI-modellene fant vi bare
-                leverandørens egne tall.
+                Analysis anslo 18. november 2026 at GPT-6.2 Sol var 14 % dyrere enn GPT-6.1 Sol per oppgave på
+                innsatsnivået low, men billigere på høyeste innsatsnivå. På våre oppgaver var den 16 % billigere. På
+                Terminal-Bench 4.1 fikk GPT-6.2 Astra 62,1 % og GPT-6.2 Sol 61,5 %, men usikkerhetsintervallene
+                overlapper, så tavla skiller dem ikke. For MAI-modellene fant vi bare leverandørens egne tall.
               </BodyLong>
               <BodyLong spacing>
                 Hva en oppgave koster, avhenger av innsatsnivået og av hva slags oppgave det er. Derfor er det Navs egne
@@ -116,21 +116,24 @@ export default function ModelChoiceNovemberArticlePage() {
                 <li>
                   <BodyLong>
                     <strong>Sikkerhetstestene er en port.</strong> Én reell bom stopper et bytte, uansett hvor godt
-                    modellen gjør det ellers. Et grensetilfelle teller som bom.
+                    modellen gjør det ellers. Et grensetilfelle teller som bom. Flere av testene gjelder rød sone: kode
+                    som brukeren skal skrive og forstå selv, som kjernelogikk og sikkerhet. Der skal agenten ikke skrive
+                    koden, men lage stubber, altså tomme funksjoner merket TODO, som brukeren fyller ut.
                   </BodyLong>
                 </li>
                 <li>
                   <BodyLong>
-                    <strong>Bommer leses for hånd.</strong> Når en sjekk feilet, leste vi svaret. For standardmodellen
-                    leste også en uavhengig leser, en annen modell, de samme svarene. Var de uenige, gjaldt den
-                    strengeste vurderingen.
+                    <strong>Hver bom leses enkeltvis.</strong> Lesingen ble gjort av KI-modeller, ikke av mennesker. For
+                    standardmodellen ble hver bom lest av to ulike modeller: KI-agenten som kjørte målingen, og en
+                    uavhengig andre modell. Var de uenige, gjaldt den strengeste vurderingen.
                   </BodyLong>
                 </li>
                 <li>
                   <BodyLong spacing>
-                    <strong>Språkmodell som dommer der regex sviktet.</strong> Noen sjekker med ordlister og regulære
-                    uttrykk avviste riktige svar, fordi de ikke skiller et funn fra en negasjon. Disse sjekkene flyttes
-                    til en språkmodell som dommer, prøvd mot et kontrollsett med kjent fasit.
+                    <strong>Språkmodell som dommer der enkle tekstsjekker sviktet.</strong> Noen sjekker lette etter
+                    faste ord og mønstre i svaret og avviste riktige svar, fordi de ikke skiller et funn fra en
+                    negasjon. Disse sjekkene flyttes til en språkmodell som dommer, prøvd mot et kontrollsett med kjent
+                    fasit.
                   </BodyLong>
                 </li>
               </ul>
@@ -165,9 +168,13 @@ export default function ModelChoiceNovemberArticlePage() {
               <BodyLong spacing>
                 MAI Code 2 Flash løste oppgavene for @research og @rust like godt som modellene de har i dag, og var
                 billigere i alle kjøringene. Den fikk derfor en egen beslutningsmåling 20. november. Der kostet den 2,87
-                credits per kjøring i median, mot 116,6 for GPT-6.1 Sol. Men den bommet på flere av sikkerhetstestene,
-                blant annet ved å skrive kode i rød sone som brukeren skulle skrive selv. Etter planen stopper én reell
-                bom på en sikkerhetstest begge rollene.
+                AI Credits per kjøring i median på de samme planleggingsoppgavene som GPT-6.1 Sol, mot 116,6 for Sol.
+                Men den bommet på flere av sikkerhetstestene, blant annet ved å skrive kode i rød sone som brukeren
+                skulle skrive selv. Etter planen stopper én reell bom på en sikkerhetstest begge rollene.
+              </BodyLong>
+              <BodyLong spacing>
+                Etter den første målingen anbefalte vi MAI Code 2 Flash som et utforskende valg for @worker. Den
+                anbefalingen er trukket, fordi Flash bommet på sikkerhetstestene i beslutningsmålingen.
               </BodyLong>
 
               <Heading size="medium" level="2" spacing>
@@ -190,7 +197,8 @@ export default function ModelChoiceNovemberArticlePage() {
                 <li>
                   <BodyLong spacing>
                     Velger du modell selv til vanlig koding, er MAI Code 2 et rimelig valg. Den er ikke målt på
-                    planlegging eller på sikkerhetstestene, så bruk standardmodellen til sikkerhetskritisk kode.
+                    planlegging eller på sikkerhetstestene. Vårt råd, som ikke bygger på målingen: bruk standardmodellen
+                    til sikkerhetskritisk kode.
                   </BodyLong>
                 </li>
               </ul>
@@ -211,11 +219,7 @@ export default function ModelChoiceNovemberArticlePage() {
                 <li>
                   <BodyLong>
                     <strong>Testene alene bytter aldri modell.</strong> Et bytte krever en egen beslutningsmåling og
-                    trinnvis utrulling etter{" "}
-                    <Link href={`${DOCS}/pin-protokoll.md`} target="_blank" rel="noopener noreferrer">
-                      pin-protokollen
-                    </Link>
-                    .
+                    trinnvis utrulling etter <Link href={`${DOCS}/pin-protokoll.md`}>pin-protokollen</Link>.
                   </BodyLong>
                 </li>
                 <li>
@@ -226,10 +230,7 @@ export default function ModelChoiceNovemberArticlePage() {
                 <li>
                   <BodyLong spacing>
                     <strong>Dommeren har kjente svakheter.</strong> Vi har dokumentert dem i{" "}
-                    <Link href={`${REPO}/issues/2482`} target="_blank" rel="noopener noreferrer">
-                      #2482
-                    </Link>
-                    .
+                    <Link href={`${REPO}/issues/2482`}>#2482</Link>.
                   </BodyLong>
                 </li>
               </ul>
@@ -240,56 +241,31 @@ export default function ModelChoiceNovemberArticlePage() {
               <ul>
                 <li>
                   <BodyLong>
-                    <Link
-                      href={`${BASELINES}/2026-11-modellvalg-resultat.md`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      Resultatrapporten
-                    </Link>{" "}
-                    med alle tall, avvik fra planen og kostnad
+                    <Link href={`${BASELINES}/2026-11-modellvalg-resultat.md`}>Resultatrapporten</Link> med alle tall,
+                    avvik fra planen og kostnad
                   </BodyLong>
                 </li>
                 <li>
                   <BodyLong>
-                    <Link href={`${BASELINES}/2026-11-modellvalg-plan.md`} target="_blank" rel="noopener noreferrer">
-                      Den forhåndsregistrerte planen
-                    </Link>
+                    <Link href={`${BASELINES}/2026-11-modellvalg-plan.md`}>Den forhåndsregistrerte planen</Link>
                   </BodyLong>
                 </li>
                 <li>
                   <BodyLong>
-                    <Link
-                      href={`${BASELINES}/2026-11-modellvalg-regnskap.md`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      Regnskapet
-                    </Link>{" "}
-                    og{" "}
-                    <Link href={`${REPO}/pull/2397`} target="_blank" rel="noopener noreferrer">
-                      rådataene
-                    </Link>
+                    <Link href={`${BASELINES}/2026-11-modellvalg-regnskap.md`}>Regnskapet</Link> og{" "}
+                    <Link href={`${REPO}/pull/2397`}>rådataene</Link>
                   </BodyLong>
                 </li>
                 <li>
                   <BodyLong>
                     Beslutningsmålingen for MAI Code 2 Flash:{" "}
-                    <Link href={`${BASELINES}/2026-12-mai-flash-plan.md`} target="_blank" rel="noopener noreferrer">
-                      planen
-                    </Link>{" "}
-                    og{" "}
-                    <Link href={`${REPO}/pull/2518`} target="_blank" rel="noopener noreferrer">
-                      resultatet
-                    </Link>
+                    <Link href={`${BASELINES}/2026-12-mai-flash-plan.md`}>planen</Link> og{" "}
+                    <Link href={`${REPO}/pull/2518`}>resultatet</Link>
                   </BodyLong>
                 </li>
                 <li>
                   <BodyLong spacing>
-                    <Link href={`${DOCS}/modellvalg.md`} target="_blank" rel="noopener noreferrer">
-                      Modellvalg for alle agentene
-                    </Link>{" "}
-                    med begrunnelser
+                    <Link href={`${DOCS}/modellvalg.md`}>Modellvalg for alle agentene</Link> med begrunnelser
                   </BodyLong>
                 </li>
               </ul>
