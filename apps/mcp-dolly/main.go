@@ -95,6 +95,7 @@ type server struct {
 	dolly       *dollyClient
 	upstreamSem chan struct{}
 	quota       *userQuota
+	confirm     *orderConfirm
 	now         func() time.Time
 }
 
@@ -104,6 +105,7 @@ func newServer(cfg *config) *server {
 		dolly:       newDollyClient(cfg.DollyURL, cfg.HTTPClient),
 		upstreamSem: make(chan struct{}, maxConcurrentUpstream),
 		quota:       newUserQuota(),
+		confirm:     newOrderConfirm(),
 		now:         time.Now,
 	}
 }

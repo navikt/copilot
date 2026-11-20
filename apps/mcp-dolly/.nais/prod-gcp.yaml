@@ -1,5 +1,7 @@
-replicas_min: "2"
-replicas_max: "2"
+# shortcut: confirmation tokens use a per-pod random key and a per-pod single-use set, so run exactly 1 replica;
+# move the key to a Nais secret and the set to Postgres before allowing >1 replica.
+replicas_min: "1"
+replicas_max: "1"
 cpu_threshold: "80"
 cpu_request: 50m
 memory_request: 64Mi
