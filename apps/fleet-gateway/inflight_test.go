@@ -695,7 +695,7 @@ func TestSSECapShedIsNotAuditedAsAllow(t *testing.T) {
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	allow := mcpRequestsTotal.WithLabelValues(route, "sse_over_capacity", "allow")
+	allow := mcpRequestsTotal.WithLabelValues(route, "sse_over_capacity", "allow", "", "")
 	before := testutil.ToFloat64(allow)
 	if code := capPost(t, ts, token, "?sse=1"); code != http.StatusServiceUnavailable {
 		t.Fatalf("second SSE stream: code %d, want 503", code)

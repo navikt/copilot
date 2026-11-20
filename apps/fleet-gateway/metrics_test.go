@@ -12,11 +12,11 @@ import (
 )
 
 func TestMetricsRegisteredAndServed(t *testing.T) {
-	observeMCPRequest("/mcp/ns/test", "upstream_token_error", "", time.Second)
+	observeMCPRequest(PilotRoute{Route: "/mcp/ns/test"}, "upstream_token_error", "", "", "", time.Second)
 	observeHTTPRequest(http.StatusBadGateway, "")
 	routesLoaded.Set(3)
 
-	if got := testutil.ToFloat64(mcpRequestsTotal.WithLabelValues("/mcp/ns/test", "upstream_token_error", "")); got < 1 {
+	if got := testutil.ToFloat64(mcpRequestsTotal.WithLabelValues("/mcp/ns/test", "upstream_token_error", "", "", "")); got < 1 {
 		t.Fatalf("mcp counter = %v, want >= 1", got)
 	}
 
@@ -68,7 +68,7 @@ func TestInitMetricsPrecreatesAlertSeries(t *testing.T) {
 	defer func() { _ = resp.Body.Close() }()
 	body, _ := io.ReadAll(resp.Body)
 	for _, want := range []string{
-		`fleet_gateway_mcp_requests_total{decision="allow",outcome="upstream_token_error",route="/mcp/ns/precreated"} 0`,
+		`fleet_gateway_mcp_requests_total{decision="allow",outcome="upstream_token_error",reason="",route="/mcp/ns/precreated",tool=""} 0`,
 		`fleet_gateway_http_requests_total{code="502",reason=""}`,
 	} {
 		if !strings.Contains(string(body), want) {
@@ -93,4 +93,80 @@ func TestKillSwitch503IsLabelled(t *testing.T) {
 	if testutil.ToFloat64(shed) != beforeShed+1 || testutil.ToFloat64(unlabelled) != beforeReal {
 		t.Fatalf("kill-switch 503 not labelled reason=disabled")
 	}
+}
+
+// Denials count as decision="deny" with a bounded reason; tool is on the label
+// only when on the route list, so an attacker-chosen name cannot mint series.
+func TestMCPRequestsTotalDecisionReasonTool(t *testing.T) {
+	const route = "/mcp/team-etterlevelse/etterlevelse"
+	call := func(name string) string {
+		return `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"` + name + `"}}`
+	}
+	mismatch := http.Header{"Mcp-Method": {"tools/call"}, "Mcp-Name": {"delete_all"}}
+	cases := []struct {
+		name, body, outcome, decision, reason, tool string
+		tools                                       map[string]bool
+		hdr                                         http.Header
+	}{
+		{"listed", call("whoami"), "ok", "allow", "", "whoami", policyTools, nil},
+		{"not listed", call("evil-1"), "tool_denied", "deny", "not_listed", "other", policyTools, nil},
+		{"ambiguous", call("whoami") + call("evil-2"), "tool_denied", "deny", "ambiguous", "other", policyTools, nil},
+		{"header mismatch", call("whoami"), "tool_denied", "deny", "header_mismatch", "whoami", policyTools, mismatch},
+		{"pass-all", call("evil-3"), "ok", "allow", "", "other", nil, nil},
+		{"not a call", `{"jsonrpc":"2.0","id":1,"method":"tools/list"}`, "ok", "allow", "", "", policyTools, nil},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			c := mcpRequestsTotal.WithLabelValues(route, tc.outcome, tc.decision, tc.reason, tc.tool)
+			before := testutil.ToFloat64(c)
+			auditToolsHeaders(t, http.MethodPost, tc.tools, tc.body, tc.hdr)
+			if got := testutil.ToFloat64(c); got != before+1 {
+				t.Fatalf("series {%s,%s,%s,%s} = %v, want %v", tc.outcome, tc.decision, tc.reason, tc.tool, got, before+1)
+			}
+		})
+	}
+	// Raw tool names never reach a label.
+	body := scrapeMetrics(t)
+	if strings.Contains(body, "evil-") {
+		t.Errorf("unlisted tool name leaked into /metrics")
+	}
+}
+
+func TestInitMetricsPrecreatesDenySeries(t *testing.T) {
+	initMetrics([]PilotRoute{{Route: "/mcp/ns/deny"}})
+	body := scrapeMetrics(t)
+	for _, reason := range denyReasons {
+		if !strings.Contains(body, `decision="deny",outcome=`) || !strings.Contains(body, `reason="`+reason+`"`) {
+			t.Errorf("no pre-created deny series for reason %q", reason)
+		}
+	}
+	for _, ep := range rateLimitedEndpoints {
+		if !strings.Contains(body, `fleet_gateway_rate_limited_total{oauth_endpoint="`+ep+`"} `) {
+			t.Errorf("no pre-created rate limit series for %q", ep)
+		}
+	}
+	if strings.Contains(body, `fleet_gateway_rate_limited_total{endpoint=`) {
+		t.Errorf("old endpoint label still exported")
+	}
+}
+
+func TestObserveMCPRequestBoundsReason(t *testing.T) {
+	r := PilotRoute{Route: "/mcp/ns/bound", allowedTools: map[string]bool{"a": true}}
+	observeMCPRequest(r, "tool_denied", "deny", "made-up", "zzz", time.Millisecond)
+	if got := testutil.ToFloat64(mcpRequestsTotal.WithLabelValues(r.Route, "tool_denied", "deny", "", "other")); got != 1 {
+		t.Fatalf("unknown reason/tool not collapsed: %v", got)
+	}
+}
+
+func scrapeMetrics(t *testing.T) string {
+	t.Helper()
+	srv := httptest.NewServer(metricsServer("").Handler)
+	defer srv.Close()
+	resp, err := http.Get(srv.URL + "/metrics")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	b, _ := io.ReadAll(resp.Body)
+	return string(b)
 }
