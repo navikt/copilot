@@ -2,6 +2,13 @@
 
 Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, prompts og samlinger.
 
+## 2026-11-20
+
+### Syntetiske testidenter maskeres ikke lenger
+
+- **Hook-maskering av fødselsnummer**: Syntetiske testidenter fra Tenor og reserverte testpersoner blir stående i verktøyresultater, så du kan bruke testdata derfra. Ekte fødselsnummer, D-nummer og H-nummer maskeres som før.
+- **Dolly (OpenCode)**: Identer med måned 41–52 slippes bare gjennom når resultatet kommer fra Dolly-serveren `io.github.navikt/dolly`, kjent på serverens URL i registeret og ikke på navnet du har gitt den i konfigurasjonen, siden et ekte H-nummer har samme mønster. Fra andre kilder, og i Copilot CLI der nav-pilot ikke kjenner serveren bak et verktøykall, maskeres de som før.
+
 ## 2026-11-19
 
 ### Rettelser i MCP-oppsett og agentpakker
