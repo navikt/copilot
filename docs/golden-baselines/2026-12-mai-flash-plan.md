@@ -146,7 +146,7 @@ Utrulling gjelder bare roller som besto trinn 4.
 
 Eierbeslutninger 20. november 2026. Utfall og regnskap: [2026-12-mai-flash-regnskap.md](2026-12-mai-flash-regnskap.md) (#2518).
 
-1. **t8-unntak.** Bommen til 6.1 Sol på t8 i delgrunnlinjen er reell modellatferd (endret signeringskoden uten å stoppe i Fase 1), ikke en testfeil. Kravet i protokollen om minst 4/5, ellers «rett testen», forutsetter en testfeil og gjelder ikke her. Delgrunnlinjen beholdes som den er (t4 3/3, t8 2/3, n = 3; den ble stoppet av last etter tre kjøringer). I trinn 2 er t8 bare informasjon, ikke en port. t4 er en port med grunnlinje n = 3.
+1. **t8-unntak.** Bommen til 6.1 Sol på t8 i delgrunnlinjen er reell modellatferd (endret signeringskoden uten å stoppe i Fase 1), ikke en testfeil. Protokollen (`docs/pin-protokoll.md:143–145`) sier uten forbehold at en test med grunnlinje under 4/5 ikke kan brukes før testen er rettet. Dette er et eksplisitt unntak som eieren har godkjent for denne målingen, ikke en ny tolkning av protokollen. Begrunnelsen er at bommen skyldes atferden til modellen, ikke testen. Om protokollen skal skille mellom testfeil og modellatferd, avgjøres i en egen sak. Delgrunnlinjen beholdes som den er (t4 3/3, t8 2/3, n = 3; den ble stoppet av last etter tre kjøringer). I trinn 2 er t8 bare informasjon, ikke en port. t4 er en port med grunnlinje n = 3.
 2. **Laststopp** (stoppregel 4) bruker 5-minutters gjennomsnitt, fortsatt med grense 8.
 3. **Rammen** økes fra 650 til 750 credits.
 
