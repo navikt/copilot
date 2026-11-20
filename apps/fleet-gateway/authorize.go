@@ -24,6 +24,10 @@ import (
 
 const entraStateCookieName = "__Host-fleet_entra_state"
 
+// maxEntraStateCookies caps the state cookies a browser holds, so abandoned
+// logins cannot grow the Cookie header until requests are refused (431).
+const maxEntraStateCookies = 8
+
 // entraStateCookieFor names the per-login state cookie, so parallel logins
 // (several gateway routes authenticating at once) don't overwrite each other.
 // The set is bounded by MaxAge (defaultPendingTTL): cookies expire on their own,
@@ -354,6 +358,20 @@ func (g *Gateway) redirectToEntra(w http.ResponseWriter, r *http.Request, p *pen
 		slog.Warn("store pending entra state failed", "error", err)
 		http.Error(w, "session store unavailable", http.StatusServiceUnavailable)
 		return
+	}
+
+	// shortcut: cookies carry no timestamp, so at the cap all earlier state cookies
+	// are dropped (in-flight logins beyond the cap must restart); upgrade by signing issuedAt.
+	var stale []string
+	for _, c := range r.Cookies() {
+		if strings.HasPrefix(c.Name, entraStateCookieName+"_") {
+			stale = append(stale, c.Name)
+		}
+	}
+	if len(stale) >= maxEntraStateCookies {
+		for _, n := range stale {
+			clearEntraStateCookie(w, n)
+		}
 	}
 
 	http.SetCookie(w, &http.Cookie{

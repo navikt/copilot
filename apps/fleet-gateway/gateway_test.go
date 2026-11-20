@@ -1312,34 +1312,73 @@ func TestLogInjection_SanitizedAndEntraErrorTruncated(t *testing.T) {
 
 func TestCallback_ParallelLoginsEachKeepOwnStateCookie(t *testing.T) {
 	te := newTestEnv(t)
-	s1, c1 := te.startLogin("abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG")
-	s2, c2 := te.startLogin("abcdefghijklmnopqrstuvwxyz0123456789ABCDEFH")
-	if c1.Name == c2.Name {
-		t.Fatalf("parallel logins share cookie name %q", c1.Name)
+	type login struct {
+		state, nonce, challenge string
+		cookie                  *http.Cookie
 	}
-	for i, l := range []struct {
-		state string
-		own   *http.Cookie
-	}{{s1, c1}, {s2, c2}} {
-		req := httptest.NewRequest(http.MethodGet, "/oauth2/callback?code=entra-code&state="+url.QueryEscape(l.state), nil)
-		req.AddCookie(c1) // the browser sends both cookies
-		req.AddCookie(c2)
+	var logins []login
+	for _, v := range []string{"abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG", "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFH"} {
+		s, c := te.startLogin(v)
+		logins = append(logins, login{s, te.lastEntraNonce, te.lastEntraChallenge, c})
+	}
+	if logins[0].cookie.Name == logins[1].cookie.Name {
+		t.Fatalf("parallel logins share cookie name %q", logins[0].cookie.Name)
+	}
+	for i, l := range logins {
+		te.mu.Lock() // the mock answers for the login being completed
+		te.lastEntraNonce, te.lastEntraChallenge = l.nonce, l.challenge
+		te.mu.Unlock()
+		req := httptest.NewRequest(http.MethodGet, "/oauth2/callback?code=entra-code-123&state="+url.QueryEscape(l.state), nil)
+		for _, o := range logins { // the browser sends every state cookie
+			req.AddCookie(o.cookie)
+		}
 		rec := httptest.NewRecorder()
 		te.handler.ServeHTTP(rec, req)
-		if rec.Code == http.StatusForbidden {
-			t.Fatalf("login %d rejected with 403", i+1)
-		}
+		resp := rec.Result()
 		cleared := 0
-		for _, c := range rec.Result().Cookies() {
+		for _, c := range resp.Cookies() {
 			if strings.HasPrefix(c.Name, entraStateCookieName) && c.MaxAge < 0 {
 				cleared++
-				if c.Name != l.own.Name {
+				if c.Name != l.cookie.Name {
 					t.Fatalf("login %d cleared foreign cookie %q", i+1, c.Name)
 				}
 			}
 		}
 		if cleared != 1 {
 			t.Fatalf("login %d cleared %d state cookies, want 1", i+1, cleared)
+		}
+		if resp.StatusCode == http.StatusOK {
+			id, csrf, cookie, _ := te.parseConsentPage(resp)
+			resp = te.postConsent(id, csrf, cookie, "approve")
+		}
+		_ = te.clientCode(resp) // 302 to the client redirect_uri with a gateway code
+	}
+}
+
+func TestAuthorize_StateCookieCountIsCapped(t *testing.T) {
+	te := newTestEnv(t)
+	for n := 0; n <= maxEntraStateCookies+3; n++ {
+		req := httptest.NewRequest(http.MethodGet, te.authorizeURL(nil, "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG"), nil)
+		held := map[string]bool{}
+		for i := 0; i < n; i++ {
+			name := entraStateCookieName + "_" + string(rune('a'+i)) + "0000000"
+			req.AddCookie(&http.Cookie{Name: name, Value: "x"})
+			held[name] = true
+		}
+		rec := httptest.NewRecorder()
+		te.handler.ServeHTTP(rec, req)
+		for _, c := range rec.Result().Cookies() {
+			if !strings.HasPrefix(c.Name, entraStateCookieName+"_") {
+				continue
+			}
+			if c.MaxAge < 0 {
+				delete(held, c.Name)
+			} else {
+				held[c.Name] = true
+			}
+		}
+		if len(held) > maxEntraStateCookies {
+			t.Fatalf("with %d existing cookies the browser ends with %d, cap %d", n, len(held), maxEntraStateCookies)
 		}
 	}
 }
