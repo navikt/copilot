@@ -10,6 +10,7 @@
       "apps/my-copilot/src/app/(nb)/layout.tsx",
       "apps/my-copilot/src/app/(nb)/not-found.tsx",
       "apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx",
+      "apps/my-copilot/src/app/(nb)/nyheter/modellvalg-november-2026/page.tsx",
       "apps/my-copilot/src/app/(nb)/nyheter/undersokelsen-hosten-2026/page.tsx",
       "apps/my-copilot/src/app/(nb)/nyheter/utviklerundersokelsen-2026/page.tsx",
       "apps/my-copilot/src/app/(nb)/videos/[id]/not-found.tsx",
@@ -544,6 +545,7 @@
     "sources": [
       "apps/my-copilot/src/app/(nb)/innsikt/page.tsx",
       "apps/my-copilot/src/app/(nb)/modeller/page.tsx",
+      "apps/my-copilot/src/app/(nb)/nyheter/modellvalg-november-2026/page.tsx",
       "apps/my-copilot/src/app/(nb)/praksis/sections/resources.tsx",
       "apps/my-copilot/src/app/(nb)/praksis/sections/tools-and-modes.tsx",
       "apps/my-copilot/src/app/sitemap.ts",
@@ -2622,6 +2624,10 @@
   },
   "/nyheter/model-selection-third-party-agents": {
     "sources": ["apps/my-copilot/src/app/(nb)/nyheter/[slug]/page.tsx"],
+    "anchors": {}
+  },
+  "/nyheter/modellvalg-november-2026": {
+    "sources": ["apps/my-copilot/src/app/(nb)/nyheter/modellvalg-november-2026/page.tsx"],
     "anchors": {}
   },
   "/nyheter/nav-pilot-alpha-decide": {

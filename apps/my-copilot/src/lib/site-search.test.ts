@@ -3,10 +3,28 @@ import inventory from "@/lib/link-inventory.json";
 import { searchEntries, type SearchEntry } from "@/lib/site-search";
 import fs from "node:fs";
 import path from "node:path";
+import matter from "gray-matter";
 import { PRIVATE_PAGE_PATHS } from "@/proxy";
 
 const index = buildSearchIndex();
 const paths: Record<string, { anchors: Record<string, string[]> }> = inventory;
+
+const APP_DIR = path.join(__dirname, "..", "app");
+const ARTICLES_DIR = path.join(__dirname, "..", "..", "..", "..", "docs", "news", "articles");
+const PAGE_FILES = fs.globSync("**/page.tsx", { cwd: APP_DIR });
+const routeOf = (f: string) =>
+  "/" +
+  path
+    .dirname(f)
+    .split(path.sep)
+    .filter((s) => s !== "." && !/^\(.*\)$/.test(s))
+    .join("/");
+// A news page is a draft only when its article in docs/news/articles says so.
+const isDraftNews = (r: string) => {
+  if (!r.startsWith("/nyheter/")) return false;
+  const file = path.join(ARTICLES_DIR, `${r.slice("/nyheter/".length)}.md`);
+  return fs.existsSync(file) && matter(fs.readFileSync(file, "utf-8")).data.draft === true;
+};
 
 describe("search index", () => {
   it("has the umbrella pages, their headings and the news", () => {
@@ -26,26 +44,26 @@ describe("search index", () => {
   // Every static page route is searchable. A page whose title the index can't
   // read (no metadata title literal, no <PageHero title="…">) fails here.
   it("has every page route", () => {
-    const appDir = path.join(__dirname, "..", "app");
-    const files = fs.globSync("**/page.tsx", { cwd: appDir });
-    const route = (f: string) =>
-      "/" +
-      path
-        .dirname(f)
-        .split(path.sep)
-        .filter((s) => s !== "." && !/^\(.*\)$/.test(s))
-        .join("/");
-    const pageFile = (r: string) => files.find((f) => route(f) === r)!;
-    const routes = files
-      .map(route)
+    const pageFile = (r: string) => PAGE_FILES.find((f) => routeOf(f) === r)!;
+    const routes = PAGE_FILES.map(routeOf)
       .filter((r) => !r.includes("["))
       // A page that only redirects is found under the page it redirects to.
       // Admin pages answer 404 to everyone else, so they stay out of search.
       .filter(
-        (r) => !/\b(permanentRedirect|requireAdmin)\(/.test(fs.readFileSync(path.join(appDir, pageFile(r)), "utf-8"))
-      );
+        (r) => !/\b(permanentRedirect|requireAdmin)\(/.test(fs.readFileSync(path.join(APP_DIR, pageFile(r)), "utf-8"))
+      )
+      .filter((r) => !isDraftNews(r));
     const hrefs = new Set(index.map((e) => e.href));
     expect(routes.filter((r) => !hrefs.has(r))).toEqual([]);
+  });
+
+  // Publishing means removing `draft: true` from the article. A page that still
+  // says noindex or «Utkast» after that would go live hidden or mislabelled.
+  it("keeps noindex and the «Utkast» tag on draft news pages only", () => {
+    const leftovers = PAGE_FILES.filter((f) => routeOf(f).startsWith("/nyheter/") && !isDraftNews(routeOf(f))).filter(
+      (f) => /index: false|>\s*Utkast\s*</.test(fs.readFileSync(path.join(APP_DIR, f), "utf-8"))
+    );
+    expect(leftovers).toEqual([]);
   });
 
   it("marks pages behind a login, headings included", () => {
