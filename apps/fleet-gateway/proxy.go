@@ -170,7 +170,7 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 		token, ok := extractBearerToken(r.Header.Get("Authorization"))
 		if !ok {
 			outcome = "unauthorized"
-			writeUnauthorized(w, prmURL)
+			writeUnauthorized(w, prmURL, bearerPresented(r.Header.Get("Authorization")))
 			return
 		}
 
@@ -187,7 +187,7 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 		}
 		if !ok || !g.now().Before(sess.Expiry) {
 			outcome = "unauthorized"
-			writeUnauthorized(w, prmURL)
+			writeUnauthorized(w, prmURL, true)
 			return
 		}
 
@@ -815,12 +815,27 @@ func writeToolDenied(w http.ResponseWriter, reason string) {
 	})
 }
 
-func writeUnauthorized(w http.ResponseWriter, prmURL string) {
-	w.Header().Set("WWW-Authenticate", fmt.Sprintf(`Bearer resource_metadata="%s"`, prmURL))
+// writeUnauthorized sends the 401 challenge. RFC 6750 s3.1: error only when the
+// request carried credentials; without any, a bare challenge. resource_metadata
+// per RFC 9728 s5.1 and MCP authorization (Protected Resource Metadata Discovery).
+func writeUnauthorized(w http.ResponseWriter, prmURL string, presented bool) {
+	challenge := fmt.Sprintf(`Bearer resource_metadata="%s"`, prmURL)
+	if presented {
+		challenge = fmt.Sprintf(`Bearer error="invalid_token", resource_metadata="%s"`, prmURL)
+	}
+	w.Header().Set("WWW-Authenticate", challenge)
 	writeJSON(w, http.StatusUnauthorized, map[string]string{
 		"error":   "invalid_token",
 		"message": "missing, invalid, or expired bearer token",
 	})
+}
+
+// bearerPresented reports whether the request used the Bearer scheme (RFC 6750
+// s3.1: only then does an invalid token earn error="invalid_token"; other
+// schemes get the bare challenge). Scheme match is case-insensitive.
+func bearerPresented(authHeader string) bool {
+	scheme, _, _ := strings.Cut(strings.TrimSpace(authHeader), " ")
+	return strings.EqualFold(scheme, "Bearer")
 }
 
 func extractBearerToken(authHeader string) (string, bool) {
