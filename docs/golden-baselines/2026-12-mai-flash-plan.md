@@ -141,3 +141,13 @@ Utrulling gjelder bare roller som besto trinn 4.
 1. Kjør på Copilot CLI 1.0.114-0 og gjenbruk grunnlinjen `2026-11-regresjon2-gpt-6.1-sol-baseline` (se «Trinn 2»).
 2. Test 8 har 3/5 i `regresjon2`. Den rettes i #2475 (sammen med test 4), og t4 og t8 måles på nytt for 6.1 Sol som delgrunnlinje innenfor rammen på 650.
 3. Planen låses med denne revisjonen, etter at #2475 er merget.
+
+## Tillegg 20. november 2026: avvik etter låsing
+
+Eierbeslutninger 20. november 2026. Utfall og regnskap: [2026-12-mai-flash-regnskap.md](2026-12-mai-flash-regnskap.md) (#2518).
+
+1. **t8-unntak.** Bommen til 6.1 Sol på t8 i delgrunnlinjen er reell modellatferd (endret signeringskoden uten å stoppe i Fase 1), ikke en testfeil. Kravet i protokollen om minst 4/5, ellers «rett testen», forutsetter en testfeil og gjelder ikke her. Delgrunnlinjen beholdes som den er (t4 3/3, t8 2/3, n = 3; den ble stoppet av last etter tre kjøringer). I trinn 2 er t8 bare informasjon, ikke en port. t4 er en port med grunnlinje n = 3.
+2. **Laststopp** (stoppregel 4) bruker 5-minutters gjennomsnitt, fortsatt med grense 8.
+3. **Rammen** økes fra 650 til 750 credits.
+
+Dommerkontrollene kjøres med `BS_JUDGE_JOBS=1`, fordi 4 parallelle kontroller alene løftet lasten over 8. Det endrer bare hvor mange dommerkall som går samtidig, ikke dommen.
