@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -122,6 +123,7 @@ func TestSliding_LegacyTokenTreatsIATAsLogin(t *testing.T) {
 		t.Fatalf("open: %v", err)
 	}
 	p.EXP = p.IAT + int64((12 * time.Hour).Seconds())
+	p.ABS = 0 // issued before ABS existed
 	legacy, err := te.gw.sealRefreshToken(*p)
 	if err != nil {
 		t.Fatalf("seal: %v", err)
@@ -174,7 +176,7 @@ func TestSliding_ReplayAfterIdleDeadlineStillRevokesFamily(t *testing.T) {
 	}
 	rt2, _ := body["refresh_token"].(string)
 
-	te.advance(12 * time.Hour) // rt1 is now past its idle deadline, rt2 is not
+	te.advance(12*time.Hour - 30*time.Second) // rt1 (exp login+12h) is past its idle deadline, rt2 (exp login+12h1m) has 30 s left
 	if status, _ := te.refresh(rt1); status != http.StatusBadRequest {
 		t.Fatalf("replay: got %d, want 400", status)
 	}
@@ -201,5 +203,94 @@ func TestSliding_GraceRetryAcrossIdleDeadline(t *testing.T) {
 	}
 	if got := lastRefreshOutcome(buf); !strings.Contains(got, `"outcome":"grace_replay"`) {
 		t.Fatalf("want grace_replay, got %s", got)
+	}
+}
+
+// legacyRT turns a fresh token into one minted before ABS existed: no ABS, exp = iat + 12 h.
+func legacyRT(t *testing.T, te *testEnv, rt string) string {
+	t.Helper()
+	p, err := te.gw.openRefreshToken(rt)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	p.ABS = 0
+	p.EXP = p.IAT + int64((12 * time.Hour).Seconds())
+	out, err := te.gw.sealRefreshToken(*p)
+	if err != nil {
+		t.Fatalf("seal: %v", err)
+	}
+	return out
+}
+
+func TestSliding_LegacyReplayUnderLoweredCapRevokesFamilyPastIt(t *testing.T) {
+	buf := captureAudit(t)
+	te := newClientEncryptedTestEnv(t, "k1:"+testKeyBase64(t, false))
+	_, rt, _ := te.obtainTokensForResource(te.resource)
+	legacy := legacyRT(t, te, rt)
+	status, body := te.refresh(legacy) // rotated under the 7 d cap: rt2 gets abs = iat+7d
+	if status != http.StatusOK {
+		t.Fatalf("rotate legacy: %d %v", status, body)
+	}
+	rt2, _ := body["refresh_token"].(string)
+	te.advance(11 * time.Hour)
+	status, body = te.refresh(rt2) // rt3 lives until 23 h, past the legacy token's own exp
+	if status != http.StatusOK {
+		t.Fatalf("rotate rt2: %d %v", status, body)
+	}
+	rt3, _ := body["refresh_token"].(string)
+
+	te.advance(30 * time.Minute)
+	te.gw.cfg.SessionAbsoluteMaxAge = 12 * time.Hour
+	if status, _ := te.refresh(legacy); status != http.StatusBadRequest {
+		t.Fatalf("replay: %d", status)
+	}
+	if got := lastRefreshOutcome(buf); !strings.Contains(got, `"outcome":"replayed_family_revoked"`) {
+		t.Fatalf("want replayed_family_revoked, got %s", got)
+	}
+	te.advance(2 * time.Hour) // past the lowered cap and past the legacy token's exp
+	te.gw.cfg.SessionAbsoluteMaxAge = 7 * 24 * time.Hour
+	if status, _ := te.refresh(rt3); status != http.StatusBadRequest {
+		t.Fatalf("descendant revived after the cap was restored: %d", status)
+	}
+	if got := lastRefreshOutcome(buf); !strings.Contains(got, `"outcome":"family_revoked"`) {
+		t.Fatalf("want family_revoked, got %s", got)
+	}
+}
+
+func TestSliding_LegacyConsumedUnderLoweredCapStaysUsed(t *testing.T) {
+	buf := captureAudit(t)
+	te := newClientEncryptedTestEnv(t, "k1:"+testKeyBase64(t, false))
+	_, rt, _ := te.obtainTokensForResource(te.resource)
+	legacy := legacyRT(t, te, rt)
+	te.advance(30 * time.Minute)
+	te.gw.cfg.SessionAbsoluteMaxAge = time.Hour
+	if status, body := te.refresh(legacy); status != http.StatusOK {
+		t.Fatalf("consume under lowered cap: %d %v", status, body)
+	}
+	te.advance(2 * time.Hour) // still before the legacy token's own exp (iat+12 h)
+	te.gw.cfg.SessionAbsoluteMaxAge = 7 * 24 * time.Hour
+	if status, _ := te.refresh(legacy); status != http.StatusBadRequest {
+		t.Fatalf("consumed legacy RT usable again after the cap was restored: %d", status)
+	}
+	if got := lastRefreshOutcome(buf); !strings.Contains(got, `"outcome":"replayed_family_revoked"`) {
+		t.Fatalf("want reuse detection, got %s", got)
+	}
+}
+
+func TestSliding_CodeRedeemedWithShorterAccessSessionCap(t *testing.T) {
+	te := newClientEncryptedTestEnv(t, "k1:"+testKeyBase64(t, false))
+	verifier := "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG"
+	entraState, stateCookie := te.startLogin(verifier)
+	code := te.completeEntraCallback(entraState, stateCookie)
+	te.gw.cfg.SessionMaxAge = 10 * time.Minute // another replica, other limits
+	status, body := te.postToken(url.Values{
+		"grant_type": {"authorization_code"}, "code": {code}, "client_id": {te.clientID},
+		"redirect_uri": {te.redirectURI}, "resource": {te.resource}, "code_verifier": {verifier},
+	})
+	if status != http.StatusOK {
+		t.Fatalf("redeem: %d %v", status, body)
+	}
+	if exp, _ := body["expires_in"].(float64); exp <= 0 || exp > 600 {
+		t.Fatalf("expires_in must follow this replica's SESSION_MAX_AGE (<=600 s), got %v", exp)
 	}
 }

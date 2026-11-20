@@ -278,8 +278,12 @@ func (g *Gateway) handleAuthorizationCodeGrant(w http.ResponseWriter, r *http.Re
 	if issued.Session.IssuedAt.IsZero() {
 		issued.Session.IssuedAt = now
 	}
-	if maxExpiry := issued.Session.IssuedAt.Add(g.cfg.SessionAbsoluteMaxAge); issued.Session.Expiry.After(maxExpiry) {
-		issued.Session.Expiry = maxExpiry
+	// The code may come from a replica with other limits (rolling config change):
+	// clamp to this replica's access-session cap and to the family cap.
+	for _, maxExpiry := range []time.Time{now.Add(g.cfg.SessionMaxAge), issued.Session.IssuedAt.Add(g.cfg.SessionAbsoluteMaxAge)} {
+		if issued.Session.Expiry.After(maxExpiry) {
+			issued.Session.Expiry = maxExpiry
+		}
 	}
 	ttl := issued.Session.Expiry.Sub(now)
 	if ttl <= 0 {
@@ -354,12 +358,18 @@ func (g *Gateway) rtExpiry(hardCap, now time.Time) time.Time {
 	return minTime(now.Add(g.cfg.SessionIdleTimeout), hardCap)
 }
 
-// familyDeadline is the latest any token of the payload's family can live.
-func (g *Gateway) familyDeadline(p *rtPayload) time.Time {
+// retainUntil is how long a denylist entry for this token's family or jti must
+// live: past the hard cap of every token the family can hold, whatever the cap
+// is set to later. ABS is fixed at login and never below the token's own exp. A
+// legacy token (no ABS, exp = iat + 12 h) has none, so retain to the larger of
+// the current cap and the default 7 d, which only over-retains (shortcut: a cap
+// above 7 d lowered before a legacy token is replayed is not covered; legacy
+// tokens live 12 h after the rollout).
+func (g *Gateway) retainUntil(p *rtPayload) time.Time {
 	if p.ABS > 0 {
 		return time.Unix(p.ABS, 0).UTC()
 	}
-	return time.Unix(p.IAT, 0).UTC().Add(g.cfg.SessionAbsoluteMaxAge)
+	return time.Unix(p.IAT, 0).UTC().Add(max(g.cfg.SessionAbsoluteMaxAge, defaultSessionAbsoluteMaxAge))
 }
 
 func minTime(a, b time.Time) time.Time {
@@ -445,6 +455,7 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 		famDeadline = time.Unix(payload.ABS, 0).UTC()
 		absExpiry = minTime(famDeadline, absExpiry)
 	}
+	retain := g.retainUntil(payload)
 	if !g.now().Before(absExpiry) {
 		outcome = "session_max_age_expired"
 		bad(http.StatusBadRequest, "invalid_grant", "session expired")
@@ -497,7 +508,7 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 		// Replay: someone holds an already-rotated RT. Kill the family (until the
 		// hard cap: later rotations live past this token's own EXP) so a thief
 		// who refreshed first loses the newest RT too.
-		if err = g.store.Revoke(r.Context(), famKey, famDeadline); err != nil {
+		if err = g.store.Revoke(r.Context(), famKey, retain); err != nil {
 			unavailable(err)
 			return
 		}
@@ -584,7 +595,7 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 		}
 	}
 	if status != http.StatusOK {
-		if err = g.store.Revoke(ctx, payload.JTI, famDeadline); err != nil {
+		if err = g.store.Revoke(ctx, payload.JTI, retain); err != nil {
 			unavailable(err)
 			return
 		}
@@ -688,7 +699,7 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 	} else if perr := g.store.Put(ctx, kindRefreshGrace, payload.JTI, raw, graceTTL); perr != nil {
 		slog.Warn("store refresh grace failed", "error", perr)
 	}
-	if err = g.store.Revoke(ctx, payload.JTI, famDeadline); err != nil {
+	if err = g.store.Revoke(ctx, payload.JTI, retain); err != nil {
 		unavailable(err)
 		return
 	}
@@ -791,7 +802,7 @@ func (g *Gateway) revokeHandler(w http.ResponseWriter, r *http.Request) {
 			bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store unavailable")
 			return
 		}
-		expiresAt := g.familyDeadline(payload)
+		expiresAt := g.retainUntil(payload)
 		if _, err := g.store.RevokeOnce(r.Context(), payload.JTI, expiresAt); err != nil {
 			slog.Warn("revoke refresh token failed", "error", err)
 			bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store unavailable")
@@ -799,7 +810,7 @@ func (g *Gateway) revokeHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		// Revoke the family too (RFC 7009 2.1), so a grace pair already read
 		// by a concurrent replay fails its family recheck.
-		if err := g.store.Revoke(r.Context(), "fam:"+payload.FID, g.familyDeadline(payload)); err != nil {
+		if err := g.store.Revoke(r.Context(), "fam:"+payload.FID, g.retainUntil(payload)); err != nil {
 			slog.Warn("revoke refresh family failed", "error", err)
 			bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store unavailable")
 			return
