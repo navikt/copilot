@@ -328,7 +328,7 @@ func (te *testEnv) followToEntra(req *http.Request) (entraState string, stateCoo
 		te.t.Fatalf("invalid Entra redirect location: %v", err)
 	}
 	for _, c := range resp.Cookies() {
-		if c.Name == entraStateCookieName {
+		if strings.HasPrefix(c.Name, entraStateCookieName) {
 			stateCookie = c
 		}
 	}
@@ -839,14 +839,14 @@ func TestCallback_StateCookieBinding(t *testing.T) {
 		{
 			name: "forged state cookie signature fails with 403",
 			mutate: func(_ *testEnv, state *string, cookie **http.Cookie) {
-				*cookie = &http.Cookie{Name: entraStateCookieName, Value: *state + ".forged-signature"}
+				*cookie = &http.Cookie{Name: entraStateCookieFor(*state), Value: *state + ".forged-signature"}
 			},
 			wantStatus: http.StatusForbidden,
 		},
 		{
 			name: "cookie signed for different state fails with 403",
-			mutate: func(te *testEnv, _ *string, cookie **http.Cookie) {
-				*cookie = &http.Cookie{Name: entraStateCookieName, Value: te.gw.signEntraState("other-state")}
+			mutate: func(te *testEnv, state *string, cookie **http.Cookie) {
+				*cookie = &http.Cookie{Name: entraStateCookieFor(*state), Value: te.gw.signEntraState("other-state")}
 			},
 			wantStatus: http.StatusForbidden,
 		},
@@ -857,7 +857,7 @@ func TestCallback_StateCookieBinding(t *testing.T) {
 			te := newTestEnv(t)
 			entraState, stateCookie := te.startLogin(verifier)
 
-			if stateCookie.Name != "__Host-fleet_entra_state" || stateCookie.Path != "/" || stateCookie.Domain != "" ||
+			if stateCookie.Name != entraStateCookieFor(entraState) || stateCookie.Path != "/" || stateCookie.Domain != "" ||
 				!stateCookie.HttpOnly || !stateCookie.Secure || stateCookie.SameSite != http.SameSiteLaxMode {
 				t.Fatalf("unexpected state cookie attributes: %+v", stateCookie)
 			}
@@ -1212,7 +1212,7 @@ func TestHostCookies_ClearedWithPathRoot(t *testing.T) {
 	cbResp := te.callback(entraState, stateCookie) //nolint:bodyclose // parseConsentPage closes it
 	var clearedState *http.Cookie
 	for _, c := range cbResp.Cookies() {
-		if c.Name == "__Host-fleet_entra_state" {
+		if c.Name == stateCookie.Name {
 			clearedState = c
 		}
 	}
@@ -1307,5 +1307,52 @@ func TestLogInjection_SanitizedAndEntraErrorTruncated(t *testing.T) {
 	if !sawRequestCompleted || !sawEntraError || !sawCIMDFailed {
 		t.Fatalf("missing expected log entries (req=%v entraErr=%v cimd=%v):\n%s",
 			sawRequestCompleted, sawEntraError, sawCIMDFailed, logBuf.String())
+	}
+}
+
+func TestCallback_ParallelLoginsEachKeepOwnStateCookie(t *testing.T) {
+	te := newTestEnv(t)
+	s1, c1 := te.startLogin("abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG")
+	s2, c2 := te.startLogin("abcdefghijklmnopqrstuvwxyz0123456789ABCDEFH")
+	if c1.Name == c2.Name {
+		t.Fatalf("parallel logins share cookie name %q", c1.Name)
+	}
+	for i, l := range []struct {
+		state string
+		own   *http.Cookie
+	}{{s1, c1}, {s2, c2}} {
+		req := httptest.NewRequest(http.MethodGet, "/oauth2/callback?code=entra-code&state="+url.QueryEscape(l.state), nil)
+		req.AddCookie(c1) // the browser sends both cookies
+		req.AddCookie(c2)
+		rec := httptest.NewRecorder()
+		te.handler.ServeHTTP(rec, req)
+		if rec.Code == http.StatusForbidden {
+			t.Fatalf("login %d rejected with 403", i+1)
+		}
+		cleared := 0
+		for _, c := range rec.Result().Cookies() {
+			if strings.HasPrefix(c.Name, entraStateCookieName) && c.MaxAge < 0 {
+				cleared++
+				if c.Name != l.own.Name {
+					t.Fatalf("login %d cleared foreign cookie %q", i+1, c.Name)
+				}
+			}
+		}
+		if cleared != 1 {
+			t.Fatalf("login %d cleared %d state cookies, want 1", i+1, cleared)
+		}
+	}
+}
+
+func TestCallback_LegacyFixedNameCookieAccepted(t *testing.T) {
+	te := newTestEnv(t)
+	state, c := te.startLogin("abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG")
+	legacy := &http.Cookie{Name: entraStateCookieName, Value: c.Value}
+	req := httptest.NewRequest(http.MethodGet, "/oauth2/callback?code=entra-code&state="+url.QueryEscape(state), nil)
+	req.AddCookie(legacy)
+	rec := httptest.NewRecorder()
+	te.handler.ServeHTTP(rec, req)
+	if rec.Code == http.StatusForbidden {
+		t.Fatal("legacy fixed-name cookie rejected")
 	}
 }

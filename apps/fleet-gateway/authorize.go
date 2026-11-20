@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -22,6 +23,15 @@ import (
 )
 
 const entraStateCookieName = "__Host-fleet_entra_state"
+
+// entraStateCookieFor names the per-login state cookie, so parallel logins
+// (several gateway routes authenticating at once) don't overwrite each other.
+// The set is bounded by MaxAge (defaultPendingTTL): cookies expire on their own,
+// and the callback clears its own. Each is ~100 bytes.
+func entraStateCookieFor(state string) string {
+	h := sha256.Sum256([]byte(state))
+	return entraStateCookieName + "_" + hex.EncodeToString(h[:4])
+}
 
 type pendingAuth struct {
 	ClientID      string    `json:"client_id"`
@@ -347,7 +357,7 @@ func (g *Gateway) redirectToEntra(w http.ResponseWriter, r *http.Request, p *pen
 	}
 
 	http.SetCookie(w, &http.Cookie{
-		Name:     entraStateCookieName,
+		Name:     entraStateCookieFor(entraState),
 		Value:    g.signEntraState(entraState),
 		Path:     "/",
 		HttpOnly: true,
@@ -452,9 +462,17 @@ func (g *Gateway) callbackHandler(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	queryState := q.Get("state")
 
-	clearEntraStateCookie(w)
-
-	cookie, err := r.Cookie(entraStateCookieName)
+	name := entraStateCookieFor(queryState)
+	cookie, err := r.Cookie(name)
+	if err != nil {
+		// Rollout compat: logins started before the per-login cookie used a fixed name.
+		name = entraStateCookieName
+		cookie, err = r.Cookie(name)
+	}
+	clearEntraStateCookie(w, entraStateCookieFor(queryState))
+	if err == nil && name == entraStateCookieName {
+		clearEntraStateCookie(w, entraStateCookieName)
+	}
 	if err != nil || !g.verifyEntraStateCookie(cookie.Value, queryState) {
 		http.Error(w, "state binding cookie missing or invalid; start the login again", http.StatusForbidden)
 		return
@@ -751,9 +769,9 @@ func (g *Gateway) verifyEntraStateCookie(cookieVal, queryState string) bool {
 	return subtle.ConstantTimeCompare([]byte(parts[0]), []byte(queryState)) == 1
 }
 
-func clearEntraStateCookie(w http.ResponseWriter) {
+func clearEntraStateCookie(w http.ResponseWriter, name string) {
 	http.SetCookie(w, &http.Cookie{
-		Name:     entraStateCookieName,
+		Name:     name,
 		Value:    "",
 		Path:     "/",
 		HttpOnly: true,
