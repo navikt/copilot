@@ -22,7 +22,9 @@ echo "$hp" >"$run/harness.pid"
     w=$(ls -d "$run"/tmp/nav-pilot-golden.* 2>/dev/null | head -1)
     reason=""
     if [ -n "$w" ]; then
-      spent=$(awk -F'|' 'FILENAME ~ /usage/ {if ($13 == "unknown") u=1; else s += $13 / 1e9} FILENAME ~ /judge-credits/ {if ($3 == "unknown") u=1; else s += $3} END {print u ? "unknown" : s+0}' "$w/usage.psv" "$w/judge-credits.psv" 2>/dev/null)
+      # awk gir ingen sum hvis en fil mangler; judge-credits.psv finnes først etter dommerkontrollene.
+      spent=$(cat "$w/usage.psv" /dev/null; [ -f "$w/judge-credits.psv" ] && sed 's/^/J|/' "$w/judge-credits.psv")
+      spent=$(printf '%s\n' "$spent" | awk -F'|' '$1 == "J" {if ($4 == "unknown") u=1; else s += $4; next} NF >= 13 {if ($13 == "unknown") u=1; else s += $13 / 1e9} END {print u ? "unknown" : s+0}')
       echo "$(date -u +%FT%TZ)|${spent:-0}" >"$run/spent"
       [ "$spent" = unknown ] && reason="ukjent bruk"
       [ -z "$reason" ] && awk -v s="${spent:-0}" -v l="$limit" 'BEGIN{exit !(s > l)}' && reason="forbruk $spent > $limit"
