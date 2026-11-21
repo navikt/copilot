@@ -1,4 +1,15 @@
-import { Alert, BodyLong, BodyShort, Box, Tag, VStack } from "@navikt/ds-react";
+import {
+  BarChartIcon,
+  ClipboardCheckmarkIcon,
+  EyeIcon,
+  FileCodeIcon,
+  PadlockLockedIcon,
+  PencilIcon,
+  RulerIcon,
+  ShieldLockIcon,
+  TasklistIcon,
+} from "@navikt/aksel-icons";
+import { BodyLong, BodyShort, Heading, HGrid, HStack, ReadMore, Tag, VStack } from "@navikt/ds-react";
 import type { Metadata } from "next";
 import NextLink from "next/link";
 import { LinkableHeading } from "@/components/linkable-heading";
@@ -8,7 +19,7 @@ import type { TocItem } from "@/components/table-of-contents";
 export const metadata: Metadata = {
   title: "Retningslinjer for MCP-servere",
   description:
-    "Hva teamet må gjøre når dere skriver en MCP-server bak fleet-gateway: tokensjekk, grenser, hoder, logging, verktøybeskrivelser, målinger og ROS.",
+    "Hva teamet må gjøre når dere skriver en MCP-server bak fleet-gateway: tokensjekk, grenser, headere, logging, verktøybeskrivelser, målinger og ROS.",
 };
 
 const SPEC = "https://modelcontextprotocol.io/specification/2026-07-28";
@@ -24,6 +35,11 @@ type Ref = { label: string; href: string };
 
 type Section = {
   id: string;
+  icon: typeof EyeIcon;
+  // The line in "Kort fortalt". Without it the section is left out there.
+  short?: string;
+  why: string;
+  todo: string[];
   points: string[];
   owasp: Ref[];
   spec: Ref[];
@@ -47,6 +63,15 @@ const owasp = (id: string): Ref => ({ label: id, href: `${OWASP_BASE}${OWASP_FIL
 const SECTIONS: Section[] = [
   {
     id: "token",
+    icon: ShieldLockIcon,
+    short: "Sjekk hvert token med Texas.",
+    why: "Gatewayen slipper inn alle med Nav-konto, så serveren må selv sjekke at kallet kommer fra fleet-gateway og har en bruker. Svarer serveren 401 når Texas er nede, ber klienten brukeren logge inn på nytt.",
+    todo: [
+      "La Texas sjekke tokenet. Ikke les JWT-en selv.",
+      "Godta bare tokens fra fleet-gateway som har en bruker.",
+      "Bruk Texas OBO når dere kaller et annet API.",
+      "Sjekk hvert kall, ikke sesjonen.",
+    ],
     points: [
       "Send tokenet til Texas for introspeksjon. Ikke les JWT-en selv.",
       "Sjekk at `azp` er fleet-gateway. `azp` er klient-ID-en, ikke navnet: slå opp `<klynge>:copilot:fleet-gateway` i `AZURE_APP_PRE_AUTHORIZED_APPS` og sammenlign med `clientId`.",
@@ -64,6 +89,15 @@ const SECTIONS: Section[] = [
   },
   {
     id: "lesing-forst",
+    icon: EyeIcon,
+    short: "Start med verktøy som bare leser.",
+    why: "Et verktøy som endrer data kan gjøre skade hvis modellen tar feil. Derfor kommer skriveverktøy først etter godkjent ROS.",
+    todo: [
+      "Første versjon har bare verktøy som leser.",
+      "Vent med skriveverktøy til ROS er godkjent.",
+      "La serveren selv kreve bekreftelse før den skriver.",
+      "Gjør skriveverktøy trygge å prøve på nytt.",
+    ],
     points: [
       "Første versjon har bare verktøy som leser. Skriveverktøy kommer først etter at ROS er godkjent.",
       "Skriveverktøy trenger tak på antall og alder, kvote per døgn, eierskapssjekk og en revisjonslinje. En beskrivelse som ber modellen bekrefte med brukeren er ikke nok.",
@@ -79,6 +113,14 @@ const SECTIONS: Section[] = [
   },
   {
     id: "verktoylister",
+    icon: TasklistIcon,
+    short: "List hvert verktøy ved navn.",
+    why: "Gatewayen slipper bare gjennom verktøy som står på listen. Da vet alle hva serveren kan gjøre.",
+    todo: [
+      "List verktøyene ved navn i ruten og i registeret, og hold listene like.",
+      "Gi verktøyene navn med tjeneste og ressurs.",
+      "Registrer serveren i MCP-registeret.",
+    ],
     points: [
       "Ruten i fleet-gateway og oppføringen i registeret lister hvert verktøy ved navn. De to listene må være like.",
       "Bare operatøren av gatewayen bruker `passAllTools`. Teamets rute bruker det ikke.",
@@ -90,6 +132,15 @@ const SECTIONS: Section[] = [
   },
   {
     id: "grenser",
+    icon: RulerIcon,
+    short: "Sett grenser for input og svar.",
+    why: "Spesifikasjonen krever at serveren begrenser kallene, og gatewayen gjør bare en del av jobben. Tekst fra andre systemer og fra brukere er data, ikke instruksjoner.",
+    todo: [
+      "Valider input mot et stramt JSON Schema.",
+      "Sett tak for størrelse, sider og tidsbruk.",
+      "Sett en grense for kall per bruker i serveren.",
+      "Behandle tekst fra andre systemer som data.",
+    ],
     points: [
       "Valider input mot JSON Schema: `minimum`, `maximum`, `maxLength`, `enum` og `additionalProperties: false`.",
       "Sett tak for størrelsen på forespørselen (`MaxBytesReader` i Go).",
@@ -108,8 +159,12 @@ const SECTIONS: Section[] = [
   },
   {
     id: "hoder",
+    icon: FileCodeIcon,
+    short: "Sjekk Mcp-*-headerne mot innholdet.",
+    why: "MCP-revisjonen 2026-07-28 sender metode og verktøynavn i HTTP-headere. Serveren må sjekke at headerne stemmer med innholdet i forespørselen.",
+    todo: ["Sjekk påkrevde Mcp-*-headere mot innholdet.", "Avvis forespørsler med manglende eller feil header."],
     points: [
-      "Sjekk `MCP-Protocol-Version`, `Mcp-Method` og, for `tools/call`, `Mcp-Name` mot innholdet i forespørselen. Avvis forespørsler der et påkrevd hode mangler.",
+      "Sjekk `MCP-Protocol-Version`, `Mcp-Method` og, for `tools/call`, `Mcp-Name` mot innholdet i forespørselen. Avvis forespørsler der en påkrevd header mangler.",
       "Sjekk også `Mcp-Param-*` for parametere verktøyet har merket for det. mcp-kodeverk har ingen slike parametere, så det finnes ingen referanseimplementasjon for dette.",
       "Ved avvik: svar HTTP 400 med JSON-RPC-feilen `-32020`.",
       "Svar 405 på GET hvis serveren ikke tilbyr en strøm.",
@@ -120,8 +175,16 @@ const SECTIONS: Section[] = [
   },
   {
     id: "logging",
+    icon: PadlockLockedIcon,
+    short: "Logg uten persondata.",
+    why: "Gatewayen logger allerede hvem som kalte, så serveren trenger ikke gjenta persondata. Tokens og hemmeligheter skal aldri havne i loggene.",
+    todo: [
+      "Logg verktøy, utfall og korrelasjons-ID. Ikke logg NAVident eller andre persondata.",
+      "Ikke logg tokens, fritekst eller persondata.",
+      "Hent hemmeligheter bare fra Nais-secrets.",
+    ],
     points: [
-      "Logg hvem som kalte, hvilket verktøy, utfallet og en korrelasjons-ID. Gatewayens revisjonslogg lagrer allerede NAVident for hvert kall, så serveren trenger ikke gjenta persondata.",
+      "Logg hvilket verktøy, utfallet og en korrelasjons-ID. Gatewayens revisjonslogg lagrer allerede hvem som kalte (NAVident), så ikke logg NAVident eller andre persondata i serveren.",
       "Ikke logg tokens, fritekst eller input som kan inneholde persondata.",
       "Logger dere NAVident med vilje som revisjonsspor, skriv det i ROS.",
       "Hent hemmeligheter bare fra Nais-secrets. Ha dem aldri i kode, logger, feilmeldinger eller `x-mcp-header`, og aldri i query string.",
@@ -132,6 +195,15 @@ const SECTIONS: Section[] = [
   },
   {
     id: "beskrivelser",
+    icon: PencilIcon,
+    short: "Skriv klare beskrivelser og sett annotasjoner.",
+    why: "Modellen velger verktøy ut fra beskrivelsen. Den må være klar, og den må ikke kunne endres av tekst fra andre systemer.",
+    todo: [
+      "Skriv beskrivelsen som til en ny kollega.",
+      "Ha beskrivelsene i kildekontroll. Ikke bygg dem av andre tekster.",
+      "Sett alle fire annotasjonene på hvert verktøy.",
+      "Skriv feilsvar som lar modellen rette seg.",
+    ],
     points: [
       "Skriv beskrivelsen som til en ny kollega: når verktøyet skal og ikke skal brukes, format, forkortelser og ett eksempel.",
       "Bruk tydelige parameternavn, for eksempel `user_id` og ikke `user`.",
@@ -145,9 +217,12 @@ const SECTIONS: Section[] = [
   },
   {
     id: "metrikker",
+    icon: BarChartIcon,
+    why: "Gatewayen ser bare kallene utenfra. Serveren må selv måle tid og feil per verktøy.",
+    todo: ["Tell forespørsler og feil, og mål svartid, per verktøy.", "Bruk bare verktøynavn og utfall som etiketter."],
     points: [
       "Gatewayen sender allerede `fleet_gateway_mcp_requests_total` med `route` og `tool` (`other` for verktøy som ikke står på listen). Serveren må måle det gatewayen ikke ser: tid og feil inne i serveren, per verktøy.",
-      "Tell forespørsler, feil og latens per verktøy.",
+      "Tell forespørsler og feil, og mål svartid, per verktøy.",
       "Hold antallet mulige etikettverdier lavt. Bruk verktøynavn og utfall (ok, feil, avvist) som etiketter. Bruk aldri brukeren, input, URL eller feilmelding som etikett.",
     ],
     owasp: [owasp("MCP08")],
@@ -156,6 +231,14 @@ const SECTIONS: Section[] = [
   },
   {
     id: "ros",
+    icon: ClipboardCheckmarkIcon,
+    short: "Lag en ROS per server.",
+    why: "Hver server har sin egen risiko. ROS må være klar før serveren får en rute i prod.",
+    todo: [
+      "Lag ROS før serveren går i prod.",
+      "Bruk malen for MCP-servere i copilot-intern.",
+      "Skriv inn det som er spesielt for serveren.",
+    ],
     points: [
       "Hver server har sin egen risiko- og sårbarhetsanalyse (ROS) før den får en rute i prod.",
       "Bruk malen for MCP-servere i copilot-intern. Malen ligger i et privat repo.",
@@ -171,12 +254,13 @@ const TOC: TocItem[] = [
   { id: "lesing-forst", label: "Start med lesing" },
   { id: "verktoylister", label: "Bruk eksplisitte verktøylister" },
   { id: "grenser", label: "Sett grenser for input og svar" },
-  { id: "hoder", label: "Sjekk Mcp-hodene mot innholdet" },
+  { id: "hoder", label: "Sjekk Mcp-*-headerne mot innholdet" },
   { id: "logging", label: "Logg uten persondata" },
   { id: "beskrivelser", label: "Skriv beskrivelser og annotasjoner" },
   { id: "metrikker", label: "Mål hvert verktøy" },
   { id: "ros", label: "Lag en ROS per server" },
   { id: "eksempler", label: "Eksempler" },
+  { id: "kilder", label: "Kilder" },
 ];
 
 // Splits on backticks so `x` renders as inline code.
@@ -196,45 +280,46 @@ function Inline({ text }: { text: string }) {
   );
 }
 
-function Refs({ label, refs }: { label: string; refs: Ref[] }) {
-  if (refs.length === 0) return null;
-  return (
-    <BodyShort size="small">
-      {label}:{" "}
-      {refs.map((r, i) => (
-        <span key={r.label}>
-          {i > 0 && ", "}
-          <a href={r.href} className={linkClass}>
-            {r.label}
-          </a>
-        </span>
-      ))}
-    </BodyShort>
-  );
+function RefLinks({ refs }: { refs: Ref[] }) {
+  return refs.map((r, i) => (
+    <span key={r.label}>
+      {i > 0 && ", "}
+      <a href={r.href} className={linkClass}>
+        {r.label}
+      </a>
+    </span>
+  ));
 }
 
 function Rules({ id }: { id: string }) {
   const s = SECTIONS.find((x) => x.id === id)!;
   return (
     <>
-      <Bullets>
-        {s.points.map((p) => (
-          <li key={p}>
-            <Inline text={p} />
-          </li>
-        ))}
-      </Bullets>
-      <Box background="neutral-soft" padding="space-12" borderRadius="8">
-        <VStack gap="space-4">
-          <Refs label="OWASP" refs={s.owasp} />
-          <Refs label="Spesifikasjon" refs={s.spec} />
-          {s.note && (
-            <BodyShort size="small">
-              <Inline text={s.note} />
-            </BodyShort>
-          )}
-        </VStack>
-      </Box>
+      <BodyLong>{s.why}</BodyLong>
+      <VStack gap="space-4">
+        <Heading size="xsmall" level="3">
+          Gjør dette
+        </Heading>
+        <Bullets>
+          {s.todo.map((t) => (
+            <li key={t}>{t}</li>
+          ))}
+        </Bullets>
+      </VStack>
+      <ReadMore header={`Detaljer: ${TOC.find((t) => t.id === s.id)!.label}`} size="small">
+        <Bullets>
+          {s.points.map((p) => (
+            <li key={p}>
+              <Inline text={p} />
+            </li>
+          ))}
+        </Bullets>
+        {s.note && (
+          <BodyShort size="small">
+            <Inline text={s.note} />
+          </BodyShort>
+        )}
+      </ReadMore>
     </>
   );
 }
@@ -252,29 +337,34 @@ export default function McpRetningslinjerPage() {
       }
       toc={TOC}
     >
-      <Alert variant="info">
-        Retningslinjene gjelder servere bak fleet-gateway. Se{" "}
+      <BodyShort>
+        Gjelder servere bak fleet-gateway. Stegene for å koble til står i{" "}
         <NextLink href="/verktoy/fleet-gateway/for-team" className={linkClass}>
           Koble teamets MCP-server til fleet-gateway
-        </NextLink>{" "}
-        for stegene for å registrere serveren.
-      </Alert>
-
-      <BodyLong>
-        Hvert punkt under sier hva dere må gjøre. Det viser også hvilken risiko i{" "}
-        <a href={OWASP_URL} className={linkClass}>
-          OWASP MCP Top 10
-        </a>{" "}
-        punktet dekker, og hvilken del av{" "}
-        <a href={SPEC} className={linkClass}>
-          MCP-spesifikasjonen 2026-07-28
-        </a>{" "}
-        det bygger på. Punkter uten kildelenke er vårt eget råd. Kilder og status for planen står i{" "}
-        <a href={ISSUE_URL} className={linkClass}>
-          #2490
-        </a>
+        </NextLink>
         .
-      </BodyLong>
+      </BodyShort>
+
+      <VStack gap="space-12">
+        <LinkableHeading id="kort-fortalt" size="medium" level="2">
+          Kort fortalt
+        </LinkableHeading>
+        <HGrid as="ul" columns={{ xs: 1, md: 2 }} gap="space-8">
+          {SECTIONS.filter((x) => x.short).map((x) => {
+            const Icon = x.icon;
+            return (
+              <li key={x.id}>
+                <HStack gap="space-8" align="center" wrap={false}>
+                  <Icon aria-hidden fontSize="1.5rem" />
+                  <a href={`#${x.id}`} className={linkClass}>
+                    {x.short}
+                  </a>
+                </HStack>
+              </li>
+            );
+          })}
+        </HGrid>
+      </VStack>
 
       <VStack gap="space-12">
         <LinkableHeading id="token" size="medium" level="2">
@@ -306,7 +396,7 @@ export default function McpRetningslinjerPage() {
 
       <VStack gap="space-12">
         <LinkableHeading id="hoder" size="medium" level="2">
-          Sjekk Mcp-hodene mot innholdet
+          Sjekk Mcp-*-headerne mot innholdet
         </LinkableHeading>
         <Rules id="hoder" />
       </VStack>
@@ -374,6 +464,43 @@ export default function McpRetningslinjerPage() {
           </a>
           .
         </BodyLong>
+      </VStack>
+
+      <VStack gap="space-12">
+        <LinkableHeading id="kilder" size="medium" level="2">
+          Kilder
+        </LinkableHeading>
+        <BodyLong>
+          Hver del bygger på risikoene i{" "}
+          <a href={OWASP_URL} className={linkClass}>
+            OWASP MCP Top 10
+          </a>{" "}
+          og på{" "}
+          <a href={SPEC} className={linkClass}>
+            MCP-spesifikasjonen 2026-07-28
+          </a>
+          . Punkter uten kilde er vårt eget råd. Kilder og status for planen står i{" "}
+          <a href={ISSUE_URL} className={linkClass}>
+            #2490
+          </a>
+          .
+        </BodyLong>
+        <Bullets>
+          {SECTIONS.map((x) => (
+            <li key={x.id}>
+              <a href={`#${x.id}`} className={linkClass}>
+                {TOC.find((t) => t.id === x.id)!.label}
+              </a>
+              : OWASP <RefLinks refs={x.owasp} />
+              {x.spec.length > 0 && (
+                <>
+                  . Spesifikasjon: <RefLinks refs={x.spec} />
+                </>
+              )}
+              {x.spec.length === 0 && ". Ingen kilde i spesifikasjonen"}.
+            </li>
+          ))}
+        </Bullets>
       </VStack>
     </DocPage>
   );

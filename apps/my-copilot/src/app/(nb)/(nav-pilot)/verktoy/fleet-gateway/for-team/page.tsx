@@ -1,4 +1,4 @@
-import { Alert, BodyLong, Tag, VStack } from "@navikt/ds-react";
+import { BodyLong, BodyShort, Tag, VStack } from "@navikt/ds-react";
 import type { Metadata } from "next";
 import NextLink from "next/link";
 import { Table, TableBody, TableDataCell, TableHeader, TableHeaderCell, TableRow } from "@/components/aksel-table";
@@ -137,13 +137,17 @@ export default function FleetGatewayForTeamPage() {
       }
       toc={TOC}
     >
-      <Alert variant="warning">
-        Pilot i dev-gcp og prod-gcp. Stegene kan endres. Les{" "}
+      <BodyShort>
+        Les{" "}
         <NextLink href="/verktoy/fleet-gateway" className={linkClass}>
           oversikten over fleet-gateway
         </NextLink>{" "}
-        først.
-      </Alert>
+        først. Der står også{" "}
+        <NextLink href="/verktoy/fleet-gateway#status" className={linkClass}>
+          status for piloten
+        </NextLink>
+        . Stegene kan endres.
+      </BodyShort>
 
       <FleetGatewayTeamDiagram />
 
@@ -468,9 +472,9 @@ export default function FleetGatewayForTeamPage() {
           <li>Test i prod på samme måte som i dev, med prod-adressen.</li>
           <li>En innlogging varer i 12 timer. Godkjenningen av klienten huskes i 30 dager.</li>
           <li>
-            Grenser per kall: forespørselen kan være opptil 1 MiB og svaret opptil 10 MiB. Serveren må sende svarhodene
-            innen 60 sekunder, og et vanlig svar må være ferdig innen 60 nye sekunder. Svarer dere med SSE (
-            <code className={code}>text/event-stream</code>), gjelder i stedet 16 MiB, maks 10 minutter og at det ikke
+            Grenser per kall: forespørselen kan være opptil 1 MiB og svaret opptil 10 MiB. Serveren må sende
+            svarheaderne innen 60 sekunder, og et vanlig svar må være ferdig innen 60 nye sekunder. Svarer dere med SSE
+            (<code className={code}>text/event-stream</code>), gjelder i stedet 16 MiB, maks 10 minutter og at det ikke
             går mer enn 60 sekunder mellom hendelsene.
           </li>
           <li>
