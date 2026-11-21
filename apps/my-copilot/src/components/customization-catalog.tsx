@@ -20,7 +20,6 @@ import type { CustomizationType, Domain } from "@/lib/customization-types";
 import { DOMAIN_CONFIGS, TYPE_LABELS } from "@/lib/customization-types";
 import { findByItemKey, itemKey } from "@/lib/item-key";
 import type { EnrichedCustomization } from "@/lib/enrich-customizations";
-import { linkClass } from "@/components/nav-pilot/doc-page";
 import { DetailDrawer } from "./detail-drawer";
 import { TYPE_ORDER, TypeBadge, TypeIcon, TypeIconBadge, typeClassName } from "./verktoy-type-meta";
 
@@ -268,7 +267,6 @@ export function CustomizationCatalog({ items }: CustomizationCatalogProps) {
   }, [activeItems, search, selectedTypes, selectedDomain, sortBy]);
 
   const hasActiveFilters = selectedTypes.length > 0 || selectedDomain !== null || search.length > 0;
-  const showMcpGatewayInfo = selectedTypes.includes("mcp");
 
   function toggleType(type: CustomizationType) {
     setSelectedTypes((prev) => (prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type]));
@@ -349,34 +347,6 @@ export function CustomizationCatalog({ items }: CustomizationCatalogProps) {
           </Chips>
         </div>
       </VStack>
-
-      {showMcpGatewayInfo ? (
-        <Box background="info-soft" borderRadius="8" paddingBlock="space-12" paddingInline="space-16">
-          <BodyShort size="small">
-            Vil du bruke en MCP-server fra et Nav-team?{" "}
-            <NextLink href="/nav-pilot/guider/nav-mcp-servere" className={linkClass}>
-              Koble til Navs MCP-servere
-            </NextLink>
-            . Eier teamet en MCP-server?{" "}
-            <NextLink href="/verktoy/fleet-gateway" className={linkClass}>
-              Tilby den gjennom fleet-gateway
-            </NextLink>
-            .
-          </BodyShort>
-        </Box>
-      ) : (
-        <BodyShort size="small" className="verktoy-subtle text-center">
-          Vil du bruke en MCP-server fra et Nav-team?{" "}
-          <NextLink href="/nav-pilot/guider/nav-mcp-servere" className={linkClass}>
-            Koble til Navs MCP-servere
-          </NextLink>
-          . Eier teamet en MCP-server?{" "}
-          <NextLink href="/verktoy/fleet-gateway" className={linkClass}>
-            Tilby den gjennom fleet-gateway
-          </NextLink>
-          .
-        </BodyShort>
-      )}
 
       {hasActiveFilters ? (
         <VStack gap="space-16">
@@ -515,6 +485,13 @@ export function CustomizationCatalog({ items }: CustomizationCatalogProps) {
           ))}
         </VStack>
       )}
+
+      <BodyShort size="small" className="verktoy-subtle text-center">
+        Eier teamet en MCP-server?{" "}
+        <NextLink href="/verktoy/fleet-gateway" className="verktoy-subtle underline">
+          Tilby den gjennom fleet-gateway
+        </NextLink>
+      </BodyShort>
 
       <DetailDrawer
         item={selectedItem}

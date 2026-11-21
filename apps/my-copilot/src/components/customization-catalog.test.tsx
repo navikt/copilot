@@ -92,16 +92,21 @@ describe("CustomizationCatalog", () => {
     expect(screen.getByRole("heading", { level: 2, name: "Frontend" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { level: 2, name: "Generelt" })).toBeInTheDocument();
     expect(screen.queryByText("deprecated-skill")).not.toBeInTheDocument();
-    expect(screen.getByText(/Koble til Navs MCP-servere/)).toBeInTheDocument();
+    expect(screen.queryByText(/Vil du bruke en MCP-server fra et Nav-team/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Koble til Navs MCP-servere/)).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Tilby den gjennom fleet-gateway" })).toHaveAttribute(
+      "href",
+      "/verktoy/fleet-gateway"
+    );
   });
 
-  it("shows flat list and fleet-gateway info box when MCP-server type chip is toggled", () => {
+  it("shows flat list when MCP-server type chip is toggled", () => {
     render(<CustomizationCatalog items={ITEMS} />);
 
     fireEvent.click(screen.getByRole("button", { name: /MCP-server/, pressed: false }));
 
-    expect(screen.getByText(/Koble til Navs MCP-servere/)).toBeInTheDocument();
-    expect(screen.getByText(/Tilby den gjennom fleet-gateway/)).toBeInTheDocument();
+    expect(screen.queryByText(/Koble til Navs MCP-servere/)).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Tilby den gjennom fleet-gateway" })).toBeInTheDocument();
     expect(screen.getByText("1 av 3 verktøy")).toBeInTheDocument();
     expect(screen.getByRole("heading", { level: 3, name: "kodeverk" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { level: 3, name: "@aksel" })).not.toBeInTheDocument();
