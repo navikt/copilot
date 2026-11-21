@@ -35,7 +35,7 @@ func TestPostgresStore_FromPGEnv(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer s.Close()
-	if s.pool.Config().ConnConfig.DefaultQueryExecMode.String() == "" {
+	if s.Pool().Config().ConnConfig.DefaultQueryExecMode.String() == "" {
 		t.Fatal("exec mode unset")
 	}
 	if err := s.Put(ctx, kindSession, "env-k", []byte("v"), time.Minute); err != nil {

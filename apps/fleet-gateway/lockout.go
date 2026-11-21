@@ -58,8 +58,10 @@ func deriveMCPUserKey(lockoutKey []byte, rtKeys *keyRing) ([]byte, error) {
 	if len(lockoutKey) > 0 {
 		return lockoutKey, nil
 	}
-	if rtKeys != nil && len(rtKeys.entries) > 0 {
-		return hkdf.Key(sha256.New, rtKeys.entries[0].key[:], nil, userLockoutKeyInfo, 32)
+	if rtKeys != nil {
+		if keys := rtKeys.Keys(); len(keys) > 0 {
+			return hkdf.Key(sha256.New, keys[0], nil, userLockoutKeyInfo, 32)
+		}
 	}
 	secret := make([]byte, 32)
 	if _, err := rand.Read(secret); err != nil {

@@ -508,9 +508,10 @@ func loadCookieSecret(raw, rtKeys string, onNais bool) ([][]byte, error) {
 		if err != nil {
 			return nil, fmt.Errorf("invalid RT_KEYS: %w", err)
 		}
-		keys := make([][]byte, 0, len(kr.entries))
-		for _, e := range kr.entries {
-			k, err := hkdf.Key(sha256.New, e.key[:], nil, stateCookieKeyInfo, 32)
+		ringKeys := kr.Keys()
+		keys := make([][]byte, 0, len(ringKeys))
+		for _, rk := range ringKeys {
+			k, err := hkdf.Key(sha256.New, rk, nil, stateCookieKeyInfo, 32)
 			if err != nil {
 				return nil, err
 			}
