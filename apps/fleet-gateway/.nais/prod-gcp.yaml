@@ -17,6 +17,7 @@ outbound_rules:
   - application: mcp-dolly
   - application: mcp-kodeverk
   - application: mcp-onboarding
+  - application: mcp-team-catalog
 ingresses:
   - https://fleet-gateway.intern.nav.no
 reply_urls:

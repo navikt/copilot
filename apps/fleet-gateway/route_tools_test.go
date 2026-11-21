@@ -24,18 +24,19 @@ var prodUpstreamToolLoaders = map[string]upstreamToolLoader{
 	"mcp-dolly": func() (map[string]bool, error) {
 		return dollyToolNames(filepath.Join("..", "mcp-dolly", "tools.go"))
 	},
+	"mcp-team-catalog": func() (map[string]bool, error) {
+		return mapSliceToolNames(filepath.Join("..", "mcp-team-catalog", "tools.go"), "baseToolDefinitions")
+	},
 }
 
 var devUpstreamToolLoaders = map[string]upstreamToolLoader{
 	"fleet-echo": func() (map[string]bool, error) {
 		return mapSliceToolNames(filepath.Join("echo", "main.go"), "serveModernEcho")
 	},
-	"mcp-onboarding": prodUpstreamToolLoaders["mcp-onboarding"],
-	"mcp-kodeverk":   prodUpstreamToolLoaders["mcp-kodeverk"],
-	"mcp-dolly":      prodUpstreamToolLoaders["mcp-dolly"],
-	"mcp-team-catalog": func() (map[string]bool, error) {
-		return mapSliceToolNames(filepath.Join("..", "mcp-team-catalog", "tools.go"), "baseToolDefinitions")
-	},
+	"mcp-onboarding":   prodUpstreamToolLoaders["mcp-onboarding"],
+	"mcp-kodeverk":     prodUpstreamToolLoaders["mcp-kodeverk"],
+	"mcp-dolly":        prodUpstreamToolLoaders["mcp-dolly"],
+	"mcp-team-catalog": prodUpstreamToolLoaders["mcp-team-catalog"],
 }
 
 func TestProdRouteToolsExistInUpstreams(t *testing.T) {
