@@ -1,19 +1,14 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
-import { BodyShort, Heading, Box, VStack } from "@navikt/ds-react";
-import NextLink from "next/link";
-import { getAllCustomizations, getCountsByDomain, getCustomizationById } from "@/lib/customizations";
-import type { Domain } from "@/lib/customization-types";
+import { Box } from "@navikt/ds-react";
+import { getAllCustomizations, getCustomizationById } from "@/lib/customizations";
 import { TYPE_LABELS } from "@/lib/customization-types";
 import { CustomizationCatalog } from "@/components/customization-catalog";
-import { PageHero } from "@/components/page-hero";
 import { getMcpServers } from "@/lib/mcp-registry";
 import { getCustomizationUsage } from "@/lib/cached-bigquery";
 import { getUserToken, getUser } from "@/lib/auth";
 import { enrichWithUsage } from "@/lib/enrich-customizations";
-import { DomainCards } from "./domain-cards";
 import type { CustomizationUsage } from "@/lib/types";
-import { linkClass } from "@/components/nav-pilot/doc-page";
 
 interface Props {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -73,57 +68,19 @@ export default async function CustomizationsPage() {
   ]);
   const items = [...customizations, ...mcpServers].sort((a, b) => a.name.localeCompare(b.name, "nb"));
   const enrichedItems = enrichWithUsage(items, usageResult.usage);
-  const counts = getCountsByDomain(items);
-
-  const domains = Object.entries(counts)
-    .filter(([, count]) => count > 0)
-    .map(([domain]) => domain) as Domain[];
 
   return (
-    <main id="hovedinnhold" tabIndex={-1}>
-      <PageHero
-        title="Verktøykatalog"
-        description="Agenter, instruksjoner, skills og MCP-servere som gjør Copilot smartere for Navs stack."
-      />
-      <div className="max-w-7xl mx-auto">
+    <main id="hovedinnhold" tabIndex={-1} className="verktoy-page">
+      <div className="max-w-6xl mx-auto">
         <Box
-          paddingBlock={{ xs: "space-16", sm: "space-20", md: "space-24" }}
+          paddingBlock={{ xs: "space-20", md: "space-32" }}
           paddingInline={{ xs: "space-16", sm: "space-20", md: "space-32", lg: "space-40" }}
         >
-          <VStack gap={{ xs: "space-24", md: "space-32" }}>
-            <Box>
-              <Heading size="small" level="2" className="mb-4">
-                Utforsk etter domene
-              </Heading>
-              <div className="grid gap-3 grid-cols-[repeat(auto-fill,minmax(10rem,1fr))]">
-                {domains.map((domain) => (
-                  <div key={domain}>
-                    <DomainCards domain={domain} count={counts[domain]} />
-                  </div>
-                ))}
-              </div>
-            </Box>
-
-            <Box id="catalog">
-              <Heading size="small" level="2" className="mb-4">
-                Alle tilpasninger
-              </Heading>
-              <BodyShort spacing>
-                Slik bruker du en MCP-server fra et Nav-team:{" "}
-                <NextLink href="/nav-pilot/guider/nav-mcp-servere" className={linkClass}>
-                  Koble til Navs MCP-servere
-                </NextLink>
-                . Eier teamet en MCP-server?{" "}
-                <NextLink href="/verktoy/fleet-gateway" className={linkClass}>
-                  Tilby den gjennom fleet-gateway
-                </NextLink>
-                .
-              </BodyShort>
-              <Suspense>
-                <CustomizationCatalog items={enrichedItems} />
-              </Suspense>
-            </Box>
-          </VStack>
+          <div id="catalog">
+            <Suspense>
+              <CustomizationCatalog items={enrichedItems} />
+            </Suspense>
+          </div>
         </Box>
       </div>
     </main>

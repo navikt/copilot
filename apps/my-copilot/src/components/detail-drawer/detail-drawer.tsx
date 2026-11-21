@@ -5,8 +5,10 @@ import { XMarkIcon, ExternalLinkIcon } from "@navikt/aksel-icons";
 import { Box, BodyShort, Heading, Tag, HStack, VStack } from "@navikt/ds-react";
 import { itemKey } from "@/lib/item-key";
 import type { EnrichedCustomization } from "@/lib/enrich-customizations";
-import { DOMAIN_CONFIGS, TYPE_LABELS } from "@/lib/customization-types";
+import { DOMAIN_CONFIGS } from "@/lib/customization-types";
+import { linkClass } from "@/components/nav-pilot/doc-page";
 import { Contributors } from "../contributors";
+import { TypeBadge, TypeIconBadge } from "../verktoy-type-meta";
 import { McpDetails } from "./mcp-details";
 import { StaticCustomizationDetails } from "./static-details";
 
@@ -18,6 +20,16 @@ export interface DetailDrawerProps {
   onNavigate?: (item: EnrichedCustomization) => void;
 }
 
+function isFleetGatewayMcp(item: EnrichedCustomization): boolean {
+  if (item.type !== "mcp") return false;
+  return item.remotes.some((r) => r.url.includes("fleet-gateway")) || (item.tags?.includes("fleet-gateway") ?? false);
+}
+
+// The registry has no owner field, so MCP servers get no owner rather than a guess.
+function ownerLabel(item: EnrichedCustomization): string | null {
+  return item.type === "mcp" ? null : "nav-pilot";
+}
+
 export function DetailDrawer({ item, allItems, open, onClose, onNavigate }: DetailDrawerProps) {
   if (!item) return null;
 
@@ -27,95 +39,108 @@ export function DetailDrawer({ item, allItems, open, onClose, onNavigate }: Deta
     <Dialog open={open} onClose={onClose} className="relative z-50">
       <DialogBackdrop
         transition
-        className="fixed inset-0 bg-black/30 transition-opacity data-closed:opacity-0 data-enter:duration-300 data-enter:ease-out data-leave:duration-200 data-leave:ease-in"
+        className="fixed inset-0 bg-black/35 transition-opacity motion-reduce:transition-none data-closed:opacity-0 data-enter:duration-200 data-enter:ease-out data-leave:duration-150 data-leave:ease-in"
       />
 
       <div className="fixed inset-0 overflow-hidden">
         <div className="absolute inset-0 overflow-hidden">
-          <div className="pointer-events-none fixed inset-y-0 right-0 flex max-w-full pl-10">
+          <div
+            className="pointer-events-none fixed inset-y-0 right-0 flex max-w-full"
+            style={{ paddingLeft: "var(--ax-space-24)" }}
+          >
             <DialogPanel
               transition
-              className="pointer-events-auto w-screen max-w-md transform transition data-closed:translate-x-full data-enter:duration-300 data-enter:ease-out data-leave:duration-200 data-leave:ease-in"
+              className="pointer-events-auto w-screen max-w-lg transform transition motion-reduce:transition-none data-closed:translate-x-full data-enter:duration-200 data-enter:ease-out data-leave:duration-150 data-leave:ease-in"
             >
-              <div className="flex h-full flex-col overflow-y-auto bg-white shadow-xl">
+              <div className="verktoy-drawer-panel flex h-full flex-col overflow-y-auto shadow-xl">
                 <Box
                   paddingBlock="space-16"
                   paddingInline="space-20"
-                  style={{ borderBottom: "1px solid var(--ax-border-neutral)" }}
+                  style={{ borderBottom: "1px solid var(--ax-border-neutral-subtle)" }}
                 >
-                  <div className="flex items-start justify-between">
-                    <VStack gap="space-8">
-                      <DialogTitle as="div">
-                        <Heading size="small" level="3">
+                  <HStack gap="space-12" align="start" justify="space-between" wrap={false}>
+                    <HStack gap="space-12" align="center" className="min-w-0 flex-1" wrap={false}>
+                      <TypeIconBadge type={item.type} size="lg" />
+                      <DialogTitle as="div" className="min-w-0">
+                        <Heading size="medium" level="3" className="break-words">
                           {item.type === "agent" ? `@${item.name}` : item.name}
                         </Heading>
                       </DialogTitle>
-                      <HStack gap="space-4">
-                        <Tag size="small" variant={item.type === "mcp" ? "success" : "neutral"}>
-                          {TYPE_LABELS[item.type]}
-                        </Tag>
-                        <Tag size="small" variant="info">
-                          {domainConfig.label}
-                        </Tag>
-                      </HStack>
-                    </VStack>
-                    <button
-                      type="button"
-                      onClick={onClose}
-                      className="w-9 h-9 inline-flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors bg-transparent border-none cursor-pointer"
-                      aria-label="Lukk panel"
-                    >
-                      <XMarkIcon className="w-6 h-6" />
+                    </HStack>
+                    <button type="button" onClick={onClose} className="verktoy-drawer-close" aria-label="Lukk panel">
+                      <XMarkIcon fontSize="1.5rem" aria-hidden />
                     </button>
-                  </div>
+                  </HStack>
                 </Box>
 
                 <Box paddingBlock="space-16" paddingInline="space-20" className="flex-1">
                   <VStack gap="space-16">
+                    <HStack gap="space-6" wrap>
+                      <TypeBadge type={item.type} size="small" />
+                      <Tag size="small" variant="info">
+                        {domainConfig.label}
+                      </Tag>
+                      {isFleetGatewayMcp(item) && (
+                        <Tag size="small" variant="neutral">
+                          Via fleet-gateway
+                        </Tag>
+                      )}
+                    </HStack>
+
                     <BodyShort>{item.description}</BodyShort>
 
-                    {item.usageCount > 0 && (
-                      <VStack gap="space-8">
-                        <Heading size="xsmall" level="4">
-                          Brukt i {item.usageCount} {item.usageCount === 1 ? "repo" : "repoer"}
-                        </Heading>
-                        <HStack gap="space-4" wrap>
-                          {item.usedBy.map((repo, i) => (
-                            <span key={repo} className="inline-flex items-center">
-                              <a
-                                href={`https://github.com/navikt/${repo}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-sm text-blue-600 hover:underline"
-                              >
-                                {repo}
-                              </a>
-                              {i < item.usedBy.length - 1 || item.usageCount > item.usedBy.length ? (
-                                <span className="text-gray-400">,</span>
-                              ) : null}
-                            </span>
-                          ))}
-                          {item.usageCount > item.usedBy.length && (
-                            <span className="text-sm text-gray-500">+{item.usageCount - item.usedBy.length} andre</span>
-                          )}
-                        </HStack>
-                      </VStack>
-                    )}
+                    <HStack gap="space-16" wrap>
+                      {item.usageCount > 0 && (
+                        <BodyShort size="small" className="verktoy-subtle">
+                          Brukt i <strong>{item.usageCount}</strong> {item.usageCount === 1 ? "repo" : "repoer"}
+                        </BodyShort>
+                      )}
+                      {ownerLabel(item) && (
+                        <BodyShort size="small" className="verktoy-subtle">
+                          Eier: <strong>{ownerLabel(item)}</strong>
+                        </BodyShort>
+                      )}
+                    </HStack>
 
-                    {item.type !== "mcp" && <Contributors key={itemKey(item)} itemId={itemKey(item)} />}
+                    {item.usageCount > 0 && item.usedBy.length > 0 && (
+                      <HStack gap="space-4" wrap>
+                        {item.usedBy.map((repo, i) => (
+                          <span key={repo} className="inline-flex items-center">
+                            <a
+                              href={`https://github.com/navikt/${repo}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className={`text-sm ${linkClass}`}
+                            >
+                              {repo}
+                            </a>
+                            {i < item.usedBy.length - 1 || item.usageCount > item.usedBy.length ? (
+                              <span className="verktoy-subtle">,</span>
+                            ) : null}
+                          </span>
+                        ))}
+                        {item.usageCount > item.usedBy.length && (
+                          <BodyShort size="small" as="span" className="verktoy-subtle">
+                            +{item.usageCount - item.usedBy.length} andre
+                          </BodyShort>
+                        )}
+                      </HStack>
+                    )}
 
                     {item.type === "mcp" ? (
                       <McpDetails item={item} />
                     ) : (
                       <StaticCustomizationDetails item={item} allItems={allItems} onNavigate={onNavigate} />
                     )}
+
+                    {item.type !== "mcp" && <Contributors key={itemKey(item)} itemId={itemKey(item)} />}
                   </VStack>
                 </Box>
 
                 <Box
                   paddingBlock="space-12"
                   paddingInline="space-20"
-                  style={{ borderTop: "1px solid var(--ax-border-neutral)" }}
+                  style={{ borderTop: "1px solid var(--ax-border-neutral-subtle)" }}
                 >
                   <a
                     href={
@@ -125,9 +150,9 @@ export function DetailDrawer({ item, allItems, open, onClose, onNavigate }: Deta
                     }
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 transition-colors"
+                    className={`inline-flex items-center gap-1 text-sm ${linkClass}`}
                   >
-                    <ExternalLinkIcon className="w-4 h-4" />
+                    <ExternalLinkIcon fontSize="1rem" aria-hidden />
                     Vis kildekode på GitHub
                   </a>
                 </Box>

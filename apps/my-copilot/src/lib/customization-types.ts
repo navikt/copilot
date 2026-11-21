@@ -161,5 +161,5 @@ export const TYPE_LABELS: Record<CustomizationType, string> = {
   instruction: "Instruksjon",
   prompt: "Prompt",
   skill: "Skill",
-  mcp: "MCP Server",
+  mcp: "MCP-server",
 };
