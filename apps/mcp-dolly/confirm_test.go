@@ -161,6 +161,34 @@ func TestCreateOrderTwoStep(t *testing.T) {
 		}
 	})
 
+	t.Run("reused after 20 uncharged confirms rejected", func(t *testing.T) {
+		srv, posts, _ := twoStepServer(t)
+		srv.quota.reserve(srv.quota.hashUser("Z123456"), dailyPersonQuota-4, srv.now())
+
+		firstTok := previewToken(t, call(srv, twoStepArgs))
+		if txt, isErr := extractToolText(t, call(srv, withTok(firstTok, nil))); isErr {
+			t.Fatalf("first confirm failed: %s", txt)
+		}
+
+		// 20 confirms for antall=5 fail on the 2-person remaining quota without charging it.
+		overArgs := map[string]any{"gruppeId": 42, "antall": 5, "environments": []string{"q1"}, "kjoenn": "MANN"}
+		for i := range maxSeenPerUser {
+			tok := previewToken(t, call(srv, overArgs))
+			txt, isErr := extractToolText(t, call(srv, withTok(tok, map[string]any{"antall": 5})))
+			if !isErr {
+				t.Fatalf("uncharged confirm %d succeeded: %s", i+1, txt)
+			}
+			if i == maxSeenPerUser-1 && !strings.Contains(txt, "confirmation token") {
+				t.Errorf("20th uncharged confirm should fail closed on full seen set, got %q", txt)
+			}
+		}
+
+		out := call(srv, withTok(firstTok, nil))
+		if txt, isErr := extractToolText(t, out); !isErr || !strings.Contains(txt, "confirmation token") || posts() != 1 {
+			t.Fatalf("oldest token replayed after 20 uncharged confirms: isErr=%v %q posts=%d", isErr, txt, posts())
+		}
+	})
+
 	t.Run("tampered and malformed tokens rejected", func(t *testing.T) {
 		srv, posts, _ := twoStepServer(t)
 		tok := previewToken(t, call(srv, twoStepArgs))
@@ -212,11 +240,15 @@ func TestConfirmHardening(t *testing.T) {
 	t.Run("one user cannot block another", func(t *testing.T) {
 		c := newOrderConfirm()
 		now := time.Date(2026, 11, 19, 12, 0, 0, 0, time.UTC)
-		for range 5 * maxSeenPerUser {
+		for range maxSeenPerUser {
 			tok, _ := c.issue("attacker", "p", now)
 			if err := c.consume(tok, "attacker", "p", now); err != nil {
 				t.Fatalf("attacker consume: %v", err)
 			}
+		}
+		extraTok, _ := c.issue("attacker", "p", now)
+		if err := c.consume(extraTok, "attacker", "p", now); err == nil {
+			t.Fatal("attacker token accepted when set is full")
 		}
 		if n := len(c.seen["attacker"]); n != maxSeenPerUser {
 			t.Fatalf("attacker set = %d, want %d", n, maxSeenPerUser)

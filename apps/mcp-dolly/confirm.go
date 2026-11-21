@@ -99,8 +99,8 @@ func (c *orderConfirm) consume(token, userHash, params string, now time.Time) er
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	// Bounded per user so one user cannot fill the set and affect others.
-	// Evicting a user's oldest used token could allow replay of it, but only
-	// after 20 further confirms within its 5 minutes, which the daily quota caps.
+	// Reject when full instead of evicting so uncharged confirms cannot
+	// push a used token out of the set within its TTL.
 	var kept []seenToken
 	for _, st := range c.seen[userHash] {
 		if !now.Before(st.exp) {
@@ -112,7 +112,7 @@ func (c *orderConfirm) consume(token, userHash, params string, now time.Time) er
 		kept = append(kept, st)
 	}
 	if len(kept) >= maxSeenPerUser {
-		kept = kept[1:]
+		return errConfirm
 	}
 	c.seen[userHash] = append(kept, seenToken{sig, time.Unix(unix, 0)})
 	return nil
