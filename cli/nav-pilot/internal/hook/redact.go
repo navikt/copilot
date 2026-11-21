@@ -27,15 +27,7 @@ type RedactOptions struct {
 	Secrets       bool
 	FNR           bool
 	InjectionNote bool
-	// DollySource is set when the result came from the Dolly MCP server
-	// (DollyServer). Dolly's synthetic idents have month +40 (41-52), which a
-	// real H-number also has, so the pattern is only safe to let through when
-	// the source is known.
-	DollySource bool
 }
-
-// DollyServer is the registry name of the Dolly MCP server, matched exactly.
-const DollyServer = "io.github.navikt/dolly"
 
 // Each pattern has a plain substring that any match must contain. Checking
 // for it first keeps a large result that has none of them — nearly all of
@@ -141,11 +133,7 @@ func RedactCount(text string, o RedactOptions) (out string, n RedactCounts) {
 	}
 	if o.FNR {
 		out = fnrCandidate.ReplaceAllStringFunc(out, func(m string) string {
-			id := strings.ReplaceAll(m, " ", "")
-			if ValidFNR(id) {
-				if mm := id[2:4]; o.DollySource && mm >= "41" && mm <= "52" {
-					return m
-				}
+			if ValidFNR(strings.ReplaceAll(m, " ", "")) {
 				n.FNR++
 				return "[REDACTED:fnr]"
 			}
@@ -210,12 +198,12 @@ func secretValue(g []string) bool {
 // A D-nummer adds 4 to the first digit of the day (41–71), and an H-nummer
 // adds 4 to the first digit of the month (41–52).
 //
-// Synthetic test identities are not masked: Dolly/NAV adds 40 to both day and
-// month (day 41–71 and month 41–52 together, which no real number has: a
-// D-nummer keeps a real month, an H-nummer a real day), Skatteetaten's
-// synthetic population (Tenor) adds 80 to the month (81–92) and its reserved
-// test persons 65 (66–77). The last two already fail the month check below.
-// Month +40 alone is not a marker: real H-nummer use it, so those stay masked.
+// Synthetic test identities are not masked when the number itself is
+// unambiguous: Skatteetaten's Tenor synthetic (month +80, 81–92), NHN reserved
+// test persons (month +65, 66–77), Dolly BOST/NPID (month +60, 61–72), and
+// Dolly synthetic D-numbers (day and month +40, day 41–71 and month 41–52,
+// which no real number has). Ordinary Dolly synthetic fnr (month +40, normal
+// day) stays masked because real H-numbers use the same offset.
 func ValidFNR(s string) bool {
 	if len(s) != 11 {
 		return false

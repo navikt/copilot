@@ -693,76 +693,12 @@ func expandUnquotedEnv(b []byte, getenv func(string) string) []byte {
 // the org's registry does not list, and says which on stderr. With no server
 // configured it asks nothing, so most launches never touch the network.
 func applyOpenCodeMCPPolicy(env []string, projectDir string) []string {
-	// Both are the launch's own answer, never inherited from the shell or a
-	// repo's .envrc: a value set there would unmask idents or lift blocks.
+	// Never inherited from the shell or a repo's .envrc: a value set there
+	// would lift blocks.
 	env = slices.DeleteFunc(env, func(e string) bool {
-		return strings.HasPrefix(e, MCPSourcesEnv+"=") || strings.HasPrefix(e, MCPBlockedEnv+"=")
+		return strings.HasPrefix(e, MCPBlockedEnv+"=")
 	})
-	env = applyOpenCodeMCPPolicyOff(env, projectDir)
-	return withMCPSources(env, projectDir)
-}
-
-// MCPSourcesEnv carries {configKey: registry name} for each enabled remote
-// server whose URL exactly matches a registry entry, to the hooks bridge. A
-// config key is whatever the user called the server, so only the URL says
-// which registry server it is. Absent when the registry cannot be read: the
-// hook then trusts no server.
-const MCPSourcesEnv = "NAV_PILOT_MCP_SOURCES"
-
-func withMCPSources(env []string, projectDir string) []string {
-	servers := openCodeMCPServers(projectDir, env)
-	var any bool
-	for _, s := range servers {
-		any = any || s.Enabled == nil || *s.Enabled
-	}
-	if !any {
-		return env
-	}
-	registry, err := fetchMCPPolicy()
-	if err != nil || registry == "" {
-		return env
-	}
-	reg, err := fetchMCPRegistry(registry)
-	if err != nil {
-		return env
-	}
-	src := map[string]string{}
-	for key, s := range servers {
-		if s.Enabled != nil && !*s.Enabled {
-			continue
-		}
-		if name := reg.nameOf(s); name != "" {
-			src[key] = name
-		}
-	}
-	if len(src) == 0 {
-		return env
-	}
-	b, _ := json.Marshal(src)
-	env, _ = telemetry.SetEnvValue(env, MCPSourcesEnv, string(b))
-	return env
-}
-
-// nameOf is the registry's name for a remote server s whose URL a registry
-// entry lists, or "" when s is not listed or the URL belongs to more than one
-// entry. Local servers are not matched: no registry server that needs the
-// source is local.
-func (r mcpRegistry) nameOf(s mcpServer) string {
-	if s.Type != "remote" || !r.listed(s) {
-		return ""
-	}
-	want, name := normalizeMCPURL(s.URL), ""
-	for n, urls := range r.Servers {
-		for _, u := range urls {
-			if normalizeMCPURL(u) == want {
-				if name != "" && name != n {
-					return ""
-				}
-				name = n
-			}
-		}
-	}
-	return name
+	return applyOpenCodeMCPPolicyOff(env, projectDir)
 }
 
 func applyOpenCodeMCPPolicyOff(env []string, projectDir string) []string {

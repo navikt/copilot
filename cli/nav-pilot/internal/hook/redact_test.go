@@ -27,11 +27,11 @@ func TestValidFNR(t *testing.T) {
 		{"31129990158", true},  // 31 December
 		{"55019041181", true},  // D-nummer: day 15 + 40
 		{"41038541100", true},  // D-nummer: day 01 + 40
-		{"01519041010", true},  // H-nummer: month 11 + 40
-		{"46510000110", false}, // Dolly/NAV synthetic: day 06 + 40, month 11 + 40
+		{"01519041010", true},  // H-nummer (and ordinary Dolly fnr): month 11 + 40, normal day
+		{"46510000110", false}, // Dolly synthetic D-number: day 06 + 40, month 11 + 40
 		{"15910000060", false}, // Tenor synthetic: month 11 + 80
-		{"46910000012", false}, // Dolly-style: day 06 + 40, month 11 + 80
-		{"15710000074", false}, // reserved test person: month 06 + 65
+		{"46910000012", false}, // Tenor synthetic D-number: day 06 + 40, month 11 + 80
+		{"15710000074", false}, // NHN reserved (+65) / Dolly BOST/NPID (+60): month 71
 		{"15078545621", false}, // second control digit wrong
 		{"15078545610", false}, // first control digit wrong
 		{"32078545620", false}, // day 32
@@ -131,37 +131,33 @@ func TestRedactLeavesOrdinaryOutputAlone(t *testing.T) {
 	}
 }
 
-// Dolly's synthetic idents have month +40, like a real H-number, so they pass
-// only when the result is known to come from the Dolly server.
-func TestRedactDollyMonth40(t *testing.T) {
-	const ident = "01519041010" // month 11 + 40, day 01: also a valid H-number
-	for _, tt := range []struct {
+// Pattern-only masking: Tenor synthetic (month +80), NHN reserved (+65),
+// Dolly BOST/NPID (+60), and Dolly synthetic D-numbers (day and month +40)
+// stay unmasked from any source. Real fødselsnummer, D-nummer, and H-nummer
+// (and ordinary Dolly synthetic fnr, which shares month +40 with H-nummer)
+// stay masked everywhere.
+func TestRedactSyntheticAndRealIdents(t *testing.T) {
+	opts := RedactOptions{FNR: true}
+	tests := []struct {
 		name   string
-		opts   RedactOptions
+		ident  string
 		masked bool
 	}{
-		{"dolly", RedactOptions{FNR: true, DollySource: true}, false},
-		{"other source", RedactOptions{FNR: true}, true},
-	} {
-		out, _ := Redact("person "+ident, tt.opts)
-		if got := !strings.Contains(out, ident); got != tt.masked {
-			t.Errorf("%s: masked=%v, want %v: %q", tt.name, got, tt.masked, out)
-		}
+		{"real fnr", "15078545620", true},
+		{"real d-nummer", "55019041181", true},
+		{"real h-nummer / ordinary dolly fnr (month +40, normal day)", "01519041010", true},
+		{"dolly synthetic d-number (day +40, month +40)", "46510000110", false},
+		{"tenor synthetic (month +80)", "15910000060", false},
+		{"tenor synthetic d-number (day +40, month +80)", "46910000012", false},
+		{"nhn reserved (+65) / dolly bost/npid (+60)", "15710000074", false},
+		{"checksum-invalid", "15078545621", false},
 	}
-	// Dolly source does not open real numbers or D-numbers.
-	for _, id := range []string{"15078545620", "55019041181"} {
-		if out, _ := Redact(id, RedactOptions{FNR: true, DollySource: true}); strings.Contains(out, id) {
-			t.Errorf("%s from Dolly was left unmasked", id)
-		}
-	}
-}
-
-func TestParsePayloadMCPServer(t *testing.T) {
-	p, err := ParsePayload([]byte(`{"toolName":"x","mcpServer":"io.github.navikt/dolly"}`))
-	if err != nil || p.MCPServer != DollyServer {
-		t.Errorf("got %q, %v", p.MCPServer, err)
-	}
-	if p, _ := ParsePayload([]byte(`{"toolName":"x"}`)); p.MCPServer != "" {
-		t.Errorf("no field, got %q", p.MCPServer)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			out, _ := Redact("person "+tt.ident, opts)
+			if got := !strings.Contains(out, tt.ident); got != tt.masked {
+				t.Errorf("masked=%v, want %v: %q", got, tt.masked, out)
+			}
+		})
 	}
 }

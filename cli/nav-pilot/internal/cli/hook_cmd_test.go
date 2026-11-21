@@ -269,3 +269,56 @@ func TestHookStateDirEnv(t *testing.T) {
 		t.Fatal("a relative state dir is taken")
 	}
 }
+
+func TestHookRedactSyntheticAndRealIdents(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	writeTestConfig(t, "version = 1\n")
+
+	run := func(in string) string {
+		var out bytes.Buffer
+		runHookCommand([]string{"redact"}, strings.NewReader(in), &out)
+		return strings.TrimSpace(out.String())
+	}
+	payloads := []struct {
+		name string
+		make func(text string) string
+	}{
+		{"copilot dolly tool", func(text string) string {
+			return `{"hook_event_name":"PostToolUse","session_id":"s","tool_name":"io-github-navikt-dolly-dolly_search","tool_input":{},"tool_result":{"result_type":"success","text_result_for_llm":"` + text + `"}}`
+		}},
+		{"payload naming dolly mcpServer", func(text string) string {
+			return `{"sessionId":"s","toolName":"dolly_search","mcpServer":"io.github.navikt/dolly","toolArgs":{},"toolResult":{"resultType":"success","textResultForLlm":"` + text + `"}}`
+		}},
+		{"builtin bash", func(text string) string {
+			return `{"hook_event_name":"PostToolUse","session_id":"s","tool_name":"bash","tool_input":{},"tool_result":{"result_type":"success","text_result_for_llm":"` + text + `"}}`
+		}},
+	}
+	cases := []struct {
+		name   string
+		ident  string
+		masked bool
+	}{
+		{"dolly synthetic d-number (day+40 month+40)", "46510000110", false},
+		{"tenor synthetic (month+80)", "15910000060", false},
+		{"nhn reserved (+65) / dolly bost/npid (+60)", "15710000074", false},
+		{"checksum-invalid", "15078545621", false},
+		{"real fnr", "15078545620", true},
+		{"real d-nummer", "55019041181", true},
+		{"real h-nummer / ordinary dolly fnr", "01519041010", true},
+	}
+	for _, src := range payloads {
+		for _, tc := range cases {
+			t.Run(src.name+"/"+tc.name, func(t *testing.T) {
+				got := run(src.make("ident " + tc.ident))
+				if tc.masked {
+					if !strings.Contains(got, "[REDACTED:fnr]") || strings.Contains(got, tc.ident) {
+						t.Errorf("want masked, got %s", got)
+					}
+				} else if got != "{}" {
+					t.Errorf("want {}, got %s", got)
+				}
+			})
+		}
+	}
+}

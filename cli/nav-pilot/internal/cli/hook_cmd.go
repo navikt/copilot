@@ -147,7 +147,6 @@ func runHookCommand(args []string, stdin io.Reader, stdout io.Writer) {
 			Secrets:       r.HookRedactSecrets,
 			FNR:           r.HookRedactFNR,
 			InjectionNote: r.HookInjectionNote,
-			DollySource:   p.MCPServer == hook.DollyServer,
 		})
 		if text != p.Result {
 			out = hook.ModifiedResult(p.ResultType, text)
