@@ -60,7 +60,8 @@ func TestGatewayAccessToken_HashedStorage_ResourceBinding_AndExpiry(t *testing.T
 	for i := range te.gw.cfg.Routes {
 		te.gw.cfg.Routes[i].ParsedURL = parsedUpstream
 	}
-	te.gw.TeamTokens, err = newTeamTokenSource(te.gw.cfg, te.gw.store, func() time.Time {
+	te.gw.routeTable.Store(newRouteTable(te.gw.cfg))
+	te.gw.TeamTokens, err = newTeamTokenSource(te.gw.cfg, te.gw.table(), te.gw.store, func() time.Time {
 		te.mu.Lock()
 		defer te.mu.Unlock()
 		return te.now
@@ -330,7 +331,8 @@ func TestStrategyRefresh_Rotation_And_Concurrency(t *testing.T) {
 	te.gw.cfg.MCPMaxInFlightPerUser = 8
 	te.handler = te.gw.routes()
 	var err error
-	te.gw.TeamTokens, err = newTeamTokenSource(te.gw.cfg, te.gw.store, func() time.Time {
+	te.gw.routeTable.Store(newRouteTable(te.gw.cfg))
+	te.gw.TeamTokens, err = newTeamTokenSource(te.gw.cfg, te.gw.table(), te.gw.store, func() time.Time {
 		te.mu.Lock()
 		defer te.mu.Unlock()
 		return te.now
@@ -492,7 +494,8 @@ func TestErrorMapping_AADSTS65001_And_NoRawEntraLeak(t *testing.T) {
 			te := newTestEnv(t)
 			te.gw.cfg.TeamTokenStrategy = tt.strategy
 			var err error
-			te.gw.TeamTokens, err = newTeamTokenSource(te.gw.cfg, te.gw.store, te.gw.now)
+			te.gw.routeTable.Store(newRouteTable(te.gw.cfg))
+			te.gw.TeamTokens, err = newTeamTokenSource(te.gw.cfg, te.gw.table(), te.gw.store, te.gw.now)
 			if err != nil {
 				t.Fatalf("newTeamTokenSource failed: %v", err)
 			}
@@ -1104,7 +1107,8 @@ routes:
 			for i := range te.gw.cfg.Routes {
 				te.gw.cfg.Routes[i].ParsedURL = parsedUpstream
 			}
-			te.gw.TeamTokens, err = newTeamTokenSource(te.gw.cfg, te.gw.store, func() time.Time {
+			te.gw.routeTable.Store(newRouteTable(te.gw.cfg))
+			te.gw.TeamTokens, err = newTeamTokenSource(te.gw.cfg, te.gw.table(), te.gw.store, func() time.Time {
 				te.mu.Lock()
 				defer te.mu.Unlock()
 				return te.now
@@ -1260,6 +1264,7 @@ func TestOldRoutePathAmbiguousNameOmitsNewURL(t *testing.T) {
 	dup.Route = "/mcp/other-ns/" + dup.Route[strings.LastIndex(dup.Route, "/")+1:]
 	dup.FullRouteID = te.gw.cfg.BaseURL + dup.Route
 	te.gw.cfg.Routes = append(te.gw.cfg.Routes, dup)
+	te.gw.routeTable.Store(newRouteTable(te.gw.cfg))
 
 	name := dup.Route[strings.LastIndex(dup.Route, "/")+1:]
 	rec := httptest.NewRecorder()

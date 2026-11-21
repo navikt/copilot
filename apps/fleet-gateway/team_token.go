@@ -42,12 +42,12 @@ func (e *upstreamTokenError) Error() string {
 	return "upstream token acquisition failed"
 }
 
-func newTeamTokenSource(cfg *Config, store SessionStore, now func() time.Time) (TeamTokenSource, error) {
+func newTeamTokenSource(cfg *Config, table *RouteTable, store SessionStore, now func() time.Time) (TeamTokenSource, error) {
 	if now == nil {
 		now = time.Now
 	}
-	byRes := make(map[string]PilotRoute, len(cfg.Routes))
-	for _, r := range cfg.Routes {
+	byRes := make(map[string]PilotRoute, len(table.Routes))
+	for _, r := range table.Routes {
 		byRes[cfg.BaseURL+r.Route] = r
 	}
 

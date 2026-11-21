@@ -137,7 +137,7 @@ func (g *Gateway) authorizeHandler(w http.ResponseWriter, r *http.Request) {
 		failRedirect("invalid_request", "PKCE with S256 is required")
 	case state == "":
 		failRedirect("invalid_request", "state is required")
-	case resource == "" || !g.cfg.AllowedResources[resource]:
+	case resource == "" || !g.table().AllowedResources[resource]:
 		failRedirect("invalid_target", "missing or unsupported resource")
 	case !isValidPrompt(prompt):
 		failRedirect("invalid_request", "unsupported prompt value")

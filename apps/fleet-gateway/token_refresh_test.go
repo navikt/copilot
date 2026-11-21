@@ -1190,7 +1190,7 @@ func TestRefreshToken_RetiredResourceInvalidGrant(t *testing.T) {
 	te := newClientEncryptedTestEnv(t, "k1:"+testKeyBase64(t, false))
 	_, rt1, _ := te.obtainTokensForResource(te.resource)
 
-	delete(te.gw.cfg.AllowedResources, te.resource)
+	delete(te.gw.table().AllowedResources, te.resource)
 	status, body := te.postToken(url.Values{
 		"grant_type":    {"refresh_token"},
 		"refresh_token": {rt1},

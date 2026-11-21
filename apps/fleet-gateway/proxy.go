@@ -104,10 +104,6 @@ func newHardenedProxyClient(headerTimeout time.Duration) *http.Client {
 func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 	fullRouteURL := g.cfg.BaseURL + route.Route
 	prmURL := g.cfg.BaseURL + "/.well-known/oauth-protected-resource" + route.Route
-	var routeInFlight slots // nil, like g.inFlight, for Gateways built without routes()
-	if g.inFlight != nil {
-		routeInFlight = make(slots, min(g.cfg.MCPMaxInFlightPerRoute, cap(g.inFlight)))
-	}
 
 	return func(w http.ResponseWriter, r *http.Request) {
 		start := g.now()
@@ -278,7 +274,7 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 			return
 		}
 		defer releaseUserSlot()
-		releaseRouteSlot, ok := routeInFlight.tryAcquire()
+		releaseRouteSlot, ok := g.routeInFlight.tryAcquire(route.Route)
 		if !ok {
 			outcome = "over_capacity"
 			writeOverCapacity(w, "MCP requests on this route")

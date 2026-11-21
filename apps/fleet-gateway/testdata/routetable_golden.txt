@@ -1,0 +1,563 @@
+== GET /mcp
+status: 404
+Content-Type: text/plain; charset=utf-8
+body: 404 page not found
+== POST /mcp
+status: 404
+Content-Type: text/plain; charset=utf-8
+body: 404 page not found
+== DELETE /mcp
+status: 404
+Content-Type: text/plain; charset=utf-8
+body: 404 page not found
+== PUT /mcp
+status: 404
+Content-Type: text/plain; charset=utf-8
+body: 404 page not found
+== GET /mcp/
+status: 404
+Content-Type: text/plain; charset=utf-8
+body: 404 page not found
+== POST /mcp/
+status: 404
+Content-Type: text/plain; charset=utf-8
+body: 404 page not found
+== DELETE /mcp/
+status: 404
+Content-Type: text/plain; charset=utf-8
+body: 404 page not found
+== PUT /mcp/
+status: 404
+Content-Type: text/plain; charset=utf-8
+body: 404 page not found
+== GET /mcp/etterlevelse
+status: 404
+Content-Type: application/json
+Cache-Control: no-store
+body: {
+  "error": "not_found",
+  "error_description": "This route moved to https://fleet-gateway.intern.dev.nav.no/mcp/team-etterlevelse/etterlevelse. Update your MCP client config and log in again.",
+  "new_url": "https://fleet-gateway.intern.dev.nav.no/mcp/team-etterlevelse/etterlevelse"
+}
+== POST /mcp/etterlevelse
+status: 404
+Content-Type: application/json
+Cache-Control: no-store
+body: {
+  "error": "not_found",
+  "error_description": "This route moved to https://fleet-gateway.intern.dev.nav.no/mcp/team-etterlevelse/etterlevelse. Update your MCP client config and log in again.",
+  "new_url": "https://fleet-gateway.intern.dev.nav.no/mcp/team-etterlevelse/etterlevelse"
+}
+== DELETE /mcp/etterlevelse
+status: 404
+Content-Type: application/json
+Cache-Control: no-store
+body: {
+  "error": "not_found",
+  "error_description": "This route moved to https://fleet-gateway.intern.dev.nav.no/mcp/team-etterlevelse/etterlevelse. Update your MCP client config and log in again.",
+  "new_url": "https://fleet-gateway.intern.dev.nav.no/mcp/team-etterlevelse/etterlevelse"
+}
+== PUT /mcp/etterlevelse
+status: 404
+Content-Type: application/json
+Cache-Control: no-store
+body: {
+  "error": "not_found",
+  "error_description": "This route moved to https://fleet-gateway.intern.dev.nav.no/mcp/team-etterlevelse/etterlevelse. Update your MCP client config and log in again.",
+  "new_url": "https://fleet-gateway.intern.dev.nav.no/mcp/team-etterlevelse/etterlevelse"
+}
+== GET /mcp/etterlevelse/
+status: 404
+Content-Type: text/plain; charset=utf-8
+body: 404 page not found
+== POST /mcp/etterlevelse/
+status: 404
+Content-Type: text/plain; charset=utf-8
+body: 404 page not found
+== DELETE /mcp/etterlevelse/
+status: 404
+Content-Type: text/plain; charset=utf-8
+body: 404 page not found
+== PUT /mcp/etterlevelse/
+status: 404
+Content-Type: text/plain; charset=utf-8
+body: 404 page not found
+== GET /mcp/shared
+status: 404
+Content-Type: application/json
+Cache-Control: no-store
+body: {
+  "error": "not_found",
+  "error_description": "MCP routes moved to /mcp/\u003cnamespace\u003e/\u003cname\u003e. Update your MCP client config and log in again."
+}
+== POST /mcp/shared
+status: 404
+Content-Type: application/json
+Cache-Control: no-store
+body: {
+  "error": "not_found",
+  "error_description": "MCP routes moved to /mcp/\u003cnamespace\u003e/\u003cname\u003e. Update your MCP client config and log in again."
+}
+== DELETE /mcp/shared
+status: 404
+Content-Type: application/json
+Cache-Control: no-store
+body: {
+  "error": "not_found",
+  "error_description": "MCP routes moved to /mcp/\u003cnamespace\u003e/\u003cname\u003e. Update your MCP client config and log in again."
+}
+== PUT /mcp/shared
+status: 404
+Content-Type: application/json
+Cache-Control: no-store
+body: {
+  "error": "not_found",
+  "error_description": "MCP routes moved to /mcp/\u003cnamespace\u003e/\u003cname\u003e. Update your MCP client config and log in again."
+}
+== GET /mcp/off
+status: 404
+Content-Type: application/json
+Cache-Control: no-store
+body: {
+  "error": "not_found",
+  "error_description": "This route moved to https://fleet-gateway.intern.dev.nav.no/mcp/team-c/off. Update your MCP client config and log in again.",
+  "new_url": "https://fleet-gateway.intern.dev.nav.no/mcp/team-c/off"
+}
+== POST /mcp/off
+status: 404
+Content-Type: application/json
+Cache-Control: no-store
+body: {
+  "error": "not_found",
+  "error_description": "This route moved to https://fleet-gateway.intern.dev.nav.no/mcp/team-c/off. Update your MCP client config and log in again.",
+  "new_url": "https://fleet-gateway.intern.dev.nav.no/mcp/team-c/off"
+}
+== DELETE /mcp/off
+status: 404
+Content-Type: application/json
+Cache-Control: no-store
+body: {
+  "error": "not_found",
+  "error_description": "This route moved to https://fleet-gateway.intern.dev.nav.no/mcp/team-c/off. Update your MCP client config and log in again.",
+  "new_url": "https://fleet-gateway.intern.dev.nav.no/mcp/team-c/off"
+}
+== PUT /mcp/off
+status: 404
+Content-Type: application/json
+Cache-Control: no-store
+body: {
+  "error": "not_found",
+  "error_description": "This route moved to https://fleet-gateway.intern.dev.nav.no/mcp/team-c/off. Update your MCP client config and log in again.",
+  "new_url": "https://fleet-gateway.intern.dev.nav.no/mcp/team-c/off"
+}
+== GET /mcp/unknown
+status: 404
+Content-Type: application/json
+Cache-Control: no-store
+body: {
+  "error": "not_found",
+  "error_description": "MCP routes moved to /mcp/\u003cnamespace\u003e/\u003cname\u003e. Update your MCP client config and log in again."
+}
+== POST /mcp/unknown
+status: 404
+Content-Type: application/json
+Cache-Control: no-store
+body: {
+  "error": "not_found",
+  "error_description": "MCP routes moved to /mcp/\u003cnamespace\u003e/\u003cname\u003e. Update your MCP client config and log in again."
+}
+== DELETE /mcp/unknown
+status: 404
+Content-Type: application/json
+Cache-Control: no-store
+body: {
+  "error": "not_found",
+  "error_description": "MCP routes moved to /mcp/\u003cnamespace\u003e/\u003cname\u003e. Update your MCP client config and log in again."
+}
+== PUT /mcp/unknown
+status: 404
+Content-Type: application/json
+Cache-Control: no-store
+body: {
+  "error": "not_found",
+  "error_description": "MCP routes moved to /mcp/\u003cnamespace\u003e/\u003cname\u003e. Update your MCP client config and log in again."
+}
+== GET /mcp/team-etterlevelse/etterlevelse
+status: 401
+Content-Type: application/json
+WWW-Authenticate: Bearer resource_metadata="https://fleet-gateway.intern.dev.nav.no/.well-known/oauth-protected-resource/mcp/team-etterlevelse/etterlevelse"
+Cache-Control: no-store
+body: {
+  "error": "invalid_token",
+  "message": "missing, invalid, or expired bearer token"
+}
+== POST /mcp/team-etterlevelse/etterlevelse
+status: 401
+Content-Type: application/json
+WWW-Authenticate: Bearer resource_metadata="https://fleet-gateway.intern.dev.nav.no/.well-known/oauth-protected-resource/mcp/team-etterlevelse/etterlevelse"
+Cache-Control: no-store
+body: {
+  "error": "invalid_token",
+  "message": "missing, invalid, or expired bearer token"
+}
+== DELETE /mcp/team-etterlevelse/etterlevelse
+status: 401
+Content-Type: application/json
+WWW-Authenticate: Bearer resource_metadata="https://fleet-gateway.intern.dev.nav.no/.well-known/oauth-protected-resource/mcp/team-etterlevelse/etterlevelse"
+Cache-Control: no-store
+body: {
+  "error": "invalid_token",
+  "message": "missing, invalid, or expired bearer token"
+}
+== PUT /mcp/team-etterlevelse/etterlevelse
+status: 405
+Content-Type: application/json
+Allow: GET, POST, DELETE
+Cache-Control: no-store
+body: {
+  "error": "method_not_allowed",
+  "message": "only GET, POST, and DELETE are supported"
+}
+== GET /mcp/team-etterlevelse/etterlevelse/
+status: 404
+Content-Type: text/plain; charset=utf-8
+body: 404 page not found
+== POST /mcp/team-etterlevelse/etterlevelse/
+status: 404
+Content-Type: text/plain; charset=utf-8
+body: 404 page not found
+== DELETE /mcp/team-etterlevelse/etterlevelse/
+status: 404
+Content-Type: text/plain; charset=utf-8
+body: 404 page not found
+== PUT /mcp/team-etterlevelse/etterlevelse/
+status: 404
+Content-Type: text/plain; charset=utf-8
+body: 404 page not found
+== GET /mcp/team-a/shared
+status: 401
+Content-Type: application/json
+WWW-Authenticate: Bearer resource_metadata="https://fleet-gateway.intern.dev.nav.no/.well-known/oauth-protected-resource/mcp/team-a/shared"
+Cache-Control: no-store
+body: {
+  "error": "invalid_token",
+  "message": "missing, invalid, or expired bearer token"
+}
+== POST /mcp/team-a/shared
+status: 401
+Content-Type: application/json
+WWW-Authenticate: Bearer resource_metadata="https://fleet-gateway.intern.dev.nav.no/.well-known/oauth-protected-resource/mcp/team-a/shared"
+Cache-Control: no-store
+body: {
+  "error": "invalid_token",
+  "message": "missing, invalid, or expired bearer token"
+}
+== DELETE /mcp/team-a/shared
+status: 401
+Content-Type: application/json
+WWW-Authenticate: Bearer resource_metadata="https://fleet-gateway.intern.dev.nav.no/.well-known/oauth-protected-resource/mcp/team-a/shared"
+Cache-Control: no-store
+body: {
+  "error": "invalid_token",
+  "message": "missing, invalid, or expired bearer token"
+}
+== PUT /mcp/team-a/shared
+status: 405
+Content-Type: application/json
+Allow: GET, POST, DELETE
+Cache-Control: no-store
+body: {
+  "error": "method_not_allowed",
+  "message": "only GET, POST, and DELETE are supported"
+}
+== GET /mcp/team-c/off
+status: 503
+Content-Type: application/json
+Retry-After: 300
+Cache-Control: no-store
+body: {
+  "error": "temporarily_unavailable",
+  "message": "this route is temporarily disabled by the gateway operator"
+}
+== POST /mcp/team-c/off
+status: 503
+Content-Type: application/json
+Retry-After: 300
+Cache-Control: no-store
+body: {
+  "error": "temporarily_unavailable",
+  "message": "this route is temporarily disabled by the gateway operator"
+}
+== DELETE /mcp/team-c/off
+status: 503
+Content-Type: application/json
+Retry-After: 300
+Cache-Control: no-store
+body: {
+  "error": "temporarily_unavailable",
+  "message": "this route is temporarily disabled by the gateway operator"
+}
+== PUT /mcp/team-c/off
+status: 405
+Content-Type: application/json
+Allow: GET, POST, DELETE
+Cache-Control: no-store
+body: {
+  "error": "method_not_allowed",
+  "message": "only GET, POST, and DELETE are supported"
+}
+== GET /mcp/team-x/unknown
+status: 404
+Content-Type: text/plain; charset=utf-8
+body: 404 page not found
+== POST /mcp/team-x/unknown
+status: 404
+Content-Type: text/plain; charset=utf-8
+body: 404 page not found
+== DELETE /mcp/team-x/unknown
+status: 404
+Content-Type: text/plain; charset=utf-8
+body: 404 page not found
+== PUT /mcp/team-x/unknown
+status: 404
+Content-Type: text/plain; charset=utf-8
+body: 404 page not found
+== GET /mcp/team-a/unknown
+status: 404
+Content-Type: text/plain; charset=utf-8
+body: 404 page not found
+== POST /mcp/team-a/unknown
+status: 404
+Content-Type: text/plain; charset=utf-8
+body: 404 page not found
+== DELETE /mcp/team-a/unknown
+status: 404
+Content-Type: text/plain; charset=utf-8
+body: 404 page not found
+== PUT /mcp/team-a/unknown
+status: 404
+Content-Type: text/plain; charset=utf-8
+body: 404 page not found
+== GET /mcp/a/b/c
+status: 404
+Content-Type: text/plain; charset=utf-8
+body: 404 page not found
+== POST /mcp/a/b/c
+status: 404
+Content-Type: text/plain; charset=utf-8
+body: 404 page not found
+== DELETE /mcp/a/b/c
+status: 404
+Content-Type: text/plain; charset=utf-8
+body: 404 page not found
+== PUT /mcp/a/b/c
+status: 404
+Content-Type: text/plain; charset=utf-8
+body: 404 page not found
+== bearer GET /mcp/team-etterlevelse/etterlevelse
+status: 200
+Content-Type: application/json
+Cache-Control: no-store
+body: {
+  "id": 1,
+  "jsonrpc": "2.0",
+  "result": {}
+}
+== bearer POST /mcp/team-etterlevelse/etterlevelse
+status: 200
+Content-Type: application/json
+Cache-Control: no-store
+body: {
+  "id": 1,
+  "jsonrpc": "2.0",
+  "result": {}
+}
+== bearer DELETE /mcp/team-etterlevelse/etterlevelse
+status: 200
+Content-Type: application/json
+Cache-Control: no-store
+body: {
+  "id": 1,
+  "jsonrpc": "2.0",
+  "result": {}
+}
+== bearer PUT /mcp/team-etterlevelse/etterlevelse
+status: 405
+Content-Type: application/json
+Allow: GET, POST, DELETE
+Cache-Control: no-store
+body: {
+  "error": "method_not_allowed",
+  "message": "only GET, POST, and DELETE are supported"
+}
+== bearer GET /mcp/team-a/shared
+status: 403
+Content-Type: application/json
+Cache-Control: no-store
+body: {
+  "error": "invalid_target",
+  "message": "token is not bound to this route"
+}
+== bearer POST /mcp/team-a/shared
+status: 403
+Content-Type: application/json
+Cache-Control: no-store
+body: {
+  "error": "invalid_target",
+  "message": "token is not bound to this route"
+}
+== bearer DELETE /mcp/team-a/shared
+status: 403
+Content-Type: application/json
+Cache-Control: no-store
+body: {
+  "error": "invalid_target",
+  "message": "token is not bound to this route"
+}
+== bearer PUT /mcp/team-a/shared
+status: 405
+Content-Type: application/json
+Allow: GET, POST, DELETE
+Cache-Control: no-store
+body: {
+  "error": "method_not_allowed",
+  "message": "only GET, POST, and DELETE are supported"
+}
+== bearer GET /mcp/team-c/off
+status: 503
+Content-Type: application/json
+Retry-After: 300
+Cache-Control: no-store
+body: {
+  "error": "temporarily_unavailable",
+  "message": "this route is temporarily disabled by the gateway operator"
+}
+== bearer POST /mcp/team-c/off
+status: 503
+Content-Type: application/json
+Retry-After: 300
+Cache-Control: no-store
+body: {
+  "error": "temporarily_unavailable",
+  "message": "this route is temporarily disabled by the gateway operator"
+}
+== bearer DELETE /mcp/team-c/off
+status: 503
+Content-Type: application/json
+Retry-After: 300
+Cache-Control: no-store
+body: {
+  "error": "temporarily_unavailable",
+  "message": "this route is temporarily disabled by the gateway operator"
+}
+== bearer PUT /mcp/team-c/off
+status: 405
+Content-Type: application/json
+Allow: GET, POST, DELETE
+Cache-Control: no-store
+body: {
+  "error": "method_not_allowed",
+  "message": "only GET, POST, and DELETE are supported"
+}
+== GET /.well-known/oauth-protected-resource
+status: 200
+Content-Type: application/json
+Cache-Control: no-store
+body: {
+  "authorization_servers": [
+    "https://fleet-gateway.intern.dev.nav.no"
+  ],
+  "bearer_methods_supported": [
+    "header"
+  ],
+  "resource": "https://fleet-gateway.intern.dev.nav.no/mcp/team-etterlevelse/etterlevelse"
+}
+== GET /.well-known/oauth-protected-resource/mcp/team-etterlevelse/etterlevelse
+status: 200
+Content-Type: application/json
+Cache-Control: no-store
+body: {
+  "authorization_servers": [
+    "https://fleet-gateway.intern.dev.nav.no"
+  ],
+  "bearer_methods_supported": [
+    "header"
+  ],
+  "resource": "https://fleet-gateway.intern.dev.nav.no/mcp/team-etterlevelse/etterlevelse"
+}
+== GET /.well-known/oauth-protected-resource/mcp/team-a/shared
+status: 200
+Content-Type: application/json
+Cache-Control: no-store
+body: {
+  "authorization_servers": [
+    "https://fleet-gateway.intern.dev.nav.no"
+  ],
+  "bearer_methods_supported": [
+    "header"
+  ],
+  "resource": "https://fleet-gateway.intern.dev.nav.no/mcp/team-a/shared"
+}
+== GET /.well-known/oauth-protected-resource/mcp/team-b/shared
+status: 200
+Content-Type: application/json
+Cache-Control: no-store
+body: {
+  "authorization_servers": [
+    "https://fleet-gateway.intern.dev.nav.no"
+  ],
+  "bearer_methods_supported": [
+    "header"
+  ],
+  "resource": "https://fleet-gateway.intern.dev.nav.no/mcp/team-b/shared"
+}
+== GET /.well-known/oauth-protected-resource/mcp/team-c/off
+status: 200
+Content-Type: application/json
+Cache-Control: no-store
+body: {
+  "authorization_servers": [
+    "https://fleet-gateway.intern.dev.nav.no"
+  ],
+  "bearer_methods_supported": [
+    "header"
+  ],
+  "resource": "https://fleet-gateway.intern.dev.nav.no/mcp/team-c/off"
+}
+== GET /.well-known/oauth-protected-resource/mcp/team-x/unknown
+status: 404
+Content-Type: text/plain; charset=utf-8
+body: 404 page not found
+== GET /.well-known/oauth-protected-resource/mcp/etterlevelse
+status: 404
+Content-Type: text/plain; charset=utf-8
+body: 404 page not found
+== GET /authorize resource=/mcp/team-etterlevelse/etterlevelse
+status: 302
+Content-Type: text/html; charset=utf-8
+Location: http://ENTRA/authorize error=""
+== GET /authorize resource=/mcp/team-a/shared
+status: 302
+Content-Type: text/html; charset=utf-8
+Location: http://ENTRA/authorize error=""
+== GET /authorize resource=/mcp/team-c/off
+status: 302
+Content-Type: text/html; charset=utf-8
+Location: http://ENTRA/authorize error=""
+== GET /authorize resource=/mcp/team-x/unknown
+status: 302
+Content-Type: text/html; charset=utf-8
+Location: http://127.0.0.1:38249/callback error="invalid_target"
+== GET /authorize resource=/mcp/etterlevelse
+status: 302
+Content-Type: text/html; charset=utf-8
+Location: http://127.0.0.1:38249/callback error="invalid_target"
+== POST /token refresh resource=""
+status: 200
+body: map[token_type:Bearer]
+== POST /token refresh resource="https://fleet-gateway.intern.dev.nav.no/mcp/team-etterlevelse/etterlevelse"
+status: 200
+body: map[token_type:Bearer]
+== POST /token refresh resource="https://fleet-gateway.intern.dev.nav.no/mcp/team-a/shared"
+status: 400
+body: map[error:invalid_grant error_description:resource mismatch]

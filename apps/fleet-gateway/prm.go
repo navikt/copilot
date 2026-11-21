@@ -8,12 +8,13 @@ import (
 
 // prmHandler serves RFC 9728 OAuth 2.0 Protected Resource Metadata.
 func (g *Gateway) prmHandler(w http.ResponseWriter, r *http.Request) {
-	resource := g.cfg.PrimaryResource
+	table := g.table()
+	resource := table.PrimaryResource
 	const prefix = "/.well-known/oauth-protected-resource"
 	if r.URL.Path != prefix {
 		suffix := strings.TrimPrefix(r.URL.Path, prefix)
 		candidate := g.cfg.BaseURL + suffix
-		if !g.cfg.AllowedResources[candidate] {
+		if !table.AllowedResources[candidate] {
 			http.NotFound(w, r)
 			return
 		}

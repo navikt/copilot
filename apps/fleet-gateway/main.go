@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -25,21 +26,23 @@ import (
 
 // Gateway implements the fleet-gateway OAuth 2.1 authorization server and MCP proxy.
 type Gateway struct {
-	cfg          *Config
-	now          func() time.Time
-	store        SessionStore
-	rtKeys       *keyRing
-	lockoutKey   []byte // HMAC key for lockout records (LOCKOUT_KEY); empty disables lockout checks
-	mcpUserKey   []byte // HMAC key for kindMCPSessionUser counters
-	cimdCache    *ttlMap[cachedCIMD]
-	limiters     map[string]*ipRateLimiter
-	rateLimitLog *rateLimitLogSampler
-	proxyClient  *http.Client
-	refreshWait  time.Duration // how long a concurrent refresh waits for the winner's grace pair
-	inFlight     slots         // buffered MCP calls; bounds memory (see README, Memory and limits)
-	userInFlight *userSlots    // concurrent buffered MCP calls per user on this pod
-	sseStreams   slots         // open SSE response streams; they buffer nothing, so get their own cap
-	userSSE      *userSlots    // concurrent open SSE response streams per user on this pod
+	cfg           *Config
+	now           func() time.Time
+	store         SessionStore
+	rtKeys        *keyRing
+	lockoutKey    []byte // HMAC key for lockout records (LOCKOUT_KEY); empty disables lockout checks
+	mcpUserKey    []byte // HMAC key for kindMCPSessionUser counters
+	cimdCache     *ttlMap[cachedCIMD]
+	limiters      map[string]*ipRateLimiter
+	rateLimitLog  *rateLimitLogSampler
+	proxyClient   *http.Client
+	refreshWait   time.Duration // how long a concurrent refresh waits for the winner's grace pair
+	inFlight      slots         // buffered MCP calls; bounds memory (see README, Memory and limits)
+	userInFlight  *userSlots    // concurrent buffered MCP calls per user on this pod
+	sseStreams    slots         // open SSE response streams; they buffer nothing, so get their own cap
+	userSSE       *userSlots    // concurrent open SSE response streams per user on this pod
+	routeInFlight *userSlots    // concurrent buffered MCP calls per route on this pod, keyed by route path
+	routeTable    atomic.Pointer[RouteTable]
 
 	wellKnownMu         sync.RWMutex
 	wellKnownGroup      singleflight.Group
@@ -87,7 +90,8 @@ func newGateway(cfg *Config, now func() time.Time) (*Gateway, error) {
 		}
 		return nil, err
 	}
-	teamTokens, err := newTeamTokenSource(cfg, store, now)
+	table := newRouteTable(cfg)
+	teamTokens, err := newTeamTokenSource(cfg, table, store, now)
 	if err != nil {
 		if ownedStore {
 			store.Close()
@@ -98,7 +102,7 @@ func newGateway(cfg *Config, now func() time.Time) (*Gateway, error) {
 	for _, ep := range rateLimitedEndpoints {
 		limiters[ep] = newIPRateLimiter(cfg.RateLimitRequests, cfg.RateLimitGlobalRequests, cfg.RateLimitWindow, cfg.RateLimitCap, now)
 	}
-	return &Gateway{
+	gw := &Gateway{
 		cfg:          cfg,
 		now:          now,
 		store:        store,
@@ -111,7 +115,9 @@ func newGateway(cfg *Config, now func() time.Time) (*Gateway, error) {
 		proxyClient:  newHardenedProxyClient(cfg.ProxyHeaderTimeout),
 		refreshWait:  5 * time.Second,
 		TeamTokens:   teamTokens,
-	}, nil
+	}
+	gw.routeTable.Store(table)
+	return gw, nil
 }
 
 func buildSessionStore(cfg *Config, now func() time.Time, rtKeys *keyRing) (SessionStore, bool, error) {
@@ -212,11 +218,22 @@ func (g *Gateway) routes() http.Handler {
 	g.userInFlight = &userSlots{max: min(g.cfg.MCPMaxInFlightPerUser, g.cfg.MCPMaxInFlight)}
 	g.sseStreams = make(slots, g.cfg.MCPMaxSSE)
 	g.userSSE = &userSlots{max: g.cfg.MCPMaxSSEPerUser}
-	for _, route := range g.cfg.Routes {
-		mux.HandleFunc(route.Route, g.mcpHandler(route))
-	}
+	g.routeInFlight = &userSlots{max: min(g.cfg.MCPMaxInFlightPerRoute, cap(g.inFlight))}
+	// Two method-less, disjoint patterns, as before RouteTable: no /mcp/ subtree,
+	// so /mcp, /mcp/ and trailing slashes stay plain 404s and are never redirected.
+	mux.HandleFunc("/mcp/{ns}/{name}", g.routeDispatch)
 	mux.HandleFunc("/mcp/{name}", g.oldRoutePathHandler)
 	return g.loggingMiddleware(mux)
+}
+
+// routeDispatch serves /mcp/<namespace>/<name> from the current RouteTable.
+func (g *Gateway) routeDispatch(w http.ResponseWriter, r *http.Request) {
+	route, ok := g.table().RoutesByPath["/mcp/"+r.PathValue("ns")+"/"+r.PathValue("name")]
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	g.mcpHandler(route).ServeHTTP(w, r)
 }
 
 // oldRoutePathHandler answers the retired /mcp/<name> paths with a 404 that names
@@ -229,9 +246,10 @@ func (g *Gateway) oldRoutePathHandler(w http.ResponseWriter, r *http.Request) {
 	// Two namespaces may share a route name: only hint when the match is unique.
 	var match *PilotRoute
 	matches := 0
-	for i, route := range g.cfg.Routes {
+	routes := g.table().Routes
+	for i, route := range routes {
 		if strings.HasSuffix(route.Route, "/"+r.PathValue("name")) {
-			match = &g.cfg.Routes[i]
+			match = &routes[i]
 			matches++
 		}
 	}
@@ -565,14 +583,14 @@ func main() {
 		"base_url", cfg.BaseURL,
 		"allowed_clients", len(cfg.AllowedClientIDs),
 		"allowed_redirects", len(cfg.AllowedRedirectURIs),
-		"allowed_resources", len(cfg.AllowedResources),
-		"pilot_routes", len(cfg.Routes),
+		"allowed_resources", len(gw.table().AllowedResources),
+		"pilot_routes", len(gw.table().Routes),
 		"team_token_strategy", cfg.TeamTokenStrategy,
 		"rt_storage", cfg.RTStorage,
 	)
 
-	routesLoaded.Set(float64(len(cfg.Routes)))
-	initMetrics(cfg.Routes)
+	routesLoaded.Set(float64(len(gw.table().Routes)))
+	initMetrics(gw.table().Routes)
 	metrics := metricsServer(":" + config.Get("METRICS_PORT", "9090"))
 	go func() {
 		if err := metrics.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
