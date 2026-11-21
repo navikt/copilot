@@ -96,7 +96,7 @@ describe("CustomizationCatalog", () => {
   it("shows flat list and fleet-gateway info box when MCP Server type chip is toggled", () => {
     render(<CustomizationCatalog items={ITEMS} />);
 
-    fireEvent.click(screen.getByRole("button", { name: /MCP Server/ }));
+    fireEvent.click(screen.getByRole("button", { name: /MCP Server/, pressed: false }));
 
     expect(screen.getByText(/Koble til Navs MCP-servere/)).toBeInTheDocument();
     expect(screen.getByText(/Tilby den gjennom fleet-gateway/)).toBeInTheDocument();
@@ -108,8 +108,8 @@ describe("CustomizationCatalog", () => {
   it("supports multi-select type filtering and resetting filters", () => {
     render(<CustomizationCatalog items={ITEMS} />);
 
-    fireEvent.click(screen.getByRole("button", { name: /Agent/ }));
-    fireEvent.click(screen.getByRole("button", { name: /Instruksjon/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Agent/, pressed: false }));
+    fireEvent.click(screen.getByRole("button", { name: /Instruksjon/, pressed: false }));
 
     expect(screen.getByText("2 av 3 tilpasninger")).toBeInTheDocument();
     expect(screen.getByRole("heading", { level: 3, name: "@aksel" })).toBeInTheDocument();

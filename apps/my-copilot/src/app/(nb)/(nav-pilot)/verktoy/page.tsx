@@ -76,9 +76,11 @@ export default async function CustomizationsPage() {
           paddingBlock={{ xs: "space-20", md: "space-32" }}
           paddingInline={{ xs: "space-16", sm: "space-20", md: "space-32", lg: "space-40" }}
         >
-          <Suspense>
-            <CustomizationCatalog items={enrichedItems} />
-          </Suspense>
+          <div id="catalog">
+            <Suspense>
+              <CustomizationCatalog items={enrichedItems} />
+            </Suspense>
+          </div>
         </Box>
       </div>
     </main>
