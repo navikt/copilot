@@ -26,7 +26,7 @@ Terminologi brukt i statistikkdashboardet og verktøykatalogen. Engelske faguttr
 | input-tokens      | Tokens som sendes til modellen. Skriv input-tokens og output-tokens, ikke «inndatatokener» og «utdatatoken»                                             |
 | merge             | Innlemme en pull request eller branch. Skriv merge, ikke «slått sammen», «sammenslått», «sammenslåing» eller «flettet». Bøyes: å merge, merget, mergede |
 | mirror            | Speilet pakkeregister. Skriv mirror, ikke «speil». Bøyes: mirroren                                                                                      |
-| org policy        | Organisasjonsnivå-regler i GitHub                                                                                                                       |
+| org policy        | Organisasjonsnivåregler i GitHub                                                                                                                        |
 | prompt            | Instruksjonen du sender til modellen. Skriv prompt, ikke «ledetekst»                                                                                    |
 | prompt injection  | Angrepsteknikk mot AI-agenter                                                                                                                           |
 | pull request (PR) | Endringsforslag i Git                                                                                                                                   |
