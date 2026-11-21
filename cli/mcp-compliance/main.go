@@ -82,7 +82,7 @@ func run(args []string, out io.Writer, getenv func(string) string) int {
 	cfg.token = getenv(envToken)
 	cfg.appToken = getenv(envAppToken)
 
-	results := checks(&cfg)
+	results, abort := checks(&cfg)
 	tw := tabwriter.NewWriter(out, 0, 0, 2, ' ', 0)
 	fmt.Fprintf(tw, "RESULT\tCHECK\tDETAIL\n")
 	failed := 0
@@ -93,6 +93,10 @@ func run(args []string, out io.Writer, getenv func(string) string) int {
 		fmt.Fprintf(tw, "%s\t%s\t%s\n", r.status, r.name, r.detail)
 	}
 	_ = tw.Flush()
+	if abort != nil {
+		fmt.Fprintf(out, "\nstopped: %v\n", abort)
+		return 1
+	}
 	if failed > 0 {
 		fmt.Fprintf(out, "\n%d of %d checks failed\n", failed, len(results))
 		return 1
@@ -101,7 +105,7 @@ func run(args []string, out io.Writer, getenv func(string) string) int {
 	return 0
 }
 
-func checks(cfg *config) []result {
+func checks(cfg *config) ([]result, error) {
 	var rs []result
 	add := func(name string, err error) {
 		r := result{name: name, status: "PASS"}
@@ -116,19 +120,6 @@ func checks(cfg *config) []result {
 	}
 
 	discover := modernBody("server/discover", nil)
-	add("missing token is 401", func() error {
-		return cfg.expect(http.MethodPost, "", discover, modernHeaders("server/discover", ""), 401)
-	}())
-	add("invalid token is 401", func() error {
-		return cfg.expect(http.MethodPost, invalidToken, discover, modernHeaders("server/discover", ""), 401)
-	}())
-	add("app token is 403", func() error {
-		if cfg.appToken == "" {
-			return skipError(envAppToken + " not set")
-		}
-		return cfg.expect(http.MethodPost, cfg.appToken, discover, modernHeaders("server/discover", ""), 403)
-	}())
-
 	add("server/discover lists "+modernVersion, func() error {
 		resp, err := cfg.do(http.MethodPost, cfg.token, discover, modernHeaders("server/discover", ""))
 		if e := expectStatus(resp, err, 200); e != nil {
@@ -153,6 +144,24 @@ func checks(cfg *config) []result {
 			return errors.New("result _meta lacks " + metaServerInfo)
 		}
 		return nil
+	}())
+
+	if rs[0].status == "FAIL" {
+		// Stop here: without a working endpoint every other row would mean nothing,
+		// and a wrong URL that answers 401 everywhere would pass the auth rows.
+		return rs, errors.New("server/discover did not answer 200; check -url and " + envToken)
+	}
+	add("missing token is 401", func() error {
+		return cfg.expectChallenge("")
+	}())
+	add("invalid token is 401", func() error {
+		return cfg.expectChallenge(invalidToken)
+	}())
+	add("app token is 403", func() error {
+		if cfg.appToken == "" {
+			return skipError(envAppToken + " not set")
+		}
+		return cfg.expect(http.MethodPost, cfg.appToken, discover, modernHeaders("server/discover", ""), 403)
 	}())
 
 	tool, toolErr := cfg.pickTool()
@@ -202,7 +211,7 @@ func checks(cfg *config) []result {
 		big := modernBody("tools/list", map[string]any{"pad": strings.Repeat("a", cfg.maxBytes)})
 		return cfg.expect(http.MethodPost, cfg.token, big, modernHeaders("tools/list", ""), 413)
 	}())
-	return rs
+	return rs, nil
 }
 
 type skipError string
@@ -216,7 +225,7 @@ func (cfg *config) pickTool() (string, error) {
 	}
 	resp, err := cfg.do(http.MethodPost, cfg.token, modernBody("tools/list", nil), modernHeaders("tools/list", ""))
 	if e := expectStatus(resp, err, 200); e != nil {
-		return "", fmt.Errorf("tools/list for a tool name: %w", err)
+		return "", fmt.Errorf("tools/list for a tool name: %w", e)
 	}
 	r, _ := resp.body["result"].(map[string]any)
 	tools, _ := r["tools"].([]any)
@@ -312,4 +321,17 @@ func with(h map[string]string, k, v string) map[string]string {
 func (cfg *config) expect(method, token string, body map[string]any, hdr map[string]string, want int) error {
 	resp, err := cfg.do(method, token, body, hdr)
 	return expectStatus(resp, err, want)
+}
+
+// expectChallenge wants 401 with an RFC 6750 invalid_token challenge, which a
+// wrong URL behind a generic 401 does not send.
+func (cfg *config) expectChallenge(token string) error {
+	resp, err := cfg.do(http.MethodPost, token, modernBody("server/discover", nil), modernHeaders("server/discover", ""))
+	if e := expectStatus(resp, err, 401); e != nil {
+		return e
+	}
+	if h := resp.header.Get("WWW-Authenticate"); !strings.Contains(h, "invalid_token") {
+		return fmt.Errorf("WWW-Authenticate = %q, want a Bearer challenge with error=\"invalid_token\"", h)
+	}
+	return nil
 }

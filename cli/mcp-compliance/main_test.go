@@ -23,11 +23,15 @@ type fakeServer struct {
 	acceptMissingToken, acceptInvalidToken, acceptAppToken bool
 	noDiscover, noVersionCheck, noMethodCheck, noNameCheck bool
 	noEnvelopeCheck, allowGET, noSizeLimit                 bool
+	noChallenge, noToolsList                               bool
 }
 
 func (f fakeServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch auth := r.Header.Get("Authorization"); {
 	case auth == "" && !f.acceptMissingToken, auth == "Bearer "+invalidToken && !f.acceptInvalidToken:
+		if !f.noChallenge {
+			w.Header().Set("WWW-Authenticate", `Bearer error="invalid_token"`)
+		}
 		w.WriteHeader(401)
 		return
 	case auth == "Bearer "+appToken && !f.acceptAppToken:
@@ -92,18 +96,26 @@ func (f fakeServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		result["capabilities"], result["ttlMs"], result["cacheScope"] = map[string]any{}, 0, "public"
 	case "tools/list":
+		if f.noToolsList {
+			w.WriteHeader(500)
+			return
+		}
 		result["tools"] = []any{map[string]any{"name": "ping_tool"}}
 	}
 	_ = json.NewEncoder(w).Encode(map[string]any{"jsonrpc": "2.0", "id": 1, "result": result})
 }
 
-func runAgainst(t *testing.T, f fakeServer) (int, string) {
+func runAgainst(t *testing.T, f fakeServer, path ...string) (int, string) {
 	t.Helper()
-	srv := httptest.NewServer(f)
+	var h http.Handler = f
+	if len(path) > 0 {
+		h = http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(401) })
+	}
+	srv := httptest.NewServer(h)
 	defer srv.Close()
 	env := map[string]string{envToken: userToken, envAppToken: appToken}
 	var out bytes.Buffer
-	code := run([]string{"-url", srv.URL}, &out, func(k string) string { return env[k] })
+	code := run([]string{"-url", srv.URL + strings.Join(path, "")}, &out, func(k string) string { return env[k] })
 	if s := out.String(); strings.Contains(s, userToken) || strings.Contains(s, appToken) {
 		t.Fatalf("output contains a token:\n%s", s)
 	}
@@ -124,6 +136,9 @@ func TestEachBrokenRuleFails(t *testing.T) {
 	}{
 		{fakeServer{acceptMissingToken: true}, "missing token is 401"},
 		{fakeServer{acceptInvalidToken: true}, "invalid token is 401"},
+		{fakeServer{noChallenge: true}, "missing token is 401"},
+		{fakeServer{noChallenge: true}, "invalid token is 401"},
+		{fakeServer{noToolsList: true}, "status 500, want 200"},
 		{fakeServer{acceptAppToken: true}, "app token is 403"},
 		{fakeServer{noDiscover: true}, "server/discover lists"},
 		{fakeServer{noVersionCheck: true}, "missing MCP-Protocol-Version is -32020"},
@@ -171,5 +186,12 @@ func TestAppTokenUnsetSkips(t *testing.T) {
 func TestMissingURLIsUsageError(t *testing.T) {
 	if code := run(nil, io.Discard, func(string) string { return "" }); code != 2 {
 		t.Fatalf("exit %d, want 2", code)
+	}
+}
+
+func TestWrongURLAnswering401Stops(t *testing.T) {
+	code, out := runAgainst(t, fakeServer{acceptMissingToken: true, noChallenge: true}, "/wrong")
+	if code != 1 || !strings.Contains(out, "stopped: server/discover did not answer 200") || strings.Contains(out, "PASS") {
+		t.Fatalf("exit %d, want 1 with stop and no PASS rows:\n%s", code, out)
 	}
 }
