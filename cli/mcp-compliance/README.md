@@ -1,10 +1,11 @@
 # mcp-compliance
 
-Checks an MCP server that sits behind `fleet-gateway` against MCP 2026-07-28 and the auth rules the Nav MCP servers share. The server can be written in any language. The checks are the same ones `runMCP2026Compliance` and the auth tests run in `apps/mcp-kodeverk`, `apps/mcp-team-catalog` and `apps/fleet-gateway/echo`.
+Checks an MCP server that sits behind `fleet-gateway` against MCP 2026-07-28 and the auth rules the Nav MCP servers share. The server can be written in any language. The tool checks a subset of the shared rules that `runMCP2026Compliance` and the auth tests check in `apps/mcp-kodeverk`, `apps/mcp-team-catalog` and `apps/fleet-gateway/echo`.
 
 | Check | Expected |
 |---|---|
-| No token, invalid token | 401 |
+| `server/discover` runs first; if it does not answer 200 the tool stops | |
+| No token, invalid token | 401 with `WWW-Authenticate` carrying `invalid_token` |
 | App token (`idtyp=app`), if `MCP_COMPLIANCE_APP_TOKEN` is set | 403 |
 | `server/discover` | 200, `supportedVersions` holds `2026-07-28`, `capabilities`, `ttlMs`, `cacheScope`, `resultType: complete`, `_meta` server info |
 | Missing `MCP-Protocol-Version`, or `Mcp-Method`, `Mcp-Name` or `_meta` protocol version that does not match the body | 400, `-32020` |
@@ -12,6 +13,14 @@ Checks an MCP server that sits behind `fleet-gateway` against MCP 2026-07-28 and
 | Missing `method`, `id: null` | 400, `-32600` |
 | `GET`, `DELETE` (skipped with `-legacy`) | 405, `Allow: POST` |
 | Body over `-max-bytes` (default 1 MiB) | 413 |
+
+Not covered, so keep these in your own tests:
+
+- `-32602` for a missing or invalid `_meta`
+- 404 for unknown methods and for `ping`
+- base64-encoded `Mcp-Name` (`=?base64?...?=`)
+- that `Mcp-Session-Id` is ignored
+- that every tool in `tools/list` has annotations
 
 The tool prints a PASS/FAIL/SKIP table and exits 1 if any check fails.
 

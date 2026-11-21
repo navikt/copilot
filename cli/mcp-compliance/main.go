@@ -16,6 +16,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"slices"
 	"strings"
 	"text/tabwriter"
 	"time"
@@ -120,7 +121,8 @@ func checks(cfg *config) ([]result, error) {
 	}
 
 	discover := modernBody("server/discover", nil)
-	add("server/discover lists "+modernVersion, func() error {
+	discoverName := "server/discover lists " + modernVersion
+	add(discoverName, func() error {
 		resp, err := cfg.do(http.MethodPost, cfg.token, discover, modernHeaders("server/discover", ""))
 		if e := expectStatus(resp, err, 200); e != nil {
 			return e
@@ -146,7 +148,7 @@ func checks(cfg *config) ([]result, error) {
 		return nil
 	}())
 
-	if rs[0].status == "FAIL" {
+	if slices.ContainsFunc(rs, func(r result) bool { return r.name == discoverName && r.status == "FAIL" }) {
 		// Stop here: without a working endpoint every other row would mean nothing,
 		// and a wrong URL that answers 401 everywhere would pass the auth rows.
 		return rs, errors.New("server/discover did not answer 200; check -url and " + envToken)
