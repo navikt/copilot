@@ -17,13 +17,15 @@ var annotationHints = []string{"readOnlyHint", "destructiveHint", "idempotentHin
 // softInstruction matches imperative wording honest descriptions also use: WARN.
 // Both are deliberately narrow.
 var (
-	hiddenInstruction = regexp.MustCompile(`(?i)ignore (?:all |any |the )?(?:previous|prior)(?: instructions)?|system prompt|(?:do not|don't) tell the user|<\s*/?\s*(?:system|instructions?)\s*>`)
-	softInstruction   = regexp.MustCompile(`(?i)\b(?:you must|always|never)\b`)
+	hiddenInstruction = regexp.MustCompile(`(?i)ignore\s+(?:(?:all|any|the)\s+)?(?:previous|prior)(?:\s+instructions)?|system\s+prompt|(?:do\s+not|don't)\s+tell\s+the\s+user|<\s*/?\s*(?:system|instructions?)\s*>`)
+	softInstruction   = regexp.MustCompile(`(?i)\b(?:you\s+must|always|never)\b`)
 )
 
 // invisibleRune reports zero-width, bidi-control and tag characters.
 func invisibleRune(r rune) bool {
 	switch {
+	case r == 0x061C: // Arabic letter mark
+		return true
 	case r >= 0x200B && r <= 0x200F, r == 0x2060, r == 0xFEFF: // zero-width, LRM/RLM, word joiner, BOM
 		return true
 	case r >= 0x202A && r <= 0x202E, r >= 0x2066 && r <= 0x2069: // bidi embeddings and isolates
@@ -32,6 +34,12 @@ func invisibleRune(r rune) bool {
 		return true
 	}
 	return false
+}
+
+// softInvisibleRune reports characters that are often legitimate (soft hyphen,
+// variation selectors) but can also hide text: WARN.
+func softInvisibleRune(r rune) bool {
+	return r == 0x00AD || r == 0x034F || r == 0x180E || r >= 0xFE00 && r <= 0xFE0F || r >= 0xE0100 && r <= 0xE01EF
 }
 
 // descriptions returns every description string in a tool: its own and those in inputSchema.
@@ -58,8 +66,15 @@ func descriptions(tool map[string]any) []string {
 			}
 		}
 	}
-	if d, ok := tool["description"].(string); ok {
-		out = append(out, d)
+	for _, v := range []any{tool["description"], tool["title"]} {
+		if d, ok := v.(string); ok {
+			out = append(out, d)
+		}
+	}
+	if a, ok := tool["annotations"].(map[string]any); ok {
+		if d, ok := a["title"].(string); ok {
+			out = append(out, d)
+		}
 	}
 	walk(tool["inputSchema"])
 	return out
@@ -107,11 +122,19 @@ func (cfg *config) lintTools() []result {
 			if loc := softInstruction.FindStringIndex(d); loc != nil {
 				add(rules[0], "WARN", name, fmt.Sprintf("%q", fragment(d, loc[0], loc[1])))
 			}
+			soft := -1
 			for i, c := range d {
 				if invisibleRune(c) {
 					add(rules[1], "FAIL", name, fmt.Sprintf("U+%04X at byte %d", c, i))
+					soft = -2
 					break
 				}
+				if soft == -1 && softInvisibleRune(c) {
+					soft = i
+				}
+			}
+			if soft >= 0 {
+				add(rules[1], "WARN", name, fmt.Sprintf("U+%04X at byte %d", []rune(d[soft:])[0], soft))
 			}
 			if n := utf8.RuneCountInString(d); n > maxDescription {
 				add(rules[3], "WARN", name, fmt.Sprintf("%d characters, over %d", n, maxDescription))
