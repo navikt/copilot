@@ -1,5 +1,5 @@
 ---
-applyTo: "apps/my-copilot/src/lib/copilot-manifest.json,docs/README.*.md,docs/nav-pilot-changelog.md,**/CHANGELOG*.md,**/*.png,**/*.svg,**/*.drawio"
+applyTo: "apps/my-copilot/src/lib/copilot-manifest.json,docs/README.*.md,docs/nav-pilot-changelog.md,**/*.png,**/*.svg"
 excludeAgent: "cloud-agent"
 ---
 

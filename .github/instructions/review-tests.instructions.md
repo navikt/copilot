@@ -1,5 +1,5 @@
 ---
-applyTo: "**/*_test.go,**/*.test.ts,**/*.test.tsx,**/*.spec.ts,**/testdata/**,**/fixtures/**"
+applyTo: "**/*_test.go,**/*.test.ts,**/*.test.tsx,**/*.spec.ts,**/testdata/**"
 excludeAgent: "cloud-agent"
 ---
 
