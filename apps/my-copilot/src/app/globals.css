@@ -1150,6 +1150,7 @@ button.search-hit {
   color: var(--vt-ink);
   background: var(--vt-bg);
   border-color: transparent;
+  box-shadow: none;
   font-weight: 600;
 }
 

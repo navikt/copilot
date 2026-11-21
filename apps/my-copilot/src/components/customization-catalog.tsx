@@ -292,20 +292,19 @@ export function CustomizationCatalog({ items }: CustomizationCatalogProps) {
             {TYPE_ORDER.map((type) => {
               const selected = selectedTypes.includes(type);
               return (
-                <li key={type}>
-                  <button
-                    type="button"
-                    aria-pressed={selected}
-                    onClick={() => toggleType(type)}
-                    className={`aksel-chips__chip aksel-chips__toggle verktoy-type-chip ${typeClassName(type)}`}
-                  >
-                    <HStack as="span" gap="space-6" align="center">
-                      <TypeIcon type={type} size="1rem" />
-                      <span>{TYPE_LABELS[type]}</span>
-                      <span className="verktoy-chip-count">{typeCounts[type]}</span>
-                    </HStack>
-                  </button>
-                </li>
+                <button
+                  key={type}
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => toggleType(type)}
+                  className={`aksel-chips__chip aksel-chips__toggle verktoy-type-chip ${typeClassName(type)}`}
+                >
+                  <HStack as="span" gap="space-6" align="center">
+                    <TypeIcon type={type} size="1rem" />
+                    <span>{TYPE_LABELS[type]}</span>
+                    <span className="verktoy-chip-count">{typeCounts[type]}</span>
+                  </HStack>
+                </button>
               );
             })}
           </Chips>
