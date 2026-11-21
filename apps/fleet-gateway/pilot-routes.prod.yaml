@@ -31,3 +31,19 @@ routes:
       - list_hierarkier
       - get_hierarki_noder
       - search_kodeverk
+  - route: /mcp/copilot/team-catalog
+    team: copilot
+    target: prod-gcp:copilot:mcp-team-catalog
+    upstream_url: http://mcp-team-catalog.copilot/
+    enabled: true
+    tools:
+      - list_teams
+      - search_teams
+      - get_team
+      - get_teams_by_nais_team
+      - list_product_areas
+      - get_product_area
+      - list_clusters
+      - get_cluster
+      - get_member_memberships
+      - get_nais_team
