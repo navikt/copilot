@@ -45,8 +45,8 @@ type Payload struct {
 }
 
 type wirePayload struct {
-	Cwd       string          `json:"cwd"`
-	SessionID string          `json:"sessionId"`
+	Cwd        string          `json:"cwd"`
+	SessionID  string          `json:"sessionId"`
 	ToolName   string          `json:"toolName"`
 	ToolArgs   json.RawMessage `json:"toolArgs"`
 	ToolResult *struct {
