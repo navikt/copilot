@@ -24,6 +24,7 @@ type fakeServer struct {
 	noDiscover, noVersionCheck, noMethodCheck, noNameCheck bool
 	noEnvelopeCheck, allowGET, noSizeLimit                 bool
 	noChallenge, noToolsList, echoToken, fracCode          bool
+	unsupportedAsMismatch                                  bool
 }
 
 func (f fakeServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -76,10 +77,14 @@ func (f fakeServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	if v := r.Header.Get("MCP-Protocol-Version"); !f.noVersionCheck {
 		switch {
-		case v == "" || env.Params.Meta[metaProtocolVersion] != v && v == modernVersion:
+		case v == "" || env.Params.Meta[metaProtocolVersion] != v:
 			rpcErr(codeHeaderMismatch)
 			return
 		case v != modernVersion:
+			if f.unsupportedAsMismatch {
+				rpcErr(codeHeaderMismatch)
+				return
+			}
 			rpcErr(codeUnsupportedVer)
 			return
 		}
@@ -228,4 +233,22 @@ func TestNonPositiveMaxBytesIsUsageError(t *testing.T) {
 			t.Fatalf("-max-bytes %s: exit %d, want 2", v, code)
 		}
 	}
+}
+
+func TestUnsupportedVersionConsistency(t *testing.T) {
+	t.Run("consistent unknown version returning -32022 passes", func(t *testing.T) {
+		code, out := runAgainst(t, fakeServer{})
+		if code != 0 || strings.Contains(out, "FAIL") {
+			t.Fatalf("exit %d, want 0:\n%s", code, out)
+		}
+	})
+	t.Run("consistent unknown version returning -32020 fails", func(t *testing.T) {
+		code, out := runAgainst(t, fakeServer{unsupportedAsMismatch: true})
+		if code != 1 {
+			t.Fatalf("exit %d, want 1:\n%s", code, out)
+		}
+		if !regexp.MustCompile(`FAIL +unsupported MCP-Protocol-Version is -32022 +error code -32020, want -32022`).MatchString(out) {
+			t.Fatalf("expected FAIL for -32020 on unsupported version:\n%s", out)
+		}
+	})
 }
