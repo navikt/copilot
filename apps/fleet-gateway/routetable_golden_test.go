@@ -8,7 +8,6 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -67,7 +66,7 @@ func TestRouteDispatchGolden(t *testing.T) {
 			// State and nonce are random: keep only where it goes and any error.
 			u, _ := url.Parse(loc)
 			host := strings.NewReplacer(strings.TrimPrefix(te.entraServer.URL, "http://"), "ENTRA").Replace(u.Host)
-			fmt.Fprintf(&out, "Location: %s://%s%s error=%q\n", u.Scheme, host, u.Path, u.Query().Get("error"))
+			fmt.Fprintf(&out, "Location: %s://%s%s error=%q\n", u.Scheme, host, u.Path, u.Query().Get("error")) //nolint:gosec // strings.Builder, not HTTP
 		} else {
 			fmt.Fprintf(&out, "body: %s\n", strings.TrimSpace(string(body)))
 		}
@@ -130,15 +129,15 @@ func TestRouteDispatchGolden(t *testing.T) {
 			rt, _ = body["refresh_token"].(string)
 			body = map[string]any{"token_type": body["token_type"]}
 		}
-		fmt.Fprintf(&out, "== POST /token refresh resource=%q\nstatus: %d\nbody: %v\n", res, status, body)
+		fmt.Fprintf(&out, "== POST /token refresh resource=%q\nstatus: %d\nbody: %v\n", res, status, body) //nolint:gosec // strings.Builder, not HTTP
 	}
 
-	golden := filepath.Join("testdata", "routetable_golden.txt")
+	const golden = "testdata/routetable_golden.txt"
 	if *updateRouteGolden {
-		if err := os.MkdirAll("testdata", 0o755); err != nil {
+		if err = os.MkdirAll("testdata", 0o750); err != nil {
 			t.Fatal(err)
 		}
-		if err := os.WriteFile(golden, []byte(out.String()), 0o644); err != nil {
+		if err = os.WriteFile(golden, []byte(out.String()), 0o600); err != nil {
 			t.Fatal(err)
 		}
 	}
