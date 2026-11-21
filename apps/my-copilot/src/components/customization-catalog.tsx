@@ -37,15 +37,26 @@ const DOMAIN_ORDER: Domain[] = [
   "design",
 ];
 
-const STATIC_PLACEHOLDER = "Prøv «deploy til Nais», «Aksel-skjema» eller «testpersoner»";
+const STATIC_PLACEHOLDER = "Prøv «deploy Nais», «Aksel» eller «trusselmodell»";
 const FOCUSED_PLACEHOLDER = "Søk etter verktøy";
-const PLACEHOLDER_EXAMPLES = [
-  "deploy til Nais",
-  "Aksel-skjema med validering",
-  "testpersoner fra Dolly",
-  "trusselmodell for ny app",
-  "kodeverk for postnummer",
-];
+// Every example must give a hit in the catalog; customization-catalog.test.tsx checks it.
+export const PLACEHOLDER_EXAMPLES = ["deploy Nais", "Aksel", "trusselmodell", "Kafka", "TokenX"];
+
+// Every whitespace-separated term must occur in at least one field.
+export function matchesSearch(item: EnrichedCustomization, search: string): boolean {
+  const fields = [
+    item.name,
+    item.description,
+    item.domain,
+    DOMAIN_CONFIGS[item.domain].label,
+    ...(item.tags ?? []),
+  ].map((f) => f.toLowerCase());
+  return search
+    .toLowerCase()
+    .split(/\s+/)
+    .filter(Boolean)
+    .every((term) => fields.some((f) => f.includes(term)));
+}
 
 const POPULAR_THRESHOLD = 20;
 
@@ -238,17 +249,7 @@ export function CustomizationCatalog({ items }: CustomizationCatalogProps) {
     const result = activeItems.filter((item) => {
       if (selectedTypes.length > 0 && !selectedTypes.includes(item.type)) return false;
       if (selectedDomain && item.domain !== selectedDomain) return false;
-      if (search) {
-        const q = search.toLowerCase();
-        const domainLabel = DOMAIN_CONFIGS[item.domain].label.toLowerCase();
-        return (
-          item.name.toLowerCase().includes(q) ||
-          item.description.toLowerCase().includes(q) ||
-          item.domain.toLowerCase().includes(q) ||
-          domainLabel.includes(q) ||
-          (item.tags?.some((t) => t.toLowerCase().includes(q)) ?? false)
-        );
-      }
+      if (search) return matchesSearch(item, search);
       return true;
     });
     return sortItems(result, sortBy);
@@ -424,6 +425,7 @@ export function CustomizationCatalog({ items }: CustomizationCatalogProps) {
                       </VStack>
                     </HStack>
 
+                    <span className="sr-only sm:hidden">{TYPE_LABELS[item.type]}</span>
                     <HStack gap="space-6" align="center" className="hidden sm:flex shrink-0">
                       <TypeBadge type={item.type} size="xsmall" />
                       <Tag size="xsmall" variant="neutral">

@@ -25,11 +25,9 @@ function isFleetGatewayMcp(item: EnrichedCustomization): boolean {
   return item.remotes.some((r) => r.url.includes("fleet-gateway")) || (item.tags?.includes("fleet-gateway") ?? false);
 }
 
-function ownerLabel(item: EnrichedCustomization): string {
-  if (item.type !== "mcp") return "nav-pilot";
-  if (item.serverId.startsWith("io.github.navikt/")) return "Team Copilot";
-  const prefix = item.serverId.split("/")[0];
-  return prefix || "MCP-registeret";
+// The registry has no owner field, so MCP servers get no owner rather than a guess.
+function ownerLabel(item: EnrichedCustomization): string | null {
+  return item.type === "mcp" ? null : "nav-pilot";
 }
 
 export function DetailDrawer({ item, allItems, open, onClose, onNavigate }: DetailDrawerProps) {
@@ -97,9 +95,11 @@ export function DetailDrawer({ item, allItems, open, onClose, onNavigate }: Deta
                           Brukt i <strong>{item.usageCount}</strong> {item.usageCount === 1 ? "repo" : "repoer"}
                         </BodyShort>
                       )}
-                      <BodyShort size="small" className="verktoy-subtle">
-                        Eier: <strong>{ownerLabel(item)}</strong>
-                      </BodyShort>
+                      {ownerLabel(item) && (
+                        <BodyShort size="small" className="verktoy-subtle">
+                          Eier: <strong>{ownerLabel(item)}</strong>
+                        </BodyShort>
+                      )}
                     </HStack>
 
                     {item.usageCount > 0 && item.usedBy.length > 0 && (

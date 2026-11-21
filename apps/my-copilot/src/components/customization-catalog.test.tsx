@@ -1,6 +1,8 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import type { EnrichedCustomization } from "@/lib/enrich-customizations";
-import { CustomizationCatalog } from "./customization-catalog";
+import { getAllCustomizations } from "@/lib/customizations";
+import { enrichWithUsage } from "@/lib/enrich-customizations";
+import { CustomizationCatalog, PLACEHOLDER_EXAMPLES, matchesSearch } from "./customization-catalog";
 
 const mockReplace = vi.fn();
 let mockSearchParams = new URLSearchParams();
@@ -154,7 +156,7 @@ describe("CustomizationCatalog", () => {
       render(<CustomizationCatalog items={ITEMS} />);
       const input = screen.getByRole("searchbox");
       vi.advanceTimersByTime(2000);
-      expect(input).toHaveAttribute("placeholder", "Prøv «deploy til Nais», «Aksel-skjema» eller «testpersoner»");
+      expect(input).toHaveAttribute("placeholder", "Prøv «deploy Nais», «Aksel» eller «trusselmodell»");
     } finally {
       window.matchMedia = originalMatchMedia;
       vi.useRealTimers();
@@ -201,5 +203,16 @@ describe("CustomizationCatalog", () => {
   it("names Se alle with the count and domain", () => {
     render(<CustomizationCatalog items={ITEMS} />);
     expect(screen.getByRole("button", { name: "Se alle 1 i Plattform" })).toBeInTheDocument();
+  });
+
+  it.each(PLACEHOLDER_EXAMPLES)("example search %s gives at least one hit in the catalog", (example) => {
+    const catalog = enrichWithUsage(getAllCustomizations(), []);
+    expect(catalog.filter((item) => matchesSearch(item, example)).length).toBeGreaterThan(0);
+  });
+
+  it("matches each search term on its own", () => {
+    mockSearchParams = new URLSearchParams("q=deploy%20nais");
+    render(<CustomizationCatalog items={ITEMS} />);
+    expect(screen.getByRole("heading", { level: 3, name: "nais-deploy" })).toBeInTheDocument();
   });
 });
