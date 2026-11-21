@@ -82,6 +82,7 @@ func auditToolsHeaders(t *testing.T, method string, tools map[string]bool, body 
 		_, _ = w.Write([]byte(`{"jsonrpc":"2.0","id":1,"result":{}}`))
 	})
 	te.gw.cfg.Routes[0].allowedTools = tools
+	te.gw.routeTable.Store(newRouteTable(te.gw.cfg))
 	te.handler = te.gw.routes()
 	gwToken := te.obtainAccessTokenForResource(te.resource)
 

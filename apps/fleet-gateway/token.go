@@ -434,7 +434,7 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 	}
 
 	// A resource that no longer matches a route (retired or moved) would mint a token no route accepts: force re-login.
-	if !g.cfg.AllowedResources[payload.Resource] {
+	if !g.table().AllowedResources[payload.Resource] {
 		outcome = "resource_retired"
 		bad(http.StatusBadRequest, "invalid_grant", "resource no longer available; log in again")
 		return

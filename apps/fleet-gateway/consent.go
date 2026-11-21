@@ -72,7 +72,7 @@ func (g *Gateway) renderConsentPage(w http.ResponseWriter, consentID string, p *
 	route := strings.TrimPrefix(p.Resource, g.cfg.BaseURL)
 	_ = pageTemplates.ExecuteTemplate(w, "consent", map[string]any{
 		"Route":        route,
-		"Team":         g.cfg.RoutesByPath[route].Team,
+		"Team":         g.table().RoutesByPath[route].Team,
 		"Unverified":   p.Unverified || !g.cfg.AllowedClientIDs[p.ClientID],
 		"RememberDays": int(g.cfg.ConsentTTL.Hours() / 24),
 		"ID":           consentID,
