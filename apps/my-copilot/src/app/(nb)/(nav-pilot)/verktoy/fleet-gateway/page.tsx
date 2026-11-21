@@ -1,4 +1,4 @@
-import { BodyLong, BodyShort, Box, Heading, HGrid, HStack, ReadMore, Tag, VStack } from "@navikt/ds-react";
+import { BodyLong, BodyShort, Box, Heading, HStack, ReadMore, Tag, VStack } from "@navikt/ds-react";
 import type { Metadata } from "next";
 import NextLink from "next/link";
 import { CommandBlock } from "@/components/detail-drawer/shared";
@@ -94,7 +94,11 @@ export default function FleetGatewayPage() {
           <a href={ECHO_TREE_URL} className={linkClass}>
             fleet-echo
           </a>
-          .
+          . Gatewayen håndhever ikke kravet ennå (
+          <a href="https://github.com/navikt/copilot/issues/2367" className={linkClass}>
+            #2367
+          </a>
+          ).
         </BodyLong>
       </VStack>
 
@@ -138,7 +142,7 @@ export default function FleetGatewayPage() {
         <LinkableHeading id="servere-i-piloten" size="medium" level="2">
           Servere i piloten
         </LinkableHeading>
-        <HGrid columns={{ xs: 1, sm: 2 }} gap="space-16" className="fleet-gateway-servers">
+        <div className="fleet-gateway-servers" role="region" aria-label="Servere i piloten" tabIndex={0}>
           {PILOT_SERVERS.map((server) => {
             const Icon = server.icon;
             const name = server.id.slice(server.id.lastIndexOf("/") + 1);
@@ -151,29 +155,32 @@ export default function FleetGatewayPage() {
                 borderRadius="12"
                 padding="space-16"
               >
-                <VStack gap="space-12">
+                <VStack gap="space-12" className="fleet-gateway-card">
                   <HStack gap="space-8" align="center" wrap={false}>
                     <Icon aria-hidden fontSize="1.75rem" />
                     <Heading size="small" level="3">
                       {server.title}
                     </Heading>
                   </HStack>
-                  <BodyShort>{server.summary}</BodyShort>
+                  <BodyShort className="fleet-gateway-clamp">{server.summary}</BodyShort>
                   <HStack gap="space-4" wrap>
                     {server.readOnly && (
                       <Tag variant="neutral" size="small">
                         Bare lesing
                       </Tag>
                     )}
-                    <Tag variant="info" size="small">
-                      Via fleet-gateway
-                    </Tag>
                   </HStack>
-                  <Box as="blockquote" borderWidth="0 0 0 4" borderColor="neutral-subtle" paddingInline="space-12">
+                  <Box
+                    as="blockquote"
+                    className="fleet-gateway-quote"
+                    borderWidth="0 0 0 4"
+                    borderColor="neutral-subtle"
+                    paddingInline="space-12"
+                  >
                     <BodyShort size="small">«{server.example}»</BodyShort>
                   </Box>
                   <CommandBlock command={`nav-pilot mcp enable ${name}`} />
-                  <ReadMore header="Se hvordan den er satt opp" size="small">
+                  <ReadMore header={`Oppsett for ${server.title}`} size="small">
                     <Bullets>
                       <li>
                         Registernavn: <code className={code}>{server.id}</code>
@@ -214,7 +221,7 @@ export default function FleetGatewayPage() {
               </Box>
             );
           })}
-        </HGrid>
+        </div>
       </VStack>
 
       <VStack gap="space-12">

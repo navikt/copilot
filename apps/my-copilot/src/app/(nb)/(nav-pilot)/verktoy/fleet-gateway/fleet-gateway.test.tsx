@@ -28,7 +28,8 @@ describe("Servere i piloten", () => {
       expect(container.textContent).toContain(`nav-pilot mcp enable ${s.id.split("/")[1]}`);
       expect(container.textContent).toContain(s.codeLabel);
     }
-    expect(screen.getAllByRole("button", { name: "Se hvordan den er satt opp" })).toHaveLength(PILOT_SERVERS.length);
+    for (const s of PILOT_SERVERS)
+      expect(screen.getByRole("button", { name: `Oppsett for ${s.title}` })).toBeInTheDocument();
   });
 });
 
@@ -59,7 +60,9 @@ describe("Retningslinjer", () => {
 
   it("renders the collapsed details, so the facts stay on the page", () => {
     const { container } = render(<RetningslinjerPage />);
-    expect(screen.getAllByRole("button", { name: "Detaljer" })).toHaveLength(9);
+    const names = screen.getAllByRole("button", { name: /^Detaljer: / }).map((b) => b.textContent);
+    expect(names).toHaveLength(9);
+    expect(new Set(names).size).toBe(9);
     for (const fact of ["AZURE_APP_PRE_AUTHORIZED_APPS", "introspection_failed", "-32020", "user_sse_cap", "MCP08"])
       expect(container.textContent).toContain(fact);
   });

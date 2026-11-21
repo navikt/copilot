@@ -65,7 +65,7 @@ const SECTIONS: Section[] = [
     id: "token",
     icon: ShieldLockIcon,
     short: "Sjekk hvert token med Texas.",
-    why: "Gatewayen slipper inn alle med Nav-konto, så serveren må selv sjekke at kallet kommer fra fleet-gateway og har en bruker. Feil statuskode får klienten til å be brukeren logge inn på nytt.",
+    why: "Gatewayen slipper inn alle med Nav-konto, så serveren må selv sjekke at kallet kommer fra fleet-gateway og har en bruker. Svarer serveren 401 når Texas er nede, ber klienten brukeren logge inn på nytt.",
     todo: [
       "La Texas sjekke tokenet. Ikke les JWT-en selv.",
       "Godta bare tokens fra fleet-gateway som har en bruker.",
@@ -176,10 +176,10 @@ const SECTIONS: Section[] = [
   {
     id: "logging",
     icon: PadlockLockedIcon,
-    short: "Logg uten persondata, og mål hvert verktøy.",
+    short: "Logg uten persondata.",
     why: "Gatewayen logger allerede hvem som kalte, så serveren trenger ikke gjenta persondata. Tokens og hemmeligheter skal aldri havne i loggene.",
     todo: [
-      "Logg verktøy, utfall og korrelasjons-ID.",
+      "Logg hvem som kalte, verktøy, utfall og korrelasjons-ID.",
       "Ikke logg tokens, fritekst eller persondata.",
       "Hent hemmeligheter bare fra Nais-secrets.",
     ],
@@ -196,13 +196,13 @@ const SECTIONS: Section[] = [
   {
     id: "beskrivelser",
     icon: PencilIcon,
-    short: "Skriv gode beskrivelser og annotasjoner.",
+    short: "Skriv klare beskrivelser og sett annotasjoner.",
     why: "Modellen velger verktøy ut fra beskrivelsen. Den må være klar, og den må ikke kunne endres av tekst fra andre systemer.",
     todo: [
       "Skriv beskrivelsen som til en ny kollega.",
-      "Hold beskrivelsene faste og i kildekontroll.",
-      "Sett alle fire annotasjonene.",
-      "Svar på feil slik at modellen kan rette seg.",
+      "Ha beskrivelsene i kildekontroll. Ikke bygg dem av andre tekster.",
+      "Sett alle fire annotasjonene på hvert verktøy.",
+      "Skriv feilsvar som lar modellen rette seg.",
     ],
     points: [
       "Skriv beskrivelsen som til en ny kollega: når verktøyet skal og ikke skal brukes, format, forkortelser og ett eksempel.",
@@ -219,10 +219,10 @@ const SECTIONS: Section[] = [
     id: "metrikker",
     icon: BarChartIcon,
     why: "Gatewayen ser bare kallene utenfra. Serveren må selv måle tid og feil per verktøy.",
-    todo: ["Tell forespørsler, feil og latens per verktøy.", "Bruk bare verktøynavn og utfall som etiketter."],
+    todo: ["Tell forespørsler og feil, og mål svartid, per verktøy.", "Bruk bare verktøynavn og utfall som etiketter."],
     points: [
       "Gatewayen sender allerede `fleet_gateway_mcp_requests_total` med `route` og `tool` (`other` for verktøy som ikke står på listen). Serveren må måle det gatewayen ikke ser: tid og feil inne i serveren, per verktøy.",
-      "Tell forespørsler, feil og latens per verktøy.",
+      "Tell forespørsler og feil, og mål svartid, per verktøy.",
       "Hold antallet mulige etikettverdier lavt. Bruk verktøynavn og utfall (ok, feil, avvist) som etiketter. Bruk aldri brukeren, input, URL eller feilmelding som etikett.",
     ],
     owasp: [owasp("MCP08")],
@@ -306,7 +306,7 @@ function Rules({ id }: { id: string }) {
           ))}
         </Bullets>
       </VStack>
-      <ReadMore header="Detaljer" size="small">
+      <ReadMore header={`Detaljer: ${TOC.find((t) => t.id === s.id)!.label}`} size="small">
         <Bullets>
           {s.points.map((p) => (
             <li key={p}>

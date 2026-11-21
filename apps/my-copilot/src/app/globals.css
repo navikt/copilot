@@ -1277,6 +1277,47 @@ button.search-hit {
 }
 
 /* Narrow cards: wrap the command instead of hiding its end behind a scroll. */
+.fleet-gateway-servers {
+  display: flex;
+  align-items: stretch;
+  gap: var(--ax-space-16);
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  padding-block: var(--ax-space-8);
+  padding-inline: var(--ax-space-4);
+  scrollbar-width: thin;
+  scrollbar-color: var(--ax-border-neutral) transparent;
+}
+
+.fleet-gateway-servers > * {
+  flex: none;
+  width: min(310px, 85vw);
+  scroll-snap-align: start;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .fleet-gateway-servers {
+    scroll-behavior: smooth;
+  }
+}
+
+.fleet-gateway-card {
+  height: 100%;
+}
+
+.fleet-gateway-clamp {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+  overflow: hidden;
+}
+
+/* The quote takes the spare height, so commands and setup links line up across cards. */
+.fleet-gateway-quote {
+  flex-grow: 1;
+}
+
 .fleet-gateway-servers .verktoy-cmd pre {
   white-space: pre-wrap;
   overflow-wrap: anywhere;

@@ -15,7 +15,7 @@ Read tools call `dolly-backend` with `GET` only. `pageSize` defaults to 20, max 
 - `dolly_get_order`: `GET /api/v1/bestilling/{bestillingId}`
 - `dolly_list_group_orders`: `GET /api/v1/bestilling/gruppe/{gruppeId}?page=&pageSize=`
 
-Write tool (not listed on the prod gateway route until ROS sign-off):
+Write tool (on the prod gateway route behind the server-enforced two-step confirmation below; ROS in copilot-intern#146):
 
 - `create_order`: two-step. The first call returns a preview and a single-use `confirmationToken` (5 min, HMAC-bound to the user and the exact parameters, per-pod seen-set) and orders nothing; only a second call with the token orders and charges quota. `POST /api/v1/gruppe/{gruppeId}/bestilling` (`RsDollyBestillingRequest`). Verifies group ownership (`opprettetAv.brukerId` against `/api/v1/bruker/current`), caps `antall` at 1 to 5, restricts `environments` to a subset of `q1`, `q2`, `q4`, enforces a per-user quota of 20 persons per rolling 24h in memory per pod keyed by hashed `NAVident`, and writes one audit log line per order without person data.
 
