@@ -1,0 +1,9 @@
+replicas_min: "2"
+replicas_max: "2"
+cpu_threshold: "80"
+cpu_request: 50m
+memory_request: 64Mi
+memory_limit: 384Mi
+log_level: "INFO"
+team_catalog_url: "http://team-catalog-backend.org"
+team_catalog_scope: "api://prod-gcp.org.team-catalog-backend/.default"

@@ -16,6 +16,7 @@ outbound_rules:
   - application: fleet-echo
   - application: mcp-kodeverk
   - application: mcp-onboarding
+  - application: mcp-team-catalog
 ingresses:
   - https://fleet-gateway.intern.dev.nav.no
 reply_urls:

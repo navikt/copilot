@@ -54,6 +54,7 @@ updates:
       - "/apps/mcp-kodeverk"
       - "/apps/mcp-onboarding"
       - "/apps/mcp-registry"
+      - "/apps/mcp-team-catalog"
       - "/apps/fleet-gateway/echo"
       - "/cli/nav-pilot"
       - "/scripts/generate-docs"
