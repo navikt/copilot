@@ -365,3 +365,17 @@ func TestVersionFlag(t *testing.T) {
 		t.Fatalf("clientInfo.version = %v", info["version"])
 	}
 }
+
+func TestBuildVersionFallsBackToBuildInfo(t *testing.T) {
+	old := version
+	version = "dev"
+	defer func() { version = old }()
+	// A test binary's main module is "(devel)", so the fallback keeps "dev".
+	if got := buildVersion(); got != "dev" {
+		t.Fatalf("got %q", got)
+	}
+	version = "v1.0.0"
+	if got := buildVersion(); got != "v1.0.0" {
+		t.Fatalf("ldflags version not preferred: %q", got)
+	}
+}

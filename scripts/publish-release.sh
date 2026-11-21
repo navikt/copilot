@@ -8,9 +8,10 @@
 # deleted and the script exits non-zero.
 #
 # A run that is killed (cancel, timeout) cannot clean up after itself, and the
-# next run has a new timestamp tag. So every run first deletes all nav-pilot/
-# drafts. That is safe because the release workflow's concurrency group
-# (nav-pilot-release, no cancel-in-progress) lets only one run publish at once.
+# next run has a new tag. So every run first deletes all drafts under its
+# SWEEP_PREFIX. That is safe because each release workflow has its own prefix
+# and a concurrency group without cancel-in-progress, so only one run per
+# prefix publishes at once.
 # A tag that is already published with every asset is a no-op.
 #
 # Usage: publish-release.sh TAG TARGET_SHA TITLE NOTES_FILE ASSET_DIR

@@ -16,6 +16,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"runtime/debug"
 	"slices"
 	"strings"
 	"text/tabwriter"
@@ -60,6 +61,18 @@ type response struct {
 // version is set at release build time with -ldflags "-X main.version=...".
 var version = "dev"
 
+// buildVersion returns version, or for a `go install ...@vX.Y.Z` build (no
+// ldflags) the module version Go recorded.
+func buildVersion() string {
+	if version != "dev" {
+		return version
+	}
+	if bi, ok := debug.ReadBuildInfo(); ok && bi.Main.Version != "" && bi.Main.Version != "(devel)" {
+		return bi.Main.Version
+	}
+	return version
+}
+
 func main() {
 	os.Exit(run(os.Args[1:], os.Stdout, os.Getenv))
 }
@@ -81,7 +94,7 @@ func run(args []string, out io.Writer, getenv func(string) string) int {
 		return 2
 	}
 	if *showVersion {
-		_, _ = fmt.Fprintln(out, "mcp-compliance", version)
+		_, _ = fmt.Fprintln(out, "mcp-compliance", buildVersion())
 		return 0
 	}
 	if cfg.url == "" || cfg.maxBytes <= 0 {
@@ -322,7 +335,7 @@ func modernBody(method string, params map[string]any) map[string]any {
 	params["_meta"] = map[string]any{
 		metaProtocolVersion:                          modernVersion,
 		"io.modelcontextprotocol/clientCapabilities": map[string]any{},
-		"io.modelcontextprotocol/clientInfo":         map[string]any{"name": "mcp-compliance", "version": version},
+		"io.modelcontextprotocol/clientInfo":         map[string]any{"name": "mcp-compliance", "version": buildVersion()},
 	}
 	return map[string]any{"jsonrpc": "2.0", "id": 1, "method": method, "params": params}
 }
