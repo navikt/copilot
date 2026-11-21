@@ -60,7 +60,7 @@ export const terms: Term[] = [
     term: "Agent harness",
     category: "konsepter",
     definition:
-      "Kjøretidsmiljøet som kjører en KI-agent – for eksempel Copilot CLI eller OpenCode. Harnessen styrer hvilke verktøy agenten har tilgang til og hvordan den samhandler med operativsystemet.",
+      "Rammeverket som kjører en KI-agent – for eksempel Copilot CLI eller OpenCode. Harnessen styrer hvilke verktøy agenten har tilgang til og hvordan den samhandler med operativsystemet.",
   },
   {
     term: "Allowlist (MCP)",
@@ -79,7 +79,7 @@ export const terms: Term[] = [
     term: "AGENTS.md",
     category: "verktoy",
     definition:
-      "En konfigurasjonsfil i roten av et repository som gir KI-agenter kontekst om prosjektet – struktur, byggkommandoer, konvensjoner og grenser for hva agenten kan gjøre.",
+      "En konfigurasjonsfil i roten av et repo som gir KI-agenter kontekst om prosjektet – struktur, byggkommandoer, konvensjoner og grenser for hva agenten kan gjøre.",
     link: { href: "/praksis/guide/skreddersy-med-skills-og-rules", label: "Skriv effektive tilpasninger" },
   },
   {
@@ -139,7 +139,7 @@ export const terms: Term[] = [
     term: "Copilot Memory",
     category: "copilot",
     definition:
-      "Copilot lagrer innsikt om et repository – arkitekturbeslutninger, mønstre og konvensjoner – og bruker det til å gi mer presise forslag i fremtidige økter. Minnet er per repository og kan slås av.",
+      "Copilot lagrer innsikt om et repo – arkitekturbeslutninger, mønstre og konvensjoner – og bruker det til å gi mer presise forslag i fremtidige sesjoner. Minnet er per repo og kan slås av.",
     link: { href: "https://docs.github.com/en/copilot/concepts/agents/copilot-memory", label: "GitHub Docs" },
     related: ["Session"],
   },
@@ -295,7 +295,7 @@ export const terms: Term[] = [
     term: "Session",
     category: "konsepter",
     definition:
-      "En aktiv samtale eller arbeidsøkt med Copilot. Innenfor en session husker modellen tidligere meldinger og kontekst, inntil sesjonen avsluttes eller kontekstvinduet fylles opp.",
+      "En aktiv samtale eller arbeidssesjon med Copilot. Innenfor en sesjon husker modellen tidligere meldinger og kontekst, inntil sesjonen avsluttes eller kontekstvinduet fylles opp.",
   },
   {
     term: "Sandbox (cplt)",

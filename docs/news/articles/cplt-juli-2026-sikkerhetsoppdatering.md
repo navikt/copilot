@@ -17,7 +17,7 @@ tags:
 
 ## Bubblewrap namespace-isolasjon (Linux)
 
-På Linux kan cplt nå pakke agenten inn i [Bubblewrap](https://github.com/containers/bubblewrap)-namespaces (PID/IPC/UTS/cgroup/user) med en privat `/tmp`. Dette ligger **oppå** Landlock + seccomp-BPF, ikke som erstatning. Agenten kan ikke lenger se eller signalisere prosesser på verten, og `/tmp` er en fersk tmpfs uten exec.
+På Linux kan cplt nå pakke agenten inn i [Bubblewrap](https://github.com/containers/bubblewrap)-namespaces (PID/IPC/UTS/cgroup/user) med en privat `/tmp`. Dette ligger **oppå** Landlock + seccomp-BPF, ikke som erstatning. Agenten kan ikke lenger se eller signalisere prosesser på hosten, og `/tmp` er en fersk tmpfs uten exec.
 
 Aktiveres automatisk når `bwrap` er installert, med graceful fallback til kun Landlock + seccomp hvis ikke. Eksplisitt styring med `sandbox.use_bubblewrap`:
 
@@ -28,7 +28,7 @@ cplt config set sandbox.use_bubblewrap false  # kun Landlock + seccomp
 
 Viktige avgrensninger, med vilje:
 
-- **Ikke en nettverksgrense.** Det opprettes ingen network namespace. Vertsnettverket deles slik at agenten når CONNECT-proxyen på `127.0.0.1`. Nettverkskontrollen ligger fortsatt hos proxyen og Landlock-portregler.
+- **Ikke en nettverksgrense.** Det opprettes ingen network namespace. Hostnettverket deles slik at agenten når CONNECT-proxyen på `127.0.0.1`. Nettverkskontrollen ligger fortsatt hos proxyen og Landlock-portregler.
 - **Ikke full filsystem-konfidensialitet.** Hele rotfilsystemet bind-mountes read-only og er synlig i mount-tabellen; det er Landlock (deny-by-default) som nekter lesing, ikke mount-namespacet.
 
 Kilde: [navikt/cplt#64](https://github.com/navikt/cplt/pull/64)

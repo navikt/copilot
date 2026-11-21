@@ -145,7 +145,7 @@ For API-endringer som påvirker konsumenter:
 ## Migrasjonsveiledning
 
 1. Oppdater klient til å akseptere både v1 og v2
-2. Bytt til v2-endepunkt
+2. Bytt til v2-endpoint
 3. Fjern v1-kompatibilitet etter {dato}
 ```
 
@@ -204,6 +204,6 @@ Bruk denne sjekklisten for å verifisere at endringen er klar for utrulling:
 
 ### Sikkerhet
 - [ ] PII logges ikke
-- [ ] Auth er riktig for alle endepunkter
+- [ ] Auth er riktig for alle endpoints
 - [ ] Input-validering er på plass
 - [ ] Tilgangskontroll er verifisert

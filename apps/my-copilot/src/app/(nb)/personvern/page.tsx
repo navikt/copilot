@@ -80,8 +80,8 @@ export default function PersonvernPage() {
               <li>
                 <BodyLong as="span">
                   nav-pilot sender bruksmålinger til Nav: kommandoer, feil, innstillinger, et maskinnummer regnet ut fra
-                  maskinen, og navnet på repoet når du jobber i et repo i navikt. For opencode-økter også KI-modell og
-                  antall tokens. Ikke navn, brukernavn eller innhold.
+                  maskinen, og navnet på repoet når du jobber i et repo i navikt. For opencode-sesjoner også KI-modell
+                  og antall tokens. Ikke navn, brukernavn eller innhold.
                 </BodyLong>
               </li>
               <li>

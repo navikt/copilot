@@ -310,7 +310,7 @@ Backend-tjeneste for brukeradministrasjon.
 ## Deployment
 - Platform: Nais (Kubernetes on GCP)
 - Manifester i \`.nais/\`
-- Påkrevde endepunkter: /isalive, /isready, /metrics
+- Påkrevde endpoints: /isalive, /isready, /metrics
 
 ## Boundaries
 ### ✅ Always

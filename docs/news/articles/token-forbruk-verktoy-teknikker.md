@@ -87,7 +87,7 @@ Den dyreste token-sløsingen er misforståelser. Fem runder med «mente du A ell
 > «Lag en tjeneste for søknader»
 
 **Billig** (presist → agenten kan starte med én gang):
-> «Lag et Ktor REST-endepunkt som tar imot dagpengesøknader over Kafka fra dp-soknad. Kotlin, Nais, Postgres.»
+> «Lag et Ktor REST-endpoint som tar imot dagpengesøknader over Kafka fra dp-soknad. Kotlin, Nais, Postgres.»
 
 Jo mer kontekst du gir i første melding, jo færre runder bruker du.
 
@@ -145,16 +145,16 @@ Når samtalen nærmer seg grensen for kontekstvinduet, lager klienten et sammend
 
 ### Lokal modell (alfa)
 
-Med `nav-pilot alpha local` kan OpenCode sende avgrensede, mekaniske oppgaver til en modell på din egen maskin. Oppgavene som går lokalt, bruker ingen AI Credits. Men i målingene våre kostet delegering av små oppgaver totalt 1,3–1,5 ganger så mye som skyen alene, og tok lengre tid. Bruk det for å avlaste skyen på store mekaniske endringer, ikke for å spare penger. Copilot CLI kjører hele økten enten lokalt eller i skyen; pi har ingen lokal arbeider. Se [guiden for lokal modell](/nav-pilot/guider/lokal).
+Med `nav-pilot alpha local` kan OpenCode sende avgrensede, mekaniske oppgaver til en modell på din egen maskin. Oppgavene som går lokalt, bruker ingen AI Credits. Men i målingene våre kostet delegering av små oppgaver totalt 1,3–1,5 ganger så mye som skyen alene, og tok lengre tid. Bruk det for å avlaste skyen på store mekaniske endringer, ikke for å spare penger. Copilot CLI kjører hele sesjonen enten lokalt eller i skyen; pi har ingen lokal arbeider. Se [guiden for lokal modell](/nav-pilot/guider/lokal).
 
 ## Gode første meldinger
 
 Eksempler som gir presise svar uten mange oppfølgingsrunder:
 
 ```text
-Legg til et nytt REST-endepunkt /vedtak/{id} i Ktor-appen.
+Legg til et nytt REST-endpoint /vedtak/{id} i Ktor-appen.
 Valider tilgang med TokenX. Hent vedtak fra Postgres via kotliquery.
-Les eksisterende endepunkter i src/main/kotlin/routes/ for stil.
+Les eksisterende endpoints i src/main/kotlin/routes/ for stil.
 
 Finn ut hvorfor /soknader-siden i Next.js-appen re-rendrer mye.
 Sjekk komponenten i src/app/soknader/page.tsx. Foreslå minimal fix.
@@ -230,7 +230,7 @@ Andre tips for vedlikeholdere:
 - Den priser fjernede tokens til full input-pris, selv om det meste av sesjonsinput er cachede gjenlesninger til rundt en tidel av prisen.
 - Bare en del av verktøyresultatene går gjennom hooken i det hele tatt. Innebygde lese- og søkeverktøy går utenom.
 
-Den eneste store offentlige kontrollerte studien, [JetBrains, 425 kjøringer over 86 oppgaver](https://blog.jetbrains.com/ai/2026/07/rtk-claude-code-token-savings/) med forhåndsregistrerte endepunkter, fant ingen besparelse: 7,6 % *høyere* kostnad per oppgave ved lavt resonneringsnivå (p = 0,004) og ingen målbar forskjell ved høyt nivå (+0,1 %, p = 0,99), uten kvalitetsforskjell.
+Den eneste store offentlige kontrollerte studien, [JetBrains, 425 kjøringer over 86 oppgaver](https://blog.jetbrains.com/ai/2026/07/rtk-claude-code-token-savings/) med forhåndsregistrerte endpoints, fant ingen besparelse: 7,6 % *høyere* kostnad per oppgave ved lavt resonneringsnivå (p = 0,004) og ingen målbar forskjell ved høyt nivå (+0,1 %, p = 0,99), uten kvalitetsforskjell.
 
 Merk omfanget: studien målte RTK i Claude Code, og hook-dekningen over er et arkitekturtrekk ved den agenten. Tilsvarende kontrollert måling finnes ikke for Copilot CLI eller OpenCode, så der er effekten ikke målt. Andre har rapportert liknende for andre komprimerende verktøy: [0,6 % av en faktisk regning på 755 dollar](https://jayn.app/caveman), og en prompt-komprimerende proxy som [kuttet tokens 39 % men brøt prompt-cachen 123 ganger](https://brandonbarker.me/writing/headroom-fewer-tokens-bigger-bill) og dermed flyttet millioner av tokens til full pris.
 

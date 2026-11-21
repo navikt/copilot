@@ -144,7 +144,7 @@ export default async function TeamReportPage({
           </Table>
         </div>
         <BodyShort size="small">
-          {data.months.some((m) => m.basis === "premium") && "* Fakturert som premiumforespørsler, ikke KI-kreditter. "}
+          {data.months.some((m) => m.basis === "premium") && "* Fakturert som premiumforespørsler, ikke AI Credits. "}
           <span className="print-only">** Lisenskostnad er et anslag. «Totalt» er totalt inkl. lisenser.</span>
         </BodyShort>
         <ReportNote label="Kommentar" description="Valgfri tekst som vises under tabellen i utskriften." />

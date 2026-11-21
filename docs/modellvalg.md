@@ -191,7 +191,7 @@ I det første tallet er all input priset som vanlig input. I det andre er tokene
 | Norsk           | $0.41 / $0.15        | $0.51 / $0.14 | $0.81 / $0.31   |
 | Research        | $0.36 / $0.13        | $0.55 / $0.15 | $1.31 / $0.36   |
 
-GPT-6 Sol og GPT-6.1 Sol har samme listepris for input og output. Det eneste som skiller dem, er cachet input: $0.10 for GPT-6.1 Sol mot $0.20 for GPT-6 Sol. Credits følger tokenforbruket, ikke modellklassen, se [AI-kreditter skiller ikke modeller](#ai-kreditter-skiller-ikke-modeller). Credits-kolonnen over og dollartallene her er derfor to ulike mål, og kan ikke sammenlignes direkte.
+GPT-6 Sol og GPT-6.1 Sol har samme listepris for input og output. Det eneste som skiller dem, er cachet input: $0.10 for GPT-6.1 Sol mot $0.20 for GPT-6 Sol. Credits følger tokenforbruket, ikke modellklassen, se [AI Credits skiller ikke modeller](#ai-credits-skiller-ikke-modeller). Credits-kolonnen over og dollartallene her er derfor to ulike mål, og kan ikke sammenlignes direkte.
 
 Denne målingen endrer ingen pinner. Om `@nav-pilot` og agentpakkens standard skal endres, avgjøres for seg.
 
@@ -493,7 +493,7 @@ Mønstrene `RE_BS1` og `RE_BS2` avgjør ikke lenger t3, t7, t7b og 8b. Det gjør
 Slik fungerer vurderingen:
 
 - Claude Haiku 5.5 leser svaret uten verktøyutskrift, gjennom Copilot CLI med laveste tillatte resonneringsnivå (`low`). Vurderingen skulle kjøre uten verktøy, men `--available-tools ""` fjernet dem ikke (se [#1472](https://github.com/navikt/copilot/issues/1472)).
-- Modellen svarer på to spørsmål. Blindsone 1: Spør svaret brukeren om selve personopplysningene, altså hvilke data, formål, lagringstid, hvem som mottar dataene, behandlingsgrunnlag eller dataminimering? Blindsone 2: Spør svaret hvem som får kalle eller lese tjenesten, endepunktet eller topicet, for eksempel tilgangsregler, roller eller hvilke apper som får lese? Ett spørsmål kan telle for begge. Påstander teller ikke, og heller ikke spørsmål om tokenflyt, felttype, format eller testoppsett.
+- Modellen svarer på to spørsmål. Blindsone 1: Spør svaret brukeren om selve personopplysningene, altså hvilke data, formål, lagringstid, hvem som mottar dataene, behandlingsgrunnlag eller dataminimering? Blindsone 2: Spør svaret hvem som får kalle eller lese tjenesten, endpointet eller topicet, for eksempel tilgangsregler, roller eller hvilke apper som får lese? Ett spørsmål kan telle for begge. Påstander teller ikke, og heller ikke spørsmål om tokenflyt, felttype, format eller testoppsett.
 - Et ja må sitere spørsmålet ordrett. Finnes ikke sitatet i svaret, teller stemmen som nei.
 - Hvert svar får inntil tre stemmer, og flertallet avgjør. Er de to første stemmene enige, sparer vi den tredje.
 - Før noe svar vurderes, kjøres hele kontrollsettet: de 69 spørsmålene fra [blindspot-controls.tsv](../scripts/golden-fixtures/blindspot-controls.tsv) og seks nye påstander uten spørsmål, som mønstrene ville godtatt. Minst 95 prosent må stemme med fasiten. Ellers blir testene registrert som «ikke vurdert».
@@ -543,7 +543,7 @@ _Merknad:_ Vurderingene 8. oktober før #1472 kjørte med 20 innebygde verktøy 
 
 #### Kostnad
 
-En kjøring av kontrollsettet koster omtrent 17,5 KI-kreditter. Det nye settet kostet 4,75, og de 15 Luna-svarene 4,21 (0,24 til 0,32 per svar). Totalt kostet arbeidet omtrent 68 kreditter. Én avbrutt kjøring er ikke målt, men anslått. Når kontrollene består, gjenbrukes resultatet i sju dager. Da koster en vanlig kjøring bare vurderingen av svarene.
+En kjøring av kontrollsettet koster omtrent 17,5 AI Credits. Det nye settet kostet 4,75, og de 15 Luna-svarene 4,21 (0,24 til 0,32 per svar). Totalt kostet arbeidet omtrent 68 kreditter. Én avbrutt kjøring er ikke målt, men anslått. Når kontrollene består, gjenbrukes resultatet i sju dager. Da koster en vanlig kjøring bare vurderingen av svarene.
 
 ## @security-champion målt direkte (7. oktober 2026)
 
@@ -651,7 +651,7 @@ Tabellen viser kodegjennomgangen per sjekk, med sjekkens tall. rv8 er antall rad
 
 Hva svarene viser:
 
-- **Haiku oppgir ofte ikke linjenummer i gjennomgangen av branchen.** I 8 av 10 rv-pr-svar på Low og 6 av 10 på Medium står et symbol eller en nøkkel i linjecellen, for eksempel `hentForPerson` eller `accessPolicy.inbound`. Da feiler rv5, rv7 og idempotensdelen av rv6 samtidig. I alle disse svarene er SQL-injeksjonen, fødselsnummeret i loggen, det åpne endepunktet og den åpne `accessPolicy.inbound` nevnt og merket 🔴. Regnet på innholdet blir rv5 8/10 på Low og 10/10 på Medium, og rv7 9/10 og 10/10. Lunas svar har linjenummer i alle ti.
+- **Haiku oppgir ofte ikke linjenummer i gjennomgangen av branchen.** I 8 av 10 rv-pr-svar på Low og 6 av 10 på Medium står et symbol eller en nøkkel i linjecellen, for eksempel `hentForPerson` eller `accessPolicy.inbound`. Da feiler rv5, rv7 og idempotensdelen av rv6 samtidig. I alle disse svarene er SQL-injeksjonen, fødselsnummeret i loggen, det åpne endpointet og den åpne `accessPolicy.inbound` nevnt og merket 🔴. Regnet på innholdet blir rv5 8/10 på Low og 10/10 på Medium, og rv7 9/10 og 10/10. Lunas svar har linjenummer i alle ti.
 - **rv6:** Haiku sa ikke at lagringen kan lykkes mens publiseringen feiler, i tre kjøringer på hver arm. Regnet på innholdet blir rv6 7/10 på begge. For Luna er én kjøring beskrevet med andre ord og én ekte bom.
 - **rv1–rv4:** Haikus bommer er linjenumre som ligger én eller to linjer feil, og på Medium ett linjeintervall over fire linjer.
 - **rv8:** Ingen arm hadde noen rad med høy prioritet. Bommene er svar uten en konklusjon om at fila er ren. To Luna-svar («Fant ingen blocker») og ett Haiku Medium-svar («Ingen sikkerhetsfunn») har en slik konklusjon med ord sjekken ikke kjenner.
@@ -1027,7 +1027,9 @@ OpenCode er ikke målt på nytt. Der setter frontmatterens `model:` modellen per
 
 **Forbruk.** 27,75 AI Credits, over budsjettet på 15 og stoppgrensen på 25. Den direkte Opus-kjøringen (12,19) og A1 (10,59) tok 22,78 alene. Utskriften fra den direkte kjøringen ble ikke lagret. Tallet 12,19 er lest av terminalen og kan ikke etterprøves fra filene. Det var ikke ventet ut fra målingen 7. september, der Opus kostet det samme som Luna. Resten ble kjørt med billige modeller, og siste gruppe (D3–E4) presset summen over 25.
 
-### AI-kreditter skiller ikke modeller
+<a id="ai-kreditter-skiller-ikke-modeller"></a>
+
+### AI Credits skiller ikke modeller
 
 > **Gjelder ikke lenger i Copilot CLI 1.0.94-3.** 8. oktober 2026 kostet samme subagenttur 10,59 credits på Claude Opus 5.5 og 0,11 på GPT-5.6 Luna. Se [Ny måling 8. oktober 2026](#ny-måling-8-oktober-2026-copilot-cli-1094-3).
 

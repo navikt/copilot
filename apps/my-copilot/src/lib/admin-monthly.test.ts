@@ -58,6 +58,9 @@ const data: AdminMonthlyOverview = {
   ],
 };
 
+// «AI» is banned in the CSV; only the product name «AI Credits» may contain it.
+const bareAi = /\bAI\b(?! Credits)/;
+
 describe("adminMonthlyRows", () => {
   const rows = adminMonthlyRows(data);
   const total = rows.at(-1)!;
@@ -147,7 +150,12 @@ describe("adminMonthlyCsv", () => {
     expect(header).toBeGreaterThan(1);
     expect(lines.slice(0, header).every((l) => l.startsWith("# "))).toBe(true);
     expect(lines.slice(header + 1)).toHaveLength(4);
-    expect(lines.every((l) => !/\bAI\b/.test(l))).toBe(true);
+    expect(lines.every((l) => !bareAi.test(l))).toBe(true);
+  });
+
+  it("flags a bare AI but lets AI Credits through", () => {
+    expect(bareAi.test("# AI-modeller")).toBe(true);
+    expect(bareAi.test("# ikke AI Credits")).toBe(false);
   });
 });
 

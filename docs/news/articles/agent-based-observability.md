@@ -52,11 +52,11 @@ Feil verdi kan gi et tomt, men teknisk gyldig svar. Derfor er valget eksplisitt:
 bash "$OBS" mimir 'up{namespace="nais-system"}' --org nais | jq .
 ```
 
-Tempo bruker miljø i vertsnavnet. Skillen støtter `dev-gcp` og `prod-gcp`.
+Tempo bruker miljø i hostnavnet. Skillen støtter `dev-gcp` og `prod-gcp`.
 
 ## Hva cplt må tillate
 
-Mimir, Loki og Tempo svarer på private adresser gjennom naisdevice. Standardpakken foreslår derfor disse fire vertene:
+Mimir, Loki og Tempo svarer på private adresser gjennom naisdevice. Standardpakken foreslår derfor disse fire hostene:
 
 - `mimir.nav.cloud.nais.io`
 - `loki.nav.cloud.nais.io`
@@ -71,7 +71,7 @@ Hvis spørringen feiler, sier skriptet hvilken grense som stoppet den:
 | ------------------------------ | --------------------------------------------- |
 | timeout eller nettverksfeil    | naisdevice er ikke koblet til                 |
 | `403 Resolved to a private IP` | waiveren er ikke godkjent                     |
-| `403 Domain not in allowlist`  | verten er ikke i pakkas liste                 |
+| `403 Domain not in allowlist`  | hosten er ikke i pakkas liste                 |
 | `401`                          | `X-Scope-OrgID` mangler eller nådde ikke fram |
 
 ## Hva agenten kan gjøre
@@ -87,7 +87,7 @@ Agenten kan hjelpe med analysen. Den skal ikke endre produksjon eller utvide san
 
 **Kilder:**
 
-- [Standardpakken ber om waiver for observability-vertene](https://github.com/navikt/copilot/pull/910) (navikt/copilot, 17. september 2026)
+- [Standardpakken ber om waiver for observability-hostene](https://github.com/navikt/copilot/pull/910) (navikt/copilot, 17. september 2026)
 - [Samle observability-spørringene i ett skript](https://github.com/navikt/copilot/pull/914) (navikt/copilot, 18. september 2026)
 
 _Oppdatert 24. september 2026 med gjeldende sandbox- og spørringsflyt._

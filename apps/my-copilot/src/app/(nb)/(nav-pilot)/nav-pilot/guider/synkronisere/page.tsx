@@ -39,7 +39,7 @@ const FAQ = [
   },
   {
     q: "Hva skjer med en fil jeg har endret?",
-    a: "Oppdateringen tar kildens versjon, lagrer kopien din som <fil>.orig ved siden av og sier fra. I CI står fila under «Changed» i pull requesten, merket med at den har lokale endringer. Du kan gå gjennom, flette det du vil ha eller lukke pull requesten. Workflowen tvinger aldri gjennom noe.",
+    a: "Oppdateringen tar kildens versjon, lagrer kopien din som <fil>.orig ved siden av og sier fra. I CI står fila under «Changed» i pull requesten, merket med at den har lokale endringer. Du kan gå gjennom, merge det du vil ha eller lukke pull requesten. Workflowen tvinger aldri gjennom noe.",
   },
   {
     q: "Hva skjer når kilden slutter å levere en fil?",

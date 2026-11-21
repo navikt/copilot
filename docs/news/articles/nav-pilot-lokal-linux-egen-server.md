@@ -36,11 +36,11 @@ Dette er **eksperimentelt**. Du trenger nav-pilot 2026.09.28-113621 eller nyere.
 
 ## Hva vi har prøvd
 
-**Linux:** i en arm64-container på CPU med 5 GiB minne og Qwen3 1.7B. `setup` ga opp etter 10 minutter, fordi kontekstsjekken på 30 000 tokens går for sakte på CPU ([#1222](https://github.com/navikt/copilot/issues/1222)), så vi lagret oppsettet for hånd med `nav-pilot config set`. Da virket installasjonen mot Ollama, `doctor` fant riktig feil, `decide` svarte på under et halvt sekund, og en opencode-økt startet mot den lokale modellen. Med `llama-server` kom vi til `doctor`, ikke lenger.
+**Linux:** i en arm64-container på CPU med 5 GiB minne og Qwen3 1.7B. `setup` ga opp etter 10 minutter, fordi kontekstsjekken på 30 000 tokens går for sakte på CPU ([#1222](https://github.com/navikt/copilot/issues/1222)), så vi lagret oppsettet for hånd med `nav-pilot config set`. Da virket installasjonen mot Ollama, `doctor` fant riktig feil, `decide` svarte på under et halvt sekund, og en opencode-sesjon startet mot den lokale modellen. Med `llama-server` kom vi til `doctor`, ikke lenger.
 
-Men en kodeøkt trenger mer enn 6 GB minne og en kontekst på minst rundt 16 000 tokens. På denne maskinen ga Ollama modellen 4 096 tokens kontekst og kuttet øktens første melding, på rundt 15 000 tokens, til rundt 2 000. Modellen jobbet i blinde. `llama-server` med 32 768 tokens ble drept av minnemangel etter en lang prompt. Hvor mye minne en kodeøkt på CPU trenger, har vi ikke målt.
+Men en kodesesjon trenger mer enn 6 GB minne og en kontekst på minst rundt 16 000 tokens. På denne maskinen ga Ollama modellen 4 096 tokens kontekst og kuttet sesjonens første melding, på rundt 15 000 tokens, til rundt 2 000. Modellen jobbet i blinde. `llama-server` med 32 768 tokens ble drept av minnemangel etter en lang prompt. Hvor mye minne en kodesesjon på CPU trenger, har vi ikke målt.
 
-**Mac:** på en M5 Max med 128 GB virket `setup`, `doctor` og en opencode-økt mot Ollama, `llama-server` og `mlx_lm.server`, og `decide` svarte uten feil i 565 kall per server.
+**Mac:** på en M5 Max med 128 GB virket `setup`, `doctor` og en opencode-sesjon mot Ollama, `llama-server` og `mlx_lm.server`, og `decide` svarte uten feil i 565 kall per server.
 
 **x86_64 og NVIDIA:** ikke prøvd. Vi har ingen tall derfra.
 

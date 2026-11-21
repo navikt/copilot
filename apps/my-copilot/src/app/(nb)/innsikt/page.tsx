@@ -67,7 +67,7 @@ export default function Innsikt() {
                 prefetch={false}
                 icon={lock}
                 title="nav-pilot i bruk"
-                description="Hvordan nav-pilot brukes: enheter, klienter, økter og hvilke skills agenten velger. Krever innlogging."
+                description="Hvordan nav-pilot brukes: enheter, klienter, sesjoner og hvilke skills agenten velger. Krever innlogging."
               />
               <NavCard
                 href="/innsikt/undersokelser"

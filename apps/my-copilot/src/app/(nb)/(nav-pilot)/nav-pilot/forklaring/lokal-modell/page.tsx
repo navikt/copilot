@@ -88,8 +88,8 @@ export default function LokalModellForklaring() {
             Hvorfor delegeringen er begrenset
           </LinkableHeading>
           <BodyLong>
-            Delegering krever opencode. Copilot CLI velger én leverandør for hele økten, så der kjører økten enten helt
-            lokalt eller helt i skyen (
+            Delegering krever opencode. Copilot CLI velger én leverandør for hele sesjonen, så der kjører sesjonen enten
+            helt lokalt eller helt i skyen (
             <a href="https://github.com/github/copilot-cli/issues/4703" className={linkClass}>
               github/copilot-cli#4703
             </a>
@@ -120,7 +120,7 @@ export default function LokalModellForklaring() {
             </li>
           </Bullets>
           <BodyLong>
-            Sperren får hovedagenten til å delegere, men sparer ikke AI-kreditter. Både{" "}
+            Sperren får hovedagenten til å delegere, men sparer ikke AI Credits. Både{" "}
             <code className={code}>aggressive</code> og <code className={code}>balanced</code> kostet i de fleste
             målingene mer og tok lengre tid enn å la skymodellen gjøre alt selv. <code className={code}>balanced</code>{" "}
             delegerte nesten ingenting og kostet likevel mer, så <code className={code}>aggressive</code> er standard
@@ -205,8 +205,8 @@ export default function LokalModellForklaring() {
             <li>En modell på egen LLM-server er ikke målt. Den får den generelle instruksen, og ingenting stoppes.</li>
           </Bullets>
           <BodyLong>
-            nav-pilot stopper heller ingenting når den lokale serveren ikke svarer, i subagentenes egne økter, eller når
-            du starter opencode med <code className={code}>--pure</code>.
+            nav-pilot stopper heller ingenting når den lokale serveren ikke svarer, i subagentenes egne sesjoner, eller
+            når du starter opencode med <code className={code}>--pure</code>.
           </BodyLong>
         </VStack>
       </section>
@@ -255,7 +255,7 @@ export default function LokalModellForklaring() {
               <BodyLong size="small">
                 Den lokale modellen feiler også på måter som kompilerer. Commit eller stash før du setter den i gang, og
                 kjør testene etterpå. På store endringer må du regne med å forkaste et forsøk og prøve igjen. Det koster
-                tid, ikke AI-kreditter. Ikke la decide stoppe noe ut fra tekst andre har skrevet: grunnlaget kan styre
+                tid, ikke AI Credits. Ikke la decide stoppe noe ut fra tekst andre har skrevet: grunnlaget kan styre
                 svaret.
               </BodyLong>
             </VStack>

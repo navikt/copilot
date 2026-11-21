@@ -1,6 +1,6 @@
 ---
 name: spring-boot-endpoint
-description: Scaffold et Spring Boot REST-endepunkt med Controller, Service, Repository, Test og Nais-konfig
+description: Scaffold et Spring Boot REST-endpoint med Controller, Service, Repository, Test og Nais-konfig
 model: GPT-6 Luna
 ---
 
@@ -168,7 +168,7 @@ class {{Ressurs}}ControllerTest {
 ## Etter scaffolding
 
 - Kjør `./gradlew test` for å verifisere
-- Legg til endepunktet i `accessPolicy.inbound.rules` i Nais-manifestet hvis det skal kalles av andre apper
+- Legg til endpointet i `accessPolicy.inbound.rules` i Nais-manifestet hvis det skal kalles av andre apper
 
 ## Forstå koden
 

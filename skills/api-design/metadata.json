@@ -5,7 +5,7 @@
   "examples": [
     {
       "scenario": "REST API-design",
-      "prompt": "Design REST API-endepunkter for vedtak"
+      "prompt": "Design REST API-endpoints for vedtak"
     },
     {
       "scenario": "Feilhåndtering",
@@ -13,7 +13,7 @@
     },
     {
       "scenario": "Paginering",
-      "prompt": "Sett opp paginering for listeendepunkter"
+      "prompt": "Sett opp paginering for listeendpoints"
     },
     {
       "scenario": "API-gjennomgang",
@@ -21,7 +21,7 @@
     },
     {
       "scenario": "OpenAPI-dokumentasjon",
-      "prompt": "Lag OpenAPI-annotasjoner for endepunktene"
+      "prompt": "Lag OpenAPI-annotasjoner for endpointene"
     }
   ]
 }

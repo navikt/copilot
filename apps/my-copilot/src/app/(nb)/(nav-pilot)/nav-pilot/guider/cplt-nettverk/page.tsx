@@ -67,7 +67,7 @@ export default function CpltNettverk() {
             .
           </BodyLong>
           <BodyLong>
-            Endringer med <code className={code}>cplt config set</code> gjelder fra neste økt.
+            Endringer med <code className={code}>cplt config set</code> gjelder fra neste sesjon.
           </BodyLong>
         </VStack>
       </section>

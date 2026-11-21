@@ -5,7 +5,7 @@
   "references": ["examples.md"],
   "examples": [
     {
-      "prompt": "Vis sikre mønstre for tilgangskontroll i Ktor-endepunktene mine",
+      "prompt": "Vis sikre mønstre for tilgangskontroll i Ktor-endpointene mine",
       "scenario": "OWASP A01 — tilgangskontroll i Kotlin"
     },
     {

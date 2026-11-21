@@ -16,7 +16,10 @@ describe("ClientPanels", () => {
       />
     );
     expect(screen.getByText("VS Code har flest forespørsler: 90 av 101, 89 %.")).toBeInTheDocument();
-    expect(screen.getAllByRole("heading", { level: 3 }).map((h) => h.textContent)).toEqual(["Forespørsler", "Økter"]);
+    expect(screen.getAllByRole("heading", { level: 3 }).map((h) => h.textContent)).toEqual([
+      "Forespørsler",
+      "Sesjoner",
+    ]);
     expect(screen.getAllByText("newtool").length).toBeGreaterThan(0);
   });
 });

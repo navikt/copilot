@@ -34,31 +34,31 @@ export default function Personvern() {
           </LinkableHeading>
           <BodyLong>
             nav-pilot sender bruksmålinger til Nav: hvor ofte kommandoene kjøres, hvilken klient og hvilke innstillinger
-            du bruker, og hvilke typer feil som oppstår. Målingene er faste kategorier og tall. For opencode-økter
+            du bruker, og hvilke typer feil som oppstår. Målingene er faste kategorier og tall. For opencode-sesjoner
             teller nav-pilot også KI-modell og tokens, merket med navnet på repoet når du jobber i et repo i navikt.
             Maskinen kjennes igjen på et maskinnummer, ikke på navn eller brukernavn.
           </BodyLong>
           <BodyLong>
-            Når en Copilot-økt du startet med nav-pilot er ferdig, teller nav-pilot hva økten gjorde: hvilke skills og
-            agenter fra agentpakken som ble brukt, hvilke av Copilots innebygde verktøy som ble kalt og om kallene gikk
-            bra, antall runder, varighet, tokens, premium requests og kostnad per KI-modell. Tallene hentes fra Copilots
-            egen logg over økten. Andre Copilot-økter leses ikke, heller ikke en du har startet med copilot ved siden
-            av. Det du skrev, svarene, verktøyresultatene og filnavnene tas ikke med. Andre skills, agenter og verktøy
-            telles som «annet», uten navn. Disse tallene har ikke maskinnummeret.
+            Når en Copilot-sesjon du startet med nav-pilot er ferdig, teller nav-pilot hva sesjonen gjorde: hvilke
+            skills og agenter fra agentpakken som ble brukt, hvilke av Copilots innebygde verktøy som ble kalt og om
+            kallene gikk bra, antall runder, varighet, tokens, premium requests og kostnad per KI-modell. Tallene hentes
+            fra Copilots egen logg over sesjonen. Andre Copilot-sesjoner leses ikke, heller ikke en du har startet med
+            copilot ved siden av. Det du skrev, svarene, verktøyresultatene og filnavnene tas ikke med. Andre skills,
+            agenter og verktøy telles som «annet», uten navn. Disse tallene har ikke maskinnummeret.
           </BodyLong>
           <BodyLong>
-            For opencode-økter du startet med nav-pilot teller den det samme, så langt opencode har tallene: hvilke av
-            opencodes innebygde verktøy som ble kalt og om kallene gikk bra, antall runder, varighet og hvilke skills og
-            agenter fra agentpakken som ble brukt. Andre skills og agenter telles som «annet», uten navn. Tallene hentes
-            fra opencodes egen eksport av økten. Eksporten inneholder hele økten, men nav-pilot leser bare faste felt,
-            som verktøynavn og navnet på skillen eller agenten. Det du skrev, svarene og verktøyresultatene tas ikke
-            med. opencode gir ikke nav-pilot en økt-ID, så nav-pilot teller øktene i mappen den startet i. Starter du en
-            annen opencode-økt i samme mappe mens nav-pilot kjører, telles den også. Heller ikke disse tallene har
-            maskinnummeret.
+            For opencode-sesjoner du startet med nav-pilot teller den det samme, så langt opencode har tallene: hvilke
+            av opencodes innebygde verktøy som ble kalt og om kallene gikk bra, antall runder, varighet og hvilke skills
+            og agenter fra agentpakken som ble brukt. Andre skills og agenter telles som «annet», uten navn. Tallene
+            hentes fra opencodes egen eksport av sesjonen. Eksporten inneholder hele sesjonen, men nav-pilot leser bare
+            faste felt, som verktøynavn og navnet på skillen eller agenten. Det du skrev, svarene og verktøyresultatene
+            tas ikke med. opencode gir ikke nav-pilot en sesjon-ID, så nav-pilot teller sesjonene i mappen den startet
+            i. Starter du en annen opencode-sesjon i samme mappe mens nav-pilot kjører, telles den også. Heller ikke
+            disse tallene har maskinnummeret.
           </BodyLong>
           <BodyLong>
             Starter nav-pilot Copilot eller opencode, slår den også på deres egne målinger, mot samme mottaker. Kjører
-            økten i et repo i navikt, merkes de med navnet på repoet. Første gang du kjører nav-pilot i en terminal,
+            sesjonen i et repo i navikt, merkes de med navnet på repoet. Første gang du kjører nav-pilot i en terminal,
             står dette på én linje.
           </BodyLong>
         </VStack>
@@ -71,7 +71,7 @@ export default function Personvern() {
           </LinkableHeading>
           <BodyLong>
             Mens den lokale modellen er alfa, måler vi den tettere enn resten av nav-pilot. Vi samler inn hvor mange
-            oppgaver hver økt sender til den, også når svaret er null, som er tallet vi lærer mest av. Vi samler også
+            oppgaver hver sesjon sender til den, også når svaret er null, som er tallet vi lærer mest av. Vi samler også
             inn hvilken modell du kjører, hvor lang tid serveren brukte på å starte, og når den henger. Aldri
             spørsmålene dine, koden din, filnavnene dine eller det modellen svarer.
           </BodyLong>
@@ -107,11 +107,11 @@ export NAV_PILOT_TELEMETRY_ENABLED=false`}</CodeBlock>
             Brukerundersøkelser
           </LinkableHeading>
           <BodyLong>
-            Når vi kjører en brukerundersøkelse, kan nav-pilot spørre om du vil svare. Det skjer rett etter at en økt er
-            ferdig, aldri midt i arbeidet. Du kan svare nå, senere eller aldri. Velger du senere, spør nav-pilot igjen
-            om noen dager, høyst tre ganger per undersøkelse. Før første spørsmål står det hva som sendes: svarene dine,
-            nav-pilot-versjon, operativsystem, klient, om lokale modeller er på, og GitHub-innloggingen din. Navn, kode,
-            maskinnummer og innhold fra øktene dine sendes ikke.
+            Når vi kjører en brukerundersøkelse, kan nav-pilot spørre om du vil svare. Det skjer rett etter at en sesjon
+            er ferdig, aldri midt i arbeidet. Du kan svare nå, senere eller aldri. Velger du senere, spør nav-pilot
+            igjen om noen dager, høyst tre ganger per undersøkelse. Før første spørsmål står det hva som sendes: svarene
+            dine, nav-pilot-versjon, operativsystem, klient, om lokale modeller er på, og GitHub-innloggingen din. Navn,
+            kode, maskinnummer og innhold fra sesjonene dine sendes ikke.
           </BodyLong>
           <BodyLong>
             Svarene lagres uten navn, e-post eller bruker. Innloggingen (
@@ -128,10 +128,10 @@ export NAV_PILOT_TELEMETRY_ENABLED=false`}</CodeBlock>
             logge inn på nytt først når refresh-tokenet har gått ut, eller hvis GitHub trekker det tilbake.
           </BodyLong>
           <BodyLong>
-            Noen undersøkelser nevner nav-pilot i stedet med én linje når en økt starter. Du kan alltid svare selv med{" "}
-            <code className={code}>nav-pilot survey</code>, også etter at du har svart aldri, etter tre spørsmål, eller
-            når surveys er false. Uten terminal lister kommandoen bare de åpne undersøkelsene. Har du svart før, sier
-            den fra.
+            Noen undersøkelser nevner nav-pilot i stedet med én linje når en sesjon starter. Du kan alltid svare selv
+            med <code className={code}>nav-pilot survey</code>, også etter at du har svart aldri, etter tre spørsmål,
+            eller når surveys er false. Uten terminal lister kommandoen bare de åpne undersøkelsene. Har du svart før,
+            sier den fra.
           </BodyLong>
           <BodyLong>
             Du kan også svare på{" "}
@@ -150,7 +150,7 @@ export NAV_PILOT_TELEMETRY_ENABLED=false`}</CodeBlock>
             Nyheter i terminalen
           </LinkableHeading>
           <BodyLong>
-            Når en økt er ferdig, kan nav-pilot vise én linje om en ny sak på{" "}
+            Når en sesjon er ferdig, kan nav-pilot vise én linje om en ny sak på{" "}
             <NextLink href="/nyheter" className={linkClass}>
               nyhetssiden
             </NextLink>
@@ -162,7 +162,7 @@ export NAV_PILOT_TELEMETRY_ENABLED=false`}</CodeBlock>
           <BodyLong>
             Linjen følger de samme reglene som undersøkelsene: ikke uten terminal, ikke i CI, ikke når klientens
             argumenter står etter <code className={code}>--</code>, ikke etter Ctrl-C og ikke når målinger er slått av.
-            Har nav-pilot spurt om en undersøkelse i samme økt, venter nyheten til neste gang. Vil du slå av bare
+            Har nav-pilot spurt om en undersøkelse i samme sesjon, venter nyheten til neste gang. Vil du slå av bare
             nyhetene, ikke målingene:
           </BodyLong>
           <CodeBlock compact>{`nav-pilot config set news false`}</CodeBlock>

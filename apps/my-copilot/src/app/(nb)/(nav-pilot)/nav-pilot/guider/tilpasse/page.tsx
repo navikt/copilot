@@ -174,8 +174,8 @@ nav-pilot ignore instruction nextjs-aksel --user`}
             Slå hooks av og på
           </LinkableHeading>
           <BodyLong>
-            nav-pilot legger egne hooks i <code className={code}>~/.copilot/hooks/</code>, og de kjører i alle økter med
-            Copilot CLI. Fem nøkler slår dem av og på, og alle er på som standard:
+            nav-pilot legger egne hooks i <code className={code}>~/.copilot/hooks/</code>, og de kjører i alle sesjoner
+            med Copilot CLI. Fem nøkler slår dem av og på, og alle er på som standard:
           </BodyLong>
           <Bullets>
             <li>

@@ -38,7 +38,7 @@ const labels: ShellLabels = {
   subscription: "Copilot-abonnement",
   subscriptionHref: "/abonnement",
   userMenu: "Brukermeny",
-  budgetUsed: "Du har brukt {pct} % av AI-kredittene denne måneden",
+  budgetUsed: "Du har brukt {pct} % av AI Credits denne måneden",
   signIn: "Logg inn",
   privacy: "Personvern",
   privacyHref: "/personvern",

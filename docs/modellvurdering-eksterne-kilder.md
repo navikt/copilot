@@ -51,11 +51,11 @@ Eksterne indekser er gratis for oss og dekker mange modeller og innsatsnivåer. 
 
 **Trinnvis utrulling.** Praksisen vi fant, kommer fra blogger, ikke standarder: først skyggetrafikk, deretter 1 → 5 → 20 → 50 → 100 % av brukerne, med fast fordeling per bruker og ikke per forespørsel. Tilbakerulling skjer ved å endre et flagg. Et eksempel på utløser er kvalitet som er mer enn 5 % dårligere, eller en feilrate over 1,5 × grunnlinjen [https://tianpan.co/blog/2026-04-20-canary-deploys-llm-model-upgrades; https://hidekazu-konishi.com/entry/safe_foundation_model_rollout_on_aws.html]. Med vår telemetri bør vi følge med på:
 
-- credits per økt
-- fullførte økter og avbrutte økter
+- credits per sesjon
+- fullførte sesjoner og avbrutte sesjoner
 - verktøyfeil
 - omstarter og regenerering
-- økter som stopper i Fase 1 uten videre arbeid
+- sesjoner som stopper i Fase 1 uten videre arbeid
 - svarlengde
 - avslag
 - treff i rød sone og blokkeringer fra guards

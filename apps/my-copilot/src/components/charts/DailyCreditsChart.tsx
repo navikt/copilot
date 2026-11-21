@@ -7,7 +7,7 @@ import { chartBoxClass, chartColors, getBackgroundColor } from "@/lib/chart-util
 import { formatNumber } from "@/lib/format";
 import type { DailyCredits } from "@/lib/types";
 
-// "AI" stays in the AI credit wording: AI credits is GitHub's name for the billing unit. Other Norwegian text says KI.
+// "AI" stays in the AI Credits wording: AI Credits is GitHub's name for the billing unit. Other Norwegian text says KI.
 
 interface DailyCreditsChartProps {
   data: DailyCredits[];
@@ -28,7 +28,7 @@ const DailyCreditsChart: React.FC<DailyCreditsChartProps> = ({ data }) => {
     datasets: [
       {
         type: "bar" as const,
-        label: "AI-kreditter",
+        label: "AI Credits",
         data: data.map((d) => Math.round(d.credits)),
         backgroundColor: getBackgroundColor(chartColors[3], 0.5),
         borderColor: chartColors[3],
@@ -93,7 +93,7 @@ const DailyCreditsChart: React.FC<DailyCreditsChartProps> = ({ data }) => {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           label: (ctx: any) => {
             const val = formatNumber(ctx.parsed.y);
-            return ctx.dataset.label === "AI-kreditter" ? ` ${val} kreditter` : ` ${val}`;
+            return ctx.dataset.label === "AI Credits" ? ` ${val} AI Credits` : ` ${val}`;
           },
         },
       },
@@ -123,7 +123,7 @@ const DailyCreditsChart: React.FC<DailyCreditsChartProps> = ({ data }) => {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           callback: (v: any) => (v >= 1000 ? `${Math.round(v / 1000)}K` : v),
         },
-        title: { display: hasCredits, text: "Kreditter", color: chartColors[3], font: { size: 10 } },
+        title: { display: hasCredits, text: "AI Credits", color: chartColors[3], font: { size: 10 } },
       },
     },
   };
@@ -132,7 +132,7 @@ const DailyCreditsChart: React.FC<DailyCreditsChartProps> = ({ data }) => {
     <div>
       {hasCredits && (
         <BodyShort size="small" className="text-gray-600" style={{ marginBottom: "var(--ax-space-16)" }}>
-          Totalt {formatNumber(Math.round(totalCredits))} AI-kreditter siste 30 dager
+          Totalt {formatNumber(Math.round(totalCredits))} AI Credits siste 30 dager
         </BodyShort>
       )}
       <div className={chartBoxClass}>
@@ -143,7 +143,7 @@ const DailyCreditsChart: React.FC<DailyCreditsChartProps> = ({ data }) => {
       </div>
       {!hasCredits && (
         <BodyShort size="small" className="text-gray-500" style={{ marginTop: "var(--ax-space-16)" }}>
-          Kredittellingen startet 19. juni 2026, så data vil vokse over tid.
+          Tellingen av AI Credits startet 19. juni 2026, så data vil vokse over tid.
         </BodyShort>
       )}
     </div>

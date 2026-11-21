@@ -433,7 +433,7 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
           <Box padding="space-8" borderRadius="8" className="border min-w-0">
             <VStack gap="space-4">
               <Heading size="medium" level="3">
-                AI-kredittgrense
+                AI Credits-grense
               </Heading>
               {budgetLoading ? (
                 <VStack gap="space-4" role="status">
@@ -470,7 +470,7 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
                           value={budget.consumedAmount}
                           valueMax={budget.budgetAmount}
                           size="small"
-                          aria-label={`${Math.round((budget.consumedAmount / budget.budgetAmount) * 100)}% av AI-kredittgrensen brukt`}
+                          aria-label={`${Math.round((budget.consumedAmount / budget.budgetAmount) * 100)}% av AI Credits-grensen brukt`}
                         />
                       </div>
                       <BodyShort size="small">
@@ -700,7 +700,7 @@ const SubscriptionDetails: React.FC<{ user: User; showGroups?: boolean }> = ({ u
           <Box padding="space-8" borderRadius="8" className="border min-w-0">
             <VStack gap="space-4">
               <Heading size="medium" level="3">
-                AI-kredittforbruk per dag (30 dager)
+                AI Credits-forbruk per dag (30 dager)
               </Heading>
               {usageLoading ? (
                 <VStack gap="space-4" role="status">

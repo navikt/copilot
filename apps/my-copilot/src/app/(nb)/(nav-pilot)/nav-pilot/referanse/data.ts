@@ -84,13 +84,13 @@ export const CONFIG_KEYS = [
     key: "surveys",
     flag: "—",
     values: "true · false (standard: true)",
-    desc: "Spør av og til etter en økt om du vil svare på en kort brukerundersøkelse. false slår av spørsmålet og engangstipset om opencode; DO_NOT_TRACK og NAV_PILOT_TELEMETRY_ENABLED=false gjør det samme.",
+    desc: "Spør av og til etter en sesjon om du vil svare på en kort brukerundersøkelse. false slår av spørsmålet og engangstipset om opencode; DO_NOT_TRACK og NAV_PILOT_TELEMETRY_ENABLED=false gjør det samme.",
   },
   {
     key: "news",
     flag: "—",
     values: "true · false (standard: true)",
-    desc: "Vis én linje etter en økt når det er kommet en ny nav-pilot-sak, én gang per sak. nav-pilot news lister sakene uansett.",
+    desc: "Vis én linje etter en sesjon når det er kommet en ny nav-pilot-sak, én gang per sak. nav-pilot news lister sakene uansett.",
   },
   {
     key: "log_level",
@@ -150,19 +150,19 @@ export const CONFIG_KEYS = [
     key: "local_dispatch",
     flag: "--local-dispatch",
     values: "off · conservative · balanced · aggressive (standard: aggressive)",
-    desc: "Hvor mye hovedagenten i opencode delegerer til den lokale modellen. aggressive delegerer mest, men kostet flere AI-kreditter og tok lengre tid i målingene.",
+    desc: "Hvor mye hovedagenten i opencode delegerer til den lokale modellen. aggressive delegerer mest, men kostet flere AI Credits og tok lengre tid i målingene.",
   },
   {
     key: "hook_loop_guard",
     flag: "—",
     values: "true · false (standard: true)",
-    desc: "Samme løkkeregel i alle Copilot CLI-økter, også i skyen: en postToolUse-hook i ~/.copilot/hooks/ sier fra til modellen når den står fast. false fjerner hooken ved neste oppstart.",
+    desc: "Samme løkkeregel i alle Copilot CLI-sesjoner, også i skyen: en postToolUse-hook i ~/.copilot/hooks/ sier fra til modellen når den står fast. false fjerner hooken ved neste oppstart.",
   },
   {
     key: "hook_redact_secrets",
     flag: "—",
     values: "true · false (standard: true)",
-    desc: "Masker hemmeligheter (GitHub-tokener, AWS-nøkkel-id-er, private nøkler, JWT-er, verdien i password=/api_key=) i verktøyresultater før modellen leser dem, i alle Copilot CLI-økter.",
+    desc: "Masker hemmeligheter (GitHub-tokener, AWS-nøkkel-id-er, private nøkler, JWT-er, verdien i password=/api_key=) i verktøyresultater før modellen leser dem, i alle Copilot CLI-sesjoner.",
   },
   {
     key: "hook_redact_fnr",
@@ -202,17 +202,17 @@ export const CLI_COMMANDS = [
     description:
       "Interaktivt: installer, oppgrader eller start agenten i cplt-sandkassen. Nye installasjoner får opencode (nav-pilot tilbyr å installere den), ellers Copilot CLI.",
   },
-  { command: "nav-pilot --resume [id]", description: "Fortsett en økt. Uten id åpner Copilot CLI sin egen liste" },
-  { command: "nav-pilot --continue", description: "Fortsett den forrige økta" },
+  { command: "nav-pilot --resume [id]", description: "Fortsett en sesjon. Uten id åpner Copilot CLI sin egen liste" },
+  { command: "nav-pilot --continue", description: "Fortsett den forrige sesjonen" },
   {
     command: "nav-pilot --cplt <flagg>",
-    description: "Send et flagg til cplt for denne økta, for eksempel --cplt --allow-port=8080. Kan gjentas",
+    description: "Send et flagg til cplt for denne sesjonen, for eksempel --cplt --allow-port=8080. Kan gjentas",
   },
   {
     command: "nav-pilot --client-arg <argument>",
     description: "Send ett argument til klienten og start som vanlig, med meny og sync. Kan gjentas",
   },
-  { command: "nav-pilot --allow-clipboard", description: "La agenten bruke utklippstavla i macOS denne økta" },
+  { command: "nav-pilot --allow-clipboard", description: "La agenten bruke utklippstavla i macOS denne sesjonen" },
   {
     command: "nav-pilot pakke",
     description: "Vis agentpakka her: kilde, versjon, hooks og tilgangen den ber om, med svaret ditt",

@@ -18,13 +18,13 @@ Dermed kan bwrap være installert og virke i vanlig terminal, men likevel feile 
 
 ## Hva dagens cplt gjør ved oppstart
 
-cplt støtter ikke denne indre Copilot-sandkassen. For Copilot setter [oppstartskoden](https://github.com/navikt/cplt/blob/22656614c9224d82d2baade3b599f561239052f9/src/sandbox_exec.rs#L276-L283) `COPILOT_CLI_SANDBOX_SUPPORT_OVERRIDE=unsupported` i barnets miljø. Det skal få Copilot til å hoppe over støtteproben og la sin egen sandkasse være av for økten. cplt endrer ikke den lagrede `sandbox.enabled`-innstillingen.
+cplt støtter ikke denne indre Copilot-sandkassen. For Copilot setter [oppstartskoden](https://github.com/navikt/cplt/blob/22656614c9224d82d2baade3b599f561239052f9/src/sandbox_exec.rs#L276-L283) `COPILOT_CLI_SANDBOX_SUPPORT_OVERRIDE=unsupported` i barnets miljø. Det skal få Copilot til å hoppe over støtteproben og la sin egen sandkasse være av for sesjonen. cplt endrer ikke den lagrede `sandbox.enabled`-innstillingen.
 
 Copilot kan da si at kommandoer kjører «unsandboxed». Det beskriver Copilots eget isolasjonslag, ikke cplt-laget rundt prosessen. cplt er fortsatt sikkerhetsgrensen. Du får ikke Copilots ekstra, smalere isolasjon av enkeltkommandoer inni den.
 
 Oppstartsmekanismen ble [verifisert med Copilot CLI 1.0.83 i cplt PR #520](https://github.com/navikt/cplt/pull/520), merget 15. september 2026. Det er historisk verifikasjon, ikke en ny test av alle nyere klientversjoner. Dagens kode har fortsatt mekanismen. Et eksplisitt `--pass-env COPILOT_CLI_SANDBOX_SUPPORT_OVERRIDE` hindrer cplt i å sette verdien, men gir ikke prosessen tillatelse til å opprette namespaces. Ikke bruk det som løsning på denne feilen.
 
-[GitHub dokumenterer](https://docs.github.com/en/copilot/how-tos/cloud-and-local-sandboxes/using-local-sandboxing#using-local-sandboxing-in-copilot-cli) at `/sandbox` åpner konfigurasjonen, og at `/sandbox enable` aktiverer sandkassen også for fremtidige økter. En administrert policy kan kreve Copilots lokale sandkasse. Ikke omgå et slikt krav med flagg, miljøvariabler eller konfigurasjonsendringer. Hvis policyen krever den indre sandkassen, må kompatibiliteten avklares med policyansvarlig og GitHub før denne startflyten kan brukes.
+[GitHub dokumenterer](https://docs.github.com/en/copilot/how-tos/cloud-and-local-sandboxes/using-local-sandboxing#using-local-sandboxing-in-copilot-cli) at `/sandbox` åpner konfigurasjonen, og at `/sandbox enable` aktiverer sandkassen også for fremtidige sesjoner. En administrert policy kan kreve Copilots lokale sandkasse. Ikke omgå et slikt krav med flagg, miljøvariabler eller konfigurasjonsendringer. Hvis policyen krever den indre sandkassen, må kompatibiliteten avklares med policyansvarlig og GitHub før denne startflyten kan brukes.
 
 ## Hva som er verifisert, og hva som fortsatt er åpent
 

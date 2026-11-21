@@ -336,7 +336,7 @@ Verifiser at valgene henger sammen:
 - [ ] `accessPolicy.inbound` lister alle kallere
 - [ ] `accessPolicy.outbound` lister alle avhengigheter
 - [ ] Ressurser er riktige for forventet last
-- [ ] Health-endepunkter er implementert (/isalive, /isready, /metrics)
+- [ ] Health-endpoints er implementert (/isalive, /isready, /metrics)
 - [ ] Database-pooling er tilpasset containere (3-5, ikke 10)
 - [ ] PII er identifisert og beskyttet (ikke logget, tilgangsstyrt)
 - [ ] Observerbarhet dekker forretningsmetrikker, ikke bare tekniske

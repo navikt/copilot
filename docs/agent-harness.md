@@ -15,7 +15,7 @@ En moden harness dekker alle fire kvadranter og kobler dem sammen i automatisert
 
 ### Scope og telleprinsipp
 
-Denne inventaren teller konkrete artefakter, altså filer, verktøy og endepunkter. Når vi skriver «16 instruksjoner» mener vi 16 `.instructions.md`-filer. Orkestrering (nav-pilot, CI-workflows) er lista separat, siden det er infrastruktur som *binder* kvadrantene sammen.
+Denne inventaren teller konkrete artefakter, altså filer, verktøy og endpoints. Når vi skriver «16 instruksjoner» mener vi 16 `.instructions.md`-filer. Orkestrering (nav-pilot, CI-workflows) er lista separat, siden det er infrastruktur som *binder* kvadrantene sammen.
 
 ## Relasjon til bevisst AI-bruk (#187)
 

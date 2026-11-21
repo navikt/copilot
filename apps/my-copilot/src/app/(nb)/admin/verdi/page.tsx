@@ -358,7 +358,7 @@ export default async function AdminVerdiPage() {
       <InsightSection id="kontekst" title="Kontekstforhold (inndata mot utdata)">
         <Alert variant="info" size="small">
           GitHub skiller ikke ut hurtigbufrede tokener i <code>usage_metrics</code>, og rapporterer bare tokener for
-          Copilot CLI og Copilot-appen. Økttelemetri fra <code>nav-pilot</code> (siste syv dager) viser derimot hvor
+          Copilot CLI og Copilot-appen. Sesjonstelemetri fra <code>nav-pilot</code> (siste syv dager) viser derimot hvor
           stor andel av inndata som leses fra hurtigbuffer (<code>cache_read</code>) mot fersk inndata (
           <code>input</code>).
         </Alert>
@@ -369,28 +369,28 @@ export default async function AdminVerdiPage() {
               label="Forhold inn:ut i CLI"
               subtitle={mLabel(latestToken.month, latestToken.preliminary)}
               helpTitle="Forhold inn:ut i CLI"
-              helpText="Antall inndatatokener sendt per utdatatoken generert i Copilot CLI."
+              helpText="Antall input-tokens sendt per output-token generert i Copilot CLI."
             />
             <MetricCard
               value={formatNumber(latestToken.cliInputTokens)}
-              label="Inndatatokener i CLI"
+              label="Input-tokens i CLI"
               subtitle={`Utdata: ${formatNumber(latestToken.cliOutputTokens)}`}
-              helpTitle="Inndatatokener i CLI"
-              helpText="Samlet antall inndatatokener (kontekst og ledetekst) i Copilot CLI denne måneden."
+              helpTitle="Input-tokens i CLI"
+              helpText="Samlet antall input-tokens (kontekst og prompt) i Copilot CLI denne måneden."
             />
             <MetricCard
               value={fmtRatio(latestToken.appRatio)}
               label="Forhold inn:ut i Copilot-appen"
               subtitle={mLabel(latestToken.month, latestToken.preliminary)}
               helpTitle="Forhold inn:ut i Copilot-appen"
-              helpText="Antall inndatatokener sendt per utdatatoken generert i Copilot-appen."
+              helpText="Antall input-tokens sendt per output-token generert i Copilot-appen."
             />
             <MetricCard
               value={formatNumber(latestToken.appInputTokens)}
-              label="Inndatatokener i Copilot-appen"
+              label="Input-tokens i Copilot-appen"
               subtitle={`Utdata: ${formatNumber(latestToken.appOutputTokens)}`}
-              helpTitle="Inndatatokener i Copilot-appen"
-              helpText="Samlet antall inndatatokener i Copilot-appen denne måneden."
+              helpTitle="Input-tokens i Copilot-appen"
+              helpText="Samlet antall input-tokens i Copilot-appen denne måneden."
             />
           </HGrid>
         ) : (
@@ -399,7 +399,7 @@ export default async function AdminVerdiPage() {
         {sessionTokenRows.length > 0 && (
           <>
             <BodyShort size="small" textColor="subtle">
-              Hurtigbuffer og fersk inndata siste syv dager fra <code>nav-pilot</code>-økter (minst fem enheter):
+              Hurtigbuffer og fersk inndata siste syv dager fra <code>nav-pilot</code>-sesjoner (minst fem enheter):
             </BodyShort>
             <PlainTable
               rows={[
@@ -558,16 +558,16 @@ export default async function AdminVerdiPage() {
       {hasGuardrails && telemetry && (
         <InsightSection id="nav-pilot-drift" title="Sikkerhetskontroller og synkronisering i nav-pilot (siste 7 dager)">
           <BodyShort size="small" textColor="subtle">
-            Telleverk fra avsluttede <code>nav-pilot</code>-økter og synkronisering siste syv dager (rapporteres bare
+            Telleverk fra avsluttede <code>nav-pilot</code>-sesjoner og synkronisering siste syv dager (rapporteres bare
             når minst fem enheter bidrar).
           </BodyShort>
           <HGrid columns={{ xs: 1, sm: 2, lg: 4 }} gap="space-16">
             <MetricCard
               value={formatNumber(telemetry.hook_runs_7d ?? 0)}
-              label="Sikkerhetssjekker i økt"
+              label="Sikkerhetssjekker i sesjon"
               subtitle={`${formatNumber(telemetry.hook_action_flagged_7d ?? 0)} handlinger flagget`}
-              helpTitle="Sikkerhetssjekker i økt"
-              helpText="Antall ganger nav-pilots innebygde sikkerhetskontroller (hooks) kjørte under økter siste syv dager."
+              helpTitle="Sikkerhetssjekker i sesjon"
+              helpText="Antall ganger nav-pilots innebygde sikkerhetskontroller (hooks) kjørte under sesjoner siste syv dager."
             />
             <MetricCard
               value={formatNumber(telemetry.hook_redactions_7d ?? 0)}
@@ -581,7 +581,7 @@ export default async function AdminVerdiPage() {
               label="Gjentakelsesvern utløst"
               subtitle="Avbrutte verktøyløkker"
               helpTitle="Gjentakelsesvern utløst"
-              helpText="Antall ganger gjentakelsesvernet (loop guard) stoppet gjentatte identiske verktøykall i en økt."
+              helpText="Antall ganger gjentakelsesvernet (loop guard) stoppet gjentatte identiske verktøykall i en sesjon."
             />
             <MetricCard
               value={formatNumber(telemetry.sync_updates_7d ?? 0)}

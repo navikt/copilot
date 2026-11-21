@@ -1,5 +1,5 @@
 {
-  "description": "Sett opp Prometheus-metrikker, OpenTelemetry-tracing og health check-endepunkter for Nais-applikasjoner",
+  "description": "Sett opp Prometheus-metrikker, OpenTelemetry-tracing og health check-endpoints for Nais-applikasjoner",
   "domain": "observability",
   "tags": [
     "prometheus",
@@ -18,6 +18,6 @@
     "references/typescript.md"
   ],
   "examples": [
-    "Sett opp Prometheus-metrikker og helseendepunkter for dp-soknad"
+    "Sett opp Prometheus-metrikker og helseendpoints for dp-soknad"
   ]
 }

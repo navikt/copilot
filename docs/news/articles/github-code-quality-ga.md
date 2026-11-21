@@ -14,7 +14,7 @@ GitHub Code Quality er nå generelt tilgjengelig (GA) for GitHub Enterprise Clou
 
 ## Nytt siden public preview
 
-- **Organisasjonsbasert aktivering** med dashbord som viser vedlikeholds- og pålitelighetspoeng på tvers av repositorier.
+- **Organisasjonsbasert aktivering** med dashbord som viser vedlikeholds- og pålitelighetspoeng på tvers av repoer.
 - **Kodedekningsmetrikker** generert fra eksisterende testrapporter (i Code Coverage-seksjonen i repository settings).
 - **AI-assistert deteksjon** utfyller CodeQLs regelbaserte analyse med maskinlæringsbaserte funn.
 

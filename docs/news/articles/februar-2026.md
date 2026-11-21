@@ -16,7 +16,7 @@ Februar 2026 var måneden da AI-kodingsagenter tok et nytt steg, fra verktøy du
 
 ## Velg din agent
 
-GitHub åpnet 4. februar **Agent HQ**, en plattform der du kan sette Claude (Anthropic) og OpenAI Codex på issues og pull requests, ved siden av Copilot. Du nevner `@Claude` eller `@Codex` i en kommentar, og agenten starter en økt. Hver økt koster én premium-forespørsel.
+GitHub åpnet 4. februar **Agent HQ**, en plattform der du kan sette Claude (Anthropic) og OpenAI Codex på issues og pull requests, ved siden av Copilot. Du nevner `@Claude` eller `@Codex` i en kommentar, og agenten starter en sesjon. Hver sesjon koster én premium-forespørsel.
 
 Det interessante for oss er ikke bare flere modellvalg. Agent HQ kommer med sentraliserte tilgangskontroller på organisasjonsnivå, et nytt **Copilot-metrikk-dashboard** (public preview), og full revisjonslogging. GitHub lanserte også **Code Quality** i public preview, en automatisk vurdering av vedlikeholdbarhet og pålitelighet som del av Copilots arbeidsflyt.
 

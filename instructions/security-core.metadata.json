@@ -5,6 +5,6 @@
   "tags": ["security", "owasp", "secrets", "logging", "pii"],
   "examples": [
     "Sørg for at ingen tokens eller fødselsnummer havner i loggene",
-    "Sjekk at endepunktet verifiserer at brukeren eier ressursen"
+    "Sjekk at endpointet verifiserer at brukeren eier ressursen"
   ]
 }

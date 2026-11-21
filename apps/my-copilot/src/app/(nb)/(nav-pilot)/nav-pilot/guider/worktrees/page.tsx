@@ -113,7 +113,7 @@ cplt config set --local sandbox.allow_git_worktrees true   # bare denne utsjekki
             worktrees av samme repo får samme mappe, en annen klone får sin egen.
           </BodyLong>
           <BodyLong>
-            Du trenger ikke be agenten om å bruke mappa. cplt forteller den om mappa i starten av økten, sammen med
+            Du trenger ikke be agenten om å bruke mappa. cplt forteller den om mappa i starten av sesjonen, sammen med
             kommandoene:
           </BodyLong>
           <CodeBlock compact>
@@ -130,7 +130,9 @@ git -C "$CPLT_WORKTREE_ROOT/<navn>" switch -c <branch> # lag en branch hvis suba
             sandkassen om å opprette worktreet i <code className={code}>~/.cplt-worktrees/&lt;id&gt;/&lt;navn&gt;</code>{" "}
             med detached <code className={code}>HEAD</code>.
           </BodyLong>
-          <BodyLong>Worktrees og brancher blir liggende etter økten. Fjern dem utenfor cplt når du er ferdig:</BodyLong>
+          <BodyLong>
+            Worktrees og brancher blir liggende etter sesjonen. Fjern dem utenfor cplt når du er ferdig:
+          </BodyLong>
           <CodeBlock compact>
             {`git worktree list
 git worktree remove ~/.cplt-worktrees/<id>/<navn>
@@ -181,7 +183,7 @@ git worktree repair --no-relative-paths ~/src/min-app-main`}</CodeBlock>
           </LinkableHeading>
           <Bullets>
             <li>
-              <strong>Ingen isolasjon mellom subagenter.</strong> Alle worktrees i en økt deler samme tilgang. En
+              <strong>Ingen isolasjon mellom subagenter.</strong> Alle worktrees i en sesjon deler samme tilgang. En
               subagent kan skrive i de andres worktrees og i utsjekkingen du startet fra.
             </li>
             <li>
@@ -209,14 +211,14 @@ git worktree repair --no-relative-paths ~/src/min-app-main`}</CodeBlock>
               beskyttede filene er stengt for skriving i hvert worktree.
             </li>
             <li>
-              <strong>cplt sjekker mappa ved hver oppstart og ved slutten av økten.</strong> Finner den en{" "}
+              <strong>cplt sjekker mappa ved hver oppstart og ved slutten av sesjonen.</strong> Finner den en{" "}
               <code className={code}>.git</code> eller et bare repo der git ikke selv ville lagt det, en mappe dypere
               enn 64 nivåer, eller en symlenke som peker ut av worktreet, nekter den å starte og sier hvilke mapper du
               ikke skal kjøre git i.
             </li>
             <li>
-              <strong>Endringsrapporten dekker ikke worktrees.</strong> Rapporten cplt skriver etter økten, viser bare
-              endringer i prosjektkatalogen. Se over det agenten har gjort i worktreene, før du kjører noe derfra
+              <strong>Endringsrapporten dekker ikke worktrees.</strong> Rapporten cplt skriver etter sesjonen, viser
+              bare endringer i prosjektkatalogen. Se over det agenten har gjort i worktreene, før du kjører noe derfra
               utenfor sandkassen.
             </li>
           </Bullets>

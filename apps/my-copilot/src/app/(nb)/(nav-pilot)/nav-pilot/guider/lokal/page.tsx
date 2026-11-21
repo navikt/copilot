@@ -81,13 +81,13 @@ export default function LokalGuide() {
             Delegering krever opencode som klient. Der blir den lokale modellen en subagent som heter{" "}
             <code className={code}>local-worker</code>, og hovedagenten i skyen delegerer avgrensede oppgaver dit.
             nav-pilot legger inn <code className={code}>local-worker</code> selv hvis agentpakka ikke har den. Har pakka
-            eller repoet en egen, bruker nav-pilot den. Copilot CLI har ingen slik subagent, så der kjører hele økten
+            eller repoet en egen, bruker nav-pilot den. Copilot CLI har ingen slik subagent, så der kjører hele sesjonen
             enten lokalt eller i skyen.
           </BodyLong>
           <CodeBlock compact>
             {`nav-pilot config get client               # hvilken klient du kjører
 nav-pilot config set client opencode
-nav-pilot config set local_dispatch <nivå>  # eller --local-dispatch <nivå> for én økt`}
+nav-pilot config set local_dispatch <nivå>  # eller --local-dispatch <nivå> for én sesjon`}
           </CodeBlock>
           <BodyLong>
             Nivåene er <code className={code}>off</code>, <code className={code}>conservative</code>,{" "}
@@ -192,8 +192,8 @@ nav-pilot alpha local init      # laster ned vektene og starter`}
           </BodyLong>
           <BodyLong>
             Hovedagenten delegerer ingenting til denne modellen ennå, uansett delegeringsnivå. Du kan bruke den til{" "}
-            <code className={code}>alpha decide</code>, eller prøve den i en økt selv. I målingene svarte den like godt
-            som standardmodellen med decide. Prompter over 49 000 tokens kan sprenge minnegrensen. Se{" "}
+            <code className={code}>alpha decide</code>, eller prøve den i en sesjon selv. I målingene svarte den like
+            godt som standardmodellen med decide. Prompter over 49 000 tokens kan sprenge minnegrensen. Se{" "}
             <NextLink href="/innsikt/lokale-modeller#modell-64-gb" className={linkClass}>
               Målinger
             </NextLink>

@@ -69,7 +69,7 @@ export default function ReviewOutcomes({ repositories }: { repositories: Outcome
         {complete
           ? `${formatNumber(addressed)} av ${formatNumber(evaluated)} evaluerte kommentarer.`
           : "Kommentartall mangler."}{" "}
-        PR-er flettet uten senere endringskrav fra en person: {merged}.
+        PR-er merget uten senere endringskrav fra en person: {merged}.
       </BodyShort>
       <BodyShort>
         Gjelder {formatNumber(reported.length)} av {formatNumber(repositories.length)} synlige repoer som oppfyller
@@ -81,7 +81,7 @@ export default function ReviewOutcomes({ repositories }: { repositories: Outcome
         dekker bare rapporterte felt. Manglende felt på enkelte dager kan gi ufullstendige summer.
       </BodyShort>
       <BodyShort>
-        Kommentarene telles den dagen PR-en flettes. Fulgt opp omfatter brukte forslag, manuelle rettelser, hjelp fra
+        Kommentarene telles den dagen PR-en merges. Fulgt opp omfatter brukte forslag, manuelle rettelser, hjelp fra
         Copilot og svar om en senere rettelse. Dette er ikke det samme som brukte kodeforslag. Kommentarer på
         bot-opprettede PR-er evalueres vanligvis ikke, men slike PR-er inngår i tallet uten senere endringskrav. Tallene
         måler ikke kodekvalitet eller produktivitet og erstatter ikke menneskelig gjennomgang.

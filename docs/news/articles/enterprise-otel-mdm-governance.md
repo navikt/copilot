@@ -19,7 +19,7 @@ Konfigurasjonen leveres gjennom en `telemetry`-blokk i enterprise-managed settin
 
 Administratorer kan styre:
 
-- OTLP-endepunkt og transportprotokoll (`otlp-http` eller `otlp-grpc`)
+- OTLP-endpoint og transportprotokoll (`otlp-http` eller `otlp-grpc`)
 - OTel-tjenestenavn og ressursattributter
 - Eksportør-headere (f.eks. autentiseringstoken for collectoren)
 - Om prompt-, respons- og verktøyinnhold skal fanges, og om utviklere kan endre dette

@@ -65,8 +65,8 @@ nav-pilot alpha local doctor  # bare egen LLM-server (local_endpoint)`}
           <BodyLong>
             Start med <code className={code}>nav-pilot mcp list</code>. Den endrer ingenting. Øverst står det som
             hindrer serverne du har slått på, med kommandoen som retter det: et navn organisasjonens policy blokkerer,
-            en host eller localhost-port cplt stopper, en pakkekjører som mangler, eller en server registeret har tatt
-            ut.
+            en host eller localhost-port cplt stopper, en pakkekjører (npx eller uvx) som mangler, eller en server
+            registeret har tatt ut.
           </BodyLong>
           <CodeBlock compact>
             {`nav-pilot mcp list                            # problemer først, så serverne i registeret
@@ -76,7 +76,7 @@ nav-pilot mcp disable <navn>                  # slå av, og steng hostene bare d
           </CodeBlock>
           <BodyLong>
             Navnet er hele navnet i registeret eller delen etter siste skråstrek, som{" "}
-            <code className={code}>figma-mcp</code>. Start en ny økt etterpå, så laster klienten serveren. Hvilke
+            <code className={code}>figma-mcp</code>. Start en ny sesjon etterpå, så laster klienten serveren. Hvilke
             servere som finnes, står under{" "}
             <NextLink href="/nav-pilot/klienter#mcp-register" className={linkClass}>
               MCP-registeret
@@ -106,7 +106,7 @@ nav-pilot mcp enable <navn> --all-tools     # alle, også dem serveren legger ti
           <BodyLong>
             Har du serveren fra før, bevarer et vanlig <code className={code}>enable</code> oppføringen og verktøyvalget
             som det er. Gir du <code className={code}>--tools</code>, erstattes verktøyvalget med det du oppgir. Med{" "}
-            <code className={code}>--all-tools</code> slås alle verktøy på. For GitHub endres også endepunktet og
+            <code className={code}>--all-tools</code> slås alle verktøy på. For GitHub endres også endpointet og
             registerets headers, se nedenfor.
           </BodyLong>
           <BodyLong>
@@ -114,7 +114,7 @@ nav-pilot mcp enable <navn> --all-tools     # alle, også dem serveren legger ti
             ikke innlogging, live-tilkobling eller agentens verktøy. Både klientens verktøyvalg og agentens{" "}
             <code className={code}>tools</code>-liste kan begrense tilgangen. Nav-pilot-agenten utelater Figma og Aksel.
             Velg Aksel-agenten i Copilots agentvelger, og test et ekte <code className={code}>get_metadata</code>-kall i
-            en ny økt med den før du endrer proxy eller installerer på nytt.
+            en ny sesjon med den før du endrer proxy eller installerer på nytt.
           </BodyLong>
           <LinkableHeading id="mcp-intellij" size="small" level="3">
             IntelliJ og verktøy utenfor sandkassen
@@ -130,9 +130,9 @@ nav-pilot mcp enable <navn> --all-tools     # alle, også dem serveren legger ti
             GitHub-serveren fra registeret leser bare
           </LinkableHeading>
           <BodyLong>
-            GitHub-serveren du slår på med nav-pilot får det skrivebeskyttede endepunktet. Velger du et verktøy som
+            GitHub-serveren du slår på med nav-pilot får det skrivebeskyttede endpointet. Velger du et verktøy som
             skriver til GitHub, som <code className={code}>issue_write</code>, bytter nav-pilot til det fulle
-            endepunktet. Da kan agenten skrive til GitHub gjennom MCP, forbi vakta cplt har på{" "}
+            endpointet. Da kan agenten skrive til GitHub gjennom MCP, forbi vakta cplt har på{" "}
             <code className={code}>gh</code>. <code className={code}>mcp list</code> merker det med{" "}
             <code className={code}>full endpoint</code> og gir kommandoen som tar deg tilbake.
           </BodyLong>
@@ -158,16 +158,15 @@ nav-pilot mcp enable <navn> --all-tools     # alle, også dem serveren legger ti
             GitHub-serveren gjennom sin egen proxy på maskinen din. Dette gjelder bare OpenCode 2. Bruker du OpenCode 1,
             må du oppgradere OpenCode også. Proxyen bruker <code className={code}>gh</code>
             -innloggingen din og sender ikke tokenet inn i sandkassen. Oppgrader cplt, sjekk at du er logget inn med{" "}
-            <code className={code}>gh auth status</code>, og start en ny økt. Du trenger ikke{" "}
-            <code className={code}>mcp auth</code>. Slå proxyen av for én økt med{" "}
+            <code className={code}>gh auth status</code>, og start en ny sesjon. Du trenger ikke{" "}
+            <code className={code}>mcp auth</code>. Slå proxyen av for én sesjon med{" "}
             <code className={code}>--no-github-mcp-proxy</code>, eller fast med{" "}
             <code className={code}>sandbox.github_mcp_proxy = false</code>.
           </BodyLong>
           <BodyLong>
-            Proxyen sender alt til det skrivebeskyttede endepunktet og tvinger skrivebeskyttelse, uansett hvilket
-            endepunkt oppføringen peker på. Verktøy som skriver til GitHub, som{" "}
-            <code className={code}>issue_write</code>, virker derfor ikke i OpenCode under cplt, selv om nav-pilot har
-            byttet til det fulle endepunktet.
+            Proxyen sender alt til det skrivebeskyttede endpointet og tvinger skrivebeskyttelse, uansett hvilket
+            endpoint oppføringen peker på. Verktøy som skriver til GitHub, som <code className={code}>issue_write</code>
+            , virker derfor ikke i OpenCode under cplt, selv om nav-pilot har byttet til det fulle endpointet.
           </BodyLong>
           <BodyLong>
             Figma virker i OpenCode 2.1 etter at Figma rettet lista over godkjente klienter 14. oktober 2026. Logg inn
@@ -325,19 +324,19 @@ cplt check exec docker                         # får agenten kjøre programmet?
             <code className={code}>nav-pilot alpha local restart</code>.
           </BodyLong>
           <BodyLong>
-            nav-pilot avslutter en runde, og sier fra i økten, hvis modellen gjør det samme verktøykallet fire ganger på
-            rad med samme resultat, eller åtte ganger på rad uansett resultat. Det er en vakt mot at modellen står fast,
-            ikke en feil i koden din. Grensene endrer du med <code className={code}>local_loop_guard</code>.
+            nav-pilot avslutter en runde, og sier fra i sesjonen, hvis modellen gjør det samme verktøykallet fire ganger
+            på rad med samme resultat, eller åtte ganger på rad uansett resultat. Det er en vakt mot at modellen står
+            fast, ikke en feil i koden din. Grensene endrer du med <code className={code}>local_loop_guard</code>.
           </BodyLong>
           <BodyLong>
-            Går modellen tom for minne, for eksempel på en lang prompt, avslutter serveren seg selv. Neste økt sier{" "}
+            Går modellen tom for minne, for eksempel på en lang prompt, avslutter serveren seg selv. Neste sesjon sier{" "}
             <code className={code}>generation thread died, most likely out of memory</code>, med stien til tracebacken.
             Start den igjen med <code className={code}>nav-pilot alpha local restart</code>. Skjer det igjen, velg en
             modell med kortere kontekst.
           </BodyLong>
           <BodyLong>
-            Starter du serveren på nytt midt i en økt, må du starte økten på nytt også. Den gamle er bundet til serveren
-            som forsvant.
+            Starter du serveren på nytt midt i en sesjon, må du starte sesjonen på nytt også. Den gamle er bundet til
+            serveren som forsvant.
           </BodyLong>
           <BodyLong>
             Si fra med <code className={code}>nav-pilot feedback</code> om noe henger, om en endring kompilerer men er

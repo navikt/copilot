@@ -447,7 +447,7 @@ Se på hele repoet og finn hva som er galt i PR-en.
 ```text
 Jeg feilsøker en 500-feil. Før du foreslår løsning: hjelp meg lage 3 testbare hypoteser.
 Kontekst:
-- Endepunkt: /api/v1/copilot/adoption/summary
+- Endpoint: /api/v1/copilot/adoption/summary
 - Feil: schema field scan_date of type DATE is not assignable to struct field scan_date of type string
 Output: Hypotese | Hvordan teste | Hva som falsifiserer hypotesen.
 ```
@@ -886,7 +886,7 @@ Sekvens 6 (4:00–4:20): Måleregel og sjekkliste
 **Forventet respons-signal:** Seeren kan navngi de fire spakene og vet at et verktøys eget sparetall ikke er bevis for lavere regning.
 
 **Kilder:**
-- JetBrains: [Measuring rtk's token savings in Claude Code](https://blog.jetbrains.com/ai/2026/07/rtk-claude-code-token-savings/) — 425 kjøringer, 86 oppgaver, forhåndsregistrerte endepunkter
+- JetBrains: [Measuring rtk's token savings in Claude Code](https://blog.jetbrains.com/ai/2026/07/rtk-claude-code-token-savings/) — 425 kjøringer, 86 oppgaver, forhåndsregistrerte endpoints
 - [jayn caveman-replay](https://jayn.app/caveman) ([data](https://github.com/jaynapp/jayn-caveman)) — 0,6 % av en faktisk regning på 755 dollar
 - Brandon Barker: [Fewer tokens, bigger bill](https://brandonbarker.me/writing/headroom-fewer-tokens-bigger-bill) — 39 % færre tokens, men cachen brutt 123 ganger
 - [Token savings: wrong number](https://zernie.com/blog/token-savings-wrong-number/) — ca. −6 % målt mot −65 % annonsert
@@ -964,7 +964,7 @@ Mal med plassholdere:
 
 ## Fast outro per episode (10–15 sek)
 
-> Det var dagens tips. Prøv dette i neste økt, og ta med deg regelen: {én kort regel}. Vi sees i neste episode.
+> Det var dagens tips. Prøv dette i neste sesjon, og ta med deg regelen: {én kort regel}. Vi sees i neste episode.
 
 ## Produksjonsnotater
 
@@ -1061,7 +1061,7 @@ Output-tokens utgjør en liten andel av tokenbruken i en agent-sesjon, og cache-
 
 #### Kilder du kan vise på skjerm
 
-- JetBrains: [Measuring rtk's token savings in Claude Code](https://blog.jetbrains.com/ai/2026/07/rtk-claude-code-token-savings/) — 425 kjøringer, 86 oppgaver, forhåndsregistrerte endepunkter. Resultat: +7,6 % kostnad per oppgave ved lavt resonneringsnivå (p = 0,004), +0,1 % (p = 0,99) ved høyt, ingen kvalitetsforskjell.
+- JetBrains: [Measuring rtk's token savings in Claude Code](https://blog.jetbrains.com/ai/2026/07/rtk-claude-code-token-savings/) — 425 kjøringer, 86 oppgaver, forhåndsregistrerte endpoints. Resultat: +7,6 % kostnad per oppgave ved lavt resonneringsnivå (p = 0,004), +0,1 % (p = 0,99) ved høyt, ingen kvalitetsforskjell.
 - [jayn caveman-replay](https://jayn.app/caveman), [data](https://github.com/jaynapp/jayn-caveman) — 0,6 % spart av en faktisk regning på 755 dollar.
 - Brandon Barker: [Fewer tokens, bigger bill](https://brandonbarker.me/writing/headroom-fewer-tokens-bigger-bill) — 39 % færre tokens, men prompt-cachen brutt 123 ganger.
 - [Token savings: wrong number](https://zernie.com/blog/token-savings-wrong-number/) — ca. −6 % målt mot −65 % annonsert.

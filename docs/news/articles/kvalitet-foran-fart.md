@@ -77,7 +77,7 @@ List tillitsgrensene og de viktigste risikoene.
 ```
 
 ```text
-Bruk nav-auth. Sjekk at alle endepunkter validerer token med riktig audience og issuer,
+Bruk nav-auth. Sjekk at alle endpoints validerer token med riktig audience og issuer,
 og at kall videre bruker token exchange.
 ```
 

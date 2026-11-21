@@ -166,7 +166,7 @@ export function McpDetails({ item }: { item: EnrichedCustomization }) {
                 )}
                 {isGitHub && (
                   <BodyShort size="small">
-                    GitHub-serveren får et endepunkt som bare leser. Velger du et verktøy som skriver til GitHub, kan
+                    GitHub-serveren får et endpoint som bare leser. Velger du et verktøy som skriver til GitHub, kan
                     agenten skrive via MCP, forbi cplts kontroll av <code className="verktoy-code-inline">gh</code>.
                   </BodyShort>
                 )}

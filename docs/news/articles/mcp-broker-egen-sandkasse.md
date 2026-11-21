@@ -20,13 +20,13 @@ nav-pilot mcp enable io.github.nais/nais-mcp
 nav-pilot mcp list                                  # PATH viser «cplt broker»
 ```
 
-Start en ny økt etterpå. nav-pilot fra før 24. oktober 2026 avviser Nais MCP-oppføringen i registeret. Oppgrader derfor først.
+Start en ny sesjon etterpå. nav-pilot fra før 24. oktober 2026 avviser Nais MCP-oppføringen i registeret. Oppgrader derfor først.
 
 ## Hva er nytt
 
 Siden 24. oktober har cplt kjørt Nais MCP utenfor sandkassen til agenten ([forrige artikkel](/nyheter/mcp-i-nav-pilot)). Nå kjører serveren også i en egen sandkasse, som en underprosess av cplt. Den kan bruke Nais-innloggingen din, men sandkassen til agenten får ikke tilgang til nøkkelringen.
 
-- **macOS:** Serveren kjører i en egen Seatbelt-profil. Den når nettet bare gjennom sin egen proxy, og proxyen slipper bare gjennom vertene i serverens oppsett (`egressHosts`). Av systemtjenestene når den bare securityd, som håndterer nøkkelringen, og de grunnleggende tjenestene alle programmer får.
+- **macOS:** Serveren kjører i en egen Seatbelt-profil. Den når nettet bare gjennom sin egen proxy, og proxyen slipper bare gjennom hostene i serverens oppsett (`egressHosts`). Av systemtjenestene når den bare securityd, som håndterer nøkkelringen, og de grunnleggende tjenestene alle programmer får.
 - **Linux:** Serveren kjører i bubblewrap med eget nettverk og en tom hjemmemappe, der bare Nais-oppsettet er lagt inn igjen. Den ser bare Secret Service på D-Bus, ikke resten av bussen.
 - **Innloggingssjekken** kjører i den samme sandkassen på begge systemer. `nav-pilot mcp enable` spør cplt om du er logget inn, i stedet for å sjekke selv utenfor sandkassen.
 - **Bare lesing, som før.** Nais MCP får bare lesende verktøy som standard, og cplt avviser GraphQL-mutasjoner.
@@ -41,7 +41,7 @@ Siden 24. oktober har cplt kjørt Nais MCP utenfor sandkassen til agenten ([forr
 
 ## Restrisiko
 
-Sandkassen er laget for en server vi stoler på, som nais, ikke for et fiendtlig program. Serveren kjører med argumenter agenten velger. Den kan lese det du kan lese og sende det til vertene den har lov til å nå. På Linux kan den også nå Unix-sokler utenfor hjemmemappen, `/tmp` og `/run`, og en server som bruker Secret Service kan lese alle oppføringer som er låst opp i økten din, ikke bare sine egne. Se [SECURITY.md i cplt](https://github.com/navikt/cplt/blob/main/SECURITY.md).
+Sandkassen er laget for en server vi stoler på, som nais, ikke for et fiendtlig program. Serveren kjører med argumenter agenten velger. Den kan lese det du kan lese og sende det til hostene den har lov til å nå. På Linux kan den også nå Unix-sokler utenfor hjemmemappen, `/tmp` og `/run`, og en server som bruker Secret Service kan lese alle oppføringer som er låst opp i sesjonen din, ikke bare sine egne. Se [SECURITY.md i cplt](https://github.com/navikt/cplt/blob/main/SECURITY.md).
 
 **Kilder:**
 

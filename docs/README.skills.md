@@ -47,7 +47,7 @@ at den nye skillen gir bedre resultater.
 | **nav-plan** | Arkitekturplanlegging med beslutningstrær for auth, kommunikasjon, database og Nais-konfigurasjon | [`skills/nav-plan/`](../skills/nav-plan/SKILL.md) |
 | **nav-troubleshoot** | Strukturerte diagnostiske trær for vanlige Nav-plattformproblemer — pod-krasj, auth-feil, Kafka-lag og databaseproblemer | [`skills/nav-troubleshoot/`](../skills/nav-troubleshoot/SKILL.md) |
 | **observability-debugging** | Feilsøk produksjonsproblemer med Mimir-metrikker, Loki-logger og Tempo-traces gjennom strukturerte debugging-workflows for Nav-utviklere | [`skills/observability-debugging/`](../skills/observability-debugging/SKILL.md) |
-| **observability-setup** | Sett opp Prometheus-metrikker, OpenTelemetry-tracing og health check-endepunkter for Nais-applikasjoner | [`skills/observability-setup/`](../skills/observability-setup/SKILL.md) |
+| **observability-setup** | Sett opp Prometheus-metrikker, OpenTelemetry-tracing og health check-endpoints for Nais-applikasjoner | [`skills/observability-setup/`](../skills/observability-setup/SKILL.md) |
 | **playwright-testing** | Generer og kjør Playwright E2E-tester for webapplikasjoner med page objects, auth fixtures og tilgjengelighetstester | [`skills/playwright-testing/`](../skills/playwright-testing/SKILL.md) |
 | **postgresql-review** | PostgreSQL query review, optimalisering og beste praksis for Nav-applikasjoner | [`skills/postgresql-review/`](../skills/postgresql-review/SKILL.md) |
 | **readme-review** | Strukturell gjennomgang og generering av README-er tilpasset prosjekttype — tjeneste, bibliotek, monorepo eller naisjob | [`skills/readme-review/`](../skills/readme-review/SKILL.md) |

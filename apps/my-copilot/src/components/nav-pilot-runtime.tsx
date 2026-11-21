@@ -108,19 +108,19 @@ export async function RuntimeTelemetry({ token }: { token: string }) {
       {totalSessions > 0 && (
         <>
           <LinkableHeading id="okter" size="small" level="3">
-            Økter per klient
+            Sesjoner per klient
           </LinkableHeading>
           <HGrid columns={{ xs: 1, md: 2 }} gap="space-24">
             <RankedBars
-              title="Økter"
-              takeaway={`${num(totalSessions)} observerte økter siste 7 dager.`}
-              summary="Observerte økter per klient siste syv dager."
+              title="Sesjoner"
+              takeaway={`${num(totalSessions)} observerte sesjoner siste 7 dager.`}
+              summary="Observerte sesjoner per klient siste syv dager."
               items={sessions}
-              rows={[["Klient", "Økter, 7 dager"], ...sessions.map((r) => [r.label, num(r.value)])]}
+              rows={[["Klient", "Sesjoner, 7 dager"], ...sessions.map((r) => [r.label, num(r.value)])]}
             />
             <RankedBars
               title="Turer"
-              takeaway={`${num(t.copilot_turns_7d + t.opencode_turns_7d)} turer totalt. Turer og økter er ulike mål med hver sin skala.`}
+              takeaway={`${num(t.copilot_turns_7d + t.opencode_turns_7d)} turer totalt. Turer og sesjoner er ulike mål med hver sin skala.`}
               summary="Observerte turer per klient siste syv dager."
               items={turns}
               color={1}
@@ -142,7 +142,7 @@ export async function RuntimeTelemetry({ token }: { token: string }) {
                   value={num(t.agent_skill_loads_7d)}
                   label="Skills valgt av agenten"
                   helpTitle="Automatisk mot manuell bruk av skills"
-                  helpText="Skill-innlastinger der agenten selv valgte en skill ut fra instruksjonene, uten at brukeren oppga en skråstrekskommando. Innlastinger, ikke økter eller utviklere."
+                  helpText="Skill-innlastinger der agenten selv valgte en skill ut fra instruksjonene, uten at brukeren oppga en skråstrekskommando. Innlastinger, ikke sesjoner eller utviklere."
                   subtitle={`av ${num(totalSkillLoads)} innlastinger siste 7 dager`}
                 />
               )}
@@ -191,12 +191,12 @@ export async function RuntimeTelemetry({ token }: { token: string }) {
             )}
             {tools.length > 0 && (
               <RankedBars
-                title="Verktøykall i økt"
+                title="Verktøykall i sesjon"
                 takeaway={topTakeaway(tools, "kall", true)}
-                summary="Verktøykall i økter siste syv dager."
+                summary="Verktøykall i sesjoner siste syv dager."
                 items={tools}
                 color={3}
-                rows={[["Verktøy i økt", "Kall, 7 dager"], ...allTools.map((r) => [r.tool, num(r.calls)])]}
+                rows={[["Verktøy i sesjon", "Kall, 7 dager"], ...allTools.map((r) => [r.tool, num(r.calls)])]}
               />
             )}
           </HGrid>

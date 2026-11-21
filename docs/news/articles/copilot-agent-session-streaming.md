@@ -22,7 +22,7 @@ Strømming av Copilot agent-sesjoner er nå i offentlig forhåndsvisning (public
 
 ## To måter å hente data på
 
-- **Strømme-endepunkt:** Strømmer sesjonsdata automatisk til foretrukne event-collectors, SIEM-verktøy eller Microsoft Purview (i public preview).
+- **Strømmeendpoint:** Strømmer sesjonsdata automatisk til foretrukne event-collectors, SIEM-verktøy eller Microsoft Purview (i public preview).
 - **REST API:** Enterprise-eiere kan hente de siste 48 timene med data på forespørsel via `GET /enterprises/{enterprise}/copilot/usage-records`.
 
 ## Oppsett

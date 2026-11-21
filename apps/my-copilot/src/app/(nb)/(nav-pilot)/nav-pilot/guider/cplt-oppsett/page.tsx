@@ -110,8 +110,8 @@ git commit -m "chore: add cplt sandbox config"
 cplt trust accept --all`}
           </CodeBlock>
           <BodyLong>
-            cplt leser fila slik den er i siste commit, så agenten kan ikke gi seg selv mer midt i en økt. Hver utvikler
-            godkjenner forslaget på sin egen maskin med <code className={code}>cplt trust accept</code>.{" "}
+            cplt leser fila slik den er i siste commit, så agenten kan ikke gi seg selv mer midt i en sesjon. Hver
+            utvikler godkjenner forslaget på sin egen maskin med <code className={code}>cplt trust accept</code>.{" "}
             <code className={code}>cplt trust show</code> viser hva som er godkjent, og hva som venter.
           </BodyLong>
           <BodyLong>
@@ -276,7 +276,7 @@ nav-pilot`}
           </BodyLong>
           <BodyLong>
             Hvert verktøy har sin egen vei rundt dette: npm kan lese tokenet fra en miljøvariabel, pnpm og yarn 1
-            trenger <code className={code}>~/.npmrc</code>, og Gradle kan hente fra Navs speil uten token. Se{" "}
+            trenger <code className={code}>~/.npmrc</code>, og Gradle kan hente fra Navs mirror uten token. Se{" "}
             <NextLink href="/nav-pilot/guider/cplt-node#github-packages" className={linkClass}>
               Node, npm og pnpm
             </NextLink>{" "}
@@ -331,8 +331,8 @@ nav-pilot`}
             på en liste som allerede er slått på, og slår ikke på lista selv:
           </BodyLong>
           <CodeBlock compact>
-            {`cplt check net min.vert.no
-cplt config set allow.domains min.vert.no`}
+            {`cplt check net min.host.no
+cplt config set allow.domains min.host.no`}
           </CodeBlock>
         </VStack>
       </section>

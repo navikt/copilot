@@ -4,7 +4,7 @@ date: 2026-09-25
 author: starefossen
 category: nav-pilot
 cli: true
-excerpt: "En agentøkt resonnerer i mange steg før den svarer. Med nav-pilot alpha decide stiller du i stedet den lokale modellen et flervalgsspørsmål og får raskt en sannsynlighet for hvert svaralternativ. Ingenting forlater maskinen."
+excerpt: "En agentsesjon resonnerer i mange steg før den svarer. Med nav-pilot alpha decide stiller du i stedet den lokale modellen et flervalgsspørsmål og får raskt en sannsynlighet for hvert svaralternativ. Ingenting forlater maskinen."
 tags:
   - nav-pilot
   - local-models
@@ -14,7 +14,7 @@ tags:
 
 **Siste tall:** Tallene under er fra da saken ble skrevet. Oppdaterte målinger står på [Lokale modeller](/innsikt/lokale-modeller#malt-decide).
 
-En agentøkt resonnerer i mange steg før den svarer. I en hook eller et skript trenger du ofte bare et raskt ja eller nei. `nav-pilot alpha decide` stiller den lokale modellen et flervalgsspørsmål. Svaret er en sannsynlighet for hvert alternativ, ikke tekst. Her spør vi om en commit-melding fra navikt/copilot forklarer hvorfor endringen ble gjort:
+En agentsesjon resonnerer i mange steg før den svarer. I en hook eller et skript trenger du ofte bare et raskt ja eller nei. `nav-pilot alpha decide` stiller den lokale modellen et flervalgsspørsmål. Svaret er en sannsynlighet for hvert alternativ, ikke tekst. Her spør vi om en commit-melding fra navikt/copilot forklarer hvorfor endringen ble gjort:
 
 ```text
 chore(copilot-metrics): add dev/prod backfill mise tasks
@@ -48,7 +48,7 @@ TypeSafe AI gjorde ideen kjent med Jev, som de slapp til de første brukerne 15.
 
 _`decide` er høyre side. Svaret er sannsynligheten for hvert alternativ, lest av fra ett token._
 
-Vi kjører modellen lokalt. Grunnlaget du sender med `--evidence`, er ofte kode og differ, og verken det eller spørsmålet forlater maskinen. Kallet koster heller ingen AI-kreditter.
+Vi kjører modellen lokalt. Grunnlaget du sender med `--evidence`, er ofte kode og differ, og verken det eller spørsmålet forlater maskinen. Kallet koster heller ingen AI Credits.
 
 ## Bruk en regel når en regel holder
 
@@ -228,7 +228,7 @@ nav-pilot alpha local restart                       # hvis serveren kjører en a
 ## Begrensninger
 
 - `decide` starter ikke serveren selv, fordi en kaldstart tar 5–10 sekunder og laster modellen inn på GPU-en.
-- Serveren tar én forespørsel om gangen. Kjører en agentøkt mot den, må `decide` vente på tur, og `--timeout` regner med ventetiden.
+- Serveren tar én forespørsel om gangen. Kjører en agentsesjon mot den, må `decide` vente på tur, og `--timeout` regner med ventetiden.
 - Exit-koden er 0 når sannsynligheten for `--expect` er lik eller høyere enn terskelen, 1 når den er lavere og 2 når noe feilet. Håndter 2 for seg, ellers stopper skriptet ditt hver gang serveren er nede.
 - `decide` er i alfa, så flagg og format kan endre seg.
 

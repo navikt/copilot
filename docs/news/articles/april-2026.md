@@ -44,7 +44,7 @@ Fallback til billigere modeller når kvota er brukt opp forsvinner. Det er credi
 
 Copilot støtter nå dataoppholdskrav for EU, og fra **1. mai 2026** er EFTA-land, inkludert Norge, eksplisitt dekket. All inferens og tilknyttede data forblir innenfor regionen, bygget på Microsofts EU Data Boundary.
 
-Alle GA-funksjoner er støttet: agent mode, inline-forslag, chat, cloud agent, code review, PR-oppsummeringer og Copilot CLI. Modellene som er tilgjengelige ved lansering er GPT-5.4, Claude Sonnet 4.6 og Claude Opus 4.6. Gemini-modeller mangler fordi GCP ikke har dataresidente endepunkter ennå.
+Alle GA-funksjoner er støttet: agent mode, inline-forslag, chat, cloud agent, code review, PR-oppsummeringer og Copilot CLI. Modellene som er tilgjengelige ved lansering er GPT-5.4, Claude Sonnet 4.6 og Claude Opus 4.6. Gemini-modeller mangler fordi GCP ikke har dataresidente endpoints ennå.
 
 Data-residente forespørsler koster **10 % mer** i modellmultiplikator. Policyen er av som standard og aktiveres av Enterprise- eller organisasjonsadministrator.
 
@@ -139,7 +139,7 @@ Korte oppdateringer som er nyttige å kjenne til, men som ikke krever handling f
 - **Cloud agent 20 % raskere oppstart.** Bygger på 50 %-forbedringen fra mars. Samlet over 60 % raskere enn ved starten av 2026. [Kilde](https://github.blog/changelog/2026-04-27-copilot-cloud-agent-starts-20-faster-with-actions-custom-images)
 - **PR-merge-metrikker.** Usage Metrics API har fått `pull_requests.total_merged_reviewed_by_copilot` og `median_minutes_to_merge_copilot_reviewed`. Nyttig for DORA-arbeid. [Kilde](https://github.blog/changelog/2026-04-08-copilot-reviewed-pull-request-merge-metrics-now-in-the-usage-metrics-api/)
 - **Fjernstyr CLI fra nett og mobil.** `copilot --remote` lar deg følge med på en kjørende CLI-sesjon fra GitHub-nettsida eller mobilappen. [Kilde](https://github.blog/changelog/2026-04-13-remote-control-cli-sessions-on-web-and-mobile-in-public-preview)
-- **BYOK og lokale modeller i Copilot CLI.** Koble til Azure OpenAI, Anthropic eller lokale endepunkter (Ollama, vLLM). For team med særskilte krav og avklart governance. [Kilde](https://github.blog/changelog/2026-04-07-copilot-cli-now-supports-byok-and-local-models)
+- **BYOK og lokale modeller i Copilot CLI.** Koble til Azure OpenAI, Anthropic eller lokale endpoints (Ollama, vLLM). For team med særskilte krav og avklart governance. [Kilde](https://github.blog/changelog/2026-04-07-copilot-cli-now-supports-byok-and-local-models)
 - **Personvernpolicy for treningsdata trådte i kraft 24. april.** Gjelder kun Free, Pro og Pro+. Nav bruker Enterprise og er ikke berørt, men informer kollegaer som har personlig Copilot-konto om opt-out. [Kilde](https://github.blog/news-insights/company-news/updates-to-github-copilot-interaction-data-usage-policy/)
 - **Metrikk-URL-endring 20. mai.** copilot-metrics må oppdateres til `copilot-reports.github.com`. [Kilde](https://github.blog/changelog/2026-04-22-upcoming-change-to-copilot-usage-metrics-report-download-urls)
 
