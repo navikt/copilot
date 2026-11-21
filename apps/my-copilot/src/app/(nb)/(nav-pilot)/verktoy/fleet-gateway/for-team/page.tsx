@@ -1,4 +1,4 @@
-import { Alert, BodyLong, Tag, VStack } from "@navikt/ds-react";
+import { BodyLong, BodyShort, Tag, VStack } from "@navikt/ds-react";
 import type { Metadata } from "next";
 import NextLink from "next/link";
 import { Table, TableBody, TableDataCell, TableHeader, TableHeaderCell, TableRow } from "@/components/aksel-table";
@@ -137,13 +137,17 @@ export default function FleetGatewayForTeamPage() {
       }
       toc={TOC}
     >
-      <Alert variant="warning">
-        Pilot i dev-gcp og prod-gcp. Stegene kan endres. Les{" "}
+      <BodyShort>
+        Les{" "}
         <NextLink href="/verktoy/fleet-gateway" className={linkClass}>
           oversikten over fleet-gateway
         </NextLink>{" "}
-        først.
-      </Alert>
+        først. Der står også{" "}
+        <NextLink href="/verktoy/fleet-gateway#status" className={linkClass}>
+          status for piloten
+        </NextLink>
+        . Stegene kan endres.
+      </BodyShort>
 
       <FleetGatewayTeamDiagram />
 

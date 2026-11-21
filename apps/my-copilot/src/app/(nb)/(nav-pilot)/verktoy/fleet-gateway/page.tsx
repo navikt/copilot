@@ -1,11 +1,12 @@
-import { Alert, BodyLong, BodyShort, Box, Heading, HStack, Label, Tag, VStack } from "@navikt/ds-react";
+import { BodyLong, BodyShort, Box, Heading, HGrid, HStack, ReadMore, Tag, VStack } from "@navikt/ds-react";
 import type { Metadata } from "next";
 import NextLink from "next/link";
-import { CodeBlock } from "@/components/code-block";
+import { CommandBlock } from "@/components/detail-drawer/shared";
 import { FleetGatewayAccessDiagram, FleetGatewayCallDiagram } from "@/components/fleet-gateway-diagrams";
 import { LinkableHeading } from "@/components/linkable-heading";
 import { Bullets, DocPage, code, linkClass } from "@/components/nav-pilot/doc-page";
 import type { TocItem } from "@/components/table-of-contents";
+import { PILOT_SERVERS } from "./servers";
 
 export const metadata: Metadata = {
   title: "fleet-gateway (pilot)",
@@ -19,32 +20,6 @@ const SPEC_URL = "https://modelcontextprotocol.io/specification/2026-07-28";
 const ECHO_TREE_URL = "https://github.com/navikt/copilot/tree/main/apps/fleet-gateway/echo";
 const PROD_ROUTES_URL = "https://github.com/navikt/copilot/blob/main/apps/fleet-gateway/pilot-routes.prod.yaml";
 const ALLOWLIST_URL = "https://github.com/navikt/copilot/blob/main/apps/mcp-registry/allowlist.json";
-
-const PILOT_SERVERS = [
-  {
-    title: "Felles kodeverk",
-    id: "io.github.navikt/kodeverk",
-    summary: "Slår opp og søker i Navs felles kodeverk, koder, betydninger og hierarkier, kun for lesing.",
-    example: "«Hvilke koder og betydninger finnes i kodeverket Landkoder?»",
-    command: "nav-pilot mcp enable kodeverk",
-    codeUrl: "https://github.com/navikt/copilot/tree/main/apps/mcp-kodeverk",
-    codeLabel: "apps/mcp-kodeverk",
-    inboundPrUrl: "https://github.com/navikt/felleskodeverk/pull/1298",
-    inboundPrLabel: "navikt/felleskodeverk#1298",
-  },
-  {
-    title: "Dolly",
-    id: "io.github.navikt/dolly",
-    summary:
-      "Lister gruppene dine i Dolly, viser testpersonene i en gruppe og sjekker status på bestillinger. Kun for lesing.",
-    example: "«Hvilke testpersoner ligger i Dolly-gruppen til teamet mitt?»",
-    command: "nav-pilot mcp enable dolly",
-    codeUrl: "https://github.com/navikt/copilot/tree/main/apps/mcp-dolly",
-    codeLabel: "apps/mcp-dolly",
-    inboundPrUrl: "https://github.com/navikt/testnorge/pull/4427",
-    inboundPrLabel: "navikt/testnorge#4427",
-  },
-];
 
 const TOC: TocItem[] = [
   { id: "hva-det-er", label: "Hva det er" },
@@ -70,13 +45,13 @@ export default function FleetGatewayPage() {
       }
       toc={TOC}
     >
-      <Alert variant="info">
-        Vil du bruke en MCP-server? Les{" "}
+      <BodyShort>
+        Denne siden er for team som eier en server. Vil du bare bruke en, les{" "}
         <NextLink href="/nav-pilot/guider/nav-mcp-servere" className={linkClass}>
           Koble til Navs MCP-servere
         </NextLink>
-        . Denne siden er for team som eier en server.
-      </Alert>
+        .
+      </BodyShort>
 
       <VStack gap="space-12">
         <LinkableHeading id="hva-det-er" size="medium" level="2">
@@ -119,11 +94,7 @@ export default function FleetGatewayPage() {
           <a href={ECHO_TREE_URL} className={linkClass}>
             fleet-echo
           </a>
-          . Gatewayen håndhever ikke kravet ennå (
-          <a href="https://github.com/navikt/copilot/issues/2367" className={linkClass}>
-            #2367
-          </a>
-          ).
+          .
         </BodyLong>
       </VStack>
 
@@ -167,53 +138,83 @@ export default function FleetGatewayPage() {
         <LinkableHeading id="servere-i-piloten" size="medium" level="2">
           Servere i piloten
         </LinkableHeading>
-        <VStack gap="space-16">
-          {PILOT_SERVERS.map((server) => (
-            <Box key={server.id} borderWidth="1" borderColor="neutral-subtle" borderRadius="8" padding="space-16">
-              <VStack gap="space-12">
-                <HStack gap="space-8" align="baseline" wrap>
-                  <Heading size="small" level="3">
-                    {server.title}
-                  </Heading>
-                  <code className={code}>{server.id}</code>
-                </HStack>
-                <BodyShort>{server.summary}</BodyShort>
-                <BodyShort>Eksempelspørsmål: {server.example}</BodyShort>
-                <CodeBlock compact>{server.command}</CodeBlock>
-                <VStack gap="space-4">
-                  <Label size="small">Se hvordan den er satt opp</Label>
-                  <Bullets>
-                    <li>
-                      MCP-serveren i{" "}
-                      <a href={server.codeUrl} className={linkClass}>
-                        {server.codeLabel}
-                      </a>
-                    </li>
-                    <li>
-                      Ruten i{" "}
-                      <a href={PROD_ROUTES_URL} className={linkClass}>
-                        apps/fleet-gateway/pilot-routes.prod.yaml
-                      </a>
-                    </li>
-                    <li>
-                      Oppføringen i MCP-registeret i{" "}
-                      <a href={ALLOWLIST_URL} className={linkClass}>
-                        apps/mcp-registry/allowlist.json
-                      </a>
-                    </li>
-                    <li>
-                      Eksempel på PR til eierteamet for å be om tilgang i{" "}
-                      <code className={code}>accessPolicy.inbound</code>:{" "}
-                      <a href={server.inboundPrUrl} className={linkClass}>
-                        {server.inboundPrLabel}
-                      </a>
-                    </li>
-                  </Bullets>
+        <HGrid columns={{ xs: 1, sm: 2 }} gap="space-16" className="fleet-gateway-servers">
+          {PILOT_SERVERS.map((server) => {
+            const Icon = server.icon;
+            const name = server.id.slice(server.id.lastIndexOf("/") + 1);
+            return (
+              <Box
+                as="article"
+                key={server.id}
+                borderWidth="1"
+                borderColor="neutral-subtle"
+                borderRadius="12"
+                padding="space-16"
+              >
+                <VStack gap="space-12">
+                  <HStack gap="space-8" align="center" wrap={false}>
+                    <Icon aria-hidden fontSize="1.75rem" />
+                    <Heading size="small" level="3">
+                      {server.title}
+                    </Heading>
+                  </HStack>
+                  <BodyShort>{server.summary}</BodyShort>
+                  <HStack gap="space-4" wrap>
+                    {server.readOnly && (
+                      <Tag variant="neutral" size="small">
+                        Bare lesing
+                      </Tag>
+                    )}
+                    <Tag variant="info" size="small">
+                      Via fleet-gateway
+                    </Tag>
+                  </HStack>
+                  <Box as="blockquote" borderWidth="0 0 0 4" borderColor="neutral-subtle" paddingInline="space-12">
+                    <BodyShort size="small">«{server.example}»</BodyShort>
+                  </Box>
+                  <CommandBlock command={`nav-pilot mcp enable ${name}`} />
+                  <ReadMore header="Se hvordan den er satt opp" size="small">
+                    <Bullets>
+                      <li>
+                        Registernavn: <code className={code}>{server.id}</code>
+                      </li>
+                      <li>
+                        MCP-serveren i{" "}
+                        <a
+                          href={`https://github.com/navikt/copilot/tree/main/${server.codeLabel}`}
+                          className={linkClass}
+                        >
+                          {server.codeLabel}
+                        </a>
+                      </li>
+                      <li>
+                        Ruten <code className={code}>{server.route}</code> i{" "}
+                        <a href={PROD_ROUTES_URL} className={linkClass}>
+                          apps/fleet-gateway/pilot-routes.prod.yaml
+                        </a>
+                      </li>
+                      <li>
+                        Oppføringen i MCP-registeret i{" "}
+                        <a href={ALLOWLIST_URL} className={linkClass}>
+                          apps/mcp-registry/allowlist.json
+                        </a>
+                      </li>
+                      {"inboundPrUrl" in server && (
+                        <li>
+                          Eksempel på PR til eierteamet for å be om tilgang i{" "}
+                          <code className={code}>accessPolicy.inbound</code>:{" "}
+                          <a href={server.inboundPrUrl} className={linkClass}>
+                            {server.inboundPrLabel}
+                          </a>
+                        </li>
+                      )}
+                    </Bullets>
+                  </ReadMore>
                 </VStack>
-              </VStack>
-            </Box>
-          ))}
-        </VStack>
+              </Box>
+            );
+          })}
+        </HGrid>
       </VStack>
 
       <VStack gap="space-12">

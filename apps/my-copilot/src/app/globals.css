@@ -1276,6 +1276,12 @@ button.search-hit {
   font-size: inherit;
 }
 
+/* Narrow cards: wrap the command instead of hiding its end behind a scroll. */
+.fleet-gateway-servers .verktoy-cmd pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 .verktoy-cmd .aksel-copybutton {
   color: #e6e9ee;
   flex-shrink: 0;

@@ -69,6 +69,9 @@ After editing an app, run `mise check` in that app's directory. Run `mise all` w
 - Editing `agents/`, `prompts/`, `skills/`, or `instructions/` requires running
   `mise run generate` so `copilot-manifest.json` and `docs/README.*.md` stay in
   sync, and verifying with `mise check` rather than only `nav-pilot:check` (#769).
+- User-facing pages and docs are written for human readability: summary first,
+  details collapsed or moved, short paragraphs and lists, and no repeated
+  boilerplate. Move detail, never drop it: every fact stays.
 - Verify framework APIs and Nav platform config against repo skills (`skills/`),
   Nav MCP servers (`io.github.navikt/aksel-mcp`), or official docs
   (`doc.nais.io`, `aksel.nav.no`, `sikkerhet.nav.no`) before writing code (#152).
