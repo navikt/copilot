@@ -291,6 +291,8 @@ Første gang du starter nav-pilot, skriver den færre linjer og bruker enklere o
 
 - **`local_dispatch`**: Når hovedagenten skriver til en fil med en omdirigering i skallet (`> fil`, `>> fil`, `tee fil` eller `cat > fil <<EOF`), teller det nå som en endring av fila. Grensene er de samme som for endrings- og skriveverktøyene. `2>&1`, `> /dev/null` og prosessubstitusjon teller ikke. Skript i python, node, ruby, perl, deno eller bun som hovedagenten kjører direkte (`-c`, `-e` eller heredoc), og som åpner en fil for skriving, blir stoppet med beskjed om å sende endringen til `local-worker`. Skript som bare leser, slipper gjennom. `local-worker` er ikke berørt (#1915).
 
+<a id="fortsett-en-tidligere-økt"></a>
+
 ### Fortsett en tidligere sesjon
 
 - **`nav-pilot --resume [id]` og `nav-pilot --continue`**: Fortsetter en tidligere sesjon med agentpakken, sandkassen og sjekkene som en vanlig oppstart. `--continue` fortsetter den siste sesjonen. `--resume` uten id åpner lista over sesjoner i Copilot CLI. OpenCode har ingen slik liste, så der må du oppgi id-en. Finnes ikke id-en, starter OpenCode en ny sesjon. pi støtter ikke flaggene ennå, og nav-pilot sier fra i stedet for å starte (#1919).
@@ -325,10 +327,14 @@ Første gang du starter nav-pilot, skriver den færre linjer og bruker enklere o
 
 - **Lokal delegering i OpenCode**: Noen modeller, blant annet GPT-modellene fra gpt-5 og nyere, endrer filer med patch-verktøyet (`patch` i OpenCode 2, `apply_patch` i OpenCode 1) i stedet for `edit` og `write`. Delegeringssperren, som sender store, mekaniske endringer og nye filer til den lokale KI-modellen, fanget ikke opp disse endringene. Nå telles filene i en patch som andre endringer, og en patch som oppretter en fil, behandles som en ny fil (#1008).
 
+<a id="utklippstavle-og-egne-cplt-flagg-for-én-økt"></a>
+
 ### Utklippstavle og egne cplt-flagg for én sesjon
 
 - **`nav-pilot --allow-clipboard`**: Gir agenten tilgang til utklippstavla på macOS for denne sesjonen. cplt stenger den som standard, så tekst du markerte, ble ikke kopiert. Før måtte du åpne den for alle sesjoner med `cplt config set sandbox.deny_clipboard false`. Flagget virker for Copilot CLI, OpenCode og pi.
 - **`nav-pilot --cplt <flagg>`**: Sender ett cplt-flagg videre for denne sesjonen, for eksempel `nav-pilot --cplt --allow-port=8080`. Gjenta `--cplt` for flere flagg. Flagg med verdi skrives med `=`. `--agent`, `--project-dir`, `--yes`, `--no-audit` og `--` avvises, fordi nav-pilot setter dem selv.
+
+<a id="opencode-økter-bruker-bare-github-copilot-og-lokal-modell"></a>
 
 ### OpenCode-sesjoner bruker bare GitHub Copilot og lokal modell
 
@@ -396,15 +402,19 @@ Første gang du starter nav-pilot, skriver den færre linjer og bruker enklere o
 - **Samme soner overalt**: Sonelistene er nå like i instruksjonen, skillen, agenten, retningslinjene, [planleggingssiden](https://ki-utvikling.nav.no/nav-pilot/forklaring/planlegging) og designdokumentet. Rød sone er feilsøking, nye konsepter, sentral forretningslogikk, sikkerhetskritisk kode og arkitekturvalg. Grønn sone er boilerplate, teknologi du kan fra før, konfigurasjon, refaktorering med kjent mål og testdata. En test sjekker at listene holder seg like.
 - **For deg som har nav-pilot fra før**: Kjør `nav-pilot sync --apply`.
 
+<a id="tall-fra-copilot-øktene-nav-pilot-starter"></a>
+
 ### Tall fra Copilot-sesjonene nav-pilot starter
 
 - **Hva som sendes**: Når en Copilot-sesjon som nav-pilot startet, avsluttes, sender nav-pilot antall skill-innlastinger, verktøykall, hook-kjøringer, runder, tokens, kostnad og premium requests, hvor lenge sesjonen varte og hvilke subagenter som ble valgt. Innholdet sendes ikke: ikke meldinger, svar, argumenter, stier eller kodeendringer. Navn på skills og agenter sendes bare når nav-pilot installerte dem; andre blir `other`. Det samme gjelder verktøy som ikke er Copilots egne.
-- **Bare sesjonen nav-pilot startet**: nav-pilot gir Copilot en egen sesjons-ID med `--session-id` og teller bare den sesjonen. Gir du `--resume` eller `--session-id` med en hel sesjon-ID etter `--`, er det den sesjonen som telles. Med `--continue`, øktvelgeren, et navn, et prefiks eller en underkommando telles ingen sesjon. En sesjon du starter med `/new` inne i Copilot, telles heller ikke.
+- **Bare sesjonen nav-pilot startet**: nav-pilot gir Copilot en egen sesjons-ID med `--session-id` og teller bare den sesjonen. Gir du `--resume` eller `--session-id` med en hel sesjon-ID etter `--`, er det den sesjonen som telles. Med `--continue`, sesjonsvelgeren, et navn, et prefiks eller en underkommando telles ingen sesjon. En sesjon du starter med `/new` inne i Copilot, telles heller ikke.
 - **Krever Copilot CLI 1.0.51**: `--session-id` kom i Copilot CLI 1.0.51. Med eldre Copilot starter sesjonen som før, men den telles ikke.
 - **Bare det som skjer under nav-pilot**: Ved hver oppstart flytter nav-pilot startpunktet til slutten av sesjonsloggen. Det du gjør i en sesjon med `copilot --resume` uten nav-pilot, telles ikke. Krasjet en tidligere nav-pilot-kjøring før den fikk lest sesjonen, telles ikke det den kjøringen gjorde.
 - **Reservasjon som før**: Med `NAV_PILOT_TELEMETRY_ENABLED=false` eller `DO_NOT_TRACK=1` leser ikke nav-pilot sesjonsloggen. Se [TELEMETRY.md](../cli/nav-pilot/TELEMETRY.md) og [personvernsiden](https://ki-utvikling.nav.no/nav-pilot/forklaring/personvern).
-- **Nye sesjoner telles nå**: En feil gjorde at nav-pilot ga opp nye Copilot-sesjoner før Copilot hadde opprettet øktmappen, så ingen økttall kom fram. Det er rettet.
-- **Dashboard**: Grafana-dashboardet for nav-pilot har nye paneler for sesjonene, blant annet hook-kjøringer, feilrate per verktøy, subagenter og øktlengde.
+- **Nye sesjoner telles nå**: En feil gjorde at nav-pilot ga opp nye Copilot-sesjoner før Copilot hadde opprettet sesjonsmappen, så ingen sesjonstall kom fram. Det er rettet.
+- **Dashboard**: Grafana-dashboardet for nav-pilot har nye paneler for sesjonene, blant annet hook-kjøringer, feilrate per verktøy, subagenter og sesjonslengde.
+
+<a id="tall-fra-opencode-øktene-nav-pilot-starter"></a>
 
 ### Tall fra opencode-sesjonene nav-pilot starter
 
@@ -447,6 +457,8 @@ Første gang du starter nav-pilot, skriver den færre linjer og bruker enklere o
 - **Undersøkelsen**: «Svarene er anonyme» er erstattet med hva som faktisk lagres, i CLI-en, på nettsiden og i forklaringen.
 
 ## 2026-10-10
+
+<a id="tall-fra-opencode-økter"></a>
 
 ### Tall fra OpenCode-sesjoner
 
@@ -619,6 +631,8 @@ Gjelder deg som har installert agenter fra en annen pakke enn navikt/copilot, fo
 - **Ett språk**: `auth status` er på engelsk som resten av `auth`, `usage` er på norsk hele veien, og innloggingen fra `survey` er på norsk.
 - **Innlogging før spørsmålene**: `survey` sier før første spørsmål at svaret sendes etter en GitHub-innlogging. Får du ikke logget inn, lagres svaret til du har gjort det.
 
+<a id="lange-økter-telles-én-gang-i-telemetrien"></a>
+
 ### Lange sesjoner telles én gang i telemetrien
 
 - **Bare det som er nytt**: En sesjon sendte alt den hadde målt på nytt hvert 10. sekund, og dashboardene la sammen hver sending. En sesjon på fem minutter ble talt rundt 30 ganger. Nå sender nav-pilot bare det tellere og histogrammer har fått siden forrige sending, og ikke de som ikke har endret seg. Tallene fra eldre versjoner er fortsatt for høye for lange sesjoner.
@@ -662,6 +676,8 @@ Gjelder deg som har installert agenter fra en annen pakke enn navikt/copilot, fo
 
 - **Kopi i stedet for nedlasting**: Med en agentpakke fra et annet team (`source` i konfigurasjonen) lastet nav-pilot ned agentpakka før hver sesjon, 2,5 sekunder på godt nett og 16 sekunder uten svar. Nå bruker oppstarten kopien i `~/.nav-pilot/sources/`, som opencode og pi allerede gjør, og henter en ny mens sesjonen kjører, høyst én gang i timen.
 - **Høyst ett døgn gammel**: Manifestet i agentpakka bestemmer hvordan sesjonen starter, så kopien brukes i høyst ett døgn. Er den eldre, venter oppstarten på en ny som før (#1235).
+
+<a id="raskere-tilbake-til-terminalen-etter-en-økt"></a>
 
 ### Raskere tilbake til terminalen etter en sesjon
 
@@ -731,6 +747,8 @@ Gjelder deg som har installert agenter fra en annen pakke enn navikt/copilot, fo
 - **En fil kilden har fjernet, fjernes også når du har endret den**: Før ble en endret fil liggende, så en fjernet alltid-på-instruks ble lastet i hver sesjon. Nå lagres kopien din som `<fil>.orig` før fila fjernes, som ved en oppdatering. `--json` lister den under både `deletions` og `removed_local_edits`, og sync-workflowen merker den i PR-en. En hook du har endret, blir fortsatt stående og kjører videre.
 - **opencode-scopet følger samme liste**: `nav-pilot sync` uten `--apply` skrev om `~/.config/opencode`. Nå endrer den ingenting der, men lister hva den ville fjerne under scopet `opencode`, også i `--json`, og avslutter med 1 når noe skal fjernes.
 - **opencode finner de filavgrensede instruksjonene**: `AGENTS.md` pekte på `@.opencode/instructions/<navn>.md`, relativt til prosjektet, mens filene ligger i opencodes globale konfigurasjonsmappe. Fra et repo uten egen `.opencode/` fant modellen dem ikke. Nå står den absolutte stien der, sammen med beskrivelsen fra instruksjonen, slik Copilot CLI viser den i sin `applyTo`-tabell.
+
+<a id="sikkerhetsreglene-gjelder-i-hver-økt"></a>
 
 ### Sikkerhetsreglene gjelder i hver sesjon
 
@@ -1005,6 +1023,8 @@ Protokollen ligger i `docs/nav-pilot-benchmark-og-beslutninger-2026-08.md`, fore
 
 ## 2026-07-26
 
+<a id="copilot-metrics-og-my-copilot-bruk-på-repositoriumsnivå"></a>
+
 ### copilot-metrics og my-copilot: bruk på reponivå
 
 - **Inntak av Copilot-bruksmetrikk per repo** (#388), **`v_repository_usage` med personvernundertrykking** (#389), **endpointet `/api/v1/copilot/usage/repositories`** (#390) og **Repoer-fanen i my-copilot** med sorterbar, paginert og søkbar tabell (#391). Designet er beskrevet i #387; designdokumentet ble senere fjernet til fordel for PRD-en (#394).
@@ -1037,7 +1057,7 @@ Protokollen ligger i `docs/nav-pilot-benchmark-og-beslutninger-2026-08.md`, fore
 
 Runden fra 1. til 3. juli ligger som direktecommits uten PR-numre.
 
-- **Tilgangskontroll**: Eierskap håndheves på per-bruker-lese-endpoints, og en router-nivå-test beviser at `/api/v1/` krever auth.
+- **Tilgangskontroll**: Eierskap håndheves på per-bruker-leseendpoints, og en router-nivå-test beviser at `/api/v1/` krever auth.
 - **Datariktighet**: `GENERATE_DATE_ARRAY` off-by-one og delvis dag i prognosen, PR-median-fallback, `formatMinutes`-overflow, månedslogikk samlet i delte `month-utils`, faktureringsgrafer hentes fra daglig modelltabell, og hull i inntaket av supplerings- og budsjettdata er tettet.
 - **Ytelse**: OBO-tokenveksling dedupliseres per request, SAML-identitetsoppslag caches i 10 minutter, `/statistikk` hentes parallelt med Suspense per fane, og bruksfordelingens caching er herdet.
 - **Statistikk**: Ukedagsbevisst prognose i graf og backend, «Meg og team» omdøpt til «Team i Nav» med personlig statistikk fjernet, histogram for AI Credits-bruk lagt til, og redundant faktureringsbanner fjernet.

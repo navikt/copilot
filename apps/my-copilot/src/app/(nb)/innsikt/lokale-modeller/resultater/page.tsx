@@ -130,8 +130,8 @@ async function LiveObservedLocalSection() {
   return (
     <InsightSection id="observert-bruk" title="Observert bruk siste syv dager">
       <BodyShort size="small" textColor="subtle">
-        Fra aggregerte øktmålinger i nav-pilot for innloggede brukere. En sesjon med aktivert lokal modell teller også
-        når den avsluttes før det sendes trafikk til den lokale modellen.
+        Fra aggregerte sesjonsmålinger i nav-pilot for innloggede brukere. En sesjon med aktivert lokal modell teller
+        også når den avsluttes før det sendes trafikk til den lokale modellen.
       </BodyShort>
       <HGrid columns={{ xs: 1, sm: 2, lg: 4 }} gap="space-16">
         <MetricCard

@@ -358,7 +358,7 @@ export default async function AdminVerdiPage() {
       <InsightSection id="kontekst" title="Kontekstforhold (inndata mot utdata)">
         <Alert variant="info" size="small">
           GitHub skiller ikke ut hurtigbufrede tokener i <code>usage_metrics</code>, og rapporterer bare tokener for
-          Copilot CLI og Copilot-appen. Økttelemetri fra <code>nav-pilot</code> (siste syv dager) viser derimot hvor
+          Copilot CLI og Copilot-appen. Sesjonstelemetri fra <code>nav-pilot</code> (siste syv dager) viser derimot hvor
           stor andel av inndata som leses fra hurtigbuffer (<code>cache_read</code>) mot fersk inndata (
           <code>input</code>).
         </Alert>

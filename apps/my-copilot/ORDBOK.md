@@ -22,16 +22,15 @@ Terminologi brukt i statistikkdashboardet og verktøykatalogen. Engelske faguttr
 | header (HTTP)     | Bøyes header/headeren/headere/headerne. Ikke «hode»                                                                                                     |
 | host              | Maskin eller HTTP-host. Skriv host, ikke «vert». Bøyes: hosten, hoster, hostene. Sammensatt: hostnavn, hostliste                                        |
 | inline            | Inline kodeforslag i editoren                                                                                                                           |
-| input-tokens      | Tokens som sendes til modellen. Skriv input-tokens og output-token, ikke «inndatatokener» og «utdatatoken»                                              |
+| input-tokens      | Tokens som sendes til modellen. Skriv input-tokens og output-tokens, ikke «inndatatokener» og «utdatatoken»                                             |
 | merge             | Innlemme en pull request eller branch. Skriv merge, ikke «slått sammen», «sammenslått», «sammenslåing» eller «flettet». Bøyes: å merge, merget, mergede |
 | mirror            | Speilet pakkeregister. Skriv mirror, ikke «speil». Bøyes: mirroren                                                                                      |
 | prompt            | Instruksjonen du sender til modellen. Skriv prompt, ikke «ledetekst»                                                                                    |
 | pull request (PR) | Endringsforslag i Git                                                                                                                                   |
-| review            | Gjennomgang — brukes som verb og substantiv                                                                                                             |
 | release           | Utgitt versjon. Skriv release, ikke «utgivelse». Bøyes: releasen, releaser, releasene                                                                   |
-| runtime           | Kjøretiden til et verktøy eller en SDK. Skriv runtime, ikke «kjøretid» eller «kjøretidsmiljø». Rammeverket rundt en agent heter harness                 |
+| review            | Gjennomgang — brukes som verb og substantiv                                                                                                             |
+| runtime           | Kjøretiden til et verktøy eller en SDK. Skriv runtime, ikke «kjøretid» eller «kjøretidsmiljø»                                                           |
 | skill             | Artefakttype i en agentpakke — ikke oversett                                                                                                            |
-| sandbox           | Isoleringsmiljø for agenter (cplt). Skriv «sandkassen» i brødtekst, aldri «sandkassa». Produktnavn, kode og kommandoer beholder «sandbox»               |
 | tokens            | Tekstenheter AI-modellen bruker (ca. 1 per 4 tegn)                                                                                                      |
 | prompt injection  | Angrepsteknikk mot AI-agenter                                                                                                                           |
 | org policy        | Organisasjonsnivå-regler i GitHub                                                                                                                       |
@@ -47,39 +46,40 @@ Begrepsavklaringer for agentisk KI. Disse termene beholder vi på engelsk der de
 | agentisk KI      | Samlebegrep for KI-systemer som handler på egen hånd mot et mål, i stedet for å svare på ett og ett spørsmål. Brukes som adjektiv: «en agentisk arbeidsflyt».       |
 | agency           | Hvor stor handlefrihet agenten har — hvilke verktøy den får bruke og hvilke beslutninger den tar selv. Vi oversetter ikke ordet; bruk «handlefrihet» i norsk tekst. |
 | autonomi         | Hvor selvstendig agenten kjører uten at et menneske godkjenner hvert steg. Høy autonomi betyr færre stopp for bekreftelse.                                          |
-| harness          | Rammeverket rundt modellen som styrer verktøy, kontekst og sikkerhet — for eksempel sandboxen og reglene agenten kjører innenfor. Ikke oversett.                    |
+| harness          | Rammeverket rundt modellen som styrer verktøy, kontekst og sikkerhet — for eksempel sandkassen og reglene agenten kjører innenfor. Ikke oversett.                   |
 | excessive agency | Sikkerhetsbegrep: agenten har fått mer handlefrihet, tilgang eller autonomi enn oppgaven krever, og kan gjøre skade. Behold engelsk; forklar ved første bruk.       |
 
 ## Norske oversettelser
 
-| Engelsk              | Norsk               | Eksempel i UI                                                                              |
-| -------------------- | ------------------- | ------------------------------------------------------------------------------------------ |
-| acceptance rate      | aksepteringsrate    | «Aksepteringsrate: 32 %»                                                                   |
-| accepted             | akseptert           | «Aksepterte forslag»                                                                       |
-| active users         | aktive brukere      | «Daglig aktive brukere»                                                                    |
-| adoption             | adopsjon            | Seksjonstittel: «Adopsjon»                                                                 |
-| code suggestions     | kodeforslag         | «Genererte forslag», «Kodeforslag»                                                         |
-| daily                | daglig              | «Daglige CLI-brukere»                                                                      |
-| editor               | editor              | «Utviklingsverktøy»                                                                        |
-| features             | funksjoner          | «Funksjonsbruk»                                                                            |
-| generations          | genereringer        | «1 234 genereringer»                                                                       |
-| interactions         | interaksjoner       | «Totale interaksjoner»                                                                     |
-| key metrics          | nøkkeltall          | Seksjonstittel: «Nøkkeltall»                                                               |
-| lines of code        | kodelinjer          | «Kodelinjer foreslått vs akseptert»                                                        |
-| monthly              | månedlig            | «Månedlig aktive brukere»                                                                  |
-| overview             | oversikt            | Seksjon: «Oversikt»                                                                        |
-| premium requests     | premiumforespørsler | «Premiumforespørsler»                                                                      |
-| programming language | programmeringsspråk | «Statistikk for programmeringsspråk»                                                       |
-| ranking              | rangering           | Tabellkolonne: «Rangering»                                                                 |
-| requests             | forespørsler        | «CLI-forespørsler»                                                                         |
-| repository           | repo                | «Repoer med tilpasninger». Bøyes: repoet, repoer, repoene. Ikke «repositorium»             |
-| sessions             | sesjoner            | «CLI-sesjoner». Skriv sesjon, ikke «økt» eller «session»                                   |
-| statistics           | statistikk          | Sidetittel: «Statistikk»                                                                   |
-| working tree         | arbeidskatalog      | «Endringen ligger i arbeidskatalogen». Ikke «arbeidstre». Git worktree beholder «worktree» |
-| suggested            | foreslått           | «Foreslått lagt til»                                                                       |
-| suggestions          | forslag             | «Copilot review-forslag»                                                                   |
-| token usage          | tokenforbruk        | Undertittel: «Tokenforbruk»                                                                |
-| trend                | trend               | «Adopsjonstrender»                                                                         |
+| Engelsk              | Norsk               | Eksempel i UI                                                                  |
+| -------------------- | ------------------- | ------------------------------------------------------------------------------ |
+| acceptance rate      | aksepteringsrate    | «Aksepteringsrate: 32 %»                                                       |
+| accepted             | akseptert           | «Aksepterte forslag»                                                           |
+| active users         | aktive brukere      | «Daglig aktive brukere»                                                        |
+| adoption             | adopsjon            | Seksjonstittel: «Adopsjon»                                                     |
+| code suggestions     | kodeforslag         | «Genererte forslag», «Kodeforslag»                                             |
+| daily                | daglig              | «Daglige CLI-brukere»                                                          |
+| editor               | editor              | «Utviklingsverktøy»                                                            |
+| features             | funksjoner          | «Funksjonsbruk»                                                                |
+| generations          | genereringer        | «1 234 genereringer»                                                           |
+| interactions         | interaksjoner       | «Totale interaksjoner»                                                         |
+| key metrics          | nøkkeltall          | Seksjonstittel: «Nøkkeltall»                                                   |
+| lines of code        | kodelinjer          | «Kodelinjer foreslått vs akseptert»                                            |
+| monthly              | månedlig            | «Månedlig aktive brukere»                                                      |
+| overview             | oversikt            | Seksjon: «Oversikt»                                                            |
+| premium requests     | premiumforespørsler | «Premiumforespørsler»                                                          |
+| programming language | programmeringsspråk | «Statistikk for programmeringsspråk»                                           |
+| ranking              | rangering           | Tabellkolonne: «Rangering»                                                     |
+| requests             | forespørsler        | «CLI-forespørsler»                                                             |
+| repository           | repo                | «Repoer med tilpasninger». Bøyes: repoet, repoer, repoene. Ikke «repositorium» |
+| sandbox              | sandkasse           | «Kjør i sandkassen». Ikke «sandkassa». Behold sandbox i kode og flagg          |
+| sessions             | sesjoner            | «CLI-sesjoner»                                                                 |
+| statistics           | statistikk          | Sidetittel: «Statistikk»                                                       |
+| suggested            | foreslått           | «Foreslått lagt til»                                                           |
+| suggestions          | forslag             | «Copilot review-forslag»                                                       |
+| token usage          | tokenforbruk        | Undertittel: «Tokenforbruk»                                                    |
+| trend                | trend               | «Adopsjonstrender»                                                             |
+| working tree         | arbeidskatalog      | «Endringen ligger i arbeidskatalogen». Ikke «arbeidstre»                       |
 
 ## Verktøykatalog
 
@@ -98,4 +98,5 @@ Begrepsavklaringer for agentisk KI. Disse termene beholder vi på engelsk der de
 - **Korte forklaringer**: HelpText-tooltips skal forklare hva metrikken betyr, ikke hvilke API-felt den kommer fra.
 - **Ikke overdriv**: Unngå «Oversikt over...» og «Detaljert oversikt over...» — gå rett på sak.
 - **Tall**: Bruk norsk tallformat med mellomrom som tusenskilletegn: «151 354».
+- **Sesjon**: Skriv «sesjon» og «sesjoner», ikke «økt» eller «session».
 - **Prosent**: Skriv «20–40 %» med mellomrom før prosenttegnet.

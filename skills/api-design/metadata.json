@@ -13,7 +13,7 @@
     },
     {
       "scenario": "Paginering",
-      "prompt": "Sett opp paginering for liste-endpoints"
+      "prompt": "Sett opp paginering for listeendpoints"
     },
     {
       "scenario": "API-gjennomgang",

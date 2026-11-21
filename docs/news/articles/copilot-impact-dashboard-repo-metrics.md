@@ -1,5 +1,5 @@
 ---
-title: "Copilot impact dashboard og repo-nivå bruksmetrikker"
+title: "Copilot impact dashboard og reponivå bruksmetrikker"
 date: 2026-07-22
 category: copilot
 excerpt: "Nytt impact dashboard med adopsjonsfaser og -kohorter, pluss GA for repository-nivå bruksmetrikker via REST API."

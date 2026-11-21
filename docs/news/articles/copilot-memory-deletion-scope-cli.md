@@ -2,7 +2,7 @@
 title: "Copilot Memory får bedre slettekontroll, repo-avslåing og CLI-støtte"
 date: 2026-05-26
 category: copilot
-excerpt: "Copilot Memory støtter nå repo-nivå av/på, tydeligere scope ved lagring og /memory-kommando i CLI."
+excerpt: "Copilot Memory støtter nå reponivå av/på, tydeligere scope ved lagring og /memory-kommando i CLI."
 url: "https://github.blog/changelog/2026-05-26-copilot-memory-has-more-controls-for-deletion-scope-and-the-copilot-cli"
 tags:
   - copilot-memory
@@ -31,7 +31,7 @@ Slettedialogene viser nå eksplisitt om du sletter en personlig, repo- eller org
 
 ## Hva dette betyr for Nav
 
-**Ingen org-level memory ennå.** Instruksjonsfiler (`.github/copilot-instructions.md`, agents, skills) er fortsatt den eneste måten å dele kunnskap på tvers av et team. Memory er personlig eller repo-nivå.
+**Ingen org-level memory ennå.** Instruksjonsfiler (`.github/copilot-instructions.md`, agents, skills) er fortsatt den eneste måten å dele kunnskap på tvers av et team. Memory er personlig eller reponivå.
 
 **28-dagers utløp.** Fakta som ikke brukes på 28 dager forsvinner automatisk. Memory er ikke en erstatning for dokumentasjon.
 

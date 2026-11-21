@@ -191,7 +191,7 @@ I det første tallet er all input priset som vanlig input. I det andre er tokene
 | Norsk           | $0.41 / $0.15        | $0.51 / $0.14 | $0.81 / $0.31   |
 | Research        | $0.36 / $0.13        | $0.55 / $0.15 | $1.31 / $0.36   |
 
-GPT-6 Sol og GPT-6.1 Sol har samme listepris for input og output. Det eneste som skiller dem, er cachet input: $0.10 for GPT-6.1 Sol mot $0.20 for GPT-6 Sol. Credits følger tokenforbruket, ikke modellklassen, se [AI Credits skiller ikke modeller](#ai-kreditter-skiller-ikke-modeller). Credits-kolonnen over og dollartallene her er derfor to ulike mål, og kan ikke sammenlignes direkte.
+GPT-6 Sol og GPT-6.1 Sol har samme listepris for input og output. Det eneste som skiller dem, er cachet input: $0.10 for GPT-6.1 Sol mot $0.20 for GPT-6 Sol. Credits følger tokenforbruket, ikke modellklassen, se [AI Credits skiller ikke modeller](#ai-credits-skiller-ikke-modeller). Credits-kolonnen over og dollartallene her er derfor to ulike mål, og kan ikke sammenlignes direkte.
 
 Denne målingen endrer ingen pinner. Om `@nav-pilot` og agentpakkens standard skal endres, avgjøres for seg.
 
@@ -1026,6 +1026,8 @@ OpenCode er ikke målt på nytt. Der setter frontmatterens `model:` modellen per
 - Klienten har snudd oppførselen én gang og kan gjøre det igjen.
 
 **Forbruk.** 27,75 AI Credits, over budsjettet på 15 og stoppgrensen på 25. Den direkte Opus-kjøringen (12,19) og A1 (10,59) tok 22,78 alene. Utskriften fra den direkte kjøringen ble ikke lagret. Tallet 12,19 er lest av terminalen og kan ikke etterprøves fra filene. Det var ikke ventet ut fra målingen 7. september, der Opus kostet det samme som Luna. Resten ble kjørt med billige modeller, og siste gruppe (D3–E4) presset summen over 25.
+
+<a id="ai-kreditter-skiller-ikke-modeller"></a>
 
 ### AI Credits skiller ikke modeller
 

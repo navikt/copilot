@@ -1016,7 +1016,7 @@
         },
         {
           "scenario": "Paginering",
-          "prompt": "Sett opp paginering for liste-endpoints"
+          "prompt": "Sett opp paginering for listeendpoints"
         },
         {
           "scenario": "API-gjennomgang",
@@ -1622,7 +1622,7 @@
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": ["prometheus", "opentelemetry", "health", "metrics"],
-      "examples": ["Sett opp Prometheus-metrikker og helse-endpoints for dp-soknad"],
+      "examples": ["Sett opp Prometheus-metrikker og helseendpoints for dp-soknad"],
       "references": [
         {
           "path": "references/grafana-queries.md",

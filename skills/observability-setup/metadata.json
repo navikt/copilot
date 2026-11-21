@@ -18,6 +18,6 @@
     "references/typescript.md"
   ],
   "examples": [
-    "Sett opp Prometheus-metrikker og helse-endpoints for dp-soknad"
+    "Sett opp Prometheus-metrikker og helseendpoints for dp-soknad"
   ]
 }

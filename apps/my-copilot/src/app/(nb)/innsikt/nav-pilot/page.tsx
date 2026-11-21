@@ -28,8 +28,8 @@ export default async function NavPilotPage() {
           metrikklageret på Nais, og hver natt samles dagen i BigQuery-tabellen <code>mimir_daily</code>.
           Enhetstellingene gjelder rullende vinduer på 1, 7 eller 28 dager evaluert i Mimir, ikke kalendermåneder. En
           enhet er en maskin-ID, ikke en person eller lisens. Daglige enhetstall kan ikke summeres til unike enheter.
-          Øktmetrikker for Copilot og OpenCode ble innført i kildekoden 12. oktober 2026. Det sier ikke når utviklerne
-          installerte versjonen. Fravær av rader er ikke nødvendigvis null aktivitet.
+          Sesjonsmetrikker for Copilot og OpenCode ble innført i kildekoden 12. oktober 2026. Det sier ikke når
+          utviklerne installerte versjonen. Fravær av rader er ikke nødvendigvis null aktivitet.
         </>
       }
     >
