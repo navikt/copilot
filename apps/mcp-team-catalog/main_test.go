@@ -468,6 +468,45 @@ func TestUpstreamConcurrencySemaphore(t *testing.T) {
 	wg.Wait()
 }
 
+func TestListTeamsBothProductAreaAndClusterFilter(t *testing.T) {
+	otherClusterID := "77777777-8888-7777-6666-555555555555"
+	var gotQuery string
+	srv := newTestServer(t, defaultTexasHandler("obo-tok"), func(w http.ResponseWriter, r *http.Request) {
+		gotQuery = r.URL.RawQuery
+		// Upstream TeamController ignores clusterId when productAreaId is set.
+		writeJSON(w, http.StatusOK, map[string]any{
+			"content": []map[string]any{
+				{"id": testTeamID, "name": "Matching Team", "productAreaId": testAreaID, "clusterIds": []string{testClusterID}, "status": "ACTIVE"},
+				{"id": "22222222-2222-3333-4444-555555555555", "name": "Other Cluster Team", "productAreaId": testAreaID, "clusterIds": []string{otherClusterID}, "status": "ACTIVE"},
+				{"id": "33333333-2222-3333-4444-555555555555", "name": "No Cluster Team", "productAreaId": testAreaID, "clusterIds": []string{}, "status": "ACTIVE"},
+			},
+		})
+	})
+
+	_, out := callToolModern(t, srv.routes(), "in", "list_teams", map[string]any{
+		"productAreaId": testAreaID,
+		"clusterId":     testClusterID,
+	})
+	txt, isErr := extractToolText(t, out)
+	if isErr {
+		t.Fatalf("unexpected tool error: %s", txt)
+	}
+	if strings.Contains(gotQuery, "clusterId=") {
+		t.Fatalf("expected clusterId to be applied client-side when productAreaId is set, query=%q", gotQuery)
+	}
+	var res struct {
+		Total    int           `json:"total"`
+		Returned int           `json:"returned"`
+		Teams    []teamSummary `json:"teams"`
+	}
+	if err := json.Unmarshal([]byte(txt), &res); err != nil {
+		t.Fatal(err)
+	}
+	if res.Total != 1 || res.Returned != 1 || len(res.Teams) != 1 || res.Teams[0].ID != testTeamID {
+		t.Fatalf("expected only team in both productArea and cluster, got %+v", res)
+	}
+}
+
 func TestMCP2026Compliance(t *testing.T) {
 	srv := newTestServer(t, defaultTexasHandler("obo-tok"), func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/team" {

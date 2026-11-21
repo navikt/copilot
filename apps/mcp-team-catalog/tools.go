@@ -1247,13 +1247,25 @@ func findMemberInList(members []upstreamMember, navIdent string) (name string, r
 
 // --- Pagination and 32 KiB size capping ---
 
+func serializedToolResultLen(text string) (int, error) {
+	b, err := json.Marshal(toolResult(text))
+	if err != nil {
+		return 0, err
+	}
+	return len(b), nil
+}
+
 func fitCappedJSON(totalItems int, alreadyTruncated bool, render func(n int, truncated bool) any) (string, error) {
 	full := render(totalItems, alreadyTruncated)
 	b, err := json.Marshal(full)
 	if err != nil {
 		return "", err
 	}
-	if len(b) <= maxToolResultBytes {
+	fullLen, err := serializedToolResultLen(string(b))
+	if err != nil {
+		return "", err
+	}
+	if fullLen <= maxToolResultBytes {
 		return string(b), nil
 	}
 
@@ -1265,7 +1277,11 @@ func fitCappedJSON(totalItems int, alreadyTruncated bool, render func(n int, tru
 		if candErr != nil {
 			return "", candErr
 		}
-		if len(candidate) <= maxToolResultBytes {
+		candLen, lenErr := serializedToolResultLen(string(candidate))
+		if lenErr != nil {
+			return "", lenErr
+		}
+		if candLen <= maxToolResultBytes {
 			bestBytes = candidate
 			lo = mid + 1
 		} else {
@@ -1279,7 +1295,11 @@ func fitCappedJSON(totalItems int, alreadyTruncated bool, render func(n int, tru
 	if err != nil {
 		return "", err
 	}
-	if len(fallback) > maxToolResultBytes {
+	fallbackLen, err := serializedToolResultLen(string(fallback))
+	if err != nil {
+		return "", err
+	}
+	if fallbackLen > maxToolResultBytes {
 		return "", errors.New("tool response exceeds 32 KiB limit")
 	}
 	return string(fallback), nil
@@ -1634,7 +1654,11 @@ func buildGetNaisTeamResult(nt naisTeam) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if len(b) > maxToolResultBytes {
+	resultLen, err := serializedToolResultLen(string(b))
+	if err != nil {
+		return "", err
+	}
+	if resultLen > maxToolResultBytes {
 		return "", errors.New("tool response exceeds 32 KiB limit")
 	}
 	return string(b), nil

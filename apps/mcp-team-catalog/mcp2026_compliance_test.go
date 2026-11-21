@@ -174,6 +174,21 @@ func runMCP2026Compliance(t *testing.T, tgt mcpComplianceTarget) {
 				}
 			}},
 		{name: "notifications/* with an id is a request, not 202", body: modernBody("notifications/initialized", nil), hdr: modernHeaders("notifications/initialized", ""), status: 404, code: mcpCodeMethodNotFound},
+		{name: "missing jsonrpc is -32600", body: func() map[string]any {
+			b := modernBody("tools/list", nil)
+			delete(b, "jsonrpc")
+			return b
+		}(), hdr: modernHeaders("tools/list", ""), status: 400, code: -32600},
+		{name: "jsonrpc 1.0 is -32600", body: func() map[string]any {
+			b := modernBody("tools/list", nil)
+			b["jsonrpc"] = "1.0"
+			return b
+		}(), hdr: modernHeaders("tools/list", ""), status: 400, code: -32600},
+		{name: "object id is -32600", body: func() map[string]any {
+			b := modernBody("tools/list", nil)
+			b["id"] = map[string]any{}
+			return b
+		}(), hdr: modernHeaders("tools/list", ""), status: 400, code: -32600},
 	}
 	if tgt.checkGET {
 		cases = append(cases, struct {
@@ -213,7 +228,11 @@ func runMCP2026Compliance(t *testing.T, tgt mcpComplianceTarget) {
 			if tc.code != 0 && errCode(out) != tc.code {
 				t.Fatalf("error code = %d, want %d; body %s", errCode(out), tc.code, rec.Body.String())
 			}
-			if tc.code != 0 && tc.body["id"] != nil && out["id"] != float64(1) {
+			if tc.code == -32600 {
+				if out["id"] != nil {
+					t.Errorf("error id = %v, want null for -32600; body %s", out["id"], rec.Body.String())
+				}
+			} else if tc.code != 0 && tc.body["id"] != nil && out["id"] != float64(1) {
 				t.Errorf("error id = %v, want the request id 1; body %s", out["id"], rec.Body.String())
 			}
 			if tc.code == mcpCodeUnsupportedVersion {

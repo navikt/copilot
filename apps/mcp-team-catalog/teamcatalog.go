@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 )
 
@@ -170,10 +171,11 @@ func decodeTeamCatalogJSON(body []byte, dst any) error {
 
 func (c *teamCatalogClient) listTeams(ctx context.Context, token, productAreaID, clusterID, status string) ([]upstreamTeam, error) {
 	q := url.Values{}
+	// Upstream TeamController applies productAreaId else-if clusterId, so when both
+	// are requested we query by productAreaId and filter clusterId client-side.
 	if productAreaID != "" {
 		q.Set("productAreaId", productAreaID)
-	}
-	if clusterID != "" {
+	} else if clusterID != "" {
 		q.Set("clusterId", clusterID)
 	}
 	if status != "" {
@@ -182,6 +184,17 @@ func (c *teamCatalogClient) listTeams(ctx context.Context, token, productAreaID,
 	var page restResponsePage[upstreamTeam]
 	if err := c.getJSON(ctx, token, "/team", q, true, &page); err != nil {
 		return nil, err
+	}
+	if productAreaID != "" && clusterID != "" {
+		filtered := make([]upstreamTeam, 0, len(page.Content))
+		for _, t := range page.Content {
+			if slices.ContainsFunc(t.ClusterIDs, func(id string) bool {
+				return strings.EqualFold(id, clusterID)
+			}) {
+				filtered = append(filtered, t)
+			}
+		}
+		return filtered, nil
 	}
 	return page.Content, nil
 }

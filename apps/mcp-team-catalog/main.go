@@ -167,13 +167,14 @@ func (s *server) mcpHandler(w http.ResponseWriter, r *http.Request) {
 
 	rawID := bytes.TrimSpace(rpc.ID)
 	isNullID := bytes.Equal(rawID, []byte("null"))
+	validIDType := len(rawID) == 0 || isValidJSONRPCID(rawID)
 	var rpcID any
-	if len(rawID) > 0 && !isNullID {
+	if len(rawID) > 0 && validIDType {
 		rpcID = json.RawMessage(rawID)
 	}
 	isNotification := strings.HasPrefix(rpc.Method, "notifications/")
-	if rpc.Method == "" || isNullID || (!isNotification && len(rawID) == 0) {
-		writeMCPError(w, http.StatusBadRequest, rpcID, &mcpRPCError{Code: -32600, Message: "Invalid Request"})
+	if rpc.JSONRPC != "2.0" || rpc.Method == "" || isNullID || !validIDType || (!isNotification && len(rawID) == 0) {
+		writeMCPError(w, http.StatusBadRequest, nil, &mcpRPCError{Code: -32600, Message: "Invalid Request"})
 		return
 	}
 
@@ -268,6 +269,27 @@ func (s *server) serveModern(w http.ResponseWriter, r *http.Request, env mcpEnve
 		"id":      rpcID,
 		"result":  mcpModernResult(result, serverName, serverVersion, extra),
 	})
+}
+
+func isValidJSONRPCID(raw json.RawMessage) bool {
+	if len(raw) == 0 {
+		return false
+	}
+	if raw[0] == '"' {
+		var s string
+		return json.Unmarshal(raw, &s) == nil
+	}
+	if raw[0] == '-' || (raw[0] >= '0' && raw[0] <= '9') {
+		var n json.Number
+		dec := json.NewDecoder(bytes.NewReader(raw))
+		dec.UseNumber()
+		if err := dec.Decode(&n); err != nil {
+			return false
+		}
+		var extra any
+		return dec.Decode(&extra) == io.EOF
+	}
+	return false
 }
 
 func sanitizeLogValue(s string) string {

@@ -81,8 +81,16 @@ func TestSizeCap32KiB(t *testing.T) {
 	if isErr {
 		t.Fatalf("unexpected tool error: %s", txt)
 	}
-	if len(txt) > maxToolResultBytes {
-		t.Fatalf("serialized tool text length %d exceeds 32 KiB (%d)", len(txt), maxToolResultBytes)
+	toolRes := toolResultMap(t, out)
+	serializedToolRes, err := json.Marshal(map[string]any{
+		"content":           toolRes["content"],
+		"structuredContent": toolRes["structuredContent"],
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(serializedToolRes) > maxToolResultBytes {
+		t.Fatalf("serialized tool result length %d exceeds 32 KiB (%d)", len(serializedToolRes), maxToolResultBytes)
 	}
 	var res struct {
 		Total     int           `json:"total"`
@@ -96,6 +104,71 @@ func TestSizeCap32KiB(t *testing.T) {
 	if !res.Truncated || res.Total != 50 || res.Returned == 0 || res.Returned >= 50 || len(res.Teams) != res.Returned {
 		t.Fatalf("unexpected capped metadata: %+v", res)
 	}
+}
+
+func TestSizeCapNearLimitIncludesEscapingAndDuplicate(t *testing.T) {
+	t.Run("fitCappedJSON caps serialized toolResult including escaping and structuredContent", func(t *testing.T) {
+		// Each team is ~1.8 KiB raw JSON; 10 teams = ~18 KiB raw text (< 32 KiB),
+		// but duplicated in content[0].text (with quote escaping) + structuredContent exceeds 32 KiB.
+		quotedDesc := strings.Repeat(`a"b`, 500)
+		teams := make([]map[string]any, 10)
+		for i := range teams {
+			teams[i] = map[string]any{
+				"id":          fmt.Sprintf("00000000-0000-0000-0000-%012d", i),
+				"name":        fmt.Sprintf("Team %02d", i),
+				"description": quotedDesc,
+				"status":      "ACTIVE",
+			}
+		}
+		srv := newTestServer(t, defaultTexasHandler("obo"), func(w http.ResponseWriter, _ *http.Request) {
+			writeJSON(w, http.StatusOK, map[string]any{"content": teams})
+		})
+
+		_, out := callToolModern(t, srv.routes(), "in", "list_teams", map[string]any{"limit": 10})
+		txt, isErr := extractToolText(t, out)
+		if isErr {
+			t.Fatalf("unexpected tool error: %s", txt)
+		}
+		toolRes := toolResultMap(t, out)
+		serialized, err := json.Marshal(map[string]any{
+			"content":           toolRes["content"],
+			"structuredContent": toolRes["structuredContent"],
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(serialized) > maxToolResultBytes {
+			t.Fatalf("serialized toolResult length %d exceeds %d", len(serialized), maxToolResultBytes)
+		}
+		var decoded struct {
+			Returned  int  `json:"returned"`
+			Truncated bool `json:"truncated"`
+		}
+		if err := json.Unmarshal([]byte(txt), &decoded); err != nil {
+			t.Fatal(err)
+		}
+		if !decoded.Truncated || decoded.Returned == 0 || decoded.Returned >= 10 {
+			t.Fatalf("expected truncation below 10 items, got %+v", decoded)
+		}
+	})
+
+	t.Run("buildGetNaisTeamResult rejects near-limit payload whose serialized toolResult exceeds 32 KiB", func(t *testing.T) {
+		// ~18 KiB raw JSON (< 32 KiB), but > 36 KiB once serialized in content + structuredContent.
+		nearLimitPurpose := strings.Repeat(`x"y`, 6000)
+		srv := newTestServer(t, defaultTexasHandler("obo"), func(w http.ResponseWriter, _ *http.Request) {
+			writeJSON(w, http.StatusOK, map[string]any{
+				"slug":         "copilot",
+				"purpose":      nearLimitPurpose,
+				"slackChannel": "#copilot",
+			})
+		})
+
+		_, out := callToolModern(t, srv.routes(), "in", "get_nais_team", map[string]any{"teamId": "copilot"})
+		txt, isErr := extractToolText(t, out)
+		if !isErr || !strings.Contains(txt, "32 KiB") {
+			t.Fatalf("expected 32 KiB cap error, got isErr=%v txt=%q", isErr, txt)
+		}
+	})
 }
 
 func TestEveryToolHasOutputSchemaAndExample(t *testing.T) {
