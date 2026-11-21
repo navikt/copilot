@@ -57,7 +57,7 @@ export function Contributors({ itemId }: ContributorsProps) {
             target="_blank"
             rel="noopener noreferrer"
             title={c.login}
-            className="flex items-center gap-1.5 no-underline hover:underline text-gray-700"
+            className="flex items-center gap-1.5 no-underline hover:underline text-current"
           >
             <Image src={c.avatarUrl} alt="" width={28} height={28} className="rounded-full" />
             <BodyShort size="small">{c.login}</BodyShort>

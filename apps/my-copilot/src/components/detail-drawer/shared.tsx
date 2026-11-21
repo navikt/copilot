@@ -1,9 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
-import { Accordion, Button, HStack, Heading, Tag, VStack } from "@navikt/ds-react";
+import { useState } from "react";
+import { Button, CopyButton, HStack, Heading, Tag, VStack } from "@navikt/ds-react";
 
-const TOOLS_PREVIEW_COUNT = 5;
+const TOOLS_PREVIEW_COUNT = 8;
 
 export function ToolList({ tools }: { tools: string[] }) {
   const [expanded, setExpanded] = useState(false);
@@ -23,32 +23,21 @@ export function ToolList({ tools }: { tools: string[] }) {
         ))}
       </HStack>
       {showToggle && (
-        <Button variant="tertiary" size="small" onClick={() => setExpanded(!expanded)}>
-          {expanded ? "Vis færre" : `Vis alle ${tools.length} verktøy`}
-        </Button>
+        <div>
+          <Button variant="tertiary" size="small" onClick={() => setExpanded(!expanded)}>
+            {expanded ? "Vis færre" : `Vis alle ${tools.length} verktøy`}
+          </Button>
+        </div>
       )}
     </VStack>
   );
 }
 
-export function ExclusiveAccordion({ children }: { children: React.ReactNode }) {
-  const [openItem, setOpenItem] = useState<string | null>(null);
-
-  const items = React.Children.toArray(children).filter(Boolean);
-
+export function CommandBlock({ command, copyText }: { command: string; copyText?: string }) {
   return (
-    <Accordion size="small" headingSize="xsmall">
-      {items.map((child, i) => {
-        if (!React.isValidElement(child)) return child;
-        const key = (child.key as string) ?? String(i);
-        return React.cloneElement(
-          child as React.ReactElement<{ open: boolean; onOpenChange: (open: boolean) => void }>,
-          {
-            open: openItem === key,
-            onOpenChange: (isOpen: boolean) => setOpenItem(isOpen ? key : null),
-          }
-        );
-      })}
-    </Accordion>
+    <div className="verktoy-cmd">
+      <pre>{command}</pre>
+      <CopyButton size="xsmall" copyText={copyText ?? command} />
+    </div>
   );
 }

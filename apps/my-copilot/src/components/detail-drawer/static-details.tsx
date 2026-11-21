@@ -1,12 +1,23 @@
 "use client";
 
-import { Accordion, BodyShort, Box, CopyButton, HStack, Heading, Tag, VStack } from "@navikt/ds-react";
+import { useMemo, useState } from "react";
+import { BodyShort, Box, Chips, CopyButton, HStack, Heading, Tag, VStack } from "@navikt/ds-react";
 import { DownloadIcon } from "@navikt/aksel-icons";
 import type { EnrichedCustomization } from "@/lib/enrich-customizations";
 import { normalizeExample } from "@/lib/manifest-types";
 import { getNavPilotAddCommand, getGhSkillInstallCommand, CLIENT_SUPPORT, INSTALL_DIRS } from "@/lib/install-commands";
 import type { CustomizationType } from "@/lib/customization-types";
-import { ToolList, ExclusiveAccordion } from "./shared";
+import { linkClass } from "@/components/nav-pilot/doc-page";
+import { CommandBlock, ToolList } from "./shared";
+
+type StaticClient = "nav-pilot" | "vscode" | "gh" | "github";
+
+const CLIENT_LABELS: Record<StaticClient, string> = {
+  "nav-pilot": "nav-pilot",
+  vscode: "VS Code",
+  gh: "GitHub CLI",
+  github: "GitHub.com",
+};
 
 function AgentReferences({
   references,
@@ -32,7 +43,7 @@ function AgentReferences({
               key={id}
               type="button"
               onClick={() => onNavigate(item)}
-              className="bg-transparent border-none cursor-pointer p-0"
+              className="bg-transparent border-none cursor-pointer"
             >
               <Tag size="xsmall" variant="info" className="cursor-pointer hover:underline">
                 @{id}
@@ -58,10 +69,144 @@ export function StaticCustomizationDetails({
   allItems: EnrichedCustomization[];
   onNavigate?: (item: EnrichedCustomization) => void;
 }) {
+  const navPilot = useMemo(() => (item.type === "mcp" ? null : getNavPilotAddCommand(item)), [item]);
+
+  const availableClients = useMemo<StaticClient[]>(() => {
+    if (item.type === "mcp") return [];
+    const list: StaticClient[] = [];
+    if (navPilot) list.push("nav-pilot");
+    if (item.installUrl) list.push("vscode");
+    if (CLIENT_SUPPORT[item.type].includes("gh")) list.push("gh");
+    if (CLIENT_SUPPORT[item.type].includes("github")) list.push("github");
+    return list;
+  }, [item, navPilot]);
+
+  const [selectedClient, setSelectedClient] = useState<StaticClient>(availableClients[0] ?? "nav-pilot");
+
   if (item.type === "mcp") return null;
+
+  const activeClient = availableClients.includes(selectedClient) ? selectedClient : availableClients[0];
 
   return (
     <VStack gap="space-16">
+      {availableClients.length > 0 && activeClient && (
+        <Box
+          paddingBlock="space-16"
+          style={{
+            borderTop: "1px solid var(--ax-border-neutral-subtle)",
+            borderBottom: "1px solid var(--ax-border-neutral-subtle)",
+          }}
+        >
+          <VStack gap="space-12">
+            <Heading size="xsmall" level="4">
+              Installering
+            </Heading>
+
+            <Chips size="small">
+              {availableClients.map((client) => (
+                <Chips.Toggle
+                  key={client}
+                  checkmark={false}
+                  selected={activeClient === client}
+                  onClick={() => setSelectedClient(client)}
+                >
+                  {CLIENT_LABELS[client]}
+                </Chips.Toggle>
+              ))}
+            </Chips>
+
+            {activeClient === "nav-pilot" && navPilot && (
+              <VStack gap="space-12">
+                <VStack gap="space-4">
+                  <BodyShort size="small" weight="semibold">
+                    I repoet (delt med teamet):
+                  </BodyShort>
+                  <CommandBlock command={navPilot.repo} />
+                </VStack>
+                <VStack gap="space-4">
+                  <BodyShort size="small" weight="semibold">
+                    Personlig (alle repoer):
+                  </BodyShort>
+                  <CommandBlock command={navPilot.user} />
+                </VStack>
+                <BodyShort size="small" className="verktoy-subtle">
+                  Oppdater med <code className="verktoy-code-inline">nav-pilot sync</code>.
+                </BodyShort>
+              </VStack>
+            )}
+
+            {activeClient === "vscode" && item.installUrl && (
+              <VStack gap="space-8">
+                <a
+                  href={item.installUrl}
+                  className={`inline-flex items-center gap-1 text-sm font-semibold ${linkClass}`}
+                >
+                  <DownloadIcon fontSize="1rem" aria-hidden />
+                  Installer med ett klikk
+                </a>
+                <BodyShort size="small" className="verktoy-subtle">
+                  {item.type === "agent" && "Aktiver med @-mention i Copilot Chat."}
+                  {item.type === "instruction" && `Lastes automatisk for filer som matcher ${item.applyTo}.`}
+                  {item.type === "prompt" && `Kjør med ${item.invocation} i Copilot Chat.`}
+                </BodyShort>
+              </VStack>
+            )}
+
+            {activeClient === "gh" && (
+              <VStack gap="space-12">
+                <VStack gap="space-4">
+                  <BodyShort size="small" weight="semibold">
+                    Installer med <code className="verktoy-code-inline">gh skill</code> (krever gh ≥2.90.0):
+                  </BodyShort>
+                  <CommandBlock command={getGhSkillInstallCommand(item)} />
+                </VStack>
+                <VStack gap="space-4">
+                  <BodyShort size="small" className="verktoy-subtle">
+                    Nyttige flagg:
+                  </BodyShort>
+                  <CommandBlock
+                    command={`--scope user    # personlig (alle repoer)\n--pin v1.0.0    # lås til versjon eller SHA\n--agent <name>  # målrett agent (copilot, claude, cursor …)`}
+                  />
+                </VStack>
+                <BodyShort size="small" className="verktoy-subtle">
+                  Oppdater med <code className="verktoy-code-inline">gh skill update</code>.
+                </BodyShort>
+              </VStack>
+            )}
+
+            {activeClient === "github" && (
+              <VStack gap="space-8">
+                <BodyShort size="small">
+                  For å bruke denne på GitHub.com (for eksempel i pull requests eller Copilot Chat på web), må filen
+                  ligge i repoet ditt.
+                </BodyShort>
+                <BodyShort size="small">
+                  1. Last ned filen manuelt eller via <code className="verktoy-code-inline">nav-pilot</code>.
+                  <br />
+                  {item.type !== "skill" ? (
+                    <>
+                      2. Legg den i{" "}
+                      <code className="verktoy-code-inline">
+                        {INSTALL_DIRS[item.type as Exclude<CustomizationType, "mcp">]}
+                      </code>{" "}
+                      i default branch.
+                      <br />
+                    </>
+                  ) : (
+                    <>
+                      2. Legg den i <code className="verktoy-code-inline">.github/skills/{item.name}</code> i default
+                      branch.
+                      <br />
+                    </>
+                  )}
+                  3. Neste gang du bruker Copilot Chat på web i repoet, er den klar til bruk.
+                </BodyShort>
+              </VStack>
+            )}
+          </VStack>
+        </Box>
+      )}
+
       {item.type === "agent" && item.tools.length > 0 && <ToolList tools={item.tools} />}
 
       {item.type === "agent" && item.agentReferences && item.agentReferences.length > 0 && (
@@ -88,12 +233,9 @@ export function StaticCustomizationDetails({
           <Heading size="xsmall" level="4">
             Gjelder for
           </Heading>
-          <code
-            className="text-xs bg-gray-100 rounded inline-block max-w-full break-all"
-            style={{ paddingBlock: "var(--ax-space-4)", paddingInline: "var(--ax-space-8)" }}
-          >
-            {item.applyTo}
-          </code>
+          <div>
+            <code className="verktoy-code-inline">{item.applyTo}</code>
+          </div>
         </VStack>
       )}
 
@@ -102,12 +244,9 @@ export function StaticCustomizationDetails({
           <Heading size="xsmall" level="4">
             Aktivering
           </Heading>
-          <code
-            className="text-xs bg-gray-100 rounded inline-block max-w-full break-all"
-            style={{ paddingBlock: "var(--ax-space-4)", paddingInline: "var(--ax-space-8)" }}
-          >
-            {item.invocation}
-          </code>
+          <div>
+            <code className="verktoy-code-inline">{item.invocation}</code>
+          </div>
         </VStack>
       )}
 
@@ -127,12 +266,10 @@ export function StaticCustomizationDetails({
                         {example.scenario}
                       </BodyShort>
                     )}
-                    <div className="relative">
-                      <code className="text-xs block pr-8 break-all">{example.prompt}</code>
-                      <div className="absolute top-0 right-0">
-                        <CopyButton size="xsmall" copyText={example.prompt} />
-                      </div>
-                    </div>
+                    <HStack gap="space-8" align="start" justify="space-between" wrap={false}>
+                      <code className="text-xs break-all flex-1">{example.prompt}</code>
+                      <CopyButton size="xsmall" copyText={example.prompt} />
+                    </HStack>
                   </VStack>
                 </Box>
               );
@@ -140,143 +277,6 @@ export function StaticCustomizationDetails({
           </VStack>
         </VStack>
       )}
-
-      <VStack gap="space-8">
-        <Heading size="xsmall" level="4">
-          Installering
-        </Heading>
-        <ExclusiveAccordion>
-          {item.installUrl && (
-            <Accordion.Item>
-              <Accordion.Header>VS Code</Accordion.Header>
-              <Accordion.Content>
-                <VStack gap="space-8">
-                  <a
-                    href={item.installUrl}
-                    className="inline-flex items-center gap-1 text-sm font-semibold text-blue-600 hover:underline"
-                  >
-                    <DownloadIcon fontSize="1rem" aria-hidden />
-                    Installer med ett klikk
-                  </a>
-                  <BodyShort size="small" className="text-gray-500">
-                    {item.type === "agent" && "Aktiver med @-mention i Copilot Chat."}
-                    {item.type === "instruction" && `Lastes automatisk for filer som matcher ${item.applyTo}.`}
-                    {item.type === "prompt" && `Kjør med ${item.invocation} i Copilot Chat.`}
-                  </BodyShort>
-                </VStack>
-              </Accordion.Content>
-            </Accordion.Item>
-          )}
-          {(() => {
-            const navPilot = getNavPilotAddCommand(item);
-            if (!navPilot) return null;
-            return (
-              <Accordion.Item>
-                <Accordion.Header>nav-pilot</Accordion.Header>
-                <Accordion.Content>
-                  <VStack gap="space-12">
-                    <VStack gap="space-4">
-                      <BodyShort size="small" weight="semibold">
-                        I repoet (delt med teamet):
-                      </BodyShort>
-                      <div className="relative">
-                        <pre className="text-xs bg-gray-100 rounded p-2 pr-10 overflow-x-auto whitespace-pre-wrap break-all">
-                          {navPilot.repo}
-                        </pre>
-                        <div className="absolute top-1 right-1">
-                          <CopyButton size="xsmall" copyText={navPilot.repo} />
-                        </div>
-                      </div>
-                    </VStack>
-                    <VStack gap="space-4">
-                      <BodyShort size="small" weight="semibold">
-                        Personlig (alle repoer):
-                      </BodyShort>
-                      <div className="relative">
-                        <pre className="text-xs bg-gray-100 rounded p-2 pr-10 overflow-x-auto whitespace-pre-wrap break-all">
-                          {navPilot.user}
-                        </pre>
-                        <div className="absolute top-1 right-1">
-                          <CopyButton size="xsmall" copyText={navPilot.user} />
-                        </div>
-                      </div>
-                    </VStack>
-                    <BodyShort size="small" className="text-gray-500">
-                      Oppdater med <code className="text-xs bg-gray-100 rounded px-1">nav-pilot sync</code>.
-                    </BodyShort>
-                  </VStack>
-                </Accordion.Content>
-              </Accordion.Item>
-            );
-          })()}
-          {CLIENT_SUPPORT[item.type].includes("gh") && (
-            <Accordion.Item>
-              <Accordion.Header>GitHub CLI</Accordion.Header>
-              <Accordion.Content>
-                <VStack gap="space-12">
-                  <VStack gap="space-4">
-                    <BodyShort size="small" weight="semibold">
-                      Installer med <code className="text-xs bg-gray-100 rounded px-1">gh skill</code> (krever gh
-                      ≥2.90.0):
-                    </BodyShort>
-                    <div className="relative">
-                      <pre className="text-xs bg-gray-100 rounded p-2 pr-10 overflow-x-auto whitespace-pre-wrap break-all">
-                        {getGhSkillInstallCommand(item)}
-                      </pre>
-                      <div className="absolute top-1 right-1">
-                        <CopyButton size="xsmall" copyText={getGhSkillInstallCommand(item)} />
-                      </div>
-                    </div>
-                  </VStack>
-                  <VStack gap="space-4">
-                    <BodyShort size="small" className="text-gray-500">
-                      Nyttige flagg:
-                    </BodyShort>
-                    <pre className="text-xs bg-gray-100 rounded p-2 overflow-x-auto whitespace-pre-wrap break-all text-gray-600">
-                      {`--scope user    # personlig (alle repoer)\n--pin v1.0.0    # lås til versjon eller SHA\n--agent <name>  # målrett agent (copilot, claude, cursor …)`}
-                    </pre>
-                  </VStack>
-                  <BodyShort size="small" className="text-gray-500">
-                    Oppdater med <code className="text-xs bg-gray-100 rounded px-1">gh skill update</code>.
-                  </BodyShort>
-                </VStack>
-              </Accordion.Content>
-            </Accordion.Item>
-          )}
-          {CLIENT_SUPPORT[item.type].includes("github") && (
-            <Accordion.Item>
-              <Accordion.Header>GitHub.com</Accordion.Header>
-              <Accordion.Content>
-                <VStack gap="space-12">
-                  <VStack gap="space-4">
-                    <BodyShort size="small">
-                      For å bruke denne på GitHub.com (f.eks. i pull requests eller Copilot Chat på web), må filen ligge
-                      i kodearkivet ditt.
-                    </BodyShort>
-                    <BodyShort size="small">
-                      1. Last ned filen med manuell installasjon eller via <code>nav-pilot</code>.<br />
-                      {item.type !== "skill" && (
-                        <>
-                          2. Legg den i <code>{INSTALL_DIRS[item.type as Exclude<CustomizationType, "mcp">]}</code> i
-                          din default branch.
-                          <br />
-                        </>
-                      )}
-                      {item.type === "skill" && (
-                        <>
-                          2. Legg den i <code>.github/skills/{item.name}</code> i din default branch.
-                          <br />
-                        </>
-                      )}
-                      3. Neste gang du bruker Copilot Chat på web i dette repoet, vil denne være tilgjengelig.
-                    </BodyShort>
-                  </VStack>
-                </VStack>
-              </Accordion.Content>
-            </Accordion.Item>
-          )}
-        </ExclusiveAccordion>
-      </VStack>
     </VStack>
   );
 }

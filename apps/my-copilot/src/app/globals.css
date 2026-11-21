@@ -1012,3 +1012,288 @@ button.search-hit {
 .aksel-process__body {
   min-width: 0;
 }
+
+/* Verktøykatalog (/verktoy): search-first layout, WCAG AA type colours in light & dark, and detail drawer */
+.verktoy-page {
+  min-height: 100%;
+  background: var(--ax-bg-sunken);
+  color: var(--ax-text-neutral);
+}
+
+/* Type colour tokens: every ink/bg and selected pair exceeds 6:1 (WCAG AA >= 4.5:1) in light and dark. */
+.verktoy-type-agent {
+  --vt-ink: #66399c;
+  --vt-bg: #f2ebfc;
+  --vt-selected-fg: #ffffff;
+}
+.verktoy-type-instruction {
+  --vt-ink: #17663b;
+  --vt-bg: #e3f4ea;
+  --vt-selected-fg: #ffffff;
+}
+.verktoy-type-skill {
+  --vt-ink: #854700;
+  --vt-bg: #fdf0dd;
+  --vt-selected-fg: #ffffff;
+}
+.verktoy-type-mcp {
+  --vt-ink: #005699;
+  --vt-bg: #e3f0fb;
+  --vt-selected-fg: #ffffff;
+}
+.verktoy-type-prompt {
+  --vt-ink: #99264e;
+  --vt-bg: #fbe6ee;
+  --vt-selected-fg: #ffffff;
+}
+
+.dark .verktoy-type-agent {
+  --vt-ink: #d3b5f8;
+  --vt-bg: #2c2140;
+  --vt-selected-fg: #11161d;
+}
+.dark .verktoy-type-instruction {
+  --vt-ink: #8fd9ad;
+  --vt-bg: #173226;
+  --vt-selected-fg: #11161d;
+}
+.dark .verktoy-type-skill {
+  --vt-ink: #f4c47d;
+  --vt-bg: #3a2a14;
+  --vt-selected-fg: #11161d;
+}
+.dark .verktoy-type-mcp {
+  --vt-ink: #8cc4f2;
+  --vt-bg: #152b40;
+  --vt-selected-fg: #11161d;
+}
+.dark .verktoy-type-prompt {
+  --vt-ink: #f4a6c1;
+  --vt-bg: #3d1a27;
+  --vt-selected-fg: #11161d;
+}
+
+.verktoy-hero {
+  text-align: center;
+}
+
+.verktoy-hero-search {
+  width: 100%;
+  max-width: 40rem;
+  margin-inline: auto;
+}
+
+.verktoy-hero-search .aksel-search__input {
+  min-height: 3.25rem;
+  font-size: 1rem;
+  border-width: 2px;
+  border-radius: var(--ax-radius-8);
+  background: var(--ax-bg-default);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .verktoy-hero-search .aksel-search__input {
+    transition: box-shadow 0.2s ease-out;
+  }
+  .verktoy-hero-search .aksel-search__input:focus {
+    box-shadow: 0 0 0 4px var(--ax-bg-accent-soft);
+  }
+  .verktoy-intent-item {
+    animation: verktoy-rise 0.35s ease-out backwards;
+  }
+  .verktoy-intent-item:nth-child(2) {
+    animation-delay: 0.05s;
+  }
+  .verktoy-intent-item:nth-child(3) {
+    animation-delay: 0.1s;
+  }
+  .verktoy-intent-item:nth-child(4) {
+    animation-delay: 0.15s;
+  }
+  .verktoy-intent-item:nth-child(5) {
+    animation-delay: 0.2s;
+  }
+  @keyframes verktoy-rise {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
+
+.verktoy-type-icon {
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: var(--ax-radius-8);
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  color: var(--vt-ink);
+  background: var(--vt-bg);
+}
+
+.verktoy-type-icon--sm {
+  width: 1.75rem;
+  height: 1.75rem;
+}
+
+.verktoy-type-icon--lg {
+  width: 2.75rem;
+  height: 2.75rem;
+}
+
+.verktoy-type-badge.aksel-tag {
+  color: var(--vt-ink);
+  background: var(--vt-bg);
+  border-color: transparent;
+  font-weight: 600;
+}
+
+.verktoy-type-chip {
+  min-height: 2.25rem;
+  border-color: var(--ax-border-neutral-subtle);
+  background: var(--ax-bg-default);
+  color: var(--ax-text-neutral);
+}
+
+.verktoy-type-chip:not([aria-pressed="true"]) svg {
+  color: var(--vt-ink);
+}
+
+.verktoy-type-chip[aria-pressed="true"] {
+  background: var(--vt-ink);
+  border-color: var(--vt-ink);
+  color: var(--vt-selected-fg);
+}
+
+.verktoy-type-chip[aria-pressed="true"]:hover {
+  background: var(--vt-ink);
+  border-color: var(--vt-ink);
+  color: var(--vt-selected-fg);
+  opacity: 0.92;
+}
+
+.verktoy-chip-count {
+  font-size: 0.75rem;
+  opacity: 0.8;
+}
+
+.verktoy-card {
+  width: 100%;
+  text-align: left;
+  background: var(--ax-bg-default);
+  color: var(--ax-text-neutral);
+  border: 1px solid var(--ax-border-neutral-subtle);
+  border-radius: var(--ax-radius-8);
+  padding: var(--ax-space-12) var(--ax-space-16);
+  cursor: pointer;
+}
+
+.verktoy-card:hover {
+  border-color: var(--ax-border-accent);
+  box-shadow: 0 2px 8px rgba(0, 103, 197, 0.12);
+}
+
+.dark .verktoy-card:hover {
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
+}
+
+.verktoy-card:focus-visible {
+  outline: 3px solid var(--ax-border-focus);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .verktoy-card {
+    transition:
+      border-color 0.15s ease-out,
+      box-shadow 0.15s ease-out;
+  }
+}
+
+.verktoy-subtle {
+  color: var(--ax-text-neutral-subtle);
+}
+
+.verktoy-drawer-panel {
+  background: var(--ax-bg-default);
+  color: var(--ax-text-neutral);
+  border-left: 1px solid var(--ax-border-neutral-subtle);
+}
+
+.verktoy-drawer-close {
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  border-radius: var(--ax-radius-8);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: var(--ax-text-neutral);
+  border: 0;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.verktoy-drawer-close:hover {
+  background: var(--ax-bg-neutral-moderate);
+}
+
+.verktoy-drawer-close:focus-visible {
+  outline: 3px solid var(--ax-border-focus);
+  outline-offset: 2px;
+}
+
+.verktoy-cmd {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--ax-space-8);
+  background: #161b26;
+  color: #e6e9ee;
+  border-radius: var(--ax-radius-8);
+  padding: var(--ax-space-10) var(--ax-space-12);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+}
+
+.dark .verktoy-cmd {
+  background: #0b0e13;
+  border: 1px solid var(--ax-border-neutral-subtle);
+}
+
+.verktoy-cmd pre,
+.verktoy-cmd code {
+  margin: 0;
+  flex: 1;
+  min-width: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-family: inherit;
+  font-size: inherit;
+}
+
+.verktoy-cmd .aksel-copybutton {
+  color: #e6e9ee;
+  flex-shrink: 0;
+}
+
+.verktoy-cmd .aksel-copybutton:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+.verktoy-code-inline {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.8125rem;
+  background: var(--ax-bg-neutral-soft);
+  color: var(--ax-text-neutral);
+  border-radius: var(--ax-radius-4);
+  padding: var(--ax-space-2) var(--ax-space-6);
+  overflow-wrap: anywhere;
+}
