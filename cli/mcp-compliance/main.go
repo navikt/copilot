@@ -76,7 +76,7 @@ func run(args []string, out io.Writer, getenv func(string) string) int {
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
-	if cfg.url == "" {
+	if cfg.url == "" || cfg.maxBytes <= 0 {
 		fs.Usage()
 		return 2
 	}
@@ -91,7 +91,7 @@ func run(args []string, out io.Writer, getenv func(string) string) int {
 		if r.status == "FAIL" {
 			failed++
 		}
-		fmt.Fprintf(tw, "%s\t%s\t%s\n", r.status, r.name, r.detail)
+		fmt.Fprintf(tw, "%s\t%s\t%s\n", r.status, r.name, redact(r.detail, cfg.token, cfg.appToken))
 	}
 	_ = tw.Flush()
 	if abort != nil {
@@ -111,9 +111,12 @@ func checks(cfg *config) ([]result, error) {
 	add := func(name string, err error) {
 		r := result{name: name, status: "PASS"}
 		var skip skipError
+		var warn warnError
 		switch {
 		case errors.As(err, &skip):
 			r.status, r.detail = "SKIP", string(skip)
+		case errors.As(err, &warn):
+			r.status, r.detail = "WARN", string(warn)
 		case err != nil:
 			r.status, r.detail = "FAIL", err.Error()
 		}
@@ -218,6 +221,11 @@ func checks(cfg *config) ([]result, error) {
 
 type skipError string
 
+// warnError marks a SHOULD that is not met; it does not fail the run.
+type warnError string
+
+func (w warnError) Error() string { return string(w) }
+
 func (s skipError) Error() string { return string(s) }
 
 // pickTool returns -tool, or the first tool tools/list reports.
@@ -253,7 +261,8 @@ func (cfg *config) do(method, token string, body map[string]any, hdr map[string]
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Accept", "application/json, text/event-stream")
+	// JSON only: the tool cannot parse SSE, and the Nav servers do not require text/event-stream.
+	req.Header.Set("Accept", "application/json")
 	if token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
 	}
@@ -289,7 +298,7 @@ func expectRPCError(resp *response, err error, status, code int) error {
 		return e
 	}
 	e, _ := resp.body["error"].(map[string]any)
-	if c, _ := e["code"].(float64); int(c) != code {
+	if c, _ := e["code"].(float64); c != float64(code) {
 		return fmt.Errorf("error code %v, want %d", e["code"], code)
 	}
 	return nil
@@ -333,7 +342,27 @@ func (cfg *config) expectChallenge(token string) error {
 		return e
 	}
 	if h := resp.header.Get("WWW-Authenticate"); !strings.Contains(h, "invalid_token") {
-		return fmt.Errorf("WWW-Authenticate = %q, want a Bearer challenge with error=\"invalid_token\"", h)
+		// The reference servers send no challenge yet; discover-first already guards a wrong URL.
+		return warnError(`no WWW-Authenticate with error="invalid_token" (RFC 6750 SHOULD)`)
 	}
 	return nil
+}
+
+// redact keeps server-controlled text from leaking a token or flooding the terminal.
+func redact(s string, tokens ...string) string {
+	for _, t := range tokens {
+		if t != "" {
+			s = strings.ReplaceAll(s, t, "[REDACTED]")
+		}
+	}
+	s = strings.Map(func(r rune) rune {
+		if r < 0x20 || r == 0x7f {
+			return ' '
+		}
+		return r
+	}, s)
+	if len(s) > 200 {
+		s = strings.ToValidUTF8(s[:200], "") + "..."
+	}
+	return s
 }

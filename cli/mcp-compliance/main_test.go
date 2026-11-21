@@ -23,7 +23,7 @@ type fakeServer struct {
 	acceptMissingToken, acceptInvalidToken, acceptAppToken bool
 	noDiscover, noVersionCheck, noMethodCheck, noNameCheck bool
 	noEnvelopeCheck, allowGET, noSizeLimit                 bool
-	noChallenge, noToolsList                               bool
+	noChallenge, noToolsList, echoToken, fracCode          bool
 }
 
 func (f fakeServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -63,8 +63,12 @@ func (f fakeServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	_ = json.Unmarshal(body, &env)
 	rpcErr := func(code int) {
+		c := float64(code)
+		if f.fracCode {
+			c -= 0.5 // -32020.5 truncates to -32020
+		}
 		w.WriteHeader(400)
-		_ = json.NewEncoder(w).Encode(map[string]any{"jsonrpc": "2.0", "id": 1, "error": map[string]any{"code": code}})
+		_ = json.NewEncoder(w).Encode(map[string]any{"jsonrpc": "2.0", "id": 1, "error": map[string]any{"code": c}})
 	}
 	if !f.noEnvelopeCheck && (env.Method == "" || len(env.ID) == 0 || bytes.Equal(env.ID, []byte("null"))) {
 		rpcErr(codeInvalidRequest)
@@ -88,7 +92,15 @@ func (f fakeServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		rpcErr(codeHeaderMismatch)
 		return
 	}
-	result := map[string]any{"resultType": "complete", "_meta": map[string]any{metaServerInfo: map[string]any{"name": "fake"}}}
+	if r.Header.Get("Accept") != "application/json" {
+		w.WriteHeader(406) // the tool must not ask for SSE it cannot parse
+		return
+	}
+	resultType := "complete"
+	if f.echoToken {
+		resultType = r.Header.Get("Authorization") + "\n"
+	}
+	result := map[string]any{"resultType": resultType, "_meta": map[string]any{metaServerInfo: map[string]any{"name": "fake"}}}
 	switch env.Method {
 	case "server/discover":
 		if !f.noDiscover {
@@ -136,9 +148,8 @@ func TestEachBrokenRuleFails(t *testing.T) {
 	}{
 		{fakeServer{acceptMissingToken: true}, "missing token is 401"},
 		{fakeServer{acceptInvalidToken: true}, "invalid token is 401"},
-		{fakeServer{noChallenge: true}, "missing token is 401"},
-		{fakeServer{noChallenge: true}, "invalid token is 401"},
 		{fakeServer{noToolsList: true}, "status 500, want 200"},
+		{fakeServer{fracCode: true}, "Mcp-Method mismatch is -32020"},
 		{fakeServer{acceptAppToken: true}, "app token is 403"},
 		{fakeServer{noDiscover: true}, "server/discover lists"},
 		{fakeServer{noVersionCheck: true}, "missing MCP-Protocol-Version is -32020"},
@@ -193,5 +204,28 @@ func TestWrongURLAnswering401Stops(t *testing.T) {
 	code, out := runAgainst(t, fakeServer{acceptMissingToken: true, noChallenge: true}, "/wrong")
 	if code != 1 || !strings.Contains(out, "stopped: server/discover did not answer 200") || strings.Contains(out, "PASS") {
 		t.Fatalf("exit %d, want 1 with stop and no PASS rows:\n%s", code, out)
+	}
+}
+
+func TestEchoedTokenIsRedacted(t *testing.T) {
+	// runAgainst fails the test if a token reaches the output.
+	code, out := runAgainst(t, fakeServer{echoToken: true})
+	if code != 1 || !strings.Contains(out, "[REDACTED]") {
+		t.Fatalf("exit %d, want 1 with [REDACTED]:\n%s", code, out)
+	}
+}
+
+func TestMissingChallengeWarns(t *testing.T) {
+	code, out := runAgainst(t, fakeServer{noChallenge: true})
+	if code != 0 || !regexp.MustCompile(`WARN +missing token is 401`).MatchString(out) {
+		t.Fatalf("exit %d, want 0 with WARN:\n%s", code, out)
+	}
+}
+
+func TestNonPositiveMaxBytesIsUsageError(t *testing.T) {
+	for _, v := range []string{"0", "-1"} {
+		if code := run([]string{"-url", "http://127.0.0.1:1", "-max-bytes", v}, io.Discard, func(string) string { return "" }); code != 2 {
+			t.Fatalf("-max-bytes %s: exit %d, want 2", v, code)
+		}
 	}
 }
