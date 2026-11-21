@@ -2,8 +2,8 @@ name: Release mcp-compliance
 
 # A tag cli/mcp-compliance/vX.Y.Z is both the Go module version (so
 # `go install ...@latest` resolves it) and the release. Builds, attestation,
-# checksums and publishing follow release-nav-pilot.yaml. The Homebrew formula
-# is updated by a poller in navikt/homebrew-tap, the same way as nav-pilot's.
+# checksums and publishing follow release-nav-pilot.yaml. A Homebrew formula
+# will come from a poller in navikt/homebrew-tap, as nav-pilot's does.
 on:
   push:
     tags: ["cli/mcp-compliance/v*"]
@@ -19,6 +19,7 @@ jobs:
   prepare:
     name: Compute version
     runs-on: ubuntu-latest
+    permissions: {}
     timeout-minutes: 5
     outputs:
       version: ${{ steps.v.outputs.version }}
@@ -30,10 +31,21 @@ jobs:
         env:
           TAG: ${{ github.ref_name }}
           COMMIT_SHA: ${{ github.sha }}
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}
         run: |
-          VERSION="${TAG#cli/mcp-compliance/}"
-          if ! [[ "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+          set -euo pipefail
+          if ! [[ "$TAG" =~ ^cli/mcp-compliance/v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
             echo "::error::tag $TAG is not cli/mcp-compliance/vX.Y.Z"
+            exit 1
+          fi
+          VERSION="${TAG#cli/mcp-compliance/}"
+          # Release only commits that are on main: a tag on a side branch must
+          # not publish. Public repo, so the fetch needs no credentials.
+          git init -q repo
+          git -C repo fetch -q --filter=blob:none "$REPO_URL" \
+            +refs/heads/main:refs/remotes/origin/main "+${COMMIT_SHA}:refs/tags/candidate"
+          if ! git -C repo merge-base --is-ancestor "$COMMIT_SHA" origin/main; then
+            echo "::error::$COMMIT_SHA is not on main; refusing to release"
             exit 1
           fi
           {
@@ -79,9 +91,10 @@ jobs:
           CGO_ENABLED: '0'
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
+          VERSION: ${{ needs.prepare.outputs.version }}
         run: |
           cd cli/mcp-compliance
-          go build -trimpath -ldflags="-s -w" -o "../../mcp-compliance-${GOOS}-${GOARCH}" .
+          go build -trimpath -buildvcs=false -ldflags="-s -w -X main.version=${VERSION}" -o "../../mcp-compliance-${GOOS}-${GOARCH}" .
 
       - name: Attest build provenance
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4
@@ -104,6 +117,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.prepare.outputs.commit_sha }}
+          persist-credentials: false
 
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
@@ -119,9 +133,9 @@ jobs:
       - name: Check release assets
         run: ls artifacts/mcp-compliance-{darwin,linux}-{amd64,arm64} artifacts/SHA256SUMS
 
-      # The tag exists already, so the draft attaches to it and publishing
-      # creates nothing new. The script's leftover-draft sweep only touches
-      # nav-pilot/ drafts.
+      # The tag exists already, so the draft attaches to it. SWEEP_PREFIX keeps
+      # the leftover-draft sweep off nav-pilot/ drafts, and LATEST=false keeps
+      # the Latest badge on nav-pilot.
       - name: Create release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -136,9 +150,9 @@ jobs:
             "Checks an MCP server behind fleet-gateway against MCP 2026-07-28 and Nav's auth rules." \
             "" \
             '```bash' \
-            "brew install navikt/tap/mcp-compliance" \
             "go install github.com/navikt/copilot/cli/mcp-compliance@${VERSION}" \
             '```' \
             "" \
             "See cli/mcp-compliance/README.md." > "$RUNNER_TEMP/notes.md"
+          export SWEEP_PREFIX=cli/mcp-compliance/ LATEST=false
           exec scripts/publish-release.sh "$TAG" "$SHA" "$TITLE" "$RUNNER_TEMP/notes.md" artifacts

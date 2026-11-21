@@ -163,3 +163,22 @@ SL
   [ "$st" -eq 143 ]
   [ "$(kind $TAG)" = absent ]
 }
+
+# mcp-compliance releases from the same script (release-mcp-compliance.yaml).
+@test "a second caller sweeps only its own prefix and leaves the Latest badge alone" {
+  release nav-pilot/v1 draft "x sha256:1 uploaded"
+  release cli/mcp-compliance/v0.0.9 draft "x sha256:1 uploaded"
+  TAG=cli/mcp-compliance/v0.1.0
+  SWEEP_PREFIX=cli/mcp-compliance/ LATEST=false publish
+  [ "$status" -eq 0 ]
+  [ "$(kind nav-pilot/v1)" = draft ]
+  [ "$(kind cli/mcp-compliance/v0.0.9)" = absent ]
+  [ "$(kind $TAG)" = published ]
+  [ "$(tail -n1 "$STATE/log")" = "release edit $TAG --draft=false --latest=false" ]
+}
+
+@test "an invalid LATEST fails before anything is created" {
+  LATEST=yes publish
+  [ "$status" -ne 0 ]
+  [ "$(kind $TAG)" = absent ]
+}

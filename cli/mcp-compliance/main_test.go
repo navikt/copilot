@@ -347,3 +347,21 @@ func TestToolLintRespectsToolFlag(t *testing.T) {
 		t.Fatalf("linted a tool not named by -tool:\n%s", out.String())
 	}
 }
+
+func TestVersionFlag(t *testing.T) {
+	old := version
+	version = "v1.2.3"
+	defer func() { version = old }()
+	var out bytes.Buffer
+	if code := run([]string{"-version"}, &out, func(string) string { return "" }); code != 0 {
+		t.Fatalf("exit %d", code)
+	}
+	if got := out.String(); got != "mcp-compliance v1.2.3\n" {
+		t.Fatalf("got %q", got)
+	}
+	body := modernBody("ping", nil)
+	info := body["params"].(map[string]any)["_meta"].(map[string]any)["io.modelcontextprotocol/clientInfo"].(map[string]any)
+	if info["version"] != "v1.2.3" {
+		t.Fatalf("clientInfo.version = %v", info["version"])
+	}
+}

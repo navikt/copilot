@@ -38,11 +38,7 @@ Tokens are read from environment variables, never flags, so they stay out of pro
 
 ## Install
 
-```sh
-brew install navikt/tap/mcp-compliance
-```
-
-Or with Go 1.26 or later:
+With Go 1.26 or later:
 
 ```sh
 go install github.com/navikt/copilot/cli/mcp-compliance@latest
@@ -92,7 +88,9 @@ Use the release binary, so the job needs no Go toolchain. Pin the version.
     gh release download "cli/mcp-compliance/${VERSION}" --repo navikt/copilot \
       --pattern mcp-compliance-linux-amd64 --pattern SHA256SUMS
     sha256sum --check --ignore-missing SHA256SUMS
-    install -m 0755 mcp-compliance-linux-amd64 /usr/local/bin/mcp-compliance
+    mkdir -p "$HOME/.local/bin"
+    install -m 0755 mcp-compliance-linux-amd64 "$HOME/.local/bin/mcp-compliance"
+    echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
 # Kotlin: ./gradlew run &   TypeScript: npm ci && npm start &
 - run: ./start-server.sh &   # your own start step

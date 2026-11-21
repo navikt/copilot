@@ -57,6 +57,9 @@ type response struct {
 	body   map[string]any
 }
 
+// version is set at release build time with -ldflags "-X main.version=...".
+var version = "dev"
+
 func main() {
 	os.Exit(run(os.Args[1:], os.Stdout, os.Getenv))
 }
@@ -68,6 +71,7 @@ func run(args []string, out io.Writer, getenv func(string) string) int {
 	fs.StringVar(&cfg.url, "url", "", "MCP endpoint URL, e.g. http://localhost:8080/mcp (required)")
 	fs.StringVar(&cfg.tool, "tool", "", "a tool callable with empty arguments (default: first tool from tools/list)")
 	fs.IntVar(&cfg.maxBytes, "max-bytes", defaultMaxRequestSize, "request size limit the server must enforce")
+	showVersion := fs.Bool("version", false, "print the version and exit")
 	fs.BoolVar(&cfg.legacy, "legacy", false, "server runs inside its legacy window (MCP_LEGACY_PROTOCOL_UNTIL): skip the GET/DELETE 405 checks")
 	fs.Usage = func() {
 		fmt.Fprintf(out, "Usage: mcp-compliance -url URL [flags]\n\nEnvironment:\n  %s      valid user token for the server (optional)\n  %s  app token (idtyp=app) that must be rejected (optional)\n\n", envToken, envAppToken)
@@ -75,6 +79,10 @@ func run(args []string, out io.Writer, getenv func(string) string) int {
 	}
 	if err := fs.Parse(args); err != nil {
 		return 2
+	}
+	if *showVersion {
+		_, _ = fmt.Fprintln(out, "mcp-compliance", version)
+		return 0
 	}
 	if cfg.url == "" || cfg.maxBytes <= 0 {
 		fs.Usage()
@@ -314,7 +322,7 @@ func modernBody(method string, params map[string]any) map[string]any {
 	params["_meta"] = map[string]any{
 		metaProtocolVersion:                          modernVersion,
 		"io.modelcontextprotocol/clientCapabilities": map[string]any{},
-		"io.modelcontextprotocol/clientInfo":         map[string]any{"name": "mcp-compliance", "version": "0"},
+		"io.modelcontextprotocol/clientInfo":         map[string]any{"name": "mcp-compliance", "version": version},
 	}
 	return map[string]any{"jsonrpc": "2.0", "id": 1, "method": method, "params": params}
 }
