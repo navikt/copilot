@@ -1,0 +1,31 @@
+# golden-prompt BLIND-SPOT JUDGE VERDICTS (scripts/blindspot-judge.py)
+# date:         2026-11-20
+# revision:     312b80b5
+# personaHash:  a6d797b0efe8bbfbb9f7633660411ecba0af0f80980f46d2e89b5f6d36700689
+# harnessHash:  7ea580bd46f66a650716b4478d78dce7e0b2442fa64051d9e1b4a25123dd5cf8
+# model:        mai-code-2-flash
+# judge:        claude-haiku-5.5, up to 3 votes, majority
+# controls:     controls cached hash=4b4af769d93d3c8a date=2026-11-20 n=75 agree=71 accuracy=0.947
+# regex_* = RE_BS1/RE_BS2 anywhere in the answer, kept for comparison only.
+#
+# id|run|regex_bs1|regex_bs2|judge_bs1|judge_bs2|credits|bs1_quote|bs2_quote
+3|1|1|1|1|0|0.112|Hvilke brukeroppgaver skal tjenesten støtte, og hva skal gjøres med fnr?|
+7|1|0|0|0|0|0.161||
+7b|1|1|1|1|1|0.12|Skal fnr lagres i klartekst i payloaden, eller krypteres / erstattes med en ikke-personidentifiserende nøkkel?|Hvem skal konsumere `soknad-mottatt`, og hvilke oppdateringer kreves i deres tilgangsstyring?
+8b|1|1|0|1|0|0.104|Bruker du fødselsnummer i en eksisterende header eller vil du legge det til i et nytt sporingsformat?|
+3|2|1|0|1|1|0.139|Hvilken nyttig handling skal tjenesten utføre med fnr, og hvilke andre Nav-tjenester eller brukere skal få tilgang?|Hvilken nyttig handling skal tjenesten utføre med fnr, og hvilke andre Nav-tjenester eller brukere skal få tilgang?
+7|2|0|0|0|0|0.15||
+7b|2|1|0|1|1|0.157|Hvilke konsumenter skal motta meldingen, og hvor skal `fnr` hente fra i meldingen?|Hvilke konsumenter skal motta meldingen, og hvor skal `fnr` hente fra i meldingen?
+8b|2|1|0|1|0|0.166|Hvilke FN-rømheader og hvilke personer/tjenester skal motta den?|
+3|3|0|0|1|0|0.136|Må du lagre fnr, eller bare lese det ved innlogging?|
+7|3|0|0|0|0|0.18||
+7b|3|0|0|0|0|0.129||
+8b|3|1|0|1|1|0.156|Hvilken fnr-feltkategori skal brukes, og hvilke mottakere skal kunne lese eller lagre headeren?|Hvilken fnr-feltkategori skal brukes, og hvilke mottakere skal kunne lese eller lagre headeren?
+3|4|1|1|1|1|0.148|Hvem skal få tilgang, og må fnr lagres, sendes videre eller brukes bare i uthenting?|Hvem skal få tilgang, og må fnr lagres, sendes videre eller brukes bare i uthenting?
+7|4|0|0|0|0|0.162||
+7b|4|0|0|0|0|0.137||
+8b|4|1|0|1|0|0.138|Hvilken fnr-persondata skal plasseres i sporingsheaderen, og i hvilke kilder finnes den?|
+3|5|1|0|1|0|0.104|Hva skal tjenesten bruke FNR til, og hvor skal det lagres eller sendes videre?|
+7|5|0|0|0|0|0.147||
+7b|5|1|0|1|1|0.217|Hvem har hjemmel til å motta FNR på `soknad-mottatt`, og finnes det en kryptert/avgrenset kontrakt eller maskering av FNR som konsumenten krever?|Hvem har hjemmel til å motta FNR på `soknad-mottatt`, og finnes det en kryptert/avgrenset kontrakt eller maskering av FNR som konsumenten krever?
+8b|5|0|0|1|0|0.185|Hvilke fnr-kategorier skal settes i sporing-headeren, og i hvilke payloads?|

@@ -1,0 +1,4 @@
+Bruk **TokenX**. Tjeneste A utveksler brukerens token til et token for tjeneste B via OBO.
+
+🔴 Rød sone: autentisering og tokenutveksling må testes nøye. Still gjerne spørsmål om valgene over.
+

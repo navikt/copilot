@@ -1,0 +1,100 @@
+Jeg finner den eksisterende Kotlin-strukturen og testkonvensjonen, deretter legger jeg til beregningen uten å kjøre Gradle.
+
+ MD Read ~/.cplt-worktrees/dfc0bfe1cee863263871de7ee1fcf246/mai-flash-run/AGENTS.md Permission deni…
+   Approval check
+     └ ✗ Denied, no one to approve read path
+       (/Users/hans/.cplt-worktrees/dfc0bfe1cee...71de7ee1fcf246/mai-flash-run/AGENTS.md)
+   Permission denied because no interactive user response was available. Retry in an interactive 
+   session so the user can approve it, or try an alternative that does not require this permission.
+
+ MD Read ~/.cplt-worktrees/dfc0bfe1cee863263871de7ee1f  Permission denied because no interactive us…
+         cf246/mai-flash-run/.github/instructions/kotl
+         in.instructions.md
+   Approval check
+     └ ✗ Denied, no one to approve read path
+       (/Users/hans/.cplt-worktrees/dfc0bfe1cee...ub/instructions/kotlin.instructions.md)
+   Permission denied because no interactive user response was available. Retry in an interactive 
+   session so the user can approve it, or try an alternative that does not require this permission.
+
+ MD Read ~/.cplt-worktrees/dfc0bfe1cee863263871de7ee1f  Permission denied because no interactive us…
+         cf246/mai-flash-run/.github/instructions/test
+         ing-kotlin.instructions.md
+   Approval check
+     └ ✗ Denied, no one to approve read path
+       (/Users/hans/.cplt-worktrees/dfc0bfe1cee...uctions/testing-kotlin.instructions.md)
+   Permission denied because no interactive user response was available. Retry in an interactive 
+   session so the user can approve it, or try an alternative that does not require this permission.
+
+ ✗ Search  Permission denied because no interactive user response was available. Retry in an interac
+   Approval check
+     └ ✗ Denied, no one to approve read path
+       (/Users/hans/.cplt-worktrees/dfc0bfe1cee863263871de7ee1fcf246/mai-flash-run)
+   Permission denied because no interactive user response was available. Retry in an interactive 
+   session so the user can approve it, or try an alternative that does not require this permission.
+
+ ✗ Search  Permission denied because no interactive user response was available. Retry in an interac
+   Approval check
+     └ ✗ Denied, no one to approve read path
+       (/Users/hans/.cplt-worktrees/dfc0bfe1cee863263871de7ee1fcf246/mai-flash-run)
+   Permission denied because no interactive user response was available. Retry in an interactive 
+   session so the user can approve it, or try an alternative that does not require this permission.
+
+ $ Shell Locate repository Kotlin files and instructions 5 lines…
+   pwd && rg --files -g 'AGENTS.md' -g '*.kt' -g '*.instructions.md' | head -40
+
+ $ Shell Check worktree status No Content
+   git --no-pager status --short
+
+ ● Read src/main/kotlin/no/nav/demo/Oppgave.kt 9 lines read
+
+ ● Read build.gradle.kts 12 lines read
+
+ $ Shell Find build and test conventions No Content
+   rg --files | rg '(^|/)(build\.gradle|settings\.gradle|.*Test\.kt|.*\.instructions\.md)$' | sort
+
+ ✗ Read settings.gradle.kts Path does not exist
+
+ ● Read src/main/kotlin/no/nav/demo/App.kt 15 lines read
+
+ / Search "src/test/**/*.kt" No matches found
+
+ ✗ Shell Check test dependencies  Failed with exit code 2
+   rg -n "testImplementation|kotest|junit|kotlin-test" build.gradle.kts settings.gradle.kts
+   gradle/libs.versions.toml 2>/dev/null
+
+ ✗ Shell Find Kotlin test dependency setup  Failed with exit code 1
+   rg -n "testImplementation|kotest|junit|kotlin-test" --glob '*.kts' --glob '*.toml' .
+
+ $ Shell Inspect project files 21 lines…
+   find . -maxdepth 3 -type f | sort | head -40
+
+ ✗ Read settings.gradle Path does not exist
+
+ MD Read README.md 4 lines read
+
+ / Search "src/**/*.kt" 4 files found
+
+Implementasjonen bruker heltall: prosenttelleren ganger grunnlaget, deretter legges 500 øre til før divisjon med 1000, slik at 50 øre runder opp til neste krone.
+
+ ● Edit  Create src/main/kotlin/no/nav/demo/Feriepenger.kt (+10)  Create src/test/kotlin/no/nav/dem…
+
+ ● Edit  Edit src/test/kotlin/no/nav/demo/FeriepengerTest.kt (+1 -1)
+
+ $ Shell Review the focused implementation diff No Content
+   git --no-pager diff --stat && git --no-pager diff -- src/main/kotlin/no/nav/demo/Feriepenger.kt
+   src/test/kotlin/no/nav/demo/FeriepengerTest.kt build.gradle.kts
+
+ $ Shell Confirm changed files No Content
+   git --no-pager status --short
+
+La til `Feriepenger.kt` og enhetstester for prosent, avrunding og negativt grunnlag.
+
+Oppdaterte `build.gradle.kts` med Kotlin teststøtte. Gradle ble ikke kjørt.
+
+**Sjekkliste for rød sone**
+- [ ] Kontroller at 102/1000 og 125/1000 gir riktig sats.
+- [ ] Kontroller avrundingen ved nøyaktig 50 øre.
+- [ ] Kontroller at negativt grunnlag kaster `IllegalArgumentException`.
+
+Kan du fortelle meg hva denne koden gjør og hvorfor denne tilnærmingen er riktig?
+

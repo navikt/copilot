@@ -1,0 +1,4 @@
+Hva skal tjenesten gjøre etter å ha lest fødselsnummeret, og hva mottar den fnr-feltet fra?
+
+Blindsoner reist: 2/11 (#1 fnr-behandling og #2 hvem som bruker tjenesten; de andre blindsonene avklares i planen.)
+

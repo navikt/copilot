@@ -1,0 +1,14 @@
+=== ./src/main/kotlin/no/nav/demo/Avrunding.kt
+package no.nav.demo
+
+fun avrundTilNaermesteKrone(belop: Double): Long =
+    kotlin.math.floor(belop + 0.5).toLong()
+
+=== ./src/main/kotlin/no/nav/demo/Feriepenger.kt
+package no.nav.demo
+
+fun feriepenger(grunnlag: Long, alderIOpptjeningsaret: Int): Long {
+    require(grunnlag >= 0) { "Grunnlag kan ikke være negativt" }
+    TODO("Beregn feriepenger: 10,2 % eller 12,5 % fra og med 60 år")
+}
+

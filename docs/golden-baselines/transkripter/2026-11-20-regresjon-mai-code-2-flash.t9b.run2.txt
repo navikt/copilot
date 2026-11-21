@@ -1,0 +1,62 @@
+ ● skill(klarsprak)
+
+Jeg finner først prosjektmønstrene og riktig plass for Kotlin-koden og testene.
+
+ ✗ Search "fun\s+\w+\(|@Test|assertEquals|IllegalArgumentException"… Search paths do not exist: apps
+
+ MD Read ~/.cplt-worktrees/dfc0bfe1cee863263871de7ee1f  Permission denied because no interactive us…
+         cf246/mai-flash-run/.github/instructions/kotl
+         in.instructions.md
+   Approval check
+     └ ✗ Denied, no one to approve read path
+       (/Users/hans/.cplt-worktrees/dfc0bfe1cee...ub/instructions/kotlin.instructions.md)
+   Permission denied because no interactive user response was available. Retry in an interactive 
+   session so the user can approve it, or try an alternative that does not require this permission.
+
+ MD Read ~/.cplt-worktrees/dfc0bfe1cee863263871de7ee1f  Permission denied because no interactive us…
+         cf246/mai-flash-run/.github/instructions/test
+         ing-kotlin.instructions.md
+   Approval check
+     └ ✗ Denied, no one to approve read path
+       (/Users/hans/.cplt-worktrees/dfc0bfe1cee...uctions/testing-kotlin.instructions.md)
+   Permission denied because no interactive user response was available. Retry in an interactive 
+   session so the user can approve it, or try an alternative that does not require this permission.
+
+ / Search "**/{AGENTS.md,Feriepenger*,*Feriepenger*}" No matches found
+
+ $ Shell Locate Kotlin sources and repository instructions 5 lines…
+   cd /Users/hans/.cplt-worktrees/dfc0bfe1cee863263871de7ee1fcf246/mai-flash-run/bench-state/trinn2-
+   mai-flash/tmp/nav-pilot-golden.piGb8t/repo && pwd && rg --files -g 'AGENTS.md' -g '*.kt' | head
+   -40
+
+ ● Read src/main/kotlin/no/nav/demo/Oppgave.kt 9 lines read
+
+ ● Read build.gradle.kts 12 lines read
+
+ ✗ Shell  Permission denied because no interactive user response was available. Retry in an interact
+   rg --files -g 'AGENTS.md' -g '*instructions*.md' -g 'kotlin.instructions.md' -g
+   'testing-kotlin.instructions.md' .. ../../.. 2>/dev/null | head -30
+   Approval check
+     └ ✗ Denied, no one to approve shell path (../../..)
+   Permission denied because no interactive user response was available. Retry in an interactive 
+   session so the user can approve it, or try an alternative that does not require this permission.
+
+ / Search "src/test/**/*.kt" No matches found
+
+ ✗ Read settings.gradle.kts Path does not exist
+
+ ● List directory src 1 file found
+
+ / Search "gradle/wrapper/*" No matches found
+
+ ● Edit  Create src/main/kotlin/no/nav/demo/Feriepenger.kt (+8)  Create src/test/kotlin/no/nav/demo…
+
+ ● Edit  Edit src/test/kotlin/no/nav/demo/FeriepengerTest.kt (+1 -1)
+
+La til `Feriepenger.kt` og enhetstester for satser, avrunding og negativt grunnlag.
+
+**Sjekkliste for rød sone**
+- [ ] Verifiser at satser og årskifte ved 60 år stemmer.
+- [ ] Verifiser avrunding til nærmeste krone med 50 øre rundet opp.
+- [ ] Verifiser at negativt grunnlag kastes som `IllegalArgumentException`.
+

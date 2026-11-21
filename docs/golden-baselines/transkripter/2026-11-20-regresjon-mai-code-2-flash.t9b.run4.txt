@@ -1,0 +1,34 @@
+ MD Read .github/instructions/kotlin.instructions.md too large, not read
+
+ MD Read .github/instructions/testing-kotlin.instructions.md 185 lines read
+
+ / Search "**/*.kt" 4 files found
+
+ MD Read .github/instructions/kotlin.instructions.md L1:220 (220 lines read)
+
+ ● Read src/main/kotlin/no/nav/demo/Oppgave.kt 9 lines read
+
+ ● Read build.gradle.kts 12 lines read
+
+ / Search "src/test/**/*.kt" No matches found
+
+I red-zonen: beregningslogikk og runderegler; jeg implementerer den, og du bør reviewe prosentene, aldergrensen og halvøresregelen.
+
+ / Search "*" 25 files found
+
+ / Search "kotlin\("test"|junit|kotest" in *.{kts,toml} No matches found
+
+ ● Edit  Create src/main/kotlin/no/nav/demo/Feriepenger.kt (+8)  Create src/test/kotlin/no/nav/demo…
+
+ ● Edit  Edit src/test/kotlin/no/nav/demo/FeriepengerTest.kt (+2 -2)
+
+La til `Feriepenger.kt` og enhetstester for prosentene, aldergrensen, avrunding og negativt grunnlag.
+
+**Sjekkliste for rød sone**
+- [ ] Verifiser at 10,2 % og 12,5 % er korrekte satser.
+- [ ] Verifiser grensen fra og med alder 60.
+- [ ] Verifiser avrunding: 50 øre og opp skal rundes opp.
+- [ ] Verifiser at negativt grunnlag gir `IllegalArgumentException`.
+
+Lagde også JUnit-testavhengighet i `build.gradle.kts`. Gradle ble ikke kjørt.
+

@@ -1,0 +1,11 @@
+ ✗ skill(kafka)
+   Provide either "skill" or both "server" and "uri", never both selectors
+
+ ● skill(kafka)
+
+FNR er personopplysning og endrer både payload og personsensitivitet.
+
+Blindsoner reist: 2/11 (#1 personopplysninger og #6 hvilken forbruker påvirkes). De øvrige punktene er ikke relevante per nå.
+
+Hvem har hjemmel til å motta FNR på `soknad-mottatt`, og finnes det en kryptert/avgrenset kontrakt eller maskering av FNR som konsumenten krever? Oppgi eventuelt tjenestekonsumentene som må støtte den nye meldingen.
+

@@ -1,0 +1,4 @@
+Hvilke fnr-kategorier skal settes i sporing-headeren, og i hvilke payloads?
+
+Blindsoner reist: 1/11 (#1 stilt; #2–#11 ikke relevant eller besvart av oppgaven).
+

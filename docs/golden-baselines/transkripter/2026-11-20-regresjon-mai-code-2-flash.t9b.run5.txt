@@ -1,0 +1,77 @@
+Jeg finner eksisterende Kotlin-mønstre og testoppsett før jeg legger til beregningen.
+
+ MD Read ~/.cplt-worktrees/dfc0bfe1cee863263871de7ee1fcf246/mai-flash-run/AGENTS.md Permission deni…
+   Approval check
+     └ ✗ Denied, no one to approve read path
+       (/Users/hans/.cplt-worktrees/dfc0bfe1cee...71de7ee1fcf246/mai-flash-run/AGENTS.md)
+   Permission denied because no interactive user response was available. Retry in an interactive 
+   session so the user can approve it, or try an alternative that does not require this permission.
+
+ MD Read ~/.cplt-worktrees/dfc0bfe1cee863263871de7ee1f  Permission denied because no interactive us…
+         cf246/mai-flash-run/.github/instructions/kotl
+         in.instructions.md
+   Approval check
+     └ ✗ Denied, no one to approve read path
+       (/Users/hans/.cplt-worktrees/dfc0bfe1cee...ub/instructions/kotlin.instructions.md)
+   Permission denied because no interactive user response was available. Retry in an interactive 
+   session so the user can approve it, or try an alternative that does not require this permission.
+
+ MD Read ~/.cplt-worktrees/dfc0bfe1cee863263871de7ee1f  Permission denied because no interactive us…
+         cf246/mai-flash-run/.github/instructions/test
+         ing-kotlin.instructions.md
+   Approval check
+     └ ✗ Denied, no one to approve read path
+       (/Users/hans/.cplt-worktrees/dfc0bfe1cee...uctions/testing-kotlin.instructions.md)
+   Permission denied because no interactive user response was available. Retry in an interactive 
+   session so the user can approve it, or try an alternative that does not require this permission.
+
+ / Search "**/*Ferie*" No matches found
+
+ / Search "**/build.gradle.kts" 1 file found
+
+ MD Read AGENTS.md Path does not exist
+
+ MD Read .github/instructions/kotlin.instructions.md too large, not read
+
+ MD Read .github/instructions/testing-kotlin.instructions.md 185 lines read
+
+ / Search "package |fun .*\(" in *.kt 4 files found
+
+ / Search "**/*.test.kt" No matches found
+
+ ● Read build.gradle.kts 12 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/Oppgave.kt 9 lines read
+
+ MD Read AGENTS.md Path does not exist
+
+ ● Read src/main/kotlin/no/nav/demo/App.kt 15 lines read
+
+ MD Read .github/instructions/golang.instructions.md L1:20 (19 lines read)
+
+ / Search "src/test/**/*.kt" No matches found
+
+ / Search "src/main/kotlin/**/*.kt" 4 files found
+
+ / Search "testImplementation|kotest|junit" (build.gradle.kts, gradle) No matches found
+
+ / Search "src/test/kotlin/**/*.kt" No matches found
+
+ ✗ Read settings.gradle.kts Path does not exist
+
+ ● Read src/main/kotlin/no/nav/demo/Config.kt 4 lines read
+
+ / Search "gradlew*" No matches found
+
+ ● Edit  Create src/main/kotlin/no/nav/demo/Feriepenger.kt (+8)  Create src/test/kotlin/no/nav/demo…
+
+Lagt til `Feriepenger.kt` med satsene og avrunding, samt enhetstester for satser, avrunding, null og negativt grunnlag.
+
+Ikke kjørt Gradle, som avtalt.
+
+**Sjekkliste for rød sone**
+- [ ] Verifiser satsgrensen ved alder 59 og 60.
+- [ ] Verifiser avrunding ved 50 øre.
+- [ ] Verifiser negativt grunnlag gir `IllegalArgumentException`.
+- [ ] Kjør testene selv.
+

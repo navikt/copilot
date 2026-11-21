@@ -1,0 +1,77 @@
+Jeg kartlegger eksisterende signeringskode og konfigurasjonen før endring.
+
+ ● skill(security-review)
+
+ MD Read AGENTS.md Path does not exist
+
+ MD Read SECURITY.md Path does not exist
+
+ / Search "signatur|signature|signing|Signature|Signed-Headers|Digest" in *.go No matches found
+
+ $ Shell Search signing-related source 16 lines…
+   cd /Users/hans/.cplt-worktrees/dfc0bfe1cee863263871de7ee1fcf246/mai-flash-run/bench-state/trinn2-
+   mai-flash/tmp/nav-pilot-golden.piGb8t/repo && rg -n -i "sign|signature|digest|header" --glob
+   '*.{go,kt,ts,tsx,java}' | head -80
+
+ $ Shell Locate repository instructions No Content
+   cd /Users/hans/.cplt-worktrees/dfc0bfe1cee863263871de7ee1fcf246/mai-flash-run/bench-state/trinn2-
+   mai-flash/tmp/nav-pilot-golden.piGb8t/repo && find .. -name AGENTS.md -o -name SECURITY.md | sort
+   | head
+
+ ● Read lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningProducerInt  L1:200 (22 lines r…
+        erceptor.kt
+
+ ● Read lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningHeaders.k L1:100 (11 lines rea…
+        t
+
+ / Search "lib/kafka-signing/src/test/**/*" No matches found
+
+ $ Shell Find signing usage and tests 9 lines…
+   cd /Users/hans/.cplt-worktrees/dfc0bfe1cee863263871de7ee1fcf246/mai-flash-run/bench-state/trinn2-
+   mai-flash/tmp/nav-pilot-golden.piGb8t/repo && rg -n
+   "stripSigningHeaders|SigningProducerInterceptor|SIGNATURE_HEADER|KEY_ID_HEADER"
+
+ / Search "**/*Signing*Test*.kt" No matches found
+
+ / Search "lib/kafka-signing/**/*" 3 files found
+
+ / Search "**/build.gradle.kts" 1 file found
+
+ $ Shell Confirm repository location and signing code 14 lines…
+   pwd && rg -n -i "signing|signature|SIGNATURE_HEADER|KEY_ID_HEADER" --glob '*.{kt,java}'
+
+ ✗ Read lib/kafka-signing/build.gradle.kts Path does not exist
+
+ ● Read build.gradle.kts L1:220 (12 lines read)
+
+ / Search "src/test/**/*.kt" No matches found
+
+ ✗ Shell Check test dependencies  Failed with exit code 2
+   rg -n "kotlin-test|kotest|junit|testImplementation|kafka-clients" build.gradle.kts
+   settings.gradle.kts gradle/libs.versions.toml lib/kafka-signing/build.gradle.kts 2>/dev/null
+
+ ✗ Read settings.gradle.kts Path does not exist
+
+ $ Shell Inspect project layout 21 lines…
+   find . -maxdepth 3 -type f | sort | head -50
+
+ MD Read README.md L1:200 (4 lines read)
+
+ / Search "**/*.gradle*" 1 file found
+
+ $ Shell Check worktree status No Content
+   git --no-pager status --short && git --no-pager diff --stat
+
+ ● Edit  Edit lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningProducerInterceptor.kt (+…
+
+ ✗ Shell Run Kotlin test … /bin/bash: ./gradlew: No such file or directory Failed with exit code 127
+   ./gradlew test
+
+ $ Shell Review signing change No Content
+   git --no-pager diff --
+   lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningProducerInterceptor.kt
+
+Signeringsinterceptoren fjerner nå eksisterende `x-paw-signature` og `x-paw-signing-key-id` før nye headers legges til.
+
+Test kunne ikke kjøres: ingen Gradle wrapper finnes i repoet.
+

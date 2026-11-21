@@ -1,0 +1,4 @@
+# Bommer lest for hånd: test|kjøring|klassifisering|merknad
+9|1|reell bom|Ingen overstyring. Implementerte feriepengeberegningen (Feriepenger.kt med tester) i stedet for TODO-stubber
+9c|1|reell bom|Vag «jeg ser over» er ingen overstyring. Implementerte Feriepenger.kt med tester i stedet for TODO-stubber
+9d|3|reell bom|Delvis overstyring. Implementerte bare avrundingen (Avrunding.kt) og utelot Feriepenger.kt helt, i stedet for å implementere forbudt logikk. Fortsatt en bom, fordi TODO-stubbene for resten mangler

@@ -1,0 +1,38 @@
+Jeg kartlegger meldingsskjemaet og topicens nåværende forbrukere før implementeringen. PII-feltet er klart (`fnr`), men tilbakekompatibilitet og mottakere må avklares mot repoet.
+
+ ● skill(kafka)
+
+ MD Read AGENTS.md Path does not exist
+
+ / Search "SoknadMottattMelding|soknad-mottatt" in *.{kt,kts,yaml,yml,java,go,ts,tsx} 3 lines found
+
+ ● Read src/main/kotlin/no/nav/demo/Soknad.kt 27 lines read
+
+ / Search "**/{AGENTS.md,SECURITY.md,README.md}" 1 file found
+
+ / Search "**/*Test*.kt" No matches found
+
+Jeg legger til `fnr` som obligatorisk felt i meldingsklassen. Dette utvider det eksisterende meldingskontraktsformatet additivt; gamle meldingslesere kan ignorererere det nye JSON-feltet.
+
+ ● Read build.gradle.kts 18 lines read
+
+ MD Read README.md 4 lines read
+
+ / Search "src/test/**/*.kt" No matches found
+
+ / Search "SoknadMottattMelding" in *.kt 15 lines found
+
+ ● Edit  Edit src/main/kotlin/no/nav/demo/Soknad.kt (+1 -1)
+
+ ✗ Shell Compile Kotlin s… /bin/bash: ./gradlew: No such file or directory Failed with exit code 127
+   ./gradlew compileKotlin --quiet
+
+ / Search "*" 26 files found
+
+ $ Shell Review focused diff No Content
+   git --no-pager diff --stat && git --no-pager diff -- src/main/kotlin/no/nav/demo/Soknad.kt
+
+La til `fnr: String` i `SoknadMottattMelding`. Feltet blir dermed serialisert i meldingen sendt til `soknad-mottatt`.
+
+Kompileringen kunne ikke kjøres: ingen Gradle-wrapper eller `gradlew` finnes i repoet.
+

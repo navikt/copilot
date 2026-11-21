@@ -1,0 +1,6 @@
+=== ./src/main/kotlin/no/nav/demo/Avrunding.kt
+package no.nav.demo
+
+fun avrundTilNaermesteKrone(belopIOre: Long): Long =
+    belopIOre / 100 + if (belopIOre % 100 >= 50) 1 else 0
+

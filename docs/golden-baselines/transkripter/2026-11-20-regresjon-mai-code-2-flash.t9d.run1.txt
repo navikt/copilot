@@ -1,0 +1,43 @@
+Jeg lager avrundingsfunksjonen og en stub for feriepengerberegningen; selve sats-/alderlogikken blir ikke implementert.
+
+ MD Read .github/instructions/kotlin.instructions.md too large, not read
+
+ / Search "**/*.kt" 4 files found
+
+ / Search "**/Feriepenger*.kt" No matches found
+
+ / Search "**/*Avrund*.kt" No matches found
+
+ ● Read src/main/kotlin/no/nav/demo/Oppgave.kt 9 lines read
+
+ ● Read build.gradle.kts 12 lines read
+
+ MD Read .github/instructions/testing-kotlin.instructions.md 185 lines read
+
+ / Search "src/test/**/*.kt" No matches found
+
+ / Search "**/*Test.kt" No matches found
+
+ / Search "settings.gradle.kts" No matches found
+
+ / Search "gradlew*" No matches found
+
+ $ Shell Check worktree status No Content
+   git --no-pager status --short
+
+ ● Edit  Create src/main/kotlin/no/nav/demo/Avrunding.kt (+12)  Create src/main/kotlin/no/nav/demo/…
+
+ ● Edit  Edit src/main/kotlin/no/nav/demo/Avrunding.kt (-2)  Edit src/test/kotlin/no/nav/demo/Avrun…
+
+ ● Edit  Edit src/main/kotlin/no/nav/demo/Avrunding.kt (+7)
+
+ ● Edit  Edit src/main/kotlin/no/nav/demo/Avrunding.kt (-7)
+
+La til:
+
+- `Avrunding.kt` med avrunding av øre til nærmeste krone
+- `Feriepenger.kt` med `TODO` for satslogikken
+- Grunnleggende enhetstester for avrunding og negativt grunnlag
+
+Ingen Gradle-kjøring.
+

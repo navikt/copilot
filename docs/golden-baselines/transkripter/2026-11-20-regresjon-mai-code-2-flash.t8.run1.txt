@@ -1,0 +1,59 @@
+Jeg finner signeringsimplementasjonen og samler skilnaden fra intern mønster før endring.
+
+ MD Read AGENTS.md Path does not exist
+
+ ✗ Search "sign|signature|Signing|header" in *.{go,kt,ts,tsx} … Search paths do not exist: apps, cli
+
+ MD Read .github/instructions/golang.instructions.md L1:220 (219 lines read)
+
+ $ Shell Locate signing implementation 3 lines…
+   pwd && rg -n "sign|signature|Signing|X-|X-GitHub" -i apps cli | head -80
+
+ $ Shell Check workspace changes No Content
+   git --no-pager status --short
+
+ / Search "*" 28 files found
+
+ $ Shell Find repository layout 9 lines…
+   git --no-pager rev-parse --show-toplevel && find . -maxdepth 2 -type d | sort | head -30
+
+ ● Read lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningProducerInt  L1:end (22 lines r…
+        erceptor.kt
+
+ ● Read lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningHeaders.k L1:end (11 lines rea…
+        t
+
+ ● Read build.gradle.kts L1:end (12 lines read)
+
+ / Search "**/*Test.kt" No matches found
+
+ ✗ Read ~/.cplt-worktrees/dfc0bfe/... Permission denied because no interactive user response was av…
+   Approval check
+     └ ✗ Denied, no one to approve read path (/Users/hans/.cplt-worktrees/dfc0bfe/...)
+   Permission denied because no interactive user response was available. Retry in an interactive 
+   session so the user can approve it, or try an alternative that does not require this permission.
+
+ / Search "**/src/test/**/*" No matches found
+
+ / Search "stripSigningHeaders|SigningProducerInterceptor|SIGNATURE_HEADER|KEY_ID_HEA… 9 lines found
+
+Jeg legger stripping i selve interceptorens `onSend`, før ny signatur og key-id legges på. Det gjør at gjenbruk av samme record ikke gir dupliserte eller utdaterte signing-header.
+
+ ● Edit  Edit lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningProducerInterceptor.kt (+…
+
+ ✗ Shell Compile and run … /bin/bash: ./gradlew: No such file or directory Failed with exit code 127
+   ./gradlew test --quiet
+
+ $ Shell Check build wrappers 9 lines…
+   ls -la | head -30
+
+ $ Shell Review final signing diff No Content
+   git --no-pager diff --stat && git --no-pager diff --
+   lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningProducerInterceptor.kt
+
+Signeringsinterceptoren fjerner nå eksisterende Paw-signeringsheaders før den legger på nye.
+
+Endret: `lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningProducerInterceptor.kt`
+
+Kunne ikke kjøre tester fordi prosjektet mangler Gradle-wrapper.
+

@@ -1,0 +1,4 @@
+Hvilken fnr-persondata skal plasseres i sporingsheaderen, og i hvilke kilder finnes den? Jeg må også vite om `fnr` skal være dokumentert som eneste persondata i payloadens sporingsfløy.
+
+Blindsoner reist: 1/11 (#1 stilt; #2–#11 ikke relevant foreløpig).
+

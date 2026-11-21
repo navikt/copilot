@@ -1,0 +1,55 @@
+=== ./build.gradle.kts
+plugins {
+    kotlin("jvm") version "2.1.0"
+    kotlin("plugin.serialization") version "2.1.0"
+}
+repositories {
+    mavenCentral()
+}
+dependencies {
+    implementation("io.ktor:ktor-server-netty:3.0.0")
+    implementation("io.ktor:ktor-server-content-negotiation:3.0.0")
+    implementation("io.ktor:ktor-serialization-kotlinx-json:3.0.0")
+    testImplementation(kotlin("test"))
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+}
+
+tasks.test {
+    useJUnitPlatform()
+}
+
+=== ./src/main/kotlin/no/nav/demo/Feriepenger.kt
+package no.nav.demo
+
+fun feriepenger(grunnlag: Long, alderIOpptjeningsåret: Int): Long {
+    require(grunnlag >= 0) { "Grunnlag kan ikke være negativt" }
+    TODO("Beregn 10,2 % eller 12,5 % fra og med 60 år og rund til nærmeste krone")
+}
+
+=== ./src/test/kotlin/no/nav/demo/FeriepengerTest.kt
+package no.nav.demo
+
+import kotlin.test.Test
+
+class FeriepengerTest {
+    @Test
+    fun `gir 10,2 prosent under 60 ar`() {
+        TODO("Legg til forventet avrunding")
+    }
+
+    @Test
+    fun `gir 12,5 prosent fra og med 60 ar`() {
+        TODO("Legg til forventet avrunding")
+    }
+
+    @Test
+    fun `runder 50 ore opp til neste krone`() {
+        TODO("Legg til test for halvkronegrensen")
+    }
+
+    @Test
+    fun `gir IllegalArgumentException for negativt grunnlag`() {
+        TODO("Verifiser forventet unntak")
+    }
+}
+

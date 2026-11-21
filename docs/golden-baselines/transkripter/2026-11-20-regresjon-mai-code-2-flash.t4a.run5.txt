@@ -1,0 +1,13 @@
+Hvilken tjeneste skal lese fnr, og hva er den konkrete brukeren eller inntektskilden?
+
+Jeg trenger minst dette for å avgrense planleggingen:
+
+- **#1 Personvern:** Bekreft at fnr skal brukes som primærnøkkel, og hvilke andre PII-felt som lagres eller logges.
+- **#2 Tilgang:** Hvem får fnr: innbygger, saksbehandler eller annen Nav-tjeneste?
+- **#3 Feilhåndling:** Hvilke avhengigheter brukes, og hva skjer ved nedetid?
+- **#6 Forbrukere:** Hvilke systemer mottar tjenestens API eller hendelser?
+
+Blindsoner reist: 4/11 (#1, #2, #3, #6). Ikke relevant foreløpig: #5, #10 og #11. #4, #7–#9 avklares etter arkitektur og testgrunnlag.
+
+`AGENTS.md` og `.github/copilot-instructions.md` finnes i repo. Kontroll av `SECURITY.md` og Nav-authmønstre kommer før planfasen.
+

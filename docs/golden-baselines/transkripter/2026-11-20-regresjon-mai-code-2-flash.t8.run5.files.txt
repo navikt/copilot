@@ -1,0 +1,25 @@
+=== ./lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningProducerInterceptor.kt
+package no.nav.paw.signing
+
+import org.apache.kafka.clients.producer.ProducerInterceptor
+import org.apache.kafka.clients.producer.ProducerRecord
+import org.apache.kafka.clients.producer.RecordMetadata
+
+class SigningProducerInterceptor(private val signer: Signer) : ProducerInterceptor<ByteArray, ByteArray> {
+    override fun onSend(record: ProducerRecord<ByteArray, ByteArray>): ProducerRecord<ByteArray, ByteArray> {
+        stripSigningHeaders(record.headers())
+        val signature = signer.sign(record.value())
+        record.headers().add(SIGNATURE_HEADER, signature)
+        record.headers().add(KEY_ID_HEADER, signer.keyId.toByteArray())
+        return record
+    }
+    override fun onAcknowledgement(metadata: RecordMetadata?, exception: Exception?) {}
+    override fun close() {}
+    override fun configure(configs: MutableMap<String, *>?) {}
+}
+
+interface Signer {
+    val keyId: String
+    fun sign(payload: ByteArray): ByteArray
+}
+

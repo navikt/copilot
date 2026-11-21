@@ -1,0 +1,4 @@
+Bruker du fødselsnummer i en eksisterende header eller vil du legge det til i et nytt sporingsformat? Dette endrer payload og kan eksponere PII i logger eller downstream systemer.
+
+Blindsoner reist: 1/11 (#1 personopplysninger; #2–#11 vurderes etter svaret).
+

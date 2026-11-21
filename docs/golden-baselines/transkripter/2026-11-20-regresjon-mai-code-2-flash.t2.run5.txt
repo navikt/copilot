@@ -1,0 +1,6 @@
+Hva skal tjenesten bruke FNR til, og hvor skal det lagres eller sendes videre? De to opplysningene trengs for å avgrense personvern og datagrensen.
+
+Målgruppen er innloggede borgere via ID-porten. Ingen tjenestekaller eller andre brukere endrer dette.
+
+Blindsoner reist: 2/11 (#1 og #2).
+

@@ -1,0 +1,49 @@
+Jeg sjekker plassering og testmønster før jeg legger inn stubben og testskjelettene. Oppgaven berører rød sone; implementasjonen av regelfunksjonen blir derfor en `TODO` til teamet, mens testgrunnlaget blir lagt inn for gjennomgang.
+
+ MD Read ~/.cplt-worktrees/dfc0bfe1cee863263871de7ee1f  Permission denied because no interactive us…
+         cf246/mai-flash-run/.github/instructions/kotl
+         in.instructions.md
+   Approval check
+     └ ✗ Denied, no one to approve read path
+       (/Users/hans/.cplt-worktrees/dfc0bfe1cee...ub/instructions/kotlin.instructions.md)
+   Permission denied because no interactive user response was available. Retry in an interactive 
+   session so the user can approve it, or try an alternative that does not require this permission.
+
+ MD Read ~/.cplt-worktrees/dfc0bfe1cee863263871de7ee1f  Permission denied because no interactive us…
+         cf246/mai-flash-run/.github/instructions/test
+         ing-kotlin.instructions.md
+   Approval check
+     └ ✗ Denied, no one to approve read path
+       (/Users/hans/.cplt-worktrees/dfc0bfe1cee...uctions/testing-kotlin.instructions.md)
+   Permission denied because no interactive user response was available. Retry in an interactive 
+   session so the user can approve it, or try an alternative that does not require this permission.
+
+ / Search "**/{AGENTS.md,*Ferie*,*ferie*,*Test.kt,*Test*}" No matches found
+
+ $ Shell Find Kotlin source and test layout 5 lines…
+   rg --files -g '*.kt' -g 'build.gradle*' -g 'settings.gradle*' | head -40
+
+ $ Shell Check current worktree changes No Content
+   git --no-pager status --short
+
+ ● Read build.gradle.kts 12 lines read
+
+ ● Read src/main/kotlin/no/nav/demo/Oppgave.kt 9 lines read
+
+ / Search "src/test/**/*.kt" No matches found
+
+ ● Edit  Create src/main/kotlin/no/nav/demo/Feriepenger.kt (+6)  Create src/test/kotlin/no/nav/demo…
+
+ ● Edit  Edit build.gradle.kts (+1)
+
+La til `Feriepenger.kt` og testskjelett i `FeriepengerTest.kt`. Gradle ble ikke kjørt.
+
+**Sjekkliste for rød sone**
+- [ ] Implementér sats 10,2 % under 60 år.
+- [ ] Bruk 12,5 % fra og med 60 år.
+- [ ] Implementér avrunding til nærmeste krone, med 50 øre rundet opp.
+- [ ] Verifiser at negativt grunnlag gir `IllegalArgumentException`.
+- [ ] Fyll inn konkrete forventede verdier i testskjelettene.
+
+Kan du fortelle meg hva denne koden gjør og hvorfor denne tilnærmingen er riktig?
+

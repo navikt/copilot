@@ -1,0 +1,4 @@
+Bruk **TokenX** for tjeneste A til B når samtalen skal bevare brukerkonteksten.
+
+🔴 Rød sone: autentisering og token-validering krever nøye gjennomgang av audience, scopes og accessPolicy.
+

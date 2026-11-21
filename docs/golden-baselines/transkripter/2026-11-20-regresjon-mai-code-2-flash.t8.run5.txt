@@ -1,0 +1,81 @@
+Jeg kartlegger først lokal signeringskode og etterligner «paw»-løpet som samme problembildet.
+
+ / Search "**/AGENTS.md" No matches found
+
+ / Search "signatur|signature|signing|signere|signert|header" in *.{go,kt,ts,tsx,yaml… 7 files found
+
+ $ Shell Check status and locate signing code 8 lines…
+   git --no-pager status --short && rg -n "paw|signing|signature|signatur|signerings" --glob
+   '*.{go,kt,ts,tsx,yaml,yml,md}' . | head -80
+
+ ● Read lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningProducerIntercepto  22 lines re…
+        r.kt
+
+ ● Read lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningHeaders.kt 11 lines read
+
+ MD Read .github/instructions/kotlin.instructions.md too large, not read
+
+ / Search "lib/kafka-signing/src/test/**/*.kt" No matches found
+
+ / Search "kafka-signing" in *.{kts,toml,gradle} No matches found
+
+ / Search "stripSigningHeaders|SIGNATURE_HEADER|KEY_ID_HEADER" in *.kt 7 lines found
+
+ / Search "lib/kafka-signing/**/*" 3 files found
+
+ ● List directory lib 1 file found
+
+ / Search "ProducerInterceptor" in *.kt 3 lines found
+
+ / Search "include.*kafka-signing|lib/kafka-signing" in *.kts No matches found
+
+ ● List directory . 6 files found
+
+ / Search "kafka-clients|kotest|org.junit" in *.kts No matches found
+
+ / Search "{build.gradle.kts,settings.gradle.kts,gradlew,mise.toml}" 1 file found
+
+ ● Read build.gradle.kts 12 lines read
+
+ MD Read README.md 4 lines read
+
+ / Search "src/**/*" 4 files found
+
+Endringen er avgrenset til Kafka-interceptoren: fjern begge headers før ny signatur og key ID legges til. Dette hindrer duplikater ved gjentatt sending av samme `ProducerRecord`.
+
+ ● Edit  Edit lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningProducerInterceptor.kt (+…
+
+ ✗ Shell Run targeted Gradle tests Failed with exit code 1  FAILURE: Build failed with an exception…
+   gradle test --quiet
+   FAILURE: Build failed with an exception.
+   
+   * What went wrong:
+   A problem occurred configuring root project 'repo'.
+   > 27.0.1.1
+   
+   * Try:
+   > Run with --stacktrace option to get the stack trace.
+   > Run with --info or --debug option to get more log output.
+   > Run with --scan to get full insights.
+   > Get more help at https://help.gradle.org.
+   
+   BUILD FAILED in 316ms
+   Failed with exit code 1
+
+ $ Shell Verify final signing diff No Content
+   git --no-pager diff --stat && git --no-pager diff --
+   lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningProducerInterceptor.kt
+
+ $ Shell Confirm changed file is in git worktree 1 line…
+   pwd && git --no-pager status --short && git --no-pager diff --stat --cached && git --no-pager
+   ls-files '*SigningProducerInterceptor.kt'
+
+ $ Shell Check repository tracking and edited line 10 lines…
+   git rev-parse --show-toplevel && git --no-pager check-ignore -v
+   lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningProducerInterceptor.kt || true && sed
+   -n '7,14p' lib/kafka-signing/src/main/kotlin/no/nav/paw/signing/SigningProducerInterceptor.kt
+
+Oppdatert `SigningProducerInterceptor.onSend()` til å fjerne eksisterende signeringsheaders før nye legges til.
+
+`gradle test --quiet` kunne ikke startes fordi Gradle-konfigurasjonen feilet under oppsett med feilkode `27.0.1.1`.
+
