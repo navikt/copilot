@@ -13,11 +13,13 @@ const maxDescription = 1024
 
 var annotationHints = []string{"readOnlyHint", "destructiveHint", "idempotentHint", "openWorldHint"}
 
-// hiddenInstruction matches wording that addresses the model instead of
-// describing the tool. Conservative on purpose: only these phrases and tags.
-// "you must" also hits honest text such as "you must pass an id"; a server
-// owner who wants it fixed should reword it as "requires".
-var hiddenInstruction = regexp.MustCompile(`(?i)ignore (?:all |any |the )?(?:previous|prior|above)|system prompt|you must|(?:do not|don't) tell the user|<\s*/?\s*(?:system|instructions?)\s*>`)
+// hiddenInstruction matches wording that only an injection uses: FAIL.
+// softInstruction matches imperative wording honest descriptions also use: WARN.
+// Both are deliberately narrow.
+var (
+	hiddenInstruction = regexp.MustCompile(`(?i)ignore (?:all |any |the )?(?:previous|prior)(?: instructions)?|system prompt|(?:do not|don't) tell the user|<\s*/?\s*(?:system|instructions?)\s*>`)
+	softInstruction   = regexp.MustCompile(`(?i)\b(?:you must|always|never)\b`)
+)
 
 // invisibleRune reports zero-width, bidi-control and tag characters.
 func invisibleRune(r rune) bool {
@@ -101,6 +103,9 @@ func (cfg *config) lintTools() []result {
 		for _, d := range descriptions(tool) {
 			if loc := hiddenInstruction.FindStringIndex(d); loc != nil {
 				add(rules[0], "FAIL", name, fmt.Sprintf("%q", fragment(d, loc[0], loc[1])))
+			}
+			if loc := softInstruction.FindStringIndex(d); loc != nil {
+				add(rules[0], "WARN", name, fmt.Sprintf("%q", fragment(d, loc[0], loc[1])))
 			}
 			for i, c := range d {
 				if invisibleRune(c) {

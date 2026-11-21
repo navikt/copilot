@@ -13,12 +13,12 @@ Checks an MCP server that sits behind `fleet-gateway` against MCP 2026-07-28 and
 | Missing `method`, `id: null` | 400, `-32600` |
 | `GET`, `DELETE` (skipped with `-legacy`) | 405, `Allow: POST` |
 | Body over `-max-bytes` (default 1 MiB, must be greater than 0) | 413 |
-| `tools/list`: hidden instructions in a description or schema description | FAIL, one row per tool and fragment |
+| `tools/list`: hidden instructions in a description or schema description | FAIL for injection phrases, WARN for `you must`, `always`, `never`; one row per tool and fragment |
 | `tools/list`: zero-width, bidi (U+202A-U+202E, U+2066-U+2069) or tag (U+E0000-U+E007F) characters | FAIL |
 | `tools/list`: any of `readOnlyHint`, `destructiveHint`, `idempotentHint`, `openWorldHint` missing from `annotations` | FAIL |
 | `tools/list`: description over 1024 characters | WARN |
 
-The description checks cover each tool's `description` and every `description` in its `inputSchema`. With `-tool`, only that tool is checked. Hidden instructions are these case-insensitive patterns: `ignore (all|any|the) previous|prior|above`, `system prompt`, `you must`, `do not tell the user` (also `don't`) and the tags `<system>` and `<instructions>`. The match is deliberately narrow, and `you must` also hits honest text such as "you must pass an id"; reword it as "requires". The tool prints only the matching fragment, redacted and capped at 200 characters, never the whole description. Invisible characters are reported as a code point and byte offset.
+The description checks cover each tool's `description` and every `description` in its `inputSchema`. With `-tool`, only that tool is checked. FAIL patterns (case-insensitive): `ignore (all|any|the) previous|prior (instructions)`, `system prompt`, `do not tell the user` (also `don't`) and the tags `<system>` and `<instructions>`. WARN patterns: the words `you must`, `always` and `never`, which honest text such as "you must pass an id" also uses. The tool prints only the matching fragment, redacted and capped at 200 characters, never the whole description. Invisible characters are reported as a code point and byte offset.
 
 Not covered, so keep these in your own tests:
 
