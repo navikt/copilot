@@ -29,6 +29,7 @@ const OWASP_BASE =
 const SPEC_BEST_PRACTICES = "https://modelcontextprotocol.io/specification/2025-11-25/basic/security_best_practices";
 const KODEVERK_URL = "https://github.com/navikt/copilot/tree/main/apps/mcp-kodeverk";
 const ISSUE_URL = "https://github.com/navikt/copilot/issues/2490";
+const COMPLIANCE_URL = "https://github.com/navikt/copilot/tree/main/cli/mcp-compliance";
 const SKILL_URL = "https://github.com/navikt/copilot/tree/main/skills/mcp-server-authoring";
 
 type Ref = { label: string; href: string };
@@ -171,7 +172,7 @@ const SECTIONS: Section[] = [
     ],
     owasp: [owasp("MCP05")],
     spec: [{ label: "Spesifikasjonen 2026-07-28", href: SPEC }],
-    note: "Testen mcp2026_compliance_test.go i mcp-kodeverk viser hvordan dere tester `Mcp-Method` og `Mcp-Name`. En samsvarstest dere kan kjøre mot egen server kommer (#2548).",
+    note: "Testen mcp2026_compliance_test.go i mcp-kodeverk viser hvordan dere tester `Mcp-Method` og `Mcp-Name`. Kjør også samsvarstesten mcp-compliance mot egen server, se «Eksempler».",
   },
   {
     id: "logging",
@@ -455,7 +456,20 @@ export default function McpRetningslinjerPage() {
             </a>
             .
           </li>
-          <li>Samsvarstest dere kan kjøre mot egen server: kommer (#2548).</li>
+          <li>
+            Samsvarstest mot egen server:{" "}
+            <a href={COMPLIANCE_URL} className={linkClass}>
+              mcp-compliance
+            </a>
+            . Installer med <code className={code}>brew install navikt/tap/mcp-compliance</code>.
+            <ReadMore header="Slik kjører dere testen" size="small">
+              <BodyLong size="small">
+                Start serveren og kjør <code className={code}>mcp-compliance -url http://localhost:8080/mcp</code>.
+                Testen virker for servere i alle språk, også Kotlin og TypeScript. Tokens leses fra miljøvariabler.
+                README-en viser oppsett i CI og andre måter å installere på.
+              </BodyLong>
+            </ReadMore>
+          </li>
         </Bullets>
         <BodyLong>
           Bruker dere en KI-agent til å skrive serveren, finnes en skill med samme krav som en kort sjekkliste:{" "}

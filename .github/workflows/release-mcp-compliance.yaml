@@ -1,0 +1,144 @@
+name: Release mcp-compliance
+
+# A tag cli/mcp-compliance/vX.Y.Z is both the Go module version (so
+# `go install ...@latest` resolves it) and the release. Builds, attestation,
+# checksums and publishing follow release-nav-pilot.yaml. The Homebrew formula
+# is updated by a poller in navikt/homebrew-tap, the same way as nav-pilot's.
+on:
+  push:
+    tags: ["cli/mcp-compliance/v*"]
+
+concurrency:
+  group: mcp-compliance-release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  prepare:
+    name: Compute version
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+      commit_sha: ${{ steps.v.outputs.commit_sha }}
+      tag: ${{ steps.v.outputs.tag }}
+      title: ${{ steps.v.outputs.title }}
+    steps:
+      - id: v
+        env:
+          TAG: ${{ github.ref_name }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          VERSION="${TAG#cli/mcp-compliance/}"
+          if ! [[ "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::tag $TAG is not cli/mcp-compliance/vX.Y.Z"
+            exit 1
+          fi
+          {
+            echo "version=${VERSION}"
+            echo "commit_sha=${COMMIT_SHA}"
+            echo "tag=${TAG}"
+            echo "title=mcp-compliance ${VERSION}"
+          } >> "$GITHUB_OUTPUT"
+
+  build:
+    name: Build (${{ matrix.goos }}/${{ matrix.goarch }})
+    needs: prepare
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - goos: darwin
+            goarch: arm64
+          - goos: darwin
+            goarch: amd64
+          - goos: linux
+            goarch: amd64
+          - goos: linux
+            goarch: arm64
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.prepare.outputs.commit_sha }}
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: cli/mcp-compliance/go.mod
+          cache: true
+
+      - name: Build
+        env:
+          CGO_ENABLED: '0'
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          cd cli/mcp-compliance
+          go build -trimpath -ldflags="-s -w" -o "../../mcp-compliance-${GOOS}-${GOARCH}" .
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4
+        with:
+          subject-path: mcp-compliance-${{ matrix.goos }}-${{ matrix.goarch }}
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: mcp-compliance-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: mcp-compliance-${{ matrix.goos }}-${{ matrix.goarch }}
+
+  release:
+    name: Publish release
+    needs: [prepare, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.prepare.outputs.commit_sha }}
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: Generate checksums
+        run: |
+          cd artifacts
+          sha256sum mcp-compliance-* > SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Check release assets
+        run: ls artifacts/mcp-compliance-{darwin,linux}-{amd64,arm64} artifacts/SHA256SUMS
+
+      # The tag exists already, so the draft attaches to it and publishing
+      # creates nothing new. The script's leftover-draft sweep only touches
+      # nav-pilot/ drafts.
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+          SHA: ${{ needs.prepare.outputs.commit_sha }}
+          TITLE: ${{ needs.prepare.outputs.title }}
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          printf '%s\n' \
+            "## mcp-compliance ${VERSION}" \
+            "" \
+            "Checks an MCP server behind fleet-gateway against MCP 2026-07-28 and Nav's auth rules." \
+            "" \
+            '```bash' \
+            "brew install navikt/tap/mcp-compliance" \
+            "go install github.com/navikt/copilot/cli/mcp-compliance@${VERSION}" \
+            '```' \
+            "" \
+            "See cli/mcp-compliance/README.md." > "$RUNNER_TEMP/notes.md"
+          exec scripts/publish-release.sh "$TAG" "$SHA" "$TITLE" "$RUNNER_TEMP/notes.md" artifacts

@@ -36,26 +36,71 @@ Tokens are read from environment variables, never flags, so they stay out of pro
 - `MCP_COMPLIANCE_TOKEN`: a valid user token for the server. Leave it unset for a server that runs without auth locally; the auth checks then fail, which is correct for anything that will run behind `fleet-gateway`.
 - `MCP_COMPLIANCE_APP_TOKEN`: an app token the server must reject. Unset means the check is skipped.
 
+## Install
+
+```sh
+brew install navikt/tap/mcp-compliance
+```
+
+Or with Go 1.26 or later:
+
+```sh
+go install github.com/navikt/copilot/cli/mcp-compliance@latest
+```
+
+Releases are tagged `cli/mcp-compliance/vX.Y.Z`, and `@latest` picks the newest tag. Before the first tag it resolves a pseudo-version of `main`. Use `@vX.Y.Z` to pin a version.
+
+Binaries for macOS and Linux (amd64, arm64) and a `SHA256SUMS` file are on each [release](https://github.com/navikt/copilot/releases?q=mcp-compliance). Verify a binary's build provenance with:
+
+```sh
+gh attestation verify mcp-compliance-linux-amd64 --repo navikt/copilot
+```
+
 ## Run locally
 
 Start your server, then:
 
 ```sh
-go run github.com/navikt/copilot/cli/mcp-compliance@main -url http://localhost:8080/mcp
+mcp-compliance -url http://localhost:8080/mcp
 ```
+
+Kotlin (Ktor or Spring) and TypeScript servers are tested the same way: the tool only speaks HTTP. Start the server with `./gradlew run` or `npm start`, and point `-url` at its MCP endpoint.
 
 `-tool` names a tool that can be called with empty arguments. Without it the tool takes the first entry from `tools/list`. Use `-legacy` while your server still serves the old protocol (`MCP_LEGACY_PROTOCOL_UNTIL`).
 
+## Test tokens
+
+The auth checks need a token your server accepts and, optionally, an app token it must reject. Locally the server usually validates tokens through Texas. A fake Texas that issues test tokens for local runs and CI is tracked in [#2552](https://github.com/navikt/copilot/issues/2552). Until then, run the server against a stub introspection endpoint that accepts your test token, and set:
+
+```sh
+export MCP_COMPLIANCE_TOKEN=...       # accepted user token
+export MCP_COMPLIANCE_APP_TOKEN=...   # optional, idtyp=app, must get 403
+```
+
+Never use a production token.
+
 ## Run in CI
 
+Use the release binary, so the job needs no Go toolchain. Pin the version.
+
 ```yaml
-- uses: actions/setup-go@v6
-  with:
-    go-version: "1.26"
+- name: Install mcp-compliance
+  env:
+    GH_TOKEN: ${{ github.token }}
+    VERSION: v0.1.0
+  run: |
+    gh release download "cli/mcp-compliance/${VERSION}" --repo navikt/copilot \
+      --pattern mcp-compliance-linux-amd64 --pattern SHA256SUMS
+    sha256sum --check --ignore-missing SHA256SUMS
+    install -m 0755 mcp-compliance-linux-amd64 /usr/local/bin/mcp-compliance
+
+# Kotlin: ./gradlew run &   TypeScript: npm ci && npm start &
 - run: ./start-server.sh &   # your own start step
-- run: go run github.com/navikt/copilot/cli/mcp-compliance@main -url http://localhost:8080/mcp
+- run: mcp-compliance -url http://localhost:8080/mcp
   env:
     MCP_COMPLIANCE_TOKEN: ${{ secrets.MCP_TEST_TOKEN }}
 ```
 
-UNVERIFIED: both commands above have not been run end to end against a real server. The tool is tested against an in-process server only (`main_test.go`). Pin a commit SHA instead of `@main` if you want the checks to stay fixed.
+Wait for the server to answer before the last step, for example with `curl --retry 10 --retry-connrefused`.
+
+UNVERIFIED: the commands above have not been run end to end against a real Kotlin or TypeScript server. The tool is tested against an in-process server only (`main_test.go`).
