@@ -88,8 +88,8 @@ export default function EffectiveCustomizations() {
             Prioritet (ved konflikt)
           </BodyShort>
           <BodyShort className="text-gray-600 text-xs">
-            1. Personlige instruksjoner (bruker-nivå) → 2. Repository-instruksjoner (copilot-instructions.md /
-            AGENTS.md) → 3. Organisasjons-instruksjoner. Høyere prioritet vinner.
+            1. Personlige instruksjoner (brukernivå) → 2. Repository-instruksjoner (copilot-instructions.md / AGENTS.md)
+            → 3. Organisasjons-instruksjoner. Høyere prioritet vinner.
           </BodyShort>
         </Box>
       </Box>

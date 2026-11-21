@@ -1057,7 +1057,7 @@ Protokollen ligger i `docs/nav-pilot-benchmark-og-beslutninger-2026-08.md`, fore
 
 Runden fra 1. til 3. juli ligger som direktecommits uten PR-numre.
 
-- **Tilgangskontroll**: Eierskap håndheves på per-bruker-leseendpoints, og en router-nivå-test beviser at `/api/v1/` krever auth.
+- **Tilgangskontroll**: Eierskap håndheves på leseendpoints per bruker, og en router-nivå-test beviser at `/api/v1/` krever auth.
 - **Datariktighet**: `GENERATE_DATE_ARRAY` off-by-one og delvis dag i prognosen, PR-median-fallback, `formatMinutes`-overflow, månedslogikk samlet i delte `month-utils`, faktureringsgrafer hentes fra daglig modelltabell, og hull i inntaket av supplerings- og budsjettdata er tettet.
 - **Ytelse**: OBO-tokenveksling dedupliseres per request, SAML-identitetsoppslag caches i 10 minutter, `/statistikk` hentes parallelt med Suspense per fane, og bruksfordelingens caching er herdet.
 - **Statistikk**: Ukedagsbevisst prognose i graf og backend, «Meg og team» omdøpt til «Team i Nav» med personlig statistikk fjernet, histogram for AI Credits-bruk lagt til, og redundant faktureringsbanner fjernet.

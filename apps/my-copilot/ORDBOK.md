@@ -6,8 +6,8 @@ Terminologi brukt i statistikkdashboardet og verktøykatalogen. Engelske faguttr
 
 | Engelsk           | Kommentar                                                                                                                                               |
 | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| AI Credits        | GitHubs navn på faktureringsenheten. Skriv «AI Credits», ikke «AI-kreditter»                                                                            |
 | agent mode        | Copilots agent-modus — ikke oversett                                                                                                                    |
+| AI Credits        | GitHubs navn på faktureringsenheten. Skriv «AI Credits», ikke «AI-kreditter»                                                                            |
 | ask mode          | Copilots spørremodus — ikke oversett                                                                                                                    |
 | branch            | Git-gren. Skriv branch, ikke gren. Bøyes: branchen, brancher, branchene                                                                                 |
 | chat              | Copilot Chat                                                                                                                                            |
@@ -21,20 +21,20 @@ Terminologi brukt i statistikkdashboardet og verktøykatalogen. Engelske faguttr
 | GDPR              | EU-forordning for personvern                                                                                                                            |
 | header (HTTP)     | Bøyes header/headeren/headere/headerne. Ikke «hode»                                                                                                     |
 | host              | Maskin eller HTTP-host. Skriv host, ikke «vert». Bøyes: hosten, hoster, hostene. Sammensatt: hostnavn, hostliste                                        |
+| inference context | Data sendt til AI-modellen for behandling                                                                                                               |
 | inline            | Inline kodeforslag i editoren                                                                                                                           |
 | input-tokens      | Tokens som sendes til modellen. Skriv input-tokens og output-tokens, ikke «inndatatokener» og «utdatatoken»                                             |
 | merge             | Innlemme en pull request eller branch. Skriv merge, ikke «slått sammen», «sammenslått», «sammenslåing» eller «flettet». Bøyes: å merge, merget, mergede |
 | mirror            | Speilet pakkeregister. Skriv mirror, ikke «speil». Bøyes: mirroren                                                                                      |
+| org policy        | Organisasjonsnivå-regler i GitHub                                                                                                                       |
 | prompt            | Instruksjonen du sender til modellen. Skriv prompt, ikke «ledetekst»                                                                                    |
+| prompt injection  | Angrepsteknikk mot AI-agenter                                                                                                                           |
 | pull request (PR) | Endringsforslag i Git                                                                                                                                   |
 | release           | Utgitt versjon. Skriv release, ikke «utgivelse». Bøyes: releasen, releaser, releasene                                                                   |
 | review            | Gjennomgang — brukes som verb og substantiv                                                                                                             |
 | runtime           | Kjøretiden til et verktøy eller en SDK. Skriv runtime, ikke «kjøretid» eller «kjøretidsmiljø»                                                           |
 | skill             | Artefakttype i en agentpakke — ikke oversett                                                                                                            |
 | tokens            | Tekstenheter AI-modellen bruker (ca. 1 per 4 tegn)                                                                                                      |
-| prompt injection  | Angrepsteknikk mot AI-agenter                                                                                                                           |
-| org policy        | Organisasjonsnivå-regler i GitHub                                                                                                                       |
-| inference context | Data sendt til AI-modellen for behandling                                                                                                               |
 
 ## Agent-begreper
 
@@ -42,12 +42,12 @@ Begrepsavklaringer for agentisk KI. Disse termene beholder vi på engelsk der de
 
 | Begrep           | Forklaring                                                                                                                                                          |
 | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| agency           | Hvor stor handlefrihet agenten har — hvilke verktøy den får bruke og hvilke beslutninger den tar selv. Vi oversetter ikke ordet; bruk «handlefrihet» i norsk tekst. |
 | agent            | KI som selv planlegger og utfører flere steg for å løse en oppgave — den kaller verktøy, leser resultatet og bestemmer neste steg. Mer enn ren chat.                |
 | agentisk KI      | Samlebegrep for KI-systemer som handler på egen hånd mot et mål, i stedet for å svare på ett og ett spørsmål. Brukes som adjektiv: «en agentisk arbeidsflyt».       |
-| agency           | Hvor stor handlefrihet agenten har — hvilke verktøy den får bruke og hvilke beslutninger den tar selv. Vi oversetter ikke ordet; bruk «handlefrihet» i norsk tekst. |
 | autonomi         | Hvor selvstendig agenten kjører uten at et menneske godkjenner hvert steg. Høy autonomi betyr færre stopp for bekreftelse.                                          |
-| harness          | Rammeverket rundt modellen som styrer verktøy, kontekst og sikkerhet — for eksempel sandkassen og reglene agenten kjører innenfor. Ikke oversett.                   |
 | excessive agency | Sikkerhetsbegrep: agenten har fått mer handlefrihet, tilgang eller autonomi enn oppgaven krever, og kan gjøre skade. Behold engelsk; forklar ved første bruk.       |
+| harness          | Rammeverket rundt modellen som styrer verktøy, kontekst og sikkerhet — for eksempel sandkassen og reglene agenten kjører innenfor. Ikke oversett.                   |
 
 ## Norske oversettelser
 
@@ -94,7 +94,7 @@ Begrepsavklaringer for agentisk KI. Disse termene beholder vi på engelsk der de
 
 ## Skriveregler
 
-- **Sammensatte ord**: Skriv sammen der det er naturlig: «editorbruk», «kodelinjer», «aksepteringsrate». Bruk bindestrek ved engelsk+norsk: «CLI-brukere», «agent-forespørsler», «PR-er».
+- **Sammensatte ord**: Skriv sammensatte ord i ett ord («editorbruk», «kodelinjer», «reponivå», «strømmeendpoint»). Bruk bindestrek bare ved forkortelser, tall og egennavn («CLI-brukere», «PR-er», «AI Credits-potter») eller når ordet ellers blir uleselig.
 - **Korte forklaringer**: HelpText-tooltips skal forklare hva metrikken betyr, ikke hvilke API-felt den kommer fra.
 - **Ikke overdriv**: Unngå «Oversikt over...» og «Detaljert oversikt over...» — gå rett på sak.
 - **Tall**: Bruk norsk tallformat med mellomrom som tusenskilletegn: «151 354».
