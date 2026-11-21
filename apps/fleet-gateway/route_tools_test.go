@@ -33,6 +33,9 @@ var devUpstreamToolLoaders = map[string]upstreamToolLoader{
 	"mcp-onboarding": prodUpstreamToolLoaders["mcp-onboarding"],
 	"mcp-kodeverk":   prodUpstreamToolLoaders["mcp-kodeverk"],
 	"mcp-dolly":      prodUpstreamToolLoaders["mcp-dolly"],
+	"mcp-team-catalog": func() (map[string]bool, error) {
+		return mapSliceToolNames(filepath.Join("..", "mcp-team-catalog", "tools.go"), "baseToolDefinitions")
+	},
 }
 
 func TestProdRouteToolsExistInUpstreams(t *testing.T) {
@@ -45,10 +48,11 @@ func TestDevRouteToolsExistInUpstreams(t *testing.T) {
 
 func TestUpstreamToolParsers(t *testing.T) {
 	wantSamples := map[string][]string{
-		"mcp-onboarding": {"hello_world", "team_readiness"},
-		"mcp-kodeverk":   {"list_kodeverk", "search_kodeverk"},
-		"mcp-dolly":      {"dolly_current_user", "create_order"},
-		"fleet-echo":     {"whoami"},
+		"mcp-onboarding":   {"hello_world", "team_readiness"},
+		"mcp-kodeverk":     {"list_kodeverk", "search_kodeverk"},
+		"mcp-dolly":        {"dolly_current_user", "create_order"},
+		"mcp-team-catalog": {"list_teams", "get_team", "get_member_memberships"},
+		"fleet-echo":       {"whoami"},
 	}
 	for app, samples := range wantSamples {
 		loader, ok := devUpstreamToolLoaders[app]
