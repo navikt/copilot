@@ -38,9 +38,9 @@ spec:
       value: "{{log_level}}"
     # MCP 2026-07-28 is the target. Initialize-era clients (OpenCode default)
     # are served until this date; unset means 2026-07-28 only. See echo/mcp2026.go.
-    # Placeholder: the window ends when OpenCode 2.x is the default in nav-pilot (#2367); move this date earlier then.
+    # Legacy cutoff decided in #2351; kept in sync across MCP server manifests.
     - name: MCP_LEGACY_PROTOCOL_UNTIL
-      value: "2028-12-31"
+      value: "2027-03-31"
   accessPolicy:
     inbound:
       rules:

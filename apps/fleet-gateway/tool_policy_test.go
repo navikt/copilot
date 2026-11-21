@@ -86,7 +86,7 @@ func TestToolPolicy_NonPostBody(t *testing.T) {
 }
 
 func TestToolPolicy_RouteFilesAreV2(t *testing.T) {
-	for _, f := range []string{"pilot-routes.yaml", "pilot-routes.dev.yaml", "pilot-routes.prod.yaml"} {
+	for _, f := range []string{"pilot-routes.dev.yaml", "pilot-routes.prod.yaml"} {
 		raw, err := os.ReadFile(f) //nolint:gosec // fixed repo file names
 		if err != nil {
 			t.Fatal(err)
@@ -127,10 +127,13 @@ func TestToolPolicy_RouteFile(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "version 1 is no longer supported") {
 		t.Fatalf("v1 must be rejected with a clear error: %v", err)
 	}
-	for _, f := range []string{"pilot-routes.dev.yaml", "pilot-routes.prod.yaml", ""} {
+	for _, f := range []string{"pilot-routes.dev.yaml", "pilot-routes.prod.yaml"} {
 		if _, err := (fileRouteSource{path: f}).Routes(); err != nil {
 			t.Errorf("%q: %v", f, err)
 		}
+	}
+	if _, err := (fileRouteSource{path: ""}).Routes(); err == nil {
+		t.Error("empty route path must fail closed")
 	}
 	prodRoutes, prodErr := (fileRouteSource{path: "pilot-routes.prod.yaml"}).Routes()
 	if prodErr != nil {

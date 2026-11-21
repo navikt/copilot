@@ -10,7 +10,7 @@ WORKDIR /app
 COPY go.mod go.sum* ./
 RUN go mod download
 
-COPY *.go pilot-routes.yaml pilot-routes.dev.yaml pilot-routes.prod.yaml ./
+COPY *.go pilot-routes.dev.yaml pilot-routes.prod.yaml ./
 COPY web/ ./web/
 COPY internal/ ./internal/
 

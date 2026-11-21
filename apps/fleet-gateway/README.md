@@ -63,7 +63,7 @@ The gateway is live in prod (2026-11-17) for a controlled pilot. It runs the aut
 
 A route path is `/mcp/<namespace>/<name>`, and `<namespace>` must equal the namespace in `target` (for example `/mcp/copilot/onboarding`). The old `/mcp/<name>` paths answer `404` with the new URL in `new_url`; they are not forwarded.
 
-Routes in `pilot-routes.yaml` (`PILOT_ROUTES_FILE`) support an optional `enabled: false` field to disable a single route (`503`, `Retry-After: 300`) while keeping it validated and registered.
+Routes in `pilot-routes.<env>.yaml` (`PILOT_ROUTES_FILE`, required) support an optional `enabled: false` field to disable a single route (`503`, `Retry-After: 300`) while keeping it validated and registered.
 
 In route files (`version: 2`) every route lists the tools it allows in `tools: [...]`; the gateway rejects any other `tools/call`, and any ambiguous JSON-RPC body (case-variant or duplicate keys, trailing data), with a JSON-RPC error and does not forward it. Only the operator sets `passAllTools: true` instead, for a route that forwards every call. `version: 1` files are rejected at startup with an error.
 
