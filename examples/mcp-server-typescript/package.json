@@ -1,0 +1,25 @@
+{
+  "name": "mcp-server-typescript-example",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "dependencies": {
+    "@modelcontextprotocol/node": "2.1.2",
+    "@modelcontextprotocol/server": "2.4.0",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.1"
+  },
+  "scripts": {
+    "check": "tsc -p .",
+    "test": "vitest run",
+    "start": "tsx src/index.ts"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

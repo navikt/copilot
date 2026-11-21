@@ -80,6 +80,25 @@ updates:
           - "*"
     open-pull-requests-limit: 3
 
+  # examples/mcp-server-typescript (referanse, pnpm; bygges ikke i CI)
+  - package-ecosystem: "npm"
+    directory: "/examples/mcp-server-typescript"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Oslo"
+    cooldown:
+      default-days: 7
+    groups:
+      npm-minor-patch:
+        applies-to: version-updates
+        update-types: ["minor", "patch"]
+      npm-security:
+        applies-to: security-updates
+        patterns:
+          - "*"
+
   # my-copilot (Next.js, pnpm)
   - package-ecosystem: "npm"
     directory: "/apps/my-copilot"

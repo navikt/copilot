@@ -1,0 +1,37 @@
+# Skisse, ikke ferdig manifest: tilpass navn, image, ressurser og miljøvariabler.
+apiVersion: nais.io/v1alpha1
+kind: Application
+metadata:
+  name: mcp-example
+  namespace: copilot
+  labels:
+    team: copilot
+spec:
+  image: "{{image}}"
+  port: 8080
+  liveness:
+    path: /health
+  readiness:
+    path: /ready
+  prometheus:
+    enabled: true
+    path: /metrics
+  azure:
+    application:
+      enabled: true
+      tenant: nav.no
+      allowAllUsers: true # Nais legger fleet-gateway inn i AZURE_APP_PRE_AUTHORIZED_APPS via accessPolicy
+  env:
+    - name: KODEVERK_URL
+      value: http://kodeverk-api.team-rocket
+    - name: KODEVERK_SCOPE
+      value: api://dev-gcp.team-rocket.kodeverk-api/.default
+  accessPolicy:
+    inbound:
+      rules:
+        - application: fleet-gateway
+          namespace: copilot
+    outbound:
+      rules:
+        - application: kodeverk-api
+          namespace: team-rocket
