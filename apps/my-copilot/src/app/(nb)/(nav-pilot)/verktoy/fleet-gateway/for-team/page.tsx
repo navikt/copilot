@@ -151,6 +151,13 @@ export default function FleetGatewayForTeamPage() {
         <LinkableHeading id="forutsetninger" size="medium" level="2">
           Forutsetninger
         </LinkableHeading>
+        <BodyLong>
+          Skriver dere serveren selv? Les{" "}
+          <NextLink href="/verktoy/fleet-gateway/retningslinjer" className={linkClass}>
+            retningslinjene for MCP-servere
+          </NextLink>
+          . De gir kravene til tokensjekk, grenser, logging, verktøybeskrivelser og ROS.
+        </BodyLong>
         <Bullets>
           <li>
             Serveren snakker MCP-protokoll{" "}

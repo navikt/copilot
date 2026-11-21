@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-11-19T22:02:01.601Z",
+  "generatedAt": "2026-11-21T21:27:32.272Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -1332,7 +1332,7 @@
       "filePath": "skills/mcp-server-authoring/SKILL.md",
       "repoPath": "skills/mcp-server-authoring/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/mcp-server-authoring/SKILL.md",
-      "contentHash": "b5708cfdcc45503ee4ec927aab6632390971d7c943663909a29e8d41d94b1908",
+      "contentHash": "afc8349042292bf3e0a641310357eca311c84cc2090ab0d1252e74238514a35d",
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": ["mcp", "fleet-gateway", "texas", "kotlin", "typescript", "go", "owasp", "security"],
