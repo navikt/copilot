@@ -9,7 +9,7 @@ import { DOMAIN_CONFIGS } from "@/lib/customization-types";
 import { linkClass } from "@/components/nav-pilot/doc-page";
 import { Contributors } from "../contributors";
 import { TypeBadge, TypeIconBadge } from "../verktoy-type-meta";
-import { McpDetails } from "./mcp-details";
+import { McpDetails, isFleetGatewayMcp } from "./mcp-details";
 import { StaticCustomizationDetails } from "./static-details";
 
 export interface DetailDrawerProps {
@@ -18,11 +18,6 @@ export interface DetailDrawerProps {
   open: boolean;
   onClose: () => void;
   onNavigate?: (item: EnrichedCustomization) => void;
-}
-
-function isFleetGatewayMcp(item: EnrichedCustomization): boolean {
-  if (item.type !== "mcp") return false;
-  return item.remotes.some((r) => r.url.includes("fleet-gateway")) || (item.tags?.includes("fleet-gateway") ?? false);
 }
 
 // The registry has no owner field, so MCP servers get no owner rather than a guess.

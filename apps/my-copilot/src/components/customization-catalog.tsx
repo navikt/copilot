@@ -268,7 +268,6 @@ export function CustomizationCatalog({ items }: CustomizationCatalogProps) {
   }, [activeItems, search, selectedTypes, selectedDomain, sortBy]);
 
   const hasActiveFilters = selectedTypes.length > 0 || selectedDomain !== null || search.length > 0;
-  const showMcpGatewayInfo = selectedTypes.includes("mcp");
 
   function toggleType(type: CustomizationType) {
     setSelectedTypes((prev) => (prev.includes(type) ? prev.filter((t) => t !== type) : [...prev, type]));
@@ -349,34 +348,6 @@ export function CustomizationCatalog({ items }: CustomizationCatalogProps) {
           </Chips>
         </div>
       </VStack>
-
-      {showMcpGatewayInfo ? (
-        <Box background="info-soft" borderRadius="8" paddingBlock="space-12" paddingInline="space-16">
-          <BodyShort size="small">
-            Vil du bruke en MCP-server fra et Nav-team?{" "}
-            <NextLink href="/nav-pilot/guider/nav-mcp-servere" className={linkClass}>
-              Koble til Navs MCP-servere
-            </NextLink>
-            . Eier teamet en MCP-server?{" "}
-            <NextLink href="/verktoy/fleet-gateway" className={linkClass}>
-              Tilby den gjennom fleet-gateway
-            </NextLink>
-            .
-          </BodyShort>
-        </Box>
-      ) : (
-        <BodyShort size="small" className="verktoy-subtle text-center">
-          Vil du bruke en MCP-server fra et Nav-team?{" "}
-          <NextLink href="/nav-pilot/guider/nav-mcp-servere" className={linkClass}>
-            Koble til Navs MCP-servere
-          </NextLink>
-          . Eier teamet en MCP-server?{" "}
-          <NextLink href="/verktoy/fleet-gateway" className={linkClass}>
-            Tilby den gjennom fleet-gateway
-          </NextLink>
-          .
-        </BodyShort>
-      )}
 
       {hasActiveFilters ? (
         <VStack gap="space-16">
@@ -515,6 +486,13 @@ export function CustomizationCatalog({ items }: CustomizationCatalogProps) {
           ))}
         </VStack>
       )}
+
+      <BodyShort size="small" className="verktoy-subtle text-center">
+        Eier teamet en MCP-server?{" "}
+        <NextLink href="/verktoy/fleet-gateway" className={linkClass}>
+          Tilby den gjennom fleet-gateway
+        </NextLink>
+      </BodyShort>
 
       <DetailDrawer
         item={selectedItem}

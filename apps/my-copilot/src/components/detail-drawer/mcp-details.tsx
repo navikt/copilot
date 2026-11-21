@@ -6,6 +6,7 @@ import { DownloadIcon, ExternalLinkIcon } from "@navikt/aksel-icons";
 import type { EnrichedCustomization } from "@/lib/enrich-customizations";
 import type { McpToolRisk } from "@/lib/customization-types";
 import { normalizeExample } from "@/lib/manifest-types";
+import NextLink from "next/link";
 import { linkClass } from "@/components/nav-pilot/doc-page";
 import {
   transportLabel,
@@ -44,6 +45,11 @@ const RISK_GROUPS: {
     tag: "error",
   },
 ];
+
+export function isFleetGatewayMcp(item: EnrichedCustomization): boolean {
+  if (item.type !== "mcp") return false;
+  return item.remotes.some((r) => r.url.includes("fleet-gateway")) || (item.tags?.includes("fleet-gateway") ?? false);
+}
 
 function riskOf(toolRisk: Record<string, McpToolRisk> | undefined, tool: string): McpToolRisk {
   return toolRisk?.[tool] ?? "read";
@@ -99,6 +105,15 @@ export function McpDetails({ item }: { item: EnrichedCustomization }) {
 
   return (
     <VStack gap="space-16">
+      {isFleetGatewayMcp(item) && (
+        <BodyShort size="small">
+          Serveren går gjennom fleet-gateway.{" "}
+          <NextLink href="/nav-pilot/guider/nav-mcp-servere" className={linkClass}>
+            Koble til Navs MCP-servere
+          </NextLink>
+        </BodyShort>
+      )}
+
       {hasLaunchRecipe && (
         <Box
           paddingBlock="space-16"

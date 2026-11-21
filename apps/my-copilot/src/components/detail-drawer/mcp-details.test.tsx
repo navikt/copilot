@@ -187,4 +187,43 @@ describe("McpDetails", () => {
       consoleError.mockRestore();
     }
   });
+
+  describe("fleet-gateway hint", () => {
+    const base = {
+      id: "mcp-x",
+      name: "x",
+      description: "d",
+      type: "mcp",
+      serverId: "x",
+      domain: "testing",
+      filePath: "",
+      repoPath: "",
+      rawGitHubUrl: "",
+      installUrl: null,
+      insidersInstallUrl: null,
+      version: "1",
+      remotes: [],
+    } as unknown as EnrichedCustomization;
+
+    it("links to the guide for a gateway server", () => {
+      const item = {
+        ...base,
+        remotes: [{ type: "streamable-http", url: "https://fleet-gateway.intern.nav.no/kodeverk" }],
+      } as EnrichedCustomization;
+      render(<McpDetails item={item} />);
+      expect(screen.getByRole("link", { name: "Koble til Navs MCP-servere" })).toHaveAttribute(
+        "href",
+        "/nav-pilot/guider/nav-mcp-servere"
+      );
+    });
+
+    it("is hidden for other servers", () => {
+      const item = {
+        ...base,
+        remotes: [{ type: "streamable-http", url: "https://example.com/mcp" }],
+      } as EnrichedCustomization;
+      render(<McpDetails item={item} />);
+      expect(screen.queryByText(/Koble til Navs MCP-servere/)).not.toBeInTheDocument();
+    });
+  });
 });
