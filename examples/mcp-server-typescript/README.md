@@ -43,6 +43,5 @@ CI bygger ikke dette eksempelet. Kjør `pnpm check` og `pnpm test` selv når du 
 
 ## Kjente begrensninger
 
-- Svar fra Texas leses helt inn i minnet før størrelsen sjekkes. Texas er en sidecar på localhost.
 - Ingen rate limit og ingen cache. Se retningslinjene i navikt/copilot#2490.
 - Eksempelet viser ikke `outputSchema`/`structuredContent`, paginering eller skriveverktøy.

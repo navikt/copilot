@@ -20,7 +20,13 @@ export interface AuthConfig {
 /** fleet-gateway's Entra client ID in this cluster, from AZURE_APP_PRE_AUTHORIZED_APPS. Empty string = not configured. */
 export function extractGatewayClientId(raw: string | undefined, cluster: string | undefined): string {
   if (!raw?.trim() || !cluster?.trim()) return "";
-  const apps = JSON.parse(raw) as { name?: string; clientId?: string }[];
+  let apps: { name?: string; clientId?: string }[];
+  try {
+    apps = JSON.parse(raw);
+  } catch {
+    return ""; // malformed: fail closed, the auth path answers 503
+  }
+  if (!Array.isArray(apps)) return "";
   const hits = apps.filter((a) => a.name === `${cluster.trim()}:copilot:fleet-gateway` && a.clientId);
   return hits.length === 1 ? hits[0]!.clientId! : "";
 }
@@ -32,11 +38,26 @@ export function extractBearer(header: string | undefined): string | undefined {
   return tok && !/\s/.test(tok) ? tok : undefined;
 }
 
-// shortcut: buffers the whole body before checking. Texas is a localhost sidecar; stream it if that ever changes.
+/** Reads at most limit+1 bytes (compared as bytes, not UTF-16 units) and cancels the rest. Caller checks length > limit. */
+export async function readCapped(res: Response, limit: number): Promise<Uint8Array> {
+  const out = new Uint8Array(limit + 1);
+  let n = 0;
+  const reader = res.body?.getReader();
+  while (reader && n <= limit) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    const take = Math.min(value.length, limit + 1 - n);
+    out.set(value.subarray(0, take), n);
+    n += take;
+  }
+  void reader?.cancel();
+  return out.subarray(0, n);
+}
+
 async function readLimited(res: Response, limit: number): Promise<string> {
-  const text = await res.text();
-  if (text.length > limit) throw new Error(`response body exceeded ${limit} bytes`);
-  return text;
+  const b = await readCapped(res, limit);
+  if (b.length > limit) throw new Error(`response body exceeded ${limit} bytes`);
+  return new TextDecoder().decode(b);
 }
 
 async function texas(cfg: AuthConfig, url: string, body: object): Promise<unknown> {

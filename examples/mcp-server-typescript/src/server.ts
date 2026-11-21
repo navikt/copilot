@@ -2,7 +2,7 @@ import { createServer, type IncomingMessage, type Server, type ServerResponse } 
 import { createMcpHandler, McpServer, type AuthInfo } from "@modelcontextprotocol/server";
 import { toNodeHandler } from "@modelcontextprotocol/node";
 import * as z from "zod/v4";
-import { exchangeToken, extractBearer, Forbidden, NotConfigured, Unauthorized, validateToken, type AuthConfig } from "./auth.js";
+import { exchangeToken, readCapped, extractBearer, Forbidden, NotConfigured, Unauthorized, validateToken, type AuthConfig } from "./auth.js";
 
 export const MAX_REQUEST_BYTES = 1 << 20;
 export const MAX_RESPONSE_BYTES = 32 * 1024; // downstream body and tool output cap
@@ -53,19 +53,9 @@ function buildMcpServer(cfg: Config, metrics: Metrics, auth?: AuthInfo): McpServ
           headers: { Authorization: `Bearer ${obo}`, Accept: "application/json" },
         });
         if (!res.ok) throw new Error(`downstream returned status ${res.status}`);
-        // Read at most cap+1 bytes: a huge body must not be buffered whole.
-        const reader = res.body!.getReader();
-        const chunks: Uint8Array[] = [];
-        let n = 0;
-        while (n <= MAX_RESPONSE_BYTES) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          chunks.push(value);
-          n += value.length;
-        }
-        void reader.cancel();
+        const body = await readCapped(res, MAX_RESPONSE_BYTES);
         metrics.observe("list_codes", "ok", (performance.now() - t0) / 1000);
-        return { content: [{ type: "text" as const, text: truncate(Buffer.concat(chunks).toString()) }] };
+        return { content: [{ type: "text" as const, text: truncate(Buffer.from(body).toString()) }] };
       } catch (e) {
         metrics.observe("list_codes", "error", (performance.now() - t0) / 1000);
         // Fixed message: upstream bodies and tokens must not reach the model or the logs.
@@ -109,6 +99,8 @@ export function createApp(cfg: Config): { server: Server; metrics: Metrics } {
     const len = Number(req.headers["content-length"] ?? 0);
     if (len > MAX_REQUEST_BYTES) return json(res, 413, { error: "payload_too_large" });
 
+    // The SDK gets the token only via authInfo (the tool needs it for OBO); it never reads the header.
+    delete req.headers.authorization;
     const info: AuthInfo = { token, clientId: cfg.gatewayClientId, scopes: [], extra: { navIdent } };
     await mcp(Object.assign(req, { auth: info }), res);
   });

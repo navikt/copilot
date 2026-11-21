@@ -12,10 +12,14 @@ afterEach(() => void open?.close());
 // Fake Texas and downstream API behind one fetch.
 function setup(claims: object, over: Partial<Config> = {}) {
   const downstream: { auth?: string }[] = [];
+  const exchanged: Record<string, unknown>[] = [];
   const fakeFetch = (async (url: string | URL | Request, init?: RequestInit) => {
     const u = String(url);
     if (u.endsWith("/introspect")) return Response.json(claims);
-    if (u.endsWith("/token")) return Response.json({ access_token: "obo-token" });
+    if (u.endsWith("/token")) {
+      exchanged.push(JSON.parse(String(init?.body)));
+      return Response.json({ access_token: "obo-token" });
+    }
     downstream.push({ auth: (init?.headers as Record<string, string>).Authorization });
     return new Response("x".repeat(MAX_RESPONSE_BYTES * 4));
   }) as typeof fetch;
@@ -31,7 +35,7 @@ function setup(claims: object, over: Partial<Config> = {}) {
       method: "POST", body,
       headers: { "Content-Type": "application/json", Accept: "application/json, text/event-stream", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
     });
-  return { post, metrics, downstream };
+  return { post, metrics, downstream, exchanged };
 }
 const call = (name: string, args: object) => JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/call", params: { name, arguments: args } });
 
@@ -63,18 +67,21 @@ describe("inbound token validation", () => {
     expect(extractGatewayClientId(apps, "dev-gcp")).toBe(GW);
     expect(extractGatewayClientId(apps, "prod-gcp")).toBe("");
     expect(extractGatewayClientId("", "dev-gcp")).toBe("");
+    expect(extractGatewayClientId("{not json", "dev-gcp")).toBe("");
+    expect(extractGatewayClientId('{"a":1}', "dev-gcp")).toBe("");
   });
 });
 
 describe("tool call", () => {
   it("does OBO, caps the response and counts the call", async () => {
-    const { post, metrics, downstream } = setup(user);
+    const { post, metrics, downstream, exchanged } = setup(user);
     const res = await post(call("list_codes", { kodeverksnavn: "Landkoder" }));
     expect(res.status).toBe(200);
     const text = await res.text();
     expect(text).toContain("[truncated]");
     expect(text.length).toBeLessThan(MAX_RESPONSE_BYTES * 2);
     // The downstream call carries the OBO token, never the inbound one.
+    expect(exchanged).toEqual([{ identity_provider: "entra_id", target: "api://x/.default", user_token: "inbound-token" }]);
     expect(downstream).toEqual([{ auth: "Bearer obo-token" }]);
     expect(metrics.render()).toContain('mcp_tool_calls_total{tool="list_codes",outcome="ok"} 1');
   });
