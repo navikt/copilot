@@ -180,7 +180,9 @@ func checks(cfg *config) ([]result, error) {
 		}())
 	}
 	mismatch("missing MCP-Protocol-Version is -32020", modernBody("tools/list", nil), with(modernHeaders("tools/list", ""), "MCP-Protocol-Version", ""), codeHeaderMismatch)
-	mismatch("unsupported MCP-Protocol-Version is -32022", modernBody("tools/list", nil), with(modernHeaders("tools/list", ""), "MCP-Protocol-Version", "2099-01-01"), codeUnsupportedVer)
+	unsupported := modernBody("tools/list", nil)
+	unsupported["params"].(map[string]any)["_meta"].(map[string]any)[metaProtocolVersion] = "2099-01-01"
+	mismatch("unsupported MCP-Protocol-Version is -32022", unsupported, with(modernHeaders("tools/list", ""), "MCP-Protocol-Version", "2099-01-01"), codeUnsupportedVer)
 	mismatch("Mcp-Method mismatch is -32020", modernBody("tools/list", nil), modernHeaders("server/discover", ""), codeHeaderMismatch)
 	mismatch("Mcp-Method missing is -32020", modernBody("tools/list", nil), with(modernHeaders("tools/list", ""), "Mcp-Method", ""), codeHeaderMismatch)
 	differing := modernBody("tools/list", nil)
