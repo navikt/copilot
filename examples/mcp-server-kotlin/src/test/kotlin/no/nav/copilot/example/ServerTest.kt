@@ -95,6 +95,21 @@ class ServerTest {
     }
 
     @Test
+    fun `texas unreachable gives 502, not invalid_token`() {
+        val r = post(start(cfg.copy(introspectionEndpoint = "http://127.0.0.1:1/introspect")), list, "ok")
+        assertEquals(502, r.statusCode())
+        assertTrue(r.headers().firstValue("WWW-Authenticate").isEmpty)
+    }
+
+    @Test
+    fun `the MCP route itself rejects requests without a token`() {
+        val url = start()
+        assertEquals(401, post("$url", list).statusCode())
+        val get = http.send(HttpRequest.newBuilder(URI.create("$url$MCP_PATH")).GET().build(), HttpResponse.BodyHandlers.ofString())
+        assertEquals(401, get.statusCode())
+    }
+
+    @Test
     fun `request body over the limit is rejected`() {
         assertEquals(413, post(start(), "x".repeat(MAX_REQUEST_BYTES + 1), "ok").statusCode())
     }

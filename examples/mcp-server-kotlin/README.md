@@ -18,11 +18,11 @@ Serveren er tilstandsløs (`mcpStatelessStreamableHttp`): ett `Server`-objekt pe
 
 ## Kjøre lokalt
 
-Krever JDK 21 og Gradle 8.14 eller nyere. Prosjektet har ingen Gradle-wrapper.
+Krever JDK 21 (bruk ikke nyere JDK enn Gradle 8.14 støtter). Wrapperen henter Gradle 8.14.7.
 
 ```sh
 cd examples/mcp-server-kotlin
-gradle test
+./gradlew test
 ```
 
 CI bygger ikke dette prosjektet. Kjør testene selv før du endrer noe.

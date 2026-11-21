@@ -24,6 +24,7 @@ sealed interface AuthResult {
     data object Unauthorized : AuthResult // 401: missing, malformed, inactive or unverifiable token
     data object Forbidden : AuthResult // 403: valid token, wrong claims
     data object NotConfigured : AuthResult // 503: fail closed
+    data object BadGateway : AuthResult // 502: Texas unreachable or answered garbage; not the caller's fault
 }
 
 class DownstreamException(message: String) : Exception(message)
@@ -91,12 +92,12 @@ class Texas(private val cfg: Config, private val http: HttpClient = defaultHttpC
                 put("token", token)
             }.toString())
         } catch (_: Exception) {
-            return AuthResult.Unauthorized // Texas unreachable or bad answer: no token is accepted
+            return AuthResult.BadGateway // no token is accepted, but this is not an invalid_token
         }
         val claims = try {
             Json.parseToJsonElement(body).jsonObject
         } catch (_: Exception) {
-            return AuthResult.Unauthorized
+            return AuthResult.BadGateway
         }
         if (claims["active"]?.jsonPrimitive?.boolean != true) return AuthResult.Unauthorized
 

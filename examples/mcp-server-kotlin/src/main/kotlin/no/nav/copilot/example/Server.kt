@@ -38,6 +38,7 @@ import java.time.Duration
 const val MAX_REQUEST_BYTES = 64 * 1024 // inbound JSON-RPC body
 const val MAX_UPSTREAM_BYTES = 1 shl 20 // what we read from the downstream API
 const val MAX_RESULT_BYTES = 32 * 1024 // what we hand back to the model
+const val MCP_PATH = "/mcp" // shared by the auth plugin and the SDK route
 const val TOOL = "kodeverk_list"
 
 private val NavIdentKey = AttributeKey<String>("navIdent")
@@ -46,7 +47,7 @@ private val TokenKey = AttributeKey<String>("bearer")
 /** Auth and size limits run before the MCP transport sees the request. */
 private fun authPlugin(texas: Texas) = createApplicationPlugin("NavAuth") {
     onCall { call ->
-        if (call.request.path() != "/mcp") return@onCall
+        if (call.request.path() != MCP_PATH) return@onCall
         // Chunked bodies have no Content-Length and are refused, so the limit below cannot be bypassed.
         val len = call.request.header(HttpHeaders.ContentLength)?.toLongOrNull()
         if (call.request.local.method.value == "POST" && len == null) {
@@ -70,6 +71,7 @@ private fun authPlugin(texas: Texas) = createApplicationPlugin("NavAuth") {
                 call.respond(HttpStatusCode.Unauthorized)
             }
             AuthResult.Forbidden -> call.respond(HttpStatusCode.Forbidden)
+            AuthResult.BadGateway -> call.respond(HttpStatusCode.BadGateway)
             AuthResult.NotConfigured -> call.respond(HttpStatusCode.ServiceUnavailable)
         }
     }
@@ -88,7 +90,7 @@ fun Application.module(
         get("/metrics") { call.respondText(metrics.render()) }
     }
     // Stateless: one Server per request, so the caller's token lives in the closure, never in a session.
-    mcpStatelessStreamableHttp(allowedHosts = cfg.allowedHosts) {
+    mcpStatelessStreamableHttp(path = MCP_PATH, allowedHosts = cfg.allowedHosts) {
         val token = call.attributes.getOrNull(TokenKey)
         buildServer(cfg, texas, http, metrics, token)
     }
