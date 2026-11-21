@@ -472,9 +472,9 @@ export default function FleetGatewayForTeamPage() {
           <li>Test i prod på samme måte som i dev, med prod-adressen.</li>
           <li>En innlogging varer i 12 timer. Godkjenningen av klienten huskes i 30 dager.</li>
           <li>
-            Grenser per kall: forespørselen kan være opptil 1 MiB og svaret opptil 10 MiB. Serveren må sende svarheaderne
-            innen 60 sekunder, og et vanlig svar må være ferdig innen 60 nye sekunder. Svarer dere med SSE (
-            <code className={code}>text/event-stream</code>), gjelder i stedet 16 MiB, maks 10 minutter og at det ikke
+            Grenser per kall: forespørselen kan være opptil 1 MiB og svaret opptil 10 MiB. Serveren må sende
+            svarheaderne innen 60 sekunder, og et vanlig svar må være ferdig innen 60 nye sekunder. Svarer dere med SSE
+            (<code className={code}>text/event-stream</code>), gjelder i stedet 16 MiB, maks 10 minutter og at det ikke
             går mer enn 60 sekunder mellom hendelsene.
           </li>
           <li>
