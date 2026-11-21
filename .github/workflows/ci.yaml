@@ -50,6 +50,7 @@ jobs:
       mcp-kodeverk: ${{ steps.reuse.outputs.reuse != 'true' && steps.filter.outputs.mcp-kodeverk || 'false' }}
       mcp-onboarding: ${{ steps.reuse.outputs.reuse != 'true' && steps.filter.outputs.mcp-onboarding || 'false' }}
       mcp-registry: ${{ steps.reuse.outputs.reuse != 'true' && steps.filter.outputs.mcp-registry || 'false' }}
+      mcp-team-catalog: ${{ steps.reuse.outputs.reuse != 'true' && steps.filter.outputs.mcp-team-catalog || 'false' }}
       my-copilot: ${{ steps.reuse.outputs.reuse != 'true' && steps.filter.outputs.my-copilot || 'false' }}
       nav-pilot: ${{ steps.reuse.outputs.reuse != 'true' && steps.filter.outputs.nav-pilot || 'false' }}
       docs: ${{ steps.reuse.outputs.reuse != 'true' && steps.filter.outputs.docs || 'false' }}
@@ -135,6 +136,7 @@ jobs:
               - 'apps/mcp-onboarding/**'
               - 'apps/mcp-kodeverk/**'
               - 'apps/mcp-dolly/**'
+              - 'apps/mcp-team-catalog/**'
               - '.github/workflows/fleet-gateway.yaml'
               - '.github/workflows/mise-build-deploy-nais.yaml'
               - '.github/workflows/ci.yaml'
@@ -160,6 +162,11 @@ jobs:
             mcp-registry:
               - 'apps/mcp-registry/**'
               - '.github/workflows/mcp-registry.yaml'
+              - '.github/workflows/mise-build-deploy-nais.yaml'
+              - '.github/workflows/ci.yaml'
+            mcp-team-catalog:
+              - 'apps/mcp-team-catalog/**'
+              - '.github/workflows/mcp-team-catalog.yaml'
               - '.github/workflows/mise-build-deploy-nais.yaml'
               - '.github/workflows/ci.yaml'
             my-copilot:
@@ -498,6 +505,32 @@ jobs:
     defaults:
       run:
         working-directory: apps/mcp-registry
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # ratchet:actions/cache@v6.1.0
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+      - uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # ratchet:jdx/mise-action@v5.2.8
+        with:
+          experimental: true
+      - run: mise run install
+      - run: mise run lint
+      - run: mise run check
+
+  mcp-team-catalog:
+    name: mcp-team-catalog
+    needs: changes
+    if: needs.changes.outputs.mcp-team-catalog == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: apps/mcp-team-catalog
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # ratchet:actions/cache@v6.1.0
@@ -867,6 +900,7 @@ jobs:
       - mcp-kodeverk
       - mcp-onboarding
       - mcp-registry
+      - mcp-team-catalog
       - my-copilot
       - nav-pilot
       - docs
