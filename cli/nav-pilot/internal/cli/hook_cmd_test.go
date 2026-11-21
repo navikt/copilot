@@ -9,7 +9,6 @@ import (
 	"strings"
 	"testing"
 
-	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
 )
 
@@ -271,41 +270,55 @@ func TestHookStateDirEnv(t *testing.T) {
 	}
 }
 
-func TestHookRedactCopilotDollySource(t *testing.T) {
+func TestHookRedactSyntheticAndRealIdents(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
 	writeTestConfig(t, "version = 1\n")
 
-	const dollyIdent = "01519041010" // month 11 + 40 (synthetic Dolly / H-nummer)
-	const realFNR = "15078545620"
-	payload := func(tool, text string) string {
-		return `{"hook_event_name":"PostToolUse","session_id":"s","tool_name":"` + tool + `","tool_input":{},"tool_result":{"result_type":"success","text_result_for_llm":"` + text + `"}}`
-	}
 	run := func(in string) string {
 		var out bytes.Buffer
 		runHookCommand([]string{"redact"}, strings.NewReader(in), &out)
 		return strings.TrimSpace(out.String())
 	}
-
-	srcs := `{"io.github.navikt/dolly":"io.github.navikt/dolly","io.github.navikt/dolly-extra":""}`
-	t.Setenv(providerpkg.CopilotMCPSourcesEnv, srcs)
-
-	if got := run(payload("io-github-navikt-dolly-dolly_search", "ident "+dollyIdent)); got != "{}" {
-		t.Errorf("verified Dolly tool masked synthetic ident: %s", got)
+	payloads := []struct {
+		name string
+		make func(text string) string
+	}{
+		{"copilot dolly tool", func(text string) string {
+			return `{"hook_event_name":"PostToolUse","session_id":"s","tool_name":"io-github-navikt-dolly-dolly_search","tool_input":{},"tool_result":{"result_type":"success","text_result_for_llm":"` + text + `"}}`
+		}},
+		{"payload naming dolly mcpServer", func(text string) string {
+			return `{"sessionId":"s","toolName":"dolly_search","mcpServer":"io.github.navikt/dolly","toolArgs":{},"toolResult":{"resultType":"success","textResultForLlm":"` + text + `"}}`
+		}},
+		{"builtin bash", func(text string) string {
+			return `{"hook_event_name":"PostToolUse","session_id":"s","tool_name":"bash","tool_input":{},"tool_result":{"result_type":"success","text_result_for_llm":"` + text + `"}}`
+		}},
 	}
-	if got := run(payload("io-github-navikt-dolly-dolly_search", "ident "+realFNR)); !strings.Contains(got, "[REDACTED:fnr]") {
-		t.Errorf("verified Dolly tool left real FNR unmasked: %s", got)
+	cases := []struct {
+		name   string
+		ident  string
+		masked bool
+	}{
+		{"dolly synthetic day+40 month+40", "46510000110", false},
+		{"tenor synthetic month+80", "15910000060", false},
+		{"reserved test person month+65", "15710000074", false},
+		{"checksum-invalid", "15078545621", false},
+		{"real fnr", "15078545620", true},
+		{"real d-nummer", "55019041181", true},
+		{"real h-nummer", "01519041010", true},
 	}
-	if got := run(payload("io-github-navikt-dolly-extra-search", "ident "+dollyIdent)); !strings.Contains(got, "[REDACTED:fnr]") {
-		t.Errorf("unverified longer-prefix server left synthetic ident unmasked: %s", got)
-	}
-	if got := run(payload("bash", "ident "+dollyIdent)); !strings.Contains(got, "[REDACTED:fnr]") {
-		t.Errorf("builtin tool left synthetic ident unmasked: %s", got)
-	}
-
-	// Without NAV_PILOT_COPILOT_MCP_SOURCES, even a Dolly-named tool stays masked.
-	t.Setenv(providerpkg.CopilotMCPSourcesEnv, "")
-	if got := run(payload("io-github-navikt-dolly-dolly_search", "ident "+dollyIdent)); !strings.Contains(got, "[REDACTED:fnr]") {
-		t.Errorf("without sources env, synthetic ident was left unmasked: %s", got)
+	for _, src := range payloads {
+		for _, tc := range cases {
+			t.Run(src.name+"/"+tc.name, func(t *testing.T) {
+				got := run(src.make("ident " + tc.ident))
+				if tc.masked {
+					if !strings.Contains(got, "[REDACTED:fnr]") || strings.Contains(got, tc.ident) {
+						t.Errorf("want masked, got %s", got)
+					}
+				} else if got != "{}" {
+					t.Errorf("want {}, got %s", got)
+				}
+			})
+		}
 	}
 }

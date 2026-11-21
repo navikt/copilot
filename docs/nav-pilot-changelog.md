@@ -4,9 +4,9 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ## 2026-11-21
 
-### Syntetiske Dolly-identer slippes nå gjennom i Copilot CLI også
+### Kun mønsterbasert unntak for syntetiske testidenter
 
-- **Dolly (Copilot CLI)**: Identer med måned 41–52 slippes nå gjennom personvernfilteret også når du kjører Copilot CLI gjennom `nav-pilot`, så lenge verktøykallet kommer fra MCP-serveren `io.github.navikt/dolly`. Oppstarten slår opp serverens URL mot Navs MCP-register og sender kartet til redaksjonshooken, som matcher verktøynavnet eksakt på Copilot CLIs prefiks. Uten treff på URL, ved prefikskollisjon, ved `--additional-mcp-config`, eller når registeret ikke kan leses, maskeres identene som før (#2514).
+- **Hook-maskering av fødselsnummer**: Kildebasert unntak per MCP-server er fjernet. Syntetiske testidenter som kan kjennes på selve nummeret (Dolly/NAV med både dag og måned over 40, Tenor med måned 81-92 og reserverte testpersoner med måned 66-77) slippes gjennom uavhengig av kilde og klient. Ekte fødselsnummer, D-nummer og H-nummer (bare måned 41-52) maskeres overalt (#2514).
 
 ## 2026-11-20
 

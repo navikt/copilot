@@ -131,66 +131,30 @@ func TestRedactLeavesOrdinaryOutputAlone(t *testing.T) {
 	}
 }
 
-// Dolly's synthetic idents have month +40, like a real H-number, so they pass
-// only when the result is known to come from the Dolly server.
-func TestRedactDollyMonth40(t *testing.T) {
-	const ident = "01519041010" // month 11 + 40, day 01: also a valid H-number
-	for _, tt := range []struct {
+// Pattern-only masking: synthetic test identities (Dolly/NAV day+40 & month+40,
+// Tenor month+80, reserved month+65) stay unmasked from any source, while real
+// fødselsnummer, D-nummer and H-nummer stay masked everywhere.
+func TestRedactSyntheticAndRealIdents(t *testing.T) {
+	opts := RedactOptions{FNR: true}
+	tests := []struct {
 		name   string
-		opts   RedactOptions
+		ident  string
 		masked bool
 	}{
-		{"dolly", RedactOptions{FNR: true, DollySource: true}, false},
-		{"other source", RedactOptions{FNR: true}, true},
-	} {
-		out, _ := Redact("person "+ident, tt.opts)
-		if got := !strings.Contains(out, ident); got != tt.masked {
-			t.Errorf("%s: masked=%v, want %v: %q", tt.name, got, tt.masked, out)
-		}
-	}
-	// Dolly source does not open real numbers or D-numbers.
-	for _, id := range []string{"15078545620", "55019041181"} {
-		if out, _ := Redact(id, RedactOptions{FNR: true, DollySource: true}); strings.Contains(out, id) {
-			t.Errorf("%s from Dolly was left unmasked", id)
-		}
-	}
-}
-
-func TestParsePayloadMCPServer(t *testing.T) {
-	p, err := ParsePayload([]byte(`{"toolName":"x","mcpServer":"io.github.navikt/dolly"}`))
-	if err != nil || p.MCPServer != DollyServer {
-		t.Errorf("got %q, %v", p.MCPServer, err)
-	}
-	if p, _ := ParsePayload([]byte(`{"toolName":"x"}`)); p.MCPServer != "" {
-		t.Errorf("no field, got %q", p.MCPServer)
-	}
-}
-
-func TestCopilotMCPServer(t *testing.T) {
-	srcs := `{"io.github.navikt/dolly":"io.github.navikt/dolly","io.github.navikt/dolly-extra":"","mine":"io.github.navikt/dolly","impostor":""}`
-	collide := `{"io.github.navikt/dolly":"io.github.navikt/dolly","io-github-navikt-dolly":""}`
-	shorterUnverified := `{"io.github.navikt/dolly":"io.github.navikt/dolly","io":""}`
-	shorterOther := `{"io.github.navikt/dolly":"io.github.navikt/dolly","io":"io.github.navikt/other"}`
-	tests := []struct {
-		name, tool, srcs, want string
-	}{
-		{"dolly default key", "io-github-navikt-dolly-dolly_search", srcs, DollyServer},
-		{"dolly renamed key", "mine-dolly_search", srcs, DollyServer},
-		{"unverified longer prefix fails closed", "io-github-navikt-dolly-extra-search", srcs, ""},
-		{"shorter unverified prefix cannot spoof dolly", "io-github-navikt-dolly-dolly_search", shorterUnverified, ""},
-		{"shorter different-registry prefix cannot spoof dolly", "io-github-navikt-dolly-dolly_search", shorterOther, ""},
-		{"colliding sanitized prefixes fail closed", "io-github-navikt-dolly-dolly_search", collide, ""},
-		{"unverified key", "impostor-search", srcs, ""},
-		{"contains prefix without anchoring", "x-io-github-navikt-dolly-dolly_search", srcs, ""},
-		{"empty tool after prefix", "io-github-navikt-dolly-", srcs, ""},
-		{"builtin tool", "bash", srcs, ""},
-		{"no sources", "io-github-navikt-dolly-dolly_search", "", ""},
-		{"invalid json", "io-github-navikt-dolly-dolly_search", "not json", ""},
+		{"real fnr", "15078545620", true},
+		{"real d-nummer", "55019041181", true},
+		{"real h-nummer (month +40 only)", "01519041010", true},
+		{"dolly synthetic (day +40, month +40)", "46510000110", false},
+		{"tenor synthetic (month +80)", "15910000060", false},
+		{"dolly+tenor synthetic (day +40, month +80)", "46910000012", false},
+		{"reserved test person (month +65)", "15710000074", false},
+		{"checksum-invalid", "15078545621", false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := CopilotMCPServer(tt.tool, tt.srcs); got != tt.want {
-				t.Errorf("CopilotMCPServer(%q) = %q, want %q", tt.tool, got, tt.want)
+			out, _ := Redact("person "+tt.ident, opts)
+			if got := !strings.Contains(out, tt.ident); got != tt.masked {
+				t.Errorf("masked=%v, want %v: %q", got, tt.masked, out)
 			}
 		})
 	}

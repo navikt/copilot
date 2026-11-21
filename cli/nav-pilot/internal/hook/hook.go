@@ -29,8 +29,6 @@ package hook
 
 import (
 	"encoding/json"
-	"regexp"
-	"strings"
 )
 
 // Payload is the part of a postToolUse payload the hooks read, from either
@@ -44,17 +42,11 @@ type Payload struct {
 	HasResult  bool
 	// Cwd is the session's working directory, which both dialects send.
 	Cwd string
-	// MCPServer is the registry name of the MCP server the tool belongs to,
-	// when the client says (OpenCode's hooks bridge). Copilot CLI sends no
-	// server field; its MCP tools are resolved from ToolName via
-	// [CopilotMCPServer].
-	MCPServer string
 }
 
 type wirePayload struct {
-	Cwd        string          `json:"cwd"`
-	MCPServer  string          `json:"mcpServer"`
-	SessionID  string          `json:"sessionId"`
+	Cwd       string          `json:"cwd"`
+	SessionID string          `json:"sessionId"`
 	ToolName   string          `json:"toolName"`
 	ToolArgs   json.RawMessage `json:"toolArgs"`
 	ToolResult *struct {
@@ -77,7 +69,7 @@ func ParsePayload(b []byte) (Payload, error) {
 	if err := json.Unmarshal(b, &w); err != nil {
 		return Payload{}, err
 	}
-	p := Payload{SessionID: w.SessionID, ToolName: w.ToolName, ToolArgs: w.ToolArgs, Cwd: w.Cwd, MCPServer: w.MCPServer}
+	p := Payload{SessionID: w.SessionID, ToolName: w.ToolName, ToolArgs: w.ToolArgs, Cwd: w.Cwd}
 	if p.SessionID == "" {
 		p.SessionID = w.SessionIDSnake
 	}
@@ -113,55 +105,4 @@ func ModifiedResult(resultType, text string) string {
 		return NoChange
 	}
 	return string(b)
-}
-
-var copilotIDChars = regexp.MustCompile(`[^a-zA-Z0-9_-]`)
-
-func copilotToolPrefix(serverKey string) string {
-	return copilotIDChars.ReplaceAllString(serverKey, "-") + "-"
-}
-
-// CopilotMCPServer returns the verified registry name for the MCP server that
-// toolName belongs to, from the launch's NAV_PILOT_COPILOT_MCP_SOURCES JSON
-// map (config key -> registry name, or "" for an unverified server).
-//
-// Measured against Copilot CLI 1.0.115: MCP tools arrive as
-// "<sanitizedServerKey>-<toolName>", replacing each character outside
-// [a-zA-Z0-9_-] in the server key with "-". Every matching prefix must agree
-// on the same non-empty registry name; colliding or ambiguous prefixes fail
-// closed ("").
-func CopilotMCPServer(toolName, rawSources string) string {
-	if toolName == "" || rawSources == "" {
-		return ""
-	}
-	var sources map[string]string
-	if json.Unmarshal([]byte(rawSources), &sources) != nil || len(sources) == 0 {
-		return ""
-	}
-	byPrefix := make(map[string]string, len(sources))
-	ambiguous := map[string]bool{}
-	for key, regName := range sources {
-		if key == "" {
-			continue
-		}
-		p := copilotToolPrefix(key)
-		if prev, seen := byPrefix[p]; seen && prev != regName {
-			ambiguous[p] = true
-			byPrefix[p] = ""
-			continue
-		}
-		if !ambiguous[p] {
-			byPrefix[p] = regName
-		}
-	}
-	matched, matchName := false, ""
-	for p, regName := range byPrefix {
-		if len(toolName) > len(p) && strings.HasPrefix(toolName, p) {
-			if regName == "" || (matched && matchName != regName) {
-				return ""
-			}
-			matched, matchName = true, regName
-		}
-	}
-	return matchName
 }

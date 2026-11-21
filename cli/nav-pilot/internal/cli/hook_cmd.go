@@ -143,15 +143,10 @@ func runHookCommand(args []string, stdin io.Reader, stdout io.Writer) {
 		if !p.HasResult {
 			return
 		}
-		mcpServer := p.MCPServer
-		if mcpServer == "" {
-			mcpServer = hook.CopilotMCPServer(p.ToolName, os.Getenv(providerpkg.CopilotMCPSourcesEnv))
-		}
 		text, n := hook.RedactCount(p.Result, hook.RedactOptions{
 			Secrets:       r.HookRedactSecrets,
 			FNR:           r.HookRedactFNR,
 			InjectionNote: r.HookInjectionNote,
-			DollySource:   mcpServer == hook.DollyServer,
 		})
 		if text != p.Result {
 			out = hook.ModifiedResult(p.ResultType, text)
