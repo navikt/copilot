@@ -24,6 +24,7 @@ const (
 	mcpCodeMethodNotFound      = -32601
 	mcpCodeInvalidParams       = -32602
 	mcpCodeParseError          = -32700
+	mcpCodeInvalidRequest      = -32600
 	mcpMetaProtocolVersion     = "io.modelcontextprotocol/protocolVersion"
 	mcpMetaClientCapabilities  = "io.modelcontextprotocol/clientCapabilities"
 	mcpMetaServerInfo          = "io.modelcontextprotocol/serverInfo"

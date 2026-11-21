@@ -23,13 +23,13 @@ func (m *AuthMiddleware) Authenticate(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")
 		if authHeader == "" {
-			m.sendUnauthorized(w)
+			m.sendUnauthorized(w, false)
 			return
 		}
 
 		parts := strings.SplitN(authHeader, " ", 2)
 		if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
-			m.sendUnauthorized(w)
+			m.sendUnauthorized(w, true)
 			return
 		}
 
@@ -37,7 +37,7 @@ func (m *AuthMiddleware) Authenticate(next http.Handler) http.Handler {
 		tokenData, err := m.store.GetToken(token)
 		if err != nil {
 			slog.Warn("invalid or expired token", "error", err)
-			m.sendUnauthorized(w)
+			m.sendUnauthorized(w, true)
 			return
 		}
 
@@ -52,10 +52,14 @@ func (m *AuthMiddleware) Authenticate(next http.Handler) http.Handler {
 	})
 }
 
-func (m *AuthMiddleware) sendUnauthorized(w http.ResponseWriter) {
+func (m *AuthMiddleware) sendUnauthorized(w http.ResponseWriter, tokenPresented bool) {
 	resourceMetadataURL := strings.TrimRight(m.baseURL, "/") + "/.well-known/oauth-protected-resource"
 	slog.Debug("sending 401 with resource metadata", "resource_metadata_url", resourceMetadataURL)
-	w.Header().Set("WWW-Authenticate", `Bearer resource_metadata="`+resourceMetadataURL+`"`)
+	challenge := `Bearer resource_metadata="` + resourceMetadataURL + `"`
+	if tokenPresented {
+		challenge += `, error="invalid_token"` // RFC 6750 section 3.1
+	}
+	w.Header().Set("WWW-Authenticate", challenge)
 	w.WriteHeader(http.StatusUnauthorized)
 	_, _ = w.Write([]byte(`{"error":"unauthorized","message":"Valid Bearer token required"}`))
 }

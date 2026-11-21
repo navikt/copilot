@@ -133,6 +133,7 @@ func (s *server) readyHandler(w http.ResponseWriter, _ *http.Request) {
 func (s *server) mcpHandler(w http.ResponseWriter, r *http.Request) {
 	token, ok := extractBearerToken(r.Header.Get("Authorization"))
 	if !ok {
+		w.Header().Set("WWW-Authenticate", `Bearer realm="mcp-dolly"`)
 		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized", "message": "missing or malformed bearer token"})
 		return
 	}
@@ -141,6 +142,7 @@ func (s *server) mcpHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		switch {
 		case errors.Is(err, errUnauthorized):
+			w.Header().Set("WWW-Authenticate", `Bearer error="invalid_token"`)
 			writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "invalid_token", "message": err.Error()})
 		case errors.Is(err, errForbidden):
 			writeJSON(w, http.StatusForbidden, map[string]string{"error": "forbidden", "message": err.Error()})
