@@ -16,6 +16,7 @@ Terminologi brukt i statistikkdashboardet og verktøykatalogen. Engelske faguttr
 | commit            | Git-operasjon — brukes som verb og substantiv                                                                                                           |
 | dashboard         | Visualiseringspanel (Grafana, statistikk)                                                                                                               |
 | GDPR              | EU-forordning for personvern                                                                                                                            |
+| header (HTTP)     | Bøyes header/headeren/headere/headerne. Ikke «hode»                                                                                                     |
 | inline            | Inline kodeforslag i editoren                                                                                                                           |
 | merge             | Innlemme en pull request eller branch. Skriv merge, ikke «slått sammen», «sammenslått», «sammenslåing» eller «flettet». Bøyes: å merge, merget, mergede |
 | pull request (PR) | Endringsforslag i Git                                                                                                                                   |

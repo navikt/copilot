@@ -19,7 +19,7 @@ import type { TocItem } from "@/components/table-of-contents";
 export const metadata: Metadata = {
   title: "Retningslinjer for MCP-servere",
   description:
-    "Hva teamet må gjøre når dere skriver en MCP-server bak fleet-gateway: tokensjekk, grenser, hoder, logging, verktøybeskrivelser, målinger og ROS.",
+    "Hva teamet må gjøre når dere skriver en MCP-server bak fleet-gateway: tokensjekk, grenser, headere, logging, verktøybeskrivelser, målinger og ROS.",
 };
 
 const SPEC = "https://modelcontextprotocol.io/specification/2026-07-28";
@@ -160,11 +160,11 @@ const SECTIONS: Section[] = [
   {
     id: "hoder",
     icon: FileCodeIcon,
-    short: "Sjekk Mcp-hodene mot innholdet.",
-    why: "MCP-revisjonen 2026-07-28 sender metode og verktøynavn i HTTP-hoder. Serveren må sjekke at hodene stemmer med innholdet i forespørselen.",
-    todo: ["Sjekk påkrevde Mcp-hoder mot innholdet.", "Avvis forespørsler med manglende eller feil hode."],
+    short: "Sjekk Mcp-*-headerne mot innholdet.",
+    why: "MCP-revisjonen 2026-07-28 sender metode og verktøynavn i HTTP-headere. Serveren må sjekke at headerne stemmer med innholdet i forespørselen.",
+    todo: ["Sjekk påkrevde Mcp-*-headere mot innholdet.", "Avvis forespørsler med manglende eller feil header."],
     points: [
-      "Sjekk `MCP-Protocol-Version`, `Mcp-Method` og, for `tools/call`, `Mcp-Name` mot innholdet i forespørselen. Avvis forespørsler der et påkrevd hode mangler.",
+      "Sjekk `MCP-Protocol-Version`, `Mcp-Method` og, for `tools/call`, `Mcp-Name` mot innholdet i forespørselen. Avvis forespørsler der en påkrevd header mangler.",
       "Sjekk også `Mcp-Param-*` for parametere verktøyet har merket for det. mcp-kodeverk har ingen slike parametere, så det finnes ingen referanseimplementasjon for dette.",
       "Ved avvik: svar HTTP 400 med JSON-RPC-feilen `-32020`.",
       "Svar 405 på GET hvis serveren ikke tilbyr en strøm.",
@@ -254,7 +254,7 @@ const TOC: TocItem[] = [
   { id: "lesing-forst", label: "Start med lesing" },
   { id: "verktoylister", label: "Bruk eksplisitte verktøylister" },
   { id: "grenser", label: "Sett grenser for input og svar" },
-  { id: "hoder", label: "Sjekk Mcp-hodene mot innholdet" },
+  { id: "hoder", label: "Sjekk Mcp-*-headerne mot innholdet" },
   { id: "logging", label: "Logg uten persondata" },
   { id: "beskrivelser", label: "Skriv beskrivelser og annotasjoner" },
   { id: "metrikker", label: "Mål hvert verktøy" },
@@ -396,7 +396,7 @@ export default function McpRetningslinjerPage() {
 
       <VStack gap="space-12">
         <LinkableHeading id="hoder" size="medium" level="2">
-          Sjekk Mcp-hodene mot innholdet
+          Sjekk Mcp-*-headerne mot innholdet
         </LinkableHeading>
         <Rules id="hoder" />
       </VStack>
