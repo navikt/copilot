@@ -3,6 +3,7 @@
     {
       "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
       "name": "io.github.nais/nais-mcp",
+      "title": "Nais",
       "description": "Read Nais platform context through your installed Nais CLI, run on the host by cplt.",
       "version": "6.6.1",
       "status": "active",
@@ -38,6 +39,7 @@
     {
       "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
       "name": "io.github.navikt/github-mcp",
+      "title": "GitHub",
       "description": "Access GitHub repositories, issues, and pull requests through secure API integration.",
       "version": "1.0.0",
       "status": "active",
@@ -187,6 +189,7 @@
     {
       "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
       "name": "io.github.navikt/aksel-mcp",
+      "title": "Aksel",
       "description": "Aksel design system context for frontend/ui development and documentation.",
       "version": "1.0.0",
       "status": "active",
@@ -227,6 +230,7 @@
     {
       "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
       "name": "com.figma/figma-mcp",
+      "title": "Figma",
       "description": "Bring Figma design context into your coding workflow for design-to-code generation.",
       "version": "1.0.0",
       "status": "active",
@@ -267,6 +271,7 @@
     {
       "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
       "name": "com.vercel/next-devtools-mcp",
+      "title": "Next.js DevTools",
       "description": "Access Next.js dev server diagnostics, documentation, and upgrade tools.",
       "version": "0.3.10",
       "status": "active",
@@ -306,6 +311,7 @@
     {
       "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
       "name": "dev.svelte/svelte-mcp",
+      "title": "Svelte",
       "description": "Search Svelte 5 and SvelteKit documentation with static code analysis.",
       "version": "0.1.20",
       "status": "active",
@@ -344,6 +350,7 @@
     {
       "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
       "name": "com.microsoft/playwright-mcp",
+      "title": "Playwright",
       "description": "Browser automation for UI testing and debugging with network controls.",
       "version": "0.0.80",
       "status": "active",
@@ -446,6 +453,7 @@
     {
       "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
       "name": "build.astro.docs/astro-docs-mcp",
+      "title": "Astro Docs",
       "description": "Search the public Astro documentation.",
       "version": "1.0.0",
       "status": "active",
@@ -473,6 +481,7 @@
     {
       "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
       "name": "com.google/chrome-devtools-mcp",
+      "title": "Chrome DevTools",
       "description": "Inspect performance, network, and console in an isolated Chrome via DevTools.",
       "version": "1.10.1",
       "status": "active",
@@ -511,6 +520,7 @@
     {
       "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
       "name": "com.jetbrains/intellij",
+      "title": "IntelliJ",
       "description": "Access IntelliJ code intelligence, inspections, and refactoring tools via MCP.",
       "version": "2026.2.1",
       "status": "active",
@@ -543,6 +553,7 @@
     {
       "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
       "name": "no.nav.aksel/aksel-arcade",
+      "title": "Aksel Arcade",
       "description": "Lokal MCP innebygd i appen Aksel Arcade for redigering av JSX/Hooks og Pages.",
       "version": "1.0.0",
       "status": "active",
@@ -571,6 +582,7 @@
     {
       "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
       "name": "io.aha/aha-mcp",
+      "title": "Aha!",
       "description": "Read and update roadmap, features and ideas in Nav's Aha! account (Team Holmes).",
       "version": "1.0.0",
       "status": "active",
