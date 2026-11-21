@@ -1209,11 +1209,11 @@ func runLockoutFingerprintAndAuditContract(t *testing.T, newStore func(t *testin
 		if err != nil {
 			t.Fatal(err)
 		}
-		blob, err := sealed.keys.Seal(sealAAD(kindAuditOutbox, lockoutAuditOutboxKey), plaintext)
+		blob, err := sealed.KeyRing().Seal(sealAAD(kindAuditOutbox, lockoutAuditOutboxKey), plaintext)
 		if err != nil {
 			t.Fatal(err)
 		}
-		if err := sealed.inner.Put(ctx, kindAuditOutbox, lockoutAuditOutboxKey, blob, lockoutNoExpiry); err != nil {
+		if err := sealed.Inner().Put(ctx, kindAuditOutbox, lockoutAuditOutboxKey, blob, lockoutNoExpiry); err != nil {
 			t.Fatal(err)
 		}
 
@@ -1235,7 +1235,7 @@ func runLockoutFingerprintAndAuditContract(t *testing.T, newStore func(t *testin
 		}
 
 		// Also verify draining directly from a legacy sealed row without an append.
-		if err := sealed.inner.Put(ctx, kindAuditOutbox, lockoutAuditOutboxKey, blob, lockoutNoExpiry); err != nil {
+		if err := sealed.Inner().Put(ctx, kindAuditOutbox, lockoutAuditOutboxKey, blob, lockoutNoExpiry); err != nil {
 			t.Fatal(err)
 		}
 		buf.Reset()

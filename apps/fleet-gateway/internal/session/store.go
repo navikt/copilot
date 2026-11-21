@@ -1,4 +1,7 @@
-package main
+// Package session stores the gateway's short-lived state (authorization codes,
+// sessions, revoked JTIs, counters) in memory or Postgres, and seals values
+// at rest with AES-GCM under an RT_KEYS key ring.
+package session
 
 import (
 	"bytes"
@@ -9,29 +12,37 @@ import (
 	"time"
 )
 
+// Store item kinds.
 const (
-	kindPendingConsent = "pending_consent"
-	// pending_entra_v2: consent is asked after the Entra callback. A new kind so
+	KindPendingConsent = "pending_consent"
+	// KindPendingEntra asks consent after the Entra callback. A new kind so
 	// old pods (consent before Entra) never pop it and skip consent mid-rollout.
-	kindPendingEntra       = "pending_entra_v2"
-	kindPendingEntraLegacy = "pending_entra" // written by old pods; always gets the consent page
-	kindCode               = "code"
-	kindSession            = "session"
-	kindConsent            = "consent" // remembered consent per (NAVident, client_id, resource)
-	kindMCPSession         = "mcp_session"
-	kindMCPSessionUser     = "mcp_session_user" // per-user count of mcp_session bindings
-	kindDCRClient          = "dcr_client"
-	kindRefreshGrace       = "refresh_grace"       // pair issued for a rotated RT, keyed by its jti
-	kindUserRevoked        = "user_revoked"        // per-user lockout record keyed by HMAC(NAVident)
-	kindUserRevokedMarker  = "user_revoked_marker" // set when a lockout record is written; startup refuses without LOCKOUT_KEY
-	kindAuditOutbox        = "audit_outbox"        // queued audit entries written by CLI, drained by server sweeper
+	KindPendingEntra       = "pending_entra_v2"
+	KindPendingEntraLegacy = "pending_entra" // written by old pods; always gets the consent page
+	KindCode               = "code"
+	KindSession            = "session"
+	KindConsent            = "consent" // remembered consent per (NAVident, client_id, resource)
+	KindMCPSession         = "mcp_session"
+	KindMCPSessionUser     = "mcp_session_user" // per-user count of mcp_session bindings
+	KindDCRClient          = "dcr_client"
+	KindRefreshGrace       = "refresh_grace"       // pair issued for a rotated RT, keyed by its jti
+	KindUserRevoked        = "user_revoked"        // per-user lockout record keyed by HMAC(NAVident)
+	KindUserRevokedMarker  = "user_revoked_marker" // set when a lockout record is written; startup refuses without LOCKOUT_KEY
+	KindAuditOutbox        = "audit_outbox"        // queued audit entries written by CLI, drained by server sweeper
 )
 
-var errStoreFull = errors.New("store capacity reached")
+// ErrStoreFull is returned when a capped item kind has no free slot.
+var ErrStoreFull = errors.New("store capacity reached")
 
-// SessionStore persists short-lived authorization state, authorization codes,
+// counterWindow is one fixed-window counter in MemoryStore.
+type counterWindow struct {
+	count   int
+	resetAt time.Time
+}
+
+// Store persists short-lived authorization state, authorization codes,
 // gateway sessions, and revoked token JTIs across gateway replicas.
-type SessionStore interface {
+type Store interface {
 	Put(ctx context.Context, kind, key string, val []byte, ttl time.Duration) error
 	Get(ctx context.Context, kind, key string) ([]byte, bool, error)
 	Pop(ctx context.Context, kind, key string) ([]byte, bool, error)
@@ -63,16 +74,18 @@ type memoryItem struct {
 	expiresAt time.Time
 }
 
-type memoryStore struct {
+// MemoryStore is an in-memory Store implementation for local runs and tests.
+type MemoryStore struct {
 	mu      sync.Mutex
 	items   map[string]map[string]memoryItem
 	revoked map[string]time.Time
-	counts  map[string]rateWindow
+	counts  map[string]counterWindow
 	caps    map[string]int
 	now     func() time.Time
 }
 
-func newMemoryStore(now func() time.Time, caps map[string]int) *memoryStore {
+// NewMemoryStore creates a MemoryStore with optional clock and per-kind caps.
+func NewMemoryStore(now func() time.Time, caps map[string]int) *MemoryStore {
 	if now == nil {
 		now = time.Now
 	}
@@ -80,25 +93,27 @@ func newMemoryStore(now func() time.Time, caps map[string]int) *memoryStore {
 	for k, v := range caps {
 		copiedCaps[k] = v
 	}
-	return &memoryStore{
+	return &MemoryStore{
 		items:   make(map[string]map[string]memoryItem),
 		revoked: make(map[string]time.Time),
-		counts:  make(map[string]rateWindow),
+		counts:  make(map[string]counterWindow),
 		caps:    copiedCaps,
 		now:     now,
 	}
 }
 
-func (s *memoryStore) Put(ctx context.Context, kind, key string, val []byte, ttl time.Duration) error {
+// Put stores a value with the given TTL, failing with ErrStoreFull if kind is at cap.
+func (s *MemoryStore) Put(ctx context.Context, kind, key string, val []byte, ttl time.Duration) error {
 	_, err := s.put(ctx, kind, key, val, ttl, false)
 	return err
 }
 
-func (s *memoryStore) PutEvict(ctx context.Context, kind, key string, val []byte, ttl time.Duration) (bool, error) {
+// PutEvict stores a value, evicting the earliest-expiring live item if kind is at cap.
+func (s *MemoryStore) PutEvict(ctx context.Context, kind, key string, val []byte, ttl time.Duration) (bool, error) {
 	return s.put(ctx, kind, key, val, ttl, true)
 }
 
-func (s *memoryStore) put(ctx context.Context, kind, key string, val []byte, ttl time.Duration, evict bool) (evicted bool, err error) {
+func (s *MemoryStore) put(ctx context.Context, kind, key string, val []byte, ttl time.Duration, evict bool) (evicted bool, err error) {
 	if err := ctx.Err(); err != nil {
 		return false, err
 	}
@@ -112,7 +127,7 @@ func (s *memoryStore) put(ctx context.Context, kind, key string, val []byte, ttl
 		bucket := s.items[kind]
 		if _, exists := bucket[key]; !exists && len(bucket) >= capLimit {
 			if !evict || len(bucket) == 0 {
-				return false, errStoreFull
+				return false, ErrStoreFull
 			}
 			// sweepKindLocked left only live items, so this frees a counted slot.
 			oldest, oldestAt := "", time.Time{}
@@ -141,7 +156,8 @@ func (s *memoryStore) put(ctx context.Context, kind, key string, val []byte, ttl
 	return evicted, nil
 }
 
-func (s *memoryStore) Get(ctx context.Context, kind, key string) ([]byte, bool, error) {
+// Get returns a copy of the live value for (kind, key), if any.
+func (s *MemoryStore) Get(ctx context.Context, kind, key string) ([]byte, bool, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, false, err
 	}
@@ -166,7 +182,8 @@ func (s *memoryStore) Get(ctx context.Context, kind, key string) ([]byte, bool, 
 	return copied, true, nil
 }
 
-func (s *memoryStore) Pop(ctx context.Context, kind, key string) ([]byte, bool, error) {
+// Pop atomically removes and returns the live value for (kind, key), if any.
+func (s *MemoryStore) Pop(ctx context.Context, kind, key string) ([]byte, bool, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, false, err
 	}
@@ -191,7 +208,8 @@ func (s *memoryStore) Pop(ctx context.Context, kind, key string) ([]byte, bool, 
 	return copied, true, nil
 }
 
-func (s *memoryStore) Delete(ctx context.Context, kind, key string) error {
+// Delete removes (kind, key) if present.
+func (s *MemoryStore) Delete(ctx context.Context, kind, key string) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -205,7 +223,8 @@ func (s *memoryStore) Delete(ctx context.Context, kind, key string) error {
 	return nil
 }
 
-func (s *memoryStore) CompareAndSwap(ctx context.Context, kind, key string, oldVal, newVal []byte, ttl time.Duration) (bool, error) {
+// CompareAndSwap atomically replaces oldVal with newVal for (kind, key).
+func (s *MemoryStore) CompareAndSwap(ctx context.Context, kind, key string, oldVal, newVal []byte, ttl time.Duration) (bool, error) {
 	if err := ctx.Err(); err != nil {
 		return false, err
 	}
@@ -239,7 +258,7 @@ func (s *memoryStore) CompareAndSwap(ctx context.Context, kind, key string, oldV
 		if capLimit, hasCap := s.caps[kind]; hasCap && capLimit > 0 {
 			s.sweepKindLocked(kind, now)
 			if len(bucket) >= capLimit {
-				return false, errStoreFull
+				return false, ErrStoreFull
 			}
 		}
 		if bucket == nil {
@@ -271,7 +290,8 @@ func (s *memoryStore) CompareAndSwap(ctx context.Context, kind, key string, oldV
 	return true, nil
 }
 
-func (s *memoryStore) Revoke(ctx context.Context, jti string, expiresAt time.Time) error {
+// Revoke marks jti as revoked until at least expiresAt.
+func (s *MemoryStore) Revoke(ctx context.Context, jti string, expiresAt time.Time) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -285,7 +305,8 @@ func (s *memoryStore) Revoke(ctx context.Context, jti string, expiresAt time.Tim
 	return nil
 }
 
-func (s *memoryStore) RevokeOnce(ctx context.Context, jti string, expiresAt time.Time) (bool, error) {
+// RevokeOnce revokes jti if it is not already live-revoked, reporting whether this call won.
+func (s *MemoryStore) RevokeOnce(ctx context.Context, jti string, expiresAt time.Time) (bool, error) {
 	if err := ctx.Err(); err != nil {
 		return false, err
 	}
@@ -301,7 +322,8 @@ func (s *memoryStore) RevokeOnce(ctx context.Context, jti string, expiresAt time
 	return true, nil
 }
 
-func (s *memoryStore) IsRevoked(ctx context.Context, jti string) (bool, error) {
+// IsRevoked reports whether jti has a live revocation entry.
+func (s *MemoryStore) IsRevoked(ctx context.Context, jti string) (bool, error) {
 	if err := ctx.Err(); err != nil {
 		return false, err
 	}
@@ -320,7 +342,8 @@ func (s *memoryStore) IsRevoked(ctx context.Context, jti string) (bool, error) {
 	return true, nil
 }
 
-func (s *memoryStore) Incr(ctx context.Context, key string, window time.Duration) (int, error) {
+// Incr increments a fixed-window counter and returns the new count.
+func (s *MemoryStore) Incr(ctx context.Context, key string, window time.Duration) (int, error) {
 	if err := ctx.Err(); err != nil {
 		return 0, err
 	}
@@ -330,14 +353,15 @@ func (s *memoryStore) Incr(ctx context.Context, key string, window time.Duration
 	now := s.now()
 	c, ok := s.counts[key]
 	if !ok || !now.Before(c.resetAt) {
-		c = rateWindow{resetAt: now.Add(window)}
+		c = counterWindow{resetAt: now.Add(window)}
 	}
 	c.count++
 	s.counts[key] = c
 	return c.count, nil
 }
 
-func (s *memoryStore) CountPrefix(ctx context.Context, kind, prefix string) (int, error) {
+// CountPrefix counts live items of kind whose key starts with prefix.
+func (s *MemoryStore) CountPrefix(ctx context.Context, kind, prefix string) (int, error) {
 	if err := ctx.Err(); err != nil {
 		return 0, err
 	}
@@ -353,7 +377,8 @@ func (s *memoryStore) CountPrefix(ctx context.Context, kind, prefix string) (int
 	return n, nil
 }
 
-func (s *memoryStore) Sweep(ctx context.Context) (int, error) {
+// Sweep removes expired items, revocations and counters, returning the total removed.
+func (s *MemoryStore) Sweep(ctx context.Context) (int, error) {
 	if err := ctx.Err(); err != nil {
 		return 0, err
 	}
@@ -381,7 +406,7 @@ func (s *memoryStore) Sweep(ctx context.Context) (int, error) {
 	return removed, nil
 }
 
-func (s *memoryStore) sweepKindLocked(kind string, now time.Time) int {
+func (s *MemoryStore) sweepKindLocked(kind string, now time.Time) int {
 	bucket := s.items[kind]
 	if bucket == nil {
 		return 0
@@ -396,6 +421,19 @@ func (s *memoryStore) sweepKindLocked(kind string, now time.Time) int {
 	return removed
 }
 
-func (s *memoryStore) Ping(_ context.Context) error { return nil }
+// Ping always succeeds for MemoryStore.
+func (s *MemoryStore) Ping(_ context.Context) error { return nil }
 
-func (s *memoryStore) Close() {}
+// Close is a no-op for MemoryStore.
+func (s *MemoryStore) Close() {}
+
+// ForEach calls fn for every stored entry, including expired entries not yet swept.
+func (s *MemoryStore) ForEach(fn func(kind, key string, value []byte)) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for kind, bucket := range s.items {
+		for k, item := range bucket {
+			fn(kind, k, item.value)
+		}
+	}
+}

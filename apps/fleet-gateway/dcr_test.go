@@ -519,7 +519,7 @@ func TestDCR_CodeGrantRejectsUnknownAndUnreadableClient(t *testing.T) {
 		}
 		te.gw.rtKeys = kr2
 		if ss, ok := te.gw.store.(*sealedStore); ok {
-			ss.keys = kr2
+			*ss = *ss.WithKeys(kr2)
 		} else {
 			t.Fatalf("expected sealedStore, got %T", te.gw.store)
 		}

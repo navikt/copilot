@@ -1,4 +1,4 @@
-package main
+package session
 
 import (
 	"bytes"
@@ -14,30 +14,43 @@ import (
 	"time"
 )
 
+// Sealing parameters for AES-256-GCM at-rest encryption.
 const (
 	sealMaxKIDLen = 32
-	// sealMaxPlaintext bounds what Seal accepts (sessions and RTs are a few KiB).
-	sealMaxPlaintext = 1 << 20
-	sealKeyBytes     = 32
+	// SealMaxPlaintext bounds what Seal accepts (sessions and RTs are a few KiB).
+	SealMaxPlaintext = 1 << 20
+	SealKeyBytes     = 32
 	sealNonceSize    = 12
 )
 
+// Sealing and unsealing errors returned by KeyRing.Open and SealedStore.
 var (
-	errSealUnknownKID = errors.New("sealed store: unknown key id")
-	errSealDecrypt    = errors.New("sealed store: decryption failed")
-	errSealMalformed  = errors.New("sealed store: malformed ciphertext")
+	ErrSealUnknownKID = errors.New("sealed store: unknown key id")
+	ErrSealDecrypt    = errors.New("sealed store: decryption failed")
+	ErrSealMalformed  = errors.New("sealed store: malformed ciphertext")
 )
 
 type keyEntry struct {
 	kid string
-	key [sealKeyBytes]byte
+	key [SealKeyBytes]byte
 }
 
-type keyRing struct {
+// KeyRing holds AES-256 keys indexed by key ID; the first key seals new values.
+type KeyRing struct {
 	entries []keyEntry
 }
 
-func parseKeyRing(raw string) (*keyRing, error) {
+// Keys returns a copy of each key in ring order; the first one seals.
+func (kr *KeyRing) Keys() [][]byte {
+	keys := make([][]byte, 0, len(kr.entries))
+	for _, e := range kr.entries {
+		keys = append(keys, append([]byte(nil), e.key[:]...))
+	}
+	return keys
+}
+
+// ParseKeyRing parses a comma-separated list of kid:base64key entries.
+func ParseKeyRing(raw string) (*KeyRing, error) {
 	trimmed := strings.TrimSpace(raw)
 	if trimmed == "" {
 		return nil, errors.New("key ring must not be empty")
@@ -75,7 +88,7 @@ func parseKeyRing(raw string) (*keyRing, error) {
 		entries = append(entries, entry)
 	}
 
-	return &keyRing{entries: entries}, nil
+	return &KeyRing{entries: entries}, nil
 }
 
 func isValidKID(kid string) bool {
@@ -105,13 +118,14 @@ func decodeKeyMaterial(raw string) ([]byte, error) {
 			return nil, errors.New("invalid base64 key")
 		}
 	}
-	if len(decoded) != sealKeyBytes {
-		return nil, fmt.Errorf("key must decode to %d bytes, got %d", sealKeyBytes, len(decoded))
+	if len(decoded) != SealKeyBytes {
+		return nil, fmt.Errorf("key must decode to %d bytes, got %d", SealKeyBytes, len(decoded))
 	}
 	return decoded, nil
 }
 
-func (kr *keyRing) Seal(aad, plaintext []byte) ([]byte, error) {
+// Seal encrypts plaintext with AES-GCM under the primary key, authenticated with aad.
+func (kr *KeyRing) Seal(aad, plaintext []byte) ([]byte, error) {
 	if kr == nil || len(kr.entries) == 0 {
 		return nil, errors.New("sealed store: empty key ring")
 	}
@@ -134,7 +148,7 @@ func (kr *keyRing) Seal(aad, plaintext []byte) ([]byte, error) {
 	if len(kidBytes) == 0 || len(kidBytes) > sealMaxKIDLen {
 		return nil, errors.New("sealed store: invalid key id length")
 	}
-	if len(plaintext) > sealMaxPlaintext {
+	if len(plaintext) > SealMaxPlaintext {
 		return nil, errors.New("sealed store: plaintext too large")
 	}
 	out := append([]byte{byte(len(kidBytes))}, kidBytes...) //nolint:gosec // bounded by sealMaxKIDLen (32)
@@ -143,16 +157,17 @@ func (kr *keyRing) Seal(aad, plaintext []byte) ([]byte, error) {
 	return out, nil
 }
 
-func (kr *keyRing) Open(aad, blob []byte) ([]byte, error) {
+// Open decrypts and authenticates a blob produced by Seal using the key matching its header kid.
+func (kr *KeyRing) Open(aad, blob []byte) ([]byte, error) {
 	if kr == nil || len(kr.entries) == 0 {
-		return nil, errSealDecrypt
+		return nil, ErrSealDecrypt
 	}
 	if len(blob) < 1 {
-		return nil, errSealMalformed
+		return nil, ErrSealMalformed
 	}
 	kidLen := int(blob[0])
 	if kidLen == 0 || kidLen > sealMaxKIDLen || len(blob) < 1+kidLen+sealNonceSize {
-		return nil, errSealMalformed
+		return nil, ErrSealMalformed
 	}
 
 	kid := string(blob[1 : 1+kidLen])
@@ -167,76 +182,97 @@ func (kr *keyRing) Open(aad, blob []byte) ([]byte, error) {
 		}
 	}
 	if matched == nil {
-		return nil, errSealUnknownKID
+		return nil, ErrSealUnknownKID
 	}
 
 	block, err := aes.NewCipher(matched.key[:])
 	if err != nil {
-		return nil, errSealDecrypt
+		return nil, ErrSealDecrypt
 	}
 	gcm, err := cipher.NewGCM(block)
 	if err != nil {
-		return nil, errSealDecrypt
+		return nil, ErrSealDecrypt
 	}
 	plaintext, err := gcm.Open(nil, nonce, ciphertext, aad)
 	if err != nil {
-		return nil, errSealDecrypt
+		return nil, ErrSealDecrypt
 	}
 	return plaintext, nil
 }
 
-type sealedStore struct {
-	inner SessionStore
-	keys  *keyRing
+// SealedStore wraps a Store, sealing values at rest with a KeyRing.
+type SealedStore struct {
+	inner Store
+	keys  *KeyRing
 }
 
-func newSealedStore(inner SessionStore, keys *keyRing) *sealedStore {
-	return &sealedStore{
+// NewSealedStore returns a SealedStore backed by inner and keys.
+func NewSealedStore(inner Store, keys *KeyRing) *SealedStore {
+	return &SealedStore{
 		inner: inner,
 		keys:  keys,
 	}
 }
 
-// Lockout records, the marker and the audit outbox hold only HMAC keys, timestamps and operator idents, and must stay readable after RT_KEYS is replaced (global logout must not lift lockouts or lose audit lines).
-func unsealedKind(kind string) bool {
-	return kind == kindUserRevoked || kind == kindUserRevokedMarker || kind == kindAuditOutbox
+// WithKeys returns a store over the same inner store that seals and opens with keys.
+func (s *SealedStore) WithKeys(keys *KeyRing) *SealedStore {
+	return NewSealedStore(s.inner, keys)
 }
 
-func sealAAD(kind, key string) []byte {
+// Inner returns the underlying unsealed store.
+func (s *SealedStore) Inner() Store {
+	return s.inner
+}
+
+// KeyRing returns the key ring used to seal and open values.
+func (s *SealedStore) KeyRing() *KeyRing {
+	return s.keys
+}
+
+// Lockout records, the marker and the audit outbox hold only HMAC keys, timestamps and operator idents, and must stay readable after RT_KEYS is replaced (global logout must not lift lockouts or lose audit lines).
+func unsealedKind(kind string) bool {
+	return kind == KindUserRevoked || kind == KindUserRevokedMarker || kind == KindAuditOutbox
+}
+
+// SealAAD builds the associated data binding a sealed blob to its (kind, key).
+func SealAAD(kind, key string) []byte {
 	return []byte(kind + "\x00" + key)
 }
 
-func (s *sealedStore) Put(ctx context.Context, kind, key string, val []byte, ttl time.Duration) error {
+// Put seals val (except unsealed kinds) and stores it in the inner store.
+func (s *SealedStore) Put(ctx context.Context, kind, key string, val []byte, ttl time.Duration) error {
 	if unsealedKind(kind) {
 		return s.inner.Put(ctx, kind, key, val, ttl)
 	}
-	blob, err := s.keys.Seal(sealAAD(kind, key), val)
+	blob, err := s.keys.Seal(SealAAD(kind, key), val)
 	if err != nil {
 		return err
 	}
 	return s.inner.Put(ctx, kind, key, blob, ttl)
 }
 
-func (s *sealedStore) PutEvict(ctx context.Context, kind, key string, val []byte, ttl time.Duration) (bool, error) {
+// PutEvict seals val (except unsealed kinds) and stores it via PutEvict on the inner store.
+func (s *SealedStore) PutEvict(ctx context.Context, kind, key string, val []byte, ttl time.Duration) (bool, error) {
 	if unsealedKind(kind) {
 		return s.inner.PutEvict(ctx, kind, key, val, ttl)
 	}
-	blob, err := s.keys.Seal(sealAAD(kind, key), val)
+	blob, err := s.keys.Seal(SealAAD(kind, key), val)
 	if err != nil {
 		return false, err
 	}
 	return s.inner.PutEvict(ctx, kind, key, blob, ttl)
 }
 
-// Legacy audit outbox rows written before kindAuditOutbox became unsealed start with the key-id header rather than '['.
-func (s *sealedStore) decodeUnsealed(kind, key string, raw []byte) ([]byte, error) {
-	if kind != kindAuditOutbox || (len(raw) > 0 && raw[0] == '[') {
+// Legacy audit outbox rows written before KindAuditOutbox became unsealed start with the key-id header rather than '['.
+func (s *SealedStore) decodeUnsealed(kind, key string, raw []byte) ([]byte, error) {
+	if kind != KindAuditOutbox || (len(raw) > 0 && raw[0] == '[') {
 		return raw, nil
 	}
-	return s.keys.Open(sealAAD(kind, key), raw)
+	return s.keys.Open(SealAAD(kind, key), raw)
 }
 
-func (s *sealedStore) Get(ctx context.Context, kind, key string) ([]byte, bool, error) {
+// Get fetches and unseals the live value for (kind, key).
+func (s *SealedStore) Get(ctx context.Context, kind, key string) ([]byte, bool, error) {
 	if unsealedKind(kind) {
 		raw, ok, err := s.inner.Get(ctx, kind, key)
 		if err != nil || !ok {
@@ -252,14 +288,15 @@ func (s *sealedStore) Get(ctx context.Context, kind, key string) ([]byte, bool, 
 	if err != nil || !ok {
 		return nil, ok, err
 	}
-	plaintext, err := s.keys.Open(sealAAD(kind, key), blob)
+	plaintext, err := s.keys.Open(SealAAD(kind, key), blob)
 	if err != nil {
 		return nil, false, err
 	}
 	return plaintext, true, nil
 }
 
-func (s *sealedStore) Pop(ctx context.Context, kind, key string) ([]byte, bool, error) {
+// Pop removes, fetches and unseals the live value for (kind, key).
+func (s *SealedStore) Pop(ctx context.Context, kind, key string) ([]byte, bool, error) {
 	if unsealedKind(kind) {
 		raw, ok, err := s.inner.Pop(ctx, kind, key)
 		if err != nil || !ok {
@@ -275,22 +312,24 @@ func (s *sealedStore) Pop(ctx context.Context, kind, key string) ([]byte, bool, 
 	if err != nil || !ok {
 		return nil, ok, err
 	}
-	plaintext, err := s.keys.Open(sealAAD(kind, key), blob)
+	plaintext, err := s.keys.Open(SealAAD(kind, key), blob)
 	if err != nil {
 		return nil, false, err
 	}
 	return plaintext, true, nil
 }
 
-func (s *sealedStore) Delete(ctx context.Context, kind, key string) error {
+// Delete removes (kind, key) from the inner store.
+func (s *SealedStore) Delete(ctx context.Context, kind, key string) error {
 	return s.inner.Delete(ctx, kind, key)
 }
 
-func (s *sealedStore) CompareAndSwap(ctx context.Context, kind, key string, oldVal, newVal []byte, ttl time.Duration) (bool, error) {
+// CompareAndSwap performs a compare-and-swap on unsealed kinds only.
+func (s *SealedStore) CompareAndSwap(ctx context.Context, kind, key string, oldVal, newVal []byte, ttl time.Duration) (bool, error) {
 	if !unsealedKind(kind) {
 		return false, fmt.Errorf("sealed store: compare-and-swap unsupported for sealed kind %q", kind)
 	}
-	if kind != kindAuditOutbox || oldVal == nil {
+	if kind != KindAuditOutbox || oldVal == nil {
 		return s.inner.CompareAndSwap(ctx, kind, key, oldVal, newVal, ttl)
 	}
 	raw, ok, err := s.inner.Get(ctx, kind, key)
@@ -303,7 +342,7 @@ func (s *sealedStore) CompareAndSwap(ctx context.Context, kind, key string, oldV
 	if len(raw) > 0 && raw[0] == '[' {
 		return s.inner.CompareAndSwap(ctx, kind, key, oldVal, newVal, ttl)
 	}
-	plaintext, err := s.keys.Open(sealAAD(kind, key), raw)
+	plaintext, err := s.keys.Open(SealAAD(kind, key), raw)
 	if err != nil {
 		return false, err
 	}
@@ -313,35 +352,42 @@ func (s *sealedStore) CompareAndSwap(ctx context.Context, kind, key string, oldV
 	return s.inner.CompareAndSwap(ctx, kind, key, raw, newVal, ttl)
 }
 
-func (s *sealedStore) Revoke(ctx context.Context, jti string, expiresAt time.Time) error {
+// Revoke delegates to the inner store.
+func (s *SealedStore) Revoke(ctx context.Context, jti string, expiresAt time.Time) error {
 	return s.inner.Revoke(ctx, jti, expiresAt)
 }
 
-func (s *sealedStore) RevokeOnce(ctx context.Context, jti string, expiresAt time.Time) (bool, error) {
+// RevokeOnce delegates to the inner store.
+func (s *SealedStore) RevokeOnce(ctx context.Context, jti string, expiresAt time.Time) (bool, error) {
 	return s.inner.RevokeOnce(ctx, jti, expiresAt)
 }
 
-func (s *sealedStore) IsRevoked(ctx context.Context, jti string) (bool, error) {
+// IsRevoked delegates to the inner store.
+func (s *SealedStore) IsRevoked(ctx context.Context, jti string) (bool, error) {
 	return s.inner.IsRevoked(ctx, jti)
 }
 
-func (s *sealedStore) Incr(ctx context.Context, key string, window time.Duration) (int, error) {
+// Incr delegates to the inner store.
+func (s *SealedStore) Incr(ctx context.Context, key string, window time.Duration) (int, error) {
 	return s.inner.Incr(ctx, key, window)
 }
 
-// Keys are never sealed, so a prefix count runs on the inner store.
-func (s *sealedStore) CountPrefix(ctx context.Context, kind, prefix string) (int, error) {
+// CountPrefix delegates to the inner store because keys are never sealed.
+func (s *SealedStore) CountPrefix(ctx context.Context, kind, prefix string) (int, error) {
 	return s.inner.CountPrefix(ctx, kind, prefix)
 }
 
-func (s *sealedStore) Sweep(ctx context.Context) (int, error) {
+// Sweep delegates to the inner store.
+func (s *SealedStore) Sweep(ctx context.Context) (int, error) {
 	return s.inner.Sweep(ctx)
 }
 
-func (s *sealedStore) Ping(ctx context.Context) error {
+// Ping delegates to the inner store.
+func (s *SealedStore) Ping(ctx context.Context) error {
 	return s.inner.Ping(ctx)
 }
 
-func (s *sealedStore) Close() {
+// Close closes the inner store.
+func (s *SealedStore) Close() {
 	s.inner.Close()
 }

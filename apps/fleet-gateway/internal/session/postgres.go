@@ -1,4 +1,4 @@
-package main
+package session
 
 import (
 	"context"
@@ -38,7 +38,8 @@ var pgMigrations = []string{
 	CREATE INDEX IF NOT EXISTS counters_expires_at_idx ON counters (expires_at);`,
 }
 
-type pgxStore struct {
+// PostgresStore persists gateway state in PostgreSQL.
+type PostgresStore struct {
 	pool *pgxpool.Pool
 	caps map[string]int
 	now  func() time.Time
@@ -62,10 +63,10 @@ func openPGPool(ctx context.Context, dsn string) (*pgxpool.Pool, error) {
 	return pool, nil
 }
 
-// newPostgresStore opens the store. With an empty databaseURL (Nais Postgres) it
+// NewPostgresStore opens the store. With an empty databaseURL (Nais Postgres) it
 // migrates with the unprefixed admin PG* credentials, then runs on a pool using
 // the READWRITE_PG* runtime credentials (falling back to PG*).
-func newPostgresStore(ctx context.Context, databaseURL string, now func() time.Time, caps map[string]int) (*pgxStore, error) {
+func NewPostgresStore(ctx context.Context, databaseURL string, now func() time.Time, caps map[string]int) (*PostgresStore, error) {
 	if now == nil {
 		now = time.Now
 	}
@@ -78,7 +79,7 @@ func newPostgresStore(ctx context.Context, databaseURL string, now func() time.T
 	if err != nil {
 		return nil, err
 	}
-	s := &pgxStore{pool: migPool, caps: copiedCaps, now: now}
+	s := &PostgresStore{pool: migPool, caps: copiedCaps, now: now}
 	if err = s.migrate(ctx); err != nil {
 		migPool.Close()
 		return nil, fmt.Errorf("run postgres migrations: %w", err)
@@ -87,13 +88,13 @@ func newPostgresStore(ctx context.Context, databaseURL string, now func() time.T
 		return s, nil
 	}
 	migPool.Close()
-	rtPool, err := openPGPool(ctx, pgEnvDSN("READWRITE_"))
+	rtPool, err := openPGPool(ctx, PGEnvDSN("READWRITE_"))
 	if err != nil {
 		return nil, fmt.Errorf("runtime role: %w", err)
 	}
 	s.pool = rtPool
 	// Fail at startup, not on first login, if the runtime role cannot use the tables.
-	if err = checkPGRuntimeTables(ctx, func(ctx context.Context, q string) error {
+	if err = CheckPGRuntimeTables(ctx, func(ctx context.Context, q string) error {
 		_, execErr := rtPool.Exec(ctx, q)
 		return execErr
 	}); err != nil {
@@ -112,7 +113,8 @@ var pgRuntimeTableChecks = []struct {
 	{"counters", `SELECT 1 FROM counters LIMIT 1`},
 }
 
-func checkPGRuntimeTables(ctx context.Context, exec func(context.Context, string) error) error {
+// CheckPGRuntimeTables verifies the runtime role can read all store tables.
+func CheckPGRuntimeTables(ctx context.Context, exec func(context.Context, string) error) error {
 	for _, c := range pgRuntimeTableChecks {
 		if err := exec(ctx, c.query); err != nil {
 			return fmt.Errorf("runtime role cannot read %s: %w", c.table, err)
@@ -121,7 +123,7 @@ func checkPGRuntimeTables(ctx context.Context, exec func(context.Context, string
 	return nil
 }
 
-func (s *pgxStore) migrate(ctx context.Context) error {
+func (s *PostgresStore) migrate(ctx context.Context) error {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return err
@@ -170,16 +172,18 @@ func kindAdvisoryLockID(kind string) int64 {
 	return id
 }
 
-func (s *pgxStore) Put(ctx context.Context, kind, key string, val []byte, ttl time.Duration) error {
+// Put stores a value with the given TTL, failing with ErrStoreFull if kind is at cap.
+func (s *PostgresStore) Put(ctx context.Context, kind, key string, val []byte, ttl time.Duration) error {
 	_, err := s.put(ctx, kind, key, val, ttl, false)
 	return err
 }
 
-func (s *pgxStore) PutEvict(ctx context.Context, kind, key string, val []byte, ttl time.Duration) (bool, error) {
+// PutEvict stores a value, evicting the earliest-expiring live item if kind is at cap.
+func (s *PostgresStore) PutEvict(ctx context.Context, kind, key string, val []byte, ttl time.Duration) (bool, error) {
 	return s.put(ctx, kind, key, val, ttl, true)
 }
 
-func (s *pgxStore) put(ctx context.Context, kind, key string, val []byte, ttl time.Duration, evict bool) (evicted bool, err error) {
+func (s *PostgresStore) put(ctx context.Context, kind, key string, val []byte, ttl time.Duration, evict bool) (evicted bool, err error) {
 	now := s.now().UTC()
 	expiresAt := now.Add(ttl)
 
@@ -219,7 +223,7 @@ func (s *pgxStore) put(ctx context.Context, kind, key string, val []byte, ttl ti
 	}
 	if !keyLive && liveCount >= capLimit {
 		if !evict || liveCount == 0 {
-			return false, errStoreFull
+			return false, ErrStoreFull
 		}
 		// Only live rows count toward the cap, so only a live row frees a slot.
 		tag, err := tx.Exec(ctx, `
@@ -248,7 +252,8 @@ func (s *pgxStore) put(ctx context.Context, kind, key string, val []byte, ttl ti
 	return evicted, tx.Commit(ctx)
 }
 
-func (s *pgxStore) Get(ctx context.Context, kind, key string) ([]byte, bool, error) {
+// Get returns the live value for (kind, key), if any.
+func (s *PostgresStore) Get(ctx context.Context, kind, key string) ([]byte, bool, error) {
 	var val []byte
 	err := s.pool.QueryRow(ctx, `
 		SELECT value
@@ -265,7 +270,8 @@ func (s *pgxStore) Get(ctx context.Context, kind, key string) ([]byte, bool, err
 	return val, true, nil
 }
 
-func (s *pgxStore) Pop(ctx context.Context, kind, key string) ([]byte, bool, error) {
+// Pop atomically removes and returns the live value for (kind, key), if any.
+func (s *PostgresStore) Pop(ctx context.Context, kind, key string) ([]byte, bool, error) {
 	var val []byte
 	var expiresAt time.Time
 	err := s.pool.QueryRow(ctx, `
@@ -286,12 +292,14 @@ func (s *pgxStore) Pop(ctx context.Context, kind, key string) ([]byte, bool, err
 	return val, true, nil
 }
 
-func (s *pgxStore) Delete(ctx context.Context, kind, key string) error {
+// Delete removes (kind, key) if present.
+func (s *PostgresStore) Delete(ctx context.Context, kind, key string) error {
 	_, err := s.pool.Exec(ctx, `DELETE FROM items WHERE kind = $1 AND key = $2`, kind, key)
 	return err
 }
 
-func (s *pgxStore) CompareAndSwap(ctx context.Context, kind, key string, oldVal, newVal []byte, ttl time.Duration) (bool, error) {
+// CompareAndSwap atomically replaces oldVal with newVal for (kind, key).
+func (s *PostgresStore) CompareAndSwap(ctx context.Context, kind, key string, oldVal, newVal []byte, ttl time.Duration) (bool, error) {
 	now := s.now().UTC()
 	expiresAt := now.Add(ttl)
 
@@ -352,7 +360,7 @@ func (s *pgxStore) CompareAndSwap(ctx context.Context, kind, key string, oldVal,
 	return tag.RowsAffected() == 1, nil
 }
 
-func (s *pgxStore) compareAndSwapInsertCapped(ctx context.Context, kind, key string, newVal []byte, expiresAt, now time.Time, capLimit int) (bool, error) {
+func (s *PostgresStore) compareAndSwapInsertCapped(ctx context.Context, kind, key string, newVal []byte, expiresAt, now time.Time, capLimit int) (bool, error) {
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return false, err
@@ -377,7 +385,7 @@ func (s *pgxStore) compareAndSwapInsertCapped(ctx context.Context, kind, key str
 		return false, nil
 	}
 	if liveCount >= capLimit {
-		return false, errStoreFull
+		return false, ErrStoreFull
 	}
 
 	tag, err := tx.Exec(ctx, `
@@ -399,7 +407,8 @@ func (s *pgxStore) compareAndSwapInsertCapped(ctx context.Context, kind, key str
 	return tag.RowsAffected() == 1, nil
 }
 
-func (s *pgxStore) Revoke(ctx context.Context, jti string, expiresAt time.Time) error {
+// Revoke marks jti as revoked until at least expiresAt.
+func (s *PostgresStore) Revoke(ctx context.Context, jti string, expiresAt time.Time) error {
 	_, err := s.pool.Exec(ctx, `
 		INSERT INTO revoked (jti, expires_at)
 		VALUES ($1, $2)
@@ -410,7 +419,8 @@ func (s *pgxStore) Revoke(ctx context.Context, jti string, expiresAt time.Time) 
 	return err
 }
 
-func (s *pgxStore) RevokeOnce(ctx context.Context, jti string, expiresAt time.Time) (bool, error) {
+// RevokeOnce revokes jti if it is not already live-revoked, reporting whether this call won.
+func (s *PostgresStore) RevokeOnce(ctx context.Context, jti string, expiresAt time.Time) (bool, error) {
 	tag, err := s.pool.Exec(ctx, `
 		INSERT INTO revoked (jti, expires_at)
 		VALUES ($1, $2)
@@ -425,7 +435,8 @@ func (s *pgxStore) RevokeOnce(ctx context.Context, jti string, expiresAt time.Ti
 	return tag.RowsAffected() == 1, nil
 }
 
-func (s *pgxStore) IsRevoked(ctx context.Context, jti string) (bool, error) {
+// IsRevoked reports whether jti has a live revocation entry.
+func (s *PostgresStore) IsRevoked(ctx context.Context, jti string) (bool, error) {
 	var one int
 	err := s.pool.QueryRow(ctx, `
 		SELECT 1
@@ -442,7 +453,8 @@ func (s *pgxStore) IsRevoked(ctx context.Context, jti string) (bool, error) {
 	return true, nil
 }
 
-func (s *pgxStore) Incr(ctx context.Context, key string, window time.Duration) (int, error) {
+// Incr increments a fixed-window counter and returns the new count.
+func (s *PostgresStore) Incr(ctx context.Context, key string, window time.Duration) (int, error) {
 	now := s.now().UTC()
 	var n int
 	err := s.pool.QueryRow(ctx, `
@@ -457,7 +469,8 @@ func (s *pgxStore) Incr(ctx context.Context, key string, window time.Duration) (
 	return n, err
 }
 
-func (s *pgxStore) CountPrefix(ctx context.Context, kind, prefix string) (int, error) {
+// CountPrefix counts live items of kind whose key starts with prefix.
+func (s *PostgresStore) CountPrefix(ctx context.Context, kind, prefix string) (int, error) {
 	var n int
 	err := s.pool.QueryRow(ctx, `
 		SELECT count(*)
@@ -468,7 +481,8 @@ func (s *pgxStore) CountPrefix(ctx context.Context, kind, prefix string) (int, e
 	return n, err
 }
 
-func (s *pgxStore) Sweep(ctx context.Context) (int, error) {
+// Sweep deletes expired items, revocations and counters, returning the total removed.
+func (s *PostgresStore) Sweep(ctx context.Context) (int, error) {
 	now := s.now().UTC()
 	tag1, err := s.pool.Exec(ctx, `DELETE FROM items WHERE expires_at <= $1`, now)
 	if err != nil {
@@ -485,18 +499,25 @@ func (s *pgxStore) Sweep(ctx context.Context) (int, error) {
 	return int(tag1.RowsAffected() + tag2.RowsAffected() + tag3.RowsAffected()), nil
 }
 
-func (s *pgxStore) Ping(ctx context.Context) error {
+// Ping checks database connectivity.
+func (s *PostgresStore) Ping(ctx context.Context) error {
 	return s.pool.Ping(ctx)
 }
 
-func (s *pgxStore) Close() {
+// Close closes the underlying connection pool.
+func (s *PostgresStore) Close() {
 	s.pool.Close()
+}
+
+// Pool returns the active connection pool.
+func (s *PostgresStore) Pool() *pgxpool.Pool {
+	return s.pool
 }
 
 var pgEnvReplacer = strings.NewReplacer(`\`, `\\`, `'`, `\'`)
 
-// pgEnvDSN builds a libpq keyword DSN from prefix+PG* variables (no password: TLS client certs).
-func pgEnvDSN(prefix string) string {
+// PGEnvDSN builds a libpq keyword DSN from prefix+PG* variables (no password: TLS client certs).
+func PGEnvDSN(prefix string) string {
 	vars := []struct{ env, key string }{
 		{"PGHOST", "host"}, {"PGPORT", "port"}, {"PGDATABASE", "dbname"}, {"PGUSER", "user"},
 		{"PGSSLMODE", "sslmode"}, {"PGSSLCERT", "sslcert"}, {"PGSSLKEY", "sslkey"}, {"PGSSLROOTCERT", "sslrootcert"},

@@ -738,17 +738,13 @@ func TestRefreshToken_PlaintextEntraRTNeverStored(t *testing.T) {
 
 	assertNoPlaintextInMemoryStore := func(stage string, needles ...string) {
 		t.Helper()
-		rawMem.mu.Lock()
-		defer rawMem.mu.Unlock()
-		for kind, bucket := range rawMem.items {
-			for k, item := range bucket {
-				for _, needle := range needles {
-					if bytes.Contains(item.value, []byte(needle)) {
-						t.Fatalf("%s: raw memoryStore (%s/%s) leaked plaintext %q", stage, kind, k, needle)
-					}
+		rawMem.ForEach(func(kind, k string, value []byte) {
+			for _, needle := range needles {
+				if bytes.Contains(value, []byte(needle)) {
+					t.Fatalf("%s: raw memoryStore (%s/%s) leaked plaintext %q", stage, kind, k, needle)
 				}
 			}
-		}
+		})
 	}
 
 	verifier := "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG"
