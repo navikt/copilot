@@ -362,9 +362,10 @@ func LaunchCopilotResolved(resolved domain.ResolvedConfig) error {
 		return err
 	}
 	spec := copilotSpec(resolved, materializedSkillsDir(copilotSkillsRoot()))
-	var checkFlags []string
+	var checkFlags, mcpSourceFlags []string
 	spec.env, checkFlags = withActionCheckServer(resolved, env)
-	spec.cpltArgs = append(checkFlags, ideBridgeFlags()...)
+	spec.env, mcpSourceFlags = withCopilotMCPSources(spec.env, resolved.ProjectDir, resolved.ExtraArgs)
+	spec.cpltArgs = append(append(checkFlags, mcpSourceFlags...), ideBridgeFlags()...)
 	if guard != nil {
 		// The prompt path for a local session is a 127.0.0.1 hop to the guard,
 		// which cplt blocks by default. Name the port so it survives — and so

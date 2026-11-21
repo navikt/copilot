@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
 )
 
@@ -267,5 +268,44 @@ func TestHookStateDirEnv(t *testing.T) {
 	t.Setenv("NAV_PILOT_HOOK_STATE_DIR", "relative")
 	if got := hookStateDir(); got == "relative" {
 		t.Fatal("a relative state dir is taken")
+	}
+}
+
+func TestHookRedactCopilotDollySource(t *testing.T) {
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	writeTestConfig(t, "version = 1\n")
+
+	const dollyIdent = "01519041010" // month 11 + 40 (synthetic Dolly / H-nummer)
+	const realFNR = "15078545620"
+	payload := func(tool, text string) string {
+		return `{"hook_event_name":"PostToolUse","session_id":"s","tool_name":"` + tool + `","tool_input":{},"tool_result":{"result_type":"success","text_result_for_llm":"` + text + `"}}`
+	}
+	run := func(in string) string {
+		var out bytes.Buffer
+		runHookCommand([]string{"redact"}, strings.NewReader(in), &out)
+		return strings.TrimSpace(out.String())
+	}
+
+	srcs := `{"io.github.navikt/dolly":"io.github.navikt/dolly","io.github.navikt/dolly-extra":""}`
+	t.Setenv(providerpkg.CopilotMCPSourcesEnv, srcs)
+
+	if got := run(payload("io-github-navikt-dolly-dolly_search", "ident "+dollyIdent)); got != "{}" {
+		t.Errorf("verified Dolly tool masked synthetic ident: %s", got)
+	}
+	if got := run(payload("io-github-navikt-dolly-dolly_search", "ident "+realFNR)); !strings.Contains(got, "[REDACTED:fnr]") {
+		t.Errorf("verified Dolly tool left real FNR unmasked: %s", got)
+	}
+	if got := run(payload("io-github-navikt-dolly-extra-search", "ident "+dollyIdent)); !strings.Contains(got, "[REDACTED:fnr]") {
+		t.Errorf("unverified longer-prefix server left synthetic ident unmasked: %s", got)
+	}
+	if got := run(payload("bash", "ident "+dollyIdent)); !strings.Contains(got, "[REDACTED:fnr]") {
+		t.Errorf("builtin tool left synthetic ident unmasked: %s", got)
+	}
+
+	// Without NAV_PILOT_COPILOT_MCP_SOURCES, even a Dolly-named tool stays masked.
+	t.Setenv(providerpkg.CopilotMCPSourcesEnv, "")
+	if got := run(payload("io-github-navikt-dolly-dolly_search", "ident "+dollyIdent)); !strings.Contains(got, "[REDACTED:fnr]") {
+		t.Errorf("without sources env, synthetic ident was left unmasked: %s", got)
 	}
 }

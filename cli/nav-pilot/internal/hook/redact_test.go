@@ -165,3 +165,29 @@ func TestParsePayloadMCPServer(t *testing.T) {
 		t.Errorf("no field, got %q", p.MCPServer)
 	}
 }
+
+func TestCopilotMCPServer(t *testing.T) {
+	srcs := `{"io.github.navikt/dolly":"io.github.navikt/dolly","io.github.navikt/dolly-extra":"","mine":"io.github.navikt/dolly","impostor":""}`
+	collide := `{"io.github.navikt/dolly":"io.github.navikt/dolly","io-github-navikt-dolly":""}`
+	tests := []struct {
+		name, tool, srcs, want string
+	}{
+		{"dolly default key", "io-github-navikt-dolly-dolly_search", srcs, DollyServer},
+		{"dolly renamed key", "mine-dolly_search", srcs, DollyServer},
+		{"longest prefix wins over shorter dolly key", "io-github-navikt-dolly-extra-search", srcs, ""},
+		{"colliding sanitized prefixes fail closed", "io-github-navikt-dolly-dolly_search", collide, ""},
+		{"unverified key", "impostor-search", srcs, ""},
+		{"contains prefix without anchoring", "x-io-github-navikt-dolly-dolly_search", srcs, ""},
+		{"empty tool after prefix", "io-github-navikt-dolly-", srcs, ""},
+		{"builtin tool", "bash", srcs, ""},
+		{"no sources", "io-github-navikt-dolly-dolly_search", "", ""},
+		{"invalid json", "io-github-navikt-dolly-dolly_search", "not json", ""},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := CopilotMCPServer(tt.tool, tt.srcs); got != tt.want {
+				t.Errorf("CopilotMCPServer(%q) = %q, want %q", tt.tool, got, tt.want)
+			}
+		})
+	}
+}
