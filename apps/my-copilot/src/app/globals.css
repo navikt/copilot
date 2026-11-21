@@ -1305,14 +1305,6 @@ button.search-hit {
   height: 100%;
 }
 
-.fleet-gateway-clamp {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 4;
-  line-clamp: 4;
-  overflow: hidden;
-}
-
 /* The quote takes the spare height, so commands and setup links line up across cards. */
 .fleet-gateway-quote {
   flex-grow: 1;

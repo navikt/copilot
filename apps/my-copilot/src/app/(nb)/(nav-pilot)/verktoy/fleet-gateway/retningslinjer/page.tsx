@@ -179,12 +179,12 @@ const SECTIONS: Section[] = [
     short: "Logg uten persondata.",
     why: "Gatewayen logger allerede hvem som kalte, så serveren trenger ikke gjenta persondata. Tokens og hemmeligheter skal aldri havne i loggene.",
     todo: [
-      "Logg hvem som kalte, verktøy, utfall og korrelasjons-ID.",
+      "Logg verktøy, utfall og korrelasjons-ID. Ikke logg NAVident eller andre persondata.",
       "Ikke logg tokens, fritekst eller persondata.",
       "Hent hemmeligheter bare fra Nais-secrets.",
     ],
     points: [
-      "Logg hvem som kalte, hvilket verktøy, utfallet og en korrelasjons-ID. Gatewayens revisjonslogg lagrer allerede NAVident for hvert kall, så serveren trenger ikke gjenta persondata.",
+      "Logg hvilket verktøy, utfallet og en korrelasjons-ID. Gatewayens revisjonslogg lagrer allerede hvem som kalte (NAVident), så ikke logg NAVident eller andre persondata i serveren.",
       "Ikke logg tokens, fritekst eller input som kan inneholde persondata.",
       "Logger dere NAVident med vilje som revisjonsspor, skriv det i ROS.",
       "Hent hemmeligheter bare fra Nais-secrets. Ha dem aldri i kode, logger, feilmeldinger eller `x-mcp-header`, og aldri i query string.",

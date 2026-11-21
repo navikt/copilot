@@ -162,7 +162,7 @@ export default function FleetGatewayPage() {
                       {server.title}
                     </Heading>
                   </HStack>
-                  <BodyShort className="fleet-gateway-clamp">{server.summary}</BodyShort>
+                  <BodyShort>{server.summary}</BodyShort>
                   <HStack gap="space-4" wrap>
                     {server.readOnly && (
                       <Tag variant="neutral" size="small">
