@@ -145,7 +145,7 @@ export function StaticCustomizationDetails({
                   Installer med ett klikk
                 </a>
                 <BodyShort size="small" className="verktoy-subtle">
-                  {item.type === "agent" && "Aktiver med @-mention i Copilot Chat."}
+                  {item.type === "agent" && "Skriv @ og navnet i Copilot Chat for å bruke den."}
                   {item.type === "instruction" && `Lastes automatisk for filer som matcher ${item.applyTo}.`}
                   {item.type === "prompt" && `Kjør med ${item.invocation} i Copilot Chat.`}
                 </BodyShort>
@@ -165,7 +165,7 @@ export function StaticCustomizationDetails({
                     Nyttige flagg:
                   </BodyShort>
                   <CommandBlock
-                    command={`--scope user    # personlig (alle repoer)\n--pin v1.0.0    # lås til versjon eller SHA\n--agent <name>  # målrett agent (copilot, claude, cursor …)`}
+                    command={`--scope user    # personlig (alle repoer)\n--pin v1.0.0    # lås til versjon eller SHA\n--agent <name>  # velg agent (copilot, claude, cursor …)`}
                   />
                 </VStack>
                 <BodyShort size="small" className="verktoy-subtle">
@@ -177,7 +177,7 @@ export function StaticCustomizationDetails({
             {activeClient === "github" && (
               <VStack gap="space-8">
                 <BodyShort size="small">
-                  For å bruke denne på GitHub.com (for eksempel i pull requests eller Copilot Chat på web), må filen
+                  Skal du bruke denne på GitHub.com (for eksempel i pull requests eller Copilot Chat på web), må filen
                   ligge i repoet ditt.
                 </BodyShort>
                 <BodyShort size="small">

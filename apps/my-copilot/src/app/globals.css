@@ -1013,14 +1013,14 @@ button.search-hit {
   min-width: 0;
 }
 
-/* Verktøykatalog (/verktoy): search-first layout, WCAG AA type colours in light & dark, and detail drawer */
+/* Verktøykatalog (/verktoy): search-first layout, WCAG AA type colours (light only; dark mode is #2544), and detail drawer */
 .verktoy-page {
   min-height: 100%;
   background: var(--ax-bg-sunken);
   color: var(--ax-text-neutral);
 }
 
-/* Type colour tokens: every ink/bg and selected pair exceeds 6:1 (WCAG AA >= 4.5:1) in light and dark. */
+/* Type colour tokens: every ink/bg and selected pair exceeds 6:1 (WCAG AA >= 4.5:1). */
 .verktoy-type-agent {
   --vt-ink: #66399c;
   --vt-bg: #f2ebfc;
@@ -1045,32 +1045,6 @@ button.search-hit {
   --vt-ink: #99264e;
   --vt-bg: #fbe6ee;
   --vt-selected-fg: #ffffff;
-}
-
-.dark .verktoy-type-agent {
-  --vt-ink: #d3b5f8;
-  --vt-bg: #2c2140;
-  --vt-selected-fg: #11161d;
-}
-.dark .verktoy-type-instruction {
-  --vt-ink: #8fd9ad;
-  --vt-bg: #173226;
-  --vt-selected-fg: #11161d;
-}
-.dark .verktoy-type-skill {
-  --vt-ink: #f4c47d;
-  --vt-bg: #3a2a14;
-  --vt-selected-fg: #11161d;
-}
-.dark .verktoy-type-mcp {
-  --vt-ink: #8cc4f2;
-  --vt-bg: #152b40;
-  --vt-selected-fg: #11161d;
-}
-.dark .verktoy-type-prompt {
-  --vt-ink: #f4a6c1;
-  --vt-bg: #3d1a27;
-  --vt-selected-fg: #11161d;
 }
 
 .verktoy-hero {
@@ -1194,13 +1168,39 @@ button.search-hit {
   cursor: pointer;
 }
 
+.verktoy-card {
+  position: relative;
+}
+
+.verktoy-card-link {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  text-align: inherit;
+  cursor: pointer;
+}
+
+/* Stretch the heading button over the whole card. */
+.verktoy-card-link::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
+.verktoy-card-link:focus-visible {
+  outline: none;
+}
+
+.verktoy-card:has(.verktoy-card-link:focus-visible) {
+  outline: 3px solid var(--ax-border-focus);
+  outline-offset: 2px;
+}
+
 .verktoy-card:hover {
   border-color: var(--ax-border-accent);
   box-shadow: 0 2px 8px rgba(0, 103, 197, 0.12);
-}
-
-.dark .verktoy-card:hover {
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
 }
 
 .verktoy-card:focus-visible {
@@ -1261,11 +1261,6 @@ button.search-hit {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 0.8125rem;
   line-height: 1.45;
-}
-
-.dark .verktoy-cmd {
-  background: #0b0e13;
-  border: 1px solid var(--ax-border-neutral-subtle);
 }
 
 .verktoy-cmd pre,

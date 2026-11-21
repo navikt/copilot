@@ -27,7 +27,7 @@ function isFleetGatewayMcp(item: EnrichedCustomization): boolean {
 
 function ownerLabel(item: EnrichedCustomization): string {
   if (item.type !== "mcp") return "nav-pilot";
-  if (item.serverId.startsWith("io.github.navikt/")) return "team copilot";
+  if (item.serverId.startsWith("io.github.navikt/")) return "Team Copilot";
   const prefix = item.serverId.split("/")[0];
   return prefix || "MCP-registeret";
 }

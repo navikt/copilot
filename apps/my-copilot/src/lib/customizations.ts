@@ -1,4 +1,4 @@
-import type { AnyCustomization, Domain } from "./customization-types";
+import type { AnyCustomization } from "./customization-types";
 import manifest from "./copilot-manifest.json";
 import { findByItemKey } from "./item-key";
 

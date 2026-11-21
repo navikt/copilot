@@ -938,9 +938,9 @@
         const search = (ph) =>
           `<label class="search"><span aria-hidden="true">⌕</span><input id="q" value="${st.q}" placeholder="${ph}" autocomplete="off" aria-label="Søk"></label>`;
         const meta = () =>
-          `<div class="meta"><span>${hits().length} av 85 tilpasninger · Sorter <span class="seg"><span class="on">Mest brukt</span><span>A–Å</span></span></span><a href="#" data-reset>Nullstill filtre</a></div>`;
-        const info = `<div class="info">Bruke en MCP-server fra et Nav-team? <a href="#">Koble til Navs MCP-servere</a>. Eier teamet en? <a href="#">Tilby den gjennom fleet-gateway</a>.</div>`;
-        const head = `<div class="eyebrow">Tilpasning</div><h2>Verktøykatalog</h2><p class="sub">Agenter, instruksjoner, skills og MCP-servere for Navs stack.</p>`;
+          `<div class="meta"><span>${hits().length} av 85 verktøy · Sorter <span class="seg"><span class="on">Mest brukt</span><span>A–Å</span></span></span><a href="#" data-reset>Nullstill filtre</a></div>`;
+        const info = `<div class="info">Vil du bruke en MCP-server fra et Nav-team? <a href="#">Koble til Navs MCP-servere</a>. Eier teamet en? <a href="#">Tilby den gjennom fleet-gateway</a>.</div>`;
+        const head = `<div class="eyebrow">Verktøykatalog</div><h2>Verktøykatalog</h2><p class="sub">Agenter, instruksjoner, skills og MCP-servere for Navs stack.</p>`;
         const typeRow = `<div class="row"><span class="lbl">Type</span>${T.map((t) => chip("t", t[0], st.t.has(t[0]), t[1])).join("")}</div>`;
         const R = {
           a: () =>
@@ -963,7 +963,7 @@
             search("Søk etter navn eller beskrivelse") +
             `<div class="facets"><div><div class="facet"><h4>Domene</h4>${D.map((d) => `<label><input type="radio" name="fd" data-d="${d[0]}" ${st.d === d[0] ? "checked" : ""}> ${d[0]}<em>${d[1]}</em></label>`).join("")}</div><div class="facet"><h4>Type</h4>${T.map((t) => `<label><input type="checkbox" data-t="${t[0]}" ${st.t.has(t[0]) ? "checked" : ""}> ${t[0]}<em>${t[1]}</em></label>`).join("")}</div></div><div>${meta()}<div class="list">${hits().map(item).join("")}</div></div></div>`,
           d: () =>
-            `<div class="hero"><div class="eyebrow">Tilpasning</div><h2>Hva skal Copilot hjelpe deg med?</h2>${search("Prøv «deploy til Nais», «Aksel-skjema» eller «testpersoner»")}</div><div class="intents">${[
+            `<div class="hero"><div class="eyebrow">Verktøykatalog</div><h2>Hva skal nav-pilot hjelpe deg med?</h2>${search("Prøv «deploy til Nais», «Aksel-skjema» eller «testpersoner»")}</div><div class="intents">${[
               ["Bygge frontend med Aksel", "aksel"],
               ["Deploye til Nais", "nais"],
               ["Sikre en app", "trussel"],
@@ -1056,7 +1056,7 @@
           dr.hidden = sc.hidden = false;
           dr.innerHTML = `<div class="dh"><span class="ic">${icon(x[1])}</span><div><h3 id="dh">${x[0]}${hot(x)}</h3></div><button class="x" data-close aria-label="Lukk">✕</button></div>
  <div class="tags"><span class="tag">${x[1]}</span><span class="tag">${x[2]}</span>${x[1] === "MCP-server" && ["kodeverk", "dolly", "teamkatalogen"].includes(x[0]) ? '<span class="tag">Via fleet-gateway</span>' : ""}</div>
- <p>${x[3]}.</p><div class="stat"><span><b>${x[4]}</b> brukere siste 30 dager</span><span>Eier: <b>${x[1] === "MCP-server" ? "team copilot" : "nav-pilot"}</b></span></div>
+ <p>${x[3]}.</p><div class="stat"><span><b>${x[4]}</b> brukere siste 30 dager</span><span>Eier: <b>${x[1] === "MCP-server" ? "Team Copilot" : "nav-pilot"}</b></span></div>
  <details class="acc" open><summary>Installering</summary><div class="clients">${CL.map((c) => `<button class="chip" data-cl="${c}" aria-pressed="${c === cl}">${c}</button>`).join("")}</div>
  <div class="cmd"><code>${cl === "Copilot CLI" ? cmdFor(x) : cl === "VS Code" ? "Åpne i VS Code → " + x[0] : cl === "IntelliJ" ? "Settings → Copilot → " + x[0] : "Legg til i .github/copilot → " + x[0]}</code><button data-copy>Kopier</button></div>
  <p class="dnote">Kommandoene er eksempler i skissen.</p></details>

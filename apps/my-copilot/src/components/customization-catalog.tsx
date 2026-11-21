@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef, useSyncExternalStore } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import NextLink from "next/link";
 import {
@@ -88,57 +88,34 @@ interface CustomizationCatalogProps {
   items: EnrichedCustomization[];
 }
 
-export function CustomizationCatalog({ items }: CustomizationCatalogProps) {
-  const searchParams = useSearchParams();
-  const router = useRouter();
+const REDUCED_MOTION = "(prefers-reduced-motion: reduce)";
 
-  const activeItems = useMemo(() => items.filter((i) => !i.deprecated), [items]);
+function subscribeReducedMotion(onChange: () => void) {
+  if (typeof window.matchMedia !== "function") return () => {};
+  const mq = window.matchMedia(REDUCED_MOTION);
+  mq.addEventListener("change", onChange);
+  return () => mq.removeEventListener("change", onChange);
+}
 
-  const allDomains = useMemo(() => {
-    const domains = new Set(activeItems.map((i) => i.domain));
-    return DOMAIN_ORDER.filter((d) => domains.has(d));
-  }, [activeItems]);
-
-  const initialDomain = searchParams.get("domain");
-  const initialSearch = searchParams.get("q") ?? "";
-  const initialItem = searchParams.get("item");
-
-  const [search, setSearch] = useState(initialSearch);
-  const [selectedTypes, setSelectedTypes] = useState<CustomizationType[]>(parseTypes(searchParams.get("type")));
-  const [selectedDomain, setSelectedDomain] = useState<Domain | null>(
-    isValidDomain(initialDomain, allDomains) ? initialDomain : null
+// Server and browsers without matchMedia count as reduced, so the placeholder stays static.
+function usePrefersReducedMotion(): boolean {
+  return useSyncExternalStore(
+    subscribeReducedMotion,
+    () => typeof window.matchMedia !== "function" || window.matchMedia(REDUCED_MOTION).matches,
+    () => true
   );
-  const [selectedItem, setSelectedItem] = useState<EnrichedCustomization | null>(() => {
-    if (initialItem) {
-      return findByItemKey(items, initialItem) ?? null;
-    }
-    return null;
-  });
-  const [sortBy, setSortBy] = useState<SortOption>("most-used");
+}
+
+// Own component so the placeholder ticks re-render only the search field, not the catalog.
+function TypingSearch({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const [searchFocused, setSearchFocused] = useState(false);
   const [animatedPlaceholder, setAnimatedPlaceholder] = useState(STATIC_PLACEHOLDER);
-
-  // Sync filter state to URL params (?domain=&type=&q=&item=).
-  const isInitialRender = useRef(true);
-  useEffect(() => {
-    if (isInitialRender.current) {
-      isInitialRender.current = false;
-      return;
-    }
-    const params = new URLSearchParams();
-    if (selectedTypes.length > 0) params.set("type", selectedTypes.join(","));
-    if (selectedDomain) params.set("domain", selectedDomain);
-    if (search) params.set("q", search);
-    if (selectedItem) params.set("item", itemKey(selectedItem));
-    const qs = params.toString();
-    router.replace(qs ? `?${qs}` : "/verktoy", { scroll: false });
-  }, [selectedTypes, selectedDomain, search, selectedItem, router]);
+  const reducedMotion = usePrefersReducedMotion();
 
   // Typing placeholder animation; disabled when prefers-reduced-motion: reduce, focused, or non-empty.
   useEffect(() => {
-    if (search || searchFocused) return;
-    if (typeof window === "undefined" || typeof window.matchMedia !== "function") return;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (value || searchFocused) return;
+    if (reducedMotion) return;
 
     let timer: ReturnType<typeof setTimeout> | undefined;
     let exampleIndex = 0;
@@ -166,9 +143,68 @@ export function CustomizationCatalog({ items }: CustomizationCatalogProps) {
     return () => {
       if (timer) clearTimeout(timer);
     };
-  }, [search, searchFocused]);
+  }, [value, searchFocused, reducedMotion]);
 
-  const placeholder = searchFocused ? FOCUSED_PLACEHOLDER : animatedPlaceholder;
+  const placeholder = searchFocused ? FOCUSED_PLACEHOLDER : reducedMotion ? STATIC_PLACEHOLDER : animatedPlaceholder;
+
+  return (
+    <Search
+      label="Søk i verktøykatalogen"
+      hideLabel
+      variant="simple"
+      placeholder={placeholder}
+      value={value}
+      onChange={onChange}
+      onClear={() => onChange("")}
+      onFocus={() => setSearchFocused(true)}
+      onBlur={() => setSearchFocused(false)}
+    />
+  );
+}
+
+export function CustomizationCatalog({ items }: CustomizationCatalogProps) {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
+  const activeItems = useMemo(() => items.filter((i) => !i.deprecated), [items]);
+
+  const allDomains = useMemo(() => {
+    const domains = new Set(activeItems.map((i) => i.domain));
+    return DOMAIN_ORDER.filter((d) => domains.has(d));
+  }, [activeItems]);
+
+  const initialDomain = searchParams.get("domain");
+  const initialSearch = searchParams.get("q") ?? "";
+  const initialItem = searchParams.get("item");
+
+  const [search, setSearch] = useState(initialSearch);
+  const [selectedTypes, setSelectedTypes] = useState<CustomizationType[]>(parseTypes(searchParams.get("type")));
+  const [selectedDomain, setSelectedDomain] = useState<Domain | null>(
+    isValidDomain(initialDomain, allDomains) ? initialDomain : null
+  );
+  const [selectedItem, setSelectedItem] = useState<EnrichedCustomization | null>(() => {
+    if (initialItem) {
+      return findByItemKey(items, initialItem) ?? null;
+    }
+    return null;
+  });
+  const [sortBy, setSortBy] = useState<SortOption>("most-used");
+
+  // Sync filter state to URL params (?domain=&type=&q=&item=).
+  const isInitialRender = useRef(true);
+  useEffect(() => {
+    if (isInitialRender.current) {
+      isInitialRender.current = false;
+      return;
+    }
+    const params = new URLSearchParams();
+    if (selectedTypes.length > 0) params.set("type", selectedTypes.join(","));
+    if (selectedDomain) params.set("domain", selectedDomain);
+    if (search) params.set("q", search);
+    if (selectedItem) params.set("item", itemKey(selectedItem));
+    const qs = params.toString();
+    router.replace(qs ? `?${qs}` : "/verktoy", { scroll: false });
+  }, [selectedTypes, selectedDomain, search, selectedItem, router]);
 
   const typeCounts = useMemo(() => {
     const counts: Record<CustomizationType, number> = {
@@ -252,25 +288,15 @@ export function CustomizationCatalog({ items }: CustomizationCatalogProps) {
       <VStack gap="space-16" align="center" className="verktoy-hero">
         <VStack gap="space-4" align="center">
           <BodyShort size="small" weight="semibold" className="page-kicker">
-            Tilpasning
+            Verktøykatalog
           </BodyShort>
           <Heading level="1" size="xlarge">
-            Hva skal Copilot hjelpe deg med?
+            Hva skal nav-pilot hjelpe deg med?
           </Heading>
         </VStack>
 
         <div className="verktoy-hero-search">
-          <Search
-            label="Søk i verktøykatalogen"
-            hideLabel
-            variant="simple"
-            placeholder={placeholder}
-            value={search}
-            onChange={setSearch}
-            onClear={() => setSearch("")}
-            onFocus={() => setSearchFocused(true)}
-            onBlur={() => setSearchFocused(false)}
-          />
+          <TypingSearch value={search} onChange={setSearch} />
         </div>
 
         <Chips size="small" className="justify-center">
@@ -311,10 +337,10 @@ export function CustomizationCatalog({ items }: CustomizationCatalogProps) {
         </div>
       </VStack>
 
-      {showMcpGatewayInfo && (
+      {showMcpGatewayInfo ? (
         <Box background="info-soft" borderRadius="8" paddingBlock="space-12" paddingInline="space-16">
           <BodyShort size="small">
-            Bruke en MCP-server fra et Nav-team?{" "}
+            Vil du bruke en MCP-server fra et Nav-team?{" "}
             <NextLink href="/nav-pilot/guider/nav-mcp-servere" className={linkClass}>
               Koble til Navs MCP-servere
             </NextLink>
@@ -325,6 +351,18 @@ export function CustomizationCatalog({ items }: CustomizationCatalogProps) {
             .
           </BodyShort>
         </Box>
+      ) : (
+        <BodyShort size="small" className="verktoy-subtle text-center">
+          Vil du bruke en MCP-server fra et Nav-team?{" "}
+          <NextLink href="/nav-pilot/guider/nav-mcp-servere" className={linkClass}>
+            Koble til Navs MCP-servere
+          </NextLink>
+          . Eier teamet en MCP-server?{" "}
+          <NextLink href="/verktoy/fleet-gateway" className={linkClass}>
+            Tilby den gjennom fleet-gateway
+          </NextLink>
+          .
+        </BodyShort>
       )}
 
       {hasActiveFilters ? (
@@ -332,7 +370,7 @@ export function CustomizationCatalog({ items }: CustomizationCatalogProps) {
           <HStack gap="space-12" align="center" justify="space-between" wrap>
             <HStack gap="space-12" align="center" wrap>
               <BodyShort size="small" className="verktoy-subtle">
-                {filtered.length} av {activeItems.length} tilpasninger
+                {filtered.length} av {activeItems.length} verktøy
               </BodyShort>
               {selectedDomain && (
                 <Chips size="small">
@@ -345,7 +383,7 @@ export function CustomizationCatalog({ items }: CustomizationCatalogProps) {
                 size="small"
                 value={sortBy}
                 onChange={(value) => setSortBy(value as SortOption)}
-                aria-label="Sorter tilpasninger"
+                aria-label="Sorter verktøy"
               >
                 <ToggleGroup.Item value="most-used" label="Mest brukt" />
                 <ToggleGroup.Item value="alpha" label="A–Å" />
@@ -357,22 +395,22 @@ export function CustomizationCatalog({ items }: CustomizationCatalogProps) {
             </Button>
           </HStack>
 
+          <Heading level="2" size="small" className="sr-only">
+            Treff
+          </Heading>
           {filtered.length > 0 ? (
             <VStack gap="space-8">
               {filtered.map((item) => (
-                <button
-                  key={itemKey(item)}
-                  type="button"
-                  className="verktoy-card"
-                  onClick={() => setSelectedItem(item)}
-                >
+                <div key={itemKey(item)} className="verktoy-card">
                   <HStack gap="space-12" align="center" justify="space-between" wrap={false}>
                     <HStack gap="space-12" align="center" className="min-w-0 flex-1" wrap={false}>
                       <TypeIconBadge type={item.type} size="md" />
                       <VStack gap="space-2" className="min-w-0 flex-1">
                         <HStack gap="space-8" align="center" wrap>
                           <Heading level="3" size="xsmall" className="truncate">
-                            {displayName(item)}
+                            <button type="button" className="verktoy-card-link" onClick={() => setSelectedItem(item)}>
+                              {displayName(item)}
+                            </button>
                           </Heading>
                           {item.usageCount >= POPULAR_THRESHOLD && (
                             <Tag size="xsmall" variant="warning">
@@ -393,13 +431,13 @@ export function CustomizationCatalog({ items }: CustomizationCatalogProps) {
                       </Tag>
                     </HStack>
                   </HStack>
-                </button>
+                </div>
               ))}
             </VStack>
           ) : (
             <Box background="default" borderRadius="8" padding="space-24" className="text-center">
               <VStack gap="space-12" align="center">
-                <BodyShort className="verktoy-subtle">Ingen tilpasninger matcher søket ditt.</BodyShort>
+                <BodyShort className="verktoy-subtle">Ingen verktøy passer med søket.</BodyShort>
                 <Button variant="secondary" size="small" onClick={resetFilters}>
                   Nullstill filtre
                 </Button>
@@ -416,19 +454,19 @@ export function CustomizationCatalog({ items }: CustomizationCatalogProps) {
                   <Heading id={`domain-${domain}`} level="2" size="small">
                     {DOMAIN_CONFIGS[domain].label}
                   </Heading>
-                  <Button variant="tertiary" size="small" onClick={() => setSelectedDomain(domain)}>
+                  <Button
+                    variant="tertiary"
+                    size="small"
+                    onClick={() => setSelectedDomain(domain)}
+                    aria-label={`Se alle ${total} i ${DOMAIN_CONFIGS[domain].label}`}
+                  >
                     Se alle {total}
                   </Button>
                 </HStack>
 
                 <HGrid columns={{ xs: 1, sm: 2, lg: 4 }} gap="space-12">
                   {preview.map((item) => (
-                    <button
-                      key={itemKey(item)}
-                      type="button"
-                      className="verktoy-card flex flex-col"
-                      onClick={() => setSelectedItem(item)}
-                    >
+                    <div key={itemKey(item)} className="verktoy-card flex flex-col">
                       <VStack gap="space-8" className="h-full">
                         <HStack gap="space-8" align="center" justify="space-between">
                           <TypeIconBadge type={item.type} size="sm" />
@@ -440,7 +478,9 @@ export function CustomizationCatalog({ items }: CustomizationCatalogProps) {
                         </HStack>
                         <VStack gap="space-4">
                           <Heading level="3" size="xsmall" className="break-words">
-                            {displayName(item)}
+                            <button type="button" className="verktoy-card-link" onClick={() => setSelectedItem(item)}>
+                              {displayName(item)}
+                            </button>
                           </Heading>
                           <HStack gap="space-6" align="center" wrap>
                             <TypeBadge type={item.type} size="xsmall" />
@@ -450,7 +490,7 @@ export function CustomizationCatalog({ items }: CustomizationCatalogProps) {
                           </BodyShort>
                         </VStack>
                       </VStack>
-                    </button>
+                    </div>
                   ))}
                 </HGrid>
               </VStack>
