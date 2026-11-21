@@ -1257,7 +1257,7 @@ button.search-hit {
   background: #161b26;
   color: #e6e9ee;
   border-radius: var(--ax-radius-8);
-  padding: var(--ax-space-10) var(--ax-space-12);
+  padding: var(--ax-space-12) var(--ax-space-12) var(--ax-space-12) var(--ax-space-16);
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 0.8125rem;
   line-height: 1.45;
@@ -1268,8 +1268,8 @@ button.search-hit {
   margin: 0;
   flex: 1;
   min-width: 0;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
+  white-space: pre;
+  overflow-x: auto;
   font-family: inherit;
   font-size: inherit;
 }
@@ -1292,4 +1292,30 @@ button.search-hit {
   border-radius: var(--ax-radius-4);
   padding: var(--ax-space-2) var(--ax-space-6);
   overflow-wrap: anywhere;
+}
+
+/* Below 600 px the quick picks and type chips scroll sideways on one line. */
+@media (max-width: 599px) {
+  /* Doubled class beats the Tailwind justify-center utility. */
+  .verktoy-chip-row.verktoy-chip-row {
+    align-self: stretch;
+    max-width: 100%;
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding-inline-end: var(--ax-space-32);
+    padding-block: var(--ax-space-4);
+    /* shortcut: the fade shows even when the row fits; scroll-driven fade if that looks wrong. */
+    mask-image: linear-gradient(to right, #000 calc(100% - var(--ax-space-32)), transparent);
+  }
+  .verktoy-chip-row::-webkit-scrollbar {
+    display: none;
+  }
+  .verktoy-chip-row > li {
+    flex: none;
+  }
+  .verktoy-chip-row .aksel-chips__chip {
+    min-height: 2.75rem;
+  }
 }

@@ -33,10 +33,21 @@ export function ToolList({ tools }: { tools: string[] }) {
   );
 }
 
+// Display only: spread a quoted JSON argument over lines. The copy button keeps the original one-liner.
+export function formatCommandForDisplay(command: string): string {
+  const match = /^([^\n]*?)'(\{[^\n]*\})'$/.exec(command);
+  if (!match) return command;
+  try {
+    return `${match[1]}'${JSON.stringify(JSON.parse(match[2]), null, 2)}'`;
+  } catch {
+    return command;
+  }
+}
+
 export function CommandBlock({ command, copyText }: { command: string; copyText?: string }) {
   return (
     <div className="verktoy-cmd">
-      <pre>{command}</pre>
+      <pre>{formatCommandForDisplay(command)}</pre>
       <CopyButton size="xsmall" copyText={copyText ?? command} />
     </div>
   );

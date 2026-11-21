@@ -299,7 +299,7 @@ export function CustomizationCatalog({ items }: CustomizationCatalogProps) {
           <TypingSearch value={search} onChange={setSearch} />
         </div>
 
-        <Chips size="small" className="justify-center">
+        <Chips size="small" className="justify-center verktoy-chip-row">
           {INTENTS.map((intent) => (
             <Chips.Toggle
               key={intent.label}
@@ -313,8 +313,8 @@ export function CustomizationCatalog({ items }: CustomizationCatalogProps) {
           ))}
         </Chips>
 
-        <div role="group" aria-label="Filtrer på type">
-          <Chips size="small" className="justify-center">
+        <div role="group" aria-label="Filtrer på type" className="max-w-full">
+          <Chips size="small" className="justify-center verktoy-chip-row">
             {TYPE_ORDER.map((type) => {
               const selected = selectedTypes.includes(type);
               return (
