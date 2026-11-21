@@ -215,4 +215,10 @@ describe("CustomizationCatalog", () => {
     render(<CustomizationCatalog items={ITEMS} />);
     expect(screen.getByRole("heading", { level: 3, name: "nais-deploy" })).toBeInTheDocument();
   });
+
+  it("moves focus to the results heading after Se alle", () => {
+    render(<CustomizationCatalog items={ITEMS} />);
+    fireEvent.click(screen.getByRole("button", { name: "Se alle 1 i Plattform" }));
+    expect(screen.getByRole("heading", { level: 2, name: "Treff" })).toHaveFocus();
+  });
 });

@@ -201,6 +201,18 @@ export function CustomizationCatalog({ items }: CustomizationCatalogProps) {
   });
   const [sortBy, setSortBy] = useState<SortOption>("most-used");
 
+  // "Se alle" unmounts its own button; move focus to the results heading instead of losing it.
+  const resultsHeadingRef = useRef<HTMLHeadingElement>(null);
+  const focusResultsRef = useRef(false);
+  useEffect(() => {
+    if (!focusResultsRef.current || !resultsHeadingRef.current) return;
+    focusResultsRef.current = false;
+    const heading = resultsHeadingRef.current;
+    heading.focus({ preventScroll: true });
+    const reduced = typeof window.matchMedia !== "function" || window.matchMedia(REDUCED_MOTION).matches;
+    heading.scrollIntoView?.({ behavior: reduced ? "auto" : "smooth", block: "start" });
+  }, [selectedDomain]);
+
   // Sync filter state to URL params (?domain=&type=&q=&item=).
   const isInitialRender = useRef(true);
   useEffect(() => {
@@ -396,7 +408,7 @@ export function CustomizationCatalog({ items }: CustomizationCatalogProps) {
             </Button>
           </HStack>
 
-          <Heading level="2" size="small" className="sr-only">
+          <Heading level="2" size="small" className="sr-only" tabIndex={-1} ref={resultsHeadingRef}>
             Treff
           </Heading>
           {filtered.length > 0 ? (
@@ -459,7 +471,10 @@ export function CustomizationCatalog({ items }: CustomizationCatalogProps) {
                   <Button
                     variant="tertiary"
                     size="small"
-                    onClick={() => setSelectedDomain(domain)}
+                    onClick={() => {
+                      focusResultsRef.current = true;
+                      setSelectedDomain(domain);
+                    }}
                     aria-label={`Se alle ${total} i ${DOMAIN_CONFIGS[domain].label}`}
                   >
                     Se alle {total}

@@ -1149,12 +1149,14 @@ button.search-hit {
   background: var(--vt-ink);
   border-color: var(--vt-ink);
   color: var(--vt-selected-fg);
-  opacity: 0.92;
+  /* No opacity: the count must keep 4.5:1. */
+  box-shadow:
+    0 0 0 2px var(--ax-bg-default),
+    0 0 0 4px var(--vt-ink);
 }
 
 .verktoy-chip-count {
   font-size: 0.75rem;
-  opacity: 0.8;
 }
 
 .verktoy-card {
