@@ -23,7 +23,7 @@ const headers: Record<string, string> = {
   usd: "Lisenskostnad (USD, anslag)",
   calculated: "Tilbakeregnet",
   premium_requests: "Premiumforespørsler",
-  ai_credits: "KI-kreditter",
+  ai_credits: "AI Credits",
   copilot_cli_in: "Copilot CLI, inn",
   copilot_cli_out: "Copilot CLI, ut",
   copilot_app_in: "Copilot-appen, inn",

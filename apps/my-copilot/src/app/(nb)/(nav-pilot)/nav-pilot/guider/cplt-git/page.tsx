@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 };
 
 const TOC: TocItem[] = [
-  { id: "oppsett", label: "Før første økt" },
+  { id: "oppsett", label: "Før første sesjon" },
   { id: "push", label: "Push og pull request" },
   { id: "vaktene", label: "Det cplt stopper" },
   { id: "andre-repoer", label: "Andre repoer" },
@@ -36,7 +36,7 @@ export default function CpltGit() {
       <section>
         <VStack gap="space-16">
           <LinkableHeading id="oppsett" size="medium" level="2">
-            Før første økt
+            Før første sesjon
           </LinkableHeading>
           <BodyLong>
             SSH-nøklene dine er stengt i sandkassen, så git må bruke HTTPS med tokenet fra{" "}
@@ -75,17 +75,17 @@ gh pr create --head min-branch`}
           <BodyLong>
             På Linux virker <code className={code}>-u</code> med en gang. På macOS er{" "}
             <code className={code}>.git/config</code> skrivebeskyttet i sandkassen, så cplt pusher uten{" "}
-            <code className={code}>-u</code> og setter upstream for branchen når økta er ferdig. Til da oppgir du
+            <code className={code}>-u</code> og setter upstream for branchen når sesjonen er ferdig. Til da oppgir du
             branchen når du pusher: <code className={code}>git push origin HEAD:min-branch</code>.
           </BodyLong>
           <BodyLong>
             Har agenten klonet et repo inne i prosjektmappa, legg det til med <code className={code}>cplt link</code>{" "}
-            før økta starter. Ellers setter ikke cplt upstream der.
+            før sesjonen starter. Ellers setter ikke cplt upstream der.
           </BodyLong>
           <BodyLong>
             <strong>Når virker det ikke?</strong> Kan ikke cplt sette upstream, skriver den kommandoen du kjører selv
             utenfor cplt: <code className={code}>git branch -u origin/min-branch min-branch</code>. Den står i meldingen
-            når økta slutter, eller når du pusher i en stille økt. Det skjer når
+            når sesjonen slutter, eller når du pusher i en stille sesjon. Det skjer når
           </BodyLong>
           <Bullets>
             <li>
@@ -96,7 +96,7 @@ gh pr create --head min-branch`}
               du startet med <code className={code}>--no-audit</code> eller{" "}
               <code className={code}>--no-scratch-dir</code>
             </li>
-            <li>en prosess fra økta fortsatt kjørte da den sluttet</li>
+            <li>en prosess fra sesjonen fortsatt kjørte da den sluttet</li>
             <li>
               du pushet med andre flagg eller en refspec som <code className={code}>HEAD:min-branch</code>, ikke bare{" "}
               <code className={code}>git push -u &lt;remote&gt; &lt;branch&gt;</code> eller{" "}
@@ -118,8 +118,8 @@ gh pr create --head min-branch`}
             <code className={code}>git branch -u</code> selv utenfor cplt.
           </BodyLong>
           <BodyLong>
-            <code className={code}>git branch -u</code> og <code className={code}>--set-upstream-to</code> inne i økta
-            blir heller ikke lagret på macOS.
+            <code className={code}>git branch -u</code> og <code className={code}>--set-upstream-to</code> inne i
+            sesjonen blir heller ikke lagret på macOS.
           </BodyLong>
         </VStack>
       </section>
@@ -247,12 +247,12 @@ gh pr create --head min-branch`}
           </BodyLong>
           <CodeBlock compact>{`cplt config set sandbox.allow_gpg_signing true --force`}</CodeBlock>
           <BodyLong>
-            Den private nøkkelen er fortsatt stengt, men agenten kan be GPG-agenten signere hva som helst mens økten
+            Den private nøkkelen er fortsatt stengt, men agenten kan be GPG-agenten signere hva som helst mens sesjonen
             varer. Signering med SSH-nøkkel (<code className={code}>gpg.format=ssh</code>) virker ikke.
           </BodyLong>
           <BodyLong>
-            Start GPG-agenten før økten. Sandkassen stenger skriving til <code className={code}>~/.gnupg</code>, så gpg
-            får trolig ikke startet agenten selv. Kjør dette utenfor cplt:
+            Start GPG-agenten før sesjonen. Sandkassen stenger skriving til <code className={code}>~/.gnupg</code>, så
+            gpg får trolig ikke startet agenten selv. Kjør dette utenfor cplt:
           </BodyLong>
           <CodeBlock compact>{`gpgconf --launch gpg-agent`}</CodeBlock>
           <BodyLong>

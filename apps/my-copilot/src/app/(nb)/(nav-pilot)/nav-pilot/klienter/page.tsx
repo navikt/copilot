@@ -64,7 +64,7 @@ const PARITY: { what: ReactNode; copilot: string; opencode: string; pi: string; 
   },
   { what: "Merknad om prompt-injeksjon", copilot: "Ja", opencode: "Ja", pi: "Nei" },
   {
-    what: "Loop guard i skyøkter",
+    what: "Loop guard i skysesjoner",
     copilot: "Ja",
     opencode: "Ja",
     pi: "Nei",
@@ -110,7 +110,7 @@ const PARITY: { what: ReactNode; copilot: string; opencode: string; pi: string; 
     copilot: "Nei",
     opencode: "Ja",
     pi: "Nei",
-    note: "Copilot CLI kjører en økt helt lokalt eller helt i skyen, aldri blandet.",
+    note: "Copilot CLI kjører en sesjon helt lokalt eller helt i skyen, aldri blandet.",
   },
   {
     what: "Delegeringssperre",
@@ -129,7 +129,7 @@ const PARITY: { what: ReactNode; copilot: string; opencode: string; pi: string; 
     copilot: "Ja",
     opencode: "Ja",
     pi: "Nei",
-    note: "I Copilot CLI tar serveren hele økten.",
+    note: "I Copilot CLI tar serveren hele sesjonen.",
   },
   {
     what: (
@@ -223,7 +223,7 @@ export default function Klienter() {
             forhåndsvalgt. Har du brukt nav-pilot før, beholder du klienten din.
           </li>
           <li>
-            Bytt for én økt med {c("--client copilot")}, permanent med {c("nav-pilot config set client copilot")}.
+            Bytt for én sesjon med {c("--client copilot")}, permanent med {c("nav-pilot config set client copilot")}.
           </li>
           <li>
             I CI og uten terminal starter nav-pilot Copilot CLI når {c("config.toml")} mangler. Bruk{" "}
@@ -347,11 +347,11 @@ export default function Klienter() {
         </BodyLong>
         <Bullets>
           <li>
-            Servere i opencode-konfigen din som ikke står i registeret, slås av for økten. En ekstern server må ha samme
-            URL som i registeret, en lokal må starte en pakke registeret lister.
+            Servere i opencode-konfigen din som ikke står i registeret, slås av for sesjonen. En ekstern server må ha
+            samme URL som i registeret, en lokal må starte en pakke registeret lister.
           </li>
           <li>
-            Kobler du til en avslått server med {c("/mcp")} i økten, avviser hooks-pluginen verktøyene dens. Med{" "}
+            Kobler du til en avslått server med {c("/mcp")} i sesjonen, avviser hooks-pluginen verktøyene dens. Med{" "}
             {c("--pure")} i opencode 1 kjører ingen hooks, så da virker ikke dette.
           </li>
           <li>Konfigen din endres ikke, og opencode du starter uten nav-pilot, berøres ikke.</li>
@@ -453,7 +453,7 @@ export default function Klienter() {
           </li>
           <li>På Linux må bubblewrap ({c("bwrap")}) være installert.</li>
           <li>
-            Med Linux-kjerne eldre enn 6.7 kan ikke cplt stenge portene til økta. Da beskytter bare passordet til
+            Med Linux-kjerne eldre enn 6.7 kan ikke cplt stenge portene til sesjonen. Da beskytter bare passordet til
             tjenesten den.
           </li>
         </Bullets>
@@ -478,14 +478,14 @@ export default function Klienter() {
           Deling og oppdatering
         </LinkableHeading>
         <BodyLong>
-          Hver økt nav-pilot starter, får {c('"share": "disabled"')} og {c('"autoupdate": "notify"')}, uansett hva{" "}
-          {c("opencode.json")} sier. Deling ville lastet opp økten til opencode.ai, og en oppdatering midt i en økt
-          kunne gitt deg en versjon utenfor det testede området. nav-pilot setter også {c('"share": "disabled"')} i{" "}
-          {c("~/.config/opencode/opencode.json")} når fila ikke sier noe om deling. Står det {c('"auto"')} der, får du
+          Hver sesjon nav-pilot starter, får {c('"share": "disabled"')} og {c('"autoupdate": "notify"')}, uansett hva{" "}
+          {c("opencode.json")} sier. Deling ville lastet opp sesjonen til opencode.ai, og en oppdatering midt i en
+          sesjon kunne gitt deg en versjon utenfor det testede området. nav-pilot setter også {c('"share": "disabled"')}{" "}
+          i {c("~/.config/opencode/opencode.json")} når fila ikke sier noe om deling. Står det {c('"auto"')} der, får du
           en advarsel.
         </BodyLong>
         <BodyLong>
-          Økter nav-pilot starter, får lese filene i {c("~/.config/opencode/")} uten å spørre om{" "}
+          Sesjoner nav-pilot starter, får lese filene i {c("~/.config/opencode/")} uten å spørre om{" "}
           {c("external_directory")}, men ikke endre dem. Har du satt {c("external_directory")} til {c('"deny"')}, legger
           nav-pilot ikke til noe. Detaljene står i{" "}
           <a href={`${HOOKS_DOC}#what-else-a-launch-sets`} className={linkClass}>
@@ -513,7 +513,7 @@ export default function Klienter() {
         <BodyLong>
           {c("mode = autopilot")}, {c("context_tier")}, {c("ask_user")} og utvidelser (extensions) finnes bare i Copilot
           CLI. I cplt kjører Copilot CLI kommandoer på egen hånd og spør når den trenger det, med mindre du har satt{" "}
-          {c("nav-pilot config set autonomy conservative")}. En lokal modell tar hele økten, uten delegering, se{" "}
+          {c("nav-pilot config set autonomy conservative")}. En lokal modell tar hele sesjonen, uten delegering, se{" "}
           <NextLink href="/nav-pilot/lokal" className={linkClass}>
             Lokal modell på Mac
           </NextLink>
@@ -567,7 +567,7 @@ export default function Klienter() {
           <li>{c("--pure")}: opencode laster ingen plugins, så ingen hooks kjører. nav-pilot sier fra ved oppstart.</li>
           <li>Vedlegg som bilder og PDF-er går til modellen uten maskering. Maskeringen virker på tekst.</li>
           <li>
-            Sjekken mot MCP-registeret dekker ikke servere du legger til midt i økten, konfig fra{" "}
+            Sjekken mot MCP-registeret dekker ikke servere du legger til midt i sesjonen, konfig fra{" "}
             {c(".well-known/opencode")} eller en organisasjon du er logget inn i, eller administrerte innstillinger på
             macOS.
           </li>

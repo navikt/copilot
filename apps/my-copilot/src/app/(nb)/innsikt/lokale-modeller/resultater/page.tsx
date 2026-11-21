@@ -130,22 +130,22 @@ async function LiveObservedLocalSection() {
   return (
     <InsightSection id="observert-bruk" title="Observert bruk siste syv dager">
       <BodyShort size="small" textColor="subtle">
-        Fra aggregerte øktmålinger i nav-pilot for innloggede brukere. En økt med aktivert lokal modell teller også når
-        den avsluttes før det sendes trafikk til den lokale modellen.
+        Fra aggregerte øktmålinger i nav-pilot for innloggede brukere. En sesjon med aktivert lokal modell teller også
+        når den avsluttes før det sendes trafikk til den lokale modellen.
       </BodyShort>
       <HGrid columns={{ xs: 1, sm: 2, lg: 4 }} gap="space-16">
         <MetricCard
           value={formatNumber(local.observed_sessions)}
-          label="Økter med lokal modell"
-          helpTitle="Observerte økter"
-          helpText="Økter der lokal subagent var slått på i nav-pilot siste syv dager."
+          label="Sesjoner med lokal modell"
+          helpTitle="Observerte sesjoner"
+          helpText="Sesjoner der lokal subagent var slått på i nav-pilot siste syv dager."
           subtitle={local.devices_7d > 0 ? `${formatNumber(local.devices_7d)} enheter siste syv dager` : undefined}
         />
         <MetricCard
           value={formatNumber(local.sessions_with_traffic)}
-          label="Økter med lokal trafikk"
-          helpTitle="Økter med og uten målt trafikk"
-          helpText="Økter der den lokale modellen faktisk mottok forespørsler, sammenlignet med økter som ble avsluttet uten lokal trafikk."
+          label="Sesjoner med lokal trafikk"
+          helpTitle="Sesjoner med og uten målt trafikk"
+          helpText="Sesjoner der den lokale modellen faktisk mottok forespørsler, sammenlignet med sesjoner som ble avsluttet uten lokal trafikk."
           subtitle={`${formatNumber(local.sessions_without_traffic)} uten målt trafikk`}
         />
         <MetricCard

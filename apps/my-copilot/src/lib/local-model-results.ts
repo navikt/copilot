@@ -75,7 +75,7 @@ export const DELEGATION_RESULTS: ResultSet = {
     {
       task: "aggressive med Sonnet 5",
       result:
-        "Delegerte i 17 av 17 gyldige kjøringer med mange kall eller nye filer, og alle 17 besto bygg og tester. Kostet 0,83–2,1 ganger så mye i AI-kreditter og tok 2,7–3,6 ganger så lang tid som skymodellen alene.",
+        "Delegerte i 17 av 17 gyldige kjøringer med mange kall eller nye filer, og alle 17 besto bygg og tester. Kostet 0,83–2,1 ganger så mye i AI Credits og tok 2,7–3,6 ganger så lang tid som skymodellen alene.",
       verdict: "Standard fra 30. september 2026",
     },
     {

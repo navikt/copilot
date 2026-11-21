@@ -45,7 +45,7 @@ const PROBLEMS: { message: string; fix: ReactNode }[] = [
     message: "not logged in on this machine. Fix: nais login -n",
     fix: (
       <>
-        Kjør <code className={code}>nais login -n</code> utenfor sandkassen, og start en ny økt.
+        Kjør <code className={code}>nais login -n</code> utenfor sandkassen, og start en ny sesjon.
       </>
     ),
   },
@@ -88,8 +88,8 @@ const PROBLEMS: { message: string; fix: ReactNode }[] = [
     message: "cplt's MCP broker is off here: …",
     fix: (
       <>
-        cplt kan ikke skjule alle D-Bus-endepunktene for agenten. Kjør <code className={code}>cplt doctor</code> for å
-        se hva som stopper det.
+        cplt kan ikke skjule alle D-Bus-endpointene for agenten. Kjør <code className={code}>cplt doctor</code> for å se
+        hva som stopper det.
       </>
     ),
   },
@@ -98,7 +98,7 @@ const PROBLEMS: { message: string; fix: ReactNode }[] = [
     fix: (
       <>
         Gjelder også <code className={code}>--allow-rootless-docker</code>. Fjern flagget for å bruke Nais MCP. Trenger
-        du flagget, får du ikke Nais MCP i den økten: med{" "}
+        du flagget, får du ikke Nais MCP i den sesjonen: med{" "}
         <code className={code}>--no-mcp-broker io.github.nais/nais-mcp</code> lar cplt klientens egen Nais-oppføring
         stå, så serveren kjører i sandkassen uten innloggingen din og får ikke logget inn.
       </>
@@ -194,7 +194,7 @@ export default function McpGjennomCplt() {
             er logget ut. Står det <code className={code}>cplt broker</code> under PATH, kjører cplt serveren. Står det{" "}
             <code className={code}>cplt (off here)</code>, kan ikke cplt kjøre den på denne maskinen, og linja under
             tabellen sier hvorfor. Med cplt fra 24. oktober 2026 virker kommandoen fra hvilken som helst mappe. Start en
-            ny økt etter at du har slått serveren på.
+            ny sesjon etter at du har slått serveren på.
           </BodyLong>
           <BodyLong>Slå den av igjen:</BodyLong>
           <CodeBlock compact>{`nav-pilot mcp disable io.github.nais/nais-mcp`}</CodeBlock>
@@ -211,7 +211,7 @@ export default function McpGjennomCplt() {
           <BodyLong>
             Da kobler cplt serveren gjennom sin egen proxy, med <code className={code}>gh</code>-innloggingen din. Du
             trenger ikke <code className={code}>mcp auth</code>. Sjekk at du er logget inn med{" "}
-            <code className={code}>gh auth status</code>, og start en ny økt. Proxyen slipper bare gjennom lesende
+            <code className={code}>gh auth status</code>, og start en ny sesjon. Proxyen slipper bare gjennom lesende
             verktøy. Detaljene står i{" "}
             <NextLink href="/nav-pilot/guider/feilsoking#mcp-opencode" className={linkClass}>
               Feilsøking
@@ -255,9 +255,10 @@ export default function McpGjennomCplt() {
               .
             </li>
             <li>
-              Kjører du Nais MCP i flere økter samtidig, kan flere prosesser fornye en utløpt Nais-innlogging på en gang
-              og i sjeldne tilfeller logge deg ut. Kjør da <code className={code}>nais login -n</code> på nytt. Risikoen
-              er teoretisk: vi fant den ved å lese koden til Nais CLI og har ikke sett den skje. Den følges opp i{" "}
+              Kjører du Nais MCP i flere sesjoner samtidig, kan flere prosesser fornye en utløpt Nais-innlogging på en
+              gang og i sjeldne tilfeller logge deg ut. Kjør da <code className={code}>nais login -n</code> på nytt.
+              Risikoen er teoretisk: vi fant den ved å lese koden til Nais CLI og har ikke sett den skje. Den følges opp
+              i{" "}
               <a href="https://github.com/nais/cli/issues/816" className={linkClass}>
                 nais/cli#816
               </a>
@@ -281,7 +282,7 @@ export default function McpGjennomCplt() {
           </LinkableHeading>
           <BodyLong>
             På Linux og WSL2 kjører cplt serveren bare når bubblewrap (<code className={code}>bwrap</code>) pakker inn
-            økten, fordi det er bubblewrap som skjuler nøkkelringen for agenten. Uten bubblewrap kjører ikke cplt
+            sesjonen, fordi det er bubblewrap som skjuler nøkkelringen for agenten. Uten bubblewrap kjører ikke cplt
             serveren. Det krever cplt fra 24. oktober 2026 eller nyere. Mangler bubblewrap, installerer{" "}
             <code className={code}>cplt doctor --fix</code> det med <code className={code}>apt-get</code> (Debian og
             Ubuntu) eller <code className={code}>dnf</code> (Fedora). Starter du cplt med{" "}

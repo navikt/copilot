@@ -171,7 +171,7 @@ export function FleetGatewayTeamDiagram() {
     <Figure
       titleId="fg-team-title"
       viewBox="0 0 970 300"
-      title="Kallet til teamets server: klienten (Copilot CLI eller OpenCode) kaller fleet-gateway, fleet-gateway veksler tokenet hos Texas til et OBO-token for teamets app, og kaller teamets app. Steg 1, accessPolicy.inbound, slipper inn fleet-gateway. Steg 2, sjekk av tokenet med Texas-introspeksjon, skjer i teamets app."
+      title="Kallet til teamets server: klienten (Copilot CLI eller OpenCode) kaller fleet-gateway, fleet-gateway veksler tokenet hos Texas til et OBO-token for teamets app, og kaller teamets app. Steg 1, accessPolicy.inbound, slipper inn fleet-gateway. Steg 2, sjekk av tokenet via Texas (introspect), skjer i teamets app."
     >
       <Defs id={m} />
       <Box x={10} y={60} w={170} h={100} title="Klienten" sub={["Copilot CLI, OpenCode"]} />

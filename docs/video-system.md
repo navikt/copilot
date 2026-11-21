@@ -27,7 +27,7 @@ Publiseringsscriptet setter bucket-IAM `allUsers:roles/storage.objectViewer` fø
 
 Publiseringsrekkefølgen er alltid: **upload av filer -> oppdater manifest -> visning i feed**.
 
-## Endepunkter
+## Endpoints
 
 `copilot-api` eksponerer:
 

@@ -41,7 +41,7 @@ const KNOWS = [
 const LAYERS = [
   {
     label: "Instruksjoner",
-    desc: "Alltid aktive, med mønstre, kodestandarder og antimønstre fra Nav. Hver økt i Copilot kjenner Nav uten at du gjør noe.",
+    desc: "Alltid aktive, med mønstre, kodestandarder og antimønstre fra Nav. Hver sesjon i Copilot kjenner Nav uten at du gjør noe.",
   },
   {
     label: "Agenten @nav-pilot",

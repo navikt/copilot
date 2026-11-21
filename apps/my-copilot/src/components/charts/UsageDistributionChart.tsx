@@ -187,7 +187,7 @@ const UsageDistributionChart: React.FC<UsageDistributionChartProps> = ({ distrib
         grid: { display: false },
         title: {
           display: true,
-          text: "Andel av eget AI-kredittbudsjett som er brukt",
+          text: "Andel av eget AI Credits-budsjett som er brukt",
           color: "#6B7280",
           font: { size: 10 },
         },
@@ -207,11 +207,11 @@ const UsageDistributionChart: React.FC<UsageDistributionChartProps> = ({ distrib
   return (
     <div>
       <Heading size="small" level="4" spacing>
-        Fordeling av AI-kredittbruk, {monthName(distribution.month)}
+        Fordeling av AI Credits-bruk, {monthName(distribution.month)}
       </Heading>
       <BodyShort size="small" className="text-gray-600" style={{ marginBottom: "var(--ax-space-32)" }}>
         {populationText(distribution)}{" "}
-        {`Hver bruker har ${formatNumber(distribution.budget_credits)} AI-kreditter (${formatNumber(budgetUsd)} dollar) i måneden.`}{" "}
+        {`Hver bruker har ${formatNumber(distribution.budget_credits)} AI Credits (${formatNumber(budgetUsd)} dollar) i måneden.`}{" "}
         Søylene viser hvor mange brukere som ligger i hvert intervall. Intervaller med færre enn fem brukere er merket
         &lt;{MIN_USERS}. Bare du ser hvor du selv ligger.
         {currentUserBucket && (
@@ -227,7 +227,7 @@ const UsageDistributionChart: React.FC<UsageDistributionChartProps> = ({ distrib
           options={options as Parameters<typeof Bar>[0]["options"]}
           plugins={[barLabels]}
           role="img"
-          aria-label={`Søylediagram: antall brukere per andel av AI-kredittbudsjettet som er brukt. ${summary}.`}
+          aria-label={`Søylediagram: antall brukere per andel av AI Credits-budsjettet som er brukt. ${summary}.`}
         />
       </div>
     </div>

@@ -18,7 +18,7 @@ describe("costEvents", () => {
 
   it("marks the switch, later limit changes and the run-out day", () => {
     expect(events.map((e) => [e.date, e.text])).toEqual([
-      ["2026-06-01", "KI-kreditter"],
+      ["2026-06-01", "AI Credits"],
       ["2026-07-01", "Grense 400"],
       ["2026-09-22", "Grense 800"],
       ["2026-10-09", "Kreditter brukt opp"],
@@ -29,17 +29,17 @@ describe("costEvents", () => {
   });
 
   it("only marks the switch without a forecast", () => {
-    expect(costEvents(null).map((e) => e.text)).toEqual(["KI-kreditter"]);
+    expect(costEvents(null).map((e) => e.text)).toEqual(["AI Credits"]);
   });
 
   it("groups events per month and skips months the chart does not show", () => {
     const markers = eventAnnotations(events, ["2026-06", "2026-07", "2026-08", "2026-09"]);
     expect(markers.map((m) => [m.month, m.text])).toEqual([
-      ["2026-06", "KI-kreditter"],
+      ["2026-06", "AI Credits"],
       ["2026-07", "Grense 400"],
       ["2026-09", "Grense 800"],
     ]);
-    expect(eventSummary(markers)).toMatch(/^ Markert i grafen: 1\. juni 2026: overgang til KI-kreditter; /);
+    expect(eventSummary(markers)).toMatch(/^ Markert i grafen: 1\. juni 2026: overgang til AI Credits; /);
   });
 
   it("matches days too", () => {

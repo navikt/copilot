@@ -66,7 +66,7 @@ if subtle.ConstantTimeCompare([]byte(claims.Azp), []byte(gatewayClientID)) != 1 
     return errForbidden
 }`;
 
-const AZP_LOOKUP = `// fleet-gateway i samme klynge som appen: dev-gcp eller prod-gcp
+const AZP_LOOKUP = `// fleet-gateway i samme cluster som appen: dev-gcp eller prod-gcp
 gatewayName := os.Getenv("NAIS_CLUSTER_NAME") + ":copilot:fleet-gateway"
 
 var apps []struct {
@@ -98,7 +98,7 @@ const OUTBOUND_YAML = `outbound_rules:
 
 const ROUTE_YAML = `- route: /mcp/<namespace>/<navn>
   team: <team>
-  target: <klynge>:<namespace>:<app>
+  target: <cluster>:<namespace>:<app>
   upstream_url: http://<app>.<namespace>/<sti-til-mcp>
   tools: [<verktøy>, <verktøy>]`;
 
@@ -186,7 +186,7 @@ export default function FleetGatewayForTeamPage() {
           </li>
           <li>
             Samme manifest fungerer i begge miljøer. Inbound-regelen har ingen <code className={code}>cluster</code>, så
-            den gjelder fleet-gateway i samme klynge som appen.
+            den gjelder fleet-gateway i samme cluster som appen.
           </li>
         </Bullets>
       </VStack>
@@ -316,8 +316,8 @@ export default function FleetGatewayForTeamPage() {
               content: (
                 <VStack gap="space-8">
                   <BodyLong>
-                    fleet-gateway sender et OBO-token laget for appen deres. Valider det med Texas-introspeksjon, og
-                    svar 401 eller 403 hvis en sjekk feiler:
+                    fleet-gateway sender et OBO-token laget for appen deres. Valider det via Texas (introspect), og svar
+                    401 eller 403 hvis en sjekk feiler:
                   </BodyLong>
                   <Bullets>
                     <li>
@@ -333,9 +333,9 @@ export default function FleetGatewayForTeamPage() {
                       <code className={code}>NAVident</code> finnes, altså en innlogget bruker.
                     </li>
                     <li>
-                      <code className={code}>azp</code> er klient-ID-en til fleet-gateway i samme klynge, fra{" "}
+                      <code className={code}>azp</code> er klient-ID-en til fleet-gateway i samme cluster, fra{" "}
                       <code className={code}>AZURE_APP_PRE_AUTHORIZED_APPS</code>. Slå opp navnet{" "}
-                      <code className={code}>&lt;klynge&gt;:copilot:fleet-gateway</code> med klyngen fra{" "}
+                      <code className={code}>&lt;cluster&gt;:copilot:fleet-gateway</code> med clusteret fra{" "}
                       <code className={code}>NAIS_CLUSTER_NAME</code>. Da virker samme kode i dev og prod.
                     </li>
                   </Bullets>
@@ -369,12 +369,12 @@ export default function FleetGatewayForTeamPage() {
                     <code className={code}>.nais/dev-gcp.yaml</code> eller{" "}
                     <code className={code}>.nais/prod-gcp.yaml</code>, med <code className={code}>namespace</code> når
                     appen ligger i et annet namespace enn <code className={code}>copilot</code>.{" "}
-                    <code className={code}>upstream_url</code> er den interne adressen med full sti til MCP-endepunktet,
+                    <code className={code}>upstream_url</code> er den interne adressen med full sti til MCP-endpointet,
                     i samme namespace som <code className={code}>target</code>. <code className={code}>tools</code> er
                     listen over verktøy ruten slipper gjennom; andre <code className={code}>tools/call</code> avvises.
                   </BodyLong>
                   <CodeBlock filename="apps/fleet-gateway/pilot-routes.<miljø>.yaml">{ROUTE_YAML}</CodeBlock>
-                  <CodeBlock filename="apps/fleet-gateway/.nais/<klynge>.yaml">{OUTBOUND_YAML}</CodeBlock>
+                  <CodeBlock filename="apps/fleet-gateway/.nais/<cluster>.yaml">{OUTBOUND_YAML}</CodeBlock>
                   <BodyLong>
                     Team copilot ser på PR-en innen to arbeidsdager. Ta dev først, og prod når dere har testet i dev.
                     Ruten virker når fleet-gateway er deployet.

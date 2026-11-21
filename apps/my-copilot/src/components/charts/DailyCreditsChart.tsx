@@ -28,7 +28,7 @@ const DailyCreditsChart: React.FC<DailyCreditsChartProps> = ({ data }) => {
     datasets: [
       {
         type: "bar" as const,
-        label: "AI-kreditter",
+        label: "AI Credits",
         data: data.map((d) => Math.round(d.credits)),
         backgroundColor: getBackgroundColor(chartColors[3], 0.5),
         borderColor: chartColors[3],
@@ -93,7 +93,7 @@ const DailyCreditsChart: React.FC<DailyCreditsChartProps> = ({ data }) => {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           label: (ctx: any) => {
             const val = formatNumber(ctx.parsed.y);
-            return ctx.dataset.label === "AI-kreditter" ? ` ${val} kreditter` : ` ${val}`;
+            return ctx.dataset.label === "AI Credits" ? ` ${val} kreditter` : ` ${val}`;
           },
         },
       },
@@ -132,7 +132,7 @@ const DailyCreditsChart: React.FC<DailyCreditsChartProps> = ({ data }) => {
     <div>
       {hasCredits && (
         <BodyShort size="small" className="text-gray-600" style={{ marginBottom: "var(--ax-space-16)" }}>
-          Totalt {formatNumber(Math.round(totalCredits))} AI-kreditter siste 30 dager
+          Totalt {formatNumber(Math.round(totalCredits))} AI Credits siste 30 dager
         </BodyShort>
       )}
       <div className={chartBoxClass}>

@@ -5,7 +5,7 @@ import { monthName } from "./team-year";
 import type { MonthAnnotation } from "./trends";
 import type { ActiveUsersMonth, BillingModelDailyCost, BudgetDay, CostForecast } from "./types";
 
-/** The day Nav went from premium requests to KI-kreditter. The only event that is not read from data. */
+/** The day Nav went from premium requests to AI Credits. The only event that is not read from data. */
 export const KI_CREDITS_FROM = "2026-06-01";
 
 /** Window in days before and after a governance event (#1777). */
@@ -112,12 +112,12 @@ const isWeekend = (day: string) => {
   return w === 0 || w === 6;
 };
 
-/** The switch to KI-kreditter, changes in the personal limit, and the day the pooled credits run out this month. */
+/** The switch to AI Credits, changes in the personal limit, and the day the pooled credits run out this month. */
 export function costEvents(
   forecast: Pick<CostForecast, "limit_changes" | "allowance_run_out_date" | "allowance_used_up"> | null
 ): CostEvent[] {
   const events: CostEvent[] = [
-    { date: KI_CREDITS_FROM, text: "KI-kreditter", label: `${dayLong(KI_CREDITS_FROM)}: overgang til KI-kreditter` },
+    { date: KI_CREDITS_FROM, text: "AI Credits", label: `${dayLong(KI_CREDITS_FROM)}: overgang til AI Credits` },
   ];
   // The first limit came with the switch; only later changes are events of their own.
   const changes = forecast?.limit_changes ?? [];

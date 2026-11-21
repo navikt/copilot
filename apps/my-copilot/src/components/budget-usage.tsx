@@ -33,7 +33,7 @@ export function useBudgetPct(signedIn: boolean) {
 
 /** High enough to flag next to the name in the header. */
 export const budgetHigh = (pct: number | null): pct is number => pct !== null && pct >= 80;
-/** `text` is the shell label with a {pct} placeholder, such as «Du har brukt {pct} % av AI-kredittene denne måneden». */
+/** `text` is the shell label with a {pct} placeholder, such as «Du har brukt {pct} % av AI Credits denne måneden». */
 export const budgetText = (text: string, pct: number) => text.replace("{pct}", String(pct));
 
 export function BudgetUsage({ pct, text }: { pct: number | null; text: string }) {

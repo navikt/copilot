@@ -377,7 +377,7 @@ Hva slags endring er dette?
 │       ✅ Rask feedback, isolert, billig
 │       Dekk: normalflyt, edge cases, feilhåndtering
 │
-├── API-endring (nytt endepunkt, endret kontrakt)
+├── API-endring (nytt endpoint, endret kontrakt)
 │   ├── Controller-slice-test (@WebMvcTest / ktor testApplication)
 │   │   Dekk: routing, validering, serialisering, feilkoder
 │   │
@@ -468,7 +468,7 @@ Hva påvirker endringen din?
 1. Direkte avhengigheter
    ├── Hvem kaller mitt API?
    │   Sjekk: accessPolicy.inbound i Nais-manifest
-   │   Sjekk: Søk etter tjeneste-/endepunktnavnet i navikt org
+   │   Sjekk: Søk etter tjeneste-/endpointnavnet i navikt org
    │
    ├── Hvem konsumerer mine Kafka-hendelser?
    │   Sjekk: Rapids & Rivers validate() med min @event_name

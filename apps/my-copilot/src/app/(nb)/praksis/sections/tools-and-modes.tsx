@@ -90,7 +90,7 @@ export default function ToolsAndModes() {
               </BodyShort>
               <BodyShort className="text-gray-600 text-xs">
                 Agenten spør før den endrer filer, kjører kommandoer som kan endre noe, eller henter nettsider. Lesing
-                og søk går uten spørsmål. Du kan gi lov én gang eller for hele økten.
+                og søk går uten spørsmål. Du kan gi lov én gang eller for hele sesjonen.
               </BodyShort>
             </div>
           </div>

@@ -21,7 +21,7 @@ GitHub lanserer et nytt Copilot metrics impact dashboard for enterprise-administ
 
 ## Repository-nivå bruksmetrikker (GA)
 
-Copilot usage metrics REST API rapporterer nå aktivitet på repository-nivå. To nye endepunkter gir daglig nedbrytning per repository av PR-aktivitet for coding agent og code review:
+Copilot usage metrics REST API rapporterer nå aktivitet på repository-nivå. To nye endpoints gir daglig nedbrytning per repository av PR-aktivitet for coding agent og code review:
 
 - `GET /enterprises/{enterprise}/copilot/metrics/reports/repos-1-day?day=YYYY-MM-DD`
 - `GET /orgs/{org}/copilot/metrics/reports/repos-1-day?day=YYYY-MM-DD`

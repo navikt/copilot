@@ -34,7 +34,7 @@ Instruksjoner aktiveres automatisk når du redigerer filer som matcher mønstere
 
 Skills lastes på forespørsel. Agenten henter SKILL.md når oppgaven matcher.
 
-| Ferdighet                                                      | Hva den gjør                                                                        |
+| Skill                                                          | Hva den gjør                                                                        |
 | -------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
 | [**playwright-testing**](/verktoy?item=playwright-testing)     | E2E-tester med page objects, auth-fixtures for Azure AD, axe-core for a11y          |
 | [**postgresql-review**](/verktoy?item=postgresql-review)       | EXPLAIN ANALYZE, indeksstrategier, JSONB, window functions, anti-patterns           |

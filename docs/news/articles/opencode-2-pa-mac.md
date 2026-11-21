@@ -36,6 +36,6 @@ Du kan nå bruke OpenCode 2 med nav-pilot på macOS, og nå også på Linux (se 
 2. Installer bubblewrap (`bwrap`). Mangler det, nekter cplt å starte OpenCode 2 og sier hvordan du installerer det.
 3. Bytter du fra OpenCode 1, kjører du `opencode auth import` én gang.
 
-Er Linux-kjernen eldre enn 6.7, skriver cplt en advarsel: den kan ikke begrense hvilke porter økten når, så bare passordet til OpenCode-tjenesten beskytter den.
+Er Linux-kjernen eldre enn 6.7, skriver cplt en advarsel: den kan ikke begrense hvilke porter sesjonen når, så bare passordet til OpenCode-tjenesten beskytter den.
 
 Mer om klientene finner du på [Klienter](/nav-pilot/klienter).

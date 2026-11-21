@@ -132,10 +132,10 @@ cplt config set allow.domains release-assets.githubusercontent.com`}
           </BodyLong>
 
           <LinkableHeading id="speilet" size="small" level="3">
-            Navs speil, uten token
+            Navs mirror, uten token
           </LinkableHeading>
           <BodyLong>
-            <code className={code}>github-package-registry-mirror.gc.nav.no</code> er et åpent speil av de offentlige
+            <code className={code}>github-package-registry-mirror.gc.nav.no</code> er en åpen mirror av de offentlige
             pakkene i GitHub Packages. Det krever ingen token, så agenten trenger ikke tilgang til noen hemmeligheter:
           </BodyLong>
           <CodeBlock compact>
@@ -159,7 +159,7 @@ cplt config set allow.domains release-assets.githubusercontent.com`}
             <NextLink href={`${FAQ}#gradle-properties`} className={linkClass}>
               Error when loading properties file
             </NextLink>
-            . Det tryggeste er å flytte det du trenger over til speilet og ta tokenet ut av fila. Ellers gir du agenten
+            . Det tryggeste er å flytte det du trenger over til mirroren og ta tokenet ut av fila. Ellers gir du agenten
             lesetilgang til fila, og dermed alle tokenene i den:
           </BodyLong>
           <CodeBlock compact>{`cplt config set allow.read ~/.gradle/gradle.properties`}</CodeBlock>
@@ -208,12 +208,12 @@ cplt config set proxy.allow_private_domains intern.nav.no`}
             <a href={PENSJONSBREV} className={linkClass}>
               pensjonsbrev
             </a>{" "}
-            gjør. For én økt holder flagget <code className={code}>--allow-private-domain repo.adeo.no</code>.
+            gjør. For én sesjon holder flagget <code className={code}>--allow-private-domain repo.adeo.no</code>.
           </BodyLong>
           <BodyLong>
             Står repoet oppført med en IP-adresse i stedet for et navn, for eksempel{" "}
             <code className={code}>https://10.20.30.40/repository/</code>, kan ingen innstilling åpne det. Bruk
-            vertsnavnet i byggefila.
+            hostnavnet i byggefila.
           </BodyLong>
         </VStack>
       </section>
@@ -283,7 +283,7 @@ cplt config set proxy.allow_private_domains intern.nav.no`}
             <li>
               <strong>Gi agenten Docker.</strong> Da virker Testcontainers, også med colima. Agenten kan da gjøre alt
               Docker kan, og lese <code className={code}>~/.docker</code> med registerinnloggingene dine. Bruk det bare
-              i et repo du stoler på, og helst bare for én økt. På Linux med vanlig Docker får agenten root-daemonen.
+              i et repo du stoler på, og helst bare for én sesjon. På Linux med vanlig Docker får agenten root-daemonen.
             </li>
           </Bullets>
           <BodyLong>En database på port 5432, startet utenfor cplt:</BodyLong>
@@ -291,22 +291,22 @@ cplt config set proxy.allow_private_domains intern.nav.no`}
           <BodyLong>
             Testcontainers kobler seg til containerne over tilfeldige porter på localhost, så slå på{" "}
             <code className={code}>allow_localhost_any</code> som i oppsettet over. Start deretter med Docker-tilgang
-            for én økt:
+            for én sesjon:
           </BodyLong>
           <CodeBlock compact>{`nav-pilot --cplt --allow-docker`}</CodeBlock>
           <BodyLong>
             Ved vanlig oppstart oppdaterer nav-pilot agentkonfigurasjonen med Nav-kontekst og starter valgt klient i
             cplt. Flagget <code className={code}>--cplt</code> sender <code className={code}>--allow-docker</code>{" "}
-            videre til cplt for denne økten, uten å lagre Docker-tillatelsen. Du kan også starte direkte med{" "}
+            videre til cplt for denne sesjonen, uten å lagre Docker-tillatelsen. Du kan også starte direkte med{" "}
             <code className={code}>cplt --allow-docker</code>. nav-pilot er ikke påkrevd for å bruke sandkassen.
           </BodyLong>
           <BodyLong>
             Docker-socketen gir agenten kontroll over containerne og mulighet til å montere filer fra hosten. På Linux
-            med root-daemon kan den få root-tilgang til hosten. Tilgang for én økt begrenser varigheten, ikke hva
+            med root-daemon kan den få root-tilgang til hosten. Tilgang for én sesjon begrenser varigheten, ikke hva
             agenten kan gjøre.
           </BodyLong>
           <BodyLong>
-            Vil du gi Docker-tilgang fast for senere økter, endrer denne kommandoen cplt-konfigurasjonen:
+            Vil du gi Docker-tilgang fast for senere sesjoner, endrer denne kommandoen cplt-konfigurasjonen:
           </BodyLong>
           <CodeBlock compact>{`cplt config set sandbox.allow_docker true --force`}</CodeBlock>
           <BodyLong>

@@ -73,8 +73,8 @@ const SECTIONS: Section[] = [
       "Sjekk hvert kall, ikke sesjonen.",
     ],
     points: [
-      "Send tokenet til Texas for introspeksjon. Ikke les JWT-en selv.",
-      "Sjekk at `azp` er fleet-gateway. `azp` er klient-ID-en, ikke navnet: slå opp `<klynge>:copilot:fleet-gateway` i `AZURE_APP_PRE_AUTHORIZED_APPS` og sammenlign med `clientId`.",
+      "Valider tokenet via Texas (introspect). Ikke les JWT-en selv.",
+      "Sjekk at `azp` er fleet-gateway. `azp` er klient-ID-en, ikke navnet: slå opp `<cluster>:copilot:fleet-gateway` i `AZURE_APP_PRE_AUTHORIZED_APPS` og sammenlign med `clientId`.",
       "Krev at tokenet har `NAVident`. Avvis apptokens, altså tokens uten bruker.",
       "Svar 401 når Texas melder at tokenet er inaktivt (manglende, ugyldig eller utløpt). Svar 403 på apptoken, manglende `NAVident`, feil `azp` og manglende rettighet.",
       "Feiler Texas, svar 502 (`introspection_failed`). Mangler serveren auth-konfigurasjon, svar 503. Svar aldri 401 når Texas er nede, for da tror klienten at brukeren må logge inn på nytt.",

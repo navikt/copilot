@@ -65,7 +65,7 @@ describe("ReviewOutcomes", () => {
       />
     );
     expect(screen.getByText(/Andel fulgt opp: Ikke tilgjengelig/)).toHaveTextContent("0 av 0");
-    expect(screen.getByText(/PR-er flettet uten senere/)).toHaveTextContent("fra en person: 1");
+    expect(screen.getByText(/PR-er merget uten senere/)).toHaveTextContent("fra en person: 1");
     expect(screen.getByText(/Rapporterte utfall fra 2026-11-04/)).toBeInTheDocument();
   });
 

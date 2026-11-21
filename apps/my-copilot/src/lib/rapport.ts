@@ -166,7 +166,7 @@ export function buildRapport({ year, admin, active, breakdown, volume, today }: 
       title: "Forbruk",
       answers: ["1b"],
       summary:
-        "GitHub fakturerer ikke etter tokens. Det nærmeste målet er premiumforespørsler fra januar til mai og KI-kreditter fra juni. " +
+        "GitHub fakturerer ikke etter tokens. Det nærmeste målet er premiumforespørsler fra januar til mai og AI Credits fra juni. " +
         (tokenMonths.length
           ? "GitHub oppgir tokens bare for Copilot CLI og Copilot-appen, ikke for resten av Copilot og ikke per modellfamilie."
           : "Tokens er ikke registrert."),
@@ -174,7 +174,7 @@ export function buildRapport({ year, admin, active, breakdown, volume, today }: 
       tables: [
         {
           id: "foresporsler",
-          caption: "Premiumforespørsler og KI-kreditter per måned",
+          caption: "Premiumforespørsler og AI Credits per måned",
           rows: vol.map((v) => ({
             month: v.month,
             premium_requests: nonZero(v.premium_requests),
@@ -194,7 +194,7 @@ export function buildRapport({ year, admin, active, breakdown, volume, today }: 
         },
       ],
       notes: [
-        "Én KI-kreditt koster 0,01 USD til listepris.",
+        "Én AI Credit koster 0,01 USD til listepris.",
         "Inn er tokens sendt til modellen, ut er tokens modellen skrev. Inn kan omfatte kontekst som sendes på nytt i hver forespørsel. GitHub skiller ikke ut hurtigbuffer, så inn-tallet sier lite om hvor mye ny tekst som ble sendt.",
         ...(tokenMonths.length
           ? [
@@ -273,7 +273,7 @@ export function buildRapport({ year, admin, active, breakdown, volume, today }: 
       tables: [],
       notes: [
         "Fakturert er nettobeløpet Nav betaler. Listepris er prisen før kredittene i lisensene er trukket fra. Vi bruker fakturert beløp der ikke annet er oppgitt.",
-        "Januar til mai ble fakturert som premiumforespørsler, fra juni som KI-kreditter. Beløpene er lagt sammen.",
+        "Januar til mai ble fakturert som premiumforespørsler, fra juni som AI Credits. Beløpene er lagt sammen.",
         "Lisenskostnaden og foreløpige måneder er anslag.",
       ],
     },

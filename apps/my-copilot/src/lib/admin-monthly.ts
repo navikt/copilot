@@ -34,7 +34,7 @@ export function adminMonthlyCaveats(data: AdminMonthlyOverview): string[] {
     "Foreløpig forbruk er brutto forbruk til listepris for måneder uten innleste nettobeløp. Det byttes ut når de månedlige faktureringsdataene er lest inn, vanligvis rundt den 3. i måneden etter.",
     "Estimert fakturert hittil er et foreløpig netto anslag for måneder uten innleste nettobeløp: foreløpig brutto forbruk minus den delen kredittene i lisensene dekker. Kredittene deles av alle i Nav. For måneden som pågår er det samme anslag som «Forbruk hittil» øverst på siden, og det er dette beløpet, ikke foreløpig brutto forbruk, som er med i totalt inkl. lisenser.",
     "Totalraden er summen av de fakturerte månedene. Måneden som pågår er ikke med.",
-    "Januar til mai 2026 ble fakturert som premiumforespørsler, ikke KI-kreditter. Totalraden legger dem sammen med månedene fra juni.",
+    "Januar til mai 2026 ble fakturert som premiumforespørsler, ikke AI Credits. Totalraden legger dem sammen med månedene fra juni.",
     `Personer uten team er fakturert beløp for personer uten registrert teamtilhørighet de dagene de brukte Copilot. Teamhistorikken starter ${membership_from || "ukjent dato"}, så feltet er tomt for månedene før.`,
     "Fakturert uten observerte bruksdager er fakturert beløp for personer som ikke har noen observerte bruksdager med Copilot i måneden.",
     ...(data.months.some((m) => billed(m) && m.no_usage_net_usd === undefined)

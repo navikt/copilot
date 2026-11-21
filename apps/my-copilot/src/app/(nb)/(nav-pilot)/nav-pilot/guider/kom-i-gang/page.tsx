@@ -86,8 +86,8 @@ export default function KomIGang() {
 (unset GH_TOKEN GITHUB_TOKEN COPILOT_GITHUB_TOKEN GH_HOST GH_REPO; gh auth status --hostname github.com)`}</CodeBlock>
           <BodyLong>
             gh skal vise riktig konto og <code className={code}>(keyring)</code>. Viser den en config-fil, stopp og løs
-            nøkkelringtilgangen. Logg inn utenfor cplt, ikke med <code className={code}>/login</code> inne i økten. På
-            macOS stenger cplt Keychain når den sender inn gh-tokenet, og på Linux og i WSL fjerner den{" "}
+            nøkkelringtilgangen. Logg inn utenfor cplt, ikke med <code className={code}>/login</code> inne i sesjonen.
+            På macOS stenger cplt Keychain når den sender inn gh-tokenet, og på Linux og i WSL fjerner den{" "}
             <code className={code}>DBUS_SESSION_BUS_ADDRESS</code> og stenger nøkkelringfiler, så{" "}
             <code className={code}>/login</code> ofte ikke får lagret tokenet og spør om klartekstlagring. Får du
             «System vault not available», har du kjørt <code className={code}>/login</code> tidligere på Linux eller i

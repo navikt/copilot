@@ -1,5 +1,5 @@
 ---
-title: "VS Code juni-utgivelser: nettleserverktøy GA, parallelle sesjoner og kostnadsoversikt"
+title: "VS Code juni-releaser: nettleserverktøy GA, parallelle sesjoner og kostnadsoversikt"
 date: 2026-07-08
 category: copilot
 excerpt: "VS Code v1.123–v1.127 bringer nettleserverktøy i GA, parallelle chat-sesjoner, kostnadsoversikt per sesjon, modellvelger fra Marketplace og skarpere Autopilot."

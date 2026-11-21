@@ -30,7 +30,7 @@ begrensningene ligger i [`benchmark/realistic/runs/`](../benchmark/realistic/run
 Ikke kjør flere betalte gjentakelser uten en ny beslutning om spørsmål og
 budsjett. Det opprinnelige målet var høyst 1 500 AI credits, inkludert
 retries og subagenter, men dette var ikke et garantert tak: Copilot CLI har
-bare en myk grense per økt. Den lokale databasen kan ikke bevise at alle
+bare en myk grense per sesjon. Den lokale databasen kan ikke bevise at alle
 leverandørkall ble registrert. Verken pilotens enkeltforsøk eller fem forsøk
 per arm gir grunnlag for modellrangering eller ny pinne. Ikke publiser
 piloten som et sammenlignbart resultat på `/modeller`.
@@ -57,7 +57,7 @@ agent og instruksjoner, faktisk modell og innsatsnivå, testutfall, tid og
 fullstendig bruk per forsøk. Les feilende patcher før vi tilskriver
 modellen årsaken. Den manuelle piloten brukte `cplt --preset strict`, med `--project-dir`
 satt til en fersk, syntetisk oppgavestarter og evaluatorfilene utenfor
-arbeidsområdet. Vertens Copilot-oppsett, brukerinstallerte skills og
+arbeidsområdet. Hostens Copilot-oppsett, brukerinstallerte skills og
 autentisering var tilgjengelige, men ble ikke fryst. `strict` begrenser
 nettverket, men tillater leverandør- og pakkeregistertrafikk, også fra
 agentens verktøy. Det oppfyller ikke kravet om nettverksløs agentcontainer
@@ -179,16 +179,16 @@ metrikkene for tokens, premium requests, kostnad og API-tid har etiketten
 
 | Signal | Metrikk i dag | Status |
 | --- | --- | --- |
-| Credits per økt | `nav_pilot_session_cost_nano_aiu_total` | Delvis: bare Copilot, opencode-eksporten har ikke kostnad |
+| Credits per sesjon | `nav_pilot_session_cost_nano_aiu_total` | Delvis: bare Copilot, opencode-eksporten har ikke kostnad |
 | Verktøyfeil | `nav_pilot_session_tool_calls_total{outcome="error"}` | Per gruppe |
-| Avbrutte økter | `nav_pilot_session_duration_seconds`, etiketten `shutdown_type` | Mangler til en verdi for avbrudd er dokumentert, deretter per gruppe |
+| Avbrutte sesjoner | `nav_pilot_session_duration_seconds`, etiketten `shutdown_type` | Mangler til en verdi for avbrudd er dokumentert, deretter per gruppe |
 | Svarlengde | Output-tokens delt på `nav_pilot_session_turns` | Indirekte mål |
 | Treff i rød sone | – | Mangler |
-| Økter som stopper i Fase 1 | – | Mangler |
+| Sesjoner som stopper i Fase 1 | – | Mangler |
 | Omstarter, regenerering og avslag | – | Mangler |
 
 **Tilbakerulling.** Vi ruller tilbake når et av disse skjer i opt-in-gruppen:
-credits per økt øker mer enn 10 %, andelen verktøyfeil eller avbrutte økter er
+credits per sesjon øker mer enn 10 %, andelen verktøyfeil eller avbrutte sesjoner er
 mer enn 1,5 ganger grunnlinjen, eller én bekreftet feil i rød sone eller med
 personopplysninger. Feil i rød sone og med personopplysninger meldes inn av
 brukerne, fordi telemetrien ikke ser dem. Med en liten gruppe er grensene en

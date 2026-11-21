@@ -4,7 +4,7 @@ date: 2026-08-30
 featured: false
 author: starefossen
 category: praksis
-excerpt: "En lokal modell kan gjøre mekaniske endringer over flere filer. Selve modellkjøringen bruker ingen AI-kreditter, men hovedagenten i skyen gjør det fortsatt."
+excerpt: "En lokal modell kan gjøre mekaniske endringer over flere filer. Selve modellkjøringen bruker ingen AI Credits, men hovedagenten i skyen gjør det fortsatt."
 tags:
   - nav-pilot
   - local-models
@@ -19,7 +19,7 @@ Med `nav-pilot alpha local` kan du kjøre en modell fra Qwen-familien på din eg
 
 Hovedagenten blir i skya og bestemmer, den lokale modellen utfører. I logger og konfigurasjon heter den `local-worker`.
 
-Den arbeidsdelingen krever opencode som klient. Bare der blir den lokale modellen en underagent hovedagenten kan sende avgrensede oppgaver til. Under Copilot CLI, som er standardklienten i nav-pilot, finnes ingen slik underagent: klienten setter modelleverandøren som en miljøvariabel for hele prosessen, så én leverandør betjener hele økten. Valget der er hele økten på den lokale modellen eller ingenting lokalt. Vi har verifisert det mot Copilot CLI 1.0.83-3. Vil du ha utsending, bytt med `nav-pilot config set client opencode`. Runtimen under Copilot CLI kan ha flere leverandører i én økt, men Copilot CLI lar ikke en agent velge sin egen ennå, og det er ikke dokumentert. Vi tester om det kan tas i bruk ([github/copilot-cli#4703](https://github.com/github/copilot-cli/issues/4703)).
+Den arbeidsdelingen krever opencode som klient. Bare der blir den lokale modellen en underagent hovedagenten kan sende avgrensede oppgaver til. Under Copilot CLI, som er standardklienten i nav-pilot, finnes ingen slik underagent: klienten setter modelleverandøren som en miljøvariabel for hele prosessen, så én leverandør betjener hele sesjonen. Valget der er hele sesjonen på den lokale modellen eller ingenting lokalt. Vi har verifisert det mot Copilot CLI 1.0.83-3. Vil du ha utsending, bytt med `nav-pilot config set client opencode`. Runtimen under Copilot CLI kan ha flere leverandører i én sesjon, men Copilot CLI lar ikke en agent velge sin egen ennå, og det er ikke dokumentert. Vi tester om det kan tas i bruk ([github/copilot-cli#4703](https://github.com/github/copilot-cli/issues/4703)).
 
 ```
 nav-pilot alpha local init
@@ -82,9 +82,9 @@ Vi krever nå minst fem kjøringer før et tall får styre en anbefaling, og at 
 
 Deretter 200 kjøringer på én maskin med modellen vi valgte, fordelt på to klienter, seks oppgavetyper, tre refactor-strategier og tre kodebaser: en Ktor-app, en Spring-app og en frontend.
 
-I Ktor-repoet kostet oppgaven 13 AI-kreditter med lokal delegering, mot 34 uten. Testene ga samme resultat. Til gjengjeld tok det 156 sekunder mot 100.
+I Ktor-repoet kostet oppgaven 13 AI Credits med lokal delegering, mot 34 uten. Testene ga samme resultat. Til gjengjeld tok det 156 sekunder mot 100.
 
-I Spring-repoet snudde det: 16 AI-kreditter mot 9. Der ble det dyrere å kjøre lokalt, med samme modell og samme oppsett.
+I Spring-repoet snudde det: 16 AI Credits mot 9. Der ble det dyrere å kjøre lokalt, med samme modell og samme oppsett.
 
 I disse laboppgavene hang besparelsen sammen med hvor mange steg skymodellen brukte alene. Målingene viser ikke at kodebasen er uten betydning.
 
@@ -107,7 +107,7 @@ Alt dette er målt i lab: enkeltoppgaver, rent repo, ingen avbrytelser, ingen so
 
 Senere kjøringer avdekket tool-looper på 203 og 220 kall. Den lokale loop-guarden avslutter som standard turen etter fire identiske kall på rad med samme resultat, eller åtte identiske kall selv om resultatet endrer seg.
 
-Serveren avslutter nå hvis genereringstråden krasjer, for eksempel ved Metal OOM. Neste session får en konkret restart-melding i stedet for å koble seg til en prosess som svarer på porten, men aldri leverer et resultat.
+Serveren avslutter nå hvis genereringstråden krasjer, for eksempel ved Metal OOM. Neste sesjon får en konkret restart-melding i stedet for å koble seg til en prosess som svarer på porten, men aldri leverer et resultat.
 
 Manifestet kan også styre sampling og `--prefill-step-size`. Dette gjør det mulig å rette modellspesifikke problemer uten en ny nav-pilot-release. Verdiene settes først etter målinger. Se oppdateringen under for dem som nå er satt.
 
@@ -128,7 +128,7 @@ Begge Qwen 3.8-modellene kan velges med `nav-pilot alpha local use`. Ingen av de
 
 Tabellen over modellene på [ki-utvikling.nav.no/nav-pilot/referanse](https://ki-utvikling.nav.no/nav-pilot/referanse#lokale-modeller) er nå generert fra manifestet, så kontekst, minnekrav og minste versjon følger det nav-pilot selv leser.
 
-Svarer ikke GitHub når du starter en agentpakke som `nais/pilot`, bruker nav-pilot nå manifestet fra forrige vellykkede oppstart og skriver en advarsel. Før feilet hver oppstart, også økter med lokal modell der ingenting annet trenger nett.
+Svarer ikke GitHub når du starter en agentpakke som `nais/pilot`, bruker nav-pilot nå manifestet fra forrige vellykkede oppstart og skriver en advarsel. Før feilet hver oppstart, også sesjoner med lokal modell der ingenting annet trenger nett.
 
 ## Hva vi trenger fra deg
 
@@ -138,7 +138,7 @@ Svarer ikke GitHub når du starter en agentpakke som `nais/pilot`, bruker nav-pi
 
 «Ikke verdt bryet» er et like nyttig svar som det motsatte, og bedre å få nå enn om et år.
 
-Så lenge dette er alfa, måler vi tettere enn i resten av nav-pilot: hvor mange oppgaver hver økt sender til den lokale modellen, hvilken modell som kjører, oppstartstid og når serveren henger. Vi samler aldri inn koden din eller det du skriver. `DO_NOT_TRACK=1` skrur alt av.
+Så lenge dette er alfa, måler vi tettere enn i resten av nav-pilot: hvor mange oppgaver hver sesjon sender til den lokale modellen, hvilken modell som kjører, oppstartstid og når serveren henger. Vi samler aldri inn koden din eller det du skriver. `DO_NOT_TRACK=1` skrur alt av.
 
 ## Bli med
 
@@ -146,7 +146,7 @@ Meld deg i #nav-pilot. Vi tar inn én og én i starten.
 
 Hele rapporten, med metode og alle tallene: [local-inference-findings.md](https://github.com/navikt/mlx-workspace/blob/main/reports/local-inference-findings.md). Hvorfor akkurat denne modellen, og hva vi forkastet: [alpha-model-decision.md](https://github.com/navikt/mlx-workspace/blob/main/reports/alpha-model-decision.md). Rådataene ligger i [navikt/mlx-workspace](https://github.com/navikt/mlx-workspace), også kjøringene som gikk galt.
 
-> **Rettelse 24. september (kveld):** Kommandoen for å bytte til Qwen 3.8 satte `model`, som er modellen økten kjører på. Riktig nøkkel er `local_model`. Saken sa også at valg av leverandør per agent bare lå som en feature request hos GitHub. Runtimen under Copilot CLI kan allerede ha flere leverandører i én økt, og vi tester om det kan tas i bruk.
+> **Rettelse 24. september (kveld):** Kommandoen for å bytte til Qwen 3.8 satte `model`, som er modellen sesjonen kjører på. Riktig nøkkel er `local_model`. Saken sa også at valg av leverandør per agent bare lå som en feature request hos GitHub. Runtimen under Copilot CLI kan allerede ha flere leverandører i én sesjon, og vi tester om det kan tas i bruk.
 
 > **Rettelse 31. august:** Saken oppga først at 8-bit gikk i timeout på 8 av 11 oppgaver, og forklarte deretter tallet med en chat-mal vi skrev selv, men verken tallet eller den forklaringen kan vi stå inne for.
 

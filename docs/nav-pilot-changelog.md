@@ -21,12 +21,12 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 - **`--refresh` for MCP-registeret**: `nav-pilot mcp list --refresh` og `nav-pilot mcp enable <navn> --refresh` henter registeret på nytt i stedet for å vente ut døgnet hurtiglageret gjelder. `mcp enable` henter også på nytt én gang når navnet du ber om ikke finnes i hurtiglageret.
 - **`nav-pilot mcp prune`**: Fjerner oppføringer som `nav-pilot` har skrevet (i registerets navnerom) og som ikke lenger finnes i Navs MCP-register, på tvers av Copilot CLI og OpenCode. Servere du har lagt inn selv, blir stående urørt. Filer med kommentarer eller etterfølgende komma blir ikke endret, og kommandoen sier hvilke filer det gjelder. Bruk `--dry-run` for å se hva som ville blitt fjernet, og `--yes` for å hoppe over bekreftelsen (#2469).
-- **Kommandoer du skal kopiere**: Linjene «Fix:» i `nav-pilot mcp list` og `nav-pilot doctor` setter nå servernavn, nøkler og verter i enkle anførselstegn der det trengs, så teksten fra registeret eller konfigurasjonen ikke kan tolkes som shell-syntaks. En `cplt config set`-nøkkel i registerets oppsett må bestå av `a-z`, `0-9`, `_` og `.`. Ellers viser nav-pilot ingen kommando.
-- **Godkjente MCP-verter per klient**: Godkjenningen lagres nå per klient (`mcp:registry:copilot` og `mcp:registry:opencode`), og tillatelseslisten for cplt samler vertene fra begge. Å slå på en server for OpenCode fjerner ikke lenger vertene du godkjente for Copilot. Eksisterende godkjenninger gjelder videre uten nytt spørsmål.
+- **Kommandoer du skal kopiere**: Linjene «Fix:» i `nav-pilot mcp list` og `nav-pilot doctor` setter nå servernavn, nøkler og hoster i enkle anførselstegn der det trengs, så teksten fra registeret eller konfigurasjonen ikke kan tolkes som shell-syntaks. En `cplt config set`-nøkkel i registerets oppsett må bestå av `a-z`, `0-9`, `_` og `.`. Ellers viser nav-pilot ingen kommando.
+- **Godkjente MCP-hoster per klient**: Godkjenningen lagres nå per klient (`mcp:registry:copilot` og `mcp:registry:opencode`), og tillatelseslisten for cplt samler hostene fra begge. Å slå på en server for OpenCode fjerner ikke lenger hostene du godkjente for Copilot. Eksisterende godkjenninger gjelder videre uten nytt spørsmål.
 - **OpenCode-konfig**: Er det bare `opencode.jsonc` i `~/.config/opencode`, bruker oppstarten den filen i stedet for å lage en egen `opencode.json` som `opencode.jsonc` overstyrer.
 - **`nav-pilot mcp list` og `doctor` for OpenCode**: Viser nå riktig verktøystatus for oppføringer under `mcp.servers.<navn>` og for avslag skrevet som objekt, som `"github-mcp_*": {"*": "deny"}`.
-- **Protokoll og headere**: En eksplisitt eldre `protocolVersions` i registeret overstyres ikke lenger av at serveren ligger på nav.no. Headere hentes fra endepunktet som er valgt, ikke alltid det første. Registerets `sandboxHosts` for lokale OpenCode-pakker med egen nøkkel kommer nå med i godkjenningen.
-- **Agentpakker**: `allow_private_domains` avviser et offentlig suffiks (som `co.uk`) og en bar `nav.no`, fordi cplt også matcher underdomener. Navngi en bestemt vert.
+- **Protokoll og headere**: En eksplisitt eldre `protocolVersions` i registeret overstyres ikke lenger av at serveren ligger på nav.no. Headere hentes fra endpointet som er valgt, ikke alltid det første. Registerets `sandboxHosts` for lokale OpenCode-pakker med egen nøkkel kommer nå med i godkjenningen.
+- **Agentpakker**: `allow_private_domains` avviser et offentlig suffiks (som `co.uk`) og en bar `nav.no`, fordi cplt også matcher underdomener. Navngi en bestemt host.
 
 ### Onboarding-serveren går via gatewayen
 
@@ -57,7 +57,7 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ### Lokal modell tåler flere samtidige forespørsler
 
-- **Lokal KI-modell**: Når flere økter sender forespørsler til den lokale modellen samtidig, blir ingen av dem lenger avvist med «connection reset». De venter i køen i stedet (#2181).
+- **Lokal KI-modell**: Når flere sesjoner sender forespørsler til den lokale modellen samtidig, blir ingen av dem lenger avvist med «connection reset». De venter i køen i stedet (#2181).
 
 ### Feilrettinger
 
@@ -89,7 +89,7 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ### Dev-registeret er ute av sandkassens tillatelsesliste
 
-- **`mcp-registry.ekstern.dev.nav.no`**: Copilot sjekker nå MCP-servere mot produksjonsregisteret, `mcp-registry.nav.no`. Dev-verten er derfor fjernet fra listen over Nav-domener sandkassen slipper gjennom, også fra lister nav-pilot har skrevet før (#896).
+- **`mcp-registry.ekstern.dev.nav.no`**: Copilot sjekker nå MCP-servere mot produksjonsregisteret, `mcp-registry.nav.no`. Dev-hosten er derfor fjernet fra listen over Nav-domener sandkassen slipper gjennom, også fra lister nav-pilot har skrevet før (#896).
 
 ### Varsel når en lokal MCP-server ikke kjører
 
@@ -163,12 +163,12 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ### Spør før repoets egne OpenCode-plugins lastes
 
-- **OpenCode 2**: Har repoet egne OpenCode-plugins, spør nav-pilot én gang før de lastes. De kjører med samme tilgang som agenten. Enter betyr nei. Svarer du nei, slår nav-pilot av repoets eget OpenCode-oppsett for økta: konfigurasjon, plugins, agenter, kommandoer, skills og `AGENTS.md`, og sier det i én linje ved hver oppstart. Svaret huskes til pluginene endrer seg, og gjelder også uten terminal. Uten terminal lastes de ikke før du har svart.
+- **OpenCode 2**: Har repoet egne OpenCode-plugins, spør nav-pilot én gang før de lastes. De kjører med samme tilgang som agenten. Enter betyr nei. Svarer du nei, slår nav-pilot av repoets eget OpenCode-oppsett for sesjonen: konfigurasjon, plugins, agenter, kommandoer, skills og `AGENTS.md`, og sier det i én linje ved hver oppstart. Svaret huskes til pluginene endrer seg, og gjelder også uten terminal. Uten terminal lastes de ikke før du har svart.
 - **`nav-pilot plugins`**: Viser repoets OpenCode-plugins og svaret ditt, og lar deg svare på nytt.
 
 ### Roligere oppstart med ny cplt
 
-- **Anbefalt cplt fra 24. oktober 2026**: nav-pilot anbefaler nå cplt-versjonen fra 24. oktober. Den spør ikke ved oppstart når ingenting er endret. Med den versjonen gir nav-pilot også OpenCode-hookenes egen tilstandsmappe skrivetilgang med `--allow-write-state`, så mappa ikke lenger står i merknaden «NOT audited» når økten avsluttes. Eldre cplt får `--allow-write` som før.
+- **Anbefalt cplt fra 24. oktober 2026**: nav-pilot anbefaler nå cplt-versjonen fra 24. oktober. Den spør ikke ved oppstart når ingenting er endret. Med den versjonen gir nav-pilot også OpenCode-hookenes egen tilstandsmappe skrivetilgang med `--allow-write-state`, så mappa ikke lenger står i merknaden «NOT audited» når sesjonen avsluttes. Eldre cplt får `--allow-write` som før.
 - **Anbefalt cplt oppdatert til 24. oktober 2026, kveld**: Kjører du nav-pilot uten terminal og med `--yes`, viser cplt bare oppsummeringen når profilen er uendret. Er noe endret, står det en linje «Changed since last launch» med feltene. Svarer du nei, kommer det ikke lenger en ekstra tabell, spørsmålet nevner agenten du faktisk starter, og advarslene om XDG-mapper er færre.
 
 ### Færre og tydeligere meldinger
@@ -186,7 +186,7 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ### Strengere leverandørsjekk i OpenCode 2
 
-- **Tillatte leverandører**: nav-pilot sjekker nå også `policies` i OpenCode 2-konfigurasjonen, og ser verdiene slik OpenCode ser dem etter at `{env:}` er byttet ut. Slipper en regel inn en annen leverandør enn de nav-pilot tillater, starter ikke økten, og meldinga sier hvilken fil og nøkkel du må rette.
+- **Tillatte leverandører**: nav-pilot sjekker nå også `policies` i OpenCode 2-konfigurasjonen, og ser verdiene slik OpenCode ser dem etter at `{env:}` er byttet ut. Slipper en regel inn en annen leverandør enn de nav-pilot tillater, starter ikke sesjonen, og meldinga sier hvilken fil og nøkkel du må rette.
 
 ### @nav-pilot bruker GPT-6.1 Sol og spør før personopplysninger
 
@@ -230,7 +230,7 @@ Første gang du starter nav-pilot, skriver den færre linjer og bruker enklere o
 - **Innlogging i gh**: Får ikke nav-pilot bekreftet at du er logget inn i gh, står det nå på én linje at agenten kanskje ikke får pushet eller åpnet PR-er. Linja viser videre til `nav-pilot doctor`. Oppstarten fortsetter. Detaljene om nøkkelring og tokener finner du i `nav-pilot doctor`.
 - **Oppsettveiviseren**: Teksten «Your other answers go to …» på lagre-skjermen er erstattet av «Settings are saved to …», og «change anytime» står nå bare én gang, i blokken etter lagring.
 - **Installasjonen**: Etter installasjonen ser du bare oppsummeringen, ikke hver fil. `nav-pilot install --verbose` viser hele lista. Feil vises alltid.
-- **Når nav-pilot ikke når utgivelsene på GitHub**: Du får én dempet linje, ikke en rå feilmelding. Den sier at nav-pilot er festet til en commit på standardgreinen, ikke til en utgivelse, og at neste synkronisering ser etter en utgivelse igjen. `--verbose` viser feilen.
+- **Når nav-pilot ikke når releasene på GitHub**: Du får én dempet linje, ikke en rå feilmelding. Den sier at nav-pilot er festet til en commit på standardbranchen, ikke til en release, og at neste synkronisering ser etter en release igjen. `--verbose` viser feilen.
 - **Hooks**: Under første oppstart ber ikke nav-pilot deg kjøre `nav-pilot install` for hooks som installasjonen rett etterpå legger til.
 - **Modellvalget**: Modeller kontoen din ikke har tilgang til, står nå nederst i grått. Valget øverst heter «Nav default (recommended)».
 - **Etter installasjonen**: Når installasjonen skjer som del av oppstarten, står det bare «Commit .github/ and .nav-pilot/ so your team gets them.» «Next steps» med «start nav-pilot» er borte.
@@ -248,7 +248,7 @@ Første gang du starter nav-pilot, skriver den færre linjer og bruker enklere o
 
 ### Lokal modell med kommentarer i opencode.json
 
-- **OpenCode**: Med `local_dispatch` på og kommentarer i `~/.config/opencode/opencode.json` stoppet nav-pilot oppstarten med «redefines provider mlx». Blokken for den lokale leverandøren er nav-pilots egen, så nå starter økten. Er blokken endret, for eksempel med en annen `baseURL`, stopper oppstarten som før.
+- **OpenCode**: Med `local_dispatch` på og kommentarer i `~/.config/opencode/opencode.json` stoppet nav-pilot oppstarten med «redefines provider mlx». Blokken for den lokale leverandøren er nav-pilots egen, så nå starter sesjonen. Er blokken endret, for eksempel med en annen `baseURL`, stopper oppstarten som før.
 
 ### Spørsmålet om ny modell kommer ved samme oppstart
 
@@ -262,7 +262,7 @@ Første gang du starter nav-pilot, skriver den færre linjer og bruker enklere o
 - **Ny versjon av nav-pilot**: Linja om at en ny versjon er tilgjengelig, vises én gang per versjon. `nav-pilot doctor` viser den hver gang. Spørsmålet om å oppgradere og automatisk oppdatering virker som før.
 - **Andre linjer som vises én gang per endring**:
   - merknaden om autopilot
-  - hvilken lokal modell økta kjører på
+  - hvilken lokal modell sesjonen kjører på
   - modellen du har valgt
   - sandkassen i en undermappe av et repo
   - MCP-servere som er slått av
@@ -272,9 +272,9 @@ Første gang du starter nav-pilot, skriver den færre linjer og bruker enklere o
 
 ### Nais MCP med cplt
 
-- **`nav-pilot mcp enable io.github.nais/nais-mcp`** slår på Nais MCP. nav-pilot skriver en spesifikasjon til `~/.config/cplt/mcp/`, og cplt kjører serveren på maskinen din, utenfor sandkassen. Innloggingen din kommer aldri inn i sandkassen. Bare lesende verktøy er på; verktøy som skriver, må du velge med `--tools`. nav-pilot skriver ingenting i MCP-konfigurasjonen til Copilot CLI eller OpenCode. Det gjør cplt når økta starter (#1930).
+- **`nav-pilot mcp enable io.github.nais/nais-mcp`** slår på Nais MCP. nav-pilot skriver en spesifikasjon til `~/.config/cplt/mcp/`, og cplt kjører serveren på maskinen din, utenfor sandkassen. Innloggingen din kommer aldri inn i sandkassen. Bare lesende verktøy er på; verktøy som skriver, må du velge med `--tools`. nav-pilot skriver ingenting i MCP-konfigurasjonen til Copilot CLI eller OpenCode. Det gjør cplt når sesjonen starter (#1930).
 - **Innlogging**: Er du ikke logget inn i Nais, spør nav-pilot om den skal kjøre `nais login -n`. Uten terminal, eller med `--json`, viser den bare kommandoen.
-- **`nav-pilot mcp list`**: De nye kolonnene LOGIN og PATH viser om du er logget inn, og om cplt kjører serveren. Står serveren som `cplt` i kolonnene COPILOT og OPENCODE, legger cplt den inn når økta starter.
+- **`nav-pilot mcp list`**: De nye kolonnene LOGIN og PATH viser om du er logget inn, og om cplt kjører serveren. Står serveren som `cplt` i kolonnene COPILOT og OPENCODE, legger cplt den inn når sesjonen starter.
 - **Uten cplt**: Nais MCP krever cplt. Uten cplt skriver nav-pilot ingenting og viser kommandoen som installerer cplt.
 - **Eldre cplt**: Har du en cplt som ennå ikke kan kjøre MCP-servere på maskinen, skriver nav-pilot ingenting og viser kommandoen som oppdaterer cplt. Kjør `nav-pilot mcp enable` på nytt etterpå. Støtten kommer med [navikt/cplt#825](https://github.com/navikt/cplt/pull/825).
 - **Eldre Nais CLI**: Er Nais CLI eldre enn 7.0.2, viser `mcp enable` og `mcp list` et varsel med `brew upgrade nais`. 7.0.2 sjekker alle GraphQL-operasjonene agenten sender. Serveren virker også med eldre versjoner.
@@ -291,14 +291,14 @@ Første gang du starter nav-pilot, skriver den færre linjer og bruker enklere o
 
 - **`local_dispatch`**: Når hovedagenten skriver til en fil med en omdirigering i skallet (`> fil`, `>> fil`, `tee fil` eller `cat > fil <<EOF`), teller det nå som en endring av fila. Grensene er de samme som for endrings- og skriveverktøyene. `2>&1`, `> /dev/null` og prosessubstitusjon teller ikke. Skript i python, node, ruby, perl, deno eller bun som hovedagenten kjører direkte (`-c`, `-e` eller heredoc), og som åpner en fil for skriving, blir stoppet med beskjed om å sende endringen til `local-worker`. Skript som bare leser, slipper gjennom. `local-worker` er ikke berørt (#1915).
 
-### Fortsett en tidligere økt
+### Fortsett en tidligere sesjon
 
-- **`nav-pilot --resume [id]` og `nav-pilot --continue`**: Fortsetter en tidligere økt med agentpakken, sandkassen og sjekkene som en vanlig oppstart. `--continue` fortsetter den siste økten. `--resume` uten id åpner lista over økter i Copilot CLI. OpenCode har ingen slik liste, så der må du oppgi id-en. Finnes ikke id-en, starter OpenCode en ny økt. pi støtter ikke flaggene ennå, og nav-pilot sier fra i stedet for å starte (#1919).
+- **`nav-pilot --resume [id]` og `nav-pilot --continue`**: Fortsetter en tidligere sesjon med agentpakken, sandkassen og sjekkene som en vanlig oppstart. `--continue` fortsetter den siste sesjonen. `--resume` uten id åpner lista over sesjoner i Copilot CLI. OpenCode har ingen slik liste, så der må du oppgi id-en. Finnes ikke id-en, starter OpenCode en ny sesjon. pi støtter ikke flaggene ennå, og nav-pilot sier fra i stedet for å starte (#1919).
 
 ### Modellen du har valgt, gjelder også hovedagenten
 
 - **Modell**: Har du valgt modell med `nav-pilot config set model` eller `--model`, kjører hovedagenten nå på den. Før vant modellen i agentfila. Med `model = gpt-6.1-sol` fikk du for eksempel `gpt-6-sol` fordi hovedagenten i nais-platform har `gpt-6-sol` i agentfila. Dette gjelder Copilot CLI, OpenCode og pi. Subagenter beholder sin egen modell. Har du ikke valgt modell, er alt som før (#1920).
-- **Copilot CLI**: Når modellen din skal vinne, starter nav-pilot en kopi av hovedagenten uten modell. Agenten heter da `nav-pilot-session:<agent>` i økta.
+- **Copilot CLI**: Når modellen din skal vinne, starter nav-pilot en kopi av hovedagenten uten modell. Agenten heter da `nav-pilot-session:<agent>` i sesjonen.
 - **Ny anbefaling**: Når agentpakken anbefaler en ny modell for hovedagenten og du har valgt en annen, spør nav-pilot én gang: behold modellen din, bytt til den nye, eller følg agentpakken. Første gang du starter etter oppdateringen, kan du få dette spørsmålet hvis modellen din er en annen enn den agentpakken anbefaler. Uten terminal får du én linje med kommandoene i stedet.
 
 ## 2026-10-22
@@ -311,28 +311,28 @@ Første gang du starter nav-pilot, skriver den færre linjer og bruker enklere o
 
 - **Ny installasjon**: Når nav-pilot foreslår eller installerer OpenCode, er det nå OpenCode 2: `brew install anomalyco/tap/opencode-v2` med Homebrew, ellers `npm i -g @opencode/cli@2.1.3`. Har du verken Homebrew eller npm, installerer nav-pilot ingenting, men sier at du må installere Homebrew eller Node.js først, og hvilken kommando du kjører etterpå. nav-pilot bruker ikke lenger OpenCodes eget installasjonsskript, fordi det bare installerer OpenCode 1. Har du OpenCode 1 fra før, lar nav-pilot den stå.
 - **Varsel til deg som bruker OpenCode 1**: nav-pilot viser et kort varsel når du starter OpenCode 1, én gang per OpenCode-versjon, og i `nav-pilot doctor`. nav-pilot slutter å støtte OpenCode 1 etter 19. november 2026. Oppgraderingen kan ikke angres: OpenCode 2 skriver om databasen fra OpenCode 1. Du må logge inn på nytt, fordi innloggingen (auth.json) ikke blir med, og på Linux trenger du bubblewrap. Varselet viser kommandoen du skal kjøre.
-- **OpenCode 2 krever nyere cplt**: OpenCode 2 starter bare med cplt 2026.10.22-172931 eller nyere. Da beholder OpenCode favoritter og historikk mellom økter og tar øyeblikksbilder med git, og plugins og MCP-servere får tilgangen de trenger. Har du en eldre cplt, stopper nav-pilot og sier hvordan du oppdaterer, for eksempel `brew upgrade cplt` (#1907).
+- **OpenCode 2 krever nyere cplt**: OpenCode 2 starter bare med cplt 2026.10.22-172931 eller nyere. Da beholder OpenCode favoritter og historikk mellom sesjoner og tar øyeblikksbilder med git, og plugins og MCP-servere får tilgangen de trenger. Har du en eldre cplt, stopper nav-pilot og sier hvordan du oppdaterer, for eksempel `brew upgrade cplt` (#1907).
 
 ### Lokal modell på Linux trenger ikke lsof
 
-- **`nav-pilot alpha local` på Linux**: Før en økt bruker den lokale serveren, sjekker nav-pilot at serveren er din. Sjekken brukte `/usr/sbin/lsof`, som Linux vanligvis ikke har der. Da avviste nav-pilot serveren hver gang, selv om den var din. Nå leser nav-pilot dette fra `/proc` på Linux. På macOS er alt som før (#1913).
+- **`nav-pilot alpha local` på Linux**: Før en sesjon bruker den lokale serveren, sjekker nav-pilot at serveren er din. Sjekken brukte `/usr/sbin/lsof`, som Linux vanligvis ikke har der. Da avviste nav-pilot serveren hver gang, selv om den var din. Nå leser nav-pilot dette fra `/proc` på Linux. På macOS er alt som før (#1913).
 
 ### nav-pilot er testet med OpenCode 2.1
 
-- **OpenCode 2**: nav-pilot er nå testet med OpenCode 2.1.2 og varsler ikke lenger om at 2.1.x er utenfor det som er testet. Hooks, delegeringssperren og oppsettet av økter under cplt er kjørt mot 2.1.2.
+- **OpenCode 2**: nav-pilot er nå testet med OpenCode 2.1.2 og varsler ikke lenger om at 2.1.x er utenfor det som er testet. Hooks, delegeringssperren og oppsettet av sesjoner under cplt er kjørt mot 2.1.2.
 
 ### Delegeringssperren fanger opp endringer gjort med patch-verktøyet
 
 - **Lokal delegering i OpenCode**: Noen modeller, blant annet GPT-modellene fra gpt-5 og nyere, endrer filer med patch-verktøyet (`patch` i OpenCode 2, `apply_patch` i OpenCode 1) i stedet for `edit` og `write`. Delegeringssperren, som sender store, mekaniske endringer og nye filer til den lokale KI-modellen, fanget ikke opp disse endringene. Nå telles filene i en patch som andre endringer, og en patch som oppretter en fil, behandles som en ny fil (#1008).
 
-### Utklippstavle og egne cplt-flagg for én økt
+### Utklippstavle og egne cplt-flagg for én sesjon
 
-- **`nav-pilot --allow-clipboard`**: Gir agenten tilgang til utklippstavla på macOS for denne økten. cplt stenger den som standard, så tekst du markerte, ble ikke kopiert. Før måtte du åpne den for alle økter med `cplt config set sandbox.deny_clipboard false`. Flagget virker for Copilot CLI, OpenCode og pi.
-- **`nav-pilot --cplt <flagg>`**: Sender ett cplt-flagg videre for denne økten, for eksempel `nav-pilot --cplt --allow-port=8080`. Gjenta `--cplt` for flere flagg. Flagg med verdi skrives med `=`. `--agent`, `--project-dir`, `--yes`, `--no-audit` og `--` avvises, fordi nav-pilot setter dem selv.
+- **`nav-pilot --allow-clipboard`**: Gir agenten tilgang til utklippstavla på macOS for denne sesjonen. cplt stenger den som standard, så tekst du markerte, ble ikke kopiert. Før måtte du åpne den for alle sesjoner med `cplt config set sandbox.deny_clipboard false`. Flagget virker for Copilot CLI, OpenCode og pi.
+- **`nav-pilot --cplt <flagg>`**: Sender ett cplt-flagg videre for denne sesjonen, for eksempel `nav-pilot --cplt --allow-port=8080`. Gjenta `--cplt` for flere flagg. Flagg med verdi skrives med `=`. `--agent`, `--project-dir`, `--yes`, `--no-audit` og `--` avvises, fordi nav-pilot setter dem selv.
 
-### OpenCode-økter bruker bare GitHub Copilot og lokal modell
+### OpenCode-sesjoner bruker bare GitHub Copilot og lokal modell
 
-- **`nav-pilot --client opencode`**: En økt som nav-pilot starter, kan bare bruke modeller fra GitHub Copilot. Har du slått på lokal inferens (`local_enabled`), kan økten også bruke den lokale modellen (`mlx`). Andre leverandører er slått av i økten, også når en agentpakke peker på dem. Starter du OpenCode uten nav-pilot, er alt som før, og nav-pilot endrer ikke OpenCode-konfigurasjonen din (#1882).
+- **`nav-pilot --client opencode`**: En sesjon som nav-pilot starter, kan bare bruke modeller fra GitHub Copilot. Har du slått på lokal inferens (`local_enabled`), kan sesjonen også bruke den lokale modellen (`mlx`). Andre leverandører er slått av i sesjonen, også når en agentpakke peker på dem. Starter du OpenCode uten nav-pilot, er alt som før, og nav-pilot endrer ikke OpenCode-konfigurasjonen din (#1882).
 - **Ingen stille bytte**: Får ikke OpenCode tilgang til en Copilot-modell, svarer den «Model unavailable» i stedet for å bytte til en annen leverandør. Avslutter OpenCode med feil, minner nav-pilot deg på å logge inn med `opencode auth login` (velg GitHub Copilot) og sjekke at Copilot-planen din har modellen. Avbryter du selv med Ctrl+C, kommer ikke påminnelsen.
 - **Når nav-pilot ikke starter OpenCode**:
   - `opencode --version` svarer ikke. Sjekk at kommandoen virker, og prøv igjen.
@@ -351,7 +351,7 @@ Første gang du starter nav-pilot, skriver den færre linjer og bruker enklere o
 
 ### Svaret i undersøkelsen forsvinner ikke ved «for mange forespørsler»
 
-- **`nav-pilot survey`**: Hvis copilot-cli svarte «429 for mange forespørsler» da du sendte inn svaret, ble svaret slettet og du fikk beskjed om at det ikke ble lagret. Nå beholder nav-pilot svaret og sender det på nytt etter neste økt, på samme måte som ved serverfeil.
+- **`nav-pilot survey`**: Hvis copilot-cli svarte «429 for mange forespørsler» da du sendte inn svaret, ble svaret slettet og du fikk beskjed om at det ikke ble lagret. Nå beholder nav-pilot svaret og sender det på nytt etter neste sesjon, på samme måte som ved serverfeil.
 
 ## 2026-10-13
 
@@ -396,23 +396,23 @@ Første gang du starter nav-pilot, skriver den færre linjer og bruker enklere o
 - **Samme soner overalt**: Sonelistene er nå like i instruksjonen, skillen, agenten, retningslinjene, [planleggingssiden](https://ki-utvikling.nav.no/nav-pilot/forklaring/planlegging) og designdokumentet. Rød sone er feilsøking, nye konsepter, sentral forretningslogikk, sikkerhetskritisk kode og arkitekturvalg. Grønn sone er boilerplate, teknologi du kan fra før, konfigurasjon, refaktorering med kjent mål og testdata. En test sjekker at listene holder seg like.
 - **For deg som har nav-pilot fra før**: Kjør `nav-pilot sync --apply`.
 
-### Tall fra Copilot-øktene nav-pilot starter
+### Tall fra Copilot-sesjonene nav-pilot starter
 
-- **Hva som sendes**: Når en Copilot-økt som nav-pilot startet, avsluttes, sender nav-pilot antall skill-innlastinger, verktøykall, hook-kjøringer, runder, tokens, kostnad og premium requests, hvor lenge økten varte og hvilke subagenter som ble valgt. Innholdet sendes ikke: ikke meldinger, svar, argumenter, stier eller kodeendringer. Navn på skills og agenter sendes bare når nav-pilot installerte dem; andre blir `other`. Det samme gjelder verktøy som ikke er Copilots egne.
-- **Bare økten nav-pilot startet**: nav-pilot gir Copilot en egen økt-ID med `--session-id` og teller bare den økten. Gir du `--resume` eller `--session-id` med en hel økt-ID etter `--`, er det den økten som telles. Med `--continue`, øktvelgeren, et navn, et prefiks eller en underkommando telles ingen økt. En økt du starter med `/new` inne i Copilot, telles heller ikke.
-- **Krever Copilot CLI 1.0.51**: `--session-id` kom i Copilot CLI 1.0.51. Med eldre Copilot starter økten som før, men den telles ikke.
-- **Bare det som skjer under nav-pilot**: Ved hver oppstart flytter nav-pilot startpunktet til slutten av øktloggen. Det du gjør i en økt med `copilot --resume` uten nav-pilot, telles ikke. Krasjet en tidligere nav-pilot-kjøring før den fikk lest økten, telles ikke det den kjøringen gjorde.
-- **Reservasjon som før**: Med `NAV_PILOT_TELEMETRY_ENABLED=false` eller `DO_NOT_TRACK=1` leser ikke nav-pilot øktloggen. Se [TELEMETRY.md](../cli/nav-pilot/TELEMETRY.md) og [personvernsiden](https://ki-utvikling.nav.no/nav-pilot/forklaring/personvern).
-- **Nye økter telles nå**: En feil gjorde at nav-pilot ga opp nye Copilot-økter før Copilot hadde opprettet øktmappen, så ingen økttall kom fram. Det er rettet.
-- **Dashboard**: Grafana-dashboardet for nav-pilot har nye paneler for øktene, blant annet hook-kjøringer, feilrate per verktøy, subagenter og øktlengde.
+- **Hva som sendes**: Når en Copilot-sesjon som nav-pilot startet, avsluttes, sender nav-pilot antall skill-innlastinger, verktøykall, hook-kjøringer, runder, tokens, kostnad og premium requests, hvor lenge sesjonen varte og hvilke subagenter som ble valgt. Innholdet sendes ikke: ikke meldinger, svar, argumenter, stier eller kodeendringer. Navn på skills og agenter sendes bare når nav-pilot installerte dem; andre blir `other`. Det samme gjelder verktøy som ikke er Copilots egne.
+- **Bare sesjonen nav-pilot startet**: nav-pilot gir Copilot en egen sesjons-ID med `--session-id` og teller bare den sesjonen. Gir du `--resume` eller `--session-id` med en hel sesjon-ID etter `--`, er det den sesjonen som telles. Med `--continue`, øktvelgeren, et navn, et prefiks eller en underkommando telles ingen sesjon. En sesjon du starter med `/new` inne i Copilot, telles heller ikke.
+- **Krever Copilot CLI 1.0.51**: `--session-id` kom i Copilot CLI 1.0.51. Med eldre Copilot starter sesjonen som før, men den telles ikke.
+- **Bare det som skjer under nav-pilot**: Ved hver oppstart flytter nav-pilot startpunktet til slutten av sesjonsloggen. Det du gjør i en sesjon med `copilot --resume` uten nav-pilot, telles ikke. Krasjet en tidligere nav-pilot-kjøring før den fikk lest sesjonen, telles ikke det den kjøringen gjorde.
+- **Reservasjon som før**: Med `NAV_PILOT_TELEMETRY_ENABLED=false` eller `DO_NOT_TRACK=1` leser ikke nav-pilot sesjonsloggen. Se [TELEMETRY.md](../cli/nav-pilot/TELEMETRY.md) og [personvernsiden](https://ki-utvikling.nav.no/nav-pilot/forklaring/personvern).
+- **Nye sesjoner telles nå**: En feil gjorde at nav-pilot ga opp nye Copilot-sesjoner før Copilot hadde opprettet øktmappen, så ingen økttall kom fram. Det er rettet.
+- **Dashboard**: Grafana-dashboardet for nav-pilot har nye paneler for sesjonene, blant annet hook-kjøringer, feilrate per verktøy, subagenter og øktlengde.
 
-### Tall fra opencode-øktene nav-pilot starter
+### Tall fra opencode-sesjonene nav-pilot starter
 
-- **Hva som sendes**: Når en opencode-økt som nav-pilot startet, avsluttes, sender nav-pilot det samme som for Copilot-økter, så langt opencode har tallene: verktøykall og om de gikk bra, runder, varighet, og hvilke skills og agenter som ble brukt. Tokens og modell sendes som før. Navn på skills og agenter sendes bare når nav-pilot installerte dem; andre blir `other`.
-- **Lest fra den rå eksporten**: Tallene kommer fra `opencode export`, som inneholder hele økten. nav-pilot dekoder bare faste felt: verktøynavn, status, og navnefeltet til `skill` og `task`. Det du skrev, svarene, argumentene og verktøyresultatene leses aldri inn. Den midlertidige fila med eksporten kan bare du lese, og den fjernes før opencode skriver til den.
+- **Hva som sendes**: Når en opencode-sesjon som nav-pilot startet, avsluttes, sender nav-pilot det samme som for Copilot-sesjoner, så langt opencode har tallene: verktøykall og om de gikk bra, runder, varighet, og hvilke skills og agenter som ble brukt. Tokens og modell sendes som før. Navn på skills og agenter sendes bare når nav-pilot installerte dem; andre blir `other`.
+- **Lest fra den rå eksporten**: Tallene kommer fra `opencode export`, som inneholder hele sesjonen. nav-pilot dekoder bare faste felt: verktøynavn, status, og navnefeltet til `skill` og `task`. Det du skrev, svarene, argumentene og verktøyresultatene leses aldri inn. Den midlertidige fila med eksporten kan bare du lese, og den fjernes før opencode skriver til den.
 - **Hva som mangler**: Hooks finnes ikke i opencode. API-tid, premium requests og kostnad står ikke i eksporten.
-- **Økten velges etter mappe og tid**: opencode lar ikke nav-pilot sette økt-ID, så nav-pilot teller øktene i mappen den startet i, fra oppstarten og utover. En annen opencode-økt i samme mappe mens nav-pilot kjører, telles også.
-- **Lengre økter telles nå**: opencode 1.18 kutter utdata ved 128 KiB når den skriver til en pipe. Økter over det ble hoppet over uten varsel, også tokentallene. nav-pilot leser nå eksporten via en fil.
+- **Sesjonen velges etter mappe og tid**: opencode lar ikke nav-pilot sette sesjons-ID, så nav-pilot teller sesjonene i mappen den startet i, fra oppstarten og utover. En annen opencode-sesjon i samme mappe mens nav-pilot kjører, telles også.
+- **Lengre sesjoner telles nå**: opencode 1.18 kutter utdata ved 128 KiB når den skriver til en pipe. Sesjoner over det ble hoppet over uten varsel, også tokentallene. nav-pilot leser nå eksporten via en fil.
 - **Reservasjon som før**: Med `NAV_PILOT_TELEMETRY_ENABLED=false` eller `DO_NOT_TRACK=1` leser ikke nav-pilot eksporten. Se [TELEMETRY.md](../cli/nav-pilot/TELEMETRY.md) og [personvernsiden](https://ki-utvikling.nav.no/nav-pilot/forklaring/personvern).
 
 ### Innstillinger per klient
@@ -423,8 +423,8 @@ Første gang du starter nav-pilot, skriver den færre linjer og bruker enklere o
 
 ### GitHub MCP kan bare lese
 
-- **Nye oppføringer er skrivebeskyttet**: Når du slår på GitHub MCP, skriver nav-pilot inn at serveren bare kan lese (`X-MCP-Readonly`) og at den kjører med lockdown (`X-MCP-Lockdown`). Verktøyene som lager issues, pull requests og branches, er fjernet fra oppføringen. Velger du det fulle endepunktet, fjernes headerne; bytter du tilbake, kommer de igjen.
-- **Eksisterende oppsett endres ikke**: nav-pilot skriver ikke om oppsettet du har. Bruker du det fulle endepunktet, sier `nav-pilot mcp doctor` fortsatt fra om det.
+- **Nye oppføringer er skrivebeskyttet**: Når du slår på GitHub MCP, skriver nav-pilot inn at serveren bare kan lese (`X-MCP-Readonly`) og at den kjører med lockdown (`X-MCP-Lockdown`). Verktøyene som lager issues, pull requests og branches, er fjernet fra oppføringen. Velger du det fulle endpointet, fjernes headerne; bytter du tilbake, kommer de igjen.
+- **Eksisterende oppsett endres ikke**: nav-pilot skriver ikke om oppsettet du har. Bruker du det fulle endpointet, sier `nav-pilot mcp doctor` fortsatt fra om det.
 
 ### Nye MCP-servere: Astro Docs og Chrome DevTools
 
@@ -443,15 +443,15 @@ Første gang du starter nav-pilot, skriver den færre linjer og bruker enklere o
 
 ### Tydeligere personverntekst
 
-- **Førstegangsvarselet**: Varselet nav-pilot viser første gang sier nå at bruksdataene tar med navn på navikt-repoer, og at nav-pilot slår på Copilots og opencodes egen telemetri for økter den starter. Ingen endring i hva som sendes.
+- **Førstegangsvarselet**: Varselet nav-pilot viser første gang sier nå at bruksdataene tar med navn på navikt-repoer, og at nav-pilot slår på Copilots og opencodes egen telemetri for sesjoner den starter. Ingen endring i hva som sendes.
 - **Undersøkelsen**: «Svarene er anonyme» er erstattet med hva som faktisk lagres, i CLI-en, på nettsiden og i forklaringen.
 
 ## 2026-10-10
 
-### Tall fra OpenCode-økter
+### Tall fra OpenCode-sesjoner
 
-- **Tokens og verktøykall**: Når en OpenCode-økt avsluttes, sender nav-pilot antall tokens, modellkall og verktøykall for økter i mappa du startet fra. Bare meldinger etter oppstarten telles, så en gjenopptatt økt telles ikke to ganger. Verken innhold, stier eller brukernavn sendes. Modeller fra leverandører nav-pilot ikke kjenner, blir `custom`. Reservasjonen er som før. Se [TELEMETRY.md](../cli/nav-pilot/TELEMETRY.md).
-- **Kjent begrensning**: To OpenCode-økter i samme mappe samtidig telles av begge.
+- **Tokens og verktøykall**: Når en OpenCode-sesjon avsluttes, sender nav-pilot antall tokens, modellkall og verktøykall for sesjoner i mappa du startet fra. Bare meldinger etter oppstarten telles, så en gjenopptatt sesjon telles ikke to ganger. Verken innhold, stier eller brukernavn sendes. Modeller fra leverandører nav-pilot ikke kjenner, blir `custom`. Reservasjonen er som før. Se [TELEMETRY.md](../cli/nav-pilot/TELEMETRY.md).
+- **Kjent begrensning**: To OpenCode-sesjoner i samme mappe samtidig telles av begge.
 
 ### `device_id` er pseudonym, ikke anonym
 
@@ -507,7 +507,7 @@ Gjelder deg som har installert agenter fra en annen pakke enn navikt/copilot, fo
 
 - **nav-pilot starter OpenCode 2 på Linux**: `nav-pilot opencode` starter nå OpenCode 2 også på Linux. Linux krever nyere cplt enn macOS, og bubblewrap.
 - **Krever ny cplt og bubblewrap**: Kjør `cplt --version`: tallet etter `cplt` må være `2026.10.08-092800` eller høyere. Du trenger også bubblewrap (`bwrap`). Mangler det, nekter cplt å starte OpenCode 2 og sier hvordan du installerer det.
-- **Eldre kjerne gir svakere isolasjon**: Er Linux-kjernen eldre enn 6.7, kan ikke cplt begrense hvilke porter økten når. Da er det bare passordet til OpenCode-tjenesten som beskytter den, og cplt skriver en advarsel.
+- **Eldre kjerne gir svakere isolasjon**: Er Linux-kjernen eldre enn 6.7, kan ikke cplt begrense hvilke porter sesjonen når. Da er det bare passordet til OpenCode-tjenesten som beskytter den, og cplt skriver en advarsel.
 - **OpenCode 3 eller nyere**: Har du OpenCode 3 eller nyere, sier nav-pilot nå også på Linux at du skal installere OpenCode 2.
 
 ### Ny agent: `@worker`
@@ -526,8 +526,8 @@ Gjelder deg som har installert agenter fra en annen pakke enn navikt/copilot, fo
 
 ### OpenCode 2 under cplt på macOS
 
-- **nav-pilot starter OpenCode 2**: På macOS starter `nav-pilot opencode` nå også OpenCode 2 (testet med 2.0.24), med samme hooks, samme delegeringssperre og samme innstillinger per økt som OpenCode 1 (#1446, #1455, #1468).
-- **Krever ny cplt**: OpenCode 2 trenger cplt fra 8. oktober 2026 eller nyere. Kjør `cplt --version`: tallet etter `cplt` må være `2026.10.08-081501` eller høyere. Med en eldre cplt ville økten kjørt i OpenCodes bakgrunnstjeneste på maskinen, utenfor nav-pilots hooks. nav-pilot nekter derfor å starte og sier hvordan du oppgraderer. `nav-pilot doctor` viser det samme.
+- **nav-pilot starter OpenCode 2**: På macOS starter `nav-pilot opencode` nå også OpenCode 2 (testet med 2.0.24), med samme hooks, samme delegeringssperre og samme innstillinger per sesjon som OpenCode 1 (#1446, #1455, #1468).
+- **Krever ny cplt**: OpenCode 2 trenger cplt fra 8. oktober 2026 eller nyere. Kjør `cplt --version`: tallet etter `cplt` må være `2026.10.08-081501` eller høyere. Med en eldre cplt ville sesjonen kjørt i OpenCodes bakgrunnstjeneste på maskinen, utenfor nav-pilots hooks. nav-pilot nekter derfor å starte og sier hvordan du oppgraderer. `nav-pilot doctor` viser det samme.
 - **Hent innloggingen på nytt**: Går du fra OpenCode 1 til 2, må du kjøre `opencode auth import` én gang. OpenCode 2 henter ikke innloggingen fra OpenCode 1 (`auth.json`) automatisk.
 - **Plugins i repoet kjører**: OpenCode 2 laster plugins fra `.opencode/` i repoet du står i, og de kjører med dine rettigheter inne i sandkassen. Åpner du et repo du ikke stoler på, sett `OPENCODE_DISABLE_PROJECT_CONFIG=1` før du starter. nav-pilot sender variabelen videre gjennom cplt.
 - **Linux**: Se egen sak over.
@@ -549,7 +549,7 @@ Gjelder deg som har installert agenter fra en annen pakke enn navikt/copilot, fo
 
 - **Ingen spørsmål om personvern ved tekniske endringer**: Før spurte nav-pilot om personopplysninger også når du migrerte et bibliotek, for eksempel fra Jackson 2 til Jackson 3. Nå spør den bare når endringen legger til eller endrer en dataflyt, et felt, en mottaker, et loggpunkt eller en tilgangsvei.
 - **Leser repoet først**: nav-pilot ser etter `accessPolicy` i `nais.yaml`, typer for fnr og PDL og Kafka-skjemaer, og sier hva den har antatt. Den spør bare når repoet ikke gir svaret.
-- **Spør om tilgang bare når tilgangen endres**: nav-pilot spør hvem som kan kalle eller lese tjenesten, bare når endringen gir nye endepunkter eller endrer `accessPolicy` eller auth.
+- **Spør om tilgang bare når tilgangen endres**: nav-pilot spør hvem som kan kalle eller lese tjenesten, bare når endringen gir nye endpoints eller endrer `accessPolicy` eller auth.
 - **Bibliotekmigrering er ikke en full gjennomgang**: En migrering, en versjonsoppgradering eller en omdøping, eller en vurdering av en slik endring, behandles i ett svar. Det gjelder også når formatet på dataene endres.
 - **Endret format gir spørsmål om kompatibilitet**: Endrer en migrering hvordan data skrives, for eksempel datoformat, feltrekkefølge eller felt som forsvinner, sier nav-pilot konkret hva som endres, og spør om konsumentene tåler det. Den spør ikke om personvern.
 - **Sjekker stille ellers**: For tekniske endringer sjekker nav-pilot selv at ingen nye logglinjer eller `toString` lekker fnr, og sier bare fra hvis den finner noe.
@@ -573,27 +573,27 @@ Gjelder deg som har installert agenter fra en annen pakke enn navikt/copilot, fo
 
 - **Trygge verktøy som standard**: `nav-pilot mcp enable` slår nå bare på verktøy som leser eller endrer prosjektet. Verktøy som gjør noe i et annet system (oppretter en issue, en PR eller en fil i Figma) og verktøy som kjører på maskinen din utenfor cplt-sandkassen (terminalen i IntelliJ) er av. MCP-registeret merker verktøyene med feltet `toolRisk`.
 - **Velg selv**: I en terminal viser `mcp enable` alle verktøyene med risiko, og du krysser av. `--tools a,b` gir akkurat de verktøyene, `--all-tools` gir alle. Et verktøy som kjører utenfor sandkassen krever et ja, eller `--allow-host-exec` uten terminal.
-- **Bare lesing mot GitHub**: GitHub-serveren får det skrivebeskyttede endepunktet `https://api.githubcopilot.com/mcp/readonly`. Velger du et verktøy som skriver til GitHub, får du hele endepunktet. Da kan agenten skrive til GitHub via MCP, forbi cplts kontroll av `gh`.
+- **Bare lesing mot GitHub**: GitHub-serveren får det skrivebeskyttede endpointet `https://api.githubcopilot.com/mcp/readonly`. Velger du et verktøy som skriver til GitHub, får du hele endpointet. Da kan agenten skrive til GitHub via MCP, forbi cplts kontroll av `gh`.
 - **OpenCode spør fortsatt**: Har du satt `ask` i `permission` for alle verktøy, for serveren eller for ett verktøy, skriver `mcp enable` `ask` for verktøyene du velger, ikke `allow`. `mcp disable` fjerner serverens regler fra `permission`.
 - **Eksisterende oppsett står**: En server du har fra før, endres ikke. Med `--tools` eller `--all-tools` endres bare verktøyene, og den gamle filen blir tatt vare på.
-- **`mcp list` og `doctor` sier fra**: `mcp list` har fått kolonnen TOOLS og merker verktøy som kjører utenfor sandkassen og GitHubs fulle endepunkt, med kommandoen som snevrer inn. `doctor` viser det samme. Rådet om å åpne en localhost-port advarer nå når serveren har slike verktøy på: porten gir agenten en vei ut av sandkassen.
+- **`mcp list` og `doctor` sier fra**: `mcp list` har fått kolonnen TOOLS og merker verktøy som kjører utenfor sandkassen og GitHubs fulle endpoint, med kommandoen som snevrer inn. `doctor` viser det samme. Rådet om å åpne en localhost-port advarer nå når serveren har slike verktøy på: porten gir agenten en vei ut av sandkassen.
 
 ### Strict-brukere får MCP-serverne tilbake
 
-- **Nav-vertene fylles på**: Lista over tillatte verter som nav-pilot skrev da du valgte cplts strict-preset, får nå vertene den mangler ved hver oppstart, blant dem Navs MCP-register. Før ble lista aldri oppdatert, og Copilot kom ikke fram til registeret. nav-pilot endrer bare sin egen liste, aldri en du har skrevet selv.
-- **Figma får `api.figma.com`**: Innloggingen til Figma går via `api.figma.com`. MCP-registeret har fått feltet `sandboxHosts` for slike ekstra verter, og nav-pilot spør om dem sammen med serverens egne.
-- **`nav-pilot mcp enable` spør på nytt**: Har du avslått vertene til en MCP-server før, spør `mcp enable` igjen. Oppstarten spør ikke på nytt.
-- **Tilbud om å bytte til standard**: Valgte du strict fordi nav-pilot anbefalte det, spør nav-pilot én gang om du vil bytte til standard. Strict blokkerer all push og noen MCP-servere. Har du din egen liste over tillatte verter, spør ikke nav-pilot.
+- **Nav-hostene fylles på**: Lista over tillatte hoster som nav-pilot skrev da du valgte cplts strict-preset, får nå hostene den mangler ved hver oppstart, blant dem Navs MCP-register. Før ble lista aldri oppdatert, og Copilot kom ikke fram til registeret. nav-pilot endrer bare sin egen liste, aldri en du har skrevet selv.
+- **Figma får `api.figma.com`**: Innloggingen til Figma går via `api.figma.com`. MCP-registeret har fått feltet `sandboxHosts` for slike ekstra hoster, og nav-pilot spør om dem sammen med serverens egne.
+- **`nav-pilot mcp enable` spør på nytt**: Har du avslått hostene til en MCP-server før, spør `mcp enable` igjen. Oppstarten spør ikke på nytt.
+- **Tilbud om å bytte til standard**: Valgte du strict fordi nav-pilot anbefalte det, spør nav-pilot én gang om du vil bytte til standard. Strict blokkerer all push og noen MCP-servere. Har du din egen liste over tillatte hoster, spør ikke nav-pilot.
 
 ### Lokal modell: aggressive er standard
 
-- **Ny standard for `local_dispatch`**: Uten egen verdi bruker nav-pilot nå `aggressive`, også om du brukte lokal modell fra før. `balanced` kostet 1,5–1,6 ganger så mye i AI-kreditter som skymodellen alene, uten at flere oppgaver besto. Tilbake til `balanced`: `nav-pilot config set local_dispatch balanced`.
+- **Ny standard for `local_dispatch`**: Uten egen verdi bruker nav-pilot nå `aggressive`, også om du brukte lokal modell fra før. `balanced` kostet 1,5–1,6 ganger så mye i AI Credits som skymodellen alene, uten at flere oppgaver besto. Tilbake til `balanced`: `nav-pilot config set local_dispatch balanced`.
 
 ## 2026-09-29
 
 ### Lokal modell: hvorfor konteksten må være så stor
 
-- **Forklaringen står i meldingen**: Når kontekstsjekken i `nav-pilot alpha local doctor` og `setup` feiler, står det nå hvorfor. Systemprompten og verktøyene i en Copilot-økt er rundt 22 000 tokens, og Copilot starter ikke hvis det fyller mer enn 80 prosent av konteksten. Meldingen sier også hva du kan gjøre når det ikke får plass: et grafikkort med mer minne, en maskin med felles minne for prosessor og grafikkort, eller modellene i skyen (#1344).
+- **Forklaringen står i meldingen**: Når kontekstsjekken i `nav-pilot alpha local doctor` og `setup` feiler, står det nå hvorfor. Systemprompten og verktøyene i en Copilot-sesjon er rundt 22 000 tokens, og Copilot starter ikke hvis det fyller mer enn 80 prosent av konteksten. Meldingen sier også hva du kan gjøre når det ikke får plass: et grafikkort med mer minne, en maskin med felles minne for prosessor og grafikkort, eller modellene i skyen (#1344).
 - **`doctor` viser lokal modell**: `nav-pilot doctor` har fått en egen del for lokal modell. Den viser om du bruker egen server eller den innebygde MLX-serveren, eller at lokal modell ikke er satt opp.
 
 ### nav-pilot setter ikke lenger opp rtk
@@ -615,13 +615,13 @@ Gjelder deg som har installert agenter fra en annen pakke enn navikt/copilot, fo
 ### Tydeligere `auth logout` og ett språk per kommando
 
 - **Ikke logget inn**: `nav-pilot auth logout` sier nå at du ikke var logget inn når det ikke finnes noe token, i stedet for «Token removed» (#1274).
-- **Når tilbakekallingen mislykkes**: Tokenet fjernes fortsatt fra maskinen, og meldingen sier hvor du kan trekke tilbake tilgangen selv: fjern nav-pilot under «Authorized GitHub Apps» på https://github.com/settings/apps/authorizations. Er `NAV_PILOT_GITHUB_CLIENT_ID` satt, peker meldingen til https://github.com/settings/applications, som viser både GitHub Apps og OAuth Apps.
+- **Når tilbaketrekkingen mislykkes**: Tokenet fjernes fortsatt fra maskinen, og meldingen sier hvor du kan trekke tilbake tilgangen selv: fjern nav-pilot under «Authorized GitHub Apps» på https://github.com/settings/apps/authorizations. Er `NAV_PILOT_GITHUB_CLIENT_ID` satt, peker meldingen til https://github.com/settings/applications, som viser både GitHub Apps og OAuth Apps.
 - **Ett språk**: `auth status` er på engelsk som resten av `auth`, `usage` er på norsk hele veien, og innloggingen fra `survey` er på norsk.
 - **Innlogging før spørsmålene**: `survey` sier før første spørsmål at svaret sendes etter en GitHub-innlogging. Får du ikke logget inn, lagres svaret til du har gjort det.
 
-### Lange økter telles én gang i telemetrien
+### Lange sesjoner telles én gang i telemetrien
 
-- **Bare det som er nytt**: En økt sendte alt den hadde målt på nytt hvert 10. sekund, og dashboardene la sammen hver sending. En økt på fem minutter ble talt rundt 30 ganger. Nå sender nav-pilot bare det tellere og histogrammer har fått siden forrige sending, og ikke de som ikke har endret seg. Tallene fra eldre versjoner er fortsatt for høye for lange økter.
+- **Bare det som er nytt**: En sesjon sendte alt den hadde målt på nytt hvert 10. sekund, og dashboardene la sammen hver sending. En sesjon på fem minutter ble talt rundt 30 ganger. Nå sender nav-pilot bare det tellere og histogrammer har fått siden forrige sending, og ikke de som ikke har endret seg. Tallene fra eldre versjoner er fortsatt for høye for lange sesjoner.
 
 ### Telemetrien sendes rett etter at kommandoen er ferdig
 
@@ -632,12 +632,12 @@ Gjelder deg som har installert agenter fra en annen pakke enn navikt/copilot, fo
 
 ### Ingen kommando venter på versjonssjekken
 
-- **Svaret brukes neste gang**: Før ventet nav-pilot opptil 300 ms på versjonssjekken når en kommando var ferdig, og 150 ms etter en økt. Nå leser nav-pilot svaret fra forrige sjekk i `~/.nav-pilot/cache.json` og spør GitHub i bakgrunnen, høyst én gang i døgnet. Avslutningen venter ikke på svaret. Kommer det ikke før kommandoen er ferdig, spør en senere kommando eller økt igjen.
-- **Samme varsel som før**: Finnes det en ny versjon, sier nav-pilot fra på hver kommando til du oppgraderer, som før. Svaret kommer når en kommando varer lenge nok til at GitHub rekker å svare, som en økt, `sync` eller `install`. Kjører du bare korte kommandoer som `config get`, kan det ta lenger tid før du får beskjed.
+- **Svaret brukes neste gang**: Før ventet nav-pilot opptil 300 ms på versjonssjekken når en kommando var ferdig, og 150 ms etter en sesjon. Nå leser nav-pilot svaret fra forrige sjekk i `~/.nav-pilot/cache.json` og spør GitHub i bakgrunnen, høyst én gang i døgnet. Avslutningen venter ikke på svaret. Kommer det ikke før kommandoen er ferdig, spør en senere kommando eller sesjon igjen.
+- **Samme varsel som før**: Finnes det en ny versjon, sier nav-pilot fra på hver kommando til du oppgraderer, som før. Svaret kommer når en kommando varer lenge nok til at GitHub rekker å svare, som en sesjon, `sync` eller `install`. Kjører du bare korte kommandoer som `config get`, kan det ta lenger tid før du får beskjed.
 
 ### Ingen kommando venter på telemetrien
 
-- **Sendes neste gang, i bakgrunnen**: Før ventet nav-pilot opptil 300 ms på å sende telemetrien når en kommando var ferdig, og 150 ms etter en økt. Nå skrives den siste sendingen til `~/.nav-pilot/telemetry-spool/`, og neste nav-pilot sender den i bakgrunnen. Ingen kommando, oppstart eller avslutning venter på den.
+- **Sendes neste gang, i bakgrunnen**: Før ventet nav-pilot opptil 300 ms på å sende telemetrien når en kommando var ferdig, og 150 ms etter en sesjon. Nå skrives den siste sendingen til `~/.nav-pilot/telemetry-spool/`, og neste nav-pilot sender den i bakgrunnen. Ingen kommando, oppstart eller avslutning venter på den.
 - **Samme data, og bare det**: Fila inneholder det som ellers ville blitt sendt. Den slettes når den er sendt, eller etter sju dager. Med `DO_NOT_TRACK` eller `NAV_PILOT_TELEMETRY_ENABLED=false` skrives ingenting, og det som ligger der fra før, slettes.
 
 ### Kontekstsjekken venter ikke i ti minutter på en treg maskin
@@ -655,18 +655,18 @@ Gjelder deg som har installert agenter fra en annen pakke enn navikt/copilot, fo
 
 ### opencode og pi starter uten å vente på GitHub
 
-- **Kopi i stedet for nedlasting ved hver oppstart**: Med opencode eller pi lastet nav-pilot ned agentpakka fra GitHub før hver økt, vanligvis 3,5 sekunder, opptil 10. Uten nett ventet oppstarten til git ga opp. Nå bruker nav-pilot kopien i `~/.nav-pilot/sources/` og henter en ny mens økten kjører, høyst én gang i timen. Endringer i agentpakka kommer med ved neste oppstart.
+- **Kopi i stedet for nedlasting ved hver oppstart**: Med opencode eller pi lastet nav-pilot ned agentpakka fra GitHub før hver sesjon, vanligvis 3,5 sekunder, opptil 10. Uten nett ventet oppstarten til git ga opp. Nå bruker nav-pilot kopien i `~/.nav-pilot/sources/` og henter en ny mens sesjonen kjører, høyst én gang i timen. Endringer i agentpakka kommer med ved neste oppstart.
 - **Bare den første oppstarten venter**: Finnes ingen kopi, laster nav-pilot ned som før, men gir opp etter 30 sekunder. Mislykkes den, venter ikke de neste oppstartene: den neste timen starter de uten agentpakka og henter den i bakgrunnen.
 
 ### Agentpakka fra teamet ditt lastes ikke ned ved hver oppstart
 
-- **Kopi i stedet for nedlasting**: Med en agentpakke fra et annet team (`source` i konfigurasjonen) lastet nav-pilot ned agentpakka før hver økt, 2,5 sekunder på godt nett og 16 sekunder uten svar. Nå bruker oppstarten kopien i `~/.nav-pilot/sources/`, som opencode og pi allerede gjør, og henter en ny mens økten kjører, høyst én gang i timen.
-- **Høyst ett døgn gammel**: Manifestet i agentpakka bestemmer hvordan økten starter, så kopien brukes i høyst ett døgn. Er den eldre, venter oppstarten på en ny som før (#1235).
+- **Kopi i stedet for nedlasting**: Med en agentpakke fra et annet team (`source` i konfigurasjonen) lastet nav-pilot ned agentpakka før hver sesjon, 2,5 sekunder på godt nett og 16 sekunder uten svar. Nå bruker oppstarten kopien i `~/.nav-pilot/sources/`, som opencode og pi allerede gjør, og henter en ny mens sesjonen kjører, høyst én gang i timen.
+- **Høyst ett døgn gammel**: Manifestet i agentpakka bestemmer hvordan sesjonen starter, så kopien brukes i høyst ett døgn. Er den eldre, venter oppstarten på en ny som før (#1235).
 
-### Raskere tilbake til terminalen etter en økt
+### Raskere tilbake til terminalen etter en sesjon
 
-- **Undersøkelser og nyheter hentes mens økten kjører**: Etter en økt hentet nav-pilot åpne undersøkelser og nyheter, én etter én, før du fikk terminalen tilbake. Nå hentes de i bakgrunnen mens økten kjører, og spørsmålet eller nyhetslinja kommer som før når økten er slutt. Er økten kortere enn hentingen, kommer de ved neste økt i stedet.
-- **Telemetrien venter høyst 150 ms etter en økt**: Metrikkene sendes hvert tiende sekund mens økten kjører, og siste sending går over en forbindelse som allerede er åpen. Før ventet nav-pilot opptil ett sekund, og på et tregt nett ble det som regel hele sekundet.
+- **Undersøkelser og nyheter hentes mens sesjonen kjører**: Etter en sesjon hentet nav-pilot åpne undersøkelser og nyheter, én etter én, før du fikk terminalen tilbake. Nå hentes de i bakgrunnen mens sesjonen kjører, og spørsmålet eller nyhetslinja kommer som før når sesjonen er slutt. Er sesjonen kortere enn hentingen, kommer de ved neste sesjon i stedet.
+- **Telemetrien venter høyst 150 ms etter en sesjon**: Metrikkene sendes hvert tiende sekund mens sesjonen kjører, og siste sending går over en forbindelse som allerede er åpen. Før ventet nav-pilot opptil ett sekund, og på et tregt nett ble det som regel hele sekundet.
 
 ### Hjelpetekst og hint nevner klienten din
 
@@ -690,7 +690,7 @@ Gjelder deg som har installert agenter fra en annen pakke enn navikt/copilot, fo
 
 ### opencode spørres om versjonen én gang
 
-- **Svaret lagres**: Før hver opencode-økt kjørte nav-pilot `opencode --version`, som tar et kvart sekund. Nå lagres svaret i `~/.nav-pilot/client-versions.json`, og nav-pilot spør igjen først når programfila er byttet ut, for eksempel etter en oppgradering. Det samme gjelder `copilot --version`, som nav-pilot bruker for å se om copilot egentlig er cplt.
+- **Svaret lagres**: Før hver opencode-sesjon kjørte nav-pilot `opencode --version`, som tar et kvart sekund. Nå lagres svaret i `~/.nav-pilot/client-versions.json`, og nav-pilot spør igjen først når programfila er byttet ut, for eksempel etter en oppgradering. Det samme gjelder `copilot --version`, som nav-pilot bruker for å se om copilot egentlig er cplt.
 
 ### alpha local setup: riktige hint
 
@@ -701,7 +701,7 @@ Gjelder deg som har installert agenter fra en annen pakke enn navikt/copilot, fo
 
 ### Synk-spørsmålet kommer ikke tilbake etter en synk
 
-- **Riktig versjon etter synk**: Står `source = "navikt/copilot"` i konfigurasjonen, lagret synken versjonen til nav-pilot-programmet i stedet for versjonen den hentet. Var programmet eldre enn siste utgivelse, spurte nav-pilot om å synke ved hver oppstart og hentet agentpakka på nytt hver gang. Nå lagres versjonen synken hentet, og spørsmålet kommer først når det finnes en nyere.
+- **Riktig versjon etter synk**: Står `source = "navikt/copilot"` i konfigurasjonen, lagret synken versjonen til nav-pilot-programmet i stedet for versjonen den hentet. Var programmet eldre enn siste release, spurte nav-pilot om å synke ved hver oppstart og hentet agentpakka på nytt hver gang. Nå lagres versjonen synken hentet, og spørsmålet kommer først når det finnes en nyere.
 
 ### Den lokale serveren tar én forespørsel om gangen
 
@@ -712,15 +712,15 @@ Gjelder deg som har installert agenter fra en annen pakke enn navikt/copilot, fo
 
 ### En oppstart uten noe å si, sier ingenting
 
-- **Stille oppstart**: nav-pilot skrev fem–seks linjer før hver økt: velkomstlinja, «Launching …» to ganger, sandkassemappa og modellen. Nå skriver en oppstart som ikke trenger noe fra deg, ingenting. `nav-pilot --verbose` viser linjene igjen.
-- **Bare når noe endrer seg**: Modellen for økten, advarselen om en opencode-versjon utenfor det som er testet, og lista over hooks som ikke er installert, kommer når de endrer seg, ikke ved hver oppstart.
-- **Nyhetslinja høyst én gang i døgnet**: Hadde du flere uleste nyheter, kom én etter hver økt. Nå kommer neste nyhet tidligst dagen etter.
-- **Velkomstlinja kommer bare sammen med et spørsmål**: Den står over «Sync now?», ikke før hver økt.
+- **Stille oppstart**: nav-pilot skrev fem–seks linjer før hver sesjon: velkomstlinja, «Launching …» to ganger, sandkassemappa og modellen. Nå skriver en oppstart som ikke trenger noe fra deg, ingenting. `nav-pilot --verbose` viser linjene igjen.
+- **Bare når noe endrer seg**: Modellen for sesjonen, advarselen om en opencode-versjon utenfor det som er testet, og lista over hooks som ikke er installert, kommer når de endrer seg, ikke ved hver oppstart.
+- **Nyhetslinja høyst én gang i døgnet**: Hadde du flere uleste nyheter, kom én etter hver sesjon. Nå kommer neste nyhet tidligst dagen etter.
+- **Velkomstlinja kommer bare sammen med et spørsmål**: Den står over «Sync now?», ikke før hver sesjon.
 
 ### opencode er standardklient for nye installasjoner
 
 - **Ny installasjon, ny standard**: På en maskin uten `~/.nav-pilot/config.toml` er opencode valgt i oppsettet første gang du kjører nav-pilot. Mangler opencode, og du har Homebrew, tilbyr nav-pilot å installere den (`brew install anomalyco/tap/opencode`). Uten Homebrew, eller om du sier nei, lagrer oppsettet Copilot CLI og sier hvordan du bytter senere. Oppsettet lagrer aldri en klient som ikke kan starte.
-- **Har du brukt nav-pilot før, beholder du klienten**: En `config.toml` uten `client` betyr `copilot`, uansett hva som er installert. Første økt i en terminal skriver linja inn (#1113).
+- **Har du brukt nav-pilot før, beholder du klienten**: En `config.toml` uten `client` betyr `copilot`, uansett hva som er installert. Første sesjon i en terminal skriver linja inn (#1113).
 - **CI og uten terminal**: Uten `config.toml` starter nav-pilot fortsatt Copilot CLI, siden den ikke kan se om du har brukt nav-pilot før. Bruk `--client opencode` for opencode i CI. En kommando som lager `config.toml`, skriver inn klienten maskinen bruker nå.
 - **Copilot CLI er fortsatt fullt støttet**: `nav-pilot config set client copilot`. Hva hver klient kan, står på [ki-utvikling.nav.no/nav-pilot/klienter](https://ki-utvikling.nav.no/nav-pilot/klienter).
 
@@ -728,11 +728,11 @@ Gjelder deg som har installert agenter fra en annen pakke enn navikt/copilot, fo
 
 ### sync fjerner det kilden har sluttet å levere, og opencode finner instruksjonene
 
-- **En fil kilden har fjernet, fjernes også når du har endret den**: Før ble en endret fil liggende, så en fjernet alltid-på-instruks ble lastet i hver økt. Nå lagres kopien din som `<fil>.orig` før fila fjernes, som ved en oppdatering. `--json` lister den under både `deletions` og `removed_local_edits`, og sync-workflowen merker den i PR-en. En hook du har endret, blir fortsatt stående og kjører videre.
+- **En fil kilden har fjernet, fjernes også når du har endret den**: Før ble en endret fil liggende, så en fjernet alltid-på-instruks ble lastet i hver sesjon. Nå lagres kopien din som `<fil>.orig` før fila fjernes, som ved en oppdatering. `--json` lister den under både `deletions` og `removed_local_edits`, og sync-workflowen merker den i PR-en. En hook du har endret, blir fortsatt stående og kjører videre.
 - **opencode-scopet følger samme liste**: `nav-pilot sync` uten `--apply` skrev om `~/.config/opencode`. Nå endrer den ingenting der, men lister hva den ville fjerne under scopet `opencode`, også i `--json`, og avslutter med 1 når noe skal fjernes.
 - **opencode finner de filavgrensede instruksjonene**: `AGENTS.md` pekte på `@.opencode/instructions/<navn>.md`, relativt til prosjektet, mens filene ligger i opencodes globale konfigurasjonsmappe. Fra et repo uten egen `.opencode/` fant modellen dem ikke. Nå står den absolutte stien der, sammen med beskrivelsen fra instruksjonen, slik Copilot CLI viser den i sin `applyTo`-tabell.
 
-### Sikkerhetsreglene gjelder i hver økt
+### Sikkerhetsreglene gjelder i hver sesjon
 
 - **Ny instruksjon `security-core` med `applyTo: "**"`**: De seks kritiske reglene lå i `security-owasp`, som bare gjelder kodefiler og bare når modellen åpner fila. I 117 målte skysesjoner med `nav-pilot`-agenten som endret kode, åpnet modellen fila i 37. Nå er reglene alltid i kontekst: ingen tokens eller personopplysninger i logger, hemmeligheter fra miljøet, parameteriserte spørringer, eierskapssjekk, `azp` for maskin-til-maskin og TLS. `security-owasp` peker til `security-core` og `$security-owasp`.
 - **Alle instruksjoner med filmønster har `description`**: Copilot CLI viser feltet i tabellen over instruksjonsfiler. Uten det hadde modellen bare et filmønster å gå etter for accessibility, docker, github-actions, golang, nextjs-aksel, norwegian-text, performance og security-owasp.
@@ -754,7 +754,7 @@ Gjelder deg som har installert agenter fra en annen pakke enn navikt/copilot, fo
 - **`sync --apply --json` oppdaterer**: Den rapporterte hva den ville gjort, oppdaterte ingenting og ga exit 1.
 - **Pinnen står når release-API-et er nede**: sync flyttet den committede pinnen til default-branchen. Nå blir den stående, og sync avslutter med 2. `--ref` flytter den.
 - **`--source` huskes ikke uten `--save-source`**: `install --source X` gjorde X til standardkilde for alle repoer på maskinen.
-- **Tørrkjøring viser alle stier**, også `copilot-hooks.json`, state-fila og lock-fila. **uninstall** lister alt den fjerner, spør først i en terminal og sier hvilket scope den gjelder. uninstall og rollback har egne hjelpesider. **sync --apply** viser hvilken revisjon den flytter fra og til, og spør før den sletter filer i en terminal.
+- **Dry-run viser alle stier**, også `copilot-hooks.json`, state-fila og lock-fila. **uninstall** lister alt den fjerner, spør først i en terminal og sier hvilket scope den gjelder. uninstall og rollback har egne hjelpesider. **sync --apply** viser hvilken revisjon den flytter fra og til, og spør før den sletter filer i en terminal.
 
 ### Ryddigere utdata fra install og sync
 
@@ -779,7 +779,7 @@ Gjelder deg som har installert agenter fra en annen pakke enn navikt/copilot, fo
 
 ### doctor sier om tenant-porten er på
 
-- **`nav-pilot doctor` rapporterer naisdevice**: Agentpakka `nais/pilot` har en preToolUse-port som nekter klyngekommandoer mot feil tenant, og porten virker bare hvis den ser hvilken tenant naisdevice står på. Inne i cplt gjør den som regel ikke det: sandkassen nekter agent-socketen, `nais device status` svarer «make sure naisdevice is running» enten naisdevice kjører eller ikke, og utvikleren tror hen er portet uten å være det. doctor skiller nå de fem tilstandene fra hverandre: ikke installert, installert og frakoblet, tilkoblet med aktiv tenant, tilkoblet men usynlig for sandkassen, og statusfil som mangler fordi naisdevice er eldre enn [nais/device#564](https://github.com/nais/device/issues/564). Det siste er normaltilstanden på alle maskiner i dag og rapporteres som det, ikke som en feil.
+- **`nav-pilot doctor` rapporterer naisdevice**: Agentpakka `nais/pilot` har en preToolUse-port som nekter cluster-kommandoer mot feil tenant, og porten virker bare hvis den ser hvilken tenant naisdevice står på. Inne i cplt gjør den som regel ikke det: sandkassen nekter agent-socketen, `nais device status` svarer «make sure naisdevice is running» enten naisdevice kjører eller ikke, og utvikleren tror hen er portet uten å være det. doctor skiller nå de fem tilstandene fra hverandre: ikke installert, installert og frakoblet, tilkoblet med aktiv tenant, tilkoblet men usynlig for sandkassen, og statusfil som mangler fordi naisdevice er eldre enn [nais/device#564](https://github.com/nais/device/issues/564). Det siste er normaltilstanden på alle maskiner i dag og rapporteres som det, ikke som en feil.
 - **Sesjonsnøkkelen forlater aldri prosessen**: `nais device status --output json` har et bearer-token i `Tenants[].session.key`. Strukturen doctor dekoder til har ikke noe felt tokenet kan lande i, så `encoding/json` kaster det på grensa, og ingen verdi i prosessen kan skrive det ut. En kommando som feiler får en fast feilmelding i stedet for sin egen stderr, siden `exec.ExitError` ellers bærer utdata videre. Begge grensene er dekket av tester som er kjørt røde med lekkasjen lagt inn med vilje.
 - **Tenantnavnet vises i begge former**: naisdevice melder domener (`NAV`, `dev-nais.io`, `ssb.no`), porten normaliserer dem (`nav`, `dev-nais`, `ssb`, og `atil`/`ldir` for Arbeidstilsynet og Landbruksdirektoratet). doctor viser navnet brukeren kjenner igjen og sier hva porten kaller det, slik at de to ikke leses som to forskjellige tenanter.
 - **En vranglåst naisdevice-agent henger ikke lenger doctor**: Hver spawn hadde en frist, men fristen holdt ikke. `exec.CommandContext` dreper prosessen nav-pilot startet, mens `Output` venter på at lesinga av stdout skal bli ferdig, og et barnebarn som fortsatt holder røret holder lesinga åpen. Målt: 30 sekunder under en frist på 3. `WaitDelay` lukker rørene rett etter drapet, og alle doctors spawns går gjennom samme hjelper, så de arver fiksen.
@@ -803,7 +803,7 @@ Gjelder deg som har installert agenter fra en annen pakke enn navikt/copilot, fo
 
 - **`model:` i frontmatteren gjelder bare når agenten startes direkte**: Startet som subagent arver den forelderens modell. Målt begge veier med samme agent: `--model gpt-5.6-terra` ga `● Research (model: gpt-5.6-terra)`, `--model gpt-5.6-sol` ga `● Research (model: gpt-5.6-sol)`. Pinnen sier `gpt-5.6-luna`. Konsekvensen er at modellen `@nav-pilot` kjører på i praksis er modellen for hele delegeringstreet, og at modellporten bytter persona ved eskalering, ikke modell (#688).
 - **Den deterministiske overstyringen er klientkonfigurasjon, ikke agentfila**: `subagents.agents.<navn>.model` i `~/.copilot/settings.json` setter modellen per subagent uansett hva modellen finner på. Nøkkelen er filnavnet og ikke `name:` i frontmatteren, verifisert med kontroll: `research` ga Luna, `research-agent` ga Sol, og en oppdiktet nøkkel ga Sol. Seks av agentene våre har et `name:` som ikke er filnavnet, så den som setter dette opp fra agentens eget navn får ingen effekt og ingen feilmelding.
-- **AI-kreditter skiller ikke modeller**: Samme agent og oppgave på 10,0k input-tokens kostet 0,26 på både Luna, Sol og Opus 5. Kredittene følger tokenforbruk, ikke modellklasse. Tallet CLI-en viser kan derfor ikke brukes til å vise gevinsten av et modellbytte, og kostnadsargumentene i modellvalg.md er listepris ganget med et anslag, ikke målt forbruk.
+- **AI Credits skiller ikke modeller**: Samme agent og oppgave på 10,0k input-tokens kostet 0,26 på både Luna, Sol og Opus 5. Kredittene følger tokenforbruk, ikke modellklasse. Tallet CLI-en viser kan derfor ikke brukes til å vise gevinsten av et modellbytte, og kostnadsargumentene i modellvalg.md er listepris ganget med et anslag, ikke målt forbruk.
 - **Ingen pinner er endret.** `@nav-pilot` står fortsatt upinnet: benchmarken fra august skiller ingen modeller på noen påstand uten gjennom artefakter, så det finnes ikke grunnlag for en pinne, og under arv er orkestratorens modell brukerens valg for hele treet.
 
 ### Orkestratoren manglet verktøyet den orkestrerer med
@@ -816,7 +816,7 @@ Gjelder deg som har installert agenter fra en annen pakke enn navikt/copilot, fo
 
 ### cplt-logging: hva som er verdt å anbefale, og hva som ikke er det
 
-- **`proxy.log_level` dokumentert i stedet for anbefalt**: cplt hever selv nivået til `blocked` så snart en vertsliste er aktiv (`proxy_log_level` i cplt-repoet, `src/main.rs`), og posturen nav-pilot anbefaler gjør nettopp det. En egen anbefaling ville vært en config-skriving som ikke endrer noe. README beskriver nå hvor auto-hevingen gjelder og hva du selv må sette på `standard` uten vertsliste, der proxyen ellers tier om alle blokkeringer og feil som ikke kommer fra vertslista (#422).
+- **`proxy.log_level` dokumentert i stedet for anbefalt**: cplt hever selv nivået til `blocked` så snart en hostliste er aktiv (`proxy_log_level` i cplt-repoet, `src/main.rs`), og posturen nav-pilot anbefaler gjør nettopp det. En egen anbefaling ville vært en config-skriving som ikke endrer noe. README beskriver nå hvor auto-hevingen gjelder og hva du selv må sette på `standard` uten hostliste, der proxyen ellers tier om alle blokkeringer og feil som ikke kommer fra hostlista (#422).
 - **`audit.enabled` anbefales ikke**: Nøkkelen finnes i cplt sitt register, men `[audit]`-seksjonen er kun lest og vist. Ingenting bruker den (cplt-repoet, `src/config/registry.rs`, `BOOL_KEYS_EXEMPT`). Å anbefale den ville sendt utviklere til en bryter som ikke gir noen logg. `proxy.log_file` er den som faktisk skriver en (#422).
 
 ## 2026-09-03
@@ -898,7 +898,7 @@ Protokollen ligger i `docs/nav-pilot-benchmark-og-beslutninger-2026-08.md`, fore
 
 **Breaking change.** En agentpakke i Tier 2 kunne launches, men ikke installeres, og hver launch klonet den bevegelige default-branchen på nytt.
 
-- **Install materialiserer og pinner**: Hver deklarert kontekst av hver payload-bærende klient skrives til `~/.nav-pilot/pakker/<owner>-<repo>/<sha>/`, publiseres med én `os.Rename`, og SHA-en lagres som pin. `sync` flytter pinnen, `uninstall` fjerner revisjonene, og maks to beholdes slik at en økt overlever én oppdatering (#475).
+- **Install materialiserer og pinner**: Hver deklarert kontekst av hver payload-bærende klient skrives til `~/.nav-pilot/pakker/<owner>-<repo>/<sha>/`, publiseres med én `os.Rename`, og SHA-en lagres som pin. `sync` flytter pinnen, `uninstall` fjerner revisjonene, og maks to beholdes slik at en sesjon overlever én oppdatering (#475).
 - **Tillitsgrensa flyttes bevisst**: Treet klienten leser bygges nå ved install og blir stående i ukevis, ikke mikrosekunder før launch. `VerifyPayloadExact` ved launch fanger fortsatt sha256 og eksakte rettighetsbiter per manifestert fil, umanifesterte ekstrafiler, symlenker og bytte mellom lstat og open. Begrunnelsen er skrevet ned i `docs/agentpakke-beslutninger.md` §3.1 (#475).
 - **Per-launch-staging slettet**: `GCStaged`, `CleanupStaged`, `stagedRoot`, `stagedMaxAge`, navnevakta og 24-timers feiingen er borte. Begge grunnene til at modellen fantes dør med pinnen (#475).
 - **Brytende detaljer**: En blandet pakke (både `layout` og `payloads`) nekter å launche Tier 2-klienten sin, framfor stille å degradere til Tier 1-innhold. En kilde med lokal sti kan ikke installeres (#475).
@@ -920,8 +920,8 @@ Protokollen ligger i `docs/nav-pilot-benchmark-og-beslutninger-2026-08.md`, fore
 ### nav-pilot: Tier 2-agentpakker, verifisering, staging og launch
 
 - **Payloads verifiseres mot manifestet sitt**: `VerifyPayload` feiler lukket på symlenker hvor som helst i treet, filer på disk manifestet ikke lister, manifesterte filer som mangler, digest-avvik, exec-bit-avvik, ødelagte poster og manifestnøkler som rømmer payload-mappa (`..`, absolutte stier, backslash). Koblet inn i `nav-pilot validate` slik at avvik meldes der pakkeforfatteren ser dem (#454).
-- **Staging i et privat tre**: `StagePayload` verifiserer kilden, kopierer inn i en fersk mappe styrt av manifestets filliste framfor å gå kilden gjennom, re-hasher hver fil under skriving, oppretter alt med `O_EXCL` og eksakt deklarert modus, og re-verifiserer kopien med eksakt modus-sammenligning. Symlenker, hardlenker og spesialfiler kan ikke oppstå ved konstruksjon. Egen mappe per launch, slik at én launch ikke sletter treet en samtidig økt leser (#456).
-- **Launch fra staget payload**: OpenCode får `OPENCODE_CONFIG_DIR` på staget sti videreført gjennom cplt med `--pass-env` og `--allow-read`; Copilot CLI får `--plugin-dir` og den plugin-kvalifiserte personaen pakka deklarerer. Staget Copilot krever cplt uten fallback, siden payloaden er uverifisert tredjeparts konfigurasjon. En staget økt arver ikke brukerens egne Copilot-instruksjoner. Kontekstflagget heter `--payload-context`, siden `--context` allerede navngir Copilots konteksttier (#458).
+- **Staging i et privat tre**: `StagePayload` verifiserer kilden, kopierer inn i en fersk mappe styrt av manifestets filliste framfor å gå kilden gjennom, re-hasher hver fil under skriving, oppretter alt med `O_EXCL` og eksakt deklarert modus, og re-verifiserer kopien med eksakt modus-sammenligning. Symlenker, hardlenker og spesialfiler kan ikke oppstå ved konstruksjon. Egen mappe per launch, slik at én launch ikke sletter treet en samtidig sesjon leser (#456).
+- **Launch fra staget payload**: OpenCode får `OPENCODE_CONFIG_DIR` på staget sti videreført gjennom cplt med `--pass-env` og `--allow-read`; Copilot CLI får `--plugin-dir` og den plugin-kvalifiserte personaen pakka deklarerer. Staget Copilot krever cplt uten fallback, siden payloaden er uverifisert tredjeparts konfigurasjon. En staget sesjon arver ikke brukerens egne Copilot-instruksjoner. Kontekstflagget heter `--payload-context`, siden `--context` allerede navngir Copilots konteksttier (#458).
 - **Personaer leses fra det aktive manifestet**: Persona-navn og OpenCode-allowlisten lå som konstanter flere steder. Atferden er uendret for alle, siden det aktive manifestet defaulter til `Default()`-literalen med nøyaktig de samme navnene. Gullstandard-testene ble skrevet først, mot uendret kode, og mutasjonssjekket (#455).
 - **Agentrosteret tilhører payloaden, ikke klienten** (**breaking change i agentpakke-kontrakten**): `primaryAgents` var deklarert per klient, men en Tier 2-klient har flere payloads med ulike rostere, så fokusert launch kunne velge en agent payloaden ikke inneholder. Tier 1 beholder rosteret på klientnivå; Tier 2 deklarerer det per payload, påkrevd, `minItems: 1`, første element er kontekstens default-persona. Ingen fallback i koden. `contractVersion` forblir `"1"` siden Tier 2-install ennå er nektet og ingen bruker har en Tier 2-kilde (#461).
 - **cplt-gulv og kompatibilitetsspenn håndheves ved launch**: Gulvet er `2026.08.17-062831`, releasen grillmester v0.3.0 er testet mot, som konstant i nav-pilot framfor kontraktsfelt. Et deklarert spenn (`">=1.18.20,<2"`) sjekkes mot klientens egen versjon; opencode rapporterer sin egen, copilot probes gjennom sandboxen. Begge portene kjører kun på den stagede stien, før noe bygges eller launches. Alt usikkert er fatalt, i motsetning til regelen ellers i nav-pilot (#462).
@@ -930,7 +930,7 @@ Protokollen ligger i `docs/nav-pilot-benchmark-og-beslutninger-2026-08.md`, fore
 
 - **`docs/agentpakke-beslutninger.md`**: En dag med agentpakke-arbeid la igjen begrunnelsene sine i commit-meldinger og PR-beskrivelser. Dokumentet samler beslutningene der en leser vil lete, og er skrevet for oss, ikke for pakkeforfattere (#459).
 - **Deprecation-vindu, eierskap og endringsprosess**: Vinduet er 90 dager fra kunngjøring til fjerning. Kontrakten eies av `@navikt/copilot` per CODEOWNERS, en pakke av repoet den klones fra, og `owner` i manifestet er attribusjon, ikke tilgangskontroll. Referansepinning flyttes ved enighet med eierne av det den måles mot (#460).
-- **Tillitsgrensa sagt rett ut**: Payload-manifestet ligger i samme repo som payloaden og er skrevet av samme part, så kjeden er selvsignert. Digester beviser at treet er uendret, ikke at noen har vurdert det. Det som faktisk begrenser en fiendtlig pakkeforfatter er tre ting: at brukeren velger kilden, cplts sandbox, og at en staget økt ikke arver brukerens egen kontekst. Rekkefølgen er også pinnet: revisjonspinnen skal inn i samme endring som install-opplåsingen (#463).
+- **Tillitsgrensa sagt rett ut**: Payload-manifestet ligger i samme repo som payloaden og er skrevet av samme part, så kjeden er selvsignert. Digester beviser at treet er uendret, ikke at noen har vurdert det. Det som faktisk begrenser en fiendtlig pakkeforfatter er tre ting: at brukeren velger kilden, cplts sandbox, og at en staget sesjon ikke arver brukerens egen kontekst. Rekkefølgen er også pinnet: revisjonspinnen skal inn i samme endring som install-opplåsingen (#463).
 - **Veien fra samlinger til én agentpakke kostnadsberegnet**: Kontrakten tilbyr nøyaktig ett installerbart navn per repo, mens Nav har fem navngitte samlinger. Målingen viser at de fem er nesten nøstede: `frontend` ⊆ `nextjs-frontend` ⊆ `fullstack`, `kotlin-backend` ⊆ `fullstack`, og `platform` skiller seg fra `fullstack` med nøyaktig ett artefakt (#465).
 
 ### nav-pilot og skills: øvrig
@@ -939,7 +939,7 @@ Protokollen ligger i `docs/nav-pilot-benchmark-og-beslutninger-2026-08.md`, fore
 - **Utdatert begrensning fjernet fra DESIGN.md**: «Ingen passthrough av argumenter til Copilot CLI» stemte ikke lenger; `--` fanges opp og legges på i begge launch-stiene (#444).
 - **`aksel-builder` peker ikke lenger på avviklet `Alert`**: «Inline page alert» viser til `LocalAlert`, `GlobalAlert` og `InfoCard`, og `Alert` er lagt i lista over avviklede komponenter (#448).
 - **AI Coding News Excerpts-workflowen pensjonert**: 38 planlagte kjøringer på rad feilet siden 8. juni, og siden 17. august feilet den stille. Alle 149 artikler under `docs/news/articles/` er urørt og rendres fortsatt (#445).
-- **copilot-metrics: scope-bevisst inntak**: Tre steder antok at data alltid ligger under enterprise-scope, mens uthentingen faller tilbake til org-scope når enterprise-endepunktet feiler. Det, ikke `upsertReport`, var grunnen til dupliserte dager (#446).
+- **copilot-metrics: scope-bevisst inntak**: Tre steder antok at data alltid ligger under enterprise-scope, mens uthentingen faller tilbake til org-scope når enterprise-endpointet feiler. Det, ikke `upsertReport`, var grunnen til dupliserte dager (#446).
 
 ## 2026-08-26
 
@@ -1000,14 +1000,14 @@ Protokollen ligger i `docs/nav-pilot-benchmark-og-beslutninger-2026-08.md`, fore
 ## 2026-07-29
 
 - **Feilsøkingsguiden krasjet**: `/praksis/guide/feilsoking` traff error-boundaryen. `@navikt/ds-react` har `"use client"` i pakkeroten, så `Accordion` er en klientmodul: en server-komponent kan rendre den, men ikke lese felter av den. Samlet med en rettelse av Linux-installasjonen (#402).
-- **`v_repository_usage` opprettet og manglende repo-dager backfilt**: Viewet fantes ikke i noen av BigQuery-prosjektene, `/api/v1/copilot/usage/repositories` svarte 500, og Repositorier-fanen var nede i to døgn uten at noen alarm gikk (#401).
+- **`v_repository_usage` opprettet og manglende repo-dager backfilt**: Viewet fantes ikke i noen av BigQuery-prosjektene, `/api/v1/copilot/usage/repositories` svarte 500, og Repoer-fanen var nede i to døgn uten at noen alarm gikk (#401).
 - **Lenker til aksel-mcp oppdatert** (#405).
 
 ## 2026-07-26
 
-### copilot-metrics og my-copilot: bruk på repositoriumsnivå
+### copilot-metrics og my-copilot: bruk på reponivå
 
-- **Inntak av Copilot-bruksmetrikk per repositorium** (#388), **`v_repository_usage` med personvernundertrykking** (#389), **endepunktet `/api/v1/copilot/usage/repositories`** (#390) og **Repositorier-fanen i my-copilot** med sorterbar, paginert og søkbar tabell (#391). Designet er beskrevet i #387; designdokumentet ble senere fjernet til fordel for PRD-en (#394).
+- **Inntak av Copilot-bruksmetrikk per repo** (#388), **`v_repository_usage` med personvernundertrykking** (#389), **endpointet `/api/v1/copilot/usage/repositories`** (#390) og **Repoer-fanen i my-copilot** med sorterbar, paginert og søkbar tabell (#391). Designet er beskrevet i #387; designdokumentet ble senere fjernet til fordel for PRD-en (#394).
 - **PR review-velocity**: `avg_pull_requests_minutes_to_review` og `avg_pull_requests_review_cycles` fra Copilot usage-API-et, som GitHub la til 7. juli, hentes fram per fase i `totals_by_ai_adoption_phase[]` (#369, oppfølging i #386).
 
 ## 2026-07-25
@@ -1021,7 +1021,7 @@ Protokollen ligger i `docs/nav-pilot-benchmark-og-beslutninger-2026-08.md`, fore
 ## 2026-07-14
 
 - **lefthook regenererer manifester og docs**: En `pre-commit`-kommando kjører `mise run generate` og stager genererte app-manifester og docs-tabeller når en agent-, skill-, instruksjons-, prompt- eller samlingskilde er staget (#363).
-- **`observability-debugging`: Loki-eksemplene bruker globalt endepunkt**: `loki.nav.cloud.nais.io` med eksakt `k8s_cluster_name="$CLUSTER"`-label, i tråd med Mimir-mønsteret, i stedet for regex per miljø (#362).
+- **`observability-debugging`: Loki-eksemplene bruker globalt endpoint**: `loki.nav.cloud.nais.io` med eksakt `k8s_cluster_name="$CLUSTER"`-label, i tråd med Mimir-mønsteret, i stedet for regex per miljø (#362).
 
 ## 2026-07-05
 
@@ -1037,10 +1037,10 @@ Protokollen ligger i `docs/nav-pilot-benchmark-og-beslutninger-2026-08.md`, fore
 
 Runden fra 1. til 3. juli ligger som direktecommits uten PR-numre.
 
-- **Tilgangskontroll**: Eierskap håndheves på per-bruker-leseendepunkter, og en router-nivå-test beviser at `/api/v1/` krever auth.
+- **Tilgangskontroll**: Eierskap håndheves på per-bruker-lese-endpoints, og en router-nivå-test beviser at `/api/v1/` krever auth.
 - **Datariktighet**: `GENERATE_DATE_ARRAY` off-by-one og delvis dag i prognosen, PR-median-fallback, `formatMinutes`-overflow, månedslogikk samlet i delte `month-utils`, faktureringsgrafer hentes fra daglig modelltabell, og hull i inntaket av supplerings- og budsjettdata er tettet.
 - **Ytelse**: OBO-tokenveksling dedupliseres per request, SAML-identitetsoppslag caches i 10 minutter, `/statistikk` hentes parallelt med Suspense per fane, og bruksfordelingens caching er herdet.
-- **Statistikk**: Ukedagsbevisst prognose i graf og backend, «Meg og team» omdøpt til «Team i Nav» med personlig statistikk fjernet, histogram for AI-kredittbruk lagt til, og redundant faktureringsbanner fjernet.
+- **Statistikk**: Ukedagsbevisst prognose i graf og backend, «Meg og team» omdøpt til «Team i Nav» med personlig statistikk fjernet, histogram for AI Credits-bruk lagt til, og redundant faktureringsbanner fjernet.
 - **nav-pilot**: Uendelig re-exec-løkke ved auto-oppdatering rettet, Claude Sonnet 5 lagt til i modellkatalogene, og oppsettveiviseren spør om auto-launch.
 
 ## 2026-06-30
@@ -1207,7 +1207,7 @@ Analyse av agent-interaksjoner viste at nav-pilot for ofte hoppet over fasestopp
 
 - **🔴 Rød-sone-deklarasjon som punkt #10** — obligatorisk i alle Fase 2-planer. Inkluderer begrunnelse per element, ikke bare en liste. Grønn-sone-elementer er «les gjennom før merge», ikke «trygt»
 - **Explain-back-regel** — etter at utvikleren implementerer rød-sone-kode ber nav-pilot dem forklare den tilbake. Mer effektivt enn stub-blokkering alene (basert på Anthropic-studie 2026)
-- **Blindsoner #1/#2 alltid-obligatorisk** — personvern og tilgangskontroll merket ⚠️ uavhengig av scope-tier når endringen berører brukerdata eller nye endepunkter
+- **Blindsoner #1/#2 alltid-obligatorisk** — personvern og tilgangskontroll merket ⚠️ uavhengig av scope-tier når endringen berører brukerdata eller nye endpoints
 
 **Filstruktur:**
 

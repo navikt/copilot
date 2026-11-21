@@ -475,7 +475,7 @@ nav-pilot skrev, rydder nav-pilot.
 
 Innvendingen som forkastet dette i [#498](https://github.com/navikt/copilot/pull/498)
 består og er ikke bortforklart: å skrive i klientens konfigurasjon endrer
-standarden for økter nav-pilot aldri startet. Forskjellen er at eierskapet nå er
+standarden for sesjoner nav-pilot aldri startet. Forskjellen er at eierskapet nå er
 avgrenset til navngitte nøkler framfor et toppnivå-`model` som gjelder alt.
 
 **Fire spørsmål er ubesvarte, og ingen kode skal skrives før de har svar.** De

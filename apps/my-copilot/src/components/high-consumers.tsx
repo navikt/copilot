@@ -187,7 +187,7 @@ export function HighConsumersView({ months, events = [] }: { months: HighConsume
           <BodyShort size="small" textColor="subtle">
             Andelen av forbruket som går til de brukerne som brukte mest. Topp 5 % er de 5 % av brukerne med høyest
             forbruk den måneden. Grupper med færre enn fem personer vises med strek, og det samme gjør en gruppe som
-            skiller seg fra den forrige med færre enn fem. * Fakturert som premiumforespørsler, ikke KI-kreditter.
+            skiller seg fra den forrige med færre enn fem. * Fakturert som premiumforespørsler, ikke AI Credits.
           </BodyShort>
         </VStack>
       </NumbersFold>

@@ -87,7 +87,7 @@ export function CostTrendsView({
   const hasUnbilled = months.some((t) => activeBy.get(t.year_month)?.billed === false);
   const footnote = keys.some(premium) && (
     <BodyShort size="small" textColor="subtle">
-      * Fakturert som premiumforespørsler, ikke KI-kreditter.
+      * Fakturert som premiumforespørsler, ikke AI Credits.
     </BodyShort>
   );
 

@@ -147,7 +147,7 @@ describe("adminMonthlyCsv", () => {
     expect(header).toBeGreaterThan(1);
     expect(lines.slice(0, header).every((l) => l.startsWith("# "))).toBe(true);
     expect(lines.slice(header + 1)).toHaveLength(4);
-    expect(lines.every((l) => !/\bAI\b/.test(l))).toBe(true);
+    expect(lines.every((l) => !/\bAI\b(?! Credits)/.test(l))).toBe(true);
   });
 });
 

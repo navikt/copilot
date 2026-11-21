@@ -34,7 +34,7 @@ export function ClientPanels({ clients }: { clients: ClientUsage[] }) {
   return (
     <VStack gap="space-8">
       <BodyShort size="small" textColor="subtle">
-        Forespørsler og økter er ulike mål. Panelene har samme rekkefølge og hver sin skala.
+        Forespørsler og sesjoner er ulike mål. Panelene har samme rekkefølge og hver sin skala.
       </BodyShort>
       <HGrid columns={{ xs: 1, md: 2 }} gap="space-24">
         <RankedBars
@@ -45,12 +45,12 @@ export function ClientPanels({ clients }: { clients: ClientUsage[] }) {
           rows={rows("Forespørsler", "requests")}
         />
         <RankedBars
-          title="Økter"
-          takeaway={topTakeaway(sessions, "økter")}
-          summary="Økter per verktøy de siste 28 dagene, i samme rekkefølge som forespørslene."
+          title="Sesjoner"
+          takeaway={topTakeaway(sessions, "sesjoner")}
+          summary="Sesjoner per verktøy de siste 28 dagene, i samme rekkefølge som forespørslene."
           items={sessions}
           color={1}
-          rows={rows("Økter", "sessions")}
+          rows={rows("Sesjoner", "sessions")}
         />
       </HGrid>
     </VStack>

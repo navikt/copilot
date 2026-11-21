@@ -325,7 +325,7 @@ echo ".env.local" >> .gitignore`}
           </BodyLong>
           <CodeBlock compact>
             {`cplt config set sandbox.allow_env_files true   # alltid
-cplt --allow-env-files                          # bare denne økten`}
+cplt --allow-env-files                          # bare denne sesjonen`}
           </CodeBlock>
           <BodyLong>Da kan agenten lese alle slike filer i prosjektet, også hemmelighetene i dem.</BodyLong>
 
@@ -463,7 +463,7 @@ cplt config set allow.domains release-assets.githubusercontent.com`}
             <code className={code}>(Operation not permitted)</code>. Gjelder macOS. cplt stenger fila fordi den ofte har
             tokens i seg, og Gradle stopper når fila finnes, men ikke kan leses. Ta tokenet ut og hent pakkene fra{" "}
             <NextLink href="/nav-pilot/guider/cplt-gradle#speilet" className={linkClass}>
-              Navs speil
+              Navs mirror
             </NextLink>
             , eller gi agenten lesetilgang til fila og alle tokenene i den:
           </BodyLong>
@@ -546,13 +546,13 @@ cplt trust accept --all                                    # godkjenn forslaget`
             Gjelder macOS. <code className={code}>.git/config</code> er skrivebeskyttet, fordi den kan få git til å
             kjøre kode utenfor sandkassen. Derfor fjerner cplt <code className={code}>-u</code> fra{" "}
             <code className={code}>git push -u</code> og skriver <code className={code}>cplt: pushing without -u</code>.
-            Branchen blir pushet, og cplt setter upstream når økta er ferdig hvis pushen oppfyller kravene i{" "}
+            Branchen blir pushet, og cplt setter upstream når sesjonen er ferdig hvis pushen oppfyller kravene i{" "}
             <NextLink href="/nav-pilot/guider/cplt-git#push" className={linkClass}>
               Git og GitHub i sandkassen
             </NextLink>
             . Ellers skriver cplt en <code className={code}>git branch -u</code>-kommando du kjører selv utenfor cplt:
-            når økta slutter, eller i meldingen når du pusher i en stille økt. Du klarer deg også uten upstream. Skriv
-            branchnavnet når du pusher, og oppgi det når du lager pull requesten:
+            når sesjonen slutter, eller i meldingen når du pusher i en stille sesjon. Du klarer deg også uten upstream.
+            Skriv branchnavnet når du pusher, og oppgi det når du lager pull requesten:
           </BodyLong>
           <CodeBlock compact>
             {`git push origin HEAD:min-branch
@@ -579,7 +579,7 @@ gh pr create --head min-branch`}
             <code className={code}>the default branch of remote &apos;origin&apos; could not be determined</code>, vet
             den ikke hvilken branch som er default branch. cplt spør remoten når{" "}
             <code className={code}>origin/HEAD</code> mangler lokalt, og feilen kommer når remoten ikke svarer. Kjør
-            dette utenfor cplt, og start en ny økt:
+            dette utenfor cplt, og start en ny sesjon:
           </BodyLong>
           <CodeBlock compact>{`git remote set-head origin -a`}</CodeBlock>
 
@@ -596,7 +596,7 @@ gh pr create --head min-branch`}
           </BodyLong>
           <CodeBlock compact>{`cplt --no-git-guard exec -- <kommando>`}</CodeBlock>
           <BodyLong>
-            Alternativt kan vakta bare advare. Det gjelder alle øktene dine, så slå den på igjen etterpå:
+            Alternativt kan vakta bare advare. Det gjelder alle sesjonene dine, så slå den på igjen etterpå:
           </BodyLong>
           <CodeBlock compact>
             {`cplt config set git_guard.mode warn --force
@@ -808,7 +808,7 @@ nav-pilot --client copilot
             Sandboxing is disabled for this session because this host does not support it
           </LinkableHeading>
           <BodyLong>
-            Copilot CLI har sin egen sandkasse, og den kan ikke starte inne i cplt. cplt slår den av for økten, og
+            Copilot CLI har sin egen sandkasse, og den kan ikke starte inne i cplt. cplt slår den av for sesjonen, og
             Copilot sier fra med denne linja. Det er ventet, og innstillingene dine endres ikke. cplt er fortsatt
             sandkassen rundt agenten.
           </BodyLong>

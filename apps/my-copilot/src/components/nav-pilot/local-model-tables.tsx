@@ -44,7 +44,7 @@ const modelName = (m: LocalModel) => m.model.split("/").pop();
 function trustedClasses(m: LocalModel) {
   return Object.entries(m.classes).flatMap(([id, c]) => [
     ...(c.delegate === "trusted" ? [`${classLabel(id)} (delegering)`] : []),
-    ...(c.local === "trusted" ? [`${classLabel(id)} (hele økten lokalt)`] : []),
+    ...(c.local === "trusted" ? [`${classLabel(id)} (hele sesjonen lokalt)`] : []),
   ]);
 }
 

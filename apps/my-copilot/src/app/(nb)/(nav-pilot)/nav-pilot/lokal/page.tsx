@@ -13,14 +13,14 @@ import { getLocalModels } from "@/lib/local-models";
 export const metadata: Metadata = {
   title: "Kom i gang med lokal modell på Mac",
   description:
-    "Installer nav-pilot, last ned en kodemodell og kjør en første økt der hovedagenten i skyen delegerer en oppgave til modellen på Macen din.",
+    "Installer nav-pilot, last ned en kodemodell og kjør en første sesjon der hovedagenten i skyen delegerer en oppgave til modellen på Macen din.",
 };
 
 const TOC: TocItem[] = [
   { id: "sjekk-maskinen", label: "1. Sjekk maskinen" },
   { id: "installer", label: "2. Installer" },
   { id: "sett-opp-modellen", label: "3. Sett opp modellen" },
-  { id: "forste-okt", label: "4. Første økt" },
+  { id: "forste-okt", label: "4. Første sesjon" },
   { id: "forste-decide", label: "5. Første decide" },
   { id: "videre", label: "6. Veien videre" },
   { id: "gode-til", label: "Hva lokale modeller er gode til" },
@@ -52,7 +52,7 @@ export default async function LokalIntro() {
     <DocPage
       label="Introduksjon"
       title="Kom i gang med lokal modell på Mac"
-      description={`Du installerer nav-pilot, laster ned en kodemodell og kjører en første økt der hovedagenten i skyen delegerer en oppgave til modellen på Macen din. Nedlastingen er på omtrent ${m.weights_gb + 1} GB.`}
+      description={`Du installerer nav-pilot, laster ned en kodemodell og kjører en første sesjon der hovedagenten i skyen delegerer en oppgave til modellen på Macen din. Nedlastingen er på omtrent ${m.weights_gb + 1} GB.`}
       badge={
         <Tag variant="warning" size="small" className="uppercase tracking-wide">
           Alfa
@@ -64,9 +64,9 @@ export default async function LokalIntro() {
         <BodyLong>
           Hovedagenten i skyen planlegger og bestemmer. Mekaniske oppgaver, som å føre et nytt argument gjennom mange
           filer, delegerer den til <code className={code}>local-worker</code>, en subagent som kjører på Macen din og
-          ikke bruker AI-kreditter. Med <code className={code}>nav-pilot alpha decide</code> stiller du den samme
-          modellen et flervalgsspørsmål fra en hook eller et skript. Spørsmålet og grunnlaget forlater ikke maskinen.
-          Ved delegering ser hovedagenten i skyen oppgaven den selv skrev, og det korte svaret fra den lokale modellen.
+          ikke bruker AI Credits. Med <code className={code}>nav-pilot alpha decide</code> stiller du den samme modellen
+          et flervalgsspørsmål fra en hook eller et skript. Spørsmålet og grunnlaget forlater ikke maskinen. Ved
+          delegering ser hovedagenten i skyen oppgaven den selv skrev, og det korte svaret fra den lokale modellen.
         </BodyLong>
       </div>
       <BodyLong>
@@ -146,7 +146,7 @@ export default async function LokalIntro() {
       <section>
         <VStack gap="space-16">
           <LinkableHeading id="forste-okt" size="medium" level="2">
-            4. Første økt
+            4. Første sesjon
           </LinkableHeading>
           <CodeBlock compact>{FIRST_SESSION}</CodeBlock>
           <BodyLong>
@@ -159,8 +159,7 @@ export default async function LokalIntro() {
             nav-pilot hovedagenten bygge prosjektet og kjøre testene. Små endringer gjør hovedagenten selv.
           </BodyLong>
           <BodyLong>
-            Det koster mer AI-kreditter og tid enn å la skymodellen gjøre alt selv. Hvor mye som delegeres, styrer du
-            med{" "}
+            Det koster mer AI Credits og tid enn å la skymodellen gjøre alt selv. Hvor mye som delegeres, styrer du med{" "}
             <NextLink href="/nav-pilot/guider/lokal#delegering" className={linkClass}>
               delegeringsnivået
             </NextLink>
@@ -169,7 +168,8 @@ export default async function LokalIntro() {
           <BodyLong>
             Etterpå viser <code className={code}>nav-pilot alpha local status</code> at serveren fortsatt kjører, og
             linja <code className={code}>Log</code> viser hvor serverloggen ligger. Kjører ikke serveren når du starter,
-            sier nav-pilot fra før økten at den kommer til å gå helt i skyen, og gjentar etter økten at den gjorde det.
+            sier nav-pilot fra før sesjonen at den kommer til å gå helt i skyen, og gjentar etter sesjonen at den gjorde
+            det.
           </BodyLong>
         </VStack>
       </section>

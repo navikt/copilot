@@ -81,7 +81,7 @@ fortsatt.
 
 ## Er porten i nais/pilot faktisk på?
 
-Agentpakka `nais/pilot` har en preToolUse-port som nekter klyngekommandoer mot feil tenant.
+Agentpakka `nais/pilot` har en preToolUse-port som nekter cluster-kommandoer mot feil tenant.
 Porten må kunne se hvilken tenant naisdevice står på. Inne i cplt ser den som regel ingenting,
 fordi sandkassen nekter agent-socketen, og da slipper kommandoene gjennom uten at noe sier fra.
 

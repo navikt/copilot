@@ -49,7 +49,7 @@ Den siste legger en advarsel foran tool-resultater som ligner prompt injection, 
 
 ## Mindre skjult kontekst
 
-Nav-pilot pekte tidligere Copilot CLI mot hele `~/.copilot` som kilde for egne instruksjoner. Copilot søkte rekursivt og lastet også kopier fra gamle session-worktrees.
+Nav-pilot pekte tidligere Copilot CLI mot hele `~/.copilot` som kilde for egne instruksjoner. Copilot søkte rekursivt og lastet også kopier fra gamle sesjons-worktrees.
 
 På én maskin økte dette antallet instruksjonskilder fra 18 til 82. Statisk kontekst vokste fra 18,9k til 45,2k tokens. Nav-pilot peker nå direkte på `~/.copilot/.github/instructions`.
 
@@ -63,7 +63,7 @@ Fiksen fjerner de ekstra instruksjonskopiene fra konteksten. På den målte mask
 - Bare tool-resultater kan omskrives. Brukerprompter dekkes ikke.
 - Prompt-injection-sjekken kjenner bestemte fraser. Den erstatter ikke sandboxing eller vanlig kildekritikk.
 
-Oppgrader nav-pilot og start en ny Copilot CLI-session for å få hook-filene.
+Oppgrader nav-pilot og start en ny Copilot CLI-sesjon for å få hook-filene.
 
 **Kilder:**
 

@@ -65,7 +65,7 @@ export default function CpltBegrensninger() {
               Linux og i WSL fjerner cplt <code className={code}>DBUS_SESSION_BUS_ADDRESS</code> og stenger
               nøkkelringfiler. For Copilot på Linux leser cplt i stedet den lagrede innloggingen fra nøkkelringen på
               maskinen før sandkassen starter, og sender den inn som <code className={code}>COPILOT_GITHUB_TOKEN</code>.
-              Logg inn utenfor cplt, ikke med <code className={code}>/login</code> inne i økten, se{" "}
+              Logg inn utenfor cplt, ikke med <code className={code}>/login</code> inne i sesjonen, se{" "}
               <NextLink href={`${FAQ}#keyring`} className={linkClass}>
                 System vault not available
               </NextLink>
@@ -152,7 +152,7 @@ export default function CpltBegrensninger() {
               macOS: <code className={code}>git config</code>, <code className={code}>git remote set-url</code>,{" "}
               <code className={code}>git clone</code>, <code className={code}>git init</code>,{" "}
               <code className={code}>git worktree remove</code> og git-hooks må kjøres utenfor cplt. Nye worktrees inne
-              i økten lages med <code className={code}>cplt worktree add &lt;navn&gt; &lt;ref&gt;</code> når{" "}
+              i sesjonen lages med <code className={code}>cplt worktree add &lt;navn&gt; &lt;ref&gt;</code> når{" "}
               <code className={code}>sandbox.allow_git_worktrees</code> er slått på, se{" "}
               <NextLink href="/nav-pilot/guider/worktrees#subagenter" className={linkClass}>
                 Worktrees til subagenter

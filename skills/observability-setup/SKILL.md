@@ -1,6 +1,6 @@
 ---
 name: observability-setup
-description: Sett opp Prometheus-metrikker, OpenTelemetry-tracing og health check-endepunkter for Nais-applikasjoner
+description: Sett opp Prometheus-metrikker, OpenTelemetry-tracing og health check-endpoints for Nais-applikasjoner
 license: MIT
 compatibility: Application deployed on Nais
 metadata:

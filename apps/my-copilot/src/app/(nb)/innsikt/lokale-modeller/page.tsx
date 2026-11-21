@@ -44,11 +44,11 @@ function ManifestSections({ table }: { table: Table }) {
       <InsightSection id="godkjent-for" title="Hva hver modell er godkjent for">
         <BodyLong>
           Arbeidet er delt i oppgavetyper. For hver type avgjør målingene om hovedagenten i skyen kan delegere oppgaven
-          til modellen som subagent, eller om hele økten kan kjøres lokalt. Alt som ikke er godkjent, blir i skyen.
+          til modellen som subagent, eller om hele sesjonen kan kjøres lokalt. Alt som ikke er godkjent, blir i skyen.
         </BodyLong>
         <BodyLong>
           Tallene viser beståtte kjøringer av alle kjøringer. «Delegert» er oppgaver hovedagenten sendte til modellen,
-          «lokalt» er økter der modellen jobbet alene.
+          «lokalt» er sesjoner der modellen jobbet alene.
         </BodyLong>
         <ClassCountsTable rows={modelCountRows(models)} />
         {standard.bar && (
@@ -168,7 +168,7 @@ export default function LokaleModeller() {
             <Link href="https://github.com/navikt/copilot/pull/1675">copilot#1675</Link>
             ).
           </li>
-          <li>I september løste den oppgaven i 12 av 12 Copilot-økter.</li>
+          <li>I september løste den oppgaven i 12 av 12 Copilot-sesjoner.</li>
           <li>
             Med decide svarte den like godt som standardmodellen: 184 av 218 riktige mot 182, og 91 av 96 mot 89 på
             commit-spørsmålet. På testene av svakheter fikk den 806 av 974 mot 827, mest fordi den var svakere når

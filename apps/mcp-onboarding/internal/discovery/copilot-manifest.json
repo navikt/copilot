@@ -561,7 +561,7 @@
       "type": "prompt",
       "name": "spring-boot-endpoint",
       "displayName": "#spring-boot-endpoint",
-      "description": "Scaffold et Spring Boot REST-endepunkt med Controller, Service, Repository, Test og Nais-konfig",
+      "description": "Scaffold et Spring Boot REST-endpoint med Controller, Service, Repository, Test og Nais-konfig",
       "tags": [
         "nais",
         "kubernetes",
@@ -569,7 +569,7 @@
         "infrastructure"
       ],
       "filePath": "prompts/spring-boot-endpoint.prompt.md",
-      "contentHash": "3804da163fe6fb7867abad0bffa1cf10f918e0306e0294eab10740a2b78172ae",
+      "contentHash": "67606488a1368fdb000ca987c334a23c2c91d133ec9387f49556848ba26b75f9",
       "installUrl": "vscode:chat-prompt/install?url=https://raw.githubusercontent.com/navikt/copilot/main/prompts/spring-boot-endpoint.prompt.md",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/prompts/spring-boot-endpoint.prompt.md"
     }
@@ -885,7 +885,7 @@
       "displayName": "nav-plan",
       "description": "Arkitekturplanlegging med beslutningstrær for auth, kommunikasjon, database, Nais-konfigurasjon og moderniseringsmønstre",
       "filePath": "skills/nav-plan/SKILL.md",
-      "contentHash": "25839c37744a1ca02a8a93841e3bb6dbaf59d331c0a6221e14c3473d470857f6",
+      "contentHash": "2417a4df28cfa4d4158726442162dad7f889cfa69a644ac80fef9990b778aa44",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/nav-plan/SKILL.md",
       "references": [
@@ -947,9 +947,9 @@
       "type": "skill",
       "name": "observability-setup",
       "displayName": "observability-setup",
-      "description": "Sett opp Prometheus-metrikker, OpenTelemetry-tracing og health check-endepunkter for Nais-applikasjoner",
+      "description": "Sett opp Prometheus-metrikker, OpenTelemetry-tracing og health check-endpoints for Nais-applikasjoner",
       "filePath": "skills/observability-setup/SKILL.md",
-      "contentHash": "41d01bbe976c5bb84cae44fe915d13ce42a55b8b6202dd3658ac9437198edb76",
+      "contentHash": "651f11257edd7d710cbe7a739485dcf3c793e2e3f397314e1fba0d54bbdb590f",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/observability-setup/SKILL.md",
       "references": [

@@ -20,7 +20,7 @@ const TOC: TocItem[] = [
   { id: "init", label: "4. Slå den på med init" },
   { id: "doctor", label: "5. Sjekk den med doctor" },
   { id: "klient", label: "6. Bytt til opencode" },
-  { id: "forste-okt", label: "7. Første økt" },
+  { id: "forste-okt", label: "7. Første sesjon" },
 ];
 
 const OLLAMA = `# terminal 1: blir stående så lenge serveren kjører
@@ -137,7 +137,7 @@ export default function EgenServer() {
               <Label size="small">Ollama kan gi modellen for lite kontekst</Label>
               <BodyShort size="small">
                 Ollama gir modellen bare 4 096 tokens kontekst på maskiner med under 24 GB grafikkminne, og det kan ikke
-                endres over <code className={code}>/v1</code>. Første melding i en Copilot-økt er på rundt 22 000
+                endres over <code className={code}>/v1</code>. Første melding i en Copilot-sesjon er på rundt 22 000
                 tokens, så resten blir kuttet eller avvist. Start derfor Ollama med{" "}
                 <code className={code}>OLLAMA_CONTEXT_LENGTH=65536</code>, som over, eller lag en modell med en
                 Modelfile som har <code className={code}>PARAMETER num_ctx 65536</code>.
@@ -158,11 +158,11 @@ export default function EgenServer() {
             <code className={code}>-ngl</code>.
           </BodyLong>
           <BodyLong>
-            En Copilot- eller opencode-økt trenger minst 30 000 tokens kontekst. Med mindre feiler kontekstsjekken i{" "}
+            En Copilot- eller opencode-sesjon trenger minst 30 000 tokens kontekst. Med mindre feiler kontekstsjekken i{" "}
             <code className={code}>setup</code>, men den tilbyr å lagre likevel. Korte prompter og{" "}
-            <code className={code}>alpha decide</code> virker da, men ikke en hel økt. Går serveren tom for minne under
-            sjekken, lagrer <code className={code}>setup</code> ingenting. Trenger du økter, må du ha et grafikkort med
-            mer minne, en Mac med 32 GB eller mer, eller bruke modellene i skyen.
+            <code className={code}>alpha decide</code> virker da, men ikke en hel sesjon. Går serveren tom for minne
+            under sjekken, lagrer <code className={code}>setup</code> ingenting. Trenger du sesjoner, må du ha et
+            grafikkort med mer minne, en Mac med 32 GB eller mer, eller bruke modellene i skyen.
           </BodyLong>
         </VStack>
       </section>
@@ -263,7 +263,7 @@ export default function EgenServer() {
       <section>
         <VStack gap="space-16">
           <LinkableHeading id="forste-okt" size="medium" level="2">
-            7. Første økt
+            7. Første sesjon
           </LinkableHeading>
           <CodeBlock compact>{`cd ~/kode/mitt-repo
 nav-pilot`}</CodeBlock>

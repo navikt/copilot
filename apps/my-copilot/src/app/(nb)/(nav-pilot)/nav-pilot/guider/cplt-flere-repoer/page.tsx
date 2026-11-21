@@ -40,13 +40,13 @@ export default function CpltFlereRepoer() {
           </BodyLong>
           <CodeBlock compact>{`cplt link navikt/sykepenger-model`}</CodeBlock>
           <BodyLong>
-            cplt leter ved siden av repoet du står i, og i mappestrukturen <code className={code}>vert/org/repo</code>{" "}
+            cplt leter ved siden av repoet du står i, og i mappestrukturen <code className={code}>host/org/repo</code>{" "}
             hvis du bruker den. Ligger utsjekkingen et annet sted, oppgi mappa. Den blir også sjekket:
           </BodyLong>
           <CodeBlock compact>{`cplt link navikt/sykepenger-model ~/kode/sykepenger-model`}</CodeBlock>
           <BodyLong>
-            Lenken gjelder denne utsjekkingen og alle senere økter. Oppstartsoversikten viser hvilke repoer som er med.
-            Fjern lenken igjen med <code className={code}>--unlink</code>:
+            Lenken gjelder denne utsjekkingen og alle senere sesjoner. Oppstartsoversikten viser hvilke repoer som er
+            med. Fjern lenken igjen med <code className={code}>--unlink</code>:
           </BodyLong>
           <CodeBlock compact>{`cplt link navikt/sykepenger-model --unlink`}</CodeBlock>
           <BodyLong>
@@ -68,7 +68,7 @@ export default function CpltFlereRepoer() {
             <li>
               <code className={code}>[deny]</code> i repoets egen <code className={code}>.cplt.toml</code> gjelder.
             </li>
-            <li>Rapporten etter økta viser endringene i hvert repo for seg.</li>
+            <li>Rapporten etter sesjonen viser endringene i hvert repo for seg.</li>
           </Bullets>
         </VStack>
       </section>
@@ -190,8 +190,8 @@ repos = ["navikt/sykepenger-model", "navikt/spleis-testdata"]`}</CodeBlock>
             </li>
             <li>Et forslag som ikke er godkjent, gir ingenting.</li>
             <li>
-              <code className={code}>--accept-repo-config</code> godkjenner ikke repoer. Det flagget gjelder én økt, og
-              en lenke varer.
+              <code className={code}>--accept-repo-config</code> godkjenner ikke repoer. Det flagget gjelder én sesjon,
+              og en lenke varer.
             </li>
             <li>
               Godkjenningen gjelder hver nøkkel for seg, i denne utsjekkingen. Legger noen til et repo, spør cplt bare

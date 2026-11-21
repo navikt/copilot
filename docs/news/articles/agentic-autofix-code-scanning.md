@@ -25,6 +25,6 @@ Der `/security-review` og de AI-drevne sikkerhetsdeteksjonene finner og rapporte
 
 Funksjonen krever GitHub Code Security- eller Advanced Security-lisens, samt en Copilot-lisens med cloud-agent aktivert. Aktivering gjøres av organisasjons- eller repository-admin, og organisasjons- og enterprise-admins kan slå funksjonen av via innstillinger eller policy.
 
-Under forhåndsvisningen forbruker autofix AI-kreditter (kun når rettelser faktisk kjøres) og trekker på GitHub Actions-minutter. Forbruket er foreløpig ikke skilt ut separat fra annen Copilot-aktivitet.
+Under forhåndsvisningen forbruker autofix AI Credits (kun når rettelser faktisk kjøres) og trekker på GitHub Actions-minutter. Forbruket er foreløpig ikke skilt ut separat fra annen Copilot-aktivitet.
 
 **Kilde:** [Agentic autofix for code scanning alerts in public preview](https://github.blog/changelog/2026-07-10-agentic-autofix-for-code-scanning-alerts-in-public-preview/) (GitHub Changelog, 10. juli 2026)

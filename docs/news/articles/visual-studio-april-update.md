@@ -3,7 +3,7 @@ title: "Visual Studio april-oppdatering med cloud agent og debugger-agent"
 date: 2026-04-30
 author: starefossen
 category: copilot
-excerpt: "Cloud agent-sesjoner kan startes direkte fra Visual Studio, og en ny debugger-agent validerer fiksforslag mot kjøretidsatferd."
+excerpt: "Cloud agent-sesjoner kan startes direkte fra Visual Studio, og en ny debugger-agent validerer fiksforslag mot runtime-oppførsel."
 url: "https://github.blog/changelog/2026-04-30-github-copilot-in-visual-studio-april-update"
 tags:
   - visual-studio

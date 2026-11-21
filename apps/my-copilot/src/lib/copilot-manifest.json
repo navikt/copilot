@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-11-21T21:27:32.272Z",
+  "generatedAt": "2026-11-21T22:40:07.152Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -620,7 +620,7 @@
       "applyTo": "**/*.kt",
       "tags": ["kotlin", "ktor", "spring", "backend"],
       "examples": [
-        "Lag et nytt endepunkt i fp-sak med Azure AD-autentisering og feilhåndtering",
+        "Lag et nytt endpoint i fp-sak med Azure AD-autentisering og feilhåndtering",
         "Lag en REST-controller i kursportalen-backend med Spring Boot og validering"
       ]
     },
@@ -714,7 +714,7 @@
       "tags": ["security", "owasp", "secrets", "logging", "pii"],
       "examples": [
         "Sørg for at ingen tokens eller fødselsnummer havner i loggene",
-        "Sjekk at endepunktet verifiserer at brukeren eier ressursen"
+        "Sjekk at endpointet verifiserer at brukeren eier ressursen"
       ]
     },
     {
@@ -896,19 +896,19 @@
     {
       "id": "spring-boot-endpoint",
       "name": "spring-boot-endpoint",
-      "description": "Scaffold et Spring Boot REST-endepunkt med Controller, Service, Repository, Test og Nais-konfig",
+      "description": "Scaffold et Spring Boot REST-endpoint med Controller, Service, Repository, Test og Nais-konfig",
       "type": "prompt",
       "domain": "backend",
       "filePath": ".github/prompts/spring-boot-endpoint.prompt.md",
       "repoPath": "prompts/spring-boot-endpoint.prompt.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/prompts/spring-boot-endpoint.prompt.md",
-      "contentHash": "3804da163fe6fb7867abad0bffa1cf10f918e0306e0294eab10740a2b78172ae",
+      "contentHash": "67606488a1368fdb000ca987c334a23c2c91d133ec9387f49556848ba26b75f9",
       "installUrl": "/install/prompt?url=vscode%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fprompts%2Fspring-boot-endpoint.prompt.md",
       "insidersInstallUrl": "/install/prompt?url=vscode-insiders%3Achat-prompt%2Finstall%3Furl%3Dhttps%3A%2F%2Fraw.githubusercontent.com%2Fnavikt%2Fcopilot%2Fmain%2Fprompts%2Fspring-boot-endpoint.prompt.md",
       "invocation": "#spring-boot-endpoint",
       "model": ["GPT-6 Luna"],
       "tags": ["spring-boot", "kotlin", "rest", "endpoint", "scaffold"],
-      "examples": ["#spring-boot-endpoint Lag et CRUD-endepunkt for vedtak med PostgreSQL"]
+      "examples": ["#spring-boot-endpoint Lag et CRUD-endpoint for vedtak med PostgreSQL"]
     },
     {
       "id": "aksel-builder",
@@ -1008,7 +1008,7 @@
       "examples": [
         {
           "scenario": "REST API-design",
-          "prompt": "Design REST API-endepunkter for vedtak"
+          "prompt": "Design REST API-endpoints for vedtak"
         },
         {
           "scenario": "Feilhåndtering",
@@ -1016,7 +1016,7 @@
         },
         {
           "scenario": "Paginering",
-          "prompt": "Sett opp paginering for listeendepunkter"
+          "prompt": "Sett opp paginering for liste-endpoints"
         },
         {
           "scenario": "API-gjennomgang",
@@ -1024,7 +1024,7 @@
         },
         {
           "scenario": "OpenAPI-dokumentasjon",
-          "prompt": "Lag OpenAPI-annotasjoner for endepunktene"
+          "prompt": "Lag OpenAPI-annotasjoner for endpointene"
         }
       ]
     },
@@ -1492,7 +1492,7 @@
       "filePath": "skills/nav-plan/SKILL.md",
       "repoPath": "skills/nav-plan/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/nav-plan/SKILL.md",
-      "contentHash": "25839c37744a1ca02a8a93841e3bb6dbaf59d331c0a6221e14c3473d470857f6",
+      "contentHash": "2417a4df28cfa4d4158726442162dad7f889cfa69a644ac80fef9990b778aa44",
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": ["planning", "architecture", "scaffold", "nais", "nav-pilot", "modernization", "migration"],
@@ -1612,17 +1612,17 @@
     {
       "id": "observability-setup",
       "name": "observability-setup",
-      "description": "Sett opp Prometheus-metrikker, OpenTelemetry-tracing og health check-endepunkter for Nais-applikasjoner",
+      "description": "Sett opp Prometheus-metrikker, OpenTelemetry-tracing og health check-endpoints for Nais-applikasjoner",
       "type": "skill",
       "domain": "observability",
       "filePath": "skills/observability-setup/SKILL.md",
       "repoPath": "skills/observability-setup/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/observability-setup/SKILL.md",
-      "contentHash": "41d01bbe976c5bb84cae44fe915d13ce42a55b8b6202dd3658ac9437198edb76",
+      "contentHash": "651f11257edd7d710cbe7a739485dcf3c793e2e3f397314e1fba0d54bbdb590f",
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": ["prometheus", "opentelemetry", "health", "metrics"],
-      "examples": ["Sett opp Prometheus-metrikker og helseendepunkter for dp-soknad"],
+      "examples": ["Sett opp Prometheus-metrikker og helse-endpoints for dp-soknad"],
       "references": [
         {
           "path": "references/grafana-queries.md",
@@ -1886,7 +1886,7 @@
       "tags": ["security", "owasp", "kotlin", "go", "java", "nodejs", "nais", "supply-chain"],
       "examples": [
         {
-          "prompt": "Vis sikre mønstre for tilgangskontroll i Ktor-endepunktene mine",
+          "prompt": "Vis sikre mønstre for tilgangskontroll i Ktor-endpointene mine",
           "scenario": "OWASP A01 — tilgangskontroll i Kotlin"
         },
         {

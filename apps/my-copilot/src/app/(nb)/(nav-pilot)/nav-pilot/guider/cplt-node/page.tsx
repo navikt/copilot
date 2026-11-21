@@ -72,7 +72,7 @@ export default function CpltNode() {
           </BodyLong>
           <CodeBlock compact>
             {`cplt config set sandbox.pass_env NODE_AUTH_TOKEN   # alltid
-cplt --pass-env NODE_AUTH_TOKEN                    # bare denne økten`}
+cplt --pass-env NODE_AUTH_TOKEN                    # bare denne sesjonen`}
           </CodeBlock>
           <BodyLong>
             Uten variabelen sender npm teksten <code className={code}>{"${NODE_AUTH_TOKEN}"}</code> som token, og får
@@ -126,7 +126,7 @@ cplt --pass-env NODE_AUTH_TOKEN                    # bare denne økten`}
             utenfor cplt, eller slå skriptene på:
           </BodyLong>
           <CodeBlock compact>
-            {`cplt --allow-lifecycle-scripts                                        # bare denne økten
+            {`cplt --allow-lifecycle-scripts                                        # bare denne sesjonen
 cplt config set sandbox.allow_lifecycle_scripts true --force          # alltid
 cplt config set --repo sandbox.allow_lifecycle_scripts true --force   # i .cplt.toml`}
           </CodeBlock>
@@ -159,7 +159,7 @@ yarn install --ignore-scripts`}
           </BodyLong>
           <BodyLong>Trenger agenten filene, åpne dem:</BodyLong>
           <CodeBlock compact>
-            {`cplt --allow-env-files                          # bare denne økten
+            {`cplt --allow-env-files                          # bare denne sesjonen
 cplt config set sandbox.allow_env_files true    # alltid`}
           </CodeBlock>
           <BodyLong>
@@ -335,7 +335,7 @@ cplt --pass-env PUPPETEER_CACHE_DIR`}
             Har du installert pnpm med pnpms eget installasjonsskript, ligger den i{" "}
             <code className={code}>$PNPM_HOME</code>: <code className={code}>~/Library/pnpm</code> på macOS og{" "}
             <code className={code}>~/.local/share/pnpm</code> på Linux. Agenten kan skrive i pnpm-lageret og får derfor
-            ikke kjøre programmer derfra. cplt lager i stedet en skrivebeskyttet kopi av pnpm for økten og legger den
+            ikke kjøre programmer derfra. cplt lager i stedet en skrivebeskyttet kopi av pnpm for sesjonen og legger den
             først i <code className={code}>PATH</code>.
           </BodyLong>
           <BodyLong>

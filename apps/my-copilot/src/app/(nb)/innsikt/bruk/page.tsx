@@ -304,7 +304,7 @@ async function Clients({ token }: { token: string }) {
   return (
     <>
       <BodyShort>
-        Forespørsler og økter per verktøy de siste 28 dagene. Kjente navn vises med lesbar tekst. Under «Vis tallene»
+        Forespørsler og sesjoner per verktøy de siste 28 dagene. Kjente navn vises med lesbar tekst. Under «Vis tallene»
         står navnene slik GitHub oppgir dem, for eksempel <code>vscode</code>, <code>copilot_cli</code> og{" "}
         <code>opencode</code>. GitHub har tall per verktøy fra 23. oktober 2026, så fram til 20. november dekker summen
         færre enn 28 dager.
@@ -478,7 +478,7 @@ export default async function BrukPage() {
 
       <InsightSection id="verktoy" title="Bruk per verktøy">
         <LinkableHeading id="verktoy-foresporsler" size="small" level="3">
-          Forespørsler og økter
+          Forespørsler og sesjoner
         </LinkableHeading>
         <Suspense fallback={fallback}>
           <Clients token={token} />

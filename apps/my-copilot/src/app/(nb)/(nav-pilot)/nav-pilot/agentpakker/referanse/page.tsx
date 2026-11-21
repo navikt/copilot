@@ -185,7 +185,7 @@ export default function AgentpakkerReferanse() {
               <code className={code}>~/.nav-pilot/pi/skills</code> for pi, og <code className={code}>skills/</code> i
               payloadtreet for Tier 2. Skriver du én av stiene i teksten, er skillen feil på de andre. nav-pilot
               eksporterer derfor <code className={code}>NAV_PILOT_SKILLS_DIR</code> ved hver launch, med roten skillene
-              faktisk ble lagt i for den klienten, og sender den gjennom sandkassa. Skriv{" "}
+              faktisk ble lagt i for den klienten, og sender den gjennom sandkassen. Skriv{" "}
               <code className={code}>bash &quot;$NAV_PILOT_SKILLS_DIR/&lt;skill&gt;/&lt;skript&gt;&quot;</code> og den
               peker riktig overalt. La nav-pilot ingen skills ut for klienten, er variabelen usatt framfor å peke på en
               katalog som ikke finnes, så en skill kan teste på den og si fra.
@@ -323,7 +323,7 @@ export default function AgentpakkerReferanse() {
             Sandkassekonfigurasjon
           </LinkableHeading>
           <BodyLong textColor="subtle">
-            Trenger en skill noe av sandkassa cplt setter rundt klienten, sier pakka det i{" "}
+            Trenger en skill noe av sandkassen cplt setter rundt klienten, sier pakka det i{" "}
             <code className={code}>policies.propose</code>, i stedet for å la brukeren møte feilen midt i arbeidet.
             Nais-pakka spør Mimir, Loki og Tempo under <code className={code}>nav.cloud.nais.io</code>. Navnene slår opp
             til private adresser over naisdevice, og cplt avviser dem (

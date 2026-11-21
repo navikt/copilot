@@ -8,7 +8,7 @@ import { RuntimeTelemetry, telemetryFor } from "@/components/nav-pilot-runtime";
 
 export const metadata: Metadata = {
   title: "nav-pilot i bruk",
-  description: "Hvordan nav-pilot brukes: enheter, klienter, økter og hvilke skills agenten velger.",
+  description: "Hvordan nav-pilot brukes: enheter, klienter, sesjoner og hvilke skills agenten velger.",
 };
 
 export default async function NavPilotPage() {
@@ -20,7 +20,7 @@ export default async function NavPilotPage() {
     <InsightPage
       title="nav-pilot i bruk"
       description="Bruksdata fra nav-pilot de siste syv dagene."
-      intro="Her ser du hvor mange enheter som kjører nav-pilot, hvilke klienter de har satt opp, hvor mange økter de har, og hvilke skills, subagenter og verktøy som brukes mest."
+      intro="Her ser du hvor mange enheter som kjører nav-pilot, hvilke klienter de har satt opp, hvor mange sesjoner de har, og hvilke skills, subagenter og verktøy som brukes mest."
       updated={async () => (await telemetryFor(token)).telemetry?.latest_day}
       source={
         <>

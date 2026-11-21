@@ -58,7 +58,7 @@ const TIPS: Tip[] = [
     label: "Oppdiktede API-er",
   },
   {
-    text: "Start en ny samtale når du bytter oppgave. Lange økter fyller konteksten, og agenten husker dårligere.",
+    text: "Start en ny samtale når du bytter oppgave. Lange sesjoner fyller konteksten, og agenten husker dårligere.",
     href: "/praksis/guide/styrker-og-farer",
     label: "Konteksthåndtering",
   },

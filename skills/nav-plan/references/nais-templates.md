@@ -57,4 +57,4 @@ Prod: partitions: 6+, replication: 3
 - [ ] accessPolicy definert (inbound + outbound)
 - [ ] Ressurser tilpasset forventet last
 - [ ] Separate manifester for dev og prod (eller bruk variabler)
-- [ ] Health-endepunkter implementert (`/isalive`, `/isready`, `/metrics`)
+- [ ] Health-endpoints implementert (`/isalive`, `/isready`, `/metrics`)

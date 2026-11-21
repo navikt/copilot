@@ -197,7 +197,7 @@ async function PerMonth({ token, year }: { token: string; year: number }) {
             </Table>
             {data.months.some((m) => m.basis === "premium") && (
               <BodyShort size="small" textColor="subtle">
-                * Fakturert som premiumforespørsler, ikke KI-kreditter.
+                * Fakturert som premiumforespørsler, ikke AI Credits.
               </BodyShort>
             )}
             {rebuilt.size > 0 && (

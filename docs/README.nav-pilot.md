@@ -202,7 +202,7 @@ i det du svarer. `copilot -p` spør ingen, så i en mappe du ikke har stolt på 
 aldri: debugloggen sier `folder not trusted; skipping repo hooks`, og ellers ser alt helt
 riktig ut. Fila er committet, den er synlig i differ, og den gjør ingenting.
 
-Svarer du «Yes», gjelder tilliten bare den økta. Det er «Yes, and remember this folder for
+Svarer du «Yes», gjelder tilliten bare den sesjonen. Det er «Yes, and remember this folder for
 future sessions» som skriver mappa til `trustedFolders` i `~/.copilot/config.json`, og bare
 den hjelper neste `-p`-kjøring. Hver på teamet må gjøre det på sin egen maskin.
 `GITHUB_COPILOT_PROMPT_MODE_REPO_HOOKS=true` laster dem for én kjøring uten å stole på noe;
@@ -254,7 +254,7 @@ et merke som bare følger med fra før, godkjenner ikke en ny rolle.
 
 Hookene over er Python-skript du velger å installere. nav-pilot har i tillegg egne hooks
 som er bygd inn i selve programmet. Når du starter Copilot CLI med `nav-pilot`, skriver den
-dem til `~/.copilot/hooks/`. Derfra kjører de i alle Copilot CLI-økter på maskinen, også
+dem til `~/.copilot/hooks/`. Derfra kjører de i alle Copilot CLI-sesjoner på maskinen, også
 når modellen kjører i skyen og også når du starter `copilot` direkte. `nav-pilot doctor`
 viser dem sammen med de andre. Første gang nav-pilot skriver dem, sier den fra på stderr
 hva hver av dem gjør og hvordan du slår den av.
@@ -268,8 +268,8 @@ hva hver av dem gjør og hvordan du slår den av.
 En hook etter verktøykallet (`postToolUse`) kan ikke avslutte en tur. Den kan bare endre
 det modellen leser. Når loop guard slår til, får modellen derfor en beskjed om at den står
 fast, med resultatet under, i stedet for det samme svaret en gang til. Terskelen følger
-`local_loop_guard`, og det som skjedde tidligere i økta ligger i en liten fil i øktas egen
-mappe, `~/.copilot/session-state/<økt-id>/nav-pilot-loop-guard.json`. Filen inneholder bare
+`local_loop_guard`, og det som skjedde tidligere i sesjonen ligger i en liten fil i øktas egen
+mappe, `~/.copilot/session-state/<sesjons-id>/nav-pilot-loop-guard.json`. Filen inneholder bare
 hasher og tellere, aldri selve kallet eller resultatet.
 
 Beskjeden til modellen nevner verken terskelen eller hvordan den endres. En modell som får
@@ -282,7 +282,7 @@ Handlingssjekken kjører før verktøykallet (`preToolUse`), og der avviser Copi
 hvis hooken bruker lengre tid enn fristen. Sjekken har derfor sin egen frist på et halvt
 sekund og svarer alltid at kallet kan gå. Kjører ingen lokal server, eller kommer svaret
 for sent, hopper den over. Den starter aldri en server. Svarene ligger i
-`~/.copilot/session-state/<økt-id>/nav-pilot-action-check.jsonl`, med kommandoen maskert og
+`~/.copilot/session-state/<sesjons-id>/nav-pilot-action-check.jsonl`, med kommandoen maskert og
 forkortet. Sjekken er der for å måle hvor godt modellen skiller risikable kommandoer fra
 ufarlige, ikke for å stoppe noe.
 
@@ -305,7 +305,7 @@ ingenting: den sier bare til modellen at teksten kommer fra verktøyet og ikke s
 Mønstrene er et lite utvalg av standardreglene i gitleaks, og de er valgt for å gi få
 falske treff i vanlig kode og vanlige logger. Hooken fanger ikke alle hemmeligheter.
 
-I en lokal økt står vakten i nav-pilot allerede foran modellen og avslutter turen. Der gjør
+I en lokal sesjon står vakten i nav-pilot allerede foran modellen og avslutter turen. Der gjør
 hooken ingenting, så modellen ikke får to beskjeder om samme løkke. Hookene er laget for å
 slippe gjennom ved feil: finnes ikke `nav-pilot` på `PATH`, eller går noe galt, blir
 resultatet stående som det var. Unntaket er en `config.toml` som ikke lar seg lese. Da
@@ -314,7 +314,7 @@ linje om det på stderr. En ødelagt fil skal ikke være det som slår av masker
 med feil type, for eksempel `hook_redact_secrets = "false"` med anførselstegn, blir hoppet
 over, så standardverdien gjelder, og hooken sier fra om det på stderr.
 `nav-pilot doctor` sier fra om fila, og `nav-pilot` starter ikke før den er rettet. Hookene kjører også i en
-OpenCode-økt som nav-pilot starter, via hook-broen ([opencode-hooks.md](../cli/nav-pilot/docs/opencode-hooks.md)).
+OpenCode-sesjon som nav-pilot starter, via hook-broen ([opencode-hooks.md](../cli/nav-pilot/docs/opencode-hooks.md)).
 Der holder nav-pilot resultatet tilbake hvis maskeringen feiler. Starter du `opencode` selv, eller med `--pure`, kjører de ikke.
 
 ### Hub-repo
@@ -389,13 +389,13 @@ en `config.toml` uten `client` betyr `copilot`. Copilot CLI er fortsatt fullt st
 | `pi` _(eksperimentell)_ | `cplt` + `pi`         | Materialiseres i `~/.nav-pilot/pi` og gis til pi ved oppstart | GPT-6.1 Sol     |
 
 En modell du velger med config eller `--model`, vinner over agentpakkas standard. Den vinner
-også over `model:` i agentfila til hovedagenten som økta starter med. Subagenter beholder sin
-egen modell. Har du ikke valgt modell, bruker økta modellen til agenten eller agentpakka.
+også over `model:` i agentfila til hovedagenten som sesjonen starter med. Subagenter beholder sin
+egen modell. Har du ikke valgt modell, bruker sesjonen modellen til agenten eller agentpakka.
 
 I Copilot CLI og OpenCode vinner ellers `model:` i agentfila over `--model`. For OpenCode setter
 nav-pilot derfor modellen din på hovedagenten i `OPENCODE_CONFIG_CONTENT`. For Copilot CLI
 starter nav-pilot en kopi av hovedagenten uten `model:`, fra en egen plugin i
-`~/.copilot/nav-pilot-session`. Agenten heter da `nav-pilot-session:<agent>` i økta.
+`~/.copilot/nav-pilot-session`. Agenten heter da `nav-pilot-session:<agent>` i sesjonen.
 
 Når agentpakka anbefaler en ny modell for hovedagenten og du har valgt en annen, spør nav-pilot
 én gang ved oppstart: behold modellen din, bytt til den nye (`nav-pilot config set model`), eller
@@ -440,7 +440,7 @@ Den ukentlige kjøringen er av til repovariabelen `SUBAGENT_PIN_CANARY` er `true
 >
 > **Sandboxen gjelder katalogen du står i.** nav-pilot sender alltid `--project-dir` med
 > til cplt, satt til arbeidskatalogen. Uten det utvider cplt en undermappe til roten av
-> git-repoet den ligger i, så en økt startet fra `workspaces/noe/` kunne endre mapper ved
+> git-repoet den ligger i, så en sesjon startet fra `workspaces/noe/` kunne endre mapper ved
 > siden av. Trenger du hele repoet, for eksempel for endringer på tvers av pakker i et
 > monorepo, starter du fra roten av repoet eller bruker `nav-pilot --project-dir <katalog>`.
 > Står du i en undermappe, får agenten lese (ikke skrive) repoets instruksjoner i roten:
@@ -460,7 +460,7 @@ Den ukentlige kjøringen er av til repovariabelen `SUBAGENT_PIN_CANARY` er `true
 > og Copilot kan bruke lagret innlogging. Ingen av valgene garanterer hvilken
 > konto eller kilde Copilot bruker. Se [SECURITY.md](../SECURITY.md).
 
-Hvis innlogging i sandkassen feiler, avslutt økten og logg inn manuelt i en
+Hvis innlogging i sandkassen feiler, avslutt sesjonen og logg inn manuelt i en
 terminal utenfor cplt. nav-pilot starter aldri innlogging. gh kan falle tilbake
 til klartekst hvis nøkkelringen svikter:
 
@@ -494,7 +494,7 @@ oppstart:
 
 1. Løser opp Nav-kildeartifaktene (skills, agenter, prompts, instruksjoner). En kilde på GitHub
    leses fra kopien i `~/.nav-pilot/sources/`, så oppstarten venter ikke på nettet. nav-pilot
-   henter en ny kopi mens økten kjører, høyst én gang i timen, og neste oppstart bruker den.
+   henter en ny kopi mens sesjonen kjører, høyst én gang i timen, og neste oppstart bruker den.
    Bare den første oppstarten venter på nedlastingen, i opptil 30 sekunder. Mislykkes den, venter ikke de neste oppstartene:
    den neste timen starter de uten agentpakka og henter den i bakgrunnen.
 2. Skriver dem til OpenCode-konfigurasjonsmappen (f.eks. `~/.config/opencode/` eller via `XDG_CONFIG_HOME`) som `AGENTS.md`, `skills/`, `commands/`, `agents/` og `instructions/`
@@ -521,7 +521,7 @@ oppdaterte.
 **Egne OpenCode-plugins i repoet.** Har repoet egne OpenCode-plugins (i `.opencode/plugins/`
 eller under `plugins` i repoets `opencode.json`), spør nav-pilot før OpenCode 2 laster dem.
 De kjører med samme tilgang som agenten. Svarer du nei, eller trykker Enter, slår nav-pilot av
-repoets eget OpenCode-oppsett for økta: konfigurasjon, plugins, agenter, kommandoer, skills og
+repoets eget OpenCode-oppsett for sesjonen: konfigurasjon, plugins, agenter, kommandoer, skills og
 `AGENTS.md`. OpenCode leser `~/.opencode` og `~/AGENTS.md` på samme måte, så et nei slår av
 dem også. Da sier nav-pilot det i én linje ved hver oppstart. Svaret huskes til pluginene
 endrer seg, og gjelder også uten terminal. Uten terminal lastes de ikke før du har svart.
@@ -748,8 +748,8 @@ Nøklene, med flagget som overstyrer dem for én kjøring. Tabellen lages fra ko
 | `autonomy` | — | sandbox · conservative (standard: sandbox) | Hvor mye agenten gjør uten å spørre i cplt. sandbox: kjører kommandoer selv, og vaktene i cplt setter grensene. conservative: spør før hver handling. |
 | `auto_launch` | --auto-launch / --no-auto-launch | true · false (standard: true) | Start klienten etter sync eller installasjon. Med false skriver nav-pilot bare ut kommandoen. |
 | `auto_update` | — | true · false (standard: false) | Oppgrader nav-pilot automatisk når en ny versjon er ute. Feiler det, kjører du videre på versjonen du har. |
-| `surveys` | — | true · false (standard: true) | Spør av og til etter en økt om du vil svare på en kort brukerundersøkelse. false slår av spørsmålet og engangstipset om opencode; DO_NOT_TRACK og NAV_PILOT_TELEMETRY_ENABLED=false gjør det samme. |
-| `news` | — | true · false (standard: true) | Vis én linje etter en økt når det er kommet en ny nav-pilot-sak, én gang per sak. nav-pilot news lister sakene uansett. |
+| `surveys` | — | true · false (standard: true) | Spør av og til etter en sesjon om du vil svare på en kort brukerundersøkelse. false slår av spørsmålet og engangstipset om opencode; DO_NOT_TRACK og NAV_PILOT_TELEMETRY_ENABLED=false gjør det samme. |
+| `news` | — | true · false (standard: true) | Vis én linje etter en sesjon når det er kommet en ny nav-pilot-sak, én gang per sak. nav-pilot news lister sakene uansett. |
 | `log_level` | --log-level | none · error · warning · info · debug · all · default | Loggnivå for Copilot CLI. |
 | `otel_log_level` | --otel-log-level | none · error · warning · warn · info · debug · verbose · all (standard: none) | Loggnivå for OpenTelemetry i Copilot CLI (OTEL_LOG_LEVEL). En OTEL_LOG_LEVEL i skallet vinner, og config show merker den env. |
 | `local_enabled` | — | true · false (standard: false) | Send avgrensede oppgaver til en lokal modell (alfa). Settes av alpha local init, nullstilles av alpha local off. Så lenge den er false, ser nav-pilot ingen lokale modeller. |
@@ -759,9 +759,9 @@ Nøklene, med flagget som overstyrer dem for én kjøring. Tabellen lages fra ko
 | `local_model` | — | modell-id fra manifestet | Hvilken lokal modell serveren laster (alfa). Tom betyr standardmodellen i manifestet. Sett den med nav-pilot alpha local use &lt;key&gt;. |
 | `local_endpoint` | — | en http(s)-URL | Din egen OpenAI-kompatible server (Ollama, llama-server), bare localhost eller privat IP (alfa, uten støtte). Sjekk den med nav-pilot alpha local doctor. |
 | `local_endpoint_model` | — | modell-id på serveren | Modell-id-en local_endpoint skal bruke, f.eks. qwen3.6:35b. Påkrevd sammen med local_endpoint. |
-| `local_dispatch` | --local-dispatch | off · conservative · balanced · aggressive (standard: aggressive) | Hvor mye hovedagenten i opencode delegerer til den lokale modellen. aggressive delegerer mest, men kostet flere AI-kreditter og tok lengre tid i målingene. |
-| `hook_loop_guard` | — | true · false (standard: true) | Samme løkkeregel i alle Copilot CLI-økter, også i skyen: en postToolUse-hook i ~/.copilot/hooks/ sier fra til modellen når den står fast. false fjerner hooken ved neste oppstart. |
-| `hook_redact_secrets` | — | true · false (standard: true) | Masker hemmeligheter (GitHub-tokener, AWS-nøkkel-id-er, private nøkler, JWT-er, verdien i password=/api_key=) i verktøyresultater før modellen leser dem, i alle Copilot CLI-økter. |
+| `local_dispatch` | --local-dispatch | off · conservative · balanced · aggressive (standard: aggressive) | Hvor mye hovedagenten i opencode delegerer til den lokale modellen. aggressive delegerer mest, men kostet flere AI Credits og tok lengre tid i målingene. |
+| `hook_loop_guard` | — | true · false (standard: true) | Samme løkkeregel i alle Copilot CLI-sesjoner, også i skyen: en postToolUse-hook i ~/.copilot/hooks/ sier fra til modellen når den står fast. false fjerner hooken ved neste oppstart. |
+| `hook_redact_secrets` | — | true · false (standard: true) | Masker hemmeligheter (GitHub-tokener, AWS-nøkkel-id-er, private nøkler, JWT-er, verdien i password=/api_key=) i verktøyresultater før modellen leser dem, i alle Copilot CLI-sesjoner. |
 | `hook_redact_fnr` | — | true · false (standard: true) | Masker fødselsnummer, D-nummer og H-nummer i verktøyresultater. nav-pilot maskerer bare elleve sifre der datoen og begge kontrollsifrene stemmer. |
 | `hook_injection_note` | — | true · false (standard: true) | Sett en merknad foran verktøyresultater som ser ut som instrukser til modellen («ignore previous instructions», rollemarkører), så modellen behandler dem som data. Stopper ingenting. |
 | `hook_action_check` | — | off · log (standard: log) | Spør den lokale decide-modellen om en risikabel skallkommando (kubectl, terraform apply, rm -r, git push --force og lignende) står i forhold til formålet. log lagrer svaret og stopper ingenting. Krever lokal modell. |
@@ -777,8 +777,8 @@ Mangler cplt, starter nav-pilot ingen klient. Installer cplt med `brew install n
 Standard er katalogen du står i, ikke roten av git-repoet rundt den. Repoets instruksjoner i
 roten kan agenten fortsatt lese.
 
-`--allow-clipboard` gir agenten tilgang til utklippstavlen på macOS for denne økten. cplt stenger
-den som standard. `--cplt <flagg>` sender ett cplt-flagg videre for denne økten, for eksempel
+`--allow-clipboard` gir agenten tilgang til utklippstavlen på macOS for denne sesjonen. cplt stenger
+den som standard. `--cplt <flagg>` sender ett cplt-flagg videre for denne sesjonen, for eksempel
 `--cplt --allow-port=8080`. Gjenta flagget for flere. Flagg med verdi skrives med `=`.
 `--agent`, `--project-dir`, `--yes`, `--no-audit` og `--` avvises, fordi nav-pilot setter dem selv.
 
@@ -791,12 +791,12 @@ bruker den siste verdien. Bruker du en OpenCode-underkommando etter `--`, som `r
 klientflaggene etter underkommandoen. `nav-pilot -- <argumenter>` virker som før: klienten starter
 med en gang, uten meny og uten sync.
 
-`--resume [id]` fortsetter en tidligere økt, og `--continue` fortsetter den siste. nav-pilot
-lagrer ingen økter selv, men oversetter flagget til klientens eget. Uten id åpner lista over økter i
-Copilot CLI. Copilot CLI fortsetter økten i katalogen den ble startet i, så kjør nav-pilot fra
+`--resume [id]` fortsetter en tidligere sesjon, og `--continue` fortsetter den siste. nav-pilot
+lagrer ingen sesjoner selv, men oversetter flagget til klientens eget. Uten id åpner lista over sesjoner i
+Copilot CLI. Copilot CLI fortsetter sesjonen i katalogen den ble startet i, så kjør nav-pilot fra
 samme katalog. OpenCode har ingen slik liste, så der må du oppgi id-en
-(`opencode session list`) eller bruke `--continue`. OpenCode starter en ny økt hvis id-en ikke
-finnes, så en skrivefeil gir en tom økt. pi støtter ikke flaggene ennå, og nav-pilot sier fra i
+(`opencode session list`) eller bruke `--continue`. OpenCode starter en ny sesjon hvis id-en ikke
+finnes, så en skrivefeil gir en tom sesjon. pi støtter ikke flaggene ennå, og nav-pilot sier fra i
 stedet for å starte. Du kan ikke bruke begge flaggene samtidig, og heller ikke det samme flagget både før
 og etter `--`.
 
@@ -857,7 +857,7 @@ svarer:
 | Hva | Mål |
 | --- | --- |
 | Fra du kjører `nav-pilot` til klienten starter | Under 150 ms |
-| Fra økten slutter til du har terminalen tilbake | Under 200 ms |
+| Fra sesjonen slutter til du har terminalen tilbake | Under 200 ms |
 | `--version` og `--help` | Under 50 ms. De sender ikke telemetri |
 | Kommandoer som ikke trenger nettet, som `config get` | Under 100 ms. De venter verken på versjonssjekken eller telemetrien |
 
@@ -867,15 +867,15 @@ i `~/.nav-pilot/`:
 | Hva | Fil | Hvor ofte |
 | --- | --- | --- |
 | Versjonssjekken | `cache.json` | Høyst én gang i døgnet, i bakgrunnen. Ingen kommando venter på den. Neste kommando sier fra hvis det finnes en ny versjon |
-| Agentpakka | `sources/` | En kopi per kilde: navikt/copilot (for opencode og pi) og en agentpakke fra et annet team (`source` i konfigurasjonen). En ny kopi hentes mens økten kjører, høyst én gang i timen |
+| Agentpakka | `sources/` | En kopi per kilde: navikt/copilot (for opencode og pi) og en agentpakke fra et annet team (`source` i konfigurasjonen). En ny kopi hentes mens sesjonen kjører, høyst én gang i timen |
 | Klientversjonen | `client-versions.json` | Svaret fra `copilot --version` og `opencode --version`. Spørres på nytt når klienten er oppdatert eller installert på nytt |
-| Undersøkelser og nyheter | `surveys.json`, `news.json` | Hentes mens økten kjører. Nyhetslinja høyst én gang i døgnet |
+| Undersøkelser og nyheter | `surveys.json`, `news.json` | Hentes mens sesjonen kjører. Nyhetslinja høyst én gang i døgnet |
 | Telemetrien | `telemetry-spool/` | Skrives når en kommando avslutter, og sendes av en egen prosess rett etterpå. Det den ikke rekker, sender neste nav-pilot. Slettes når den er sendt, etter sju dager, eller når du slår av telemetrien |
 
 Unntaket er den første nedlastingen av en agentpakke. Finnes ingen kopi i `sources/`, venter
 oppstarten på nedlastingen, høyst 30 sekunder. Mislykkes den, venter ikke oppstartene den neste
 timen på nettet, men prøver igjen i bakgrunnen. En kopi av en agentpakke fra et
-annet team brukes i høyst ett døgn, fordi manifestet bestemmer hvordan økten starter. Er kopien eldre,
+annet team brukes i høyst ett døgn, fordi manifestet bestemmer hvordan sesjonen starter. Er kopien eldre,
 venter oppstarten på en ny: høyst 15 sekunder når nav-pilot har manifestet fra før, ellers 30.
 
 En oppstart som ikke trenger noe fra deg, skriver ingenting. Det som er nytt, sier nav-pilot
