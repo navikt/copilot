@@ -6,7 +6,7 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ### Kun mønsterbasert unntak for syntetiske testidenter
 
-- **Hook-maskering av fødselsnummer**: Kildebasert unntak per MCP-server er fjernet. Syntetiske testidenter som kan kjennes på selve nummeret (Dolly/NAV med både dag og måned over 40, Tenor med måned 81-92 og reserverte testpersoner med måned 66-77) slippes gjennom uavhengig av kilde og klient. Ekte fødselsnummer, D-nummer og H-nummer (bare måned 41-52) maskeres overalt (#2514).
+- **Hook-maskering av fødselsnummer**: Kildebasert unntak per MCP-server er fjernet. Syntetiske testidenter fra Tenor (måned +80), NHNs reserverte testpersoner (+65), Dolly BOST/NPID (+60) og Dollys syntetiske D-numre (dag og måned +40) slippes gjennom overalt. Vanlige syntetiske Dolly-fnr (måned +40, vanlig dag) maskeres fortsatt, fordi ekte H-numre bruker samme forskyvning (#2514).
 
 ## 2026-11-20
 

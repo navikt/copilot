@@ -299,13 +299,13 @@ func TestHookRedactSyntheticAndRealIdents(t *testing.T) {
 		ident  string
 		masked bool
 	}{
-		{"dolly synthetic day+40 month+40", "46510000110", false},
-		{"tenor synthetic month+80", "15910000060", false},
-		{"reserved test person month+65", "15710000074", false},
+		{"dolly synthetic d-number (day+40 month+40)", "46510000110", false},
+		{"tenor synthetic (month+80)", "15910000060", false},
+		{"nhn reserved (+65) / dolly bost/npid (+60)", "15710000074", false},
 		{"checksum-invalid", "15078545621", false},
 		{"real fnr", "15078545620", true},
 		{"real d-nummer", "55019041181", true},
-		{"real h-nummer", "01519041010", true},
+		{"real h-nummer / ordinary dolly fnr", "01519041010", true},
 	}
 	for _, src := range payloads {
 		for _, tc := range cases {
