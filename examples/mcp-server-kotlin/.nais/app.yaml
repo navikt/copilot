@@ -1,0 +1,42 @@
+# Skisse, ikke deployet. Fyll inn image, team, namespace og miljøverdier.
+apiVersion: nais.io/v1alpha1
+kind: Application
+metadata:
+  name: mcp-server-kotlin
+  namespace: mitt-team
+  labels:
+    team: mitt-team
+spec:
+  image: "{{image}}"
+  port: 8080
+  liveness:
+    path: /health
+  readiness:
+    path: /ready
+  prometheus:
+    enabled: true
+    path: /metrics
+  # Gir AZURE_APP_PRE_AUTHORIZED_APPS og aktiverer Texas for Entra ID.
+  azure:
+    application:
+      enabled: true
+  texas:
+    enabled: true
+  env:
+    - name: DOWNSTREAM_URL
+      value: "http://mitt-api.mitt-team"
+    - name: DOWNSTREAM_SCOPE
+      value: "api://dev-gcp.mitt-team.mitt-api/.default"
+    # Host-headeren gatewayen sender. Standard er bare localhost.
+    - name: ALLOWED_HOSTS
+      value: "mcp-server-kotlin,mcp-server-kotlin.mitt-team"
+  accessPolicy:
+    inbound:
+      rules:
+        # Bare fleet-gateway får kalle serveren. Koden sjekker azp i tillegg.
+        - application: fleet-gateway
+          namespace: copilot
+    outbound:
+      rules:
+        - application: mitt-api
+          namespace: mitt-team

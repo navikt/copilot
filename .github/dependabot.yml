@@ -118,6 +118,13 @@ updates:
         versions: [">=7"]
     open-pull-requests-limit: 3
 
+  # Reference example, not built in CI (see examples/mcp-server-kotlin/README.md).
+  - package-ecosystem: "gradle"
+    directory: "/examples/mcp-server-kotlin"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 3
+
   # Frozen benchmark fixture: run results record its fixture hash, so bumps
   # would invalidate the baselines. Limit 0 turns off version updates here.
   - package-ecosystem: "npm"
