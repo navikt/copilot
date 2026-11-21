@@ -55,7 +55,7 @@ func newTeamTokenSource(cfg *Config, store SessionStore, now func() time.Time) (
 	case "", strategyOBO:
 		return &StrategyOBO{
 			store:            store,
-			sessionMaxAge:    cfg.SessionMaxAge,
+			sessionMaxAge:    cfg.SessionAbsoluteMaxAge,
 			routesByResource: byRes,
 			endpoint:         cfg.TexasExchangeEndpoint,
 			client:           cfg.HTTPClient,
@@ -64,7 +64,7 @@ func newTeamTokenSource(cfg *Config, store SessionStore, now func() time.Time) (
 	case strategyRefresh:
 		return &StrategyRefresh{
 			store:            store,
-			sessionMaxAge:    cfg.SessionMaxAge,
+			sessionMaxAge:    cfg.SessionAbsoluteMaxAge,
 			routesByResource: byRes,
 			tokenEndpoint:    cfg.AzureTokenEndpoint,
 			clientID:         cfg.AzureClientID,

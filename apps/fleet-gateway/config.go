@@ -23,6 +23,8 @@ const (
 	defaultPendingTTL                       = 10 * time.Minute
 	defaultCodeTTL                          = 60 * time.Second
 	defaultSessionMaxAge                    = 12 * time.Hour
+	defaultSessionAbsoluteMaxAge            = 7 * 24 * time.Hour
+	defaultSessionIdleTimeout               = 12 * time.Hour
 	defaultRefreshGraceWindow               = 30 * time.Second
 	defaultConsentTTL                       = 30 * 24 * time.Hour
 	defaultSessionTTL                       = time.Hour
@@ -123,13 +125,19 @@ type Config struct {
 	RateLimitWindow         time.Duration
 	SessionStore            string
 	DatabaseURL             string
-	SessionMaxAge           time.Duration
-	RefreshGraceWindow      time.Duration
-	ConsentTTL              time.Duration
-	RTKeys                  string
-	RTStorage               string
-	LockoutKey              string
-	Store                   SessionStore
+	SessionMaxAge           time.Duration // longest life of one access token session
+	// SessionAbsoluteMaxAge is the hard cap from the original login; refresh
+	// never moves it. SessionIdleTimeout is how long a refresh token lives
+	// without a refresh (sliding). Internal defaults 7 d / 12 h; an external
+	// host sets shorter values (#2363).
+	SessionAbsoluteMaxAge time.Duration
+	SessionIdleTimeout    time.Duration
+	RefreshGraceWindow    time.Duration
+	ConsentTTL            time.Duration
+	RTKeys                string
+	RTStorage             string
+	LockoutKey            string
+	Store                 SessionStore
 }
 
 func loadConfigFromEnv() (*Config, error) {
@@ -238,6 +246,8 @@ func loadConfigFromEnv() (*Config, error) {
 		SessionStore:            strings.ToLower(config.Get("SESSION_STORE", "memory")),
 		DatabaseURL:             strings.TrimSpace(os.Getenv("DATABASE_URL")),
 		SessionMaxAge:           config.Duration("SESSION_MAX_AGE", defaultSessionMaxAge),
+		SessionAbsoluteMaxAge:   config.Duration("SESSION_ABSOLUTE_MAX_AGE", defaultSessionAbsoluteMaxAge),
+		SessionIdleTimeout:      config.Duration("SESSION_IDLE_TIMEOUT", defaultSessionIdleTimeout),
 		RefreshGraceWindow:      config.Duration("REFRESH_GRACE_WINDOW", defaultRefreshGraceWindow),
 		ConsentTTL:              config.Duration("CONSENT_TTL", defaultConsentTTL),
 		RTKeys:                  rtKeys,
@@ -432,6 +442,15 @@ func validateConfig(cfg *Config) error {
 	}
 	if cfg.SessionMaxAge <= 0 {
 		cfg.SessionMaxAge = defaultSessionMaxAge
+	}
+	if cfg.SessionAbsoluteMaxAge <= 0 {
+		cfg.SessionAbsoluteMaxAge = defaultSessionAbsoluteMaxAge
+	}
+	if cfg.SessionIdleTimeout <= 0 {
+		cfg.SessionIdleTimeout = defaultSessionIdleTimeout
+	}
+	if cfg.SessionAbsoluteMaxAge < cfg.SessionMaxAge {
+		return errors.New("SESSION_ABSOLUTE_MAX_AGE must be at least SESSION_MAX_AGE")
 	}
 	if cfg.RefreshGraceWindow <= 0 {
 		cfg.RefreshGraceWindow = defaultRefreshGraceWindow

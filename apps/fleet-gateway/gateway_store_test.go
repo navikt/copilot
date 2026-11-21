@@ -191,6 +191,7 @@ func TestGatewayReplicas_RefreshRotationAcrossReplicas(t *testing.T) {
 
 func TestSessionAbsoluteCap(t *testing.T) {
 	te := newTestEnv(t)
+	te.gw.cfg.SessionAbsoluteMaxAge = 12 * time.Hour // cap is configurable; 7 d is the internal default
 	if te.gw.cfg.SessionMaxAge != 12*time.Hour {
 		t.Fatalf("expected default SessionMaxAge 12h, got %v", te.gw.cfg.SessionMaxAge)
 	}

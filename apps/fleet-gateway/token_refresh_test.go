@@ -360,6 +360,7 @@ func TestRefreshToken_TamperWrongKIDAndKeyRotation(t *testing.T) {
 
 func TestRefreshToken_AbsoluteCap12h(t *testing.T) {
 	te := newClientEncryptedTestEnv(t, "k1:"+testKeyBase64(t, false))
+	te.gw.cfg.SessionAbsoluteMaxAge = 12 * time.Hour // the cap is configurable; 7 d is the internal default
 	iat := te.gw.now()
 	absMax := iat.Add(12 * time.Hour)
 

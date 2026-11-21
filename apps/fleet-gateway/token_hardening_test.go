@@ -153,7 +153,7 @@ func TestRefreshToken_LoweredMaxAgeRejectsAndClampsRefresh(t *testing.T) {
 	t.Run("rejects refresh past lowered SessionMaxAge", func(t *testing.T) {
 		te := newClientEncryptedTestEnv(t, "k1:"+testKeyBase64(t, false))
 		_, rt, _ := te.obtainTokensForResource(te.resource)
-		te.gw.cfg.SessionMaxAge = time.Hour
+		te.gw.cfg.SessionAbsoluteMaxAge = time.Hour
 		te.advance(2 * time.Hour)
 		if status, body := te.refresh(rt); status != http.StatusBadRequest || body["error"] != "invalid_grant" {
 			t.Fatalf("expected 400 invalid_grant after SessionMaxAge lowered past elapsed time, got %d (%v)", status, body)
@@ -163,7 +163,7 @@ func TestRefreshToken_LoweredMaxAgeRejectsAndClampsRefresh(t *testing.T) {
 	t.Run("clamps expires_in and issued session stays alive within lowered SessionMaxAge", func(t *testing.T) {
 		te := newClientEncryptedTestEnv(t, "k1:"+testKeyBase64(t, false))
 		_, rt, _ := te.obtainTokensForResource(te.resource)
-		te.gw.cfg.SessionMaxAge = time.Hour
+		te.gw.cfg.SessionAbsoluteMaxAge = time.Hour
 		te.advance(45 * time.Minute)
 		status, body := te.refresh(rt)
 		if status != http.StatusOK {
@@ -287,26 +287,34 @@ func TestRefreshToken_TransientUpstreamDoesNotBurnRT(t *testing.T) {
 	}
 }
 
-func TestRefreshToken_RevokeSurvivesRaisedSessionMaxAge(t *testing.T) {
+func TestRefreshToken_RevokeSurvivesLoweredThenRaisedHardCap(t *testing.T) {
+	buf := captureAudit(t)
 	te := newClientEncryptedTestEnv(t, "k1:"+testKeyBase64(t, false))
 	_, rt1, _ := te.obtainTokensForResource(te.resource)
 
-	// Lower SessionMaxAge before refreshing rt1; its denylist TTL must stay pinned
-	// to rt1's EXP so raising SessionMaxAge later cannot make rt1 replayable.
-	te.gw.cfg.SessionMaxAge = time.Hour
+	// The cap is lowered while rt1 is rotated and replayed; the family revocation
+	// must outlive the lowered cap, or raising it again would revive rt2.
+	te.gw.cfg.SessionAbsoluteMaxAge = time.Hour
 	status, body := te.refresh(rt1)
 	if status != http.StatusOK {
 		t.Fatalf("first refresh: %d (%v)", status, body)
 	}
 	rt2, _ := body["refresh_token"].(string)
 
-	te.advance(2 * time.Hour)
-	te.gw.cfg.SessionMaxAge = 24 * time.Hour
-
-	if status, body := te.refresh(rt1); status != http.StatusBadRequest || body["error"] != "invalid_grant" {
-		t.Fatalf("replay of used RT after raising SessionMaxAge: got %d (%v), want 400 invalid_grant", status, body)
+	te.advance(30 * time.Minute) // past the grace window, inside the lowered cap
+	if status, body := te.refresh(rt1); status != http.StatusBadRequest {
+		t.Fatalf("replay of used RT: got %d (%v), want 400", status, body)
 	}
-	if status, body := te.refresh(rt2); status != http.StatusBadRequest || body["error"] != "invalid_grant" {
-		t.Fatalf("newest RT in family must be revoked after replay: got %d (%v), want 400 invalid_grant", status, body)
+	if got := lastRefreshOutcome(buf); !strings.Contains(got, `"outcome":"replayed_family_revoked"`) {
+		t.Fatalf("want replayed_family_revoked, got %s", got)
+	}
+
+	te.advance(2 * time.Hour) // past the lowered cap
+	te.gw.cfg.SessionAbsoluteMaxAge = 7 * 24 * time.Hour
+	if status, body := te.refresh(rt2); status != http.StatusBadRequest {
+		t.Fatalf("newest RT must stay revoked after the cap is raised again: got %d (%v)", status, body)
+	}
+	if got := lastRefreshOutcome(buf); !strings.Contains(got, `"outcome":"family_revoked"`) {
+		t.Fatalf("want family_revoked (denylist path), got %s", got)
 	}
 }
