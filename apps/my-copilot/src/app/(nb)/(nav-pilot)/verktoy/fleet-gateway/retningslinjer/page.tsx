@@ -13,6 +13,8 @@ export const metadata: Metadata = {
 
 const SPEC = "https://modelcontextprotocol.io/specification/2026-07-28";
 const OWASP_URL = "https://owasp.org/www-project-mcp-top-10/";
+const OWASP_BASE =
+  "https://github.com/OWASP/www-project-mcp-top-10/blob/165fe0f78ef104459237b4a8e0f6e78db9b02391/2025/";
 const SPEC_BEST_PRACTICES = "https://modelcontextprotocol.io/specification/2025-11-25/basic/security_best_practices";
 const KODEVERK_URL = "https://github.com/navikt/copilot/tree/main/apps/mcp-kodeverk";
 const ISSUE_URL = "https://github.com/navikt/copilot/issues/2490";
@@ -29,7 +31,19 @@ type Section = {
   note?: string;
 };
 
-const owasp = (id: string): Ref => ({ label: id, href: OWASP_URL });
+const OWASP_FILES: Record<string, string> = {
+  MCP01: "MCP01-2025-Token-Mismanagement-and-Secret-Exposure.md",
+  MCP02: "MCP02-2025%E2%80%93Privilege-Escalation-via-Scope-Creep.md",
+  MCP03: "MCP03-2025%E2%80%93Tool-Poisoning.md",
+  MCP05: "MCP05-2025%E2%80%93Command-Injection%26Execution.md",
+  MCP06: "MCP06-2025%E2%80%93Intent-Flow-Subversion.md",
+  MCP07: "MCP07-2025%E2%80%93Insufficient-Authentication%26Authorization.md",
+  MCP08: "MCP08-2025%E2%80%93Lack-of-Audit-and-Telemetry.md",
+  MCP09: "MCP09-2025%E2%80%93Shadow-MCP-Servers.md",
+  MCP10: "MCP10-2025%E2%80%93ContextInjection%26OverSharing.md",
+};
+
+const owasp = (id: string): Ref => ({ label: id, href: `${OWASP_BASE}${OWASP_FILES[id]}` });
 
 const SECTIONS: Section[] = [
   {
@@ -39,8 +53,8 @@ const SECTIONS: Section[] = [
       "Send tokenet til Texas for introspeksjon. Ikke les JWT-en selv.",
       "Sjekk at `azp` er fleet-gateway. `azp` er klient-ID-en, ikke navnet: slå opp `<klynge>:copilot:fleet-gateway` i `AZURE_APP_PRE_AUTHORIZED_APPS` og sammenlign med `clientId`.",
       "Krev at tokenet har `NAVident`. Avvis apptokens, altså tokens uten bruker.",
-      "Svar 401 på manglende, ugyldig eller utløpt token, og 403 når brukeren mangler rettighet.",
-      "Hvis oppslaget eller konfigurasjonen feiler, avvis forespørselen.",
+      "Svar 401 når Texas melder at tokenet er inaktivt (manglende, ugyldig eller utløpt). Svar 403 på apptoken, manglende `NAVident`, feil `azp` og manglende rettighet.",
+      "Feiler Texas, svar 502 (`introspection_failed`). Mangler serveren auth-konfigurasjon, svar 503. Svar aldri 401 når Texas er nede, for da tror klienten at brukeren må logge inn på nytt.",
       "Send aldri det innkommende tokenet videre til et annet API. Bruk Texas OBO for å få et eget token.",
       "Bruk aldri sesjons-ID som innlogging. Sjekk hvert kall.",
     ],
@@ -54,7 +68,7 @@ const SECTIONS: Section[] = [
     id: "lesing-forst",
     title: "Start med lesing",
     points: [
-      "Første versjon har bare verktøy som leser. Skriveverktøy kommer etter at ROS er godkjent.",
+      "Første versjon har bare verktøy som leser. Skriveverktøy kommer først etter at ROS er godkjent.",
       "Skriveverktøy trenger tak på antall og alder, kvote per døgn, eierskapssjekk og en revisjonslinje. En beskrivelse som ber modellen bekrefte med brukeren er ikke nok.",
       "Gjør skriveverktøy trygge å prøve på nytt, for eksempel med en idempotensnøkkel eller et tydelig «allerede opprettet»-svar.",
     ],
@@ -72,20 +86,20 @@ const SECTIONS: Section[] = [
       "Ruten i fleet-gateway og oppføringen i registeret lister hvert verktøy ved navn. De to listene må være like.",
       "Bare operatøren av gatewayen bruker `passAllTools`. Teamets rute bruker det ikke.",
       "Gi hvert verktøy et navn med tjeneste og ressurs, for eksempel `kodeverk_search`.",
-      "Ha ikke servere i gatewayen som mangler i registeret.",
+      "Alle servere i gatewayen må stå i registeret.",
     ],
     owasp: [owasp("MCP02"), owasp("MCP09")],
     spec: [{ label: "Tools: Tool Names", href: `${SPEC}/server/tools` }],
   },
   {
     id: "grenser",
-    title: "Sett grenser på input og svar",
+    title: "Sett grenser for input og svar",
     points: [
       "Valider input mot JSON Schema: `minimum`, `maximum`, `maxLength`, `enum` og `additionalProperties: false`.",
-      "Sett tak på størrelsen på forespørselen (`MaxBytesReader` i Go).",
+      "Sett tak for størrelsen på forespørselen (`MaxBytesReader` i Go).",
       "Sett tidsavbrudd på alle kall til andre systemer. Serverens skrivetidsavbrudd må være lengre enn summen av dem.",
-      "Sett tak på sidestørrelse og antall sider, og sorter likt hver gang.",
-      "Sett tak på svarstørrelsen. mcp-kodeverk bruker 32 KiB. Svar med `truncated: true`, `nextOffset` og én setning om hvordan brukeren kan snevre inn søket.",
+      "Sett tak for sidestørrelse og antall sider, og sorter likt hver gang.",
+      "Sett tak for svarstørrelsen. mcp-kodeverk bruker 32 KiB. Svar med `truncated: true`, `nextOffset` og én setning om hvordan brukeren kan snevre inn søket.",
       "Behandle tekst fra andre systemer og fra brukere som data. Ikke legg instruksjoner til modellen i svaret.",
       "Ikke hent URL-er som brukeren oppgir. Er det uunngåelig: bare https, blokker private adresser, sjekk omdirigeringer og begrens utgående trafikk med `accessPolicy`.",
     ],
@@ -94,58 +108,59 @@ const SECTIONS: Section[] = [
       { label: "Tools: Security Considerations", href: `${SPEC}/server/tools` },
       { label: "Security best practices", href: SPEC_BEST_PRACTICES },
     ],
-    note: "Ingen av referanseserverne begrenser hvor ofte et verktøy kan kalles. Spesifikasjonen sier at serveren skal begrense kall. Om gatewayen dekker det, er ikke undersøkt. Sett en grense per bruker i serveren selv.",
+    note: "Spesifikasjonen krever at serveren begrenser kallene. Gatewayen begrenser bare samtidige kall per bruker (`user_cap` og `user_sse_cap`), ikke hvor mange kall brukeren sender per minutt. Dere må selv sette en grense for kall per bruker i serveren. Ingen av referanseserverne gjør det i dag.",
   },
   {
     id: "hoder",
     title: "Sjekk Mcp-hodene mot innholdet",
     points: [
       "Sjekk `MCP-Protocol-Version`, `Mcp-Method` og, for `tools/call`, `Mcp-Name` mot innholdet i forespørselen. Avvis forespørsler der et påkrevd hode mangler.",
-      "Sjekk også `Mcp-Param-*` for parametere verktøyet har merket for det.",
-      "Ved avvik svarer dere HTTP 400 med JSON-RPC-feilen `-32020`.",
+      "Sjekk også `Mcp-Param-*` for parametere verktøyet har merket for det. mcp-kodeverk har ingen slike parametere, så det finnes ingen referanseimplementasjon for dette.",
+      "Ved avvik: svar HTTP 400 med JSON-RPC-feilen `-32020`.",
       "Svar 405 på GET hvis serveren ikke tilbyr en strøm.",
     ],
     owasp: [owasp("MCP05")],
     spec: [{ label: "Spesifikasjonen 2026-07-28", href: SPEC }],
-    note: "Testen mcp2026_compliance_test.go i mcp-kodeverk viser hvordan dere tester dette.",
+    note: "Testen mcp2026_compliance_test.go i mcp-kodeverk viser hvordan dere tester `Mcp-Method` og `Mcp-Name`. En samsvarstest dere kan kjøre mot egen server kommer (#2548).",
   },
   {
     id: "logging",
     title: "Logg uten persondata",
     points: [
-      "Logg hvem som kalte, hvilket verktøy, utfallet og en korrelasjons-ID.",
+      "Logg hvem som kalte, hvilket verktøy, utfallet og en korrelasjons-ID. Gatewayens revisjonslogg lagrer allerede NAVident for hvert kall, så serveren trenger ikke gjenta persondata.",
       "Ikke logg tokens, fritekst eller input som kan inneholde persondata.",
-      "Logger dere NAV-ident med vilje som revisjonsspor, skriv det i ROS.",
-      "Hemmeligheter kommer bare fra Nais-secrets. De skal aldri stå i kode, logger, feilmeldinger eller `x-mcp-header`, og aldri i query string.",
+      "Logger dere NAVident med vilje som revisjonsspor, skriv det i ROS.",
+      "Hent hemmeligheter bare fra Nais-secrets. Ha dem aldri i kode, logger, feilmeldinger eller `x-mcp-header`, og aldri i query string.",
     ],
     owasp: [owasp("MCP01"), owasp("MCP08")],
     spec: [{ label: "Tools: Security Considerations", href: `${SPEC}/server/tools` }],
-    note: "Regelen om persondata er vår egen. Den står ikke i spesifikasjonen.",
+    note: "Regelen om persondata er vår egen og står ikke i spesifikasjonen.",
   },
   {
     id: "beskrivelser",
     title: "Skriv beskrivelser og annotasjoner",
     points: [
-      "Skriv beskrivelsen til en ny kollega: når verktøyet brukes og ikke brukes, format, forkortelser og ett eksempel.",
+      "Skriv beskrivelsen som til en ny kollega: når verktøyet skal og ikke skal brukes, format, forkortelser og ett eksempel.",
       "Bruk tydelige parameternavn, for eksempel `user_id` og ikke `user`.",
-      "Hold beskrivelsene faste og i kildekontroll. Ikke bygg dem av tekst fra andre systemer. Test dem i CI for skjulte instruksjoner og usynlig Unicode.",
+      "Hold beskrivelsene faste og lagre dem i kildekontroll. Ikke bygg dem av tekst fra andre systemer. Sjekk dem i CI for skjulte instruksjoner og usynlige Unicode-tegn.",
       "Sett alle fire annotasjonene på hvert verktøy: `readOnlyHint`, `destructiveHint`, `idempotentHint` og `openWorldHint`.",
       "Annotasjoner er hint, ikke en sikkerhetsgrense. Klienten kan ikke stole på dem. Håndhev reglene i serveren.",
-      "Svar på feil med `isError: true`, hva som er galt, gyldig format og et eksempel, så modellen kan rette seg. Bruk JSON-RPC-feil bare for ugyldige forespørsler.",
+      "Svar på feil med `isError: true`, og si hva som er galt, hva som er gyldig format og gi et eksempel, så modellen kan rette seg. Bruk JSON-RPC-feil bare for ugyldige forespørsler.",
     ],
     owasp: [owasp("MCP03")],
-    spec: [{ label: "Tools: Tool og Error Handling", href: `${SPEC}/server/tools` }],
+    spec: [{ label: "Tools: Tool, Error Handling", href: `${SPEC}/server/tools` }],
   },
   {
     id: "metrikker",
     title: "Mål hvert verktøy",
     points: [
+      "Gatewayen sender allerede `fleet_gateway_mcp_requests_total` med `route` og `tool` (`other` for verktøy som ikke står på listen). Serveren må måle det gatewayen ikke ser: tid og feil inne i serveren, per verktøy.",
       "Tell forespørsler, feil og latens per verktøy.",
-      "Hold antall unike verdier lavt. Bruk verktøynavn og utfall (ok, feil, avvist) som etiketter. Bruk aldri bruker, input, URL eller feilmelding som etikett.",
+      "Hold antallet mulige etikettverdier lavt. Bruk verktøynavn og utfall (ok, feil, avvist) som etiketter. Bruk aldri brukeren, input, URL eller feilmelding som etikett.",
     ],
     owasp: [owasp("MCP08")],
     spec: [],
-    note: "Ikke bekreftet i en kilde. Dette er vårt eget råd. mcp-kodeverk og mcp-dolly har ingen egne målinger i dag. Planen er å gjøre det til standard i et felles bibliotek (#2490).",
+    note: "Dette er vårt eget råd, ikke hentet fra en kilde. mcp-kodeverk og mcp-dolly har ingen egne målinger i dag. Vi planlegger å gjøre det til standard i et felles bibliotek (#2490).",
   },
   {
     id: "ros",
@@ -153,7 +168,7 @@ const SECTIONS: Section[] = [
     points: [
       "Hver server har sin egen risiko- og sårbarhetsanalyse (ROS) før den får en rute i prod.",
       "Bruk malen for MCP-servere i copilot-intern. Malen ligger i et privat repo.",
-      "Skriv inn det som er spesielt for serveren: skriveverktøy, logging av NAV-ident, egen OAuth-proxy og hvilke data den eksponerer.",
+      "Skriv inn det som er spesielt for serveren: skriveverktøy, logging av NAVident, egen OAuth-proxy og hvilke data den eksponerer.",
     ],
     owasp: [owasp("MCP02"), owasp("MCP08")],
     spec: [],
@@ -221,15 +236,15 @@ export default function McpRetningslinjerPage() {
       </Alert>
 
       <BodyLong>
-        Hvert punkt under viser hva dere må gjøre, hvilken risiko i{" "}
+        Hvert punkt under sier hva dere må gjøre. Det viser også hvilken risiko i{" "}
         <a href={OWASP_URL} className={linkClass}>
           OWASP MCP Top 10
         </a>{" "}
-        det dekker og hvilken del av{" "}
+        punktet dekker, og hvilken del av{" "}
         <a href={SPEC} className={linkClass}>
           MCP-spesifikasjonen 2026-07-28
         </a>{" "}
-        det bygger på. Er det ikke en lenke til en kilde, er punktet vårt eget råd. Kilder og status for planen står i{" "}
+        det bygger på. Punkter uten kildelenke er vårt eget råd. Kilder og status for planen står i{" "}
         <a href={ISSUE_URL} className={linkClass}>
           #2490
         </a>
@@ -274,8 +289,21 @@ export default function McpRetningslinjerPage() {
             </a>
             . Referanse for tokensjekk, tak, sidedeling, svarskjema og samsvarstest.
           </li>
-          <li>Kotlin med Ktor: kommer, legges i examples/ i en egen PR.</li>
-          <li>TypeScript: kommer, legges i examples/ i en egen PR.</li>
+          <li>
+            Kotlin:{" "}
+            <a href="https://github.com/navikt/mcp-server-kotlin-template" className={linkClass}>
+              navikt/mcp-server-kotlin-template
+            </a>
+            .
+          </li>
+          <li>
+            TypeScript:{" "}
+            <a href="https://github.com/navikt/mcp-server-typescript-template" className={linkClass}>
+              navikt/mcp-server-typescript-template
+            </a>
+            .
+          </li>
+          <li>Samsvarstest dere kan kjøre mot egen server: kommer (#2548).</li>
         </Bullets>
         <BodyLong>
           Bruker dere en KI-agent til å skrive serveren, finnes en skill med samme krav som en kort sjekkliste:{" "}
