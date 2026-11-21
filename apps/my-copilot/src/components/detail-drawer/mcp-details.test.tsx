@@ -217,6 +217,21 @@ describe("McpDetails", () => {
       );
     });
 
+    it.each(["https://evil.example/fleet-gateway", "https://example.com/?x=fleet-gateway"])("ignores %s", (url) => {
+      render(<McpDetails item={{ ...base, remotes: [{ type: "streamable-http", url }] } as EnrichedCustomization} />);
+      expect(screen.queryByText(/Koble til Navs MCP-servere/)).not.toBeInTheDocument();
+    });
+
+    it("accepts the dev host and the domain_internal template", () => {
+      for (const url of ["https://fleet-gateway.intern.dev.nav.no/x", "https://fleet-gateway.{{domain_internal}}/x"]) {
+        const { unmount } = render(
+          <McpDetails item={{ ...base, remotes: [{ type: "streamable-http", url }] } as EnrichedCustomization} />
+        );
+        expect(screen.getByText(/Koble til Navs MCP-servere/)).toBeInTheDocument();
+        unmount();
+      }
+    });
+
     it("is hidden for other servers", () => {
       const item = {
         ...base,

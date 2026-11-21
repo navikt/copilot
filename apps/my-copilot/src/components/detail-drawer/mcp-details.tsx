@@ -46,9 +46,21 @@ const RISK_GROUPS: {
   },
 ];
 
+const GATEWAY_HOSTS = ["fleet-gateway.intern.nav.no", "fleet-gateway.intern.dev.nav.no"];
+
+// Registry URLs may hold the {{domain_internal}} template, so accept fleet-gateway.<nav domain> there.
+function isGatewayUrl(raw: string): boolean {
+  try {
+    const host = new URL(raw.replace("{{domain_internal}}", "intern.nav.no")).hostname;
+    return GATEWAY_HOSTS.includes(host);
+  } catch {
+    return false;
+  }
+}
+
 export function isFleetGatewayMcp(item: EnrichedCustomization): boolean {
   if (item.type !== "mcp") return false;
-  return item.remotes.some((r) => r.url.includes("fleet-gateway")) || (item.tags?.includes("fleet-gateway") ?? false);
+  return item.remotes.some((r) => isGatewayUrl(r.url)) || (item.tags?.includes("fleet-gateway") ?? false);
 }
 
 function riskOf(toolRisk: Record<string, McpToolRisk> | undefined, tool: string): McpToolRisk {

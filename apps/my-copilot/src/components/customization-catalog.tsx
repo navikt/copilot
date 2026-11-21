@@ -20,7 +20,6 @@ import type { CustomizationType, Domain } from "@/lib/customization-types";
 import { DOMAIN_CONFIGS, TYPE_LABELS } from "@/lib/customization-types";
 import { findByItemKey, itemKey } from "@/lib/item-key";
 import type { EnrichedCustomization } from "@/lib/enrich-customizations";
-import { linkClass } from "@/components/nav-pilot/doc-page";
 import { DetailDrawer } from "./detail-drawer";
 import { TYPE_ORDER, TypeBadge, TypeIcon, TypeIconBadge, typeClassName } from "./verktoy-type-meta";
 
@@ -489,7 +488,7 @@ export function CustomizationCatalog({ items }: CustomizationCatalogProps) {
 
       <BodyShort size="small" className="verktoy-subtle text-center">
         Eier teamet en MCP-server?{" "}
-        <NextLink href="/verktoy/fleet-gateway" className={linkClass}>
+        <NextLink href="/verktoy/fleet-gateway" className="verktoy-subtle underline">
           Tilby den gjennom fleet-gateway
         </NextLink>
       </BodyShort>
