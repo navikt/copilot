@@ -187,3 +187,15 @@ func TestAuthMiddleware_InvalidTokenChallenge(t *testing.T) {
 		t.Fatalf("missing token challenge has error code: %q", got)
 	}
 }
+
+func TestAuthMiddleware_NonBearerSchemeHasNoErrorCode(t *testing.T) {
+	h := NewAuthMiddleware(newTestStore(), "https://mcp.example.com").Authenticate(http.NotFoundHandler())
+	req := httptest.NewRequest("POST", "/mcp", nil)
+	req.Header.Set("Authorization", "Basic dXNlcjpwdw==")
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, req)
+	got := w.Header().Get("WWW-Authenticate")
+	if w.Code != http.StatusUnauthorized || got == "" || strings.Contains(got, "invalid_token") {
+		t.Fatalf("status=%d challenge=%q, want 401 challenge without invalid_token", w.Code, got)
+	}
+}

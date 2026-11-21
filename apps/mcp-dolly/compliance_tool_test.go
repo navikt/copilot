@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"os/exec"
+	"strings"
 	"testing"
 )
 
@@ -15,7 +16,7 @@ func runComplianceTool(t *testing.T, url, token string, tool string) {
 	t.Helper()
 	cmd := exec.Command("go", "run", ".", "-url", url, "-tool", tool) //nolint:gosec // test-only, args are test constants
 	cmd.Dir = "../../cli/mcp-compliance"
-	cmd.Env = append(os.Environ(), "MCP_COMPLIANCE_TOKEN="+token, "MCP_COMPLIANCE_APP_TOKEN=app-token")
+	cmd.Env = complianceEnv("MCP_COMPLIANCE_TOKEN="+token, "MCP_COMPLIANCE_APP_TOKEN=app-token")
 	out, err := cmd.CombinedOutput()
 	t.Logf("mcp-compliance:\n%s", out)
 	if err != nil {
@@ -80,4 +81,16 @@ func TestUnauthorizedChallenge(t *testing.T) {
 			}
 		})
 	}
+}
+
+// complianceEnv is a clean environment: only what go needs, so a caller's
+// MCP_LEGACY_PROTOCOL_UNTIL or MCP_COMPLIANCE_* never leaks into the run.
+func complianceEnv(extra ...string) []string {
+	env := []string{"HOME=" + os.Getenv("HOME"), "PATH=" + os.Getenv("PATH"), "GOCACHE=" + goEnv("GOCACHE"), "GOMODCACHE=" + goEnv("GOMODCACHE"), "GOTOOLCHAIN=local"}
+	return append(env, extra...)
+}
+
+func goEnv(k string) string {
+	out, _ := exec.Command("go", "env", k).Output() //nolint:gosec // test-only
+	return strings.TrimSpace(string(out))
 }

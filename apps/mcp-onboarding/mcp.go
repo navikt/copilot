@@ -125,7 +125,8 @@ func (h *MCPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			var maxErr *http.MaxBytesError
-			if errors.As(err, &maxErr) {
+			// Legacy requests keep the old parse error; only modern ones get 413.
+			if errors.As(err, &maxErr) && !isLegacyMCPRequest(r, mcpEnvelope{}) {
 				w.WriteHeader(http.StatusRequestEntityTooLarge)
 				return
 			}

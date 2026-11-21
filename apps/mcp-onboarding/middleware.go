@@ -29,7 +29,7 @@ func (m *AuthMiddleware) Authenticate(next http.Handler) http.Handler {
 
 		parts := strings.SplitN(authHeader, " ", 2)
 		if len(parts) != 2 || strings.ToLower(parts[0]) != "bearer" {
-			m.sendUnauthorized(w, true)
+			m.sendUnauthorized(w, false) // not a Bearer credential: no error code (RFC 6750 section 3.1)
 			return
 		}
 
