@@ -24,7 +24,6 @@ type Ref = { label: string; href: string };
 
 type Section = {
   id: string;
-  title: string;
   points: string[];
   owasp: Ref[];
   spec: Ref[];
@@ -48,7 +47,6 @@ const owasp = (id: string): Ref => ({ label: id, href: `${OWASP_BASE}${OWASP_FIL
 const SECTIONS: Section[] = [
   {
     id: "token",
-    title: "Sjekk tokenet med Texas",
     points: [
       "Send tokenet til Texas for introspeksjon. Ikke les JWT-en selv.",
       "Sjekk at `azp` er fleet-gateway. `azp` er klient-ID-en, ikke navnet: slå opp `<klynge>:copilot:fleet-gateway` i `AZURE_APP_PRE_AUTHORIZED_APPS` og sammenlign med `clientId`.",
@@ -66,10 +64,10 @@ const SECTIONS: Section[] = [
   },
   {
     id: "lesing-forst",
-    title: "Start med lesing",
     points: [
       "Første versjon har bare verktøy som leser. Skriveverktøy kommer først etter at ROS er godkjent.",
       "Skriveverktøy trenger tak på antall og alder, kvote per døgn, eierskapssjekk og en revisjonslinje. En beskrivelse som ber modellen bekrefte med brukeren er ikke nok.",
+      "Serveren må selv håndheve bekreftelsen, for eksempel med to steg: første kall gir en forhåndsvisning og et kortlevd bekreftelsestoken, og andre kall må ha tokenet. mcp-dolly gjør dette i `create_order`. En melding til brukeren fra klienten eller `input_required` alene er ikke nok, for serveren kan ikke vite at klienten viste den.",
       "Gjør skriveverktøy trygge å prøve på nytt, for eksempel med en idempotensnøkkel eller et tydelig «allerede opprettet»-svar.",
     ],
     owasp: [owasp("MCP02")],
@@ -81,7 +79,6 @@ const SECTIONS: Section[] = [
   },
   {
     id: "verktoylister",
-    title: "Bruk eksplisitte verktøylister",
     points: [
       "Ruten i fleet-gateway og oppføringen i registeret lister hvert verktøy ved navn. De to listene må være like.",
       "Bare operatøren av gatewayen bruker `passAllTools`. Teamets rute bruker det ikke.",
@@ -93,7 +90,6 @@ const SECTIONS: Section[] = [
   },
   {
     id: "grenser",
-    title: "Sett grenser for input og svar",
     points: [
       "Valider input mot JSON Schema: `minimum`, `maximum`, `maxLength`, `enum` og `additionalProperties: false`.",
       "Sett tak for størrelsen på forespørselen (`MaxBytesReader` i Go).",
@@ -112,7 +108,6 @@ const SECTIONS: Section[] = [
   },
   {
     id: "hoder",
-    title: "Sjekk Mcp-hodene mot innholdet",
     points: [
       "Sjekk `MCP-Protocol-Version`, `Mcp-Method` og, for `tools/call`, `Mcp-Name` mot innholdet i forespørselen. Avvis forespørsler der et påkrevd hode mangler.",
       "Sjekk også `Mcp-Param-*` for parametere verktøyet har merket for det. mcp-kodeverk har ingen slike parametere, så det finnes ingen referanseimplementasjon for dette.",
@@ -125,7 +120,6 @@ const SECTIONS: Section[] = [
   },
   {
     id: "logging",
-    title: "Logg uten persondata",
     points: [
       "Logg hvem som kalte, hvilket verktøy, utfallet og en korrelasjons-ID. Gatewayens revisjonslogg lagrer allerede NAVident for hvert kall, så serveren trenger ikke gjenta persondata.",
       "Ikke logg tokens, fritekst eller input som kan inneholde persondata.",
@@ -138,7 +132,6 @@ const SECTIONS: Section[] = [
   },
   {
     id: "beskrivelser",
-    title: "Skriv beskrivelser og annotasjoner",
     points: [
       "Skriv beskrivelsen som til en ny kollega: når verktøyet skal og ikke skal brukes, format, forkortelser og ett eksempel.",
       "Bruk tydelige parameternavn, for eksempel `user_id` og ikke `user`.",
@@ -152,7 +145,6 @@ const SECTIONS: Section[] = [
   },
   {
     id: "metrikker",
-    title: "Mål hvert verktøy",
     points: [
       "Gatewayen sender allerede `fleet_gateway_mcp_requests_total` med `route` og `tool` (`other` for verktøy som ikke står på listen). Serveren må måle det gatewayen ikke ser: tid og feil inne i serveren, per verktøy.",
       "Tell forespørsler, feil og latens per verktøy.",
@@ -164,7 +156,6 @@ const SECTIONS: Section[] = [
   },
   {
     id: "ros",
-    title: "Lag en ROS per server",
     points: [
       "Hver server har sin egen risiko- og sårbarhetsanalyse (ROS) før den får en rute i prod.",
       "Bruk malen for MCP-servere i copilot-intern. Malen ligger i et privat repo.",
@@ -176,7 +167,15 @@ const SECTIONS: Section[] = [
 ];
 
 const TOC: TocItem[] = [
-  ...SECTIONS.map((s) => ({ id: s.id, label: s.title })),
+  { id: "token", label: "Sjekk tokenet med Texas" },
+  { id: "lesing-forst", label: "Start med lesing" },
+  { id: "verktoylister", label: "Bruk eksplisitte verktøylister" },
+  { id: "grenser", label: "Sett grenser for input og svar" },
+  { id: "hoder", label: "Sjekk Mcp-hodene mot innholdet" },
+  { id: "logging", label: "Logg uten persondata" },
+  { id: "beskrivelser", label: "Skriv beskrivelser og annotasjoner" },
+  { id: "metrikker", label: "Mål hvert verktøy" },
+  { id: "ros", label: "Lag en ROS per server" },
   { id: "eksempler", label: "Eksempler" },
 ];
 
@@ -211,6 +210,32 @@ function Refs({ label, refs }: { label: string; refs: Ref[] }) {
         </span>
       ))}
     </BodyShort>
+  );
+}
+
+function Rules({ id }: { id: string }) {
+  const s = SECTIONS.find((x) => x.id === id)!;
+  return (
+    <>
+      <Bullets>
+        {s.points.map((p) => (
+          <li key={p}>
+            <Inline text={p} />
+          </li>
+        ))}
+      </Bullets>
+      <Box background="neutral-soft" padding="space-12" borderRadius="8">
+        <VStack gap="space-4">
+          <Refs label="OWASP" refs={s.owasp} />
+          <Refs label="Spesifikasjon" refs={s.spec} />
+          {s.note && (
+            <BodyShort size="small">
+              <Inline text={s.note} />
+            </BodyShort>
+          )}
+        </VStack>
+      </Box>
+    </>
   );
 }
 
@@ -251,31 +276,68 @@ export default function McpRetningslinjerPage() {
         .
       </BodyLong>
 
-      {SECTIONS.map((s) => (
-        <VStack key={s.id} gap="space-12">
-          <LinkableHeading id={s.id} size="medium" level="2">
-            {s.title}
-          </LinkableHeading>
-          <Bullets>
-            {s.points.map((p) => (
-              <li key={p}>
-                <Inline text={p} />
-              </li>
-            ))}
-          </Bullets>
-          <Box background="neutral-soft" padding="space-12" borderRadius="8">
-            <VStack gap="space-4">
-              <Refs label="OWASP" refs={s.owasp} />
-              <Refs label="Spesifikasjon" refs={s.spec} />
-              {s.note && (
-                <BodyShort size="small">
-                  <Inline text={s.note} />
-                </BodyShort>
-              )}
-            </VStack>
-          </Box>
-        </VStack>
-      ))}
+      <VStack gap="space-12">
+        <LinkableHeading id="token" size="medium" level="2">
+          Sjekk tokenet med Texas
+        </LinkableHeading>
+        <Rules id="token" />
+      </VStack>
+
+      <VStack gap="space-12">
+        <LinkableHeading id="lesing-forst" size="medium" level="2">
+          Start med lesing
+        </LinkableHeading>
+        <Rules id="lesing-forst" />
+      </VStack>
+
+      <VStack gap="space-12">
+        <LinkableHeading id="verktoylister" size="medium" level="2">
+          Bruk eksplisitte verktøylister
+        </LinkableHeading>
+        <Rules id="verktoylister" />
+      </VStack>
+
+      <VStack gap="space-12">
+        <LinkableHeading id="grenser" size="medium" level="2">
+          Sett grenser for input og svar
+        </LinkableHeading>
+        <Rules id="grenser" />
+      </VStack>
+
+      <VStack gap="space-12">
+        <LinkableHeading id="hoder" size="medium" level="2">
+          Sjekk Mcp-hodene mot innholdet
+        </LinkableHeading>
+        <Rules id="hoder" />
+      </VStack>
+
+      <VStack gap="space-12">
+        <LinkableHeading id="logging" size="medium" level="2">
+          Logg uten persondata
+        </LinkableHeading>
+        <Rules id="logging" />
+      </VStack>
+
+      <VStack gap="space-12">
+        <LinkableHeading id="beskrivelser" size="medium" level="2">
+          Skriv beskrivelser og annotasjoner
+        </LinkableHeading>
+        <Rules id="beskrivelser" />
+      </VStack>
+
+      <VStack gap="space-12">
+        <LinkableHeading id="metrikker" size="medium" level="2">
+          Mål hvert verktøy
+        </LinkableHeading>
+        <Rules id="metrikker" />
+      </VStack>
+
+      <VStack gap="space-12">
+        <LinkableHeading id="ros" size="medium" level="2">
+          Lag en ROS per server
+        </LinkableHeading>
+        <Rules id="ros" />
+      </VStack>
 
       <VStack gap="space-12">
         <LinkableHeading id="eksempler" size="medium" level="2">

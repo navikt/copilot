@@ -3201,7 +3201,16 @@
       "skills/mcp-server-authoring/SKILL.md"
     ],
     "anchors": {
-      "eksempler": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/verktoy/fleet-gateway/retningslinjer/page.tsx"]
+      "beskrivelser": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/verktoy/fleet-gateway/retningslinjer/page.tsx"],
+      "eksempler": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/verktoy/fleet-gateway/retningslinjer/page.tsx"],
+      "grenser": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/verktoy/fleet-gateway/retningslinjer/page.tsx"],
+      "hoder": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/verktoy/fleet-gateway/retningslinjer/page.tsx"],
+      "lesing-forst": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/verktoy/fleet-gateway/retningslinjer/page.tsx"],
+      "logging": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/verktoy/fleet-gateway/retningslinjer/page.tsx"],
+      "metrikker": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/verktoy/fleet-gateway/retningslinjer/page.tsx"],
+      "ros": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/verktoy/fleet-gateway/retningslinjer/page.tsx"],
+      "token": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/verktoy/fleet-gateway/retningslinjer/page.tsx"],
+      "verktoylister": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/verktoy/fleet-gateway/retningslinjer/page.tsx"]
     }
   }
 }

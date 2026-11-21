@@ -34,6 +34,7 @@ Checklist:
 
 - [ ] Texas introspection; `azp` is fleet-gateway, `NAVident` present, app tokens rejected; OBO, no passthrough.
 - [ ] Read tools first; writes only after ROS sign-off.
+- [ ] Write tools: the server enforces confirmation itself (two-step preview + short-lived token, as `mcp-dolly` `create_order`); a client prompt or `input_required` alone is not enough.
 - [ ] Explicit `tools:` list in route and registry, no `passAllTools`.
 - [ ] Caps on input, request body, page size and response size; timeouts upstream.
 - [ ] `Mcp-*` headers checked against the body (`-32020`).
