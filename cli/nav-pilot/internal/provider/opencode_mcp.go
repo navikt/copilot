@@ -696,7 +696,9 @@ func applyOpenCodeMCPPolicy(env []string, projectDir string) []string {
 	// Both are the launch's own answer, never inherited from the shell or a
 	// repo's .envrc: a value set there would unmask idents or lift blocks.
 	env = slices.DeleteFunc(env, func(e string) bool {
-		return strings.HasPrefix(e, MCPSourcesEnv+"=") || strings.HasPrefix(e, MCPBlockedEnv+"=")
+		return strings.HasPrefix(e, MCPSourcesEnv+"=") ||
+			strings.HasPrefix(e, CopilotMCPSourcesEnv+"=") ||
+			strings.HasPrefix(e, MCPBlockedEnv+"=")
 	})
 	env = applyOpenCodeMCPPolicyOff(env, projectDir)
 	return withMCPSources(env, projectDir)

@@ -2,6 +2,7 @@ package provider
 
 import (
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"slices"
@@ -35,19 +36,22 @@ func (s copilotMCPServer) isRemote() bool {
 // withCopilotMCPSources strips any inherited CopilotMCPSourcesEnv, resolves
 // Copilot CLI's configured MCP servers against Nav's MCP registry by remote
 // URL, and passes the verified map through cplt when at least one server
-// matched. Any --additional-mcp-config flag fails closed because it can
-// override a server key at runtime.
+// matched. Flags that can introduce or relocate MCP configs at runtime
+// (--additional-mcp-config, --plugin-dir, --config-dir, -C) and unreadable or
+// unparseable config files fail closed.
 func withCopilotMCPSources(env []string, projectDir string, extraArgs []string) ([]string, []string) {
 	env = slices.DeleteFunc(env, func(e string) bool {
 		return strings.HasPrefix(e, CopilotMCPSourcesEnv+"=")
 	})
 	for _, a := range extraArgs {
-		if a == "--additional-mcp-config" || strings.HasPrefix(a, "--additional-mcp-config=") {
-			return env, nil
+		for _, flag := range []string{"--additional-mcp-config", "--plugin-dir", "--config-dir", "-C"} {
+			if a == flag || strings.HasPrefix(a, flag+"=") {
+				return env, nil
+			}
 		}
 	}
-	servers := copilotMCPServers(projectDir, env)
-	if len(servers) == 0 {
+	servers, err := copilotMCPServers(projectDir, env)
+	if err != nil || len(servers) == 0 {
 		return env, nil
 	}
 	reg, ok := copilotMCPRegistry()
@@ -94,30 +98,39 @@ func copilotMCPRegistry() (mcpRegistry, bool) {
 
 // copilotMCPServers reads Copilot CLI's MCP server definitions in Copilot's
 // precedence order: user config (~/.copilot/mcp-config.json or $COPILOT_HOME),
-// then workspace .mcp.json (or .github/mcp.json when .mcp.json is absent) from
-// the git root down to projectDir. Later definitions overwrite earlier ones.
-func copilotMCPServers(projectDir string, env []string) map[string]copilotMCPServer {
+// then workspace .github/mcp.json and .mcp.json from the git root down to
+// projectDir. Later definitions overwrite earlier ones. An unreadable or
+// unparseable file returns an error so the caller fails closed.
+func copilotMCPServers(projectDir string, env []string) (map[string]copilotMCPServer, error) {
 	servers := map[string]copilotMCPServer{}
-	read := func(path string) {
+	read := func(path string) error {
 		data, err := os.ReadFile(path)
 		if err != nil {
-			return
+			if errors.Is(err, os.ErrNotExist) {
+				return nil
+			}
+			return err
 		}
 		var cfg struct {
 			MCPServers map[string]copilotMCPServer `json:"mcpServers"`
 		}
-		if json.Unmarshal(data, &cfg) != nil {
-			return
+		if err := json.Unmarshal(data, &cfg); err != nil {
+			return err
 		}
 		for k, v := range cfg.MCPServers {
 			servers[k] = v
 		}
+		return nil
 	}
 	home, _ := os.UserHomeDir()
 	if ch := openCodeEnvGetter(env)("COPILOT_HOME"); ch != "" {
-		read(filepath.Join(ch, "mcp-config.json"))
+		if err := read(filepath.Join(ch, "mcp-config.json")); err != nil {
+			return nil, err
+		}
 	} else if home != "" {
-		read(filepath.Join(home, ".copilot", "mcp-config.json"))
+		if err := read(filepath.Join(home, ".copilot", "mcp-config.json")); err != nil {
+			return nil, err
+		}
 	}
 	dir := projectDir
 	if dir == "" {
@@ -143,13 +156,13 @@ func copilotMCPServers(projectDir string, env []string) map[string]copilotMCPSer
 		}
 		slices.Reverse(dirs)
 		for _, d := range dirs {
-			p := filepath.Join(d, ".mcp.json")
-			if _, err := os.Stat(p); err == nil {
-				read(p)
-				continue
+			if err := read(filepath.Join(d, ".github", "mcp.json")); err != nil {
+				return nil, err
 			}
-			read(filepath.Join(d, ".github", "mcp.json"))
+			if err := read(filepath.Join(d, ".mcp.json")); err != nil {
+				return nil, err
+			}
 		}
 	}
-	return servers
+	return servers, nil
 }

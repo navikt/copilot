@@ -169,12 +169,16 @@ func TestParsePayloadMCPServer(t *testing.T) {
 func TestCopilotMCPServer(t *testing.T) {
 	srcs := `{"io.github.navikt/dolly":"io.github.navikt/dolly","io.github.navikt/dolly-extra":"","mine":"io.github.navikt/dolly","impostor":""}`
 	collide := `{"io.github.navikt/dolly":"io.github.navikt/dolly","io-github-navikt-dolly":""}`
+	shorterUnverified := `{"io.github.navikt/dolly":"io.github.navikt/dolly","io":""}`
+	shorterOther := `{"io.github.navikt/dolly":"io.github.navikt/dolly","io":"io.github.navikt/other"}`
 	tests := []struct {
 		name, tool, srcs, want string
 	}{
 		{"dolly default key", "io-github-navikt-dolly-dolly_search", srcs, DollyServer},
 		{"dolly renamed key", "mine-dolly_search", srcs, DollyServer},
-		{"longest prefix wins over shorter dolly key", "io-github-navikt-dolly-extra-search", srcs, ""},
+		{"unverified longer prefix fails closed", "io-github-navikt-dolly-extra-search", srcs, ""},
+		{"shorter unverified prefix cannot spoof dolly", "io-github-navikt-dolly-dolly_search", shorterUnverified, ""},
+		{"shorter different-registry prefix cannot spoof dolly", "io-github-navikt-dolly-dolly_search", shorterOther, ""},
 		{"colliding sanitized prefixes fail closed", "io-github-navikt-dolly-dolly_search", collide, ""},
 		{"unverified key", "impostor-search", srcs, ""},
 		{"contains prefix without anchoring", "x-io-github-navikt-dolly-dolly_search", srcs, ""},

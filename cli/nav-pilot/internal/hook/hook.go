@@ -127,8 +127,9 @@ func copilotToolPrefix(serverKey string) string {
 //
 // Measured against Copilot CLI 1.0.115: MCP tools arrive as
 // "<sanitizedServerKey>-<toolName>", replacing each character outside
-// [a-zA-Z0-9_-] in the server key with "-". Longest matching prefix wins, and
-// colliding prefixes fail closed ("").
+// [a-zA-Z0-9_-] in the server key with "-". Every matching prefix must agree
+// on the same non-empty registry name; colliding or ambiguous prefixes fail
+// closed ("").
 func CopilotMCPServer(toolName, rawSources string) string {
 	if toolName == "" || rawSources == "" {
 		return ""
@@ -153,11 +154,14 @@ func CopilotMCPServer(toolName, rawSources string) string {
 			byPrefix[p] = regName
 		}
 	}
-	bestPrefix, bestName := "", ""
+	matched, matchName := false, ""
 	for p, regName := range byPrefix {
-		if len(p) > len(bestPrefix) && len(toolName) > len(p) && strings.HasPrefix(toolName, p) {
-			bestPrefix, bestName = p, regName
+		if len(toolName) > len(p) && strings.HasPrefix(toolName, p) {
+			if regName == "" || (matched && matchName != regName) {
+				return ""
+			}
+			matched, matchName = true, regName
 		}
 	}
-	return bestName
+	return matchName
 }

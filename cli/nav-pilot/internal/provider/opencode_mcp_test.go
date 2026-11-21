@@ -447,9 +447,14 @@ func TestMCPEnvNotInherited(t *testing.T) {
 		return mcpRegistry{Remotes: map[string]bool{"https://x/mcp": true}, Packages: map[string]bool{},
 			Servers: map[string][]string{"a": {"https://x/mcp"}, "b": {"https://x/mcp"}}}, nil
 	}
-	inherited := []string{MCPSourcesEnv + `={"x":"io.github.navikt/dolly"}`, MCPBlockedEnv + `={"blocked":[],"listed":["x"]}`, "KEEP=1"}
+	inherited := []string{
+		MCPSourcesEnv + `={"x":"io.github.navikt/dolly"}`,
+		CopilotMCPSourcesEnv + `={"io.github.navikt/dolly":"io.github.navikt/dolly"}`,
+		MCPBlockedEnv + `={"blocked":[],"listed":["x"]}`,
+		"KEEP=1",
+	}
 	env := applyOpenCodeMCPPolicy(slices.Clone(inherited), proj)
-	if all := strings.Join(env, "\n"); strings.Contains(all, "dolly") || strings.Contains(all, MCPBlockedEnv) || !strings.Contains(all, "KEEP=1") {
+	if all := strings.Join(env, "\n"); strings.Contains(all, "dolly") || strings.Contains(all, CopilotMCPSourcesEnv) || strings.Contains(all, MCPBlockedEnv) || !strings.Contains(all, "KEEP=1") {
 		t.Errorf("inherited value reached the bridge: %v", env)
 	}
 	// No registry: nothing is set, and the inherited values are gone.
