@@ -56,6 +56,7 @@ updates:
       - "/apps/mcp-registry"
       - "/apps/mcp-team-catalog"
       - "/apps/fleet-gateway/echo"
+      - "/cli/mcp-compliance"
       - "/cli/nav-pilot"
       - "/scripts/generate-docs"
       - "/scripts/generate-retired"
