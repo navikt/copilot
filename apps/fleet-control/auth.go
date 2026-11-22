@@ -109,7 +109,16 @@ func (a *authz) caller(ctx context.Context, header string) (string, error) {
 		Idtyp  string `json:"idtyp"`
 		Azp    string `json:"azp"`
 	}
-	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&claims); err != nil {
+	const maxBody = 1 << 20
+	raw, err := io.ReadAll(io.LimitReader(resp.Body, maxBody+1))
+	if err != nil {
+		return "", fmt.Errorf("%w: read: %v", errTexas, err)
+	}
+	if len(raw) > maxBody {
+		return "", fmt.Errorf("%w: response over %d bytes", errTexas, maxBody)
+	}
+	// Unmarshal, unlike a single Decode, rejects trailing content.
+	if err := json.Unmarshal(raw, &claims); err != nil {
 		return "", fmt.Errorf("%w: decode: %v", errTexas, err)
 	}
 	// Only app tokens: a user token on behalf of fleet-gateway also has its azp.
