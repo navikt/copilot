@@ -139,25 +139,16 @@ func (f *fleetControlRoutes) fetch(ctx context.Context, current *RouteTable) ([]
 	if err != nil {
 		return nil, err
 	}
-	byPath := make(map[string]bool, len(routes))
 	for i := range routes {
 		routes[i].FullRouteID = f.cfg.BaseURL + routes[i].Route
-		byPath[routes[i].Route] = true
 	}
 	// The primary resource is the token audience in PRM: never move it to another route.
 	if _, ok := (&RouteTable{Routes: routes}).routeByResource(current.PrimaryResource); !ok {
 		return nil, fmt.Errorf("snapshot drops the primary resource %q", current.PrimaryResource)
 	}
-	// Same shrink rule as fleet-control, as defence in depth.
-	removed := 0
-	for _, r := range current.Routes {
-		if !byPath[r.Route] {
-			removed++
-		}
-	}
-	if limit := max(3, len(current.Routes)/5); removed > limit {
-		return nil, fmt.Errorf("snapshot would drop %d of %d routes (limit %d)", removed, len(current.Routes), limit)
-	}
+	// No shrink guard here: fleet-control applies it between its own
+	// publications and exempts revocations. Comparing with this table instead
+	// could reject valid snapshots forever and keep revoked routes live.
 	f.etag = resp.Header.Get("ETag")
 	f.generation = snap.Generation
 	return routes, nil

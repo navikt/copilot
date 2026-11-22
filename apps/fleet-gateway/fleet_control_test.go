@@ -209,7 +209,7 @@ func TestRouteSyncReorderKeepsPrimary(t *testing.T) {
 	}
 }
 
-func TestRouteSyncRejectsLargeShrink(t *testing.T) {
+func TestRouteSyncAppliesLargeShrink(t *testing.T) {
 	f := newFakeFleetControl(t)
 	gw, src := fleetControlGateway(t, f)
 	many := []map[string]any{primaryRoute()}
@@ -224,8 +224,9 @@ func TestRouteSyncRejectsLargeShrink(t *testing.T) {
 	}
 	f.body, f.etag = map[string]any{"schema_version": 1, "generation": 2, "routes": many[:5]}, `"e2"` // drops 4 of 9, limit 3
 	gw.syncRoutes(context.Background(), src)
-	if got := routePaths(gw); !slices.Equal(got, good) {
-		t.Fatalf("shrinking snapshot applied: %v", got)
+	// fleet-control owns the shrink rule and exempts revocations: a big drop it publishes must apply.
+	if got := routePaths(gw); len(got) != 5 {
+		t.Fatalf("shrinking snapshot not applied: %v", got)
 	}
 }
 
