@@ -23,12 +23,12 @@ const (
 // fakeServer follows the request order in apps/mcp-kodeverk/main.go mcpHandler.
 // Each field switches one rule off so a single check fails.
 type fakeServer struct {
-	acceptMissingToken, acceptInvalidToken, acceptAppToken bool
-	noDiscover, noVersionCheck, noMethodCheck, noNameCheck bool
-	noEnvelopeCheck, allowGET, noSizeLimit                 bool
-	noChallenge, noToolsList, echoToken, fracCode          bool
-	unsupportedAsMismatch, sse                             bool
-	tool                                                   map[string]any // replaces the default tools/list entry
+	acceptMissingToken, acceptInvalidToken, acceptAppToken        bool
+	noDiscover, noVersionCheck, noMethodCheck, noNameCheck        bool
+	noEnvelopeCheck, allowGET, noSizeLimit                        bool
+	noChallenge, errorOnMissing, noToolsList, echoToken, fracCode bool
+	unsupportedAsMismatch, sse                                    bool
+	tool                                                          map[string]any // replaces the default tools/list entry
 }
 
 func goodTool() map[string]any {
@@ -50,7 +50,14 @@ func (f fakeServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch auth := r.Header.Get("Authorization"); {
 	case auth == "" && !f.acceptMissingToken, auth == "Bearer "+invalidToken && !f.acceptInvalidToken:
 		if !f.noChallenge {
-			w.Header().Set("WWW-Authenticate", `Bearer error="invalid_token"`)
+			h := `Bearer realm="mcp", resource_metadata="https://example.test/.well-known/oauth-protected-resource"`
+			if auth != "" {
+				h += `, error="invalid_token"`
+			}
+			if f.errorOnMissing && auth == "" {
+				h = `Bearer error="invalid_token"`
+			}
+			w.Header().Set("WWW-Authenticate", h)
 		}
 		w.WriteHeader(401)
 		return
@@ -367,6 +374,20 @@ func TestMissingChallengeWarns(t *testing.T) {
 	code, out := runAgainst(t, fakeServer{noChallenge: true})
 	if code != 0 || !regexp.MustCompile(`WARN +missing token is 401`).MatchString(out) {
 		t.Fatalf("exit %d, want 0 with WARN:\n%s", code, out)
+	}
+}
+
+func TestMissingTokenErrorCodeWarns(t *testing.T) {
+	code, out := runAgainst(t, fakeServer{errorOnMissing: true})
+	if code != 0 || !regexp.MustCompile(`WARN +missing token is 401`).MatchString(out) || regexp.MustCompile(`WARN +invalid token is 401`).MatchString(out) {
+		t.Fatalf("exit %d, want 0 with WARN on the missing-token row only:\n%s", code, out)
+	}
+}
+
+func TestRFC6750ChallengesPass(t *testing.T) {
+	code, out := runAgainst(t, fakeServer{})
+	if code != 0 || regexp.MustCompile(`WARN +(missing|invalid) token`).MatchString(out) {
+		t.Fatalf("exit %d, want 0 and no auth WARN:\n%s", code, out)
 	}
 }
 
