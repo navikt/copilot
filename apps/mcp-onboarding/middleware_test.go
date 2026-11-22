@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 )
@@ -163,5 +164,38 @@ func TestGetUserFromContext_NoUser(t *testing.T) {
 	}
 	if user.Login != "anonymous" {
 		t.Errorf("expected Login 'anonymous', got %q", user.Login)
+	}
+}
+
+func TestAuthMiddleware_InvalidTokenChallenge(t *testing.T) {
+	mw := NewAuthMiddleware(newTestStore(), "https://mcp.example.com")
+	h := mw.Authenticate(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {}))
+
+	req := httptest.NewRequest("POST", "/mcp", nil)
+	req.Header.Set("Authorization", "Bearer unknown")
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, req)
+	want := `Bearer resource_metadata="https://mcp.example.com/.well-known/oauth-protected-resource", error="invalid_token"`
+	if got := w.Header().Get("WWW-Authenticate"); w.Code != http.StatusUnauthorized || got != want {
+		t.Fatalf("status=%d challenge=%q, want 401 %q", w.Code, got, want)
+	}
+
+	// A missing token carries no error code (RFC 6750 section 3.1).
+	w = httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest("POST", "/mcp", nil))
+	if got := w.Header().Get("WWW-Authenticate"); strings.Contains(got, "invalid_token") {
+		t.Fatalf("missing token challenge has error code: %q", got)
+	}
+}
+
+func TestAuthMiddleware_NonBearerSchemeHasNoErrorCode(t *testing.T) {
+	h := NewAuthMiddleware(newTestStore(), "https://mcp.example.com").Authenticate(http.NotFoundHandler())
+	req := httptest.NewRequest("POST", "/mcp", nil)
+	req.Header.Set("Authorization", "Basic dXNlcjpwdw==")
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, req)
+	got := w.Header().Get("WWW-Authenticate")
+	if w.Code != http.StatusUnauthorized || got == "" || strings.Contains(got, "invalid_token") {
+		t.Fatalf("status=%d challenge=%q, want 401 challenge without invalid_token", w.Code, got)
 	}
 }

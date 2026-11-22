@@ -5,10 +5,12 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -123,6 +125,13 @@ func (h *MCPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
+			var maxErr *http.MaxBytesError
+			// Fail closed: the body is unread, so only an explicit legacy header keeps the old
+			// parse error. No header (the body may declare 2026-07-28 in _meta) gets 413.
+			if errors.As(err, &maxErr) && !slices.Contains(mcpLegacyVersions, r.Header.Get("MCP-Protocol-Version")) {
+				w.WriteHeader(http.StatusRequestEntityTooLarge)
+				return
+			}
 			h.writeError(w, nil, -32700, "Parse error", nil)
 			return
 		}
@@ -1441,6 +1450,16 @@ func (h *MCPHandler) serveModern(w http.ResponseWriter, r *http.Request, body []
 	var req JSONRPCRequest
 	if err := json.Unmarshal(body, &req); err != nil {
 		writeMCPError(w, http.StatusBadRequest, nil, &mcpRPCError{Code: mcpCodeParseError, Message: "Parse error"})
+		return
+	}
+	// A request needs a method and a non-null id; only notifications may omit the id.
+	var raw struct {
+		ID json.RawMessage `json:"id"`
+	}
+	_ = json.Unmarshal(body, &raw)
+	isNotification := strings.HasPrefix(req.Method, "notifications/")
+	if req.Method == "" || bytes.Equal(raw.ID, []byte("null")) || (!isNotification && len(raw.ID) == 0) {
+		writeMCPError(w, http.StatusBadRequest, nil, &mcpRPCError{Code: mcpCodeInvalidRequest, Message: "Invalid Request"})
 		return
 	}
 	if e := validateModernMCPRequest(r, env, now); e != nil {

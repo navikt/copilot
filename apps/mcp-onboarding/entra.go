@@ -84,12 +84,14 @@ func (e *EntraAuth) Authenticate(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		scheme, token, ok := strings.Cut(r.Header.Get("Authorization"), " ")
 		if !ok || !strings.EqualFold(scheme, "bearer") || strings.TrimSpace(token) == "" {
+			w.Header().Set("WWW-Authenticate", `Bearer realm="mcp-onboarding"`) // RFC 6750 section 3.1: no error code without a token
 			writeEntraError(w, http.StatusUnauthorized)
 			return
 		}
 		user, err := e.validate(r.Context(), strings.TrimSpace(token))
 		switch {
 		case errors.Is(err, errEntraUnauthorized):
+			w.Header().Set("WWW-Authenticate", `Bearer error="invalid_token"`)
 			writeEntraError(w, http.StatusUnauthorized)
 			return
 		case errors.Is(err, errEntraForbidden):

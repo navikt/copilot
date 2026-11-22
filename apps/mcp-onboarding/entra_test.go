@@ -135,3 +135,24 @@ func TestProdManifest_NotDebug(t *testing.T) {
 		t.Fatal("prod log_level must be INFO")
 	}
 }
+
+func TestEntraAuth_Challenge(t *testing.T) {
+	for name, c := range map[string]struct{ auth, want string }{
+		"missing":  {"", `Bearer realm="mcp-onboarding"`},
+		"basic":    {"Basic abc", `Bearer realm="mcp-onboarding"`},
+		"inactive": {"Bearer tok", `Bearer error="invalid_token"`},
+	} {
+		t.Run(name, func(t *testing.T) {
+			h := newTestEntraAuth(t, map[string]any{"active": false}).Authenticate(http.NotFoundHandler())
+			req := httptest.NewRequest(http.MethodPost, "/mcp/gw", nil)
+			if c.auth != "" {
+				req.Header.Set("Authorization", c.auth)
+			}
+			rec := httptest.NewRecorder()
+			h.ServeHTTP(rec, req)
+			if rec.Code != http.StatusUnauthorized || rec.Header().Get("WWW-Authenticate") != c.want {
+				t.Fatalf("status=%d challenge=%q, want 401 %q", rec.Code, rec.Header().Get("WWW-Authenticate"), c.want)
+			}
+		})
+	}
+}
