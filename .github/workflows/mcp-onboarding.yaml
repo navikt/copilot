@@ -29,12 +29,14 @@ concurrency:
 
 permissions:
   contents: read
-  id-token: write
-  # Read public npm packages (@nais/apm) from GitHub Packages.
-  packages: read
 
 jobs:
   build:
+    permissions:
+      contents: read
+      id-token: write
+      # Read public npm packages (@nais/apm) from GitHub Packages.
+      packages: read
     uses: ./.github/workflows/mise-build-deploy-nais.yaml
     with:
       working-directory: apps/mcp-onboarding
