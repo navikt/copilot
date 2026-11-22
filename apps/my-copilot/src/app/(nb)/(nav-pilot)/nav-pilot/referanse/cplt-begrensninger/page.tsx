@@ -1,9 +1,10 @@
 import { BodyLong, VStack } from "@navikt/ds-react";
 import type { Metadata } from "next";
 import NextLink from "next/link";
+import { Table, TableBody, TableRow, TableDataCell } from "@/components/aksel-table";
 import { CodeBlock } from "@/components/code-block";
 import { LinkableHeading } from "@/components/linkable-heading";
-import { Bullets, DocPage, code, linkClass } from "@/components/nav-pilot/doc-page";
+import { Bullets, DocPage, HeaderRow, code, linkClass } from "@/components/nav-pilot/doc-page";
 import type { TocItem } from "@/components/table-of-contents";
 
 export const metadata: Metadata = {
@@ -17,6 +18,17 @@ const TOC: TocItem[] = [
   { id: "verktoy", label: "Verktøy" },
   { id: "nettverk", label: "Nettverk" },
   { id: "git", label: "Git" },
+  { id: "nais", label: "nais-CLI" },
+];
+
+const NAIS_ROWS: [string, string][] = [
+  ["nais --version, nais --help", "Virker."],
+  ["nais device status", "unable to connect to naisdevice; make sure naisdevice is running"],
+  ["nais status, nais app …, nais secret …", "ERROR: Please run nais login --nais to (re-)authenticate."],
+  [
+    "nais login (uten flagg), nais kubeconfig, nais postgres …",
+    "Feiler. De går via gcloud, og ~/.config/gcloud er stengt.",
+  ],
 ];
 
 const FAQ = "/nav-pilot/guider/cplt-feilmeldinger";
@@ -173,6 +185,170 @@ export default function CpltBegrensninger() {
             </a>{" "}
             i cplt.
           </BodyLong>
+        </VStack>
+      </section>
+      <section>
+        <VStack gap="space-16">
+          <LinkableHeading id="nais" size="medium" level="2">
+            nais-CLI
+          </LinkableHeading>
+          <BodyLong>
+            <strong>Kort fortalt:</strong> <code className={code}>nais</code> kan virke i cplt, men ikke skru det på.{" "}
+            <code className={code}>nais</code> er laget for å skrive ekte hemmeligheter til stdout, og i en agent-sesjon
+            er stdout modellens kontekstvindu. Kjør oppsettet før du starter agenten:
+          </BodyLong>
+          <CodeBlock>{`nais device status          # skal si "Connected"
+nais login
+./hentEnv.sh                # eller: nais app env <app> -e dev-gcp -t <team> -o json > .env
+cplt                        # start agenten etterpå`}</CodeBlock>
+          <BodyLong>
+            <code className={code}>.env</code> havner i prosjektkatalogen. Docker Compose og appen leser den som vanlig,
+            og agenten trenger aldri <code className={code}>nais</code>. På macOS stenger cplt{" "}
+            <code className={code}>.env</code>-filer i prosjektet, så agenten kan ikke lese den. På Linux kan agenten
+            lese fila. Regn da hemmelighetene oppsettet skrev dit, som kjent for både agenten og modellen. Proxyen
+            filtrerer på mål, ikke innhold: hemmelighetene kan gå til modellen i en vanlig forespørsel, og uten{" "}
+            <code className={code}>proxy.forced</code> kan et program gå rundt proxyen med direkte HTTPS. Legg fila
+            utenfor prosjektkatalogen, eller steng den med <code className={code}>--deny-path</code>. På Linux virker{" "}
+            <code className={code}>--deny-path</code> bare med{" "}
+            <code className={code}>sandbox.use_bubblewrap = true</code>.
+          </BodyLong>
+
+          <LinkableHeading id="nais-i-sesjonen" size="small" level="3">
+            Hva som skjer i en agent-sesjon
+          </LinkableHeading>
+          <div className="overflow-x-auto">
+            <Table size="small" className="table-stack" role="table">
+              <HeaderRow stack cells={["Kommando", "I en agent-sesjon (cplt)"]} />
+              <TableBody role="rowgroup">
+                {NAIS_ROWS.map(([cmd, result]) => (
+                  <TableRow role="row" key={cmd}>
+                    <TableDataCell role="cell">
+                      <code className={code}>{cmd}</code>
+                    </TableDataCell>
+                    <TableDataCell role="cell" data-label="I en agent-sesjon (cplt)">
+                      {result}
+                    </TableDataCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+          <BodyLong>
+            Feilmeldingen fra <code className={code}>nais device status</code> villeder: naisdevice kjører. Sandkassen
+            nekter bare tilkoblingen til agentens unix-socket. <code className={code}>cplt exec</code> kjører med en
+            strammere profil enn en ekte agent-sesjon og har ikke tilgang til nøkkelringen. Ikke bruk{" "}
+            <code className={code}>cplt exec</code> til å finne ut hva agenten din kan.
+          </BodyLong>
+
+          <LinkableHeading id="nais-hvorfor" size="small" level="3">
+            Hvorfor det stopper
+          </LinkableHeading>
+          <Bullets>
+            <li>
+              <strong>Påloggingen ligger utenfor det agenten ser.</strong> <code className={code}>nais</code> lagrer
+              tokenet kryptert i{" "}
+              <code className={code}>~/Library/Application Support/nais/nais-credentials.json.enc</code> (macOS) eller{" "}
+              <code className={code}>~/.config/nais/…</code> (Linux). cplt gir agenten bare noen få kataloger i
+              hjemmeområdet, og denne er ikke blant dem. Nøkkelen som dekrypterer, ligger i nøkkelringen (
+              <code className={code}>cli.nais.io</code> / <code className={code}>nais-user</code>). Den er heller ikke
+              alltid tilgjengelig: på macOS stenger cplt <code className={code}>~/Library/Keychains</code> når den
+              sender inn gh-tokenet, og på Linux og i WSL fjerner cplt{" "}
+              <code className={code}>DBUS_SESSION_BUS_ADDRESS</code> og stenger nøkkelringfiler.
+            </li>
+            <li>
+              <strong>naisdevice-socketen er stengt.</strong> <code className={code}>nais device …</code> snakker gRPC
+              over <code className={code}>~/Library/Application Support/naisdevice/agent.sock</code>. Sandkassen nekter{" "}
+              <code className={code}>connect()</code> til sockets den ikke har fått eksplisitt.
+            </li>
+            <li>
+              <code className={code}>~/.config/gcloud</code> er stengt, som <code className={code}>~/.aws</code>,{" "}
+              <code className={code}>~/.azure</code>, <code className={code}>~/.kube</code> og{" "}
+              <code className={code}>~/.ssh</code>. Alt i <code className={code}>nais</code> som går via{" "}
+              <code className={code}>gcloud</code>, er stengt uansett hva du ellers åpner.
+            </li>
+          </Bullets>
+
+          <LinkableHeading id="nais-hemmeligheter" size="small" level="3">
+            Ikke gi agenten tilgang til hemmeligheter
+          </LinkableHeading>
+          <BodyLong>To tillatelser holder for alt som går mot Nais-APIet:</BodyLong>
+          <CodeBlock>{`cplt \\
+  --allow-read   "$HOME/Library/Application Support/nais/nais-credentials.json.enc" \\
+  --allow-socket "$HOME/Library/Application Support/naisdevice/agent.sock"`}</CodeBlock>
+          <BodyLong>
+            <strong>Ikke gjør dette.</strong> Nettopp fordi det virker, er valget ditt og ikke sandkassens.{" "}
+            <code className={code}>nais secret get --with-values</code> og <code className={code}>nais app env</code>{" "}
+            skriver ekte, produksjonsnære hemmeligheter til stdout. Det havner i transkripsjonen, blir liggende og
+            sendes med på hvert påfølgende modellkall. En hemmelighet som har vært innom et kontekstvindu, må regnes som
+            lekket. Med de to tillatelsene kan agenten lese alle teamets hemmeligheter. Det er akkurat det stengingen av{" "}
+            <code className={code}>~/.config/gcloud</code> og <code className={code}>~/.aws</code> skal hindre.
+          </BodyLong>
+          <BodyLong>
+            Gi heller ikke agenten bare socketen for å se VPN-status.{" "}
+            <a href="https://github.com/nais/device/issues/564" className={linkClass}>
+              nais/device#564
+            </a>{" "}
+            beskriver at den som når socketen, har full tilgang: socketen har ingen sjekk av hvem som kobler til, og
+            ingen autorisasjon per metode. Agenten kan da lese sesjonsnøkkelen fra <code className={code}>Status</code>,
+            bytte tenant med <code className={code}>SetActiveTenant</code>, logge deg ut med{" "}
+            <code className={code}>Logout</code>, endre innstillingene med{" "}
+            <code className={code}>SetAgentConfiguration</code> og stoppe naisdevice med{" "}
+            <code className={code}>Shutdown</code>. Sjekk VPN-status selv, utenfor cplt, eller bruk statusfila under.
+          </BodyLong>
+
+          <LinkableHeading id="nais-pilot-port" size="small" level="3">
+            Er porten i nais/pilot på?
+          </LinkableHeading>
+          <BodyLong>
+            Agentpakka <code className={code}>nais/pilot</code> har en preToolUse-port som nekter cluster-kommandoer mot
+            feil tenant. Porten må se hvilken tenant naisdevice står på. Inne i cplt ser den som regel ingenting, fordi
+            sandkassen nekter agent-socketen, og da slipper kommandoene gjennom uten at noe sier fra.
+          </BodyLong>
+          <BodyLong>
+            <code className={code}>nav-pilot doctor</code> viser om naisdevice er installert, om du er tilkoblet,
+            hvilken tenant som er aktiv (og hva porten kaller den), og om porten ser tilstanden inne i sandkassen.
+            Seksjonen vises bare når du har en agentpakke fra <code className={code}>nais</code>. doctor leser aldri ut
+            sesjonsnøkkelen i svaret fra <code className={code}>nais device status --output json</code>.
+          </BodyLong>
+          <BodyLong>
+            Statusfila porten leser i sandkassen, <code className={code}>agent-status.json</code>, kommer med{" "}
+            <a href="https://github.com/nais/device/issues/564" className={linkClass}>
+              nais/device#564
+            </a>{" "}
+            og er ikke sluppet ennå. Til da mangler den på alle maskiner, og doctor sier det uten å kalle det en feil.
+            Når fila finnes, gir du cplt lesetilgang én gang:
+          </BodyLong>
+          <CodeBlock
+            compact
+          >{`cplt config set allow.read "$HOME/Library/Application Support/naisdevice/agent-status.json"`}</CodeBlock>
+          <BodyLong>
+            Det er lesetilgang til en fil med tilkoblingstilstand og tenantnavn, ikke til socketen og ikke til
+            påloggingen.
+          </BodyLong>
+
+          <LinkableHeading id="nais-smating" size="small" level="3">
+            Småting
+          </LinkableHeading>
+          <Bullets>
+            <li>
+              <code className={code}>nais login --nais</code> inne i sandkassen krever også skrivetilgang til katalogen
+              med påloggingen og en callback-lytter på <code className={code}>localhost:8865</code>. Logg heller inn
+              utenfor. Med bare lesetilgang feiler en tokenfornyelse etter hvert.
+            </li>
+            <li>
+              Sett <code className={code}>DO_NOT_TRACK=1</code> hvis du ikke vil at <code className={code}>nais</code>{" "}
+              sender telemetri til <code className={code}>collector-internet.nav.cloud.nais.io</code> ved hver kjøring.
+            </li>
+            <li>
+              Med <code className={code}>--preset strict</code> styres utgående trafikk av en tillatelsesliste, og{" "}
+              <code className={code}>auth.nais.io</code> og <code className={code}>console.nav.cloud.nais.io</code> står
+              ikke på den.
+            </li>
+            <li>
+              naisdevice-agenten lytter også på en TCP-port på localhost, men porten er tilfeldig ved hver omstart.
+              Derfor går det ikke med <code className={code}>--allow-port</code>.
+            </li>
+          </Bullets>
         </VStack>
       </section>
     </DocPage>

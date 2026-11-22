@@ -18,7 +18,7 @@ import (
 // wrong tenant. The gate can only do that if it can see which tenant naisdevice
 // has active. Inside cplt it usually cannot: `nais device …` talks gRPC over
 // ~/Library/Application Support/naisdevice/agent.sock, and the sandbox denies
-// connect() to sockets it was not given (docs/README.nais-cli.md). The failure
+// connect() to sockets it was not given (ki-utvikling.nav.no/nav-pilot/referanse/cplt-begrensninger#nais). The failure
 // is silent and it looks exactly like naisdevice not running, so a developer
 // with an ungated session has no way to find out. This section is that way.
 //

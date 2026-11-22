@@ -1257,6 +1257,22 @@
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/sandkassen/page.tsx",
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/referanse/page.tsx"
       ],
+      "bwrap-installert": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/sandkassen/page.tsx",
+        "docs/cplt-copilot-sandbox.md"
+      ],
+      "copilot-sandkasse-linux": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/sandkassen/page.tsx",
+        "docs/cplt-copilot-sandbox.md"
+      ],
+      "copilot-sandkasse-verifisert": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/sandkassen/page.tsx",
+        "docs/cplt-copilot-sandbox.md"
+      ],
+      "cplt-ved-oppstart": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/sandkassen/page.tsx",
+        "docs/cplt-copilot-sandbox.md"
+      ],
       "isolasjon-er-pakrevd": [
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/forklaring/sandkassen/page.tsx",
         "apps/my-copilot/src/app/(nb)/nav-pilot/forklaring/sandkassen/page.tsx"
@@ -2215,6 +2231,30 @@
     "anchors": {
       "filer": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/referanse/cplt-begrensninger/page.tsx"],
       "git": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/referanse/cplt-begrensninger/page.tsx"],
+      "nais": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/referanse/cplt-begrensninger/page.tsx",
+        "docs/README.nais-cli.md"
+      ],
+      "nais-hemmeligheter": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/referanse/cplt-begrensninger/page.tsx",
+        "docs/README.nais-cli.md"
+      ],
+      "nais-hvorfor": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/referanse/cplt-begrensninger/page.tsx",
+        "docs/README.nais-cli.md"
+      ],
+      "nais-i-sesjonen": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/referanse/cplt-begrensninger/page.tsx",
+        "docs/README.nais-cli.md"
+      ],
+      "nais-pilot-port": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/referanse/cplt-begrensninger/page.tsx",
+        "docs/README.nais-cli.md"
+      ],
+      "nais-smating": [
+        "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/referanse/cplt-begrensninger/page.tsx",
+        "docs/README.nais-cli.md"
+      ],
       "nettverk": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/referanse/cplt-begrensninger/page.tsx"],
       "verktoy": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/referanse/cplt-begrensninger/page.tsx"]
     }
