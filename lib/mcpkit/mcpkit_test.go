@@ -194,3 +194,16 @@ func TestToolMetricsBoundedLabels(t *testing.T) {
 		t.Fatal("caller-supplied tool name leaked into a label")
 	}
 }
+
+func TestSetChallenge(t *testing.T) {
+	rec := httptest.NewRecorder()
+	SetChallenge(rec, "app", false)
+	if got := rec.Header().Get("WWW-Authenticate"); got != `Bearer realm="app"` {
+		t.Fatalf("missing token: %q", got)
+	}
+	rec = httptest.NewRecorder()
+	SetChallenge(rec, "app", true)
+	if got := rec.Header().Get("WWW-Authenticate"); got != `Bearer error="invalid_token"` {
+		t.Fatalf("invalid token: %q", got)
+	}
+}

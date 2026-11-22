@@ -138,7 +138,7 @@ func (s *server) readyHandler(w http.ResponseWriter, _ *http.Request) {
 func (s *server) mcpHandler(w http.ResponseWriter, r *http.Request) {
 	token, ok := mcpkit.BearerToken(r.Header.Get("Authorization"))
 	if !ok {
-		w.Header().Set("WWW-Authenticate", `Bearer realm="mcp-kodeverk"`)
+		mcpkit.SetChallenge(w, serverName, false)
 		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized", "message": "missing or malformed bearer token"})
 		return
 	}
@@ -147,7 +147,7 @@ func (s *server) mcpHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		switch {
 		case errors.Is(err, mcpkit.ErrUnauthorized):
-			w.Header().Set("WWW-Authenticate", `Bearer error="invalid_token"`)
+			mcpkit.SetChallenge(w, serverName, true)
 			writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "invalid_token", "message": err.Error()})
 		case errors.Is(err, mcpkit.ErrForbidden):
 			writeJSON(w, http.StatusForbidden, map[string]string{"error": "forbidden", "message": err.Error()})

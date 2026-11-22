@@ -256,3 +256,14 @@ func ReadRequestBody(w http.ResponseWriter, r *http.Request, limit int64) (body 
 	var maxErr *http.MaxBytesError
 	return body, errors.As(err, &maxErr), err
 }
+
+// SetChallenge sets the RFC 6750 WWW-Authenticate header for a 401. A missing
+// or non-Bearer token gets only the realm; a presented token that failed
+// validation gets error="invalid_token" (section 3.1).
+func SetChallenge(w http.ResponseWriter, realm string, tokenPresented bool) {
+	if tokenPresented {
+		w.Header().Set("WWW-Authenticate", `Bearer error="invalid_token"`)
+		return
+	}
+	w.Header().Set("WWW-Authenticate", `Bearer realm="`+realm+`"`)
+}

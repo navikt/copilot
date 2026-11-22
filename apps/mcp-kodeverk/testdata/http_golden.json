@@ -33,7 +33,8 @@
     "status": 401,
     "respHeader": {
       "Cache-Control": "no-store",
-      "Content-Type": "application/json"
+      "Content-Type": "application/json",
+      "WWW-Authenticate": "Bearer realm=\"mcp-kodeverk\""
     },
     "resp": {
       "error": "unauthorized",
@@ -50,7 +51,8 @@
     "status": 401,
     "respHeader": {
       "Cache-Control": "no-store",
-      "Content-Type": "application/json"
+      "Content-Type": "application/json",
+      "WWW-Authenticate": "Bearer realm=\"mcp-kodeverk\""
     },
     "resp": {
       "error": "unauthorized",
@@ -67,7 +69,8 @@
     "status": 401,
     "respHeader": {
       "Cache-Control": "no-store",
-      "Content-Type": "application/json"
+      "Content-Type": "application/json",
+      "WWW-Authenticate": "Bearer realm=\"mcp-kodeverk\""
     },
     "resp": {
       "error": "unauthorized",
@@ -84,7 +87,8 @@
     "status": 401,
     "respHeader": {
       "Cache-Control": "no-store",
-      "Content-Type": "application/json"
+      "Content-Type": "application/json",
+      "WWW-Authenticate": "Bearer realm=\"mcp-kodeverk\""
     },
     "resp": {
       "error": "unauthorized",
@@ -101,7 +105,8 @@
     "status": 401,
     "respHeader": {
       "Cache-Control": "no-store",
-      "Content-Type": "application/json"
+      "Content-Type": "application/json",
+      "WWW-Authenticate": "Bearer error=\"invalid_token\""
     },
     "resp": {
       "error": "invalid_token",
