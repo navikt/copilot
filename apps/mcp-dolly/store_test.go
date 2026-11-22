@@ -34,7 +34,8 @@ func pgTestStore(t *testing.T) *pgStore {
 	return p
 }
 
-var testNow = time.Date(2026, 11, 19, 12, 0, 0, 0, time.UTC)
+// Real time: the token insert and cleanup check expiry on the database clock.
+var testNow = time.Now().UTC()
 
 func TestPGStoreTokenSingleUse(t *testing.T) {
 	p := pgTestStore(t)
@@ -149,7 +150,10 @@ func TestPGStoreQuotaLimit(t *testing.T) {
 func TestPGStoreCleanup(t *testing.T) {
 	p := pgTestStore(t)
 	ctx := context.Background()
-	if err := p.useToken(ctx, "u", "old", testNow.Add(-time.Second), testNow); err != nil {
+	if err := p.useToken(ctx, "u", "within-grace", testNow.Add(time.Second), testNow); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := p.pool.Exec(ctx, `INSERT INTO dolly_used_tokens VALUES ('old', 'u', $1)`, testNow.Add(-spentGrace-time.Second)); err != nil {
 		t.Fatal(err)
 	}
 	if err := p.useToken(ctx, "u", "live", testNow.Add(confirmTTL), testNow); err != nil {
@@ -166,8 +170,8 @@ func TestPGStoreCleanup(t *testing.T) {
 	var tokens, days int
 	_ = p.pool.QueryRow(ctx, `SELECT count(*) FROM dolly_used_tokens`).Scan(&tokens)
 	_ = p.pool.QueryRow(ctx, `SELECT count(*) FROM dolly_quota`).Scan(&days)
-	if tokens != 1 || days != 2 {
-		t.Fatalf("after cleanup: %d tokens, %d quota days; want 1 and 2", tokens, days)
+	if tokens != 2 || days != 2 {
+		t.Fatalf("after cleanup: %d tokens, %d quota days; want 2 and 2", tokens, days)
 	}
 	// The live token is still spent.
 	if err := p.useToken(ctx, "u", "live", testNow.Add(confirmTTL), testNow); !errors.Is(err, errConfirm) {
@@ -240,5 +244,54 @@ func TestNewOrderStoreFromEnv(t *testing.T) {
 	}
 	if _, err := newOrderStoreFromEnv("redis", "", nil, nil); err == nil {
 		t.Fatal("unknown store accepted")
+	}
+}
+
+// A token verified just before expiry stays spent after cleanup.
+func TestPGStoreReplayNearExpiry(t *testing.T) {
+	p := pgTestStore(t)
+	ctx := context.Background()
+	// The caller's clock lags the database: the token is already past expiry
+	// on the database clock that cleanup uses.
+	exp := time.Now().Add(-500 * time.Millisecond)
+	justBefore := exp.Add(-time.Nanosecond)
+	if err := p.useToken(ctx, "u", "edge", exp, justBefore); err != nil {
+		t.Fatal(err)
+	}
+	if err := p.cleanup(ctx, time.Now()); err != nil {
+		t.Fatal(err)
+	}
+	if err := p.useToken(ctx, "u", "edge", exp, justBefore); !errors.Is(err, errConfirm) {
+		t.Fatalf("replay after cleanup = %v, want errConfirm", err)
+	}
+	// A token whose spent row cleanup may already have deleted is refused,
+	// even when the caller's clock still says it is valid.
+	old := time.Now().Add(-spentGrace - time.Second)
+	if err := p.useToken(ctx, "u", "gone", old, old.Add(-time.Nanosecond)); !errors.Is(err, errConfirm) {
+		t.Fatalf("token past grace = %v, want errConfirm", err)
+	}
+}
+
+func TestMemStoreReplayNearExpiry(t *testing.T) {
+	c := &orderConfirm{seen: map[string][]seenToken{}}
+	exp := testNow.Add(confirmTTL)
+	if err := c.markUsed("u", "edge", exp, exp.Add(-time.Nanosecond)); err != nil {
+		t.Fatal(err)
+	}
+	// Pruning runs inside markUsed; a later clock read must not forget the token.
+	for _, now := range []time.Time{exp.Add(-time.Nanosecond), exp, exp.Add(spentGrace / 2)} {
+		if err := c.markUsed("u", "edge", exp, now); !errors.Is(err, errConfirm) {
+			t.Fatalf("replay at %v = %v, want errConfirm", now.Sub(exp), err)
+		}
+	}
+}
+
+func TestNewPGStoreHidesPassword(t *testing.T) {
+	_, err := newPGStore("postgres://u:hemmelig-passord@127.0.0.1:5432/x?sslmode=bogus")
+	if err == nil {
+		t.Fatal("bad URL accepted")
+	}
+	if strings.Contains(err.Error(), "hemmelig-passord") || strings.Contains(err.Error(), "127.0.0.1") {
+		t.Fatalf("error leaks the URL: %q", err)
 	}
 }

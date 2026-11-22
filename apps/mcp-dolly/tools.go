@@ -463,11 +463,12 @@ func (s *server) quotaPeriodEN() string {
 
 // useToken verifies a confirmation token and spends it in the store.
 func (s *server) useToken(ctx context.Context, token, userHash, params string) error {
-	sig, exp, err := s.confirm.verify(token, userHash, params, s.now())
+	now := s.now() // one clock read, so verify and consume agree on expiry
+	sig, exp, err := s.confirm.verify(token, userHash, params, now)
 	if err != nil {
 		return err
 	}
-	return s.store.useToken(ctx, userHash, sig, exp, s.now())
+	return s.store.useToken(ctx, userHash, sig, exp, now)
 }
 
 func (s *server) checkGroupOwner(ctx context.Context, tok string, gruppeID int64) error {

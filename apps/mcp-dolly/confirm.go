@@ -124,24 +124,35 @@ func (c *orderConfirm) verify(token, userHash, params string, now time.Time) (st
 	return sig, time.Unix(unix, 0), nil
 }
 
+// spentGrace keeps a used token past its expiry, longer than any clock skew
+// between pods, so a token that still verifies somewhere is never forgotten.
+const spentGrace = confirmTTL + time.Minute
+
 // markUsed records a verified token in the per-pod set.
 func (c *orderConfirm) markUsed(userHash, sig string, exp, now time.Time) error {
+	if !now.Before(exp) {
+		return errConfirm
+	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	// Bounded per user so one user cannot fill the set and affect others.
 	// Reject when full instead of evicting so uncharged confirms cannot
 	// push a used token out of the set within its TTL.
 	var kept []seenToken
+	live := 0
 	for _, st := range c.seen[userHash] {
-		if !now.Before(st.exp) {
+		if !now.Before(st.exp.Add(spentGrace)) {
 			continue
 		}
 		if st.sig == sig {
 			return errConfirm
 		}
+		if now.Before(st.exp) {
+			live++
+		}
 		kept = append(kept, st)
 	}
-	if len(kept) >= maxSeenPerUser {
+	if live >= maxSeenPerUser {
 		return errConfirm
 	}
 	c.seen[userHash] = append(kept, seenToken{sig, exp})

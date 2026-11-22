@@ -69,11 +69,12 @@ type pgStore struct {
 func newPGStore(url string) (*pgStore, error) {
 	cfg, err := pgxpool.ParseConfig(url)
 	if err != nil {
-		return nil, fmt.Errorf("parse database URL: %w", err)
+		// Never wrap err: its text can contain the URL and the password.
+		return nil, fmt.Errorf("invalid MCP_DOLLY_DATABASE_URL (%T)", err)
 	}
 	pool, err := pgxpool.NewWithConfig(context.Background(), cfg)
 	if err != nil {
-		return nil, fmt.Errorf("create database pool: %w", err)
+		return nil, fmt.Errorf("create database pool for MCP_DOLLY_DATABASE_URL (%T)", err)
 	}
 	return &pgStore{pool: pool}, nil
 }
@@ -85,6 +86,7 @@ CREATE TABLE IF NOT EXISTS dolly_used_tokens (
 	expires_at timestamptz NOT NULL
 );
 CREATE INDEX IF NOT EXISTS dolly_used_tokens_expires_at ON dolly_used_tokens (expires_at);
+CREATE INDEX IF NOT EXISTS dolly_used_tokens_user_expires ON dolly_used_tokens (user_hash, expires_at);
 CREATE TABLE IF NOT EXISTS dolly_quota (
 	user_hash text NOT NULL,
 	day       date NOT NULL,
@@ -161,9 +163,13 @@ func (p *pgStore) useToken(ctx context.Context, userHash, sig string, exp, now t
 	tag, err := tx.Exec(ctx, `
 INSERT INTO dolly_used_tokens (sig, user_hash, expires_at)
 SELECT $1::text, $2::text, $3::timestamptz
-WHERE (SELECT count(*) FROM dolly_used_tokens WHERE user_hash = $2::text AND expires_at > $4::timestamptz) < $5::integer
+WHERE $3::timestamptz > $4::timestamptz
+  -- Re-check expiry on the database clock: cleanup uses the same clock, so a
+  -- row it may have deleted can never be inserted again.
+  AND $3::timestamptz > now() - $6::interval
+  AND (SELECT count(*) FROM dolly_used_tokens WHERE user_hash = $2::text AND expires_at > $4::timestamptz) < $5::integer
 ON CONFLICT DO NOTHING`,
-		sig, userHash, exp, now, maxSeenPerUser)
+		sig, userHash, exp, now, maxSeenPerUser, spentGrace)
 	if err != nil {
 		return p.fail("use token", err)
 	}
@@ -222,7 +228,7 @@ func (p *pgStore) remaining(ctx context.Context, userHash string, now time.Time)
 	return max(dailyPersonQuota-used, 0), nil
 }
 
-// cleanup deletes expired tokens (they expire 5 min after issue) and quota
+// cleanup deletes used tokens once spentGrace past expiry and quota
 // rows older than yesterday (UTC).
 func (p *pgStore) cleanup(ctx context.Context, now time.Time) error {
 	ctx, cancel, err := p.ready(ctx)
@@ -230,7 +236,7 @@ func (p *pgStore) cleanup(ctx context.Context, now time.Time) error {
 		return err
 	}
 	defer cancel()
-	if _, err := p.pool.Exec(ctx, `DELETE FROM dolly_used_tokens WHERE expires_at < $1`, now); err != nil {
+	if _, err := p.pool.Exec(ctx, `DELETE FROM dolly_used_tokens WHERE expires_at < now() - $1::interval`, spentGrace); err != nil {
 		return p.fail("cleanup tokens", err)
 	}
 	if _, err := p.pool.Exec(ctx, `DELETE FROM dolly_quota WHERE day < $1`, utcDay(now).AddDate(0, 0, 1-quotaKeepDays)); err != nil {
