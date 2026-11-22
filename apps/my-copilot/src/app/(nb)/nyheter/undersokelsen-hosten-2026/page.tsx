@@ -338,8 +338,7 @@ export default function SurveyAutumnArticlePage() {
                 </li>
                 <li>
                   <BodyLong>
-                    En{" "}
-                    <NextLink href="/verktoy/fleet-gateway">felles inngang til MCP-servere med Nav-innlogging</NextLink>{" "}
+                    En <NextLink href="/mcp/fleet-gateway">felles inngang til MCP-servere med Nav-innlogging</NextLink>{" "}
                     er i pilot, og etter hvert kan team registrere egne MCP-servere selv. Det gir agentene bedre tilgang
                     til kodebasen og fagsystemene våre.
                   </BodyLong>

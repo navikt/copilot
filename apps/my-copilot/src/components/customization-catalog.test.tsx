@@ -96,7 +96,7 @@ describe("CustomizationCatalog", () => {
     expect(screen.queryByText(/Koble til Navs MCP-servere/)).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Tilby den gjennom fleet-gateway" })).toHaveAttribute(
       "href",
-      "/verktoy/fleet-gateway"
+      "/mcp/fleet-gateway"
     );
   });
 

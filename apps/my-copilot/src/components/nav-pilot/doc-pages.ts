@@ -34,11 +34,6 @@ export const GUIDE_PAGES: DocLink[] = [
     desc: "Start nav-pilot i et git-worktree, og la agenten lage worktrees til subagenter i cplt.",
   },
   {
-    href: "/nav-pilot/guider/nav-mcp-servere",
-    title: "Koble til Navs MCP-servere",
-    desc: "Bruk en MCP-server fra et Nav-team i Copilot CLI, OpenCode eller nav-pilot, med Nav-innlogging.",
-  },
-  {
     href: "/nav-pilot/guider/mcp-gjennom-cplt",
     title: "MCP gjennom cplt",
     desc: "Slå på Nais MCP og GitHub under cplt, uten at Nais-innloggingen din kommer inn i sandkassen.",

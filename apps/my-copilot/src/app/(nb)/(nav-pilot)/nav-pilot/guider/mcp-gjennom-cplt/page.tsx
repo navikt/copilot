@@ -162,6 +162,13 @@ export default function McpGjennomCplt() {
             </a>
             . Som standard når agenten bare de lesende verktøyene.
           </BodyLong>
+          <BodyLong>
+            MCP-servere fra Nav-team, gjennom fleet-gateway, står under{" "}
+            <NextLink href="/mcp" className={linkClass}>
+              MCP i Nav
+            </NextLink>
+            .
+          </BodyLong>
         </VStack>
       </section>
 

@@ -120,7 +120,7 @@ export function McpDetails({ item }: { item: EnrichedCustomization }) {
       {isFleetGatewayMcp(item) && (
         <BodyShort size="small">
           Serveren går gjennom fleet-gateway.{" "}
-          <NextLink href="/nav-pilot/guider/nav-mcp-servere" className={linkClass}>
+          <NextLink href="/mcp/koble-til" className={linkClass}>
             Koble til Navs MCP-servere
           </NextLink>
         </BodyShort>

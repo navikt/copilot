@@ -11,6 +11,8 @@ describe("activeTop", () => {
     ["/nav-pilot/lokal/egen-server", "/kom-i-gang"],
     ["/nav-pilot/agentpakker", "/verktoy"],
     ["/verktoy", "/verktoy"],
+    ["/mcp", "/mcp"],
+    ["/mcp/tilby-server/retningslinjer", "/mcp"],
     ["/retningslinjer", "/praksis"],
     ["/praksis/guide/wrap-metoden", "/praksis"],
     ["/innsikt/trender", "/innsikt"],
@@ -28,6 +30,9 @@ it("finds the section-menu group of a page", () => {
   expect(inSection("/praksis")).toBe(false);
   expect(inSection("/cplt")).toBe(false);
   expect(sectionGroup("/verktoy")?.label).toBe("Tilpasning");
+  expect(sectionGroup("/mcp")?.label).toBe("MCP");
+  expect(sectionGroup("/mcp/koble-til")?.label).toBe("MCP");
+  expect(inSection("/mcp/referanse")).toBe(true);
   expect(sectionGroup("/kom-i-gang")?.label).toBe("Kom i gang");
   expect(sectionGroup("/nav-pilot/lokal/decide")?.label).toBe("Kom i gang");
   expect(sectionGroup("/nav-pilot/guider")?.label).toBe("Guider");

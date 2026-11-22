@@ -9,8 +9,9 @@
 // real id on its page, never another key. The link guard rejects chains.
 export const LEGACY_ANCHORS: Record<string, string> = {
   // /verktoy/fleet-gateway is for teams that offer an MCP server. How to connect moved to a guide.
-  "/verktoy/fleet-gateway#koble-til": "/nav-pilot/guider/nav-mcp-servere#for-du-starter",
-  "/verktoy/fleet-gateway#hva-teamet-gjor": "/verktoy/fleet-gateway/for-team#steg",
+  // next.config.ts sends the page to /mcp/fleet-gateway, so the keys use the new path.
+  "/mcp/fleet-gateway#koble-til": "/mcp/koble-til#for-du-starter",
+  "/mcp/fleet-gateway#hva-teamet-gjor": "/mcp/tilby-server#steg",
   // «Varsler» on the admin cost page became «Månedsinnsikt».
   "/admin/kostnad#avvik": "/admin/kostnad#maanedsinnsikt",
   // /nav-pilot/agentpakker was split into a how-to and a reference page.

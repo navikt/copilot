@@ -1360,3 +1360,32 @@ button.search-hit {
     min-height: 2.75rem;
   }
 }
+
+/* /mcp hero diagram: the wide drawing from 48rem, the tall one below. */
+.mcp-hero-diagram svg {
+  width: 100%;
+  height: auto;
+}
+.mcp-hero-tall {
+  max-width: 24rem;
+  margin-inline: auto;
+}
+.mcp-hero-wide,
+.mcp-hero-tall {
+  display: block;
+}
+@media (min-width: 48rem) {
+  .mcp-hero-tall {
+    display: none;
+  }
+}
+@media (max-width: 47.99rem) {
+  .mcp-hero-wide {
+    display: none;
+  }
+}
+.mcp-stat-value {
+  display: block;
+  font-size: var(--ax-font-size-heading-large);
+  line-height: 1.1;
+}

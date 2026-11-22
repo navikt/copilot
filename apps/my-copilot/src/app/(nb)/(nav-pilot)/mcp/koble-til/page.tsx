@@ -35,7 +35,7 @@ const OPENCODE_JSON = `{
 
 export default function NavMcpServerePage() {
   return (
-    <DocPage label="Guider" title="Koble til Navs MCP-servere" description={metadata.description as string} toc={TOC}>
+    <DocPage label="MCP" title="Koble til Navs MCP-servere" description={metadata.description as string} toc={TOC}>
       <VStack gap="space-12">
         <LinkableHeading id="for-du-starter" size="medium" level="2">
           Før du starter
@@ -148,7 +148,7 @@ export default function NavMcpServerePage() {
           </li>
           <li>
             Teamet som eier serveren, bestemmer hva du får gjøre. Innloggingen går gjennom{" "}
-            <NextLink href="/verktoy/fleet-gateway" className={linkClass}>
+            <NextLink href="/mcp/fleet-gateway" className={linkClass}>
               fleet-gateway
             </NextLink>
             , men det trenger du ikke tenke på.

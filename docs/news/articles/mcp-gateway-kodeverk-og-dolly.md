@@ -30,7 +30,7 @@ nav-pilot mcp enable kodeverk
 nav-pilot mcp enable dolly
 ```
 
-Oppføringene og oppsettet for andre klienter står på [ki-utvikling.nav.no/verktoy](https://ki-utvikling.nav.no/verktoy) og i guiden [Koble til Navs MCP-servere](/nav-pilot/guider/nav-mcp-servere).
+Oppføringene og oppsettet for andre klienter står på [ki-utvikling.nav.no/verktoy](https://ki-utvikling.nav.no/verktoy) og i guiden [Koble til Navs MCP-servere](/mcp/koble-til).
 
 ## Hva gatewayen gjør
 
@@ -62,7 +62,7 @@ Agenten finner gruppene dine, henter identene og leser status per system. Den ka
 
 ## Tilby teamets egen MCP-server
 
-Har teamet ditt en tjeneste på Nais som dere vil tilby som MCP-server, står krav, tokenvalidering og fremgangsmåte i [veiledningen for team på ki-utvikling.nav.no/verktoy/fleet-gateway/for-team](https://ki-utvikling.nav.no/verktoy/fleet-gateway/for-team).
+Har teamet ditt en tjeneste på Nais som dere vil tilby som MCP-server, står krav, tokenvalidering og fremgangsmåte i [veiledningen for team på ki-utvikling.nav.no/mcp/tilby-server](https://ki-utvikling.nav.no/mcp/tilby-server).
 
 ## Hvilke systemer ønsker du deg?
 

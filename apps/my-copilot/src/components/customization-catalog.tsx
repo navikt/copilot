@@ -488,7 +488,7 @@ export function CustomizationCatalog({ items }: CustomizationCatalogProps) {
 
       <BodyShort size="small" className="verktoy-subtle text-center">
         Eier teamet en MCP-server?{" "}
-        <NextLink href="/verktoy/fleet-gateway" className="verktoy-subtle underline">
+        <NextLink href="/mcp/fleet-gateway" className="verktoy-subtle underline">
           Tilby den gjennom fleet-gateway
         </NextLink>
       </BodyShort>

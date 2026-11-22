@@ -12,12 +12,13 @@ export type NavGroup = {
   items?: NavLink[];
 };
 
-// Five flat links in the header. English pages show the English labels but
+// Six flat links in the header. English pages show the English labels but
 // link to the Norwegian pages.
 export const TOP_LINKS: { href: string; nb: string; en: string }[] = [
   { href: "/kom-i-gang", nb: "Kom i gang", en: "Get started" },
   { href: "/nav-pilot", nb: "nav-pilot", en: "nav-pilot" },
   { href: "/verktoy", nb: "Tilpasning", en: "Customisation" },
+  { href: "/mcp", nb: "MCP", en: "MCP" },
   { href: "/praksis", nb: "Praksis og regler", en: "Practice and rules" },
   { href: "/innsikt", nb: "Innsikt", en: "Insights" },
 ];
@@ -29,6 +30,7 @@ export function activeTop(pathname: string): string | undefined {
   const owns = (...hrefs: string[]) => hrefs.some((h) => under(pathname, h));
   if (owns("/kom-i-gang", "/nav-pilot/lokal")) return "/kom-i-gang";
   if (owns("/verktoy", "/nav-pilot/agentpakker")) return "/verktoy";
+  if (owns("/mcp")) return "/mcp";
   if (owns("/nav-pilot", "/cplt")) return "/nav-pilot";
   if (owns("/praksis", "/retningslinjer")) return "/praksis";
   if (owns("/innsikt", "/priser", "/modeller", "/reisen")) return "/innsikt";
@@ -36,7 +38,7 @@ export function activeTop(pathname: string): string | undefined {
 
 /** Pages under the nav-pilot umbrella, which have the section menu. */
 export const inSection = (pathname: string) =>
-  ["/kom-i-gang", "/verktoy", "/nav-pilot"].some((h) => under(pathname, h));
+  ["/kom-i-gang", "/verktoy", "/nav-pilot", "/mcp"].some((h) => under(pathname, h));
 
 const fromDocs = (pages: DocLink[]): NavLink[] => pages.map((p) => ({ href: p.href, label: p.title }));
 
@@ -56,11 +58,19 @@ export const SECTION: NavGroup[] = [
     label: "Tilpasning",
     items: [
       { label: "Verktøykatalog", href: "/verktoy" },
-      { label: "fleet-gateway (pilot)", href: "/verktoy/fleet-gateway" },
-      { label: "fleet-gateway for team", href: "/verktoy/fleet-gateway/for-team" },
-      { label: "Retningslinjer for MCP-servere", href: "/verktoy/fleet-gateway/retningslinjer" },
       { label: "Agentpakker", href: "/nav-pilot/agentpakker" },
       { label: "Agentpakker: felt og regler", href: "/nav-pilot/agentpakker/referanse" },
+    ],
+  },
+  {
+    label: "MCP",
+    overview: "/mcp",
+    items: [
+      { label: "Koble til", href: "/mcp/koble-til" },
+      { label: "fleet-gateway (pilot)", href: "/mcp/fleet-gateway" },
+      { label: "Tilby en server", href: "/mcp/tilby-server" },
+      { label: "Retningslinjer for MCP-servere", href: "/mcp/tilby-server/retningslinjer" },
+      { label: "Referanse", href: "/mcp/referanse" },
     ],
   },
   {

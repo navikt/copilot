@@ -213,7 +213,7 @@ describe("McpDetails", () => {
       render(<McpDetails item={item} />);
       expect(screen.getByRole("link", { name: "Koble til Navs MCP-servere" })).toHaveAttribute(
         "href",
-        "/nav-pilot/guider/nav-mcp-servere"
+        "/mcp/koble-til"
       );
     });
 

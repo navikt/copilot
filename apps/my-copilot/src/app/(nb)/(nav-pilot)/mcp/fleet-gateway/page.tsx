@@ -35,7 +35,7 @@ const TOC: TocItem[] = [
 export default function FleetGatewayPage() {
   return (
     <DocPage
-      label="Verktøy"
+      label="MCP"
       title="fleet-gateway"
       description={metadata.description as string}
       badge={
@@ -47,7 +47,7 @@ export default function FleetGatewayPage() {
     >
       <BodyShort>
         Denne siden er for team som eier en server. Vil du bare bruke en, les{" "}
-        <NextLink href="/nav-pilot/guider/nav-mcp-servere" className={linkClass}>
+        <NextLink href="/mcp/koble-til" className={linkClass}>
           Koble til Navs MCP-servere
         </NextLink>
         .
@@ -87,7 +87,7 @@ export default function FleetGatewayPage() {
             2026-07-28
           </a>{" "}
           over streamable HTTP fra start. Se{" "}
-          <NextLink href="/verktoy/fleet-gateway/for-team#krav-til-serveren" className={linkClass}>
+          <NextLink href="/mcp/tilby-server#krav-til-serveren" className={linkClass}>
             kravene til serveren
           </NextLink>{" "}
           og referansen{" "}
@@ -283,7 +283,7 @@ export default function FleetGatewayPage() {
         </LinkableHeading>
         <BodyLong>
           Følg{" "}
-          <NextLink href="/verktoy/fleet-gateway/for-team" className={linkClass}>
+          <NextLink href="/mcp/tilby-server" className={linkClass}>
             veiledningen for team
           </NextLink>
           . Arkitektur og tokenflyt står i{" "}
