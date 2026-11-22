@@ -15,11 +15,11 @@ Språknøytrale skriveregler (lengde, tetthet, tegnsetting) står i `output-styl
 
 ## Sammensatte ord
 
-Bindestrek ved engelsk+norsk. Særskriving er feil.
+Skriv sammensatte ord i ett ord. Bruk bindestrek bare ved forkortelser, tall og egennavn, eller når ordet ellers blir uleselig. Særskriving er feil.
 
 ```
-✅ image-bygg, CI-pipeline, deploy-steg, Postgres-operatoren, Kafka-topicet, GitHub-repoet, PR-er
-❌ Postgres operatoren, Kafka topicet, GitHub repoet
+✅ imagebygg, deploysteg, CLI-brukere, CI-pipeline, Postgres-operatoren, Kafka-topicet, GitHub-repoet, PR-er
+❌ image-bygg, deploy-steg, Postgres operatoren, Kafka topicet, GitHub repoet
 ```
 
 ## Behold engelsk fagspråk
