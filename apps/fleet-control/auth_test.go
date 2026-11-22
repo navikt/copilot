@@ -32,9 +32,16 @@ func fakeTexas(t *testing.T) *httptest.Server {
 			_, _ = w.Write([]byte(`{"active":true,"idtyp":"app","azp":"` + gatewayID + `"}` + strings.Repeat(" ", 1<<20)))
 		case "inactive":
 			_, _ = w.Write([]byte(`{"active":false,"idtyp":"app","azp":"` + gatewayID + `"}`))
+		case "app-with-ident":
+			_, _ = w.Write([]byte(`{"active":true,"idtyp":"app","azp":"44444444-4444-4444-4444-444444444444","NAVident":"A111111"}`))
 		case "user-token":
 			_, _ = w.Write([]byte(`{"active":true,"azp":"` + gatewayID + `","NAVident":"Z999999"}`))
 		default:
+			// "user:<azp>:<NAVident>" is a person's token obtained by <azp>.
+			if parts := strings.Split(in.Token, ":"); len(parts) == 3 && parts[0] == "user" {
+				_ = json.NewEncoder(w).Encode(map[string]any{"active": true, "azp": parts[1], "NAVident": parts[2]})
+				return
+			}
 			_ = json.NewEncoder(w).Encode(map[string]any{"active": true, "idtyp": "app", "azp": in.Token})
 		}
 	}))
@@ -55,7 +62,7 @@ func testAuthz(t *testing.T) *authz {
 // behind the guard return 503 (no database), so anything not 401/403 got
 // through.
 func TestAuthzMatrix(t *testing.T) {
-	h := newServer().routes(testAuthz(t))
+	h := newServer().routes(testAuthz(t), "", nil)
 	const through = http.StatusServiceUnavailable
 	callers := map[string]string{"gateway": gatewayID, "registry": registryID, "other": "33333333-3333-3333-3333-333333333333", "prefix": gatewayID[:8]}
 	want := map[string]map[string]int{

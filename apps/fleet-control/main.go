@@ -1,5 +1,5 @@
 // Command fleet-control is the single source of truth for the MCP registry
-// and fleet-gateway routes (#2334). This first slice serves a read-only API.
+// and fleet-gateway routes (#2334). It serves a read-only internal API and a write API for teams.
 package main
 
 import (
@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"sync/atomic"
 	"syscall"
 	"time"
@@ -35,8 +36,15 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	cluster := os.Getenv("NAIS_CLUSTER_NAME")
+	teams, err := teamsFromEnv(cluster)
+	if err != nil {
+		return err
+	}
 	srv := newServer()
-	httpSrv := &http.Server{Addr: ":" + port, Handler: srv.routes(auth), ReadHeaderTimeout: 5 * time.Second}
+	adminClientID := adminClientFor(cluster, strings.TrimSpace(os.Getenv("MY_COPILOT_CLIENT_ID")))
+	srv.cluster = cluster
+	httpSrv := newHTTPServer(port, srv.routes(auth, adminClientID, teams))
 
 	go func() {
 		db, err := connect(ctx)
@@ -61,6 +69,12 @@ func run() error {
 		return err
 	}
 	return nil
+}
+
+// newHTTPServer bounds header and body reads, so a caller cannot hold a
+// connection open by stalling an upload.
+func newHTTPServer(port string, h http.Handler) *http.Server {
+	return &http.Server{Addr: ":" + port, Handler: h, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 30 * time.Second}
 }
 
 // connect migrates and seeds as the owner role, then opens the runtime pool
@@ -141,7 +155,10 @@ type store interface {
 }
 
 type server struct {
-	store atomic.Pointer[storeBox]
+	// cluster is NAIS_CLUSTER_NAME; route targets must be in it, since the
+	// gateway resolves service DNS in its own cluster.
+	cluster string
+	store   atomic.Pointer[storeBox]
 	// lastGood holds the last served snapshot per kind, so a database outage
 	// keeps serving it; after a restart there is none and the answer is 503.
 	lastGood map[string]*atomic.Pointer[Snapshot]
