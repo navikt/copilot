@@ -20,9 +20,9 @@ func pgTestURL(t *testing.T) (string, *pgxpool.Pool) {
 	t.Helper()
 	raw := os.Getenv("FGW_TEST_PG_URL")
 	if raw == "" {
-		// CI must run these: a workflow that loses the URL would otherwise pass green.
-		if os.Getenv("CI") != "" {
-			t.Fatal("FGW_TEST_PG_URL is empty but CI is set")
+		// The Postgres CI job sets FGW_REQUIRE_PG, so losing the URL there fails instead of passing green.
+		if os.Getenv("FGW_REQUIRE_PG") == "1" {
+			t.Fatal("FGW_TEST_PG_URL is empty but FGW_REQUIRE_PG=1")
 		}
 		t.Skip("FGW_TEST_PG_URL not set")
 	}
