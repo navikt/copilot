@@ -747,7 +747,7 @@
       "displayName": "klarsprak",
       "description": "Redigér og kvalitetssikre norsk tekst: klarspråk, KI-markører, anglisismer, fagtermer og nynorsk/svensk-innblanding",
       "filePath": "skills/klarsprak/SKILL.md",
-      "contentHash": "9688be2351f9bc354aa5bcf6b9ed4fdcd379b721865fb35b5909f9e9572d9cca",
+      "contentHash": "79c6877ca95305ecf047bd6a095c7253eee1d4ebe57700ab6c55e657e2fabf43",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/klarsprak/SKILL.md"
     },

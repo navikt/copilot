@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-11-21T23:53:53.355Z",
+  "generatedAt": "2026-11-22T00:11:30.134Z",
   "items": [
     {
       "id": "accessibility-agent",
@@ -1261,7 +1261,7 @@
       "filePath": "skills/klarsprak/SKILL.md",
       "repoPath": "skills/klarsprak/SKILL.md",
       "rawGitHubUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/klarsprak/SKILL.md",
-      "contentHash": "9688be2351f9bc354aa5bcf6b9ed4fdcd379b721865fb35b5909f9e9572d9cca",
+      "contentHash": "79c6877ca95305ecf047bd6a095c7253eee1d4ebe57700ab6c55e657e2fabf43",
       "installUrl": null,
       "insidersInstallUrl": null,
       "tags": ["norwegian", "klarspråk", "ai-markers", "anglicisms", "text-quality", "spraakvask"],

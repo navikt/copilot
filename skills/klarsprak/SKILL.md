@@ -186,7 +186,7 @@ Ikke oversett engelske tekniske termer som er etablert i norsk fagspråk:
 - endpoint, payload, token, scope, host (ikke «vert» eller «vertsnavn»)
 - skill (ikke «ferdighet»), hook (ikke «krok»), prompt (ikke «ledetekst»)
 
-«Host» står på engelsk i enhver teknisk betydning, maskinen like mye som endepunktet. «Vert» sier ikke hvilken av dem det er, og leseren må gjette mellom maskin, HTTP-host og hypervisor. Det gjelder også sammensetningene: «vertsnavn», «vertsliste» og «vertssystem» blir host, host-liste og host-system.
+«Host» står på engelsk i enhver teknisk betydning, maskinen like mye som endepunktet. «Vert» sier ikke hvilken av dem det er, og leseren må gjette mellom maskin, HTTP-host og hypervisor. Det gjelder også sammensetningene: «vertsnavn», «vertsliste» og «vertssystem» blir hostnavn, hostliste og hostsystem.
 
 ### Norsk er OK for
 
@@ -196,12 +196,12 @@ feilsøking, oppgradering, sikkerhetskrav, vedlikehold, driftsarbeid, bidragsyte
 
 ### Sammensatte ord med engelske termer
 
-Bruk bindestrek — særskriving er feil:
+Skriv sammensatte ord i ett ord. Bruk bindestrek bare ved forkortelser, tall og egennavn, eller når ordet ellers blir uleselig. Særskriving er feil:
 
 ```
-✅ image-bygg, CI-pipeline, deploy-steg, CLI-brukere, PR-er
+✅ imagebygg, deploysteg, CI-pipeline, CLI-brukere, PR-er
 ✅ Postgres-operatoren, Kafka-topicet, GitHub-repoet
-❌ Postgres operatoren, Kafka topicet, GitHub repoet
+❌ image-bygg, deploy-steg, Postgres operatoren, Kafka topicet, GitHub repoet
 ```
 
 ## Anglisismer
@@ -350,7 +350,7 @@ Følg Designsystemets retningslinjer for tekst i digitale tjenester:
 ### ✅ Alltid
 
 - Det viktigste først, aktiv form, konkret språk
-- Behold etablerte engelske fagtermer og bindestrek i sammensatte ord
+- Behold etablerte engelske fagtermer, og skriv sammensatte ord i ett ord (bindestrek bare ved forkortelser, tall, egennavn eller når ordet ellers blir uleselig)
 - Konsekvent formvalg gjennom hele teksten
 - Behold kode-literals, API-felter, IDer, enum-verdier og testforventninger uendret
 
