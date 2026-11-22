@@ -177,10 +177,31 @@ func TestDCR_RejectsUnsafeMetadata(t *testing.T) {
 		"refresh only":          {"redirect_uris": []string{"http://127.0.0.1/cb"}, "grant_types": []string{"refresh_token"}},
 		"code plus implicit":    {"redirect_uris": []string{"http://127.0.0.1/cb"}, "grant_types": []string{"authorization_code", "implicit"}},
 		"token response type":   {"redirect_uris": []string{"http://127.0.0.1/cb"}, "response_types": []string{"token"}},
+		"web app loopback":      {"redirect_uris": []string{"http://127.0.0.1/cb"}, "application_type": "web"},
+		"web app https":         {"redirect_uris": []string{"https://evil.example/cb"}, "application_type": "web"},
+		"empty app type":        {"redirect_uris": []string{"http://127.0.0.1/cb"}, "application_type": ""},
+		"unknown app type":      {"redirect_uris": []string{"http://127.0.0.1/cb"}, "application_type": "Native"},
+		"non-string app type":   {"redirect_uris": []string{"http://127.0.0.1/cb"}, "application_type": 1},
+		"native custom scheme":  {"redirect_uris": []string{"myapp://cb"}, "application_type": "native"},
+		"native non-loopback":   {"redirect_uris": []string{"https://evil.example/cb"}, "application_type": "native"},
 	}
 	for name, body := range cases {
 		if code, out := postRegister(te, body, "10.0.0.2"); code != http.StatusBadRequest {
 			t.Errorf("%s: got %d %v, want 400", name, code, out)
+		}
+	}
+}
+
+func TestDCR_ApplicationTypeNativeOrAbsent(t *testing.T) {
+	te := newTestEnv(t)
+	enableDCR(te, 10, 10)
+	for name, body := range map[string]map[string]any{
+		"native": {"redirect_uris": []string{"http://127.0.0.1:5000/cb"}, "application_type": "native"},
+		"absent": {"redirect_uris": []string{"http://127.0.0.1:5000/cb"}},
+	} {
+		code, out := postRegister(te, body, "10.0.0.4")
+		if code != http.StatusCreated || out["application_type"] != "native" {
+			t.Errorf("%s: got %d %v, want 201 with application_type native", name, code, out)
 		}
 	}
 }

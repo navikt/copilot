@@ -35,6 +35,7 @@ type dcrRequest struct {
 	GrantTypes              []string `json:"grant_types"`
 	ResponseTypes           []string `json:"response_types"`
 	TokenEndpointAuthMethod string   `json:"token_endpoint_auth_method"`
+	ApplicationType         *string  `json:"application_type"`
 }
 
 // registerHandler implements RFC 7591 dynamic client registration for public
@@ -68,6 +69,14 @@ func (g *Gateway) registerHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Only native clients are registered: loopback redirects are a native-client
+	// pattern (OIDC Registration 2, RFC 8252 7.3), and a web client must use
+	// https on a real host, which DCR here never accepts. Absent is accepted as
+	// native, because MCP clients registered before application_type omit it.
+	if at := req.ApplicationType; at != nil && *at != "native" {
+		fail(http.StatusBadRequest, "invalid_client_metadata", "application_type must be native: only loopback redirect_uris are accepted")
+		return
+	}
 	redirects, err := filterDCRRedirectURIs(req.RedirectURIs)
 	if err != nil {
 		fail(http.StatusBadRequest, "invalid_redirect_uri", err.Error())
@@ -142,6 +151,7 @@ func (g *Gateway) registerHandler(w http.ResponseWriter, r *http.Request) {
 		"client_id":                  meta.ClientID,
 		"client_id_issued_at":        now.Unix(),
 		"client_name":                meta.ClientName,
+		"application_type":           "native",
 		"redirect_uris":              meta.RedirectURIs,
 		"grant_types":                meta.GrantTypes,
 		"response_types":             meta.ResponseTypes,
