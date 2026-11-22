@@ -573,7 +573,8 @@
       "protokollversjon": [
         "apps/my-copilot/src/app/(nb)/(mcp)/mcp/bruke/page.tsx",
         "apps/my-copilot/src/app/(nb)/(mcp)/mcp/referanse/page.tsx"
-      ]
+      ],
+      "slik-fungerer-det": ["apps/my-copilot/src/app/(nb)/(mcp)/mcp/bruke/page.tsx"]
     }
   },
   "/mcp/fleet-gateway": {
@@ -601,7 +602,8 @@
       ],
       "servere-i-piloten": [
         "apps/my-copilot/src/app/(nb)/(mcp)/mcp/fleet-gateway/page.tsx",
-        "apps/my-copilot/src/app/(nb)/(mcp)/mcp/tilby-server/page.tsx"
+        "apps/my-copilot/src/app/(nb)/(mcp)/mcp/tilby-server/page.tsx",
+        "apps/my-copilot/src/app/(nb)/mcp/page.tsx"
       ],
       "sok": ["apps/my-copilot/src/app/(nb)/(mcp)/mcp/fleet-gateway/page.tsx"],
       "status": [

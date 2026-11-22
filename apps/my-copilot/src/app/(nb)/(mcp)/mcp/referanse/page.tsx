@@ -5,7 +5,7 @@ import { Table, TableBody, TableDataCell, TableHeader, TableHeaderCell, TableRow
 import { LinkableHeading } from "@/components/linkable-heading";
 import { Bullets, DocPage, code, linkClass } from "@/components/nav-pilot/doc-page";
 import type { TocItem } from "@/components/table-of-contents";
-import { PILOT_SERVERS } from "../fleet-gateway/servers";
+import { PILOT_SERVERS } from "@/components/mcp/servers";
 
 export const metadata: Metadata = {
   title: "MCP-referanse",

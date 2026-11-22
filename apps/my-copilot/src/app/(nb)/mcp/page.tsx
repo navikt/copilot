@@ -1,7 +1,8 @@
 import { BodyLong, BodyShort, Box, Button, Heading, HGrid, HStack, Tag, VStack } from "@navikt/ds-react";
 import type { Metadata } from "next";
 import NextLink from "next/link";
-import { PILOT_SERVERS } from "@/app/(nb)/(mcp)/mcp/fleet-gateway/servers";
+import { EntryCard, HowItWorks, PilotServerCards, WhyGateway } from "@/components/mcp/blocks";
+import { PILOT_SERVERS, enableCommand } from "@/components/mcp/servers";
 import { McpHeroDiagram } from "@/components/mcp-hero-diagram";
 import { Bullets, code, linkClass } from "@/components/nav-pilot/doc-page";
 import { getMcpServers } from "@/lib/mcp-registry";
@@ -17,6 +18,7 @@ async function registryStats() {
   const servers = await getMcpServers();
   if (servers.length === 0) return null;
   return {
+    toolsPerServer: Object.fromEntries(servers.filter((s) => s.tools).map((s) => [s.serverId, s.tools!.length])),
     servers: servers.length,
     tools: servers.reduce((sum, s) => sum + (s.tools?.length ?? 0), 0),
     gateway: servers.filter((s) => s.remotes?.some((r) => r.url.includes("fleet-gateway."))).length,
@@ -40,42 +42,6 @@ function Stat({ value, label, long }: { value: number; label: string; long: stri
   );
 }
 
-function Entry({
-  title,
-  intro,
-  children,
-  href,
-  cta,
-}: {
-  title: string;
-  intro: string;
-  children: React.ReactNode;
-  href: string;
-  cta: string;
-}) {
-  return (
-    <Box
-      as="section"
-      borderWidth="1"
-      borderColor="neutral-subtle"
-      borderRadius="12"
-      padding="space-24"
-      className="mcp-entry"
-    >
-      <VStack gap="space-12" align="start" className="h-full">
-        <Heading size="medium" level="2">
-          {title}
-        </Heading>
-        <BodyLong>{intro}</BodyLong>
-        {children}
-        <Button as="a" href={href} variant="secondary" className="mcp-entry-cta">
-          {cta}
-        </Button>
-      </VStack>
-    </Box>
-  );
-}
-
 export default async function McpPage() {
   const stats = await registryStats();
   return (
@@ -86,9 +52,9 @@ export default async function McpPage() {
         paddingInline={{ xs: "space-16", sm: "space-20", md: "space-32" }}
       >
         <VStack gap={{ xs: "space-32", md: "space-48" }}>
-          <VStack gap="space-16" align="center" className="text-center">
-            <Tag variant="info" size="small">
-              MCP i Nav
+          <VStack gap="space-16" align="start">
+            <Tag variant="alt1" size="small">
+              Pilot
             </Tag>
             <Heading size="xlarge" level="1">
               Navs MCP-servere, én innlogging
@@ -100,8 +66,8 @@ export default async function McpPage() {
 
           <McpHeroDiagram servers={PILOT_SERVERS.map((s) => s.title)} />
 
-          <VStack gap="space-20" align="center">
-            <HStack gap="space-12" justify="center">
+          <VStack gap="space-20" align="start">
+            <HStack gap="space-12">
               <Button as="a" href="/mcp/bruke">
                 Bruke
               </Button>
@@ -110,7 +76,7 @@ export default async function McpPage() {
               </Button>
             </HStack>
             {stats ? (
-              <VStack gap="space-8" align="center">
+              <VStack gap="space-8" align="start">
                 <HGrid
                   columns={3}
                   gap="space-12"
@@ -138,7 +104,7 @@ export default async function McpPage() {
           </VStack>
 
           <HGrid columns={{ xs: 1, md: 2 }} gap="space-24">
-            <Entry
+            <EntryCard
               title="Bruke"
               intro="Bruk Navs MCP-servere fra klienten din."
               href="/mcp/bruke"
@@ -146,7 +112,7 @@ export default async function McpPage() {
             >
               <Bullets>
                 <li>
-                  Med nav-pilot: <code className={code}>nav-pilot mcp enable kodeverk</code>
+                  Med nav-pilot: <code className={code}>{enableCommand("kodeverk")}</code>
                 </li>
                 <li>Copilot CLI og OpenCode: legg inn adressen til serveren, så starter innloggingen selv.</li>
                 <li>
@@ -155,8 +121,8 @@ export default async function McpPage() {
                   </NextLink>
                 </li>
               </Bullets>
-            </Entry>
-            <Entry
+            </EntryCard>
+            <EntryCard
               title="Tilby en server"
               intro="La resten av Nav bruke MCP-serveren til teamet ditt. Dere slipper å bygge innlogging selv."
               href="/mcp/tilby-server"
@@ -179,32 +145,37 @@ export default async function McpPage() {
                   </NextLink>
                 </li>
               </Bullets>
-            </Entry>
+            </EntryCard>
           </HGrid>
 
           <VStack gap="space-16">
             <Heading size="medium" level="2">
-              Hvorfor gå gjennom fleet-gateway
+              Hvorfor gateway
             </Heading>
-            <HGrid columns={{ xs: 1, md: 3 }} gap="space-16">
-              {[
-                ["Én innlogging", "Logg inn én gang, og bruk alle serverne du har tilgang til."],
-                [
-                  "Logg",
-                  "Hvert kall logges med NAV-ident, rute og MCP-metode. En rute kan stenges raskt hvis noe går galt.",
-                ],
-                ["OBO", "Serveren får et token på vegne av deg, aldri ditt eget. Tilgangen din følger med."],
-              ].map(([title, text]) => (
-                <Box key={title} background="neutral-soft" borderRadius="8" padding="space-20">
-                  <VStack gap="space-8">
-                    <Heading size="small" level="3">
-                      {title}
-                    </Heading>
-                    <BodyShort>{text}</BodyShort>
-                  </VStack>
-                </Box>
-              ))}
-            </HGrid>
+            <WhyGateway />
+          </VStack>
+
+          <VStack gap="space-16">
+            <Heading size="medium" level="2">
+              Slik fungerer det
+            </Heading>
+            <HowItWorks />
+          </VStack>
+
+          <VStack gap="space-16">
+            <Heading size="medium" level="2">
+              Serverne i piloten
+            </Heading>
+            <PilotServerCards compact tools={stats?.toolsPerServer} />
+            <BodyShort>
+              <NextLink href="/mcp/fleet-gateway#servere-i-piloten" className={linkClass}>
+                Oppsett for hver server
+              </NextLink>{" "}
+              ·{" "}
+              <NextLink href="/verktoy" className={linkClass}>
+                Alle MCP-servere i verktøykatalogen
+              </NextLink>
+            </BodyShort>
           </VStack>
 
           <BodyShort textColor="subtle">

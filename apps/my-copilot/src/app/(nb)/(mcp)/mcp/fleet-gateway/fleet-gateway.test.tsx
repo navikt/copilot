@@ -4,7 +4,7 @@ import { render, screen } from "@testing-library/react";
 import allowlist from "../../../../../../../mcp-registry/allowlist.json";
 import FleetGatewayPage from "./page";
 import RetningslinjerPage from "../tilby-server/retningslinjer/page";
-import { PILOT_SERVERS } from "./servers";
+import { PILOT_SERVERS } from "@/components/mcp/servers";
 
 vi.mock("next/navigation", () => ({ usePathname: () => "/mcp/fleet-gateway" }));
 

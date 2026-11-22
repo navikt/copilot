@@ -2,6 +2,7 @@ import { BodyLong, VStack } from "@navikt/ds-react";
 import type { Metadata } from "next";
 import NextLink from "next/link";
 import { CodeBlock } from "@/components/code-block";
+import { HowItWorks } from "@/components/mcp/blocks";
 import { LinkableHeading } from "@/components/linkable-heading";
 import { Bullets, DocPage, code, linkClass } from "@/components/nav-pilot/doc-page";
 import type { TocItem } from "@/components/table-of-contents";
@@ -15,6 +16,7 @@ export const metadata: Metadata = {
 const HELP_URL = "https://nav-it.slack.com/archives/C0ASJSZK8P8";
 
 const TOC: TocItem[] = [
+  { id: "slik-fungerer-det", label: "Slik fungerer det" },
   { id: "for-du-starter", label: "Før du starter" },
   { id: "copilot-cli", label: "Copilot CLI" },
   { id: "opencode", label: "OpenCode" },
@@ -36,6 +38,13 @@ const OPENCODE_JSON = `{
 export default function NavMcpServerePage() {
   return (
     <DocPage label="MCP" title="Bruke Navs MCP-servere" description={metadata.description as string} toc={TOC}>
+      <VStack gap="space-12">
+        <LinkableHeading id="slik-fungerer-det" size="medium" level="2">
+          Slik fungerer det
+        </LinkableHeading>
+        <HowItWorks />
+      </VStack>
+
       <VStack gap="space-12">
         <LinkableHeading id="for-du-starter" size="medium" level="2">
           Før du starter

@@ -1399,3 +1399,8 @@ button.search-hit {
 .mcp-stats {
   width: min(100%, 30rem);
 }
+.mcp-server-cards {
+  display: grid;
+  gap: var(--ax-space-16);
+  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+}
