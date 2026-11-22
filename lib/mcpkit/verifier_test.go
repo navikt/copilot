@@ -31,6 +31,8 @@ func TestRequireBearerToken(t *testing.T) {
 		{"no header", "", ok(future), 401, `Bearer realm="app"`},
 		{"oversized", "Bearer " + strings.Repeat("a", MaxBearerLen), ok(future), 401, `Bearer realm="app"`},
 		{"whitespace", "Bearer a b", ok(future), 401, `Bearer realm="app"`},
+		{"wrong scheme", "Basic dXNlcg==", ok(future), 401, `Bearer realm="app"`},
+		{"empty token", "Bearer ", ok(future), 401, `Bearer realm="app"`},
 		{"missing exp", "Bearer t", ok(time.Time{}), 401, `Bearer error="invalid_token"`},
 		{"expired", "Bearer t", ok(past), 401, `Bearer error="invalid_token"`},
 		{"nil info", "Bearer t", fail(nil), 401, `Bearer error="invalid_token"`},
@@ -42,7 +44,12 @@ func TestRequireBearerToken(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			var got *TokenInfo
-			h := RequireBearerToken(tc.v, &RequireBearerTokenOptions{Realm: "app"})(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+			calls := 0
+			counted := func(ctx context.Context, tok string, r *http.Request) (*TokenInfo, error) {
+				calls++
+				return tc.v(ctx, tok, r)
+			}
+			h := RequireBearerToken(counted, &RequireBearerTokenOptions{Realm: "app"})(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 				got = TokenInfoFromContext(r.Context())
 			}))
 			req := httptest.NewRequest(http.MethodPost, "/", nil)
@@ -53,6 +60,10 @@ func TestRequireBearerToken(t *testing.T) {
 			h.ServeHTTP(rec, req)
 			if rec.Code != tc.status || rec.Header().Get("WWW-Authenticate") != tc.challenge {
 				t.Fatalf("got %d %q, want %d %q", rec.Code, rec.Header().Get("WWW-Authenticate"), tc.status, tc.challenge)
+			}
+			// A malformed header must never reach Texas.
+			if wantCalls := map[bool]int{true: 0, false: 1}[tc.challenge == `Bearer realm="app"`]; calls != wantCalls {
+				t.Fatalf("verifier called %d times, want %d", calls, wantCalls)
 			}
 			if (tc.status == 200) != (got != nil && got.UserID == "Z1") {
 				t.Fatalf("token info in context = %v", got)
