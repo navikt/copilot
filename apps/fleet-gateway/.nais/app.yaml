@@ -80,6 +80,10 @@ spec:
     - name: DCR_ENABLED
       value: "{{dcr_enabled}}"
     {{/if}}
+    {{#if identity_source}}
+    - name: IDENTITY_SOURCE
+      value: "{{identity_source}}"
+    {{/if}}
     {{#if pilot_routes_file}}
     - name: PILOT_ROUTES_FILE
       value: "{{pilot_routes_file}}"

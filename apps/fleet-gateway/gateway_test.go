@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
@@ -40,6 +41,10 @@ type testEnv struct {
 	lastEntraNonce     string
 	lastEntraChallenge string
 	navIdent           string
+	idTokenOverride    func(claims map[string]any) string // nil: valid id_token; returns "" to omit it
+	introspectStatus   int                                // 0: 200
+	introspectBody     map[string]any                     // nil: active with te.navIdent
+	introspectedTokens []string
 	groups             []string
 	cimdServer         *httptest.Server
 	entraServer        *httptest.Server
@@ -164,6 +169,7 @@ func newTestEnv(t *testing.T) *testEnv {
 			navIdent := te.navIdent
 			groups := te.groups
 			entraToken := te.entraToken
+			idTokenOverride := te.idTokenOverride
 			entraRT := te.entraRefreshToken
 			expiresIn := te.entraExpiresIn
 			te.mu.Unlock()
@@ -198,18 +204,44 @@ func newTestEnv(t *testing.T) *testEnv {
 			if expiresIn <= 0 {
 				expiresIn = 3600
 			}
-			writeJSON(w, http.StatusOK, map[string]any{
+			resp := map[string]any{
 				"access_token":  entraToken,
 				"refresh_token": entraRT,
 				"id_token":      makeTestIDToken(claims),
 				"token_type":    "Bearer",
 				"expires_in":    expiresIn,
-			})
+			}
+			if idTokenOverride != nil {
+				if idt := idTokenOverride(claims); idt != "" {
+					resp["id_token"] = idt
+				} else {
+					delete(resp, "id_token")
+				}
+			}
+			writeJSON(w, http.StatusOK, resp)
 		default:
 			http.NotFound(w, r)
 		}
 	}))
 	t.Cleanup(te.entraServer.Close)
+
+	// Separate from texasServer so tests that replace the exchange handler keep introspection.
+	introspectServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var in map[string]string
+		_ = json.NewDecoder(r.Body).Decode(&in)
+		te.mu.Lock()
+		te.introspectedTokens = append(te.introspectedTokens, in["token"])
+		status, body := te.introspectStatus, te.introspectBody
+		if body == nil {
+			body = map[string]any{"active": true, "NAVident": te.navIdent}
+		}
+		te.mu.Unlock()
+		if status == 0 {
+			status = http.StatusOK
+		}
+		writeJSON(w, status, body)
+	}))
+	t.Cleanup(introspectServer.Close)
 
 	te.texasServer = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{
@@ -245,6 +277,7 @@ func newTestEnv(t *testing.T) *testEnv {
 		},
 		TeamTokenStrategy:       strategyOBO,
 		TexasExchangeEndpoint:   te.texasServer.URL,
+		TexasIntrospectEndpoint: introspectServer.URL,
 		EntraScope:              "openid",
 		AzureClientID:           "azure-client-id",
 		AzureIssuer:             testIssuer,
@@ -1159,18 +1192,114 @@ func TestCallback_RequiresNAVident(t *testing.T) {
 		}
 	})
 
-	t.Run("NAVident in access_token claims satisfies requirement", func(t *testing.T) {
-		te := newTestEnv(t)
-		te.mu.Lock()
-		te.navIdent = ""
-		te.entraToken = makeTestJWT(map[string]any{"NAVident": "A987654"})
-		te.mu.Unlock()
+}
 
-		code := te.obtainAuthCode(verifier)
-		if code == "" {
-			t.Fatal("expected auth code when NAVident is present in access_token")
-		}
-	})
+// TestCallback_IdentityFromIntrospection covers #2594: the token response is
+// hostile. Login needs a validated id_token, and NAVident comes only from Texas
+// introspection of the access token, never from decoding it.
+func TestCallback_IdentityFromIntrospection(t *testing.T) {
+	verifier := "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG"
+	forged := makeTestJWT(map[string]any{"NAVident": "Z999999"})
+	noNAVident := func(c map[string]any) string {
+		delete(c, "NAVident")
+		return makeTestIDToken(c)
+	}
+	cases := []struct {
+		name      string
+		noOpenID  bool
+		idToken   func(claims map[string]any) string
+		status    int
+		body      map[string]any
+		wantError string
+		wantIdent string
+	}{
+		{name: "happy path takes NAVident from introspection", body: map[string]any{"active": true, "NAVident": "A123456"}, wantIdent: "A123456"},
+		{name: "happy path without nonce", noOpenID: true, body: map[string]any{"active": true, "NAVident": "A123456"}, wantIdent: "A123456"},
+		{name: "forged NAVident in access_token is not used", idToken: noNAVident, body: map[string]any{"active": true}, wantError: "access_denied"},
+		{name: "introspection inactive is rejected", body: map[string]any{"active": false, "NAVident": "Z999999"}, wantError: "server_error"},
+		{name: "introspection error is rejected", status: http.StatusInternalServerError, body: map[string]any{"active": true, "NAVident": "Z999999"}, wantError: "server_error"},
+		{name: "introspection with non-string NAVident is rejected", body: map[string]any{"active": true, "NAVident": 12345}, wantError: "server_error"},
+		{name: "introspection without NAVident is rejected", body: map[string]any{"active": true}, wantError: "access_denied"},
+		{name: "introspection with blank NAVident is rejected", body: map[string]any{"active": true, "NAVident": "  "}, wantError: "access_denied"},
+		{name: "missing id_token without nonce is rejected", noOpenID: true, idToken: func(map[string]any) string { return "" }, wantError: "server_error"},
+		{name: "missing id_token with nonce is rejected", idToken: func(map[string]any) string { return "" }, wantError: "server_error"},
+		{name: "invalid id_token without nonce is rejected", noOpenID: true, idToken: func(c map[string]any) string {
+			c["iss"] = "https://login.test/evil/v2.0"
+			return makeTestIDToken(c)
+		}, wantError: "server_error"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			te := newTestEnv(t)
+			te.gw.cfg.IdentitySource = identitySourceIntrospection
+			if tc.noOpenID {
+				te.gw.cfg.EntraScope = "api://azure-client-id/.default"
+			}
+			te.mu.Lock()
+			te.entraToken = forged
+			te.idTokenOverride = tc.idToken
+			te.introspectStatus = tc.status
+			te.introspectBody = tc.body
+			te.mu.Unlock()
+
+			entraState, stateCookie := te.startLogin(verifier)
+			if tc.noOpenID && te.lastEntraNonce != "" {
+				t.Fatal("expected no nonce without openid scope")
+			}
+			if tc.wantError == "" {
+				code := te.completeEntraCallback(entraState, stateCookie)
+				if code == "" {
+					t.Fatal("expected gateway code on success")
+				}
+				ic, ok, err := te.gw.popCode(context.Background(), code)
+				if err != nil || !ok || ic.Session.NAVIdent != tc.wantIdent {
+					t.Fatalf("session NAVident wrong or code missing (ok=%v err=%v), want %q", ok, err, tc.wantIdent)
+				}
+				te.mu.Lock()
+				defer te.mu.Unlock()
+				if len(te.introspectedTokens) != 1 || te.introspectedTokens[0] != forged {
+					t.Fatalf("expected the access token to be introspected once, got %d", len(te.introspectedTokens))
+				}
+				return
+			}
+			req := httptest.NewRequest(http.MethodGet, "/oauth2/callback?code=entra-code-123&state="+url.QueryEscape(entraState), nil)
+			req.AddCookie(stateCookie)
+			rec := httptest.NewRecorder()
+			te.handler.ServeHTTP(rec, req)
+			loc, err := url.Parse(rec.Header().Get("Location"))
+			if err != nil {
+				t.Fatalf("invalid redirect location: %v", err)
+			}
+			if got := loc.Query().Get("error"); got != tc.wantError {
+				t.Fatalf("error = %q (%s), want %q", got, loc.Query().Get("error_description"), tc.wantError)
+			}
+		})
+	}
+}
+
+// TestCallback_LegacyIdentitySource pins today's behaviour while
+// IDENTITY_SOURCE=legacy is the default: NAVident from id_token, then the access token.
+func TestCallback_LegacyIdentitySource(t *testing.T) {
+	verifier := "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG"
+	te := newTestEnv(t)
+	if te.gw.cfg.IdentitySource != identitySourceLegacy {
+		t.Fatalf("default identity source = %q, want legacy", te.gw.cfg.IdentitySource)
+	}
+	te.mu.Lock()
+	te.navIdent = ""
+	te.entraToken = makeTestJWT(map[string]any{"NAVident": "A987654"})
+	te.introspectStatus = http.StatusInternalServerError
+	te.mu.Unlock()
+	code := te.obtainAuthCode(verifier)
+	ic, ok, err := te.gw.popCode(context.Background(), code)
+	if err != nil || !ok || ic.Session.NAVIdent != "A987654" {
+		t.Fatalf("legacy NAVident wrong (ok=%v err=%v)", ok, err)
+	}
+	te.mu.Lock()
+	defer te.mu.Unlock()
+	if len(te.introspectedTokens) != 0 {
+		t.Fatal("legacy mode must not call introspection")
+	}
 }
 
 func TestCallback_RequiresAccessTokenForOBO(t *testing.T) {
@@ -1209,6 +1338,24 @@ func TestCallback_RequiresAccessTokenForOBO(t *testing.T) {
 		_ = resp.Body.Close()
 		if resp.StatusCode != http.StatusOK {
 			t.Fatalf("expected consent page (200) in refresh mode, got %d", resp.StatusCode)
+		}
+	})
+
+	// In introspection mode the access token is the only identity source (#2594).
+	t.Run("introspection mode: refresh strategy rejects empty access_token", func(t *testing.T) {
+		te := newTestEnv(t)
+		te.gw.cfg.IdentitySource = identitySourceIntrospection
+		te.gw.cfg.TeamTokenStrategy = strategyRefresh
+		te.mu.Lock()
+		te.entraToken = ""
+		te.mu.Unlock()
+
+		entraState, stateCookie := te.startLogin(verifier)
+		resp := te.callback(entraState, stateCookie)
+		_ = resp.Body.Close()
+		loc, _ := url.Parse(resp.Header.Get("Location"))
+		if resp.StatusCode != http.StatusFound || loc.Query().Get("error") != "server_error" {
+			t.Fatalf("expected server_error redirect in refresh mode, got %d %q", resp.StatusCode, loc.Query().Get("error"))
 		}
 	})
 }

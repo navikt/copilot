@@ -19,6 +19,9 @@ import (
 )
 
 const (
+	identitySourceLegacy        = "legacy"
+	identitySourceIntrospection = "introspection"
+
 	defaultPort                             = "8080"
 	defaultPendingTTL                       = 10 * time.Minute
 	defaultCodeTTL                          = 60 * time.Second
@@ -89,6 +92,8 @@ type Config struct {
 	GatewayDisabled         bool
 	TeamTokenStrategy       string
 	TexasExchangeEndpoint   string
+	TexasIntrospectEndpoint string // validates the Entra access token at login for NAVident (#2594)
+	IdentitySource          string // legacy (default) or introspection; where login takes NAVident from (#2594)
 	EntraScope              string
 	AzureClientID           string
 	AzureClientSecret       string
@@ -210,6 +215,8 @@ func loadConfigFromEnv() (*Config, error) {
 		GatewayDisabled:         gatewayDisabled,
 		TeamTokenStrategy:       strategy,
 		TexasExchangeEndpoint:   strings.TrimSpace(os.Getenv("NAIS_TOKEN_EXCHANGE_ENDPOINT")),
+		TexasIntrospectEndpoint: strings.TrimSpace(os.Getenv("NAIS_TOKEN_INTROSPECTION_ENDPOINT")),
+		IdentitySource:          strings.TrimSpace(os.Getenv("IDENTITY_SOURCE")),
 		EntraScope:              entraScope,
 		AzureClientID:           strings.TrimSpace(os.Getenv("AZURE_APP_CLIENT_ID")),
 		AzureClientSecret:       strings.TrimSpace(os.Getenv("AZURE_APP_CLIENT_SECRET")),
@@ -318,6 +325,17 @@ func validateConfig(cfg *Config) error {
 		}
 	default:
 		return fmt.Errorf("invalid TEAM_TOKEN_STRATEGY %q: expected obo or refresh", cfg.TeamTokenStrategy)
+	}
+
+	switch cfg.IdentitySource {
+	case "", identitySourceLegacy:
+		cfg.IdentitySource = identitySourceLegacy
+	case identitySourceIntrospection:
+		if err := config.ValidateHTTPURL(cfg.TexasIntrospectEndpoint, false); err != nil {
+			return fmt.Errorf("invalid NAIS_TOKEN_INTROSPECTION_ENDPOINT: %w", err)
+		}
+	default:
+		return fmt.Errorf("invalid IDENTITY_SOURCE %q: expected legacy or introspection", cfg.IdentitySource)
 	}
 
 	if cfg.AzureClientID == "" {

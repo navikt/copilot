@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/hmac"
 	"crypto/sha256"
@@ -558,32 +559,34 @@ func (g *Gateway) callbackHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// introspection mode always requires an id_token (#2594); legacy only when a nonce was sent.
+	introspect := g.cfg.IdentitySource == identitySourceIntrospection
+	if idt == "" && (introspect || p.EntraNonce != "") {
+		slog.Warn("audit login", "outcome", "missing_id_token", "client_id", p.ClientID, "resource", p.Resource)
+		back(url.Values{
+			"error":             {"server_error"},
+			"error_description": {"upstream identity token missing"},
+		})
+		return
+	}
 	var idClaims map[string]any
+	var parseErr error
 	if idt != "" {
-		var parseErr error
 		idClaims, parseErr = parseJWTClaims(idt)
 		if parseErr == nil {
 			parseErr = validateIDTokenClaims(idClaims, g.cfg.AzureIssuer, g.cfg.AzureClientID, g.now())
 		}
-		if parseErr != nil {
-			slog.Warn("audit login", "outcome", "invalid_id_token", "reason", parseErr.Error(), "client_id", p.ClientID, "resource", p.Resource)
-			back(url.Values{
-				"error":             {"server_error"},
-				"error_description": {"upstream identity token validation failed"},
-			})
-			return
-		}
+	}
+	if parseErr != nil {
+		slog.Warn("audit login", "outcome", "invalid_id_token", "reason", parseErr.Error(), "client_id", p.ClientID, "resource", p.Resource)
+		back(url.Values{
+			"error":             {"server_error"},
+			"error_description": {"upstream identity token validation failed"},
+		})
+		return
 	}
 
 	if p.EntraNonce != "" {
-		if idClaims == nil {
-			slog.Warn("audit login", "outcome", "missing_id_token", "client_id", p.ClientID, "resource", p.Resource)
-			back(url.Values{
-				"error":             {"server_error"},
-				"error_description": {"upstream identity token missing"},
-			})
-			return
-		}
 		nonceClaim, _ := idClaims["nonce"].(string)
 		if nonceClaim == "" || subtle.ConstantTimeCompare([]byte(nonceClaim), []byte(p.EntraNonce)) != 1 {
 			slog.Warn("audit login", "outcome", "nonce_mismatch", "client_id", p.ClientID, "resource", p.Resource)
@@ -596,11 +599,27 @@ func (g *Gateway) callbackHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	navIdent := ""
-	extractIdentityFromClaims(idClaims, &navIdent)
-	if at != "" {
-		if atClaims, parseErr := parseJWTClaims(at); parseErr == nil {
-			extractIdentityFromClaims(atClaims, &navIdent)
+	var introErr error
+	if introspect {
+		// The token response is hostile: NAVident comes only from Texas
+		// introspection of the access token, never from an unverified decode (#2594).
+		navIdent, introErr = g.introspectNAVident(r.Context(), at)
+	} else {
+		// legacy: unchanged main behaviour; removed in the follow-up to #2594.
+		extractIdentityFromClaims(idClaims, &navIdent)
+		if at != "" {
+			if atClaims, atErr := parseJWTClaims(at); atErr == nil {
+				extractIdentityFromClaims(atClaims, &navIdent)
+			}
 		}
+	}
+	if introErr != nil {
+		slog.Warn("audit login", "outcome", "introspection_failed", "reason", introErr.Error(), "client_id", p.ClientID, "resource", p.Resource)
+		back(url.Values{
+			"error":             {"server_error"},
+			"error_description": {"upstream access token validation failed"},
+		})
+		return
 	}
 	if navIdent == "" {
 		slog.Warn("audit login", "outcome", "missing_navident", "client_id", p.ClientID, "resource", p.Resource)
@@ -995,6 +1014,44 @@ func extractIdentityFromClaims(claims map[string]any, navIdent *string) {
 			*navIdent = strings.TrimSpace(v)
 		}
 	}
+}
+
+// introspectNAVident validates the Entra access token at Texas and returns
+// its NAVident. Any failure, an inactive token or a missing NAVident returns
+// "" or an error; the caller rejects the login.
+func (g *Gateway) introspectNAVident(ctx context.Context, accessToken string) (string, error) {
+	if accessToken == "" {
+		return "", errors.New("access token missing")
+	}
+	payload, err := json.Marshal(map[string]string{"identity_provider": "entra_id", "token": accessToken})
+	if err != nil {
+		return "", errors.New("encode introspection request")
+	}
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, g.cfg.TexasIntrospectEndpoint, bytes.NewReader(payload))
+	if err != nil {
+		return "", errors.New("build introspection request")
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+	resp, err := g.cfg.HTTPClient.Do(req) //nolint:gosec // endpoint validated at startup
+	if err != nil {
+		return "", errors.New("introspection request failed")
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("introspection status %d", resp.StatusCode)
+	}
+	var out struct {
+		Active   bool   `json:"active"`
+		NAVident string `json:"NAVident"`
+	}
+	if err := json.NewDecoder(io.LimitReader(resp.Body, maxUpstreamBodyBytes)).Decode(&out); err != nil {
+		return "", errors.New("invalid introspection response")
+	}
+	if !out.Active {
+		return "", errors.New("access token inactive")
+	}
+	return strings.TrimSpace(out.NAVident), nil
 }
 
 // logAccessTokenShape logs only non-secret claims (aud, ver, azp, scp) of the
