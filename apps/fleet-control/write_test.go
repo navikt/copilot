@@ -36,6 +36,7 @@ func TestValidateDraftRejectsHostileInput(t *testing.T) {
 	gw := `{"name":"io.github.navikt/svc","remotes":[{"type":"streamable-http","url":"https://fleet-gateway.{{domain_internal}}/mcp/team-a/svc"}]}`
 	ok := map[string]string{
 		"route":            routeDraft,
+		"registry only":    `{"registry":{"name":"io.github.navikt/svc"}}`,
 		"route + registry": `{"registry":` + gw + `,` + routeDraft[1:],
 	}
 	for name, body := range ok {
@@ -53,6 +54,10 @@ func TestValidateDraftRejectsHostileInput(t *testing.T) {
 		"upstream in other ns":  `{"route":{"target":"dev-gcp:team-a:svc","upstream_url":"http://svc.team-b/mcp","tools":["search"]}}`,
 		"upstream external":     `{"route":{"target":"dev-gcp:team-a:svc","upstream_url":"https://evil.example.com/mcp","tools":["search"]}}`,
 		"upstream ip":           `{"route":{"target":"dev-gcp:team-a:svc","upstream_url":"http://169.254.169.254/","tools":["search"]}}`,
+		"upstream ingress":      `{"route":{"target":"dev-gcp:team-a:svc","upstream_url":"https://collector.intern.dev.nav.no/mcp","tools":["search"]}}`,
+		"upstream other app":    `{"route":{"target":"dev-gcp:team-a:svc","upstream_url":"http://other.team-a/mcp","tools":["search"]}}`,
+		"upstream query":        `{"route":{"target":"dev-gcp:team-a:svc","upstream_url":"http://svc.team-a/mcp?x=1","tools":["search"]}}`,
+		"upstream fragment":     `{"route":{"target":"dev-gcp:team-a:svc","upstream_url":"http://svc.team-a/mcp#x","tools":["search"]}}`,
 		"bad tool":              `{"route":{"target":"dev-gcp:team-a:svc","upstream_url":"http://svc.team-a/mcp","tools":["a b"]}}`,
 		"no tools":              `{"route":{"target":"dev-gcp:team-a:svc","upstream_url":"http://svc.team-a/mcp","tools":[]}}`,
 		"registry elsewhere":    `{"registry":{"name":"io.github.navikt/svc","remotes":[{"url":"https://fleet-gateway.{{domain_internal}}/mcp/team-b/svc"}]},` + routeDraft[1:],
@@ -217,7 +222,8 @@ func TestRealPostgresWriteFlow(t *testing.T) {
 	v2, h2 := draft(b, strings.Replace(routeDraft, `"search"`, `"search","fetch"`, 1))
 	// Open the pool's connections first, so the approvals really overlap.
 	var conns []*pgxpool.Conn
-	for range 10 {
+	// Stay within MaxConns, which is the CPU count (min 4): more would block.
+	for range min(10, int(db.pool.Config().MaxConns)) {
 		c, acqErr := db.pool.Acquire(ctx)
 		if acqErr != nil {
 			t.Fatal(acqErr)
@@ -352,5 +358,39 @@ func TestRealPostgresRollbackSkipsUnapprovedAndBlocked(t *testing.T) {
 	}
 	if _, err = db.Rollback(ctx, "A111111", "team-a", "rb"); err == nil {
 		t.Error("rollback below the first version must fail")
+	}
+}
+
+// A seeded version counts as published, so rollback can return to it.
+func TestRealPostgresRollbackToSeed(t *testing.T) {
+	db := openTestDB(t)
+	ctx := context.Background()
+	if err := db.Migrate(ctx); err != nil {
+		t.Fatal(err)
+	}
+	routes, allowlist := readSeedFiles(t, "prod")
+	servers, err := seedServers(routes, allowlist)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = db.Seed(ctx, servers, "test"); err != nil {
+		t.Fatal(err)
+	}
+	var sv Server
+	for _, s := range servers {
+		if s.Route != nil {
+			sv = s
+			break
+		}
+	}
+	v, err := db.SaveDraft(ctx, "A111111", sv, "h")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = db.Approve(ctx, "A222222", sv.Namespace, sv.Name, v, "h"); err != nil {
+		t.Fatal(err)
+	}
+	if got, rbErr := db.Rollback(ctx, "A111111", sv.Namespace, sv.Name); rbErr != nil || got != 1 {
+		t.Fatalf("rollback to the seeded version: %d %v", got, rbErr)
 	}
 }

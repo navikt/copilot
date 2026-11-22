@@ -10,6 +10,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"strings"
 	"time"
 
@@ -50,6 +51,18 @@ func validateDraft(ns, name string, spec draftSpec) (Server, error) {
 		if err := validateUpstreamURL(r.UpstreamURL, ns); err != nil {
 			return s, fmt.Errorf("route.upstream_url: %w", err)
 		}
+		// Unlike the seed, the API allows only the target app's own service DNS:
+		// an ingress name proves nothing about which app answers, and the
+		// gateway sends the target's token there. fleet-gateway rejects query
+		// strings and fragments, so they would block the whole snapshot.
+		u, _ := url.Parse(r.UpstreamURL)
+		host, _ := normalizeHost(u.Hostname())
+		if app := parts[2]; host != app+"."+ns && host != app+"."+ns+".svc.cluster.local" {
+			return s, fmt.Errorf("route.upstream_url: host must be %s.%s or %s.%s.svc.cluster.local", app, ns, app, ns)
+		}
+		if u.RawQuery != "" || u.Fragment != "" || u.ForceQuery {
+			return s, errors.New("route.upstream_url: query strings and fragments are not allowed")
+		}
 		if err := validateTools(r.Tools); err != nil {
 			return s, fmt.Errorf("route: %w", err)
 		}
@@ -59,6 +72,11 @@ func validateDraft(ns, name string, spec draftSpec) (Server, error) {
 		e, err := parseRegistryEntry(spec.Registry)
 		if err != nil {
 			return s, fmt.Errorf("registry: %w", err)
+		}
+		// Without a gateway remote the parser defaults the namespace to
+		// copilot; the owning namespace is then the authenticated path's.
+		if e.gatewayPath == "" {
+			e.Namespace = ns
 		}
 		if e.Namespace != ns || e.Name != name {
 			return s, fmt.Errorf("registry: entry %q maps to %s, not %s", e.RegistryName, e.Key(), s.Key())

@@ -281,7 +281,7 @@ func parseRegistryEntry(raw json.RawMessage) (Server, error) {
 				continue
 			}
 			if strings.Contains(u, internalTemplate) {
-				slog.Info("seed drops internal remote; only the gateway may be internal", "server", name, "url", u)
+				slog.Info("seed drops internal remote; only the gateway may be internal", "server", name)
 				continue
 			}
 			if err := validatePublicURL(u, true); err != nil {
