@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"strings"
 	"sync"
@@ -59,6 +60,33 @@ func TestPGStoreTokenSingleUse(t *testing.T) {
 	wg.Wait()
 	if wins.Load() != 1 {
 		t.Fatalf("concurrent uses won %d times, want 1", wins.Load())
+	}
+}
+
+func TestPGStoreTokenCap(t *testing.T) {
+	p := pgTestStore(t)
+	ctx := context.Background()
+	exp := testNow.Add(confirmTTL)
+	// An expired row does not count against the cap.
+	if err := p.useToken(ctx, "u", "expired", testNow.Add(-time.Second), testNow.Add(-time.Minute)); err != nil {
+		t.Fatal(err)
+	}
+	for i := range maxSeenPerUser {
+		if err := p.useToken(ctx, "u", fmt.Sprint("sig-", i), exp, testNow); err != nil {
+			t.Fatalf("token %d: %v", i+1, err)
+		}
+	}
+	if err := p.useToken(ctx, "u", "sig-21", exp, testNow); !errors.Is(err, errConfirm) {
+		t.Fatalf("21st outstanding token = %v, want errConfirm", err)
+	}
+	if err := p.useToken(ctx, "other", "sig-21", exp, testNow); err != nil {
+		t.Fatalf("other user affected: %v", err)
+	}
+}
+
+func TestStoreSharedSingleUse(t *testing.T) {
+	if (memStore{}).sharedSingleUse() || !(&pgStore{}).sharedSingleUse() {
+		t.Fatal("sharedSingleUse: memory must be false, postgres true")
 	}
 }
 

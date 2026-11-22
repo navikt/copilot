@@ -31,6 +31,8 @@ type orderStore interface {
 	// release returns the reservation when the order failed and may be refunded.
 	reserve(ctx context.Context, userHash string, antall int, now time.Time) (release func(), ok bool, err error)
 	remaining(ctx context.Context, userHash string, now time.Time) (int, error)
+	// sharedSingleUse reports whether used tokens are visible to every pod.
+	sharedSingleUse() bool
 }
 
 // memStore is the per-pod store: rolling 24 h quota, in-memory used tokens.
@@ -51,6 +53,8 @@ func (m memStore) reserve(_ context.Context, userHash string, antall int, now ti
 func (m memStore) remaining(_ context.Context, userHash string, now time.Time) (int, error) {
 	return m.quota.remaining(userHash, now), nil
 }
+
+func (memStore) sharedSingleUse() bool { return false }
 
 // pgStore shares state between replicas. The quota counts per UTC day.
 type pgStore struct {
@@ -130,21 +134,40 @@ func (p *pgStore) fail(op string, err error) error {
 	return errStore
 }
 
+func (*pgStore) sharedSingleUse() bool { return true }
+
 func utcDay(t time.Time) time.Time {
 	y, m, d := t.UTC().Date()
 	return time.Date(y, m, d, 0, 0, 0, 0, time.UTC)
 }
 
-func (p *pgStore) useToken(ctx context.Context, userHash, sig string, exp, _ time.Time) error {
+func (p *pgStore) useToken(ctx context.Context, userHash, sig string, exp, now time.Time) error {
 	ctx, cancel, err := p.ready(ctx)
 	if err != nil {
 		return err
 	}
 	defer cancel()
-	tag, err := p.pool.Exec(ctx,
-		`INSERT INTO dolly_used_tokens (sig, user_hash, expires_at) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING`,
-		sig, userHash, exp)
+	tx, err := p.pool.Begin(ctx)
 	if err != nil {
+		return p.fail("use token", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	// Per-user lock so concurrent replicas cannot both pass the cap.
+	if _, err = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtext('dolly-token:' || $1::text))`, userHash); err != nil {
+		return p.fail("use token", err)
+	}
+	// Same cap as memory mode: reject when full, so a user or a looping agent
+	// cannot mint unbounded state, and a used token is never evicted early.
+	tag, err := tx.Exec(ctx, `
+INSERT INTO dolly_used_tokens (sig, user_hash, expires_at)
+SELECT $1::text, $2::text, $3::timestamptz
+WHERE (SELECT count(*) FROM dolly_used_tokens WHERE user_hash = $2::text AND expires_at > $4::timestamptz) < $5::integer
+ON CONFLICT DO NOTHING`,
+		sig, userHash, exp, now, maxSeenPerUser)
+	if err != nil {
+		return p.fail("use token", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
 		return p.fail("use token", err)
 	}
 	if tag.RowsAffected() == 0 {
