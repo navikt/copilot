@@ -11,8 +11,8 @@ type challenge struct {
 const tokenChars = "!#$%&'*+-.^_`|~0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 // parseChallenges parses WWW-Authenticate values per RFC 7235 3.1.
-// shortcut: token68 credentials (`Negotiate abc==`) are not recognised, and a
-// malformed tail ends parsing; fine for Bearer, upgrade if another scheme matters.
+// A token68 right after the scheme (`Negotiate YWJjZA==`) is skipped.
+// shortcut: a malformed tail ends parsing; fine for Bearer.
 func parseChallenges(values []string) []challenge {
 	var out []challenge
 	for _, v := range values {
@@ -48,6 +48,15 @@ func parseOne(s string) []challenge {
 			return out
 		}
 		c := challenge{scheme: strings.ToLower(scheme), params: map[string]string{}}
+		space()
+		if j := token68End(s, i); j > i {
+			i = j
+			out = append(out, c)
+			if i >= len(s) {
+				return out
+			}
+			continue
+		}
 		for {
 			skip()
 			save := i
@@ -100,4 +109,28 @@ func bearerChallenge(values []string) (challenge, bool) {
 		}
 	}
 	return challenge{}, false
+}
+
+// token68End returns the end of a token68 at i, or i when there is none. A lone
+// trailing '=' is read as an auth-param with an empty value, not as padding.
+func token68End(s string, i int) int {
+	j := i
+	for j < len(s) && (strings.IndexByte(tokenChars, s[j]) >= 0 || s[j] == '/') && s[j] != '\'' {
+		j++
+	}
+	k := j
+	for k < len(s) && s[k] == '=' {
+		k++
+	}
+	if j == i || k-j == 1 {
+		return i
+	}
+	m := k
+	for m < len(s) && (s[m] == ' ' || s[m] == '\t') {
+		m++
+	}
+	if m < len(s) && s[m] != ',' {
+		return i
+	}
+	return k
 }
