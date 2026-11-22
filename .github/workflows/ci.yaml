@@ -191,6 +191,7 @@ jobs:
               - 'apps/copilot-survey/surveys/schema.json'
               - 'scripts/install.sh'
               - 'scripts/publish-release.sh'
+              - 'scripts/mcp-compliance-next-version.sh'
               - 'scripts/*.bats'
               - 'scripts/skill-selvutlosning-probe.sh'
               - '.github/workflows/copilot-customization-sync.yml'

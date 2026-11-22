@@ -63,11 +63,13 @@ var version = "dev"
 
 // buildVersion returns version, or for a `go install ...@vX.Y.Z` build (no
 // ldflags) the module version Go recorded.
+var readBuildInfo = debug.ReadBuildInfo
+
 func buildVersion() string {
 	if version != "dev" {
 		return version
 	}
-	if bi, ok := debug.ReadBuildInfo(); ok && bi.Main.Version != "" && bi.Main.Version != "(devel)" {
+	if bi, ok := readBuildInfo(); ok && bi.Main.Version != "" && bi.Main.Version != "(devel)" {
 		return bi.Main.Version
 	}
 	return version

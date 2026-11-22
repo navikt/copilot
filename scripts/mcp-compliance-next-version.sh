@@ -13,7 +13,11 @@ IFS=. read -r major minor patch <<<"${last#v}"
 log=$(git log --format='%s%n%b' "${prefix}${last}..${sha}" -- cli/mcp-compliance)
 if [ -z "$log" ]; then echo "no mcp-compliance changes since $last" >&2; exit 1; fi
 if grep -qE '^[a-z]+(\([^)]*\))?!:|^BREAKING[ -]CHANGE:' <<<"$log"; then
-  if [ "$major" = 0 ]; then minor=$((minor + 1)); else major=$((major + 1)); minor=0; fi
+  if [ "$major" = 0 ]; then minor=$((minor + 1)); else
+    # The module path has no /v2 suffix, so v2+ would break `go install ...@latest`.
+    echo "breaking change from v${major}.x needs v$((major + 1)), but the module path has no /v$((major + 1)) suffix; change the module path first" >&2
+    exit 1
+  fi
   patch=0
 elif grep -qE '^feat(\([^)]*\))?:' <<<"$log"; then
   minor=$((minor + 1)); patch=0

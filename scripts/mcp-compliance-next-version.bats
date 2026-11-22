@@ -27,7 +27,7 @@ commit() { echo "$RANDOM" >>"$1/f"; git add -A; git commit -q -m "$2"; }
   [ "$output" = v0.1.1 ]
 }
 
-@test "feat bumps minor, breaking bumps minor below v1 and major from v1" {
+@test "feat bumps minor, breaking bumps minor below v1 and is refused from v1" {
   commit cli/mcp-compliance "feat: start"; git tag cli/mcp-compliance/v0.2.3
   commit cli/mcp-compliance "feat(mcp-compliance): y"
   run "$SCRIPT" HEAD
@@ -35,7 +35,8 @@ commit() { echo "$RANDOM" >>"$1/f"; git add -A; git commit -q -m "$2"; }
   git tag cli/mcp-compliance/v1.4.2
   commit cli/mcp-compliance "fix!: z"
   run "$SCRIPT" HEAD
-  [ "$output" = v2.0.0 ]
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"module path"* ]]
 }
 
 @test "nothing new fails" {

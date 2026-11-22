@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"regexp"
+	"runtime/debug"
 	"strings"
 	"testing"
 )
@@ -377,5 +378,14 @@ func TestBuildVersionFallsBackToBuildInfo(t *testing.T) {
 	version = "v1.0.0"
 	if got := buildVersion(); got != "v1.0.0" {
 		t.Fatalf("ldflags version not preferred: %q", got)
+	}
+	version = "dev"
+	oldRead := readBuildInfo
+	defer func() { readBuildInfo = oldRead }()
+	readBuildInfo = func() (*debug.BuildInfo, bool) {
+		return &debug.BuildInfo{Main: debug.Module{Version: "v0.4.1"}}, true
+	}
+	if got := buildVersion(); got != "v0.4.1" {
+		t.Fatalf("module version not used: %q", got)
 	}
 }
