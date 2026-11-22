@@ -9,6 +9,7 @@ on:
       - 'apps/copilot-survey/surveys/schema.json'
       - 'scripts/install.sh'
       - 'scripts/publish-release.sh'
+      - 'scripts/mcp-compliance-next-version.sh'
       - 'scripts/*.bats'
       - 'scripts/skill-selvutlosning-probe.sh'
       - '.github/workflows/copilot-customization-sync.yml'
@@ -40,6 +41,7 @@ on:
       - 'apps/copilot-survey/surveys/schema.json'
       - 'scripts/install.sh'
       - 'scripts/publish-release.sh'
+      - 'scripts/mcp-compliance-next-version.sh'
       - 'scripts/*.bats'
       - 'scripts/skill-selvutlosning-probe.sh'
       - '.github/workflows/copilot-customization-sync.yml'
@@ -187,7 +189,7 @@ jobs:
           distribution: temurin
           java-version: "21"
       - name: Run BATS
-        run: mise exec -- bats scripts/install.bats scripts/publish-release.bats scripts/sync-pr-body.bats scripts/skill-selvutlosning-probe.bats scripts/nav-pilot-golden.bats scripts/obs-query.bats
+        run: mise exec -- bats scripts/install.bats scripts/publish-release.bats scripts/sync-pr-body.bats scripts/skill-selvutlosning-probe.bats scripts/nav-pilot-golden.bats scripts/obs-query.bats scripts/mcp-compliance-next-version.bats
 
   e2e-install:
     name: E2E test install.sh

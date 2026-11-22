@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"regexp"
+	"runtime/debug"
 	"strings"
 	"testing"
 )
@@ -345,5 +346,46 @@ func TestToolLintRespectsToolFlag(t *testing.T) {
 	})
 	if strings.Contains(out.String(), "ignore previous") {
 		t.Fatalf("linted a tool not named by -tool:\n%s", out.String())
+	}
+}
+
+func TestVersionFlag(t *testing.T) {
+	old := version
+	version = "v1.2.3"
+	defer func() { version = old }()
+	var out bytes.Buffer
+	if code := run([]string{"-version"}, &out, func(string) string { return "" }); code != 0 {
+		t.Fatalf("exit %d", code)
+	}
+	if got := out.String(); got != "mcp-compliance v1.2.3\n" {
+		t.Fatalf("got %q", got)
+	}
+	body := modernBody("ping", nil)
+	info := body["params"].(map[string]any)["_meta"].(map[string]any)["io.modelcontextprotocol/clientInfo"].(map[string]any)
+	if info["version"] != "v1.2.3" {
+		t.Fatalf("clientInfo.version = %v", info["version"])
+	}
+}
+
+func TestBuildVersionFallsBackToBuildInfo(t *testing.T) {
+	old := version
+	version = "dev"
+	defer func() { version = old }()
+	// A test binary's main module is "(devel)", so the fallback keeps "dev".
+	if got := buildVersion(); got != "dev" {
+		t.Fatalf("got %q", got)
+	}
+	version = "v1.0.0"
+	if got := buildVersion(); got != "v1.0.0" {
+		t.Fatalf("ldflags version not preferred: %q", got)
+	}
+	version = "dev"
+	oldRead := readBuildInfo
+	defer func() { readBuildInfo = oldRead }()
+	readBuildInfo = func() (*debug.BuildInfo, bool) {
+		return &debug.BuildInfo{Main: debug.Module{Version: "v0.4.1"}}, true
+	}
+	if got := buildVersion(); got != "v0.4.1" {
+		t.Fatalf("module version not used: %q", got)
 	}
 }

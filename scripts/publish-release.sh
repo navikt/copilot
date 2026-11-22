@@ -8,18 +8,28 @@
 # deleted and the script exits non-zero.
 #
 # A run that is killed (cancel, timeout) cannot clean up after itself, and the
-# next run has a new timestamp tag. So every run first deletes all nav-pilot/
-# drafts. That is safe because the release workflow's concurrency group
-# (nav-pilot-release, no cancel-in-progress) lets only one run publish at once.
+# next run has a new tag. So every run first deletes all drafts under its
+# SWEEP_PREFIX. That is safe because each release workflow has its own prefix
+# and a concurrency group without cancel-in-progress, so only one run per
+# prefix publishes at once.
 # A tag that is already published with every asset is a no-op.
 #
 # Usage: publish-release.sh TAG TARGET_SHA TITLE NOTES_FILE ASSET_DIR
 # Env:   UPLOAD_ATTEMPTS (default 3), RETRY_DELAY seconds (default 10)
+#        SWEEP_PREFIX: tag prefix whose drafts are swept (default nav-pilot/).
+#          Each release workflow passes its own, so it never deletes another's.
+#        LATEST: true (default) marks the release Latest; false leaves the badge.
 set -euo pipefail
 
 tag=$1 target=$2 title=$3 notes=$4 dir=$5
 attempts=${UPLOAD_ATTEMPTS:-3}
 delay=${RETRY_DELAY:-10}
+prefix=${SWEEP_PREFIX:-nav-pilot/}
+case "${LATEST:-true}" in
+  true) latest=--latest ;;
+  false) latest=--latest=false ;;
+  *) echo "::error::LATEST must be true or false"; exit 1 ;;
+esac
 
 sha256() {
   if command -v sha256sum >/dev/null; then sha256sum "$1"; else shasum -a 256 "$1"; fi | cut -d' ' -f1
@@ -50,7 +60,7 @@ errf=$(mktemp)
 
 for draft in $(gh release list --limit 100 --json tagName,isDraft --jq '.[] | select(.isDraft) | .tagName'); do
   case "$draft" in
-    nav-pilot/*)
+    "$prefix"*)
       echo "Deleting leftover draft $draft from an earlier run"
       gh release delete "$draft" --yes
       ;;
@@ -103,6 +113,6 @@ if [ "$actual" != "$expected" ]; then
   exit 1
 fi
 
-gh release edit "$tag" --draft=false --latest
+gh release edit "$tag" --draft=false "$latest"
 trap - EXIT
 echo "Published $tag"
