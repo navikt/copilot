@@ -1,0 +1,11 @@
+# dev-gcp:  nais apply -t copilot -e dev-gcp .nais/postgres.yaml
+# prod-gcp: nais apply -t copilot -e prod-gcp .nais/postgres.yaml
+version: v1
+type: Postgres
+name: mcp-dolly
+spec:
+  majorVersion: "18"
+  resources:
+    cpu: 100m
+    memory: 512Mi
+    diskSize: 5Gi

@@ -34,7 +34,14 @@ spec:
   # CONFIRM_KEYS and USER_HASH_KEY; the owner creates this secret in each cluster.
   envFrom:
     - secret: mcp-dolly-keys
+  # Nais Postgres (.nais/postgres.yaml) injects PGURL; the app falls back to it when MCP_DOLLY_DATABASE_URL is unset.
+  uses:
+    postgres:
+      - name: mcp-dolly
   env:
+    # Used tokens and the daily quota live in Postgres; if it is down, create_order refuses and read tools still work.
+    - name: MCP_DOLLY_STORE
+      value: postgres
     - name: PORT
       value: "8080"
     - name: LOG_LEVEL

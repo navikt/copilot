@@ -3,6 +3,7 @@ package main
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"encoding/json"
 	"errors"
@@ -99,7 +100,7 @@ func loadConfigFromEnv() (*config, error) {
 		EnableCreateOrder:     enableCreateOrder,
 		TwoStepOrder:          twoStepOrder,
 		Store:                 os.Getenv("MCP_DOLLY_STORE"),
-		DatabaseURL:           os.Getenv("MCP_DOLLY_DATABASE_URL"),
+		DatabaseURL:           cmp.Or(os.Getenv("MCP_DOLLY_DATABASE_URL"), os.Getenv("PGURL")), // PGURL: injected by Nais Postgres
 		HTTPClient: &http.Client{
 			Timeout: httpClientTimeout,
 			CheckRedirect: func(*http.Request, []*http.Request) error {
