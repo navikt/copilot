@@ -67,6 +67,15 @@ full wash:
 - No exclamation marks in technical text.
 - Semicolons sparingly.
 
+## Code comments
+
+Models read comments as truth, so a wrong comment is worse than none.
+
+- Explain why, not what: the constraint, tradeoff or non-obvious reason the code cannot show.
+- Exported names get a short doc comment that states what they promise to callers.
+- When you change code, fix or delete the comments it makes stale.
+- Never add a comment that restates the code.
+
 ## Precedence over deliberate-ai-use
 
 `deliberate-ai-use.instructions.md` is also `applyTo: "**"` and requires explaining architectural choices, showing tradeoffs, marking red-zone code and inviting follow-up questions. That requirement is scoped, not global. Apply it as follows:

@@ -364,7 +364,7 @@
       "displayName": "Output Style",
       "description": "Felles skriveregler for output: lengde, tetthet, tegnsetting og presedens over bevisst KI-bruk. Ordlistene over KI-markører ligger i klarsprak-skillen.",
       "filePath": "instructions/output-style.instructions.md",
-      "contentHash": "919ebcfd22f06b2e60eb394832b862eb911685264ebdcab02443d68bef04a2b6",
+      "contentHash": "04db302cc800ad7c429f4ee8acfafd6e8b66efeca4604912eb48e476b518518f",
       "installUrl": "vscode:chat-instructions/install?url=https://raw.githubusercontent.com/navikt/copilot/main/instructions/output-style.instructions.md",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/instructions/output-style.instructions.md"
     },
