@@ -365,7 +365,7 @@ func TestStrategyRefresh_Rotation_And_Concurrency(t *testing.T) {
 				writeJSON(w, http.StatusOK, map[string]any{
 					"access_token":  te.entraToken,
 					"refresh_token": "rt-0",
-					"id_token":      makeTestJWT(map[string]any{"NAVident": "Z123456", "nonce": nonce}),
+					"id_token":      makeTestIDToken(map[string]any{"NAVident": "Z123456", "nonce": nonce}),
 					"expires_in":    3600,
 				})
 				return
@@ -577,7 +577,7 @@ func TestHardening_OIDCNonce_PKCE_Singleflight_Prompt_And_Claims(t *testing.T) {
 	})
 
 	t.Run("OIDC nonce validation rejects mismatch and missing id_token", func(t *testing.T) {
-		for _, mode := range []string{"wrong_nonce", "missing_nonce", "missing_id_token"} {
+		for _, mode := range []string{"wrong_nonce", "missing_nonce", "missing_id_token", "wrong_iss"} {
 			t.Run(mode, func(t *testing.T) {
 				te := newTestEnv(t)
 				te.entraServer.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -595,9 +595,11 @@ func TestHardening_OIDCNonce_PKCE_Singleflight_Prompt_And_Claims(t *testing.T) {
 						}
 						switch mode {
 						case "wrong_nonce":
-							resp["id_token"] = makeTestJWT(map[string]any{"nonce": "wrong-nonce"})
+							resp["id_token"] = makeTestIDToken(map[string]any{"nonce": "wrong-nonce"})
 						case "missing_nonce":
-							resp["id_token"] = makeTestJWT(map[string]any{"sub": "u1"})
+							resp["id_token"] = makeTestIDToken(map[string]any{"sub": "u1"})
+						case "wrong_iss":
+							resp["id_token"] = makeTestIDToken(map[string]any{"iss": "https://login.test/evil/v2.0"})
 						}
 						writeJSON(w, http.StatusOK, resp)
 					}
@@ -614,6 +616,9 @@ func TestHardening_OIDCNonce_PKCE_Singleflight_Prompt_And_Claims(t *testing.T) {
 				loc, _ := url.Parse(rec.Header().Get("Location"))
 				if loc.Query().Get("error") != "server_error" {
 					t.Fatalf("expected server_error for %s, got %q", mode, loc.Query().Get("error"))
+				}
+				if desc := loc.Query().Get("error_description"); mode == "wrong_iss" && desc != "upstream identity token validation failed" {
+					t.Fatalf("wrong_iss must fail claim validation, got %q", desc)
 				}
 			})
 		}

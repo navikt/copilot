@@ -130,7 +130,7 @@ func TestGatewayReplicas_RefreshRotationAcrossReplicas(t *testing.T) {
 				writeJSON(w, http.StatusOK, map[string]any{
 					"access_token":  te.entraToken,
 					"refresh_token": "rt-init",
-					"id_token":      makeTestJWT(map[string]any{"NAVident": "Z123456", "nonce": nonce}),
+					"id_token":      makeTestIDToken(map[string]any{"NAVident": "Z123456", "nonce": nonce}),
 					"expires_in":    3600,
 				})
 				return
@@ -211,7 +211,7 @@ func TestSessionAbsoluteCap(t *testing.T) {
 			writeJSON(w, http.StatusOK, map[string]any{
 				"access_token":  te.entraToken,
 				"refresh_token": "rt-cap",
-				"id_token":      makeTestJWT(map[string]any{"NAVident": "Z123456", "nonce": nonce}),
+				"id_token":      makeTestIDToken(map[string]any{"NAVident": "Z123456", "nonce": nonce}),
 				"expires_in":    86400, // 24 hours
 			})
 		}

@@ -94,6 +94,7 @@ type Config struct {
 	AzureClientSecret       string
 	AzureWellKnownURL       string
 	AzureTokenEndpoint      string
+	AzureIssuer             string // expected iss of the Entra id_token
 	AzureAuthorizeEndpoint  string
 	CookieSecret            []byte
 	CookieVerifyKeys        [][]byte // extra keys accepted on verify only (older RT_KEYS entries)
@@ -214,6 +215,7 @@ func loadConfigFromEnv() (*Config, error) {
 		AzureClientSecret:       strings.TrimSpace(os.Getenv("AZURE_APP_CLIENT_SECRET")),
 		AzureWellKnownURL:       strings.TrimSpace(os.Getenv("AZURE_APP_WELL_KNOWN_URL")),
 		AzureTokenEndpoint:      strings.TrimSpace(os.Getenv("AZURE_OPENID_CONFIG_TOKEN_ENDPOINT")),
+		AzureIssuer:             strings.TrimSpace(os.Getenv("AZURE_OPENID_CONFIG_ISSUER")),
 		AzureAuthorizeEndpoint:  strings.TrimSpace(os.Getenv("AZURE_OPENID_CONFIG_AUTHORIZATION_ENDPOINT")),
 		CookieSecret:            cookieKeys[0],
 		CookieVerifyKeys:        cookieKeys[1:],
@@ -326,6 +328,9 @@ func validateConfig(cfg *Config) error {
 	}
 	if err := config.ValidateHTTPURL(cfg.AzureTokenEndpoint, false); err != nil {
 		return fmt.Errorf("invalid AZURE_OPENID_CONFIG_TOKEN_ENDPOINT: %w", err)
+	}
+	if err := config.ValidateHTTPURL(cfg.AzureIssuer, false); err != nil {
+		return fmt.Errorf("invalid AZURE_OPENID_CONFIG_ISSUER: %w", err)
 	}
 	if cfg.AzureAuthorizeEndpoint == "" && cfg.AzureWellKnownURL == "" {
 		return errors.New("AZURE_APP_WELL_KNOWN_URL or AZURE_OPENID_CONFIG_AUTHORIZATION_ENDPOINT is required")

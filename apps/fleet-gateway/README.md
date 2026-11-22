@@ -35,6 +35,7 @@ The gateway is live in prod (2026-11-17) for a controlled pilot. It runs the aut
 | `AZURE_APP_CLIENT_ID` | Yes | — | Nais-injected Entra client ID |
 | `AZURE_APP_CLIENT_SECRET` | Yes | — | Nais-injected Entra client secret |
 | `AZURE_OPENID_CONFIG_TOKEN_ENDPOINT` | Yes | — | Nais-injected Entra token endpoint |
+| `AZURE_OPENID_CONFIG_ISSUER` | Yes | — | Nais-injected Entra issuer; the `id_token` `iss` must match it |
 | `AZURE_APP_WELL_KNOWN_URL` | Conditional | — | Nais-injected OpenID discovery URL (required unless `AZURE_OPENID_CONFIG_AUTHORIZATION_ENDPOINT` is set) |
 | `AZURE_OPENID_CONFIG_AUTHORIZATION_ENDPOINT` | Conditional | — | Direct override for Entra authorization endpoint |
 | `ENTRA_SCOPE` | No | `openid api://<own client id>/.default` (plus `offline_access` for `refresh`) | Scope requested from Entra |

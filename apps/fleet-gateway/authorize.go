@@ -562,8 +562,11 @@ func (g *Gateway) callbackHandler(w http.ResponseWriter, r *http.Request) {
 	if idt != "" {
 		var parseErr error
 		idClaims, parseErr = parseJWTClaims(idt)
+		if parseErr == nil {
+			parseErr = validateIDTokenClaims(idClaims, g.cfg.AzureIssuer, g.cfg.AzureClientID, g.now())
+		}
 		if parseErr != nil {
-			slog.Warn("audit login", "outcome", "invalid_id_token", "client_id", p.ClientID, "resource", p.Resource)
+			slog.Warn("audit login", "outcome", "invalid_id_token", "reason", parseErr.Error(), "client_id", p.ClientID, "resource", p.Resource)
 			back(url.Values{
 				"error":             {"server_error"},
 				"error_description": {"upstream identity token validation failed"},
@@ -921,6 +924,65 @@ func parseJWTClaims(rawJWT string) (map[string]any, error) {
 		return nil, errors.New("invalid JWT claims JSON")
 	}
 	return claims, nil
+}
+
+// idTokenSkew is the clock skew tolerated on exp, nbf and iat.
+const idTokenSkew = 2 * time.Minute
+
+// validateIDTokenClaims checks iss, aud/azp and exp/nbf/iat of the Entra
+// id_token (OIDC Core 3.1.3.7, steps 2-5 and 9-10). The signature is not
+// checked: the token comes straight from the configured Entra token endpoint
+// over TLS in the back-channel code redemption, which step 6 allows to stand
+// in for signature validation. Every claim is still treated as hostile, and a
+// missing claim or empty configuration fails closed.
+func validateIDTokenClaims(claims map[string]any, issuer, clientID string, now time.Time) error {
+	if issuer == "" || clientID == "" {
+		return errors.New("id_token validation not configured")
+	}
+	if iss, _ := claims["iss"].(string); iss != issuer {
+		return errors.New("id_token iss mismatch")
+	}
+	var auds []string
+	switch v := claims["aud"].(type) {
+	case string:
+		auds = []string{v}
+	case []any:
+		for _, a := range v {
+			s, ok := a.(string)
+			if !ok {
+				return errors.New("id_token aud malformed")
+			}
+			auds = append(auds, s)
+		}
+	}
+	if !slices.Contains(auds, clientID) {
+		return errors.New("id_token aud mismatch")
+	}
+	if azp, ok := claims["azp"]; (len(auds) > 1 || ok) && azp != clientID {
+		return errors.New("id_token azp mismatch")
+	}
+	numeric := func(name string) (time.Time, bool) {
+		f, ok := claims[name].(float64)
+		if !ok || f <= 0 {
+			return time.Time{}, false
+		}
+		return time.Unix(int64(f), 0), true
+	}
+	exp, ok := numeric("exp")
+	if !ok || !now.Before(exp.Add(idTokenSkew)) {
+		return errors.New("id_token expired or exp missing")
+	}
+	iat, ok := numeric("iat")
+	if !ok || iat.After(now.Add(idTokenSkew)) {
+		return errors.New("id_token iat missing or in the future")
+	}
+	if _, present := claims["nbf"]; present {
+		nbf, ok := numeric("nbf")
+		if !ok || nbf.After(now.Add(idTokenSkew)) {
+			return errors.New("id_token not yet valid")
+		}
+	}
+	return nil
 }
 
 func extractIdentityFromClaims(claims map[string]any, navIdent *string) {

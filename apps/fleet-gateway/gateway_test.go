@@ -54,6 +54,18 @@ func makeTestJWT(claims map[string]any) string {
 	return header + "." + payload + ".sig"
 }
 
+const testIssuer = "https://login.test/tenant/v2.0"
+
+// makeTestIDToken adds valid iss, aud, iat and exp unless claims sets them.
+// The time window is wide because test environments run on fake clocks.
+func makeTestIDToken(claims map[string]any) string {
+	full := map[string]any{"iss": testIssuer, "aud": "azure-client-id", "iat": 1, "exp": int64(4102444800)}
+	for k, v := range claims {
+		full[k] = v
+	}
+	return makeTestJWT(full)
+}
+
 func newTestEnv(t *testing.T) *testEnv {
 	t.Helper()
 	te := &testEnv{
@@ -189,7 +201,7 @@ func newTestEnv(t *testing.T) *testEnv {
 			writeJSON(w, http.StatusOK, map[string]any{
 				"access_token":  entraToken,
 				"refresh_token": entraRT,
-				"id_token":      makeTestJWT(claims),
+				"id_token":      makeTestIDToken(claims),
 				"token_type":    "Bearer",
 				"expires_in":    expiresIn,
 			})
@@ -235,6 +247,7 @@ func newTestEnv(t *testing.T) *testEnv {
 		TexasExchangeEndpoint:   te.texasServer.URL,
 		EntraScope:              "openid",
 		AzureClientID:           "azure-client-id",
+		AzureIssuer:             testIssuer,
 		AzureClientSecret:       "azure-client-secret",
 		AzureWellKnownURL:       te.entraServer.URL + "/.well-known/openid-configuration",
 		AzureTokenEndpoint:      te.entraServer.URL + "/token",
