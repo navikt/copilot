@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"log/slog"
 	"net/http"
 	"os"
@@ -15,10 +14,13 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/navikt/copilot/lib/mcpkit"
 )
 
 const (
 	defaultPort        = "8080"
+	defaultMetricsPort = "9090"
 	defaultKodeverkURL = "http://kodeverk-api.team-rocket"
 	maxRequestBytes    = 1 << 20
 	httpClientTimeout  = 10 * time.Second
@@ -28,6 +30,7 @@ const (
 
 type config struct {
 	Port                  string
+	MetricsPort           string
 	LogLevel              slog.Level
 	IntrospectionEndpoint string
 	ExchangeEndpoint      string
@@ -40,30 +43,31 @@ type config struct {
 func loadConfigFromEnv() (*config, error) {
 	introspectionEndpoint := strings.TrimSpace(os.Getenv("NAIS_TOKEN_INTROSPECTION_ENDPOINT"))
 	if introspectionEndpoint != "" {
-		if err := validateHTTPURL(introspectionEndpoint); err != nil {
+		if err := mcpkit.ValidateHTTPURL(introspectionEndpoint); err != nil {
 			return nil, fmt.Errorf("invalid NAIS_TOKEN_INTROSPECTION_ENDPOINT: %w", err)
 		}
 	}
 
 	exchangeEndpoint := strings.TrimSpace(os.Getenv("NAIS_TOKEN_EXCHANGE_ENDPOINT"))
 	if exchangeEndpoint != "" {
-		if err := validateHTTPURL(exchangeEndpoint); err != nil {
+		if err := mcpkit.ValidateHTTPURL(exchangeEndpoint); err != nil {
 			return nil, fmt.Errorf("invalid NAIS_TOKEN_EXCHANGE_ENDPOINT: %w", err)
 		}
 	}
 
 	kodeverkURL := getEnv("KODEVERK_URL", defaultKodeverkURL)
-	if err := validateHTTPURL(kodeverkURL); err != nil {
+	if err := mcpkit.ValidateHTTPURL(kodeverkURL); err != nil {
 		return nil, fmt.Errorf("invalid KODEVERK_URL: %w", err)
 	}
 
-	gatewayClientID, err := extractGatewayClientID(os.Getenv("AZURE_APP_PRE_AUTHORIZED_APPS"), os.Getenv("NAIS_CLUSTER_NAME"))
+	gatewayClientID, err := mcpkit.GatewayClientID(os.Getenv("AZURE_APP_PRE_AUTHORIZED_APPS"), os.Getenv("NAIS_CLUSTER_NAME"))
 	if err != nil {
 		return nil, err
 	}
 
 	return &config{
 		Port:                  getEnv("PORT", defaultPort),
+		MetricsPort:           getEnv("METRICS_PORT", defaultMetricsPort),
 		LogLevel:              parseLogLevel(getEnv("LOG_LEVEL", "INFO")),
 		IntrospectionEndpoint: introspectionEndpoint,
 		ExchangeEndpoint:      exchangeEndpoint,
@@ -83,6 +87,7 @@ type server struct {
 	cfg         *config
 	kodeverk    *kodeverkClient
 	upstreamSem chan struct{}
+	metrics     *mcpkit.ToolMetrics
 }
 
 func newServer(cfg *config) *server {
@@ -90,7 +95,26 @@ func newServer(cfg *config) *server {
 		cfg:         cfg,
 		kodeverk:    newKodeverkClient(cfg.KodeverkURL, cfg.HTTPClient),
 		upstreamSem: make(chan struct{}, maxConcurrentUpstream),
+		metrics:     mcpkit.NewToolMetrics(toolNames()),
 	}
+}
+
+func toolNames() []string {
+	var names []string
+	for _, d := range baseToolDefinitions() {
+		names = append(names, d["name"].(string))
+	}
+	return names
+}
+
+// callTool runs a tool and records its per-tool metrics (#2564).
+func (s *server) callTool(ctx context.Context, token, name string, args json.RawMessage) (any, *mcpRPCError) {
+	start := time.Now()
+	res, rpcErr := s.handleToolCall(ctx, token, name, args)
+	m, _ := res.(map[string]any)
+	isErr, _ := m["isError"].(bool)
+	s.metrics.Observe(name, rpcErr != nil || isErr, time.Since(start))
+	return res, rpcErr
 }
 
 func (s *server) routes() http.Handler {
@@ -114,22 +138,22 @@ func (s *server) readyHandler(w http.ResponseWriter, _ *http.Request) {
 }
 
 func (s *server) mcpHandler(w http.ResponseWriter, r *http.Request) {
-	token, ok := extractBearerToken(r.Header.Get("Authorization"))
+	token, ok := mcpkit.BearerToken(r.Header.Get("Authorization"))
 	if !ok {
-		w.Header().Set("WWW-Authenticate", `Bearer realm="mcp-kodeverk"`)
+		mcpkit.SetChallenge(w, serverName, false)
 		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized", "message": "missing or malformed bearer token"})
 		return
 	}
 
-	_, err := s.validateToken(r.Context(), token)
+	_, err := s.texas().Introspect(r.Context(), token)
 	if err != nil {
 		switch {
-		case errors.Is(err, errUnauthorized):
-			w.Header().Set("WWW-Authenticate", `Bearer error="invalid_token"`)
+		case errors.Is(err, mcpkit.ErrUnauthorized):
+			mcpkit.SetChallenge(w, serverName, true)
 			writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "invalid_token", "message": err.Error()})
-		case errors.Is(err, errForbidden):
+		case errors.Is(err, mcpkit.ErrForbidden):
 			writeJSON(w, http.StatusForbidden, map[string]string{"error": "forbidden", "message": err.Error()})
-		case errors.Is(err, errNotConfigured):
+		case errors.Is(err, mcpkit.ErrNotConfigured):
 			writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "unavailable", "message": "authentication is not configured"})
 		default:
 			slog.Warn("texas introspection failed", "method", sanitizeLogValue(r.Method), "path", sanitizeLogValue(r.URL.Path), "error", sanitizeLogValue(err.Error()))
@@ -144,11 +168,9 @@ func (s *server) mcpHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	r.Body = http.MaxBytesReader(w, r.Body, maxRequestBytes)
-	body, err := io.ReadAll(r.Body)
+	body, tooLarge, err := mcpkit.ReadRequestBody(w, r, maxRequestBytes)
 	if err != nil {
-		var maxErr *http.MaxBytesError
-		if errors.As(err, &maxErr) {
+		if tooLarge {
 			writeJSON(w, http.StatusRequestEntityTooLarge, map[string]string{"error": "payload_too_large"})
 			return
 		}
@@ -163,7 +185,7 @@ func (s *server) mcpHandler(w http.ResponseWriter, r *http.Request) {
 		Method  string          `json:"method"`
 	}
 	if len(trimmed) == 0 || trimmed[0] != '{' || json.Unmarshal(trimmed, &rpc) != nil {
-		writeMCPError(w, http.StatusBadRequest, nil, &mcpRPCError{Code: mcpCodeParseError, Message: "Parse error"})
+		mcpkit.WriteError(w, http.StatusBadRequest, nil, &mcpkit.RPCError{Code: mcpkit.CodeParseError, Message: "Parse error"})
 		return
 	}
 
@@ -175,23 +197,23 @@ func (s *server) mcpHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	isNotification := strings.HasPrefix(rpc.Method, "notifications/")
 	if rpc.Method == "" || isNullID || (!isNotification && len(rawID) == 0) {
-		writeMCPError(w, http.StatusBadRequest, rpcID, &mcpRPCError{Code: -32600, Message: "Invalid Request"})
+		mcpkit.WriteError(w, http.StatusBadRequest, rpcID, &mcpkit.RPCError{Code: mcpkit.CodeInvalidRequest, Message: "Invalid Request"})
 		return
 	}
 
-	var env mcpEnvelope
+	var env mcpkit.Envelope
 	if err := json.Unmarshal(trimmed, &env); err != nil {
-		writeMCPError(w, http.StatusBadRequest, rpcID, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "Invalid params"})
+		mcpkit.WriteError(w, http.StatusBadRequest, rpcID, &mcpkit.RPCError{Code: mcpCodeInvalidParams, Message: "Invalid params"})
 		return
 	}
 
 	now := time.Now()
-	if !isLegacyMCPRequest(r, env) {
+	if !mcpkit.IsLegacyRequest(r, env) {
 		s.serveModern(w, r, env, rawID, token, now)
 		return
 	}
-	if !mcpLegacyAllowed(now) {
-		writeMCPError(w, http.StatusBadRequest, rpcID, mcpUnsupportedVersion(r.Header.Get("MCP-Protocol-Version"), now))
+	if !mcpkit.LegacyAllowed(now) {
+		mcpkit.WriteError(w, http.StatusBadRequest, rpcID, mcpkit.UnsupportedVersion(r.Header.Get("MCP-Protocol-Version"), now))
 		return
 	}
 
@@ -204,7 +226,7 @@ func (s *server) mcpHandler(w http.ResponseWriter, r *http.Request) {
 	switch rpc.Method {
 	case "initialize":
 		result = map[string]any{
-			"protocolVersion": mcpNegotiateLegacyVersion(env.Params.ProtocolVersion),
+			"protocolVersion": mcpkit.NegotiateLegacyVersion(env.Params.ProtocolVersion),
 			"capabilities":    map[string]any{"tools": map[string]any{}},
 			"serverInfo":      map[string]string{"name": serverName, "version": serverVersion},
 		}
@@ -214,14 +236,14 @@ func (s *server) mcpHandler(w http.ResponseWriter, r *http.Request) {
 	case "tools/list":
 		result = map[string]any{"tools": toolDefinitions()}
 	case "tools/call":
-		res, rpcErr := s.handleToolCall(r.Context(), token, env.Params.Name, env.Params.Arguments)
+		res, rpcErr := s.callTool(r.Context(), token, env.Params.Name, env.Params.Arguments)
 		if rpcErr != nil {
-			writeMCPError(w, http.StatusOK, rpcID, rpcErr)
+			mcpkit.WriteError(w, http.StatusOK, rpcID, rpcErr)
 			return
 		}
 		result = res
 	default:
-		writeMCPError(w, http.StatusOK, rpcID, &mcpRPCError{Code: mcpCodeMethodNotFound, Message: "Method not found"})
+		mcpkit.WriteError(w, http.StatusOK, rpcID, &mcpkit.RPCError{Code: mcpCodeMethodNotFound, Message: "Method not found"})
 		return
 	}
 
@@ -232,13 +254,13 @@ func (s *server) mcpHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (s *server) serveModern(w http.ResponseWriter, r *http.Request, env mcpEnvelope, id json.RawMessage, token string, now time.Time) {
+func (s *server) serveModern(w http.ResponseWriter, r *http.Request, env mcpkit.Envelope, id json.RawMessage, token string, now time.Time) {
 	var rpcID any
 	if len(id) > 0 {
 		rpcID = id
 	}
-	if e := validateModernMCPRequest(r, env, now); e != nil {
-		writeMCPError(w, http.StatusBadRequest, rpcID, e)
+	if e := mcpkit.ValidateModernRequest(r, env, now); e != nil {
+		mcpkit.WriteError(w, http.StatusBadRequest, rpcID, e)
 		return
 	}
 	// A notification has no id; with one it is a request and falls through to -32601.
@@ -250,25 +272,25 @@ func (s *server) serveModern(w http.ResponseWriter, r *http.Request, env mcpEnve
 	var extra map[string]any
 	switch env.Method {
 	case "server/discover":
-		result = mcpDiscoverResult(map[string]any{"tools": map[string]any{}}, now)
+		result = mcpkit.DiscoverResult(map[string]any{"tools": map[string]any{}}, now)
 	case "tools/list":
 		result = map[string]any{"tools": toolDefinitions()}
-		extra = map[string]any{"ttlMs": mcpDiscoverTTLMilliseconds, "cacheScope": "private"}
+		extra = map[string]any{"ttlMs": mcpkit.DiscoverTTLMilliseconds, "cacheScope": "private"}
 	case "tools/call":
-		res, rpcErr := s.handleToolCall(r.Context(), token, env.Params.Name, env.Params.Arguments)
+		res, rpcErr := s.callTool(r.Context(), token, env.Params.Name, env.Params.Arguments)
 		if rpcErr != nil {
-			writeMCPError(w, http.StatusOK, rpcID, rpcErr)
+			mcpkit.WriteError(w, http.StatusOK, rpcID, rpcErr)
 			return
 		}
 		result = res
 	default:
-		writeMCPError(w, http.StatusNotFound, rpcID, &mcpRPCError{Code: mcpCodeMethodNotFound, Message: "Method not found"})
+		mcpkit.WriteError(w, http.StatusNotFound, rpcID, &mcpkit.RPCError{Code: mcpCodeMethodNotFound, Message: "Method not found"})
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"jsonrpc": "2.0",
 		"id":      rpcID,
-		"result":  mcpModernResult(result, serverName, serverVersion, extra),
+		"result":  mcpkit.ModernResult(result, serverName, serverVersion, extra),
 	})
 }
 
@@ -335,6 +357,23 @@ func main() {
 		IdleTimeout:       60 * time.Second,
 	}
 
+	// /metrics has its own port so the MCP port serves only MCP.
+	metricsMux := http.NewServeMux()
+	metricsMux.Handle("GET /metrics", srv.metrics)
+	metricsServer := &http.Server{
+		Addr:              ":" + cfg.MetricsPort,
+		Handler:           metricsMux,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       10 * time.Second,
+		WriteTimeout:      10 * time.Second,
+	}
+	go func() {
+		if err := metricsServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			slog.Error("metrics server failed", "error", err)
+			os.Exit(1)
+		}
+	}()
+
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
@@ -353,4 +392,5 @@ func main() {
 	if err := httpServer.Shutdown(shutdownCtx); err != nil {
 		slog.Error("server shutdown failed", "error", err)
 	}
+	_ = metricsServer.Shutdown(shutdownCtx)
 }

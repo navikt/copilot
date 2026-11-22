@@ -424,7 +424,7 @@ func (s *server) execWithOBO(ctx context.Context, inboundToken string, fn func(o
 			return toolErrorResult(ctx.Err().Error())
 		}
 	}
-	oboToken, err := s.exchangeToken(ctx, inboundToken)
+	oboToken, err := s.texas().Exchange(ctx, inboundToken, s.cfg.KodeverkScope)
 	if err != nil {
 		return toolErrorResult(err.Error())
 	}

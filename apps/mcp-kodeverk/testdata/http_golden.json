@@ -1,0 +1,2353 @@
+[
+  {
+    "name": "health",
+    "method": "GET",
+    "path": "/health",
+    "status": 200,
+    "respHeader": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json"
+    },
+    "resp": {
+      "status": "healthy"
+    }
+  },
+  {
+    "name": "ready",
+    "method": "GET",
+    "path": "/ready",
+    "status": 200,
+    "respHeader": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json"
+    },
+    "resp": {
+      "status": "ready"
+    }
+  },
+  {
+    "name": "no auth",
+    "method": "POST",
+    "path": "/",
+    "body": "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/list\",\"params\":{\"_meta\":{\"io.modelcontextprotocol/protocolVersion\":\"2026-07-28\",\"io.modelcontextprotocol/clientCapabilities\":{}}}}",
+    "status": 401,
+    "respHeader": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json",
+      "WWW-Authenticate": "Bearer realm=\"mcp-kodeverk\""
+    },
+    "resp": {
+      "error": "unauthorized",
+      "message": "missing or malformed bearer token"
+    }
+  },
+  {
+    "name": "basic auth",
+    "method": "POST",
+    "path": "/",
+    "header": {
+      "Authorization": "Basic abc"
+    },
+    "status": 401,
+    "respHeader": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json",
+      "WWW-Authenticate": "Bearer realm=\"mcp-kodeverk\""
+    },
+    "resp": {
+      "error": "unauthorized",
+      "message": "missing or malformed bearer token"
+    }
+  },
+  {
+    "name": "bearer with space",
+    "method": "POST",
+    "path": "/",
+    "header": {
+      "Authorization": "Bearer a b"
+    },
+    "status": 401,
+    "respHeader": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json",
+      "WWW-Authenticate": "Bearer realm=\"mcp-kodeverk\""
+    },
+    "resp": {
+      "error": "unauthorized",
+      "message": "missing or malformed bearer token"
+    }
+  },
+  {
+    "name": "bearer too long",
+    "method": "POST",
+    "path": "/",
+    "header": {
+      "Authorization": "\u003clong\u003e"
+    },
+    "status": 401,
+    "respHeader": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json",
+      "WWW-Authenticate": "Bearer realm=\"mcp-kodeverk\""
+    },
+    "resp": {
+      "error": "unauthorized",
+      "message": "missing or malformed bearer token"
+    }
+  },
+  {
+    "name": "inactive token",
+    "method": "POST",
+    "path": "/",
+    "header": {
+      "Authorization": "Bearer inactive"
+    },
+    "status": 401,
+    "respHeader": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json",
+      "WWW-Authenticate": "Bearer error=\"invalid_token\""
+    },
+    "resp": {
+      "error": "invalid_token",
+      "message": "invalid or expired bearer token"
+    }
+  },
+  {
+    "name": "app token",
+    "method": "POST",
+    "path": "/",
+    "header": {
+      "Authorization": "Bearer app"
+    },
+    "status": 403,
+    "respHeader": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json"
+    },
+    "resp": {
+      "error": "forbidden",
+      "message": "token claims rejected"
+    }
+  },
+  {
+    "name": "app role",
+    "method": "POST",
+    "path": "/",
+    "header": {
+      "Authorization": "Bearer approle"
+    },
+    "status": 403,
+    "respHeader": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json"
+    },
+    "resp": {
+      "error": "forbidden",
+      "message": "token claims rejected"
+    }
+  },
+  {
+    "name": "no NAVident",
+    "method": "POST",
+    "path": "/",
+    "header": {
+      "Authorization": "Bearer noident"
+    },
+    "status": 403,
+    "respHeader": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json"
+    },
+    "resp": {
+      "error": "forbidden",
+      "message": "token claims rejected"
+    }
+  },
+  {
+    "name": "wrong azp",
+    "method": "POST",
+    "path": "/",
+    "header": {
+      "Authorization": "Bearer wrongazp"
+    },
+    "status": 403,
+    "respHeader": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json"
+    },
+    "resp": {
+      "error": "forbidden",
+      "message": "token claims rejected"
+    }
+  },
+  {
+    "name": "texas 500",
+    "method": "POST",
+    "path": "/",
+    "header": {
+      "Authorization": "Bearer texas500"
+    },
+    "status": 502,
+    "respHeader": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json"
+    },
+    "resp": {
+      "error": "introspection_failed",
+      "message": "failed to validate token"
+    }
+  },
+  {
+    "name": "texas garbage",
+    "method": "POST",
+    "path": "/",
+    "header": {
+      "Authorization": "Bearer garbage"
+    },
+    "status": 502,
+    "respHeader": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json"
+    },
+    "resp": {
+      "error": "introspection_failed",
+      "message": "failed to validate token"
+    }
+  },
+  {
+    "name": "GET mcp",
+    "method": "GET",
+    "path": "/",
+    "header": {
+      "Authorization": "Bearer ok"
+    },
+    "status": 405,
+    "respHeader": {
+      "Allow": "POST",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json"
+    },
+    "resp": {
+      "error": "method_not_allowed"
+    }
+  },
+  {
+    "name": "DELETE mcp",
+    "method": "DELETE",
+    "path": "/",
+    "header": {
+      "Authorization": "Bearer ok"
+    },
+    "status": 405,
+    "respHeader": {
+      "Allow": "POST",
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json"
+    },
+    "resp": {
+      "error": "method_not_allowed"
+    }
+  },
+  {
+    "name": "other path",
+    "method": "POST",
+    "path": "/mcp",
+    "header": {
+      "Authorization": "Bearer ok",
+      "MCP-Protocol-Version": "2026-07-28",
+      "Mcp-Method": "tools/list"
+    },
+    "body": "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/list\",\"params\":{\"_meta\":{\"io.modelcontextprotocol/protocolVersion\":\"2026-07-28\",\"io.modelcontextprotocol/clientCapabilities\":{}}}}",
+    "status": 200,
+    "respHeader": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json"
+    },
+    "resp": {
+      "id": 1,
+      "jsonrpc": "2.0",
+      "result": {
+        "_meta": {
+          "io.modelcontextprotocol/serverInfo": {
+            "name": "mcp-kodeverk",
+            "version": "1.0.0"
+          }
+        },
+        "cacheScope": "private",
+        "resultType": "complete",
+        "tools": [
+          {
+            "annotations": {
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false,
+              "readOnlyHint": true
+            },
+            "description": "List published code sets (kodeverk) in Nav's Felles kodeverk with optional substring filtering and pagination. Example: {\"filter\": \"post\"} finds Postnummer.",
+            "inputSchema": {
+              "additionalProperties": false,
+              "properties": {
+                "filter": {
+                  "description": "Optional case-insensitive substring filter on kodeverk name.",
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                "limit": {
+                  "default": 50,
+                  "description": "Maximum number of items to return (default 50, max 200).",
+                  "maximum": 200,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "offset": {
+                  "default": 0,
+                  "description": "Number of matching items to skip (default 0).",
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "type": "object"
+            },
+            "name": "list_kodeverk",
+            "outputSchema": {
+              "properties": {
+                "kodeverksnavn": {
+                  "type": "array"
+                },
+                "nextOffset": {
+                  "description": "Offset for the next page; absent on the last page.",
+                  "type": "integer"
+                },
+                "offset": {
+                  "type": "integer"
+                },
+                "returned": {
+                  "type": "integer"
+                },
+                "total": {
+                  "type": "integer"
+                },
+                "truncated": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "total",
+                "returned",
+                "offset",
+                "kodeverksnavn"
+              ],
+              "type": "object"
+            }
+          },
+          {
+            "annotations": {
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false,
+              "readOnlyHint": true
+            },
+            "description": "List published code keys for a specific kodeverk with optional substring filtering and pagination. Example: {\"kodeverksnavn\": \"Landkoder\", \"filter\": \"NO\"}.",
+            "inputSchema": {
+              "additionalProperties": false,
+              "properties": {
+                "filter": {
+                  "description": "Optional case-insensitive substring filter on code value.",
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                "kodeverksnavn": {
+                  "description": "Name of the kodeverk.",
+                  "pattern": "^[A-Za-z0-9æøåÆØÅ_-]{1,100}$",
+                  "type": "string"
+                },
+                "limit": {
+                  "default": 50,
+                  "description": "Maximum number of codes to return (default 50, max 200).",
+                  "maximum": 200,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "offset": {
+                  "default": 0,
+                  "description": "Number of matching codes to skip (default 0).",
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "kodeverksnavn"
+              ],
+              "type": "object"
+            },
+            "name": "get_kodeverk_koder",
+            "outputSchema": {
+              "properties": {
+                "koder": {
+                  "type": "array"
+                },
+                "kodeverksnavn": {
+                  "type": "string"
+                },
+                "nextOffset": {
+                  "description": "Offset for the next page; absent on the last page.",
+                  "type": "integer"
+                },
+                "offset": {
+                  "type": "integer"
+                },
+                "returned": {
+                  "type": "integer"
+                },
+                "total": {
+                  "type": "integer"
+                },
+                "truncated": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "total",
+                "returned",
+                "offset",
+                "kodeverksnavn",
+                "koder"
+              ],
+              "type": "object"
+            }
+          },
+          {
+            "annotations": {
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false,
+              "readOnlyHint": true
+            },
+            "description": "Get code meanings (betydninger) with validity dates and language descriptions for a kodeverk, paginated over sorted codes. Example: {\"kodeverksnavn\": \"Postnummer\", \"kode\": \"0150\"} returns the poststed for 0150.",
+            "inputSchema": {
+              "additionalProperties": false,
+              "properties": {
+                "ekskluderUgyldige": {
+                  "default": true,
+                  "description": "Exclude meanings invalid on oppslagsdato (default true).",
+                  "type": "boolean"
+                },
+                "kode": {
+                  "description": "Optional exact code filter.",
+                  "maxLength": 128,
+                  "type": "string"
+                },
+                "kodeverksnavn": {
+                  "description": "Name of the kodeverk.",
+                  "pattern": "^[A-Za-z0-9æøåÆØÅ_-]{1,100}$",
+                  "type": "string"
+                },
+                "limit": {
+                  "default": 50,
+                  "description": "Maximum number of codes to return (default 50, max 100).",
+                  "maximum": 100,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "offset": {
+                  "default": 0,
+                  "description": "Number of sorted codes to skip (default 0).",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "oppslagsdato": {
+                  "description": "Optional lookup date (YYYY-MM-DD) for validity filtering.",
+                  "type": "string"
+                },
+                "spraak": {
+                  "description": "Optional ISO 639-1 two-letter language codes (max 5).",
+                  "items": {
+                    "pattern": "^[a-z]{2}$",
+                    "type": "string"
+                  },
+                  "maxItems": 5,
+                  "type": "array"
+                }
+              },
+              "required": [
+                "kodeverksnavn"
+              ],
+              "type": "object"
+            },
+            "name": "get_kodeverk_betydninger",
+            "outputSchema": {
+              "properties": {
+                "betydninger": {
+                  "type": "object"
+                },
+                "kodeverksnavn": {
+                  "type": "string"
+                },
+                "nextOffset": {
+                  "description": "Offset for the next page; absent on the last page.",
+                  "type": "integer"
+                },
+                "offset": {
+                  "type": "integer"
+                },
+                "returned": {
+                  "type": "integer"
+                },
+                "total": {
+                  "type": "integer"
+                },
+                "truncated": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "total",
+                "returned",
+                "offset",
+                "kodeverksnavn",
+                "betydninger"
+              ],
+              "type": "object"
+            }
+          },
+          {
+            "annotations": {
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false,
+              "readOnlyHint": true
+            },
+            "description": "List published hierarchies in Nav's Felles kodeverk with optional substring filtering and pagination. Example: {\"filter\": \"geografi\"}.",
+            "inputSchema": {
+              "additionalProperties": false,
+              "properties": {
+                "filter": {
+                  "description": "Optional case-insensitive substring filter on hierarchy name.",
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                "limit": {
+                  "default": 50,
+                  "description": "Maximum number of items to return (default 50, max 200).",
+                  "maximum": 200,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "offset": {
+                  "default": 0,
+                  "description": "Number of matching items to skip (default 0).",
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "type": "object"
+            },
+            "name": "list_hierarkier",
+            "outputSchema": {
+              "properties": {
+                "hierarkinavn": {
+                  "type": "array"
+                },
+                "nextOffset": {
+                  "description": "Offset for the next page; absent on the last page.",
+                  "type": "integer"
+                },
+                "offset": {
+                  "type": "integer"
+                },
+                "returned": {
+                  "type": "integer"
+                },
+                "total": {
+                  "type": "integer"
+                },
+                "truncated": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "total",
+                "returned",
+                "offset",
+                "hierarkinavn"
+              ],
+              "type": "object"
+            }
+          },
+          {
+            "annotations": {
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false,
+              "readOnlyHint": true
+            },
+            "description": "Get the node tree for a hierarchy, bounded by depth and root node limit. Example: {\"hierarkinavn\": \"Geografi\", \"maxDepth\": 2}.",
+            "inputSchema": {
+              "additionalProperties": false,
+              "properties": {
+                "hierarkinavn": {
+                  "description": "Name of the hierarchy.",
+                  "pattern": "^[A-Za-z0-9æøåÆØÅ_-]{1,100}$",
+                  "type": "string"
+                },
+                "limit": {
+                  "default": 50,
+                  "description": "Maximum number of root nodes to return (default 50, max 100).",
+                  "maximum": 100,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "maxDepth": {
+                  "default": 3,
+                  "description": "Maximum tree depth starting at 1 for root nodes (default 3, max 10).",
+                  "maximum": 10,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "spraak": {
+                  "description": "Optional ISO 639-1 two-letter language codes (max 5).",
+                  "items": {
+                    "pattern": "^[a-z]{2}$",
+                    "type": "string"
+                  },
+                  "maxItems": 5,
+                  "type": "array"
+                }
+              },
+              "required": [
+                "hierarkinavn"
+              ],
+              "type": "object"
+            },
+            "name": "get_hierarki_noder",
+            "outputSchema": {
+              "properties": {
+                "hierarkinavn": {
+                  "type": "string"
+                },
+                "hierarkinivaaer": {
+                  "type": "array"
+                },
+                "noder": {
+                  "type": "object"
+                },
+                "returned": {
+                  "type": "integer"
+                },
+                "total": {
+                  "type": "integer"
+                },
+                "truncated": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "total",
+                "returned",
+                "hierarkinavn",
+                "hierarkinivaaer",
+                "noder"
+              ],
+              "type": "object"
+            }
+          },
+          {
+            "annotations": {
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false,
+              "readOnlyHint": true
+            },
+            "description": "Search kodeverk names or, when kodeverksnavn is specified, search codes and Norwegian Bokmål (nb) terms within that kodeverk. Example: {\"query\": \"Oslo\", \"kodeverksnavn\": \"Kommuner\"}.",
+            "inputSchema": {
+              "additionalProperties": false,
+              "properties": {
+                "kodeverksnavn": {
+                  "description": "Optional kodeverk name to search codes and terms inside. When omitted, searches kodeverk names.",
+                  "pattern": "^[A-Za-z0-9æøåÆØÅ_-]{1,100}$",
+                  "type": "string"
+                },
+                "limit": {
+                  "default": 25,
+                  "description": "Maximum number of matches to return (default 25, max 50).",
+                  "maximum": 50,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "query": {
+                  "description": "Search substring (2-64 characters; letters, digits, space, '-', '_').",
+                  "maxLength": 64,
+                  "minLength": 2,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "query"
+              ],
+              "type": "object"
+            },
+            "name": "search_kodeverk",
+            "outputSchema": {
+              "properties": {
+                "kodeverk": {
+                  "type": "array"
+                },
+                "kodeverksnavn": {
+                  "type": "string"
+                },
+                "matches": {
+                  "type": "array"
+                },
+                "query": {
+                  "type": "string"
+                },
+                "returned": {
+                  "type": "integer"
+                },
+                "total": {
+                  "type": "integer"
+                },
+                "truncated": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "total",
+                "returned",
+                "query"
+              ],
+              "type": "object"
+            }
+          }
+        ],
+        "ttlMs": 300000
+      }
+    }
+  },
+  {
+    "name": "too large",
+    "method": "POST",
+    "path": "/",
+    "header": {
+      "Authorization": "Bearer ok"
+    },
+    "body": "\u003ctoo large\u003e",
+    "status": 413,
+    "respHeader": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json"
+    },
+    "resp": {
+      "error": "payload_too_large"
+    }
+  },
+  {
+    "name": "empty body",
+    "method": "POST",
+    "path": "/",
+    "header": {
+      "Authorization": "Bearer ok"
+    },
+    "status": 400,
+    "respHeader": {
+      "Content-Type": "application/json"
+    },
+    "resp": {
+      "error": {
+        "code": -32700,
+        "message": "Parse error"
+      },
+      "id": null,
+      "jsonrpc": "2.0"
+    }
+  },
+  {
+    "name": "array body",
+    "method": "POST",
+    "path": "/",
+    "header": {
+      "Authorization": "Bearer ok"
+    },
+    "body": "[{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"ping\"}]",
+    "status": 400,
+    "respHeader": {
+      "Content-Type": "application/json"
+    },
+    "resp": {
+      "error": {
+        "code": -32700,
+        "message": "Parse error"
+      },
+      "id": null,
+      "jsonrpc": "2.0"
+    }
+  },
+  {
+    "name": "null id",
+    "method": "POST",
+    "path": "/",
+    "header": {
+      "Authorization": "Bearer ok"
+    },
+    "body": "{\"jsonrpc\":\"2.0\",\"id\":null,\"method\":\"tools/list\"}",
+    "status": 400,
+    "respHeader": {
+      "Content-Type": "application/json"
+    },
+    "resp": {
+      "error": {
+        "code": -32600,
+        "message": "Invalid Request"
+      },
+      "id": null,
+      "jsonrpc": "2.0"
+    }
+  },
+  {
+    "name": "missing id",
+    "method": "POST",
+    "path": "/",
+    "header": {
+      "Authorization": "Bearer ok"
+    },
+    "body": "{\"jsonrpc\":\"2.0\",\"method\":\"tools/list\"}",
+    "status": 400,
+    "respHeader": {
+      "Content-Type": "application/json"
+    },
+    "resp": {
+      "error": {
+        "code": -32600,
+        "message": "Invalid Request"
+      },
+      "id": null,
+      "jsonrpc": "2.0"
+    }
+  },
+  {
+    "name": "no method",
+    "method": "POST",
+    "path": "/",
+    "header": {
+      "Authorization": "Bearer ok"
+    },
+    "body": "{\"jsonrpc\":\"2.0\",\"id\":7}",
+    "status": 400,
+    "respHeader": {
+      "Content-Type": "application/json"
+    },
+    "resp": {
+      "error": {
+        "code": -32600,
+        "message": "Invalid Request"
+      },
+      "id": 7,
+      "jsonrpc": "2.0"
+    }
+  },
+  {
+    "name": "bad params",
+    "method": "POST",
+    "path": "/",
+    "header": {
+      "Authorization": "Bearer ok"
+    },
+    "body": "{\"jsonrpc\":\"2.0\",\"id\":7,\"method\":\"tools/list\",\"params\":[1]}",
+    "status": 400,
+    "respHeader": {
+      "Content-Type": "application/json"
+    },
+    "resp": {
+      "error": {
+        "code": -32602,
+        "message": "Invalid params"
+      },
+      "id": 7,
+      "jsonrpc": "2.0"
+    }
+  },
+  {
+    "name": "modern discover",
+    "method": "POST",
+    "path": "/",
+    "header": {
+      "Authorization": "Bearer ok",
+      "MCP-Protocol-Version": "2026-07-28",
+      "Mcp-Method": "server/discover"
+    },
+    "body": "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"server/discover\",\"params\":{\"_meta\":{\"io.modelcontextprotocol/protocolVersion\":\"2026-07-28\",\"io.modelcontextprotocol/clientCapabilities\":{}}}}",
+    "status": 200,
+    "respHeader": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json"
+    },
+    "resp": {
+      "id": 1,
+      "jsonrpc": "2.0",
+      "result": {
+        "_meta": {
+          "io.modelcontextprotocol/serverInfo": {
+            "name": "mcp-kodeverk",
+            "version": "1.0.0"
+          }
+        },
+        "cacheScope": "private",
+        "capabilities": {
+          "tools": {}
+        },
+        "resultType": "complete",
+        "supportedVersions": [
+          "2026-07-28",
+          "2025-11-25",
+          "2025-06-18",
+          "2025-03-26",
+          "2024-11-05"
+        ],
+        "ttlMs": 300000
+      }
+    }
+  },
+  {
+    "name": "modern tools/list",
+    "method": "POST",
+    "path": "/",
+    "header": {
+      "Authorization": "Bearer ok",
+      "MCP-Protocol-Version": "2026-07-28",
+      "Mcp-Method": "tools/list"
+    },
+    "body": "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/list\",\"params\":{\"_meta\":{\"io.modelcontextprotocol/protocolVersion\":\"2026-07-28\",\"io.modelcontextprotocol/clientCapabilities\":{}}}}",
+    "status": 200,
+    "respHeader": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json"
+    },
+    "resp": {
+      "id": 1,
+      "jsonrpc": "2.0",
+      "result": {
+        "_meta": {
+          "io.modelcontextprotocol/serverInfo": {
+            "name": "mcp-kodeverk",
+            "version": "1.0.0"
+          }
+        },
+        "cacheScope": "private",
+        "resultType": "complete",
+        "tools": [
+          {
+            "annotations": {
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false,
+              "readOnlyHint": true
+            },
+            "description": "List published code sets (kodeverk) in Nav's Felles kodeverk with optional substring filtering and pagination. Example: {\"filter\": \"post\"} finds Postnummer.",
+            "inputSchema": {
+              "additionalProperties": false,
+              "properties": {
+                "filter": {
+                  "description": "Optional case-insensitive substring filter on kodeverk name.",
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                "limit": {
+                  "default": 50,
+                  "description": "Maximum number of items to return (default 50, max 200).",
+                  "maximum": 200,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "offset": {
+                  "default": 0,
+                  "description": "Number of matching items to skip (default 0).",
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "type": "object"
+            },
+            "name": "list_kodeverk",
+            "outputSchema": {
+              "properties": {
+                "kodeverksnavn": {
+                  "type": "array"
+                },
+                "nextOffset": {
+                  "description": "Offset for the next page; absent on the last page.",
+                  "type": "integer"
+                },
+                "offset": {
+                  "type": "integer"
+                },
+                "returned": {
+                  "type": "integer"
+                },
+                "total": {
+                  "type": "integer"
+                },
+                "truncated": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "total",
+                "returned",
+                "offset",
+                "kodeverksnavn"
+              ],
+              "type": "object"
+            }
+          },
+          {
+            "annotations": {
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false,
+              "readOnlyHint": true
+            },
+            "description": "List published code keys for a specific kodeverk with optional substring filtering and pagination. Example: {\"kodeverksnavn\": \"Landkoder\", \"filter\": \"NO\"}.",
+            "inputSchema": {
+              "additionalProperties": false,
+              "properties": {
+                "filter": {
+                  "description": "Optional case-insensitive substring filter on code value.",
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                "kodeverksnavn": {
+                  "description": "Name of the kodeverk.",
+                  "pattern": "^[A-Za-z0-9æøåÆØÅ_-]{1,100}$",
+                  "type": "string"
+                },
+                "limit": {
+                  "default": 50,
+                  "description": "Maximum number of codes to return (default 50, max 200).",
+                  "maximum": 200,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "offset": {
+                  "default": 0,
+                  "description": "Number of matching codes to skip (default 0).",
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "kodeverksnavn"
+              ],
+              "type": "object"
+            },
+            "name": "get_kodeverk_koder",
+            "outputSchema": {
+              "properties": {
+                "koder": {
+                  "type": "array"
+                },
+                "kodeverksnavn": {
+                  "type": "string"
+                },
+                "nextOffset": {
+                  "description": "Offset for the next page; absent on the last page.",
+                  "type": "integer"
+                },
+                "offset": {
+                  "type": "integer"
+                },
+                "returned": {
+                  "type": "integer"
+                },
+                "total": {
+                  "type": "integer"
+                },
+                "truncated": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "total",
+                "returned",
+                "offset",
+                "kodeverksnavn",
+                "koder"
+              ],
+              "type": "object"
+            }
+          },
+          {
+            "annotations": {
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false,
+              "readOnlyHint": true
+            },
+            "description": "Get code meanings (betydninger) with validity dates and language descriptions for a kodeverk, paginated over sorted codes. Example: {\"kodeverksnavn\": \"Postnummer\", \"kode\": \"0150\"} returns the poststed for 0150.",
+            "inputSchema": {
+              "additionalProperties": false,
+              "properties": {
+                "ekskluderUgyldige": {
+                  "default": true,
+                  "description": "Exclude meanings invalid on oppslagsdato (default true).",
+                  "type": "boolean"
+                },
+                "kode": {
+                  "description": "Optional exact code filter.",
+                  "maxLength": 128,
+                  "type": "string"
+                },
+                "kodeverksnavn": {
+                  "description": "Name of the kodeverk.",
+                  "pattern": "^[A-Za-z0-9æøåÆØÅ_-]{1,100}$",
+                  "type": "string"
+                },
+                "limit": {
+                  "default": 50,
+                  "description": "Maximum number of codes to return (default 50, max 100).",
+                  "maximum": 100,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "offset": {
+                  "default": 0,
+                  "description": "Number of sorted codes to skip (default 0).",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "oppslagsdato": {
+                  "description": "Optional lookup date (YYYY-MM-DD) for validity filtering.",
+                  "type": "string"
+                },
+                "spraak": {
+                  "description": "Optional ISO 639-1 two-letter language codes (max 5).",
+                  "items": {
+                    "pattern": "^[a-z]{2}$",
+                    "type": "string"
+                  },
+                  "maxItems": 5,
+                  "type": "array"
+                }
+              },
+              "required": [
+                "kodeverksnavn"
+              ],
+              "type": "object"
+            },
+            "name": "get_kodeverk_betydninger",
+            "outputSchema": {
+              "properties": {
+                "betydninger": {
+                  "type": "object"
+                },
+                "kodeverksnavn": {
+                  "type": "string"
+                },
+                "nextOffset": {
+                  "description": "Offset for the next page; absent on the last page.",
+                  "type": "integer"
+                },
+                "offset": {
+                  "type": "integer"
+                },
+                "returned": {
+                  "type": "integer"
+                },
+                "total": {
+                  "type": "integer"
+                },
+                "truncated": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "total",
+                "returned",
+                "offset",
+                "kodeverksnavn",
+                "betydninger"
+              ],
+              "type": "object"
+            }
+          },
+          {
+            "annotations": {
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false,
+              "readOnlyHint": true
+            },
+            "description": "List published hierarchies in Nav's Felles kodeverk with optional substring filtering and pagination. Example: {\"filter\": \"geografi\"}.",
+            "inputSchema": {
+              "additionalProperties": false,
+              "properties": {
+                "filter": {
+                  "description": "Optional case-insensitive substring filter on hierarchy name.",
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                "limit": {
+                  "default": 50,
+                  "description": "Maximum number of items to return (default 50, max 200).",
+                  "maximum": 200,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "offset": {
+                  "default": 0,
+                  "description": "Number of matching items to skip (default 0).",
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "type": "object"
+            },
+            "name": "list_hierarkier",
+            "outputSchema": {
+              "properties": {
+                "hierarkinavn": {
+                  "type": "array"
+                },
+                "nextOffset": {
+                  "description": "Offset for the next page; absent on the last page.",
+                  "type": "integer"
+                },
+                "offset": {
+                  "type": "integer"
+                },
+                "returned": {
+                  "type": "integer"
+                },
+                "total": {
+                  "type": "integer"
+                },
+                "truncated": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "total",
+                "returned",
+                "offset",
+                "hierarkinavn"
+              ],
+              "type": "object"
+            }
+          },
+          {
+            "annotations": {
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false,
+              "readOnlyHint": true
+            },
+            "description": "Get the node tree for a hierarchy, bounded by depth and root node limit. Example: {\"hierarkinavn\": \"Geografi\", \"maxDepth\": 2}.",
+            "inputSchema": {
+              "additionalProperties": false,
+              "properties": {
+                "hierarkinavn": {
+                  "description": "Name of the hierarchy.",
+                  "pattern": "^[A-Za-z0-9æøåÆØÅ_-]{1,100}$",
+                  "type": "string"
+                },
+                "limit": {
+                  "default": 50,
+                  "description": "Maximum number of root nodes to return (default 50, max 100).",
+                  "maximum": 100,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "maxDepth": {
+                  "default": 3,
+                  "description": "Maximum tree depth starting at 1 for root nodes (default 3, max 10).",
+                  "maximum": 10,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "spraak": {
+                  "description": "Optional ISO 639-1 two-letter language codes (max 5).",
+                  "items": {
+                    "pattern": "^[a-z]{2}$",
+                    "type": "string"
+                  },
+                  "maxItems": 5,
+                  "type": "array"
+                }
+              },
+              "required": [
+                "hierarkinavn"
+              ],
+              "type": "object"
+            },
+            "name": "get_hierarki_noder",
+            "outputSchema": {
+              "properties": {
+                "hierarkinavn": {
+                  "type": "string"
+                },
+                "hierarkinivaaer": {
+                  "type": "array"
+                },
+                "noder": {
+                  "type": "object"
+                },
+                "returned": {
+                  "type": "integer"
+                },
+                "total": {
+                  "type": "integer"
+                },
+                "truncated": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "total",
+                "returned",
+                "hierarkinavn",
+                "hierarkinivaaer",
+                "noder"
+              ],
+              "type": "object"
+            }
+          },
+          {
+            "annotations": {
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false,
+              "readOnlyHint": true
+            },
+            "description": "Search kodeverk names or, when kodeverksnavn is specified, search codes and Norwegian Bokmål (nb) terms within that kodeverk. Example: {\"query\": \"Oslo\", \"kodeverksnavn\": \"Kommuner\"}.",
+            "inputSchema": {
+              "additionalProperties": false,
+              "properties": {
+                "kodeverksnavn": {
+                  "description": "Optional kodeverk name to search codes and terms inside. When omitted, searches kodeverk names.",
+                  "pattern": "^[A-Za-z0-9æøåÆØÅ_-]{1,100}$",
+                  "type": "string"
+                },
+                "limit": {
+                  "default": 25,
+                  "description": "Maximum number of matches to return (default 25, max 50).",
+                  "maximum": 50,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "query": {
+                  "description": "Search substring (2-64 characters; letters, digits, space, '-', '_').",
+                  "maxLength": 64,
+                  "minLength": 2,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "query"
+              ],
+              "type": "object"
+            },
+            "name": "search_kodeverk",
+            "outputSchema": {
+              "properties": {
+                "kodeverk": {
+                  "type": "array"
+                },
+                "kodeverksnavn": {
+                  "type": "string"
+                },
+                "matches": {
+                  "type": "array"
+                },
+                "query": {
+                  "type": "string"
+                },
+                "returned": {
+                  "type": "integer"
+                },
+                "total": {
+                  "type": "integer"
+                },
+                "truncated": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "total",
+                "returned",
+                "query"
+              ],
+              "type": "object"
+            }
+          }
+        ],
+        "ttlMs": 300000
+      }
+    }
+  },
+  {
+    "name": "modern tools/call",
+    "method": "POST",
+    "path": "/",
+    "header": {
+      "Authorization": "Bearer ok",
+      "MCP-Protocol-Version": "2026-07-28",
+      "Mcp-Method": "tools/call",
+      "Mcp-Name": "list_kodeverk"
+    },
+    "body": "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\",\"params\":{\"name\":\"list_kodeverk\",\"arguments\":{},\"_meta\":{\"io.modelcontextprotocol/protocolVersion\":\"2026-07-28\",\"io.modelcontextprotocol/clientCapabilities\":{}}}}",
+    "status": 200,
+    "respHeader": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json"
+    },
+    "resp": {
+      "id": 1,
+      "jsonrpc": "2.0",
+      "result": {
+        "_meta": {
+          "io.modelcontextprotocol/serverInfo": {
+            "name": "mcp-kodeverk",
+            "version": "1.0.0"
+          }
+        },
+        "content": [
+          {
+            "text": "{\"total\":2,\"returned\":2,\"offset\":0,\"kodeverksnavn\":[\"Landkoder\",\"Postnummer\"]}",
+            "type": "text"
+          }
+        ],
+        "resultType": "complete",
+        "structuredContent": {
+          "kodeverksnavn": [
+            "Landkoder",
+            "Postnummer"
+          ],
+          "offset": 0,
+          "returned": 2,
+          "total": 2
+        }
+      }
+    }
+  },
+  {
+    "name": "modern base64 name",
+    "method": "POST",
+    "path": "/",
+    "header": {
+      "Authorization": "Bearer ok",
+      "MCP-Protocol-Version": "2026-07-28",
+      "Mcp-Method": "tools/call",
+      "Mcp-Name": "=?base64?bGlzdF9rb2RldmVyaw==?="
+    },
+    "body": "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\",\"params\":{\"name\":\"list_kodeverk\",\"arguments\":{},\"_meta\":{\"io.modelcontextprotocol/protocolVersion\":\"2026-07-28\",\"io.modelcontextprotocol/clientCapabilities\":{}}}}",
+    "status": 200,
+    "respHeader": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json"
+    },
+    "resp": {
+      "id": 1,
+      "jsonrpc": "2.0",
+      "result": {
+        "_meta": {
+          "io.modelcontextprotocol/serverInfo": {
+            "name": "mcp-kodeverk",
+            "version": "1.0.0"
+          }
+        },
+        "content": [
+          {
+            "text": "{\"total\":2,\"returned\":2,\"offset\":0,\"kodeverksnavn\":[\"Landkoder\",\"Postnummer\"]}",
+            "type": "text"
+          }
+        ],
+        "resultType": "complete",
+        "structuredContent": {
+          "kodeverksnavn": [
+            "Landkoder",
+            "Postnummer"
+          ],
+          "offset": 0,
+          "returned": 2,
+          "total": 2
+        }
+      }
+    }
+  },
+  {
+    "name": "modern unknown tool",
+    "method": "POST",
+    "path": "/",
+    "header": {
+      "Authorization": "Bearer ok",
+      "MCP-Protocol-Version": "2026-07-28",
+      "Mcp-Method": "tools/call",
+      "Mcp-Name": "nope"
+    },
+    "body": "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\",\"params\":{\"name\":\"nope\",\"arguments\":{},\"_meta\":{\"io.modelcontextprotocol/protocolVersion\":\"2026-07-28\",\"io.modelcontextprotocol/clientCapabilities\":{}}}}",
+    "status": 200,
+    "respHeader": {
+      "Content-Type": "application/json"
+    },
+    "resp": {
+      "error": {
+        "code": -32602,
+        "message": "unknown tool"
+      },
+      "id": 1,
+      "jsonrpc": "2.0"
+    }
+  },
+  {
+    "name": "modern bad args",
+    "method": "POST",
+    "path": "/",
+    "header": {
+      "Authorization": "Bearer ok",
+      "MCP-Protocol-Version": "2026-07-28",
+      "Mcp-Method": "tools/call",
+      "Mcp-Name": "list_kodeverk"
+    },
+    "body": "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\",\"params\":{\"name\":\"list_kodeverk\",\"arguments\":{\"x\":1},\"_meta\":{\"io.modelcontextprotocol/protocolVersion\":\"2026-07-28\",\"io.modelcontextprotocol/clientCapabilities\":{}}}}",
+    "status": 200,
+    "respHeader": {
+      "Content-Type": "application/json"
+    },
+    "resp": {
+      "error": {
+        "code": -32602,
+        "message": "unknown argument \"x\""
+      },
+      "id": 1,
+      "jsonrpc": "2.0"
+    }
+  },
+  {
+    "name": "modern obo fail",
+    "method": "POST",
+    "path": "/",
+    "header": {
+      "Authorization": "Bearer obofail",
+      "MCP-Protocol-Version": "2026-07-28",
+      "Mcp-Method": "tools/call",
+      "Mcp-Name": "list_kodeverk"
+    },
+    "body": "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\",\"params\":{\"name\":\"list_kodeverk\",\"arguments\":{},\"_meta\":{\"io.modelcontextprotocol/protocolVersion\":\"2026-07-28\",\"io.modelcontextprotocol/clientCapabilities\":{}}}}",
+    "status": 200,
+    "respHeader": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json"
+    },
+    "resp": {
+      "id": 1,
+      "jsonrpc": "2.0",
+      "result": {
+        "_meta": {
+          "io.modelcontextprotocol/serverInfo": {
+            "name": "mcp-kodeverk",
+            "version": "1.0.0"
+          }
+        },
+        "content": [
+          {
+            "text": "token exchange failed with status 403",
+            "type": "text"
+          }
+        ],
+        "isError": true,
+        "resultType": "complete"
+      }
+    }
+  },
+  {
+    "name": "modern unknown method",
+    "method": "POST",
+    "path": "/",
+    "header": {
+      "Authorization": "Bearer ok",
+      "MCP-Protocol-Version": "2026-07-28",
+      "Mcp-Method": "ping"
+    },
+    "body": "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"ping\",\"params\":{\"_meta\":{\"io.modelcontextprotocol/protocolVersion\":\"2026-07-28\",\"io.modelcontextprotocol/clientCapabilities\":{}}}}",
+    "status": 404,
+    "respHeader": {
+      "Content-Type": "application/json"
+    },
+    "resp": {
+      "error": {
+        "code": -32601,
+        "message": "Method not found"
+      },
+      "id": 1,
+      "jsonrpc": "2.0"
+    }
+  },
+  {
+    "name": "modern notification",
+    "method": "POST",
+    "path": "/",
+    "header": {
+      "Authorization": "Bearer ok",
+      "MCP-Protocol-Version": "2026-07-28",
+      "Mcp-Method": "notifications/initialized"
+    },
+    "body": "{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\",\"params\":{\"_meta\":{\"io.modelcontextprotocol/protocolVersion\":\"2026-07-28\",\"io.modelcontextprotocol/clientCapabilities\":{}}}}",
+    "status": 202,
+    "respHeader": {}
+  },
+  {
+    "name": "modern method mismatch",
+    "method": "POST",
+    "path": "/",
+    "header": {
+      "Authorization": "Bearer ok",
+      "MCP-Protocol-Version": "2026-07-28",
+      "Mcp-Method": "tools/call"
+    },
+    "body": "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/list\",\"params\":{\"_meta\":{\"io.modelcontextprotocol/protocolVersion\":\"2026-07-28\",\"io.modelcontextprotocol/clientCapabilities\":{}}}}",
+    "status": 400,
+    "respHeader": {
+      "Content-Type": "application/json"
+    },
+    "resp": {
+      "error": {
+        "code": -32020,
+        "message": "Mcp-Method header does not match method"
+      },
+      "id": 1,
+      "jsonrpc": "2.0"
+    }
+  },
+  {
+    "name": "modern name mismatch",
+    "method": "POST",
+    "path": "/",
+    "header": {
+      "Authorization": "Bearer ok",
+      "MCP-Protocol-Version": "2026-07-28",
+      "Mcp-Method": "tools/call",
+      "Mcp-Name": "other"
+    },
+    "body": "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\",\"params\":{\"name\":\"list_kodeverk\",\"arguments\":{},\"_meta\":{\"io.modelcontextprotocol/protocolVersion\":\"2026-07-28\",\"io.modelcontextprotocol/clientCapabilities\":{}}}}",
+    "status": 400,
+    "respHeader": {
+      "Content-Type": "application/json"
+    },
+    "resp": {
+      "error": {
+        "code": -32020,
+        "message": "Mcp-Name header does not match params"
+      },
+      "id": 1,
+      "jsonrpc": "2.0"
+    }
+  },
+  {
+    "name": "modern bad base64",
+    "method": "POST",
+    "path": "/",
+    "header": {
+      "Authorization": "Bearer ok",
+      "MCP-Protocol-Version": "2026-07-28",
+      "Mcp-Method": "=?base64?!!?="
+    },
+    "body": "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/list\",\"params\":{\"_meta\":{\"io.modelcontextprotocol/protocolVersion\":\"2026-07-28\",\"io.modelcontextprotocol/clientCapabilities\":{}}}}",
+    "status": 400,
+    "respHeader": {
+      "Content-Type": "application/json"
+    },
+    "resp": {
+      "error": {
+        "code": -32020,
+        "message": "Mcp-Method header has a malformed base64 value"
+      },
+      "id": 1,
+      "jsonrpc": "2.0"
+    }
+  },
+  {
+    "name": "modern missing header",
+    "method": "POST",
+    "path": "/",
+    "header": {
+      "Authorization": "Bearer ok"
+    },
+    "body": "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/list\",\"params\":{\"_meta\":{\"io.modelcontextprotocol/protocolVersion\":\"2026-07-28\",\"io.modelcontextprotocol/clientCapabilities\":{}}}}",
+    "status": 400,
+    "respHeader": {
+      "Content-Type": "application/json"
+    },
+    "resp": {
+      "error": {
+        "code": -32020,
+        "message": "missing MCP-Protocol-Version header"
+      },
+      "id": 1,
+      "jsonrpc": "2.0"
+    }
+  },
+  {
+    "name": "modern unsupported header",
+    "method": "POST",
+    "path": "/",
+    "header": {
+      "Authorization": "Bearer ok",
+      "MCP-Protocol-Version": "2099-01-01",
+      "Mcp-Method": "tools/list"
+    },
+    "body": "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/list\",\"params\":{\"_meta\":{\"io.modelcontextprotocol/protocolVersion\":\"2026-07-28\",\"io.modelcontextprotocol/clientCapabilities\":{}}}}",
+    "status": 400,
+    "respHeader": {
+      "Content-Type": "application/json"
+    },
+    "resp": {
+      "error": {
+        "code": -32022,
+        "message": "Unsupported protocol version",
+        "data": {
+          "requested": "2099-01-01",
+          "supported": [
+            "2026-07-28",
+            "2025-11-25",
+            "2025-06-18",
+            "2025-03-26",
+            "2024-11-05"
+          ]
+        }
+      },
+      "id": 1,
+      "jsonrpc": "2.0"
+    }
+  },
+  {
+    "name": "modern missing caps",
+    "method": "POST",
+    "path": "/",
+    "header": {
+      "Authorization": "Bearer ok",
+      "MCP-Protocol-Version": "2026-07-28",
+      "Mcp-Method": "tools/list"
+    },
+    "body": "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/list\",\"params\":{\"_meta\":{\"io.modelcontextprotocol/protocolVersion\":\"2026-07-28\"}}}",
+    "status": 400,
+    "respHeader": {
+      "Content-Type": "application/json"
+    },
+    "resp": {
+      "error": {
+        "code": -32602,
+        "message": "missing _meta io.modelcontextprotocol/clientCapabilities (use {} for none)"
+      },
+      "id": 1,
+      "jsonrpc": "2.0"
+    }
+  },
+  {
+    "name": "legacy initialize",
+    "method": "POST",
+    "path": "/",
+    "header": {
+      "Authorization": "Bearer ok"
+    },
+    "body": "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2025-06-18\"}}",
+    "status": 200,
+    "respHeader": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json"
+    },
+    "resp": {
+      "id": 1,
+      "jsonrpc": "2.0",
+      "result": {
+        "capabilities": {
+          "tools": {}
+        },
+        "protocolVersion": "2025-06-18",
+        "serverInfo": {
+          "name": "mcp-kodeverk",
+          "version": "1.0.0"
+        }
+      }
+    }
+  },
+  {
+    "name": "legacy initialize unknown version",
+    "method": "POST",
+    "path": "/",
+    "header": {
+      "Authorization": "Bearer ok"
+    },
+    "body": "{\"jsonrpc\":\"2.0\",\"id\":\"a\",\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"1999-01-01\"}}",
+    "status": 200,
+    "respHeader": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json"
+    },
+    "resp": {
+      "id": "a",
+      "jsonrpc": "2.0",
+      "result": {
+        "capabilities": {
+          "tools": {}
+        },
+        "protocolVersion": "2025-11-25",
+        "serverInfo": {
+          "name": "mcp-kodeverk",
+          "version": "1.0.0"
+        }
+      }
+    }
+  },
+  {
+    "name": "legacy ping",
+    "method": "POST",
+    "path": "/",
+    "header": {
+      "Authorization": "Bearer ok"
+    },
+    "body": "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"ping\"}",
+    "status": 200,
+    "respHeader": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json"
+    },
+    "resp": {
+      "id": 2,
+      "jsonrpc": "2.0",
+      "result": {}
+    }
+  },
+  {
+    "name": "legacy notification",
+    "method": "POST",
+    "path": "/",
+    "header": {
+      "Authorization": "Bearer ok"
+    },
+    "body": "{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}",
+    "status": 202,
+    "respHeader": {}
+  },
+  {
+    "name": "legacy tools/list",
+    "method": "POST",
+    "path": "/",
+    "header": {
+      "Authorization": "Bearer ok",
+      "MCP-Protocol-Version": "2025-06-18"
+    },
+    "body": "{\"jsonrpc\":\"2.0\",\"id\":3,\"method\":\"tools/list\"}",
+    "status": 200,
+    "respHeader": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json"
+    },
+    "resp": {
+      "id": 3,
+      "jsonrpc": "2.0",
+      "result": {
+        "tools": [
+          {
+            "annotations": {
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false,
+              "readOnlyHint": true
+            },
+            "description": "List published code sets (kodeverk) in Nav's Felles kodeverk with optional substring filtering and pagination. Example: {\"filter\": \"post\"} finds Postnummer.",
+            "inputSchema": {
+              "additionalProperties": false,
+              "properties": {
+                "filter": {
+                  "description": "Optional case-insensitive substring filter on kodeverk name.",
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                "limit": {
+                  "default": 50,
+                  "description": "Maximum number of items to return (default 50, max 200).",
+                  "maximum": 200,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "offset": {
+                  "default": 0,
+                  "description": "Number of matching items to skip (default 0).",
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "type": "object"
+            },
+            "name": "list_kodeverk",
+            "outputSchema": {
+              "properties": {
+                "kodeverksnavn": {
+                  "type": "array"
+                },
+                "nextOffset": {
+                  "description": "Offset for the next page; absent on the last page.",
+                  "type": "integer"
+                },
+                "offset": {
+                  "type": "integer"
+                },
+                "returned": {
+                  "type": "integer"
+                },
+                "total": {
+                  "type": "integer"
+                },
+                "truncated": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "total",
+                "returned",
+                "offset",
+                "kodeverksnavn"
+              ],
+              "type": "object"
+            }
+          },
+          {
+            "annotations": {
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false,
+              "readOnlyHint": true
+            },
+            "description": "List published code keys for a specific kodeverk with optional substring filtering and pagination. Example: {\"kodeverksnavn\": \"Landkoder\", \"filter\": \"NO\"}.",
+            "inputSchema": {
+              "additionalProperties": false,
+              "properties": {
+                "filter": {
+                  "description": "Optional case-insensitive substring filter on code value.",
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                "kodeverksnavn": {
+                  "description": "Name of the kodeverk.",
+                  "pattern": "^[A-Za-z0-9æøåÆØÅ_-]{1,100}$",
+                  "type": "string"
+                },
+                "limit": {
+                  "default": 50,
+                  "description": "Maximum number of codes to return (default 50, max 200).",
+                  "maximum": 200,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "offset": {
+                  "default": 0,
+                  "description": "Number of matching codes to skip (default 0).",
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "kodeverksnavn"
+              ],
+              "type": "object"
+            },
+            "name": "get_kodeverk_koder",
+            "outputSchema": {
+              "properties": {
+                "koder": {
+                  "type": "array"
+                },
+                "kodeverksnavn": {
+                  "type": "string"
+                },
+                "nextOffset": {
+                  "description": "Offset for the next page; absent on the last page.",
+                  "type": "integer"
+                },
+                "offset": {
+                  "type": "integer"
+                },
+                "returned": {
+                  "type": "integer"
+                },
+                "total": {
+                  "type": "integer"
+                },
+                "truncated": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "total",
+                "returned",
+                "offset",
+                "kodeverksnavn",
+                "koder"
+              ],
+              "type": "object"
+            }
+          },
+          {
+            "annotations": {
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false,
+              "readOnlyHint": true
+            },
+            "description": "Get code meanings (betydninger) with validity dates and language descriptions for a kodeverk, paginated over sorted codes. Example: {\"kodeverksnavn\": \"Postnummer\", \"kode\": \"0150\"} returns the poststed for 0150.",
+            "inputSchema": {
+              "additionalProperties": false,
+              "properties": {
+                "ekskluderUgyldige": {
+                  "default": true,
+                  "description": "Exclude meanings invalid on oppslagsdato (default true).",
+                  "type": "boolean"
+                },
+                "kode": {
+                  "description": "Optional exact code filter.",
+                  "maxLength": 128,
+                  "type": "string"
+                },
+                "kodeverksnavn": {
+                  "description": "Name of the kodeverk.",
+                  "pattern": "^[A-Za-z0-9æøåÆØÅ_-]{1,100}$",
+                  "type": "string"
+                },
+                "limit": {
+                  "default": 50,
+                  "description": "Maximum number of codes to return (default 50, max 100).",
+                  "maximum": 100,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "offset": {
+                  "default": 0,
+                  "description": "Number of sorted codes to skip (default 0).",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "oppslagsdato": {
+                  "description": "Optional lookup date (YYYY-MM-DD) for validity filtering.",
+                  "type": "string"
+                },
+                "spraak": {
+                  "description": "Optional ISO 639-1 two-letter language codes (max 5).",
+                  "items": {
+                    "pattern": "^[a-z]{2}$",
+                    "type": "string"
+                  },
+                  "maxItems": 5,
+                  "type": "array"
+                }
+              },
+              "required": [
+                "kodeverksnavn"
+              ],
+              "type": "object"
+            },
+            "name": "get_kodeverk_betydninger",
+            "outputSchema": {
+              "properties": {
+                "betydninger": {
+                  "type": "object"
+                },
+                "kodeverksnavn": {
+                  "type": "string"
+                },
+                "nextOffset": {
+                  "description": "Offset for the next page; absent on the last page.",
+                  "type": "integer"
+                },
+                "offset": {
+                  "type": "integer"
+                },
+                "returned": {
+                  "type": "integer"
+                },
+                "total": {
+                  "type": "integer"
+                },
+                "truncated": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "total",
+                "returned",
+                "offset",
+                "kodeverksnavn",
+                "betydninger"
+              ],
+              "type": "object"
+            }
+          },
+          {
+            "annotations": {
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false,
+              "readOnlyHint": true
+            },
+            "description": "List published hierarchies in Nav's Felles kodeverk with optional substring filtering and pagination. Example: {\"filter\": \"geografi\"}.",
+            "inputSchema": {
+              "additionalProperties": false,
+              "properties": {
+                "filter": {
+                  "description": "Optional case-insensitive substring filter on hierarchy name.",
+                  "maxLength": 64,
+                  "type": "string"
+                },
+                "limit": {
+                  "default": 50,
+                  "description": "Maximum number of items to return (default 50, max 200).",
+                  "maximum": 200,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "offset": {
+                  "default": 0,
+                  "description": "Number of matching items to skip (default 0).",
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "type": "object"
+            },
+            "name": "list_hierarkier",
+            "outputSchema": {
+              "properties": {
+                "hierarkinavn": {
+                  "type": "array"
+                },
+                "nextOffset": {
+                  "description": "Offset for the next page; absent on the last page.",
+                  "type": "integer"
+                },
+                "offset": {
+                  "type": "integer"
+                },
+                "returned": {
+                  "type": "integer"
+                },
+                "total": {
+                  "type": "integer"
+                },
+                "truncated": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "total",
+                "returned",
+                "offset",
+                "hierarkinavn"
+              ],
+              "type": "object"
+            }
+          },
+          {
+            "annotations": {
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false,
+              "readOnlyHint": true
+            },
+            "description": "Get the node tree for a hierarchy, bounded by depth and root node limit. Example: {\"hierarkinavn\": \"Geografi\", \"maxDepth\": 2}.",
+            "inputSchema": {
+              "additionalProperties": false,
+              "properties": {
+                "hierarkinavn": {
+                  "description": "Name of the hierarchy.",
+                  "pattern": "^[A-Za-z0-9æøåÆØÅ_-]{1,100}$",
+                  "type": "string"
+                },
+                "limit": {
+                  "default": 50,
+                  "description": "Maximum number of root nodes to return (default 50, max 100).",
+                  "maximum": 100,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "maxDepth": {
+                  "default": 3,
+                  "description": "Maximum tree depth starting at 1 for root nodes (default 3, max 10).",
+                  "maximum": 10,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "spraak": {
+                  "description": "Optional ISO 639-1 two-letter language codes (max 5).",
+                  "items": {
+                    "pattern": "^[a-z]{2}$",
+                    "type": "string"
+                  },
+                  "maxItems": 5,
+                  "type": "array"
+                }
+              },
+              "required": [
+                "hierarkinavn"
+              ],
+              "type": "object"
+            },
+            "name": "get_hierarki_noder",
+            "outputSchema": {
+              "properties": {
+                "hierarkinavn": {
+                  "type": "string"
+                },
+                "hierarkinivaaer": {
+                  "type": "array"
+                },
+                "noder": {
+                  "type": "object"
+                },
+                "returned": {
+                  "type": "integer"
+                },
+                "total": {
+                  "type": "integer"
+                },
+                "truncated": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "total",
+                "returned",
+                "hierarkinavn",
+                "hierarkinivaaer",
+                "noder"
+              ],
+              "type": "object"
+            }
+          },
+          {
+            "annotations": {
+              "destructiveHint": false,
+              "idempotentHint": true,
+              "openWorldHint": false,
+              "readOnlyHint": true
+            },
+            "description": "Search kodeverk names or, when kodeverksnavn is specified, search codes and Norwegian Bokmål (nb) terms within that kodeverk. Example: {\"query\": \"Oslo\", \"kodeverksnavn\": \"Kommuner\"}.",
+            "inputSchema": {
+              "additionalProperties": false,
+              "properties": {
+                "kodeverksnavn": {
+                  "description": "Optional kodeverk name to search codes and terms inside. When omitted, searches kodeverk names.",
+                  "pattern": "^[A-Za-z0-9æøåÆØÅ_-]{1,100}$",
+                  "type": "string"
+                },
+                "limit": {
+                  "default": 25,
+                  "description": "Maximum number of matches to return (default 25, max 50).",
+                  "maximum": 50,
+                  "minimum": 1,
+                  "type": "integer"
+                },
+                "query": {
+                  "description": "Search substring (2-64 characters; letters, digits, space, '-', '_').",
+                  "maxLength": 64,
+                  "minLength": 2,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "query"
+              ],
+              "type": "object"
+            },
+            "name": "search_kodeverk",
+            "outputSchema": {
+              "properties": {
+                "kodeverk": {
+                  "type": "array"
+                },
+                "kodeverksnavn": {
+                  "type": "string"
+                },
+                "matches": {
+                  "type": "array"
+                },
+                "query": {
+                  "type": "string"
+                },
+                "returned": {
+                  "type": "integer"
+                },
+                "total": {
+                  "type": "integer"
+                },
+                "truncated": {
+                  "type": "boolean"
+                }
+              },
+              "required": [
+                "total",
+                "returned",
+                "query"
+              ],
+              "type": "object"
+            }
+          }
+        ]
+      }
+    }
+  },
+  {
+    "name": "legacy tools/call",
+    "method": "POST",
+    "path": "/",
+    "header": {
+      "Authorization": "Bearer ok"
+    },
+    "body": "{\"jsonrpc\":\"2.0\",\"id\":4,\"method\":\"tools/call\",\"params\":{\"name\":\"list_kodeverk\",\"arguments\":{}}}",
+    "status": 200,
+    "respHeader": {
+      "Cache-Control": "no-store",
+      "Content-Type": "application/json"
+    },
+    "resp": {
+      "id": 4,
+      "jsonrpc": "2.0",
+      "result": {
+        "content": [
+          {
+            "text": "{\"total\":2,\"returned\":2,\"offset\":0,\"kodeverksnavn\":[\"Landkoder\",\"Postnummer\"]}",
+            "type": "text"
+          }
+        ],
+        "structuredContent": {
+          "kodeverksnavn": [
+            "Landkoder",
+            "Postnummer"
+          ],
+          "offset": 0,
+          "returned": 2,
+          "total": 2
+        }
+      }
+    }
+  },
+  {
+    "name": "legacy unknown method",
+    "method": "POST",
+    "path": "/",
+    "header": {
+      "Authorization": "Bearer ok"
+    },
+    "body": "{\"jsonrpc\":\"2.0\",\"id\":5,\"method\":\"resources/list\"}",
+    "status": 200,
+    "respHeader": {
+      "Content-Type": "application/json"
+    },
+    "resp": {
+      "error": {
+        "code": -32601,
+        "message": "Method not found"
+      },
+      "id": 5,
+      "jsonrpc": "2.0"
+    }
+  }
+]
