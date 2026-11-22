@@ -15,6 +15,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"math/big"
 	"mime"
 	"net/http"
 	"os"
@@ -337,11 +338,25 @@ func sseMessage(data []string, wantID any) map[string]any {
 		// Compare the raw JSON so the number 1 and the string "1" differ.
 		var ids struct{ ID json.RawMessage }
 		want, _ := json.Marshal(wantID)
-		if json.Unmarshal([]byte(strings.Join(data, "\n")), &ids) != nil || !bytes.Equal(bytes.TrimSpace(ids.ID), want) {
+		if json.Unmarshal([]byte(strings.Join(data, "\n")), &ids) != nil || !sameID(bytes.TrimSpace(ids.ID), want) {
 			return nil
 		}
 	}
 	return m
+}
+
+// sameID compares JSON-RPC ids: numbers by value (1, 1.0 and 1e0 are equal),
+// anything else by its raw JSON, so the string "1" never equals the number 1.
+func sameID(got, want []byte) bool {
+	var a, b big.Rat
+	if json.Valid(got) && got[0] != '"' && json.Valid(want) && want[0] != '"' {
+		if _, ok := a.SetString(string(got)); ok {
+			if _, ok := b.SetString(string(want)); ok {
+				return a.Cmp(&b) == 0
+			}
+		}
+	}
+	return bytes.Equal(got, want)
 }
 
 // sseLineSplitter splits on CRLF, LF or CR, the three SSE line endings.
@@ -350,28 +365,30 @@ func sseMessage(data []string, wantID any) map[string]any {
 func sseLineSplitter() bufio.SplitFunc {
 	afterCR := false
 	return func(data []byte, atEOF bool) (int, []byte, error) {
+		off := 0
 		if afterCR && len(data) > 0 {
 			afterCR = false
 			if data[0] == '\n' {
-				return 1, nil, nil
+				off = 1 // drop it and keep splitting, so buffered events are not stalled
 			}
 		}
-		if i := bytes.IndexAny(data, "\r\n"); i >= 0 {
-			if data[i] == '\r' {
-				if i+1 < len(data) {
-					if data[i+1] == '\n' {
-						return i + 2, data[:i], nil
+		rest := data[off:]
+		if i := bytes.IndexAny(rest, "\r\n"); i >= 0 {
+			if rest[i] == '\r' {
+				if i+1 < len(rest) {
+					if rest[i+1] == '\n' {
+						return off + i + 2, rest[:i], nil
 					}
 				} else {
 					afterCR = true
 				}
 			}
-			return i + 1, data[:i], nil
+			return off + i + 1, rest[:i], nil
 		}
-		if atEOF && len(data) > 0 {
-			return len(data), data, nil
+		if atEOF && len(rest) > 0 {
+			return len(data), rest, nil
 		}
-		return 0, nil, nil
+		return off, nil, nil
 	}
 }
 

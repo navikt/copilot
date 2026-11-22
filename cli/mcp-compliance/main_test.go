@@ -239,6 +239,34 @@ func TestSSEOpenStreamEndingInCRReturns(t *testing.T) {
 	}
 }
 
+func TestSSESplitCRLFOpenStreamReturns(t *testing.T) {
+	pr, pw := io.Pipe()
+	defer func() { _ = pw.Close() }()
+	go func() {
+		_, _ = pw.Write([]byte("data: {\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{}}\r"))
+		_, _ = pw.Write([]byte("\n\r\n"))
+	}()
+	done := make(chan map[string]any, 1)
+	go func() { done <- readSSEResponse(pr, 1) }()
+	select {
+	case m := <-done:
+		if m == nil {
+			t.Fatal("no message")
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("blocked on a CRLF split across reads")
+	}
+}
+
+func TestReadSSEResponseNumericIDForms(t *testing.T) {
+	for _, id := range []string{"1.0", "1e0"} {
+		in := "data: {\"jsonrpc\":\"2.0\",\"id\":" + id + ",\"result\":{\"ok\":true}}\n\n"
+		if r, _ := readSSEResponse(strings.NewReader(in), 1)["result"].(map[string]any); r["ok"] != true {
+			t.Fatalf("id %s did not match 1", id)
+		}
+	}
+}
+
 func TestSSEStreamLeftOpenReturns(t *testing.T) {
 	pr, pw := io.Pipe()
 	defer func() { _ = pw.Close() }()
