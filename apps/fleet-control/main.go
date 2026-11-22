@@ -31,8 +31,12 @@ func run() error {
 	if port == "" {
 		port = "8080"
 	}
+	auth, err := newAuthzFromEnv()
+	if err != nil {
+		return err
+	}
 	srv := newServer()
-	httpSrv := &http.Server{Addr: ":" + port, Handler: srv.routes(), ReadHeaderTimeout: 5 * time.Second}
+	httpSrv := &http.Server{Addr: ":" + port, Handler: srv.routes(auth), ReadHeaderTimeout: 5 * time.Second}
 
 	go func() {
 		db, err := connect(ctx)

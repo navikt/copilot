@@ -12,14 +12,16 @@ import (
 )
 
 // routes registers the API. Nothing here writes, and the app has no ingress:
-// accessPolicy.inbound admits only fleet-gateway and mcp-registry.
-func (s *server) routes() http.Handler {
+// accessPolicy.inbound admits only fleet-gateway and mcp-registry, and each
+// /internal route also needs that caller's Entra app token (#2623).
+func (s *server) routes(a *authz) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
 	mux.HandleFunc("GET /ready", s.ready)
-	mux.HandleFunc("GET /internal/v1/servers", s.listServers)
-	mux.HandleFunc("GET /internal/v1/routes", s.listRoutes)
-	mux.HandleFunc("GET /internal/v1/snapshots/{kind}", s.snapshot)
+	mux.HandleFunc("GET /internal/v1/servers", a.require(s.listServers, callerRegistry))
+	mux.HandleFunc("GET /internal/v1/routes", a.require(s.listRoutes, callerGateway))
+	mux.HandleFunc("GET /internal/v1/snapshots/routes", a.require(s.snapshotOf("routes"), callerGateway))
+	mux.HandleFunc("GET /internal/v1/snapshots/registry", a.require(s.snapshotOf("registry"), callerRegistry))
 	return mux
 }
 
@@ -95,12 +97,11 @@ func (s *server) listRoutes(w http.ResponseWriter, r *http.Request) {
 // snapshot serves the current generation of a kind. It never serves an empty
 // or rejected snapshot: a failure returns the last good one, or 503, and
 // consumers keep what they have.
-func (s *server) snapshot(w http.ResponseWriter, r *http.Request) {
-	kind := r.PathValue("kind")
-	if _, ok := s.lastGood[kind]; !ok {
-		http.NotFound(w, r)
-		return
-	}
+func (s *server) snapshotOf(kind string) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) { s.snapshot(w, r, kind) }
+}
+
+func (s *server) snapshot(w http.ResponseWriter, r *http.Request, kind string) {
 	snap, err := s.resolve(r.Context(), kind)
 	if err != nil {
 		http.Error(w, "snapshot unavailable", http.StatusServiceUnavailable)
