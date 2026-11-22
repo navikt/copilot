@@ -148,6 +148,8 @@ jobs:
               - '.github/workflows/ci.yaml'
             mcp-kodeverk:
               - 'apps/mcp-kodeverk/**'
+              - 'cli/mcp-compliance/action.yml'
+              - 'cli/mcp-compliance/testdata/fake_texas.py'
               - '.github/workflows/mcp-kodeverk.yaml'
               - '.github/workflows/mise-build-deploy-nais.yaml'
               - '.github/workflows/ci.yaml'
@@ -192,6 +194,7 @@ jobs:
               - 'scripts/install.sh'
               - 'scripts/publish-release.sh'
               - 'scripts/mcp-compliance-next-version.sh'
+              - 'cli/mcp-compliance/resolve-version.*'
               - 'scripts/*.bats'
               - 'scripts/skill-selvutlosning-probe.sh'
               - '.github/workflows/copilot-customization-sync.yml'
@@ -474,6 +477,24 @@ jobs:
       - run: mise run install
       - run: mise run lint
       - run: mise run check
+      # Runs the published Action (cli/mcp-compliance/action.yml) against the
+      # built server, the way a team's own CI would.
+      - name: Start fake Texas and mcp-kodeverk
+        run: |
+          go build -o "$RUNNER_TEMP/mcp-kodeverk" .
+          python3 ../../cli/mcp-compliance/testdata/fake_texas.py &
+          NAIS_TOKEN_INTROSPECTION_ENDPOINT=http://127.0.0.1:8099/introspect \
+          NAIS_TOKEN_EXCHANGE_ENDPOINT=http://127.0.0.1:8099/exchange \
+          NAIS_CLUSTER_NAME=ci \
+          AZURE_APP_PRE_AUTHORIZED_APPS='[{"name":"ci:copilot:fleet-gateway","clientId":"ci-gateway"}]' \
+          PORT=8098 "$RUNNER_TEMP/mcp-kodeverk" &
+          curl -fsS --retry 30 --retry-delay 1 --retry-connrefused http://127.0.0.1:8098/health
+      - uses: ./cli/mcp-compliance
+        with:
+          url: http://127.0.0.1:8098/mcp
+          tool: list_kodeverk
+          token: ci-user-token
+          app-token: ci-app-token
 
   mcp-onboarding:
     name: mcp-onboarding
@@ -726,7 +747,7 @@ jobs:
           distribution: temurin
           java-version: "21"
       - name: Run BATS
-        run: mise exec -- bats scripts/install.bats scripts/publish-release.bats scripts/sync-pr-body.bats scripts/skill-selvutlosning-probe.bats scripts/nav-pilot-golden.bats scripts/obs-query.bats scripts/mcp-compliance-next-version.bats
+        run: mise exec -- bats scripts/install.bats scripts/publish-release.bats scripts/sync-pr-body.bats scripts/skill-selvutlosning-probe.bats scripts/nav-pilot-golden.bats scripts/obs-query.bats scripts/mcp-compliance-next-version.bats cli/mcp-compliance/resolve-version.bats
       - name: Benchmark checks (offline)
         run: mise run benchmark:check
 
