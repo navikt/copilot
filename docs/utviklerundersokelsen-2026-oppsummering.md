@@ -104,4 +104,4 @@ Undersøkelsen gir direkte innspill til harness-utviklinga:
 - **Teoretisk grunnlag:** SPACE-rammeverket (Forsgren et al., 2021) + seksfaktormodellen (Chen et al., ICSE-SEIP 2026)
 - **Skala:** 5-punkt Likert (Helt enig → Helt uenig)
 - **Populasjon:** ~500 teknologer i Nav
-- **Detaljert undersøkelsesdesign:** Se [ai-coding-engagement-survey-2026.md](ai-coding-engagement-survey-2026.md)
+- **Detaljert undersøkelsesdesign:** ligger i teamets interne dokumentasjon.

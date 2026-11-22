@@ -127,7 +127,7 @@ Forskningsfunnene er bakt inn i AI-instruksene, ikke bare skrevet ned i et polic
 
 **Tre-forsøks-regelen:** prøv å løse problemet selv tre ganger før du spør AI.
 
-Full oversikt over agenter, skills, instruksjoner og de områdene vi bevisst holder AI unna ligger i [ai-bruk-oversikt.md](ai-bruk-oversikt.md).
+Teamet har en intern oversikt over agenter, skills, instruksjoner og de områdene vi bevisst holder AI unna.
 
 ### nav-pilot: planlegging med fasestyring
 
