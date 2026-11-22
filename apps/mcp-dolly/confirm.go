@@ -33,15 +33,21 @@ var errConfirm = errors.New("confirmation token is invalid, expired or already u
 // shortcut: per-pod single-use set, move to Postgres if more replicas
 type orderConfirm struct {
 	mu   sync.Mutex
-	keys []signingKey           // newest first
-	seen map[string][]seenToken // userHash -> outstanding used tokens, oldest first
+	keys []signingKey // newest first
+	// bootID binds tokens to this process while the used-token set is in
+	// memory, so a restart or another pod cannot replay a consumed token.
+	// A shared store (MCP_DOLLY_STORE=postgres, #2643) sets it to "".
+	bootID string
+	seen   map[string][]seenToken // userHash -> outstanding used tokens, oldest first
 }
 
 func newOrderConfirm(keys []signingKey) *orderConfirm {
 	if len(keys) == 0 {
 		panic("orderConfirm needs at least one key")
 	}
-	return &orderConfirm{keys: keys, seen: make(map[string][]seenToken)}
+	var b [16]byte
+	_, _ = rand.Read(b[:])
+	return &orderConfirm{keys: keys, bootID: hex.EncodeToString(b[:]), seen: make(map[string][]seenToken)}
 }
 
 // paramsHash hashes the parsed order (environments sorted, token excluded) so
@@ -81,7 +87,7 @@ func (c *orderConfirm) issue(userHash, params string, now time.Time) (string, ti
 	// Random nonce: two previews of identical parameters get distinct single-use tokens.
 	k := c.keys[0]
 	e := k.kid + "." + strconv.FormatInt(exp.Unix(), 10) + "." + hex.EncodeToString(n[:])
-	return e + "." + mac(k.key, e, userHash, params), exp
+	return e + "." + mac(k.key, e+"|"+c.bootID, userHash, params), exp
 }
 
 // consume verifies the token and marks it used. Any failure returns errConfirm.
@@ -95,7 +101,7 @@ func (c *orderConfirm) consume(token, userHash, params string, now time.Time) er
 	valid := 0
 	for _, k := range c.keys {
 		// Compare against every key so timing does not reveal which kid matched.
-		ok := subtle.ConstantTimeCompare([]byte(sig), []byte(mac(k.key, e, userHash, params)))
+		ok := subtle.ConstantTimeCompare([]byte(sig), []byte(mac(k.key, e+"|"+c.bootID, userHash, params)))
 		valid |= ok & subtle.ConstantTimeCompare([]byte(kid), []byte(k.kid))
 	}
 	if valid != 1 {

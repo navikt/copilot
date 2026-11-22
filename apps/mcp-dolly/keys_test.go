@@ -103,6 +103,7 @@ func TestConfirmKeyRotation(t *testing.T) {
 	oldTok, _ := before.issue("u", "p", now)
 
 	after := newOrderConfirm([]signingKey{newK, oldK})
+	after.bootID = before.bootID // same process across a key reload
 	newTok, _ := after.issue("u", "p", now)
 	if !strings.HasPrefix(newTok, "new.") {
 		t.Fatalf("must sign with the first key: %s", newTok)
@@ -115,6 +116,7 @@ func TestConfirmKeyRotation(t *testing.T) {
 	}
 
 	retired := newOrderConfirm([]signingKey{newK})
+	retired.bootID = before.bootID
 	tok2, _ := before.issue("u", "p", now)
 	if err := retired.consume(tok2, "u", "p", now); err == nil {
 		t.Fatal("retired key must not verify")
@@ -126,12 +128,30 @@ func TestConfirmKeyRotation(t *testing.T) {
 	}
 }
 
+func TestInMemoryTokensAreBoundToProcess(t *testing.T) {
+	now := time.Date(2026, 11, 22, 12, 0, 0, 0, time.UTC)
+	podA, podB := newServer(&config{Keys: testKeys()}), newServer(&config{Keys: testKeys()})
+	tok, _ := podA.confirm.issue("u", "p", now)
+	if err := podA.confirm.consume(tok, "u", "p", now); err != nil {
+		t.Fatalf("issuing process: %v", err)
+	}
+	if err := podB.confirm.consume(tok, "u", "p", now); err == nil {
+		t.Fatal("consumed token replayed on another process (or after restart)")
+	}
+	restarted := newOrderConfirm(testKeys().confirm)
+	if err := restarted.consume(tok, "u", "p", now); err == nil {
+		t.Fatal("consumed token replayed after restart")
+	}
+}
+
 func TestTokenVerifiesAcrossPods(t *testing.T) {
 	now := time.Date(2026, 11, 22, 12, 0, 0, 0, time.UTC)
 	podA, podB := newServer(&config{Keys: testKeys()}), newServer(&config{Keys: testKeys()})
 	if podA.quota.hashUser("Z123456") != podB.quota.hashUser("Z123456") {
 		t.Fatal("user hash differs between pods with the same key")
 	}
+	// Shared store mode (#2643): no boot binding, the store gives single use.
+	podA.confirm.bootID, podB.confirm.bootID = "", ""
 	tok, _ := podA.confirm.issue("u", "p", now)
 	if err := podB.confirm.consume(tok, "u", "p", now); err != nil {
 		t.Fatalf("token from pod A rejected on pod B: %v", err)
@@ -139,6 +159,7 @@ func TestTokenVerifiesAcrossPods(t *testing.T) {
 	other := testKeys()
 	other.confirm = []signingKey{{"k1", bytes.Repeat([]byte{7}, minKeyBytes)}}
 	podC := newServer(&config{Keys: other})
+	podC.confirm.bootID = ""
 	tok, _ = podA.confirm.issue("u", "p", now)
 	if err := podC.confirm.consume(tok, "u", "p", now); err == nil {
 		t.Fatal("pod with a different key must reject")
