@@ -1218,6 +1218,7 @@ func TestCallback_IdentityFromIntrospection(t *testing.T) {
 		{name: "forged NAVident in access_token is not used", idToken: noNAVident, body: map[string]any{"active": true}, wantError: "access_denied"},
 		{name: "introspection inactive is rejected", body: map[string]any{"active": false, "NAVident": "Z999999"}, wantError: "server_error"},
 		{name: "introspection error is rejected", status: http.StatusInternalServerError, body: map[string]any{"active": true, "NAVident": "Z999999"}, wantError: "server_error"},
+		{name: "introspection with non-string NAVident is rejected", body: map[string]any{"active": true, "NAVident": 12345}, wantError: "server_error"},
 		{name: "introspection without NAVident is rejected", body: map[string]any{"active": true}, wantError: "access_denied"},
 		{name: "introspection with blank NAVident is rejected", body: map[string]any{"active": true, "NAVident": "  "}, wantError: "access_denied"},
 		{name: "missing id_token without nonce is rejected", noOpenID: true, idToken: func(map[string]any) string { return "" }, wantError: "server_error"},
