@@ -17,6 +17,8 @@ outbound_rules:
   - application: mcp-kodeverk
   - application: mcp-onboarding
   - application: mcp-team-catalog
+  - application: studio-api
+    namespace: aksel-studio
 ingresses:
   - https://fleet-gateway.intern.dev.nav.no
 reply_urls:
