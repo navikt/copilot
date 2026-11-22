@@ -17,7 +17,14 @@ func TestToolMetricsEndpoint(t *testing.T) {
 	callToolModern(t, h, "user-token", "Z123456-not-a-tool", map[string]any{})
 
 	rec := httptest.NewRecorder()
-	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/metrics", nil))
+	srv.metrics.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/metrics", nil))
+
+	// /metrics is on its own port; the MCP port treats it as an MCP request.
+	main := httptest.NewRecorder()
+	h.ServeHTTP(main, httptest.NewRequest(http.MethodGet, "/metrics", nil))
+	if main.Code != http.StatusUnauthorized {
+		t.Fatalf("GET /metrics on the MCP port: %d, want 401", main.Code)
+	}
 	out := rec.Body.String()
 	for _, want := range []string{
 		`mcp_tool_requests_total{tool="list_kodeverk"} 2`,

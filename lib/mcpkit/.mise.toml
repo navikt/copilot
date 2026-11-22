@@ -20,8 +20,9 @@ run = "go test -race -v ./..."
 env = { CGO_ENABLED = "1" } # -race requires cgo
 
 [tasks."test:short"]
-description = "Run tests without verbose output"
-run = "go test ./..."
+description = "Run tests with the race detector, without verbose output"
+run = "go test -race ./..."
+env = { CGO_ENABLED = "1" } # -race requires cgo
 
 [tasks.lint]
 description = "Run linters (golangci-lint)"

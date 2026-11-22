@@ -22,6 +22,6 @@ WORKDIR /app
 
 COPY --from=builder /src/apps/mcp-kodeverk/main .
 
-EXPOSE 8080
+EXPOSE 8080 9090
 
 CMD ["./main"]

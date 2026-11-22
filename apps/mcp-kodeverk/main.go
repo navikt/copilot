@@ -20,6 +20,7 @@ import (
 
 const (
 	defaultPort        = "8080"
+	defaultMetricsPort = "9090"
 	defaultKodeverkURL = "http://kodeverk-api.team-rocket"
 	maxRequestBytes    = 1 << 20
 	httpClientTimeout  = 10 * time.Second
@@ -29,6 +30,7 @@ const (
 
 type config struct {
 	Port                  string
+	MetricsPort           string
 	LogLevel              slog.Level
 	IntrospectionEndpoint string
 	ExchangeEndpoint      string
@@ -65,6 +67,7 @@ func loadConfigFromEnv() (*config, error) {
 
 	return &config{
 		Port:                  getEnv("PORT", defaultPort),
+		MetricsPort:           getEnv("METRICS_PORT", defaultMetricsPort),
 		LogLevel:              parseLogLevel(getEnv("LOG_LEVEL", "INFO")),
 		IntrospectionEndpoint: introspectionEndpoint,
 		ExchangeEndpoint:      exchangeEndpoint,
@@ -118,7 +121,6 @@ func (s *server) routes() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", healthHandler)
 	mux.HandleFunc("GET /ready", s.readyHandler)
-	mux.Handle("GET /metrics", s.metrics)
 	mux.HandleFunc("/", s.mcpHandler)
 	return mux
 }
@@ -355,6 +357,23 @@ func main() {
 		IdleTimeout:       60 * time.Second,
 	}
 
+	// /metrics has its own port so the MCP port serves only MCP.
+	metricsMux := http.NewServeMux()
+	metricsMux.Handle("GET /metrics", srv.metrics)
+	metricsServer := &http.Server{
+		Addr:              ":" + cfg.MetricsPort,
+		Handler:           metricsMux,
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       10 * time.Second,
+		WriteTimeout:      10 * time.Second,
+	}
+	go func() {
+		if err := metricsServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			slog.Error("metrics server failed", "error", err)
+			os.Exit(1)
+		}
+	}()
+
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
@@ -373,4 +392,5 @@ func main() {
 	if err := httpServer.Shutdown(shutdownCtx); err != nil {
 		slog.Error("server shutdown failed", "error", err)
 	}
+	_ = metricsServer.Shutdown(shutdownCtx)
 }

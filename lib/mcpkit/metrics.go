@@ -43,13 +43,20 @@ func NewToolMetrics(tools []string) *ToolMetrics {
 	return m
 }
 
-// Observe records one call. A tool not passed to NewToolMetrics counts as UnknownTool.
+// Observe records one call. A tool not passed to NewToolMetrics counts as
+// UnknownTool. On a nil or zero-value ToolMetrics it does nothing.
 func (m *ToolMetrics) Observe(tool string, failed bool, d time.Duration) {
+	if m == nil {
+		return
+	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	st, ok := m.tools[tool]
 	if !ok {
 		st = m.tools[UnknownTool]
+	}
+	if st == nil {
+		return
 	}
 	st.requests++
 	if failed {

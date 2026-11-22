@@ -29,6 +29,7 @@ spec:
   prometheus:
     enabled: true
     path: /metrics
+    port: "9090"
   azure:
     application:
       enabled: true

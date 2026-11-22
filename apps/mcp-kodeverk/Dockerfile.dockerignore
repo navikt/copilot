@@ -1,0 +1,8 @@
+# The build context is the repo root; send only what the image needs.
+*
+!lib/mcpkit/
+!apps/mcp-kodeverk/go.mod
+!apps/mcp-kodeverk/go.sum
+!apps/mcp-kodeverk/*.go
+apps/mcp-kodeverk/*_test.go
+lib/mcpkit/*_test.go

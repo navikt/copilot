@@ -108,7 +108,7 @@ func TestGatewayClientID(t *testing.T) {
 }
 
 func TestValidateHTTPURL(t *testing.T) {
-	for in, ok := range map[string]bool{"https://a.b": true, "http://a:80/x": true, "ftp://a": false, "https://": false, "/rel": false} {
+	for in, ok := range map[string]bool{"https://a.b": true, "http://a:80/x": true, "ftp://a": false, "https://": false, "/rel": false, "http://:8080": false, "https://user@host": false, "https://host#frag": false} {
 		if err := ValidateHTTPURL(in); (err == nil) != ok {
 			t.Errorf("%q: %v", in, err)
 		}
@@ -206,4 +206,33 @@ func TestSetChallenge(t *testing.T) {
 	if got := rec.Header().Get("WWW-Authenticate"); got != `Bearer error="invalid_token"` {
 		t.Fatalf("invalid token: %q", got)
 	}
+}
+
+func TestNilTexasFailsClosed(t *testing.T) {
+	for _, tx := range []*Texas{nil, {IntrospectionEndpoint: "http://x", ExchangeEndpoint: "http://x", GatewayClientID: "gw"}} {
+		if _, err := tx.Introspect(context.Background(), "tok"); !errors.Is(err, ErrNotConfigured) {
+			t.Fatalf("introspect: %v", err)
+		}
+		var ee *ExchangeError
+		if _, err := tx.Exchange(context.Background(), "tok", "t"); !errors.As(err, &ee) {
+			t.Fatalf("exchange: %v", err)
+		}
+	}
+}
+
+func TestSetChallengeRejectsUnsafeRealm(t *testing.T) {
+	for _, realm := range []string{`a"b`, "a\nb", `a\b`} {
+		rec := httptest.NewRecorder()
+		SetChallenge(rec, realm, false)
+		if got := rec.Header().Get("WWW-Authenticate"); got != `Bearer realm=""` {
+			t.Errorf("%q: %q", realm, got)
+		}
+	}
+}
+
+func TestZeroToolMetricsObserveIsNoop(_ *testing.T) {
+	var zero ToolMetrics
+	zero.Observe("a", true, time.Second)
+	var nilM *ToolMetrics
+	nilM.Observe("a", true, time.Second)
 }

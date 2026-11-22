@@ -58,8 +58,14 @@ func ValidateHTTPURL(raw string) error {
 	if u.Scheme != "http" && u.Scheme != "https" {
 		return fmt.Errorf("unsupported scheme %q", u.Scheme)
 	}
-	if u.Host == "" {
+	if u.Hostname() == "" {
 		return errors.New("missing host")
+	}
+	if u.User != nil {
+		return errors.New("userinfo not allowed")
+	}
+	if u.Fragment != "" || strings.Contains(raw, "#") {
+		return errors.New("fragment not allowed")
 	}
 	return nil
 }
@@ -111,7 +117,7 @@ func BearerToken(authHeader string) (string, bool) {
 // App tokens, tokens without NAVident and tokens whose azp is not the
 // gateway are ErrForbidden.
 func (t *Texas) Introspect(ctx context.Context, token string) (string, error) {
-	if t.IntrospectionEndpoint == "" || t.GatewayClientID == "" {
+	if t == nil || t.HTTPClient == nil || t.IntrospectionEndpoint == "" || t.GatewayClientID == "" {
 		return "", ErrNotConfigured
 	}
 
@@ -184,7 +190,7 @@ func (e *ExchangeError) Error() string {
 // Exchange trades userToken for an on-behalf-of token for target.
 // Every error is an *ExchangeError.
 func (t *Texas) Exchange(ctx context.Context, userToken, target string) (string, error) {
-	if t.ExchangeEndpoint == "" || target == "" {
+	if t == nil || t.HTTPClient == nil || t.ExchangeEndpoint == "" || target == "" {
 		return "", &ExchangeError{Msg: "downstream token exchange is not configured"}
 	}
 
@@ -260,7 +266,11 @@ func ReadRequestBody(w http.ResponseWriter, r *http.Request, limit int64) (body 
 // SetChallenge sets the RFC 6750 WWW-Authenticate header for a 401. A missing
 // or non-Bearer token gets only the realm; a presented token that failed
 // validation gets error="invalid_token" (section 3.1).
+// A realm with a quote, a backslash or control characters is dropped rather than escaped.
 func SetChallenge(w http.ResponseWriter, realm string, tokenPresented bool) {
+	if strings.ContainsFunc(realm, func(r rune) bool { return r == '"' || r == '\\' || r < 0x20 || r == 0x7f }) {
+		realm = ""
+	}
 	if tokenPresented {
 		w.Header().Set("WWW-Authenticate", `Bearer error="invalid_token"`)
 		return
