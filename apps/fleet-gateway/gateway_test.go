@@ -40,6 +40,7 @@ type testEnv struct {
 	lastEntraNonce     string
 	lastEntraChallenge string
 	navIdent           string
+	idTokenOverride    func(claims map[string]any) string // nil: valid id_token; returns "" to omit it
 	groups             []string
 	cimdServer         *httptest.Server
 	entraServer        *httptest.Server
@@ -164,6 +165,7 @@ func newTestEnv(t *testing.T) *testEnv {
 			navIdent := te.navIdent
 			groups := te.groups
 			entraToken := te.entraToken
+			idTokenOverride := te.idTokenOverride
 			entraRT := te.entraRefreshToken
 			expiresIn := te.entraExpiresIn
 			te.mu.Unlock()
@@ -198,13 +200,21 @@ func newTestEnv(t *testing.T) *testEnv {
 			if expiresIn <= 0 {
 				expiresIn = 3600
 			}
-			writeJSON(w, http.StatusOK, map[string]any{
+			resp := map[string]any{
 				"access_token":  entraToken,
 				"refresh_token": entraRT,
 				"id_token":      makeTestIDToken(claims),
 				"token_type":    "Bearer",
 				"expires_in":    expiresIn,
-			})
+			}
+			if idTokenOverride != nil {
+				if idt := idTokenOverride(claims); idt != "" {
+					resp["id_token"] = idt
+				} else {
+					delete(resp, "id_token")
+				}
+			}
+			writeJSON(w, http.StatusOK, resp)
 		default:
 			http.NotFound(w, r)
 		}
@@ -1159,18 +1169,68 @@ func TestCallback_RequiresNAVident(t *testing.T) {
 		}
 	})
 
-	t.Run("NAVident in access_token claims satisfies requirement", func(t *testing.T) {
-		te := newTestEnv(t)
-		te.mu.Lock()
-		te.navIdent = ""
-		te.entraToken = makeTestJWT(map[string]any{"NAVident": "A987654"})
-		te.mu.Unlock()
+}
 
-		code := te.obtainAuthCode(verifier)
-		if code == "" {
-			t.Fatal("expected auth code when NAVident is present in access_token")
-		}
-	})
+// TestCallback_IdentityOnlyFromValidatedIDToken covers #2594: the token
+// response is hostile, so identity comes only from a validated id_token, also
+// when no nonce was sent (scope without openid).
+func TestCallback_IdentityOnlyFromValidatedIDToken(t *testing.T) {
+	verifier := "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG"
+	forged := makeTestJWT(map[string]any{"NAVident": "Z999999"})
+	cases := []struct {
+		name      string
+		noOpenID  bool
+		idToken   func(claims map[string]any) string
+		wantError string
+	}{
+		{"valid id_token logs in", false, nil, ""},
+		{"valid id_token without nonce logs in", true, nil, ""},
+		{"missing id_token without nonce is rejected", true, func(map[string]any) string { return "" }, "server_error"},
+		{"missing id_token with nonce is rejected", false, func(map[string]any) string { return "" }, "server_error"},
+		{"invalid id_token without nonce is rejected", true, func(c map[string]any) string {
+			c["iss"] = "https://login.test/evil/v2.0"
+			return makeTestIDToken(c)
+		}, "server_error"},
+		{"NAVident only in access_token is rejected", false, func(c map[string]any) string {
+			delete(c, "NAVident")
+			return makeTestIDToken(c)
+		}, "access_denied"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			te := newTestEnv(t)
+			if tc.noOpenID {
+				te.gw.cfg.EntraScope = "api://azure-client-id/.default"
+			}
+			te.mu.Lock()
+			te.entraToken = forged
+			te.idTokenOverride = tc.idToken
+			te.mu.Unlock()
+
+			entraState, stateCookie := te.startLogin(verifier)
+			if tc.noOpenID && te.lastEntraNonce != "" {
+				t.Fatal("expected no nonce without openid scope")
+			}
+			if tc.wantError == "" {
+				if te.completeEntraCallback(entraState, stateCookie) == "" {
+					t.Fatal("expected gateway code on success")
+				}
+				return
+			}
+			req := httptest.NewRequest(http.MethodGet, "/oauth2/callback?code=entra-code-123&state="+url.QueryEscape(entraState), nil)
+			req.AddCookie(stateCookie)
+			rec := httptest.NewRecorder()
+			te.handler.ServeHTTP(rec, req)
+			loc, err := url.Parse(rec.Header().Get("Location"))
+			if err != nil {
+				t.Fatalf("invalid redirect location: %v", err)
+			}
+			got := loc.Query().Get("error")
+			if got != tc.wantError {
+				t.Fatalf("error = %q (%s), want %q", got, loc.Query().Get("error_description"), tc.wantError)
+			}
+		})
+	}
 }
 
 func TestCallback_RequiresAccessTokenForOBO(t *testing.T) {

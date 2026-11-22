@@ -558,32 +558,30 @@ func (g *Gateway) callbackHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var idClaims map[string]any
-	if idt != "" {
-		var parseErr error
-		idClaims, parseErr = parseJWTClaims(idt)
-		if parseErr == nil {
-			parseErr = validateIDTokenClaims(idClaims, g.cfg.AzureIssuer, g.cfg.AzureClientID, g.now())
-		}
-		if parseErr != nil {
-			slog.Warn("audit login", "outcome", "invalid_id_token", "reason", parseErr.Error(), "client_id", p.ClientID, "resource", p.Resource)
-			back(url.Values{
-				"error":             {"server_error"},
-				"error_description": {"upstream identity token validation failed"},
-			})
-			return
-		}
+	// Identity comes only from a validated id_token; the access token is never
+	// decoded for identity, so a missing id_token rejects the login (#2594).
+	if idt == "" {
+		slog.Warn("audit login", "outcome", "missing_id_token", "client_id", p.ClientID, "resource", p.Resource)
+		back(url.Values{
+			"error":             {"server_error"},
+			"error_description": {"upstream identity token missing"},
+		})
+		return
+	}
+	idClaims, parseErr := parseJWTClaims(idt)
+	if parseErr == nil {
+		parseErr = validateIDTokenClaims(idClaims, g.cfg.AzureIssuer, g.cfg.AzureClientID, g.now())
+	}
+	if parseErr != nil {
+		slog.Warn("audit login", "outcome", "invalid_id_token", "reason", parseErr.Error(), "client_id", p.ClientID, "resource", p.Resource)
+		back(url.Values{
+			"error":             {"server_error"},
+			"error_description": {"upstream identity token validation failed"},
+		})
+		return
 	}
 
 	if p.EntraNonce != "" {
-		if idClaims == nil {
-			slog.Warn("audit login", "outcome", "missing_id_token", "client_id", p.ClientID, "resource", p.Resource)
-			back(url.Values{
-				"error":             {"server_error"},
-				"error_description": {"upstream identity token missing"},
-			})
-			return
-		}
 		nonceClaim, _ := idClaims["nonce"].(string)
 		if nonceClaim == "" || subtle.ConstantTimeCompare([]byte(nonceClaim), []byte(p.EntraNonce)) != 1 {
 			slog.Warn("audit login", "outcome", "nonce_mismatch", "client_id", p.ClientID, "resource", p.Resource)
@@ -597,11 +595,6 @@ func (g *Gateway) callbackHandler(w http.ResponseWriter, r *http.Request) {
 
 	navIdent := ""
 	extractIdentityFromClaims(idClaims, &navIdent)
-	if at != "" {
-		if atClaims, parseErr := parseJWTClaims(at); parseErr == nil {
-			extractIdentityFromClaims(atClaims, &navIdent)
-		}
-	}
 	if navIdent == "" {
 		slog.Warn("audit login", "outcome", "missing_navident", "client_id", p.ClientID, "resource", p.Resource)
 		back(url.Values{
