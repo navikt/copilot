@@ -17,6 +17,7 @@ func setBaseValidEnv(t *testing.T) {
 	t.Setenv("AZURE_APP_CLIENT_ID", "entra-client-id")
 	t.Setenv("AZURE_APP_CLIENT_SECRET", "entra-client-secret")
 	t.Setenv("AZURE_OPENID_CONFIG_TOKEN_ENDPOINT", "https://login.microsoftonline.com/nav.no/oauth2/v2.0/token")
+	t.Setenv("AZURE_OPENID_CONFIG_ISSUER", "https://login.microsoftonline.com/tenant/v2.0")
 	t.Setenv("AZURE_APP_WELL_KNOWN_URL", "https://login.microsoftonline.com/nav.no/v2.0/.well-known/openid-configuration")
 	t.Setenv("AZURE_OPENID_CONFIG_AUTHORIZATION_ENDPOINT", "")
 	t.Setenv("COOKIE_SIGNING_SECRET", "")
@@ -88,6 +89,11 @@ func TestLoadConfig_FailClosed(t *testing.T) {
 			name:      "missing azure token endpoint fails closed",
 			override:  map[string]string{"AZURE_OPENID_CONFIG_TOKEN_ENDPOINT": ""},
 			wantError: "invalid AZURE_OPENID_CONFIG_TOKEN_ENDPOINT",
+		},
+		{
+			name:      "missing azure issuer fails closed",
+			override:  map[string]string{"AZURE_OPENID_CONFIG_ISSUER": ""},
+			wantError: "invalid AZURE_OPENID_CONFIG_ISSUER",
 		},
 		{
 			name: "missing both well-known and authorize endpoint fails closed",
