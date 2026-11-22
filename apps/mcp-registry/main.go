@@ -33,6 +33,11 @@ func main() {
 		slog.Error("Server startup failed - invalid allowlist.json", "error", err)
 		os.Exit(1)
 	}
+	fleet, err := fleetControlFromEnv()
+	if err != nil {
+		slog.Error("Server startup failed - invalid fleet-control config", "error", err)
+		os.Exit(1)
+	}
 
 	// Initialize OTel tracing. Reads OTEL_EXPORTER_OTLP_ENDPOINT injected by
 	// Nais (runtime: sdk); a no-op without it.
@@ -70,6 +75,14 @@ func main() {
 		slog.Warn("ALLOWED_WRITE_AZP resolves to no client ids: every write is rejected")
 	}
 	store := NewStore(config, "allowlist.json", loader)
+	store.fleet = fleet
+	if fleet != nil {
+		// allowlist.json, loaded by NewStore, serves until the first good snapshot.
+		if err := store.Reload(sigCtx); err != nil {
+			slog.Warn("Initial reload failed", "error", err)
+		}
+		store.StartRefresher(sigCtx, fleetControlSyncInterval)
+	}
 	if loader != nil {
 		go func() {
 			opened, err := connectWithRetry(sigCtx, func(ctx context.Context) (*DB, error) {
@@ -83,7 +96,9 @@ func main() {
 			if err := store.Reload(sigCtx); err != nil {
 				slog.Warn("Initial database reload failed, serving static entries only", "error", err)
 			}
-			store.StartRefresher(sigCtx, 60*time.Second)
+			if fleet == nil {
+				store.StartRefresher(sigCtx, 60*time.Second)
+			}
 			retentionTicker := time.NewTicker(time.Hour)
 			defer retentionTicker.Stop()
 			runRetention(sigCtx, opened, retentionTicker.C)

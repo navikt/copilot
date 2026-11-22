@@ -28,10 +28,14 @@ type EntryLoader func(ctx context.Context) ([]DBEntry, error)
 // It keeps the last good static set and the last good DB set independently, so
 // a failure on one side never drops the other.
 type Store struct {
-	mu            sync.RWMutex
+	mu sync.RWMutex
+	// reloadMu serialises Reload: the refresher and the post-connect reload
+	// overlap, and an older fetch must not apply after a newer one (#2641).
+	reloadMu      sync.Mutex
 	allowlistPath string
 	config        *Config
 	loader        EntryLoader
+	fleet         *fleetControlRegistry // nil: static entries come from allowlistPath only
 	static        []ServerResponse
 	staticNames   map[string]bool
 	dbServers     []ServerResponse
@@ -59,7 +63,16 @@ func (s *Store) loadStatic() ([]ServerResponse, map[string]bool, error) {
 	if err != nil {
 		return nil, nil, fmt.Errorf("reading static allowlist file: %w", err)
 	}
+	fileInfo, err := os.Stat(s.allowlistPath)
+	if err != nil {
+		return nil, nil, fmt.Errorf("getting file info for static allowlist: %w", err)
+	}
+	return s.parseStatic(data, fileInfo.ModTime().UTC())
+}
 
+// parseStatic validates and converts an allowlist document, from the file or
+// from a fleet-control snapshot (#2641).
+func (s *Store) parseStatic(data []byte, updatedAt time.Time) ([]ServerResponse, map[string]bool, error) {
 	// Same validation as startup, so a bad file never replaces the last good set.
 	raw, err := decodeStaticRegistry(data)
 	if err != nil {
@@ -73,11 +86,6 @@ func (s *Store) loadStatic() ([]ServerResponse, map[string]bool, error) {
 		data = substituteVariables(data, s.config)
 	}
 
-	fileInfo, err := os.Stat(s.allowlistPath)
-	if err != nil {
-		return nil, nil, fmt.Errorf("getting file info for static allowlist: %w", err)
-	}
-
 	staticData, err := decodeStaticRegistry(data)
 	if err != nil {
 		return nil, nil, fmt.Errorf("parsing static allowlist JSON: %w", err)
@@ -88,7 +96,6 @@ func (s *Store) loadStatic() ([]ServerResponse, map[string]bool, error) {
 		}
 	}
 
-	updatedAt := fileInfo.ModTime().UTC()
 	servers := make([]ServerResponse, 0, len(staticData.Servers))
 	names := make(map[string]bool, len(staticData.Servers))
 
@@ -140,8 +147,17 @@ func serverToResponse(s StaticServerData, defaultUpdatedAt time.Time) ServerResp
 // On a static load error the last good static set is kept; on a DB error the
 // last good DB set is kept. The DB error is returned.
 func (s *Store) Reload(ctx context.Context) error {
-	staticServers, staticNames, staticErr := s.loadStatic()
-	if staticErr != nil {
+	s.reloadMu.Lock()
+	defer s.reloadMu.Unlock()
+	var staticServers []ServerResponse
+	var staticNames map[string]bool
+	var staticErr error
+	if s.fleet != nil {
+		staticServers, staticNames, staticErr = s.fleet.load(ctx, s.parseStatic)
+	} else {
+		staticServers, staticNames, staticErr = s.loadStatic()
+	}
+	if staticErr != nil && !errors.Is(staticErr, errNotModified) { // 304 keeps s.static silently
 		slog.Error("Failed to load static allowlist, keeping last good set", "error", staticErr)
 	}
 

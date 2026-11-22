@@ -45,6 +45,15 @@ spec:
         groups:
           - id: "{{admin_group_id}}"
   env:
+    {{#if registry_source}}
+    # Static entries from fleet-control (#2641); allowlist.json serves until the first good snapshot.
+    - name: REGISTRY_SOURCE
+      value: "{{registry_source}}"
+    - name: FLEET_CONTROL_URL
+      value: "http://fleet-control"
+    - name: FLEET_CONTROL_AUDIENCE
+      value: "api://{{cluster}}.copilot.fleet-control/.default"
+    {{/if}}
     - name: ADMIN_GROUP_ID
       value: "{{admin_group_id}}"
     # Only my-copilot may write. Resolved to its client id through
@@ -68,6 +77,11 @@ spec:
       rules:
         - application: my-copilot
           namespace: copilot
+    {{#if registry_source}}
+    outbound:
+      rules:
+        - application: fleet-control
+    {{/if}}
   ingresses:
   {{#each ingresses as |url|}}
     - {{url}}
