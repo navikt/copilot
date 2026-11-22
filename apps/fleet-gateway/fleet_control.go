@@ -78,7 +78,7 @@ func (f *fleetControlRoutes) m2mToken(ctx context.Context) (string, error) {
 
 // fetch returns the validated routes, or nil routes and no error when the
 // snapshot is unchanged (304). Any error means: keep what you have.
-func (f *fleetControlRoutes) fetch(ctx context.Context) ([]PilotRoute, error) {
+func (f *fleetControlRoutes) fetch(ctx context.Context, current *RouteTable) ([]PilotRoute, error) {
 	token, err := f.m2mToken(ctx)
 	if err != nil {
 		return nil, err
@@ -116,6 +116,9 @@ func (f *fleetControlRoutes) fetch(ctx context.Context) ([]PilotRoute, error) {
 	if snap.SchemaVersion != 1 {
 		return nil, fmt.Errorf("unsupported snapshot schema_version %d", snap.SchemaVersion)
 	}
+	if f.generation > 0 && snap.Generation == f.generation && resp.Header.Get("ETag") != f.etag {
+		return nil, fmt.Errorf("snapshot generation %d changed body without a new generation", snap.Generation)
+	}
 	if snap.Generation < f.generation {
 		return nil, fmt.Errorf("snapshot generation %d is older than %d", snap.Generation, f.generation)
 	}
@@ -136,8 +139,24 @@ func (f *fleetControlRoutes) fetch(ctx context.Context) ([]PilotRoute, error) {
 	if err != nil {
 		return nil, err
 	}
+	byPath := make(map[string]bool, len(routes))
 	for i := range routes {
 		routes[i].FullRouteID = f.cfg.BaseURL + routes[i].Route
+		byPath[routes[i].Route] = true
+	}
+	// The primary resource is the token audience in PRM: never move it to another route.
+	if _, ok := (&RouteTable{Routes: routes}).routeByResource(current.PrimaryResource); !ok {
+		return nil, fmt.Errorf("snapshot drops the primary resource %q", current.PrimaryResource)
+	}
+	// Same shrink rule as fleet-control, as defence in depth.
+	removed := 0
+	for _, r := range current.Routes {
+		if !byPath[r.Route] {
+			removed++
+		}
+	}
+	if limit := max(3, len(current.Routes)/5); removed > limit {
+		return nil, fmt.Errorf("snapshot would drop %d of %d routes (limit %d)", removed, len(current.Routes), limit)
 	}
 	f.etag = resp.Header.Get("ETag")
 	f.generation = snap.Generation
@@ -148,7 +167,7 @@ func (f *fleetControlRoutes) fetch(ctx context.Context) ([]PilotRoute, error) {
 func (g *Gateway) syncRoutes(ctx context.Context, f *fleetControlRoutes) {
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
-	routes, err := f.fetch(ctx)
+	routes, err := f.fetch(ctx, g.table())
 	if err != nil {
 		routeSyncFailures.Inc()
 		slog.Warn("fleet-control routes not updated, keeping current table", "error", err, "routes", len(g.table().Routes))
@@ -157,7 +176,9 @@ func (g *Gateway) syncRoutes(ctx context.Context, f *fleetControlRoutes) {
 	if routes == nil {
 		return
 	}
-	g.routeTable.Store(newRouteTable(&Config{Routes: routes}))
+	rt := newRouteTable(&Config{Routes: routes})
+	rt.PrimaryResource = g.table().PrimaryResource // fetch checked it is in routes
+	g.routeTable.Store(rt)
 	routesLoaded.Set(float64(len(routes)))
 	slog.Info("route table loaded from fleet-control", "routes", len(routes), "generation", f.generation)
 }

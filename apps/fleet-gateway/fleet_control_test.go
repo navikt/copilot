@@ -28,12 +28,21 @@ func snapRoute(name string) map[string]any {
 	}
 }
 
+// primaryRoute is newTestEnv's only route, so its primary resource.
+func primaryRoute() map[string]any {
+	return map[string]any{
+		"namespace": "team-etterlevelse", "name": "etterlevelse", "path": "/mcp/team-etterlevelse/etterlevelse",
+		"target": "dev-gcp:team-etterlevelse:nav-etterlevelse-mcp", "upstream_url": "http://nav-etterlevelse-mcp.team-etterlevelse",
+		"enabled": true, "tools": []string{"whoami"},
+	}
+}
+
 func snapBody(gen int, routes ...map[string]any) map[string]any {
 	return map[string]any{"schema_version": 1, "generation": gen, "routes": routes}
 }
 
 func newFakeFleetControl(t *testing.T) *fakeFleetControl {
-	f := &fakeFleetControl{texasStatus: http.StatusOK, status: http.StatusOK, etag: `"e1"`, body: snapBody(1, snapRoute("alpha"), snapRoute("beta"))}
+	f := &fakeFleetControl{texasStatus: http.StatusOK, status: http.StatusOK, etag: `"e1"`, body: snapBody(1, primaryRoute(), snapRoute("alpha"), snapRoute("beta"))}
 	f.srv = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		f.requests.Add(1)
 		switch r.URL.Path {
@@ -89,7 +98,7 @@ func TestRouteSyncSwapsThenHonoursETag(t *testing.T) {
 	gw, src := fleetControlGateway(t, f)
 
 	gw.syncRoutes(context.Background(), src)
-	if got := routePaths(gw); len(got) != 2 || got[0] != "/mcp/copilot/alpha" {
+	if got := routePaths(gw); len(got) != 3 || got[1] != "/mcp/copilot/alpha" {
 		t.Fatalf("routes after first sync = %v", got)
 	}
 	if _, ok := gw.table().routeByResource(gw.cfg.BaseURL + "/mcp/copilot/beta"); !ok {
@@ -101,7 +110,7 @@ func TestRouteSyncSwapsThenHonoursETag(t *testing.T) {
 	if f.lastINM != `"e1"` {
 		t.Fatalf("If-None-Match = %q, want the stored ETag", f.lastINM)
 	}
-	if got := routePaths(gw); len(got) != 2 {
+	if got := routePaths(gw); len(got) != 3 {
 		t.Fatalf("304 changed the table: %v", got)
 	}
 }
@@ -116,20 +125,24 @@ func TestRouteSyncFailsClosed(t *testing.T) {
 
 	cases := map[string]func(f *fakeFleetControl){
 		"empty snapshot":      func(f *fakeFleetControl) { f.body = snapBody(2) },
-		"invalid upstream":    func(f *fakeFleetControl) { f.body = snapBody(2, snapRoute("alpha"), bad) },
-		"route without tools": func(f *fakeFleetControl) { f.body = snapBody(2, snapRoute("alpha"), noTools) },
-		"path mismatch":       func(f *fakeFleetControl) { f.body = snapBody(2, snapRoute("alpha"), pathMismatch) },
-		"older generation":    func(f *fakeFleetControl) { f.body = snapBody(0, snapRoute("alpha")) },
+		"invalid upstream":    func(f *fakeFleetControl) { f.body = snapBody(2, primaryRoute(), snapRoute("alpha"), bad) },
+		"route without tools": func(f *fakeFleetControl) { f.body = snapBody(2, primaryRoute(), snapRoute("alpha"), noTools) },
+		"path mismatch":       func(f *fakeFleetControl) { f.body = snapBody(2, primaryRoute(), snapRoute("alpha"), pathMismatch) },
+		"older generation":    func(f *fakeFleetControl) { f.body = snapBody(0, primaryRoute(), snapRoute("alpha")) },
 		"unknown schema": func(f *fakeFleetControl) {
 			f.body = map[string]any{"schema_version": 2, "generation": 2, "routes": []any{snapRoute("alpha")}}
 		},
 		"fleet-control down": func(f *fakeFleetControl) {
-			f.status, f.body = http.StatusServiceUnavailable, snapBody(2, snapRoute("zeta"))
+			f.status, f.body = http.StatusServiceUnavailable, snapBody(2, primaryRoute(), snapRoute("zeta"))
 		},
 		"texas down": func(f *fakeFleetControl) {
-			f.texasStatus, f.body = http.StatusInternalServerError, snapBody(2, snapRoute("zeta"))
+			f.texasStatus, f.body = http.StatusInternalServerError, snapBody(2, primaryRoute(), snapRoute("zeta"))
 		},
-		"malformed json": func(f *fakeFleetControl) { f.body = "not an object" },
+		"primary removed": func(f *fakeFleetControl) {
+			f.body = map[string]any{"schema_version": 1, "generation": 2, "routes": []any{snapRoute("alpha"), snapRoute("beta")}}
+		},
+		"same generation, new body": func(f *fakeFleetControl) { f.body = snapBody(1, primaryRoute(), snapRoute("alpha")) },
+		"malformed json":            func(f *fakeFleetControl) { f.body = "not an object" },
 	}
 	for name, breakIt := range cases {
 		t.Run(name, func(t *testing.T) {
@@ -172,5 +185,39 @@ func TestRouteSyncFlagOffMakesNoRequest(t *testing.T) {
 	}
 	if gw.table() != before {
 		t.Fatal("ROUTES_SOURCE=git changed the route table")
+	}
+}
+
+func TestRouteSyncReorderKeepsPrimary(t *testing.T) {
+	f := newFakeFleetControl(t)
+	gw, src := fleetControlGateway(t, f)
+	primary := gw.table().PrimaryResource
+	f.body = map[string]any{"schema_version": 1, "generation": 1, "routes": []any{snapRoute("beta"), snapRoute("alpha"), primaryRoute()}}
+	gw.syncRoutes(context.Background(), src)
+	if got := routePaths(gw); len(got) != 3 || got[0] != "/mcp/copilot/beta" {
+		t.Fatalf("reordered snapshot not applied: %v", got)
+	}
+	if gw.table().PrimaryResource != primary {
+		t.Fatalf("primary resource = %q, want %q", gw.table().PrimaryResource, primary)
+	}
+}
+
+func TestRouteSyncRejectsLargeShrink(t *testing.T) {
+	f := newFakeFleetControl(t)
+	gw, src := fleetControlGateway(t, f)
+	many := []map[string]any{primaryRoute()}
+	for _, n := range []string{"a", "b", "c", "d", "e", "g", "h", "i"} {
+		many = append(many, snapRoute(n))
+	}
+	f.body = map[string]any{"schema_version": 1, "generation": 1, "routes": many}
+	gw.syncRoutes(context.Background(), src)
+	good := routePaths(gw)
+	if len(good) != 9 {
+		t.Fatalf("setup: %v", good)
+	}
+	f.body, f.etag = map[string]any{"schema_version": 1, "generation": 2, "routes": many[:5]}, `"e2"` // drops 4 of 9, limit 3
+	gw.syncRoutes(context.Background(), src)
+	if got := routePaths(gw); !slices.Equal(got, good) {
+		t.Fatalf("shrinking snapshot applied: %v", got)
 	}
 }
