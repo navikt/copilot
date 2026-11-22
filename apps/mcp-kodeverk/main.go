@@ -137,30 +137,13 @@ func (s *server) readyHandler(w http.ResponseWriter, _ *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ready"})
 }
 
+// mcpHandler builds the middleware per request, since s.texas reads s.cfg on each call.
 func (s *server) mcpHandler(w http.ResponseWriter, r *http.Request) {
-	token, ok := mcpkit.BearerToken(r.Header.Get("Authorization"))
-	if !ok {
-		mcpkit.SetChallenge(w, serverName, false)
-		writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "unauthorized", "message": "missing or malformed bearer token"})
-		return
-	}
+	mcpkit.RequireBearerToken(s.texas().Verifier(), &mcpkit.RequireBearerTokenOptions{Realm: serverName})(http.HandlerFunc(s.serveMCP)).ServeHTTP(w, r)
+}
 
-	_, err := s.texas().Introspect(r.Context(), token)
-	if err != nil {
-		switch {
-		case errors.Is(err, mcpkit.ErrUnauthorized):
-			mcpkit.SetChallenge(w, serverName, true)
-			writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "invalid_token", "message": err.Error()})
-		case errors.Is(err, mcpkit.ErrForbidden):
-			writeJSON(w, http.StatusForbidden, map[string]string{"error": "forbidden", "message": err.Error()})
-		case errors.Is(err, mcpkit.ErrNotConfigured):
-			writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "unavailable", "message": "authentication is not configured"})
-		default:
-			slog.Warn("texas introspection failed", "method", sanitizeLogValue(r.Method), "path", sanitizeLogValue(r.URL.Path), "error", sanitizeLogValue(err.Error()))
-			writeJSON(w, http.StatusBadGateway, map[string]string{"error": "introspection_failed", "message": "failed to validate token"})
-		}
-		return
-	}
+func (s *server) serveMCP(w http.ResponseWriter, r *http.Request) {
+	token, _ := mcpkit.TokenInfoFromContext(r.Context()).Extra["token"].(string)
 
 	if r.Method != http.MethodPost {
 		w.Header().Set("Allow", http.MethodPost)
@@ -292,12 +275,6 @@ func (s *server) serveModern(w http.ResponseWriter, r *http.Request, env mcpkit.
 		"id":      rpcID,
 		"result":  mcpkit.ModernResult(result, serverName, serverVersion, extra),
 	})
-}
-
-func sanitizeLogValue(s string) string {
-	s = strings.ReplaceAll(s, "\n", "")
-	s = strings.ReplaceAll(s, "\r", "")
-	return s
 }
 
 func writeJSON(w http.ResponseWriter, status int, payload any) {

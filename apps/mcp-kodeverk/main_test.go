@@ -52,6 +52,7 @@ func defaultTexasHandler(oboToken string) http.HandlerFunc {
 		case "/introspect":
 			writeJSON(w, http.StatusOK, map[string]any{
 				"active":   true,
+				"exp":      4102444800,
 				"idtyp":    "user",
 				"NAVident": "Z123456",
 				"azp":      "gw-client-123",
@@ -288,31 +289,31 @@ func TestAuthValidation(t *testing.T) {
 		{
 			name:       "app token idtyp=app rejected",
 			authHeader: "Bearer tok-app",
-			claims:     map[string]any{"active": true, "idtyp": "app", "NAVident": "Z123456", "azp": "gw-client-123"},
+			claims:     map[string]any{"active": true, "exp": 4102444800, "idtyp": "app", "NAVident": "Z123456", "azp": "gw-client-123"},
 			wantStatus: http.StatusForbidden,
 		},
 		{
 			name:       "app token access_as_application role rejected",
 			authHeader: "Bearer tok-role",
-			claims:     map[string]any{"active": true, "roles": []string{"access_as_application"}, "NAVident": "Z123456", "azp": "gw-client-123"},
+			claims:     map[string]any{"active": true, "exp": 4102444800, "roles": []string{"access_as_application"}, "NAVident": "Z123456", "azp": "gw-client-123"},
 			wantStatus: http.StatusForbidden,
 		},
 		{
 			name:       "missing NAVident rejected",
 			authHeader: "Bearer tok-no-navident",
-			claims:     map[string]any{"active": true, "idtyp": "user", "azp": "gw-client-123"},
+			claims:     map[string]any{"active": true, "exp": 4102444800, "idtyp": "user", "azp": "gw-client-123"},
 			wantStatus: http.StatusForbidden,
 		},
 		{
 			name:       "wrong azp rejected",
 			authHeader: "Bearer tok-wrong-azp",
-			claims:     map[string]any{"active": true, "idtyp": "user", "NAVident": "Z123456", "azp": "other-client"},
+			claims:     map[string]any{"active": true, "exp": 4102444800, "idtyp": "user", "NAVident": "Z123456", "azp": "other-client"},
 			wantStatus: http.StatusForbidden,
 		},
 		{
 			name:       "empty gateway client id fails closed",
 			authHeader: "Bearer tok-no-gw",
-			claims:     map[string]any{"active": true, "idtyp": "user", "NAVident": "Z123456", "azp": "gw-client-123"},
+			claims:     map[string]any{"active": true, "exp": 4102444800, "idtyp": "user", "NAVident": "Z123456", "azp": "gw-client-123"},
 			gwID:       "NONE",
 			wantStatus: http.StatusServiceUnavailable,
 		},
@@ -356,6 +357,7 @@ func TestOBOExchangeAndHeaders(t *testing.T) {
 		case "/introspect":
 			writeJSON(w, http.StatusOK, map[string]any{
 				"active":   true,
+				"exp":      4102444800,
 				"idtyp":    "user",
 				"NAVident": "Z123456",
 				"azp":      "gw-client-123",
@@ -889,6 +891,7 @@ func TestTexasExchangeErrorDoesNotLeakBodyOrToken(t *testing.T) {
 		case "/introspect":
 			writeJSON(w, http.StatusOK, map[string]any{
 				"active":   true,
+				"exp":      4102444800,
 				"idtyp":    "user",
 				"NAVident": "Z123456",
 				"azp":      "gw-client-123",

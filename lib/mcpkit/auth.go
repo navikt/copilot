@@ -47,6 +47,7 @@ type introspectionClaims struct {
 	Roles    []string `json:"roles,omitempty"`
 	NAVident string   `json:"NAVident,omitempty"`
 	Azp      string   `json:"azp,omitempty"`
+	Exp      int64    `json:"exp,omitempty"`
 }
 
 // ValidateHTTPURL checks that raw is an absolute http or https URL with a host.
@@ -117,8 +118,16 @@ func BearerToken(authHeader string) (string, bool) {
 // App tokens, tokens without NAVident and tokens whose azp is not the
 // gateway are ErrForbidden.
 func (t *Texas) Introspect(ctx context.Context, token string) (string, error) {
+	c, err := t.introspect(ctx, token)
+	if err != nil {
+		return "", err
+	}
+	return c.NAVident, nil
+}
+
+func (t *Texas) introspect(ctx context.Context, token string) (*introspectionClaims, error) {
 	if t == nil || t.HTTPClient == nil || t.IntrospectionEndpoint == "" || t.GatewayClientID == "" {
-		return "", ErrNotConfigured
+		return nil, ErrNotConfigured
 	}
 
 	payload, err := json.Marshal(struct {
@@ -129,51 +138,52 @@ func (t *Texas) Introspect(ctx context.Context, token string) (string, error) {
 		Token:            token,
 	})
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, t.IntrospectionEndpoint, bytes.NewReader(payload))
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Accept", "application/json")
 
 	resp, err := t.HTTPClient.Do(req) //nolint:gosec // endpoint validated at startup
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("texas returned status %d", resp.StatusCode)
+		return nil, fmt.Errorf("texas returned status %d", resp.StatusCode)
 	}
 
 	body, err := ReadLimited(resp.Body, maxTexasRespBytes)
 	if err != nil {
-		return "", fmt.Errorf("read texas introspection response: %w", err)
+		return nil, fmt.Errorf("read texas introspection response: %w", err)
 	}
 
 	var raw introspectionClaims
 	if err := json.Unmarshal(body, &raw); err != nil {
-		return "", fmt.Errorf("decode texas response: %w", err)
+		return nil, fmt.Errorf("decode texas response: %w", err)
 	}
 
 	if !raw.Active {
-		return "", ErrUnauthorized
+		return nil, ErrUnauthorized
 	}
 	if strings.EqualFold(raw.Idtyp, "app") || slices.Contains(raw.Roles, "access_as_application") {
-		return "", ErrForbidden
+		return nil, ErrForbidden
 	}
 	navIdent := strings.TrimSpace(raw.NAVident)
 	if navIdent == "" {
-		return "", ErrForbidden
+		return nil, ErrForbidden
 	}
 	if subtle.ConstantTimeCompare([]byte(raw.Azp), []byte(t.GatewayClientID)) != 1 {
-		return "", ErrForbidden
+		return nil, ErrForbidden
 	}
 
-	return navIdent, nil
+	raw.NAVident = navIdent
+	return &raw, nil
 }
 
 // ExchangeError is an OBO failure. Its message never carries a token or a

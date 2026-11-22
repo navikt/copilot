@@ -33,7 +33,7 @@ func strictTexas(next http.HandlerFunc) http.HandlerFunc {
 			}
 			_ = json.NewDecoder(r.Body).Decode(&in)
 			if in.Token == "app-token" {
-				writeJSON(w, http.StatusOK, map[string]any{"active": true, "idtyp": "app", "azp": "gw-client-123"})
+				writeJSON(w, http.StatusOK, map[string]any{"active": true, "exp": 4102444800, "idtyp": "app", "azp": "gw-client-123"})
 				return
 			}
 			if in.Token != "test-token" {

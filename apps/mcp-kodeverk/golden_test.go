@@ -26,7 +26,7 @@ func goldenTexas(w http.ResponseWriter, r *http.Request) {
 		UserToken string `json:"user_token"`
 	}
 	_ = json.NewDecoder(r.Body).Decode(&in)
-	claims := map[string]any{"active": true, "idtyp": "user", "NAVident": "Z123456", "azp": "gw-client-123"}
+	claims := map[string]any{"active": true, "exp": 4102444800, "idtyp": "user", "NAVident": "Z123456", "azp": "gw-client-123"}
 	switch r.URL.Path {
 	case "/introspect":
 		switch in.Token {
