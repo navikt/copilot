@@ -332,8 +332,8 @@ func TestRealPostgresRollbackSkipsUnapprovedAndBlocked(t *testing.T) {
 		if saveErr != nil {
 			t.Fatal(saveErr)
 		}
-		if err := db.Approve(ctx, "A222222", "team-a", "rb", v, "h"); err != nil {
-			t.Fatal(err)
+		if approveErr := db.Approve(ctx, "A222222", "team-a", "rb", v, "h"); approveErr != nil {
+			t.Fatal(approveErr)
 		}
 		return v
 	}
