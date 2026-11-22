@@ -25,6 +25,7 @@ const TOC: TocItem[] = [
   { id: "copilot-cli", label: "Copilot CLI" },
   { id: "pi", label: "pi" },
   { id: "kjente-hull", label: "Kjente mangler i opencode" },
+  { id: "github-klienter", label: "GitHubs egne klienter" },
 ];
 
 const GH = "https://github.com/navikt/copilot";
@@ -143,6 +144,37 @@ const PARITY: { what: ReactNode; copilot: string; opencode: string; pi: string; 
     note: "nav-pilot advarer ved oppstart i opencode.",
   },
   { what: "Utvidelser (extensions)", copilot: "Ja", opencode: "Nei", pi: "Nei" },
+];
+
+// Flyttet fra docs/CLIENT-SUPPORT-MATRIX.md (sist sjekket 2026-06-30) mot
+// https://docs.github.com/en/copilot/reference/custom-instructions-support.
+const GH_CLIENTS = ["VS Code", "JetBrains", "github.com", "Copilot CLI", "Visual Studio", "Eclipse", "Xcode"];
+const GH_MATRIX: { type: string; cells: string[] }[] = [
+  {
+    type: "copilot-instructions.md",
+    cells: ["Chat og agent", "Chat og agent", "Chat, agent og review", "Ja", "Chat", "Chat og agent", "Chat og agent"],
+  },
+  {
+    type: "*.instructions.md",
+    cells: ["Chat og agent", "Chat og agent", "Agent og review", "Ja", "Chat", "Bare agent", "Chat og agent"],
+  },
+  { type: "AGENTS.md", cells: ["Chat og agent", "Agent", "Agent", "Ja", "Nei", "Bare agent", "Agent"] },
+  {
+    type: "Agenter (.agent.md)",
+    cells: ["Chat og agent", "Chat og agent", "Agent", "/agent", "Nei", "Delvis, agent", "Delvis, agent"],
+  },
+  { type: "Prompts (.prompt.md)", cells: ["/navn", "/navn", "Nei", "Nei", "/navn", "Nei", "Nei"] },
+  { type: "Skills (SKILL.md)", cells: ["Ja", "Forhåndsversjon", "Coding agent", "/skills", "Nei", "Nei", "Nei"] },
+  {
+    type: "MCP-servere",
+    cells: [".vscode/mcp.json", ".idea/mcp.json", "Organisasjonen", "copilot mcp", "Ja", "Nei", "Nei"],
+  },
+  { type: "Instruksjoner for organisasjonen", cells: ["Nei", "Nei", "Ja", "Nei", "Ja", "Nei", "Nei"] },
+  { type: "Personlige instruksjoner", cells: ["Ja", "Ja", "Chat", "Nei", "Ja", "Nei", "Nei"] },
+  {
+    type: "Copilot Memory",
+    cells: ["Bruker, repo og sesjon", "Nei", "Repo", "Repo", "Nei", "Nei", "Nei"],
+  },
 ];
 
 function Mark({ v }: { v: string }) {
@@ -609,6 +641,66 @@ export default function Klienter() {
             opencode-hooks.md
           </a>
           .
+        </BodyShort>
+      </Section>
+      <Section>
+        <LinkableHeading id="github-klienter" size="medium" level="2">
+          GitHubs egne klienter
+        </LinkableHeading>
+        <BodyLong>
+          Agentpakka er vanlige filer, så den virker også uten nav-pilot. Tabellen viser hvilke artefakttyper GitHubs
+          klienter leser. «Agent» betyr Copilot coding agent, «chat» betyr Copilot Chat.
+        </BodyLong>
+        <div className="overflow-x-auto" role="region" tabIndex={0} aria-labelledby="github-klienter-tabell">
+          <Table size="small">
+            <caption id="github-klienter-tabell" className="sr-only">
+              Artefakttyper og hvilke av GitHubs klienter som leser dem
+            </caption>
+            <HeaderRow cells={["Type", ...GH_CLIENTS]} />
+            <TableBody>
+              {GH_MATRIX.map((r) => (
+                <TableRow key={r.type}>
+                  <TableHeaderCell scope="row" className="whitespace-nowrap">
+                    {r.type}
+                  </TableHeaderCell>
+                  {r.cells.map((v, j) => (
+                    <TableDataCell key={j} className="whitespace-nowrap">
+                      <Mark v={v} />
+                    </TableDataCell>
+                  ))}
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+        <LinkableHeading id="installere-i-github-klienter" size="small" level="3">
+          Slik installerer du
+        </LinkableHeading>
+        <Bullets>
+          <li>
+            Agenter, instruksjoner og prompts er enkeltfiler. Kopier fila til {c(".github/agents/")},{" "}
+            {c(".github/instructions/")} eller {c(".github/prompts/")} i repoet.
+          </li>
+          <li>
+            En skill er en mappe med {c("SKILL.md")} og eventuelle støttefiler, for eksempel {c("references/")}. Kopier
+            hele mappa til {c(".github/skills/<navn>/")}. Coding agent ser bare filer som ligger i repoet.
+          </li>
+          <li>
+            Personlige skills som gjelder i alle repoer, legger du i {c("~/.copilot/skills/")} (VS Code og Copilot CLI).
+            I JetBrains må skills slås på under Settings &gt; GitHub Copilot &gt; Chat &gt; Agent.
+          </li>
+          <li>
+            MCP-servere: {c(".vscode/mcp.json")} eller {c(".idea/mcp.json")} i repoet, {c("copilot mcp add")} i Copilot
+            CLI. Copilot CLI sjekker ikke innebygde servere mot enterprise-lista over tillatte MCP-servere, og en server
+            du kobler til, overstyrer ikke {c("tools")}-lista i en agent.
+          </li>
+        </Bullets>
+        <BodyShort size="small" textColor="subtle">
+          Kilde:{" "}
+          <a href="https://docs.github.com/en/copilot/reference/custom-instructions-support" className={linkClass}>
+            GitHubs støttetabell for tilpasninger
+          </a>
+          , sist sjekket 30. juni 2026.
         </BodyShort>
       </Section>
     </DocPage>
