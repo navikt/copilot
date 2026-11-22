@@ -183,7 +183,7 @@ spec:
       memory: "512Mi"
     requests:
       cpu: "10m"
-      memory: "128Mi"
+      memory: "{{memory_request}}"
 
   accessPolicy:
     outbound:
