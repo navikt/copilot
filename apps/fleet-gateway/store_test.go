@@ -580,6 +580,14 @@ func TestStoreContract_SealedMemory(t *testing.T) {
 
 func newTestPostgresStore(t *testing.T, pgURL string, now func() time.Time, caps map[string]int) SessionStore {
 	t.Helper()
+	return openTestPostgresStore(t, newTestPostgresSchemaURL(t, pgURL), now, caps)
+}
+
+// newTestPostgresSchemaURL creates a throwaway schema and returns pgURL with
+// search_path pointing at it, so a test can open several stores on the same
+// data (a restart).
+func newTestPostgresSchemaURL(t *testing.T, pgURL string) string {
+	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	defer cancel()
 
@@ -611,8 +619,14 @@ func newTestPostgresStore(t *testing.T, pgURL string, now func() time.Time, caps
 	q := u.Query()
 	q.Set("search_path", schema)
 	u.RawQuery = q.Encode()
+	return u.String()
+}
 
-	store, err := newPostgresStore(ctx, u.String(), now, caps)
+func openTestPostgresStore(t *testing.T, schemaURL string, now func() time.Time, caps map[string]int) SessionStore {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	defer cancel()
+	store, err := newPostgresStore(ctx, schemaURL, now, caps)
 	if err != nil {
 		t.Fatalf("newPostgresStore failed: %v", err)
 	}

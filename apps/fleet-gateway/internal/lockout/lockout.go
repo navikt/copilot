@@ -277,20 +277,23 @@ func (m *Manager) appendAudit(ctx context.Context, entry audit.LockoutEntry) err
 }
 
 // DrainAudit logs all pending lockout audit entries and CAS-removes them from
-// the outbox.
-func (m *Manager) DrainAudit(ctx context.Context) {
+// the outbox. It returns how many entries the outbox still holds afterwards, or
+// -1 when the outbox could not be read. The outbox lives in the session store
+// (Postgres in dev and prod), so entries left behind are drained on a later
+// sweep, also after a restart.
+func (m *Manager) DrainAudit(ctx context.Context) int {
 	raw, ok, err := m.store.Get(ctx, session.KindAuditOutbox, AuditOutboxKey)
 	if err != nil {
 		slog.Warn("drain lockout audit outbox failed", "error", err)
-		return
+		return -1
 	}
 	if !ok {
-		return
+		return 0
 	}
 	var entries []audit.LockoutEntry
 	if err = json.Unmarshal(raw, &entries); err != nil {
 		slog.Warn("parse lockout audit outbox failed", "error", err)
-		return
+		return -1
 	}
 	loggedIDs := make(map[string]struct{}, len(entries))
 	for _, e := range entries {
@@ -305,15 +308,15 @@ func (m *Manager) DrainAudit(ctx context.Context) {
 			currentRaw, ok, err = m.store.Get(ctx, session.KindAuditOutbox, AuditOutboxKey)
 			if err != nil {
 				slog.Warn("re-read lockout audit outbox failed", "error", err)
-				return
+				return len(current)
 			}
 			if !ok {
-				return
+				return 0
 			}
 			current = nil
 			if err = json.Unmarshal(currentRaw, &current); err != nil {
 				slog.Warn("parse lockout audit outbox failed", "error", err)
-				return
+				return -1
 			}
 		}
 		remaining := make([]audit.LockoutEntry, 0, len(current))
@@ -323,14 +326,14 @@ func (m *Manager) DrainAudit(ctx context.Context) {
 			}
 		}
 		if len(remaining) == len(current) {
-			return
+			return len(current)
 		}
 		var newVal []byte
 		if len(remaining) > 0 {
 			newVal, err = json.Marshal(remaining)
 			if err != nil {
 				slog.Warn("marshal lockout audit outbox failed", "error", err)
-				return
+				return len(current)
 			}
 		}
 		swapped, casErr := m.store.CompareAndSwap(ctx, session.KindAuditOutbox, AuditOutboxKey, currentRaw, newVal, NoExpiry)
@@ -340,13 +343,14 @@ func (m *Manager) DrainAudit(ctx context.Context) {
 			} else {
 				slog.Warn("update lockout audit outbox failed", "error", casErr)
 			}
-			return
+			return len(current)
 		}
 		if swapped {
-			return
+			return len(remaining)
 		}
 	}
 	slog.Warn("update lockout audit outbox failed", "error", "conflict after retries")
+	return len(current)
 }
 
 // RevokedAt returns the lockout record for navIdent, if any.
