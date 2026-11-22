@@ -1,0 +1,10 @@
+# dev: nais apply -t copilot -e dev-gcp .nais/postgres.yaml (by a human, before the first deploy)
+version: v1
+type: Postgres
+name: fleet-control
+spec:
+  majorVersion: "18"
+  resources:
+    cpu: 100m
+    memory: 512Mi
+    diskSize: 5Gi

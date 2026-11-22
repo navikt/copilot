@@ -49,6 +49,7 @@ jobs:
       mcp-dolly: ${{ steps.reuse.outputs.reuse != 'true' && steps.filter.outputs.mcp-dolly || 'false' }}
       mcp-kodeverk: ${{ steps.reuse.outputs.reuse != 'true' && steps.filter.outputs.mcp-kodeverk || 'false' }}
       mcp-onboarding: ${{ steps.reuse.outputs.reuse != 'true' && steps.filter.outputs.mcp-onboarding || 'false' }}
+      fleet-control: ${{ steps.reuse.outputs.reuse != 'true' && steps.filter.outputs.fleet-control || 'false' }}
       mcp-registry: ${{ steps.reuse.outputs.reuse != 'true' && steps.filter.outputs.mcp-registry || 'false' }}
       mcp-team-catalog: ${{ steps.reuse.outputs.reuse != 'true' && steps.filter.outputs.mcp-team-catalog || 'false' }}
       mcp-compliance: ${{ steps.reuse.outputs.reuse != 'true' && steps.filter.outputs.mcp-compliance || 'false' }}
@@ -130,6 +131,12 @@ jobs:
               - 'apps/copilot-metrics/**'
               - '.github/workflows/copilot-metrics.yaml'
               - '.github/workflows/mise-build-deploy-nais.yaml'
+              - '.github/workflows/ci.yaml'
+            fleet-control:
+              - 'apps/fleet-control/**'
+              # The seed tests read these files.
+              - 'apps/fleet-gateway/pilot-routes.*.yaml'
+              - 'apps/mcp-registry/allowlist.json'
               - '.github/workflows/ci.yaml'
             fleet-gateway:
               - 'apps/fleet-gateway/**'
@@ -510,6 +517,48 @@ jobs:
     defaults:
       run:
         working-directory: apps/mcp-onboarding
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # ratchet:actions/cache@v6.1.0
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+      - uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # ratchet:jdx/mise-action@v5.2.8
+        with:
+          experimental: true
+      - run: mise run install
+      - run: mise run lint
+      - run: mise run check
+
+  fleet-control:
+    name: fleet-control
+    needs: changes
+    if: needs.changes.outputs.fleet-control == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    # The Postgres tests skip without TEST_DATABASE_URL.
+    services:
+      postgres:
+        image: postgres:18@sha256:2ea8630df176ad090ec92136dee850397c5af8781e4bcf2e4162593691c61bbc
+        env:
+          POSTGRES_PASSWORD: test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgres://postgres:test@localhost:5432/postgres?sslmode=disable
+      FLEET_CONTROL_REQUIRE_PG: "1"
+    defaults:
+      run:
+        working-directory: apps/fleet-control
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # ratchet:actions/cache@v6.1.0
@@ -978,6 +1027,7 @@ jobs:
       - copilot-cli
       - copilot-survey
       - copilot-metrics
+      - fleet-control
       - fleet-gateway
       - mcp-dolly
       - mcp-kodeverk

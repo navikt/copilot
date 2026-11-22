@@ -12,6 +12,7 @@ Monorepo for Nav's Copilot ecosystem:
 - `apps/copilot-survey` (Go survey backend)
 - `apps/copilot-metrics` (Go metrics job)
 - `apps/copilot-adoption` (Go adoption scan job)
+- `apps/fleet-control` (Go registry and route control service, dev only)
 - `apps/mcp-onboarding` (Go MCP reference server)
 - `apps/mcp-registry` (Go MCP registry API)
 - `cli/nav-pilot` (Go developer CLI)
