@@ -34,6 +34,9 @@ func TestValidateIDTokenClaims(t *testing.T) {
 		{name: "iat missing", mutate: func(c map[string]any) { delete(c, "iat") }, wantErr: "iat"},
 		{name: "iat future", mutate: func(c map[string]any) { c["iat"] = n + 300 }, wantErr: "iat"},
 		{name: "nbf future", mutate: func(c map[string]any) { c["nbf"] = n + 300 }, wantErr: "not yet valid"},
+		{name: "iat overflow", mutate: func(c map[string]any) { c["iat"] = 9223372000000000000.0 }, wantErr: "iat"},
+		{name: "nbf overflow", mutate: func(c map[string]any) { c["nbf"] = 9223372000000000000.0 }, wantErr: "not yet valid"},
+		{name: "exp overflow", mutate: func(c map[string]any) { c["exp"] = 9223372000000000000.0 }, wantErr: "exp"},
 		{name: "nbf malformed", mutate: func(c map[string]any) { c["nbf"] = "soon" }, wantErr: "not yet valid"},
 	}
 	for _, tc := range cases {

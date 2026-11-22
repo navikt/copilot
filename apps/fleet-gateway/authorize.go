@@ -963,7 +963,8 @@ func validateIDTokenClaims(claims map[string]any, issuer, clientID string, now t
 	}
 	numeric := func(name string) (time.Time, bool) {
 		f, ok := claims[name].(float64)
-		if !ok || f <= 0 {
+		// Upper bound (year 9999) keeps int64 conversion and time math from overflowing.
+		if !ok || f <= 0 || f > 253402300799 {
 			return time.Time{}, false
 		}
 		return time.Unix(int64(f), 0), true
