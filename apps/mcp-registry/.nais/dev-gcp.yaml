@@ -2,7 +2,7 @@ cluster: dev-gcp
 replicas_min: "1"
 replicas_max: "2"
 cpu_threshold: "80"
-cpu_request: 50m
+cpu_request: 20m
 memory_request: 32Mi
 memory_limit: 64Mi
 domain_internal: intern.dev.nav.no
