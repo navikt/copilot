@@ -50,11 +50,13 @@ on:
         default: ''
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 
 jobs:
   sync:
+    permissions:
+      contents: write
+      pull-requests: write
     name: Check for customization updates
     runs-on: ubuntu-latest
     timeout-minutes: 10

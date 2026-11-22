@@ -21,15 +21,17 @@ concurrency:
 
 permissions:
   contents: read
-  id-token: write
-  # Read public npm packages (@nais/apm) from GitHub Packages.
-  packages: read
 
 jobs:
   build:
     # A failing Postgres test stops the deploy.
     needs: db-test
     if: ${{ !cancelled() && needs.db-test.result == 'success' }}
+    permissions:
+      contents: read
+      id-token: write
+      # Read public npm packages (@nais/apm) from GitHub Packages.
+      packages: read
     uses: ./.github/workflows/mise-build-deploy-nais.yaml
     with:
       working-directory: apps/mcp-dolly

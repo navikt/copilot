@@ -42,11 +42,13 @@ on:
         required: false
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
 
 jobs:
   bump:
+    permissions:
+      contents: write
+      pull-requests: write
     name: Bump the reused agentpakke
     runs-on: ubuntu-latest
     timeout-minutes: 10
