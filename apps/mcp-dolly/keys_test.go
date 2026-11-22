@@ -126,6 +126,13 @@ func TestConfirmKeyRotation(t *testing.T) {
 	if err := after.consume(relabel, "u", "p", now); err == nil {
 		t.Fatal("kid swap must not verify")
 	}
+	// Same key material under two kids: only the MAC covering kid rejects a relabel.
+	shared := bytes.Repeat([]byte{5}, minKeyBytes)
+	twin := newOrderConfirm([]signingKey{{"ka", shared}, {"kb", shared}})
+	tokA, _ := twin.issue("u", "p", now)
+	if err := twin.consume("kb"+tokA[len("ka"):], "u", "p", now); err == nil {
+		t.Fatal("kid relabel under shared key material must not verify")
+	}
 }
 
 func TestInMemoryTokensAreBoundToProcess(t *testing.T) {

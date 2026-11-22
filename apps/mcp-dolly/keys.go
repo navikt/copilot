@@ -24,7 +24,8 @@ type signingKey struct {
 }
 
 // serverKeys come from the Nais secret mcp-dolly-keys so every pod signs and
-// verifies with the same material and restarts keep tokens and quota hashes valid.
+// verifies with the same material and quota hashes survive restarts. While the
+// used-token set is in memory, tokens are still bound to the issuing process.
 type serverKeys struct {
 	confirm   []signingKey // newest first: sign with [0], verify with any
 	userHash  []byte
