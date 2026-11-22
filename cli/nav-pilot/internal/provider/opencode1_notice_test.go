@@ -10,8 +10,7 @@ import (
 )
 
 // TestOpenCode1Notice: the opencode 1 nudge is said once a day and once per
-// version, never on opencode 2, and names the date, the one-way migration,
-// the new login, bubblewrap and the install command.
+// version, never on opencode 2, and names the date and the install command.
 func TestOpenCode1Notice(t *testing.T) {
 	t.Setenv("NAV_PILOT_CONFIG", filepath.Join(t.TempDir(), "config.yaml"))
 	t.Cleanup(func() { versionCache.Delete("opencode") })
@@ -34,18 +33,11 @@ func TestOpenCode1Notice(t *testing.T) {
 		return string(out)
 	}
 
-	prevOS := hostOS
-	t.Cleanup(func() { hostOS = prevOS })
-	hostOS = "linux"
 	first := launch("1.18.32\n")
-	for _, want := range []string{"fra 6. desember 2026", "kan ikke angres", "skriver om databasen", "logge inn på nytt", "auth.json", "bubblewrap", OpenCode2InstallHint(), "holder deg på opencode 1"} {
+	for _, want := range []string{"OpenCode 1 support ends on 6 December 2026", OpenCode2InstallHint()} {
 		if !strings.Contains(first, want) {
 			t.Errorf("notice %q lacks %q", first, want)
 		}
-	}
-	hostOS = "darwin"
-	if n := OpenCode1Notice(); n == "" || strings.Contains(n, "bubblewrap") {
-		t.Errorf("macOS notice %q: want one without bubblewrap", n)
 	}
 	if again := launch("1.18.32\n"); again != "" {
 		t.Errorf("same version again: %q, want nothing", again)

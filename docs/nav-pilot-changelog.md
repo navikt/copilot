@@ -6,7 +6,7 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ### Støtten for OpenCode 1 slutter 6. desember 2026
 
-- **OpenCode 1**: nav-pilot støtter ikke OpenCode 1 fra 6. desember 2026, ikke 19. november som varslet før. Meldingen om å oppgradere til OpenCode 2 kommer nå på norsk én gang om dagen, ikke én gang i uka, og viser kommandoen du skal kjøre. Oppstarten stopper ikke. `nav-pilot doctor` viser den samme meldingen (#1934).
+- **OpenCode 1**: nav-pilot støtter ikke OpenCode 1 fra 6. desember 2026, ikke 19. november som varslet før. Meldingen om å oppgradere til OpenCode 2 kommer nå én gang om dagen, ikke én gang i uka, og viser kommandoen du skal kjøre. Oppstarten stopper ikke. `nav-pilot doctor` viser den samme meldingen (#1934).
 
 ## 2026-11-21
 

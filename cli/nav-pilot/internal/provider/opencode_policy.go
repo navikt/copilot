@@ -429,12 +429,11 @@ func warnUntestedOpenCode() {
 		domain.Yellow("⚠"), v, OpenCodeTestedRangeFor(v), domain.Bold("nav-pilot doctor"))
 }
 
-// OpenCode1EndOfSupport is the first day nav-pilot no longer supports
-// opencode 1 (#1934), and OpenCode1EndOfSupportNb the same day as the notice
-// writes it.
+// OpenCode1EndOfSupport is the day nav-pilot stops supporting opencode 1
+// (#1934), and OpenCode1EndOfSupportText the same day as the notice writes it.
 const (
-	OpenCode1EndOfSupport   = "2026-12-06"
-	OpenCode1EndOfSupportNb = "6. desember 2026"
+	OpenCode1EndOfSupport     = "2026-12-06"
+	OpenCode1EndOfSupportText = "6 December 2026"
 )
 
 // OpenCode1Notice is the upgrade nudge for an opencode 1 user, "" on any
@@ -443,13 +442,8 @@ func OpenCode1Notice() string {
 	if openCodeMajor() != 1 {
 		return ""
 	}
-	n := fmt.Sprintf("nav-pilot støtter ikke opencode 1 fra %s. Oppgrader til opencode 2 nå: %s\n"+
-		"  Oppdateringen opencode 1 tilbyr, holder deg på opencode 1. Oppgraderingen kan ikke angres: opencode 2 skriver om databasen. Du må logge inn på nytt (auth.json blir ikke med).",
-		OpenCode1EndOfSupportNb, domain.Bold(OpenCode2InstallHint()))
-	if hostOS == "linux" {
-		n += " På Linux trenger du bubblewrap."
-	}
-	return n
+	return fmt.Sprintf("OpenCode 1 support ends on %s. Upgrade to OpenCode 2: %s",
+		OpenCode1EndOfSupportText, domain.Bold(OpenCode2InstallHint()))
 }
 
 // openCode1Now is the clock the daily opencode 1 hint reads.
