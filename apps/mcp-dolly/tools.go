@@ -188,7 +188,7 @@ func (s *server) askOrderConfirmation(ctx context.Context, inboundToken, userHas
 		}
 	}
 	msg += " " + orderDefaultsNB
-	msg += fmt.Sprintf(" Kvote igjen siste døgn: %d.", left)
+	msg += fmt.Sprintf(" Kvote igjen %s: %d.", s.quotaPeriodNB(), left)
 	return map[string]any{
 		"resultType": "input_required",
 		"inputRequests": map[string]any{orderConfirmKey: map[string]any{
@@ -413,7 +413,7 @@ func (s *server) handleToolCall(ctx context.Context, inboundToken, navIdent, too
 			return toolErrorResult(err.Error()), nil
 		}
 		if !ok {
-			return toolErrorResult(fmt.Sprintf("daily quota of %d test persons per 24h exceeded", dailyPersonQuota)), nil
+			return toolErrorResult(fmt.Sprintf("quota of %d test persons %s exceeded", dailyPersonQuota, s.quotaPeriodEN())), nil
 		}
 		committed := false
 		defer func() {
@@ -444,6 +444,21 @@ func (s *server) handleToolCall(ctx context.Context, inboundToken, navIdent, too
 	default:
 		return nil, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "unknown tool"}
 	}
+}
+
+// The quota counts per UTC day in Postgres mode and per rolling 24 h in memory mode.
+func (s *server) quotaPeriodNB() string {
+	if s.store.sharedSingleUse() {
+		return "i dag (UTC-døgn)"
+	}
+	return "siste 24 timer"
+}
+
+func (s *server) quotaPeriodEN() string {
+	if s.store.sharedSingleUse() {
+		return "per UTC day"
+	}
+	return "per 24 hours"
 }
 
 // useToken verifies a confirmation token and spends it in the store.
