@@ -2313,8 +2313,8 @@
       "result": {
         "content": [
           {
-            "text": "{\"total\":2,\"returned\":2,\"offset\":0,\"kodeverksnavn\":[\"Landkoder\",\"Postnummer\"]}",
-            "type": "text"
+            "type": "text",
+            "text": "{\"total\":2,\"returned\":2,\"offset\":0,\"kodeverksnavn\":[\"Landkoder\",\"Postnummer\"]}"
           }
         ],
         "structuredContent": {

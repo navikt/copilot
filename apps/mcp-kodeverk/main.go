@@ -108,12 +108,12 @@ func toolNames() []string {
 }
 
 // callTool runs a tool and records its per-tool metrics (#2564).
-func (s *server) callTool(ctx context.Context, token, name string, args json.RawMessage) (any, *mcpWireError) {
+func (s *server) callTool(ctx context.Context, token string, req *mcpkit.CallToolRequest) (any, *mcpWireError) {
 	start := time.Now()
-	res, rpcErr := s.handleToolCall(ctx, token, name, args)
-	m, _ := res.(map[string]any)
-	isErr, _ := m["isError"].(bool)
-	s.metrics.Observe(name, rpcErr != nil || isErr, time.Since(start))
+	name := req.Params.Name
+	res, rpcErr := s.handleToolCall(ctx, token, name, req.Params.Arguments)
+	r, _ := res.(*mcpkit.CallToolResult)
+	s.metrics.Observe(name, rpcErr != nil || (r != nil && r.IsError), time.Since(start))
 	return res, rpcErr
 }
 
@@ -219,7 +219,7 @@ func (s *server) serveMCP(w http.ResponseWriter, r *http.Request) {
 	case "tools/list":
 		result = map[string]any{"tools": toolDefinitions()}
 	case "tools/call":
-		res, rpcErr := s.callTool(r.Context(), token, env.Params.Name, env.Params.Arguments)
+		res, rpcErr := s.callTool(r.Context(), token, &mcpkit.CallToolRequest{Params: &mcpkit.CallToolParamsRaw{Name: env.Params.Name, Arguments: env.Params.Arguments}})
 		if rpcErr != nil {
 			mcpkit.WriteError(w, http.StatusOK, rpcID, rpcErr)
 			return
@@ -260,7 +260,7 @@ func (s *server) serveModern(w http.ResponseWriter, r *http.Request, env mcpkit.
 		result = map[string]any{"tools": toolDefinitions()}
 		extra = map[string]any{"ttlMs": mcpkit.DiscoverTTLMilliseconds, "cacheScope": "private"}
 	case "tools/call":
-		res, rpcErr := s.callTool(r.Context(), token, env.Params.Name, env.Params.Arguments)
+		res, rpcErr := s.callTool(r.Context(), token, &mcpkit.CallToolRequest{Params: &mcpkit.CallToolParamsRaw{Name: env.Params.Name, Arguments: env.Params.Arguments}})
 		if rpcErr != nil {
 			mcpkit.WriteError(w, http.StatusOK, rpcID, rpcErr)
 			return

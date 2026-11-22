@@ -15,6 +15,8 @@ import (
 	"time"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/navikt/copilot/lib/mcpkit"
 )
 
 const (
@@ -415,7 +417,7 @@ func (s *server) handleToolCall(ctx context.Context, inboundToken, toolName stri
 	}
 }
 
-func (s *server) execWithOBO(ctx context.Context, inboundToken string, fn func(oboToken string) (string, error)) map[string]any {
+func (s *server) execWithOBO(ctx context.Context, inboundToken string, fn func(oboToken string) (string, error)) *mcpkit.CallToolResult {
 	if s.upstreamSem != nil {
 		select {
 		case s.upstreamSem <- struct{}{}:
@@ -437,12 +439,12 @@ func (s *server) execWithOBO(ctx context.Context, inboundToken string, fn func(o
 
 // toolResult returns the JSON text as structuredContent and as a text block
 // for clients older than 2026-07-28, plus a hint when more items exist.
-func toolResult(text string) map[string]any {
+func toolResult(text string) *mcpkit.CallToolResult {
 	var structured map[string]any
 	if err := json.Unmarshal([]byte(text), &structured); err != nil {
-		return map[string]any{"content": []map[string]string{{"type": "text", "text": text}}}
+		return &mcpkit.CallToolResult{Content: []mcpkit.Content{&mcpkit.TextContent{Text: text}}}
 	}
-	content := []map[string]string{{"type": "text", "text": text}}
+	content := []mcpkit.Content{&mcpkit.TextContent{Text: text}}
 	total, _ := structured["total"].(float64)
 	returned, _ := structured["returned"].(float64)
 	truncated, _ := structured["truncated"].(bool)
@@ -455,13 +457,13 @@ func toolResult(text string) map[string]any {
 			if _, ok := structured["betydninger"]; ok {
 				narrow = "kode"
 			}
-			content = append(content, map[string]string{"type": "text", "text": fmt.Sprintf(
+			content = append(content, &mcpkit.TextContent{Text: fmt.Sprintf(
 				"%d more items. Next page: call again with offset=%d, or narrow the request (%s).", rest, next, narrow)})
 		}
 	} else if truncated || (!hasOffset && total > returned) {
-		content = append(content, map[string]string{"type": "text", "text": truncationHint(structured, int(returned), int(total))})
+		content = append(content, &mcpkit.TextContent{Text: truncationHint(structured, int(returned), int(total))})
 	}
-	return map[string]any{"content": content, "structuredContent": structured}
+	return &mcpkit.CallToolResult{Content: content, StructuredContent: structured}
 }
 
 func truncationHint(structured map[string]any, returned, total int) string {
@@ -480,11 +482,10 @@ func truncationHint(structured map[string]any, returned, total int) string {
 	return fmt.Sprintf("%d of %d shown: single item exceeds the 32 KiB limit. Narrow with filter or advance offset.", returned, total)
 }
 
-func toolErrorResult(msg string) map[string]any {
-	return map[string]any{
-		"content": []map[string]string{{"type": "text", "text": msg}},
-		"isError": true,
-	}
+func toolErrorResult(msg string) *mcpkit.CallToolResult {
+	res := &mcpkit.CallToolResult{}
+	res.SetError(errors.New(msg))
+	return res
 }
 
 // --- Argument parsing & validation ---
