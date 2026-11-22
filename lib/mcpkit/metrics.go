@@ -72,24 +72,32 @@ func (m *ToolMetrics) Observe(tool string, failed bool, d time.Duration) {
 }
 
 // ServeHTTP writes the metrics in the Prometheus text exposition format.
+//nolint:gosec // G705 false positive: text/plain, tool names from a fixed list.
 func (m *ToolMetrics) ServeHTTP(w http.ResponseWriter, _ *http.Request) {
+	// Snapshot under the lock so a slow scrape never blocks Observe.
 	m.mu.Lock()
-	defer m.mu.Unlock()
+	snap := make([]toolStats, len(m.names))
+	for i, n := range m.names {
+		st := *m.tools[n]
+		st.buckets = slices.Clone(st.buckets)
+		snap[i] = st
+	}
+	m.mu.Unlock()
 	w.Header().Set("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
 	fmt.Fprintf(w, "# HELP mcp_tool_requests_total MCP tool calls.\n")
 	fmt.Fprintf(w, "# TYPE mcp_tool_requests_total counter\n")
-	for _, n := range m.names {
-		fmt.Fprintf(w, "mcp_tool_requests_total{tool=%q} %d\n", n, m.tools[n].requests)
+	for i, n := range m.names {
+		fmt.Fprintf(w, "mcp_tool_requests_total{tool=%q} %d\n", n, snap[i].requests)
 	}
 	fmt.Fprintf(w, "# HELP mcp_tool_errors_total MCP tool calls that returned an error.\n")
 	fmt.Fprintf(w, "# TYPE mcp_tool_errors_total counter\n")
-	for _, n := range m.names {
-		fmt.Fprintf(w, "mcp_tool_errors_total{tool=%q} %d\n", n, m.tools[n].errors)
+	for i, n := range m.names {
+		fmt.Fprintf(w, "mcp_tool_errors_total{tool=%q} %d\n", n, snap[i].errors)
 	}
 	fmt.Fprintf(w, "# HELP mcp_tool_duration_seconds MCP tool call latency.\n")
 	fmt.Fprintf(w, "# TYPE mcp_tool_duration_seconds histogram\n")
-	for _, n := range m.names {
-		st := m.tools[n]
+	for i, n := range m.names {
+		st := snap[i]
 		for i, b := range durationBuckets {
 			fmt.Fprintf(w, "mcp_tool_duration_seconds_bucket{tool=%q,le=%q} %d\n", n, strconv.FormatFloat(b, 'g', -1, 64), st.buckets[i])
 		}

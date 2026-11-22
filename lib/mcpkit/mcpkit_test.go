@@ -236,3 +236,36 @@ func TestZeroToolMetricsObserveIsNoop(_ *testing.T) {
 	var nilM *ToolMetrics
 	nilM.Observe("a", true, time.Second)
 }
+
+type blockingWriter struct {
+	*httptest.ResponseRecorder
+	release chan struct{}
+	started chan struct{}
+	once    bool
+}
+
+func (b *blockingWriter) Write(p []byte) (int, error) {
+	if !b.once {
+		b.once = true
+		close(b.started)
+		<-b.release
+	}
+	return b.ResponseRecorder.Write(p)
+}
+
+func TestSlowScrapeDoesNotBlockObserve(t *testing.T) {
+	m := NewToolMetrics([]string{"a"})
+	w := &blockingWriter{ResponseRecorder: httptest.NewRecorder(), release: make(chan struct{}), started: make(chan struct{})}
+	done := make(chan struct{})
+	go func() { m.ServeHTTP(w, nil); close(done) }()
+	<-w.started
+	observed := make(chan struct{})
+	go func() { m.Observe("a", false, time.Millisecond); close(observed) }()
+	select {
+	case <-observed:
+	case <-time.After(5 * time.Second):
+		t.Fatal("Observe blocked by a slow /metrics writer")
+	}
+	close(w.release)
+	<-done
+}
