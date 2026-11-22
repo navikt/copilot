@@ -1,4 +1,4 @@
-# dev: nais apply -t copilot -e dev-gcp .nais/postgres.yaml (by a human, before the first deploy)
+# dev (provisioned 2026-11-22): nais apply -t copilot -e dev-gcp .nais/postgres.yaml
 version: v1
 type: Postgres
 name: fleet-control
