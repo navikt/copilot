@@ -20,7 +20,8 @@ async function registryStats() {
   return {
     toolsPerServer: Object.fromEntries(servers.filter((s) => s.tools).map((s) => [s.serverId, s.tools!.length])),
     servers: servers.length,
-    tools: servers.reduce((sum, s) => sum + (s.tools?.length ?? 0), 0),
+    // Only a full total: while some servers have no tool list, the sum would undercount (#2604).
+    tools: servers.every((s) => s.tools) ? servers.reduce((sum, s) => sum + s.tools!.length, 0) : 0,
     gateway: servers.filter((s) => s.remotes?.some((r) => r.url.includes("fleet-gateway."))).length,
   };
 }
@@ -85,7 +86,7 @@ export default async function McpPage() {
                   className="mcp-stats"
                 >
                   <Stat value={stats.servers} label="servere" long="MCP-servere i registeret" />
-                  {/* Hidden while the registry has no tool lists (#2604). */}
+                  {/* Hidden while some servers have no tool list (#2604). */}
                   {stats.tools > 0 && <Stat value={stats.tools} label="verktøy" long="verktøy i registeret" />}
                   <Stat value={stats.gateway} label="via gateway" long="servere bak fleet-gateway" />
                 </HGrid>
@@ -95,9 +96,9 @@ export default async function McpPage() {
               </VStack>
             ) : (
               <BodyShort textColor="subtle">
-                Fant ikke MCP-registeret akkurat nå. Se serverne i{" "}
-                <NextLink href="/verktoy" className={linkClass}>
-                  verktøykatalogen
+                Fant ikke MCP-registeret akkurat nå. Se serverne i piloten i{" "}
+                <NextLink href="/mcp/fleet-gateway#servere-i-piloten" className={linkClass}>
+                  oversikten over fleet-gateway
                 </NextLink>
                 .
               </BodyShort>

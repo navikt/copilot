@@ -29,7 +29,7 @@ const labels: ShellLabels = {
   skip: "Skip to content",
   menu: "Menu",
   back: "Back",
-  showSection: "Show the nav-pilot menu",
+  showSection: "Show the {name} menu",
   search: "Search",
   glossary: "Glossary (Norwegian)",
   otherLang: "Norsk",

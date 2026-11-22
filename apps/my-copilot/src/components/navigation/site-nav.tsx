@@ -22,6 +22,7 @@ export interface HeaderLabels {
   skip: string;
   menu: string;
   back: string;
+  /** With a {name} placeholder for the section. */
   showSection: string;
   search: string;
   userMenu: string;
@@ -249,7 +250,7 @@ function MobileMenu({ labels, userName, admin }: { labels: HeaderLabels; userNam
                         <button
                           type="button"
                           className="panel-item"
-                          aria-label={labels.showSection}
+                          aria-label={labels.showSection.replace("{name}", sectionFor(l.href).title)}
                           onClick={() => swap(l.href)}
                           autoFocus={swapped}
                         >

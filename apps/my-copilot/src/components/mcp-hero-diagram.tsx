@@ -18,7 +18,7 @@ const STYLE = `
   .mh-flow-invite { opacity: 0.45; stroke-dasharray: 3 8; }
   .mh-flow { stroke: var(--ax-border-accent); stroke-width: 3; fill: none; stroke-dasharray: 8 10; }
   @media (prefers-reduced-motion: no-preference) {
-    .mh-flow { animation: mh-dash 1.6s linear infinite; }
+    .mh-flow { animation: mh-dash 1.6s linear 3; /* stops after 4.8 s, WCAG 2.2.2 */ }
   }
   @keyframes mh-dash { to { stroke-dashoffset: -36; } }
 `;
