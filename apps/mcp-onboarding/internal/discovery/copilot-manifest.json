@@ -354,7 +354,7 @@
       "displayName": "Norsk tekstkvalitet",
       "description": "Minimumsregler for norsk markdown: Nav, bindestrek i sammensatte ord, engelsk fagspråk, konsekvent bokmål og overskrifter. Full språkvask ligger i klarsprak-skillen.",
       "filePath": "instructions/norwegian-text.instructions.md",
-      "contentHash": "25ee167a83661c645a6a2732d64c02468a2df6091e31a1a04dacdcc4803c44ee",
+      "contentHash": "9c7edf11317102f40cd953a2bbc4c89cca6757eda31829b049b44caaabba9ef5",
       "installUrl": "vscode:chat-instructions/install?url=https://raw.githubusercontent.com/navikt/copilot/main/instructions/norwegian-text.instructions.md",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/instructions/norwegian-text.instructions.md"
     },
