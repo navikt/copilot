@@ -321,7 +321,7 @@ func baseToolDefinitions() []map[string]any {
 	}
 }
 
-func (s *server) handleToolCall(ctx context.Context, inboundToken, toolName string, rawArgs json.RawMessage) (any, *mcpRPCError) {
+func (s *server) handleToolCall(ctx context.Context, inboundToken, toolName string, rawArgs json.RawMessage) (any, *mcpWireError) {
 	switch toolName {
 	case "list_kodeverk":
 		args, rpcErr := parseListArgs(rawArgs, false)
@@ -411,7 +411,7 @@ func (s *server) handleToolCall(ctx context.Context, inboundToken, toolName stri
 		}), nil
 
 	default:
-		return nil, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "unknown tool"}
+		return nil, &mcpWireError{Code: mcpCodeInvalidParams, Message: "unknown tool"}
 	}
 }
 
@@ -489,7 +489,7 @@ func toolErrorResult(msg string) map[string]any {
 
 // --- Argument parsing & validation ---
 
-func decodeArgMap(raw json.RawMessage, allowed map[string]bool) (map[string]json.RawMessage, *mcpRPCError) {
+func decodeArgMap(raw json.RawMessage, allowed map[string]bool) (map[string]json.RawMessage, *mcpWireError) {
 	trimmed := bytes.TrimSpace(raw)
 	if len(trimmed) == 0 || bytes.Equal(trimmed, []byte("null")) {
 		return map[string]json.RawMessage{}, nil
@@ -497,83 +497,83 @@ func decodeArgMap(raw json.RawMessage, allowed map[string]bool) (map[string]json
 	dec := json.NewDecoder(bytes.NewReader(trimmed))
 	tok, err := dec.Token()
 	if err != nil {
-		return nil, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "arguments must be a JSON object"}
+		return nil, &mcpWireError{Code: mcpCodeInvalidParams, Message: "arguments must be a JSON object"}
 	}
 	delim, ok := tok.(json.Delim)
 	if !ok || delim != '{' {
-		return nil, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "arguments must be a JSON object"}
+		return nil, &mcpWireError{Code: mcpCodeInvalidParams, Message: "arguments must be a JSON object"}
 	}
 	fields := make(map[string]json.RawMessage)
 	for dec.More() {
 		kTok, keyErr := dec.Token()
 		if keyErr != nil {
-			return nil, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "invalid arguments object"}
+			return nil, &mcpWireError{Code: mcpCodeInvalidParams, Message: "invalid arguments object"}
 		}
 		key, keyOK := kTok.(string)
 		if !keyOK {
-			return nil, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "invalid argument key"}
+			return nil, &mcpWireError{Code: mcpCodeInvalidParams, Message: "invalid argument key"}
 		}
 		if !allowed[key] {
-			return nil, &mcpRPCError{Code: mcpCodeInvalidParams, Message: fmt.Sprintf("unknown argument %q", key)}
+			return nil, &mcpWireError{Code: mcpCodeInvalidParams, Message: fmt.Sprintf("unknown argument %q", key)}
 		}
 		if _, dup := fields[key]; dup {
-			return nil, &mcpRPCError{Code: mcpCodeInvalidParams, Message: fmt.Sprintf("duplicate argument %q", key)}
+			return nil, &mcpWireError{Code: mcpCodeInvalidParams, Message: fmt.Sprintf("duplicate argument %q", key)}
 		}
 		var val json.RawMessage
 		if valErr := dec.Decode(&val); valErr != nil {
-			return nil, &mcpRPCError{Code: mcpCodeInvalidParams, Message: fmt.Sprintf("invalid value for %q", key)}
+			return nil, &mcpWireError{Code: mcpCodeInvalidParams, Message: fmt.Sprintf("invalid value for %q", key)}
 		}
 		fields[key] = bytes.TrimSpace(val)
 	}
 	endTok, endErr := dec.Token()
 	if endErr != nil || endTok != json.Delim('}') {
-		return nil, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "invalid arguments object"}
+		return nil, &mcpWireError{Code: mcpCodeInvalidParams, Message: "invalid arguments object"}
 	}
 	if _, eofErr := dec.Token(); eofErr != io.EOF {
-		return nil, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "trailing data in arguments"}
+		return nil, &mcpWireError{Code: mcpCodeInvalidParams, Message: "trailing data in arguments"}
 	}
 	return fields, nil
 }
 
-func parseStrictString(raw json.RawMessage, field string) (string, *mcpRPCError) {
+func parseStrictString(raw json.RawMessage, field string) (string, *mcpWireError) {
 	if len(raw) == 0 || raw[0] != '"' {
-		return "", &mcpRPCError{Code: mcpCodeInvalidParams, Message: fmt.Sprintf("%s must be a string", field)}
+		return "", &mcpWireError{Code: mcpCodeInvalidParams, Message: fmt.Sprintf("%s must be a string", field)}
 	}
 	var s string
 	if err := json.Unmarshal(raw, &s); err != nil {
-		return "", &mcpRPCError{Code: mcpCodeInvalidParams, Message: fmt.Sprintf("%s must be a string", field)}
+		return "", &mcpWireError{Code: mcpCodeInvalidParams, Message: fmt.Sprintf("%s must be a string", field)}
 	}
 	return s, nil
 }
 
-func parseStrictInt(raw json.RawMessage, field string) (int, *mcpRPCError) {
+func parseStrictInt(raw json.RawMessage, field string) (int, *mcpWireError) {
 	if len(raw) == 0 || raw[0] == '"' || bytes.ContainsAny(raw, ".eE") {
-		return 0, &mcpRPCError{Code: mcpCodeInvalidParams, Message: fmt.Sprintf("%s must be an integer", field)}
+		return 0, &mcpWireError{Code: mcpCodeInvalidParams, Message: fmt.Sprintf("%s must be an integer", field)}
 	}
 	v, err := strconv.Atoi(string(raw))
 	if err != nil {
-		return 0, &mcpRPCError{Code: mcpCodeInvalidParams, Message: fmt.Sprintf("%s must be an integer", field)}
+		return 0, &mcpWireError{Code: mcpCodeInvalidParams, Message: fmt.Sprintf("%s must be an integer", field)}
 	}
 	return v, nil
 }
 
-func parseStrictBool(raw json.RawMessage, field string) (bool, *mcpRPCError) {
+func parseStrictBool(raw json.RawMessage, field string) (bool, *mcpWireError) {
 	if bytes.Equal(raw, []byte("true")) {
 		return true, nil
 	}
 	if bytes.Equal(raw, []byte("false")) {
 		return false, nil
 	}
-	return false, &mcpRPCError{Code: mcpCodeInvalidParams, Message: fmt.Sprintf("%s must be a boolean", field)}
+	return false, &mcpWireError{Code: mcpCodeInvalidParams, Message: fmt.Sprintf("%s must be a boolean", field)}
 }
 
-func parseStrictStringSlice(raw json.RawMessage, field string) ([]string, *mcpRPCError) {
+func parseStrictStringSlice(raw json.RawMessage, field string) ([]string, *mcpWireError) {
 	if len(raw) == 0 || raw[0] != '[' {
-		return nil, &mcpRPCError{Code: mcpCodeInvalidParams, Message: fmt.Sprintf("%s must be an array of strings", field)}
+		return nil, &mcpWireError{Code: mcpCodeInvalidParams, Message: fmt.Sprintf("%s must be an array of strings", field)}
 	}
 	var elems []json.RawMessage
 	if err := json.Unmarshal(raw, &elems); err != nil {
-		return nil, &mcpRPCError{Code: mcpCodeInvalidParams, Message: fmt.Sprintf("%s must be an array of strings", field)}
+		return nil, &mcpWireError{Code: mcpCodeInvalidParams, Message: fmt.Sprintf("%s must be an array of strings", field)}
 	}
 	out := make([]string, 0, len(elems))
 	for _, elem := range elems {
@@ -586,38 +586,38 @@ func parseStrictStringSlice(raw json.RawMessage, field string) ([]string, *mcpRP
 	return out, nil
 }
 
-func validateName(name, field string) *mcpRPCError {
+func validateName(name, field string) *mcpWireError {
 	if !namePattern.MatchString(name) {
-		return &mcpRPCError{Code: mcpCodeInvalidParams, Message: fmt.Sprintf("%s must match ^[A-Za-z0-9æøåÆØÅ_-]{1,100}$", field)}
+		return &mcpWireError{Code: mcpCodeInvalidParams, Message: fmt.Sprintf("%s must match ^[A-Za-z0-9æøåÆØÅ_-]{1,100}$", field)}
 	}
 	return nil
 }
 
-func validateSpraak(spraak []string) *mcpRPCError {
+func validateSpraak(spraak []string) *mcpWireError {
 	if len(spraak) > 5 {
-		return &mcpRPCError{Code: mcpCodeInvalidParams, Message: "spraak allows at most 5 entries"}
+		return &mcpWireError{Code: mcpCodeInvalidParams, Message: "spraak allows at most 5 entries"}
 	}
 	for _, s := range spraak {
 		if !spraakPattern.MatchString(s) {
-			return &mcpRPCError{Code: mcpCodeInvalidParams, Message: "each spraak entry must match ^[a-z]{2}$"}
+			return &mcpWireError{Code: mcpCodeInvalidParams, Message: "each spraak entry must match ^[a-z]{2}$"}
 		}
 	}
 	return nil
 }
 
-func validateSearchQuery(q string) *mcpRPCError {
+func validateSearchQuery(q string) *mcpWireError {
 	rc := utf8.RuneCountInString(q)
 	if rc < 2 || rc > 64 {
-		return &mcpRPCError{Code: mcpCodeInvalidParams, Message: "query must be 2 to 64 characters"}
+		return &mcpWireError{Code: mcpCodeInvalidParams, Message: "query must be 2 to 64 characters"}
 	}
 	if utf8.RuneCountInString(strings.TrimSpace(q)) < 2 {
-		return &mcpRPCError{Code: mcpCodeInvalidParams, Message: "query must contain at least 2 non-whitespace characters"}
+		return &mcpWireError{Code: mcpCodeInvalidParams, Message: "query must contain at least 2 non-whitespace characters"}
 	}
 	for _, r := range q {
 		if unicode.IsLetter(r) || unicode.IsDigit(r) || r == ' ' || r == '-' || r == '_' {
 			continue
 		}
-		return &mcpRPCError{Code: mcpCodeInvalidParams, Message: "query contains disallowed characters"}
+		return &mcpWireError{Code: mcpCodeInvalidParams, Message: "query contains disallowed characters"}
 	}
 	return nil
 }
@@ -629,7 +629,7 @@ type listArgs struct {
 	offset int
 }
 
-func parseListArgs(raw json.RawMessage, requireKodeverksnavn bool) (listArgs, *mcpRPCError) {
+func parseListArgs(raw json.RawMessage, requireKodeverksnavn bool) (listArgs, *mcpWireError) {
 	allowed := map[string]bool{"filter": true, "limit": true, "offset": true}
 	if requireKodeverksnavn {
 		allowed["kodeverksnavn"] = true
@@ -642,7 +642,7 @@ func parseListArgs(raw json.RawMessage, requireKodeverksnavn bool) (listArgs, *m
 	if requireKodeverksnavn {
 		v, ok := fields["kodeverksnavn"]
 		if !ok {
-			return listArgs{}, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "kodeverksnavn is required"}
+			return listArgs{}, &mcpWireError{Code: mcpCodeInvalidParams, Message: "kodeverksnavn is required"}
 		}
 		s, err := parseStrictString(v, "kodeverksnavn")
 		if err != nil {
@@ -659,7 +659,7 @@ func parseListArgs(raw json.RawMessage, requireKodeverksnavn bool) (listArgs, *m
 			return listArgs{}, err
 		}
 		if utf8.RuneCountInString(s) > maxFilterLen {
-			return listArgs{}, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "filter must be at most 64 characters"}
+			return listArgs{}, &mcpWireError{Code: mcpCodeInvalidParams, Message: "filter must be at most 64 characters"}
 		}
 		out.filter = s
 	}
@@ -669,7 +669,7 @@ func parseListArgs(raw json.RawMessage, requireKodeverksnavn bool) (listArgs, *m
 			return listArgs{}, err
 		}
 		if n < 1 || n > 200 {
-			return listArgs{}, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "limit must be between 1 and 200"}
+			return listArgs{}, &mcpWireError{Code: mcpCodeInvalidParams, Message: "limit must be between 1 and 200"}
 		}
 		out.limit = n
 	}
@@ -679,7 +679,7 @@ func parseListArgs(raw json.RawMessage, requireKodeverksnavn bool) (listArgs, *m
 			return listArgs{}, err
 		}
 		if n < 0 {
-			return listArgs{}, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "offset must be >= 0"}
+			return listArgs{}, &mcpWireError{Code: mcpCodeInvalidParams, Message: "offset must be >= 0"}
 		}
 		out.offset = n
 	}
@@ -697,7 +697,7 @@ type betydningerArgs struct {
 	offset            int
 }
 
-func parseBetydningerArgs(raw json.RawMessage) (betydningerArgs, *mcpRPCError) {
+func parseBetydningerArgs(raw json.RawMessage) (betydningerArgs, *mcpWireError) {
 	allowed := map[string]bool{
 		"kodeverksnavn":     true,
 		"kode":              true,
@@ -718,7 +718,7 @@ func parseBetydningerArgs(raw json.RawMessage) (betydningerArgs, *mcpRPCError) {
 	}
 	kvRaw, ok := fields["kodeverksnavn"]
 	if !ok {
-		return betydningerArgs{}, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "kodeverksnavn is required"}
+		return betydningerArgs{}, &mcpWireError{Code: mcpCodeInvalidParams, Message: "kodeverksnavn is required"}
 	}
 	kv, err := parseStrictString(kvRaw, "kodeverksnavn")
 	if err != nil {
@@ -735,10 +735,10 @@ func parseBetydningerArgs(raw json.RawMessage) (betydningerArgs, *mcpRPCError) {
 			return betydningerArgs{}, err
 		}
 		if s == "" {
-			return betydningerArgs{}, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "kode must not be empty"}
+			return betydningerArgs{}, &mcpWireError{Code: mcpCodeInvalidParams, Message: "kode must not be empty"}
 		}
 		if utf8.RuneCountInString(s) > maxKodeLen {
-			return betydningerArgs{}, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "kode must be at most 128 characters"}
+			return betydningerArgs{}, &mcpWireError{Code: mcpCodeInvalidParams, Message: "kode must be at most 128 characters"}
 		}
 		out.kode = s
 		out.hasKode = true
@@ -756,7 +756,7 @@ func parseBetydningerArgs(raw json.RawMessage) (betydningerArgs, *mcpRPCError) {
 			return betydningerArgs{}, err
 		}
 		if _, err := time.Parse(time.DateOnly, s); err != nil {
-			return betydningerArgs{}, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "oppslagsdato must be YYYY-MM-DD"}
+			return betydningerArgs{}, &mcpWireError{Code: mcpCodeInvalidParams, Message: "oppslagsdato must be YYYY-MM-DD"}
 		}
 		out.oppslagsdato = s
 	}
@@ -776,7 +776,7 @@ func parseBetydningerArgs(raw json.RawMessage) (betydningerArgs, *mcpRPCError) {
 			return betydningerArgs{}, err
 		}
 		if n < 1 || n > 100 {
-			return betydningerArgs{}, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "limit must be between 1 and 100"}
+			return betydningerArgs{}, &mcpWireError{Code: mcpCodeInvalidParams, Message: "limit must be between 1 and 100"}
 		}
 		out.limit = n
 	}
@@ -786,7 +786,7 @@ func parseBetydningerArgs(raw json.RawMessage) (betydningerArgs, *mcpRPCError) {
 			return betydningerArgs{}, err
 		}
 		if n < 0 {
-			return betydningerArgs{}, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "offset must be >= 0"}
+			return betydningerArgs{}, &mcpWireError{Code: mcpCodeInvalidParams, Message: "offset must be >= 0"}
 		}
 		out.offset = n
 	}
@@ -800,7 +800,7 @@ type hierarkiNoderArgs struct {
 	limit        int
 }
 
-func parseHierarkiNoderArgs(raw json.RawMessage) (hierarkiNoderArgs, *mcpRPCError) {
+func parseHierarkiNoderArgs(raw json.RawMessage) (hierarkiNoderArgs, *mcpWireError) {
 	allowed := map[string]bool{
 		"hierarkinavn": true,
 		"spraak":       true,
@@ -814,7 +814,7 @@ func parseHierarkiNoderArgs(raw json.RawMessage) (hierarkiNoderArgs, *mcpRPCErro
 	out := hierarkiNoderArgs{maxDepth: 3, limit: 50}
 	hRaw, ok := fields["hierarkinavn"]
 	if !ok {
-		return hierarkiNoderArgs{}, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "hierarkinavn is required"}
+		return hierarkiNoderArgs{}, &mcpWireError{Code: mcpCodeInvalidParams, Message: "hierarkinavn is required"}
 	}
 	h, err := parseStrictString(hRaw, "hierarkinavn")
 	if err != nil {
@@ -841,7 +841,7 @@ func parseHierarkiNoderArgs(raw json.RawMessage) (hierarkiNoderArgs, *mcpRPCErro
 			return hierarkiNoderArgs{}, err
 		}
 		if n < 1 || n > 10 {
-			return hierarkiNoderArgs{}, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "maxDepth must be between 1 and 10"}
+			return hierarkiNoderArgs{}, &mcpWireError{Code: mcpCodeInvalidParams, Message: "maxDepth must be between 1 and 10"}
 		}
 		out.maxDepth = n
 	}
@@ -851,7 +851,7 @@ func parseHierarkiNoderArgs(raw json.RawMessage) (hierarkiNoderArgs, *mcpRPCErro
 			return hierarkiNoderArgs{}, err
 		}
 		if n < 1 || n > 100 {
-			return hierarkiNoderArgs{}, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "limit must be between 1 and 100"}
+			return hierarkiNoderArgs{}, &mcpWireError{Code: mcpCodeInvalidParams, Message: "limit must be between 1 and 100"}
 		}
 		out.limit = n
 	}
@@ -864,7 +864,7 @@ type searchArgs struct {
 	limit         int
 }
 
-func parseSearchArgs(raw json.RawMessage) (searchArgs, *mcpRPCError) {
+func parseSearchArgs(raw json.RawMessage) (searchArgs, *mcpWireError) {
 	allowed := map[string]bool{
 		"query":         true,
 		"kodeverksnavn": true,
@@ -877,7 +877,7 @@ func parseSearchArgs(raw json.RawMessage) (searchArgs, *mcpRPCError) {
 	out := searchArgs{limit: 25}
 	qRaw, ok := fields["query"]
 	if !ok {
-		return searchArgs{}, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "query is required"}
+		return searchArgs{}, &mcpWireError{Code: mcpCodeInvalidParams, Message: "query is required"}
 	}
 	q, err := parseStrictString(qRaw, "query")
 	if err != nil {
@@ -904,7 +904,7 @@ func parseSearchArgs(raw json.RawMessage) (searchArgs, *mcpRPCError) {
 			return searchArgs{}, err
 		}
 		if n < 1 || n > 50 {
-			return searchArgs{}, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "limit must be between 1 and 50"}
+			return searchArgs{}, &mcpWireError{Code: mcpCodeInvalidParams, Message: "limit must be between 1 and 50"}
 		}
 		out.limit = n
 	}

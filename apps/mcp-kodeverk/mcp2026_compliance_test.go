@@ -128,7 +128,7 @@ func runMCP2026Compliance(t *testing.T, tgt mcpComplianceTarget) {
 		{name: "tools/call with matching Mcp-Name", body: modernBody("tools/call", callParams()), hdr: modernHeaders("tools/call", tgt.tool), status: 200},
 		{name: "Mcp-Session-Id is ignored", body: modernBody("server/discover", nil), hdr: with(modernHeaders("server/discover", ""), "Mcp-Session-Id", "stale"), status: 200},
 		{name: "missing MCP-Protocol-Version", body: modernBody("tools/list", nil), hdr: with(modernHeaders("tools/list", ""), "MCP-Protocol-Version", ""), status: 400, code: mcpCodeHeaderMismatch},
-		{name: "unsupported MCP-Protocol-Version", body: modernBody("tools/list", nil), hdr: with(modernHeaders("tools/list", ""), "MCP-Protocol-Version", "2099-01-01"), status: 400, code: mcpCodeUnsupportedVersion},
+		{name: "unsupported MCP-Protocol-Version", body: modernBody("tools/list", nil), hdr: with(modernHeaders("tools/list", ""), "MCP-Protocol-Version", "2099-01-01"), status: 400, code: mcpCodeUnsupportedProtocolVersion},
 		{name: "header version without _meta is -32602", body: map[string]any{"jsonrpc": "2.0", "id": 1, "method": "tools/list"}, hdr: modernHeaders("tools/list", ""), status: 400, code: mcpCodeInvalidParams},
 		{name: "Mcp-Method mismatch", body: modernBody("tools/list", nil), hdr: modernHeaders("server/discover", ""), status: 400, code: mcpCodeHeaderMismatch},
 		{name: "Mcp-Method missing", body: modernBody("tools/list", nil), hdr: with(modernHeaders("tools/list", ""), "Mcp-Method", ""), status: 400, code: mcpCodeHeaderMismatch},
@@ -140,8 +140,8 @@ func runMCP2026Compliance(t *testing.T, tgt mcpComplianceTarget) {
 		{name: "Mcp-Name missing", body: modernBody("tools/call", callParams()), hdr: modernHeaders("tools/call", ""), status: 400, code: mcpCodeHeaderMismatch},
 		{name: "unknown method is 404", body: modernBody("nope/nope", nil), hdr: modernHeaders("nope/nope", ""), status: 404, code: mcpCodeMethodNotFound},
 		{name: "ping is removed", body: modernBody("ping", nil), hdr: modernHeaders("ping", ""), status: 404, code: mcpCodeMethodNotFound},
-		{name: "initialize refused outside legacy window", body: map[string]any{"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": map[string]any{"protocolVersion": "2025-06-18"}}, status: 400, code: mcpCodeUnsupportedVersion},
-		{name: "initialize refused after legacy window closed", legacy: "2000-01-01", body: map[string]any{"jsonrpc": "2.0", "id": 1, "method": "initialize"}, status: 400, code: mcpCodeUnsupportedVersion},
+		{name: "initialize refused outside legacy window", body: map[string]any{"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": map[string]any{"protocolVersion": "2025-06-18"}}, status: 400, code: mcpCodeUnsupportedProtocolVersion},
+		{name: "initialize refused after legacy window closed", legacy: "2000-01-01", body: map[string]any{"jsonrpc": "2.0", "id": 1, "method": "initialize"}, status: 400, code: mcpCodeUnsupportedProtocolVersion},
 		{name: "initialize served inside legacy window", legacy: "2999-01-01", body: map[string]any{"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": map[string]any{"protocolVersion": "2025-06-18"}}, status: 200},
 		{name: "ping served inside legacy window", legacy: "2999-01-01", body: map[string]any{"jsonrpc": "2.0", "id": 1, "method": "ping"}, status: 200,
 			check: func(t *testing.T, result map[string]any) {
@@ -216,7 +216,7 @@ func runMCP2026Compliance(t *testing.T, tgt mcpComplianceTarget) {
 			if tc.code != 0 && tc.body["id"] != nil && out["id"] != float64(1) {
 				t.Errorf("error id = %v, want the request id 1; body %s", out["id"], rec.Body.String())
 			}
-			if tc.code == mcpCodeUnsupportedVersion {
+			if tc.code == mcpCodeUnsupportedProtocolVersion {
 				e, _ := out["error"].(map[string]any)
 				d, _ := e["data"].(map[string]any)
 				if d["supported"] == nil {

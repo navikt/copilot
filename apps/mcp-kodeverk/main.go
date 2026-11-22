@@ -108,7 +108,7 @@ func toolNames() []string {
 }
 
 // callTool runs a tool and records its per-tool metrics (#2564).
-func (s *server) callTool(ctx context.Context, token, name string, args json.RawMessage) (any, *mcpRPCError) {
+func (s *server) callTool(ctx context.Context, token, name string, args json.RawMessage) (any, *mcpWireError) {
 	start := time.Now()
 	res, rpcErr := s.handleToolCall(ctx, token, name, args)
 	m, _ := res.(map[string]any)
@@ -185,7 +185,7 @@ func (s *server) mcpHandler(w http.ResponseWriter, r *http.Request) {
 		Method  string          `json:"method"`
 	}
 	if len(trimmed) == 0 || trimmed[0] != '{' || json.Unmarshal(trimmed, &rpc) != nil {
-		mcpkit.WriteError(w, http.StatusBadRequest, nil, &mcpkit.RPCError{Code: mcpkit.CodeParseError, Message: "Parse error"})
+		mcpkit.WriteError(w, http.StatusBadRequest, nil, &mcpkit.WireError{Code: mcpkit.CodeParseError, Message: "Parse error"})
 		return
 	}
 
@@ -197,13 +197,13 @@ func (s *server) mcpHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	isNotification := strings.HasPrefix(rpc.Method, "notifications/")
 	if rpc.Method == "" || isNullID || (!isNotification && len(rawID) == 0) {
-		mcpkit.WriteError(w, http.StatusBadRequest, rpcID, &mcpkit.RPCError{Code: mcpkit.CodeInvalidRequest, Message: "Invalid Request"})
+		mcpkit.WriteError(w, http.StatusBadRequest, rpcID, &mcpkit.WireError{Code: mcpkit.CodeInvalidRequest, Message: "Invalid Request"})
 		return
 	}
 
 	var env mcpkit.Envelope
 	if err := json.Unmarshal(trimmed, &env); err != nil {
-		mcpkit.WriteError(w, http.StatusBadRequest, rpcID, &mcpkit.RPCError{Code: mcpCodeInvalidParams, Message: "Invalid params"})
+		mcpkit.WriteError(w, http.StatusBadRequest, rpcID, &mcpkit.WireError{Code: mcpCodeInvalidParams, Message: "Invalid params"})
 		return
 	}
 
@@ -243,7 +243,7 @@ func (s *server) mcpHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		result = res
 	default:
-		mcpkit.WriteError(w, http.StatusOK, rpcID, &mcpkit.RPCError{Code: mcpCodeMethodNotFound, Message: "Method not found"})
+		mcpkit.WriteError(w, http.StatusOK, rpcID, &mcpkit.WireError{Code: mcpCodeMethodNotFound, Message: "Method not found"})
 		return
 	}
 
@@ -284,7 +284,7 @@ func (s *server) serveModern(w http.ResponseWriter, r *http.Request, env mcpkit.
 		}
 		result = res
 	default:
-		mcpkit.WriteError(w, http.StatusNotFound, rpcID, &mcpkit.RPCError{Code: mcpCodeMethodNotFound, Message: "Method not found"})
+		mcpkit.WriteError(w, http.StatusNotFound, rpcID, &mcpkit.WireError{Code: mcpCodeMethodNotFound, Message: "Method not found"})
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
