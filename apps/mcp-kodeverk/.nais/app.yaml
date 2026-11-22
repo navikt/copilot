@@ -26,6 +26,9 @@ spec:
     path: /ready
     initialDelay: 10
     timeout: 5
+  prometheus:
+    enabled: true
+    path: /metrics
   azure:
     application:
       enabled: true

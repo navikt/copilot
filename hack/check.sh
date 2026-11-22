@@ -7,6 +7,7 @@ source "$(dirname "$0")/parallel.sh"
 for app in $APPS; do
   section "$app" mise -C "apps/$app" run check
 done
+section mcpkit mise -C lib/mcpkit run check
 section retired mise run retired:check
 section docs mise run docs:check
 section skills mise run skills:lint -- -q

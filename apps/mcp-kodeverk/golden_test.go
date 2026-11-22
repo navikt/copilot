@@ -191,10 +191,10 @@ func TestHTTPGolden(t *testing.T) {
 	}
 	out = append(out, '\n')
 	if *updateGolden {
-		if err := os.MkdirAll("testdata", 0o750); err != nil {
+		if err = os.MkdirAll("testdata", 0o750); err != nil {
 			t.Fatal(err)
 		}
-		if err := os.WriteFile(goldenFile, out, 0o600); err != nil {
+		if err = os.WriteFile(goldenFile, out, 0o600); err != nil {
 			t.Fatal(err)
 		}
 		return

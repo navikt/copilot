@@ -9,6 +9,8 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+
+	"github.com/navikt/copilot/lib/mcpkit"
 )
 
 // Per-request worst-case memory: body 4 MiB + ReadAll growth up to 2x transient (8 MiB) +
@@ -110,7 +112,7 @@ func (c *kodeverkClient) getJSON(ctx context.Context, token, path string, query 
 		return &upstreamStatusError{status: resp.StatusCode}
 	}
 
-	body, err := readLimitedBody(resp.Body, maxUpstreamBodyBytes)
+	body, err := mcpkit.ReadLimited(resp.Body, maxUpstreamBodyBytes)
 	if err != nil {
 		return fmt.Errorf("kodeverk-api response exceeded %d bytes", maxUpstreamBodyBytes)
 	}
