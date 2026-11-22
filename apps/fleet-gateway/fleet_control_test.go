@@ -6,8 +6,12 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"slices"
+	"strings"
 	"sync/atomic"
 	"testing"
+
+	"github.com/prometheus/client_golang/prometheus"
+	dto "github.com/prometheus/client_model/go"
 )
 
 type fakeFleetControl struct {
@@ -101,8 +105,11 @@ func TestRouteSyncSwapsThenHonoursETag(t *testing.T) {
 	if got := routePaths(gw); len(got) != 3 || got[1] != "/mcp/copilot/alpha" {
 		t.Fatalf("routes after first sync = %v", got)
 	}
-	if _, ok := gw.table().routeByResource(gw.cfg.BaseURL + "/mcp/copilot/beta"); !ok {
-		t.Fatal("team tokens cannot resolve a route from the new table")
+	// The new table serves at once: beta answers 401 (auth), not 404 (unknown).
+	rec := httptest.NewRecorder()
+	gw.routes().ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/mcp/copilot/beta", strings.NewReader(`{}`)))
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("POST /mcp/copilot/beta = %d, want 401 from the swapped table", rec.Code)
 	}
 
 	f.body = snapBody(2) // would be rejected if read: proves 304 skips the body
@@ -219,5 +226,28 @@ func TestRouteSyncRejectsLargeShrink(t *testing.T) {
 	gw.syncRoutes(context.Background(), src)
 	if got := routePaths(gw); !slices.Equal(got, good) {
 		t.Fatalf("shrinking snapshot applied: %v", got)
+	}
+}
+
+func TestRouteSyncInitialisesMetricsForNewRoutes(t *testing.T) {
+	f := newFakeFleetControl(t)
+	gw, src := fleetControlGateway(t, f)
+	f.body = map[string]any{"schema_version": 1, "generation": 1, "routes": []any{primaryRoute(), snapRoute("metricsonly")}}
+	gw.syncRoutes(context.Background(), src)
+	got := 0
+	ch := make(chan prometheus.Metric, 4096)
+	go func() { mcpRequestsTotal.Collect(ch); close(ch) }()
+	for m := range ch {
+		var d dto.Metric
+		_ = m.Write(&d)
+		for _, l := range d.GetLabel() {
+			if l.GetValue() == "/mcp/copilot/metricsonly" {
+				got++
+				break
+			}
+		}
+	}
+	if got == 0 {
+		t.Fatal("no mcp_requests series for a route added by a snapshot")
 	}
 }

@@ -46,3 +46,6 @@ func (g *Gateway) table() *RouteTable {
 	}
 	return &RouteTable{}
 }
+
+// afterRouteLookup is a test hook between dispatch and the handler; a no-op in production.
+var afterRouteLookup = func() {}

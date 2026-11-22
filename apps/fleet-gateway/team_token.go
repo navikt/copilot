@@ -42,33 +42,29 @@ func (e *upstreamTokenError) Error() string {
 	return "upstream token acquisition failed"
 }
 
-// table is read per call, so a swapped route table (#2641) applies at once.
-func newTeamTokenSource(cfg *Config, table func() *RouteTable, store SessionStore, now func() time.Time) (TeamTokenSource, error) {
+func newTeamTokenSource(cfg *Config, store SessionStore, now func() time.Time) (TeamTokenSource, error) {
 	if now == nil {
 		now = time.Now
 	}
-	byRes := func(resource string) (PilotRoute, bool) { return table().routeByResource(resource) }
 
 	switch cfg.TeamTokenStrategy {
 	case "", strategyOBO:
 		return &StrategyOBO{
-			store:            store,
-			sessionMaxAge:    cfg.SessionAbsoluteMaxAge,
-			routesByResource: byRes,
-			endpoint:         cfg.TexasExchangeEndpoint,
-			client:           cfg.HTTPClient,
-			now:              now,
+			store:         store,
+			sessionMaxAge: cfg.SessionAbsoluteMaxAge,
+			endpoint:      cfg.TexasExchangeEndpoint,
+			client:        cfg.HTTPClient,
+			now:           now,
 		}, nil
 	case strategyRefresh:
 		return &StrategyRefresh{
-			store:            store,
-			sessionMaxAge:    cfg.SessionAbsoluteMaxAge,
-			routesByResource: byRes,
-			tokenEndpoint:    cfg.AzureTokenEndpoint,
-			clientID:         cfg.AzureClientID,
-			clientSecret:     cfg.AzureClientSecret,
-			client:           cfg.HTTPClient,
-			now:              now,
+			store:         store,
+			sessionMaxAge: cfg.SessionAbsoluteMaxAge,
+			tokenEndpoint: cfg.AzureTokenEndpoint,
+			clientID:      cfg.AzureClientID,
+			clientSecret:  cfg.AzureClientSecret,
+			client:        cfg.HTTPClient,
+			now:           now,
 		}, nil
 	default:
 		return nil, fmt.Errorf("unsupported TEAM_TOKEN_STRATEGY %q", cfg.TeamTokenStrategy)
@@ -77,22 +73,17 @@ func newTeamTokenSource(cfg *Config, table func() *RouteTable, store SessionStor
 
 // StrategyOBO exchanges the session's Entra access token via Nais Texas OBO.
 type StrategyOBO struct {
-	store            SessionStore
-	sessionMaxAge    time.Duration
-	routesByResource func(string) (PilotRoute, bool)
-	endpoint         string
-	client           *http.Client
-	now              func() time.Time
+	store         SessionStore
+	sessionMaxAge time.Duration
+	endpoint      string
+	client        *http.Client
+	now           func() time.Time
 }
 
 // TeamToken exchanges the session's Entra access token for a downstream team token via Texas.
-func (s *StrategyOBO) TeamToken(ctx context.Context, sessionID, resource string) (string, error) {
+func (s *StrategyOBO) TeamToken(ctx context.Context, sessionID string, route PilotRoute) (string, error) {
 	if s.endpoint == "" {
 		return "", &upstreamTokenError{reason: "texas exchange endpoint not configured"}
-	}
-	route, ok := s.routesByResource(resource)
-	if !ok {
-		return "", fmt.Errorf("unknown route resource %q", resource)
 	}
 	sess, ok, err := getSessionFromStore(ctx, s.store, s.now, s.sessionMaxAge, sessionID)
 	if err != nil {
@@ -154,16 +145,15 @@ func (s *StrategyOBO) TeamToken(ctx context.Context, sessionID, resource string)
 
 // StrategyRefresh redeems the session's Entra refresh token directly at Entra.
 type StrategyRefresh struct {
-	store            SessionStore
-	sessionMaxAge    time.Duration
-	routesByResource func(string) (PilotRoute, bool)
-	tokenEndpoint    string
-	clientID         string
-	clientSecret     string
-	client           *http.Client
-	now              func() time.Time
-	sf               singleflight.Group
-	refreshMu        [64]sync.Mutex
+	store         SessionStore
+	sessionMaxAge time.Duration
+	tokenEndpoint string
+	clientID      string
+	clientSecret  string
+	client        *http.Client
+	now           func() time.Time
+	sf            singleflight.Group
+	refreshMu     [64]sync.Mutex
 }
 
 func (s *StrategyRefresh) lockSession(sessionID string) *sync.Mutex {
@@ -173,13 +163,9 @@ func (s *StrategyRefresh) lockSession(sessionID string) *sync.Mutex {
 }
 
 // TeamToken acquires a downstream team token by refreshing against Entra with per-session serialization.
-func (s *StrategyRefresh) TeamToken(ctx context.Context, sessionID, resource string) (string, error) {
+func (s *StrategyRefresh) TeamToken(ctx context.Context, sessionID string, route PilotRoute) (string, error) {
 	if s.tokenEndpoint == "" {
 		return "", &upstreamTokenError{reason: "entra token endpoint not configured"}
-	}
-	route, ok := s.routesByResource(resource)
-	if !ok {
-		return "", fmt.Errorf("unknown route resource %q", resource)
 	}
 	sess, ok, err := getSessionFromStore(ctx, s.store, s.now, s.sessionMaxAge, sessionID)
 	if err != nil {

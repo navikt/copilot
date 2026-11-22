@@ -75,7 +75,9 @@ const (
 
 // TeamTokenSource acquires downstream Entra OBO tokens for team MCP servers.
 type TeamTokenSource interface {
-	TeamToken(ctx context.Context, sessionID, resource string) (string, error)
+	// route is the entry the request was dispatched with, so the token's
+	// audience and the upstream come from one snapshot (#2641).
+	TeamToken(ctx context.Context, sessionID string, route PilotRoute) (string, error)
 }
 
 // Config holds validated runtime configuration for fleet-gateway.

@@ -91,9 +91,7 @@ func newGateway(cfg *Config, now func() time.Time) (*Gateway, error) {
 		return nil, err
 	}
 	table := newRouteTable(cfg)
-	var gw *Gateway
-	gwTable := func() *RouteTable { return gw.table() }
-	teamTokens, err := newTeamTokenSource(cfg, gwTable, store, now)
+	teamTokens, err := newTeamTokenSource(cfg, store, now)
 	if err != nil {
 		if ownedStore {
 			store.Close()
@@ -104,7 +102,7 @@ func newGateway(cfg *Config, now func() time.Time) (*Gateway, error) {
 	for _, ep := range rateLimitedEndpoints {
 		limiters[ep] = newIPRateLimiter(cfg.RateLimitRequests, cfg.RateLimitGlobalRequests, cfg.RateLimitWindow, cfg.RateLimitCap, now)
 	}
-	gw = &Gateway{
+	gw := &Gateway{
 		cfg:          cfg,
 		now:          now,
 		store:        store,
@@ -235,6 +233,7 @@ func (g *Gateway) routeDispatch(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
+	afterRouteLookup()
 	g.mcpHandler(route).ServeHTTP(w, r)
 }
 

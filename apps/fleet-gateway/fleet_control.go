@@ -180,6 +180,7 @@ func (g *Gateway) syncRoutes(ctx context.Context, f *fleetControlRoutes) {
 	rt.PrimaryResource = g.table().PrimaryResource // fetch checked it is in routes
 	g.routeTable.Store(rt)
 	routesLoaded.Set(float64(len(routes)))
+	initMetrics(routes) // idempotent; pre-creates series for new routes and tools
 	slog.Info("route table loaded from fleet-control", "routes", len(routes), "generation", f.generation)
 }
 
