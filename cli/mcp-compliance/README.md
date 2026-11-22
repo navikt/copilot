@@ -98,7 +98,7 @@ Use the GitHub Action in this directory. It needs no Go toolchain: it downloads 
 | Input | Default | Meaning |
 |---|---|---|
 | `url` | required | MCP endpoint of the running server |
-| `version` | `latest` | Release such as `v0.2.0`. `latest` takes the newest release; pin a version for reproducible runs |
+| `version` | empty | Release such as `v0.2.0`. Empty uses the release the Action is pinned to (`uses: navikt/copilot/cli/mcp-compliance@cli/mcp-compliance/vX.Y.Z`). `latest` takes the newest release, and is also used, with a notice, when the Action ref is a branch, a SHA or a local path |
 | `token` | empty | `MCP_COMPLIANCE_TOKEN` |
 | `app-token` | empty | `MCP_COMPLIANCE_APP_TOKEN`; empty skips the 403 check |
 | `tool` | empty | `-tool` |

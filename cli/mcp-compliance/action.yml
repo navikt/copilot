@@ -8,8 +8,8 @@ inputs:
     description: MCP endpoint of the running server, for example http://127.0.0.1:8080/mcp
     required: true
   version:
-    description: Release to use, for example v0.2.0. "latest" picks the newest cli/mcp-compliance release. Pin a version for reproducible runs.
-    default: latest
+    description: Release to use, for example v0.2.0. Empty uses the release the Action ref points at (cli/mcp-compliance/vX.Y.Z), so pinning the Action pins the binary. "latest" picks the newest release; an Action ref that is not a release tag (branch, SHA, local path) also falls back to latest.
+    default: ""
   token:
     description: User token the server accepts (MCP_COMPLIANCE_TOKEN). Use a test token, never a production one.
     default: ""
@@ -32,9 +32,11 @@ runs:
       shell: bash
       env:
         GH_TOKEN: ${{ inputs.github-token }}
-        VERSION: ${{ inputs.version }}
+        VERSION_INPUT: ${{ inputs.version }}
+        ACTION_REF: ${{ github.action_ref }}
       run: |
         set -euo pipefail
+        VERSION=$("$GITHUB_ACTION_PATH/resolve-version.sh" "$VERSION_INPUT" "$ACTION_REF")
         case "${RUNNER_OS}/${RUNNER_ARCH}" in
           Linux/X64) asset=mcp-compliance-linux-amd64 ;;
           Linux/ARM64) asset=mcp-compliance-linux-arm64 ;;
