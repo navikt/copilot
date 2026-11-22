@@ -102,7 +102,7 @@ const SECTIONS: Section[] = [
     points: [
       "Første versjon har bare verktøy som leser. Skriveverktøy kommer først etter at ROS er godkjent.",
       "Skriveverktøy trenger tak på antall og alder, kvote per døgn, eierskapssjekk og en revisjonslinje. En beskrivelse som ber modellen bekrefte med brukeren er ikke nok.",
-      "Serveren må selv håndheve bekreftelsen, for eksempel med to steg: første kall gir en forhåndsvisning og et kortlevd bekreftelsestoken, og andre kall må ha tokenet. mcp-dolly gjør dette i `create_order`. En melding til brukeren fra klienten eller `input_required` alene er ikke nok, for serveren kan ikke vite at klienten viste den.",
+      "Serveren må selv håndheve bekreftelsen, for eksempel med to steg: første kall gir en forhåndsvisning og et kortlevd bekreftelsestoken, og andre kall må ha tokenet. mcp-dolly ber i stedet brukeren bekrefte i klienten (form elicitation) og holder tokenet utenfor modellen. Klienter uten dette kan ikke bestille i prod. En melding til brukeren fra klienten eller `input_required` alene er ikke nok, for serveren kan ikke vite at klienten viste den.",
       "Gjør skriveverktøy trygge å prøve på nytt, for eksempel med en idempotensnøkkel eller et tydelig «allerede opprettet»-svar.",
     ],
     owasp: [owasp("MCP02")],

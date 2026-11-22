@@ -116,7 +116,7 @@ func TestToolsListAndAnnotations(t *testing.T) {
 		"dolly_list_group_orders",
 	}
 	var disabledNames []string
-	for _, d := range toolDefinitions(false) {
+	for _, d := range toolDefinitions(false, false) {
 		disabledNames = append(disabledNames, checkTool(t, d))
 	}
 	if !slices.Equal(disabledNames, readOnlyWant) {
@@ -124,7 +124,7 @@ func TestToolsListAndAnnotations(t *testing.T) {
 	}
 
 	var enabledNames []string
-	for _, d := range toolDefinitions(true) {
+	for _, d := range toolDefinitions(true, false) {
 		enabledNames = append(enabledNames, checkTool(t, d))
 	}
 	enabledWant := append(slices.Clone(readOnlyWant), "create_order")

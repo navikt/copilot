@@ -9,3 +9,5 @@ memory_limit: 256Mi
 log_level: "INFO"
 dolly_url: "https://dolly-backend.ekstern.dev.nav.no"
 dolly_scope: "api://dev-gcp.dolly.dolly-backend/.default"
+# Empty means off: clients without form elicitation cannot order in prod (#2613).
+create_order_two_step: ""
