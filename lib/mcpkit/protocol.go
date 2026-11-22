@@ -30,15 +30,14 @@ type TextContent struct {
 	Meta map[string]any
 }
 
-// MarshalJSON always writes "text", even when empty, as go-sdk does. Keys
-// come out text, type (go-sdk writes type first) so existing servers keep
-// byte-identical output; JSON key order carries no meaning.
+// MarshalJSON always writes "text", even when empty, as go-sdk does, and in
+// go-sdk's key order so a later move to go-sdk changes nothing on the wire.
 func (c *TextContent) MarshalJSON() ([]byte, error) {
 	return json.Marshal(struct {
-		Text string         `json:"text"`
 		Type string         `json:"type"`
+		Text string         `json:"text"`
 		Meta map[string]any `json:"_meta,omitempty"`
-	}{c.Text, "text", c.Meta})
+	}{"text", c.Text, c.Meta})
 }
 
 // CallToolResult is the result of tools/call.

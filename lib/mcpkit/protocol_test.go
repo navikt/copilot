@@ -11,8 +11,8 @@ func TestCallToolResultWire(t *testing.T) {
 	var bad CallToolResult
 	bad.SetError(errors.New("boom"))
 	for res, want := range map[*CallToolResult]string{
-		ok:   `{"content":[{"text":"","type":"text"}],"structuredContent":{"a":1}}`,
-		&bad: `{"content":[{"text":"boom","type":"text"}],"isError":true}`,
+		ok:   `{"content":[{"type":"text","text":""}],"structuredContent":{"a":1}}`,
+		&bad: `{"content":[{"type":"text","text":"boom"}],"isError":true}`,
 	} {
 		got, err := json.Marshal(res)
 		if err != nil || string(got) != want {
