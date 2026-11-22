@@ -265,6 +265,11 @@ func TestReadSSEResponseNumericIDForms(t *testing.T) {
 			t.Fatalf("id %s did not match 1", id)
 		}
 	}
+	start := time.Now()
+	huge := "data: {\"jsonrpc\":\"2.0\",\"id\":1e999999999,\"result\":{}}\n\n"
+	if m := readSSEResponse(strings.NewReader(huge), 1); m != nil || time.Since(start) > time.Second {
+		t.Fatalf("1e999999999: got %v after %v, want no match quickly", m, time.Since(start))
+	}
 }
 
 func TestSSEStreamLeftOpenReturns(t *testing.T) {

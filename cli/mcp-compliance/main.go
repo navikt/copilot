@@ -15,11 +15,12 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"math/big"
+	"math"
 	"mime"
 	"net/http"
 	"os"
 	"slices"
+	"strconv"
 	"strings"
 	"text/tabwriter"
 	"time"
@@ -347,13 +348,13 @@ func sseMessage(data []string, wantID any) map[string]any {
 
 // sameID compares JSON-RPC ids: numbers by value (1, 1.0 and 1e0 are equal),
 // anything else by its raw JSON, so the string "1" never equals the number 1.
+// ParseFloat, not big.Rat: a server-sent 1e999999999 must not cost memory.
 func sameID(got, want []byte) bool {
-	var a, b big.Rat
 	if json.Valid(got) && got[0] != '"' && json.Valid(want) && want[0] != '"' {
-		if _, ok := a.SetString(string(got)); ok {
-			if _, ok := b.SetString(string(want)); ok {
-				return a.Cmp(&b) == 0
-			}
+		x, errX := strconv.ParseFloat(string(got), 64)
+		y, errY := strconv.ParseFloat(string(want), 64)
+		if errX == nil && errY == nil && !math.IsInf(x, 0) && !math.IsInf(y, 0) {
+			return x == y
 		}
 	}
 	return bytes.Equal(got, want)
