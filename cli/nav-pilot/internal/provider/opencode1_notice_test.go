@@ -10,7 +10,7 @@ import (
 )
 
 // TestOpenCode1Notice: the opencode 1 nudge is said once a day and once per
-// version, never on opencode 2, and names the date and the install command.
+// version, never on opencode 2, and names the date, the install command and the page on what changes.
 func TestOpenCode1Notice(t *testing.T) {
 	t.Setenv("NAV_PILOT_CONFIG", filepath.Join(t.TempDir(), "config.yaml"))
 	t.Cleanup(func() { versionCache.Delete("opencode") })
@@ -34,7 +34,7 @@ func TestOpenCode1Notice(t *testing.T) {
 	}
 
 	first := launch("1.18.32\n")
-	for _, want := range []string{"OpenCode 1 support ends on 6 December 2026", OpenCode2InstallHint()} {
+	for _, want := range []string{"OpenCode 1 support ends on 6 December 2026", OpenCode2InstallHint(), "What changes: https://ki-utvikling.nav.no/nav-pilot/klienter#opencode-1"} {
 		if !strings.Contains(first, want) {
 			t.Errorf("notice %q lacks %q", first, want)
 		}

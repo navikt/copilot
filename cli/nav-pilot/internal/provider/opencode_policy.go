@@ -442,7 +442,7 @@ func OpenCode1Notice() string {
 	if openCodeMajor() != 1 {
 		return ""
 	}
-	return fmt.Sprintf("OpenCode 1 support ends on %s. Upgrade to OpenCode 2: %s",
+	return fmt.Sprintf("OpenCode 1 support ends on %s. Upgrade to OpenCode 2: %s\n  What changes: https://ki-utvikling.nav.no/nav-pilot/klienter#opencode-1",
 		OpenCode1EndOfSupportText, domain.Bold(OpenCode2InstallHint()))
 }
 
