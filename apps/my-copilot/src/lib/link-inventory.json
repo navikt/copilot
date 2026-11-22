@@ -542,6 +542,7 @@
   },
   "/mcp": {
     "sources": [
+      "README.md",
       "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/mcp-gjennom-cplt/page.tsx",
       "apps/my-copilot/src/app/(nb)/mcp/page.tsx",
       "apps/my-copilot/src/app/sitemap.ts",
@@ -1789,20 +1790,25 @@
       "apps/my-copilot/src/app/(nb)/nav-pilot/guider/synkronisere/page.tsx",
       "apps/my-copilot/src/app/sitemap.ts",
       "apps/my-copilot/src/components/nav-pilot/doc-pages.ts",
+      "docs/README.agentpakke.md",
+      "docs/README.nav-pilot.md",
       "docs/README.sync.md"
     ],
     "anchors": {
       "automatisk-sync": [
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/synkronisere/page.tsx",
-        "apps/my-copilot/src/app/(nb)/nav-pilot/guider/synkronisere/page.tsx"
+        "apps/my-copilot/src/app/(nb)/nav-pilot/guider/synkronisere/page.tsx",
+        "docs/README.sync.md"
       ],
       "faq": [
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/synkronisere/page.tsx",
-        "apps/my-copilot/src/app/(nb)/nav-pilot/guider/synkronisere/page.tsx"
+        "apps/my-copilot/src/app/(nb)/nav-pilot/guider/synkronisere/page.tsx",
+        "docs/README.sync.md"
       ],
       "hvordan-nav-pilot-finner-filer": [
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/synkronisere/page.tsx",
-        "apps/my-copilot/src/app/(nb)/nav-pilot/guider/synkronisere/page.tsx"
+        "apps/my-copilot/src/app/(nb)/nav-pilot/guider/synkronisere/page.tsx",
+        "docs/README.sync.md"
       ],
       "lokal-sync": [
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/synkronisere/page.tsx",
@@ -1812,7 +1818,8 @@
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/synkronisere/page.tsx",
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/tilpasse/page.tsx",
         "apps/my-copilot/src/app/(nb)/nav-pilot/guider/synkronisere/page.tsx",
-        "apps/my-copilot/src/app/(nb)/nav-pilot/guider/tilpasse/page.tsx"
+        "apps/my-copilot/src/app/(nb)/nav-pilot/guider/tilpasse/page.tsx",
+        "docs/README.sync.md"
       ]
     }
   },
@@ -1844,7 +1851,8 @@
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/synkronisere/page.tsx",
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/tilpasse/page.tsx",
         "apps/my-copilot/src/app/(nb)/nav-pilot/guider/synkronisere/page.tsx",
-        "apps/my-copilot/src/app/(nb)/nav-pilot/guider/tilpasse/page.tsx"
+        "apps/my-copilot/src/app/(nb)/nav-pilot/guider/tilpasse/page.tsx",
+        "docs/README.sync.md"
       ],
       "overstyre-installerte-filer": [
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/tilpasse/page.tsx",
@@ -3246,6 +3254,7 @@
   "/verktoy": {
     "sources": [
       "README.md",
+      "apps/mcp-onboarding/README.md",
       "apps/my-copilot/src/app/(nb)/(mcp)/mcp/bruke/page.tsx",
       "apps/my-copilot/src/app/(nb)/(mcp)/mcp/koble-til/page.tsx",
       "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/nav-mcp-servere/page.tsx",

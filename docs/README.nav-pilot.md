@@ -124,7 +124,7 @@ Dette får du bare her:
   dem. Det forutsetter at du committer og pusher, og nav-pilot gjør ingen av delene.
 - **Automatisk oppdatering uten at noen kjører CLI-et.** Den gjenbrukbare workflowen
   `copilot-customization-sync.yml` kjører `nav-pilot sync` i Actions og åpner PR med
-  oppdateringene. Se [README.sync.md](README.sync.md).
+  oppdateringene. Se [Synkronisere](https://ki-utvikling.nav.no/nav-pilot/guider/synkronisere).
 - **Alle på teamet, også de som ikke har nav-pilot.** Filene ligger der uansett.
 
 Hva det koster: innholdet blir liggende i repoet og dukker opp i differ og
