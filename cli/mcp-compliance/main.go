@@ -8,6 +8,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"errors"
@@ -280,27 +281,84 @@ func (cfg *config) do(method, token string, body map[string]any, hdr map[string]
 		return nil, err
 	}
 	defer res.Body.Close()
-	raw, _ := io.ReadAll(io.LimitReader(res.Body, 1<<20))
+	lr := io.LimitReader(res.Body, 1<<20)
 	out := &response{status: res.StatusCode, header: res.Header}
 	if strings.HasPrefix(res.Header.Get("Content-Type"), "text/event-stream") {
-		raw = firstSSEData(raw)
+		out.body = readSSEResponse(lr, body["id"])
+		return out, nil
 	}
+	raw, _ := io.ReadAll(lr)
 	_ = json.Unmarshal(raw, &out.body)
 	return out, nil
 }
 
-// firstSSEData returns the data of the first SSE event that carries any.
-func firstSSEData(raw []byte) []byte {
+// readSSEResponse reads SSE events until the JSON-RPC response to wantID
+// arrives, so a server that keeps the stream open does not hang the tool.
+// Empty events and notifications are skipped. wantID nil takes the first response.
+func readSSEResponse(r io.Reader, wantID any) map[string]any {
+	sc := bufio.NewScanner(r)
+	sc.Buffer(nil, 1<<20)
+	sc.Split(scanSSELine)
 	var data []string
-	for _, line := range strings.Split(strings.ReplaceAll(string(raw), "\r\n", "\n"), "\n") {
-		if line == "" && len(data) > 0 {
-			break
+	for {
+		more := sc.Scan()
+		line := sc.Text()
+		if !more || line == "" {
+			if msg := sseMessage(data, wantID); msg != nil {
+				return msg
+			}
+			data = data[:0]
+			if !more {
+				return nil
+			}
+			continue
 		}
 		if v, ok := strings.CutPrefix(line, "data:"); ok {
 			data = append(data, strings.TrimPrefix(v, " "))
 		}
 	}
-	return []byte(strings.Join(data, "\n"))
+}
+
+func sseMessage(data []string, wantID any) map[string]any {
+	if len(data) == 0 {
+		return nil
+	}
+	var m map[string]any
+	if json.Unmarshal([]byte(strings.Join(data, "\n")), &m) != nil {
+		return nil
+	}
+	_, hasResult := m["result"]
+	_, hasError := m["error"]
+	if !hasResult && !hasError {
+		return nil // a notification or a server request
+	}
+	if wantID != nil && fmt.Sprint(m["id"]) != fmt.Sprint(wantID) {
+		return nil
+	}
+	return m
+}
+
+// scanSSELine splits on CRLF, LF or CR, the three SSE line endings.
+func scanSSELine(data []byte, atEOF bool) (int, []byte, error) {
+	if i := bytes.IndexAny(data, "\r\n"); i >= 0 {
+		if data[i] == '\n' {
+			return i + 1, data[:i], nil
+		}
+		if i+1 < len(data) {
+			if data[i+1] == '\n' {
+				return i + 2, data[:i], nil
+			}
+			return i + 1, data[:i], nil
+		}
+		if atEOF {
+			return i + 1, data[:i], nil
+		}
+		return 0, nil, nil // a CR at the end may be half of a CRLF
+	}
+	if atEOF && len(data) > 0 {
+		return len(data), data, nil
+	}
+	return 0, nil, nil
 }
 
 func expectStatus(resp *response, err error, want int) error {

@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 )
 
 const (
@@ -181,10 +182,36 @@ func TestSSEServerPasses(t *testing.T) {
 	}
 }
 
-func TestFirstSSEData(t *testing.T) {
-	got := string(firstSSEData([]byte(": ping\r\n\r\nevent: message\r\ndata: {\"a\":\r\ndata:1}\r\n\r\ndata: {}\r\n")))
-	if got != "{\"a\":\n1}" {
-		t.Fatalf("got %q", got)
+func TestReadSSEResponse(t *testing.T) {
+	cases := map[string]string{
+		"CR only":             "event: message\rdata: {\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"ok\":true}}\r\r",
+		"CRLF and multi-line": ": ping\r\n\r\ndata: {\"jsonrpc\":\"2.0\",\"id\":1,\r\ndata: \"result\":{\"ok\":true}}\r\n\r\n",
+		"empty and notification first": "data:\n\ndata: {\"jsonrpc\":\"2.0\",\"method\":\"notifications/progress\"}\n\n" +
+			"data: {\"jsonrpc\":\"2.0\",\"id\":7,\"result\":{}}\n\ndata: {\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"ok\":true}}\n\n",
+	}
+	for name, in := range cases {
+		t.Run(name, func(t *testing.T) {
+			m := readSSEResponse(strings.NewReader(in), 1)
+			if r, _ := m["result"].(map[string]any); r["ok"] != true {
+				t.Fatalf("got %v", m)
+			}
+		})
+	}
+}
+
+func TestSSEStreamLeftOpenReturns(t *testing.T) {
+	pr, pw := io.Pipe()
+	defer pw.Close()
+	go func() { _, _ = pw.Write([]byte("data: {\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{}}\n\n")) }()
+	done := make(chan map[string]any, 1)
+	go func() { done <- readSSEResponse(pr, 1) }()
+	select {
+	case m := <-done:
+		if m == nil {
+			t.Fatal("no message")
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("readSSEResponse waited for the stream to close")
 	}
 }
 
