@@ -33,6 +33,8 @@ type Server struct {
 	Registry     json.RawMessage `json:"registry,omitempty"`
 	Route        *Route          `json:"-"` // served only by /internal/v1/routes and the routes snapshot
 	Status       string          `json:"-"`
+	// gatewayPath is the route a registry entry's gateway remote points to.
+	gatewayPath string
 }
 
 // Key is the server's identity, "<namespace>/<name>".
@@ -93,6 +95,10 @@ func seedServers(routesYAML, allowlistJSON []byte) ([]Server, error) {
 		}
 		seenRegistry[key] = e.RegistryName
 		if s := byKey[key]; s != nil {
+			// Join only through a gateway remote naming this exact route.
+			if s.Route == nil || e.gatewayPath != s.Route.Path {
+				return nil, fmt.Errorf("registry entry %q maps to %s, which a route already uses without a gateway remote to it", e.RegistryName, key)
+			}
 			s.RegistryName, s.Registry = e.RegistryName, e.Registry
 			continue
 		}
@@ -190,8 +196,11 @@ func validateUpstreamURL(raw, ns string) error {
 	if u.User != nil || (u.Scheme != "http" && u.Scheme != "https") {
 		return errors.New("must be http(s) without userinfo")
 	}
-	host := strings.ToLower(u.Hostname())
-	if net.ParseIP(host) != nil {
+	host, err := normalizeHost(u.Hostname())
+	if err != nil {
+		return err
+	}
+	if net.ParseIP(host) != nil || numericTLD(host) || strings.Contains(host, "xn--") {
 		return errors.New("IP addresses are not allowed")
 	}
 	for _, suffix := range []string{"." + ns + ".svc.cluster.local", "." + ns} {
@@ -252,6 +261,7 @@ func parseRegistryEntry(raw json.RawMessage) (Server, error) {
 		}
 	}
 
+	gatewayPath := ""
 	ns, short := "copilot", strings.ToLower(name[strings.LastIndex(name, "/")+1:])
 	if remotes, ok := entry["remotes"].([]any); ok {
 		kept := remotes[:0]
@@ -260,9 +270,13 @@ func parseRegistryEntry(raw json.RawMessage) (Server, error) {
 			u, _ := rm["url"].(string)
 			if rest, ok := strings.CutPrefix(u, gatewayRemotePrefix); ok {
 				var err error
+				if gatewayPath != "" {
+					return Server{}, fmt.Errorf("%s: more than one gateway remote", name)
+				}
 				if ns, short, err = splitRoutePath(rest); err != nil {
 					return Server{}, fmt.Errorf("%s: gateway remote %q: %w", name, u, err)
 				}
+				gatewayPath = rest
 				kept = append(kept, r)
 				continue
 			}
@@ -284,7 +298,7 @@ func parseRegistryEntry(raw json.RawMessage) (Server, error) {
 	if err != nil {
 		return Server{}, err
 	}
-	return Server{Namespace: ns, Name: short, RegistryName: name, Registry: body}, nil
+	return Server{Namespace: ns, Name: short, RegistryName: name, Registry: body, gatewayPath: gatewayPath}, nil
 }
 
 // validatePublicURL allows https on port 443 to a public DNS name, and plain
@@ -302,7 +316,13 @@ func validatePublicURL(raw string, allowLoopback bool) error {
 	if u.User != nil {
 		return errors.New("userinfo is not allowed")
 	}
-	host := u.Hostname()
+	if strings.ContainsAny(u.Host, "%[]") && !allowLoopback {
+		return errors.New("IP literals and zone IDs are not allowed")
+	}
+	host, err := normalizeHost(u.Hostname())
+	if err != nil {
+		return err
+	}
 	if ip := net.ParseIP(host); host == "localhost" || (ip != nil && ip.IsLoopback()) {
 		if allowLoopback && u.Scheme == "http" {
 			return nil
@@ -312,8 +332,8 @@ func validatePublicURL(raw string, allowLoopback bool) error {
 	if u.Scheme != "https" || (u.Port() != "" && u.Port() != "443") {
 		return errors.New("must be https on port 443")
 	}
-	if host == "" || host != strings.ToLower(host) || strings.Contains(host, "xn--") || net.ParseIP(host) != nil || !strings.Contains(host, ".") {
-		return fmt.Errorf("host %q must be a lowercase ASCII DNS name", host)
+	if strings.Contains(host, "xn--") || net.ParseIP(host) != nil || !strings.Contains(host, ".") || numericTLD(host) {
+		return fmt.Errorf("host %q must be an ASCII DNS name", host)
 	}
 	for _, suffix := range internalHostSuffixes {
 		if strings.HasSuffix("."+host, suffix) {
@@ -321,4 +341,20 @@ func validatePublicURL(raw string, allowLoopback bool) error {
 		}
 	}
 	return nil
+}
+
+// normalizeHost lowercases host and strips one trailing root dot, so
+// "svc.intern.nav.no." is checked as "svc.intern.nav.no".
+func normalizeHost(host string) (string, error) {
+	h := strings.TrimSuffix(strings.ToLower(host), ".")
+	if h == "" || strings.HasSuffix(h, ".") || strings.Contains(h, "..") {
+		return "", fmt.Errorf("invalid host %q", host)
+	}
+	return h, nil
+}
+
+// numericTLD catches IP forms net.ParseIP misses, such as "127.1" or "0x7f.1".
+func numericTLD(host string) bool {
+	tld := host[strings.LastIndex(host, ".")+1:]
+	return strings.Trim(tld, "0123456789abcdefx") == "" && strings.ContainsAny(tld, "0123456789")
 }

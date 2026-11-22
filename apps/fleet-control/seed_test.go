@@ -105,6 +105,12 @@ func TestSeedRejectsBadInput(t *testing.T) {
 		"ip literal":       {okRoute, []byte(`{"servers":[{"name":"a.b/c","remotes":[{"url":"https://10.0.0.1/mcp"}]}]}`)},
 		"other template":   {okRoute, []byte(`{"servers":[{"name":"a.b/c","remotes":[{"url":"https://c.{{domain_external}}/mcp"}]}]}`)},
 		"bad gateway path": {okRoute, []byte(`{"servers":[{"name":"a.b/c","remotes":[{"url":"https://fleet-gateway.{{domain_internal}}/mcp/x"}]}]}`)},
+		"trailing dot":     {okRoute, []byte(`{"servers":[{"name":"a.b/c","remotes":[{"url":"https://c.intern.nav.no./mcp"}]}]}`)},
+		"uppercase intern": {okRoute, []byte(`{"servers":[{"name":"a.b/c","remotes":[{"url":"https://C.INTERN.NAV.NO/mcp"}]}]}`)},
+		"short ip":         {okRoute, []byte(`{"servers":[{"name":"a.b/c","remotes":[{"url":"https://127.1/mcp"}]}]}`)},
+		"hex ip":           {okRoute, []byte(`{"servers":[{"name":"a.b/c","remotes":[{"url":"https://0x7f.1/mcp"}]}]}`)},
+		"upstream dot":     {route("  - route: /mcp/copilot/a\n    team: copilot\n    target: dev-gcp:copilot:a\n    upstream_url: http://evil.example.com./\n    tools: [x]\n"), okList},
+		"join by name":     {okRoute, []byte(`{"servers":[{"name":"io.github.navikt/a","remotes":[{"url":"https://a.nav.no/mcp"}]}]}`)},
 		"name collision":   {okRoute, []byte(`{"servers":[{"name":"a.b/c"},{"name":"d.e/c"}]}`)},
 	}
 	for name, c := range cases {

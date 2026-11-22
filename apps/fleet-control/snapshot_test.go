@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 )
 
@@ -100,11 +102,49 @@ func (f *fakeStore) Servers(context.Context) ([]Server, error) {
 func (f *fakeStore) LatestSnapshot(_ context.Context, kind string) (*Snapshot, error) {
 	return f.snapshots[kind], f.err
 }
-func (f *fakeStore) InsertSnapshot(_ context.Context, s *Snapshot) error {
-	if f.err == nil {
-		f.snapshots[s.Kind] = s
+func (f *fakeStore) Publish(_ context.Context, kind string, build func(string, []Server, *Snapshot) (*Snapshot, error)) (*Snapshot, error) {
+	if f.err != nil {
+		return nil, f.err
 	}
-	return f.err
+	next, err := build(kind, f.servers, f.snapshots[kind])
+	if err == nil {
+		f.snapshots[kind] = next
+	}
+	return next, err
+}
+
+func TestStoreIfNewerNeverGoesBack(t *testing.T) {
+	var p atomic.Pointer[Snapshot]
+	var wg sync.WaitGroup
+	for g := int64(1); g <= 200; g++ {
+		wg.Go(func() { storeIfNewer(&p, &Snapshot{Generation: g}) })
+	}
+	wg.Wait()
+	if got := p.Load().Generation; got != 200 {
+		t.Fatalf("got generation %d, want 200", got)
+	}
+	if got := storeIfNewer(&p, &Snapshot{Generation: 3}); got.Generation != 200 {
+		t.Errorf("an older generation replaced a newer one: %d", got.Generation)
+	}
+}
+
+func TestReadyUsesCachedSnapshots(t *testing.T) {
+	fs := &fakeStore{servers: testServers(3), snapshots: map[string]*Snapshot{}}
+	srv := newServer()
+	srv.store.Store(&storeBox{fs})
+	h := srv.routes()
+	if rec := get(t, h, "/ready", ""); rec.Code != http.StatusOK {
+		t.Fatalf("ready with database: %d %s", rec.Code, rec.Body)
+	}
+	fs.err = errors.New("down")
+	if rec := get(t, h, "/ready", ""); rec.Code != http.StatusOK {
+		t.Errorf("ready during outage with both snapshots cached: %d", rec.Code)
+	}
+	cold := newServer()
+	cold.store.Store(&storeBox{fs})
+	if rec := get(t, cold.routes(), "/ready", ""); rec.Code != http.StatusServiceUnavailable {
+		t.Errorf("ready during outage without cache: %d", rec.Code)
+	}
 }
 
 func get(t *testing.T, h http.Handler, path, inm string) *httptest.ResponseRecorder {
@@ -183,6 +223,9 @@ func TestHandlers(t *testing.T) {
 	restarted.store.Store(&storeBox{stored})
 	if rec := get(t, restarted.routes(), "/internal/v1/snapshots/routes", ""); rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "s9") {
 		t.Errorf("rejected rebuild after restart: %d %s", rec.Code, rec.Body)
+	}
+	if restarted.lastGood["routes"].Load() == nil {
+		t.Error("the stored fallback must become lastGood")
 	}
 
 	// Everything revoked or deleted: the snapshot is rejected, not emptied.

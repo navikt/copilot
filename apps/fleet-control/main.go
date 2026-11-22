@@ -100,6 +100,10 @@ func seedFromEnv(ctx context.Context, db *DB) error {
 	if routesPath == "" || allowlistPath == "" {
 		return nil
 	}
+	// A running instance never needs the files again.
+	if seeded, err := db.HasServers(ctx); err != nil || seeded {
+		return err
+	}
 	routes, err := os.ReadFile(routesPath) //nolint:gosec // operator-set path baked into the image
 	if err != nil {
 		return err
@@ -127,7 +131,9 @@ type store interface {
 	Ping(ctx context.Context) error
 	Servers(ctx context.Context) ([]Server, error)
 	LatestSnapshot(ctx context.Context, kind string) (*Snapshot, error)
-	InsertSnapshot(ctx context.Context, s *Snapshot) error
+	// Publish reads servers and the latest snapshot of kind, builds the next
+	// one and stores it, all in one transaction serialised per kind.
+	Publish(ctx context.Context, kind string, build func(string, []Server, *Snapshot) (*Snapshot, error)) (*Snapshot, error)
 }
 
 type server struct {

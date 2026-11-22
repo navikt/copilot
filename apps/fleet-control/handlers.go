@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"sync/atomic"
 	"time"
 )
 
@@ -33,15 +34,17 @@ func (s *server) db(w http.ResponseWriter, r *http.Request) (store, context.Cont
 	return box.store, ctx, cancel
 }
 
+// ready is true when both snapshot kinds can be served, from memory or the
+// database, so a database outage does not pull pods that hold a good cache.
 func (s *server) ready(w http.ResponseWriter, r *http.Request) {
-	st, ctx, cancel := s.db(w, r)
-	if st == nil {
-		return
-	}
-	defer cancel()
-	if err := st.Ping(ctx); err != nil {
-		http.Error(w, "database unavailable", http.StatusServiceUnavailable)
-		return
+	for kind := range s.lastGood {
+		if s.lastGood[kind].Load() != nil {
+			continue
+		}
+		if _, err := s.resolve(r.Context(), kind); err != nil {
+			http.Error(w, kind+" snapshot unavailable", http.StatusServiceUnavailable)
+			return
+		}
 	}
 	w.WriteHeader(http.StatusOK)
 }
@@ -90,27 +93,18 @@ func (s *server) listRoutes(w http.ResponseWriter, r *http.Request) {
 }
 
 // snapshot serves the current generation of a kind. It never serves an empty
-// or rejected snapshot: a failure returns the last good one from memory, or
-// 503, and consumers keep what they have.
+// or rejected snapshot: a failure returns the last good one, or 503, and
+// consumers keep what they have.
 func (s *server) snapshot(w http.ResponseWriter, r *http.Request) {
 	kind := r.PathValue("kind")
-	last, ok := s.lastGood[kind]
-	if !ok {
+	if _, ok := s.lastGood[kind]; !ok {
 		http.NotFound(w, r)
 		return
 	}
-	snap, err := s.currentSnapshot(r.Context(), kind)
+	snap, err := s.resolve(r.Context(), kind)
 	if err != nil {
-		slog.Error("snapshot unavailable", "kind", kind, "error", err)
-		if snap = last.Load(); snap == nil {
-			snap = s.storedSnapshot(r.Context(), kind)
-		}
-		if snap == nil {
-			http.Error(w, "snapshot unavailable", http.StatusServiceUnavailable)
-			return
-		}
-	} else {
-		last.Store(snap)
+		http.Error(w, "snapshot unavailable", http.StatusServiceUnavailable)
+		return
 	}
 	etag := `"` + snap.ETag + `"`
 	w.Header().Set("ETag", etag)
@@ -125,46 +119,46 @@ func (s *server) snapshot(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, map[string]any{"schema_version": 1, "generation": snap.Generation, field: snap.Items})
 }
 
-// storedSnapshot returns the last good snapshot persisted in the database,
-// used after a restart when a guard rejects the rebuilt one.
-func (s *server) storedSnapshot(ctx context.Context, kind string) *Snapshot {
+// resolve builds the current snapshot; on failure it falls back to the last
+// good one in memory, then to the one stored in the database. What it serves
+// becomes lastGood, which never moves to a lower generation.
+func (s *server) resolve(ctx context.Context, kind string) (*Snapshot, error) {
+	last := s.lastGood[kind]
 	box := s.store.Load()
 	if box == nil {
-		return nil
-	}
-	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-	snap, err := box.LatestSnapshot(ctx, kind)
-	if err != nil {
-		return nil
-	}
-	return snap
-}
-
-func (s *server) currentSnapshot(ctx context.Context, kind string) (*Snapshot, error) {
-	box := s.store.Load()
-	if box == nil {
+		if snap := last.Load(); snap != nil {
+			return snap, nil
+		}
 		return nil, errDBUnavailable
 	}
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
-	servers, err := box.Servers(ctx)
+	snap, err := box.Publish(ctx, kind, buildSnapshot)
 	if err != nil {
-		return nil, err
+		slog.Error("snapshot rebuild failed", "kind", kind, "error", err)
+		if snap = last.Load(); snap == nil {
+			stored, lerr := box.LatestSnapshot(ctx, kind)
+			if lerr != nil || stored == nil {
+				return nil, err
+			}
+			snap = stored
+		}
 	}
-	prev, err := box.LatestSnapshot(ctx, kind)
-	if err != nil {
-		return nil, err
+	return storeIfNewer(last, snap), nil
+}
+
+// storeIfNewer sets p to snap unless p already holds a generation at least as
+// high, and returns what p holds afterwards.
+func storeIfNewer(p *atomic.Pointer[Snapshot], snap *Snapshot) *Snapshot {
+	for {
+		cur := p.Load()
+		if cur != nil && cur.Generation >= snap.Generation {
+			return cur
+		}
+		if p.CompareAndSwap(cur, snap) {
+			return snap
+		}
 	}
-	next, err := buildSnapshot(kind, servers, prev)
-	if err != nil || next == prev {
-		return next, err
-	}
-	if err := box.InsertSnapshot(ctx, next); err != nil {
-		return nil, err
-	}
-	// Reread: another replica may have stored this generation first.
-	return box.LatestSnapshot(ctx, kind)
 }
 
 var errDBUnavailable = errors.New("database unavailable")

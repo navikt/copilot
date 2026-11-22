@@ -154,8 +154,16 @@ func (d *DB) Seed(ctx context.Context, servers []Server, source string) (bool, e
 }
 
 // Servers returns every server at its published version, revoked ones included.
-func (d *DB) Servers(ctx context.Context) ([]Server, error) {
-	rows, err := d.pool.Query(ctx, `
+func (d *DB) Servers(ctx context.Context) ([]Server, error) { return queryServers(ctx, d.pool) }
+
+// querier is a pool or a transaction.
+type querier interface {
+	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+}
+
+func queryServers(ctx context.Context, q querier) ([]Server, error) {
+	rows, err := q.Query(ctx, `
 		SELECT s.namespace, s.name, COALESCE(s.registry_name, ''), s.status,
 		       v.registry::text, v.route_path, v.target, v.upstream_url, v.enabled, v.tools
 		FROM servers s JOIN server_versions v
@@ -184,9 +192,13 @@ func (d *DB) Servers(ctx context.Context) ([]Server, error) {
 
 // LatestSnapshot returns the newest stored snapshot of kind, or nil.
 func (d *DB) LatestSnapshot(ctx context.Context, kind string) (*Snapshot, error) {
+	return latestSnapshot(ctx, d.pool, kind)
+}
+
+func latestSnapshot(ctx context.Context, q querier, kind string) (*Snapshot, error) {
 	s := Snapshot{Kind: kind}
 	var body string
-	err := d.pool.QueryRow(ctx, `SELECT generation, etag, body::text FROM snapshots WHERE kind = $1 ORDER BY generation DESC LIMIT 1`, kind).Scan(&s.Generation, &s.ETag, &body)
+	err := q.QueryRow(ctx, `SELECT generation, etag, body::text FROM snapshots WHERE kind = $1 ORDER BY generation DESC LIMIT 1`, kind).Scan(&s.Generation, &s.ETag, &body)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
 	}
@@ -197,9 +209,49 @@ func (d *DB) LatestSnapshot(ctx context.Context, kind string) (*Snapshot, error)
 	return &s, nil
 }
 
-// InsertSnapshot stores a new generation. A concurrent replica that stored
-// the same generation first wins; the caller rereads.
-func (d *DB) InsertSnapshot(ctx context.Context, s *Snapshot) error {
-	_, err := d.pool.Exec(ctx, `INSERT INTO snapshots (kind, generation, etag, body) VALUES ($1, $2, $3, $4::jsonb) ON CONFLICT DO NOTHING`, s.Kind, s.Generation, s.ETag, string(s.Items))
-	return err
+// HasServers reports whether any server exists.
+func (d *DB) HasServers(ctx context.Context) (bool, error) {
+	var exists bool
+	err := d.pool.QueryRow(ctx, "SELECT EXISTS (SELECT 1 FROM servers)").Scan(&exists)
+	return exists, err
+}
+
+// snapshotLockKey is the advisory lock per snapshot kind: concurrent
+// requests and replicas build one at a time, so a delayed request cannot
+// store stale servers as a newer generation.
+func snapshotLockKey(kind string) int64 {
+	if kind == "routes" {
+		return lockKey + 1
+	}
+	return lockKey + 2
+}
+
+// Publish implements store.
+func (d *DB) Publish(ctx context.Context, kind string, build func(string, []Server, *Snapshot) (*Snapshot, error)) (*Snapshot, error) {
+	var out *Snapshot
+	err := pgx.BeginFunc(ctx, d.pool, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, "SELECT pg_advisory_xact_lock($1)", snapshotLockKey(kind)); err != nil {
+			return err
+		}
+		servers, err := queryServers(ctx, tx)
+		if err != nil {
+			return err
+		}
+		prev, err := latestSnapshot(ctx, tx, kind)
+		if err != nil {
+			return err
+		}
+		next, err := build(kind, servers, prev)
+		if err != nil {
+			return err
+		}
+		if next != prev {
+			if _, err := tx.Exec(ctx, `INSERT INTO snapshots (kind, generation, etag, body) VALUES ($1, $2, $3, $4::jsonb)`, next.Kind, next.Generation, next.ETag, string(next.Items)); err != nil {
+				return err
+			}
+		}
+		out = next
+		return nil
+	})
+	return out, err
 }

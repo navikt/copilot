@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
+	"sync"
 	"testing"
 )
 
@@ -61,11 +63,11 @@ func TestRealPostgresSeedAndSnapshot(t *testing.T) {
 	srv := newServer()
 	srv.store.Store(&storeBox{db})
 	for _, kind := range []string{"routes", "registry"} {
-		a, aErr := srv.currentSnapshot(ctx, kind)
+		a, aErr := srv.resolve(ctx, kind)
 		if aErr != nil || a.Generation != 1 {
 			t.Fatalf("%s: %v %+v", kind, aErr, a)
 		}
-		b, bErr := srv.currentSnapshot(ctx, kind)
+		b, bErr := srv.resolve(ctx, kind)
 		if bErr != nil || b.Generation != 1 || b.ETag != a.ETag {
 			t.Errorf("%s rebuilt from the database must keep its generation: %+v", kind, b)
 		}
@@ -74,9 +76,42 @@ func TestRealPostgresSeedAndSnapshot(t *testing.T) {
 	if _, err = db.pool.Exec(ctx, "UPDATE servers SET status = 'revoked' WHERE name = 'dolly'"); err != nil {
 		t.Fatal(err)
 	}
-	next, err := srv.currentSnapshot(ctx, "routes")
+	next, err := srv.resolve(ctx, "routes")
 	if err != nil || next.Generation != 2 {
 		t.Errorf("revoke must publish generation 2: %v %+v", err, next)
+	}
+
+	// A running instance does not read the seed files again.
+	t.Setenv("SEED_ROUTES_FILE", "/nonexistent/routes.yaml")
+	t.Setenv("SEED_ALLOWLIST_FILE", "/nonexistent/allowlist.json")
+	if err = seedFromEnv(ctx, db); err != nil {
+		t.Errorf("seed with a populated database must not read the files: %v", err)
+	}
+
+	// Concurrent publishes are serialised: each gets its own generation.
+	var wg sync.WaitGroup
+	errs := make(chan error, 10)
+	for i := range 10 {
+		wg.Go(func() {
+			_, pubErr := db.Publish(ctx, "registry", func(kind string, servers []Server, prev *Snapshot) (*Snapshot, error) {
+				next, buildErr := buildSnapshot(kind, servers, prev)
+				if buildErr != nil {
+					return nil, buildErr
+				}
+				return &Snapshot{Kind: kind, Generation: prev.Generation + 1, ETag: fmt.Sprint(next.ETag, i), Items: next.Items}, nil
+			})
+			errs <- pubErr
+		})
+	}
+	wg.Wait()
+	close(errs)
+	for pubErr := range errs {
+		if pubErr != nil {
+			t.Errorf("concurrent publish: %v", pubErr)
+		}
+	}
+	if latest, _ := db.LatestSnapshot(ctx, "registry"); latest == nil || latest.Generation != 11 {
+		t.Errorf("want generation 11 after 10 publishes, got %+v", latest)
 	}
 
 	for _, stmt := range []string{"UPDATE audit_events SET actor = 'x'", "DELETE FROM audit_events", "TRUNCATE audit_events"} {
