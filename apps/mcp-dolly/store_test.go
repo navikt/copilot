@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"os"
 	"strings"
 	"sync"
@@ -298,5 +299,41 @@ func TestNewPGStoreHidesPassword(t *testing.T) {
 	}
 	if strings.Contains(err.Error(), "hemmelig-passord") || strings.Contains(err.Error(), "127.0.0.1") {
 		t.Fatalf("error leaks the URL: %q", err)
+	}
+}
+
+// Two replicas: a token previewed on pod A confirms on pod B (shared DB and
+// keys), and a replay on either pod is refused.
+func TestPGStoreTokenAcrossReplicas(t *testing.T) {
+	pa := pgTestStore(t)
+	pb, err := newPGStore(os.Getenv("DOLLY_TEST_PG_URL"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(pb.pool.Close)
+
+	a, _, _ := twoStepServer(t)
+	b, posts, _ := twoStepServer(t)
+	b.confirm = newOrderConfirm(a.confirm.keys) // mcp-dolly-keys: same keys, own boot ID
+	a.now, b.now = time.Now, time.Now           // tokens expire on the database clock
+	a.setStore(pa)
+	b.setStore(pb)
+
+	call := func(srv *server, args map[string]any) map[string]any {
+		_, out := callToolModern(t, srv.routes(), "in", "create_order", args)
+		return out
+	}
+	args := maps.Clone(twoStepArgs)
+	args["confirmationToken"] = previewToken(t, call(a, twoStepArgs))
+	if txt, isErr := extractToolText(t, call(b, args)); isErr {
+		t.Fatalf("confirm on other replica failed: %s", txt)
+	}
+	if posts() != 1 {
+		t.Fatalf("posts = %d, want 1", posts())
+	}
+	for _, srv := range []*server{a, b} {
+		if txt, isErr := extractToolText(t, call(srv, args)); !isErr || !strings.Contains(txt, "confirmation token") {
+			t.Fatalf("replay accepted: isErr=%v %q", isErr, txt)
+		}
 	}
 }
