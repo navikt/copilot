@@ -132,6 +132,18 @@ func newServer(cfg *config) *server {
 	return s
 }
 
+// setStore installs the order store. Postgres gives cross-pod single use, so
+// the per-process boot ID is dropped there and a token works on any pod.
+// Replay window: cleanup deletes a used token once its expiry passes on the
+// cleaning pod's clock, while a pod whose clock lags still accepts the token.
+// A second use is therefore only possible within the TTL plus clock skew.
+func (s *server) setStore(st orderStore) {
+	s.store = st
+	if st.sharedSingleUse() {
+		s.confirm.bootID = ""
+	}
+}
+
 func (s *server) routes() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", healthHandler)
@@ -401,7 +413,7 @@ func main() {
 		slog.Error("configuration failed", "error", err)
 		os.Exit(1)
 	}
-	srv.store = store
+	srv.setStore(store)
 	httpServer := newHTTPServer(cfg, srv.routes())
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)

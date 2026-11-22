@@ -90,6 +90,18 @@ func TestStoreSharedSingleUse(t *testing.T) {
 	}
 }
 
+func TestSetStoreBootID(t *testing.T) {
+	srv, _, _ := twoStepServer(t)
+	srv.setStore(memStore{confirm: srv.confirm, quota: srv.quota})
+	if srv.confirm.bootID == "" {
+		t.Fatal("memory mode cleared the boot ID")
+	}
+	srv.setStore(&pgStore{})
+	if srv.confirm.bootID != "" {
+		t.Fatal("postgres mode kept the boot ID")
+	}
+}
+
 func TestPGStoreQuotaLimit(t *testing.T) {
 	p := pgTestStore(t)
 	ctx := context.Background()
