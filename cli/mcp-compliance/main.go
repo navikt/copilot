@@ -15,6 +15,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"mime"
 	"net/http"
 	"os"
 	"slices"
@@ -283,7 +284,7 @@ func (cfg *config) do(method, token string, body map[string]any, hdr map[string]
 	defer res.Body.Close()
 	lr := io.LimitReader(res.Body, 1<<20)
 	out := &response{status: res.StatusCode, header: res.Header}
-	if strings.HasPrefix(res.Header.Get("Content-Type"), "text/event-stream") {
+	if mt, _, _ := mime.ParseMediaType(res.Header.Get("Content-Type")); mt == "text/event-stream" {
 		out.body = readSSEResponse(lr, body["id"])
 		return out, nil
 	}
@@ -298,7 +299,7 @@ func (cfg *config) do(method, token string, body map[string]any, hdr map[string]
 func readSSEResponse(r io.Reader, wantID any) map[string]any {
 	sc := bufio.NewScanner(r)
 	sc.Buffer(nil, 1<<20)
-	sc.Split(scanSSELine)
+	sc.Split(sseLineSplitter())
 	var data []string
 	for {
 		more := sc.Scan()
@@ -332,33 +333,46 @@ func sseMessage(data []string, wantID any) map[string]any {
 	if !hasResult && !hasError {
 		return nil // a notification or a server request
 	}
-	if wantID != nil && fmt.Sprint(m["id"]) != fmt.Sprint(wantID) {
-		return nil
+	if wantID != nil {
+		// Compare the raw JSON so the number 1 and the string "1" differ.
+		var ids struct{ ID json.RawMessage }
+		want, _ := json.Marshal(wantID)
+		if json.Unmarshal([]byte(strings.Join(data, "\n")), &ids) != nil || !bytes.Equal(bytes.TrimSpace(ids.ID), want) {
+			return nil
+		}
 	}
 	return m
 }
 
-// scanSSELine splits on CRLF, LF or CR, the three SSE line endings.
-func scanSSELine(data []byte, atEOF bool) (int, []byte, error) {
-	if i := bytes.IndexAny(data, "\r\n"); i >= 0 {
-		if data[i] == '\n' {
-			return i + 1, data[:i], nil
+// sseLineSplitter splits on CRLF, LF or CR, the three SSE line endings.
+// A CR ends the line at once; an LF right after it is dropped when it arrives,
+// so an open stream never waits to see what follows a CR.
+func sseLineSplitter() bufio.SplitFunc {
+	afterCR := false
+	return func(data []byte, atEOF bool) (int, []byte, error) {
+		if afterCR && len(data) > 0 {
+			afterCR = false
+			if data[0] == '\n' {
+				return 1, nil, nil
+			}
 		}
-		if i+1 < len(data) {
-			if data[i+1] == '\n' {
-				return i + 2, data[:i], nil
+		if i := bytes.IndexAny(data, "\r\n"); i >= 0 {
+			if data[i] == '\r' {
+				if i+1 < len(data) {
+					if data[i+1] == '\n' {
+						return i + 2, data[:i], nil
+					}
+				} else {
+					afterCR = true
+				}
 			}
 			return i + 1, data[:i], nil
 		}
-		if atEOF {
-			return i + 1, data[:i], nil
+		if atEOF && len(data) > 0 {
+			return len(data), data, nil
 		}
-		return 0, nil, nil // a CR at the end may be half of a CRLF
+		return 0, nil, nil
 	}
-	if atEOF && len(data) > 0 {
-		return len(data), data, nil
-	}
-	return 0, nil, nil
 }
 
 func expectStatus(resp *response, err error, want int) error {

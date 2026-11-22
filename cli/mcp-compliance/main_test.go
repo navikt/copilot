@@ -199,6 +199,46 @@ func TestReadSSEResponse(t *testing.T) {
 	}
 }
 
+func TestReadSSEResponseIDTypeMatters(t *testing.T) {
+	in := "data: {\"jsonrpc\":\"2.0\",\"id\":\"1\",\"result\":{}}\n\ndata: {\"jsonrpc\":\"2.0\",\"id\": 1 ,\"result\":{\"ok\":true}}\n\n"
+	m := readSSEResponse(strings.NewReader(in), 1)
+	if r, _ := m["result"].(map[string]any); r["ok"] != true {
+		t.Fatalf("string id \"1\" matched numeric id 1: %v", m)
+	}
+}
+
+func TestSSEContentTypeCaseInsensitive(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "Text/Event-Stream; charset=utf-8")
+		_, _ = w.Write([]byte("data: {\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"ok\":true}}\n\n"))
+	}))
+	defer srv.Close()
+	cfg := &config{url: srv.URL, client: srv.Client()}
+	resp, err := cfg.do(http.MethodPost, "", map[string]any{"jsonrpc": "2.0", "id": 1, "method": "x"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r, _ := resp.body["result"].(map[string]any); r["ok"] != true {
+		t.Fatalf("got %v", resp.body)
+	}
+}
+
+func TestSSEOpenStreamEndingInCRReturns(t *testing.T) {
+	pr, pw := io.Pipe()
+	defer func() { _ = pw.Close() }()
+	go func() { _, _ = pw.Write([]byte("data: {\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{}}\r\r")) }()
+	done := make(chan map[string]any, 1)
+	go func() { done <- readSSEResponse(pr, 1) }()
+	select {
+	case m := <-done:
+		if m == nil {
+			t.Fatal("no message")
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("waited for data after a final CR")
+	}
+}
+
 func TestSSEStreamLeftOpenReturns(t *testing.T) {
 	pr, pw := io.Pipe()
 	defer func() { _ = pw.Close() }()
