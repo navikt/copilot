@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -11,6 +12,7 @@ import (
 	"runtime/debug"
 	"strings"
 	"testing"
+	"time"
 )
 
 const (
@@ -25,7 +27,7 @@ type fakeServer struct {
 	noDiscover, noVersionCheck, noMethodCheck, noNameCheck bool
 	noEnvelopeCheck, allowGET, noSizeLimit                 bool
 	noChallenge, noToolsList, echoToken, fracCode          bool
-	unsupportedAsMismatch                                  bool
+	unsupportedAsMismatch, sse                             bool
 	tool                                                   map[string]any // replaces the default tools/list entry
 }
 
@@ -114,8 +116,8 @@ func (f fakeServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		rpcErr(codeHeaderMismatch)
 		return
 	}
-	if r.Header.Get("Accept") != "application/json" {
-		w.WriteHeader(406) // the tool must not ask for SSE it cannot parse
+	if a := r.Header.Get("Accept"); !strings.Contains(a, "application/json") || !strings.Contains(a, "text/event-stream") {
+		w.WriteHeader(406) // Streamable HTTP: the client must accept both
 		return
 	}
 	resultType := "complete"
@@ -140,7 +142,14 @@ func (f fakeServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		result["tools"] = []any{tool}
 	}
-	_ = json.NewEncoder(w).Encode(map[string]any{"jsonrpc": "2.0", "id": 1, "result": result})
+	msg, _ := json.Marshal(map[string]any{"jsonrpc": "2.0", "id": 1, "result": result})
+	if f.sse {
+		w.Header().Set("Content-Type", "text/event-stream")
+		_, _ = fmt.Fprintf(w, "event: message\nid: 1\ndata: %s\n\ndata: {\"jsonrpc\":\"2.0\",\"id\":99}\n\n", msg)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_, _ = w.Write(msg)
 }
 
 func runAgainst(t *testing.T, f fakeServer, path ...string) (int, string) {
@@ -164,6 +173,119 @@ func TestCompliantServerPasses(t *testing.T) {
 	code, out := runAgainst(t, fakeServer{})
 	if code != 0 || strings.Contains(out, "FAIL") {
 		t.Fatalf("exit %d, want 0:\n%s", code, out)
+	}
+}
+
+func TestSSEServerPasses(t *testing.T) {
+	code, out := runAgainst(t, fakeServer{sse: true})
+	if code != 0 || strings.Contains(out, "FAIL") {
+		t.Fatalf("exit %d, want 0:\n%s", code, out)
+	}
+}
+
+func TestReadSSEResponse(t *testing.T) {
+	cases := map[string]string{
+		"CR only":             "event: message\rdata: {\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"ok\":true}}\r\r",
+		"CRLF and multi-line": ": ping\r\n\r\ndata: {\"jsonrpc\":\"2.0\",\"id\":1,\r\ndata: \"result\":{\"ok\":true}}\r\n\r\n",
+		"empty and notification first": "data:\n\ndata: {\"jsonrpc\":\"2.0\",\"method\":\"notifications/progress\"}\n\n" +
+			"data: {\"jsonrpc\":\"2.0\",\"id\":7,\"result\":{}}\n\ndata: {\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"ok\":true}}\n\n",
+	}
+	for name, in := range cases {
+		t.Run(name, func(t *testing.T) {
+			m := readSSEResponse(strings.NewReader(in), 1)
+			if r, _ := m["result"].(map[string]any); r["ok"] != true {
+				t.Fatalf("got %v", m)
+			}
+		})
+	}
+}
+
+func TestReadSSEResponseIDTypeMatters(t *testing.T) {
+	in := "data: {\"jsonrpc\":\"2.0\",\"id\":\"1\",\"result\":{}}\n\ndata: {\"jsonrpc\":\"2.0\",\"id\": 1 ,\"result\":{\"ok\":true}}\n\n"
+	m := readSSEResponse(strings.NewReader(in), 1)
+	if r, _ := m["result"].(map[string]any); r["ok"] != true {
+		t.Fatalf("string id \"1\" matched numeric id 1: %v", m)
+	}
+}
+
+func TestSSEContentTypeCaseInsensitive(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "Text/Event-Stream; charset=utf-8")
+		_, _ = w.Write([]byte("data: {\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{\"ok\":true}}\n\n"))
+	}))
+	defer srv.Close()
+	cfg := &config{url: srv.URL, client: srv.Client()}
+	resp, err := cfg.do(http.MethodPost, "", map[string]any{"jsonrpc": "2.0", "id": 1, "method": "x"}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if r, _ := resp.body["result"].(map[string]any); r["ok"] != true {
+		t.Fatalf("got %v", resp.body)
+	}
+}
+
+func TestSSEOpenStreamEndingInCRReturns(t *testing.T) {
+	pr, pw := io.Pipe()
+	defer func() { _ = pw.Close() }()
+	go func() { _, _ = pw.Write([]byte("data: {\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{}}\r\r")) }()
+	done := make(chan map[string]any, 1)
+	go func() { done <- readSSEResponse(pr, 1) }()
+	select {
+	case m := <-done:
+		if m == nil {
+			t.Fatal("no message")
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("waited for data after a final CR")
+	}
+}
+
+func TestSSESplitCRLFOpenStreamReturns(t *testing.T) {
+	pr, pw := io.Pipe()
+	defer func() { _ = pw.Close() }()
+	go func() {
+		_, _ = pw.Write([]byte("data: {\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{}}\r"))
+		_, _ = pw.Write([]byte("\n\r\n"))
+	}()
+	done := make(chan map[string]any, 1)
+	go func() { done <- readSSEResponse(pr, 1) }()
+	select {
+	case m := <-done:
+		if m == nil {
+			t.Fatal("no message")
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("blocked on a CRLF split across reads")
+	}
+}
+
+func TestReadSSEResponseNumericIDForms(t *testing.T) {
+	for _, id := range []string{"1.0", "1e0"} {
+		in := "data: {\"jsonrpc\":\"2.0\",\"id\":" + id + ",\"result\":{\"ok\":true}}\n\n"
+		if r, _ := readSSEResponse(strings.NewReader(in), 1)["result"].(map[string]any); r["ok"] != true {
+			t.Fatalf("id %s did not match 1", id)
+		}
+	}
+	start := time.Now()
+	huge := "data: {\"jsonrpc\":\"2.0\",\"id\":1e999999999,\"result\":{}}\n\n"
+	if m := readSSEResponse(strings.NewReader(huge), 1); m != nil || time.Since(start) > time.Second {
+		t.Fatalf("1e999999999: got %v after %v, want no match quickly", m, time.Since(start))
+	}
+}
+
+func TestSSEStreamLeftOpenReturns(t *testing.T) {
+	pr, pw := io.Pipe()
+	defer func() { _ = pw.Close() }()
+	go func() { _, _ = pw.Write([]byte("data: {\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{}}\n\n")) }()
+	done := make(chan map[string]any, 1)
+	go func() { done <- readSSEResponse(pr, 1) }()
+	select {
+	case m := <-done:
+		if m == nil {
+			t.Fatal("no message")
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("readSSEResponse waited for the stream to close")
 	}
 }
 

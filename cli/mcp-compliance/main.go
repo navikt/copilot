@@ -8,16 +8,20 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
 	"io"
+	"math"
+	"mime"
 	"net/http"
 	"os"
 	"runtime/debug"
 	"slices"
+	"strconv"
 	"strings"
 	"text/tabwriter"
 	"time"
@@ -287,8 +291,8 @@ func (cfg *config) do(method, token string, body map[string]any, hdr map[string]
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	// JSON only: the tool cannot parse SSE, and the Nav servers do not require text/event-stream.
-	req.Header.Set("Accept", "application/json")
+	// Streamable HTTP requires both; a server may answer either way.
+	req.Header.Set("Accept", "application/json, text/event-stream")
 	if token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
 	}
@@ -303,10 +307,113 @@ func (cfg *config) do(method, token string, body map[string]any, hdr map[string]
 		return nil, err
 	}
 	defer res.Body.Close()
-	raw, _ := io.ReadAll(io.LimitReader(res.Body, 1<<20))
+	lr := io.LimitReader(res.Body, 1<<20)
 	out := &response{status: res.StatusCode, header: res.Header}
+	if mt, _, _ := mime.ParseMediaType(res.Header.Get("Content-Type")); mt == "text/event-stream" {
+		out.body = readSSEResponse(lr, body["id"])
+		return out, nil
+	}
+	raw, _ := io.ReadAll(lr)
 	_ = json.Unmarshal(raw, &out.body)
 	return out, nil
+}
+
+// readSSEResponse reads SSE events until the JSON-RPC response to wantID
+// arrives, so a server that keeps the stream open does not hang the tool.
+// Empty events and notifications are skipped. wantID nil takes the first response.
+func readSSEResponse(r io.Reader, wantID any) map[string]any {
+	sc := bufio.NewScanner(r)
+	sc.Buffer(nil, 1<<20)
+	sc.Split(sseLineSplitter())
+	var data []string
+	for {
+		more := sc.Scan()
+		line := sc.Text()
+		if !more || line == "" {
+			if msg := sseMessage(data, wantID); msg != nil {
+				return msg
+			}
+			data = data[:0]
+			if !more {
+				return nil
+			}
+			continue
+		}
+		if v, ok := strings.CutPrefix(line, "data:"); ok {
+			data = append(data, strings.TrimPrefix(v, " "))
+		}
+	}
+}
+
+func sseMessage(data []string, wantID any) map[string]any {
+	if len(data) == 0 {
+		return nil
+	}
+	var m map[string]any
+	if json.Unmarshal([]byte(strings.Join(data, "\n")), &m) != nil {
+		return nil
+	}
+	_, hasResult := m["result"]
+	_, hasError := m["error"]
+	if !hasResult && !hasError {
+		return nil // a notification or a server request
+	}
+	if wantID != nil {
+		// Compare the raw JSON so the number 1 and the string "1" differ.
+		var ids struct{ ID json.RawMessage }
+		want, _ := json.Marshal(wantID)
+		if json.Unmarshal([]byte(strings.Join(data, "\n")), &ids) != nil || !sameID(bytes.TrimSpace(ids.ID), want) {
+			return nil
+		}
+	}
+	return m
+}
+
+// sameID compares JSON-RPC ids: numbers by value (1, 1.0 and 1e0 are equal),
+// anything else by its raw JSON, so the string "1" never equals the number 1.
+// ParseFloat, not big.Rat: a server-sent 1e999999999 must not cost memory.
+func sameID(got, want []byte) bool {
+	if json.Valid(got) && got[0] != '"' && json.Valid(want) && want[0] != '"' {
+		x, errX := strconv.ParseFloat(string(got), 64)
+		y, errY := strconv.ParseFloat(string(want), 64)
+		if errX == nil && errY == nil && !math.IsInf(x, 0) && !math.IsInf(y, 0) {
+			return x == y
+		}
+	}
+	return bytes.Equal(got, want)
+}
+
+// sseLineSplitter splits on CRLF, LF or CR, the three SSE line endings.
+// A CR ends the line at once; an LF right after it is dropped when it arrives,
+// so an open stream never waits to see what follows a CR.
+func sseLineSplitter() bufio.SplitFunc {
+	afterCR := false
+	return func(data []byte, atEOF bool) (int, []byte, error) {
+		off := 0
+		if afterCR && len(data) > 0 {
+			afterCR = false
+			if data[0] == '\n' {
+				off = 1 // drop it and keep splitting, so buffered events are not stalled
+			}
+		}
+		rest := data[off:]
+		if i := bytes.IndexAny(rest, "\r\n"); i >= 0 {
+			if rest[i] == '\r' {
+				if i+1 < len(rest) {
+					if rest[i+1] == '\n' {
+						return off + i + 2, rest[:i], nil
+					}
+				} else {
+					afterCR = true
+				}
+			}
+			return off + i + 1, rest[:i], nil
+		}
+		if atEOF && len(rest) > 0 {
+			return len(data), rest, nil
+		}
+		return off, nil, nil
+	}
 }
 
 func expectStatus(resp *response, err error, want int) error {
