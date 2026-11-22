@@ -129,6 +129,13 @@ func TestTeamsFromEnv(t *testing.T) {
 			t.Errorf("write routes mounted in cluster %q", cluster)
 		}
 	}
+	ident, list, err := resolvePerson(context.Background(), testAuthz(t), "Bearer "+userTok("A111111"), adminID, testTeams)
+	if err != nil || ident != "A111111" || strings.Join(list, ",") != "team-a" {
+		t.Errorf("resolvePerson: %q %v %v", ident, list, err)
+	}
+	if _, _, err = resolvePerson(context.Background(), testAuthz(t), "Bearer "+adminID, adminID, testTeams); !errors.Is(err, errUnauthorized) {
+		t.Errorf("resolvePerson with an app token: %v", err)
+	}
 	if adminClientFor("dev-gcp", adminID) != adminID {
 		t.Error("dev-gcp must mount the write routes")
 	}
@@ -321,9 +328,9 @@ func TestRealPostgresRollbackSkipsUnapprovedAndBlocked(t *testing.T) {
 		t.Fatal(err)
 	}
 	publish := func() int {
-		v, err := db.SaveDraft(ctx, "A111111", sv, "h")
-		if err != nil {
-			t.Fatal(err)
+		v, saveErr := db.SaveDraft(ctx, "A111111", sv, "h")
+		if saveErr != nil {
+			t.Fatal(saveErr)
 		}
 		if err := db.Approve(ctx, "A222222", "team-a", "rb", v, "h"); err != nil {
 			t.Fatal(err)
