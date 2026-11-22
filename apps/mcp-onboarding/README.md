@@ -17,7 +17,7 @@ This server implements:
 
 ## Getting Started
 
-For installation and usage instructions, see the [ki-utvikling.nav.no/verktoy](https://ki-utvikling.nav.no/verktoy).
+For installation and usage instructions, see [ki-utvikling.nav.no/verktoy](https://ki-utvikling.nav.no/verktoy).
 
 ![Install Mcp Onboarding from VS Code](../../docs/assets/copilot-mcp-install.png)
 
