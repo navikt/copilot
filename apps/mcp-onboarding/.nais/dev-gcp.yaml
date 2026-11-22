@@ -4,8 +4,8 @@ image: "{{image}}"
 replicas_min: 1
 replicas_max: 1
 memory_limit: 256Mi
-cpu_request: 50m
-memory_request: 128Mi
+cpu_request: 10m
+memory_request: 64Mi
 ingresses:
   - https://mcp-onboarding.intern.dev.nav.no
 base_url: https://mcp-onboarding.intern.dev.nav.no
