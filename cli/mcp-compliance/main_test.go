@@ -201,7 +201,7 @@ func TestReadSSEResponse(t *testing.T) {
 
 func TestSSEStreamLeftOpenReturns(t *testing.T) {
 	pr, pw := io.Pipe()
-	defer pw.Close()
+	defer func() { _ = pw.Close() }()
 	go func() { _, _ = pw.Write([]byte("data: {\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{}}\n\n")) }()
 	done := make(chan map[string]any, 1)
 	go func() { done <- readSSEResponse(pr, 1) }()
