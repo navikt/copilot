@@ -229,9 +229,9 @@ func (s *server) mcpHandler(w http.ResponseWriter, r *http.Request) {
 		// Initialize-era revisions require an empty result; serveModern still rejects ping.
 		result = map[string]any{}
 	case "tools/list":
-		result = map[string]any{"tools": toolDefinitions(s.cfg.EnableCreateOrder)}
+		result = map[string]any{"tools": toolDefinitions(s.cfg.EnableCreateOrder, false)}
 	case "tools/call":
-		res, rpcErr := s.handleToolCall(r.Context(), token, navIdent, env.Params.Name, env.Params.Arguments)
+		res, rpcErr := s.handleToolCall(r.Context(), token, navIdent, env.Params.Name, env.Params.Arguments, nil)
 		if rpcErr != nil {
 			writeMCPError(w, http.StatusOK, rpcID, rpcErr)
 			return
@@ -269,10 +269,14 @@ func (s *server) serveModern(w http.ResponseWriter, r *http.Request, env mcpEnve
 	case "server/discover":
 		result = mcpDiscoverResult(map[string]any{"tools": map[string]any{}}, now)
 	case "tools/list":
-		result = map[string]any{"tools": toolDefinitions(s.cfg.EnableCreateOrder)}
+		result = map[string]any{"tools": toolDefinitions(s.cfg.EnableCreateOrder, env.formElicitation())}
 		extra = map[string]any{"ttlMs": mcpDiscoverTTLMilliseconds, "cacheScope": "private"}
 	case "tools/call":
-		res, rpcErr := s.handleToolCall(r.Context(), token, navIdent, env.Params.Name, env.Params.Arguments)
+		var el *elicitInput
+		if env.formElicitation() {
+			el = &elicitInput{responses: env.Params.InputResponses, state: env.Params.RequestState}
+		}
+		res, rpcErr := s.handleToolCall(r.Context(), token, navIdent, env.Params.Name, env.Params.Arguments, el)
 		if rpcErr != nil {
 			writeMCPError(w, http.StatusOK, rpcID, rpcErr)
 			return

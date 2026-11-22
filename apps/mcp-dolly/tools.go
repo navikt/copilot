@@ -79,7 +79,7 @@ func writeTool(name, desc string, required []string, props map[string]any) map[s
 	return t
 }
 
-func toolDefinitions(enableCreateOrder bool) []map[string]any {
+func toolDefinitions(enableCreateOrder, elicit bool) []map[string]any {
 	gruppeID := intProp("Dolly test group id (gruppeId).", 1, 1<<53)
 	tools := []map[string]any{
 		tool("dolly_current_user", "Get the signed-in user's Dolly profile (brukerId, team).", nil, map[string]any{}),
@@ -97,27 +97,40 @@ func toolDefinitions(enableCreateOrder bool) []map[string]any {
 			withPaging(map[string]any{"gruppeId": gruppeID})),
 	}
 	if enableCreateOrder {
-		tools = append(tools, writeTool("create_order",
-			"Create an order (bestilling) for 1-5 synthetic test persons in a Dolly group owned by the signed-in user. Two steps. Step 1: call with the order parameters; this only returns a preview (group, antall, environments, attributes, quota left) and a confirmationToken valid for 5 minutes, and orders nothing. Always confirm with the user by showing the preview. Step 2: after the user approves, call again with the identical parameters plus confirmationToken; only then is the order sent and quota charged. The token is single use and bound to the user and the exact parameters. Defaults are in the preview; only antall, environments, minAlder, maxAlder and kjoenn can be set.",
-			[]string{"gruppeId", "antall", "environments"},
-			map[string]any{
-				"gruppeId": gruppeID,
-				"antall":   intProp("Number of synthetic test persons to create (1-5).", minOrderAntall, maxOrderAntall),
-				"environments": map[string]any{
-					"type":        "array",
-					"description": "Target test environments (non-empty subset of q1, q2, q4).",
-					"minItems":    1,
-					"maxItems":    3,
-					"uniqueItems": true,
-					"items":       map[string]any{"type": "string", "enum": []string{"q1", "q2", "q4"}},
-				},
-				"minAlder":      intProp("Optional minimum age in years (0-120).", 0, maxOrderAge),
-				"maxAlder":      intProp("Optional maximum age in years (0-120, >= minAlder).", 0, maxOrderAge),
-				"kjoenn":        map[string]any{"type": "string", "enum": []string{"MANN", "KVINNE", "UKJENT"}, "description": "Optional gender (MANN, KVINNE, or UKJENT)."},
-				confirmTokenKey: map[string]any{"type": "string", "description": "Token from the preview (step 2 only). Omit in step 1."},
-			}))
+		desc, props := createOrderDescTwoStep, createOrderProps(gruppeID)
+		if elicit {
+			// The client asks the user; the model never sees a token or a step 2.
+			desc = createOrderDescElicit
+			delete(props, confirmTokenKey)
+		}
+		tools = append(tools, writeTool("create_order", desc,
+			[]string{"gruppeId", "antall", "environments"}, props))
 	}
 	return tools
+}
+
+const (
+	createOrderDescTwoStep = "Create an order (bestilling) for 1-5 synthetic test persons in a Dolly group owned by the signed-in user. Two steps. Step 1: call with the order parameters; this only returns a preview (group, antall, environments, attributes, quota left) and a confirmationToken valid for 5 minutes, and orders nothing. Always confirm with the user by showing the preview. Step 2: after the user approves, call again with the identical parameters plus confirmationToken; only then is the order sent and quota charged. The token is single use and bound to the user and the exact parameters. Defaults are in the preview; only antall, environments, minAlder, maxAlder and kjoenn can be set."
+	createOrderDescElicit  = "Create an order (bestilling) for 1-5 synthetic test persons in a Dolly group owned by the signed-in user. The user is asked to confirm the order in the client before anything is ordered; if they decline, nothing is ordered. Defaults are in the result; only antall, environments, minAlder, maxAlder and kjoenn can be set."
+)
+
+func createOrderProps(gruppeID map[string]any) map[string]any {
+	return map[string]any{
+		"gruppeId": gruppeID,
+		"antall":   intProp("Number of synthetic test persons to create (1-5).", minOrderAntall, maxOrderAntall),
+		"environments": map[string]any{
+			"type":        "array",
+			"description": "Target test environments (non-empty subset of q1, q2, q4).",
+			"minItems":    1,
+			"maxItems":    3,
+			"uniqueItems": true,
+			"items":       map[string]any{"type": "string", "enum": []string{"q1", "q2", "q4"}},
+		},
+		"minAlder":      intProp("Optional minimum age in years (0-120).", 0, maxOrderAge),
+		"maxAlder":      intProp("Optional maximum age in years (0-120, >= minAlder).", 0, maxOrderAge),
+		"kjoenn":        map[string]any{"type": "string", "enum": []string{"MANN", "KVINNE", "UKJENT"}, "description": "Optional gender (MANN, KVINNE, or UKJENT)."},
+		confirmTokenKey: map[string]any{"type": "string", "description": "Token from the preview (step 2 only). Omit in step 1."},
+	}
 }
 
 // orderDefaults is what Dolly applies to every created person (team Dolly, 2026-11-20).
@@ -125,7 +138,69 @@ const orderDefaults = "Each person is created with FNR and gets: fødselsnummer,
 	"Unless set: age 30-60, even gender split; children 0-17, parents 60-80; spouse/partner within +/-3 years of the main person; every 20th couple (5%) is same-sex. " +
 	"This tool can only set antall, environments, minAlder, maxAlder and kjoenn (main person); anything else requires the Dolly UI."
 
-func (s *server) handleToolCall(ctx context.Context, inboundToken, navIdent, toolName string, rawArgs json.RawMessage) (any, *mcpRPCError) {
+// elicitInput is set when the client declared form elicitation (2026-07-28 only).
+// responses and state come from the client's retry, never from tool arguments.
+type elicitInput struct {
+	responses map[string]json.RawMessage
+	state     string
+}
+
+const orderConfirmKey = "confirm_order"
+
+// confirmed reports the user's answer; answered is false when the retry carries no response.
+func (el *elicitInput) confirmed() (ok, answered bool) {
+	var r struct {
+		Action  string `json:"action"`
+		Content struct {
+			Confirm bool `json:"confirm"`
+		} `json:"content"`
+	}
+	raw, has := el.responses[orderConfirmKey]
+	if !has || json.Unmarshal(raw, &r) != nil {
+		return false, false
+	}
+	return r.Action == "accept" && r.Content.Confirm, true
+}
+
+// askOrderConfirmation returns an InputRequiredResult whose requestState carries
+// the confirmation token. Clients pass requestState back without showing it to the model.
+// https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/mrtr#inputrequiredresult
+func (s *server) askOrderConfirmation(ctx context.Context, inboundToken, userHash, params string, gruppeID int64, req dollyBestillingRequest, fields map[string]json.RawMessage) any {
+	res := s.execWithOBO(ctx, inboundToken, func(tok string) (string, error) {
+		return "", s.checkGroupOwner(ctx, tok, gruppeID)
+	})
+	if res["isError"] == true {
+		return res
+	}
+	ctok, _ := s.confirm.issue(userHash, params, s.now())
+	msg := fmt.Sprintf("Bestille %d syntetiske testpersoner i Dolly-gruppe %d, miljø %s?", req.Antall, gruppeID, strings.Join(req.Environments, ", "))
+	for _, k := range []string{"minAlder", "maxAlder", "kjoenn"} {
+		if v, ok := fields[k]; ok {
+			msg += fmt.Sprintf(" %s=%s.", k, v)
+		}
+	}
+	msg += fmt.Sprintf(" Kvote igjen siste døgn: %d.", s.quota.remaining(userHash, s.now()))
+	return map[string]any{
+		"resultType": "input_required",
+		"inputRequests": map[string]any{orderConfirmKey: map[string]any{
+			"method": "elicitation/create",
+			"params": map[string]any{
+				"mode":    "form",
+				"message": msg,
+				"requestedSchema": map[string]any{
+					"type": "object",
+					"properties": map[string]any{"confirm": map[string]any{
+						"type": "boolean", "title": "Bestill", "default": false,
+					}},
+					"required": []string{"confirm"},
+				},
+			},
+		}},
+		"requestState": ctok,
+	}
+}
+
+func (s *server) handleToolCall(ctx context.Context, inboundToken, navIdent, toolName string, rawArgs json.RawMessage, el *elicitInput) (any, *mcpRPCError) {
 	var fields map[string]json.RawMessage
 	var rpcErr *mcpRPCError
 	allow := func(keys ...string) bool {
@@ -255,7 +330,23 @@ func (s *server) handleToolCall(ctx context.Context, inboundToken, navIdent, too
 		userHash := s.quota.hashUser(navIdent)
 		params := paramsHash(fields)
 		rawTok, hasTok := fields[confirmTokenKey]
-		if !hasTok {
+		var token string
+		switch {
+		case el != nil && hasTok:
+			// The client confirms with the user; a token from the model is never accepted here.
+			return toolErrorResult("confirmationToken is not accepted from this client; call create_order without it and the user confirms in the client"), nil
+		case el != nil && el.state == "":
+			return s.askOrderConfirmation(ctx, inboundToken, userHash, params, gruppeID, orderReq, fields), nil
+		case el != nil:
+			ok, answered := el.confirmed()
+			if !answered {
+				return s.askOrderConfirmation(ctx, inboundToken, userHash, params, gruppeID, orderReq, fields), nil
+			}
+			if !ok {
+				return map[string]any{"content": []map[string]string{{"type": "text", "text": "The user did not confirm the order. Nothing was ordered."}}}, nil
+			}
+			token = el.state
+		case !hasTok:
 			// Step 1: preview only. Nothing is ordered and no quota is charged.
 			attrs := map[string]json.RawMessage{}
 			for _, k := range []string{"minAlder", "maxAlder", "kjoenn"} {
@@ -284,10 +375,11 @@ func (s *server) handleToolCall(ctx context.Context, inboundToken, navIdent, too
 				})
 				return string(preview), nil
 			}), nil
-		}
-		token, e := parseStrictString(rawTok, confirmTokenKey)
-		if e != nil {
-			return nil, e
+		default:
+			var e *mcpRPCError
+			if token, e = parseStrictString(rawTok, confirmTokenKey); e != nil {
+				return nil, e
+			}
 		}
 		if err := s.confirm.consume(token, userHash, params, s.now()); err != nil {
 			return toolErrorResult(err.Error()), nil

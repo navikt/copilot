@@ -49,7 +49,26 @@ type mcpEnvelope struct {
 		// ProtocolVersion is the initialize-era handshake field, not _meta.
 		ProtocolVersion string                     `json:"protocolVersion"`
 		Meta            map[string]json.RawMessage `json:"_meta"`
+		// Multi round-trip retry fields, set by the client, never by the model.
+		// https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/mrtr
+		InputResponses map[string]json.RawMessage `json:"inputResponses"`
+		RequestState   string                     `json:"requestState"`
 	} `json:"params"`
+}
+
+// formElicitation reports whether the client declared form-mode elicitation.
+// An empty elicitation object means form only.
+// https://modelcontextprotocol.io/specification/2026-07-28/client/elicitation#capabilities
+func (e mcpEnvelope) formElicitation() bool {
+	var caps struct {
+		Elicitation map[string]json.RawMessage `json:"elicitation"`
+	}
+	if json.Unmarshal(e.Params.Meta[mcpMetaClientCapabilities], &caps) != nil || caps.Elicitation == nil {
+		return false
+	}
+	_, form := caps.Elicitation["form"]
+	_, url := caps.Elicitation["url"]
+	return form || !url
 }
 
 // hasClientCapabilities reports whether _meta carries clientCapabilities as a
@@ -197,7 +216,9 @@ func mcpModernResult(result any, serverName, serverVersion string, extra map[str
 	for k, v := range extra {
 		m[k] = v
 	}
-	m["resultType"] = "complete"
+	if _, set := m["resultType"]; !set { // input_required from create_order
+		m["resultType"] = "complete"
+	}
 	meta, _ := m["_meta"].(map[string]any)
 	if meta == nil {
 		meta = map[string]any{}
