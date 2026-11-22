@@ -41,8 +41,11 @@ type config struct {
 	EnableCreateOrder     bool
 	// TwoStepOrder lets clients without form elicitation confirm through the model (dev only).
 	TwoStepOrder bool
-	HTTPClient   *http.Client
-	Keys         serverKeys
+	// Store is memory (default) or postgres; DatabaseURL is used with postgres.
+	Store       string
+	DatabaseURL string
+	HTTPClient  *http.Client
+	Keys        serverKeys
 }
 
 func loadConfigFromEnv() (*config, error) {
@@ -95,6 +98,8 @@ func loadConfigFromEnv() (*config, error) {
 		DollyScope:            strings.TrimSpace(os.Getenv("DOLLY_SCOPE")),
 		EnableCreateOrder:     enableCreateOrder,
 		TwoStepOrder:          twoStepOrder,
+		Store:                 os.Getenv("MCP_DOLLY_STORE"),
+		DatabaseURL:           os.Getenv("MCP_DOLLY_DATABASE_URL"),
 		HTTPClient: &http.Client{
 			Timeout: httpClientTimeout,
 			CheckRedirect: func(*http.Request, []*http.Request) error {
@@ -110,17 +115,32 @@ type server struct {
 	upstreamSem chan struct{}
 	quota       *userQuota
 	confirm     *orderConfirm
+	store       orderStore
 	now         func() time.Time
 }
 
 func newServer(cfg *config) *server {
-	return &server{
+	s := &server{
 		cfg:         cfg,
 		dolly:       newDollyClient(cfg.DollyURL, cfg.HTTPClient),
 		upstreamSem: make(chan struct{}, maxConcurrentUpstream),
 		quota:       newUserQuota(cfg.Keys.userHash),
 		confirm:     newOrderConfirm(cfg.Keys.confirm),
 		now:         time.Now,
+	}
+	s.store = memStore{confirm: s.confirm, quota: s.quota}
+	return s
+}
+
+// setStore installs the order store. Postgres gives cross-pod single use, so
+// the per-process boot ID is dropped there and a token works on any pod.
+// Replay window: cleanup deletes a used token once its expiry passes on the
+// cleaning pod's clock, while a pod whose clock lags still accepts the token.
+// A second use is therefore only possible within the TTL plus clock skew.
+func (s *server) setStore(st orderStore) {
+	s.store = st
+	if st.sharedSingleUse() {
+		s.confirm.bootID = ""
 	}
 }
 
@@ -388,12 +408,22 @@ func main() {
 	}
 
 	srv := newServer(cfg)
+	store, err := newOrderStoreFromEnv(cfg.Store, cfg.DatabaseURL, srv.confirm, srv.quota)
+	if err != nil {
+		slog.Error("configuration failed", "error", err)
+		os.Exit(1)
+	}
+	srv.setStore(store)
 	httpServer := newHTTPServer(cfg, srv.routes())
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
+	if pg, ok := store.(*pgStore); ok {
+		defer pg.pool.Close()
+		go pg.runCleanup(ctx)
+	}
 
-	slog.Info("Starting mcp-dolly", "port", cfg.Port, "create_order", cfg.EnableCreateOrder, "create_order_two_step", cfg.TwoStepOrder)
+	slog.Info("Starting mcp-dolly", "port", cfg.Port, "create_order", cfg.EnableCreateOrder, "create_order_two_step", cfg.TwoStepOrder, "store", fmt.Sprintf("%T", store))
 
 	go func() {
 		if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {

@@ -176,6 +176,10 @@ func (s *server) askOrderConfirmation(ctx context.Context, inboundToken, userHas
 	if res["isError"] == true {
 		return res
 	}
+	left, err := s.store.remaining(ctx, userHash, s.now())
+	if err != nil {
+		return toolErrorResult(err.Error())
+	}
 	ctok, _ := s.confirm.issue(userHash, params, s.now())
 	msg := fmt.Sprintf("Bestille %d syntetiske testpersoner i Dolly-gruppe %d, miljø %s?", req.Antall, gruppeID, strings.Join(req.Environments, ", "))
 	for _, k := range []string{"minAlder", "maxAlder", "kjoenn"} {
@@ -184,7 +188,7 @@ func (s *server) askOrderConfirmation(ctx context.Context, inboundToken, userHas
 		}
 	}
 	msg += " " + orderDefaultsNB
-	msg += fmt.Sprintf(" Kvote igjen siste døgn: %d.", s.quota.remaining(userHash, s.now()))
+	msg += fmt.Sprintf(" Kvote igjen %s: %d.", s.quotaPeriodNB(), left)
 	return map[string]any{
 		"resultType": "input_required",
 		"inputRequests": map[string]any{orderConfirmKey: map[string]any{
@@ -348,7 +352,7 @@ func (s *server) handleToolCall(ctx context.Context, inboundToken, navIdent, too
 			return s.askOrderConfirmation(ctx, inboundToken, userHash, params, gruppeID, orderReq, fields), nil
 		case el != nil:
 			// Spend the state on every outcome, so a declined state cannot be replayed as accepted.
-			if err := s.confirm.consume(el.state, userHash, params, s.now()); err != nil {
+			if err := s.useToken(ctx, el.state, userHash, params); err != nil {
 				return toolErrorResult(err.Error()), nil
 			}
 			consumed = true
@@ -368,6 +372,10 @@ func (s *server) handleToolCall(ctx context.Context, inboundToken, navIdent, too
 					attrs[k] = v
 				}
 			}
+			left, err := s.store.remaining(ctx, userHash, s.now())
+			if err != nil {
+				return toolErrorResult(err.Error()), nil
+			}
 			return s.execWithOBO(ctx, inboundToken, func(tok string) (string, error) {
 				if err := s.checkGroupOwner(ctx, tok, gruppeID); err != nil {
 					return "", err
@@ -382,7 +390,7 @@ func (s *server) handleToolCall(ctx context.Context, inboundToken, navIdent, too
 						"attributes":   attrs,
 					},
 					"defaults":          orderDefaults,
-					"quotaRemaining":    s.quota.remaining(userHash, s.now()),
+					"quotaRemaining":    left,
 					"confirmationToken": ctok,
 					"expiresAt":         exp.UTC().Format(time.RFC3339),
 					"next":              "Show this preview to the user. Only after they approve, call create_order again with the same parameters plus confirmationToken.",
@@ -396,13 +404,16 @@ func (s *server) handleToolCall(ctx context.Context, inboundToken, navIdent, too
 			}
 		}
 		if !consumed {
-			if err := s.confirm.consume(token, userHash, params, s.now()); err != nil {
+			if err := s.useToken(ctx, token, userHash, params); err != nil {
 				return toolErrorResult(err.Error()), nil
 			}
 		}
-		release, ok := s.quota.reserve(userHash, orderReq.Antall, s.now())
+		release, ok, err := s.store.reserve(ctx, userHash, orderReq.Antall, s.now())
+		if err != nil {
+			return toolErrorResult(err.Error()), nil
+		}
 		if !ok {
-			return toolErrorResult(fmt.Sprintf("daily quota of %d test persons per 24h exceeded", dailyPersonQuota)), nil
+			return toolErrorResult(fmt.Sprintf("quota of %d test persons %s exceeded", dailyPersonQuota, s.quotaPeriodEN())), nil
 		}
 		committed := false
 		defer func() {
@@ -433,6 +444,31 @@ func (s *server) handleToolCall(ctx context.Context, inboundToken, navIdent, too
 	default:
 		return nil, &mcpRPCError{Code: mcpCodeInvalidParams, Message: "unknown tool"}
 	}
+}
+
+// The quota counts per UTC day in Postgres mode and per rolling 24 h in memory mode.
+func (s *server) quotaPeriodNB() string {
+	if s.store.sharedSingleUse() {
+		return "i dag (UTC-døgn)"
+	}
+	return "siste 24 timer"
+}
+
+func (s *server) quotaPeriodEN() string {
+	if s.store.sharedSingleUse() {
+		return "per UTC day"
+	}
+	return "per 24 hours"
+}
+
+// useToken verifies a confirmation token and spends it in the store.
+func (s *server) useToken(ctx context.Context, token, userHash, params string) error {
+	now := s.now() // one clock read, so verify and consume agree on expiry
+	sig, exp, err := s.confirm.verify(token, userHash, params, now)
+	if err != nil {
+		return err
+	}
+	return s.store.useToken(ctx, userHash, sig, exp, now)
 }
 
 func (s *server) checkGroupOwner(ctx context.Context, tok string, gruppeID int64) error {

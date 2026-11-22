@@ -90,11 +90,20 @@ func (c *orderConfirm) issue(userHash, params string, now time.Time) (string, ti
 	return e + "." + mac(k.key, e+"|"+c.bootID, userHash, params), exp
 }
 
-// consume verifies the token and marks it used. Any failure returns errConfirm.
+// consume verifies the token and marks it used in memory. Any failure returns errConfirm.
 func (c *orderConfirm) consume(token, userHash, params string, now time.Time) error {
+	sig, exp, err := c.verify(token, userHash, params, now)
+	if err != nil {
+		return err
+	}
+	return c.markUsed(userHash, sig, exp, now)
+}
+
+// verify checks signature and expiry and returns the signature and expiry.
+func (c *orderConfirm) verify(token, userHash, params string, now time.Time) (string, time.Time, error) {
 	i := strings.LastIndex(token, ".")
 	if i < 0 {
-		return errConfirm
+		return "", time.Time{}, errConfirm
 	}
 	e, sig := token[:i], token[i+1:]
 	kid, rest, _ := strings.Cut(e, ".")
@@ -105,11 +114,23 @@ func (c *orderConfirm) consume(token, userHash, params string, now time.Time) er
 		valid |= ok & subtle.ConstantTimeCompare([]byte(kid), []byte(k.kid))
 	}
 	if valid != 1 {
-		return errConfirm
+		return "", time.Time{}, errConfirm
 	}
 	expStr, _, _ := strings.Cut(rest, ".")
 	unix, err := strconv.ParseInt(expStr, 10, 64)
 	if err != nil || !now.Before(time.Unix(unix, 0)) {
+		return "", time.Time{}, errConfirm
+	}
+	return sig, time.Unix(unix, 0), nil
+}
+
+// spentGrace keeps a used token past its expiry, longer than any clock skew
+// between pods, so a token that still verifies somewhere is never forgotten.
+const spentGrace = confirmTTL + time.Minute
+
+// markUsed records a verified token in the per-pod set.
+func (c *orderConfirm) markUsed(userHash, sig string, exp, now time.Time) error {
+	if !now.Before(exp) {
 		return errConfirm
 	}
 	c.mu.Lock()
@@ -118,19 +139,23 @@ func (c *orderConfirm) consume(token, userHash, params string, now time.Time) er
 	// Reject when full instead of evicting so uncharged confirms cannot
 	// push a used token out of the set within its TTL.
 	var kept []seenToken
+	live := 0
 	for _, st := range c.seen[userHash] {
-		if !now.Before(st.exp) {
+		if !now.Before(st.exp.Add(spentGrace)) {
 			continue
 		}
 		if st.sig == sig {
 			return errConfirm
 		}
+		if now.Before(st.exp) {
+			live++
+		}
 		kept = append(kept, st)
 	}
-	if len(kept) >= maxSeenPerUser {
+	if live >= maxSeenPerUser {
 		return errConfirm
 	}
-	c.seen[userHash] = append(kept, seenToken{sig, time.Unix(unix, 0)})
+	c.seen[userHash] = append(kept, seenToken{sig, exp})
 	return nil
 }
 
