@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -11,6 +12,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 )
 
 // flatAudit maps the AuthZEN-shaped audit record onto flat keys so tests can
@@ -296,5 +298,44 @@ func TestToolPolicy_HeaderMismatchDeniedOnAllowlist(t *testing.T) {
 	}
 	if _, _, code := auditToolsHeaders(t, http.MethodPost, nil, body, http.Header{"Mcp-Name": {"delete"}}); code != http.StatusOK {
 		t.Fatalf("passAllTools route must keep forwarding on mismatch, got %d", code)
+	}
+}
+
+// A stored, unexpired session that names no user or no client gets 401, not a
+// request with an empty identity (#2582).
+func TestMCP_IncompleteSessionUnauthorized(t *testing.T) {
+	for name, sess := range map[string]gatewaySession{
+		"no navident":  {ClientID: "c", NAVIdent: ""},
+		"no client id": {ClientID: "", NAVIdent: "Z123456"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			var logBuf bytes.Buffer
+			old := slog.Default()
+			slog.SetDefault(slog.New(slog.NewJSONHandler(&logBuf, nil)))
+			t.Cleanup(func() { slog.SetDefault(old) })
+			te := newTestEnv(t)
+			sess.Resource, sess.IssuedAt, sess.Expiry = te.resource, te.now, te.now.Add(time.Hour)
+			if err := te.gw.putSession(context.Background(), hashToken("incomplete"), &sess, time.Hour); err != nil {
+				t.Fatal(err)
+			}
+			if _, ok, err := te.gw.getSession(context.Background(), hashToken("incomplete")); !ok || err != nil {
+				t.Fatalf("seeded session not found: %v %v", ok, err)
+			}
+			rec := mcpPost(te, "incomplete", "")
+			prm := te.gw.cfg.BaseURL + "/.well-known/oauth-protected-resource/mcp/team-etterlevelse/etterlevelse"
+			if want := `Bearer error="invalid_token", resource_metadata="` + prm + `"`; rec.Code != http.StatusUnauthorized || rec.Header().Get("WWW-Authenticate") != want {
+				t.Fatalf("got %d %q, want 401 %q", rec.Code, rec.Header().Get("WWW-Authenticate"), want)
+			}
+			var audit map[string]any
+			for _, line := range strings.Split(strings.TrimSpace(logBuf.String()), "\n") {
+				var e map[string]any
+				if json.Unmarshal([]byte(line), &e) == nil && e["msg"] == "audit mcp" {
+					audit = flatAudit(e)
+				}
+			}
+			if audit == nil || audit["outcome"] != "unauthorized" || audit["raw"].(map[string]any)["subject"] != nil {
+				t.Fatalf("audit %v, want outcome unauthorized and no subject", audit)
+			}
+		})
 	}
 }
