@@ -171,6 +171,10 @@ const GH_MATRIX: { type: string; cells: string[] }[] = [
   },
   { type: "Instruksjoner for organisasjonen", cells: ["Nei", "Nei", "Ja", "Nei", "Ja", "Nei", "Nei"] },
   { type: "Personlige instruksjoner", cells: ["Ja", "Ja", "Chat", "Nei", "Ja", "Nei", "Nei"] },
+  {
+    type: "Copilot Memory",
+    cells: ["Bruker, repo og sesjon", "Nei", "Repo", "Repo", "Nei", "Nei", "Nei"],
+  },
 ];
 
 function Mark({ v }: { v: string }) {
@@ -647,8 +651,11 @@ export default function Klienter() {
           Agentpakka er vanlige filer, så den virker også uten nav-pilot. Tabellen viser hvilke artefakttyper GitHubs
           klienter leser. «Agent» betyr Copilot coding agent, «chat» betyr Copilot Chat.
         </BodyLong>
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto" role="region" tabIndex={0} aria-labelledby="github-klienter-tabell">
           <Table size="small">
+            <caption id="github-klienter-tabell" className="sr-only">
+              Artefakttyper og hvilke av GitHubs klienter som leser dem
+            </caption>
             <HeaderRow cells={["Type", ...GH_CLIENTS]} />
             <TableBody>
               {GH_MATRIX.map((r) => (
@@ -671,9 +678,12 @@ export default function Klienter() {
         </LinkableHeading>
         <Bullets>
           <li>
-            Instruksjoner, agenter, prompts og skills: kopier fila til {c(".github/instructions/")},{" "}
-            {c(".github/agents/")}, {c(".github/prompts/")} eller {c(".github/skills/")} i repoet. Coding agent ser bare
-            filer som ligger i repoet.
+            Agenter, instruksjoner og prompts er enkeltfiler. Kopier fila til {c(".github/agents/")},{" "}
+            {c(".github/instructions/")} eller {c(".github/prompts/")} i repoet.
+          </li>
+          <li>
+            En skill er en mappe med {c("SKILL.md")} og eventuelle støttefiler, for eksempel {c("references/")}. Kopier
+            hele mappa til {c(".github/skills/<navn>/")}. Coding agent ser bare filer som ligger i repoet.
           </li>
           <li>
             Personlige skills som gjelder i alle repoer, legger du i {c("~/.copilot/skills/")} (VS Code og Copilot CLI).
