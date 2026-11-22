@@ -10,6 +10,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -125,8 +126,9 @@ func (h *MCPHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			var maxErr *http.MaxBytesError
-			// Legacy requests keep the old parse error; only modern ones get 413.
-			if errors.As(err, &maxErr) && !isLegacyMCPRequest(r, mcpEnvelope{}) {
+			// Fail closed: the body is unread, so only an explicit legacy header keeps the old
+			// parse error. No header (the body may declare 2026-07-28 in _meta) gets 413.
+			if errors.As(err, &maxErr) && !slices.Contains(mcpLegacyVersions, r.Header.Get("MCP-Protocol-Version")) {
 				w.WriteHeader(http.StatusRequestEntityTooLarge)
 				return
 			}

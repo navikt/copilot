@@ -23,8 +23,12 @@ func TestModernOversizedBodyIs413(t *testing.T) {
 	if rec := postMCP(t, big, map[string]string{"MCP-Protocol-Version": mcpModernVersion}); rec.Code != http.StatusRequestEntityTooLarge {
 		t.Fatalf("modern: status = %d, want 413", rec.Code)
 	}
-	// Legacy path is unchanged: no 413.
-	if rec := postMCP(t, big, nil); rec.Code == http.StatusRequestEntityTooLarge {
+	// No header: the body may declare 2026-07-28 in _meta, so fail closed.
+	if rec := postMCP(t, big, nil); rec.Code != http.StatusRequestEntityTooLarge {
+		t.Fatalf("no header: status = %d, want 413", rec.Code)
+	}
+	// An explicit legacy header keeps the old behaviour: no 413.
+	if rec := postMCP(t, big, map[string]string{"MCP-Protocol-Version": mcpLegacyVersions[0]}); rec.Code == http.StatusRequestEntityTooLarge {
 		t.Fatalf("legacy: got 413, want the old parse error")
 	}
 }
