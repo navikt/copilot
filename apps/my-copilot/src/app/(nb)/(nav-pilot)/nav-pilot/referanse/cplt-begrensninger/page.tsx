@@ -205,7 +205,12 @@ cplt                        # start agenten etterpå`}</CodeBlock>
             <code className={code}>.env</code> havner i prosjektkatalogen. Docker Compose og appen leser den som vanlig,
             og agenten trenger aldri <code className={code}>nais</code>. På macOS stenger cplt{" "}
             <code className={code}>.env</code>-filer i prosjektet, så agenten kan ikke lese den. På Linux kan agenten
-            lese fila og hemmelighetene oppsettet skrev dit. Proxyen hindrer bare at de sendes ut.
+            lese fila. Regn da hemmelighetene oppsettet skrev dit, som kjent for både agenten og modellen. Proxyen
+            filtrerer på mål, ikke innhold: hemmelighetene kan gå til modellen i en vanlig forespørsel, og uten{" "}
+            <code className={code}>proxy.forced</code> kan et program gå rundt proxyen med direkte HTTPS. Legg fila
+            utenfor prosjektkatalogen, eller steng den med <code className={code}>--deny-path</code>. På Linux virker{" "}
+            <code className={code}>--deny-path</code> bare med{" "}
+            <code className={code}>sandbox.use_bubblewrap = true</code>.
           </BodyLong>
 
           <LinkableHeading id="nais-i-sesjonen" size="small" level="3">
