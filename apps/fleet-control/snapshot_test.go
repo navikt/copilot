@@ -151,7 +151,7 @@ func get(t *testing.T, h http.Handler, path, inm string) *httptest.ResponseRecor
 	t.Helper()
 	req := httptest.NewRequest(http.MethodGet, path, nil)
 	tok := gatewayID
-	if path == "/internal/v1/servers" {
+	if path == "/internal/v1/servers" || path == "/internal/v1/snapshots/registry" {
 		tok = registryID
 	}
 	req.Header.Set("Authorization", "Bearer "+tok)

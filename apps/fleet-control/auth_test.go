@@ -62,7 +62,7 @@ func TestAuthzMatrix(t *testing.T) {
 		"/internal/v1/servers":            {"gateway": 403, "registry": through, "other": 403, "prefix": 403},
 		"/internal/v1/routes":             {"gateway": through, "registry": 403, "other": 403, "prefix": 403},
 		"/internal/v1/snapshots/routes":   {"gateway": through, "registry": 403, "other": 403, "prefix": 403},
-		"/internal/v1/snapshots/registry": {"gateway": through, "registry": through, "other": 403, "prefix": 403},
+		"/internal/v1/snapshots/registry": {"gateway": 403, "registry": through, "other": 403, "prefix": 403},
 	}
 	for path, row := range want {
 		for name, code := range row {

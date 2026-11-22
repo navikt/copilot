@@ -11,7 +11,7 @@ Every `/internal/v1` request needs an Entra app token (client credentials) from 
 | `GET /internal/v1/servers` | no | yes |
 | `GET /internal/v1/routes` | yes | no |
 | `GET /internal/v1/snapshots/routes` | yes | no |
-| `GET /internal/v1/snapshots/registry` | yes | yes |
+| `GET /internal/v1/snapshots/registry` | no | yes |
 
 Missing or invalid token, or a user token: 401. Valid app token from another caller: 403. Texas unreachable or failing: 503. None of them return data.
 

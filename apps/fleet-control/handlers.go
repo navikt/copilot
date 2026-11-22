@@ -21,7 +21,7 @@ func (s *server) routes(a *authz) http.Handler {
 	mux.HandleFunc("GET /internal/v1/servers", a.require(s.listServers, callerRegistry))
 	mux.HandleFunc("GET /internal/v1/routes", a.require(s.listRoutes, callerGateway))
 	mux.HandleFunc("GET /internal/v1/snapshots/routes", a.require(s.snapshotOf("routes"), callerGateway))
-	mux.HandleFunc("GET /internal/v1/snapshots/registry", a.require(s.snapshotOf("registry"), callerGateway, callerRegistry))
+	mux.HandleFunc("GET /internal/v1/snapshots/registry", a.require(s.snapshotOf("registry"), callerRegistry))
 	return mux
 }
 
