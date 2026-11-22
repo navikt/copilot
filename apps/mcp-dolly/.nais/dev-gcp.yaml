@@ -1,3 +1,5 @@
+# 2 replicas are safe: keys are shared via the Nais secret mcp-dolly-keys, single use and quota live in Postgres,
+# and the per-pod boot ID is cleared in Postgres mode, so a token issued on one pod confirms once on any pod.
 replicas_min: "2"
 replicas_max: "2"
 cpu_threshold: "80"
