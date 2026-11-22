@@ -27,6 +27,9 @@ permissions:
 
 jobs:
   build:
+    # A failing Postgres test stops the deploy.
+    needs: db-test
+    if: ${{ !cancelled() && needs.db-test.result == 'success' }}
     uses: ./.github/workflows/mise-build-deploy-nais.yaml
     with:
       working-directory: apps/mcp-dolly
@@ -37,3 +40,37 @@ jobs:
       check-on-pr: true
       nais-team: copilot
       nais-clusters: '["dev-gcp", "prod-gcp"]'
+
+  # Runs the Postgres-backed store tests, which skip without DOLLY_TEST_PG_URL.
+  db-test:
+    name: Postgres tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    services:
+      postgres:
+        image: postgres:18@sha256:2ea8630df176ad090ec92136dee850397c5af8781e4bcf2e4162593691c61bbc
+        env:
+          POSTGRES_PASSWORD: test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    defaults:
+      run:
+        working-directory: apps/mcp-dolly
+    env:
+      DOLLY_TEST_PG_URL: postgres://postgres:test@localhost:5432/postgres?sslmode=disable
+      # Makes the Postgres tests fail instead of skip if the URL goes missing.
+      DOLLY_REQUIRE_PG: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+      - uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # ratchet:jdx/mise-action@v5.2.8
+        with:
+          experimental: true
+          working_directory: apps/mcp-dolly
+      - run: go test -count=1 -v -run 'PGStore|StoreDown' ./...

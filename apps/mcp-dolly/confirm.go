@@ -90,11 +90,20 @@ func (c *orderConfirm) issue(userHash, params string, now time.Time) (string, ti
 	return e + "." + mac(k.key, e+"|"+c.bootID, userHash, params), exp
 }
 
-// consume verifies the token and marks it used. Any failure returns errConfirm.
+// consume verifies the token and marks it used in memory. Any failure returns errConfirm.
 func (c *orderConfirm) consume(token, userHash, params string, now time.Time) error {
+	sig, exp, err := c.verify(token, userHash, params, now)
+	if err != nil {
+		return err
+	}
+	return c.markUsed(userHash, sig, exp, now)
+}
+
+// verify checks signature and expiry and returns the signature and expiry.
+func (c *orderConfirm) verify(token, userHash, params string, now time.Time) (string, time.Time, error) {
 	i := strings.LastIndex(token, ".")
 	if i < 0 {
-		return errConfirm
+		return "", time.Time{}, errConfirm
 	}
 	e, sig := token[:i], token[i+1:]
 	kid, rest, _ := strings.Cut(e, ".")
@@ -105,13 +114,18 @@ func (c *orderConfirm) consume(token, userHash, params string, now time.Time) er
 		valid |= ok & subtle.ConstantTimeCompare([]byte(kid), []byte(k.kid))
 	}
 	if valid != 1 {
-		return errConfirm
+		return "", time.Time{}, errConfirm
 	}
 	expStr, _, _ := strings.Cut(rest, ".")
 	unix, err := strconv.ParseInt(expStr, 10, 64)
 	if err != nil || !now.Before(time.Unix(unix, 0)) {
-		return errConfirm
+		return "", time.Time{}, errConfirm
 	}
+	return sig, time.Unix(unix, 0), nil
+}
+
+// markUsed records a verified token in the per-pod set.
+func (c *orderConfirm) markUsed(userHash, sig string, exp, now time.Time) error {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	// Bounded per user so one user cannot fill the set and affect others.
@@ -130,7 +144,7 @@ func (c *orderConfirm) consume(token, userHash, params string, now time.Time) er
 	if len(kept) >= maxSeenPerUser {
 		return errConfirm
 	}
-	c.seen[userHash] = append(kept, seenToken{sig, time.Unix(unix, 0)})
+	c.seen[userHash] = append(kept, seenToken{sig, exp})
 	return nil
 }
 
