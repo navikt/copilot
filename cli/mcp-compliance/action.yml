@@ -1,0 +1,75 @@
+name: mcp-compliance
+description: >
+  Check a running MCP server against MCP 2026-07-28 and the Nav fleet-gateway
+  auth rules. Downloads a released mcp-compliance binary, verifies its
+  checksum and fails the job on any FAIL. Start the server in an earlier step.
+inputs:
+  url:
+    description: MCP endpoint of the running server, for example http://127.0.0.1:8080/mcp
+    required: true
+  version:
+    description: Release to use, for example v0.2.0. "latest" picks the newest cli/mcp-compliance release. Pin a version for reproducible runs.
+    default: latest
+  token:
+    description: User token the server accepts (MCP_COMPLIANCE_TOKEN). Use a test token, never a production one.
+    default: ""
+  app-token:
+    description: App token the server must reject with 403 (MCP_COMPLIANCE_APP_TOKEN). Empty skips the check.
+    default: ""
+  tool:
+    description: Tool to use for the per-tool checks (-tool). Empty takes the first from tools/list.
+    default: ""
+  args:
+    description: Extra flags, for example "-legacy" or "-max-bytes 2097152". Split on spaces.
+    default: ""
+  github-token:
+    description: Token for downloading the release.
+    default: ${{ github.token }}
+runs:
+  using: composite
+  steps:
+    - name: Install mcp-compliance
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+        VERSION: ${{ inputs.version }}
+      run: |
+        set -euo pipefail
+        case "${RUNNER_OS}/${RUNNER_ARCH}" in
+          Linux/X64) asset=mcp-compliance-linux-amd64 ;;
+          Linux/ARM64) asset=mcp-compliance-linux-arm64 ;;
+          macOS/X64) asset=mcp-compliance-darwin-amd64 ;;
+          macOS/ARM64) asset=mcp-compliance-darwin-arm64 ;;
+          *) echo "::error::mcp-compliance has no binary for ${RUNNER_OS}/${RUNNER_ARCH}"; exit 1 ;;
+        esac
+        if [ "$VERSION" = latest ]; then
+          VERSION=$(gh api repos/navikt/copilot/git/matching-refs/tags/cli/mcp-compliance/v \
+            --jq '.[].ref | sub("refs/tags/cli/mcp-compliance/"; "")' | sort -V | tail -n1)
+          [ -n "$VERSION" ] || { echo "::error::no mcp-compliance release found"; exit 1; }
+        fi
+        [[ "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::version must look like v1.2.3, got: $VERSION"; exit 1; }
+        dir="$RUNNER_TEMP/mcp-compliance-$VERSION"
+        mkdir -p "$dir"
+        gh release download "cli/mcp-compliance/$VERSION" --repo navikt/copilot \
+          --dir "$dir" --clobber --pattern "$asset" --pattern SHA256SUMS
+        cd "$dir"
+        grep " ${asset}\$" SHA256SUMS > SHA256SUMS.asset
+        if command -v sha256sum >/dev/null; then sha256sum --check SHA256SUMS.asset; else shasum -a 256 --check SHA256SUMS.asset; fi
+        install -m 0755 "$asset" mcp-compliance
+        echo "$dir" >> "$GITHUB_PATH"
+        echo "mcp-compliance $VERSION ($asset)"
+    - name: Run mcp-compliance
+      shell: bash
+      env:
+        MCP_COMPLIANCE_TOKEN: ${{ inputs.token }}
+        MCP_COMPLIANCE_APP_TOKEN: ${{ inputs.app-token }}
+        URL: ${{ inputs.url }}
+        TOOL: ${{ inputs.tool }}
+        ARGS: ${{ inputs.args }}
+      run: |
+        set -euo pipefail
+        flags=(-url "$URL")
+        [ -z "$TOOL" ] || flags+=(-tool "$TOOL")
+        read -r -a extra <<< "$ARGS"
+        # Exits 1 on any FAIL, which fails the job. WARN does not.
+        mcp-compliance "${flags[@]}" ${extra[@]+"${extra[@]}"}

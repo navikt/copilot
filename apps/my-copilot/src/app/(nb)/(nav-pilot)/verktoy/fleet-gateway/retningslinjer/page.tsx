@@ -467,7 +467,17 @@ export default function McpRetningslinjerPage() {
               <BodyLong size="small">
                 Start serveren og kjør <code className={code}>mcp-compliance -url http://localhost:8080/mcp</code>.
                 Testen virker for servere i alle språk, også Kotlin og TypeScript. Tokens leses fra miljøvariabler.
-                README-en viser oppsett i CI og andre måter å installere på.
+              </BodyLong>
+              <BodyLong size="small">
+                I GitHub Actions: start serveren i et eget steg, og legg så til{" "}
+                <code className={code}>uses: navikt/copilot/cli/mcp-compliance@cli/mcp-compliance/v0.2.0</code> med{" "}
+                <code className={code}>url</code> og eventuelt <code className={code}>token</code>,{" "}
+                <code className={code}>app-token</code> og <code className={code}>tool</code>. Actionen laster ned
+                binærfilen, sjekker checksum og stopper jobben ved FAIL.
+              </BodyLong>
+              <BodyLong size="small">
+                Resultatet er en tabell med PASS, FAIL, WARN eller SKIP per sjekk. FAIL må rettes. WARN er verdt en
+                titt, men stopper ikke jobben. README-en har et komplett CI-eksempel.
               </BodyLong>
             </ReadMore>
           </li>

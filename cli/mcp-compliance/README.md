@@ -27,7 +27,7 @@ Not covered, so keep these in your own tests:
 - base64-encoded `Mcp-Name` (`=?base64?...?=`)
 - that `Mcp-Session-Id` is ignored
 
-Requests send only `Accept: application/json`; the tool does not parse SSE.
+Requests send `Accept: application/json, text/event-stream`, but the tool reads only JSON responses and does not parse SSE.
 
 The tool prints a PASS/FAIL/WARN/SKIP table and exits 1 if any check fails.
 
@@ -81,28 +81,42 @@ Never use a production token.
 
 ## Run in CI
 
-Use the release binary, so the job needs no Go toolchain. Pin the version.
+Use the GitHub Action in this directory. It needs no Go toolchain: it downloads the release binary for the runner (Linux or macOS, amd64 or arm64), checks it against `SHA256SUMS`, runs it and fails the job on any FAIL. It starts nothing, so start your server in an earlier step.
 
 ```yaml
-- name: Install mcp-compliance
-  env:
-    GH_TOKEN: ${{ github.token }}
-    VERSION: v0.1.0
-  run: |
-    gh release download "cli/mcp-compliance/${VERSION}" --repo navikt/copilot \
-      --pattern mcp-compliance-linux-amd64 --pattern SHA256SUMS
-    sha256sum --check --ignore-missing SHA256SUMS
-    mkdir -p "$HOME/.local/bin"
-    install -m 0755 mcp-compliance-linux-amd64 "$HOME/.local/bin/mcp-compliance"
-    echo "$HOME/.local/bin" >> "$GITHUB_PATH"
-
-# Kotlin: ./gradlew run &   TypeScript: npm ci && npm start &
+- uses: actions/checkout@v7
+# Kotlin: ./gradlew installDist and start build/install/*/bin/*
+# TypeScript: npm ci, then npm start
 - run: ./start-server.sh &   # your own start step
-- run: mcp-compliance -url http://localhost:8080/mcp
-  env:
-    MCP_COMPLIANCE_TOKEN: ${{ secrets.MCP_TEST_TOKEN }}
+- run: curl -fsS --retry 30 --retry-delay 1 --retry-connrefused http://127.0.0.1:8080/health
+- uses: navikt/copilot/cli/mcp-compliance@cli/mcp-compliance/v0.2.0
+  with:
+    url: http://127.0.0.1:8080/mcp
+    token: ${{ secrets.MCP_TEST_TOKEN }}   # test token, never production
 ```
 
-Wait for the server to answer before the last step, for example with `curl --retry 10 --retry-connrefused`.
+| Input | Default | Meaning |
+|---|---|---|
+| `url` | required | MCP endpoint of the running server |
+| `version` | `latest` | Release such as `v0.2.0`. `latest` takes the newest release; pin a version for reproducible runs |
+| `token` | empty | `MCP_COMPLIANCE_TOKEN` |
+| `app-token` | empty | `MCP_COMPLIANCE_APP_TOKEN`; empty skips the 403 check |
+| `tool` | empty | `-tool` |
+| `args` | empty | Extra flags, such as `-legacy` |
+| `github-token` | `github.token` | Token for the release download |
 
-UNVERIFIED: the commands above have not been run end to end against a real Kotlin or TypeScript server. The tool is tested against an in-process server only (`main_test.go`).
+The Action ref is a release tag, so the Action and the tool are released together. `navikt/copilot` runs it against `mcp-kodeverk` in `ci.yaml`, and the Kotlin and TypeScript templates use it in their CI.
+
+To install the binary yourself instead:
+
+```sh
+gh release download cli/mcp-compliance/v0.2.0 --repo navikt/copilot \
+  --pattern mcp-compliance-linux-amd64 --pattern SHA256SUMS
+sha256sum --check --ignore-missing SHA256SUMS
+```
+
+## Reading the output
+
+One row per check: PASS, FAIL, WARN or SKIP, then a summary line. FAIL means the server breaks a rule; fix it, the exit code is 1. WARN means worth a look, for example a 401 without an `invalid_token` challenge or a description that says "you must"; it does not fail the run. SKIP means a check had nothing to run against, such as an unset app token.
+
+The tool's own tests use an in-process server (`main_test.go`).
