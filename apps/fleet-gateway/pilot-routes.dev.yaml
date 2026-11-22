@@ -37,3 +37,12 @@ routes:
       - get_cluster
       - get_member_memberships
       - get_nais_team
+  - route: /mcp/aksel-studio/studio
+    team: aksel-studio
+    target: dev-gcp:aksel-studio:studio-api
+    upstream_url: http://studio-api.aksel-studio/mcp
+    tools:
+      - list_konsepter
+      - les_konsept
+      - les_fil
+      - les_komponentregister
