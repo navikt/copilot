@@ -54,6 +54,9 @@ func TestLoadServerKeys(t *testing.T) {
 			if err == nil {
 				t.Fatal("startup must fail")
 			}
+			if strings.HasPrefix(name, "missing") && !strings.Contains(err.Error(), "mcp-dolly-keys") {
+				t.Fatalf("missing key should name the secret: %v", err)
+			}
 			// Errors must not echo key material.
 			for _, secret := range []string{b64(1, 32), b64(2, 32), b64(1, 31), b64(2, 31)} {
 				if strings.Contains(err.Error(), secret) {
