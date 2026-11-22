@@ -1,5 +1,5 @@
 // Command fleet-control is the single source of truth for the MCP registry
-// and fleet-gateway routes (#2334). This first slice serves a read-only API.
+// and fleet-gateway routes (#2334). It serves a read-only internal API and a write API for teams.
 package main
 
 import (
@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"sync/atomic"
 	"syscall"
 	"time"
@@ -35,8 +36,13 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	teams, err := teamsFromEnv()
+	if err != nil {
+		return err
+	}
 	srv := newServer()
-	httpSrv := &http.Server{Addr: ":" + port, Handler: srv.routes(auth), ReadHeaderTimeout: 5 * time.Second}
+	adminClientID := strings.TrimSpace(os.Getenv("MY_COPILOT_CLIENT_ID"))
+	httpSrv := &http.Server{Addr: ":" + port, Handler: srv.routes(auth, adminClientID, teams), ReadHeaderTimeout: 5 * time.Second}
 
 	go func() {
 		db, err := connect(ctx)

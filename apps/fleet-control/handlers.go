@@ -11,10 +11,11 @@ import (
 	"time"
 )
 
-// routes registers the API. Nothing here writes, and the app has no ingress:
-// accessPolicy.inbound admits only fleet-gateway and mcp-registry, and each
-// /internal route also needs that caller's Entra app token (#2623).
-func (s *server) routes(a *authz) http.Handler {
+// routes registers the API. The app has no ingress: accessPolicy.inbound
+// admits only its callers, and each /internal route also needs that caller's
+// Entra app token (#2623). The /admin write routes exist only when
+// adminClientID is set, and need a person's token obtained by that client.
+func (s *server) routes(a *authz, adminClientID string, teams teamDirectory) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
 	mux.HandleFunc("GET /ready", s.ready)
@@ -22,6 +23,17 @@ func (s *server) routes(a *authz) http.Handler {
 	mux.HandleFunc("GET /internal/v1/routes", a.require(s.listRoutes, callerGateway))
 	mux.HandleFunc("GET /internal/v1/snapshots/routes", a.require(s.snapshotOf("routes"), callerGateway))
 	mux.HandleFunc("GET /internal/v1/snapshots/registry", a.require(s.snapshotOf("registry"), callerRegistry))
+	if adminClientID != "" {
+		for pattern, h := range map[string]adminHandler{
+			"GET /admin/v1/servers/{namespace}/{name}":           getServer,
+			"PUT /admin/v1/servers/{namespace}/{name}/draft":     putDraft,
+			"POST /admin/v1/servers/{namespace}/{name}/approve":  postApprove,
+			"POST /admin/v1/servers/{namespace}/{name}/revoke":   postRevoke,
+			"POST /admin/v1/servers/{namespace}/{name}/rollback": postRollback,
+		} {
+			mux.HandleFunc(pattern, s.admin(a, adminClientID, teams, h))
+		}
+	}
 	return mux
 }
 

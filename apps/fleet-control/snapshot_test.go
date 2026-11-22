@@ -132,7 +132,7 @@ func TestReadyUsesCachedSnapshots(t *testing.T) {
 	fs := &fakeStore{servers: testServers(3), snapshots: map[string]*Snapshot{}}
 	srv := newServer()
 	srv.store.Store(&storeBox{fs})
-	h := srv.routes(testAuthz(t))
+	h := srv.routes(testAuthz(t), "", nil)
 	if rec := get(t, h, "/ready", ""); rec.Code != http.StatusOK {
 		t.Fatalf("ready with database: %d %s", rec.Code, rec.Body)
 	}
@@ -142,7 +142,7 @@ func TestReadyUsesCachedSnapshots(t *testing.T) {
 	}
 	cold := newServer()
 	cold.store.Store(&storeBox{fs})
-	if rec := get(t, cold.routes(testAuthz(t)), "/ready", ""); rec.Code != http.StatusServiceUnavailable {
+	if rec := get(t, cold.routes(testAuthz(t), "", nil), "/ready", ""); rec.Code != http.StatusServiceUnavailable {
 		t.Errorf("ready during outage without cache: %d", rec.Code)
 	}
 }
@@ -165,7 +165,7 @@ func get(t *testing.T, h http.Handler, path, inm string) *httptest.ResponseRecor
 
 func TestHandlers(t *testing.T) {
 	srv := newServer()
-	h := srv.routes(testAuthz(t))
+	h := srv.routes(testAuthz(t), "", nil)
 	for _, p := range []string{"/ready", "/internal/v1/servers", "/internal/v1/routes", "/internal/v1/snapshots/routes"} {
 		if rec := get(t, h, p, ""); rec.Code != http.StatusServiceUnavailable {
 			t.Errorf("%s before the database is up: got %d", p, rec.Code)
@@ -217,7 +217,7 @@ func TestHandlers(t *testing.T) {
 	}
 	fresh := newServer()
 	fresh.store.Store(&storeBox{fs})
-	if rec := get(t, fresh.routes(testAuthz(t)), "/internal/v1/snapshots/routes", ""); rec.Code != http.StatusServiceUnavailable {
+	if rec := get(t, fresh.routes(testAuthz(t), "", nil), "/internal/v1/snapshots/routes", ""); rec.Code != http.StatusServiceUnavailable {
 		t.Errorf("outage after restart: %d", rec.Code)
 	}
 
@@ -226,7 +226,7 @@ func TestHandlers(t *testing.T) {
 	stored.snapshots["routes"], _ = buildSnapshot("routes", testServers(10), nil)
 	restarted := newServer()
 	restarted.store.Store(&storeBox{stored})
-	if rec := get(t, restarted.routes(testAuthz(t)), "/internal/v1/snapshots/routes", ""); rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "s9") {
+	if rec := get(t, restarted.routes(testAuthz(t), "", nil), "/internal/v1/snapshots/routes", ""); rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "s9") {
 		t.Errorf("rejected rebuild after restart: %d %s", rec.Code, rec.Body)
 	}
 	if restarted.lastGood["routes"].Load() == nil {
@@ -236,7 +236,7 @@ func TestHandlers(t *testing.T) {
 	// Everything revoked or deleted: the snapshot is rejected, not emptied.
 	empty := newServer()
 	empty.store.Store(&storeBox{&fakeStore{snapshots: map[string]*Snapshot{}}})
-	if rec := get(t, empty.routes(testAuthz(t)), "/internal/v1/snapshots/routes", ""); rec.Code != http.StatusServiceUnavailable {
+	if rec := get(t, empty.routes(testAuthz(t), "", nil), "/internal/v1/snapshots/routes", ""); rec.Code != http.StatusServiceUnavailable {
 		t.Errorf("empty snapshot: %d %s", rec.Code, rec.Body)
 	}
 }

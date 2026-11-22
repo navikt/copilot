@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 )
@@ -86,44 +87,75 @@ func (a *authz) require(h http.HandlerFunc, allowed ...string) http.HandlerFunc 
 // caller returns the caller name for a valid app token, "" for a valid app
 // token from an unknown client.
 func (a *authz) caller(ctx context.Context, header string) (string, error) {
+	claims, err := a.introspect(ctx, header)
+	if err != nil {
+		return "", err
+	}
+	// Only app tokens: a user token on behalf of fleet-gateway also has its azp.
+	if claims.Idtyp != "app" {
+		return "", errUnauthorized
+	}
+	return a.callers[claims.Azp], nil
+}
+
+type tokenClaims struct {
+	Active   bool   `json:"active"`
+	Idtyp    string `json:"idtyp"`
+	Azp      string `json:"azp"`
+	NAVident string `json:"NAVident"`
+}
+
+var navIdentRegex = regexp.MustCompile(`^[A-Z][0-9]{6}$`)
+
+// user returns the NAVident of a valid user token that adminClientID obtained
+// on behalf of a person (OBO). App tokens and other clients are rejected.
+func (a *authz) user(ctx context.Context, header, adminClientID string) (string, error) {
+	claims, err := a.introspect(ctx, header)
+	if err != nil {
+		return "", err
+	}
+	if claims.Idtyp == "app" || adminClientID == "" || claims.Azp != adminClientID || !navIdentRegex.MatchString(claims.NAVident) {
+		return "", errUnauthorized
+	}
+	return claims.NAVident, nil
+}
+
+// introspect validates the bearer token with Texas and returns its claims
+// when active.
+func (a *authz) introspect(ctx context.Context, header string) (*tokenClaims, error) {
 	tok, ok := strings.CutPrefix(header, "Bearer ")
 	if !ok || tok == "" || len(header) > 16*1024 || strings.ContainsAny(tok, " \t\r\n") {
-		return "", errUnauthorized
+		return nil, errUnauthorized
 	}
 	body, _ := json.Marshal(map[string]string{"identity_provider": "entra_id", "token": tok})
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, a.introspectURL, bytes.NewReader(body))
 	if err != nil {
-		return "", fmt.Errorf("%w: %v", errTexas, err)
+		return nil, fmt.Errorf("%w: %v", errTexas, err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	resp, err := a.client.Do(req) //nolint:gosec // endpoint validated at startup
 	if err != nil {
-		return "", fmt.Errorf("%w: %v", errTexas, err)
+		return nil, fmt.Errorf("%w: %v", errTexas, err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("%w: status %d", errTexas, resp.StatusCode)
+		return nil, fmt.Errorf("%w: status %d", errTexas, resp.StatusCode)
 	}
-	var claims struct {
-		Active bool   `json:"active"`
-		Idtyp  string `json:"idtyp"`
-		Azp    string `json:"azp"`
-	}
+	var claims tokenClaims
 	const maxBody = 1 << 20
 	raw, err := io.ReadAll(io.LimitReader(resp.Body, maxBody+1))
 	if err != nil {
-		return "", fmt.Errorf("%w: read: %v", errTexas, err)
+		return nil, fmt.Errorf("%w: read: %v", errTexas, err)
 	}
 	if len(raw) > maxBody {
-		return "", fmt.Errorf("%w: response over %d bytes", errTexas, maxBody)
+		return nil, fmt.Errorf("%w: response over %d bytes", errTexas, maxBody)
 	}
 	// Unmarshal, unlike a single Decode, rejects trailing content.
 	if err := json.Unmarshal(raw, &claims); err != nil {
-		return "", fmt.Errorf("%w: decode: %v", errTexas, err)
+		return nil, fmt.Errorf("%w: decode: %v", errTexas, err)
 	}
-	// Only app tokens: a user token on behalf of fleet-gateway also has its azp.
-	if !claims.Active || claims.Idtyp != "app" {
-		return "", errUnauthorized
+	if !claims.Active {
+		return nil, errUnauthorized
 	}
-	return a.callers[claims.Azp], nil
+	return &claims, nil
 }
