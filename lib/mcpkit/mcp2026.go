@@ -9,6 +9,7 @@ package mcpkit
 import (
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"os"
 	"slices"
@@ -21,28 +22,32 @@ const ModernVersion = "2026-07-28"
 
 // JSON-RPC error codes, _meta keys and settings used on the wire.
 const (
-	CodeInvalidRequest      = -32600
-	CodeHeaderMismatch      = -32020
-	CodeUnsupportedVersion  = -32022
-	CodeMethodNotFound      = -32601
-	CodeInvalidParams       = -32602
-	CodeParseError          = -32700
-	MetaProtocolVersion     = "io.modelcontextprotocol/protocolVersion"
-	MetaClientCapabilities  = "io.modelcontextprotocol/clientCapabilities"
-	MetaServerInfo          = "io.modelcontextprotocol/serverInfo"
-	LegacyUntilEnv          = "MCP_LEGACY_PROTOCOL_UNTIL"
-	DiscoverTTLMilliseconds = 300000
+	CodeInvalidRequest                    = -32600
+	CodeHeaderMismatch                    = -32020
+	CodeMissingRequiredClientCapabilities = -32021
+	CodeUnsupportedProtocolVersion        = -32022
+	CodeMethodNotFound                    = -32601
+	CodeInvalidParams                     = -32602
+	CodeInternalError                     = -32603
+	CodeParseError                        = -32700
+	MetaProtocolVersion                   = "io.modelcontextprotocol/protocolVersion"
+	MetaClientCapabilities                = "io.modelcontextprotocol/clientCapabilities"
+	MetaServerInfo                        = "io.modelcontextprotocol/serverInfo"
+	LegacyUntilEnv                        = "MCP_LEGACY_PROTOCOL_UNTIL"
+	DiscoverTTLMilliseconds               = 300000
 )
 
 // Initialize-era revisions accepted while the legacy window is open.
 var legacyVersions = []string{"2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"}
 
-// RPCError is a JSON-RPC error object.
-type RPCError struct {
-	Code    int    `json:"code"`
+// WireError is a JSON-RPC error object. It implements error.
+type WireError struct {
+	Code    int64  `json:"code"`
 	Message string `json:"message"`
 	Data    any    `json:"data,omitempty"`
 }
+
+func (e *WireError) Error() string { return fmt.Sprintf("JSON-RPC error %d: %s", e.Code, e.Message) }
 
 // Envelope holds the request fields the transport rules look at.
 type Envelope struct {
@@ -117,9 +122,9 @@ func IsLegacyRequest(r *http.Request, env Envelope) bool {
 }
 
 // UnsupportedVersion is the -32022 error naming the supported revisions.
-func UnsupportedVersion(requested string, now time.Time) *RPCError {
-	return &RPCError{
-		Code:    CodeUnsupportedVersion,
+func UnsupportedVersion(requested string, now time.Time) *WireError {
+	return &WireError{
+		Code:    CodeUnsupportedProtocolVersion,
 		Message: "Unsupported protocol version",
 		Data:    map[string]any{"supported": SupportedVersions(now), "requested": requested},
 	}
@@ -127,14 +132,14 @@ func UnsupportedVersion(requested string, now time.Time) *RPCError {
 
 // ValidateModernRequest checks the headers a 2026-07-28 server that
 // processes the body must check. A non-nil result is answered with HTTP 400.
-func ValidateModernRequest(r *http.Request, env Envelope, now time.Time) *RPCError {
-	mismatch := func(msg string) *RPCError {
-		return &RPCError{Code: CodeHeaderMismatch, Message: msg}
+func ValidateModernRequest(r *http.Request, env Envelope, now time.Time) *WireError {
+	mismatch := func(msg string) *WireError {
+		return &WireError{Code: CodeHeaderMismatch, Message: msg}
 	}
 	// Required _meta fields absent from params: InvalidParams, not HeaderMismatch.
 	// https://modelcontextprotocol.io/specification/2026-07-28/schema#requestmetaobject
-	invalid := func(msg string) *RPCError {
-		return &RPCError{Code: CodeInvalidParams, Message: msg}
+	invalid := func(msg string) *WireError {
+		return &WireError{Code: CodeInvalidParams, Message: msg}
 	}
 	h := r.Header.Get("MCP-Protocol-Version")
 	switch {
@@ -226,7 +231,7 @@ func DiscoverResult(capabilities any, now time.Time) map[string]any {
 }
 
 // WriteError writes a JSON-RPC error response with the given HTTP status.
-func WriteError(w http.ResponseWriter, status int, id any, e *RPCError) {
+func WriteError(w http.ResponseWriter, status int, id any, e *WireError) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(map[string]any{"jsonrpc": "2.0", "id": id, "error": e})

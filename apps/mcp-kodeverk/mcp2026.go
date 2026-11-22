@@ -6,15 +6,15 @@ package main
 import "github.com/navikt/copilot/lib/mcpkit"
 
 const (
-	mcpModernVersion          = mcpkit.ModernVersion
-	mcpCodeHeaderMismatch     = mcpkit.CodeHeaderMismatch
-	mcpCodeUnsupportedVersion = mcpkit.CodeUnsupportedVersion
-	mcpCodeMethodNotFound     = mcpkit.CodeMethodNotFound
-	mcpCodeInvalidParams      = mcpkit.CodeInvalidParams
-	mcpMetaProtocolVersion    = mcpkit.MetaProtocolVersion
-	mcpMetaClientCapabilities = mcpkit.MetaClientCapabilities
-	mcpMetaServerInfo         = mcpkit.MetaServerInfo
-	mcpLegacyUntilEnv         = mcpkit.LegacyUntilEnv
+	mcpModernVersion                  = mcpkit.ModernVersion
+	mcpCodeHeaderMismatch             = mcpkit.CodeHeaderMismatch
+	mcpCodeUnsupportedProtocolVersion = mcpkit.CodeUnsupportedProtocolVersion
+	mcpCodeMethodNotFound             = mcpkit.CodeMethodNotFound
+	mcpCodeInvalidParams              = mcpkit.CodeInvalidParams
+	mcpMetaProtocolVersion            = mcpkit.MetaProtocolVersion
+	mcpMetaClientCapabilities         = mcpkit.MetaClientCapabilities
+	mcpMetaServerInfo                 = mcpkit.MetaServerInfo
+	mcpLegacyUntilEnv                 = mcpkit.LegacyUntilEnv
 )
 
-type mcpRPCError = mcpkit.RPCError
+type mcpWireError = mcpkit.WireError

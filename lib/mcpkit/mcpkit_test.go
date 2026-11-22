@@ -164,7 +164,7 @@ func TestValidateModernRequest(t *testing.T) {
 			h[a] = b
 		}
 		h[k] = v
-		if e := ValidateModernRequest(req(h), env, time.Now()); e == nil || (e.Code != CodeHeaderMismatch && e.Code != CodeUnsupportedVersion) {
+		if e := ValidateModernRequest(req(h), env, time.Now()); e == nil || (e.Code != CodeHeaderMismatch && e.Code != CodeUnsupportedProtocolVersion) {
 			t.Errorf("%s=%s: %+v", k, v, e)
 		}
 	}
