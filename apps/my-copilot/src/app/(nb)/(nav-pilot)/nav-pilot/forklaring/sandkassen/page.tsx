@@ -1,9 +1,10 @@
 import { BodyLong, Box, VStack } from "@navikt/ds-react";
 import type { Metadata } from "next";
 import NextLink from "next/link";
+import { Table, TableBody, TableRow, TableDataCell } from "@/components/aksel-table";
 import { CodeBlock } from "@/components/code-block";
 import { LinkableHeading } from "@/components/linkable-heading";
-import { Bullets, DocPage, code, linkClass } from "@/components/nav-pilot/doc-page";
+import { Bullets, DocPage, HeaderRow, code, linkClass } from "@/components/nav-pilot/doc-page";
 import type { TocItem } from "@/components/table-of-contents";
 
 export const metadata: Metadata = {
@@ -19,7 +20,11 @@ const TOC: TocItem[] = [
   { id: "autonomi", label: "Kommandoer og git" },
   { id: "strict", label: "Strict i detalj" },
   { id: "nar-strict-ikke-anbefales", label: "Strict på Linux" },
+  { id: "copilot-sandkasse-linux", label: "Copilots egen sandkasse" },
 ];
+
+const CPLT_REV = "https://github.com/navikt/cplt/blob/22656614c9224d82d2baade3b599f561239052f9";
+const GH_SANDBOX = "https://docs.github.com/en/copilot/how-tos/cloud-and-local-sandboxes/using-local-sandboxing";
 
 export default function Sandkassen() {
   return (
@@ -250,6 +255,164 @@ nav-pilot config                    # eller raden «cplt strict preset (blocks a
             nav-pilot spør kjernen med samme systemkall som cplt, ikke <code className={code}>uname</code>. Landlock kan
             være kompilert bort eller slått av ved oppstart, og da ville versjonsnummeret sagt «går fint» rett før cplt
             nektet å starte. macOS har ingen slik grense. Der gjør Seatbelt jobben.
+          </BodyLong>
+        </VStack>
+      </section>
+      <section>
+        <VStack gap="space-16">
+          <LinkableHeading id="copilot-sandkasse-linux" size="medium" level="2">
+            Copilots egen sandkasse inni cplt på Linux
+          </LinkableHeading>
+          <BodyLong>
+            <strong>Kort fortalt:</strong> start Copilot med <code className={code}>cplt --agent copilot</code> fra
+            prosjektet, eller med <code className={code}>nav-pilot --client copilot</code>. Ikke slå på Copilots{" "}
+            <code className={code}>/sandbox</code> inni cplt. cplt isolerer allerede hele agentprosessen og barna dens.
+            nav-pilot trengs ikke for å starte cplt.
+          </BodyLong>
+          <CodeBlock compact>{`cplt --agent copilot
+# Alternativt, med nav-pilot:
+nav-pilot --client copilot`}</CodeBlock>
+
+          <LinkableHeading id="bwrap-installert" size="small" level="3">
+            Installert bwrap betyr ikke at en ny sandkasse kan starte
+          </LinkableHeading>
+          <BodyLong>
+            <a href={`${GH_SANDBOX}#prerequisites`} className={linkClass}>
+              GitHubs Linux-krav
+            </a>{" "}
+            er <code className={code}>bwrap</code> 0.5.0 eller nyere og <code className={code}>slirp4netns</code> på
+            PATH. Det er verktøy som må finnes, ikke en garanti for at prosessen får opprette namespaces.
+          </BodyLong>
+          <BodyLong>
+            cplt bruker Landlock og seccomp-BPF på Linux, med bubblewrap som et ekstra lag når det brukes.{" "}
+            <a href={`${CPLT_REV}/src/sandbox_landlock.rs#L2299-L2371`} className={linkClass}>
+              seccomp-filteret
+            </a>{" "}
+            avviser blant annet <code className={code}>unshare</code>, <code className={code}>setns</code> og{" "}
+            <code className={code}>mount</code> med <code className={code}>EPERM</code>. Filteret gjelder også uten det
+            ytre bubblewrap-laget. Med bubblewrap legger cplt{" "}
+            <a href={`${CPLT_REV}/src/sandbox_bubblewrap.rs#L1714-L1720`} className={linkClass}>
+              filteret på inne i de ferdige namespacene
+            </a>
+            , før agenten starter.
+          </BodyLong>
+          <BodyLong>
+            Derfor kan bwrap være installert og virke i en vanlig terminal, men feile inni cplt med{" "}
+            <code className={code}>No permissions to create a new namespace</code>. En melding fra Copilot om at
+            bubblewrap mangler, beviser ikke alene at pakken mangler eller er for gammel. Ikke installer på nytt eller
+            endre kjerneinnstillinger ut fra den meldingen. Ikke slå av seccomp eller namespace-begrensninger for å få
+            den indre sandkassen til å starte.
+          </BodyLong>
+
+          <LinkableHeading id="cplt-ved-oppstart" size="small" level="3">
+            Hva cplt gjør ved oppstart
+          </LinkableHeading>
+          <BodyLong>
+            cplt støtter ikke Copilots indre sandkasse. For Copilot setter{" "}
+            <a href={`${CPLT_REV}/src/sandbox_exec.rs#L276-L283`} className={linkClass}>
+              oppstartskoden
+            </a>{" "}
+            <code className={code}>COPILOT_CLI_SANDBOX_SUPPORT_OVERRIDE=unsupported</code> i miljøet til barnet. Da
+            hopper Copilot over støtteproben og lar sin egen sandkasse være av for sesjonen. cplt endrer ikke den
+            lagrede innstillingen <code className={code}>sandbox.enabled</code>.
+          </BodyLong>
+          <BodyLong>
+            Copilot kan da si at kommandoer kjører «unsandboxed». Det gjelder Copilots eget lag, ikke cplt rundt
+            prosessen. cplt er fortsatt sikkerhetsgrensen. Du får ikke Copilots ekstra, smalere isolasjon av
+            enkeltkommandoer inni den.
+          </BodyLong>
+          <BodyLong>
+            Mekanismen ble{" "}
+            <a href="https://github.com/navikt/cplt/pull/520" className={linkClass}>
+              verifisert med Copilot CLI 1.0.83 i cplt PR #520
+            </a>
+            , merget 15. september 2026. Det er en historisk verifikasjon, ikke en test av alle nyere klientversjoner.
+            Dagens kode har fortsatt mekanismen. En eksplisitt{" "}
+            <code className={code}>--pass-env COPILOT_CLI_SANDBOX_SUPPORT_OVERRIDE</code> hindrer cplt i å sette
+            verdien, men gir ikke prosessen lov til å opprette namespaces. Ikke bruk det mot denne feilen.
+          </BodyLong>
+          <BodyLong>
+            <a href={`${GH_SANDBOX}#using-local-sandboxing-in-copilot-cli`} className={linkClass}>
+              GitHub dokumenterer
+            </a>{" "}
+            at <code className={code}>/sandbox</code> åpner innstillingene, og at{" "}
+            <code className={code}>/sandbox enable</code> slår på sandkassen også for senere sesjoner. En administrert
+            policy kan kreve Copilots lokale sandkasse. Ikke omgå et slikt krav med flagg, miljøvariabler eller
+            konfigurasjon. Krever policyen den indre sandkassen, må den som eier policyen og GitHub avklare
+            kompatibiliteten før du kan starte på denne måten.
+          </BodyLong>
+
+          <LinkableHeading id="copilot-sandkasse-verifisert" size="small" level="3">
+            Hva som er verifisert, og hva som er åpent
+          </LinkableHeading>
+          <BodyLong>
+            Kildegjennomgangen 13. november 2026 brukte cplt-revisjon{" "}
+            <code className={code}>22656614c9224d82d2baade3b599f561239052f9</code>.
+          </BodyLong>
+          <div className="overflow-x-auto">
+            <Table size="small" className="table-stack" role="table">
+              <HeaderRow stack cells={["Evidens", "Hva den viser"]} />
+              <TableBody role="rowgroup">
+                <TableRow role="row">
+                  <TableDataCell role="cell">seccomp-filteret og oppstartskoden over</TableDataCell>
+                  <TableDataCell role="cell" data-label="Hva den viser">
+                    cplt avviser operasjonene som trengs, og unngår Copilots indre sandkasse ved vanlig oppstart.
+                  </TableDataCell>
+                </TableRow>
+                <TableRow role="row">
+                  <TableDataCell role="cell">
+                    <a href={`${CPLT_REV}/tests/integration_linux.rs#L3582-L3601`} className={linkClass}>
+                      Linux-testen <code className={code}>bwrap_seccomp_still_blocks_unshare</code>
+                    </a>
+                  </TableDataCell>
+                  <TableDataCell role="cell" data-label="Hva den viser">
+                    Testen krever at <code className={code}>unshare</code> fortsatt avvises inni det ytre
+                    bubblewrap-laget.
+                  </TableDataCell>
+                </TableRow>
+                <TableRow role="row">
+                  <TableDataCell role="cell">
+                    <a href={`${CPLT_REV}/tests/unit_tests.rs#L7547-L7577`} className={linkClass}>
+                      Unit-test
+                    </a>{" "}
+                    og{" "}
+                    <a href={`${CPLT_REV}/tests/e2e.rs#L1305-L1331`} className={linkClass}>
+                      E2E-tester
+                    </a>
+                  </TableDataCell>
+                  <TableDataCell role="cell" data-label="Hva den viser">
+                    Overstyringen gjelder bare Copilot. E2E-testene sjekker verdien i miljøet til barnet og eksplisitt
+                    pass-through.
+                  </TableDataCell>
+                </TableRow>
+                <TableRow role="row">
+                  <TableDataCell role="cell">
+                    <a href="https://github.com/navikt/copilot/issues/2176" className={linkClass}>
+                      Rapporten i #2176
+                    </a>
+                  </TableDataCell>
+                  <TableDataCell role="cell" data-label="Hva den viser">
+                    Brukeren rapporterer bwrap 0.11.1 og avslag på namespaces bare inni cplt. Det stemmer med policyen,
+                    men forløpet er ikke gjenskapt.
+                  </TableDataCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </div>
+          <BodyLong>
+            Linux-testene er lest, ikke kjørt. Verifikasjonen skjedde på macOS uten et isolert Linux-testmiljø. Det er
+            ikke kjørt bwrap på maskinen, brukt privilegerte containere eller endret kjerneinnstillinger.
+          </BodyLong>
+          <BodyLong>
+            Gir vanlig oppstart med dagens cplt fortsatt bubblewrap-meldingen, trenger vi Linux-distribusjon og
+            kjerneversjon, <code className={code}>cplt --version</code>, <code className={code}>copilot --version</code>
+            , startkommandoen uten tokens og noen sladdede linjer rundt feilen. Si også om du bruker{" "}
+            <code className={code}>--pass-env COPILOT_CLI_SANDBOX_SUPPORT_OVERRIDE</code>, og om klienten viser et krav
+            fra en administrert policy. Det skiller gammel oppstartskode, eksplisitt pass-through og endringer i klient
+            eller policy, uten at du må sende hele doctor-utskriften.
+          </BodyLong>
+          <BodyLong>
+            Andre tilgangsfeil må undersøkes ut fra operasjonen som feiler. Dette avsnittet sier ikke at de er løst.
           </BodyLong>
         </VStack>
       </section>
