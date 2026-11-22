@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -24,7 +25,7 @@ type fakeServer struct {
 	noDiscover, noVersionCheck, noMethodCheck, noNameCheck bool
 	noEnvelopeCheck, allowGET, noSizeLimit                 bool
 	noChallenge, noToolsList, echoToken, fracCode          bool
-	unsupportedAsMismatch                                  bool
+	unsupportedAsMismatch, sse                             bool
 	tool                                                   map[string]any // replaces the default tools/list entry
 }
 
@@ -113,8 +114,8 @@ func (f fakeServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		rpcErr(codeHeaderMismatch)
 		return
 	}
-	if r.Header.Get("Accept") != "application/json" {
-		w.WriteHeader(406) // the tool must not ask for SSE it cannot parse
+	if a := r.Header.Get("Accept"); !strings.Contains(a, "application/json") || !strings.Contains(a, "text/event-stream") {
+		w.WriteHeader(406) // Streamable HTTP: the client must accept both
 		return
 	}
 	resultType := "complete"
@@ -139,7 +140,14 @@ func (f fakeServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		result["tools"] = []any{tool}
 	}
-	_ = json.NewEncoder(w).Encode(map[string]any{"jsonrpc": "2.0", "id": 1, "result": result})
+	msg, _ := json.Marshal(map[string]any{"jsonrpc": "2.0", "id": 1, "result": result})
+	if f.sse {
+		w.Header().Set("Content-Type", "text/event-stream")
+		_, _ = fmt.Fprintf(w, "event: message\nid: 1\ndata: %s\n\ndata: {\"jsonrpc\":\"2.0\",\"id\":99}\n\n", msg)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	_, _ = w.Write(msg)
 }
 
 func runAgainst(t *testing.T, f fakeServer, path ...string) (int, string) {
@@ -163,6 +171,20 @@ func TestCompliantServerPasses(t *testing.T) {
 	code, out := runAgainst(t, fakeServer{})
 	if code != 0 || strings.Contains(out, "FAIL") {
 		t.Fatalf("exit %d, want 0:\n%s", code, out)
+	}
+}
+
+func TestSSEServerPasses(t *testing.T) {
+	code, out := runAgainst(t, fakeServer{sse: true})
+	if code != 0 || strings.Contains(out, "FAIL") {
+		t.Fatalf("exit %d, want 0:\n%s", code, out)
+	}
+}
+
+func TestFirstSSEData(t *testing.T) {
+	got := string(firstSSEData([]byte(": ping\r\n\r\nevent: message\r\ndata: {\"a\":\r\ndata:1}\r\n\r\ndata: {}\r\n")))
+	if got != "{\"a\":\n1}" {
+		t.Fatalf("got %q", got)
 	}
 }
 

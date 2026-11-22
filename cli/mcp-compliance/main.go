@@ -264,8 +264,8 @@ func (cfg *config) do(method, token string, body map[string]any, hdr map[string]
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	// JSON only: the tool cannot parse SSE, and the Nav servers do not require text/event-stream.
-	req.Header.Set("Accept", "application/json")
+	// Streamable HTTP requires both; a server may answer either way.
+	req.Header.Set("Accept", "application/json, text/event-stream")
 	if token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
 	}
@@ -282,8 +282,25 @@ func (cfg *config) do(method, token string, body map[string]any, hdr map[string]
 	defer res.Body.Close()
 	raw, _ := io.ReadAll(io.LimitReader(res.Body, 1<<20))
 	out := &response{status: res.StatusCode, header: res.Header}
+	if strings.HasPrefix(res.Header.Get("Content-Type"), "text/event-stream") {
+		raw = firstSSEData(raw)
+	}
 	_ = json.Unmarshal(raw, &out.body)
 	return out, nil
+}
+
+// firstSSEData returns the data of the first SSE event that carries any.
+func firstSSEData(raw []byte) []byte {
+	var data []string
+	for _, line := range strings.Split(strings.ReplaceAll(string(raw), "\r\n", "\n"), "\n") {
+		if line == "" && len(data) > 0 {
+			break
+		}
+		if v, ok := strings.CutPrefix(line, "data:"); ok {
+			data = append(data, strings.TrimPrefix(v, " "))
+		}
+	}
+	return []byte(strings.Join(data, "\n"))
 }
 
 func expectStatus(resp *response, err error, want int) error {
