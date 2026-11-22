@@ -8,3 +8,4 @@ ingresses:
 # Innblikk: same ID as prod so the consent banner and script can be checked in dev.
 # data-domains=ki-utvikling.nav.no keeps the script from sending anything from here.
 innblikk_website_id: "993a4ccf-b469-49ff-8994-f340588086ce"
+memory_request: 128Mi
