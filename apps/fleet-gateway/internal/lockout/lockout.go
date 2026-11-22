@@ -308,7 +308,7 @@ func (m *Manager) DrainAudit(ctx context.Context) int {
 			currentRaw, ok, err = m.store.Get(ctx, session.KindAuditOutbox, AuditOutboxKey)
 			if err != nil {
 				slog.Warn("re-read lockout audit outbox failed", "error", err)
-				return len(current)
+				return -1
 			}
 			if !ok {
 				return 0

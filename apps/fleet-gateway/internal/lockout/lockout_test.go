@@ -3,6 +3,7 @@ package lockout
 import (
 	"context"
 	"crypto/rand"
+	"errors"
 	"testing"
 	"time"
 
@@ -93,5 +94,45 @@ func TestManager_LockoutCaseInsensitiveAndTrimmed(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// conflictThenFailStore loses the first outbox CAS and fails every outbox read
+// after that, as when another replica drains and the database then goes away.
+type conflictThenFailStore struct {
+	session.Store
+	conflicted bool
+}
+
+func (s *conflictThenFailStore) CompareAndSwap(ctx context.Context, kind, key string, oldVal, newVal []byte, ttl time.Duration) (bool, error) {
+	if kind == session.KindAuditOutbox && newVal == nil && !s.conflicted {
+		s.conflicted = true
+		return false, nil
+	}
+	return s.Store.CompareAndSwap(ctx, kind, key, oldVal, newVal, ttl)
+}
+
+func (s *conflictThenFailStore) Get(ctx context.Context, kind, key string) ([]byte, bool, error) {
+	if kind == session.KindAuditOutbox && s.conflicted {
+		return nil, false, errors.New("connection lost")
+	}
+	return s.Store.Get(ctx, kind, key)
+}
+
+func TestDrainAudit_FailedReReadAfterConflictIsUnknown(t *testing.T) {
+	ctx := context.Background()
+	clock := func() time.Time { return time.Date(2026, 11, 22, 12, 0, 0, 0, time.UTC) }
+	mem := session.NewMemoryStore(clock, nil)
+	t.Cleanup(mem.Close)
+	store := &conflictThenFailStore{Store: mem}
+	mgr := New(store, newTestKey(), nil, clock)
+	if _, err := mgr.LockOutUser(ctx, "A123456", "op"); err != nil {
+		t.Fatalf("LockOutUser: %v", err)
+	}
+	if n := mgr.DrainAudit(ctx); n != -1 {
+		t.Fatalf("DrainAudit after conflict and failed re-read = %d, want -1 (unknown)", n)
+	}
+	if !store.conflicted {
+		t.Fatal("test store never saw the CAS conflict")
 	}
 }
