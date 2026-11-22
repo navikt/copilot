@@ -1851,7 +1851,8 @@
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/synkronisere/page.tsx",
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/tilpasse/page.tsx",
         "apps/my-copilot/src/app/(nb)/nav-pilot/guider/synkronisere/page.tsx",
-        "apps/my-copilot/src/app/(nb)/nav-pilot/guider/tilpasse/page.tsx"
+        "apps/my-copilot/src/app/(nb)/nav-pilot/guider/tilpasse/page.tsx",
+        "docs/README.sync.md"
       ],
       "overstyre-installerte-filer": [
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/tilpasse/page.tsx",

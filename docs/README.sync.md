@@ -18,15 +18,15 @@ Se [Hvordan nav-pilot finner filer](https://ki-utvikling.nav.no/nav-pilot/guider
 
 ## Files you have edited
 
-Se [Hvordan nav-pilot finner filer](https://ki-utvikling.nav.no/nav-pilot/guider/synkronisere#hvordan-nav-pilot-finner-filer).
+Se [Spørsmål og svar](https://ki-utvikling.nav.no/nav-pilot/guider/synkronisere#faq).
 
 ## Files that were there before install
 
-Se [Hvordan nav-pilot finner filer](https://ki-utvikling.nav.no/nav-pilot/guider/synkronisere#hvordan-nav-pilot-finner-filer).
+Se [Tilpasse sync](https://ki-utvikling.nav.no/nav-pilot/guider/synkronisere#tilpasse-sync).
 
 ## Files the source removed
 
-Se [Hvordan nav-pilot finner filer](https://ki-utvikling.nav.no/nav-pilot/guider/synkronisere#hvordan-nav-pilot-finner-filer).
+Se [Spørsmål og svar](https://ki-utvikling.nav.no/nav-pilot/guider/synkronisere#faq).
 
 ## Overrides
 
@@ -34,7 +34,9 @@ Se [Tilpasse sync](https://ki-utvikling.nav.no/nav-pilot/guider/synkronisere#til
 
 ## Suppressing new-item reminders (user scope)
 
-X tolerance
+Se [Ignorere enkeltkomponenter](https://ki-utvikling.nav.no/nav-pilot/guider/tilpasse#ignorere-enkeltkomponenter).
+
+## Formatting tolerance
 
 Markdown files (`.md`) are compared with formatting tolerance, so these differences are ignored:
 - Line endings: CRLF vs LF
