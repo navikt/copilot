@@ -144,6 +144,11 @@ func utcDay(t time.Time) time.Time {
 }
 
 func (p *pgStore) useToken(ctx context.Context, userHash, sig string, exp, now time.Time) error {
+	// Compare in Go: timestamptz keeps only microseconds, so exp and a now
+	// a few nanoseconds earlier can compare equal in SQL.
+	if !now.Before(exp) {
+		return errConfirm
+	}
 	ctx, cancel, err := p.ready(ctx)
 	if err != nil {
 		return err
@@ -163,10 +168,10 @@ func (p *pgStore) useToken(ctx context.Context, userHash, sig string, exp, now t
 	tag, err := tx.Exec(ctx, `
 INSERT INTO dolly_used_tokens (sig, user_hash, expires_at)
 SELECT $1::text, $2::text, $3::timestamptz
-WHERE $3::timestamptz > $4::timestamptz
+WHERE
   -- Re-check expiry on the database clock: cleanup uses the same clock, so a
   -- row it may have deleted can never be inserted again.
-  AND $3::timestamptz > now() - $6::interval
+  $3::timestamptz > now() - $6::interval
   AND (SELECT count(*) FROM dolly_used_tokens WHERE user_hash = $2::text AND expires_at > $4::timestamptz) < $5::integer
 ON CONFLICT DO NOTHING`,
 		sig, userHash, exp, now, maxSeenPerUser, spentGrace)

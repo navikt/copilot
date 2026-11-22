@@ -253,7 +253,8 @@ func TestPGStoreReplayNearExpiry(t *testing.T) {
 	ctx := context.Background()
 	// The caller's clock lags the database: the token is already past expiry
 	// on the database clock that cleanup uses.
-	exp := time.Now().Add(-500 * time.Millisecond)
+	// Whole seconds, as in real tokens; a nanosecond offset tests the Go check.
+	exp := time.Now().Add(-time.Second).Truncate(time.Second)
 	justBefore := exp.Add(-time.Nanosecond)
 	if err := p.useToken(ctx, "u", "edge", exp, justBefore); err != nil {
 		t.Fatal(err)
@@ -275,14 +276,18 @@ func TestPGStoreReplayNearExpiry(t *testing.T) {
 func TestMemStoreReplayNearExpiry(t *testing.T) {
 	c := &orderConfirm{seen: map[string][]seenToken{}}
 	exp := testNow.Add(confirmTTL)
-	if err := c.markUsed("u", "edge", exp, exp.Add(-time.Nanosecond)); err != nil {
+	justBefore := exp.Add(-time.Nanosecond)
+	if err := c.markUsed("u", "edge", exp, justBefore); err != nil {
 		t.Fatal(err)
 	}
-	// Pruning runs inside markUsed; a later clock read must not forget the token.
-	for _, now := range []time.Time{exp.Add(-time.Nanosecond), exp, exp.Add(spentGrace / 2)} {
-		if err := c.markUsed("u", "edge", exp, now); !errors.Is(err, errConfirm) {
-			t.Fatalf("replay at %v = %v, want errConfirm", now.Sub(exp), err)
-		}
+	// Another pod-local consume after expiry runs the pruning loop.
+	later := exp.Add(spentGrace / 2)
+	if err := c.markUsed("u", "other", later.Add(confirmTTL), later); err != nil {
+		t.Fatal(err)
+	}
+	// A request whose clock read still says valid must not replay "edge".
+	if err := c.markUsed("u", "edge", exp, justBefore); !errors.Is(err, errConfirm) {
+		t.Fatalf("replay after pruning = %v, want errConfirm", err)
 	}
 }
 
