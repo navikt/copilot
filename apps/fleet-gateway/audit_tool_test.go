@@ -227,9 +227,23 @@ func TestAuditMCP_AuthZENShape(t *testing.T) {
 		`"context":{"duration_ms":0,"header_mismatch":true,"http_method":"POST","mcp_headers":{"method":false,"name":true},"outcome":"tool_denied","protocol_version":"2026-07-28","request_id":"ID","scan_incomplete":false},` +
 		`"decision":{"context":{"reason":"not_listed"},"decision":false},"level":"INFO","msg":"audit mcp",` +
 		`"resource":{"id":"team-etterlevelse/etterlevelse","properties":{"backend":"dev-gcp:team-etterlevelse:nav-etterlevelse-mcp"},"type":"mcp_route"},` +
-		`"subject":{"id":"Z123456","properties":{"client_id":"` + fmt.Sprint(audit["client_id"]) + `"},"type":"user"}}`
+		`"subject":{"id":"Z123456","properties":{"actor":{"id":"` + fmt.Sprint(audit["client_id"]) + `","type":"oauth_client"},` +
+		`"assurance":"session","client_id":"` + fmt.Sprint(audit["client_id"]) + `","issuer":"fleet-gateway"},"type":"user"}}`
 	if audit["client_id"] == "" || string(got) != want {
 		t.Errorf("audit record\n got %s\nwant %s", got, want)
+	}
+}
+
+// A client cannot name its own actor or subject: both come from the session.
+func TestAuditMCP_ActorIgnoresClientHeaders(t *testing.T) {
+	audit, _, code := auditToolsHeaders(t, http.MethodPost, nil, `{"jsonrpc":"2.0","id":1,"method":"ping"}`,
+		http.Header{"Actor": {"evil-agent"}, "X-Actor": {"evil-agent"}, "Act": {"evil-agent"},
+			"X-Client-Id": {"evil-agent"}, "X-Navident": {"X999999"}})
+	props := audit["raw"].(map[string]any)["subject"].(map[string]any)["properties"].(map[string]any)
+	actor := props["actor"].(map[string]any)
+	if code != http.StatusOK || audit["navident"] != "Z123456" || actor["id"] != props["client_id"] ||
+		!strings.HasSuffix(fmt.Sprint(actor["id"]), "/oauth-client.json") {
+		t.Errorf("code %d, subject %v, actor %v, client_id %v", code, audit["navident"], actor, props["client_id"])
 	}
 }
 

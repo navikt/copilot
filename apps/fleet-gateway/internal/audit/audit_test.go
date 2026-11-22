@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"log/slog"
 	"testing"
+
+	"github.com/navikt/copilot/fleet-gateway/internal/identity"
 )
 
 func capture(t *testing.T, f func()) string {
@@ -26,7 +28,7 @@ func capture(t *testing.T, f func()) string {
 // Golden lines: the shape before the move to this package (README, runbook).
 func TestLogMCP_Golden(t *testing.T) {
 	got := capture(t, func() {
-		LogMCP(MCP{NAVIdent: "Z1\n", ClientID: "c", Method: "tools/call", Tool: "x\r", Route: "team/app", Backend: "b",
+		LogMCP(MCP{Caller: identity.Caller{Issuer: "fleet-gateway", Subject: "Z1\n", Actor: "c\r", ActorType: "oauth_client", Assurance: "session"}, Method: "tools/call", Tool: "x\r", Route: "team/app", Backend: "b",
 			RequestID: "ID", HTTPMethod: "POST", HeaderMismatch: true, ProtocolVersion: "2026-07-28", HasMcpName: true,
 			Outcome: "tool_denied", DurationMS: 3, Decision: "deny", DecisionReason: "not_listed"})
 	})
@@ -34,7 +36,7 @@ func TestLogMCP_Golden(t *testing.T) {
 		`"context":{"duration_ms":3,"header_mismatch":true,"http_method":"POST","mcp_headers":{"method":false,"name":true},"outcome":"tool_denied","protocol_version":"2026-07-28","request_id":"ID","scan_incomplete":false},` +
 		`"decision":{"context":{"reason":"not_listed"},"decision":false},"level":"INFO","msg":"audit mcp",` +
 		`"resource":{"id":"team/app","properties":{"backend":"b"},"type":"mcp_route"},` +
-		`"subject":{"id":"Z1","properties":{"client_id":"c"},"type":"user"}}`
+		`"subject":{"id":"Z1","properties":{"actor":{"id":"c","type":"oauth_client"},"assurance":"session","client_id":"c","issuer":"fleet-gateway"},"type":"user"}}`
 	if got != want {
 		t.Errorf("\n got %s\nwant %s", got, want)
 	}

@@ -6,6 +6,8 @@ package audit
 import (
 	"log/slog"
 	"strings"
+
+	"github.com/navikt/copilot/fleet-gateway/internal/identity"
 )
 
 // Sanitize strips CR and LF so a value cannot forge a log line.
@@ -18,20 +20,20 @@ func Sanitize(s string) string {
 // MCP is one decision on an MCP route, logged as `audit mcp` in the OpenID
 // AuthZEN Access Evaluation shape (owner decision 2026-11-18, #2342).
 type MCP struct {
-	NAVIdent, ClientID string
-	Method, Tool       string
-	Route, Backend     string // Route without the /mcp/ prefix
-	RequestID          string
-	HTTPMethod         string
-	ScanIncomplete     bool
-	HeaderMismatch     bool
-	ProtocolVersion    string // already capped and quoted by policy.ProtocolVersion
-	HasMcpMethod       bool
-	HasMcpName         bool
-	Outcome            string
-	DurationMS         int64
-	Decision           string // "allow", "deny" or "" when stopped before the policy
-	DecisionReason     string
+	Caller          identity.Caller // zero when the request had no valid session
+	Method, Tool    string
+	Route, Backend  string // Route without the /mcp/ prefix
+	RequestID       string
+	HTTPMethod      string
+	ScanIncomplete  bool
+	HeaderMismatch  bool
+	ProtocolVersion string // already capped and quoted by policy.ProtocolVersion
+	HasMcpMethod    bool
+	HasMcpName      bool
+	Outcome         string
+	DurationMS      int64
+	Decision        string // "allow", "deny" or "" when stopped before the policy
+	DecisionReason  string
 }
 
 // LogMCP emits the `audit mcp` line.
@@ -45,11 +47,18 @@ func LogMCP(m MCP) {
 	var attrs []any
 	// AuthZEN 1.0 §5.1 makes subject.id REQUIRED, so an unauthenticated
 	// request has no subject rather than one with an empty id.
-	if m.NAVIdent != "" {
+	// properties.client_id predates the actor group and stays for existing
+	// queries; actor is who acted for the subject (#2582). No token is logged.
+	if c := m.Caller; c.Subject != "" {
 		attrs = append(attrs, slog.Group("subject",
 			"type", "user",
-			"id", Sanitize(m.NAVIdent),
-			slog.Group("properties", "client_id", Sanitize(m.ClientID)),
+			"id", Sanitize(c.Subject),
+			slog.Group("properties",
+				"client_id", Sanitize(c.Actor),
+				slog.Group("actor", "type", c.ActorType, "id", Sanitize(c.Actor)),
+				"issuer", c.Issuer,
+				"assurance", c.Assurance,
+			),
 		))
 	}
 	slog.Info("audit mcp", append(attrs,
