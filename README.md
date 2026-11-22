@@ -10,7 +10,7 @@ Brukerdokumentasjonen ligger på nettstedet, ikke her:
 - [ki-utvikling.nav.no/nav-pilot](https://ki-utvikling.nav.no/nav-pilot): installer og bruk nav-pilot
 - [ki-utvikling.nav.no/verktoy](https://ki-utvikling.nav.no/verktoy): agenter, instruksjoner, skills og MCP-servere
 - [ki-utvikling.nav.no/cplt](https://ki-utvikling.nav.no/cplt): cplt, sandkassen for kodeagenter ([navikt/cplt](https://github.com/navikt/cplt))
-- [mcp-registry.nav.no](https://mcp-registry.nav.no): Nav-godkjente MCP-servere
+- [ki-utvikling.nav.no/mcp](https://ki-utvikling.nav.no/mcp): MCP-servere for Nav
 
 ## Innhold i repoet
 
@@ -25,7 +25,7 @@ Brukerdokumentasjonen ligger på nettstedet, ikke her:
 - [`apps/copilot-adoption`](apps/copilot-adoption): skanner navikt-repoer etter KI-oppsett
 - [`apps/fleet-gateway`](apps/fleet-gateway): OAuth-server for Navs interne MCP-servere
 - [`apps/mcp-registry`](apps/mcp-registry): MCP-registeret
-- [`apps/mcp-onboarding`](apps/mcp-onboarding), [`apps/mcp-dolly`](apps/mcp-dolly), [`apps/mcp-kodeverk`](apps/mcp-kodeverk), [`apps/mcp-team-catalog`](apps/mcp-team-catalog): MCP-servere
+- [`apps/mcp-onboarding`](apps/mcp-onboarding) (mcp-onboarding.intern.nav.no), [`apps/mcp-dolly`](apps/mcp-dolly), [`apps/mcp-kodeverk`](apps/mcp-kodeverk), [`apps/mcp-team-catalog`](apps/mcp-team-catalog): MCP-servere
 
 Arkitekturen er beskrevet i [ARCHITECTURE.md](ARCHITECTURE.md).
 
