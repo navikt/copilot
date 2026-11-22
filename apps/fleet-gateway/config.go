@@ -89,6 +89,7 @@ type Config struct {
 	GatewayDisabled         bool
 	TeamTokenStrategy       string
 	TexasExchangeEndpoint   string
+	TexasIntrospectEndpoint string // validates the Entra access token at login for NAVident (#2594)
 	EntraScope              string
 	AzureClientID           string
 	AzureClientSecret       string
@@ -210,6 +211,7 @@ func loadConfigFromEnv() (*Config, error) {
 		GatewayDisabled:         gatewayDisabled,
 		TeamTokenStrategy:       strategy,
 		TexasExchangeEndpoint:   strings.TrimSpace(os.Getenv("NAIS_TOKEN_EXCHANGE_ENDPOINT")),
+		TexasIntrospectEndpoint: strings.TrimSpace(os.Getenv("NAIS_TOKEN_INTROSPECTION_ENDPOINT")),
 		EntraScope:              entraScope,
 		AzureClientID:           strings.TrimSpace(os.Getenv("AZURE_APP_CLIENT_ID")),
 		AzureClientSecret:       strings.TrimSpace(os.Getenv("AZURE_APP_CLIENT_SECRET")),
@@ -318,6 +320,10 @@ func validateConfig(cfg *Config) error {
 		}
 	default:
 		return fmt.Errorf("invalid TEAM_TOKEN_STRATEGY %q: expected obo or refresh", cfg.TeamTokenStrategy)
+	}
+
+	if err := config.ValidateHTTPURL(cfg.TexasIntrospectEndpoint, false); err != nil {
+		return fmt.Errorf("invalid NAIS_TOKEN_INTROSPECTION_ENDPOINT: %w", err)
 	}
 
 	if cfg.AzureClientID == "" {

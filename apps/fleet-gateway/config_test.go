@@ -23,6 +23,7 @@ func setBaseValidEnv(t *testing.T) {
 	t.Setenv("COOKIE_SIGNING_SECRET", "")
 	t.Setenv("NAIS_CLUSTER_NAME", "")
 	t.Setenv("NAIS_TOKEN_EXCHANGE_ENDPOINT", "http://127.0.0.1:3000/api/v1/token/exchange")
+	t.Setenv("NAIS_TOKEN_INTROSPECTION_ENDPOINT", "http://127.0.0.1:3000/api/v1/introspect")
 	t.Setenv("TEAM_TOKEN_STRATEGY", "")
 	t.Setenv("PILOT_ROUTES_FILE", "pilot-routes.dev.yaml")
 	t.Setenv("SESSION_STORE", "")
@@ -117,6 +118,11 @@ func TestLoadConfig_FailClosed(t *testing.T) {
 			name:      "invalid team token strategy fails closed",
 			override:  map[string]string{"TEAM_TOKEN_STRATEGY": "magic"},
 			wantError: "invalid TEAM_TOKEN_STRATEGY",
+		},
+		{
+			name:      "missing introspection endpoint fails closed",
+			override:  map[string]string{"NAIS_TOKEN_INTROSPECTION_ENDPOINT": ""},
+			wantError: "invalid NAIS_TOKEN_INTROSPECTION_ENDPOINT",
 		},
 		{
 			name: "refresh strategy does not require texas endpoint",

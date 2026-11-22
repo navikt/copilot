@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
@@ -41,6 +42,9 @@ type testEnv struct {
 	lastEntraChallenge string
 	navIdent           string
 	idTokenOverride    func(claims map[string]any) string // nil: valid id_token; returns "" to omit it
+	introspectStatus   int                                // 0: 200
+	introspectBody     map[string]any                     // nil: active with te.navIdent
+	introspectedTokens []string
 	groups             []string
 	cimdServer         *httptest.Server
 	entraServer        *httptest.Server
@@ -221,6 +225,24 @@ func newTestEnv(t *testing.T) *testEnv {
 	}))
 	t.Cleanup(te.entraServer.Close)
 
+	// Separate from texasServer so tests that replace the exchange handler keep introspection.
+	introspectServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var in map[string]string
+		_ = json.NewDecoder(r.Body).Decode(&in)
+		te.mu.Lock()
+		te.introspectedTokens = append(te.introspectedTokens, in["token"])
+		status, body := te.introspectStatus, te.introspectBody
+		if body == nil {
+			body = map[string]any{"active": true, "NAVident": te.navIdent}
+		}
+		te.mu.Unlock()
+		if status == 0 {
+			status = http.StatusOK
+		}
+		writeJSON(w, status, body)
+	}))
+	t.Cleanup(introspectServer.Close)
+
 	te.texasServer = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{
 			"access_token": strings.Join([]string{"team", "obo", "token"}, "-"),
@@ -255,6 +277,7 @@ func newTestEnv(t *testing.T) *testEnv {
 		},
 		TeamTokenStrategy:       strategyOBO,
 		TexasExchangeEndpoint:   te.texasServer.URL,
+		TexasIntrospectEndpoint: introspectServer.URL,
 		EntraScope:              "openid",
 		AzureClientID:           "azure-client-id",
 		AzureIssuer:             testIssuer,
@@ -1171,30 +1194,38 @@ func TestCallback_RequiresNAVident(t *testing.T) {
 
 }
 
-// TestCallback_IdentityOnlyFromValidatedIDToken covers #2594: the token
-// response is hostile, so identity comes only from a validated id_token, also
-// when no nonce was sent (scope without openid).
-func TestCallback_IdentityOnlyFromValidatedIDToken(t *testing.T) {
+// TestCallback_IdentityFromIntrospection covers #2594: the token response is
+// hostile. Login needs a validated id_token, and NAVident comes only from Texas
+// introspection of the access token, never from decoding it.
+func TestCallback_IdentityFromIntrospection(t *testing.T) {
 	verifier := "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG"
 	forged := makeTestJWT(map[string]any{"NAVident": "Z999999"})
+	noNAVident := func(c map[string]any) string {
+		delete(c, "NAVident")
+		return makeTestIDToken(c)
+	}
 	cases := []struct {
 		name      string
 		noOpenID  bool
 		idToken   func(claims map[string]any) string
+		status    int
+		body      map[string]any
 		wantError string
+		wantIdent string
 	}{
-		{"valid id_token logs in", false, nil, ""},
-		{"valid id_token without nonce logs in", true, nil, ""},
-		{"missing id_token without nonce is rejected", true, func(map[string]any) string { return "" }, "server_error"},
-		{"missing id_token with nonce is rejected", false, func(map[string]any) string { return "" }, "server_error"},
-		{"invalid id_token without nonce is rejected", true, func(c map[string]any) string {
+		{name: "happy path takes NAVident from introspection", body: map[string]any{"active": true, "NAVident": "A123456"}, wantIdent: "A123456"},
+		{name: "happy path without nonce", noOpenID: true, body: map[string]any{"active": true, "NAVident": "A123456"}, wantIdent: "A123456"},
+		{name: "forged NAVident in access_token is not used", idToken: noNAVident, body: map[string]any{"active": true}, wantError: "access_denied"},
+		{name: "introspection inactive is rejected", body: map[string]any{"active": false, "NAVident": "Z999999"}, wantError: "server_error"},
+		{name: "introspection error is rejected", status: http.StatusInternalServerError, body: map[string]any{"active": true, "NAVident": "Z999999"}, wantError: "server_error"},
+		{name: "introspection without NAVident is rejected", body: map[string]any{"active": true}, wantError: "access_denied"},
+		{name: "introspection with blank NAVident is rejected", body: map[string]any{"active": true, "NAVident": "  "}, wantError: "access_denied"},
+		{name: "missing id_token without nonce is rejected", noOpenID: true, idToken: func(map[string]any) string { return "" }, wantError: "server_error"},
+		{name: "missing id_token with nonce is rejected", idToken: func(map[string]any) string { return "" }, wantError: "server_error"},
+		{name: "invalid id_token without nonce is rejected", noOpenID: true, idToken: func(c map[string]any) string {
 			c["iss"] = "https://login.test/evil/v2.0"
 			return makeTestIDToken(c)
-		}, "server_error"},
-		{"NAVident only in access_token is rejected", false, func(c map[string]any) string {
-			delete(c, "NAVident")
-			return makeTestIDToken(c)
-		}, "access_denied"},
+		}, wantError: "server_error"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -1205,6 +1236,8 @@ func TestCallback_IdentityOnlyFromValidatedIDToken(t *testing.T) {
 			te.mu.Lock()
 			te.entraToken = forged
 			te.idTokenOverride = tc.idToken
+			te.introspectStatus = tc.status
+			te.introspectBody = tc.body
 			te.mu.Unlock()
 
 			entraState, stateCookie := te.startLogin(verifier)
@@ -1212,8 +1245,18 @@ func TestCallback_IdentityOnlyFromValidatedIDToken(t *testing.T) {
 				t.Fatal("expected no nonce without openid scope")
 			}
 			if tc.wantError == "" {
-				if te.completeEntraCallback(entraState, stateCookie) == "" {
+				code := te.completeEntraCallback(entraState, stateCookie)
+				if code == "" {
 					t.Fatal("expected gateway code on success")
+				}
+				ic, ok, err := te.gw.popCode(context.Background(), code)
+				if err != nil || !ok || ic.Session.NAVIdent != tc.wantIdent {
+					t.Fatalf("session NAVident wrong or code missing (ok=%v err=%v), want %q", ok, err, tc.wantIdent)
+				}
+				te.mu.Lock()
+				defer te.mu.Unlock()
+				if len(te.introspectedTokens) != 1 || te.introspectedTokens[0] != forged {
+					t.Fatalf("expected the access token to be introspected once, got %d", len(te.introspectedTokens))
 				}
 				return
 			}
@@ -1225,8 +1268,7 @@ func TestCallback_IdentityOnlyFromValidatedIDToken(t *testing.T) {
 			if err != nil {
 				t.Fatalf("invalid redirect location: %v", err)
 			}
-			got := loc.Query().Get("error")
-			if got != tc.wantError {
+			if got := loc.Query().Get("error"); got != tc.wantError {
 				t.Fatalf("error = %q (%s), want %q", got, loc.Query().Get("error_description"), tc.wantError)
 			}
 		})
@@ -1257,7 +1299,8 @@ func TestCallback_RequiresAccessTokenForOBO(t *testing.T) {
 		}
 	})
 
-	t.Run("refresh strategy accepts empty access_token when id_token is present", func(t *testing.T) {
+	// The access token is the only identity source (Texas introspection, #2594).
+	t.Run("refresh strategy rejects empty access_token even when id_token is present", func(t *testing.T) {
 		te := newTestEnv(t)
 		te.gw.cfg.TeamTokenStrategy = strategyRefresh
 		te.mu.Lock()
@@ -1267,8 +1310,9 @@ func TestCallback_RequiresAccessTokenForOBO(t *testing.T) {
 		entraState, stateCookie := te.startLogin(verifier)
 		resp := te.callback(entraState, stateCookie)
 		_ = resp.Body.Close()
-		if resp.StatusCode != http.StatusOK {
-			t.Fatalf("expected consent page (200) in refresh mode, got %d", resp.StatusCode)
+		loc, _ := url.Parse(resp.Header.Get("Location"))
+		if resp.StatusCode != http.StatusFound || loc.Query().Get("error") != "server_error" {
+			t.Fatalf("expected server_error redirect in refresh mode, got %d %q", resp.StatusCode, loc.Query().Get("error"))
 		}
 	})
 }
