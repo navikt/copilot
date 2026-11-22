@@ -7,10 +7,12 @@ Konvensjoner og kommandoer står i [AGENTS.md](AGENTS.md). Her er det som ikke s
 Alle pull requests og oppføringer i merge-køen kjører [`ci.yaml`](.github/workflows/ci.yaml). Den gir én sjekk, `ci-ok`, som er den eneste påkrevde sjekken i rulesettet for `main`.
 
 - Jobben `changes` finner hvilke komponenter endringen berører, og bare deres sjekker kjøres.
-- gitleaks skanner hele historikken på hver kjøring.
+- Jobben `gitleaks` skanner bare commitene PR-en eller køoppføringen legger til. Er koden uendret siden en tidligere grønn kjøring, kan sjekkene gjenbrukes.
 - `ci-ok` feiler hvis en kjørt sjekk feiler eller avbrytes. Hoppede jobber teller som OK.
 
 Komponent-workflowene (`copilot-api.yaml`, `my-copilot.yaml` osv.) deployer PR-preview til dev og `main` til prod. De er ikke påkrevde og kjører ikke i merge-køen.
+
+[`gitleaks.yaml`](.github/workflows/gitleaks.yaml) skanner hele historikken ved push til `main`. Den er ikke en del av `ci-ok`.
 
 ## Hemmeligheter
 
@@ -31,13 +33,15 @@ mise install
 lefthook install
 ```
 
-Hemmeligheter ligger i macOS Keychain via fnox, ikke i `.env`-filer. Hver app har en `fnox.toml`:
+Hemmeligheter ligger i macOS Keychain via fnox, ikke i `.env`-filer. Hver app har en `fnox.toml`, og den er fasiten. Per i dag:
 
-| Tjeneste | Apper | Hemmeligheter |
+| App | Keychain-tjeneste | Hemmeligheter |
 |---|---|---|
-| `copilot-portal` | my-copilot | ingen, alt går gjennom copilot-api |
-| `copilot-api` | copilot-api | GITHUB_APP_ID, GITHUB_APP_PRIVATE_KEY, GITHUB_APP_INSTALLATION_ID, GITHUB_APP_ORG_INSTALLATION_ID, GITHUB_BILLING_TOKEN |
-| `copilot-jobs` | copilot-adoption, copilot-metrics, mcp-onboarding | GITHUB_APP_ID, GITHUB_APP_PRIVATE_KEY, GITHUB_APP_INSTALLATION_ID, SLACK_WEBHOOK_URL |
+| my-copilot | `copilot-portal` | ingen, alt går gjennom copilot-api |
+| copilot-api | `copilot-api` | GITHUB_APP_ID, GITHUB_APP_PRIVATE_KEY, GITHUB_APP_INSTALLATION_ID, GITHUB_APP_ORG_INSTALLATION_ID, GITHUB_BILLING_TOKEN |
+| copilot-metrics | `copilot-jobs` | GITHUB_APP_ID, GITHUB_APP_PRIVATE_KEY, GITHUB_APP_INSTALLATION_ID, GITHUB_APP_ORG_INSTALLATION_ID, GITHUB_BILLING_TOKEN, SLACK_WEBHOOK_URL |
+| copilot-adoption | `copilot-jobs` | GITHUB_APP_ID, GITHUB_APP_PRIVATE_KEY, GITHUB_APP_INSTALLATION_ID, SLACK_WEBHOOK_URL |
+| mcp-onboarding | `copilot-jobs` | GITHUB_APP_ID, GITHUB_APP_PRIVATE_KEY, GITHUB_APP_INSTALLATION_ID, SLACK_WEBHOOK_URL |
 
 ```bash
 cd apps/copilot-api
