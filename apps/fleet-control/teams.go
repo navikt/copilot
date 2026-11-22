@@ -43,9 +43,9 @@ func (s staticTeams) Teams(_ context.Context, navIdent string) ([]string, error)
 }
 
 // devCluster reports whether cluster may run the write API with the static
-// team list. Unset or prod-* is not dev: fail closed.
+// team list. Only dev-* counts; anything else, unset included, fails closed.
 func devCluster(cluster string) bool {
-	return cluster != "" && !strings.HasPrefix(cluster, "prod")
+	return strings.HasPrefix(cluster, "dev-")
 }
 
 // adminClientFor returns the client id that mounts the write routes, or ""

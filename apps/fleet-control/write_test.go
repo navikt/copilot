@@ -121,7 +121,7 @@ func TestTeamsFromEnv(t *testing.T) {
 		t.Errorf("teams: %v", list)
 	}
 	// The static list must never run outside dev, and an unknown cluster is not dev.
-	for _, cluster := range []string{"prod-gcp", "prod-fss", ""} {
+	for _, cluster := range []string{"prod-gcp", "prod-fss", "management", "dev", ""} {
 		if _, err := teamsFromEnv(cluster); err == nil {
 			t.Errorf("static teams in cluster %q: want error", cluster)
 		}

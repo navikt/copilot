@@ -48,7 +48,7 @@ Not built yet: team lookup in the Nais teams API (static list for now), GitHub O
 | `SEED_ROUTES_FILE`, `SEED_ALLOWLIST_FILE` | first-run import |
 | `MY_COPILOT_CLIENT_ID` | my-copilot's Entra client id. Unset: no `/admin` routes |
 | `FLEET_CONTROL_STATIC_TEAMS` | JSON of team to NAVidents, until the Nais teams API is wired in. Unset: nobody can write |
-| `NAIS_CLUSTER_NAME` | Set by Nais. The write routes and the static team list run only in a cluster that is set and not `prod-*`; the static list in prod stops startup |
+| `NAIS_CLUSTER_NAME` | Set by Nais. The write routes and the static team list run only in a `dev-*` cluster; the static list in prod stops startup |
 
 The app refuses to start when a client id or the Texas endpoint is missing, or when both client ids are equal. Client ids are set per cluster in `.nais/<cluster>.yaml`. A change rolls out pod by pod, so for a short time old and new replicas may accept different callers.
 
