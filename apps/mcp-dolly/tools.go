@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/hmac"
-	"crypto/rand"
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/hex"
@@ -454,7 +453,7 @@ func (s *server) checkGroupOwner(ctx context.Context, tok string, gruppeID int64
 // shortcut: per-pod quota, move to Postgres if more replicas
 type userQuota struct {
 	mu      sync.Mutex
-	hmacKey [32]byte
+	hmacKey []byte
 	nextID  uint64
 	entries map[string][]quotaEntry
 }
@@ -465,9 +464,10 @@ type quotaEntry struct {
 	antall int
 }
 
-func newUserQuota() *userQuota {
-	var key [32]byte
-	_, _ = rand.Read(key[:])
+func newUserQuota(key []byte) *userQuota {
+	if len(key) < minKeyBytes {
+		panic("userQuota needs USER_HASH_KEY")
+	}
 	return &userQuota{
 		hmacKey: key,
 		entries: make(map[string][]quotaEntry),
@@ -518,7 +518,7 @@ func (q *userQuota) reserve(userHash string, antall int, now time.Time) (func(),
 }
 
 func (q *userQuota) hashUser(navIdent string) string {
-	mac := hmac.New(sha256.New, q.hmacKey[:])
+	mac := hmac.New(sha256.New, q.hmacKey)
 	mac.Write([]byte(navIdent))
 	return hex.EncodeToString(mac.Sum(nil))
 }

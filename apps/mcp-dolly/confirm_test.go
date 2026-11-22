@@ -238,7 +238,7 @@ func TestConfirmHardening(t *testing.T) {
 	})
 
 	t.Run("one user cannot block another", func(t *testing.T) {
-		c := newOrderConfirm()
+		c := newOrderConfirm(testKeys().confirm)
 		now := time.Date(2026, 11, 19, 12, 0, 0, 0, time.UTC)
 		for range maxSeenPerUser {
 			tok, _ := c.issue("attacker", "p", now)

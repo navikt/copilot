@@ -475,9 +475,9 @@ func TestCreateOrderPerUserRollingQuota(t *testing.T) {
 	plainSHA := sha256.Sum256([]byte("Z123456"))
 	plainSHAHex := hex.EncodeToString(plainSHA[:])
 	hmacKey := srv.quota.hashUser("Z123456")
-	otherQuota := newUserQuota()
+	otherQuota := newUserQuota(bytes.Repeat([]byte{9}, minKeyBytes))
 	if otherQuota.hashUser("Z123456") == hmacKey {
-		t.Fatal("expected per-instance random HMAC key for quota hashing")
+		t.Fatal("expected the hash to depend on USER_HASH_KEY")
 	}
 	srv.quota.mu.Lock()
 	_, hasPlain := srv.quota.entries["Z123456"]

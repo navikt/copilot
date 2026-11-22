@@ -35,6 +35,7 @@ func newTestServer(t *testing.T, texasHandler, dollyHandler http.HandlerFunc) *s
 		GatewayClientID:       "gw-client-123",
 		DollyURL:              dollyURL,
 		DollyScope:            "api://dev-gcp.dolly.dolly-backend/.default",
+		Keys:                  testKeys(),
 		TwoStepOrder:          true, // the two-step tests predate elicitation; off-mode tests clear it
 		HTTPClient: &http.Client{
 			Timeout: 5 * time.Second,
@@ -163,6 +164,7 @@ func TestHealthAndReady(t *testing.T) {
 }
 
 func TestConfigValidation(t *testing.T) {
+	setTestKeyEnv(t)
 	t.Setenv("DOLLY_URL", "ftp://bad.example")
 	if _, err := loadConfigFromEnv(); err == nil {
 		t.Fatal("expected error for invalid DOLLY_URL scheme")
@@ -218,6 +220,7 @@ func TestConfigValidation(t *testing.T) {
 }
 
 func TestServerWriteTimeoutCoversUpstreamCalls(t *testing.T) {
+	setTestKeyEnv(t)
 	t.Setenv("DOLLY_URL", "https://dolly-backend.example")
 	t.Setenv("NAIS_TOKEN_EXCHANGE_ENDPOINT", "http://texas.nais/exchange")
 	t.Setenv("NAIS_TOKEN_INTROSPECTION_ENDPOINT", "http://texas.nais/introspect")

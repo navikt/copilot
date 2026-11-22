@@ -33,14 +33,15 @@ var errConfirm = errors.New("confirmation token is invalid, expired or already u
 // shortcut: per-pod single-use set, move to Postgres if more replicas
 type orderConfirm struct {
 	mu   sync.Mutex
-	key  [32]byte
+	keys []signingKey           // newest first
 	seen map[string][]seenToken // userHash -> outstanding used tokens, oldest first
 }
 
-func newOrderConfirm() *orderConfirm {
-	c := &orderConfirm{seen: make(map[string][]seenToken)}
-	_, _ = rand.Read(c.key[:])
-	return c
+func newOrderConfirm(keys []signingKey) *orderConfirm {
+	if len(keys) == 0 {
+		panic("orderConfirm needs at least one key")
+	}
+	return &orderConfirm{keys: keys, seen: make(map[string][]seenToken)}
 }
 
 // paramsHash hashes the parsed order (environments sorted, token excluded) so
@@ -66,9 +67,10 @@ func paramsHash(fields map[string]json.RawMessage) string {
 	return hex.EncodeToString(sum[:])
 }
 
-func (c *orderConfirm) mac(exp, userHash, params string) string {
-	m := hmac.New(sha256.New, c.key[:])
-	m.Write([]byte(exp + "|" + userHash + "|" + params))
+// mac covers "<kid>.<exp>.<nonce>" so a token cannot be moved to another key.
+func mac(key []byte, e, userHash, params string) string {
+	m := hmac.New(sha256.New, key)
+	m.Write([]byte(e + "|" + userHash + "|" + params))
 	return hex.EncodeToString(m.Sum(nil))
 }
 
@@ -77,8 +79,9 @@ func (c *orderConfirm) issue(userHash, params string, now time.Time) (string, ti
 	var n [8]byte
 	_, _ = rand.Read(n[:])
 	// Random nonce: two previews of identical parameters get distinct single-use tokens.
-	e := strconv.FormatInt(exp.Unix(), 10) + "." + hex.EncodeToString(n[:])
-	return e + "." + c.mac(e, userHash, params), exp
+	k := c.keys[0]
+	e := k.kid + "." + strconv.FormatInt(exp.Unix(), 10) + "." + hex.EncodeToString(n[:])
+	return e + "." + mac(k.key, e, userHash, params), exp
 }
 
 // consume verifies the token and marks it used. Any failure returns errConfirm.
@@ -88,10 +91,17 @@ func (c *orderConfirm) consume(token, userHash, params string, now time.Time) er
 		return errConfirm
 	}
 	e, sig := token[:i], token[i+1:]
-	if subtle.ConstantTimeCompare([]byte(sig), []byte(c.mac(e, userHash, params))) != 1 {
+	kid, rest, _ := strings.Cut(e, ".")
+	valid := 0
+	for _, k := range c.keys {
+		// Compare against every key so timing does not reveal which kid matched.
+		ok := subtle.ConstantTimeCompare([]byte(sig), []byte(mac(k.key, e, userHash, params)))
+		valid |= ok & subtle.ConstantTimeCompare([]byte(kid), []byte(k.kid))
+	}
+	if valid != 1 {
 		return errConfirm
 	}
-	expStr, _, _ := strings.Cut(e, ".")
+	expStr, _, _ := strings.Cut(rest, ".")
 	unix, err := strconv.ParseInt(expStr, 10, 64)
 	if err != nil || !now.Before(time.Unix(unix, 0)) {
 		return errConfirm
