@@ -1,0 +1,102 @@
+{
+  "note": "Transcripts were not grepped before deletion; transcript exposure is unverified.",
+  "workspace_hash_basis": "Set by run.sh: arm A overwrote the prepared file with treatment/output-style.A.instructions.md after prepare.py; not re-hashed at run time.",
+  "sessions": [
+    {
+      "attempt": "kotlin-status-feature-A-1",
+      "arm": "A",
+      "session_id": "c41f1ac9-56ad-4122-8387-f4726622d57e",
+      "workspace_output_style_sha256": "919ebcfd22f06b2e60eb394832b862eb911685264ebdcab02443d68bef04a2b6",
+      "rule_text_in_workspace": false,
+      "rule_text_in_transcript": null
+    },
+    {
+      "attempt": "kotlin-status-feature-A-2",
+      "arm": "A",
+      "session_id": "3bf13ef7-c38f-48df-b119-f06ede2e5e30",
+      "workspace_output_style_sha256": "919ebcfd22f06b2e60eb394832b862eb911685264ebdcab02443d68bef04a2b6",
+      "rule_text_in_workspace": false,
+      "rule_text_in_transcript": null
+    },
+    {
+      "attempt": "kotlin-status-feature-A-3",
+      "arm": "A",
+      "session_id": "16183723-9a50-4ea1-819f-fc1f3f974f2c",
+      "workspace_output_style_sha256": "919ebcfd22f06b2e60eb394832b862eb911685264ebdcab02443d68bef04a2b6",
+      "rule_text_in_workspace": false,
+      "rule_text_in_transcript": null
+    },
+    {
+      "attempt": "kotlin-status-feature-B-1",
+      "arm": "B",
+      "session_id": "1eec38c4-857f-4315-bfb9-68e9e9af6fa3",
+      "workspace_output_style_sha256": "04db302cc800ad7c429f4ee8acfafd6e8b66efeca4604912eb48e476b518518f",
+      "rule_text_in_workspace": true,
+      "rule_text_in_transcript": null
+    },
+    {
+      "attempt": "kotlin-status-feature-B-2",
+      "arm": "B",
+      "session_id": "9f921374-a379-4e85-99e8-8bdf8c4dbcdf",
+      "workspace_output_style_sha256": "04db302cc800ad7c429f4ee8acfafd6e8b66efeca4604912eb48e476b518518f",
+      "rule_text_in_workspace": true,
+      "rule_text_in_transcript": null
+    },
+    {
+      "attempt": "kotlin-status-feature-B-3",
+      "arm": "B",
+      "session_id": "b8de9ce4-2f34-42c1-9f47-e9f4e98233a2",
+      "workspace_output_style_sha256": "04db302cc800ad7c429f4ee8acfafd6e8b66efeca4604912eb48e476b518518f",
+      "rule_text_in_workspace": true,
+      "rule_text_in_transcript": null
+    },
+    {
+      "attempt": "typescript-feature-A-1",
+      "arm": "A",
+      "session_id": "6e2bf399-b353-442c-b11b-d839bf62962c",
+      "workspace_output_style_sha256": "919ebcfd22f06b2e60eb394832b862eb911685264ebdcab02443d68bef04a2b6",
+      "rule_text_in_workspace": false,
+      "rule_text_in_transcript": null
+    },
+    {
+      "attempt": "typescript-feature-A-2",
+      "arm": "A",
+      "session_id": "57620f91-d09b-447f-a45e-d9ced3963001",
+      "workspace_output_style_sha256": "919ebcfd22f06b2e60eb394832b862eb911685264ebdcab02443d68bef04a2b6",
+      "rule_text_in_workspace": false,
+      "rule_text_in_transcript": null
+    },
+    {
+      "attempt": "typescript-feature-A-3",
+      "arm": "A",
+      "session_id": "486f4f0b-9071-4596-b100-483328c56c0c",
+      "workspace_output_style_sha256": "919ebcfd22f06b2e60eb394832b862eb911685264ebdcab02443d68bef04a2b6",
+      "rule_text_in_workspace": false,
+      "rule_text_in_transcript": null
+    },
+    {
+      "attempt": "typescript-feature-B-1",
+      "arm": "B",
+      "session_id": "2a5deafb-49ea-4042-a5f2-c8735200bf21",
+      "workspace_output_style_sha256": "04db302cc800ad7c429f4ee8acfafd6e8b66efeca4604912eb48e476b518518f",
+      "rule_text_in_workspace": true,
+      "rule_text_in_transcript": null
+    },
+    {
+      "attempt": "typescript-feature-B-2",
+      "arm": "B",
+      "session_id": "873b796e-4c40-4ec5-9d57-c97fa91262d5",
+      "workspace_output_style_sha256": "04db302cc800ad7c429f4ee8acfafd6e8b66efeca4604912eb48e476b518518f",
+      "rule_text_in_workspace": true,
+      "rule_text_in_transcript": null
+    },
+    {
+      "attempt": "typescript-feature-B-3",
+      "arm": "B",
+      "session_id": "58f51a23-da13-45a7-95d7-79b857a44588",
+      "workspace_output_style_sha256": "04db302cc800ad7c429f4ee8acfafd6e8b66efeca4604912eb48e476b518518f",
+      "rule_text_in_workspace": true,
+      "rule_text_in_transcript": null
+    }
+  ]
+}

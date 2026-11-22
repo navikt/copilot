@@ -1,0 +1,102 @@
+{
+  "note": "Transcripts were grepped for the heading 'Code comments' before deletion: 6 of 12 session directories matched. That count matches the 6 B sessions, but the match was not mapped to session IDs, so per-session transcript exposure is unverified.",
+  "workspace_hash_basis": "Set by run.sh: arm A overwrote the prepared file with treatment/output-style.A.instructions.md after prepare.py; not re-hashed at run time.",
+  "sessions": [
+    {
+      "attempt": "kotlin-status-feature-A-1",
+      "arm": "A",
+      "session_id": "b3401a4d-e55b-4771-845a-af48627fc751",
+      "workspace_output_style_sha256": "919ebcfd22f06b2e60eb394832b862eb911685264ebdcab02443d68bef04a2b6",
+      "rule_text_in_workspace": false,
+      "rule_text_in_transcript": null
+    },
+    {
+      "attempt": "kotlin-status-feature-A-2",
+      "arm": "A",
+      "session_id": "122bcedc-6c47-4654-b259-9423e83d0437",
+      "workspace_output_style_sha256": "919ebcfd22f06b2e60eb394832b862eb911685264ebdcab02443d68bef04a2b6",
+      "rule_text_in_workspace": false,
+      "rule_text_in_transcript": null
+    },
+    {
+      "attempt": "kotlin-status-feature-A-3",
+      "arm": "A",
+      "session_id": "d8ef6e7f-80dd-4bd9-8ea5-060d7e5ae0fb",
+      "workspace_output_style_sha256": "919ebcfd22f06b2e60eb394832b862eb911685264ebdcab02443d68bef04a2b6",
+      "rule_text_in_workspace": false,
+      "rule_text_in_transcript": null
+    },
+    {
+      "attempt": "kotlin-status-feature-B-1",
+      "arm": "B",
+      "session_id": "513aa043-0759-48a0-bb46-c1e5afbb2a67",
+      "workspace_output_style_sha256": "04db302cc800ad7c429f4ee8acfafd6e8b66efeca4604912eb48e476b518518f",
+      "rule_text_in_workspace": true,
+      "rule_text_in_transcript": null
+    },
+    {
+      "attempt": "kotlin-status-feature-B-2",
+      "arm": "B",
+      "session_id": "1d8d7b3d-6164-4288-800a-ec510be9eca2",
+      "workspace_output_style_sha256": "04db302cc800ad7c429f4ee8acfafd6e8b66efeca4604912eb48e476b518518f",
+      "rule_text_in_workspace": true,
+      "rule_text_in_transcript": null
+    },
+    {
+      "attempt": "kotlin-status-feature-B-3",
+      "arm": "B",
+      "session_id": "608e47f2-61c1-47c3-af36-09467d64e3b1",
+      "workspace_output_style_sha256": "04db302cc800ad7c429f4ee8acfafd6e8b66efeca4604912eb48e476b518518f",
+      "rule_text_in_workspace": true,
+      "rule_text_in_transcript": null
+    },
+    {
+      "attempt": "typescript-feature-A-1",
+      "arm": "A",
+      "session_id": "4c665185-7285-4a06-863d-036392ee6c1c",
+      "workspace_output_style_sha256": "919ebcfd22f06b2e60eb394832b862eb911685264ebdcab02443d68bef04a2b6",
+      "rule_text_in_workspace": false,
+      "rule_text_in_transcript": null
+    },
+    {
+      "attempt": "typescript-feature-A-2",
+      "arm": "A",
+      "session_id": "f3583dc8-012a-43fc-ab58-32aea04b43e6",
+      "workspace_output_style_sha256": "919ebcfd22f06b2e60eb394832b862eb911685264ebdcab02443d68bef04a2b6",
+      "rule_text_in_workspace": false,
+      "rule_text_in_transcript": null
+    },
+    {
+      "attempt": "typescript-feature-A-3",
+      "arm": "A",
+      "session_id": "81d6fb11-b272-451d-bd7a-bc93ccc192b6",
+      "workspace_output_style_sha256": "919ebcfd22f06b2e60eb394832b862eb911685264ebdcab02443d68bef04a2b6",
+      "rule_text_in_workspace": false,
+      "rule_text_in_transcript": null
+    },
+    {
+      "attempt": "typescript-feature-B-1",
+      "arm": "B",
+      "session_id": "16f42f10-d346-465c-8a08-9632909fc6e3",
+      "workspace_output_style_sha256": "04db302cc800ad7c429f4ee8acfafd6e8b66efeca4604912eb48e476b518518f",
+      "rule_text_in_workspace": true,
+      "rule_text_in_transcript": null
+    },
+    {
+      "attempt": "typescript-feature-B-2",
+      "arm": "B",
+      "session_id": "9a092747-9935-4ad2-b0b6-815f4a556df9",
+      "workspace_output_style_sha256": "04db302cc800ad7c429f4ee8acfafd6e8b66efeca4604912eb48e476b518518f",
+      "rule_text_in_workspace": true,
+      "rule_text_in_transcript": null
+    },
+    {
+      "attempt": "typescript-feature-B-3",
+      "arm": "B",
+      "session_id": "8fd5a071-3d07-4c2f-8792-0a201e67fc50",
+      "workspace_output_style_sha256": "04db302cc800ad7c429f4ee8acfafd6e8b66efeca4604912eb48e476b518518f",
+      "rule_text_in_workspace": true,
+      "rule_text_in_transcript": null
+    }
+  ]
+}
