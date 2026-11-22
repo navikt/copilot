@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/navikt/copilot/fleet-gateway/internal/audit"
+	"github.com/navikt/copilot/fleet-gateway/internal/identity"
 	"github.com/navikt/copilot/fleet-gateway/internal/policy"
 )
 
@@ -108,8 +109,7 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		start := g.now()
 		outcome := "ok"
-		navIdent := ""
-		clientID := ""
+		var caller identity.Caller
 		rpcMethod := ""
 		toolName := ""
 		rawTool := ""
@@ -126,7 +126,7 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 		defer func() {
 			observeMCPRequest(route, outcome, decision, decisionReason, toolName, rawTool, g.now().Sub(start))
 			audit.LogMCP(audit.MCP{
-				NAVIdent: navIdent, ClientID: clientID,
+				Caller: caller,
 				Method: rpcMethod, Tool: toolName,
 				Route: strings.TrimPrefix(route.Route, "/mcp/"), Backend: route.Target,
 				RequestID: requestID, HTTPMethod: r.Method,
@@ -187,8 +187,13 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 			return
 		}
 
-		navIdent = sess.NAVIdent
-		clientID = sess.ClientID
+		// Identity comes from the validated session only, never from a header.
+		caller, err = identity.SessionResolver{}.Resolve(identity.Session{NAVIdent: sess.NAVIdent, ClientID: sess.ClientID})
+		if err != nil {
+			outcome = "unauthorized"
+			writeUnauthorized(w, prmURL, true)
+			return
+		}
 
 		if sess.Resource != fullRouteURL {
 			outcome = "forbidden_resource"
@@ -242,7 +247,7 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 				if string(owner) != sess.NAVIdent {
 					outcome = "mcp_session_mismatch"
 					slog.Warn("mcp session id belongs to another user",
-						"navident", sanitizeLogValue(navIdent),
+						"navident", sanitizeLogValue(caller.Subject),
 						"route", route.Route,
 					)
 					writeJSON(w, http.StatusForbidden, map[string]string{
@@ -486,7 +491,7 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 				return
 			}
 			if count >= g.cfg.MCPSessionUserCap {
-				slog.Warn("mcp session bind skipped: per-user cap reached", "route", route.Route, "navident", sanitizeLogValue(navIdent))
+				slog.Warn("mcp session bind skipped: per-user cap reached", "route", route.Route, "navident", sanitizeLogValue(caller.Subject))
 				return
 			}
 			if putErr := g.store.Put(r.Context(), kindMCPSession, key, []byte(sess.NAVIdent), mcpSessionTTL); putErr != nil {

@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -11,6 +12,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 )
 
 // flatAudit maps the AuthZEN-shaped audit record onto flat keys so tests can
@@ -227,9 +229,23 @@ func TestAuditMCP_AuthZENShape(t *testing.T) {
 		`"context":{"duration_ms":0,"header_mismatch":true,"http_method":"POST","mcp_headers":{"method":false,"name":true},"outcome":"tool_denied","protocol_version":"2026-07-28","request_id":"ID","scan_incomplete":false},` +
 		`"decision":{"context":{"reason":"not_listed"},"decision":false},"level":"INFO","msg":"audit mcp",` +
 		`"resource":{"id":"team-etterlevelse/etterlevelse","properties":{"backend":"dev-gcp:team-etterlevelse:nav-etterlevelse-mcp"},"type":"mcp_route"},` +
-		`"subject":{"id":"Z123456","properties":{"client_id":"` + fmt.Sprint(audit["client_id"]) + `"},"type":"user"}}`
+		`"subject":{"id":"Z123456","properties":{"actor":{"id":"` + fmt.Sprint(audit["client_id"]) + `","type":"oauth_client"},` +
+		`"assurance":"session","client_id":"` + fmt.Sprint(audit["client_id"]) + `","issuer":"fleet-gateway"},"type":"user"}}`
 	if audit["client_id"] == "" || string(got) != want {
 		t.Errorf("audit record\n got %s\nwant %s", got, want)
+	}
+}
+
+// A client cannot name its own actor or subject: both come from the session.
+func TestAuditMCP_ActorIgnoresClientHeaders(t *testing.T) {
+	audit, _, code := auditToolsHeaders(t, http.MethodPost, nil, `{"jsonrpc":"2.0","id":1,"method":"ping"}`,
+		http.Header{"Actor": {"evil-agent"}, "X-Actor": {"evil-agent"}, "Act": {"evil-agent"},
+			"X-Client-Id": {"evil-agent"}, "X-Navident": {"X999999"}})
+	props := audit["raw"].(map[string]any)["subject"].(map[string]any)["properties"].(map[string]any)
+	actor := props["actor"].(map[string]any)
+	if code != http.StatusOK || audit["navident"] != "Z123456" || actor["id"] != props["client_id"] ||
+		!strings.HasSuffix(fmt.Sprint(actor["id"]), "/oauth-client.json") {
+		t.Errorf("code %d, subject %v, actor %v, client_id %v", code, audit["navident"], actor, props["client_id"])
 	}
 }
 
@@ -282,5 +298,44 @@ func TestToolPolicy_HeaderMismatchDeniedOnAllowlist(t *testing.T) {
 	}
 	if _, _, code := auditToolsHeaders(t, http.MethodPost, nil, body, http.Header{"Mcp-Name": {"delete"}}); code != http.StatusOK {
 		t.Fatalf("passAllTools route must keep forwarding on mismatch, got %d", code)
+	}
+}
+
+// A stored, unexpired session that names no user or no client gets 401, not a
+// request with an empty identity (#2582).
+func TestMCP_IncompleteSessionUnauthorized(t *testing.T) {
+	for name, sess := range map[string]gatewaySession{
+		"no navident":  {ClientID: "c", NAVIdent: ""},
+		"no client id": {ClientID: "", NAVIdent: "Z123456"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			var logBuf bytes.Buffer
+			old := slog.Default()
+			slog.SetDefault(slog.New(slog.NewJSONHandler(&logBuf, nil)))
+			t.Cleanup(func() { slog.SetDefault(old) })
+			te := newTestEnv(t)
+			sess.Resource, sess.IssuedAt, sess.Expiry = te.resource, te.now, te.now.Add(time.Hour)
+			if err := te.gw.putSession(context.Background(), hashToken("incomplete"), &sess, time.Hour); err != nil {
+				t.Fatal(err)
+			}
+			if _, ok, err := te.gw.getSession(context.Background(), hashToken("incomplete")); !ok || err != nil {
+				t.Fatalf("seeded session not found: %v %v", ok, err)
+			}
+			rec := mcpPost(te, "incomplete", "")
+			prm := te.gw.cfg.BaseURL + "/.well-known/oauth-protected-resource/mcp/team-etterlevelse/etterlevelse"
+			if want := `Bearer error="invalid_token", resource_metadata="` + prm + `"`; rec.Code != http.StatusUnauthorized || rec.Header().Get("WWW-Authenticate") != want {
+				t.Fatalf("got %d %q, want 401 %q", rec.Code, rec.Header().Get("WWW-Authenticate"), want)
+			}
+			var audit map[string]any
+			for _, line := range strings.Split(strings.TrimSpace(logBuf.String()), "\n") {
+				var e map[string]any
+				if json.Unmarshal([]byte(line), &e) == nil && e["msg"] == "audit mcp" {
+					audit = flatAudit(e)
+				}
+			}
+			if audit == nil || audit["outcome"] != "unauthorized" || audit["raw"].(map[string]any)["subject"] != nil {
+				t.Fatalf("audit %v, want outcome unauthorized and no subject", audit)
+			}
+		})
 	}
 }
