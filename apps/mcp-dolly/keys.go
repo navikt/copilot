@@ -62,9 +62,9 @@ func loadServerKeys() (serverKeys, error) {
 		if !ok || !kidPattern.MatchString(kid) || seen[kid] {
 			return serverKeys{}, fmt.Errorf("CONFIRM_KEYS entry %d: want unique kid:base64 with kid [A-Za-z0-9_-]{1,32}", i+1)
 		}
-		key, err := decodeKey(b64)
-		if err != nil {
-			return serverKeys{}, fmt.Errorf("CONFIRM_KEYS entry %d (kid %s): %w", i+1, kid, err)
+		key, kerr := decodeKey(b64)
+		if kerr != nil {
+			return serverKeys{}, fmt.Errorf("CONFIRM_KEYS entry %d (kid %s): %w", i+1, kid, kerr)
 		}
 		seen[kid] = true
 		k.confirm = append(k.confirm, signingKey{kid, key})

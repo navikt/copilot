@@ -29,6 +29,20 @@ Upstream bodies are capped at 1 MiB and tool results at 128 KiB. Logs never cont
 | --- | --- | --- |
 | `DOLLY_URL` | `https://dolly-backend.ekstern.dev.nav.no` | Base URL for `dolly-backend` |
 | `DOLLY_SCOPE` | — | Entra scope for Texas OBO (`api://dev-gcp.dolly.dolly-backend/.default`) |
+| `CONFIRM_KEYS` | — | Required. `kid:base64,kid:base64`, newest first, each at least 32 bytes. Signs with the first key, verifies with any. From the secret `mcp-dolly-keys`. |
+| `USER_HASH_KEY` | — | Required. Base64, at least 32 bytes. HMAC key for hashed `NAVident`. From `mcp-dolly-keys`. |
+| `MCP_DOLLY_GENERATED_KEYS` | `false` | Local development only: generates both keys per process and logs a warning. Refused in `prod-*` and together with configured keys. |
+
+Startup fails when a key is missing, too short, not base64 or has a bad or duplicate `kid`. Errors never contain key material.
+
+### Rotating `CONFIRM_KEYS`
+
+Confirmation tokens live for 5 minutes, so rotation takes two deploys:
+
+1. Put the new key first and keep the old one: `CONFIRM_KEYS=k2:<new>,k1:<old>`. Restart the pods.
+2. After 5 minutes, remove the old key: `CONFIRM_KEYS=k2:<new>`. Restart again.
+
+Changing `USER_HASH_KEY` resets every user's quota count; rotate it only if it leaks.
 
 `/ready` returns 503 until Texas and `DOLLY_SCOPE` are configured.
 

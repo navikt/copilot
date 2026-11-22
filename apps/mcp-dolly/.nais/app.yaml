@@ -31,6 +31,9 @@ spec:
       enabled: true
       tenant: nav.no
       allowAllUsers: true
+  # CONFIRM_KEYS and USER_HASH_KEY; the owner creates this secret in each cluster.
+  envFrom:
+    - secret: mcp-dolly-keys
   env:
     - name: PORT
       value: "8080"
