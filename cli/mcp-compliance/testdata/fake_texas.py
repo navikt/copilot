@@ -6,8 +6,8 @@ import os
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 CLAIMS = {
-    "ci-user-token": {"active": True, "idtyp": "user", "NAVident": "Z999999", "azp": "ci-gateway"},
-    "ci-app-token": {"active": True, "idtyp": "app", "roles": ["access_as_application"], "azp": "ci-gateway"},
+    "ci-user-token": {"active": True, "idtyp": "user", "NAVident": "Z999999", "azp": "ci-gateway", "exp": 4102444800},
+    "ci-app-token": {"active": True, "idtyp": "app", "roles": ["access_as_application"], "azp": "ci-gateway", "exp": 4102444800},
 }
 
 
