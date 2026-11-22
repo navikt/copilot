@@ -493,7 +493,7 @@ export default function Klienter() {
           Fra opencode 1 til 2
         </LinkableHeading>
         <BodyLong>
-          nav-pilot støtter opencode 1 til og med 19. november 2026. Oppdateringen opencode 1 selv tilbyr, holder deg på
+          nav-pilot støtter ikke opencode 1 fra 6. desember 2026. Oppdateringen opencode 1 selv tilbyr, holder deg på
           opencode 1. Oppgrader slik, etter hvordan du installerte opencode:
         </BodyLong>
         <Bullets>
