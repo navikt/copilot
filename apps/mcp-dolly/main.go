@@ -39,7 +39,9 @@ type config struct {
 	DollyURL              string
 	DollyScope            string
 	EnableCreateOrder     bool
-	HTTPClient            *http.Client
+	// TwoStepOrder lets clients without form elicitation confirm through the model (dev only).
+	TwoStepOrder bool
+	HTTPClient   *http.Client
 }
 
 func loadConfigFromEnv() (*config, error) {
@@ -71,6 +73,10 @@ func loadConfigFromEnv() (*config, error) {
 	if err != nil {
 		return nil, err
 	}
+	twoStepOrder, err := getEnvBool("MCP_DOLLY_CREATE_ORDER_TWO_STEP")
+	if err != nil {
+		return nil, err
+	}
 
 	return &config{
 		Port:                  getEnv("PORT", defaultPort),
@@ -81,6 +87,7 @@ func loadConfigFromEnv() (*config, error) {
 		DollyURL:              strings.TrimRight(dollyURL, "/"),
 		DollyScope:            strings.TrimSpace(os.Getenv("DOLLY_SCOPE")),
 		EnableCreateOrder:     enableCreateOrder,
+		TwoStepOrder:          twoStepOrder,
 		HTTPClient: &http.Client{
 			Timeout: httpClientTimeout,
 			CheckRedirect: func(*http.Request, []*http.Request) error {
@@ -229,7 +236,7 @@ func (s *server) mcpHandler(w http.ResponseWriter, r *http.Request) {
 		// Initialize-era revisions require an empty result; serveModern still rejects ping.
 		result = map[string]any{}
 	case "tools/list":
-		result = map[string]any{"tools": toolDefinitions(s.cfg.EnableCreateOrder, false)}
+		result = map[string]any{"tools": toolDefinitions(s.cfg.EnableCreateOrder, !s.cfg.TwoStepOrder)}
 	case "tools/call":
 		res, rpcErr := s.handleToolCall(r.Context(), token, navIdent, env.Params.Name, env.Params.Arguments, nil)
 		if rpcErr != nil {
@@ -269,7 +276,7 @@ func (s *server) serveModern(w http.ResponseWriter, r *http.Request, env mcpEnve
 	case "server/discover":
 		result = mcpDiscoverResult(map[string]any{"tools": map[string]any{}}, now)
 	case "tools/list":
-		result = map[string]any{"tools": toolDefinitions(s.cfg.EnableCreateOrder, env.formElicitation())}
+		result = map[string]any{"tools": toolDefinitions(s.cfg.EnableCreateOrder, env.formElicitation() || !s.cfg.TwoStepOrder)}
 		extra = map[string]any{"ttlMs": mcpDiscoverTTLMilliseconds, "cacheScope": "private"}
 	case "tools/call":
 		var el *elicitInput
@@ -375,7 +382,7 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	slog.Info("Starting mcp-dolly", "port", cfg.Port)
+	slog.Info("Starting mcp-dolly", "port", cfg.Port, "create_order", cfg.EnableCreateOrder, "create_order_two_step", cfg.TwoStepOrder)
 
 	go func() {
 		if err := httpServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {

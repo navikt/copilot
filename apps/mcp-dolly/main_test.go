@@ -35,6 +35,7 @@ func newTestServer(t *testing.T, texasHandler, dollyHandler http.HandlerFunc) *s
 		GatewayClientID:       "gw-client-123",
 		DollyURL:              dollyURL,
 		DollyScope:            "api://dev-gcp.dolly.dolly-backend/.default",
+		TwoStepOrder:          true, // the two-step tests predate elicitation; off-mode tests clear it
 		HTTPClient: &http.Client{
 			Timeout: 5 * time.Second,
 			CheckRedirect: func(*http.Request, []*http.Request) error {
@@ -197,6 +198,18 @@ func TestConfigValidation(t *testing.T) {
 	if err != nil || !cfg.EnableCreateOrder {
 		t.Fatalf("EnableCreateOrder with true = %v, err = %v", cfg, err)
 	}
+	if cfg.TwoStepOrder {
+		t.Fatal("TwoStepOrder must default to false")
+	}
+	t.Setenv("MCP_DOLLY_CREATE_ORDER_TWO_STEP", "true")
+	if cfg, err = loadConfigFromEnv(); err != nil || !cfg.TwoStepOrder {
+		t.Fatalf("TwoStepOrder with true = %v, err = %v", cfg, err)
+	}
+	t.Setenv("MCP_DOLLY_CREATE_ORDER_TWO_STEP", "dev")
+	if _, err = loadConfigFromEnv(); err == nil {
+		t.Fatal("unknown MCP_DOLLY_CREATE_ORDER_TWO_STEP must fail startup")
+	}
+	t.Setenv("MCP_DOLLY_CREATE_ORDER_TWO_STEP", "")
 
 	t.Setenv("MCP_DOLLY_ENABLE_CREATE_ORDER", "not-a-bool")
 	if _, err := loadConfigFromEnv(); err == nil {

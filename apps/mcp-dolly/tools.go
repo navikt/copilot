@@ -147,6 +147,8 @@ type elicitInput struct {
 
 const orderConfirmKey = "confirm_order"
 
+const orderNeedsElicitation = "Ingenting er bestilt. create_order krever en klient som kan be brukeren bekrefte bestillingen (form elicitation), for eksempel Copilot CLI 1.0.95 eller nyere."
+
 // confirmed reports the user's answer; answered is false when the retry carries no response.
 func (el *elicitInput) confirmed() (ok, answered bool) {
 	var r struct {
@@ -332,6 +334,9 @@ func (s *server) handleToolCall(ctx context.Context, inboundToken, navIdent, too
 		rawTok, hasTok := fields[confirmTokenKey]
 		var token string
 		switch {
+		case el == nil && !s.cfg.TwoStepOrder:
+			// No token is issued or accepted: only the client may confirm with the user.
+			return toolErrorResult(orderNeedsElicitation), nil
 		case el != nil && hasTok:
 			// The client confirms with the user; a token from the model is never accepted here.
 			return toolErrorResult("confirmationToken is not accepted from this client; call create_order without it and the user confirms in the client"), nil

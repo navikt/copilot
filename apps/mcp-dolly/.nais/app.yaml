@@ -42,6 +42,8 @@ spec:
       value: "{{dolly_scope}}"
     - name: MCP_DOLLY_ENABLE_CREATE_ORDER
       value: "true"
+    - name: MCP_DOLLY_CREATE_ORDER_TWO_STEP
+      value: "{{create_order_two_step}}"
     - name: GOMEMLIMIT
       value: "200MiB"
     # MCP 2026-07-28 is the target. Initialize-era clients (OpenCode default)

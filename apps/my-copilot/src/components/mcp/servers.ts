@@ -21,7 +21,7 @@ export const PILOT_SERVERS = [
     route: "/mcp/copilot/dolly",
     icon: TestFlaskIcon,
     summary:
-      "Viser grupper, testpersoner og bestillinger i Dolly. Bestiller testpersoner når du har godkjent en forhåndsvisning.",
+      "Viser grupper, testpersoner og bestillinger i Dolly. Bestiller testpersoner når du har bekreftet i klienten. Bestilling krever Copilot CLI 1.0.95 eller nyere. I autopilot kan klienten bekrefte for deg, så slå den av hvis du vil bekrefte selv.",
     readOnly: false,
     example: "Hvilke testpersoner ligger i Dolly-gruppen til teamet mitt?",
     codeLabel: "apps/mcp-dolly",

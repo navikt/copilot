@@ -151,3 +151,35 @@ func TestFormElicitationCapability(t *testing.T) {
 		}
 	}
 }
+
+// Flag off (prod): a client without form elicitation gets no token and orders nothing,
+// on either path; an elicitation client is unaffected.
+func TestCreateOrderTwoStepFlagOff(t *testing.T) {
+	srv, posts, _ := twoStepServer(t)
+	// A token minted while the flag was on must not work after it is turned off.
+	_, out := callToolModern(t, srv.routes(), "in", "create_order", twoStepArgs)
+	tok := previewToken(t, out)
+	srv.cfg.TwoStepOrder = false
+
+	_, list := callElicit(t, srv, "tools/list", nil, map[string]any{})
+	if s := modelVisible(list); strings.Contains(s, confirmTokenKey) {
+		t.Fatalf("flag off: tools/list must not offer confirmationToken: %s", s)
+	}
+	withTok := maps.Clone(twoStepArgs)
+	withTok[confirmTokenKey] = tok
+	for name, args := range map[string]map[string]any{"step 1": twoStepArgs, "step 2": withTok} {
+		_, res := callElicit(t, srv, "tools/call", map[string]any{"name": "create_order", "arguments": args}, map[string]any{})
+		b, _ := json.Marshal(res)
+		if res["isError"] != true || !strings.Contains(string(b), "1.0.95") || strings.Contains(string(b), confirmTokenKey) || posts() != 0 {
+			t.Fatalf("flag off, %s: want refusal naming supported clients: %s posts=%d", name, b, posts())
+		}
+	}
+	_, ro := callElicit(t, srv, "tools/call", map[string]any{"name": "dolly_current_user", "arguments": map[string]any{}}, map[string]any{})
+	if ro["isError"] == true {
+		t.Fatalf("flag off must not affect read-only tools: %+v", ro)
+	}
+	_, first := callElicit(t, srv, "tools/call", orderCall(nil), formCaps)
+	if first["resultType"] != "input_required" {
+		t.Fatalf("flag off must not affect elicitation clients: %+v", first)
+	}
+}
