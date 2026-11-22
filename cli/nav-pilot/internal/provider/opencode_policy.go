@@ -416,7 +416,7 @@ func OpenCodeVersionStatus() (version string, tested bool, err error) {
 // session: the developer may have good reason to run a newer opencode, and
 // the parts that could break fail in the safe direction (redaction withholds).
 func warnUntestedOpenCode() {
-	// On opencode 1 the weekly upgrade hint says what matters; doctor still
+	// On opencode 1 the daily upgrade hint says what matters; doctor still
 	// shows both.
 	if openCodeMajor() == 1 {
 		return
@@ -429,8 +429,12 @@ func warnUntestedOpenCode() {
 		domain.Yellow("⚠"), v, OpenCodeTestedRangeFor(v), domain.Bold("nav-pilot doctor"))
 }
 
-// OpenCode1EndOfSupport is the last day nav-pilot supports opencode 1 (#1907).
-const OpenCode1EndOfSupport = "2026-11-19"
+// OpenCode1EndOfSupport is the day nav-pilot stops supporting opencode 1
+// (#1934), and OpenCode1EndOfSupportText the same day as the notice writes it.
+const (
+	OpenCode1EndOfSupport     = "2026-12-06"
+	OpenCode1EndOfSupportText = "6 December 2026"
+)
 
 // OpenCode1Notice is the upgrade nudge for an opencode 1 user, "" on any
 // other major or an unreadable version.
@@ -438,24 +442,19 @@ func OpenCode1Notice() string {
 	if openCodeMajor() != 1 {
 		return ""
 	}
-	n := fmt.Sprintf("opencode 1 support ends after %s. Upgrade to opencode 2: %s\n"+
-		"  The update opencode 1 offers keeps you on opencode 1. The upgrade is one-way: opencode 2 converts the opencode 1 database. You will need to log in again (auth.json is not carried over).",
-		OpenCode1EndOfSupport, domain.Bold(OpenCode2InstallHint()))
-	if hostOS == "linux" {
-		n += " Linux needs bubblewrap."
-	}
-	return n
+	return fmt.Sprintf("OpenCode 1 support ends on %s. Upgrade to OpenCode 2: %s\n  What changes: https://ki-utvikling.nav.no/nav-pilot/klienter#opencode-1",
+		OpenCode1EndOfSupportText, domain.Bold(OpenCode2InstallHint()))
 }
 
-// openCode1Now is the clock the weekly opencode 1 hint reads.
+// openCode1Now is the clock the daily opencode 1 hint reads.
 var openCode1Now = time.Now
 
-// warnOpenCode1 prints OpenCode1Notice at launch, once a week and once per
+// warnOpenCode1 prints OpenCode1Notice at launch, once a day and once per
 // opencode version, so it is seen again before support ends.
 func warnOpenCode1() {
 	out, _ := cachedVersion("opencode", clientProbeTimeout)
-	year, week := openCode1Now().ISOWeek()
-	if n := OpenCode1Notice(); n != "" && SeenChanged("opencode1-notice", fmt.Sprintf("%d-W%02d %s", year, week, strings.TrimSpace(out))) {
+	day := openCode1Now().Format(time.DateOnly)
+	if n := OpenCode1Notice(); n != "" && SeenChanged("opencode1-notice", day+" "+strings.TrimSpace(out)) {
 		fmt.Fprintf(os.Stderr, "%s %s\n", domain.Yellow("⚠"), n)
 	}
 }

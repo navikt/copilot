@@ -9,9 +9,8 @@ import (
 	"time"
 )
 
-// TestOpenCode1Notice: the opencode 1 nudge is said once a week and once per
-// version, never on opencode 2, and names the date, the one-way migration,
-// the new login, bubblewrap and the install command.
+// TestOpenCode1Notice: the opencode 1 nudge is said once a day and once per
+// version, never on opencode 2, and names the date, the install command and the page on what changes.
 func TestOpenCode1Notice(t *testing.T) {
 	t.Setenv("NAV_PILOT_CONFIG", filepath.Join(t.TempDir(), "config.yaml"))
 	t.Cleanup(func() { versionCache.Delete("opencode") })
@@ -34,27 +33,20 @@ func TestOpenCode1Notice(t *testing.T) {
 		return string(out)
 	}
 
-	prevOS := hostOS
-	t.Cleanup(func() { hostOS = prevOS })
-	hostOS = "linux"
 	first := launch("1.18.32\n")
-	for _, want := range []string{OpenCode1EndOfSupport, "one-way", "converts the opencode 1 database", "log in again", "auth.json", "bubblewrap", OpenCode2InstallHint(), "keeps you on opencode 1"} {
+	for _, want := range []string{"OpenCode 1 support ends on 6 December 2026", OpenCode2InstallHint(), "What changes: https://ki-utvikling.nav.no/nav-pilot/klienter#opencode-1"} {
 		if !strings.Contains(first, want) {
 			t.Errorf("notice %q lacks %q", first, want)
 		}
-	}
-	hostOS = "darwin"
-	if n := OpenCode1Notice(); n == "" || strings.Contains(n, "bubblewrap") {
-		t.Errorf("macOS notice %q: want one without bubblewrap", n)
 	}
 	if again := launch("1.18.32\n"); again != "" {
 		t.Errorf("same version again: %q, want nothing", again)
 	}
 	prevNow := openCode1Now
 	t.Cleanup(func() { openCode1Now = prevNow })
-	openCode1Now = func() time.Time { return prevNow().AddDate(0, 0, 7) }
-	if nextWeek := launch("1.18.32\n"); nextWeek == "" {
-		t.Error("same version a week later: no notice")
+	openCode1Now = func() time.Time { return prevNow().AddDate(0, 0, 1) }
+	if tomorrow := launch("1.18.32\n"); tomorrow == "" {
+		t.Error("same version a day later: no notice")
 	}
 	if next := launch("1.19.4\n"); next == "" {
 		t.Error("new opencode 1 version: no notice")
