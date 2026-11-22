@@ -1,0 +1,44 @@
+# Dev only for now (#2334). No ingress: the API is reachable in-cluster only,
+# and accessPolicy.inbound admits only the two consumers.
+apiVersion: nais.io/v1alpha1
+kind: Application
+metadata:
+  name: fleet-control
+  namespace: copilot
+  labels:
+    team: copilot
+spec:
+  image: {{image}}
+  port: 8080
+  replicas:
+    min: {{replicas_min}}
+    max: {{replicas_max}}
+  resources:
+    limits:
+      memory: {{memory_limit}}
+    requests:
+      cpu: {{cpu_request}}
+      memory: {{memory_request}}
+  liveness:
+    path: /health
+    initialDelay: 5
+  readiness:
+    path: /ready
+    initialDelay: 5
+  uses:
+    postgres:
+      - name: fleet-control
+  env:
+    - name: PORT
+      value: "8080"
+    - name: SEED_ROUTES_FILE
+      value: /app/seed/pilot-routes.{{env}}.yaml
+    - name: SEED_ALLOWLIST_FILE
+      value: /app/seed/allowlist.json
+  accessPolicy:
+    inbound:
+      rules:
+        - application: fleet-gateway
+          namespace: copilot
+        - application: mcp-registry
+          namespace: copilot

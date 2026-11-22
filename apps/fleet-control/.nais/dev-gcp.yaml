@@ -1,0 +1,7 @@
+cluster: dev-gcp
+env: dev
+replicas_min: "1"
+replicas_max: "2"
+cpu_request: 50m
+memory_request: 64Mi
+memory_limit: 128Mi

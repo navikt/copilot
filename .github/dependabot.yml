@@ -49,6 +49,7 @@ updates:
       - "/apps/copilot-cli"
       - "/apps/copilot-metrics"
       - "/apps/copilot-survey"
+      - "/apps/fleet-control"
       - "/apps/fleet-gateway"
       - "/apps/mcp-dolly"
       - "/apps/mcp-kodeverk"
