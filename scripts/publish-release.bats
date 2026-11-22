@@ -177,6 +177,15 @@ SL
   [ "$(tail -n1 "$STATE/log")" = "release edit $TAG --draft=false --latest=false" ]
 }
 
+@test "a nav-pilot publish leaves mcp-compliance drafts alone" {
+  release cli/mcp-compliance/v0.0.9 draft "x sha256:1 uploaded"
+  release nav-pilot/v0 draft "x sha256:1 uploaded"
+  publish
+  [ "$status" -eq 0 ]
+  [ "$(kind cli/mcp-compliance/v0.0.9)" = draft ]
+  [ "$(kind nav-pilot/v0)" = absent ]
+}
+
 @test "an invalid LATEST fails before anything is created" {
   LATEST=yes publish
   [ "$status" -ne 0 ]
