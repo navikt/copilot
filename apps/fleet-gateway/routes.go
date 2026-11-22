@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	_ "embed"
 	"errors"
 	"fmt"
 	"github.com/navikt/copilot/fleet-gateway/internal/config"
@@ -14,9 +13,6 @@ import (
 
 	"gopkg.in/yaml.v3"
 )
-
-//go:embed pilot-routes.yaml
-var defaultPilotRoutesYAML []byte
 
 // PilotRoutesConfig is the versioned pilot route list loaded at startup.
 type PilotRoutesConfig struct {
@@ -52,7 +48,7 @@ type RouteSource interface {
 	Routes() ([]PilotRoute, error)
 }
 
-// fileRouteSource reads routes from PILOT_ROUTES_FILE, or the embedded default.
+// fileRouteSource reads routes from PILOT_ROUTES_FILE.
 type fileRouteSource struct{ path string }
 
 func (s fileRouteSource) Routes() ([]PilotRoute, error) { return loadPilotRoutes(s.path) }
@@ -62,13 +58,13 @@ func (r PilotRoute) isDisabled() bool {
 }
 
 func loadPilotRoutes(filePath string) ([]PilotRoute, error) {
-	raw := defaultPilotRoutesYAML
-	if trimmed := strings.TrimSpace(filePath); trimmed != "" {
-		data, err := os.ReadFile(trimmed) //nolint:gosec // configured at startup via PILOT_ROUTES_FILE
-		if err != nil {
-			return nil, fmt.Errorf("read pilot routes file %q: %w", trimmed, err)
-		}
-		raw = data
+	trimmed := strings.TrimSpace(filePath)
+	if trimmed == "" {
+		return nil, errors.New("PILOT_ROUTES_FILE is required")
+	}
+	raw, err := os.ReadFile(trimmed) //nolint:gosec // configured at startup via PILOT_ROUTES_FILE
+	if err != nil {
+		return nil, fmt.Errorf("read pilot routes file %q: %w", trimmed, err)
 	}
 	return parseAndValidatePilotRoutes(raw)
 }

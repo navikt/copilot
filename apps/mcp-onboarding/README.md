@@ -211,11 +211,10 @@ with `-32022` and the supported versions in `data.supported`.
 
 Clients that still start with `initialize` (OpenCode 1.19, OpenCode 2.x with its
 default `protocol: legacy`, and older IDE clients) are served only while
-`MCP_LEGACY_PROTOCOL_UNTIL` is set to a future date. The end of that window is not
-a fixed date: it is set when OpenCode 2.x is the default in nav-pilot (tracked in
-#2367). `.nais/app.yaml` sets `2028-12-31` as a placeholder, to be moved earlier
-once that happens. After the date, or with the variable unset, `initialize` and the
-`GET` stream are refused. Record the reason when you move the date in #2367.
+`MCP_LEGACY_PROTOCOL_UNTIL` is set to a future date. `.nais/app.yaml` sets
+`2027-03-31` (decided in #2351, kept in sync across the MCP server manifests).
+After that date, or with the variable unset, `initialize` and the `GET` stream are
+refused. Record the reason when you move the date in #2367.
 
 `mcp2026_compliance_test.go` checks the required behaviours row by row.
 
