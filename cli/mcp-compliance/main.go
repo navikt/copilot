@@ -218,6 +218,7 @@ func checks(cfg *config) ([]result, error) {
 		big := modernBody("tools/list", map[string]any{"pad": strings.Repeat("a", cfg.maxBytes)})
 		return cfg.expect(http.MethodPost, cfg.token, big, modernHeaders("tools/list", ""), 413)
 	}())
+	rs = append(rs, cfg.lintTools()...)
 	return rs, nil
 }
 
