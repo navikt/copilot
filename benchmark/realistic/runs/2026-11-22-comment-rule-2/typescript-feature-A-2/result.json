@@ -1,0 +1,29 @@
+{
+  "task": "typescript/feature",
+  "fixture_sha256": "57e927e4101f90bd3df3a34912d86bb34de1111115badd7dc7fc718d1c035053",
+  "evaluated_at": "2026-11-22T11:06:01.140791+00:00",
+  "model": null,
+  "effort": null,
+  "credits": null,
+  "usage_verified": false,
+  "candidate_sha256": "624d1345aecf4c37d8103b1e16b2eb3cb3d65c989a39b960006f3bebf40eee92",
+  "checks": {
+    "regression": {
+      "passed": 1,
+      "total": 1,
+      "diagnostic": ""
+    },
+    "acceptance": {
+      "passed": 2,
+      "total": 2,
+      "diagnostic": ""
+    },
+    "http": {
+      "passed": 1,
+      "total": 1,
+      "diagnostic": ""
+    }
+  },
+  "status": "completed",
+  "evaluation_seconds": 4.258
+}

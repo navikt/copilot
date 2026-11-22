@@ -1,0 +1,24 @@
+{
+  "task": "kotlin/status-feature",
+  "fixture_sha256": "2eb9731ea167640774b5d70cf5632b37ae8bc479865d06ab6b87651e04d8bdfe",
+  "evaluated_at": "2026-11-22T10:37:08.958490+00:00",
+  "model": null,
+  "effort": null,
+  "credits": null,
+  "usage_verified": false,
+  "candidate_sha256": "bd1e25f997d7030c9496f3d9db9f6e5c6fcad751bf5c0ffa60a04ecf98eeba24",
+  "checks": {
+    "regression": {
+      "passed": 1,
+      "total": 1,
+      "diagnostic": ""
+    },
+    "acceptance": {
+      "passed": 2,
+      "total": 2,
+      "diagnostic": ""
+    }
+  },
+  "status": "completed",
+  "evaluation_seconds": 6.97
+}
