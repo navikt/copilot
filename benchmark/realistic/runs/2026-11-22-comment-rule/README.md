@@ -29,21 +29,32 @@ Pre-registered decision rule: success not lower (met), cost at most +10 % (met, 
 
 `manifest.json` lists the B hash for every attempt, including A attempts: `prepare.py` ran from the #2629 branch and hashed the files then, and only afterwards did the runner overwrite the file with the A version. `treatment/exposure.json` records, per attempt, the session ID, the arm, the hash of the output-style file in the workspace, and whether the rule text appeared in the transcript. The transcripts themselves are not kept.
 
-Replay one attempt from the repository root:
+Replay one attempt:
 
 ```sh
+repo=$(git rev-parse --show-toplevel)
+run=2026-11-22-comment-rule   # or 2026-11-22-comment-rule-2
+task=kotlin/status-feature    # or typescript/feature
+out=$(mktemp -d)/attempt      # prepare.py creates it; must be absolute
+scratch=$(mktemp -d)          # isolated HOME
+cd "$repo"
+# The evidence is not in c90737c4: copy it out first.
+cp -R "benchmark/realistic/runs/$run/treatment" "$scratch/treatment"
+cp benchmark/realistic/runs/2026-11-22-comment-rule-2/seed.py "$scratch/seed.py"
 git checkout c90737c4
-git apply benchmark/realistic/runs/<run>/treatment/B.patch   # B arm only
-python3 -B benchmark/realistic/prepare.py <task> <out> --model gpt-6-luna --effort medium --direct-worker
-# A arm, if prepared from a B checkout: cp treatment/output-style.A.instructions.md <out>/workspace/.github/instructions/output-style.instructions.md
-python3 -B benchmark/realistic/runs/2026-11-22-comment-rule-2/seed.py <task> <out>/workspace   # second run only
-cd <out>/workspace && git init -q && git add -A && git commit -qm base
-env GH_TOKEN="$(gh auth token)" HOME=<scratch> XDG_CONFIG_HOME=<scratch>/.config XDG_CACHE_HOME=<scratch>/.cache \
-  XDG_DATA_HOME=<scratch>/.local/share XDG_STATE_HOME=<scratch>/.local/state NAV_PILOT_CONFIG=<scratch>/np.toml \
+git apply "$scratch/treatment/B.patch"   # B arm only
+python3 -B benchmark/realistic/prepare.py "$task" "$out" --model gpt-6-luna --effort medium --direct-worker
+# A arm, if prepared from a B checkout:
+# cp "$scratch/treatment/output-style.A.instructions.md" "$out/workspace/.github/instructions/output-style.instructions.md"
+python3 -B "$scratch/seed.py" "$task" "$out/workspace"   # second run only
+cd "$out/workspace" && git init -q && git add -A && git -c commit.gpgsign=false commit -qm base
+env GH_TOKEN="$(gh auth token)" HOME="$scratch" XDG_CONFIG_HOME="$scratch/.config" XDG_CACHE_HOME="$scratch/.cache" \
+  XDG_DATA_HOME="$scratch/.local/share" XDG_STATE_HOME="$scratch/.local/state" NAV_PILOT_CONFIG="$scratch/np.toml" \
   copilot --no-auto-update --model gpt-6-luna --reasoning-effort medium --disable-builtin-mcps \
-  --max-ai-credits 30 --allow-all-tools -p "$(cat <out>/evaluator/fixture/prompt.md)"
-git add -A && git diff --cached HEAD -- . ':!node_modules' ':!build' ':!.gradle' ':!.next' > <out>/candidate.patch
-python3 -B benchmark/realistic/check.py benchmark/realistic/<task> --candidate <out>/workspace --output <out>/result.json
+  --max-ai-credits 30 --allow-all-tools -p "$(cat "$out/evaluator/fixture/prompt.md")"
+git add -A && git diff --cached HEAD -- . ':!node_modules' ':!build' ':!.gradle' ':!.next' > "$out/candidate.patch"
+cd "$repo"
+python3 -B benchmark/realistic/check.py "benchmark/realistic/$task" --candidate "$out/workspace" --output "$out/result.json"
 ```
 
-The token comes from `gh auth token` inside the command substitution. It is never printed or written to a file, and only the `copilot` process and its children get it (in the first run, `prepare.py` and `git` got it as well). `<task>` is `kotlin/status-feature` or `typescript/feature`.
+The token comes from `gh auth token` inside the command substitution. It is never printed or written to a file, and only the `copilot` process and its children get it (in the first run, `prepare.py` and `git` got it as well).
