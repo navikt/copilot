@@ -47,8 +47,8 @@ export default function FleetGatewayPage() {
     >
       <BodyShort>
         Denne siden er for team som eier en server. Vil du bare bruke en, les{" "}
-        <NextLink href="/mcp/koble-til" className={linkClass}>
-          Koble til Navs MCP-servere
+        <NextLink href="/mcp/bruke" className={linkClass}>
+          Bruke Navs MCP-servere
         </NextLink>
         .
       </BodyShort>

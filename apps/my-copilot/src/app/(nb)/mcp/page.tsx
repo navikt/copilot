@@ -1,7 +1,7 @@
 import { BodyLong, BodyShort, Box, Button, Heading, HGrid, HStack, Tag, VStack } from "@navikt/ds-react";
 import type { Metadata } from "next";
 import NextLink from "next/link";
-import { PILOT_SERVERS } from "@/app/(nb)/(nav-pilot)/mcp/fleet-gateway/servers";
+import { PILOT_SERVERS } from "@/app/(nb)/(mcp)/mcp/fleet-gateway/servers";
 import { McpHeroDiagram } from "@/components/mcp-hero-diagram";
 import { Bullets, code, linkClass } from "@/components/nav-pilot/doc-page";
 import { getMcpServers } from "@/lib/mcp-registry";
@@ -23,15 +23,19 @@ async function registryStats() {
   };
 }
 
-function Stat({ value, label }: { value: number; label: string }) {
+// The short label is what you see; screen readers get the long one.
+function Stat({ value, label, long }: { value: number; label: string; long: string }) {
   return (
     <Box background="neutral-soft" borderRadius="8" paddingBlock="space-12" paddingInline="space-20">
-      <BodyShort as="span" size="large" weight="semibold" className="mcp-stat-value">
-        {value}
-      </BodyShort>
-      <BodyShort as="span" textColor="subtle">
-        {label}
-      </BodyShort>
+      <span className="sr-only">{`${value} ${long}`}</span>
+      <span aria-hidden>
+        <BodyShort as="span" size="large" weight="semibold" className="mcp-stat-value">
+          {value}
+        </BodyShort>
+        <BodyShort as="span" textColor="subtle">
+          {label}
+        </BodyShort>
+      </span>
     </Box>
   );
 }
@@ -50,14 +54,21 @@ function Entry({
   cta: string;
 }) {
   return (
-    <Box as="section" borderWidth="1" borderColor="neutral-subtle" borderRadius="12" padding="space-24">
-      <VStack gap="space-12" align="start">
+    <Box
+      as="section"
+      borderWidth="1"
+      borderColor="neutral-subtle"
+      borderRadius="12"
+      padding="space-24"
+      className="mcp-entry"
+    >
+      <VStack gap="space-12" align="start" className="h-full">
         <Heading size="medium" level="2">
           {title}
         </Heading>
         <BodyLong>{intro}</BodyLong>
         {children}
-        <Button as="a" href={href} variant="secondary">
+        <Button as="a" href={href} variant="secondary" className="mcp-entry-cta">
           {cta}
         </Button>
       </VStack>
@@ -91,8 +102,8 @@ export default async function McpPage() {
 
           <VStack gap="space-20" align="center">
             <HStack gap="space-12" justify="center">
-              <Button as="a" href="/mcp/koble-til">
-                Koble til
+              <Button as="a" href="/mcp/bruke">
+                Bruke
               </Button>
               <Button as="a" href="/mcp/tilby-server" variant="secondary">
                 Tilby en server
@@ -100,11 +111,17 @@ export default async function McpPage() {
             </HStack>
             {stats ? (
               <VStack gap="space-8" align="center">
-                <HStack gap="space-16" justify="center" role="group" aria-label="Tall fra MCP-registeret">
-                  <Stat value={stats.servers} label="MCP-servere i registeret" />
-                  <Stat value={stats.tools} label="verktøy" />
-                  <Stat value={stats.gateway} label="bak fleet-gateway" />
-                </HStack>
+                <HGrid
+                  columns={3}
+                  gap="space-12"
+                  role="group"
+                  aria-label="Tall fra MCP-registeret"
+                  className="mcp-stats"
+                >
+                  <Stat value={stats.servers} label="servere" long="MCP-servere i registeret" />
+                  <Stat value={stats.tools} label="verktøy" long="verktøy i registeret" />
+                  <Stat value={stats.gateway} label="via gateway" long="servere bak fleet-gateway" />
+                </HGrid>
                 <BodyShort size="small" textColor="subtle">
                   Fra MCP-registeret, oppdatert hver time.
                 </BodyShort>
@@ -122,9 +139,9 @@ export default async function McpPage() {
 
           <HGrid columns={{ xs: 1, md: 2 }} gap="space-24">
             <Entry
-              title="Koble til"
+              title="Bruke"
               intro="Bruk Navs MCP-servere fra klienten din."
-              href="/mcp/koble-til"
+              href="/mcp/bruke"
               cta="Koble til en klient"
             >
               <Bullets>

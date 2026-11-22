@@ -29,7 +29,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${BASE_URL}/nav-pilot/guider/lokal`, changeFrequency: "monthly", priority: 0.6 },
     { url: `${BASE_URL}/nav-pilot/guider/worktrees`, changeFrequency: "monthly", priority: 0.6 },
     { url: `${BASE_URL}/mcp`, changeFrequency: "monthly", priority: 0.7 },
-    { url: `${BASE_URL}/mcp/koble-til`, changeFrequency: "monthly", priority: 0.6 },
+    { url: `${BASE_URL}/mcp/bruke`, changeFrequency: "monthly", priority: 0.6 },
     { url: `${BASE_URL}/nav-pilot/guider/mcp-gjennom-cplt`, changeFrequency: "monthly", priority: 0.6 },
     { url: `${BASE_URL}/nav-pilot/guider/cplt-oppsett`, changeFrequency: "monthly", priority: 0.6 },
     { url: `${BASE_URL}/nav-pilot/guider/cplt-gradle`, changeFrequency: "monthly", priority: 0.6 },

@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { sourceHeadings } from "@/lib/page-headings";
 import inventory from "@/lib/link-inventory.json";
-import { activeTop, SECTION, TOP_LINKS } from "@/lib/nav-items";
+import { activeTop, MCP_SECTION, SECTION, TOP_LINKS } from "@/lib/nav-items";
 import { allGuides } from "@/app/(nb)/praksis/data";
 import { PRIVATE_ROUTES } from "../../scripts/auto-login-ignore-paths.mjs";
 import { getNewsItems } from "@/lib/news";
@@ -79,11 +79,16 @@ const EXTRA_PAGES: { href: string; title: string; context: string }[] = [
 ];
 
 export function buildSearchIndex(): SearchEntry[] {
-  const menuPages = SECTION.flatMap((g) => [
-    ...(g.href ? [{ href: g.href, title: g.label, context: "nav-pilot" }] : []),
-    ...(g.overview ? [{ href: g.overview, title: g.label, context: "nav-pilot" }] : []),
-    ...(g.items ?? []).map((i) => ({ href: i.href, title: i.label, context: g.label })),
-  ]).concat(EXTRA_PAGES);
+  const menuPages = [
+    ...SECTION.map((g) => ({ g, section: "nav-pilot" })),
+    ...MCP_SECTION.map((g) => ({ g, section: "MCP" })),
+  ]
+    .flatMap(({ g, section }) => [
+      ...(g.href ? [{ href: g.href, title: g.label, context: section }] : []),
+      ...(g.overview ? [{ href: g.overview, title: g.label, context: section }] : []),
+      ...(g.items ?? []).map((i) => ({ href: i.href, title: i.label, context: g.label })),
+    ])
+    .concat(EXTRA_PAGES);
   // Every other static page, so a new page is found without a list to update.
   // Its context is the header link it sits under.
   const otherPages = [...pageDirs.keys()]

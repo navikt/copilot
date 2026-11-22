@@ -7,7 +7,7 @@ import { Bullets, DocPage, code, linkClass } from "@/components/nav-pilot/doc-pa
 import type { TocItem } from "@/components/table-of-contents";
 
 export const metadata: Metadata = {
-  title: "Koble til Navs MCP-servere",
+  title: "Bruke Navs MCP-servere",
   description:
     "Slik kobler du Copilot CLI, OpenCode eller nav-pilot til en MCP-server som et Nav-team tilbyr. Du logger inn med Nav-kontoen.",
 };
@@ -35,7 +35,7 @@ const OPENCODE_JSON = `{
 
 export default function NavMcpServerePage() {
   return (
-    <DocPage label="MCP" title="Koble til Navs MCP-servere" description={metadata.description as string} toc={TOC}>
+    <DocPage label="MCP" title="Bruke Navs MCP-servere" description={metadata.description as string} toc={TOC}>
       <VStack gap="space-12">
         <LinkableHeading id="for-du-starter" size="medium" level="2">
           Før du starter

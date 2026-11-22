@@ -63,14 +63,14 @@ export default function McpReferansePage() {
         <Bullets>
           <li>
             Protokollversjon per klient:{" "}
-            <NextLink href="/mcp/koble-til#protokollversjon" className={linkClass}>
-              Koble til, Protokollversjon
+            <NextLink href="/mcp/bruke#protokollversjon" className={linkClass}>
+              Bruke, Protokollversjon
             </NextLink>
           </li>
           <li>
             Innlogging, varighet og godkjenning:{" "}
-            <NextLink href="/mcp/koble-til#innlogging" className={linkClass}>
-              Koble til, Innlogging
+            <NextLink href="/mcp/bruke#innlogging" className={linkClass}>
+              Bruke, Innlogging
             </NextLink>
           </li>
           <li>

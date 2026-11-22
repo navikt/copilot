@@ -399,8 +399,8 @@ export default function FleetGatewayForTeamPage() {
                   <CodeBlock filename="Terminal">{"opencode mcp auth <navn>\nopencode"}</CodeBlock>
                   <BodyLong>
                     Be agenten kalle et verktøy. Første innlogging åpner nettleseren. Andre klienter står i{" "}
-                    <NextLink href="/mcp/koble-til" className={linkClass}>
-                      Koble til Navs MCP-servere
+                    <NextLink href="/mcp/bruke" className={linkClass}>
+                      Bruke Navs MCP-servere
                     </NextLink>
                     .
                   </BodyLong>

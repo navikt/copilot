@@ -1389,3 +1389,13 @@ button.search-hit {
   font-size: var(--ax-font-size-heading-large);
   line-height: 1.1;
 }
+/* /mcp entry cards: equal height, button pinned to the bottom so both line up. */
+.mcp-entry {
+  height: 100%;
+}
+.mcp-entry-cta {
+  margin-top: auto;
+}
+.mcp-stats {
+  width: min(100%, 30rem);
+}

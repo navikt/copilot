@@ -7,7 +7,7 @@ import { usePathname } from "next/navigation";
 import { useId, useRef, useState, type MouseEvent, type ReactNode } from "react";
 import { BudgetUsage, budgetHigh, budgetText, useBudgetPct } from "@/components/budget-usage";
 import { SiteSearch } from "@/components/navigation/site-search";
-import { SECTION, TOP_LINKS, activeTop, inSection, sectionGroup } from "@/lib/nav-items";
+import { TOP_LINKS, activeTop, inSection, sectionFor, sectionGroup } from "@/lib/nav-items";
 
 // The header menu and the nav-pilot section menu, V6–V8 in
 // copilot-intern beslutningslogg.md.
@@ -183,7 +183,8 @@ function MobileMenu({ labels, userName, admin }: { labels: HeaderLabels; userNam
   const hrefLang = labels.lang === "en" ? "nb" : undefined;
   const pct = useBudgetPct(!!userName);
   const [open, setOpen] = useState(false);
-  const [level2, setLevel2] = useState(false);
+  // The href of the section shown in the panel, or null for the main menu.
+  const [level2, setLevel2] = useState<string | null>(null);
   const [swapped, setSwapped] = useState(false);
   const [shownFor, setShownFor] = useState(pathname);
   if (shownFor !== pathname) {
@@ -194,12 +195,12 @@ function MobileMenu({ labels, userName, admin }: { labels: HeaderLabels; userNam
 
   const onOpenChange = (next: boolean) => {
     if (next) {
-      setLevel2(inSection(pathname));
+      setLevel2(inSection(pathname) ? pathname : null);
       setSwapped(false);
     }
     setOpen(next);
   };
-  const swap = (to: boolean) => {
+  const swap = (to: string | null) => {
     setLevel2(to);
     setSwapped(true);
   };
@@ -223,13 +224,13 @@ function MobileMenu({ labels, userName, admin }: { labels: HeaderLabels; userNam
           </Dialog.Header>
           <Dialog.Body onClick={closeOnLink}>
             {level2 ? (
-              <nav aria-label="nav-pilot" lang="nb">
-                <button type="button" className="panel-item" onClick={() => swap(false)} autoFocus={swapped}>
+              <nav aria-label={sectionFor(level2).title} lang="nb">
+                <button type="button" className="panel-item" onClick={() => swap(null)} autoFocus={swapped}>
                   <ArrowLeftIcon aria-hidden fontSize="1.25rem" />
                   <span lang={labels.lang}>{labels.back}</span>
                 </button>
-                <SectionTitle />
-                <SectionMenu />
+                <SectionTitle of={level2} />
+                <SectionMenu of={level2} />
               </nav>
             ) : (
               <nav aria-label={labels.mainMenu}>
@@ -244,12 +245,12 @@ function MobileMenu({ labels, userName, admin }: { labels: HeaderLabels; userNam
                       >
                         {l[labels.lang]}
                       </NextLink>
-                      {l.href === "/nav-pilot" && (
+                      {(l.href === "/nav-pilot" || l.href === "/mcp") && (
                         <button
                           type="button"
                           className="panel-item"
                           aria-label={labels.showSection}
-                          onClick={() => swap(true)}
+                          onClick={() => swap(l.href)}
                           autoFocus={swapped}
                         >
                           <ChevronRightIcon aria-hidden fontSize="1.5rem" />
@@ -290,8 +291,9 @@ function MobileMenu({ labels, userName, admin }: { labels: HeaderLabels; userNam
 }
 
 // Disclosure groups (WAI-ARIA disclosure navigation), never role="menu".
-function SectionMenu() {
+function SectionMenu({ of }: { of?: string }) {
   const pathname = usePathname();
+  const groups = sectionFor(of ?? pathname).groups;
   const currentGroup = sectionGroup(pathname)?.label;
   const [toggled, setToggled] = useState<Record<string, boolean>>({});
   const [shownFor, setShownFor] = useState(pathname);
@@ -311,7 +313,7 @@ function SectionMenu() {
 
   return (
     <ul className="list-none text-sm">
-      {SECTION.map((grp, n) => (
+      {groups.map((grp, n) => (
         <li key={grp.label}>
           {grp.items ? (
             <>
@@ -344,19 +346,23 @@ function SectionMenu() {
   );
 }
 
-const SectionTitle = () => (
-  <NextLink href="/nav-pilot" className="section-title">
-    nav-pilot
-  </NextLink>
-);
+function SectionTitle({ of }: { of: string }) {
+  const s = sectionFor(of);
+  return (
+    <NextLink href={s.href} className="section-title">
+      {s.title}
+    </NextLink>
+  );
+}
 
 /** The section menu on the left, for the (nav-pilot) route group. */
 export function SectionLayout({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
   return (
     <div className="max-w-7xl mx-auto lg:flex">
-      <nav aria-label="nav-pilot" className="hidden lg:block w-60 shrink-0 section-nav">
+      <nav aria-label={sectionFor(pathname).title} className="hidden lg:block w-60 shrink-0 section-nav">
         <div className="sticky top-4">
-          <SectionTitle />
+          <SectionTitle of={pathname} />
           <SectionMenu />
         </div>
       </nav>

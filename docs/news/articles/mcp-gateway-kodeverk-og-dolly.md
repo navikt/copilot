@@ -30,7 +30,7 @@ nav-pilot mcp enable kodeverk
 nav-pilot mcp enable dolly
 ```
 
-Oppføringene og oppsettet for andre klienter står på [ki-utvikling.nav.no/verktoy](https://ki-utvikling.nav.no/verktoy) og i guiden [Koble til Navs MCP-servere](/mcp/koble-til).
+Oppføringene og oppsettet for andre klienter står på [ki-utvikling.nav.no/verktoy](https://ki-utvikling.nav.no/verktoy) og i guiden [Bruke Navs MCP-servere](/mcp/bruke).
 
 ## Hva gatewayen gjør
 

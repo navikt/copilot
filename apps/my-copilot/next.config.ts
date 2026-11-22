@@ -103,7 +103,7 @@ const nextConfig: NextConfig = {
         permanent: true,
       },
       { source: "/verktoy/fleet-gateway", destination: "/mcp/fleet-gateway", permanent: true },
-      { source: "/nav-pilot/guider/nav-mcp-servere", destination: "/mcp/koble-til", permanent: true },
+      { source: "/nav-pilot/guider/nav-mcp-servere", destination: "/mcp/bruke", permanent: true },
       // The measurements became the open insight page. Old anchors are in src/lib/legacy-anchors.ts.
       {
         source: "/nav-pilot/forklaring/lokal-modell/malinger",

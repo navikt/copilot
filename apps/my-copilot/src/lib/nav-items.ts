@@ -63,17 +63,6 @@ export const SECTION: NavGroup[] = [
     ],
   },
   {
-    label: "MCP",
-    overview: "/mcp",
-    items: [
-      { label: "Koble til", href: "/mcp/koble-til" },
-      { label: "fleet-gateway (pilot)", href: "/mcp/fleet-gateway" },
-      { label: "Tilby en server", href: "/mcp/tilby-server" },
-      { label: "Retningslinjer for MCP-servere", href: "/mcp/tilby-server/retningslinjer" },
-      { label: "Referanse", href: "/mcp/referanse" },
-    ],
-  },
-  {
     label: "Referanse",
     items: [
       { label: "Kommandoer og konfig", href: "/nav-pilot/referanse" },
@@ -85,6 +74,27 @@ export const SECTION: NavGroup[] = [
   { label: "Sandkassen (cplt)", href: "/cplt" },
 ];
 
+// The /mcp section menu. The landing page /mcp has no menu of its own.
+export const MCP_SECTION: NavGroup[] = [
+  { label: "Oversikt", href: "/mcp" },
+  { label: "Bruke", href: "/mcp/bruke" },
+  {
+    label: "Tilby en server",
+    items: [
+      { label: "Veiledning", href: "/mcp/tilby-server" },
+      { label: "Retningslinjer", href: "/mcp/tilby-server/retningslinjer" },
+    ],
+  },
+  { label: "fleet-gateway", href: "/mcp/fleet-gateway" },
+  { label: "Referanse", href: "/mcp/referanse" },
+];
+
+/** The section menu a page sits in: MCP under /mcp, nav-pilot elsewhere. */
+export const sectionFor = (pathname: string) =>
+  under(pathname, "/mcp")
+    ? { title: "MCP", href: "/mcp", groups: MCP_SECTION }
+    : { title: "nav-pilot", href: "/nav-pilot", groups: SECTION };
+
 /** The section-menu group that holds this page. It starts open, and names the label line above the title. */
 export const sectionGroup = (pathname: string): NavGroup | undefined =>
-  SECTION.find((g) => g.overview === pathname || g.items?.some((i) => i.href === pathname));
+  sectionFor(pathname).groups.find((g) => g.overview === pathname || g.items?.some((i) => i.href === pathname));

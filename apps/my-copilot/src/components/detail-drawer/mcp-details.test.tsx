@@ -211,15 +211,12 @@ describe("McpDetails", () => {
         remotes: [{ type: "streamable-http", url: "https://fleet-gateway.intern.nav.no/kodeverk" }],
       } as EnrichedCustomization;
       render(<McpDetails item={item} />);
-      expect(screen.getByRole("link", { name: "Koble til Navs MCP-servere" })).toHaveAttribute(
-        "href",
-        "/mcp/koble-til"
-      );
+      expect(screen.getByRole("link", { name: "Bruke Navs MCP-servere" })).toHaveAttribute("href", "/mcp/bruke");
     });
 
     it.each(["https://evil.example/fleet-gateway", "https://example.com/?x=fleet-gateway"])("ignores %s", (url) => {
       render(<McpDetails item={{ ...base, remotes: [{ type: "streamable-http", url }] } as EnrichedCustomization} />);
-      expect(screen.queryByText(/Koble til Navs MCP-servere/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/Bruke Navs MCP-servere/)).not.toBeInTheDocument();
     });
 
     it("accepts the dev host and the domain_internal template", () => {
@@ -227,7 +224,7 @@ describe("McpDetails", () => {
         const { unmount } = render(
           <McpDetails item={{ ...base, remotes: [{ type: "streamable-http", url }] } as EnrichedCustomization} />
         );
-        expect(screen.getByText(/Koble til Navs MCP-servere/)).toBeInTheDocument();
+        expect(screen.getByText(/Bruke Navs MCP-servere/)).toBeInTheDocument();
         unmount();
       }
     });
@@ -238,7 +235,7 @@ describe("McpDetails", () => {
         remotes: [{ type: "streamable-http", url: "https://example.com/mcp" }],
       } as EnrichedCustomization;
       render(<McpDetails item={item} />);
-      expect(screen.queryByText(/Koble til Navs MCP-servere/)).not.toBeInTheDocument();
+      expect(screen.queryByText(/Bruke Navs MCP-servere/)).not.toBeInTheDocument();
     });
   });
 });

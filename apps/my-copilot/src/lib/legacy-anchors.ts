@@ -10,7 +10,7 @@
 export const LEGACY_ANCHORS: Record<string, string> = {
   // /verktoy/fleet-gateway is for teams that offer an MCP server. How to connect moved to a guide.
   // next.config.ts sends the page to /mcp/fleet-gateway, so the keys use the new path.
-  "/mcp/fleet-gateway#koble-til": "/mcp/koble-til#for-du-starter",
+  "/mcp/fleet-gateway#koble-til": "/mcp/bruke#for-du-starter",
   "/mcp/fleet-gateway#hva-teamet-gjor": "/mcp/tilby-server#steg",
   // «Varsler» on the admin cost page became «Månedsinnsikt».
   "/admin/kostnad#avvik": "/admin/kostnad#maanedsinnsikt",
