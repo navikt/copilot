@@ -17,7 +17,7 @@ This server implements:
 
 ## Getting Started
 
-For installation and usage instructions, see the [main README](../../README.md#mcp-onboarding--agent-readiness--customization-discovery).
+For installation and usage instructions, see the [ki-utvikling.nav.no/verktoy](https://ki-utvikling.nav.no/verktoy).
 
 ![Install Mcp Onboarding from VS Code](../../docs/assets/copilot-mcp-install.png)
 

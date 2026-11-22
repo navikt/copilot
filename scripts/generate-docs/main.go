@@ -22,9 +22,6 @@ import (
 const (
 	beginMarker = "<!-- BEGIN GENERATED TABLE -->"
 	endMarker   = "<!-- END GENERATED TABLE -->"
-
-	beginCountsMarker = "<!-- BEGIN GENERATED COUNTS -->"
-	endCountsMarker   = "<!-- END GENERATED COUNTS -->"
 )
 
 var checkMode bool
@@ -40,7 +37,6 @@ func main() {
 	errors += processInstructions(root)
 	errors += processPrompts(root)
 	errors += processSkills(root)
-	errors += processReadmeCounts(root)
 
 	if errors > 0 {
 		if checkMode {
@@ -371,24 +367,6 @@ func updateDocWithMarkers(path, begin, end, newContent string) int {
 		fmt.Printf("   %s (no changes)\n", filepath.Base(path))
 	}
 	return 0
-}
-
-func processReadmeCounts(root string) int {
-	readmePath := filepath.Join(root, "README.md")
-
-	agentCount := countFiles(filepath.Join(root, "agents"), "*.agent.md")
-	instructionCount := countFiles(filepath.Join(root, "instructions"), "*.instructions.md")
-	promptCount := countFiles(filepath.Join(root, "prompts"), "*.prompt.md")
-	skillCount := countPublicSkills(filepath.Join(root, "skills"))
-
-	counts := fmt.Sprintf(`- **🤖 [%d Agenter](docs/README.agents.md)** — Spesialiserte KI-assistenter for Nav-domener
-- **📋 [%d Instruksjoner](docs/README.instructions.md)** — Kodestandarder som aktiveres automatisk basert på filmønster
-- **⚡ [%d Prompts](docs/README.prompts.md)** — Scaffolding-maler for vanlige Nav-mønstre
-- **🎯 [%d Skills](docs/README.skills.md)** — Produksjonsmønstre fra ekte Nav-repoer
-- **🔌 [MCP-servere](docs/README.mcp.md)** — Nav-godkjente MCP-servere fra registeret`,
-		agentCount, instructionCount, promptCount, skillCount)
-
-	return updateDocWithMarkers(readmePath, beginCountsMarker, endCountsMarker, counts)
 }
 
 func countFiles(dir, pattern string) int {
