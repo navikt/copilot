@@ -21,6 +21,20 @@ For installation and usage instructions, see [ki-utvikling.nav.no/verktoy](https
 
 ![Install Mcp Onboarding from VS Code](../../docs/assets/copilot-mcp-install.png)
 
+Install in VS Code: open the Command Palette, run **MCP: Add Server**, search for **Mcp Onboarding** in the Nav MCP registry and sign in with GitHub (navikt membership required).
+
+Example prompts in Copilot Chat:
+
+```text
+List all Nav agents
+Search for kafka customizations
+Check agent readiness for navikt/fp-sak
+Generate AGENTS.md for navikt/fp-sak
+Show agent readiness for repos with prefix fp
+```
+
+Replace `fp-sak` with your repository. For `team_readiness`, use the repository prefix your team uses (`fp` for foreldrepenger), not the team name.
+
 ## Architecture
 
 ```text

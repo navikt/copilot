@@ -39,7 +39,7 @@ mise check
 mise test
 ```
 
-[AGENTS.md](AGENTS.md) har konvensjonene, og [SECURITY.md](SECURITY.md) har sikkerhetsmodellen. Endrer du `agents/`, `instructions/`, `prompts/` eller `skills/`, kjør `mise run generate` først.
+[CONTRIBUTING.md](CONTRIBUTING.md) beskriver CI, hemmeligheter og lokalt oppsett. [AGENTS.md](AGENTS.md) har konvensjonene, og [SECURITY.md](SECURITY.md) har sikkerhetsmodellen. Endrer du `agents/`, `instructions/`, `prompts/` eller `skills/`, kjør `mise run generate` først.
 
 ## Lisens
 
