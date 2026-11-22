@@ -336,7 +336,7 @@ logger.info("Vedtak",    `}
               mac={NAV_PILOT_QUICKSTART}
               linux={NAV_PILOT_INSTALL.linux}
               apt={NAV_PILOT_APT_INSTALL}
-              windowsNote="Kjør kommandoen i Linux-distroen din under WSL2."
+              windowsNote="Kjør kommandoen i Linux-distroen din under WSL2, ikke i PowerShell. Sjekk at which -a copilot cplt ikke viser stier under /mnt/c: mangler et verktøy i Linux, bruker WSL2 Windows-varianten. Jobb fra ~/ og ikke fra /mnt/c."
             />
             <p className="text-center" style={{ fontSize: "0.75rem", color: "rgba(255,255,255,0.55)" }}>
               Første gang du starter nav-pilot i en terminal, foreslår den opencode. Har du nav-pilot fra før, beholder

@@ -1,325 +1,46 @@
-# 🤖 Nav Copilot Customizations
+# Nav Copilot
 
-![Nav Copilot tools page](docs/assets/my-copilot-hero.png)
+Navs verktøy for KI-assistert utvikling: CLI-et nav-pilot, nettstedet [ki-utvikling.nav.no](https://ki-utvikling.nav.no), MCP-gatewayen fleet-gateway og agenter, instruksjoner og skills for Navs stack.
 
-Agenter, instruksjoner, skills og MCP-servere som gjør GitHub Copilot smartere for Navs stack. Alt samlet i én verktøyskatalog.
+## Hvor du finner hva
 
-## Hva er dette?
+Brukerdokumentasjonen ligger på nettstedet, ikke her:
 
-En samling Copilot-tilpasninger for Nav-økosystemet:
+- [ki-utvikling.nav.no/kom-i-gang](https://ki-utvikling.nav.no/kom-i-gang): kom i gang med KI-assistert utvikling i Nav
+- [ki-utvikling.nav.no/nav-pilot](https://ki-utvikling.nav.no/nav-pilot): installer og bruk nav-pilot
+- [ki-utvikling.nav.no/verktoy](https://ki-utvikling.nav.no/verktoy): agenter, instruksjoner, skills og MCP-servere
+- [ki-utvikling.nav.no/cplt](https://ki-utvikling.nav.no/cplt): cplt, sandkassen for kodeagenter ([navikt/cplt](https://github.com/navikt/cplt))
+- [ki-utvikling.nav.no/mcp](https://ki-utvikling.nav.no/mcp): MCP-servere for Nav
 
-<!-- BEGIN GENERATED COUNTS -->
-- **🤖 [10 Agenter](docs/README.agents.md)** — Spesialiserte KI-assistenter for Nav-domener
-- **📋 [17 Instruksjoner](docs/README.instructions.md)** — Kodestandarder som aktiveres automatisk basert på filmønster
-- **⚡ [7 Prompts](docs/README.prompts.md)** — Scaffolding-maler for vanlige Nav-mønstre
-- **🎯 [38 Skills](docs/README.skills.md)** — Produksjonsmønstre fra ekte Nav-repoer
-- **🔌 [MCP-servere](docs/README.mcp.md)** — Nav-godkjente MCP-servere fra registeret
-<!-- END GENERATED COUNTS -->
+## Innhold i repoet
 
-Alle tilpasninger finnes på **[verktøysida](https://ki-utvikling.nav.no/verktoy)** med søk, filtrering og installeringshjelp.
+- `agents/`, `instructions/`, `prompts/`, `skills/`: innholdet nav-pilot installerer ([oversikt](docs/README.skills.md))
+- [`cli/nav-pilot`](cli/nav-pilot): CLI-et for utviklere
+- [`cli/mcp-compliance`](cli/mcp-compliance): sjekker MCP-servere bak fleet-gateway
+- [`apps/my-copilot`](apps/my-copilot): nettstedet ki-utvikling.nav.no (Next.js)
+- [`apps/copilot-api`](apps/copilot-api): backend for my-copilot
+- [`apps/copilot-cli`](apps/copilot-cli): innlogging og gateway for nav-pilot
+- [`apps/copilot-survey`](apps/copilot-survey): brukerundersøkelser
+- [`apps/copilot-metrics`](apps/copilot-metrics): nattlig jobb for bruksmetrikker
+- [`apps/copilot-adoption`](apps/copilot-adoption): skanner navikt-repoer etter KI-oppsett
+- [`apps/fleet-gateway`](apps/fleet-gateway): OAuth-server for Navs interne MCP-servere
+- [`apps/mcp-registry`](apps/mcp-registry): MCP-registeret
+- [`apps/mcp-onboarding`](apps/mcp-onboarding) (mcp-onboarding.intern.nav.no), [`apps/mcp-dolly`](apps/mcp-dolly), [`apps/mcp-kodeverk`](apps/mcp-kodeverk), [`apps/mcp-team-catalog`](apps/mcp-team-catalog): MCP-servere
 
-### Innhold
+Arkitekturen er beskrevet i [ARCHITECTURE.md](ARCHITECTURE.md).
 
-- [Hva er dette?](#hva-er-dette) (oversikt og nav-pilot)
-- [Kom i gang](#kom-i-gang) (installer tilpasninger)
-- [Tilpasninger](#tilpasninger) (agenter, instruksjoner, skills, prompts, MCP)
-- [Applikasjoner](#️-applikasjoner) (portalen, metrikker, MCP-register, onboarding)
-- [Nav tech stack](#️-nav-tech-stack) (stacken tilpasningene dekker)
-- [Mappestruktur](#-mappestruktur) (hva ligger hvor)
-- [Bidra](#-bidra) (legg til tilpasninger)
-- [Team](#-team)
-- [Lisens](#-lisens)
-- [Ressurser](#-ressurser)
+## Bidra
 
-### 🧭 nav-pilot (nytt)
-
-**[nav-pilot](docs/README.nav-pilot.md)** er både et CLI-verktøy og en KI-agent. CLI-et klargjør repoet ditt med riktige agenter, skills og instruksjoner, og setter opp en optimalisert integrasjon med token-optimalisering. Agenten `@nav-pilot` tar deg gjennom fire faser i Copilot Chat: Intervju, Plan, Review og Lever.
+Du trenger [mise](https://mise.jdx.dev). Fra rotmappa:
 
 ```bash
-# Installer nav-pilot og cplt (macOS)
-brew install navikt/tap/nav-pilot navikt/tap/cplt
-# eller: mise use -g 'github:navikt/cplt' && mise use -g 'github:navikt/copilot[exe=nav-pilot,version_prefix=nav-pilot/]@<versjon>'
-
-# Installer Nav-agentpakka i repoet ditt
-cd /path/to/your/repo
-nav-pilot install nav-pilot
-
-# Start en økt. En ny installasjon bruker opencode, og nav-pilot tilbyr å installere
-# den med Homebrew første gang. Vil du heller ha Copilot CLI: nav-pilot config set client copilot
-nav-pilot
-
-# Bruk i Copilot
-@nav-pilot Jeg trenger en ny tjeneste som behandler dagpengesøknader
+mise install
+mise check
+mise test
 ```
 
-På Linux (Debian, Ubuntu) er [apt-arkivet](https://navikt.github.io/apt/) anbefalt vei. Det gir deg både nav-pilot og cplt:
+[CONTRIBUTING.md](CONTRIBUTING.md) beskriver CI, hemmeligheter og lokalt oppsett. [AGENTS.md](AGENTS.md) har konvensjonene, og [SECURITY.md](SECURITY.md) har sikkerhetsmodellen. Endrer du `agents/`, `instructions/`, `prompts/` eller `skills/`, kjør `mise run generate` først.
 
-```bash
-curl -fsSL -o /tmp/navikt-archive-keyring.gpg https://navikt.github.io/apt/keyring/navikt-archive-keyring.gpg \
-  && test -s /tmp/navikt-archive-keyring.gpg \
-  && sudo install -m 644 /tmp/navikt-archive-keyring.gpg /usr/share/keyrings/navikt-archive-keyring.gpg \
-  && echo "deb [signed-by=/usr/share/keyrings/navikt-archive-keyring.gpg] https://navikt.github.io/apt stable main" \
-    | sudo tee /etc/apt/sources.list.d/navikt.list >/dev/null \
-  && sudo apt update && sudo apt install nav-pilot cplt \
-  || echo "Klarte ikke å installere fra apt-arkivet. Sjekk at du når https://navikt.github.io/apt, eller bruk installasjonsskriptet: curl -fsSL https://raw.githubusercontent.com/navikt/copilot/main/scripts/install.sh | bash" >&2
-```
-
-Arkivet oppdateres hver time fra den nyeste releasen, så en release du nettopp kuttet kan bruke opptil en time på å bli installerbar. Bruk [installasjonsskriptet](docs/README.nav-pilot.md#kom-i-gang) hvis du ikke er på et Debian-derivat, står i CI, eller en proxy stenger for `navikt.github.io`. Feiler ett av stegene, stopper kommandoen der og skriver ut installasjonsskriptet du kan bruke i stedet.
-
-**[Les mer →](docs/README.nav-pilot.md)**
-
-Bruker du Copilot CLI inni cplt på Linux? Se [hvorfor Copilots `/sandbox` ikke skal aktiveres der](docs/cplt-copilot-sandbox.md).
-
-## Kom i gang
-
-Enkleste vei er **[ki-utvikling.nav.no/verktoy](https://ki-utvikling.nav.no/verktoy)**. Finn det du trenger og følg installeringsstega. MCP-servere har ferdige `code --add-mcp`-kommandoer du kan kopiere rett inn i terminalen.
-
-Vil du lese deg opp først, har hver type sin egen doc i tabellen under.
-
-## Tilpasninger
-
-| Type                | Beskrivelse                                                                                                                 | Dokumentasjon                                      |
-| ------------------- | --------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
-| 🤖 **Agenter**       | Spesialiserte KI-assistenter for Nav-domener, kalles med `@agent-name` i Copilot Chat. VS Code, JetBrains, GitHub.com og Copilot CLI | **[Agenter →](docs/README.agents.md)**             |
-| 📋 **Instruksjoner** | Kodestandarder som aktiveres automatisk basert på filmønster (`*.kt`, `*.tsx`, `*.sql`). Alle editorer                       | **[Instruksjoner →](docs/README.instructions.md)** |
-| ⚡ **Prompts**       | Scaffolding-maler tilgjengelig via `/prompt-name` i Copilot Chat. VS Code, JetBrains og Visual Studio                        | **[Prompts →](docs/README.prompts.md)**            |
-| 🎯 **Skills**        | Produksjonsmønstre med innebygde maler og referanser. VS Code, Copilot CLI og GitHub.com, JetBrains i preview. `security-owasp` dekker OWASP Top 10:2025 for Kotlin, Go, Java og Node.js | **[Skills →](docs/README.skills.md)**              |
-| 🔌 **MCP-servere**   | Nav-godkjente servere fra [MCP-registeret](https://mcp-registry.nav.no). VS Code, JetBrains, Visual Studio, GitHub.com og Copilot CLI | **[MCP-servere →](docs/README.mcp.md)**            |
-| 🔄 **Sync**          | Hold tilpasninger oppdatert automatisk, som Dependabot                                                                      | **[Sync →](docs/README.sync.md)**                  |
-| 🧳 **Agentpakke**    | Teamets eget innholdsrepo med manifest, installeres med `nav-pilot install --source`                                        | **[Agentpakke →](docs/README.agentpakke.md)**      |
-| 🧭 **nav-pilot**     | CLI-verktøy og KI-agent som installerer og bruker Nav-tilpasninger i Copilot Chat                                           | **[nav-pilot →](docs/README.nav-pilot.md)**        |
-| 🧪 **Testing**       | Strukturelle og E2E-tester for nav-pilot                                                                                    | **[Testing →](docs/README.testing.md)**            |
-
-## 🛠️ Applikasjoner
-
-Monorepoet inneholder seks applikasjoner. cplt bor i sitt eget repo.
-
-### cplt
-
-Kernel-level sandbox for KI-agenter. Sandboxer kodingsagenter med OS-primitiver (macOS Seatbelt, Linux Landlock + seccomp-BPF) og blokkerer filsystemtilgang, nettverkstrafikk og credential-exfiltration.
-
-**Repo:** [navikt/cplt](https://github.com/navikt/cplt) · **Docs:** [ki-utvikling.nav.no/cplt](https://ki-utvikling.nav.no/cplt)
-
-```bash
-# macOS
-brew install navikt/tap/cplt
-
-# Linux (Debian, Ubuntu), fra apt-arkivet
-curl -fsSL -o /tmp/navikt-archive-keyring.gpg https://navikt.github.io/apt/keyring/navikt-archive-keyring.gpg \
-  && test -s /tmp/navikt-archive-keyring.gpg \
-  && sudo install -m 644 /tmp/navikt-archive-keyring.gpg /usr/share/keyrings/navikt-archive-keyring.gpg \
-  && echo "deb [signed-by=/usr/share/keyrings/navikt-archive-keyring.gpg] https://navikt.github.io/apt stable main" \
-    | sudo tee /etc/apt/sources.list.d/navikt.list >/dev/null \
-  && sudo apt update && sudo apt install cplt \
-  || echo "Klarte ikke å installere fra apt-arkivet. Sjekk at du når https://navikt.github.io/apt, eller bruk installasjonsskriptet: curl -fsSL https://raw.githubusercontent.com/navikt/cplt/main/install.sh | bash" >&2
-```
-
-Bruk `curl -fsSL https://raw.githubusercontent.com/navikt/cplt/main/install.sh | bash` hvis du ikke er på et Debian-derivat, står i CI, eller en proxy stenger for `navikt.github.io`.
-
-**Windows (WSL2):** kjør alt inne i Ubuntu, ikke i PowerShell. cplt tar du fra apt-arkivet over. Copilot CLI har ingen apt-pakke og må hentes med skriptet sitt:
-
-```bash
-curl -fsSL https://gh.io/copilot-install | bash   # Copilot CLI
-export PATH="$HOME/.local/bin:$PATH"              # skriptet installerer hit
-which -a copilot cplt   # ingen treff skal starte med /mnt/c
-```
-
-Bruker du opencode som klient, installer den på samme måte inne i Ubuntu (`curl -fsSL https://opencode.ai/install | bash -s -- --version 1.18.32`) og sjekk `which -a opencode`.
-
-WSL2 arver Windows-PATH. Mangler et verktøy i Ubuntu, plukker terminalen Windows-varianten i stedet, og den kjører via interop som en Windows-prosess — den installerer til Windows-siden og ser ikke Linux-filsystemet slik du forventer. Vanligste fella: `apt install nodejs` gir `node` i Ubuntu, men ikke `npm`, så `npm install -g` havner i Windows-prefixet og henter win32-pakken. Symptomet er `no platform package found` fra `copilot --version`. Jobb også fra Linux-filsystemet (`~/git/...`), ikke `/mnt/c/...` — 9p-I/O er tregt.
-
-### My Copilot
-
-Selvbetjeningsportalen. Administrer Copilot-abonnement, se bruksstatistikk og utforsk tilpasninger fra verktøykatalogen. Har også offentlige sider for [cplt](https://ki-utvikling.nav.no/cplt), [nav-pilot](https://ki-utvikling.nav.no/nav-pilot) og [kom i gang](https://ki-utvikling.nav.no/kom-i-gang).
-
-**URL:** [ki-utvikling.nav.no](https://ki-utvikling.nav.no)
-
-### Copilot API
-
-Go-backend for my-copilot. Håndterer BigQuery-analyser, GitHub API-operasjoner og seat-administrasjon, og bruker Azure AD On-Behalf-Of (OBO) token exchange for sikker kommunikasjon.
-
-- API-endepunkter for bruksdata, adopsjon, tilpasninger, fakturering og seat-administrasjon
-- In-memory cache (1t TTL) for BigQuery-data
-- Bakgrunnsinnsamling av metrikker hvert 5. minutt
-- Audit logging av alle seat-endringer
-
-**Arkitektur:** Se [ARCHITECTURE.md](./ARCHITECTURE.md)
-
-### Copilot Metrics
-
-Naisjob som henter daglige Copilot-bruksmetrikker fra GitHub API og lagrer dem i BigQuery.
-
-### MCP Registry
-
-Offentlig register over Nav-godkjente MCP-servere. Implementerer [MCP Registry v0.1-spesifikasjonen](https://github.com/modelcontextprotocol/registry).
-
-**URL:** [mcp-registry.nav.no](https://mcp-registry.nav.no)
-
-#### Organisasjonsoppsett (allerede konfigurert)
-
-MCP-policyen er satt på organisasjonsnivå og håndheves automatisk for alle med Copilot-sete i navikt. Enkeltbrukere kan ikke endre den.
-
-- **MCP servers in Copilot**: Enabled
-- **MCP Registry URL**: `https://mcp-registry.nav.no`
-- **Policy**: Registry only (kun servere fra registeret kan brukes)
-
-> **Håndhevelse**: Basert på server name/ID-matching. Lokale servere (som IntelliJ MCP) må ha en oppføring i registeret med ID som matcher nøyaktig det installerte server-ID-et. Se [GitHub docs: MCP allowlist enforcement](https://docs.github.com/en/copilot/reference/mcp-allowlist-enforcement).
-
-#### For IDE-brukere
-
-Registry-servere dukker automatisk opp i MCP-panelet i VS Code og JetBrains, uten oppsett per bruker.
-
-#### For Copilot CLI
-
-```bash
-# Bla gjennom tilgjengelige servere
-curl -s https://mcp-registry.nav.no/v0.1/servers | jq
-
-# Legg til en server
-gh copilot mcp add --url https://mcp-onboarding.intern.nav.no/mcp
-```
-
-### MCP Onboarding
-
-MCP-server for å utforske Nav Copilot-tilpasninger, vurdere agent-readiness og generere AGENTS.md rett fra Copilot Chat.
-
-**URL:** [mcp-onboarding.intern.nav.no](https://mcp-onboarding.intern.nav.no)
-
-#### Installer
-
-1. Åpne Command Palette i VS Code (`Cmd+Shift+P`)
-2. Kjør **MCP: Add Server**
-3. Søk etter **Mcp Onboarding** i Nav MCP-registeret
-4. Logg inn med GitHub (krever navikt-medlemskap)
-
-#### Bruk i Copilot Chat
-
-```text
-List all Nav agents
-Search for kafka customizations
-Check agent readiness for navikt/fp-sak
-Generate AGENTS.md for navikt/fp-sak
-Show agent readiness for repos with prefix fp
-```
-
-> **Tips:**
->
-> - Erstatt `fp-sak` med ditt reponavn i `navikt/`.
-> - For `team_readiness`, bruk **repo-prefiks** teamet bruker (f.eks. `fp` for foreldrepenger), ikke fullt teamnavn.
-
-## 🏗️ Nav tech stack
-
-Tilpasningene dekker Navs kjernestack:
-
-- **Backend**: Kotlin, Ktor, PostgreSQL, Kafka
-- **Frontend**: Next.js 16+, React, TypeScript, Aksel Design System
-- **Plattform**: Nais (Kubernetes på GCP)
-- **Auth**: Azure AD, TokenX, ID-porten, Maskinporten
-- **Observability**: Prometheus, Grafana Loki, Tempo (OpenTelemetry)
-
-## 📖 Mappestruktur
-
-```plaintext
-├── agents/               # Custom GitHub Copilot agents (.agent.md)
-├── instructions/         # File-pattern-based coding standards (.instructions.md)
-├── prompts/              # Task-specific scaffolding templates (.prompt.md)
-├── skills/               # Production patterns with bundled resources
-├── docs/                 # Detailed documentation for each customization type
-│   ├── README.agents.md
-│   ├── README.instructions.md
-│   ├── README.mcp.md
-│   ├── README.prompts.md
-│   ├── README.skills.md
-│   └── README.testing.md
-├── apps/                 # Nav applications
-│   ├── copilot-adoption/ # Naisjob that scans navikt repos for customization files
-│   ├── copilot-api/      # Go backend API (BigQuery, GitHub API, seat management)
-│   ├── copilot-cli/      # Go CLI gateway (GitHub device auth + M2M proxy for nav-pilot)
-│   ├── copilot-metrics/  # BigQuery data pipeline (Naisjob)
-│   ├── mcp-onboarding/   # MCP server for agent readiness
-│   ├── mcp-registry/     # MCP server registry
-│   └── my-copilot/       # Next.js frontend portal
-└── dashboards/           # Grafana dashboard definitions
-```
-
-## 🤝 Bidra
-
-### Legg til tilpasninger
-
-1. **Agenter**: Legg til `*.agent.md` i `agents/`, se [agent-dokumentasjonen](docs/README.agents.md)
-2. **Instruksjoner**: Legg til `*.instructions.md` i `instructions/`
-3. **Prompts**: Legg til `*.prompt.md` i `prompts/`
-4. **Skills**: Legg til mappe med `SKILL.md` i `skills/`
-
-Kjør `mise check` etter endringer for å validere alt.
-
-### CI og merge queue
-
-Alle pull requests og merge queue-oppføringer kjører [`ci.yaml`](.github/workflows/ci.yaml). Den produserer én sjekk, **`ci-ok`**, og det er den eneste required status check i branch-rulesettet. Blir den grønn, kan PR-en merges via køen.
-
-- Jobben `changes` bruker [dorny/paths-filter](https://github.com/dorny/paths-filter) til å finne hvilke komponenter endringen berører, med de samme path-listene som komponent-workflowene. Bare de berørte komponentenes sjekker kjøres, så endrer du ingenting relevant blir `ci-ok` grønn med en gang.
-- gitleaks-skann av hele historikken kjører alltid, uansett hvilke filer som er endret.
-- `ci-ok` feiler hvis en kjørt sjekk feiler eller avbrytes, og lykkes når alt som trengtes er grønt. Hoppede jobber teller som OK.
-
-Komponent-workflowene (`copilot-api.yaml`, `my-copilot.yaml`, osv.) kjører fortsatt på pull requests for PR-preview-deploy til dev, og på push til `main` for deploy til produksjon. De er bevisst *ikke* required checks og kjører ikke i merge-køen, siden deploys ikke skal skje per køoppføring.
-
-### Unngå å committe hemmeligheter
-
-CI skanner hele historikken med [gitleaks](https://github.com/gitleaks/gitleaks). Vil du fange lekkasjer før commit, installer gitleaks lokalt (`brew install gitleaks`) og legg til en valgfri pre-commit-sjekk:
-
-```bash
-gitleaks git --pre-commit --staged    # Skanner kun stagede endringer
-```
-
-Falske positiver håndteres i [.gitleaks.toml](.gitleaks.toml).
-
-<details>
-<summary>Utvikleroppsett for applikasjonene</summary>
-
-**Forutsetninger:** [mise](https://mise.jdx.dev) og [fnox](https://fnox.jdx.dev)
-
-```bash
-mise install          # Installer verktøy
-lefthook install      # Aktiver pre-commit og commit-msg hooks
-```
-
-Hemmeligheter håndteres med fnox + macOS Keychain, ingen `.env`-filer. Hver app har en `fnox.toml` med nødvendige hemmeligheter:
-
-| Service | Apper | Hemmeligheter |
-|---|---|---|
-| `copilot-portal` | my-copilot | ingen: my-copilot henter alt gjennom copilot-api |
-| `copilot-api` | copilot-api | GITHUB_APP_ID, GITHUB_APP_PRIVATE_KEY, GITHUB_APP_INSTALLATION_ID, GITHUB_APP_ORG_INSTALLATION_ID, GITHUB_BILLING_TOKEN |
-| `copilot-jobs` | copilot-adoption, copilot-metrics, mcp-onboarding | GITHUB_APP_ID, GITHUB_APP_PRIVATE_KEY, GITHUB_APP_INSTALLATION_ID, SLACK_WEBHOOK_URL |
-
-```bash
-cd apps/copilot-api
-fnox set GITHUB_APP_ID              # Ber om verdi, lagrer i Keychain
-fnox set GITHUB_APP_PRIVATE_KEY
-fnox set GITHUB_APP_INSTALLATION_ID
-```
-
-Ikke-hemmelig konfig (org-navn, BigQuery-datasett osv.) ligger i `.mise.toml` under `[env]` per app.
-
-**Annen secrets-backend?** `fnox.toml` bruker macOS Keychain som standard, men du kan overstyre med 1Password, GCP Secret Manager osv. i en gitignored `fnox.local.toml`. Se [fnox providers](https://fnox.jdx.dev/providers/).
-
-```bash
-cd apps/my-copilot && mise dev      # Starter appen
-```
-
-Se [AGENTS.md](AGENTS.md) for fullstendig utviklerguide.
-
-</details>
-
-## 👥 Team
-
-Vedlikeholdes av **Team Copilot** i Nav IT.
-
-## 📄 Lisens
+## Lisens
 
 [MIT](LICENSE)
-
-## 🔗 Ressurser
-
-- [Nais Documentation](https://doc.nais.io)
-- [Aksel Design System](https://aksel.Nav.no)
-- [Nav GitHub](https://github.com/Navikt)

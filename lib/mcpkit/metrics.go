@@ -72,6 +72,7 @@ func (m *ToolMetrics) Observe(tool string, failed bool, d time.Duration) {
 }
 
 // ServeHTTP writes the metrics in the Prometheus text exposition format.
+//
 //nolint:gosec // G705 false positive: text/plain, tool names from a fixed list.
 func (m *ToolMetrics) ServeHTTP(w http.ResponseWriter, _ *http.Request) {
 	// Snapshot under the lock so a slow scrape never blocks Observe.
