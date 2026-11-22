@@ -757,3 +757,42 @@ func TestMCP2026Compliance(t *testing.T) {
 		header:   map[string]string{"Authorization": "Bearer test-token"},
 	})
 }
+
+func TestConfigDatabaseURLFallback(t *testing.T) {
+	const own, nais = "postgres://own.example/db", "postgres://nais.example/db"
+	for _, tc := range []struct {
+		name, store, ownURL, pgURL, want string
+		storeErr                         bool
+	}{
+		{name: "PGURL alone is used", store: "postgres", pgURL: nais, want: nais},
+		{name: "MCP_DOLLY_DATABASE_URL wins over PGURL", store: "postgres", ownURL: own, pgURL: nais, want: own},
+		{name: "postgres without any URL fails startup", store: "postgres", storeErr: true},
+		{name: "memory ignores both", store: "memory", ownURL: own, pgURL: nais, want: own},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			setTestKeyEnv(t)
+			t.Setenv("DOLLY_URL", "https://dolly-backend.example")
+			t.Setenv("NAIS_TOKEN_EXCHANGE_ENDPOINT", "http://texas.nais/exchange")
+			t.Setenv("NAIS_TOKEN_INTROSPECTION_ENDPOINT", "http://texas.nais/introspect")
+			t.Setenv("MCP_DOLLY_STORE", tc.store)
+			t.Setenv("MCP_DOLLY_DATABASE_URL", tc.ownURL)
+			t.Setenv("PGURL", tc.pgURL)
+			cfg, err := loadConfigFromEnv()
+			if err != nil {
+				t.Fatalf("loadConfigFromEnv: %v", err)
+			}
+			if cfg.DatabaseURL != tc.want {
+				t.Fatalf("DatabaseURL = %q, want %q", cfg.DatabaseURL, tc.want)
+			}
+			st, err := newOrderStoreFromEnv(cfg.Store, cfg.DatabaseURL, nil, nil)
+			if tc.storeErr != (err != nil) {
+				t.Fatalf("newOrderStoreFromEnv err = %v, want error %v", err, tc.storeErr)
+			}
+			if tc.store == "memory" {
+				if _, ok := st.(memStore); !ok {
+					t.Fatalf("store = %T, want memStore", st)
+				}
+			}
+		})
+	}
+}
