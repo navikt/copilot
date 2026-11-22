@@ -1360,3 +1360,47 @@ button.search-hit {
     min-height: 2.75rem;
   }
 }
+
+/* /mcp hero diagram: the wide drawing from 48rem, the tall one below. */
+.mcp-hero-diagram svg {
+  width: 100%;
+  height: auto;
+}
+.mcp-hero-tall {
+  max-width: 24rem;
+  margin-inline: auto;
+}
+.mcp-hero-wide,
+.mcp-hero-tall {
+  display: block;
+}
+@media (min-width: 48rem) {
+  .mcp-hero-tall {
+    display: none;
+  }
+}
+@media (max-width: 47.99rem) {
+  .mcp-hero-wide {
+    display: none;
+  }
+}
+.mcp-stat-value {
+  display: block;
+  font-size: var(--ax-font-size-heading-large);
+  line-height: 1.1;
+}
+/* /mcp entry cards: equal height, button pinned to the bottom so both line up. */
+.mcp-entry {
+  height: 100%;
+}
+.mcp-entry-cta {
+  margin-top: auto;
+}
+.mcp-stats {
+  width: min(100%, 30rem);
+}
+.mcp-server-cards {
+  display: grid;
+  gap: var(--ax-space-16);
+  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+}

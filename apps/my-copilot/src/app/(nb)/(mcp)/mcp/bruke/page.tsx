@@ -2,12 +2,13 @@ import { BodyLong, VStack } from "@navikt/ds-react";
 import type { Metadata } from "next";
 import NextLink from "next/link";
 import { CodeBlock } from "@/components/code-block";
+import { HowItWorks } from "@/components/mcp/blocks";
 import { LinkableHeading } from "@/components/linkable-heading";
 import { Bullets, DocPage, code, linkClass } from "@/components/nav-pilot/doc-page";
 import type { TocItem } from "@/components/table-of-contents";
 
 export const metadata: Metadata = {
-  title: "Koble til Navs MCP-servere",
+  title: "Bruke Navs MCP-servere",
   description:
     "Slik kobler du Copilot CLI, OpenCode eller nav-pilot til en MCP-server som et Nav-team tilbyr. Du logger inn med Nav-kontoen.",
 };
@@ -15,6 +16,7 @@ export const metadata: Metadata = {
 const HELP_URL = "https://nav-it.slack.com/archives/C0ASJSZK8P8";
 
 const TOC: TocItem[] = [
+  { id: "slik-fungerer-det", label: "Slik fungerer det" },
   { id: "for-du-starter", label: "Før du starter" },
   { id: "copilot-cli", label: "Copilot CLI" },
   { id: "opencode", label: "OpenCode" },
@@ -35,7 +37,14 @@ const OPENCODE_JSON = `{
 
 export default function NavMcpServerePage() {
   return (
-    <DocPage label="Guider" title="Koble til Navs MCP-servere" description={metadata.description as string} toc={TOC}>
+    <DocPage label="MCP" title="Bruke Navs MCP-servere" description={metadata.description as string} toc={TOC}>
+      <VStack gap="space-12">
+        <LinkableHeading id="slik-fungerer-det" size="medium" level="2">
+          Slik fungerer det
+        </LinkableHeading>
+        <HowItWorks />
+      </VStack>
+
       <VStack gap="space-12">
         <LinkableHeading id="for-du-starter" size="medium" level="2">
           Før du starter
@@ -148,7 +157,7 @@ export default function NavMcpServerePage() {
           </li>
           <li>
             Teamet som eier serveren, bestemmer hva du får gjøre. Innloggingen går gjennom{" "}
-            <NextLink href="/verktoy/fleet-gateway" className={linkClass}>
+            <NextLink href="/mcp/fleet-gateway" className={linkClass}>
               fleet-gateway
             </NextLink>
             , men det trenger du ikke tenke på.

@@ -328,7 +328,7 @@ function Rules({ id }: { id: string }) {
 export default function McpRetningslinjerPage() {
   return (
     <DocPage
-      label="Verktøy"
+      label="MCP"
       title="Retningslinjer for MCP-servere"
       description={metadata.description as string}
       badge={
@@ -340,7 +340,7 @@ export default function McpRetningslinjerPage() {
     >
       <BodyShort>
         Gjelder servere bak fleet-gateway. Stegene for å koble til står i{" "}
-        <NextLink href="/verktoy/fleet-gateway/for-team" className={linkClass}>
+        <NextLink href="/mcp/tilby-server" className={linkClass}>
           Koble teamets MCP-server til fleet-gateway
         </NextLink>
         .

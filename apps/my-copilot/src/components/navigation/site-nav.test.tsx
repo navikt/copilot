@@ -15,6 +15,8 @@ const labels = {
   userMenu: "Brukermeny",
   subscription: "Abonnement",
   subscriptionHref: "/abonnement",
+  showSection: "Vis menyen for {name}",
+  menu: "Meny",
 } as HeaderLabels;
 
 describe("SiteHeader user menu", () => {
@@ -29,5 +31,14 @@ describe("SiteHeader user menu", () => {
     fireEvent.click(screen.getByRole("button", { name: /Ola Nordmann, Brukermeny/ }));
     expect(screen.getByRole("link", { name: "Abonnement" })).toBeInTheDocument();
     expect(screen.queryByText("Admin")).not.toBeInTheDocument();
+  });
+});
+
+describe("SiteHeader mobile menu", () => {
+  it("names the section each show-menu button opens", () => {
+    render(<SiteHeader labels={labels} />);
+    fireEvent.click(screen.getByRole("button", { name: "Meny" }));
+    expect(screen.getByRole("button", { name: "Vis menyen for nav-pilot" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Vis menyen for MCP" })).toBeInTheDocument();
   });
 });

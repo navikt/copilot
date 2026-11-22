@@ -777,7 +777,7 @@
       "displayName": "mcp-server-authoring",
       "description": "Skriv og registrer MCP-servere bak fleet-gateway: verktøydesign, Texas-auth, effektivitet, ROS og OWASP MCP Top 10",
       "filePath": "skills/mcp-server-authoring/SKILL.md",
-      "contentHash": "afc8349042292bf3e0a641310357eca311c84cc2090ab0d1252e74238514a35d",
+      "contentHash": "2cbd51b718317fde14a5b9e99ebe68ba69de9d6eac3543fc6a5c0c8cae96a3da",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/mcp-server-authoring/SKILL.md",
       "references": [

@@ -3,10 +3,10 @@ import path from "node:path";
 import { render, screen } from "@testing-library/react";
 import allowlist from "../../../../../../../mcp-registry/allowlist.json";
 import FleetGatewayPage from "./page";
-import RetningslinjerPage from "./retningslinjer/page";
-import { PILOT_SERVERS } from "./servers";
+import RetningslinjerPage from "../tilby-server/retningslinjer/page";
+import { PILOT_SERVERS } from "@/components/mcp/servers";
 
-vi.mock("next/navigation", () => ({ usePathname: () => "/verktoy/fleet-gateway" }));
+vi.mock("next/navigation", () => ({ usePathname: () => "/mcp/fleet-gateway" }));
 
 const prodRoutes = fs.readFileSync(
   path.resolve(__dirname, "../../../../../../../fleet-gateway/pilot-routes.prod.yaml"),

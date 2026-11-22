@@ -95,6 +95,15 @@ const nextConfig: NextConfig = {
       // Split into guides, reference and explanation pages. Old anchors are in
       // src/lib/legacy-anchors.ts, keyed by /nav-pilot/referanse.
       { source: "/nav-pilot/docs", destination: "/nav-pilot/referanse", permanent: true },
+      // The MCP pages moved to their own /mcp section. The browser keeps the #anchor; the pages kept their ids.
+      { source: "/verktoy/fleet-gateway/for-team", destination: "/mcp/tilby-server", permanent: true },
+      {
+        source: "/verktoy/fleet-gateway/retningslinjer",
+        destination: "/mcp/tilby-server/retningslinjer",
+        permanent: true,
+      },
+      { source: "/verktoy/fleet-gateway", destination: "/mcp/fleet-gateway", permanent: true },
+      { source: "/nav-pilot/guider/nav-mcp-servere", destination: "/mcp/bruke", permanent: true },
       // The measurements became the open insight page. Old anchors are in src/lib/legacy-anchors.ts.
       {
         source: "/nav-pilot/forklaring/lokal-modell/malinger",

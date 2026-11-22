@@ -125,7 +125,7 @@
       "version": "1.0.0",
       "status": "active",
       "publishedAt": "2026-11-19T00:00:00Z",
-      "websiteUrl": "https://ki-utvikling.nav.no/verktoy/fleet-gateway",
+      "websiteUrl": "https://ki-utvikling.nav.no/mcp/fleet-gateway",
       "repository": {
         "url": "https://github.com/navikt/copilot",
         "source": "github",
@@ -148,7 +148,7 @@
       "version": "1.0.0",
       "status": "active",
       "publishedAt": "2026-11-19T00:00:00Z",
-      "websiteUrl": "https://ki-utvikling.nav.no/verktoy/fleet-gateway",
+      "websiteUrl": "https://ki-utvikling.nav.no/mcp/fleet-gateway",
       "repository": {
         "url": "https://github.com/navikt/copilot",
         "source": "github",
@@ -171,7 +171,7 @@
       "version": "1.0.0",
       "status": "active",
       "publishedAt": "2026-11-21T00:00:00Z",
-      "websiteUrl": "https://ki-utvikling.nav.no/verktoy/fleet-gateway",
+      "websiteUrl": "https://ki-utvikling.nav.no/mcp/fleet-gateway",
       "repository": {
         "url": "https://github.com/navikt/copilot",
         "source": "github",

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { activeTop, inSection, sectionGroup } from "./nav-items";
+import { activeTop, inSection, sectionFor, sectionGroup } from "./nav-items";
 
 describe("activeTop", () => {
   it.each([
@@ -11,6 +11,8 @@ describe("activeTop", () => {
     ["/nav-pilot/lokal/egen-server", "/kom-i-gang"],
     ["/nav-pilot/agentpakker", "/verktoy"],
     ["/verktoy", "/verktoy"],
+    ["/mcp", "/mcp"],
+    ["/mcp/tilby-server/retningslinjer", "/mcp"],
     ["/retningslinjer", "/praksis"],
     ["/praksis/guide/wrap-metoden", "/praksis"],
     ["/innsikt/trender", "/innsikt"],
@@ -28,6 +30,10 @@ it("finds the section-menu group of a page", () => {
   expect(inSection("/praksis")).toBe(false);
   expect(inSection("/cplt")).toBe(false);
   expect(sectionGroup("/verktoy")?.label).toBe("Tilpasning");
+  expect(sectionGroup("/mcp/tilby-server/retningslinjer")?.label).toBe("Tilby en server");
+  expect(sectionFor("/mcp/bruke").title).toBe("MCP");
+  expect(sectionFor("/verktoy").title).toBe("nav-pilot");
+  expect(inSection("/mcp/referanse")).toBe(true);
   expect(sectionGroup("/kom-i-gang")?.label).toBe("Kom i gang");
   expect(sectionGroup("/nav-pilot/lokal/decide")?.label).toBe("Kom i gang");
   expect(sectionGroup("/nav-pilot/guider")?.label).toBe("Guider");

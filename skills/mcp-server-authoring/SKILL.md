@@ -28,7 +28,7 @@ Build an MCP server that Nav teams can run behind fleet-gateway. Workflow adapte
 
 ## Guidelines (source of truth)
 
-The full rules, each linked to OWASP MCP Top 10 and the MCP `2026-07-28` spec, live in one place: [Retningslinjer for MCP-servere](https://ki-utvikling.nav.no/verktoy/fleet-gateway/retningslinjer) (`apps/my-copilot/src/app/(nb)/(nav-pilot)/verktoy/fleet-gateway/retningslinjer/page.tsx`). Do not repeat them here; read the page. Registration steps: [fleet-gateway for teams](https://ki-utvikling.nav.no/verktoy/fleet-gateway/for-team).
+The full rules, each linked to OWASP MCP Top 10 and the MCP `2026-07-28` spec, live in one place: [Retningslinjer for MCP-servere](https://ki-utvikling.nav.no/mcp/tilby-server/retningslinjer) (`apps/my-copilot/src/app/(nb)/(nav-pilot)/mcp/tilby-server/retningslinjer/page.tsx`). Do not repeat them here; read the page. Registration steps: [fleet-gateway for teams](https://ki-utvikling.nav.no/mcp/tilby-server).
 
 Checklist:
 
@@ -64,6 +64,6 @@ Checklist:
 - `apps/mcp-kodeverk` — read-only reference server
 - `apps/mcp-dolly` — write tool (`create_order`) with caps, quota, ownership, audit line
 - `apps/fleet-gateway/README.md` — routes, tool lists, limits
-- [fleet-gateway for teams](https://ki-utvikling.nav.no/verktoy/fleet-gateway/for-team)
-- [Retningslinjer for MCP-servere](https://ki-utvikling.nav.no/verktoy/fleet-gateway/retningslinjer)
+- [fleet-gateway for teams](https://ki-utvikling.nav.no/mcp/tilby-server)
+- [Retningslinjer for MCP-servere](https://ki-utvikling.nav.no/mcp/tilby-server/retningslinjer)
 - [Anthropic mcp-builder](https://github.com/anthropics/skills/tree/main/skills/mcp-builder) (source of the workflow, Apache-2.0)

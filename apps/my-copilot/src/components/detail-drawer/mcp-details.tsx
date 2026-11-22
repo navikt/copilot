@@ -16,6 +16,7 @@ import {
   NAV_PILOT_MCP_TOOLS_MIN_VERSION,
 } from "@/lib/install-commands";
 import { CommandBlock } from "./shared";
+import { enableCommand } from "@/components/mcp/servers";
 
 type ManualClient = "vscode" | "intellij" | "cli";
 
@@ -103,7 +104,7 @@ export function McpDetails({ item }: { item: EnrichedCustomization }) {
 
   if (item.type !== "mcp") return null;
 
-  const enableCommand = `nav-pilot mcp enable ${item.serverId}`;
+  const enable = enableCommand(item.serverId);
   const hasLaunchRecipe = item.remotes.length > 0 || (item.packages?.length ?? 0) > 0;
   const tools = item.tools ?? [];
   const offByDefault = tools.filter((tool) => ["external", "host-exec"].includes(riskOf(item.toolRisk, tool)));
@@ -120,8 +121,8 @@ export function McpDetails({ item }: { item: EnrichedCustomization }) {
       {isFleetGatewayMcp(item) && (
         <BodyShort size="small">
           Serveren går gjennom fleet-gateway.{" "}
-          <NextLink href="/nav-pilot/guider/nav-mcp-servere" className={linkClass}>
-            Koble til Navs MCP-servere
+          <NextLink href="/mcp/bruke" className={linkClass}>
+            Bruke Navs MCP-servere
           </NextLink>
         </BodyShort>
       )}
@@ -143,7 +144,7 @@ export function McpDetails({ item }: { item: EnrichedCustomization }) {
                 <BodyShort size="small">
                   Med nav-pilot ({NAV_PILOT_MCP_TOOLS_MIN_VERSION} eller nyere) kjører du:
                 </BodyShort>
-                <CommandBlock command={enableCommand} />
+                <CommandBlock command={enable} />
                 <BodyShort size="small">
                   Kommandoen legger serveren inn i oppsettet for Copilot CLI og OpenCode (de du har installert), spør om
                   adressene serveren trenger i sandkassen, og sier fra om noe mangler.
@@ -154,7 +155,7 @@ export function McpDetails({ item }: { item: EnrichedCustomization }) {
                     {offByDefault.length === 1 ? "verktøyet" : "verktøyene"} som er av, kjører du kommandoen i en
                     terminal og velger dem, eller legger til <code className="verktoy-code-inline">--tools</code> med
                     alle verktøyene du vil ha på, skilt med komma:{" "}
-                    <code className="verktoy-code-inline">{enableCommand} --tools navn1,navn2</code>.
+                    <code className="verktoy-code-inline">{enable} --tools navn1,navn2</code>.
                     {hostExec.length > 0 && (
                       <>
                         {" "}

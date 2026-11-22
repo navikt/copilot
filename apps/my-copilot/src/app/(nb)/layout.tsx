@@ -30,7 +30,7 @@ const labels: ShellLabels = {
   skip: "Hopp til innhold",
   menu: "Meny",
   back: "Tilbake",
-  showSection: "Vis menyen for nav-pilot",
+  showSection: "Vis menyen for {name}",
   search: "Søk",
   glossary: "Ordbok",
   otherLang: "English",

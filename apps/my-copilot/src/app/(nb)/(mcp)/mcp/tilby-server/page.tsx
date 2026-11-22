@@ -127,7 +127,7 @@ const CHECKLIST = [
 export default function FleetGatewayForTeamPage() {
   return (
     <DocPage
-      label="Verktøy"
+      label="MCP"
       title="Koble teamets MCP-server til fleet-gateway"
       description={metadata.description as string}
       badge={
@@ -139,11 +139,11 @@ export default function FleetGatewayForTeamPage() {
     >
       <BodyShort>
         Les{" "}
-        <NextLink href="/verktoy/fleet-gateway" className={linkClass}>
+        <NextLink href="/mcp/fleet-gateway" className={linkClass}>
           oversikten over fleet-gateway
         </NextLink>{" "}
         først. Der står også{" "}
-        <NextLink href="/verktoy/fleet-gateway#status" className={linkClass}>
+        <NextLink href="/mcp/fleet-gateway#status" className={linkClass}>
           status for piloten
         </NextLink>
         . Stegene kan endres.
@@ -157,7 +157,7 @@ export default function FleetGatewayForTeamPage() {
         </LinkableHeading>
         <BodyLong>
           Skriver dere serveren selv? Les{" "}
-          <NextLink href="/verktoy/fleet-gateway/retningslinjer" className={linkClass}>
+          <NextLink href="/mcp/tilby-server/retningslinjer" className={linkClass}>
             retningslinjene for MCP-servere
           </NextLink>
           . De gir kravene til tokensjekk, grenser, logging, verktøybeskrivelser og ROS.
@@ -242,7 +242,7 @@ export default function FleetGatewayForTeamPage() {
               mcp-dolly
             </a>{" "}
             er referanseimplementasjoner for servere i piloten, se{" "}
-            <NextLink href="/verktoy/fleet-gateway#servere-i-piloten" className={linkClass}>
+            <NextLink href="/mcp/fleet-gateway#servere-i-piloten" className={linkClass}>
               Servere i piloten
             </NextLink>
             .
@@ -399,8 +399,8 @@ export default function FleetGatewayForTeamPage() {
                   <CodeBlock filename="Terminal">{"opencode mcp auth <navn>\nopencode"}</CodeBlock>
                   <BodyLong>
                     Be agenten kalle et verktøy. Første innlogging åpner nettleseren. Andre klienter står i{" "}
-                    <NextLink href="/nav-pilot/guider/nav-mcp-servere" className={linkClass}>
-                      Koble til Navs MCP-servere
+                    <NextLink href="/mcp/bruke" className={linkClass}>
+                      Bruke Navs MCP-servere
                     </NextLink>
                     .
                   </BodyLong>
@@ -507,7 +507,7 @@ export default function FleetGatewayForTeamPage() {
         </LinkableHeading>
         <BodyLong>
           Grenser, revisjonslogging og planlagte endringer står under{" "}
-          <NextLink href="/verktoy/fleet-gateway#planlagt" className={linkClass}>
+          <NextLink href="/mcp/fleet-gateway#planlagt" className={linkClass}>
             Planlagt og kjente begrensninger på oversiktssiden
           </NextLink>
           .

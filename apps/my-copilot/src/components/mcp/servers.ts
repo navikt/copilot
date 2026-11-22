@@ -50,3 +50,6 @@ export const PILOT_SERVERS = [
   inboundPrUrl?: string;
   inboundPrLabel?: string;
 }[];
+
+/** The nav-pilot command that turns on an MCP server. Shared by the gateway cards and the /verktoy drawer. */
+export const enableCommand = (server: string) => `nav-pilot mcp enable ${server}`;
