@@ -26,6 +26,10 @@ func fakeTexas(t *testing.T) *httptest.Server {
 			_, _ = w.Write([]byte(`{"active":true,"idtyp":"app","azp":"` + gatewayID + `"}`))
 		case "texas-garbage":
 			_, _ = w.Write([]byte("{not json"))
+		case "texas-trailing":
+			_, _ = w.Write([]byte(`{"active":true,"idtyp":"app","azp":"` + gatewayID + `"}not-json`))
+		case "texas-oversize":
+			_, _ = w.Write([]byte(`{"active":true,"idtyp":"app","azp":"` + gatewayID + `"}` + strings.Repeat(" ", 1<<20)))
 		case "inactive":
 			_, _ = w.Write([]byte(`{"active":false,"idtyp":"app","azp":"` + gatewayID + `"}`))
 		case "user-token":
@@ -95,9 +99,11 @@ func TestAuthzTexasFailures(t *testing.T) {
 		a   *authz
 		tok string
 	}{
-		"texas 500":     {testAuthz(t), "texas-500"},
-		"texas garbage": {testAuthz(t), "texas-garbage"},
-		"texas down":    {deadAuthz, gatewayID},
+		"texas 500":      {testAuthz(t), "texas-500"},
+		"texas garbage":  {testAuthz(t), "texas-garbage"},
+		"texas trailing": {testAuthz(t), "texas-trailing"},
+		"texas oversize": {testAuthz(t), "texas-oversize"},
+		"texas down":     {deadAuthz, gatewayID},
 	}
 	for name, c := range cases {
 		reached := false
