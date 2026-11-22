@@ -461,8 +461,8 @@ export default function McpRetningslinjerPage() {
             <a href={COMPLIANCE_URL} className={linkClass}>
               mcp-compliance
             </a>
-            . Installer med <code className={code}>go install github.com/navikt/copilot/cli/mcp-compliance@latest</code>
-            , eller last ned en ferdig binærfil fra README-en.
+            . Installer med <code className={code}>brew install navikt/tap/mcp-compliance</code>, eller med{" "}
+            <code className={code}>go install github.com/navikt/copilot/cli/mcp-compliance@latest</code>.
             <ReadMore header="Slik kjører dere testen" size="small">
               <BodyLong size="small">
                 Start serveren og kjør <code className={code}>mcp-compliance -url http://localhost:8080/mcp</code>.

@@ -38,13 +38,17 @@ Tokens are read from environment variables, never flags, so they stay out of pro
 
 ## Install
 
-With Go 1.26 or later:
+```sh
+brew install navikt/tap/mcp-compliance
+```
+
+Or with Go 1.26 or later:
 
 ```sh
 go install github.com/navikt/copilot/cli/mcp-compliance@latest
 ```
 
-Releases are tagged `cli/mcp-compliance/vX.Y.Z`, and `@latest` picks the newest tag. Before the first tag it resolves a pseudo-version of `main`. Use `@vX.Y.Z` to pin a version.
+Every change to `cli/mcp-compliance` merged to `main` is released automatically and tagged `cli/mcp-compliance/vX.Y.Z`; `@latest` picks the newest tag, and the Homebrew formula follows within an hour. Use `@vX.Y.Z` to pin a version.
 
 Binaries for macOS and Linux (amd64, arm64) and a `SHA256SUMS` file are on each [release](https://github.com/navikt/copilot/releases?q=mcp-compliance). Verify a binary's build provenance with:
 

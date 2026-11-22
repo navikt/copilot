@@ -1,12 +1,26 @@
 name: Release mcp-compliance
 
-# A tag cli/mcp-compliance/vX.Y.Z is both the Go module version (so
-# `go install ...@latest` resolves it) and the release. Builds, attestation,
-# checksums and publishing follow release-nav-pilot.yaml. A Homebrew formula
-# will come from a poller in navikt/homebrew-tap, as nav-pilot's does.
+# Every push to main that touches cli/mcp-compliance cuts a release, as
+# release-nav-pilot.yaml does for nav-pilot. The code was already checked by
+# `ci` in the merge queue. The tag cli/mcp-compliance/vX.Y.Z is both the Go
+# module version (so `go install ...@latest` resolves it) and the release; the
+# workflow creates it, and a tag ruleset keeps anyone else from doing so.
+# navikt/homebrew-tap polls for new releases and updates the formula, as it
+# does for nav-pilot.
+#
+# Version bump since the last tag, from Conventional Commit subjects of the
+# commits touching cli/mcp-compliance: a breaking change (`!:` or
+# BREAKING CHANGE) or `feat` bumps the minor while below v1, otherwise patch.
+# No tag yet gives v0.1.0.
 on:
   push:
-    tags: ["cli/mcp-compliance/v*"]
+    branches: [main]
+    paths: ["cli/mcp-compliance/**"]
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "release" to confirm'
+        required: true
 
 concurrency:
   group: mcp-compliance-release
@@ -18,8 +32,10 @@ permissions:
 jobs:
   prepare:
     name: Compute version
+    if: >
+      github.event_name == 'push' ||
+      (github.ref == 'refs/heads/main' && github.event.inputs.confirm == 'release')
     runs-on: ubuntu-latest
-    permissions: {}
     timeout-minutes: 5
     outputs:
       version: ${{ steps.v.outputs.version }}
@@ -27,31 +43,21 @@ jobs:
       tag: ${{ steps.v.outputs.tag }}
       title: ${{ steps.v.outputs.title }}
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
       - id: v
         env:
-          TAG: ${{ github.ref_name }}
           COMMIT_SHA: ${{ github.sha }}
-          REPO_URL: ${{ github.server_url }}/${{ github.repository }}
         run: |
           set -euo pipefail
-          if ! [[ "$TAG" =~ ^cli/mcp-compliance/v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "::error::tag $TAG is not cli/mcp-compliance/vX.Y.Z"
-            exit 1
-          fi
-          VERSION="${TAG#cli/mcp-compliance/}"
-          # Release only commits that are on main: a tag on a side branch must
-          # not publish. Public repo, so the fetch needs no credentials.
-          git init -q repo
-          git -C repo fetch -q --filter=blob:none "$REPO_URL" \
-            +refs/heads/main:refs/remotes/origin/main "+${COMMIT_SHA}:refs/tags/candidate"
-          if ! git -C repo merge-base --is-ancestor "$COMMIT_SHA" origin/main; then
-            echo "::error::$COMMIT_SHA is not on main; refusing to release"
-            exit 1
-          fi
+          VERSION=$(scripts/mcp-compliance-next-version.sh "$COMMIT_SHA")
           {
             echo "version=${VERSION}"
             echo "commit_sha=${COMMIT_SHA}"
-            echo "tag=${TAG}"
+            echo "tag=cli/mcp-compliance/${VERSION}"
             echo "title=mcp-compliance ${VERSION}"
           } >> "$GITHUB_OUTPUT"
 
@@ -134,7 +140,7 @@ jobs:
       - name: Check release assets
         run: ls artifacts/mcp-compliance-{darwin,linux}-{amd64,arm64} artifacts/SHA256SUMS
 
-      # The tag exists already, so the draft attaches to it. SWEEP_PREFIX keeps
+      # publish-release.sh creates the tag when it publishes. SWEEP_PREFIX keeps
       # the leftover-draft sweep off nav-pilot/ drafts, and LATEST=false keeps
       # the Latest badge on nav-pilot.
       - name: Create release
@@ -151,6 +157,7 @@ jobs:
             "Checks an MCP server behind fleet-gateway against MCP 2026-07-28 and Nav's auth rules." \
             "" \
             '```bash' \
+            "brew install navikt/tap/mcp-compliance" \
             "go install github.com/navikt/copilot/cli/mcp-compliance@${VERSION}" \
             '```' \
             "" \
