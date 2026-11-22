@@ -75,6 +75,10 @@ After editing an app, run `mise check` in that app's directory. Run `mise all` w
 - Verify framework APIs and Nav platform config against repo skills (`skills/`),
   Nav MCP servers (`io.github.navikt/aksel-mcp`), or official docs
   (`doc.nais.io`, `aksel.nav.no`, `sikkerhet.nav.no`) before writing code (#152).
+- Owner decisions on direction (architecture, product scope, policy,
+  ownership, privacy, what we stop doing) go in copilot-intern's
+  `beslutningslogg.md` with a link to the issue or PR. Do not log what git and
+  PR history already show: implementation choices, wording, UI details.
 - Start with the smallest safe change and keep diffs task-focused.
 - Reuse existing patterns before adding new abstractions.
 - In `my-copilot`, use Aksel spacing tokens, not Tailwind `p-*/m-*` utilities.
