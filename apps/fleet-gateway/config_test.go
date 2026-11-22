@@ -29,6 +29,10 @@ func setBaseValidEnv(t *testing.T) {
 	t.Setenv("PILOT_ROUTES_FILE", "pilot-routes.dev.yaml")
 	t.Setenv("SESSION_STORE", "")
 	t.Setenv("RT_STORAGE", "")
+	t.Setenv("ROUTES_SOURCE", "")
+	t.Setenv("FLEET_CONTROL_URL", "")
+	t.Setenv("FLEET_CONTROL_AUDIENCE", "")
+	t.Setenv("NAIS_TOKEN_ENDPOINT", "")
 }
 
 func TestLoadConfig_FailClosed(t *testing.T) {
@@ -46,6 +50,31 @@ func TestLoadConfig_FailClosed(t *testing.T) {
 			name:      "missing pilot routes file fails closed",
 			override:  map[string]string{"PILOT_ROUTES_FILE": ""},
 			wantError: "PILOT_ROUTES_FILE is required",
+		},
+		{
+			name:      "unknown routes source fails closed",
+			override:  map[string]string{"ROUTES_SOURCE": "fleetcontrol"},
+			wantError: "unsupported ROUTES_SOURCE",
+		},
+		{
+			name:      "fleet-control source without URL fails closed",
+			override:  map[string]string{"ROUTES_SOURCE": "fleet-control", "NAIS_TOKEN_ENDPOINT": "http://127.0.0.1:3000/api/v1/token", "FLEET_CONTROL_AUDIENCE": "api://x/.default"}, //nolint:gosec // env names, not credentials
+			wantError: "invalid FLEET_CONTROL_URL",
+		},
+		{
+			name:      "fleet-control source without Texas fails closed",
+			override:  map[string]string{"ROUTES_SOURCE": "fleet-control", "FLEET_CONTROL_URL": "http://fleet-control", "FLEET_CONTROL_AUDIENCE": "api://x/.default"},
+			wantError: "invalid NAIS_TOKEN_ENDPOINT",
+		},
+		{
+			name:      "fleet-control source without audience fails closed",
+			override:  map[string]string{"ROUTES_SOURCE": "fleet-control", "FLEET_CONTROL_URL": "http://fleet-control", "NAIS_TOKEN_ENDPOINT": "http://127.0.0.1:3000/api/v1/token"}, //nolint:gosec // env names, not credentials
+			wantError: "FLEET_CONTROL_AUDIENCE is required",
+		},
+		{
+			name:      "fleet-control source with full config succeeds",
+			override:  map[string]string{"ROUTES_SOURCE": "fleet-control", "FLEET_CONTROL_URL": "http://fleet-control", "NAIS_TOKEN_ENDPOINT": "http://127.0.0.1:3000/api/v1/token", "FLEET_CONTROL_AUDIENCE": "api://x/.default"}, //nolint:gosec // env names, not credentials
+			wantError: "",
 		},
 		{
 			name:      "empty client allowlist fails closed",

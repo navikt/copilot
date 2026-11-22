@@ -42,14 +42,12 @@ func (e *upstreamTokenError) Error() string {
 	return "upstream token acquisition failed"
 }
 
-func newTeamTokenSource(cfg *Config, table *RouteTable, store SessionStore, now func() time.Time) (TeamTokenSource, error) {
+// table is read per call, so a swapped route table (#2641) applies at once.
+func newTeamTokenSource(cfg *Config, table func() *RouteTable, store SessionStore, now func() time.Time) (TeamTokenSource, error) {
 	if now == nil {
 		now = time.Now
 	}
-	byRes := make(map[string]PilotRoute, len(table.Routes))
-	for _, r := range table.Routes {
-		byRes[cfg.BaseURL+r.Route] = r
-	}
+	byRes := func(resource string) (PilotRoute, bool) { return table().routeByResource(resource) }
 
 	switch cfg.TeamTokenStrategy {
 	case "", strategyOBO:
@@ -81,7 +79,7 @@ func newTeamTokenSource(cfg *Config, table *RouteTable, store SessionStore, now 
 type StrategyOBO struct {
 	store            SessionStore
 	sessionMaxAge    time.Duration
-	routesByResource map[string]PilotRoute
+	routesByResource func(string) (PilotRoute, bool)
 	endpoint         string
 	client           *http.Client
 	now              func() time.Time
@@ -92,7 +90,7 @@ func (s *StrategyOBO) TeamToken(ctx context.Context, sessionID, resource string)
 	if s.endpoint == "" {
 		return "", &upstreamTokenError{reason: "texas exchange endpoint not configured"}
 	}
-	route, ok := s.routesByResource[resource]
+	route, ok := s.routesByResource(resource)
 	if !ok {
 		return "", fmt.Errorf("unknown route resource %q", resource)
 	}
@@ -158,7 +156,7 @@ func (s *StrategyOBO) TeamToken(ctx context.Context, sessionID, resource string)
 type StrategyRefresh struct {
 	store            SessionStore
 	sessionMaxAge    time.Duration
-	routesByResource map[string]PilotRoute
+	routesByResource func(string) (PilotRoute, bool)
 	tokenEndpoint    string
 	clientID         string
 	clientSecret     string
@@ -179,7 +177,7 @@ func (s *StrategyRefresh) TeamToken(ctx context.Context, sessionID, resource str
 	if s.tokenEndpoint == "" {
 		return "", &upstreamTokenError{reason: "entra token endpoint not configured"}
 	}
-	route, ok := s.routesByResource[resource]
+	route, ok := s.routesByResource(resource)
 	if !ok {
 		return "", fmt.Errorf("unknown route resource %q", resource)
 	}

@@ -91,7 +91,9 @@ func newGateway(cfg *Config, now func() time.Time) (*Gateway, error) {
 		return nil, err
 	}
 	table := newRouteTable(cfg)
-	teamTokens, err := newTeamTokenSource(cfg, table, store, now)
+	var gw *Gateway
+	gwTable := func() *RouteTable { return gw.table() }
+	teamTokens, err := newTeamTokenSource(cfg, gwTable, store, now)
 	if err != nil {
 		if ownedStore {
 			store.Close()
@@ -102,7 +104,7 @@ func newGateway(cfg *Config, now func() time.Time) (*Gateway, error) {
 	for _, ep := range rateLimitedEndpoints {
 		limiters[ep] = newIPRateLimiter(cfg.RateLimitRequests, cfg.RateLimitGlobalRequests, cfg.RateLimitWindow, cfg.RateLimitCap, now)
 	}
-	gw := &Gateway{
+	gw = &Gateway{
 		cfg:          cfg,
 		now:          now,
 		store:        store,
@@ -567,6 +569,8 @@ func main() {
 	defer stop()
 
 	gw.startSweeper(ctx, defaultSweepInterval)
+	routesLoaded.Set(float64(len(gw.table().Routes)))
+	gw.startRouteSync(ctx, fleetControlSyncInterval)
 
 	server := &http.Server{
 		Addr:              ":" + cfg.Port,
@@ -588,9 +592,9 @@ func main() {
 		"team_token_strategy", cfg.TeamTokenStrategy,
 		"rt_storage", cfg.RTStorage,
 		"identity_source", cfg.IdentitySource,
+		"routes_source", cfg.RoutesSource,
 	)
 
-	routesLoaded.Set(float64(len(gw.table().Routes)))
 	initMetrics(gw.table().Routes)
 	metrics := metricsServer(":" + config.Get("METRICS_PORT", "9090"))
 	go func() {

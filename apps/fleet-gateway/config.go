@@ -94,6 +94,11 @@ type Config struct {
 	TexasExchangeEndpoint   string
 	TexasIntrospectEndpoint string // validates the Entra access token at login for NAVident (#2594)
 	IdentitySource          string // legacy (default) or introspection; where login takes NAVident from (#2594)
+	// RoutesSource is git (default, PILOT_ROUTES_FILE only) or fleet-control (#2641).
+	RoutesSource            string
+	FleetControlURL         string
+	FleetControlAudience    string
+	TexasTokenEndpoint      string // M2M token for fleet-control
 	EntraScope              string
 	AzureClientID           string
 	AzureClientSecret       string
@@ -217,6 +222,10 @@ func loadConfigFromEnv() (*Config, error) {
 		TexasExchangeEndpoint:   strings.TrimSpace(os.Getenv("NAIS_TOKEN_EXCHANGE_ENDPOINT")),
 		TexasIntrospectEndpoint: strings.TrimSpace(os.Getenv("NAIS_TOKEN_INTROSPECTION_ENDPOINT")),
 		IdentitySource:          strings.TrimSpace(os.Getenv("IDENTITY_SOURCE")),
+		RoutesSource:            strings.TrimSpace(os.Getenv("ROUTES_SOURCE")),
+		FleetControlURL:         strings.TrimRight(strings.TrimSpace(os.Getenv("FLEET_CONTROL_URL")), "/"),
+		FleetControlAudience:    strings.TrimSpace(os.Getenv("FLEET_CONTROL_AUDIENCE")),
+		TexasTokenEndpoint:      strings.TrimSpace(os.Getenv("NAIS_TOKEN_ENDPOINT")),
 		EntraScope:              entraScope,
 		AzureClientID:           strings.TrimSpace(os.Getenv("AZURE_APP_CLIENT_ID")),
 		AzureClientSecret:       strings.TrimSpace(os.Getenv("AZURE_APP_CLIENT_SECRET")),
@@ -298,6 +307,22 @@ func validateConfig(cfg *Config) error {
 		return err
 	}
 	cfg.Routes = validatedRoutes
+	switch cfg.RoutesSource {
+	case "", routesSourceGit:
+		cfg.RoutesSource = routesSourceGit
+	case routesSourceFleetControl:
+		if err := config.ValidateHTTPURL(cfg.FleetControlURL, false); err != nil {
+			return fmt.Errorf("invalid FLEET_CONTROL_URL: %w", err)
+		}
+		if err := config.ValidateHTTPURL(cfg.TexasTokenEndpoint, false); err != nil {
+			return fmt.Errorf("invalid NAIS_TOKEN_ENDPOINT: %w", err)
+		}
+		if cfg.FleetControlAudience == "" {
+			return errors.New("FLEET_CONTROL_AUDIENCE is required when ROUTES_SOURCE=fleet-control")
+		}
+	default:
+		return fmt.Errorf("unsupported ROUTES_SOURCE %q (git or fleet-control)", cfg.RoutesSource)
+	}
 	cfg.RoutesByPath = make(map[string]PilotRoute, len(validatedRoutes))
 	cfg.AllowedResources = make(map[string]bool, len(validatedRoutes))
 	for i := range cfg.Routes {
