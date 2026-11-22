@@ -36,12 +36,13 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	teams, err := teamsFromEnv()
+	cluster := os.Getenv("NAIS_CLUSTER_NAME")
+	teams, err := teamsFromEnv(cluster)
 	if err != nil {
 		return err
 	}
 	srv := newServer()
-	adminClientID := strings.TrimSpace(os.Getenv("MY_COPILOT_CLIENT_ID"))
+	adminClientID := adminClientFor(cluster, strings.TrimSpace(os.Getenv("MY_COPILOT_CLIENT_ID")))
 	httpSrv := &http.Server{Addr: ":" + port, Handler: srv.routes(auth, adminClientID, teams), ReadHeaderTimeout: 5 * time.Second}
 
 	go func() {

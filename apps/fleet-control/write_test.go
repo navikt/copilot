@@ -73,6 +73,10 @@ func TestValidateDraftRejectsHostileInput(t *testing.T) {
 
 type failingTeams struct{}
 
+func (failingTeams) Teams(context.Context, string) ([]string, error) {
+	return nil, errors.New("teams API down")
+}
+
 func (failingTeams) IsMember(context.Context, string, string) (bool, error) {
 	return false, errors.New("teams API down")
 }
@@ -108,15 +112,29 @@ func TestAdminGuardsFailClosed(t *testing.T) {
 }
 
 func TestTeamsFromEnv(t *testing.T) {
-	t.Setenv("FLEET_CONTROL_STATIC_TEAMS", `{"team-a":["A111111"]}`)
-	if d, err := teamsFromEnv(); err != nil {
+	t.Setenv("FLEET_CONTROL_STATIC_TEAMS", `{"team-a":["A111111"],"team-b":["A111111"]}`)
+	if d, err := teamsFromEnv("dev-gcp"); err != nil {
 		t.Fatal(err)
 	} else if ok, _ := d.IsMember(context.Background(), "team-a", "A111111"); !ok {
 		t.Error("want member")
+	} else if list, _ := d.Teams(context.Background(), "A111111"); strings.Join(list, ",") != "team-a,team-b" {
+		t.Errorf("teams: %v", list)
+	}
+	// The static list must never run outside dev, and an unknown cluster is not dev.
+	for _, cluster := range []string{"prod-gcp", "prod-fss", ""} {
+		if _, err := teamsFromEnv(cluster); err == nil {
+			t.Errorf("static teams in cluster %q: want error", cluster)
+		}
+		if got := adminClientFor(cluster, adminID); got != "" {
+			t.Errorf("write routes mounted in cluster %q", cluster)
+		}
+	}
+	if adminClientFor("dev-gcp", adminID) != adminID {
+		t.Error("dev-gcp must mount the write routes")
 	}
 	for _, bad := range []string{`{"Team":["A111111"]}`, `{"team-a":["x"]}`, `[]`} {
 		t.Setenv("FLEET_CONTROL_STATIC_TEAMS", bad)
-		if _, err := teamsFromEnv(); err == nil {
+		if _, err := teamsFromEnv("dev-gcp"); err == nil {
 			t.Errorf("%s: want error", bad)
 		}
 	}
@@ -282,5 +300,50 @@ func TestRealPostgresWriteFlow(t *testing.T) {
 	db.Close()
 	if rec := do(t, h, http.MethodPut, base+"/draft", a, routeDraft); rec.Code != 503 {
 		t.Errorf("Postgres down: %d, want 503", rec.Code)
+	}
+}
+
+// Rollback skips versions that were never approved and versions blocked by
+// a revoke: one person must not be able to publish either.
+func TestRealPostgresRollbackSkipsUnapprovedAndBlocked(t *testing.T) {
+	db := openTestDB(t)
+	ctx := context.Background()
+	if err := db.Migrate(ctx); err != nil {
+		t.Fatal(err)
+	}
+	sv, err := validateDraft("team-a", "rb", draftSpec{Route: &struct {
+		Target      string   `json:"target"`
+		UpstreamURL string   `json:"upstream_url"`
+		Enabled     *bool    `json:"enabled"`
+		Tools       []string `json:"tools"`
+	}{Target: "dev-gcp:team-a:rb", UpstreamURL: "http://rb.team-a/mcp", Tools: []string{"search"}}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	publish := func() int {
+		v, err := db.SaveDraft(ctx, "A111111", sv, "h")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := db.Approve(ctx, "A222222", "team-a", "rb", v, "h"); err != nil {
+			t.Fatal(err)
+		}
+		return v
+	}
+	publish()                                                       // 1
+	if _, err = db.SaveDraft(ctx, "A111111", sv, "h"); err != nil { // 2, never approved
+		t.Fatal(err)
+	}
+	publish() // 3
+	if err = db.Revoke(ctx, "A111111", "team-a", "rb", "leaked credentials", true); err != nil {
+		t.Fatal(err)
+	}
+	publish() // 4
+	got, err := db.Rollback(ctx, "A111111", "team-a", "rb")
+	if err != nil || got != 1 {
+		t.Fatalf("rollback: got version %d (%v), want 1: 2 was never approved, 3 is blocked", got, err)
+	}
+	if _, err = db.Rollback(ctx, "A111111", "team-a", "rb"); err == nil {
+		t.Error("rollback below the first version must fail")
 	}
 }

@@ -12,6 +12,8 @@ ALTER TABLE server_versions
     ADD COLUMN approved_by TEXT,
     ADD COLUMN approved_at TIMESTAMPTZ,
     ADD COLUMN published_at TIMESTAMPTZ,
+    -- blocked versions were stopped for cause; rollback never returns to them.
+    ADD COLUMN blocked BOOLEAN NOT NULL DEFAULT false,
     ADD CONSTRAINT server_versions_four_eyes CHECK (approved_by IS NULL OR approved_by <> submitted_by);
 
 UPDATE server_versions v SET published_at = v.created_at

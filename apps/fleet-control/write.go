@@ -99,7 +99,7 @@ type writeStore interface {
 	ServerDetail(ctx context.Context, ns, name string) (map[string]any, error)
 	SaveDraft(ctx context.Context, actor string, s Server, hash string) (int, error)
 	Approve(ctx context.Context, actor, ns, name string, version int, hash string) error
-	Revoke(ctx context.Context, actor, ns, name, reason string) error
+	Revoke(ctx context.Context, actor, ns, name, reason string, block bool) error
 	Rollback(ctx context.Context, actor, ns, name string) (int, error)
 }
 
@@ -244,8 +244,9 @@ func (d *DB) Approve(ctx context.Context, actor, ns, name string, version int, h
 	})
 }
 
-// Revoke stops a published server. One person is enough.
-func (d *DB) Revoke(ctx context.Context, actor, ns, name, reason string) error {
+// Revoke stops a published server. One person is enough. block also marks
+// the published version so rollback never returns to it.
+func (d *DB) Revoke(ctx context.Context, actor, ns, name, reason string, block bool) error {
 	return pgx.BeginFunc(ctx, d.pool, func(tx pgx.Tx) error {
 		before, err := lockServer(ctx, tx, ns, name)
 		if err != nil {
@@ -257,9 +258,14 @@ func (d *DB) Revoke(ctx context.Context, actor, ns, name, reason string) error {
 		if _, err := tx.Exec(ctx, `UPDATE servers SET status = 'revoked', updated_at = now() WHERE namespace = $1 AND name = $2`, ns, name); err != nil {
 			return err
 		}
+		if block {
+			if _, err := tx.Exec(ctx, `UPDATE server_versions SET blocked = true WHERE namespace = $1 AND name = $2 AND version = $3`, ns, name, *before.Published); err != nil {
+				return err
+			}
+		}
 		after := before
 		after.Status = "revoked"
-		return audit(ctx, tx, actor, "revoked", ns, name, before.Published, before, after, map[string]any{"reason": reason})
+		return audit(ctx, tx, actor, "revoked", ns, name, before.Published, before, after, map[string]any{"reason": reason, "blocked": block})
 	})
 }
 
@@ -276,9 +282,9 @@ func (d *DB) Rollback(ctx context.Context, actor, ns, name string) (int, error) 
 			return refuse(http.StatusConflict, "server has no published version")
 		}
 		var regName *string
-		err = tx.QueryRow(ctx, `SELECT version, registry->>'name' FROM server_versions WHERE namespace = $1 AND name = $2 AND published_at IS NOT NULL AND version < $3 ORDER BY version DESC LIMIT 1`, ns, name, *before.Published).Scan(&target, &regName)
+		err = tx.QueryRow(ctx, `SELECT version, registry->>'name' FROM server_versions WHERE namespace = $1 AND name = $2 AND published_at IS NOT NULL AND NOT blocked AND version < $3 ORDER BY version DESC LIMIT 1`, ns, name, *before.Published).Scan(&target, &regName)
 		if errors.Is(err, pgx.ErrNoRows) {
-			return refuse(http.StatusConflict, "no earlier published version")
+			return refuse(http.StatusConflict, "no earlier published, unblocked version")
 		}
 		if err != nil {
 			return err
@@ -408,6 +414,7 @@ func postApprove(w http.ResponseWriter, r *http.Request, ws writeStore, actor, n
 func postRevoke(w http.ResponseWriter, r *http.Request, ws writeStore, actor, ns, name string) error {
 	var body struct {
 		Reason string `json:"reason"`
+		Block  bool   `json:"block"`
 	}
 	if err := decodeBody(w, r, &body); err != nil {
 		return err
@@ -415,7 +422,7 @@ func postRevoke(w http.ResponseWriter, r *http.Request, ws writeStore, actor, ns
 	if body.Reason = strings.TrimSpace(body.Reason); body.Reason == "" || len(body.Reason) > 500 {
 		return refuse(http.StatusBadRequest, "reason must be 1 to 500 characters")
 	}
-	if err := ws.Revoke(r.Context(), actor, ns, name, body.Reason); err != nil {
+	if err := ws.Revoke(r.Context(), actor, ns, name, body.Reason, body.Block); err != nil {
 		return err
 	}
 	writeJSON(w, map[string]any{"status": "revoked"})
