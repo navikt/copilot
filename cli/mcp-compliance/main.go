@@ -474,14 +474,14 @@ func (cfg *config) expectChallenge(token string) error {
 	if e := expectStatus(resp, err, 401); e != nil {
 		return e
 	}
-	h := resp.header.Get("WWW-Authenticate")
-	hasErr := strings.Contains(h, "error=")
+	c, isBearer := bearerChallenge(resp.header.Values("WWW-Authenticate"))
+	_, hasErr := c.params["error"]
 	switch {
-	case token == "" && !strings.HasPrefix(h, "Bearer"):
+	case token == "" && !isBearer:
 		return warnError("no WWW-Authenticate: Bearer challenge (RFC 6750 SHOULD)")
 	case token == "" && hasErr:
 		return warnError("WWW-Authenticate has an error code for a request without a token (RFC 6750 3.1 SHOULD NOT)")
-	case token != "" && !strings.Contains(h, `error="invalid_token"`):
+	case token != "" && c.params["error"] != "invalid_token":
 		// The reference servers send no challenge yet; discover-first already guards a wrong URL.
 		return warnError(`no WWW-Authenticate with error="invalid_token" (RFC 6750 SHOULD)`)
 	}
