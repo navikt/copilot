@@ -48,7 +48,9 @@ func (g *Gateway) undoLockout(ctx context.Context, navIdent, operator string) er
 }
 
 func (g *Gateway) drainLockoutAudit(ctx context.Context) {
-	g.lockouts().DrainAudit(ctx)
+	if n := g.lockouts().DrainAudit(ctx); n >= 0 {
+		lockoutAuditOutboxPending.Set(float64(n))
+	}
 }
 
 func (g *Gateway) userRevoked(ctx context.Context, navIdent string, issuedAt time.Time) (bool, error) {

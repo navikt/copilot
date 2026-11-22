@@ -33,6 +33,10 @@ var (
 		Buckets: []float64{0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 60, 120},
 	}, []string{"route"})
 
+	lockoutAuditOutboxPending = promauto.NewGauge(prometheus.GaugeOpts{
+		Name: "fleet_gateway_lockout_audit_outbox_pending",
+		Help: "Lockout audit entries left in the outbox after the last drain. Above zero for long means the drain keeps failing.",
+	})
 	routesLoaded = promauto.NewGauge(prometheus.GaugeOpts{
 		Name: "fleet_gateway_routes_loaded",
 		Help: "Number of MCP routes loaded from the route file at startup.",

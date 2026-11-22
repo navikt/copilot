@@ -14,6 +14,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/prometheus/client_golang/prometheus/testutil"
 )
 
 // Generated per run so no key-shaped literal lives in the source.
@@ -533,6 +535,77 @@ func parseJSONLogLines(t *testing.T, raw []byte) []map[string]any {
 		out = append(out, m)
 	}
 	return out
+}
+
+// Entries queued before a shutdown stay in the Postgres outbox and are logged
+// by the first drain after the restart (#2657).
+func TestLockout_Postgres_OutboxSurvivesRestart(t *testing.T) {
+	pgURL := os.Getenv("FGW_TEST_PG_URL")
+	if pgURL == "" {
+		t.Skip("FGW_TEST_PG_URL not set")
+	}
+	ctx := context.Background()
+	clk := newFakeClock(time.Date(2026, 11, 22, 12, 0, 0, 0, time.UTC))
+	kr, err := parseKeyRing("k1:" + testKeyBase64(t, false))
+	if err != nil {
+		t.Fatalf("parseKeyRing: %v", err)
+	}
+	schemaURL := newTestPostgresSchemaURL(t, pgURL)
+	newGateway := func() (*Gateway, SessionStore) {
+		pgStore := openTestPostgresStore(t, schemaURL, clk.Now, nil)
+		store := newSealedStore(pgStore, kr)
+		cfg := &Config{SessionMaxAge: defaultSessionMaxAge, ConsentTTL: defaultConsentTTL, Store: store, LockoutKey: testLockoutKey}
+		return &Gateway{cfg: cfg, now: clk.Now, store: store, rtKeys: kr, lockoutKey: []byte(testLockoutKey)}, pgStore
+	}
+
+	before, pgBefore := newGateway()
+	if _, err := before.lockOutUser(ctx, "Z123456", "op-before"); err != nil {
+		t.Fatalf("lockOutUser: %v", err)
+	}
+	pgBefore.Close() // shut down without draining
+
+	var buf bytes.Buffer
+	prev := slog.Default()
+	slog.SetDefault(slog.New(slog.NewJSONHandler(&buf, nil)))
+	defer slog.SetDefault(prev)
+
+	after, pgAfter := newGateway()
+	defer pgAfter.Close()
+	lockoutAuditOutboxPending.Set(-1)
+	after.drainLockoutAudit(ctx)
+	lines := parseJSONLogLines(t, buf.Bytes())
+	if len(lines) != 1 || lines[0]["action"] != "lock" || lines[0]["operator"] != "op-before" {
+		t.Fatalf("drain after restart logged %v, want the lock queued before shutdown", lines)
+	}
+	if got := testutil.ToFloat64(lockoutAuditOutboxPending); got != 0 {
+		t.Fatalf("outbox pending after drain = %v, want 0", got)
+	}
+}
+
+func TestLockout_DrainAuditSetsPendingGauge(t *testing.T) {
+	ctx := context.Background()
+	te := withLockoutKey(t, newTestEnv(t))
+	if _, err := te.gw.lockOutUser(ctx, te.navIdent, "op"); err != nil {
+		t.Fatalf("lockOutUser: %v", err)
+	}
+	if n := te.gw.lockouts().DrainAudit(context.Background()); n != 0 {
+		t.Fatalf("DrainAudit left %d entries, want 0", n)
+	}
+	if _, err := te.gw.lockOutUser(ctx, te.navIdent, "op"); err != nil {
+		t.Fatalf("lockOutUser: %v", err)
+	}
+	// A cancelled context makes the read fail: the gauge keeps its last value.
+	lockoutAuditOutboxPending.Set(7)
+	cancelled, cancel := context.WithCancel(ctx)
+	cancel()
+	te.gw.drainLockoutAudit(cancelled)
+	if got := testutil.ToFloat64(lockoutAuditOutboxPending); got != 7 {
+		t.Fatalf("gauge after failed drain = %v, want unchanged 7", got)
+	}
+	te.gw.drainLockoutAudit(ctx)
+	if got := testutil.ToFloat64(lockoutAuditOutboxPending); got != 0 {
+		t.Fatalf("gauge after drain = %v, want 0", got)
+	}
 }
 
 func TestLockout_DrainAudit(t *testing.T) {
