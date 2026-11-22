@@ -92,6 +92,9 @@ func TestCreateOrderElicitationNotConfirmed(t *testing.T) {
 		"decline":         answer("decline", false),
 		"cancel":          answer("cancel", false),
 		"accept unticked": answer("accept", false),
+		"decline ticked":  answer("decline", true),
+		"cancel ticked":   answer("cancel", true),
+		"accept missing":  {orderConfirmKey: map[string]any{"action": "accept", "content": map[string]any{}}},
 	} {
 		t.Run(name, func(t *testing.T) {
 			srv, posts, _ := twoStepServer(t)
