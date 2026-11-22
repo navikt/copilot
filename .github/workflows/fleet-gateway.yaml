@@ -81,6 +81,8 @@ jobs:
         working-directory: apps/fleet-gateway
     env:
       FGW_TEST_PG_URL: postgres://postgres:test@localhost:5432/postgres?sslmode=disable
+      # Makes the Postgres tests fail instead of skip if the URL goes missing.
+      FGW_REQUIRE_PG: "1"
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
       - uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # ratchet:jdx/mise-action@v5.2.8
