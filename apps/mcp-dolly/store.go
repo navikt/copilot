@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/jackc/pgx/v5"
 	"log/slog"
 	"strings"
 	"sync"
@@ -72,6 +73,8 @@ func newPGStore(url string) (*pgStore, error) {
 		// Never wrap err: its text can contain the URL and the password.
 		return nil, fmt.Errorf("invalid MCP_DOLLY_DATABASE_URL (%T)", err)
 	}
+	// Nais Postgres connects through PgBouncer in transaction mode: no cached prepared statements.
+	cfg.ConnConfig.DefaultQueryExecMode = pgx.QueryExecModeSimpleProtocol
 	pool, err := pgxpool.NewWithConfig(context.Background(), cfg)
 	if err != nil {
 		return nil, fmt.Errorf("create database pool for MCP_DOLLY_DATABASE_URL (%T)", err)
