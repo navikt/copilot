@@ -42,6 +42,7 @@ type config struct {
 	// TwoStepOrder lets clients without form elicitation confirm through the model (dev only).
 	TwoStepOrder bool
 	HTTPClient   *http.Client
+	Keys         serverKeys
 }
 
 func loadConfigFromEnv() (*config, error) {
@@ -78,7 +79,13 @@ func loadConfigFromEnv() (*config, error) {
 		return nil, err
 	}
 
+	keys, err := loadServerKeys()
+	if err != nil {
+		return nil, err
+	}
+
 	return &config{
+		Keys:                  keys,
 		Port:                  getEnv("PORT", defaultPort),
 		LogLevel:              parseLogLevel(getEnv("LOG_LEVEL", "INFO")),
 		IntrospectionEndpoint: introspectionEndpoint,
@@ -111,8 +118,8 @@ func newServer(cfg *config) *server {
 		cfg:         cfg,
 		dolly:       newDollyClient(cfg.DollyURL, cfg.HTTPClient),
 		upstreamSem: make(chan struct{}, maxConcurrentUpstream),
-		quota:       newUserQuota(),
-		confirm:     newOrderConfirm(),
+		quota:       newUserQuota(cfg.Keys.userHash),
+		confirm:     newOrderConfirm(cfg.Keys.confirm),
 		now:         time.Now,
 	}
 }
@@ -374,6 +381,10 @@ func main() {
 			"has_gateway_client_id", cfg.GatewayClientID != "",
 			"has_dolly_scope", cfg.DollyScope != "",
 		)
+	}
+
+	if cfg.Keys.generated {
+		slog.Warn("using per-pod generated keys (" + generatedKeysEnv + "): tokens and quota do not survive restarts or cross pods")
 	}
 
 	srv := newServer(cfg)
