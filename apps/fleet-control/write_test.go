@@ -33,10 +33,10 @@ func do(t *testing.T, h http.Handler, method, path, tok, body string) *httptest.
 const routeDraft = `{"route":{"target":"dev-gcp:team-a:svc","upstream_url":"http://svc.team-a/mcp","tools":["search"]}}`
 
 func TestValidateDraftRejectsHostileInput(t *testing.T) {
-	gw := `{"name":"io.github.navikt/svc","remotes":[{"type":"streamable-http","url":"https://fleet-gateway.{{domain_internal}}/mcp/team-a/svc"}]}`
+	gw := `{"name":"io.github.navikt/svc","description":"d","version":"1","remotes":[{"type":"streamable-http","url":"https://fleet-gateway.{{domain_internal}}/mcp/team-a/svc"}]}`
 	ok := map[string]string{
 		"route":            routeDraft,
-		"registry only":    `{"registry":{"name":"io.github.navikt/svc"}}`,
+		"registry only":    `{"registry":{"name":"io.github.navikt/svc","description":"d","version":"1"}}`,
 		"route + registry": `{"registry":` + gw + `,` + routeDraft[1:],
 	}
 	for name, body := range ok {
@@ -44,7 +44,7 @@ func TestValidateDraftRejectsHostileInput(t *testing.T) {
 		if err := json.Unmarshal([]byte(body), &spec); err != nil {
 			t.Fatal(err)
 		}
-		if _, err := validateDraft("team-a", "svc", spec); err != nil {
+		if _, err := validateDraft("dev-gcp", "team-a", "svc", spec); err != nil {
 			t.Errorf("%s: %v", name, err)
 		}
 	}
@@ -54,23 +54,28 @@ func TestValidateDraftRejectsHostileInput(t *testing.T) {
 		"upstream in other ns":  `{"route":{"target":"dev-gcp:team-a:svc","upstream_url":"http://svc.team-b/mcp","tools":["search"]}}`,
 		"upstream external":     `{"route":{"target":"dev-gcp:team-a:svc","upstream_url":"https://evil.example.com/mcp","tools":["search"]}}`,
 		"upstream ip":           `{"route":{"target":"dev-gcp:team-a:svc","upstream_url":"http://169.254.169.254/","tools":["search"]}}`,
+		"target other cluster":  `{"route":{"target":"prod-gcp:team-a:svc","upstream_url":"http://svc.team-a/mcp","tools":["search"]}}`,
+		"registry no desc":      `{"registry":{"name":"io.github.navikt/svc","version":"1"}}`,
+		"registry no version":   `{"registry":{"name":"io.github.navikt/svc","description":"d"}}`,
+		"registry num version":  `{"registry":{"name":"io.github.navikt/svc","description":"d","version":1}}`,
+		"registry long desc":    `{"registry":{"name":"io.github.navikt/svc","version":"1","description":"` + strings.Repeat("x", 101) + `"}}`,
 		"upstream ingress":      `{"route":{"target":"dev-gcp:team-a:svc","upstream_url":"https://collector.intern.dev.nav.no/mcp","tools":["search"]}}`,
 		"upstream other app":    `{"route":{"target":"dev-gcp:team-a:svc","upstream_url":"http://other.team-a/mcp","tools":["search"]}}`,
 		"upstream query":        `{"route":{"target":"dev-gcp:team-a:svc","upstream_url":"http://svc.team-a/mcp?x=1","tools":["search"]}}`,
 		"upstream fragment":     `{"route":{"target":"dev-gcp:team-a:svc","upstream_url":"http://svc.team-a/mcp#x","tools":["search"]}}`,
 		"bad tool":              `{"route":{"target":"dev-gcp:team-a:svc","upstream_url":"http://svc.team-a/mcp","tools":["a b"]}}`,
 		"no tools":              `{"route":{"target":"dev-gcp:team-a:svc","upstream_url":"http://svc.team-a/mcp","tools":[]}}`,
-		"registry elsewhere":    `{"registry":{"name":"io.github.navikt/svc","remotes":[{"url":"https://fleet-gateway.{{domain_internal}}/mcp/team-b/svc"}]},` + routeDraft[1:],
+		"registry elsewhere":    `{"registry":{"name":"io.github.navikt/svc","description":"d","version":"1","remotes":[{"url":"https://fleet-gateway.{{domain_internal}}/mcp/team-b/svc"}]},` + routeDraft[1:],
 		"gateway without route": `{"registry":` + gw + `}`,
-		"route without gateway": `{"registry":{"name":"io.github.navikt/svc"},` + routeDraft[1:],
-		"registry bad url":      `{"registry":{"name":"io.github.navikt/svc","websiteUrl":"http://x.example.com"},` + routeDraft[1:],
+		"route without gateway": `{"registry":{"name":"io.github.navikt/svc","description":"d","version":"1"},` + routeDraft[1:],
+		"registry bad url":      `{"registry":{"name":"io.github.navikt/svc","description":"d","version":"1","websiteUrl":"http://x.example.com"},` + routeDraft[1:],
 	}
 	for name, body := range bad {
 		var spec draftSpec
 		if err := json.Unmarshal([]byte(body), &spec); err != nil {
 			t.Fatal(err)
 		}
-		if _, err := validateDraft("team-a", "svc", spec); err == nil {
+		if _, err := validateDraft("dev-gcp", "team-a", "svc", spec); err == nil {
 			t.Errorf("%s: want error", name)
 		}
 	}
@@ -167,6 +172,7 @@ func TestRealPostgresWriteFlow(t *testing.T) {
 		t.Fatal(err)
 	}
 	srv := newServer()
+	srv.cluster = "dev-gcp"
 	srv.store.Store(&storeBox{db})
 	h := srv.routes(testAuthz(t), adminID, testTeams)
 	base := "/admin/v1/servers/team-a/svc"
@@ -324,7 +330,7 @@ func TestRealPostgresRollbackSkipsUnapprovedAndBlocked(t *testing.T) {
 	if err := db.Migrate(ctx); err != nil {
 		t.Fatal(err)
 	}
-	sv, err := validateDraft("team-a", "rb", draftSpec{Route: &struct {
+	sv, err := validateDraft("dev-gcp", "team-a", "rb", draftSpec{Route: &struct {
 		Target      string   `json:"target"`
 		UpstreamURL string   `json:"upstream_url"`
 		Enabled     *bool    `json:"enabled"`
@@ -392,5 +398,11 @@ func TestRealPostgresRollbackToSeed(t *testing.T) {
 	}
 	if got, rbErr := db.Rollback(ctx, "A111111", sv.Namespace, sv.Name); rbErr != nil || got != 1 {
 		t.Fatalf("rollback to the seeded version: %d %v", got, rbErr)
+	}
+}
+
+func TestHTTPServerBoundsBodyReads(t *testing.T) {
+	if s := newHTTPServer("0", http.NotFoundHandler()); s.ReadTimeout <= 0 || s.ReadHeaderTimeout <= 0 {
+		t.Errorf("read timeouts must be set: %v %v", s.ReadTimeout, s.ReadHeaderTimeout)
 	}
 }

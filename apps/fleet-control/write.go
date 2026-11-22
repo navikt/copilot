@@ -38,7 +38,7 @@ type draftSpec struct {
 
 // validateDraft applies the seed's validation to hostile input and returns
 // the server it describes.
-func validateDraft(ns, name string, spec draftSpec) (Server, error) {
+func validateDraft(cluster, ns, name string, spec draftSpec) (Server, error) {
 	s := Server{Namespace: ns, Name: name}
 	if spec.Route == nil && len(spec.Registry) == 0 {
 		return s, errors.New("registry or route is required")
@@ -47,6 +47,9 @@ func validateDraft(ns, name string, spec draftSpec) (Server, error) {
 		parts := strings.Split(r.Target, ":")
 		if len(parts) != 3 || !dnsLabelRegex.MatchString(parts[0]) || parts[1] != ns || !dnsLabelRegex.MatchString(parts[2]) {
 			return s, fmt.Errorf("route.target %q must be <cluster>:%s:<app>", r.Target, ns)
+		}
+		if parts[0] != cluster {
+			return s, fmt.Errorf("route.target must be in cluster %q, where the gateway resolves service DNS", cluster)
 		}
 		if err := validateUpstreamURL(r.UpstreamURL, ns); err != nil {
 			return s, fmt.Errorf("route.upstream_url: %w", err)
@@ -69,6 +72,19 @@ func validateDraft(ns, name string, spec draftSpec) (Server, error) {
 		s.Route = &Route{Path: "/mcp/" + ns + "/" + name, Target: r.Target, UpstreamURL: r.UpstreamURL, Enabled: r.Enabled == nil || *r.Enabled, Tools: r.Tools}
 	}
 	if len(spec.Registry) > 0 {
+		// mcp-registry rejects the whole snapshot without these.
+		// shortcut: only the required fields; a validator shared with
+		// mcp-registry is the full fix (#2690).
+		var req struct {
+			Description any `json:"description"`
+			Version     any `json:"version"`
+		}
+		_ = json.Unmarshal(spec.Registry, &req)
+		desc, _ := req.Description.(string)
+		ver, _ := req.Version.(string)
+		if strings.TrimSpace(desc) == "" || len(desc) > 100 || strings.TrimSpace(ver) == "" {
+			return s, errors.New("registry: description (1 to 100 characters) and version are required strings")
+		}
 		e, err := parseRegistryEntry(spec.Registry)
 		if err != nil {
 			return s, fmt.Errorf("registry: %w", err)
@@ -397,12 +413,12 @@ func getServer(w http.ResponseWriter, r *http.Request, ws writeStore, _, ns, nam
 	return err
 }
 
-func putDraft(w http.ResponseWriter, r *http.Request, ws writeStore, actor, ns, name string) error {
+func putDraft(w http.ResponseWriter, r *http.Request, ws writeStore, actor, ns, name, cluster string) error {
 	var spec draftSpec
 	if err := decodeBody(w, r, &spec); err != nil {
 		return err
 	}
-	sv, err := validateDraft(ns, name, spec)
+	sv, err := validateDraft(cluster, ns, name, spec)
 	if err != nil {
 		return refuse(http.StatusBadRequest, "%v", err)
 	}

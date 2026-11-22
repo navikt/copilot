@@ -25,8 +25,10 @@ func (s *server) routes(a *authz, adminClientID string, teams teamDirectory) htt
 	mux.HandleFunc("GET /internal/v1/snapshots/registry", a.require(s.snapshotOf("registry"), callerRegistry))
 	if adminClientID != "" {
 		for pattern, h := range map[string]adminHandler{
-			"GET /admin/v1/servers/{namespace}/{name}":           getServer,
-			"PUT /admin/v1/servers/{namespace}/{name}/draft":     putDraft,
+			"GET /admin/v1/servers/{namespace}/{name}": getServer,
+			"PUT /admin/v1/servers/{namespace}/{name}/draft": func(w http.ResponseWriter, r *http.Request, ws writeStore, actor, ns, name string) error {
+				return putDraft(w, r, ws, actor, ns, name, s.cluster)
+			},
 			"POST /admin/v1/servers/{namespace}/{name}/approve":  postApprove,
 			"POST /admin/v1/servers/{namespace}/{name}/revoke":   postRevoke,
 			"POST /admin/v1/servers/{namespace}/{name}/rollback": postRollback,

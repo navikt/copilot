@@ -43,7 +43,8 @@ func run() error {
 	}
 	srv := newServer()
 	adminClientID := adminClientFor(cluster, strings.TrimSpace(os.Getenv("MY_COPILOT_CLIENT_ID")))
-	httpSrv := &http.Server{Addr: ":" + port, Handler: srv.routes(auth, adminClientID, teams), ReadHeaderTimeout: 5 * time.Second}
+	srv.cluster = cluster
+	httpSrv := newHTTPServer(port, srv.routes(auth, adminClientID, teams))
 
 	go func() {
 		db, err := connect(ctx)
@@ -68,6 +69,12 @@ func run() error {
 		return err
 	}
 	return nil
+}
+
+// newHTTPServer bounds header and body reads, so a caller cannot hold a
+// connection open by stalling an upload.
+func newHTTPServer(port string, h http.Handler) *http.Server {
+	return &http.Server{Addr: ":" + port, Handler: h, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 30 * time.Second}
 }
 
 // connect migrates and seeds as the owner role, then opens the runtime pool
@@ -148,7 +155,10 @@ type store interface {
 }
 
 type server struct {
-	store atomic.Pointer[storeBox]
+	// cluster is NAIS_CLUSTER_NAME; route targets must be in it, since the
+	// gateway resolves service DNS in its own cluster.
+	cluster string
+	store   atomic.Pointer[storeBox]
 	// lastGood holds the last served snapshot per kind, so a database outage
 	// keeps serving it; after a restart there is none and the answer is 503.
 	lastGood map[string]*atomic.Pointer[Snapshot]
