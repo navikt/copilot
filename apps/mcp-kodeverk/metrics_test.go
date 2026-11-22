@@ -42,3 +42,30 @@ func TestToolMetricsEndpoint(t *testing.T) {
 		}
 	}
 }
+
+func TestToolMetricsCountsFailedExchange(t *testing.T) {
+	texas := defaultTexasHandler("obo-tok")
+	srv := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/exchange" {
+			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid_grant"})
+			return
+		}
+		texas(w, r)
+	}, func(_ http.ResponseWriter, _ *http.Request) {
+		t.Error("kodeverk must not be called after a failed exchange")
+	})
+	_, resp := callToolModern(t, srv.routes(), "user-token", "list_kodeverk", map[string]any{})
+	if res, _ := resp["result"].(map[string]any); res["isError"] != true {
+		t.Fatalf("want isError tool result, got %v", resp)
+	}
+	rec := httptest.NewRecorder()
+	srv.metrics.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/metrics", nil))
+	for _, want := range []string{
+		`mcp_tool_requests_total{tool="list_kodeverk"} 1`,
+		`mcp_tool_errors_total{tool="list_kodeverk"} 1`,
+	} {
+		if !strings.Contains(rec.Body.String(), want) {
+			t.Errorf("missing %s in:\n%s", want, rec.Body.String())
+		}
+	}
+}
