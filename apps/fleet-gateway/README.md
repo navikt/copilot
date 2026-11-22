@@ -66,6 +66,8 @@ A route path is `/mcp/<namespace>/<name>`, and `<namespace>` must equal the name
 
 Routes in `pilot-routes.<env>.yaml` (`PILOT_ROUTES_FILE`, required) support an optional `enabled: false` field to disable a single route (`503`, `Retry-After: 300`) while keeping it validated and registered.
 
+`ROUTES_SOURCE` picks where routes come from: `git` (default, the file only) or `fleet-control` (#2641, dev only). With `fleet-control` the gateway still loads the file at startup and serves it until the first good snapshot from `FLEET_CONTROL_URL/internal/v1/snapshots/routes`. It polls every 30 seconds with `If-None-Match`, using an M2M token from Texas (`NAIS_TOKEN_ENDPOINT`, audience `FLEET_CONTROL_AUDIENCE`). A snapshot is validated like the file. If it is empty, invalid or from an older generation, or if fleet-control or Texas fails, the gateway keeps the table it has and counts `fleet_gateway_route_sync_failures_total`.
+
 In route files (`version: 2`) every route lists the tools it allows in `tools: [...]`; the gateway rejects any other `tools/call`, and any ambiguous JSON-RPC body (case-variant or duplicate keys, trailing data), with a JSON-RPC error and does not forward it. Only the operator sets `passAllTools: true` instead, for a route that forwards every call. `version: 1` files are rejected at startup with an error.
 
 On every route, `passAllTools` included, a `GET` or `DELETE` with a body gets `400` and is logged as `deny`/`ambiguous`: MCP defines no body for them, so a `tools/call` sent that way is never forwarded.
@@ -106,7 +108,8 @@ Prometheus scrapes `/metrics` on port 9090. That port has no ingress, so the pub
 | `fleet_gateway_http_requests_total` | `code`, `reason` | All responses except `/health` and `/ready`. `reason` is empty except on deliberate 503s: `disabled` (kill switch), `cap` (in-flight or SSE limit), `user_cap` (per-user in-flight limit), `user_sse_cap` (per-user SSE limit), `store_full` (store quota reached), `refresh_in_flight` (concurrent refresh of the same token). The 5xx alert counts only `reason=""` |
 | `fleet_gateway_mcp_requests_total` | `route`, `outcome`, `decision`, `reason`, `tool` | MCP calls. `reason` is set on `deny` only; `tool` is the called tool if on the route list, else `other`. `outcome` matches the `audit mcp` log line, for example `ok`, `upstream_token_error`, `store_error` or `upstream_502` |
 | `fleet_gateway_mcp_request_duration_seconds` | `route` | Time per MCP call, token exchange and upstream included. An SSE stream counts until it ends |
-| `fleet_gateway_routes_loaded` | none | Routes loaded at startup |
+| `fleet_gateway_routes_loaded` | none | Routes in the current table |
+| `fleet_gateway_route_sync_failures_total` | none | fleet-control snapshots not applied |
 | `fleet_gateway_rate_limited_total` | `oauth_endpoint` | Requests rejected with `429` by the in-memory rate limiter on `authorize`, `token`, `revoke`, or `register` |
 
 Useful panels in Grafana:

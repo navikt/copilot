@@ -61,7 +61,7 @@ func TestGatewayAccessToken_HashedStorage_ResourceBinding_AndExpiry(t *testing.T
 		te.gw.cfg.Routes[i].ParsedURL = parsedUpstream
 	}
 	te.gw.routeTable.Store(newRouteTable(te.gw.cfg))
-	te.gw.TeamTokens, err = newTeamTokenSource(te.gw.cfg, te.gw.table(), te.gw.store, func() time.Time {
+	te.gw.TeamTokens, err = newTeamTokenSource(te.gw.cfg, te.gw.store, func() time.Time {
 		te.mu.Lock()
 		defer te.mu.Unlock()
 		return te.now
@@ -332,7 +332,7 @@ func TestStrategyRefresh_Rotation_And_Concurrency(t *testing.T) {
 	te.handler = te.gw.routes()
 	var err error
 	te.gw.routeTable.Store(newRouteTable(te.gw.cfg))
-	te.gw.TeamTokens, err = newTeamTokenSource(te.gw.cfg, te.gw.table(), te.gw.store, func() time.Time {
+	te.gw.TeamTokens, err = newTeamTokenSource(te.gw.cfg, te.gw.store, func() time.Time {
 		te.mu.Lock()
 		defer te.mu.Unlock()
 		return te.now
@@ -495,7 +495,7 @@ func TestErrorMapping_AADSTS65001_And_NoRawEntraLeak(t *testing.T) {
 			te.gw.cfg.TeamTokenStrategy = tt.strategy
 			var err error
 			te.gw.routeTable.Store(newRouteTable(te.gw.cfg))
-			te.gw.TeamTokens, err = newTeamTokenSource(te.gw.cfg, te.gw.table(), te.gw.store, te.gw.now)
+			te.gw.TeamTokens, err = newTeamTokenSource(te.gw.cfg, te.gw.store, te.gw.now)
 			if err != nil {
 				t.Fatalf("newTeamTokenSource failed: %v", err)
 			}
@@ -1113,7 +1113,7 @@ routes:
 				te.gw.cfg.Routes[i].ParsedURL = parsedUpstream
 			}
 			te.gw.routeTable.Store(newRouteTable(te.gw.cfg))
-			te.gw.TeamTokens, err = newTeamTokenSource(te.gw.cfg, te.gw.table(), te.gw.store, func() time.Time {
+			te.gw.TeamTokens, err = newTeamTokenSource(te.gw.cfg, te.gw.store, func() time.Time {
 				te.mu.Lock()
 				defer te.mu.Unlock()
 				return te.now

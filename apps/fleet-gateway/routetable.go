@@ -1,8 +1,8 @@
 package main
 
 // RouteTable is the set of MCP routes the gateway serves. Handlers read it
-// through Gateway.table(), so a later control service can swap it whole
-// (#2334). Nothing swaps it yet: it is loaded once from the route file.
+// through Gateway.table(). It is loaded from the route file, and with
+// ROUTES_SOURCE=fleet-control swapped whole by syncRoutes (#2641).
 type RouteTable struct {
 	Routes           []PilotRoute // file order; Routes[0] is the primary resource
 	RoutesByPath     map[string]PilotRoute
@@ -28,6 +28,16 @@ func newRouteTable(cfg *Config) *RouteTable {
 	return rt
 }
 
+// routeByResource finds the route whose resource URL is res.
+func (rt *RouteTable) routeByResource(res string) (PilotRoute, bool) {
+	for _, r := range rt.Routes {
+		if r.FullRouteID == res {
+			return r, true
+		}
+	}
+	return PilotRoute{}, false
+}
+
 // table returns the current routes. A Gateway built without newGateway has
 // none, so every route lookup fails closed.
 func (g *Gateway) table() *RouteTable {
@@ -36,3 +46,6 @@ func (g *Gateway) table() *RouteTable {
 	}
 	return &RouteTable{}
 }
+
+// afterRouteLookup is a test hook between dispatch and the handler; a no-op in production.
+var afterRouteLookup = func() {}

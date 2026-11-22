@@ -389,7 +389,7 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 			return
 		}
 
-		teamToken, err := g.TeamTokens.TeamToken(r.Context(), tokenHash, fullRouteURL)
+		teamToken, err := g.TeamTokens.TeamToken(r.Context(), tokenHash, route)
 		if err != nil {
 			var missingAccess *upstreamAccessMissingError
 			if errors.As(err, &missingAccess) {

@@ -91,7 +91,7 @@ func newGateway(cfg *Config, now func() time.Time) (*Gateway, error) {
 		return nil, err
 	}
 	table := newRouteTable(cfg)
-	teamTokens, err := newTeamTokenSource(cfg, table, store, now)
+	teamTokens, err := newTeamTokenSource(cfg, store, now)
 	if err != nil {
 		if ownedStore {
 			store.Close()
@@ -233,6 +233,7 @@ func (g *Gateway) routeDispatch(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
+	afterRouteLookup()
 	g.mcpHandler(route).ServeHTTP(w, r)
 }
 
@@ -567,6 +568,8 @@ func main() {
 	defer stop()
 
 	gw.startSweeper(ctx, defaultSweepInterval)
+	routesLoaded.Set(float64(len(gw.table().Routes)))
+	gw.startRouteSync(ctx, fleetControlSyncInterval)
 
 	server := &http.Server{
 		Addr:              ":" + cfg.Port,
@@ -588,9 +591,9 @@ func main() {
 		"team_token_strategy", cfg.TeamTokenStrategy,
 		"rt_storage", cfg.RTStorage,
 		"identity_source", cfg.IdentitySource,
+		"routes_source", cfg.RoutesSource,
 	)
 
-	routesLoaded.Set(float64(len(gw.table().Routes)))
 	initMetrics(gw.table().Routes)
 	metrics := metricsServer(":" + config.Get("METRICS_PORT", "9090"))
 	go func() {

@@ -39,7 +39,12 @@ var (
 	})
 	routesLoaded = promauto.NewGauge(prometheus.GaugeOpts{
 		Name: "fleet_gateway_routes_loaded",
-		Help: "Number of MCP routes loaded from the route file at startup.",
+		Help: "Number of MCP routes in the current route table.",
+	})
+
+	routeSyncFailures = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "fleet_gateway_route_sync_failures_total",
+		Help: "fleet-control route snapshots fetched or validated without success; the current table stays.",
 	})
 
 	rateLimitedTotal = promauto.NewCounterVec(prometheus.CounterOpts{
