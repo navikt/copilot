@@ -28,7 +28,10 @@ type EntryLoader func(ctx context.Context) ([]DBEntry, error)
 // It keeps the last good static set and the last good DB set independently, so
 // a failure on one side never drops the other.
 type Store struct {
-	mu            sync.RWMutex
+	mu sync.RWMutex
+	// reloadMu serialises Reload: the refresher and the post-connect reload
+	// overlap, and an older fetch must not apply after a newer one (#2641).
+	reloadMu      sync.Mutex
 	allowlistPath string
 	config        *Config
 	loader        EntryLoader
@@ -144,6 +147,8 @@ func serverToResponse(s StaticServerData, defaultUpdatedAt time.Time) ServerResp
 // On a static load error the last good static set is kept; on a DB error the
 // last good DB set is kept. The DB error is returned.
 func (s *Store) Reload(ctx context.Context) error {
+	s.reloadMu.Lock()
+	defer s.reloadMu.Unlock()
 	var staticServers []ServerResponse
 	var staticNames map[string]bool
 	var staticErr error

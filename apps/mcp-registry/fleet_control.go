@@ -11,7 +11,6 @@ import (
 	"net/url"
 	"os"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -34,8 +33,7 @@ type fleetControlRegistry struct {
 	baseURL, tokenEndpoint, audience string
 	client                           *http.Client
 
-	mu         sync.Mutex // Reload runs from more than one goroutine
-	etag       string
+	etag       string // guarded by Store.reloadMu, with the applied generation
 	generation int64
 }
 
@@ -102,8 +100,6 @@ func (f *fleetControlRegistry) m2mToken(ctx context.Context) (string, error) {
 // load fetches the snapshot and validates it with parse, the same path as
 // allowlist.json. errNotModified means 304; any other error: keep what you have.
 func (f *fleetControlRegistry) load(ctx context.Context, parse func([]byte, time.Time) ([]ServerResponse, map[string]bool, error)) ([]ServerResponse, map[string]bool, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
 	token, err := f.m2mToken(ctx)
 	if err != nil {
 		return nil, nil, err

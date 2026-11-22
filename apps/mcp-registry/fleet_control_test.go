@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -9,6 +10,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 )
 
 type fakeFleetControl struct {
@@ -237,5 +239,39 @@ func TestFlagOffReadsOnlyAllowlist(t *testing.T) {
 	}
 	if got := serverNames(t, s); !slices.Equal(got, before) {
 		t.Fatalf("git source changed servers: %v", got)
+	}
+}
+
+// Reloads overlap in production (refresher and post-connect reload). The
+// second must not fetch until the first has applied, or an older snapshot
+// could land last and stay behind a 304.
+func TestFleetControlReloadsDoNotInterleave(t *testing.T) {
+	f := newFakeFleetControl(t)
+	s := fleetStore(t, f)
+	entered, release := make(chan struct{}), make(chan struct{})
+	var calls atomic.Int32
+	s.loader = func(context.Context) ([]DBEntry, error) {
+		if calls.Add(1) == 1 {
+			close(entered)
+			<-release
+		}
+		return nil, nil
+	}
+	first := make(chan error)
+	go func() { first <- s.Reload(t.Context()) }()
+	<-entered
+	before := f.requests.Load()
+	second := make(chan error)
+	go func() { second <- s.Reload(t.Context()) }()
+	time.Sleep(50 * time.Millisecond) // give an unserialised Reload time to fetch
+	if n := f.requests.Load(); n != before {
+		t.Fatalf("second reload fetched (%d requests) while the first had not applied", n-before)
+	}
+	close(release)
+	if err := <-first; err != nil {
+		t.Fatal(err)
+	}
+	if err := <-second; err != nil {
+		t.Fatal(err)
 	}
 }
