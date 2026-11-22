@@ -1,5 +1,6 @@
 # Dev only for now (#2334). No ingress: the API is reachable in-cluster only,
-# and accessPolicy.inbound admits only the two consumers.
+# and accessPolicy.inbound admits only the two consumers. Each request also
+# needs the caller's Entra app token, checked against the client ids below.
 apiVersion: nais.io/v1alpha1
 kind: Application
 metadata:
@@ -25,6 +26,10 @@ spec:
   readiness:
     path: /ready
     initialDelay: 5
+  azure:
+    application:
+      enabled: true
+      tenant: nav.no
   uses:
     postgres:
       - name: fleet-control
@@ -35,6 +40,11 @@ spec:
       value: /app/seed/pilot-routes.{{env}}.yaml
     - name: SEED_ALLOWLIST_FILE
       value: /app/seed/allowlist.json
+    # Full Entra client ids; the app refuses to start without them.
+    - name: FLEET_GATEWAY_CLIENT_ID
+      value: "{{fleet_gateway_client_id}}"
+    - name: MCP_REGISTRY_CLIENT_ID
+      value: "{{mcp_registry_client_id}}"
   accessPolicy:
     inbound:
       rules:

@@ -23,6 +23,7 @@ func fakeTexas(t *testing.T) *httptest.Server {
 		switch in.Token {
 		case "texas-500":
 			w.WriteHeader(http.StatusInternalServerError)
+			_, _ = w.Write([]byte(`{"active":true,"idtyp":"app","azp":"` + gatewayID + `"}`))
 		case "texas-garbage":
 			_, _ = w.Write([]byte("{not json"))
 		case "inactive":
