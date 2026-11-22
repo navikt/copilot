@@ -78,14 +78,15 @@ export default async function McpPage() {
             {stats ? (
               <VStack gap="space-8" align="start">
                 <HGrid
-                  columns={3}
+                  columns={stats.tools > 0 ? 3 : 2}
                   gap="space-12"
                   role="group"
                   aria-label="Tall fra MCP-registeret"
                   className="mcp-stats"
                 >
                   <Stat value={stats.servers} label="servere" long="MCP-servere i registeret" />
-                  <Stat value={stats.tools} label="verktøy" long="verktøy i registeret" />
+                  {/* Hidden while the registry has no tool lists (#2604). */}
+                  {stats.tools > 0 && <Stat value={stats.tools} label="verktøy" long="verktøy i registeret" />}
                   <Stat value={stats.gateway} label="via gateway" long="servere bak fleet-gateway" />
                 </HGrid>
                 <BodyShort size="small" textColor="subtle">

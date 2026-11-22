@@ -19,7 +19,7 @@ export const WHY_GATEWAY: Point[] = [
     text: "Logg inn én gang, og bruk alle serverne du har tilgang til.",
     icon: PadlockLockedIcon,
   },
-  { title: "Logg", text: "Hvert kall logges med NAV-ident, rute og MCP-metode.", icon: FileTextIcon },
+  { title: "Logg", text: "Hvert kall logges med Nav-ident, rute og MCP-metode.", icon: FileTextIcon },
   {
     title: "På vegne av deg",
     text: "Serveren får et OBO-token laget for akkurat den appen, aldri ditt eget. Tilgangen din følger med.",
