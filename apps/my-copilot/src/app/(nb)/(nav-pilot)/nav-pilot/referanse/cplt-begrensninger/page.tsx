@@ -21,8 +21,6 @@ const TOC: TocItem[] = [
   { id: "nais", label: "nais-CLI" },
 ];
 
-const SOCKET = "$HOME/Library/Application Support/naisdevice/agent.sock";
-
 const NAIS_ROWS: [string, string][] = [
   ["nais --version, nais --help", "Virker."],
   ["nais device status", "unable to connect to naisdevice; make sure naisdevice is running"],
@@ -204,8 +202,10 @@ nais login
 ./hentEnv.sh                # eller: nais app env <app> -e dev-gcp -t <team> -o json > .env
 cplt                        # start agenten etterpå`}</CodeBlock>
           <BodyLong>
-            <code className={code}>.env</code> ligger da i prosjektkatalogen, som agenten har full tilgang til. Docker
-            Compose og appen leser den som vanlig. Agenten trenger aldri <code className={code}>nais</code>.
+            <code className={code}>.env</code> havner i prosjektkatalogen. Docker Compose og appen leser den som vanlig,
+            og agenten trenger aldri <code className={code}>nais</code>. På macOS stenger cplt{" "}
+            <code className={code}>.env</code>-filer i prosjektet, så agenten kan ikke lese den. På Linux kan agenten
+            lese fila og hemmelighetene oppsettet skrev dit. Proxyen hindrer bare at de sendes ut.
           </BodyLong>
 
           <LinkableHeading id="nais-i-sesjonen" size="small" level="3">
@@ -245,8 +245,10 @@ cplt                        # start agenten etterpå`}</CodeBlock>
               <code className={code}>~/Library/Application Support/nais/nais-credentials.json.enc</code> (macOS) eller{" "}
               <code className={code}>~/.config/nais/…</code> (Linux). cplt gir agenten bare noen få kataloger i
               hjemmeområdet, og denne er ikke blant dem. Nøkkelen som dekrypterer, ligger i nøkkelringen (
-              <code className={code}>cli.nais.io</code> / <code className={code}>nais-user</code>) og er tilgjengelig i
-              en agent-sesjon. Det er fila som mangler, ikke nøkkelen.
+              <code className={code}>cli.nais.io</code> / <code className={code}>nais-user</code>). Den er heller ikke
+              alltid tilgjengelig: på macOS stenger cplt <code className={code}>~/Library/Keychains</code> når den
+              sender inn gh-tokenet, og på Linux og i WSL fjerner cplt{" "}
+              <code className={code}>DBUS_SESSION_BUS_ADDRESS</code> og stenger nøkkelringfiler.
             </li>
             <li>
               <strong>naisdevice-socketen er stengt.</strong> <code className={code}>nais device …</code> snakker gRPC
@@ -267,7 +269,7 @@ cplt                        # start agenten etterpå`}</CodeBlock>
           <BodyLong>To tillatelser holder for alt som går mot Nais-APIet:</BodyLong>
           <CodeBlock>{`cplt \\
   --allow-read   "$HOME/Library/Application Support/nais/nais-credentials.json.enc" \\
-  --allow-socket "${SOCKET}"`}</CodeBlock>
+  --allow-socket "$HOME/Library/Application Support/naisdevice/agent.sock"`}</CodeBlock>
           <BodyLong>
             <strong>Ikke gjør dette.</strong> Nettopp fordi det virker, er valget ditt og ikke sandkassens.{" "}
             <code className={code}>nais secret get --with-values</code> og <code className={code}>nais app env</code>{" "}
@@ -276,11 +278,17 @@ cplt                        # start agenten etterpå`}</CodeBlock>
             lekket. Med de to tillatelsene kan agenten lese alle teamets hemmeligheter. Det er akkurat det stengingen av{" "}
             <code className={code}>~/.config/gcloud</code> og <code className={code}>~/.aws</code> skal hindre.
           </BodyLong>
-          <BodyLong>Trenger du bare VPN-status for feilsøking, gi bare socketen:</BodyLong>
-          <CodeBlock compact>{`cplt --allow-socket "${SOCKET}"`}</CodeBlock>
           <BodyLong>
-            Det gir <code className={code}>nais device status</code> og ingenting annet: ingen innlogging, og{" "}
-            <code className={code}>nais app env</code> feiler fortsatt.
+            Gi heller ikke agenten bare socketen for å se VPN-status.{" "}
+            <a href="https://github.com/nais/device/issues/564" className={linkClass}>
+              nais/device#564
+            </a>{" "}
+            beskriver at den som når socketen, har full tilgang: socketen har ingen sjekk av hvem som kobler til, og
+            ingen autorisasjon per metode. Agenten kan da lese sesjonsnøkkelen fra <code className={code}>Status</code>,
+            bytte tenant med <code className={code}>SetActiveTenant</code>, logge deg ut med{" "}
+            <code className={code}>Logout</code>, endre innstillingene med{" "}
+            <code className={code}>SetAgentConfiguration</code> og stoppe naisdevice med{" "}
+            <code className={code}>Shutdown</code>. Sjekk VPN-status selv, utenfor cplt, eller bruk statusfila under.
           </BodyLong>
 
           <LinkableHeading id="nais-pilot-port" size="small" level="3">
