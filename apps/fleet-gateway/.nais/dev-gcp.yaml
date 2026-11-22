@@ -30,3 +30,5 @@ session_store: postgres
 session_max_age: 12h
 rt_storage: client-encrypted
 team_token_strategy: obo
+# Where login takes NAVident from (#2594). Prod stays on the legacy default until a dev login is verified.
+identity_source: introspection

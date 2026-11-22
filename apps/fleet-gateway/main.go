@@ -587,6 +587,7 @@ func main() {
 		"pilot_routes", len(gw.table().Routes),
 		"team_token_strategy", cfg.TeamTokenStrategy,
 		"rt_storage", cfg.RTStorage,
+		"identity_source", cfg.IdentitySource,
 	)
 
 	routesLoaded.Set(float64(len(gw.table().Routes)))

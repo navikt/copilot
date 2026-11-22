@@ -1230,6 +1230,7 @@ func TestCallback_IdentityFromIntrospection(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			te := newTestEnv(t)
+			te.gw.cfg.IdentitySource = identitySourceIntrospection
 			if tc.noOpenID {
 				te.gw.cfg.EntraScope = "api://azure-client-id/.default"
 			}
@@ -1275,6 +1276,31 @@ func TestCallback_IdentityFromIntrospection(t *testing.T) {
 	}
 }
 
+// TestCallback_LegacyIdentitySource pins today's behaviour while
+// IDENTITY_SOURCE=legacy is the default: NAVident from id_token, then the access token.
+func TestCallback_LegacyIdentitySource(t *testing.T) {
+	verifier := "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG"
+	te := newTestEnv(t)
+	if te.gw.cfg.IdentitySource != identitySourceLegacy {
+		t.Fatalf("default identity source = %q, want legacy", te.gw.cfg.IdentitySource)
+	}
+	te.mu.Lock()
+	te.navIdent = ""
+	te.entraToken = makeTestJWT(map[string]any{"NAVident": "A987654"})
+	te.introspectStatus = http.StatusInternalServerError
+	te.mu.Unlock()
+	code := te.obtainAuthCode(verifier)
+	ic, ok, err := te.gw.popCode(context.Background(), code)
+	if err != nil || !ok || ic.Session.NAVIdent != "A987654" {
+		t.Fatalf("legacy NAVident wrong (ok=%v err=%v)", ok, err)
+	}
+	te.mu.Lock()
+	defer te.mu.Unlock()
+	if len(te.introspectedTokens) != 0 {
+		t.Fatal("legacy mode must not call introspection")
+	}
+}
+
 func TestCallback_RequiresAccessTokenForOBO(t *testing.T) {
 	verifier := "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG"
 
@@ -1299,9 +1325,25 @@ func TestCallback_RequiresAccessTokenForOBO(t *testing.T) {
 		}
 	})
 
-	// The access token is the only identity source (Texas introspection, #2594).
-	t.Run("refresh strategy rejects empty access_token even when id_token is present", func(t *testing.T) {
+	t.Run("refresh strategy accepts empty access_token when id_token is present", func(t *testing.T) {
 		te := newTestEnv(t)
+		te.gw.cfg.TeamTokenStrategy = strategyRefresh
+		te.mu.Lock()
+		te.entraToken = ""
+		te.mu.Unlock()
+
+		entraState, stateCookie := te.startLogin(verifier)
+		resp := te.callback(entraState, stateCookie)
+		_ = resp.Body.Close()
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("expected consent page (200) in refresh mode, got %d", resp.StatusCode)
+		}
+	})
+
+	// In introspection mode the access token is the only identity source (#2594).
+	t.Run("introspection mode: refresh strategy rejects empty access_token", func(t *testing.T) {
+		te := newTestEnv(t)
+		te.gw.cfg.IdentitySource = identitySourceIntrospection
 		te.gw.cfg.TeamTokenStrategy = strategyRefresh
 		te.mu.Lock()
 		te.entraToken = ""

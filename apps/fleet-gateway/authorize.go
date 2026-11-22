@@ -559,9 +559,9 @@ func (g *Gateway) callbackHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Identity comes only from a validated id_token; the access token is never
-	// decoded for identity, so a missing id_token rejects the login (#2594).
-	if idt == "" {
+	// introspection mode always requires an id_token (#2594); legacy only when a nonce was sent.
+	introspect := g.cfg.IdentitySource == identitySourceIntrospection
+	if idt == "" && (introspect || p.EntraNonce != "") {
 		slog.Warn("audit login", "outcome", "missing_id_token", "client_id", p.ClientID, "resource", p.Resource)
 		back(url.Values{
 			"error":             {"server_error"},
@@ -569,9 +569,13 @@ func (g *Gateway) callbackHandler(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-	idClaims, parseErr := parseJWTClaims(idt)
-	if parseErr == nil {
-		parseErr = validateIDTokenClaims(idClaims, g.cfg.AzureIssuer, g.cfg.AzureClientID, g.now())
+	var idClaims map[string]any
+	var parseErr error
+	if idt != "" {
+		idClaims, parseErr = parseJWTClaims(idt)
+		if parseErr == nil {
+			parseErr = validateIDTokenClaims(idClaims, g.cfg.AzureIssuer, g.cfg.AzureClientID, g.now())
+		}
 	}
 	if parseErr != nil {
 		slog.Warn("audit login", "outcome", "invalid_id_token", "reason", parseErr.Error(), "client_id", p.ClientID, "resource", p.Resource)
@@ -594,9 +598,21 @@ func (g *Gateway) callbackHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// The token response is hostile: NAVident comes only from Texas
-	// introspection of the access token, never from an unverified decode (#2594).
-	navIdent, introErr := g.introspectNAVident(r.Context(), at)
+	navIdent := ""
+	var introErr error
+	if introspect {
+		// The token response is hostile: NAVident comes only from Texas
+		// introspection of the access token, never from an unverified decode (#2594).
+		navIdent, introErr = g.introspectNAVident(r.Context(), at)
+	} else {
+		// legacy: unchanged main behaviour; removed in the follow-up to #2594.
+		extractIdentityFromClaims(idClaims, &navIdent)
+		if at != "" {
+			if atClaims, atErr := parseJWTClaims(at); atErr == nil {
+				extractIdentityFromClaims(atClaims, &navIdent)
+			}
+		}
+	}
 	if introErr != nil {
 		slog.Warn("audit login", "outcome", "introspection_failed", "reason", introErr.Error(), "client_id", p.ClientID, "resource", p.Resource)
 		back(url.Values{
@@ -987,6 +1003,17 @@ func validateIDTokenClaims(claims map[string]any, issuer, clientID string, now t
 		}
 	}
 	return nil
+}
+
+func extractIdentityFromClaims(claims map[string]any, navIdent *string) {
+	if claims == nil {
+		return
+	}
+	if *navIdent == "" {
+		if v, ok := claims["NAVident"].(string); ok {
+			*navIdent = strings.TrimSpace(v)
+		}
+	}
 }
 
 // introspectNAVident validates the Entra access token at Texas and returns

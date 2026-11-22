@@ -24,6 +24,7 @@ func setBaseValidEnv(t *testing.T) {
 	t.Setenv("NAIS_CLUSTER_NAME", "")
 	t.Setenv("NAIS_TOKEN_EXCHANGE_ENDPOINT", "http://127.0.0.1:3000/api/v1/token/exchange")
 	t.Setenv("NAIS_TOKEN_INTROSPECTION_ENDPOINT", "http://127.0.0.1:3000/api/v1/introspect")
+	t.Setenv("IDENTITY_SOURCE", "")
 	t.Setenv("TEAM_TOKEN_STRATEGY", "")
 	t.Setenv("PILOT_ROUTES_FILE", "pilot-routes.dev.yaml")
 	t.Setenv("SESSION_STORE", "")
@@ -120,9 +121,29 @@ func TestLoadConfig_FailClosed(t *testing.T) {
 			wantError: "invalid TEAM_TOKEN_STRATEGY",
 		},
 		{
-			name:      "missing introspection endpoint fails closed",
+			name:      "legacy identity source does not require introspection endpoint",
 			override:  map[string]string{"NAIS_TOKEN_INTROSPECTION_ENDPOINT": ""},
+			wantError: "",
+		},
+		{
+			name:      "explicit legacy identity source succeeds",
+			override:  map[string]string{"IDENTITY_SOURCE": "legacy"},
+			wantError: "",
+		},
+		{
+			name:      "introspection identity source succeeds with endpoint",
+			override:  map[string]string{"IDENTITY_SOURCE": "introspection"},
+			wantError: "",
+		},
+		{
+			name:      "introspection without endpoint fails closed",
+			override:  map[string]string{"IDENTITY_SOURCE": "introspection", "NAIS_TOKEN_INTROSPECTION_ENDPOINT": ""},
 			wantError: "invalid NAIS_TOKEN_INTROSPECTION_ENDPOINT",
+		},
+		{
+			name:      "unknown identity source fails startup",
+			override:  map[string]string{"IDENTITY_SOURCE": "Introspection"},
+			wantError: "invalid IDENTITY_SOURCE",
 		},
 		{
 			name: "refresh strategy does not require texas endpoint",
