@@ -186,3 +186,28 @@ func TestCreateOrderTwoStepFlagOff(t *testing.T) {
 		t.Fatalf("flag off must not affect elicitation clients: %+v", first)
 	}
 }
+
+// A declined or cancelled state is spent: replaying it as accepted orders nothing.
+func TestCreateOrderElicitationNoReplayAfterDecline(t *testing.T) {
+	for _, action := range []string{"decline", "cancel"} {
+		t.Run(action, func(t *testing.T) {
+			srv, posts, _ := twoStepServer(t)
+			_, first := callElicit(t, srv, "tools/call", orderCall(nil), formCaps)
+			st := first["requestState"]
+			callElicit(t, srv, "tools/call", orderCall(map[string]any{"requestState": st, "inputResponses": answer(action, false)}), formCaps)
+			_, res := callElicit(t, srv, "tools/call", orderCall(map[string]any{"requestState": st, "inputResponses": answer("accept", true)}), formCaps)
+			if res["isError"] != true || posts() != 0 {
+				t.Fatalf("replay after %s must be refused: %+v posts=%d", action, res, posts())
+			}
+		})
+	}
+}
+
+func TestCreateOrderElicitationShowsDefaults(t *testing.T) {
+	srv, _, _ := twoStepServer(t)
+	_, first := callElicit(t, srv, "tools/call", orderCall(nil), formCaps)
+	ir, _ := json.Marshal(first["inputRequests"])
+	if !strings.Contains(string(ir), "status bosatt") || !strings.Contains(string(ir), "alder 30") {
+		t.Fatalf("confirmation form must show the defaults: %s", ir)
+	}
+}

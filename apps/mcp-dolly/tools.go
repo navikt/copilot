@@ -138,6 +138,9 @@ const orderDefaults = "Each person is created with FNR and gets: fødselsnummer,
 	"Unless set: age 30-60, even gender split; children 0-17, parents 60-80; spouse/partner within +/-3 years of the main person; every 20th couple (5%) is same-sex. " +
 	"This tool can only set antall, environments, minAlder, maxAlder and kjoenn (main person); anything else requires the Dolly UI."
 
+// orderDefaultsNB is orderDefaults in short Norwegian, for the confirmation form.
+const orderDefaultsNB = "Alle får fødselsnummer, navn, kjønn, fødested, fødselsdato, sivilstand, bostedsadresse, norsk statsborgerskap og status bosatt. Uten valg: alder 30–60 og jevn kjønnsfordeling."
+
 // elicitInput is set when the client declared form elicitation (2026-07-28 only).
 // responses and state come from the client's retry, never from tool arguments.
 type elicitInput struct {
@@ -181,6 +184,7 @@ func (s *server) askOrderConfirmation(ctx context.Context, inboundToken, userHas
 			msg += fmt.Sprintf(" %s=%s.", k, v)
 		}
 	}
+	msg += " " + orderDefaultsNB
 	msg += fmt.Sprintf(" Kvote igjen siste døgn: %d.", s.quota.remaining(userHash, s.now()))
 	return map[string]any{
 		"resultType": "input_required",
@@ -333,6 +337,7 @@ func (s *server) handleToolCall(ctx context.Context, inboundToken, navIdent, too
 		params := paramsHash(fields)
 		rawTok, hasTok := fields[confirmTokenKey]
 		var token string
+		consumed := false
 		switch {
 		case el == nil && !s.cfg.TwoStepOrder:
 			// No token is issued or accepted: only the client may confirm with the user.
@@ -343,6 +348,11 @@ func (s *server) handleToolCall(ctx context.Context, inboundToken, navIdent, too
 		case el != nil && el.state == "":
 			return s.askOrderConfirmation(ctx, inboundToken, userHash, params, gruppeID, orderReq, fields), nil
 		case el != nil:
+			// Spend the state on every outcome, so a declined state cannot be replayed as accepted.
+			if err := s.confirm.consume(el.state, userHash, params, s.now()); err != nil {
+				return toolErrorResult(err.Error()), nil
+			}
+			consumed = true
 			ok, answered := el.confirmed()
 			if !answered {
 				return s.askOrderConfirmation(ctx, inboundToken, userHash, params, gruppeID, orderReq, fields), nil
@@ -386,8 +396,10 @@ func (s *server) handleToolCall(ctx context.Context, inboundToken, navIdent, too
 				return nil, e
 			}
 		}
-		if err := s.confirm.consume(token, userHash, params, s.now()); err != nil {
-			return toolErrorResult(err.Error()), nil
+		if !consumed {
+			if err := s.confirm.consume(token, userHash, params, s.now()); err != nil {
+				return toolErrorResult(err.Error()), nil
+			}
 		}
 		release, ok := s.quota.reserve(userHash, orderReq.Antall, s.now())
 		if !ok {
