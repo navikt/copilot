@@ -555,6 +555,7 @@ jobs:
           --health-retries 10
     env:
       TEST_DATABASE_URL: postgres://postgres:test@localhost:5432/postgres?sslmode=disable
+      FLEET_CONTROL_REQUIRE_PG: "1"
     defaults:
       run:
         working-directory: apps/fleet-control

@@ -10,8 +10,8 @@ import (
 func openTestDB(t *testing.T) *DB {
 	t.Helper()
 	dsn := os.Getenv("TEST_DATABASE_URL")
-	if dsn == "" && os.Getenv("CI") != "" {
-		t.Fatal("TEST_DATABASE_URL must be set in CI")
+	if dsn == "" && os.Getenv("FLEET_CONTROL_REQUIRE_PG") == "1" {
+		t.Fatal("FLEET_CONTROL_REQUIRE_PG=1 needs TEST_DATABASE_URL")
 	}
 	if dsn == "" {
 		t.Skip("TEST_DATABASE_URL not set")
