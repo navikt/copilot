@@ -16,6 +16,7 @@ export function ChartFigure({
   chart,
   table,
   tableLabel,
+  tableRegionLabel,
   height,
 }: {
   /** Leave out when the section heading above already names the chart. */
@@ -28,6 +29,8 @@ export function ChartFigure({
   table?: ReactNode | string[][];
   /** The fold's link text when the table holds more than the chart shows. */
   tableLabel?: string;
+  /** Names the table's scroll region when the figure has no title. */
+  tableRegionLabel?: string;
 }) {
   const id = useId();
   return (
@@ -50,7 +53,7 @@ export function ChartFigure({
           {summary}
         </figcaption>
         {table !== undefined && (
-          <NumbersFold summary={tableLabel} label={title ? `Tabell: tallene bak «${title}»` : undefined}>
+          <NumbersFold summary={tableLabel} label={title ? `Tabell: tallene bak «${title}»` : tableRegionLabel}>
             {Array.isArray(table) ? <PlainTable rows={table as string[][]} /> : table}
           </NumbersFold>
         )}
