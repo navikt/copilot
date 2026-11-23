@@ -41,6 +41,7 @@ describe("POST /api/budget/raises", () => {
     [409, "not_open"],
     [409, "own_budget"],
     [503, "budget_writes_unavailable"],
+    [502, "github_error"],
   ])("passes backend %i %s through", async (status, code) => {
     vi.mocked(backendRequest).mockRejectedValue(new BackendApiError(status, code));
     const res = await POST(req({ category: "koding", expectedValue: "spare_tid" }));
@@ -56,5 +57,15 @@ describe("POST /api/budget/raises without a login", () => {
     const res = await POST(req({ category: "koding", expectedValue: "spare_tid" }));
     expect(res.status).toBe(401);
     expect(backendRequest).not.toHaveBeenCalled();
+  });
+});
+
+describe("POST /api/budget/raises, 5xx without a code", () => {
+  it.each([502, 503])("answers 502 failed for a bare %i", async (status) => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.mocked(backendRequest).mockRejectedValue(new BackendApiError(status));
+    const res = await POST(req({ category: "koding", expectedValue: "spare_tid" }));
+    expect(res.status).toBe(502);
+    expect(await res.json()).toEqual({ error: "failed" });
   });
 });

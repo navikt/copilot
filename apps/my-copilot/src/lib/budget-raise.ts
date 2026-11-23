@@ -94,9 +94,10 @@ const ERRORS: Record<string, string> = {
   forbidden: "Du har ikke en aktiv Copilot-lisens. Påfyll krever lisens.",
   no_github_account: "Vi fant ikke GitHub-brukeren din. Sjekk at Nav-kontoen er koblet til GitHub.",
   budget_writes_unavailable: "Påfyll er ikke tilgjengelig akkurat nå. Prøv igjen om litt.",
-  raise_in_progress: "Et annet påfyll for deg behandles nå. Vent litt og prøv igjen.",
+  raise_in_progress: "Et annet påfyll for deg behandles nå. Prøv igjen om noen minutter.",
+  unauthorized: "Du er logget ut. Last inn siden på nytt for å logge inn.",
   rate_limited: "Du har sendt mange forespørsler på kort tid. Vent ett minutt og prøv igjen.",
-  github_error: "GitHub svarte ikke som forventet. Ingenting er endret. Prøv igjen om litt.",
+  github_error: "GitHub svarte ikke som forventet. Påfyllet kan være registrert. Se tabellen over før du prøver igjen.",
   invalid_request: "Noe i skjemaet ble ikke godtatt. Sjekk feltene og prøv igjen.",
 };
 /** What to tell the user for an error code from /api/budget/*. */

@@ -21,8 +21,8 @@ export async function budgetProxy(path: string, init: RequestInit = {}) {
     if (error instanceof BackendApiError && error.status >= 400 && error.status < 500) {
       return NextResponse.json({ error: error.code ?? "request_failed" }, { status: error.status });
     }
-    if (error instanceof BackendApiError && error.status === 503) {
-      return NextResponse.json({ error: error.code ?? "budget_writes_unavailable" }, { status: 503 });
+    if (error instanceof BackendApiError && (error.status === 503 || error.status === 502) && error.code) {
+      return NextResponse.json({ error: error.code }, { status: error.status });
     }
     console.error(`[budget] ${init.method ?? "GET"} ${path} failed:`, error);
     return NextResponse.json({ error: "failed" }, { status: 502 });
