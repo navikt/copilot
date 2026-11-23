@@ -470,7 +470,7 @@ export default function McpRetningslinjerPage() {
               </BodyLong>
               <BodyLong size="small">
                 I GitHub Actions: start serveren i et eget steg, og legg så til{" "}
-                <code className={code}>uses: navikt/copilot/cli/mcp-compliance@cli/mcp-compliance/v0.2.0</code> med{" "}
+                <code className={code}>uses: navikt/copilot/cli/mcp-compliance@cli/mcp-compliance/v0.2.2</code> med{" "}
                 <code className={code}>url</code> og eventuelt <code className={code}>token</code>,{" "}
                 <code className={code}>app-token</code> og <code className={code}>tool</code>. Actionen laster ned
                 binærfilen, sjekker checksum og stopper jobben ved FAIL.
