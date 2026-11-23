@@ -8,7 +8,7 @@ type challenge struct {
 	params map[string]string
 }
 
-const tokenChars = "!#$%&'*+-.^_`|~0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+const tcharSet = "!#$%&'*+-.^_`|~0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 // parseChallenges parses WWW-Authenticate values per RFC 7235 3.1.
 // A token68 right after the scheme (`Negotiate YWJjZA==`) is skipped.
@@ -36,7 +36,7 @@ func parseOne(s string) []challenge {
 	}
 	token := func() string {
 		j := i
-		for i < len(s) && strings.IndexByte(tokenChars, s[i]) >= 0 {
+		for i < len(s) && strings.IndexByte(tcharSet, s[i]) >= 0 {
 			i++
 		}
 		return s[j:i]
@@ -115,7 +115,7 @@ func bearerChallenge(values []string) (challenge, bool) {
 // trailing '=' is read as an auth-param with an empty value, not as padding.
 func token68End(s string, i int) int {
 	j := i
-	for j < len(s) && (strings.IndexByte(tokenChars, s[j]) >= 0 || s[j] == '/') && s[j] != '\'' {
+	for j < len(s) && (strings.IndexByte(tcharSet, s[j]) >= 0 || s[j] == '/') && s[j] != '\'' {
 		j++
 	}
 	k := j
