@@ -631,11 +631,13 @@ func (h *budgetRaiseHandlers) raise(w http.ResponseWriter, r *http.Request, acto
 	}
 
 	result := raiseResult{BudgetUSD: plan.amount, ExpiresAt: expires.Format(time.DateOnly), RaisesLeft: max(0, (budgetCapUSD-plan.amount)/budgetStepUSD)}
-	audit := func(c context.Context, githubStatus int, id string) {
-		if _, err := pool.Exec(c, `INSERT INTO budget_audit (raise_id, actor, action, budget_before_usd, budget_set_usd, expires_at, github_status, github_budget_id, dry_run)
-			VALUES ($1, $2, $3, $4, $5, $6, NULLIF($7, 0), NULLIF($8, ''), $9)`, plan.raise.ID, actor, action, plan.before, plan.amount, expires, githubStatus, id, dry); err != nil {
-			slog.Error("Budget audit insert failed", "error", err)
+	// The audit row was written with the reservation; this records the result.
+	audit := func(c context.Context, githubStatus int, id string) error {
+		_, err := pool.Exec(c, "UPDATE budget_audit SET github_status = NULLIF($2, 0), github_budget_id = NULLIF($3, '') WHERE id = $1", plan.auditID, githubStatus, id)
+		if err != nil {
+			slog.Error("Budget audit update failed", "error", err)
 		}
+		return err
 	}
 
 	if dry { // F17: everything except the GitHub write
@@ -644,7 +646,7 @@ func (h *budgetRaiseHandlers) raise(w http.ResponseWriter, r *http.Request, acto
 			op = "patch"
 		}
 		slog.Info("Budget dry run: would write GitHub budget", "op", op, "budget_amount", plan.amount, "expires_at", result.ExpiresAt, "admin_override", admin)
-		audit(ctx, 0, plan.ownID)
+		_ = audit(ctx, 0, plan.ownID) // the intent row already says dry run
 		result.Raise, result.DryRun = plan.raise, true
 		respondJSON(w, result, http.StatusCreated)
 		return
@@ -653,9 +655,13 @@ func (h *budgetRaiseHandlers) raise(w http.ResponseWriter, r *http.Request, acto
 	wctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), budgetWriteTimeout)
 	defer cancel()
 	ownID, ghStatus, unknown, err := h.write(wctx, pool, target, plan, month, expires)
-	audit(wctx, ghStatus, ownID)
+	auditErr := audit(wctx, ghStatus, ownID)
 	final := "applied"
 	switch {
+	case err == nil && auditErr != nil:
+		// Written but the result is not in the audit trail: not applied until
+		// the next raise reconciles it (stale pending).
+		final, err = "pending", auditErr
 	case err != nil && unknown:
 		// GitHub may hold a budget whose ID we did not store: stay pending,
 		// so the next raise reconciles (adopts) it instead of own_budget.
@@ -691,12 +697,13 @@ type reservation struct {
 const raiseFingerprintSQL = "SELECT count(*) + count(*) FILTER (WHERE status <> 'pending') FROM budget_raises WHERE github_login = $1"
 
 type raisePlan struct {
-	replay *raiseView
-	raise  raiseView
-	amount int
-	before int
-	ownID  string   // our budget to PATCH; empty means POST
-	gone   []string // our recorded IDs GitHub no longer lists
+	replay  *raiseView
+	raise   raiseView
+	amount  int
+	before  int
+	ownID   string   // our budget to PATCH; empty means POST
+	gone    []string // our recorded IDs GitHub no longer lists
+	auditID int64    // audit intent row written with the reservation
 }
 
 // reserve does every database check and inserts the raise row in one short
@@ -843,7 +850,13 @@ func (h *budgetRaiseHandlers) reserve(ctx context.Context, pool *pgxpool.Pool, r
 			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING `+raiseColumns,
 			rv.target, rv.key, rv.month, budgetStepUSD, plan.amount, rv.in.Category, rv.in.TeamID, rv.in.ExpectedValue, rv.in.FreeText, status, rv.admin))
 		plan.raise = v
-		return err
+		if err != nil {
+			return err
+		}
+		// Audit intent in the same transaction: no GitHub write or dry run
+		// without its audit row (F15).
+		return tx.QueryRow(ctx, `INSERT INTO budget_audit (raise_id, actor, action, budget_before_usd, budget_set_usd, expires_at, github_budget_id, dry_run)
+			VALUES ($1, $2, $3, $4, $5, $6, NULLIF($7, ''), $8) RETURNING id`, v.ID, rv.actor, rv.action, plan.before, plan.amount, rv.expires, plan.ownID, rv.dry).Scan(&plan.auditID)
 	})
 	return plan, code, err
 }
@@ -879,7 +892,8 @@ func (h *budgetRaiseHandlers) write(ctx context.Context, pool *pgxpool.Pool, tar
 	} else {
 		created = true
 		ownID, status, err = h.writer.createUserBudget(ctx, target, plan.amount, expires)
-		unknown = err != nil && status == 0
+		// No response, or a 2xx we could not read: GitHub may have created it.
+		unknown = err != nil && (status == 0 || status/100 == 2)
 		if unknown {
 			// Result unknown (connection lost). Adopt the one new user budget
 			// only if it is exactly what we sent.

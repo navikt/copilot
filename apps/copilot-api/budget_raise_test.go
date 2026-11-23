@@ -66,6 +66,7 @@ type fakeGitHub struct {
 	failList int           // fail the next N list calls
 	skew     float64       // stored amount differs from the one sent
 	noSKU    bool          // list without budget_product_sku
+	truncate bool          // create, then answer 201 with a cut-off body
 }
 
 func (f *fakeGitHub) handler() http.Handler {
@@ -120,6 +121,12 @@ func (f *fakeGitHub) handler() http.Handler {
 			}
 			login := body["user"].(string)
 			f.budgets[login] = append(f.budgets[login], b)
+			if f.truncate {
+				f.truncate = false
+				w.WriteHeader(http.StatusCreated)
+				_, _ = w.Write([]byte(`{"id":`))
+				return
+			}
 			if f.dropPOST {
 				f.dropPOST = false
 				conn, _, _ := w.(http.Hijacker).Hijack()
@@ -940,5 +947,35 @@ func TestBudgetRaiseProfileTeamRevalidated(t *testing.T) {
 	e.h.teams = fakeTeams{err: fmt.Errorf("bq down")}
 	if code, _ := e.raise("ola", "k1"); code != 400 || len(e.gh.writes) != 0 {
 		t.Errorf("saved team no longer selectable: %d", code)
+	}
+}
+
+func TestBudgetRaiseTruncatedCreateIsUnknown(t *testing.T) {
+	e := newBudgetEnv(t, openBudgetTestDB(t))
+	e.profile("ola")
+	e.gh.truncate = true
+	if code, out := e.raise("ola", "k1"); code != 201 {
+		t.Fatalf("a 2xx with a cut-off body must be reconciled by listing: %d %v", code, out)
+	}
+	if code, _ := e.raise("ola", "k2"); code != 201 {
+		t.Fatalf("next raise: %d", code)
+	}
+}
+
+func TestBudgetRaiseAuditIsDurable(t *testing.T) {
+	e := newBudgetEnv(t, openBudgetTestDB(t))
+	e.profile("ola")
+	e.exec(`CREATE FUNCTION fail_audit() RETURNS trigger AS $$ BEGIN RAISE EXCEPTION 'down'; END $$ LANGUAGE plpgsql`)
+	e.exec(`CREATE TRIGGER fail_audit_insert BEFORE INSERT ON budget_audit FOR EACH ROW EXECUTE FUNCTION fail_audit()`)
+	if code, _ := e.raise("ola", "k1"); code != 503 || len(e.gh.writes) != 0 || e.count("SELECT count(*) FROM budget_raises") != 0 {
+		t.Fatalf("no audit intent, no write: %d %v", code, e.gh.writes)
+	}
+	e.exec("DROP TRIGGER fail_audit_insert ON budget_audit")
+	e.exec(`CREATE TRIGGER fail_audit_update BEFORE UPDATE ON budget_audit FOR EACH ROW EXECUTE FUNCTION fail_audit()`)
+	if code, out := e.raise("ola", "k2"); code != 502 || out["raise"].(map[string]any)["status"] != "pending" {
+		t.Fatalf("result not audited must not be applied: %d %v", code, out)
+	}
+	if n := e.count("SELECT count(*) FROM budget_audit"); n != 1 {
+		t.Errorf("the intent row must stay: %d", n)
 	}
 }
