@@ -13,6 +13,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -1089,5 +1090,341 @@ func TestBudgetRaiseCreateServerErrorIsUnknown(t *testing.T) {
 	e.gh.failNext = 500
 	if code, out := e.raise("ola", "k1"); code != 502 || out["raise"].(map[string]any)["status"] != "pending" {
 		t.Fatalf("create 5xx may have created the budget: %d %v", code, out)
+	}
+}
+
+// #2715: replica A has reserved and is writing; replica B lists GitHub before
+// A's create and reserves while A finishes. A's bookkeeping must not slip in
+// between B's reads, or B counts A's raise but misses A's budget and creates
+// a second one.
+func TestBudgetRaiseWriteSerialisedWithReserve(t *testing.T) {
+	e := newBudgetEnv(t, openBudgetTestDB(t))
+	e.profile("ola")
+	h2, err := newBudgetRaiseHandlers(&Config{BudgetDatabaseURL: e.dsn, BudgetWrites: "on", BudgetDefaultUSD: 150, BudgetTimeZone: "Europe/Oslo", BudgetRaisesOpen: true}, e.h.writer, fakeSeats{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	h2.now, h2.teams = e.h.now, e.h.teams
+	t.Cleanup(func() {
+		if h2.store.pool != nil {
+			h2.store.pool.Close()
+		}
+	})
+	r2 := makeAPIRouter(&Config{}, nil, nil, nil, NewIdentityResolverChain(emailResolver{}), h2)
+	post := func(router http.Handler, key string) int {
+		req := httptest.NewRequest("POST", "/api/v1/copilot/budget/raises", strings.NewReader(`{"category":"koding","expectedValue":"spare_tid"}`))
+		req.Header.Set("Idempotency-Key", key)
+		req = req.WithContext(context.WithValue(req.Context(), userContextKey, &User{Email: "ola@nav.no"}))
+		rec := httptest.NewRecorder()
+		router.ServeHTTP(rec, req)
+		return rec.Code
+	}
+
+	e.gh.postWait = make(chan struct{}) // A's create waits in GitHub
+	aDone := make(chan int)
+	go func() { aDone <- post(e.router, "a") }()
+	for e.count("SELECT count(*) FROM budget_raises") == 0 {
+		time.Sleep(5 * time.Millisecond)
+	}
+
+	inReserve, releaseB := make(chan struct{}), make(chan struct{})
+	h2.midReserve = func() {
+		h2.midReserve = nil
+		close(inReserve)
+		<-releaseB
+	}
+	bDone := make(chan int)
+	go func() { bDone <- post(r2, "b") }()
+	<-inReserve
+	close(e.gh.postWait) // A creates, records and finishes, if nothing stops it
+	// Release B once A has either finished (broken code) or is waiting on
+	// B's advisory lock (fixed code); no timing involved.
+	a, aGot := 0, false
+	for !aGot && e.waiters("wait_event = 'advisory'") == 0 {
+		select {
+		case a = <-aDone:
+			aGot = true
+		case <-time.After(2 * time.Millisecond):
+		}
+	}
+	close(releaseB)
+	if !aGot {
+		a = <-aDone
+	}
+	b := <-bDone
+	e.gh.mu.Lock()
+	defer e.gh.mu.Unlock()
+	if len(e.gh.budgets["ola"]) != 1 || a != 201 || b != 409 {
+		t.Fatalf("A=%d B=%d (want 201, 409), GitHub has %+v", a, b, e.gh.budgets["ola"])
+	}
+}
+
+// waiters counts sessions blocked on a heavyweight lock matching cond.
+func (e *budgetEnv) waiters(cond string) int {
+	return e.count("SELECT count(*) FROM pg_stat_activity WHERE wait_event_type = 'Lock' AND " + cond)
+}
+
+func (e *budgetEnv) secondReplica() (*budgetRaiseHandlers, func(key string) int) {
+	e.t.Helper()
+	h2, err := newBudgetRaiseHandlers(&Config{BudgetDatabaseURL: e.dsn, BudgetWrites: "on", BudgetDefaultUSD: 150, BudgetTimeZone: "Europe/Oslo", BudgetRaisesOpen: true}, e.h.writer, fakeSeats{})
+	if err != nil {
+		e.t.Fatal(err)
+	}
+	h2.now, h2.teams = e.h.now, e.h.teams
+	e.t.Cleanup(func() {
+		if h2.store.pool != nil {
+			h2.store.pool.Close()
+		}
+	})
+	r2 := makeAPIRouter(&Config{}, nil, nil, nil, NewIdentityResolverChain(emailResolver{}), h2)
+	return h2, func(key string) int {
+		req := httptest.NewRequest("POST", "/api/v1/copilot/budget/raises", strings.NewReader(`{"category":"koding","expectedValue":"spare_tid"}`))
+		req.Header.Set("Idempotency-Key", key)
+		req = req.WithContext(context.WithValue(req.Context(), userContextKey, &User{Email: "ola@nav.no"}))
+		rec := httptest.NewRecorder()
+		r2.ServeHTTP(rec, req)
+		return rec.Code
+	}
+}
+
+func (e *budgetEnv) waitFor(sql string, args ...any) {
+	e.t.Helper()
+	for e.count(sql, args...) == 0 {
+		time.Sleep(2 * time.Millisecond)
+	}
+}
+
+// Review of #2716: without the lock on the final step, B can read A's
+// recorded ID (missing from B's older list, so "gone"), then see A already
+// applied, and create a second budget.
+func TestBudgetRaiseFinalStepLocked(t *testing.T) {
+	var sawLockWait atomic.Bool
+	e := newBudgetEnv(t, openBudgetTestDB(t))
+	e.profile("ola")
+	h2, postB := e.secondReplica()
+
+	e.gh.postWait = make(chan struct{})
+	aDone := make(chan int)
+	go func() { c, _ := e.raise("ola", "a"); aDone <- c }()
+	e.waitFor("SELECT count(*) FROM budget_raises")
+
+	// Hold A's final status update on a row lock, without the advisory lock.
+	pool, _ := e.h.store.get(context.Background())
+	hold, err := pool.Begin(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := hold.Exec(context.Background(), "SELECT 1 FROM budget_raises FOR UPDATE"); err != nil {
+		t.Fatal(err)
+	}
+	var once sync.Once
+	commit := func() { once.Do(func() { _ = hold.Commit(context.Background()) }) }
+	t.Cleanup(commit)
+
+	h2.afterList = func() {
+		h2.afterList = nil
+		close(e.gh.postWait)
+		e.waitFor("SELECT count(*) FROM budget_github")
+		e.waitFor("SELECT count(*) FROM pg_stat_activity WHERE wait_event_type = 'Lock' AND wait_event <> 'advisory'") // A at its final step
+	}
+	h2.midReserve = func() { // reached first only when the final step is unlocked
+		h2.midReserve = nil
+		commit()
+		e.waitFor("SELECT count(*) FROM budget_raises WHERE status = 'applied'")
+	}
+	bDone, bFinished := make(chan int, 1), make(chan struct{})
+	go func() { bDone <- postB("b"); close(bFinished) }()
+	go func() { // fixed code: B waits on A's advisory lock instead
+		for {
+			select {
+			case <-bFinished:
+				return
+			default:
+			}
+			if e.waiters("wait_event = 'advisory'") > 0 {
+				sawLockWait.Store(true)
+				commit()
+				return
+			}
+			time.Sleep(2 * time.Millisecond)
+		}
+	}()
+	a := <-aDone
+	b := 0
+	select {
+	case b = <-bDone:
+	case <-time.After(20 * time.Second):
+		t.Fatal("B did not finish")
+	}
+	e.gh.mu.Lock()
+	n := len(e.gh.budgets["ola"])
+	e.gh.mu.Unlock()
+	if n != 1 || e.count("SELECT count(*) FROM budget_github WHERE deleted_at IS NULL") != 1 {
+		t.Fatalf("A=%d B=%d: GitHub has %d budgets", a, b, n)
+	}
+	// The version alone would also save B (it re-lists); prove the lock did.
+	if !sawLockWait.Load() {
+		t.Fatal("B must wait on A's advisory lock at A's final step")
+	}
+}
+
+func TestBudgetRaiseFinalUpdateOnlyFromPending(t *testing.T) {
+	e := newBudgetEnv(t, openBudgetTestDB(t))
+	e.profile("ola")
+	e.gh.postWait = make(chan struct{})
+	done := make(chan map[string]any)
+	go func() { _, out := e.raise("ola", "a"); done <- out }()
+	e.waitFor("SELECT count(*) FROM budget_raises")
+	e.exec("UPDATE budget_raises SET status = 'failed'") // another replica reconciled it
+	close(e.gh.postWait)
+	out := <-done
+	if out["raise"].(map[string]any)["status"] != "failed" || e.count("SELECT count(*) FROM budget_raises WHERE status = 'failed'") != 1 {
+		t.Fatalf("the final step must not overwrite a reconciliation: %v", out)
+	}
+}
+
+// #2706 thread: retrying a stuck pending raise with the same key must
+// reconcile it, not replay pending forever.
+func TestBudgetRaiseSameKeyRetryReconcilesStuck(t *testing.T) {
+	for name, tc := range map[string]struct {
+		budget ghBudget
+		want   string
+	}{
+		"budget exists": {ghBudget{ID: "lost", BudgetScope: "user", BudgetType: "BundlePricing", SKU: "ai_credits", Amount: 300, ExpiresAt: "2027-01-01"}, "applied"},
+		"no budget":     {ghBudget{}, "failed"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			e := newBudgetEnv(t, openBudgetTestDB(t))
+			e.profile("ola")
+			e.exec(`INSERT INTO budget_raises (github_login, idempotency_key, month, amount_usd, budget_set_usd, category, team_id, expected_value, status, created_at)
+				VALUES ('ola', 'k1', '2026-12-01', 150, 300, 'koding', 'annet', 'spare_tid', 'pending', now() - interval '1 hour')`)
+			if tc.budget.ID != "" {
+				e.gh.budgets["ola"] = []ghBudget{tc.budget}
+			}
+			code, out := e.raise("ola", "k1")
+			if code != 200 || out["replayed"] != true || out["raise"].(map[string]any)["status"] != tc.want {
+				t.Fatalf("same-key retry: %d %v", code, out)
+			}
+			if e.count("SELECT count(*) FROM budget_raises") != 1 || len(e.gh.writes) != 0 {
+				t.Errorf("a retry must not start a new raise: writes %v", e.gh.writes)
+			}
+		})
+	}
+}
+
+// Without a GitHub list (dry run, no write key) a stuck raise cannot be
+// verified: a same-key retry replays pending instead of marking it failed.
+func TestBudgetRaiseStuckWithoutListStaysPending(t *testing.T) {
+	e := newBudgetEnv(t, openBudgetTestDB(t))
+	e.profile("ola")
+	e.exec(`INSERT INTO budget_raises (github_login, idempotency_key, month, amount_usd, budget_set_usd, category, team_id, expected_value, status, created_at)
+		VALUES ('ola', 'k1', '2026-12-01', 150, 300, 'koding', 'annet', 'spare_tid', 'pending', now() - interval '1 hour')`)
+	e.h.writer, e.h.mode = nil, "dry_run"
+	if code, out := e.raise("ola", "k1"); code != 200 || out["raise"].(map[string]any)["status"] != "pending" {
+		t.Fatalf("same-key retry without a list: %d %v", code, out)
+	}
+	if e.count("SELECT count(*) FROM budget_raises WHERE status = 'pending'") != 1 {
+		t.Error("the stuck raise must stay pending")
+	}
+}
+
+// A PATCH that GitHub took, followed by a failed bookkeeping step, is an
+// unknown outcome (pending), not failed.
+func TestBudgetRaisePatchBookkeepingFailureIsUnknown(t *testing.T) {
+	e := newBudgetEnv(t, openBudgetTestDB(t))
+	e.profile("ola")
+	if code, _ := e.raise("ola", "k1"); code != 201 {
+		t.Fatal(code)
+	}
+	e.exec(`CREATE FUNCTION fail_record() RETURNS trigger AS $$ BEGIN RAISE EXCEPTION 'down'; END $$ LANGUAGE plpgsql`)
+	e.exec(`CREATE TRIGGER fail_record BEFORE INSERT OR UPDATE ON budget_github FOR EACH ROW EXECUTE FUNCTION fail_record()`)
+	if code, out := e.raise("ola", "k2"); code != 502 || out["raise"].(map[string]any)["status"] != "pending" {
+		t.Fatalf("patched but not recorded: %d %v", code, out)
+	}
+}
+
+// The schema allows at most one pending raise per user, even if two writers
+// skip the application lock entirely.
+func TestBudgetOnePendingPerUserInSchema(t *testing.T) {
+	e := newBudgetEnv(t, openBudgetTestDB(t))
+	pool, err := e.h.store.get(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	ins := `INSERT INTO budget_raises (github_login, idempotency_key, month, amount_usd, category, team_id, expected_value, status)
+		VALUES ('ola', $1, '2026-12-01', 150, 'koding', 'annet', 'spare_tid', $2)`
+	ctx := context.Background()
+	// Two writers, no advisory lock: the second pending insert must fail.
+	if _, err := pool.Exec(ctx, ins, "a", "pending"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, ins, "b", "pending"); err == nil || !strings.Contains(err.Error(), "budget_raises_one_pending") {
+		t.Fatalf("second pending raise must be rejected by the schema: %v", err)
+	}
+	if _, err := pool.Exec(ctx, ins, "c", "failed"); err != nil {
+		t.Errorf("other statuses are not limited: %v", err)
+	}
+}
+
+// A row count stops being a version once retention deletes rows: A's raise
+// (+2) and deleting one old applied row (-2) cancel out. The version does not.
+func TestBudgetRaiseVersionSurvivesRetention(t *testing.T) {
+	e := newBudgetEnv(t, openBudgetTestDB(t))
+	e.profile("ola")
+	for _, k := range []string{"old1", "old2"} {
+		e.exec(`INSERT INTO budget_raises (github_login, idempotency_key, month, amount_usd, category, team_id, expected_value, status)
+			VALUES ('ola', $1, '2025-01-01', 150, 'koding', 'annet', 'spare_tid', 'applied')`, k)
+	}
+	h2, postB := e.secondReplica()
+	h2.afterList = func() { // B's list is taken; now A raises and retention runs
+		h2.afterList = nil
+		if code, _ := e.raise("ola", "a"); code != 201 {
+			t.Errorf("A: %d", code)
+		}
+		e.exec("DELETE FROM budget_raises WHERE idempotency_key = 'old1'")
+	}
+	b := postB("b")
+	e.gh.mu.Lock()
+	defer e.gh.mu.Unlock()
+	if b != 201 || len(e.gh.budgets["ola"]) != 1 || e.gh.budgets["ola"][0].Amount != 450 || strings.Join(e.gh.writes, ",") != "POST,PATCH b1" {
+		t.Fatalf("B=%d must re-list and PATCH to 450: writes %v, GitHub %+v", b, e.gh.writes, e.gh.budgets["ola"])
+	}
+}
+
+// A replay reads only: it must not bump the version, or harmless retries
+// could make another request's list stale until it gives up with 409.
+func TestBudgetRaiseReadOnlyDoesNotBumpVersion(t *testing.T) {
+	e := newBudgetEnv(t, openBudgetTestDB(t))
+	e.profile("ola")
+	if code, _ := e.raise("ola", "k1"); code != 201 {
+		t.Fatal(code)
+	}
+	v := e.count(raiseFingerprintSQL, "ola")
+	for range 3 {
+		if code, _ := e.raise("ola", "k1"); code != 200 {
+			t.Fatal(code)
+		}
+	}
+	if got := e.count(raiseFingerprintSQL, "ola"); got != v {
+		t.Errorf("replays bumped the version from %d to %d", v, got)
+	}
+}
+
+// #2720: before opening, admin override only works for test users.
+func TestBudgetAdminOverrideRespectsNotOpen(t *testing.T) {
+	e := newBudgetEnv(t, openBudgetTestDB(t))
+	t.Setenv(adminGroupEnv, "admins")
+	e.h.open, e.h.testUsers = false, map[string]bool{"tester": true}
+	if code, out := e.do("POST", "/api/v1/copilot/budget/admin/override", "boss", "a1", `{"githubLogin":"ola"}`, "admins"); code != 409 || !strings.HasSuffix(out["type"].(string), "not_open") {
+		t.Fatalf("override for a non-test user while closed: %d %v", code, out)
+	}
+	if len(e.gh.writes) != 0 || e.count("SELECT count(*) FROM budget_raises") != 0 {
+		t.Fatalf("nothing may be written: %v", e.gh.writes)
+	}
+	if n := e.count("SELECT count(*) FROM budget_audit WHERE action = 'admin_override' AND actor = 'boss' AND raise_id IS NULL"); n != 1 {
+		t.Errorf("refused override audited: %d", n)
+	}
+	if code, out := e.do("POST", "/api/v1/copilot/budget/admin/override", "boss", "a2", `{"githubLogin":"tester"}`, "admins"); code != 201 {
+		t.Fatalf("override for a test user while closed: %d %v", code, out)
 	}
 }
