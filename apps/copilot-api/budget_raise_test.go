@@ -151,7 +151,8 @@ func (f *fakeGitHub) handler() http.Handler {
 				return
 			}
 			w.WriteHeader(http.StatusCreated)
-			_ = json.NewEncoder(w).Encode(b)
+			// The real shape: the budget is nested (seen in dev 2026-11-23).
+			_ = json.NewEncoder(w).Encode(map[string]any{"message": "Budget successfully created.", "budget": b})
 		case r.Method == http.MethodPatch && strings.HasPrefix(r.URL.Path, base+"/"):
 			id := strings.TrimPrefix(r.URL.Path, base+"/")
 			f.writes = append(f.writes, "PATCH "+id)
@@ -1482,5 +1483,31 @@ func TestBudgetAdminOverrideRespectsNotOpen(t *testing.T) {
 	}
 	if code, out := e.do("POST", "/api/v1/copilot/budget/admin/override", "boss", "a2", `{"githubLogin":"tester"}`, "admins"); code != 201 {
 		t.Fatalf("override for a test user while closed: %d %v", code, out)
+	}
+}
+
+// P1 in dev: a raise whose create answer was not understood stayed pending.
+// A same-key retry adopts the identical budget GitHub created.
+func TestBudgetRaiseStuckFromP1IsAdopted(t *testing.T) {
+	e := newBudgetEnv(t, openBudgetTestDB(t))
+	e.profile("ola")
+	e.exec(`INSERT INTO budget_raises (github_login, idempotency_key, month, amount_usd, budget_set_usd, category, team_id, expected_value, status, created_at)
+		VALUES ('ola', 'k1', '2026-11-01', 150, 300, 'koding', 'annet', 'spare_tid', 'pending', now() - interval '1 hour')`)
+	id := "c876d725-0000-4000-8000-000000000000"
+	e.gh.budgets["ola"] = []ghBudget{{ID: id, BudgetScope: "user", BudgetType: "BundlePricing", SKU: "ai_credits", Amount: 300, ExpiresAt: "2026-12-01"}}
+	if code, out := e.raise("ola", "k1"); code != 200 || out["raise"].(map[string]any)["status"] != "applied" {
+		t.Fatalf("retry of the stuck raise: %d %v", code, out)
+	}
+	if e.count("SELECT count(*) FROM budget_github WHERE github_budget_id = $1 AND deleted_at IS NULL", id) != 1 || len(e.gh.writes) != 0 {
+		t.Errorf("budget must be adopted without a write: %v", e.gh.writes)
+	}
+}
+
+// The create answer nests the budget: {"message": ..., "budget": {"id": ...}}.
+func TestBudgetCreateReadsNestedID(t *testing.T) {
+	e := newBudgetEnv(t, openBudgetTestDB(t))
+	id, status, err := e.h.writer.createUserBudget(context.Background(), "ola", 300, time.Date(2027, 1, 1, 0, 0, 0, 0, time.UTC))
+	if err != nil || id != "b1" || status != 201 {
+		t.Fatalf("create: id %q status %d err %v", id, status, err)
 	}
 }
