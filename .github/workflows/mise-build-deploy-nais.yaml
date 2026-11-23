@@ -281,7 +281,9 @@ jobs:
     name: Wait for ci-ok
     # On push to main, reuse the merge queue's result instead of rerunning
     # lint/check: wait for a ci.yaml run on this exact SHA whose ci-ok job
-    # succeeded. No green ci-ok, no image and no deploy. Skipped on
+    # succeeded. No green ci-ok, no image and no deploy. Only merge_group
+    # (or push to main) runs count: a pull_request run tests the PR merge
+    # commit, not its head_sha, and a dispatch run may skip apps. Skipped on
     # workflow_dispatch, which never builds an image or deploys here.
     if: ${{ github.event_name == 'push' }}
     permissions:
@@ -308,7 +310,7 @@ jobs:
           while :; do
             pending=0
             runs=$(api "repos/${REPO}/actions/workflows/ci.yaml/runs?head_sha=${SHA}&per_page=20" \
-              --jq '.workflow_runs[] | "\(.id) \(.status)"')
+              --jq '.workflow_runs[] | select(.event == "merge_group" or (.event == "push" and .head_branch == "main")) | "\(.id) \(.status)"')
             while read -r run_id status; do
               [ -n "$run_id" ] || continue
               if [ "$status" != "completed" ]; then pending=1; continue; fi
@@ -320,7 +322,7 @@ jobs:
               fi
             done <<< "$runs"
             if [ "$pending" = 0 ]; then
-              echo "::error::no ci.yaml run with a green ci-ok for ${SHA}; rerun ci.yaml (workflow_dispatch) on this commit"
+              echo "::error::no merge-queue ci.yaml run with a green ci-ok for ${SHA}; land the change through a merge-queue PR to deploy"
               exit 1
             fi
             echo "ci.yaml still running for ${SHA}; waiting"
