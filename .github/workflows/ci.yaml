@@ -290,7 +290,7 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
-      - uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # ratchet:jdx/mise-action@v5.2.8
+      - uses: jdx/mise-action@236a21c3b91f5db6d4e174b348674a0f0caac06d # ratchet:jdx/mise-action@v5.2.9
         with:
           experimental: true
       - run: mise run install
@@ -332,7 +332,7 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
-      - uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # ratchet:jdx/mise-action@v5.2.8
+      - uses: jdx/mise-action@236a21c3b91f5db6d4e174b348674a0f0caac06d # ratchet:jdx/mise-action@v5.2.9
         with:
           experimental: true
       - run: mise run install
@@ -358,7 +358,7 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
-      - uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # ratchet:jdx/mise-action@v5.2.8
+      - uses: jdx/mise-action@236a21c3b91f5db6d4e174b348674a0f0caac06d # ratchet:jdx/mise-action@v5.2.9
         with:
           experimental: true
       - run: mise run install
@@ -391,7 +391,7 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
-      - uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # ratchet:jdx/mise-action@v5.2.8
+      - uses: jdx/mise-action@236a21c3b91f5db6d4e174b348674a0f0caac06d # ratchet:jdx/mise-action@v5.2.9
         with:
           experimental: true
       - run: mise run install
@@ -417,7 +417,7 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
-      - uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # ratchet:jdx/mise-action@v5.2.8
+      - uses: jdx/mise-action@236a21c3b91f5db6d4e174b348674a0f0caac06d # ratchet:jdx/mise-action@v5.2.9
         with:
           experimental: true
       - run: mise run install
@@ -443,7 +443,7 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
-      - uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # ratchet:jdx/mise-action@v5.2.8
+      - uses: jdx/mise-action@236a21c3b91f5db6d4e174b348674a0f0caac06d # ratchet:jdx/mise-action@v5.2.9
         with:
           experimental: true
       - run: mise run install
@@ -475,7 +475,7 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
-      - uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # ratchet:jdx/mise-action@v5.2.8
+      - uses: jdx/mise-action@236a21c3b91f5db6d4e174b348674a0f0caac06d # ratchet:jdx/mise-action@v5.2.9
         with:
           experimental: true
       - run: mise run install
@@ -501,7 +501,7 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
-      - uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # ratchet:jdx/mise-action@v5.2.8
+      - uses: jdx/mise-action@236a21c3b91f5db6d4e174b348674a0f0caac06d # ratchet:jdx/mise-action@v5.2.9
         with:
           experimental: true
       - run: mise run install
@@ -545,7 +545,7 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
-      - uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # ratchet:jdx/mise-action@v5.2.8
+      - uses: jdx/mise-action@236a21c3b91f5db6d4e174b348674a0f0caac06d # ratchet:jdx/mise-action@v5.2.9
         with:
           experimental: true
       - run: mise run install
@@ -587,7 +587,7 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
-      - uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # ratchet:jdx/mise-action@v5.2.8
+      - uses: jdx/mise-action@236a21c3b91f5db6d4e174b348674a0f0caac06d # ratchet:jdx/mise-action@v5.2.9
         with:
           experimental: true
       - run: mise run install
@@ -613,7 +613,7 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
-      - uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # ratchet:jdx/mise-action@v5.2.8
+      - uses: jdx/mise-action@236a21c3b91f5db6d4e174b348674a0f0caac06d # ratchet:jdx/mise-action@v5.2.9
         with:
           experimental: true
       - run: mise run install
@@ -639,7 +639,7 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
-      - uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # ratchet:jdx/mise-action@v5.2.8
+      - uses: jdx/mise-action@236a21c3b91f5db6d4e174b348674a0f0caac06d # ratchet:jdx/mise-action@v5.2.9
         with:
           experimental: true
       - run: mise run install
@@ -665,7 +665,7 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
-      - uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # ratchet:jdx/mise-action@v5.2.8
+      - uses: jdx/mise-action@236a21c3b91f5db6d4e174b348674a0f0caac06d # ratchet:jdx/mise-action@v5.2.9
         with:
           experimental: true
       - run: mise run install
@@ -691,7 +691,7 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
-      - uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # ratchet:jdx/mise-action@v5.2.8
+      - uses: jdx/mise-action@236a21c3b91f5db6d4e174b348674a0f0caac06d # ratchet:jdx/mise-action@v5.2.9
         with:
           experimental: true
       - run: mise run install
@@ -720,7 +720,7 @@ jobs:
           key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
           restore-keys: |
             ${{ runner.os }}-pnpm-
-      - uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # ratchet:jdx/mise-action@v5.2.8
+      - uses: jdx/mise-action@236a21c3b91f5db6d4e174b348674a0f0caac06d # ratchet:jdx/mise-action@v5.2.9
         with:
           experimental: true
       - name: Configure GitHub Packages auth
@@ -758,7 +758,7 @@ jobs:
           key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
           restore-keys: |
             ${{ runner.os }}-pnpm-
-      - uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # ratchet:jdx/mise-action@v5.2.8
+      - uses: jdx/mise-action@236a21c3b91f5db6d4e174b348674a0f0caac06d # ratchet:jdx/mise-action@v5.2.9
         with:
           experimental: true
       - name: Configure GitHub Packages auth
@@ -835,7 +835,7 @@ jobs:
         run: python3 scripts/build-local-dashboard.py --check
       - name: ShellCheck
         run: shellcheck scripts/install.sh scripts/publish-release.sh skills/*/*.sh
-      - uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # ratchet:jdx/mise-action@v5.2.8
+      - uses: jdx/mise-action@236a21c3b91f5db6d4e174b348674a0f0caac06d # ratchet:jdx/mise-action@v5.2.9
         with:
           experimental: true
       # ubuntu-latest moved to 26.04, whose default JDK is too new for the

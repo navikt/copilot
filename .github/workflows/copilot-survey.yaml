@@ -70,7 +70,7 @@ jobs:
       COPILOT_SURVEY_TEST_DB_URL: postgres://postgres:test@localhost:5432/postgres?sslmode=disable
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
-      - uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # ratchet:jdx/mise-action@v5.2.8
+      - uses: jdx/mise-action@236a21c3b91f5db6d4e174b348674a0f0caac06d # ratchet:jdx/mise-action@v5.2.9
         with:
           experimental: true
           working_directory: apps/copilot-survey
