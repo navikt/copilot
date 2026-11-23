@@ -180,19 +180,14 @@ export default function NavMcpServerePage() {
         </BodyLong>
         <BodyLong>
           Microsoft Research profilerte Claude Code på 60 oppgaver fra SWE-Bench. Agenten fikk 23 verktøybeskrivelser i
-          hver tur, og 16 av dem ble aldri brukt. Pluginen{" "}
-          <a href="https://github.com/microsoft/TokenEconomizer" className={linkClass}>
-            TokenEconomizer
-          </a>{" "}
-          fjerner verktøy som historikken tilsier at agenten ikke bruker. Den kuttet kostnaden med 18,4 til 30,9 % over
-          fem kombinasjoner av agent og modell (
+          hver tur, og 16 av dem ble aldri brukt (
           <a
             href="https://www.microsoft.com/en-us/research/blog/tokeneconomizer-learning-from-experience-to-make-ai-coding-agents-more-efficient/"
             className={linkClass}
           >
-            Microsoft Research
+            kilde
           </a>
-          ). Tallene gjelder ikke Navs servere. Vi har ikke målt dem.
+          ). Tallet gjelder ikke Navs servere. Vi har ikke målt dem.
         </BodyLong>
         <Bullets>
           <li>Slå på serverne du trenger i oppgaven, og slå dem av etterpå.</li>
