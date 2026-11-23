@@ -24,6 +24,10 @@ const consoleTeamsURL = "https://console.nav.cloud.nais.io/graphql"
 // costs one lookup. Errors are never cached.
 const consoleTeamsTTL = time.Minute
 
+// consoleTeamsMaxCache bounds the cache. Past it, expired entries are swept,
+// and if that is not enough the cache is cleared.
+const consoleTeamsMaxCache = 1000
+
 const userNotFoundMessage = "The specified user was not found."
 
 const userTeamsQuery = `query($email: String!, $after: Cursor) {
@@ -94,9 +98,7 @@ func (c *consoleTeams) Teams(ctx context.Context, email string) ([]string, error
 		}
 		if !page.PageInfo.HasNextPage {
 			slices.Sort(teams)
-			c.mu.Lock()
-			c.cache[email] = cachedTeams{teams, c.now()}
-			c.mu.Unlock()
+			c.store(email, teams)
 			return slices.Clone(teams), nil
 		}
 		if page.PageInfo.EndCursor == nil || *page.PageInfo.EndCursor == "" {
@@ -105,6 +107,23 @@ func (c *consoleTeams) Teams(ctx context.Context, email string) ([]string, error
 		after = page.PageInfo.EndCursor
 	}
 	return nil, errors.New("nais console: too many team pages")
+}
+
+func (c *consoleTeams) store(email string, teams []string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	now := c.now()
+	if len(c.cache) >= consoleTeamsMaxCache {
+		for k, v := range c.cache {
+			if now.Sub(v.at) >= consoleTeamsTTL {
+				delete(c.cache, k)
+			}
+		}
+		if len(c.cache) >= consoleTeamsMaxCache {
+			clear(c.cache)
+		}
+	}
+	c.cache[email] = cachedTeams{teams, now}
 }
 
 type teamsPage struct {
@@ -160,7 +179,8 @@ func (c *consoleTeams) page(ctx context.Context, email string, after *string) (*
 	// A person not in Nais is a member of no team (403), not an outage. nais/api
 	// answers user.ErrNotFound with this message on path ["user"]
 	// (internal/user/error.go); any other error stays a failure.
-	if len(out.Errors) == 1 && out.Errors[0].Message == userNotFoundMessage &&
+	// Only on the first page: a not-found after it would leave a partial list.
+	if after == nil && len(out.Errors) == 1 && out.Errors[0].Message == userNotFoundMessage &&
 		len(out.Errors[0].Path) == 1 && out.Errors[0].Path[0] == "user" {
 		return &teamsPage{}, nil
 	}

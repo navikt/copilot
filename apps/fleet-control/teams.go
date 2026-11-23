@@ -18,9 +18,17 @@ type teamDirectory interface {
 	Teams(ctx context.Context, email string) ([]string, error)
 }
 
-// normEmail trims and lowercases an email for comparison.
+// normEmail trims and lowercases an email for comparison. Non-ASCII gives ""
+// (deny): Unicode case folding maps e.g. U+212A KELVIN SIGN to "k", so two
+// different addresses could compare equal.
 func normEmail(s string) string {
-	return strings.ToLower(strings.TrimSpace(s))
+	s = strings.TrimSpace(s)
+	for i := range len(s) {
+		if s[i] >= 0x80 {
+			return ""
+		}
+	}
+	return strings.ToLower(s)
 }
 
 // staticTeams is a fixed team -> member email list, compared with normEmail.

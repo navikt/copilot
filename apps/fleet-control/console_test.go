@@ -8,6 +8,8 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 )
@@ -154,5 +156,110 @@ func TestTeamsFromEnvConsole(t *testing.T) {
 		t.Fatal(err)
 	} else if _, ok := d.(*consoleTeams); !ok {
 		t.Fatalf("dev with both: got %T, want console", d)
+	}
+}
+
+// pagedConsole answers by the `after` variable: pages[""] is the first page.
+func pagedConsole(t *testing.T, pages map[string]string, calls *int) *httptest.Server {
+	t.Helper()
+	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		*calls++
+		var req struct {
+			Variables struct {
+				After *string `json:"after"`
+			} `json:"variables"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&req)
+		key := ""
+		if req.Variables.After != nil {
+			key = *req.Variables.After
+		}
+		body, ok := pages[key]
+		if !ok {
+			http.Error(w, "unknown cursor", http.StatusBadRequest)
+			return
+		}
+		_, _ = w.Write([]byte(body))
+	}))
+}
+
+func page(slug string, next string) string {
+	info := `{"hasNextPage":false}`
+	if next != "" {
+		info = `{"hasNextPage":true,"endCursor":"` + next + `"}`
+	}
+	return `{"data":{"user":{"teams":{"nodes":[{"team":{"slug":"` + slug + `"}}],"pageInfo":` + info + `}}}}`
+}
+
+const notFound = `{"errors":[{"message":"The specified user was not found.","path":["user"]}],"data":null}`
+
+func TestConsoleTeamsPages(t *testing.T) {
+	ctx := context.Background()
+	run := func(pages map[string]string) ([]string, *consoleTeams, int, error) {
+		var calls int
+		ts := pagedConsole(t, pages, &calls)
+		t.Cleanup(ts.Close)
+		c := newConsoleTeams(ts.URL, tokenFile(t))
+		got, err := c.Teams(ctx, "kari@nav.no")
+		return got, c, calls, err
+	}
+	got, _, _, err := run(map[string]string{"": page("team-b", "c1"), "c1": page("team-a", "")})
+	if err != nil || !slices.Equal(got, []string{"team-a", "team-b"}) {
+		t.Errorf("two pages: got %v, %v", got, err)
+	}
+	if _, _, _, e := run(map[string]string{"": `{"data":{"user":{"teams":{"nodes":[],"pageInfo":{"hasNextPage":true}}}}}`}); e == nil || !strings.Contains(e.Error(), "without cursor") {
+		t.Error("next page without cursor: want error")
+	}
+	if _, _, _, e := run(map[string]string{"": page("Bad_Slug", "")}); e == nil {
+		t.Error("invalid slug: want error")
+	}
+	if _, _, _, e := run(map[string]string{"": page("team-a", "c1"), "c1": page("team-b", "c1")}); e == nil || !strings.Contains(e.Error(), "too many") {
+		t.Error("endless pages: want error")
+	}
+	got, c, calls, err := run(map[string]string{"": page("team-a", "c1"), "c1": notFound})
+	if err == nil {
+		t.Errorf("not-found on page 2: got %v, want error", got)
+	}
+	if _, e := c.Teams(ctx, "kari@nav.no"); e == nil || calls < 2 {
+		t.Error("not-found on page 2 must not be cached")
+	}
+	two := `{"errors":[{"message":"The specified user was not found.","path":["user"]},{"message":"x"}],"data":null}`
+	if _, _, _, e := run(map[string]string{"": two}); e == nil {
+		t.Error("not-found plus another error: want error")
+	}
+}
+
+func TestNormEmailRefusesNonASCII(t *testing.T) {
+	if got := normEmail("Kari@nav.no"); got != "" {
+		t.Fatalf("kelvin sign: got %q, want \"\"", got)
+	}
+	if ok, _ := (staticTeams{"team-a": {"kari@nav.no"}}).IsMember(context.Background(), "team-a", "Kari@nav.no"); ok {
+		t.Fatal("kelvin sign matched kari@nav.no")
+	}
+	if got := normEmail(" Kari@NAV.no "); got != "kari@nav.no" {
+		t.Fatalf("ascii: got %q", got)
+	}
+}
+
+func TestConsoleTeamsCacheBounded(t *testing.T) {
+	c := newConsoleTeams("", "")
+	base := time.Now()
+	c.now = func() time.Time { return base }
+	for i := range consoleTeamsMaxCache - 1 {
+		c.store(strconv.Itoa(i), nil)
+	}
+	c.now = func() time.Time { return base.Add(consoleTeamsTTL / 2) }
+	c.store("fresh", nil)
+	c.now = func() time.Time { return base.Add(consoleTeamsTTL) }
+	c.store("new", nil)
+	// Expired entries go, the fresh one stays: a sweep, not a clear.
+	if _, ok := c.cache["fresh"]; !ok || len(c.cache) != 2 {
+		t.Fatalf("sweep: %d left, fresh kept %v", len(c.cache), ok)
+	}
+	for i := range consoleTeamsMaxCache + 5 {
+		c.store(strconv.Itoa(i), nil)
+	}
+	if len(c.cache) > consoleTeamsMaxCache {
+		t.Fatalf("cache unbounded: %d", len(c.cache))
 	}
 }
