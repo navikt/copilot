@@ -149,7 +149,7 @@ func TestFormElicitationCapability(t *testing.T) {
 	} {
 		var e mcpEnvelope
 		e.Params.Meta = map[string]json.RawMessage{mcpMetaClientCapabilities: json.RawMessage(raw)}
-		if got := e.formElicitation(); got != want {
+		if got := e.FormElicitation(); got != want {
 			t.Errorf("%s: got %v want %v", raw, got, want)
 		}
 	}
