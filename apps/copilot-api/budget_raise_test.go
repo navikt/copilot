@@ -1078,12 +1078,142 @@ func TestBudgetRaiseWriteSerialisedWithReserve(t *testing.T) {
 	go func() { bDone <- post(r2, "b") }()
 	<-inReserve
 	close(e.gh.postWait) // A creates, records and finishes, if nothing stops it
-	time.Sleep(300 * time.Millisecond)
+	// Release B once A has either finished (broken code) or is waiting on
+	// B's advisory lock (fixed code); no timing involved.
+	a, aGot := 0, false
+	for !aGot && e.waiters("wait_event = 'advisory'") == 0 {
+		select {
+		case a = <-aDone:
+			aGot = true
+		case <-time.After(2 * time.Millisecond):
+		}
+	}
 	close(releaseB)
-	a, b := <-aDone, <-bDone
+	if !aGot {
+		a = <-aDone
+	}
+	b := <-bDone
 	e.gh.mu.Lock()
 	defer e.gh.mu.Unlock()
 	if len(e.gh.budgets["ola"]) != 1 || a != 201 || b != 409 {
 		t.Fatalf("A=%d B=%d (want 201, 409), GitHub has %+v", a, b, e.gh.budgets["ola"])
+	}
+}
+
+// waiters counts sessions blocked on a heavyweight lock matching cond.
+func (e *budgetEnv) waiters(cond string) int {
+	return e.count("SELECT count(*) FROM pg_stat_activity WHERE wait_event_type = 'Lock' AND " + cond)
+}
+
+func (e *budgetEnv) secondReplica() (*budgetRaiseHandlers, func(key string) int) {
+	e.t.Helper()
+	h2, err := newBudgetRaiseHandlers(&Config{BudgetDatabaseURL: e.dsn, BudgetWrites: "on", BudgetDefaultUSD: 150, BudgetTimeZone: "Europe/Oslo", BudgetRaisesOpen: true}, e.h.writer, fakeSeats{})
+	if err != nil {
+		e.t.Fatal(err)
+	}
+	h2.now, h2.teams = e.h.now, e.h.teams
+	e.t.Cleanup(func() {
+		if h2.store.pool != nil {
+			h2.store.pool.Close()
+		}
+	})
+	r2 := makeAPIRouter(&Config{}, nil, nil, nil, NewIdentityResolverChain(emailResolver{}), h2)
+	return h2, func(key string) int {
+		req := httptest.NewRequest("POST", "/api/v1/copilot/budget/raises", strings.NewReader(`{"category":"koding","expectedValue":"spare_tid"}`))
+		req.Header.Set("Idempotency-Key", key)
+		req = req.WithContext(context.WithValue(req.Context(), userContextKey, &User{Email: "ola@nav.no"}))
+		rec := httptest.NewRecorder()
+		r2.ServeHTTP(rec, req)
+		return rec.Code
+	}
+}
+
+func (e *budgetEnv) waitFor(sql string, args ...any) {
+	e.t.Helper()
+	for e.count(sql, args...) == 0 {
+		time.Sleep(2 * time.Millisecond)
+	}
+}
+
+// Review of #2716: without the lock on the final step, B can read A's
+// recorded ID (missing from B's older list, so "gone"), then see A already
+// applied, and create a second budget.
+func TestBudgetRaiseFinalStepLocked(t *testing.T) {
+	e := newBudgetEnv(t, openBudgetTestDB(t))
+	e.profile("ola")
+	h2, postB := e.secondReplica()
+
+	e.gh.postWait = make(chan struct{})
+	aDone := make(chan int)
+	go func() { c, _ := e.raise("ola", "a"); aDone <- c }()
+	e.waitFor("SELECT count(*) FROM budget_raises")
+
+	// Hold A's final status update on a row lock, without the advisory lock.
+	pool, _ := e.h.store.get(context.Background())
+	hold, err := pool.Begin(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := hold.Exec(context.Background(), "SELECT 1 FROM budget_raises FOR UPDATE"); err != nil {
+		t.Fatal(err)
+	}
+	var once sync.Once
+	commit := func() { once.Do(func() { _ = hold.Commit(context.Background()) }) }
+	t.Cleanup(commit)
+
+	h2.afterList = func() {
+		h2.afterList = nil
+		close(e.gh.postWait)
+		e.waitFor("SELECT count(*) FROM budget_github")
+		e.waitFor("SELECT count(*) FROM pg_stat_activity WHERE wait_event_type = 'Lock' AND wait_event <> 'advisory'") // A at its final step
+	}
+	h2.midReserve = func() { // reached first only when the final step is unlocked
+		h2.midReserve = nil
+		commit()
+		e.waitFor("SELECT count(*) FROM budget_raises WHERE status = 'applied'")
+	}
+	bDone := make(chan int)
+	go func() { bDone <- postB("b") }()
+	go func() { // fixed code: B waits on A's advisory lock instead
+		for {
+			select {
+			case <-bDone:
+				return
+			default:
+			}
+			if e.waiters("wait_event = 'advisory'") > 0 {
+				commit()
+				return
+			}
+			time.Sleep(2 * time.Millisecond)
+		}
+	}()
+	a := <-aDone
+	b := 0
+	select {
+	case b = <-bDone:
+	case <-time.After(20 * time.Second):
+		t.Fatal("B did not finish")
+	}
+	e.gh.mu.Lock()
+	n := len(e.gh.budgets["ola"])
+	e.gh.mu.Unlock()
+	if n != 1 || e.count("SELECT count(*) FROM budget_github WHERE deleted_at IS NULL") != 1 {
+		t.Fatalf("A=%d B=%d: GitHub has %d budgets", a, b, n)
+	}
+}
+
+func TestBudgetRaiseFinalUpdateOnlyFromPending(t *testing.T) {
+	e := newBudgetEnv(t, openBudgetTestDB(t))
+	e.profile("ola")
+	e.gh.postWait = make(chan struct{})
+	done := make(chan map[string]any)
+	go func() { _, out := e.raise("ola", "a"); done <- out }()
+	e.waitFor("SELECT count(*) FROM budget_raises")
+	e.exec("UPDATE budget_raises SET status = 'failed'") // another replica reconciled it
+	close(e.gh.postWait)
+	out := <-done
+	if out["raise"].(map[string]any)["status"] != "failed" || e.count("SELECT count(*) FROM budget_raises WHERE status = 'failed'") != 1 {
+		t.Fatalf("the final step must not overwrite a reconciliation: %v", out)
 	}
 }

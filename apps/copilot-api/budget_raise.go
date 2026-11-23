@@ -667,19 +667,34 @@ func (h *budgetRaiseHandlers) raise(w http.ResponseWriter, r *http.Request, acto
 		final = "failed"
 		slog.Error("Budget write failed", "github_status", ghStatus, "error", err)
 	}
+	var settled string // set when a reconciliation settled the raise first
 	// Result audit and status in one transaction under the user's lock. If it
 	// fails, the raise stays pending and the next raise reconciles it.
 	if dbErr := lockedTx(wctx, pool, target, func(tx pgx.Tx) error {
 		if _, err := tx.Exec(wctx, "UPDATE budget_audit SET github_status = NULLIF($2, 0), github_budget_id = NULLIF($3, '') WHERE id = $1", plan.auditID, ghStatus, ownID); err != nil {
 			return err
 		}
-		_, err := tx.Exec(wctx, "UPDATE budget_raises SET status = $2 WHERE id = $1", plan.raise.ID, final)
+		// Only from pending: a reconciliation that already settled this raise
+		// (another replica, after budgetPendingStale) wins.
+		tag, err := tx.Exec(wctx, "UPDATE budget_raises SET status = $2 WHERE id = $1 AND status = 'pending'", plan.raise.ID, final)
+		if err == nil && tag.RowsAffected() == 0 {
+			err = tx.QueryRow(wctx, "SELECT status FROM budget_raises WHERE id = $1", plan.raise.ID).Scan(&settled)
+		}
 		return err
 	}); dbErr != nil {
 		slog.Error("Budget raise result not recorded, left pending", "error", dbErr)
 		final = "pending"
 		if err == nil {
 			err = dbErr
+		}
+	}
+	if settled != "" {
+		slog.Warn("Budget raise already settled by reconciliation", "status", settled)
+		final = settled
+		if settled == "applied" {
+			err = nil
+		} else if err == nil {
+			err = fmt.Errorf("raise settled as %s by reconciliation", settled)
 		}
 	}
 	plan.raise.Status = final
@@ -882,6 +897,10 @@ func (h *budgetRaiseHandlers) reserve(ctx context.Context, pool *pgxpool.Pool, r
 // lockedTx runs fn in a transaction holding the user's advisory lock. Every
 // change to a user's raises or budget_github goes through it, so reserve on
 // another replica sees either all of a write's bookkeeping or none (#2715).
+// The guards that carry this are reserve and the final step (result audit and
+// status); TestBudgetRaiseFinalStepLocked and TestBudgetRaiseAcrossReplicas
+// fail without them. The locks on recordOwnBudget and on gone-marking are
+// defence in depth: no known interleaving depends on them, so no test does.
 func lockedTx(ctx context.Context, pool *pgxpool.Pool, login string, fn func(pgx.Tx) error) error {
 	return pgx.BeginFunc(ctx, pool, func(tx pgx.Tx) error {
 		if _, err := tx.Exec(ctx, "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", "budget:"+login); err != nil {
