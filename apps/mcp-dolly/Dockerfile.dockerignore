@@ -1,0 +1,8 @@
+# The build context is the repo root; send only what the image needs.
+*
+!lib/mcpkit/
+!apps/mcp-dolly/go.mod
+!apps/mcp-dolly/go.sum
+!apps/mcp-dolly/*.go
+apps/mcp-dolly/*_test.go
+lib/mcpkit/*_test.go

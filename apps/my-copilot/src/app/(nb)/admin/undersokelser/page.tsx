@@ -7,6 +7,7 @@ import ErrorState from "@/components/error-state";
 import { getUserToken, requireAdmin } from "@/lib/auth";
 import { formatDate, formatNumber } from "@/lib/format";
 import { getAdminSurveys, type SurveySummary } from "@/lib/survey";
+import { ScrollRegion } from "@/components/scroll-region";
 
 export const metadata: Metadata = {
   title: "Undersøkelser",
@@ -38,7 +39,7 @@ export default async function SurveysPage() {
         >
           <VStack gap="space-16">
             <Link href="/admin/undersokelser/sammenlign">Sammenlign bølgene</Link>
-            <div className="overflow-x-auto">
+            <ScrollRegion label="Tabell: undersøkelser">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -69,7 +70,7 @@ export default async function SurveysPage() {
                   ))}
                 </TableBody>
               </Table>
-            </div>
+            </ScrollRegion>
           </VStack>
         </Box>
       </div>

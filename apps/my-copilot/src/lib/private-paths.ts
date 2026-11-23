@@ -9,6 +9,7 @@ export const PRIVATE_PAGE_PATHS = [
   "/innsikt/trender",
   "/innsikt/undersokelser",
   "/admin",
+  "/fleet",
   "/adopsjon",
   "/kostnad",
   "/abonnement",

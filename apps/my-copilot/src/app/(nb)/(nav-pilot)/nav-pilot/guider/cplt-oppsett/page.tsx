@@ -6,6 +6,7 @@ import { CodeBlock } from "@/components/code-block";
 import { LinkableHeading } from "@/components/linkable-heading";
 import { Bullets, DocPage, HeaderRow, code, linkClass } from "@/components/nav-pilot/doc-page";
 import type { TocItem } from "@/components/table-of-contents";
+import { ScrollRegion } from "@/components/scroll-region";
 
 export const metadata: Metadata = {
   title: "Sett opp cplt i et repo",
@@ -143,7 +144,7 @@ cplt init --write --merge                     # legger til nye funn, fjerner ing
             nøklene under <code className={code}>[propose]</code>. Feilmeldingene lenker til oppslaget i Feil i
             sandkassen.
           </BodyLong>
-          <div className="overflow-x-auto">
+          <ScrollRegion label="Tabell: feil og oppsett per stakk">
             <Table size="small" className="table-stack" role="table">
               <HeaderRow stack cells={["Stakk", "Feilen", "I .cplt.toml"]} />
               <TableBody role="rowgroup">
@@ -175,7 +176,7 @@ cplt init --write --merge                     # legger til nye funn, fjerner ing
                 </TableRow>
               </TableBody>
             </Table>
-          </div>
+          </ScrollRegion>
           <BodyLong>En Kotlin-app med Gradle, MockK og PostgreSQL i Docker Compose får denne fila:</BodyLong>
           <CodeBlock filename=".cplt.toml">{EKSEMPEL}</CodeBlock>
           <BodyLong>

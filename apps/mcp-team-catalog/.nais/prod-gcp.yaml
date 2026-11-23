@@ -1,7 +1,7 @@
 replicas_min: "2"
 replicas_max: "2"
 cpu_threshold: "80"
-cpu_request: 50m
+cpu_request: 20m
 memory_request: 64Mi
 memory_limit: 384Mi
 log_level: "INFO"

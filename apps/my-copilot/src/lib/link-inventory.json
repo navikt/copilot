@@ -210,6 +210,10 @@
     "sources": ["apps/my-copilot/src/app/(en)/en/news/[slug]/page.tsx", "apps/my-copilot/src/app/sitemap.ts"],
     "anchors": {}
   },
+  "/fleet": {
+    "sources": ["apps/my-copilot/src/app/(nb)/fleet/page.tsx"],
+    "anchors": {}
+  },
   "/images/alpha-decide-system1-system2.png": {
     "sources": ["docs/news/articles/alpha-decide.md", "docs/news/articles/nav-pilot-alpha-decide.md"],
     "anchors": {}
@@ -3013,7 +3017,8 @@
   "/oauth2/login": {
     "sources": [
       "apps/my-copilot/src/components/navigation/site-nav.tsx",
-      "apps/my-copilot/src/components/site-shell.tsx"
+      "apps/my-copilot/src/components/site-shell.tsx",
+      "apps/my-copilot/src/lib/fleet-control.ts"
     ],
     "anchors": {}
   },

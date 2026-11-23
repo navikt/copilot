@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { BudgetRaisePage } from "./budget-raise";
+import { BudgetRaisePage, BudgetSkeleton } from "./budget-raise";
 
 const options = {
   roles: ["utvikler", "annet"],
@@ -34,6 +34,24 @@ const defaultBudget = { budgetAmount: 150, consumedAmount: 120, isOverride: fals
 
 afterEach(() => vi.unstubAllGlobals());
 
+describe("BudgetSkeleton", () => {
+  it("announces loading and marks the page busy", () => {
+    const { container } = render(<BudgetSkeleton />);
+    expect(screen.getByRole("status")).toHaveTextContent("Laster budsjett");
+    expect(container.querySelector('[aria-busy="true"]')).toBeInTheDocument();
+    expect(screen.getByRole("status").closest('[aria-busy="true"]')).toBeNull();
+  });
+
+  it("shows while the data loads", () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => new Promise(() => {}))
+    );
+    render(<BudgetRaisePage />);
+    expect(screen.getByRole("status")).toHaveTextContent("Laster budsjett");
+  });
+});
+
 describe("BudgetRaisePage", () => {
   it("shows the summary, consumption and how many raises are left", async () => {
     mockApi(defaultBudget);
@@ -49,7 +67,7 @@ describe("BudgetRaisePage", () => {
     render(<BudgetRaisePage />);
     expect(await screen.findByText("Igjen")).toBeInTheDocument();
     expect(screen.getByText("30 USD")).toBeInTheDocument();
-    expect(screen.getByText(/Vi fant deg ikke i teamet «team-gammel» lenger/)).toBeInTheDocument();
+    expect(screen.getByText(/Du er ikke lenger i teamet «team-gammel»/)).toBeInTheDocument();
   });
 
   it("hides the ceiling and raise count for an own budget", async () => {
@@ -126,7 +144,7 @@ describe("BudgetRaisePage «Kort fortalt»", () => {
     });
     render(<BudgetRaisePage />);
     await screen.findByRole("heading", { name: "Kort fortalt" });
-    expect(screen.queryByText(/Går du tom/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Trenger du mer, fyller/)).not.toBeInTheDocument();
     expect(screen.getAllByText(/Du har nådd taket/).length).toBeGreaterThan(0);
   });
 });
@@ -140,10 +158,132 @@ const raiseCalls = (m: ReturnType<typeof mockApi>) =>
   m.mock.calls.filter(([u]) => u === "/api/budget/raises") as unknown as [string, RequestInit][];
 
 describe("BudgetRaisePage review fixes", () => {
+  it("clears the key and keeps the form open when a new raise gets 429", async () => {
+    let n = 0;
+    const m = vi.fn(async (url: string) => {
+      const json = (st: number, body: object) => new Response(JSON.stringify(body), { status: st });
+      if (url === "/api/budget") return json(200, defaultBudget);
+      if (url === "/api/budget/options") return json(200, options);
+      if (url === "/api/budget/profile") return json(200, { teamId: "annet", role: "utvikler", exists: true });
+      n++;
+      if (n === 1) return json(429, { error: "rate_limited" });
+      return json(201, { raise: { status: "applied" }, budgetUsd: 300, raisesLeft: 3 });
+    });
+    vi.stubGlobal("fetch", m);
+    render(<BudgetRaisePage />);
+    await fillAndSubmit();
+    expect(await screen.findByText(/Vent ett minutt og prøv igjen/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Prøv igjen" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Fyll på 150 USD" }));
+    const raises = () => m.mock.calls.filter(([u]) => u === "/api/budget/raises") as unknown as [string, RequestInit][];
+    await waitFor(() => expect(raises()).toHaveLength(2));
+    const key = (c: [string, RequestInit]) => (c[1].headers as Record<string, string>)["Idempotency-Key"];
+    expect(key(raises()[1])).not.toBe(key(raises()[0]));
+  });
+
+  it("keeps the key and «Prøv igjen» when a new raise gets 503", async () => {
+    const m = mockApi(defaultBudget, { status: 503, body: { error: "budget_writes_unavailable" } });
+    render(<BudgetRaisePage />);
+    await fillAndSubmit();
+    const retry = await screen.findByRole("button", { name: "Prøv igjen" });
+    expect(screen.queryByRole("button", { name: "Fyll på 150 USD" })).not.toBeInTheDocument();
+    fireEvent.click(retry);
+    await waitFor(() => expect(raiseCalls(m)).toHaveLength(2));
+    const key = (c: [string, RequestInit]) => (c[1].headers as Record<string, string>)["Idempotency-Key"];
+    expect(key(raiseCalls(m)[1])).toBe(key(raiseCalls(m)[0]));
+  });
+
+  it.each([429, 502])("keeps the key and «Prøv igjen» when a retry gets %i", async (status) => {
+    let n = 0;
+    const m = vi.fn(async (url: string) => {
+      const json = (st: number, body: object) => new Response(JSON.stringify(body), { status: st });
+      if (url === "/api/budget") return json(200, defaultBudget);
+      if (url === "/api/budget/options") return json(200, options);
+      if (url === "/api/budget/profile") return json(200, { teamId: "annet", role: "utvikler", exists: true });
+      n++;
+      if (n === 2) return json(status, { error: status === 429 ? "rate_limited" : "github_error" });
+      return json(200, { raise: { status: "pending" } });
+    });
+    vi.stubGlobal("fetch", m);
+    render(<BudgetRaisePage />);
+    await fillAndSubmit();
+    fireEvent.click(await screen.findByRole("button", { name: "Prøv igjen" }));
+    const raises = () => m.mock.calls.filter(([u]) => u === "/api/budget/raises") as unknown as [string, RequestInit][];
+    await waitFor(() => expect(raises()).toHaveLength(2));
+    fireEvent.click(await screen.findByRole("button", { name: "Prøv igjen" }));
+    await waitFor(() => expect(raises()).toHaveLength(3));
+    const key = (c: [string, RequestInit]) => (c[1].headers as Record<string, string>)["Idempotency-Key"];
+    expect(key(raises()[2])).toBe(key(raises()[0]));
+    expect(screen.queryByRole("button", { name: "Fyll på 150 USD" })).not.toBeInTheDocument();
+  });
+
+  it("shows the form again with a fresh key once the pending raise resolves", async () => {
+    let n = 0;
+    const m = vi.fn(async (url: string) => {
+      const json = (status: number, body: object) => new Response(JSON.stringify(body), { status });
+      if (url === "/api/budget") return json(200, defaultBudget);
+      if (url === "/api/budget/options") return json(200, options);
+      if (url === "/api/budget/profile") return json(200, { teamId: "annet", role: "utvikler", exists: true });
+      n++;
+      return json(200, {
+        raise: { status: n === 1 ? "pending" : "applied" },
+        replayed: n === 2,
+        budgetUsd: 300,
+        raisesLeft: 3,
+      });
+    });
+    vi.stubGlobal("fetch", m);
+    render(<BudgetRaisePage />);
+    await fillAndSubmit();
+    fireEvent.click(await screen.findByRole("button", { name: "Prøv igjen" }));
+    expect(await screen.findByRole("button", { name: "Fyll på 150 USD" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Prøv igjen" })).not.toBeInTheDocument();
+    await fillAndSubmit();
+    const raises = () => m.mock.calls.filter(([u]) => u === "/api/budget/raises") as unknown as [string, RequestInit][];
+    await waitFor(() => expect(raises()).toHaveLength(3));
+    const key = (c: [string, RequestInit]) => (c[1].headers as Record<string, string>)["Idempotency-Key"];
+    expect(key(raises()[1])).toBe(key(raises()[0]));
+    expect(key(raises()[2])).not.toBe(key(raises()[0]));
+  });
+
+  it("offers a same-key retry after github_error on the last raise, even when the reload hides the form", async () => {
+    const row = (id: string, status: string) => ({
+      id,
+      createdAt: "2026-12-01T00:00:00Z",
+      amountUsd: 150,
+      category: "koding",
+      expectedValue: "spare_tid",
+      status,
+    });
+    const before = { ...defaultBudget, isOverride: true, raises: ["1", "2", "3"].map((id) => row(id, "applied")) };
+    const after = { ...before, raises: [...before.raises, row("4", "pending")] };
+    let posted = false;
+    const m = vi.fn(async (url: string) => {
+      const json = (status: number, body: object) => new Response(JSON.stringify(body), { status });
+      if (url === "/api/budget") return json(200, posted ? after : before);
+      if (url === "/api/budget/options") return json(200, options);
+      if (url === "/api/budget/profile") return json(200, { teamId: "annet", role: "utvikler", exists: true });
+      posted = true;
+      return json(502, { error: "github_error" });
+    });
+    vi.stubGlobal("fetch", m);
+    render(<BudgetRaisePage />);
+    await fillAndSubmit();
+    const retry = await screen.findByRole("button", { name: "Prøv igjen" });
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Fyll på 150 USD" })).not.toBeInTheDocument());
+    fireEvent.click(retry);
+    const raises = () => m.mock.calls.filter(([u]) => u === "/api/budget/raises") as unknown as [string, RequestInit][];
+    await waitFor(() => expect(raises()).toHaveLength(2));
+    const key = (c: [string, RequestInit]) => (c[1].headers as Record<string, string>)["Idempotency-Key"];
+    // The key survives the github_error reload.
+    expect(key(raises()[1])).toBe(key(raises()[0]));
+    expect(raises()[1][1].body).toBe(raises()[0][1].body);
+  });
+
   it("survives raises: null from copilot-api", async () => {
     mockApi({ ...defaultBudget, raises: null });
     render(<BudgetRaisePage />);
-    expect(await screen.findByText("Vi får ikke vist påfyllene dine akkurat nå.")).toBeInTheDocument();
+    expect(await screen.findByText("Vi får ikke vist påfyllene dine nå.")).toBeInTheDocument();
   });
 
   it("sends no team unless the user picked one, so the profile team stays the default", async () => {
@@ -169,11 +309,27 @@ describe("BudgetRaisePage review fixes", () => {
     render(<BudgetRaisePage />);
     await fillAndSubmit();
     expect(await screen.findByText("Påfyllet venter på GitHub")).toBeInTheDocument();
+    expect(
+      screen.getByText(/vet ikke ennå om endringen gikk gjennom[^]*uten å laste inn siden på nytt/)
+    ).toBeInTheDocument();
     expect(screen.queryByText(/allerede registrert|Du har fått påfyll/)).not.toBeInTheDocument();
-    await fillAndSubmit();
+    // Raises are left, but the form is hidden until this raise resolves.
+    expect(screen.queryByRole("button", { name: "Fyll på 150 USD" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Prøv igjen" }));
     await waitFor(() => expect(raiseCalls(m)).toHaveLength(2));
     const key = (c: [string, RequestInit]) => (c[1].headers as Record<string, string>)["Idempotency-Key"];
     expect(key(raiseCalls(m)[1])).toBe(key(raiseCalls(m)[0]));
+  });
+
+  it("does not claim a refusal when GitHub answered badly", async () => {
+    const m = mockApi(defaultBudget, { status: 502, body: { error: "github_error" } });
+    render(<BudgetRaisePage />);
+    await fillAndSubmit();
+    expect(await screen.findByText("Vi vet ikke om påfyllet gikk gjennom")).toBeInTheDocument();
+    expect(screen.queryByText("Du fikk ikke påfyll")).not.toBeInTheDocument();
+    expect(screen.getByText(/uten å laste inn siden på nytt/)).toBeInTheDocument();
+    // The budget is fetched again so the table shows what GitHub really did.
+    await waitFor(() => expect(m.mock.calls.filter(([u]) => u === "/api/budget")).toHaveLength(2));
   });
 
   it("shows a failed replay as failed", async () => {

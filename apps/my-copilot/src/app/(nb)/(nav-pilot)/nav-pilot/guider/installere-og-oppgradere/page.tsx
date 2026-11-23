@@ -8,6 +8,7 @@ import { LinkableHeading } from "@/components/linkable-heading";
 import { Bullets, DocPage, code, linkClass } from "@/components/nav-pilot/doc-page";
 import type { TocItem } from "@/components/table-of-contents";
 import { NAV_PILOT_BREW_UPGRADE } from "@/lib/install-commands";
+import { ScrollRegion } from "@/components/scroll-region";
 
 export const metadata: Metadata = {
   title: "Installere og oppgradere",
@@ -136,7 +137,7 @@ cplt --project-dir . -- --agent nav-pilot --prompt "Jeg trenger en ny tjeneste s
 # Copilot Chat i VS Code eller JetBrains
 @nav-pilot Jeg trenger en ny tjeneste som behandler dagpengesøknader`}
           </CodeBlock>
-          <div className="overflow-x-auto">
+          <ScrollRegion label="Tabell: vanlige oppgaver med eksempler">
             <Table size="small">
               <TableHeader>
                 <TableRow>
@@ -153,7 +154,7 @@ cplt --project-dir . -- --agent nav-pilot --prompt "Jeg trenger en ny tjeneste s
                 ))}
               </TableBody>
             </Table>
-          </div>
+          </ScrollRegion>
         </VStack>
       </section>
 

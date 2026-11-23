@@ -5,6 +5,7 @@ import { HStack, Pagination, Table, Search, Alert, VStack, BodyShort, Button, Ta
 import { TableBody, TableDataCell, TableHeader, TableRow } from "@navikt/ds-react/Table";
 import type { RepositoryUsage } from "@/lib/types";
 import { formatNumber, formatMinutes } from "@/lib/format";
+import { ScrollRegion } from "@/components/scroll-region";
 
 function CopyJsonButton({ data, label = "Kopier JSON" }: { data: unknown; label?: string }) {
   const [copied, setCopied] = useState(false);
@@ -117,7 +118,7 @@ export default function RepositoryUsageTable({ repositories }: RepositoryUsageTa
         <CopyJsonButton data={sortedRepos} label="📋 JSON" />
       </HStack>
 
-      <div className="overflow-x-auto">
+      <ScrollRegion label="Tabell: bruk per repo">
         <Table size="small" sort={{ orderBy: sortKey, direction: sortDirection }} onSortChange={handleSort}>
           <TableHeader>
             <TableRow>
@@ -176,7 +177,7 @@ export default function RepositoryUsageTable({ repositories }: RepositoryUsageTa
             )}
           </TableBody>
         </Table>
-      </div>
+      </ScrollRegion>
 
       {totalPages > 1 && (
         <HStack justify="center">

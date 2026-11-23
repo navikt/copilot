@@ -72,22 +72,6 @@ func capitalize(s string) string {
 	return string(unicode.ToUpper(r)) + s[size:]
 }
 
-// progressBar renders a simple filled/empty block bar for percentage (0-100)
-// over the given number of segments.
-func progressBar(percentage, segments int) string {
-	if segments <= 0 {
-		return ""
-	}
-	filled := percentage * segments / 100
-	if filled > segments {
-		filled = segments
-	}
-	if filled < 0 {
-		filled = 0
-	}
-	return strings.Repeat("█", filled) + strings.Repeat("░", segments-filled)
-}
-
 // formatNorwegianNumber groups an integer with spaces every three digits,
 // matching the my-copilot web UI's Norwegian locale formatting
 // (see apps/my-copilot/src/lib/format.ts formatNumber).

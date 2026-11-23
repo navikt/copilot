@@ -27,25 +27,6 @@ func TestFormatNorwegianNumber(t *testing.T) {
 	}
 }
 
-func TestProgressBar(t *testing.T) {
-	if got := progressBar(0, 10); got != strings.Repeat("░", 10) {
-		t.Errorf("progressBar(0,10) = %q", got)
-	}
-	if got := progressBar(100, 10); got != strings.Repeat("█", 10) {
-		t.Errorf("progressBar(100,10) = %q", got)
-	}
-	if got := progressBar(50, 10); got != strings.Repeat("█", 5)+strings.Repeat("░", 5) {
-		t.Errorf("progressBar(50,10) = %q", got)
-	}
-	// Out-of-range values should clamp rather than panic.
-	if got := progressBar(150, 10); got != strings.Repeat("█", 10) {
-		t.Errorf("progressBar(150,10) should clamp: got %q", got)
-	}
-	if got := progressBar(-10, 10); got != strings.Repeat("░", 10) {
-		t.Errorf("progressBar(-10,10) should clamp: got %q", got)
-	}
-}
-
 func TestCapitalize(t *testing.T) {
 	if got := capitalize(""); got != "" {
 		t.Errorf("capitalize(\"\") = %q", got)

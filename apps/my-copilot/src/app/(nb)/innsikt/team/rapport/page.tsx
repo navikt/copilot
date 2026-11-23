@@ -10,6 +10,7 @@ import { getTeamYearOverview } from "@/lib/cached-bigquery";
 import { formatDate } from "@/lib/format";
 import { hasNoUsageAmounts, monthName, teamYearCaveats, teamYearRows } from "@/lib/team-year";
 import { DocumentTitle, PrintButton, ReportNote } from "@/components/report-controls";
+import { ScrollRegion } from "@/components/scroll-region";
 
 export const metadata: Metadata = {
   title: "Kostnadsrapport for team",
@@ -128,7 +129,7 @@ export default async function TeamReportPage({
             })}
           </div>
         )}
-        <div className="team-report-table overflow-x-auto">
+        <ScrollRegion label="Tabell: teamrapport" className="team-report-table">
           <Table size="small">
             <TableHeader>
               <TableRow>
@@ -142,7 +143,7 @@ export default async function TeamReportPage({
             </TableHeader>
             <TableBody>{rows.map(row)}</TableBody>
           </Table>
-        </div>
+        </ScrollRegion>
         <BodyShort size="small">
           {data.months.some((m) => m.basis === "premium") && "* Fakturert som premiumforespørsler, ikke AI Credits. "}
           <span className="print-only">** Lisenskostnad er et anslag. «Totalt» er totalt inkl. lisenser.</span>

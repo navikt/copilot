@@ -1,7 +1,7 @@
 package mcpkit
 
 // MCP revision 2026-07-28 request handling. Copies still live in
-// apps/fleet-gateway/echo, mcp-onboarding, mcp-dolly and mcp-team-catalog.
+// apps/fleet-gateway/echo and mcp-onboarding.
 //
 // Spec: https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#request-metadata
 // and https://modelcontextprotocol.io/specification/2026-07-28/basic/versioning
@@ -59,7 +59,26 @@ type Envelope struct {
 		// ProtocolVersion is the initialize-era handshake field, not _meta.
 		ProtocolVersion string                     `json:"protocolVersion"`
 		Meta            map[string]json.RawMessage `json:"_meta"`
+		// Multi round-trip retry fields, set by the client, never by the model.
+		// https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/mrtr
+		InputResponses map[string]json.RawMessage `json:"inputResponses"`
+		RequestState   string                     `json:"requestState"`
 	} `json:"params"`
+}
+
+// FormElicitation reports whether the client declared form-mode elicitation.
+// An empty elicitation object means form only.
+// https://modelcontextprotocol.io/specification/2026-07-28/client/elicitation#capabilities
+func (e Envelope) FormElicitation() bool {
+	var caps struct {
+		Elicitation map[string]json.RawMessage `json:"elicitation"`
+	}
+	if json.Unmarshal(e.Params.Meta[MetaClientCapabilities], &caps) != nil || caps.Elicitation == nil {
+		return false
+	}
+	_, form := caps.Elicitation["form"]
+	_, url := caps.Elicitation["url"]
+	return form || !url
 }
 
 // HasClientCapabilities reports whether _meta carries clientCapabilities as a
@@ -210,7 +229,9 @@ func ModernResult(result any, serverName, serverVersion string, extra map[string
 	for k, v := range extra {
 		m[k] = v
 	}
-	m["resultType"] = "complete"
+	if _, set := m["resultType"]; !set { // a tool may answer input_required
+		m["resultType"] = "complete"
+	}
 	meta, _ := m["_meta"].(map[string]any)
 	if meta == nil {
 		meta = map[string]any{}

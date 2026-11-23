@@ -6,6 +6,7 @@ import { MODEL_PRICING } from "@/lib/model-pricing";
 import type { ModelPrice } from "@/lib/model-pricing";
 import { isNavAllowedModel, normalizeModelName } from "@/lib/model-policy";
 import { ModelCategoryIcon, ModelProviderIcon } from "@/components/model-icons";
+import { ScrollRegion } from "@/components/scroll-region";
 
 const PROVIDER_ORDER = ["OpenAI", "Anthropic", "Google", "GitHub", "Moonshot AI", "Microsoft"] as const;
 
@@ -335,7 +336,7 @@ export function ModelPricingTables({ only }: { only?: string[] } = {}) {
               «Cache write» er kostnaden for å skrive kontekst til cache, og kommer i tillegg til cached input.
             </BodyShort>
           )}
-          <div className="w-full overflow-x-auto">
+          <ScrollRegion label="Tabell: modellpriser" className="w-full">
             <table
               className="w-full text-sm border-collapse"
               style={{ borderRadius: "0.75rem", overflow: "hidden", border: "1px solid #e2e8f0" }}
@@ -456,7 +457,7 @@ export function ModelPricingTables({ only }: { only?: string[] } = {}) {
                 ))}
               </tbody>
             </table>
-          </div>
+          </ScrollRegion>
         </>
       ) : (
         <BodyShort>Ingen modeller funnet for søket ditt.</BodyShort>

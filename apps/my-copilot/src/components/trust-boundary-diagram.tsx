@@ -2,9 +2,11 @@
  * SVG diagram showing the trust boundaries in Nav's Copilot architecture.
  * Used on the ordliste page to help security teams understand the data flow.
  */
+
+import { ScrollRegion } from "@/components/scroll-region";
 export function TrustBoundaryDiagram() {
   return (
-    <div className="w-full overflow-x-auto">
+    <ScrollRegion label="Diagram: tillitsgrenser" className="w-full">
       <svg
         viewBox="0 0 960 580"
         className="w-full min-w-[640px]"
@@ -386,6 +388,6 @@ export function TrustBoundaryDiagram() {
           </marker>
         </defs>
       </svg>
-    </div>
+    </ScrollRegion>
   );
 }

@@ -15,6 +15,7 @@ import { CHART_ANNOTATIONS } from "../../reisen/milestones";
 import { PeriodSelect } from "./controls";
 import { Events } from "@/components/chart-events";
 import { Intensity, Movement, SegmentChanges, WayOfWorking } from "./segments";
+import { ScrollRegion } from "@/components/scroll-region";
 
 export const metadata: Metadata = {
   title: "Trender",
@@ -75,7 +76,7 @@ async function Cohorts({ token, start }: { token: string; start: string | null }
         Andelen av hver kohort som brukte Copilot igjen én, tre og seks måneder etter den første måneden. En strek betyr
         at måneden ikke er over ennå.
       </BodyShort>
-      <div className="min-w-0 overflow-x-auto">
+      <ScrollRegion label="Tabell: kohorter og tilbakevendende bruk" className="min-w-0">
         <Table size="small">
           <TableHeader>
             <TableRow>
@@ -101,7 +102,7 @@ async function Cohorts({ token, start }: { token: string; start: string | null }
             ))}
           </TableBody>
         </Table>
-      </div>
+      </ScrollRegion>
       {rows.some((c) => c.cohort_month === CENSORED_COHORT) && (
         <BodyShort size="small" textColor="subtle">
           * Dataene starter 10. oktober 2025. Raden blander dem som brukte Copilot fra før, med nye brukere, og vi kan

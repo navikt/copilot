@@ -59,8 +59,8 @@ func TestBuildSnapshotFailsClosed(t *testing.T) {
 			for i := range allRevoked {
 				allRevoked[i].Status = "revoked"
 			}
-			if _, err := buildSnapshot(kind, allRevoked, first); !errors.Is(err, errEmptySnapshot) {
-				t.Errorf("revoking everything still yields an empty snapshot: %v", err)
+			if _, err := buildSnapshot(kind, allRevoked, first); kind == "registry" && !errors.Is(err, errEmptySnapshot) {
+				t.Errorf("revoking every registry entry still yields an empty snapshot: %v", err)
 			}
 		})
 	}
@@ -193,7 +193,7 @@ func TestHandlers(t *testing.T) {
 		Generation int64            `json:"generation"`
 		Routes     []map[string]any `json:"routes"`
 	}
-	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil || rec.Code != http.StatusOK || body.Generation != 1 || len(body.Routes) != 2 {
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil || rec.Code != http.StatusOK || body.Generation != 1 || len(body.Routes) != 3 || body.Routes[2]["enabled"] != false {
 		t.Fatalf("snapshot: %d %s", rec.Code, rec.Body)
 	}
 	etag := rec.Header().Get("ETag")
@@ -238,5 +238,54 @@ func TestHandlers(t *testing.T) {
 	empty.store.Store(&storeBox{&fakeStore{snapshots: map[string]*Snapshot{}}})
 	if rec := get(t, empty.routes(testAuthz(t), "", nil, nil), "/internal/v1/snapshots/routes", ""); rec.Code != http.StatusServiceUnavailable {
 		t.Errorf("empty snapshot: %d %s", rec.Code, rec.Body)
+	}
+}
+
+// A revoke must reach the gateway even when it removes the last live route:
+// the route stays in the snapshot as disabled, never silently dropped (#2688).
+func TestRevokedRoutesStayDisabled(t *testing.T) {
+	one := testServers(1)
+	first, err := buildSnapshot("routes", one, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	one[0].Status = "revoked"
+	r := *one[0].Route
+	r.Tools = []string{"a", "b", "c"}
+	r.UpstreamURL = "http://s0.copilot/" + strings.Repeat("x", 600<<10)
+	one[0].Route = &r
+	next, err := buildSnapshot("routes", one, first)
+	if err != nil {
+		t.Fatalf("revoking the last route must publish: %v", err)
+	}
+	var rows []Route
+	if err := json.Unmarshal(next.Items, &rows); err != nil || len(rows) != 1 || rows[0].Enabled || rows[0].Path != "/mcp/copilot/s0" || len(rows[0].Tools) != 1 || rows[0].UpstreamURL != "http://s0.copilot" {
+		t.Fatalf("revoked route must stay as disabled: %v %s", err, next.Items)
+	}
+	if next.Generation != 2 {
+		t.Errorf("revoke must bump the generation: %d", next.Generation)
+	}
+}
+
+func TestRoutesFitRefusesOversizedSnapshot(t *testing.T) {
+	if err := routesFit(testServers(20)); err != nil {
+		t.Fatalf("small snapshot: %v", err)
+	}
+	if err := routesFit(nil); err != nil {
+		t.Fatalf("no routes is not a size problem: %v", err)
+	}
+	big := testServers(2)
+	tools := make([]string, 0, 100000)
+	for i := range cap(tools) {
+		tools = append(tools, fmt.Sprintf("tool_%d", i))
+	}
+	big[1].Route.Tools = tools
+	snap, _ := buildSnapshot("routes", big, nil)
+	if len(snap.Items) <= maxRoutesSnapshotBytes {
+		t.Fatalf("fixture too small: %d", len(snap.Items))
+	}
+	var ae *apiError
+	if err := routesFit(big); !errors.As(err, &ae) || ae.code != http.StatusConflict {
+		t.Fatalf("oversized snapshot must be refused with 409: %v", err)
 	}
 }

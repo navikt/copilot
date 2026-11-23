@@ -40,12 +40,17 @@ describe("search index", () => {
       .map(route)
       .filter((r) => !r.includes("["))
       // A page that only redirects is found under the page it redirects to.
-      // Admin pages answer 404 to everyone else, so they stay out of search.
+      // Admin pages answer 404 to everyone else, and /fleet to every cluster
+      // without fleet-control, so they stay out of search.
       .filter(
-        (r) => !/\b(permanentRedirect|requireAdmin)\(/.test(fs.readFileSync(path.join(appDir, pageFile(r)), "utf-8"))
+        (r) =>
+          !/\b(permanentRedirect|requireAdmin|requireFleet)\(/.test(
+            fs.readFileSync(path.join(appDir, pageFile(r)), "utf-8")
+          )
       );
     const hrefs = new Set(index.map((e) => e.href));
     expect(routes.filter((r) => !hrefs.has(r))).toEqual([]);
+    expect(index.filter((e) => e.href.startsWith("/fleet"))).toEqual([]);
   });
 
   it("marks pages behind a login, headings included", () => {

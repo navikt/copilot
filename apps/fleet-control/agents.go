@@ -277,7 +277,8 @@ func writeErr(w http.ResponseWriter, err error) {
 	case errors.Is(err, errConflict):
 		http.Error(w, err.Error(), http.StatusConflict)
 	default:
-		slog.Error("agent profile", "error", err)
+		// Strip line breaks: err can carry request-derived text (CodeQL go/log-injection).
+		slog.Error("agent profile", "error", strings.NewReplacer("\n", " ", "\r", " ").Replace(err.Error()))
 		http.Error(w, "database unavailable", http.StatusServiceUnavailable)
 	}
 }

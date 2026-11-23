@@ -1,6 +1,8 @@
 mcp_registry_url: http://mcp-registry
 mcp_registry_public_url: https://mcp-registry.ekstern.dev.nav.no
 copilot_survey_url: http://copilot-survey
+# Self-service pages under /fleet (#2736). Dev only until fleet-control runs in prod.
+fleet_control_url: http://fleet-control
 ingresses:
   - "https://ki-utvikling.ekstern.dev.nav.no"
   - "https://min-copilot.intern.dev.nav.no"

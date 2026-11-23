@@ -5,6 +5,7 @@ import { Table, TableHeader, TableBody, TableRow, TableHeaderCell, TableDataCell
 import { LinkableHeading } from "@/components/linkable-heading";
 import { Bullets, DocPage, code, linkClass } from "@/components/nav-pilot/doc-page";
 import type { TocItem } from "@/components/table-of-contents";
+import { ScrollRegion } from "@/components/scroll-region";
 
 export const metadata: Metadata = {
   title: "Arkitektur",
@@ -79,7 +80,7 @@ export default function Arkitektur() {
             selvkorrigering. nav-pilot bygger bedre kunnskap. Orkestrering får alle etter hvert. Kunnskapen om hvordan
             Nav bygger, er vanskelig å kopiere.
           </BodyLong>
-          <div className="overflow-x-auto">
+          <ScrollRegion label="Tabell: sammenligning av oh-my-openagent og nav-pilot">
             <Table size="small">
               <TableHeader>
                 <TableRow>
@@ -98,7 +99,7 @@ export default function Arkitektur() {
                 ))}
               </TableBody>
             </Table>
-          </div>
+          </ScrollRegion>
           <LinkableHeading id="hva-nav-pilot-vet" size="small" level="3">
             Hva nav-pilot vet som Copilot ikke vet
           </LinkableHeading>
