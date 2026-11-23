@@ -8,8 +8,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
+	"regexp"
 	"slices"
 	"strings"
 )
@@ -189,10 +191,16 @@ func (s *server) exchangeToken(ctx context.Context, userToken string) (string, e
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
-		return "", &tokenExchangeError{
-			statusCode: resp.StatusCode,
-			msg:        fmt.Sprintf("token exchange failed with status %d", resp.StatusCode),
+		code, aadsts := texasError(resp.Body)
+		slog.Warn("texas token exchange failed", "status", resp.StatusCode, "error", code, "aadsts", aadsts)
+		msg := fmt.Sprintf("token exchange failed with status %d", resp.StatusCode)
+		if code != "" {
+			msg += ": " + code
 		}
+		if aadsts != "" {
+			msg += " " + aadsts
+		}
+		return "", &tokenExchangeError{statusCode: resp.StatusCode, msg: msg}
 	}
 
 	body, err := readLimitedBody(resp.Body, maxTexasRespBytes)
@@ -208,6 +216,31 @@ func (s *server) exchangeToken(ctx context.Context, userToken string) (string, e
 	}
 	return out.AccessToken, nil
 }
+
+// texasError returns only the OAuth error code and the AADSTS number from a
+// failed exchange. error_description is never returned: Entra can name the user.
+func texasError(r io.Reader) (code, aadsts string) {
+	b, err := readLimitedBody(r, maxTexasRespBytes)
+	if err != nil {
+		return "", ""
+	}
+	var e struct {
+		Error       string `json:"error"`
+		Description string `json:"error_description"`
+	}
+	if json.Unmarshal(b, &e) != nil {
+		return "", ""
+	}
+	if safeErrorCode.MatchString(e.Error) {
+		code = e.Error
+	}
+	return code, aadstsCode.FindString(e.Description)
+}
+
+var (
+	aadstsCode    = regexp.MustCompile(`AADSTS\d{4,6}`)
+	safeErrorCode = regexp.MustCompile(`^[a-z_]{1,40}$`)
+)
 
 func readLimitedBody(r io.Reader, limit int64) ([]byte, error) {
 	b, err := io.ReadAll(io.LimitReader(r, limit+1))
