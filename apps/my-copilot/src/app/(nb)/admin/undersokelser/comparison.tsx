@@ -261,7 +261,13 @@ function Statement({
         ))
       )}
       <Excluded waves={waves} counts={counts} />
-      <Numbers waves={waves} counts={counts} label={(v) => labels[Number(v) - min] ?? v} unsure={q.unsure} />
+      <Numbers
+        title={text}
+        waves={waves}
+        counts={counts}
+        label={(v) => labels[Number(v) - min] ?? v}
+        unsure={q.unsure}
+      />
     </VStack>
   );
 }
@@ -343,18 +349,20 @@ function Options({ waves, q }: { waves: WaveMeta[]; q: CompareQuestion }) {
         })}
       </div>
       <Excluded waves={waves} counts={counts} />
-      <Numbers waves={waves} counts={counts} label={(v) => v} />
+      <Numbers title={q.text} waves={waves} counts={counts} label={(v) => v} />
     </VStack>
   );
 }
 
 /** The accessible view: every count and share per wave and version. */
 function Numbers({
+  title,
   waves,
   counts,
   label,
   unsure,
 }: {
+  title: string;
   waves: WaveMeta[];
   counts: WaveCounts[];
   label: (v: string) => string;
@@ -370,7 +378,7 @@ function Numbers({
   return (
     <details>
       <summary className="cursor-pointer text-sm">Vis tall</summary>
-      <ScrollRegion label="Tabell: svar per runde">
+      <ScrollRegion label={`Tabell: svar per runde – «${title}»`}>
         <Table size="small">
           <TableHeader>
             <TableRow>

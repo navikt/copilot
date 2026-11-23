@@ -129,7 +129,9 @@ export function HighConsumersView({ months, events = [] }: { months: HighConsume
             {formatPercent(over(mtd))} har brukt 90 % eller mer av grensen sin så langt. Tallene kan ikke sammenlignes
             med hele måneder.
           </BodyShort>
-          <NumbersFold summary="Fordeling hittil i måneden">{bandTable([mtd])}</NumbersFold>
+          <NumbersFold summary="Fordeling hittil i måneden" label="Tabell: fordeling hittil i måneden">
+            {bandTable([mtd])}
+          </NumbersFold>
         </VStack>
       )}
       <NumbersFold summary="Slik leser du tallene">

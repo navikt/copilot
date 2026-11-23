@@ -210,7 +210,7 @@ export default function TeamGrossUsage({
     });
 
   const table = (teams: Team[], label: string) => (
-    <ScrollRegion label="Tabell: brutto forbruk per team">
+    <ScrollRegion label={label}>
       <Table
         size="small"
         aria-label={label}

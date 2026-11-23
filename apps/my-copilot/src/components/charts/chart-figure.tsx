@@ -65,11 +65,11 @@ export function ChartFigure({
  */
 export function NumbersFold({
   summary = "Vis tallene",
-  label = "Tabell: tallene bak figuren",
+  label,
   children,
 }: {
   summary?: string;
-  /** Names the scroll region; defaults to a generic label. */
+  /** Names the scroll region around a table. Leave out for prose: no region is added. */
   label?: string;
   children: ReactNode;
 }) {
@@ -85,9 +85,15 @@ export function NumbersFold({
         </span>
         {summary}
       </summary>
-      <ScrollRegion label={label} className="min-w-0" style={{ marginTop: "var(--ax-space-8)" }}>
-        {children}
-      </ScrollRegion>
+      {label ? (
+        <ScrollRegion label={label} className="min-w-0" style={{ marginTop: "var(--ax-space-8)" }}>
+          {children}
+        </ScrollRegion>
+      ) : (
+        <div className="min-w-0" style={{ marginTop: "var(--ax-space-8)" }}>
+          {children}
+        </div>
+      )}
     </details>
   );
 }
