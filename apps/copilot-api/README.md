@@ -114,6 +114,14 @@ API supports multiple authentication mechanisms via the **Identity Resolver** ar
 | `VIDEO_PUBLIC_BASE_URL` | Optional override for public GCS base URL | `https://storage.googleapis.com/<bucket>` |
 | `VIDEO_FEED_CACHE_SECONDS` | Feed response and manifest cache TTL | `60` |
 | `ENABLE_DEV_QUERY` | Set to `true` to register the unauthenticated raw-SQL `POST /dev/query` endpoint. Only takes effect when the environment is `local` (i.e. `NAIS_CLUSTER_NAME` is unset) — both conditions are required so the endpoint can never appear in a deployment just because an env var went missing | (unset) |
+| `DB_URL` | Postgres for budget raises (Nais `sqlInstances`, prefix `DB`). Unset or down: only the raise endpoints answer 503 | (injected by NAIS) |
+| `BUDGET_WRITES` | `off`, `dry_run` or `on`. Anything else is `off` | `off` |
+| `BUDGET_GITHUB_APP_ID`, `BUDGET_GITHUB_APP_PRIVATE_KEY`, `BUDGET_GITHUB_APP_INSTALLATION_ID` | Enterprise GitHub App that writes user budgets (for now copilot-metrics' app, same values as its `GITHUB_APP_*`). Unset: raises answer 503 and write nothing. `dry_run` works without them and then skips the GitHub read | (secret `copilot-api`) |
+| `BUDGET_GITHUB_BUDGET_TYPE` | `budget_type` sent when creating a user budget, with `budget_product_sku: ai_credits` | `BundlePricing` |
+| `BUDGET_DEFAULT_USD` | Default monthly budget each raise adds to | `150` |
+| `BUDGET_TIME_ZONE` | Time zone for the raise month and `expires_at` (first day of next month) | `Europe/Oslo` |
+| `BUDGET_RAISES_OPEN` | `true` opens raises for everyone; otherwise only `BUDGET_TEST_USERS` | (unset) |
+| `BUDGET_TEST_USERS` | Comma-separated GitHub logins allowed to raise before opening | (unset) |
 
 ## Development
 
@@ -144,6 +152,8 @@ Deployed via NAIS to `dev-gcp` and `prod-gcp`:
 - **Observability:** OpenTelemetry auto-instrumentation, Prometheus metrics, Loki logs
 
 ## Testing
+
+The budget raise tests need Postgres: set `TEST_DATABASE_URL` (CI also sets `COPILOT_API_REQUIRE_PG=1`, so they cannot skip there).
 
 ```bash
 # Unit tests

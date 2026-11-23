@@ -392,7 +392,7 @@ func derefInt(v *int64) any {
 func TestAdminMonthlyRouteRequiresAdmin(t *testing.T) {
 	const group = "11111111-2222-3333-4444-555555555555"
 	t.Setenv(adminGroupEnv, group)
-	router := makeAPIRouter(&Config{}, &BigQueryHandlers{bqClient: &mockBigQueryClient{}}, nil, nil, NewIdentityResolverChain())
+	router := makeAPIRouter(&Config{}, &BigQueryHandlers{bqClient: &mockBigQueryClient{}}, nil, nil, NewIdentityResolverChain(), nil)
 	for _, tc := range []struct {
 		groups []string
 		want   int

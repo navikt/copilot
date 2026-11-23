@@ -41,6 +41,18 @@ type Config struct {
 	VideoBucketPublic      string
 	VideoPublicBaseURL     string
 	VideoFeedCacheSeconds  int
+
+	// Personal budget raises (PRD prd-budsjett-og-paafyll). See budget_raise.go.
+	BudgetDatabaseURL       string
+	BudgetWrites            string // off | dry_run | on; anything else is off
+	BudgetAppID             string
+	BudgetAppPrivateKey     string
+	BudgetAppInstallationID string
+	BudgetDefaultUSD        int
+	BudgetGitHubBudgetType  string
+	BudgetTimeZone          string
+	BudgetRaisesOpen        bool
+	BudgetTestUsers         map[string]bool
 }
 
 func loadConfig() *Config {
@@ -72,6 +84,18 @@ func loadConfig() *Config {
 		VideoBucketPublic:      selectVideoValue(environment, os.Getenv("VIDEO_BUCKET_PUBLIC_DEV"), os.Getenv("VIDEO_BUCKET_PUBLIC_PROD"), os.Getenv("VIDEO_BUCKET_PUBLIC")),
 		VideoPublicBaseURL:     getEnv("VIDEO_PUBLIC_BASE_URL", ""),
 		VideoFeedCacheSeconds:  getEnvInt("VIDEO_FEED_CACHE_SECONDS", 60),
+
+		BudgetDatabaseURL:       os.Getenv("DB_URL"),
+		BudgetWrites:            parseBudgetWrites(os.Getenv("BUDGET_WRITES")),
+		BudgetAppID:             os.Getenv("BUDGET_GITHUB_APP_ID"),
+		BudgetAppPrivateKey:     os.Getenv("BUDGET_GITHUB_APP_PRIVATE_KEY"),
+		BudgetAppInstallationID: os.Getenv("BUDGET_GITHUB_APP_INSTALLATION_ID"),
+		BudgetDefaultUSD:        getEnvInt("BUDGET_DEFAULT_USD", 150),
+		// Every live AI-credit budget on the enterprise lists BundlePricing; P1 verifies the write.
+		BudgetGitHubBudgetType: getEnv("BUDGET_GITHUB_BUDGET_TYPE", "BundlePricing"),
+		BudgetTimeZone:         getEnv("BUDGET_TIME_ZONE", "Europe/Oslo"),
+		BudgetRaisesOpen:       os.Getenv("BUDGET_RAISES_OPEN") == "true",
+		BudgetTestUsers:        parseLoginSet(os.Getenv("BUDGET_TEST_USERS")),
 	}
 
 	return config
@@ -155,4 +179,24 @@ func parseEndpoints(input string) map[string]bool {
 		}
 	}
 	return endpoints
+}
+
+// parseBudgetWrites maps BUDGET_WRITES to off, dry_run or on. Unknown is off.
+func parseBudgetWrites(v string) string {
+	switch v {
+	case "dry_run", "on":
+		return v
+	}
+	return "off"
+}
+
+// parseLoginSet reads a comma-separated list of GitHub logins, lower-cased.
+func parseLoginSet(v string) map[string]bool {
+	set := map[string]bool{}
+	for _, l := range strings.Split(v, ",") {
+		if l = strings.ToLower(strings.TrimSpace(l)); l != "" {
+			set[l] = true
+		}
+	}
+	return set
 }

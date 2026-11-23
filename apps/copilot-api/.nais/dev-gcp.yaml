@@ -11,3 +11,7 @@ video_feed_cache_seconds: "60"
 # copilot-cli is granted inbound access via accessPolicy.inbound.rules, NAIS
 # injects its client ID into AZURE_APP_PRE_AUTHORIZED_APPS and copilot-api
 # derives the trusted azp from there automatically (see trustedClientIDForApp).
+db_tier: "db-f1-micro"
+budget_writes: "dry_run"
+budget_raises_open: "false"
+budget_test_users: ""

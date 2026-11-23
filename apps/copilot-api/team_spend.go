@@ -476,3 +476,33 @@ func (c *CachedBigQueryClient) GetTeamGrossOverview(ctx context.Context, month s
 		return c.client.GetTeamGrossOverview(ctx, month)
 	})
 }
+
+// GitHubTeam is one org team a raise can be charged to (statistics only).
+type GitHubTeam struct {
+	Slug string `bigquery:"slug" json:"id"`
+	Name string `bigquery:"name" json:"name"`
+}
+
+// GetGitHubTeams lists the org's teams from the latest team_members roster,
+// named from user_teams where a member was active in the last 30 days.
+func (bq *BigQueryClient) GetGitHubTeams(ctx context.Context) ([]GitHubTeam, error) {
+	members := bq.tableRef(bq.metricsDataset, "team_members")
+	sql := fmt.Sprintf(`WITH names AS (SELECT JSON_VALUE(raw_record,'$.slug') slug, ANY_VALUE(JSON_VALUE(raw_record,'$.name')) name FROM %s
+WHERE day>=DATE_SUB(CURRENT_DATE(),INTERVAL 30 DAY) AND scope='enterprise' AND scope_id='nav' GROUP BY slug)
+SELECT DISTINCT m.team_slug slug, IFNULL(n.name, m.team_slug) name FROM %s m LEFT JOIN names n ON n.slug=m.team_slug
+WHERE m.date=(SELECT MAX(date) FROM %s) AND m.team_slug!='nav-it-github-users' ORDER BY slug`,
+		bq.tableRef(bq.metricsDataset, "user_teams"), members, members)
+	it, err := bq.client.Query(sql).Read(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("read github teams: %w", err)
+	}
+	return readAllRows[GitHubTeam](it)
+}
+
+func (c *CachedBigQueryClient) GetGitHubTeams(ctx context.Context) ([]GitHubTeam, error) {
+	ctx, cancel := withQueryTimeout(ctx)
+	defer cancel()
+	return getCachedValue(c, "github_teams", func() ([]GitHubTeam, error) {
+		return c.client.GetGitHubTeams(ctx)
+	})
+}
