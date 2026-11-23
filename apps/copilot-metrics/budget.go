@@ -14,7 +14,7 @@ import (
 )
 
 // BudgetClient fetches enterprise AI credit budgets from the GitHub billing API.
-// Requires a classic PAT with admin:enterprise scope — same token as BillingClient.
+// Uses the same credentials as BillingClient (see billingAuth).
 type BudgetClient struct {
 	httpClient *http.Client
 	enterprise string
@@ -34,12 +34,12 @@ type budgetListResponse struct {
 	HasNextPage bool          `json:"has_next_page"`
 }
 
-func NewBudgetClient(token, enterprise string) *BudgetClient {
-	if token == "" {
+func NewBudgetClient(httpClient *http.Client, token, enterprise string) *BudgetClient {
+	if httpClient == nil {
 		return nil
 	}
 	return &BudgetClient{
-		httpClient: &http.Client{Timeout: 30 * time.Second},
+		httpClient: httpClient,
 		enterprise: enterprise,
 		token:      token,
 	}
@@ -61,7 +61,9 @@ func (c *BudgetClient) FetchAllBudgets(ctx context.Context) ([]BudgetEntry, erro
 		if err != nil {
 			return nil, fmt.Errorf("create budget request page %d: %w", page, err)
 		}
+		if c.token != "" {
 		req.Header.Set("Authorization", "Bearer "+c.token)
+	}
 		req.Header.Set("Accept", "application/vnd.github+json")
 		req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
 
@@ -132,7 +134,9 @@ func (c *BudgetClient) FetchUserEffectiveBudget(ctx context.Context, login strin
 		if err != nil {
 			return nil, fmt.Errorf("create user budget request: %w", err)
 		}
+		if c.token != "" {
 		req.Header.Set("Authorization", "Bearer "+c.token)
+	}
 		req.Header.Set("Accept", "application/vnd.github+json")
 		req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
 

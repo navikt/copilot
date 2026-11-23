@@ -84,7 +84,12 @@ func (b *budgetWriter) do(ctx context.Context, method, path string, body any, ou
 	}
 	req.Header.Set("Authorization", "Bearer "+tok)
 	req.Header.Set("Accept", "application/vnd.github+json")
-	req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
+	// Budget create/update docs name 2026-03-10; the list keeps 2022-11-28 (verify in P1).
+	version := "2022-11-28"
+	if method != http.MethodGet {
+		version = "2026-03-10"
+	}
+	req.Header.Set("X-GitHub-Api-Version", version)
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}

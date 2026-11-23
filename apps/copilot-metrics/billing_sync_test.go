@@ -218,7 +218,7 @@ func TestBillingSyncCancelledDoesNotWrite(t *testing.T) {
 }
 
 func TestBillingRequestBudgetAndRateLimit(t *testing.T) {
-	client := NewBillingClient("test", "nav")
+	client := NewBillingClient(http.DefaultClient, "test", "nav")
 	client.budgeted, client.remaining = true, 501
 	calls := 0
 	client.httpClient.Transport = roundTripFunc(func(*http.Request) (*http.Response, error) {
@@ -385,7 +385,7 @@ func TestLiveMonthlyBillingContract(t *testing.T) {
 	if err := it.Next(&user); err != nil {
 		t.Fatal(err)
 	}
-	billing := NewBillingClient(os.Getenv("GITHUB_BILLING_TOKEN"), "nav")
+	billing := NewBillingClient(http.DefaultClient, os.Getenv("GITHUB_BILLING_TOKEN"), "nav")
 	billing.budgeted, billing.remaining, billing.requestLimit = true, 5000, 3
 	id, err := billing.FetchUserID(ctx, user.Login)
 	if err != nil {

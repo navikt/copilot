@@ -245,7 +245,7 @@ func TestBudgetClient_FetchAllUserBudgets_KeepsSuccessesAndRetriesRateLimits(t *
 
 	var mu sync.Mutex
 	calls := map[string]int{}
-	client := NewBudgetClient("test", "nav")
+	client := NewBudgetClient(http.DefaultClient, "test", "nav")
 	client.httpClient = mockClient(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		login := r.URL.Query().Get("user")
 		mu.Lock()

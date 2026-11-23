@@ -17,7 +17,8 @@ type Config struct {
 	GitHubAppPrivateKey        string
 	GitHubAppInstallationID    int64
 	GitHubAppOrgInstallationID int64  // Optional: separate installation for org-level endpoints
-	GitHubBillingToken         string // Classic PAT with admin:enterprise scope for billing API
+	GitHubBillingToken         string // Classic PAT, used only when BillingPATFallback is true
+	BillingPATFallback         bool   // BILLING_PAT_FALLBACK=true: billing uses the PAT instead of the app (transition only)
 	BigQueryProjectID          string
 	BigQueryDataset            string
 	BigQueryTable              string
@@ -38,6 +39,7 @@ func loadConfig() *Config {
 		GitHubAppInstallationID:    getEnvInt64("GITHUB_APP_INSTALLATION_ID", 0),
 		GitHubAppOrgInstallationID: getEnvInt64("GITHUB_APP_ORG_INSTALLATION_ID", 0),
 		GitHubBillingToken:         getEnv("GITHUB_BILLING_TOKEN", ""),
+		BillingPATFallback:         os.Getenv("BILLING_PAT_FALLBACK") == "true",
 		BigQueryProjectID:          getEnv("GCP_TEAM_PROJECT_ID", ""),
 		BigQueryDataset:            getEnv("BIGQUERY_DATASET", "copilot_metrics"),
 		BigQueryTable:              getEnv("BIGQUERY_TABLE", "usage_metrics"),

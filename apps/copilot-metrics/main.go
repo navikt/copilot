@@ -128,7 +128,7 @@ func main() {
 				exit(1)
 			}
 		}
-		if err := syncUserBilling(ctx, NewBillingClient(config.GitHubBillingToken, config.EnterpriseSlug), gh, bq, config, time.Now().UTC()); err != nil {
+		if err := syncUserBilling(ctx, billingClientFor(config), gh, bq, config, time.Now().UTC()); err != nil {
 			if err == context.DeadlineExceeded || err == errBillingBudget {
 				slog.Info("User billing sync checkpointed; continuing next night")
 				return
@@ -141,8 +141,9 @@ func main() {
 	}
 	if *userBillingPublish != "" {
 		month, err := time.Parse("2006-01", *userBillingPublish)
-		if err != nil || config.BigQueryProjectID == "" || config.GitHubBillingToken == "" {
-			slog.Error("User billing publish requires YYYY-MM, GCP_TEAM_PROJECT_ID and GITHUB_BILLING_TOKEN", "error", err)
+		billing := billingClientFor(config)
+		if err != nil || config.BigQueryProjectID == "" || billing == nil {
+			slog.Error("User billing publish requires YYYY-MM, GCP_TEAM_PROJECT_ID and the GitHub App", "error", err)
 			exit(1)
 		}
 		ctx := context.Background()
@@ -152,7 +153,7 @@ func main() {
 			err = bq.EnsureUserBillingRunsTableExists(ctx)
 		}
 		if err == nil {
-			err = republishBillingMonth(ctx, NewBillingClient(config.GitHubBillingToken, config.EnterpriseSlug), bq, config, month)
+			err = republishBillingMonth(ctx, billing, bq, config, month)
 		}
 		if err != nil {
 			slog.Error("User billing publish failed", "error", err)
@@ -161,8 +162,9 @@ func main() {
 		return
 	}
 	if *userBillingMonth != "" {
-		if config.BigQueryProjectID == "" || config.GitHubBillingToken == "" {
-			slog.Error("User billing backfill requires GCP_TEAM_PROJECT_ID and GITHUB_BILLING_TOKEN")
+		billing := billingClientFor(config)
+		if config.BigQueryProjectID == "" || billing == nil {
+			slog.Error("User billing backfill requires GCP_TEAM_PROJECT_ID and the GitHub App")
 			exit(1)
 		}
 		month, err := time.Parse("2006-01", *userBillingMonth)
@@ -194,7 +196,7 @@ func main() {
 			slog.Error("Failed to ensure user billing runs table", "error", err)
 			exit(1)
 		}
-		if err := ingestUserBillingMonth(ctx, NewBillingClient(config.GitHubBillingToken, config.EnterpriseSlug), bq, config, month); err != nil {
+		if err := ingestUserBillingMonth(ctx, billing, bq, config, month); err != nil {
 			slog.Error("User billing ingestion failed", "error", err)
 			exit(1)
 		}
@@ -275,9 +277,10 @@ func main() {
 		slog.Error("Failed to ensure views exist (continuing without them)", "error", err)
 	}
 
-	// Set up billing + budget clients (optional — require classic PAT with admin:enterprise scope)
-	billingClient := NewBillingClient(config.GitHubBillingToken, config.EnterpriseSlug)
-	budgetClient := NewBudgetClient(config.GitHubBillingToken, config.EnterpriseSlug)
+	// Billing + budget clients use the enterprise app (Enterprise billing: read).
+	billingHTTP, billingToken := billingAuth(config, ghClient.httpClient)
+	billingClient := NewBillingClient(billingHTTP, billingToken, config.EnterpriseSlug)
+	budgetClient := NewBudgetClient(billingHTTP, billingToken, config.EnterpriseSlug)
 	if billingClient != nil {
 		slog.Info("Billing client configured — premium request usage and budget snapshot ingestion enabled")
 		if err := bqClient.EnsureBillingTableExists(ctx); err != nil {
@@ -301,7 +304,7 @@ func main() {
 			exit(1)
 		}
 	} else {
-		slog.Warn("No GITHUB_BILLING_TOKEN configured — billing ingestion and budget snapshot ingestion disabled")
+		slog.Warn("No billing credentials — billing ingestion and budget snapshot ingestion disabled")
 	}
 
 	runBillingMonthlyBackfill := *billingMonthlyBackfill || *legacyBillingBackfill
@@ -327,7 +330,7 @@ func main() {
 
 	if runBillingDailyReportBackfill {
 		if billingClient == nil {
-			slog.Error("Billing daily report backfill requires GITHUB_BILLING_TOKEN")
+			slog.Error("Billing daily report backfill requires billing credentials")
 			exit(1)
 		}
 		startDay, err := time.Parse("2006-01-02", effectiveBillingDailyReportFrom)
@@ -344,7 +347,7 @@ func main() {
 
 	if *billingModelDailyBackfill {
 		if billingClient == nil {
-			slog.Error("Billing model daily backfill requires GITHUB_BILLING_TOKEN")
+			slog.Error("Billing model daily backfill requires billing credentials")
 			exit(1)
 		}
 		startDay, err := time.Parse("2006-01-02", *billingModelDailyFrom)
@@ -361,7 +364,7 @@ func main() {
 
 	if runBillingMonthlyBackfill {
 		if billingClient == nil {
-			slog.Error("Billing monthly backfill requires GITHUB_BILLING_TOKEN")
+			slog.Error("Billing monthly backfill requires billing credentials")
 			exit(1)
 		}
 		startMonth, err := time.Parse("2006-01", effectiveBillingMonthlyFrom)
