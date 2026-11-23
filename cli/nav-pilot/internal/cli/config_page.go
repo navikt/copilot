@@ -138,7 +138,7 @@ func buildConfigPageEntries(cfg *Config, r ResolvedConfig) []configPageEntry {
 		}
 		entries = append(entries, configPageEntry{
 			Key:         key,
-			Value:       configKeyValue(r, key),
+			Value:       configKeyValue(r, key) + guardsOverrides(r, key),
 			Source:      configKeyOrigin(cfg, key),
 			Description: kd.description,
 		})
@@ -420,4 +420,31 @@ func clearConfigKey(key string) error {
 		return fmt.Errorf("unknown key: %q", key)
 	}
 	return updateConfigKey(key, "")
+}
+
+// guardsOverrides names, after the guards value, each guard an old hook_* key
+// sets differently, so the page never shows guards on while one is off.
+func guardsOverrides(r ResolvedConfig, key string) string {
+	if key != "guards" {
+		return ""
+	}
+	state := map[bool]string{true: "on", false: "off"}
+	var diffs []string
+	for _, g := range []struct {
+		label, key string
+		on         bool
+	}{
+		{"loop guard", "hook_loop_guard", r.HookLoopGuard},
+		{"secret masking", "hook_redact_secrets", r.HookRedactSecrets},
+		{"fødselsnummer masking", "hook_redact_fnr", r.HookRedactFNR},
+		{"injection note", "hook_injection_note", r.HookInjectionNote},
+	} {
+		if g.on != r.Guards {
+			diffs = append(diffs, fmt.Sprintf("%s %s (%s = %t; remove it with: nav-pilot config unset %s)", g.label, state[g.on], g.key, g.on, g.key))
+		}
+	}
+	if len(diffs) == 0 {
+		return ""
+	}
+	return ", except: " + strings.Join(diffs, ", ")
 }

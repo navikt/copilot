@@ -693,7 +693,7 @@ func cmdConfigShow(jsonOutput bool) error {
 	}
 
 	for _, key := range configPageKeys {
-		val := configKeyValue(resolved, key)
+		val := configKeyValue(resolved, key) + guardsOverrides(resolved, key)
 		if val == "" {
 			val = "(unset)"
 		}

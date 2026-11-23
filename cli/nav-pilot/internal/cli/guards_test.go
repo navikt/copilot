@@ -54,3 +54,16 @@ func TestGuardsNudgeOnce(t *testing.T) {
 		t.Errorf("OpenCode launch: nudge missing: %q", out)
 	}
 }
+
+func TestGuardsShowsLegacyOverride(t *testing.T) {
+	isolatedConfig(t)
+	off := false
+	got := guardsOverrides(resolve(&Config{HookRedactSecrets: &off}, CLIOverrides{}), "guards")
+	want := ", except: secret masking off (hook_redact_secrets = false; remove it with: nav-pilot config unset hook_redact_secrets)"
+	if got != want {
+		t.Errorf("got %q, want %q", got, want)
+	}
+	if got := guardsOverrides(resolve(&Config{}, CLIOverrides{}), "guards"); got != "" {
+		t.Errorf("no override: %q", got)
+	}
+}
