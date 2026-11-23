@@ -345,19 +345,13 @@ type adminHandler func(w http.ResponseWriter, r *http.Request, ws writeStore, ac
 func (s *server) admin(a *authz, adminClientID string, teams teamDirectory, h adminHandler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ns, name := r.PathValue("namespace"), r.PathValue("name")
-		if !dnsLabelRegex.MatchString(ns) || !dnsLabelRegex.MatchString(name) {
+		// Job routes have no {name}.
+		if !dnsLabelRegex.MatchString(ns) || (name != "" && !dnsLabelRegex.MatchString(name)) {
 			http.Error(w, "namespace and name must be lowercase DNS labels", http.StatusBadRequest)
 			return
 		}
 		actor, err := a.user(r.Context(), r.Header.Get("Authorization"), adminClientID)
-		switch {
-		case errors.Is(err, errUnauthorized):
-			w.Header().Set("WWW-Authenticate", `Bearer error="invalid_token"`)
-			http.Error(w, "unauthorized", http.StatusUnauthorized)
-			return
-		case err != nil:
-			slog.Error("token introspection failed", "error", err)
-			http.Error(w, "token validation unavailable", http.StatusServiceUnavailable)
+		if !writeAuthError(w, err) {
 			return
 		}
 		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
@@ -381,14 +375,7 @@ func (s *server) admin(a *authz, adminClientID string, teams teamDirectory, h ad
 			http.Error(w, "database unavailable", http.StatusServiceUnavailable)
 			return
 		}
-		if err := h(w, r.WithContext(ctx), ws, actor, ns, name); err != nil {
-			if apiErr, ok := errors.AsType[*apiError](err); ok {
-				http.Error(w, apiErr.msg, apiErr.code)
-				return
-			}
-			slog.Error("write failed", "server", ns+"/"+name, "error", err)
-			http.Error(w, "database unavailable", http.StatusServiceUnavailable)
-		}
+		writeAPIError(w, "write "+ns+"/"+name, h(w, r.WithContext(ctx), ws, actor, ns, name))
 	}
 }
 

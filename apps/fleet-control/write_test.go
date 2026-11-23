@@ -93,7 +93,7 @@ func (failingTeams) IsMember(context.Context, string, string) (bool, error) {
 
 func TestAdminGuardsFailClosed(t *testing.T) {
 	srv := newServer() // no database
-	h := srv.routes(testAuthz(t), adminID, testTeams)
+	h := srv.routes(testAuthz(t), adminID, testTeams, nil)
 	path := "/admin/v1/servers/team-a/svc/draft"
 	cases := map[string]struct {
 		h    http.Handler
@@ -101,7 +101,7 @@ func TestAdminGuardsFailClosed(t *testing.T) {
 		tok  string
 		want int
 	}{
-		"admin routes off":   {srv.routes(testAuthz(t), "", testTeams), path, userTok("A111111"), 404},
+		"admin routes off":   {srv.routes(testAuthz(t), "", testTeams, nil), path, userTok("A111111"), 404},
 		"no token":           {h, path, "", 401},
 		"app token":          {h, path, adminID, 401},
 		"app token w/ ident": {h, path, "app-with-ident", 401},
@@ -110,9 +110,9 @@ func TestAdminGuardsFailClosed(t *testing.T) {
 		"texas fails":        {h, path, "texas-500", 503},
 		"bad namespace":      {h, "/admin/v1/servers/Team_A/svc/draft", userTok("A111111"), 400},
 		"not a member":       {h, path, userTok("B111111"), 403},
-		"team lookup fails":  {srv.routes(testAuthz(t), adminID, failingTeams{}), path, userTok("A111111"), 503},
+		"team lookup fails":  {srv.routes(testAuthz(t), adminID, failingTeams{}, nil), path, userTok("A111111"), 503},
 		"database down":      {h, path, userTok("A111111"), 503},
-		"unset static teams": {srv.routes(testAuthz(t), adminID, staticTeams{}), path, userTok("A111111"), 403},
+		"unset static teams": {srv.routes(testAuthz(t), adminID, staticTeams{}, nil), path, userTok("A111111"), 403},
 	}
 	for name, c := range cases {
 		if rec := do(t, c.h, http.MethodPut, c.path, c.tok, routeDraft); rec.Code != c.want {
@@ -174,7 +174,7 @@ func TestRealPostgresWriteFlow(t *testing.T) {
 	srv := newServer()
 	srv.cluster = "dev-gcp"
 	srv.store.Store(&storeBox{db})
-	h := srv.routes(testAuthz(t), adminID, testTeams)
+	h := srv.routes(testAuthz(t), adminID, testTeams, nil)
 	base := "/admin/v1/servers/team-a/svc"
 	a, b := userTok("A111111"), userTok("A222222")
 
