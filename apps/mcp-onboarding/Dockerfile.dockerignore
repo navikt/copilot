@@ -1,0 +1,10 @@
+# The build context is the repo root; send only what the image needs.
+*
+!lib/mcpkit/
+!apps/mcp-onboarding/go.mod
+!apps/mcp-onboarding/go.sum
+!apps/mcp-onboarding/*.go
+!apps/mcp-onboarding/internal/
+!apps/mcp-onboarding/cmd/
+apps/mcp-onboarding/**/*_test.go
+lib/mcpkit/*_test.go
