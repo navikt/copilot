@@ -36,6 +36,8 @@ const current = (pathname: string, active: string | undefined, href: string) =>
 
 // Admin pages; the link shows only for admins (isAdmin), the pages themselves 404 for everyone else.
 const ADMIN_HREF = "/admin";
+// Personal budget and raises; Norwegian only, like Admin.
+const BUDGET_HREF = "/min-side/budsjett";
 
 export function SiteHeader({
   labels,
@@ -161,6 +163,11 @@ function UserMenu({ labels, userName, admin }: { labels: HeaderLabels; userName:
                   {labels.subscription}
                 </Link>
               </BodyShort>
+              <BodyShort>
+                <Link as={NextLink} href={BUDGET_HREF} lang="nb" hrefLang={hrefLang} onClick={() => setOpen(false)}>
+                  Budsjett og påfyll
+                </Link>
+              </BodyShort>
               {admin && (
                 <BodyShort>
                   <Link as={NextLink} href={ADMIN_HREF} lang="nb" hrefLang={hrefLang} onClick={() => setOpen(false)}>
@@ -267,6 +274,9 @@ function MobileMenu({ labels, userName, admin }: { labels: HeaderLabels; userNam
                       </VStack>
                       <NextLink href={labels.subscriptionHref} hrefLang={hrefLang} className="panel-item">
                         {labels.subscription}
+                      </NextLink>
+                      <NextLink href={BUDGET_HREF} lang="nb" hrefLang={hrefLang} className="panel-item">
+                        Budsjett og påfyll
                       </NextLink>
                       {admin && (
                         <NextLink href={ADMIN_HREF} lang="nb" hrefLang={hrefLang} className="panel-item">
