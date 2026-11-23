@@ -848,55 +848,14 @@ func (h *budgetRaiseHandlers) reserve(ctx context.Context, pool *pgxpool.Pool, r
 			return nil
 		}
 
-		ours := map[string]bool{}
-		rows, err := tx.Query(ctx, "SELECT github_budget_id FROM budget_github WHERE github_login = $1 AND deleted_at IS NULL", rv.target)
+		own, err := h.readOwnership(ctx, tx, rv.target, rv.list)
 		if err != nil {
 			return err
 		}
-		for rows.Next() {
-			var id string
-			if err := rows.Scan(&id); err != nil {
-				rows.Close()
-				return err
-			}
-			ours[id] = true
-		}
-		rows.Close()
-		if err := rows.Err(); err != nil {
-			return err
-		}
-
-		var foreign, owned []ghBudget
-		if rv.list != nil {
-			listed := map[string]bool{}
-			for _, b := range rv.list.Budgets {
-				listed[b.ID] = true
-				switch {
-				case b.BudgetScope == "multi_user_customer" || b.BudgetScope == "enterprise":
-				case ours[b.ID]:
-					plan.ownID = b.ID // review B4: reuse ours, also last month's
-					owned = append(owned, b)
-				default:
-					foreign = append(foreign, b)
-				}
-			}
-			for id := range ours {
-				if !listed[id] {
-					plan.gone = append(plan.gone, id)
-				}
-			}
-			if rv.list.Effective != nil {
-				plan.before = int(rv.list.Effective.BudgetAmount)
-			}
-		}
+		plan.ownID, plan.gone, plan.before = own.ownID, own.gone, own.before
 
 		// A pending row younger than budgetPendingStale is a raise in flight on
 		// another replica. Older ones died mid-write: reconcile them now.
-		type staleRow struct {
-			id     string
-			amount int
-			month  time.Time
-		}
 		var stale []staleRow
 		if h.midReserve != nil {
 			h.midReserve()
@@ -929,35 +888,14 @@ func (h *budgetRaiseHandlers) reserve(ctx context.Context, pool *pgxpool.Pool, r
 			// whether a stuck raise was applied, so leave it pending.
 			stale = nil
 		}
-		for _, p := range stale {
+		if len(stale) > 0 {
 			wrote = true
-			status := "failed"
-			// The only foreign budget we may adopt is one that matches exactly
-			// what the dead raise sent: our amount and our expiry.
-			// Its own month and expiry, not this request's: it may be last month's.
-			pExpires := p.month.AddDate(0, 1, 0)
-			// Already ours (only the result was not recorded): applied if GitHub
-			// holds at least what it sent, since a later raise may have raised it.
-			for _, b := range owned {
-				if h.writer != nil && b.BudgetScope == "user" && b.Amount >= float64(p.amount) && strings.HasPrefix(b.ExpiresAt, pExpires.Format(time.DateOnly)) &&
-					b.SKU == "ai_credits" && (h.writer.budgetType == "" || b.BudgetType == h.writer.budgetType) {
-					status = "applied"
-				}
-			}
-			if status != "applied" && len(foreign) == 1 && plan.ownID == "" && h.writer != nil && matchesWrite(foreign[0], h.writer.budgetType, p.amount, pExpires) {
-				if err := recordOwnBudget(ctx, tx, rv.target, p.month, foreign[0].ID, p.amount, pExpires); err != nil {
-					return err
-				}
-				plan.ownID, foreign, status = foreign[0].ID, nil, "applied"
-			}
-			// Audit the recovered outcome first, in the same transaction.
-			if _, err := tx.Exec(ctx, `INSERT INTO budget_audit (raise_id, actor, action, budget_set_usd, github_budget_id, dry_run) VALUES ($1, 'system', 'retry', $2, NULLIF($3, ''), false)`, p.id, p.amount, plan.ownID); err != nil {
+			if err := h.settleStale(ctx, tx, rv.target, stale, &own); err != nil {
 				return err
 			}
-			if _, err := tx.Exec(ctx, "UPDATE budget_raises SET status = $2 WHERE id = $1", p.id, status); err != nil {
-				return err
-			}
+			plan.ownID = own.ownID
 		}
+		foreign := own.foreign
 
 		if replayID != "" { // the stuck raise is reconciled now: answer with it
 			prev, err := scanRaise(tx.QueryRow(ctx, "SELECT "+raiseColumns+" FROM budget_raises WHERE id = $1", replayID))
@@ -1174,4 +1112,202 @@ func (h *budgetRaiseHandlers) ownsBudget(ctx context.Context, id string) (bool, 
 	var ok bool
 	err = pool.QueryRow(ctx, "SELECT EXISTS (SELECT 1 FROM budget_github WHERE github_budget_id = $1 AND deleted_at IS NULL)", id).Scan(&ok)
 	return ok, err
+}
+
+// staleRow is a raise left pending past budgetPendingStale.
+type staleRow struct {
+	id     string
+	amount int
+	month  time.Time
+}
+
+// ownership is how the user's GitHub budgets relate to budget_github.
+type ownership struct {
+	ownID   string     // our budget GitHub lists; empty means none
+	owned   []ghBudget // listed budgets that are ours
+	foreign []ghBudget // listed user budgets that are not
+	gone    []string   // our recorded IDs GitHub no longer lists
+	before  int
+}
+
+func (h *budgetRaiseHandlers) readOwnership(ctx context.Context, tx pgx.Tx, login string, list *ghUserBudgets) (ownership, error) {
+	var own ownership
+	ours := map[string]bool{}
+	rows, err := tx.Query(ctx, "SELECT github_budget_id FROM budget_github WHERE github_login = $1 AND deleted_at IS NULL", login)
+	if err != nil {
+		return own, err
+	}
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			rows.Close()
+			return own, err
+		}
+		ours[id] = true
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil || list == nil {
+		return own, err
+	}
+	listed := map[string]bool{}
+	for _, b := range list.Budgets {
+		listed[b.ID] = true
+		switch {
+		case b.BudgetScope == "multi_user_customer" || b.BudgetScope == "enterprise":
+		case ours[b.ID]:
+			own.ownID = b.ID // review B4: reuse ours, also last month's
+			own.owned = append(own.owned, b)
+		default:
+			own.foreign = append(own.foreign, b)
+		}
+	}
+	for id := range ours {
+		if !listed[id] {
+			own.gone = append(own.gone, id)
+		}
+	}
+	if list.Effective != nil {
+		own.before = int(list.Effective.BudgetAmount)
+	}
+	return own, nil
+}
+
+// settleStale reconciles stuck pending raises against the GitHub list, under
+// the caller's lock: applied if GitHub holds our budget for it (adopting an
+// identical unrecorded one), failed otherwise. Audited, no GitHub write.
+func (h *budgetRaiseHandlers) settleStale(ctx context.Context, tx pgx.Tx, login string, stale []staleRow, own *ownership) error {
+	for _, p := range stale {
+		status := "failed"
+		// Its own month and expiry, not this request's: it may be last month's.
+		pExpires := p.month.AddDate(0, 1, 0)
+		// Already ours (only the result was not recorded): applied if GitHub
+		// holds at least what it sent, since a later raise may have raised it.
+		for _, b := range own.owned {
+			if h.writer != nil && b.BudgetScope == "user" && b.Amount >= float64(p.amount) && strings.HasPrefix(b.ExpiresAt, pExpires.Format(time.DateOnly)) &&
+				b.SKU == "ai_credits" && (h.writer.budgetType == "" || b.BudgetType == h.writer.budgetType) {
+				status = "applied"
+			}
+		}
+		// The only foreign budget we may adopt is one that matches exactly
+		// what the dead raise sent: our amount and our expiry.
+		if status != "applied" && len(own.foreign) == 1 && own.ownID == "" && h.writer != nil && matchesWrite(own.foreign[0], h.writer.budgetType, p.amount, pExpires) {
+			if err := recordOwnBudget(ctx, tx, login, p.month, own.foreign[0].ID, p.amount, pExpires); err != nil {
+				return err
+			}
+			own.ownID, own.owned, own.foreign, status = own.foreign[0].ID, append(own.owned, own.foreign[0]), nil, "applied"
+		}
+		// Audit the recovered outcome first, in the same transaction.
+		if _, err := tx.Exec(ctx, `INSERT INTO budget_audit (raise_id, actor, action, budget_set_usd, github_budget_id, dry_run) VALUES ($1, 'system', 'retry', $2, NULLIF($3, ''), false)`, p.id, p.amount, own.ownID); err != nil {
+			return err
+		}
+		if _, err := tx.Exec(ctx, "UPDATE budget_raises SET status = $2 WHERE id = $1 AND status = 'pending'", p.id, status); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// budgetReconcileBatch bounds the users one reconcile pass handles.
+const budgetReconcileBatch = 50
+
+// reconcileStuck settles raises left pending past budgetPendingStale without
+// waiting for the user's next raise (#2718). Per user it reads GitHub, then
+// takes the same advisory lock as a raise and runs the same settle step. It
+// never writes to GitHub, and with BUDGET_WRITES other than on it does
+// nothing. Safe with several replicas: the lock and the version check mean a
+// user is settled once; the other pass finds nothing pending.
+func (h *budgetRaiseHandlers) reconcileStuck(ctx context.Context) (int, error) {
+	if h.mode != "on" || h.writer == nil {
+		return 0, nil
+	}
+	pool, err := h.store.get(ctx)
+	if err != nil {
+		return 0, err
+	}
+	rows, err := pool.Query(ctx, `SELECT DISTINCT github_login FROM budget_raises WHERE status = 'pending' AND created_at < now() - $1::interval ORDER BY 1 LIMIT $2`,
+		budgetPendingStale.String(), budgetReconcileBatch)
+	if err != nil {
+		return 0, err
+	}
+	logins, err := pgx.CollectRows(rows, pgx.RowTo[string])
+	if err != nil {
+		return 0, err
+	}
+	settled := 0
+	for _, login := range logins {
+		n, err := h.reconcileUser(ctx, pool, login)
+		if err != nil {
+			slog.Warn("Budget reconcile left a user pending", "error", err) // retried next pass
+			continue
+		}
+		settled += n
+	}
+	return settled, nil
+}
+
+func (h *budgetRaiseHandlers) reconcileUser(ctx context.Context, pool *pgxpool.Pool, login string) (int, error) {
+	mu, _ := h.userLocks.LoadOrStore(login, &sync.Mutex{})
+	mu.(*sync.Mutex).Lock()
+	defer mu.(*sync.Mutex).Unlock()
+
+	var fp int64
+	if err := pool.QueryRow(ctx, raiseFingerprintSQL, login).Scan(&fp); err != nil {
+		return 0, err
+	}
+	list, _, err := h.writer.listUser(ctx, login)
+	if err != nil {
+		return 0, err // GitHub unreachable: stays pending
+	}
+	settled := 0
+	err = lockedTx(ctx, pool, login, func(tx pgx.Tx) (bool, error) {
+		var now int64
+		if err := tx.QueryRow(ctx, raiseFingerprintSQL, login).Scan(&now); err != nil || now != fp {
+			return false, err // changed since the list: next pass
+		}
+		pend, err := tx.Query(ctx, "SELECT id::text, COALESCE(budget_set_usd, 0), month FROM budget_raises WHERE github_login = $1 AND status = 'pending' AND created_at < now() - $2::interval",
+			login, budgetPendingStale.String())
+		if err != nil {
+			return false, err
+		}
+		var stale []staleRow
+		for pend.Next() {
+			var p staleRow
+			var m time.Time
+			if err := pend.Scan(&p.id, &p.amount, &m); err != nil {
+				pend.Close()
+				return false, err
+			}
+			p.month = time.Date(m.Year(), m.Month(), 1, 0, 0, 0, 0, h.loc)
+			stale = append(stale, p)
+		}
+		pend.Close()
+		if err := pend.Err(); err != nil || len(stale) == 0 {
+			return false, err
+		}
+		own, err := h.readOwnership(ctx, tx, login, list)
+		if err != nil {
+			return false, err
+		}
+		settled = len(stale)
+		return true, h.settleStale(ctx, tx, login, stale, &own)
+	})
+	return settled, err
+}
+
+// runReconciler runs reconcileStuck every interval until ctx ends.
+func (h *budgetRaiseHandlers) runReconciler(ctx context.Context, interval time.Duration) {
+	t := time.NewTicker(interval)
+	defer t.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+			if n, err := h.reconcileStuck(ctx); err != nil {
+				slog.Warn("Budget reconcile pass failed", "error", err)
+			} else if n > 0 {
+				slog.Info("Budget reconcile settled stuck raises", "count", n)
+			}
+		}
+	}
 }
