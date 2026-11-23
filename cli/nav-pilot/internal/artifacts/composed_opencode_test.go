@@ -134,27 +134,18 @@ func assertComposedOpenCode(t *testing.T, out string, project bool) {
 }
 
 func TestComposedOpenCodeMaterialization(t *testing.T) {
-	for _, client := range []string{"opencode", "pi", "materialize"} {
+	for _, client := range []string{"opencode", "pi"} {
 		t.Run(client, func(t *testing.T) {
 			team, cleanup := composedOpenCodeFixture(t)
 			out, scope := t.TempDir(), t.TempDir()
 			mustWrite(t, filepath.Join(scope, "skills/scope-extra/SKILL.md"), "scope extra")
 			mustWrite(t, filepath.Join(scope, "skills/observability-debugging/SKILL.md"), "scope must not shadow base")
 			mustWrite(t, filepath.Join(scope, "instructions/repo.instructions.md"), "repo-only instruction")
-			if client == "materialize" {
-				if _, _, _, _, err := MaterializeOpenCode(team, out, team); err != nil {
-					t.Fatal(err)
-				}
-			} else {
-				if _, _, _, _, _, err := SyncOpenCodeArtifacts(client, team, scope, out, "fixture", "team-sha", team); err != nil {
-					t.Fatal(err)
-				}
+			if _, _, _, _, _, err := SyncOpenCodeArtifacts(client, team, scope, out, "fixture", "team-sha", team); err != nil {
+				t.Fatal(err)
 			}
 			assertComposedOpenCode(t, out, false)
 			cleanup()
-			if client == "materialize" {
-				return
-			}
 			state, err := ReadOpenCodeState(out)
 			if err != nil || state == nil {
 				t.Fatalf("state: %v", err)
@@ -251,9 +242,6 @@ func TestOpenCodeRemoteSelfDeclarationDoesNotCompose(t *testing.T) {
 				return &source.Source{Dir: team, Repo: repo}, nil
 			}
 			out := t.TempDir()
-			if _, _, _, _, err := MaterializeOpenCode(team, out, "fixture/team"); err != nil {
-				t.Fatal(err)
-			}
 			if _, _, _, _, _, err := SyncOpenCodeArtifacts("opencode", team, "", out, "fixture", "", "fixture/team"); err != nil {
 				t.Fatal(err)
 			}
@@ -298,7 +286,7 @@ func TestComposedOpenCodeRefusalsDoNotWrite(t *testing.T) {
 				want = "reuse declaration"
 			}
 			mustWrite(t, filepath.Join(team, ".nav-pilot/agentpakke.lock.json"), declaration)
-			for _, path := range []string{"sync", "export", "materialize"} {
+			for _, path := range []string{"sync", "export"} {
 				t.Run(path, func(t *testing.T) {
 					scope := &domain.InstallScope{Name: "repo", RootDir: t.TempDir()}
 					out := OpenCodeOutputDir(scope)
@@ -309,8 +297,6 @@ func TestComposedOpenCodeRefusalsDoNotWrite(t *testing.T) {
 						_, _, _, _, _, err = SyncOpenCodeArtifacts("opencode", team, "", out, "fixture", "", team)
 					case "export":
 						err = ExportOpenCode(scope, "", team, "fixture", false, true, true)
-					case "materialize":
-						_, _, _, _, err = MaterializeOpenCode(team, out, team)
 					}
 					if err == nil || !strings.Contains(err.Error(), want) {
 						t.Fatalf("want %q refusal, got %v", want, err)

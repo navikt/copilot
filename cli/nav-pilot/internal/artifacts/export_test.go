@@ -1,7 +1,6 @@
 package artifacts
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -596,13 +595,13 @@ func TestExportSkills_RootLevel(t *testing.T) {
 	}
 }
 
-func TestMaterializeOpenCode(t *testing.T) {
+func TestSyncOpenCodeArtifacts(t *testing.T) {
 	sourceDir := setupTestSource(t)
 	outputDir := t.TempDir()
 
-	skills, commands, agents, instructions, err := MaterializeOpenCode(sourceDir, outputDir, sourceDir)
+	skills, commands, agents, instructions, _, err := SyncOpenCodeArtifacts("opencode", sourceDir, "", outputDir, "dev", "", sourceDir)
 	if err != nil {
-		t.Fatalf("MaterializeOpenCode() error: %v", err)
+		t.Fatalf("SyncOpenCodeArtifacts() error: %v", err)
 	}
 	if skills != 1 {
 		t.Errorf("skills = %d, want 1", skills)
@@ -647,11 +646,11 @@ func TestMaterializeOpenCode(t *testing.T) {
 	}
 }
 
-func TestMaterializeOpenCodeIdempotent(t *testing.T) {
+func TestSyncOpenCodeArtifactsIdempotent(t *testing.T) {
 	sourceDir := setupTestSource(t)
 	outputDir := t.TempDir()
 
-	s1, c1, a1, i1, err := MaterializeOpenCode(sourceDir, outputDir, sourceDir)
+	s1, c1, a1, i1, _, err := SyncOpenCodeArtifacts("opencode", sourceDir, "", outputDir, "dev", "", sourceDir)
 	if err != nil {
 		t.Fatalf("first run error: %v", err)
 	}
@@ -661,7 +660,7 @@ func TestMaterializeOpenCodeIdempotent(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	s2, c2, a2, i2, err := MaterializeOpenCode(sourceDir, outputDir, sourceDir)
+	s2, c2, a2, i2, _, err := SyncOpenCodeArtifacts("opencode", sourceDir, "", outputDir, "dev", "", sourceDir)
 	if err != nil {
 		t.Fatalf("second run error: %v", err)
 	}
@@ -677,11 +676,11 @@ func TestMaterializeOpenCodeIdempotent(t *testing.T) {
 	}
 }
 
-func TestMaterializeOpenCodeEmpty(t *testing.T) {
+func TestSyncOpenCodeArtifactsEmpty(t *testing.T) {
 	sourceDir := t.TempDir()
 	outputDir := t.TempDir()
 
-	skills, commands, agents, instructions, err := MaterializeOpenCode(sourceDir, outputDir, sourceDir)
+	skills, commands, agents, instructions, _, err := SyncOpenCodeArtifacts("opencode", sourceDir, "", outputDir, "dev", "", sourceDir)
 	if err != nil {
 		t.Fatalf("unexpected error on empty source: %v", err)
 	}
@@ -773,9 +772,6 @@ func TestLaunchSyncDoesNotRefusePayloadOnlyAgentpakke(t *testing.T) {
 
 	if _, _, _, _, _, err := SyncOpenCodeArtifacts("opencode", srcDir, "", t.TempDir(), "dev", "", srcDir); err != nil {
 		t.Fatalf("SyncOpenCodeArtifacts refused a payload-only pakke: %v", err)
-	}
-	if _, _, _, _, err := MaterializeOpenCode(srcDir, t.TempDir(), srcDir); err != nil {
-		t.Fatalf("MaterializeOpenCode refused a payload-only pakke: %v", err)
 	}
 }
 
@@ -899,8 +895,7 @@ func TestExportUsesTheExportedPakkesRoster(t *testing.T) {
 	mustWrite(t, filepath.Join(src, "skills", "s", "SKILL.md"), "# s\n")
 
 	// exportAgents is the function this change touches on the export path;
-	// MaterializeOpenCode alone would not prove anything about export, since it
-	// has no non-test caller. Both are covered: export here, materialize below.
+	// Both writers are covered: export here, the launch sync below.
 	out := t.TempDir()
 	layout, err := contentLayout(src)
 	if err != nil {
@@ -923,9 +918,9 @@ func TestExportUsesTheExportedPakkesRoster(t *testing.T) {
 		t.Errorf("an agent the pakke does not declare must stay a subagent, got:\n%s", read("helper"))
 	}
 
-	// The materialize path reads the same roster.
+	// The launch sync reads the same roster.
 	out2 := t.TempDir()
-	if _, _, _, _, err := MaterializeOpenCode(src, out2, src); err != nil {
+	if _, _, _, _, _, err := SyncOpenCodeArtifacts("opencode", src, "", out2, "dev", "", src); err != nil {
 		t.Fatal(err)
 	}
 	b, err := os.ReadFile(filepath.Join(out2, "agents", "boss.md"))
@@ -1004,8 +999,8 @@ func TestRealRepoAGENTSmdBudget(t *testing.T) {
 	}
 
 	out := t.TempDir()
-	if _, _, _, _, err := MaterializeOpenCode(repoRoot, out, repoRoot); err != nil {
-		t.Fatalf("MaterializeOpenCode on repo root: %v", err)
+	if _, _, _, _, _, err := SyncOpenCodeArtifacts("opencode", repoRoot, "", out, "dev", "", repoRoot); err != nil {
+		t.Fatalf("SyncOpenCodeArtifacts on repo root: %v", err)
 	}
 	data, err := os.ReadFile(filepath.Join(out, "AGENTS.md"))
 	if err != nil {
@@ -1020,97 +1015,4 @@ func TestRealRepoAGENTSmdBudget(t *testing.T) {
 		t.Errorf("materialized AGENTS.md is %d bytes (~%d tokens), ceiling is %d bytes (~%d tokens); check instructions/*.instructions.md with applyTo: \"**\"",
 			len(data), len(data)/4, maxBytes, maxBytes/4)
 	}
-}
-
-// MaterializeOpenCode writes all Nav OpenCode artifacts to outputDir silently (no console output).
-// Unlike ExportOpenCode it never checks for --force and never prints per-file lines —
-// it just ensures the files exist and are current. Idempotent: os.WriteFile overwrites
-// files with the same content on repeated calls, so running on every launch is safe.
-// Returns the count of each artifact type written.
-// sourceRepo preserves the resolved checkout's identity for self-declarations;
-// local callers pass their source path, remote callers pass owner/repo.
-func MaterializeOpenCode(sourceDir, outputDir, sourceRepo string) (skills, commands, agents, instructions int, err error) {
-	resolver, bases, err := composedContent(sourceDir, sourceRepo)
-	if err != nil {
-		return skills, commands, agents, instructions, err
-	}
-	defer bases.Cleanup()
-	primaries, err := openCodePrimaries(sourceDir)
-	if err != nil {
-		return skills, commands, agents, instructions, err
-	}
-
-	for _, skill := range resolver.List(source.KindSkill) {
-		dstDir := filepath.Join(outputDir, "skills", skill.Name)
-		if err := source.CheckSymlink(dstDir, outputDir); err != nil {
-			return skills, commands, agents, instructions, fmt.Errorf("skill %s: %w", skill.Name, err)
-		}
-		if mkErr := os.MkdirAll(filepath.Dir(dstDir), 0o755); mkErr != nil {
-			return skills, commands, agents, instructions, mkErr
-		}
-		if cpErr := copyDirSimple(skill.AbsPath, dstDir); cpErr != nil {
-			return skills, commands, agents, instructions, fmt.Errorf("skill %s: %w", skill.Name, cpErr)
-		}
-		skills++
-	}
-
-	for _, entry := range resolver.List(source.KindPrompt) {
-		if entry.IsDir {
-			continue
-		}
-		data, readErr := os.ReadFile(entry.AbsPath)
-		if readErr != nil {
-			return skills, commands, agents, instructions, fmt.Errorf("prompt %s: %w", entry.Name, readErr)
-		}
-		dstPath := filepath.Join(outputDir, "commands", entry.Name+".md")
-		if err := source.CheckSymlink(dstPath, outputDir); err != nil {
-			return skills, commands, agents, instructions, fmt.Errorf("command %s: %w", entry.Name, err)
-		}
-		if wErr := writeFile(dstPath, transformPrompt(data)); wErr != nil {
-			return skills, commands, agents, instructions, fmt.Errorf("command %s: %w", entry.Name, wErr)
-		}
-		commands++
-	}
-
-	for _, entry := range resolver.List(source.KindAgent) {
-		data, readErr := os.ReadFile(entry.AbsPath)
-		if readErr != nil {
-			return skills, commands, agents, instructions, fmt.Errorf("agent %s: %w", entry.Name, readErr)
-		}
-		dstPath := filepath.Join(outputDir, "agents", entry.Name+".md")
-		if err := source.CheckSymlink(dstPath, outputDir); err != nil {
-			return skills, commands, agents, instructions, fmt.Errorf("agent %s: %w", entry.Name, err)
-		}
-		if wErr := writeFile(dstPath, transformAgent(data, entry.Name, primaries)); wErr != nil {
-			return skills, commands, agents, instructions, fmt.Errorf("agent %s: %w", entry.Name, wErr)
-		}
-		agents++
-	}
-
-	globalSections, scopedRefs, collErr := collectInstructionData(resolver)
-	if collErr != nil {
-		return skills, commands, agents, instructions, collErr
-	}
-	if len(globalSections) > 0 || len(scopedRefs) > 0 {
-		for _, ref := range scopedRefs {
-			dstPath := filepath.Join(outputDir, "instructions", ref.Name+".md")
-			if err := source.CheckSymlink(dstPath, outputDir); err != nil {
-				return skills, commands, agents, instructions, fmt.Errorf("instruction %s: %w", ref.Name, err)
-			}
-			if wErr := writeFile(dstPath, ref.Body); wErr != nil {
-				return skills, commands, agents, instructions, fmt.Errorf("instruction %s: %w", ref.Name, wErr)
-			}
-		}
-		agentsMDPath := filepath.Join(outputDir, "AGENTS.md")
-		if err := source.CheckSymlink(agentsMDPath, outputDir); err != nil {
-			return skills, commands, agents, instructions, fmt.Errorf("AGENTS.md: %w", err)
-		}
-		agentsMD := buildLeanAGENTSmd(globalSections, scopedRefs, instructionsRefDir(outputDir, true))
-		if wErr := writeFile(agentsMDPath, agentsMD); wErr != nil {
-			return skills, commands, agents, instructions, fmt.Errorf("AGENTS.md: %w", wErr)
-		}
-		instructions = len(globalSections) + len(scopedRefs)
-	}
-
-	return skills, commands, agents, instructions, nil
 }

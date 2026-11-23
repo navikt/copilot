@@ -73,7 +73,7 @@ func ensurePiNavContext(ref, sourceRepo string, launch bool) (string, func(conte
 		recordFreshness("pi", piScopeName, assessStaleness(prev.Version))
 	}
 
-	// The syncing variant, not MaterializeOpenCode: it writes the state file
+	// The syncing writer: it writes the state file
 	// that ContextStatus and `nav-pilot status` read, so pi's context is a
 	// managed scope like opencode's rather than an untracked copy.
 	skills, _, agents, instructions, conflicts, err := artifacts.SyncOpenCodeArtifacts("pi",

@@ -129,7 +129,7 @@ var hookWarningSaid sync.Map
 var InstalledHookNames func() []string
 
 // SyncOpenCodeArtifacts materializes Nav context into outputDir with conflict detection
-// and state tracking. It is the state-aware counterpart to MaterializeOpenCode.
+// and state tracking. It is the writer the opencode and pi launches use.
 //
 // scopeDir is the installed scope the session runs against (a repo's .github/),
 // or "" when there is none. Skills, prompts and agents that live in the scope

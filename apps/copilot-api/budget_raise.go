@@ -165,21 +165,21 @@ type seatLookup interface {
 }
 
 type budgetRaiseHandlers struct {
-	store      *budgetStore
-	writer     *budgetWriter // nil: no write token, raises answer 503
-	seats      seatLookup    // nil: licence check impossible, raises answer 503
-	teams      teamSource    // nil: only «annet» is selectable
-	mode       string        // off | dry_run | on (F18)
-	defaultUSD int
-	loc        *time.Location
-	open       bool
-	testUsers  map[string]bool
-	now        func() time.Time
-	limiter    *loginLimiter
-	userLocks  [64]sync.Mutex // striped by login (userLock): one raise at a time per user on this replica, bounded memory
-	afterList    func() // test hook: runs between the GitHub list and the reservation
-	midReserve   func() // test hook: runs inside reserve, after budget_github is read
-	midReconcile func() // test hook: runs inside reconcileUser's tx, after the version check
+	store        *budgetStore
+	writer       *budgetWriter // nil: no write token, raises answer 503
+	seats        seatLookup    // nil: licence check impossible, raises answer 503
+	teams        teamSource    // nil: only «annet» is selectable
+	mode         string        // off | dry_run | on (F18)
+	defaultUSD   int
+	loc          *time.Location
+	open         bool
+	testUsers    map[string]bool
+	now          func() time.Time
+	limiter      *loginLimiter
+	userLocks    [64]sync.Mutex // striped by login (userLock): one raise at a time per user on this replica, bounded memory
+	afterList    func()         // test hook: runs between the GitHub list and the reservation
+	midReserve   func()         // test hook: runs inside reserve, after budget_github is read
+	midReconcile func()         // test hook: runs inside reconcileUser's tx, after the version check
 }
 
 func newBudgetRaiseHandlers(cfg *Config, writer *budgetWriter, seats seatLookup) (*budgetRaiseHandlers, error) {
