@@ -335,12 +335,12 @@ func TestBudgetRaiseDryRunNotCounted(t *testing.T) {
 func TestBudgetRaiseGitHubFailureIsVisible(t *testing.T) {
 	e := newBudgetEnv(t, openBudgetTestDB(t))
 	e.profile("ola")
-	e.gh.failNext = 500
+	e.gh.failNext = 422 // a refusal: GitHub did not create anything
 	code, out := e.raise("ola", "k1")
 	if code != 502 || out["raise"].(map[string]any)["status"] != "failed" {
 		t.Fatalf("failed write: %d %v", code, out)
 	}
-	if n := e.count("SELECT count(*) FROM budget_audit WHERE github_status = 500"); n != 1 {
+	if n := e.count("SELECT count(*) FROM budget_audit WHERE github_status = 422"); n != 1 {
 		t.Errorf("audit of failed call: %d", n)
 	}
 	// failed counts toward the cap (F7), so the next raise sets 150 + 2 × 150.
@@ -977,5 +977,59 @@ func TestBudgetRaiseAuditIsDurable(t *testing.T) {
 	}
 	if n := e.count("SELECT count(*) FROM budget_audit"); n != 1 {
 		t.Errorf("the intent row must stay: %d", n)
+	}
+	// Recovery: the budget is already ours (recorded), only the result was
+	// not audited. The next raise must reconcile it as applied, audited.
+	e.exec("DROP TRIGGER fail_audit_update ON budget_audit")
+	e.exec("UPDATE budget_raises SET created_at = now() - interval '1 hour'")
+	if code, out := e.raise("ola", "k3"); code != 201 || out["budgetUsd"] != float64(450) {
+		t.Fatalf("raise after recovery: %d %v", code, out)
+	}
+	if n := e.count("SELECT count(*) FROM budget_raises WHERE idempotency_key = 'k2' AND status = 'applied'"); n != 1 {
+		t.Error("the recorded raise must be reconciled as applied, not failed")
+	}
+	if n := e.count("SELECT count(*) FROM budget_audit WHERE action = 'retry' AND github_budget_id = 'b1'"); n != 1 {
+		t.Errorf("recovered outcome audited: %d", n)
+	}
+}
+
+// A 5xx on create or patch may still have taken effect: pending, then reconciled.
+func TestBudgetRaiseServerErrorIsUnknown(t *testing.T) {
+	e := newBudgetEnv(t, openBudgetTestDB(t))
+	e.profile("ola")
+	e.raise("ola", "k1")
+	e.gh.mu.Lock()
+	e.gh.failNext = 503
+	e.gh.mu.Unlock()
+	if code, out := e.raise("ola", "k2"); code != 502 || out["raise"].(map[string]any)["status"] != "pending" {
+		t.Fatalf("patch 5xx: %d %v", code, out)
+	}
+	e.gh.failNext = 0
+	e.exec("UPDATE budget_raises SET created_at = now() - interval '1 hour'")
+	// GitHub did not apply it (fake left 300): reconciled as failed, counted.
+	if code, out := e.raise("ola", "k3"); code != 201 || out["budgetUsd"] != float64(600) {
+		t.Fatalf("after reconcile: %d %v", code, out)
+	}
+	// Read-back unavailable after a successful write: pending, then applied.
+	e2 := newBudgetEnv(t, openBudgetTestDB(t))
+	e2.profile("kari")
+	e2.h.afterList = func() { e2.gh.mu.Lock(); e2.gh.failList = 1; e2.gh.mu.Unlock() }
+	if code, out := e2.raise("kari", "k1"); code != 502 || out["raise"].(map[string]any)["status"] != "pending" {
+		t.Fatalf("read-back down: %d %v", code, out)
+	}
+	e2.h.afterList = nil
+	e2.exec("UPDATE budget_raises SET created_at = now() - interval '1 hour'")
+	e2.raise("kari", "k2")
+	if n := e2.count("SELECT count(*) FROM budget_raises WHERE idempotency_key = 'k1' AND status = 'applied'"); n != 1 {
+		t.Error("written but unverified raise must reconcile as applied")
+	}
+}
+
+func TestBudgetRaiseCreateServerErrorIsUnknown(t *testing.T) {
+	e := newBudgetEnv(t, openBudgetTestDB(t))
+	e.profile("ola")
+	e.gh.failNext = 500
+	if code, out := e.raise("ola", "k1"); code != 502 || out["raise"].(map[string]any)["status"] != "pending" {
+		t.Fatalf("create 5xx may have created the budget: %d %v", code, out)
 	}
 }

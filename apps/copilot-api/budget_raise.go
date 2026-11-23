@@ -749,7 +749,7 @@ func (h *budgetRaiseHandlers) reserve(ctx context.Context, pool *pgxpool.Pool, r
 			return err
 		}
 
-		var foreign []ghBudget
+		var foreign, owned []ghBudget
 		if rv.list != nil {
 			listed := map[string]bool{}
 			for _, b := range rv.list.Budgets {
@@ -758,6 +758,7 @@ func (h *budgetRaiseHandlers) reserve(ctx context.Context, pool *pgxpool.Pool, r
 				case b.BudgetScope == "multi_user_customer" || b.BudgetScope == "enterprise":
 				case ours[b.ID]:
 					plan.ownID = b.ID // review B4: reuse ours, also last month's
+					owned = append(owned, b)
 				default:
 					foreign = append(foreign, b)
 				}
@@ -809,16 +810,25 @@ func (h *budgetRaiseHandlers) reserve(ctx context.Context, pool *pgxpool.Pool, r
 			// what the dead raise sent: our amount and our expiry.
 			// Its own month and expiry, not this request's: it may be last month's.
 			pExpires := p.month.AddDate(0, 1, 0)
-			if len(foreign) == 1 && plan.ownID == "" && h.writer != nil && matchesWrite(foreign[0], h.writer.budgetType, p.amount, pExpires) {
+			// Already ours (only the result was not recorded): applied if GitHub
+			// holds at least what it sent, since a later raise may have raised it.
+			for _, b := range owned {
+				if h.writer != nil && b.BudgetScope == "user" && b.Amount >= float64(p.amount) && strings.HasPrefix(b.ExpiresAt, pExpires.Format(time.DateOnly)) &&
+					b.SKU == "ai_credits" && (h.writer.budgetType == "" || b.BudgetType == h.writer.budgetType) {
+					status = "applied"
+				}
+			}
+			if status != "applied" && len(foreign) == 1 && plan.ownID == "" && h.writer != nil && matchesWrite(foreign[0], h.writer.budgetType, p.amount, pExpires) {
 				if err := recordOwnBudget(ctx, tx, rv.target, p.month, foreign[0].ID, p.amount, pExpires); err != nil {
 					return err
 				}
 				plan.ownID, foreign, status = foreign[0].ID, nil, "applied"
 			}
-			if _, err := tx.Exec(ctx, "UPDATE budget_raises SET status = $2 WHERE id = $1", p.id, status); err != nil {
+			// Audit the recovered outcome first, in the same transaction.
+			if _, err := tx.Exec(ctx, `INSERT INTO budget_audit (raise_id, actor, action, budget_set_usd, github_budget_id, dry_run) VALUES ($1, 'system', 'retry', $2, NULLIF($3, ''), false)`, p.id, p.amount, plan.ownID); err != nil {
 				return err
 			}
-			if _, err := tx.Exec(ctx, `INSERT INTO budget_audit (raise_id, actor, action, budget_set_usd, github_budget_id, dry_run) VALUES ($1, 'system', 'retry', $2, NULLIF($3, ''), false)`, p.id, p.amount, plan.ownID); err != nil {
+			if _, err := tx.Exec(ctx, "UPDATE budget_raises SET status = $2 WHERE id = $1", p.id, status); err != nil {
 				return err
 			}
 		}
@@ -889,11 +899,14 @@ func (h *budgetRaiseHandlers) write(ctx context.Context, pool *pgxpool.Pool, tar
 	created := false
 	if ownID != "" {
 		status, err = h.writer.patchOwnBudget(ctx, ownID, plan.amount, expires)
+		// No answer or a 5xx: GitHub may have applied it. Our ID is recorded,
+		// so pending lets the next raise reconcile instead of saying failed.
+		unknown = err != nil && (status == 0 || status/100 == 5)
 	} else {
 		created = true
 		ownID, status, err = h.writer.createUserBudget(ctx, target, plan.amount, expires)
-		// No response, or a 2xx we could not read: GitHub may have created it.
-		unknown = err != nil && (status == 0 || status/100 == 2)
+		// No response, a 2xx we could not read, or a 5xx: GitHub may have created it.
+		unknown = err != nil && (status == 0 || status/100 == 2 || status/100 == 5)
 		if unknown {
 			// Result unknown (connection lost). Adopt the one new user budget
 			// only if it is exactly what we sent.
@@ -922,7 +935,10 @@ func (h *budgetRaiseHandlers) write(ctx context.Context, pool *pgxpool.Pool, tar
 		slog.Error("Budget written in GitHub but its ID was not stored", "github_budget_id", ownID, "error", err)
 		return ownID, status, created, err
 	}
-	return ownID, status, false, h.verify(ctx, target, ownID, plan.amount, expires)
+	err = h.verify(ctx, target, ownID, plan.amount, expires)
+	// A read-back that could not be read is unknown; one that read a different
+	// budget is a known failure (the budget is recorded as ours either way).
+	return ownID, status, errors.Is(err, errReadBackUnavailable), err
 }
 
 // matchesWrite: the listed budget is exactly what we sent: user scope, amount,
@@ -932,12 +948,14 @@ func matchesWrite(b ghBudget, budgetType string, amount int, expires time.Time) 
 		b.SKU == "ai_credits" && (budgetType == "" || b.BudgetType == budgetType)
 }
 
+var errReadBackUnavailable = errors.New("budget read-back unavailable")
+
 // verify reads the budget back (chapter 7 step 5). The list is the only place
 // with expires_at, and a raise without our expiry would never end (R1).
 func (h *budgetRaiseHandlers) verify(ctx context.Context, login, id string, amount int, expires time.Time) error {
 	list, _, err := h.writer.listUser(ctx, login)
 	if err != nil {
-		return err
+		return errors.Join(errReadBackUnavailable, err)
 	}
 	for _, b := range list.Budgets {
 		if b.ID == id {
