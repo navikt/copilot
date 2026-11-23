@@ -18,7 +18,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-const testTeam = "team-a"
+const testTeam = "team-b" // the caller's own team in newBudgetEnv
 
 type fakeTeams struct {
 	err  error
@@ -530,10 +530,10 @@ func TestBudgetRaiseUnavailable(t *testing.T) {
 func TestBudgetTeamsFromGitHub(t *testing.T) {
 	e := newBudgetEnv(t, openBudgetTestDB(t))
 	code, out := e.do("GET", "/api/v1/copilot/budget/options", "ola", "", "")
-	if teams := out["teams"].([]any); code != 200 || len(teams) != 3 || teams[0].(map[string]any)["id"] != "annet" || teams[1].(map[string]any)["name"] != "Team A" {
+	if teams := out["teams"].([]any); code != 200 || len(teams) != 2 || teams[0].(map[string]any)["id"] != "annet" || teams[1].(map[string]any)["name"] != "Team B" {
 		t.Fatalf("options: %d %v", code, out)
 	}
-	for team, want := range map[string]int{"team-a": 200, "annet": 200, "nope": 400, "0b0d1c3e-1111-4222-8333-444455556666": 400} {
+	for team, want := range map[string]int{"team-b": 200, "team-a": 400, "annet": 200, "nope": 400, "0b0d1c3e-1111-4222-8333-444455556666": 400} {
 		if code, _ := e.do("PUT", "/api/v1/copilot/budget/profile", "ola", "", `{"teamId":"`+team+`","role":"utvikler"}`); code != want {
 			t.Errorf("profile team %s: %d, want %d", team, code, want)
 		}
@@ -943,10 +943,13 @@ func TestBudgetBodyStrict(t *testing.T) {
 
 func TestBudgetRaiseProfileTeamRevalidated(t *testing.T) {
 	e := newBudgetEnv(t, openBudgetTestDB(t))
-	e.profile("ola") // team-a
-	e.h.teams = fakeTeams{err: fmt.Errorf("bq down")}
-	if code, _ := e.raise("ola", "k1"); code != 400 || len(e.gh.writes) != 0 {
-		t.Errorf("saved team no longer selectable: %d", code)
+	e.profile("ola") // team-b
+	e.h.teams = fakeTeams{mine: []string{"team-a"}} // ola has left team-b
+	if code, out := e.do("GET", "/api/v1/copilot/budget/profile", "ola", "", ""); code != 200 || out["teamId"] != "annet" || out["leftTeamId"] != "team-b" {
+		t.Errorf("left team must read as annet: %d %v", code, out)
+	}
+	if code, _ := e.raise("ola", "k1"); code != 201 || e.count("SELECT count(*) FROM budget_raises WHERE team_id = 'annet'") != 1 {
+		t.Errorf("left team must raise as annet: %d", code)
 	}
 }
 

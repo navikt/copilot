@@ -277,23 +277,34 @@ type teamSource interface {
 	GetUserTeams(ctx context.Context, login string) ([]string, error)
 }
 
-// budgetTeams is the selectable list: GitHub teams plus «annet/ukjent». If the
-// team source is down, only «annet» is offered and accepted (fails closed).
-func (h *budgetRaiseHandlers) budgetTeams(ctx context.Context) []GitHubTeam {
+// budgetTeams is the caller's selectable list: their own GitHub teams plus
+// «annet/ukjent». If the team source is down, only «annet» is offered and
+// accepted (fails closed).
+func (h *budgetRaiseHandlers) budgetTeams(ctx context.Context, login string) []GitHubTeam {
 	teams := []GitHubTeam{{Slug: budgetTeamOther, Name: "Annet/ukjent"}}
 	if h.teams == nil {
 		return teams
 	}
-	gh, err := h.teams.GetGitHubTeams(ctx)
+	mine, err := h.teams.GetUserTeams(ctx, login)
+	if err != nil {
+		slog.Warn("User's GitHub teams unavailable for budget options", "error", err)
+		return teams
+	}
+	all, err := h.teams.GetGitHubTeams(ctx)
 	if err != nil {
 		slog.Warn("GitHub team list unavailable for budget options", "error", err)
 		return teams
 	}
-	return append(teams, gh...)
+	for _, t := range all {
+		if slices.Contains(mine, t.Slug) {
+			teams = append(teams, t)
+		}
+	}
+	return teams
 }
 
-func (h *budgetRaiseHandlers) validTeam(ctx context.Context, slug string) bool {
-	return slices.ContainsFunc(h.budgetTeams(ctx), func(t GitHubTeam) bool { return t.Slug == slug })
+func (h *budgetRaiseHandlers) validTeam(ctx context.Context, login, slug string) bool {
+	return slices.ContainsFunc(h.budgetTeams(ctx, login), func(t GitHubTeam) bool { return t.Slug == slug })
 }
 
 type budgetProfile struct {
@@ -303,12 +314,14 @@ type budgetProfile struct {
 	// SuggestedTeamID is the caller's own GitHub team when they are in
 	// exactly one; only set while no profile is stored.
 	SuggestedTeamID string `json:"suggestedTeamId,omitempty"`
+	// LeftTeamID is a saved team the caller is no longer in; TeamID is then «annet».
+	LeftTeamID string `json:"leftTeamId,omitempty"`
 }
 
-func (h *budgetRaiseHandlers) handleOptions(w http.ResponseWriter, r *http.Request, _ string) {
+func (h *budgetRaiseHandlers) handleOptions(w http.ResponseWriter, r *http.Request, login string) {
 	respondJSON(w, map[string]any{
 		"roles": budgetRoles, "categories": budgetCategories, "expectedValues": budgetExpectedValues,
-		"teams":   h.budgetTeams(r.Context()),
+		"teams":   h.budgetTeams(r.Context(), login),
 		"stepUsd": budgetStepUSD, "capUsd": budgetCapUSD, "defaultUsd": h.defaultUSD, "freeTextMax": budgetFreeTextMax,
 	}, http.StatusOK)
 }
@@ -337,9 +350,12 @@ func (h *budgetRaiseHandlers) handleGetProfile(w http.ResponseWriter, r *http.Re
 		return
 	}
 	if !p.Exists && h.teams != nil {
-		if mine, err := h.teams.GetUserTeams(r.Context(), login); err == nil && len(mine) == 1 && h.validTeam(r.Context(), mine[0]) {
+		if mine, err := h.teams.GetUserTeams(r.Context(), login); err == nil && len(mine) == 1 && h.validTeam(r.Context(), login, mine[0]) {
 			p.SuggestedTeamID = mine[0]
 		}
+	}
+	if p.Exists && !h.validTeam(r.Context(), login, p.TeamID) {
+		p.LeftTeamID, p.TeamID = p.TeamID, budgetTeamOther
 	}
 	noCacheControl(w)
 	respondJSON(w, p, http.StatusOK)
@@ -353,7 +369,7 @@ func (h *budgetRaiseHandlers) handlePutProfile(w http.ResponseWriter, r *http.Re
 	if !decodeStrict(w, r, &in) {
 		return
 	}
-	if !h.validTeam(r.Context(), in.TeamID) || !slices.Contains(budgetRoles, in.Role) {
+	if !h.validTeam(r.Context(), login, in.TeamID) || !slices.Contains(budgetRoles, in.Role) {
 		respondError(w, "invalid_request", "Unknown team or role", http.StatusBadRequest)
 		return
 	}
@@ -459,7 +475,7 @@ func (h *budgetRaiseHandlers) handleRaise(w http.ResponseWriter, r *http.Request
 		return
 	}
 	if !slices.Contains(budgetCategories, in.Category) || !slices.Contains(budgetExpectedValues, in.ExpectedValue) ||
-		(in.TeamID != "" && !h.validTeam(r.Context(), in.TeamID)) || (in.FreeText != nil && !validFreeText(*in.FreeText)) {
+		(in.TeamID != "" && !h.validTeam(r.Context(), login, in.TeamID)) || (in.FreeText != nil && !validFreeText(*in.FreeText)) {
 		respondError(w, "invalid_request", "Unknown category, team or expected value, or free text too long", http.StatusBadRequest)
 		return
 	}
@@ -548,12 +564,12 @@ func (h *budgetRaiseHandlers) raise(w http.ResponseWriter, r *http.Request, acto
 	}
 	if in.TeamID == "" {
 		in.TeamID = budgetTeamOther
-		if profile.Exists {
+		// A saved team the user has since left counts as «annet».
+		if profile.Exists && h.validTeam(ctx, target, profile.TeamID) {
 			in.TeamID = profile.TeamID
 		}
-	}
-	if !h.validTeam(ctx, in.TeamID) { // a saved team may since have gone
-		respondError(w, "invalid_request", "Team is no longer selectable, update your profile", http.StatusBadRequest)
+	} else if !h.validTeam(ctx, target, in.TeamID) {
+		respondError(w, "invalid_request", "Team is not one of yours", http.StatusBadRequest)
 		return
 	}
 
