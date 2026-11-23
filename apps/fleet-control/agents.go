@@ -93,6 +93,7 @@ type agentStore interface {
 	ApproveAgentRoute(ctx context.Context, id int64, namespace, name, route, actor string) (AgentProfile, error)
 	RevokeAgentProfile(ctx context.Context, namespace, name string, actor Person) error
 	ActiveAgentProfiles(ctx context.Context) ([]AgentProfile, error)
+	AgentProfileDetail(ctx context.Context, namespace, name string) (int64, AgentProfile, map[string]any, error)
 }
 
 var (
@@ -232,6 +233,7 @@ func (s *server) agentRoutes(mux *http.ServeMux, a *authz, persons personResolve
 		return
 	}
 	mux.HandleFunc("POST /admin/v1/agents", withPerson(persons, s.createAgent))
+	mux.HandleFunc("GET /admin/v1/agents/{namespace}/{name}", withPerson(persons, s.getAgent))
 	mux.HandleFunc("POST /admin/v1/agents/{namespace}/{name}/approvals", withPerson(persons, s.approveAgent))
 	mux.HandleFunc("POST /admin/v1/agents/{namespace}/{name}/revoke", withPerson(persons, s.revokeAgent))
 }
@@ -355,6 +357,34 @@ func (s *server) approveAgent(w http.ResponseWriter, r *http.Request, who Person
 		return
 	}
 	writeJSON(w, map[string]any{"status": p.Status, "expires_at": p.ExpiresAt})
+}
+
+// getAgent shows the live profile, its id and per-route approvals, so an
+// approver can review it and send the id back. Only the owner team and the
+// teams owning a granted route see it; everyone else gets 404.
+func (s *server) getAgent(w http.ResponseWriter, r *http.Request, who Person) {
+	as, _, ctx, cancel := s.agentDB(w, r)
+	if as == nil {
+		return
+	}
+	defer cancel()
+	id, p, approvals, err := as.AgentProfileDetail(ctx, r.PathValue("namespace"), r.PathValue("name"))
+	if err == nil && !p.visibleTo(who) {
+		err = errNotFound
+	}
+	if err != nil {
+		writeErr(w, err)
+		return
+	}
+	writeJSON(w, map[string]any{"id": id, "status": p.Status, "profile": p, "approvals": approvals})
+}
+
+// visibleTo is true for the owner team and the owning team of any granted route.
+func (p AgentProfile) visibleTo(who Person) bool {
+	return who.in(p.Namespace) || slices.ContainsFunc(p.Grants, func(g AgentGrant) bool {
+		team, _, _ := strings.Cut(g.Route, "/")
+		return who.in(team)
+	})
 }
 
 func (s *server) revokeAgent(w http.ResponseWriter, r *http.Request, who Person) {
@@ -546,11 +576,7 @@ func (d *DB) RevokeAgentProfile(ctx context.Context, namespace, name string, act
 		if err != nil {
 			return err
 		}
-		allowed := actor.in(p.Namespace) || slices.ContainsFunc(p.Grants, func(g AgentGrant) bool {
-			team, _, _ := strings.Cut(g.Route, "/")
-			return actor.in(team)
-		})
-		if !allowed {
+		if !p.visibleTo(actor) {
 			return fmt.Errorf("%w: only the owner team or a route owner can revoke", errForbidden)
 		}
 		if _, err := tx.Exec(ctx, `UPDATE agent_profiles SET status = 'revoked', revoked_by = $2, revoked_at = now() WHERE id = $1`, id, actor.Ident); err != nil {
@@ -558,6 +584,37 @@ func (d *DB) RevokeAgentProfile(ctx context.Context, namespace, name string, act
 		}
 		return auditAgent(ctx, tx, actor.Ident, "agent_profile_revoked", namespace, name, map[string]any{"id": id, "was": p.Status})
 	})
+}
+
+// AgentProfileDetail returns the live profile, its id, and per granted route
+// either null or who approved it and when.
+func (d *DB) AgentProfileDetail(ctx context.Context, namespace, name string) (int64, AgentProfile, map[string]any, error) {
+	id, p, err := scanAgent(d.pool.QueryRow(ctx, `SELECT `+agentCols+` FROM agent_profiles
+		WHERE namespace = $1 AND name = $2 AND status IN ('draft', 'approved')`, namespace, name))
+	if errors.Is(err, pgx.ErrNoRows) {
+		return 0, p, nil, errNotFound
+	}
+	if err != nil {
+		return 0, p, nil, err
+	}
+	approvals := map[string]any{}
+	for _, g := range p.Grants {
+		approvals[g.Route] = nil
+	}
+	rows, err := d.pool.Query(ctx, `SELECT route, approved_by, approved_at FROM agent_profile_approvals WHERE profile_id = $1`, id)
+	if err != nil {
+		return 0, p, nil, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var route, by string
+		var at time.Time
+		if err := rows.Scan(&route, &by, &at); err != nil {
+			return 0, p, nil, err
+		}
+		approvals[route] = map[string]any{"approved_by": by, "approved_at": at}
+	}
+	return id, p, approvals, rows.Err()
 }
 
 // ActiveAgentProfiles returns approved profiles that have not expired.

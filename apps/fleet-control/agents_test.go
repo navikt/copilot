@@ -457,3 +457,40 @@ func TestRealPostgresAgentSeed(t *testing.T) {
 		t.Fatalf("seed: n=%d status=%s by=%s verified=%v", n, status, by, verified)
 	}
 }
+
+func TestRealPostgresAgentDetailAndSeededApproval(t *testing.T) {
+	e := newAgentEnv(t)
+	t.Setenv("SEED_AGENTS_FILE", "seed/agents.dev.json")
+	t.Setenv("NAIS_CLUSTER_NAME", "dev-gcp")
+	if err := seedAgentsFromEnv(context.Background(), e.db); err != nil {
+		t.Fatal(err)
+	}
+	path := "/admin/v1/agents/aksel-studio/studio-assistant"
+	for _, who := range []string{author, approver} {
+		if code, body := e.do("GET", path, who, ""); code != 200 || !strings.Contains(body, `"copilot/dolly":null`) {
+			t.Fatalf("%s: %d %s", who, code, body)
+		}
+	}
+	if code, _ := e.do("GET", path, stranger, ""); code != 404 {
+		t.Fatalf("another team must get 404: %d", code)
+	}
+	if code, _ := e.do("GET", path, "", ""); code != 401 {
+		t.Fatalf("unauthenticated: %d", code)
+	}
+	_, body := e.do("GET", path, approver, "")
+	var got struct {
+		ID      int64
+		Status  string
+		Profile AgentProfile
+	}
+	if err := json.Unmarshal([]byte(body), &got); err != nil || got.ID == 0 || got.Status != "draft" || got.Profile.Identity.App != "studio-api" {
+		t.Fatalf("detail: %v %s", err, body)
+	}
+	code, resp := e.do("POST", path+"/approvals", approver, fmt.Sprintf(`{"route":"copilot/dolly","id":%d}`, got.ID))
+	if code != 200 || !strings.Contains(resp, `"approved"`) {
+		t.Fatalf("approve seeded draft with the returned id: %d %s", code, resp)
+	}
+	if _, body = e.do("GET", path, author, ""); !strings.Contains(body, `"approved_by":"C222222"`) {
+		t.Fatalf("approval state: %s", body)
+	}
+}
