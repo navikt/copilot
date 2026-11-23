@@ -1033,3 +1033,57 @@ func TestBudgetRaiseCreateServerErrorIsUnknown(t *testing.T) {
 		t.Fatalf("create 5xx may have created the budget: %d %v", code, out)
 	}
 }
+
+// #2715: replica A has reserved and is writing; replica B lists GitHub before
+// A's create and reserves while A finishes. A's bookkeeping must not slip in
+// between B's reads, or B counts A's raise but misses A's budget and creates
+// a second one.
+func TestBudgetRaiseWriteSerialisedWithReserve(t *testing.T) {
+	e := newBudgetEnv(t, openBudgetTestDB(t))
+	e.profile("ola")
+	h2, err := newBudgetRaiseHandlers(&Config{BudgetDatabaseURL: e.dsn, BudgetWrites: "on", BudgetDefaultUSD: 150, BudgetTimeZone: "Europe/Oslo", BudgetRaisesOpen: true}, e.h.writer, fakeSeats{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	h2.now, h2.teams = e.h.now, e.h.teams
+	t.Cleanup(func() {
+		if h2.store.pool != nil {
+			h2.store.pool.Close()
+		}
+	})
+	r2 := makeAPIRouter(&Config{}, nil, nil, nil, NewIdentityResolverChain(emailResolver{}), h2)
+	post := func(router http.Handler, key string) int {
+		req := httptest.NewRequest("POST", "/api/v1/copilot/budget/raises", strings.NewReader(`{"category":"koding","expectedValue":"spare_tid"}`))
+		req.Header.Set("Idempotency-Key", key)
+		req = req.WithContext(context.WithValue(req.Context(), userContextKey, &User{Email: "ola@nav.no"}))
+		rec := httptest.NewRecorder()
+		router.ServeHTTP(rec, req)
+		return rec.Code
+	}
+
+	e.gh.postWait = make(chan struct{}) // A's create waits in GitHub
+	aDone := make(chan int)
+	go func() { aDone <- post(e.router, "a") }()
+	for e.count("SELECT count(*) FROM budget_raises") == 0 {
+		time.Sleep(5 * time.Millisecond)
+	}
+
+	inReserve, releaseB := make(chan struct{}), make(chan struct{})
+	h2.midReserve = func() {
+		h2.midReserve = nil
+		close(inReserve)
+		<-releaseB
+	}
+	bDone := make(chan int)
+	go func() { bDone <- post(r2, "b") }()
+	<-inReserve
+	close(e.gh.postWait) // A creates, records and finishes, if nothing stops it
+	time.Sleep(300 * time.Millisecond)
+	close(releaseB)
+	a, b := <-aDone, <-bDone
+	e.gh.mu.Lock()
+	defer e.gh.mu.Unlock()
+	if len(e.gh.budgets["ola"]) != 1 || a != 201 || b != 409 {
+		t.Fatalf("A=%d B=%d (want 201, 409), GitHub has %+v", a, b, e.gh.budgets["ola"])
+	}
+}
