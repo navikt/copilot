@@ -48,7 +48,7 @@ func readyHandler(w http.ResponseWriter, r *http.Request) {
 // requireResolvedIdentity) — this is defense-in-depth on top of each
 // handler's own requireOwnership/GetResolvedIdentity call, ensuring a future
 // per-user route can't accidentally ship without an ownership check.
-func makeAPIRouter(config *Config, bqHandlers *BigQueryHandlers, ghHandlers *GitHubHandlers, budgetHandlers *BudgetHandlers, identityChain *IdentityResolverChain) http.Handler {
+func makeAPIRouter(config *Config, bqHandlers *BigQueryHandlers, ghHandlers *GitHubHandlers, budgetHandlers *BudgetHandlers, identityChain *IdentityResolverChain, raise *budgetRaiseHandlers) http.Handler {
 	mux := http.NewServeMux()
 
 	bqStub := serviceUnavailableHandler("BigQuery is not configured for this environment")
@@ -135,6 +135,14 @@ func makeAPIRouter(config *Config, bqHandlers *BigQueryHandlers, ghHandlers *Git
 
 	// Enterprise budget endpoints
 	mux.HandleFunc("GET /api/v1/copilot/budget", budget(perUser(nilSafe(budgetHandlers, func(h *BudgetHandlers) http.HandlerFunc { return h.handleGetBudget }))))
+	// Personal budget raises (budget_raise.go). Own 503 when Postgres or the
+	// write token is missing, so the rest of the API is unaffected.
+	mux.HandleFunc("GET /api/v1/copilot/budget/options", perUser(raise.wrap((*budgetRaiseHandlers).handleOptions)))
+	mux.HandleFunc("GET /api/v1/copilot/budget/profile", perUser(raise.wrap((*budgetRaiseHandlers).handleGetProfile)))
+	mux.HandleFunc("PUT /api/v1/copilot/budget/profile", perUser(raise.wrap((*budgetRaiseHandlers).handlePutProfile)))
+	mux.HandleFunc("GET /api/v1/copilot/budget/raises", perUser(raise.wrap((*budgetRaiseHandlers).handleListRaises)))
+	mux.HandleFunc("POST /api/v1/copilot/budget/raises", perUser(raise.wrap((*budgetRaiseHandlers).handleRaise)))
+	mux.Handle("POST /api/v1/copilot/budget/admin/override", requireAdmin(perUser(raise.wrap((*budgetRaiseHandlers).handleAdminOverride))))
 	mux.HandleFunc("GET /api/v1/copilot/budget/global", budget(nilSafe(budgetHandlers, func(h *BudgetHandlers) http.HandlerFunc { return h.handleGetGlobalBudget })))
 
 	return mux

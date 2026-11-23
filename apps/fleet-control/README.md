@@ -53,6 +53,30 @@ An agent profile says which caller app may use which tools on which gateway rout
 
 The write routes (`POST /admin/v1/agents`, `.../{namespace}/{name}/approvals`, `.../revoke`) follow the Write API rules above: a person's token from the admin client, teams from `FLEET_CONTROL_STATIC_TEAMS`, dev-* clusters only. `SEED_AGENTS_FILE` imports drafts on startup in dev only (`seed/agents.dev.json`, the Aksel Studio draft). Its `entra_client_id` is a placeholder until the real dev client id of `studio-api` is filled in, so the profile stays unverified and out of the snapshot. The app refuses `SEED_AGENTS_FILE` outside dev-* clusters.
 
+## Job API for fleet-runtime
+
+fleet-runtime has no inbound surface. It fetches its work from fleet-control: it claims a job, holds a lease by heartbeat, and reads cancel and kill from the heartbeat answer (#2689). The Go types in `jobs.go` are the contract.
+
+Teams queue jobs with the admin auth above (team member, dev only):
+
+- `POST /admin/v1/jobs/{namespace}` with `kind`, `params` (a JSON object of at most 16 KiB: a reference to the work, not the work), `on_expiry` (`requeue` or `fail`, default `requeue`) and `max_attempts` (1 to 10, default 3).
+- `POST /admin/v1/jobs/{namespace}/{id}/cancel` or `.../kill`. A queued job stops at once; a leased one gets the command on its next heartbeat.
+- `PUT /admin/v1/jobs/{namespace}/kill-switch` with `{"scope": "team" | "global", "on": true, "reason": "..."}`. While a switch is on, no job in scope is claimed and every leased one gets kill on its next heartbeat. Only `FLEET_CONTROL_OPERATOR_TEAM` may set `global`.
+
+fleet-runtime calls, with an Entra app token (`idtyp=app`) whose `azp` is in `FLEET_RUNTIME_CLIENT_IDS`:
+
+| Route | Body | Answer |
+| --- | --- | --- |
+| `POST /runtime/v1/claim` | `claim_token` (16 to 128 of `[A-Za-z0-9._-]`) | 200 with `lease_id`, `lease_ttl_seconds`, `lease_expires_at` and one job, or 204 after waiting up to 25 s. The same token returns the same lease with its remaining TTL; 410 once that lease has ended |
+| `POST /runtime/v1/heartbeat` | `lease_id` | 200 with `command` (`continue`, `cancel`, `kill`), `lease_ttl_seconds` and `lease_expires_at`. 410: the lease is gone |
+| `POST /runtime/v1/complete`, `/fail` | `lease_id`, `code` (`[a-z0-9_]{1,64}`), `message` (at most 500 characters) | 204. A status, never the job's output |
+
+The runtime's deadline is the monotonic time it sent the request plus `lease_ttl_seconds`, so time in transit only shortens the lease. `lease_expires_at` uses fleet-control's clock and is for information only. A heartbeat answer other than 200, a timeout, a network error, or an answer that arrives after the deadline is not an ack. Bound each heartbeat request by the time left. The runtime must stop the job on `kill`, on 410, and when the countdown reaches zero. Lost contact therefore stops the job on both sides. On `cancel` it stops and reports with `fail`. After the first cancel, heartbeats repeat it but never extend the lease past one TTL from that delivery. Then the lease expires and the sweeper marks the job cancelled. Kill ends the lease at once. The lease TTL is `FLEET_RUNTIME_LEASE_TTL` (default 60 s); heartbeat at a third of it. An expired lease returns its job to the queue (`requeue`, until `max_attempts`) or fails it. A background worker expires leases every `FLEET_RUNTIME_SWEEP_INTERVAL` (default 15 s), and each claim sweeps first too. The sweep uses `SKIP LOCKED`, so replicas sweeping at once never expire a lease twice, and writes one audit row per expiry.
+
+Claims lock the job row with `FOR UPDATE SKIP LOCKED`, and a unique index allows one active lease per job, so concurrent claims get one winner. Claims, commands, deliveries, lease expiry, results and kill switches each write `audit_events` in the same transaction. A plain heartbeat that only extends the lease is not audited. The claim long-poll works because the server has no `WriteTimeout`; `ReadTimeout` covers reading the request only.
+
+Not built yet: the public ingress fleet-runtime will reach this through (#2686), LISTEN/NOTIFY instead of polling every second, a four-eyes step for jobs, and a read API for job status.
+
 ## Configuration
 
 | Variable | Meaning |
@@ -63,6 +87,10 @@ The write routes (`POST /admin/v1/agents`, `.../{namespace}/{name}/approvals`, `
 | `SEED_ROUTES_FILE`, `SEED_ALLOWLIST_FILE` | first-run import |
 | `MY_COPILOT_CLIENT_ID` | my-copilot's Entra client id. Unset: no `/admin` routes |
 | `FLEET_CONTROL_STATIC_TEAMS` | JSON of team to NAVidents, until the Nais teams API is wired in. Unset: nobody can write |
+| `FLEET_RUNTIME_CLIENT_IDS` | fleet-runtime's Entra client ids, comma-separated. Unset: no `/runtime` routes |
+| `FLEET_RUNTIME_LEASE_TTL` | Lease TTL, 10s to 10m. Default 60s |
+| `FLEET_RUNTIME_SWEEP_INTERVAL` | Lease sweep interval, 1s to 5m. Default 15s |
+| `FLEET_CONTROL_OPERATOR_TEAM` | Team that may set the global job kill switch. Unset: nobody |
 | `NAIS_CLUSTER_NAME` | Set by Nais. The write routes and the static team list run only in a `dev-*` cluster; the static list in prod stops startup |
 
 The app refuses to start when a client id or the Texas endpoint is missing, or when both client ids are equal. Client ids are set per cluster in `.nais/<cluster>.yaml`. A change rolls out pod by pod, so for a short time old and new replicas may accept different callers.

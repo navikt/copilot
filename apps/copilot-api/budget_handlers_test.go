@@ -25,7 +25,7 @@ func TestBudgetHandlersHandleGetBudget(t *testing.T) {
 	})
 
 	t.Run("resolved identity is used to fetch the user's budget", func(t *testing.T) {
-		budgetClient := newBudgetClient("fake-token", "nav")
+		budgetClient := newBudgetClient(staticToken("fake-token"), "nav")
 		h := newBudgetHandlers(budgetClient)
 
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/copilot/budget", nil)
@@ -53,7 +53,7 @@ func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
 
 func TestFetchAllBudgetPagesExceedsMaxPages(t *testing.T) {
 	var pages int
-	client := newBudgetClient("fake-token", "nav")
+	client := newBudgetClient(staticToken("fake-token"), "nav")
 	client.httpClient = &http.Client{
 		Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
 			pages++

@@ -301,6 +301,22 @@ jobs:
     if: needs.changes.outputs.copilot-api == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # The budget Postgres tests skip without TEST_DATABASE_URL.
+    services:
+      postgres:
+        image: postgres:18@sha256:2ea8630df176ad090ec92136dee850397c5af8781e4bcf2e4162593691c61bbc
+        env:
+          POSTGRES_PASSWORD: test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgres://postgres:test@localhost:5432/postgres?sslmode=disable
+      COPILOT_API_REQUIRE_PG: "1"
     defaults:
       run:
         working-directory: apps/copilot-api

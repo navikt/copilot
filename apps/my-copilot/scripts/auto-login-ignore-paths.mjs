@@ -26,6 +26,7 @@ export function matches(route, pattern) {
 export const PRIVATE_ROUTES = [
   "/nav-pilot/undersokelse",
   "/abonnement",
+  "/min-side/budsjett",
   "/kostnad",
   "/statistikk",
   "/statistikk/json",

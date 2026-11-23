@@ -12,6 +12,7 @@ export const PRIVATE_PAGE_PATHS = [
   "/adopsjon",
   "/kostnad",
   "/abonnement",
+  "/min-side",
   "/nav-pilot/undersokelse",
 ];
 

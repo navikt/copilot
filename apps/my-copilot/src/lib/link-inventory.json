@@ -684,6 +684,10 @@
       "verktoylister": ["apps/my-copilot/src/app/(nb)/(mcp)/mcp/tilby-server/retningslinjer/page.tsx"]
     }
   },
+  "/min-side/budsjett": {
+    "sources": ["apps/my-copilot/src/app/(nb)/min-side/budsjett/page.tsx", "cli/nav-pilot/internal/cli/budget.go"],
+    "anchors": {}
+  },
   "/modeller": {
     "sources": [
       "apps/my-copilot/src/app/(nb)/innsikt/page.tsx",
@@ -1984,6 +1988,7 @@
       ],
       "opencode-1": [
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/klienter/page.tsx",
+        "cli/nav-pilot/internal/provider/opencode_policy.go",
         "docs/news/articles/opencode-2-pa-mac.md"
       ],
       "paritet": [

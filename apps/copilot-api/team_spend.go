@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cloud.google.com/go/civil"
 	"context"
 	"errors"
 	"fmt"
@@ -366,6 +367,90 @@ func userTeamSlugs(slugs []string) []string {
 	return teams
 }
 
+// GetRosterTeams reads the caller's teams from the latest team_members roster
+// only, with no activity fallback: budget team choices must reflect current
+// membership. A missing roster table is an error (membership unknown).
+func (bq *BigQueryClient) GetRosterTeams(ctx context.Context, userLogin string) ([]string, error) {
+	rows, err := bq.readRoster(ctx, userLogin)
+	if err != nil {
+		return nil, err
+	}
+	return rosterTeams(rows, time.Now())
+}
+
+// readRoster returns the raw roster rows, snapshot date included, so a cached
+// copy can be checked for age again on every hit.
+func (bq *BigQueryClient) readRoster(ctx context.Context, userLogin string) ([]rosterRow, error) {
+	members := bq.tableRef(bq.metricsDataset, "team_members")
+	// Always one row: snapshot_date tells "no snapshot" from "not in it".
+	query := bq.client.Query(fmt.Sprintf(`WITH snap AS (SELECT MAX(date) d FROM %s)
+SELECT snap.d snapshot_date, t.team_slug FROM snap
+LEFT JOIN %s t ON t.date = snap.d AND LOWER(t.login) = LOWER(@login)`, members, members))
+	query.Parameters = []bigquery.QueryParameter{{Name: "login", Value: userLogin}}
+	it, err := query.Read(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("read roster teams: %w", err)
+	}
+	var rows []rosterRow
+	for {
+		var row rosterRow
+		if err := it.Next(&row); err != nil {
+			if err == iterator.Done {
+				return rows, nil
+			}
+			return nil, err
+		}
+		rows = append(rows, row)
+	}
+}
+
+type rosterRow struct {
+	SnapshotDate bigquery.NullDate   `bigquery:"snapshot_date"`
+	TeamSlug     bigquery.NullString `bigquery:"team_slug"`
+}
+
+var errNoRosterSnapshot = errors.New("team roster has no recent snapshot")
+
+// rosterMaxAgeDays is how old the latest team_members snapshot may be (in
+// days) before budget team membership counts as unknown. Ingestion is daily.
+const rosterMaxAgeDays = 2
+
+// rosterTeams turns roster rows into slugs. No snapshot means membership is
+// unknown (an error), not that the user is in no team.
+func rosterTeams(rows []rosterRow, now time.Time) ([]string, error) {
+	if len(rows) == 0 || !rows[0].SnapshotDate.Valid {
+		return nil, errNoRosterSnapshot
+	}
+	// A failed ingestion leaves old rows behind; an old snapshot would keep
+	// accepting people who have left, so it counts as unknown too.
+	if d := rows[0].SnapshotDate.Date; d.DaysSince(civil.DateOf(now)) < -rosterMaxAgeDays {
+		return nil, errNoRosterSnapshot
+	}
+	var slugs []string
+	for _, r := range rows {
+		if r.TeamSlug.Valid {
+			slugs = append(slugs, r.TeamSlug.StringVal)
+		}
+	}
+	return userTeamSlugs(slugs), nil
+}
+
+func (c *CachedBigQueryClient) GetRosterTeams(ctx context.Context, login string) ([]string, error) {
+	ctx, cancel := withQueryTimeout(ctx)
+	defer cancel()
+	rows, err := getCachedValue(c, "roster_rows_"+login, func() ([]rosterRow, error) {
+		return c.client.readRoster(ctx, login)
+	})
+	if err != nil {
+		return nil, err
+	}
+	now := time.Now
+	if c.now != nil {
+		now = c.now
+	}
+	return rosterTeams(rows, now()) // age is checked on every hit, not only on load
+}
+
 func (c *CachedBigQueryClient) GetUserTeams(ctx context.Context, login string) ([]string, error) {
 	ctx, cancel := withQueryTimeout(ctx)
 	defer cancel()
@@ -474,5 +559,35 @@ func (c *CachedBigQueryClient) GetTeamGrossOverview(ctx context.Context, month s
 	defer cancel()
 	return getCachedValue(c, "team_gross_"+month, func() (*TeamGrossOverview, error) {
 		return c.client.GetTeamGrossOverview(ctx, month)
+	})
+}
+
+// GitHubTeam is one org team a raise can be charged to (statistics only).
+type GitHubTeam struct {
+	Slug string `bigquery:"slug" json:"id"`
+	Name string `bigquery:"name" json:"name"`
+}
+
+// GetGitHubTeams lists the org's teams from the latest team_members roster,
+// named from user_teams where a member was active in the last 30 days.
+func (bq *BigQueryClient) GetGitHubTeams(ctx context.Context) ([]GitHubTeam, error) {
+	members := bq.tableRef(bq.metricsDataset, "team_members")
+	sql := fmt.Sprintf(`WITH names AS (SELECT JSON_VALUE(raw_record,'$.slug') slug, ANY_VALUE(JSON_VALUE(raw_record,'$.name')) name FROM %s
+WHERE day>=DATE_SUB(CURRENT_DATE(),INTERVAL 30 DAY) AND scope='enterprise' AND scope_id='nav' GROUP BY slug)
+SELECT DISTINCT m.team_slug slug, IFNULL(n.name, m.team_slug) name FROM %s m LEFT JOIN names n ON n.slug=m.team_slug
+WHERE m.date=(SELECT MAX(date) FROM %s) AND m.team_slug!='nav-it-github-users' ORDER BY slug`,
+		bq.tableRef(bq.metricsDataset, "user_teams"), members, members)
+	it, err := bq.client.Query(sql).Read(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("read github teams: %w", err)
+	}
+	return readAllRows[GitHubTeam](it)
+}
+
+func (c *CachedBigQueryClient) GetGitHubTeams(ctx context.Context) ([]GitHubTeam, error) {
+	ctx, cancel := withQueryTimeout(ctx)
+	defer cancel()
+	return getCachedValue(c, "github_teams", func() ([]GitHubTeam, error) {
+		return c.client.GetGitHubTeams(ctx)
 	})
 }

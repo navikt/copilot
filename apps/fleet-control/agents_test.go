@@ -59,7 +59,7 @@ func newAgentEnv(t *testing.T) *agentEnv {
 	s.store.Store(&storeBox{db})
 	// The real user-token path from #2678: Texas plus the static team list.
 	teams := staticTeams{"aksel-studio": {"A111111"}, "copilot": {"A111111", "C222222"}, "team-b": {"B444444"}, "team-x": {"X333333"}}
-	ts := httptest.NewServer(s.routes(a, adminID, teams))
+	ts := httptest.NewServer(s.routes(a, adminID, teams, nil))
 	t.Cleanup(ts.Close)
 	return &agentEnv{t, db, s, ts.URL}
 }
@@ -303,7 +303,7 @@ func TestAgentWriteRoutesNeedAdminClient(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	ts := httptest.NewServer(newServer().routes(a, "", staticTeams{"aksel-studio": {"A111111"}}))
+	ts := httptest.NewServer(newServer().routes(a, "", staticTeams{"aksel-studio": {"A111111"}}, nil))
 	defer ts.Close()
 	resp, err := http.Post(ts.URL+"/admin/v1/agents", "application/json", strings.NewReader("{}"))
 	if err != nil {

@@ -1000,6 +1000,7 @@ type CachedBigQueryClient struct {
 	client *BigQueryClient
 	cache  *Cache
 	group  singleflight.Group
+	now    func() time.Time // nil: time.Now; tests set a fake clock
 }
 
 func newCachedBigQueryClient(client *BigQueryClient, ttl time.Duration) *CachedBigQueryClient {
