@@ -1277,3 +1277,51 @@ func TestBudgetRaisePatchBookkeepingFailureIsUnknown(t *testing.T) {
 		t.Fatalf("patched but not recorded: %d %v", code, out)
 	}
 }
+
+// The schema allows at most one pending raise per user, even if two writers
+// skip the application lock entirely.
+func TestBudgetOnePendingPerUserInSchema(t *testing.T) {
+	e := newBudgetEnv(t, openBudgetTestDB(t))
+	pool, err := e.h.store.get(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	ins := `INSERT INTO budget_raises (github_login, idempotency_key, month, amount_usd, category, team_id, expected_value, status)
+		VALUES ('ola', $1, '2026-12-01', 150, 'koding', 'annet', 'spare_tid', $2)`
+	ctx := context.Background()
+	// Two writers, no advisory lock: the second pending insert must fail.
+	if _, err := pool.Exec(ctx, ins, "a", "pending"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, ins, "b", "pending"); err == nil || !strings.Contains(err.Error(), "budget_raises_one_pending") {
+		t.Fatalf("second pending raise must be rejected by the schema: %v", err)
+	}
+	if _, err := pool.Exec(ctx, ins, "c", "failed"); err != nil {
+		t.Errorf("other statuses are not limited: %v", err)
+	}
+}
+
+// A row count stops being a version once retention deletes rows: A's raise
+// (+2) and deleting one old applied row (-2) cancel out. The version does not.
+func TestBudgetRaiseVersionSurvivesRetention(t *testing.T) {
+	e := newBudgetEnv(t, openBudgetTestDB(t))
+	e.profile("ola")
+	for _, k := range []string{"old1", "old2"} {
+		e.exec(`INSERT INTO budget_raises (github_login, idempotency_key, month, amount_usd, category, team_id, expected_value, status)
+			VALUES ('ola', $1, '2025-01-01', 150, 'koding', 'annet', 'spare_tid', 'applied')`, k)
+	}
+	h2, postB := e.secondReplica()
+	h2.afterList = func() { // B's list is taken; now A raises and retention runs
+		h2.afterList = nil
+		if code, _ := e.raise("ola", "a"); code != 201 {
+			t.Errorf("A: %d", code)
+		}
+		e.exec("DELETE FROM budget_raises WHERE idempotency_key = 'old1'")
+	}
+	b := postB("b")
+	e.gh.mu.Lock()
+	defer e.gh.mu.Unlock()
+	if len(e.gh.budgets["ola"]) != 1 {
+		t.Fatalf("B=%d: GitHub has %+v", b, e.gh.budgets["ola"])
+	}
+}

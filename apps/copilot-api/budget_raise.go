@@ -20,6 +20,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -715,9 +716,9 @@ type reservation struct {
 	fingerprint                int64          // raiseFingerprintSQL before the list was read
 }
 
-// raiseFingerprintSQL changes whenever a raise for the user is inserted or
-// leaves pending, i.e. whenever budget_github may have changed.
-const raiseFingerprintSQL = "SELECT count(*) + count(*) FILTER (WHERE status <> 'pending') FROM budget_raises WHERE github_login = $1"
+// raiseFingerprintSQL reads the user's version, which lockedTx bumps on every
+// locked write, so it changes whenever budget_github or a raise may have.
+const raiseFingerprintSQL = "SELECT COALESCE((SELECT version FROM budget_user_versions WHERE github_login = $1), 0)"
 
 type raisePlan struct {
 	replay  *raiseView
@@ -901,6 +902,10 @@ func (h *budgetRaiseHandlers) reserve(ctx context.Context, pool *pgxpool.Pool, r
 			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING `+raiseColumns,
 			rv.target, rv.key, rv.month, budgetStepUSD, plan.amount, rv.in.Category, rv.in.TeamID, rv.in.ExpectedValue, rv.in.FreeText, status, rv.admin))
 		plan.raise = v
+		if pgErr := (*pgconn.PgError)(nil); errors.As(err, &pgErr) && pgErr.ConstraintName == "budget_raises_one_pending" {
+			code = "raise_in_progress" // the schema caught a second raise in flight
+			return errRollback
+		}
 		if err != nil {
 			return err
 		}
@@ -909,8 +914,14 @@ func (h *budgetRaiseHandlers) reserve(ctx context.Context, pool *pgxpool.Pool, r
 		return tx.QueryRow(ctx, `INSERT INTO budget_audit (raise_id, actor, action, budget_before_usd, budget_set_usd, expires_at, github_budget_id, dry_run)
 			VALUES ($1, $2, $3, $4, $5, $6, NULLIF($7, ''), $8) RETURNING id`, v.ID, rv.actor, rv.action, plan.before, plan.amount, rv.expires, plan.ownID, rv.dry).Scan(&plan.auditID)
 	})
+	if errors.Is(err, errRollback) {
+		err = nil
+	}
 	return plan, code, err
 }
+
+// errRollback ends a transaction without it counting as a failure.
+var errRollback = errors.New("rollback")
 
 // lockedTx runs fn in a transaction holding the user's advisory lock. Every
 // change to a user's raises or budget_github goes through it, so reserve on
@@ -924,7 +935,13 @@ func lockedTx(ctx context.Context, pool *pgxpool.Pool, login string, fn func(pgx
 		if _, err := tx.Exec(ctx, "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", "budget:"+login); err != nil {
 			return err
 		}
-		return fn(tx)
+		if err := fn(tx); err != nil {
+			return err
+		}
+		// Bump after fn, so reserve compares the version it saw before its list.
+		_, err := tx.Exec(ctx, `INSERT INTO budget_user_versions (github_login, version) VALUES ($1, 1)
+			ON CONFLICT (github_login) DO UPDATE SET version = budget_user_versions.version + 1`, login)
+		return err
 	})
 }
 
