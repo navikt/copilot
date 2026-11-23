@@ -176,8 +176,9 @@ type budgetRaiseHandlers struct {
 	now        func() time.Time
 	limiter    *loginLimiter
 	userLocks  sync.Map // login -> *sync.Mutex: one raise at a time per user on this replica
-	afterList  func()   // test hook: runs between the GitHub list and the reservation
-	midReserve func()   // test hook: runs inside reserve, after budget_github is read
+	afterList    func() // test hook: runs between the GitHub list and the reservation
+	midReserve   func() // test hook: runs inside reserve, after budget_github is read
+	midReconcile func() // test hook: runs inside reconcileUser's tx, after the version check
 }
 
 func newBudgetRaiseHandlers(cfg *Config, writer *budgetWriter, seats seatLookup) (*budgetRaiseHandlers, error) {
@@ -1284,14 +1285,14 @@ func (h *budgetRaiseHandlers) reconcileUser(ctx context.Context, pool *pgxpool.P
 	if err != nil {
 		return 0, err // GitHub unreachable: stays pending
 	}
-	if h.afterList != nil {
-		h.afterList()
-	}
 	settled := 0
 	err = lockedTx(ctx, pool, login, func(tx pgx.Tx) (bool, error) {
 		var now int64
 		if err := tx.QueryRow(ctx, raiseFingerprintSQL, login).Scan(&now); err != nil || now != fp {
 			return false, err // changed since the list: next pass
+		}
+		if h.midReconcile != nil {
+			h.midReconcile()
 		}
 		pend, err := tx.Query(ctx, "SELECT id::text, COALESCE(budget_set_usd, 0), month FROM budget_raises WHERE github_login = $1 AND status = 'pending' AND created_at < now() - $2::interval",
 			login, budgetPendingStale.String())

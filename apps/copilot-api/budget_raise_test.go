@@ -1583,7 +1583,8 @@ func TestBudgetReconcileSkipsWhenNotOn(t *testing.T) {
 }
 
 // #2718: two replicas running reconcileStuck concurrently on the same user
-// settle the stale pending raise exactly once (one audit row, one version bump).
+// settle the stale pending raise exactly once (one audit row, one version bump),
+// serialised by the per-user advisory lock.
 func TestBudgetReconcileConcurrentReplicasSettleOnce(t *testing.T) {
 	e := newBudgetEnv(t, openBudgetTestDB(t))
 	h2, _ := e.secondReplica()
@@ -1591,30 +1592,66 @@ func TestBudgetReconcileConcurrentReplicasSettleOnce(t *testing.T) {
 		VALUES ('ola', 'k1', '2026-12-01', 150, 300, 'koding', 'annet', 'spare_tid', 'pending', now() - interval '10 minutes')`)
 	e.gh.budgets["ola"] = []ghBudget{{ID: "gh-race", BudgetScope: "user", BudgetType: "BundlePricing", SKU: "ai_credits", Amount: 300, ExpiresAt: "2027-01-01"}}
 
-	// Barrier: both replicas read the same fingerprint and list GitHub before
-	// either enters lockedTx.
-	var arrived atomic.Int32
+	// Hold replica 1 inside lockedTx (after the advisory lock and version check)
+	// while replica 2 runs, so replica 2 must block on the advisory lock.
+	r1InTx := make(chan struct{})
 	release := make(chan struct{})
-	barrier := func() {
-		if arrived.Add(1) == 2 {
-			close(release)
-		}
+	var releaseOnce sync.Once
+	unblock := func() { releaseOnce.Do(func() { close(release) }) }
+	t.Cleanup(unblock)
+
+	e.h.midReconcile = func() {
+		close(r1InTx)
 		<-release
 	}
-	e.h.afterList = barrier
-	h2.afterList = barrier
+	// Reached only when the advisory lock is missing: release replica 1 so both
+	// race through settlement without timing out.
+	h2.midReconcile = unblock
 
-	var wg sync.WaitGroup
 	results := make(chan int, 2)
 	errs := make(chan error, 2)
-	for _, h := range []*budgetRaiseHandlers{e.h, h2} {
-		wg.Go(func() {
-			n, err := h.reconcileStuck(context.Background())
-			results <- n
-			errs <- err
-		})
+	r1Done := make(chan struct{})
+	go func() {
+		defer close(r1Done)
+		n, err := e.h.reconcileStuck(context.Background())
+		results <- n
+		errs <- err
+	}()
+	select {
+	case <-r1InTx:
+	case <-r1Done:
+		t.Fatal("replica 1 exited before entering reconcileUser transaction")
 	}
-	wg.Wait()
+
+	var sawLockWait atomic.Bool
+	r2Done := make(chan struct{})
+	go func() {
+		defer func() { close(r2Done); unblock() }()
+		n, err := h2.reconcileStuck(context.Background())
+		results <- n
+		errs <- err
+	}()
+	watcherDone := make(chan struct{})
+	go func() {
+		defer close(watcherDone)
+		for {
+			select {
+			case <-r2Done:
+				return
+			default:
+			}
+			if e.waiters("wait_event = 'advisory'") > 0 {
+				sawLockWait.Store(true)
+				unblock()
+				return
+			}
+			time.Sleep(2 * time.Millisecond)
+		}
+	}()
+
+	<-r1Done
+	<-r2Done
+	<-watcherDone
 	close(results)
 	close(errs)
 
@@ -1622,6 +1659,9 @@ func TestBudgetReconcileConcurrentReplicasSettleOnce(t *testing.T) {
 		if err != nil {
 			t.Fatalf("reconcileStuck err: %v", err)
 		}
+	}
+	if !sawLockWait.Load() {
+		t.Fatal("second replica must wait on the first replica's advisory lock")
 	}
 	total := 0
 	for n := range results {
