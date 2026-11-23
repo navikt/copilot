@@ -106,11 +106,7 @@ var (
 // approvalValidity is fixed by styringsmodell v0.3: approvals expire after six months.
 const approvalValidity = "6 months"
 
-var (
-	uuidRe = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
-	// A tool name, never a pattern: no "*" or other wildcard can pass.
-	toolName = regexp.MustCompile(`^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$`)
-)
+var uuidRe = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
 
 func badf(format string, a ...any) error {
 	return fmt.Errorf("%w: %s", errBadRequest, fmt.Sprintf(format, a...))
@@ -154,7 +150,7 @@ func (p AgentProfile) validate() error {
 			return badf("grant %s must list 1 to 50 tools", g.Route)
 		}
 		for i, t := range g.Tools {
-			if !toolName.MatchString(t) {
+			if !toolNameRegex.MatchString(t) { // same names as validateTools; no "*" can pass
 				return badf("grant %s: tool %q is not a tool name", g.Route, t)
 			}
 			if slices.Contains(g.Tools[:i], t) {
@@ -335,8 +331,8 @@ func (s *server) createAgent(w http.ResponseWriter, r *http.Request, who Person)
 
 func (s *server) approveAgent(w http.ResponseWriter, r *http.Request, who Person) {
 	var in struct {
-		Route string `json:"route"`
-		ID    int64  `json:"id"` // the draft the approver reviewed
+		Route string `json:"route"` // a granted route, or the profile's namespace for the owner team's approval
+		ID    int64  `json:"id"`    // the draft the approver reviewed
 	}
 	if err := decodeStrict(r, &in); err != nil {
 		writeErr(w, err)
@@ -344,7 +340,7 @@ func (s *server) approveAgent(w http.ResponseWriter, r *http.Request, who Person
 	}
 	routeTeam, _, _ := strings.Cut(in.Route, "/")
 	if !who.in(routeTeam) {
-		writeErr(w, fmt.Errorf("%w: only the route's owning team can approve", errForbidden))
+		writeErr(w, fmt.Errorf("%w: only the route's owning team, or the owner team for its namespace, can approve", errForbidden))
 		return
 	}
 	as, _, ctx, cancel := s.agentDB(w, r)
@@ -504,9 +500,11 @@ func lockLive(ctx context.Context, tx pgx.Tx, namespace, name string) (int64, Ag
 	return id, p, err
 }
 
-// ApproveAgentRoute records one route owner's approval. The caller has
-// checked that actor belongs to the route's team. The profile becomes
-// approved, with a six-month expiry, once every granted route is approved.
+// ApproveAgentRoute records one approval. route is a granted route (its owner
+// approves) or the profile's namespace (a second member of the owner team
+// approves, styringsmodell v0.3). The caller has checked that actor belongs
+// to that team. The profile becomes approved, with a six-month expiry, once
+// the owner team and every granted route have approved.
 func (d *DB) ApproveAgentRoute(ctx context.Context, wantID int64, namespace, name, route, actor string) (AgentProfile, error) {
 	var out AgentProfile
 	err := pgx.BeginFunc(ctx, d.pool, func(tx pgx.Tx) error {
@@ -517,7 +515,7 @@ func (d *DB) ApproveAgentRoute(ctx context.Context, wantID int64, namespace, nam
 		if id != wantID {
 			return fmt.Errorf("%w: the live profile is %d, not the one approved", errConflict, id)
 		}
-		if !slices.ContainsFunc(p.Grants, func(g AgentGrant) bool { return g.Route == route }) {
+		if route != p.Namespace && !slices.ContainsFunc(p.Grants, func(g AgentGrant) bool { return g.Route == route }) {
 			return badf("profile grants nothing on %s", route)
 		}
 		// Routes can be revoked or lose tools between draft and approval. FOR
@@ -554,7 +552,7 @@ func (d *DB) ApproveAgentRoute(ctx context.Context, wantID int64, namespace, nam
 			return err
 		}
 		p.Status = "draft"
-		if approved == len(p.Grants) {
+		if approved == len(p.Grants)+1 {
 			if err := tx.QueryRow(ctx, `UPDATE agent_profiles SET status = 'approved', approved_at = now(),
 				expires_at = now() + $2::interval WHERE id = $1 RETURNING status, expires_at`, id, approvalValidity).Scan(&p.Status, &p.ExpiresAt); err != nil {
 				return err
@@ -588,7 +586,8 @@ func (d *DB) RevokeAgentProfile(ctx context.Context, namespace, name string, act
 }
 
 // AgentProfileDetail returns the live profile, its id, and per granted route
-// either null or who approved it and when.
+// and for the owner team (keyed by namespace) either null or who approved it
+// and when.
 func (d *DB) AgentProfileDetail(ctx context.Context, namespace, name string) (int64, AgentProfile, map[string]any, error) {
 	id, p, err := scanAgent(d.pool.QueryRow(ctx, `SELECT `+agentCols+` FROM agent_profiles
 		WHERE namespace = $1 AND name = $2 AND status IN ('draft', 'approved')`, namespace, name))
@@ -598,7 +597,7 @@ func (d *DB) AgentProfileDetail(ctx context.Context, namespace, name string) (in
 	if err != nil {
 		return 0, p, nil, err
 	}
-	approvals := map[string]any{}
+	approvals := map[string]any{p.Namespace: nil}
 	for _, g := range p.Grants {
 		approvals[g.Route] = nil
 	}

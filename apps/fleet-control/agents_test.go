@@ -59,7 +59,7 @@ func newAgentEnv(t *testing.T) *agentEnv {
 	s.verifier = fakeVerifier{}
 	s.store.Store(&storeBox{db})
 	// The real user-token path from #2678: Texas plus the static team list.
-	teams := staticTeams{"aksel-studio": {"A111111"}, "copilot": {"A111111", "C222222"}, "team-b": {"B444444"}, "team-x": {"X333333"}}
+	teams := staticTeams{"aksel-studio": {"A111111", "A555555"}, "copilot": {"A111111", "C222222"}, "team-b": {"B444444"}, "team-x": {"X333333"}}
 	ts := httptest.NewServer(s.routes(a, adminID, teams, nil))
 	t.Cleanup(ts.Close)
 	return &agentEnv{t, db, s, ts.URL}
@@ -119,7 +119,15 @@ const (
 	author   = "A111111:aksel-studio"
 	approver = "C222222:copilot"
 	stranger = "X333333:team-x"
+	// The second member of the owner team (styringsmodell v0.3).
+	ownerApprover = "A555555:aksel-studio"
 )
+
+// ownerApprove gives the owner team's approval, keyed by namespace.
+func (e *agentEnv) ownerApprove() (int, string) {
+	e.t.Helper()
+	return e.do("POST", "/admin/v1/agents/aksel-studio/studio-assistant/approvals", ownerApprover, e.ab("aksel-studio"))
+}
 
 func TestRealPostgresAgentProfileLifecycle(t *testing.T) {
 	e := newAgentEnv(t)
@@ -157,6 +165,16 @@ func TestRealPostgresAgentProfileLifecycle(t *testing.T) {
 		t.Fatalf("approval of an ungranted route: %d", code)
 	}
 	code, body := e.do("POST", "/admin/v1/agents/aksel-studio/studio-assistant/approvals", approver, approve)
+	if code != 200 || !strings.Contains(body, `"draft"`) || len(e.active()) != 0 {
+		t.Fatalf("route owner alone must not approve: %d %s", code, body)
+	}
+	if c, _ := e.do("POST", "/admin/v1/agents/aksel-studio/studio-assistant/approvals", author, e.ab("aksel-studio")); c != 403 {
+		t.Fatalf("owner-team self-approval: %d", c)
+	}
+	if c, _ := e.do("POST", "/admin/v1/agents/aksel-studio/studio-assistant/approvals", approver, e.ab("aksel-studio")); c != 403 {
+		t.Fatalf("owner-team approval from outside the team: %d", c)
+	}
+	code, body = e.ownerApprove()
 	if code != 200 || !strings.Contains(body, `"approved"`) {
 		t.Fatalf("approve: %d %s", code, body)
 	}
@@ -194,7 +212,7 @@ func TestRealPostgresAgentProfileLifecycle(t *testing.T) {
 		_ = rows.Scan(&a)
 		actions = append(actions, a)
 	}
-	want := "agent_profile_drafted agent_profile_route_approved agent_profile_approved agent_profile_revoked"
+	want := "agent_profile_drafted agent_profile_route_approved agent_profile_route_approved agent_profile_approved agent_profile_revoked"
 	if strings.Join(actions, " ") != want {
 		t.Fatalf("audit: %v", actions)
 	}
@@ -204,6 +222,7 @@ func TestRealPostgresAgentProfileExpiryAtRead(t *testing.T) {
 	e := newAgentEnv(t)
 	e.do("POST", "/admin/v1/agents", author, fixture(t))
 	e.do("POST", "/admin/v1/agents/aksel-studio/studio-assistant/approvals", approver, e.ab("copilot/dolly"))
+	e.ownerApprove()
 	if len(e.active()) != 1 {
 		t.Fatal("approved profile missing")
 	}
@@ -224,6 +243,7 @@ func TestRealPostgresAgentProfileNeedsEveryRouteOwner(t *testing.T) {
 	if code, body := e.do("POST", "/admin/v1/agents", author, p); code != 201 {
 		t.Fatalf("create: %d %s", code, body)
 	}
+	e.ownerApprove()
 	e.do("POST", "/admin/v1/agents/aksel-studio/studio-assistant/approvals", approver, e.ab("copilot/dolly"))
 	if len(e.active()) != 0 {
 		t.Fatal("approved before every route owner approved")
@@ -321,7 +341,8 @@ func TestRealPostgresAgentProfileUnverifiedStaysOut(t *testing.T) {
 	e := newAgentEnv(t)
 	e.srv.verifier = nil
 	e.do("POST", "/admin/v1/agents", author, fixture(t))
-	code, body := e.do("POST", "/admin/v1/agents/aksel-studio/studio-assistant/approvals", approver, e.ab("copilot/dolly"))
+	e.do("POST", "/admin/v1/agents/aksel-studio/studio-assistant/approvals", approver, e.ab("copilot/dolly"))
+	code, body := e.ownerApprove()
 	if code != 200 || !strings.Contains(body, `"approved"`) {
 		t.Fatalf("approve: %d %s", code, body)
 	}
@@ -411,6 +432,7 @@ func TestRealPostgresAgentProfileExpiredCanBeReplaced(t *testing.T) {
 	e := newAgentEnv(t)
 	e.do("POST", "/admin/v1/agents", author, fixture(t))
 	e.do("POST", "/admin/v1/agents/aksel-studio/studio-assistant/approvals", approver, e.ab("copilot/dolly"))
+	e.ownerApprove()
 	if _, err := e.db.pool.Exec(context.Background(), `UPDATE agent_profiles SET expires_at = now() - interval '1 second'`); err != nil {
 		t.Fatal(err)
 	}
@@ -469,7 +491,7 @@ func TestRealPostgresAgentDetailAndSeededApproval(t *testing.T) {
 	}
 	path := "/admin/v1/agents/aksel-studio/studio-assistant"
 	for _, who := range []string{author, approver} {
-		if code, body := e.do("GET", path, who, ""); code != 200 || !strings.Contains(body, `"copilot/dolly":null`) {
+		if code, body := e.do("GET", path, who, ""); code != 200 || !strings.Contains(body, `"copilot/dolly":null`) || !strings.Contains(body, `"aksel-studio":null`) {
 			t.Fatalf("%s: %d %s", who, code, body)
 		}
 	}
@@ -488,11 +510,29 @@ func TestRealPostgresAgentDetailAndSeededApproval(t *testing.T) {
 	if err := json.Unmarshal([]byte(body), &got); err != nil || got.ID == 0 || got.Status != "draft" || got.Profile.Identity.App != "studio-api" {
 		t.Fatalf("detail: %v %s", err, body)
 	}
-	code, resp := e.do("POST", path+"/approvals", approver, fmt.Sprintf(`{"route":"copilot/dolly","id":%d}`, got.ID))
+	e.do("POST", path+"/approvals", approver, fmt.Sprintf(`{"route":"copilot/dolly","id":%d}`, got.ID))
+	code, resp := e.do("POST", path+"/approvals", ownerApprover, fmt.Sprintf(`{"route":"aksel-studio","id":%d}`, got.ID))
 	if code != 200 || !strings.Contains(resp, `"approved"`) {
 		t.Fatalf("approve seeded draft with the returned id: %d %s", code, resp)
 	}
 	if _, body = e.do("GET", path, author, ""); !strings.Contains(body, `"approved_by":"C222222"`) {
 		t.Fatalf("approval state: %s", body)
+	}
+}
+
+// A grant must accept every tool name a route can register (#2677).
+func TestAgentGrantToolMatchesRegisteredNames(t *testing.T) {
+	for _, tool := range []string{".internal", "-dash"} {
+		if err := validateTools([]string{tool}); err != nil {
+			t.Fatalf("validateTools(%q): %v", tool, err)
+		}
+		var p AgentProfile
+		if err := json.Unmarshal([]byte(fixture(t)), &p); err != nil {
+			t.Fatal(err)
+		}
+		p.Grants[0].Tools = []string{tool}
+		if err := p.validate(); err != nil {
+			t.Fatalf("grant tool %q: %v", tool, err)
+		}
 	}
 }
