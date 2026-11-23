@@ -548,8 +548,8 @@ function ProfileSection({
         Profil
       </Heading>
       <BodyShort>
-        Vi bruker team og rolle til å se hvor behovet er størst, ikke til å vurdere deg. Du må lagre profilen før første
-        påfyll.
+        Vi bruker svarene bare samlet, til å forstå hvordan Copilot brukes og styre budsjettet – ikke til å vurdere deg
+        eller teamet ditt. Du må lagre profilen før første påfyll.
       </BodyShort>
       {profile?.leftTeamId && (
         <Message status="announcement" title="Du er ikke lenger med i teamet du lagret">
