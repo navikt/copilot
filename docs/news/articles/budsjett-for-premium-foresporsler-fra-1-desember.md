@@ -24,8 +24,9 @@ Endringen gjelder fra 1. desember, forutsatt at du kan øke budsjettet selv. Hvi
 
 ## Hvorfor
 
-- Budsjettet for 2027 er ikke satt, og vi må holde oss innenfor en fast ramme.
-- Vi vil forstå bruk og verdi på tvers av roller og team.
+Budsjettet for 2027 er ikke satt, og vi må holde oss innenfor en fast ramme.
+Samtidig må Nav samlet kunne forklare hva pengene gir. Derfor ber vi om noen
+korte svar når du øker.
 
 ## Gjør dette
 
@@ -34,23 +35,21 @@ Endringen gjelder fra 1. desember, forutsatt at du kan øke budsjettet selv. Hvi
 3. Går budsjettet tomt, øk det på `/min-side/budsjett` på ki-utvikling.nav.no.
 4. Spørsmål: [#ki-produktutvikling-diskusjon](https://nav-it.slack.com/archives/C0ASJSZK8P8) på Slack.
 
-## Slik øker du budsjettet
+## Det er greit å øke
 
-Du øker budsjettet med 150 USD for resten av måneden. Du kan gjøre det flere
-ganger, opp til 750 USD i måneden.
+Øk når du trenger det. Det er forventet. Mye av bruken handler fortsatt om å
+prøve ut og lære, og det er en god grunn. Ingen godkjenner eller vurderer
+økningen.
 
-Når du øker, oppgir du:
+Hver økning gir 150 USD for resten av måneden. Du kan øke flere ganger, opp
+til 750 USD i desember. Du oppgir kategori, team (GitHub-team), forventet
+verdi og eventuelt fritekst. Ikke skriv personopplysninger eller
+saksopplysninger i fritekstfeltet.
 
-- kategori
-- hvilket team (GitHub-team) bruken gjelder
-- forventet verdi (fra en fast liste, med valgfri tekst)
-- valgfri fritekst
+Vi bruker svarene bare samlet, ikke til å vurdere deg eller teamet ditt.
 
-Ingen godkjenner økningen. Svarene gir oss innsikt i hva premium-modellene
-brukes til.
-Vi bruker svarene bare samlet, til å forstå hvordan Copilot brukes og styre budsjettet – ikke til å vurdere deg eller teamet ditt.
-
-Ikke skriv personopplysninger eller saksopplysninger i fritekstfeltet.
+Senere ber vi teamene, via tech leads, om å dele erfaringer. Det er på
+teamnivå de største gevinstene viser seg.
 
 ## Hvem ser hva
 
