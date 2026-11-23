@@ -684,6 +684,11 @@
       "verktoylister": ["apps/my-copilot/src/app/(nb)/(mcp)/mcp/tilby-server/retningslinjer/page.tsx"]
     }
   },
+  "/min-side/budsjett": {
+    "sources": [
+      "cli/nav-pilot/internal/cli/budget.go"
+    ]
+  },
   "/modeller": {
     "sources": [
       "apps/my-copilot/src/app/(nb)/innsikt/page.tsx",
