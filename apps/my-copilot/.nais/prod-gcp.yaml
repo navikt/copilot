@@ -10,3 +10,5 @@ ingresses:
 innblikk_website_id: "993a4ccf-b469-49ff-8994-f340588086ce"
 # Prod peaked at 195Mi against 128Mi requested (#2653).
 memory_request: 256Mi
+# /fleet stays hidden in prod until soft launch (copilot#2754).
+fleet_control_url: ""
