@@ -2,7 +2,7 @@ cluster: prod-gcp
 replicas_min: "1"
 replicas_max: "5"
 cpu_threshold: "70"
-cpu_request: 20m
+cpu_request: 100m
 memory_limit: 128Mi
 memory_request: 64Mi
 domain_internal: intern.nav.no
