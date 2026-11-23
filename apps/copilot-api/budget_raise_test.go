@@ -1013,6 +1013,23 @@ func TestRosterTeamsNoSnapshotIsUnknown(t *testing.T) {
 	}
 }
 
+func TestCachedRosterRechecksSnapshotAge(t *testing.T) {
+	day := time.Date(2026, 11, 23, 23, 55, 0, 0, time.UTC)
+	now := day
+	c := &CachedBigQueryClient{cache: NewCache(time.Hour), now: func() time.Time { return now }}
+	c.cache.Set("roster_rows_ola", []rosterRow{{
+		SnapshotDate: bigquery.NullDate{Date: civil.DateOf(day).AddDays(-rosterMaxAgeDays), Valid: true},
+		TeamSlug:     bigquery.NullString{StringVal: "team-b", Valid: true},
+	}})
+	if got, err := c.GetRosterTeams(context.Background(), "ola"); err != nil || len(got) != 1 {
+		t.Fatalf("fresh cached roster: %v %v", got, err)
+	}
+	now = day.Add(10 * time.Minute) // past midnight: the cached snapshot is now too old
+	if _, err := c.GetRosterTeams(context.Background(), "ola"); err == nil {
+		t.Error("a cache hit must re-check the snapshot age")
+	}
+}
+
 func TestBudgetTeamLookupsStayUnderBFFDeadline(t *testing.T) {
 	e := newBudgetEnv(t, openBudgetTestDB(t))
 	const d = 300 * time.Millisecond

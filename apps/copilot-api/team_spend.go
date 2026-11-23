@@ -371,6 +371,16 @@ func userTeamSlugs(slugs []string) []string {
 // only, with no activity fallback: budget team choices must reflect current
 // membership. A missing roster table is an error (membership unknown).
 func (bq *BigQueryClient) GetRosterTeams(ctx context.Context, userLogin string) ([]string, error) {
+	rows, err := bq.readRoster(ctx, userLogin)
+	if err != nil {
+		return nil, err
+	}
+	return rosterTeams(rows, time.Now())
+}
+
+// readRoster returns the raw roster rows, snapshot date included, so a cached
+// copy can be checked for age again on every hit.
+func (bq *BigQueryClient) readRoster(ctx context.Context, userLogin string) ([]rosterRow, error) {
 	members := bq.tableRef(bq.metricsDataset, "team_members")
 	// Always one row: snapshot_date tells "no snapshot" from "not in it".
 	query := bq.client.Query(fmt.Sprintf(`WITH snap AS (SELECT MAX(date) d FROM %s)
@@ -386,7 +396,7 @@ LEFT JOIN %s t ON t.date = snap.d AND LOWER(t.login) = LOWER(@login)`, members, 
 		var row rosterRow
 		if err := it.Next(&row); err != nil {
 			if err == iterator.Done {
-				return rosterTeams(rows, time.Now())
+				return rows, nil
 			}
 			return nil, err
 		}
@@ -428,9 +438,17 @@ func rosterTeams(rows []rosterRow, now time.Time) ([]string, error) {
 func (c *CachedBigQueryClient) GetRosterTeams(ctx context.Context, login string) ([]string, error) {
 	ctx, cancel := withQueryTimeout(ctx)
 	defer cancel()
-	return getCachedValue(c, "roster_teams_"+login, func() ([]string, error) {
-		return c.client.GetRosterTeams(ctx, login)
+	rows, err := getCachedValue(c, "roster_rows_"+login, func() ([]rosterRow, error) {
+		return c.client.readRoster(ctx, login)
 	})
+	if err != nil {
+		return nil, err
+	}
+	now := time.Now
+	if c.now != nil {
+		now = c.now
+	}
+	return rosterTeams(rows, now()) // age is checked on every hit, not only on load
 }
 
 func (c *CachedBigQueryClient) GetUserTeams(ctx context.Context, login string) ([]string, error) {
