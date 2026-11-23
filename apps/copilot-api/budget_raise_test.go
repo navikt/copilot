@@ -547,7 +547,7 @@ func TestBudgetTeamsFromGitHub(t *testing.T) {
 		t.Errorf("suggestion with two teams: %v", out)
 	}
 	e.h.teams = fakeTeams{err: fmt.Errorf("bq down")}
-	if code, _ := e.do("PUT", "/api/v1/copilot/budget/profile", "ola", "", `{"teamId":"team-a","role":"utvikler"}`); code != 400 {
+	if code, _ := e.do("PUT", "/api/v1/copilot/budget/profile", "ola", "", `{"teamId":"team-b","role":"utvikler"}`); code != 400 {
 		t.Errorf("team source down must fail closed: %d", code)
 	}
 	if code, _ := e.do("PUT", "/api/v1/copilot/budget/profile", "ola", "", `{"teamId":"annet","role":"utvikler"}`); code != 200 {

@@ -235,19 +235,25 @@ function Consumption({ budget, capUsd }: { budget: Budget; capUsd?: number }) {
       ? Math.min(100, Math.round((consumed / budget.budgetAmount) * 100))
       : null;
   const done = budget.raises?.length;
+  // A permanent budget has no ceiling and no raises.
+  const own = hasOwnBudget(budget);
   return (
     <VStack gap="space-16">
       <Heading size="small" level="2">
         Forbruk denne måneden
       </Heading>
-      <HGrid columns={{ xs: 2, md: 4 }} gap="space-12">
-        <Stat title="Budsjett" value={usd(budget.budgetAmount)} note={capUsd ? `Tak ${usd(capUsd)}` : undefined} />
+      <HGrid columns={{ xs: 2, md: own ? 3 : 4 }} gap="space-12">
+        <Stat
+          title="Budsjett"
+          value={usd(budget.budgetAmount)}
+          note={capUsd && !own ? `Tak ${usd(capUsd)}` : undefined}
+        />
         <Stat title="Brukt" value={typeof consumed === "number" ? usd(consumed) : "–"} />
         <Stat
           title="Igjen"
           value={typeof consumed === "number" ? usd(Math.max(0, budget.budgetAmount - consumed)) : "–"}
         />
-        <Stat title="Påfyll denne måneden" value={done === undefined ? "–" : String(done)} />
+        {!own && <Stat title="Påfyll denne måneden" value={done === undefined ? "–" : String(done)} />}
       </HGrid>
       {pct !== null && (
         <VStack gap="space-8">

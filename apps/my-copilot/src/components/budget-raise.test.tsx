@@ -52,6 +52,14 @@ describe("BudgetRaisePage", () => {
     expect(screen.getByText(/Vi fant deg ikke i teamet «team-gammel» lenger/)).toBeInTheDocument();
   });
 
+  it("hides the ceiling and raise count for an own budget", async () => {
+    mockApi({ budgetAmount: 1000, consumedAmount: 120, isOverride: true, defaultBudget: 150, raises: [] });
+    render(<BudgetRaisePage />);
+    expect(await screen.findByText("Igjen")).toBeInTheDocument();
+    expect(screen.queryByText(/^Tak /)).not.toBeInTheDocument();
+    expect(screen.queryByText("Påfyll denne måneden")).not.toBeInTheDocument();
+  });
+
   it("lists the errors and sends nothing when required fields are empty", async () => {
     const fetchMock = mockApi(defaultBudget);
     render(<BudgetRaisePage />);
