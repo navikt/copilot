@@ -89,7 +89,7 @@ Use the GitHub Action in this directory. It needs no Go toolchain: it downloads 
 # TypeScript: npm ci, then npm start
 - run: ./start-server.sh &   # your own start step
 - run: curl -fsS --retry 30 --retry-delay 1 --retry-connrefused http://127.0.0.1:8080/health
-- uses: navikt/copilot/cli/mcp-compliance@cli/mcp-compliance/v0.2.0
+- uses: navikt/copilot/cli/mcp-compliance@cli/mcp-compliance/v0.2.2
   with:
     url: http://127.0.0.1:8080/mcp
     token: ${{ secrets.MCP_TEST_TOKEN }}   # test token, never production
@@ -98,7 +98,7 @@ Use the GitHub Action in this directory. It needs no Go toolchain: it downloads 
 | Input | Default | Meaning |
 |---|---|---|
 | `url` | required | MCP endpoint of the running server |
-| `version` | empty | Release such as `v0.2.0`. Empty uses the release the Action is pinned to (`uses: navikt/copilot/cli/mcp-compliance@cli/mcp-compliance/vX.Y.Z`). `latest` takes the newest release, and is also used, with a notice, when the Action ref is a branch, a SHA or a local path |
+| `version` | empty | Release such as `v0.2.2`. Empty uses the release the Action is pinned to (`uses: navikt/copilot/cli/mcp-compliance@cli/mcp-compliance/vX.Y.Z`). `latest` takes the newest release, and is also used, with a notice, when the Action ref is a branch, a SHA or a local path |
 | `token` | empty | `MCP_COMPLIANCE_TOKEN` |
 | `app-token` | empty | `MCP_COMPLIANCE_APP_TOKEN`; empty skips the 403 check |
 | `tool` | empty | `-tool` |
@@ -110,7 +110,7 @@ The Action ref is a release tag, so the Action and the tool are released togethe
 To install the binary yourself instead:
 
 ```sh
-gh release download cli/mcp-compliance/v0.2.0 --repo navikt/copilot \
+gh release download cli/mcp-compliance/v0.2.2 --repo navikt/copilot \
   --pattern mcp-compliance-linux-amd64 --pattern SHA256SUMS
 sha256sum --check --ignore-missing SHA256SUMS
 ```
