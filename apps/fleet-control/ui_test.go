@@ -195,6 +195,7 @@ func TestRealPostgresUIAgentsReportExpired(t *testing.T) {
 	e := newAgentEnv(t)
 	e.do("POST", "/admin/v1/agents", author, fixture(t))
 	e.do("POST", "/admin/v1/agents/aksel-studio/studio-assistant/approvals", approver, e.ab("copilot/dolly"))
+	e.ownerApprove()
 	status := func() string {
 		t.Helper()
 		c, b := e.do("GET", "/admin/v1/agents", author, "")
