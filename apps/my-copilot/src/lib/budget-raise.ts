@@ -37,9 +37,13 @@ export interface BudgetProfile {
   teamId: string;
   role: string;
   exists: boolean;
+  /** First visit only: the one GitHub team the user is in, if any. */
+  suggestedTeamId?: string;
 }
 
 export interface RaiseResult {
+  /** True when the same idempotency key was already used: only `raise` is set. */
+  replayed?: boolean;
   budgetUsd: number;
   expiresAt: string;
   raisesLeft: number;
@@ -90,6 +94,7 @@ const ERRORS: Record<string, string> = {
   forbidden: "Du har ikke en aktiv Copilot-lisens. Påfyll krever lisens.",
   no_github_account: "Vi fant ikke GitHub-brukeren din. Sjekk at Nav-kontoen er koblet til GitHub.",
   budget_writes_unavailable: "Påfyll er ikke tilgjengelig akkurat nå. Prøv igjen om litt.",
+  raise_in_progress: "Et annet påfyll for deg behandles nå. Vent litt og prøv igjen.",
   rate_limited: "Du har sendt mange forespørsler på kort tid. Vent ett minutt og prøv igjen.",
   github_error: "GitHub svarte ikke som forventet. Ingenting er endret. Prøv igjen om litt.",
   invalid_request: "Noe i skjemaet ble ikke godtatt. Sjekk feltene og prøv igjen.",

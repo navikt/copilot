@@ -48,3 +48,13 @@ describe("POST /api/budget/raises", () => {
     expect(await res.json()).toEqual({ error: code });
   });
 });
+
+describe("POST /api/budget/raises without a login", () => {
+  it("answers 401 and calls nothing", async () => {
+    const auth = await import("@/lib/auth");
+    vi.mocked(auth.getUser).mockResolvedValueOnce(null);
+    const res = await POST(req({ category: "koding", expectedValue: "spare_tid" }));
+    expect(res.status).toBe(401);
+    expect(backendRequest).not.toHaveBeenCalled();
+  });
+});

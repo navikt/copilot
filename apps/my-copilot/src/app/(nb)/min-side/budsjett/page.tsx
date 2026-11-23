@@ -2,14 +2,17 @@ import type { Metadata } from "next";
 import { Box } from "@navikt/ds-react";
 import { PageHero } from "@/components/page-hero";
 import { BudgetRaisePage } from "@/components/budget-raise";
+import { getUser } from "@/lib/auth";
 
 export const metadata: Metadata = {
   title: "Budsjett og påfyll",
   description: "Se budsjettet og forbruket ditt i Copilot denne måneden, og fyll på selv når du trenger mer.",
 };
 
-// Private: guarded by src/proxy.ts and src/lib/private-paths.ts.
-export default function BudsjettPage() {
+// Private: src/proxy.ts sends readers without a token to the login, and getUser() does the same here,
+// so listing the path in autoLoginIgnorePaths does not make the page public.
+export default async function BudsjettPage() {
+  await getUser();
   return (
     <main id="hovedinnhold" tabIndex={-1}>
       <PageHero

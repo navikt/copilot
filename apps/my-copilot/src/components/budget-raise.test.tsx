@@ -69,7 +69,7 @@ describe("BudgetRaisePage", () => {
     fireEvent.change(await screen.findByLabelText("Hva skal du bruke påfyllet til?"), { target: { value: "koding" } });
     fireEvent.change(screen.getByLabelText("Hva forventer du å få ut av det?"), { target: { value: "spare_tid" } });
     fireEvent.click(screen.getByRole("button", { name: "Fyll på 150 USD" }));
-    await waitFor(() => expect(screen.getByText(/Nytt budsjett er 300 USD/)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/Budsjettet ditt er nå 300 USD ut måneden/)).toBeInTheDocument());
   });
 
   it("tells users with their own fixed budget that raises do not apply", async () => {

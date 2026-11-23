@@ -42,7 +42,6 @@ async function load<T>(url: string): Promise<Loaded<T>> {
   }
 }
 
-const dateFmt = new Intl.DateTimeFormat("nb-NO", { day: "numeric", month: "long" });
 const timeFmt = new Intl.DateTimeFormat("nb-NO", {
   day: "numeric",
   month: "short",
@@ -56,7 +55,7 @@ function Errors({ errors, refEl }: { errors: FieldErrors; refEl: React.RefObject
   const entries = Object.entries(errors).filter(([, v]) => v);
   if (entries.length === 0) return null;
   return (
-    <ErrorSummary ref={refEl} heading="Rett dette før du sender:">
+    <ErrorSummary ref={refEl} heading="Rett dette før du sender inn:">
       {entries.map(([id, msg]) => (
         <ErrorSummary.Item key={id} href={`#${id}`}>
           {msg}
@@ -314,28 +313,31 @@ function RaiseSection({
         {left !== null &&
           (left > 0
             ? `Du kan fylle på ${left} ${left === 1 ? "gang" : "ganger"} til denne måneden.`
-            : "Du har nådd taket.")}
+            : "Du har nådd taket. 1. i neste måned er du tilbake på standardbudsjettet.")}
       </BodyShort>
 
       <div ref={resultRef} tabIndex={-1} aria-live="polite">
-        {result && "ok" in result && (
+        {result && "ok" in result && result.ok.replayed && (
+          <Message status="success" title="Påfyllet er allerede registrert">
+            Du har sendt det samme påfyllet før. Du får ikke et nytt påfyll av å sende det igjen.
+          </Message>
+        )}
+        {result && "ok" in result && !result.ok.replayed && (
           <Message
             status="success"
             title={
-              result.ok.dryRun
-                ? "Testkjøring: påfyllet er registrert, men ikke sendt til GitHub"
-                : "Påfyllet er registrert"
+              result.ok.dryRun ? "Testkjøring: påfyllet er lagret, men ikke sendt til GitHub" : "Du har fått påfyll"
             }
           >
-            Nytt budsjett er {usd(result.ok.budgetUsd)} til {dateFmt.format(new Date(result.ok.expiresAt))}. Du kan
-            fylle på {result.ok.raisesLeft} {result.ok.raisesLeft === 1 ? "gang" : "ganger"} til denne måneden. Det kan
-            ta noen minutter før GitHub bruker det nye budsjettet.
+            Budsjettet ditt er nå {usd(result.ok.budgetUsd)} ut måneden. Du kan fylle på {result.ok.raisesLeft}{" "}
+            {result.ok.raisesLeft === 1 ? "gang" : "ganger"} til. Det kan ta noen minutter før GitHub bruker det nye
+            budsjettet.
           </Message>
         )}
         {result && "error" in result && (
           <Message
             status={result.error === "cap_reached" || result.error === "not_open" ? "warning" : "error"}
-            title="Påfyllet ble ikke gjennomført"
+            title="Du fikk ikke påfyll"
           >
             {errorMessage(result.error)}
           </Message>
@@ -363,7 +365,7 @@ function RaiseSection({
             <Select
               id="pafyll-team"
               label="Team"
-              description="Teamet påfyllet føres på. Standard er teamet i profilen din."
+              description="Påfyllet registreres på dette teamet. Standard er teamet i profilen din."
               value={teamId}
               onChange={(e) => setTeamId(e.target.value)}
             >
@@ -425,7 +427,7 @@ function ProfileSection({
   profileError?: string;
   onSaved: (p: BudgetProfile) => void;
 }) {
-  const [teamId, setTeamId] = useState(profile?.teamId ?? "");
+  const [teamId, setTeamId] = useState(profile?.teamId || profile?.suggestedTeamId || "");
   const [role, setRole] = useState(profile?.role ?? "");
   const [errors, setErrors] = useState<FieldErrors>({});
   const [busy, setBusy] = useState(false);
@@ -468,7 +470,7 @@ function ProfileSection({
         Profil
       </Heading>
       <BodyShort>
-        Team og rolle brukes til å se hvem som trenger mer, ikke til å vurdere deg. Du må lagre profilen før første
+        Vi bruker team og rolle til å se hvor behovet er størst, ikke til å vurdere deg. Du må lagre profilen før første
         påfyll.
       </BodyShort>
       {profileError && (
