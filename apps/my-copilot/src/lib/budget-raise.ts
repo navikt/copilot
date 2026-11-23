@@ -39,6 +39,8 @@ export interface BudgetProfile {
   exists: boolean;
   /** First visit only: the one GitHub team the user is in, if any. */
   suggestedTeamId?: string;
+  /** A saved team the user is no longer in; teamId is then «annet». */
+  leftTeamId?: string;
 }
 
 export interface RaiseResult {

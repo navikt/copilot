@@ -13,12 +13,16 @@ const options = {
   freeTextMax: 500,
 };
 
-function mockApi(budget: object, raise?: { status: number; body: object }) {
+function mockApi(
+  budget: object,
+  raise?: { status: number; body: object },
+  profile: object = { teamId: "annet", role: "utvikler", exists: true }
+) {
   const fetchMock = vi.fn(async (url: string) => {
     const json = (status: number, body: object) => new Response(JSON.stringify(body), { status });
     if (url === "/api/budget") return json(200, budget);
     if (url === "/api/budget/options") return json(200, options);
-    if (url === "/api/budget/profile") return json(200, { teamId: "annet", role: "utvikler", exists: true });
+    if (url === "/api/budget/profile") return json(200, profile);
     if (url === "/api/budget/raises" && raise) return json(raise.status, raise.body);
     return json(404, {});
   });
@@ -38,6 +42,29 @@ describe("BudgetRaisePage", () => {
     expect(screen.getByText(/Du har brukt 120 USD av 150 USD/)).toBeInTheDocument();
     expect(screen.getByText(/Du kan fylle på 4 ganger til/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Fyll på 150 USD" })).toBeInTheDocument();
+  });
+
+  it("shows stat boxes and says when the saved team has been left", async () => {
+    mockApi(defaultBudget, undefined, { teamId: "annet", role: "utvikler", exists: true, leftTeamId: "team-gammel" });
+    render(<BudgetRaisePage />);
+    expect(await screen.findByText("Igjen")).toBeInTheDocument();
+    expect(screen.getByText("30 USD")).toBeInTheDocument();
+    expect(screen.getByText(/Vi fant deg ikke i teamet «team-gammel» lenger/)).toBeInTheDocument();
+  });
+
+  it("hides the ceiling and raise count for an own budget", async () => {
+    mockApi({ budgetAmount: 1000, consumedAmount: 120, isOverride: true, defaultBudget: 150, raises: [] });
+    render(<BudgetRaisePage />);
+    expect(await screen.findByText("Igjen")).toBeInTheDocument();
+    expect(screen.queryByText(/^Tak /)).not.toBeInTheDocument();
+    expect(screen.queryByText("Påfyll denne måneden")).not.toBeInTheDocument();
+  });
+
+  it("keeps the saved team selectable when the team list is down", async () => {
+    mockApi(defaultBudget, undefined, { teamId: "team-b", role: "utvikler", exists: true });
+    render(<BudgetRaisePage />);
+    expect(await screen.findByRole("option", { name: "team-b (lagret)" })).toBeInTheDocument();
+    expect(screen.getByLabelText(/^Team/, { selector: "#profil-team" })).toHaveValue("team-b");
   });
 
   it("lists the errors and sends nothing when required fields are empty", async () => {

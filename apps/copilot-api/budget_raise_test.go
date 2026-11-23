@@ -2,6 +2,8 @@ package main
 
 import (
 	"bytes"
+	"cloud.google.com/go/bigquery"
+	"cloud.google.com/go/civil"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -19,17 +21,31 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-const testTeam = "team-a"
+const testTeam = "team-b" // the caller's own team in newBudgetEnv
 
 type fakeTeams struct {
-	err  error
-	mine []string
+	err      error
+	mine     []string      // current roster
+	activity []string      // GetUserTeams' 30-day fallback, used when the roster is empty
+	delay    time.Duration // per lookup, like a cold BigQuery cache
 }
 
 func (f fakeTeams) GetGitHubTeams(context.Context) ([]GitHubTeam, error) {
+	time.Sleep(f.delay)
 	return []GitHubTeam{{Slug: "team-a", Name: "Team A"}, {Slug: "team-b", Name: "Team B"}}, f.err
 }
-func (f fakeTeams) GetUserTeams(context.Context, string) ([]string, error) { return f.mine, f.err }
+
+// GetUserTeams mimics the activity fallback; budget code must not use it.
+func (f fakeTeams) GetUserTeams(context.Context, string) ([]string, error) {
+	if len(f.mine) == 0 {
+		return f.activity, f.err
+	}
+	return f.mine, f.err
+}
+func (f fakeTeams) GetRosterTeams(context.Context, string) ([]string, error) {
+	time.Sleep(f.delay)
+	return f.mine, f.err
+}
 
 // openBudgetTestDB returns a DSN on a clean schema. Skips without
 // TEST_DATABASE_URL unless COPILOT_API_REQUIRE_PG=1 (CI).
@@ -531,10 +547,10 @@ func TestBudgetRaiseUnavailable(t *testing.T) {
 func TestBudgetTeamsFromGitHub(t *testing.T) {
 	e := newBudgetEnv(t, openBudgetTestDB(t))
 	code, out := e.do("GET", "/api/v1/copilot/budget/options", "ola", "", "")
-	if teams := out["teams"].([]any); code != 200 || len(teams) != 3 || teams[0].(map[string]any)["id"] != "annet" || teams[1].(map[string]any)["name"] != "Team A" {
+	if teams := out["teams"].([]any); code != 200 || len(teams) != 2 || teams[0].(map[string]any)["id"] != "annet" || teams[1].(map[string]any)["name"] != "Team B" {
 		t.Fatalf("options: %d %v", code, out)
 	}
-	for team, want := range map[string]int{"team-a": 200, "annet": 200, "nope": 400, "0b0d1c3e-1111-4222-8333-444455556666": 400} {
+	for team, want := range map[string]int{"team-b": 200, "team-a": 400, "annet": 200, "nope": 400, "0b0d1c3e-1111-4222-8333-444455556666": 400} {
 		if code, _ := e.do("PUT", "/api/v1/copilot/budget/profile", "ola", "", `{"teamId":"`+team+`","role":"utvikler"}`); code != want {
 			t.Errorf("profile team %s: %d, want %d", team, code, want)
 		}
@@ -548,10 +564,10 @@ func TestBudgetTeamsFromGitHub(t *testing.T) {
 		t.Errorf("suggestion with two teams: %v", out)
 	}
 	e.h.teams = fakeTeams{err: fmt.Errorf("bq down")}
-	if code, _ := e.do("PUT", "/api/v1/copilot/budget/profile", "ola", "", `{"teamId":"team-a","role":"utvikler"}`); code != 400 {
+	if code, _ := e.do("PUT", "/api/v1/copilot/budget/profile", "kari", "", `{"teamId":"team-b","role":"utvikler"}`); code != 400 {
 		t.Errorf("team source down must fail closed: %d", code)
 	}
-	if code, _ := e.do("PUT", "/api/v1/copilot/budget/profile", "ola", "", `{"teamId":"annet","role":"utvikler"}`); code != 200 {
+	if code, _ := e.do("PUT", "/api/v1/copilot/budget/profile", "kari", "", `{"teamId":"annet","role":"utvikler"}`); code != 200 {
 		t.Errorf("annet with team source down: %d", code)
 	}
 }
@@ -944,10 +960,108 @@ func TestBudgetBodyStrict(t *testing.T) {
 
 func TestBudgetRaiseProfileTeamRevalidated(t *testing.T) {
 	e := newBudgetEnv(t, openBudgetTestDB(t))
-	e.profile("ola") // team-a
+	e.profile("ola")                                    // team-b
+	e.h.teams = fakeTeams{activity: []string{"team-b"}} // ola is in no team now, team-b only in recent activity
+	if code, out := e.do("GET", "/api/v1/copilot/budget/profile", "ola", "", ""); code != 200 || out["teamId"] != "annet" || out["leftTeamId"] != "team-b" {
+		t.Errorf("left team must read as annet: %d %v", code, out)
+	}
+	if code, _ := e.raise("ola", "k1"); code != 201 || e.count("SELECT count(*) FROM budget_raises WHERE team_id = 'annet'") != 1 {
+		t.Errorf("left team must raise as annet: %d", code)
+	}
+}
+
+func TestBudgetNewRosterTeamNotInOrgList(t *testing.T) {
+	e := newBudgetEnv(t, openBudgetTestDB(t))
+	e.h.teams = fakeTeams{mine: []string{"team-ny"}} // in the roster, not yet in the cached org list
+	if code, _ := e.do("PUT", "/api/v1/copilot/budget/profile", "ola", "", `{"teamId":"team-ny","role":"utvikler"}`); code != 200 {
+		t.Errorf("a roster team must be selectable before the org list catches up: %d", code)
+	}
+	if _, out := e.do("GET", "/api/v1/copilot/budget/profile", "ola", "", ""); out["leftTeamId"] != nil {
+		t.Errorf("a new roster team is not left: %v", out)
+	}
+}
+
+func TestBudgetRaiseReplayBeforeTeamCheck(t *testing.T) {
+	e := newBudgetEnv(t, openBudgetTestDB(t))
+	e.profile("ola")
+	body := `{"category":"koding","expectedValue":"spare_tid","teamId":"team-b"}`
+	if code, _ := e.do("POST", "/api/v1/copilot/budget/raises", "ola", "k1", body); code != 201 {
+		t.Fatalf("first raise: %d", code)
+	}
+	e.h.teams = fakeTeams{mine: []string{"team-a"}} // left team-b, then the client retries
+	if code, out := e.do("POST", "/api/v1/copilot/budget/raises", "ola", "k1", body); code != 200 || out["replayed"] != true || len(e.gh.writes) != 1 {
+		t.Errorf("retry must replay, not fail on team: %d %v writes=%d", code, out, len(e.gh.writes))
+	}
+}
+
+func TestRosterTeamsNoSnapshotIsUnknown(t *testing.T) {
+	now := time.Date(2026, 11, 23, 10, 0, 0, 0, time.UTC)
+	snap := func(daysAgo int) bigquery.NullDate {
+		return bigquery.NullDate{Date: civil.DateOf(now).AddDays(-daysAgo), Valid: true}
+	}
+	if _, err := rosterTeams([]rosterRow{{}}, now); err == nil {
+		t.Error("no snapshot must be an error, not an empty membership")
+	}
+	if _, err := rosterTeams([]rosterRow{{SnapshotDate: snap(rosterMaxAgeDays + 1)}}, now); err == nil {
+		t.Error("a stale snapshot must count as unknown")
+	}
+	if got, err := rosterTeams([]rosterRow{{SnapshotDate: snap(rosterMaxAgeDays)}}, now); err != nil || len(got) != 0 {
+		t.Errorf("recent snapshot without the user: %v %v", got, err)
+	}
+	if got, _ := rosterTeams([]rosterRow{{SnapshotDate: snap(0), TeamSlug: bigquery.NullString{StringVal: "team-b", Valid: true}}}, now); len(got) != 1 {
+		t.Errorf("member: %v", got)
+	}
+}
+
+func TestCachedRosterRechecksSnapshotAge(t *testing.T) {
+	day := time.Date(2026, 11, 23, 23, 55, 0, 0, time.UTC)
+	now := day
+	c := &CachedBigQueryClient{cache: NewCache(time.Hour), now: func() time.Time { return now }}
+	c.cache.Set("roster_rows_ola", []rosterRow{{
+		SnapshotDate: bigquery.NullDate{Date: civil.DateOf(day).AddDays(-rosterMaxAgeDays), Valid: true},
+		TeamSlug:     bigquery.NullString{StringVal: "team-b", Valid: true},
+	}})
+	if got, err := c.GetRosterTeams(context.Background(), "ola"); err != nil || len(got) != 1 {
+		t.Fatalf("fresh cached roster: %v %v", got, err)
+	}
+	now = day.Add(10 * time.Minute) // past midnight: the cached snapshot is now too old
+	if _, err := c.GetRosterTeams(context.Background(), "ola"); err == nil {
+		t.Error("a cache hit must re-check the snapshot age")
+	}
+}
+
+func TestBudgetTeamLookupsStayUnderBFFDeadline(t *testing.T) {
+	e := newBudgetEnv(t, openBudgetTestDB(t))
+	const d = 300 * time.Millisecond
+	e.h.teams = fakeTeams{mine: []string{"team-b"}, delay: d}
+	start := time.Now()
+	if code, _ := e.do("GET", "/api/v1/copilot/budget/options", "ola", "", ""); code != 200 || time.Since(start) >= 2*d {
+		t.Errorf("roster and names must load concurrently: %d in %v", code, time.Since(start))
+	}
+	start = time.Now()
+	if code, _ := e.do("PUT", "/api/v1/copilot/budget/profile", "ola", "", `{"teamId":"team-b","role":"utvikler"}`); code != 200 || time.Since(start) >= 2*d {
+		t.Errorf("validation must not wait for display names: %d in %v", code, time.Since(start))
+	}
+}
+
+func TestBudgetProfileRoleOnlySaveDuringOutage(t *testing.T) {
+	e := newBudgetEnv(t, openBudgetTestDB(t))
+	e.profile("ola") // team-b
 	e.h.teams = fakeTeams{err: fmt.Errorf("bq down")}
-	if code, _ := e.raise("ola", "k1"); code != 400 || len(e.gh.writes) != 0 {
-		t.Errorf("saved team no longer selectable: %d", code)
+	if code, _ := e.do("PUT", "/api/v1/copilot/budget/profile", "ola", "", `{"teamId":"team-b","role":"leder"}`); code != 200 {
+		t.Errorf("unchanged saved team must be accepted during an outage: %d", code)
+	}
+	if code, _ := e.do("PUT", "/api/v1/copilot/budget/profile", "ola", "", `{"teamId":"team-a","role":"leder"}`); code != 400 {
+		t.Errorf("a changed team must still fail closed: %d", code)
+	}
+}
+
+func TestBudgetProfileTeamSourceDownIsNotLeft(t *testing.T) {
+	e := newBudgetEnv(t, openBudgetTestDB(t))
+	e.profile("ola") // team-b
+	e.h.teams = fakeTeams{err: fmt.Errorf("bq down")}
+	if code, out := e.do("GET", "/api/v1/copilot/budget/profile", "ola", "", ""); code != 200 || out["teamId"] != "team-b" || out["leftTeamId"] != nil {
+		t.Errorf("an outage must not say the user left: %d %v", code, out)
 	}
 }
 
