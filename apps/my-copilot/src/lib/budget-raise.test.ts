@@ -36,3 +36,11 @@ describe("errorMessage", () => {
     }
   });
 });
+
+describe("statusLabel", () => {
+  it("does not promise an automatic retry for failed raises", async () => {
+    const { statusLabel } = await import("./budget-raise");
+    expect(statusLabel("failed")).not.toMatch(/prøves igjen/);
+    expect(statusLabel("failed")).toMatch(/ki-produktutvikling-diskusjon/);
+  });
+});

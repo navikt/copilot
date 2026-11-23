@@ -18,8 +18,8 @@ export interface Budget {
   consumedAmount: number | null;
   isOverride: boolean;
   defaultBudget: number;
-  /** Missing when copilot-api could not read them. */
-  raises?: BudgetRaise[];
+  /** Missing or null when copilot-api could not read them. */
+  raises?: BudgetRaise[] | null;
 }
 
 export interface BudgetOptions {
@@ -42,12 +42,13 @@ export interface BudgetProfile {
 }
 
 export interface RaiseResult {
+  raise?: BudgetRaise;
   /** True when the same idempotency key was already used: only `raise` is set. */
   replayed?: boolean;
-  budgetUsd: number;
+  budgetUsd?: number;
   expiresAt: string;
-  raisesLeft: number;
-  dryRun: boolean;
+  raisesLeft?: number;
+  dryRun?: boolean;
 }
 
 const LABELS: Record<string, string> = {
@@ -79,7 +80,7 @@ export const label = (code: string) => LABELS[code] ?? code;
 const STATUS: Record<string, string> = {
   applied: "Lagt inn i GitHub",
   pending: "Venter på GitHub",
-  failed: "Feilet, prøves igjen",
+  failed: "Feilet. Prøv igjen, eller ta kontakt i #ki-produktutvikling-diskusjon.",
   dry_run: "Testkjøring, ikke lagt inn",
   expired: "Ikke lagt inn før månedsslutt",
 };
@@ -112,6 +113,21 @@ export function hasOwnBudget(b: Budget): boolean | null {
   if (!b.isOverride) return false;
   if (!b.raises) return null;
   return !b.raises.some((r) => r.status === "applied" || r.status === "pending");
+}
+
+// Raises that count against the ceiling, as copilot-api counts them (F7).
+const COUNTED = ["pending", "applied", "failed"];
+
+/**
+ * Raises left this month, computed the way copilot-api does: the base is the
+ * default budget plus one step per counted raise, not GitHub's current budget
+ * (which can differ, e.g. during rollout). Null when the raises are unknown;
+ * then the server decides.
+ */
+export function raisesLeft(b: Budget | undefined, o: BudgetOptions): number | null {
+  if (!b?.raises) return null;
+  const counted = b.raises.filter((r) => COUNTED.includes(r.status)).length;
+  return Math.max(0, Math.ceil((o.capUsd - o.defaultUsd - o.stepUsd * counted) / o.stepUsd));
 }
 
 export const usd = (n: number) => `${Math.round(n).toLocaleString("nb-NO")} USD`;

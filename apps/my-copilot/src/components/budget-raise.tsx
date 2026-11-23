@@ -23,6 +23,7 @@ import {
   type RaiseResult,
   errorMessage,
   hasOwnBudget,
+  raisesLeft,
   label,
   statusLabel,
   usd,
@@ -152,7 +153,7 @@ function Summary({
   const state =
     refused === "own_budget" || (budget && hasOwnBudget(budget))
       ? "own"
-      : refused === "cap_reached" || (budget && budget.budgetAmount >= cap)
+      : refused === "cap_reached" || (options && raisesLeft(budget, options) === 0)
         ? "cap"
         : refused === "not_open"
           ? "closed"
@@ -217,7 +218,7 @@ function Consumption({ budget }: { budget: Budget }) {
         </VStack>
       )}
       {pct === null && <BodyShort>Forbruket er ikke tilgjengelig ennå.</BodyShort>}
-      {budget.raises === undefined ? (
+      {!budget.raises ? (
         <BodyShort>Vi får ikke vist påfyllene dine akkurat nå.</BodyShort>
       ) : budget.raises.length === 0 ? (
         <BodyShort>Du har ikke fylt på denne måneden.</BodyShort>
@@ -264,8 +265,9 @@ function RaiseSection({
   onRefused: (code: string) => void;
 }) {
   const [category, setCategory] = useState("");
-  // Empty means the profile team: the backend fills it in.
-  const [teamId, setTeamId] = useState(profile?.teamId ?? "");
+  // Only a team the user picked here; otherwise the backend uses the profile team, also after a profile change.
+  const [teamOverride, setTeamOverride] = useState("");
+  const teamId = teamOverride || profile?.teamId || "";
   const [expectedValue, setExpectedValue] = useState("");
   const [freeText, setFreeText] = useState("");
   const [errors, setErrors] = useState<FieldErrors>({});
@@ -284,8 +286,7 @@ function RaiseSection({
   }, [result]);
 
   const ownBudget = budget ? hasOwnBudget(budget) : null;
-  const current = budget?.budgetAmount ?? 0;
-  const left = budget ? Math.max(0, Math.floor((options.capUsd - current) / options.stepUsd)) : null;
+  const left = raisesLeft(budget, options);
 
   const heading = (
     <Heading size="small" level="2" id="pafyll">
@@ -320,12 +321,14 @@ function RaiseSection({
       const res = await fetch("/api/budget/raises", {
         method: "POST",
         headers: { "Content-Type": "application/json", "Idempotency-Key": key.current },
-        body: JSON.stringify({ category, teamId, expectedValue, freeText }),
+        body: JSON.stringify({ category, teamId: teamOverride || undefined, expectedValue, freeText }),
       });
       const body = await res.json().catch(() => ({}));
       if (res.ok) {
-        setResult({ ok: body as RaiseResult });
-        key.current = null;
+        const ok = body as RaiseResult;
+        setResult({ ok });
+        // Pending: GitHub's answer is unknown, so a retry must replay this raise, not start a new one.
+        if (ok.raise?.status !== "pending") key.current = null;
         setCategory("");
         setExpectedValue("");
         setFreeText("");
@@ -356,23 +359,7 @@ function RaiseSection({
       </BodyShort>
 
       <div ref={resultRef} tabIndex={-1} aria-live="polite">
-        {result && "ok" in result && result.ok.replayed && (
-          <Message status="success" title="Påfyllet er allerede registrert">
-            Du har sendt det samme påfyllet før. Du får ikke et nytt påfyll av å sende det igjen.
-          </Message>
-        )}
-        {result && "ok" in result && !result.ok.replayed && (
-          <Message
-            status="success"
-            title={
-              result.ok.dryRun ? "Testkjøring: påfyllet er lagret, men ikke sendt til GitHub" : "Du har fått påfyll"
-            }
-          >
-            Budsjettet ditt er nå {usd(result.ok.budgetUsd)} ut måneden. Du kan fylle på {result.ok.raisesLeft}{" "}
-            {result.ok.raisesLeft === 1 ? "gang" : "ganger"} til. Det kan ta noen minutter før GitHub bruker det nye
-            budsjettet.
-          </Message>
-        )}
+        {result && "ok" in result && <RaiseOutcome result={result.ok} />}
         {result && "error" in result && (
           <Message
             status={result.error === "cap_reached" || result.error === "not_open" ? "warning" : "error"}
@@ -406,7 +393,7 @@ function RaiseSection({
               label="Team"
               description="Påfyllet registreres på dette teamet. Standard er teamet i profilen din."
               value={teamId}
-              onChange={(e) => setTeamId(e.target.value)}
+              onChange={(e) => setTeamOverride(e.target.value)}
             >
               {!teamId && <option value="">Bruk teamet i profilen</option>}
               {options.teams.map((t) => (
@@ -566,5 +553,53 @@ function ProfileSection({
         </Box>
       </form>
     </VStack>
+  );
+}
+
+/** What a 200/201 from POST raises means. Success only when GitHub has the new budget (status applied). */
+function RaiseOutcome({ result }: { result: RaiseResult }) {
+  const status = result.dryRun ? "dry_run" : (result.raise?.status ?? "applied");
+  if (status === "dry_run") {
+    return (
+      <Message status="announcement" title="Testkjøring: ingenting er endret i GitHub">
+        Påfyllet er lagret som en test. Budsjettet ditt i GitHub er det samme som før.
+      </Message>
+    );
+  }
+  if (status === "pending") {
+    return (
+      <Message status="announcement" title="Påfyllet venter på GitHub">
+        Vi har registrert påfyllet, men vet ikke ennå om GitHub har tatt det i bruk. Se statusen i tabellen over om noen
+        minutter. Sender du skjemaet igjen, gir det ikke et nytt påfyll.
+      </Message>
+    );
+  }
+  if (status === "failed") {
+    return (
+      <Message status="error" title="Påfyllet feilet">
+        {statusLabel("failed")}
+      </Message>
+    );
+  }
+  if (status !== "applied") {
+    return (
+      <Message status="warning" title="Påfyllet er ikke lagt inn">
+        Status: {statusLabel(status)}.
+      </Message>
+    );
+  }
+  if (result.replayed || result.budgetUsd === undefined) {
+    return (
+      <Message status="success" title="Påfyllet er allerede registrert">
+        Du har sendt det samme påfyllet før. Du får ikke et nytt påfyll av å sende det igjen.
+      </Message>
+    );
+  }
+  const left = result.raisesLeft ?? 0;
+  return (
+    <Message status="success" title="Du har fått påfyll">
+      Budsjettet ditt er nå {usd(result.budgetUsd)} ut måneden. Du kan fylle på {left} {left === 1 ? "gang" : "ganger"}{" "}
+      til. Det kan ta noen minutter før GitHub bruker det nye budsjettet.
+    </Message>
   );
 }
