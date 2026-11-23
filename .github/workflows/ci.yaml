@@ -181,6 +181,7 @@ jobs:
               - '.github/workflows/ci.yaml'
             mcp-team-catalog:
               - 'apps/mcp-team-catalog/**'
+              - 'lib/mcpkit/**'
               - '.github/workflows/mcp-team-catalog.yaml'
               - '.github/workflows/mise-build-deploy-nais.yaml'
               - '.github/workflows/ci.yaml'

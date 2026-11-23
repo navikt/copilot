@@ -5,12 +5,14 @@ on:
     branches: [main]
     paths:
       - 'apps/mcp-team-catalog/**'
+      - 'lib/mcpkit/**'
       - '.github/workflows/mcp-team-catalog.yaml'
       - '.github/workflows/mise-build-deploy-nais.yaml'
   pull_request:
     branches: [main]
     paths:
       - 'apps/mcp-team-catalog/**'
+      - 'lib/mcpkit/**'
       - '.github/workflows/mcp-team-catalog.yaml'
       - '.github/workflows/mise-build-deploy-nais.yaml'
   workflow_dispatch:
@@ -32,6 +34,8 @@ jobs:
     uses: ./.github/workflows/mise-build-deploy-nais.yaml
     with:
       working-directory: apps/mcp-team-catalog
+      # Repo root, so the image build can see lib/mcpkit.
+      docker-context: '../..'
       mise-setup-tasks: '["install"]'
       mise-tasks: '["lint", "check"]'
       deploys-to-nais: true
