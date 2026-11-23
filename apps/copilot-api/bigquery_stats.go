@@ -406,6 +406,36 @@ func (bq *BigQueryClient) GetBillingModelDailyCosts(ctx context.Context, month s
 	return readAllRows[BillingModelDailyCost](it)
 }
 
+func (bq *BigQueryClient) billingModelForecastQuery(month string, prevMonthStart time.Time) *bigquery.Query {
+	billingRef := bq.tableRef(bq.metricsDataset, "billing_usage_daily_model")
+	queryStr := fmt.Sprintf(`
+      SELECT
+        FORMAT_DATE('%%Y-%%m-%%d', day) AS day,
+        SUM(net_amount) AS net_amount
+      FROM %s
+      WHERE day >= DATE(@prev_month_start)
+        AND day < DATE_ADD(DATE(@month || '-01'), INTERVAL 1 MONTH)
+        AND LOWER(scope_id) = 'nav'
+        AND gross_quantity > 0
+        AND product = 'Copilot'
+      GROUP BY day
+      ORDER BY day ASC
+    `, billingRef)
+
+	query := bq.client.Query(queryStr)
+	query.Parameters = []bigquery.QueryParameter{
+		{Name: "month", Value: month},
+		{Name: "prev_month_start", Value: prevMonthStart.Format("2006-01-02")},
+	}
+	return query
+}
+
+// isTodayUTC reports whether the given day of month is today's UTC date.
+func isTodayUTC(monthStart time.Time, day int, now time.Time) bool {
+	y, m, d := now.UTC().Date()
+	return monthStart.Year() == y && monthStart.Month() == m && day == d
+}
+
 func (bq *BigQueryClient) GetBillingModelForecast(ctx context.Context, month string) (*BillingModelForecast, error) {
 	if !isValidYearMonth(month) {
 		return nil, fmt.Errorf("invalid month format %q (expected YYYY-MM)", month)
@@ -418,27 +448,7 @@ func (bq *BigQueryClient) GetBillingModelForecast(ctx context.Context, month str
 	daysInMonth := time.Date(monthStart.Year(), monthStart.Month()+1, 0, 0, 0, 0, 0, time.UTC).Day()
 
 	// Fetch current month + previous month daily data for weekday-aligned forecasting
-	billingRef := bq.tableRef(bq.metricsDataset, "billing_usage_daily_model")
-	prevMonthStart := monthStart.AddDate(0, -1, 0)
-	queryStr := fmt.Sprintf(`
-      SELECT
-        FORMAT_DATE('%%Y-%%m-%%d', day) AS day,
-        SUM(net_amount) AS net_amount
-      FROM %s
-      WHERE day >= DATE(@prev_month_start)
-        AND day < DATE_ADD(DATE(@month || '-01'), INTERVAL 1 MONTH)
-        AND LOWER(scope_id) = 'nav'
-        AND gross_quantity > 0
-      GROUP BY day
-      ORDER BY day ASC
-    `, billingRef)
-
-	query := bq.client.Query(queryStr)
-	query.Parameters = []bigquery.QueryParameter{
-		{Name: "month", Value: month},
-		{Name: "prev_month_start", Value: prevMonthStart.Format("2006-01-02")},
-	}
-	it, err := query.Read(ctx)
+	it, err := bq.billingModelForecastQuery(month, monthStart.AddDate(0, -1, 0)).Read(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("execute query: %w", err)
 	}
@@ -513,8 +523,7 @@ func (bq *BigQueryClient) GetBillingModelForecast(ctx context.Context, month str
 	// If the last actual day is today, it's likely a partial day (ingestion
 	// may not have completed). Exclude it from the run rate calculation to
 	// avoid systematically depressing projections.
-	today := time.Now().UTC().Day()
-	if lastActualDay == today {
+	if isTodayUTC(monthStart, lastActualDay, time.Now()) {
 		if len(dailySeries) > 1 {
 			lastDate := time.Date(monthStart.Year(), monthStart.Month(), lastActualDay, 0, 0, 0, 0, time.UTC)
 			if isWeekend(lastDate) {

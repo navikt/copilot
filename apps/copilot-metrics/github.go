@@ -416,6 +416,10 @@ func (c *GitHubClient) FetchDailyUserTeams(ctx context.Context, day time.Time) (
 		slog.Info("Org user-teams fetched", "day", dayStr, "org", c.org, "records", len(orgRecords))
 	}
 
+	// An org report that GitHub has not generated adds no teams, so it does not
+	// make the enterprise report partial. Other org failures still do.
+	complete := enterpriseErr == nil && (orgErr == nil || isReportNotAvailable(orgErr))
+
 	// Merge results — deduplicate by user_id + team_id
 	var allRecords []json.RawMessage
 	seen := make(map[string]bool)
@@ -460,7 +464,7 @@ func (c *GitHubClient) FetchDailyUserTeams(ctx context.Context, day time.Time) (
 			Records:  allRecords,
 			Scope:    scope,
 			ScopeID:  scopeID,
-			Complete: enterpriseErr == nil && orgErr == nil,
+			Complete: complete,
 		}, nil
 	}
 
@@ -479,7 +483,7 @@ func (c *GitHubClient) FetchDailyUserTeams(ctx context.Context, day time.Time) (
 		scope = "organization"
 		scopeID = c.org
 	}
-	return &FetchResult{Records: allRecords, Scope: scope, ScopeID: scopeID, Complete: enterpriseErr == nil && orgErr == nil}, nil
+	return &FetchResult{Records: allRecords, Scope: scope, ScopeID: scopeID, Complete: complete}, nil
 }
 
 // FetchDailyUserMetrics fetches the users-1-day report for the given day.

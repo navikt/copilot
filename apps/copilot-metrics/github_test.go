@@ -345,3 +345,21 @@ func TestDailySourcesFallbackWhenReportUnavailable(t *testing.T) {
 		}
 	}
 }
+
+func TestUserTeamsCompleteWhenOrgReportNotAvailable(t *testing.T) {
+	client := &GitHubClient{enterprise: "nav", org: "navikt"}
+	client.httpClient = mockClient(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/orgs/") {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		_, _ = w.Write([]byte(`{"report_day":"2026-10-01","download_links":["https://download.test/report"]}`))
+	}))
+	client.downloadClient = mockClient(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"user_id":1,"team_id":2}`))
+	}))
+	result, err := client.FetchDailyUserTeams(context.Background(), billingSyncStart)
+	if err != nil || result == nil || result.Scope != "enterprise" || !result.Complete || len(result.Records) != 1 {
+		t.Fatalf("enterprise report rejected when org report is not generated: %+v %v", result, err)
+	}
+}
