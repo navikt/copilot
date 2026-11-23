@@ -53,6 +53,17 @@ An agent profile says which caller app may use which tools on which gateway rout
 
 The write routes (`POST /admin/v1/agents`, `.../{namespace}/{name}/approvals`, `.../revoke`) follow the Write API rules above: a person's token from the admin client, teams from `FLEET_CONTROL_STATIC_TEAMS`, dev-* clusters only. `SEED_AGENTS_FILE` imports drafts on startup in dev only (`seed/agents.dev.json`, the Aksel Studio draft). Its `entra_client_id` is the dev client id of `studio-api`. With no identity verifier yet, the profile stays unverified and out of the snapshot. The app refuses `SEED_AGENTS_FILE` outside dev-* clusters.
 
+## Read API for my-copilot
+
+The self-service pages in my-copilot read these routes (#2736). They take the same person's token as the write routes and show only what the caller's teams own:
+
+- `GET /admin/v1/me`: the caller's NAVident and teams.
+- `GET /admin/v1/servers` and `GET /admin/v1/agents`, optionally `?namespace=`: servers and live agent profiles owned by the caller's teams. Another team's namespace gives an empty list.
+- `GET /admin/v1/servers/{namespace}/{name}/audit` and `GET /admin/v1/agents/{namespace}/{name}/audit`: the newest 500 audit events, for members of the owning team. Anyone else gets 404 whether or not the name exists.
+- `GET /admin/v1/agents/pending-approval`: drafts with a granted route that the caller's teams own and have not approved yet.
+
+A failed team lookup gives 503, never an unfiltered answer.
+
 ## Job API for fleet-runtime
 
 fleet-runtime has no inbound surface. It fetches its work from fleet-control: it claims a job, holds a lease by heartbeat, and reads cancel and kill from the heartbeat answer (#2689). The Go types in `jobs.go` are the contract.

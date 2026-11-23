@@ -236,6 +236,7 @@ func (s *server) agentRoutes(mux *http.ServeMux, a *authz, persons personResolve
 	mux.HandleFunc("GET /admin/v1/agents/{namespace}/{name}", withPerson(persons, s.getAgent))
 	mux.HandleFunc("POST /admin/v1/agents/{namespace}/{name}/approvals", withPerson(persons, s.approveAgent))
 	mux.HandleFunc("POST /admin/v1/agents/{namespace}/{name}/revoke", withPerson(persons, s.revokeAgent))
+	s.uiRoutes(mux, persons)
 }
 
 func (s *server) agentDB(w http.ResponseWriter, r *http.Request) (agentStore, store, context.Context, context.CancelFunc) {
