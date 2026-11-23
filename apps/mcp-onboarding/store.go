@@ -184,12 +184,6 @@ func (s *TokenStore) GetToken(token string) (*TokenData, error) {
 	return data, nil
 }
 
-func (s *TokenStore) DeleteToken(token string) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	delete(s.tokens, token)
-}
-
 func (s *TokenStore) SaveRefreshToken(token string, data *RefreshTokenData) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

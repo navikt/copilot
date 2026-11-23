@@ -91,13 +91,6 @@ type MCPHosts struct {
 	Loopback []MCPLoopback
 }
 
-// Names is the host names, sorted.
-func (m MCPHosts) Names() []string { return mcpHostNames(m.Hosts) }
-
-// Hash is the consent hash: the host set, nothing else. A server added or
-// removed that changes no host asks nothing.
-func (m MCPHosts) Hash() string { return mcpHostsHash(m.Hosts) }
-
 func mcpHostNames(hosts []MCPHost) []string {
 	out := make([]string, 0, len(hosts))
 	for _, h := range hosts {

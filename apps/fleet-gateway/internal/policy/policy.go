@@ -116,12 +116,6 @@ type rpcAudit struct {
 	incomplete         bool
 }
 
-// extractJSONRPCAudit returns the display method and tool of scanJSONRPCAudit.
-func extractJSONRPCAudit(body []byte) (method, tool string) {
-	a := scanJSONRPCAudit(body)
-	return a.method, a.tool
-}
-
 // scanJSONRPCAudit returns the JSON-RPC method and, for tools/call, the tool
 // name. Arguments are never decoded into anything that is logged. A batch is
 // logged as method "batch" with the names of up to MaxAuditBatchTools

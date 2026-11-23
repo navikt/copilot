@@ -547,3 +547,9 @@ func TestMCPConsentLegacyFallbackAndPerClientIsolation(t *testing.T) {
 		t.Errorf("legacy record overwritten or lost: %+v, %v", legacyRec, err)
 	}
 }
+
+// Names is the host names, sorted.
+func (m MCPHosts) Names() []string { return mcpHostNames(m.Hosts) }
+
+// Hash is the consent hash of the host set; production calls mcpHostsHash.
+func (m MCPHosts) Hash() string { return mcpHostsHash(m.Hosts) }
