@@ -12,6 +12,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -1139,6 +1140,7 @@ func (e *budgetEnv) waitFor(sql string, args ...any) {
 // recorded ID (missing from B's older list, so "gone"), then see A already
 // applied, and create a second budget.
 func TestBudgetRaiseFinalStepLocked(t *testing.T) {
+	var sawLockWait atomic.Bool
 	e := newBudgetEnv(t, openBudgetTestDB(t))
 	e.profile("ola")
 	h2, postB := e.secondReplica()
@@ -1182,6 +1184,7 @@ func TestBudgetRaiseFinalStepLocked(t *testing.T) {
 			default:
 			}
 			if e.waiters("wait_event = 'advisory'") > 0 {
+				sawLockWait.Store(true)
 				commit()
 				return
 			}
@@ -1200,6 +1203,10 @@ func TestBudgetRaiseFinalStepLocked(t *testing.T) {
 	e.gh.mu.Unlock()
 	if n != 1 || e.count("SELECT count(*) FROM budget_github WHERE deleted_at IS NULL") != 1 {
 		t.Fatalf("A=%d B=%d: GitHub has %d budgets", a, b, n)
+	}
+	// The version alone would also save B (it re-lists); prove the lock did.
+	if !sawLockWait.Load() {
+		t.Fatal("B must wait on A's advisory lock at A's final step")
 	}
 }
 
@@ -1275,5 +1282,72 @@ func TestBudgetRaisePatchBookkeepingFailureIsUnknown(t *testing.T) {
 	e.exec(`CREATE TRIGGER fail_record BEFORE INSERT OR UPDATE ON budget_github FOR EACH ROW EXECUTE FUNCTION fail_record()`)
 	if code, out := e.raise("ola", "k2"); code != 502 || out["raise"].(map[string]any)["status"] != "pending" {
 		t.Fatalf("patched but not recorded: %d %v", code, out)
+	}
+}
+
+// The schema allows at most one pending raise per user, even if two writers
+// skip the application lock entirely.
+func TestBudgetOnePendingPerUserInSchema(t *testing.T) {
+	e := newBudgetEnv(t, openBudgetTestDB(t))
+	pool, err := e.h.store.get(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	ins := `INSERT INTO budget_raises (github_login, idempotency_key, month, amount_usd, category, team_id, expected_value, status)
+		VALUES ('ola', $1, '2026-12-01', 150, 'koding', 'annet', 'spare_tid', $2)`
+	ctx := context.Background()
+	// Two writers, no advisory lock: the second pending insert must fail.
+	if _, err := pool.Exec(ctx, ins, "a", "pending"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, ins, "b", "pending"); err == nil || !strings.Contains(err.Error(), "budget_raises_one_pending") {
+		t.Fatalf("second pending raise must be rejected by the schema: %v", err)
+	}
+	if _, err := pool.Exec(ctx, ins, "c", "failed"); err != nil {
+		t.Errorf("other statuses are not limited: %v", err)
+	}
+}
+
+// A row count stops being a version once retention deletes rows: A's raise
+// (+2) and deleting one old applied row (-2) cancel out. The version does not.
+func TestBudgetRaiseVersionSurvivesRetention(t *testing.T) {
+	e := newBudgetEnv(t, openBudgetTestDB(t))
+	e.profile("ola")
+	for _, k := range []string{"old1", "old2"} {
+		e.exec(`INSERT INTO budget_raises (github_login, idempotency_key, month, amount_usd, category, team_id, expected_value, status)
+			VALUES ('ola', $1, '2025-01-01', 150, 'koding', 'annet', 'spare_tid', 'applied')`, k)
+	}
+	h2, postB := e.secondReplica()
+	h2.afterList = func() { // B's list is taken; now A raises and retention runs
+		h2.afterList = nil
+		if code, _ := e.raise("ola", "a"); code != 201 {
+			t.Errorf("A: %d", code)
+		}
+		e.exec("DELETE FROM budget_raises WHERE idempotency_key = 'old1'")
+	}
+	b := postB("b")
+	e.gh.mu.Lock()
+	defer e.gh.mu.Unlock()
+	if b != 201 || len(e.gh.budgets["ola"]) != 1 || e.gh.budgets["ola"][0].Amount != 450 || strings.Join(e.gh.writes, ",") != "POST,PATCH b1" {
+		t.Fatalf("B=%d must re-list and PATCH to 450: writes %v, GitHub %+v", b, e.gh.writes, e.gh.budgets["ola"])
+	}
+}
+
+// A replay reads only: it must not bump the version, or harmless retries
+// could make another request's list stale until it gives up with 409.
+func TestBudgetRaiseReadOnlyDoesNotBumpVersion(t *testing.T) {
+	e := newBudgetEnv(t, openBudgetTestDB(t))
+	e.profile("ola")
+	if code, _ := e.raise("ola", "k1"); code != 201 {
+		t.Fatal(code)
+	}
+	v := e.count(raiseFingerprintSQL, "ola")
+	for range 3 {
+		if code, _ := e.raise("ola", "k1"); code != 200 {
+			t.Fatal(code)
+		}
+	}
+	if got := e.count(raiseFingerprintSQL, "ola"); got != v {
+		t.Errorf("replays bumped the version from %d to %d", v, got)
 	}
 }

@@ -20,6 +20,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -670,7 +671,7 @@ func (h *budgetRaiseHandlers) raise(w http.ResponseWriter, r *http.Request, acto
 	var settled string // set when a reconciliation settled the raise first
 	// Result audit and status in one transaction under the user's lock. If it
 	// fails, the raise stays pending and the next raise reconciles it.
-	if dbErr := lockedTx(wctx, pool, target, func(tx pgx.Tx) error {
+	if dbErr := lockedTx(wctx, pool, target, writes(func(tx pgx.Tx) error {
 		if _, err := tx.Exec(wctx, "UPDATE budget_audit SET github_status = NULLIF($2, 0), github_budget_id = NULLIF($3, '') WHERE id = $1", plan.auditID, ghStatus, ownID); err != nil {
 			return err
 		}
@@ -681,7 +682,7 @@ func (h *budgetRaiseHandlers) raise(w http.ResponseWriter, r *http.Request, acto
 			err = tx.QueryRow(wctx, "SELECT status FROM budget_raises WHERE id = $1", plan.raise.ID).Scan(&settled)
 		}
 		return err
-	}); dbErr != nil {
+	})); dbErr != nil {
 		slog.Error("Budget raise result not recorded, left pending", "error", dbErr)
 		final = "pending"
 		if err == nil {
@@ -715,9 +716,9 @@ type reservation struct {
 	fingerprint                int64          // raiseFingerprintSQL before the list was read
 }
 
-// raiseFingerprintSQL changes whenever a raise for the user is inserted or
-// leaves pending, i.e. whenever budget_github may have changed.
-const raiseFingerprintSQL = "SELECT count(*) + count(*) FILTER (WHERE status <> 'pending') FROM budget_raises WHERE github_login = $1"
+// raiseFingerprintSQL reads the user's version, which lockedTx bumps on every
+// locked write, so it changes whenever budget_github or a raise may have.
+const raiseFingerprintSQL = "SELECT COALESCE((SELECT version FROM budget_user_versions WHERE github_login = $1), 0)"
 
 type raisePlan struct {
 	replay  *raiseView
@@ -734,8 +735,9 @@ type raisePlan struct {
 func (h *budgetRaiseHandlers) reserve(ctx context.Context, pool *pgxpool.Pool, rv reservation) (raisePlan, string, error) {
 	var plan raisePlan
 	var code string
-	err := lockedTx(ctx, pool, rv.target, func(tx pgx.Tx) error {
-		plan, code = raisePlan{}, ""
+	var wrote bool // only a reservation that changed rows bumps the version
+	reserveIn := func(tx pgx.Tx) error {
+		plan, code, wrote = raisePlan{}, "", false
 		// F9: the same key gives the same raise. A same-key retry of a stuck
 		// (stale) pending raise reconciles it first, or it would replay
 		// pending forever.
@@ -840,6 +842,7 @@ func (h *budgetRaiseHandlers) reserve(ctx context.Context, pool *pgxpool.Pool, r
 			stale = nil
 		}
 		for _, p := range stale {
+			wrote = true
 			status := "failed"
 			// The only foreign budget we may adopt is one that matches exactly
 			// what the dead raise sent: our amount and our expiry.
@@ -897,10 +900,15 @@ func (h *budgetRaiseHandlers) reserve(ctx context.Context, pool *pgxpool.Pool, r
 		if rv.dry {
 			status = "dry_run"
 		}
+		wrote = true
 		v, err := scanRaise(tx.QueryRow(ctx, `INSERT INTO budget_raises (github_login, idempotency_key, month, amount_usd, budget_set_usd, category, team_id, expected_value, free_text, status, admin_override)
 			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING `+raiseColumns,
 			rv.target, rv.key, rv.month, budgetStepUSD, plan.amount, rv.in.Category, rv.in.TeamID, rv.in.ExpectedValue, rv.in.FreeText, status, rv.admin))
 		plan.raise = v
+		if pgErr := (*pgconn.PgError)(nil); errors.As(err, &pgErr) && pgErr.ConstraintName == "budget_raises_one_pending" {
+			code = "raise_in_progress" // the schema caught a second raise in flight
+			return errRollback
+		}
 		if err != nil {
 			return err
 		}
@@ -908,9 +916,16 @@ func (h *budgetRaiseHandlers) reserve(ctx context.Context, pool *pgxpool.Pool, r
 		// without its audit row (F15).
 		return tx.QueryRow(ctx, `INSERT INTO budget_audit (raise_id, actor, action, budget_before_usd, budget_set_usd, expires_at, github_budget_id, dry_run)
 			VALUES ($1, $2, $3, $4, $5, $6, NULLIF($7, ''), $8) RETURNING id`, v.ID, rv.actor, rv.action, plan.before, plan.amount, rv.expires, plan.ownID, rv.dry).Scan(&plan.auditID)
-	})
+	}
+	err := lockedTx(ctx, pool, rv.target, func(tx pgx.Tx) (bool, error) { err := reserveIn(tx); return wrote, err })
+	if errors.Is(err, errRollback) {
+		err = nil
+	}
 	return plan, code, err
 }
+
+// errRollback ends a transaction without it counting as a failure.
+var errRollback = errors.New("rollback")
 
 // lockedTx runs fn in a transaction holding the user's advisory lock. Every
 // change to a user's raises or budget_github goes through it, so reserve on
@@ -919,12 +934,27 @@ func (h *budgetRaiseHandlers) reserve(ctx context.Context, pool *pgxpool.Pool, r
 // status); TestBudgetRaiseFinalStepLocked and TestBudgetRaiseAcrossReplicas
 // fail without them. The locks on recordOwnBudget and on gone-marking are
 // defence in depth: no known interleaving depends on them, so no test does.
-func lockedTx(ctx context.Context, pool *pgxpool.Pool, login string, fn func(pgx.Tx) error) error {
+// writes adapts a transaction body that always writes.
+func writes(fn func(pgx.Tx) error) func(pgx.Tx) (bool, error) {
+	return func(tx pgx.Tx) (bool, error) { return true, fn(tx) }
+}
+
+// fn reports whether it wrote; only then is the user's version bumped, so a
+// read-only pass (a replay, a stale-list retry) cannot make another
+// request's list look stale.
+func lockedTx(ctx context.Context, pool *pgxpool.Pool, login string, fn func(pgx.Tx) (bool, error)) error {
 	return pgx.BeginFunc(ctx, pool, func(tx pgx.Tx) error {
 		if _, err := tx.Exec(ctx, "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))", "budget:"+login); err != nil {
 			return err
 		}
-		return fn(tx)
+		wrote, err := fn(tx)
+		if err != nil || !wrote {
+			return err
+		}
+		// Bump after fn, so reserve compares the version it saw before its list.
+		_, err = tx.Exec(ctx, `INSERT INTO budget_user_versions (github_login, version) VALUES ($1, 1)
+			ON CONFLICT (github_login) DO UPDATE SET version = budget_user_versions.version + 1`, login)
+		return err
 	})
 }
 
@@ -945,13 +975,13 @@ func recordOwnBudget(ctx context.Context, tx pgx.Tx, login string, month time.Ti
 // ctx is detached from the request.
 func (h *budgetRaiseHandlers) write(ctx context.Context, pool *pgxpool.Pool, target string, plan raisePlan, month, expires time.Time) (ownID string, status int, unknown bool, err error) {
 	for _, id := range plan.gone { // ours, but GitHub no longer lists it: gone
-		if err := lockedTx(ctx, pool, target, func(tx pgx.Tx) error {
+		if err := lockedTx(ctx, pool, target, writes(func(tx pgx.Tx) error {
 			if _, err := tx.Exec(ctx, "UPDATE budget_github SET deleted_at = now() WHERE github_budget_id = $1", id); err != nil {
 				return err
 			}
 			_, err := tx.Exec(ctx, `INSERT INTO budget_audit (raise_id, actor, action, github_budget_id, dry_run) VALUES ($1, 'system', 'expire_delete', $2, false)`, plan.raise.ID, id)
 			return err
-		}); err != nil {
+		})); err != nil {
 			return "", 0, false, err
 		}
 	}
@@ -985,9 +1015,9 @@ func (h *budgetRaiseHandlers) write(ctx context.Context, pool *pgxpool.Pool, tar
 	if err != nil {
 		return ownID, status, unknown, err
 	}
-	if err := lockedTx(ctx, pool, target, func(tx pgx.Tx) error {
+	if err := lockedTx(ctx, pool, target, writes(func(tx pgx.Tx) error {
 		return recordOwnBudget(ctx, tx, target, month, ownID, plan.amount, expires)
-	}); err != nil {
+	})); err != nil {
 		// The budget exists in GitHub but its ID is not stored: the next raise
 		// reconciles it as a stale pending row. Loud, so an admin can check.
 		slog.Error("Budget written in GitHub but its ID was not stored", "github_budget_id", ownID, "error", err)
