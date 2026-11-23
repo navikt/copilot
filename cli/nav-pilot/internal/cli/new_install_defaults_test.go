@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
 )
@@ -243,5 +244,94 @@ func TestAutoUpdateNudgeQuietWhenNotInteractiveOrDeclined(t *testing.T) {
 	autoUpdateNudge(&out, &Config{})
 	if !strings.Contains(out.String(), "auto_update true") {
 		t.Error("nudge not shown once the decline is gone; a non-interactive run used it up")
+	}
+}
+
+// Any one piece of earlier nav-pilot state means not a new install (#2781).
+func TestPartialStateIsNotANewInstall(t *testing.T) {
+	cases := map[string]func(t *testing.T, home, cfgDir string){
+		"cache.json only": func(t *testing.T, _, cfgDir string) {
+			touchFile(t, filepath.Join(cfgDir, "cache.json"))
+		},
+		"device-id only": func(t *testing.T, _, cfgDir string) {
+			touchFile(t, filepath.Join(cfgDir, "device-id"))
+		},
+		"relocated config, old ~/.nav-pilot": func(t *testing.T, home, _ string) {
+			touchFile(t, filepath.Join(home, ".nav-pilot", "config.toml"))
+		},
+		"unreadable config dir": func(t *testing.T, _, cfgDir string) {
+			if err := os.Chmod(cfgDir, 0); err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(func() { _ = os.Chmod(cfgDir, 0o700) })
+		},
+	}
+	for name, setup := range cases {
+		t.Run(name, func(t *testing.T) {
+			cfgDir := t.TempDir()
+			t.Setenv("NAV_PILOT_CONFIG", filepath.Join(cfgDir, "config.toml"))
+			home := t.TempDir()
+			t.Setenv("HOME", home)
+			if !noNavPilotState() {
+				t.Fatal("empty state counted as earlier use")
+			}
+			setup(t, home, cfgDir)
+			if noNavPilotState() {
+				t.Error("earlier state ignored")
+			}
+		})
+	}
+}
+
+func touchFile(t *testing.T, path string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// opencode auth list runs outside the caller's directory and without
+// OPENCODE_* variables, so a repo's .opencode/plugin/ never loads on the host.
+func TestOpenCodeLoggedInRunsOutsideTheRepo(t *testing.T) {
+	bin, rec := t.TempDir(), filepath.Join(t.TempDir(), "rec")
+	script := "#!/bin/sh\n/bin/pwd > " + rec + "\n/usr/bin/env >> " + rec + "\necho '[]'\n"
+	if err := os.WriteFile(filepath.Join(bin, "opencode"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin)
+	t.Setenv("OPENCODE_CONFIG_DIR", "/should/not/pass")
+	repo := t.TempDir()
+	t.Chdir(repo)
+	providerpkg.OpenCodeLoggedIn()
+	data, err := os.ReadFile(rec)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines := strings.SplitN(string(data), "\n", 2)
+	if real, _ := filepath.EvalSymlinks(repo); lines[0] == repo || lines[0] == real {
+		t.Errorf("ran in the caller's directory %s", lines[0])
+	}
+	if strings.Contains(string(data), "OPENCODE_CONFIG_DIR") {
+		t.Error("OPENCODE_* variable passed to opencode")
+	}
+}
+
+// A child that keeps stdout open must not stretch the 5 s limit.
+func TestOpenCodeLoggedInTimeoutHoldsWithAChild(t *testing.T) {
+	bin := t.TempDir()
+	script := "#!/bin/sh\n/bin/sleep 30 &\n/bin/sleep 30\n"
+	if err := os.WriteFile(filepath.Join(bin, "opencode"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin)
+	start := time.Now()
+	if providerpkg.OpenCodeLoggedIn() {
+		t.Error("a hung opencode counted as logged in")
+	}
+	if d := time.Since(start); d > 8*time.Second {
+		t.Errorf("took %s, want about 6 s at most", d)
 	}
 }

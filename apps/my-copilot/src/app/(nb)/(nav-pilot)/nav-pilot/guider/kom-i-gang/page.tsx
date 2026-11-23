@@ -122,12 +122,13 @@ export default function KomIGang() {
           <BodyLong>
             På en ny maskin spør nav-pilot ikke om innstillinger. Den velger OpenCode hvis OpenCode er installert,
             innlogget og i en versjon nav-pilot er testet med, og ellers GitHub Copilot CLI. Har du ingen av dem, spør
-            nav-pilot om den skal installere OpenCode. Installerte du nav-pilot med installasjonsskriptet, er automatisk
-            oppdatering slått på. Med Homebrew eller apt oppdaterer du med pakkebehandleren. Har du brukt nav-pilot før,
-            får du de samme spørsmålene som før. Etterpå sjekker nav-pilot gh-innloggingen. Kan den ikke bekrefte
-            innloggingen, sier den at agenten kanskje ikke får pushet eller laget pull requests, og viser til{" "}
-            <code className={code}>nav-pilot doctor</code> for detaljer. Vil du velge selv, kjør{" "}
-            <code className={code}>nav-pilot config setup</code>.
+            nav-pilot om den skal installere OpenCode. En ny installasjon får automatisk oppdatering på når nav-pilot er
+            lastet ned som binærfil: med installasjonsskriptet på Linux, eller på macOS uten Homebrew. Installerte du
+            med Homebrew (det skriptet bruker på macOS når Homebrew finnes) eller apt, oppdaterer du med
+            pakkebehandleren. Har du brukt nav-pilot før, får du de samme spørsmålene som før. Etterpå sjekker nav-pilot
+            gh-innloggingen. Kan den ikke bekrefte innloggingen, sier den at agenten kanskje ikke får pushet eller laget
+            pull requests, og viser til <code className={code}>nav-pilot doctor</code> for detaljer. Vil du velge selv,
+            kjør <code className={code}>nav-pilot config setup</code>.
           </BodyLong>
           <BodyLong>
             Kjenner cplt igjen verktøyene i repoet, kommer spørsmålet om <code className={code}>.cplt.toml</code> nå, se{" "}

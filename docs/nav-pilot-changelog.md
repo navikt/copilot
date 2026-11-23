@@ -7,7 +7,7 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 ### Nye installasjoner spør ikke lenger om innstillinger
 
 - **Første oppstart på en ny maskin**: nav-pilot spør ikke om klient, innstillinger eller installasjonssted. Den velger OpenCode hvis OpenCode er installert, innlogget og i en testet versjon, ellers GitHub Copilot CLI. Har du ingen av dem, spør nav-pilot om den skal installere OpenCode. Spørsmålene om `.cplt.toml` og Nais-tilgang kommer som før. Vil du velge selv, kjør `nav-pilot config setup` (#2781, #1022).
-- **Automatisk oppdatering**: Er på for nye installasjoner fra installasjonsskriptet, og spørsmålet om å oppgradere etter 7 dager forsvinner for dem. Med Homebrew eller apt oppdaterer du som før med pakkebehandleren.
+- **Automatisk oppdatering**: Nye installasjoner får automatisk oppdatering på når nav-pilot er lastet ned som binærfil: med installasjonsskriptet på Linux, eller på macOS uten Homebrew. Installerte du med Homebrew (det skriptet bruker på macOS når Homebrew finnes) eller apt, oppdaterer du med pakkebehandleren, som før. Spørsmålet om å oppgradere etter 7 dager forsvinner for nye installasjoner som oppdaterer seg selv.
 - **Installasjonssted**: Agentpakka havner i `~/.copilot` uten spørsmål og uten utvalgslisten. Repoet brukes bare når det har `.nav-pilot/agentpakke.lock.json`, eller når du kjører med `--repo`.
 - **Har du brukt nav-pilot før**, endres ingenting. Har du ikke valgt automatisk oppdatering og ikke sagt nei til å oppgradere, får du ett hint: `nav-pilot config set auto_update true`.
 

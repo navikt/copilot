@@ -640,7 +640,11 @@ func noNavPilotState() bool {
 	// A relocated config may share its directory with other files, so look
 	// there only for nav-pilot's own markers and caches.
 	dir := filepath.Dir(configPath())
-	for _, pattern := range []string{"seen-*", "*-declined", "cache.json", "device-id", "telemetry-spool"} {
+	if _, err := os.ReadDir(dir); err != nil && !errors.Is(err, os.ErrNotExist) {
+		return false // unreadable: assume state rather than skip the wizard
+	}
+	for _, pattern := range []string{"config.toml.bak", "seen-*", "*.seen", "*-declined", "*-failed",
+		"*.json", "*.json.bak*", "device-id", "telemetry-spool", "local", "sources", "source-cache"} {
 		if m, _ := filepath.Glob(filepath.Join(dir, pattern)); len(m) > 0 {
 			return false
 		}

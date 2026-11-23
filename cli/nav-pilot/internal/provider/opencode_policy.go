@@ -798,7 +798,8 @@ func OpenCode2InstallHint() string {
 
 // OpenCodeLoggedIn reports whether opencode has a GitHub Copilot credential,
 // the only provider a nav-pilot session allows. It asks opencode itself
-// (`opencode auth list --standalone --format json`, opencode 2): the
+// (`opencode auth list --standalone --format json`, opencode 2), from an
+// empty directory: the
 // credentials live in opencode's own database, which nav-pilot does not read.
 // Any error, timeout or output it does not recognise counts as not logged in.
 func OpenCodeLoggedIn() bool {
@@ -806,9 +807,25 @@ func OpenCodeLoggedIn() bool {
 	if err != nil {
 		return false
 	}
+	// Run in an empty directory with no OPENCODE_* variables: in a repo,
+	// opencode loads its .opencode/plugin/ on the host, outside cplt and
+	// before plugin consent.
+	dir, err := os.MkdirTemp("", "nav-pilot-opencode-auth-")
+	if err != nil {
+		return false
+	}
+	defer os.RemoveAll(dir)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	out, err := exec.CommandContext(ctx, path, "auth", "list", "--standalone", "--format", "json").Output()
+	cmd := exec.CommandContext(ctx, path, "auth", "list", "--standalone", "--format", "json")
+	cmd.Dir = dir
+	cmd.WaitDelay = time.Second // a child holding stdout must not stretch the timeout
+	for _, kv := range os.Environ() {
+		if !strings.HasPrefix(kv, "OPENCODE_") {
+			cmd.Env = append(cmd.Env, kv)
+		}
+	}
+	out, err := cmd.Output()
 	if err != nil {
 		return false
 	}
