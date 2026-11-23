@@ -115,7 +115,7 @@ copilot-metrics --backfill --backfill-from=2025-10-10
 
 ### Billing usage backfill
 
-One-time operation to load premium request billing data per model (requires `GITHUB_BILLING_TOKEN`):
+One-time operation to load premium request billing data per model (requires the GitHub App with Enterprise billing: read):
 
 ```bash
 copilot-metrics --billing-monthly-backfill
@@ -125,7 +125,7 @@ copilot-metrics --billing-monthly-backfill --billing-monthly-from=2025-01 --forc
 
 ### Billing usage report backfill (daily rows)
 
-One-time operation to load daily organization billing usage report rows (requires `GITHUB_BILLING_TOKEN`):
+One-time operation to load daily organization billing usage report rows (requires the GitHub App with Enterprise billing: read):
 
 ```bash
 copilot-metrics --billing-daily-report-backfill
@@ -135,7 +135,7 @@ copilot-metrics --billing-daily-report-backfill --billing-daily-report-from=2025
 
 ### Billing daily model backfill
 
-One-time operation to load daily model-level premium request billing data (requires `GITHUB_BILLING_TOKEN`):
+One-time operation to load daily model-level premium request billing data (requires the GitHub App with Enterprise billing: read):
 
 ```bash
 copilot-metrics --billing-model-daily-backfill
@@ -229,7 +229,8 @@ Locally this needs naisdevice to reach `mimir.nav.cloud.nais.io`.
 | `GITHUB_APP_ID`              | GitHub App ID                        | (required)        |
 | `GITHUB_APP_PRIVATE_KEY`     | GitHub App private key (PEM)         | (required)        |
 | `GITHUB_APP_INSTALLATION_ID` | GitHub App installation ID           | (required)        |
-| `GITHUB_BILLING_TOKEN`       | Classic PAT with `admin:enterprise` for billing API | (optional) |
+| `GITHUB_BILLING_TOKEN`       | Classic PAT. Used only when `BILLING_PAT_FALLBACK=true`; being retired | (optional) |
+| `BILLING_PAT_FALLBACK`       | `true`: billing calls use `GITHUB_BILLING_TOKEN` instead of the app, with a warning per run. Transition only | `false` |
 | `GCP_TEAM_PROJECT_ID`        | GCP project (from NAIS)              | (required)        |
 | `BIGQUERY_DATASET`           | BigQuery dataset name                | `copilot_metrics` |
 | `BIGQUERY_TABLE`             | BigQuery table name                  | `usage_metrics`   |
@@ -385,12 +386,9 @@ The GitHub App requires:
 
 ## Billing API Access
 
-The premium request billing endpoint (`/enterprises/{enterprise}/settings/billing/premium_request/usage`) **cannot** be accessed by GitHub App tokens. It requires a classic Personal Access Token (PAT) with:
+Billing calls (`settings/billing/usage`, `ai_credit/usage`, `premium_request/usage`, budgets) use the same enterprise installation as the metrics calls (`GITHUB_APP_ID`, `GITHUB_APP_INSTALLATION_ID`). The app needs the enterprise permission **Enterprise billing: read**.
 
-- `admin:enterprise` scope
-- User must be an enterprise admin or billing manager
-
-Set `GITHUB_BILLING_TOKEN` in the `copilot-metrics` secret to enable billing ingestion.
+`GITHUB_BILLING_TOKEN` (classic PAT) is used only when `BILLING_PAT_FALLBACK=true`. Without the flag the PAT is never sent, and billing is skipped if the app is missing.
 
 ## Deployment
 

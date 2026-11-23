@@ -30,6 +30,7 @@ describe("SiteHeader user menu", () => {
     render(<SiteHeader labels={labels} userName="Ola Nordmann" />);
     fireEvent.click(screen.getByRole("button", { name: /Ola Nordmann, Brukermeny/ }));
     expect(screen.getByRole("link", { name: "Abonnement" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Budsjett og påfyll" })).toHaveAttribute("href", "/min-side/budsjett");
     expect(screen.queryByText("Admin")).not.toBeInTheDocument();
   });
 });

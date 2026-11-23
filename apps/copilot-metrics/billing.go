@@ -15,8 +15,8 @@ import (
 )
 
 // BillingClient fetches premium request usage from the GitHub billing API.
-// This endpoint requires a classic PAT with admin:enterprise scope —
-// GitHub App tokens cannot access billing endpoints.
+// It authenticates as the enterprise GitHub App (Enterprise billing: read);
+// see billingAuth for the transition-only PAT path.
 type BillingClient struct {
 	httpClient   *http.Client
 	enterprise   string
@@ -50,7 +50,9 @@ func (c *BillingClient) request(ctx context.Context, endpoint string, result any
 			return err
 		}
 		req.Header.Set("Accept", "application/vnd.github+json")
-		req.Header.Set("Authorization", "Bearer "+c.token)
+		if c.token != "" {
+			req.Header.Set("Authorization", "Bearer "+c.token)
+		}
 		req.Header.Set("X-GitHub-Api-Version", "2026-03-10")
 		c.requests++
 		resp, err := c.httpClient.Do(req)
@@ -195,12 +197,14 @@ type BillingUsageItem struct {
 	NetAmount        float64 `json:"netAmount"`
 }
 
-func NewBillingClient(token, enterprise string) *BillingClient {
-	if token == "" {
+// NewBillingClient returns nil when httpClient is nil. token is empty for the
+// GitHub App, whose transport sets Authorization itself.
+func NewBillingClient(httpClient *http.Client, token, enterprise string) *BillingClient {
+	if httpClient == nil {
 		return nil
 	}
 	return &BillingClient{
-		httpClient: &http.Client{Timeout: 30 * time.Second},
+		httpClient: httpClient,
 		enterprise: enterprise,
 		token:      token,
 	}
@@ -256,7 +260,9 @@ func (c *BillingClient) FetchMonthlyUsage(ctx context.Context, year, month int) 
 	}
 
 	req.Header.Set("Accept", "application/vnd.github+json")
-	req.Header.Set("Authorization", "Bearer "+c.token)
+	if c.token != "" {
+		req.Header.Set("Authorization", "Bearer "+c.token)
+	}
 	req.Header.Set("X-GitHub-Api-Version", "2026-03-10")
 
 	resp, err := c.httpClient.Do(req)
@@ -303,7 +309,9 @@ func (c *BillingClient) FetchDailyUsage(ctx context.Context, day time.Time) (*Bi
 	}
 
 	req.Header.Set("Accept", "application/vnd.github+json")
-	req.Header.Set("Authorization", "Bearer "+c.token)
+	if c.token != "" {
+		req.Header.Set("Authorization", "Bearer "+c.token)
+	}
 	req.Header.Set("X-GitHub-Api-Version", "2026-03-10")
 
 	resp, err := c.httpClient.Do(req)
@@ -344,7 +352,9 @@ func (c *BillingClient) FetchEnterpriseUsage(ctx context.Context, day time.Time)
 	}
 
 	req.Header.Set("Accept", "application/vnd.github+json")
-	req.Header.Set("Authorization", "Bearer "+c.token)
+	if c.token != "" {
+		req.Header.Set("Authorization", "Bearer "+c.token)
+	}
 	req.Header.Set("X-GitHub-Api-Version", "2026-03-10")
 
 	resp, err := c.httpClient.Do(req)
@@ -368,4 +378,36 @@ func (c *BillingClient) FetchEnterpriseUsage(ctx context.Context, day time.Time)
 	}
 
 	return &result, nil
+}
+
+// billingAuth picks the billing credentials: the enterprise app client, or the
+// classic PAT only when BILLING_PAT_FALLBACK=true. The PAT is never a silent
+// fallback; with the flag off and no app, billing is unavailable (nil client).
+func billingAuth(cfg *Config, app *http.Client) (*http.Client, string) {
+	if cfg.BillingPATFallback && cfg.GitHubBillingToken != "" {
+		slog.Warn("Billing uses GITHUB_BILLING_TOKEN because BILLING_PAT_FALLBACK=true; remove the flag once the GitHub App works")
+		return &http.Client{Timeout: 30 * time.Second}, cfg.GitHubBillingToken
+	}
+	return app, ""
+}
+
+// billingConfigured reports whether billing has credentials: the app, or the
+// PAT only when BILLING_PAT_FALLBACK=true.
+func billingConfigured(cfg *Config) bool {
+	app := cfg.GitHubAppID != 0 && cfg.GitHubAppInstallationID != 0 && cfg.GitHubAppPrivateKey != ""
+	return app || (cfg.BillingPATFallback && cfg.GitHubBillingToken != "")
+}
+
+// billingClientFor builds a BillingClient for the one-shot billing commands.
+func billingClientFor(cfg *Config) *BillingClient {
+	var app *http.Client
+	if cfg.GitHubAppID != 0 && cfg.GitHubAppInstallationID != 0 && cfg.GitHubAppPrivateKey != "" {
+		if gh, err := NewGitHubClient(cfg); err == nil {
+			app = gh.httpClient
+		} else {
+			slog.Error("Failed to create GitHub App client for billing")
+		}
+	}
+	client, token := billingAuth(cfg, app)
+	return NewBillingClient(client, token, cfg.EnterpriseSlug)
 }

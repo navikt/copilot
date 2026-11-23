@@ -83,20 +83,40 @@ func main() {
 		defer cachedBQClient.Close()
 	}
 
-	// Initialize budget client (optional - requires GITHUB_BILLING_TOKEN classic PAT)
+	// Initialize budget client (optional - requires the BUDGET_GITHUB_APP_* enterprise app)
 	var budgetHandlers *BudgetHandlers
+	billingToken, billingErr := newBillingTokenSource(config)
 	switch {
-	case config.GitHubBillingToken == "":
-		slog.Warn("GITHUB_BILLING_TOKEN not configured - budget endpoint will be unavailable")
+	case billingErr != nil:
+		slog.Error("Budget app unavailable - budget endpoint will be unavailable", "error", billingErr)
+	case billingToken == nil:
+		slog.Warn("BUDGET_GITHUB_APP_* not configured - budget endpoint will be unavailable")
 	case githubClient == nil:
 		slog.Warn("GitHub client unavailable - budget endpoint will be unavailable (see GitHub client initialization error above)")
 	default:
-		budgetClient := newBudgetClient(config.GitHubBillingToken, config.GitHubEnterprise)
+		budgetClient := newBudgetClient(billingToken, config.GitHubEnterprise)
 		budgetHandlers = newBudgetHandlers(budgetClient)
 		if bqHandlers != nil {
 			bqHandlers.setBudgetClient(budgetClient)
 		}
 		slog.Info("Budget client initialized successfully")
+	}
+
+	// Personal budget raises: Postgres (DB_URL from Nais) plus a write token.
+	var seats seatLookup
+	if githubClient != nil {
+		seats = githubClient
+	}
+	var teams teamSource
+	if cachedBQClient != nil {
+		teams = cachedBQClient
+	}
+	raiseHandlers, err := newBudgetRaiseHandlersFromConfig(config, seats, teams)
+	if err != nil {
+		slog.Error("Budget raises disabled", "error", err)
+	}
+	if budgetHandlers != nil {
+		budgetHandlers.raises = raiseHandlers
 	}
 
 	// Build the IdentityResolver chain (see identity.go) that determines "who
@@ -161,7 +181,7 @@ func main() {
 
 	// Protected API endpoints — wrapped with OTel tracing
 	mux.Handle("/api/v1/", traceAPI(
-		loggingMiddleware(config, authMiddleware(identityMiddleware(makeAPIRouter(config, bqHandlers, ghHandlers, budgetHandlers, identityChain)))),
+		loggingMiddleware(config, authMiddleware(identityMiddleware(makeAPIRouter(config, bqHandlers, ghHandlers, budgetHandlers, identityChain, raiseHandlers)))),
 	))
 
 	// copilot-survey looks up a nav-pilot user's Nav e-mail here. Not under

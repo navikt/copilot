@@ -19,7 +19,11 @@ function isLocalDev(): boolean {
  * (e.g. a 404 from the seat endpoint means "user has no Copilot seat").
  */
 export class BackendApiError extends Error {
-  constructor(public readonly status: number) {
+  /** `code` is the last segment of the problem type, such as "cap_reached", when the backend sent one. */
+  constructor(
+    public readonly status: number,
+    public readonly code?: string
+  ) {
     super(`Backend API error (${status})`);
     this.name = "BackendApiError";
   }
@@ -150,7 +154,9 @@ async function backendRequest<T>(path: string, userToken: string, options: Reque
   );
 
   if (!response.ok) {
-    throw new BackendApiError(response.status);
+    const problem = (await response.json().catch(() => null)) as { type?: unknown } | null;
+    const code = typeof problem?.type === "string" ? problem.type.split("/errors/")[1] : undefined;
+    throw new BackendApiError(response.status, code);
   }
 
   return response.json() as Promise<T>;

@@ -59,6 +59,14 @@ spec:
       value: "gs://{{video_bucket_public}}/video_manifest.json"
     - name: "VIDEO_BUCKET_PUBLIC"
       value: "{{video_bucket_public}}"
+    # off | dry_run | on. The write app's BUDGET_GITHUB_APP_* keys live in
+    # the copilot-api secret; without them raises answer 503.
+    - name: "BUDGET_WRITES"
+      value: "{{budget_writes}}"
+    - name: "BUDGET_RAISES_OPEN"
+      value: "{{budget_raises_open}}"
+    - name: "BUDGET_TEST_USERS"
+      value: "{{budget_test_users}}"
 
   liveness:
     path: "/health"
@@ -93,6 +101,18 @@ spec:
       memory: "128Mi"
 
   gcp:
+    # Personal budget raises (budget_raise.go). Smallest tier, no HA.
+    # retainedBackups 7: deleted free text must not outlive 7 days in backups
+    # (PRD F23). Insights off: query samples must not keep free text.
+    sqlInstances:
+      - type: POSTGRES_18
+        tier: {{db_tier}}
+        retainedBackups: 7
+        insights:
+          enabled: false
+        databases:
+          - name: copilot-api
+            envVarPrefix: DB
     buckets:
       - name: "{{video_bucket_public}}"
     bigQueryDatasets:
