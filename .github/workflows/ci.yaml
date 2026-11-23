@@ -167,6 +167,7 @@ jobs:
               - '.github/workflows/ci.yaml'
             mcp-onboarding:
               - 'apps/mcp-onboarding/**'
+              - 'lib/mcpkit/**'
               - 'agents/**'
               - 'instructions/**'
               - 'prompts/**'
