@@ -158,6 +158,41 @@ const raiseCalls = (m: ReturnType<typeof mockApi>) =>
   m.mock.calls.filter(([u]) => u === "/api/budget/raises") as unknown as [string, RequestInit][];
 
 describe("BudgetRaisePage review fixes", () => {
+  it("clears the key and keeps the form open when a new raise gets 429", async () => {
+    let n = 0;
+    const m = vi.fn(async (url: string) => {
+      const json = (st: number, body: object) => new Response(JSON.stringify(body), { status: st });
+      if (url === "/api/budget") return json(200, defaultBudget);
+      if (url === "/api/budget/options") return json(200, options);
+      if (url === "/api/budget/profile") return json(200, { teamId: "annet", role: "utvikler", exists: true });
+      n++;
+      if (n === 1) return json(429, { error: "rate_limited" });
+      return json(201, { raise: { status: "applied" }, budgetUsd: 300, raisesLeft: 3 });
+    });
+    vi.stubGlobal("fetch", m);
+    render(<BudgetRaisePage />);
+    await fillAndSubmit();
+    expect(await screen.findByText(/Vent ett minutt og prøv igjen/)).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Prøv igjen" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Fyll på 150 USD" }));
+    const raises = () => m.mock.calls.filter(([u]) => u === "/api/budget/raises") as unknown as [string, RequestInit][];
+    await waitFor(() => expect(raises()).toHaveLength(2));
+    const key = (c: [string, RequestInit]) => (c[1].headers as Record<string, string>)["Idempotency-Key"];
+    expect(key(raises()[1])).not.toBe(key(raises()[0]));
+  });
+
+  it("keeps the key and «Prøv igjen» when a new raise gets 503", async () => {
+    const m = mockApi(defaultBudget, { status: 503, body: { error: "budget_writes_unavailable" } });
+    render(<BudgetRaisePage />);
+    await fillAndSubmit();
+    const retry = await screen.findByRole("button", { name: "Prøv igjen" });
+    expect(screen.queryByRole("button", { name: "Fyll på 150 USD" })).not.toBeInTheDocument();
+    fireEvent.click(retry);
+    await waitFor(() => expect(raiseCalls(m)).toHaveLength(2));
+    const key = (c: [string, RequestInit]) => (c[1].headers as Record<string, string>)["Idempotency-Key"];
+    expect(key(raiseCalls(m)[1])).toBe(key(raiseCalls(m)[0]));
+  });
+
   it.each([429, 502])("keeps the key and «Prøv igjen» when a retry gets %i", async (status) => {
     let n = 0;
     const m = vi.fn(async (url: string) => {

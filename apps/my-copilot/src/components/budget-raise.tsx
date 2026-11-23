@@ -456,9 +456,9 @@ function RaiseSection({
         onRefused(code);
         // GitHub may have applied it: show the backend's real budget and raises.
         if (code === "github_error") onRaised();
-        // Only a new raise refused outright ends here. A retry stays unresolved until the raise body says
-        // applied or failed: a 429 or 5xx comes before the replay, so the original raise is still open.
-        if (!retry && res.status < 500 && res.status !== 429) key.current = null;
+        // A 4xx (including 429) on a new raise was refused before any raise was created, so clear the key.
+        // A 5xx on a new raise may have created one, and a retry stays unresolved until the raise body resolves it.
+        if (!retry && res.status < 500) key.current = null;
       }
     } catch {
       setResult({ error: "failed" });
