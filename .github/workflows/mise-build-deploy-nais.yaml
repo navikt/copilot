@@ -282,7 +282,7 @@ jobs:
     # On push to main, reuse the merge queue's result instead of rerunning
     # lint/check: wait for a ci.yaml run on this exact SHA whose ci-ok job
     # succeeded. No green ci-ok, no image and no deploy. Skipped on
-    # workflow_dispatch so manual dev deploys from branches keep working.
+    # workflow_dispatch, which never builds an image or deploys here.
     if: ${{ github.event_name == 'push' }}
     permissions:
       actions: read
@@ -295,14 +295,24 @@ jobs:
           REPO: ${{ github.repository }}
           SHA: ${{ github.sha }}
         run: |
+          # Retry transient API errors; still fail closed if they persist.
+          api() {
+            for attempt in 1 2 3 4 5; do
+              if gh api "$@"; then return 0; fi
+              echo "GitHub API call failed (attempt ${attempt}); retrying" >&2
+              sleep 10
+            done
+            echo "::error::GitHub API kept failing; not deploying without a green ci-ok" >&2
+            return 1
+          }
           while :; do
             pending=0
-            runs=$(gh api "repos/${REPO}/actions/workflows/ci.yaml/runs?head_sha=${SHA}&per_page=20" \
+            runs=$(api "repos/${REPO}/actions/workflows/ci.yaml/runs?head_sha=${SHA}&per_page=20" \
               --jq '.workflow_runs[] | "\(.id) \(.status)"')
             while read -r run_id status; do
               [ -n "$run_id" ] || continue
               if [ "$status" != "completed" ]; then pending=1; continue; fi
-              ok=$(gh api "repos/${REPO}/actions/runs/${run_id}/jobs?per_page=100" \
+              ok=$(api "repos/${REPO}/actions/runs/${run_id}/jobs?per_page=100" \
                 --jq '[.jobs[] | select(.name == "ci-ok" and .conclusion == "success")] | length == 1')
               if [ "$ok" = "true" ]; then
                 echo "Reusing green ci-ok from run ${run_id} for SHA ${SHA}"
@@ -410,7 +420,9 @@ jobs:
 
   deploy:
     name: Deploy to Nais
-    if: ${{ inputs.deploys-to-nais && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    # Explicit results: lint is skipped on push, and an implicit success()
+    # over the needs chain would skip deploy while the run stays green.
+    if: ${{ !cancelled() && needs.meta.result == 'success' && needs.docker.result == 'success' && inputs.deploys-to-nais && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     permissions:
       id-token: write
