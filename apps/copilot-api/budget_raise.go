@@ -1238,7 +1238,10 @@ func (h *budgetRaiseHandlers) reconcileStuck(ctx context.Context) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	rows, err := pool.Query(ctx, `SELECT DISTINCT github_login FROM budget_raises WHERE status = 'pending' AND created_at < now() - $1::interval ORDER BY 1 LIMIT $2`,
+	// Order randomly rather than alphabetically so persistently failing users
+	// cannot fill the batch and starve later logins, and concurrent replicas
+	// spread their work across eligible users.
+	rows, err := pool.Query(ctx, `SELECT github_login FROM budget_raises WHERE status = 'pending' AND created_at < now() - $1::interval GROUP BY github_login ORDER BY random() LIMIT $2`,
 		budgetPendingStale.String(), budgetReconcileBatch)
 	if err != nil {
 		return 0, err

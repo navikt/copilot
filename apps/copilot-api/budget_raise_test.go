@@ -80,7 +80,8 @@ type fakeGitHub struct {
 	dropPOST bool          // create, then drop the connection
 	postWait chan struct{} // POST blocks until closed
 	noExpiry bool          // ignore expires_at like a GitHub that drops it
-	failList int           // fail the next N list calls
+	failList      int             // fail the next N list calls
+	failListUsers map[string]bool // always fail list calls for these logins
 	skew     float64       // stored amount differs from the one sent
 	noSKU    bool          // list without budget_product_sku
 	truncate bool          // create, then answer 201 with a cut-off body
@@ -103,6 +104,10 @@ func (f *fakeGitHub) handler() http.Handler {
 				return
 			}
 			u := r.URL.Query().Get("user")
+			if f.failListUsers[u] {
+				w.WriteHeader(http.StatusBadGateway)
+				return
+			}
 			eff := &effectiveBudget{BudgetAmount: 800}
 			for _, b := range f.budgets[u] {
 				eff = &effectiveBudget{ID: b.ID, BudgetAmount: b.Amount}
@@ -1743,5 +1748,41 @@ func TestBudgetRunReconcilerStopsOnCancel(t *testing.T) {
 	case <-done:
 	case <-time.After(2 * time.Second):
 		t.Fatal("runReconciler did not stop on context cancel")
+	}
+}
+
+// #2718: 50 persistently failing users must not starve a 51st reconcilable user.
+func TestBudgetReconcileFailingUsersDoNotStarveOthers(t *testing.T) {
+	e := newBudgetEnv(t, openBudgetTestDB(t))
+	e.gh.failListUsers = make(map[string]bool, budgetReconcileBatch)
+	ins := `INSERT INTO budget_raises (github_login, idempotency_key, month, amount_usd, budget_set_usd, category, team_id, expected_value, status, created_at)
+		VALUES ($1, $2, '2026-12-01', 150, 300, 'koding', 'annet', 'spare_tid', 'pending', now() - interval '10 minutes')`
+	for i := range budgetReconcileBatch {
+		login := fmt.Sprintf("aaa-fail-%02d", i)
+		e.gh.failListUsers[login] = true
+		e.exec(ins, login, fmt.Sprintf("k-fail-%02d", i))
+	}
+	e.exec(ins, "zzz-ok", "k-ok")
+	e.gh.budgets["zzz-ok"] = []ghBudget{{ID: "gh-ok", BudgetScope: "user", BudgetType: "BundlePricing", SKU: "ai_credits", Amount: 300, ExpiresAt: "2027-01-01"}}
+
+	// With random sampling over 51 users and batch size 50, missing zzz-ok on every
+	// pass for 10 passes has probability (1/51)^10 (< 1e-17).
+	const maxPasses = 10
+	settled := false
+	for range maxPasses {
+		n, err := e.h.reconcileStuck(context.Background())
+		if err != nil {
+			t.Fatalf("reconcileStuck: %v", err)
+		}
+		if n > 0 {
+			settled = true
+			break
+		}
+	}
+	if !settled || e.count("SELECT count(*) FROM budget_raises WHERE github_login = 'zzz-ok' AND status = 'applied'") != 1 {
+		t.Fatalf("51st user zzz-ok was not settled within %d passes", maxPasses)
+	}
+	if e.count("SELECT count(*) FROM budget_raises WHERE status = 'pending'") != budgetReconcileBatch {
+		t.Errorf("failing users still pending = %d, want %d", e.count("SELECT count(*) FROM budget_raises WHERE status = 'pending'"), budgetReconcileBatch)
 	}
 }
