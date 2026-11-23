@@ -175,8 +175,8 @@ nav-pilot ignore instruction nextjs-aksel --user`}
           </LinkableHeading>
           <BodyLong>
             nav-pilot legger egne hooks i <code className={code}>~/.copilot/hooks/</code>, og de kjører i alle sesjoner
-            med Copilot CLI. Nøkkelen <code className={code}>guards</code> slår vaktene av og på samlet, og de er på
-            som standard:
+            med Copilot CLI. Nøkkelen <code className={code}>guards</code> slår vaktene av og på samlet, og de er på som
+            standard:
           </BodyLong>
           <Bullets>
             <li>sier fra til modellen når den gjør det samme kallet om og om igjen</li>
