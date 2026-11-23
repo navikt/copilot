@@ -54,6 +54,9 @@ const DYNAMIC: Record<string, (value: string) => boolean> = {
   "/admin/undersokelser/[id]": (s) => /^[a-z0-9-]{1,64}$/.test(s),
   "/admin/undersokelser/[id]/fritekst": (s) => /^[a-z0-9-]{1,64}$/.test(s),
   "/admin/undersokelser/[id]/fritekst/koding": (s) => /^[a-z0-9-]{1,64}$/.test(s),
+  // Nais team and route names are DNS labels; fleet-control decides whether they exist.
+  "/fleet/ruter/[namespace]/[name]": (s) => /^[a-z0-9-]{1,63}$/.test(s),
+  "/fleet/agenter/[namespace]/[name]": (s) => /^[a-z0-9-]{1,63}$/.test(s),
 };
 
 // Redirects that are deliberately temporary: aliases, not moved pages.
@@ -298,6 +301,8 @@ function currentSite(): Found[] {
     "/admin/undersokelser/[id]": [],
     "/admin/undersokelser/[id]/fritekst": [],
     "/admin/undersokelser/[id]/fritekst/koding": [],
+    "/fleet/ruter/[namespace]/[name]": [],
+    "/fleet/agenter/[namespace]/[name]": [],
   };
   for (const route of routes.filter((r) => r.pattern.includes("["))) {
     for (const value of dynamicPages[route.pattern] ?? []) {
