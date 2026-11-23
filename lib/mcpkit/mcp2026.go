@@ -1,7 +1,7 @@
 package mcpkit
 
 // MCP revision 2026-07-28 request handling. Copies still live in
-// apps/fleet-gateway/echo, mcp-onboarding and mcp-team-catalog.
+// apps/fleet-gateway/echo and mcp-onboarding.
 //
 // Spec: https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#request-metadata
 // and https://modelcontextprotocol.io/specification/2026-07-28/basic/versioning
