@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cloud.google.com/go/civil"
 	"context"
 	"errors"
 	"fmt"
@@ -371,9 +372,9 @@ func userTeamSlugs(slugs []string) []string {
 // membership. A missing roster table is an error (membership unknown).
 func (bq *BigQueryClient) GetRosterTeams(ctx context.Context, userLogin string) ([]string, error) {
 	members := bq.tableRef(bq.metricsDataset, "team_members")
-	// Always one row: has_snapshot tells "no snapshot" from "not in it".
+	// Always one row: snapshot_date tells "no snapshot" from "not in it".
 	query := bq.client.Query(fmt.Sprintf(`WITH snap AS (SELECT MAX(date) d FROM %s)
-SELECT snap.d IS NOT NULL has_snapshot, t.team_slug FROM snap
+SELECT snap.d snapshot_date, t.team_slug FROM snap
 LEFT JOIN %s t ON t.date = snap.d AND LOWER(t.login) = LOWER(@login)`, members, members))
 	query.Parameters = []bigquery.QueryParameter{{Name: "login", Value: userLogin}}
 	it, err := query.Read(ctx)
@@ -385,7 +386,7 @@ LEFT JOIN %s t ON t.date = snap.d AND LOWER(t.login) = LOWER(@login)`, members, 
 		var row rosterRow
 		if err := it.Next(&row); err != nil {
 			if err == iterator.Done {
-				return rosterTeams(rows)
+				return rosterTeams(rows, time.Now())
 			}
 			return nil, err
 		}
@@ -394,16 +395,25 @@ LEFT JOIN %s t ON t.date = snap.d AND LOWER(t.login) = LOWER(@login)`, members, 
 }
 
 type rosterRow struct {
-	HasSnapshot bool                `bigquery:"has_snapshot"`
-	TeamSlug    bigquery.NullString `bigquery:"team_slug"`
+	SnapshotDate bigquery.NullDate   `bigquery:"snapshot_date"`
+	TeamSlug     bigquery.NullString `bigquery:"team_slug"`
 }
 
-var errNoRosterSnapshot = errors.New("team roster has no snapshot")
+var errNoRosterSnapshot = errors.New("team roster has no recent snapshot")
+
+// rosterMaxAgeDays is how old the latest team_members snapshot may be (in
+// days) before budget team membership counts as unknown. Ingestion is daily.
+const rosterMaxAgeDays = 2
 
 // rosterTeams turns roster rows into slugs. No snapshot means membership is
 // unknown (an error), not that the user is in no team.
-func rosterTeams(rows []rosterRow) ([]string, error) {
-	if len(rows) == 0 || !rows[0].HasSnapshot {
+func rosterTeams(rows []rosterRow, now time.Time) ([]string, error) {
+	if len(rows) == 0 || !rows[0].SnapshotDate.Valid {
+		return nil, errNoRosterSnapshot
+	}
+	// A failed ingestion leaves old rows behind; an old snapshot would keep
+	// accepting people who have left, so it counts as unknown too.
+	if d := rows[0].SnapshotDate.Date; d.DaysSince(civil.DateOf(now)) < -rosterMaxAgeDays {
 		return nil, errNoRosterSnapshot
 	}
 	var slugs []string

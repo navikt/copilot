@@ -288,17 +288,21 @@ func (h *budgetRaiseHandlers) budgetTeams(ctx context.Context, login string) (te
 	if h.teams == nil {
 		return teams, false
 	}
-	mine, err := h.teams.GetRosterTeams(ctx, login)
-	if err != nil {
-		slog.Warn("User's GitHub teams unavailable for budget options", "error", err)
+	// Names only label the list, so they load alongside the roster: two cold
+	// 12 s queries in a row would pass the BFF's 15 s deadline.
+	names := make(chan []GitHubTeam, 1)
+	go func() {
+		all, err := h.teams.GetGitHubTeams(ctx)
+		if err != nil {
+			slog.Warn("GitHub team names unavailable for budget options", "error", err)
+		}
+		names <- all
+	}()
+	mine, known := h.myTeams(ctx, login)
+	if !known {
 		return teams, false
 	}
-	// The roster decides membership; the org list (cached separately) only
-	// supplies display names, falling back to the slug.
-	all, err := h.teams.GetGitHubTeams(ctx)
-	if err != nil {
-		slog.Warn("GitHub team names unavailable for budget options", "error", err)
-	}
+	all := <-names
 	for _, slug := range mine {
 		name := slug
 		if i := slices.IndexFunc(all, func(t GitHubTeam) bool { return t.Slug == slug }); i >= 0 {
@@ -309,11 +313,29 @@ func (h *budgetRaiseHandlers) budgetTeams(ctx context.Context, login string) (te
 	return teams, true
 }
 
-// validTeam reports whether slug is selectable now; known is false when
-// membership could not be read (then only «annet» is valid).
+// myTeams reads the caller's roster teams; known is false when membership
+// could not be read.
+func (h *budgetRaiseHandlers) myTeams(ctx context.Context, login string) (mine []string, known bool) {
+	if h.teams == nil {
+		return nil, false
+	}
+	mine, err := h.teams.GetRosterTeams(ctx, login)
+	if err != nil {
+		slog.Warn("User's GitHub teams unavailable for budget options", "error", err)
+		return nil, false
+	}
+	return mine, true
+}
+
+// validTeam reports whether slug is selectable now, from the roster alone
+// (display names are not needed to validate); known is false when membership
+// could not be read (then only «annet» is valid).
 func (h *budgetRaiseHandlers) validTeam(ctx context.Context, login, slug string) (valid, known bool) {
-	teams, known := h.budgetTeams(ctx, login)
-	return slices.ContainsFunc(teams, func(t GitHubTeam) bool { return t.Slug == slug }), known
+	if slug == budgetTeamOther {
+		return true, true
+	}
+	mine, known := h.myTeams(ctx, login)
+	return slices.Contains(mine, slug), known
 }
 
 func (h *budgetRaiseHandlers) isValidTeam(ctx context.Context, login, slug string) bool {
@@ -387,13 +409,24 @@ func (h *budgetRaiseHandlers) handlePutProfile(w http.ResponseWriter, r *http.Re
 	if !decodeStrict(w, r, &in) {
 		return
 	}
-	if !h.isValidTeam(r.Context(), login, in.TeamID) || !slices.Contains(budgetRoles, in.Role) {
-		respondError(w, "invalid_request", "Unknown team or role", http.StatusBadRequest)
-		return
-	}
 	pool, err := h.store.get(r.Context())
 	if err != nil {
 		dbUnavailable(w, err)
+		return
+	}
+	valid, known := h.validTeam(r.Context(), login, in.TeamID)
+	if !valid && !known {
+		// Membership unavailable: keeping the saved team unchanged is allowed,
+		// so a role-only save works during an outage.
+		saved, err := readProfile(r.Context(), pool, login)
+		if err != nil {
+			dbUnavailable(w, err)
+			return
+		}
+		valid = saved.Exists && saved.TeamID == in.TeamID
+	}
+	if !valid || !slices.Contains(budgetRoles, in.Role) {
+		respondError(w, "invalid_request", "Unknown team or role", http.StatusBadRequest)
 		return
 	}
 	if _, err = pool.Exec(r.Context(), `INSERT INTO budget_profiles (github_login, team_id, role) VALUES ($1, $2, $3)

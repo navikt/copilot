@@ -60,6 +60,13 @@ describe("BudgetRaisePage", () => {
     expect(screen.queryByText("Påfyll denne måneden")).not.toBeInTheDocument();
   });
 
+  it("keeps the saved team selectable when the team list is down", async () => {
+    mockApi(defaultBudget, undefined, { teamId: "team-b", role: "utvikler", exists: true });
+    render(<BudgetRaisePage />);
+    expect(await screen.findByRole("option", { name: "team-b (lagret)" })).toBeInTheDocument();
+    expect(screen.getByLabelText(/^Team/, { selector: "#profil-team" })).toHaveValue("team-b");
+  });
+
   it("lists the errors and sends nothing when required fields are empty", async () => {
     const fetchMock = mockApi(defaultBudget);
     render(<BudgetRaisePage />);

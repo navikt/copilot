@@ -319,7 +319,8 @@ function RaiseSection({
   const [category, setCategory] = useState("");
   // Only a team the user picked here; otherwise the backend uses the profile team, also after a profile change.
   const [teamOverride, setTeamOverride] = useState("");
-  const teamId = teamOverride || profile?.teamId || "";
+  const savedTeam = options.teams.some((t) => t.id === profile?.teamId) ? profile?.teamId : "";
+  const teamId = teamOverride || savedTeam || "";
   const [expectedValue, setExpectedValue] = useState("");
   const [freeText, setFreeText] = useState("");
   const [errors, setErrors] = useState<FieldErrors>({});
@@ -548,8 +549,9 @@ function ProfileSection({
         Profil
       </Heading>
       <BodyShort>
-        Vi bruker svarene bare samlet, til å forstå hvordan Copilot brukes og styre budsjettet – ikke til å vurdere deg
-        eller teamet ditt. Du må lagre profilen før første påfyll.
+        Vi bruker svarene samlet, til å forstå hvordan Copilot brukes og styre budsjettet – ikke til å vurdere deg eller
+        teamet ditt. Bare du og administratorer i team copilot ser svarene dine. Tekniske ledere vil bare se tall for
+        grupper på minst fem personer. Du må lagre profilen før første påfyll.
       </BodyShort>
       {profile?.leftTeamId && (
         <Message status="announcement" title="Du er ikke lenger med i teamet du lagret">
@@ -583,6 +585,10 @@ function ProfileSection({
               error={errors["profil-team"]}
             >
               <option value="">Velg team</option>
+              {/* The team list is down: keep the saved team so a role-only save works. */}
+              {profile?.exists && profile.teamId && !options.teams.some((t) => t.id === profile.teamId) && (
+                <option value={profile.teamId}>{profile.teamId} (lagret)</option>
+              )}
               {options.teams.map((t) => (
                 <option key={t.id} value={t.id}>
                   {t.name}
