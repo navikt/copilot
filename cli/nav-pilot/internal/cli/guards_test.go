@@ -67,3 +67,30 @@ func TestGuardsShowsLegacyOverride(t *testing.T) {
 		t.Errorf("no override: %q", got)
 	}
 }
+
+func TestGuardsOverrideVisibleAt80Columns(t *testing.T) {
+	isolatedConfig(t)
+	off := false
+	r := resolve(&Config{HookLoopGuard: &off, HookRedactSecrets: &off, HookRedactFNR: &off, HookInjectionNote: &off}, CLIOverrides{})
+	entries := buildConfigPageEntries(&Config{}, r)
+	m := configPageModel{rows: buildPageRows(entries, ""), styles: defaultPageStyles(), width: 80, height: 40}
+	for m.cursor = 0; m.cursor < len(selectable(m.rows, "")); m.cursor++ {
+		if m.selectedRow().key == "guards" {
+			break
+		}
+	}
+	view := m.View()
+	if !strings.Contains(view, "true (4 off)") {
+		t.Errorf("marker missing:\n%s", view)
+	}
+	flat := strings.Join(strings.Fields(view), " ")
+	for _, k := range []string{"hook_loop_guard", "hook_redact_secrets", "hook_redact_fnr", "hook_injection_note", "nav-pilot config unset <key>"} {
+		if !strings.Contains(flat, k) {
+			t.Errorf("detail missing %s:\n%s", k, view)
+		}
+	}
+	if strings.Contains(view, "…") {
+		t.Errorf("detail truncated:\n%s", view)
+	}
+	t.Log(view)
+}

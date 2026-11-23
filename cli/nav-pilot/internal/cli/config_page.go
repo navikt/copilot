@@ -136,12 +136,18 @@ func buildConfigPageEntries(cfg *Config, r ResolvedConfig) []configPageEntry {
 		if kd == nil {
 			continue
 		}
-		entries = append(entries, configPageEntry{
+		e := configPageEntry{
 			Key:         key,
-			Value:       configKeyValue(r, key) + guardsOverrides(r, key),
+			Value:       configKeyValue(r, key),
 			Source:      configKeyOrigin(cfg, key),
 			Description: kd.description,
-		})
+		}
+		// The row is one line; the description area has room for the overrides.
+		if n, detail := guardsOverridesShort(r, key); n > 0 {
+			e.Value += fmt.Sprintf(" (%d %s)", n, map[bool]string{true: "on", false: "off"}[!r.Guards])
+			e.Description = detail
+		}
+		entries = append(entries, e)
 	}
 	return entries
 }
@@ -430,15 +436,7 @@ func guardsOverrides(r ResolvedConfig, key string) string {
 	}
 	state := map[bool]string{true: "on", false: "off"}
 	var diffs []string
-	for _, g := range []struct {
-		label, key string
-		on         bool
-	}{
-		{"loop guard", "hook_loop_guard", r.HookLoopGuard},
-		{"secret masking", "hook_redact_secrets", r.HookRedactSecrets},
-		{"fødselsnummer masking", "hook_redact_fnr", r.HookRedactFNR},
-		{"injection note", "hook_injection_note", r.HookInjectionNote},
-	} {
+	for _, g := range guardStates(r) {
 		if g.on != r.Guards {
 			diffs = append(diffs, fmt.Sprintf("%s %s (%s = %t; remove it with: nav-pilot config unset %s)", g.label, state[g.on], g.key, g.on, g.key))
 		}
@@ -447,4 +445,38 @@ func guardsOverrides(r ResolvedConfig, key string) string {
 		return ""
 	}
 	return ", except: " + strings.Join(diffs, ", ")
+}
+
+type guardState struct {
+	label, key string
+	on         bool
+}
+
+func guardStates(r ResolvedConfig) []guardState {
+	return []guardState{
+		{"loop guard", "hook_loop_guard", r.HookLoopGuard},
+		{"secret masking", "hook_redact_secrets", r.HookRedactSecrets},
+		{"fødselsnummer masking", "hook_redact_fnr", r.HookRedactFNR},
+		{"injection note", "hook_injection_note", r.HookInjectionNote},
+	}
+}
+
+// guardsOverridesShort is guardsOverrides sized for the settings page's
+// three-line description area: the count, and one sentence naming each key.
+func guardsOverridesShort(r ResolvedConfig, key string) (int, string) {
+	if key != "guards" {
+		return 0, ""
+	}
+	state := map[bool]string{true: "On", false: "Off"}
+	var diffs []string
+	for _, g := range guardStates(r) {
+		if g.on != r.Guards {
+			diffs = append(diffs, g.label+" ("+g.key+")")
+		}
+	}
+	if len(diffs) == 0 {
+		return 0, ""
+	}
+	// Every override is the opposite of guards, so one state covers them all.
+	return len(diffs), state[!r.Guards] + " by old keys: " + strings.Join(diffs, ", ") + ". Remove: nav-pilot config unset <key>"
 }
