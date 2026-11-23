@@ -137,6 +137,8 @@ jobs:
               # The seed tests read these files.
               - 'apps/fleet-gateway/pilot-routes.*.yaml'
               - 'apps/mcp-registry/allowlist.json'
+              - '.github/workflows/fleet-control.yaml'
+              - '.github/workflows/mise-build-deploy-nais.yaml'
               - '.github/workflows/ci.yaml'
             fleet-gateway:
               - 'apps/fleet-gateway/**'
