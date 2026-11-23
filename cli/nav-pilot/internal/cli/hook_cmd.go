@@ -300,6 +300,8 @@ func builtinHookCommand(h builtinHook, r ResolvedConfig) string {
 // A write that fails is reported and the launch goes on: a missing hook costs
 // a warning, not the session.
 func syncBuiltinHooks(r ResolvedConfig) {
+	// Before the client branch: the old keys reach OpenCode launches too.
+	nudgeGuardsKey(r)
 	if r.Client == "opencode" {
 		// The OpenCode bridge spools to a directory of its own, and the
 		// launch hands the hooks over itself (openCodeHookBridge).
@@ -349,7 +351,6 @@ func syncBuiltinHooks(r ResolvedConfig) {
 		}
 	}
 	announceBuiltinHooks(dir, added)
-	nudgeGuardsKey(r)
 }
 
 // nudgeGuardsKey says once, when a config still sets one of the old hook_*

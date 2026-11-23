@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -42,5 +43,14 @@ func TestGuardsNudgeOnce(t *testing.T) {
 	}
 	if out := captureStderrFor(t, func() { nudgeGuardsKey(r) }); out != "" {
 		t.Errorf("second nudge: %q", out)
+	}
+
+	// OpenCode launches return early in syncBuiltinHooks; the nudge must still come.
+	oc := resolve(&Config{HookLoopGuard: &off}, CLIOverrides{})
+	oc.Client = "opencode"
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("NAV_PILOT_CONFIG", filepath.Join(t.TempDir(), "config.toml"))
+	if out := captureStderrFor(t, func() { syncBuiltinHooks(oc) }); !strings.Contains(out, "guards") {
+		t.Errorf("OpenCode launch: nudge missing: %q", out)
 	}
 }

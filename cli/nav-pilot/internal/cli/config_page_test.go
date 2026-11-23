@@ -164,7 +164,7 @@ func TestConfigPageCoversAllKeys(t *testing.T) {
 	for _, kd := range configKeyDefs {
 		if kd.internal || kd.legacy {
 			if page[kd.name] {
-				t.Errorf("internal key %q must not be listed on the settings page", kd.name)
+				t.Errorf("internal or replaced key %q must not be listed on the settings page", kd.name)
 			}
 			continue
 		}

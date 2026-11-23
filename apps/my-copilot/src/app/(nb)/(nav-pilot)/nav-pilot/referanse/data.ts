@@ -156,7 +156,7 @@ export const CONFIG_KEYS = [
     key: "guards",
     flag: "—",
     values: "true · false (standard: true)",
-    desc: "nav-pilots vakter i alle Copilot CLI-sesjoner: sier fra når modellen gjentar samme verktøykall, masker hemmeligheter og fødselsnumre i verktøyresultater og merker tekst som ser ut som instrukser til modellen. false skrur av alle. De gamle hook_*-nøklene virker fortsatt og vinner når de er satt.",
+    desc: "nav-pilots vakter i alle Copilot CLI-sesjoner: sier fra når modellen gjentar samme verktøykall, maskerer hemmeligheter og fødselsnumre i verktøyresultater og merker tekst som ser ut som instrukser til modellen. false skrur av alle. De gamle hook_*-nøklene virker fortsatt og vinner når de er satt.",
   },
   {
     key: "hook_action_check",
