@@ -26,7 +26,7 @@ Teams register and change servers themselves. The owning team of a server is its
 2. Another member of the same team reads it with `GET /admin/v1/servers/{namespace}/{name}` and approves it with `POST .../approve` and `{"version": N, "content_hash": "..."}`. The submitter cannot approve, and a hash that does not match the pending draft is refused. Approval publishes the version, and the next snapshot carries it.
 3. To stop, one member is enough: `POST .../revoke` with `{"reason": "..."}`, or `POST .../rollback` back to the previously published version. Add `"block": true` to a revoke when the version must never return (for example leaked credentials); rollback skips blocked versions and versions that were never approved. Rollback keeps a revoked server revoked. A revoked route stays in the routes snapshot as disabled, so fleet-gateway answers 503 on it. Approve and rollback return 409 when the routes snapshot would pass 960 KiB, under fleet-gateway's 1 MiB limit.
 
-Every request needs a person's Entra token that my-copilot obtained on their behalf (OBO), with `azp` equal to `MY_COPILOT_CLIENT_ID` and a `NAVident`. App tokens are refused. Input is validated like the seed: names, target, upstream URL, tools and the registry entry. Every change writes a row to `audit_events` with the actor and the state before and after, in the same transaction as the change. Writes to one server lock its row, so concurrent approvals publish once.
+Every request needs a person's Entra token that my-copilot obtained on their behalf (OBO), with `azp` equal to `MY_COPILOT_CLIENT_ID`, a `NAVident` and a `preferred_username` (used for team membership). App tokens and guest accounts are refused: `idtyp` must be absent or `user`, and `acct` must be 0 when present; without `acct` the token needs `tid` equal to `AZURE_APP_TENANT_ID` and no `#EXT#` in `preferred_username`. Input is validated like the seed: names, target, upstream URL, tools and the registry entry. Every change writes a row to `audit_events` with the actor and the state before and after, in the same transaction as the change. Writes to one server lock its row, so concurrent approvals publish once.
 
 | Answer | Meaning |
 | --- | --- |
@@ -52,6 +52,17 @@ An agent profile says which caller app may use which tools on which gateway rout
 - Every change writes an audit event.
 
 The write routes (`POST /admin/v1/agents`, `.../{namespace}/{name}/approvals`, `.../revoke`) follow the Write API rules above: a person's token from the admin client, teams from `FLEET_CONTROL_STATIC_TEAMS`, dev-* clusters only. `SEED_AGENTS_FILE` imports drafts on startup in dev only (`seed/agents.dev.json`, the Aksel Studio draft). Its `entra_client_id` is the dev client id of `studio-api`. With no identity verifier yet, the profile stays unverified and out of the snapshot. The app refuses `SEED_AGENTS_FILE` outside dev-* clusters.
+
+## Read API for my-copilot
+
+The self-service pages in my-copilot read these routes (#2736). They take the same person's token as the write routes and show only what the caller's teams own:
+
+- `GET /admin/v1/me`: the caller's NAVident and teams.
+- `GET /admin/v1/servers` and `GET /admin/v1/agents`, optionally `?namespace=`: servers and live agent profiles owned by the caller's teams. Another team's namespace gives an empty list.
+- `GET /admin/v1/servers/{namespace}/{name}/audit` and `GET /admin/v1/agents/{namespace}/{name}/audit`: the newest 500 audit events, for members of the owning team. Anyone else gets 404 whether or not the name exists.
+- `GET /admin/v1/agents/pending-approval`: drafts with a granted route that the caller's teams own and have not approved yet.
+
+A failed team lookup gives 503, never an unfiltered answer.
 
 ## Job API for fleet-runtime
 
@@ -86,7 +97,7 @@ Not built yet: the public ingress fleet-runtime will reach this through (#2686),
 | `NAIS_TOKEN_INTROSPECTION_ENDPOINT` | Texas, set by Nais |
 | `SEED_ROUTES_FILE`, `SEED_ALLOWLIST_FILE` | first-run import |
 | `MY_COPILOT_CLIENT_ID` | my-copilot's Entra client id. Unset: no `/admin` routes |
-| `FLEET_CONTROL_STATIC_TEAMS` | JSON of team to NAVidents, until the Nais teams API is wired in. Unset: nobody can write |
+| `FLEET_CONTROL_STATIC_TEAMS` | JSON of team to member emails, matched trimmed and case-insensitively against the token's `preferred_username`, until the Nais teams API is wired in. Read from the `fleet-control-static-teams` secret in dev-gcp; refused outside dev-*. Unset: nobody can write |
 | `FLEET_RUNTIME_CLIENT_IDS` | fleet-runtime's Entra client ids, comma-separated. Unset: no `/runtime` routes |
 | `FLEET_RUNTIME_LEASE_TTL` | Lease TTL, 10s to 10m. Default 60s |
 | `FLEET_RUNTIME_SWEEP_INTERVAL` | Lease sweep interval, 1s to 5m. Default 15s |

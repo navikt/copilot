@@ -1,6 +1,6 @@
 # Dev only for now (#2334). No ingress: the API is reachable in-cluster only,
-# and accessPolicy.inbound admits only the two consumers. Each request also
-# needs the caller's Entra app token, checked against the client ids below.
+# and accessPolicy.inbound admits only its callers. Each request also
+# needs the caller's Entra token, checked against the client ids below.
 apiVersion: nais.io/v1alpha1
 kind: Application
 metadata:
@@ -30,9 +30,18 @@ spec:
     application:
       enabled: true
       tenant: nav.no
+      # Any Nav employee may get an OBO token; fleet-control's team check
+      # decides access.
+      allowAllUsers: true
   uses:
     postgres:
       - name: fleet-control
+  {{#if static_teams_secret}}
+  # Key FLEET_CONTROL_STATIC_TEAMS: JSON of team to member emails, created by
+  # a human. Dev only: the app refuses the list outside dev-* clusters.
+  envFrom:
+    - secret: {{static_teams_secret}}
+  {{/if}}
   env:
     - name: PORT
       value: "8080"
@@ -48,10 +57,15 @@ spec:
       value: "{{fleet_gateway_client_id}}"
     - name: MCP_REGISTRY_CLIENT_ID
       value: "{{mcp_registry_client_id}}"
+    # Mounts the /admin routes for my-copilot's OBO tokens; ignored outside dev-*.
+    - name: MY_COPILOT_CLIENT_ID
+      value: "{{my_copilot_client_id}}"
   accessPolicy:
     inbound:
       rules:
         - application: fleet-gateway
           namespace: copilot
         - application: mcp-registry
+          namespace: copilot
+        - application: my-copilot
           namespace: copilot

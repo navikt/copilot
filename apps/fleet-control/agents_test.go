@@ -54,6 +54,7 @@ func newAgentEnv(t *testing.T) *agentEnv {
 	if err != nil {
 		t.Fatal(err)
 	}
+	a.homeTenant = testTenant
 	s := newServer()
 	s.verifier = fakeVerifier{}
 	s.store.Store(&storeBox{db})
@@ -323,6 +324,7 @@ func TestAgentWriteRoutesNeedAdminClient(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	a.homeTenant = testTenant
 	ts := httptest.NewServer(newServer().routes(a, "", staticTeams{"aksel-studio": {"A111111"}}, nil))
 	defer ts.Close()
 	resp, err := http.Post(ts.URL+"/admin/v1/agents", "application/json", strings.NewReader("{}"))

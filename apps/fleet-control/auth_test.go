@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -37,9 +38,27 @@ func fakeTexas(t *testing.T) *httptest.Server {
 		case "user-token":
 			_, _ = w.Write([]byte(`{"active":true,"azp":"` + gatewayID + `","NAVident":"Z999999"}`))
 		default:
-			// "user:<azp>:<NAVident>" is a person's token obtained by <azp>.
-			if parts := strings.Split(in.Token, ":"); len(parts) == 3 && parts[0] == "user" {
-				_ = json.NewEncoder(w).Encode(map[string]any{"active": true, "azp": parts[1], "NAVident": parts[2]})
+			// "claims:<json>" returns exactly those claims, marked active.
+			if raw, ok := strings.CutPrefix(in.Token, "claims:"); ok {
+				claims := map[string]any{}
+				_ = json.Unmarshal([]byte(raw), &claims)
+				claims["active"] = true
+				_ = json.NewEncoder(w).Encode(claims)
+				return
+			}
+			// "user:<azp>:<NAVident>[:<preferred_username>]" is a person's token
+			// obtained by <azp>. Without a fourth part preferred_username is the
+			// NAVident, so test team lists can key on it; an empty fourth part
+			// leaves the claim out.
+			if parts := strings.Split(in.Token, ":"); (len(parts) == 3 || len(parts) == 4) && parts[0] == "user" {
+				claims := map[string]any{"active": true, "azp": parts[1], "NAVident": parts[2], "preferred_username": parts[2], "tid": testTenant}
+				if len(parts) == 4 {
+					claims["preferred_username"] = parts[3]
+					if parts[3] == "" {
+						delete(claims, "preferred_username")
+					}
+				}
+				_ = json.NewEncoder(w).Encode(claims)
 				return
 			}
 			_ = json.NewEncoder(w).Encode(map[string]any{"active": true, "idtyp": "app", "azp": in.Token})
@@ -55,6 +74,7 @@ func testAuthz(t *testing.T) *authz {
 	if err != nil {
 		t.Fatal(err)
 	}
+	a.homeTenant = testTenant
 	return a
 }
 
@@ -136,5 +156,40 @@ func TestNewAuthzFailsClosed(t *testing.T) {
 		if _, err := newAuthz(args[0], args[1], args[2]); err == nil {
 			t.Errorf("%s: want error", name)
 		}
+	}
+}
+
+const testTenant = "62366534-1ec3-4962-8869-9b5535279d0b"
+
+// Person routes take member accounts of the home tenant only. A claim that is
+// missing or unexpected is refused like a guest.
+func TestUserRefusesGuests(t *testing.T) {
+	a := testAuthz(t)
+	tok := func(extra string) string {
+		return `claims:{"azp":"` + adminID + `","NAVident":"A111111","preferred_username":"kari.nordmann@example.com"` + extra + `}`
+	}
+	cases := map[string]struct {
+		tok string
+		ok  bool
+	}{
+		"member, acct 0":        {tok(`,"acct":0,"tid":"` + testTenant + `"`), true},
+		"member, no acct":       {tok(`,"tid":"` + testTenant + `"`), true},
+		"member, idtyp user":    {tok(`,"idtyp":"user","tid":"` + testTenant + `"`), true},
+		"guest, acct 1":         {tok(`,"acct":1,"tid":"` + testTenant + `"`), false},
+		"acct unexpected":       {tok(`,"acct":2,"tid":"` + testTenant + `"`), false},
+		"no acct, no tid":       {tok(``), false},
+		"no acct, other tenant": {tok(`,"tid":"00000000-0000-4000-8000-000000000001"`), false},
+		"idtyp unexpected":      {tok(`,"idtyp":"device","tid":"` + testTenant + `"`), false},
+		"no acct, #EXT# upn":    {`claims:{"azp":"` + adminID + `","NAVident":"A111111","tid":"` + testTenant + `","preferred_username":"kari_example.com#ext#@nav.onmicrosoft.com"}`, false},
+	}
+	for name, c := range cases {
+		_, _, err := a.user(context.Background(), "Bearer "+c.tok, adminID)
+		if (err == nil) != c.ok {
+			t.Errorf("%s: err %v, want ok=%v", name, err, c.ok)
+		}
+	}
+	a.homeTenant = ""
+	if _, _, err := a.user(context.Background(), "Bearer "+tok(`,"tid":"`+testTenant+`"`), adminID); err == nil {
+		t.Error("no home tenant configured: want refusal")
 	}
 }

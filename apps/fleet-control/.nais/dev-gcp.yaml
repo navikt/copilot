@@ -9,6 +9,9 @@ memory_limit: 128Mi
 # `kubectl -n copilot get azureapp <app> -o jsonpath='{.status.clientId}'`.
 fleet_gateway_client_id: 3c9d6972-9c61-4a8c-9450-2274dd721345
 mcp_registry_client_id: 92693693-8566-4ce5-b778-a4d58e5b24f7
+my_copilot_client_id: 1c401702-0190-41fa-9c19-faeae7b8fa5c
 # Agent profile drafts to seed (#2582). Never set in prod. The studio-api
 # client id in the file is a placeholder: the profile stays unverified.
 seed_agents_file: /app/seed/agents.dev.json
+# Secret holding FLEET_CONTROL_STATIC_TEAMS. Never set in prod.
+static_teams_secret: fleet-control-static-teams

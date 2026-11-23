@@ -123,12 +123,15 @@ func TestAdminGuardsFailClosed(t *testing.T) {
 }
 
 func TestTeamsFromEnv(t *testing.T) {
-	t.Setenv("FLEET_CONTROL_STATIC_TEAMS", `{"team-a":["A111111"],"team-b":["A111111"]}`)
+	// Emails are compared trimmed and case-insensitively.
+	t.Setenv("FLEET_CONTROL_STATIC_TEAMS", `{"team-a":[" Kari.Nordmann@Example.com "],"team-b":["kari.nordmann@example.com"]}`)
 	if d, err := teamsFromEnv("dev-gcp"); err != nil {
 		t.Fatal(err)
-	} else if ok, _ := d.IsMember(context.Background(), "team-a", "A111111"); !ok {
+	} else if ok, _ := d.IsMember(context.Background(), "team-a", "KARI.nordmann@example.COM"); !ok {
 		t.Error("want member")
-	} else if list, _ := d.Teams(context.Background(), "A111111"); strings.Join(list, ",") != "team-a,team-b" {
+	} else if ok, _ := d.IsMember(context.Background(), "team-a", ""); ok {
+		t.Error("empty email must not be a member")
+	} else if list, _ := d.Teams(context.Background(), "kari.nordmann@example.com"); strings.Join(list, ",") != "team-a,team-b" {
 		t.Errorf("teams: %v", list)
 	}
 	// The static list must never run outside dev, and an unknown cluster is not dev.
@@ -150,7 +153,16 @@ func TestTeamsFromEnv(t *testing.T) {
 	if adminClientFor("dev-gcp", adminID) != adminID {
 		t.Error("dev-gcp must mount the write routes")
 	}
-	for _, bad := range []string{`{"Team":["A111111"]}`, `{"team-a":["x"]}`, `[]`} {
+	// A mixed-case preferred_username in the token resolves to its teams.
+	_, list, err = resolvePerson(context.Background(), testAuthz(t), "Bearer "+userTok("A111111")+":Kari.Nordmann@Example.com", adminID, staticTeams{"team-a": {"kari.nordmann@example.com"}})
+	if err != nil || strings.Join(list, ",") != "team-a" {
+		t.Errorf("resolvePerson by email: %v %v", list, err)
+	}
+	// No preferred_username: refused, not resolved to an empty team list.
+	if _, _, err = resolvePerson(context.Background(), testAuthz(t), "Bearer "+userTok("A111111")+":", adminID, testTeams); !errors.Is(err, errUnauthorized) {
+		t.Errorf("resolvePerson without preferred_username: %v", err)
+	}
+	for _, bad := range []string{`{"Team":["a@example.com"]}`, `{"team-a":["x"]}`, `{"team-a":["@example.com"]}`, `[]`} {
 		t.Setenv("FLEET_CONTROL_STATIC_TEAMS", bad)
 		if _, err := teamsFromEnv("dev-gcp"); err == nil {
 			t.Errorf("%s: want error", bad)

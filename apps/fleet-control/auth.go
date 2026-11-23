@@ -29,12 +29,18 @@ type authz struct {
 	introspectURL string
 	client        *http.Client
 	callers       map[string]string // azp -> caller
+	homeTenant    string            // Entra tenant id; person tokens from any other tid are refused
 }
 
 func newAuthzFromEnv() (*authz, error) {
 	endpoint := os.Getenv("NAIS_TOKEN_INTROSPECTION_ENDPOINT")
 	gw, reg := strings.TrimSpace(os.Getenv("FLEET_GATEWAY_CLIENT_ID")), strings.TrimSpace(os.Getenv("MCP_REGISTRY_CLIENT_ID"))
-	return newAuthz(endpoint, gw, reg)
+	a, err := newAuthz(endpoint, gw, reg)
+	if a != nil {
+		// Set by Nais when azure.application is enabled. Empty: every person token is refused.
+		a.homeTenant = strings.TrimSpace(os.Getenv("AZURE_APP_TENANT_ID"))
+	}
+	return a, err
 }
 
 func newAuthz(endpoint, gatewayID, registryID string) (*authz, error) {
@@ -103,21 +109,44 @@ type tokenClaims struct {
 	Idtyp    string `json:"idtyp"`
 	Azp      string `json:"azp"`
 	NAVident string `json:"NAVident"`
+	Email    string `json:"preferred_username"`
+	Tid      string `json:"tid"`
+	// acct is an optional Entra claim: 0 member, 1 guest. Nais does not
+	// document it, so it may be absent.
+	Acct *json.Number `json:"acct"`
+}
+
+// guest reports whether claims may belong to a guest account; anything
+// missing or unexpected counts as a guest. acct decides when present.
+// Otherwise the token must come from the home tenant and preferred_username
+// must not be a B2B guest UPN (#EXT#).
+func (c *tokenClaims) guest(homeTenant string) bool {
+	if c.Acct != nil {
+		return c.Acct.String() != "0"
+	}
+	return homeTenant == "" || c.Tid != homeTenant || strings.Contains(strings.ToUpper(c.Email), "#EXT#")
 }
 
 var navIdentRegex = regexp.MustCompile(`^[A-Z][0-9]{6}$`)
 
-// user returns the NAVident of a valid user token that adminClientID obtained
+// user returns the NAVident and normalised preferred_username of a valid user token that adminClientID obtained
 // on behalf of a person (OBO). App tokens and other clients are rejected.
-func (a *authz) user(ctx context.Context, header, adminClientID string) (string, error) {
+func (a *authz) user(ctx context.Context, header, adminClientID string) (ident, email string, err error) {
 	claims, err := a.introspect(ctx, header)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
-	if claims.Idtyp == "app" || adminClientID == "" || claims.Azp != adminClientID || !navIdentRegex.MatchString(claims.NAVident) {
-		return "", errUnauthorized
+	// Person routes: idtyp absent or "user", and no guest accounts.
+	if (claims.Idtyp != "" && claims.Idtyp != "user") || claims.guest(a.homeTenant) || adminClientID == "" || claims.Azp != adminClientID || !navIdentRegex.MatchString(claims.NAVident) {
+		return "", "", errUnauthorized
 	}
-	return claims.NAVident, nil
+	// Team membership is keyed on preferred_username; without it there is
+	// nothing to look up, so refuse.
+	email = normEmail(claims.Email)
+	if email == "" {
+		return "", "", errUnauthorized
+	}
+	return claims.NAVident, email, nil
 }
 
 // introspect validates the bearer token with Texas and returns its claims
