@@ -615,6 +615,7 @@ func resolve(file *Config, cli CLIOverrides) ResolvedConfig {
 		OtelLogLevel:      "none",
 		LocalDispatch:     "aggressive",
 		CopilotAuthMode:   "auto",
+		Guards:            true,
 		HookLoopGuard:     true,
 		HookRedactSecrets: true,
 		HookRedactFNR:     true,
@@ -696,18 +697,15 @@ func resolve(file *Config, cli CLIOverrides) ResolvedConfig {
 		if file.CopilotAuthMode != nil {
 			r.CopilotAuthMode = *file.CopilotAuthMode
 		}
-		if file.HookLoopGuard != nil {
-			r.HookLoopGuard = *file.HookLoopGuard
+		if file.Guards != nil {
+			r.Guards = *file.Guards
 		}
-		if file.HookRedactSecrets != nil {
-			r.HookRedactSecrets = *file.HookRedactSecrets
-		}
-		if file.HookRedactFNR != nil {
-			r.HookRedactFNR = *file.HookRedactFNR
-		}
-		if file.HookInjectionNote != nil {
-			r.HookInjectionNote = *file.HookInjectionNote
-		}
+		r.HookLoopGuard = guardSetting(file.HookLoopGuard, r.Guards)
+		r.HookRedactSecrets = guardSetting(file.HookRedactSecrets, r.Guards)
+		r.HookRedactFNR = guardSetting(file.HookRedactFNR, r.Guards)
+		r.HookInjectionNote = guardSetting(file.HookInjectionNote, r.Guards)
+		r.LegacyGuardKeys = file.HookLoopGuard != nil || file.HookRedactSecrets != nil ||
+			file.HookRedactFNR != nil || file.HookInjectionNote != nil
 		if file.HookActionCheck != nil && containsStr(validHookActionCheck, *file.HookActionCheck) {
 			r.HookActionCheck = *file.HookActionCheck
 		}
@@ -774,4 +772,13 @@ func resolve(file *Config, cli CLIOverrides) ResolvedConfig {
 	r.CpltFlags = append(r.CpltFlags, cli.CpltArgs...)
 	r.Session = cli.Session
 	return r
+}
+
+// guardSetting is one guard's setting: an old hook_* key that is set wins,
+// so an existing setup does not change; otherwise the guards switch decides.
+func guardSetting(old *bool, guards bool) bool {
+	if old != nil {
+		return *old
+	}
+	return guards
 }
