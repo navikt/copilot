@@ -5,7 +5,7 @@ Checks an MCP server that sits behind `fleet-gateway` against MCP 2026-07-28 and
 | Check | Expected |
 |---|---|
 | `server/discover` runs first; if it does not answer 200 the tool stops | |
-| No token, invalid token | 401. No token: WARN if `WWW-Authenticate: Bearer` is missing or carries an `error` code (RFC 6750 3.1). Invalid token: WARN without `error="invalid_token"`. Never FAIL |
+| No token, invalid token | 401. No token: WARN if `WWW-Authenticate: Bearer` is missing or carries an `error` code (RFC 6750 3.1). Invalid token: WARN without `error="invalid_token"`. A missing or wrong challenge header only warns; any status other than 401 is FAIL |
 | App token (`idtyp=app`), if `MCP_COMPLIANCE_APP_TOKEN` is set | 403 |
 | `server/discover` | 200, `supportedVersions` holds `2026-07-28`, `capabilities`, `ttlMs`, `cacheScope`, `resultType: complete`, `_meta` server info |
 | Missing `MCP-Protocol-Version`, or `Mcp-Method`, `Mcp-Name` or `_meta` protocol version that does not match the body | 400, `-32020` |
