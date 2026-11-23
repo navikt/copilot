@@ -158,6 +158,30 @@ const raiseCalls = (m: ReturnType<typeof mockApi>) =>
   m.mock.calls.filter(([u]) => u === "/api/budget/raises") as unknown as [string, RequestInit][];
 
 describe("BudgetRaisePage review fixes", () => {
+  it.each([429, 502])("keeps the key and «Prøv igjen» when a retry gets %i", async (status) => {
+    let n = 0;
+    const m = vi.fn(async (url: string) => {
+      const json = (st: number, body: object) => new Response(JSON.stringify(body), { status: st });
+      if (url === "/api/budget") return json(200, defaultBudget);
+      if (url === "/api/budget/options") return json(200, options);
+      if (url === "/api/budget/profile") return json(200, { teamId: "annet", role: "utvikler", exists: true });
+      n++;
+      if (n === 2) return json(status, { error: status === 429 ? "rate_limited" : "github_error" });
+      return json(200, { raise: { status: "pending" } });
+    });
+    vi.stubGlobal("fetch", m);
+    render(<BudgetRaisePage />);
+    await fillAndSubmit();
+    fireEvent.click(await screen.findByRole("button", { name: "Prøv igjen" }));
+    const raises = () => m.mock.calls.filter(([u]) => u === "/api/budget/raises") as unknown as [string, RequestInit][];
+    await waitFor(() => expect(raises()).toHaveLength(2));
+    fireEvent.click(await screen.findByRole("button", { name: "Prøv igjen" }));
+    await waitFor(() => expect(raises()).toHaveLength(3));
+    const key = (c: [string, RequestInit]) => (c[1].headers as Record<string, string>)["Idempotency-Key"];
+    expect(key(raises()[2])).toBe(key(raises()[0]));
+    expect(screen.queryByRole("button", { name: "Fyll på 150 USD" })).not.toBeInTheDocument();
+  });
+
   it("shows the form again with a fresh key once the pending raise resolves", async () => {
     let n = 0;
     const m = vi.fn(async (url: string) => {

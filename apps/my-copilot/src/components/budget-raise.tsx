@@ -427,11 +427,11 @@ function RaiseSection({
       key.current = crypto.randomUUID();
       lastBody.current = JSON.stringify({ category, teamId: teamOverride || undefined, expectedValue, freeText });
     }
-    await send();
+    await send(false);
   }
 
   // Re-sends the unresolved raise with its key; copilot-api reconciles it, even at the ceiling.
-  async function send() {
+  async function send(retry: boolean) {
     if (!key.current) return;
     setBusy(true);
     try {
@@ -456,8 +456,9 @@ function RaiseSection({
         onRefused(code);
         // GitHub may have applied it: show the backend's real budget and raises.
         if (code === "github_error") onRaised();
-        // A definite answer ends this raise; a network or server failure keeps the key for the retry.
-        if (res.status < 500) key.current = null;
+        // Only a new raise refused outright ends here. A retry stays unresolved until the raise body says
+        // applied or failed: a 429 or 5xx comes before the replay, so the original raise is still open.
+        if (!retry && res.status < 500 && res.status !== 429) key.current = null;
       }
     } catch {
       setResult({ error: "failed" });
@@ -498,7 +499,7 @@ function RaiseSection({
 
       {unresolved && (
         <div>
-          <Button type="button" variant="secondary" onClick={send} loading={busy}>
+          <Button type="button" variant="secondary" onClick={() => send(true)} loading={busy}>
             Prøv igjen
           </Button>
         </div>
