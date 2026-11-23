@@ -8,6 +8,7 @@ import type { TeamGrossOverview, TeamNetOverview, TeamSpend } from "@/lib/types"
 import { useTeamControls } from "./team-controls";
 import TeamUsageValue from "./team-usage-value";
 import { formatDate, formatUSD } from "@/lib/format";
+import { ScrollRegion } from "@/components/scroll-region";
 
 type Team = TeamSpend;
 
@@ -209,7 +210,7 @@ export default function TeamGrossUsage({
     });
 
   const table = (teams: Team[], label: string) => (
-    <div className="overflow-x-auto">
+    <ScrollRegion label={label}>
       <Table
         size="small"
         aria-label={label}
@@ -282,7 +283,7 @@ export default function TeamGrossUsage({
         </TableHeader>
         <TableBody>{rows(teams)}</TableBody>
       </Table>
-    </div>
+    </ScrollRegion>
   );
 
   return (

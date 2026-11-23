@@ -113,7 +113,7 @@ export function EditorPanels({ editors }: { editors: EditorUsage[] }) {
           ))}
         </ul>
       </div>
-      <NumbersFold summary="Vis alle rader, med navn slik GitHub oppgir dem">
+      <NumbersFold summary="Vis alle rader, med navn slik GitHub oppgir dem" label="Tabell: bruk per editor">
         <EditorUsageTable editors={editors} />
       </NumbersFold>
     </VStack>

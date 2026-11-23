@@ -6,6 +6,7 @@ import { CodeBlock } from "@/components/code-block";
 import { LinkableHeading } from "@/components/linkable-heading";
 import { Bullets, DocPage, HeaderRow, code, linkClass } from "@/components/nav-pilot/doc-page";
 import type { TocItem } from "@/components/table-of-contents";
+import { ScrollRegion } from "@/components/scroll-region";
 
 export const metadata: Metadata = {
   title: "Sandkassen",
@@ -349,7 +350,7 @@ nav-pilot --client copilot`}</CodeBlock>
             Kildegjennomgangen 13. november 2026 brukte cplt-revisjon{" "}
             <code className={code}>22656614c9224d82d2baade3b599f561239052f9</code>.
           </BodyLong>
-          <div className="overflow-x-auto">
+          <ScrollRegion label="Tabell: hva som er verifisert i Copilot-sandkassen">
             <Table size="small" className="table-stack" role="table">
               <HeaderRow stack cells={["Evidens", "Hva den viser"]} />
               <TableBody role="rowgroup">
@@ -398,7 +399,7 @@ nav-pilot --client copilot`}</CodeBlock>
                 </TableRow>
               </TableBody>
             </Table>
-          </div>
+          </ScrollRegion>
           <BodyLong>
             Linux-testene er lest, ikke kjørt. Verifikasjonen skjedde på macOS uten et isolert Linux-testmiljø. Det er
             ikke kjørt bwrap på maskinen, brukt privilegerte containere eller endret kjerneinnstillinger.

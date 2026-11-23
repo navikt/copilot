@@ -5,8 +5,9 @@ import Markdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { ArrowLeftIcon } from "@navikt/aksel-icons";
 import { formatDate } from "@/lib/format";
+import { ScrollRegion } from "@/components/scroll-region";
 
-const markdownComponents: Components = {
+const markdownComponents = (lang: NewsLang): Components => ({
   // No article has used an image before this one, so react-markdown's bare <img>
   // was never styled: it would render at its intrinsic width and overflow a phone.
   // A figure in an article is data, so the alt text has to carry what the picture
@@ -33,15 +34,15 @@ const markdownComponents: Components = {
   li: ({ children }) => <li>{children}</li>,
   pre: ({ children }) => <pre>{children}</pre>,
   table: ({ children }) => (
-    <div className="overflow-x-auto">
+    <ScrollRegion label={lang === "en" ? "Table in the article" : "Tabell i artikkelen"}>
       <table>{children}</table>
-    </div>
+    </ScrollRegion>
   ),
   code: ({ children, className }) => {
     const isBlock = className?.startsWith("language-");
     return isBlock ? <code className={className}>{children}</code> : <code>{children}</code>;
   },
-};
+});
 
 export interface ArticleLabels {
   backToIndex: string;
@@ -93,7 +94,7 @@ export function ArticleView({
             </VStack>
 
             <article className="prose max-w-none">
-              <Markdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+              <Markdown remarkPlugins={[remarkGfm]} components={markdownComponents(lang)}>
                 {article.content}
               </Markdown>
             </article>

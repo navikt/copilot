@@ -15,6 +15,7 @@ import {
 import { nText, unsureLabel } from "./[id]/likert";
 import { fill, Legend, LikertBar, pct } from "./likert-bar";
 import { PrintHeader } from "./print-header";
+import { ScrollRegion } from "@/components/scroll-region";
 
 // Oldest wave gray, newest blue: identity also in the text label on every row.
 const WAVE_FILLS = [
@@ -260,7 +261,13 @@ function Statement({
         ))
       )}
       <Excluded waves={waves} counts={counts} />
-      <Numbers waves={waves} counts={counts} label={(v) => labels[Number(v) - min] ?? v} unsure={q.unsure} />
+      <Numbers
+        title={text}
+        waves={waves}
+        counts={counts}
+        label={(v) => labels[Number(v) - min] ?? v}
+        unsure={q.unsure}
+      />
     </VStack>
   );
 }
@@ -342,18 +349,20 @@ function Options({ waves, q }: { waves: WaveMeta[]; q: CompareQuestion }) {
         })}
       </div>
       <Excluded waves={waves} counts={counts} />
-      <Numbers waves={waves} counts={counts} label={(v) => v} />
+      <Numbers title={q.text} waves={waves} counts={counts} label={(v) => v} />
     </VStack>
   );
 }
 
 /** The accessible view: every count and share per wave and version. */
 function Numbers({
+  title,
   waves,
   counts,
   label,
   unsure,
 }: {
+  title: string;
   waves: WaveMeta[];
   counts: WaveCounts[];
   label: (v: string) => string;
@@ -369,7 +378,7 @@ function Numbers({
   return (
     <details>
       <summary className="cursor-pointer text-sm">Vis tall</summary>
-      <div className="overflow-x-auto">
+      <ScrollRegion label={`Tabell: svar per runde – «${title}»`}>
         <Table size="small">
           <TableHeader>
             <TableRow>
@@ -407,7 +416,7 @@ function Numbers({
             ) : null}
           </TableBody>
         </Table>
-      </div>
+      </ScrollRegion>
     </details>
   );
 }
@@ -415,7 +424,7 @@ function Numbers({
 function Waves({ waves, waveHref }: { waves: WaveMeta[]; waveHref: (id: string) => string }) {
   const channels = waves.some((w) => w.channels);
   return (
-    <div className="overflow-x-auto">
+    <ScrollRegion label="Tabell: rundene som sammenlignes">
       <Table size="small">
         <caption className="text-left">
           <BodyShort size="small">Rundene som sammenlignes</BodyShort>
@@ -452,7 +461,7 @@ function Waves({ waves, waveHref }: { waves: WaveMeta[]; waveHref: (id: string) 
           ))}
         </TableBody>
       </Table>
-    </div>
+    </ScrollRegion>
   );
 }
 

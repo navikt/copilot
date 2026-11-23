@@ -130,6 +130,7 @@ export default function RankedBars({
         height={Math.max(96, items.length * (twoLines ? 44 : 32) + 16)}
         tableLabel={shown ? `Vis alle ${rows.length - 1} rader, diagrammet viser de ${shown} øverste` : undefined}
         table={rows}
+        tableRegionLabel={`Tabell: tallene bak «${title}»`}
         chart={
           <Bar
             data={{
