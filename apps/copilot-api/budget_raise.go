@@ -291,15 +291,18 @@ func (h *budgetRaiseHandlers) budgetTeams(ctx context.Context, login string) (te
 		slog.Warn("User's GitHub teams unavailable for budget options", "error", err)
 		return teams, false
 	}
+	// The roster decides membership; the org list (cached separately) only
+	// supplies display names, falling back to the slug.
 	all, err := h.teams.GetGitHubTeams(ctx)
 	if err != nil {
-		slog.Warn("GitHub team list unavailable for budget options", "error", err)
-		return teams, false
+		slog.Warn("GitHub team names unavailable for budget options", "error", err)
 	}
-	for _, t := range all {
-		if slices.Contains(mine, t.Slug) {
-			teams = append(teams, t)
+	for _, slug := range mine {
+		name := slug
+		if i := slices.IndexFunc(all, func(t GitHubTeam) bool { return t.Slug == slug }); i >= 0 {
+			name = all[i].Name
 		}
+		teams = append(teams, GitHubTeam{Slug: slug, Name: name})
 	}
 	return teams, true
 }
@@ -486,6 +489,14 @@ func (h *budgetRaiseHandlers) handleRaise(w http.ResponseWriter, r *http.Request
 	var in raiseInput
 	if !decodeStrict(w, r, &in) {
 		return
+	}
+	// Replay a known key before any membership check, so a retry after a lost
+	// response returns the first raise even if the team has changed since.
+	if pool, err := h.store.get(r.Context()); err == nil {
+		if prev, err := scanRaise(pool.QueryRow(r.Context(), "SELECT "+raiseColumns+" FROM budget_raises WHERE github_login = $1 AND idempotency_key = $2", login, key)); err == nil {
+			respondJSON(w, map[string]any{"raise": prev, "replayed": true}, http.StatusOK)
+			return
+		}
 	}
 	if !slices.Contains(budgetCategories, in.Category) || !slices.Contains(budgetExpectedValues, in.ExpectedValue) ||
 		(in.TeamID != "" && !h.isValidTeam(r.Context(), login, in.TeamID)) || (in.FreeText != nil && !validFreeText(*in.FreeText)) {
