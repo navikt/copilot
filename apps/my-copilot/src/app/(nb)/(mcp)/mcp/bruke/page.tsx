@@ -172,44 +172,45 @@ export default function NavMcpServerePage() {
         </LinkableHeading>
         <BodyLong>
           <strong>Kort fortalt:</strong> Hver MCP-server du kobler til, tar plass i konteksten til modellen i hver tur.
-          Slå på bare serverne og verktøyene du trenger i oppgaven.
+          Slå bare på serverne og verktøyene du trenger i oppgaven.
         </BodyLong>
         <BodyLong>
-          MCP er en åpen protokoll som lar KI-assistenten kalle verktøy og hente data fra systemer som Dolly og
-          Teamkatalogen. Agenten slår opp selv, så du slipper å lime inn svar. Det er nyttig når oppgaven trenger data
-          du ikke har for hånden.
+          MCP er en åpen protokoll som lar agenten kalle verktøy og hente data fra systemer som Dolly og Teamkatalogen.
+          Agenten slår opp selv, så du slipper å lime inn svar. Det er nyttig når oppgaven trenger data du ikke har for
+          hånden.
         </BodyLong>
         <LinkableHeading id="hvorfor-spare" size="small" level="3">
           Hvorfor spare på MCP-servere
         </LinkableHeading>
         <BodyLong>
-          Modellen har et begrenset kontekstvindu. Alt agenten skal vurdere i én tur må få plass der: instruksjonene,
+          Modellen har et begrenset kontekstvindu. Alt agenten skal vurdere i én tur, må få plass der: instruksjonene,
           samtalen så langt, filene den har lest og beskrivelsene av alle verktøyene den kan kalle.
         </BodyLong>
         <BodyLong>
-          Verktøyene en server tilbyr, og som klienten gir til modellen, har beskrivelser som legges i konteksten. Det
-          skjer i hver samtale, også når agenten ikke bruker dem. Mange servere gir mindre plass til koden og oppgaven
-          din. Alt som sendes til modellen er tokens, så jo mer som ligger i konteksten, desto mer må modellen behandle
-          i hver tur. Hvor mye det blir, avhenger av hvilke verktøy klienten faktisk gir til modellen. Med nav-pilot
-          velger du enkeltverktøy når du slår på en server, og Copilot CLI har{" "}
-          <code className={code}>--available-tools</code>. Verktøy du har filtrert bort, tar ikke plass. Gjennom
-          fleet-gateway kan agenten bare kalle verktøyene som er godkjent for hver server. Vi planlegger også ett felles
-          endepunkt der agenten søker etter verktøy ved behov i stedet for å få alle beskrivelsene på forhånd (
+          Klienten legger beskrivelsen av hvert verktøy den gir til modellen, i konteksten. Det skjer i hver samtale,
+          også når agenten ikke bruker verktøyene. Mange servere gir mindre plass til koden og oppgaven din. Alt som
+          sendes til modellen, er tokens, så jo mer som ligger i konteksten, desto mer må modellen behandle i hver tur.
+        </BodyLong>
+        <BodyLong>
+          Hvor mye det blir, avhenger av hvilke verktøy klienten gir til modellen. Med nav-pilot velger du enkeltverktøy
+          når du slår på en server, og Copilot CLI har <code className={code}>--available-tools</code>. Verktøy du har
+          filtrert bort, tar ikke plass. Gjennom fleet-gateway kan agenten bare kalle verktøyene som er godkjent for
+          hver server. Det stopper kall, men fjerner ikke beskrivelsene fra konteksten. Vi planlegger også ett felles
+          endpoint der agenten søker etter verktøy ved behov i stedet for å få alle beskrivelsene på forhånd (
           <a href="https://github.com/navikt/copilot/issues/2581" className={linkClass}>
             #2581
           </a>
           ).
         </BodyLong>
         <BodyLong>
-          Microsoft Research profilerte Claude Code på 60 oppgaver fra SWE-Bench. Agenten fikk 23 verktøybeskrivelser i
-          hver tur, og 16 av dem ble aldri brukt (
           <a
             href="https://www.microsoft.com/en-us/research/blog/tokeneconomizer-learning-from-experience-to-make-ai-coding-agents-more-efficient/"
             className={linkClass}
           >
-            kilde
-          </a>
-          ). Tallet gjelder ikke Navs servere. Vi har ikke målt dem.
+            Microsoft Research
+          </a>{" "}
+          profilerte Claude Code på 60 oppgaver fra SWE-Bench. Agenten fikk 23 verktøybeskrivelser i hver tur, og 16 av
+          verktøyene ble aldri kalt. Tallene gjelder ikke Navs servere. Vi har ikke målt dem.
         </BodyLong>
         <BodyLong>
           Færre servere gir også mindre å holde styr på. Hver server du logger inn på, får tilgang på dine vegne, og
