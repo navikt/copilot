@@ -28,6 +28,8 @@ jobs:
     needs: db-test
     permissions:
       contents: read
+      # Read ci.yaml runs: deploy waits for a green ci-ok on this commit.
+      actions: read
       id-token: write
       # Read public npm packages (@nais/apm) from GitHub Packages.
       packages: read

@@ -20,6 +20,8 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
+  # Read ci.yaml runs: deploy waits for a green ci-ok on this commit.
+  actions: read
   contents: read
   id-token: write
   # Read public npm packages (@nais/apm) from GitHub Packages.

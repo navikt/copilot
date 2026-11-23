@@ -34,6 +34,8 @@ jobs:
     if: ${{ !cancelled() && needs.db-test.result == 'success' }}
     permissions:
       contents: read
+      # Read ci.yaml runs: deploy waits for a green ci-ok on this commit.
+      actions: read
       id-token: write
       packages: read
     uses: ./.github/workflows/mise-build-deploy-nais.yaml
