@@ -685,7 +685,7 @@
     }
   },
   "/min-side/budsjett": {
-    "sources": ["apps/my-copilot/src/app/(nb)/min-side/budsjett/page.tsx"],
+    "sources": ["apps/my-copilot/src/app/(nb)/min-side/budsjett/page.tsx", "cli/nav-pilot/internal/cli/budget.go"],
     "anchors": {}
   },
   "/modeller": {
