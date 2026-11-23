@@ -158,6 +158,35 @@ const raiseCalls = (m: ReturnType<typeof mockApi>) =>
   m.mock.calls.filter(([u]) => u === "/api/budget/raises") as unknown as [string, RequestInit][];
 
 describe("BudgetRaisePage review fixes", () => {
+  it("shows the form again with a fresh key once the pending raise resolves", async () => {
+    let n = 0;
+    const m = vi.fn(async (url: string) => {
+      const json = (status: number, body: object) => new Response(JSON.stringify(body), { status });
+      if (url === "/api/budget") return json(200, defaultBudget);
+      if (url === "/api/budget/options") return json(200, options);
+      if (url === "/api/budget/profile") return json(200, { teamId: "annet", role: "utvikler", exists: true });
+      n++;
+      return json(200, {
+        raise: { status: n === 1 ? "pending" : "applied" },
+        replayed: n === 2,
+        budgetUsd: 300,
+        raisesLeft: 3,
+      });
+    });
+    vi.stubGlobal("fetch", m);
+    render(<BudgetRaisePage />);
+    await fillAndSubmit();
+    fireEvent.click(await screen.findByRole("button", { name: "Prøv igjen" }));
+    expect(await screen.findByRole("button", { name: "Fyll på 150 USD" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Prøv igjen" })).not.toBeInTheDocument();
+    await fillAndSubmit();
+    const raises = () => m.mock.calls.filter(([u]) => u === "/api/budget/raises") as unknown as [string, RequestInit][];
+    await waitFor(() => expect(raises()).toHaveLength(3));
+    const key = (c: [string, RequestInit]) => (c[1].headers as Record<string, string>)["Idempotency-Key"];
+    expect(key(raises()[1])).toBe(key(raises()[0]));
+    expect(key(raises()[2])).not.toBe(key(raises()[0]));
+  });
+
   it("offers a same-key retry after github_error on the last raise, even when the reload hides the form", async () => {
     const row = (id: string, status: string) => ({
       id,
@@ -225,7 +254,9 @@ describe("BudgetRaisePage review fixes", () => {
       screen.getByText(/vet ikke ennå om endringen gikk gjennom[^]*uten å laste inn siden på nytt/)
     ).toBeInTheDocument();
     expect(screen.queryByText(/allerede registrert|Du har fått påfyll/)).not.toBeInTheDocument();
-    await fillAndSubmit();
+    // Raises are left, but the form is hidden until this raise resolves.
+    expect(screen.queryByRole("button", { name: "Fyll på 150 USD" })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Prøv igjen" }));
     await waitFor(() => expect(raiseCalls(m)).toHaveLength(2));
     const key = (c: [string, RequestInit]) => (c[1].headers as Record<string, string>)["Idempotency-Key"];
     expect(key(raiseCalls(m)[1])).toBe(key(raiseCalls(m)[0]));

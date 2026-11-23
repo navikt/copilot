@@ -393,6 +393,8 @@ function RaiseSection({
   }, [result]);
 
   const ownBudget = budget ? hasOwnBudget(budget) : null;
+  // A kept key means an unresolved raise: only «Prøv igjen» may send, so new input never replays the old body.
+  const unresolved = Boolean(key.current && result);
   const left = raisesLeft(budget, options);
 
   const heading = (
@@ -494,15 +496,15 @@ function RaiseSection({
         )}
       </div>
 
-      {key.current && result && !busy && (
+      {unresolved && (
         <div>
-          <Button type="button" variant="secondary" onClick={send}>
+          <Button type="button" variant="secondary" onClick={send} loading={busy}>
             Prøv igjen
           </Button>
         </div>
       )}
 
-      {left !== 0 && (
+      {left !== 0 && !unresolved && (
         <form onSubmit={submit} noValidate>
           <VStack gap="space-20" className="max-w-xl">
             <Errors errors={errors} refEl={summaryRef} />
