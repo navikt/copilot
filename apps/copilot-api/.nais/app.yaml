@@ -60,7 +60,8 @@ spec:
     - name: "VIDEO_BUCKET_PUBLIC"
       value: "{{video_bucket_public}}"
     # off | dry_run | on. The write app's BUDGET_GITHUB_APP_* keys live in
-    # the copilot-api secret; without them raises answer 503.
+    # the copilot-api secret; without them raises answer 503 in on mode,
+    # while dry_run computes from the database alone.
     - name: "BUDGET_WRITES"
       value: "{{budget_writes}}"
     - name: "BUDGET_RAISES_OPEN"

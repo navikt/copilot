@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"hash/fnv"
 	"io"
 	"io/fs"
 	"log/slog"
@@ -175,7 +176,7 @@ type budgetRaiseHandlers struct {
 	testUsers  map[string]bool
 	now        func() time.Time
 	limiter    *loginLimiter
-	userLocks  sync.Map // login -> *sync.Mutex: one raise at a time per user on this replica
+	userLocks  [64]sync.Mutex // striped by login (userLock): one raise at a time per user on this replica, bounded memory
 	afterList    func() // test hook: runs between the GitHub list and the reservation
 	midReserve   func() // test hook: runs inside reserve, after budget_github is read
 	midReconcile func() // test hook: runs inside reconcileUser's tx, after the version check
@@ -662,9 +663,9 @@ func (h *budgetRaiseHandlers) raise(w http.ResponseWriter, r *http.Request, acto
 		return
 	}
 
-	mu, _ := h.userLocks.LoadOrStore(target, &sync.Mutex{})
-	mu.(*sync.Mutex).Lock()
-	defer mu.(*sync.Mutex).Unlock()
+	mu := h.userLock(target)
+	mu.Lock()
+	defer mu.Unlock()
 
 	now := h.now().In(h.loc)
 	month := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, h.loc)
@@ -1275,10 +1276,19 @@ func (h *budgetRaiseHandlers) reconcileStuck(ctx context.Context) (int, error) {
 	return settled, nil
 }
 
+// userLock returns the stripe for login. Two logins may share a stripe and
+// then wait on each other briefly; the Postgres advisory lock serialises
+// across replicas anyway.
+func (h *budgetRaiseHandlers) userLock(login string) *sync.Mutex {
+	f := fnv.New32a()
+	f.Write([]byte(login))
+	return &h.userLocks[f.Sum32()%uint32(len(h.userLocks))]
+}
+
 func (h *budgetRaiseHandlers) reconcileUser(ctx context.Context, pool *pgxpool.Pool, login string) (int, error) {
-	mu, _ := h.userLocks.LoadOrStore(login, &sync.Mutex{})
-	mu.(*sync.Mutex).Lock()
-	defer mu.(*sync.Mutex).Unlock()
+	mu := h.userLock(login)
+	mu.Lock()
+	defer mu.Unlock()
 
 	var fp int64
 	if err := pool.QueryRow(ctx, raiseFingerprintSQL, login).Scan(&fp); err != nil {
