@@ -279,10 +279,11 @@ jobs:
 
   ci-ok:
     name: Wait for ci-ok
-    # Outside pull requests, reuse the merge queue's result instead of
-    # rerunning lint/check: wait for a ci.yaml run on this exact SHA whose
-    # ci-ok job succeeded. No green ci-ok, no image and no deploy.
-    if: ${{ github.event_name != 'pull_request' }}
+    # On push to main, reuse the merge queue's result instead of rerunning
+    # lint/check: wait for a ci.yaml run on this exact SHA whose ci-ok job
+    # succeeded. No green ci-ok, no image and no deploy. Skipped on
+    # workflow_dispatch so manual dev deploys from branches keep working.
+    if: ${{ github.event_name == 'push' }}
     permissions:
       actions: read
     runs-on: ubuntu-latest
@@ -376,9 +377,9 @@ jobs:
 
   docker:
     name: Build Docker Image
-    # !cancelled() plus explicit results: outside pull requests ci-ok must
-    # have succeeded; on PRs lint must have succeeded when check-on-pr.
-    if: ${{ !cancelled() && needs.meta.result == 'success' && needs.build.result == 'success' && (github.event_name == 'pull_request' || needs.ci-ok.result == 'success') && (needs.lint.result == 'success' || (needs.lint.result == 'skipped' && !(github.event_name == 'pull_request' && inputs.check-on-pr))) && inputs.builds-docker && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository) }}
+    # !cancelled() plus explicit results: on push ci-ok must have succeeded
+    # (skipped on PRs and workflow_dispatch); on PRs lint must have succeeded when check-on-pr.
+    if: ${{ !cancelled() && needs.meta.result == 'success' && needs.build.result == 'success' && (github.event_name != 'push' || needs.ci-ok.result == 'success') && (needs.lint.result == 'success' || (needs.lint.result == 'skipped' && !(github.event_name == 'pull_request' && inputs.check-on-pr))) && inputs.builds-docker && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository) }}
     permissions:
       contents: read
       packages: read
