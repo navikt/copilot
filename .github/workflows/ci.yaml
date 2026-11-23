@@ -153,6 +153,7 @@ jobs:
               - '.github/workflows/ci.yaml'
             mcp-dolly:
               - 'apps/mcp-dolly/**'
+              - 'lib/mcpkit/**'
               - '.github/workflows/mcp-dolly.yaml'
               - '.github/workflows/mise-build-deploy-nais.yaml'
               - '.github/workflows/ci.yaml'
