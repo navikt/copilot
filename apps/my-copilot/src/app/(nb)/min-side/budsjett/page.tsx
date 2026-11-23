@@ -17,7 +17,7 @@ export default async function BudsjettPage() {
     <main id="hovedinnhold" tabIndex={-1}>
       <PageHero
         title="Budsjett og påfyll"
-        description="Ditt Copilot-budsjett denne måneden, og påfyll når du trenger mer."
+        description="Budsjettet ditt i Copilot denne måneden. Trenger du mer, fyller du på selv."
       />
       <div className="max-w-7xl mx-auto">
         <Box

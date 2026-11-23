@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { BudgetRaisePage } from "./budget-raise";
+import { BudgetRaisePage, BudgetSkeleton } from "./budget-raise";
 
 const options = {
   roles: ["utvikler", "annet"],
@@ -34,6 +34,23 @@ const defaultBudget = { budgetAmount: 150, consumedAmount: 120, isOverride: fals
 
 afterEach(() => vi.unstubAllGlobals());
 
+describe("BudgetSkeleton", () => {
+  it("announces loading and marks the page busy", () => {
+    const { container } = render(<BudgetSkeleton />);
+    expect(screen.getByRole("status")).toHaveTextContent("Laster budsjett");
+    expect(container.querySelector('[aria-busy="true"]')).toBeInTheDocument();
+  });
+
+  it("shows while the data loads", () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => new Promise(() => {}))
+    );
+    render(<BudgetRaisePage />);
+    expect(screen.getByRole("status")).toHaveTextContent("Laster budsjett");
+  });
+});
+
 describe("BudgetRaisePage", () => {
   it("shows the summary, consumption and how many raises are left", async () => {
     mockApi(defaultBudget);
@@ -49,7 +66,7 @@ describe("BudgetRaisePage", () => {
     render(<BudgetRaisePage />);
     expect(await screen.findByText("Igjen")).toBeInTheDocument();
     expect(screen.getByText("30 USD")).toBeInTheDocument();
-    expect(screen.getByText(/Vi fant deg ikke i teamet «team-gammel» lenger/)).toBeInTheDocument();
+    expect(screen.getByText(/Du er ikke lenger i teamet «team-gammel»/)).toBeInTheDocument();
   });
 
   it("hides the ceiling and raise count for an own budget", async () => {
@@ -126,7 +143,7 @@ describe("BudgetRaisePage «Kort fortalt»", () => {
     });
     render(<BudgetRaisePage />);
     await screen.findByRole("heading", { name: "Kort fortalt" });
-    expect(screen.queryByText(/Går du tom/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Trenger du mer, fyller/)).not.toBeInTheDocument();
     expect(screen.getAllByText(/Du har nådd taket/).length).toBeGreaterThan(0);
   });
 });
@@ -143,7 +160,7 @@ describe("BudgetRaisePage review fixes", () => {
   it("survives raises: null from copilot-api", async () => {
     mockApi({ ...defaultBudget, raises: null });
     render(<BudgetRaisePage />);
-    expect(await screen.findByText("Vi får ikke vist påfyllene dine akkurat nå.")).toBeInTheDocument();
+    expect(await screen.findByText("Vi får ikke vist påfyllene dine nå.")).toBeInTheDocument();
   });
 
   it("sends no team unless the user picked one, so the profile team stays the default", async () => {
