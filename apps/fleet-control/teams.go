@@ -25,8 +25,8 @@ func normEmail(s string) string {
 
 // staticTeams is a fixed team -> member email list, compared with normEmail.
 // Members live in a Nais secret, never in the repo (it is public).
-// shortcut: no lookup against the Nais teams API yet; replace with a client
-// for it before teams outside copilot use the write API (#2625).
+// It is the dev fallback when no Nais service account is bound; see
+// consoleTeams for the real lookup.
 type staticTeams map[string][]string
 
 func (s staticTeams) IsMember(_ context.Context, team, email string) (bool, error) {
@@ -55,8 +55,8 @@ func devCluster(cluster string) bool {
 }
 
 // adminClientFor returns the client id that mounts the write routes, or ""
-// outside dev. shortcut: write routes are dev-only until a Nais teams API
-// client replaces staticTeams (#2625).
+// outside dev. shortcut: write routes are dev-only until fleet-control
+// has a prod manifest and a service account bound there.
 func adminClientFor(cluster, clientID string) string {
 	if !devCluster(cluster) {
 		return ""
@@ -75,11 +75,19 @@ func resolvePerson(ctx context.Context, a *authz, header, adminClientID string, 
 	return ident, list, err
 }
 
-// teamsFromEnv reads FLEET_CONTROL_STATIC_TEAMS, a JSON object of team to
-// member emails, from the fleet-control-static-teams secret in dev. Unset
-// means no members, so every write is refused.
+// teamsFromEnv picks the team directory. With a Nais service account binding
+// (NAIS_SERVICE_ACCOUNT_TOKEN_PATH) it is the Nais Console API. Otherwise it
+// reads FLEET_CONTROL_STATIC_TEAMS, a JSON object of team to member emails,
+// from the fleet-control-static-teams secret, in dev only. Neither set means
+// no members, so every write is refused.
 func teamsFromEnv(cluster string) (teamDirectory, error) {
 	raw := os.Getenv("FLEET_CONTROL_STATIC_TEAMS")
+	if path := strings.TrimSpace(os.Getenv("NAIS_SERVICE_ACCOUNT_TOKEN_PATH")); path != "" {
+		if raw != "" && !devCluster(cluster) {
+			return nil, fmt.Errorf("FLEET_CONTROL_STATIC_TEAMS is for dev only, refused in cluster %q", cluster)
+		}
+		return newConsoleTeams(consoleTeamsURL, path), nil
+	}
 	t := staticTeams{}
 	if raw == "" {
 		return t, nil

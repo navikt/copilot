@@ -61,6 +61,11 @@ spec:
     - name: MY_COPILOT_CLIENT_ID
       value: "{{my_copilot_client_id}}"
   accessPolicy:
+    # Nais Console API for team membership (#2625), with the service account
+    # bound to this workload in Console.
+    outbound:
+      external:
+        - host: console.nav.cloud.nais.io
     inbound:
       rules:
         - application: fleet-gateway
