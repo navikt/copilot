@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
+	"strings"
 )
 
 // Snapshot is one published generation of a kind ("routes" or "registry").
@@ -50,7 +52,23 @@ func snapshotItems(kind string, servers []Server) (items []snapshotItem, revoked
 		}
 		if s.Status == "revoked" {
 			revoked[it.key] = true
-			continue
+			if kind != "routes" {
+				continue
+			}
+			// A revoked route stays as disabled, so the gateway answers 503
+			// instead of serving it. Dropping it could empty the snapshot or
+			// remove the gateway's primary resource, and both are rejected,
+			// which would keep the revoked route live (#2688).
+			r := *s.Route
+			r.Enabled = false
+			// One tool is enough for a disabled route and bounds the row, so
+			// revoked rows from before this change cannot push an existing
+			// snapshot past the gateway's size limit.
+			r.Tools = r.Tools[:min(len(r.Tools), 1)]
+			// The gateway never calls a disabled route's upstream, but still
+			// validates it; the target's app in its namespace passes and stays short.
+			r.UpstreamURL = "http://" + r.Target[strings.LastIndex(r.Target, ":")+1:] + "." + s.Namespace
+			it.body = routeItem{s.Namespace, s.Name, r}
 		}
 		items = append(items, it)
 	}
@@ -114,6 +132,28 @@ func buildSnapshot(kind string, servers []Server, prev *Snapshot) (*Snapshot, er
 		return nil, fmt.Errorf("%s snapshot would drop %d of %d entries (limit %d)", kind, removed, len(prevKeys), limit)
 	}
 	return &Snapshot{Kind: kind, Generation: prev.Generation + 1, ETag: etag, Items: raw}, nil
+}
+
+// maxRoutesSnapshotBytes keeps the routes snapshot under fleet-gateway's
+// 1 MiB read limit, with room for the envelope and for revokes, which add a
+// byte each when enabled turns false (#2687).
+var maxRoutesSnapshotBytes = 1<<20 - 64<<10
+
+// routesFit refuses servers whose routes snapshot fleet-gateway would reject.
+// Writes that can grow the snapshot call it before they commit, so the
+// published snapshot never reaches a size that stops all later updates.
+func routesFit(servers []Server) error {
+	snap, err := buildSnapshot("routes", servers, nil)
+	if errors.Is(err, errEmptySnapshot) {
+		return nil
+	}
+	if err != nil {
+		return refuse(http.StatusConflict, "routes snapshot would be invalid: %v", err)
+	}
+	if len(snap.Items) > maxRoutesSnapshotBytes {
+		return refuse(http.StatusConflict, "routes snapshot would be %d bytes, over the limit of %d", len(snap.Items), maxRoutesSnapshotBytes)
+	}
+	return nil
 }
 
 // snapshotKeys reads the keys back from a stored snapshot.
