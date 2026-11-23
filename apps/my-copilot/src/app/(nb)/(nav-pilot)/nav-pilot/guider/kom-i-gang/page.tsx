@@ -120,15 +120,21 @@ export default function KomIGang() {
             <code className={code}>gh auth login</code>, ikke et gammelt token i skallet.
           </BodyLong>
           <BodyLong>
-            Første gang spør nav-pilot ikke om noe. Den velger OpenCode hvis OpenCode er installert, innlogget og i en
-            versjon nav-pilot er testet med, og ellers GitHub Copilot CLI. Har du ingen av dem, spør nav-pilot om den
-            skal installere OpenCode. Automatisk oppdatering er slått på. Etterpå sjekker nav-pilot gh-innloggingen. Kan
-            den ikke bekrefte innloggingen, sier den at agenten kanskje ikke får pushet eller laget pull requests, og
-            viser til <code className={code}>nav-pilot doctor</code> for detaljer. Vil du velge selv, kjør{" "}
+            På en ny maskin spør nav-pilot ikke om innstillinger. Den velger OpenCode hvis OpenCode er installert,
+            innlogget og i en versjon nav-pilot er testet med, og ellers GitHub Copilot CLI. Har du ingen av dem, spør
+            nav-pilot om den skal installere OpenCode. Installerte du nav-pilot med installasjonsskriptet, er automatisk
+            oppdatering slått på. Med Homebrew eller apt oppdaterer du med pakkebehandleren. Har du brukt nav-pilot før,
+            får du de samme spørsmålene som før. Etterpå sjekker nav-pilot gh-innloggingen. Kan den ikke bekrefte
+            innloggingen, sier den at agenten kanskje ikke får pushet eller laget pull requests, og viser til{" "}
+            <code className={code}>nav-pilot doctor</code> for detaljer. Vil du velge selv, kjør{" "}
             <code className={code}>nav-pilot config setup</code>.
           </BodyLong>
           <BodyLong>
-            Agentpakka blir installert i hjemmekatalogen (<code className={code}>~/.copilot</code>), bare for deg. Har
+            Kjenner cplt igjen verktøyene i repoet, kommer spørsmålet om <code className={code}>.cplt.toml</code> nå, se{" "}
+            <a href="#forste-repo" className={linkClass}>
+              Første gang i et repo
+            </a>
+            . Agentpakka blir installert i hjemmekatalogen (<code className={code}>~/.copilot</code>), bare for deg. Har
             repoet en låsefil (<code className={code}>.nav-pilot/agentpakke.lock.json</code>), eller kjører du{" "}
             <code className={code}>nav-pilot install --repo</code>, havner den i repoet.{" "}
             <NextLink href="/nav-pilot/guider/installere-og-oppgradere#velg-installasjonssted" className={linkClass}>

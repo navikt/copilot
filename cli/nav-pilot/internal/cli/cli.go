@@ -224,9 +224,17 @@ func userScopeAccepts(itemType string) bool {
 }
 
 // autoUpdateNudge tells an existing user who never set auto_update, once per
-// machine, that new installs have it on and how to turn it on (#2781).
+// machine, that new installs have it on and how to turn it on (#2781). It
+// waits for a terminal, so hooks and CI do not use it up, and stays quiet for
+// someone who already said No to "Upgrade now?".
 func autoUpdateNudge(w io.Writer, cfg *Config) {
-	if cfg != nil && cfg.AutoUpdate == nil && providerpkg.FirstTime("auto-update-default") {
+	if cfg == nil || cfg.AutoUpdate != nil || !isInteractive() {
+		return
+	}
+	if _, err := os.Stat(updateDeclinedPath()); err == nil {
+		return
+	}
+	if providerpkg.FirstTime("auto-update-default") {
 		fmt.Fprintf(w, "%s nav-pilot can update itself. New installs have it on; to turn it on: %s\n",
 			yellow("ℹ"), bold("nav-pilot config set auto_update true"))
 	}
@@ -357,6 +365,8 @@ func run(args []string) error {
 	// Per run, not per process: a second run() in one process prints it again.
 	notedProposals = map[string]bool{}
 	armNudges, nudgesReady, wizardShown = false, nil, false
+	// Main checked before telemetry wrote anything; tests enter here.
+	startedFresh = startedFresh || noNavPilotState()
 	providerpkg.Verbose, artifacts.LaunchNotices = false, false
 
 	// --client=opencode reads as --client opencode. alpha keeps its own
@@ -1355,6 +1365,8 @@ func reexecSelf() error {
 }
 
 func Main(info BuildInfo) {
+	// Before telemetry writes its device id and spool.
+	startedFresh = noNavPilotState()
 	if len(os.Args) > 1 && os.Args[1] == "hook" {
 		runHookCommand(os.Args[2:], os.Stdin, os.Stdout)
 		return

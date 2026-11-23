@@ -28,7 +28,8 @@ func stubInstalled(t *testing.T, installed map[string]bool) *int {
 	openCodeLoggedIn = func() bool { return true }
 	asked := 0
 	askInstallOpenCode = func(string) (bool, error) { asked++; return false, nil }
-	t.Cleanup(func() { firstRunWrote = false })
+	startedFresh = noNavPilotState()
+	t.Cleanup(func() { firstRunWrote, startedFresh = false, false })
 	return &asked
 }
 
@@ -118,6 +119,8 @@ func TestExistingConfigUnchangedAndNudgedOnce(t *testing.T) {
 func TestNewInstallLockFileGivesRepoScope(t *testing.T) {
 	isolatedConfig(t)
 	forceInteractive(t)
+	firstRunWrote = true // the first run just wrote a new install's config
+	t.Cleanup(func() { firstRunWrote = false })
 	repo := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(repo, ".nav-pilot"), 0o755); err != nil {
 		t.Fatal(err)
@@ -153,16 +156,92 @@ func TestNewInstallOpenCodeNotReadyGivesCopilot(t *testing.T) {
 	}
 }
 
-// OpenCodeLoggedIn reads opencode's auth.json for a github-copilot entry.
-func TestOpenCodeLoggedInReadsAuthJSON(t *testing.T) {
-	data := t.TempDir()
-	t.Setenv("XDG_DATA_HOME", data)
-	if providerpkg.OpenCodeLoggedIn() {
-		t.Fatal("logged in without auth.json")
+// An existing user without config.toml (here: the client marker) keeps
+// today's path: the wizard, no silent client, auto_update or scope.
+func TestMarkerWithoutConfigIsNotANewInstall(t *testing.T) {
+	cfg := isolatedConfig(t)
+	forceInteractive(t)
+	if err := os.WriteFile(filepath.Join(filepath.Dir(cfg), "seen-client-recorded"), nil, 0o600); err != nil {
+		t.Fatal(err)
 	}
-	_ = os.MkdirAll(filepath.Join(data, "opencode"), 0o700)
-	_ = os.WriteFile(filepath.Join(data, "opencode", "auth.json"), []byte(`{"github-copilot":{"type":"oauth"}}`), 0o600)
-	if !providerpkg.OpenCodeLoggedIn() {
-		t.Error("auth.json with github-copilot not read as logged in")
+	stubInstalled(t, map[string]bool{"opencode": true, "copilot": true})
+	wizard := 0
+	orig := runConfigSetupFn
+	runConfigSetupFn = func(string) error { wizard++; return nil }
+	t.Cleanup(func() { runConfigSetupFn = orig })
+	if err := maybeRunFirstRunSetup(""); err != nil {
+		t.Fatal(err)
+	}
+	if wizard != 1 {
+		t.Errorf("wizard ran %d times, want 1", wizard)
+	}
+	if _, err := os.Stat(cfg); !os.IsNotExist(err) {
+		t.Error("config written without the wizard")
+	}
+	if freshInstall() {
+		t.Error("marker present but treated as a new install")
+	}
+}
+
+// A user-scope state file in ~/.copilot also means nav-pilot was here.
+func TestUserStateFileIsNotANewInstall(t *testing.T) {
+	isolatedConfig(t)
+	home, _ := os.UserHomeDir()
+	if !noNavPilotState() {
+		t.Fatal("empty test home counted as state")
+	}
+	_ = os.MkdirAll(filepath.Join(home, ".copilot"), 0o700)
+	if err := os.WriteFile(filepath.Join(home, ".copilot", ".nav-pilot-state.json"), []byte("{}"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if noNavPilotState() {
+		t.Error("user-scope state file ignored")
+	}
+}
+
+// OpenCodeLoggedIn asks opencode (a fake here): a github-copilot entry with a
+// connection is logged in; anything else, or a failing binary, is not.
+func TestOpenCodeLoggedInAsksOpenCode(t *testing.T) {
+	for name, tc := range map[string]struct {
+		script string
+		want   bool
+	}{
+		"logged in":     {`echo '[{"id":"github-copilot","connections":[{"type":"credential"}]}]'`, true},
+		"empty":         {`echo '[]'`, false},
+		"other only":    {`echo '[{"id":"openai","connections":[{}]}]'`, false},
+		"no connection": {`echo '[{"id":"github-copilot","connections":[]}]'`, false},
+		"garbage":       {`echo 'No authenticated integrations'`, false},
+		"fails":         {`exit 1`, false},
+	} {
+		t.Run(name, func(t *testing.T) {
+			bin := t.TempDir()
+			if err := os.WriteFile(filepath.Join(bin, "opencode"), []byte("#!/bin/sh\n"+tc.script+"\n"), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			t.Setenv("PATH", bin)
+			if got := providerpkg.OpenCodeLoggedIn(); got != tc.want {
+				t.Errorf("OpenCodeLoggedIn() = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
+// The nudge waits for a terminal and respects an earlier No to "Upgrade now?".
+func TestAutoUpdateNudgeQuietWhenNotInteractiveOrDeclined(t *testing.T) {
+	isolatedConfig(t)
+	var out bytes.Buffer
+	autoUpdateNudge(&out, &Config{}) // not interactive
+	forceInteractive(t)
+	if err := os.WriteFile(updateDeclinedPath(), nil, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	autoUpdateNudge(&out, &Config{})
+	if out.Len() != 0 {
+		t.Errorf("nudged anyway: %s", out.String())
+	}
+	_ = os.Remove(updateDeclinedPath())
+	autoUpdateNudge(&out, &Config{})
+	if !strings.Contains(out.String(), "auto_update true") {
+		t.Error("nudge not shown once the decline is gone; a non-interactive run used it up")
 	}
 }

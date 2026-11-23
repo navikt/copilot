@@ -85,8 +85,8 @@ func isolatedConfig(t *testing.T) string {
 	probe := ghAuthProbe
 	ghAuthProbe = func() (ghAuth, string) { return ghAuthUnknown, "stubbed in tests" }
 	t.Cleanup(func() { ghAuthProbe = probe })
-	firstRunWrote = false
-	t.Cleanup(func() { firstRunWrote = false })
+	firstRunWrote, startedFresh = false, false
+	t.Cleanup(func() { firstRunWrote, startedFresh = false, false })
 	return path
 }
 

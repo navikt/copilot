@@ -59,9 +59,11 @@ nav-pilot
 nav-pilot install nav-pilot
 ```
 
-Første gang du kjører `nav-pilot` på en ny maskin, stiller den ingen spørsmål. Den velger
+Første gang du kjører `nav-pilot` på en ny maskin, spør den ikke om innstillinger. Den velger
 opencode hvis opencode er installert, innlogget og i en testet versjon, ellers Copilot CLI.
-Automatisk oppdatering er på. Vil du velge selv, kjør `nav-pilot config setup`.
+Automatisk oppdatering er på hvis du installerte med installasjonsskriptet; med Homebrew eller
+apt oppdaterer du med pakkebehandleren. Spørsmålene om `.cplt.toml` og Nais-tilgang kommer som
+før. Vil du velge selv, kjør `nav-pilot config setup`.
 Har du ingen av klientene, tilbyr nav-pilot å installere opencode 2: med Homebrew
 (`brew install anomalyco/tap/opencode-v2`) hvis du har det, ellers med npm eller pnpm
 (`npm i -g @opencode/cli@2.1.4`). Sier du nei, bruker nav-pilot Copilot CLI og sier hvordan du

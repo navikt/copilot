@@ -223,10 +223,11 @@ nav-pilot upgrade && cplt update                                    # installert
             .
           </BodyLong>
           <BodyLong>
-            Nye installasjoner har <code className={code}>auto_update = true</code>. Har du brukt nav-pilot før, slår du
-            det på med <code className={code}>nav-pilot config set auto_update true</code>. Med det på oppgraderer
-            nav-pilot seg selv før andre kommandoer. Feiler det, får du en advarsel, kommandoen kjører på versjonen du
-            har, og neste forsøk kommer etter 24 timer. Slå det av med{" "}
+            Nye installasjoner har <code className={code}>auto_update = true</code>. Det virker bare når du installerte
+            med installasjonsskriptet. Med Homebrew eller apt oppdaterer du med pakkebehandleren. Har du brukt nav-pilot
+            før, slår du det på med <code className={code}>nav-pilot config set auto_update true</code>. Med det på
+            oppgraderer nav-pilot seg selv før andre kommandoer. Feiler det, får du en advarsel, kommandoen kjører på
+            versjonen du har, og neste forsøk kommer etter 24 timer. Slå det av med{" "}
             <code className={code}>nav-pilot config set auto_update false</code>.
           </BodyLong>
           <Box background="neutral-soft" padding="space-16" borderRadius="8">

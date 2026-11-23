@@ -2,6 +2,7 @@ package provider
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -795,25 +796,33 @@ func OpenCode2InstallHint() string {
 	return npm
 }
 
-// OpenCodeLoggedIn reports whether opencode has GitHub Copilot credentials in
-// its auth.json, the only provider a nav-pilot session allows.
+// OpenCodeLoggedIn reports whether opencode has a GitHub Copilot credential,
+// the only provider a nav-pilot session allows. It asks opencode itself
+// (`opencode auth list --standalone --format json`, opencode 2): the
+// credentials live in opencode's own database, which nav-pilot does not read.
+// Any error, timeout or output it does not recognise counts as not logged in.
 func OpenCodeLoggedIn() bool {
-	dir := os.Getenv("XDG_DATA_HOME")
-	if dir == "" || !filepath.IsAbs(dir) {
-		home, err := os.UserHomeDir()
-		if err != nil || home == "" {
-			return false
-		}
-		dir = filepath.Join(home, ".local", "share")
-	}
-	data, err := os.ReadFile(filepath.Join(dir, "opencode", "auth.json"))
+	path, err := exec.LookPath("opencode")
 	if err != nil {
 		return false
 	}
-	var auth map[string]json.RawMessage
-	if json.Unmarshal(data, &auth) != nil {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	out, err := exec.CommandContext(ctx, path, "auth", "list", "--standalone", "--format", "json").Output()
+	if err != nil {
 		return false
 	}
-	_, ok := auth["github-copilot"]
-	return ok
+	var entries []struct {
+		ID          string            `json:"id"`
+		Connections []json.RawMessage `json:"connections"`
+	}
+	if json.Unmarshal(out, &entries) != nil {
+		return false
+	}
+	for _, e := range entries {
+		if e.ID == "github-copilot" && len(e.Connections) > 0 {
+			return true
+		}
+	}
+	return false
 }

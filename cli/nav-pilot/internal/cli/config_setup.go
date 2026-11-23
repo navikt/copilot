@@ -584,7 +584,7 @@ func maybeRunFirstRunSetup(flagSource string) error {
 	if err := firstRunFn(flagSource); err != nil {
 		return err
 	}
-	firstRunWrote = true
+	firstRunWrote = startedFresh
 	return nil
 }
 
@@ -600,24 +600,57 @@ var (
 
 func openCodeReady() bool { return openCodeTested() && openCodeLoggedIn() }
 
-// firstRunFn is the first-run step, overridable in tests.
-var firstRunFn = firstRunDefaults
+// firstRunFn is the first-run step, overridable in tests. Only a machine
+// with no nav-pilot state at all takes the new-install defaults; anyone else
+// gets today's wizard.
+var firstRunFn = func(flagSource string) error {
+	if !startedFresh {
+		return runConfigSetupFn(flagSource)
+	}
+	return firstRunDefaults(flagSource)
+}
 
-// firstRunWrote is set once this process wrote the first config.toml: the
-// install that follows is a new install and takes the new-install defaults.
+// firstRunWrote is set once this process wrote a new install's first
+// config.toml: the install that follows takes the new-install defaults.
 var firstRunWrote bool
 
-// freshInstall reports whether this machine had no config.toml (nor the
-// client marker) before this run.
-// New installs get user scope and the whole agentpakke without being asked
-// (#2781); an existing user keeps the questions they know.
-func freshInstall() bool {
-	if firstRunWrote {
-		return true
+// startedFresh is noNavPilotState() as it was when run() began, before this
+// process wrote any marker or cache of its own.
+var startedFresh bool
+
+// noNavPilotState reports whether this machine has never had nav-pilot: no
+// config.toml, nothing in ~/.nav-pilot (or beside a relocated config), and no
+// user-scope state file in ~/.copilot (#2781). Any error counts as state.
+func noNavPilotState() bool {
+	home, err := os.UserHomeDir()
+	if err != nil || home == "" {
+		return false
 	}
-	_, err := os.Stat(configPath())
-	return errors.Is(err, os.ErrNotExist) && newInstall(nil)
+	exists := func(p string) bool {
+		_, err := os.Stat(p)
+		return !errors.Is(err, os.ErrNotExist)
+	}
+	if exists(configPath()) || exists(filepath.Join(home, ".copilot", ".nav-pilot-state.json")) {
+		return false
+	}
+	entries, err := os.ReadDir(filepath.Join(home, ".nav-pilot"))
+	if len(entries) > 0 || (err != nil && !errors.Is(err, os.ErrNotExist)) {
+		return false
+	}
+	// A relocated config may share its directory with other files, so look
+	// there only for nav-pilot's own markers and caches.
+	dir := filepath.Dir(configPath())
+	for _, pattern := range []string{"seen-*", "*-declined", "cache.json", "device-id", "telemetry-spool"} {
+		if m, _ := filepath.Glob(filepath.Join(dir, pattern)); len(m) > 0 {
+			return false
+		}
+	}
+	return true
 }
+
+// freshInstall reports whether this run is a new install: user scope and
+// the whole agentpakke without being asked (#2781).
+func freshInstall() bool { return firstRunWrote }
 
 // firstRunDefaults writes a new install's config without asking (#2781):
 // opencode when it is installed, else GitHub Copilot when that is, else the
@@ -648,8 +681,14 @@ func firstRunDefaults(flagSource string) error {
 			fmt.Fprintf(os.Stderr, "%s Could not seed Nav context for %s: %v\n", yellow("⚠"), p.DisplayName(), err)
 		}
 	}
-	fmt.Printf("%s nav-pilot uses %s, with auto-update on. Change it: %s\n",
-		green("✓"), clientLabel[client], bold("nav-pilot config setup"))
+	// A package-manager install never updates itself, so say so only when
+	// auto_update will act.
+	updates := ", with auto-update on"
+	if packageManager().Name != "" {
+		updates = ""
+	}
+	fmt.Printf("%s nav-pilot uses %s%s. Change it: %s\n",
+		green("✓"), clientLabel[client], updates, bold("nav-pilot config setup"))
 	st, _ := ghAuthProbe()
 	reportGHAuthBrief(os.Stdout, st, artifacts.FirstRun)
 	return nil

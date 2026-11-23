@@ -24,6 +24,8 @@ exec git init -q .
 mkdir .nav-pilot
 cp ../seed/.nav-pilot/agentpakke.lock.json .nav-pilot/agentpakke.lock.json
 ! exists $WORK/home/config.toml
+# The seed install left nav-pilot's markers in the home; a new user has none.
+exec /bin/sh -c '/bin/rm -rf "$HOME/.nav-pilot" "$HOME"/seen-* "$HOME"/*-declined "$HOME/cache.json" "$HOME/device-id" "$HOME/telemetry-spool"'
 
 exits 0 pty-run -wait 'Decline' -send '\r' -- nav-pilot
 
