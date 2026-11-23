@@ -158,6 +158,40 @@ const raiseCalls = (m: ReturnType<typeof mockApi>) =>
   m.mock.calls.filter(([u]) => u === "/api/budget/raises") as unknown as [string, RequestInit][];
 
 describe("BudgetRaisePage review fixes", () => {
+  it("offers a same-key retry after github_error on the last raise, even when the reload hides the form", async () => {
+    const row = (id: string, status: string) => ({
+      id,
+      createdAt: "2026-12-01T00:00:00Z",
+      amountUsd: 150,
+      category: "koding",
+      expectedValue: "spare_tid",
+      status,
+    });
+    const before = { ...defaultBudget, isOverride: true, raises: ["1", "2", "3"].map((id) => row(id, "applied")) };
+    const after = { ...before, raises: [...before.raises, row("4", "pending")] };
+    let posted = false;
+    const m = vi.fn(async (url: string) => {
+      const json = (status: number, body: object) => new Response(JSON.stringify(body), { status });
+      if (url === "/api/budget") return json(200, posted ? after : before);
+      if (url === "/api/budget/options") return json(200, options);
+      if (url === "/api/budget/profile") return json(200, { teamId: "annet", role: "utvikler", exists: true });
+      posted = true;
+      return json(502, { error: "github_error" });
+    });
+    vi.stubGlobal("fetch", m);
+    render(<BudgetRaisePage />);
+    await fillAndSubmit();
+    const retry = await screen.findByRole("button", { name: "Prøv igjen" });
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Fyll på 150 USD" })).not.toBeInTheDocument());
+    fireEvent.click(retry);
+    const raises = () => m.mock.calls.filter(([u]) => u === "/api/budget/raises") as unknown as [string, RequestInit][];
+    await waitFor(() => expect(raises()).toHaveLength(2));
+    const key = (c: [string, RequestInit]) => (c[1].headers as Record<string, string>)["Idempotency-Key"];
+    // The key survives the github_error reload.
+    expect(key(raises()[1])).toBe(key(raises()[0]));
+    expect(raises()[1][1].body).toBe(raises()[0][1].body);
+  });
+
   it("survives raises: null from copilot-api", async () => {
     mockApi({ ...defaultBudget, raises: null });
     render(<BudgetRaisePage />);

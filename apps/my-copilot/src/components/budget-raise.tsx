@@ -381,6 +381,7 @@ function RaiseSection({
   const [result, setResult] = useState<{ ok: RaiseResult } | { error: string }>();
   // One key per raise, kept across retries of the same raise so a double click or retry gives one raise (F9).
   const key = useRef<string | null>(null);
+  const lastBody = useRef("");
   const summaryRef = useRef<HTMLDivElement>(null);
   const resultRef = useRef<HTMLDivElement>(null);
 
@@ -420,14 +421,22 @@ function RaiseSection({
       next["pafyll-fritekst"] = `Fritekst kan være høyst ${options.freeTextMax} tegn.`;
     setErrors(next);
     if (Object.keys(next).length) return;
+    if (!key.current) {
+      key.current = crypto.randomUUID();
+      lastBody.current = JSON.stringify({ category, teamId: teamOverride || undefined, expectedValue, freeText });
+    }
+    await send();
+  }
 
-    key.current ??= crypto.randomUUID();
+  // Re-sends the unresolved raise with its key; copilot-api reconciles it, even at the ceiling.
+  async function send() {
+    if (!key.current) return;
     setBusy(true);
     try {
       const res = await fetch("/api/budget/raises", {
         method: "POST",
         headers: { "Content-Type": "application/json", "Idempotency-Key": key.current },
-        body: JSON.stringify({ category, teamId: teamOverride || undefined, expectedValue, freeText }),
+        body: lastBody.current,
       });
       const body = await res.json().catch(() => ({}));
       if (res.ok) {
@@ -484,6 +493,14 @@ function RaiseSection({
           </Message>
         )}
       </div>
+
+      {key.current && result && !busy && (
+        <div>
+          <Button type="button" variant="secondary" onClick={send}>
+            Prøv igjen
+          </Button>
+        </div>
+      )}
 
       {left !== 0 && (
         <form onSubmit={submit} noValidate>
