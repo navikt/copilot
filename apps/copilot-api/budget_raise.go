@@ -494,10 +494,15 @@ func (h *budgetRaiseHandlers) handleRaise(w http.ResponseWriter, r *http.Request
 	}
 	// Replay a known key before any membership check, so a retry after a lost
 	// response returns the first raise even if the team has changed since.
+	// A stale pending row is not replayed here: reserve reconciles it under the
+	// per-user lock. Clearing the team skips the membership check for it too.
 	if pool, err := h.store.get(r.Context()); err == nil {
 		if prev, err := scanRaise(pool.QueryRow(r.Context(), "SELECT "+raiseColumns+" FROM budget_raises WHERE github_login = $1 AND idempotency_key = $2", login, key)); err == nil {
-			respondJSON(w, map[string]any{"raise": prev, "replayed": true}, http.StatusOK)
-			return
+			if prev.Status != "pending" || time.Since(prev.CreatedAt) < budgetPendingStale {
+				respondJSON(w, map[string]any{"raise": prev, "replayed": true}, http.StatusOK)
+				return
+			}
+			in.TeamID = ""
 		}
 	}
 	if !slices.Contains(budgetCategories, in.Category) || !slices.Contains(budgetExpectedValues, in.ExpectedValue) ||
