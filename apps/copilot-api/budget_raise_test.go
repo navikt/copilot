@@ -17,7 +17,17 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-const testTeam = "0b0d1c3e-1111-4222-8333-444455556666"
+const testTeam = "team-a"
+
+type fakeTeams struct {
+	err  error
+	mine []string
+}
+
+func (f fakeTeams) GetGitHubTeams(context.Context) ([]GitHubTeam, error) {
+	return []GitHubTeam{{Slug: "team-a", Name: "Team A"}, {Slug: "team-b", Name: "Team B"}}, f.err
+}
+func (f fakeTeams) GetUserTeams(context.Context, string) ([]string, error) { return f.mine, f.err }
 
 // openBudgetTestDB returns a DSN on a clean schema. Skips without
 // TEST_DATABASE_URL unless COPILOT_API_REQUIRE_PG=1 (CI).
@@ -154,6 +164,7 @@ func newBudgetEnv(t *testing.T, dsn string) *budgetEnv {
 		t.Fatal(err)
 	}
 	h.limiter.per = 1000
+	h.teams = fakeTeams{mine: []string{"team-b"}}
 	h.now = func() time.Time { return time.Date(2026, 12, 3, 10, 0, 0, 0, time.UTC) }
 	t.Cleanup(func() {
 		if h.store.pool != nil {
@@ -206,7 +217,7 @@ func (e *budgetEnv) count(sql string, args ...any) int {
 func TestBudgetRaiseFlow(t *testing.T) {
 	e := newBudgetEnv(t, openBudgetTestDB(t))
 
-	if code, out := e.do("GET", "/api/v1/copilot/budget/profile", "ola", "", ""); code != 200 || out["exists"] != false || out["role"] != "" {
+	if code, out := e.do("GET", "/api/v1/copilot/budget/profile", "ola", "", ""); code != 200 || out["exists"] != false || out["role"] != "" || out["suggestedTeamId"] != "team-b" {
 		t.Fatalf("missing profile must give defaults: %d %v", code, out)
 	}
 	if code, out := e.raise("ola", "k0"); code != 409 || !strings.HasSuffix(out["type"].(string), "profile_required") {
@@ -466,6 +477,34 @@ func TestBudgetRaiseUnavailable(t *testing.T) {
 	r.ServeHTTP(rec, req)
 	if rec.Code != 503 {
 		t.Errorf("unconfigured: %d", rec.Code)
+	}
+}
+
+func TestBudgetTeamsFromGitHub(t *testing.T) {
+	e := newBudgetEnv(t, openBudgetTestDB(t))
+	code, out := e.do("GET", "/api/v1/copilot/budget/options", "ola", "", "")
+	if teams := out["teams"].([]any); code != 200 || len(teams) != 3 || teams[0].(map[string]any)["id"] != "annet" || teams[1].(map[string]any)["name"] != "Team A" {
+		t.Fatalf("options: %d %v", code, out)
+	}
+	for team, want := range map[string]int{"team-a": 200, "annet": 200, "nope": 400, "0b0d1c3e-1111-4222-8333-444455556666": 400} {
+		if code, _ := e.do("PUT", "/api/v1/copilot/budget/profile", "ola", "", `{"teamId":"`+team+`","role":"utvikler"}`); code != want {
+			t.Errorf("profile team %s: %d, want %d", team, code, want)
+		}
+	}
+	if code, _ := e.do("POST", "/api/v1/copilot/budget/raises", "ola", "k1", `{"category":"koding","expectedValue":"spare_tid","teamId":"nope"}`); code != 400 {
+		t.Errorf("raise with unknown team: %d", code)
+	}
+	// Two teams: no suggestion. Team source down: only «annet» accepted.
+	e.h.teams = fakeTeams{mine: []string{"team-a", "team-b"}}
+	if _, out := e.do("GET", "/api/v1/copilot/budget/profile", "kari", "", ""); out["suggestedTeamId"] != nil {
+		t.Errorf("suggestion with two teams: %v", out)
+	}
+	e.h.teams = fakeTeams{err: fmt.Errorf("bq down")}
+	if code, _ := e.do("PUT", "/api/v1/copilot/budget/profile", "ola", "", `{"teamId":"team-a","role":"utvikler"}`); code != 400 {
+		t.Errorf("team source down must fail closed: %d", code)
+	}
+	if code, _ := e.do("PUT", "/api/v1/copilot/budget/profile", "ola", "", `{"teamId":"annet","role":"utvikler"}`); code != 200 {
+		t.Errorf("annet with team source down: %d", code)
 	}
 }
 

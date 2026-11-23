@@ -37,11 +37,8 @@ var (
 	budgetRoles          = []string{"utvikler", "designer", "produkteier", "leder", "analytiker", "annet"}
 	budgetCategories     = []string{"koding", "feilsoking", "testing", "dokumentasjon", "analyse_data", "laering", "annet"}
 	budgetExpectedValues = []string{"spare_tid", "levere_raskere", "bedre_kvalitet", "laere", "utforske", "annet"}
-	// shortcut: team IDs are checked for Teamkatalogen's UUID shape, not looked
-	// up there (no Teamkatalogen client in copilot-api yet); add the lookup with F2.
-	teamIDPattern      = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
-	githubLoginPattern = regexp.MustCompile(`^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$`)
-	errBudgetDBDown    = errors.New("budget database unavailable")
+	githubLoginPattern   = regexp.MustCompile(`^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})$`)
+	errBudgetDBDown      = errors.New("budget database unavailable")
 )
 
 //go:embed migrations/*.sql
@@ -132,6 +129,7 @@ type budgetRaiseHandlers struct {
 	store      *budgetStore
 	writer     *budgetWriter // nil: no write token, raises answer 503
 	seats      seatLookup    // nil: licence check impossible, raises answer 503
+	teams      teamSource    // nil: only «annet» is selectable
 	mode       string        // off | dry_run | on (F18)
 	defaultUSD int
 	loc        *time.Location
@@ -229,18 +227,45 @@ func decodeStrict(w http.ResponseWriter, r *http.Request, v any) bool {
 	return true
 }
 
-func validTeam(id string) bool { return id == budgetTeamOther || teamIDPattern.MatchString(id) }
+// teamSource lists GitHub org teams (owner decision on #2704: the charged team
+// is a GitHub team slug, not Teamkatalogen). CachedBigQueryClient implements it.
+type teamSource interface {
+	GetGitHubTeams(ctx context.Context) ([]GitHubTeam, error)
+	GetUserTeams(ctx context.Context, login string) ([]string, error)
+}
+
+// budgetTeams is the selectable list: GitHub teams plus «annet/ukjent». If the
+// team source is down, only «annet» is offered and accepted (fails closed).
+func (h *budgetRaiseHandlers) budgetTeams(ctx context.Context) []GitHubTeam {
+	teams := []GitHubTeam{{Slug: budgetTeamOther, Name: "Annet/ukjent"}}
+	if h.teams == nil {
+		return teams
+	}
+	gh, err := h.teams.GetGitHubTeams(ctx)
+	if err != nil {
+		slog.Warn("GitHub team list unavailable for budget options", "error", err)
+		return teams
+	}
+	return append(teams, gh...)
+}
+
+func (h *budgetRaiseHandlers) validTeam(ctx context.Context, slug string) bool {
+	return slices.ContainsFunc(h.budgetTeams(ctx), func(t GitHubTeam) bool { return t.Slug == slug })
+}
 
 type budgetProfile struct {
 	TeamID string `json:"teamId"`
 	Role   string `json:"role"`
 	Exists bool   `json:"exists"`
+	// SuggestedTeamID is the caller's own GitHub team when they are in
+	// exactly one; only set while no profile is stored.
+	SuggestedTeamID string `json:"suggestedTeamId,omitempty"`
 }
 
-func (h *budgetRaiseHandlers) handleOptions(w http.ResponseWriter, _ *http.Request, _ string) {
+func (h *budgetRaiseHandlers) handleOptions(w http.ResponseWriter, r *http.Request, _ string) {
 	respondJSON(w, map[string]any{
 		"roles": budgetRoles, "categories": budgetCategories, "expectedValues": budgetExpectedValues,
-		"teams":   []map[string]string{{"id": budgetTeamOther, "name": "Annet/ukjent"}},
+		"teams":   h.budgetTeams(r.Context()),
 		"stepUsd": budgetStepUSD, "capUsd": budgetCapUSD, "defaultUsd": h.defaultUSD, "freeTextMax": budgetFreeTextMax,
 	}, http.StatusOK)
 }
@@ -268,6 +293,11 @@ func (h *budgetRaiseHandlers) handleGetProfile(w http.ResponseWriter, r *http.Re
 		dbUnavailable(w, err)
 		return
 	}
+	if !p.Exists && h.teams != nil {
+		if mine, err := h.teams.GetUserTeams(r.Context(), login); err == nil && len(mine) == 1 && h.validTeam(r.Context(), mine[0]) {
+			p.SuggestedTeamID = mine[0]
+		}
+	}
 	noCacheControl(w)
 	respondJSON(w, p, http.StatusOK)
 }
@@ -280,7 +310,7 @@ func (h *budgetRaiseHandlers) handlePutProfile(w http.ResponseWriter, r *http.Re
 	if !decodeStrict(w, r, &in) {
 		return
 	}
-	if !validTeam(in.TeamID) || !slices.Contains(budgetRoles, in.Role) {
+	if !h.validTeam(r.Context(), in.TeamID) || !slices.Contains(budgetRoles, in.Role) {
 		respondError(w, "invalid_request", "Unknown team or role", http.StatusBadRequest)
 		return
 	}
@@ -375,7 +405,7 @@ func (h *budgetRaiseHandlers) handleRaise(w http.ResponseWriter, r *http.Request
 		return
 	}
 	if !slices.Contains(budgetCategories, in.Category) || !slices.Contains(budgetExpectedValues, in.ExpectedValue) ||
-		(in.TeamID != "" && !validTeam(in.TeamID)) || (in.FreeText != nil && utf8.RuneCountInString(*in.FreeText) > budgetFreeTextMax) {
+		(in.TeamID != "" && !h.validTeam(r.Context(), in.TeamID)) || (in.FreeText != nil && utf8.RuneCountInString(*in.FreeText) > budgetFreeTextMax) {
 		respondError(w, "invalid_request", "Unknown category, team or expected value, or free text too long", http.StatusBadRequest)
 		return
 	}
@@ -635,7 +665,7 @@ func (h *budgetRaiseHandlers) verify(ctx context.Context, login, id string, amou
 
 // newBudgetRaiseHandlersFromConfig builds the raise handlers. A missing token
 // leaves writer nil (raises 503); a broken token config is an error.
-func newBudgetRaiseHandlersFromConfig(cfg *Config, seats seatLookup) (*budgetRaiseHandlers, error) {
+func newBudgetRaiseHandlersFromConfig(cfg *Config, seats seatLookup, teams teamSource) (*budgetRaiseHandlers, error) {
 	tok, err := newBudgetTokenSource(cfg)
 	if err != nil {
 		return nil, err
@@ -645,5 +675,9 @@ func newBudgetRaiseHandlersFromConfig(cfg *Config, seats seatLookup) (*budgetRai
 		writer = &budgetWriter{httpClient: &http.Client{Timeout: 15 * time.Second}, baseURL: "https://api.github.com", enterprise: cfg.GitHubEnterprise, token: tok}
 	}
 	slog.Info("Budget raises configured", "writes", parseBudgetWrites(cfg.BudgetWrites), "write_token", tok != nil, "database", cfg.BudgetDatabaseURL != "")
-	return newBudgetRaiseHandlers(cfg, writer, seats)
+	h, err := newBudgetRaiseHandlers(cfg, writer, seats)
+	if h != nil {
+		h.teams = teams
+	}
+	return h, err
 }

@@ -104,7 +104,11 @@ func main() {
 	if githubClient != nil {
 		seats = githubClient
 	}
-	raiseHandlers, err := newBudgetRaiseHandlersFromConfig(config, seats)
+	var teams teamSource
+	if cachedBQClient != nil {
+		teams = cachedBQClient
+	}
+	raiseHandlers, err := newBudgetRaiseHandlersFromConfig(config, seats, teams)
 	if err != nil {
 		slog.Error("Budget raises disabled", "error", err)
 	}
