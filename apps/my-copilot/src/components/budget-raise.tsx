@@ -5,6 +5,8 @@ import {
   Box,
   Button,
   ErrorSummary,
+  Detail,
+  HGrid,
   Heading,
   List,
   LocalAlert,
@@ -85,6 +87,35 @@ function Message({
   );
 }
 
+function Panel({ children }: { children: React.ReactNode }) {
+  return (
+    <Box
+      as="section"
+      background="default"
+      borderColor="neutral-subtle"
+      borderWidth="1"
+      borderRadius="12"
+      padding={{ xs: "space-16", md: "space-24" }}
+    >
+      {children}
+    </Box>
+  );
+}
+
+function Stat({ title, value, note }: { title: string; value: string; note?: string }) {
+  return (
+    <Box background="neutral-soft" borderRadius="8" padding="space-16" className="min-w-0">
+      <VStack gap="space-4">
+        <Detail textColor="subtle">{title}</Detail>
+        <BodyShort size="large" weight="semibold">
+          {value}
+        </BodyShort>
+        {note && <Detail textColor="subtle">{note}</Detail>}
+      </VStack>
+    </Box>
+  );
+}
+
 export function BudgetRaisePage() {
   const [budget, setBudget] = useState<Loaded<Budget>>();
   const [options, setOptions] = useState<Loaded<BudgetOptions>>();
@@ -115,16 +146,20 @@ export function BudgetRaisePage() {
   return (
     <VStack gap="space-32">
       <Summary budget={b} options={o} budgetError={"error" in budget ? budget.error : undefined} refused={refused} />
-      {b && <Consumption budget={b} />}
+      {b && <Consumption budget={b} capUsd={o?.capUsd} />}
       {o ? (
         <>
-          <RaiseSection budget={b} options={o} profile={p} onRaised={reloadBudget} onRefused={setRefused} />
-          <ProfileSection
-            options={o}
-            profile={p}
-            profileError={"error" in profile ? profile.error : undefined}
-            onSaved={(np) => setProfile({ data: np })}
-          />
+          <Panel>
+            <RaiseSection budget={b} options={o} profile={p} onRaised={reloadBudget} onRefused={setRefused} />
+          </Panel>
+          <Panel>
+            <ProfileSection
+              options={o}
+              profile={p}
+              profileError={"error" in profile ? profile.error : undefined}
+              onSaved={(np) => setProfile({ data: np })}
+            />
+          </Panel>
         </>
       ) : (
         <Message status="warning" title="Påfyll er ikke tilgjengelig akkurat nå">
@@ -193,23 +228,34 @@ function Summary({
   );
 }
 
-function Consumption({ budget }: { budget: Budget }) {
+function Consumption({ budget, capUsd }: { budget: Budget; capUsd?: number }) {
   const consumed = budget.consumedAmount;
   const pct =
     budget.budgetAmount > 0 && typeof consumed === "number"
       ? Math.min(100, Math.round((consumed / budget.budgetAmount) * 100))
       : null;
+  const done = budget.raises?.length;
   return (
-    <VStack gap="space-12">
+    <VStack gap="space-16">
       <Heading size="small" level="2">
         Forbruk denne måneden
       </Heading>
+      <HGrid columns={{ xs: 2, md: 4 }} gap="space-12">
+        <Stat title="Budsjett" value={usd(budget.budgetAmount)} note={capUsd ? `Tak ${usd(capUsd)}` : undefined} />
+        <Stat title="Brukt" value={typeof consumed === "number" ? usd(consumed) : "–"} />
+        <Stat
+          title="Igjen"
+          value={typeof consumed === "number" ? usd(Math.max(0, budget.budgetAmount - consumed)) : "–"}
+        />
+        <Stat title="Påfyll denne måneden" value={done === undefined ? "–" : String(done)} />
+      </HGrid>
       {pct !== null && (
         <VStack gap="space-8">
           <ProgressBar
             value={pct}
             valueMax={100}
-            data-color={pct >= 90 ? "danger" : pct >= 80 ? "warning" : "accent"}
+            // Calm until close to the limit: warning from 80 %, danger only from 95 %.
+            data-color={pct >= 95 ? "danger" : pct >= 80 ? "warning" : "accent"}
             aria-labelledby="forbruk-tekst"
           />
           <BodyShort id="forbruk-tekst">
@@ -499,6 +545,12 @@ function ProfileSection({
         Vi bruker team og rolle til å se hvor behovet er størst, ikke til å vurdere deg. Du må lagre profilen før første
         påfyll.
       </BodyShort>
+      {profile?.leftTeamId && (
+        <Message status="announcement" title="Du er ikke lenger med i teamet du lagret">
+          Vi fant deg ikke i teamet «{profile.leftTeamId}» lenger, så påfyll registreres på «Annet/ukjent». Velg et av
+          teamene dine og lagre profilen på nytt.
+        </Message>
+      )}
       {profileError && (
         <Message status="warning" title="Vi får ikke hentet profilen din">
           {errorMessage(profileError)}
@@ -519,6 +571,7 @@ function ProfileSection({
             <Select
               id="profil-team"
               label="Team"
+              description="Bare teamene du er med i på GitHub vises. Finner du ikke teamet ditt, velg «Annet/ukjent»."
               value={teamId}
               onChange={(e) => setTeamId(e.target.value)}
               error={errors["profil-team"]}
