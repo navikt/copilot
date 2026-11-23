@@ -139,34 +139,37 @@ function SkeletonPanel({ fields }: { fields: number }) {
 /** Mirrors the loaded page (summary, stats, progress bar, raise form, profile) so nothing jumps when data arrives. */
 export function BudgetSkeleton() {
   return (
-    <VStack gap="space-32" aria-busy="true">
+    <>
+      {/* Outside the busy container: screen readers skip announcements inside aria-busy. */}
       <span role="status" className="sr-only">
         Laster budsjett
       </span>
-      <VStack gap="space-12" aria-hidden>
-        <Skeleton variant="text" width="9rem" height="2.5rem" />
-        {["70%", "85%", "60%", "75%"].map((w) => (
-          <Skeleton key={w} variant="text" width={w} />
-        ))}
-      </VStack>
-      <VStack gap="space-16" aria-hidden>
-        <Skeleton variant="text" width="13rem" height="2rem" />
-        <HGrid columns={{ xs: 2, md: 4 }} gap="space-12">
-          {[0, 1, 2, 3].map((i) => (
-            <Skeleton key={i} variant="rounded" height="5.5rem" />
+      <VStack gap="space-32" aria-busy="true">
+        <VStack gap="space-12" aria-hidden>
+          <Skeleton variant="text" width="9rem" height="2.5rem" />
+          {["70%", "85%", "60%", "75%"].map((w) => (
+            <Skeleton key={w} variant="text" width={w} />
           ))}
-        </HGrid>
-        <Skeleton variant="rounded" height="1.5rem" />
-        <Skeleton variant="text" width="50%" />
-        <Skeleton variant="text" width="40%" />
+        </VStack>
+        <VStack gap="space-16" aria-hidden>
+          <Skeleton variant="text" width="13rem" height="2rem" />
+          <HGrid columns={{ xs: 2, md: 4 }} gap="space-12">
+            {[0, 1, 2, 3].map((i) => (
+              <Skeleton key={i} variant="rounded" height="5.5rem" />
+            ))}
+          </HGrid>
+          <Skeleton variant="rounded" height="1.5rem" />
+          <Skeleton variant="text" width="50%" />
+          <Skeleton variant="text" width="40%" />
+        </VStack>
+        <div aria-hidden>
+          <SkeletonPanel fields={4} />
+        </div>
+        <div aria-hidden>
+          <SkeletonPanel fields={2} />
+        </div>
       </VStack>
-      <div aria-hidden>
-        <SkeletonPanel fields={4} />
-      </div>
-      <div aria-hidden>
-        <SkeletonPanel fields={2} />
-      </div>
-    </VStack>
+    </>
   );
 }
 
@@ -463,7 +466,13 @@ function RaiseSection({
 
       <div ref={resultRef} tabIndex={-1} aria-live="polite">
         {result && "ok" in result && <RaiseOutcome result={result.ok} />}
-        {result && "error" in result && (
+        {result && "error" in result && result.error === "github_error" && (
+          // GitHub may have applied the raise even though it answered badly.
+          <Message status="warning" title="Vi vet ikke om påfyllet gikk gjennom">
+            Vi sjekker det automatisk neste gang du prøver. Se forbruket øverst før du fyller på igjen.
+          </Message>
+        )}
+        {result && "error" in result && result.error !== "github_error" && (
           <Message
             status={result.error === "cap_reached" || result.error === "not_open" ? "warning" : "error"}
             title="Du fikk ikke påfyll"
@@ -684,8 +693,8 @@ function RaiseOutcome({ result }: { result: RaiseResult }) {
   if (status === "pending") {
     return (
       <Message status="announcement" title="Påfyllet venter på GitHub">
-        Vi har registrert påfyllet, men GitHub har ikke bekreftet det ennå. Se status i tabellen over om noen minutter.
-        Sender du skjemaet igjen, får du ikke et nytt påfyll.
+        Vi har registrert påfyllet, men vet ikke ennå om endringen gikk gjennom i GitHub. Det sjekkes automatisk neste
+        gang du prøver. Sender du skjemaet igjen, får du ikke et nytt påfyll.
       </Message>
     );
   }

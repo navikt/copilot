@@ -39,6 +39,7 @@ describe("BudgetSkeleton", () => {
     const { container } = render(<BudgetSkeleton />);
     expect(screen.getByRole("status")).toHaveTextContent("Laster budsjett");
     expect(container.querySelector('[aria-busy="true"]')).toBeInTheDocument();
+    expect(screen.getByRole("status").closest('[aria-busy="true"]')).toBeNull();
   });
 
   it("shows while the data loads", () => {
@@ -186,11 +187,20 @@ describe("BudgetRaisePage review fixes", () => {
     render(<BudgetRaisePage />);
     await fillAndSubmit();
     expect(await screen.findByText("Påfyllet venter på GitHub")).toBeInTheDocument();
+    expect(screen.getByText(/vet ikke ennå om endringen gikk gjennom[^]*sjekkes automatisk neste/)).toBeInTheDocument();
     expect(screen.queryByText(/allerede registrert|Du har fått påfyll/)).not.toBeInTheDocument();
     await fillAndSubmit();
     await waitFor(() => expect(raiseCalls(m)).toHaveLength(2));
     const key = (c: [string, RequestInit]) => (c[1].headers as Record<string, string>)["Idempotency-Key"];
     expect(key(raiseCalls(m)[1])).toBe(key(raiseCalls(m)[0]));
+  });
+
+  it("does not claim a refusal when GitHub answered badly", async () => {
+    mockApi(defaultBudget, { status: 502, body: { error: "github_error" } });
+    render(<BudgetRaisePage />);
+    await fillAndSubmit();
+    expect(await screen.findByText("Vi vet ikke om påfyllet gikk gjennom")).toBeInTheDocument();
+    expect(screen.queryByText("Du fikk ikke påfyll")).not.toBeInTheDocument();
   });
 
   it("shows a failed replay as failed", async () => {
