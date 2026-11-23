@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -283,8 +284,8 @@ func TestRealPostgresWriteFlow(t *testing.T) {
 	if rec := do(t, h, http.MethodPost, base+"/revoke", a, `{"reason":"incident"}`); rec.Code != 200 {
 		t.Errorf("revoke: %d", rec.Code)
 	}
-	if snap, _ := srv.resolve(ctx, "routes"); strings.Contains(string(snap.Items), "team-a") {
-		t.Error("revoked server must leave the snapshot")
+	if snap, _ := srv.resolve(ctx, "routes"); !strings.Contains(string(snap.Items), `"upstream_url":"http://svc.team-a/mcp","enabled":false`) {
+		t.Errorf("revoked route must stay in the snapshot as disabled: %s", snap.Items)
 	}
 	if rec := do(t, h, http.MethodPost, base+"/revoke", a, `{"reason":"again"}`); rec.Code != 409 {
 		t.Errorf("second revoke: %d, want 409", rec.Code)
@@ -404,5 +405,103 @@ func TestRealPostgresRollbackToSeed(t *testing.T) {
 func TestHTTPServerBoundsBodyReads(t *testing.T) {
 	if s := newHTTPServer("0", http.NotFoundHandler()); s.ReadTimeout <= 0 || s.ReadHeaderTimeout <= 0 {
 		t.Errorf("read timeouts must be set: %v %v", s.ReadTimeout, s.ReadHeaderTimeout)
+	}
+}
+
+// The size check runs inside Approve and Rollback, and the routes snapshot
+// lock stops two approvals of different servers that each fit alone from
+// passing the limit together (#2687).
+func TestRealPostgresRoutesSizeLimit(t *testing.T) {
+	db := openTestDB(t)
+	ctx := context.Background()
+	if err := db.Migrate(ctx); err != nil {
+		t.Fatal(err)
+	}
+	routes, allowlist := readSeedFiles(t, "prod")
+	servers, err := seedServers(routes, allowlist)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = db.Seed(ctx, servers, "test"); err != nil {
+		t.Fatal(err)
+	}
+	srv := newServer()
+	srv.cluster = "dev-gcp"
+	srv.store.Store(&storeBox{db})
+	h := srv.routes(testAuthz(t), adminID, testTeams, nil)
+	a, b := userTok("A111111"), userTok("A222222")
+	draft := func(name string) []byte {
+		body := strings.NewReplacer("svc", name).Replace(routeDraft)
+		rec := do(t, h, http.MethodPut, "/admin/v1/servers/team-a/"+name+"/draft", a, body)
+		if rec.Code != 200 {
+			t.Fatalf("draft %s: %d %s", name, rec.Code, rec.Body)
+		}
+		var out struct {
+			Version int    `json:"version"`
+			Hash    string `json:"content_hash"`
+		}
+		_ = json.Unmarshal(rec.Body.Bytes(), &out)
+		approval, _ := json.Marshal(map[string]any{"version": out.Version, "content_hash": out.Hash})
+		return approval
+	}
+	approve := func(name string, body []byte) int {
+		return do(t, h, http.MethodPost, "/admin/v1/servers/team-a/"+name+"/approve", b, string(body)).Code
+	}
+	audits := func() (n int) {
+		_ = db.pool.QueryRow(ctx, `SELECT count(*) FROM audit_events`).Scan(&n)
+		return n
+	}
+	snap, err := srv.resolve(ctx, "routes")
+	if err != nil {
+		t.Fatal(err)
+	}
+	old := maxRoutesSnapshotBytes
+	t.Cleanup(func() { maxRoutesSnapshotBytes = old })
+
+	// Too big alone: refused, nothing published or audited.
+	maxRoutesSnapshotBytes = len(snap.Items)
+	big := draft("big")
+	before := audits()
+	if code := approve("big", big); code != 409 {
+		t.Errorf("oversized approve: %d, want 409", code)
+	}
+	if got := audits(); got != before {
+		t.Errorf("refused approve wrote %d audit events", got-before)
+	}
+	if s, _ := srv.resolve(ctx, "routes"); strings.Contains(string(s.Items), "team-a") {
+		t.Error("refused approve must not publish")
+	}
+
+	// Room for one more route, not two: exactly one concurrent approval wins.
+	maxRoutesSnapshotBytes = len(snap.Items) + 250
+	bodies := map[string][]byte{"s1": draft("s1"), "s2": draft("s2")}
+	routesFitPause = func() { time.Sleep(100 * time.Millisecond) }
+	t.Cleanup(func() { routesFitPause = nil })
+	codes := make(chan int, 2)
+	for name, body := range bodies {
+		go func() { codes <- approve(name, body) }()
+	}
+	if c1, c2 := <-codes, <-codes; c1+c2 != 200+409 {
+		t.Errorf("concurrent approvals: %d and %d, want one 200 and one 409", c1, c2)
+	}
+
+	routesFitPause = nil
+
+	// Rollback runs the same check.
+	winner := "s1"
+	if s, _ := srv.resolve(ctx, "routes"); !strings.Contains(string(s.Items), "/mcp/team-a/s1") {
+		winner = "s2"
+	}
+	maxRoutesSnapshotBytes = old
+	if code := approve(winner, draft(winner)); code != 200 {
+		t.Fatalf("second version: %d", code)
+	}
+	maxRoutesSnapshotBytes = len(snap.Items)
+	before = audits()
+	if rec := do(t, h, http.MethodPost, "/admin/v1/servers/team-a/"+winner+"/rollback", a, ""); rec.Code != 409 {
+		t.Errorf("oversized rollback: %d %s, want 409", rec.Code, rec.Body)
+	}
+	if got := audits(); got != before {
+		t.Errorf("refused rollback wrote %d audit events", got-before)
 	}
 }

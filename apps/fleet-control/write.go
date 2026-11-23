@@ -292,8 +292,14 @@ func checkRoutesFit(ctx context.Context, tx pgx.Tx) error {
 	if err != nil {
 		return err
 	}
+	if routesFitPause != nil {
+		routesFitPause()
+	}
 	return routesFit(servers)
 }
+
+// routesFitPause lets a test widen the window between read and commit.
+var routesFitPause func()
 
 // Revoke stops a published server. One person is enough. block also marks
 // the published version so rollback never returns to it.

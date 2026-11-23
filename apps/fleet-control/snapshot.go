@@ -60,6 +60,10 @@ func snapshotItems(kind string, servers []Server) (items []snapshotItem, revoked
 			// which would keep the revoked route live (#2688).
 			r := *s.Route
 			r.Enabled = false
+			// One tool is enough for a disabled route and bounds the row, so
+			// revoked rows from before this change cannot push an existing
+			// snapshot past the gateway's size limit.
+			r.Tools = r.Tools[:min(len(r.Tools), 1)]
 			it.body = routeItem{s.Namespace, s.Name, r}
 		}
 		items = append(items, it)
@@ -129,7 +133,7 @@ func buildSnapshot(kind string, servers []Server, prev *Snapshot) (*Snapshot, er
 // maxRoutesSnapshotBytes keeps the routes snapshot under fleet-gateway's
 // 1 MiB read limit, with room for the envelope and for revokes, which add a
 // byte each when enabled turns false (#2687).
-const maxRoutesSnapshotBytes = 1<<20 - 64<<10
+var maxRoutesSnapshotBytes = 1<<20 - 64<<10
 
 // routesFit refuses servers whose routes snapshot fleet-gateway would reject.
 // Writes that can grow the snapshot call it before they commit, so the
