@@ -388,6 +388,14 @@ Flags:
   --json                  Output the usage as JSON
   --tmux                  One compact line, for a tmux status bar
 `,
+	"budget": `Usage: nav-pilot budget [--open]
+
+Show the link to your Copilot budget page, where you see your budget and
+consumption this month and can ask for more.
+
+Flags:
+  --open                  Open the page in your browser
+`,
 	"version": `Usage: nav-pilot version [--json]
 
 Print the version, commit and build date.

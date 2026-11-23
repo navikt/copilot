@@ -67,7 +67,7 @@ var commandAliases = map[string]string{
 }
 
 // dispatchedCommands is every command name run dispatches.
-var dispatchedCommands = []string{"install", "init", "export", "add", "ignore", "sync", "rollback", "list", "doctor", "uninstall", "upgrade", "update", "config", "validate", "pakke", "env", "feedback", "survey", "news", "models", "mcp", "plugins", "alpha", "auth", "usage", "version", "help"}
+var dispatchedCommands = []string{"install", "init", "export", "add", "ignore", "sync", "rollback", "list", "doctor", "uninstall", "upgrade", "update", "config", "validate", "pakke", "env", "feedback", "survey", "news", "models", "mcp", "plugins", "alpha", "auth", "usage", "budget", "version", "help"}
 
 func isKnownCommand(arg string) bool {
 	if _, ok := commandAliases[arg]; ok {
@@ -117,6 +117,7 @@ Commands:
   plugins                 Show this repo's own OpenCode plugins and hook gates, and answer again whether to load them
   auth <login|status|logout>  Authenticate with GitHub for copilot-cli usage lookups
   usage                   Show your GitHub Copilot usage (requires 'auth login')
+  budget [--open]         Show where to see and raise your Copilot budget
   version                 Show version information
 
 Flags:
@@ -740,7 +741,7 @@ func run(args []string) error {
 		})
 	}
 
-	var dryRun, force, apply, jsonOutput, listItems, featureRequest, userScope, repoScope, targetProvided, installAll, listInstalled, frozen, yes, saveSource, tmuxFormat bool
+	var dryRun, force, apply, jsonOutput, listItems, featureRequest, userScope, repoScope, targetProvided, installAll, listInstalled, frozen, yes, saveSource, tmuxFormat, openFlag bool
 	var targetDir, ref, sourceRepo, installType, updates string
 	var positional []string
 
@@ -773,6 +774,8 @@ func run(args []string) error {
 			jsonOutput = true
 		case "--tmux":
 			tmuxFormat = true
+		case "--open":
+			openFlag = true
 		case "--items":
 			listItems = true
 		case "--installed":
@@ -1236,6 +1239,10 @@ func run(args []string) error {
 	case "usage":
 		return norwegian(runWithCommandTelemetry("usage", telemetryMode(), "none", func() error {
 			return cmdUsage(jsonOutput, tmuxFormat)
+		}))
+	case "budget":
+		return norwegian(runWithCommandTelemetry("budget", telemetryMode(), "none", func() error {
+			return cmdBudget(openFlag)
 		}))
 	case "version", "--version", "-v":
 		if jsonOutput {
