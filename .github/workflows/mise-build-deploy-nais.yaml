@@ -298,9 +298,11 @@ jobs:
           SHA: ${{ github.sha }}
         run: |
           # Retry transient API errors; still fail closed if they persist.
+          # A failed gh api writes its JSON error body to stdout, so only the
+          # successful attempt's output is passed on.
           api() {
             for attempt in 1 2 3 4 5; do
-              if gh api "$@"; then return 0; fi
+              if out=$(gh api "$@"); then printf '%s\n' "$out"; return 0; fi
               echo "GitHub API call failed (attempt ${attempt}); retrying" >&2
               sleep 10
             done
