@@ -417,12 +417,12 @@ func (c *GitHubClient) FetchDailyUserTeams(ctx context.Context, day time.Time) (
 		slog.Info("Org user-teams fetched", "day", dayStr, "org", c.org, "records", len(orgRecords))
 	}
 
-	// An org report that GitHub has not generated adds no teams, so it does not
-	// make the enterprise report partial. Other org failures, including a failed
-	// file download after valid metadata, still do.
+	// Fail closed: only an org metadata request answering HTTP 204 (no report
+	// for that day) leaves the enterprise report complete. Any other org error,
+	// including download, parse, transport and cancel errors, makes it partial.
 	var orgHTTPErr *githubHTTPError
-	orgDownloadFailed := errors.As(orgErr, &orgHTTPErr) && orgHTTPErr.download
-	complete := enterpriseErr == nil && (orgErr == nil || (isReportNotAvailable(orgErr) && !orgDownloadFailed))
+	orgNoReport := errors.As(orgErr, &orgHTTPErr) && orgHTTPErr.Status == http.StatusNoContent && !orgHTTPErr.download
+	complete := enterpriseErr == nil && (orgErr == nil || orgNoReport)
 
 	// Merge results — deduplicate by user_id + team_id
 	var allRecords []json.RawMessage
