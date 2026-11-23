@@ -42,6 +42,7 @@ var (
 	watched = []string{
 		".nav-pilot",
 		".config/opencode",
+		".config/cplt", // includes managed.d/, which nav-pilot writes (#2781)
 		".local/share/nav-pilot",
 		".copilot/.nav-pilot-state.json",
 		".copilot/mcp-config.json",

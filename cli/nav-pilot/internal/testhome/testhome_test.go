@@ -62,6 +62,21 @@ func TestGuardSeesAWrite(t *testing.T) {
 	if diff(before, snapshot(home)) == "" {
 		t.Fatal("a new ~/.copilot/hooks/gate.json went unnoticed")
 	}
+
+	// ~/.config/cplt, including managed.d (#2078).
+	for _, rel := range []string{".config/cplt/config.toml", ".config/cplt/managed.d/nav.toml"} {
+		before = snapshot(home)
+		p := filepath.Join(home, rel)
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, nil, 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if diff(before, snapshot(home)) == "" {
+			t.Fatalf("a new ~/%s went unnoticed", rel)
+		}
+	}
 }
 
 // The controls for Run's guard. Each runs this test binary again, with a
@@ -78,6 +93,8 @@ func TestGuardControls(t *testing.T) {
 	}{
 		{"leak fails", "leak", nil, nil, true, "a test in this package opened"},
 		{"leak fails with go test's own test log", "leak", nil, []string{"-test.testlogfile=" + filepath.Join(t.TempDir(), "log")}, true, "a test in this package opened"},
+		{"cplt config leak fails", "leak-cplt", nil, nil, true, "a test in this package opened"},
+		{"cplt managed.d leak fails", "leak-cplt-managed", nil, nil, true, "a test in this package opened"},
 		{"leak passes with the guard off", "leak", []string{"NAV_PILOT_TESTHOME_GUARD=0"}, nil, false, ""},
 		{"another process's write warns", "wait", nil, nil, false, "testhome: warning:"},
 		{"another process's write fails in CI", "wait", []string{"CI=true"}, nil, true, "or a process it started, wrote"},
@@ -87,6 +104,9 @@ func TestGuardControls(t *testing.T) {
 			home, sync := t.TempDir(), t.TempDir()
 			spool := filepath.Join(home, ".nav-pilot", "telemetry-spool")
 			if err := os.MkdirAll(spool, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			if err := os.MkdirAll(filepath.Join(home, ".config", "cplt", "managed.d"), 0o755); err != nil {
 				t.Fatal(err)
 			}
 			cmd := exec.Command(os.Args[0], append([]string{"-test.run=^TestGuardChild$"}, c.args...)...)
@@ -131,6 +151,14 @@ func TestGuardChild(t *testing.T) {
 	case "leak":
 		// A leak as it happens: code that got hold of the real home.
 		if err := os.WriteFile(filepath.Join(RealHome(), ".nav-pilot", "cache.json"), []byte("{}"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	case "leak-cplt":
+		if err := os.WriteFile(filepath.Join(RealHome(), ".config", "cplt", "config.toml"), []byte("x"), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	case "leak-cplt-managed":
+		if err := os.WriteFile(filepath.Join(RealHome(), ".config", "cplt", "managed.d", "nav.toml"), []byte("x"), 0o600); err != nil {
 			t.Fatal(err)
 		}
 	case "wait":
