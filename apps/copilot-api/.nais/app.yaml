@@ -165,6 +165,18 @@ spec:
             summary: More than 20 SAML name-id lookups in copilot-api in 5 minutes
             consequence: Something is resolving many GitHub logins to e-mails. copilot-survey calls this route on survey status and submission requests from copilot-cli on behalf of members.
             action: Compare with survey_submissions_total on copilot-survey and check copilot-cli's logs for the same window (see SECURITY.md).
+        - alert: CopilotApiBudgetRaiseStuckPending
+          expr: max(copilot_api_budget_raises_stuck_pending{app="copilot-api"}) > 0
+          for: 5m
+          labels:
+            namespace: copilot
+            severity: warning
+            alert_type: custom
+            app: copilot-api
+          annotations:
+            summary: Budget raise stuck in pending for more than one hour
+            consequence: A personal budget raise could not be reconciled against GitHub. The user cannot make a new raise while it stays pending.
+            action: Check copilot-api logs for reconcile errors and inspect budget_raises where status = 'pending' against the user's budgets in GitHub.
 ---
 # Sends this app's custom alerts to #github-copilot-alerts instead of the team
 # default channel. Rules opt in with alert_type: custom (keeps them off the Nais
