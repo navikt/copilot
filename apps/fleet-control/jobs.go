@@ -50,9 +50,17 @@ type ClaimRequest struct {
 	ClaimToken string `json:"claim_token"`
 }
 
+// Clocks: the runtime must not compare lease_expires_at with its own clock.
+// It counts lease_ttl_seconds down from the moment it RECEIVED the response.
+// Any heartbeat answer other than 200, a timeout or a network error is not an
+// ack: the countdown keeps running, and the job stops when it reaches zero.
+
 // Lease is the claim response (200). No job: 204 after the long-poll.
 type Lease struct {
-	LeaseID        string          `json:"lease_id"`
+	LeaseID string `json:"lease_id"`
+	// LeaseTTLSeconds is what the runtime counts down (see above).
+	LeaseTTLSeconds int `json:"lease_ttl_seconds"`
+	// LeaseExpiresAt is fleet-control's clock, for information only.
 	LeaseExpiresAt time.Time       `json:"lease_expires_at"`
 	JobID          int64           `json:"job_id"`
 	Team           string          `json:"team"`
@@ -66,13 +74,19 @@ type HeartbeatRequest struct {
 	LeaseID string `json:"lease_id"`
 }
 
-// HeartbeatResponse carries the command. continue extends the lease; cancel
-// asks the runtime to stop and report; kill means stop now, the lease has
-// ended. 410 Gone means the lease is no longer held: stop at once.
+// HeartbeatResponse carries the command. continue extends the lease. cancel
+// asks the runtime to stop and report; the lease then runs for at most one
+// TTL from the first delivery and is never extended past it. kill means stop
+// now: the lease has ended (TTL 0). 410 Gone means the lease is no longer
+// held: stop at once.
 type HeartbeatResponse struct {
-	Command        string    `json:"command"`
-	LeaseExpiresAt time.Time `json:"lease_expires_at"`
+	Command         string    `json:"command"`
+	LeaseTTLSeconds int       `json:"lease_ttl_seconds"`
+	LeaseExpiresAt  time.Time `json:"lease_expires_at"`
 }
+
+// ttlSQL is the lease's remaining whole seconds, rounded down.
+const ttlSQL = `GREATEST(0, FLOOR(EXTRACT(EPOCH FROM expires_at - now())))::int`
 
 // FinishRequest is POST /runtime/v1/complete and /runtime/v1/fail. The
 // summary is a status, never the job's content.
@@ -330,9 +344,9 @@ func (d *DB) leaseByToken(ctx context.Context, runtime, token string) (*Lease, e
 	var l Lease
 	var params string
 	var ended *time.Time
-	err := d.pool.QueryRow(ctx, `SELECT l.id::text, l.expires_at, l.ended_at, j.id, j.team, j.kind, j.params::text, j.attempts
+	err := d.pool.QueryRow(ctx, `SELECT l.id::text, `+strings.ReplaceAll(ttlSQL, "expires_at", "l.expires_at")+`, l.expires_at, l.ended_at, j.id, j.team, j.kind, j.params::text, j.attempts
 		FROM runtime_leases l JOIN runtime_jobs j ON j.id = l.job_id WHERE l.runtime = $1 AND l.claim_token = $2`, runtime, token).
-		Scan(&l.LeaseID, &l.LeaseExpiresAt, &ended, &l.JobID, &l.Team, &l.Kind, &params, &l.Attempt)
+		Scan(&l.LeaseID, &l.LeaseTTLSeconds, &l.LeaseExpiresAt, &ended, &l.JobID, &l.Team, &l.Kind, &params, &l.Attempt)
 	if err != nil {
 		return nil, err
 	}
@@ -387,10 +401,18 @@ func (d *DB) Heartbeat(ctx context.Context, runtime, leaseID string, ttl time.Du
 		}
 		// shortcut: a plain extension is not audited (one row per heartbeat
 		// per job); claim, commands and lease end are.
-		if err := tx.QueryRow(ctx, `UPDATE runtime_leases SET expires_at = now() + $2 * interval '1 millisecond' WHERE id = $1::uuid RETURNING expires_at`, leaseID, ttl.Milliseconds()).Scan(&out.LeaseExpiresAt); err != nil {
+		// After cancel is delivered the lease is capped at one TTL from the
+		// first delivery; the sweeper then marks the job cancelled.
+		var first bool
+		if err := tx.QueryRow(ctx, `UPDATE runtime_leases SET
+				cancel_delivered_at = CASE WHEN $3 THEN COALESCE(cancel_delivered_at, now()) END,
+				expires_at = CASE WHEN $3 THEN LEAST(now(), COALESCE(cancel_delivered_at, now())) ELSE now() END + $2 * interval '1 millisecond'
+			WHERE id = $1::uuid
+			RETURNING expires_at, `+ttlSQL+`, $3 AND cancel_delivered_at = now()`, leaseID, ttl.Milliseconds(), cmd == cmdCancel).
+			Scan(&out.LeaseExpiresAt, &out.LeaseTTLSeconds, &first); err != nil {
 			return err
 		}
-		if cmd == cmdCancel {
+		if first {
 			return jobAudit(ctx, tx, runtime, "cancel_delivered", team, job, map[string]any{"lease_id": leaseID})
 		}
 		return nil

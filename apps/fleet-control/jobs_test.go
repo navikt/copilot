@@ -425,11 +425,13 @@ func TestRealPostgresKillSwitches(t *testing.T) {
 // stubRuntime is the runtime side of the contract, as fleet-runtime must
 // implement it: the job's context ends on cancel, kill, 410, or when no
 // heartbeat has been acknowledged before the lease expires.
-func stubRuntime(parent context.Context, expires time.Time, every time.Duration, heartbeat func() (HeartbeatResponse, error)) context.Context {
+// It counts lease_ttl_seconds down from receipt, never using
+// lease_expires_at, so clock skew cannot stretch a lease.
+func stubRuntime(parent context.Context, ttl, every time.Duration, heartbeat func() (HeartbeatResponse, error)) context.Context {
 	ctx, cancel := context.WithCancel(parent)
 	go func() {
 		defer cancel()
-		for deadline := expires; time.Now().Before(deadline); {
+		for deadline := time.Now().Add(ttl); time.Now().Before(deadline); {
 			select {
 			case <-ctx.Done():
 				return
@@ -440,12 +442,12 @@ func stubRuntime(parent context.Context, expires time.Time, every time.Duration,
 			}
 			hb, err := heartbeat()
 			if err != nil {
-				continue // no ack, no extension
+				continue // no ack (non-200, timeout, network): no extension
 			}
 			if hb.Command != cmdContinue {
 				return
 			}
-			deadline = hb.LeaseExpiresAt
+			deadline = time.Now().Add(time.Duration(hb.LeaseTTLSeconds) * time.Second)
 		}
 	}()
 	return ctx
@@ -453,7 +455,7 @@ func stubRuntime(parent context.Context, expires time.Time, every time.Duration,
 
 func TestStubRuntimeStopsWithoutHeartbeatAck(t *testing.T) {
 	start := time.Now()
-	job := stubRuntime(context.Background(), start.Add(300*time.Millisecond), 50*time.Millisecond, func() (HeartbeatResponse, error) {
+	job := stubRuntime(context.Background(), 300*time.Millisecond, 50*time.Millisecond, func() (HeartbeatResponse, error) {
 		return HeartbeatResponse{}, io.ErrUnexpectedEOF // fleet-control unreachable
 	})
 	select {
@@ -467,7 +469,7 @@ func TestStubRuntimeStopsWithoutHeartbeatAck(t *testing.T) {
 }
 
 func TestStubRuntimeStopsOnKill(t *testing.T) {
-	job := stubRuntime(context.Background(), time.Now().Add(time.Minute), 10*time.Millisecond, func() (HeartbeatResponse, error) {
+	job := stubRuntime(context.Background(), time.Minute, 10*time.Millisecond, func() (HeartbeatResponse, error) {
 		return HeartbeatResponse{Command: cmdKill}, nil
 	})
 	select {
@@ -544,5 +546,70 @@ func TestSweepIntervalFromEnv(t *testing.T) {
 		if _, err := sweepIntervalFromEnv(); err == nil {
 			t.Errorf("%q: want error", v)
 		}
+	}
+}
+
+func (e *jobEnv) heartbeatResp(lease string) (int, HeartbeatResponse) {
+	e.t.Helper()
+	rec := do(e.t, e.h, http.MethodPost, "/runtime/v1/heartbeat", runtimeID, `{"lease_id":"`+lease+`"}`)
+	var out HeartbeatResponse
+	_ = json.Unmarshal(rec.Body.Bytes(), &out)
+	return rec.Code, out
+}
+
+// The runtime counts lease_ttl_seconds from receipt, so every lease answer
+// carries it, and a repeated claim gets what is left, not a fresh TTL.
+func TestRealPostgresLeaseTTLSeconds(t *testing.T) {
+	e := newJobEnv(t)
+	e.createJob(`{"kind":"review"}`)
+	_, l := e.claim(tok(1))
+	if l.LeaseTTLSeconds < 59 || l.LeaseTTLSeconds > 60 {
+		t.Errorf("claim ttl: %d", l.LeaseTTLSeconds)
+	}
+	if _, err := e.db.pool.Exec(context.Background(), `UPDATE runtime_leases SET expires_at = now() + interval '10.5 seconds'`); err != nil {
+		t.Fatal(err)
+	}
+	if _, again := e.claim(tok(1)); again.LeaseTTLSeconds != 10 {
+		t.Errorf("repeated claim ttl: %d, want 10", again.LeaseTTLSeconds)
+	}
+	if c, hb := e.heartbeatResp(l.LeaseID); c != 200 || hb.LeaseTTLSeconds < 59 || hb.LeaseTTLSeconds > 60 {
+		t.Errorf("heartbeat ttl: %d %d", c, hb.LeaseTTLSeconds)
+	}
+}
+
+// After cancel is delivered, heartbeats repeat it but never extend the lease
+// past one TTL from the first delivery; then the sweeper cancels the job.
+func TestRealPostgresCancelDoesNotExtendLease(t *testing.T) {
+	e := newJobEnv(t)
+	id := e.createJob(`{"kind":"review"}`)
+	_, l := e.claim(tok(1))
+	if rec := do(t, e.h, http.MethodPost, fmt.Sprintf("/admin/v1/jobs/team-a/%d/cancel", id), userTok("A111111"), ""); rec.Code != 204 {
+		t.Fatalf("cancel: %d", rec.Code)
+	}
+	if c, hb := e.heartbeatResp(l.LeaseID); c != 200 || hb.Command != cmdCancel || hb.LeaseTTLSeconds < 59 {
+		t.Fatalf("first delivery: %d %+v", c, hb)
+	}
+	// 55 s later the runtime still heartbeats: it gets cancel and what is left.
+	if _, err := e.db.pool.Exec(context.Background(), `UPDATE runtime_leases SET cancel_delivered_at = cancel_delivered_at - interval '55 seconds', expires_at = expires_at - interval '55 seconds'`); err != nil {
+		t.Fatal(err)
+	}
+	c, hb := e.heartbeatResp(l.LeaseID)
+	if c != 200 || hb.Command != cmdCancel || hb.LeaseTTLSeconds > 5 {
+		t.Fatalf("repeat delivery extended the lease: %d %+v", c, hb)
+	}
+	if _, err := e.db.pool.Exec(context.Background(), `UPDATE runtime_leases SET expires_at = now() - interval '1 second'`); err != nil {
+		t.Fatal(err)
+	}
+	if c, _ := e.heartbeatResp(l.LeaseID); c != http.StatusGone {
+		t.Errorf("after grace: %d", c)
+	}
+	if _, err := e.db.SweepLeases(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if st, _ := e.state(id); st != "cancelled" {
+		t.Errorf("state %s", st)
+	}
+	if got := fmt.Sprint(e.audit(id)); got != "[job_created job_claimed job_cancel cancel_delivered lease_expired]" {
+		t.Errorf("audit: %s", got)
 	}
 }

@@ -27,6 +27,8 @@ CREATE TABLE runtime_leases (
     claim_token TEXT NOT NULL,
     expires_at TIMESTAMPTZ NOT NULL,
     ended_at TIMESTAMPTZ,
+    -- First cancel delivery; the lease is never extended past it plus one TTL.
+    cancel_delivered_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     -- A retried claim with the same token gets the same lease.
     UNIQUE (runtime, claim_token)
