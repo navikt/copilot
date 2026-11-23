@@ -1,12 +1,13 @@
 ---
 title: "Fra 1. desember: 150 USD i måneden til premium-forespørsler i Copilot"
-date: 2026-11-24
+date: 2026-11-27
 category: copilot
 excerpt: "Standardbudsjettet for premium-forespørsler går fra 800 til 150 USD per person per måned. De fleste merker ingenting, og du kan selv øke budsjettet."
 tags:
   - copilot
   - budsjett
   - kostnad
+cli: true
 draft: true
 ---
 
@@ -19,6 +20,8 @@ Over 80 % av brukerne bruker mindre enn 150 USD i måneden (tall fra oktober), o
 merker ingenting. Er budsjettet brukt opp, stopper premium-modellene. Modellene
 som er inkludert i lisensen, virker som før.
 
+Endringen gjelder fra 1. desember, forutsatt at du kan øke budsjettet selv. Hvis ikke, gjelder den fra 1. januar.
+
 ## Hvorfor
 
 - Budsjettet for 2027 er ikke satt, og vi må holde oss innenfor en fast ramme.
@@ -28,8 +31,8 @@ som er inkludert i lisensen, virker som før.
 
 1. Gjør ingenting hvis du bruker mindre enn 150 USD i måneden.
 2. Kjør `nav-pilot budget` for å se budsjettet ditt og lenken til budsjettsiden.
-3. Går budsjettet tomt, øk det på [/min-side/budsjett](/min-side/budsjett).
-4. Spørsmål: [#ki-produktutvikling-diskusjon](https://nav-it.slack.com/archives/ki-produktutvikling-diskusjon) på Slack.
+3. Går budsjettet tomt, øk det på `/min-side/budsjett` på ki-utvikling.nav.no.
+4. Spørsmål: [#ki-produktutvikling-diskusjon](https://nav-it.slack.com/archives/C0ASJSZK8P8) på Slack.
 
 ## Slik øker du budsjettet
 
