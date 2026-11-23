@@ -372,3 +372,12 @@ func TestGoldenOpenCodeAgentArgs(t *testing.T) {
 		})
 	}
 }
+
+// copilotLaunchArgs is the vector cpltArgv builds for a Tier 1 copilot
+// launch, or [BuildCopilotArgs] alone for a plain copilot binary.
+func copilotLaunchArgs(cliName string, resolved domain.ResolvedConfig, skillsDir string) []string {
+	if cliName != "cplt" {
+		return BuildCopilotArgs(cliName, resolved)
+	}
+	return cpltArgv(copilotSpec(resolved, skillsDir))
+}

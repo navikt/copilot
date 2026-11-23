@@ -298,3 +298,9 @@ func TestRPCMethodTool_MethodCaseIsAmbiguous(t *testing.T) {
 		t.Fatal("Tools/Call must be flagged ambiguous")
 	}
 }
+
+// extractJSONRPCAudit returns the display method and tool of scanJSONRPCAudit.
+func extractJSONRPCAudit(body []byte) (method, tool string) {
+	a := scanJSONRPCAudit(body)
+	return a.method, a.tool
+}

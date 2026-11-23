@@ -611,3 +611,8 @@ func TestParseGraphQLResponseWithActivity(t *testing.T) {
 		t.Fatalf("unexpected assembled activity fields: %+v", res)
 	}
 }
+
+func parseGraphQLResponse(data map[string]json.RawMessage, repos []RepoInfo, criteria []SearchCriteria) (map[string]map[string]SearchResult, map[string]*time.Time) {
+	results, lastCommits, _, _ := parseGraphQLResponseWithActivity(data, repos, criteria)
+	return results, lastCommits
+}

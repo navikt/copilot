@@ -184,3 +184,5 @@ func TestSpendBandsHandlerSendsOnlyAggregates(t *testing.T) {
 		t.Errorf("unexpected body %s (%v)", body, err)
 	}
 }
+
+func bandIndex(net, limit float64) int { return edgeIndex(net, limit, bandEdges) }
