@@ -248,6 +248,12 @@ func autoUpdateNudge(w io.Writer, cfg *Config) {
 // calls doUpdate directly, so neither the quiet period nor the brew branch below
 // applies to a user who asked for the update, and no prompt asks them again.
 func startupUpdateCheck() (stop bool, err error) {
+	fileCfg, _ := readConfig()
+	// Before any release check: the hint is about the setting, not a release.
+	if packageManager().Name == "" {
+		autoUpdateNudge(os.Stderr, fileCfg)
+	}
+
 	// Self-check: warn if nav-pilot binary is outdated (fast, cached)
 	assessment := assessStaleness(Version)
 	recordFreshness("cli", "none", assessment)
@@ -261,12 +267,9 @@ func startupUpdateCheck() (stop bool, err error) {
 		return false, nil
 	}
 
-	fileCfg, _ := readConfig()
-	autoUpdate := fileCfg != nil && fileCfg.AutoUpdate != nil && *fileCfg.AutoUpdate
-
-	if packageManager().Name == "" {
-		autoUpdateNudge(os.Stderr, fileCfg)
-	}
+	// A new install has no config yet but takes the new-install policy,
+	// auto_update on, so it never meets "Upgrade now?" (#2781).
+	autoUpdate := startedFresh || (fileCfg != nil && fileCfg.AutoUpdate != nil && *fileCfg.AutoUpdate)
 
 	// Guard against re-exec loops: if we already re-exec'd once after an
 	// auto-update in this process chain, don't attempt another update
@@ -937,6 +940,16 @@ func run(args []string) error {
 		targetDir = abs
 	}
 
+	// A new install that starts with `nav-pilot install` gets the same
+	// first-run defaults as a launch, so neither the scope question nor the
+	// picker appears and the next launch does not open the wizard (#2781).
+	// Explicit scope and selection flags still decide below.
+	if command == "install" && startedFresh && !jsonOutput && !dryRun && !frozen {
+		if err := maybeRunFirstRunSetup(sourceRepo); err != nil {
+			return err
+		}
+	}
+
 	// Build scope
 	var scope *InstallScope
 	if userScope {
@@ -979,7 +992,7 @@ func run(args []string) error {
 			scope = ScopeRepo(targetDir)
 		default:
 			var err error
-			scope, err = promptInstallScopeFn(targetDir)
+			scope, err = askInstallScope(targetDir)
 			switch {
 			case err != nil:
 				// No usable terminal: keep the pre-prompt behaviour instead of
@@ -1018,8 +1031,11 @@ func run(args []string) error {
 		installFrozen, installRef, installForce = frozen, ref, force
 		// --all with a scope flag, and --frozen, are the documented ways to
 		// install without being asked; --yes is the general one.
-		installConsentRequired = !(yes || (installAll && scopeProvided) || frozen)
-		defer func() { installFrozen, installRef, installForce, installConsentRequired = false, "", false, false }()
+		installConsentGiven = yes || (installAll && scopeProvided) || frozen
+		installConsentRequired = !installConsentGiven
+		defer func() {
+			installFrozen, installRef, installForce, installConsentRequired, installConsentGiven = false, "", false, false, false
+		}()
 		// One suppressor for the whole command, finalization included: every
 		// dispatch below reaches installArtifact, and finishInstall prints
 		// after the document is written.

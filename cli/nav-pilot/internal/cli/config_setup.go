@@ -618,6 +618,15 @@ var firstRunWrote bool
 // process wrote any marker or cache of its own.
 var startedFresh bool
 
+// navPilotStateNames are the files and directories nav-pilot keeps beside
+// its config (stateMarker, artifacts.CacheFilePath, telemetry.GetConfigDir).
+// TestStateNamesCoverStateMarkers keeps the stateMarker names in step.
+var navPilotStateNames = []string{
+	"config.toml.bak", "seen-*", "*.seen", "*-declined", "*-failed",
+	"*.json", "*.json.bak*", "device-id", "telemetry-spool", "local", "sources",
+	"source-cache", "pakker", "plugins", "cplt-allowed-domains.txt",
+}
+
 // noNavPilotState reports whether this machine has never had nav-pilot: no
 // config.toml, nothing in ~/.nav-pilot (or beside a relocated config), and no
 // user-scope state file in ~/.copilot (#2781). Any error counts as state.
@@ -643,8 +652,7 @@ func noNavPilotState() bool {
 	if _, err := os.ReadDir(dir); err != nil && !errors.Is(err, os.ErrNotExist) {
 		return false // unreadable: assume state rather than skip the wizard
 	}
-	for _, pattern := range []string{"config.toml.bak", "seen-*", "*.seen", "*-declined", "*-failed",
-		"*.json", "*.json.bak*", "device-id", "telemetry-spool", "local", "sources", "source-cache"} {
+	for _, pattern := range navPilotStateNames {
 		if m, _ := filepath.Glob(filepath.Join(dir, pattern)); len(m) > 0 {
 			return false
 		}
@@ -664,16 +672,23 @@ func firstRunDefaults(flagSource string) error {
 	maybeTelemetryNotice()
 	// OpenCode only when it is installed, logged in and inside the tested
 	// range (#1022 step 3); otherwise Copilot CLI when that is installed.
-	client := "opencode"
-	opencode := opencodeInstalled()
-	if !opencode || !openCodeReady() {
-		if p, err := providerFor("copilot"); err == nil && p.Available() {
-			client = "copilot"
-		} else if !opencode {
-			var err error
-			if client, err = opencodeForSetup(); err != nil {
-				return setupSkipped(err)
-			}
+	// Copilot CLI unless opencode is installed and ready; a missing Copilot
+	// CLI gets its install instructions at launch. Only with neither client
+	// installed is there a question: whether to install opencode.
+	client := "copilot"
+	copilot := false
+	if p, err := providerFor("copilot"); err == nil && p.Available() {
+		copilot = true
+	}
+	switch {
+	case opencodeInstalled():
+		if openCodeReady() {
+			client = "opencode"
+		}
+	case !copilot:
+		var err error
+		if client, err = opencodeForSetup(); err != nil {
+			return setupSkipped(err)
 		}
 	}
 	if err := writeSetupConfig(setupAnswers{Client: client, AutoUpdate: "true"}); err != nil {

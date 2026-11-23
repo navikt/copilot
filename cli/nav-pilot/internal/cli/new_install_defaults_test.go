@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -333,5 +334,129 @@ func TestOpenCodeLoggedInTimeoutHoldsWithAChild(t *testing.T) {
 	}
 	if d := time.Since(start); d > 8*time.Second {
 		t.Errorf("took %s, want about 6 s at most", d)
+	}
+}
+
+// existingUser isolates the config and writes one, so the run is not a new
+// install.
+func existingUser(t *testing.T) string {
+	t.Helper()
+	cfg := isolatedConfig(t)
+	if err := os.WriteFile(cfg, []byte("version = 1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	return cfg
+}
+
+// #2785 review: OpenCode installed but not ready, and no Copilot CLI, still
+// saves Copilot without a question; the launch then says how to install it.
+func TestNewInstallOpenCodeNotReadyNoCopilotGivesCopilot(t *testing.T) {
+	cfg := isolatedConfig(t)
+	forceInteractive(t)
+	asked := stubInstalled(t, map[string]bool{"opencode": true})
+	openCodeLoggedIn = func() bool { return false }
+	captureRun(t, func() {
+		if err := maybeRunFirstRunSetup(""); err != nil {
+			t.Fatal(err)
+		}
+	})
+	if data, _ := os.ReadFile(cfg); *asked != 0 || !strings.Contains(string(data), `client = "copilot"`) {
+		t.Errorf("asked %d, config:\n%s", *asked, data)
+	}
+}
+
+// hookPakkeSource is pakkeSource with one hook.
+func hookPakkeSource(t *testing.T, repo string) *Source {
+	t.Helper()
+	dir := pakkeSourceTree(t, `{"contractVersion":"1","name":"grillmester","description":"g",
+"clients":{"copilot":{"primaryAgents":["grillmester"]}},
+"layout":{"agents":"plugin/agents","skills":"plugin/skills","hooks":"hooks"}}`)
+	mustWrite(t, filepath.Join(dir, "hooks", "vakt.hook.json"), `{"matcher": "bash", "timeoutSec": 5}`)
+	mustWrite(t, filepath.Join(dir, "hooks", "vakt.py"), "print('{}')\n")
+	src := &Source{Dir: dir, SHA: "def5678" + strings.Repeat("0", 33), Version: "dev", Repo: repo}
+	if err := attachPakke(src); err != nil {
+		t.Fatalf("attachPakke: %v", err)
+	}
+	return src
+}
+
+// A new install that starts with `nav-pilot install` gets the first-run
+// defaults too: no scope question, no picker, user scope, a config with
+// auto_update on. Nav's hooks are not asked about; another source's are,
+// unless --yes said so (#2785 review).
+func TestRunInstallOnNewInstall(t *testing.T) {
+	for name, tc := range map[string]struct {
+		repo      string
+		args      []string
+		wantHooks int
+	}{
+		"nav source":           {defaultSourceRepo, []string{"install"}, 0},
+		"third-party source":   {"navikt/grillmester", []string{"install"}, 1},
+		"third-party, --yes":   {"navikt/grillmester", []string{"install", "--yes"}, 0},
+		"named, no scope flag": {defaultSourceRepo, []string{"install", "grillmester"}, 0},
+	} {
+		t.Run(name, func(t *testing.T) {
+			cfg := isolatedConfig(t)
+			home := t.TempDir()
+			t.Setenv("HOME", home)
+			forceInteractive(t)
+			stubInstalled(t, map[string]bool{"copilot": true})
+			stubResolveSource(t, hookPakkeSource(t, tc.repo))
+			scopeAsked := stubScopePrompt(t, nil)
+			hooks := 0
+			origHooks := askHooks
+			askHooks = func(string, string) (bool, error) { hooks++; return true, nil }
+			t.Cleanup(func() { askHooks = origHooks })
+			t.Chdir(repoTarget(t))
+
+			captureRun(t, func() {
+				if err := run(tc.args); err != nil {
+					t.Fatalf("run %v: %v", tc.args, err)
+				}
+			})
+			if *scopeAsked {
+				t.Error("a new install was asked where to install")
+			}
+			if hooks != tc.wantHooks {
+				t.Errorf("hook question asked %d times, want %d", hooks, tc.wantHooks)
+			}
+			if _, err := os.Stat(filepath.Join(home, ".copilot", "agents", "grillmester.agent.md")); err != nil {
+				t.Errorf("not installed to user scope: %v", err)
+			}
+			if data, _ := os.ReadFile(cfg); !strings.Contains(string(data), "auto_update = true") {
+				t.Errorf("first-run config not written:\n%s", data)
+			}
+		})
+	}
+}
+
+// Every stateMarker name nav-pilot writes counts as earlier use, and so do
+// the caches and consent files the review named.
+func TestStateNamesCoverStateMarkers(t *testing.T) {
+	names := []string{"tier-cache.json", "pakke-consent.json", "pakker", "cache.json", "device-id"}
+	src, err := filepath.Glob("*.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	re := regexp.MustCompile(`stateMarker\("([^"]+)"\)`)
+	for _, f := range src {
+		if strings.HasSuffix(f, "_test.go") {
+			continue
+		}
+		data, _ := os.ReadFile(f)
+		for _, m := range re.FindAllStringSubmatch(string(data), -1) {
+			names = append(names, m[1])
+		}
+	}
+	for _, name := range names {
+		matched := false
+		for _, p := range navPilotStateNames {
+			if ok, _ := filepath.Match(p, name); ok {
+				matched = true
+			}
+		}
+		if !matched {
+			t.Errorf("%s is nav-pilot state but not in navPilotStateNames", name)
+		}
 	}
 }
