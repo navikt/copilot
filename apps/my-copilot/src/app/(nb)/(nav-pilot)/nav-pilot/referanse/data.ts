@@ -153,28 +153,10 @@ export const CONFIG_KEYS = [
     desc: "Hvor mye hovedagenten i opencode delegerer til den lokale modellen. aggressive delegerer mest, men kostet flere AI Credits og tok lengre tid i målingene.",
   },
   {
-    key: "hook_loop_guard",
+    key: "guards",
     flag: "—",
     values: "true · false (standard: true)",
-    desc: "Samme løkkeregel i alle Copilot CLI-sesjoner, også i skyen: en postToolUse-hook i ~/.copilot/hooks/ sier fra til modellen når den står fast. false fjerner hooken ved neste oppstart.",
-  },
-  {
-    key: "hook_redact_secrets",
-    flag: "—",
-    values: "true · false (standard: true)",
-    desc: "Masker hemmeligheter (GitHub-tokener, AWS-nøkkel-id-er, private nøkler, JWT-er, verdien i password=/api_key=) i verktøyresultater før modellen leser dem, i alle Copilot CLI-sesjoner.",
-  },
-  {
-    key: "hook_redact_fnr",
-    flag: "—",
-    values: "true · false (standard: true)",
-    desc: "Masker fødselsnummer, D-nummer og H-nummer i verktøyresultater. nav-pilot maskerer bare elleve sifre der datoen og begge kontrollsifrene stemmer.",
-  },
-  {
-    key: "hook_injection_note",
-    flag: "—",
-    values: "true · false (standard: true)",
-    desc: "Sett en merknad foran verktøyresultater som ser ut som instrukser til modellen («ignore previous instructions», rollemarkører), så modellen behandler dem som data. Stopper ingenting.",
+    desc: "nav-pilots vakter i alle Copilot CLI-sesjoner: sier fra når modellen gjentar samme verktøykall, masker hemmeligheter og fødselsnumre i verktøyresultater og merker tekst som ser ut som instrukser til modellen. false skrur av alle. De gamle hook_*-nøklene virker fortsatt og vinner når de er satt.",
   },
   {
     key: "hook_action_check",

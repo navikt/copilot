@@ -4,6 +4,10 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ## 2026-11-23
 
+### Én nøkkel for vaktene: `guards`
+
+- **`guards`**: Én nøkkel slår av og på alle vaktene nav-pilot legger i Copilot CLI: varselet når modellen gjentar seg, maskering av hemmeligheter og fødselsnumre, og merknaden om tekst som ser ut som instrukser. Alle er på som standard. `nav-pilot config set guards false` skrur av alle. De fire gamle `hook_*`-nøklene virker fortsatt og vinner når de er satt, så ingen oppsett endrer seg. Har du satt dem, sier nav-pilot fra én gang at du kan bruke `guards` i stedet (#2781).
+
 ### Fleet-gateway virker i cplt uten oppsett
 
 - **cplt**: nav-pilot lar nå cplt slippe gjennom til `fleet-gateway.intern.nav.no` og `fleet-gateway.intern.dev.nav.no`, som peker til private adresser over naisdevice. Du trenger ikke endre cplt-konfigurasjonen din, og nav-pilot endrer den heller ikke. Krever cplt 2026.04.30 eller nyere. Med eldre cplt starter økten som før, uten disse to, og `nav-pilot doctor` forteller hvordan du oppdaterer.
