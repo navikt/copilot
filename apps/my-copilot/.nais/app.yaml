@@ -109,6 +109,8 @@ spec:
       - /admin/kostnad/rapport
       - /admin/verdi
       - /admin/undersokelser/**
+      - /fleet
+      - /fleet/**
       # Old paths with a permanent redirect in next.config.ts. Listed so the
       # redirect answers before Wonderwall does; the private targets
       # (/innsikt/bruk, /innsikt/tilpasninger, /innsikt/trender) still require a login in src/proxy.ts.
@@ -170,6 +172,10 @@ spec:
     - name: COPILOT_SURVEY_URL
       value: "{{copilot_survey_url}}"
   {{/if}}
+    # Empty outside dev keeps /fleet hidden (404). Unconditional on purpose:
+    # two adjacent if-blocks broke templating in prod (#2738).
+    - name: FLEET_CONTROL_URL
+      value: "{{fleet_control_url}}"
   liveness:
     path: "/health"
     port: 3000
@@ -197,6 +203,8 @@ spec:
         - application: copilot-survey
           namespace: copilot
       {{/if}}
+        - application: fleet-control
+          namespace: copilot
       external:
         - host: api.github.com
         - host: avatars.githubusercontent.com

@@ -5,6 +5,7 @@ import { HStack, Pagination, Table, VStack } from "@navikt/ds-react";
 import { TableBody, TableDataCell, TableHeader, TableHeaderCell, TableRow } from "@navikt/ds-react/Table";
 import type { TeamAdoption } from "@/lib/types";
 import { formatPercent } from "@/lib/format";
+import { ScrollRegion } from "@/components/scroll-region";
 
 const PAGE_SIZE = 15;
 
@@ -19,7 +20,7 @@ export default function TeamTable({ teams }: TeamTableProps) {
 
   return (
     <VStack gap="space-16">
-      <div className="overflow-x-auto">
+      <ScrollRegion label="Tabell: tilpasninger per team">
         <Table size="small" aria-label="Tilpasninger per team">
           <TableHeader>
             <TableRow>
@@ -46,7 +47,7 @@ export default function TeamTable({ teams }: TeamTableProps) {
             ))}
           </TableBody>
         </Table>
-      </div>
+      </ScrollRegion>
       {totalPages > 1 && (
         <HStack justify="center">
           <Pagination page={page} onPageChange={setPage} count={totalPages} siblingCount={0} />

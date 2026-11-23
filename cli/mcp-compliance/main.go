@@ -467,14 +467,27 @@ func (cfg *config) expect(method, token string, body map[string]any, hdr map[str
 	return expectStatus(resp, err, want)
 }
 
-// expectChallenge wants 401 with an RFC 6750 invalid_token challenge, which a
-// wrong URL behind a generic 401 does not send.
+// expectChallenge wants 401 with a Bearer challenge. A request without a token
+// should get no error code (RFC 6750 3.1); a bad token gets error="invalid_token".
 func (cfg *config) expectChallenge(token string) error {
 	resp, err := cfg.do(http.MethodPost, token, modernBody("server/discover", nil), modernHeaders("server/discover", ""))
 	if e := expectStatus(resp, err, 401); e != nil {
 		return e
 	}
-	if h := resp.header.Get("WWW-Authenticate"); !strings.Contains(h, "invalid_token") {
+	var hasErr, invalid bool
+	cs := bearerChallenges(resp.header.Values("WWW-Authenticate"))
+	for _, c := range cs {
+		_, e := c.params["error"]
+		hasErr = hasErr || e
+		invalid = invalid || c.params["error"] == "invalid_token"
+	}
+	isBearer := len(cs) > 0
+	switch {
+	case token == "" && !isBearer:
+		return warnError("no WWW-Authenticate: Bearer challenge (RFC 6750 SHOULD)")
+	case token == "" && hasErr:
+		return warnError("WWW-Authenticate has an error code for a request without a token (RFC 6750 3.1 SHOULD NOT)")
+	case token != "" && !invalid:
 		// The reference servers send no challenge yet; discover-first already guards a wrong URL.
 		return warnError(`no WWW-Authenticate with error="invalid_token" (RFC 6750 SHOULD)`)
 	}

@@ -273,10 +273,33 @@ func (d *DB) Approve(ctx context.Context, actor, ns, name string, version int, h
 			}
 			return err
 		}
+		if err := checkRoutesFit(ctx, tx); err != nil {
+			return err
+		}
 		after := serverState{Published: &version, Status: "published"}
 		return audit(ctx, tx, actor, "approved_published", ns, name, &version, before, after, map[string]any{"content_hash": hash, "submitted_by": submittedBy})
 	})
 }
+
+// checkRoutesFit runs routesFit on what tx would publish. The routes snapshot
+// lock serialises it with concurrent approvals and rollbacks, so two writes
+// that each fit cannot together exceed the limit.
+func checkRoutesFit(ctx context.Context, tx pgx.Tx) error {
+	if _, err := tx.Exec(ctx, "SELECT pg_advisory_xact_lock($1)", snapshotLockKey("routes")); err != nil {
+		return err
+	}
+	servers, err := queryServers(ctx, tx)
+	if err != nil {
+		return err
+	}
+	if routesFitPause != nil {
+		routesFitPause()
+	}
+	return routesFit(servers)
+}
+
+// routesFitPause lets a test widen the window between read and commit.
+var routesFitPause func()
 
 // Revoke stops a published server. One person is enough. block also marks
 // the published version so rollback never returns to it.
@@ -327,6 +350,9 @@ func (d *DB) Rollback(ctx context.Context, actor, ns, name string) (int, error) 
 			if pgErr, ok := errors.AsType[*pgconn.PgError](err); ok && pgErr.Code == "23505" {
 				return refuse(http.StatusConflict, "registry name is used by another server")
 			}
+			return err
+		}
+		if err := checkRoutesFit(ctx, tx); err != nil {
 			return err
 		}
 		after := before

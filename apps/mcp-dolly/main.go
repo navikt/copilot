@@ -304,11 +304,11 @@ func (s *server) serveModern(w http.ResponseWriter, r *http.Request, env mcpEnve
 	case "server/discover":
 		result = mcpDiscoverResult(map[string]any{"tools": map[string]any{}}, now)
 	case "tools/list":
-		result = map[string]any{"tools": toolDefinitions(s.cfg.EnableCreateOrder, env.formElicitation() || !s.cfg.TwoStepOrder)}
+		result = map[string]any{"tools": toolDefinitions(s.cfg.EnableCreateOrder, env.FormElicitation() || !s.cfg.TwoStepOrder)}
 		extra = map[string]any{"ttlMs": mcpDiscoverTTLMilliseconds, "cacheScope": "private"}
 	case "tools/call":
 		var el *elicitInput
-		if env.formElicitation() {
+		if env.FormElicitation() {
 			el = &elicitInput{responses: env.Params.InputResponses, state: env.Params.RequestState}
 		}
 		res, rpcErr := s.handleToolCall(r.Context(), token, navIdent, env.Params.Name, env.Params.Arguments, el)

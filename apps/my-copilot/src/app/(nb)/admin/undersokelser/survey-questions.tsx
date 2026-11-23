@@ -4,6 +4,7 @@ import { formatNumber } from "@/lib/format";
 import { UNDER_FIVE, type QuestionResult, type Survey, type SurveyQuestion, type VersionResult } from "@/lib/survey";
 import { nText, unsureLabel } from "./[id]/likert";
 import { fill, Legend, LikertBar } from "./likert-bar";
+import { ScrollRegion } from "@/components/scroll-region";
 
 /**
  * The scale labels of a question (Helt uenig … Helt enig), for the version the
@@ -21,11 +22,13 @@ type Label = (version: number, value: string) => string;
 function VersionTable({
   v,
   caption,
+  title,
   label,
   unsure,
 }: {
   v: VersionResult;
   caption: string;
+  title: string;
   label: Label;
   unsure?: string;
 }) {
@@ -38,7 +41,7 @@ function VersionTable({
     );
   if (!v.options || n === null) return null;
   return (
-    <div className="overflow-x-auto">
+    <ScrollRegion label={`Tabell: svarfordeling – «${title}», ${caption.toLowerCase()}`}>
       <Table size="small">
         <caption className="text-left">
           <BodyShort size="small">
@@ -80,7 +83,7 @@ function VersionTable({
           })}
         </TableBody>
       </Table>
-    </div>
+    </ScrollRegion>
   );
 }
 
@@ -94,11 +97,13 @@ function scaleOf(def: SurveyQuestion | undefined, version: number | undefined): 
 }
 
 function Versions({
+  title,
   versions,
   label,
   scale,
   unsure,
 }: {
+  title: string;
   versions: VersionResult[];
   label: Label;
   scale?: Scale;
@@ -106,7 +111,7 @@ function Versions({
 }) {
   return versions.map((v) => {
     const caption = versions.length > 1 ? `Versjon ${v.version}` : "Alle";
-    const table = <VersionTable key={v.version} v={v} label={label} caption={caption} unsure={unsure} />;
+    const table = <VersionTable key={v.version} title={title} v={v} label={label} caption={caption} unsure={unsure} />;
     if (!scale || v.version !== scale.version || !v.options || v.n === null) return table;
     return (
       <VStack key={v.version} gap="space-4">
@@ -138,6 +143,7 @@ export function SurveyQuestions({ questions, def }: { questions: QuestionResult[
           ) : null}
           {q.versions ? (
             <Versions
+              title={q.text}
               unsure={qdef?.unsure}
               versions={q.versions}
               label={labeller(qdef, qdef?.version)}
@@ -150,6 +156,7 @@ export function SurveyQuestions({ questions, def }: { questions: QuestionResult[
                 {item.text}
               </Heading>
               <Versions
+                title={`${q.text} – ${item.text}`}
                 unsure={qdef?.unsure}
                 versions={item.versions}
                 label={labeller(qdef, qdef?.items?.find((d) => d.id === item.id)?.version)}

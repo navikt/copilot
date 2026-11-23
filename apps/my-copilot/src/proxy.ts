@@ -61,6 +61,7 @@ export const config = {
     "/innsikt/trender/:path*",
     "/innsikt/undersokelser/:path*",
     "/admin/:path*",
+    "/fleet/:path*",
     "/adopsjon/:path*",
     "/kostnad/:path*",
     "/abonnement/:path*",

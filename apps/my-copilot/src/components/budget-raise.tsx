@@ -116,6 +116,63 @@ function Stat({ title, value, note }: { title: string; value: string; note?: str
   );
 }
 
+function SkeletonPanel({ fields }: { fields: number }) {
+  return (
+    <Panel>
+      <VStack gap="space-16">
+        <Skeleton variant="text" width="10rem" height="2rem" />
+        <Skeleton variant="text" width="80%" />
+        <VStack gap="space-20" className="max-w-xl">
+          {Array.from({ length: fields }, (_, i) => (
+            <VStack key={i} gap="space-8">
+              <Skeleton variant="text" width="14rem" />
+              <Skeleton variant="rounded" height="3rem" />
+            </VStack>
+          ))}
+          <Skeleton variant="rounded" width="9rem" height="3rem" />
+        </VStack>
+      </VStack>
+    </Panel>
+  );
+}
+
+/** Mirrors the loaded page (summary, stats, progress bar, raise form, profile) so nothing jumps when data arrives. */
+export function BudgetSkeleton() {
+  return (
+    <>
+      {/* Outside the busy container: screen readers skip announcements inside aria-busy. */}
+      <span role="status" className="sr-only">
+        Laster budsjett
+      </span>
+      <VStack gap="space-32" aria-busy="true">
+        <VStack gap="space-12" aria-hidden>
+          <Skeleton variant="text" width="9rem" height="2.5rem" />
+          {["70%", "85%", "60%", "75%"].map((w) => (
+            <Skeleton key={w} variant="text" width={w} />
+          ))}
+        </VStack>
+        <VStack gap="space-16" aria-hidden>
+          <Skeleton variant="text" width="13rem" height="2rem" />
+          <HGrid columns={{ xs: 2, md: 4 }} gap="space-12">
+            {[0, 1, 2, 3].map((i) => (
+              <Skeleton key={i} variant="rounded" height="5.5rem" />
+            ))}
+          </HGrid>
+          <Skeleton variant="rounded" height="1.5rem" />
+          <Skeleton variant="text" width="50%" />
+          <Skeleton variant="text" width="40%" />
+        </VStack>
+        <div aria-hidden>
+          <SkeletonPanel fields={4} />
+        </div>
+        <div aria-hidden>
+          <SkeletonPanel fields={2} />
+        </div>
+      </VStack>
+    </>
+  );
+}
+
 export function BudgetRaisePage() {
   const [budget, setBudget] = useState<Loaded<Budget>>();
   const [options, setOptions] = useState<Loaded<BudgetOptions>>();
@@ -130,14 +187,7 @@ export function BudgetRaisePage() {
     load<BudgetProfile>("/api/budget/profile").then(setProfile);
   }, [reloadBudget]);
 
-  if (!budget || !options || !profile) {
-    return (
-      <VStack gap="space-8" aria-busy>
-        <Skeleton variant="text" width="12rem" />
-        <Skeleton variant="rectangle" height="8rem" />
-      </VStack>
-    );
-  }
+  if (!budget || !options || !profile) return <BudgetSkeleton />;
 
   const b = "data" in budget ? budget.data : undefined;
   const o = "data" in options ? options.data : undefined;
@@ -196,11 +246,11 @@ function Summary({
             ? "down"
             : "open";
   const raiseLine = {
-    own: "Du har et eget, fast budsjett, så påfyll gjelder ikke for deg.",
-    cap: "Du har nådd taket. 1. i neste måned er du tilbake på standardbudsjettet.",
+    own: "Du har et eget fast budsjett, så påfyll gjelder ikke deg.",
+    cap: "Du har nådd taket. 1. i neste måned går budsjettet tilbake til standard.",
     closed: `Påfyll er ikke åpnet ennå. Når det åpner, kan du fylle på ${usd(step)} selv.`,
     down: "Påfyll er ikke tilgjengelig akkurat nå. Prøv igjen om litt.",
-    open: `Går du tom, kan du fylle på ${usd(step)} selv. Påfyllet gjelder ut måneden.`,
+    open: `Trenger du mer, fyller du på ${usd(step)} selv. Det gjelder ut måneden, og ingen godkjenner eller vurderer det.`,
   }[state];
   return (
     <VStack gap="space-12">
@@ -214,11 +264,14 @@ function Summary({
             {typeof budget.consumedAmount === "number" && <>, og du har brukt {usd(budget.consumedAmount)}</>}.
           </List.Item>
         ) : (
-          <List.Item>Vi får ikke hentet budsjettet ditt akkurat nå. {errorMessage(budgetError)}</List.Item>
+          <List.Item>Vi får ikke hentet budsjettet ditt nå. {errorMessage(budgetError)}</List.Item>
         )}
         <List.Item>{raiseLine}</List.Item>
+        {(state === "open" || state === "closed") && (
+          <List.Item>Det er helt greit å fylle på. Å prøve ut og lære er en god grunn.</List.Item>
+        )}
         {state !== "own" && state !== "cap" && (
-          <List.Item>Taket er {usd(cap)} i måneden. 1. i neste måned er du tilbake på standardbudsjettet.</List.Item>
+          <List.Item>Taket er {usd(cap)} i måneden. 1. i neste måned går budsjettet tilbake til standard.</List.Item>
         )}
         {state !== "own" && (
           <List.Item>Skriv aldri personopplysninger eller saksopplysninger i fritekstfeltet.</List.Item>
@@ -271,7 +324,7 @@ function Consumption({ budget, capUsd }: { budget: Budget; capUsd?: number }) {
       )}
       {pct === null && <BodyShort>Forbruket er ikke tilgjengelig ennå.</BodyShort>}
       {!budget.raises ? (
-        <BodyShort>Vi får ikke vist påfyllene dine akkurat nå.</BodyShort>
+        <BodyShort>Vi får ikke vist påfyllene dine nå.</BodyShort>
       ) : budget.raises.length === 0 ? (
         <BodyShort>Du har ikke fylt på denne måneden.</BodyShort>
       ) : (
@@ -328,6 +381,7 @@ function RaiseSection({
   const [result, setResult] = useState<{ ok: RaiseResult } | { error: string }>();
   // One key per raise, kept across retries of the same raise so a double click or retry gives one raise (F9).
   const key = useRef<string | null>(null);
+  const lastBody = useRef("");
   const summaryRef = useRef<HTMLDivElement>(null);
   const resultRef = useRef<HTMLDivElement>(null);
 
@@ -339,6 +393,8 @@ function RaiseSection({
   }, [result]);
 
   const ownBudget = budget ? hasOwnBudget(budget) : null;
+  // A kept key means an unresolved raise: only «Prøv igjen» may send, so new input never replays the old body.
+  const unresolved = Boolean(key.current && result);
   const left = raisesLeft(budget, options);
 
   const heading = (
@@ -367,14 +423,22 @@ function RaiseSection({
       next["pafyll-fritekst"] = `Fritekst kan være høyst ${options.freeTextMax} tegn.`;
     setErrors(next);
     if (Object.keys(next).length) return;
+    if (!key.current) {
+      key.current = crypto.randomUUID();
+      lastBody.current = JSON.stringify({ category, teamId: teamOverride || undefined, expectedValue, freeText });
+    }
+    await send(false);
+  }
 
-    key.current ??= crypto.randomUUID();
+  // Re-sends the unresolved raise with its key; copilot-api reconciles it, even at the ceiling.
+  async function send(retry: boolean) {
+    if (!key.current) return;
     setBusy(true);
     try {
       const res = await fetch("/api/budget/raises", {
         method: "POST",
         headers: { "Content-Type": "application/json", "Idempotency-Key": key.current },
-        body: JSON.stringify({ category, teamId: teamOverride || undefined, expectedValue, freeText }),
+        body: lastBody.current,
       });
       const body = await res.json().catch(() => ({}));
       if (res.ok) {
@@ -390,8 +454,11 @@ function RaiseSection({
         const code = (body as { error?: string }).error ?? "failed";
         setResult({ error: code });
         onRefused(code);
-        // A definite answer ends this raise; a network or server failure keeps the key for the retry.
-        if (res.status < 500) key.current = null;
+        // GitHub may have applied it: show the backend's real budget and raises.
+        if (code === "github_error") onRaised();
+        // A 4xx (including 429) on a new raise was refused before any raise was created, so clear the key.
+        // A 5xx on a new raise may have created one, and a retry stays unresolved until the raise body resolves it.
+        if (!retry && res.status < 500) key.current = null;
       }
     } catch {
       setResult({ error: "failed" });
@@ -408,12 +475,19 @@ function RaiseSection({
         {left !== null &&
           (left > 0
             ? `Du kan fylle på ${left} ${left === 1 ? "gang" : "ganger"} til denne måneden.`
-            : "Du har nådd taket. 1. i neste måned er du tilbake på standardbudsjettet.")}
+            : "Du har nådd taket. 1. i neste måned går budsjettet tilbake til standard.")}
       </BodyShort>
 
       <div ref={resultRef} tabIndex={-1} aria-live="polite">
         {result && "ok" in result && <RaiseOutcome result={result.ok} />}
-        {result && "error" in result && (
+        {result && "error" in result && result.error === "github_error" && (
+          // GitHub may have applied the raise even though it answered badly.
+          <Message status="warning" title="Vi vet ikke om påfyllet gikk gjennom">
+            Se forbruket øverst. Vent et par minutter og prøv igjen uten å laste inn siden på nytt, så sjekker vi det
+            automatisk. Laster du inn siden, starter du et nytt påfyll.
+          </Message>
+        )}
+        {result && "error" in result && result.error !== "github_error" && (
           <Message
             status={result.error === "cap_reached" || result.error === "not_open" ? "warning" : "error"}
             title="Du fikk ikke påfyll"
@@ -423,7 +497,15 @@ function RaiseSection({
         )}
       </div>
 
-      {left !== 0 && (
+      {unresolved && (
+        <div>
+          <Button type="button" variant="secondary" onClick={() => send(true)} loading={busy}>
+            Prøv igjen
+          </Button>
+        </div>
+      )}
+
+      {left !== 0 && !unresolved && (
         <form onSubmit={submit} noValidate>
           <VStack gap="space-20" className="max-w-xl">
             <Errors errors={errors} refEl={summaryRef} />
@@ -444,7 +526,7 @@ function RaiseSection({
             <Select
               id="pafyll-team"
               label="Team"
-              description="Påfyllet registreres på dette teamet. Standard er teamet i profilen din."
+              description="Påfyllet føres på dette teamet. Standard er teamet i profilen din."
               value={teamId}
               onChange={(e) => setTeamOverride(e.target.value)}
             >
@@ -471,12 +553,12 @@ function RaiseSection({
             </Select>
             <VStack gap="space-8">
               <Message status="warning" title="Ikke skriv personopplysninger eller saksopplysninger">
-                Teksten lagres sammen med påfyllet. Skriv om arbeidet, ikke om brukere, saker eller kolleger.
+                Teksten lagres med påfyllet. Skriv om arbeidet, ikke om brukere, saker eller kolleger.
               </Message>
               <Textarea
                 id="pafyll-fritekst"
                 label="Fortell mer (valgfritt)"
-                description="For eksempel hva du jobber med eller hvorfor du trenger mer nå."
+                description="For eksempel hva du jobber med eller vil prøve ut."
                 value={freeText}
                 onChange={(e) => setFreeText(e.target.value)}
                 maxLength={options.freeTextMax}
@@ -551,12 +633,12 @@ function ProfileSection({
       <BodyShort>
         Vi bruker svarene samlet, til å forstå hvordan Copilot brukes og styre budsjettet – ikke til å vurdere deg eller
         teamet ditt. Bare du og administratorer i team copilot ser svarene dine. Tekniske ledere vil bare se tall for
-        grupper på minst fem personer. Du må lagre profilen før første påfyll.
+        grupper på minst fem personer. Lagre profilen før første påfyll.
       </BodyShort>
       {profile?.leftTeamId && (
         <Message status="announcement" title="Du er ikke lenger med i teamet du lagret">
-          Vi fant deg ikke i teamet «{profile.leftTeamId}» lenger, så påfyll registreres på «Annet/ukjent». Velg et av
-          teamene dine og lagre profilen på nytt.
+          Du er ikke lenger i teamet «{profile.leftTeamId}», så påfyll føres på «Annet/ukjent». Velg et nytt team og
+          lagre profilen.
         </Message>
       )}
       {profileError && (
@@ -579,7 +661,7 @@ function ProfileSection({
             <Select
               id="profil-team"
               label="Team"
-              description="Bare teamene du er med i på GitHub vises. Finner du ikke teamet ditt, velg «Annet/ukjent»."
+              description="Du ser bare teamene du er med i på GitHub. Mangler teamet ditt, velg «Annet/ukjent»."
               value={teamId}
               onChange={(e) => setTeamId(e.target.value)}
               error={errors["profil-team"]}
@@ -627,15 +709,16 @@ function RaiseOutcome({ result }: { result: RaiseResult }) {
   if (status === "dry_run") {
     return (
       <Message status="announcement" title="Testkjøring: ingenting er endret i GitHub">
-        Påfyllet er lagret som en test. Budsjettet ditt i GitHub er det samme som før.
+        Påfyllet er lagret som test. Budsjettet ditt i GitHub er uendret.
       </Message>
     );
   }
   if (status === "pending") {
     return (
       <Message status="announcement" title="Påfyllet venter på GitHub">
-        Vi har registrert påfyllet, men vet ikke ennå om GitHub har tatt det i bruk. Se statusen i tabellen over om noen
-        minutter. Sender du skjemaet igjen, gir det ikke et nytt påfyll.
+        Vi har registrert påfyllet, men vet ikke ennå om endringen gikk gjennom i GitHub. Vent et par minutter og prøv
+        igjen uten å laste inn siden på nytt, så sjekker vi det automatisk. Laster du inn siden, starter du et nytt
+        påfyll.
       </Message>
     );
   }
@@ -656,7 +739,7 @@ function RaiseOutcome({ result }: { result: RaiseResult }) {
   if (result.replayed || result.budgetUsd === undefined) {
     return (
       <Message status="success" title="Påfyllet er allerede registrert">
-        Du har sendt det samme påfyllet før. Du får ikke et nytt påfyll av å sende det igjen.
+        Du har sendt dette påfyllet før. Sender du det igjen, får du ikke et nytt påfyll.
       </Message>
     );
   }

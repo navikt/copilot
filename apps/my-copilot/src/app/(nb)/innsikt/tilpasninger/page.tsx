@@ -20,6 +20,7 @@ import { formatNumber, formatPercent, formatShare } from "@/lib/format";
 import type { AdoptionData } from "@/lib/types";
 import { calculateLanguageStats } from "@/lib/adoption-utils";
 import { getAllCustomizations } from "@/lib/customizations";
+import { ScrollRegion } from "@/components/scroll-region";
 
 export const metadata: Metadata = {
   title: "Tilpasninger",
@@ -238,7 +239,7 @@ async function Sync({ token }: { token: string }) {
           <BodyShort size="small" textColor="subtle">
             Filer som finnes i flere repoer, men ikke er like kilden. De med flest repoer ute av synk står først.
           </BodyShort>
-          <div className="overflow-x-auto">
+          <ScrollRegion label="Tabell: filer som er ute av synk">
             <Table size="small">
               <TableHeader>
                 <TableRow>
@@ -263,7 +264,7 @@ async function Sync({ token }: { token: string }) {
                 ))}
               </TableBody>
             </Table>
-          </div>
+          </ScrollRegion>
         </>
       )}
     </>

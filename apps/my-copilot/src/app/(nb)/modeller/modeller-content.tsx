@@ -40,6 +40,7 @@ import {
 import { NAV_PILOT_DEFAULT_MODEL, NAV_PILOT_MODEL_CHOICES, RECOMMENDED_DAILY_MODEL } from "@/lib/model-policy";
 import { ModelPricingTables } from "../priser/model-pricing-tables";
 import { PassRateChart } from "./pass-rate-chart";
+import { ScrollRegion } from "@/components/scroll-region";
 
 const SLACK_URL = "https://nav-it.slack.com/archives/C0ASJSZK8P8";
 const MODELLVALG_DOC = "https://github.com/navikt/copilot/blob/main/docs/modellvalg.md";
@@ -133,7 +134,7 @@ export function latestRuns(runs: GoldenRun[]): { latest: GoldenRun[]; older: Gol
 
 function Choices({ users }: { users: Record<string, string[]> }) {
   return (
-    <div className="w-full overflow-x-auto">
+    <ScrollRegion label="Tabell: modellvalg per oppgave" className="w-full">
       <Table size="small">
         <Table.Header>
           <Table.Row>
@@ -177,7 +178,7 @@ function Choices({ users }: { users: Record<string, string[]> }) {
           ))}
         </Table.Body>
       </Table>
-    </div>
+    </ScrollRegion>
   );
 }
 
@@ -236,7 +237,7 @@ function KeyPoints() {
         Vi velger modell etter hva oppgaven krever, hva den koster og hvordan modellen gjør det i våre egne målinger.
         Hvem som lager modellen, spiller ingen rolle.
       </BodyLong>
-      <div className="w-full overflow-x-auto">
+      <ScrollRegion label="Tabell: hovedpunkter for modellvalg" className="w-full">
         <Table size="small">
           <Table.Header>
             <Table.Row>
@@ -259,7 +260,7 @@ function KeyPoints() {
             ))}
           </Table.Body>
         </Table>
-      </div>
+      </ScrollRegion>
       <Alert variant="info" size="small">
         <Heading size="xsmall" level="3" spacing>
           GPT-6.1 Sol og personopplysninger
@@ -435,7 +436,7 @@ function SuitePanel({ suite, runs, view, colors }: { suite: Suite; runs: GoldenR
           }))}
         />
       )}
-      <div className="w-full overflow-x-auto">
+      <ScrollRegion label="Tabell: målinger per modell" className="w-full">
         <Table size="small">
           <caption className="sr-only">{name}: målinger per modell og innsatsnivå</caption>
           <Table.Header>
@@ -476,7 +477,7 @@ function SuitePanel({ suite, runs, view, colors }: { suite: Suite; runs: GoldenR
             <RunRows runs={tableRuns} moreColumns={view.moreColumns} partial={partial} />
           </Table.Body>
         </Table>
-      </div>
+      </ScrollRegion>
       {older.length > 0 && (
         <Switch size="small" checked={showOlder} onChange={(e) => setShowOlder(e.target.checked)}>
           {`Vis tidligere målinger (${older.length})`}
@@ -717,7 +718,7 @@ function EffortSection() {
         </Link>
         . Rådene under bygger på kildene og på disse målingene.
       </BodyLong>
-      <div className="w-full overflow-x-auto">
+      <ScrollRegion label="Tabell: innsatsnivå (effort)" className="w-full">
         <Table size="small">
           <Table.Header>
             <Table.Row>
@@ -734,7 +735,7 @@ function EffortSection() {
             ))}
           </Table.Body>
         </Table>
-      </div>
+      </ScrollRegion>
       <BodyShort size="small">Kilder:</BodyShort>
       <ul className="list-disc text-sm" style={{ paddingInlineStart: "var(--ax-space-20)" }}>
         {EFFORT_SOURCES.map((source) => (

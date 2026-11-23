@@ -40,10 +40,12 @@ type AuthorizationServerMetadata struct {
 	AuthorizationEndpoint             string   `json:"authorization_endpoint"`
 	TokenEndpoint                     string   `json:"token_endpoint"`
 	RegistrationEndpoint              string   `json:"registration_endpoint,omitempty"`
+	RevocationEndpoint                string   `json:"revocation_endpoint"`
 	ResponseTypesSupported            []string `json:"response_types_supported"`
 	GrantTypesSupported               []string `json:"grant_types_supported"`
 	CodeChallengeMethodsSupported     []string `json:"code_challenge_methods_supported"`
 	TokenEndpointAuthMethodsSupported []string `json:"token_endpoint_auth_methods_supported"`
+	RevocationEndpointAuthMethods     []string `json:"revocation_endpoint_auth_methods_supported"`
 }
 
 type ProtectedResourceMetadata struct {
@@ -69,6 +71,8 @@ func (s *OAuthServer) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /oauth/callback", s.handleCallback)
 	mux.HandleFunc("POST /oauth/token", s.handleToken)
 	mux.HandleFunc("OPTIONS /oauth/token", s.handleTokenOptions)
+	mux.HandleFunc("POST /oauth/revoke", s.handleRevoke)
+	mux.HandleFunc("OPTIONS /oauth/revoke", s.handleTokenOptions)
 	mux.HandleFunc("POST /register", s.handleRegister)
 	mux.HandleFunc("OPTIONS /register", s.handleRegisterOptions)
 }
@@ -80,10 +84,12 @@ func (s *OAuthServer) handleAuthServerMetadata(w http.ResponseWriter, _ *http.Re
 		AuthorizationEndpoint:             s.BaseURL + "/oauth/authorize",
 		TokenEndpoint:                     s.BaseURL + "/oauth/token",
 		RegistrationEndpoint:              s.BaseURL + "/register",
+		RevocationEndpoint:                s.BaseURL + "/oauth/revoke",
 		ResponseTypesSupported:            []string{"code"},
 		GrantTypesSupported:               []string{"authorization_code", "refresh_token"},
 		CodeChallengeMethodsSupported:     []string{"S256"},
 		TokenEndpointAuthMethodsSupported: []string{"none"},
+		RevocationEndpointAuthMethods:     []string{"none"},
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -427,6 +433,8 @@ func (s *OAuthServer) handleAuthorizationCodeGrant(w http.ResponseWriter, r *htt
 		UserLogin:          authCode.UserLogin,
 		UserID:             authCode.UserID,
 		ExpiresAt:          time.Now().Add(time.Duration(expiresIn) * time.Second),
+		ClientID:           authCode.ClientID,
+		RefreshToken:       refreshToken,
 	})
 
 	s.Store.SaveRefreshToken(refreshToken, &RefreshTokenData{
@@ -435,6 +443,7 @@ func (s *OAuthServer) handleAuthorizationCodeGrant(w http.ResponseWriter, r *htt
 		UserLogin:          authCode.UserLogin,
 		UserID:             authCode.UserID,
 		CreatedAt:          time.Now(),
+		AccessToken:        accessToken,
 	})
 
 	slog.Info("token issued", "user", authCode.UserLogin, "expires_in", expiresIn)
@@ -493,23 +502,29 @@ func (s *OAuthServer) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Req
 	newRefreshToken := generateSecureToken(64)
 	expiresIn := 3600
 
-	s.Store.SaveToken(accessToken, &TokenData{
+	err = s.Store.RotateRefreshToken(refreshToken, rtData.ClientID, accessToken, &TokenData{
 		GitHubAccessToken:  newGitHubToken.AccessToken,
 		GitHubRefreshToken: newGitHubToken.RefreshToken,
 		GitHubExpiresAt:    newGitHubToken.ExpiresAt,
 		UserLogin:          rtData.UserLogin,
 		UserID:             rtData.UserID,
 		ExpiresAt:          time.Now().Add(time.Duration(expiresIn) * time.Second),
-	})
-
-	s.Store.DeleteRefreshToken(refreshToken)
-	s.Store.SaveRefreshToken(newRefreshToken, &RefreshTokenData{
+		ClientID:           rtData.ClientID,
+		RefreshToken:       newRefreshToken,
+	}, newRefreshToken, &RefreshTokenData{
 		ClientID:           rtData.ClientID,
 		GitHubRefreshToken: newGitHubToken.RefreshToken,
 		UserLogin:          rtData.UserLogin,
 		UserID:             rtData.UserID,
 		CreatedAt:          time.Now(),
+		AccessToken:        accessToken,
 	})
+	if err != nil {
+		// Revoked or redeemed by a concurrent refresh while GitHub answered.
+		recordOAuthFlow("token_refresh", "lost_race")
+		s.writeTokenError(w, "invalid_grant", "Invalid refresh token")
+		return
+	}
 
 	slog.Info("token refreshed", "user", rtData.UserLogin)
 	recordOAuthFlow("token_refresh", "success")
@@ -521,6 +536,45 @@ func (s *OAuthServer) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Req
 		"refresh_token": newRefreshToken,
 	}
 	_ = json.NewEncoder(w).Encode(response)
+}
+
+// handleRevoke implements RFC 7009 token revocation. Clients are public
+// (token_endpoint_auth_method "none"), so client_id is the client
+// authentication, as on /oauth/token. token_type_hint is optional and ignored:
+// both token kinds are looked up (RFC 7009 §2.1 allows this).
+func (s *OAuthServer) handleRevoke(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Cache-Control", "no-store")
+
+	r.Body = http.MaxBytesReader(w, r.Body, 1<<20) // 1 MB
+	if err := r.ParseForm(); err != nil {
+		s.writeTokenError(w, "invalid_request", "Failed to parse form")
+		return
+	}
+	token := r.PostFormValue("token")
+	clientID := r.PostFormValue("client_id")
+	if clientID == "" {
+		recordOAuthFlow("token_revoke", "invalid_client")
+		s.writeTokenError(w, "invalid_client", "client_id is required")
+		return
+	}
+	if token == "" {
+		s.writeTokenError(w, "invalid_request", "token is required")
+		return
+	}
+
+	switch s.Store.RevokeToken(token, clientID) {
+	case RevokeNotOwner:
+		slog.Warn("revocation refused: token issued to another client", "client_id", logSafe(clientID))
+		recordOAuthFlow("token_revoke", "invalid_client")
+		s.writeTokenError(w, "invalid_client", "token was not issued to this client")
+		return
+	case RevokeDone:
+		recordOAuthFlow("token_revoke", "success")
+	case RevokeUnknown:
+		recordOAuthFlow("token_revoke", "unknown_token")
+	}
+	w.WriteHeader(http.StatusOK)
 }
 
 func (s *OAuthServer) writeTokenError(w http.ResponseWriter, code, description string) {

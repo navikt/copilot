@@ -11,6 +11,7 @@ import { LocalModelsTable } from "@/components/nav-pilot/local-model-tables";
 import type { TocItem } from "@/components/table-of-contents";
 import { FALLBACK_TABLE, MANIFEST_URL, getLocalModels, type LocalModel } from "@/lib/local-models";
 import { CLI_COMMANDS, CONFIG_KEYS } from "./data";
+import { ScrollRegion } from "@/components/scroll-region";
 
 const KEY_LINKS: Record<string, { href: string; label: string }> = {
   autonomy: { href: "/nav-pilot/forklaring/sandkassen#autonomi", label: "Mer om autonomy" },
@@ -139,7 +140,7 @@ export default function Referanse() {
             <code className={code}>.github/</code>) eller i hjemmekatalogen (<code className={code}>~/.copilot/</code>
             ). Med <code className={code}>--repo</code> eller <code className={code}>--user</code> svarer du på forhånd.
           </BodyLong>
-          <div className="overflow-x-auto">
+          <ScrollRegion label="Tabell: kommandoer">
             <Table size="small" className="table-stack" role="table">
               <HeaderRow stack cells={["Kommando", "Hva den gjør"]} />
               <TableBody role="rowgroup">
@@ -153,7 +154,7 @@ export default function Referanse() {
                 ))}
               </TableBody>
             </Table>
-          </div>
+          </ScrollRegion>
         </VStack>
       </section>
 
@@ -167,7 +168,7 @@ export default function Referanse() {
             den finner feil. Les linjene med «Solution». Kommandoene under <code className={code}>alpha local</code> har
             egne koder, som står i <code className={code}>--help</code>.
           </BodyLong>
-          <div className="overflow-x-auto">
+          <ScrollRegion label="Tabell: avslutningskoder">
             <Table size="small" className="table-stack" role="table">
               <HeaderRow stack cells={["Kode", "Når"]} />
               <TableBody role="rowgroup">
@@ -181,7 +182,7 @@ export default function Referanse() {
                 ))}
               </TableBody>
             </Table>
-          </div>
+          </ScrollRegion>
           <BodyShort size="small" textColor="subtle">
             <code className={code}>sync --json</code> gir ett dokument med én oppføring per installasjonssted. Et sted
             som feilet, har feltet <code className={code}>error</code>.
@@ -253,7 +254,7 @@ export default function Referanse() {
             </NextLink>
             .
           </BodyLong>
-          <div className="overflow-x-auto">
+          <ScrollRegion label="Tabell: sikkerhetsnivå i cplt">
             <Table size="small">
               <HeaderRow cells={["Innstilling", "standard", "strict"]} />
               <TableBody>
@@ -268,7 +269,7 @@ export default function Referanse() {
                 ))}
               </TableBody>
             </Table>
-          </div>
+          </ScrollRegion>
           <BodyShort size="small" textColor="subtle">
             Host-lista nav-pilot skriver: <code className={code}>~/.nav-pilot/cplt-allowed-domains.txt</code>. På Linux
             krever strict Landlock ABI v4 (kjerne 6.7 eller nyere).
@@ -292,7 +293,7 @@ export default function Referanse() {
             </a>
             .
           </BodyLong>
-          <div className="overflow-x-auto">
+          <ScrollRegion label="Tabell: slå av telemetri">
             <Table size="small" className="table-stack" role="table">
               <HeaderRow stack cells={["Variabel", "Virkning"]} />
               <TableBody role="rowgroup">
@@ -313,7 +314,7 @@ export default function Referanse() {
                 </TableRow>
               </TableBody>
             </Table>
-          </div>
+          </ScrollRegion>
         </VStack>
       </section>
 

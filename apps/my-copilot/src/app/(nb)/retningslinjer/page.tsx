@@ -10,6 +10,7 @@ import {
   ClockIcon,
 } from "@navikt/aksel-icons";
 import NextLink from "next/link";
+import { ScrollRegion } from "@/components/scroll-region";
 
 export const metadata: Metadata = {
   title: "Retningslinjer",
@@ -280,7 +281,7 @@ export default function RetningslinjerPage() {
 
             {/* Endringslogg */}
             <Section icon={<ClockIcon aria-hidden />} title="Endringslogg">
-              <div className="overflow-x-auto">
+              <ScrollRegion label="Tabell: endringslogg">
                 <table className="text-sm w-full">
                   <thead>
                     <tr className="border-b">
@@ -373,7 +374,7 @@ export default function RetningslinjerPage() {
                     </tr>
                   </tbody>
                 </table>
-              </div>
+              </ScrollRegion>
             </Section>
 
             {/* Spørsmål */}

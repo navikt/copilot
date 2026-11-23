@@ -12,6 +12,7 @@ import { getUser, getUserToken } from "@/lib/auth";
 import { formatNumber, formatShare, formatUSD } from "@/lib/format";
 import { monthLabel } from "@/lib/trends";
 import type { SpendBands } from "@/lib/types";
+import { ScrollRegion } from "@/components/scroll-region";
 
 // Internal page: linked from the cost section on /innsikt/bruk, but logged-in only and never public, since costs are internal.
 export const metadata: Metadata = {
@@ -73,7 +74,7 @@ async function Current({ token }: { token: string }) {
         Ut fra {data.days} av {data.days_in_month} dager i {monthLabel(c.month)} venter vi at {formatNumber(c.users)}{" "}
         brukere fordeler seg slik ved månedsslutt, med en grense på {formatUSD(c.limit_usd)}:
       </BodyShort>
-      <div className="min-w-0 overflow-x-auto">
+      <ScrollRegion label="Tabell: prognose for denne måneden" className="min-w-0">
         <Table size="small">
           <TableHeader>
             <TableRow>
@@ -90,7 +91,7 @@ async function Current({ token }: { token: string }) {
             ))}
           </TableBody>
         </Table>
-      </div>
+      </ScrollRegion>
       <BodyShort size="small" textColor="subtle">
         Forutsetninger: Vi regner ut et tempo for hver bruker ved å gange brutto bruk så langt med {data.days_in_month}/
         {data.days} og med {formatShare(data.net_ratio)}, andelen av brutto bruk som ble fakturert forrige hele måned.
@@ -110,7 +111,7 @@ async function Forecast({ token }: { token: string }) {
     <>
       {uncertain}
       <SpendForecastChart totals={data.totals} forecast={data.forecast} />
-      <div className="min-w-0 overflow-x-auto">
+      <ScrollRegion label="Tabell: prognose per måned" className="min-w-0">
         <Table size="small">
           <TableHeader>
             <TableRow>
@@ -131,7 +132,7 @@ async function Forecast({ token }: { token: string }) {
             ))}
           </TableBody>
         </Table>
-      </div>
+      </ScrollRegion>
       <BodyShort size="small" textColor="subtle">
         Forutsetninger:
       </BodyShort>

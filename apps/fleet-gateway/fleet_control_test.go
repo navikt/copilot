@@ -252,3 +252,22 @@ func TestRouteSyncInitialisesMetricsForNewRoutes(t *testing.T) {
 		t.Fatal("no mcp_requests series for a route added by a snapshot")
 	}
 }
+
+// fleet-control publishes a revoked route as disabled (#2688). Revoking the
+// primary route must pass the primary-resource guard and stop serving it.
+func TestRouteSyncRevokedPrimaryAnswers503(t *testing.T) {
+	f := newFakeFleetControl(t)
+	gw, src := fleetControlGateway(t, f)
+	revoked := primaryRoute()
+	revoked["enabled"] = false
+	f.body = snapBody(1, revoked)
+	gw.syncRoutes(context.Background(), src)
+	if got := routePaths(gw); len(got) != 1 || !gw.table().Routes[0].isDisabled() {
+		t.Fatalf("revoked primary not applied as disabled: %v", got)
+	}
+	rec := httptest.NewRecorder()
+	gw.routes().ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/mcp/team-etterlevelse/etterlevelse", strings.NewReader(`{}`)))
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Fatalf("revoked route = %d, want 503", rec.Code)
+	}
+}

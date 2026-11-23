@@ -202,6 +202,7 @@ A shared Grafana dashboard is available at [`dashboards/copilot-ecosystem.json`]
 | `/oauth/authorize`                        | GET    | Start OAuth flow                       |
 | `/oauth/callback`                         | GET    | GitHub OAuth callback                  |
 | `/oauth/token`                            | POST   | Token exchange                         |
+| `/oauth/revoke`                           | POST   | Token revocation (RFC 7009)            |
 | `/mcp`                                    | POST   | MCP JSON-RPC endpoint                  |
 | `/health`                                 | GET    | Health check                           |
 | `/ready`                                  | GET    | Readiness check                        |

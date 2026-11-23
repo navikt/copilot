@@ -14,6 +14,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"regexp"
 	"slices"
 	"strings"
 )
@@ -191,6 +192,11 @@ func (t *Texas) introspect(ctx context.Context, token string) (*introspectionCla
 type ExchangeError struct {
 	StatusCode int // Texas' status, 0 when no response was read
 	Msg        string
+	// OAuthError and AADSTS are the OAuth error code and Entra AADSTS number
+	// from a non-200 Texas body, empty when absent. error_description itself
+	// is never kept: Entra can name the user.
+	OAuthError string
+	AADSTS     string
 }
 
 func (e *ExchangeError) Error() string {
@@ -231,9 +237,12 @@ func (t *Texas) Exchange(ctx context.Context, userToken, target string) (string,
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
+		code, aadsts := texasError(resp.Body)
 		return "", &ExchangeError{
 			StatusCode: resp.StatusCode,
 			Msg:        fmt.Sprintf("token exchange failed with status %d", resp.StatusCode),
+			OAuthError: code,
+			AADSTS:     aadsts,
 		}
 	}
 
@@ -250,6 +259,31 @@ func (t *Texas) Exchange(ctx context.Context, userToken, target string) (string,
 	}
 	return out.AccessToken, nil
 }
+
+// texasError returns only the OAuth error code and the AADSTS number from a
+// failed exchange body.
+func texasError(r io.Reader) (code, aadsts string) {
+	b, err := ReadLimited(r, maxTexasRespBytes)
+	if err != nil {
+		return "", ""
+	}
+	var e struct {
+		Error       string `json:"error"`
+		Description string `json:"error_description"`
+	}
+	if json.Unmarshal(b, &e) != nil {
+		return "", ""
+	}
+	if safeErrorCode.MatchString(e.Error) {
+		code = e.Error
+	}
+	return code, aadstsCode.FindString(e.Description)
+}
+
+var (
+	aadstsCode    = regexp.MustCompile(`AADSTS\d{4,6}`)
+	safeErrorCode = regexp.MustCompile(`^[a-z_]{1,40}$`)
+)
 
 // ReadLimited reads r, failing once it passes limit bytes; it never
 // buffers more than limit+1.

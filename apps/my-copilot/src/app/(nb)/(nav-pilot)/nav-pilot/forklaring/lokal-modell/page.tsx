@@ -9,6 +9,7 @@ import { TrustedClassesTable } from "@/components/nav-pilot/local-model-tables";
 import type { TocItem } from "@/components/table-of-contents";
 import { SOURCES } from "@/lib/local-model-results";
 import { FALLBACK_TABLE, getLocalModels } from "@/lib/local-models";
+import { ScrollRegion } from "@/components/scroll-region";
 
 // "AI" stays in the AI credit wording: AI credits is GitHub's name for the billing unit. Other Norwegian text says KI.
 
@@ -221,7 +222,7 @@ export default function LokalModellForklaring() {
             delegering lønner seg, avhenger av hvor mange steg skymodellen trenger alene. Trenger den mange, sparer du
             mye. Er oppgaven gjort på to steg, koster delegeringen mer enn den sparer.
           </BodyLong>
-          <div className="overflow-x-auto">
+          <ScrollRegion label="Tabell: hva den lokale modellen klarer">
             <Table size="small" className="table-stack w-full" role="table">
               <HeaderRow stack cells={["Oppgave", "Vurdering"]} />
               <TableBody role="rowgroup">
@@ -233,7 +234,7 @@ export default function LokalModellForklaring() {
                 ))}
               </TableBody>
             </Table>
-          </div>
+          </ScrollRegion>
           <BodyShort size="small" textColor="subtle">
             Resultatene bak hver vurdering står i{" "}
             <NextLink href="/innsikt/lokale-modeller" className={linkClass}>

@@ -476,11 +476,6 @@ type defaultBranchRefResponse struct {
 	} `json:"target"`
 }
 
-func parseGraphQLResponse(data map[string]json.RawMessage, repos []RepoInfo, criteria []SearchCriteria) (map[string]map[string]SearchResult, map[string]*time.Time) {
-	results, lastCommits, _, _ := parseGraphQLResponseWithActivity(data, repos, criteria)
-	return results, lastCommits
-}
-
 func parseGraphQLResponseWithActivity(data map[string]json.RawMessage, repos []RepoInfo, criteria []SearchCriteria) (map[string]map[string]SearchResult, map[string]*time.Time, map[string]int, map[string]int) {
 	results := make(map[string]map[string]SearchResult, len(repos))
 	lastCommits := make(map[string]*time.Time, len(repos))

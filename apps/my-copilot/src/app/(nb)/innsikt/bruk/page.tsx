@@ -186,7 +186,7 @@ async function Cost({ token }: { token: string }) {
         )}
       </HGrid>
       {months.length > 0 && (
-        <NumbersFold>
+        <NumbersFold label="Tabell: kostnad per måned og grunnlag">
           <PlainTable
             rows={[
               ["Måned", "Beløp", "Grunnlag"],

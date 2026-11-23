@@ -11,3 +11,7 @@ require (
 	golang.org/x/sync v0.22.0 // indirect
 	golang.org/x/text v0.41.0 // indirect
 )
+
+require github.com/navikt/copilot/lib/mcpkit v0.0.0
+
+replace github.com/navikt/copilot/lib/mcpkit => ../../lib/mcpkit

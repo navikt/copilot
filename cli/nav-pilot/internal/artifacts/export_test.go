@@ -595,13 +595,13 @@ func TestExportSkills_RootLevel(t *testing.T) {
 	}
 }
 
-func TestMaterializeOpenCode(t *testing.T) {
+func TestSyncOpenCodeArtifacts(t *testing.T) {
 	sourceDir := setupTestSource(t)
 	outputDir := t.TempDir()
 
-	skills, commands, agents, instructions, err := MaterializeOpenCode(sourceDir, outputDir, sourceDir)
+	skills, commands, agents, instructions, _, err := SyncOpenCodeArtifacts("opencode", sourceDir, "", outputDir, "dev", "", sourceDir)
 	if err != nil {
-		t.Fatalf("MaterializeOpenCode() error: %v", err)
+		t.Fatalf("SyncOpenCodeArtifacts() error: %v", err)
 	}
 	if skills != 1 {
 		t.Errorf("skills = %d, want 1", skills)
@@ -646,11 +646,11 @@ func TestMaterializeOpenCode(t *testing.T) {
 	}
 }
 
-func TestMaterializeOpenCodeIdempotent(t *testing.T) {
+func TestSyncOpenCodeArtifactsIdempotent(t *testing.T) {
 	sourceDir := setupTestSource(t)
 	outputDir := t.TempDir()
 
-	s1, c1, a1, i1, err := MaterializeOpenCode(sourceDir, outputDir, sourceDir)
+	s1, c1, a1, i1, _, err := SyncOpenCodeArtifacts("opencode", sourceDir, "", outputDir, "dev", "", sourceDir)
 	if err != nil {
 		t.Fatalf("first run error: %v", err)
 	}
@@ -660,7 +660,7 @@ func TestMaterializeOpenCodeIdempotent(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	s2, c2, a2, i2, err := MaterializeOpenCode(sourceDir, outputDir, sourceDir)
+	s2, c2, a2, i2, _, err := SyncOpenCodeArtifacts("opencode", sourceDir, "", outputDir, "dev", "", sourceDir)
 	if err != nil {
 		t.Fatalf("second run error: %v", err)
 	}
@@ -676,11 +676,11 @@ func TestMaterializeOpenCodeIdempotent(t *testing.T) {
 	}
 }
 
-func TestMaterializeOpenCodeEmpty(t *testing.T) {
+func TestSyncOpenCodeArtifactsEmpty(t *testing.T) {
 	sourceDir := t.TempDir()
 	outputDir := t.TempDir()
 
-	skills, commands, agents, instructions, err := MaterializeOpenCode(sourceDir, outputDir, sourceDir)
+	skills, commands, agents, instructions, _, err := SyncOpenCodeArtifacts("opencode", sourceDir, "", outputDir, "dev", "", sourceDir)
 	if err != nil {
 		t.Fatalf("unexpected error on empty source: %v", err)
 	}
@@ -772,9 +772,6 @@ func TestLaunchSyncDoesNotRefusePayloadOnlyAgentpakke(t *testing.T) {
 
 	if _, _, _, _, _, err := SyncOpenCodeArtifacts("opencode", srcDir, "", t.TempDir(), "dev", "", srcDir); err != nil {
 		t.Fatalf("SyncOpenCodeArtifacts refused a payload-only pakke: %v", err)
-	}
-	if _, _, _, _, err := MaterializeOpenCode(srcDir, t.TempDir(), srcDir); err != nil {
-		t.Fatalf("MaterializeOpenCode refused a payload-only pakke: %v", err)
 	}
 }
 
@@ -898,8 +895,7 @@ func TestExportUsesTheExportedPakkesRoster(t *testing.T) {
 	mustWrite(t, filepath.Join(src, "skills", "s", "SKILL.md"), "# s\n")
 
 	// exportAgents is the function this change touches on the export path;
-	// MaterializeOpenCode alone would not prove anything about export, since it
-	// has no non-test caller. Both are covered: export here, materialize below.
+	// Both writers are covered: export here, the launch sync below.
 	out := t.TempDir()
 	layout, err := contentLayout(src)
 	if err != nil {
@@ -922,9 +918,9 @@ func TestExportUsesTheExportedPakkesRoster(t *testing.T) {
 		t.Errorf("an agent the pakke does not declare must stay a subagent, got:\n%s", read("helper"))
 	}
 
-	// The materialize path reads the same roster.
+	// The launch sync reads the same roster.
 	out2 := t.TempDir()
-	if _, _, _, _, err := MaterializeOpenCode(src, out2, src); err != nil {
+	if _, _, _, _, _, err := SyncOpenCodeArtifacts("opencode", src, "", out2, "dev", "", src); err != nil {
 		t.Fatal(err)
 	}
 	b, err := os.ReadFile(filepath.Join(out2, "agents", "boss.md"))
@@ -1003,8 +999,8 @@ func TestRealRepoAGENTSmdBudget(t *testing.T) {
 	}
 
 	out := t.TempDir()
-	if _, _, _, _, err := MaterializeOpenCode(repoRoot, out, repoRoot); err != nil {
-		t.Fatalf("MaterializeOpenCode on repo root: %v", err)
+	if _, _, _, _, _, err := SyncOpenCodeArtifacts("opencode", repoRoot, "", out, "dev", "", repoRoot); err != nil {
+		t.Fatalf("SyncOpenCodeArtifacts on repo root: %v", err)
 	}
 	data, err := os.ReadFile(filepath.Join(out, "AGENTS.md"))
 	if err != nil {

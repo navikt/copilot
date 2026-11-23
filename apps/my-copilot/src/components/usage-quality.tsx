@@ -29,7 +29,7 @@ export function UsageQualityTable({ days }: { days: UsageQualityDay[] }) {
         kilde, enterprise nav når den finnes, ellers organisasjonen navikt. Vi erstatter ikke ukjente enterprise-tall
         med organisasjonstall. Organisasjonstall dekker ikke hele enterprise.
       </BodyShort>
-      <NumbersFold summary="Vis datakvalitet per dag">
+      <NumbersFold summary="Vis datakvalitet per dag" label="Tabell: datakvalitet per dag">
         <PlainTable
           rows={[
             ["Dag", "Kilde", "Uten klienttelemetri", "Under minstekrav"],
