@@ -510,10 +510,20 @@ func TestRealPostgresAgentDetailAndSeededApproval(t *testing.T) {
 	if err := json.Unmarshal([]byte(body), &got); err != nil || got.ID == 0 || got.Status != "draft" || got.Profile.Identity.App != "studio-api" {
 		t.Fatalf("detail: %v %s", err, body)
 	}
+	// "seed" is not a person: one owner-team member must not complete it.
+	if code, _ := e.do("POST", path+"/approvals", ownerApprover, fmt.Sprintf(`{"route":"aksel-studio","id":%d}`, got.ID)); code != 403 {
+		t.Fatalf("seeded draft approved by one owner-team person: %d", code)
+	}
+	e.do("POST", path+"/revoke", author, "")
+	e.do("POST", "/admin/v1/agents", author, fixture(t))
+	_, body = e.do("GET", path, approver, "")
+	if err := json.Unmarshal([]byte(body), &got); err != nil {
+		t.Fatal(err)
+	}
 	e.do("POST", path+"/approvals", approver, fmt.Sprintf(`{"route":"copilot/dolly","id":%d}`, got.ID))
 	code, resp := e.do("POST", path+"/approvals", ownerApprover, fmt.Sprintf(`{"route":"aksel-studio","id":%d}`, got.ID))
 	if code != 200 || !strings.Contains(resp, `"approved"`) {
-		t.Fatalf("approve seeded draft with the returned id: %d %s", code, resp)
+		t.Fatalf("approve re-submitted draft: %d %s", code, resp)
 	}
 	if _, body = e.do("GET", path, author, ""); !strings.Contains(body, `"approved_by":"C222222"`) {
 		t.Fatalf("approval state: %s", body)
