@@ -12,6 +12,7 @@ Every `/internal/v1` request needs an Entra app token (client credentials) from 
 | `GET /internal/v1/routes` | yes | no |
 | `GET /internal/v1/snapshots/routes` | yes | no |
 | `GET /internal/v1/snapshots/registry` | no | yes |
+| `GET /internal/v1/agents` | yes | no |
 
 Missing or invalid token, or a user token: 401. Valid app token from another caller: 403. Texas unreachable or failing: 503. None of them return data.
 
@@ -37,6 +38,20 @@ Every request needs a person's Entra token that my-copilot obtained on their beh
 | 503 | Texas, team lookup or Postgres unavailable |
 
 Not built yet: team lookup in the Nais teams API (static list for now), GitHub OIDC from the team's CI, team-level policy, the route owner's approval of another team's agent profile, rate limiting, and `force` for the shrink guard.
+
+## Agent profiles (#2582)
+
+An agent profile says which caller app may use which tools on which gateway routes, on behalf of a signed-in user. fleet-gateway does not enforce profiles yet; this slice stores and serves them.
+
+- Identity: cluster, namespace and app of the caller, plus its Entra client id. A client id can be in only one live profile. An identity verifier must match the client id to the declared app; without one (none exists yet) the profile stays unverified and never reaches fleet-gateway. `sts_subject` is reserved for the Nais STS identity and rejected until that issuer is chosen.
+- Mode is `delegated` only. fleet-control rejects agent principals, in the API and in the schema.
+- Grants list routes (`<namespace>/<name>`) and exact tool names. Every tool must be on the published route. Wildcards are rejected. `max_risk` is `read`.
+- Quotas, DPIA owner and reference are required.
+- A profile starts as `draft`. A person from each granted route's owning team approves that route, and the author cannot approve. Approval re-checks that the route is still published with the granted tools. Once every route is approved, the profile is `approved` and expires six months later. The owner team or a route owner can revoke it. Revocation is final. An expired profile is marked `expired` when a new profile needs its name or client id.
+- `GET /internal/v1/agents` returns approved, verified profiles that have not expired, checked at read time.
+- Every change writes an audit event.
+
+The write routes (`POST /admin/v1/agents`, `.../{namespace}/{name}/approvals`, `.../revoke`) follow the Write API rules above: a person's token from the admin client, teams from `FLEET_CONTROL_STATIC_TEAMS`, dev-* clusters only. `SEED_AGENTS_FILE` imports drafts on startup in dev only (`seed/agents.dev.json`, the Aksel Studio draft). Its `entra_client_id` is a placeholder until the real dev client id of `studio-api` is filled in, so the profile stays unverified and out of the snapshot. The app refuses `SEED_AGENTS_FILE` outside dev-* clusters.
 
 ## Configuration
 

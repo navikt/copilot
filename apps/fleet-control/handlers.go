@@ -36,6 +36,11 @@ func (s *server) routes(a *authz, adminClientID string, teams teamDirectory) htt
 			mux.HandleFunc(pattern, s.admin(a, adminClientID, teams, h))
 		}
 	}
+	persons := s.persons
+	if persons == nil && adminClientID != "" {
+		persons = tokenPersons{a, adminClientID, teams}
+	}
+	s.agentRoutes(mux, a, persons)
 	return mux
 }
 

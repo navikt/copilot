@@ -106,6 +106,9 @@ func setupDB(ctx context.Context) (*DB, error) {
 	if err := seedFromEnv(ctx, owner); err != nil {
 		return nil, err
 	}
+	if err := seedAgentsFromEnv(ctx, owner); err != nil {
+		return nil, err
+	}
 	if os.Getenv("READWRITE_PGHOST") == "" {
 		return OpenDB(ctx, os.Getenv("DB_URL"))
 	}
@@ -162,6 +165,11 @@ type server struct {
 	// lastGood holds the last served snapshot per kind, so a database outage
 	// keeps serving it; after a restart there is none and the answer is 503.
 	lastGood map[string]*atomic.Pointer[Snapshot]
+	// persons authenticates humans for the agent profile write API; nil
+	// leaves those routes unmounted.
+	persons personResolver
+	// verifier binds an agent's client id to its app; nil leaves profiles unverified.
+	verifier identityVerifier
 }
 
 func newServer() *server {

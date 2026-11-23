@@ -40,6 +40,9 @@ spec:
       value: /app/seed/pilot-routes.{{env}}.yaml
     - name: SEED_ALLOWLIST_FILE
       value: /app/seed/allowlist.json
+    # Agent profile drafts, dev only (#2582). Empty: no seed.
+    - name: SEED_AGENTS_FILE
+      value: "{{ seed_agents_file }}"
     # Full Entra client ids; the app refuses to start without them.
     - name: FLEET_GATEWAY_CLIENT_ID
       value: "{{fleet_gateway_client_id}}"

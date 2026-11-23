@@ -1,0 +1,22 @@
+[
+{
+  "namespace": "aksel-studio",
+  "name": "studio-assistant",
+  "identity": {
+    "cluster": "dev-gcp",
+    "namespace": "aksel-studio",
+    "app": "studio-api",
+    "entra_client_id": "00000000-0000-4000-8000-0000000000a5"
+  },
+  "mode": "delegated",
+  "grants": [
+    {
+      "route": "copilot/dolly",
+      "tools": ["dolly_current_user", "dolly_list_groups", "dolly_get_group", "dolly_search", "dolly_get_order", "dolly_list_group_orders"],
+      "max_risk": "read"
+    }
+  ],
+  "quota": {"max_in_flight": 4, "rpm": 30, "daily_calls_per_user": 200, "daily_calls": 2000},
+  "dpia": {"owner": "aksel-studio", "reference": "PVK for KI-assistenten i Aksel Studio (KI_FLEET_DOLLY), #2582"}
+}
+]
