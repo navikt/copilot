@@ -50,6 +50,7 @@ describe("search index", () => {
       );
     const hrefs = new Set(index.map((e) => e.href));
     expect(routes.filter((r) => !hrefs.has(r))).toEqual([]);
+    expect(index.filter((e) => e.href.startsWith("/fleet"))).toEqual([]);
   });
 
   it("marks pages behind a login, headings included", () => {

@@ -24,7 +24,7 @@ export default async function AgentPage({ params }: Props) {
   });
 
   return (
-    <FleetFrame title={name} description={`Agentprofil fra ${namespace}`}>
+    <FleetFrame title={name} description={`Agentprofilen til ${namespace}`}>
       {"problem" in result ? (
         <FleetProblemAlert problem={result.problem} />
       ) : (

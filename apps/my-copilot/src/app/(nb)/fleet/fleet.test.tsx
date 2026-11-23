@@ -108,6 +108,17 @@ describe("/fleet", () => {
     expect(screen.getByText("Historikk")).toBeInTheDocument();
   });
 
+  it("shows that a revoked route with a new draft waits for approval", async () => {
+    stub({
+      "/admin/v1/servers?namespace=team-a": {
+        servers: [{ namespace: "team-a", name: "docs", status: "revoked", published_version: 2, pending_version: 3 }],
+      },
+    });
+    render(await RoutePage(params("team-a", "docs")));
+    expect(screen.getByText("Trukket tilbake, ny versjon venter")).toBeInTheDocument();
+    expect(screen.getByText(/må godkjenne versjon 3 før ruten blir publisert igjen/)).toBeInTheDocument();
+  });
+
   it("is 404 for a route the team does not have, or another team's route", async () => {
     await expect(RoutePage(params("team-a", "nope"))).rejects.toThrow("NEXT_NOT_FOUND");
     await expect(RoutePage(params("other", "docs"))).rejects.toThrow("NEXT_NOT_FOUND");

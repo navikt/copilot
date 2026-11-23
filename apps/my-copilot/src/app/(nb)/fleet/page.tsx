@@ -35,8 +35,8 @@ export default async function FleetPage() {
           en innlogget bruker.
         </BodyLong>
         <BodyLong>
-          En annen person enn den som skrev endringen, må godkjenne den. Slik ser alltid to personer en endring før den
-          gjelder. Teamet som eier en rute, godkjenner også agentprofiler som vil bruke den.
+          En annen person enn den som skrev endringen, må godkjenne den. Da har alltid to personer sett endringen før
+          den gjelder. Teamet som eier en rute, godkjenner også agentprofiler som vil bruke den.
         </BodyLong>
       </KortFortalt>
       {"problem" in result ? (

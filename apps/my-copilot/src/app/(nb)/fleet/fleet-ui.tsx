@@ -33,7 +33,11 @@ type TagVariant = "success" | "warning" | "info" | "neutral" | "error";
 
 export function serverStatus(s: ServerSummary): { label: string; variant: TagVariant } {
   if (s.status === "draft") return { label: "Venter på godkjenning", variant: "warning" };
-  if (s.status === "revoked") return { label: "Trukket tilbake", variant: "neutral" };
+  // A revoked route can get a new draft, and approving it publishes the route again.
+  if (s.status === "revoked")
+    return s.pending_version
+      ? { label: "Trukket tilbake, ny versjon venter", variant: "warning" }
+      : { label: "Trukket tilbake", variant: "neutral" };
   if (s.pending_version) return { label: "Ny versjon venter", variant: "info" };
   return { label: "Publisert", variant: "success" };
 }
@@ -77,9 +81,7 @@ export function FleetProblemAlert({ problem }: { problem: FleetProblem }) {
   const router = useRouter();
   if (problem === "forbidden") {
     return (
-      <Alert variant="warning">
-        Du har ikke tilgang til dette. Bare personer på teamet som eier ruten eller agentprofilen, kan se den.
-      </Alert>
+      <Alert variant="warning">Du har ikke tilgang. Bare teamet som eier ruten eller agentprofilen, kan se den.</Alert>
     );
   }
   return (
@@ -127,7 +129,7 @@ export function TeamTabs({ teams }: { teams: TeamData[] }) {
               {t.servers.length === 0 ? (
                 <BodyShort>{t.team} har ingen ruter ennå.</BodyShort>
               ) : (
-                <Table size="small">
+                <Table size="small" aria-label={`Rutene til ${t.team}`}>
                   <Table.Header>
                     <Table.Row>
                       <Table.HeaderCell scope="col">Navn</Table.HeaderCell>
@@ -160,7 +162,7 @@ export function TeamTabs({ teams }: { teams: TeamData[] }) {
               {t.agents.length === 0 ? (
                 <BodyShort>{t.team} har ingen agentprofiler ennå.</BodyShort>
               ) : (
-                <Table size="small">
+                <Table size="small" aria-label={`Agentprofilene til ${t.team}`}>
                   <Table.Header>
                     <Table.Row>
                       <Table.HeaderCell scope="col">Navn</Table.HeaderCell>
@@ -202,12 +204,12 @@ export function PendingInbox({ agents }: { agents: PendingAgent[] }) {
       {agents.length === 0 ? (
         <BodyShort>Ingen agentprofiler venter på teamene dine.</BodyShort>
       ) : (
-        <Table size="small">
+        <Table size="small" aria-label="Agentprofiler til godkjenning">
           <Table.Header>
             <Table.Row>
               <Table.HeaderCell scope="col">Agentprofil</Table.HeaderCell>
               <Table.HeaderCell scope="col">Fra team</Table.HeaderCell>
-              <Table.HeaderCell scope="col">Venter på rutene</Table.HeaderCell>
+              <Table.HeaderCell scope="col">Ruter som venter på godkjenning</Table.HeaderCell>
             </Table.Row>
           </Table.Header>
           <Table.Body>
@@ -241,7 +243,7 @@ function Historikk({ events }: { events: AuditEvent[] }) {
         {events.length === 0 ? (
           <BodyShort>Ingen hendelser ennå.</BodyShort>
         ) : (
-          <Table size="small">
+          <Table size="small" aria-label="Historikk">
             <Table.Header>
               <Table.Row>
                 <Table.HeaderCell scope="col">Tidspunkt</Table.HeaderCell>
@@ -276,7 +278,7 @@ function Detaljer({ rows }: { rows: [string, ReactNode][] }) {
         </ExpansionCard.Title>
       </ExpansionCard.Header>
       <ExpansionCard.Content>
-        <Table size="small">
+        <Table size="small" aria-label="Detaljer">
           <Table.Body>
             {rows.map(([k, v]) => (
               <Table.Row key={k}>
@@ -293,7 +295,10 @@ function Detaljer({ rows }: { rows: [string, ReactNode][] }) {
 
 export function routeNextStep(s: ServerSummary): string {
   if (s.status === "draft") return "En annen person på teamet må godkjenne utkastet før ruten blir publisert.";
-  if (s.status === "revoked") return "Ingen. Ruten er trukket tilbake.";
+  if (s.status === "revoked")
+    return s.pending_version
+      ? `En annen person på teamet må godkjenne versjon ${s.pending_version} før ruten blir publisert igjen.`
+      : "Ingen. Ruten er trukket tilbake.";
   if (s.pending_version)
     return `En annen person på teamet må godkjenne versjon ${s.pending_version}. Til da gjelder versjon ${s.published_version}.`;
   return `Ingen. Versjon ${s.published_version} er publisert.`;
@@ -306,14 +311,14 @@ export function RouteDetail({ server, events }: { server: ServerSummary; events:
         <div>
           <StatusTag s={serverStatus(server)} />
         </div>
-        <BodyLong>Hvem gjør noe nå: {routeNextStep(server)}</BodyLong>
+        <BodyLong>Neste steg: {routeNextStep(server)}</BodyLong>
       </KortFortalt>
       <Detaljer
         rows={[
           ["Team", server.namespace],
           ["Navn", server.name],
           ["Publisert versjon", server.published_version ?? "–"],
-          ["Versjon som venter", server.pending_version ?? "–"],
+          ["Versjon som venter på godkjenning", server.pending_version ?? "–"],
         ]}
       />
       <Historikk events={events} />
@@ -341,7 +346,7 @@ export function AgentDetailView({ detail, events }: { detail: AgentDetail; event
         <div>
           <StatusTag s={agentStatus(detail.status)} />
         </div>
-        <BodyLong>Hvem gjør noe nå: {agentNextStep(detail)}</BodyLong>
+        <BodyLong>Neste steg: {agentNextStep(detail)}</BodyLong>
       </KortFortalt>
       <Detaljer
         rows={[
@@ -357,7 +362,7 @@ export function AgentDetailView({ detail, events }: { detail: AgentDetail; event
           }),
           [
             "Kvote",
-            `${p.quota.rpm} kall i minuttet, ${p.quota.daily_calls} kall i døgnet, ${p.quota.daily_calls_per_user} per bruker, ${p.quota.max_in_flight} samtidige`,
+            `${p.quota.rpm} kall i minuttet, ${p.quota.daily_calls} kall i døgnet, ${p.quota.daily_calls_per_user} per bruker i døgnet, ${p.quota.max_in_flight} samtidige kall`,
           ],
           ["DPIA", `${p.dpia.reference} (eier: ${p.dpia.owner})`],
         ]}

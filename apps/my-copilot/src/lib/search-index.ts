@@ -92,6 +92,8 @@ export function buildSearchIndex(): SearchEntry[] {
   // Every other static page, so a new page is found without a list to update.
   // Its context is the header link it sits under.
   const otherPages = [...pageDirs.keys()]
+    // /fleet is 404 in every cluster without fleet-control (dev only for now), so it stays out.
+    .filter((href) => href !== "/fleet" && !href.startsWith("/fleet/"))
     .filter((href) => !href.includes("[") && !href.startsWith("/nyheter/") && !menuPages.some((p) => p.href === href))
     .flatMap((href) => {
       const title = href === "/" ? "Forside" : pageTitle(pageDirs.get(href)!);

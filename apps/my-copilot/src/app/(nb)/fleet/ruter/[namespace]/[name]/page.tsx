@@ -19,7 +19,7 @@ export default async function RoutePage({ params }: Props) {
   if ("data" in result && !result.data.server) notFound();
 
   return (
-    <FleetFrame title={name} description={`Rute fra ${namespace}`}>
+    <FleetFrame title={name} description={`Ruten til ${namespace}`}>
       {"problem" in result ? (
         <FleetProblemAlert problem={result.problem} />
       ) : (
