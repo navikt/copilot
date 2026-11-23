@@ -71,20 +71,20 @@ func openBudgetTestDB(t *testing.T) string {
 
 // fakeGitHub is the enterprise budgets endpoint for one enterprise.
 type fakeGitHub struct {
-	mu       sync.Mutex
-	budgets  map[string][]ghBudget // login -> user-scope budgets
-	writes   []string              // "POST" / "PATCH id"
-	failNext int                   // status for the next write, 0 = ok
-	nextID   int
-	nextPage bool          // list claims another page
-	dropPOST bool          // create, then drop the connection
-	postWait chan struct{} // POST blocks until closed
-	noExpiry bool          // ignore expires_at like a GitHub that drops it
+	mu            sync.Mutex
+	budgets       map[string][]ghBudget // login -> user-scope budgets
+	writes        []string              // "POST" / "PATCH id"
+	failNext      int                   // status for the next write, 0 = ok
+	nextID        int
+	nextPage      bool            // list claims another page
+	dropPOST      bool            // create, then drop the connection
+	postWait      chan struct{}   // POST blocks until closed
+	noExpiry      bool            // ignore expires_at like a GitHub that drops it
 	failList      int             // fail the next N list calls
 	failListUsers map[string]bool // always fail list calls for these logins
-	skew     float64       // stored amount differs from the one sent
-	noSKU    bool          // list without budget_product_sku
-	truncate bool          // create, then answer 201 with a cut-off body
+	skew          float64         // stored amount differs from the one sent
+	noSKU         bool            // list without budget_product_sku
+	truncate      bool            // create, then answer 201 with a cut-off body
 }
 
 func (f *fakeGitHub) handler() http.Handler {
