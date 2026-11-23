@@ -172,11 +172,22 @@ export default function NavMcpServerePage() {
         </LinkableHeading>
         <BodyLong>
           MCP er en åpen protokoll som lar KI-assistenten kalle verktøy og hente data fra systemer som Dolly og
-          Teamkatalogen. Agenten slår opp selv, så du slipper å lime inn svar.
+          Teamkatalogen. Agenten slår opp selv, så du slipper å lime inn svar. Det er nyttig når oppgaven trenger data
+          du ikke har for hånden.
+        </BodyLong>
+        <LinkableHeading id="hvorfor-spare" size="small" level="3">
+          Hvorfor spare på MCP-servere
+        </LinkableHeading>
+        <BodyLong>
+          Modellen har et begrenset context-vindu. Alt agenten skal vurdere i én tur må få plass der: instruksjonene,
+          samtalen så langt, filene den har lest og beskrivelsene av alle verktøyene den kan kalle.
         </BodyLong>
         <BodyLong>
-          Hver server du kobler til, legger beskrivelsene av alle verktøyene sine i context. Det skjer i hver samtale,
-          også når agenten ikke bruker serveren. Mange servere gir mindre plass til koden og oppgaven din.
+          Verktøyene en server tilbyr, og som klienten gir til modellen, har beskrivelser som legges i context. Det
+          skjer i hver samtale, også når agenten ikke bruker dem. Mange servere gir mindre plass til koden og oppgaven
+          din. Alt som sendes til modellen er tokens, så jo mer som ligger i context, desto mer må modellen behandle i
+          hver tur. Hvor mye det blir, avhenger av hvilke verktøy klienten faktisk gir til modellen. Copilot CLI lar deg
+          velge enkeltverktøy, og verktøy du har filtrert bort, tar ikke plass.
         </BodyLong>
         <BodyLong>
           Microsoft Research profilerte Claude Code på 60 oppgaver fra SWE-Bench. Agenten fikk 23 verktøybeskrivelser i
@@ -189,6 +200,14 @@ export default function NavMcpServerePage() {
           </a>
           ). Tallet gjelder ikke Navs servere. Vi har ikke målt dem.
         </BodyLong>
+        <BodyLong>
+          Færre servere gir også mindre å holde styr på. Hver server du logger inn på, får tilgang på dine vegne, og
+          hvert kall logges med Nav-identen din. Slår du av serverne du ikke bruker, er det færre steder agenten kan
+          hente data eller gjøre endringer.
+        </BodyLong>
+        <LinkableHeading id="slik-sparer-du" size="small" level="3">
+          Slik sparer du
+        </LinkableHeading>
         <Bullets>
           <li>Slå på serverne du trenger i oppgaven, og slå dem av etterpå.</li>
           <li>
@@ -200,6 +219,7 @@ export default function NavMcpServerePage() {
             Se hvor mange verktøy en server har før du kobler den til. Velg serveren med færrest verktøy som dekker
             behovet.
           </li>
+          <li>Start en ny samtale når oppgaven er ferdig, så følger ikke gamle verktøyresultater med videre.</li>
         </Bullets>
       </VStack>
 
