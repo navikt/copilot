@@ -5,7 +5,11 @@
 
 [!pty] skip 'no pseudo-terminal here (/dev/ptmx will not open)'
 
-exits 130 pty-run -wait 'Which coding agent' -send '\x03' -- nav-pilot
+# A new install asks one question only when no client is installed: whether
+# to install opencode (#2781). brew makes that question appear.
+fake-bin cplt brew
+
+exits 130 pty-run -wait 'Install it now' -send '\x03' -- nav-pilot
 stdout 'Cancelled\. Nothing was written\.'
 stdout -count=1 'Cancelled'
 ! stdout 'Setup skipped'

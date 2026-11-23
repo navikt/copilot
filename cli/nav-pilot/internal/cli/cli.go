@@ -223,6 +223,15 @@ func userScopeAccepts(itemType string) bool {
 	return u.SupportsType(itemType)
 }
 
+// autoUpdateNudge tells an existing user who never set auto_update, once per
+// machine, that new installs have it on and how to turn it on (#2781).
+func autoUpdateNudge(w io.Writer, cfg *Config) {
+	if cfg != nil && cfg.AutoUpdate == nil && providerpkg.FirstTime("auto-update-default") {
+		fmt.Fprintf(w, "%s nav-pilot can update itself. New installs have it on; to turn it on: %s\n",
+			yellow("ℹ"), bold("nav-pilot config set auto_update true"))
+	}
+}
+
 // startupUpdateCheck warns about (or installs) a newer nav-pilot before the
 // command runs. stop is true when the caller should return without running the
 // command, which happens only when an update landed but the re-exec failed.
@@ -246,6 +255,10 @@ func startupUpdateCheck() (stop bool, err error) {
 
 	fileCfg, _ := readConfig()
 	autoUpdate := fileCfg != nil && fileCfg.AutoUpdate != nil && *fileCfg.AutoUpdate
+
+	if packageManager().Name == "" {
+		autoUpdateNudge(os.Stderr, fileCfg)
+	}
 
 	// Guard against re-exec loops: if we already re-exec'd once after an
 	// auto-update in this process chain, don't attempt another update

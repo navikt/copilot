@@ -422,21 +422,29 @@ func runConfigSetupWith(flagSource string, advanced bool) error {
 // opencode 2. Otherwise the wizard saves copilot and says how to switch later,
 // naming both clients when neither is installed. It never saves a client that
 // cannot start. Nothing is run without the yes.
+// askInstallOpenCode is the one question a new install may get. Overridable
+// in tests.
+var askInstallOpenCode = func(cmd string) (bool, error) {
+	install := true
+	err := huh.NewConfirm().
+		Title("opencode is not installed. Install it now?").
+		Description("Runs " + cmd + ".").
+		Affirmative("Install").
+		Negative("Use GitHub Copilot instead").
+		Value(&install).
+		WithTheme(navTheme()).
+		Run()
+	return install, err
+}
+
 func opencodeForSetup() (string, error) {
 	if opencodeInstalled() {
 		return "opencode", nil
 	}
 	cmd := opencodeInstallCommand()
 	if cmd != "" {
-		install := true
-		if err := huh.NewConfirm().
-			Title("opencode is not installed. Install it now?").
-			Description("Runs " + cmd + ".").
-			Affirmative("Install").
-			Negative("Use GitHub Copilot instead").
-			Value(&install).
-			WithTheme(navTheme()).
-			Run(); errors.Is(err, huh.ErrUserAborted) {
+		install, err := askInstallOpenCode(cmd)
+		if errors.Is(err, huh.ErrUserAborted) {
 			return "", err
 		} else if err != nil {
 			install = false // a prompt that could not run is no answer
@@ -553,11 +561,13 @@ func setupSkipped(err error) error {
 	return nil
 }
 
-// maybeRunFirstRunSetup runs the config wizard on the first interactive run.
+// maybeRunFirstRunSetup writes a new install's config on the first
+// interactive run, asking nothing unless no client is installed.
 // It is a no-op when any of the following are true:
 //   - the terminal is not interactive (isInteractive() == false)
 //   - the config file already exists
 func maybeRunFirstRunSetup(flagSource string) error {
+	firstRunWrote = false
 	if !isInteractive() {
 		return nil
 	}
@@ -571,7 +581,78 @@ func maybeRunFirstRunSetup(flagSource string) error {
 	artifacts.FirstRun = true
 	defer func() { artifacts.FirstRun = false }()
 	wizardShown = true
-	return runConfigSetupFn(flagSource)
+	if err := firstRunFn(flagSource); err != nil {
+		return err
+	}
+	firstRunWrote = true
+	return nil
+}
+
+// openCodeTested and openCodeLoggedIn are the #1022 step 3 conditions for
+// picking opencode. Overridable in tests.
+var (
+	openCodeTested = func() bool {
+		_, tested, err := providerpkg.OpenCodeVersionStatus()
+		return err == nil && tested
+	}
+	openCodeLoggedIn = providerpkg.OpenCodeLoggedIn
+)
+
+func openCodeReady() bool { return openCodeTested() && openCodeLoggedIn() }
+
+// firstRunFn is the first-run step, overridable in tests.
+var firstRunFn = firstRunDefaults
+
+// firstRunWrote is set once this process wrote the first config.toml: the
+// install that follows is a new install and takes the new-install defaults.
+var firstRunWrote bool
+
+// freshInstall reports whether this machine had no config.toml (nor the
+// client marker) before this run.
+// New installs get user scope and the whole agentpakke without being asked
+// (#2781); an existing user keeps the questions they know.
+func freshInstall() bool {
+	if firstRunWrote {
+		return true
+	}
+	_, err := os.Stat(configPath())
+	return errors.Is(err, os.ErrNotExist) && newInstall(nil)
+}
+
+// firstRunDefaults writes a new install's config without asking (#2781):
+// opencode when it is installed, else GitHub Copilot when that is, else the
+// one question whether to install opencode. Auto-update is on. The wizard
+// stays behind 'nav-pilot config setup'.
+func firstRunDefaults(flagSource string) error {
+	maybeTelemetryNotice()
+	// OpenCode only when it is installed, logged in and inside the tested
+	// range (#1022 step 3); otherwise Copilot CLI when that is installed.
+	client := "opencode"
+	opencode := opencodeInstalled()
+	if !opencode || !openCodeReady() {
+		if p, err := providerFor("copilot"); err == nil && p.Available() {
+			client = "copilot"
+		} else if !opencode {
+			var err error
+			if client, err = opencodeForSetup(); err != nil {
+				return setupSkipped(err)
+			}
+		}
+	}
+	if err := writeSetupConfig(setupAnswers{Client: client, AutoUpdate: "true"}); err != nil {
+		return fmt.Errorf("saving config: %w", err)
+	}
+	if p, _ := providerFor(client); p != nil {
+		seedSource, _ := sourceRepoFor(flagSource)
+		if _, err := p.Bootstrap(ResolvedConfig{Client: client, Source: seedSource}); err != nil {
+			fmt.Fprintf(os.Stderr, "%s Could not seed Nav context for %s: %v\n", yellow("⚠"), p.DisplayName(), err)
+		}
+	}
+	fmt.Printf("%s nav-pilot uses %s, with auto-update on. Change it: %s\n",
+		green("✓"), clientLabel[client], bold("nav-pilot config setup"))
+	st, _ := ghAuthProbe()
+	reportGHAuthBrief(os.Stdout, st, artifacts.FirstRun)
+	return nil
 }
 
 // wizardShown is set once the first-run wizard has run in this process: its

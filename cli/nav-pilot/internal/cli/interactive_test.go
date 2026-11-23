@@ -559,7 +559,10 @@ func TestSyncPromptOutcome(t *testing.T) {
 // (#802). The refusal must be an error, and must name the way to install
 // without the picker.
 func TestPickerFailureIsNotSilentCancellation(t *testing.T) {
-	isolatedConfig(t)
+	// An existing user: a new install skips the picker (#2781).
+	if err := os.WriteFile(isolatedConfig(t), []byte("version = 1\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	forceInteractive(t)
 	scope, err := ScopeUser()
 	if err != nil {

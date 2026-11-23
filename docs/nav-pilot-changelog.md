@@ -4,6 +4,13 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ## 2026-11-23
 
+### Nye installasjoner spør ikke lenger om oppsett
+
+- **Første oppstart**: nav-pilot stiller ingen spørsmål. Den velger OpenCode hvis OpenCode er installert, innlogget og i en testet versjon, ellers GitHub Copilot CLI. Har du ingen av dem, spør nav-pilot om den skal installere OpenCode. Vil du velge selv, kjør `nav-pilot config setup` (#2781, #1022).
+- **Automatisk oppdatering**: Er på for nye installasjoner. Spørsmålet om å oppgradere etter 7 dager forsvinner for dem.
+- **Installasjonssted**: Agentpakka havner i `~/.copilot` uten spørsmål og uten utvalgslisten. Repoet brukes bare når det har `.nav-pilot/agentpakke.lock.json`, eller når du kjører med `--repo`.
+- **Har du brukt nav-pilot før**, endres ingenting. Du får ett hint om å slå på automatisk oppdatering: `nav-pilot config set auto_update true`.
+
 ### Én nøkkel for vaktene: `guards`
 
 - **`guards`**: Én nøkkel slår av og på alle vaktene nav-pilot legger i Copilot CLI: varselet når modellen gjentar seg, maskering av hemmeligheter og fødselsnumre, og merknaden om tekst som ser ut som instrukser. Alle er på som standard. `nav-pilot config set guards false` skrur av alle. De fire gamle `hook_*`-nøklene virker fortsatt og vinner når de er satt, så ingen oppsett endrer seg. Har du satt dem, sier nav-pilot fra én gang at du kan bruke `guards` i stedet (#2781).

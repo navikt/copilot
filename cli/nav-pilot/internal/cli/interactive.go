@@ -612,7 +612,14 @@ func interactiveUserInstallFromSource(scope *InstallScope, src *Source, flagSour
 
 	var skippedItems []InstalledFile
 
-	if isInteractive() {
+	if isInteractive() && freshInstall() {
+		// A new install takes the whole agentpakke without the picker
+		// (#2781). Hooks from a source that is not Nav's still get asked.
+		if len(manifest.Hooks) > 0 && !sameSourceRepo(src.Repo, defaultSourceRepo) {
+			installConsentRequired = true
+			defer func() { installConsentRequired = false }()
+		}
+	} else if isInteractive() {
 		fmt.Println()
 		// Hooks are named in the question: they are scripts the client runs
 		// on every matching tool call, outside the cplt sandbox.
@@ -936,6 +943,17 @@ func promptInstallScope(targetDir string) (*InstallScope, error) {
 	if !isInteractive() {
 		// Non-interactive: default to repo scope
 		return ScopeRepo(targetDir), nil
+	}
+	if freshInstall() {
+		// A new install goes to user scope; a repo lock file (or --repo,
+		// which never reaches here) is what picks repo scope (#2781). A
+		// lock file that does not parse picks repo too, so its error is
+		// reported instead of skipped.
+		repo := ScopeRepo(targetDir)
+		if d, err := scopeDeclaration(repo); d != nil || err != nil {
+			return repo, nil
+		}
+		return ScopeUser()
 	}
 	var choice string
 	err := runField(huh.NewSelect[string]().

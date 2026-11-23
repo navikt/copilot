@@ -794,3 +794,26 @@ func OpenCode2InstallHint() string {
 	}
 	return npm
 }
+
+// OpenCodeLoggedIn reports whether opencode has GitHub Copilot credentials in
+// its auth.json, the only provider a nav-pilot session allows.
+func OpenCodeLoggedIn() bool {
+	dir := os.Getenv("XDG_DATA_HOME")
+	if dir == "" || !filepath.IsAbs(dir) {
+		home, err := os.UserHomeDir()
+		if err != nil || home == "" {
+			return false
+		}
+		dir = filepath.Join(home, ".local", "share")
+	}
+	data, err := os.ReadFile(filepath.Join(dir, "opencode", "auth.json"))
+	if err != nil {
+		return false
+	}
+	var auth map[string]json.RawMessage
+	if json.Unmarshal(data, &auth) != nil {
+		return false
+	}
+	_, ok := auth["github-copilot"]
+	return ok
+}
