@@ -23,7 +23,7 @@ const TOC: TocItem[] = [
   { id: "nav-pilot", label: "nav-pilot" },
   { id: "protokollversjon", label: "Protokollversjon" },
   { id: "innlogging", label: "Innlogging" },
-  { id: "tokenbruk", label: "Tokenbruk og besparelse" },
+  { id: "tokenbruk", label: "Tokenforbruk" },
   { id: "hjelp", label: "Hjelp" },
 ];
 
@@ -168,8 +168,12 @@ export default function NavMcpServerePage() {
 
       <VStack gap="space-12">
         <LinkableHeading id="tokenbruk" size="medium" level="2">
-          Tokenbruk og besparelse
+          Tokenforbruk
         </LinkableHeading>
+        <BodyLong>
+          <strong>Kort fortalt:</strong> Hver MCP-server du kobler til, tar plass i konteksten til modellen i hver tur.
+          Slå på bare serverne og verktøyene du trenger i oppgaven.
+        </BodyLong>
         <BodyLong>
           MCP er en åpen protokoll som lar KI-assistenten kalle verktøy og hente data fra systemer som Dolly og
           Teamkatalogen. Agenten slår opp selv, så du slipper å lime inn svar. Det er nyttig når oppgaven trenger data
@@ -179,16 +183,22 @@ export default function NavMcpServerePage() {
           Hvorfor spare på MCP-servere
         </LinkableHeading>
         <BodyLong>
-          Modellen har et begrenset context-vindu. Alt agenten skal vurdere i én tur må få plass der: instruksjonene,
+          Modellen har et begrenset kontekstvindu. Alt agenten skal vurdere i én tur må få plass der: instruksjonene,
           samtalen så langt, filene den har lest og beskrivelsene av alle verktøyene den kan kalle.
         </BodyLong>
         <BodyLong>
-          Verktøyene en server tilbyr, og som klienten gir til modellen, har beskrivelser som legges i context. Det
+          Verktøyene en server tilbyr, og som klienten gir til modellen, har beskrivelser som legges i konteksten. Det
           skjer i hver samtale, også når agenten ikke bruker dem. Mange servere gir mindre plass til koden og oppgaven
-          din. Alt som sendes til modellen er tokens, så jo mer som ligger i context, desto mer må modellen behandle i
-          hver tur. Hvor mye det blir, avhenger av hvilke verktøy klienten faktisk gir til modellen. Med nav-pilot
+          din. Alt som sendes til modellen er tokens, så jo mer som ligger i konteksten, desto mer må modellen behandle
+          i hver tur. Hvor mye det blir, avhenger av hvilke verktøy klienten faktisk gir til modellen. Med nav-pilot
           velger du enkeltverktøy når du slår på en server, og Copilot CLI har{" "}
-          <code className={code}>--available-tools</code>. Verktøy du har filtrert bort, tar ikke plass.
+          <code className={code}>--available-tools</code>. Verktøy du har filtrert bort, tar ikke plass. Gjennom
+          fleet-gateway kan agenten bare kalle verktøyene som er godkjent for hver server. Vi planlegger også ett felles
+          endepunkt der agenten søker etter verktøy ved behov i stedet for å få alle beskrivelsene på forhånd (
+          <a href="https://github.com/navikt/copilot/issues/2581" className={linkClass}>
+            #2581
+          </a>
+          ).
         </BodyLong>
         <BodyLong>
           Microsoft Research profilerte Claude Code på 60 oppgaver fra SWE-Bench. Agenten fikk 23 verktøybeskrivelser i
