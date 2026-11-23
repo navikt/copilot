@@ -134,7 +134,7 @@ export function HighConsumersView({ months, events = [] }: { months: HighConsume
           </NumbersFold>
         </VStack>
       )}
-      <NumbersFold summary="Slik leser du tallene" label="Tabell: grenser og andeler brukere">
+      <NumbersFold summary="Slik leser du tallene">
         <VStack gap="space-16">
           <BodyShort size="small" textColor="subtle">
             Andel brukere etter hvor mye av den personlige grensen de brukte i måneden, regnet fra forbruk til
