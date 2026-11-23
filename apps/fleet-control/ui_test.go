@@ -215,3 +215,41 @@ func TestRealPostgresUIAgentsReportExpired(t *testing.T) {
 		t.Fatalf("status after expiry: %s", s)
 	}
 }
+
+// The owner-team slot: a second member of the profile's team sees the draft
+// until they approve, also after every route has approved. The author, who
+// is in the route team too, never sees their own draft.
+func TestRealPostgresUIInboxOwnerTeamSlot(t *testing.T) {
+	e := newAgentEnv(t)
+	if code, body := e.do("POST", "/admin/v1/agents", author, fixture(t)); code != 201 {
+		t.Fatalf("create: %d %s", code, body)
+	}
+	inbox := func(who string) []pendingAgent {
+		t.Helper()
+		c, b := e.do("GET", "/admin/v1/agents/pending-approval", who, "")
+		return decodeAs[struct{ Agents []pendingAgent }](t, c, b).Agents
+	}
+	owner := func() {
+		t.Helper()
+		if got := inbox(ownerApprover); len(got) != 1 || len(got[0].Awaiting) != 1 || got[0].Awaiting[0] != "aksel-studio" {
+			t.Fatalf("owner-team inbox: %+v", got)
+		}
+	}
+	owner()
+	if got := inbox(author); len(got) != 0 {
+		t.Fatalf("author sees own draft: %+v", got)
+	}
+	if code, body := e.do("POST", "/admin/v1/agents/aksel-studio/studio-assistant/approvals", approver, e.ab("copilot/dolly")); code != 200 {
+		t.Fatalf("route approve: %d %s", code, body)
+	}
+	owner()
+	if got := inbox(approver); len(got) != 0 {
+		t.Fatalf("route owner inbox after approving: %+v", got)
+	}
+	if code, body := e.ownerApprove(); code != 200 {
+		t.Fatalf("owner approve: %d %s", code, body)
+	}
+	if got := inbox(ownerApprover); len(got) != 0 {
+		t.Fatalf("approved profile in owner-team inbox: %+v", got)
+	}
+}

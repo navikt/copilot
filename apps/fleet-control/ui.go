@@ -148,8 +148,10 @@ func (s *server) uiAudit(actions []string) func(http.ResponseWriter, *http.Reque
 	}
 }
 
-// pendingApproval is the «Til godkjenning» inbox: live drafts with a granted
-// route that one of the caller's teams owns and has not approved yet.
+// pendingApproval is the «Til godkjenning» inbox: live drafts with an open
+// slot one of the caller's teams fills: a granted route it owns, or the
+// owner-team approval (keyed by namespace) when it owns the profile. The
+// author can approve no slot, so never sees their own draft.
 func (s *server) pendingApproval(w http.ResponseWriter, r *http.Request, who Person) {
 	out := []pendingAgent{}
 	if len(who.Teams) == 0 {
@@ -167,7 +169,13 @@ func (s *server) pendingApproval(w http.ResponseWriter, r *http.Request, who Per
 		return
 	}
 	for _, d := range drafts {
+		if d.Profile.CreatedBy == who.Ident {
+			continue
+		}
 		d.Awaiting = []string{}
+		if who.in(d.Profile.Namespace) && !slices.Contains(d.Approved, d.Profile.Namespace) {
+			d.Awaiting = append(d.Awaiting, d.Profile.Namespace)
+		}
 		for _, g := range d.Profile.Grants {
 			team, _, _ := strings.Cut(g.Route, "/")
 			if who.in(team) && !slices.Contains(d.Approved, g.Route) {
@@ -237,14 +245,14 @@ func (d *DB) AuditTrail(ctx context.Context, ns, name string, actions []string) 
 	return out, err
 }
 
-// DraftAgents returns the live drafts that grant a route owned by one of
-// teams, with the routes approved so far. The handler narrows to the routes
-// still awaiting those teams.
+// DraftAgents returns the live drafts owned by, or granting a route owned by,
+// one of teams, with the slots approved so far. The handler narrows to the
+// slots still awaiting those teams.
 func (d *DB) DraftAgents(ctx context.Context, teams []string) ([]pendingAgent, error) {
 	rows, err := d.pool.Query(ctx, `SELECT `+agentCols+`,
 		COALESCE((SELECT array_agg(route) FROM agent_profile_approvals a WHERE a.profile_id = agent_profiles.id), '{}')
 		FROM agent_profiles WHERE status = 'draft'
-		  AND EXISTS (SELECT 1 FROM jsonb_array_elements(grants) g WHERE split_part(g->>'route', '/', 1) = ANY($1))
+		  AND (namespace = ANY($1) OR EXISTS (SELECT 1 FROM jsonb_array_elements(grants) g WHERE split_part(g->>'route', '/', 1) = ANY($1)))
 		ORDER BY namespace, name`, teams)
 	if err != nil {
 		return nil, err
