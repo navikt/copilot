@@ -29,12 +29,18 @@ type authz struct {
 	introspectURL string
 	client        *http.Client
 	callers       map[string]string // azp -> caller
+	homeTenant    string            // Entra tenant id; person tokens from any other tid are refused
 }
 
 func newAuthzFromEnv() (*authz, error) {
 	endpoint := os.Getenv("NAIS_TOKEN_INTROSPECTION_ENDPOINT")
 	gw, reg := strings.TrimSpace(os.Getenv("FLEET_GATEWAY_CLIENT_ID")), strings.TrimSpace(os.Getenv("MCP_REGISTRY_CLIENT_ID"))
-	return newAuthz(endpoint, gw, reg)
+	a, err := newAuthz(endpoint, gw, reg)
+	if a != nil {
+		// Set by Nais when azure.application is enabled. Empty: every person token is refused.
+		a.homeTenant = strings.TrimSpace(os.Getenv("AZURE_APP_TENANT_ID"))
+	}
+	return a, err
 }
 
 func newAuthz(endpoint, gatewayID, registryID string) (*authz, error) {
@@ -104,6 +110,21 @@ type tokenClaims struct {
 	Azp      string `json:"azp"`
 	NAVident string `json:"NAVident"`
 	Email    string `json:"preferred_username"`
+	Tid      string `json:"tid"`
+	// acct is an optional Entra claim: 0 member, 1 guest. Nais does not
+	// document it, so it may be absent.
+	Acct *json.Number `json:"acct"`
+}
+
+// guest reports whether claims may belong to a guest account; anything
+// missing or unexpected counts as a guest. acct decides when present.
+// Otherwise the token must come from the home tenant and preferred_username
+// must not be a B2B guest UPN (#EXT#).
+func (c *tokenClaims) guest(homeTenant string) bool {
+	if c.Acct != nil {
+		return c.Acct.String() != "0"
+	}
+	return homeTenant == "" || c.Tid != homeTenant || strings.Contains(strings.ToUpper(c.Email), "#EXT#")
 }
 
 var navIdentRegex = regexp.MustCompile(`^[A-Z][0-9]{6}$`)
@@ -115,7 +136,8 @@ func (a *authz) user(ctx context.Context, header, adminClientID string) (ident, 
 	if err != nil {
 		return "", "", err
 	}
-	if claims.Idtyp == "app" || adminClientID == "" || claims.Azp != adminClientID || !navIdentRegex.MatchString(claims.NAVident) {
+	// Person routes: idtyp absent or "user", and no guest accounts.
+	if (claims.Idtyp != "" && claims.Idtyp != "user") || claims.guest(a.homeTenant) || adminClientID == "" || claims.Azp != adminClientID || !navIdentRegex.MatchString(claims.NAVident) {
 		return "", "", errUnauthorized
 	}
 	// Team membership is keyed on preferred_username; without it there is
