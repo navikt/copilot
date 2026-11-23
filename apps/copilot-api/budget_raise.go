@@ -274,37 +274,46 @@ func decodeStrict(w http.ResponseWriter, r *http.Request, v any) bool {
 // is a GitHub team slug, not Teamkatalogen). CachedBigQueryClient implements it.
 type teamSource interface {
 	GetGitHubTeams(ctx context.Context) ([]GitHubTeam, error)
-	GetUserTeams(ctx context.Context, login string) ([]string, error)
+	GetRosterTeams(ctx context.Context, login string) ([]string, error)
 }
 
 // budgetTeams is the caller's selectable list: their own GitHub teams plus
 // «annet/ukjent». If the team source is down, only «annet» is offered and
-// accepted (fails closed).
-func (h *budgetRaiseHandlers) budgetTeams(ctx context.Context, login string) []GitHubTeam {
-	teams := []GitHubTeam{{Slug: budgetTeamOther, Name: "Annet/ukjent"}}
+// accepted (fails closed), and known is false: membership is unknown, which
+// is not the same as having left a team.
+func (h *budgetRaiseHandlers) budgetTeams(ctx context.Context, login string) (teams []GitHubTeam, known bool) {
+	teams = []GitHubTeam{{Slug: budgetTeamOther, Name: "Annet/ukjent"}}
 	if h.teams == nil {
-		return teams
+		return teams, false
 	}
-	mine, err := h.teams.GetUserTeams(ctx, login)
+	mine, err := h.teams.GetRosterTeams(ctx, login)
 	if err != nil {
 		slog.Warn("User's GitHub teams unavailable for budget options", "error", err)
-		return teams
+		return teams, false
 	}
 	all, err := h.teams.GetGitHubTeams(ctx)
 	if err != nil {
 		slog.Warn("GitHub team list unavailable for budget options", "error", err)
-		return teams
+		return teams, false
 	}
 	for _, t := range all {
 		if slices.Contains(mine, t.Slug) {
 			teams = append(teams, t)
 		}
 	}
-	return teams
+	return teams, true
 }
 
-func (h *budgetRaiseHandlers) validTeam(ctx context.Context, login, slug string) bool {
-	return slices.ContainsFunc(h.budgetTeams(ctx, login), func(t GitHubTeam) bool { return t.Slug == slug })
+// validTeam reports whether slug is selectable now; known is false when
+// membership could not be read (then only «annet» is valid).
+func (h *budgetRaiseHandlers) validTeam(ctx context.Context, login, slug string) (valid, known bool) {
+	teams, known := h.budgetTeams(ctx, login)
+	return slices.ContainsFunc(teams, func(t GitHubTeam) bool { return t.Slug == slug }), known
+}
+
+func (h *budgetRaiseHandlers) isValidTeam(ctx context.Context, login, slug string) bool {
+	ok, _ := h.validTeam(ctx, login, slug)
+	return ok
 }
 
 type budgetProfile struct {
@@ -319,9 +328,10 @@ type budgetProfile struct {
 }
 
 func (h *budgetRaiseHandlers) handleOptions(w http.ResponseWriter, r *http.Request, login string) {
+	teams, _ := h.budgetTeams(r.Context(), login)
 	respondJSON(w, map[string]any{
 		"roles": budgetRoles, "categories": budgetCategories, "expectedValues": budgetExpectedValues,
-		"teams":   h.budgetTeams(r.Context(), login),
+		"teams":   teams,
 		"stepUsd": budgetStepUSD, "capUsd": budgetCapUSD, "defaultUsd": h.defaultUSD, "freeTextMax": budgetFreeTextMax,
 	}, http.StatusOK)
 }
@@ -350,12 +360,15 @@ func (h *budgetRaiseHandlers) handleGetProfile(w http.ResponseWriter, r *http.Re
 		return
 	}
 	if !p.Exists && h.teams != nil {
-		if mine, err := h.teams.GetUserTeams(r.Context(), login); err == nil && len(mine) == 1 && h.validTeam(r.Context(), login, mine[0]) {
+		if mine, err := h.teams.GetRosterTeams(r.Context(), login); err == nil && len(mine) == 1 && h.isValidTeam(r.Context(), login, mine[0]) {
 			p.SuggestedTeamID = mine[0]
 		}
 	}
-	if p.Exists && !h.validTeam(r.Context(), login, p.TeamID) {
-		p.LeftTeamID, p.TeamID = p.TeamID, budgetTeamOther
+	// Only a known membership can say the user left; an outage keeps the saved team.
+	if p.Exists {
+		if valid, known := h.validTeam(r.Context(), login, p.TeamID); !valid && known {
+			p.LeftTeamID, p.TeamID = p.TeamID, budgetTeamOther
+		}
 	}
 	noCacheControl(w)
 	respondJSON(w, p, http.StatusOK)
@@ -369,7 +382,7 @@ func (h *budgetRaiseHandlers) handlePutProfile(w http.ResponseWriter, r *http.Re
 	if !decodeStrict(w, r, &in) {
 		return
 	}
-	if !h.validTeam(r.Context(), login, in.TeamID) || !slices.Contains(budgetRoles, in.Role) {
+	if !h.isValidTeam(r.Context(), login, in.TeamID) || !slices.Contains(budgetRoles, in.Role) {
 		respondError(w, "invalid_request", "Unknown team or role", http.StatusBadRequest)
 		return
 	}
@@ -475,7 +488,7 @@ func (h *budgetRaiseHandlers) handleRaise(w http.ResponseWriter, r *http.Request
 		return
 	}
 	if !slices.Contains(budgetCategories, in.Category) || !slices.Contains(budgetExpectedValues, in.ExpectedValue) ||
-		(in.TeamID != "" && !h.validTeam(r.Context(), login, in.TeamID)) || (in.FreeText != nil && !validFreeText(*in.FreeText)) {
+		(in.TeamID != "" && !h.isValidTeam(r.Context(), login, in.TeamID)) || (in.FreeText != nil && !validFreeText(*in.FreeText)) {
 		respondError(w, "invalid_request", "Unknown category, team or expected value, or free text too long", http.StatusBadRequest)
 		return
 	}
@@ -565,10 +578,10 @@ func (h *budgetRaiseHandlers) raise(w http.ResponseWriter, r *http.Request, acto
 	if in.TeamID == "" {
 		in.TeamID = budgetTeamOther
 		// A saved team the user has since left counts as «annet».
-		if profile.Exists && h.validTeam(ctx, target, profile.TeamID) {
+		if profile.Exists && h.isValidTeam(ctx, target, profile.TeamID) {
 			in.TeamID = profile.TeamID
 		}
-	} else if !h.validTeam(ctx, target, in.TeamID) {
+	} else if !h.isValidTeam(ctx, target, in.TeamID) {
 		respondError(w, "invalid_request", "Team is not one of yours", http.StatusBadRequest)
 		return
 	}

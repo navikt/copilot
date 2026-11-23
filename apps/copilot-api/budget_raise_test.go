@@ -21,14 +21,19 @@ import (
 const testTeam = "team-b" // the caller's own team in newBudgetEnv
 
 type fakeTeams struct {
-	err  error
-	mine []string
+	err      error
+	mine     []string // current roster
+	activity []string // what GetUserTeams' 30-day activity fallback would add
 }
 
 func (f fakeTeams) GetGitHubTeams(context.Context) ([]GitHubTeam, error) {
 	return []GitHubTeam{{Slug: "team-a", Name: "Team A"}, {Slug: "team-b", Name: "Team B"}}, f.err
 }
-func (f fakeTeams) GetUserTeams(context.Context, string) ([]string, error) { return f.mine, f.err }
+// GetUserTeams mimics the activity fallback; budget code must not use it.
+func (f fakeTeams) GetUserTeams(context.Context, string) ([]string, error) {
+	return append(f.mine, f.activity...), f.err
+}
+func (f fakeTeams) GetRosterTeams(context.Context, string) ([]string, error) { return f.mine, f.err }
 
 // openBudgetTestDB returns a DSN on a clean schema. Skips without
 // TEST_DATABASE_URL unless COPILOT_API_REQUIRE_PG=1 (CI).
@@ -943,13 +948,22 @@ func TestBudgetBodyStrict(t *testing.T) {
 
 func TestBudgetRaiseProfileTeamRevalidated(t *testing.T) {
 	e := newBudgetEnv(t, openBudgetTestDB(t))
-	e.profile("ola") // team-b
-	e.h.teams = fakeTeams{mine: []string{"team-a"}} // ola has left team-b
+	e.profile("ola")                                // team-b
+	e.h.teams = fakeTeams{mine: []string{"team-a"}, activity: []string{"team-b"}} // ola has left team-b, still in recent activity
 	if code, out := e.do("GET", "/api/v1/copilot/budget/profile", "ola", "", ""); code != 200 || out["teamId"] != "annet" || out["leftTeamId"] != "team-b" {
 		t.Errorf("left team must read as annet: %d %v", code, out)
 	}
 	if code, _ := e.raise("ola", "k1"); code != 201 || e.count("SELECT count(*) FROM budget_raises WHERE team_id = 'annet'") != 1 {
 		t.Errorf("left team must raise as annet: %d", code)
+	}
+}
+
+func TestBudgetProfileTeamSourceDownIsNotLeft(t *testing.T) {
+	e := newBudgetEnv(t, openBudgetTestDB(t))
+	e.profile("ola") // team-b
+	e.h.teams = fakeTeams{err: fmt.Errorf("bq down")}
+	if code, out := e.do("GET", "/api/v1/copilot/budget/profile", "ola", "", ""); code != 200 || out["teamId"] != "team-b" || out["leftTeamId"] != nil {
+		t.Errorf("an outage must not say the user left: %d %v", code, out)
 	}
 }
 

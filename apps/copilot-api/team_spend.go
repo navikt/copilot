@@ -366,6 +366,41 @@ func userTeamSlugs(slugs []string) []string {
 	return teams
 }
 
+// GetRosterTeams reads the caller's teams from the latest team_members roster
+// only, with no activity fallback: budget team choices must reflect current
+// membership. A missing roster table is an error (membership unknown).
+func (bq *BigQueryClient) GetRosterTeams(ctx context.Context, userLogin string) ([]string, error) {
+	members := bq.tableRef(bq.metricsDataset, "team_members")
+	query := bq.client.Query(fmt.Sprintf(`SELECT DISTINCT team_slug FROM %s
+WHERE date=(SELECT MAX(date) FROM %s) AND LOWER(login)=LOWER(@login)`, members, members))
+	query.Parameters = []bigquery.QueryParameter{{Name: "login", Value: userLogin}}
+	it, err := query.Read(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("read roster teams: %w", err)
+	}
+	var slugs []string
+	for {
+		var row struct {
+			TeamSlug string `bigquery:"team_slug"`
+		}
+		if err := it.Next(&row); err != nil {
+			if err == iterator.Done {
+				return userTeamSlugs(slugs), nil
+			}
+			return nil, err
+		}
+		slugs = append(slugs, row.TeamSlug)
+	}
+}
+
+func (c *CachedBigQueryClient) GetRosterTeams(ctx context.Context, login string) ([]string, error) {
+	ctx, cancel := withQueryTimeout(ctx)
+	defer cancel()
+	return getCachedValue(c, "roster_teams_"+login, func() ([]string, error) {
+		return c.client.GetRosterTeams(ctx, login)
+	})
+}
+
 func (c *CachedBigQueryClient) GetUserTeams(ctx context.Context, login string) ([]string, error) {
 	ctx, cancel := withQueryTimeout(ctx)
 	defer cancel()
