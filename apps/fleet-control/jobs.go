@@ -191,12 +191,12 @@ func (d *DB) SetKillSwitch(ctx context.Context, actor, scope string, on bool, re
 
 // expireLeases ends leases past expiry. Their jobs go back to the queue or
 // fail per on_expiry; a job with a pending cancel or kill does not return.
-func expireLeases(ctx context.Context, tx pgx.Tx) error {
+func expireLeases(ctx context.Context, tx pgx.Tx) (int, error) {
 	rows, err := tx.Query(ctx, `UPDATE runtime_leases SET ended_at = now()
 		WHERE id IN (SELECT id FROM runtime_leases WHERE ended_at IS NULL AND expires_at <= now() FOR UPDATE SKIP LOCKED)
 		RETURNING id::text, job_id, runtime`)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	type expired struct {
 		lease, runtime string
@@ -207,13 +207,13 @@ func expireLeases(ctx context.Context, tx pgx.Tx) error {
 		var e expired
 		if err := rows.Scan(&e.lease, &e.job, &e.runtime); err != nil {
 			rows.Close()
-			return err
+			return 0, err
 		}
 		all = append(all, e)
 	}
 	rows.Close()
 	if err := rows.Err(); err != nil {
-		return err
+		return 0, err
 	}
 	for _, e := range all {
 		var team, state string
@@ -223,13 +223,59 @@ func expireLeases(ctx context.Context, tx pgx.Tx) error {
 				WHEN on_expiry = 'requeue' AND attempts < max_attempts THEN 'queued'
 				ELSE 'failed' END
 			WHERE id = $1 RETURNING team, state`, e.job).Scan(&team, &state); err != nil {
-			return err
+			return 0, err
 		}
 		if err := jobAudit(ctx, tx, e.runtime, "lease_expired", team, e.job, map[string]any{"lease_id": e.lease, "after": state}); err != nil {
-			return err
+			return 0, err
 		}
 	}
-	return nil
+	return len(all), nil
+}
+
+// SweepLeases expires leases in one transaction. SKIP LOCKED lets several
+// replicas sweep at once without handling a lease twice.
+func (d *DB) SweepLeases(ctx context.Context) (int, error) {
+	var n int
+	err := pgx.BeginFunc(ctx, d.pool, func(tx pgx.Tx) error {
+		var err error
+		n, err = expireLeases(ctx, tx)
+		return err
+	})
+	return n, err
+}
+
+// sweepLoop runs SweepLeases every interval until ctx ends, so leases expire
+// even when no runtime claims.
+func sweepLoop(ctx context.Context, d *DB, interval time.Duration) {
+	t := time.NewTicker(interval)
+	defer t.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+		}
+		sctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+		if n, err := d.SweepLeases(sctx); err != nil {
+			slog.Error("lease sweep failed", "error", err)
+		} else if n > 0 {
+			slog.Info("lease sweep", "expired", n)
+		}
+		cancel()
+	}
+}
+
+// sweepIntervalFromEnv reads FLEET_RUNTIME_SWEEP_INTERVAL (1s to 5m, default 15s).
+func sweepIntervalFromEnv() (time.Duration, error) {
+	raw := os.Getenv("FLEET_RUNTIME_SWEEP_INTERVAL")
+	if raw == "" {
+		return 15 * time.Second, nil
+	}
+	d, err := time.ParseDuration(raw)
+	if err != nil || d < time.Second || d > 5*time.Minute {
+		return 0, errors.New("FLEET_RUNTIME_SWEEP_INTERVAL must be a duration from 1s to 5m")
+	}
+	return d, nil
 }
 
 // errNoJob means nothing was claimable.
@@ -241,8 +287,9 @@ func (d *DB) Claim(ctx context.Context, runtime, token string, ttl time.Duration
 	if l, err := d.leaseByToken(ctx, runtime, token); err == nil || !errors.Is(err, pgx.ErrNoRows) {
 		return l, err
 	}
-	// The sweep commits on its own: a claim that finds no job rolls back.
-	if err := pgx.BeginFunc(ctx, d.pool, func(tx pgx.Tx) error { return expireLeases(ctx, tx) }); err != nil {
+	// Also swept here, so a claim sees freed jobs before the next tick. It
+	// commits on its own: a claim that finds no job rolls back.
+	if _, err := d.SweepLeases(ctx); err != nil {
 		return nil, err
 	}
 	var leaseID string

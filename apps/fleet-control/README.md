@@ -56,7 +56,7 @@ fleet-runtime calls, with an Entra app token (`idtyp=app`) whose `azp` is in `FL
 | `POST /runtime/v1/heartbeat` | `lease_id` | 200 with `command` (`continue`, `cancel`, `kill`) and the new `lease_expires_at`. 410: the lease is gone |
 | `POST /runtime/v1/complete`, `/fail` | `lease_id`, `code` (`[a-z0-9_]{1,64}`), `message` (at most 500 characters) | 204. A status, never the job's output |
 
-The runtime must stop the job on `kill`, on 410, and when no heartbeat has been answered before `lease_expires_at`. Lost contact therefore stops the job on both sides. On `cancel` it stops and reports with `fail`. The lease TTL is `FLEET_RUNTIME_LEASE_TTL` (default 60 s); heartbeat at a third of it. An expired lease returns its job to the queue (`requeue`, until `max_attempts`) or fails it. Expiry is applied on the next claim.
+The runtime must stop the job on `kill`, on 410, and when no heartbeat has been answered before `lease_expires_at`. Lost contact therefore stops the job on both sides. On `cancel` it stops and reports with `fail`. The lease TTL is `FLEET_RUNTIME_LEASE_TTL` (default 60 s); heartbeat at a third of it. An expired lease returns its job to the queue (`requeue`, until `max_attempts`) or fails it. A background worker expires leases every `FLEET_RUNTIME_SWEEP_INTERVAL` (default 15 s), and each claim sweeps first too. The sweep uses `SKIP LOCKED`, so replicas sweeping at once never expire a lease twice, and writes one audit row per expiry.
 
 Claims lock the job row with `FOR UPDATE SKIP LOCKED`, and a unique index allows one active lease per job, so concurrent claims get one winner. Claims, commands, deliveries, lease expiry, results and kill switches each write `audit_events` in the same transaction. A plain heartbeat that only extends the lease is not audited. The claim long-poll works because the server has no `WriteTimeout`; `ReadTimeout` covers reading the request only.
 
@@ -74,6 +74,7 @@ Not built yet: the public ingress fleet-runtime will reach this through (#2686),
 | `FLEET_CONTROL_STATIC_TEAMS` | JSON of team to NAVidents, until the Nais teams API is wired in. Unset: nobody can write |
 | `FLEET_RUNTIME_CLIENT_IDS` | fleet-runtime's Entra client ids, comma-separated. Unset: no `/runtime` routes |
 | `FLEET_RUNTIME_LEASE_TTL` | Lease TTL, 10s to 10m. Default 60s |
+| `FLEET_RUNTIME_SWEEP_INTERVAL` | Lease sweep interval, 1s to 5m. Default 15s |
 | `FLEET_CONTROL_OPERATOR_TEAM` | Team that may set the global job kill switch. Unset: nobody |
 | `NAIS_CLUSTER_NAME` | Set by Nais. The write routes and the static team list run only in a `dev-*` cluster; the static list in prod stops startup |
 

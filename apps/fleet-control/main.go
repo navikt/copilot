@@ -50,6 +50,10 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	sweepEvery, err := sweepIntervalFromEnv()
+	if err != nil {
+		return err
+	}
 	httpSrv := newHTTPServer(port, srv.routes(auth, adminClientID, teams, ra))
 
 	go func() {
@@ -59,6 +63,9 @@ func run() error {
 			return
 		}
 		srv.store.Store(&storeBox{db})
+		if ra != nil {
+			go sweepLoop(ctx, db, sweepEvery)
+		}
 	}()
 
 	errCh := make(chan error, 1)

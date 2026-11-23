@@ -476,3 +476,73 @@ func TestStubRuntimeStopsOnKill(t *testing.T) {
 		t.Fatal("job kept running after kill")
 	}
 }
+
+func TestRealPostgresSweepWorker(t *testing.T) {
+	e := newJobEnv(t)
+	var ids []int64
+	for i := range 10 {
+		ids = append(ids, e.createJob(`{"kind":"review"}`))
+		e.claim(tok(i))
+	}
+	if _, err := e.db.pool.Exec(context.Background(), `UPDATE runtime_leases SET expires_at = now() - interval '1 second'`); err != nil {
+		t.Fatal(err)
+	}
+	// Two replicas sweep at once: every lease expires exactly once.
+	var wg sync.WaitGroup
+	counts := make(chan int, 2)
+	for range 2 {
+		wg.Go(func() {
+			n, err := e.db.SweepLeases(context.Background())
+			if err != nil {
+				t.Error(err)
+			}
+			counts <- n
+		})
+	}
+	wg.Wait()
+	close(counts)
+	total := 0
+	for n := range counts {
+		total += n
+	}
+	if total != 10 {
+		t.Errorf("expired %d leases, want 10", total)
+	}
+	for _, id := range ids {
+		if st, _ := e.state(id); st != "queued" {
+			t.Errorf("job %d: %s", id, st)
+		}
+		if got := fmt.Sprint(e.audit(id)); got != "[job_created job_claimed lease_expired]" {
+			t.Errorf("job %d audit: %s", id, got)
+		}
+	}
+	// The loop sweeps without any claim.
+	e.claim(tok(100))
+	_, _ = e.db.pool.Exec(context.Background(), `UPDATE runtime_leases SET expires_at = now() - interval '1 second' WHERE ended_at IS NULL`)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	go sweepLoop(ctx, e.db, 20*time.Millisecond)
+	for deadline := time.Now().Add(2 * time.Second); ; {
+		var active int
+		_ = e.db.pool.QueryRow(context.Background(), `SELECT count(*) FROM runtime_leases WHERE ended_at IS NULL`).Scan(&active)
+		if active == 0 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("sweep loop did not expire the lease")
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+}
+
+func TestSweepIntervalFromEnv(t *testing.T) {
+	if d, err := sweepIntervalFromEnv(); err != nil || d != 15*time.Second {
+		t.Errorf("default: %v %v", d, err)
+	}
+	for _, v := range []string{"500ms", "1h", "x"} {
+		t.Setenv("FLEET_RUNTIME_SWEEP_INTERVAL", v)
+		if _, err := sweepIntervalFromEnv(); err == nil {
+			t.Errorf("%q: want error", v)
+		}
+	}
+}
