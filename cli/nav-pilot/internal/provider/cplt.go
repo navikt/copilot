@@ -109,21 +109,36 @@ var FleetGatewayHosts = []string{"fleet-gateway.intern.nav.no", "fleet-gateway.i
 // (navikt/cplt 61cec3b, release 2026.04.30-130904-61cec3b).
 const cpltPrivateDomainFloor = "2026.04.30-130904"
 
+// FleetGatewayActive reports whether launches pass [FleetGatewayHosts]: only
+// a parsed stamp at or past the floor, or exactly "cplt 0.0.0" (a dev build of
+// current source). Anything else — no cplt, garbled or empty output, "cplt
+// dev", a format nav-pilot does not know — is no, so cplt never meets a flag
+// it may reject.
+func FleetGatewayActive() bool {
+	out, err := probeCpltVersion()
+	if err != nil {
+		return false
+	}
+	if first, _, _ := strings.Cut(out, "\n"); strings.TrimSpace(first) == "cplt 0.0.0" {
+		return true
+	}
+	stamp := cpltStamp(out)
+	return stamp != "" && stamp >= cpltPrivateDomainFloor
+}
+
+// CpltUpgradeHint is the command that upgrades cplt, for doctor.
+func CpltUpgradeHint() string { return cpltUpgradeHint() }
+
 // cpltDefaultFlags is a var so golden launch-vector tests can leave it out
 // without a cplt binary; the provider TestMain does.
 var cpltDefaultFlags = fleetGatewayFlags
 
 // fleetGatewayFlags is --allow-private-domain for each [FleetGatewayHosts]
 // entry not already in args, which holds the user's own --cplt flags too.
-// Skipped, not refused, on a cplt too old or unreadable to know the flag: a
-// default must not stop a launch that worked before. A dev build (cplt 0.0.0)
-// is current source and gets them.
+// Skipped, not refused, unless [FleetGatewayActive]: a default must not stop
+// a launch that worked before.
 func fleetGatewayFlags(args []string) []string {
-	out, err := probeCpltVersion()
-	if err != nil || cpltPreStampVersion(out) != "" {
-		return nil
-	}
-	if stamp := cpltStamp(out); stamp != "" && stamp < cpltPrivateDomainFloor {
+	if !FleetGatewayActive() {
 		return nil
 	}
 	have := map[string]bool{}

@@ -39,7 +39,7 @@ func TestFleetGatewayKeepsUserFlagsAndDedupes(t *testing.T) {
 }
 
 func TestFleetGatewaySkippedOnOldOrUnknownCplt(t *testing.T) {
-	for _, v := range []string{"cplt 2026.04.30-125006-5b19b0b\n", "cplt 0.1.0\n", "cplt 2026.04.11-48aedfc\n"} {
+	for _, v := range []string{"cplt 2026.04.30-125006-5b19b0b\n", "cplt 0.1.0\n", "cplt 2026.04.11-48aedfc\n", "", "garbled\x00output", "cplt dev\n", "cplt 2026.11.23\n", "cplt 0.0.0-rc1\n"} {
 		withFleetGatewayDefaults(t, v)
 		if got := cpltArgv(cpltLaunch{agent: "copilot"}); slices.Contains(got, "--allow-private-domain") {
 			t.Errorf("%q: got %q", v, got)

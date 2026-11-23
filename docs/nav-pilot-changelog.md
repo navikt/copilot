@@ -6,7 +6,7 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ### Fleet-gateway virker i cplt uten oppsett
 
-- **cplt**: nav-pilot lar nå cplt nå `fleet-gateway.intern.nav.no` og `fleet-gateway.intern.dev.nav.no`, som peker til private adresser over naisdevice. Du trenger ikke endre cplt-konfigurasjonen din, og nav-pilot endrer den heller ikke. Krever cplt 2026.04.30 eller nyere; med eldre cplt starter økten som før, uten disse to. `nav-pilot doctor` viser hvilke adresser det gjelder.
+- **cplt**: nav-pilot lar nå cplt slippe gjennom til `fleet-gateway.intern.nav.no` og `fleet-gateway.intern.dev.nav.no`, som peker til private adresser over naisdevice. Du trenger ikke endre cplt-konfigurasjonen din, og nav-pilot endrer den heller ikke. Krever cplt 2026.04.30 eller nyere. Med eldre cplt starter økten som før, uten disse to, og `nav-pilot doctor` forteller hvordan du oppdaterer.
 
 ### Status viser hvilken revisjon du har installert
 
