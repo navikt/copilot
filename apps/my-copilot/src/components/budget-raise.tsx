@@ -443,6 +443,8 @@ function RaiseSection({
         const code = (body as { error?: string }).error ?? "failed";
         setResult({ error: code });
         onRefused(code);
+        // GitHub may have applied it: show the backend's real budget and raises.
+        if (code === "github_error") onRaised();
         // A definite answer ends this raise; a network or server failure keeps the key for the retry.
         if (res.status < 500) key.current = null;
       }
@@ -469,7 +471,8 @@ function RaiseSection({
         {result && "error" in result && result.error === "github_error" && (
           // GitHub may have applied the raise even though it answered badly.
           <Message status="warning" title="Vi vet ikke om påfyllet gikk gjennom">
-            Vi sjekker det automatisk neste gang du prøver. Se forbruket øverst før du fyller på igjen.
+            Se forbruket øverst. Vent et par minutter og prøv igjen uten å laste inn siden på nytt, så sjekker vi det
+            automatisk. Laster du inn siden, starter du et nytt påfyll.
           </Message>
         )}
         {result && "error" in result && result.error !== "github_error" && (
@@ -693,8 +696,9 @@ function RaiseOutcome({ result }: { result: RaiseResult }) {
   if (status === "pending") {
     return (
       <Message status="announcement" title="Påfyllet venter på GitHub">
-        Vi har registrert påfyllet, men vet ikke ennå om endringen gikk gjennom i GitHub. Det sjekkes automatisk neste
-        gang du prøver. Sender du skjemaet igjen, får du ikke et nytt påfyll.
+        Vi har registrert påfyllet, men vet ikke ennå om endringen gikk gjennom i GitHub. Vent et par minutter og prøv
+        igjen uten å laste inn siden på nytt, så sjekker vi det automatisk. Laster du inn siden, starter du et nytt
+        påfyll.
       </Message>
     );
   }

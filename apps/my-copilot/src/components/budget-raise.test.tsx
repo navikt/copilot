@@ -187,7 +187,9 @@ describe("BudgetRaisePage review fixes", () => {
     render(<BudgetRaisePage />);
     await fillAndSubmit();
     expect(await screen.findByText("Påfyllet venter på GitHub")).toBeInTheDocument();
-    expect(screen.getByText(/vet ikke ennå om endringen gikk gjennom[^]*sjekkes automatisk neste/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/vet ikke ennå om endringen gikk gjennom[^]*uten å laste inn siden på nytt/)
+    ).toBeInTheDocument();
     expect(screen.queryByText(/allerede registrert|Du har fått påfyll/)).not.toBeInTheDocument();
     await fillAndSubmit();
     await waitFor(() => expect(raiseCalls(m)).toHaveLength(2));
@@ -196,11 +198,14 @@ describe("BudgetRaisePage review fixes", () => {
   });
 
   it("does not claim a refusal when GitHub answered badly", async () => {
-    mockApi(defaultBudget, { status: 502, body: { error: "github_error" } });
+    const m = mockApi(defaultBudget, { status: 502, body: { error: "github_error" } });
     render(<BudgetRaisePage />);
     await fillAndSubmit();
     expect(await screen.findByText("Vi vet ikke om påfyllet gikk gjennom")).toBeInTheDocument();
     expect(screen.queryByText("Du fikk ikke påfyll")).not.toBeInTheDocument();
+    expect(screen.getByText(/uten å laste inn siden på nytt/)).toBeInTheDocument();
+    // The budget is fetched again so the table shows what GitHub really did.
+    await waitFor(() => expect(m.mock.calls.filter(([u]) => u === "/api/budget")).toHaveLength(2));
   });
 
   it("shows a failed replay as failed", async () => {
