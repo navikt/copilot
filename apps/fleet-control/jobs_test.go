@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -677,8 +678,9 @@ func TestRealPostgresRepeatedClaimOnExpiredLease(t *testing.T) {
 	if _, err := e.db.pool.Exec(context.Background(), `UPDATE runtime_leases SET expires_at = now() - interval '1 second'`); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := e.db.leaseByToken(context.Background(), runtimeID, tok(1)); err == nil {
-		t.Error("repeated claim on an expired, unswept lease: want 410")
+	_, err := e.db.leaseByToken(context.Background(), runtimeID, tok(1))
+	if apiErr, ok := errors.AsType[*apiError](err); !ok || apiErr.code != http.StatusGone {
+		t.Errorf("repeated claim on an expired, unswept lease: %v, want 410", err)
 	}
 }
 
@@ -708,5 +710,40 @@ func TestRealPostgresKillWinsOverFinish(t *testing.T) {
 	_ = do(t, e.h, http.MethodPost, "/runtime/v1/complete", runtimeID, `{"lease_id":"`+l.LeaseID+`","code":"ok"}`)
 	if st, _ := e.state(id); st != "killed" {
 		t.Errorf("kill switch: state %s, want killed", st)
+	}
+}
+
+// A lease that expires while a call waits for its row lock is gone: expiry is
+// checked after the lock, not at transaction start.
+func TestRealPostgresLeaseExpiresWhileWaitingForLock(t *testing.T) {
+	for name, path := range map[string]string{"heartbeat": "/runtime/v1/heartbeat", "complete": "/runtime/v1/complete"} {
+		t.Run(name, func(t *testing.T) {
+			extra := map[string]string{"heartbeat": "", "complete": `,"code":"ok"`}[name]
+			e := newJobEnv(t)
+			e.createJob(`{"kind":"review"}`)
+			_, l := e.claim(tok(1))
+			ctx := context.Background()
+			if _, err := e.db.pool.Exec(ctx, `UPDATE runtime_leases SET expires_at = clock_timestamp() + interval '300 milliseconds' WHERE id = $1::uuid`, l.LeaseID); err != nil {
+				t.Fatal(err)
+			}
+			hold, err := e.db.pool.Begin(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := hold.Exec(ctx, `SELECT 1 FROM runtime_leases WHERE id = $1::uuid FOR UPDATE`, l.LeaseID); err != nil {
+				t.Fatal(err)
+			}
+			code := make(chan int, 1)
+			go func() {
+				code <- do(t, e.h, http.MethodPost, path, runtimeID, `{"lease_id":"`+l.LeaseID+`"`+extra+`}`).Code
+			}()
+			time.Sleep(600 * time.Millisecond) // past expiry, the call waits on the lock
+			if err := hold.Commit(ctx); err != nil {
+				t.Fatal(err)
+			}
+			if c := <-code; c != http.StatusGone {
+				t.Errorf("got %d, want 410", c)
+			}
+		})
 	}
 }

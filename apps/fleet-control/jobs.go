@@ -89,7 +89,7 @@ type HeartbeatResponse struct {
 }
 
 // ttlSQL is the lease's remaining whole seconds, rounded down.
-const ttlSQL = `GREATEST(0, FLOOR(EXTRACT(EPOCH FROM expires_at - now())))::int`
+const ttlSQL = `GREATEST(0, FLOOR(EXTRACT(EPOCH FROM expires_at - clock_timestamp())))::int`
 
 // FinishRequest is POST /runtime/v1/complete and /runtime/v1/fail. The
 // summary is a status, never the job's content.
@@ -348,7 +348,7 @@ func (d *DB) leaseByToken(ctx context.Context, runtime, token string) (*Lease, e
 	var params string
 	var ended *time.Time
 	var expired bool
-	err := d.pool.QueryRow(ctx, `SELECT l.id::text, `+strings.ReplaceAll(ttlSQL, "expires_at", "l.expires_at")+`, l.expires_at, l.ended_at, l.expires_at <= now(), j.id, j.team, j.kind, j.params::text, j.attempts
+	err := d.pool.QueryRow(ctx, `SELECT l.id::text, `+strings.ReplaceAll(ttlSQL, "expires_at", "l.expires_at")+`, l.expires_at, l.ended_at, l.expires_at <= clock_timestamp(), j.id, j.team, j.kind, j.params::text, j.attempts
 		FROM runtime_leases l JOIN runtime_jobs j ON j.id = l.job_id WHERE l.runtime = $1 AND l.claim_token = $2`, runtime, token).
 		Scan(&l.LeaseID, &l.LeaseTTLSeconds, &l.LeaseExpiresAt, &ended, &expired, &l.JobID, &l.Team, &l.Kind, &params, &l.Attempt)
 	if err != nil {
@@ -366,11 +366,16 @@ func (d *DB) leaseByToken(ctx context.Context, runtime, token string) (*Lease, e
 func lockLease(ctx context.Context, tx pgx.Tx, runtime, leaseID string) (job int64, team, cmd string, err error) {
 	var ended *time.Time
 	var expired bool
-	err = tx.QueryRow(ctx, `SELECT l.job_id, l.ended_at, l.expires_at <= now(), j.team, j.command
+	err = tx.QueryRow(ctx, `SELECT l.job_id, l.ended_at, j.team, j.command
 		FROM runtime_leases l JOIN runtime_jobs j ON j.id = l.job_id
-		WHERE l.id = $1::uuid AND l.runtime = $2 FOR UPDATE OF l, j`, leaseID, runtime).Scan(&job, &ended, &expired, &team, &cmd)
+		WHERE l.id = $1::uuid AND l.runtime = $2 FOR UPDATE OF l, j`, leaseID, runtime).Scan(&job, &ended, &team, &cmd)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return 0, "", "", refuse(http.StatusNotFound, "lease not found")
+	}
+	// Check expiry after the lock, on the wall clock: now() is fixed at
+	// transaction start and would pass a lease that expired while waiting.
+	if err == nil {
+		err = tx.QueryRow(ctx, `SELECT expires_at <= clock_timestamp() FROM runtime_leases WHERE id = $1::uuid`, leaseID).Scan(&expired)
 	}
 	if err == nil && (ended != nil || expired) {
 		err = refuse(http.StatusGone, "lease is no longer held; stop the job")
@@ -411,7 +416,7 @@ func (d *DB) Heartbeat(ctx context.Context, runtime, leaseID string, ttl time.Du
 		var first bool
 		if err := tx.QueryRow(ctx, `UPDATE runtime_leases SET
 				cancel_delivered_at = CASE WHEN $3 THEN COALESCE(cancel_delivered_at, now()) END,
-				expires_at = CASE WHEN $3 THEN LEAST(now(), COALESCE(cancel_delivered_at, now())) ELSE now() END + $2 * interval '1 millisecond'
+				expires_at = CASE WHEN $3 THEN LEAST(clock_timestamp(), COALESCE(cancel_delivered_at, now())) ELSE clock_timestamp() END + $2 * interval '1 millisecond'
 			WHERE id = $1::uuid
 			RETURNING expires_at, `+ttlSQL+`, $3 AND cancel_delivered_at = now()`, leaseID, ttl.Milliseconds(), cmd == cmdCancel).
 			Scan(&out.LeaseExpiresAt, &out.LeaseTTLSeconds, &first); err != nil {
