@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"log/slog"
 	"net/http"
@@ -173,6 +174,7 @@ type budgetRaiseHandlers struct {
 	now        func() time.Time
 	limiter    *loginLimiter
 	userLocks  sync.Map // login -> *sync.Mutex: one raise at a time per user on this replica
+	afterList  func()   // test hook: runs between the GitHub list and the reservation
 }
 
 func newBudgetRaiseHandlers(cfg *Config, writer *budgetWriter, seats seatLookup) (*budgetRaiseHandlers, error) {
@@ -260,7 +262,8 @@ func dbUnavailable(w http.ResponseWriter, err error) {
 func decodeStrict(w http.ResponseWriter, r *http.Request, v any) bool {
 	dec := json.NewDecoder(http.MaxBytesReader(w, r.Body, 8<<10))
 	dec.DisallowUnknownFields() // a client-sent amount is rejected, not ignored
-	if err := dec.Decode(v); err != nil {
+	// One JSON value and nothing after it; the trailing read also enforces the size limit.
+	if err := dec.Decode(v); err != nil || dec.Decode(&struct{}{}) != io.EOF {
 		respondError(w, "invalid_request", "Invalid request body", http.StatusBadRequest)
 		return false
 	}
@@ -549,6 +552,10 @@ func (h *budgetRaiseHandlers) raise(w http.ResponseWriter, r *http.Request, acto
 			in.TeamID = profile.TeamID
 		}
 	}
+	if !h.validTeam(ctx, in.TeamID) { // a saved team may since have gone
+		respondError(w, "invalid_request", "Team is no longer selectable, update your profile", http.StatusBadRequest)
+		return
+	}
 
 	// F12: active licence. A failed lookup is 503, never a guess. A seat with a
 	// pending_cancellation_date is still active until that date, so it counts.
@@ -567,16 +574,6 @@ func (h *budgetRaiseHandlers) raise(w http.ResponseWriter, r *http.Request, acto
 	mu.(*sync.Mutex).Lock()
 	defer mu.(*sync.Mutex).Unlock()
 
-	// Read GitHub before taking any database lock (F8 needs the list).
-	var list *ghUserBudgets
-	if h.writer != nil {
-		if list, _, err = h.writer.listUser(ctx, target); err != nil {
-			slog.Error("Budget list failed before raise", "error", err)
-			respondError(w, "github_error", "GitHub budget lookup failed", http.StatusBadGateway)
-			return
-		}
-	}
-
 	now := h.now().In(h.loc)
 	month := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, h.loc)
 	expires := month.AddDate(0, 1, 0) // F5: first day of next month, always in the future
@@ -585,7 +582,37 @@ func (h *budgetRaiseHandlers) raise(w http.ResponseWriter, r *http.Request, acto
 		action = "admin_override"
 	}
 
-	plan, failCode, err := h.reserve(ctx, pool, reservation{actor: actor, target: target, key: key, admin: admin, dry: dry, in: in, month: month, expires: expires, list: list, action: action})
+	// Read GitHub before taking the database lock (F8 needs the list). Another
+	// replica may change things between the two, so reserve checks the user's
+	// raise state is what it was before the list, and otherwise we list again.
+	var plan raisePlan
+	var failCode string
+	for attempt := 0; ; attempt++ {
+		var fp int64
+		if err = pool.QueryRow(ctx, raiseFingerprintSQL, target).Scan(&fp); err != nil {
+			dbUnavailable(w, err)
+			return
+		}
+		var list *ghUserBudgets
+		if h.writer != nil {
+			if list, _, err = h.writer.listUser(ctx, target); err != nil {
+				slog.Error("Budget list failed before raise", "error", err)
+				respondError(w, "github_error", "GitHub budget lookup failed", http.StatusBadGateway)
+				return
+			}
+		}
+		if h.afterList != nil {
+			h.afterList()
+		}
+		plan, failCode, err = h.reserve(ctx, pool, reservation{actor: actor, target: target, key: key, admin: admin, dry: dry, in: in, month: month, expires: expires, list: list, action: action, fingerprint: fp})
+		if failCode != "stale" || err != nil {
+			break
+		}
+		if attempt == 2 {
+			failCode = "raise_in_progress"
+			break
+		}
+	}
 	switch {
 	case err != nil:
 		dbUnavailable(w, err)
@@ -625,10 +652,16 @@ func (h *budgetRaiseHandlers) raise(w http.ResponseWriter, r *http.Request, acto
 
 	wctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), budgetWriteTimeout)
 	defer cancel()
-	ownID, ghStatus, err := h.write(wctx, pool, target, plan, month, expires)
+	ownID, ghStatus, unknown, err := h.write(wctx, pool, target, plan, month, expires)
 	audit(wctx, ghStatus, ownID)
 	final := "applied"
-	if err != nil {
+	switch {
+	case err != nil && unknown:
+		// GitHub may hold a budget whose ID we did not store: stay pending,
+		// so the next raise reconciles (adopts) it instead of own_budget.
+		final = "pending"
+		slog.Error("Budget write outcome unknown, left pending", "github_status", ghStatus, "error", err)
+	case err != nil:
 		final = "failed"
 		slog.Error("Budget write failed", "github_status", ghStatus, "error", err)
 	}
@@ -650,7 +683,12 @@ type reservation struct {
 	in                         raiseInput
 	month, expires             time.Time
 	list                       *ghUserBudgets // nil in dry_run without write key
+	fingerprint                int64          // raiseFingerprintSQL before the list was read
 }
+
+// raiseFingerprintSQL changes whenever a raise for the user is inserted or
+// leaves pending, i.e. whenever budget_github may have changed.
+const raiseFingerprintSQL = "SELECT count(*) + count(*) FILTER (WHERE status <> 'pending') FROM budget_raises WHERE github_login = $1"
 
 type raisePlan struct {
 	replay *raiseView
@@ -676,6 +714,14 @@ func (h *budgetRaiseHandlers) reserve(ctx context.Context, pool *pgxpool.Pool, r
 			return nil
 		} else if !errors.Is(err, pgx.ErrNoRows) {
 			return err
+		}
+		var fp int64
+		if err := tx.QueryRow(ctx, raiseFingerprintSQL, rv.target).Scan(&fp); err != nil {
+			return err
+		}
+		if fp != rv.fingerprint {
+			code = "stale" // the GitHub list predates another replica's raise
+			return nil
 		}
 
 		ours := map[string]bool{}
@@ -721,29 +767,30 @@ func (h *budgetRaiseHandlers) reserve(ctx context.Context, pool *pgxpool.Pool, r
 
 		// A pending row younger than budgetPendingStale is a raise in flight on
 		// another replica. Older ones died mid-write: reconcile them now.
-		var stale []struct {
+		type staleRow struct {
 			id     string
 			amount int
+			month  time.Time
 		}
-		pend, err := tx.Query(ctx, "SELECT id::text, COALESCE(budget_set_usd, 0), created_at < now() - $2::interval FROM budget_raises WHERE github_login = $1 AND status = 'pending'", rv.target, budgetPendingStale.String())
+		var stale []staleRow
+		pend, err := tx.Query(ctx, "SELECT id::text, COALESCE(budget_set_usd, 0), month, created_at < now() - $2::interval FROM budget_raises WHERE github_login = $1 AND status = 'pending'", rv.target, budgetPendingStale.String())
 		if err != nil {
 			return err
 		}
 		for pend.Next() {
 			var id string
 			var amount int
+			var m time.Time
 			var old bool
-			if err := pend.Scan(&id, &amount, &old); err != nil {
+			if err := pend.Scan(&id, &amount, &m, &old); err != nil {
 				pend.Close()
 				return err
 			}
 			if !old {
 				code = "raise_in_progress"
 			}
-			stale = append(stale, struct {
-				id     string
-				amount int
-			}{id, amount})
+			// month is a date: rebuild it in our zone, as the raise computed it.
+			stale = append(stale, staleRow{id, amount, time.Date(m.Year(), m.Month(), 1, 0, 0, 0, 0, h.loc)})
 		}
 		pend.Close()
 		if err := pend.Err(); err != nil || code != "" {
@@ -753,8 +800,10 @@ func (h *budgetRaiseHandlers) reserve(ctx context.Context, pool *pgxpool.Pool, r
 			status := "failed"
 			// The only foreign budget we may adopt is one that matches exactly
 			// what the dead raise sent: our amount and our expiry.
-			if len(foreign) == 1 && plan.ownID == "" && matchesWrite(foreign[0], "", p.amount, rv.expires) {
-				if err := recordOwnBudget(ctx, tx, rv.target, rv.month, foreign[0].ID, p.amount, rv.expires); err != nil {
+			// Its own month and expiry, not this request's: it may be last month's.
+			pExpires := p.month.AddDate(0, 1, 0)
+			if len(foreign) == 1 && plan.ownID == "" && h.writer != nil && matchesWrite(foreign[0], h.writer.budgetType, p.amount, pExpires) {
+				if err := recordOwnBudget(ctx, tx, rv.target, p.month, foreign[0].ID, p.amount, pExpires); err != nil {
 					return err
 				}
 				plan.ownID, foreign, status = foreign[0].ID, nil, "applied"
@@ -814,41 +863,42 @@ func recordOwnBudget(ctx context.Context, tx pgx.Tx, login string, month time.Ti
 
 // write PATCHes our budget or POSTs a new one, records it and reads it back.
 // ctx is detached from the request.
-func (h *budgetRaiseHandlers) write(ctx context.Context, pool *pgxpool.Pool, target string, plan raisePlan, month, expires time.Time) (string, int, error) {
+func (h *budgetRaiseHandlers) write(ctx context.Context, pool *pgxpool.Pool, target string, plan raisePlan, month, expires time.Time) (ownID string, status int, unknown bool, err error) {
 	for _, id := range plan.gone { // ours, but GitHub no longer lists it: gone
 		if _, err := pool.Exec(ctx, "UPDATE budget_github SET deleted_at = now() WHERE github_budget_id = $1", id); err != nil {
-			return "", 0, err
+			return "", 0, false, err
 		}
 		if _, err := pool.Exec(ctx, `INSERT INTO budget_audit (raise_id, actor, action, github_budget_id, dry_run) VALUES ($1, 'system', 'expire_delete', $2, false)`, plan.raise.ID, id); err != nil {
-			return "", 0, err
+			return "", 0, false, err
 		}
 	}
-	ownID := plan.ownID
-	var status int
-	var err error
+	ownID = plan.ownID
+	created := false
 	if ownID != "" {
 		status, err = h.writer.patchOwnBudget(ctx, ownID, plan.amount, expires)
 	} else {
+		created = true
 		ownID, status, err = h.writer.createUserBudget(ctx, target, plan.amount, expires)
-		if err != nil && status == 0 {
+		unknown = err != nil && status == 0
+		if unknown {
 			// Result unknown (connection lost). Adopt the one new user budget
 			// only if it is exactly what we sent.
 			if list, _, lerr := h.writer.listUser(ctx, target); lerr == nil {
 				var match []string
 				for _, b := range list.Budgets {
-					if b.BudgetScope != "multi_user_customer" && b.BudgetScope != "enterprise" && matchesWrite(b, h.writer.budgetType, plan.amount, expires) {
+					if matchesWrite(b, h.writer.budgetType, plan.amount, expires) {
 						match = append(match, b.ID)
 					}
 				}
 				if len(match) == 1 {
-					ownID, err = match[0], nil
+					ownID, err, unknown = match[0], nil, false
 					status = http.StatusCreated
 				}
 			}
 		}
 	}
 	if err != nil {
-		return ownID, status, err
+		return ownID, status, unknown, err
 	}
 	if err := pgx.BeginFunc(ctx, pool, func(tx pgx.Tx) error {
 		return recordOwnBudget(ctx, tx, target, month, ownID, plan.amount, expires)
@@ -856,15 +906,16 @@ func (h *budgetRaiseHandlers) write(ctx context.Context, pool *pgxpool.Pool, tar
 		// The budget exists in GitHub but its ID is not stored: the next raise
 		// reconciles it as a stale pending row. Loud, so an admin can check.
 		slog.Error("Budget written in GitHub but its ID was not stored", "github_budget_id", ownID, "error", err)
-		return ownID, status, err
+		return ownID, status, created, err
 	}
-	return ownID, status, h.verify(ctx, target, ownID, plan.amount, expires)
+	return ownID, status, false, h.verify(ctx, target, ownID, plan.amount, expires)
 }
 
-// matchesWrite: the listed budget is what we sent. budgetType "" skips the type.
+// matchesWrite: the listed budget is exactly what we sent: user scope, amount,
+// expiry, SKU, and the configured type when there is one.
 func matchesWrite(b ghBudget, budgetType string, amount int, expires time.Time) bool {
-	return int(b.Amount) == amount && strings.HasPrefix(b.ExpiresAt, expires.Format(time.DateOnly)) &&
-		(b.SKU == "" || b.SKU == "ai_credits") && (budgetType == "" || b.BudgetType == "" || b.BudgetType == budgetType)
+	return b.BudgetScope == "user" && b.Amount == float64(amount) && strings.HasPrefix(b.ExpiresAt, expires.Format(time.DateOnly)) &&
+		b.SKU == "ai_credits" && (budgetType == "" || b.BudgetType == budgetType)
 }
 
 // verify reads the budget back (chapter 7 step 5). The list is the only place

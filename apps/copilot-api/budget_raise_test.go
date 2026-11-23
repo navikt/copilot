@@ -63,6 +63,9 @@ type fakeGitHub struct {
 	dropPOST bool          // create, then drop the connection
 	postWait chan struct{} // POST blocks until closed
 	noExpiry bool          // ignore expires_at like a GitHub that drops it
+	failList int           // fail the next N list calls
+	skew     float64       // stored amount differs from the one sent
+	noSKU    bool          // list without budget_product_sku
 }
 
 func (f *fakeGitHub) handler() http.Handler {
@@ -76,6 +79,11 @@ func (f *fakeGitHub) handler() http.Handler {
 		base := "/enterprises/nav/settings/billing/budgets"
 		switch {
 		case r.Method == http.MethodGet && r.URL.Path == base:
+			if f.failList > 0 {
+				f.failList--
+				w.WriteHeader(http.StatusBadGateway)
+				return
+			}
 			u := r.URL.Query().Get("user")
 			eff := &effectiveBudget{BudgetAmount: 800}
 			for _, b := range f.budgets[u] {
@@ -105,6 +113,10 @@ func (f *fakeGitHub) handler() http.Handler {
 			b := ghBudget{ID: fmt.Sprintf("b%d", f.nextID), BudgetScope: "user", BudgetType: "BundlePricing", SKU: "ai_credits", Amount: body["budget_amount"].(float64), ExpiresAt: body["expires_at"].(string)}
 			if f.noExpiry {
 				b.ExpiresAt = ""
+			}
+			b.Amount += f.skew
+			if f.noSKU {
+				b.SKU = ""
 			}
 			login := body["user"].(string)
 			f.budgets[login] = append(f.budgets[login], b)
@@ -763,5 +775,170 @@ func TestBudgetRaiseAcrossReplicas(t *testing.T) {
 		if len(bs) != 1 || int(bs[0].Amount) != 150+150*applied {
 			t.Fatalf("%s: %d applied but GitHub has %+v", login, applied, bs)
 		}
+	}
+}
+
+func (e *budgetEnv) exec(sql string, args ...any) {
+	e.t.Helper()
+	pool, err := e.h.store.get(context.Background())
+	if err != nil {
+		e.t.Fatal(err)
+	}
+	if _, err := pool.Exec(context.Background(), sql, args...); err != nil {
+		e.t.Fatal(err)
+	}
+}
+
+// GitHub created the budget but we could not store its ID: the raise stays
+// pending, and once the database is back the next raise adopts it.
+func TestBudgetRaiseUnknownOutcomeStaysPending(t *testing.T) {
+	e := newBudgetEnv(t, openBudgetTestDB(t))
+	e.profile("ola")
+	e.exec(`CREATE FUNCTION fail_insert() RETURNS trigger AS $$ BEGIN RAISE EXCEPTION 'down'; END $$ LANGUAGE plpgsql`)
+	e.exec(`CREATE TRIGGER fail_budget_github BEFORE INSERT ON budget_github FOR EACH ROW EXECUTE FUNCTION fail_insert()`)
+	if code, out := e.raise("ola", "k1"); code != 502 || out["raise"].(map[string]any)["status"] != "pending" {
+		t.Fatalf("unrecorded create: %d %v", code, out)
+	}
+	e.exec("DROP TRIGGER fail_budget_github ON budget_github")
+	e.exec("UPDATE budget_raises SET created_at = now() - interval '1 hour'")
+	if code, out := e.raise("ola", "k2"); code != 201 || out["budgetUsd"] != float64(450) {
+		t.Fatalf("after recovery: %d %v", code, out)
+	}
+	if got := strings.Join(e.gh.writes, ","); got != "POST,PATCH b1" {
+		t.Errorf("writes: %s", got)
+	}
+}
+
+func TestBudgetRaiseLostResponseListDown(t *testing.T) {
+	e := newBudgetEnv(t, openBudgetTestDB(t))
+	e.profile("ola")
+	e.gh.dropPOST = true
+	// The pre-raise list works; the reconciliation list after the lost POST fails.
+	e.h.afterList = func() { e.gh.mu.Lock(); e.gh.failList = 1; e.gh.mu.Unlock() }
+	if code, out := e.raise("ola", "k1"); code != 502 || out["raise"].(map[string]any)["status"] != "pending" {
+		t.Fatalf("lost response, lookup down: %d %v", code, out)
+	}
+	e.h.afterList = nil
+	e.exec("UPDATE budget_raises SET created_at = now() - interval '1 hour'")
+	if code, _ := e.raise("ola", "k2"); code != 201 {
+		t.Fatalf("next raise must adopt: %d", code)
+	}
+}
+
+// Replica B lists GitHub, then replica A completes a raise, then B reserves.
+// B must notice its list is stale and not treat A's budget as gone.
+func TestBudgetRaiseStaleListAcrossReplicas(t *testing.T) {
+	e := newBudgetEnv(t, openBudgetTestDB(t))
+	e.profile("ola")
+	h2, err := newBudgetRaiseHandlers(&Config{BudgetDatabaseURL: e.dsn, BudgetWrites: "on", BudgetDefaultUSD: 150, BudgetTimeZone: "Europe/Oslo", BudgetRaisesOpen: true}, e.h.writer, fakeSeats{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	h2.now, h2.teams = e.h.now, e.h.teams
+	t.Cleanup(func() {
+		if h2.store.pool != nil {
+			h2.store.pool.Close()
+		}
+	})
+	reached, release := make(chan struct{}), make(chan struct{})
+	h2.afterList = func() {
+		h2.afterList = nil // only the first attempt waits
+		close(reached)
+		<-release
+	}
+	r2 := makeAPIRouter(&Config{}, nil, nil, nil, NewIdentityResolverChain(emailResolver{}), h2)
+	done := make(chan int)
+	go func() {
+		req := httptest.NewRequest("POST", "/api/v1/copilot/budget/raises", strings.NewReader(`{"category":"koding","expectedValue":"spare_tid"}`))
+		req.Header.Set("Idempotency-Key", "b")
+		req = req.WithContext(context.WithValue(req.Context(), userContextKey, &User{Email: "ola@nav.no"}))
+		rec := httptest.NewRecorder()
+		r2.ServeHTTP(rec, req)
+		done <- rec.Code
+	}()
+	<-reached
+	if code, _ := e.raise("ola", "a"); code != 201 {
+		t.Fatalf("replica A: %d", code)
+	}
+	close(release)
+	if code := <-done; code != 201 {
+		t.Fatalf("replica B: %d", code)
+	}
+	if got := strings.Join(e.gh.writes, ","); got != "POST,PATCH b1" || len(e.gh.budgets["ola"]) != 1 {
+		t.Errorf("writes %s, budgets %+v", got, e.gh.budgets["ola"])
+	}
+}
+
+func TestBudgetRaiseAdoptionIsStrict(t *testing.T) {
+	for name, b := range map[string]ghBudget{
+		"organization scope": {ID: "x", BudgetScope: "organization", BudgetType: "BundlePricing", SKU: "ai_credits", Amount: 300, ExpiresAt: "2027-01-01"},
+		"other type":         {ID: "x", BudgetScope: "user", BudgetType: "SkuPricing", SKU: "ai_credits", Amount: 300, ExpiresAt: "2027-01-01"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			e := newBudgetEnv(t, openBudgetTestDB(t))
+			e.profile("ola")
+			e.exec(`INSERT INTO budget_raises (github_login, idempotency_key, month, amount_usd, budget_set_usd, category, team_id, expected_value, status, created_at)
+				VALUES ('ola', 'old', '2026-12-01', 150, 300, 'koding', 'annet', 'spare_tid', 'pending', now() - interval '1 hour')`)
+			e.gh.budgets["ola"] = []ghBudget{b}
+			if code, _ := e.raise("ola", "k1"); code != 409 || len(e.gh.writes) != 0 {
+				t.Errorf("must not adopt: %d %v", code, e.gh.writes)
+			}
+		})
+	}
+}
+
+func TestBudgetRaiseStalePendingFromLastMonth(t *testing.T) {
+	e := newBudgetEnv(t, openBudgetTestDB(t))
+	e.profile("ola")
+	e.exec(`INSERT INTO budget_raises (github_login, idempotency_key, month, amount_usd, budget_set_usd, category, team_id, expected_value, status, created_at)
+		VALUES ('ola', 'nov', '2026-11-01', 150, 300, 'koding', 'annet', 'spare_tid', 'pending', now() - interval '1 hour')`)
+	e.gh.budgets["ola"] = []ghBudget{{ID: "nov", BudgetScope: "user", BudgetType: "BundlePricing", SKU: "ai_credits", Amount: 300, ExpiresAt: "2026-12-01"}}
+	if code, out := e.raise("ola", "k1"); code != 201 {
+		t.Fatalf("last month's stale create must be adopted: %d %v", code, out)
+	}
+	if got := strings.Join(e.gh.writes, ","); got != "PATCH nov" {
+		t.Errorf("writes: %s", got)
+	}
+}
+
+func TestBudgetRaiseReadBackExact(t *testing.T) {
+	for name, set := range map[string]func(*fakeGitHub){
+		"amount 300.9": func(f *fakeGitHub) { f.skew = 0.9 },
+		"no SKU":       func(f *fakeGitHub) { f.noSKU = true },
+	} {
+		t.Run(name, func(t *testing.T) {
+			e := newBudgetEnv(t, openBudgetTestDB(t))
+			e.profile("ola")
+			set(e.gh)
+			if code, out := e.raise("ola", "k1"); code != 502 || out["raise"].(map[string]any)["status"] != "failed" {
+				t.Errorf("must not be applied: %d %v", code, out)
+			}
+		})
+	}
+}
+
+func TestBudgetBodyStrict(t *testing.T) {
+	e := newBudgetEnv(t, openBudgetTestDB(t))
+	ok := `{"teamId":"annet","role":"utvikler"}`
+	for name, body := range map[string]string{
+		"concatenated": ok + `{"teamId":"team-a","role":"leder"}`,
+		"garbage":      ok + `xyz`,
+		"oversized":    ok + strings.Repeat(" ", 9<<10) + "x",
+	} {
+		if code, _ := e.do("PUT", "/api/v1/copilot/budget/profile", "ola", "", body); code != 400 {
+			t.Errorf("%s: %d", name, code)
+		}
+	}
+	if e.count("SELECT count(*) FROM budget_profiles") != 0 {
+		t.Error("a rejected body must not be saved")
+	}
+}
+
+func TestBudgetRaiseProfileTeamRevalidated(t *testing.T) {
+	e := newBudgetEnv(t, openBudgetTestDB(t))
+	e.profile("ola") // team-a
+	e.h.teams = fakeTeams{err: fmt.Errorf("bq down")}
+	if code, _ := e.raise("ola", "k1"); code != 400 || len(e.gh.writes) != 0 {
+		t.Errorf("saved team no longer selectable: %d", code)
 	}
 }
