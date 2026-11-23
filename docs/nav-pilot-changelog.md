@@ -6,7 +6,7 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ### Status viser hvilken revisjon du har installert
 
-- **`nav-pilot list --installed`**: Viser én linje, «Installert fra <revisjon>», for hvert omfang (repo og bruker) som har en registrert revisjon. Er ingen registrert, vises ingenting (#2749).
+- **`nav-pilot list --installed`**: Viser én linje, `Revision: <revisjon>`, for hvert omfang (repo og bruker) som har en registrert revisjon. Er ingen registrert, vises ingenting (#2749).
 
 ### Ny kommando: `nav-pilot budget`
 

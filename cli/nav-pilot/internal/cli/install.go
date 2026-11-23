@@ -1629,7 +1629,7 @@ func printStatusBlock(scope *InstallScope, state *StateFile) {
 	}
 	fmt.Printf("  Installed:   %s\n", state.InstalledAt)
 	if revs := recordedRevisions(state); len(revs) > 0 {
-		fmt.Printf("  Installert fra %s\n", strings.Join(revs, ", "))
+		fmt.Printf("  Revision:    %s\n", strings.Join(revs, ", "))
 	}
 	fmt.Printf("  Files:       %d\n", len(state.Files))
 	fmt.Println()

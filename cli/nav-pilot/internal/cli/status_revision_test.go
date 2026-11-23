@@ -16,10 +16,10 @@ func TestStatusShowsRecordedRevision(t *testing.T) {
 		})
 	}
 
-	if out := status(InstalledFile{Path: "a", Revision: a}, InstalledFile{Path: "b", Revision: a}); strings.Count(out, "Installert fra "+shortSHA(a)+"\n") != 1 {
+	if out := status(InstalledFile{Path: "a", Revision: a}, InstalledFile{Path: "b", Revision: a}); strings.Count(out, "Revision:    "+shortSHA(a)+"\n") != 1 {
 		t.Errorf("present: want one line naming %s, got:\n%s", shortSHA(a), out)
 	}
-	if out := status(InstalledFile{Path: "a"}); strings.Contains(out, "Installert fra") {
+	if out := status(InstalledFile{Path: "a"}); strings.Contains(out, "Revision:") {
 		t.Errorf("absent: want no line, got:\n%s", out)
 	}
 	// Two scopes, two revisions: each block carries its own line.
