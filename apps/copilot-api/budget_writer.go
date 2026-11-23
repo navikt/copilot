@@ -136,12 +136,21 @@ func (b *budgetWriter) createUserBudget(ctx context.Context, login string, amoun
 		"budget_product_sku":    "ai_credits",
 		"expires_at":            expires.Format(time.DateOnly),
 	}
-	var out ghBudget
-	status, err := b.do(ctx, http.MethodPost, b.path(""), body, &out)
-	if err == nil && out.ID == "" {
-		err = errors.New("budget create returned no id")
+	// The enterprise endpoint answers {"message": ..., "budget": {"id": ...}}
+	// (docs, and seen in dev 2026-11-23). A flat {"id": ...} is accepted too.
+	var out struct {
+		Budget ghBudget `json:"budget"`
+		ID     string   `json:"id"`
 	}
-	return out.ID, status, err
+	status, err := b.do(ctx, http.MethodPost, b.path(""), body, &out)
+	id := out.Budget.ID
+	if id == "" {
+		id = out.ID
+	}
+	if err == nil && id == "" {
+		err = errors.New("budget create returned no id") // unknown outcome: reconciled by listing
+	}
+	return id, status, err
 }
 
 // patchOwnBudget changes amount and expiry on one of our budgets.
