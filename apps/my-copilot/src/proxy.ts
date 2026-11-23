@@ -64,6 +64,7 @@ export const config = {
     "/adopsjon/:path*",
     "/kostnad/:path*",
     "/abonnement/:path*",
+    "/min-side/:path*",
     "/nav-pilot/undersokelse/:path*",
     "/api/:path*",
   ],

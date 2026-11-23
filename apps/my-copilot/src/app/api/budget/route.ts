@@ -2,11 +2,14 @@ import { getUser, getUserToken } from "@/lib/auth";
 import { backendRequest, BackendApiError } from "@/lib/backend-api";
 import { NextResponse } from "next/server";
 
+import type { BudgetRaise } from "@/lib/budget-raise";
+
 export interface BudgetResponse {
   budgetAmount: number;
   consumedAmount: number | null;
   isOverride: boolean;
   defaultBudget: number;
+  raises?: BudgetRaise[];
 }
 
 export async function GET() {

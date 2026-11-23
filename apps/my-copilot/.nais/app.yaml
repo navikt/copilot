@@ -84,6 +84,7 @@ spec:
       - /kostnad/**
       - /abonnement
       - /abonnement/**
+      - /min-side/budsjett
       - /kalkulator
       - /kalkulator/**
       - /priser
