@@ -37,9 +37,19 @@ func fakeTexas(t *testing.T) *httptest.Server {
 		case "user-token":
 			_, _ = w.Write([]byte(`{"active":true,"azp":"` + gatewayID + `","NAVident":"Z999999"}`))
 		default:
-			// "user:<azp>:<NAVident>" is a person's token obtained by <azp>.
-			if parts := strings.Split(in.Token, ":"); len(parts) == 3 && parts[0] == "user" {
-				_ = json.NewEncoder(w).Encode(map[string]any{"active": true, "azp": parts[1], "NAVident": parts[2]})
+			// "user:<azp>:<NAVident>[:<preferred_username>]" is a person's token
+			// obtained by <azp>. Without a fourth part preferred_username is the
+			// NAVident, so test team lists can key on it; an empty fourth part
+			// leaves the claim out.
+			if parts := strings.Split(in.Token, ":"); (len(parts) == 3 || len(parts) == 4) && parts[0] == "user" {
+				claims := map[string]any{"active": true, "azp": parts[1], "NAVident": parts[2], "preferred_username": parts[2]}
+				if len(parts) == 4 {
+					claims["preferred_username"] = parts[3]
+					if parts[3] == "" {
+						delete(claims, "preferred_username")
+					}
+				}
+				_ = json.NewEncoder(w).Encode(claims)
 				return
 			}
 			_ = json.NewEncoder(w).Encode(map[string]any{"active": true, "idtyp": "app", "azp": in.Token})

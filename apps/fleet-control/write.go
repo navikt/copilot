@@ -350,13 +350,13 @@ func (s *server) admin(a *authz, adminClientID string, teams teamDirectory, h ad
 			http.Error(w, "namespace and name must be lowercase DNS labels", http.StatusBadRequest)
 			return
 		}
-		actor, err := a.user(r.Context(), r.Header.Get("Authorization"), adminClientID)
+		actor, email, err := a.user(r.Context(), r.Header.Get("Authorization"), adminClientID)
 		if !writeAuthError(w, err) {
 			return
 		}
 		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 		defer cancel()
-		member, err := teams.IsMember(ctx, ns, actor)
+		member, err := teams.IsMember(ctx, ns, email)
 		if err != nil {
 			slog.Error("team lookup failed", "team", ns, "error", err)
 			http.Error(w, "team lookup unavailable", http.StatusServiceUnavailable)

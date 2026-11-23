@@ -36,6 +36,12 @@ spec:
   uses:
     postgres:
       - name: fleet-control
+  {{#if static_teams_secret}}
+  # Key FLEET_CONTROL_STATIC_TEAMS: JSON of team to member emails, created by
+  # a human. Dev only: the app refuses the list outside dev-* clusters.
+  envFrom:
+    - secret: {{static_teams_secret}}
+  {{/if}}
   env:
     - name: PORT
       value: "8080"

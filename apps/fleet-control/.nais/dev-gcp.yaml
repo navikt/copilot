@@ -13,3 +13,5 @@ my_copilot_client_id: 1c401702-0190-41fa-9c19-faeae7b8fa5c
 # Agent profile drafts to seed (#2582). Never set in prod. The studio-api
 # client id in the file is a placeholder: the profile stays unverified.
 seed_agents_file: /app/seed/agents.dev.json
+# Secret holding FLEET_CONTROL_STATIC_TEAMS. Never set in prod.
+static_teams_secret: fleet-control-static-teams

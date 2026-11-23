@@ -103,21 +103,28 @@ type tokenClaims struct {
 	Idtyp    string `json:"idtyp"`
 	Azp      string `json:"azp"`
 	NAVident string `json:"NAVident"`
+	Email    string `json:"preferred_username"`
 }
 
 var navIdentRegex = regexp.MustCompile(`^[A-Z][0-9]{6}$`)
 
-// user returns the NAVident of a valid user token that adminClientID obtained
+// user returns the NAVident and normalised preferred_username of a valid user token that adminClientID obtained
 // on behalf of a person (OBO). App tokens and other clients are rejected.
-func (a *authz) user(ctx context.Context, header, adminClientID string) (string, error) {
+func (a *authz) user(ctx context.Context, header, adminClientID string) (ident, email string, err error) {
 	claims, err := a.introspect(ctx, header)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	if claims.Idtyp == "app" || adminClientID == "" || claims.Azp != adminClientID || !navIdentRegex.MatchString(claims.NAVident) {
-		return "", errUnauthorized
+		return "", "", errUnauthorized
 	}
-	return claims.NAVident, nil
+	// Team membership is keyed on preferred_username; without it there is
+	// nothing to look up, so refuse.
+	email = normEmail(claims.Email)
+	if email == "" {
+		return "", "", errUnauthorized
+	}
+	return claims.NAVident, email, nil
 }
 
 // introspect validates the bearer token with Texas and returns its claims
