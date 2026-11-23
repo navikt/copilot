@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -58,6 +59,10 @@ type fakeGitHub struct {
 	writes   []string              // "POST" / "PATCH id"
 	failNext int                   // status for the next write, 0 = ok
 	nextID   int
+	nextPage bool          // list claims another page
+	dropPOST bool          // create, then drop the connection
+	postWait chan struct{} // POST blocks until closed
+	noExpiry bool          // ignore expires_at like a GitHub that drops it
 }
 
 func (f *fakeGitHub) handler() http.Handler {
@@ -76,8 +81,13 @@ func (f *fakeGitHub) handler() http.Handler {
 			for _, b := range f.budgets[u] {
 				eff = &effectiveBudget{ID: b.ID, BudgetAmount: b.Amount}
 			}
-			_ = json.NewEncoder(w).Encode(ghUserBudgets{Budgets: f.budgets[u], Effective: eff})
+			_ = json.NewEncoder(w).Encode(ghUserBudgets{Budgets: f.budgets[u], Effective: eff, HasNextPage: f.nextPage})
 		case r.Method == http.MethodPost && r.URL.Path == base:
+			if f.postWait != nil {
+				f.mu.Unlock()
+				<-f.postWait
+				f.mu.Lock()
+			}
 			f.writes = append(f.writes, "POST")
 			if f.failNext != 0 {
 				w.WriteHeader(f.failNext)
@@ -86,14 +96,24 @@ func (f *fakeGitHub) handler() http.Handler {
 			}
 			var body map[string]any
 			_ = json.NewDecoder(r.Body).Decode(&body)
-			if body["budget_scope"] != "user" || body["budget_entity_name"] != "" || body["prevent_further_usage"] != true {
+			if body["budget_scope"] != "user" || body["budget_entity_name"] != "" || body["prevent_further_usage"] != true ||
+				body["budget_type"] != "BundlePricing" || body["budget_product_sku"] != "ai_credits" {
 				w.WriteHeader(http.StatusBadRequest)
 				return
 			}
 			f.nextID++
-			b := ghBudget{ID: fmt.Sprintf("b%d", f.nextID), BudgetScope: "user", Amount: body["budget_amount"].(float64), ExpiresAt: body["expires_at"].(string)}
+			b := ghBudget{ID: fmt.Sprintf("b%d", f.nextID), BudgetScope: "user", BudgetType: "BundlePricing", SKU: "ai_credits", Amount: body["budget_amount"].(float64), ExpiresAt: body["expires_at"].(string)}
+			if f.noExpiry {
+				b.ExpiresAt = ""
+			}
 			login := body["user"].(string)
 			f.budgets[login] = append(f.budgets[login], b)
+			if f.dropPOST {
+				f.dropPOST = false
+				conn, _, _ := w.(http.Hijacker).Hijack()
+				_ = conn.Close()
+				return
+			}
 			w.WriteHeader(http.StatusCreated)
 			_ = json.NewEncoder(w).Encode(b)
 		case r.Method == http.MethodPatch && strings.HasPrefix(r.URL.Path, base+"/"):
@@ -158,7 +178,7 @@ func newBudgetEnv(t *testing.T, dsn string) *budgetEnv {
 	srv := httptest.NewServer(gh.handler())
 	t.Cleanup(srv.Close)
 	h, err := newBudgetRaiseHandlers(&Config{BudgetDatabaseURL: dsn, BudgetWrites: "on", BudgetDefaultUSD: 150, BudgetTimeZone: "Europe/Oslo", BudgetRaisesOpen: true},
-		&budgetWriter{httpClient: srv.Client(), baseURL: srv.URL, enterprise: "nav", token: func(context.Context) (string, error) { return "test-token", nil }},
+		&budgetWriter{httpClient: srv.Client(), baseURL: srv.URL, enterprise: "nav", budgetType: "BundlePricing", token: func(context.Context) (string, error) { return "test-token", nil }},
 		fakeSeats{})
 	if err != nil {
 		t.Fatal(err)
@@ -399,12 +419,24 @@ func TestBudgetRaiseTrustBoundaries(t *testing.T) {
 
 	// Rate limit.
 	e.h.limiter = &loginLimiter{per: budgetRatePerMin, window: time.Minute, seen: map[string]*loginWindow{}}
+	for range budgetRatePerMin + 5 {
+		if code, _ := e.do("GET", "/api/v1/copilot/budget/options", "ola", "", ""); code != 200 {
+			t.Fatalf("reads must not be rate limited: %d", code)
+		}
+	}
 	last := 0
 	for range budgetRatePerMin + 1 {
-		last, _ = e.do("GET", "/api/v1/copilot/budget/options", "ola", "", "")
+		last, _ = e.do("PUT", "/api/v1/copilot/budget/profile", "ola", "", `{"teamId":"annet","role":"utvikler"}`)
 	}
 	if last != 429 {
-		t.Errorf("rate limit: %d", last)
+		t.Errorf("rate limit on writes: %d", last)
+	}
+	// Control characters in free text: 400, not a database error.
+	e.h.limiter = &loginLimiter{per: 1000, window: time.Minute, seen: map[string]*loginWindow{}}
+	for _, ft := range []string{`a\u0000b`, `a\u0007b`} {
+		if code, _ := e.do("POST", "/api/v1/copilot/budget/raises", "ola", "kz"+ft, `{"category":"koding","expectedValue":"spare_tid","freeText":"`+ft+`"}`); code != 400 {
+			t.Errorf("free text %q: %d", ft, code)
+		}
 	}
 }
 
@@ -458,10 +490,6 @@ func TestBudgetRaiseUnavailable(t *testing.T) {
 	if code, _ := e.raise("ola", "k1"); code != 503 {
 		t.Errorf("raise with Postgres down: %d", code)
 	}
-	e.h.writer = nil
-	if code, _ := e.raise("ola", "k1"); code != 503 {
-		t.Errorf("raise without token: %d", code)
-	}
 	e.h.mode = parseBudgetWrites("yes")
 	if code, _ := e.raise("ola", "k1"); code != 503 {
 		t.Errorf("unknown BUDGET_WRITES must be off: %d", code)
@@ -514,5 +542,226 @@ func TestBudgetMonthBoundaryOslo(t *testing.T) {
 	e.h.now = func() time.Time { return time.Date(2026, 11, 30, 23, 30, 0, 0, time.UTC) } // 00:30 1 Dec in Oslo
 	if code, out := e.raise("ola", "k1"); code != 201 || out["expiresAt"] != "2027-01-01" || out["raise"].(map[string]any)["month"] != "2026-12-01" {
 		t.Fatalf("boundary: %d %v", code, out)
+	}
+}
+
+func TestBudgetRaiseOrphanReplaced(t *testing.T) {
+	e := newBudgetEnv(t, openBudgetTestDB(t))
+	e.profile("ola")
+	if code, _ := e.raise("ola", "k1"); code != 201 {
+		t.Fatal(code)
+	}
+	e.gh.budgets["ola"] = nil // an admin deleted our budget in GitHub
+	if code, out := e.raise("ola", "k2"); code != 201 || out["budgetUsd"] != float64(450) {
+		t.Fatalf("raise after our budget vanished: %d %v", code, out)
+	}
+	if code, out := e.raise("ola", "k3"); code != 201 {
+		t.Fatalf("next raise must patch the new budget, not see own_budget: %d %v", code, out)
+	}
+	if got := strings.Join(e.gh.writes, ","); got != "POST,POST,PATCH b2" {
+		t.Errorf("writes: %s", got)
+	}
+	if n := e.count("SELECT count(*) FROM budget_audit WHERE action = 'expire_delete' AND github_budget_id = 'b1'"); n != 1 {
+		t.Errorf("gone budget audited: %d", n)
+	}
+}
+
+func TestBudgetRaiseClientDisconnectStillRecorded(t *testing.T) {
+	e := newBudgetEnv(t, openBudgetTestDB(t))
+	e.profile("ola")
+	e.gh.postWait = make(chan struct{})
+	ctx, cancel := context.WithCancel(context.Background())
+	req := httptest.NewRequest("POST", "/api/v1/copilot/budget/raises", strings.NewReader(`{"category":"koding","expectedValue":"spare_tid"}`))
+	req.Header.Set("Idempotency-Key", "k1")
+	req = req.WithContext(context.WithValue(ctx, userContextKey, &User{Email: "ola@nav.no"}))
+	done := make(chan struct{})
+	go func() { e.router.ServeHTTP(httptest.NewRecorder(), req); close(done) }()
+	for e.count("SELECT count(*) FROM budget_raises") == 0 {
+		time.Sleep(5 * time.Millisecond)
+	}
+	cancel() // the client hangs up while GitHub is creating the budget
+	time.Sleep(20 * time.Millisecond)
+	close(e.gh.postWait)
+	<-done
+	if n := e.count("SELECT count(*) FROM budget_raises WHERE status = 'applied'"); n != 1 {
+		t.Errorf("raise must finish after a disconnect: applied=%d", n)
+	}
+	if n := e.count("SELECT count(*) FROM budget_github WHERE github_budget_id = 'b1'"); n != 1 {
+		t.Errorf("budget ID must be recorded: %d", n)
+	}
+}
+
+func TestBudgetRaiseLostResponseAdopted(t *testing.T) {
+	e := newBudgetEnv(t, openBudgetTestDB(t))
+	e.profile("ola")
+	e.gh.dropPOST = true
+	if code, out := e.raise("ola", "k1"); code != 201 {
+		t.Fatalf("lost create response must adopt the matching budget: %d %v", code, out)
+	}
+	if code, _ := e.raise("ola", "k2"); code != 201 {
+		t.Fatalf("next raise: %d", code)
+	}
+}
+
+func TestBudgetRaisePendingRows(t *testing.T) {
+	e := newBudgetEnv(t, openBudgetTestDB(t))
+	e.profile("ola")
+	pool, _ := e.h.store.get(context.Background())
+	ins := `INSERT INTO budget_raises (github_login, idempotency_key, month, amount_usd, budget_set_usd, category, team_id, expected_value, status, created_at)
+		VALUES ('ola', $1, '2026-12-01', 150, 300, 'koding', 'annet', 'spare_tid', 'pending', now() - $2::interval)`
+	if _, err := pool.Exec(context.Background(), ins, "fresh", "0s"); err != nil {
+		t.Fatal(err)
+	}
+	if code, out := e.raise("ola", "k1"); code != 409 || !strings.HasSuffix(out["type"].(string), "raise_in_progress") {
+		t.Fatalf("fresh pending: %d %v", code, out)
+	}
+	// The process died after GitHub created the budget: stale pending row,
+	// unrecorded budget with exactly our amount and expiry. Adopt, do not lock out.
+	if _, err := pool.Exec(context.Background(), "UPDATE budget_raises SET created_at = now() - interval '1 hour'"); err != nil {
+		t.Fatal(err)
+	}
+	e.gh.budgets["ola"] = []ghBudget{{ID: "lost", BudgetScope: "user", BudgetType: "BundlePricing", SKU: "ai_credits", Amount: 300, ExpiresAt: "2027-01-01"}}
+	if code, out := e.raise("ola", "k2"); code != 201 || out["budgetUsd"] != float64(450) {
+		t.Fatalf("stale pending: %d %v", code, out)
+	}
+	if got := strings.Join(e.gh.writes, ","); got != "PATCH lost" {
+		t.Errorf("writes: %s", got)
+	}
+	if n := e.count("SELECT count(*) FROM budget_raises WHERE idempotency_key = 'fresh' AND status = 'applied'"); n != 1 {
+		t.Errorf("stale row reconciled: %d", n)
+	}
+}
+
+func TestBudgetRaiseVerifyExpiry(t *testing.T) {
+	e := newBudgetEnv(t, openBudgetTestDB(t))
+	e.profile("ola")
+	e.gh.noExpiry = true
+	if code, out := e.raise("ola", "k1"); code != 502 || out["raise"].(map[string]any)["status"] != "failed" {
+		t.Fatalf("budget without our expiry must not be applied: %d %v", code, out)
+	}
+}
+
+func TestBudgetRaiseListGuards(t *testing.T) {
+	e := newBudgetEnv(t, openBudgetTestDB(t))
+	e.profile("ola")
+	e.gh.nextPage = true
+	if code, _ := e.raise("ola", "k1"); code != 502 {
+		t.Errorf("multi-page list: %d", code)
+	}
+	e.gh.nextPage = false
+	e.gh.budgets["ola"] = []ghBudget{{ID: "org", BudgetScope: "organization", Amount: 900}}
+	if code, _ := e.raise("ola", "k2"); code != 409 {
+		t.Errorf("unknown scope must count as foreign: %d", code)
+	}
+	// The writer itself refuses an ID that is not in budget_github.
+	if _, err := e.h.writer.patchOwnBudget(context.Background(), "org", 1, time.Now()); err == nil {
+		t.Error("PATCH on a foreign ID must be refused")
+	}
+	if len(e.gh.writes) != 0 {
+		t.Errorf("writes: %v", e.gh.writes)
+	}
+}
+
+func TestBudgetRaiseClampAndDryRunWithoutKey(t *testing.T) {
+	e := newBudgetEnv(t, openBudgetTestDB(t))
+	e.profile("ola")
+	e.h.defaultUSD = 200
+	var got []any
+	for i := range 4 {
+		_, out := e.raise("ola", fmt.Sprint("k", i))
+		got = append(got, out["budgetUsd"])
+	}
+	if fmt.Sprint(got) != "[350 500 650 750]" {
+		t.Errorf("clamp to the ceiling: %v", got)
+	}
+	e.h.writer, e.h.mode = nil, "dry_run"
+	e.profile("kari")
+	if code, out := e.raise("kari", "d1"); code != 201 || out["dryRun"] != true {
+		t.Errorf("dry run without write key: %d %v", code, out)
+	}
+}
+
+// A Postgres that accepts TCP and never answers must not slow GET /budget.
+func TestBudgetStoreHangingPostgres(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = ln.Close() })
+	go func() {
+		var held []net.Conn // accepted, never answered
+		for {
+			c, err := ln.Accept()
+			if err != nil {
+				for _, c := range held {
+					_ = c.Close()
+				}
+				return
+			}
+			held = append(held, c)
+		}
+	}()
+	h, err := newBudgetRaiseHandlers(&Config{BudgetDatabaseURL: "postgres://x:y@" + ln.Addr().String() + "/db?sslmode=disable", BudgetTimeZone: "Europe/Oslo"}, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	start := time.Now()
+	var wg sync.WaitGroup
+	for range 4 {
+		wg.Go(func() { _, _ = h.monthRaises(context.Background(), "ola", time.Now()) })
+	}
+	wg.Wait()
+	if d := time.Since(start); d > 2*budgetGetRaisesTimeout {
+		t.Errorf("4 concurrent lookups took %v", d)
+	}
+	start = time.Now()
+	if _, err := h.monthRaises(context.Background(), "ola", time.Now()); err == nil || time.Since(start) > 100*time.Millisecond {
+		t.Errorf("a recent failure must fail fast: %v %v", err, time.Since(start))
+	}
+}
+
+func TestBudgetWriteBudgetTypeDefault(t *testing.T) {
+	t.Setenv("BUDGET_GITHUB_BUDGET_TYPE", "")
+	t.Setenv("BUDGET_GITHUB_APP_ID", "")
+	if got := loadConfig().BudgetGitHubBudgetType; got != "BundlePricing" {
+		t.Errorf("default budget_type: %q (every live AI-credit budget lists BundlePricing)", got)
+	}
+}
+
+// Two replicas share Postgres but not their in-process locks: the advisory
+// lock and the pending-row check must still give one step per raise.
+func TestBudgetRaiseAcrossReplicas(t *testing.T) {
+	e := newBudgetEnv(t, openBudgetTestDB(t))
+	h2, err := newBudgetRaiseHandlers(&Config{BudgetDatabaseURL: e.dsn, BudgetWrites: "on", BudgetDefaultUSD: 150, BudgetTimeZone: "Europe/Oslo", BudgetRaisesOpen: true}, e.h.writer, fakeSeats{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	h2.now, h2.teams, h2.limiter.per = e.h.now, e.h.teams, 1000
+	t.Cleanup(func() {
+		if h2.store.pool != nil {
+			h2.store.pool.Close()
+		}
+	})
+	r2 := makeAPIRouter(&Config{}, nil, nil, nil, NewIdentityResolverChain(emailResolver{}), h2)
+	for i := range 20 {
+		login := fmt.Sprint("user", i)
+		e.profile(login)
+		var wg sync.WaitGroup
+		for j, router := range []http.Handler{e.router, r2} {
+			wg.Go(func() {
+				req := httptest.NewRequest("POST", "/api/v1/copilot/budget/raises", strings.NewReader(`{"category":"koding","expectedValue":"spare_tid"}`))
+				req.Header.Set("Idempotency-Key", fmt.Sprint("k", j))
+				req = req.WithContext(context.WithValue(req.Context(), userContextKey, &User{Email: login + "@nav.no"}))
+				router.ServeHTTP(httptest.NewRecorder(), req)
+			})
+		}
+		wg.Wait()
+		applied := e.count("SELECT count(*) FROM budget_raises WHERE github_login = $1 AND status = 'applied'", login)
+		e.gh.mu.Lock()
+		bs := e.gh.budgets[login]
+		e.gh.mu.Unlock()
+		if len(bs) != 1 || int(bs[0].Amount) != 150+150*applied {
+			t.Fatalf("%s: %d applied but GitHub has %+v", login, applied, bs)
+		}
 	}
 }

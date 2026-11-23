@@ -49,6 +49,7 @@ type Config struct {
 	BudgetAppPrivateKey     string
 	BudgetAppInstallationID string
 	BudgetDefaultUSD        int
+	BudgetGitHubBudgetType  string
 	BudgetTimeZone          string
 	BudgetRaisesOpen        bool
 	BudgetTestUsers         map[string]bool
@@ -90,9 +91,11 @@ func loadConfig() *Config {
 		BudgetAppPrivateKey:     os.Getenv("BUDGET_GITHUB_APP_PRIVATE_KEY"),
 		BudgetAppInstallationID: os.Getenv("BUDGET_GITHUB_APP_INSTALLATION_ID"),
 		BudgetDefaultUSD:        getEnvInt("BUDGET_DEFAULT_USD", 150),
-		BudgetTimeZone:          getEnv("BUDGET_TIME_ZONE", "Europe/Oslo"),
-		BudgetRaisesOpen:        os.Getenv("BUDGET_RAISES_OPEN") == "true",
-		BudgetTestUsers:         parseLoginSet(os.Getenv("BUDGET_TEST_USERS")),
+		// Every live AI-credit budget on the enterprise lists BundlePricing; P1 verifies the write.
+		BudgetGitHubBudgetType: getEnv("BUDGET_GITHUB_BUDGET_TYPE", "BundlePricing"),
+		BudgetTimeZone:         getEnv("BUDGET_TIME_ZONE", "Europe/Oslo"),
+		BudgetRaisesOpen:       os.Getenv("BUDGET_RAISES_OPEN") == "true",
+		BudgetTestUsers:        parseLoginSet(os.Getenv("BUDGET_TEST_USERS")),
 	}
 
 	return config

@@ -50,7 +50,7 @@ func (h *BudgetHandlers) handleGetBudget(w http.ResponseWriter, r *http.Request)
 		now := h.raises.now().In(h.raises.loc)
 		month := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, h.raises.loc)
 		// Raises are extra: a Postgres outage leaves them out, not the budget.
-		if raises, err := h.raises.listRaises(r.Context(), strings.ToLower(identity.GitHubUsername), &month); err == nil {
+		if raises, err := h.raises.monthRaises(r.Context(), strings.ToLower(identity.GitHubUsername), month); err == nil {
 			out.Raises = raises
 		} else {
 			slog.Warn("Budget raises unavailable for GET budget", "error", err)

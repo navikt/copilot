@@ -16,6 +16,7 @@ CREATE TABLE budget_raises (
     created_at      timestamptz NOT NULL DEFAULT now(),
     month           date NOT NULL,
     amount_usd      integer NOT NULL,
+    budget_set_usd  integer, -- absolute budget this raise sends to GitHub
     category        text NOT NULL CHECK (category IN ('koding', 'feilsoking', 'testing', 'dokumentasjon', 'analyse_data', 'laering', 'annet')),
     team_id         text NOT NULL,
     expected_value  text NOT NULL CHECK (expected_value IN ('spare_tid', 'levere_raskere', 'bedre_kvalitet', 'laere', 'utforske', 'annet')),
