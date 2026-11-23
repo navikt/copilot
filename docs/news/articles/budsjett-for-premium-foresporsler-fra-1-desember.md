@@ -48,6 +48,7 @@ Når du øker, oppgir du:
 
 Ingen godkjenner økningen. Svarene gir oss innsikt i hva premium-modellene
 brukes til.
+Vi bruker svarene bare samlet, til å forstå hvordan Copilot brukes og styre budsjettet – ikke til å vurdere deg eller teamet ditt.
 
 Ikke skriv personopplysninger eller saksopplysninger i fritekstfeltet.
 
