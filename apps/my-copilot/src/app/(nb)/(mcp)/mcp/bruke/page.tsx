@@ -23,6 +23,7 @@ const TOC: TocItem[] = [
   { id: "nav-pilot", label: "nav-pilot" },
   { id: "protokollversjon", label: "Protokollversjon" },
   { id: "innlogging", label: "Innlogging" },
+  { id: "tokenbruk", label: "Tokenbruk og besparelse" },
   { id: "hjelp", label: "Hjelp" },
 ];
 
@@ -161,6 +162,48 @@ export default function NavMcpServerePage() {
               fleet-gateway
             </NextLink>
             , men det trenger du ikke tenke på.
+          </li>
+        </Bullets>
+      </VStack>
+
+      <VStack gap="space-12">
+        <LinkableHeading id="tokenbruk" size="medium" level="2">
+          Tokenbruk og besparelse
+        </LinkableHeading>
+        <BodyLong>
+          MCP er en åpen protokoll som lar KI-assistenten kalle verktøy og hente data fra systemer som Dolly og
+          Teamkatalogen. Agenten slår opp selv, så du slipper å lime inn svar.
+        </BodyLong>
+        <BodyLong>
+          Hver server du kobler til, legger beskrivelsene av alle verktøyene sine i context. Det skjer i hver samtale,
+          også når agenten ikke bruker serveren. Mange servere gir mindre plass til koden og oppgaven din.
+        </BodyLong>
+        <BodyLong>
+          Microsoft Research profilerte Claude Code på 60 oppgaver fra SWE-Bench. Agenten fikk 23 verktøybeskrivelser i
+          hver tur, og 16 av dem ble aldri brukt. Pluginen{" "}
+          <a href="https://github.com/microsoft/TokenEconomizer" className={linkClass}>
+            TokenEconomizer
+          </a>{" "}
+          fjerner verktøy som historikken tilsier at agenten ikke bruker. Den kuttet kostnaden med 18,4 til 30,9 % over
+          fem kombinasjoner av agent og modell (
+          <a
+            href="https://www.microsoft.com/en-us/research/blog/tokeneconomizer-learning-from-experience-to-make-ai-coding-agents-more-efficient/"
+            className={linkClass}
+          >
+            Microsoft Research
+          </a>
+          ). Tallene gjelder ikke Navs servere. Vi har ikke målt dem.
+        </BodyLong>
+        <Bullets>
+          <li>Slå på serverne du trenger i oppgaven, og slå dem av etterpå.</li>
+          <li>
+            Bruk Dolly når du skal bestille testpersoner og Teamkatalogen når du skal slå opp et team, ikke som fast
+            oppsett.
+          </li>
+          <li>For oppslag du gjør sjelden: bruk et skript, en CLI eller en skill som lastes bare ved behov.</li>
+          <li>
+            Se hvor mange verktøy en server har før du kobler den til. Velg serveren med færrest verktøy som dekker
+            behovet.
           </li>
         </Bullets>
       </VStack>
