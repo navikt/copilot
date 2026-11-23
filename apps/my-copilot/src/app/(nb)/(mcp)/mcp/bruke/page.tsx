@@ -186,8 +186,9 @@ export default function NavMcpServerePage() {
           Verktøyene en server tilbyr, og som klienten gir til modellen, har beskrivelser som legges i context. Det
           skjer i hver samtale, også når agenten ikke bruker dem. Mange servere gir mindre plass til koden og oppgaven
           din. Alt som sendes til modellen er tokens, så jo mer som ligger i context, desto mer må modellen behandle i
-          hver tur. Hvor mye det blir, avhenger av hvilke verktøy klienten faktisk gir til modellen. Copilot CLI lar deg
-          velge enkeltverktøy, og verktøy du har filtrert bort, tar ikke plass.
+          hver tur. Hvor mye det blir, avhenger av hvilke verktøy klienten faktisk gir til modellen. Med nav-pilot
+          velger du enkeltverktøy når du slår på en server, og Copilot CLI har{" "}
+          <code className={code}>--available-tools</code>. Verktøy du har filtrert bort, tar ikke plass.
         </BodyLong>
         <BodyLong>
           Microsoft Research profilerte Claude Code på 60 oppgaver fra SWE-Bench. Agenten fikk 23 verktøybeskrivelser i
