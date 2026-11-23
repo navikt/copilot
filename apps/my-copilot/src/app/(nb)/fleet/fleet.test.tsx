@@ -129,4 +129,45 @@ describe("/fleet", () => {
     expect(screen.getByText(/Venter på: team-a\/docs/)).toBeInTheDocument();
     expect(screen.queryByText("Historikk")).not.toBeInTheDocument();
   });
+
+  it("labels an owner-slot-only draft as the team's own approval", async () => {
+    stub({
+      "/admin/v1/agents/pending-approval": { agents: [{ id: 7, profile, awaiting: ["aksel"] }] },
+      "/admin/v1/agents/aksel/studio": {
+        id: 7,
+        status: "draft",
+        profile,
+        approvals: { aksel: null, "team-a/docs": { approved_by: "B1", approved_at: "2026-11-20T10:00:00Z" } },
+      },
+    });
+    render(await FleetPage());
+    expect(screen.getByText("Godkjenning fra eget team (aksel)")).toBeInTheDocument();
+    render(await AgentPage(params("aksel", "studio")));
+    expect(
+      screen.getByText("En annen person på teamet aksel må godkjenne profilen.", { exact: false })
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Venter på:/)).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("rowheader", { name: "Godkjenning fra eget team (aksel)", hidden: true })
+    ).toBeInTheDocument();
+    expect(screen.getByText("ikke godkjent")).toBeInTheDocument();
+  });
+
+  it("separates the owner slot from route approvals in a mixed draft", async () => {
+    stub({
+      "/admin/v1/agents/pending-approval": { agents: [{ id: 7, profile, awaiting: ["aksel", "team-a/docs"] }] },
+      "/admin/v1/agents/aksel/studio": {
+        id: 7,
+        status: "draft",
+        profile,
+        approvals: { aksel: { approved_by: "B1", approved_at: "2026-11-20T10:00:00Z" }, "team-a/docs": null },
+      },
+    });
+    render(await FleetPage());
+    expect(screen.getByText("Godkjenning fra eget team (aksel), Rute team-a/docs")).toBeInTheDocument();
+    render(await AgentPage(params("aksel", "studio")));
+    expect(screen.getByText(/Venter på: team-a\/docs\.$/)).toBeInTheDocument();
+    expect(screen.queryByText(/må godkjenne profilen/)).not.toBeInTheDocument();
+    expect(screen.getByText(/^godkjent av B1/)).toBeInTheDocument();
+  });
 });
