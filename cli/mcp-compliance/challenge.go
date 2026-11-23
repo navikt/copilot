@@ -101,14 +101,14 @@ func parseOne(s string) []challenge {
 	}
 }
 
-// bearerChallenge returns the first Bearer challenge, scheme matched exactly and case-insensitively.
-func bearerChallenge(values []string) (challenge, bool) {
+// bearerChallenges returns every Bearer challenge, scheme matched exactly and case-insensitively.
+func bearerChallenges(values []string) (out []challenge) {
 	for _, c := range parseChallenges(values) {
 		if c.scheme == "bearer" {
-			return c, true
+			out = append(out, c)
 		}
 	}
-	return challenge{}, false
+	return out
 }
 
 // token68End returns the end of a token68 at i, or i when there is none. A lone

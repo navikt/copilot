@@ -2,7 +2,7 @@ package main
 
 import "testing"
 
-func TestBearerChallenge(t *testing.T) {
+func TestBearerChallenges(t *testing.T) {
 	for _, tc := range []struct {
 		name   string
 		in     []string
@@ -29,10 +29,22 @@ func TestBearerChallenge(t *testing.T) {
 		{"empty", nil, false, ""},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			c, ok := bearerChallenge(tc.in)
+			var c challenge
+			cs := bearerChallenges(tc.in)
+			if len(cs) > 0 {
+				c = cs[0]
+			}
+			ok := len(cs) > 0
 			if ok != tc.ok || c.params["error"] != tc.errVal {
 				t.Fatalf("ok=%v error=%q, want ok=%v error=%q", ok, c.params["error"], tc.ok, tc.errVal)
 			}
 		})
+	}
+}
+
+func TestBearerChallengesAll(t *testing.T) {
+	cs := bearerChallenges([]string{`Bearer realm="a", Bearer realm="b", error="invalid_token"`, `Bearer error="x"`})
+	if len(cs) != 3 || cs[1].params["error"] != "invalid_token" || cs[2].params["error"] != "x" {
+		t.Fatalf("got %+v", cs)
 	}
 }
