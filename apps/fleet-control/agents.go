@@ -89,8 +89,8 @@ type identityVerifier interface {
 
 // agentStore is implemented by *DB.
 type agentStore interface {
-	CreateAgentProfile(ctx context.Context, p AgentProfile, actor string, verified bool) error
-	ApproveAgentRoute(ctx context.Context, namespace, name, route, actor string, servers []Server) (AgentProfile, error)
+	CreateAgentProfile(ctx context.Context, p AgentProfile, actor string, verified bool) (int64, error)
+	ApproveAgentRoute(ctx context.Context, id int64, namespace, name, route, actor string) (AgentProfile, error)
 	RevokeAgentProfile(ctx context.Context, namespace, name string, actor Person) error
 	ActiveAgentProfiles(ctx context.Context) ([]AgentProfile, error)
 }
@@ -202,7 +202,8 @@ func decodeStrict(r *http.Request, v any) error {
 	if err := dec.Decode(v); err != nil {
 		return badf("invalid JSON: %v", err)
 	}
-	if dec.More() {
+	// More() is false before "]" or "}", so require EOF instead.
+	if _, err := dec.Token(); !errors.Is(err, io.EOF) {
 		return badf("trailing content")
 	}
 	return nil
@@ -315,19 +316,24 @@ func (s *server) createAgent(w http.ResponseWriter, r *http.Request, who Person)
 			err = badf("entra_client_id does not belong to %s:%s:%s", p.Identity.Cluster, p.Identity.Namespace, p.Identity.App)
 		}
 	}
+	var id int64
 	if err == nil {
-		err = as.CreateAgentProfile(ctx, p, who.Ident, verified)
+		id, err = as.CreateAgentProfile(ctx, p, who.Ident, verified)
 	}
 	if err != nil {
 		writeErr(w, err)
 		return
 	}
+	// Approvers send this id back, so consent binds to this draft, not the name.
+	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
+	_ = json.NewEncoder(w).Encode(map[string]any{"id": id})
 }
 
 func (s *server) approveAgent(w http.ResponseWriter, r *http.Request, who Person) {
 	var in struct {
 		Route string `json:"route"`
+		ID    int64  `json:"id"` // the draft the approver reviewed
 	}
 	if err := decodeStrict(r, &in); err != nil {
 		writeErr(w, err)
@@ -338,17 +344,12 @@ func (s *server) approveAgent(w http.ResponseWriter, r *http.Request, who Person
 		writeErr(w, fmt.Errorf("%w: only the route's owning team can approve", errForbidden))
 		return
 	}
-	as, st, ctx, cancel := s.agentDB(w, r)
+	as, _, ctx, cancel := s.agentDB(w, r)
 	if as == nil {
 		return
 	}
 	defer cancel()
-	servers, err := st.Servers(ctx)
-	if err != nil {
-		writeErr(w, err)
-		return
-	}
-	p, err := as.ApproveAgentRoute(ctx, r.PathValue("namespace"), r.PathValue("name"), in.Route, who.Ident, servers)
+	p, err := as.ApproveAgentRoute(ctx, in.ID, r.PathValue("namespace"), r.PathValue("name"), in.Route, who.Ident)
 	if err != nil {
 		writeErr(w, err)
 		return
@@ -398,10 +399,11 @@ func auditAgent(ctx context.Context, tx pgx.Tx, actor, action, namespace, name s
 	return err
 }
 
-func (d *DB) CreateAgentProfile(ctx context.Context, p AgentProfile, actor string, verified bool) error {
+func (d *DB) CreateAgentProfile(ctx context.Context, p AgentProfile, actor string, verified bool) (int64, error) {
+	var id int64
 	grants, err := json.Marshal(p.Grants)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	err = pgx.BeginFunc(ctx, d.pool, func(tx pgx.Tx) error {
 		// An expired profile must not block a new one with its name or client id.
@@ -425,11 +427,11 @@ func (d *DB) CreateAgentProfile(ctx context.Context, p AgentProfile, actor strin
 				return aErr
 			}
 		}
-		if _, execErr := tx.Exec(ctx, `INSERT INTO agent_profiles (namespace, name, cluster, app, entra_client_id, mode, grants,
+		if execErr := tx.QueryRow(ctx, `INSERT INTO agent_profiles (namespace, name, cluster, app, entra_client_id, mode, grants,
 			max_in_flight, rpm, daily_calls_per_user, daily_calls, dpia_owner, dpia_ref, status, created_by, identity_verified_at)
-			VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9, $10, $11, $12, $13, 'draft', $14, CASE WHEN $15 THEN now() END)`,
+			VALUES ($1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9, $10, $11, $12, $13, 'draft', $14, CASE WHEN $15 THEN now() END) RETURNING id`,
 			p.Namespace, p.Name, p.Identity.Cluster, p.Identity.App, p.Identity.EntraClientID, p.Mode, string(grants),
-			p.Quota.MaxInFlight, p.Quota.RPM, p.Quota.DailyCallsPerUser, p.Quota.DailyCalls, p.DPIA.Owner, p.DPIA.Reference, actor, verified); execErr != nil {
+			p.Quota.MaxInFlight, p.Quota.RPM, p.Quota.DailyCallsPerUser, p.Quota.DailyCalls, p.DPIA.Owner, p.DPIA.Reference, actor, verified).Scan(&id); execErr != nil {
 			return execErr
 		}
 		return auditAgent(ctx, tx, actor, "agent_profile_drafted", p.Namespace, p.Name, map[string]any{"profile": p, "identity_verified": verified})
@@ -437,11 +439,11 @@ func (d *DB) CreateAgentProfile(ctx context.Context, p AgentProfile, actor strin
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
 		if pgErr.ConstraintName == "agent_profiles_live_client" {
-			return fmt.Errorf("%w: entra_client_id is in another live profile", errConflict)
+			return 0, fmt.Errorf("%w: entra_client_id is in another verified live profile", errConflict)
 		}
-		return fmt.Errorf("%w: profile %s/%s exists", errConflict, p.Namespace, p.Name)
+		return 0, fmt.Errorf("%w: profile %s/%s exists", errConflict, p.Namespace, p.Name)
 	}
-	return err
+	return id, err
 }
 
 const agentCols = `id, namespace, name, cluster, app, entra_client_id::text, COALESCE(sts_subject, ''), mode, grants::text,
@@ -474,17 +476,31 @@ func lockLive(ctx context.Context, tx pgx.Tx, namespace, name string) (int64, Ag
 // ApproveAgentRoute records one route owner's approval. The caller has
 // checked that actor belongs to the route's team. The profile becomes
 // approved, with a six-month expiry, once every granted route is approved.
-func (d *DB) ApproveAgentRoute(ctx context.Context, namespace, name, route, actor string, servers []Server) (AgentProfile, error) {
+func (d *DB) ApproveAgentRoute(ctx context.Context, wantID int64, namespace, name, route, actor string) (AgentProfile, error) {
 	var out AgentProfile
 	err := pgx.BeginFunc(ctx, d.pool, func(tx pgx.Tx) error {
 		id, p, err := lockLive(ctx, tx, namespace, name)
 		if err != nil {
 			return err
 		}
+		if id != wantID {
+			return fmt.Errorf("%w: the live profile is %d, not the one approved", errConflict, id)
+		}
 		if !slices.ContainsFunc(p.Grants, func(g AgentGrant) bool { return g.Route == route }) {
 			return badf("profile grants nothing on %s", route)
 		}
-		// Routes can be revoked or lose tools between draft and approval.
+		// Routes can be revoked or lose tools between draft and approval. FOR
+		// SHARE waits for, and blocks, write.go's FOR UPDATE on the same rows.
+		for _, g := range p.Grants {
+			ns, n, _ := strings.Cut(g.Route, "/")
+			if _, err = tx.Exec(ctx, `SELECT 1 FROM servers WHERE namespace = $1 AND name = $2 FOR SHARE`, ns, n); err != nil {
+				return err
+			}
+		}
+		servers, err := queryServers(ctx, tx)
+		if err != nil {
+			return err
+		}
 		if err = p.checkRoutes(servers); err != nil {
 			return err
 		}
@@ -593,7 +609,7 @@ func seedAgentsFromEnv(ctx context.Context, db *DB) error {
 		if exists {
 			continue
 		}
-		if err := db.CreateAgentProfile(ctx, p, "seed", false); err != nil {
+		if _, err := db.CreateAgentProfile(ctx, p, "seed", false); err != nil {
 			return fmt.Errorf("seed agent %s/%s: %w", p.Namespace, p.Name, err)
 		}
 	}

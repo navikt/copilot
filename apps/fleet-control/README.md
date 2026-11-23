@@ -43,11 +43,11 @@ Not built yet: team lookup in the Nais teams API (static list for now), GitHub O
 
 An agent profile says which caller app may use which tools on which gateway routes, on behalf of a signed-in user. fleet-gateway does not enforce profiles yet; this slice stores and serves them.
 
-- Identity: cluster, namespace and app of the caller, plus its Entra client id. A client id can be in only one live profile. An identity verifier must match the client id to the declared app; without one (none exists yet) the profile stays unverified and never reaches fleet-gateway. `sts_subject` is reserved for the Nais STS identity and rejected until that issuer is chosen.
+- Identity: cluster, namespace and app of the caller, plus its Entra client id. A client id can be in only one verified live profile; unverified drafts reserve nothing. An identity verifier must match the client id to the declared app; without one (none exists yet) the profile stays unverified and never reaches fleet-gateway. `sts_subject` is reserved for the Nais STS identity and rejected until that issuer is chosen.
 - Mode is `delegated` only. fleet-control rejects agent principals, in the API and in the schema.
 - Grants list routes (`<namespace>/<name>`) and exact tool names. Every tool must be on the published route. Wildcards are rejected. `max_risk` is `read`.
 - Quotas, DPIA owner and reference are required.
-- A profile starts as `draft`. A person from each granted route's owning team approves that route, and the author cannot approve. Approval re-checks that the route is still published with the granted tools. Once every route is approved, the profile is `approved` and expires six months later. The owner team or a route owner can revoke it. Revocation is final. An expired profile is marked `expired` when a new profile needs its name or client id.
+- A profile starts as `draft`. A person from each granted route's owning team approves that route with the draft id returned on create, and the author cannot approve. Approval re-checks that the route is still published with the granted tools. Once every route is approved, the profile is `approved` and expires six months later. The owner team or a route owner can revoke it. Revocation is final. An expired profile is marked `expired` when a new profile needs its name or client id.
 - `GET /internal/v1/agents` returns approved, verified profiles that have not expired, checked at read time.
 - Every change writes an audit event.
 

@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -82,6 +83,14 @@ func (e *agentEnv) do(method, path, person, body string) (int, string) {
 	return resp.StatusCode, string(raw)
 }
 
+// ab is an approval body for route on the current live profile.
+func (e *agentEnv) ab(route string) string {
+	e.t.Helper()
+	var id int64
+	_ = e.db.pool.QueryRow(context.Background(), `SELECT COALESCE(max(id), 0) FROM agent_profiles WHERE status IN ('draft', 'approved')`).Scan(&id)
+	return fmt.Sprintf(`{"route":%q,"id":%d}`, route, id)
+}
+
 func (e *agentEnv) active() []AgentProfile {
 	e.t.Helper()
 	code, body := e.do("GET", "/internal/v1/agents", gatewayID, "")
@@ -131,7 +140,7 @@ func TestRealPostgresAgentProfileLifecycle(t *testing.T) {
 		t.Fatalf("draft must not be in the snapshot: %+v", got)
 	}
 
-	approve := `{"route":"copilot/dolly"}`
+	approve := e.ab("copilot/dolly")
 	if code, _ := e.do("POST", "/admin/v1/agents/aksel-studio/studio-assistant/approvals", stranger, approve); code != 403 {
 		t.Fatalf("approval outside the route team: %d", code)
 	}
@@ -139,11 +148,11 @@ func TestRealPostgresAgentProfileLifecycle(t *testing.T) {
 	if code, _ := e.do("POST", "/admin/v1/agents/aksel-studio/studio-assistant/approvals", author, approve); code != 403 {
 		t.Fatalf("self-approval: %d", code)
 	}
-	if code, _ := e.do("POST", "/admin/v1/agents/aksel-studio/studio-assistant/approvals", approver, `{"route":"team-b/kodeverk"}`); code != 403 {
+	if code, _ := e.do("POST", "/admin/v1/agents/aksel-studio/studio-assistant/approvals", approver, e.ab("team-b/kodeverk")); code != 403 {
 		t.Fatalf("approval of a route the approver does not own: %d", code)
 	}
 	// A route the profile does not grant must not count towards approval.
-	if code, _ := e.do("POST", "/admin/v1/agents/aksel-studio/studio-assistant/approvals", "B444444:team-b", `{"route":"team-b/kodeverk"}`); code != 400 || len(e.active()) != 0 {
+	if code, _ := e.do("POST", "/admin/v1/agents/aksel-studio/studio-assistant/approvals", "B444444:team-b", e.ab("team-b/kodeverk")); code != 400 || len(e.active()) != 0 {
 		t.Fatalf("approval of an ungranted route: %d", code)
 	}
 	code, body := e.do("POST", "/admin/v1/agents/aksel-studio/studio-assistant/approvals", approver, approve)
@@ -193,7 +202,7 @@ func TestRealPostgresAgentProfileLifecycle(t *testing.T) {
 func TestRealPostgresAgentProfileExpiryAtRead(t *testing.T) {
 	e := newAgentEnv(t)
 	e.do("POST", "/admin/v1/agents", author, fixture(t))
-	e.do("POST", "/admin/v1/agents/aksel-studio/studio-assistant/approvals", approver, `{"route":"copilot/dolly"}`)
+	e.do("POST", "/admin/v1/agents/aksel-studio/studio-assistant/approvals", approver, e.ab("copilot/dolly"))
 	if len(e.active()) != 1 {
 		t.Fatal("approved profile missing")
 	}
@@ -214,11 +223,11 @@ func TestRealPostgresAgentProfileNeedsEveryRouteOwner(t *testing.T) {
 	if code, body := e.do("POST", "/admin/v1/agents", author, p); code != 201 {
 		t.Fatalf("create: %d %s", code, body)
 	}
-	e.do("POST", "/admin/v1/agents/aksel-studio/studio-assistant/approvals", approver, `{"route":"copilot/dolly"}`)
+	e.do("POST", "/admin/v1/agents/aksel-studio/studio-assistant/approvals", approver, e.ab("copilot/dolly"))
 	if len(e.active()) != 0 {
 		t.Fatal("approved before every route owner approved")
 	}
-	e.do("POST", "/admin/v1/agents/aksel-studio/studio-assistant/approvals", "B444444:team-b", `{"route":"team-b/kodeverk"}`)
+	e.do("POST", "/admin/v1/agents/aksel-studio/studio-assistant/approvals", "B444444:team-b", e.ab("team-b/kodeverk"))
 	if len(e.active()) != 1 {
 		t.Fatal("not approved after every route owner approved")
 	}
@@ -262,8 +271,10 @@ func TestRealPostgresAgentProfileRejectsHostileInput(t *testing.T) {
 			t.Errorf("%s: %d %s", name, code, resp)
 		}
 	}
-	if code, _ := e.do("POST", "/admin/v1/agents", author, base+"{}"); code != 400 {
-		t.Errorf("trailing object: %d", code)
+	for _, tail := range []string{"{}", "}", "]"} {
+		if code, _ := e.do("POST", "/admin/v1/agents", author, base+tail); code != 400 {
+			t.Errorf("trailing %q: %d", tail, code)
+		}
 	}
 	if code, _ := e.do("POST", "/admin/v1/agents", "", base); code != 401 {
 		t.Errorf("no person: %d", code)
@@ -308,7 +319,7 @@ func TestRealPostgresAgentProfileUnverifiedStaysOut(t *testing.T) {
 	e := newAgentEnv(t)
 	e.srv.verifier = nil
 	e.do("POST", "/admin/v1/agents", author, fixture(t))
-	code, body := e.do("POST", "/admin/v1/agents/aksel-studio/studio-assistant/approvals", approver, `{"route":"copilot/dolly"}`)
+	code, body := e.do("POST", "/admin/v1/agents/aksel-studio/studio-assistant/approvals", approver, e.ab("copilot/dolly"))
 	if code != 200 || !strings.Contains(body, `"approved"`) {
 		t.Fatalf("approve: %d %s", code, body)
 	}
@@ -324,25 +335,80 @@ func TestRealPostgresAgentProfileClientIDBinding(t *testing.T) {
 	if code, body := e.do("POST", "/admin/v1/agents", "B444444:team-b", stolen); code != 400 {
 		t.Fatalf("verifier must refuse another app's client id: %d %s", code, body)
 	}
-	if code, _ := e.do("POST", "/admin/v1/agents", author, fixture(t)); code != 201 {
-		t.Fatal("create")
-	}
-	// Without a verifier the unique index is what stops a second live claim.
+	// Without a verifier the claim is stored, but unverified it reserves nothing.
 	e.srv.verifier = nil
-	if code, _ := e.do("POST", "/admin/v1/agents", "B444444:team-b", stolen); code != 409 {
-		t.Fatalf("client id in two live profiles: %d", code)
+	if code, _ := e.do("POST", "/admin/v1/agents", "B444444:team-b", stolen); code != 201 {
+		t.Fatalf("unverified claim: %d", code)
+	}
+	e.srv.verifier = fakeVerifier{}
+	if code, body := e.do("POST", "/admin/v1/agents", author, fixture(t)); code != 201 {
+		t.Fatalf("an unverified claim blocked the verified owner: %d %s", code, body)
+	}
+	other := strings.Replace(fixture(t), `"studio-assistant"`, `"studio-assistant-2"`, 1)
+	if code, _ := e.do("POST", "/admin/v1/agents", author, other); code != 409 {
+		t.Fatalf("client id in two verified live profiles: %d", code)
 	}
 	e.do("POST", "/admin/v1/agents/aksel-studio/studio-assistant/revoke", author, "")
-	other := strings.Replace(fixture(t), `"studio-assistant"`, `"studio-assistant-2"`, 1)
 	if code, _ := e.do("POST", "/admin/v1/agents", author, other); code != 201 {
 		t.Fatalf("client id after revoke: %d", code)
+	}
+}
+
+func TestRealPostgresAgentApprovalBindsToDraft(t *testing.T) {
+	e := newAgentEnv(t)
+	e.do("POST", "/admin/v1/agents", author, fixture(t))
+	stale := e.ab("copilot/dolly")
+	e.do("POST", "/admin/v1/agents/aksel-studio/studio-assistant/revoke", author, "")
+	e.do("POST", "/admin/v1/agents", author, fixture(t))
+	if code, _ := e.do("POST", "/admin/v1/agents/aksel-studio/studio-assistant/approvals", approver, stale); code != 409 {
+		t.Fatalf("approval for a revoked draft applied to its replacement: %d", code)
+	}
+}
+
+// A route revoked in a transaction that commits during the approval must
+// fail the approval, not be checked against a stale read.
+func TestRealPostgresAgentApprovalWaitsForRouteRevoke(t *testing.T) {
+	e := newAgentEnv(t)
+	ctx := context.Background()
+	e.do("POST", "/admin/v1/agents", author, fixture(t))
+	body := e.ab("copilot/dolly")
+	tx, err := e.db.pool.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	if _, err := tx.Exec(ctx, `SELECT 1 FROM servers WHERE name = 'dolly' FOR UPDATE`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := tx.Exec(ctx, `UPDATE servers SET status = 'revoked' WHERE name = 'dolly'`); err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan int, 1)
+	go func() {
+		code, _ := e.do("POST", "/admin/v1/agents/aksel-studio/studio-assistant/approvals", approver, body)
+		done <- code
+	}()
+	// Wait until the approval is blocked on the row lock.
+	for waiting := 0; waiting == 0; {
+		_ = e.db.pool.QueryRow(ctx, `SELECT count(*) FROM pg_stat_activity WHERE wait_event_type = 'Lock'`).Scan(&waiting)
+		select {
+		case code := <-done:
+			t.Fatalf("approval did not wait for the route lock: %d", code)
+		case <-time.After(10 * time.Millisecond):
+		}
+	}
+	if err := tx.Commit(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if code := <-done; code != 400 {
+		t.Fatalf("approval against a route revoked meanwhile: %d", code)
 	}
 }
 
 func TestRealPostgresAgentProfileExpiredCanBeReplaced(t *testing.T) {
 	e := newAgentEnv(t)
 	e.do("POST", "/admin/v1/agents", author, fixture(t))
-	e.do("POST", "/admin/v1/agents/aksel-studio/studio-assistant/approvals", approver, `{"route":"copilot/dolly"}`)
+	e.do("POST", "/admin/v1/agents/aksel-studio/studio-assistant/approvals", approver, e.ab("copilot/dolly"))
 	if _, err := e.db.pool.Exec(context.Background(), `UPDATE agent_profiles SET expires_at = now() - interval '1 second'`); err != nil {
 		t.Fatal(err)
 	}
@@ -364,7 +430,7 @@ func TestRealPostgresAgentProfileApprovalRechecksRoute(t *testing.T) {
 	if _, err := e.db.pool.Exec(context.Background(), `UPDATE servers SET status = 'revoked' WHERE name = 'dolly'`); err != nil {
 		t.Fatal(err)
 	}
-	if code, _ := e.do("POST", "/admin/v1/agents/aksel-studio/studio-assistant/approvals", approver, `{"route":"copilot/dolly"}`); code != 400 {
+	if code, _ := e.do("POST", "/admin/v1/agents/aksel-studio/studio-assistant/approvals", approver, e.ab("copilot/dolly")); code != 400 {
 		t.Fatalf("approval of a revoked route: %d", code)
 	}
 }

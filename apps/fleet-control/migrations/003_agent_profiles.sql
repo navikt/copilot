@@ -36,10 +36,12 @@ CREATE TABLE agent_profiles (
     CHECK (status <> 'revoked' OR (revoked_by IS NOT NULL AND revoked_at IS NOT NULL))
 );
 
--- One live profile per name and per client id, so one team cannot register
--- another team's app. Revoked and expired ones can be replaced.
+-- One live profile per name. Revoked and expired ones can be replaced.
 CREATE UNIQUE INDEX agent_profiles_live ON agent_profiles (namespace, name) WHERE status IN ('draft', 'approved');
-CREATE UNIQUE INDEX agent_profiles_live_client ON agent_profiles (entra_client_id) WHERE status IN ('draft', 'approved');
+-- One verified live profile per client id. Unverified drafts reserve nothing,
+-- so a team cannot squat on another team's client id.
+CREATE UNIQUE INDEX agent_profiles_live_client ON agent_profiles (entra_client_id)
+    WHERE status IN ('draft', 'approved') AND identity_verified_at IS NOT NULL;
 
 -- One approval per granted route, by a person from the route's owning team.
 CREATE TABLE agent_profile_approvals (
