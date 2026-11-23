@@ -29,6 +29,8 @@ func fakeOpenCode(t *testing.T, script string) (log string) {
 // OPENCODE_CONFIG_DIR set here proves the strip matters: opencode 2.3.2 still
 // reads that directory with the disable flag alone.
 func TestOpenCodeHostCallsDoNotStartInRepo(t *testing.T) {
+	// Private TMPDIR: the cleanup check below must only see this test's directories.
+	t.Setenv("TMPDIR", t.TempDir())
 	repo := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(repo, ".git"), 0o755); err != nil {
 		t.Fatal(err)
