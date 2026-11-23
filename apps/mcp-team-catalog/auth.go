@@ -10,8 +10,6 @@ import (
 
 // Texas introspection and OBO exchange live in lib/mcpkit. These names are
 // kept so main.go, tools.go and the tests read as before.
-const maxBearerLen = mcpkit.MaxBearerLen
-
 var (
 	errUnauthorized  = mcpkit.ErrUnauthorized
 	errForbidden     = mcpkit.ErrForbidden
