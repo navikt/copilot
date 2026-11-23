@@ -1172,12 +1172,12 @@ func TestBudgetRaiseFinalStepLocked(t *testing.T) {
 		commit()
 		e.waitFor("SELECT count(*) FROM budget_raises WHERE status = 'applied'")
 	}
-	bDone := make(chan int)
-	go func() { bDone <- postB("b") }()
+	bDone, bFinished := make(chan int, 1), make(chan struct{})
+	go func() { bDone <- postB("b"); close(bFinished) }()
 	go func() { // fixed code: B waits on A's advisory lock instead
 		for {
 			select {
-			case <-bDone:
+			case <-bFinished:
 				return
 			default:
 			}
@@ -1244,5 +1244,36 @@ func TestBudgetRaiseSameKeyRetryReconcilesStuck(t *testing.T) {
 				t.Errorf("a retry must not start a new raise: writes %v", e.gh.writes)
 			}
 		})
+	}
+}
+
+// Without a GitHub list (dry run, no write key) a stuck raise cannot be
+// verified: a same-key retry replays pending instead of marking it failed.
+func TestBudgetRaiseStuckWithoutListStaysPending(t *testing.T) {
+	e := newBudgetEnv(t, openBudgetTestDB(t))
+	e.profile("ola")
+	e.exec(`INSERT INTO budget_raises (github_login, idempotency_key, month, amount_usd, budget_set_usd, category, team_id, expected_value, status, created_at)
+		VALUES ('ola', 'k1', '2026-12-01', 150, 300, 'koding', 'annet', 'spare_tid', 'pending', now() - interval '1 hour')`)
+	e.h.writer, e.h.mode = nil, "dry_run"
+	if code, out := e.raise("ola", "k1"); code != 200 || out["raise"].(map[string]any)["status"] != "pending" {
+		t.Fatalf("same-key retry without a list: %d %v", code, out)
+	}
+	if e.count("SELECT count(*) FROM budget_raises WHERE status = 'pending'") != 1 {
+		t.Error("the stuck raise must stay pending")
+	}
+}
+
+// A PATCH that GitHub took, followed by a failed bookkeeping step, is an
+// unknown outcome (pending), not failed.
+func TestBudgetRaisePatchBookkeepingFailureIsUnknown(t *testing.T) {
+	e := newBudgetEnv(t, openBudgetTestDB(t))
+	e.profile("ola")
+	if code, _ := e.raise("ola", "k1"); code != 201 {
+		t.Fatal(code)
+	}
+	e.exec(`CREATE FUNCTION fail_record() RETURNS trigger AS $$ BEGIN RAISE EXCEPTION 'down'; END $$ LANGUAGE plpgsql`)
+	e.exec(`CREATE TRIGGER fail_record BEFORE INSERT OR UPDATE ON budget_github FOR EACH ROW EXECUTE FUNCTION fail_record()`)
+	if code, out := e.raise("ola", "k2"); code != 502 || out["raise"].(map[string]any)["status"] != "pending" {
+		t.Fatalf("patched but not recorded: %d %v", code, out)
 	}
 }

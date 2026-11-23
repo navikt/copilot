@@ -834,6 +834,11 @@ func (h *budgetRaiseHandlers) reserve(ctx context.Context, pool *pgxpool.Pool, r
 		if err := pend.Err(); err != nil || code != "" {
 			return err
 		}
+		if rv.list == nil {
+			// No GitHub list (dry run without the write key): we cannot tell
+			// whether a stuck raise was applied, so leave it pending.
+			stale = nil
+		}
 		for _, p := range stale {
 			status := "failed"
 			// The only foreign budget we may adopt is one that matches exactly
@@ -951,14 +956,12 @@ func (h *budgetRaiseHandlers) write(ctx context.Context, pool *pgxpool.Pool, tar
 		}
 	}
 	ownID = plan.ownID
-	created := false
 	if ownID != "" {
 		status, err = h.writer.patchOwnBudget(ctx, ownID, plan.amount, expires)
 		// No answer or a 5xx: GitHub may have applied it. Our ID is recorded,
 		// so pending lets the next raise reconcile instead of saying failed.
 		unknown = err != nil && (status == 0 || status/100 == 5)
 	} else {
-		created = true
 		ownID, status, err = h.writer.createUserBudget(ctx, target, plan.amount, expires)
 		// No response, a 2xx we could not read, or a 5xx: GitHub may have created it.
 		unknown = err != nil && (status == 0 || status/100 == 2 || status/100 == 5)
@@ -988,7 +991,9 @@ func (h *budgetRaiseHandlers) write(ctx context.Context, pool *pgxpool.Pool, tar
 		// The budget exists in GitHub but its ID is not stored: the next raise
 		// reconciles it as a stale pending row. Loud, so an admin can check.
 		slog.Error("Budget written in GitHub but its ID was not stored", "github_budget_id", ownID, "error", err)
-		return ownID, status, created, err
+		// GitHub took the write (POST or PATCH) but we could not record it:
+		// unknown, so reconciliation verifies it instead of a false failed.
+		return ownID, status, true, err
 	}
 	err = h.verify(ctx, target, ownID, plan.amount, expires)
 	// A read-back that could not be read is unknown; one that read a different
