@@ -30,7 +30,7 @@ func fakeConsole(t *testing.T, members map[string][]string, calls *int) *httptes
 		_ = json.NewDecoder(r.Body).Decode(&req)
 		teams, ok := members[req.Variables.Email]
 		if !ok {
-			_, _ = w.Write([]byte(`{"errors":[{"message":"user not found"}],"data":null}`))
+			_, _ = w.Write([]byte(`{"errors":[{"message":"The specified user was not found.","path":["user"]}],"data":null}`))
 			return
 		}
 		nodes := []map[string]any{}
@@ -74,8 +74,8 @@ func TestConsoleTeams(t *testing.T) {
 	if got, _ := c.Teams(ctx, "kari.nordmann@nav.no"); !slices.Equal(got, []string{"copilot", "team-a"}) {
 		t.Fatalf("teams: got %v", got)
 	}
-	if _, err := c.IsMember(ctx, "team-a", "nobody@nav.no"); err == nil {
-		t.Fatal("unknown user: want error")
+	if ok, err := c.IsMember(ctx, "team-a", "nobody@nav.no"); err != nil || ok {
+		t.Fatalf("user not in Nais: got %v, %v, want no teams", ok, err)
 	}
 	if calls != 3 {
 		t.Fatalf("cache: got %d calls, want 3", calls)
@@ -97,7 +97,7 @@ func TestConsoleTeamsFailClosed(t *testing.T) {
 		_, _ = w.Write([]byte(`{"data":{"user":{"teams":{"nodes":[{"team":{"slug":"team-a"}}],"pageInfo":{"hasNextPage":false}}}}}`))
 	}))
 	partial := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		_, _ = w.Write([]byte(`{"errors":[{"message":"x"}],"data":{"user":{"teams":{"nodes":[{"team":{"slug":"team-a"}}],"pageInfo":{"hasNextPage":false}}}}}`))
+		_, _ = w.Write([]byte(`{"errors":[{"message":"The specified user was not found.","path":["team"]}],"data":{"user":{"teams":{"nodes":[{"team":{"slug":"team-a"}}],"pageInfo":{"hasNextPage":false}}}}}`))
 	}))
 	defer partial.Close()
 	// Answers without checking the token, so only the token-file check catches a missing file.

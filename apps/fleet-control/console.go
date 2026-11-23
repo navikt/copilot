@@ -24,6 +24,8 @@ const consoleTeamsURL = "https://console.nav.cloud.nais.io/graphql"
 // costs one lookup. Errors are never cached.
 const consoleTeamsTTL = time.Minute
 
+const userNotFoundMessage = "The specified user was not found."
+
 const userTeamsQuery = `query($email: String!, $after: Cursor) {
   user(email: $email) {
     teams(first: 100, after: $after) {
@@ -147,10 +149,20 @@ func (c *consoleTeams) page(ctx context.Context, email string, after *string) (*
 				Teams *teamsPage `json:"teams"`
 			} `json:"user"`
 		} `json:"data"`
-		Errors []json.RawMessage `json:"errors"`
+		Errors []struct {
+			Message string `json:"message"`
+			Path    []any  `json:"path"`
+		} `json:"errors"`
 	}
 	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&out); err != nil {
 		return nil, fmt.Errorf("nais console: decode: %w", err)
+	}
+	// A person not in Nais is a member of no team (403), not an outage. nais/api
+	// answers user.ErrNotFound with this message on path ["user"]
+	// (internal/user/error.go); any other error stays a failure.
+	if len(out.Errors) == 1 && out.Errors[0].Message == userNotFoundMessage &&
+		len(out.Errors[0].Path) == 1 && out.Errors[0].Path[0] == "user" {
+		return &teamsPage{}, nil
 	}
 	// Do not log the error bodies: they may echo the email.
 	if len(out.Errors) > 0 {
