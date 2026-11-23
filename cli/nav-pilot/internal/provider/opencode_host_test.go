@@ -23,9 +23,11 @@ func fakeOpenCode(t *testing.T, script string) (log string) {
 	return log
 }
 
-// #2789: every host call starts in an empty directory, never the repo, with
-// stdin closed and no inherited config pointer. The list still sees the
-// repo's project through the .git file.
+// #2789: every host call starts in an empty temp directory, never the repo.
+// Each call site is checked on its own: list and export must also get the
+// .git pointer, the disable flag and no inherited config pointers. The
+// OPENCODE_CONFIG_DIR set here proves the strip matters: opencode 2.3.2 still
+// reads that directory with the disable flag alone.
 func TestOpenCodeHostCallsDoNotStartInRepo(t *testing.T) {
 	repo := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(repo, ".git"), 0o755); err != nil {
@@ -36,17 +38,25 @@ func TestOpenCodeHostCallsDoNotStartInRepo(t *testing.T) {
 	}
 	t.Chdir(repo) // nav-pilot runs in the repo
 	real := realDir(repo)
+	tmp := realDir(os.TempDir())
 	t.Setenv("OPENCODE_CONFIG_DIR", filepath.Join(repo, ".opencode"))
-	log := fakeOpenCode(t, `{
-  echo "cwd=$(pwd -P)"
-  echo "files=$(ls -A | tr '\n' ' ')"
-  echo "git=$(cat .git)"
-  if read -r x; then echo stdin=open; else echo stdin=eof; fi
-  echo "cfgdir=${OPENCODE_CONFIG_DIR:-unset} disable=${OPENCODE_DISABLE_PROJECT_CONFIG:-unset}"
+	t.Setenv("OPENCODE_CONFIG", filepath.Join(repo, "opencode.json"))
+	log := fakeOpenCode(t, `case "$*" in
+  --version) site=version ;;
+  *list*) site=list ;;
+  *) site=export ;;
+esac
+{
+  echo "$site cwd=$(pwd -P)"
+  echo "$site git=$(cat .git 2>/dev/null)"
+  if read -r x; then echo "$site stdin=open"; else echo "$site stdin=eof"; fi
+  echo "$site cfgdir=${OPENCODE_CONFIG_DIR:-unset}"
+  echo "$site cfg=${OPENCODE_CONFIG:-unset}"
+  echo "$site disable=${OPENCODE_DISABLE_PROJECT_CONFIG:-unset}"
 } >> "$LOG"
-case "$*" in
-  --version) echo 2.3.2 ;;
-  *list*) echo '[{"id":"s1","updated":2000,"directory":"`+real+`"}]' ;;
+case $site in
+  version) echo 2.3.2 ;;
+  list) echo '[{"id":"s1","updated":2000,"directory":"`+real+`"}]' ;;
   *) echo '{"messages":[]}' ;;
 esac
 `)
@@ -55,36 +65,47 @@ esac
 	if err != nil {
 		t.Fatal(err)
 	}
-	got := string(b)
-	if n := strings.Count(got, "cwd="); n != 3 {
-		t.Fatalf("want 3 calls (--version, list, export), got %d:\n%s", n, got)
+	got := map[string]string{}
+	for _, line := range strings.Split(strings.TrimSpace(string(b)), "\n") {
+		k, v, _ := strings.Cut(line, "=")
+		got[k] = v
 	}
-	for _, line := range strings.Split(strings.TrimSpace(got), "\n") {
-		switch {
-		case strings.HasPrefix(line, "cwd="):
-			if cwd := strings.TrimPrefix(line, "cwd="); strings.HasPrefix(cwd, real) {
-				t.Errorf("opencode started in the repo: %s", cwd)
-			}
-		case strings.HasPrefix(line, "files="):
-			if line != "files=.git " && line != "files=" {
-				t.Errorf("cwd not empty: %q", line)
-			}
-		case strings.HasPrefix(line, "git="):
-			if line != "git=gitdir: "+filepath.Join(repo, ".git") && line != "git=" {
-				t.Errorf(".git file = %q", line)
-			}
-		case strings.HasPrefix(line, "stdin="):
-			if line != "stdin=eof" {
-				t.Errorf("stdin not closed: %q", line)
-			}
-		case strings.HasPrefix(line, "cfgdir="):
-			if !strings.HasSuffix(line, "disable=1") && line != "cfgdir="+filepath.Join(repo, ".opencode")+" disable=unset" {
-				t.Errorf("env = %q", line)
+	inTemp := func(site string) {
+		cwd := got[site+" cwd"]
+		if cwd == "" || strings.HasPrefix(cwd, real) || !strings.HasPrefix(cwd, tmp) {
+			t.Errorf("%s: cwd %q is not a temp dir outside the repo", site, cwd)
+		}
+	}
+	inTemp("version")
+	for _, site := range []string{"list", "export"} {
+		inTemp(site)
+		want := map[string]string{
+			" git":     "gitdir: " + filepath.Join(repo, ".git"),
+			" stdin":   "eof",
+			" cfgdir":  "unset",
+			" cfg":     "unset",
+			" disable": "1",
+		}
+		for k, v := range want {
+			if got[site+k] != v {
+				t.Errorf("%s%s = %q, want %q", site, k, got[site+k], v)
 			}
 		}
 	}
 	if left, _ := filepath.Glob(filepath.Join(os.TempDir(), "nav-pilot-opencode-cwd-*")); len(left) != 0 {
 		t.Errorf("temp cwd left behind: %v", left)
+	}
+}
+
+// No temp dir means no probe at all, not a probe in the repo.
+func TestStagedProbeFailsClosedWithoutTempDir(t *testing.T) {
+	log := fakeOpenCode(t, `pwd >> "$LOG"; echo 2.3.2`)
+	t.Setenv("TMPDIR", filepath.Join(t.TempDir(), "missing"))
+	if _, err := runStagedProbe(5*time.Second, "opencode", "--version"); err == nil {
+		t.Fatal("want an error when no temp dir can be made")
+	}
+	if _, err := os.Stat(log); err == nil {
+		t.Fatal("probe ran without an isolated cwd")
 	}
 }
 
