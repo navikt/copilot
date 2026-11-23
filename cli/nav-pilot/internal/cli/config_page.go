@@ -25,7 +25,7 @@ var configPageKeys = userFacingPageKeys()
 func userFacingPageKeys() []string {
 	var keys []string
 	for _, kd := range configKeyDefs {
-		if !kd.internal {
+		if !kd.internal && !kd.legacy {
 			keys = append(keys, kd.name)
 		}
 	}

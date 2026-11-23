@@ -30,6 +30,7 @@ type configKeyDef struct {
 	defaultVal  string   // empty = no default / unset
 	flag        string   // corresponding Copilot CLI flag
 	internal    bool     // bookkeeping key, hidden from the settings page
+	legacy      bool     // replaced key: still read and settable, never shown or offered
 	group       string   // settings-page section; empty = "General"
 }
 
@@ -237,6 +238,15 @@ var configKeyDefs = []configKeyDef{
 		group:       "Local models (alpha)",
 	},
 	{
+		name:        "guards",
+		kind:        keyKindBool,
+		description: "nav-pilot's guards in every Copilot CLI session: warn the model when it repeats one tool call, mask secrets and fødselsnumre in tool results before the model reads them, and flag tool results that read like instructions. Written at launch as hooks in ~/.copilot/hooks/; false removes them at the next launch.",
+		allowed:     nil,
+		defaultVal:  "true",
+		flag:        "",
+		group:       "Hooks",
+	},
+	{
 		name:        "hook_loop_guard",
 		kind:        keyKindBool,
 		description: "Warn the model when it repeats one tool call, in every Copilot CLI session and not only local ones. nav-pilot writes a postToolUse hook to ~/.copilot/hooks/ at launch that applies the local_loop_guard rule; false removes it at the next launch.",
@@ -244,6 +254,7 @@ var configKeyDefs = []configKeyDef{
 		defaultVal:  "true",
 		flag:        "",
 		group:       "Hooks",
+		legacy:      true,
 	},
 	{
 		name:        "hook_redact_secrets",
@@ -253,6 +264,7 @@ var configKeyDefs = []configKeyDef{
 		defaultVal:  "true",
 		flag:        "",
 		group:       "Hooks",
+		legacy:      true,
 	},
 	{
 		name:        "hook_redact_fnr",
@@ -262,6 +274,7 @@ var configKeyDefs = []configKeyDef{
 		defaultVal:  "true",
 		flag:        "",
 		group:       "Hooks",
+		legacy:      true,
 	},
 	{
 		name:        "hook_injection_note",
@@ -271,6 +284,7 @@ var configKeyDefs = []configKeyDef{
 		defaultVal:  "true",
 		flag:        "",
 		group:       "Hooks",
+		legacy:      true,
 	},
 	{
 		name:        "hook_action_check",
@@ -313,6 +327,9 @@ func findKeyDef(name string) *configKeyDef {
 func userKeyNames() []string {
 	var names []string
 	for _, kd := range configKeyDefs {
+		if kd.legacy {
+			continue
+		}
 		names = append(names, kd.name)
 	}
 	return names
@@ -489,29 +506,14 @@ client = "copilot"
 # Allowed: off, conservative, balanced, aggressive — Default: aggressive
 # local_dispatch = "aggressive"
 
-# Warn the model when it repeats one tool call, in every Copilot CLI session
-# and not only local ones. At launch nav-pilot writes a postToolUse hook to
-# ~/.copilot/hooks/nav-pilot-loop-guard.json that applies the local_loop_guard
-# rule to each tool result; false removes it at the next launch.
+# nav-pilot's guards, in every Copilot CLI session: warn the model when it
+# repeats one tool call, mask secrets and fødselsnumre in tool results before
+# the model reads them, and flag results that read like instructions. Written
+# at launch as hooks in ~/.copilot/hooks/; false removes them at the next
+# launch. The older hook_loop_guard, hook_redact_secrets, hook_redact_fnr and
+# hook_injection_note keys still work and win over guards when set.
 # Default: true
-# hook_loop_guard = true
-
-# The redaction hook (~/.copilot/hooks/nav-pilot-redact-tool-output.json)
-# looks at every tool result before the model reads it, in every Copilot CLI
-# session. Each part can be turned off on its own; with all three off the
-# hook is removed at the next launch.
-# Mask secrets: GitHub tokens, AWS key ids, private keys, JWTs, and the value
-# of password=/api_key=-style assignments.
-# Default: true
-# hook_redact_secrets = true
-# Mask fødselsnummer, D-nummer and H-nummer (date and both mod-11 control
-# digits valid).
-# Default: true
-# hook_redact_fnr = true
-# Put a note in front of a result that reads like instructions to the model
-# ("ignore previous instructions", role markers). Flags; never blocks.
-# Default: true
-# hook_injection_note = true
+# guards = true
 
 # Before a risky shell command (kubectl, nais, gcloud and helm changes,
 # terraform apply, rm -r, git push --force, ...) ask the local decide model
@@ -841,6 +843,8 @@ func resolvedFieldStr(r ResolvedConfig, key string) string {
 		return r.LocalEndpointModel
 	case "local_dispatch":
 		return r.LocalDispatch
+	case "guards":
+		return strconv.FormatBool(r.Guards)
 	case "hook_loop_guard":
 		return strconv.FormatBool(r.HookLoopGuard)
 	case "hook_redact_secrets":
