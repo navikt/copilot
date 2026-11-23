@@ -460,3 +460,66 @@ func TestStateNamesCoverStateMarkers(t *testing.T) {
 		}
 	}
 }
+
+// A first launch that self-updates re-executes after telemetry wrote its
+// device id; the new process is still a new install, but only for the state
+// the parent listed and only inside our own re-exec (#2785 review).
+func TestFreshnessSurvivesSelfUpdateReexec(t *testing.T) {
+	cfg := isolatedConfig(t)
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	if !noNavPilotState() {
+		t.Fatal("empty home counted as state")
+	}
+	// What the first process wrote before its update re-executed it.
+	touchFile(t, filepath.Join(filepath.Dir(cfg), "device-id"))
+	touchFile(t, filepath.Join(home, ".nav-pilot", "seen-telemetry-notice"))
+	found, _ := navPilotState()
+	listed := strings.Join(found, "\n")
+
+	t.Setenv(reexecGuardEnv, "1")
+	t.Setenv(freshStateEnv, listed)
+	if !freshAfterReexec() {
+		t.Error("the re-executed first launch lost its new-install status")
+	}
+	if _, set := os.LookupEnv(freshStateEnv); set {
+		t.Error("the variable is passed on to later children")
+	}
+
+	// Not our re-exec: the variable is ignored.
+	t.Setenv(reexecGuardEnv, "")
+	t.Setenv(freshStateEnv, listed)
+	if freshAfterReexec() {
+		t.Error("the variable counted outside a re-exec")
+	}
+
+	// State the parent did not list means an existing user.
+	t.Setenv(reexecGuardEnv, "1")
+	t.Setenv(freshStateEnv, listed)
+	touchFile(t, filepath.Join(home, ".nav-pilot", "cache.json"))
+	if freshAfterReexec() {
+		t.Error("unlisted state excused by the variable")
+	}
+
+	// A config always means an existing user.
+	t.Setenv(freshStateEnv, listed+"\n"+filepath.Join(home, ".nav-pilot", "cache.json"))
+	touchFile(t, cfg)
+	if freshAfterReexec() {
+		t.Error("a config excused by the variable")
+	}
+}
+
+// Glob metacharacters in the config directory do not hide its state.
+func TestStateFoundUnderMetacharacterDir(t *testing.T) {
+	isolatedConfig(t)
+	t.Setenv("HOME", t.TempDir())
+	dir := filepath.Join(t.TempDir(), "config[work]*?")
+	t.Setenv("NAV_PILOT_CONFIG", filepath.Join(dir, "config.toml"))
+	if !noNavPilotState() {
+		t.Fatal("empty dir counted as state")
+	}
+	touchFile(t, filepath.Join(dir, "device-id"))
+	if noNavPilotState() {
+		t.Error("device-id under a metacharacter dir not found")
+	}
+}

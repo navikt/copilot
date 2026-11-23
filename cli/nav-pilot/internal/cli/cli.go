@@ -1373,6 +1373,11 @@ func reexecSelf() error {
 		return fmt.Errorf("cannot resolve binary path: %w", err)
 	}
 	env := append(os.Environ(), reexecGuardEnv+"=1")
+	if startedFresh {
+		// Everything nav-pilot state now holds, this run wrote.
+		found, _ := navPilotState()
+		env = append(env, freshStateEnv+"="+strings.Join(found, "\n"))
+	}
 	if err := syscall.Exec(exe, os.Args, env); err != nil {
 		return fmt.Errorf("exec failed: %w", err)
 	}
@@ -1382,7 +1387,7 @@ func reexecSelf() error {
 
 func Main(info BuildInfo) {
 	// Before telemetry writes its device id and spool.
-	startedFresh = noNavPilotState()
+	startedFresh = freshAfterReexec()
 	if len(os.Args) > 1 && os.Args[1] == "hook" {
 		runHookCommand(os.Args[2:], os.Stdin, os.Stdout)
 		return

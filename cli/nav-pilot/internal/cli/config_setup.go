@@ -631,29 +631,76 @@ var navPilotStateNames = []string{
 // config.toml, nothing in ~/.nav-pilot (or beside a relocated config), and no
 // user-scope state file in ~/.copilot (#2781). Any error counts as state.
 func noNavPilotState() bool {
+	found, ok := navPilotState()
+	return ok && len(found) == 0
+}
+
+// navPilotState lists the nav-pilot state entries on this machine. ok is
+// false when there is state that rules out a new install outright: a config,
+// a user-scope state file, or a directory that cannot be read.
+func navPilotState() (found []string, ok bool) {
 	home, err := os.UserHomeDir()
 	if err != nil || home == "" {
-		return false
+		return nil, false
 	}
 	exists := func(p string) bool {
 		_, err := os.Stat(p)
 		return !errors.Is(err, os.ErrNotExist)
 	}
 	if exists(configPath()) || exists(filepath.Join(home, ".copilot", ".nav-pilot-state.json")) {
-		return false
+		return nil, false
 	}
-	entries, err := os.ReadDir(filepath.Join(home, ".nav-pilot"))
-	if len(entries) > 0 || (err != nil && !errors.Is(err, os.ErrNotExist)) {
-		return false
+	own := filepath.Join(home, ".nav-pilot")
+	entries, err := os.ReadDir(own)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return nil, false
+	}
+	for _, e := range entries {
+		found = append(found, filepath.Join(own, e.Name()))
 	}
 	// A relocated config may share its directory with other files, so look
-	// there only for nav-pilot's own markers and caches.
+	// there only for nav-pilot's own markers and caches. Only basenames are
+	// matched: the directory path may hold glob metacharacters.
 	dir := filepath.Dir(configPath())
-	if _, err := os.ReadDir(dir); err != nil && !errors.Is(err, os.ErrNotExist) {
-		return false // unreadable: assume state rather than skip the wizard
+	entries, err = os.ReadDir(dir)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return nil, false // unreadable: assume state rather than skip the wizard
 	}
-	for _, pattern := range navPilotStateNames {
-		if m, _ := filepath.Glob(filepath.Join(dir, pattern)); len(m) > 0 {
+	for _, e := range entries {
+		for _, pattern := range navPilotStateNames {
+			if m, _ := filepath.Match(pattern, e.Name()); m {
+				found = append(found, filepath.Join(dir, e.Name()))
+				break
+			}
+		}
+	}
+	return found, true
+}
+
+// freshStateEnv carries a new install's decision across the re-exec after
+// a first-launch self-update: the state entries this run wrote, which the
+// re-executed process may find without losing its new-install status.
+const freshStateEnv = "NAV_PILOT_FRESH_STATE"
+
+// freshAfterReexec is noNavPilotState for a process our own re-exec started:
+// state found counts only if the parent did not list it. Outside a re-exec
+// the variable is ignored, and it can only excuse entries it names exactly.
+func freshAfterReexec() bool {
+	listed, set := os.LookupEnv(freshStateEnv)
+	_ = os.Unsetenv(freshStateEnv)
+	if !set || os.Getenv(reexecGuardEnv) != "1" {
+		return noNavPilotState()
+	}
+	found, ok := navPilotState()
+	if !ok {
+		return false
+	}
+	allowed := map[string]bool{}
+	for _, p := range strings.Split(listed, "\n") {
+		allowed[p] = true
+	}
+	for _, p := range found {
+		if !allowed[p] {
 			return false
 		}
 	}
