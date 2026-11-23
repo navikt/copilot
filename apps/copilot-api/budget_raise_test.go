@@ -1511,3 +1511,197 @@ func TestBudgetCreateReadsNestedID(t *testing.T) {
 		t.Fatalf("create: id %q status %d err %v", id, status, err)
 	}
 }
+
+// #2718: periodic reconciler settles stale pending raises without waiting for
+// the user's next raise, leaves fresh pending rows alone, and never writes to GitHub.
+func TestBudgetReconcileSettlesStaleWithoutNextRaise(t *testing.T) {
+	e := newBudgetEnv(t, openBudgetTestDB(t))
+	ins := `INSERT INTO budget_raises (github_login, idempotency_key, month, amount_usd, budget_set_usd, category, team_id, expected_value, status, created_at)
+		VALUES ($1, $2, '2026-12-01', 150, 300, 'koding', 'annet', 'spare_tid', 'pending', now() - $3::interval)`
+
+	// Fresh pending row (< budgetPendingStale): must not be touched.
+	e.exec(ins, "fresh", "k1", "10 seconds")
+	// Stale pending row whose unrecorded budget exists in GitHub: adopt -> applied.
+	e.exec(ins, "adopted", "k2", "10 minutes")
+	e.gh.budgets["adopted"] = []ghBudget{{ID: "gh-1", BudgetScope: "user", BudgetType: "BundlePricing", SKU: "ai_credits", Amount: 300, ExpiresAt: "2027-01-01"}}
+	// Stale pending row with no matching budget in GitHub: -> failed.
+	e.exec(ins, "missing", "k3", "10 minutes")
+
+	n, err := e.h.reconcileStuck(context.Background())
+	if err != nil || n != 2 {
+		t.Fatalf("reconcileStuck: n=%d err=%v (want 2, nil)", n, err)
+	}
+	if len(e.gh.writes) != 0 {
+		t.Errorf("reconciler must never write to GitHub: %v", e.gh.writes)
+	}
+	if e.count("SELECT count(*) FROM budget_raises WHERE github_login = 'fresh' AND status = 'pending'") != 1 {
+		t.Error("fresh pending row must stay pending")
+	}
+	if e.count("SELECT count(*) FROM budget_raises WHERE github_login = 'adopted' AND status = 'applied'") != 1 {
+		t.Error("adopted stale row must become applied")
+	}
+	if e.count("SELECT count(*) FROM budget_github WHERE github_login = 'adopted' AND github_budget_id = 'gh-1' AND deleted_at IS NULL") != 1 {
+		t.Error("adopted budget ID must be recorded in budget_github")
+	}
+	if e.count("SELECT count(*) FROM budget_raises WHERE github_login = 'missing' AND status = 'failed'") != 1 {
+		t.Error("missing stale row must become failed")
+	}
+	if e.count("SELECT count(*) FROM budget_audit WHERE action = 'retry' AND actor = 'system'") != 2 {
+		t.Errorf("audit rows: %d (want 2)", e.count("SELECT count(*) FROM budget_audit WHERE action = 'retry' AND actor = 'system'"))
+	}
+	for _, login := range []string{"adopted", "missing"} {
+		if v := e.count(raiseFingerprintSQL, login); v != 1 {
+			t.Errorf("%s version = %d, want 1", login, v)
+		}
+	}
+	if v := e.count(raiseFingerprintSQL, "fresh"); v != 0 {
+		t.Errorf("fresh version = %d, want 0", v)
+	}
+}
+
+// #2718: reconciler does nothing unless BUDGET_WRITES is on and writer is configured.
+func TestBudgetReconcileSkipsWhenNotOn(t *testing.T) {
+	for name, setup := range map[string]func(*budgetRaiseHandlers){
+		"off":       func(h *budgetRaiseHandlers) { h.mode = "off" },
+		"dry_run":   func(h *budgetRaiseHandlers) { h.mode = "dry_run" },
+		"no writer": func(h *budgetRaiseHandlers) { h.writer = nil },
+	} {
+		t.Run(name, func(t *testing.T) {
+			e := newBudgetEnv(t, openBudgetTestDB(t))
+			e.exec(`INSERT INTO budget_raises (github_login, idempotency_key, month, amount_usd, budget_set_usd, category, team_id, expected_value, status, created_at)
+				VALUES ('ola', 'k1', '2026-12-01', 150, 300, 'koding', 'annet', 'spare_tid', 'pending', now() - interval '10 minutes')`)
+			setup(e.h)
+			n, err := e.h.reconcileStuck(context.Background())
+			if err != nil || n != 0 {
+				t.Fatalf("reconcileStuck(%s): n=%d err=%v (want 0, nil)", name, n, err)
+			}
+			if e.count("SELECT count(*) FROM budget_raises WHERE status = 'pending'") != 1 {
+				t.Error("row must remain pending")
+			}
+		})
+	}
+}
+
+// #2718: two replicas running reconcileStuck concurrently on the same user
+// settle the stale pending raise exactly once (one audit row, one version bump).
+func TestBudgetReconcileConcurrentReplicasSettleOnce(t *testing.T) {
+	e := newBudgetEnv(t, openBudgetTestDB(t))
+	h2, _ := e.secondReplica()
+	e.exec(`INSERT INTO budget_raises (github_login, idempotency_key, month, amount_usd, budget_set_usd, category, team_id, expected_value, status, created_at)
+		VALUES ('ola', 'k1', '2026-12-01', 150, 300, 'koding', 'annet', 'spare_tid', 'pending', now() - interval '10 minutes')`)
+	e.gh.budgets["ola"] = []ghBudget{{ID: "gh-race", BudgetScope: "user", BudgetType: "BundlePricing", SKU: "ai_credits", Amount: 300, ExpiresAt: "2027-01-01"}}
+
+	// Barrier: both replicas read the same fingerprint and list GitHub before
+	// either enters lockedTx.
+	var arrived atomic.Int32
+	release := make(chan struct{})
+	barrier := func() {
+		if arrived.Add(1) == 2 {
+			close(release)
+		}
+		<-release
+	}
+	e.h.afterList = barrier
+	h2.afterList = barrier
+
+	var wg sync.WaitGroup
+	results := make(chan int, 2)
+	errs := make(chan error, 2)
+	for _, h := range []*budgetRaiseHandlers{e.h, h2} {
+		wg.Go(func() {
+			n, err := h.reconcileStuck(context.Background())
+			results <- n
+			errs <- err
+		})
+	}
+	wg.Wait()
+	close(results)
+	close(errs)
+
+	for err := range errs {
+		if err != nil {
+			t.Fatalf("reconcileStuck err: %v", err)
+		}
+	}
+	total := 0
+	for n := range results {
+		total += n
+	}
+	if total != 1 {
+		t.Fatalf("total settled across 2 replicas = %d, want 1", total)
+	}
+	if e.count("SELECT count(*) FROM budget_raises WHERE status = 'applied'") != 1 {
+		t.Error("raise must be applied")
+	}
+	if e.count("SELECT count(*) FROM budget_audit WHERE action = 'retry'") != 1 {
+		t.Errorf("retry audit rows = %d, want 1", e.count("SELECT count(*) FROM budget_audit WHERE action = 'retry'"))
+	}
+	if e.count("SELECT count(*) FROM budget_github WHERE github_budget_id = 'gh-race'") != 1 {
+		t.Error("budget_github must record the adopted ID once")
+	}
+	if v := e.count(raiseFingerprintSQL, "ola"); v != 1 {
+		t.Errorf("version = %d, want 1 (second replica must not bump)", v)
+	}
+	if len(e.gh.writes) != 0 {
+		t.Errorf("unexpected GitHub writes: %v", e.gh.writes)
+	}
+}
+
+// #2718: a raise still pending past one hour sets the Prometheus gauge and logs an error,
+// then clears the gauge once reconciled.
+func TestBudgetReconcileAlertsWhenStuckOverAnHour(t *testing.T) {
+	e := newBudgetEnv(t, openBudgetTestDB(t))
+	budgetRaisesStuckPending.Store(0)
+	t.Cleanup(func() { budgetRaisesStuckPending.Store(0) })
+
+	e.exec(`INSERT INTO budget_raises (github_login, idempotency_key, month, amount_usd, budget_set_usd, category, team_id, expected_value, status, created_at)
+		VALUES ('ola', 'k1', '2026-12-01', 150, 300, 'koding', 'annet', 'spare_tid', 'pending', now() - interval '2 hours')`)
+	e.gh.failList = 1
+
+	var buf bytes.Buffer
+	prev := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelError})))
+	_, err := e.h.reconcileStuck(context.Background())
+	slog.SetDefault(prev)
+	if err != nil {
+		t.Fatalf("reconcileStuck: %v", err)
+	}
+	if got := budgetRaisesStuckPending.Load(); got != 1 {
+		t.Fatalf("stuck gauge = %d, want 1", got)
+	}
+	if !strings.Contains(buf.String(), "stuck in pending for over an hour") || strings.Contains(buf.String(), "ola") {
+		t.Errorf("unexpected error log: %s", buf.String())
+	}
+	rec := httptest.NewRecorder()
+	metricsHandler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/metrics", nil))
+	if !strings.Contains(rec.Body.String(), "copilot_api_budget_raises_stuck_pending 1") {
+		t.Errorf("/metrics missing stuck gauge: %s", rec.Body.String())
+	}
+
+	// Next pass with GitHub reachable: settles and clears the gauge.
+	n, err := e.h.reconcileStuck(context.Background())
+	if err != nil || n != 1 || budgetRaisesStuckPending.Load() != 0 {
+		t.Fatalf("after recovery: n=%d err=%v gauge=%d", n, err, budgetRaisesStuckPending.Load())
+	}
+}
+
+// #2718: runReconciler ticks, settles stale rows, and exits cleanly when ctx is cancelled.
+func TestBudgetRunReconcilerStopsOnCancel(t *testing.T) {
+	e := newBudgetEnv(t, openBudgetTestDB(t))
+	e.exec(`INSERT INTO budget_raises (github_login, idempotency_key, month, amount_usd, budget_set_usd, category, team_id, expected_value, status, created_at)
+		VALUES ('ola', 'k1', '2026-12-01', 150, 300, 'koding', 'annet', 'spare_tid', 'pending', now() - interval '10 minutes')`)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() {
+		e.h.runReconciler(ctx, 10*time.Millisecond)
+		close(done)
+	}()
+	e.waitFor("SELECT count(*) FROM budget_raises WHERE status = 'failed'")
+	cancel()
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("runReconciler did not stop on context cancel")
+	}
+}

@@ -15,6 +15,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 	"unicode"
 	"unicode/utf8"
@@ -1210,6 +1211,18 @@ func (h *budgetRaiseHandlers) settleStale(ctx context.Context, tx pgx.Tx, login 
 // budgetReconcileBatch bounds the users one reconcile pass handles.
 const budgetReconcileBatch = 50
 
+// budgetPendingAlertAge is how long a raise may stay pending before alerting admins (#2718).
+const budgetPendingAlertAge = time.Hour
+
+// budgetRaisesStuckPending holds the count of budget raises still pending past
+// budgetPendingAlertAge as of the last reconcile pass (#2718).
+var budgetRaisesStuckPending atomic.Int64
+
+func budgetReconcileMetrics() string {
+	return fmt.Sprintf("\n# HELP copilot_api_budget_raises_stuck_pending Number of budget raises stuck in pending for more than one hour\n# TYPE copilot_api_budget_raises_stuck_pending gauge\ncopilot_api_budget_raises_stuck_pending %d\n",
+		budgetRaisesStuckPending.Load())
+}
+
 // reconcileStuck settles raises left pending past budgetPendingStale without
 // waiting for the user's next raise (#2718). Per user it reads GitHub, then
 // takes the same advisory lock as a raise and runs the same settle step. It
@@ -1235,12 +1248,25 @@ func (h *budgetRaiseHandlers) reconcileStuck(ctx context.Context) (int, error) {
 	}
 	settled := 0
 	for _, login := range logins {
+		if ctx.Err() != nil {
+			return settled, ctx.Err()
+		}
 		n, err := h.reconcileUser(ctx, pool, login)
 		if err != nil {
 			slog.Warn("Budget reconcile left a user pending", "error", err) // retried next pass
 			continue
 		}
 		settled += n
+	}
+	var stuck int64
+	if err := pool.QueryRow(ctx, `SELECT count(*) FROM budget_raises WHERE status = 'pending' AND created_at < now() - $1::interval`,
+		budgetPendingAlertAge.String()).Scan(&stuck); err != nil {
+		slog.Warn("Budget reconcile could not count raises stuck over an hour", "error", err)
+	} else {
+		budgetRaisesStuckPending.Store(stuck)
+		if stuck > 0 {
+			slog.Error("Budget raises stuck in pending for over an hour", "count", stuck)
+		}
 	}
 	return settled, nil
 }
@@ -1257,6 +1283,9 @@ func (h *budgetRaiseHandlers) reconcileUser(ctx context.Context, pool *pgxpool.P
 	list, _, err := h.writer.listUser(ctx, login)
 	if err != nil {
 		return 0, err // GitHub unreachable: stays pending
+	}
+	if h.afterList != nil {
+		h.afterList()
 	}
 	settled := 0
 	err = lockedTx(ctx, pool, login, func(tx pgx.Tx) (bool, error) {
@@ -1291,7 +1320,10 @@ func (h *budgetRaiseHandlers) reconcileUser(ctx context.Context, pool *pgxpool.P
 		settled = len(stale)
 		return true, h.settleStale(ctx, tx, login, stale, &own)
 	})
-	return settled, err
+	if err != nil {
+		return 0, err
+	}
+	return settled, nil
 }
 
 // runReconciler runs reconcileStuck every interval until ctx ends.
