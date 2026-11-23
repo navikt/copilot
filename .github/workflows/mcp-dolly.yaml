@@ -5,12 +5,14 @@ on:
     branches: [main]
     paths:
       - 'apps/mcp-dolly/**'
+      - 'lib/mcpkit/**'
       - '.github/workflows/mcp-dolly.yaml'
       - '.github/workflows/mise-build-deploy-nais.yaml'
   pull_request:
     branches: [main]
     paths:
       - 'apps/mcp-dolly/**'
+      - 'lib/mcpkit/**'
       - '.github/workflows/mcp-dolly.yaml'
       - '.github/workflows/mise-build-deploy-nais.yaml'
   workflow_dispatch:
@@ -37,6 +39,8 @@ jobs:
     uses: ./.github/workflows/mise-build-deploy-nais.yaml
     with:
       working-directory: apps/mcp-dolly
+      # Repo root, so the image build can see lib/mcpkit.
+      docker-context: '../..'
       mise-setup-tasks: '["install"]'
       mise-tasks: '["lint", "check"]'
       deploys-to-nais: true
