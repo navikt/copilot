@@ -298,7 +298,7 @@ export default function McpGjennomCplt() {
             <code className={code}>--allow-rootless-docker</code>, er serveren av, fordi begge trenger socketer som cplt
             skjuler.
           </BodyLong>
-          <ScrollRegion label="Tabell: MCP gjennom cplt (første)">
+          <ScrollRegion label="Tabell: status per plattform">
             <Table size="small">
               <TableHeader>
                 <TableRow>
@@ -407,7 +407,7 @@ sudo apparmor_parser -r /etc/apparmor.d/bwrap`}
             Meldingene kommer fra <code className={code}>nav-pilot mcp enable</code>,{" "}
             <code className={code}>nav-pilot mcp list</code> eller cplt ved oppstart.
           </BodyLong>
-          <ScrollRegion label="Tabell: MCP gjennom cplt (andre)">
+          <ScrollRegion label="Tabell: feilmeldinger og hva du gjør">
             <Table size="small">
               <TableHeader>
                 <TableRow>

@@ -50,7 +50,7 @@ export function ChartFigure({
           {summary}
         </figcaption>
         {table !== undefined && (
-          <NumbersFold summary={tableLabel}>
+          <NumbersFold summary={tableLabel} label={title ? `Tabell: tallene bak «${title}»` : undefined}>
             {Array.isArray(table) ? <PlainTable rows={table as string[][]} /> : table}
           </NumbersFold>
         )}
@@ -63,7 +63,16 @@ export function ChartFigure({
  * A plain disclosure link, «Vis tallene» by default, that opens full width with no filled background.
  * Native details/summary: works without JavaScript and is hidden in print, where the chart is enough.
  */
-export function NumbersFold({ summary = "Vis tallene", children }: { summary?: string; children: ReactNode }) {
+export function NumbersFold({
+  summary = "Vis tallene",
+  label = "Tabell: tallene bak figuren",
+  children,
+}: {
+  summary?: string;
+  /** Names the scroll region; defaults to a generic label. */
+  label?: string;
+  children: ReactNode;
+}) {
   return (
     <details className="group min-w-0 print:hidden">
       <summary className="cursor-pointer list-none text-(--ax-text-accent) underline underline-offset-4 hover:no-underline [&::-webkit-details-marker]:hidden">
@@ -76,7 +85,7 @@ export function NumbersFold({ summary = "Vis tallene", children }: { summary?: s
         </span>
         {summary}
       </summary>
-      <ScrollRegion label="Tabell: tallene bak figuren" className="min-w-0" style={{ marginTop: "var(--ax-space-8)" }}>
+      <ScrollRegion label={label} className="min-w-0" style={{ marginTop: "var(--ax-space-8)" }}>
         {children}
       </ScrollRegion>
     </details>

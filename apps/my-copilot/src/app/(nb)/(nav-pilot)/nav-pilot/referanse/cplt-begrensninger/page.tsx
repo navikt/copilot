@@ -217,7 +217,7 @@ cplt                        # start agenten etterpå`}</CodeBlock>
           <LinkableHeading id="nais-i-sesjonen" size="small" level="3">
             Hva som skjer i en agent-sesjon
           </LinkableHeading>
-          <ScrollRegion label="Tabell: Nais i sesjonen">
+          <ScrollRegion label="Tabell: Nais-kommandoer i en agent-sesjon">
             <Table size="small" className="table-stack" role="table">
               <HeaderRow stack cells={["Kommando", "I en agent-sesjon (cplt)"]} />
               <TableBody role="rowgroup">

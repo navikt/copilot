@@ -270,7 +270,11 @@ export default function LokaleModellerResultater() {
           ). Oppgavene var andre og mindre enn i september, så de to resultatene kan ikke sammenlignes direkte.{" "}
           <code className={code}>aggressive</code> er fortsatt standard.
         </BodyLong>
-        <ResultTable headers={["Nivå", "Resultat", "Vurdering"]} rows={DELEGATION_RESULTS.rows} />
+        <ResultTable
+          label="Tabell: resultater per nivå"
+          headers={["Nivå", "Resultat", "Vurdering"]}
+          rows={DELEGATION_RESULTS.rows}
+        />
         <DelegationRangeChart ranges={DELEGATION_RANGES} />
         <BodyLong>Flere funn fra målingene, med Sonnet 5 som hovedagent:</BodyLong>
         <Bullets>
@@ -320,7 +324,7 @@ export default function LokaleModellerResultater() {
           Hver oppgave er løst flere ganger, og hver løsning er sjekket av en test. «10 av 10» betyr at testen besto i
           alle ti forsøkene.
         </BodyLong>
-        <ResultTable rows={WORKER_RESULTS.rows} />
+        <ResultTable label="Tabell: resultater per oppgave" rows={WORKER_RESULTS.rows} />
         <CloudComparisonChart comparisons={CLOUD_COMPARISONS} />
         <BodyLong>
           Nye filer er bare 5 % av ekte pull requests, viser en{" "}
@@ -363,7 +367,7 @@ export default function LokaleModellerResultater() {
           <code className={code}>decide</code> stiller den lokale modellen et ja/nei-spørsmål om en tekst, for eksempel
           om en commit-melding forklarer hvorfor endringen ble gjort.
         </BodyLong>
-        <ResultTable rows={DECIDE_RESULTS.rows} />
+        <ResultTable label="Tabell: resultater for beslutningsoppgaver" rows={DECIDE_RESULTS.rows} />
         <BodyLong>
           Hvordan du spør, betyr noe. Standardmodellen svarte riktig på 85 % av spørsmålene i opprinnelig form og 58 %
           når de var snudd (<Link href={SOURCES.layout}>måling</Link>

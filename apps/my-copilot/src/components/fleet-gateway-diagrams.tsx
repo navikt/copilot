@@ -48,16 +48,18 @@ function Box({ x, y, w, h, title, sub }: { x: number; y: number; w: number; h: n
 function Figure({
   titleId,
   title,
+  label,
   viewBox,
   children,
 }: {
   titleId: string;
   title: string;
+  label: string;
   viewBox: string;
   children: React.ReactNode;
 }) {
   return (
-    <ScrollRegion label="Diagram: fleet-gateway" className="w-full">
+    <ScrollRegion label={label} className="w-full">
       <svg
         viewBox={viewBox}
         className="w-full min-w-[640px]"
@@ -78,6 +80,7 @@ export function FleetGatewayAccessDiagram() {
   return (
     <Figure
       titleId="fg-access-title"
+      label="Diagram: hvem slipper inn"
       viewBox="0 0 970 370"
       title="Hvem slipper inn: teamet lager en PR med ruten, team copilot godkjenner, fleet-gateway åpner bare ruter i rutefilen og logger hvem som kaller, teamets server bestemmer tilgangen, Nais accessPolicy åpner nettverket, og Texas utsteder tokenene."
     >
@@ -127,6 +130,7 @@ export function FleetGatewayCallDiagram() {
   return (
     <Figure
       titleId="fg-call-title"
+      label="Diagram: slik går et kall"
       viewBox="0 0 970 350"
       title="Slik går et kall: Copilot CLI eller OpenCode på utviklermaskinen kaller fleet-gateway og holder tokenene selv. cplt-brokeren er valgfri og ikke tilgjengelig ennå. Brukeren logger inn med Nav-konto via Entra, og fleet-gateway henter et OBO-token fra Texas og kaller teamets MCP-server, som sjekker aud, idtyp, azp og NAVident."
     >
@@ -172,6 +176,7 @@ export function FleetGatewayTeamDiagram() {
   return (
     <Figure
       titleId="fg-team-title"
+      label="Diagram: kallet til teamets server"
       viewBox="0 0 970 300"
       title="Kallet til teamets server: klienten (Copilot CLI eller OpenCode) kaller fleet-gateway, fleet-gateway veksler tokenet hos Texas til et OBO-token for teamets app, og kaller teamets app. Steg 1, accessPolicy.inbound, slipper inn fleet-gateway. Steg 2, sjekk av tokenet via Texas (introspect), skjer i teamets app."
     >

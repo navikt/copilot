@@ -237,12 +237,15 @@ export function barText(bar: Bar) {
 export function ResultTable({
   rows,
   headers = ["Oppgave", "Resultat", "Vurdering"],
+  label = "Tabell: resultater",
 }: {
   rows: ResultRow[];
   headers?: [string, string, string];
+  /** Names the scroll region; give each table on a page its own. */
+  label?: string;
 }) {
   return (
-    <ScrollRegion label="Tabell: resultater">
+    <ScrollRegion label={label}>
       <Table size="small" className="table-stack w-full" role="table">
         <HeaderRow stack cells={headers} />
         <TableBody role="rowgroup">

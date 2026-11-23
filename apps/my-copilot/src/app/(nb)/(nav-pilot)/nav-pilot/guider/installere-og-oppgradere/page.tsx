@@ -137,7 +137,7 @@ cplt --project-dir . -- --agent nav-pilot --prompt "Jeg trenger en ny tjeneste s
 # Copilot Chat i VS Code eller JetBrains
 @nav-pilot Jeg trenger en ny tjeneste som behandler dagpengesøknader`}
           </CodeBlock>
-          <ScrollRegion label="Tabell: oppgaver og eksempler">
+          <ScrollRegion label="Tabell: vanlige oppgaver med eksempler">
             <Table size="small">
               <TableHeader>
                 <TableRow>

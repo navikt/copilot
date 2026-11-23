@@ -228,7 +228,7 @@ export default function Klienter() {
         <LinkableHeading id="stotte-klienter" size="medium" level="2">
           Klientene
         </LinkableHeading>
-        <ScrollRegion label="Tabell: klientene">
+        <ScrollRegion label="Tabell: klienter, status og hva du får">
           <Table size="small" className="table-stack" role="table">
             <HeaderRow stack cells={["Klient", "Status", "Hva du får"]} />
             <TableBody role="rowgroup">

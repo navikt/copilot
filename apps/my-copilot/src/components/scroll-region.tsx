@@ -17,7 +17,13 @@ export function ScrollRegion({
   children: ReactNode;
 }) {
   return (
-    <div role="region" tabIndex={0} aria-label={label} className={`overflow-x-auto ${className}`.trim()} style={style}>
+    <div
+      role="region"
+      tabIndex={0}
+      aria-label={label}
+      className={`overflow-x-auto focus-visible:outline-3 focus-visible:outline-(--ax-border-focus) ${className}`.trim()}
+      style={style}
+    >
       {children}
     </div>
   );

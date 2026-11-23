@@ -431,7 +431,7 @@ export function CloudComparisonChart({ comparisons }: { comparisons: CloudCompar
         </div>
       </div>
       <ReadMore header="Tallene som tabell" size="small">
-        <ScrollRegion label="Tabell: sammenligninger">
+        <ScrollRegion label="Tabell: bestått per oppgave og modell">
           <Table size="small">
             <HeaderRow cells={["Oppgave", "Modell", "Bestått", "80 %-intervall", "Nedre grense", "Krav"]} />
             <TableBody>
