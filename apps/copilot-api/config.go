@@ -5,6 +5,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type Config struct {
@@ -54,6 +55,7 @@ type Config struct {
 	BudgetTimeZone          string
 	BudgetRaisesOpen        bool
 	BudgetTestUsers         map[string]bool
+	BudgetReconcileInterval time.Duration
 }
 
 func loadConfig() *Config {
@@ -98,6 +100,8 @@ func loadConfig() *Config {
 		BudgetTimeZone:         getEnv("BUDGET_TIME_ZONE", "Europe/Oslo"),
 		BudgetRaisesOpen:       os.Getenv("BUDGET_RAISES_OPEN") == "true",
 		BudgetTestUsers:        parseLoginSet(os.Getenv("BUDGET_TEST_USERS")),
+		// Settles raises stuck in pending (#2718); 0 or less falls back to 5 minutes.
+		BudgetReconcileInterval: time.Duration(max(getEnvInt("BUDGET_RECONCILE_INTERVAL_SECONDS", 300), 0)) * time.Second,
 	}
 
 	return config

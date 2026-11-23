@@ -269,3 +269,37 @@ func TestSlowScrapeDoesNotBlockObserve(t *testing.T) {
 	close(w.release)
 	<-done
 }
+
+func TestExchangeErrorKeepsOnlySafeCodes(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		_ = json.NewEncoder(w).Encode(map[string]string{"error": "invalid_grant", "error_description": "AADSTS50013: user Ola Nordmann"})
+	}))
+	t.Cleanup(ts.Close)
+	tx := &Texas{ExchangeEndpoint: ts.URL, HTTPClient: ts.Client()}
+	var ee *ExchangeError
+	_, err := tx.Exchange(context.Background(), "u", "t")
+	if !errors.As(err, &ee) || ee.OAuthError != "invalid_grant" || ee.AADSTS != "AADSTS50013" || strings.Contains(err.Error(), "Ola") {
+		t.Fatalf("got %+v", ee)
+	}
+}
+
+func TestFormElicitation(t *testing.T) {
+	for caps, want := range map[string]bool{`{}`: false, `{"elicitation":{}}`: true, `{"elicitation":{"url":{}}}`: false, `{"elicitation":{"url":{},"form":{}}}`: true} {
+		var e Envelope
+		e.Params.Meta = map[string]json.RawMessage{MetaClientCapabilities: json.RawMessage(caps)}
+		if got := e.FormElicitation(); got != want {
+			t.Errorf("%s: got %v", caps, got)
+		}
+	}
+}
+
+func TestModernResultKeepsResultType(t *testing.T) {
+	m := ModernResult(map[string]any{"resultType": "input_required"}, "s", "v", nil).(map[string]any)
+	if m["resultType"] != "input_required" {
+		t.Fatalf("got %v", m["resultType"])
+	}
+	if ModernResult(map[string]any{}, "s", "v", nil).(map[string]any)["resultType"] != "complete" {
+		t.Fatal("default resultType not complete")
+	}
+}

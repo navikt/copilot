@@ -169,7 +169,8 @@ func (s *server) pendingApproval(w http.ResponseWriter, r *http.Request, who Per
 		return
 	}
 	for _, d := range drafts {
-		if d.Profile.CreatedBy == who.Ident {
+		// ApproveAgentRoute refuses seeded drafts, so they are not approvable.
+		if d.Profile.CreatedBy == who.Ident || d.Profile.CreatedBy == "seed" {
 			continue
 		}
 		d.Awaiting = []string{}
@@ -219,6 +220,7 @@ func (d *DB) TeamAgents(ctx context.Context, teams []string) ([]AgentProfile, er
 		if p.Status == "approved" && p.ExpiresAt != nil && !p.ExpiresAt.After(time.Now()) {
 			p.Status = "expired"
 		}
+		p.NeedsResubmit = p.Status == "draft" && p.CreatedBy == "seed"
 		out = append(out, p)
 		return struct{}{}, scanErr
 	})

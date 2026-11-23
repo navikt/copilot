@@ -8,6 +8,7 @@ import { LinkableHeading } from "@/components/linkable-heading";
 import { Bullets, DocPage, HeaderRow, code, linkClass } from "@/components/nav-pilot/doc-page";
 import type { TocItem } from "@/components/table-of-contents";
 import { OPENCODE_INSTALL } from "@/lib/install-commands";
+import { ScrollRegion } from "@/components/scroll-region";
 
 export const metadata: Metadata = {
   title: "Klienter",
@@ -227,7 +228,7 @@ export default function Klienter() {
         <LinkableHeading id="stotte-klienter" size="medium" level="2">
           Klientene
         </LinkableHeading>
-        <div className="overflow-x-auto">
+        <ScrollRegion label="Tabell: klienter, status og hva du får">
           <Table size="small" className="table-stack" role="table">
             <HeaderRow stack cells={["Klient", "Status", "Hva du får"]} />
             <TableBody role="rowgroup">
@@ -248,7 +249,7 @@ export default function Klienter() {
               ))}
             </TableBody>
           </Table>
-        </div>
+        </ScrollRegion>
         <Bullets>
           <li>
             Nye installasjoner får opencode: første gang spør nav-pilot hvilken klient du vil ha, med opencode
@@ -282,7 +283,7 @@ export default function Klienter() {
           Hva hver klient kan
         </LinkableHeading>
         <BodyLong>✓ betyr ja, – nei og i.a. ikke aktuelt.</BodyLong>
-        <div className="overflow-x-auto">
+        <ScrollRegion label="Tabell: hva hver klient kan">
           <Table size="small">
             <HeaderRow cells={cols} />
             <TableBody>
@@ -312,7 +313,7 @@ export default function Klienter() {
               ))}
             </TableBody>
           </Table>
-        </div>
+        </ScrollRegion>
         <VStack
           as="ol"
           gap="space-4"
@@ -346,7 +347,7 @@ export default function Klienter() {
           innstillingen. «Advarsel» betyr at klienten mangler en tilsvarende innstilling: nav-pilot sier fra ved
           oppstart og starter uten den.
         </BodyLong>
-        <div className="overflow-x-auto">
+        <ScrollRegion label="Tabell: innstillinger per klient">
           <Table size="small">
             <HeaderRow cells={["Innstilling", "Copilot CLI", "opencode", "pi"]} />
             <TableBody>
@@ -362,7 +363,7 @@ export default function Klienter() {
               ))}
             </TableBody>
           </Table>
-        </div>
+        </ScrollRegion>
       </Section>
 
       <Section>

@@ -124,6 +124,7 @@ API supports multiple authentication mechanisms via the **Identity Resolver** ar
 | `BUDGET_TIME_ZONE` | Time zone for the raise month and `expires_at` (first day of next month) | `Europe/Oslo` |
 | `BUDGET_RAISES_OPEN` | `true` opens raises for everyone; otherwise only `BUDGET_TEST_USERS` | (unset) |
 | `BUDGET_TEST_USERS` | Comma-separated GitHub logins allowed to raise before opening | (unset) |
+| `BUDGET_RECONCILE_INTERVAL_SECONDS` | Interval in seconds for reconciling stuck `pending` budget raises (`<= 0` falls back to `300`) | `300` |
 
 ## Development
 

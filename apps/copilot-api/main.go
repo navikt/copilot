@@ -1,6 +1,7 @@
 package main
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"log/slog"
@@ -219,6 +220,10 @@ func main() {
 	// Graceful shutdown
 	sigCtx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
+
+	if raiseHandlers != nil {
+		go raiseHandlers.runReconciler(sigCtx, cmp.Or(config.BudgetReconcileInterval, 5*time.Minute))
+	}
 
 	go func() {
 		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {

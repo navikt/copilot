@@ -2,6 +2,7 @@ import { useId, type ReactNode } from "react";
 import { Heading, VStack } from "@navikt/ds-react";
 import { Table, TableBody, TableDataCell, TableHeader, TableHeaderCell, TableRow } from "@navikt/ds-react/Table";
 import { chartBoxClass } from "@/lib/chart-utils";
+import { ScrollRegion } from "@/components/scroll-region";
 
 /**
  * Chart first, then a text summary, then the numbers in a «Vis tallene» fold. The title is a question
@@ -15,6 +16,7 @@ export function ChartFigure({
   chart,
   table,
   tableLabel,
+  tableRegionLabel,
   height,
 }: {
   /** Leave out when the section heading above already names the chart. */
@@ -27,6 +29,8 @@ export function ChartFigure({
   table?: ReactNode | string[][];
   /** The fold's link text when the table holds more than the chart shows. */
   tableLabel?: string;
+  /** Names the table's scroll region when the figure has no title. */
+  tableRegionLabel?: string;
 }) {
   const id = useId();
   return (
@@ -49,7 +53,7 @@ export function ChartFigure({
           {summary}
         </figcaption>
         {table !== undefined && (
-          <NumbersFold summary={tableLabel}>
+          <NumbersFold summary={tableLabel} label={title ? `Tabell: tallene bak «${title}»` : tableRegionLabel}>
             {Array.isArray(table) ? <PlainTable rows={table as string[][]} /> : table}
           </NumbersFold>
         )}
@@ -62,7 +66,16 @@ export function ChartFigure({
  * A plain disclosure link, «Vis tallene» by default, that opens full width with no filled background.
  * Native details/summary: works without JavaScript and is hidden in print, where the chart is enough.
  */
-export function NumbersFold({ summary = "Vis tallene", children }: { summary?: string; children: ReactNode }) {
+export function NumbersFold({
+  summary = "Vis tallene",
+  label,
+  children,
+}: {
+  summary?: string;
+  /** Names the scroll region around a table. Leave out for prose: no region is added. */
+  label?: string;
+  children: ReactNode;
+}) {
   return (
     <details className="group min-w-0 print:hidden">
       <summary className="cursor-pointer list-none text-(--ax-text-accent) underline underline-offset-4 hover:no-underline [&::-webkit-details-marker]:hidden">
@@ -75,9 +88,15 @@ export function NumbersFold({ summary = "Vis tallene", children }: { summary?: s
         </span>
         {summary}
       </summary>
-      <div className="min-w-0 overflow-x-auto" style={{ marginTop: "var(--ax-space-8)" }}>
-        {children}
-      </div>
+      {label ? (
+        <ScrollRegion label={label} className="min-w-0" style={{ marginTop: "var(--ax-space-8)" }}>
+          {children}
+        </ScrollRegion>
+      ) : (
+        <div className="min-w-0" style={{ marginTop: "var(--ax-space-8)" }}>
+          {children}
+        </div>
+      )}
     </details>
   );
 }

@@ -5,7 +5,7 @@ Checks an MCP server that sits behind `fleet-gateway` against MCP 2026-07-28 and
 | Check | Expected |
 |---|---|
 | `server/discover` runs first; if it does not answer 200 the tool stops | |
-| No token, invalid token | 401. A 401 without a `WWW-Authenticate` / `invalid_token` challenge gives WARN, not FAIL |
+| No token, invalid token | 401. No token: WARN if `WWW-Authenticate: Bearer` is missing or carries an `error` code (RFC 6750 3.1). Invalid token: WARN without `error="invalid_token"`. A missing or wrong challenge header only warns; any status other than 401 is FAIL |
 | App token (`idtyp=app`), if `MCP_COMPLIANCE_APP_TOKEN` is set | 403 |
 | `server/discover` | 200, `supportedVersions` holds `2026-07-28`, `capabilities`, `ttlMs`, `cacheScope`, `resultType: complete`, `_meta` server info |
 | Missing `MCP-Protocol-Version`, or `Mcp-Method`, `Mcp-Name` or `_meta` protocol version that does not match the body | 400, `-32020` |
@@ -27,7 +27,7 @@ Not covered, so keep these in your own tests:
 - base64-encoded `Mcp-Name` (`=?base64?...?=`)
 - that `Mcp-Session-Id` is ignored
 
-Requests send `Accept: application/json, text/event-stream`, but the tool reads only JSON responses and does not parse SSE.
+Requests send `Accept: application/json, text/event-stream`; the tool reads a JSON or SSE response.
 
 The tool prints a PASS/FAIL/WARN/SKIP table and exits 1 if any check fails.
 
@@ -89,7 +89,7 @@ Use the GitHub Action in this directory. It needs no Go toolchain: it downloads 
 # TypeScript: npm ci, then npm start
 - run: ./start-server.sh &   # your own start step
 - run: curl -fsS --retry 30 --retry-delay 1 --retry-connrefused http://127.0.0.1:8080/health
-- uses: navikt/copilot/cli/mcp-compliance@cli/mcp-compliance/v0.2.0
+- uses: navikt/copilot/cli/mcp-compliance@cli/mcp-compliance/v0.2.2
   with:
     url: http://127.0.0.1:8080/mcp
     token: ${{ secrets.MCP_TEST_TOKEN }}   # test token, never production
@@ -98,7 +98,7 @@ Use the GitHub Action in this directory. It needs no Go toolchain: it downloads 
 | Input | Default | Meaning |
 |---|---|---|
 | `url` | required | MCP endpoint of the running server |
-| `version` | empty | Release such as `v0.2.0`. Empty uses the release the Action is pinned to (`uses: navikt/copilot/cli/mcp-compliance@cli/mcp-compliance/vX.Y.Z`). `latest` takes the newest release, and is also used, with a notice, when the Action ref is a branch, a SHA or a local path |
+| `version` | empty | Release such as `v0.2.2`. Empty uses the release the Action is pinned to (`uses: navikt/copilot/cli/mcp-compliance@cli/mcp-compliance/vX.Y.Z`). `latest` takes the newest release, and is also used, with a notice, when the Action ref is a branch, a SHA or a local path |
 | `token` | empty | `MCP_COMPLIANCE_TOKEN` |
 | `app-token` | empty | `MCP_COMPLIANCE_APP_TOKEN`; empty skips the 403 check |
 | `tool` | empty | `-tool` |
@@ -110,7 +110,7 @@ The Action ref is a release tag, so the Action and the tool are released togethe
 To install the binary yourself instead:
 
 ```sh
-gh release download cli/mcp-compliance/v0.2.0 --repo navikt/copilot \
+gh release download cli/mcp-compliance/v0.2.2 --repo navikt/copilot \
   --pattern mcp-compliance-linux-amd64 --pattern SHA256SUMS
 sha256sum --check --ignore-missing SHA256SUMS
 ```

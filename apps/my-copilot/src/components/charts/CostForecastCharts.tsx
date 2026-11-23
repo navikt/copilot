@@ -353,7 +353,7 @@ export function CostForecastCharts({ data, months }: { data: CostForecast; month
         <MonthChart data={data} />
         <YearChart months={months} data={data} />
       </HGrid>
-      <NumbersFold>
+      <NumbersFold label="Tabell: prognose per dag og for året">
         <HGrid columns={{ xs: 1, md: 2 }} gap="space-24">
           <DayTable data={data} />
           <VStack gap="space-4">

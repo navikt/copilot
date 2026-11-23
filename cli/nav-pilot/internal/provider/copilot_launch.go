@@ -506,15 +506,6 @@ func copilotSpec(resolved domain.ResolvedConfig, skillsDir string) cpltLaunch {
 	}
 }
 
-// copilotLaunchArgs is the vector cpltArgv builds for a Tier 1 copilot
-// launch, or [BuildCopilotArgs] alone for a plain copilot binary.
-func copilotLaunchArgs(cliName string, resolved domain.ResolvedConfig, skillsDir string) []string {
-	if cliName != "cplt" {
-		return BuildCopilotArgs(cliName, resolved)
-	}
-	return cpltArgv(copilotSpec(resolved, skillsDir))
-}
-
 // ghTokenVars are the token names recognised by cplt. This filter does not
 // choose between them; Copilot and cplt's credential paths have different orders.
 var ghTokenVars = []string{"GH_TOKEN", "GITHUB_TOKEN", "COPILOT_GITHUB_TOKEN"}

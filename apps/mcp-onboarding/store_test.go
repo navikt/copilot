@@ -98,12 +98,6 @@ func TestTokenStore_Token(t *testing.T) {
 	if got.UserLogin != "testuser" {
 		t.Errorf("expected UserLogin 'testuser', got %q", got.UserLogin)
 	}
-
-	store.DeleteToken("token123")
-	_, err = store.GetToken("token123")
-	if err != ErrNotFound {
-		t.Errorf("expected ErrNotFound after delete, got %v", err)
-	}
 }
 
 func TestTokenStore_Token_Expired(t *testing.T) {

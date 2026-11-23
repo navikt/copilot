@@ -18,6 +18,7 @@ fleet_control_audience: "api://dev-gcp.copilot.fleet-control/.default"
 outbound_rules:
   - application: fleet-control
   - application: fleet-echo
+  - application: mcp-dolly
   - application: mcp-kodeverk
   - application: mcp-onboarding
   - application: mcp-team-catalog

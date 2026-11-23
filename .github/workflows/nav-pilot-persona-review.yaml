@@ -47,7 +47,7 @@ jobs:
       contents: read
       pull-requests: write
       issues: write
-      # The LLM step also needs `copilot-requests: write` here (see README).
+      copilot-requests: write # LLM review step; on when vars.PERSONA_REVIEW_LLM is true
     steps:
       # No credentials in .git/config: the tests run the PR's code.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1

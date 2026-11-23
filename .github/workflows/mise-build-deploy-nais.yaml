@@ -132,7 +132,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
         with:
           fetch-depth: 0
-      - uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # ratchet:jdx/mise-action@v5.2.8
+      - uses: jdx/mise-action@236a21c3b91f5db6d4e174b348674a0f0caac06d # ratchet:jdx/mise-action@v5.2.9
         with:
           experimental: true
       - id: version
@@ -193,7 +193,7 @@ jobs:
           key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-npm-
-      - uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # ratchet:jdx/mise-action@v5.2.8
+      - uses: jdx/mise-action@236a21c3b91f5db6d4e174b348674a0f0caac06d # ratchet:jdx/mise-action@v5.2.9
         with:
           experimental: true
       - name: Configure GitHub Packages auth
@@ -218,11 +218,11 @@ jobs:
     env:
       GITHUB_PACKAGES_TOKEN: ${{ github.token }}
     needs: [setup]
-    # Skipped on pull requests unless check-on-pr: ci.yaml runs the same
-    # install/lint/check per app as the required `ci-ok` gate. Push to main
-    # still checks before deploy. check-on-pr is for apps whose PR deploy
-    # must wait for tests.
-    if: ${{ (github.event_name != 'pull_request' || inputs.check-on-pr) && always() && (needs.setup.result == 'success' || needs.setup.result == 'skipped') }}
+    # Runs only on pull requests with check-on-pr, for apps whose PR deploy
+    # must wait for tests. ci.yaml runs the same install/lint/check per app
+    # as the required `ci-ok` gate, and the merge queue tested the exact
+    # commit that lands on main, so other events use the ci-ok job below.
+    if: ${{ github.event_name == 'pull_request' && inputs.check-on-pr && always() && (needs.setup.result == 'success' || needs.setup.result == 'skipped') }}
     strategy:
       fail-fast: false
       matrix:
@@ -255,7 +255,7 @@ jobs:
           key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-npm-
-      - uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # ratchet:jdx/mise-action@v5.2.8
+      - uses: jdx/mise-action@236a21c3b91f5db6d4e174b348674a0f0caac06d # ratchet:jdx/mise-action@v5.2.9
         with:
           experimental: true
       - name: Configure GitHub Packages auth
@@ -276,6 +276,60 @@ jobs:
         env:
           MISE_TASK: ${{ matrix.task }}
         run: mise run "$MISE_TASK"
+
+  ci-ok:
+    name: Wait for ci-ok
+    # On push to main, reuse the merge queue's result instead of rerunning
+    # lint/check: wait for a ci.yaml run on this exact SHA whose ci-ok job
+    # succeeded. No green ci-ok, no image and no deploy. Only merge_group
+    # (or push to main) runs count: a pull_request run tests the PR merge
+    # commit, not its head_sha, and a dispatch run may skip apps. Skipped on
+    # workflow_dispatch, which never builds an image or deploys here.
+    if: ${{ github.event_name == 'push' }}
+    permissions:
+      actions: read
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Wait for a green ci-ok on ${{ github.sha }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+        run: |
+          # Retry transient API errors; still fail closed if they persist.
+          # A failed gh api writes its JSON error body to stdout, so only the
+          # successful attempt's output is passed on.
+          api() {
+            for attempt in 1 2 3 4 5; do
+              if out=$(gh api "$@"); then printf '%s\n' "$out"; return 0; fi
+              echo "GitHub API call failed (attempt ${attempt}); retrying" >&2
+              sleep 10
+            done
+            echo "::error::GitHub API kept failing; not deploying without a green ci-ok" >&2
+            return 1
+          }
+          while :; do
+            pending=0
+            runs=$(api "repos/${REPO}/actions/workflows/ci.yaml/runs?head_sha=${SHA}&per_page=20" \
+              --jq '.workflow_runs[] | select(.event == "merge_group" or (.event == "push" and .head_branch == "main")) | "\(.id) \(.status)"')
+            while read -r run_id status; do
+              [ -n "$run_id" ] || continue
+              if [ "$status" != "completed" ]; then pending=1; continue; fi
+              ok=$(api "repos/${REPO}/actions/runs/${run_id}/jobs?per_page=100" \
+                --jq '[.jobs[] | select(.name == "ci-ok" and .conclusion == "success")] | length == 1')
+              if [ "$ok" = "true" ]; then
+                echo "Reusing green ci-ok from run ${run_id} for SHA ${SHA}"
+                exit 0
+              fi
+            done <<< "$runs"
+            if [ "$pending" = 0 ]; then
+              echo "::error::no merge-queue ci.yaml run with a green ci-ok for ${SHA}; land the change through a merge-queue PR to deploy"
+              exit 1
+            fi
+            echo "ci.yaml still running for ${SHA}; waiting"
+            sleep 30
+          done
 
   build:
     name: Build
@@ -314,7 +368,7 @@ jobs:
           key: ${{ runner.os }}-npm-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-npm-
-      - uses: jdx/mise-action@d5574b52816a478f9d4e6529a3f6ff17a8a36785 # ratchet:jdx/mise-action@v5.2.8
+      - uses: jdx/mise-action@236a21c3b91f5db6d4e174b348674a0f0caac06d # ratchet:jdx/mise-action@v5.2.9
         with:
           experimental: true
       - name: Configure GitHub Packages auth
@@ -337,15 +391,15 @@ jobs:
 
   docker:
     name: Build Docker Image
-    # !cancelled() plus explicit results, because lint is skipped on PRs
-    # unless check-on-pr, where it must have succeeded.
-    if: ${{ !cancelled() && needs.meta.result == 'success' && needs.build.result == 'success' && (needs.lint.result == 'success' || (needs.lint.result == 'skipped' && !inputs.check-on-pr)) && inputs.builds-docker && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository) }}
+    # !cancelled() plus explicit results: on push ci-ok must have succeeded
+    # (skipped on PRs and workflow_dispatch); on PRs lint must have succeeded when check-on-pr.
+    if: ${{ !cancelled() && needs.meta.result == 'success' && needs.build.result == 'success' && (github.event_name != 'push' || needs.ci-ok.result == 'success') && (needs.lint.result == 'success' || (needs.lint.result == 'skipped' && !(github.event_name == 'pull_request' && inputs.check-on-pr))) && inputs.builds-docker && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository) }}
     permissions:
       contents: read
       packages: read
       id-token: write
     runs-on: ${{ inputs.runner-size-docker }}
-    needs: [meta, lint, build]
+    needs: [meta, lint, ci-ok, build]
     outputs:
       image: ${{ steps.docker-push.outputs.image }}
       telemetry: ${{ steps.docker-push.outputs.telemetry }}
@@ -370,7 +424,9 @@ jobs:
 
   deploy:
     name: Deploy to Nais
-    if: ${{ inputs.deploys-to-nais && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    # Explicit results: lint is skipped on push, and an implicit success()
+    # over the needs chain would skip deploy while the run stays green.
+    if: ${{ !cancelled() && needs.meta.result == 'success' && needs.docker.result == 'success' && inputs.deploys-to-nais && github.event_name == 'push' && github.ref == 'refs/heads/main' }}
     runs-on: ubuntu-latest
     permissions:
       id-token: write

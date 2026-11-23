@@ -35,6 +35,9 @@ type AgentProfile struct {
 	Status    string        `json:"status,omitempty"`
 	ExpiresAt *time.Time    `json:"expires_at,omitempty"`
 	CreatedBy string        `json:"-"`
+	// NeedsResubmit marks a seeded draft: no one can approve it until a person
+	// revokes and re-submits it. Set on read only (TeamAgents).
+	NeedsResubmit bool `json:"needsResubmit,omitempty"`
 }
 
 // AgentIdentity is the caller app. StsSubject is reserved for the Nais STS
@@ -277,7 +280,8 @@ func writeErr(w http.ResponseWriter, err error) {
 	case errors.Is(err, errConflict):
 		http.Error(w, err.Error(), http.StatusConflict)
 	default:
-		slog.Error("agent profile", "error", err)
+		// Strip line breaks: err can carry request-derived text (CodeQL go/log-injection).
+		slog.Error("agent profile", "error", strings.NewReplacer("\n", " ", "\r", " ").Replace(err.Error()))
 		http.Error(w, "database unavailable", http.StatusServiceUnavailable)
 	}
 }

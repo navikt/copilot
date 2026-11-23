@@ -206,15 +206,6 @@ func loadSurveyDir(fsys fs.FS) ([]survey, error) {
 	return surveys, validateSurveys(surveys)
 }
 
-// loadSurveys reads a JSON array of surveys (tests).
-func loadSurveys(raw []byte) ([]survey, error) {
-	var surveys []survey
-	if err := decodeStrict(raw, &surveys); err != nil {
-		return nil, err
-	}
-	return surveys, validateSurveys(surveys)
-}
-
 func decodeStrict(raw []byte, v any) error {
 	if err := rejectDuplicateKeys(raw); err != nil {
 		return err

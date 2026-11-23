@@ -6,6 +6,7 @@ import { CodeBlock } from "@/components/code-block";
 import { LinkableHeading } from "@/components/linkable-heading";
 import { DocPage, HeaderRow, code, linkClass } from "@/components/nav-pilot/doc-page";
 import type { TocItem } from "@/components/table-of-contents";
+import { ScrollRegion } from "@/components/scroll-region";
 
 export const metadata: Metadata = {
   title: "Agentpakker: felt og regler",
@@ -143,7 +144,7 @@ export default function AgentpakkerReferanse() {
           <LinkableHeading id="artefakttyper" size="medium" level="2">
             Artefakttyper
           </LinkableHeading>
-          <div className="overflow-x-auto">
+          <ScrollRegion label="Tabell: artefakttyper">
             <Table size="small" className="table-stack" role="table">
               <HeaderRow stack cells={["Type", "Form", "Hva det er"]} />
               <TableBody role="rowgroup">
@@ -160,7 +161,7 @@ export default function AgentpakkerReferanse() {
                 ))}
               </TableBody>
             </Table>
-          </div>
+          </ScrollRegion>
           <VStack gap="space-8">
             <LinkableHeading id="kjorbar-kode" size="small" level="3">
               Kjørbar kode

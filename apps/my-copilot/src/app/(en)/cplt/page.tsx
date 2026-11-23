@@ -16,6 +16,7 @@ import {
   WrenchIcon,
   MagnifyingGlassIcon,
 } from "@navikt/aksel-icons";
+import { ScrollRegion } from "@/components/scroll-region";
 
 const PAGE_TITLE = "cplt: Sandbox for AI coding agents";
 const PAGE_DESCRIPTION =
@@ -443,7 +444,7 @@ function ProxySection() {
 
           {/* SVG network flow diagram. Hidden below md, where its labels would
               render too small to read; the text equivalent below takes over. */}
-          <div className="w-full overflow-x-auto hidden md:block">
+          <ScrollRegion label="Diagram: how cplt isolates the agent" className="w-full hidden md:block">
             <svg
               viewBox="0 0 820 300"
               className="w-full"
@@ -650,7 +651,7 @@ function ProxySection() {
                 </marker>
               </defs>
             </svg>
-          </div>
+          </ScrollRegion>
 
           {/* Text equivalent of the diagram, for narrow screens */}
           <div className="md:hidden rounded-xl px-5 py-4" style={CARD_STYLE}>

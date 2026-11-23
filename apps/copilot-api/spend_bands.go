@@ -51,8 +51,6 @@ func limitOn(day string) float64 {
 // Base bands, as share of the limit: 0, (0,25], (25,50], (50,75], (75,90], (90,100], >100.
 var bandEdges = []float64{0, 25, 50, 75, 90, 100}
 
-func bandIndex(net, limit float64) int { return edgeIndex(net, limit, bandEdges) }
-
 // edgeIndex returns the band for amount as a share of limit: band i holds
 // shares up to edges[i] %, and len(edges) is over the last edge. Amounts
 // under half a cent count as zero.

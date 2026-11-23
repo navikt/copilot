@@ -314,6 +314,20 @@ func (d *DB) Claim(ctx context.Context, runtime, token string, ttl time.Duration
 		var id int64
 		var team string
 		var attempt int
+		// Serialise claims per token: otherwise a racing twin can skip-lock past
+		// the oldest job and win with a younger one. The unique index stays the backstop.
+		// Separate statements: READ COMMITTED snapshots per statement, so the
+		// check must start after the lock is held to see the twin's lease.
+		if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1 || '/' || $2, 0))`, runtime, token); err != nil {
+			return err
+		}
+		var leased bool
+		if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM runtime_leases WHERE runtime = $1 AND claim_token = $2)`, runtime, token).Scan(&leased); err != nil {
+			return err
+		}
+		if leased {
+			return nil
+		}
 		err := tx.QueryRow(ctx, `SELECT id, team, attempts + 1 FROM runtime_jobs j
 			WHERE state = 'queued'
 			  AND NOT EXISTS (SELECT 1 FROM runtime_kill_switches k WHERE k.scope IN ('global', 'team:' || j.team))

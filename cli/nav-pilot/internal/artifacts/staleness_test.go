@@ -7,6 +7,16 @@ import (
 	"time"
 )
 
+// CheckStaleness returns the latest version if installedVersion is outdated,
+// else "". Test helper over AssessStaleness, which production calls directly.
+func CheckStaleness(installedVersion string, fetchFn func() (string, string, error)) string {
+	assessment := AssessStaleness(installedVersion, fetchFn)
+	if assessment.LatestVersion != "" && VersionNewer(assessment.LatestVersion, installedVersion) {
+		return assessment.LatestVersion
+	}
+	return ""
+}
+
 func TestCheckStaleness_SkipsDevVersion(t *testing.T) {
 	setupTestCache(t)
 	result := CheckStaleness("dev", func() (string, string, error) {

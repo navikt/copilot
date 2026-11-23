@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"strings"
@@ -251,5 +252,28 @@ func TestRealPostgresUIInboxOwnerTeamSlot(t *testing.T) {
 	}
 	if got := inbox(ownerApprover); len(got) != 0 {
 		t.Fatalf("approved profile in owner-team inbox: %+v", got)
+	}
+}
+
+// A seeded draft cannot be approved (ApproveAgentRoute answers 403), so it
+// stays out of the inbox and the owner team's list flags it for re-submission.
+func TestRealPostgresUISeedDraftNeedsResubmit(t *testing.T) {
+	e := newAgentEnv(t)
+	var p AgentProfile
+	if err := json.Unmarshal([]byte(fixture(t)), &p); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.db.CreateAgentProfile(context.Background(), p, "seed", false); err != nil {
+		t.Fatal(err)
+	}
+	for _, who := range []string{approver, ownerApprover} {
+		c, b := e.do("GET", "/admin/v1/agents/pending-approval", who, "")
+		if got := decodeAs[struct{ Agents []pendingAgent }](t, c, b).Agents; len(got) != 0 {
+			t.Fatalf("%s inbox lists seeded draft: %+v", who, got)
+		}
+	}
+	c, b := e.do("GET", "/admin/v1/agents", ownerApprover, "")
+	if got := decodeAs[struct{ Agents []AgentProfile }](t, c, b).Agents; len(got) != 1 || !got[0].NeedsResubmit {
+		t.Fatalf("owner list: %s", b)
 	}
 }

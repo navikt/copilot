@@ -40,6 +40,11 @@ type TokenData struct {
 	UserLogin          string
 	UserID             int64
 	ExpiresAt          time.Time
+	// ClientID and RefreshToken tie the access token to its client and to the
+	// refresh token issued with it, so a refresh or a revocation can remove both.
+	// Both are empty on tokens issued before #2746.
+	ClientID     string
+	RefreshToken string
 }
 
 type RefreshTokenData struct {
@@ -51,6 +56,8 @@ type RefreshTokenData struct {
 	UserLogin          string
 	UserID             int64
 	CreatedAt          time.Time
+	// AccessToken is the access token issued together with this refresh token.
+	AccessToken string
 }
 
 type TokenStore struct {
@@ -154,6 +161,10 @@ func (s *TokenStore) DeleteAuthCode(code string) {
 func (s *TokenStore) SaveToken(token string, data *TokenData) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	s.saveTokenLocked(token, data)
+}
+
+func (s *TokenStore) saveTokenLocked(token string, data *TokenData) {
 	if len(s.tokens) >= maxStoreEntries {
 		now := time.Now()
 		for k, v := range s.tokens {
@@ -184,15 +195,13 @@ func (s *TokenStore) GetToken(token string) (*TokenData, error) {
 	return data, nil
 }
 
-func (s *TokenStore) DeleteToken(token string) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	delete(s.tokens, token)
-}
-
 func (s *TokenStore) SaveRefreshToken(token string, data *RefreshTokenData) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	s.saveRefreshTokenLocked(token, data)
+}
+
+func (s *TokenStore) saveRefreshTokenLocked(token string, data *RefreshTokenData) {
 	if len(s.refreshTokens) >= maxStoreEntries {
 		now := time.Now()
 		for k, v := range s.refreshTokens {
@@ -227,6 +236,73 @@ func (s *TokenStore) DeleteRefreshToken(token string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	delete(s.refreshTokens, token)
+}
+
+// RotateRefreshToken consumes oldRefresh and saves the new pair under one
+// lock. It returns ErrNotFound, and saves nothing, if oldRefresh is gone or
+// bound to another client: a revocation or a concurrent refresh won the race
+// while the caller was talking to GitHub. The access token issued with
+// oldRefresh is retired too (#2746).
+func (s *TokenStore) RotateRefreshToken(oldRefresh, clientID, access string, at *TokenData, refresh string, rt *RefreshTokenData) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	old, ok := s.refreshTokens[oldRefresh]
+	if !ok || old.ClientID == "" || old.ClientID != clientID {
+		return ErrNotFound
+	}
+	delete(s.refreshTokens, oldRefresh)
+	delete(s.tokens, old.AccessToken)
+	s.saveTokenLocked(access, at)
+	s.saveRefreshTokenLocked(refresh, rt)
+	return nil
+}
+
+// RevokeResult is the outcome of RevokeToken.
+type RevokeResult int
+
+const (
+	RevokeUnknown  RevokeResult = iota // no such token: RFC 7009 still answers 200
+	RevokeDone                         // token and its pair removed
+	RevokeNotOwner                     // token belongs to another client; nothing removed
+)
+
+// RevokeToken removes an access or refresh token, and the token issued with it,
+// if clientID is the client it was issued to. Lookup and delete happen under one
+// lock; a refresh in flight then fails in RotateRefreshToken instead of saving
+// a new pair for a revoked grant.
+func (s *TokenStore) RevokeToken(token, clientID string) RevokeResult {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if at, ok := s.tokens[token]; ok {
+		// An access token from before #2746 has no ClientID, so no client can
+		// prove ownership; it expires within the hour.
+		if at.ClientID == "" || at.ClientID != clientID {
+			return RevokeNotOwner
+		}
+		delete(s.tokens, token)
+		delete(s.refreshTokens, at.RefreshToken)
+		return RevokeDone
+	}
+	if rt, ok := s.refreshTokens[token]; ok {
+		if rt.ClientID == "" || rt.ClientID != clientID {
+			return RevokeNotOwner
+		}
+		delete(s.refreshTokens, token)
+		delete(s.tokens, rt.AccessToken)
+		return RevokeDone
+	}
+	// An expired access token may already be purged from s.tokens; its refresh
+	// token still names it. Linear scan, bounded by maxStoreEntries.
+	for k, rt := range s.refreshTokens {
+		if rt.AccessToken != "" && rt.AccessToken == token {
+			if rt.ClientID == "" || rt.ClientID != clientID {
+				return RevokeNotOwner
+			}
+			delete(s.refreshTokens, k)
+			return RevokeDone
+		}
+	}
+	return RevokeUnknown
 }
 
 func (s *TokenStore) cleanupExpired() {

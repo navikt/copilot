@@ -107,17 +107,6 @@ func WriteCache(c *StalenessCache) {
 	_ = os.Rename(tmpPath, path)
 }
 
-// CheckStaleness returns the latest available version if the installed
-// collection is outdated. Returns "" if up-to-date, check was skipped
-// (within cooldown), or any error occurred (network, API, etc).
-func CheckStaleness(installedVersion string, fetchFn func() (string, string, error)) string {
-	assessment := AssessStaleness(installedVersion, fetchFn)
-	if assessment.LatestVersion != "" && VersionNewer(assessment.LatestVersion, installedVersion) {
-		return assessment.LatestVersion
-	}
-	return ""
-}
-
 func AssessStaleness(installedVersion string, fetchFn func() (string, string, error)) StalenessAssessment {
 	if installedVersion == "" || installedVersion == "dev" {
 		return StalenessAssessment{Result: "dev"}

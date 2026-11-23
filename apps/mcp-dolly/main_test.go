@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -791,6 +792,55 @@ func TestConfigDatabaseURLFallback(t *testing.T) {
 			if tc.store == "memory" {
 				if _, ok := st.(memStore); !ok {
 					t.Fatalf("store = %T, want memStore", st)
+				}
+			}
+		})
+	}
+}
+
+func TestTexasExchangeErrorLogsOnlySafeFields(t *testing.T) {
+	inboundToken := "inbound-secret-jwt"
+	cases := []struct {
+		name, code, desc string
+		want, deny       []string
+	}{
+		{"safe code and aadsts", "invalid_target", "AADSTS500011: tenant mismatch", []string{"invalid_target", "AADSTS500011"}, []string{"tenant mismatch"}},
+		{"token in description", "invalid_grant", "bad assertion eyJhbGciOiJSUzI1NiJ9.SECRETPAYLOAD.sig", []string{"invalid_grant"}, []string{"eyJhbGci", "SECRETPAYLOAD"}},
+		{"email in description", "invalid_grant", "user kari.nordmann@nav.no not found", []string{"invalid_grant"}, []string{"kari.nordmann", "@nav.no"}},
+		{"non-matching code", "Bad Code: kari@nav.no eyJtoken", "", nil, []string{"Bad Code", "kari@nav.no", "eyJtoken"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			var logs bytes.Buffer
+			old := slog.Default()
+			slog.SetDefault(slog.New(slog.NewTextHandler(&logs, nil)))
+			t.Cleanup(func() { slog.SetDefault(old) })
+
+			srv := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+				switch r.URL.Path {
+				case "/introspect":
+					writeJSON(w, http.StatusOK, map[string]any{"active": true, "idtyp": "user", "NAVident": "Z123456", "azp": "gw-client-123"})
+				case "/exchange":
+					writeJSON(w, http.StatusBadRequest, map[string]any{"error": tc.code, "error_description": tc.desc})
+				}
+			}, nil)
+			_, out := callToolModern(t, srv.routes(), inboundToken, "dolly_current_user", map[string]any{})
+			txt, isErr := extractToolText(t, out)
+			if !isErr {
+				t.Fatalf("want error, got %q", txt)
+			}
+			l := logs.String()
+			if !strings.Contains(l, "level=WARN") || strings.Contains(l, inboundToken) {
+				t.Fatalf("bad log: %s", l)
+			}
+			for _, w := range tc.want {
+				if !strings.Contains(l, w) || !strings.Contains(txt, w) {
+					t.Fatalf("want %q in log and message: %s | %s", w, l, txt)
+				}
+			}
+			for _, d := range tc.deny {
+				if strings.Contains(l, d) || strings.Contains(txt, d) {
+					t.Fatalf("leaked %q: %s | %s", d, l, txt)
 				}
 			}
 		})

@@ -4,6 +4,10 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ## 2026-11-23
 
+### Status viser hvilken revisjon du har installert
+
+- **`nav-pilot list --installed`**: Viser én linje, `Revision: <revisjon>`, for hvert omfang (repo og bruker) som har en registrert revisjon. Er ingen registrert, vises ingenting (#2749).
+
 ### Ny kommando: `nav-pilot budget`
 
 - **`nav-pilot budget`**: Viser lenken til siden der du ser Copilot-budsjettet ditt, hva du har brukt denne måneden og påfyll du har fått, og der du ber om mer. `--open` åpner siden i nettleseren (#2699).
