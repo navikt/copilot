@@ -468,10 +468,6 @@ func (h *budgetRaiseHandlers) handleRaise(w http.ResponseWriter, r *http.Request
 	if in.FreeText != nil && strings.TrimSpace(*in.FreeText) == "" {
 		in.FreeText = nil
 	}
-	if !h.open && !h.testUsers[login] {
-		respondError(w, "not_open", "Raises are not open yet", http.StatusConflict)
-		return
-	}
 	h.raise(w, r, login, login, in, key, false)
 }
 
@@ -528,6 +524,20 @@ const budgetWriteTimeout = 45 * time.Second
 func (h *budgetRaiseHandlers) raise(w http.ResponseWriter, r *http.Request, actor, target string, in raiseInput, key string, admin bool) {
 	ctx := r.Context()
 	dry := h.mode == "dry_run"
+	// Before opening, only test users get a budget written, admin override
+	// included: an override must not hard-stop someone outside the test.
+	if !h.open && !h.testUsers[target] {
+		if admin {
+			slog.Warn("Budget admin override refused: raises not open and target is not a test user")
+			if pool, err := h.store.get(ctx); err == nil {
+				if _, err := pool.Exec(ctx, `INSERT INTO budget_audit (actor, action, dry_run) VALUES ($1, 'admin_override', $2)`, actor, dry); err != nil {
+					slog.Error("Budget audit insert failed for refused override", "error", err)
+				}
+			}
+		}
+		respondError(w, "not_open", "Raises are not open yet", http.StatusConflict)
+		return
+	}
 	// dry_run does not need the write key (owner decision on #2704): it reads
 	// GitHub only when the key is there and otherwise computes from the database.
 	if h.mode == "off" || (!dry && h.writer == nil) || h.seats == nil {
