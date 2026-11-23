@@ -43,6 +43,12 @@ func (s *server) routes(a *authz, adminClientID string, teams teamDirectory, ra 
 			mux.HandleFunc(pattern, s.admin(a, adminClientID, teams, h))
 		}
 	}
+	persons := s.persons
+	if persons == nil && adminClientID != "" {
+		persons = tokenPersons{a, adminClientID, teams}
+	}
+	s.agentRoutes(mux, a, persons)
+
 	if ra != nil {
 		mux.HandleFunc("POST /runtime/v1/claim", s.runtimeRoute(ra, ra.claim))
 		mux.HandleFunc("POST /runtime/v1/heartbeat", s.runtimeRoute(ra, ra.heartbeat))

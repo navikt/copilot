@@ -21,6 +21,7 @@ WORKDIR /app
 COPY --from=builder /app/main .
 # Seed input, read once into an empty database (#2334). Removed with the files in phase 6.
 COPY apps/fleet-gateway/pilot-routes.dev.yaml apps/fleet-gateway/pilot-routes.prod.yaml apps/mcp-registry/allowlist.json ./seed/
+COPY apps/fleet-control/seed/agents.dev.json ./seed/
 
 EXPOSE 8080
 
