@@ -1786,3 +1786,20 @@ func TestBudgetReconcileFailingUsersDoNotStarveOthers(t *testing.T) {
 		t.Errorf("failing users still pending = %d, want %d", e.count("SELECT count(*) FROM budget_raises WHERE status = 'pending'"), budgetReconcileBatch)
 	}
 }
+
+// userLocks is a fixed stripe array: the same login always maps to the same
+// mutex, and memory stays bounded however many logins pass through.
+func TestBudgetRaiseUserLockStriped(t *testing.T) {
+	h := &budgetRaiseHandlers{}
+	a, b := h.userLock("ola"), h.userLock("ola")
+	if a != b {
+		t.Fatal("same login must map to the same mutex")
+	}
+	seen := map[*sync.Mutex]bool{}
+	for i := range 10000 {
+		seen[h.userLock(fmt.Sprintf("user%d", i))] = true
+	}
+	if len(seen) < len(h.userLocks)/2 {
+		t.Fatalf("logins spread over only %d of %d stripes", len(seen), len(h.userLocks))
+	}
+}
