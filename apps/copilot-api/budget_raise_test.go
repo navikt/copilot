@@ -1351,3 +1351,22 @@ func TestBudgetRaiseReadOnlyDoesNotBumpVersion(t *testing.T) {
 		t.Errorf("replays bumped the version from %d to %d", v, got)
 	}
 }
+
+// #2720: before opening, admin override only works for test users.
+func TestBudgetAdminOverrideRespectsNotOpen(t *testing.T) {
+	e := newBudgetEnv(t, openBudgetTestDB(t))
+	t.Setenv(adminGroupEnv, "admins")
+	e.h.open, e.h.testUsers = false, map[string]bool{"tester": true}
+	if code, out := e.do("POST", "/api/v1/copilot/budget/admin/override", "boss", "a1", `{"githubLogin":"ola"}`, "admins"); code != 409 || !strings.HasSuffix(out["type"].(string), "not_open") {
+		t.Fatalf("override for a non-test user while closed: %d %v", code, out)
+	}
+	if len(e.gh.writes) != 0 || e.count("SELECT count(*) FROM budget_raises") != 0 {
+		t.Fatalf("nothing may be written: %v", e.gh.writes)
+	}
+	if n := e.count("SELECT count(*) FROM budget_audit WHERE action = 'admin_override' AND actor = 'boss' AND raise_id IS NULL"); n != 1 {
+		t.Errorf("refused override audited: %d", n)
+	}
+	if code, out := e.do("POST", "/api/v1/copilot/budget/admin/override", "boss", "a2", `{"githubLogin":"tester"}`, "admins"); code != 201 {
+		t.Fatalf("override for a test user while closed: %d %v", code, out)
+	}
+}
