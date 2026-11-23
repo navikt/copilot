@@ -3,6 +3,7 @@ import { Table, TableBody, TableRow, TableDataCell } from "@/components/aksel-ta
 import type { Bar, ClassVerdict, LocalModel, RejectedModel } from "@/lib/local-models";
 import { HeaderRow } from "@/components/nav-pilot/doc-page";
 import type { ResultRow } from "@/lib/local-model-results";
+import { ScrollRegion } from "@/components/scroll-region";
 
 // The local-model tables on /nav-pilot/referanse and
 // /nav-pilot/forklaring/lokal-modell. The rows come from the manifest in
@@ -73,7 +74,7 @@ const stackProps = (stack?: boolean) =>
 export function LocalModelsTable({ models, stack }: { models: LocalModel[]; stack?: boolean }) {
   const r = (role: string) => (stack ? role : undefined);
   return (
-    <div className="overflow-x-auto">
+    <ScrollRegion label="Tabell: lokale modeller">
       <Table size="small" {...stackProps(stack)}>
         <HeaderRow stack={stack} cells={["Modell", "Minst minne", "Kontekst / svar", "nav-pilot"]} />
         <TableBody role={r("rowgroup")}>
@@ -117,14 +118,14 @@ export function LocalModelsTable({ models, stack }: { models: LocalModel[]; stac
             ))}
         </TableBody>
       </Table>
-    </div>
+    </ScrollRegion>
   );
 }
 
 export function TrustedClassesTable({ models, stack }: { models: LocalModel[]; stack?: boolean }) {
   const r = (role: string) => (stack ? role : undefined);
   return (
-    <div className="overflow-x-auto">
+    <ScrollRegion label="Tabell: godkjente oppgavetyper">
       <Table size="small" {...stackProps(stack)}>
         <HeaderRow stack={stack} cells={["Modell", "Godkjent", "Blir i skyen"]} />
         <TableBody role={r("rowgroup")}>
@@ -146,7 +147,7 @@ export function TrustedClassesTable({ models, stack }: { models: LocalModel[]; s
           })}
         </TableBody>
       </Table>
-    </div>
+    </ScrollRegion>
   );
 }
 
@@ -181,7 +182,7 @@ export function ClassCountsTable({ rows }: { rows: CountRow[] }) {
   const ids = [...new Set(rows.flatMap((r) => Object.keys(r.classes)))];
   const label = (id: string) => classLabel(id).replace(/^./, (c) => c.toUpperCase());
   return (
-    <div className="overflow-x-auto">
+    <ScrollRegion label="Tabell: antall per oppgavetype">
       <Table size="small" className="table-stack w-full" role="table">
         <HeaderRow stack cells={["Modell", ...ids.map(label)]} />
         <TableBody role="rowgroup">
@@ -200,7 +201,7 @@ export function ClassCountsTable({ rows }: { rows: CountRow[] }) {
           ))}
         </TableBody>
       </Table>
-    </div>
+    </ScrollRegion>
   );
 }
 
@@ -241,7 +242,7 @@ export function ResultTable({
   headers?: [string, string, string];
 }) {
   return (
-    <div className="overflow-x-auto">
+    <ScrollRegion label="Tabell: resultater">
       <Table size="small" className="table-stack w-full" role="table">
         <HeaderRow stack cells={headers} />
         <TableBody role="rowgroup">
@@ -260,6 +261,6 @@ export function ResultTable({
           ))}
         </TableBody>
       </Table>
-    </div>
+    </ScrollRegion>
   );
 }

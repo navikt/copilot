@@ -2,6 +2,7 @@ import { useId, type ReactNode } from "react";
 import { Heading, VStack } from "@navikt/ds-react";
 import { Table, TableBody, TableDataCell, TableHeader, TableHeaderCell, TableRow } from "@navikt/ds-react/Table";
 import { chartBoxClass } from "@/lib/chart-utils";
+import { ScrollRegion } from "@/components/scroll-region";
 
 /**
  * Chart first, then a text summary, then the numbers in a «Vis tallene» fold. The title is a question
@@ -75,9 +76,9 @@ export function NumbersFold({ summary = "Vis tallene", children }: { summary?: s
         </span>
         {summary}
       </summary>
-      <div className="min-w-0 overflow-x-auto" style={{ marginTop: "var(--ax-space-8)" }}>
+      <ScrollRegion label="Tabell: tallene bak figuren" className="min-w-0" style={{ marginTop: "var(--ax-space-8)" }}>
         {children}
-      </div>
+      </ScrollRegion>
     </details>
   );
 }

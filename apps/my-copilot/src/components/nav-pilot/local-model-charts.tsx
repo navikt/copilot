@@ -4,6 +4,7 @@ import { HeaderRow, linkClass } from "@/components/nav-pilot/doc-page";
 import type { CloudComparison, DelegationRange } from "@/lib/local-model-results";
 import { formatDate } from "@/lib/format";
 import type { Bar, LocalModel, Report, ReportIndex } from "@/lib/local-models";
+import { ScrollRegion } from "@/components/scroll-region";
 
 // Charts on /innsikt/lokale-modeller. Plain HTML and CSS rather than chart.js: the
 // marks are positioned in percent, so they scale to any width without JS, take
@@ -192,7 +193,7 @@ export function IntervalChart({ model }: { model: LocalModel }) {
         oppgir ikke hvor mange kjøringer skymodellen hadde, så den har ingen egen strek.
       </BodyShort>
       <ReadMore header="Tallene som tabell" size="small">
-        <div className="overflow-x-auto">
+        <ScrollRegion label="Tabell: oppgavetyper og krav">
           <Table size="small">
             <HeaderRow
               cells={["Oppgavetype", "Utført", "Bestått", `${span}-intervall`, "Nedre grense", "Krav", "Vurdering"]}
@@ -215,7 +216,7 @@ export function IntervalChart({ model }: { model: LocalModel }) {
               ))}
             </TableBody>
           </Table>
-        </div>
+        </ScrollRegion>
       </ReadMore>
     </figure>
   );
@@ -334,7 +335,7 @@ export function ModelSizeChart({ models }: { models: LocalModel[] }) {
         </div>
       </div>
       <ReadMore header="Tallene som tabell" size="small">
-        <div className="overflow-x-auto">
+        <ScrollRegion label="Tabell: modeller, vekter og minne">
           <Table size="small">
             <HeaderRow
               cells={[
@@ -365,7 +366,7 @@ export function ModelSizeChart({ models }: { models: LocalModel[] }) {
               ))}
             </TableBody>
           </Table>
-        </div>
+        </ScrollRegion>
       </ReadMore>
     </figure>
   );
@@ -430,7 +431,7 @@ export function CloudComparisonChart({ comparisons }: { comparisons: CloudCompar
         </div>
       </div>
       <ReadMore header="Tallene som tabell" size="small">
-        <div className="overflow-x-auto">
+        <ScrollRegion label="Tabell: sammenligninger">
           <Table size="small">
             <HeaderRow cells={["Oppgave", "Modell", "Bestått", "80 %-intervall", "Nedre grense", "Krav"]} />
             <TableBody>
@@ -455,7 +456,7 @@ export function CloudComparisonChart({ comparisons }: { comparisons: CloudCompar
               )}
             </TableBody>
           </Table>
-        </div>
+        </ScrollRegion>
       </ReadMore>
     </figure>
   );

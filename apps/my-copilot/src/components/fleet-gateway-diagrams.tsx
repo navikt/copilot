@@ -3,6 +3,8 @@
  * colours come from Aksel tokens so the diagrams follow the active theme.
  */
 
+import { ScrollRegion } from "@/components/scroll-region";
+
 const STYLE = `
   .fg-box { fill: var(--ax-bg-default); stroke: var(--ax-border-neutral); stroke-width: 1.5; }
   .fg-fleet { fill: var(--ax-bg-accent-soft); stroke: var(--ax-border-accent-subtle); stroke-width: 1.5; }
@@ -55,7 +57,7 @@ function Figure({
   children: React.ReactNode;
 }) {
   return (
-    <div className="w-full overflow-x-auto">
+    <ScrollRegion label="Diagram: fleet-gateway" className="w-full">
       <svg
         viewBox={viewBox}
         className="w-full min-w-[640px]"
@@ -66,7 +68,7 @@ function Figure({
         <title id={titleId}>{title}</title>
         {children}
       </svg>
-    </div>
+    </ScrollRegion>
   );
 }
 

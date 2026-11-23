@@ -9,6 +9,7 @@ import type { HighConsumerMonth, SpendBand } from "@/lib/types";
 import { type CostEvent, eventAnnotations, eventSummary } from "@/lib/cost-events";
 import { ChartFigure, NumbersFold } from "@/components/charts/chart-figure";
 import { EventChart } from "@/components/charts/EventChart";
+import { ScrollRegion } from "@/components/scroll-region";
 
 /** Base bands from copilot-api (budgetEdges); a merged band spans several columns. */
 export const BUDGET_BANDS = ["0–10 %", "10–25 %", "25–50 %", "50–75 %", "75–90 %", "90–100 %", "Over 100 %"];
@@ -148,7 +149,7 @@ export function HighConsumersView({ months, events = [] }: { months: HighConsume
           <Heading level="3" size="xsmall">
             Hvor stor del av forbruket går til de som bruker mest?
           </Heading>
-          <div className="min-w-0 overflow-x-auto">
+          <ScrollRegion label="Tabell: forbruk hos de som bruker mest" className="min-w-0">
             <Table size="small">
               <TableHeader>
                 <TableRow>
@@ -183,7 +184,7 @@ export function HighConsumersView({ months, events = [] }: { months: HighConsume
                 ))}
               </TableBody>
             </Table>
-          </div>
+          </ScrollRegion>
           <BodyShort size="small" textColor="subtle">
             Andelen av forbruket som går til de brukerne som brukte mest. Topp 5 % er de 5 % av brukerne med høyest
             forbruk den måneden. Grupper med færre enn fem personer vises med strek, og det samme gjør en gruppe som

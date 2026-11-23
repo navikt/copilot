@@ -9,6 +9,7 @@ import { formatDate } from "@/lib/format";
 import { loadRapport, parseRapportYear } from "@/lib/rapport-load";
 import { monthName } from "@/lib/team-year";
 import { RAPPORT_SECTIONS } from "@/lib/rapport";
+import { ScrollRegion } from "@/components/scroll-region";
 import { DocumentTitle, PrintButton, ReportNote } from "@/components/report-controls";
 
 export const metadata: Metadata = {
@@ -149,9 +150,12 @@ export default async function RapportPage({ searchParams }: { searchParams: Prom
                       <Heading level="3" size="xsmall">
                         {t.caption}
                       </Heading>
-                      <div className={`team-report-table overflow-x-auto ${t.id === "familier" ? "wrap" : ""}`}>
+                      <ScrollRegion
+                        label={`Tabell: ${t.caption}`}
+                        className={`team-report-table ${t.id === "familier" ? "wrap" : ""}`}
+                      >
                         <DataTable rows={t.rows} />
-                      </div>
+                      </ScrollRegion>
                     </VStack>
                   ))}
                 {sec.notes.length > 0 && (

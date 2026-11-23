@@ -7,6 +7,7 @@ import { LinkableHeading } from "@/components/linkable-heading";
 import { Table, TableHeader, TableBody, TableRow, TableHeaderCell, TableDataCell } from "@/components/aksel-table";
 import { Bullets, DocPage, code, linkClass } from "@/components/nav-pilot/doc-page";
 import type { TocItem } from "@/components/table-of-contents";
+import { ScrollRegion } from "@/components/scroll-region";
 
 export const metadata: Metadata = {
   title: "MCP gjennom cplt",
@@ -297,7 +298,7 @@ export default function McpGjennomCplt() {
             <code className={code}>--allow-rootless-docker</code>, er serveren av, fordi begge trenger socketer som cplt
             skjuler.
           </BodyLong>
-          <div className="overflow-x-auto">
+          <ScrollRegion label="Tabell: MCP gjennom cplt (første)">
             <Table size="small">
               <TableHeader>
                 <TableRow>
@@ -338,7 +339,7 @@ export default function McpGjennomCplt() {
                 </TableRow>
               </TableBody>
             </Table>
-          </div>
+          </ScrollRegion>
           <LinkableHeading id="ubuntu-apparmor" size="small" level="3">
             Ubuntu 24.04 og nyere
           </LinkableHeading>
@@ -406,7 +407,7 @@ sudo apparmor_parser -r /etc/apparmor.d/bwrap`}
             Meldingene kommer fra <code className={code}>nav-pilot mcp enable</code>,{" "}
             <code className={code}>nav-pilot mcp list</code> eller cplt ved oppstart.
           </BodyLong>
-          <div className="overflow-x-auto">
+          <ScrollRegion label="Tabell: MCP gjennom cplt (andre)">
             <Table size="small">
               <TableHeader>
                 <TableRow>
@@ -425,7 +426,7 @@ sudo apparmor_parser -r /etc/apparmor.d/bwrap`}
                 ))}
               </TableBody>
             </Table>
-          </div>
+          </ScrollRegion>
         </VStack>
       </section>
     </DocPage>

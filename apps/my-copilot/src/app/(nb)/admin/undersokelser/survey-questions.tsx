@@ -4,6 +4,7 @@ import { formatNumber } from "@/lib/format";
 import { UNDER_FIVE, type QuestionResult, type Survey, type SurveyQuestion, type VersionResult } from "@/lib/survey";
 import { nText, unsureLabel } from "./[id]/likert";
 import { fill, Legend, LikertBar } from "./likert-bar";
+import { ScrollRegion } from "@/components/scroll-region";
 
 /**
  * The scale labels of a question (Helt uenig … Helt enig), for the version the
@@ -38,7 +39,7 @@ function VersionTable({
     );
   if (!v.options || n === null) return null;
   return (
-    <div className="overflow-x-auto">
+    <ScrollRegion label="Tabell: svarfordeling">
       <Table size="small">
         <caption className="text-left">
           <BodyShort size="small">
@@ -80,7 +81,7 @@ function VersionTable({
           })}
         </TableBody>
       </Table>
-    </div>
+    </ScrollRegion>
   );
 }
 

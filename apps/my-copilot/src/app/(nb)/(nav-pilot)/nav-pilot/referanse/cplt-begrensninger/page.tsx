@@ -6,6 +6,7 @@ import { CodeBlock } from "@/components/code-block";
 import { LinkableHeading } from "@/components/linkable-heading";
 import { Bullets, DocPage, HeaderRow, code, linkClass } from "@/components/nav-pilot/doc-page";
 import type { TocItem } from "@/components/table-of-contents";
+import { ScrollRegion } from "@/components/scroll-region";
 
 export const metadata: Metadata = {
   title: "Kjente begrensninger i cplt",
@@ -216,7 +217,7 @@ cplt                        # start agenten etterpå`}</CodeBlock>
           <LinkableHeading id="nais-i-sesjonen" size="small" level="3">
             Hva som skjer i en agent-sesjon
           </LinkableHeading>
-          <div className="overflow-x-auto">
+          <ScrollRegion label="Tabell: Nais i sesjonen">
             <Table size="small" className="table-stack" role="table">
               <HeaderRow stack cells={["Kommando", "I en agent-sesjon (cplt)"]} />
               <TableBody role="rowgroup">
@@ -232,7 +233,7 @@ cplt                        # start agenten etterpå`}</CodeBlock>
                 ))}
               </TableBody>
             </Table>
-          </div>
+          </ScrollRegion>
           <BodyLong>
             Feilmeldingen fra <code className={code}>nais device status</code> villeder: naisdevice kjører. Sandkassen
             nekter bare tilkoblingen til agentens unix-socket. <code className={code}>cplt exec</code> kjører med en

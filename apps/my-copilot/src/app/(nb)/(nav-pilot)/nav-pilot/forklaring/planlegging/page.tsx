@@ -6,6 +6,7 @@ import { LinkableHeading } from "@/components/linkable-heading";
 import { Bullets, DocPage, code, linkClass } from "@/components/nav-pilot/doc-page";
 import { PipelineFlow } from "@/components/pipeline-flow";
 import type { TocItem } from "@/components/table-of-contents";
+import { ScrollRegion } from "@/components/scroll-region";
 
 export const metadata: Metadata = {
   title: "Planlegging",
@@ -108,7 +109,7 @@ export default function Planlegging() {
                 Skillene
               </LinkableHeading>
               <BodyLong>Agentpakka har fire skills for planlegging. Du kan også bruke dem uten agenten.</BodyLong>
-              <div className="overflow-x-auto">
+              <ScrollRegion label="Tabell: skillene for planlegging">
                 <Table size="small">
                   <TableHeader>
                     <TableRow>
@@ -136,7 +137,7 @@ export default function Planlegging() {
                     ))}
                   </TableBody>
                 </Table>
-              </div>
+              </ScrollRegion>
             </VStack>
           </div>
         </VStack>

@@ -5,6 +5,7 @@ import Markdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { ArrowLeftIcon } from "@navikt/aksel-icons";
 import { formatDate } from "@/lib/format";
+import { ScrollRegion } from "@/components/scroll-region";
 
 const markdownComponents: Components = {
   // No article has used an image before this one, so react-markdown's bare <img>
@@ -33,9 +34,9 @@ const markdownComponents: Components = {
   li: ({ children }) => <li>{children}</li>,
   pre: ({ children }) => <pre>{children}</pre>,
   table: ({ children }) => (
-    <div className="overflow-x-auto">
+    <ScrollRegion label="Tabell i artikkelen">
       <table>{children}</table>
-    </div>
+    </ScrollRegion>
   ),
   code: ({ children, className }) => {
     const isBlock = className?.startsWith("language-");

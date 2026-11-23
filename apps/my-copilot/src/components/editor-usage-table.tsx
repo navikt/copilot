@@ -1,11 +1,12 @@
 import { PlainTable } from "@/components/charts/chart-figure";
 import { formatNumber } from "@/lib/format";
 import type { EditorUsage } from "@/lib/types";
+import { ScrollRegion } from "@/components/scroll-region";
 
 export default function EditorUsageTable({ editors }: { editors: EditorUsage[] }) {
   const count = (n: number | null) => (n == null ? "Ukjent" : formatNumber(n));
   return (
-    <div className="overflow-x-auto">
+    <ScrollRegion label="Tabell: bruk per editor">
       <PlainTable
         rows={[
           ["Editor", "Fra", "Til", "Dager med data", "Genereringer", "Aksepteringer", "Interaksjoner"],
@@ -20,6 +21,6 @@ export default function EditorUsageTable({ editors }: { editors: EditorUsage[] }
           ]),
         ]}
       />
-    </div>
+    </ScrollRegion>
   );
 }
