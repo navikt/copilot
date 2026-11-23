@@ -429,6 +429,12 @@ func doctorChecks() bool {
 		// decides whether a host may be reached at all, this decides whether
 		// a host that resolves privately may be reached once DNS has answered.
 		reportSandboxWaiver(os.Stdout, agentpakke.Default())
+		if providerpkg.FleetGatewayActive() {
+			fmt.Printf("      %s cplt lets %s resolve to private addresses (nav-pilot default)\n", green("✓"), strings.Join(providerpkg.FleetGatewayHosts, ", "))
+		} else {
+			fmt.Printf("      %s cplt is too old for nav-pilot's default %s, or its version cannot be read. Update cplt: %s\n",
+				yellow("⚠"), strings.Join(providerpkg.FleetGatewayHosts, ", "), bold(providerpkg.CpltUpgradeHint()))
+		}
 		reportMCPHostsWith(os.Stdout, cpltPath, mcpRefresh)
 		reportMCPTools(os.Stdout)
 
