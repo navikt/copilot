@@ -52,24 +52,41 @@ type UserBudget struct {
 	DefaultBudget  float64  `json:"defaultBudget"`
 }
 
-// BudgetClient fetches enterprise AI credit budgets using a classic PAT.
-// The GitHub App token used elsewhere does NOT work for enterprise billing endpoints.
+// BudgetClient reads enterprise AI credit budgets with an installation token
+// from the enterprise budget app (BUDGET_GITHUB_APP_*, Enterprise billing).
+// copilot-api's own GITHUB_APP_* is an org app and cannot read enterprise billing.
 type BudgetClient struct {
-	httpClient   *http.Client
-	billingToken string
-	enterprise   string
+	httpClient *http.Client
+	token      func(context.Context) (string, error)
+	enterprise string
 
 	mu         sync.RWMutex
 	cachedAt   time.Time
 	cachedData []BudgetEntry
 }
 
-func newBudgetClient(billingToken, enterprise string) *BudgetClient {
+func newBudgetClient(token func(context.Context) (string, error), enterprise string) *BudgetClient {
 	return &BudgetClient{
-		httpClient:   &http.Client{Timeout: 15 * time.Second},
-		billingToken: billingToken,
-		enterprise:   enterprise,
+		httpClient: &http.Client{Timeout: 15 * time.Second},
+		token:      token,
+		enterprise: enterprise,
 	}
+}
+
+// staticToken wraps a fixed token as a token source (PAT fallback, tests).
+func staticToken(tok string) func(context.Context) (string, error) {
+	return func(context.Context) (string, error) { return tok, nil }
+}
+
+// newBillingTokenSource returns the token source for enterprise billing reads:
+// the budget app, or the classic PAT only when BILLING_PAT_FALLBACK=true. The
+// PAT is never a silent fallback; nil means budget endpoints are unavailable.
+func newBillingTokenSource(cfg *Config) (func(context.Context) (string, error), error) {
+	if cfg.BillingPATFallback && cfg.GitHubBillingToken != "" {
+		slog.Warn("Billing reads use GITHUB_BILLING_TOKEN because BILLING_PAT_FALLBACK=true; remove the flag once the budget GitHub App works")
+		return staticToken(cfg.GitHubBillingToken), nil
+	}
+	return newBudgetTokenSource(cfg)
 }
 
 // getEnterpriseBudgets returns all budget entries, using a 30-minute in-memory cache.
@@ -110,7 +127,11 @@ func (c *BudgetClient) fetchAllBudgetPages(ctx context.Context) ([]BudgetEntry, 
 		if err != nil {
 			return nil, fmt.Errorf("create budget request: %w", err)
 		}
-		req.Header.Set("Authorization", "Bearer "+c.billingToken)
+		tok, err := c.token(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("budget token: %w", err)
+		}
+		req.Header.Set("Authorization", "Bearer "+tok)
 		req.Header.Set("Accept", "application/vnd.github+json")
 		req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
 
@@ -222,7 +243,11 @@ func (c *BudgetClient) getUserBudget(ctx context.Context, username string) (*Use
 	if err != nil {
 		return nil, fmt.Errorf("create user budget request: %w", err)
 	}
-	req.Header.Set("Authorization", "Bearer "+c.billingToken)
+	tok, err := c.token(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("budget token: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+tok)
 	req.Header.Set("Accept", "application/vnd.github+json")
 	req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
 

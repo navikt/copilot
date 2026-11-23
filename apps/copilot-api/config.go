@@ -29,7 +29,8 @@ type Config struct {
 	GitHubAppID            string
 	GitHubAppPrivateKey    string
 	GitHubInstallationID   string
-	GitHubBillingToken     string
+	GitHubBillingToken     string // classic PAT, used only when BillingPATFallback is true
+	BillingPATFallback     bool   // BILLING_PAT_FALLBACK=true: billing reads use the PAT (transition only)
 	GCPProjectID           string
 	CopilotMetricsDataset  string
 	CopilotMetricsTable    string
@@ -73,6 +74,7 @@ func loadConfig() *Config {
 		GitHubAppPrivateKey:    os.Getenv("GITHUB_APP_PRIVATE_KEY"),
 		GitHubInstallationID:   os.Getenv("GITHUB_APP_INSTALLATION_ID"),
 		GitHubBillingToken:     os.Getenv("GITHUB_BILLING_TOKEN"),
+		BillingPATFallback:     os.Getenv("BILLING_PAT_FALLBACK") == "true",
 		GCPProjectID:           os.Getenv("GCP_TEAM_PROJECT_ID"),
 		CopilotMetricsDataset:  getEnv("COPILOT_METRICS_DATASET", "copilot_metrics"),
 		CopilotMetricsTable:    getEnv("COPILOT_METRICS_TABLE", "usage_metrics"),

@@ -83,15 +83,18 @@ func main() {
 		defer cachedBQClient.Close()
 	}
 
-	// Initialize budget client (optional - requires GITHUB_BILLING_TOKEN classic PAT)
+	// Initialize budget client (optional - requires the BUDGET_GITHUB_APP_* enterprise app)
 	var budgetHandlers *BudgetHandlers
+	billingToken, billingErr := newBillingTokenSource(config)
 	switch {
-	case config.GitHubBillingToken == "":
-		slog.Warn("GITHUB_BILLING_TOKEN not configured - budget endpoint will be unavailable")
+	case billingErr != nil:
+		slog.Error("Budget app unavailable - budget endpoint will be unavailable", "error", billingErr)
+	case billingToken == nil:
+		slog.Warn("BUDGET_GITHUB_APP_* not configured - budget endpoint will be unavailable")
 	case githubClient == nil:
 		slog.Warn("GitHub client unavailable - budget endpoint will be unavailable (see GitHub client initialization error above)")
 	default:
-		budgetClient := newBudgetClient(config.GitHubBillingToken, config.GitHubEnterprise)
+		budgetClient := newBudgetClient(billingToken, config.GitHubEnterprise)
 		budgetHandlers = newBudgetHandlers(budgetClient)
 		if bqHandlers != nil {
 			bqHandlers.setBudgetClient(budgetClient)

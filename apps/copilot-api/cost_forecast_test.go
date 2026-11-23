@@ -158,7 +158,7 @@ func TestBuildCostForecastBudget(t *testing.T) {
 func TestGlobalBudgetEnterpriseAICredits(t *testing.T) {
 	amount := 5.0
 	// A fresh cache stands in for the GitHub API.
-	c := newBudgetClient("token", "nav")
+	c := newBudgetClient(staticToken("token"), "nav")
 	c.cachedAt = time.Now()
 	c.cachedData = []BudgetEntry{
 		{BudgetScope: "enterprise", BudgetProductSKU: "actions", BudgetAmount: 99},
