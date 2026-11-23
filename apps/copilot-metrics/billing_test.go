@@ -13,7 +13,7 @@ import (
 
 func TestBillingRequestSanitizesTransportErrors(t *testing.T) {
 	cause := errors.New("connection failed")
-	client := NewBillingClient(http.DefaultClient, "test-token", "nav")
+	client := NewBillingClient(&http.Client{}, "test-token", "nav")
 	client.httpClient.Transport = roundTripFunc(func(*http.Request) (*http.Response, error) {
 		return nil, cause
 	})
@@ -102,7 +102,7 @@ func TestBillingClient_FetchMonthlyUsage(t *testing.T) {
 		t.Error("expected nil client without credentials")
 	}
 
-	validClient := NewBillingClient(http.DefaultClient, "some-token", "nav")
+	validClient := NewBillingClient(&http.Client{}, "some-token", "nav")
 	if validClient == nil {
 		t.Fatal("expected non-nil client with valid token")
 	}

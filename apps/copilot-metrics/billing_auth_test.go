@@ -2,6 +2,10 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/pem"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -120,3 +124,56 @@ func TestBillingConfiguredWithoutPAT(t *testing.T) {
 		t.Error("PAT with BILLING_PAT_FALLBACK=true counts")
 	}
 }
+
+// TestBillingClientForUsesInstallationToken crosses the real app path:
+// billingClientFor, NewGitHubClient, ghinstallation and the token exchange.
+func TestBillingClientForUsesInstallationToken(t *testing.T) {
+	var mu sync.Mutex
+	var exchanged bool
+	var auths []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		defer mu.Unlock()
+		if r.Method == http.MethodPost && r.URL.Path == "/app/installations/115303467/access_tokens" {
+			exchanged = true
+			w.WriteHeader(http.StatusCreated)
+			_, _ = w.Write([]byte(`{"token":"ghs_installation","expires_at":"` + time.Now().Add(time.Hour).Format(time.RFC3339) + `"}`))
+			return
+		}
+		auths = append(auths, r.Header.Get("Authorization"))
+		_, _ = w.Write([]byte(`{}`))
+	}))
+	defer srv.Close()
+	base, _ := url.Parse(srv.URL)
+	orig := http.DefaultTransport
+	http.DefaultTransport = roundTripperFunc(func(r *http.Request) (*http.Response, error) {
+		r = r.Clone(r.Context())
+		r.URL.Scheme, r.URL.Host = base.Scheme, base.Host
+		return orig.RoundTrip(r)
+	})
+	defer func() { http.DefaultTransport = orig }()
+
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pemKey := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(key)})
+	cfg := &Config{EnterpriseSlug: "nav", GitHubAppID: 3054179, GitHubAppInstallationID: 115303467, GitHubAppPrivateKey: string(pemKey), GitHubBillingToken: "classic-pat"}
+	b := billingClientFor(cfg)
+	if b == nil {
+		t.Fatal("billingClientFor returned nil with app config")
+	}
+	_, _ = b.FetchMonthlyUsage(context.Background(), 2026, 10)
+	if !exchanged || len(auths) == 0 {
+		t.Fatalf("token exchange %v, billing calls %d", exchanged, len(auths))
+	}
+	for _, a := range auths {
+		if a != "token ghs_installation" {
+			t.Errorf("billing call not on installation token: %q", a)
+		}
+	}
+}
+
+type roundTripperFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripperFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }

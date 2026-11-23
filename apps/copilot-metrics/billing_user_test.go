@@ -81,7 +81,7 @@ func TestUserBillingResponseBoundary(t *testing.T) {
 		`{"user":"one","enterprise":"nav","timePeriod":{"year":2026,"month":8},"usageItems":[]}`,
 		`{"user":"one","enterprise":"other","timePeriod":{"year":2026,"month":9},"usageItems":[]}`,
 	} {
-		client := NewBillingClient(http.DefaultClient, "test", "nav")
+		client := NewBillingClient(&http.Client{}, "test", "nav")
 		client.httpClient.Transport = roundTripFunc(func(*http.Request) (*http.Response, error) {
 			return &http.Response{StatusCode: 200, Body: io.NopCloser(strings.NewReader(body))}, nil
 		})
@@ -163,7 +163,7 @@ func TestUserBillingPremiumRequestMonths(t *testing.T) {
 		{time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC), "/enterprises/nav/settings/billing/premium_request/usage"},
 		{time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC), "/enterprises/nav/settings/billing/ai_credit/usage"},
 	} {
-		client := NewBillingClient(http.DefaultClient, "test", "nav")
+		client := NewBillingClient(&http.Client{}, "test", "nav")
 		var requested []string
 		client.httpClient.Transport = roundTripFunc(func(req *http.Request) (*http.Response, error) {
 			requested = append(requested, req.URL.Path+"?user="+req.URL.Query().Get("user"))
