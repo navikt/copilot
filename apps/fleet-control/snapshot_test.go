@@ -252,13 +252,14 @@ func TestRevokedRoutesStayDisabled(t *testing.T) {
 	one[0].Status = "revoked"
 	r := *one[0].Route
 	r.Tools = []string{"a", "b", "c"}
+	r.UpstreamURL = "http://s0.copilot/" + strings.Repeat("x", 600<<10)
 	one[0].Route = &r
 	next, err := buildSnapshot("routes", one, first)
 	if err != nil {
 		t.Fatalf("revoking the last route must publish: %v", err)
 	}
 	var rows []Route
-	if err := json.Unmarshal(next.Items, &rows); err != nil || len(rows) != 1 || rows[0].Enabled || rows[0].Path != "/mcp/copilot/s0" || len(rows[0].Tools) != 1 {
+	if err := json.Unmarshal(next.Items, &rows); err != nil || len(rows) != 1 || rows[0].Enabled || rows[0].Path != "/mcp/copilot/s0" || len(rows[0].Tools) != 1 || rows[0].UpstreamURL != "http://s0.copilot" {
 		t.Fatalf("revoked route must stay as disabled: %v %s", err, next.Items)
 	}
 	if next.Generation != 2 {

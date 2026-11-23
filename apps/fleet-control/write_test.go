@@ -284,7 +284,7 @@ func TestRealPostgresWriteFlow(t *testing.T) {
 	if rec := do(t, h, http.MethodPost, base+"/revoke", a, `{"reason":"incident"}`); rec.Code != 200 {
 		t.Errorf("revoke: %d", rec.Code)
 	}
-	if snap, _ := srv.resolve(ctx, "routes"); !strings.Contains(string(snap.Items), `"upstream_url":"http://svc.team-a/mcp","enabled":false`) {
+	if snap, _ := srv.resolve(ctx, "routes"); !strings.Contains(string(snap.Items), `"upstream_url":"http://svc.team-a","enabled":false`) {
 		t.Errorf("revoked route must stay in the snapshot as disabled: %s", snap.Items)
 	}
 	if rec := do(t, h, http.MethodPost, base+"/revoke", a, `{"reason":"again"}`); rec.Code != 409 {
