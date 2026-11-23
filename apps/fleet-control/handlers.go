@@ -15,7 +15,10 @@ import (
 // admits only its callers, and each /internal route also needs that caller's
 // Entra app token (#2623). The /admin write routes exist only when
 // adminClientID is set, and need a person's token obtained by that client.
-func (s *server) routes(a *authz, adminClientID string, teams teamDirectory) http.Handler {
+//
+// The /runtime routes exist only when ra is set (FLEET_RUNTIME_CLIENT_IDS),
+// and need an Entra app token from an allowlisted fleet-runtime client.
+func (s *server) routes(a *authz, adminClientID string, teams teamDirectory, ra *runtimeAuth) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
 	mux.HandleFunc("GET /ready", s.ready)
@@ -32,9 +35,19 @@ func (s *server) routes(a *authz, adminClientID string, teams teamDirectory) htt
 			"POST /admin/v1/servers/{namespace}/{name}/approve":  postApprove,
 			"POST /admin/v1/servers/{namespace}/{name}/revoke":   postRevoke,
 			"POST /admin/v1/servers/{namespace}/{name}/rollback": postRollback,
+			"POST /admin/v1/jobs/{namespace}":                    postJob,
+			"POST /admin/v1/jobs/{namespace}/{id}/cancel":        postJobCommand(cmdCancel),
+			"POST /admin/v1/jobs/{namespace}/{id}/kill":          postJobCommand(cmdKill),
+			"PUT /admin/v1/jobs/{namespace}/kill-switch":         putKillSwitch(s.operatorTeam),
 		} {
 			mux.HandleFunc(pattern, s.admin(a, adminClientID, teams, h))
 		}
+	}
+	if ra != nil {
+		mux.HandleFunc("POST /runtime/v1/claim", s.runtimeRoute(ra, ra.claim))
+		mux.HandleFunc("POST /runtime/v1/heartbeat", s.runtimeRoute(ra, ra.heartbeat))
+		mux.HandleFunc("POST /runtime/v1/complete", s.runtimeRoute(ra, finish(true)))
+		mux.HandleFunc("POST /runtime/v1/fail", s.runtimeRoute(ra, finish(false)))
 	}
 	return mux
 }

@@ -62,7 +62,7 @@ func testAuthz(t *testing.T) *authz {
 // behind the guard return 503 (no database), so anything not 401/403 got
 // through.
 func TestAuthzMatrix(t *testing.T) {
-	h := newServer().routes(testAuthz(t), "", nil)
+	h := newServer().routes(testAuthz(t), "", nil, nil)
 	const through = http.StatusServiceUnavailable
 	callers := map[string]string{"gateway": gatewayID, "registry": registryID, "other": "33333333-3333-3333-3333-333333333333", "prefix": gatewayID[:8]}
 	want := map[string]map[string]int{

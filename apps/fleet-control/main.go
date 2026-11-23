@@ -44,7 +44,17 @@ func run() error {
 	srv := newServer()
 	adminClientID := adminClientFor(cluster, strings.TrimSpace(os.Getenv("MY_COPILOT_CLIENT_ID")))
 	srv.cluster = cluster
-	httpSrv := newHTTPServer(port, srv.routes(auth, adminClientID, teams))
+	// FLEET_CONTROL_OPERATOR_TEAM may set the global job kill switch; unset, nobody can.
+	srv.operatorTeam = strings.TrimSpace(os.Getenv("FLEET_CONTROL_OPERATOR_TEAM"))
+	ra, err := runtimeAuthFromEnv(auth)
+	if err != nil {
+		return err
+	}
+	sweepEvery, err := sweepIntervalFromEnv()
+	if err != nil {
+		return err
+	}
+	httpSrv := newHTTPServer(port, srv.routes(auth, adminClientID, teams, ra))
 
 	go func() {
 		db, err := connect(ctx)
@@ -53,6 +63,9 @@ func run() error {
 			return
 		}
 		srv.store.Store(&storeBox{db})
+		if ra != nil {
+			go sweepLoop(ctx, db, sweepEvery)
+		}
 	}()
 
 	errCh := make(chan error, 1)
@@ -72,7 +85,9 @@ func run() error {
 }
 
 // newHTTPServer bounds header and body reads, so a caller cannot hold a
-// connection open by stalling an upload.
+// connection open by stalling an upload. ReadTimeout covers reading the
+// request only; there is no WriteTimeout, which would cut the claim
+// long-poll (claimWait).
 func newHTTPServer(port string, h http.Handler) *http.Server {
 	return &http.Server{Addr: ":" + port, Handler: h, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 30 * time.Second}
 }
@@ -158,7 +173,9 @@ type server struct {
 	// cluster is NAIS_CLUSTER_NAME; route targets must be in it, since the
 	// gateway resolves service DNS in its own cluster.
 	cluster string
-	store   atomic.Pointer[storeBox]
+	// operatorTeam may set the global job kill switch.
+	operatorTeam string
+	store        atomic.Pointer[storeBox]
 	// lastGood holds the last served snapshot per kind, so a database outage
 	// keeps serving it; after a restart there is none and the answer is 503.
 	lastGood map[string]*atomic.Pointer[Snapshot]
