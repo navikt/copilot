@@ -21,8 +21,9 @@ import (
 var ErrReportNotAvailable = errors.New("report not available")
 
 type githubHTTPError struct {
-	Status  int
-	message string
+	Status   int
+	message  string
+	download bool // failed fetching a report file, not the report metadata
 }
 
 func (e *githubHTTPError) Error() string { return e.message }
@@ -337,7 +338,7 @@ func (c *GitHubClient) downloadAndParseNDJSON(ctx context.Context, url string) (
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, &githubHTTPError{Status: resp.StatusCode, message: fmt.Sprintf("download returned status %d", resp.StatusCode)}
+		return nil, &githubHTTPError{Status: resp.StatusCode, message: fmt.Sprintf("download returned status %d", resp.StatusCode), download: true}
 	}
 
 	slog.Debug("NDJSON download response", "status", resp.StatusCode,
@@ -417,8 +418,11 @@ func (c *GitHubClient) FetchDailyUserTeams(ctx context.Context, day time.Time) (
 	}
 
 	// An org report that GitHub has not generated adds no teams, so it does not
-	// make the enterprise report partial. Other org failures still do.
-	complete := enterpriseErr == nil && (orgErr == nil || isReportNotAvailable(orgErr))
+	// make the enterprise report partial. Other org failures, including a failed
+	// file download after valid metadata, still do.
+	var orgHTTPErr *githubHTTPError
+	orgDownloadFailed := errors.As(orgErr, &orgHTTPErr) && orgHTTPErr.download
+	complete := enterpriseErr == nil && (orgErr == nil || (isReportNotAvailable(orgErr) && !orgDownloadFailed))
 
 	// Merge results — deduplicate by user_id + team_id
 	var allRecords []json.RawMessage

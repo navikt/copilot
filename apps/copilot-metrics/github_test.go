@@ -363,3 +363,25 @@ func TestUserTeamsCompleteWhenOrgReportNotAvailable(t *testing.T) {
 		t.Fatalf("enterprise report rejected when org report is not generated: %+v %v", result, err)
 	}
 }
+
+func TestUserTeamsIncompleteWhenOrgDownloadReturns204(t *testing.T) {
+	client := &GitHubClient{enterprise: "nav", org: "navikt"}
+	client.httpClient = mockClient(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		link := "https://download.test/enterprise"
+		if strings.HasPrefix(r.URL.Path, "/orgs/") {
+			link = "https://download.test/org"
+		}
+		_, _ = w.Write([]byte(`{"report_day":"2026-10-01","download_links":["` + link + `"]}`))
+	}))
+	client.downloadClient = mockClient(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/org" {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		_, _ = w.Write([]byte(`{"user_id":1,"team_id":2}`))
+	}))
+	result, err := client.FetchDailyUserTeams(context.Background(), billingSyncStart)
+	if err != nil || result == nil || result.Complete {
+		t.Fatalf("failed org download certified as complete: %+v %v", result, err)
+	}
+}
