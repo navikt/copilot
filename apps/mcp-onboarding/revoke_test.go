@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -147,7 +148,98 @@ func TestRevoke_LegacyTokens(t *testing.T) {
 func TestMetadata_AdvertisesRevocationEndpoint(t *testing.T) {
 	mux, oauth := newChainTestServer(t)
 	w := do(mux, httptest.NewRequest("GET", "/.well-known/oauth-authorization-server", nil))
-	if !strings.Contains(w.Body.String(), `"revocation_endpoint":"`+oauth.BaseURL+`/oauth/revoke"`) {
+	if !strings.Contains(w.Body.String(), `"revocation_endpoint":"`+oauth.BaseURL+`/oauth/revoke"`) || !strings.Contains(w.Body.String(), `"revocation_endpoint_auth_methods_supported":["none"]`) {
 		t.Fatalf("metadata: %s", w.Body.String())
+	}
+}
+
+// newServerWithRefreshHook is newChainTestServer, but onRefresh runs inside
+// GitHub's refresh call: after the handler read the refresh token, before it saves.
+func newServerWithRefreshHook(t *testing.T, onRefresh func()) (*http.ServeMux, *OAuthServer) {
+	t.Helper()
+	github := newGitHubMock(t, map[string]http.HandlerFunc{
+		"POST /login/oauth/access_token": func(w http.ResponseWriter, r *http.Request) {
+			_ = r.ParseForm()
+			if r.PostFormValue("grant_type") == "refresh_token" {
+				onRefresh()
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"access_token": "gho_victim", "refresh_token": "ghr_victim",
+				"expires_in": 28800, "token_type": "bearer",
+			})
+		},
+		"GET /user": func(w http.ResponseWriter, _ *http.Request) {
+			_ = json.NewEncoder(w).Encode(GitHubUser{ID: 42, Login: "victim"})
+		},
+		"GET /user/orgs": func(w http.ResponseWriter, _ *http.Request) {
+			_ = json.NewEncoder(w).Encode([]GitHubOrg{{ID: 1, Login: "navikt"}})
+		},
+	})
+	gh := newTestGitHubClient(github)
+	gh.ClientSecret = "test-secret"
+	oauth := NewOAuthServer("http://localhost:8080", gh, NewTokenStore(), "navikt")
+	mux := http.NewServeMux()
+	oauth.RegisterRoutes(mux)
+	return mux, oauth
+}
+
+func TestRefresh_RevokeDuringRefreshWins(t *testing.T) {
+	var hook func()
+	mux, oauth := newServerWithRefreshHook(t, func() { hook() })
+	clientID := registerClient(t, mux, revokeRedirect)
+	at, rt := issueTokens(t, mux, clientID)
+	hook = func() {
+		if w := revoke(mux, rt, clientID); w.Code != http.StatusOK {
+			t.Errorf("revoke: %d", w.Code)
+		}
+	}
+	w := refresh(mux, rt, clientID)
+	if w.Code != http.StatusBadRequest || !strings.Contains(w.Body.String(), "invalid_grant") {
+		t.Fatalf("refresh after concurrent revoke: status %d", w.Code) // body would hold tokens
+	}
+	oauth.Store.mu.RLock()
+	defer oauth.Store.mu.RUnlock()
+	if len(oauth.Store.tokens) != 0 || len(oauth.Store.refreshTokens) != 0 {
+		t.Fatalf("store not empty after revoke: %d access, %d refresh (old access %v)",
+			len(oauth.Store.tokens), len(oauth.Store.refreshTokens), oauth.Store.tokens[at] != nil)
+	}
+}
+
+func TestRefresh_ConcurrentDoubleRefreshOneWins(t *testing.T) {
+	var wg sync.WaitGroup
+	wg.Add(2)
+	// Both refreshes must have read the token before either saves.
+	mux, _ := newServerWithRefreshHook(t, func() { wg.Done(); wg.Wait() })
+	clientID := registerClient(t, mux, revokeRedirect)
+	_, rt := issueTokens(t, mux, clientID)
+
+	codes := make(chan int, 2)
+	for range 2 {
+		go func() { codes <- refresh(mux, rt, clientID).Code }()
+	}
+	ok := 0
+	for range 2 {
+		if <-codes == http.StatusOK {
+			ok++
+		}
+	}
+	if ok != 1 {
+		t.Fatalf("expected exactly one successful refresh, got %d", ok)
+	}
+}
+
+func TestRevoke_PurgedAccessTokenRevokesRefresh(t *testing.T) {
+	mux, oauth := newChainTestServer(t)
+	clientID := registerClient(t, mux, revokeRedirect)
+	at, rt := issueTokens(t, mux, clientID)
+	oauth.Store.mu.Lock()
+	delete(oauth.Store.tokens, at) // as cleanupExpired does
+	oauth.Store.mu.Unlock()
+	if w := revoke(mux, at, clientID); w.Code != http.StatusOK {
+		t.Fatalf("revoke: %d", w.Code)
+	}
+	if _, err := oauth.Store.GetRefreshToken(rt); err == nil {
+		t.Fatal("refresh token survived revocation of its purged access token")
 	}
 }

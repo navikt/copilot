@@ -45,6 +45,7 @@ type AuthorizationServerMetadata struct {
 	GrantTypesSupported               []string `json:"grant_types_supported"`
 	CodeChallengeMethodsSupported     []string `json:"code_challenge_methods_supported"`
 	TokenEndpointAuthMethodsSupported []string `json:"token_endpoint_auth_methods_supported"`
+	RevocationEndpointAuthMethods     []string `json:"revocation_endpoint_auth_methods_supported"`
 }
 
 type ProtectedResourceMetadata struct {
@@ -88,6 +89,7 @@ func (s *OAuthServer) handleAuthServerMetadata(w http.ResponseWriter, _ *http.Re
 		GrantTypesSupported:               []string{"authorization_code", "refresh_token"},
 		CodeChallengeMethodsSupported:     []string{"S256"},
 		TokenEndpointAuthMethodsSupported: []string{"none"},
+		RevocationEndpointAuthMethods:     []string{"none"},
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -500,7 +502,7 @@ func (s *OAuthServer) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Req
 	newRefreshToken := generateSecureToken(64)
 	expiresIn := 3600
 
-	s.Store.SaveToken(accessToken, &TokenData{
+	err = s.Store.RotateRefreshToken(refreshToken, rtData.ClientID, accessToken, &TokenData{
 		GitHubAccessToken:  newGitHubToken.AccessToken,
 		GitHubRefreshToken: newGitHubToken.RefreshToken,
 		GitHubExpiresAt:    newGitHubToken.ExpiresAt,
@@ -509,12 +511,7 @@ func (s *OAuthServer) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Req
 		ExpiresAt:          time.Now().Add(time.Duration(expiresIn) * time.Second),
 		ClientID:           rtData.ClientID,
 		RefreshToken:       newRefreshToken,
-	})
-
-	// #2746: a refresh retires the access token issued with the old refresh token.
-	s.Store.DeleteToken(rtData.AccessToken)
-	s.Store.DeleteRefreshToken(refreshToken)
-	s.Store.SaveRefreshToken(newRefreshToken, &RefreshTokenData{
+	}, newRefreshToken, &RefreshTokenData{
 		ClientID:           rtData.ClientID,
 		GitHubRefreshToken: newGitHubToken.RefreshToken,
 		UserLogin:          rtData.UserLogin,
@@ -522,6 +519,12 @@ func (s *OAuthServer) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Req
 		CreatedAt:          time.Now(),
 		AccessToken:        accessToken,
 	})
+	if err != nil {
+		// Revoked or redeemed by a concurrent refresh while GitHub answered.
+		recordOAuthFlow("token_refresh", "lost_race")
+		s.writeTokenError(w, "invalid_grant", "Invalid refresh token")
+		return
+	}
 
 	slog.Info("token refreshed", "user", rtData.UserLogin)
 	recordOAuthFlow("token_refresh", "success")
