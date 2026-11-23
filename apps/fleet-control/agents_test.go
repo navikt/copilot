@@ -25,7 +25,7 @@ func (fakeVerifier) Verify(_ context.Context, id AgentIdentity) (bool, error) {
 	return id.EntraClientID == seedClientID && id.Namespace == "aksel-studio" && id.App == "studio-api", nil
 }
 
-const seedClientID = "00000000-0000-4000-8000-0000000000a5"
+const seedClientID = "7009f359-1451-429f-94d7-535d5c0c73c0"
 
 type agentEnv struct {
 	t   *testing.T
@@ -245,7 +245,7 @@ func TestRealPostgresAgentProfileRejectsHostileInput(t *testing.T) {
     "app"`, `"namespace": "copilot",
     "app"`},
 		"sts subject":         {`"app": "studio-api",`, `"app": "studio-api", "sts_subject": "x",`},
-		"bad client id":       {`00000000-0000-4000-8000-0000000000a5`, `not-a-uuid`},
+		"bad client id":       {seedClientID, `not-a-uuid`},
 		"unknown field":       {`"mode"`, `"enabled": true, "mode"`},
 		"status set":          {`"mode"`, `"status": "approved", "mode"`},
 		"tool not on route":   {`"dolly_search"`, `"dolly_delete_everything"`},

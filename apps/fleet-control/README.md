@@ -51,7 +51,7 @@ An agent profile says which caller app may use which tools on which gateway rout
 - `GET /internal/v1/agents` returns approved, verified profiles that have not expired, checked at read time.
 - Every change writes an audit event.
 
-The write routes (`POST /admin/v1/agents`, `.../{namespace}/{name}/approvals`, `.../revoke`) follow the Write API rules above: a person's token from the admin client, teams from `FLEET_CONTROL_STATIC_TEAMS`, dev-* clusters only. `SEED_AGENTS_FILE` imports drafts on startup in dev only (`seed/agents.dev.json`, the Aksel Studio draft). Its `entra_client_id` is a placeholder until the real dev client id of `studio-api` is filled in, so the profile stays unverified and out of the snapshot. The app refuses `SEED_AGENTS_FILE` outside dev-* clusters.
+The write routes (`POST /admin/v1/agents`, `.../{namespace}/{name}/approvals`, `.../revoke`) follow the Write API rules above: a person's token from the admin client, teams from `FLEET_CONTROL_STATIC_TEAMS`, dev-* clusters only. `SEED_AGENTS_FILE` imports drafts on startup in dev only (`seed/agents.dev.json`, the Aksel Studio draft). Its `entra_client_id` is the dev client id of `studio-api`. With no identity verifier yet, the profile stays unverified and out of the snapshot. The app refuses `SEED_AGENTS_FILE` outside dev-* clusters.
 
 ## Job API for fleet-runtime
 

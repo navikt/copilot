@@ -6,7 +6,7 @@
     "cluster": "dev-gcp",
     "namespace": "aksel-studio",
     "app": "studio-api",
-    "entra_client_id": "00000000-0000-4000-8000-0000000000a5"
+    "entra_client_id": "7009f359-1451-429f-94d7-535d5c0c73c0"
   },
   "mode": "delegated",
   "grants": [
