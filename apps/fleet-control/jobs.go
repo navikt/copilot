@@ -51,9 +51,12 @@ type ClaimRequest struct {
 }
 
 // Clocks: the runtime must not compare lease_expires_at with its own clock.
-// It counts lease_ttl_seconds down from the moment it RECEIVED the response.
-// Any heartbeat answer other than 200, a timeout or a network error is not an
-// ack: the countdown keeps running, and the job stops when it reaches zero.
+// Its local deadline is the monotonic time it SENT the request plus
+// lease_ttl_seconds, so time spent in transit only shortens the lease. Any
+// heartbeat answer other than 200, a timeout, a network error, or an answer
+// that arrives after the local deadline is not an ack: the deadline stays,
+// and the job stops when it passes. Each heartbeat request is bounded by the
+// time left.
 
 // Lease is the claim response (200). No job: 204 after the long-poll.
 type Lease struct {
@@ -344,13 +347,15 @@ func (d *DB) leaseByToken(ctx context.Context, runtime, token string) (*Lease, e
 	var l Lease
 	var params string
 	var ended *time.Time
-	err := d.pool.QueryRow(ctx, `SELECT l.id::text, `+strings.ReplaceAll(ttlSQL, "expires_at", "l.expires_at")+`, l.expires_at, l.ended_at, j.id, j.team, j.kind, j.params::text, j.attempts
+	var expired bool
+	err := d.pool.QueryRow(ctx, `SELECT l.id::text, `+strings.ReplaceAll(ttlSQL, "expires_at", "l.expires_at")+`, l.expires_at, l.ended_at, l.expires_at <= now(), j.id, j.team, j.kind, j.params::text, j.attempts
 		FROM runtime_leases l JOIN runtime_jobs j ON j.id = l.job_id WHERE l.runtime = $1 AND l.claim_token = $2`, runtime, token).
-		Scan(&l.LeaseID, &l.LeaseTTLSeconds, &l.LeaseExpiresAt, &ended, &l.JobID, &l.Team, &l.Kind, &params, &l.Attempt)
+		Scan(&l.LeaseID, &l.LeaseTTLSeconds, &l.LeaseExpiresAt, &ended, &expired, &l.JobID, &l.Team, &l.Kind, &params, &l.Attempt)
 	if err != nil {
 		return nil, err
 	}
-	if ended != nil {
+	// Expired but not yet swept counts as ended, as in heartbeat and finish.
+	if ended != nil || expired {
 		return nil, refuse(http.StatusGone, "lease has ended; claim with a new token")
 	}
 	l.Params = json.RawMessage(params)
@@ -420,16 +425,23 @@ func (d *DB) Heartbeat(ctx context.Context, runtime, leaseID string, ttl time.Du
 	return out, err
 }
 
-// Finish ends a held lease with a result. A cancelled job that reports
-// stays cancelled.
+// Finish ends a held lease with a result. A pending kill (job command or
+// kill switch) or cancel wins over the reported result; the result is kept
+// in result and the audit row.
 func (d *DB) Finish(ctx context.Context, runtime, leaseID string, ok bool, code, message string) error {
 	return pgx.BeginFunc(ctx, d.pool, func(tx pgx.Tx) error {
 		job, team, cmd, err := lockLease(ctx, tx, runtime, leaseID)
 		if err != nil {
 			return err
 		}
+		var switched bool
+		if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM runtime_kill_switches WHERE scope IN ('global', 'team:' || $1))`, team).Scan(&switched); err != nil {
+			return err
+		}
 		state := "failed"
 		switch {
+		case cmd == cmdKill || switched:
+			state = "killed"
 		case cmd == cmdCancel:
 			state = "cancelled"
 		case ok:
@@ -442,7 +454,7 @@ func (d *DB) Finish(ctx context.Context, runtime, leaseID string, ok bool, code,
 		if _, err := tx.Exec(ctx, `UPDATE runtime_jobs SET state = $2, result = $3::jsonb, updated_at = now() WHERE id = $1`, job, state, string(result)); err != nil {
 			return err
 		}
-		return jobAudit(ctx, tx, runtime, "job_"+state, team, job, map[string]any{"lease_id": leaseID, "code": code})
+		return jobAudit(ctx, tx, runtime, "job_"+state, team, job, map[string]any{"lease_id": leaseID, "code": code, "reported_ok": ok})
 	})
 }
 

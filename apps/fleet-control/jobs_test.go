@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -423,39 +424,92 @@ func TestRealPostgresKillSwitches(t *testing.T) {
 }
 
 // stubRuntime is the runtime side of the contract, as fleet-runtime must
-// implement it: the job's context ends on cancel, kill, 410, or when no
-// heartbeat has been acknowledged before the lease expires.
-// It counts lease_ttl_seconds down from receipt, never using
-// lease_expires_at, so clock skew cannot stretch a lease.
-func stubRuntime(parent context.Context, ttl, every time.Duration, heartbeat func() (HeartbeatResponse, error)) context.Context {
-	ctx, cancel := context.WithCancel(parent)
+// implement it. The job's context ends on cancel, kill or 410, and on a local
+// deadline that a timer enforces even while a heartbeat hangs. The deadline is
+// the monotonic send time of the acked request plus lease_ttl_seconds; each
+// heartbeat is bounded by the time left, and a late ack is ignored. sent is
+// when the claim request was sent.
+func stubRuntime(parent context.Context, sent time.Time, ttl, every time.Duration, heartbeat func(context.Context) (HeartbeatResponse, error)) context.Context {
+	job, stop := context.WithCancel(parent)
+	deadline := sent.Add(ttl)
+	timer := time.AfterFunc(time.Until(deadline), stop) // independent of the heartbeat loop
 	go func() {
-		defer cancel()
-		for deadline := time.Now().Add(ttl); time.Now().Before(deadline); {
+		defer stop()
+		defer timer.Stop()
+		for {
 			select {
-			case <-ctx.Done():
+			case <-job.Done():
 				return
-			case <-time.After(min(every, time.Until(deadline))):
+			case <-time.After(every):
 			}
-			if !time.Now().Before(deadline) {
-				return
-			}
-			hb, err := heartbeat()
-			if err != nil {
-				continue // no ack (non-200, timeout, network): no extension
+			sentAt := time.Now()
+			hctx, cancel := context.WithDeadline(job, deadline)
+			hb, err := heartbeat(hctx)
+			cancel()
+			if err != nil || !time.Now().Before(deadline) {
+				continue // no ack, or a late one: the deadline stays
 			}
 			if hb.Command != cmdContinue {
 				return
 			}
-			deadline = time.Now().Add(time.Duration(hb.LeaseTTLSeconds) * time.Second)
+			deadline = sentAt.Add(time.Duration(hb.LeaseTTLSeconds) * time.Second)
+			timer.Reset(time.Until(deadline))
 		}
 	}()
-	return ctx
+	return job
+}
+
+func TestStubRuntimeStopsWhileHeartbeatHangs(t *testing.T) {
+	start := time.Now()
+	var bounded atomic.Bool
+	job := stubRuntime(context.Background(), start, 300*time.Millisecond, 20*time.Millisecond, func(ctx context.Context) (HeartbeatResponse, error) {
+		_, ok := ctx.Deadline()
+		bounded.Store(ok)
+		time.Sleep(2 * time.Second) // hangs, ignoring ctx
+		return HeartbeatResponse{Command: cmdContinue, LeaseTTLSeconds: 60}, nil
+	})
+	select {
+	case <-job.Done():
+		if d := time.Since(start); d > time.Second {
+			t.Errorf("stopped late: %v", d)
+		}
+		if !bounded.Load() {
+			t.Error("heartbeat request not bounded by the lease")
+		}
+	case <-time.After(3 * time.Second):
+		t.Fatal("job kept running while the heartbeat hung")
+	}
+}
+
+func TestStubRuntimeAnchorsToSendTime(t *testing.T) {
+	// The claim was sent 900 ms before the answer arrived: 1 s TTL leaves 100 ms.
+	start := time.Now()
+	job := stubRuntime(context.Background(), start.Add(-900*time.Millisecond), time.Second, time.Hour, nil)
+	select {
+	case <-job.Done():
+		if d := time.Since(start); d > 500*time.Millisecond {
+			t.Errorf("deadline counted from receipt: %v", d)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("job outlived its lease")
+	}
+}
+
+func TestStubRuntimeIgnoresLateAck(t *testing.T) {
+	start := time.Now()
+	job := stubRuntime(context.Background(), start, 200*time.Millisecond, 10*time.Millisecond, func(context.Context) (HeartbeatResponse, error) {
+		time.Sleep(300 * time.Millisecond) // the ack lands after the deadline
+		return HeartbeatResponse{Command: cmdContinue, LeaseTTLSeconds: 60}, nil
+	})
+	time.Sleep(600 * time.Millisecond)
+	if job.Err() == nil {
+		t.Error("a late ack revived the job")
+	}
 }
 
 func TestStubRuntimeStopsWithoutHeartbeatAck(t *testing.T) {
 	start := time.Now()
-	job := stubRuntime(context.Background(), 300*time.Millisecond, 50*time.Millisecond, func() (HeartbeatResponse, error) {
+	job := stubRuntime(context.Background(), start, 300*time.Millisecond, 50*time.Millisecond, func(context.Context) (HeartbeatResponse, error) {
 		return HeartbeatResponse{}, io.ErrUnexpectedEOF // fleet-control unreachable
 	})
 	select {
@@ -469,7 +523,7 @@ func TestStubRuntimeStopsWithoutHeartbeatAck(t *testing.T) {
 }
 
 func TestStubRuntimeStopsOnKill(t *testing.T) {
-	job := stubRuntime(context.Background(), time.Minute, 10*time.Millisecond, func() (HeartbeatResponse, error) {
+	job := stubRuntime(context.Background(), time.Now(), time.Minute, 10*time.Millisecond, func(context.Context) (HeartbeatResponse, error) {
 		return HeartbeatResponse{Command: cmdKill}, nil
 	})
 	select {
@@ -611,5 +665,48 @@ func TestRealPostgresCancelDoesNotExtendLease(t *testing.T) {
 	}
 	if got := fmt.Sprint(e.audit(id)); got != "[job_created job_claimed job_cancel cancel_delivered lease_expired]" {
 		t.Errorf("audit: %s", got)
+	}
+}
+
+func TestRealPostgresRepeatedClaimOnExpiredLease(t *testing.T) {
+	e := newJobEnv(t)
+	e.createJob(`{"kind":"review"}`)
+	e.claim(tok(1))
+	// Expired by DB time but not yet swept. Claim sweeps first, so this
+	// checks the lookup it falls back to on its own.
+	if _, err := e.db.pool.Exec(context.Background(), `UPDATE runtime_leases SET expires_at = now() - interval '1 second'`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.db.leaseByToken(context.Background(), runtimeID, tok(1)); err == nil {
+		t.Error("repeated claim on an expired, unswept lease: want 410")
+	}
+}
+
+func TestRealPostgresKillWinsOverFinish(t *testing.T) {
+	for name, path := range map[string]string{"complete": "/runtime/v1/complete", "fail": "/runtime/v1/fail"} {
+		t.Run(name, func(t *testing.T) {
+			e := newJobEnv(t)
+			id := e.createJob(`{"kind":"review"}`)
+			_, l := e.claim(tok(1))
+			if rec := do(t, e.h, http.MethodPost, fmt.Sprintf("/admin/v1/jobs/team-a/%d/kill", id), userTok("A111111"), ""); rec.Code != 204 {
+				t.Fatalf("kill: %d", rec.Code)
+			}
+			if rec := do(t, e.h, http.MethodPost, path, runtimeID, `{"lease_id":"`+l.LeaseID+`","code":"ok"}`); rec.Code != 204 {
+				t.Fatalf("finish: %d %s", rec.Code, rec.Body)
+			}
+			if st, _ := e.state(id); st != "killed" {
+				t.Errorf("state %s, want killed", st)
+			}
+		})
+	}
+	e := newJobEnv(t)
+	id := e.createJob(`{"kind":"review"}`)
+	_, l := e.claim(tok(1))
+	if c := do(t, e.h, http.MethodPut, "/admin/v1/jobs/team-a/kill-switch", userTok("A111111"), `{"scope":"team","on":true,"reason":"x"}`).Code; c != 204 {
+		t.Fatalf("switch: %d", c)
+	}
+	_ = do(t, e.h, http.MethodPost, "/runtime/v1/complete", runtimeID, `{"lease_id":"`+l.LeaseID+`","code":"ok"}`)
+	if st, _ := e.state(id); st != "killed" {
+		t.Errorf("kill switch: state %s, want killed", st)
 	}
 }
