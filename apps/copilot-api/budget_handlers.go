@@ -4,11 +4,14 @@ import (
 	"errors"
 	"log/slog"
 	"net/http"
+	"strings"
+	"time"
 )
 
 // BudgetHandlers handles the enterprise AI credit budget endpoint.
 type BudgetHandlers struct {
 	budgetClient *BudgetClient
+	raises       *budgetRaiseHandlers // optional: adds this month's raises
 }
 
 func newBudgetHandlers(budgetClient *BudgetClient) *BudgetHandlers {
@@ -39,8 +42,24 @@ func (h *BudgetHandlers) handleGetBudget(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	cacheControl(w, 30*60, false)
-	respondJSON(w, budget, http.StatusOK)
+	out := struct {
+		*UserBudget
+		Raises []raiseView `json:"raises"`
+	}{UserBudget: budget}
+	if h.raises != nil {
+		now := h.raises.now().In(h.raises.loc)
+		month := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, h.raises.loc)
+		// Raises are extra: a Postgres outage leaves them out, not the budget.
+		if raises, err := h.raises.listRaises(r.Context(), strings.ToLower(identity.GitHubUsername), &month); err == nil {
+			out.Raises = raises
+		} else {
+			slog.Warn("Budget raises unavailable for GET budget", "error", err)
+		}
+		noCacheControl(w) // changes right after a raise
+	} else {
+		cacheControl(w, 30*60, false)
+	}
+	respondJSON(w, out, http.StatusOK)
 }
 
 // handleGetGlobalBudget handles GET /api/v1/copilot/budget/global.

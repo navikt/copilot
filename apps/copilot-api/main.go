@@ -99,6 +99,19 @@ func main() {
 		slog.Info("Budget client initialized successfully")
 	}
 
+	// Personal budget raises: Postgres (DB_URL from Nais) plus a write token.
+	var seats seatLookup
+	if githubClient != nil {
+		seats = githubClient
+	}
+	raiseHandlers, err := newBudgetRaiseHandlersFromConfig(config, seats)
+	if err != nil {
+		slog.Error("Budget raises disabled", "error", err)
+	}
+	if budgetHandlers != nil {
+		budgetHandlers.raises = raiseHandlers
+	}
+
 	// Build the IdentityResolver chain (see identity.go) that determines "who
 	// is this caller, as a GitHub username?" independent of which mechanism
 	// (SAML or copilot-cli's trusted X-On-Behalf-Of header) authenticated the
@@ -161,7 +174,7 @@ func main() {
 
 	// Protected API endpoints — wrapped with OTel tracing
 	mux.Handle("/api/v1/", traceAPI(
-		loggingMiddleware(config, authMiddleware(identityMiddleware(makeAPIRouter(config, bqHandlers, ghHandlers, budgetHandlers, identityChain)))),
+		loggingMiddleware(config, authMiddleware(identityMiddleware(makeAPIRouter(config, bqHandlers, ghHandlers, budgetHandlers, identityChain, raiseHandlers)))),
 	))
 
 	// copilot-survey looks up a nav-pilot user's Nav e-mail here. Not under

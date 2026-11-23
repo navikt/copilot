@@ -151,7 +151,7 @@ func TestOnBehalfOfIdentityResolverCanResolve(t *testing.T) {
 // Every allowlisted pattern must be one the API router registers, or the
 // allowlist silently stops matching after a route is renamed.
 func TestOnBehalfOfRoutesAreRegistered(t *testing.T) {
-	mux := makeAPIRouter(&Config{}, nil, nil, nil, NewIdentityResolverChain()).(*http.ServeMux)
+	mux := makeAPIRouter(&Config{}, nil, nil, nil, NewIdentityResolverChain(), nil).(*http.ServeMux)
 	for pattern := range onBehalfOfRoutes {
 		method, path, _ := strings.Cut(pattern, " ")
 		req := httptest.NewRequest(method, strings.ReplaceAll(path, "{username}", "ola"), nil)
