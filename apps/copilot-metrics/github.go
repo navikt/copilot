@@ -21,8 +21,9 @@ import (
 var ErrReportNotAvailable = errors.New("report not available")
 
 type githubHTTPError struct {
-	Status  int
-	message string
+	Status   int
+	message  string
+	download bool // failed fetching a report file, not the report metadata
 }
 
 func (e *githubHTTPError) Error() string { return e.message }
@@ -337,7 +338,7 @@ func (c *GitHubClient) downloadAndParseNDJSON(ctx context.Context, url string) (
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, &githubHTTPError{Status: resp.StatusCode, message: fmt.Sprintf("download returned status %d", resp.StatusCode)}
+		return nil, &githubHTTPError{Status: resp.StatusCode, message: fmt.Sprintf("download returned status %d", resp.StatusCode), download: true}
 	}
 
 	slog.Debug("NDJSON download response", "status", resp.StatusCode,
@@ -416,6 +417,13 @@ func (c *GitHubClient) FetchDailyUserTeams(ctx context.Context, day time.Time) (
 		slog.Info("Org user-teams fetched", "day", dayStr, "org", c.org, "records", len(orgRecords))
 	}
 
+	// Fail closed: only an org metadata request answering HTTP 204 (no report
+	// for that day) leaves the enterprise report complete. Any other org error,
+	// including download, parse, transport and cancel errors, makes it partial.
+	var orgHTTPErr *githubHTTPError
+	orgNoReport := errors.As(orgErr, &orgHTTPErr) && orgHTTPErr.Status == http.StatusNoContent && !orgHTTPErr.download
+	complete := enterpriseErr == nil && (orgErr == nil || orgNoReport)
+
 	// Merge results — deduplicate by user_id + team_id
 	var allRecords []json.RawMessage
 	seen := make(map[string]bool)
@@ -460,7 +468,7 @@ func (c *GitHubClient) FetchDailyUserTeams(ctx context.Context, day time.Time) (
 			Records:  allRecords,
 			Scope:    scope,
 			ScopeID:  scopeID,
-			Complete: enterpriseErr == nil && orgErr == nil,
+			Complete: complete,
 		}, nil
 	}
 
@@ -479,7 +487,7 @@ func (c *GitHubClient) FetchDailyUserTeams(ctx context.Context, day time.Time) (
 		scope = "organization"
 		scopeID = c.org
 	}
-	return &FetchResult{Records: allRecords, Scope: scope, ScopeID: scopeID, Complete: enterpriseErr == nil && orgErr == nil}, nil
+	return &FetchResult{Records: allRecords, Scope: scope, ScopeID: scopeID, Complete: complete}, nil
 }
 
 // FetchDailyUserMetrics fetches the users-1-day report for the given day.
