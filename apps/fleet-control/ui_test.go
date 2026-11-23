@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
 	"testing"
 )
 
@@ -102,8 +103,12 @@ func TestRealPostgresUIReadScoping(t *testing.T) {
 	if c, b := e.do("POST", "/admin/v1/servers/copilot/dolly/revoke", routeOwner, `{"reason":"test"}`); c != 200 {
 		t.Fatalf("revoke: %d %s", c, b)
 	}
-	// A job event on the same name must not show up in the server's trail.
+	// Neither a job event on the same name nor a server event on another
+	// name in the same namespace may show up in the server's trail.
 	if _, err := e.db.pool.Exec(t.Context(), `INSERT INTO audit_events (actor, action, namespace, name) VALUES ('x', 'job_submitted', 'copilot', 'dolly')`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.db.pool.Exec(t.Context(), `INSERT INTO audit_events (actor, action, namespace, name) VALUES ('x', 'revoked', 'copilot', 'other')`); err != nil {
 		t.Fatal(err)
 	}
 	code, body = e.do("GET", "/admin/v1/servers/copilot/dolly/audit", routeOwner, "")
@@ -153,5 +158,59 @@ func TestUIReadGuardsFailClosed(t *testing.T) {
 		if rec := do(t, c.h, http.MethodGet, c.path, c.tok, ""); rec.Code != c.want {
 			t.Errorf("%s: got %d, want %d (%s)", name, rec.Code, c.want, rec.Body)
 		}
+	}
+}
+
+// With two route owners, approving one route drops it from that approver's
+// inbox while the other owner still sees theirs. The profile stays a draft,
+// so only the handler's approved-route filter can remove it.
+func TestRealPostgresUIInboxTwoRouteOwners(t *testing.T) {
+	e := newAgentEnv(t)
+	p := strings.Replace(fixture(t), `"max_risk": "read"
+    }`, `"max_risk": "read"
+    },
+    {"route": "team-b/kodeverk", "tools": ["lookup"], "max_risk": "read"}`, 1)
+	if code, body := e.do("POST", "/admin/v1/agents", author, p); code != 201 {
+		t.Fatalf("create: %d %s", code, body)
+	}
+	if code, body := e.do("POST", "/admin/v1/agents/aksel-studio/studio-assistant/approvals", approver, e.ab("copilot/dolly")); code != 200 {
+		t.Fatalf("approve: %d %s", code, body)
+	}
+	inbox := func(who string) []pendingAgent {
+		t.Helper()
+		c, b := e.do("GET", "/admin/v1/agents/pending-approval", who, "")
+		return decodeAs[struct{ Agents []pendingAgent }](t, c, b).Agents
+	}
+	if got := inbox(approver); len(got) != 0 {
+		t.Fatalf("approved route still in approver inbox: %+v", got)
+	}
+	if got := inbox("B444444:team-b"); len(got) != 1 || len(got[0].Awaiting) != 1 || got[0].Awaiting[0] != "team-b/kodeverk" {
+		t.Fatalf("other route owner inbox: %+v", got)
+	}
+}
+
+// An approved profile past expires_at is listed as expired, as the gateway
+// treats it.
+func TestRealPostgresUIAgentsReportExpired(t *testing.T) {
+	e := newAgentEnv(t)
+	e.do("POST", "/admin/v1/agents", author, fixture(t))
+	e.do("POST", "/admin/v1/agents/aksel-studio/studio-assistant/approvals", approver, e.ab("copilot/dolly"))
+	status := func() string {
+		t.Helper()
+		c, b := e.do("GET", "/admin/v1/agents", author, "")
+		got := decodeAs[struct{ Agents []AgentProfile }](t, c, b).Agents
+		if len(got) != 1 {
+			t.Fatalf("agents: %+v", got)
+		}
+		return got[0].Status
+	}
+	if s := status(); s != "approved" {
+		t.Fatalf("status before expiry: %s", s)
+	}
+	if _, err := e.db.pool.Exec(t.Context(), `UPDATE agent_profiles SET expires_at = now() - interval '1 second'`); err != nil {
+		t.Fatal(err)
+	}
+	if s := status(); s != "expired" {
+		t.Fatalf("status after expiry: %s", s)
 	}
 }

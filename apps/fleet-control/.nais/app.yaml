@@ -30,6 +30,9 @@ spec:
     application:
       enabled: true
       tenant: nav.no
+      # Any Nav employee may get an OBO token; fleet-control's team check
+      # decides access.
+      allowAllUsers: true
   uses:
     postgres:
       - name: fleet-control

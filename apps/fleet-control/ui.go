@@ -21,7 +21,7 @@ type uiStore interface {
 	TeamServers(ctx context.Context, teams []string) ([]serverSummary, error)
 	TeamAgents(ctx context.Context, teams []string) ([]AgentProfile, error)
 	AuditTrail(ctx context.Context, ns, name string, actions []string) ([]auditEvent, error)
-	DraftAgents(ctx context.Context) ([]pendingAgent, error)
+	DraftAgents(ctx context.Context, teams []string) ([]pendingAgent, error)
 }
 
 type serverSummary struct {
@@ -161,7 +161,7 @@ func (s *server) pendingApproval(w http.ResponseWriter, r *http.Request, who Per
 		return
 	}
 	defer cancel()
-	drafts, err := st.DraftAgents(ctx)
+	drafts, err := st.DraftAgents(ctx, who.Teams)
 	if err != nil {
 		writeErr(w, err)
 		return
@@ -206,6 +206,11 @@ func (d *DB) TeamAgents(ctx context.Context, teams []string) ([]AgentProfile, er
 	out := []AgentProfile{}
 	_, err = pgx.CollectRows(rows, func(row pgx.CollectableRow) (struct{}, error) {
 		_, p, scanErr := scanAgent(row)
+		// The gateway drops approved profiles past expires_at at read time;
+		// report what it enforces.
+		if p.Status == "approved" && p.ExpiresAt != nil && !p.ExpiresAt.After(time.Now()) {
+			p.Status = "expired"
+		}
 		out = append(out, p)
 		return struct{}{}, scanErr
 	})
@@ -232,12 +237,15 @@ func (d *DB) AuditTrail(ctx context.Context, ns, name string, actions []string) 
 	return out, err
 }
 
-// DraftAgents returns every live draft with the routes approved so far. The
-// handler filters on the caller's teams.
-func (d *DB) DraftAgents(ctx context.Context) ([]pendingAgent, error) {
+// DraftAgents returns the live drafts that grant a route owned by one of
+// teams, with the routes approved so far. The handler narrows to the routes
+// still awaiting those teams.
+func (d *DB) DraftAgents(ctx context.Context, teams []string) ([]pendingAgent, error) {
 	rows, err := d.pool.Query(ctx, `SELECT `+agentCols+`,
 		COALESCE((SELECT array_agg(route) FROM agent_profile_approvals a WHERE a.profile_id = agent_profiles.id), '{}')
-		FROM agent_profiles WHERE status = 'draft' ORDER BY namespace, name`)
+		FROM agent_profiles WHERE status = 'draft'
+		  AND EXISTS (SELECT 1 FROM jsonb_array_elements(grants) g WHERE split_part(g->>'route', '/', 1) = ANY($1))
+		ORDER BY namespace, name`, teams)
 	if err != nil {
 		return nil, err
 	}
