@@ -15,11 +15,13 @@ import (
 const (
 	runtimeID      = "55555555-5555-5555-5555-555555555555"
 	otherRuntimeID = "66666666-6666-6666-6666-666666666666"
+	// secondRuntimeID is allowlisted too, but holds no lease.
+	secondRuntimeID = "77777777-7777-7777-7777-777777777777"
 )
 
 func testRuntimeAuth(t *testing.T) *runtimeAuth {
 	t.Helper()
-	ra, err := newRuntimeAuth(testAuthz(t), runtimeID, "")
+	ra, err := newRuntimeAuth(testAuthz(t), runtimeID+","+secondRuntimeID, "")
 	if err != nil || ra == nil {
 		t.Fatalf("runtime auth: %v", err)
 	}
@@ -321,9 +323,14 @@ func TestRealPostgresHeartbeatAndKill(t *testing.T) {
 	if c, cmd := e.heartbeat(l.LeaseID); c != 200 || cmd != cmdContinue {
 		t.Fatalf("heartbeat: %d %s", c, cmd)
 	}
-	// Another runtime cannot heartbeat this lease.
-	if rec := do(t, e.h, http.MethodPost, "/runtime/v1/heartbeat", otherRuntimeID, `{"lease_id":"`+l.LeaseID+`"}`); rec.Code != 403 {
-		t.Errorf("other runtime: %d", rec.Code)
+	// Another allowlisted runtime cannot heartbeat or finish this lease.
+	for path, body := range map[string]string{
+		"/runtime/v1/heartbeat": `{"lease_id":"` + l.LeaseID + `"}`,
+		"/runtime/v1/complete":  `{"lease_id":"` + l.LeaseID + `","code":"ok"}`,
+	} {
+		if rec := do(t, e.h, http.MethodPost, path, secondRuntimeID, body); rec.Code != 404 {
+			t.Errorf("%s by another runtime: %d", path, rec.Code)
+		}
 	}
 	if rec := do(t, e.h, http.MethodPost, fmt.Sprintf("/admin/v1/jobs/team-b/%d/kill", id), userTok("B111111"), ""); rec.Code != 404 {
 		t.Errorf("kill from another team: %d", rec.Code)
