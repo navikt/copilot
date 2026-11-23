@@ -1531,6 +1531,21 @@ func cmdListInstalledScoped(scope *InstallScope, _ bool, jsonOutput bool) error 
 	return nil
 }
 
+// recordedRevisions lists the distinct short revisions [stampRevision] recorded
+// on a scope's files, in first-seen order (#2749). Empty when none is recorded.
+func recordedRevisions(state *StateFile) []string {
+	var out []string
+	seen := map[string]bool{}
+	for _, f := range state.Files {
+		if f.Revision == "" || seen[f.Revision] {
+			continue
+		}
+		seen[f.Revision] = true
+		out = append(out, shortSHA(f.Revision))
+	}
+	return out
+}
+
 // foreignFileCounts counts a scope's files per agentpakke they came from,
 // leaving out the scope's own (which record no source). A file that sync
 // deliberately skips should say so somewhere the user looks before wondering
@@ -1613,6 +1628,9 @@ func printStatusBlock(scope *InstallScope, state *StateFile) {
 		fmt.Printf("  Package:     %s (follows stable releases)\n", version)
 	}
 	fmt.Printf("  Installed:   %s\n", state.InstalledAt)
+	if revs := recordedRevisions(state); len(revs) > 0 {
+		fmt.Printf("  Installert fra %s\n", strings.Join(revs, ", "))
+	}
 	fmt.Printf("  Files:       %d\n", len(state.Files))
 	fmt.Println()
 
