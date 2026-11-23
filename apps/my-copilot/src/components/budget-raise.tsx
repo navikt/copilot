@@ -88,6 +88,8 @@ export function BudgetRaisePage() {
   const [budget, setBudget] = useState<Loaded<Budget>>();
   const [options, setOptions] = useState<Loaded<BudgetOptions>>();
   const [profile, setProfile] = useState<Loaded<BudgetProfile>>();
+  // Set from a refused raise, so «Kort fortalt» matches what the form just said.
+  const [refused, setRefused] = useState<string>();
 
   const reloadBudget = useCallback(() => load<Budget>("/api/budget").then(setBudget), []);
   useEffect(() => {
@@ -111,11 +113,11 @@ export function BudgetRaisePage() {
 
   return (
     <VStack gap="space-32">
-      <Summary budget={b} options={o} budgetError={"error" in budget ? budget.error : undefined} />
+      <Summary budget={b} options={o} budgetError={"error" in budget ? budget.error : undefined} refused={refused} />
       {b && <Consumption budget={b} />}
       {o ? (
         <>
-          <RaiseSection budget={b} options={o} profile={p} onRaised={reloadBudget} />
+          <RaiseSection budget={b} options={o} profile={p} onRaised={reloadBudget} onRefused={setRefused} />
           <ProfileSection
             options={o}
             profile={p}
@@ -125,16 +127,45 @@ export function BudgetRaisePage() {
         </>
       ) : (
         <Message status="warning" title="Påfyll er ikke tilgjengelig akkurat nå">
-          {errorMessage("error" in options ? options.error : undefined)}
+          {"error" in options && options.error !== "budget_writes_unavailable"
+            ? errorMessage(options.error)
+            : "Du kan ikke fylle på eller endre profilen nå. Prøv igjen om litt."}
         </Message>
       )}
     </VStack>
   );
 }
 
-function Summary({ budget, options, budgetError }: { budget?: Budget; options?: BudgetOptions; budgetError?: string }) {
+function Summary({
+  budget,
+  options,
+  budgetError,
+  refused,
+}: {
+  budget?: Budget;
+  options?: BudgetOptions;
+  budgetError?: string;
+  refused?: string;
+}) {
   const step = options?.stepUsd ?? 150;
   const cap = options?.capUsd ?? 750;
+  const state =
+    refused === "own_budget" || (budget && hasOwnBudget(budget))
+      ? "own"
+      : refused === "cap_reached" || (budget && budget.budgetAmount >= cap)
+        ? "cap"
+        : refused === "not_open"
+          ? "closed"
+          : !options
+            ? "down"
+            : "open";
+  const raiseLine = {
+    own: "Du har et eget, fast budsjett, så påfyll gjelder ikke for deg.",
+    cap: "Du har nådd taket. 1. i neste måned er du tilbake på standardbudsjettet.",
+    closed: `Påfyll er ikke åpnet ennå. Når det åpner, kan du fylle på ${usd(step)} selv.`,
+    down: "Påfyll er ikke tilgjengelig akkurat nå. Prøv igjen om litt.",
+    open: `Går du tom, kan du fylle på ${usd(step)} selv. Påfyllet gjelder ut måneden.`,
+  }[state];
   return (
     <VStack gap="space-12">
       <Heading size="medium" level="2" id="kort-fortalt">
@@ -149,9 +180,13 @@ function Summary({ budget, options, budgetError }: { budget?: Budget; options?: 
         ) : (
           <List.Item>Vi får ikke hentet budsjettet ditt akkurat nå. {errorMessage(budgetError)}</List.Item>
         )}
-        <List.Item>Går du tom, kan du fylle på {usd(step)} selv. Påfyllet gjelder ut måneden.</List.Item>
-        <List.Item>Taket er {usd(cap)} i måneden. 1. i neste måned er du tilbake på standardbudsjettet.</List.Item>
-        <List.Item>Skriv aldri personopplysninger eller saksopplysninger i fritekstfeltet.</List.Item>
+        <List.Item>{raiseLine}</List.Item>
+        {state !== "own" && state !== "cap" && (
+          <List.Item>Taket er {usd(cap)} i måneden. 1. i neste måned er du tilbake på standardbudsjettet.</List.Item>
+        )}
+        {state !== "own" && (
+          <List.Item>Skriv aldri personopplysninger eller saksopplysninger i fritekstfeltet.</List.Item>
+        )}
       </List>
     </VStack>
   );
@@ -220,11 +255,13 @@ function RaiseSection({
   options,
   profile,
   onRaised,
+  onRefused,
 }: {
   budget?: Budget;
   options: BudgetOptions;
   profile?: BudgetProfile;
   onRaised: () => void;
+  onRefused: (code: string) => void;
 }) {
   const [category, setCategory] = useState("");
   // Empty means the profile team: the backend fills it in.
@@ -294,7 +331,9 @@ function RaiseSection({
         setFreeText("");
         onRaised();
       } else {
-        setResult({ error: (body as { error?: string }).error ?? "failed" });
+        const code = (body as { error?: string }).error ?? "failed";
+        setResult({ error: code });
+        onRefused(code);
         // A definite answer ends this raise; a network or server failure keeps the key for the retry.
         if (res.status < 500) key.current = null;
       }

@@ -79,3 +79,29 @@ describe("BudgetRaisePage", () => {
     expect(screen.queryByRole("button", { name: "Fyll på 150 USD" })).not.toBeInTheDocument();
   });
 });
+
+describe("BudgetRaisePage «Kort fortalt»", () => {
+  it("says the ceiling is reached instead of offering a raise", async () => {
+    mockApi({
+      ...defaultBudget,
+      budgetAmount: 750,
+      isOverride: true,
+      raises: [
+        {
+          id: "1",
+          createdAt: "2026-12-01T00:00:00Z",
+          amountUsd: 150,
+          category: "koding",
+          teamId: "annet",
+          expectedValue: "laere",
+          freeText: null,
+          status: "applied",
+        },
+      ],
+    });
+    render(<BudgetRaisePage />);
+    await screen.findByRole("heading", { name: "Kort fortalt" });
+    expect(screen.queryByText(/Går du tom/)).not.toBeInTheDocument();
+    expect(screen.getAllByText(/Du har nådd taket/).length).toBeGreaterThan(0);
+  });
+});
