@@ -11,6 +11,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"regexp"
 	"slices"
 	"strings"
 )
@@ -190,11 +191,14 @@ func (s *server) exchangeToken(ctx context.Context, userToken string) (string, e
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
-		code, desc := texasError(resp.Body)
-		slog.Warn("texas token exchange failed", "status", resp.StatusCode, "error", code, "error_description", desc)
+		code, aadsts := texasError(resp.Body)
+		slog.Warn("texas token exchange failed", "status", resp.StatusCode, "error", code, "aadsts", aadsts)
 		msg := fmt.Sprintf("token exchange failed with status %d", resp.StatusCode)
 		if code != "" {
 			msg += ": " + code
+		}
+		if aadsts != "" {
+			msg += " " + aadsts
 		}
 		return "", &tokenExchangeError{statusCode: resp.StatusCode, msg: msg}
 	}
@@ -213,9 +217,9 @@ func (s *server) exchangeToken(ctx context.Context, userToken string) (string, e
 	return out.AccessToken, nil
 }
 
-// texasError reads Texas' OAuth error fields from a failed exchange. Only
-// these two fields are returned, clipped and stripped of control characters.
-func texasError(r io.Reader) (code, desc string) {
+// texasError returns only the OAuth error code and the AADSTS number from a
+// failed exchange. error_description is never returned: Entra can name the user.
+func texasError(r io.Reader) (code, aadsts string) {
 	b, err := readLimitedBody(r, maxTexasRespBytes)
 	if err != nil {
 		return "", ""
@@ -227,21 +231,16 @@ func texasError(r io.Reader) (code, desc string) {
 	if json.Unmarshal(b, &e) != nil {
 		return "", ""
 	}
-	return clipLogValue(e.Error, 64), clipLogValue(e.Description, 300)
+	if safeErrorCode.MatchString(e.Error) {
+		code = e.Error
+	}
+	return code, aadstsCode.FindString(e.Description)
 }
 
-func clipLogValue(s string, n int) string {
-	s = strings.Map(func(r rune) rune {
-		if r < 0x20 || r == 0x7f {
-			return -1
-		}
-		return r
-	}, s)
-	if len(s) > n {
-		s = s[:n]
-	}
-	return s
-}
+var (
+	aadstsCode    = regexp.MustCompile(`AADSTS\d{4,6}`)
+	safeErrorCode = regexp.MustCompile(`^[a-z_]{1,40}$`)
+)
 
 func readLimitedBody(r io.Reader, limit int64) ([]byte, error) {
 	b, err := io.ReadAll(io.LimitReader(r, limit+1))
