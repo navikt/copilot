@@ -40,6 +40,11 @@ type TokenData struct {
 	UserLogin          string
 	UserID             int64
 	ExpiresAt          time.Time
+	// ClientID and RefreshToken tie the access token to its client and to the
+	// refresh token issued with it, so a refresh or a revocation can remove both.
+	// Both are empty on tokens issued before #2746.
+	ClientID     string
+	RefreshToken string
 }
 
 type RefreshTokenData struct {
@@ -51,6 +56,8 @@ type RefreshTokenData struct {
 	UserLogin          string
 	UserID             int64
 	CreatedAt          time.Time
+	// AccessToken is the access token issued together with this refresh token.
+	AccessToken string
 }
 
 type TokenStore struct {
@@ -221,6 +228,49 @@ func (s *TokenStore) DeleteRefreshToken(token string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	delete(s.refreshTokens, token)
+}
+
+// DeleteToken removes an access token.
+func (s *TokenStore) DeleteToken(token string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.tokens, token)
+}
+
+// RevokeResult is the outcome of RevokeToken.
+type RevokeResult int
+
+const (
+	RevokeUnknown  RevokeResult = iota // no such token: RFC 7009 still answers 200
+	RevokeDone                         // token and its pair removed
+	RevokeNotOwner                     // token belongs to another client; nothing removed
+)
+
+// RevokeToken removes an access or refresh token, and the token issued with it,
+// if clientID is the client it was issued to. Lookup and delete happen under one
+// lock so a concurrent refresh cannot slip in between.
+func (s *TokenStore) RevokeToken(token, clientID string) RevokeResult {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if at, ok := s.tokens[token]; ok {
+		// An access token from before #2746 has no ClientID, so no client can
+		// prove ownership; it expires within the hour.
+		if at.ClientID == "" || at.ClientID != clientID {
+			return RevokeNotOwner
+		}
+		delete(s.tokens, token)
+		delete(s.refreshTokens, at.RefreshToken)
+		return RevokeDone
+	}
+	if rt, ok := s.refreshTokens[token]; ok {
+		if rt.ClientID == "" || rt.ClientID != clientID {
+			return RevokeNotOwner
+		}
+		delete(s.refreshTokens, token)
+		delete(s.tokens, rt.AccessToken)
+		return RevokeDone
+	}
+	return RevokeUnknown
 }
 
 func (s *TokenStore) cleanupExpired() {
