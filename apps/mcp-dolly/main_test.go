@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -794,5 +795,37 @@ func TestConfigDatabaseURLFallback(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestTexasExchangeErrorLoggedAndCodeReturned(t *testing.T) {
+	inboundToken := "inbound-secret-jwt"
+	var logs bytes.Buffer
+	old := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&logs, nil)))
+	t.Cleanup(func() { slog.SetDefault(old) })
+
+	srv := newTestServer(t, func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/introspect":
+			writeJSON(w, http.StatusOK, map[string]any{"active": true, "idtyp": "user", "NAVident": "Z123456", "azp": "gw-client-123"})
+		case "/exchange":
+			writeJSON(w, http.StatusBadRequest, map[string]any{"error": "invalid_target", "error_description": "tenant mismatch", "access_token": "LEAKED"})
+		}
+	}, nil)
+
+	_, out := callToolModern(t, srv.routes(), inboundToken, "dolly_current_user", map[string]any{})
+	txt, isErr := extractToolText(t, out)
+	if !isErr || !strings.Contains(txt, "invalid_target") {
+		t.Fatalf("want error with code, got %q", txt)
+	}
+	l := logs.String()
+	for _, want := range []string{"level=WARN", "invalid_target", "tenant mismatch"} {
+		if !strings.Contains(l, want) {
+			t.Fatalf("log missing %q: %s", want, l)
+		}
+	}
+	if strings.Contains(l, inboundToken) || strings.Contains(l, "LEAKED") {
+		t.Fatalf("log leaked a token: %s", l)
 	}
 }
