@@ -51,8 +51,8 @@ func (c *BillingClient) request(ctx context.Context, endpoint string, result any
 		}
 		req.Header.Set("Accept", "application/vnd.github+json")
 		if c.token != "" {
-		req.Header.Set("Authorization", "Bearer "+c.token)
-	}
+			req.Header.Set("Authorization", "Bearer "+c.token)
+		}
 		req.Header.Set("X-GitHub-Api-Version", "2026-03-10")
 		c.requests++
 		resp, err := c.httpClient.Do(req)
@@ -389,6 +389,13 @@ func billingAuth(cfg *Config, app *http.Client) (*http.Client, string) {
 		return &http.Client{Timeout: 30 * time.Second}, cfg.GitHubBillingToken
 	}
 	return app, ""
+}
+
+// billingConfigured reports whether billing has credentials: the app, or the
+// PAT only when BILLING_PAT_FALLBACK=true.
+func billingConfigured(cfg *Config) bool {
+	app := cfg.GitHubAppID != 0 && cfg.GitHubAppInstallationID != 0 && cfg.GitHubAppPrivateKey != ""
+	return app || (cfg.BillingPATFallback && cfg.GitHubBillingToken != "")
 }
 
 // billingClientFor builds a BillingClient for the one-shot billing commands.

@@ -107,3 +107,16 @@ func TestBillingPATOnlyWithFlag(t *testing.T) {
 		}
 	}
 }
+
+func TestBillingConfiguredWithoutPAT(t *testing.T) {
+	app := &Config{GitHubAppID: 1, GitHubAppInstallationID: 2, GitHubAppPrivateKey: "k"}
+	if !billingConfigured(app) {
+		t.Error("user billing sync must start with the app and no PAT")
+	}
+	if billingConfigured(&Config{GitHubBillingToken: "classic-pat"}) {
+		t.Error("PAT without BILLING_PAT_FALLBACK must not count as billing credentials")
+	}
+	if !billingConfigured(&Config{GitHubBillingToken: "classic-pat", BillingPATFallback: true}) {
+		t.Error("PAT with BILLING_PAT_FALLBACK=true counts")
+	}
+}

@@ -103,8 +103,8 @@ func main() {
 			slog.Info("Automatic user billing sync is disabled")
 			return
 		}
-		if err := config.Validate(); err != nil || config.GitHubBillingToken == "" {
-			slog.Error("User billing sync requires GitHub App, billing token and BigQuery configuration")
+		if err := config.Validate(); err != nil || !billingConfigured(config) {
+			slog.Error("User billing sync requires GitHub App and BigQuery configuration")
 			exit(1)
 		}
 		ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)

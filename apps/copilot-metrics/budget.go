@@ -62,8 +62,8 @@ func (c *BudgetClient) FetchAllBudgets(ctx context.Context) ([]BudgetEntry, erro
 			return nil, fmt.Errorf("create budget request page %d: %w", page, err)
 		}
 		if c.token != "" {
-		req.Header.Set("Authorization", "Bearer "+c.token)
-	}
+			req.Header.Set("Authorization", "Bearer "+c.token)
+		}
 		req.Header.Set("Accept", "application/vnd.github+json")
 		req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
 
@@ -135,8 +135,8 @@ func (c *BudgetClient) FetchUserEffectiveBudget(ctx context.Context, login strin
 			return nil, fmt.Errorf("create user budget request: %w", err)
 		}
 		if c.token != "" {
-		req.Header.Set("Authorization", "Bearer "+c.token)
-	}
+			req.Header.Set("Authorization", "Bearer "+c.token)
+		}
 		req.Header.Set("Accept", "application/vnd.github+json")
 		req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
 
