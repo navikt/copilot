@@ -31,3 +31,5 @@ session_store: postgres
 session_max_age: 12h
 rt_storage: client-encrypted
 team_token_strategy: obo
+# Where login takes NAVident from (#2594). Verified in dev 2026-11-23.
+identity_source: introspection
