@@ -736,10 +736,17 @@ func (h *budgetRaiseHandlers) reserve(ctx context.Context, pool *pgxpool.Pool, r
 	var code string
 	err := lockedTx(ctx, pool, rv.target, func(tx pgx.Tx) error {
 		plan, code = raisePlan{}, ""
-		if prev, err := scanRaise(tx.QueryRow(ctx, "SELECT "+raiseColumns+" FROM budget_raises WHERE github_login = $1 AND idempotency_key = $2", rv.target, rv.key)); err == nil {
+		// F9: the same key gives the same raise. A same-key retry of a stuck
+		// (stale) pending raise reconciles it first, or it would replay
+		// pending forever.
+		var replayID string
+		var stuck bool
+		if err := tx.QueryRow(ctx, "SELECT id::text, status = 'pending' AND created_at < now() - $3::interval FROM budget_raises WHERE github_login = $1 AND idempotency_key = $2",
+			rv.target, rv.key, budgetPendingStale.String()).Scan(&replayID, &stuck); err == nil && !stuck {
+			prev, err := scanRaise(tx.QueryRow(ctx, "SELECT "+raiseColumns+" FROM budget_raises WHERE id = $1", replayID))
 			plan.replay = &prev
-			return nil
-		} else if !errors.Is(err, pgx.ErrNoRows) {
+			return err
+		} else if err != nil && !errors.Is(err, pgx.ErrNoRows) {
 			return err
 		}
 		var fp int64
@@ -854,6 +861,12 @@ func (h *budgetRaiseHandlers) reserve(ctx context.Context, pool *pgxpool.Pool, r
 			if _, err := tx.Exec(ctx, "UPDATE budget_raises SET status = $2 WHERE id = $1", p.id, status); err != nil {
 				return err
 			}
+		}
+
+		if replayID != "" { // the stuck raise is reconciled now: answer with it
+			prev, err := scanRaise(tx.QueryRow(ctx, "SELECT "+raiseColumns+" FROM budget_raises WHERE id = $1", replayID))
+			plan.replay = &prev
+			return err
 		}
 
 		if len(foreign) > 0 { // F8: a budget we did not create means hands off

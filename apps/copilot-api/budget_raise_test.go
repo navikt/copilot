@@ -1217,3 +1217,32 @@ func TestBudgetRaiseFinalUpdateOnlyFromPending(t *testing.T) {
 		t.Fatalf("the final step must not overwrite a reconciliation: %v", out)
 	}
 }
+
+// #2706 thread: retrying a stuck pending raise with the same key must
+// reconcile it, not replay pending forever.
+func TestBudgetRaiseSameKeyRetryReconcilesStuck(t *testing.T) {
+	for name, tc := range map[string]struct {
+		budget ghBudget
+		want   string
+	}{
+		"budget exists": {ghBudget{ID: "lost", BudgetScope: "user", BudgetType: "BundlePricing", SKU: "ai_credits", Amount: 300, ExpiresAt: "2027-01-01"}, "applied"},
+		"no budget":     {ghBudget{}, "failed"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			e := newBudgetEnv(t, openBudgetTestDB(t))
+			e.profile("ola")
+			e.exec(`INSERT INTO budget_raises (github_login, idempotency_key, month, amount_usd, budget_set_usd, category, team_id, expected_value, status, created_at)
+				VALUES ('ola', 'k1', '2026-12-01', 150, 300, 'koding', 'annet', 'spare_tid', 'pending', now() - interval '1 hour')`)
+			if tc.budget.ID != "" {
+				e.gh.budgets["ola"] = []ghBudget{tc.budget}
+			}
+			code, out := e.raise("ola", "k1")
+			if code != 200 || out["replayed"] != true || out["raise"].(map[string]any)["status"] != tc.want {
+				t.Fatalf("same-key retry: %d %v", code, out)
+			}
+			if e.count("SELECT count(*) FROM budget_raises") != 1 || len(e.gh.writes) != 0 {
+				t.Errorf("a retry must not start a new raise: writes %v", e.gh.writes)
+			}
+		})
+	}
+}
