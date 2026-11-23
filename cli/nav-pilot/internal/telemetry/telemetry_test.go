@@ -38,6 +38,9 @@ func TestNormalizeTelemetryDimension_AllowsStartupAndLaunch(t *testing.T) {
 	if got := normalizeTelemetryDimension("startup", "unknown"); got != "startup" {
 		t.Fatalf("normalizeTelemetryDimension(startup) = %q, want startup", got)
 	}
+	if got := normalizeTelemetryDimension("budget", "unknown"); got != "budget" {
+		t.Fatalf("normalizeTelemetryDimension(budget) = %q, want budget", got)
+	}
 	if got := normalizeTelemetryDimension("launch", "unknown"); got != "launch" {
 		t.Fatalf("normalizeTelemetryDimension(launch) = %q, want launch", got)
 	}
