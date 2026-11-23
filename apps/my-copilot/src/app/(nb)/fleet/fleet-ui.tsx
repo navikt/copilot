@@ -195,6 +195,11 @@ export function TeamTabs({ teams }: { teams: TeamData[] }) {
   );
 }
 
+// fleet-control keys the owner team's own approval slot by the profile's namespace, next to route keys.
+function slotLabel(slot: string, namespace: string): string {
+  return slot === namespace ? `Godkjenning fra eget team (${namespace})` : `Rute ${slot}`;
+}
+
 export function PendingInbox({ agents }: { agents: PendingAgent[] }) {
   return (
     <VStack gap="space-8">
@@ -209,7 +214,7 @@ export function PendingInbox({ agents }: { agents: PendingAgent[] }) {
             <Table.Row>
               <Table.HeaderCell scope="col">Agentprofil</Table.HeaderCell>
               <Table.HeaderCell scope="col">Fra team</Table.HeaderCell>
-              <Table.HeaderCell scope="col">Ruter som venter på godkjenning</Table.HeaderCell>
+              <Table.HeaderCell scope="col">Venter på godkjenning</Table.HeaderCell>
             </Table.Row>
           </Table.Header>
           <Table.Body>
@@ -221,7 +226,7 @@ export function PendingInbox({ agents }: { agents: PendingAgent[] }) {
                   </NextLink>
                 </Table.DataCell>
                 <Table.DataCell>{a.profile.namespace}</Table.DataCell>
-                <Table.DataCell>{a.awaiting.join(", ")}</Table.DataCell>
+                <Table.DataCell>{a.awaiting.map((w) => slotLabel(w, a.profile.namespace)).join(", ")}</Table.DataCell>
               </Table.Row>
             ))}
           </Table.Body>
@@ -332,10 +337,15 @@ export function agentNextStep(d: AgentDetail): string {
       ? `Ingen. Profilen er godkjent til ${date(d.profile.expires_at)}.`
       : "Ingen. Profilen er godkjent.";
   if (d.status === "expired" || d.status === "revoked") return "Ingen.";
+  const ns = d.profile.namespace;
   const left = Object.entries(d.approvals)
     .filter(([, a]) => !a)
-    .map(([route]) => route);
-  return `Teamet som eier hver rute, må godkjenne den. Venter på: ${left.join(", ")}.`;
+    .map(([slot]) => slot);
+  const steps: string[] = [];
+  if (left.includes(ns)) steps.push(`En annen person på teamet ${ns} må godkjenne profilen.`);
+  const routes = left.filter((s) => s !== ns);
+  if (routes.length) steps.push(`Teamet som eier hver rute, må godkjenne den. Venter på: ${routes.join(", ")}.`);
+  return steps.join(" ");
 }
 
 export function AgentDetailView({ detail, events }: { detail: AgentDetail; events: AuditEvent[] | null }) {
@@ -353,6 +363,14 @@ export function AgentDetailView({ detail, events }: { detail: AgentDetail; event
           ["Team", p.namespace],
           ["App", `${p.identity.cluster}/${p.identity.namespace}/${p.identity.app}`],
           ["Entra-klient-ID", p.identity.entra_client_id],
+          ...(p.namespace in detail.approvals
+            ? [
+                ((a): [string, ReactNode] => [
+                  slotLabel(p.namespace, p.namespace),
+                  a ? `godkjent av ${a.approved_by} ${date(a.approved_at)}` : "ikke godkjent",
+                ])(detail.approvals[p.namespace]),
+              ]
+            : []),
           ...p.grants.map((g): [string, ReactNode] => {
             const a = detail.approvals[g.route];
             return [
