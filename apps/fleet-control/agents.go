@@ -535,6 +535,11 @@ func (d *DB) ApproveAgentRoute(ctx context.Context, wantID int64, namespace, nam
 		if actor == p.CreatedBy {
 			return fmt.Errorf("%w: the author cannot approve their own profile", errForbidden)
 		}
+		// "seed" is not a person, so it cannot be the first of the two people
+		// the owner team needs. A human revokes and re-submits the draft.
+		if p.CreatedBy == "seed" {
+			return fmt.Errorf("%w: a seeded draft must be re-submitted by a person before approval", errForbidden)
+		}
 		tag, err := tx.Exec(ctx, `INSERT INTO agent_profile_approvals (profile_id, route, approved_by) VALUES ($1, $2, $3)
 			ON CONFLICT DO NOTHING`, id, route, actor)
 		if err != nil {
