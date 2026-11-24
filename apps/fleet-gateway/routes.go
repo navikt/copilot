@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/url"
 	"os"
+	"regexp"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -99,6 +100,10 @@ func parseAndValidatePilotRoutes(raw []byte) ([]PilotRoute, error) {
 	return validatePilotRoutes(doc.Routes)
 }
 
+// mcpToolName is the MCP tool-name charset (spec 2025-11-25, "Tool names").
+// Restricting to ASCII keeps names safe to render as agentgateway CEL literals.
+var mcpToolName = regexp.MustCompile(`^[A-Za-z0-9_.-]{1,128}$`)
+
 // applyToolPolicy validates tools and passAllTools and builds the allowlist.
 // Version 2 denies by default: a route must list tools or be marked
 // passAllTools by the operator, not both.
@@ -118,7 +123,7 @@ func applyToolPolicy(r *PilotRoute) error {
 	}
 	r.allowedTools = make(map[string]bool, len(r.Tools))
 	for _, t := range r.Tools {
-		if t == "" || strings.TrimSpace(t) != t {
+		if !mcpToolName.MatchString(t) {
 			return fmt.Errorf("route %q: invalid tool name %q", name, t)
 		}
 		if r.allowedTools[t] {

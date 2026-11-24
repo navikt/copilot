@@ -21,7 +21,7 @@ func agentgatewayToolRule(r PilotRoute) string {
 	}
 	quoted := make([]string, len(r.Tools))
 	for i, t := range r.Tools {
-		// Go and CEL share these escapes (\" \\ \n \t \xHH \uXXXX \UXXXXXXXX).
+		// Names are limited to [A-Za-z0-9_.-] by applyToolPolicy, so quoting never escapes.
 		quoted[i] = strconv.Quote(t)
 	}
 	return "mcp.tool.name in [" + strings.Join(quoted, ", ") + "]"
@@ -93,23 +93,19 @@ func TestAgentgatewayCELMatchesAllowlist(t *testing.T) {
 	}
 }
 
-// TestAgentgatewayCELEscapesToolNames guards against a tool name breaking out
-// of the CEL list literal and widening the rule.
-func TestAgentgatewayCELEscapesToolNames(t *testing.T) {
-	r := PilotRoute{Route: "/mcp/a/b", Tools: []string{`x"]||true||["`, `back\slash`}}
-	if err := applyToolPolicy(&r); err != nil {
-		t.Fatal(err)
-	}
-	rule := agentgatewayToolRule(r)
-	if strings.Contains(rule, `x"]`) {
-		t.Fatalf("unescaped tool name in rule: %s", rule)
-	}
-	for _, tool := range r.Tools {
-		if !celAllowed(t, rule, tool) {
-			t.Errorf("rule %s does not allow %q", rule, tool)
+// TestToolNamesOutsideMCPCharsetRejected guards the CEL rendering: only names
+// in the MCP charset reach it, so no escape (such as \xHH for invalid UTF-8,
+// which CEL reads as a different code point) can change what the rule allows.
+func TestToolNamesOutsideMCPCharsetRejected(t *testing.T) {
+	long := strings.Repeat("a", 129)
+	for _, bad := range []string{"", "\xff", "caf\u00e9", " x", "x y", `x"]||true||["`, `back\slash`, "a/b", long} {
+		r := PilotRoute{Route: "/mcp/a/b", Tools: []string{bad}}
+		if err := applyToolPolicy(&r); err == nil {
+			t.Errorf("tool %q accepted", bad)
 		}
 	}
-	if celAllowed(t, rule, "delete_all") {
-		t.Errorf("rule %s allows delete_all", rule)
+	r := PilotRoute{Route: "/mcp/a/b", Tools: []string{"get_team", "a.b-C9", strings.Repeat("a", 128)}}
+	if err := applyToolPolicy(&r); err != nil {
+		t.Fatal(err)
 	}
 }
