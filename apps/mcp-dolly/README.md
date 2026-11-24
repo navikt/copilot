@@ -55,14 +55,8 @@ Changing `USER_HASH_KEY` resets every user's quota count; rotate it only if it l
 
 Same model as `mcp-kodeverk`: Texas introspection, `azp` must equal `$NAIS_CLUSTER_NAME:copilot:fleet-gateway`, `NAVident` is required and app tokens are rejected. Each tool call exchanges the user's token via Texas OBO for `DOLLY_SCOPE`. Both apps are in the `nav.no` tenant, so OBO works across clusters.
 
-## Waiting on Dolly
+## Dolly access
 
-`dolly-backend` must pre-authorize this app. Team Dolly adds to `accessPolicy.inbound.rules` in `apps/dolly-backend/config.yml`:
-
-```yaml
-- application: mcp-dolly
-  namespace: copilot
-  cluster: prod-gcp
-```
-
-Until then OBO fails and the gateway route `/mcp/copilot/dolly` stays `enabled: false`.
+- Prod: team Dolly pre-authorized `mcp-dolly` (`copilot`, `prod-gcp`) in navikt/testnorge#4427. The prod route `/mcp/copilot/dolly` is enabled.
+- `dolly-backend` exists only in dev and produces only test data, so the prod gateway calling dev Dolly is intended (owner decision 2026-11-24).
+- Dev-gcp: access for `mcp-dolly` is still pending (#2662).
