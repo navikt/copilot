@@ -30,7 +30,7 @@ func TestJCS(t *testing.T) {
 // A set in another order gives the same hash; a new tool does not.
 func TestServerSpecHashNormalises(t *testing.T) {
 	spec := func(tools ...string) string {
-		s, _, err := validateServerSpec("dev-gcp", "team-a", "svc", MCPServerSpec{DataCategory: "Intern", Upstream: &Upstream{App: "svc", URL: "http://svc.team-a/mcp"}, AllowedTools: tools})
+		s, _, err := validateServerSpec("dev-gcp", "", "team-a", "svc", MCPServerSpec{DataCategory: "Intern", Upstream: &Upstream{App: "svc", URL: "http://svc.team-a/mcp"}, AllowedTools: tools})
 		if err != nil {
 			t.Fatal(err)
 		}

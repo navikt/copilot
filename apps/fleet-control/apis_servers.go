@@ -69,7 +69,7 @@ var dataCategories = []string{"Aapen", "Intern", "Fortrolig"}
 // validateServerSpec checks spec with the same rules as /admin/v1 drafts
 // and returns it normalised (allowedTools sorted) with the Server the
 // snapshot columns are written from.
-func validateServerSpec(cluster, ns, name string, spec MCPServerSpec) (MCPServerSpec, Server, error) {
+func validateServerSpec(cluster, platform, ns, name string, spec MCPServerSpec) (MCPServerSpec, Server, error) {
 	if len(spec.Authorization) > 0 {
 		return spec, Server{}, invalid("spec.authorization", "spec.authorization is reserved and not supported in v1alpha1")
 	}
@@ -102,7 +102,21 @@ func validateServerSpec(cluster, ns, name string, spec MCPServerSpec) (MCPServer
 	if err != nil {
 		return spec, Server{}, invalid("spec", "%v", err)
 	}
+	if sv.RegistryName != "" && !registryNameAllowed(platform, ns, sv.RegistryName) {
+		return spec, Server{}, invalid("spec.registry.name", "%q is not yours: team %s may use no.nav.%s/<name>, io.github.navikt/%s or io.github.navikt/%s-<name>; other names are registered by the platform team", sv.RegistryName, ns, ns, ns, ns)
+	}
 	return spec, sv, nil
+}
+
+// registryNameAllowed binds a registry name prefix to the team (#2853). The
+// platform team may register any name, including vendor names such as
+// com.microsoft/*. An unset platform team grants no one that.
+func registryNameAllowed(platform, ns, regName string) bool {
+	if platform != "" && ns == platform {
+		return true
+	}
+	n := strings.ToLower(regName)
+	return strings.HasPrefix(n, "no.nav."+ns+"/") || n == "io.github.navikt/"+ns || strings.HasPrefix(n, "io.github.navikt/"+ns+"-")
 }
 
 // --- handlers ---
@@ -179,7 +193,7 @@ func (s *server) createServer(w http.ResponseWriter, r *http.Request, c caller, 
 	if err != nil {
 		return err
 	}
-	spec, sv, err := validateServerSpec(s.cluster, ns, in.Metadata.Name, in.Spec)
+	spec, sv, err := validateServerSpec(s.cluster, s.operatorTeam, ns, in.Metadata.Name, in.Spec)
 	if err != nil {
 		return err
 	}
@@ -198,7 +212,7 @@ func (s *server) putServer(w http.ResponseWriter, r *http.Request, c caller, db 
 	if err != nil {
 		return err
 	}
-	spec, sv, err := validateServerSpec(s.cluster, ns, name, in.Spec)
+	spec, sv, err := validateServerSpec(s.cluster, s.operatorTeam, ns, name, in.Spec)
 	if err != nil {
 		return err
 	}
