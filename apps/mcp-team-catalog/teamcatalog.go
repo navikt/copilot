@@ -211,7 +211,7 @@ func (c *teamCatalogClient) searchTeams(ctx context.Context, token, query string
 func (c *teamCatalogClient) getTeam(ctx context.Context, token, id string) (upstreamTeam, error) {
 	path := "/team/" + url.PathEscape(id)
 	var team upstreamTeam
-	if err := c.getJSON(ctx, token, path, nil, true, &team); err != nil {
+	if err := c.getJSON(ctx, token, path, nil, false, &team); err != nil {
 		return upstreamTeam{}, err
 	}
 	return team, nil
@@ -245,7 +245,7 @@ func (c *teamCatalogClient) listProductAreas(ctx context.Context, token, status 
 func (c *teamCatalogClient) getProductArea(ctx context.Context, token, id string) (upstreamProductArea, error) {
 	path := "/productarea/" + url.PathEscape(id)
 	var area upstreamProductArea
-	if err := c.getJSON(ctx, token, path, nil, true, &area); err != nil {
+	if err := c.getJSON(ctx, token, path, nil, false, &area); err != nil {
 		return upstreamProductArea{}, err
 	}
 	return area, nil
@@ -266,7 +266,7 @@ func (c *teamCatalogClient) listClusters(ctx context.Context, token, status stri
 func (c *teamCatalogClient) getCluster(ctx context.Context, token, id string) (upstreamCluster, error) {
 	path := "/cluster/" + url.PathEscape(id)
 	var cluster upstreamCluster
-	if err := c.getJSON(ctx, token, path, nil, true, &cluster); err != nil {
+	if err := c.getJSON(ctx, token, path, nil, false, &cluster); err != nil {
 		return upstreamCluster{}, err
 	}
 	return cluster, nil

@@ -319,3 +319,19 @@ func TestResponseCacheExpiresAndBounds(t *testing.T) {
 		t.Fatal("expired entry served")
 	}
 }
+
+func TestDetailResponsesWithMembersAreNotCached(t *testing.T) {
+	var hits atomic.Int32
+	srv := newTestServer(t, defaultTexasHandler("obo"), func(w http.ResponseWriter, _ *http.Request) {
+		hits.Add(1)
+		writeJSON(w, http.StatusOK, map[string]any{"id": testTeamID, "name": "x", "members": []any{}})
+	})
+	for _, tool := range []string{"get_team", "get_product_area", "get_cluster"} {
+		hits.Store(0)
+		callToolModern(t, srv.routes(), "in", tool, map[string]any{"id": testTeamID})
+		callToolModern(t, srv.routes(), "in", tool, map[string]any{"id": testTeamID})
+		if n := hits.Load(); n != 2 {
+			t.Fatalf("%s: upstream hits = %d, want 2 (detail responses must not be cached)", tool, n)
+		}
+	}
+}

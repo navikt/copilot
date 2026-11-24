@@ -6,7 +6,8 @@ import (
 )
 
 // Upstream response cache for shared org catalog endpoints (/team, /productarea,
-// /cluster, /naisteam). Person membership lookups (/member/membership/) are never
+// /cluster, /naisteam). Detail responses with members (/team/{id}, /productarea/{id},
+// /cluster/{id}) and person membership lookups (/member/membership/) are never
 // cached. The caller's token is still validated and exchanged via Texas OBO on
 // every tool call before the cache is read.
 const (
