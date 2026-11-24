@@ -57,7 +57,7 @@ func TestAdminAgentWritesAreGone(t *testing.T) {
 // A spec from before v0.8 (no readme, no tools) keeps its stored hash.
 // The value is SHA-256 over the JCS text, computed outside this code.
 func TestServerSpecHashStableForOldSpecs(t *testing.T) {
-	s, _, err := validateServerSpec("dev-gcp", "team-a", "svc", MCPServerSpec{DataCategory: "Intern", Upstream: &Upstream{App: "svc", URL: "http://svc.team-a/mcp"}, AllowedTools: []string{"b", "a"}, Tools: []ToolDoc{}})
+	s, _, err := validateServerSpec("dev-gcp", "", "team-a", "svc", MCPServerSpec{DataCategory: "Intern", Upstream: &Upstream{App: "svc", URL: "http://svc.team-a/mcp"}, AllowedTools: []string{"b", "a"}, Tools: []ToolDoc{}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -81,7 +81,7 @@ func TestServerSpecHashStableForOldSpecs(t *testing.T) {
 func TestServerSpecV08Caps(t *testing.T) {
 	ok := MCPServerSpec{DataCategory: "Intern", Upstream: &Upstream{App: "svc", URL: "http://svc.team-a/mcp"}, AllowedTools: []string{"a", "b"},
 		Readme: strings.Repeat("x", maxReadmeBytes), Tools: []ToolDoc{{Name: "b", Description: strings.Repeat("x", maxToolDescriptionBytes)}, {Name: "a"}}}
-	s, _, err := validateServerSpec("dev-gcp", "team-a", "svc", ok)
+	s, _, err := validateServerSpec("dev-gcp", "", "team-a", "svc", ok)
 	if err != nil {
 		t.Fatalf("at the cap: %v", err)
 	}
@@ -105,7 +105,7 @@ func TestServerSpecV08Caps(t *testing.T) {
 		m := ok
 		mod(&m)
 		var se *statusError
-		if _, _, err := validateServerSpec("dev-gcp", "team-a", "svc", m); !errors.As(err, &se) || se.code != http.StatusUnprocessableEntity {
+		if _, _, err := validateServerSpec("dev-gcp", "", "team-a", "svc", m); !errors.As(err, &se) || se.code != http.StatusUnprocessableEntity {
 			t.Errorf("%s: want 422, got %v", name, err)
 		}
 	}
