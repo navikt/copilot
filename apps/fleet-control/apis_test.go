@@ -568,6 +568,13 @@ func TestRealPostgresSeededProfileNeedsPerson(t *testing.T) {
 	if got.Status.Pending.SubmittedBy.Kind != "System" || !got.Status.NeedsResubmit {
 		t.Fatalf("seeded submitter: %+v", got.Status.Pending.SubmittedBy)
 	}
+	// The granting team sees the flag too, on GET and in its inbox.
+	if ex := decodeProfile(t, e.want(200, "GET", nsBase+"aksel-studio/agentprofiles/studio-assistant", person("C222222"), "")); !ex.Status.NeedsResubmit {
+		t.Fatalf("excerpt drops needsResubmit: %+v", ex.Status)
+	}
+	if inbox := e.want(200, "GET", apisPrefix+"/agentprofiles?awaitingApprovalBy=me", person("C222222"), ""); !strings.Contains(inbox, `"needsResubmit":true`) {
+		t.Fatalf("inbox drops needsResubmit: %s", inbox)
+	}
 	e.want(403, "POST", nsBase+"aksel-studio/agentprofiles/studio-assistant/approval", person("C222222"), grantBody(1, "copilot/dolly", got.Status.Grants[0].ContentHash))
 	// Even with an oid, kind System never counts as a person.
 	if _, err := e.db.pool.Exec(context.Background(), `UPDATE agent_profile_generations SET submitted_by_oid = $1::uuid`, testOid("A555555")); err != nil {

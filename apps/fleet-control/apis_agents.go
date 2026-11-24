@@ -277,6 +277,7 @@ func excerpt(obj AgentProfileV1, c caller) (AgentProfileV1, bool) {
 	}
 	// An expired profile stays visible with its expiry, as the owner team sees it (#2696).
 	out.Status.ExpiresAt = obj.Status.ExpiresAt
+	out.Status.NeedsResubmit = obj.Status.NeedsResubmit
 	return out, true
 }
 

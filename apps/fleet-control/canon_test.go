@@ -3,8 +3,9 @@ package main
 import (
 	"encoding/json"
 	"errors"
-	"strings"
 	"net/http"
+	"strconv"
+	"strings"
 	"testing"
 )
 
@@ -88,10 +89,18 @@ func TestServerSpecV08Caps(t *testing.T) {
 		t.Errorf("tools not sorted: %+v", s.Tools)
 	}
 	for name, mod := range map[string]func(*MCPServerSpec){
-		"readme":      func(m *MCPServerSpec) { m.Readme += "x" },
-		"description": func(m *MCPServerSpec) { m.Tools = []ToolDoc{{Name: "a", Description: strings.Repeat("x", maxToolDescriptionBytes+1)}} },
-		"unknown":     func(m *MCPServerSpec) { m.Tools = []ToolDoc{{Name: "c"}} },
-		"twice":       func(m *MCPServerSpec) { m.Tools = []ToolDoc{{Name: "a"}, {Name: "a"}} },
+		"readme": func(m *MCPServerSpec) { m.Readme += "x" },
+		"description": func(m *MCPServerSpec) {
+			m.Tools = []ToolDoc{{Name: "a", Description: strings.Repeat("x", maxToolDescriptionBytes+1)}}
+		},
+		"unknown": func(m *MCPServerSpec) { m.Tools = []ToolDoc{{Name: "c"}} },
+		"too many": func(m *MCPServerSpec) {
+			m.Tools, m.AllowedTools = nil, nil
+			for i := range maxServerTools + 1 {
+				m.AllowedTools = append(m.AllowedTools, "t"+strconv.Itoa(i))
+			}
+		},
+		"twice": func(m *MCPServerSpec) { m.Tools = []ToolDoc{{Name: "a"}, {Name: "a"}} },
 	} {
 		m := ok
 		mod(&m)
