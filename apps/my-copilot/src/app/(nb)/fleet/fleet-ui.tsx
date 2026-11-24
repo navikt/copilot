@@ -359,6 +359,14 @@ const specRows = (s?: MCPServerSpec): [string, string][] => [
 
 const safeHref = (href?: string) => (href && /^(https?:|mailto:)/i.test(href) ? href : undefined);
 
+// Readme headings sit under the h2 "Om MCP-serveren": h1 becomes h3, capped at h6.
+const readmeHeadings = Object.fromEntries(
+  [1, 2, 3, 4, 5, 6].map((n) => {
+    const Tag = `h${Math.min(n + 2, 6)}` as "h3";
+    return [`h${n}`, ({ children }: { children?: ReactNode }) => <Tag>{children}</Tag>];
+  })
+);
+
 /** The readme is untrusted: raw HTML is skipped, links only for http/https/mailto, no images. */
 export function ServerReadme({ markdown }: { markdown: string }) {
   return (
@@ -377,6 +385,7 @@ export function ServerReadme({ markdown }: { markdown: string }) {
           );
         },
         img: ({ alt }) => <span>{alt}</span>,
+        ...readmeHeadings,
       }}
     >
       {markdown}

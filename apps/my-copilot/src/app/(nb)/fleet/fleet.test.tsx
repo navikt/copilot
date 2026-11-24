@@ -158,16 +158,16 @@ describe("/fleet", () => {
     const s = server();
     Object.assign(s.status.pending.spec, {
       readme:
-        '# Om docs\n\n<script>alert(1)</script><b id="raw">rå</b>\n\n[ond](javascript:alert(1)) [god](https://example.com) ![bilde](https://evil.example/x.png)',
+        '# Om docs\n\n<script>alert(1)</script><b id="raw">rå</b>\n\n[ond](javascript:alert(1)) [data](data:text/html,x) [blandet](JaVaScRiPt:alert(1)) [god](https://example.com) ![bilde](https://evil.example/x.png)',
       tools: [{ name: "search", description: "Søker i dokumentasjonen" }],
     });
     stub({ [`${API}/namespaces/team-a/mcpservers/docs`]: s });
     const { container } = render(await ServerPage(params("team-a", "docs")));
-    expect(screen.getByRole("heading", { name: "Om docs" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Om docs", level: 3 })).toBeInTheDocument();
     expect(container.querySelector("script")).toBeNull();
     expect(container.querySelector("#raw")).toBeNull();
     expect(container.querySelector("img")).toBeNull();
-    expect(screen.getByText("ond").closest("a")).toBeNull();
+    for (const t of ["ond", "data", "blandet"]) expect(screen.getByText(t).closest("a")).toBeNull();
     expect(screen.getByRole("link", { name: "god" })).toHaveAttribute("rel", "noopener noreferrer");
     expect(screen.getByText("Søker i dokumentasjonen")).toBeInTheDocument();
   });
