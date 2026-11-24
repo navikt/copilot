@@ -141,3 +141,32 @@ func ageAudit(t *testing.T, db *DB) {
 		t.Fatal(err)
 	}
 }
+
+// TestResourceStatusTracksNewest: revoke, unrevoke, revoke again leaves the
+// newest revocation; an older event never overwrites it (009).
+func TestResourceStatusTracksNewest(t *testing.T) {
+	db := openTestDB(t)
+	ctx := context.Background()
+	if err := db.Migrate(ctx); err != nil {
+		t.Fatal(err)
+	}
+	ins := func(action, by, ago string) {
+		t.Helper()
+		if _, err := db.pool.Exec(ctx, `INSERT INTO audit_events (actor, action, resource_kind, namespace, name, detail, at)
+			VALUES ('A1', $1, 'MCPServer', 'ns', 'svc', jsonb_build_object('by', $2::text), now() - $3::interval)`, action, by, ago); err != nil {
+			t.Fatal(err)
+		}
+	}
+	ins("revoked", "platform", "3 hours")
+	ins("rolled_back", "owner", "2 hours")
+	ins("revoked", "owner", "1 hour")
+	ins("revoked", "platform", "5 hours") // older, arrives late
+	var by string
+	var age float64
+	if err := db.pool.QueryRow(ctx, `SELECT by_role, extract(epoch FROM now() - at) FROM resource_status WHERE namespace = 'ns' AND name = 'svc' AND action = 'revoked'`).Scan(&by, &age); err != nil {
+		t.Fatal(err)
+	}
+	if by != "owner" || age < 3500 || age > 3700 {
+		t.Fatalf("got %s, %.0fs old; want owner, 1 hour", by, age)
+	}
+}

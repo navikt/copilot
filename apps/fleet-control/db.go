@@ -275,11 +275,36 @@ func (d *DB) RevokeAuditChange(ctx context.Context) error {
 	if _, err := d.pool.Exec(ctx, string(sql)); err != nil {
 		return fmt.Errorf("revoke audit_events rights: %w", err)
 	}
+	if _, err := d.pool.Exec(ctx, revokeResourceStatus); err != nil {
+		return fmt.Errorf("revoke resource_status rights: %w", err)
+	}
 	return nil
 }
 
+// revokeResourceStatus leaves only SELECT on resource_status to non-owners:
+// the definer trigger on audit_events is its only writer, and a runtime
+// write could forge or clear a platform revocation (009).
+const revokeResourceStatus = `REVOKE INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON resource_status FROM PUBLIC;
+DO $$
+DECLARE r record;
+BEGIN
+    FOR r IN SELECT DISTINCT a.grantee::regrole AS grantee
+             FROM pg_class c, aclexplode(c.relacl) a
+             WHERE c.oid = 'resource_status'::regclass AND a.grantee <> 0 AND a.grantee <> c.relowner
+               AND a.privilege_type <> 'SELECT'
+             UNION
+             SELECT a.grantee::regrole
+             FROM pg_attribute att, aclexplode(att.attacl) a
+             WHERE att.attrelid = 'resource_status'::regclass AND a.grantee <> 0
+               AND a.privilege_type <> 'SELECT'
+    LOOP
+        EXECUTE format('REVOKE INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON resource_status FROM %s', r.grantee);
+    END LOOP;
+END $$;`
+
 // CheckAuditLocked fails unless the connected role is not the owner of
-// audit_events and holds none of the rights to change it (#2631).
+// audit_events and holds none of the rights to change it (#2631), nor to
+// write resource_status (009).
 func (d *DB) CheckAuditLocked(ctx context.Context) error { return checkAuditLocked(ctx, d.pool) }
 
 func checkAuditLocked(ctx context.Context, q interface {
@@ -291,6 +316,10 @@ func checkAuditLocked(ctx context.Context, q interface {
 		OR has_table_privilege(c.oid, 'TRUNCATE') OR has_table_privilege(c.oid, 'TRIGGER')
 		OR has_any_column_privilege(c.oid, 'UPDATE')
 		OR has_sequence_privilege('audit_events_id_seq', 'UPDATE')
+		OR has_table_privilege('resource_status', 'INSERT') OR has_table_privilege('resource_status', 'UPDATE')
+		OR has_table_privilege('resource_status', 'DELETE') OR has_table_privilege('resource_status', 'TRUNCATE')
+		OR has_table_privilege('resource_status', 'TRIGGER')
+		OR has_any_column_privilege('resource_status', 'INSERT') OR has_any_column_privilege('resource_status', 'UPDATE')
 		FROM pg_class c WHERE c.oid = 'audit_events'::regclass`).Scan(&owner, &canChange)
 	if err != nil {
 		return fmt.Errorf("check audit_events rights: %w", err)
