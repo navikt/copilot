@@ -56,12 +56,12 @@ const SECURITY: { title: string; text: string }[] = [
   },
   {
     title: "Ratelimit",
-    text: "Gatewayen stopper når for mange kall kjører samtidig for en bruker. Grensen for kall per minutt setter serveren selv.",
+    text: "Gatewayen stopper kall når for mange kjører samtidig for én bruker. Grensen for kall per minutt setter serveren selv.",
   },
   { title: "Nødstopp", text: "Vi kan stenge en server med en gang hvis noe går galt." },
   {
     title: "Revisjonslogg",
-    text: "Hvert kall logges med Nav-ident, klient, rute, MCP-metode, verktøy, utfall og beslutning.",
+    text: "Hvert kall logges med Nav-ident, klient, rute, MCP-metode, verktøy, utfall og avgjørelse.",
   },
   {
     title: "Innlogging som utløper",

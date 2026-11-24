@@ -132,7 +132,7 @@ export function PilotServerCards({ compact, tools = {} }: { compact?: boolean; t
     <div
       className={compact ? "mcp-server-cards" : "fleet-gateway-servers"}
       role="region"
-      aria-label="Servere i piloten"
+      aria-label={compact ? "MCP-servere i Nav" : "Servere i piloten"}
       tabIndex={compact ? undefined : 0}
     >
       {PILOT_SERVERS.map((server) => {
