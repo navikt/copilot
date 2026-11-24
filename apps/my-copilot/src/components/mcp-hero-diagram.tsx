@@ -3,16 +3,18 @@
 /**
  * The hero on /mcp: tool calls from many clients merge into one stream through fleet-gateway, pass four gates and
  * fan out to the MCP servers. A port of the approved mockup. The calls follow a fixed, seeded plan, so the picture is
- * the same every visit. Server names and tools are real (pilot-routes.prod.yaml); the calls are examples.
+ * the same every visit. The servers and tool names are real MCP servers from the registry; not every one is a
+ * fleet-gateway route. The calls are examples.
  *
- * Every position is a pure function of time, so each animation frame just re-renders. Under prefers-reduced-motion
- * the diagram shows one fixed frame with numbered steps; the pause button does the same on request (WCAG 2.2.2).
+ * Every position is a pure function of time. Each animation frame writes the moving circles through refs; React only
+ * re-renders when the followed call reaches a new stage or a tile changes phase. The loop stops off-screen and on
+ * pause (WCAG 2.2.2). Under prefers-reduced-motion the diagram shows one fixed frame with numbered steps.
  */
 
 import { CodeIcon, LaptopIcon, RobotIcon, SparklesIcon } from "@navikt/aksel-icons";
 import { BodyShort, Button, HStack, Switch, Tag, VStack } from "@navikt/ds-react";
 import { SiGithubcopilot } from "@icons-pack/react-simple-icons";
-import { useEffect, useRef, useState, type ComponentType } from "react";
+import { useCallback, useEffect, useRef, useState, type ComponentType } from "react";
 
 type Icon = ComponentType<{ width?: number; height?: number; "aria-hidden"?: boolean }>;
 type Pt = { x: number; y: number };
@@ -490,7 +492,7 @@ function frame(L: Layout, T: number) {
       x: p.x,
       y: p.y,
       o: p.o * (p.red ? 0.95 : 0.7),
-      f: p.red ? C_RED : TYPES[TILES[a[0].c]].c,
+      f: p.red ? C_RED : TYPES[view(a[0].c, T).ty].c,
       r: p.red ? 4.5 : 3,
     });
   }
@@ -506,68 +508,50 @@ function frame(L: Layout, T: number) {
 const SUMMARY =
   "Illustrasjon: kall fra mange klienter, som GitHub Copilot, OpenCode, nav-pilot og agentprofiler, samles i én smal strøm gjennom fleet-gateway. " +
   "Der passerer de fire sjekker: tilgang, godkjente verktøy, ratelimit og nødstopp. " +
-  "Så fordeles de til MCP-serverne Aksel designsystem, Felles kodeverk, Teamkatalogen og Dolly. " +
+  "Deretter fordeles de til MCP-serverne Aksel designsystem, Felles kodeverk, Teamkatalogen og Dolly. " +
   "Kall som stoppes, blir røde ved sjekken som stopper dem.";
 const PER_MIN = EVT.length + Math.round(PER / FP);
 const REJECTED = EVT.filter((x) => x.rej).length + 1;
+// Below this width the tall drawing takes over. Keep in step with the container query in globals.css.
+const TALL_BELOW = 850;
+const r2 = (n: number) => Math.round(n * 100) / 100;
+// What React renders; changes only when the followed call reaches a new stage or a tile changes phase.
+const viewKey = (T: number) => {
+  const fi = Math.floor(T / FP);
+  return (
+    fi +
+    ":" +
+    stageOf(layout(false), FOCUS[fi % FOCUS.length], (T - fi * FP) / D) +
+    ":" +
+    TILES.map((_, i) => view(i, T).ph[0] + view(i, T).ty).join("")
+  );
+};
 
-export function McpHeroDiagram() {
-  const [rm, setRm] = useState(false);
-  const [paused, setPaused] = useState(false);
-  const [live, setLive] = useState(false);
-  const [compact, setCompact] = useState(false);
-  const [scale, setScale] = useState(1);
-  // Diagram time in ms. The server and the reduced-motion frame show T_STILL: a call passing the last gates.
-  const [t, setT] = useState(T_STILL);
-  const wrap = useRef<HTMLDivElement>(null);
-  const started = useRef(false);
-  const still = rm || paused;
+type Refs = {
+  dots: SVGCircleElement[];
+  cores: SVGCircleElement[];
+  tiles: HTMLSpanElement[];
+  focus: SVGCircleElement[];
+};
 
-  useEffect(() => {
-    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const on = () => setRm(mq.matches);
-    on();
-    mq.addEventListener("change", on);
-    return () => mq.removeEventListener("change", on);
-  }, []);
-
-  // The wide drawing scales down to fit; below 640 px the tall one takes over, so the text stays readable.
-  useEffect(() => {
-    const el = wrap.current;
-    if (!el) return;
-    const ro = new ResizeObserver(([e]) => {
-      const w = e.contentRect.width;
-      setCompact(w < 640);
-      setScale(Math.min(1, w / (w < 640 ? 350 : 1064)));
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-
-  useEffect(() => {
-    if (still) return;
-    let raf = 0;
-    let from = 0;
-    const loop = (ts: number) => {
-      setT((prev) => {
-        // The first start begins a little before the second followed call; a resume picks up where it stopped.
-        if (!from) from = ts - (started.current ? prev : 2 * FP - 300);
-        started.current = true;
-        return ts - from;
-      });
-      raf = requestAnimationFrame(loop);
-    };
-    raf = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(raf);
-  }, [still]);
-
+function Stage({
+  compact,
+  T,
+  numbered,
+  bind,
+  uid,
+}: {
+  compact: boolean;
+  T: number;
+  numbered: boolean;
+  bind?: (k: keyof Refs, i: number) => (el: SVGCircleElement | HTMLSpanElement | null) => void;
+  uid: string;
+}) {
   const L = layout(compact),
-    T = rm ? T_STILL : t,
     f = frame(L, T),
     e = f.fe,
     st = f.stage;
   const V = TILES.map((_, i) => view(i, T));
-
   const streams: { d: string; c: string; o: number }[] = [];
   V.forEach((vw, i) =>
     TYPES[vw.ty].mix.forEach((w, k) => {
@@ -587,30 +571,9 @@ export function McpHeroDiagram() {
         .map((g) => (g.at + g.len > cut && g.t === "L" ? { ...g, b: ptAt(fr, cut) } : g)),
     });
   }
-  const gState = (j: number) =>
-    st === -1 && j === e.rej
-      ? "no"
-      : (st === -1 ? j < (e.rej ?? 0) : j < st || st >= 5)
-        ? "ok"
-        : st >= 1 && st <= 4 && j === st
-          ? "run"
-          : "";
-  const log: { client: string; route: string; tool: string; rej: number; why: string; fresh: boolean; id: number }[] =
-    [];
-  for (let i = e.fi; i >= 0 && log.length < (compact ? 4 : 5); i--) {
-    const g = FOCUS[i % FOCUS.length];
-    if (i === e.fi && !(st === 6 || st === -1)) continue;
-    log.push({
-      client: TYPES[TILES[g.c]].k,
-      route: SERVERS[g.s].route,
-      tool: g.rej === 1 ? OUTSIDE : toolName(g.s, g.t),
-      rej: g.rej ?? 0,
-      why: g.rej ? GATES[g.rej].why : "tillatt",
-      fresh: i === e.fi && !still,
-      id: i,
-    });
-  }
-  const nums = still
+  const gs = gStates(st, e.rej);
+  const box = (b: Box) => ({ left: b.x, top: b.y, width: b.w, height: b.h });
+  const nums = numbered
     ? (() => {
         const c = L.tBox(e.c),
           g = (j: number) => L.gateLabel(L.gatePos[j]),
@@ -624,14 +587,291 @@ export function McpHeroDiagram() {
         ];
       })()
     : [];
-  const box = (b: Box) => ({ left: b.x, top: b.y, width: b.w, height: b.h });
+  return (
+    <div className="mh-stage" style={{ width: L.W, height: L.H }}>
+      <div className="mh-abs mh-gw" style={box(L.gw)} />
+      <div className="mh-abs mh-gw-name" style={{ left: L.gw.tx, top: L.gw.ty, width: L.gw.tw }}>
+        fleet-gateway
+      </div>
+      {SERVERS.map((s, k) => {
+        const hit = st === 6 && e.s === k && !e.rej;
+        return (
+          <div key={s.route} className={"mh-abs mh-srv" + (hit ? " mh-srv-hit" : "")} style={box(L.sBox(k))}>
+            <div className="mh-srv-head">
+              <strong>{s.title}</strong>
+              <Tag variant={s.ro ? "info" : "warning"} size="xsmall">
+                {s.ro ? "Leser" : "Skriver"}
+              </Tag>
+            </div>
+            <div className="mh-tools">
+              {s.ex.map((x) => (
+                <span
+                  key={x[0]}
+                  title={x[0]}
+                  className={"mh-tl" + (x[2] ? " mh-tl-w" : "") + (hit && e.t === x[1] ? " mh-tl-hit" : "")}
+                >
+                  {x[0]}
+                </span>
+              ))}
+              <span className="mh-more">+{s.n - s.ex.length} verktøy</span>
+            </div>
+          </div>
+        );
+      })}
+      <svg className="mh-abs" style={{ left: 0, top: 0 }} width={L.W} height={L.H} viewBox={`0 0 ${L.W} ${L.H}`}>
+        <defs>
+          <filter id={uid} x="-2" y="-2" width="5" height="5">
+            <feGaussianBlur stdDeviation="1.6" />
+          </filter>
+        </defs>
+        {streams.map((p, i) => (
+          <path key={i} d={p.d} fill="none" className="mh-stream" style={{ stroke: p.c }} strokeOpacity={p.o} />
+        ))}
+        {SERVERS.map((s, k) => {
+          const a = L.entry(k),
+            b = L.exit(k);
+          return (
+            <path
+              key={k}
+              d={`M${a.x} ${a.y}L${b.x} ${b.y}`}
+              fill="none"
+              style={{ stroke: s.lc ?? C_COPILOT }}
+              strokeWidth={1 + vol[k] / 8}
+              strokeOpacity="0.35"
+            />
+          );
+        })}
+        <path
+          d={focusD}
+          fill="none"
+          style={{ stroke: C_FOCUS }}
+          strokeWidth="1.5"
+          strokeOpacity="0.45"
+          strokeDasharray="3 3"
+        />
+        {GATES.map((_, j) => {
+          const p = L.gatePos[j],
+            c = gs[j] === "no" ? C_RED : "var(--ax-border-neutral)",
+            [a, b] = L.gateSpan;
+          return L.v ? (
+            <line key={j} x1={a} y1={p} x2={b} y2={p} style={{ stroke: c }} strokeWidth="1.5" />
+          ) : (
+            <line key={j} x1={p} y1={a} x2={p} y2={b} style={{ stroke: c }} strokeWidth="1.5" />
+          );
+        })}
+        <g filter={`url(#${uid})`}>
+          {f.pool.map((q, i) => (
+            <circle
+              key={i}
+              ref={bind?.("dots", i)}
+              cx={r2(q.x)}
+              cy={r2(q.y)}
+              r={q.r}
+              style={{ fill: q.f }}
+              fillOpacity={r2(q.o)}
+            />
+          ))}
+        </g>
+        {f.pool.map((q, i) => (
+          <circle
+            key={i}
+            ref={bind?.("cores", i)}
+            cx={r2(q.x)}
+            cy={r2(q.y)}
+            r="1.3"
+            style={{ fill: "var(--ax-bg-default)" }}
+            fillOpacity={r2(q.o * 0.8)}
+          />
+        ))}
+        <circle
+          ref={bind?.("focus", 0)}
+          cx={r2(f.fp.x)}
+          cy={r2(f.fp.y)}
+          r="5"
+          style={{ fill: f.fp.f, stroke: "var(--ax-bg-default)" }}
+          fillOpacity={r2(f.fp.o)}
+          strokeWidth="1.5"
+        />
+      </svg>
+      {TILES.map((_, i) => (
+        <span key={i} className="mh-abs mh-ph" style={box(L.tBox(i))} />
+      ))}
+      {V.map((vw, i) => {
+        const T0 = TYPES[vw.ty],
+          Ic = T0.ic,
+          gone = vw.ph === "out" || vw.ph === "empty";
+        return (
+          <span
+            key={i}
+            ref={bind?.("tiles", i)}
+            className={
+              "mh-abs mh-tile" +
+              (gone ? " mh-gone" : "") +
+              (T0.agent ? " mh-agent" : "") +
+              (f.glow[i] ? " mh-on" : "") +
+              (i === e.c ? " mh-focus" : "")
+            }
+            style={{ ...box(L.tBox(i)), color: T0.c, ["--mh-c" as string]: T0.c }}
+            title={T0.full}
+          >
+            <Ic width={compact ? 18 : 20} height={compact ? 18 : 20} aria-hidden />
+            <span className="mh-lb" style={{ fontSize: compact ? 14 : 11 }}>
+              {T0.short}
+            </span>
+          </span>
+        );
+      })}
+      {GATES.map((g, j) => {
+        const s = gs[j],
+          pos = L.gateLabel(L.gatePos[j]);
+        return (
+          <div
+            key={j}
+            className={"mh-abs mh-gl" + (s ? " mh-gl-" + s : "")}
+            style={{ left: pos.x, top: pos.y, width: pos.w, justifyContent: pos.align }}
+          >
+            <span className="mh-sy">{s === "ok" ? "✓" : s === "no" ? "✕" : s === "run" ? "•" : ""}</span>
+            <span>{g.label}</span>
+          </div>
+        );
+      })}
+      {nums.map((n) => (
+        <span key={n.n} className="mh-abs mh-num" style={{ left: n.x, top: n.y }}>
+          {n.n}
+        </span>
+      ))}
+    </div>
+  );
+}
+
+function gStates(st: number, rej?: number) {
+  return GATES.map((_, j) =>
+    st === -1 && j === rej
+      ? "no"
+      : (st === -1 ? j < (rej ?? 0) : j < st || st >= 5)
+        ? "ok"
+        : st >= 1 && st <= 4 && j === st
+          ? "run"
+          : ""
+  );
+}
+
+export function McpHeroDiagram() {
+  const [rm, setRm] = useState(false);
+  const [paused, setPaused] = useState(false);
+  const [onScreen, setOnScreen] = useState(true);
+  const [live, setLive] = useState(false);
+  // null until measured: then both drawings render and a container query shows one.
+  const [compact, setCompact] = useState<boolean | null>(null);
+  const [scale, setScale] = useState(1);
+  // Diagram time in ms as last rendered. Starts a little before the second followed call.
+  const [shown, setShown] = useState({ T: 2 * FP - 300, key: "" });
+  const wrap = useRef<HTMLDivElement>(null);
+  const refs = useRef<Refs>({ dots: [], cores: [], tiles: [], focus: [] });
+  const time = useRef(2 * FP - 300);
+  const bind = useCallback(
+    (k: keyof Refs, i: number) => (el: SVGCircleElement | HTMLSpanElement | null) => {
+      if (el) (refs.current[k] as (typeof el)[])[i] = el;
+    },
+    []
+  );
+
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const on = () => setRm(mq.matches);
+    on();
+    mq.addEventListener("change", on);
+    return () => mq.removeEventListener("change", on);
+  }, []);
+
+  useEffect(() => {
+    const el = wrap.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([e]) => {
+      const w = e.contentRect.width,
+        tall = w < TALL_BELOW;
+      setCompact(tall);
+      setScale(Math.min(1, w / (tall ? 350 : 1064)));
+    });
+    ro.observe(el);
+    const io = new IntersectionObserver(([e]) => setOnScreen(e.isIntersecting));
+    io.observe(el);
+    return () => {
+      ro.disconnect();
+      io.disconnect();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (rm || paused || !onScreen || compact === null) return;
+    const L = layout(compact),
+      R = refs.current;
+    let raf = 0,
+      last = 0;
+    const step = (ts: number) => {
+      if (last) time.current += ts - last;
+      last = ts;
+      const T = time.current,
+        f = frame(L, T);
+      f.pool.forEach((q, i) => {
+        const el = R.dots[i],
+          co = R.cores[i];
+        if (el) {
+          el.setAttribute("cx", String(r2(q.x)));
+          el.setAttribute("cy", String(r2(q.y)));
+          el.style.fill = q.f;
+          el.setAttribute("fill-opacity", String(r2(q.o)));
+          el.setAttribute("r", String(q.r));
+        }
+        if (co) {
+          co.setAttribute("cx", String(r2(q.x)));
+          co.setAttribute("cy", String(r2(q.y)));
+          co.setAttribute("fill-opacity", String(r2(q.o * 0.8)));
+        }
+      });
+      const fo = R.focus[0];
+      if (fo) {
+        fo.setAttribute("cx", String(r2(f.fp.x)));
+        fo.setAttribute("cy", String(r2(f.fp.y)));
+        fo.style.fill = f.fp.f;
+        fo.setAttribute("fill-opacity", String(r2(f.fp.o)));
+      }
+      R.tiles.forEach((el, i) => el?.classList.toggle("mh-on", !!f.glow[i]));
+      const key = viewKey(T);
+      setShown((s) => (s.key === key ? s : { T, key }));
+      raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [rm, paused, onScreen, compact]);
+
+  const T = rm ? T_STILL : shown.T,
+    tall = !!compact;
+  const fi = Math.floor(T / FP),
+    st = stageOf(layout(tall), FOCUS[fi % FOCUS.length], (T - fi * FP) / D);
+  const log: { client: string; route: string; tool: string; rej: number; why: string; fresh: boolean; id: number }[] =
+    [];
+  for (let i = fi; i >= 0 && log.length < (tall ? 4 : 5); i--) {
+    const g = FOCUS[i % FOCUS.length];
+    if (i === fi && !(st === 6 || st === -1)) continue;
+    log.push({
+      client: TYPES[TILES[g.c]].k,
+      route: SERVERS[g.s].route,
+      tool: g.rej === 1 ? OUTSIDE : toolName(g.s, g.t),
+      rej: g.rej ?? 0,
+      why: g.rej ? GATES[g.rej].why : "tillatt",
+      fresh: i === fi && !rm && !paused,
+      id: i,
+    });
+  }
+  const clients = TILES.filter((_, i) => view(i, T).ph !== "empty").length;
 
   return (
     <VStack gap="space-12" className="mh">
       <HStack justify="space-between" align="center" gap="space-8" wrap>
         <HStack gap="space-16" className="mh-mono" aria-hidden>
           <span>
-            <b>{V.filter((x) => x.ph !== "empty").length}</b> klienter
+            <b>{clients}</b> klienter
           </span>
           <span>
             <b>{PER_MIN}</b> kall/min
@@ -645,182 +885,53 @@ export function McpHeroDiagram() {
             Illustrasjon. Kallene er eksempler.
           </Tag>
           {!rm && (
-            <Button size="small" variant="secondary" aria-pressed={paused} onClick={() => setPaused((p) => !p)}>
+            <Button size="small" variant="secondary" onClick={() => setPaused((p) => !p)}>
               {paused ? "Spill av" : "Pause"}
             </Button>
           )}
         </HStack>
       </HStack>
 
-      <div ref={wrap}>
-        <div className="mh-fit" style={{ height: L.H * scale }}>
-          <div
-            className="mh-stage"
-            role="img"
-            aria-label={SUMMARY}
-            style={{ width: L.W, height: L.H, transform: `scale(${scale})` }}
-          >
-            <div className="mh-abs mh-gw" style={box(L.gw)} />
-            <div className="mh-abs mh-gw-name" style={{ left: L.gw.tx, top: L.gw.ty, width: L.gw.tw }}>
-              fleet-gateway
-            </div>
-            {SERVERS.map((s, k) => {
-              const hit = st === 6 && e.s === k && !e.rej;
-              return (
-                <div key={s.route} className={"mh-abs mh-srv" + (hit ? " mh-srv-hit" : "")} style={box(L.sBox(k))}>
-                  <div className="mh-srv-head">
-                    <strong>{s.title}</strong>
-                    <Tag variant={s.ro ? "info" : "warning"} size="xsmall">
-                      {s.ro ? "Leser" : "Skriver"}
-                    </Tag>
-                  </div>
-                  <div className="mh-tools">
-                    {s.ex.map((x) => (
-                      <span
-                        key={x[0]}
-                        className={"mh-tl" + (x[2] ? " mh-tl-w" : "") + (hit && e.t === x[1] ? " mh-tl-hit" : "")}
-                      >
-                        {x[0]}
-                      </span>
-                    ))}
-                    <span className="mh-more">+{s.n - s.ex.length} verktøy</span>
-                  </div>
-                </div>
-              );
-            })}
-
-            <svg
-              className="mh-abs"
-              style={{ left: 0, top: 0 }}
-              width={L.W}
-              height={L.H}
-              viewBox={`0 0 ${L.W} ${L.H}`}
-              aria-hidden
+      <div ref={wrap} className="mh-wrap" role="img" aria-label={SUMMARY}>
+        <div aria-hidden>
+          {compact === null ? (
+            <>
+              <div className="mh-fit mh-only-wide">
+                <Stage compact={false} T={T} numbered={rm} uid="mh-soft-w" />
+              </div>
+              <div className="mh-fit mh-only-tall">
+                <Stage compact T={T} numbered={rm} uid="mh-soft-t" />
+              </div>
+            </>
+          ) : (
+            <div
+              className="mh-fit"
+              style={{
+                height: layout(tall).H * scale,
+                width: layout(tall).W * scale,
+                marginInline: tall ? "auto" : undefined,
+              }}
             >
-              <defs>
-                <filter id="mh-soft" x="-2" y="-2" width="5" height="5">
-                  <feGaussianBlur stdDeviation="1.6" />
-                </filter>
-              </defs>
-              {streams.map((p, i) => (
-                <path key={i} d={p.d} fill="none" className="mh-stream" style={{ stroke: p.c }} strokeOpacity={p.o} />
-              ))}
-              {SERVERS.map((s, k) => {
-                const a = L.entry(k),
-                  b = L.exit(k);
-                return (
-                  <path
-                    key={k}
-                    d={`M${a.x} ${a.y}L${b.x} ${b.y}`}
-                    fill="none"
-                    style={{ stroke: s.lc ?? C_COPILOT }}
-                    strokeWidth={1 + vol[k] / 8}
-                    strokeOpacity="0.35"
-                  />
-                );
-              })}
-              <path
-                d={focusD}
-                fill="none"
-                style={{ stroke: C_FOCUS }}
-                strokeWidth="1.5"
-                strokeOpacity="0.45"
-                strokeDasharray="3 3"
-              />
-              {GATES.map((_, j) => {
-                const p = L.gatePos[j],
-                  c = gState(j) === "no" ? C_RED : "var(--ax-border-neutral)",
-                  [a, b] = L.gateSpan;
-                return L.v ? (
-                  <line key={j} x1={a} y1={p} x2={b} y2={p} style={{ stroke: c }} strokeWidth="1.5" />
-                ) : (
-                  <line key={j} x1={p} y1={a} x2={p} y2={b} style={{ stroke: c }} strokeWidth="1.5" />
-                );
-              })}
-              <g filter="url(#mh-soft)">
-                {f.pool.map((q, i) => (
-                  <circle key={i} cx={q.x} cy={q.y} r={q.r} style={{ fill: q.f }} fillOpacity={q.o} />
-                ))}
-              </g>
-              {f.pool.map((q, i) => (
-                <circle
-                  key={i}
-                  cx={q.x}
-                  cy={q.y}
-                  r="1.3"
-                  style={{ fill: "var(--ax-bg-default)" }}
-                  fillOpacity={q.o * 0.8}
-                />
-              ))}
-              <circle
-                cx={f.fp.x}
-                cy={f.fp.y}
-                r="5"
-                style={{ fill: f.fp.f, stroke: "var(--ax-bg-default)" }}
-                fillOpacity={f.fp.o}
-                strokeWidth="1.5"
-              />
-            </svg>
-
-            {TILES.map((_, i) => (
-              <span key={i} className="mh-abs mh-ph" style={box(L.tBox(i))} />
-            ))}
-            {V.map((vw, i) => {
-              const T0 = TYPES[vw.ty],
-                Ic = T0.ic,
-                gone = vw.ph === "out" || vw.ph === "empty";
-              return (
-                <span
-                  key={i}
-                  className={
-                    "mh-abs mh-tile" +
-                    (gone ? " mh-gone" : "") +
-                    (T0.agent ? " mh-agent" : "") +
-                    (f.glow[i] ? " mh-on" : "") +
-                    (i === e.c ? " mh-focus" : "")
-                  }
-                  style={{ ...box(L.tBox(i)), color: T0.c, ["--mh-c" as string]: T0.c }}
-                  title={T0.full}
-                >
-                  <Ic width={compact ? 18 : 20} height={compact ? 18 : 20} aria-hidden />
-                  <span className="mh-lb" style={{ fontSize: compact ? 14 : 11 }}>
-                    {T0.short}
-                  </span>
-                </span>
-              );
-            })}
-            {GATES.map((g, j) => {
-              const s = gState(j),
-                pos = L.gateLabel(L.gatePos[j]);
-              return (
-                <div
-                  key={j}
-                  className={"mh-abs mh-gl" + (s ? " mh-gl-" + s : "")}
-                  style={{ left: pos.x, top: pos.y, width: pos.w, justifyContent: pos.align }}
-                >
-                  <span className="mh-sy">{s === "ok" ? "✓" : s === "no" ? "✕" : s === "run" ? "•" : ""}</span>
-                  <span>{g.label}</span>
-                </div>
-              );
-            })}
-            {nums.map((n) => (
-              <span key={n.n} className="mh-abs mh-num" style={{ left: n.x, top: n.y }}>
-                {n.n}
-              </span>
-            ))}
-          </div>
+              <div style={{ transform: `scale(${scale})`, transformOrigin: "0 0" }}>
+                <Stage compact={tall} T={T} numbered={rm} bind={bind} uid="mh-soft" />
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
-      {still && (
-        <ol className={"mh-steps" + (compact ? "" : " mh-steps-2")}>
+      {rm && (
+        <ol className={"mh-steps" + (tall ? "" : " mh-steps-2")}>
           <li>En klient, her nav-pilot, kaller et verktøy på Aksel designsystem.</li>
           <li>
-            Tilgang: gatewayen sjekker hvem du er og gir et eget token til akkurat denne serveren. Ditt eget token
-            sendes aldri videre.
+            Tilgang: gatewayen sjekker hvem du er og lager et nytt token som bare gjelder for denne serveren. Tokenet
+            ditt sendes aldri videre.
           </li>
           <li>Godkjente verktøy: bare verktøy eierteamet har godkjent, slipper gjennom.</li>
-          <li>Ratelimit og nødstopp: for mange samtidige kall stoppes, og en server kan stenges med en gang.</li>
+          <li>
+            Ratelimit og nødstopp: kommer det for mange kall samtidig, stoppes de. En server kan også stenges med en
+            gang.
+          </li>
           <li>Serveren kjører verktøyet, og kallet havner i revisjonsloggen.</li>
         </ol>
       )}
@@ -834,7 +945,8 @@ export function McpHeroDiagram() {
         </span>
         <span>
           <svg width="12" height="12">
-            <circle cx="6" cy="6" r="3" style={{ fill: C_COPILOT }} fillOpacity=".6" />
+            <circle cx="6" cy="6" r="3" style={{ fill: C_COPILOT, filter: "blur(0.8px)" }} fillOpacity=".7" />
+            <circle cx="6" cy="6" r="1.3" style={{ fill: "var(--ax-bg-default)" }} fillOpacity=".56" />
           </svg>
           Andre kall
         </span>
@@ -848,7 +960,7 @@ export function McpHeroDiagram() {
           <b className="mh-no">✕</b>Avvist i gatewayen
         </span>
         <span>
-          <span className="mh-tl mh-tl-hit">tool</span>Verktøyet som kalles
+          <span className="mh-tl mh-tl-hit">verktøy</span>Verktøyet som kalles
         </span>
         <span>
           <span className="mh-key-agent" />
@@ -863,19 +975,19 @@ export function McpHeroDiagram() {
             Les opp nye linjer
           </Switch>
         </HStack>
-        {!compact && (
+        {!tall && (
           <div className="mh-row mh-row-head" aria-hidden>
-            <span>client</span>
-            <span>route</span>
-            <span>tool</span>
-            <span>outcome</span>
-            <span>decision</span>
+            <span>klient</span>
+            <span>rute</span>
+            <span>verktøy</span>
+            <span>utfall</span>
+            <span>avgjørelse</span>
           </div>
         )}
         <div aria-live={live ? "polite" : "off"} className="mh-mono">
           {log.map((l) => (
-            <div key={l.id} className={"mh-row" + (compact ? " mh-row-c" : "") + (l.fresh ? " mh-row-new" : "")}>
-              {compact ? (
+            <div key={l.id} className={"mh-row" + (tall ? " mh-row-c" : "") + (l.fresh ? " mh-row-new" : "")}>
+              {tall ? (
                 <span>
                   {l.client} · {l.tool}
                 </span>
@@ -887,7 +999,7 @@ export function McpHeroDiagram() {
                 </>
               )}
               <span className={l.rej ? "mh-no" : "mh-ok"}>{l.rej ? "✕ avvist" : "✓ ok"}</span>
-              {!compact && <span>{l.why}</span>}
+              {!tall && <span>{l.why}</span>}
             </div>
           ))}
         </div>

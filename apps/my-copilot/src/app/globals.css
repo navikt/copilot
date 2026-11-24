@@ -1377,12 +1377,30 @@ button.search-hit {
   color: var(--ax-text-danger);
   font-weight: 600;
 }
+.mh-wrap {
+  container-type: inline-size;
+}
 .mh-fit {
   position: relative;
+  overflow: hidden;
+}
+/* Before the first measurement both drawings render; show the one that fits (TALL_BELOW in the component). */
+.mh-only-tall {
+  display: none;
+  width: 350px;
+  max-width: 100%;
+  margin-inline: auto;
+}
+@container (max-width: 849px) {
+  .mh-only-wide {
+    display: none;
+  }
+  .mh-only-tall {
+    display: block;
+  }
 }
 .mh-stage {
   position: relative;
-  transform-origin: 0 0;
   background: var(--ax-bg-sunken);
   border: 1px solid var(--ax-border-neutral-subtle);
   border-radius: var(--ax-radius-12);
