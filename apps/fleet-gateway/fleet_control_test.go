@@ -9,6 +9,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/testutil"
@@ -317,5 +318,34 @@ func TestRouteSyncRevokedPrimaryAnswers503(t *testing.T) {
 	gw.routes().ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/mcp/team-etterlevelse/etterlevelse", strings.NewReader(`{}`)))
 	if rec.Code != http.StatusServiceUnavailable {
 		t.Fatalf("revoked route = %d, want 503", rec.Code)
+	}
+}
+
+func TestRouteSnapshotAgeGauge(t *testing.T) {
+	count := func() int {
+		n, err := testutil.GatherAndCount(prometheus.DefaultGatherer, "fleet_gateway_route_snapshot_age_seconds")
+		if err != nil {
+			t.Fatal(err)
+		}
+		return n
+	}
+	if lastRouteSync.Load() == 0 && count() != 0 {
+		t.Fatal("age gauge emitted before the first snapshot")
+	}
+	f := newFakeFleetControl(t)
+	gw, src := fleetControlGateway(t, f)
+	f.body = map[string]any{"schema_version": 1, "generation": 1, "routes": []any{primaryRoute()}}
+	gw.syncRoutes(context.Background(), src)
+	if count() != 1 {
+		t.Fatal("age gauge missing after a snapshot")
+	}
+	lastRouteSync.Store(time.Now().Add(-time.Minute).UnixNano())
+	got, _ := prometheus.DefaultGatherer.Gather()
+	for _, mf := range got {
+		if mf.GetName() == "fleet_gateway_route_snapshot_age_seconds" {
+			if v := mf.GetMetric()[0].GetGauge().GetValue(); v < 59 || v > 120 {
+				t.Fatalf("age = %v, want about 60", v)
+			}
+		}
 	}
 }

@@ -9,7 +9,12 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"sync"
+	"sync/atomic"
 	"time"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
 )
 
 // Routes come from the Git file (PILOT_ROUTES_FILE) unless ROUTES_SOURCE is
@@ -168,6 +173,7 @@ func (g *Gateway) syncRoutes(ctx context.Context, f *fleetControlRoutes) {
 		slog.Warn("fleet-control routes not updated, keeping current table", "error", err, "routes", len(g.table().Routes))
 		return
 	}
+	markRouteSynced()
 	if routes == nil {
 		return
 	}
@@ -204,4 +210,21 @@ func (g *Gateway) startRouteSync(ctx context.Context, interval time.Duration) {
 			}
 		}
 	}()
+}
+
+var (
+	lastRouteSync     atomic.Int64 // unix nanoseconds of the last successful fetch, 0 before the first
+	routeSyncAgeGauge sync.Once
+)
+
+// markRouteSynced records a successful fetch (new or unchanged snapshot). The
+// age gauge is registered on the first one, so no series exists before it (#2637).
+func markRouteSynced() {
+	lastRouteSync.Store(time.Now().UnixNano())
+	routeSyncAgeGauge.Do(func() {
+		promauto.NewGaugeFunc(prometheus.GaugeOpts{
+			Name: "fleet_gateway_route_snapshot_age_seconds",
+			Help: "Seconds since fleet-gateway last fetched a valid or unchanged fleet-control route snapshot. Absent until the first one.",
+		}, func() float64 { return time.Since(time.Unix(0, lastRouteSync.Load())).Seconds() })
+	})
 }
