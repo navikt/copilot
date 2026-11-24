@@ -686,7 +686,7 @@ func (d *DB) buildProfile(ctx context.Context, row profileRow) (AgentProfileV1, 
 	if row.Revoked {
 		revReason = "RevokedByOwner"
 		var by string
-		_ = d.pool.QueryRow(ctx, `SELECT COALESCE(detail->>'by', '') FROM audit_events WHERE namespace = $1 AND name = $2 AND resource_kind = 'AgentProfile' AND action = 'agent_profile_revoked' ORDER BY id DESC LIMIT 1`, row.NS, row.Name).Scan(&by)
+		_ = d.pool.QueryRow(ctx, `SELECT by_role FROM resource_status WHERE namespace = $1 AND name = $2 AND kind = 'AgentProfile' AND action = 'agent_profile_revoked'`, row.NS, row.Name).Scan(&by)
 		if by == "platform" {
 			revReason = "RevokedByPlatform"
 		}

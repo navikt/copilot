@@ -319,8 +319,10 @@ func TestRealPostgresMCPServerRevokeRollbackBlock(t *testing.T) {
 		t.Fatalf("platform revoke: %d %s", code, out)
 	}
 	// A revocation older than 90 days survives retention (#2762).
+	revokedAt := condOf(decodeServer(t, e.want(200, "GET", base, person("A111111"), "")).Status.Conditions, "Revoked").LastTransitionTime
 	ageAudit(t, e.db)
-	if m := decodeServer(t, e.want(200, "GET", base, person("A111111"), "")); condOf(m.Status.Conditions, "Revoked").Reason != "Blocked" || condOf(m.Status.Conditions, "Revoked").Status != "True" {
+	if m := decodeServer(t, e.want(200, "GET", base, person("A111111"), "")); condOf(m.Status.Conditions, "Revoked").Reason != "Blocked" || condOf(m.Status.Conditions, "Revoked").Status != "True" ||
+		!condOf(m.Status.Conditions, "Revoked").LastTransitionTime.Equal(revokedAt) {
 		t.Fatalf("after prune: %+v", m.Status.Conditions)
 	}
 	if code, out := rollback(`{"fromGeneration":4,"reason":"x"}`); code != 409 || !strings.Contains(out, "InvalidState") {

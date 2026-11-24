@@ -28,6 +28,7 @@ func TestIdentityBackfill(t *testing.T) {
 		`INSERT INTO audit_events (actor, action) VALUES ('A111111', 'legacy')`,
 		`INSERT INTO audit_events (actor, actor_oid, action) VALUES ('B222222', '` + oidB1 + `', 'v1'), ('B222222', '` + oidB2 + `', 'v1')`,
 		`INSERT INTO audit_events (actor, action) VALUES ('B222222', 'legacy'), ('seed', 'seed_published')`,
+		`INSERT INTO audit_events (actor, action, resource_kind, namespace, name, detail, at) VALUES ('P1', 'revoked', 'MCPServer', 'ns', 'svc', '{"by":"platform"}', now() - interval '1 day'), ('P1', 'revoked', 'MCPServer', 'ns', 'svc', '{"by":"owner"}', now() - interval '2 days')`,
 	} {
 		if _, err := db.pool.Exec(ctx, q); err != nil {
 			t.Fatal(q, err)
@@ -53,6 +54,11 @@ func TestIdentityBackfill(t *testing.T) {
 		if got[k] != v {
 			t.Errorf("%s: got %q, want %q", k, got[k], v)
 		}
+	}
+	// 009 copies the newest status event per resource, without the NAVident.
+	var by string
+	if err := db.pool.QueryRow(ctx, `SELECT by_role FROM resource_status WHERE namespace = 'ns' AND name = 'svc' AND action = 'revoked'`).Scan(&by); err != nil || by != "platform" {
+		t.Fatalf("resource_status backfill: %q, %v", by, err)
 	}
 	if _, err := db.pool.Exec(ctx, `UPDATE audit_events SET actor = 'x'`); err == nil || !strings.Contains(err.Error(), "append-only") {
 		t.Fatalf("trigger must be back on after 009: %v", err)
@@ -85,7 +91,6 @@ func TestPruneAudit(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), "append-only") {
 		t.Fatalf("delete of young row: %v", err)
 	}
-	// The newest row stays even when old (#2762); both old rows here go.
 	n, err := db.PruneAudit(ctx)
 	if err != nil || n != 2 {
 		t.Fatalf("PruneAudit: n=%d err=%v", n, err)

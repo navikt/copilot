@@ -472,10 +472,11 @@ func loadVersion(ctx context.Context, q querier, ns, name string, version int) (
 	return v, json.Unmarshal([]byte(spec), &v.Spec)
 }
 
-// lastEvents returns the time of the newest audit event per action for one resource.
+// lastEvents returns the time of the newest event per action for one
+// resource. It reads resource_status, which outlives audit retention.
 func lastEvents(ctx context.Context, q querier, kind, ns, name string, legacy []string) (map[string]time.Time, error) {
-	rows, err := q.Query(ctx, `SELECT action, max(at) FROM audit_events WHERE namespace = $1 AND name = $2
-		AND (resource_kind = $3 OR (resource_kind IS NULL AND action = ANY($4))) GROUP BY action`, ns, name, kind, legacy)
+	rows, err := q.Query(ctx, `SELECT action, max(at) FROM resource_status WHERE namespace = $1 AND name = $2
+		AND (kind = $3 OR (kind = '' AND action = ANY($4))) GROUP BY action`, ns, name, kind, legacy)
 	if err != nil {
 		return nil, err
 	}
@@ -589,7 +590,7 @@ func (d *DB) buildServer(ctx context.Context, row serverRow) (MCPServer, error) 
 	if revoked {
 		revReason = "RevokedByOwner"
 		var by string
-		_ = d.pool.QueryRow(ctx, `SELECT COALESCE(detail->>'by', '') FROM audit_events WHERE namespace = $1 AND name = $2 AND action = 'revoked' ORDER BY id DESC LIMIT 1`, row.NS, row.Name).Scan(&by)
+		_ = d.pool.QueryRow(ctx, `SELECT by_role FROM resource_status WHERE namespace = $1 AND name = $2 AND action = 'revoked' ORDER BY at DESC LIMIT 1`, row.NS, row.Name).Scan(&by)
 		if by == "platform" {
 			revReason = "RevokedByPlatform"
 		}

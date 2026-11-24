@@ -83,7 +83,7 @@ func TestAuditEventsLockedForRuntimeRole(t *testing.T) {
 		if _, err := tx.Exec(ctx, "SET LOCAL ROLE fleet_rw_test"); err != nil {
 			return err
 		}
-		if _, err := tx.Exec(ctx, "INSERT INTO audit_events (actor, action) VALUES ('t', 't')"); err != nil {
+		if _, err := tx.Exec(ctx, "INSERT INTO audit_events (actor, action, namespace, name) VALUES ('t', 't', 'ns', 'n')"); err != nil {
 			return err
 		}
 		_, err := tx.Exec(ctx, "SELECT count(*) FROM audit_events")

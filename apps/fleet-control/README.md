@@ -73,6 +73,14 @@ Since #2748 agent profiles are written through `/apis/fleet.nav.no/v1alpha1/name
 
 `/admin/v1/agents` is read-only: writes answer 410. Migration `005` only adds tables, columns and indexes, so an image from before it can be rolled back. On every start fleet-control fills `spec` and `spec_hash` on published server versions that lack them.
 
+## Audit identities and retention (#2763, #2762)
+
+Each audit row keeps the NAVident in `actor` and the Entra oid in `actor_oid`, with `actor_kind` and `actor_client_id` beside them. The oid is the stable key if the token format changes. Migration 009 fills `actor_oid` on older rows where another table pairs the NAVident with exactly one oid.
+
+Audit rows are kept for 90 days. Deletion is off by default: set `FLEET_AUDIT_RETENTION_DELETE=true` and each start deletes older rows with the owner role (`PG*`). The runtime role has no DELETE right. The append-only trigger lets a DELETE through only for rows older than 90 days, and only in a session that set `fleet.audit_retention = 'on'`. Export to a long-term store is not built yet, because the target is not decided.
+
+Status does not read audit rows. It reads `resource_status`, which keeps the newest time per resource and action and the revoking role (`platform`, `owner`). A trigger on `audit_events` fills it on every insert, also from older images. It holds no NAVident, so retention never changes what a status shows.
+
 ## Snapshot versions (#2764)
 
 `generation` comes from the `snapshots` table, so it only grows, also across restarts. `checked_at` is when the serving replica last confirmed the snapshot is the newest in the database. It stops moving when the replica serves from memory during a database outage.

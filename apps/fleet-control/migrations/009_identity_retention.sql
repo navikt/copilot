@@ -37,3 +37,41 @@ BEGIN
     RAISE EXCEPTION 'audit_events is append-only';
 END;
 $$ LANGUAGE plpgsql;
+
+-- Status (transition times, who revoked) must not depend on audit rows that
+-- retention deletes. resource_status keeps the newest time per resource and
+-- action, and the revoking role ('platform', 'owner', ...), never a NAVident.
+-- A trigger fills it from every audit insert, old images included.
+CREATE TABLE resource_status (
+    namespace TEXT NOT NULL,
+    name TEXT NOT NULL,
+    kind TEXT NOT NULL,   -- resource_kind, '' for rows written before 005
+    action TEXT NOT NULL,
+    at TIMESTAMPTZ NOT NULL,
+    by_role TEXT NOT NULL DEFAULT '',
+    PRIMARY KEY (namespace, name, kind, action)
+);
+
+INSERT INTO resource_status (namespace, name, kind, action, at, by_role)
+SELECT DISTINCT ON (namespace, name, COALESCE(resource_kind, ''), action)
+       namespace, name, COALESCE(resource_kind, ''), action, at, COALESCE(detail->>'by', '')
+FROM audit_events WHERE namespace IS NOT NULL AND name IS NOT NULL
+ORDER BY namespace, name, COALESCE(resource_kind, ''), action, at DESC, id DESC;
+
+-- SECURITY DEFINER: the runtime role inserts audit rows but needs no rights
+-- on resource_status.
+CREATE FUNCTION audit_events_track_status() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+BEGIN
+    INSERT INTO resource_status (namespace, name, kind, action, at, by_role)
+    VALUES (NEW.namespace, NEW.name, COALESCE(NEW.resource_kind, ''), NEW.action, NEW.at, COALESCE(NEW.detail->>'by', ''))
+    ON CONFLICT (namespace, name, kind, action) DO UPDATE
+        SET at = EXCLUDED.at, by_role = EXCLUDED.by_role
+        WHERE EXCLUDED.at >= resource_status.at;
+    RETURN NULL;
+END;
+$$;
+
+CREATE TRIGGER audit_events_status AFTER INSERT ON audit_events
+    FOR EACH ROW WHEN (NEW.namespace IS NOT NULL AND NEW.name IS NOT NULL)
+    EXECUTE FUNCTION audit_events_track_status();
