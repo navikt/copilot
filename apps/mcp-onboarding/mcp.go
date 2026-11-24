@@ -224,7 +224,7 @@ func (h *MCPHandler) handleSSE(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	user := GetUserFromContext(ctx)
 
-	slog.Info("SSE connection opened", "user", user.Login)
+	slog.Info("SSE connection opened", user.logAttrs()...)
 
 	var mu sync.Mutex
 	sendEvent := func(event, data string) {
@@ -262,7 +262,7 @@ func (h *MCPHandler) handleSSE(w http.ResponseWriter, r *http.Request) {
 	for {
 		select {
 		case <-ctx.Done():
-			slog.Info("SSE connection closed", "user", user.Login)
+			slog.Info("SSE connection closed", user.logAttrs()...)
 			return
 		case <-keepalive.C:
 			sendEvent("", `{"type":"keepalive"}`)
@@ -648,14 +648,17 @@ func (h *MCPHandler) handleCallTool(req *JSONRPCRequest, user *UserContext) (res
 		}
 	}
 
-	slog.Info("tool called", "tool", logSafe(params.Name), "user", user.Login)
+	slog.Info("tool called", append([]any{"tool", logSafe(params.Name), "rpc_id", logSafe(fmt.Sprint(req.ID))}, user.logAttrs()...)...)
 	toolLabel := params.Name
 	defer func() {
 		status := "success"
-		if resp != nil && resp.Error != nil {
-			status = "error"
+		if resp != nil {
+			if r, ok := resp.Result.(CallToolResult); resp.Error != nil || (ok && r.IsError) {
+				status = "error"
+			}
 		}
 		recordToolCall(toolLabel, status)
+		slog.Info("tool finished", "tool", logSafe(toolLabel), "rpc_id", logSafe(fmt.Sprint(req.ID)), "status", status)
 	}()
 
 	var result CallToolResult
@@ -674,11 +677,17 @@ func (h *MCPHandler) handleCallTool(req *JSONRPCRequest, user *UserContext) (res
 				{Type: "text", Text: fmt.Sprintf("Hello, World! 👋 Greetings from Nav MCP Hello World server. You are authenticated as @%s.", user.Login)},
 			},
 		}
+		if user.NAVident != "" {
+			result.Content[0].Text = "Hello, World! 👋 Greetings from Nav MCP Hello World server. You are authenticated via fleet-gateway."
+		}
 
 	case "greet":
 		name, _ := params.Arguments["name"].(string)
 		if name == "" {
 			name = user.Login
+			if user.NAVident != "" {
+				name = "there"
+			}
 		}
 		result = CallToolResult{
 			Content: []TextContent{
@@ -690,10 +699,9 @@ func (h *MCPHandler) handleCallTool(req *JSONRPCRequest, user *UserContext) (res
 		if user.NAVident != "" {
 			result = CallToolResult{Content: []TextContent{{Type: "text", Text: fmt.Sprintf(`Nav User Information:
 - NAVident: %s
-- Username: %s
 - Authenticated: ✅
 
-This information is from your Entra ID token via fleet-gateway.`, user.NAVident, user.Login)}}}
+This information is from your Entra ID token via fleet-gateway.`, user.NAVident)}}}
 			break
 		}
 		info := fmt.Sprintf(`GitHub User Information:
@@ -1435,6 +1443,15 @@ type UserContext struct {
 	ID                int64
 	GitHubAccessToken string
 	NAVident          string // set only in Entra mode (fleet-gateway)
+}
+
+// logAttrs names the user in logs only in direct GitHub mode. Behind fleet-gateway
+// Login is the NAVident, which the gateway's audit log already records (#2835).
+func (u *UserContext) logAttrs() []any {
+	if u == nil || u.NAVident != "" {
+		return nil
+	}
+	return []any{"user", u.Login}
 }
 
 func GetUserFromContext(ctx context.Context) *UserContext {

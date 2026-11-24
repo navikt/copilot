@@ -156,7 +156,7 @@ func (e *EntraAuth) validate(ctx context.Context, token string) (*UserContext, e
 	if !gateway && !pilot {
 		return nil, errEntraForbidden
 	}
-	// Login is the NAVident, never an email. It is personal data, logged at INFO deliberately as an audit trail (owner decision 2026-11-17).
+	// Login is the NAVident, never an email. It is personal data and is not logged here: fleet-gateway's audit log records it (#2835).
 	return &UserContext{Login: navIdent, NAVident: navIdent}, nil
 }
 
