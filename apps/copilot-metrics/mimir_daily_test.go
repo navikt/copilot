@@ -368,6 +368,16 @@ func TestMimirReachRows(t *testing.T) {
 			{map[string]string{"client": "copilot"}, "160"},
 			{map[string]string{"client": "opencode"}, "56"},
 		},
+		`os!=""}[7d]`: {
+			{map[string]string{"os": "darwin"}, "120"},
+			{map[string]string{"os": "linux"}, "90"},
+			{map[string]string{"os": "windows"}, "2"},
+		},
+		`sandbox!=""}[7d]`: {
+			{map[string]string{"sandbox": "cplt", "cplt_version": "2026.11.24"}, "70"},
+			{map[string]string{"sandbox": "none", "cplt_version": "none"}, "80"},
+			{map[string]string{"sandbox": "cplt", "cplt_version": "unknown"}, "3"},
+		},
 		`client=~"copilot|opencode"}[7d]))) > 1)`: {
 			{map[string]string{}, "13"},
 		},
@@ -398,8 +408,17 @@ func TestMimirReachRows(t *testing.T) {
 			t.Fatalf("reach query missing non-dev filter: %s", q)
 		}
 	}
-	if len(rows) != 14 {
-		t.Fatalf("expected 14 reach rows (<5 dropped), got %d: %v", len(rows), rows)
+	var dims int
+	for _, r := range rows {
+		if r["os"] == "darwin" || (r["sandbox"] == "cplt" && r["cplt_version"] == "2026.11.24") {
+			dims++
+		}
+	}
+	if dims != 2 {
+		t.Errorf("expected os and sandbox/cplt_version rows, got %v", rows)
+	}
+	if len(rows) != 18 {
+		t.Fatalf("expected 18 reach rows (<5 dropped), got %d: %v", len(rows), rows)
 	}
 	for _, r := range rows {
 		if _, ok := r["device_id"]; ok {
