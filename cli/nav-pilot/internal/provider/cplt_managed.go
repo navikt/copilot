@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"os"
 	"os/user"
@@ -116,8 +117,7 @@ func ensureCpltManagedFile(write bool) (string, error) {
 		if !fi.Mode().IsRegular() || st == nil || int(st.Uid) != uid {
 			return "", fmt.Errorf("%s is not a regular file you own; nav-pilot leaves it alone", path)
 		}
-		if have, err := os.ReadFile(path); err == nil && bytes.Equal(have, want) &&
-			fi.Mode().Perm()&0o022 == 0 && st.Nlink == 1 {
+		if fi.Mode().Perm()&0o022 == 0 && st.Nlink == 1 && fileHolds(path, want) {
 			return path, nil
 		}
 	} else if !errors.Is(err, fs.ErrNotExist) {
@@ -183,4 +183,16 @@ func writeAtomic(dir, path string, data []byte) error {
 		return err
 	}
 	return os.Rename(tmp, path)
+}
+
+// fileHolds reports whether path holds exactly want, reading at most 64 KiB:
+// anything larger differs and is rewritten.
+func fileHolds(path string, want []byte) bool {
+	f, err := os.Open(path)
+	if err != nil {
+		return false
+	}
+	defer f.Close()
+	have, err := io.ReadAll(io.LimitReader(f, 64<<10))
+	return err == nil && bytes.Equal(have, want)
 }

@@ -244,3 +244,18 @@ func TestManagedOverridesInheritedEnv(t *testing.T) {
 		t.Errorf("CPLT_MANAGED_CONFIG = %q, want %q", env, managedPath(home))
 	}
 }
+
+func TestManagedRewritesOversizedFile(t *testing.T) {
+	home := withManaged(t, managedRelease)
+	path, _ := CpltManagedConfig()
+	big := append(cpltManagedContent(), make([]byte, 1<<20)...)
+	if err := os.WriteFile(path, big, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if p, _ := CpltManagedConfig(); p != managedPath(home) {
+		t.Fatalf("path %q", p)
+	}
+	if got, _ := os.ReadFile(path); string(got) != string(cpltManagedContent()) {
+		t.Errorf("oversized file not rewritten (%d bytes)", len(got))
+	}
+}
