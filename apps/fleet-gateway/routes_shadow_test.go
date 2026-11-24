@@ -74,3 +74,16 @@ func TestShadowSyncFailureIsIsolated(t *testing.T) {
 		t.Fatal("shadow failure counted as a serving sync failure")
 	}
 }
+
+func TestShadowSyncPanicIsRecovered(t *testing.T) {
+	gw, _ := shadowGateway(t, newFakeFleetControl(t))
+	before, failures := gw.table(), testutil.ToFloat64(shadowFailures)
+
+	gw.shadowSync(context.Background(), &shadowRoutes{}) // nil fetcher panics
+	if gw.table() != before {
+		t.Fatal("shadow panic changed the served table")
+	}
+	if got := testutil.ToFloat64(shadowFailures); got != failures+1 {
+		t.Fatalf("shadow failures = %v, want %v", got, failures+1)
+	}
+}
