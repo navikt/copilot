@@ -113,3 +113,16 @@ func TestRealPostgresRollbackRechecksRegistryName(t *testing.T) {
 		t.Fatalf("rollback to a foreign name: want 422, got %d %s", code, out)
 	}
 }
+
+// A draft submitted before #2853 under a foreign name cannot be approved.
+func TestRealPostgresApproveRechecksRegistryName(t *testing.T) {
+	e := newApisEnv(t)
+	e.srv.operatorTeam = "copilot"
+	m := decodeServer(t, e.want(201, "POST", nsBase+"team-a/mcpservers", person("A111111"), registryServerJSON("team-a", "svc", "no.nav.team-a/svc")))
+	if _, err := e.db.pool.Exec(context.Background(), `UPDATE server_versions SET registry = jsonb_set(registry, '{name}', '"com.microsoft/svc"') WHERE namespace = 'team-a' AND name = 'svc'`); err != nil {
+		t.Fatal(err)
+	}
+	if code, out := e.do("POST", nsBase+"team-a/mcpservers/svc/approval", person("A222222"), approval(1, m.Status.Pending.ContentHash)); code != 422 || !strings.Contains(out, "spec.registry.name") {
+		t.Fatalf("approve a foreign name: want 422, got %d %s", code, out)
+	}
+}

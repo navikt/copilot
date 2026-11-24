@@ -242,7 +242,7 @@ func (s *server) putServer(w http.ResponseWriter, r *http.Request, c caller, db 
 	return writeServer(r.Context(), w, db, ns, name, http.StatusOK)
 }
 
-func approveServer(w http.ResponseWriter, r *http.Request, c caller, db *DB) error {
+func (s *server) approveServer(w http.ResponseWriter, r *http.Request, c caller, db *DB) error {
 	ns, name := r.PathValue("namespace"), r.PathValue("name")
 	if err := memberOf(c, ns); err != nil {
 		return err
@@ -254,7 +254,7 @@ func approveServer(w http.ResponseWriter, r *http.Request, c caller, db *DB) err
 	if err := decodeBody(w, r, &body); err != nil {
 		return stErr(http.StatusBadRequest, "BadRequest", "%v", err)
 	}
-	if err := db.approveServer(r.Context(), c, ns, name, body.Generation, body.ContentHash); err != nil {
+	if err := db.approveServer(r.Context(), c, s.operatorTeam, ns, name, body.Generation, body.ContentHash); err != nil {
 		return err
 	}
 	return writeServer(r.Context(), w, db, ns, name, http.StatusOK)
@@ -673,7 +673,7 @@ func (d *DB) submitServer(ctx context.Context, c caller, m ObjectMeta, spec MCPS
 
 // approveServer publishes the pending generation. The approver is another
 // person: different oid and NAVident, and the submitter a User with an oid.
-func (d *DB) approveServer(ctx context.Context, c caller, ns, name string, gen int, hash string) error {
+func (d *DB) approveServer(ctx context.Context, c caller, platform, ns, name string, gen int, hash string) error {
 	return pgx.BeginFunc(ctx, d.pool, func(tx pgx.Tx) error {
 		row, err := lockServerRow(ctx, tx, ns, name)
 		if err != nil {
@@ -693,6 +693,8 @@ func (d *DB) approveServer(ctx context.Context, c caller, ns, name string, gen i
 			return stErr(http.StatusForbidden, "Forbidden", "the pending generation has no person as submitter; a person must submit it again")
 		case *v.SubOid == c.Oid || v.SubName == c.Ident:
 			return stErr(http.StatusForbidden, "Forbidden", "the submitter cannot approve their own generation")
+		case v.RegName != nil && !registryNameAllowed(platform, ns, *v.RegName):
+			return invalid("spec.registry.name", "generation %d has registry name %q, which team %s may not use", gen, *v.RegName, ns)
 		}
 		hashes := []string{hash}
 		if err := blockedContent(ctx, tx, "server_versions", ns, name, hashes); err != nil {
