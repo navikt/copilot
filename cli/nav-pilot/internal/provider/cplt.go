@@ -154,8 +154,10 @@ func fleetGatewayFlags(args []string) []string {
 		}
 	}
 	var flags []string
-	for _, host := range FleetGatewayHosts {
+	// NAV_PILOT_DEV_MCP hosts are *.intern.dev.nav.no only (devMCPHosts).
+	for _, host := range append(slices.Clone(FleetGatewayHosts), devMCP()...) {
 		if !have[host] {
+			have[host] = true
 			flags = append(flags, "--allow-private-domain", host)
 		}
 	}

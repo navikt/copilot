@@ -795,8 +795,9 @@ func unlistedIn(registry string, servers map[string]mcpServer, names []string) (
 		return nil, fmt.Errorf("%s did not answer: %w", registry, err)
 	}
 	var off []string
+	dev := devMCP()
 	for _, name := range names {
-		if !reg.listed(servers[name]) {
+		if !reg.listed(servers[name]) && !devMCPAllowed(servers[name], dev) {
 			off = append(off, name)
 		}
 	}

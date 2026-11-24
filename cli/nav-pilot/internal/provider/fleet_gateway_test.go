@@ -50,3 +50,19 @@ func TestFleetGatewaySkippedOnOldOrUnknownCplt(t *testing.T) {
 		t.Errorf("floor release: got %q", got)
 	}
 }
+
+func TestFleetGatewayAddsDevMCPHosts(t *testing.T) {
+	withFleetGatewayDefaults(t, "cplt 0.0.0\n")
+	old := devMCP
+	t.Cleanup(func() { devMCP = old })
+	devMCP = func() []string { return []string{"fleet-gateway-b.intern.dev.nav.no", "fleet-gateway.intern.dev.nav.no"} }
+	got := cpltArgv(cpltLaunch{agent: "copilot"})
+	want := []string{"--agent", "copilot",
+		"--allow-private-domain", "fleet-gateway.intern.nav.no",
+		"--allow-private-domain", "fleet-gateway.intern.dev.nav.no",
+		"--allow-private-domain", "fleet-gateway-b.intern.dev.nav.no",
+		"--"}
+	if !slices.Equal(got, want) {
+		t.Errorf("got %q\nwant %q", got, want)
+	}
+}
