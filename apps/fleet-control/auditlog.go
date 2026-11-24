@@ -126,8 +126,13 @@ func (t *auditTracer) TraceQueryEnd(ctx context.Context, c *pgx.Conn, d pgx.Trac
 // text, and Loki needs only who did what to which resource.
 func logAudit(e loggedAudit) {
 	r := e.r
+	// The seed row leaves actor_kind NULL: Seed can run against a pre-005
+	// schema (TestRealPostgresMigration005), so its kind is set here.
 	kind := r.ActorKind
-	if kind == "" {
+	switch {
+	case kind == "" && r.Actor == "seed":
+		kind = "System"
+	case kind == "":
 		kind = "User"
 	}
 	gen := r.Generation

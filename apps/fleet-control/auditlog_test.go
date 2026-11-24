@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 )
@@ -112,3 +113,54 @@ func TestAuditTracerForget(t *testing.T) {
 }
 
 func fmtJSON(v any) string { b, _ := json.Marshal(v); return string(b) }
+
+// Each writer records who acted: a person with the token's azp, the seed as
+// System, a runtime as Application.
+func TestRealPostgresAuditActorKindAndClientID(t *testing.T) {
+	e := newApisEnv(t)
+	ctx := context.Background()
+	routes, allowlist := readSeedFiles(t, "prod")
+	servers, err := seedServers(routes, allowlist)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines := captureAuditLines(t)
+	if _, err := e.db.Seed(ctx, servers, "test"); err != nil {
+		t.Fatal(err)
+	}
+	e.want(201, "POST", nsBase+"team-a/mcpservers", person("A111111"), serverJSON("team-a", "draft", "", "search"))
+	if _, err := e.db.CreateJob(ctx, "A111111", "team-a", CreateJobRequest{Kind: "k", Params: json.RawMessage("{}"), OnExpiry: "requeue", MaxAttempts: 3}); err != nil {
+		t.Fatal(err)
+	}
+	if l, err := e.db.Claim(ctx, "rt-1", "tok-1", time.Minute); err != nil || l == nil {
+		t.Fatalf("claim: %v %v", l, err)
+	}
+	want := map[string][2]string{
+		"seed_published": {"system", ""},
+		"job_created":    {"user", ""},
+		"job_claimed":    {"application", ""},
+	}
+	got := map[string][2]string{}
+	for _, l := range lines() {
+		s := l["subject"].(map[string]any)
+		got[l["action"].(map[string]any)["name"].(string)] = [2]string{s["type"].(string), s["properties"].(map[string]any)["client_id"].(string)}
+	}
+	for a, w := range want {
+		if got[a] != w {
+			t.Errorf("%s: subject type, client_id = %v, want %v", a, got[a], w)
+		}
+	}
+	var created [2]string
+	for a, v := range got {
+		if a != "seed_published" && a != "job_created" && a != "job_claimed" {
+			created = v
+		}
+	}
+	if created != [2]string{"user", adminID} {
+		t.Errorf("v1 create: subject type, client_id = %v, want user, %s", created, adminID)
+	}
+	var stored string
+	if err := e.db.pool.QueryRow(ctx, `SELECT actor_client_id FROM audit_events WHERE actor = 'A111111' AND resource_kind IS NOT NULL`).Scan(&stored); err != nil || stored != adminID {
+		t.Errorf("stored actor_client_id = %q, %v", stored, err)
+	}
+}

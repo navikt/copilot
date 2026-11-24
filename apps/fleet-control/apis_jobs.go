@@ -356,7 +356,7 @@ func createJobV1(w http.ResponseWriter, r *http.Request, c caller, db *DB) error
 		if insErr != nil {
 			return insErr
 		}
-		return jobAudit(ctx, tx, actor.Name, "job_created", ns, id, map[string]any{"name": name, "type": spec.Type, "orderer": client, "agent_profile": p.Namespace + "/" + p.Name, "generation": p.Generation})
+		return jobAudit(ctx, tx, actor.Kind, actor.Name, "job_created", ns, id, map[string]any{"name": name, "type": spec.Type, "orderer": client, "agent_profile": p.Namespace + "/" + p.Name, "generation": p.Generation})
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		// A twin with the same name won the insert.
