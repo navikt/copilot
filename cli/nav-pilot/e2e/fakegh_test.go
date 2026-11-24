@@ -20,6 +20,9 @@ import (
 const (
 	fakeGHCurrent = "2026.09.01-120000-aaaaaaa"
 	fakeGHLatest  = "2026.09.24-120000-bbbbbbb"
+	// The commits behind them, for the provenance check's compare.
+	fakeGHCurrentCommit = "aaaaaaa" + "000000000000000000000000000000000"
+	fakeGHLatestCommit  = "bbbbbbb" + "000000000000000000000000000000000"
 )
 
 // fakeGHBinary is the "release" fake-gh serves: a script, so a journey can
@@ -99,8 +102,8 @@ func cmdFakeGH(ts *testscript.TestScript, neg bool, args []string) {
 	// A gh that vouches for the fake release, so the provenance check (#2786)
 	// passes the way a real attested release does. It is logged in, so the
 	// check is mandatory. Anything else it refuses.
-	attest := `[{"verificationResult":{"signature":{"certificate":{"sourceRepositoryURI":"https://github.com/navikt/copilot","buildSignerURI":"https://github.com/navikt/copilot/.github/workflows/release-nav-pilot.yaml@refs/heads/main","sourceRepositoryRef":"refs/heads/main","sourceRepositoryDigest":"bbbbbbb0000000000000000000000000000000000"}}}}]`
-	gh := "#!/bin/sh\n[ \"$1\" = auth ] && exit 0\nif [ \"$1 $2\" = \"attestation verify\" ]; then echo '" + attest + "'; exit 0; fi\nexit 1\n"
+	attest := `[{"verificationResult":{"signature":{"certificate":{"sourceRepositoryURI":"https://github.com/navikt/copilot","buildSignerURI":"https://github.com/navikt/copilot/.github/workflows/release-nav-pilot.yaml@refs/heads/main","sourceRepositoryRef":"refs/heads/main","runnerEnvironment":"github-hosted","sourceRepositoryDigest":"` + fakeGHLatestCommit + `"}}}}]`
+	gh := "#!/bin/sh\ncase \"$1\" in\nauth) exit 0;;\napi) echo ahead; exit 0;;\nattestation) echo '" + attest + "'; exit 0;;\nesac\nexit 1\n"
 	if mode == "unattested" {
 		gh = "#!/bin/sh\n[ \"$1\" = auth ] && exit 0\necho 'no attestations found' >&2\nexit 1\n"
 	}
@@ -108,4 +111,5 @@ func cmdFakeGH(ts *testscript.TestScript, neg bool, args []string) {
 	ts.Setenv("PATH", bin+string(os.PathListSeparator)+ts.Getenv("PATH"))
 	ts.Setenv("NAV_PILOT_E2E_GITHUB", srv.URL)
 	ts.Setenv("NAV_PILOT_E2E_VERSION", fakeGHCurrent)
+	ts.Setenv("NAV_PILOT_E2E_COMMIT", fakeGHCurrentCommit)
 }

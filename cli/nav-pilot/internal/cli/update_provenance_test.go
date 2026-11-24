@@ -1,9 +1,6 @@
 package cli
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -12,83 +9,150 @@ import (
 	"testing"
 )
 
-const provenanceTag = "nav-pilot/2026.11.24-084539-0dda7bc"
+const (
+	provenanceTag  = "nav-pilot/2026.11.24-084539-0dda7bc"
+	attestedCommit = "0dda7bc9fb5abfbd1f1ae515e1800c0095b68622"
+	runningCommit  = "14637c8aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+)
 
-func attestationJSON(repoURI, signer, ref, commit string) string {
-	return fmt.Sprintf(`[{"verificationResult":{"signature":{"certificate":{"sourceRepositoryURI":%q,"buildSignerURI":%q,"sourceRepositoryRef":%q,"sourceRepositoryDigest":%q}}}}]`, repoURI, signer, ref, commit)
+func attestationJSON(repoURI, signer, ref, runner, commit string) string {
+	return fmt.Sprintf(`[{"verificationResult":{"signature":{"certificate":{"sourceRepositoryURI":%q,"buildSignerURI":%q,"sourceRepositoryRef":%q,"runnerEnvironment":%q,"sourceRepositoryDigest":%q}}}}]`, repoURI, signer, ref, runner, commit)
 }
 
-// stubAttestations stands in for gh: like gh, it answers only for a file whose
-// digest has an attestation, so a changed binary finds none.
-func stubAttestations(t *testing.T, byDigest map[string]string) {
+var validAttestation = attestationJSON(attestRepoURI, attestSigner, attestSourceRef, "github-hosted", attestedCommit)
+
+// fakeGhScript stands in for gh, driven by files beside it. Like gh, it only
+// vouches for a file whose digest has an attestation, so a changed binary
+// finds none. It refuses any call that lacks a pinned flag, so dropping one
+// from the code fails a test.
+const fakeGhScript = `#!/bin/sh
+d=$(dirname "$0")
+has() { case " $ARGS " in *" $1 "*) return 0;; esac; echo "fake gh: missing $1" >&2; exit 3; }
+ARGS="$*"
+case "$1" in
+auth) has "--hostname github.com"; exit $(cat "$d/auth_rc");;
+attestation)
+  has "--hostname github.com"; has "--repo navikt/copilot"
+  has "--cert-identity https://github.com/navikt/copilot/.github/workflows/release-nav-pilot.yaml@refs/heads/main"
+  has "--source-ref refs/heads/main"; has "--deny-self-hosted-runners"; has "--format json"
+  [ -f "$d/attest.json" ] && [ "$(shasum -a 256 "$3" | cut -c1-64)" = "$(cat "$d/digest")" ] || { echo "no attestations found" >&2; exit 1; }
+  cat "$d/attest.json";;
+api)
+  has "--hostname github.com"
+  [ -f "$d/compare" ] || { echo "HTTP 502: Bad Gateway" >&2; exit 1; }
+  case "$*" in *"repos/navikt/copilot/compare/$(cat "$d/base")...$(cat "$d/head")"*) cat "$d/compare";; *) echo "HTTP 404" >&2; exit 1;; esac;;
+*) exit 2;;
+esac
+`
+
+type fakeGh struct {
+	dir string
+}
+
+// installFakeGh puts the fake first (and alone) on PATH, logged in.
+func installFakeGh(t *testing.T) fakeGh {
 	t.Helper()
-	orig := runAttestationVerify
-	t.Cleanup(func() { runAttestationVerify = orig })
-	runAttestationVerify = func(path string) ([]byte, error) {
-		data, err := os.ReadFile(path)
-		if err != nil {
-			return nil, err
-		}
-		sum := sha256.Sum256(data)
-		if out, ok := byDigest[hex.EncodeToString(sum[:])]; ok {
-			return []byte(out), nil
-		}
-		return nil, errors.New("gh attestation verify: no attestations found")
+	f := fakeGh{dir: t.TempDir()}
+	f.write(t, "gh", fakeGhScript)
+	if err := os.Chmod(filepath.Join(f.dir, "gh"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	f.write(t, "auth_rc", "0")
+	t.Setenv("PATH", f.dir+string(os.PathListSeparator)+"/usr/bin:/bin")
+	return f
+}
+
+func (f fakeGh) write(t *testing.T, name, content string) {
+	t.Helper()
+	if err := os.WriteFile(filepath.Join(f.dir, name), []byte(content), 0o644); err != nil {
+		t.Fatal(err)
 	}
 }
 
-func writeBinary(t *testing.T, content string) (path, digest string) {
+// release attests the binary at path and answers the compare call.
+func (f fakeGh) release(t *testing.T, path, attest, status string) {
 	t.Helper()
-	path = filepath.Join(t.TempDir(), "nav-pilot")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	f.write(t, "digest", sha256sum(data))
+	f.write(t, "attest.json", attest)
+	f.write(t, "base", runningCommit)
+	f.write(t, "head", attestedCommit)
+	if status != "" {
+		f.write(t, "compare", status+"\n")
+	}
+}
+
+func setRunningCommit(t *testing.T, commit string) {
+	t.Helper()
+	orig := buildInfo
+	t.Cleanup(func() { buildInfo = orig })
+	buildInfo.Commit = commit
+}
+
+func writeBinary(t *testing.T, content string) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "nav-pilot")
 	if err := os.WriteFile(path, []byte(content), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	sum := sha256.Sum256([]byte(content))
-	return path, hex.EncodeToString(sum[:])
+	return path
 }
 
 func TestVerifyProvenance(t *testing.T) {
-	const commit = "0dda7bc9fb5abfbd1f1ae515e1800c0095b68622"
-	valid := attestationJSON(attestRepoURI, attestSigner, attestSourceRef, commit)
 	tests := []struct {
 		name    string
 		attest  string // "" means the binary has no attestation
+		status  string // the compare status; "" means the API call fails
 		tamper  bool
-		tag     string
+		running string
 		wantErr string
 	}{
-		{name: "valid", attest: valid},
-		{name: "missing attestation (older release)", wantErr: "no attestations found"},
-		{name: "empty answer", attest: "[]", wantErr: "no attestation found"},
-		{name: "wrong repo", attest: attestationJSON("https://github.com/evil/copilot", attestSigner, attestSourceRef, commit), wantErr: "not https://github.com/navikt/copilot"},
-		{name: "wrong workflow", attest: attestationJSON(attestRepoURI, "https://github.com/navikt/copilot/.github/workflows/other.yaml@refs/heads/main", attestSourceRef, commit), wantErr: "not the release workflow"},
-		{name: "wrong branch", attest: attestationJSON(attestRepoURI, attestSigner, "refs/heads/evil", commit), wantErr: "not refs/heads/main"},
-		{name: "tampered binary", attest: valid, tamper: true, wantErr: "no attestations found"},
-		{name: "downgrade: old build under a new tag", attest: attestationJSON(attestRepoURI, attestSigner, attestSourceRef, "14637c8aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"), wantErr: "names 0dda7bc"},
-		{name: "tag without commit", attest: valid, tag: "nav-pilot/latest", wantErr: "names no commit"},
-		{name: "garbage answer", attest: "not json", wantErr: "unreadable answer"},
+		{name: "valid and newer", attest: validAttestation, status: "ahead"},
+		{name: "missing attestation (older release)", status: "ahead", wantErr: "no attestations found"},
+		{name: "empty answer", attest: "[]", status: "ahead", wantErr: "no attestation found"},
+		{name: "wrong repo", attest: attestationJSON("https://github.com/evil/copilot", attestSigner, attestSourceRef, "github-hosted", attestedCommit), status: "ahead", wantErr: "not https://github.com/navikt/copilot"},
+		{name: "wrong workflow", attest: attestationJSON(attestRepoURI, "https://github.com/navikt/copilot/.github/workflows/other.yaml@refs/heads/main", attestSourceRef, "github-hosted", attestedCommit), status: "ahead", wantErr: "not the release workflow"},
+		{name: "wrong branch", attest: attestationJSON(attestRepoURI, attestSigner, "refs/heads/evil", "github-hosted", attestedCommit), status: "ahead", wantErr: "not refs/heads/main"},
+		{name: "self-hosted runner", attest: attestationJSON(attestRepoURI, attestSigner, attestSourceRef, "self-hosted", attestedCommit), status: "ahead", wantErr: "not a GitHub-hosted one"},
+		{name: "tampered binary", attest: validAttestation, status: "ahead", tamper: true, wantErr: "no attestations found"},
+		{name: "downgrade: older attested commit", attest: validAttestation, status: "behind", wantErr: `"behind"`},
+		{name: "diverged commit", attest: validAttestation, status: "diverged", wantErr: `"diverged"`},
+		{name: "same commit", attest: validAttestation, status: "identical", wantErr: `"identical"`},
+		{name: "compare API error", attest: validAttestation, wantErr: "HTTP 502"},
+		{name: "dev build without commit", attest: validAttestation, status: "ahead", running: "none", wantErr: "names no commit"},
+		{name: "garbage answer", attest: "not json", status: "ahead", wantErr: "unreadable answer"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			path, digest := writeBinary(t, "release binary")
-			stubs := map[string]string{}
-			if tt.attest != "" {
-				stubs[digest] = tt.attest
+			isolatedConfig(t)
+			gh := installFakeGh(t)
+			path := writeBinary(t, "release binary")
+			running := tt.running
+			if running == "" {
+				running = runningCommit
 			}
-			stubAttestations(t, stubs)
+			setRunningCommit(t, running)
+			if tt.attest != "" {
+				gh.release(t, path, tt.attest, tt.status)
+			} else if tt.status != "" {
+				gh.write(t, "compare", tt.status)
+			}
 			if tt.tamper {
 				if err := os.WriteFile(path, []byte("release binary, changed"), 0o755); err != nil {
 					t.Fatal(err)
 				}
 			}
-			tag := tt.tag
-			if tag == "" {
-				tag = provenanceTag
-			}
-			err := verifyProvenance(io.Discard, path, tag)
+			var out strings.Builder
+			err := verifyProvenance(&out, path, provenanceTag)
 			if tt.wantErr == "" {
 				if err != nil {
 					t.Fatalf("verifyProvenance = %v, want nil", err)
+				}
+				if !strings.Contains(out.String(), "provenance... ✓") {
+					t.Errorf("no ✓ for a verified release. Output:\n%s", out.String())
 				}
 				return
 			}
@@ -100,62 +164,62 @@ func TestVerifyProvenance(t *testing.T) {
 					t.Errorf("error %q lacks %q", err, want)
 				}
 			}
+			if strings.Contains(out.String(), "SHA256 only") {
+				t.Errorf("a gh that ran fell back to SHA256. Output:\n%s", out.String())
+			}
 		})
 	}
 }
 
-// fakeGhOnPath puts a gh script first on PATH: auth says whether it is logged
-// in, and attestation verify always rejects, as for a tampered binary.
-func fakeGhOnPath(t *testing.T, loggedIn bool) {
-	t.Helper()
-	dir := t.TempDir()
-	auth := "1"
-	if loggedIn {
-		auth = "0"
+// TestVerifyProvenanceFallback: only a missing or logged-out gh falls back to
+// the SHA256 check. Logged out says so every time, missing once per release.
+func TestVerifyProvenanceFallback(t *testing.T) {
+	interactive := func(t *testing.T) {
+		orig := isInteractive
+		t.Cleanup(func() { isInteractive = orig })
+		isInteractive = func() bool { return true }
 	}
-	script := "#!/bin/sh\ncase \"$1\" in\nauth) exit " + auth + ";;\nattestation) echo 'no attestations found' >&2; exit 1;;\nesac\nexit 1\n"
-	if err := os.WriteFile(filepath.Join(dir, "gh"), []byte(script), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("PATH", dir)
-}
-
-func TestVerifyProvenanceGhAvailability(t *testing.T) {
-	tests := []struct {
-		name    string
-		setup   func(t *testing.T)
-		wantErr string // "" means the SHA256-only fallback
-	}{
-		{name: "no gh falls back", setup: func(t *testing.T) { t.Setenv("PATH", t.TempDir()) }},
-		{name: "gh not logged in falls back", setup: func(t *testing.T) { fakeGhOnPath(t, false) }},
-		{name: "gh logged in but rejecting refuses", setup: func(t *testing.T) { fakeGhOnPath(t, true) }, wantErr: "no attestations found"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			isolatedConfig(t)
-			orig := isInteractive
-			t.Cleanup(func() { isInteractive = orig })
-			isInteractive = func() bool { return true }
-			tt.setup(t)
-			path, _ := writeBinary(t, "release binary")
+	t.Run("no gh", func(t *testing.T) {
+		isolatedConfig(t)
+		interactive(t)
+		t.Setenv("PATH", t.TempDir())
+		path := writeBinary(t, "release binary")
+		var first, second strings.Builder
+		if err := verifyProvenance(&first, path, provenanceTag); err != nil {
+			t.Fatalf("verifyProvenance = %v, want the SHA256-only fallback", err)
+		}
+		if err := verifyProvenance(&second, path, provenanceTag); err != nil {
+			t.Fatalf("second verifyProvenance = %v", err)
+		}
+		if !strings.Contains(first.String(), "gh auth login") || strings.Contains(second.String(), "gh auth login") {
+			t.Errorf("want the hint once per release. First:\n%s\nSecond:\n%s", first.String(), second.String())
+		}
+	})
+	t.Run("gh not logged in", func(t *testing.T) {
+		isolatedConfig(t)
+		gh := installFakeGh(t)
+		gh.write(t, "auth_rc", "1")
+		path := writeBinary(t, "release binary")
+		for i := range 2 {
 			var out strings.Builder
-			err := verifyProvenance(&out, path, provenanceTag)
-			if tt.wantErr != "" {
-				if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
-					t.Fatalf("verifyProvenance = %v, want a refusal containing %q", err, tt.wantErr)
-				}
-				return
+			if err := verifyProvenance(&out, path, provenanceTag); err != nil {
+				t.Fatalf("run %d: verifyProvenance = %v, want the SHA256-only fallback", i, err)
 			}
-			if err != nil {
-				t.Fatalf("verifyProvenance = %v, want the SHA256-only fallback", err)
+			if !strings.Contains(out.String(), "without a provenance check") || !strings.Contains(out.String(), "gh auth login") {
+				t.Errorf("run %d: no warning naming gh auth login. Output:\n%s", i, out.String())
 			}
-			if !strings.Contains(out.String(), "gh auth login") {
-				t.Errorf("no hint about gh. Output:\n%s", out.String())
-			}
-			out.Reset()
-			if err := verifyProvenance(&out, path, provenanceTag); err != nil || strings.Contains(out.String(), "gh auth login") {
-				t.Errorf("second run for the same release: err %v, output %q; want no hint", err, out.String())
-			}
-		})
+		}
+	})
+}
+
+// TestVerifyProvenanceNoFallbackOnReject: a logged-in gh that rejects never
+// drops into the SHA256 fallback.
+func TestVerifyProvenanceNoFallbackOnReject(t *testing.T) {
+	isolatedConfig(t)
+	installFakeGh(t) // logged in, no attestation for anything
+	setRunningCommit(t, runningCommit)
+	err := verifyProvenance(io.Discard, writeBinary(t, "release binary"), provenanceTag)
+	if err == nil || !strings.Contains(err.Error(), "no attestations found") {
+		t.Fatalf("verifyProvenance = %v, want a refusal", err)
 	}
 }
