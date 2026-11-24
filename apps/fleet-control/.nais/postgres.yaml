@@ -8,3 +8,7 @@ spec:
     cpu: 100m
     memory: 512Mi
     diskSize: 5Gi
+  # Point-in-time recovery window (default 2 days). 7 covers a weekend plus
+  # a few days to notice a bad write. See README, Backup and restore.
+  backup:
+    retentionDays: 7
