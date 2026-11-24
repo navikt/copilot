@@ -94,7 +94,7 @@ func (failingTeams) IsMember(context.Context, string, string) (bool, error) {
 
 func TestAdminGuardsFailClosed(t *testing.T) {
 	srv := newServer() // no database
-	h := srv.routes(testAuthz(t), adminID, testTeams, nil)
+	h := legacyRoutes(srv, testAuthz(t), adminID, testTeams)
 	path := "/admin/v1/servers/team-a/svc/draft"
 	cases := map[string]struct {
 		h    http.Handler
@@ -102,7 +102,7 @@ func TestAdminGuardsFailClosed(t *testing.T) {
 		tok  string
 		want int
 	}{
-		"admin routes off":   {srv.routes(testAuthz(t), "", testTeams, nil), path, userTok("A111111"), 404},
+		"admin routes off":   {legacyRoutes(srv, testAuthz(t), "", testTeams), path, userTok("A111111"), 404},
 		"no token":           {h, path, "", 401},
 		"app token":          {h, path, adminID, 401},
 		"app token w/ ident": {h, path, "app-with-ident", 401},
@@ -111,9 +111,9 @@ func TestAdminGuardsFailClosed(t *testing.T) {
 		"texas fails":        {h, path, "texas-500", 503},
 		"bad namespace":      {h, "/admin/v1/servers/Team_A/svc/draft", userTok("A111111"), 400},
 		"not a member":       {h, path, userTok("B111111"), 403},
-		"team lookup fails":  {srv.routes(testAuthz(t), adminID, failingTeams{}, nil), path, userTok("A111111"), 503},
+		"team lookup fails":  {legacyRoutes(srv, testAuthz(t), adminID, failingTeams{}), path, userTok("A111111"), 503},
 		"database down":      {h, path, userTok("A111111"), 503},
-		"unset static teams": {srv.routes(testAuthz(t), adminID, staticTeams{}, nil), path, userTok("A111111"), 403},
+		"unset static teams": {legacyRoutes(srv, testAuthz(t), adminID, staticTeams{}), path, userTok("A111111"), 403},
 	}
 	for name, c := range cases {
 		if rec := do(t, c.h, http.MethodPut, c.path, c.tok, routeDraft); rec.Code != c.want {
@@ -187,7 +187,7 @@ func TestRealPostgresWriteFlow(t *testing.T) {
 	srv := newServer()
 	srv.cluster = "dev-gcp"
 	srv.store.Store(&storeBox{db})
-	h := srv.routes(testAuthz(t), adminID, testTeams, nil)
+	h := legacyRoutes(srv, testAuthz(t), adminID, testTeams)
 	base := "/admin/v1/servers/team-a/svc"
 	a, b := userTok("A111111"), userTok("A222222")
 
@@ -440,7 +440,7 @@ func TestRealPostgresRoutesSizeLimit(t *testing.T) {
 	srv := newServer()
 	srv.cluster = "dev-gcp"
 	srv.store.Store(&storeBox{db})
-	h := srv.routes(testAuthz(t), adminID, testTeams, nil)
+	h := legacyRoutes(srv, testAuthz(t), adminID, testTeams)
 	a, b := userTok("A111111"), userTok("A222222")
 	draft := func(name string) []byte {
 		body := strings.NewReplacer("svc", name).Replace(routeDraft)
@@ -515,5 +515,37 @@ func TestRealPostgresRoutesSizeLimit(t *testing.T) {
 	}
 	if got := audits(); got != before {
 		t.Errorf("refused rollback wrote %d audit events", got-before)
+	}
+}
+
+// legacyRoutes is routes plus the /admin/v1/servers write handlers that
+// production no longer mounts (#2852).
+func legacyRoutes(s *server, a *authz, adminClientID string, teams teamDirectory) http.Handler {
+	h := s.routes(a, adminClientID, teams, nil)
+	if adminClientID == "" {
+		return h
+	}
+	legacy := http.NewServeMux()
+	s.legacyServerWriteRoutes(legacy, a, adminClientID, teams)
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if _, pattern := legacy.Handler(r); pattern != "" {
+			legacy.ServeHTTP(w, r)
+			return
+		}
+		h.ServeHTTP(w, r)
+	})
+}
+
+func TestAdminServerWritesAreRemoved(t *testing.T) {
+	h := newServer().routes(testAuthz(t), adminID, testTeams, nil)
+	for _, c := range []struct{ method, path string }{
+		{http.MethodPut, "/admin/v1/servers/team-a/svc/draft"},
+		{http.MethodPost, "/admin/v1/servers/team-a/svc/approve"},
+		{http.MethodPost, "/admin/v1/servers/team-a/svc/revoke"},
+		{http.MethodPost, "/admin/v1/servers/team-a/svc/rollback"},
+	} {
+		if rec := do(t, h, c.method, c.path, userTok("A111111"), "{}"); rec.Code != http.StatusNotFound && rec.Code != http.StatusMethodNotAllowed {
+			t.Errorf("%s %s: got %d, want 404 or 405", c.method, c.path, rec.Code)
+		}
 	}
 }
