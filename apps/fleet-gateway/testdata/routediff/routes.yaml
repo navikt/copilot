@@ -1,0 +1,13 @@
+version: 2
+routes:
+  - route: /mcp/team-a/one
+    team: team-a
+    target: prod-gcp:team-a:one
+    upstream_url: http://one.team-a/mcp
+    tools: [b, a]
+  - route: /mcp/team-a/two
+    team: team-a
+    target: prod-gcp:team-a:two
+    upstream_url: http://two.team-a/
+    enabled: false
+    tools: [x]

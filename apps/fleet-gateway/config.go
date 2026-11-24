@@ -97,7 +97,9 @@ type Config struct {
 	TexasIntrospectEndpoint string // validates the Entra access token at login for NAVident (#2594)
 	IdentitySource          string // legacy (default) or introspection; where login takes NAVident from (#2594)
 	// RoutesSource is git (default, PILOT_ROUTES_FILE only) or fleet-control (#2641).
-	RoutesSource            string
+	RoutesSource string
+	// RoutesShadowSource fleet-control compares snapshots with the Git table without serving them (#2760).
+	RoutesShadowSource      string
 	FleetControlURL         string
 	FleetControlAudience    string
 	TexasTokenEndpoint      string // M2M token for fleet-control
@@ -225,6 +227,7 @@ func loadConfigFromEnv() (*Config, error) {
 		TexasIntrospectEndpoint: strings.TrimSpace(os.Getenv("NAIS_TOKEN_INTROSPECTION_ENDPOINT")),
 		IdentitySource:          strings.TrimSpace(os.Getenv("IDENTITY_SOURCE")),
 		RoutesSource:            strings.TrimSpace(os.Getenv("ROUTES_SOURCE")),
+		RoutesShadowSource:      strings.TrimSpace(os.Getenv("ROUTES_SHADOW_SOURCE")),
 		FleetControlURL:         strings.TrimRight(strings.TrimSpace(os.Getenv("FLEET_CONTROL_URL")), "/"),
 		FleetControlAudience:    strings.TrimSpace(os.Getenv("FLEET_CONTROL_AUDIENCE")),
 		TexasTokenEndpoint:      strings.TrimSpace(os.Getenv("NAIS_TOKEN_ENDPOINT")),
@@ -313,6 +316,19 @@ func validateConfig(cfg *Config) error {
 	case "", routesSourceGit:
 		cfg.RoutesSource = routesSourceGit
 	case routesSourceFleetControl:
+	default:
+		return fmt.Errorf("unsupported ROUTES_SOURCE %q (git or fleet-control)", cfg.RoutesSource)
+	}
+	switch cfg.RoutesShadowSource {
+	case "":
+	case routesSourceFleetControl:
+		if cfg.RoutesSource != routesSourceGit {
+			return errors.New("ROUTES_SHADOW_SOURCE=fleet-control requires ROUTES_SOURCE=git")
+		}
+	default:
+		return fmt.Errorf("unsupported ROUTES_SHADOW_SOURCE %q (fleet-control or empty)", cfg.RoutesShadowSource)
+	}
+	if cfg.RoutesSource == routesSourceFleetControl || cfg.RoutesShadowSource == routesSourceFleetControl {
 		if err := config.ValidateHTTPURL(cfg.FleetControlURL, false); err != nil {
 			return fmt.Errorf("invalid FLEET_CONTROL_URL: %w", err)
 		}
@@ -320,10 +336,8 @@ func validateConfig(cfg *Config) error {
 			return fmt.Errorf("invalid NAIS_TOKEN_ENDPOINT: %w", err)
 		}
 		if cfg.FleetControlAudience == "" {
-			return errors.New("FLEET_CONTROL_AUDIENCE is required when ROUTES_SOURCE=fleet-control")
+			return errors.New("FLEET_CONTROL_AUDIENCE is required when ROUTES_SOURCE or ROUTES_SHADOW_SOURCE is fleet-control")
 		}
-	default:
-		return fmt.Errorf("unsupported ROUTES_SOURCE %q (git or fleet-control)", cfg.RoutesSource)
 	}
 	cfg.RoutesByPath = make(map[string]PilotRoute, len(validatedRoutes))
 	cfg.AllowedResources = make(map[string]bool, len(validatedRoutes))

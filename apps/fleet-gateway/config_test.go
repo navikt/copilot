@@ -77,6 +77,21 @@ func TestLoadConfig_FailClosed(t *testing.T) {
 			wantError: "",
 		},
 		{
+			name:      "shadow source with fleet-control serving fails closed",
+			override:  map[string]string{"ROUTES_SOURCE": "fleet-control", "ROUTES_SHADOW_SOURCE": "fleet-control", "FLEET_CONTROL_URL": "http://fleet-control", "NAIS_TOKEN_ENDPOINT": "http://127.0.0.1:3000/api/v1/token", "FLEET_CONTROL_AUDIENCE": "api://x/.default"}, //nolint:gosec // env names, not credentials
+			wantError: "requires ROUTES_SOURCE=git",
+		},
+		{
+			name:      "unknown shadow source fails closed",
+			override:  map[string]string{"ROUTES_SHADOW_SOURCE": "git"},
+			wantError: "unsupported ROUTES_SHADOW_SOURCE",
+		},
+		{
+			name:      "shadow source without audience fails closed",
+			override:  map[string]string{"ROUTES_SHADOW_SOURCE": "fleet-control", "FLEET_CONTROL_URL": "http://fleet-control", "NAIS_TOKEN_ENDPOINT": "http://127.0.0.1:3000/api/v1/token"}, //nolint:gosec // env names, not credentials
+			wantError: "FLEET_CONTROL_AUDIENCE is required",
+		},
+		{
 			name:      "empty client allowlist fails closed",
 			override:  map[string]string{"ALLOWED_CLIENT_IDS": ""},
 			wantError: "ALLOWED_CLIENT_IDS must not be empty",
