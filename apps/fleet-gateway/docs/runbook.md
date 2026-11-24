@@ -155,6 +155,71 @@ The deploy that hashes the store keys for authorization codes, consent ids and E
 2. One login with your own user through a real client.
 3. One tool call (`whoami`); an `audit mcp` line with `context.outcome` `ok` and `decision.decision` `true` appears. Full version: [t7-prod-test.md](t7-prod-test.md).
 
+## Switch prod routes to fleet-control (#2760)
+
+Prod reads routes from `pilot-routes.prod.yaml` today. This section moves it to `ROUTES_SOURCE=fleet-control` and back. Rehearse the whole run in dev first and write the times below.
+
+### Gates (all before the prod switch)
+
+- [ ] The fleet-gateway ROS is revised for fleet-control as route source and approved by the owner.
+- [ ] fleet-control is deployed to prod-gcp (#2855).
+- [ ] The service-account binding is in place: fleet-control prod lists fleet-gateway as inbound, and fleet-gateway prod has the outbound rule and `fleet_control_audience`. Without it the snapshot fetch returns 401 or 403.
+
+### Seeding
+
+fleet-control seeds itself; no separate tool. The image carries `pilot-routes.prod.yaml` and `allowlist.json` (`apps/fleet-control/Dockerfile`), and `SEED_ROUTES_FILE` points at `pilot-routes.{{env}}.yaml`. `seedFromEnv` imports only when the database has no servers, so it never overwrites. `seed_test.go` parses both the dev and the prod file. After the first prod deploy, freeze `pilot-routes.prod.yaml`: route changes go through fleet-control. A change to the file after seeding does not reach the database.
+
+### Fetch the snapshot and diff it
+
+The snapshot endpoint accepts only fleet-gateway's app token, so fetch it from inside a fleet-gateway pod. The token stays in the pod; only the snapshot JSON leaves it.
+
+```sh
+CTX=prod-gcp   # dev-gcp for the rehearsal
+POD=$(kubectl --context $CTX -n copilot get pod -l app=fleet-gateway -o name | head -1)
+# break-glass: adds an ephemeral container to the pod. Texas listens on the pod network.
+kubectl --context $CTX -n copilot debug $POD --image=curlimages/curl --profile=restricted -q -- sh -c '
+  T=$(curl -sf -X POST http://127.0.0.1:7164/api/v1/token -d identity_provider=entra_id \
+      -d target=api://'$CTX'.copilot.fleet-control/.default | sed -n "s/.*\"access_token\":\"\([^\"]*\)\".*/\1/p")
+  curl -sf -H "Authorization: Bearer $T" http://fleet-control/internal/v1/snapshots/routes' > snapshot.json
+```
+
+If the Texas port differs, read the value of `NAIS_TOKEN_ENDPOINT` from the pod spec (`kubectl get pod -o jsonpath`), not from the process environment.
+
+Then compare, from `apps/fleet-gateway`:
+
+```sh
+ROUTEDIFF_SNAPSHOT=$PWD/snapshot.json go test -run TestRouteDiffLive -v .
+# dev rehearsal: add ROUTEDIFF_FILE=pilot-routes.dev.yaml
+```
+
+The test validates the snapshot with the gateway's own rules and canonicalizes upstreams to `.svc.cluster.local` (#2856). It prints one line per difference in route, team, target, upstream, `enabled`, tools or `passAllTools`, and fails on any. The diff must be empty before the switch.
+
+### Dev rehearsal
+
+Dev already runs on fleet-control. Rehearse the rollback and the way back. Use a stopwatch and write each time here.
+
+- [ ] Fetch the dev snapshot and diff it against `pilot-routes.dev.yaml`. Started: ____ Diff empty: ____ (if not, record the lines).
+- [ ] Roll back: `nais app set env fleet-gateway ROUTES_SOURCE=git -t copilot -e dev-gcp`. Command: ____ Rollout complete: ____ Each pod answers on every route: ____ Duration: ____
+- [ ] Switch back: re-run the fleet-gateway dev deploy job, which restores the manifest value (`ROUTES_SOURCE-` would remove the variable and leave the pod on git). Command: ____ `/ready` 200 on all pods: ____ `fleet_gateway_route_snapshot_age_seconds` under 120: ____
+- [ ] Post-deploy smoke on one route. Done: ____
+
+### Prod steps
+
+1. Check every gate above.
+2. Deploy fleet-control prod. Its log shows `seed` with `imported` true and the server count. Time: ____
+3. Fetch the prod snapshot and run the diff against `pilot-routes.prod.yaml`. It must be empty. Time: ____
+4. Open a PR that sets `routes_source: fleet-control`, `fleet_control_audience: "api://prod-gcp.copilot.fleet-control/.default"` and the `fleet-control` outbound rule in `.nais/prod-gcp.yaml`, as in `dev-gcp.yaml`. Merge it and watch the deploy job. Merged: ____ Rollout complete: ____
+5. Verify: `/ready` 200 on every pod, snapshot age under 120 s, no `fleet-control routes not updated` in the logs, and the post-deploy smoke on each prod route (PRM 200, then one tool call). Done: ____
+
+### Roll back to the Git file (under 5 min)
+
+```sh
+nais app set env fleet-gateway ROUTES_SOURCE=git -t copilot -e prod-gcp
+kubectl --context prod-gcp -n copilot rollout status deploy/fleet-gateway
+```
+
+The global kill-switch drill took 56 s in prod with the same command, so expect about 1 min. The setting does not survive the next deploy: revert the PR from step 4 at once. While the file is the source, routes registered or changed in fleet-control after seeding are not served; they stay in fleet-control and come back at the next switch. Before switching again, run the diff and decide per difference whether the file or fleet-control is right.
+
 ## Contacts
 
 - Owner: team copilot (placeholder: on-call rota and phone, to be filled in).

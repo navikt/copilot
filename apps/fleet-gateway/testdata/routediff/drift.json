@@ -1,0 +1,3 @@
+{"schema_version":1,"generation":4,"routes":[
+ {"namespace":"team-a","name":"one","path":"/mcp/team-a/one","target":"prod-gcp:team-a:one","upstream_url":"http://one.team-a/other","enabled":false,"tools":["a","c"]},
+ {"namespace":"team-a","name":"three","path":"/mcp/team-a/three","target":"prod-gcp:team-a:three","upstream_url":"http://three.team-a/","enabled":true,"tools":["y"]}]}

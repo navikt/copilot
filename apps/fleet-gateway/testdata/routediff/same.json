@@ -1,0 +1,3 @@
+{"schema_version":1,"generation":3,"routes":[
+ {"namespace":"team-a","name":"two","path":"/mcp/team-a/two","target":"prod-gcp:team-a:two","upstream_url":"http://two.team-a.svc.cluster.local/","enabled":false,"tools":["x"]},
+ {"namespace":"team-a","name":"one","path":"/mcp/team-a/one","target":"prod-gcp:team-a:one","upstream_url":"http://one.team-a/mcp","enabled":true,"tools":["a","b"]}]}

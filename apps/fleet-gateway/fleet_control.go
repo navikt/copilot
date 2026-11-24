@@ -131,20 +131,7 @@ func (f *fleetControlRoutes) fetch(ctx context.Context, current *RouteTable) ([]
 	if snap.Generation < f.generation {
 		return nil, fmt.Errorf("snapshot generation %d is older than %d", snap.Generation, f.generation)
 	}
-	routes := make([]PilotRoute, 0, len(snap.Routes))
-	for _, r := range snap.Routes {
-		if r.Path != "/mcp/"+r.Namespace+"/"+r.Name {
-			return nil, fmt.Errorf("route %q does not match %s/%s", r.Path, r.Namespace, r.Name)
-		}
-		enabled := r.Enabled
-		pr := PilotRoute{Route: r.Path, Team: r.Namespace, Target: r.Target, UpstreamURL: r.UpstreamURL, Enabled: &enabled, Tools: r.Tools}
-		// Same rules as the Git file; passAllTools is operator-only and never comes from fleet-control.
-		if err = applyToolPolicy(&pr); err != nil {
-			return nil, err
-		}
-		routes = append(routes, pr)
-	}
-	routes, err = validatePilotRoutes(routes) // rejects an empty list
+	routes, err := snapshotRoutes(snap)
 	if err != nil {
 		return nil, err
 	}
@@ -227,4 +214,22 @@ func markRouteSynced() {
 			Help: "Seconds since fleet-gateway last fetched a valid or unchanged fleet-control route snapshot. Absent until the first one.",
 		}, func() float64 { return time.Since(time.Unix(0, lastRouteSync.Load())).Seconds() })
 	})
+}
+
+// snapshotRoutes validates snapshot routes by the same rules as the Git file.
+func snapshotRoutes(snap routesSnapshot) ([]PilotRoute, error) {
+	routes := make([]PilotRoute, 0, len(snap.Routes))
+	for _, r := range snap.Routes {
+		if r.Path != "/mcp/"+r.Namespace+"/"+r.Name {
+			return nil, fmt.Errorf("route %q does not match %s/%s", r.Path, r.Namespace, r.Name)
+		}
+		enabled := r.Enabled
+		pr := PilotRoute{Route: r.Path, Team: r.Namespace, Target: r.Target, UpstreamURL: r.UpstreamURL, Enabled: &enabled, Tools: r.Tools}
+		// Same rules as the Git file; passAllTools is operator-only and never comes from fleet-control.
+		if err := applyToolPolicy(&pr); err != nil {
+			return nil, err
+		}
+		routes = append(routes, pr)
+	}
+	return validatePilotRoutes(routes) // rejects an empty list
 }
