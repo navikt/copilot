@@ -110,6 +110,14 @@ func (f *fleetControlRoutes) fetch(ctx context.Context, current *RouteTable) ([]
 	defer func() { _ = resp.Body.Close() }()
 	switch {
 	case resp.StatusCode == http.StatusNotModified && f.etag != "":
+		// A replica serving a stale copy answers 304 too; refuse it so the age gauge keeps rising.
+		checked, perr := time.Parse(time.RFC3339Nano, resp.Header.Get("Fleet-Checked-At"))
+		if perr != nil {
+			return nil, errors.New("304 without a valid Fleet-Checked-At header")
+		}
+		if err = checkFresh(checked); err != nil {
+			return nil, err
+		}
 		return nil, nil
 	case resp.StatusCode != http.StatusOK:
 		return nil, fmt.Errorf("fleet-control: status %d", resp.StatusCode)
@@ -133,8 +141,8 @@ func (f *fleetControlRoutes) fetch(ctx context.Context, current *RouteTable) ([]
 	}
 	// A missing checked_at parses as zero and is refused here, so an old
 	// fleet-control fails closed at startup and static afterwards.
-	if age := time.Since(snap.CheckedAt); age > maxSnapshotAge {
-		return nil, fmt.Errorf("snapshot checked_at %s is older than %s", snap.CheckedAt.Format(time.RFC3339), maxSnapshotAge)
+	if err = checkFresh(snap.CheckedAt); err != nil {
+		return nil, err
 	}
 	routesJSON, err := json.Marshal(snap.Routes)
 	if err != nil {
@@ -165,6 +173,14 @@ func (f *fleetControlRoutes) fetch(ctx context.Context, current *RouteTable) ([]
 	f.generation = snap.Generation
 	f.routesHash = hash
 	return routes, nil
+}
+
+// checkFresh refuses a checked_at more than maxSnapshotAge in the past or the future.
+func checkFresh(checked time.Time) error {
+	if age := time.Since(checked); age > maxSnapshotAge || age < -maxSnapshotAge {
+		return fmt.Errorf("snapshot checked_at %s is more than %s from now", checked.Format(time.RFC3339), maxSnapshotAge)
+	}
+	return nil
 }
 
 // syncRoutes fetches once and swaps the route table on a new, valid snapshot.

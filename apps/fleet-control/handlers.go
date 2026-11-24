@@ -155,6 +155,8 @@ func (s *server) snapshot(w http.ResponseWriter, r *http.Request, kind string) {
 	}
 	etag := `"` + snap.ETag + `"`
 	w.Header().Set("ETag", etag)
+	// Also on 304, so a gateway sees a stale replica without a body.
+	w.Header().Set("Fleet-Checked-At", snap.CheckedAt.UTC().Format(time.RFC3339Nano))
 	if strings.Contains(r.Header.Get("If-None-Match"), etag) {
 		w.WriteHeader(http.StatusNotModified)
 		return

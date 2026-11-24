@@ -25,7 +25,8 @@ type fakeFleetControl struct {
 	etag        string
 	requests    atomic.Int32
 	lastINM     string
-	ignoreINM   bool // answer 200 even when If-None-Match matches
+	ignoreINM   bool   // answer 200 even when If-None-Match matches
+	checkedAt   string // Fleet-Checked-At header; "-" omits it, "" means now
 }
 
 func snapRoute(name string) map[string]any {
@@ -69,6 +70,13 @@ func newFakeFleetControl(t *testing.T) *fakeFleetControl {
 			}
 			f.lastINM = r.Header.Get("If-None-Match")
 			w.Header().Set("ETag", f.etag)
+			switch f.checkedAt {
+			case "":
+				w.Header().Set("Fleet-Checked-At", time.Now().UTC().Format(time.RFC3339Nano))
+			case "-":
+			default:
+				w.Header().Set("Fleet-Checked-At", f.checkedAt)
+			}
 			if f.lastINM == f.etag && !f.ignoreINM {
 				w.WriteHeader(http.StatusNotModified)
 				return
@@ -172,6 +180,10 @@ func TestRouteSyncFailsClosed(t *testing.T) {
 		"stale checked_at": func(f *fakeFleetControl) {
 			f.body = snapBody(2, primaryRoute(), snapRoute("zeta"))
 			f.body.(map[string]any)["checked_at"] = time.Now().Add(-maxSnapshotAge - time.Minute).Format(time.RFC3339)
+		},
+		"future checked_at": func(f *fakeFleetControl) {
+			f.body = snapBody(2, primaryRoute(), snapRoute("zeta"))
+			f.body.(map[string]any)["checked_at"] = time.Now().Add(maxSnapshotAge + time.Minute).Format(time.RFC3339)
 		},
 		"no checked_at": func(f *fakeFleetControl) {
 			f.body = snapBody(2, primaryRoute(), snapRoute("zeta"))
@@ -378,5 +390,31 @@ func TestRouteSnapshotAgeGauge(t *testing.T) {
 				t.Fatalf("age = %v, want about 60", v)
 			}
 		}
+	}
+}
+
+// A 304 from a replica serving a stale copy must count as a failure and must
+// not reset the age gauge.
+func TestRouteSync304ChecksCheckedAt(t *testing.T) {
+	for name, header := range map[string]string{
+		"stale":   time.Now().Add(-maxSnapshotAge - time.Minute).UTC().Format(time.RFC3339Nano),
+		"future":  time.Now().Add(maxSnapshotAge + time.Minute).UTC().Format(time.RFC3339Nano),
+		"missing": "-",
+	} {
+		t.Run(name, func(t *testing.T) {
+			f := newFakeFleetControl(t)
+			gw, src := fleetControlGateway(t, f)
+			gw.syncRoutes(context.Background(), src)
+			f.checkedAt = header
+			synced := lastRouteSync.Load()
+			failures := testutil.ToFloat64(routeSyncFailures)
+			gw.syncRoutes(context.Background(), src)
+			if f.lastINM != f.etag {
+				t.Fatal("fixture did not take the 304 path")
+			}
+			if testutil.ToFloat64(routeSyncFailures) != failures+1 || lastRouteSync.Load() != synced {
+				t.Fatal("a 304 with a bad Fleet-Checked-At must count a failure and not mark the sync")
+			}
+		})
 	}
 }
