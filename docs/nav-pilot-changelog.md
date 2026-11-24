@@ -8,6 +8,10 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 - **nav-design-beta**: En valgfri plugin med Aksel-veiledning, MCP-oppsett for Aksel og Figma og en agent for prototyper. Legg til `navikt/copilot` som markedsplass i Copilot-appen eller VS Code, installer `nav-design-beta`, logg inn i Figma og velg agenten. Du trenger ikke nav-pilot i terminalen. Installasjon, innlogging og oppdateringer er ikke testet i alle klienter ennå, se `plugins/nav-design-beta/README.md` (#2132).
 
+### `nav-pilot doctor` venter ikke på GitHub hver gang
+
+- **`nav-pilot doctor`**: Siste cplt-versjon huskes i ett døgn i `~/.nav-pilot/cplt-cache.json`. Før spurte doctor GitHub ved hver kjøring og kunne vente i opptil 5 sekunder. Uten lagret svar venter doctor nå høyst 1,5 sekunder. Svarer ikke GitHub, viser doctor «Could not check for a newer cplt release» og fortsetter (#2904).
+
 ### Gradle-repoer spør om localhost én gang
 
 - **cplt**: Gradle virker ikke i cplts standard-sandkasse, fordi Gradle bruker tilfeldige localhost-porter. Første gang du starter nav-pilot gjennom cplt i et Gradle-repo, spør nav-pilot én gang om localhost skal åpnes for repoet, og lagrer svaret, ja eller nei, med `cplt config set --local`. Har repoet `[propose] allow_localhost_any = true` i `.cplt.toml`, gjelder det gjennom `cplt trust`, og nav-pilot spør ikke. Uten terminal spør nav-pilot ikke og endrer ingenting. Krever cplt 2026.11.20 eller nyere (#2847).

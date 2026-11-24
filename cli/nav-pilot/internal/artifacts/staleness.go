@@ -55,8 +55,22 @@ func CacheFilePath() string {
 	return filepath.Join(home, ".nav-pilot", "cache.json")
 }
 
-func ReadCache() *StalenessCache {
-	path := CacheFilePath()
+// CpltCacheFilePath is where the latest cplt release is cached, beside
+// cache.json. A file of its own: refreshCache rewrites cache.json whole.
+func CpltCacheFilePath() string {
+	p := CacheFilePath()
+	if p == "" {
+		return ""
+	}
+	return filepath.Join(filepath.Dir(p), "cplt-cache.json")
+}
+
+func ReadCache() *StalenessCache { return ReadCacheAt(CacheFilePath()) }
+
+func WriteCache(c *StalenessCache) { WriteCacheAt(CacheFilePath(), c) }
+
+// ReadCacheAt reads a StalenessCache from path; nil when absent or unreadable.
+func ReadCacheAt(path string) *StalenessCache {
 	if path == "" {
 		return nil
 	}
@@ -71,8 +85,8 @@ func ReadCache() *StalenessCache {
 	return &c
 }
 
-func WriteCache(c *StalenessCache) {
-	path := CacheFilePath()
+// WriteCacheAt writes c to path atomically, ignoring errors: a cache.
+func WriteCacheAt(path string, c *StalenessCache) {
 	if path == "" {
 		return
 	}
