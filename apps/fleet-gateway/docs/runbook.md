@@ -169,47 +169,34 @@ Prod reads routes from `pilot-routes.prod.yaml` today. This section moves it to 
 
 fleet-control seeds itself; no separate tool. The image carries `pilot-routes.prod.yaml` and `allowlist.json` (`apps/fleet-control/Dockerfile`), and `SEED_ROUTES_FILE` points at `pilot-routes.{{env}}.yaml`. `seedFromEnv` imports only when the database has no servers, so it never overwrites. `seed_test.go` parses both the dev and the prod file. After the first prod deploy, freeze `pilot-routes.prod.yaml`: route changes go through fleet-control. A change to the file after seeding does not reach the database.
 
-### Fetch the snapshot and diff it
+### Shadow mode: compare before switching
 
-The snapshot endpoint accepts only fleet-gateway's app token, so fetch it from inside a fleet-gateway pod. The token stays in the pod; only the snapshot JSON leaves it.
+With `ROUTES_SOURCE=git` and `ROUTES_SHADOW_SOURCE=fleet-control` the gateway also polls fleet-control every 30 s. It validates the snapshot by the same rules as a real switch, never serves it, and compares it with the Git table. Upstreams compare in their `.svc.cluster.local` form (#2856); the comparison covers route, team, target, upstream, `enabled`, tools and `passAllTools`.
 
-```sh
-CTX=prod-gcp   # dev-gcp for the rehearsal
-POD=$(kubectl --context $CTX -n copilot get pod -l app=fleet-gateway -o name | head -1)
-# break-glass: adds an ephemeral container to the pod. Texas listens on the pod network.
-kubectl --context $CTX -n copilot debug $POD --image=curlimages/curl --profile=restricted -q -- sh -c '
-  T=$(curl -sf -X POST http://127.0.0.1:7164/api/v1/token -d identity_provider=entra_id \
-      -d target=api://'$CTX'.copilot.fleet-control/.default | sed -n "s/.*\"access_token\":\"\([^\"]*\)\".*/\1/p")
-  curl -sf -H "Authorization: Bearer $T" http://fleet-control/internal/v1/snapshots/routes' > snapshot.json
-```
+- `fleet_gateway_routes_shadow_diff`: the number of routes that differ. No series until the first shadow snapshot.
+- `fleet_gateway_routes_shadow_failures_total`: failed or rejected shadow fetches. A failure never changes what the gateway serves.
+- Log line `fleet-control shadow diff` with the differing route paths, at the first snapshot and whenever the set changes.
 
-If the Texas port differs, read the value of `NAIS_TOKEN_ENDPOINT` from the pod spec (`kubectl get pod -o jsonpath`), not from the process environment.
-
-Then compare, from `apps/fleet-gateway`:
-
-```sh
-ROUTEDIFF_SNAPSHOT=$PWD/snapshot.json go test -run TestRouteDiffLive -v .
-# dev rehearsal: add ROUTEDIFF_FILE=pilot-routes.dev.yaml
-```
-
-The test validates the snapshot with the gateway's own rules and canonicalizes upstreams to `.svc.cluster.local` (#2856). It prints one line per difference in route, team, target, upstream, `enabled`, tools or `passAllTools`, and fails on any. The diff must be empty before the switch.
+Enable it with `routes_shadow_source: fleet-control`, `fleet_control_audience` and the `fleet-control` outbound rule in the environment file. The values must not be combined with `routes_source: fleet-control`; the gateway refuses to start.
 
 ### Dev rehearsal
 
-Dev already runs on fleet-control. Rehearse the rollback and the way back. Use a stopwatch and write each time here.
+Dev runs on fleet-control. Rehearse shadow mode, the switch and the rollback there. Use a stopwatch and write each time here.
 
-- [ ] Fetch the dev snapshot and diff it against `pilot-routes.dev.yaml`. Started: ____ Diff empty: ____ (if not, record the lines).
+- [ ] Shadow: set `routes_source: git` and `routes_shadow_source: fleet-control` in `.nais/dev-gcp.yaml`, deploy. Deployed: ____ First `fleet-control shadow diff` log: ____ Gauge value: ____ (if not 0, record the routes).
+- [ ] Switch: set `routes_source: fleet-control` and remove `routes_shadow_source`, deploy. Merged: ____ `/ready` 200 on all pods: ____ `fleet_gateway_route_snapshot_age_seconds` under 120: ____
 - [ ] Roll back: `nais app set env fleet-gateway ROUTES_SOURCE=git -t copilot -e dev-gcp`. Command: ____ Rollout complete: ____ Each pod answers on every route: ____ Duration: ____
-- [ ] Switch back: re-run the fleet-gateway dev deploy job, which restores the manifest value (`ROUTES_SOURCE-` would remove the variable and leave the pod on git). Command: ____ `/ready` 200 on all pods: ____ `fleet_gateway_route_snapshot_age_seconds` under 120: ____
+- [ ] Back to fleet-control: re-run the dev deploy job, which restores the manifest value. Done: ____
 - [ ] Post-deploy smoke on one route. Done: ____
 
 ### Prod steps
 
 1. Check every gate above.
 2. Deploy fleet-control prod. Its log shows `seed` with `imported` true and the server count. Time: ____
-3. Fetch the prod snapshot and run the diff against `pilot-routes.prod.yaml`. It must be empty. Time: ____
-4. Open a PR that sets `routes_source: fleet-control`, `fleet_control_audience: "api://prod-gcp.copilot.fleet-control/.default"` and the `fleet-control` outbound rule in `.nais/prod-gcp.yaml`, as in `dev-gcp.yaml`. Merge it and watch the deploy job. Merged: ____ Rollout complete: ____
-5. Verify: `/ready` 200 on every pod, snapshot age under 120 s, no `fleet-control routes not updated` in the logs, and the post-deploy smoke on each prod route (PRM 200, then one tool call). Done: ____
+3. Enable shadow mode in `.nais/prod-gcp.yaml`: `routes_shadow_source: fleet-control`, `fleet_control_audience: "api://prod-gcp.copilot.fleet-control/.default"` and the `fleet-control` outbound rule. Merged: ____
+4. Watch for 24 h: `fleet_gateway_routes_shadow_diff` stays at 0 on every pod and `fleet_gateway_routes_shadow_failures_total` does not grow. Any non-zero diff resets the clock. Start: ____ End: ____
+5. Switch: replace `routes_shadow_source` with `routes_source: fleet-control`. Merge and watch the deploy job. Merged: ____ Rollout complete: ____
+6. Verify: `/ready` 200 on every pod, snapshot age under 120 s, no `fleet-control routes not updated` in the logs, and the post-deploy smoke on each prod route (PRM 200, then one tool call). Done: ____
 
 ### Roll back to the Git file (under 5 min)
 
@@ -218,7 +205,7 @@ nais app set env fleet-gateway ROUTES_SOURCE=git -t copilot -e prod-gcp
 kubectl --context prod-gcp -n copilot rollout status deploy/fleet-gateway
 ```
 
-The global kill-switch drill took 56 s in prod with the same command, so expect about 1 min. The setting does not survive the next deploy: revert the PR from step 4 at once. While the file is the source, routes registered or changed in fleet-control after seeding are not served; they stay in fleet-control and come back at the next switch. Before switching again, run the diff and decide per difference whether the file or fleet-control is right.
+The global kill-switch drill took 56 s in prod with the same command, so expect about 1 min. The setting does not survive the next deploy: revert the PR from step 5 at once. While the file is the source, routes registered or changed in fleet-control after seeding are not served; they stay in fleet-control and come back at the next switch. Before switching again, run the diff and decide per difference whether the file or fleet-control is right.
 
 ## Contacts
 

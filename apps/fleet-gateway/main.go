@@ -583,6 +583,7 @@ func main() {
 	gw.startSweeper(ctx, defaultSweepInterval)
 	routesLoaded.Set(float64(len(gw.table().Routes)))
 	gw.startRouteSync(ctx, fleetControlSyncInterval)
+	gw.startShadowSync(ctx, fleetControlSyncInterval)
 
 	server := &http.Server{
 		Addr:              ":" + cfg.Port,

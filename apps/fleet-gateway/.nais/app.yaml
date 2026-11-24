@@ -87,6 +87,12 @@ spec:
     {{#if routes_source}}
     - name: ROUTES_SOURCE
       value: "{{routes_source}}"
+    {{/if}}
+    {{#if routes_shadow_source}}
+    - name: ROUTES_SHADOW_SOURCE
+      value: "{{routes_shadow_source}}"
+    {{/if}}
+    {{#if fleet_control_audience}}
     - name: FLEET_CONTROL_URL
       value: "http://fleet-control"
     - name: FLEET_CONTROL_AUDIENCE
