@@ -6,6 +6,7 @@
 import { notFound, redirect } from "next/navigation";
 import { exchangeTokenFor, fetchWithTimeout, isLocalDev } from "@/lib/backend-api";
 import { getUserToken } from "@/lib/auth";
+import { isName } from "@/lib/fleet-names";
 
 export type Me = { name: string; teams: string[] };
 
@@ -49,12 +50,6 @@ export type AgentProfile = {
 export type List<T> = { items: T[] };
 
 export type AuditEvent = { at: string; actor: Actor; action: string; generation?: number };
-
-/** True when the condition is there with status "True"; missing or unknown is false. */
-export const hasCondition = (obj: { status: { conditions?: Condition[] } }, type: string) =>
-  obj.status.conditions?.some((c) => c.type === type && c.status === "True") ?? false;
-
-export const refKey = (r: { namespace: string; name: string }) => `${r.namespace}/${r.name}`;
 
 /** What a page shows instead of data: no access, or fleet-control is unavailable. */
 export type FleetProblem = "forbidden" | "conflict" | "unavailable";
@@ -116,9 +111,6 @@ export async function fleetLoad<T>(load: () => Promise<T>): Promise<{ data: T } 
     return { problem: fleetProblem(err) };
   }
 }
-
-/** Nais team and resource names are DNS labels. Anything else, `..` included, never reaches a URL. */
-export const isName = (s: string) => /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/.test(s);
 
 const seg = (s: string) => {
   if (!isName(s)) throw new FleetControlError(404);

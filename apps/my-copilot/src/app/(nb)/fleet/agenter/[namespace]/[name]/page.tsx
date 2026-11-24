@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
+import { isName } from "@/lib/fleet-names";
 import { notFound } from "next/navigation";
-import { FleetControlError, fleetApi, fleetLoad, isName, requireFleet } from "@/lib/fleet-control";
+import { FleetControlError, fleetApi, fleetLoad, requireFleet } from "@/lib/fleet-control";
 import { FleetFrame, fleetRobots } from "../../../frame";
 import { AgentDetailView, FleetProblemAlert } from "../../../fleet-ui";
 

@@ -18,7 +18,7 @@ import {
   Tag,
   VStack,
 } from "@navikt/ds-react";
-import { hasCondition, refKey } from "@/lib/fleet-control";
+import { hasCondition, refKey } from "@/lib/fleet-names";
 import type { AgentProfile, AuditEvent, FleetProblem, MCPServer } from "@/lib/fleet-control";
 
 const linkClass = "text-blue-600 hover:underline";
