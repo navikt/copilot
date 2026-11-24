@@ -14,6 +14,7 @@ import (
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
+	"github.com/navikt/copilot/cli/nav-pilot/internal/telemetry"
 )
 
 // cpltLaunch describes how to launch a coding-agent client inside the cplt
@@ -132,6 +133,9 @@ func CpltUpgradeHint() string { return cpltUpgradeHint() }
 // cpltDefaultFlags is a var so golden launch-vector tests can leave it out
 // without a cplt binary; the provider TestMain does.
 var cpltDefaultFlags = fleetGatewayFlags
+
+// cpltManagedConfig is a var so launch tests run without writing a home.
+var cpltManagedConfig = CpltManagedConfig
 
 // fleetGatewayFlags is --allow-private-domain for each [FleetGatewayHosts]
 // entry not already in args, which holds the user's own --cplt flags too.
@@ -402,6 +406,12 @@ func launchViaCplt(spec cpltLaunch) error {
 		FirstTime("autonomy-notice")
 	}
 	spec.env = withSkillsDirEnv(spec.env, spec.skillsDir)
+	// The flags stay even with the managed file: cplt may still refuse the
+	// file (a passwd home nav-pilot cannot see, e.g. CGO-less LDAP lookups),
+	// and the lists union, so a duplicate costs nothing.
+	if path, _ := cpltManagedConfig(); path != "" {
+		spec.env, _ = telemetry.SetEnvValue(spec.env, CpltManagedEnv, path)
+	}
 	args, err := withCpltProjectDir(withCpltConfirmation(cpltArgv(spec), IsTerminal(os.Stdin)), spec.projectDir)
 	if err != nil {
 		return err
