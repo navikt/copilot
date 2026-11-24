@@ -137,6 +137,13 @@ func TestCorruptStoredSnapshotFailsClosed(t *testing.T) {
 		"garbage body":        func(st *storedSnapshot) { st.Body = []byte("{not json") },
 		"hash mismatch":       func(st *storedSnapshot) { st.Hash = "00" },
 		"generation mismatch": func(st *storedSnapshot) { st.Generation++ },
+		"future checked_at": func(st *storedSnapshot) {
+			var snap map[string]any
+			_ = json.Unmarshal(st.Body, &snap)
+			st.CheckedAt = time.Now().Add(time.Hour).UTC()
+			snap["checked_at"] = st.CheckedAt.Format(time.RFC3339Nano)
+			st.Body, _ = json.Marshal(snap)
+		},
 		"no checked_at": func(st *storedSnapshot) {
 			var snap map[string]any
 			_ = json.Unmarshal(st.Body, &snap)
@@ -194,5 +201,35 @@ func TestRejectedLiveSnapshotIsNotStored(t *testing.T) {
 	after, _, _ := gw.store.Get(context.Background(), kindRouteSnapshot, routeSnapshotKey)
 	if string(after) != string(before) {
 		t.Fatal("a rejected live snapshot replaced the stored one")
+	}
+}
+
+func TestOlderSnapshotDoesNotOverwriteNewerStored(t *testing.T) {
+	f := newFakeFleetControl(t)
+	newer := snapBody(2, primaryRoute(), snapRoute("newer"))
+	newer["checked_at"] = time.Now().UTC().Format(time.RFC3339Nano)
+	gw := storeLiveSnapshot(t, f, newer)
+	stored, _, _ := gw.store.Get(context.Background(), kindRouteSnapshot, routeSnapshotKey)
+
+	// A lagging replica on the same store accepts an older checked_at with a higher generation.
+	older := snapBody(7, primaryRoute(), snapRoute("older"))
+	older["checked_at"] = time.Now().Add(-time.Minute).UTC().Format(time.RFC3339Nano)
+	f.body = older
+	f.etag = `"e2"`
+	gw.syncRoutes(context.Background(), &fleetControlRoutes{cfg: gw.cfg, client: f.srv.Client()})
+	if after, _, _ := gw.store.Get(context.Background(), kindRouteSnapshot, routeSnapshotKey); string(after) != string(stored) {
+		t.Fatal("an older checked_at overwrote the newer stored snapshot")
+	}
+
+	// A newer checked_at with a lower generation (restored fleet-control) replaces it.
+	reset := snapBody(1, primaryRoute(), snapRoute("reset"))
+	f.body = reset
+	f.etag = `"e3"`
+	gw.syncRoutes(context.Background(), &fleetControlRoutes{cfg: gw.cfg, client: f.srv.Client()})
+	after, _, _ := gw.store.Get(context.Background(), kindRouteSnapshot, routeSnapshotKey)
+	var st storedSnapshot
+	_ = json.Unmarshal(after, &st)
+	if st.Generation != 1 {
+		t.Fatalf("stored generation = %d, want 1 after a generation reset", st.Generation)
 	}
 }

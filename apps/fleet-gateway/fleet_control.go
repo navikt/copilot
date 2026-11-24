@@ -252,12 +252,29 @@ const (
 // the live table is already in place.
 func (g *Gateway) storeSnapshot(ctx context.Context, f *fleetControlRoutes) {
 	raw, err := json.Marshal(storedSnapshot{Body: f.accepted, Generation: f.generation, Hash: hex.EncodeToString(f.routesHash[:]), CheckedAt: f.checkedAt})
-	if err == nil {
-		err = g.store.Put(ctx, kindRouteSnapshot, routeSnapshotKey, raw, routeSnapshotTTL)
+	// Replicas race: the newer checked_at wins. Not generation, which can
+	// reset when fleet-control's database is restored.
+	for range 3 {
+		if err != nil {
+			break
+		}
+		var old []byte
+		var ok, swapped bool
+		if old, ok, err = g.store.Get(ctx, kindRouteSnapshot, routeSnapshotKey); err != nil {
+			break
+		}
+		var cur storedSnapshot
+		if ok && json.Unmarshal(old, &cur) == nil && cur.CheckedAt.After(f.checkedAt) {
+			return
+		}
+		if !ok {
+			old = nil
+		}
+		if swapped, err = g.store.CompareAndSwap(ctx, kindRouteSnapshot, routeSnapshotKey, old, raw, routeSnapshotTTL); swapped {
+			return
+		}
 	}
-	if err != nil {
-		slog.Warn("could not store route snapshot", "error", err)
-	}
+	slog.Warn("could not store route snapshot", "error", err)
 }
 
 // loadStoredSnapshot serves the stored snapshot when startup found no live
