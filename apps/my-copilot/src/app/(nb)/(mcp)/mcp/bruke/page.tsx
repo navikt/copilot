@@ -187,9 +187,21 @@ export default function NavMcpServerePage() {
           samtalen så langt, filene den har lest og beskrivelsene av alle verktøyene den kan kalle.
         </BodyLong>
         <BodyLong>
-          Klienten legger beskrivelsen av hvert verktøy den gir til modellen, i konteksten. Det skjer i hver samtale,
-          også når agenten ikke bruker verktøyene. Mange servere gir mindre plass til koden og oppgaven din. Alt som
-          sendes til modellen, er tokens, så jo mer som ligger i konteksten, desto mer må modellen behandle i hver tur.
+          Mange klienter laster beskrivelsen av hvert verktøy inn i konteksten i hver samtale, også når agenten ikke
+          bruker verktøyene. Mange servere gir da mindre plass til koden og oppgaven din. Alt som sendes til modellen,
+          er tokens, så jo mer som ligger i konteksten, desto mer må modellen behandle i hver tur.
+        </BodyLong>
+        <BodyLong>
+          Copilot CLI laster verktøy ved behov når du har rundt 30 verktøy eller flere og bruker en modell som støtter
+          det. Da ligger bare de innebygde verktøyene i konteksten, og agenten søker etter resten. Under 30 verktøy, med
+          andre modeller og i andre klienter kan alle beskrivelsene ligge i konteksten fra start (
+          <a
+            href="https://docs.github.com/en/copilot/concepts/agent-capabilities/agent-powered-workflows-and-operations/tool-search"
+            className={linkClass}
+          >
+            GitHub Docs
+          </a>
+          ).
         </BodyLong>
         <BodyLong>
           Hvor mye det blir, avhenger av hvilke verktøy klienten gir til modellen. Med nav-pilot velger du enkeltverktøy
