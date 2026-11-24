@@ -59,7 +59,8 @@ routes:
       - les_konsept
       - les_fil
       - les_komponentregister
-      # Write tools (ADR 033 in navikt/aksel-studio): dev only until a server ROS exists.
+      # Write tools, toolRisk write (ADR 033 in navikt/aksel-studio), dev only.
+      # ros_ref: https://github.com/navikt/aksel-studio/issues/578; full server ROS before prod.
       - lag_konsept
       - foresla_ny_fil
       - foresla_endring
