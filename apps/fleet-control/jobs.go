@@ -132,13 +132,7 @@ type jobStore interface {
 }
 
 func jobAudit(ctx context.Context, tx pgx.Tx, actor, action, team string, id int64, detail map[string]any) error {
-	raw, err := json.Marshal(detail)
-	if err != nil {
-		return err
-	}
-	_, err = tx.Exec(ctx, `INSERT INTO audit_events (actor, action, namespace, name, detail) VALUES ($1, $2, $3, $4, $5::jsonb)`,
-		actor, action, team, "job/"+strconv.FormatInt(id, 10), string(raw))
-	return err
+	return insertAudit(ctx, tx, auditRow{Actor: actor, Action: action, Namespace: team, Name: "job/" + strconv.FormatInt(id, 10), Detail: detail})
 }
 
 // CreateJob queues a job for team.
@@ -199,10 +193,8 @@ func (d *DB) SetKillSwitch(ctx context.Context, actor, scope string, on bool, re
 		if err != nil || tag.RowsAffected() == 0 {
 			return err
 		}
-		raw, _ := json.Marshal(map[string]any{"scope": scope, "on": on, "reason": reason})
 		team, _ := strings.CutPrefix(scope, "team:")
-		_, err = tx.Exec(ctx, `INSERT INTO audit_events (actor, action, namespace, name, detail) VALUES ($1, 'kill_switch', $2, $3, $4::jsonb)`, actor, team, scope, string(raw))
-		return err
+		return insertAudit(ctx, tx, auditRow{Actor: actor, Action: "kill_switch", Namespace: team, Name: scope, Detail: map[string]any{"scope": scope, "on": on, "reason": reason}})
 	})
 }
 

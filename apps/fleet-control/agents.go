@@ -433,13 +433,7 @@ func (s *server) listAgents(w http.ResponseWriter, r *http.Request) {
 // --- storage ---
 
 func auditAgent(ctx context.Context, tx pgx.Tx, actor, action, namespace, name string, detail any) error {
-	raw, err := json.Marshal(detail)
-	if err != nil {
-		return err
-	}
-	_, err = tx.Exec(ctx, `INSERT INTO audit_events (actor, action, namespace, name, detail) VALUES ($1, $2, $3, $4, $5::jsonb)`,
-		actor, action, namespace, name, string(raw))
-	return err
+	return insertAudit(ctx, tx, auditRow{Actor: actor, Action: action, Namespace: namespace, Name: name, Detail: detail})
 }
 
 func (d *DB) CreateAgentProfile(ctx context.Context, p AgentProfile, actor string, verified bool) (int64, error) {

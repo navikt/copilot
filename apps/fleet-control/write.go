@@ -159,12 +159,7 @@ func audit(ctx context.Context, tx pgx.Tx, actor, action, ns, name string, versi
 	for k, v := range extra {
 		detail[k] = v
 	}
-	raw, err := json.Marshal(detail)
-	if err != nil {
-		return err
-	}
-	_, err = tx.Exec(ctx, `INSERT INTO audit_events (actor, action, namespace, name, version, detail) VALUES ($1, $2, $3, $4, $5, $6::jsonb)`, actor, action, ns, name, version, string(raw))
-	return err
+	return insertAudit(ctx, tx, auditRow{Actor: actor, Action: action, Namespace: ns, Name: name, Version: version, Detail: detail})
 }
 
 // ServerDetail returns the published and pending version of a server.
