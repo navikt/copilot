@@ -21,9 +21,26 @@ type MCPServerSpec struct {
 	Upstream     *Upstream       `json:"upstream,omitempty"`
 	AllowedTools []string        `json:"allowedTools,omitempty"`
 	Registry     json.RawMessage `json:"registry,omitempty"`
+	// Readme is markdown from the owner team, stored and returned as is.
+	// Untrusted: clients must render it without raw HTML.
+	Readme string `json:"readme,omitempty"`
+	// Tools describes allowed tools for people. Optional per tool.
+	Tools []ToolDoc `json:"tools,omitempty"`
 	// Authorization is reserved (owner decision 2) and refused with 422.
 	Authorization json.RawMessage `json:"authorization,omitempty"`
 }
+
+type ToolDoc struct {
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
+}
+
+// Caps on v0.8 text fields, in bytes. Both are part of the contentHash; empty
+// fields are omitted, so specs from before v0.8 keep their hash.
+const (
+	maxReadmeBytes          = 64 << 10
+	maxToolDescriptionBytes = 1024
+)
 
 type Upstream struct {
 	App string `json:"app"`
@@ -78,6 +95,21 @@ func validateServerSpec(cluster, platform, ns, name string, spec MCPServerSpec) 
 		return spec, Server{}, invalid("spec.dataCategory", "StrengtFortrolig needs its own risk assessment and approval first")
 	case !slices.Contains(dataCategories, spec.DataCategory):
 		return spec, Server{}, invalid("spec.dataCategory", "spec.dataCategory must be one of %s", strings.Join(dataCategories, ", "))
+	}
+	if len(spec.Readme) > maxReadmeBytes {
+		return spec, Server{}, invalid("spec.readme", "spec.readme is at most %d bytes", maxReadmeBytes)
+	}
+	for i, t := range spec.Tools {
+		switch {
+		case !slices.Contains(spec.AllowedTools, t.Name) || slices.ContainsFunc(spec.Tools[:i], func(o ToolDoc) bool { return o.Name == t.Name }):
+			return spec, Server{}, invalid("spec.tools", "%q is not in allowedTools, or is listed twice", t.Name)
+		case len(t.Description) > maxToolDescriptionBytes:
+			return spec, Server{}, invalid("spec.tools.description", "tool %s: description is at most %d bytes", t.Name, maxToolDescriptionBytes)
+		}
+	}
+	spec.Tools = slices.SortedFunc(slices.Values(spec.Tools), func(a, b ToolDoc) int { return strings.Compare(a.Name, b.Name) })
+	if len(spec.Tools) == 0 {
+		spec.Tools = nil
 	}
 	var draft draftSpec
 	draft.Registry = spec.Registry

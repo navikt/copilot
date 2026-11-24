@@ -76,8 +76,11 @@ type AgentProfileStatus struct {
 	IdentityVerifiedAt   *time.Time                 `json:"identityVerifiedAt,omitempty"`
 	ExpiresAt            *time.Time                 `json:"expiresAt,omitempty"`
 	Pending              *Pending[AgentProfileSpec] `json:"pending,omitempty"`
-	Grants               []GrantStatus              `json:"grants,omitempty"`
-	Conditions           []Condition                `json:"conditions,omitempty"`
+	// NeedsResubmit: the pending generation has no person as submitter (a
+	// seeded draft), so nobody can approve it until a person submits it again.
+	NeedsResubmit bool          `json:"needsResubmit,omitempty"`
+	Grants        []GrantStatus `json:"grants,omitempty"`
+	Conditions    []Condition   `json:"conditions,omitempty"`
 }
 
 type AgentProfileV1 struct {
@@ -642,6 +645,7 @@ func (d *DB) buildProfile(ctx context.Context, row profileRow) (AgentProfileV1, 
 		pend = &g
 		spec := g.Spec
 		st.Pending = &Pending[AgentProfileSpec]{Generation: g.Gen, ContentHash: g.Hash, SubmittedBy: g.submitter(), Spec: &spec}
+		st.NeedsResubmit = g.SubKind != "User" || g.SubOid == nil
 		if pub == nil {
 			obj.Spec = g.Spec
 			st.IdentityVerifiedAt = g.VerifiedAt

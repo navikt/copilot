@@ -2,6 +2,8 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
+	"strings"
 	"net/http"
 	"testing"
 )
@@ -47,6 +49,55 @@ func TestAdminAgentWritesAreGone(t *testing.T) {
 	for _, p := range []string{"/admin/v1/agents", "/admin/v1/agents/a/b/approvals", "/admin/v1/agents/a/b/revoke"} {
 		if rec := do(t, h, "POST", p, person("A111111"), "{}"); rec.Code != http.StatusGone {
 			t.Errorf("%s: want 410, got %d", p, rec.Code)
+		}
+	}
+}
+
+// A spec from before v0.8 (no readme, no tools) keeps its stored hash.
+// The value is SHA-256 over the JCS text, computed outside this code.
+func TestServerSpecHashStableForOldSpecs(t *testing.T) {
+	s, _, err := validateServerSpec("dev-gcp", "team-a", "svc", MCPServerSpec{DataCategory: "Intern", Upstream: &Upstream{App: "svc", URL: "http://svc.team-a/mcp"}, AllowedTools: []string{"b", "a"}, Tools: []ToolDoc{}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if h, _ := specHash(s); h != "v1:sha256:4b421d525ace75dd45814de801bbe840e3e0d514318127a939bf72c0e9988001" {
+		t.Fatalf("old spec hash changed: %s", h)
+	}
+	// readme and tool descriptions are content: a change needs approval again.
+	base, _ := specHash(s)
+	for _, mod := range []func(*MCPServerSpec){
+		func(m *MCPServerSpec) { m.Readme = "# Hei" },
+		func(m *MCPServerSpec) { m.Tools = []ToolDoc{{Name: "a", Description: "x"}} },
+	} {
+		m := s
+		mod(&m)
+		if h, _ := specHash(m); h == base {
+			t.Errorf("hash ignores %+v", m)
+		}
+	}
+}
+
+func TestServerSpecV08Caps(t *testing.T) {
+	ok := MCPServerSpec{DataCategory: "Intern", Upstream: &Upstream{App: "svc", URL: "http://svc.team-a/mcp"}, AllowedTools: []string{"a", "b"},
+		Readme: strings.Repeat("x", maxReadmeBytes), Tools: []ToolDoc{{Name: "b", Description: strings.Repeat("x", maxToolDescriptionBytes)}, {Name: "a"}}}
+	s, _, err := validateServerSpec("dev-gcp", "team-a", "svc", ok)
+	if err != nil {
+		t.Fatalf("at the cap: %v", err)
+	}
+	if s.Tools[0].Name != "a" {
+		t.Errorf("tools not sorted: %+v", s.Tools)
+	}
+	for name, mod := range map[string]func(*MCPServerSpec){
+		"readme":      func(m *MCPServerSpec) { m.Readme += "x" },
+		"description": func(m *MCPServerSpec) { m.Tools = []ToolDoc{{Name: "a", Description: strings.Repeat("x", maxToolDescriptionBytes+1)}} },
+		"unknown":     func(m *MCPServerSpec) { m.Tools = []ToolDoc{{Name: "c"}} },
+		"twice":       func(m *MCPServerSpec) { m.Tools = []ToolDoc{{Name: "a"}, {Name: "a"}} },
+	} {
+		m := ok
+		mod(&m)
+		var se *statusError
+		if _, _, err := validateServerSpec("dev-gcp", "team-a", "svc", m); !errors.As(err, &se) || se.code != http.StatusUnprocessableEntity {
+			t.Errorf("%s: want 422, got %v", name, err)
 		}
 	}
 }
