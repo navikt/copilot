@@ -274,6 +274,8 @@ func checkAuditLocked(ctx context.Context, q interface {
 	err := q.QueryRow(ctx, `SELECT pg_has_role(current_user, c.relowner, 'USAGE'),
 		has_table_privilege(c.oid, 'UPDATE') OR has_table_privilege(c.oid, 'DELETE')
 		OR has_table_privilege(c.oid, 'TRUNCATE') OR has_table_privilege(c.oid, 'TRIGGER')
+		OR has_any_column_privilege(c.oid, 'UPDATE')
+		OR has_sequence_privilege('audit_events_id_seq', 'UPDATE')
 		FROM pg_class c WHERE c.oid = 'audit_events'::regclass`).Scan(&owner, &canChange)
 	if err != nil {
 		return fmt.Errorf("check audit_events rights: %w", err)
