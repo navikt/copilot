@@ -501,6 +501,10 @@ func TestRealPostgresAgentProfileV1(t *testing.T) {
 	e.want(409, "POST", base+"/assistant/approval", person("B444444"), grantBody(1, "team-b/kodeverk", p.Status.Pending.ContentHash))
 	// The submitter is also in copilot and cannot grant their own profile.
 	e.want(403, "POST", base+"/assistant/approval", person("A111111"), grantBody(1, "copilot/dolly", hashFor["copilot/dolly"]))
+	// Two-person rule on stable identity (#2634): the submitter's oid under another
+	// NAVident, and the submitter's NAVident with another oid, are both refused.
+	e.want(403, "POST", base+"/assistant/approval", person("C222222")+":C222222:"+testOid("A111111"), grantBody(1, "copilot/dolly", hashFor["copilot/dolly"]))
+	e.want(403, "POST", base+"/assistant/approval", person("A111111")+":A111111:"+testOid("C222222"), grantBody(1, "copilot/dolly", hashFor["copilot/dolly"]))
 	e.want(200, "POST", base+"/assistant/approval", person("B444444"), grantBody(1, "team-b/kodeverk", hashFor["team-b/kodeverk"]))
 	e.want(409, "POST", base+"/assistant/approval", person("B555555"), grantBody(1, "team-b/kodeverk", hashFor["team-b/kodeverk"]))
 	if ex2 := e.want(200, "GET", base+"/assistant", person("B555555"), ""); strings.Contains(ex2, "grantedBy") || strings.Contains(ex2, "B444444") {
@@ -514,6 +518,16 @@ func TestRealPostgresAgentProfileV1(t *testing.T) {
 	if p.Status.PublishedGeneration != 1 || condOf(p.Status.Conditions, "Ready").Status != "True" || p.Status.ExpiresAt == nil {
 		t.Fatalf("all grants given must publish: %+v", p.Status)
 	}
+	// A server owner sees when the profile expires (#2696).
+	if ex := decodeProfile(t, e.want(200, "GET", base+"/assistant", person("B444444"), "")); ex.Status.ExpiresAt == nil {
+		t.Fatalf("excerpt must show expiresAt: %+v", ex.Status)
+	}
+	// A hidden profile costs a non-member the same one query as a missing one
+	// (#2696): with audit_events gone, building the profile would fail with 500.
+	hideTable(t, e.db, "audit_events", func() {
+		e.want(404, "GET", base+"/assistant", person("P999999"), "")
+		e.want(404, "GET", base+"/missing", person("P999999"), "")
+	})
 	// One live profile per client id.
 	e.want(409, "POST", base, person("A111111"), profileJSON("aksel-studio", "copy", "", "copilot/dolly=hent"))
 	// A label change keeps the generation.
@@ -735,4 +749,38 @@ func TestRealPostgresPublishRechecksEveryGrant(t *testing.T) {
 	if code, out := e.do("POST", base+"/assistant/approval", person("C222222"), grantBody(1, "copilot/dolly", h["copilot/dolly"])); code == 200 {
 		t.Fatalf("published with a grant on a revoked server: %s", out)
 	}
+}
+
+// hideTable renames table while f runs, so a test can prove a path never reads it.
+func hideTable(t *testing.T, db *DB, table string, f func()) {
+	t.Helper()
+	ctx := context.Background()
+	if _, err := db.pool.Exec(ctx, `ALTER TABLE `+table+` RENAME TO hidden_`+table); err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if _, err := db.pool.Exec(ctx, `ALTER TABLE hidden_`+table+` RENAME TO `+table); err != nil {
+			t.Fatal(err)
+		}
+	}()
+	f()
+}
+
+// A pending update that drops a team's grant hides the profile from that team
+// at the precheck, as excerpt does, without building it first (#2696).
+func TestRealPostgresProfilePrecheckFollowsPending(t *testing.T) {
+	e := newApisEnv(t)
+	e.publish("copilot", "dolly", "C222222", "A111111", "hent")
+	e.publish("team-b", "kodeverk", "B444444", "B555555", "lookup")
+	base := nsBase + "aksel-studio/agentprofiles"
+	p := decodeProfile(t, e.want(201, "POST", base, person("A111111"), profileJSON("aksel-studio", "assistant", "", "copilot/dolly=hent", "team-b/kodeverk=lookup")))
+	for _, g := range p.Status.Grants {
+		owner := map[string]string{"copilot/dolly": "C222222", "team-b/kodeverk": "B444444"}[g.ServerRef.key()]
+		e.want(200, "POST", base+"/assistant/approval", person(owner), grantBody(1, g.ServerRef.key(), g.ContentHash))
+	}
+	full := decodeProfile(t, e.want(200, "GET", base+"/assistant", person("A555555"), ""))
+	e.want(200, "PUT", base+"/assistant", person("A555555"), profileJSON("aksel-studio", "assistant", full.Metadata.ResourceVersion, "copilot/dolly=hent"))
+	hideTable(t, e.db, "audit_events", func() {
+		e.want(404, "GET", base+"/assistant", person("B444444"), "")
+	})
 }
