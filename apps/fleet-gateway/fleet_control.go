@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -27,6 +28,9 @@ const (
 
 	fleetControlSyncInterval = 30 * time.Second
 	maxSnapshotBytes         = 1 << 20
+	// maxSnapshotAge bounds checked_at: a snapshot fleet-control has not
+	// confirmed against its database for this long may be stale (#2849).
+	maxSnapshotAge = 10 * time.Minute
 )
 
 // fleetControlRoutes fetches the routes snapshot. It is used by one goroutine
@@ -36,11 +40,13 @@ type fleetControlRoutes struct {
 	client     *http.Client
 	etag       string
 	generation int64
+	routesHash [sha256.Size]byte // of the accepted generation's routes
 }
 
 type routesSnapshot struct {
-	SchemaVersion int   `json:"schema_version"`
-	Generation    int64 `json:"generation"`
+	SchemaVersion int       `json:"schema_version"`
+	Generation    int64     `json:"generation"`
+	CheckedAt     time.Time `json:"checked_at"`
 	Routes        []struct {
 		Namespace   string   `json:"namespace"`
 		Name        string   `json:"name"`
@@ -104,6 +110,14 @@ func (f *fleetControlRoutes) fetch(ctx context.Context, current *RouteTable) ([]
 	defer func() { _ = resp.Body.Close() }()
 	switch {
 	case resp.StatusCode == http.StatusNotModified && f.etag != "":
+		// A replica serving a stale copy answers 304 too; refuse it so the age gauge keeps rising.
+		checked, perr := time.Parse(time.RFC3339Nano, resp.Header.Get("Fleet-Checked-At"))
+		if perr != nil {
+			return nil, errors.New("304 without a valid Fleet-Checked-At header")
+		}
+		if err = checkFresh(checked); err != nil {
+			return nil, err
+		}
 		return nil, nil
 	case resp.StatusCode != http.StatusOK:
 		return nil, fmt.Errorf("fleet-control: status %d", resp.StatusCode)
@@ -125,7 +139,17 @@ func (f *fleetControlRoutes) fetch(ctx context.Context, current *RouteTable) ([]
 	if snap.Generation <= 0 {
 		return nil, fmt.Errorf("snapshot generation %d must be positive", snap.Generation)
 	}
-	if f.generation > 0 && snap.Generation == f.generation && resp.Header.Get("ETag") != f.etag {
+	// A missing checked_at parses as zero and is refused here, so an old
+	// fleet-control fails closed at startup and static afterwards.
+	if err = checkFresh(snap.CheckedAt); err != nil {
+		return nil, err
+	}
+	routesJSON, err := json.Marshal(snap.Routes)
+	if err != nil {
+		return nil, err
+	}
+	hash := sha256.Sum256(routesJSON)
+	if f.generation > 0 && snap.Generation == f.generation && hash != f.routesHash {
 		return nil, fmt.Errorf("snapshot generation %d changed body without a new generation", snap.Generation)
 	}
 	if snap.Generation < f.generation {
@@ -147,7 +171,16 @@ func (f *fleetControlRoutes) fetch(ctx context.Context, current *RouteTable) ([]
 	// could reject valid snapshots forever and keep revoked routes live.
 	f.etag = resp.Header.Get("ETag")
 	f.generation = snap.Generation
+	f.routesHash = hash
 	return routes, nil
+}
+
+// checkFresh refuses a checked_at more than maxSnapshotAge in the past or the future.
+func checkFresh(checked time.Time) error {
+	if age := time.Since(checked); age > maxSnapshotAge || age < -maxSnapshotAge {
+		return fmt.Errorf("snapshot checked_at %s is more than %s from now", checked.Format(time.RFC3339), maxSnapshotAge)
+	}
+	return nil
 }
 
 // syncRoutes fetches once and swaps the route table on a new, valid snapshot.

@@ -11,6 +11,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 )
 
 func testServers(n int) []Server {
@@ -196,6 +197,17 @@ func TestHandlers(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil || rec.Code != http.StatusOK || body.Generation != 1 || len(body.Routes) != 3 || body.Routes[2]["enabled"] != false {
 		t.Fatalf("snapshot: %d %s", rec.Code, rec.Body)
 	}
+	checkedAt := func(r *httptest.ResponseRecorder) time.Time {
+		var b struct {
+			CheckedAt time.Time `json:"checked_at"`
+		}
+		_ = json.Unmarshal(r.Body.Bytes(), &b)
+		return b.CheckedAt
+	}
+	first := checkedAt(rec)
+	if time.Since(first) > time.Minute {
+		t.Fatalf("checked_at must be now: %s", rec.Body)
+	}
 	etag := rec.Header().Get("ETag")
 	if rec := get(t, h, "/internal/v1/snapshots/routes", etag); rec.Code != http.StatusNotModified {
 		t.Errorf("If-None-Match: got %d", rec.Code)
@@ -207,9 +219,17 @@ func TestHandlers(t *testing.T) {
 		t.Errorf("registry snapshot: %d %s", rec.Code, rec.Body)
 	}
 
-	// A database outage serves the last good snapshot, never an empty one.
+	time.Sleep(2 * time.Millisecond)
+	if again := checkedAt(get(t, h, "/internal/v1/snapshots/routes", "")); !again.After(first) {
+		t.Errorf("an unchanged snapshot must refresh checked_at: %s then %s", first, again)
+	}
+
+	// A database outage serves the last good snapshot, never an empty one,
+	// and its checked_at stops moving so gateways can see it is stale.
 	fs.err = errors.New("down")
-	if rec := get(t, h, "/internal/v1/snapshots/routes", ""); rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "s1") {
+	before := checkedAt(get(t, h, "/internal/v1/snapshots/routes", ""))
+	time.Sleep(2 * time.Millisecond)
+	if rec := get(t, h, "/internal/v1/snapshots/routes", ""); rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "s1") || !checkedAt(rec).Equal(before) {
 		t.Errorf("outage with last good: %d %s", rec.Code, rec.Body)
 	}
 	if rec := get(t, h, "/internal/v1/servers", ""); rec.Code != http.StatusServiceUnavailable {
@@ -267,11 +287,28 @@ func TestRevokedRoutesStayDisabled(t *testing.T) {
 	}
 }
 
+func TestRoutesFitTeamBudget(t *testing.T) {
+	servers := testServers(2)
+	other := testServers(1)[0]
+	other.Namespace, other.Name = "other", "big"
+	r := *other.Route
+	r.Path, r.Target, r.UpstreamURL = "/mcp/other/big", "dev-gcp:other:big", "http://big.other/"+strings.Repeat("x", maxTeamRoutesBytes)
+	other.Route = &r
+	servers = append(servers, other)
+	var ae *apiError
+	if err := routesFit(servers, "other"); !errors.As(err, &ae) || ae.code != http.StatusConflict || !strings.Contains(err.Error(), "team") {
+		t.Fatalf("a team over its budget must be refused: %v", err)
+	}
+	if err := routesFit(servers, "copilot"); err != nil {
+		t.Fatalf("another team must still publish: %v", err)
+	}
+}
+
 func TestRoutesFitRefusesOversizedSnapshot(t *testing.T) {
-	if err := routesFit(testServers(20)); err != nil {
+	if err := routesFit(testServers(20), "copilot"); err != nil {
 		t.Fatalf("small snapshot: %v", err)
 	}
-	if err := routesFit(nil); err != nil {
+	if err := routesFit(nil, "copilot"); err != nil {
 		t.Fatalf("no routes is not a size problem: %v", err)
 	}
 	big := testServers(2)
@@ -285,7 +322,7 @@ func TestRoutesFitRefusesOversizedSnapshot(t *testing.T) {
 		t.Fatalf("fixture too small: %d", len(snap.Items))
 	}
 	var ae *apiError
-	if err := routesFit(big); !errors.As(err, &ae) || ae.code != http.StatusConflict {
+	if err := routesFit(big, "copilot"); !errors.As(err, &ae) || ae.code != http.StatusConflict {
 		t.Fatalf("oversized snapshot must be refused with 409: %v", err)
 	}
 }

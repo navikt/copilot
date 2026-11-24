@@ -75,12 +75,17 @@ Since #2748 agent profiles are written through `/apis/fleet.nav.no/v1alpha1/name
 
 ## Snapshot versions (#2764)
 
+`generation` comes from the `snapshots` table, so it only grows, also across restarts. `checked_at` is when the serving replica last confirmed the snapshot is the newest in the database. It stops moving when the replica serves from memory during a database outage.
+
+Publish and rollback return 409 when the routes snapshot would pass 960 KiB, under fleet-gateway's 1 MiB limit, or when the writing team's routes would pass 64 KiB (#2735). Only the writing team's budget is checked, so one team cannot block the others.
+
 `GET /internal/v1/snapshots/routes` and `/registry` carry `schema_version: 1`, and fleet-gateway and mcp-registry refuse other versions. v1alpha1 does not change them. Rules for later changes:
 
 1. New optional fields do not raise `schema_version`. fleet-gateway ignores unknown fields; check mcp-registry before the first addition.
 2. Changed or removed fields raise `schema_version`. fleet-control then serves both versions, chosen with `?schema_version=N` (default 1).
 3. Deploy the gateway first with support for both versions. Remove the old version from fleet-control only when no gateway asks for it.
-4. Agent profiles in the gateway become their own kind with their own `schema_version: 1`, not a change to `routes`.
+4. A consumer may start requiring an optional field only after every fleet-control replica serves it. `checked_at` (#2849) works this way: deploy fleet-control first, then fleet-gateway.
+5. Agent profiles in the gateway become their own kind with their own `schema_version: 1`, not a change to `routes`.
 
 ## Read API for my-copilot
 

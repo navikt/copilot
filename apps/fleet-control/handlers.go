@@ -155,6 +155,8 @@ func (s *server) snapshot(w http.ResponseWriter, r *http.Request, kind string) {
 	}
 	etag := `"` + snap.ETag + `"`
 	w.Header().Set("ETag", etag)
+	// Also on 304, so a gateway sees a stale replica without a body.
+	w.Header().Set("Fleet-Checked-At", snap.CheckedAt.UTC().Format(time.RFC3339Nano))
 	if strings.Contains(r.Header.Get("If-None-Match"), etag) {
 		w.WriteHeader(http.StatusNotModified)
 		return
@@ -163,7 +165,9 @@ func (s *server) snapshot(w http.ResponseWriter, r *http.Request, kind string) {
 	if kind == "routes" {
 		field = "routes"
 	}
-	writeJSON(w, map[string]any{"schema_version": 1, "generation": snap.Generation, field: snap.Items})
+	// checked_at lets a gateway without local state refuse a stale snapshot
+	// from a replica that lost its database (#2849).
+	writeJSON(w, map[string]any{"schema_version": 1, "generation": snap.Generation, "checked_at": snap.CheckedAt.UTC().Format(time.RFC3339Nano), field: snap.Items})
 }
 
 // resolve builds the current snapshot; on failure it falls back to the last
@@ -183,23 +187,28 @@ func (s *server) resolve(ctx context.Context, kind string) (*Snapshot, error) {
 	snap, err := box.Publish(ctx, kind, buildSnapshot)
 	if err != nil {
 		slog.Error("snapshot rebuild failed", "kind", kind, "error", err)
-		if snap = last.Load(); snap == nil {
-			stored, lerr := box.LatestSnapshot(ctx, kind)
-			if lerr != nil || stored == nil {
+		// The stored snapshot is still the newest, so it counts as checked.
+		// Only without the database does lastGood serve, and its checked_at ages.
+		stored, lerr := box.LatestSnapshot(ctx, kind)
+		if lerr != nil || stored == nil {
+			if snap = last.Load(); snap == nil {
 				return nil, err
 			}
-			snap = stored
+			return storeIfNewer(last, snap), nil
 		}
+		snap = stored
 	}
-	return storeIfNewer(last, snap), nil
+	checked := *snap // never mutate a snapshot another request may hold
+	checked.CheckedAt = time.Now()
+	return storeIfNewer(last, &checked), nil
 }
 
-// storeIfNewer sets p to snap unless p already holds a generation at least as
-// high, and returns what p holds afterwards.
+// storeIfNewer sets p to snap unless p already holds a higher generation, or
+// the same one checked no earlier, and returns what p holds afterwards.
 func storeIfNewer(p *atomic.Pointer[Snapshot], snap *Snapshot) *Snapshot {
 	for {
 		cur := p.Load()
-		if cur != nil && cur.Generation >= snap.Generation {
+		if cur != nil && (cur.Generation > snap.Generation || cur.Generation == snap.Generation && !snap.CheckedAt.After(cur.CheckedAt)) {
 			return cur
 		}
 		if p.CompareAndSwap(cur, snap) {

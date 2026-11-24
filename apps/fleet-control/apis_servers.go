@@ -758,7 +758,7 @@ func (d *DB) approveServer(ctx context.Context, c caller, platform, ns, name str
 			}
 			return err
 		}
-		if err := checkRoutesFit(ctx, tx); err != nil {
+		if err := checkRoutesFit(ctx, tx, ns); err != nil {
 			return err
 		}
 		return auditV1(ctx, tx, c, "approved_published", "MCPServer", ns, name, &gen, map[string]any{"contentHash": hash, "submittedBy": v.SubName})
@@ -838,7 +838,7 @@ func (d *DB) rollbackServer(ctx context.Context, c caller, platform, by, ns, nam
 			}
 			return err
 		}
-		if err := checkRoutesFit(ctx, tx); err != nil {
+		if err := checkRoutesFit(ctx, tx, ns); err != nil {
 			return err
 		}
 		return auditV1(ctx, tx, c, "rolled_back", "MCPServer", ns, name, &target, map[string]any{"reason": reason, "from": from, "by": by})
