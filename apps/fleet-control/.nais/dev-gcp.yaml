@@ -15,3 +15,6 @@ my_copilot_client_id: 1c401702-0190-41fa-9c19-faeae7b8fa5c
 seed_agents_file: /app/seed/agents.dev.json
 # Secret holding FLEET_CONTROL_STATIC_TEAMS. Never set in prod.
 static_teams_secret: fleet-control-static-teams
+# Secret holding FLEET_SLACK_WEBHOOK_URL (ROS FG-14). Uncomment once the
+# owner has created it; a missing secret stops the pod.
+# slack_webhook_secret: fleet-control-slack

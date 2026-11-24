@@ -36,12 +36,21 @@ spec:
   uses:
     postgres:
       - name: fleet-control
-  {{#if static_teams_secret}}
-  # Key FLEET_CONTROL_STATIC_TEAMS: JSON of team to member emails, created by
-  # a human. Dev only: the app refuses the list outside dev-* clusters.
+  prometheus:
+    enabled: true
+    path: /metrics
   envFrom:
+    {{#if static_teams_secret}}
+    # Key FLEET_CONTROL_STATIC_TEAMS: JSON of team to member emails, created by
+    # a human. Dev only: the app refuses the list outside dev-* clusters.
     - secret: {{static_teams_secret}}
-  {{/if}}
+    {{/if}}
+    {{#if slack_webhook_secret}}
+    # Key FLEET_SLACK_WEBHOOK_URL: Slack incoming webhook for team copilot's
+    # channel (ROS FG-14). Set the variable only once the secret exists: a
+    # missing envFrom secret stops the pod. Unset, no notices are sent.
+    - secret: {{slack_webhook_secret}}
+    {{/if}}
   env:
     - name: PORT
       value: "8080"
