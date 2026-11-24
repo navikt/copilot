@@ -240,6 +240,14 @@ func autoUpdateNudge(w io.Writer, cfg *Config) {
 	}
 }
 
+// confirmUpgrade asks "Upgrade now?". A variable so a test can see whether it
+// was asked without a terminal.
+var confirmUpgrade = func(title string) (bool, error) {
+	var ok bool
+	err := huh.NewConfirm().Title(title).Value(&ok).WithTheme(navTheme()).Run()
+	return ok, err
+}
+
 // startupUpdateCheck warns about (or installs) a newer nav-pilot before the
 // command runs. stop is true when the caller should return without running the
 // command, which happens only when an update landed but the re-exec failed.
@@ -313,12 +321,7 @@ func startupUpdateCheck() (stop bool, err error) {
 		// cache was stale); fall through and run the command normally
 		// instead of re-executing and looping.
 	} else if !autoUpdate && isInteractive() && assessment.SkewDays > 7 && !markedWithin(updateDeclinedPath(), 24*time.Hour, time.Now()) {
-		var upgradeChoice bool
-		err := huh.NewConfirm().
-			Title(fmt.Sprintf("nav-pilot %s is available (you are %d days behind). Upgrade now?", assessment.LatestVersion, assessment.SkewDays)).
-			Value(&upgradeChoice).
-			WithTheme(navTheme()).
-			Run()
+		upgradeChoice, err := confirmUpgrade(fmt.Sprintf("nav-pilot %s is available (you are %d days behind). Upgrade now?", assessment.LatestVersion, assessment.SkewDays))
 		if errors.Is(err, huh.ErrUserAborted) {
 			// Ctrl-C stops nav-pilot, as it does at every other prompt.
 			return true, cancelledError{nothingWritten: true}
