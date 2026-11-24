@@ -143,30 +143,59 @@ func ageAudit(t *testing.T, db *DB) {
 }
 
 // TestResourceStatusTracksNewest: revoke, unrevoke, revoke again leaves the
-// newest revocation; an older event never overwrites it (009).
+// newest revocation, and a future at in an audit insert does not pin the
+// row, because the trigger stamps now() (009).
 func TestResourceStatusTracksNewest(t *testing.T) {
 	db := openTestDB(t)
 	ctx := context.Background()
 	if err := db.Migrate(ctx); err != nil {
 		t.Fatal(err)
 	}
-	ins := func(action, by, ago string) {
+	ins := func(action, by, offset string) {
 		t.Helper()
 		if _, err := db.pool.Exec(ctx, `INSERT INTO audit_events (actor, action, resource_kind, namespace, name, detail, at)
-			VALUES ('A1', $1, 'MCPServer', 'ns', 'svc', jsonb_build_object('by', $2::text), now() - $3::interval)`, action, by, ago); err != nil {
+			VALUES ('A1', $1, 'MCPServer', 'ns', 'svc', jsonb_build_object('by', $2::text), now() + $3::interval)`, action, by, offset); err != nil {
 			t.Fatal(err)
 		}
 	}
-	ins("revoked", "platform", "3 hours")
-	ins("rolled_back", "owner", "2 hours")
-	ins("revoked", "owner", "1 hour")
-	ins("revoked", "platform", "5 hours") // older, arrives late
+	ins("revoked", "platform", "1 year") // future at
+	ins("rolled_back", "owner", "0")
+	ins("revoked", "owner", "0")
 	var by string
-	var age float64
-	if err := db.pool.QueryRow(ctx, `SELECT by_role, extract(epoch FROM now() - at) FROM resource_status WHERE namespace = 'ns' AND name = 'svc' AND action = 'revoked'`).Scan(&by, &age); err != nil {
+	var future bool
+	if err := db.pool.QueryRow(ctx, `SELECT by_role, at > now() FROM resource_status WHERE namespace = 'ns' AND name = 'svc' AND action = 'revoked'`).Scan(&by, &future); err != nil {
 		t.Fatal(err)
 	}
-	if by != "owner" || age < 3500 || age > 3700 {
-		t.Fatalf("got %s, %.0fs old; want owner, 1 hour", by, age)
+	if by != "owner" || future {
+		t.Fatalf("got %s, future=%t; want owner, not in the future", by, future)
+	}
+}
+
+// TestMigration009LocksResourceStatus: default privileges that hand a new
+// table to the runtime role are revoked by 009 itself, before any startup
+// RevokeAuditChange runs.
+func TestMigration009LocksResourceStatus(t *testing.T) {
+	db := openTestDB(t)
+	ctx := context.Background()
+	if err := db.migrateTo(ctx, "008_registry_name_ci.sql"); err != nil {
+		t.Fatal(err)
+	}
+	_, _ = db.pool.Exec(ctx, "DROP OWNED BY fleet_def_test")
+	_, _ = db.pool.Exec(ctx, "DROP ROLE IF EXISTS fleet_def_test")
+	for _, q := range []string{"CREATE ROLE fleet_def_test", "GRANT USAGE ON SCHEMA public TO fleet_def_test", "ALTER DEFAULT PRIVILEGES GRANT ALL ON TABLES TO fleet_def_test"} {
+		if _, err := db.pool.Exec(ctx, q); err != nil {
+			t.Fatal(q, err)
+		}
+	}
+	t.Cleanup(func() {
+		_, _ = db.pool.Exec(ctx, "DROP OWNED BY fleet_def_test")
+		_, _ = db.pool.Exec(ctx, "DROP ROLE fleet_def_test")
+	})
+	if err := db.Migrate(ctx); err != nil {
+		t.Fatal(err)
+	}
+	var canWrite bool
+	if err := db.pool.QueryRow(ctx, `SELECT has_table_privilege('fleet_def_test', 'resource_status', 'INSERT, UPDATE, DELETE, TRUNCATE, TRIGGER')`).Scan(&canWrite); err != nil || canWrite {
+		t.Fatalf("runtime role can write resource_status after 009: %t, %v", canWrite, err)
 	}
 }

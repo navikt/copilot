@@ -64,7 +64,8 @@ CREATE FUNCTION audit_events_track_status() RETURNS trigger
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
 BEGIN
     INSERT INTO resource_status (namespace, name, kind, action, at, by_role)
-    VALUES (NEW.namespace, NEW.name, COALESCE(NEW.resource_kind, ''), NEW.action, NEW.at, COALESCE(NEW.detail->>'by', ''))
+    -- now(), not NEW.at: a future at from an insert must not pin the row.
+    VALUES (NEW.namespace, NEW.name, COALESCE(NEW.resource_kind, ''), NEW.action, now(), COALESCE(NEW.detail->>'by', ''))
     ON CONFLICT (namespace, name, kind, action) DO UPDATE
         SET at = EXCLUDED.at, by_role = EXCLUDED.by_role
         WHERE EXCLUDED.at >= resource_status.at;
@@ -75,3 +76,23 @@ $$;
 CREATE TRIGGER audit_events_status AFTER INSERT ON audit_events
     FOR EACH ROW WHEN (NEW.namespace IS NOT NULL AND NEW.name IS NOT NULL)
     EXECUTE FUNCTION audit_events_track_status();
+
+-- Only the definer trigger writes resource_status. Same as
+-- revokeResourceStatus in db.go, which re-runs it at every start.
+REVOKE INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON resource_status FROM PUBLIC;
+DO $$
+DECLARE r record;
+BEGIN
+    FOR r IN SELECT DISTINCT a.grantee::regrole AS grantee
+             FROM pg_class c, aclexplode(c.relacl) a
+             WHERE c.oid = 'resource_status'::regclass AND a.grantee <> 0 AND a.grantee <> c.relowner
+               AND a.privilege_type <> 'SELECT'
+             UNION
+             SELECT a.grantee::regrole
+             FROM pg_attribute att, aclexplode(att.attacl) a
+             WHERE att.attrelid = 'resource_status'::regclass AND a.grantee <> 0
+               AND a.privilege_type <> 'SELECT'
+    LOOP
+        EXECUTE format('REVOKE INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON resource_status FROM %s', r.grantee);
+    END LOOP;
+END $$;
