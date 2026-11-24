@@ -60,7 +60,18 @@ func newAgentEnv(t *testing.T) *agentEnv {
 	s.store.Store(&storeBox{db})
 	// The real user-token path from #2678: Texas plus the static team list.
 	teams := staticTeams{"aksel-studio": {"A111111", "A555555"}, "copilot": {"A111111", "C222222"}, "team-b": {"B444444"}, "team-x": {"X333333"}}
-	ts := httptest.NewServer(s.routes(a, adminID, teams, nil))
+	// The old /admin/v1/agents write handlers stand in for an image from
+	// before 005: production answers 410 (TestAdminAgentWritesAreGone).
+	legacy := http.NewServeMux()
+	s.legacyAgentWriteRoutes(legacy, tokenPersons{a, adminID, teams})
+	h := s.routes(a, adminID, teams, nil)
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if _, pattern := legacy.Handler(r); pattern != "" {
+			legacy.ServeHTTP(w, r)
+			return
+		}
+		h.ServeHTTP(w, r)
+	}))
 	t.Cleanup(ts.Close)
 	return &agentEnv{t, db, s, ts.URL}
 }

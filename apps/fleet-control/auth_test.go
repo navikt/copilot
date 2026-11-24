@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -50,9 +51,16 @@ func fakeTexas(t *testing.T) *httptest.Server {
 			// obtained by <azp>. Without a fourth part preferred_username is the
 			// NAVident, so test team lists can key on it; an empty fourth part
 			// leaves the claim out.
-			if parts := strings.Split(in.Token, ":"); (len(parts) == 3 || len(parts) == 4) && parts[0] == "user" {
-				claims := map[string]any{"active": true, "azp": parts[1], "NAVident": parts[2], "preferred_username": parts[2], "tid": testTenant}
-				if len(parts) == 4 {
+			// A fifth part sets oid (empty: no oid); otherwise oid follows from the NAVident.
+			if parts := strings.Split(in.Token, ":"); len(parts) >= 3 && len(parts) <= 5 && parts[0] == "user" {
+				claims := map[string]any{"active": true, "azp": parts[1], "NAVident": parts[2], "preferred_username": parts[2], "tid": testTenant, "oid": testOid(parts[2])}
+				if len(parts) == 5 {
+					claims["oid"] = parts[4]
+					if parts[4] == "" {
+						delete(claims, "oid")
+					}
+				}
+				if len(parts) >= 4 {
 					claims["preferred_username"] = parts[3]
 					if parts[3] == "" {
 						delete(claims, "preferred_username")
@@ -66,6 +74,14 @@ func fakeTexas(t *testing.T) *httptest.Server {
 	}))
 	t.Cleanup(srv.Close)
 	return srv
+}
+
+// testOid is a stable fake Entra oid per NAVident.
+func testOid(ident string) string {
+	if ident == "" {
+		return ""
+	}
+	return fmt.Sprintf("00000000-0000-4000-8000-%06x%06s", ident[0], ident[1:])
 }
 
 func testAuthz(t *testing.T) *authz {
