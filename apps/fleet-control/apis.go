@@ -155,6 +155,9 @@ type caller struct {
 	Ident string
 	Oid   string
 	Teams []string
+	// ClientID is the ordering app's azp for a delegated AgentJob request,
+	// "" for a person via my-copilot. Teams is empty when it is set.
+	ClientID string
 }
 
 func (c caller) in(team string) bool { return slices.Contains(c.Teams, team) }
@@ -173,6 +176,12 @@ type apisHandler func(w http.ResponseWriter, r *http.Request, c caller, db *DB) 
 // database unavailable is 503. Membership is checked by the handler, before
 // any lookup.
 func (s *server) apis(a *authz, adminClientID string, teams teamDirectory, kind string, h apisHandler) http.HandlerFunc {
+	return s.apisFor(a, adminClientID, teams, kind, false, h)
+}
+
+// apisFor is apis; delegated also lets a person's token from another app
+// through, with caller.ClientID set and no team lookup.
+func (s *server) apisFor(a *authz, adminClientID string, teams teamDirectory, kind string, delegated bool, h apisHandler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if ns, name := r.PathValue("namespace"), r.PathValue("name"); (ns != "" && !dnsLabelRegex.MatchString(ns)) || (name != "" && !dnsLabelRegex.MatchString(name)) {
 			writeStatus(w, r, kind, stErr(http.StatusBadRequest, "BadRequest", "namespace and name must be lowercase DNS labels"))
@@ -180,7 +189,7 @@ func (s *server) apis(a *authz, adminClientID string, teams teamDirectory, kind 
 		}
 		ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
 		defer cancel()
-		ident, email, oid, err := a.personWithOid(ctx, r.Header.Get("Authorization"), adminClientID)
+		ident, email, oid, azp, err := a.orderer(ctx, r.Header.Get("Authorization"), adminClientID, delegated)
 		if errors.Is(err, errUnauthorized) {
 			writeStatus(w, r, kind, stErr(http.StatusUnauthorized, "Unauthorized", "a person's token with NAVident and oid is required"))
 			return
@@ -189,8 +198,10 @@ func (s *server) apis(a *authz, adminClientID string, teams teamDirectory, kind 
 			writeStatus(w, r, kind, err)
 			return
 		}
-		list, err := teams.Teams(ctx, email)
-		if err != nil {
+		c := caller{Ident: ident, Oid: oid}
+		if azp != adminClientID {
+			c.ClientID = azp
+		} else if c.Teams, err = teams.Teams(ctx, email); err != nil {
 			writeStatus(w, r, kind, fmt.Errorf("team lookup: %w", err))
 			return
 		}
@@ -202,7 +213,7 @@ func (s *server) apis(a *authz, adminClientID string, teams teamDirectory, kind 
 			writeStatus(w, r, kind, errDBUnavailable)
 			return
 		}
-		writeStatus(w, r, kind, h(w, r.WithContext(ctx), caller{Ident: ident, Oid: oid, Teams: list}, db))
+		writeStatus(w, r, kind, h(w, r.WithContext(ctx), c, db))
 	}
 }
 
@@ -247,6 +258,14 @@ func (s *server) apisRoutes(mux *http.ServeMux, a *authz, adminClientID string, 
 	for _, rt := range routes {
 		mux.HandleFunc(rt.pattern, s.apis(a, adminClientID, teams, rt.kind, rt.h))
 	}
+	for pattern, h := range map[string]apisHandler{
+		"GET " + ns + "agentjobs":                     listJobsV1,
+		"POST " + ns + "agentjobs":                    createJobV1,
+		"GET " + ns + "agentjobs/{name}":              getJobV1,
+		"POST " + ns + "agentjobs/{name}/termination": terminateJobV1,
+	} {
+		mux.HandleFunc(pattern, s.apisFor(a, adminClientID, teams, "agentjobs", true, h))
+	}
 }
 
 func methodNotAllowed(_ http.ResponseWriter, _ *http.Request, _ caller, _ *DB) error {
@@ -263,6 +282,7 @@ func discovery(w http.ResponseWriter, _ *http.Request, _ caller, _ *DB) error {
 			res("mcpservers", "MCPServer", "get", "list", "create", "update"),
 			res("mcpservercatalogentries", "MCPServerCatalogEntry", "get", "list"),
 			res("agentprofiles", "AgentProfile", "get", "list", "create", "update"),
+			res("agentjobs", "AgentJob", "get", "list", "create"),
 		},
 	})
 	return nil

@@ -156,18 +156,25 @@ func (a *authz) checkUser(claims *tokenClaims, adminClientID string) (ident, ema
 	return claims.NAVident, email, nil
 }
 
-// personWithOid is user plus the Entra oid, for /apis. A person token
-// without a lowercase-UUID oid is refused like any invalid token.
-func (a *authz) personWithOid(ctx context.Context, header, adminClientID string) (ident, email, oid string, err error) {
+// orderer is user plus the Entra oid, for /apis: a person token without a
+// lowercase-UUID oid is refused like any invalid token. When delegated is set, it also passes a
+// person's OBO token obtained by another app. azp is then that app's client
+// id, and the handler must bind it to a published agent profile. Texas has
+// checked aud, so the app is one preauthorized in accessPolicy.inbound.
+func (a *authz) orderer(ctx context.Context, header, adminClientID string, delegated bool) (ident, email, oid, azp string, err error) {
 	claims, err := a.introspect(ctx, header)
 	if err != nil {
-		return "", "", "", err
+		return "", "", "", "", err
 	}
 	if !uuidRe.MatchString(claims.Oid) {
-		return "", "", "", errUnauthorized
+		return "", "", "", "", errUnauthorized
 	}
-	ident, email, err = a.checkUser(claims, adminClientID)
-	return ident, email, claims.Oid, err
+	client := adminClientID
+	if delegated && adminClientID != "" && claims.Azp != adminClientID && uuidRe.MatchString(claims.Azp) {
+		client = claims.Azp
+	}
+	ident, email, err = a.checkUser(claims, client)
+	return ident, email, claims.Oid, claims.Azp, err
 }
 
 // introspect validates the bearer token with Texas and returns its claims
