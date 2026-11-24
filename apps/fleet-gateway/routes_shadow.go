@@ -91,6 +91,13 @@ type shadowRoutes struct {
 }
 
 func (g *Gateway) shadowSync(ctx context.Context, s *shadowRoutes) {
+	// A panic in one poll must not kill the goroutine or touch serving (#2884).
+	defer func() {
+		if r := recover(); r != nil {
+			shadowFailures.Inc()
+			slog.Error("fleet-control shadow poll panicked", "panic", fmt.Sprintf("%T", r))
+		}
+	}()
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
 	current := g.table()
