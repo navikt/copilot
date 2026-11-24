@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"github.com/prometheus/client_golang/prometheus/testutil"
 	"net/http"
 	"net/http/httptest"
@@ -599,4 +600,38 @@ func loadSurveys(raw []byte) ([]survey, error) {
 		return nil, err
 	}
 	return surveys, validateSurveys(surveys)
+}
+
+// A store failure is counted under status 503, the series the
+// CopilotSurveySubmissionFailures alert reads; a stored answer is not.
+func TestSubmitFailureCounted(t *testing.T) {
+	h, _ := testRouter(t)
+	body := `{"answers":{"overall":4},` + goodCtx + `}`
+	c503 := submissions.WithLabelValues("q4-2026", "503")
+	c201 := submissions.WithLabelValues("q4-2026", "201")
+	b503, b201 := testutil.ToFloat64(c503), testutil.ToFloat64(c201)
+	if rec := do(h, "POST", "/api/v1/surveys/q4-2026/responses", "cli:hans", body); rec.Code != 201 {
+		t.Fatalf("ok submit: %d", rec.Code)
+	}
+	if testutil.ToFloat64(c503) != b503 || testutil.ToFloat64(c201) != b201+1 {
+		t.Fatal("success counted wrong")
+	}
+
+	defs, _ := loadSurveys([]byte(testSurveys))
+	api := &surveyAPI{
+		surveys:  defs,
+		keys:     map[string][]byte{"q4-2026": []byte("0123456789abcdef0123456789abcdef")},
+		emailFor: fakeEmails,
+		store: func(context.Context, string, string, time.Time, response) (bool, error) {
+			return false, errors.New("db down")
+		},
+		now: func() time.Time { return time.Date(2026, 10, 15, 12, 0, 0, 0, time.UTC) },
+	}
+	rec := do(makeRouter(testAuthenticator(t), api), "POST", "/api/v1/surveys/q4-2026/responses", "cli:hans", body)
+	if rec.Code != 503 {
+		t.Fatalf("failing store: %d", rec.Code)
+	}
+	if got := testutil.ToFloat64(c503) - b503; got != 1 {
+		t.Fatalf("503 counted %v, want 1", got)
+	}
 }
