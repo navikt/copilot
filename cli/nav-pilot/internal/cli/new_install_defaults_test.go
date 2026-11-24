@@ -551,26 +551,36 @@ func TestRunInstallBadArgsOnNewInstallWritesNothing(t *testing.T) {
 // With no client installed, an install that said yes up front saves the
 // defaults without offering to install opencode (#2785 review).
 func TestRunInstallYesOnNewInstallAsksNoClientQuestion(t *testing.T) {
-	cfg := isolatedConfig(t)
-	home := t.TempDir()
-	t.Setenv("HOME", home)
-	forceInteractive(t)
-	origGOOS := installGOOS
-	installGOOS = "darwin"
-	t.Cleanup(func() { installGOOS = origGOOS })
-	asked := stubInstalled(t, nil)
-	stubResolveSource(t, pakkeSource(t, defaultSourceRepo))
-	t.Chdir(repoTarget(t))
-	captureRun(t, func() {
-		if err := run([]string{"install", "--user", "--all", "--yes"}); err != nil {
-			t.Fatal(err)
-		}
-	})
-	if *asked != 0 {
-		t.Errorf("opencode install offered %d times", *asked)
-	}
-	if data, _ := os.ReadFile(cfg); !strings.Contains(string(data), `client = "copilot"`) {
-		t.Errorf("defaults not saved:\n%s", data)
+	for name, tc := range map[string]struct {
+		args  []string
+		asked int
+	}{
+		"--yes":            {[]string{"install", "--user", "--all", "--yes"}, 0},
+		"--all with scope": {[]string{"install", "--user", "--all"}, 0},
+		"control, no yes":  {[]string{"install", "--user"}, 1},
+	} {
+		t.Run(name, func(t *testing.T) {
+			cfg := isolatedConfig(t)
+			t.Setenv("HOME", t.TempDir())
+			forceInteractive(t)
+			asked := stubInstalled(t, nil)
+			origCmd := opencodeSetupCommand
+			opencodeSetupCommand = func() string { return "brew install opencode" }
+			t.Cleanup(func() { opencodeSetupCommand = origCmd })
+			stubResolveSource(t, pakkeSource(t, defaultSourceRepo))
+			t.Chdir(repoTarget(t))
+			captureRun(t, func() {
+				if err := run(tc.args); err != nil {
+					t.Fatal(err)
+				}
+			})
+			if *asked != tc.asked {
+				t.Errorf("opencode install offered %d times, want %d", *asked, tc.asked)
+			}
+			if data, _ := os.ReadFile(cfg); !strings.Contains(string(data), `client = "copilot"`) {
+				t.Errorf("defaults not saved:\n%s", data)
+			}
+		})
 	}
 }
 

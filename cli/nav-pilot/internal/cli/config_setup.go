@@ -441,7 +441,7 @@ func opencodeForSetup() (string, error) {
 	if opencodeInstalled() {
 		return "opencode", nil
 	}
-	cmd := opencodeInstallCommand()
+	cmd := opencodeSetupCommand()
 	if cmd != "" {
 		install, err := askInstallOpenCode(cmd)
 		if errors.Is(err, huh.ErrUserAborted) {
@@ -525,6 +525,10 @@ const opencodeOffPlatform = "opencode 2 runs only on macOS and Linux"
 // pnpm or npm, pinned so it cannot install an untested major. It is "" with
 // none of them, and on a platform other than macOS and Linux, where opencode 2
 // does not run under cplt.
+// opencodeSetupCommand is the install command the first run offers.
+// Overridable in tests, so the question is reachable without brew or pnpm.
+var opencodeSetupCommand = opencodeInstallCommand
+
 func opencodeInstallCommand() string {
 	if !opencodePlatform() {
 		return ""
