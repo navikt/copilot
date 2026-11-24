@@ -30,6 +30,30 @@ func TestLaunchClientMajor(t *testing.T) {
 	}
 }
 
+func TestLaunchSandbox(t *testing.T) {
+	isolatedConfig(t)
+	origFind, origVer := findCopilotCLI, knownCpltVersion
+	t.Cleanup(func() { findCopilotCLI, knownCpltVersion = origFind, origVer })
+	t.Setenv("DO_NOT_TRACK", "")
+	t.Setenv("NAV_PILOT_TELEMETRY_ENABLED", "")
+	for _, tc := range []struct{ name, cached, sandbox, version string }{
+		{"cplt", "cplt 2026.11.24-112325-0b16284\n", "cplt", "2026.11.24-112325-0b16284"},
+		{"cplt", "", "cplt", ""},
+		{"copilot", "", "none", ""},
+	} {
+		findCopilotCLI = func() (string, string) { return "/bin/" + tc.name, tc.name }
+		knownCpltVersion = func(string) string { return tc.cached }
+		if s, v := launchSandbox(); s != tc.sandbox || v != tc.version {
+			t.Errorf("%s %q: got %q %q, want %q %q", tc.name, tc.cached, s, v, tc.sandbox, tc.version)
+		}
+	}
+	findCopilotCLI = func() (string, string) { t.Fatal("looked up with telemetry off"); return "", "" }
+	t.Setenv("DO_NOT_TRACK", "1")
+	if s, v := launchSandbox(); s != "" || v != "" {
+		t.Errorf("telemetry off: got %q %q", s, v)
+	}
+}
+
 // ─── configPath ───────────────────────────────────────────────────────────────
 
 func TestConfigPath_Default(t *testing.T) {

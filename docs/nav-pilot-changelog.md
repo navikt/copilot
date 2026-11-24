@@ -4,6 +4,10 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ## 2026-11-24
 
+### Telemetri viser om cplt er i bruk
+
+- **Telemetri**: Oppstartsmetrikken `nav_pilot_config_info` har fått feltene `sandbox` (`cplt` eller `none`) og `cplt_version` (bare utgivelsesdatoen, for eksempel `2026.11.24`). Slik ser vi hvor mange som bruker cplt, og hvilke utgivelser. nav-pilot kjører ikke cplt ekstra for å finne versjonen. Er telemetri slått av, sendes ingenting. Se [TELEMETRY.md](../cli/nav-pilot/TELEMETRY.md).
+
 ### Selvoppdateringen sjekker hvor binærfilen er bygget
 
 - **`nav-pilot upgrade` og automatisk oppdatering**: Før nav-pilot bytter ut seg selv, sjekker den nå at den nye binærfilen er bygget av nav-pilots utgivelsesflyt i `navikt/copilot`, fra `main`, på en GitHub-drevet runner og fra en commit som kommer etter den du kjører. En eldre binærfil under en ny utgivelse avvises. Sjekken bruker GitHubs attestasjon og `gh attestation verify`. Før sjekket nav-pilot bare `SHA256SUMS`, som ligger i den samme utgivelsen og kan endres av den samme personen (#2786).

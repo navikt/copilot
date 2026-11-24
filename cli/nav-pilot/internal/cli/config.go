@@ -499,9 +499,11 @@ func loadConfigForLaunch(cli CLIOverrides) (ResolvedConfig, error) {
 		fmt.Fprintf(os.Stderr, "%s %s\n", yellow("⚠"), w)
 	}
 	resolved := resolve(file, cli)
+	sandbox, cpltVersion := launchSandbox()
 	telemetry.RecordConfig(
 		resolved.Client,
 		launchClientMajor(resolved.Client),
+		sandbox, cpltVersion,
 		resolved.Mode,
 		configModelLabel(resolved.Model),
 		resolved.ReasoningEffort,
@@ -525,6 +527,24 @@ func launchClientMajor(client string) string {
 		return ""
 	}
 	return strconv.Itoa(openCodeMajor())
+}
+
+// knownCpltVersion is a variable so tests can fake what the cache holds.
+var knownCpltVersion = providerpkg.KnownVersion
+
+// launchSandbox is the config gauge's sandbox and cplt_version: whether this
+// launch goes through cplt, and cplt's release as the cache already knows it.
+// No probe runs for it beyond FindCopilotCLI's own, which the launch runs
+// anyway, and none at all when telemetry is off.
+func launchSandbox() (sandbox, cpltVersion string) {
+	if !telemetrypkg.TelemetryEnabled() {
+		return "", ""
+	}
+	p, name := findCopilotCLI()
+	if name != "cplt" {
+		return "none", ""
+	}
+	return "cplt", providerpkg.ParseCpltVersion(knownCpltVersion(p))
 }
 
 // ignoredConfigKeys are retired keys an old config file may still hold. They

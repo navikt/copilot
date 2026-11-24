@@ -84,3 +84,16 @@ func writeVersionCache(key, out string) {
 		os.Remove(tmp.Name())
 	}
 }
+
+// KnownVersion is bin's `--version` answer if this process or the version
+// cache already has it, "" otherwise. It never runs bin: telemetry asks for
+// it, and a label is not worth a second's probe.
+func KnownVersion(bin string) string {
+	if v, ok := versionCache.Load(bin); ok {
+		if a := v.(versionAnswer); a.err == nil {
+			return a.out
+		}
+	}
+	out, _ := readVersionCache(binaryKey(bin))
+	return out
+}
