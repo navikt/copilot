@@ -3,6 +3,7 @@ package provider
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -85,6 +86,23 @@ func openCodeHostEnv(env []string) []string {
 	return out
 }
 
+// readCapped reads at most limit bytes of path; more is an error.
+func readCapped(path string, limit int64) ([]byte, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	b, err := io.ReadAll(io.LimitReader(f, limit+1))
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(b)) > limit {
+		return nil, fmt.Errorf("%s is larger than %d bytes", path, limit)
+	}
+	return b, nil
+}
+
 // findGitDir returns the git directory of the repo dir is in, or "" outside
 // one. It reads the filesystem only: no git runs in the repo.
 func findGitDir(dir string) string {
@@ -101,12 +119,17 @@ func findGitDir(dir string) string {
 	}
 	for {
 		p := filepath.Join(d, ".git")
-		if fi, err := os.Stat(p); err == nil {
+		// Lstat: .git is repo content. A symlink, FIFO or device would block
+		// or read without bound before any timeout starts, so it is not git.
+		if fi, err := os.Lstat(p); err == nil {
 			if fi.IsDir() {
 				return p
 			}
+			if !fi.Mode().IsRegular() {
+				return ""
+			}
 			// A linked worktree or submodule: .git is a file naming the gitdir.
-			b, err := os.ReadFile(p)
+			b, err := readCapped(p, 4<<10)
 			if err != nil {
 				return ""
 			}

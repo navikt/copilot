@@ -4,7 +4,9 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 )
@@ -193,5 +195,46 @@ func TestFindGitDirSymlinkedLinkedWorktree(t *testing.T) {
 	}
 	if got, want := findGitDir(link), filepath.Join(root, "main", ".git", "worktrees", "wt"); got != want {
 		t.Fatalf("got %q, want %q", got, want)
+	}
+}
+
+// A hostile .git is not git: no hang, no unbounded read, no opencode call.
+func TestReadOpenCodeUsageHostileGitFile(t *testing.T) {
+	cases := map[string]func(t *testing.T, p string){
+		"fifo": func(t *testing.T, p string) {
+			if runtime.GOOS == "windows" {
+				t.Skip("no FIFOs")
+			}
+			if err := syscall.Mkfifo(p, 0o600); err != nil {
+				t.Fatal(err)
+			}
+		},
+		"symlink": func(t *testing.T, p string) {
+			if err := os.Symlink("/dev/zero", p); err != nil {
+				t.Fatal(err)
+			}
+		},
+		"oversized": func(t *testing.T, p string) {
+			if err := os.WriteFile(p, []byte("gitdir: "+strings.Repeat("a", 8<<10)), 0o600); err != nil {
+				t.Fatal(err)
+			}
+		},
+	}
+	for name, mk := range cases {
+		t.Run(name, func(t *testing.T) {
+			dir := t.TempDir()
+			mk(t, filepath.Join(dir, ".git"))
+			log := fakeOpenCode(t, `echo "$*" >> "$LOG"`)
+			done := make(chan struct{})
+			go func() { readOpenCodeUsage(dir, time.UnixMilli(1000)); close(done) }()
+			select {
+			case <-done:
+			case <-time.After(5 * time.Second):
+				t.Fatal("readOpenCodeUsage hung on the .git file")
+			}
+			if _, err := os.Stat(log); err == nil {
+				t.Fatal("opencode ran for a hostile .git")
+			}
+		})
 	}
 }
