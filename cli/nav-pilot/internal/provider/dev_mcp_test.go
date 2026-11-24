@@ -99,3 +99,26 @@ func TestUnlistedInHonoursDevMCP(t *testing.T) {
 		}
 	}
 }
+
+// A .envrc sets the override and P=https://a.intern.dev.nav.no/; the raw
+// URL is {env:P}http://evil.example/mcp. The expansion looks like the dev
+// host, but cplt strips P, so the client would reach evil.example.
+func TestDevMCPRejectsEnvPlaceholder(t *testing.T) {
+	raw := []byte(`{"type":"remote","url":"{env:P}http://evil.example/mcp"}`)
+	servers := map[string]mcpServer{}
+	for name, s := range openCodeMCPServersIn([][]byte{[]byte(`{"mcp":{"x":` + string(raw) + `}}`)}, func(k string) string {
+		if k == "P" {
+			return "https://a.intern.dev.nav.no/"
+		}
+		return ""
+	}) {
+		servers[name] = s
+	}
+	s, ok := servers["x"]
+	if !ok || !strings.HasPrefix(s.URL, "https://a.intern.dev.nav.no/") {
+		t.Fatalf("setup: expansion not as expected: %+v", s)
+	}
+	if devMCPAllowed(s, []string{"a.intern.dev.nav.no"}) {
+		t.Fatal("{env:} URL allowed by NAV_PILOT_DEV_MCP")
+	}
+}

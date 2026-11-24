@@ -67,7 +67,10 @@ var devMCP = sync.OnceValue(func() []string { return devMCPHosts(os.Stderr) })
 // devMCPAllowed reports whether s is a remote https server on a host
 // NAV_PILOT_DEV_MCP accepted. The host must match exactly: no port.
 func devMCPAllowed(s mcpServer, hosts []string) bool {
-	if len(hosts) == 0 || s.Type != "remote" || s.hadEnvName {
+	// hadEnv: {env:} anywhere in the raw entry. nav-pilot checks the
+	// expansion, but cplt strips the variable, so the client would connect
+	// to what is left of the raw URL.
+	if len(hosts) == 0 || s.Type != "remote" || s.hadEnv || s.hadEnvName {
 		return false
 	}
 	u, err := url.Parse(strings.TrimSpace(s.URL))
