@@ -342,16 +342,33 @@ func userPermission(docs [][]byte, key string) (str string, deny bool) {
 		var s string
 		return json.Unmarshal(raw, &s) == nil && s == "deny"
 	}
-	v2, listDeny := openCodeMajor() >= 2, false
+	v2, listDeny, ambiguous := openCodeMajor() >= 2, false, false
 	for _, doc := range docs {
-		var cfg struct {
-			Permission  json.RawMessage `json:"permission"`
-			Permissions []struct {
-				Action, Resource, Effect string
-			} `json:"permissions"`
-		}
-		if json.Unmarshal(stripJSONC(doc), &cfg) != nil {
+		// Exact keys, as OpenCode reads them: a map, not struct tags.
+		var top map[string]json.RawMessage
+		if json.Unmarshal(stripJSONC(doc), &top) != nil {
 			continue
+		}
+		var cfg struct {
+			Permission  json.RawMessage
+			Permissions []struct{ Action, Resource, Effect string }
+		}
+		cfg.Permission = top["permission"]
+		if v2 && top["permissions"] != nil {
+			var list []json.RawMessage
+			_ = json.Unmarshal(top["permissions"], &list)
+			for _, e := range list {
+				var m map[string]json.RawMessage
+				var r struct{ Action, Resource, Effect string }
+				if !strictJSONKeys(e, []string{"action", "resource", "effect"}) || json.Unmarshal(e, &m) != nil {
+					ambiguous = true // fail closed: Go may read this entry differently
+					continue
+				}
+				_ = json.Unmarshal(m["action"], &r.Action)
+				_ = json.Unmarshal(m["resource"], &r.Resource)
+				_ = json.Unmarshal(m["effect"], &r.Effect)
+				cfg.Permissions = append(cfg.Permissions, r)
+			}
 		}
 		if v2 {
 			for _, r := range cfg.Permissions {
@@ -389,7 +406,7 @@ func userPermission(docs [][]byte, key string) (str string, deny bool) {
 			str, deny = "", deny || isDeny(obj["*"])
 		}
 	}
-	return str, deny || listDeny
+	return str, deny || listDeny || ambiguous
 }
 
 // OpenCodeVersionStatus reports the installed opencode's version and whether

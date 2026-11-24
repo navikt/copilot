@@ -346,7 +346,7 @@ func MCPToolsOn(client, key string, e MCPServerEntry) (st MCPToolState, ok bool)
 		URL   string          `json:"url"`
 		Tools json.RawMessage `json:"tools"`
 	}
-	if json.Unmarshal(servers.vals[key], &entry) != nil {
+	if !strictJSONKeys(servers.vals[key], slices.Concat(mcpEntryKeys, []string{"tools"})) || json.Unmarshal(servers.vals[key], &entry) != nil {
 		return st, false
 	}
 	st.URL = entry.URL

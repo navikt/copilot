@@ -511,10 +511,21 @@ func openCodeMCPServersIn(docs [][]byte, getenv func(string) string) map[string]
 			// 2 reads it (core/src/config/normalize.ts at v2.0.24). Only on
 			// opencode 2: opencode 1 reads "servers" as a server's name.
 			if v2 && (name == "servers" || name == "timeout") {
-				var probe struct {
-					Type string `json:"type"`
+				expanded := expandOpenCodeServerJSON(raw, getenv)
+				if !strictMCPEntry(expanded) {
+					// Fail closed: check it as a server and its children too.
+					if name == "servers" {
+						nestedRaw = raw
+					}
+					unmarshalServer(name, raw, false)
+					continue
 				}
-				if json.Unmarshal(expandOpenCodeServerJSON(raw, getenv), &probe) == nil && probe.Type != "local" && probe.Type != "remote" {
+				var probe map[string]json.RawMessage
+				var typ string
+				if json.Unmarshal(expanded, &probe) == nil && json.Unmarshal(probe["type"], &typ) != nil {
+					typ = ""
+				}
+				if probe != nil && typ != "local" && typ != "remote" {
 					if name == "servers" {
 						nestedRaw = raw
 					}
@@ -543,7 +554,10 @@ var mcpEntryKeys = []string{"type", "url", "command", "enabled", "disabled", "en
 // matches struct tags case-insensitively and keeps the last duplicate, while
 // OpenCode reads the exact key, so either could make nav-pilot check one URL
 // or command while OpenCode runs another.
-func strictMCPEntry(raw []byte) bool {
+func strictMCPEntry(raw []byte) bool { return strictJSONKeys(raw, mcpEntryKeys) }
+
+// strictJSONKeys is strictMCPEntry for any set of known keys.
+func strictJSONKeys(raw []byte, known []string) bool {
 	dec := json.NewDecoder(bytes.NewReader(raw))
 	if t, err := dec.Token(); err != nil || t != json.Delim('{') {
 		return false
@@ -556,8 +570,8 @@ func strictMCPEntry(raw []byte) bool {
 			return false
 		}
 		seen[k] = true
-		for _, known := range mcpEntryKeys {
-			if strings.EqualFold(k, known) && k != known {
+		for _, kn := range known {
+			if strings.EqualFold(k, kn) && k != kn {
 				return false
 			}
 		}

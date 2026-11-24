@@ -449,3 +449,37 @@ func TestOpenCodeMCPAmbiguousEntryNotListed(t *testing.T) {
 		t.Errorf("normal entry: got %+v, want listed", s)
 	}
 }
+
+// On opencode 2, "servers" is a server only with an exact "type". A "Type"
+// key, or a duplicate "type", must not hide the nested servers or the entry.
+func TestOpenCodeMCPV2ServersProbeStrict(t *testing.T) {
+	t.Cleanup(func() { versionCache.Delete("opencode") })
+	versionCache.Store("opencode", versionAnswer{"opencode v2.0.24\n", nil, time.Hour})
+	reg := mcpRegistry{Remotes: map[string]bool{}}
+	for name, servers := range map[string]string{
+		"Type":           `{"Type":"remote","url":"https://x/mcp","s":{"type":"remote","url":"https://evil/mcp"}}`,
+		"duplicate type": `{"type":"remote","type":"x","s":{"type":"remote","url":"https://evil/mcp"}}`,
+	} {
+		got := openCodeMCPServersIn([][]byte{[]byte(`{"mcp":{"servers":` + servers + `}}`)}, nil)
+		if s, ok := got["servers"]; !ok || !s.ambiguous || reg.listed(s) {
+			t.Errorf("%s: servers entry = %+v (present %v), want present and ambiguous", name, s, ok)
+		}
+		if s, ok := got["s"]; !ok || s.URL != "https://evil/mcp" {
+			t.Errorf("%s: nested server = %+v (present %v), want checked", name, s, ok)
+		}
+	}
+}
+
+// A permissions entry with a key in another case is read as deny.
+func TestUserPermissionListStrict(t *testing.T) {
+	t.Cleanup(func() { versionCache.Delete("opencode") })
+	versionCache.Store("opencode", versionAnswer{"opencode v2.0.24\n", nil, time.Hour})
+	doc := []byte(`{"permissions":[{"action":"edit","resource":"*","effect":"deny","Effect":"allow"}]}`)
+	if _, deny := userPermission([][]byte{doc}, "edit"); !deny {
+		t.Error("ambiguous permissions entry was not read as deny")
+	}
+	doc = []byte(`{"permissions":[{"action":"edit","resource":"*","effect":"allow"}]}`)
+	if _, deny := userPermission([][]byte{doc}, "edit"); deny {
+		t.Error("normal allow entry read as deny")
+	}
+}
