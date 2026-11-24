@@ -131,10 +131,23 @@ func setupDB(ctx context.Context) (*DB, error) {
 	if err := seedAgentsFromEnv(ctx, owner); err != nil {
 		return nil, err
 	}
+	// A failure here is logged, not fatal: CheckAuditLocked still refuses
+	// startup if the runtime role kept its change rights.
+	if err := owner.RevokeAuditChange(ctx); err != nil {
+		slog.Warn("revoke audit_events rights", "error", err)
+	}
 	if os.Getenv("READWRITE_PGHOST") == "" {
 		return OpenDB(ctx, os.Getenv("DB_URL"))
 	}
-	return OpenDB(ctx, pgEnvDSN("READWRITE_"))
+	db, openErr := OpenDB(ctx, pgEnvDSN("READWRITE_"))
+	if openErr != nil {
+		return nil, openErr
+	}
+	if lockErr := db.CheckAuditLocked(ctx); lockErr != nil {
+		db.Close()
+		return nil, lockErr
+	}
+	return db, nil
 }
 
 // seedFromEnv imports SEED_ROUTES_FILE and SEED_ALLOWLIST_FILE when both are set.

@@ -262,3 +262,39 @@ func (d *DB) Publish(ctx context.Context, kind string, build func(string, []Serv
 	})
 	return out, err
 }
+
+// RevokeAuditChange re-runs 006 so a later re-grant to the runtime role is
+// removed before CheckAuditLocked runs. Needs the owner pool.
+func (d *DB) RevokeAuditChange(ctx context.Context) error {
+	sql, err := migrationFS.ReadFile("migrations/006_audit_revoke.sql")
+	if err != nil {
+		return err
+	}
+	if _, err := d.pool.Exec(ctx, string(sql)); err != nil {
+		return fmt.Errorf("revoke audit_events rights: %w", err)
+	}
+	return nil
+}
+
+// CheckAuditLocked fails unless the connected role is not the owner of
+// audit_events and holds none of the rights to change it (#2631).
+func (d *DB) CheckAuditLocked(ctx context.Context) error { return checkAuditLocked(ctx, d.pool) }
+
+func checkAuditLocked(ctx context.Context, q interface {
+	QueryRow(context.Context, string, ...any) pgx.Row
+}) error {
+	var owner, canChange bool
+	err := q.QueryRow(ctx, `SELECT pg_has_role(current_user, c.relowner, 'USAGE'),
+		has_table_privilege(c.oid, 'UPDATE') OR has_table_privilege(c.oid, 'DELETE')
+		OR has_table_privilege(c.oid, 'TRUNCATE') OR has_table_privilege(c.oid, 'TRIGGER')
+		OR has_any_column_privilege(c.oid, 'UPDATE')
+		OR has_sequence_privilege('audit_events_id_seq', 'UPDATE')
+		FROM pg_class c WHERE c.oid = 'audit_events'::regclass`).Scan(&owner, &canChange)
+	if err != nil {
+		return fmt.Errorf("check audit_events rights: %w", err)
+	}
+	if owner || canChange {
+		return fmt.Errorf("runtime role can change audit_events (owner=%t, change rights=%t); refusing to start", owner, canChange)
+	}
+	return nil
+}
