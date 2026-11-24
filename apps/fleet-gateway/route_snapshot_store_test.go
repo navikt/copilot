@@ -206,10 +206,39 @@ func TestRejectedLiveSnapshotIsNotStored(t *testing.T) {
 
 func TestOlderSnapshotDoesNotOverwriteNewerStored(t *testing.T) {
 	f := newFakeFleetControl(t)
+	gw, _ := fleetControlGateway(t, f)
+	checkNewerWins(t, f, gw)
+}
+
+// Prod seals every store value; SealedStore refuses CompareAndSwap on sealed kinds.
+func TestRouteSnapshotThroughSealedStore(t *testing.T) {
+	f := newFakeFleetControl(t)
+	gw, _ := fleetControlGateway(t, f)
+	kr, err := parseKeyRing("k1:" + testKeyBase64(t, false))
+	if err != nil {
+		t.Fatal(err)
+	}
+	gw.store = newSealedStore(newMemoryStore(gw.now, nil), kr)
+	checkNewerWins(t, f, gw)
+
+	f.status = http.StatusServiceUnavailable
+	gw2 := restartGateway(t, gw)
+	startSync(t, gw2)
+	if got := routePaths(gw2); len(got) != 2 || got[1] != "/mcp/copilot/reset" {
+		t.Fatalf("routes from sealed stored snapshot = %v", got)
+	}
+}
+
+func checkNewerWins(t *testing.T, f *fakeFleetControl, gw *Gateway) {
+	t.Helper()
 	newer := snapBody(2, primaryRoute(), snapRoute("newer"))
 	newer["checked_at"] = time.Now().UTC().Format(time.RFC3339Nano)
-	gw := storeLiveSnapshot(t, f, newer)
-	stored, _, _ := gw.store.Get(context.Background(), kindRouteSnapshot, routeSnapshotKey)
+	f.body = newer
+	gw.syncRoutes(context.Background(), &fleetControlRoutes{cfg: gw.cfg, client: f.srv.Client()})
+	stored, ok, _ := gw.store.Get(context.Background(), kindRouteSnapshot, routeSnapshotKey)
+	if !ok {
+		t.Fatal("accepted live snapshot was not stored")
+	}
 
 	// A lagging replica on the same store accepts an older checked_at with a higher generation.
 	older := snapBody(7, primaryRoute(), snapRoute("older"))

@@ -252,26 +252,21 @@ const (
 // the live table is already in place.
 func (g *Gateway) storeSnapshot(ctx context.Context, f *fleetControlRoutes) {
 	raw, err := json.Marshal(storedSnapshot{Body: f.accepted, Generation: f.generation, Hash: hex.EncodeToString(f.routesHash[:]), CheckedAt: f.checkedAt})
-	// Replicas race: the newer checked_at wins. Not generation, which can
-	// reset when fleet-control's database is restored.
-	for range 3 {
-		if err != nil {
-			break
-		}
+	// The newer checked_at wins. Not generation, which can reset when
+	// fleet-control's database is restored. The row stays sealed (integrity
+	// against DB writers), and SealedStore has no CompareAndSwap for sealed kinds.
+	// shortcut: two replicas can race between Get and Put and store the older snapshot; acceptable, the next accepted live snapshot overwrites it.
+	if err == nil {
 		var old []byte
-		var ok, swapped bool
-		if old, ok, err = g.store.Get(ctx, kindRouteSnapshot, routeSnapshotKey); err != nil {
-			break
-		}
-		var cur storedSnapshot
-		if ok && json.Unmarshal(old, &cur) == nil && cur.CheckedAt.After(f.checkedAt) {
-			return
-		}
-		if !ok {
-			old = nil
-		}
-		if swapped, err = g.store.CompareAndSwap(ctx, kindRouteSnapshot, routeSnapshotKey, old, raw, routeSnapshotTTL); swapped {
-			return
+		var ok bool
+		if old, ok, err = g.store.Get(ctx, kindRouteSnapshot, routeSnapshotKey); err == nil {
+			var cur storedSnapshot
+			if ok && json.Unmarshal(old, &cur) == nil && cur.CheckedAt.After(f.checkedAt) {
+				return
+			}
+			if err = g.store.Put(ctx, kindRouteSnapshot, routeSnapshotKey, raw, routeSnapshotTTL); err == nil {
+				return
+			}
 		}
 	}
 	slog.Warn("could not store route snapshot", "error", err)
