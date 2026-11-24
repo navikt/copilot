@@ -200,8 +200,11 @@ func validateUpstreamURL(raw, ns string) error {
 	if err != nil {
 		return err
 	}
-	if net.ParseIP(host) != nil || numericTLD(host) || strings.Contains(host, "xn--") {
+	if net.ParseIP(host) != nil || numericTLD(host) {
 		return errors.New("IP addresses are not allowed")
+	}
+	if strings.Contains(host, "xn--") {
+		return errors.New("punycode hosts are not allowed")
 	}
 	for _, suffix := range []string{"." + ns + ".svc.cluster.local", "." + ns} {
 		if app, ok := strings.CutSuffix(host, suffix); ok && dnsLabelRegex.MatchString(app) {

@@ -246,6 +246,9 @@ func validateInternalUpstreamURL(raw, namespace string) (*url.URL, error) {
 	if strings.HasSuffix(host, ".internal") {
 		return nil, fmt.Errorf("disallowed internal host %q", host)
 	}
+	if strings.Contains(host, "xn--") {
+		return nil, fmt.Errorf("upstream host %q must not be punycode", host)
+	}
 	if strings.Contains(host, ".ekstern.") {
 		return nil, fmt.Errorf("upstream host %q must not be public (.ekstern.)", host)
 	}
@@ -254,7 +257,14 @@ func validateInternalUpstreamURL(raw, namespace string) (*url.URL, error) {
 	if app, ok := strings.CutSuffix(host, "."+namespace+".svc.cluster.local"); ok && isSingleDNSLabel(app) {
 		return u, nil
 	}
+	// Dial the short form as its FQDN: with namespace "com", evil.com would
+	// otherwise resolve on the internet (#2848).
 	if app, ok := strings.CutSuffix(host, "."+namespace); ok && isSingleDNSLabel(app) {
+		fqdn := host + ".svc.cluster.local"
+		if p := u.Port(); p != "" {
+			fqdn = net.JoinHostPort(fqdn, p)
+		}
+		u.Host = fqdn
 		return u, nil
 	}
 
