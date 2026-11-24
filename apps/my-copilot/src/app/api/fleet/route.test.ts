@@ -106,7 +106,13 @@ describe("POST /api/fleet", () => {
       })
     );
     res = await post(body);
-    await expect(res.json()).resolves.toEqual({ error: expect.stringMatching(/spec.dataCategory must be one of/) });
+    await expect(res.json()).resolves.toEqual({
+      error: "Registeret godtok ikke endringen. Sjekk feltene og prøv igjen.",
+      detail: "spec.dataCategory must be one of",
+    });
+    fetch.mockResolvedValueOnce(new Response("{}", { status: 404 }));
+    res = await post(body);
+    await expect(res.json()).resolves.toEqual({ error: "Fant ikke MCP-serveren, eller du har ikke tilgang." });
   });
 
   it("needs a reason to revoke, and a known action", async () => {

@@ -13,6 +13,7 @@ import {
   Button,
   Checkbox,
   ExpansionCard,
+  ReadMore,
   Heading,
   Select,
   Table,
@@ -342,7 +343,7 @@ export function ServerDetail({ server, events }: { server: MCPServer; events: Au
 }
 
 const specRows = (s?: MCPServerSpec): [string, string][] => [
-  ["Dataklasse", s?.dataCategory ?? "–"],
+  ["Datakategori", s?.dataCategory ?? "–"],
   ["App", s?.upstream?.app ?? "–"],
   ["Adresse til appen", s?.upstream?.url ?? "–"],
   ["Verktøy", s?.allowedTools?.join(", ") || "–"],
@@ -375,7 +376,7 @@ function Versjoner({ current, next }: { current?: MCPServerSpec; next: MCPServer
 /** Posts a form to /api/fleet and opens the page it answers with; the error stays on the form. */
 function useFleetPost(action: string) {
   const router = useRouter();
-  const [error, setError] = useState<string>();
+  const [error, setError] = useState<{ message: string; detail?: string }>();
   const [busy, setBusy] = useState(false);
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -390,15 +391,15 @@ function useFleetPost(action: string) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      const out = (await res.json().catch(() => ({}))) as { href?: string; error?: string };
+      const out = (await res.json().catch(() => ({}))) as { href?: string; error?: string; detail?: string };
       if (res.ok && out.href) {
         router.push(out.href);
         router.refresh();
         return;
       }
-      setError(out.error ?? "Noe gikk galt. Prøv igjen om litt.");
+      setError({ message: out.error ?? "Noe gikk galt. Prøv igjen om litt.", detail: out.detail });
     } catch {
-      setError("Vi får ikke kontakt med my-copilot. Prøv igjen om litt.");
+      setError({ message: "Vi får ikke kontakt med registeret akkurat nå. Prøv igjen om litt." });
     } finally {
       setBusy(false);
     }
@@ -406,10 +407,18 @@ function useFleetPost(action: string) {
   return { onSubmit, error, busy };
 }
 
-const ActionError = ({ error }: { error?: string }) =>
+// shortcut: the detail is fleet-control's English message; #2864 tracks translating it.
+const ActionError = ({ error }: { error?: { message: string; detail?: string } }) =>
   error ? (
     <Alert variant="error" size="small">
-      {error}
+      <VStack gap="space-8">
+        <BodyShort>{error.message}</BodyShort>
+        {error.detail && (
+          <ReadMore header="Detaljer" size="small">
+            <span lang="en">{error.detail}</span>
+          </ReadMore>
+        )}
+      </VStack>
     </Alert>
   ) : null;
 
@@ -449,10 +458,10 @@ function ServerActions({ server }: { server: MCPServer }) {
             <Heading level="2" size="small">
               Trekk tilbake
             </Heading>
-            <BodyShort>MCP-serveren blir utilgjengelig på ruten. Én person er nok.</BodyShort>
+            <BodyShort>Ingen kan bruke MCP-serveren etterpå. Du trenger ikke godkjenning fra andre.</BodyShort>
             {ids}
             <Textarea label="Begrunnelse" name="reason" maxLength={500} required />
-            <Checkbox name="block">Blokker versjonen, så ingen kan rulle tilbake til den</Checkbox>
+            <Checkbox name="block">Blokker versjonen, så ingen kan gå tilbake til den som forrige versjon</Checkbox>
             <ActionError error={revoke.error} />
             <Button size="small" variant="danger" loading={revoke.busy}>
               Trekk tilbake
@@ -485,7 +494,7 @@ export function RegisterForm({ teams }: { teams: string[] }) {
           description="Verktøyene som skal være tilgjengelige, ett per linje."
           required
         />
-        <Select label="Dataklasse" name="dataCategory" required>
+        <Select label="Datakategori" name="dataCategory" required>
           <option value="Intern">Intern</option>
           <option value="Aapen">Åpen</option>
           <option value="Fortrolig">Fortrolig</option>
