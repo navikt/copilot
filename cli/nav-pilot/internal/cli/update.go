@@ -234,6 +234,12 @@ func doUpdate(w, notice io.Writer) (updated, current bool, err error) {
 		return false, false, fmt.Errorf("chmod failed: %w", err)
 	}
 
+	// Checked on the file that will be swapped in, so what was verified is
+	// exactly what runs.
+	if err := verifyProvenance(w, tmpPath, tag); err != nil {
+		return false, false, err
+	}
+
 	if err := os.Rename(tmpPath, self); err != nil {
 		return false, false, fmt.Errorf("replace failed: %w", err)
 	}
@@ -589,6 +595,96 @@ func verifyChecksum(w io.Writer, data []byte, asset, checksumURL string) (err er
 		return fmt.Errorf("checksum mismatch: the download does not match SHA256SUMS\n  Expected: %s\n  Got:      %s\nnav-pilot is unchanged. Try again later; if it keeps failing, report it with nav-pilot feedback", expected, actual)
 	}
 
+	fmt.Fprintln(w, " ✓")
+	return nil
+}
+
+// The provenance a release binary must carry. SHA256SUMS comes from the same
+// release as the binary, so whoever can change one can change the other. The
+// attestation is signed by Sigstore for a GitHub Actions run, which a changed
+// release asset cannot fake (#2786).
+const (
+	attestRepo      = "navikt/copilot"
+	attestRepoURI   = "https://github.com/navikt/copilot"
+	attestSigner    = "https://github.com/navikt/copilot/.github/workflows/release-nav-pilot.yaml@refs/heads/main"
+	attestSourceRef = "refs/heads/main"
+)
+
+// runAttestationVerify asks gh to check the Sigstore bundle against the pinned
+// repository, workflow and branch. A variable so tests can stand in for gh.
+var runAttestationVerify = func(path string) ([]byte, error) {
+	if _, err := exec.LookPath("gh"); err != nil {
+		return nil, errors.New("the check needs gh, the GitHub CLI, and it is not installed")
+	}
+	out, err := runBoundedTimeout(2*time.Minute, false, "gh", "attestation", "verify", path,
+		"--repo", attestRepo,
+		"--cert-identity", attestSigner,
+		"--source-ref", attestSourceRef,
+		"--deny-self-hosted-runners",
+		"--format", "json")
+	var exitErr *exec.ExitError
+	if errors.As(err, &exitErr) {
+		if msg := strings.TrimSpace(string(exitErr.Stderr)); msg != "" {
+			return nil, fmt.Errorf("gh attestation verify: %s", firstLineOf([]byte(msg)))
+		}
+	}
+	return out, err
+}
+
+// verifyProvenance refuses the binary at path unless a GitHub attestation
+// shows it was built by the release workflow on main, from the commit the
+// release tag names. The commit check stops an older, validly attested binary
+// from being served under a newer tag (a downgrade). No attestation, which is
+// every release from before attestations, means no update.
+func verifyProvenance(w io.Writer, path, tag string) (err error) {
+	fmt.Fprint(w, "→ Verifying provenance...")
+	defer func() {
+		if err != nil {
+			fmt.Fprintln(w, " ✗")
+			err = fmt.Errorf("can't verify that this download was built by nav-pilot's release workflow: %w\nnav-pilot is unchanged. Update by hand: download nav-pilot from %s", err, releasesPage)
+		}
+	}()
+	short := tag[strings.LastIndex(tag, "-")+1:]
+	if len(short) < 7 || strings.Trim(short, "0123456789abcdef") != "" {
+		return fmt.Errorf("release tag %q names no commit", tag)
+	}
+	out, err := runAttestationVerify(path)
+	if err != nil {
+		return err
+	}
+	var results []struct {
+		VerificationResult struct {
+			Signature struct {
+				Certificate struct {
+					SourceRepositoryURI    string `json:"sourceRepositoryURI"`
+					SourceRepositoryDigest string `json:"sourceRepositoryDigest"`
+					SourceRepositoryRef    string `json:"sourceRepositoryRef"`
+					BuildSignerURI         string `json:"buildSignerURI"`
+				} `json:"certificate"`
+			} `json:"signature"`
+		} `json:"verificationResult"`
+	}
+	if err := json.Unmarshal(out, &results); err != nil {
+		return fmt.Errorf("unreadable answer from gh attestation verify: %w", err)
+	}
+	if len(results) == 0 {
+		return errors.New("no attestation found")
+	}
+	// gh enforces the policy already; checking again here means a gh that
+	// ignores a flag still can't let a foreign build through.
+	for _, r := range results {
+		c := r.VerificationResult.Signature.Certificate
+		switch {
+		case c.SourceRepositoryURI != attestRepoURI:
+			return fmt.Errorf("attested from %q, not %s", c.SourceRepositoryURI, attestRepoURI)
+		case c.BuildSignerURI != attestSigner:
+			return fmt.Errorf("signed by %q, not the release workflow", c.BuildSignerURI)
+		case c.SourceRepositoryRef != attestSourceRef:
+			return fmt.Errorf("built from %q, not %s", c.SourceRepositoryRef, attestSourceRef)
+		case !strings.HasPrefix(c.SourceRepositoryDigest, short):
+			return fmt.Errorf("built from commit %q, but the release %s names %s", c.SourceRepositoryDigest, tag, short)
+		}
+	}
 	fmt.Fprintln(w, " ✓")
 	return nil
 }
