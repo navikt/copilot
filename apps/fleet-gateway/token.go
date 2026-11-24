@@ -774,6 +774,16 @@ func (g *Gateway) revokeHandler(w http.ResponseWriter, r *http.Request) {
 				bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store unavailable")
 				return
 			}
+			// Revoke the refresh family too (RFC 7009 2.1), so the RT issued with
+			// this access token cannot mint a new one. A family lives at most the
+			// absolute session age, so retaining the mark that long covers it.
+			if sess.FID != "" {
+				if err = g.store.Revoke(r.Context(), "fam:"+sess.FID, g.now().Add(max(g.cfg.SessionAbsoluteMaxAge, defaultSessionAbsoluteMaxAge))); err != nil {
+					slog.Warn("revoke refresh family failed", "error", err)
+					bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store unavailable")
+					return
+				}
+			}
 			if err = g.store.Delete(r.Context(), kindSession, tokenHash); err != nil {
 				slog.Warn("revoke session delete failed", "error", err)
 				bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store unavailable")

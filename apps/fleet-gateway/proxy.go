@@ -11,7 +11,6 @@ import (
 	"net"
 	"net/http"
 	"net/textproto"
-	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -323,6 +322,15 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 			})
 			return
 		}
+		// Policy and upstream could read different Content-Type values (#2851).
+		if len(r.Header.Values("Content-Type")) > 1 {
+			outcome = "bad_request"
+			writeJSON(w, http.StatusBadRequest, map[string]string{
+				"error":   "invalid_request",
+				"message": "more than one Content-Type header",
+			})
+			return
+		}
 
 		pd := policy.Decide(r.Method, route.allowedTools, r.Header, reqBody)
 		rpcMethod, toolName, scanIncomplete, headerMismatch = pd.Method, pd.Tool, pd.ScanIncomplete, pd.HeaderMismatch
@@ -414,7 +422,9 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 			return
 		}
 
-		targetURL := buildUpstreamURL(route.ParsedURL, r.URL.RawQuery)
+		// The client query string is dropped: Streamable HTTP carries everything
+		// in headers and body, so a query would only reach the upstream unchecked (#2851).
+		targetURL := route.ParsedURL.String()
 		var bodyBuf atomic.Pointer[[]byte]
 		// Track the latest reader so a failed attempt cannot drop the buffer during a retry.
 		var latestBodyDone atomic.Pointer[chan struct{}]
@@ -851,18 +861,6 @@ func extractBearerToken(authHeader string) (string, bool) {
 		return "", false
 	}
 	return tok, true
-}
-
-func buildUpstreamURL(base *url.URL, rawQuery string) string {
-	u := *base
-	if rawQuery != "" {
-		if u.RawQuery != "" {
-			u.RawQuery = u.RawQuery + "&" + rawQuery
-		} else {
-			u.RawQuery = rawQuery
-		}
-	}
-	return u.String()
 }
 
 func copyAllowlistedHeaders(dst, src http.Header, allowlist map[string]bool) {
