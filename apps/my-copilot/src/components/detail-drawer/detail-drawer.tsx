@@ -2,14 +2,16 @@
 
 import { Dialog, DialogBackdrop, DialogPanel, DialogTitle } from "@headlessui/react";
 import { XMarkIcon, ExternalLinkIcon } from "@navikt/aksel-icons";
-import { Box, BodyShort, Heading, Tag, HStack, VStack } from "@navikt/ds-react";
+import { Box, BodyShort, Button, Heading, Tag, HStack, VStack } from "@navikt/ds-react";
+import NextLink from "next/link";
 import { itemKey } from "@/lib/item-key";
 import type { EnrichedCustomization } from "@/lib/enrich-customizations";
 import { DOMAIN_CONFIGS } from "@/lib/customization-types";
 import { linkClass } from "@/components/nav-pilot/doc-page";
 import { Contributors } from "../contributors";
 import { TypeBadge, TypeIconBadge } from "../verktoy-type-meta";
-import { McpDetails, isFleetGatewayMcp } from "./mcp-details";
+import { McpDetails } from "./mcp-details";
+import { isFleetGatewayMcp, riskCounts, serverPagePath } from "./mcp-meta";
 import { StaticCustomizationDetails } from "./static-details";
 
 export interface DetailDrawerProps {
@@ -45,7 +47,7 @@ export function DetailDrawer({ item, allItems, open, onClose, onNavigate }: Deta
           >
             <DialogPanel
               transition
-              className="pointer-events-auto w-screen max-w-lg transform transition motion-reduce:transition-none data-closed:translate-x-full data-enter:duration-200 data-enter:ease-out data-leave:duration-150 data-leave:ease-in"
+              className="pointer-events-auto w-[calc(100vw-var(--ax-space-24))] max-w-lg transform transition motion-reduce:transition-none data-closed:translate-x-full data-enter:duration-200 data-enter:ease-out data-leave:duration-150 data-leave:ease-in"
             >
               <div className="verktoy-drawer-panel flex h-full flex-col overflow-y-auto shadow-xl">
                 <Box
@@ -80,9 +82,22 @@ export function DetailDrawer({ item, allItems, open, onClose, onNavigate }: Deta
                           Via fleet-gateway
                         </Tag>
                       )}
+                      {item.type === "mcp" && item.tools && item.tools.length > 0 && (
+                        <Tag size="small" variant="neutral">
+                          {riskCounts(item.tools, item.toolRisk)}
+                        </Tag>
+                      )}
                     </HStack>
 
                     <BodyShort>{item.description}</BodyShort>
+
+                    {isFleetGatewayMcp(item) && item.type === "mcp" && (
+                      <div>
+                        <Button as={NextLink} href={serverPagePath(item.serverId)} variant="secondary" size="small">
+                          Åpne egen side
+                        </Button>
+                      </div>
+                    )}
 
                     <HStack gap="space-16" wrap>
                       {item.usageCount > 0 && (

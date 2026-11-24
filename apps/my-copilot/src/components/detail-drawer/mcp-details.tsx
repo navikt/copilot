@@ -1,7 +1,6 @@
 "use client";
 
-import { useState } from "react";
-import { Alert, BodyShort, Box, Chips, CopyButton, HStack, Heading, Tag, VStack } from "@navikt/ds-react";
+import { Alert, BodyShort, Box, CopyButton, HStack, Heading, Tabs, Tag, VStack } from "@navikt/ds-react";
 import { DownloadIcon, ExternalLinkIcon } from "@navikt/aksel-icons";
 import type { EnrichedCustomization } from "@/lib/enrich-customizations";
 import type { McpToolRisk } from "@/lib/customization-types";
@@ -16,9 +15,8 @@ import {
   NAV_PILOT_MCP_TOOLS_MIN_VERSION,
 } from "@/lib/install-commands";
 import { CommandBlock } from "./shared";
+import { isFleetGatewayMcp, isGatewayUrl, riskOf } from "./mcp-meta";
 import { enableCommand } from "@/components/mcp/servers";
-
-type ManualClient = "vscode" | "intellij" | "cli";
 
 const RISK_GROUPS: {
   risk: McpToolRisk;
@@ -47,61 +45,44 @@ const RISK_GROUPS: {
   },
 ];
 
-const GATEWAY_HOSTS = ["fleet-gateway.intern.nav.no", "fleet-gateway.intern.dev.nav.no"];
-
-// Registry URLs may hold the {{domain_internal}} template, so accept fleet-gateway.<nav domain> there.
-function isGatewayUrl(raw: string): boolean {
-  try {
-    const host = new URL(raw.replace("{{domain_internal}}", "intern.nav.no")).hostname;
-    return GATEWAY_HOSTS.includes(host);
-  } catch {
-    return false;
-  }
-}
-
-export function isFleetGatewayMcp(item: EnrichedCustomization): boolean {
-  if (item.type !== "mcp") return false;
-  return item.remotes.some((r) => isGatewayUrl(r.url)) || (item.tags?.includes("fleet-gateway") ?? false);
-}
-
-function riskOf(toolRisk: Record<string, McpToolRisk> | undefined, tool: string): McpToolRisk {
-  return toolRisk?.[tool] ?? "read";
-}
-
 function McpToolList({ tools, toolRisk }: { tools: string[]; toolRisk?: Record<string, McpToolRisk> }) {
+  const groups = RISK_GROUPS.map((group) => ({
+    ...group,
+    count: tools.filter((tool) => riskOf(toolRisk, tool) === group.risk).length,
+  })).filter((group) => group.count > 0);
   return (
     <VStack gap="space-8">
       <Heading size="xsmall" level="4">
         Verktøy ({tools.length})
       </Heading>
-      {RISK_GROUPS.map((group) => {
-        const inGroup = tools.filter((tool) => riskOf(toolRisk, tool) === group.risk);
-        if (inGroup.length === 0) return null;
-        return (
-          <VStack key={group.risk} gap="space-4">
-            <BodyShort size="small" weight="semibold">
-              {group.heading} ({inGroup.length})
-            </BodyShort>
-            <BodyShort size="small" className="verktoy-subtle">
-              {group.text}
-            </BodyShort>
-            <HStack gap="space-4" wrap>
-              {inGroup.map((tool) => (
-                <Tag key={tool} size="xsmall" variant={group.tag}>
-                  {tool}
-                </Tag>
-              ))}
-            </HStack>
-          </VStack>
-        );
-      })}
+      <ul className="mcp-tool-list">
+        {tools.map((tool) => {
+          const group = RISK_GROUPS.find((g) => g.risk === riskOf(toolRisk, tool))!;
+          return (
+            <li key={tool}>
+              <code className="verktoy-code-inline">{tool}</code>
+              <Tag size="xsmall" variant={group.tag}>
+                {group.heading}
+              </Tag>
+            </li>
+          );
+        })}
+      </ul>
+      <VStack gap="space-4">
+        {groups.map((group) => (
+          <BodyShort key={group.risk} size="small" className="verktoy-subtle">
+            <strong>
+              {group.heading} ({group.count})
+            </strong>
+            : {group.text}
+          </BodyShort>
+        ))}
+      </VStack>
     </VStack>
   );
 }
 
 export function McpDetails({ item }: { item: EnrichedCustomization }) {
-  const [manualClient, setManualClient] = useState<ManualClient>("vscode");
-
   if (item.type !== "mcp") return null;
 
   const enable = enableCommand(item.serverId);
@@ -116,9 +97,32 @@ export function McpDetails({ item }: { item: EnrichedCustomization }) {
   const vsCodeCmd = getVsCodeAddMcpCommand(item);
   const mcpAddFields = getMcpAddFields(item);
 
+  const gateway = isFleetGatewayMcp(item);
+  // Prefer the gateway address when a server has several remotes.
+  const primaryRemote = item.remotes.find((r) => isGatewayUrl(r.url)) ?? item.remotes[0];
+  const remoteUrl = primaryRemote?.url ?? "";
+  const openCodeConfig = JSON.stringify({ mcp: { [item.serverId]: { type: "remote", url: remoteUrl } } }, null, 2);
+  const manualWarning = (vscode = false) =>
+    (offByDefault.length > 0 || isGitHub) && (
+      <Alert variant="warning" size="small">
+        Manuelt oppsett slår på alle verktøyene til serveren
+        {offByDefault.length > 0 && <>, også {offByDefault.join(", ")}</>}.
+        {hostExec.length > 0 && (
+          <>
+            {" "}
+            {hostExec.length === offByDefault.length ? "De" : hostExec.join(", ")} kjører på maskinen din, utenfor
+            sandkassen.
+          </>
+        )}{" "}
+        {vscode
+          ? "Kommandoen for VS Code kan ikke velge verktøy. Slå av de du ikke vil ha i verktøyvalget i klienten."
+          : "Manuelt oppsett kan ikke velge enkeltverktøy."}
+      </Alert>
+    );
+
   return (
     <VStack gap="space-16">
-      {isFleetGatewayMcp(item) && (
+      {gateway && (
         <BodyShort size="small">
           Serveren går gjennom fleet-gateway.{" "}
           <NextLink href="/mcp/bruke" className={linkClass}>
@@ -137,46 +141,196 @@ export function McpDetails({ item }: { item: EnrichedCustomization }) {
         >
           <VStack gap="space-12">
             <Heading size="xsmall" level="4">
-              Installering
+              Koble til
             </Heading>
-            <Box background="info-soft" borderRadius="8" padding="space-12">
-              <VStack gap="space-8">
-                <BodyShort size="small">
-                  Med nav-pilot ({NAV_PILOT_MCP_TOOLS_MIN_VERSION} eller nyere) kjører du:
-                </BodyShort>
-                <CommandBlock command={enable} />
-                <BodyShort size="small">
-                  Kommandoen legger serveren inn i oppsettet for Copilot CLI og OpenCode (de du har installert), spør om
-                  adressene serveren trenger i sandkassen, og sier fra om noe mangler.
-                </BodyShort>
-                {offByDefault.length > 0 && (
+            {/* Owner-approved exception to the no-tabs rule (#2822): one tab per client. */}
+            <Tabs defaultValue="navpilot" size="small" className="mcp-tabs">
+              <Tabs.List>
+                <Tabs.Tab value="navpilot" label="nav-pilot" />
+                <Tabs.Tab value="vscode" label="VS Code" />
+                <Tabs.Tab value="intellij" label="IntelliJ" />
+                {serverConfig && <Tabs.Tab value="cli" label="Copilot CLI" />}
+                {remoteUrl && <Tabs.Tab value="opencode" label="OpenCode" />}
+                {remoteUrl && <Tabs.Tab value="other" label="Andre klienter" />}
+              </Tabs.List>
+              <Tabs.Panel value="navpilot">
+                <VStack gap="space-8" className="mcp-tab-panel">
                   <BodyShort size="small">
-                    Den slår bare på verktøy som leser eller endrer prosjektet. Vil du også ha{" "}
-                    {offByDefault.length === 1 ? "verktøyet" : "verktøyene"} som er av, kjører du kommandoen i en
-                    terminal og velger dem, eller legger til <code className="verktoy-code-inline">--tools</code> med
-                    alle verktøyene du vil ha på, skilt med komma:{" "}
-                    <code className="verktoy-code-inline">{enable} --tools navn1,navn2</code>.
-                    {hostExec.length > 0 && (
+                    Med nav-pilot ({NAV_PILOT_MCP_TOOLS_MIN_VERSION} eller nyere) kjører du:
+                  </BodyShort>
+                  <CommandBlock command={enable} />
+                  <BodyShort size="small">
+                    Kommandoen legger serveren inn i oppsettet for Copilot CLI og OpenCode (de du har installert), spør
+                    om adressene serveren trenger i sandkassen, og sier fra om noe mangler.
+                  </BodyShort>
+                  {offByDefault.length > 0 && (
+                    <BodyShort size="small">
+                      Den slår bare på verktøy som leser eller endrer prosjektet. Vil du også ha{" "}
+                      {offByDefault.length === 1 ? "verktøyet" : "verktøyene"} som er av, kjører du kommandoen i en
+                      terminal og velger dem, eller legger til <code className="verktoy-code-inline">--tools</code> med
+                      alle verktøyene du vil ha på, skilt med komma:{" "}
+                      <code className="verktoy-code-inline">{enable} --tools navn1,navn2</code>.
+                      {hostExec.length > 0 && (
+                        <>
+                          {" "}
+                          Verktøy som kjører utenfor sandkassen, krever i tillegg at du svarer ja, eller{" "}
+                          <code className="verktoy-code-inline">--allow-host-exec</code>.
+                        </>
+                      )}
+                    </BodyShort>
+                  )}
+                  {isGitHub && (
+                    <BodyShort size="small">
+                      GitHub-serveren får et endpoint som bare leser. Velger du et verktøy som skriver til GitHub, kan
+                      agenten skrive via MCP, forbi cplts kontroll av <code className="verktoy-code-inline">gh</code>.
+                    </BodyShort>
+                  )}
+                  <BodyShort size="small">
+                    Virker ikke serveren? Kjør <code className="verktoy-code-inline">nav-pilot mcp list</code> for å se
+                    hva som er galt og hvordan du retter det.
+                  </BodyShort>
+                </VStack>
+              </Tabs.Panel>
+              <Tabs.Panel value="vscode">
+                <VStack gap="space-8" className="mcp-tab-panel">
+                  {manualWarning(true)}
+                  {item.installUrl && (
+                    <a
+                      href={item.installUrl}
+                      className={`inline-flex items-center gap-1 text-sm font-semibold ${linkClass}`}
+                    >
+                      <DownloadIcon fontSize="1rem" aria-hidden />
+                      Installer fra MCP-registeret
+                    </a>
+                  )}
+                  {vsCodeCmd && (
+                    <>
+                      <BodyShort size="small" className="verktoy-subtle">
+                        Alternativt kan du bruke kommandoen:
+                      </BodyShort>
+                      <CommandBlock command={vsCodeCmd} />
+                    </>
+                  )}
+                  {serverConfig && (
+                    <>
+                      <BodyShort size="small" className="verktoy-subtle">
+                        Eller legg til i <code className="verktoy-code-inline">.vscode/mcp.json</code> under{" "}
+                        <code className="verktoy-code-inline">&quot;servers&quot;</code>:
+                      </BodyShort>
+                      <CommandBlock command={serverConfig} />
+                    </>
+                  )}
+                </VStack>
+              </Tabs.Panel>
+              <Tabs.Panel value="intellij">
+                <VStack gap="space-8" className="mcp-tab-panel">
+                  {manualWarning()}
+                  <BodyShort size="small">
+                    Åpne Copilot Chat i IntelliJ og klikk på <strong>MCP-register-ikonet</strong> for å søke etter og
+                    installere serveren direkte fra registeret.
+                  </BodyShort>
+                  {serverConfig && (
+                    <>
+                      <BodyShort size="small" className="verktoy-subtle">
+                        Alternativt kan du legge til manuelt i{" "}
+                        <code className="verktoy-code-inline">~/.config/github-copilot/intellij/mcp.json</code> under{" "}
+                        <code className="verktoy-code-inline">&quot;servers&quot;</code>:
+                      </BodyShort>
+                      <CommandBlock command={serverConfig} />
+                    </>
+                  )}
+                </VStack>
+              </Tabs.Panel>
+              {serverConfig && (
+                <Tabs.Panel value="cli">
+                  <VStack gap="space-8" className="mcp-tab-panel">
+                    {manualWarning()}
+                    {mcpAddFields && (
+                      <VStack gap="space-4">
+                        <BodyShort size="small">
+                          Kjør <code className="verktoy-code-inline">/mcp add</code> og fyll inn:
+                        </BodyShort>
+                        <Box background="neutral-soft" borderRadius="8" padding="space-12">
+                          <VStack gap="space-4">
+                            <BodyShort size="small">
+                              <strong>Server Name:</strong>{" "}
+                              <code className="verktoy-code-inline">{mcpAddFields.name}</code>
+                            </BodyShort>
+                            <BodyShort size="small">
+                              <strong>Server Type:</strong>{" "}
+                              <code className="verktoy-code-inline">{mcpAddFields.type}</code>
+                            </BodyShort>
+                            {mcpAddFields.url && (
+                              <BodyShort size="small">
+                                <strong>URL:</strong> <code className="verktoy-code-inline">{mcpAddFields.url}</code>
+                              </BodyShort>
+                            )}
+                            {mcpAddFields.command && (
+                              <BodyShort size="small">
+                                <strong>Command:</strong>{" "}
+                                <code className="verktoy-code-inline">{mcpAddFields.command}</code>
+                              </BodyShort>
+                            )}
+                            {mcpAddFields.env && (
+                              <BodyShort size="small">
+                                <strong>Environment Variables:</strong>{" "}
+                                <code className="verktoy-code-inline">{mcpAddFields.env}</code>
+                              </BodyShort>
+                            )}
+                          </VStack>
+                        </Box>
+                      </VStack>
+                    )}
+                    <BodyShort size="small" className="verktoy-subtle">
+                      Eller legg til i <code className="verktoy-code-inline">~/.copilot/mcp-config.json</code> under{" "}
+                      <code className="verktoy-code-inline">&quot;mcpServers&quot;</code>:
+                    </BodyShort>
+                    <CommandBlock command={serverConfig} />
+                  </VStack>
+                </Tabs.Panel>
+              )}
+              {remoteUrl && (
+                <Tabs.Panel value="opencode">
+                  <VStack gap="space-8" className="mcp-tab-panel">
+                    {manualWarning()}
+                    <BodyShort size="small">
+                      Legg til serveren i <code className="verktoy-code-inline">opencode.json</code>:
+                    </BodyShort>
+                    <CommandBlock command={openCodeConfig} />
+                    {gateway && (
                       <>
-                        {" "}
-                        Verktøy som kjører utenfor sandkassen, krever i tillegg at du svarer ja, eller{" "}
-                        <code className="verktoy-code-inline">--allow-host-exec</code>.
+                        <CommandBlock command={`opencode mcp auth ${item.serverId}\nopencode`} />
+                        <BodyShort size="small" className="verktoy-subtle">
+                          Logg ut med <code className="verktoy-code-inline">opencode mcp logout {item.serverId}</code>.
+                        </BodyShort>
                       </>
                     )}
-                  </BodyShort>
-                )}
-                {isGitHub && (
-                  <BodyShort size="small">
-                    GitHub-serveren får et endpoint som bare leser. Velger du et verktøy som skriver til GitHub, kan
-                    agenten skrive via MCP, forbi cplts kontroll av <code className="verktoy-code-inline">gh</code>.
-                  </BodyShort>
-                )}
-                <BodyShort size="small">
-                  Virker ikke serveren? Kjør <code className="verktoy-code-inline">nav-pilot mcp list</code> for å se
-                  hva som er galt og hvordan du retter det.
-                </BodyShort>
-              </VStack>
-            </Box>
+                  </VStack>
+                </Tabs.Panel>
+              )}
+              {remoteUrl && (
+                <Tabs.Panel value="other">
+                  <VStack gap="space-8" className="mcp-tab-panel">
+                    {manualWarning()}
+                    <BodyShort size="small">Adresse ({transportLabel(primaryRemote.type)}):</BodyShort>
+                    <CommandBlock command={remoteUrl} />
+                    {gateway && (
+                      <BodyShort size="small" className="verktoy-subtle">
+                        Klienten må støtte OAuth-innlogging.
+                      </BodyShort>
+                    )}
+                  </VStack>
+                </Tabs.Panel>
+              )}
+            </Tabs>
+            {gateway && (
+              <BodyShort size="small">
+                Krever naisdevice.{" "}
+                <NextLink href="/mcp/bruke#innlogging" className={linkClass}>
+                  Slik logger du inn
+                </NextLink>
+              </BodyShort>
+            )}
           </VStack>
         </Box>
       )}
@@ -341,149 +495,6 @@ export function McpDetails({ item }: { item: EnrichedCustomization }) {
               </VStack>
             </Box>
           ))}
-        </VStack>
-      )}
-
-      {hasLaunchRecipe && (
-        <VStack gap="space-12">
-          <VStack gap="space-4">
-            <Heading size="xsmall" level="4">
-              Manuelt oppsett
-            </Heading>
-            <BodyShort size="small" className="verktoy-subtle">
-              For VS Code og IntelliJ, eller hvis du ikke bruker nav-pilot.
-            </BodyShort>
-          </VStack>
-
-          {(offByDefault.length > 0 || isGitHub) && (
-            <Alert variant="warning" size="small">
-              Manuelt oppsett slår på alle verktøyene til serveren
-              {offByDefault.length > 0 && <>, også {offByDefault.join(", ")}</>}.
-              {hostExec.length > 0 && (
-                <>
-                  {" "}
-                  {hostExec.length === offByDefault.length ? "De" : hostExec.join(", ")} kjører på maskinen din, utenfor
-                  sandkassen.
-                </>
-              )}{" "}
-              Kommandoen for VS Code kan ikke velge verktøy. Slå av de du ikke vil ha i verktøyvalget i klienten.
-            </Alert>
-          )}
-
-          <Chips size="small">
-            <Chips.Toggle
-              checkmark={false}
-              selected={manualClient === "vscode"}
-              onClick={() => setManualClient("vscode")}
-            >
-              VS Code
-            </Chips.Toggle>
-            <Chips.Toggle
-              checkmark={false}
-              selected={manualClient === "intellij"}
-              onClick={() => setManualClient("intellij")}
-            >
-              IntelliJ
-            </Chips.Toggle>
-            {serverConfig && (
-              <Chips.Toggle checkmark={false} selected={manualClient === "cli"} onClick={() => setManualClient("cli")}>
-                Copilot CLI
-              </Chips.Toggle>
-            )}
-          </Chips>
-
-          {manualClient === "vscode" && (
-            <VStack gap="space-8">
-              {item.installUrl && (
-                <a
-                  href={item.installUrl}
-                  className={`inline-flex items-center gap-1 text-sm font-semibold ${linkClass}`}
-                >
-                  <DownloadIcon fontSize="1rem" aria-hidden />
-                  Installer fra MCP-registeret
-                </a>
-              )}
-              {vsCodeCmd && (
-                <>
-                  <BodyShort size="small" className="verktoy-subtle">
-                    Alternativt kan du bruke kommandoen:
-                  </BodyShort>
-                  <CommandBlock command={vsCodeCmd} />
-                </>
-              )}
-              {serverConfig && (
-                <>
-                  <BodyShort size="small" className="verktoy-subtle">
-                    Eller legg til i <code className="verktoy-code-inline">.vscode/mcp.json</code> under{" "}
-                    <code className="verktoy-code-inline">&quot;servers&quot;</code>:
-                  </BodyShort>
-                  <CommandBlock command={serverConfig} />
-                </>
-              )}
-            </VStack>
-          )}
-
-          {manualClient === "intellij" && (
-            <VStack gap="space-8">
-              <BodyShort size="small">
-                Åpne Copilot Chat i IntelliJ og klikk på <strong>MCP-register-ikonet</strong> for å søke etter og
-                installere serveren direkte fra registeret.
-              </BodyShort>
-              {serverConfig && (
-                <>
-                  <BodyShort size="small" className="verktoy-subtle">
-                    Alternativt kan du legge til manuelt i{" "}
-                    <code className="verktoy-code-inline">~/.config/github-copilot/intellij/mcp.json</code> under{" "}
-                    <code className="verktoy-code-inline">&quot;servers&quot;</code>:
-                  </BodyShort>
-                  <CommandBlock command={serverConfig} />
-                </>
-              )}
-            </VStack>
-          )}
-
-          {manualClient === "cli" && serverConfig && (
-            <VStack gap="space-8">
-              {mcpAddFields && (
-                <VStack gap="space-4">
-                  <BodyShort size="small">
-                    Kjør <code className="verktoy-code-inline">/mcp add</code> og fyll inn:
-                  </BodyShort>
-                  <Box background="neutral-soft" borderRadius="8" padding="space-12">
-                    <VStack gap="space-4">
-                      <BodyShort size="small">
-                        <strong>Server Name:</strong> <code className="verktoy-code-inline">{mcpAddFields.name}</code>
-                      </BodyShort>
-                      <BodyShort size="small">
-                        <strong>Server Type:</strong> <code className="verktoy-code-inline">{mcpAddFields.type}</code>
-                      </BodyShort>
-                      {mcpAddFields.url && (
-                        <BodyShort size="small">
-                          <strong>URL:</strong> <code className="verktoy-code-inline">{mcpAddFields.url}</code>
-                        </BodyShort>
-                      )}
-                      {mcpAddFields.command && (
-                        <BodyShort size="small">
-                          <strong>Command:</strong> <code className="verktoy-code-inline">{mcpAddFields.command}</code>
-                        </BodyShort>
-                      )}
-                      {mcpAddFields.env && (
-                        <BodyShort size="small">
-                          <strong>Environment Variables:</strong>{" "}
-                          <code className="verktoy-code-inline">{mcpAddFields.env}</code>
-                        </BodyShort>
-                      )}
-                    </VStack>
-                  </Box>
-                </VStack>
-              )}
-              <BodyShort size="small" className="verktoy-subtle">
-                Eller legg til i <code className="verktoy-code-inline">~/.copilot/mcp-config.json</code> under{" "}
-                <code className="verktoy-code-inline">&quot;mcpServers&quot;</code>:
-              </BodyShort>
-              <CommandBlock command={serverConfig} />
-            </VStack>
-          )}
         </VStack>
       )}
     </VStack>
