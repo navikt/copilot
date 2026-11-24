@@ -232,8 +232,9 @@ func (g *Gateway) routes() http.Handler {
 
 // routeDispatch serves /mcp/<namespace>/<name> from the current RouteTable.
 func (g *Gateway) routeDispatch(w http.ResponseWriter, r *http.Request) {
-	route, ok := g.table().RoutesByPath["/mcp/"+r.PathValue("ns")+"/"+r.PathValue("name")]
-	if !ok && g.awaitingSnapshot() {
+	table := g.table() // one load: a swap between lookup and check must not turn 503 into 404
+	route, ok := table.RoutesByPath["/mcp/"+r.PathValue("ns")+"/"+r.PathValue("name")]
+	if !ok && g.cfg.RoutesSource == routesSourceFleetControl && len(table.Routes) == 0 {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "temporarily_unavailable", "error_description": "Route table not loaded yet. Try again shortly."})
 		return
 	}

@@ -117,6 +117,9 @@ func (f *fleetControlRoutes) fetch(ctx context.Context, current *RouteTable) ([]
 	if snap.SchemaVersion != 1 {
 		return nil, fmt.Errorf("unsupported snapshot schema_version %d", snap.SchemaVersion)
 	}
+	if snap.Generation <= 0 {
+		return nil, fmt.Errorf("snapshot generation %d must be positive", snap.Generation)
+	}
 	if f.generation > 0 && snap.Generation == f.generation && resp.Header.Get("ETag") != f.etag {
 		return nil, fmt.Errorf("snapshot generation %d changed body without a new generation", snap.Generation)
 	}

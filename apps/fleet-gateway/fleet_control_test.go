@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/testutil"
 	dto "github.com/prometheus/client_model/go"
 )
 
@@ -183,14 +184,21 @@ func TestRouteSyncNoSnapshotAtStartupFailsClosed(t *testing.T) {
 		"unknown schema": func(f *fakeFleetControl) {
 			f.body = map[string]any{"schema_version": 2, "generation": 1, "routes": []any{primaryRoute()}}
 		},
-		"malformed json": func(f *fakeFleetControl) { f.body = "not an object" },
+		"malformed json":     func(f *fakeFleetControl) { f.body = "not an object" },
+		"304 on first fetch": func(f *fakeFleetControl) { f.status = http.StatusNotModified },
+		"empty routes":       func(f *fakeFleetControl) { f.body = snapBody(1) },
+		"generation zero":    func(f *fakeFleetControl) { f.body = snapBody(0, primaryRoute()) },
 	}
 	for name, breakIt := range cases {
 		t.Run(name, func(t *testing.T) {
 			f := newFakeFleetControl(t)
 			gw, src := fleetControlGateway(t, f)
 			breakIt(f)
+			failures := testutil.ToFloat64(routeSyncFailures)
 			gw.syncRoutes(context.Background(), src)
+			if got := testutil.ToFloat64(routeSyncFailures); got != failures+1 {
+				t.Fatalf("routeSyncFailures = %v, want %v", got, failures+1)
+			}
 			if got := routePaths(gw); len(got) != 0 {
 				t.Fatalf("routes = %v, want none before the first snapshot", got)
 			}
@@ -220,8 +228,9 @@ func TestRouteSyncNoSnapshotAtStartupFailsClosed(t *testing.T) {
 
 func TestRouteSyncFlagOffMakesNoRequest(t *testing.T) {
 	f := newFakeFleetControl(t)
-	gw, _ := fleetControlGateway(t, f)
-	gw.cfg.RoutesSource = routesSourceGit
+	gw := newTestEnv(t).gw // built by newGateway with RoutesSource=git
+	gw.cfg.FleetControlURL = f.srv.URL
+	gw.cfg.TexasTokenEndpoint = f.srv.URL + "/texas"
 	before := gw.table()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
