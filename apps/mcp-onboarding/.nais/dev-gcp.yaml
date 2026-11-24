@@ -13,3 +13,5 @@ allowed_organization: navikt
 log_level: DEBUG
 # Entra mode for fleet-gateway on /mcp/gw; the GitHub OAuth path is unchanged.
 fleet_gateway_inbound: true
+# Temporary: also accept the agentgateway pilot (#2860). Remove after the pilot.
+agentgateway_pilot: true

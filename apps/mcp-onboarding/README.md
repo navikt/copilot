@@ -102,6 +102,9 @@ Replace `fp-sak` with your repository. For `team_readiness`, use the repository 
 | `ALLOWED_ORGANIZATION`      | GitHub org users must belong to                                            | `navikt`                |
 | `LOG_LEVEL`                 | Log level: DEBUG, INFO, WARN, ERROR                                        | `INFO`                  |
 | `MCP_LEGACY_PROTOCOL_UNTIL` | Serve initialize-era MCP clients until this date (`YYYY-MM-DD`, exclusive) | unset: 2026-07-28 only  |
+| `ENTRA_PILOT_APP`           | Also accept this `copilot` app as `azp` on `/mcp/gw`. Dev only, temporary  | unset                   |
+
+`ENTRA_PILOT_APP` is temporary. Dev sets it to `fleet-agentgateway-pilot` for the agentgateway pilot ([#2860](https://github.com/navikt/copilot/pull/2860)), and the dev inbound policy admits that app. Prod accepts only fleet-gateway. Remove both once the pilot ends.
 
 ## Setup
 

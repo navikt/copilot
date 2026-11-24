@@ -51,6 +51,11 @@ spec:
     # Serves initialize-era MCP clients (OpenCode default) until this date.
     - name: MCP_LEGACY_PROTOCOL_UNTIL
       value: "2027-03-31"
+    {{#if agentgateway_pilot}}
+    # Temporary for the agentgateway pilot (#2860); remove afterwards.
+    - name: ENTRA_PILOT_APP
+      value: fleet-agentgateway-pilot
+    {{/if}}
   envFrom:
     - secret: mcp-onboarding-secrets
   {{#if fleet_gateway_inbound}}
@@ -66,6 +71,10 @@ spec:
       rules:
         - application: fleet-gateway
           namespace: copilot
+        {{#if agentgateway_pilot}}
+        - application: fleet-agentgateway-pilot
+          namespace: copilot
+        {{/if}}
     {{/if}}
     outbound:
       external:
