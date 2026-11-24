@@ -102,8 +102,6 @@ func TestAuthzMatrix(t *testing.T) {
 	const through = http.StatusServiceUnavailable
 	callers := map[string]string{"gateway": gatewayID, "registry": registryID, "other": "33333333-3333-3333-3333-333333333333", "prefix": gatewayID[:8]}
 	want := map[string]map[string]int{
-		"/internal/v1/servers":            {"gateway": 403, "registry": through, "other": 403, "prefix": 403},
-		"/internal/v1/routes":             {"gateway": through, "registry": 403, "other": 403, "prefix": 403},
 		"/internal/v1/snapshots/routes":   {"gateway": through, "registry": 403, "other": 403, "prefix": 403},
 		"/internal/v1/snapshots/registry": {"gateway": 403, "registry": through, "other": 403, "prefix": 403},
 	}
@@ -151,7 +149,7 @@ func TestAuthzTexasFailures(t *testing.T) {
 	for name, c := range cases {
 		reached := false
 		h := c.a.require(func(http.ResponseWriter, *http.Request) { reached = true }, callerGateway)
-		req := httptest.NewRequest(http.MethodGet, "/internal/v1/routes", nil)
+		req := httptest.NewRequest(http.MethodGet, "/internal/v1/snapshots/routes", nil)
 		req.Header.Set("Authorization", "Bearer "+c.tok)
 		rec := httptest.NewRecorder()
 		h(rec, req)

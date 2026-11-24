@@ -12,6 +12,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/jackc/pgx/v5"
 )
 
 const (
@@ -129,22 +131,39 @@ func newJobEnv(t *testing.T) *jobEnv {
 	srv.cluster = "dev-gcp"
 	srv.operatorTeam = "team-b"
 	srv.store.Store(&storeBox{db})
-	a := testAuthz(t)
-	legacy := http.NewServeMux()
-	srv.legacyWriteRoutes(legacy, a, adminID, testTeams)
-	return &jobEnv{t, db, overlay(legacy, srv.routes(a, adminID, testTeams, testRuntimeAuth(t)))}
+	return &jobEnv{t, db, srv.routes(testAuthz(t), adminID, testTeams, testRuntimeAuth(t))}
 }
 
+// createJob queues a job for team-a as A111111, the way a row reaches the
+// runtime whatever wrote it. Defaults match the agentjobs API.
 func (e *jobEnv) createJob(body string) int64 {
 	e.t.Helper()
-	rec := do(e.t, e.h, http.MethodPost, "/admin/v1/jobs/team-a", userTok("A111111"), body)
-	var out struct {
-		JobID int64 `json:"job_id"`
+	req := CreateJobRequest{OnExpiry: "requeue", MaxAttempts: 3, Params: json.RawMessage("{}")}
+	if err := json.Unmarshal([]byte(body), &req); err != nil {
+		e.t.Fatal(err)
 	}
-	if rec.Code != 200 || json.Unmarshal(rec.Body.Bytes(), &out) != nil {
-		e.t.Fatalf("create job: %d %s", rec.Code, rec.Body)
+	id, err := createTestJob(context.Background(), e.db, "A111111", "team-a", req)
+	if err != nil {
+		e.t.Fatal(err)
 	}
-	return out.JobID
+	return id
+}
+
+func createTestJob(ctx context.Context, d *DB, actor, team string, req CreateJobRequest) (int64, error) {
+	var id int64
+	err := pgx.BeginFunc(ctx, d.pool, func(tx pgx.Tx) error {
+		if err := tx.QueryRow(ctx, `INSERT INTO runtime_jobs (team, kind, params, on_expiry, max_attempts, created_by) VALUES ($1, $2, $3::jsonb, $4, $5, $6) RETURNING id`,
+			team, req.Kind, string(req.Params), req.OnExpiry, req.MaxAttempts, actor).Scan(&id); err != nil {
+			return err
+		}
+		return jobAudit(ctx, tx, caller{Ident: actor}, "job_created", team, id, map[string]any{"kind": req.Kind, "on_expiry": req.OnExpiry, "max_attempts": req.MaxAttempts})
+	})
+	return id, err
+}
+
+// command cancels or kills a job the way the agentjobs termination route does.
+func (e *jobEnv) command(team, ident string, id int64, cmd string) error {
+	return e.db.SetJobCommand(context.Background(), caller{Ident: ident}, team, id, cmd, "")
 }
 
 func (e *jobEnv) claim(token string) (int, Lease) {
@@ -190,24 +209,6 @@ func (e *jobEnv) audit(id int64) []string {
 }
 
 func tok(i int) string { return fmt.Sprintf("claim-token-%04d", i) }
-
-func TestRealPostgresJobCreateRefusals(t *testing.T) {
-	e := newJobEnv(t)
-	for name, c := range map[string]struct {
-		path, tok, body string
-		want            int
-	}{
-		"not a member": {"/admin/v1/jobs/team-a", userTok("B111111"), `{"kind":"k"}`, 403},
-		"bad kind":     {"/admin/v1/jobs/team-a", userTok("A111111"), `{"kind":"K K"}`, 400},
-		"params array": {"/admin/v1/jobs/team-a", userTok("A111111"), `{"kind":"k","params":[1]}`, 400},
-		"bad expiry":   {"/admin/v1/jobs/team-a", userTok("A111111"), `{"kind":"k","on_expiry":"never"}`, 400},
-		"app token":    {"/admin/v1/jobs/team-a", runtimeID, `{"kind":"k"}`, 401},
-	} {
-		if rec := do(t, e.h, http.MethodPost, c.path, c.tok, c.body); rec.Code != c.want {
-			t.Errorf("%s: got %d, want %d (%s)", name, rec.Code, c.want, rec.Body)
-		}
-	}
-}
 
 func TestRealPostgresConcurrentClaimsOneWinner(t *testing.T) {
 	e := newJobEnv(t)
@@ -342,11 +343,11 @@ func TestRealPostgresHeartbeatAndKill(t *testing.T) {
 			t.Errorf("%s by another runtime: %d", path, rec.Code)
 		}
 	}
-	if rec := do(t, e.h, http.MethodPost, fmt.Sprintf("/admin/v1/jobs/team-b/%d/kill", id), userTok("B111111"), ""); rec.Code != 404 {
-		t.Errorf("kill from another team: %d", rec.Code)
+	if err, ok := errors.AsType[*apiError](e.command("team-b", "B111111", id, cmdKill)); !ok || err.code != http.StatusNotFound {
+		t.Errorf("kill from another team: %v", err)
 	}
-	if rec := do(t, e.h, http.MethodPost, fmt.Sprintf("/admin/v1/jobs/team-a/%d/kill", id), userTok("A222222"), ""); rec.Code != 204 {
-		t.Fatalf("kill: %d %s", rec.Code, rec.Body)
+	if err := e.command("team-a", "A222222", id, cmdKill); err != nil {
+		t.Fatalf("kill: %v", err)
 	}
 	if c, cmd := e.heartbeat(l.LeaseID); c != 200 || cmd != cmdKill {
 		t.Fatalf("kill delivery: %d %s", c, cmd)
@@ -368,8 +369,8 @@ func TestRealPostgresCancel(t *testing.T) {
 	queued := e.createJob(`{"kind":"review"}`)
 	_, l := e.claim(tok(1))
 	for _, job := range []int64{id, queued} {
-		if rec := do(t, e.h, http.MethodPost, fmt.Sprintf("/admin/v1/jobs/team-a/%d/cancel", job), userTok("A111111"), ""); rec.Code != 204 {
-			t.Fatalf("cancel: %d %s", rec.Code, rec.Body)
+		if err := e.command("team-a", "A111111", job, cmdCancel); err != nil {
+			t.Fatalf("cancel: %v", err)
 		}
 	}
 	if st, _ := e.state(queued); st != "cancelled" {
@@ -646,8 +647,8 @@ func TestRealPostgresCancelDoesNotExtendLease(t *testing.T) {
 	e := newJobEnv(t)
 	id := e.createJob(`{"kind":"review"}`)
 	_, l := e.claim(tok(1))
-	if rec := do(t, e.h, http.MethodPost, fmt.Sprintf("/admin/v1/jobs/team-a/%d/cancel", id), userTok("A111111"), ""); rec.Code != 204 {
-		t.Fatalf("cancel: %d", rec.Code)
+	if err := e.command("team-a", "A111111", id, cmdCancel); err != nil {
+		t.Fatalf("cancel: %v", err)
 	}
 	if c, hb := e.heartbeatResp(l.LeaseID); c != 200 || hb.Command != cmdCancel || hb.LeaseTTLSeconds < 59 {
 		t.Fatalf("first delivery: %d %+v", c, hb)
@@ -698,8 +699,8 @@ func TestRealPostgresKillWinsOverFinish(t *testing.T) {
 			e := newJobEnv(t)
 			id := e.createJob(`{"kind":"review"}`)
 			_, l := e.claim(tok(1))
-			if rec := do(t, e.h, http.MethodPost, fmt.Sprintf("/admin/v1/jobs/team-a/%d/kill", id), userTok("A111111"), ""); rec.Code != 204 {
-				t.Fatalf("kill: %d", rec.Code)
+			if err := e.command("team-a", "A111111", id, cmdKill); err != nil {
+				t.Fatalf("kill: %v", err)
 			}
 			if rec := do(t, e.h, http.MethodPost, path, runtimeID, `{"lease_id":"`+l.LeaseID+`","code":"ok"}`); rec.Code != 204 {
 				t.Fatalf("finish: %d %s", rec.Code, rec.Body)

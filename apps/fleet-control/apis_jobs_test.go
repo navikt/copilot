@@ -173,7 +173,7 @@ func TestRealPostgresMigration007OldImage(t *testing.T) {
 	if err := e.db.pool.QueryRow(ctx, oldInsert).Scan(&after); err != nil {
 		t.Fatalf("old-image insert after 007: %v", err)
 	}
-	if _, err := e.db.CreateJob(ctx, "A111111", "team-a", CreateJobRequest{Kind: "k", Params: json.RawMessage("{}"), OnExpiry: "requeue", MaxAttempts: 3}); err != nil {
+	if _, err := createTestJob(ctx, e.db, "A111111", "team-a", CreateJobRequest{Kind: "k", Params: json.RawMessage("{}"), OnExpiry: "requeue", MaxAttempts: 3}); err != nil {
 		t.Fatal(err)
 	}
 	j := decodeJob(t, e.want(200, "GET", nsBase+"team-a/agentjobs/job-1", person("A111111"), ""))

@@ -132,7 +132,7 @@ func TestConsoleTeamsFailClosed(t *testing.T) {
 	// Through the write guard: a failed lookup is 503, not 403 or 2xx.
 	srv := newServer()
 	h := srv.routes(testAuthz(t), adminID, newConsoleTeams(down.URL, tokenFile(t)), nil)
-	req := httptest.NewRequest(http.MethodGet, "/admin/v1/servers/team-a/x", nil)
+	req := httptest.NewRequest(http.MethodPut, "/admin/v1/jobs/team-a/kill-switch", strings.NewReader(`{"scope":"team","on":false}`))
 	req.Header.Set("Authorization", "Bearer "+userTok("A111111")+":kari@nav.no")
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, req)

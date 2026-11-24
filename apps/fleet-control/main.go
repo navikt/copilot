@@ -230,9 +230,6 @@ type server struct {
 	// lastGood holds the last served snapshot per kind, so a database outage
 	// keeps serving it; after a restart there is none and the answer is 503.
 	lastGood map[string]*atomic.Pointer[Snapshot]
-	// persons authenticates humans for the agent profile write API; nil
-	// leaves those routes unmounted.
-	persons personResolver
 	// verifier binds an agent's client id to its app; nil leaves profiles unverified.
 	verifier identityVerifier
 	// notifier posts MCPServer changes to Slack; nil sends nothing.
