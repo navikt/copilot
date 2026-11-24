@@ -160,10 +160,10 @@ Run in dev first (`kubectl config use-context dev-gcp`, `URL=https://fleet-gatew
 - [x] Baseline (prod, 2026-11-24, 15:51:24Z): kodeverk 401, `/ready` 200.
 - [x] Route: set `enabled: false` on a dev route, open PR. Same-repo PRs deploy to dev before merge, so the route may already be 503. Start the clock at the shutdown decision (PR opened), not at merge. Stop when the rollout is complete, no old replica serves, and each current pod returns `503` when probed directly (`kubectl port-forward`). Record decision-to-503 and merge-to-503. Time (prod, kodeverk, #2844): decision (PR opened) 15:52:26Z, merged 16:03:31Z (11 min 5 s), first 503 at 16:10:35Z. Merge-to-503 7 min 4 s, decision-to-503 18 min 9 s. The other 3 prod routes stayed 401.
 - [x] Re-enable via PR (prod, #2845 revert merged 16:10:48Z): first 401 at 16:42:33Z, 31 min 45 s. Slow because the fleet-gateway build-deploy failed at the Docker build step and needed a re-run. Expect about 7 min when the deploy succeeds. Lesson: watch the deploy job and re-run it if it fails, because a failed deploy extends the outage.
-- [x] Global (dev, 2026-11-18, `nais app set env`): 34 s to every pod 503. Start at the command, stop only after the rollout completes and each current pod returns `503` when probed directly; repeated ingress requests do not show which replica answered. Time: 34 s.
+- [x] Global (dev, 2026-11-18, `nais app set env`): 34 s to every pod 503. Start at the command, stop only after the rollout completes and each current pod returns `503` when probed directly; repeated ingress requests do not show which replica answered. Time: 34 s. Prod (2026-11-24, `nais app set env ... GATEWAY_DISABLED=true -e prod-gcp` at 16:45:08Z): 56 s until all 4 routes returned 503, `/ready` and metadata stayed 200.
 - [x] Confirm `/health`, `/ready`, metadata and login still respond.
 - [x] Deploy with the switch set (dev rerun of the deploy job only): the switch did not survive; the pod came back serving 401.
-- [x] Undo with `GATEWAY_DISABLED-`: 30 s to recovery.
+- [x] Undo with `GATEWAY_DISABLED-`: 30 s to recovery. Prod (undo at 16:46:11Z): 52 s until 401, env var confirmed removed.
 - [ ] Record whether a changed `RT_KEYS` secret needs a restart.
 - [ ] Copy the numbers into this page and close the measurement half of #2294.
 
