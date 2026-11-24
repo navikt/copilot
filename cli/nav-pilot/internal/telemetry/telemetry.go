@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"slices"
 	"strconv"
@@ -51,7 +52,7 @@ type Recorder interface {
 	RecordStalenessCheck(component, scope, result string)
 	RecordUpToDate(component, scope string, upToDate bool)
 	RecordVersionSkewDays(component, scope string, days int64)
-	RecordConfig(client, clientMajor, configMode, model, reasoningEffort, contextTier, otelLogLevel string, allowAllTools, askUser bool)
+	RecordConfig(client, clientMajor, sandbox, cpltVersion, configMode, model, reasoningEffort, contextTier, otelLogLevel string, allowAllTools, askUser bool)
 	RecordClientAvailable(client string, available bool)
 	RecordLaunchError(client, errorType string)
 	RecordLocalSession(client, model, backend, level string, dispatches int64, sawTraffic bool)
@@ -80,7 +81,7 @@ func (NoopRecorder) RecordInstalledItems(string, string, string, int64)         
 func (NoopRecorder) RecordStalenessCheck(string, string, string)                         {}
 func (NoopRecorder) RecordUpToDate(string, string, bool)                                 {}
 func (NoopRecorder) RecordVersionSkewDays(string, string, int64)                         {}
-func (NoopRecorder) RecordConfig(string, string, string, string, string, string, string, bool, bool) {
+func (NoopRecorder) RecordConfig(string, string, string, string, string, string, string, string, string, bool, bool) {
 }
 func (NoopRecorder) RecordClientAvailable(string, bool)   {}
 func (NoopRecorder) RecordLaunchError(string, string)     {}
@@ -483,10 +484,15 @@ func (t *otelTelemetry) recordInfo() {
 // clientMajor is the launched client's major version, so far only for opencode,
 // to count launches still on opencode 1 before its end of support (#1907):
 // "1", "2", "unknown" for any other value, "unset" when not probed.
-func (t *otelTelemetry) RecordConfig(client, clientMajor, configMode, model, reasoningEffort, contextTier, otelLogLevel string, allowAllTools, askUser bool) {
+//
+// sandbox is "cplt" or "none", and cpltVersion the raw cplt release
+// (2026.11.24-112325-0b16284) when known. Only the date part is sent.
+func (t *otelTelemetry) RecordConfig(client, clientMajor, sandbox, cpltVersion, configMode, model, reasoningEffort, contextTier, otelLogLevel string, allowAllTools, askUser bool) {
 	t.configInfo.Record(context.Background(), 1, metric.WithAttributes(
 		attribute.String("client", orUnset(client)),
 		attribute.String("client_major", clientMajorLabel(clientMajor)),
+		attribute.String("sandbox", sandboxLabel(sandbox)),
+		attribute.String("cplt_version", cpltVersionLabel(sandbox, cpltVersion)),
 		attribute.String("config_mode", orUnset(configMode)),
 		attribute.String("model", orUnset(model)),
 		attribute.String("reasoning_effort", orUnset(reasoningEffort)),
@@ -755,6 +761,29 @@ type DecideEvent struct {
 }
 
 var decidePBuckets = []float64{0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.99}
+
+// sandboxLabel bounds RecordConfig's sandbox to cplt, none or unset.
+func sandboxLabel(v string) string {
+	if v == "" {
+		return "unset"
+	}
+	return oneOf(v, "cplt", "none")
+}
+
+var cpltDate = regexp.MustCompile(`^(\d{4}\.\d{2}\.\d{2})-\d{6}-[0-9a-f]{7,40}$`)
+
+// cpltVersionLabel is the cplt release date (YYYY.MM.DD), "unknown" when the
+// launch goes through cplt but its version is not known, and "none" otherwise.
+// The build time and hash are dropped to keep cardinality low.
+func cpltVersionLabel(sandbox, v string) string {
+	if sandbox != "cplt" {
+		return "none"
+	}
+	if m := cpltDate.FindStringSubmatch(v); m != nil {
+		return m[1]
+	}
+	return "unknown"
+}
 
 // clientMajorLabel bounds RecordConfig's client_major to unset, 1, 2 or unknown.
 func clientMajorLabel(v string) string {

@@ -17,7 +17,7 @@ nav-pilot sender **pseudonymiserte bruks- og ytelsesmetrikker** via OpenTelemetr
 | `nav_pilot_info` | Gauge | Prosess-start informasjon (alltid verdi 1) | `version=0.12.3`, `device_id=nav-pilot-abc123`, `execution_context=ci_github_actions`, `os=linux`, `arch=amd64`, `rtk_installed=false`, `project_type=go\|node\|jvm\|python\|na` |
 | `nav_pilot_install_present` | Gauge | Om scope har installert state (1/0) | `scope=user`, `collection=all` |
 | `nav_pilot_installed_items` | Gauge | Antall installerte items per type/status | `scope=repo`, `type=skill`, `status=active` |
-| `nav_pilot_config_info` | Gauge | Konfigurasjonssnapshot per oppstart (alltid verdi 1) | `client=opencode`, `client_major=1\|2\|unknown\|unset`, `config_mode=autopilot`, `model=auto`, `reasoning_effort=high`, `context_tier=unset`, `otel_log_level=none`, `allow_all_tools=false`, `ask_user=true`, `device_id=nav-pilot-abc123` |
+| `nav_pilot_config_info` | Gauge | Konfigurasjonssnapshot per oppstart (alltid verdi 1) | `client=opencode`, `client_major=1\|2\|unknown\|unset`, `sandbox=cplt\|none\|unset`, `cplt_version=2026.11.24\|unknown\|none`, `config_mode=autopilot`, `model=auto`, `reasoning_effort=high`, `context_tier=unset`, `otel_log_level=none`, `allow_all_tools=false`, `ask_user=true`, `device_id=nav-pilot-abc123` |
 | `nav_pilot_client_available` | Gauge | Om en coding-agent-klient finnes på PATH (1/0) | `client=copilot` / `client=opencode` / `client=pi` |
 | `nav_pilot_staleness_check_total` | Counter | Antall ferskhetssjekker per resultat | `component=collection`, `scope=user`, `result=stale` |
 | `nav_pilot_up_to_date` | Gauge | Om komponent er tilstrekkelig oppdatert (1/0) | `component=cli`, `scope=none` |
@@ -215,6 +215,10 @@ sjekken i bakgrunnen rapporterer ikke utfallet. `nav_pilot_up_to_date` og
   står igjen å migrere, ikke hvilken samling noen har.
 
 **Merk om `nav_pilot_config_info`:**
+- `sandbox` er `cplt` når oppstarten går gjennom cplt, ellers `none`. `cplt_version`
+  er bare datoen i cplt-utgivelsen (`2026.11.24`), aldri byggetid eller hash.
+  Verdien hentes fra versjonsbufferen uten et nytt `cplt --version`-kall; er den
+  ikke kjent, blir den `unknown`. Uten cplt er den `none`.
 - `config_mode` er konfig-modus (`default`/`plan`/`autopilot`) — ikke å forveksle
   med `mode` på `nav_pilot_command_duration_ms` som er kjøremodus (`interactive`/`non_interactive`).
 - `model` baseres på konfigurert/CLI modell-id (ikke launch-normalisert med
