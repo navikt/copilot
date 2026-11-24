@@ -115,6 +115,19 @@ spec:
             summary: More than 20 survey submissions to copilot-survey in 5 minutes
             consequence: Many answers or answer attempts in a short window. If they are stored (status 201), copilot-cli may be answering for members who did not, and forged answers cannot be told apart once stored. A burst of 409 or 503 is more likely a copilot-cli retry loop.
             action: Check copilot-cli's logs and deploys for the same window. If the burst is not explained by a survey launch, close the survey and discard its answers (see SECURITY.md).
+        # Real submissions that fail on our side (5xx: store down, no store,
+        # missing identity). 4xx are the caller's and are not counted.
+        - alert: CopilotSurveySubmissionFailures
+          expr: sum(increase(survey_submissions_total{app="copilot-survey",status=~"5.."}[15m])) > 2
+          labels:
+            namespace: {{namespace}}
+            severity: warning
+            alert_type: custom
+            app: copilot-survey
+          annotations:
+            summary: More than 2 survey submissions to copilot-survey failed with 5xx in 15 minutes
+            consequence: Members who answer the survey get an error and their answers are lost unless they retry.
+            action: Check copilot-survey's logs for "storing the submission failed" and the Cloud SQL instance. Metric survey_submissions_total, status 5xx.
 ---
 # Sends this app's custom alerts to #github-copilot-alerts instead of the team
 # default channel. Rules opt in with alert_type: custom (keeps them off the Nais
