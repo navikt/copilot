@@ -24,7 +24,7 @@ class BetaExportTests(unittest.TestCase):
                          export.files(export.SOURCE / "com.github.copilot"))
 
     def test_skill_reference_links_resolve(self):
-        skill = self.package / "skills/aksel-builder"
+        skill = (self.package / "skills/aksel-builder").resolve()
         for path in [skill / "SKILL.md", *(skill / "references").glob("*.md")]:
             for link in re.findall(r"\]\(([^)]+)\)", path.read_text()):
                 if ":" in link or link.startswith("#"):

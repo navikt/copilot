@@ -34,7 +34,7 @@ class FixtureTests(unittest.TestCase):
                 self.assertEqual(manifest["version"], version)
                 catalog = json.loads((destination / "marketplace.json").read_text())
                 entry = catalog["plugins"][0]
-                self.assertEqual((destination / entry["source"]).resolve(), plugin)
+                self.assertEqual((destination / entry["source"]).resolve(), plugin.resolve())
                 self.assertEqual(entry["version"], version)
                 agents = list(plugin.rglob("*.agent.md"))
                 self.assertEqual(len(agents), 1)
