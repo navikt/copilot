@@ -71,9 +71,6 @@ type cpltLaunch struct {
 	// launchConfig is a Tier 1 opencode launch's additions to
 	// OPENCODE_CONFIG_CONTENT, for [applyOpenCodeProviderPolicy].
 	launchConfig map[string]any
-	// managedConfig is the nav-pilot.toml cplt reads via CPLT_MANAGED_CONFIG.
-	// Set, it carries [FleetGatewayHosts] and the per-launch flags are dropped.
-	managedConfig string
 }
 
 // cpltArgv is the argument vector launchViaCplt passes to cplt:
@@ -97,9 +94,7 @@ func cpltArgv(spec cpltLaunch) []string {
 	// at each cpltLaunch call site: every launch is assembled by this
 	// function, so a new one cannot forget it.
 	args = append(args, cpltProposalFlags()...)
-	if spec.managedConfig == "" {
-		args = append(args, cpltDefaultFlags(append(slices.Clone(args), spec.sessionFlags...))...)
-	}
+	args = append(args, cpltDefaultFlags(append(slices.Clone(args), spec.sessionFlags...))...)
 	args = append(args, spec.sessionFlags...)
 	args = append(args, "--")
 	return append(args, spec.agentArgs...)
@@ -411,8 +406,10 @@ func launchViaCplt(spec cpltLaunch) error {
 		FirstTime("autonomy-notice")
 	}
 	spec.env = withSkillsDirEnv(spec.env, spec.skillsDir)
+	// The flags stay even with the managed file: cplt may still refuse the
+	// file (a passwd home nav-pilot cannot see, e.g. CGO-less LDAP lookups),
+	// and the lists union, so a duplicate costs nothing.
 	if path, _ := cpltManagedConfig(); path != "" {
-		spec.managedConfig = path
 		spec.env, _ = telemetry.SetEnvValue(spec.env, CpltManagedEnv, path)
 	}
 	args, err := withCpltProjectDir(withCpltConfirmation(cpltArgv(spec), IsTerminal(os.Stdin)), spec.projectDir)

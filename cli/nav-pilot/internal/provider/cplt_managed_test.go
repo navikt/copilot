@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -57,15 +58,15 @@ func launchManaged(t *testing.T) (args []string, env string) {
 	return strings.Split(string(a), "\n"), string(e)
 }
 
-func TestManagedNewCpltWritesFileAndDropsFlags(t *testing.T) {
+func TestManagedNewCpltWritesFileAndKeepsFlags(t *testing.T) {
 	home := withManaged(t, managedRelease)
 	args, env := launchManaged(t)
 	path := managedPath(home)
 	if env != path {
 		t.Errorf("CPLT_MANAGED_CONFIG = %q, want %q", env, path)
 	}
-	if slices.Contains(args, "--allow-private-domain") {
-		t.Errorf("per-launch flags not dropped: %q", args)
+	if !slices.Contains(args, "fleet-gateway.intern.nav.no") || !slices.Contains(args, "fleet-gateway.intern.dev.nav.no") {
+		t.Errorf("per-launch flags must stay with the managed file: %q", args)
 	}
 	got, err := os.ReadFile(path)
 	if err != nil {
@@ -192,5 +193,54 @@ func TestManagedCheckIsReadOnly(t *testing.T) {
 	CpltManagedConfig()
 	if p, _ := CpltManagedCheck(); p != path {
 		t.Errorf("current: %q", p)
+	}
+}
+
+func TestManagedRefusesFileNotRegular(t *testing.T) {
+	home := withManaged(t, managedRelease)
+	dir := filepath.Dir(managedPath(home))
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	target := filepath.Join(t.TempDir(), "elsewhere.toml")
+	if err := os.WriteFile(target, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(target, managedPath(home)); err != nil {
+		t.Fatal(err)
+	}
+	if p, reason := CpltManagedConfig(); p != "" || !strings.Contains(reason, "regular file") {
+		t.Errorf("symlinked nav-pilot.toml: path %q reason %q", p, reason)
+	}
+	if fi, _ := os.Lstat(managedPath(home)); fi.Mode()&os.ModeSymlink == 0 {
+		t.Error("symlink replaced")
+	}
+}
+
+func TestManagedRewritesLooseModeOrHardLink(t *testing.T) {
+	home := withManaged(t, managedRelease)
+	path, _ := CpltManagedConfig()
+	if err := os.Chmod(path, 0o666); err != nil {
+		t.Fatal(err)
+	}
+	CpltManagedConfig()
+	if fi, _ := os.Stat(path); fi.Mode().Perm() != 0o644 {
+		t.Errorf("mode %v not fixed", fi.Mode().Perm())
+	}
+	if err := os.Link(path, filepath.Join(home, "second-link")); err != nil {
+		t.Fatal(err)
+	}
+	CpltManagedConfig()
+	fi, _ := os.Stat(path)
+	if st := fi.Sys().(*syscall.Stat_t); st.Nlink != 1 {
+		t.Errorf("nlink %d, cplt refuses a hard-linked file", st.Nlink)
+	}
+}
+
+func TestManagedOverridesInheritedEnv(t *testing.T) {
+	home := withManaged(t, managedRelease)
+	t.Setenv(CpltManagedEnv, filepath.Join(home, "planted.toml"))
+	if _, env := launchManaged(t); env != managedPath(home) {
+		t.Errorf("CPLT_MANAGED_CONFIG = %q, want %q", env, managedPath(home))
 	}
 }

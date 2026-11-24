@@ -806,11 +806,11 @@ func reportOpenCodeContext() bool {
 	return true
 }
 
-// cpltManagedDoctorLine says whether launches use cplt's managed file or the
-// per-launch flags, and why.
+// cpltManagedDoctorLine says whether launches pass cplt's managed file on
+// top of the per-launch flags, and why not.
 func cpltManagedDoctorLine(path, reason string) string {
 	if path != "" {
-		return fmt.Sprintf("      %s via the managed file %s", green("✓"), path)
+		return fmt.Sprintf("      %s also via the managed file %s", green("✓"), path)
 	}
-	return fmt.Sprintf("      %s via per-launch flags: %s", dim("•"), reason)
+	return fmt.Sprintf("      %s per-launch flags only: %s", dim("•"), reason)
 }
