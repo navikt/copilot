@@ -99,22 +99,26 @@ export function McpDetails({ item }: { item: EnrichedCustomization }) {
 
   const gateway = isFleetGatewayMcp(item);
   // Prefer the gateway address when a server has several remotes.
-  const remoteUrl = (item.remotes.find((r) => isGatewayUrl(r.url)) ?? item.remotes[0])?.url ?? "";
+  const primaryRemote = item.remotes.find((r) => isGatewayUrl(r.url)) ?? item.remotes[0];
+  const remoteUrl = primaryRemote?.url ?? "";
   const openCodeConfig = JSON.stringify({ mcp: { [item.serverId]: { type: "remote", url: remoteUrl } } }, null, 2);
-  const manualWarning = (offByDefault.length > 0 || isGitHub) && (
-    <Alert variant="warning" size="small">
-      Manuelt oppsett slår på alle verktøyene til serveren
-      {offByDefault.length > 0 && <>, også {offByDefault.join(", ")}</>}.
-      {hostExec.length > 0 && (
-        <>
-          {" "}
-          {hostExec.length === offByDefault.length ? "De" : hostExec.join(", ")} kjører på maskinen din, utenfor
-          sandkassen.
-        </>
-      )}{" "}
-      Kommandoen for VS Code kan ikke velge verktøy. Slå av de du ikke vil ha i verktøyvalget i klienten.
-    </Alert>
-  );
+  const manualWarning = (vscode = false) =>
+    (offByDefault.length > 0 || isGitHub) && (
+      <Alert variant="warning" size="small">
+        Manuelt oppsett slår på alle verktøyene til serveren
+        {offByDefault.length > 0 && <>, også {offByDefault.join(", ")}</>}.
+        {hostExec.length > 0 && (
+          <>
+            {" "}
+            {hostExec.length === offByDefault.length ? "De" : hostExec.join(", ")} kjører på maskinen din, utenfor
+            sandkassen.
+          </>
+        )}{" "}
+        {vscode
+          ? "Kommandoen for VS Code kan ikke velge verktøy. Slå av de du ikke vil ha i verktøyvalget i klienten."
+          : "Manuelt oppsett kan ikke velge enkeltverktøy."}
+      </Alert>
+    );
 
   return (
     <VStack gap="space-16">
@@ -189,7 +193,7 @@ export function McpDetails({ item }: { item: EnrichedCustomization }) {
               </Tabs.Panel>
               <Tabs.Panel value="vscode">
                 <VStack gap="space-8" className="mcp-tab-panel">
-                  {manualWarning}
+                  {manualWarning(true)}
                   {item.installUrl && (
                     <a
                       href={item.installUrl}
@@ -220,7 +224,7 @@ export function McpDetails({ item }: { item: EnrichedCustomization }) {
               </Tabs.Panel>
               <Tabs.Panel value="intellij">
                 <VStack gap="space-8" className="mcp-tab-panel">
-                  {manualWarning}
+                  {manualWarning()}
                   <BodyShort size="small">
                     Åpne Copilot Chat i IntelliJ og klikk på <strong>MCP-register-ikonet</strong> for å søke etter og
                     installere serveren direkte fra registeret.
@@ -240,7 +244,7 @@ export function McpDetails({ item }: { item: EnrichedCustomization }) {
               {serverConfig && (
                 <Tabs.Panel value="cli">
                   <VStack gap="space-8" className="mcp-tab-panel">
-                    {manualWarning}
+                    {manualWarning()}
                     {mcpAddFields && (
                       <VStack gap="space-4">
                         <BodyShort size="small">
@@ -288,9 +292,9 @@ export function McpDetails({ item }: { item: EnrichedCustomization }) {
               {remoteUrl && (
                 <Tabs.Panel value="opencode">
                   <VStack gap="space-8" className="mcp-tab-panel">
-                    {manualWarning}
+                    {manualWarning()}
                     <BodyShort size="small">
-                      Legg serveren til i <code className="verktoy-code-inline">opencode.json</code>:
+                      Legg til serveren i <code className="verktoy-code-inline">opencode.json</code>:
                     </BodyShort>
                     <CommandBlock command={openCodeConfig} />
                     {gateway && (
@@ -307,8 +311,8 @@ export function McpDetails({ item }: { item: EnrichedCustomization }) {
               {remoteUrl && (
                 <Tabs.Panel value="other">
                   <VStack gap="space-8" className="mcp-tab-panel">
-                    {manualWarning}
-                    <BodyShort size="small">Adresse (Streamable HTTP):</BodyShort>
+                    {manualWarning()}
+                    <BodyShort size="small">Adresse ({transportLabel(primaryRemote.type)}):</BodyShort>
                     <CommandBlock command={remoteUrl} />
                     {gateway && (
                       <BodyShort size="small" className="verktoy-subtle">
