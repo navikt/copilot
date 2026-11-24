@@ -1,4 +1,4 @@
-# Dev only for now (#2334). No ingress: the API is reachable in-cluster only,
+# Dev only until the prod rollout (#2754). No ingress: the API is reachable in-cluster only,
 # and accessPolicy.inbound admits only its callers. Each request also
 # needs the caller's Entra token, checked against the client ids below.
 apiVersion: nais.io/v1alpha1

@@ -248,6 +248,17 @@ Needs a human with write access to dev-gcp. Fill in and commit the result here. 
 - [x] Switched back and clone deleted: repoint run switched back to the source in 52 s, snapshot age 18 s, 0 sync failures; that clone was deleted. First run: `nais postgres delete fleet-control-restore-drill` at 09:39:45Z; pods gone and the instance no longer in `nais postgres list` at 09:41:12Z. Source `fleet-control` still `Ready`.
 - [x] Surprises or doc fixes: without `--at` the clone point is 10 minutes back, so writes from the last 10 minutes are missing. Pass `--at` for a recent point. `nais postgres psql --access-level read` is enough for step 4.
 
+## Prod rollout (#2754)
+
+The manifests for prod-gcp are ready, but the workflow does not deploy there yet. The owner does these steps in order. Agents do none of them.
+
+1. **Service account.** In Nais Console, team `copilot`, create a service account that may read team membership, and bind it to the workload `fleet-control` in `prod-gcp`. Nais then sets `NAIS_SERVICE_ACCOUNT_TOKEN_PATH` in the pod. Without it, every write and team check answers 503. See doc.nais.io for the current steps.
+2. **Postgres.** Create the database: `nais apply -t copilot -e prod-gcp .nais/postgres.yaml`. Check in Nais Console that `fleet-control` shows up under Postgres for `prod-gcp` and is ready.
+3. **Client ids.** Fill in `fleet_gateway_client_id` and `mcp_registry_client_id` in `.nais/prod-gcp.yaml` with `kubectl --context prod-gcp -n copilot get azureapp <app> -o jsonpath='{.status.clientId}'`. Empty values stop startup.
+4. **First deploy.** In `.github/workflows/fleet-control.yaml`, change `nais-clusters` to `'["dev-gcp", "prod-gcp"]'` and merge. Check that the pod is ready, that `/ready` answers, and that the log shows no Console API errors.
+
+Switching the prod gateway to fleet-control is a separate step (#2760).
+
 ## Development
 
 ```sh
