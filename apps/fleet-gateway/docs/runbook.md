@@ -163,7 +163,8 @@ Prod reads routes from `pilot-routes.prod.yaml` today. This section moves it to 
 
 - [ ] The fleet-gateway ROS is revised for fleet-control as route source and approved by the owner.
 - [ ] fleet-control is deployed to prod-gcp (#2855).
-- [ ] The service-account binding is in place: fleet-control prod lists fleet-gateway as inbound, and fleet-gateway prod has the outbound rule and `fleet_control_audience`. Without it the snapshot fetch returns 401 or 403.
+- [ ] The Nais Console service-account binding for fleet-control prod is done (#2855). Network rules and Entra are not enough: without the binding, snapshot reads work while every team lookup returns 503. Check it with a team lookup: `GET /apis/<group>/<version>/whoami` on fleet-control prod (my-copilot `/fleet` calls it) returns your teams, not 503. Once #2855 adds a service-account line to fleet-control's `/ready`, that line must show the binding.
+- [ ] fleet-control prod lists fleet-gateway as inbound. The gateway side comes in prod step 3.
 
 ### Seeding
 
@@ -193,9 +194,9 @@ Dev runs on fleet-control. Rehearse shadow mode, the switch and the rollback the
 
 1. Check every gate above.
 2. Deploy fleet-control prod. Its log shows `seed` with `imported` true and the server count. Time: ____
-3. Enable shadow mode in `.nais/prod-gcp.yaml`: `routes_shadow_source: fleet-control`, `fleet_control_audience: "api://prod-gcp.copilot.fleet-control/.default"` and the `fleet-control` outbound rule. Merged: ____
+3. Preparation PR, deployed before the watch starts. In `.nais/prod-gcp.yaml` add the `fleet-control` outbound rule, `fleet_control_audience: "api://prod-gcp.copilot.fleet-control/.default"` and `routes_shadow_source: fleet-control`. Shadow mode cannot fetch without the rule and the audience. After the deploy, the first `fleet-control shadow diff` log line must appear on every pod; `fleet_gateway_routes_shadow_failures_total` growing means the rule or inbound is missing. Merged: ____ First shadow log: ____
 4. Watch for 24 h: `fleet_gateway_routes_shadow_diff` stays at 0 on every pod and `fleet_gateway_routes_shadow_failures_total` does not grow. Any non-zero diff resets the clock. Start: ____ End: ____
-5. Switch: replace `routes_shadow_source` with `routes_source: fleet-control`. Merge and watch the deploy job. Merged: ____ Rollout complete: ____
+5. Switch PR: replace `routes_shadow_source` with `routes_source: fleet-control`; the outbound rule and audience stay. Merge and watch the deploy job. Merged: ____ Rollout complete: ____
 6. Verify: `/ready` 200 on every pod, snapshot age under 120 s, no `fleet-control routes not updated` in the logs, and the post-deploy smoke on each prod route (PRM 200, then one tool call). Done: ____
 
 ### Roll back to the Git file (under 5 min)
