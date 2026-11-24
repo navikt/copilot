@@ -136,6 +136,70 @@ Not built yet: the public ingress fleet-runtime will reach this through (#2686),
 
 The app refuses to start when a client id or the Texas endpoint is missing, or when both client ids are equal. Client ids are set per cluster in `.nais/<cluster>.yaml`. A change rolls out pod by pod, so for a short time old and new replicas may accept different callers.
 
+## Migrations
+
+Migrations run at startup under an advisory lock (`db.go`). During a rolling deploy, old and new replicas run against the same schema, so every migration must keep the previous image working:
+
+- A migration only adds: new tables, nullable columns or columns with a default, new indexes, wider checks.
+- A destructive change (drop or rename a column or table, `SET NOT NULL`, a narrower check) takes two releases. Release 1 stops the code from using the old shape. Release 2, after release 1 runs everywhere, removes it.
+- An image from before the migration must still start, read and write. If it cannot, the migration is wrong, not the image.
+
+Existing migrations, checked against the rule (#2761):
+
+| Migration | Verdict |
+| --- | --- |
+| 001, 003, 004 | New tables only |
+| 002 | Drops `NOT NULL` and widens the status check (loosening). Adds `servers_published_status`, which old code already satisfied |
+| 005 | Additive; new columns nullable or defaulted |
+| 006 | Revokes rights from the runtime role on `audit_events`. Old code never updated or deleted audit rows |
+| 007 | Defaulted columns; replaces the `(team, name)` unique index with a wider one (loosening) |
+| 008 | New unique index on `lower(registry_name)`. Tightening: an old image that writes a case-only duplicate now gets an error instead of a second row. Intended (#2853) |
+
+## Audit retention
+
+`FLEET_AUDIT_RETENTION_DELETE=true` in all clusters: at startup the app deletes `audit_events` older than 90 days. Owner decision 2026-11-24: Loki is the archive. Until #2876 merges, the variable has no effect.
+
+## Backup and restore
+
+Nais Postgres ([doc.nais.io](https://doc.nais.io/persistence/postgres/reference/recovery-window/)) takes a nightly base backup and archives the write-ahead log continuously, into a bucket in the team's project. That gives point-in-time recovery to any second in the window. `.nais/postgres.yaml` sets `backup.retentionDays: 7` (Nais default 2, range 2 to 30). The file is applied by hand, not by CI: run `nais apply -t copilot -e <env> .nais/postgres.yaml` after changing it. Cost at 5Gi is about 5 x 8 x 0.02 = 0.80 EUR a month.
+
+- RPO: seconds (WAL archive), within 7 days.
+- RTO: clone time plus one deploy. Measure it in the drill below.
+
+### While fleet-control is down
+
+fleet-gateway is fail-static: it keeps serving its last snapshot of routes and agent profiles and does not drop to an empty route set. Writes (publish, approve, revoke, jobs) fail until fleet-control is back. Do not restart or deploy fleet-gateway during the outage: a new pod has no snapshot, so its MCP routes answer 503 and `/ready` fails until fleet-control answers (#2797).
+
+### Restore runbook
+
+A restore never overwrites the source. It clones into a new database ([how-to](https://doc.nais.io/persistence/postgres/how-to/restore-point-in-time/)).
+
+1. Pick the time just before the bad write, as RFC3339 (`2026-11-16T12:00:00Z`). Check the earliest restore point with `nais postgres get fleet-control --team copilot --environment <env>`.
+2. Clone: `nais postgres clone fleet-control fleet-control-restore --team copilot --environment <env> --at "<time>"`. Confirm.
+3. Wait until `nais postgres get fleet-control-restore --team copilot --environment <env>` shows Clone status `Completed` and Status `Ready`.
+4. Inspect the clone as a personal user: row counts in `servers`, `agent_profiles`, `runtime_jobs`, and the latest `audit_events` time.
+5. Stop writes: scale fleet-control to 0, or accept that writes made from here on are lost.
+6. Change `uses.postgres[].name` in `.nais/app.yaml` to `fleet-control-restore`, open a PR and deploy. Startup runs the migrations (no-op on a clone) and re-applies the `audit_events` revokes.
+7. Check `/ready`, then that fleet-gateway fetches a snapshot again: its snapshot age metric drops back.
+8. Keep the source until the clone is verified and nothing uses it. Then delete it, or rename back in a later change.
+
+The audit log in the clone ends at the restore time. Events after it exist only in Loki. Audit rows older than 90 days are pruned again at the next start.
+
+### Restore drill in dev (not done yet)
+
+Needs a human with write access to dev-gcp. Fill in and commit the result here.
+
+- [ ] Date, who: ____
+- [ ] Note a test write and its time T: ____
+- [ ] Clone started (time): ____
+- [ ] Clone `Completed` and `Ready` (time): ____  Clone duration: ____
+- [ ] fleet-control deployed against the clone, `/ready` (time): ____
+- [ ] fleet-gateway snapshot age dropped (time): ____
+- [ ] Data matches T (yes/no, what differed): ____
+- [ ] Total RTO, step 2 to step 7: ____
+- [ ] Switched back and clone deleted: ____
+- [ ] Surprises or doc fixes: ____
+
 ## Development
 
 ```sh

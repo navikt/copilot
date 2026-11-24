@@ -60,6 +60,10 @@ spec:
     # Mounts the /admin routes for my-copilot's OBO tokens; ignored outside dev-*.
     - name: MY_COPILOT_CLIENT_ID
       value: "{{my_copilot_client_id}}"
+    # Owner decision 2026-11-24: Loki keeps the audit archive, the DB deletes
+    # audit_events older than 90 days.
+    - name: FLEET_AUDIT_RETENTION_DELETE
+      value: "true"
   accessPolicy:
     # Nais Console API for team membership (#2625), with the service account
     # bound to this workload in Console.
