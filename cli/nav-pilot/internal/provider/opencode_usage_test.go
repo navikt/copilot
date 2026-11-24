@@ -13,13 +13,24 @@ import (
 	"github.com/navikt/copilot/cli/nav-pilot/internal/telemetry"
 )
 
+// gitRepo is a directory with a .git, the only kind usage is read for.
+func gitRepo(t *testing.T) string {
+	t.Helper()
+	d := realDir(t.TempDir())
+	if err := os.Mkdir(filepath.Join(d, ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	return d
+}
+
 func TestReadOpenCodeUsage(t *testing.T) {
 	since := time.UnixMilli(1000)
+	repo := gitRepo(t)
 	old := openCodeCommand
 	t.Cleanup(func() { openCodeCommand = old })
 	openCodeCommand = func(_ context.Context, _ string, args ...string) ([]byte, error) {
 		if args[0] == "session" {
-			return []byte(`[{"id":"new","updated":2000,"directory":"/repo"},{"id":"old","updated":500,"directory":"/repo"},{"id":"other","updated":2000,"directory":"/elsewhere"}]`), nil
+			return []byte(`[{"id":"new","updated":2000,"directory":"` + repo + `"},{"id":"old","updated":500,"directory":"` + repo + `"},{"id":"other","updated":2000,"directory":"/elsewhere"}]`), nil
 		}
 		if args[len(args)-1] != "new" || strings.Contains(strings.Join(args, " "), "--sanitize") {
 			t.Fatalf("unexpected export %v", args)
@@ -30,7 +41,7 @@ func TestReadOpenCodeUsage(t *testing.T) {
 {"info":{"role":"assistant","modelID":"m","providerID":"github-copilot","time":{"created":1500},"tokens":{"input":10,"output":5,"reasoning":2,"cache":{"read":100,"write":1}}},"parts":[{"type":"text"},{"type":"tool","tool":"bash"},{"type":"tool","tool":"read"},{"type":"tool","tool":"my_mcp_secret"}]},
 {"info":{"role":"assistant","modelID":"m","providerID":"github-copilot","time":{"created":1600},"tokens":{"input":1,"output":1,"reasoning":0,"cache":{"read":0,"write":0}}},"parts":[{"type":"tool","tool":"bash"}]}]}`), nil
 	}
-	u, _ := readOpenCodeUsage("/repo", since)
+	u, _ := readOpenCodeUsage(repo, since)
 	want := telemetry.ModelUsage{Calls: 2, Input: 11, Output: 6, Reasoning: 2, CacheRead: 100, CacheWrite: 1}
 	if got := u.Models[telemetry.ModelKey{Provider: "github-copilot", Model: "m"}]; got != want || len(u.Models) != 1 {
 		t.Fatalf("models = %+v, want %+v", u.Models, want)
@@ -44,7 +55,7 @@ func TestReadOpenCodeUsage(t *testing.T) {
 }
 
 func TestReadOpenCodeUsageResolvesSymlinks(t *testing.T) {
-	real := t.TempDir()
+	real := gitRepo(t)
 	link := filepath.Join(t.TempDir(), "link")
 	if err := os.Symlink(real, link); err != nil {
 		t.Fatal(err)
@@ -173,18 +184,19 @@ func TestReadOpenCodeUsageAllowlistForLaunchDir(t *testing.T) {
 	old, oldNames := openCodeCommand, OpenCodeNavNames
 	t.Cleanup(func() { openCodeCommand, OpenCodeNavNames = old, oldNames })
 	var asked string
+	repo := gitRepo(t)
 	OpenCodeNavNames = func(dir string) (map[string]bool, map[string]bool) {
 		asked = dir
 		return map[string]bool{"nav-skill": true}, map[string]bool{}
 	}
 	openCodeCommand = func(_ context.Context, _ string, args ...string) ([]byte, error) {
 		if args[0] == "session" {
-			return []byte(`[{"id":"s1","updated":2000,"directory":"/repo"}]`), nil
+			return []byte(`[{"id":"s1","updated":2000,"directory":"` + repo + `"}]`), nil
 		}
 		return []byte(openCodeCanaryExport), nil
 	}
-	_, sessions := readOpenCodeUsage("/repo", time.UnixMilli(1000))
-	if asked != "/repo" || len(sessions) != 1 || sessions[0].Skills[telemetry.SkillKey{Skill: "nav-skill", Source: "unset", Trigger: "unset"}] != 1 {
+	_, sessions := readOpenCodeUsage(repo, time.UnixMilli(1000))
+	if asked != repo || len(sessions) != 1 || sessions[0].Skills[telemetry.SkillKey{Skill: "nav-skill", Source: "unset", Trigger: "unset"}] != 1 {
 		t.Fatalf("asked = %q, sessions = %+v", asked, sessions)
 	}
 }

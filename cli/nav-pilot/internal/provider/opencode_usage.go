@@ -95,6 +95,10 @@ func findGitDir(dir string) string {
 	if err != nil {
 		return ""
 	}
+	// A symlinked start dir would walk the alias's parents and miss .git.
+	if r, err := filepath.EvalSymlinks(d); err == nil {
+		d = r
+	}
 	for {
 		p := filepath.Join(d, ".git")
 		if fi, err := os.Stat(p); err == nil {
@@ -141,6 +145,14 @@ func findGitDir(dir string) string {
 func readOpenCodeUsage(dir string, since time.Time) (telemetry.ClientUsage, []telemetry.CopilotSession) {
 	var sessions []telemetry.CopilotSession
 	u := telemetry.ClientUsage{Client: "opencode", Dir: dir, Models: map[telemetry.ModelKey]telemetry.ModelUsage{}, Tools: map[string]int64{}}
+	// A list is scoped to opencode's project, which comes from the git
+	// history. Outside a git repo the only way to learn the project is to run
+	// opencode in the workspace, which #2789 forbids, so no usage is read.
+	// shortcut: non-git workspaces report no opencode usage; upgrade if
+	// opencode gets a project flag for session list.
+	if findGitDir(dir) == "" {
+		return u, nil
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	// v1 runs in-process with --pure; v2 needs --standalone so it does not

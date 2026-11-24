@@ -82,7 +82,7 @@ esac
 	for _, site := range []string{"list", "export"} {
 		inTemp(site)
 		want := map[string]string{
-			" git":     "gitdir: " + filepath.Join(repo, ".git"),
+			" git":     "gitdir: " + filepath.Join(real, ".git"),
 			" stdin":   "eof",
 			" cfgdir":  "unset",
 			" cfg":     "unset",
@@ -129,7 +129,7 @@ func TestOpenCodeCommandTimeoutWithLingeringChild(t *testing.T) {
 }
 
 func TestFindGitDirLinkedWorktree(t *testing.T) {
-	d := t.TempDir()
+	d := realDir(t.TempDir())
 	sub := filepath.Join(d, "a", "b")
 	if err := os.MkdirAll(sub, 0o755); err != nil {
 		t.Fatal(err)
@@ -142,5 +142,56 @@ func TestFindGitDirLinkedWorktree(t *testing.T) {
 	}
 	if got := findGitDir(""); got != "" {
 		t.Fatalf("empty dir: %q", got)
+	}
+}
+
+// Outside a git repo no host call is made at all (#2790 review).
+func TestReadOpenCodeUsageSkipsNonGitDir(t *testing.T) {
+	log := fakeOpenCode(t, `echo "$*" >> "$LOG"`)
+	u, sessions := readOpenCodeUsage(t.TempDir(), time.UnixMilli(1000))
+	if _, err := os.Stat(log); err == nil {
+		b, _ := os.ReadFile(log)
+		t.Fatalf("opencode ran for a non-git dir: %s", b)
+	}
+	if len(u.Models) != 0 || sessions != nil {
+		t.Fatalf("usage = %+v, sessions = %+v", u, sessions)
+	}
+}
+
+func TestFindGitDirSymlinkedSubdir(t *testing.T) {
+	repo := realDir(t.TempDir())
+	sub := filepath.Join(repo, "a", "b")
+	if err := os.MkdirAll(sub, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Mkdir(filepath.Join(repo, ".git"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(t.TempDir(), "link")
+	if err := os.Symlink(sub, link); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := findGitDir(link), filepath.Join(repo, ".git"); got != want {
+		t.Fatalf("got %q, want %q", got, want)
+	}
+}
+
+// A symlink to a linked worktree: the relative gitdir resolves against the
+// real worktree, not the alias.
+func TestFindGitDirSymlinkedLinkedWorktree(t *testing.T) {
+	root := realDir(t.TempDir())
+	wt := filepath.Join(root, "wt")
+	if err := os.MkdirAll(wt, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(wt, ".git"), []byte("gitdir: ../main/.git/worktrees/wt\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(t.TempDir(), "alias")
+	if err := os.Symlink(wt, link); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := findGitDir(link), filepath.Join(root, "main", ".git", "worktrees", "wt"); got != want {
+		t.Fatalf("got %q, want %q", got, want)
 	}
 }
