@@ -259,14 +259,17 @@ func (g *Gateway) storeSnapshot(ctx context.Context, f *fleetControlRoutes) {
 	if err == nil {
 		var old []byte
 		var ok bool
-		if old, ok, err = g.store.Get(ctx, kindRouteSnapshot, routeSnapshotKey); err == nil {
-			var cur storedSnapshot
-			if ok && json.Unmarshal(old, &cur) == nil && cur.CheckedAt.After(f.checkedAt) {
-				return
-			}
-			if err = g.store.Put(ctx, kindRouteSnapshot, routeSnapshotKey, raw, routeSnapshotTTL); err == nil {
-				return
-			}
+		// A row that cannot be read (corrupt, other key) counts as absent, or it would block storage until its TTL.
+		if old, ok, err = g.store.Get(ctx, kindRouteSnapshot, routeSnapshotKey); err != nil {
+			slog.Warn("stored route snapshot unreadable, replacing it", "error", err)
+			ok = false
+		}
+		var cur storedSnapshot
+		if ok && json.Unmarshal(old, &cur) == nil && cur.CheckedAt.After(f.checkedAt) {
+			return
+		}
+		if err = g.store.Put(ctx, kindRouteSnapshot, routeSnapshotKey, raw, routeSnapshotTTL); err == nil {
+			return
 		}
 	}
 	slog.Warn("could not store route snapshot", "error", err)

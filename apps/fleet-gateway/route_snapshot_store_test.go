@@ -262,3 +262,34 @@ func checkNewerWins(t *testing.T, f *fakeFleetControl, gw *Gateway) {
 		t.Fatalf("stored generation = %d, want 1 after a generation reset", st.Generation)
 	}
 }
+
+func TestUnreadableStoredSnapshotIsReplaced(t *testing.T) {
+	f := newFakeFleetControl(t)
+	gw, _ := fleetControlGateway(t, f)
+	kr, err := parseKeyRing("k1:" + testKeyBase64(t, false))
+	if err != nil {
+		t.Fatal(err)
+	}
+	other, err := parseKeyRing("k2:" + testKeyBase64(t, true))
+	if err != nil {
+		t.Fatal(err)
+	}
+	inner := newMemoryStore(gw.now, nil)
+	// A row sealed with a key this pod does not hold.
+	if err = newSealedStore(inner, other).Put(context.Background(), kindRouteSnapshot, routeSnapshotKey, []byte(`{"checked_at":"2999-01-01T00:00:00Z"}`), time.Hour); err != nil {
+		t.Fatal(err)
+	}
+	gw.store = newSealedStore(inner, kr)
+	if _, _, err = gw.store.Get(context.Background(), kindRouteSnapshot, routeSnapshotKey); err == nil {
+		t.Fatal("seeded row is readable; the test proves nothing")
+	}
+	gw.syncRoutes(context.Background(), &fleetControlRoutes{cfg: gw.cfg, client: f.srv.Client()})
+	raw, ok, err := gw.store.Get(context.Background(), kindRouteSnapshot, routeSnapshotKey)
+	if err != nil || !ok {
+		t.Fatalf("new snapshot not stored over an unreadable row: ok=%v err=%v", ok, err)
+	}
+	var st storedSnapshot
+	if err = json.Unmarshal(raw, &st); err != nil || st.Generation != 1 {
+		t.Fatalf("stored = %s, err %v", raw, err)
+	}
+}
