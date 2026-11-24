@@ -34,6 +34,9 @@ func TestEntraMode_NoNAVidentInLogsOrResponses(t *testing.T) {
 	if strings.Contains(logs, ident) {
 		t.Fatalf("logs contain NAVident:\n%s", logs)
 	}
+	if !strings.Contains(logs, `"msg":"tool finished","tool":"team_readiness","rpc_id":"1","status":"error"`) {
+		t.Fatalf("refused team_readiness not logged as error:\n%s", logs)
+	}
 	for _, want := range []string{`"tool":"greet"`, `"rpc_id":"1"`, `"status":"success"`} {
 		if !strings.Contains(logs, want) {
 			t.Fatalf("logs missing %s:\n%s", want, logs)

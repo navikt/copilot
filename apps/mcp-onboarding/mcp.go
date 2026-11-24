@@ -652,8 +652,10 @@ func (h *MCPHandler) handleCallTool(req *JSONRPCRequest, user *UserContext) (res
 	toolLabel := params.Name
 	defer func() {
 		status := "success"
-		if resp != nil && resp.Error != nil {
-			status = "error"
+		if resp != nil {
+			if r, ok := resp.Result.(CallToolResult); resp.Error != nil || (ok && r.IsError) {
+				status = "error"
+			}
 		}
 		recordToolCall(toolLabel, status)
 		slog.Info("tool finished", "tool", logSafe(toolLabel), "rpc_id", logSafe(fmt.Sprint(req.ID)), "status", status)
