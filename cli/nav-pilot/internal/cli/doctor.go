@@ -431,6 +431,7 @@ func doctorChecks() bool {
 		reportSandboxWaiver(os.Stdout, agentpakke.Default())
 		if providerpkg.FleetGatewayActive() {
 			fmt.Printf("      %s cplt lets %s resolve to private addresses (nav-pilot default)\n", green("✓"), strings.Join(providerpkg.FleetGatewayHosts, ", "))
+			fmt.Println(cpltManagedDoctorLine(providerpkg.CpltManagedConfig()))
 		} else {
 			fmt.Printf("      %s cplt is too old for nav-pilot's default %s, or its version cannot be read. Update cplt: %s\n",
 				yellow("⚠"), strings.Join(providerpkg.FleetGatewayHosts, ", "), bold(providerpkg.CpltUpgradeHint()))
@@ -803,4 +804,13 @@ func reportOpenCodeContext() bool {
 	}
 	fmt.Printf("      %s Context securely materialized (%d files OK)\n", green("✓"), ok)
 	return true
+}
+
+// cpltManagedDoctorLine says whether launches use cplt's managed file or the
+// per-launch flags, and why.
+func cpltManagedDoctorLine(path, reason string) string {
+	if path != "" {
+		return fmt.Sprintf("      %s via the managed file %s", green("✓"), path)
+	}
+	return fmt.Sprintf("      %s via per-launch flags: %s", dim("•"), reason)
 }

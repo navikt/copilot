@@ -2,6 +2,12 @@
 
 Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, prompts og samlinger.
 
+## 2026-11-24
+
+### Fleet-gateway-tilgangen ligger i en egen cplt-fil
+
+- **cplt**: Med cplt 2026.11.24 eller nyere skriver nav-pilot de to fleet-gateway-adressene til `~/.config/cplt/managed.d/nav-pilot.toml` og ber cplt lese den filen. Din egen cplt-konfigurasjon endres ikke, og andre filer i mappen rører nav-pilot ikke. Kan ikke nav-pilot skrive filen trygt, for eksempel fordi mappen er en symbolsk lenke eller andre kan skrive i den, sender nav-pilot adressene ved oppstart som før. `nav-pilot doctor` viser hvilken av de to måtene som brukes, og hvorfor. Med eldre cplt er alt som før (#2781).
+
 ## 2026-11-23
 
 ### Én nøkkel for vaktene: `guards`

@@ -16,6 +16,7 @@ func TestMain(m *testing.M) {
 	// Golden launch vectors stay byte-exact whether or not a real cplt is on
 	// PATH; fleet_gateway_test.go restores the real defaults.
 	cpltDefaultFlags = func([]string) []string { return nil }
+	cpltManagedConfig = func() (string, string) { return "", "test" }
 	// Fake clients are shell scripts, and under parallel load exec alone
 	// has taken over 2 s (see cli.applyE2ESeams). No test relies on these
 	// deadlines firing.

@@ -14,6 +14,7 @@ import (
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
+	"github.com/navikt/copilot/cli/nav-pilot/internal/telemetry"
 )
 
 // cpltLaunch describes how to launch a coding-agent client inside the cplt
@@ -70,6 +71,9 @@ type cpltLaunch struct {
 	// launchConfig is a Tier 1 opencode launch's additions to
 	// OPENCODE_CONFIG_CONTENT, for [applyOpenCodeProviderPolicy].
 	launchConfig map[string]any
+	// managedConfig is the nav-pilot.toml cplt reads via CPLT_MANAGED_CONFIG.
+	// Set, it carries [FleetGatewayHosts] and the per-launch flags are dropped.
+	managedConfig string
 }
 
 // cpltArgv is the argument vector launchViaCplt passes to cplt:
@@ -93,7 +97,9 @@ func cpltArgv(spec cpltLaunch) []string {
 	// at each cpltLaunch call site: every launch is assembled by this
 	// function, so a new one cannot forget it.
 	args = append(args, cpltProposalFlags()...)
-	args = append(args, cpltDefaultFlags(append(slices.Clone(args), spec.sessionFlags...))...)
+	if spec.managedConfig == "" {
+		args = append(args, cpltDefaultFlags(append(slices.Clone(args), spec.sessionFlags...))...)
+	}
 	args = append(args, spec.sessionFlags...)
 	args = append(args, "--")
 	return append(args, spec.agentArgs...)
@@ -132,6 +138,9 @@ func CpltUpgradeHint() string { return cpltUpgradeHint() }
 // cpltDefaultFlags is a var so golden launch-vector tests can leave it out
 // without a cplt binary; the provider TestMain does.
 var cpltDefaultFlags = fleetGatewayFlags
+
+// cpltManagedConfig is a var so launch tests run without writing a home.
+var cpltManagedConfig = CpltManagedConfig
 
 // fleetGatewayFlags is --allow-private-domain for each [FleetGatewayHosts]
 // entry not already in args, which holds the user's own --cplt flags too.
@@ -402,6 +411,10 @@ func launchViaCplt(spec cpltLaunch) error {
 		FirstTime("autonomy-notice")
 	}
 	spec.env = withSkillsDirEnv(spec.env, spec.skillsDir)
+	if path, _ := cpltManagedConfig(); path != "" {
+		spec.managedConfig = path
+		spec.env, _ = telemetry.SetEnvValue(spec.env, CpltManagedEnv, path)
+	}
 	args, err := withCpltProjectDir(withCpltConfirmation(cpltArgv(spec), IsTerminal(os.Stdin)), spec.projectDir)
 	if err != nil {
 		return err
