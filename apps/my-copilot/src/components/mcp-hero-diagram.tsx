@@ -516,12 +516,12 @@ const REJECTED = EVT.filter((x) => x.rej).length + 1;
 const TALL_BELOW = 850;
 const r2 = (n: number) => Math.round(n * 100) / 100;
 // What React renders; changes only when the followed call reaches a new stage or a tile changes phase.
-const viewKey = (T: number) => {
+const viewKey = (T: number, L: Layout) => {
   const fi = Math.floor(T / FP);
   return (
     fi +
     ":" +
-    stageOf(layout(false), FOCUS[fi % FOCUS.length], (T - fi * FP) / D) +
+    stageOf(L, FOCUS[fi % FOCUS.length], (T - fi * FP) / D) +
     ":" +
     TILES.map((_, i) => view(i, T).ph[0] + view(i, T).ty).join("")
   );
@@ -581,7 +581,7 @@ function Stage({
         return [
           { n: 1, x: c.x - 8, y: c.y - 10 },
           { n: 2, x: g(0).x - 10, y: g(0).y - 14 },
-          { n: 3, x: g(1).x - 10, y: g(1).y - 14 },
+          { n: 3, x: g(1).x - 20, y: g(1).y - 14 },
           { n: 4, x: g(2).x - 10, y: g(2).y - 14 },
           { n: 5, x: s.x - 10, y: s.y - 10 },
         ];
@@ -837,7 +837,7 @@ export function McpHeroDiagram() {
         fo.setAttribute("fill-opacity", String(r2(f.fp.o)));
       }
       R.tiles.forEach((el, i) => el?.classList.toggle("mh-on", !!f.glow[i]));
-      const key = viewKey(T);
+      const key = viewKey(T, L);
       setShown((s) => (s.key === key ? s : { T, key }));
       raf = requestAnimationFrame(step);
     };
