@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -827,4 +828,15 @@ func TestRealPostgresProfilePrecheckFollowsPending(t *testing.T) {
 	hideTable(t, e.db, "audit_events", func() {
 		e.want(404, "GET", base+"/assistant", person("B444444"), "")
 	})
+}
+
+// An approver without an oid is refused before the two-person rule compares
+// oids, not left to the uuid cast in the UPDATE (#2879).
+func TestRealPostgresApproveNeedsApproverOid(t *testing.T) {
+	e := newApisEnv(t)
+	m := decodeServer(t, e.want(201, "POST", nsBase+"team-a/mcpservers", person("A111111"), serverJSON("team-a", "svc", "", "t")))
+	err := e.db.approveServer(context.Background(), caller{Ident: "A222222"}, "platform", "team-a", "svc", 1, m.Status.Pending.ContentHash)
+	if se, ok := errors.AsType[*statusError](err); !ok || se.code != http.StatusForbidden {
+		t.Fatalf("approver without oid: %v", err)
+	}
 }

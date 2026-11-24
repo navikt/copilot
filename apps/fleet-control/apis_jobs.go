@@ -337,16 +337,21 @@ func createJobV1(w http.ResponseWriter, r *http.Request, c caller, db *DB) error
 	if err = existing(); !errors.Is(err, errV1NotFound) {
 		return err
 	}
-	var switched bool
-	if err = db.pool.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM runtime_kill_switches WHERE scope IN ('global', 'team:' || $1))`, ns).Scan(&switched); err != nil {
-		return err
-	}
-	if switched {
-		return stErr(http.StatusServiceUnavailable, "ServiceUnavailable", "the kill switch is on for %s", ns)
-	}
 	actor := c.actor()
 	var id int64
 	err = pgx.BeginFunc(ctx, db.pool, func(tx pgx.Tx) error {
+		// In the insert's transaction, after the lock SetKillSwitch takes
+		// exclusively: a switch set meanwhile is seen, not raced (#2854).
+		if _, lockErr := tx.Exec(ctx, `SELECT pg_advisory_xact_lock_shared(`+killSwitchLock+`)`); lockErr != nil {
+			return lockErr
+		}
+		var switched bool
+		if swErr := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM runtime_kill_switches WHERE scope IN ('global', 'team:' || $1))`, ns).Scan(&switched); swErr != nil {
+			return swErr
+		}
+		if switched {
+			return stErr(http.StatusServiceUnavailable, "ServiceUnavailable", "the kill switch is on for %s", ns)
+		}
 		insErr := tx.QueryRow(ctx, `INSERT INTO runtime_jobs (team, kind, params, on_expiry, max_attempts, created_by, created_by_kind, created_by_client_id, created_by_oid,
 				name, submitted_spec, orderer_client_id, orderer_subject, agent_profile_generation)
 			VALUES ($1, $2, $3::jsonb, $4, $5, $6, $7, NULLIF($8, ''), $9::uuid, $10, $11::jsonb, $8, $12, $13)

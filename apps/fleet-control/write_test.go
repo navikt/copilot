@@ -526,7 +526,7 @@ func legacyRoutes(s *server, a *authz, adminClientID string, teams teamDirectory
 		return h
 	}
 	legacy := http.NewServeMux()
-	s.legacyServerWriteRoutes(legacy, a, adminClientID, teams)
+	s.legacyWriteRoutes(legacy, a, adminClientID, teams)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if _, pattern := legacy.Handler(r); pattern != "" {
 			legacy.ServeHTTP(w, r)
@@ -543,6 +543,7 @@ func TestAdminServerWritesAreRemoved(t *testing.T) {
 		{http.MethodPost, "/admin/v1/servers/team-a/svc/approve"},
 		{http.MethodPost, "/admin/v1/servers/team-a/svc/revoke"},
 		{http.MethodPost, "/admin/v1/servers/team-a/svc/rollback"},
+		{http.MethodPost, "/admin/v1/jobs/team-a"}, // no agent profile (#2854)
 	} {
 		if rec := do(t, h, c.method, c.path, userTok("A111111"), "{}"); rec.Code != http.StatusNotFound && rec.Code != http.StatusMethodNotAllowed {
 			t.Errorf("%s %s: got %d, want 404 or 405", c.method, c.path, rec.Code)

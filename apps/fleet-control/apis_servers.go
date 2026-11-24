@@ -733,6 +733,9 @@ func (d *DB) approveServer(ctx context.Context, c caller, platform, ns, name str
 			return conflict("contentHash", "FieldValueInvalid", "contentHash does not match the pending generation")
 		case deref(v.SubKind) != "User" || v.SubOid == nil:
 			return stErr(http.StatusForbidden, "Forbidden", "the pending generation has no person as submitter; a person must submit it again")
+		case c.Oid == "":
+			// The two-person rule compares oids; an empty one would also fail the uuid cast below.
+			return stErr(http.StatusForbidden, "Forbidden", "the approver has no object id")
 		case *v.SubOid == c.Oid || v.SubName == c.Ident:
 			return stErr(http.StatusForbidden, "Forbidden", "the submitter cannot approve their own generation")
 		case v.RegName != nil && !registryNameAllowed(platform, ns, *v.RegName):

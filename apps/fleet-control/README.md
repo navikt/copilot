@@ -43,7 +43,7 @@ An agent profile says which caller app may use which tools on which gateway rout
 - Mode is `delegated` only. fleet-control rejects agent principals, in the API and in the schema.
 - Grants list routes (`<namespace>/<name>`) and exact tool names. Every tool must be on the published route. Wildcards are rejected. `max_risk` is `read`.
 - Quotas, DPIA owner and reference are required.
-- A profile starts as `draft`. A person from each granted route's owning team approves that route with the draft id returned on create (or read with `GET /admin/v1/agents/{namespace}/{name}`, visible only to the owner team and the granted routes' teams; others get 404), and the author cannot approve. A second member of the owner team also approves, with the profile's namespace as `route` (styringsmodell v0.3). Approval re-checks that the route is still published with the granted tools. Once the owner team and every route have approved, the profile is `approved` and expires six months later. The owner team or a route owner can revoke it. Revocation is final. An expired profile is marked `expired` when a new profile needs its name or client id.
+- A profile starts as `draft`. A person from each granted route's owning team approves that route with the draft id returned on create, and the author cannot approve. A second member of the owner team also approves, with the profile's namespace as `route` (styringsmodell v0.3). Approval re-checks that the route is still published with the granted tools. Once the owner team and every route have approved, the profile is `approved` and expires six months later. The owner team or a route owner can revoke it. Revocation is final. An expired profile is marked `expired` when a new profile needs its name or client id.
 - `GET /internal/v1/agents` returns approved, verified profiles that have not expired, checked at read time.
 - Every change writes an audit event.
 
@@ -71,7 +71,7 @@ Since #2748 agent profiles are written through `/apis/fleet.nav.no/v1alpha1/name
 - **Retries are safe.** The spec is compared after defaults are filled in (`onExpiry: Requeue`, `maxAttempts: 3`, or 1 when the profile has a grant above `Read`). Same spec gives 200 and the existing job, another spec 409. The name check runs before the kill switch, so a retry gets 200 while the switch is on and a new job 503. `maxAttempts` above 1 on a profile that may write is 422.
 - Migration `007` adds the orderer columns with default `''`, so an image from before it keeps inserting jobs.
 
-`/admin/v1/agents` is read-only: writes answer 410. Migration `005` only adds tables, columns and indexes, so an image from before it can be rolled back. On every start fleet-control fills `spec` and `spec_hash` on published server versions that lack them.
+`/admin/v1/agents` answers 410 to reads and writes (#2879). Migration `005` only adds tables, columns and indexes, so an image from before it can be rolled back. On every start fleet-control fills `spec` and `spec_hash` on published server versions that lack them.
 
 ## Audit identities and retention (#2763, #2762)
 
@@ -97,12 +97,11 @@ Publish and rollback return 409 when the routes snapshot would pass 960 KiB, und
 
 ## Read API for my-copilot
 
-The self-service pages in my-copilot read these routes (#2736). They take the same person's token as the write routes and show only what the caller's teams own:
+my-copilot reads `/apis` only (#2748). These older routes take the same person's token as the write routes and show only what the caller's teams own. The `/admin/v1/agents` reads answer 410, since they showed a route owner the whole profile (#2879).
 
 - `GET /admin/v1/me`: the caller's NAVident and teams.
-- `GET /admin/v1/servers` and `GET /admin/v1/agents`, optionally `?namespace=`: servers and live agent profiles owned by the caller's teams. Another team's namespace gives an empty list.
-- `GET /admin/v1/servers/{namespace}/{name}/audit` and `GET /admin/v1/agents/{namespace}/{name}/audit`: the newest 500 audit events, for members of the owning team. Anyone else gets 404 whether or not the name exists.
-- `GET /admin/v1/agents/pending-approval`: drafts with a granted route that the caller's teams own and have not approved yet.
+- `GET /admin/v1/servers`, optionally `?namespace=`: servers owned by the caller's teams. Another team's namespace gives an empty list.
+- `GET /admin/v1/servers/{namespace}/{name}/audit`: the newest 500 audit events, for members of the owning team. Anyone else gets 404 whether or not the name exists.
 
 A failed team lookup gives 503, never an unfiltered answer.
 
@@ -110,13 +109,12 @@ A failed team lookup gives 503, never an unfiltered answer.
 
 fleet-runtime has no inbound surface. It fetches its work from fleet-control: it claims a job, holds a lease by heartbeat, and reads cancel and kill from the heartbeat answer (#2689). The Go types in `jobs.go` are the contract.
 
-Teams queue jobs with the admin auth above (team member, dev only):
+Teams queue jobs through `/apis` `namespaces/{ns}/agentjobs`, which requires an agent profile. `POST /admin/v1/jobs/{namespace}` is gone (#2854). With the admin auth above (team member, dev only):
 
-- `POST /admin/v1/jobs/{namespace}` with `kind`, `params` (a JSON object of at most 16 KiB: a reference to the work, not the work), `on_expiry` (`requeue` or `fail`, default `requeue`) and `max_attempts` (1 to 10, default 3).
 - `POST /admin/v1/jobs/{namespace}/{id}/cancel` or `.../kill`. A queued job stops at once; a leased one gets the command on its next heartbeat.
-- `PUT /admin/v1/jobs/{namespace}/kill-switch` with `{"scope": "team" | "global", "on": true, "reason": "..."}`. While a switch is on, no job in scope is claimed and every leased one gets kill on its next heartbeat. Only `FLEET_CONTROL_OPERATOR_TEAM` may set `global`.
+- `PUT /admin/v1/jobs/{namespace}/kill-switch` with `{"scope": "team" | "team:<name>" | "global", "on": true, "reason": "..."}`. While a switch is on, no job in scope is claimed or created, and every leased one gets kill on its next heartbeat. Only `FLEET_CONTROL_OPERATOR_TEAM` may set `global` or another team's switch (`team:<name>`). A switch the operator team set, only the operator team can turn off.
 
-fleet-runtime calls, with an Entra app token (`idtyp=app`) whose `azp` is in `FLEET_RUNTIME_CLIENT_IDS`:
+fleet-runtime calls, with an Entra app token (`idtyp=app`) whose `azp` is in `FLEET_RUNTIME_CLIENT_IDS`. A runtime claims only jobs of the teams listed for it:
 
 | Route | Body | Answer |
 | --- | --- | --- |
@@ -138,10 +136,11 @@ Not built yet: the public ingress fleet-runtime will reach this through (#2686),
 | `MCP_REGISTRY_CLIENT_ID` | mcp-registry's Entra client id in this cluster |
 | `NAIS_TOKEN_INTROSPECTION_ENDPOINT` | Texas, set by Nais |
 | `SEED_ROUTES_FILE`, `SEED_ALLOWLIST_FILE` | first-run import |
+| `READWRITE_PG*` | The runtime role's connection, set by Nais. Missing in Nais (`NAIS_CLUSTER_NAME` set): startup fails instead of running as the owner role (#2854). Outside Nais, `DB_URL` is used |
 | `MY_COPILOT_CLIENT_ID` | my-copilot's Entra client id. Unset: no `/admin` routes |
 | `NAIS_SERVICE_ACCOUNT_TOKEN_PATH` | Set by Nais when a service account is bound to the workload in Console. When set, team membership comes from the Nais Console GraphQL API (`user(email).teams`), keyed on the token's `preferred_username`, trimmed and lowercased. Answers are cached for one minute; errors are not cached. An unreachable API, a rejected or missing token, a GraphQL error or an empty answer gives 503 |
 | `FLEET_CONTROL_STATIC_TEAMS` | Dev fallback when no service account is bound: JSON of team to member emails, matched trimmed and case-insensitively against the token's `preferred_username`. Read from the `fleet-control-static-teams` secret in dev-gcp; refused outside dev-*. Unset: nobody can write |
-| `FLEET_RUNTIME_CLIENT_IDS` | fleet-runtime's Entra client ids, comma-separated. Unset: no `/runtime` routes |
+| `FLEET_RUNTIME_CLIENT_IDS` | fleet-runtime's Entra client ids and the teams each serves, comma-separated: `<client-id>=<team>[\|<team>...]`. An entry without teams stops startup. Unset: no `/runtime` routes |
 | `FLEET_RUNTIME_LEASE_TTL` | Lease TTL, 10s to 10m. Default 60s |
 | `FLEET_RUNTIME_SWEEP_INTERVAL` | Lease sweep interval, 1s to 5m. Default 15s |
 | `FLEET_CONTROL_OPERATOR_TEAM` | Team that may set the global job kill switch. Unset: nobody |
@@ -167,6 +166,7 @@ Existing migrations, checked against the rule (#2761):
 | 006 | Revokes rights from the runtime role on `audit_events`. Old code never updated or deleted audit rows |
 | 007 | Defaulted columns; replaces the `(team, name)` unique index with a wider one (loosening) |
 | 008 | New unique index on `lower(registry_name)`. Tightening: an old image that writes a case-only duplicate now gets an error instead of a second row. Intended (#2853) |
+| 010 | Adds `runtime_kill_switches.set_by_operator` with a default. An old image ignores it, so it can clear an operator-set switch (#2854) |
 
 ## Audit retention
 

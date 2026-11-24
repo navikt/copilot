@@ -33,8 +33,9 @@ func (s *server) routes(a *authz, adminClientID string, teams teamDirectory, ra 
 		for pattern, h := range map[string]adminHandler{
 			// Server writes go through /apis only (#2852): the old routes
 			// skipped the block, dataCategory and resourceVersion checks.
+			// Jobs are created through /apis agentjobs only (#2854): the old
+			// route took no agent profile.
 			"GET /admin/v1/servers/{namespace}/{name}":    getServer,
-			"POST /admin/v1/jobs/{namespace}":             postJob,
 			"POST /admin/v1/jobs/{namespace}/{id}/cancel": postJobCommand(cmdCancel),
 			"POST /admin/v1/jobs/{namespace}/{id}/kill":   postJobCommand(cmdKill),
 			"PUT /admin/v1/jobs/{namespace}/kill-switch":  putKillSwitch(s.operatorTeam),
@@ -58,10 +59,10 @@ func (s *server) routes(a *authz, adminClientID string, teams teamDirectory, ra 
 	return instrument(mux)
 }
 
-// legacyServerWriteRoutes mounts the /admin/v1/servers write handlers that
-// production no longer serves (#2852). Tests mount them to drive the old
-// write store and to prove /apis reads rows an older image wrote.
-func (s *server) legacyServerWriteRoutes(mux *http.ServeMux, a *authz, adminClientID string, teams teamDirectory) {
+// legacyWriteRoutes mounts the /admin/v1 server and job-create handlers that
+// production no longer serves (#2852, #2854). Tests mount them to drive the
+// old write store and to prove /apis reads rows an older image wrote.
+func (s *server) legacyWriteRoutes(mux *http.ServeMux, a *authz, adminClientID string, teams teamDirectory) {
 	for pattern, h := range map[string]adminHandler{
 		"PUT /admin/v1/servers/{namespace}/{name}/draft": func(w http.ResponseWriter, r *http.Request, ws writeStore, actor, ns, name string) error {
 			return putDraft(w, r, ws, actor, ns, name, s.cluster)
@@ -69,6 +70,7 @@ func (s *server) legacyServerWriteRoutes(mux *http.ServeMux, a *authz, adminClie
 		"POST /admin/v1/servers/{namespace}/{name}/approve":  postApprove,
 		"POST /admin/v1/servers/{namespace}/{name}/revoke":   postRevoke,
 		"POST /admin/v1/servers/{namespace}/{name}/rollback": postRollback,
+		"POST /admin/v1/jobs/{namespace}":                    postJob,
 	} {
 		mux.HandleFunc(pattern, s.admin(a, adminClientID, teams, h))
 	}
