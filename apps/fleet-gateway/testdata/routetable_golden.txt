@@ -32,20 +32,40 @@ Content-Type: text/plain; charset=utf-8
 body: 404 page not found
 == GET /mcp/etterlevelse
 status: 404
-Content-Type: text/plain; charset=utf-8
-body: 404 page not found
+Content-Type: application/json
+Cache-Control: no-store
+body: {
+  "error": "not_found",
+  "error_description": "This route moved to https://fleet-gateway.intern.dev.nav.no/mcp/team-etterlevelse/etterlevelse. Update your MCP client config and log in again.",
+  "new_url": "https://fleet-gateway.intern.dev.nav.no/mcp/team-etterlevelse/etterlevelse"
+}
 == POST /mcp/etterlevelse
 status: 404
-Content-Type: text/plain; charset=utf-8
-body: 404 page not found
+Content-Type: application/json
+Cache-Control: no-store
+body: {
+  "error": "not_found",
+  "error_description": "This route moved to https://fleet-gateway.intern.dev.nav.no/mcp/team-etterlevelse/etterlevelse. Update your MCP client config and log in again.",
+  "new_url": "https://fleet-gateway.intern.dev.nav.no/mcp/team-etterlevelse/etterlevelse"
+}
 == DELETE /mcp/etterlevelse
 status: 404
-Content-Type: text/plain; charset=utf-8
-body: 404 page not found
+Content-Type: application/json
+Cache-Control: no-store
+body: {
+  "error": "not_found",
+  "error_description": "This route moved to https://fleet-gateway.intern.dev.nav.no/mcp/team-etterlevelse/etterlevelse. Update your MCP client config and log in again.",
+  "new_url": "https://fleet-gateway.intern.dev.nav.no/mcp/team-etterlevelse/etterlevelse"
+}
 == PUT /mcp/etterlevelse
 status: 404
-Content-Type: text/plain; charset=utf-8
-body: 404 page not found
+Content-Type: application/json
+Cache-Control: no-store
+body: {
+  "error": "not_found",
+  "error_description": "This route moved to https://fleet-gateway.intern.dev.nav.no/mcp/team-etterlevelse/etterlevelse. Update your MCP client config and log in again.",
+  "new_url": "https://fleet-gateway.intern.dev.nav.no/mcp/team-etterlevelse/etterlevelse"
+}
 == GET /mcp/etterlevelse/
 status: 404
 Content-Type: text/plain; charset=utf-8
@@ -64,52 +84,104 @@ Content-Type: text/plain; charset=utf-8
 body: 404 page not found
 == GET /mcp/shared
 status: 404
-Content-Type: text/plain; charset=utf-8
-body: 404 page not found
+Content-Type: application/json
+Cache-Control: no-store
+body: {
+  "error": "not_found",
+  "error_description": "MCP routes moved to /mcp/\u003cnamespace\u003e/\u003cname\u003e. Update your MCP client config and log in again."
+}
 == POST /mcp/shared
 status: 404
-Content-Type: text/plain; charset=utf-8
-body: 404 page not found
+Content-Type: application/json
+Cache-Control: no-store
+body: {
+  "error": "not_found",
+  "error_description": "MCP routes moved to /mcp/\u003cnamespace\u003e/\u003cname\u003e. Update your MCP client config and log in again."
+}
 == DELETE /mcp/shared
 status: 404
-Content-Type: text/plain; charset=utf-8
-body: 404 page not found
+Content-Type: application/json
+Cache-Control: no-store
+body: {
+  "error": "not_found",
+  "error_description": "MCP routes moved to /mcp/\u003cnamespace\u003e/\u003cname\u003e. Update your MCP client config and log in again."
+}
 == PUT /mcp/shared
 status: 404
-Content-Type: text/plain; charset=utf-8
-body: 404 page not found
+Content-Type: application/json
+Cache-Control: no-store
+body: {
+  "error": "not_found",
+  "error_description": "MCP routes moved to /mcp/\u003cnamespace\u003e/\u003cname\u003e. Update your MCP client config and log in again."
+}
 == GET /mcp/off
 status: 404
-Content-Type: text/plain; charset=utf-8
-body: 404 page not found
+Content-Type: application/json
+Cache-Control: no-store
+body: {
+  "error": "not_found",
+  "error_description": "This route moved to https://fleet-gateway.intern.dev.nav.no/mcp/team-c/off. Update your MCP client config and log in again.",
+  "new_url": "https://fleet-gateway.intern.dev.nav.no/mcp/team-c/off"
+}
 == POST /mcp/off
 status: 404
-Content-Type: text/plain; charset=utf-8
-body: 404 page not found
+Content-Type: application/json
+Cache-Control: no-store
+body: {
+  "error": "not_found",
+  "error_description": "This route moved to https://fleet-gateway.intern.dev.nav.no/mcp/team-c/off. Update your MCP client config and log in again.",
+  "new_url": "https://fleet-gateway.intern.dev.nav.no/mcp/team-c/off"
+}
 == DELETE /mcp/off
 status: 404
-Content-Type: text/plain; charset=utf-8
-body: 404 page not found
+Content-Type: application/json
+Cache-Control: no-store
+body: {
+  "error": "not_found",
+  "error_description": "This route moved to https://fleet-gateway.intern.dev.nav.no/mcp/team-c/off. Update your MCP client config and log in again.",
+  "new_url": "https://fleet-gateway.intern.dev.nav.no/mcp/team-c/off"
+}
 == PUT /mcp/off
 status: 404
-Content-Type: text/plain; charset=utf-8
-body: 404 page not found
+Content-Type: application/json
+Cache-Control: no-store
+body: {
+  "error": "not_found",
+  "error_description": "This route moved to https://fleet-gateway.intern.dev.nav.no/mcp/team-c/off. Update your MCP client config and log in again.",
+  "new_url": "https://fleet-gateway.intern.dev.nav.no/mcp/team-c/off"
+}
 == GET /mcp/unknown
 status: 404
-Content-Type: text/plain; charset=utf-8
-body: 404 page not found
+Content-Type: application/json
+Cache-Control: no-store
+body: {
+  "error": "not_found",
+  "error_description": "MCP routes moved to /mcp/\u003cnamespace\u003e/\u003cname\u003e. Update your MCP client config and log in again."
+}
 == POST /mcp/unknown
 status: 404
-Content-Type: text/plain; charset=utf-8
-body: 404 page not found
+Content-Type: application/json
+Cache-Control: no-store
+body: {
+  "error": "not_found",
+  "error_description": "MCP routes moved to /mcp/\u003cnamespace\u003e/\u003cname\u003e. Update your MCP client config and log in again."
+}
 == DELETE /mcp/unknown
 status: 404
-Content-Type: text/plain; charset=utf-8
-body: 404 page not found
+Content-Type: application/json
+Cache-Control: no-store
+body: {
+  "error": "not_found",
+  "error_description": "MCP routes moved to /mcp/\u003cnamespace\u003e/\u003cname\u003e. Update your MCP client config and log in again."
+}
 == PUT /mcp/unknown
 status: 404
-Content-Type: text/plain; charset=utf-8
-body: 404 page not found
+Content-Type: application/json
+Cache-Control: no-store
+body: {
+  "error": "not_found",
+  "error_description": "MCP routes moved to /mcp/\u003cnamespace\u003e/\u003cname\u003e. Update your MCP client config and log in again."
+}
 == GET /mcp/team-etterlevelse/etterlevelse
 status: 401
 Content-Type: application/json

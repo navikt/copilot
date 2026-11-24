@@ -62,7 +62,7 @@ The gateway is live in prod (2026-11-17) for a controlled pilot. It runs the aut
 | `RT_KEYS` | With `postgres` or `client-encrypted` | — | `kid:base64key,...` (32-byte keys, newest first encrypts, all decrypt). Also seals every value in the session store |
 | `GATEWAY_DISABLED` | No | `false` | Set to `true` to disable all `/mcp/*` routes (`503`, `Retry-After: 300`) |
 
-A route path is `/mcp/<namespace>/<name>`, and `<namespace>` must equal the namespace in `target` (for example `/mcp/copilot/onboarding`). The old `/mcp/<name>` paths answer a plain `404` (#2895).
+A route path is `/mcp/<namespace>/<name>`, and `<namespace>` must equal the namespace in `target` (for example `/mcp/copilot/onboarding`). The old `/mcp/<name>` paths answer `404` with the new URL in `new_url`; they are not forwarded.
 
 Routes in `pilot-routes.<env>.yaml` (`PILOT_ROUTES_FILE`, required) support an optional `enabled: false` field to disable a single route (`503`, `Retry-After: 300`) while keeping it validated and registered.
 
