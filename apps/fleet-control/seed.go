@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"golang.org/x/net/publicsuffix"
 	"io"
 	"log/slog"
 	"net"
@@ -207,12 +206,7 @@ func validateUpstreamURL(raw, ns string) error {
 	if strings.Contains(host, "xn--") {
 		return errors.New("punycode hosts are not allowed")
 	}
-	suffixes := []string{"." + ns + ".svc.cluster.local"}
-	// The short form is public DNS when the namespace is a TLD such as "com" (#2848).
-	if _, icann := publicsuffix.PublicSuffix(ns); !icann {
-		suffixes = append(suffixes, "."+ns)
-	}
-	for _, suffix := range suffixes {
+	for _, suffix := range []string{"." + ns + ".svc.cluster.local", "." + ns} {
 		if app, ok := strings.CutSuffix(host, suffix); ok && dnsLabelRegex.MatchString(app) {
 			return nil
 		}
