@@ -57,6 +57,11 @@ const DYNAMIC: Record<string, (value: string) => boolean> = {
   // Nais team and route names are DNS labels; fleet-control decides whether they exist.
   "/fleet/ruter/[namespace]/[name]": (s) => /^[a-z0-9-]{1,63}$/.test(s),
   "/fleet/agenter/[namespace]/[name]": (s) => /^[a-z0-9-]{1,63}$/.test(s),
+  // Gateway servers in the registry allowlist; the page answers 404 to the rest.
+  "/mcp/servere/[name]": (s) =>
+    mcpAllowlist.servers.some(
+      (e) => e.name.endsWith(`/${s}`) && e.remotes?.some((r) => r.url.includes("//fleet-gateway."))
+    ),
 };
 
 // Redirects that are deliberately temporary: aliases, not moved pages.

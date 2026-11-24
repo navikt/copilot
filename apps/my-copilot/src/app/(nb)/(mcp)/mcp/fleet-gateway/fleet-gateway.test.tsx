@@ -21,6 +21,15 @@ describe("Servere i piloten", () => {
     expect(prodRoutes).toContain(`route: ${server.route}\n`);
   });
 
+  // The catalog shows the registry's tool list, so it must match what the prod route lets through.
+  it.each(PILOT_SERVERS.map((s) => [s.id, s]))("%s lists the same tools as its prod route", (id, server) => {
+    const block = prodRoutes.split("  - route: ").find((b) => b.startsWith(`${server.route}\n`)) ?? "";
+    const routeTools = [...block.matchAll(/^ {6}- (\S+)$/gm)].map((m) => m[1]);
+    const entry = allowlist.servers.find((e) => e.name === id) as { tools?: string[] } | undefined;
+    expect(routeTools.length).toBeGreaterThan(0);
+    expect(entry?.tools).toEqual(routeTools);
+  });
+
   it("renders a card with command and collapsed setup per server", () => {
     const { container } = render(<FleetGatewayPage />);
     for (const s of PILOT_SERVERS) {

@@ -572,7 +572,8 @@
       "hvorfor-spare": ["apps/my-copilot/src/app/(nb)/(mcp)/mcp/bruke/page.tsx"],
       "innlogging": [
         "apps/my-copilot/src/app/(nb)/(mcp)/mcp/bruke/page.tsx",
-        "apps/my-copilot/src/app/(nb)/(mcp)/mcp/referanse/page.tsx"
+        "apps/my-copilot/src/app/(nb)/(mcp)/mcp/referanse/page.tsx",
+        "apps/my-copilot/src/components/detail-drawer/mcp-details.tsx"
       ],
       "nav-pilot": ["apps/my-copilot/src/app/(nb)/(mcp)/mcp/bruke/page.tsx"],
       "opencode": ["apps/my-copilot/src/app/(nb)/(mcp)/mcp/bruke/page.tsx"],

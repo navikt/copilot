@@ -1,6 +1,7 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import type { EnrichedCustomization } from "@/lib/enrich-customizations";
 import { McpDetails } from "./mcp-details";
+import { riskCounts, serverPagePath } from "./mcp-meta";
 
 describe("McpDetails", () => {
   it("renders setup instructions with duplicate titles and commands using safe keys", () => {
@@ -58,7 +59,7 @@ describe("McpDetails", () => {
     }
   });
 
-  it("shows nav-pilot mcp enable with the full registry name before the manual setup", () => {
+  it("shows nav-pilot mcp enable with the full registry name in the default tab", () => {
     const item: EnrichedCustomization = {
       id: "mcp-io.github.navikt/github-mcp",
       name: "github-mcp",
@@ -79,11 +80,10 @@ describe("McpDetails", () => {
 
     render(<McpDetails item={item} />);
 
-    const primary = screen.getByText("nav-pilot mcp enable io.github.navikt/github-mcp");
-    const manual = screen.getByRole("heading", { name: "Manuelt oppsett" });
-    expect(primary.compareDocumentPosition(manual) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByText("nav-pilot mcp enable io.github.navikt/github-mcp")).toBeVisible();
+    expect(screen.getByRole("tab", { name: "nav-pilot" })).toHaveAttribute("aria-selected", "true");
     expect(screen.getByText("nav-pilot mcp list")).toBeInTheDocument();
-    expect(screen.getAllByRole("heading")[0]).toHaveTextContent("Installering");
+    expect(screen.getAllByRole("heading")[0]).toHaveTextContent("Koble til");
   });
 
   it("groups tools by risk and says which are off and how to turn them on", () => {
@@ -114,6 +114,8 @@ describe("McpDetails", () => {
     expect(screen.getByText("Kjører utenfor sandkassen (1)")).toBeInTheDocument();
     expect(screen.queryByText(/Gjør noe i et annet system/)).not.toBeInTheDocument();
     expect(screen.getByText("--allow-host-exec")).toBeInTheDocument();
+    fireEvent.mouseDown(screen.getByRole("tab", { name: "VS Code" }));
+    fireEvent.click(screen.getByRole("tab", { name: "VS Code" }));
     expect(screen.getByText(/Manuelt oppsett slår på alle verktøyene/)).toHaveTextContent("execute_terminal_command");
   });
 
@@ -145,9 +147,9 @@ describe("McpDetails", () => {
 
     render(<McpDetails item={item} />);
 
-    expect(screen.queryByRole("heading", { name: "Installering" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Koble til" })).not.toBeInTheDocument();
     expect(screen.queryByText(/nav-pilot mcp enable/)).not.toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "Manuelt oppsett" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("tab", { name: "VS Code" })).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Oppsett" })).toBeInTheDocument();
     expect(screen.getByText("Konfigurer lokal stdio manuelt")).toBeInTheDocument();
     expect(screen.getByText("nais login -n")).toBeInTheDocument();
@@ -237,5 +239,36 @@ describe("McpDetails", () => {
       render(<McpDetails item={item} />);
       expect(screen.queryByText(/Bruke Navs MCP-servere/)).not.toBeInTheDocument();
     });
+  });
+
+  it("gives a gateway server tabs for every client, its public address and the naisdevice note", () => {
+    const url = "https://fleet-gateway.intern.nav.no/mcp/copilot/dolly";
+    const item = {
+      id: "mcp-io.github.navikt/dolly",
+      name: "Dolly",
+      description: "d",
+      type: "mcp",
+      serverId: "io.github.navikt/dolly",
+      domain: "testing",
+      version: "1",
+      remotes: [{ type: "streamable-http", url }],
+      tools: ["dolly_search", "create_order"],
+      toolRisk: { create_order: "write" },
+    } as unknown as EnrichedCustomization;
+    render(<McpDetails item={item} />);
+    expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual([
+      "nav-pilot",
+      "VS Code",
+      "IntelliJ",
+      "Copilot CLI",
+      "OpenCode",
+      "Andre klienter",
+    ]);
+    expect(screen.getByText(/Krever naisdevice/)).toBeInTheDocument();
+    fireEvent.mouseDown(screen.getByRole("tab", { name: "Andre klienter" }));
+    fireEvent.click(screen.getByRole("tab", { name: "Andre klienter" }));
+    expect(screen.getAllByText(url).length).toBeGreaterThan(0);
+    expect(riskCounts(item.type === "mcp" ? item.tools! : [], { create_order: "write" })).toBe("2 verktøy, 1 endrer");
+    expect(serverPagePath("io.github.navikt/dolly")).toBe("/mcp/servere/dolly");
   });
 });

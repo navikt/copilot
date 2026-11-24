@@ -1694,3 +1694,28 @@ button.search-hit {
   gap: var(--ax-space-16);
   grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
 }
+/* MCP catalog (#2822): one row per tool, name left and risk tag right. */
+.mcp-tool-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.mcp-tool-list li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--ax-space-8);
+  padding-block: var(--ax-space-8);
+  border-bottom: 1px solid var(--ax-border-neutral-subtle);
+}
+.mcp-tab-panel {
+  padding-block-start: var(--ax-space-12);
+}
+.mcp-tabs {
+  min-width: 0;
+  max-width: 100%;
+}
+.mcp-tabs [role="tab"] {
+  white-space: nowrap;
+}
