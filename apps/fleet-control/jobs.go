@@ -124,7 +124,7 @@ var (
 // jobStore is implemented by *DB.
 type jobStore interface {
 	CreateJob(ctx context.Context, actor, team string, req CreateJobRequest) (int64, error)
-	SetJobCommand(ctx context.Context, actor, team string, id int64, cmd string) error
+	SetJobCommand(ctx context.Context, actor, team string, id int64, cmd, reason string) error
 	SetKillSwitch(ctx context.Context, actor, scope string, on bool, reason string) error
 	Claim(ctx context.Context, runtime, token string, ttl time.Duration) (*Lease, error)
 	Heartbeat(ctx context.Context, runtime, leaseID string, ttl time.Duration) (HeartbeatResponse, error)
@@ -156,7 +156,7 @@ func (d *DB) CreateJob(ctx context.Context, actor, team string, req CreateJobReq
 
 // SetJobCommand cancels or kills one job. A queued job stops at once; a
 // leased one gets the command on its next heartbeat.
-func (d *DB) SetJobCommand(ctx context.Context, actor, team string, id int64, cmd string) error {
+func (d *DB) SetJobCommand(ctx context.Context, actor, team string, id int64, cmd, reason string) error {
 	return pgx.BeginFunc(ctx, d.pool, func(tx pgx.Tx) error {
 		var state, before string
 		err := tx.QueryRow(ctx, `SELECT state, command FROM runtime_jobs WHERE id = $1 AND team = $2 FOR UPDATE`, id, team).Scan(&state, &before)
@@ -180,7 +180,7 @@ func (d *DB) SetJobCommand(ctx context.Context, actor, team string, id int64, cm
 		if _, err := tx.Exec(ctx, `UPDATE runtime_jobs SET command = $2, state = $3, updated_at = now() WHERE id = $1`, id, cmd, next); err != nil {
 			return err
 		}
-		return jobAudit(ctx, tx, actor, "job_"+cmd, team, id, map[string]any{"before": state, "after": next})
+		return jobAudit(ctx, tx, actor, "job_"+cmd, team, id, map[string]any{"before": state, "after": next, "reason": reason})
 	})
 }
 
@@ -691,7 +691,7 @@ func postJobCommand(cmd string) adminHandler {
 		if err != nil || id < 1 {
 			return refuse(http.StatusBadRequest, "invalid job id")
 		}
-		if err = js.SetJobCommand(r.Context(), actor, team, id, cmd); err != nil {
+		if err = js.SetJobCommand(r.Context(), actor, team, id, cmd, ""); err != nil {
 			return err
 		}
 		w.WriteHeader(http.StatusNoContent)

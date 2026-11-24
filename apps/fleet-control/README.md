@@ -55,7 +55,7 @@ Since #2748 agent profiles are written through `/apis/fleet.nav.no/v1alpha1/name
 
 ## API v1alpha1 (#2748)
 
-`/apis/fleet.nav.no/v1alpha1` runs beside `/admin/v1` and follows the design in copilot-intern `fleet/api-v1alpha1.md` (v0.6). It is Kubernetes-shaped JSON over REST on Postgres: `MCPServer` and `AgentProfile` with `metadata`, `spec` and `status` (`metav1.Condition`), errors as `metav1.Status`. `AgentJob` comes in a later PR.
+`/apis/fleet.nav.no/v1alpha1` runs beside `/admin/v1` and follows the design in copilot-intern `fleet/api-v1alpha1.md` (v0.6). It is Kubernetes-shaped JSON over REST on Postgres: `MCPServer`, `AgentProfile` and `AgentJob` with `metadata`, `spec` and `status` (`metav1.Condition`), errors as `metav1.Status`.
 
 - Writing a spec proposes it. `POST` and `PUT` make a new `generation` only when the spec changes; a label change keeps what is pending. `PUT` needs a fresh `metadata.resourceVersion`, otherwise 409.
 - `spec` is always the published generation; the one awaiting approval is in `status.pending`, for the owner team only.
@@ -64,6 +64,16 @@ Since #2748 agent profiles are written through `/apis/fleet.nav.no/v1alpha1/name
 - `revocation` (one person in the owner team or `FLEET_CONTROL_OPERATOR_TEAM`) is final for that generation; `rollback` never lifts it and refuses revoked or blocked generations and their content with 409. `block: true` stops the content from ever being submitted again.
 - `mcpservercatalogentries` shows published, unrevoked servers to every signed-in person, with its own field list.
 - Non-members get 404 whether or not a resource exists. A failed team lookup is 503.
+
+### AgentJob
+
+`namespaces/{ns}/agentjobs` has list, `GET`, `POST` and `POST {name}/termination` (`{"mode": "Cancel"|"Kill", "reason": "..."}`). Input, output and `AwaitingInput` come in a later PR, and the kill switch stays on `PUT /admin/v1/jobs/{ns}/kill-switch`.
+
+- **Orderers.** A person in `{ns}` orders through my-copilot and must name a published profile in `{ns}` in `spec.agentProfile`. A person can also order through another app (delegated): an OBO token whose `azp` is the `identity.entraClientID` of a published, verified, unexpired and unrevoked profile in `{ns}`. Otherwise the app gets 401, and 404 in another namespace. Delegated tokens reach only `agentjobs`. The app is `status.orderer`; the person is `status.createdBy`. An `oid` is never shown.
+- **Preauthorize each app by hand.** A delegated app needs fleet-control's `accessPolicy.inbound` to list it, or Texas refuses its token. Add apps there one at a time after their agent profile is approved. None is listed yet.
+- **Names are unique per orderer**: `(team, orderer_client_id, orderer_subject)`, where `('', '')` is a person through my-copilot and `(azp, oid)` a person through an app. Each caller sees and terminates only its own orderer's jobs. Jobs from `/admin/v1` have no name and show as `job-<id>`; clients may not choose that form (422).
+- **Retries are safe.** The spec is compared after defaults are filled in (`onExpiry: Requeue`, `maxAttempts: 3`, or 1 when the profile has a grant above `Read`). Same spec gives 200 and the existing job, another spec 409. The name check runs before the kill switch, so a retry gets 200 while the switch is on and a new job 503. `maxAttempts` above 1 on a profile that may write is 422.
+- Migration `007` adds the orderer columns with default `''`, so an image from before it keeps inserting jobs.
 
 `/admin/v1/agents` is read-only: writes answer 410. Migration `005` only adds tables, columns and indexes, so an image from before it can be rolled back. On every start fleet-control fills `spec` and `spec_hash` on published server versions that lack them.
 
