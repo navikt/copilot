@@ -140,7 +140,7 @@ func TestPerUserInFlightCap(t *testing.T) {
 
 	entered := make(chan struct{}, 2)
 	te.upstreamServer.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Query().Get("hold") == "1" {
+		if testQuery(r).Get("hold") == "1" {
 			entered <- struct{}{}
 			<-release
 		}
@@ -153,7 +153,7 @@ func TestPerUserInFlightCap(t *testing.T) {
 	te.mu.Unlock()
 	tokenB := te.obtainAccessTokenForResource(te.resource)
 
-	ts := httptest.NewServer(te.handler)
+	ts := httptest.NewServer(withTestQuery(te.handler))
 	defer ts.Close()
 
 	route := te.gw.cfg.Routes[0].Route
@@ -296,12 +296,12 @@ func TestPerUserSSECap(t *testing.T) {
 	defer stopHold()
 
 	te.upstreamServer.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodGet || r.URL.Query().Get("sse") == "1" {
+		if r.Method == http.MethodGet || testQuery(r).Get("sse") == "1" {
 			w.Header().Set("Content-Type", "text/event-stream")
 			w.WriteHeader(http.StatusOK)
 			_, _ = io.WriteString(w, "data: ready\n\n")
 			w.(http.Flusher).Flush()
-			if r.URL.Query().Get("once") == "1" {
+			if testQuery(r).Get("once") == "1" {
 				return
 			}
 			select {
@@ -324,7 +324,7 @@ func TestPerUserSSECap(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		activeHandlers.Add(1)
 		defer activeHandlers.Done()
-		te.handler.ServeHTTP(w, r)
+		withTestQuery(te.handler).ServeHTTP(w, r)
 	}))
 	defer ts.Close()
 

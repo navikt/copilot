@@ -98,3 +98,62 @@ func TestProxy_ForwardsMCPRequestMetadataHeaders(t *testing.T) {
 		t.Errorf("rejected requests must not reach upstream, got %d calls", upstreamCalls)
 	}
 }
+
+// #2851: the client query string never reaches the upstream, more than one
+// Content-Type is rejected, and headers outside the allowlist are dropped.
+func TestProxy_StripsQueryAndRejectsDuplicateContentType(t *testing.T) {
+	te := newTestEnv(t)
+	te.texasServer.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(w, http.StatusOK, map[string]any{"access_token": "team-obo", "token_type": "Bearer", "expires_in": 300})
+	})
+	var (
+		mu       sync.Mutex
+		gotQuery string
+		gotHdr   http.Header
+		calls    int
+	)
+	te.upstreamServer.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		gotQuery, gotHdr = r.URL.RawQuery, r.Header.Clone()
+		calls++
+		mu.Unlock()
+		writeJSON(w, http.StatusOK, map[string]any{"jsonrpc": "2.0", "id": 1, "result": "ok"})
+	})
+	gwToken := te.obtainAccessTokenForResource(te.resource)
+
+	post := func(target string, ct []string) *httptest.ResponseRecorder {
+		req := httptest.NewRequest(http.MethodPost, target, strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"tools/list"}`))
+		req.Header.Set("Authorization", "Bearer "+gwToken)
+		req.Header["Content-Type"] = ct
+		req.Header.Set("Cookie", "a=b")
+		req.Header.Set("X-Forwarded-For", "10.0.0.1")
+		rec := httptest.NewRecorder()
+		te.handler.ServeHTTP(rec, req)
+		return rec
+	}
+
+	if rec := post("/mcp/team-etterlevelse/etterlevelse?admin=1&sessionId=x", []string{"application/json"}); rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d (%s)", rec.Code, rec.Body.String())
+	}
+	mu.Lock()
+	if gotQuery != "" {
+		t.Errorf("client query reached upstream: %q", gotQuery)
+	}
+	for _, h := range []string{"Cookie", "X-Forwarded-For"} {
+		if gotHdr.Get(h) != "" {
+			t.Errorf("non-allowlisted header %s reached upstream", h)
+		}
+	}
+	before := calls
+	mu.Unlock()
+
+	rec := post("/mcp/team-etterlevelse/etterlevelse", []string{"application/json", "text/plain"})
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400 for two Content-Type headers, got %d", rec.Code)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	if calls != before {
+		t.Errorf("duplicate Content-Type request reached upstream")
+	}
+}

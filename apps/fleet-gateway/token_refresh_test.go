@@ -1254,6 +1254,41 @@ func TestRevoke_RefreshTokenInvalidatesAccessToken(t *testing.T) {
 	}
 }
 
+// Revoking an access token revokes its refresh family (RFC 7009 2.1, #2850):
+// the RT issued with it and sibling access tokens stop working.
+func TestRevoke_AccessTokenRevokesRefreshFamily(t *testing.T) {
+	te := newClientEncryptedTestEnv(t, "k1:"+testKeyBase64(t, false))
+
+	at1, rt1, _ := te.obtainTokensForResource(te.resource)
+	status, body := te.postToken(refreshForm(te, rt1))
+	if status != http.StatusOK {
+		t.Fatalf("expected 200 on refresh, got %d (%v)", status, body)
+	}
+	at2, _ := body["access_token"].(string)
+	rt2, _ := body["refresh_token"].(string)
+
+	if code, revBody := postRevoke(te.handler, at2, te.clientID); code != http.StatusOK {
+		t.Fatalf("expected 200 on /revoke AT, got %d (%v)", code, revBody)
+	}
+	status, tokErr := te.postToken(refreshForm(te, rt2))
+	if status != http.StatusBadRequest || tokErr["error"] != "invalid_grant" {
+		t.Fatalf("expected 400 invalid_grant for RT after AT revoke, got %d (%v)", status, tokErr)
+	}
+	req := httptest.NewRequest(http.MethodPost, "/mcp/team-etterlevelse/etterlevelse", strings.NewReader(`{}`))
+	req.Header.Set("Authorization", "Bearer "+at1)
+	rec := httptest.NewRecorder()
+	te.handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusUnauthorized {
+		t.Fatalf("expected 401 for sibling AT after AT revoke, got %d", rec.Code)
+	}
+
+	// A new login starts a new family and is unaffected.
+	_, rt3, _ := te.obtainTokensForResource(te.resource)
+	if status, body := te.postToken(refreshForm(te, rt3)); status != http.StatusOK {
+		t.Fatalf("expected new family to refresh, got %d (%v)", status, body)
+	}
+}
+
 func TestRevoke_UnknownKIDReturns503AndOtherErrorsReturn200(t *testing.T) {
 	te := newClientEncryptedTestEnv(t, "k1:"+testKeyBase64(t, false))
 
