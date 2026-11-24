@@ -1,4 +1,12 @@
-import { EnterIcon, FileTextIcon, LinkIcon, PadlockLockedIcon, PersonIcon, WrenchIcon } from "@navikt/aksel-icons";
+import {
+  ComponentIcon,
+  EnterIcon,
+  FileTextIcon,
+  LinkIcon,
+  PadlockLockedIcon,
+  PersonIcon,
+  WrenchIcon,
+} from "@navikt/aksel-icons";
 import { BodyLong, BodyShort, Box, Button, Heading, HGrid, HStack, ReadMore, Tag, VStack } from "@navikt/ds-react";
 import type { ReactNode } from "react";
 import { CommandBlock } from "@/components/detail-drawer/shared";
@@ -9,6 +17,7 @@ import { PILOT_SERVERS, enableCommand } from "./servers";
 // /verktoy drawer. Change it here, and every page follows.
 
 const PROD_ROUTES_URL = "https://github.com/navikt/copilot/blob/main/apps/fleet-gateway/pilot-routes.prod.yaml";
+const AKSEL_ID = "io.github.navikt/aksel-mcp";
 const ALLOWLIST_URL = "https://github.com/navikt/copilot/blob/main/apps/mcp-registry/allowlist.json";
 
 type Point = { title: string; text: string; icon: typeof LinkIcon };
@@ -146,7 +155,7 @@ export function PilotServerCards({ compact, tools = {} }: { compact?: boolean; t
                   {server.title}
                 </Heading>
               </HStack>
-              <BodyShort>{server.summary}</BodyShort>
+              <BodyShort>{compact && "short" in server ? server.short : server.summary}</BodyShort>
               <HStack gap="space-4" wrap>
                 {compact ? (
                   <Tag variant={server.readOnly ? "info" : "warning"} size="small">
@@ -220,6 +229,30 @@ export function PilotServerCards({ compact, tools = {} }: { compact?: boolean; t
           </Box>
         );
       })}
+      {compact && (
+        // Aksel is in the registry but not behind fleet-gateway, so it is not in PILOT_SERVERS.
+        <Box as="article" borderWidth="1" borderColor="neutral-subtle" borderRadius="12" padding="space-16">
+          <VStack gap="space-12" className="fleet-gateway-card">
+            <HStack gap="space-8" align="center" wrap={false}>
+              <ComponentIcon aria-hidden fontSize="1.75rem" />
+              <Heading size="small" level="3">
+                Aksel designsystem
+              </Heading>
+            </HStack>
+            <BodyShort>Komponenter, dokumentasjon, tokens og ikoner fra Aksel. Ikke bak fleet-gateway ennå.</BodyShort>
+            <HStack gap="space-4" wrap>
+              <Tag variant="info" size="small">
+                Leser
+              </Tag>
+              {tools[AKSEL_ID] !== undefined && (
+                <Tag variant="info" size="small">
+                  {tools[AKSEL_ID] === 1 ? "1 verktøy" : `${tools[AKSEL_ID]} verktøy`}
+                </Tag>
+              )}
+            </HStack>
+          </VStack>
+        </Box>
+      )}
     </div>
   );
 }
