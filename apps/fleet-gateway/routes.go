@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/navikt/copilot/fleet-gateway/internal/config"
+	"golang.org/x/net/publicsuffix"
 	"io"
 	"net"
 	"net/url"
@@ -246,6 +247,9 @@ func validateInternalUpstreamURL(raw, namespace string) (*url.URL, error) {
 	if strings.HasSuffix(host, ".internal") {
 		return nil, fmt.Errorf("disallowed internal host %q", host)
 	}
+	if strings.Contains(host, "xn--") {
+		return nil, fmt.Errorf("upstream host %q must not be punycode", host)
+	}
 	if strings.Contains(host, ".ekstern.") {
 		return nil, fmt.Errorf("upstream host %q must not be public (.ekstern.)", host)
 	}
@@ -254,8 +258,11 @@ func validateInternalUpstreamURL(raw, namespace string) (*url.URL, error) {
 	if app, ok := strings.CutSuffix(host, "."+namespace+".svc.cluster.local"); ok && isSingleDNSLabel(app) {
 		return u, nil
 	}
-	if app, ok := strings.CutSuffix(host, "."+namespace); ok && isSingleDNSLabel(app) {
-		return u, nil
+	// The short form is public DNS when the namespace is a TLD such as "com" (#2848).
+	if _, icann := publicsuffix.PublicSuffix(namespace); !icann {
+		if app, ok := strings.CutSuffix(host, "."+namespace); ok && isSingleDNSLabel(app) {
+			return u, nil
+		}
 	}
 
 	// Internal Nav ingresses must use HTTPS.
