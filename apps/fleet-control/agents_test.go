@@ -64,7 +64,7 @@ func newAgentEnv(t *testing.T) *agentEnv {
 	// before 005: production answers 410 (TestAdminAgentWritesAreGone).
 	legacy := http.NewServeMux()
 	s.legacyAgentWriteRoutes(legacy, tokenPersons{a, adminID, teams})
-	h := s.routes(a, adminID, teams, nil)
+	h := legacyRoutes(s, a, adminID, teams)
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if _, pattern := legacy.Handler(r); pattern != "" {
 			legacy.ServeHTTP(w, r)

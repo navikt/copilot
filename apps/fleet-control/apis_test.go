@@ -48,7 +48,7 @@ func newApisEnv(t *testing.T) *apisEnv {
 	s.operatorTeam = "platform"
 	s.verifier = fakeVerifier{}
 	s.store.Store(&storeBox{db})
-	ts := httptest.NewServer(s.routes(testAuthz(t), adminID, apisTeams, nil))
+	ts := httptest.NewServer(legacyRoutes(s, testAuthz(t), adminID, apisTeams))
 	t.Cleanup(ts.Close)
 	return &apisEnv{t: t, db: db, srv: s, url: ts.URL}
 }
