@@ -7,11 +7,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
-	"sync"
 	"testing"
 	"time"
-
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 const adminID = "44444444-4444-4444-4444-444444444444"
@@ -94,29 +91,29 @@ func (failingTeams) IsMember(context.Context, string, string) (bool, error) {
 
 func TestAdminGuardsFailClosed(t *testing.T) {
 	srv := newServer() // no database
-	h := legacyRoutes(srv, testAuthz(t), adminID, testTeams)
-	path := "/admin/v1/servers/team-a/svc/draft"
+	h := srv.routes(testAuthz(t), adminID, testTeams, nil)
+	path := "/admin/v1/jobs/team-a/kill-switch"
 	cases := map[string]struct {
 		h    http.Handler
 		path string
 		tok  string
 		want int
 	}{
-		"admin routes off":   {legacyRoutes(srv, testAuthz(t), "", testTeams), path, userTok("A111111"), 404},
+		"admin routes off":   {srv.routes(testAuthz(t), "", testTeams, nil), path, userTok("A111111"), 404},
 		"no token":           {h, path, "", 401},
 		"app token":          {h, path, adminID, 401},
 		"app token w/ ident": {h, path, "app-with-ident", 401},
 		"other client":       {h, path, "user:" + gatewayID + ":A111111", 401},
 		"bad NAVident":       {h, path, userTok("a111111"), 401},
 		"texas fails":        {h, path, "texas-500", 503},
-		"bad namespace":      {h, "/admin/v1/servers/Team_A/svc/draft", userTok("A111111"), 400},
+		"bad namespace":      {h, "/admin/v1/jobs/Team_A/kill-switch", userTok("A111111"), 400},
 		"not a member":       {h, path, userTok("B111111"), 403},
-		"team lookup fails":  {legacyRoutes(srv, testAuthz(t), adminID, failingTeams{}), path, userTok("A111111"), 503},
+		"team lookup fails":  {srv.routes(testAuthz(t), adminID, failingTeams{}, nil), path, userTok("A111111"), 503},
 		"database down":      {h, path, userTok("A111111"), 503},
-		"unset static teams": {legacyRoutes(srv, testAuthz(t), adminID, staticTeams{}), path, userTok("A111111"), 403},
+		"unset static teams": {srv.routes(testAuthz(t), adminID, staticTeams{}, nil), path, userTok("A111111"), 403},
 	}
 	for name, c := range cases {
-		if rec := do(t, c.h, http.MethodPut, c.path, c.tok, routeDraft); rec.Code != c.want {
+		if rec := do(t, c.h, http.MethodPut, c.path, c.tok, `{"scope":"team","on":false}`); rec.Code != c.want {
 			t.Errorf("%s: got %d, want %d (%s)", name, rec.Code, c.want, rec.Body)
 		}
 	}
@@ -170,297 +167,47 @@ func TestTeamsFromEnv(t *testing.T) {
 	}
 }
 
-func TestRealPostgresWriteFlow(t *testing.T) {
-	db := openTestDB(t)
-	ctx := context.Background()
-	if err := db.Migrate(ctx); err != nil {
-		t.Fatal(err)
-	}
-	routes, allowlist := readSeedFiles(t, "prod")
-	servers, err := seedServers(routes, allowlist)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err = db.Seed(ctx, servers, "test"); err != nil {
-		t.Fatal(err)
-	}
-	srv := newServer()
-	srv.cluster = "dev-gcp"
-	srv.store.Store(&storeBox{db})
-	h := legacyRoutes(srv, testAuthz(t), adminID, testTeams)
-	base := "/admin/v1/servers/team-a/svc"
-	a, b := userTok("A111111"), userTok("A222222")
-
-	if rec := do(t, h, http.MethodPut, base+"/draft", a, `{"route":{"target":"dev-gcp:team-b:svc"}}`); rec.Code != 400 {
-		t.Fatalf("invalid draft: %d", rec.Code)
-	}
-	if rec := do(t, h, http.MethodPut, base+"/draft", a, `{"passAllTools":true,`+routeDraft[1:]); rec.Code != 400 {
-		t.Fatalf("unknown field: %d", rec.Code)
-	}
-	draft := func(tok, body string) (int, string) {
-		rec := do(t, h, http.MethodPut, base+"/draft", tok, body)
-		if rec.Code != 200 {
-			t.Fatalf("draft: %d %s", rec.Code, rec.Body)
-		}
-		var out struct {
-			Version int    `json:"version"`
-			Hash    string `json:"content_hash"`
-		}
-		_ = json.Unmarshal(rec.Body.Bytes(), &out)
-		return out.Version, out.Hash
-	}
-	approve := func(tok string, v int, hash string) int {
-		body, _ := json.Marshal(map[string]any{"version": v, "content_hash": hash})
-		return do(t, h, http.MethodPost, base+"/approve", tok, string(body)).Code
-	}
-
-	v1, h1 := draft(a, routeDraft)
-	if snap, _ := srv.resolve(ctx, "routes"); strings.Contains(string(snap.Items), "team-a") {
-		t.Fatal("a draft must not be published")
-	}
-	if code := approve(a, v1, h1); code != 403 {
-		t.Errorf("submitter approving own draft: %d, want 403", code)
-	}
-	if code := approve(b, v1, strings.Repeat("0", 64)); code != 409 {
-		t.Errorf("approve with wrong hash: %d, want 409", code)
-	}
-	if code := approve(userTok("B111111"), v1, h1); code != 403 {
-		t.Errorf("approve from another team: %d, want 403", code)
-	}
-	if code := approve(b, v1+1, h1); code != 409 {
-		t.Errorf("approve of a version that is not pending: %d, want 409", code)
-	}
-	if code := approve(b, v1, h1); code != 200 {
-		t.Fatalf("approve: %d", code)
-	}
-	if snap, _ := srv.resolve(ctx, "routes"); !strings.Contains(string(snap.Items), "/mcp/team-a/svc") {
-		t.Fatal("approved draft must be in the routes snapshot")
-	}
-
-	// Second version, then concurrent approvals: exactly one publishes.
-	v2, h2 := draft(b, strings.Replace(routeDraft, `"search"`, `"search","fetch"`, 1))
-	// Open the pool's connections first, so the approvals really overlap.
-	var conns []*pgxpool.Conn
-	// Stay within MaxConns, which is the CPU count (min 4): more would block.
-	for range min(10, int(db.pool.Config().MaxConns)) {
-		c, acqErr := db.pool.Acquire(ctx)
-		if acqErr != nil {
-			t.Fatal(acqErr)
-		}
-		conns = append(conns, c)
-	}
-	for _, c := range conns {
-		c.Release()
-	}
-	start := make(chan struct{})
-	errs := make(chan error, 40)
-	var wg sync.WaitGroup
-	for range 40 {
-		wg.Go(func() { <-start; errs <- db.Approve(ctx, "A111111", "team-a", "svc", v2, h2) })
-	}
-	close(start)
-	wg.Wait()
-	close(errs)
-	okCount := 0
-	for e := range errs {
-		if e == nil {
-			okCount++
-		} else if apiErr, ok := errors.AsType[*apiError](e); !ok || apiErr.code != 409 {
-			t.Errorf("concurrent approve: %v", e)
-		}
-	}
-	if okCount != 1 {
-		t.Errorf("concurrent approvals: %d succeeded, want 1", okCount)
-	}
-
-	// A newer draft replaces the pending one; the old hash no longer approves.
-	v3, h3 := draft(a, routeDraft)
-	v4, _ := draft(a, strings.Replace(routeDraft, `"search"`, `"other"`, 1))
-	if code := approve(b, v3, h3); code != 409 {
-		t.Errorf("approve of a replaced draft: %d, want 409", code)
-	}
-	_ = v4
-
-	if rec := do(t, h, http.MethodPost, base+"/rollback", a, ""); rec.Code != 200 || !strings.Contains(rec.Body.String(), `"published_version":1`) {
-		t.Errorf("rollback: %d %s", rec.Code, rec.Body)
-	}
-	if rec := do(t, h, http.MethodPost, base+"/rollback", a, ""); rec.Code != 409 {
-		t.Errorf("rollback past the first version: %d, want 409", rec.Code)
-	}
-	if rec := do(t, h, http.MethodPost, base+"/revoke", a, `{"reason":""}`); rec.Code != 400 {
-		t.Errorf("revoke without reason: %d", rec.Code)
-	}
-	if rec := do(t, h, http.MethodPost, base+"/revoke", a, `{"reason":"`+strings.Repeat("x", 501)+`"}`); rec.Code != 400 {
-		t.Errorf("revoke with a too long reason: %d", rec.Code)
-	}
-	if rec := do(t, h, http.MethodPost, base+"/revoke", a, `{"reason":"incident"}`); rec.Code != 200 {
-		t.Errorf("revoke: %d", rec.Code)
-	}
-	if snap, _ := srv.resolve(ctx, "routes"); !strings.Contains(string(snap.Items), `"upstream_url":"http://svc.team-a","enabled":false`) {
-		t.Errorf("revoked route must stay in the snapshot as disabled: %s", snap.Items)
-	}
-	if rec := do(t, h, http.MethodPost, base+"/revoke", a, `{"reason":"again"}`); rec.Code != 409 {
-		t.Errorf("second revoke: %d, want 409", rec.Code)
-	}
-	if rec := do(t, h, http.MethodGet, base, b, ""); rec.Code != 200 || !strings.Contains(rec.Body.String(), `"status":"revoked"`) {
-		t.Errorf("get: %d %s", rec.Code, rec.Body)
-	}
-	if rec := do(t, h, http.MethodPost, "/admin/v1/servers/team-a/missing/revoke", a, `{"reason":"x"}`); rec.Code != 404 {
-		t.Errorf("revoke of unknown server: %d", rec.Code)
-	}
-
-	var actions []string
-	rows, err := db.pool.Query(ctx, `SELECT actor || ':' || action FROM audit_events WHERE namespace = 'team-a' AND detail ? 'before' AND detail ? 'after' ORDER BY id`)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for rows.Next() {
-		var s string
-		_ = rows.Scan(&s)
-		actions = append(actions, s)
-	}
-	want := "A111111:draft_submitted A222222:approved_published A222222:draft_submitted A111111:approved_published A111111:draft_submitted A111111:draft_submitted A111111:rolled_back A111111:revoked"
-	if got := strings.Join(actions, " "); got != want {
-		t.Errorf("audit trail:\n got %s\nwant %s", got, want)
-	}
-
-	// The database itself refuses self-approval.
-	if _, err = db.pool.Exec(ctx, `UPDATE server_versions SET approved_by = submitted_by WHERE namespace = 'team-a'`); err == nil {
-		t.Error("server_versions must refuse approved_by = submitted_by")
-	}
-
-	db.Close()
-	if rec := do(t, h, http.MethodPut, base+"/draft", a, routeDraft); rec.Code != 503 {
-		t.Errorf("Postgres down: %d, want 503", rec.Code)
-	}
-}
-
-// Rollback skips versions that were never approved and versions blocked by
-// a revoke: one person must not be able to publish either.
-func TestRealPostgresRollbackSkipsUnapprovedAndBlocked(t *testing.T) {
-	db := openTestDB(t)
-	ctx := context.Background()
-	if err := db.Migrate(ctx); err != nil {
-		t.Fatal(err)
-	}
-	sv, err := validateDraft("dev-gcp", "team-a", "rb", draftSpec{Route: &struct {
-		Target      string   `json:"target"`
-		UpstreamURL string   `json:"upstream_url"`
-		Enabled     *bool    `json:"enabled"`
-		Tools       []string `json:"tools"`
-	}{Target: "dev-gcp:team-a:rb", UpstreamURL: "http://rb.team-a/mcp", Tools: []string{"search"}}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	publish := func() int {
-		v, saveErr := db.SaveDraft(ctx, "A111111", sv, "h")
-		if saveErr != nil {
-			t.Fatal(saveErr)
-		}
-		if approveErr := db.Approve(ctx, "A222222", "team-a", "rb", v, "h"); approveErr != nil {
-			t.Fatal(approveErr)
-		}
-		return v
-	}
-	publish()                                                       // 1
-	if _, err = db.SaveDraft(ctx, "A111111", sv, "h"); err != nil { // 2, never approved
-		t.Fatal(err)
-	}
-	publish() // 3
-	if err = db.Revoke(ctx, "A111111", "team-a", "rb", "leaked credentials", true); err != nil {
-		t.Fatal(err)
-	}
-	publish() // 4
-	got, err := db.Rollback(ctx, "A111111", "team-a", "rb")
-	if err != nil || got != 1 {
-		t.Fatalf("rollback: got version %d (%v), want 1: 2 was never approved, 3 is blocked", got, err)
-	}
-	if _, err = db.Rollback(ctx, "A111111", "team-a", "rb"); err == nil {
-		t.Error("rollback below the first version must fail")
-	}
-}
-
-// A seeded version counts as published, so rollback can return to it.
-func TestRealPostgresRollbackToSeed(t *testing.T) {
-	db := openTestDB(t)
-	ctx := context.Background()
-	if err := db.Migrate(ctx); err != nil {
-		t.Fatal(err)
-	}
-	routes, allowlist := readSeedFiles(t, "prod")
-	servers, err := seedServers(routes, allowlist)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err = db.Seed(ctx, servers, "test"); err != nil {
-		t.Fatal(err)
-	}
-	var sv Server
-	for _, s := range servers {
-		if s.Route != nil {
-			sv = s
-			break
-		}
-	}
-	v, err := db.SaveDraft(ctx, "A111111", sv, "h")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err = db.Approve(ctx, "A222222", sv.Namespace, sv.Name, v, "h"); err != nil {
-		t.Fatal(err)
-	}
-	if got, rbErr := db.Rollback(ctx, "A111111", sv.Namespace, sv.Name); rbErr != nil || got != 1 {
-		t.Fatalf("rollback to the seeded version: %d %v", got, rbErr)
-	}
-}
-
 func TestHTTPServerBoundsBodyReads(t *testing.T) {
 	if s := newHTTPServer("0", http.NotFoundHandler()); s.ReadTimeout <= 0 || s.ReadHeaderTimeout <= 0 {
 		t.Errorf("read timeouts must be set: %v %v", s.ReadTimeout, s.ReadHeaderTimeout)
 	}
 }
 
-// The size check runs inside Approve and Rollback, and the routes snapshot
+// The size check runs inside approval and rollback, and the routes snapshot
 // lock stops two approvals of different servers that each fit alone from
 // passing the limit together (#2687).
 func TestRealPostgresRoutesSizeLimit(t *testing.T) {
-	db := openTestDB(t)
+	e := newApisEnv(t)
 	ctx := context.Background()
-	if err := db.Migrate(ctx); err != nil {
-		t.Fatal(err)
-	}
 	routes, allowlist := readSeedFiles(t, "prod")
 	servers, err := seedServers(routes, allowlist)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = db.Seed(ctx, servers, "test"); err != nil {
+	if _, err = e.db.Seed(ctx, servers, "test"); err != nil {
 		t.Fatal(err)
 	}
-	srv := newServer()
-	srv.cluster = "dev-gcp"
-	srv.store.Store(&storeBox{db})
-	h := legacyRoutes(srv, testAuthz(t), adminID, testTeams)
-	a, b := userTok("A111111"), userTok("A222222")
-	draft := func(name string) []byte {
-		body := strings.NewReplacer("svc", name).Replace(routeDraft)
-		rec := do(t, h, http.MethodPut, "/admin/v1/servers/team-a/"+name+"/draft", a, body)
-		if rec.Code != 200 {
-			t.Fatalf("draft %s: %d %s", name, rec.Code, rec.Body)
+	srv := e.srv
+	a, b := person("A111111"), person("A222222")
+	base := nsBase + "team-a/mcpservers/"
+	// draft submits name and returns the approval body for its pending generation.
+	draft := func(name string, tools ...string) string {
+		code, out := e.do("GET", base+name, a, "")
+		var m MCPServer
+		if code == 404 {
+			m = decodeServer(t, e.want(201, "POST", nsBase+"team-a/mcpservers", a, serverJSON("team-a", name, "", tools...)))
+		} else {
+			cur := decodeServer(t, out)
+			m = decodeServer(t, e.want(200, "PUT", base+name, a, serverJSON("team-a", name, cur.Metadata.ResourceVersion, tools...)))
 		}
-		var out struct {
-			Version int    `json:"version"`
-			Hash    string `json:"content_hash"`
-		}
-		_ = json.Unmarshal(rec.Body.Bytes(), &out)
-		approval, _ := json.Marshal(map[string]any{"version": out.Version, "content_hash": out.Hash})
-		return approval
+		return approval(int(m.Metadata.Generation), m.Status.Pending.ContentHash)
 	}
-	approve := func(name string, body []byte) int {
-		return do(t, h, http.MethodPost, "/admin/v1/servers/team-a/"+name+"/approve", b, string(body)).Code
+	approve := func(name, body string) int {
+		code, _ := e.do("POST", base+name+"/approval", b, body)
+		return code
 	}
 	audits := func() (n int) {
-		_ = db.pool.QueryRow(ctx, `SELECT count(*) FROM audit_events`).Scan(&n)
+		_ = e.db.pool.QueryRow(ctx, `SELECT count(*) FROM audit_events`).Scan(&n)
 		return n
 	}
 	snap, err := srv.resolve(ctx, "routes")
@@ -472,7 +219,7 @@ func TestRealPostgresRoutesSizeLimit(t *testing.T) {
 
 	// Too big alone: refused, nothing published or audited.
 	maxRoutesSnapshotBytes = len(snap.Items)
-	big := draft("big")
+	big := draft("big", "search")
 	before := audits()
 	if code := approve("big", big); code != 409 {
 		t.Errorf("oversized approve: %d, want 409", code)
@@ -486,7 +233,7 @@ func TestRealPostgresRoutesSizeLimit(t *testing.T) {
 
 	// Room for one more route, not two: exactly one concurrent approval wins.
 	maxRoutesSnapshotBytes = len(snap.Items) + 250
-	bodies := map[string][]byte{"s1": draft("s1"), "s2": draft("s2")}
+	bodies := map[string]string{"s1": draft("s1", "search"), "s2": draft("s2", "search")}
 	routesFitPause = func() { time.Sleep(100 * time.Millisecond) }
 	t.Cleanup(func() { routesFitPause = nil })
 	codes := make(chan int, 2)
@@ -505,47 +252,42 @@ func TestRealPostgresRoutesSizeLimit(t *testing.T) {
 		winner = "s2"
 	}
 	maxRoutesSnapshotBytes = old
-	if code := approve(winner, draft(winner)); code != 200 {
-		t.Fatalf("second version: %d", code)
+	if code := approve(winner, draft(winner, "search", "two")); code != 200 {
+		t.Fatalf("second generation: %d", code)
 	}
 	maxRoutesSnapshotBytes = len(snap.Items)
 	before = audits()
-	if rec := do(t, h, http.MethodPost, "/admin/v1/servers/team-a/"+winner+"/rollback", a, ""); rec.Code != 409 {
-		t.Errorf("oversized rollback: %d %s, want 409", rec.Code, rec.Body)
+	if code, out := e.do("POST", base+winner+"/rollback", a, `{"fromGeneration":2,"reason":"x"}`); code != 409 {
+		t.Errorf("oversized rollback: %d %s, want 409", code, out)
 	}
 	if got := audits(); got != before {
 		t.Errorf("refused rollback wrote %d audit events", got-before)
 	}
 }
 
-// legacyRoutes is routes plus the /admin/v1/servers write handlers that
-// production no longer mounts (#2852).
-func legacyRoutes(s *server, a *authz, adminClientID string, teams teamDirectory) http.Handler {
-	h := s.routes(a, adminClientID, teams, nil)
-	if adminClientID == "" {
-		return h
-	}
-	legacy := http.NewServeMux()
-	s.legacyWriteRoutes(legacy, a, adminClientID, teams)
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if _, pattern := legacy.Handler(r); pattern != "" {
-			legacy.ServeHTTP(w, r)
-			return
-		}
-		h.ServeHTTP(w, r)
-	})
-}
-
-func TestAdminServerWritesAreRemoved(t *testing.T) {
+// Only the kill switch is left of /admin/v1 (#2895); the rest is under /apis.
+func TestLegacyRoutesAreRemoved(t *testing.T) {
 	h := newServer().routes(testAuthz(t), adminID, testTeams, nil)
-	for _, c := range []struct{ method, path string }{
-		{http.MethodPut, "/admin/v1/servers/team-a/svc/draft"},
-		{http.MethodPost, "/admin/v1/servers/team-a/svc/approve"},
-		{http.MethodPost, "/admin/v1/servers/team-a/svc/revoke"},
-		{http.MethodPost, "/admin/v1/servers/team-a/svc/rollback"},
-		{http.MethodPost, "/admin/v1/jobs/team-a"}, // no agent profile (#2854)
+	for _, c := range []struct{ method, path, tok string }{
+		{http.MethodPut, "/admin/v1/servers/team-a/svc/draft", userTok("A111111")},
+		{http.MethodPost, "/admin/v1/servers/team-a/svc/approve", userTok("A111111")},
+		{http.MethodPost, "/admin/v1/servers/team-a/svc/revoke", userTok("A111111")},
+		{http.MethodPost, "/admin/v1/servers/team-a/svc/rollback", userTok("A111111")},
+		{http.MethodGet, "/admin/v1/servers/team-a/svc", userTok("A111111")},
+		{http.MethodGet, "/admin/v1/servers", userTok("A111111")},
+		{http.MethodGet, "/admin/v1/servers/team-a/svc/audit", userTok("A111111")},
+		{http.MethodGet, "/admin/v1/me", userTok("A111111")},
+		{http.MethodPost, "/admin/v1/jobs/team-a", userTok("A111111")},
+		{http.MethodPost, "/admin/v1/jobs/team-a/1/cancel", userTok("A111111")},
+		{http.MethodPost, "/admin/v1/jobs/team-a/1/kill", userTok("A111111")},
+		{http.MethodPost, "/admin/v1/agents", userTok("A111111")},
+		{http.MethodGet, "/admin/v1/agents/a/b", userTok("A111111")},
+		{http.MethodGet, "/admin/v1/agents/pending-approval", userTok("A111111")},
+		{http.MethodGet, "/internal/v1/servers", registryID},
+		{http.MethodGet, "/internal/v1/routes", gatewayID},
+		{http.MethodGet, "/internal/v1/agents", gatewayID},
 	} {
-		if rec := do(t, h, c.method, c.path, userTok("A111111"), "{}"); rec.Code != http.StatusNotFound && rec.Code != http.StatusMethodNotAllowed {
+		if rec := do(t, h, c.method, c.path, c.tok, "{}"); rec.Code != http.StatusNotFound && rec.Code != http.StatusMethodNotAllowed {
 			t.Errorf("%s %s: got %d, want 404 or 405", c.method, c.path, rec.Code)
 		}
 	}

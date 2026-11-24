@@ -50,7 +50,7 @@ func newApisEnv(t *testing.T) *apisEnv {
 	s.operatorTeam = "platform"
 	s.verifier = fakeVerifier{}
 	s.store.Store(&storeBox{db})
-	ts := httptest.NewServer(legacyRoutes(s, testAuthz(t), adminID, apisTeams))
+	ts := httptest.NewServer(s.routes(testAuthz(t), adminID, apisTeams, nil))
 	t.Cleanup(ts.Close)
 	return &apisEnv{t: t, db: db, srv: s, url: ts.URL}
 }
@@ -416,23 +416,6 @@ func TestRealPostgresCatalogShowsOnlyPublished(t *testing.T) {
 	e.noOidLeak()
 }
 
-// Data written by /admin/v1 (and so by an image from before 005) has no
-// v1alpha1 hash or oid: it cannot be approved through /apis.
-func TestRealPostgresLegacyDraftNeedsResubmit(t *testing.T) {
-	e := newApisEnv(t)
-	e.want(200, "PUT", "/admin/v1/servers/team-a/old/draft", person("A111111"), `{"route":{"target":"dev-gcp:team-a:old","upstream_url":"http://old.team-a/mcp","tools":["x"]}}`)
-	m := decodeServer(t, e.want(200, "GET", nsBase+"team-a/mcpservers/old", person("A222222"), ""))
-	if m.Status.Pending == nil || m.Status.Pending.ContentHash != "" || m.Status.Pending.SubmittedBy.Kind != "" {
-		t.Fatalf("a legacy draft shows without hash or guessed kind: %+v", m.Status.Pending)
-	}
-	e.want(409, "POST", nsBase+"team-a/mcpservers/old/approval", person("A222222"), approval(1, ""))
-	// Even with a hash forged into the row, a submitter without oid is refused.
-	if _, err := e.db.pool.Exec(context.Background(), `UPDATE server_versions SET spec_hash = 'v1:sha256:ab', submitted_by_kind = 'User' WHERE name = 'old'`); err != nil {
-		t.Fatal(err)
-	}
-	e.want(403, "POST", nsBase+"team-a/mcpservers/old/approval", person("A222222"), approval(1, "v1:sha256:ab"))
-}
-
 func profileJSON(ns, name, rv string, grants ...string) string {
 	gs := []map[string]any{}
 	for _, g := range grants {
@@ -617,133 +600,6 @@ func TestRealPostgresServerReadmeRoundTrip(t *testing.T) {
 	e.want(201, "POST", nsBase+"aksel-studio/agentprofiles", person("A555555"), profileJSON("aksel-studio", "p", "", "copilot/dolly=hent"))
 	if got := decodeProfile(t, e.want(200, "GET", nsBase+"aksel-studio/agentprofiles/p", person("A555555"), "")); got.Status.Pending == nil || got.Status.NeedsResubmit {
 		t.Fatalf("a person's draft needs no resubmit: %+v", got.Status)
-	}
-}
-
-// TestRealPostgresMigration005 stands where an image from before 005 left
-// the database, then migrates. The gateway snapshot must be byte for byte
-// the same, live agent profiles are copied with v0 hashes nobody can
-// approve, and the backfill fills only published versions, once.
-func TestRealPostgresMigration005(t *testing.T) {
-	db := openTestDB(t)
-	ctx := context.Background()
-	if err := db.migrateTo(ctx, "004_runtime_jobs.sql"); err != nil {
-		t.Fatal(err)
-	}
-	routes, allowlist := readSeedFiles(t, "prod")
-	servers, err := seedServers(routes, allowlist)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err = db.Seed(ctx, servers, "test"); err != nil {
-		t.Fatal(err)
-	}
-	// A pending draft and a revoked server, as the old image writes them.
-	if _, err = db.SaveDraft(ctx, "A111111", Server{Namespace: servers[0].Namespace, Name: servers[0].Name, Route: servers[0].Route, Registry: servers[0].Registry}, "h"); err != nil {
-		t.Fatal(err)
-	}
-	if _, err = db.pool.Exec(ctx, `UPDATE servers SET status = 'revoked' WHERE namespace = $1 AND name = $2`, servers[1].Namespace, servers[1].Name); err != nil {
-		t.Fatal(err)
-	}
-	var p AgentProfile
-	_ = json.Unmarshal([]byte(fixture(t)), &p)
-	id, err := db.CreateAgentProfile(ctx, p, "A111111", true)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err = db.pool.Exec(ctx, `INSERT INTO agent_profile_approvals (profile_id, route, approved_by) VALUES ($1, 'copilot/dolly', 'C222222')`, id); err != nil {
-		t.Fatal(err)
-	}
-	snap := func() []byte {
-		all, qErr := queryServers(ctx, db.pool)
-		if qErr != nil {
-			t.Fatal(qErr)
-		}
-		s, bErr := buildSnapshot("routes", all, nil)
-		if bErr != nil {
-			t.Fatal(bErr)
-		}
-		return append([]byte(s.ETag+"\n"), s.Items...)
-	}
-	before := snap()
-	if err = db.Migrate(ctx); err != nil {
-		t.Fatal(err)
-	}
-	n, err := db.BackfillSpecs(ctx)
-	if err != nil || n != len(servers) {
-		t.Fatalf("backfill: %d %v, want %d published versions", n, err, len(servers))
-	}
-	if again, _ := db.BackfillSpecs(ctx); again != 0 {
-		t.Fatalf("backfill must be idempotent: %d", again)
-	}
-	if after := snap(); string(after) != string(before) {
-		t.Fatalf("routes snapshot changed:\nbefore %s\nafter  %s", before, after)
-	}
-	var pendingHash *string
-	_ = db.pool.QueryRow(ctx, `SELECT spec_hash FROM server_versions WHERE version = 2`).Scan(&pendingHash)
-	if pendingHash != nil {
-		t.Fatal("a pending version must never get a v1alpha1 hash from the backfill")
-	}
-	var revokedAt *string
-	_ = db.pool.QueryRow(ctx, `SELECT revoked_at::text FROM server_versions WHERE namespace = $1 AND name = $2`, servers[1].Namespace, servers[1].Name).Scan(&revokedAt)
-	if revokedAt == nil {
-		t.Fatal("a generation revoked before 005 must be marked")
-	}
-	var specHash, grantHash, server string
-	if err = db.pool.QueryRow(ctx, `SELECT g.spec_hash, g.grant_hashes->>'copilot/dolly', a.server FROM agent_profile_generations g
-		JOIN agent_profile_grants a USING (namespace, name, generation)`).Scan(&specHash, &grantHash, &server); err != nil {
-		t.Fatal(err)
-	}
-	if !strings.HasPrefix(specHash, "v0:sha256:") || !strings.HasPrefix(grantHash, "v0:sha256:") || server != "copilot/dolly" {
-		t.Fatalf("copied profile: %s %s %s", specHash, grantHash, server)
-	}
-	// A copied draft is refused by its v0 hash even if it had a person's oid.
-	if _, err = db.pool.Exec(ctx, `UPDATE agent_profile_generations SET submitted_by_oid = $1::uuid`, testOid("A111111")); err != nil {
-		t.Fatal(err)
-	}
-	gErr := db.grantProfile(ctx, caller{Ident: "C222222", Oid: testOid("C222222"), Teams: []string{"copilot"}}, "aksel-studio", "studio-assistant", 1,
-		TypedRef{Group: apiGroup, Kind: "MCPServer", Namespace: "copilot", Name: "dolly"}, grantHash)
-	if se, ok := gErr.(*statusError); !ok || se.code != 409 || len(se.causes) == 0 || se.causes[0].Field != "contentHash" {
-		t.Fatalf("a v0 hash must not grant: %v", gErr)
-	}
-	// The old image keeps working against the new schema.
-	if _, err := db.SaveDraft(ctx, "A111111", Server{Namespace: "team-a", Name: "late", Route: &Route{Path: "/mcp/team-a/late", Target: "dev-gcp:team-a:late", UpstreamURL: "http://late.team-a", Enabled: true, Tools: []string{"x"}}}, "h2"); err != nil {
-		t.Fatalf("old SaveDraft on the new schema: %v", err)
-	}
-	if err := db.Approve(ctx, "A222222", "team-a", "late", 1, "h2"); err != nil {
-		t.Fatalf("old Approve on the new schema: %v", err)
-	}
-}
-
-// Revoking through one API and rolling back through the other never returns
-// to the revoked generation.
-func TestRealPostgresRevokeRollbackAcrossAPIs(t *testing.T) {
-	for _, revokeV1 := range []bool{false, true} {
-		t.Run(fmt.Sprintf("revokeV1=%v", revokeV1), func(t *testing.T) {
-			e := newApisEnv(t)
-			base := nsBase + "team-a/mcpservers/svc"
-			e.publish("team-a", "svc", "A111111", "A222222", "one")
-			submit := func(tools ...string) {
-				cur := decodeServer(t, e.want(200, "GET", base, person("A111111"), ""))
-				m := decodeServer(t, e.want(200, "PUT", base, person("A111111"), serverJSON("team-a", "svc", cur.Metadata.ResourceVersion, tools...)))
-				e.want(200, "POST", base+"/approval", person("A222222"), approval(int(m.Metadata.Generation), m.Status.Pending.ContentHash))
-			}
-			submit("two")
-			if revokeV1 {
-				e.want(200, "POST", base+"/revocation", person("A111111"), `{"reason":"x"}`)
-			} else {
-				e.want(200, "POST", "/admin/v1/servers/team-a/svc/revoke", person("A111111"), `{"reason":"x"}`)
-			}
-			submit("three") // restart
-			if revokeV1 {
-				e.want(200, "POST", "/admin/v1/servers/team-a/svc/rollback", person("A111111"), "")
-				if m := decodeServer(t, e.want(200, "GET", base, person("A111111"), "")); m.Status.PublishedGeneration != 1 {
-					t.Fatalf("/admin/v1 rollback returned to the revoked generation: %d", m.Status.PublishedGeneration)
-				}
-			} else if code, out := e.do("POST", base+"/rollback", person("A111111"), `{"fromGeneration":3,"reason":"x"}`); code != 409 || !strings.Contains(out, "GenerationRevoked") {
-				t.Fatalf("v1alpha1 rollback to a generation revoked through /admin/v1: %d %s", code, out)
-			}
-		})
 	}
 }
 

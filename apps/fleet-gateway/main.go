@@ -223,10 +223,9 @@ func (g *Gateway) routes() http.Handler {
 	g.sseStreams = make(slots, g.cfg.MCPMaxSSE)
 	g.userSSE = &userSlots{max: g.cfg.MCPMaxSSEPerUser}
 	g.routeInFlight = &userSlots{max: min(g.cfg.MCPMaxInFlightPerRoute, cap(g.inFlight))}
-	// Two method-less, disjoint patterns, as before RouteTable: no /mcp/ subtree,
-	// so /mcp, /mcp/ and trailing slashes stay plain 404s and are never redirected.
+	// A method-less pattern and no /mcp/ subtree, so /mcp, /mcp/<name> and
+	// trailing slashes stay plain 404s and are never redirected.
 	mux.HandleFunc("/mcp/{ns}/{name}", g.routeDispatch)
-	mux.HandleFunc("/mcp/{name}", g.oldRoutePathHandler)
 	return g.loggingMiddleware(mux)
 }
 
@@ -244,30 +243,6 @@ func (g *Gateway) routeDispatch(w http.ResponseWriter, r *http.Request) {
 	}
 	afterRouteLookup()
 	g.mcpHandler(route).ServeHTTP(w, r)
-}
-
-// oldRoutePathHandler answers the retired /mcp/<name> paths with a 404 that names
-// the new /mcp/<namespace>/<name> URL. It does not proxy: there is no alias (#2342 §3.3).
-func (g *Gateway) oldRoutePathHandler(w http.ResponseWriter, r *http.Request) {
-	body := map[string]string{
-		"error":             "not_found",
-		"error_description": "MCP routes moved to /mcp/<namespace>/<name>. Update your MCP client config and log in again.",
-	}
-	// Two namespaces may share a route name: only hint when the match is unique.
-	var match *PilotRoute
-	matches := 0
-	routes := g.table().Routes
-	for i, route := range routes {
-		if strings.HasSuffix(route.Route, "/"+r.PathValue("name")) {
-			match = &routes[i]
-			matches++
-		}
-	}
-	if matches == 1 {
-		body["new_url"] = match.FullRouteID
-		body["error_description"] = "This route moved to " + match.FullRouteID + ". Update your MCP client config and log in again."
-	}
-	writeJSON(w, http.StatusNotFound, body)
 }
 
 func healthHandler(w http.ResponseWriter, _ *http.Request) {

@@ -123,7 +123,6 @@ var (
 
 // jobStore is implemented by *DB.
 type jobStore interface {
-	CreateJob(ctx context.Context, actor, team string, req CreateJobRequest) (int64, error)
 	SetJobCommand(ctx context.Context, by caller, team string, id int64, cmd, reason string) error
 	SetKillSwitch(ctx context.Context, actor, scope string, on bool, reason string, byOperator bool) error
 	Claim(ctx context.Context, runtime string, teams []string, token string, ttl time.Duration) (*Lease, error)
@@ -135,19 +134,6 @@ type jobStore interface {
 // (#2763); a caller without an oid (runtime, /admin/v1) leaves it empty.
 func jobAudit(ctx context.Context, tx pgx.Tx, by caller, action, team string, id int64, detail map[string]any) error {
 	return insertAudit(ctx, tx, auditRow{Actor: by.Ident, ActorKind: by.Kind, ActorOid: by.Oid, ActorClientID: by.ClientID, Action: action, Namespace: team, Name: "job/" + strconv.FormatInt(id, 10), Detail: detail})
-}
-
-// CreateJob queues a job for team.
-func (d *DB) CreateJob(ctx context.Context, actor, team string, req CreateJobRequest) (int64, error) {
-	var id int64
-	err := pgx.BeginFunc(ctx, d.pool, func(tx pgx.Tx) error {
-		if err := tx.QueryRow(ctx, `INSERT INTO runtime_jobs (team, kind, params, on_expiry, max_attempts, created_by) VALUES ($1, $2, $3::jsonb, $4, $5, $6) RETURNING id`,
-			team, req.Kind, string(req.Params), req.OnExpiry, req.MaxAttempts, actor).Scan(&id); err != nil {
-			return err
-		}
-		return jobAudit(ctx, tx, caller{Ident: actor}, "job_created", team, id, map[string]any{"kind": req.Kind, "on_expiry": req.OnExpiry, "max_attempts": req.MaxAttempts})
-	})
-	return id, err
 }
 
 // SetJobCommand cancels or kills one job. A queued job stops at once; a
@@ -660,79 +646,13 @@ func finish(ok bool) runtimeHandler {
 // Admin job handlers run behind s.admin, which has checked team membership
 // of {namespace}.
 
-func adminJobs(ws writeStore) (jobStore, error) {
-	if js, ok := ws.(jobStore); ok {
-		return js, nil
-	}
-	return nil, errors.New("store has no job support")
-}
-
-func postJob(w http.ResponseWriter, r *http.Request, ws writeStore, actor, team, _ string) error {
-	js, err := adminJobs(ws)
-	if err != nil {
-		return err
-	}
-	var req CreateJobRequest
-	if err = decodeBody(w, r, &req); err != nil {
-		return err
-	}
-	if !dnsLabelRegex.MatchString(req.Kind) {
-		return refuse(http.StatusBadRequest, "kind must be a lowercase DNS label")
-	}
-	if len(req.Params) == 0 {
-		req.Params = json.RawMessage("{}")
-	}
-	if len(req.Params) > maxParams || req.Params[0] != '{' {
-		return refuse(http.StatusBadRequest, "params must be a JSON object of at most %d bytes", maxParams)
-	}
-	if req.OnExpiry == "" {
-		req.OnExpiry = "requeue"
-	}
-	if req.OnExpiry != "requeue" && req.OnExpiry != "fail" {
-		return refuse(http.StatusBadRequest, "on_expiry must be requeue or fail")
-	}
-	if req.MaxAttempts == 0 {
-		req.MaxAttempts = 3
-	}
-	if req.MaxAttempts < 1 || req.MaxAttempts > 10 {
-		return refuse(http.StatusBadRequest, "max_attempts must be 1 to 10")
-	}
-	id, err := js.CreateJob(r.Context(), actor, team, req)
-	if err == nil {
-		writeJSON(w, map[string]any{"job_id": id, "state": "queued"})
-	}
-	return err
-}
-
-func postJobCommand(cmd string) adminHandler {
-	return func(w http.ResponseWriter, r *http.Request, ws writeStore, actor, team, _ string) error {
-		js, err := adminJobs(ws)
-		if err != nil {
-			return err
-		}
-		id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
-		if err != nil || id < 1 {
-			return refuse(http.StatusBadRequest, "invalid job id")
-		}
-		if err = js.SetJobCommand(r.Context(), caller{Ident: actor}, team, id, cmd, ""); err != nil {
-			return err
-		}
-		w.WriteHeader(http.StatusNoContent)
-		return nil
-	}
-}
-
 // putKillSwitch sets the team switch, or the global one when the caller's
 // namespace is operatorTeam. An unset operatorTeam refuses global. The
 // operator team may also name another team ("team:<name>").
 func putKillSwitch(operatorTeam string) adminHandler {
-	return func(w http.ResponseWriter, r *http.Request, ws writeStore, actor, team, _ string) error {
-		js, err := adminJobs(ws)
-		if err != nil {
-			return err
-		}
+	return func(w http.ResponseWriter, r *http.Request, js jobStore, actor, team string) error {
 		var req KillSwitchRequest
-		if err = decodeBody(w, r, &req); err != nil {
+		if err := decodeBody(w, r, &req); err != nil {
 			return err
 		}
 		if req.Reason = strings.TrimSpace(req.Reason); req.On && (req.Reason == "" || len(req.Reason) > 500) {
@@ -756,7 +676,7 @@ func putKillSwitch(operatorTeam string) adminHandler {
 		default:
 			return refuse(http.StatusBadRequest, "scope must be team, team:<name> or global")
 		}
-		if err = js.SetKillSwitch(r.Context(), actor, scope, req.On, req.Reason, byOperator); err != nil {
+		if err := js.SetKillSwitch(r.Context(), actor, scope, req.On, req.Reason, byOperator); err != nil {
 			return err
 		}
 		w.WriteHeader(http.StatusNoContent)

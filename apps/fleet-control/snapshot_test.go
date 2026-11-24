@@ -152,7 +152,7 @@ func get(t *testing.T, h http.Handler, path, inm string) *httptest.ResponseRecor
 	t.Helper()
 	req := httptest.NewRequest(http.MethodGet, path, nil)
 	tok := gatewayID
-	if path == "/internal/v1/servers" || path == "/internal/v1/snapshots/registry" {
+	if path == "/internal/v1/snapshots/registry" {
 		tok = registryID
 	}
 	req.Header.Set("Authorization", "Bearer "+tok)
@@ -167,7 +167,7 @@ func get(t *testing.T, h http.Handler, path, inm string) *httptest.ResponseRecor
 func TestHandlers(t *testing.T) {
 	srv := newServer()
 	h := srv.routes(testAuthz(t), "", nil, nil)
-	for _, p := range []string{"/ready", "/internal/v1/servers", "/internal/v1/routes", "/internal/v1/snapshots/routes"} {
+	for _, p := range []string{"/ready", "/internal/v1/snapshots/routes", "/internal/v1/snapshots/registry"} {
 		if rec := get(t, h, p, ""); rec.Code != http.StatusServiceUnavailable {
 			t.Errorf("%s before the database is up: got %d", p, rec.Code)
 		}
@@ -180,16 +180,7 @@ func TestHandlers(t *testing.T) {
 	fs.servers[2].Status = "revoked"
 	srv.store.Store(&storeBox{fs})
 
-	rec := get(t, h, "/internal/v1/routes", "")
-	if rec.Code != http.StatusOK || strings.Contains(rec.Body.String(), "s2") {
-		t.Errorf("routes: %d %s", rec.Code, rec.Body)
-	}
-	rec = get(t, h, "/internal/v1/servers", "")
-	if rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), `"registryName":"io.github.navikt/s1"`) || strings.Contains(rec.Body.String(), "upstream_url") {
-		t.Errorf("servers: %d %s", rec.Code, rec.Body)
-	}
-
-	rec = get(t, h, "/internal/v1/snapshots/routes", "")
+	rec := get(t, h, "/internal/v1/snapshots/routes", "")
 	var body struct {
 		Generation int64            `json:"generation"`
 		Routes     []map[string]any `json:"routes"`
@@ -231,9 +222,6 @@ func TestHandlers(t *testing.T) {
 	time.Sleep(2 * time.Millisecond)
 	if rec := get(t, h, "/internal/v1/snapshots/routes", ""); rec.Code != http.StatusOK || !strings.Contains(rec.Body.String(), "s1") || !checkedAt(rec).Equal(before) {
 		t.Errorf("outage with last good: %d %s", rec.Code, rec.Body)
-	}
-	if rec := get(t, h, "/internal/v1/servers", ""); rec.Code != http.StatusServiceUnavailable {
-		t.Errorf("servers during outage: %d", rec.Code)
 	}
 	fresh := newServer()
 	fresh.store.Store(&storeBox{fs})

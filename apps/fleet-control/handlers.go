@@ -25,29 +25,12 @@ func (s *server) routes(a *authz, adminClientID string, teams teamDirectory, ra 
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
 	mux.HandleFunc("GET /ready", s.ready)
 	mux.Handle("GET /metrics", promhttp.Handler())
-	mux.HandleFunc("GET /internal/v1/servers", a.require(s.listServers, callerRegistry))
-	mux.HandleFunc("GET /internal/v1/routes", a.require(s.listRoutes, callerGateway))
 	mux.HandleFunc("GET /internal/v1/snapshots/routes", a.require(s.snapshotOf("routes"), callerGateway))
 	mux.HandleFunc("GET /internal/v1/snapshots/registry", a.require(s.snapshotOf("registry"), callerRegistry))
 	if adminClientID != "" {
-		for pattern, h := range map[string]adminHandler{
-			// Server writes go through /apis only (#2852): the old routes
-			// skipped the block, dataCategory and resourceVersion checks.
-			// Jobs are created through /apis agentjobs only (#2854): the old
-			// route took no agent profile.
-			"GET /admin/v1/servers/{namespace}/{name}":    getServer,
-			"POST /admin/v1/jobs/{namespace}/{id}/cancel": postJobCommand(cmdCancel),
-			"POST /admin/v1/jobs/{namespace}/{id}/kill":   postJobCommand(cmdKill),
-			"PUT /admin/v1/jobs/{namespace}/kill-switch":  putKillSwitch(s.operatorTeam),
-		} {
-			mux.HandleFunc(pattern, s.admin(a, adminClientID, teams, h))
-		}
+		// The only /admin/v1 route left (#2895): everything else is under /apis.
+		mux.HandleFunc("PUT /admin/v1/jobs/{namespace}/kill-switch", s.admin(a, adminClientID, teams, putKillSwitch(s.operatorTeam)))
 	}
-	persons := s.persons
-	if persons == nil && adminClientID != "" {
-		persons = tokenPersons{a, adminClientID, teams}
-	}
-	s.agentRoutes(mux, a, persons)
 	s.apisRoutes(mux, a, adminClientID, teams)
 
 	if ra != nil {
@@ -57,34 +40,6 @@ func (s *server) routes(a *authz, adminClientID string, teams teamDirectory, ra 
 		mux.HandleFunc("POST /runtime/v1/fail", s.runtimeRoute(ra, finish(false)))
 	}
 	return instrument(mux)
-}
-
-// legacyWriteRoutes mounts the /admin/v1 server and job-create handlers that
-// production no longer serves (#2852, #2854). Tests mount them to drive the
-// old write store and to prove /apis reads rows an older image wrote.
-func (s *server) legacyWriteRoutes(mux *http.ServeMux, a *authz, adminClientID string, teams teamDirectory) {
-	for pattern, h := range map[string]adminHandler{
-		"PUT /admin/v1/servers/{namespace}/{name}/draft": func(w http.ResponseWriter, r *http.Request, ws writeStore, actor, ns, name string) error {
-			return putDraft(w, r, ws, actor, ns, name, s.cluster)
-		},
-		"POST /admin/v1/servers/{namespace}/{name}/approve":  postApprove,
-		"POST /admin/v1/servers/{namespace}/{name}/revoke":   postRevoke,
-		"POST /admin/v1/servers/{namespace}/{name}/rollback": postRollback,
-		"POST /admin/v1/jobs/{namespace}":                    postJob,
-	} {
-		mux.HandleFunc(pattern, s.admin(a, adminClientID, teams, h))
-	}
-}
-
-func (s *server) db(w http.ResponseWriter, r *http.Request) (store, context.Context, context.CancelFunc) {
-	ctx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
-	box := s.store.Load()
-	if box == nil {
-		http.Error(w, "database unavailable", http.StatusServiceUnavailable)
-		cancel()
-		return nil, nil, nil
-	}
-	return box.store, ctx, cancel
 }
 
 // ready is true when both snapshot kinds can be served, from memory or the
@@ -100,49 +55,6 @@ func (s *server) ready(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	w.WriteHeader(http.StatusOK)
-}
-
-// published loads non-revoked servers; on error it answers 503.
-func (s *server) published(w http.ResponseWriter, r *http.Request) ([]Server, bool) {
-	st, ctx, cancel := s.db(w, r)
-	if st == nil {
-		return nil, false
-	}
-	defer cancel()
-	all, err := st.Servers(ctx)
-	if err != nil {
-		slog.Error("read servers", "error", err)
-		http.Error(w, "database unavailable", http.StatusServiceUnavailable)
-		return nil, false
-	}
-	out := make([]Server, 0, len(all))
-	for _, sv := range all {
-		if sv.Status == "published" {
-			out = append(out, sv)
-		}
-	}
-	return out, true
-}
-
-func (s *server) listServers(w http.ResponseWriter, r *http.Request) {
-	servers, ok := s.published(w, r)
-	if ok {
-		writeJSON(w, map[string]any{"servers": servers})
-	}
-}
-
-func (s *server) listRoutes(w http.ResponseWriter, r *http.Request) {
-	servers, ok := s.published(w, r)
-	if !ok {
-		return
-	}
-	routes := []routeItem{}
-	for _, sv := range servers {
-		if sv.Route != nil {
-			routes = append(routes, routeItem{sv.Namespace, sv.Name, *sv.Route})
-		}
-	}
-	writeJSON(w, map[string]any{"routes": routes})
 }
 
 // snapshot serves the current generation of a kind. It never serves an empty

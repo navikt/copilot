@@ -699,11 +699,10 @@ func (d *DB) submitServer(ctx context.Context, c caller, m ObjectMeta, spec MCPS
 		if err != nil {
 			return err
 		}
-		// content_hash too, so an image from before 005 rolled back can still approve it.
 		if _, err := tx.Exec(ctx, `INSERT INTO server_versions (namespace, name, version, registry, route_path, target, upstream_url, enabled, tools,
-			submitted_by, submitted_by_kind, submitted_by_oid, content_hash, spec, spec_hash)
-			VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7, true, $8, $9, 'User', $10::uuid, $11, $12::jsonb, $13)`,
-			sv.Namespace, sv.Name, version, registry, path, target, upstream, tools, c.Ident, c.Oid, contentHash(sv), string(specJSON), hash); err != nil {
+			submitted_by, submitted_by_kind, submitted_by_oid, spec, spec_hash)
+			VALUES ($1, $2, $3, $4::jsonb, $5, $6, $7, true, $8, $9, 'User', $10::uuid, $11::jsonb, $12)`,
+			sv.Namespace, sv.Name, version, registry, path, target, upstream, tools, c.Ident, c.Oid, string(specJSON), hash); err != nil {
 			return err
 		}
 		if _, err := tx.Exec(ctx, `UPDATE servers SET pending_version = $3, updated_at = now() WHERE namespace = $1 AND name = $2`, sv.Namespace, sv.Name, version); err != nil {

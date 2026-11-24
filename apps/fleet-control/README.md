@@ -8,11 +8,8 @@ Every `/internal/v1` request needs an Entra app token (client credentials) from 
 
 | Endpoint | fleet-gateway | mcp-registry |
 | --- | --- | --- |
-| `GET /internal/v1/servers` | no | yes |
-| `GET /internal/v1/routes` | yes | no |
 | `GET /internal/v1/snapshots/routes` | yes | no |
 | `GET /internal/v1/snapshots/registry` | no | yes |
-| `GET /internal/v1/agents` | yes | no |
 
 Missing or invalid token, or a user token: 401. Valid app token from another caller: 403. Texas unreachable or failing: 503. None of them return data.
 
@@ -20,7 +17,7 @@ Missing or invalid token, or a user token: 401. Valid app token from another cal
 
 ## Write API
 
-Teams register and change servers through `/apis/fleet.nav.no/v1alpha1` (see below). Since #2852 the old `/admin/v1/servers` write routes (`.../draft`, `.../approve`, `.../revoke`, `.../rollback`) are gone and answer 404 or 405: they skipped the platform block, `dataCategory`, `resourceVersion` and the `oid` two-person check. `GET /admin/v1/servers/{namespace}/{name}` still reads a server, and the job routes below still write.
+Teams register and change servers through `/apis/fleet.nav.no/v1alpha1` (see below). Of `/admin/v1`, only the job kill switch is left (#2895); every other `/admin/v1` route answers 404 or 405.
 
 Every request needs a person's Entra token that my-copilot obtained on their behalf (OBO), with `azp` equal to `MY_COPILOT_CLIENT_ID`, a `NAVident` and a `preferred_username` (used for team membership). App tokens and guest accounts are refused: `idtyp` must be absent or `user`, and `acct` must be 0 when present; without `acct` the token needs `tid` equal to `AZURE_APP_TENANT_ID` and no `#EXT#` in `preferred_username`. Input is validated like the seed: names, target, upstream URL, tools and the registry entry. A registry name belongs to the team (#2853): team `<ns>` may use `no.nav.<ns>/<name>` or `io.github.navikt/<ns>`. Other names, vendor names such as `com.microsoft/*` included, belong to the platform team (`FLEET_CONTROL_OPERATOR_TEAM`). Registry names are unique regardless of case. Names published before this rule stay; startup logs them as `published registry names outside their team's prefix`, and a rollback to one is refused. Every change writes a row to `audit_events` with the actor and the state before and after, in the same transaction as the change. Writes to one server lock its row, so concurrent approvals publish once.
 
@@ -44,18 +41,17 @@ An agent profile says which caller app may use which tools on which gateway rout
 - Grants list routes (`<namespace>/<name>`) and exact tool names. Every tool must be on the published route. Wildcards are rejected. `max_risk` is `read`.
 - Quotas, DPIA owner and reference are required.
 - A profile starts as `draft`. A person from each granted route's owning team approves that route with the draft id returned on create, and the author cannot approve. A second member of the owner team also approves, with the profile's namespace as `route` (styringsmodell v0.3). Approval re-checks that the route is still published with the granted tools. Once the owner team and every route have approved, the profile is `approved` and expires six months later. The owner team or a route owner can revoke it. Revocation is final. An expired profile is marked `expired` when a new profile needs its name or client id.
-- `GET /internal/v1/agents` returns approved, verified profiles that have not expired, checked at read time.
 - Every change writes an audit event.
 
-Since #2748 agent profiles are written through `/apis/fleet.nav.no/v1alpha1/namespaces/{namespace}/agentprofiles`; the `/admin/v1/agents` write routes below answer 410, and the old table is frozen. They followed the Write API rules above: a person's token from the admin client, teams from the Nais Console API (or `FLEET_CONTROL_STATIC_TEAMS` in dev), dev-* clusters only. `SEED_AGENTS_FILE` imports drafts on startup in dev only (`seed/agents.dev.json`, the Aksel Studio draft). Its `entra_client_id` is the dev client id of `studio-api`. With no identity verifier yet, the profile stays unverified and out of the snapshot. The app refuses `SEED_AGENTS_FILE` outside dev-* clusters.
+Agent profiles are written through `/apis/fleet.nav.no/v1alpha1/namespaces/{namespace}/agentprofiles` (#2748). The pre-v1alpha1 tables `agent_profiles` and `agent_profile_approvals` are dropped in migration `011` (#2895). `SEED_AGENTS_FILE` imports drafts on startup in dev only (`seed/agents.dev.json`, the Aksel Studio draft). Its `entra_client_id` is the dev client id of `studio-api`. With no identity verifier yet, the profile stays unverified and out of the snapshot. The app refuses `SEED_AGENTS_FILE` outside dev-* clusters.
 
 ## API v1alpha1 (#2748)
 
-`/apis/fleet.nav.no/v1alpha1` runs beside `/admin/v1` and follows the design in copilot-intern `fleet/api-v1alpha1.md` (v0.6). It is Kubernetes-shaped JSON over REST on Postgres: `MCPServer`, `AgentProfile` and `AgentJob` with `metadata`, `spec` and `status` (`metav1.Condition`), errors as `metav1.Status`.
+`/apis/fleet.nav.no/v1alpha1` follows the design in copilot-intern `fleet/api-v1alpha1.md` (v0.6). It is Kubernetes-shaped JSON over REST on Postgres: `MCPServer`, `AgentProfile` and `AgentJob` with `metadata`, `spec` and `status` (`metav1.Condition`), errors as `metav1.Status`.
 
 - Writing a spec proposes it. `POST` and `PUT` make a new `generation` only when the spec changes; a label change keeps what is pending. `PUT` needs a fresh `metadata.resourceVersion`, otherwise 409.
 - `spec` is always the published generation; the one awaiting approval is in `status.pending`, for the owner team only.
-- Another person in the owner team approves with `generation` and `contentHash` (`POST .../approval`). The two-person rule compares the Entra `oid`, which is stored but never shown, except your own in `whoami`. A person token without `oid` gets 401. A seeded or `/admin/v1` submitter cannot be approved: a person submits again.
+- Another person in the owner team approves with `generation` and `contentHash` (`POST .../approval`). The two-person rule compares the Entra `oid`, which is stored but never shown, except your own in `whoami`. A person token without `oid` gets 401. A seeded submitter, or one from before v1alpha1, cannot be approved: a person submits again.
 - `contentHash` is `v1:sha256:` over the normalised spec (sets sorted) in RFC 8785 form. Hashes compare as whole strings. Agent profiles have one hash per grant, which the server's owner team approves.
 - `revocation` (one person in the owner team or `FLEET_CONTROL_OPERATOR_TEAM`) is final for that generation; `rollback` never lifts it and refuses revoked or blocked generations and their content with 409. `block: true` stops the content from ever being submitted again.
 - `mcpservercatalogentries` shows published, unrevoked servers to every signed-in person, with its own field list.
@@ -67,11 +63,11 @@ Since #2748 agent profiles are written through `/apis/fleet.nav.no/v1alpha1/name
 
 - **Orderers.** A person in `{ns}` orders through my-copilot and must name a published profile in `{ns}` in `spec.agentProfile`. A person can also order through another app (delegated): an OBO token whose `azp` is the `identity.entraClientID` of a published, verified, unexpired and unrevoked profile in `{ns}`. Otherwise the app gets 401, and 404 in another namespace. Delegated tokens reach only `agentjobs`. The app is `status.orderer`; the person is `status.createdBy`. An `oid` is never shown.
 - **Preauthorize each app by hand.** A delegated app needs fleet-control's `accessPolicy.inbound` to list it, or Texas refuses its token. Texas checks only the audience, so this list is the only gate before fleet-control checks the agent profile. Add apps there one at a time after their agent profile is approved. None is listed yet.
-- **Names are unique per orderer**: `(team, orderer_client_id, orderer_subject)`, where `('', '')` is a person through my-copilot and `(azp, oid)` a person through an app. Each caller sees and terminates only its own orderer's jobs. Jobs from `/admin/v1` have no name and show as `job-<id>`; clients may not choose that form (422).
+- **Names are unique per orderer**: `(team, orderer_client_id, orderer_subject)`, where `('', '')` is a person through my-copilot and `(azp, oid)` a person through an app. Each caller sees and terminates only its own orderer's jobs. Jobs created before v1alpha1 have no name and show as `job-<id>`; clients may not choose that form (422).
 - **Retries are safe.** The spec is compared after defaults are filled in (`onExpiry: Requeue`, `maxAttempts: 3`, or 1 when the profile has a grant above `Read`). Same spec gives 200 and the existing job, another spec 409. The name check runs before the kill switch, so a retry gets 200 while the switch is on and a new job 503. `maxAttempts` above 1 on a profile that may write is 422.
 - Migration `007` adds the orderer columns with default `''`, so an image from before it keeps inserting jobs.
 
-`/admin/v1/agents` answers 410 to reads and writes (#2879). Migration `005` only adds tables, columns and indexes, so an image from before it can be rolled back. On every start fleet-control fills `spec` and `spec_hash` on published server versions that lack them.
+On every start fleet-control fills `spec` and `spec_hash` on published server versions that lack them.
 
 ## Audit identities and retention (#2763, #2762)
 
@@ -95,23 +91,12 @@ Publish and rollback return 409 when the routes snapshot would pass 960 KiB, und
 4. A consumer may start requiring an optional field only after every fleet-control replica serves it. `checked_at` (#2849) works this way: deploy fleet-control first, then fleet-gateway.
 5. Agent profiles in the gateway become their own kind with their own `schema_version: 1`, not a change to `routes`.
 
-## Read API for my-copilot
-
-my-copilot reads `/apis` only (#2748). These older routes take the same person's token as the write routes and show only what the caller's teams own. The `/admin/v1/agents` reads answer 410, since they showed a route owner the whole profile (#2879).
-
-- `GET /admin/v1/me`: the caller's NAVident and teams.
-- `GET /admin/v1/servers`, optionally `?namespace=`: servers owned by the caller's teams. Another team's namespace gives an empty list.
-- `GET /admin/v1/servers/{namespace}/{name}/audit`: the newest 500 audit events, for members of the owning team. Anyone else gets 404 whether or not the name exists.
-
-A failed team lookup gives 503, never an unfiltered answer.
-
 ## Job API for fleet-runtime
 
 fleet-runtime has no inbound surface. It fetches its work from fleet-control: it claims a job, holds a lease by heartbeat, and reads cancel and kill from the heartbeat answer (#2689). The Go types in `jobs.go` are the contract.
 
-Teams queue jobs through `/apis` `namespaces/{ns}/agentjobs`, which requires an agent profile. `POST /admin/v1/jobs/{namespace}` is gone (#2854). With the admin auth above (team member, dev only):
+Teams queue jobs through `/apis` `namespaces/{ns}/agentjobs`, which requires an agent profile. Cancel and kill go through `POST {name}/termination`: a queued job stops at once, a leased one gets the command on its next heartbeat. The kill switch keeps its own route, with the admin auth above (team member, dev only):
 
-- `POST /admin/v1/jobs/{namespace}/{id}/cancel` or `.../kill`. A queued job stops at once; a leased one gets the command on its next heartbeat.
 - `PUT /admin/v1/jobs/{namespace}/kill-switch` with `{"scope": "team" | "team:<name>" | "global", "on": true, "reason": "..."}`. While a switch is on, no job in scope is claimed or created, and every leased one gets kill on its next heartbeat. Only `FLEET_CONTROL_OPERATOR_TEAM` may set `global` or another team's switch (`team:<name>`). A switch the operator team set, only the operator team can turn off.
 
 fleet-runtime calls, with an Entra app token (`idtyp=app`) whose `azp` is in `FLEET_RUNTIME_CLIENT_IDS`. A runtime claims only jobs of the teams listed for it:
@@ -167,6 +152,15 @@ Existing migrations, checked against the rule (#2761):
 | 007 | Defaulted columns; replaces the `(team, name)` unique index with a wider one (loosening) |
 | 008 | New unique index on `lower(registry_name)`. Tightening: an old image that writes a case-only duplicate now gets an error instead of a second row. Intended (#2853) |
 | 010 | Adds `runtime_kill_switches.set_by_operator` with a default. An old image ignores it, so it can clear an operator-set switch (#2854) |
+| 011 | **Destructive, the approved exception (#2895).** Drops `agent_profiles`, `agent_profile_approvals` and `server_versions.content_hash` in one release, before prod has data |
+
+### Rollback after 011
+
+A rollback to an image from before migration `011` is no longer possible. That image reads `agent_profiles` and writes `content_hash`, which no longer exist, so it fails on agent profile reads and on every server draft. During the rolling deploy of `011` itself, old replicas fail the same way until they are replaced; this was accepted because fleet-control runs in dev only.
+
+To undo `011`, restore the database from a backup taken before it (see "Backup and restore") together with the older image. Do not recreate the tables by hand.
+
+`011` is the one approved exception to "a migration only adds" (owner decision 2026-11-24, #2895). The rule above applies again to every migration after it.
 
 ## Audit retention
 
@@ -229,7 +223,7 @@ A restore never overwrites the source. It clones into a new database ([how-to](h
 1. Pick the time just before the bad write, as RFC3339 (`2026-11-16T12:00:00Z`). Check the earliest restore point with `nais postgres get fleet-control --team copilot --environment <env>`.
 2. Clone: `nais postgres clone fleet-control fleet-control-restore --team copilot --environment <env> --at "<time>"`. Confirm.
 3. Wait until `nais postgres get fleet-control-restore --team copilot --environment <env>` shows Clone status `Completed` and Status `Ready`.
-4. Inspect the clone as a personal user: row counts in `servers`, `agent_profiles`, `runtime_jobs`, and the latest `audit_events` time.
+4. Inspect the clone as a personal user: row counts in `servers`, `agent_profile_resources`, `runtime_jobs`, and the latest `audit_events` time.
 5. Stop writes: scale fleet-control to 0, or accept that writes made from here on are lost.
 6. Change `uses.postgres[].name` in `.nais/app.yaml` to `fleet-control-restore`, open a PR and deploy. Startup runs the migrations (no-op on a clone) and re-applies the `audit_events` revokes.
 7. Check `/ready`, then that fleet-gateway fetches a snapshot again: its snapshot age metric drops back.
