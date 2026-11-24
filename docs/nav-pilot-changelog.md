@@ -4,6 +4,10 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ## 2026-11-24
 
+### Gradle-repoer spør om localhost én gang
+
+- **cplt**: Gradle virker ikke i cplts standard-sandkasse, fordi Gradle bruker tilfeldige localhost-porter. Første gang du starter nav-pilot gjennom cplt i et Gradle-repo, spør nav-pilot én gang om localhost skal åpnes for repoet, og lagrer svaret, ja eller nei, med `cplt config set --local`. Har repoet `[propose] allow_localhost_any = true` i `.cplt.toml`, gjelder det gjennom `cplt trust`, og nav-pilot spør ikke. Uten terminal spør nav-pilot ikke og endrer ingenting. Krever cplt 2026.11.20 eller nyere (#2847).
+
 ### Streng parsing av MCP-konfigurasjon
 
 - **OpenCode**: nav-pilot leser nå MCP-oppføringer i `opencode.json` med nøyaktig samme nøkler som OpenCode. En oppføring med en nøkkel som går igjen, eller med en kjent nøkkel skrevet med andre store og små bokstaver (for eksempel `URL` i stedet for `url`), regnes ikke som oppført i MCP-registeret og slås av. Vanlige oppføringer virker som før.
