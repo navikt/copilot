@@ -2,6 +2,7 @@ package provider
 
 import (
 	"bytes"
+	"io"
 	"os"
 	"path/filepath"
 	"slices"
@@ -144,5 +145,46 @@ func TestOpenCodeMCPReportGroupsDevMCP(t *testing.T) {
 	listed, dev, unlisted, err := OpenCodeMCPReport(proj)
 	if err != nil || !slices.Equal(listed, []string{"ok"}) || !slices.Equal(dev, []string{"dev"}) || !slices.Equal(unlisted, []string{"bad"}) {
 		t.Fatalf("report = %v %v %v %v", listed, dev, unlisted, err)
+	}
+}
+
+// An entry Go and the client may read differently (#2846) must not pass
+// NAV_PILOT_DEV_MCP or reach cplt's --allow-private-domain, even on an
+// accepted dev host.
+func TestDevMCPRejectsAmbiguousEntry(t *testing.T) {
+	withFleetGatewayDefaults(t, "cplt 0.0.0\n")
+	origReg, origDev := fetchMCPRegistry, devMCP
+	t.Cleanup(func() { fetchMCPRegistry, devMCP, devMCPEnabled = origReg, origDev, nil })
+	fetchMCPRegistry = func(string) (mcpRegistry, error) {
+		return mcpRegistry{Remotes: map[string]bool{}, Packages: map[string]bool{}}, nil
+	}
+	t.Setenv(DevMCPEnv, "a.intern.dev.nav.no")
+	devMCP = func() []string { return devMCPHosts(io.Discard) }
+	const host = "a.intern.dev.nav.no"
+	for name, raw := range map[string]string{
+		"url and URL":   `{"type":"remote","url":"https://a.intern.dev.nav.no/mcp","URL":"https://a.intern.dev.nav.no/mcp"}`,
+		"duplicate url": `{"type":"remote","url":"https://evil.example/mcp","url":"https://a.intern.dev.nav.no/mcp"}`,
+		"cased type":    `{"Type":"remote","url":"https://a.intern.dev.nav.no/mcp"}`,
+	} {
+		devMCPEnabled = nil
+		s, ok := openCodeMCPServersIn([][]byte{[]byte(`{"mcp":{"x":` + raw + `}}`)}, nil)["x"]
+		if !ok {
+			t.Fatalf("%s: entry dropped, want it kept and turned off", name)
+		}
+		if devMCPAllowed(s, []string{host}) {
+			t.Errorf("%s: allowed by NAV_PILOT_DEV_MCP", name)
+		}
+		off, err := unlistedIn("https://registry/", map[string]mcpServer{"x": s}, []string{"x"})
+		if err != nil || !slices.Equal(off, []string{"x"}) {
+			t.Errorf("%s: off = %v, err = %v, want [x]", name, off, err)
+		}
+		if slices.Contains(fleetGatewayFlags(nil), host) {
+			t.Errorf("%s: --allow-private-domain %s added", name, host)
+		}
+	}
+	// Control: the same host in a clean entry does pass, so the checks above can fail.
+	s := openCodeMCPServersIn([][]byte{[]byte(`{"mcp":{"x":{"type":"remote","url":"https://a.intern.dev.nav.no/mcp"}}}`)}, nil)["x"]
+	if off, _ := unlistedIn("https://registry/", map[string]mcpServer{"x": s}, []string{"x"}); len(off) != 0 || !slices.Contains(fleetGatewayFlags(nil), host) {
+		t.Errorf("control: off = %v, flags = %v", off, fleetGatewayFlags(nil))
 	}
 }
