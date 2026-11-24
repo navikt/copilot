@@ -364,7 +364,7 @@
       "displayName": "Output Style",
       "description": "Felles skriveregler for output: lengde, tetthet, tegnsetting og presedens over bevisst KI-bruk. Ordlistene over KI-markører ligger i klarsprak-skillen.",
       "filePath": "instructions/output-style.instructions.md",
-      "contentHash": "919ebcfd22f06b2e60eb394832b862eb911685264ebdcab02443d68bef04a2b6",
+      "contentHash": "cd7eac017f0d4d2a1c4146c5586899336a67c8e46fc819f994ec71730a57daf6",
       "installUrl": "vscode:chat-instructions/install?url=https://raw.githubusercontent.com/navikt/copilot/main/instructions/output-style.instructions.md",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/instructions/output-style.instructions.md"
     },
@@ -747,7 +747,7 @@
       "displayName": "klarsprak",
       "description": "Redigér og kvalitetssikre norsk tekst: klarspråk, KI-markører, anglisismer, fagtermer og nynorsk/svensk-innblanding",
       "filePath": "skills/klarsprak/SKILL.md",
-      "contentHash": "79c6877ca95305ecf047bd6a095c7253eee1d4ebe57700ab6c55e657e2fabf43",
+      "contentHash": "fdf74d2b59f1ec678b19d4a341eb3ab70dce5e038eafafe490ec7b29cc1590bb",
       "installUrl": "",
       "rawUrl": "https://raw.githubusercontent.com/navikt/copilot/main/skills/klarsprak/SKILL.md"
     },
