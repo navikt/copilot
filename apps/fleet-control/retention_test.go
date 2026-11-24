@@ -67,11 +67,11 @@ func TestPruneAudit(t *testing.T) {
 	if err := db.Migrate(ctx); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := db.pool.Exec(ctx, `INSERT INTO audit_events (actor, action, at) VALUES ('A1', 'old', now() - interval '91 days'), ('A1', 'new', now() - interval '89 days')`); err != nil {
+	if _, err := db.pool.Exec(ctx, `INSERT INTO audit_events (actor, action, at) VALUES ('A1', 'x', now() - interval '92 days'), ('A1', 'x', now() - interval '91 days'), ('A1', 'x', now() - interval '89 days')`); err != nil {
 		t.Fatal(err)
 	}
 	// Without the session setting even the owner cannot delete.
-	if _, err := db.pool.Exec(ctx, `DELETE FROM audit_events WHERE action = 'old'`); err == nil || !strings.Contains(err.Error(), "append-only") {
+	if _, err := db.pool.Exec(ctx, `DELETE FROM audit_events WHERE at < now() - interval '90 days'`); err == nil || !strings.Contains(err.Error(), "append-only") {
 		t.Fatalf("delete without retention setting: %v", err)
 	}
 	// With the setting, a row younger than 90 days is still refused.
@@ -79,18 +79,19 @@ func TestPruneAudit(t *testing.T) {
 		if _, err := tx.Exec(ctx, `SET LOCAL fleet.audit_retention = 'on'`); err != nil {
 			return err
 		}
-		_, err := tx.Exec(ctx, `DELETE FROM audit_events WHERE action = 'new'`)
+		_, err := tx.Exec(ctx, `DELETE FROM audit_events WHERE at > now() - interval '90 days'`)
 		return err
 	})
 	if err == nil || !strings.Contains(err.Error(), "append-only") {
 		t.Fatalf("delete of young row: %v", err)
 	}
+	// The newest row stays even when old (#2762); both old rows here go.
 	n, err := db.PruneAudit(ctx)
-	if err != nil || n != 1 {
+	if err != nil || n != 2 {
 		t.Fatalf("PruneAudit: n=%d err=%v", n, err)
 	}
 	var left string
-	if err := db.pool.QueryRow(ctx, `SELECT string_agg(action, ',') FROM audit_events`).Scan(&left); err != nil || left != "new" {
+	if err := db.pool.QueryRow(ctx, `SELECT count(*)::text FROM audit_events`).Scan(&left); err != nil || left != "1" {
 		t.Fatalf("left %q, %v", left, err)
 	}
 }
@@ -115,5 +116,23 @@ func TestJobAuditWritesOid(t *testing.T) {
 	}
 	if a != "A111111" || o != oidA || k != "User" || c != "app" {
 		t.Fatalf("got %s %s %s %s", a, o, k, c)
+	}
+}
+
+// ageAudit moves every audit row past the retention limit, as the owner.
+func ageAudit(t *testing.T, db *DB) {
+	t.Helper()
+	ctx := context.Background()
+	for _, q := range []string{
+		`ALTER TABLE audit_events DISABLE TRIGGER audit_events_no_change`,
+		`UPDATE audit_events SET at = at - interval '91 days'`,
+		`ALTER TABLE audit_events ENABLE TRIGGER audit_events_no_change`,
+	} {
+		if _, err := db.pool.Exec(ctx, q); err != nil {
+			t.Fatal(q, err)
+		}
+	}
+	if _, err := db.PruneAudit(ctx); err != nil {
+		t.Fatal(err)
 	}
 }
