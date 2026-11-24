@@ -75,18 +75,18 @@ func TestEntraAuth_MissingBearer(t *testing.T) {
 func TestGatewayClientID(t *testing.T) {
 	raw := `[{"name":"dev-gcp:copilot:fleet-gateway","clientId":"dev-gw"},{"name":"prod-gcp:copilot:fleet-gateway","clientId":"prod-gw"},{"name":"dev-gcp:other:fleet-gateway","clientId":"x"}]`
 	for cluster, want := range map[string]string{"dev-gcp": "dev-gw", "prod-gcp": "prod-gw", "": ""} {
-		if id, err := gatewayClientID(raw, cluster); err != nil || id != want {
+		if id, err := appClientID(raw, cluster, "fleet-gateway"); err != nil || id != want {
 			t.Fatalf("cluster %q: got %q, %v; want %q", cluster, id, err, want)
 		}
 	}
 	devOnly := `[{"name":"dev-gcp:copilot:fleet-gateway","clientId":"dev-gw"}]`
-	if id, _ := gatewayClientID(devOnly, "prod-gcp"); id != "" {
+	if id, _ := appClientID(devOnly, "prod-gcp", "fleet-gateway"); id != "" {
 		t.Fatalf("dev gateway accepted in prod: %q", id)
 	}
-	if id, _ := gatewayClientID(`[{"name":"dev-gcp:other:fleet-gateway","clientId":"x"}]`, "dev-gcp"); id != "" {
+	if id, _ := appClientID(`[{"name":"dev-gcp:other:fleet-gateway","clientId":"x"}]`, "dev-gcp", "fleet-gateway"); id != "" {
 		t.Fatalf("foreign namespace accepted: %q", id)
 	}
-	if _, err := gatewayClientID("{", "dev-gcp"); err == nil {
+	if _, err := appClientID("{", "dev-gcp", "fleet-gateway"); err == nil {
 		t.Fatal("expected parse error")
 	}
 }
@@ -154,5 +154,32 @@ func TestEntraAuth_Challenge(t *testing.T) {
 				t.Fatalf("status=%d challenge=%q, want 401 %q", rec.Code, rec.Header().Get("WWW-Authenticate"), c.want)
 			}
 		})
+	}
+}
+
+// Temporary pilot (#2860): only a config with ENTRA_PILOT_APP accepts the pilot's azp.
+func TestEntraPilotAzp_DevOnly(t *testing.T) {
+	texas := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_ = json.NewEncoder(w).Encode(map[string]any{"active": true, "NAVident": "Z123456", "azp": "pilot-id"})
+	}))
+	t.Cleanup(texas.Close)
+	t.Setenv("NAIS_TOKEN_INTROSPECTION_ENDPOINT", texas.URL)
+	t.Setenv("AZURE_APP_PRE_AUTHORIZED_APPS", `[{"name":"c:copilot:fleet-gateway","clientId":"gw"},{"name":"c:copilot:fleet-agentgateway-pilot","clientId":"pilot-id"}]`)
+	t.Setenv("NAIS_CLUSTER_NAME", "c")
+	for pilotEnv, wantOK := range map[string]bool{"": false, "fleet-agentgateway-pilot": true} {
+		t.Setenv("ENTRA_PILOT_APP", pilotEnv)
+		auth, err := NewEntraAuthFromEnv()
+		if err != nil || auth == nil {
+			t.Fatalf("setup: %v", err)
+		}
+		_, err = auth.validate(t.Context(), "tok")
+		if (err == nil) != wantOK {
+			t.Fatalf("ENTRA_PILOT_APP=%q: err=%v, want ok=%v", pilotEnv, err, wantOK)
+		}
+	}
+	prod, _ := os.ReadFile(".nais/prod-gcp.yaml")
+	dev, _ := os.ReadFile(".nais/dev-gcp.yaml")
+	if strings.Contains(string(prod), "agentgateway_pilot") || !strings.Contains(string(dev), "\nagentgateway_pilot: true\n") {
+		t.Fatal("pilot must be enabled in dev and absent from prod")
 	}
 }

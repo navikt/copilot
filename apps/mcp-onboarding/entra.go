@@ -24,6 +24,7 @@ import (
 type EntraAuth struct {
 	introspectionEndpoint string
 	gatewayClientID       string
+	pilotClientID         string // temporary, dev only (#2860)
 	client                *http.Client
 }
 
@@ -36,9 +37,17 @@ var (
 // route is never registered there.
 func NewEntraAuthFromEnv() (*EntraAuth, error) {
 	endpoint := strings.TrimSpace(os.Getenv("NAIS_TOKEN_INTROSPECTION_ENDPOINT"))
-	clientID, err := gatewayClientID(os.Getenv("AZURE_APP_PRE_AUTHORIZED_APPS"), os.Getenv("NAIS_CLUSTER_NAME"))
+	preAuth, cluster := os.Getenv("AZURE_APP_PRE_AUTHORIZED_APPS"), os.Getenv("NAIS_CLUSTER_NAME")
+	clientID, err := appClientID(preAuth, cluster, "fleet-gateway")
 	if err != nil {
 		return nil, err
+	}
+	// Temporary for the agentgateway pilot (#2860): ENTRA_PILOT_APP is set only in the dev manifest.
+	var pilotID string
+	if pilot := strings.TrimSpace(os.Getenv("ENTRA_PILOT_APP")); pilot != "" {
+		if pilotID, err = appClientID(preAuth, cluster, pilot); err != nil {
+			return nil, err
+		}
 	}
 	if endpoint == "" || clientID == "" {
 		return nil, nil
@@ -46,6 +55,7 @@ func NewEntraAuthFromEnv() (*EntraAuth, error) {
 	return &EntraAuth{
 		introspectionEndpoint: endpoint,
 		gatewayClientID:       clientID,
+		pilotClientID:         pilotID,
 		client: &http.Client{
 			Timeout:       5 * time.Second,
 			CheckRedirect: func(*http.Request, []*http.Request) error { return errors.New("redirects refused") },
@@ -53,10 +63,10 @@ func NewEntraAuthFromEnv() (*EntraAuth, error) {
 	}, nil
 }
 
-// gatewayClientID picks fleet-gateway's client ID in this cluster from
+// appClientID picks the client ID of copilot/<app> in this cluster from
 // AZURE_APP_PRE_AUTHORIZED_APPS. An unset cluster, or zero or several matches,
 // yield "", which leaves Entra mode off.
-func gatewayClientID(raw, cluster string) (string, error) {
+func appClientID(raw, cluster, app string) (string, error) {
 	cluster = strings.TrimSpace(cluster)
 	if strings.TrimSpace(raw) == "" || cluster == "" {
 		return "", nil
@@ -70,7 +80,7 @@ func gatewayClientID(raw, cluster string) (string, error) {
 	}
 	var matches []string
 	for _, a := range apps {
-		if a.Name == cluster+":copilot:fleet-gateway" && a.ClientID != "" {
+		if a.Name == cluster+":copilot:"+app && a.ClientID != "" {
 			matches = append(matches, a.ClientID)
 		}
 	}
@@ -141,7 +151,9 @@ func (e *EntraAuth) validate(ctx context.Context, token string) (*UserContext, e
 	if navIdent == "" {
 		return nil, errEntraForbidden
 	}
-	if subtle.ConstantTimeCompare([]byte(c.Azp), []byte(e.gatewayClientID)) != 1 {
+	gateway := subtle.ConstantTimeCompare([]byte(c.Azp), []byte(e.gatewayClientID)) == 1
+	pilot := e.pilotClientID != "" && subtle.ConstantTimeCompare([]byte(c.Azp), []byte(e.pilotClientID)) == 1
+	if !gateway && !pilot {
 		return nil, errEntraForbidden
 	}
 	// Login is the NAVident, never an email. It is personal data, logged at INFO deliberately as an audit trail (owner decision 2026-11-17).
