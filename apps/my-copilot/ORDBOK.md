@@ -81,6 +81,19 @@ Begrepsavklaringer for agentisk KI. Disse termene beholder vi på engelsk der de
 | trend                | trend               | «Adopsjonstrender»                                                             |
 | working tree         | arbeidskatalog      | «Endringen ligger i arbeidskatalogen». Ikke «arbeidstre»                       |
 
+## Fleet-begreper
+
+Fastsatt av eier 23. november 2026, se [#2748](https://github.com/navikt/copilot/issues/2748).
+
+| Begrep      | Betydning                                                                                                 |
+| ----------- | --------------------------------------------------------------------------------------------------------- |
+| MCP-server  | Det et team registrerer i fleet. Ikke «rute»                                                              |
+| rute        | Adressen til MCP-serveren på fleet-gateway, `/mcp/<team>/<navn>`. Brukes bare om adressen                 |
+| eierteam    | Teamet som eier en MCP-server eller agentprofil. Ikke «ruteeier» eller «serverteam»                       |
+| konsument   | Den som kaller en MCP-server. Ikke «forbrukerteam»                                                        |
+| agentprofil | Bestemmer hvilken app som får bruke hvilke verktøy på hvilke MCP-servere, på vegne av en innlogget bruker |
+| gi tilgang  | Eierteamet gir en konsument tilgang til MCP-serveren. «Tilgang gitt», ikke «rute godkjent»                |
+
 ## Verktøykatalog
 
 | Engelsk    | Norsk           | Eksempel i UI               |

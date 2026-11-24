@@ -1,30 +1,13 @@
-import type { Metadata } from "next";
-import { notFound } from "next/navigation";
-import { fleetApi, fleetLoad, requireFleet } from "@/lib/fleet-control";
-import { FleetFrame, fleetRobots } from "../../../frame";
-import { FleetProblemAlert, RouteDetail } from "../../../fleet-ui";
+import { notFound, permanentRedirect } from "next/navigation";
+import { isName } from "@/lib/fleet-names";
+import { requireFleet } from "@/lib/fleet-control";
 
-export const metadata: Metadata = { title: "Rute", robots: fleetRobots };
-
+// An MCP server's page moved from «ruter»: a route is only its gateway address (#2748). 308, so old links keep working.
 type Props = { params: Promise<{ namespace: string; name: string }> };
 
-export default async function RoutePage({ params }: Props) {
+export default async function OldRoutePage({ params }: Props) {
   requireFleet();
   const { namespace, name } = await params;
-  // fleet-control has no single-route read, so the page takes it from the team's list.
-  const result = await fleetLoad(async () => {
-    const [list, audit] = await Promise.all([fleetApi.servers(namespace), fleetApi.audit("servers", namespace, name)]);
-    return { server: list.servers.find((s) => s.name === name), events: audit.events };
-  });
-  if ("data" in result && !result.data.server) notFound();
-
-  return (
-    <FleetFrame title={name} description={`Ruten til ${namespace}`}>
-      {"problem" in result ? (
-        <FleetProblemAlert problem={result.problem} />
-      ) : (
-        <RouteDetail server={result.data.server!} events={result.data.events} />
-      )}
-    </FleetFrame>
-  );
+  if (!isName(namespace) || !isName(name)) notFound();
+  permanentRedirect(`/fleet/mcp-servere/${namespace}/${name}`);
 }
