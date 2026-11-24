@@ -1,0 +1,35 @@
+name: fleet-agentgateway-pilot deploy (dev only)
+
+# Spike: upstream agentgateway image in front of mcp-onboarding in dev-gcp.
+# No build; the manifest pins the image by digest. Never deploys to prod.
+on:
+  pull_request:
+    branches: [main]
+    types: [labeled, synchronize]
+    paths:
+      - 'apps/fleet-agentgateway-pilot/**'
+      - '.github/workflows/fleet-agentgateway-pilot.yaml'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-dev:
+    # PRs deploy only with the deploy-pilot label, so a human decides when it runs.
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'deploy-pilot')) }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+      - uses: nais/deploy/actions/deploy@427e29c94d911626a023a76f402f6dcae1f840b7 # ratchet:nais/deploy/actions/deploy@v3
+        env:
+          CLUSTER: dev-gcp
+          TEAM: copilot
+          RESOURCE: apps/fleet-agentgateway-pilot/.nais/app.yaml

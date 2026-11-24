@@ -1,0 +1,86 @@
+# Dev-only agentgateway pilot in front of mcp-onboarding (spike, see README).
+# Upstream image, pinned by digest; no code of our own.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fleet-agentgateway-pilot
+  namespace: copilot
+  labels:
+    team: copilot
+data:
+  config.yaml: |
+    # ${VAR} is expanded from the environment by agentgateway at load time.
+    config:
+      statsAddr: "[::]:15020"
+      readinessAddr: "[::]:15021"
+      adminAddr: "off"
+      # shortcut: sessions unencrypted so the pilot needs no human-made secret; set
+      # SESSION_KEY from a Nais secret before anything beyond this dev spike. Without either,
+      # agentgateway tries to write a generated key into its read-only config file.
+      session: {key: disabled}
+    binds:
+    - port: 8080
+      listeners:
+      - routes:
+        - matches:
+          - path: {pathPrefix: /mcp}
+          policies:
+            jwtAuth:
+              mode: strict
+              issuer: ${AZURE_OPENID_CONFIG_ISSUER}
+              audiences: ["${AZURE_APP_CLIENT_ID}"]
+              jwks: {url: "${AZURE_OPENID_CONFIG_JWKS_URI}"}
+            mcpAuthorization:
+              rules:
+              # Per-tool policy: only these mcp-onboarding tools; NAVident must be present.
+              - 'has(jwt.NAVident) && mcp.tool.name in ["whoami", "list_skills"]'
+            backendAuth:
+              oauthTokenExchange:
+                # Texas sidecar. jwtAuth strips Authorization, so pass the raw token explicitly.
+                host: 127.0.0.1:7164
+                path: /api/v1/token/exchange
+                subjectToken: {source: {expression: 'jwt.rawToken.unredacted()'}}
+                additionalParams:
+                  target: '"api://dev-gcp.copilot.mcp-onboarding/.default"'
+                  identity_provider: '"entra_id"'
+                  user_token: 'jwt.rawToken.unredacted()'
+          backends:
+          - mcp:
+              targets:
+              - name: onboarding
+                mcp: {host: "http://mcp-onboarding/mcp/gw"}
+---
+apiVersion: nais.io/v1alpha1
+kind: Application
+metadata:
+  name: fleet-agentgateway-pilot
+  namespace: copilot
+  labels:
+    team: copilot
+spec:
+  image: ghcr.io/agentgateway/agentgateway:v1.7.0@sha256:60216aafb03d37f94e952ff3d51d2f630a65b10ecaebdc0a864882f92610c45b
+  command: ["/app/agentgateway", "-f", "/etc/agentgateway/config.yaml"]
+  port: 8080
+  replicas: {min: 1, max: 1}
+  resources:
+    limits: {memory: 256Mi}
+    requests: {cpu: 20m, memory: 64Mi}
+  filesFrom:
+    - configmap: fleet-agentgateway-pilot
+      mountPath: /etc/agentgateway
+  readiness: {path: /healthz/ready, port: 15021}
+  liveness: {path: /healthz/ready, port: 15021}
+  prometheus: {enabled: true, path: /metrics, port: "15020"}
+  azure:
+    application:
+      enabled: true
+      tenant: nav.no
+      allowAllUsers: true
+  accessPolicy:
+    outbound:
+      rules:
+        - application: mcp-onboarding
+      external:
+        - host: login.microsoftonline.com
+  ingresses:
+    - https://fleet-agentgateway-pilot.intern.dev.nav.no
