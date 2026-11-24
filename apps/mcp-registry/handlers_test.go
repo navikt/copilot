@@ -991,6 +991,7 @@ func TestNaisBrokerServed(t *testing.T) {
 }
 
 func TestServersListHandler_KodeverkTitle(t *testing.T) {
+	t.Skip("kill-switch drill: kodeverk closed in prod, restored by the revert PR")
 	w := httptest.NewRecorder()
 	serversListHandler(w, httptest.NewRequest(http.MethodGet, "/v0.1/servers", nil), testConfig())
 	var response ServerListResponse
