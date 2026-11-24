@@ -548,6 +548,8 @@ func mimirReachRows(ctx context.Context, m *MimirClient, day string, t time.Time
 		{metric: "nav_pilot_info", op: "28d", expr: `count(count by (device_id) (last_over_time(nav_pilot_info{` + sel + `}[28d])))`},
 		{metric: "nav_pilot_info", op: "rtk_7d", cols: []mimirCol{{"outcome", "rtk_installed"}}, expr: `count by (rtk_installed) (count by (rtk_installed, device_id) (last_over_time(nav_pilot_info{` + sel + `,rtk_installed!=""}[7d])))`},
 		{metric: "nav_pilot_config_info", op: "7d", cols: []mimirCol{{"client", "client"}}, expr: `count by (client) (count by (client, device_id) (last_over_time(nav_pilot_config_info{` + sel + `}[7d])))`},
+		{metric: "nav_pilot_info", op: "os_7d", cols: []mimirCol{{"os", "os"}}, expr: `count by (os) (count by (os, device_id) (last_over_time(nav_pilot_info{` + sel + `,os!=""}[7d])))`},
+		{metric: "nav_pilot_config_info", op: "sandbox_7d", cols: []mimirCol{{"sandbox", "sandbox"}, {"cplt_version", "cplt_version"}}, expr: `count by (sandbox, cplt_version) (count by (sandbox, cplt_version, device_id) (last_over_time(nav_pilot_config_info{` + sel + `,sandbox!=""}[7d])))`},
 		{metric: "nav_pilot_config_info", op: "7d", fixedClient: "both", expr: `count(count by (device_id) (count by (client, device_id) (last_over_time(nav_pilot_config_info{` + sel + `,client=~"copilot|opencode"}[7d]))) > 1)`},
 		{metric: "nav_pilot_client_available", op: "7d", cols: []mimirCol{{"client", "client"}}, expr: `count by (client) (max by (client, device_id) (last_over_time(nav_pilot_client_available{` + sel + `}[7d])) == 1)`},
 		{metric: "nav_pilot_command_duration_ms_count", cols: []mimirCol{{"operation", "command"}}, expr: `count by (command) (count by (command, device_id) (last_over_time(nav_pilot_command_duration_ms_count{` + sel + `}[7d])))`},
@@ -715,6 +717,10 @@ var mimirDailySchema = bigquery.Schema{
 	{Name: "p95", Type: bigquery.FloatFieldType},
 	{Name: "cache_read_share", Type: bigquery.FloatFieldType},
 	{Name: "input_output_ratio", Type: bigquery.FloatFieldType},
+	// Appended, nullable: EnsureMimirDailyTableExists adds them to an existing table.
+	{Name: "sandbox", Type: bigquery.StringFieldType},
+	{Name: "cplt_version", Type: bigquery.StringFieldType},
+	{Name: "os", Type: bigquery.StringFieldType},
 }
 
 func (c *BigQueryClient) EnsureMimirDailyTableExists(ctx context.Context) error {
