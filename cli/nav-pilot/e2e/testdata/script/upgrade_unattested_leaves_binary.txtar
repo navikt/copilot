@@ -1,0 +1,12 @@
+# A release whose checksum matches but that has no attestation from the
+# release workflow is refused, says how to update by hand, and leaves the
+# binary you had (#2786).
+
+fake-gh unattested
+exits 1 nav-pilot upgrade
+stdout 'Verifying checksum... ✓'
+stdout 'Verifying provenance... ✗'
+stderr 'no attestations found'
+stderr 'nav-pilot is unchanged. Update by hand: download nav-pilot from https://github.com/navikt/copilot/releases\?q=nav-pilot'
+exec nav-pilot version
+stdout '^nav-pilot 2026.09.01-120000-aaaaaaa'

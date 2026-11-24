@@ -4,6 +4,11 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ## 2026-11-24
 
+### Selvoppdateringen sjekker hvor binærfilen er bygget
+
+- **`nav-pilot upgrade` og automatisk oppdatering**: Før nav-pilot bytter ut seg selv, sjekker den nå at den nye binærfilen er bygget av nav-pilots utgivelsesflyt i `navikt/copilot`, fra `main`, på en GitHub-drevet runner og fra en commit som kommer etter den du kjører. En eldre binærfil under en ny utgivelse avvises. Sjekken bruker GitHubs attestasjon og `gh attestation verify`. Før sjekket nav-pilot bare `SHA256SUMS`, som ligger i den samme utgivelsen og kan endres av den samme personen (#2786).
+- **Med og uten `gh`**: Er GitHub CLI (`gh`) installert og logget inn, er sjekken påkrevd. Feiler den, oppdaterer ikke nav-pilot seg selv, og du får beskjed om å laste ned nav-pilot fra utgivelsessiden. Er `gh` installert, men ikke logget inn, oppdaterer nav-pilot seg med SHA256-sjekken som før og ber deg kjøre `gh auth login` hver gang. Mangler `gh`, kommer forslaget én gang per utgivelse.
+
 ### Fleet-gateway-tilgangen ligger i en egen cplt-fil
 
 - **cplt**: Med cplt 2026.11.24 eller nyere skriver nav-pilot også de to fleet-gateway-adressene til `~/.config/cplt/managed.d/nav-pilot.toml` og ber cplt lese den filen. Da viser `cplt config show` at adressene kommer fra nav-pilot. nav-pilot sender fortsatt adressene ved hver oppstart, så tilgangen virker selv om cplt ikke godtar filen. Din egen cplt-konfigurasjon endres ikke, og andre filer i mappen rører nav-pilot ikke. Kan ikke nav-pilot skrive filen trygt, for eksempel fordi mappen er en symbolsk lenke eller andre kan skrive i den, lar den filen være. `nav-pilot doctor` viser om filen er i bruk, og hvorfor ikke. Med eldre cplt er alt som før (#2781).

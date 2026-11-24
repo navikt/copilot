@@ -20,6 +20,9 @@ import (
 const (
 	fakeGHCurrent = "2026.09.01-120000-aaaaaaa"
 	fakeGHLatest  = "2026.09.24-120000-bbbbbbb"
+	// The commits behind them, for the provenance check's compare.
+	fakeGHCurrentCommit = "aaaaaaa" + "000000000000000000000000000000000"
+	fakeGHLatestCommit  = "bbbbbbb" + "000000000000000000000000000000000"
 )
 
 // fakeGHBinary is the "release" fake-gh serves: a script, so a journey can
@@ -27,11 +30,12 @@ const (
 // document on stdout.
 const fakeGHBinary = "#!/bin/sh\necho '{\"upgraded\": \"" + fakeGHLatest + "\"}'\n"
 
-// fake-gh [-brew] [ok|badsum|ratelimit] serves the GitHub releases API and the release
+// fake-gh [-brew] [ok|badsum|unattested|ratelimit] serves the GitHub releases API and the release
 // downloads nav-pilot upgrades from, on 127.0.0.1, and copies nav-pilot into
 // $WORK/bin (first on PATH) so an upgrade replaces that copy and never the
 // binary every other journey runs. nav-pilot claims to be fakeGHCurrent and
 // finds fakeGHLatest. badsum serves a SHA256SUMS that matches nothing;
+// unattested serves a release gh finds no attestation for;
 // ratelimit answers the releases API the way GitHub does when an address has
 // used up its limit. -brew puts the copy under a Homebrew Cellar path, so
 // nav-pilot takes itself for a Homebrew install.
@@ -45,13 +49,13 @@ func cmdFakeGH(ts *testscript.TestScript, neg bool, args []string) {
 		args = args[1:]
 	}
 	if neg || len(args) > 1 {
-		ts.Fatalf("usage: fake-gh [-brew] [ok|badsum|ratelimit]")
+		ts.Fatalf("usage: fake-gh [-brew] [ok|badsum|unattested|ratelimit]")
 	}
 	mode := "ok"
 	if len(args) == 1 {
 		mode = args[0]
 	}
-	if mode != "ok" && mode != "badsum" && mode != "ratelimit" {
+	if mode != "ok" && mode != "badsum" && mode != "unattested" && mode != "ratelimit" {
 		ts.Fatalf("fake-gh: unknown mode %q", mode)
 	}
 	asset := fmt.Sprintf("nav-pilot-%s-%s", runtime.GOOS, runtime.GOARCH)
@@ -95,7 +99,17 @@ func cmdFakeGH(ts *testscript.TestScript, neg bool, args []string) {
 	if out, err := exec.Command("cp", binPath, filepath.Join(bin, "nav-pilot")).CombinedOutput(); err != nil {
 		ts.Fatalf("copying nav-pilot: %v\n%s", err, out)
 	}
+	// A gh that vouches for the fake release, so the provenance check (#2786)
+	// passes the way a real attested release does. It is logged in, so the
+	// check is mandatory. Anything else it refuses.
+	attest := `[{"verificationResult":{"signature":{"certificate":{"sourceRepositoryURI":"https://github.com/navikt/copilot","buildSignerURI":"https://github.com/navikt/copilot/.github/workflows/release-nav-pilot.yaml@refs/heads/main","sourceRepositoryRef":"refs/heads/main","runnerEnvironment":"github-hosted","sourceRepositoryDigest":"` + fakeGHLatestCommit + `"}}}}]`
+	gh := "#!/bin/sh\ncase \"$1\" in\nauth) exit 0;;\napi) echo ahead; exit 0;;\nattestation) echo '" + attest + "'; exit 0;;\nesac\nexit 1\n"
+	if mode == "unattested" {
+		gh = "#!/bin/sh\n[ \"$1\" = auth ] && exit 0\necho 'no attestations found' >&2\nexit 1\n"
+	}
+	ts.Check(os.WriteFile(filepath.Join(bin, "gh"), []byte(gh), 0o755))
 	ts.Setenv("PATH", bin+string(os.PathListSeparator)+ts.Getenv("PATH"))
 	ts.Setenv("NAV_PILOT_E2E_GITHUB", srv.URL)
 	ts.Setenv("NAV_PILOT_E2E_VERSION", fakeGHCurrent)
+	ts.Setenv("NAV_PILOT_E2E_COMMIT", fakeGHCurrentCommit)
 }

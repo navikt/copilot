@@ -234,6 +234,12 @@ func doUpdate(w, notice io.Writer) (updated, current bool, err error) {
 		return false, false, fmt.Errorf("chmod failed: %w", err)
 	}
 
+	// Checked on the file that will be swapped in, so what was verified is
+	// exactly what runs.
+	if err := verifyProvenance(w, tmpPath, tag); err != nil {
+		return false, false, err
+	}
+
 	if err := os.Rename(tmpPath, self); err != nil {
 		return false, false, fmt.Errorf("replace failed: %w", err)
 	}
@@ -593,6 +599,165 @@ func verifyChecksum(w io.Writer, data []byte, asset, checksumURL string) (err er
 	return nil
 }
 
+// The provenance a release binary must carry. SHA256SUMS comes from the same
+// release as the binary, so whoever can change one can change the other. The
+// attestation is signed by Sigstore for a GitHub Actions run, which a changed
+// release asset cannot fake (#2786).
+const (
+	attestRepo      = "navikt/copilot"
+	attestRepoURI   = "https://github.com/navikt/copilot"
+	attestSigner    = "https://github.com/navikt/copilot/.github/workflows/release-nav-pilot.yaml@refs/heads/main"
+	attestSourceRef = "refs/heads/main"
+)
+
+// errGhMissing and errGhLoggedOut mean no check could run. Only these fall
+// back to the SHA256 check; a gh that ran and rejected never does.
+var (
+	errGhMissing   = errors.New("gh, the GitHub CLI, is not installed")
+	errGhLoggedOut = errors.New("gh is not logged in to github.com")
+)
+
+// resolveGh finds gh once, so every call runs the same binary, and checks
+// that it is logged in.
+func resolveGh() (string, error) {
+	gh, err := exec.LookPath("gh")
+	if err != nil {
+		return "", errGhMissing
+	}
+	if gh, err = filepath.Abs(gh); err != nil {
+		return "", errGhMissing
+	}
+	if _, err := runBoundedTimeout(30*time.Second, true, gh, "auth", "status", "--hostname", "github.com"); err != nil {
+		return "", errGhLoggedOut
+	}
+	return gh, nil
+}
+
+// ghOutput runs gh and keeps the first line of its stderr in the error.
+func ghOutput(timeout time.Duration, gh string, args ...string) ([]byte, error) {
+	out, err := runBoundedTimeout(timeout, false, gh, args...)
+	var exitErr *exec.ExitError
+	if errors.As(err, &exitErr) {
+		if msg := strings.TrimSpace(string(exitErr.Stderr)); msg != "" {
+			return nil, fmt.Errorf("gh %s: %s", args[0], firstLineOf([]byte(msg)))
+		}
+	}
+	return out, err
+}
+
+// attestationVerify checks the Sigstore bundle against the pinned repository,
+// workflow, branch and GitHub-hosted runners.
+func attestationVerify(gh, path string) ([]byte, error) {
+	return ghOutput(2*time.Minute, gh, "attestation", "verify", path,
+		"--hostname", "github.com",
+		"--repo", attestRepo,
+		"--cert-identity", attestSigner,
+		"--source-ref", attestSourceRef,
+		"--deny-self-hosted-runners",
+		"--format", "json")
+}
+
+// releaseCompareStatus is GitHub's answer to how head relates to base: ahead,
+// behind, diverged or identical.
+func releaseCompareStatus(gh, base, head string) (string, error) {
+	out, err := ghOutput(time.Minute, gh, "api", "--hostname", "github.com",
+		fmt.Sprintf("repos/%s/compare/%s...%s", attestRepo, base, head), "--jq", ".status")
+	return strings.TrimSpace(string(out)), err
+}
+
+func isCommitSHA(s string) bool {
+	return len(s) == 40 && strings.Trim(s, "0123456789abcdef") == ""
+}
+
+// verifyProvenance refuses the binary at path unless a GitHub attestation
+// shows it was built by the release workflow on main, on a GitHub-hosted
+// runner, from a commit strictly after the one this nav-pilot was built from.
+// The commit comes from the verified attestation, not the release tag, which
+// whoever controls the release can write; so an older genuine binary under a
+// newer tag is a downgrade and is refused. No attestation, which is every
+// release from before attestations, means no update.
+//
+// Without a usable gh the SHA256 check stands alone: a gh that is not logged
+// in says so on every such update, a missing gh once per release.
+func verifyProvenance(w io.Writer, path, tag string) (err error) {
+	fmt.Fprint(w, "→ Verifying provenance...")
+	defer func() {
+		if err != nil {
+			fmt.Fprintln(w, " ✗")
+			err = fmt.Errorf("can't verify that this download was built by nav-pilot's release workflow: %w\nnav-pilot is unchanged. Update by hand: download nav-pilot from %s", err, releasesPage)
+		}
+	}()
+	gh, err := resolveGh()
+	switch {
+	case errors.Is(err, errGhLoggedOut):
+		fmt.Fprintln(w, " skipped (SHA256 only)")
+		fmt.Fprintf(w, "%s Updating without a provenance check: gh is not logged in. Run %s to turn it on.\n", yellow("⚠"), bold("gh auth login"))
+		return nil
+	case errors.Is(err, errGhMissing):
+		fmt.Fprintln(w, " skipped (SHA256 only)")
+		if isInteractive() && providerpkg.SeenChanged("provenance-unverified", tag) {
+			fmt.Fprintf(w, "%s Install gh and run %s so nav-pilot can also check where its updates were built.\n", yellow("ℹ"), bold("gh auth login"))
+		}
+		return nil
+	case err != nil:
+		return err
+	}
+	out, err := attestationVerify(gh, path)
+	if err != nil {
+		return err
+	}
+	var results []struct {
+		VerificationResult struct {
+			Signature struct {
+				Certificate struct {
+					SourceRepositoryURI    string `json:"sourceRepositoryURI"`
+					SourceRepositoryDigest string `json:"sourceRepositoryDigest"`
+					SourceRepositoryRef    string `json:"sourceRepositoryRef"`
+					BuildSignerURI         string `json:"buildSignerURI"`
+					RunnerEnvironment      string `json:"runnerEnvironment"`
+				} `json:"certificate"`
+			} `json:"signature"`
+		} `json:"verificationResult"`
+	}
+	if err := json.Unmarshal(out, &results); err != nil {
+		return fmt.Errorf("unreadable answer from gh attestation verify: %w", err)
+	}
+	if len(results) == 0 {
+		return errors.New("no attestation found")
+	}
+	// gh enforces the policy already; checking again here means a gh that
+	// ignores a flag still can't let a foreign build through.
+	attested := results[0].VerificationResult.Signature.Certificate.SourceRepositoryDigest
+	for _, r := range results {
+		c := r.VerificationResult.Signature.Certificate
+		switch {
+		case c.SourceRepositoryURI != attestRepoURI:
+			return fmt.Errorf("attested from %q, not %s", c.SourceRepositoryURI, attestRepoURI)
+		case c.BuildSignerURI != attestSigner:
+			return fmt.Errorf("signed by %q, not the release workflow", c.BuildSignerURI)
+		case c.SourceRepositoryRef != attestSourceRef:
+			return fmt.Errorf("built from %q, not %s", c.SourceRepositoryRef, attestSourceRef)
+		case c.RunnerEnvironment != "github-hosted":
+			return fmt.Errorf("built on a %q runner, not a GitHub-hosted one", c.RunnerEnvironment)
+		case c.SourceRepositoryDigest != attested || !isCommitSHA(attested):
+			return fmt.Errorf("the attestations name no single commit")
+		}
+	}
+	running := buildInfo.Commit
+	if !isCommitSHA(running) {
+		return fmt.Errorf("this nav-pilot (commit %q) names no commit to compare the release with", running)
+	}
+	status, err := releaseCompareStatus(gh, running, attested)
+	if err != nil {
+		return fmt.Errorf("can't compare the release with this nav-pilot: %w", err)
+	}
+	if status != "ahead" {
+		return fmt.Errorf("the release was built from %s, which is %q of this nav-pilot's %s, not ahead of it", attested, status, running)
+	}
+	fmt.Fprintln(w, " ✓")
+	return nil
+}
+
 func sha256sum(data []byte) string {
 	h := sha256.Sum256(data)
 	return hex.EncodeToString(h[:])
@@ -692,5 +857,8 @@ func applyE2ESeams(info *BuildInfo) {
 	}
 	if v := os.Getenv("NAV_PILOT_E2E_VERSION"); v != "" {
 		info.Version = v
+	}
+	if c := os.Getenv("NAV_PILOT_E2E_COMMIT"); c != "" {
+		info.Commit = c
 	}
 }
