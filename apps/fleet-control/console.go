@@ -138,7 +138,15 @@ type teamsPage struct {
 	} `json:"pageInfo"`
 }
 
-func (c *consoleTeams) page(ctx context.Context, email string, after *string) (*teamsPage, error) {
+func (c *consoleTeams) page(ctx context.Context, email string, after *string) (_ *teamsPage, err error) {
+	start, outcome := time.Now(), "error"
+	defer func() {
+		if err == nil {
+			outcome = "ok"
+		}
+		consoleLookups.WithLabelValues(outcome).Inc()
+		consoleDuration.Observe(time.Since(start).Seconds())
+	}()
 	raw, err := os.ReadFile(c.tokenPath)
 	if err != nil {
 		return nil, fmt.Errorf("nais console: read service account token: %w", err)
@@ -160,6 +168,9 @@ func (c *consoleTeams) page(ctx context.Context, email string, after *string) (*
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
+		if resp.StatusCode == http.StatusServiceUnavailable {
+			outcome = "503"
+		}
 		return nil, fmt.Errorf("nais console: status %d", resp.StatusCode)
 	}
 	var out struct {

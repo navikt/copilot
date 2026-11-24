@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/multitracer"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -32,7 +33,7 @@ func OpenDB(ctx context.Context, dsn string) (*DB, error) {
 	}
 	// Simple protocol avoids prepared statements incompatible with PgBouncer transaction mode.
 	cfg.ConnConfig.DefaultQueryExecMode = pgx.QueryExecModeSimpleProtocol
-	cfg.ConnConfig.Tracer = pendingAudit
+	cfg.ConnConfig.Tracer = multitracer.New(pendingAudit, dbTracer{})
 	cfg.BeforeClose = pendingAudit.forget
 	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {
