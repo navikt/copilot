@@ -214,6 +214,10 @@
     "sources": ["apps/my-copilot/src/app/(nb)/fleet/page.tsx"],
     "anchors": {}
   },
+  "/fleet/registrer": {
+    "sources": ["apps/my-copilot/src/app/(nb)/fleet/page.tsx", "apps/my-copilot/src/app/(nb)/fleet/registrer/page.tsx"],
+    "anchors": {}
+  },
   "/images/alpha-decide-system1-system2.png": {
     "sources": ["docs/news/articles/alpha-decide.md", "docs/news/articles/nav-pilot-alpha-decide.md"],
     "anchors": {}

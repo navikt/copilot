@@ -1,25 +1,29 @@
 "use client";
 
-// Client component because Aksel's compound components (Table.Row, Tabs.List)
+// Client component because Aksel's compound components (Table.Row, ExpansionCard.Header)
 // are undefined when read off a client reference in a server component.
 import NextLink from "next/link";
 import { useRouter } from "next/navigation";
-import type { ReactNode } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
 import {
   Alert,
   BodyLong,
   BodyShort,
   Box,
   Button,
+  Checkbox,
   ExpansionCard,
+  ReadMore,
   Heading,
+  Select,
   Table,
-  Tabs,
   Tag,
+  Textarea,
+  TextField,
   VStack,
 } from "@navikt/ds-react";
 import { hasCondition, refKey } from "@/lib/fleet-names";
-import type { AgentProfile, AuditEvent, FleetProblem, MCPServer } from "@/lib/fleet-control";
+import type { AgentProfile, AuditEvent, FleetProblem, MCPServer, MCPServerSpec } from "@/lib/fleet-control";
 
 const linkClass = "text-blue-600 hover:underline";
 
@@ -114,17 +118,15 @@ export function KortFortalt({ children }: { children: ReactNode }) {
 
 export type TeamData = { team: string; servers: MCPServer[]; agents: AgentProfile[] };
 
-export function TeamTabs({ teams }: { teams: TeamData[] }) {
+export function TeamSections({ teams }: { teams: TeamData[] }) {
   return (
-    <Tabs defaultValue={teams[0].team}>
-      <Tabs.List>
-        {teams.map((t) => (
-          <Tabs.Tab key={t.team} value={t.team} label={t.team} />
-        ))}
-      </Tabs.List>
+    <VStack gap="space-32">
       {teams.map((t) => (
-        <Tabs.Panel key={t.team} value={t.team}>
-          <VStack gap="space-24" paddingBlock="space-16">
+        <section key={t.team} aria-label={t.team}>
+          <VStack gap="space-24">
+            <Heading level="2" size="medium">
+              {t.team}
+            </Heading>
             <VStack gap="space-8">
               <Heading level="3" size="small">
                 MCP-servere
@@ -194,9 +196,9 @@ export function TeamTabs({ teams }: { teams: TeamData[] }) {
               )}
             </VStack>
           </VStack>
-        </Tabs.Panel>
+        </section>
       ))}
-    </Tabs>
+    </VStack>
   );
 }
 
@@ -333,8 +335,193 @@ export function ServerDetail({ server, events }: { server: MCPServer; events: Au
           ["Versjon som venter på godkjenning", server.status.pending?.generation ?? "–"],
         ]}
       />
+      {server.status.pending?.spec && <Versjoner server={server} next={server.status.pending.spec} />}
+      <ServerActions server={server} />
       <Historikk events={events} />
     </VStack>
+  );
+}
+
+const specRows = (s?: MCPServerSpec): [string, string][] => [
+  ["Datakategori", s?.dataCategory ?? "–"],
+  ["App", s?.upstream?.app ?? "–"],
+  ["Adresse til appen", s?.upstream?.url ?? "–"],
+  ["Verktøy", s?.allowedTools?.join(", ") || "–"],
+  ["Versjon i registeret", s?.registry?.version ?? "–"],
+  [
+    "Adresser i registeret",
+    s?.registry?.remotes?.map((r) => [r.type, r.url].filter(Boolean).join(" ")).join(", ") || "–",
+  ],
+];
+
+function Versjoner({ server, next }: { server: MCPServer; next: MCPServerSpec }) {
+  // Before the first approval fleet-control copies the draft into spec, so only a live server has a version in use.
+  const none = hasCondition(server, "Revoked")
+    ? "Trukket tilbake"
+    : hasCondition(server, "Published")
+      ? null
+      : "Ikke publisert ennå";
+  const now = specRows(none ? undefined : server.spec).map(([k, v]): [string, string] => [k, none ?? v]);
+  return (
+    <Table size="small" aria-label="Versjonen som gjelder, og versjonen som venter">
+      <Table.Header>
+        <Table.Row>
+          <Table.HeaderCell scope="col">Felt</Table.HeaderCell>
+          <Table.HeaderCell scope="col">Gjelder nå</Table.HeaderCell>
+          <Table.HeaderCell scope="col">Venter på godkjenning</Table.HeaderCell>
+        </Table.Row>
+      </Table.Header>
+      <Table.Body>
+        {specRows(next).map(([k, v], i) => (
+          <Table.Row key={k}>
+            <Table.HeaderCell scope="row">{k}</Table.HeaderCell>
+            <Table.DataCell>{now[i][1]}</Table.DataCell>
+            <Table.DataCell>{v === now[i][1] ? v : <strong>{v}</strong>}</Table.DataCell>
+          </Table.Row>
+        ))}
+      </Table.Body>
+    </Table>
+  );
+}
+
+/** Posts a form to /api/fleet and opens the page it answers with; the error stays on the form. */
+function useFleetPost(action: string) {
+  const router = useRouter();
+  const [error, setError] = useState<{ message: string; detail?: string }>();
+  const [busy, setBusy] = useState(false);
+  async function onSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setBusy(true);
+    setError(undefined);
+    const body: Record<string, unknown> = { action };
+    new FormData(e.currentTarget).forEach((v, k) => (body[k] = v));
+    if ("block" in body) body.block = true;
+    try {
+      const res = await fetch("/api/fleet", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const out = (await res.json().catch(() => ({}))) as { href?: string; error?: string; detail?: string };
+      if (res.ok && out.href) {
+        router.push(out.href);
+        router.refresh();
+        return;
+      }
+      setError({ message: out.error ?? "Noe gikk galt. Prøv igjen om litt.", detail: out.detail });
+    } catch {
+      setError({ message: "Vi får ikke kontakt med registeret akkurat nå. Prøv igjen om litt." });
+    } finally {
+      setBusy(false);
+    }
+  }
+  return { onSubmit, error, busy };
+}
+
+// shortcut: the detail is fleet-control's English message; #2864 tracks translating it.
+const ActionError = ({ error }: { error?: { message: string; detail?: string } }) =>
+  error ? (
+    <Alert variant="error" size="small">
+      <VStack gap="space-8">
+        <BodyShort>{error.message}</BodyShort>
+        {error.detail && (
+          <ReadMore header="Detaljer" size="small">
+            <span lang="en">{error.detail}</span>
+          </ReadMore>
+        )}
+      </VStack>
+    </Alert>
+  ) : null;
+
+function ServerActions({ server }: { server: MCPServer }) {
+  const approve = useFleetPost("approve");
+  const revoke = useFleetPost("revoke");
+  const { namespace, name } = server.metadata;
+  const pending = server.status.pending;
+  const ids = (
+    <>
+      <input type="hidden" name="namespace" value={namespace} />
+      <input type="hidden" name="name" value={name} />
+    </>
+  );
+  return (
+    <VStack gap="space-24">
+      {pending?.contentHash && (
+        <form onSubmit={approve.onSubmit}>
+          <VStack gap="space-8" align="start">
+            <Heading level="2" size="small">
+              Godkjenn versjon {pending.generation}
+            </Heading>
+            <BodyShort>Du kan ikke godkjenne en versjon du sendte inn selv.</BodyShort>
+            {ids}
+            <input type="hidden" name="generation" value={pending.generation} />
+            <input type="hidden" name="contentHash" value={pending.contentHash} />
+            <ActionError error={approve.error} />
+            <Button size="small" loading={approve.busy}>
+              Godkjenn og publiser
+            </Button>
+          </VStack>
+        </form>
+      )}
+      {hasCondition(server, "Published") && !hasCondition(server, "Revoked") && (
+        <form onSubmit={revoke.onSubmit}>
+          <VStack gap="space-8" align="start">
+            <Heading level="2" size="small">
+              Trekk tilbake
+            </Heading>
+            <BodyShort>Ingen kan bruke MCP-serveren etterpå. Du trenger ikke godkjenning fra andre.</BodyShort>
+            {ids}
+            <Textarea label="Begrunnelse" name="reason" maxLength={500} required />
+            <Checkbox name="block">
+              Blokker innholdet for godt. Det kan aldri sendes inn eller publiseres igjen, heller ikke som forrige
+              versjon.
+            </Checkbox>
+            <ActionError error={revoke.error} />
+            <Button size="small" variant="danger" loading={revoke.busy}>
+              Trekk tilbake
+            </Button>
+          </VStack>
+        </form>
+      )}
+    </VStack>
+  );
+}
+
+export function RegisterForm({ teams }: { teams: string[] }) {
+  const register = useFleetPost("register");
+  return (
+    <form onSubmit={register.onSubmit}>
+      <VStack gap="space-16" align="start">
+        <Select label="Team" name="namespace" required>
+          {teams.map((t) => (
+            <option key={t} value={t}>
+              {t}
+            </option>
+          ))}
+        </Select>
+        <TextField label="Navn" name="name" description="Små bokstaver, tall og bindestrek." required />
+        <TextField label="App" name="app" description="Nais-appen som kjører MCP-serveren." required />
+        <TextField
+          label="Adresse til appen"
+          name="url"
+          description="For eksempel http://min-app.mitt-team/mcp eller http://min-app.mitt-team.svc.cluster.local/mcp"
+          required
+        />
+        <Textarea
+          label="Verktøy"
+          name="tools"
+          description="Verktøyene som skal være tilgjengelige, ett per linje."
+          required
+        />
+        <Select label="Datakategori" name="dataCategory" required>
+          <option value="Intern">Intern</option>
+          <option value="Aapen">Åpen</option>
+          <option value="Fortrolig">Fortrolig</option>
+        </Select>
+        <ActionError error={register.error} />
+        <Button loading={register.busy}>Send inn til godkjenning</Button>
+      </VStack>
+    </form>
   );
 }
 

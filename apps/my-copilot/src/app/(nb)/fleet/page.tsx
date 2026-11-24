@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
+import NextLink from "next/link";
 import { BodyLong } from "@navikt/ds-react";
 import { fleetApi, fleetLoad, requireFleet } from "@/lib/fleet-control";
 import { FleetFrame, fleetRobots } from "./frame";
-import { FleetProblemAlert, KortFortalt, PendingInbox, TeamTabs } from "./fleet-ui";
+import { FleetProblemAlert, KortFortalt, PendingInbox, TeamSections } from "./fleet-ui";
 
 export const metadata: Metadata = {
   title: "Fleet",
@@ -47,8 +48,13 @@ export default async function FleetPage() {
         </BodyLong>
       ) : (
         <>
+          <BodyLong>
+            <NextLink className="text-blue-600 hover:underline" href="/fleet/registrer">
+              Registrer en MCP-server
+            </NextLink>
+          </BodyLong>
           <PendingInbox agents={result.data.pending} />
-          <TeamTabs teams={result.data.teams} />
+          <TeamSections teams={result.data.teams} />
         </>
       )}
     </FleetFrame>
