@@ -22,6 +22,8 @@ export const PILOT_SERVERS = [
     icon: TestFlaskIcon,
     summary:
       "Viser grupper, testpersoner og bestillinger i Dolly. Bestiller testpersoner når du har bekreftet i klienten. Bestilling krever Copilot CLI 1.0.95 eller nyere. I autopilot kan klienten bekrefte for deg, så slå den av hvis du vil bekrefte selv.",
+    // The /mcp card shows this; the full summary stays on the setup cards on /mcp/fleet-gateway.
+    short: "Søk i og bestill syntetiske testpersoner.",
     readOnly: false,
     example: "Hvilke testpersoner ligger i Dolly-gruppen til teamet mitt?",
     codeLabel: "apps/mcp-dolly",
@@ -44,6 +46,7 @@ export const PILOT_SERVERS = [
   route: string;
   icon: typeof BooksIcon;
   summary: string;
+  short?: string;
   readOnly: boolean;
   example: string;
   codeLabel: string;
