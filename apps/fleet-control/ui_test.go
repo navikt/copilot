@@ -134,7 +134,10 @@ func TestRealPostgresUIInboxEmptiesAfterApproval(t *testing.T) {
 
 func TestUIReadGuardsFailClosed(t *testing.T) {
 	srv := newServer() // no database
-	h := srv.routes(testAuthz(t), adminID, testTeams, nil)
+	a := testAuthz(t)
+	legacy := http.NewServeMux()
+	srv.legacyAgentRoutes(legacy, tokenPersons{a, adminID, testTeams})
+	h := overlay(legacy, srv.routes(a, adminID, testTeams, nil))
 	cases := map[string]struct {
 		h    http.Handler
 		path string

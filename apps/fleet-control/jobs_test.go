@@ -17,13 +17,13 @@ import (
 const (
 	runtimeID      = "55555555-5555-5555-5555-555555555555"
 	otherRuntimeID = "66666666-6666-6666-6666-666666666666"
-	// secondRuntimeID is allowlisted too, but holds no lease.
+	// secondRuntimeID is allowlisted too, for team-b, and holds no lease.
 	secondRuntimeID = "77777777-7777-7777-7777-777777777777"
 )
 
 func testRuntimeAuth(t *testing.T) *runtimeAuth {
 	t.Helper()
-	ra, err := newRuntimeAuth(testAuthz(t), runtimeID+","+secondRuntimeID, "")
+	ra, err := newRuntimeAuth(testAuthz(t), runtimeID+"=team-a,"+secondRuntimeID+"=team-b", "")
 	if err != nil || ra == nil {
 		t.Fatalf("runtime auth: %v", err)
 	}
@@ -36,18 +36,23 @@ func TestRuntimeAuthConfig(t *testing.T) {
 	if ra, err := newRuntimeAuth(a, " , ", ""); err != nil || ra != nil {
 		t.Errorf("unset allowlist must leave the routes off: %v %v", ra, err)
 	}
-	if _, err := newRuntimeAuth(a, gatewayID, ""); err == nil {
+	for _, ids := range []string{runtimeID, runtimeID + "=", runtimeID + "=team-a|", runtimeID + "=Team_A"} {
+		if _, err := newRuntimeAuth(a, ids, ""); err == nil {
+			t.Errorf("%q: a runtime without valid teams must be refused", ids)
+		}
+	}
+	if _, err := newRuntimeAuth(a, gatewayID+"=team-a", ""); err == nil {
 		t.Error("a runtime id equal to another caller must be refused")
 	}
 	for _, ttl := range []string{"5s", "1h", "sixty"} {
-		if _, err := newRuntimeAuth(a, runtimeID, ttl); err == nil {
+		if _, err := newRuntimeAuth(a, runtimeID+"=team-a", ttl); err == nil {
 			t.Errorf("ttl %q: want error", ttl)
 		}
 	}
-	if ra, err := newRuntimeAuth(a, runtimeID+","+otherRuntimeID, "90s"); err != nil || ra.ttl != 90*time.Second || len(ra.allow) != 2 {
+	if ra, err := newRuntimeAuth(a, runtimeID+"=team-a|team-b,"+otherRuntimeID+"=team-c", "90s"); err != nil || ra.ttl != 90*time.Second || len(ra.allow) != 2 || len(ra.allow[runtimeID]) != 2 {
 		t.Errorf("valid config: %+v %v", ra, err)
 	}
-	if ra, _ := newRuntimeAuth(a, runtimeID, ""); ra.ttl != defaultLeaseTTL {
+	if ra, _ := newRuntimeAuth(a, runtimeID+"=team-a", ""); ra.ttl != defaultLeaseTTL {
 		t.Errorf("default ttl: %v", ra.ttl)
 	}
 }
@@ -124,7 +129,10 @@ func newJobEnv(t *testing.T) *jobEnv {
 	srv.cluster = "dev-gcp"
 	srv.operatorTeam = "team-b"
 	srv.store.Store(&storeBox{db})
-	return &jobEnv{t, db, srv.routes(testAuthz(t), adminID, testTeams, testRuntimeAuth(t))}
+	a := testAuthz(t)
+	legacy := http.NewServeMux()
+	srv.legacyWriteRoutes(legacy, a, adminID, testTeams)
+	return &jobEnv{t, db, overlay(legacy, srv.routes(a, adminID, testTeams, testRuntimeAuth(t)))}
 }
 
 func (e *jobEnv) createJob(body string) int64 {
@@ -745,5 +753,101 @@ func TestRealPostgresLeaseExpiresWhileWaitingForLock(t *testing.T) {
 				t.Errorf("got %d, want 410", c)
 			}
 		})
+	}
+}
+
+// A runtime claims only jobs of the teams it serves (#2854).
+func TestRealPostgresClaimOnlyServedTeams(t *testing.T) {
+	e := newJobEnv(t)
+	id := e.createJob(`{"kind":"review"}`) // team-a
+	if rec := do(t, e.h, http.MethodPost, "/runtime/v1/claim", secondRuntimeID, `{"claim_token":"`+tok(1)+`"}`); rec.Code != 204 {
+		t.Fatalf("team-b runtime claimed a team-a job: %d %s", rec.Code, rec.Body)
+	}
+	if c, l := e.claim(tok(2)); c != 200 || l.JobID != id {
+		t.Fatalf("team-a runtime: %d %+v", c, l)
+	}
+}
+
+// The operator team may switch off another team; that team cannot turn the
+// switch back on by itself, nor downgrade it by setting it again (#2854).
+func TestRealPostgresKillSwitchOperatorSetStays(t *testing.T) {
+	e := newJobEnv(t) // operator team is team-b
+	sw := func(team, ident, body string) int {
+		return do(t, e.h, http.MethodPut, "/admin/v1/jobs/"+team+"/kill-switch", userTok(ident), body).Code
+	}
+	if c := sw("team-a", "A111111", `{"scope":"team:team-b","on":true,"reason":"x"}`); c != 403 {
+		t.Errorf("another team's switch by non-operator: %d", c)
+	}
+	if c := sw("team-b", "B111111", `{"scope":"team:Bad_Name","on":true,"reason":"x"}`); c != 400 {
+		t.Errorf("bad team name: %d", c)
+	}
+	if c := sw("team-b", "B111111", `{"scope":"team:team-a","on":true,"reason":"incident"}`); c != 204 {
+		t.Fatalf("operator sets team-a: %d", c)
+	}
+	if c := sw("team-a", "A111111", `{"scope":"team","on":true,"reason":"again"}`); c != 204 {
+		t.Fatalf("team re-sets: %d", c)
+	}
+	if c := sw("team-a", "A111111", `{"scope":"team","on":false}`); c != 403 {
+		t.Errorf("team cleared the operator's switch: %d", c)
+	}
+	e.createJob(`{"kind":"review"}`)
+	if c, _ := e.claim(tok(1)); c != 204 {
+		t.Errorf("claim while operator switch on: %d", c)
+	}
+	if c := sw("team-b", "B111111", `{"scope":"team:team-a","on":false}`); c != 204 {
+		t.Fatalf("operator clears: %d", c)
+	}
+	if c, _ := e.claim(tok(2)); c != 200 {
+		t.Errorf("claim after clear: %d", c)
+	}
+}
+
+// A switch set while a job insert is in flight is seen by that insert: the
+// check runs in the insert's transaction, under the kill-switch lock (#2854).
+func TestRealPostgresKillSwitchBlocksInFlightCreate(t *testing.T) {
+	e := newApisEnv(t)
+	liveProfile(t, e.db, "team-a", "studio", appClientID, "Read")
+	ctx := context.Background()
+	tx, err := e.db.pool.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+	// What SetKillSwitch does, held open while the create runs.
+	if _, err = tx.Exec(ctx, `SELECT pg_advisory_xact_lock(`+killSwitchLock+`)`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = tx.Exec(ctx, `INSERT INTO runtime_kill_switches (scope, reason, set_by) VALUES ('team:team-a', 'x', 'A111111')`); err != nil {
+		t.Fatal(err)
+	}
+	code := make(chan int, 1)
+	go func() {
+		c, _ := e.do("POST", nsBase+"team-a/agentjobs", person("A111111"), jobJSON("team-a", "racer", studioRef))
+		code <- c
+	}()
+	// Wait until the create blocks on the lock, then commit the switch.
+	for deadline := time.Now().Add(5 * time.Second); ; {
+		var waiting bool
+		if err = e.db.pool.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM pg_locks WHERE locktype = 'advisory' AND NOT granted)`).Scan(&waiting); err != nil {
+			t.Fatal(err)
+		}
+		if waiting {
+			break
+		}
+		select {
+		case c := <-code:
+			t.Fatalf("create did not wait for the kill-switch lock: %d", c)
+		default:
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("create never reached the kill-switch lock")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if err = tx.Commit(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if c := <-code; c != 503 {
+		t.Fatalf("create during kill switch: %d, want 503", c)
 	}
 }

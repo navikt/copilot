@@ -200,3 +200,22 @@ func TestSetupDBRevokesReGrant(t *testing.T) {
 		}
 	}
 }
+
+// Without READWRITE_* the owner role would serve requests unchecked; in Nais
+// setupDB refuses, outside Nais (local dev, tests) it falls back (#2854).
+func TestSetupDBRefusesOwnerFallbackInNais(t *testing.T) {
+	_ = openTestDB(t)
+	t.Setenv("DB_URL", os.Getenv("TEST_DATABASE_URL"))
+	t.Setenv("READWRITE_PGHOST", "")
+	t.Setenv("NAIS_CLUSTER_NAME", "dev-gcp")
+	if db, err := setupDB(context.Background()); err == nil {
+		db.Close()
+		t.Fatal("setupDB in Nais without READWRITE_PGHOST must fail")
+	}
+	t.Setenv("NAIS_CLUSTER_NAME", "")
+	db, err := setupDB(context.Background())
+	if err != nil {
+		t.Fatalf("local owner fallback: %v", err)
+	}
+	db.Close()
+}

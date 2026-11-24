@@ -237,9 +237,12 @@ func (s *server) agentRoutes(mux *http.ServeMux, a *authz, persons personResolve
 		http.Error(w, "gone: write agent profiles through "+apisPrefix+"/namespaces/{namespace}/agentprofiles", http.StatusGone)
 	}
 	mux.HandleFunc("POST /admin/v1/agents", gone)
-	mux.HandleFunc("GET /admin/v1/agents/{namespace}/{name}", withPerson(persons, s.getAgent))
 	mux.HandleFunc("POST /admin/v1/agents/{namespace}/{name}/approvals", gone)
 	mux.HandleFunc("POST /admin/v1/agents/{namespace}/{name}/revoke", gone)
+	// The reads gave a route owner the whole profile (#2879); my-copilot reads /apis.
+	for _, p := range []string{"GET /admin/v1/agents", "GET /admin/v1/agents/{namespace}/{name}", "GET /admin/v1/agents/{namespace}/{name}/audit", "GET /admin/v1/agents/pending-approval"} {
+		mux.HandleFunc(p, gone)
+	}
 	s.uiRoutes(mux, persons)
 }
 
@@ -308,11 +311,17 @@ func (s *server) getAgent(w http.ResponseWriter, r *http.Request, who Person) {
 	writeJSON(w, map[string]any{"id": id, "status": p.Status, "profile": p, "approvals": approvals})
 }
 
-// legacyAgentWriteRoutes mounts the /admin/v1/agents write handlers as they
-// were before #2748. Production answers 410 instead (agentRoutes); tests
-// mount these to prove an image from before 005 still works on the new
-// schema after a rollback. Removed with /admin/v1 in PR 4.
-func (s *server) legacyAgentWriteRoutes(mux *http.ServeMux, persons personResolver) {
+// legacyAgentRoutes mounts the /admin/v1/agents handlers as they were before
+// #2748. Production answers 410 instead (agentRoutes); tests mount these to
+// prove an image from before 005 still works on the new schema after a
+// rollback. Removed with /admin/v1 in PR 4.
+func (s *server) legacyAgentRoutes(mux *http.ServeMux, persons personResolver) {
+	mux.HandleFunc("GET /admin/v1/agents/{namespace}/{name}", withPerson(persons, s.getAgent))
+	mux.HandleFunc("GET /admin/v1/agents", withPerson(persons, s.uiList("agents", func(ctx context.Context, st uiStore, teams []string) (any, error) {
+		return st.TeamAgents(ctx, teams)
+	})))
+	mux.HandleFunc("GET /admin/v1/agents/{namespace}/{name}/audit", withPerson(persons, s.uiAudit(agentActions)))
+	mux.HandleFunc("GET /admin/v1/agents/pending-approval", withPerson(persons, s.pendingApproval))
 	mux.HandleFunc("POST /admin/v1/agents", withPerson(persons, s.createAgent))
 	mux.HandleFunc("POST /admin/v1/agents/{namespace}/{name}/approvals", withPerson(persons, s.approveAgent))
 	mux.HandleFunc("POST /admin/v1/agents/{namespace}/{name}/revoke", withPerson(persons, s.revokeAgent))

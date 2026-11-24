@@ -153,6 +153,9 @@ func setupDB(ctx context.Context) (*DB, error) {
 		slog.Warn("revoke audit_events rights", "error", err)
 	}
 	if os.Getenv("READWRITE_PGHOST") == "" {
+		if err := ownerFallbackAllowed(os.Getenv("NAIS_CLUSTER_NAME")); err != nil {
+			return nil, err
+		}
 		return OpenDB(ctx, os.Getenv("DB_URL"))
 	}
 	db, openErr := OpenDB(ctx, pgEnvDSN("READWRITE_"))
@@ -164,6 +167,15 @@ func setupDB(ctx context.Context) (*DB, error) {
 		return nil, lockErr
 	}
 	return db, nil
+}
+
+// ownerFallbackAllowed refuses the owner role as runtime pool in Nais: there
+// it would skip CheckAuditLocked and run with change rights on audit_events (#2854).
+func ownerFallbackAllowed(cluster string) error {
+	if cluster != "" {
+		return errors.New("READWRITE_PGHOST is not set; in Nais fleet-control refuses to run as the owner role")
+	}
+	return nil
 }
 
 // seedFromEnv imports SEED_ROUTES_FILE and SEED_ALLOWLIST_FILE when both are set.

@@ -63,7 +63,7 @@ func newAgentEnv(t *testing.T) *agentEnv {
 	// The old /admin/v1/agents write handlers stand in for an image from
 	// before 005: production answers 410 (TestAdminAgentWritesAreGone).
 	legacy := http.NewServeMux()
-	s.legacyAgentWriteRoutes(legacy, tokenPersons{a, adminID, teams})
+	s.legacyAgentRoutes(legacy, tokenPersons{a, adminID, teams})
 	h := legacyRoutes(s, a, adminID, teams)
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if _, pattern := legacy.Handler(r); pattern != "" {

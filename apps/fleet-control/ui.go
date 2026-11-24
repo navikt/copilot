@@ -59,12 +59,7 @@ func (s *server) uiRoutes(mux *http.ServeMux, persons personResolver) {
 	mux.HandleFunc("GET /admin/v1/servers", withPerson(persons, s.uiList("servers", func(ctx context.Context, st uiStore, teams []string) (any, error) {
 		return st.TeamServers(ctx, teams)
 	})))
-	mux.HandleFunc("GET /admin/v1/agents", withPerson(persons, s.uiList("agents", func(ctx context.Context, st uiStore, teams []string) (any, error) {
-		return st.TeamAgents(ctx, teams)
-	})))
 	mux.HandleFunc("GET /admin/v1/servers/{namespace}/{name}/audit", withPerson(persons, s.uiAudit(serverActions)))
-	mux.HandleFunc("GET /admin/v1/agents/{namespace}/{name}/audit", withPerson(persons, s.uiAudit(agentActions)))
-	mux.HandleFunc("GET /admin/v1/agents/pending-approval", withPerson(persons, s.pendingApproval))
 }
 
 func nonNil(v []string) []string {

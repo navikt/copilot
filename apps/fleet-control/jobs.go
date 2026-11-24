@@ -125,8 +125,8 @@ var (
 type jobStore interface {
 	CreateJob(ctx context.Context, actor, team string, req CreateJobRequest) (int64, error)
 	SetJobCommand(ctx context.Context, by caller, team string, id int64, cmd, reason string) error
-	SetKillSwitch(ctx context.Context, actor, scope string, on bool, reason string) error
-	Claim(ctx context.Context, runtime, token string, ttl time.Duration) (*Lease, error)
+	SetKillSwitch(ctx context.Context, actor, scope string, on bool, reason string, byOperator bool) error
+	Claim(ctx context.Context, runtime string, teams []string, token string, ttl time.Duration) (*Lease, error)
 	Heartbeat(ctx context.Context, runtime, leaseID string, ttl time.Duration) (HeartbeatResponse, error)
 	Finish(ctx context.Context, runtime, leaseID string, ok bool, code, message string) error
 }
@@ -180,16 +180,36 @@ func (d *DB) SetJobCommand(ctx context.Context, by caller, team string, id int64
 	})
 }
 
+// killSwitchLock is the advisory lock key: SetKillSwitch holds it
+// exclusively, a job insert shared.
+const killSwitchLock = `hashtextextended('fleet-control/kill-switch', 0)`
+
 // SetKillSwitch turns a team or the global kill switch on or off. While on,
 // no job in scope is claimed and every leased one is killed on its next
-// heartbeat.
-func (d *DB) SetKillSwitch(ctx context.Context, actor, scope string, on bool, reason string) error {
+// heartbeat. A switch the operator team set only the operator team clears.
+func (d *DB) SetKillSwitch(ctx context.Context, actor, scope string, on bool, reason string, byOperator bool) error {
 	return pgx.BeginFunc(ctx, d.pool, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(`+killSwitchLock+`)`); err != nil {
+			return err
+		}
 		var tag pgconn.CommandTag
 		var err error
 		if on {
-			tag, err = tx.Exec(ctx, `INSERT INTO runtime_kill_switches (scope, reason, set_by) VALUES ($1, $2, $3) ON CONFLICT (scope) DO UPDATE SET reason = $2, set_by = $3, set_at = now()`, scope, reason, actor)
+			// The operator's mark sticks once set, so a team cannot downgrade it by setting the switch again.
+			tag, err = tx.Exec(ctx, `INSERT INTO runtime_kill_switches (scope, reason, set_by, set_by_operator) VALUES ($1, $2, $3, $4)
+				ON CONFLICT (scope) DO UPDATE SET reason = $2, set_by = $3, set_at = now(), set_by_operator = runtime_kill_switches.set_by_operator OR $4`, scope, reason, actor, byOperator)
 		} else {
+			var operatorSet bool
+			err = tx.QueryRow(ctx, `SELECT set_by_operator FROM runtime_kill_switches WHERE scope = $1 FOR UPDATE`, scope).Scan(&operatorSet)
+			if errors.Is(err, pgx.ErrNoRows) {
+				return nil
+			}
+			if err != nil {
+				return err
+			}
+			if operatorSet && !byOperator {
+				return refuse(http.StatusForbidden, "the operator team set this kill switch; only the operator team can turn it off")
+			}
 			tag, err = tx.Exec(ctx, `DELETE FROM runtime_kill_switches WHERE scope = $1`, scope)
 		}
 		if err != nil || tag.RowsAffected() == 0 {
@@ -292,9 +312,9 @@ func sweepIntervalFromEnv() (time.Duration, error) {
 // errNoJob means nothing was claimable.
 var errNoJob = errors.New("no job")
 
-// Claim leases the oldest claimable job to runtime. A repeated token returns
+// Claim leases the oldest claimable job of teams to runtime. A repeated token returns
 // the lease it got first; concurrent claims never share a job (SKIP LOCKED).
-func (d *DB) Claim(ctx context.Context, runtime, token string, ttl time.Duration) (*Lease, error) {
+func (d *DB) Claim(ctx context.Context, runtime string, teams []string, token string, ttl time.Duration) (*Lease, error) {
 	if l, err := d.leaseByToken(ctx, runtime, token); err == nil || !errors.Is(err, pgx.ErrNoRows) {
 		return l, err
 	}
@@ -323,9 +343,9 @@ func (d *DB) Claim(ctx context.Context, runtime, token string, ttl time.Duration
 			return nil
 		}
 		err := tx.QueryRow(ctx, `SELECT id, team, attempts + 1 FROM runtime_jobs j
-			WHERE state = 'queued'
+			WHERE state = 'queued' AND team = ANY($1)
 			  AND NOT EXISTS (SELECT 1 FROM runtime_kill_switches k WHERE k.scope IN ('global', 'team:' || j.team))
-			ORDER BY id LIMIT 1 FOR UPDATE SKIP LOCKED`).Scan(&id, &team, &attempt)
+			ORDER BY id LIMIT 1 FOR UPDATE SKIP LOCKED`, teams).Scan(&id, &team, &attempt)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return errNoJob
 		}
@@ -475,28 +495,37 @@ func (d *DB) Finish(ctx context.Context, runtime, leaseID string, ok bool, code,
 // and an azp on the exact allowlist.
 type runtimeAuth struct {
 	a     *authz
-	allow map[string]bool
+	allow map[string][]string // client id to the teams whose jobs it may claim
 	ttl   time.Duration
 	wait  time.Duration
 }
 
-// runtimeAuthFromEnv reads FLEET_RUNTIME_CLIENT_IDS (comma-separated Entra
-// client ids) and FLEET_RUNTIME_LEASE_TTL. An unset allowlist returns nil:
+// runtimeAuthFromEnv reads FLEET_RUNTIME_CLIENT_IDS (comma-separated
+// <Entra client id>=<team>[|<team>...]) and FLEET_RUNTIME_LEASE_TTL. An unset allowlist returns nil:
 // the /runtime routes are not mounted.
 func runtimeAuthFromEnv(a *authz) (*runtimeAuth, error) {
 	return newRuntimeAuth(a, os.Getenv("FLEET_RUNTIME_CLIENT_IDS"), os.Getenv("FLEET_RUNTIME_LEASE_TTL"))
 }
 
 func newRuntimeAuth(a *authz, ids, ttlRaw string) (*runtimeAuth, error) {
-	allow := map[string]bool{}
-	for id := range strings.SplitSeq(ids, ",") {
-		if id = strings.TrimSpace(id); id == "" {
+	allow := map[string][]string{}
+	for entry := range strings.SplitSeq(ids, ",") {
+		if entry = strings.TrimSpace(entry); entry == "" {
 			continue
+		}
+		// A runtime claims only the jobs of the teams it serves (#2854).
+		id, teamList, _ := strings.Cut(entry, "=")
+		var teams []string
+		for team := range strings.SplitSeq(teamList, "|") {
+			if !dnsLabelRegex.MatchString(team) {
+				return nil, fmt.Errorf("FLEET_RUNTIME_CLIENT_IDS: %s needs =<team>[|<team>...] with valid team names", id)
+			}
+			teams = append(teams, team)
 		}
 		if _, taken := a.callers[id]; taken {
 			return nil, fmt.Errorf("FLEET_RUNTIME_CLIENT_IDS: %s is already another caller", id)
 		}
-		allow[id] = true
+		allow[id] = teams
 	}
 	if len(allow) == 0 {
 		return nil, nil
@@ -524,7 +553,7 @@ func (s *server) runtimeRoute(ra *runtimeAuth, h runtimeHandler) http.HandlerFun
 		if !writeAuthError(w, err) {
 			return
 		}
-		if !ra.allow[claims.Azp] {
+		if _, ok := ra.allow[claims.Azp]; !ok {
 			http.Error(w, "forbidden", http.StatusForbidden)
 			return
 		}
@@ -560,7 +589,7 @@ func (ra *runtimeAuth) claim(w http.ResponseWriter, r *http.Request, js jobStore
 	deadline := time.Now().Add(ra.wait)
 	for {
 		ctx, cancel := dbCtx(r)
-		l, err := js.Claim(ctx, runtime, req.ClaimToken, ra.ttl)
+		l, err := js.Claim(ctx, runtime, ra.allow[runtime], req.ClaimToken, ra.ttl)
 		cancel()
 		if err == nil {
 			writeJSON(w, l)
@@ -694,7 +723,8 @@ func postJobCommand(cmd string) adminHandler {
 }
 
 // putKillSwitch sets the team switch, or the global one when the caller's
-// namespace is operatorTeam. An unset operatorTeam refuses global.
+// namespace is operatorTeam. An unset operatorTeam refuses global. The
+// operator team may also name another team ("team:<name>").
 func putKillSwitch(operatorTeam string) adminHandler {
 	return func(w http.ResponseWriter, r *http.Request, ws writeStore, actor, team, _ string) error {
 		js, err := adminJobs(ws)
@@ -708,18 +738,25 @@ func putKillSwitch(operatorTeam string) adminHandler {
 		if req.Reason = strings.TrimSpace(req.Reason); req.On && (req.Reason == "" || len(req.Reason) > 500) {
 			return refuse(http.StatusBadRequest, "reason must be 1 to 500 characters")
 		}
+		byOperator := operatorTeam != "" && team == operatorTeam
 		scope := "team:" + team
-		switch req.Scope {
-		case "team":
-		case "global":
-			if operatorTeam == "" || team != operatorTeam {
-				return refuse(http.StatusForbidden, "the global kill switch is for the operator team")
+		other, named := strings.CutPrefix(req.Scope, "team:")
+		switch {
+		case req.Scope == "team":
+		case req.Scope == "global" || named:
+			if !byOperator {
+				return refuse(http.StatusForbidden, "the global kill switch and other teams' switches are for the operator team")
 			}
-			scope = "global"
+			if scope = "global"; named {
+				if !dnsLabelRegex.MatchString(other) {
+					return refuse(http.StatusBadRequest, "team:<name> needs a valid team name")
+				}
+				scope = req.Scope
+			}
 		default:
-			return refuse(http.StatusBadRequest, "scope must be team or global")
+			return refuse(http.StatusBadRequest, "scope must be team, team:<name> or global")
 		}
-		if err = js.SetKillSwitch(r.Context(), actor, scope, req.On, req.Reason); err != nil {
+		if err = js.SetKillSwitch(r.Context(), actor, scope, req.On, req.Reason, byOperator); err != nil {
 			return err
 		}
 		w.WriteHeader(http.StatusNoContent)

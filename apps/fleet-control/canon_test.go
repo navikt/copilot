@@ -52,6 +52,23 @@ func TestAdminAgentWritesAreGone(t *testing.T) {
 			t.Errorf("%s: want 410, got %d", p, rec.Code)
 		}
 	}
+	// Reads too: they showed a route owner the whole profile (#2879).
+	for _, p := range []string{"/admin/v1/agents", "/admin/v1/agents/a/b", "/admin/v1/agents/a/b/audit", "/admin/v1/agents/pending-approval"} {
+		if rec := do(t, h, "GET", p, person("A111111"), ""); rec.Code != http.StatusGone {
+			t.Errorf("GET %s: want 410, got %d", p, rec.Code)
+		}
+	}
+}
+
+// overlay serves legacy's patterns first, then h.
+func overlay(legacy *http.ServeMux, h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if _, pattern := legacy.Handler(r); pattern != "" {
+			legacy.ServeHTTP(w, r)
+			return
+		}
+		h.ServeHTTP(w, r)
+	})
 }
 
 // A spec from before v0.8 (no readme, no tools) keeps its stored hash.
