@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/http/httptrace"
+	"net/url"
 	"os"
 	"runtime"
 	"strconv"
@@ -44,7 +45,7 @@ func TestInFlightCapRejectsWithAudit(t *testing.T) {
 	te.navIdent = "B654321"
 	te.mu.Unlock()
 	tokenB := te.obtainAccessTokenForResource(te.resource)
-	ts := httptest.NewServer(te.handler)
+	ts := httptest.NewServer(withTestQuery(te.handler))
 	defer ts.Close()
 
 	first := make(chan int, 1)
@@ -83,7 +84,7 @@ func TestSSEStreamsDoNotStarveToolCalls(t *testing.T) {
 	te.handler = te.gw.routes()
 	stop := make(chan struct{})
 	te.upstreamServer.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Query().Get("sse") == "" {
+		if testQuery(r).Get("sse") == "" {
 			writeJSON(w, http.StatusOK, map[string]any{"jsonrpc": "2.0", "id": 1, "result": map[string]any{}})
 			return
 		}
@@ -96,7 +97,7 @@ func TestSSEStreamsDoNotStarveToolCalls(t *testing.T) {
 		}
 	})
 	token := te.obtainAccessTokenForResource(te.resource)
-	ts := httptest.NewServer(te.handler)
+	ts := httptest.NewServer(withTestQuery(te.handler))
 	defer ts.Close()
 	defer close(stop)
 
@@ -278,7 +279,7 @@ func TestTruncatedUpstreamBodyIs502(t *testing.T) {
 		_ = buf.Flush()
 	})
 	token := te.obtainAccessTokenForResource(te.resource)
-	ts := httptest.NewServer(te.handler)
+	ts := httptest.NewServer(withTestQuery(te.handler))
 	defer ts.Close()
 	if code := capPost(t, ts, token, ""); code != http.StatusBadGateway {
 		t.Fatalf("truncated body: code %d, want 502", code)
@@ -301,7 +302,7 @@ func TestSSECapCheckedBeforeUpstream(t *testing.T) {
 	te.upstreamServer.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		hits.Add(1)
 		w.Header().Set("Mcp-Session-Id", "s-"+strconv.Itoa(int(hits.Load())))
-		if r.URL.Query().Get("sse") == "" {
+		if testQuery(r).Get("sse") == "" {
 			writeJSON(w, http.StatusOK, map[string]any{"jsonrpc": "2.0", "id": 1, "result": map[string]any{}})
 			return
 		}
@@ -314,7 +315,7 @@ func TestSSECapCheckedBeforeUpstream(t *testing.T) {
 		}
 	})
 	token := te.obtainAccessTokenForResource(te.resource)
-	ts := httptest.NewServer(te.handler)
+	ts := httptest.NewServer(withTestQuery(te.handler))
 	defer ts.Close()
 	defer close(stop)
 
@@ -360,7 +361,7 @@ func TestBogusBearerDoesNotTakeSlot(t *testing.T) {
 		writeJSON(w, http.StatusOK, map[string]any{"jsonrpc": "2.0", "id": 1, "result": map[string]any{}})
 	})
 	token := te.obtainAccessTokenForResource(te.resource)
-	ts := httptest.NewServer(te.handler)
+	ts := httptest.NewServer(withTestQuery(te.handler))
 	defer ts.Close()
 	defer close(release) // before ts.Close, so a failed assertion cannot hang it
 	first := make(chan int, 1)
@@ -386,7 +387,7 @@ func TestPerRouteInFlightCap(t *testing.T) {
 		writeJSON(w, http.StatusOK, map[string]any{"jsonrpc": "2.0", "id": 1, "result": map[string]any{}})
 	})
 	token := te.obtainAccessTokenForResource(te.resource)
-	ts := httptest.NewServer(te.handler)
+	ts := httptest.NewServer(withTestQuery(te.handler))
 	defer ts.Close()
 	defer close(release) // before ts.Close, so a failed assertion cannot hang it
 	first := make(chan int, 1)
@@ -422,7 +423,7 @@ func TestSSEEarlyFlushUpstreamGetsFullBody(t *testing.T) {
 	var gotLen atomic.Int64
 	var readErr atomic.Value
 	te.upstreamServer.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Query().Get("sse") != "1" {
+		if testQuery(r).Get("sse") != "1" {
 			writeJSON(w, http.StatusOK, map[string]any{"jsonrpc": "2.0", "id": 1, "result": map[string]any{}})
 			return
 		}
@@ -446,7 +447,7 @@ func TestSSEEarlyFlushUpstreamGetsFullBody(t *testing.T) {
 	})
 
 	token := te.obtainAccessTokenForResource(te.resource)
-	ts := httptest.NewServer(te.handler)
+	ts := httptest.NewServer(withTestQuery(te.handler))
 	defer ts.Close()
 
 	req, err := http.NewRequest(http.MethodPost, ts.URL+te.gw.cfg.Routes[0].Route+"?sse=1", bytes.NewReader(payload))
@@ -551,7 +552,7 @@ func TestSSEEarlyFlushRetryUpstreamGetsFullBody(t *testing.T) {
 	})
 
 	token := te.obtainAccessTokenForResource(te.resource)
-	ts := httptest.NewServer(te.handler)
+	ts := httptest.NewServer(withTestQuery(te.handler))
 	defer ts.Close()
 
 	req, err := http.NewRequest(http.MethodPost, ts.URL+te.gw.cfg.Routes[0].Route+"?sse=1", bytes.NewReader(payload))
@@ -610,7 +611,7 @@ func TestSSEStreamsDoNotRetainRequestBody(t *testing.T) {
 		}
 	})
 	token := te.obtainAccessTokenForResource(te.resource)
-	ts := httptest.NewServer(te.handler)
+	ts := httptest.NewServer(withTestQuery(te.handler))
 	defer ts.Close()
 	defer close(stop)
 
@@ -680,7 +681,7 @@ func TestSSECapShedIsNotAuditedAsAllow(t *testing.T) {
 		}
 	})
 	token := te.obtainAccessTokenForResource(te.resource)
-	ts := httptest.NewServer(te.handler)
+	ts := httptest.NewServer(withTestQuery(te.handler))
 	defer ts.Close()
 	defer close(stop)
 
@@ -734,7 +735,7 @@ func TestSSEBlockedDownstreamReleasesSlotOnCancel(t *testing.T) {
 		_, _ = io.Copy(io.Discard, r.Body)
 		w.Header().Set("Content-Type", "text/event-stream")
 		w.WriteHeader(http.StatusOK)
-		if r.URL.Query().Get("probe") == "1" {
+		if testQuery(r).Get("probe") == "1" {
 			_, _ = io.WriteString(w, "data: ok\n\n")
 			return
 		}
@@ -767,7 +768,7 @@ func TestSSEBlockedDownstreamReleasesSlotOnCancel(t *testing.T) {
 		if r.URL.Path == route && r.URL.Query().Get("probe") == "" {
 			defer firstOnce.Do(func() { close(firstDone) })
 		}
-		te.handler.ServeHTTP(w, r)
+		withTestQuery(te.handler).ServeHTTP(w, r)
 	}))
 	defer ts.Close()
 	defer close(stop)
@@ -821,7 +822,7 @@ func TestSSECancelDoesNotCutFollowUpKeepAlive(t *testing.T) {
 
 	te.upstreamServer.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = io.Copy(io.Discard, r.Body)
-		if r.URL.Query().Get("sse") == "1" {
+		if testQuery(r).Get("sse") == "1" {
 			w.Header().Set("Content-Type", "text/event-stream")
 			w.WriteHeader(http.StatusOK)
 			if flusher, ok := w.(http.Flusher); ok {
@@ -840,7 +841,7 @@ func TestSSECancelDoesNotCutFollowUpKeepAlive(t *testing.T) {
 
 	token := te.obtainAccessTokenForResource(te.resource)
 	route := te.gw.cfg.Routes[0].Route
-	ts := httptest.NewServer(te.handler)
+	ts := httptest.NewServer(withTestQuery(te.handler))
 	defer ts.Close()
 
 	client := &http.Client{
@@ -903,4 +904,22 @@ func (s *syncBuf) String() string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.b.String()
+}
+
+// The gateway drops the client query string (#2851). These tests signal the
+// fake upstream through it, so carry it in a forwarded Mcp-Param header instead.
+const testQueryHeader = "Mcp-Param-Test-Query"
+
+func withTestQuery(h http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.RawQuery != "" {
+			r.Header.Set(testQueryHeader, r.URL.RawQuery)
+		}
+		h.ServeHTTP(w, r)
+	})
+}
+
+func testQuery(r *http.Request) url.Values {
+	v, _ := url.ParseQuery(r.Header.Get(testQueryHeader))
+	return v
 }
