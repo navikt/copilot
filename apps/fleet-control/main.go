@@ -131,6 +131,12 @@ func setupDB(ctx context.Context) (*DB, error) {
 	if err := seedAgentsFromEnv(ctx, owner); err != nil {
 		return nil, err
 	}
+	// Names published before #2853 stay; the platform team sees them here.
+	if names, err := owner.ForeignRegistryNames(ctx, strings.TrimSpace(os.Getenv("FLEET_CONTROL_OPERATOR_TEAM"))); err != nil {
+		slog.Warn("list registry names outside their team's prefix", "error", err)
+	} else if len(names) > 0 {
+		slog.Warn("published registry names outside their team's prefix", "servers", names)
+	}
 	// A failure here is logged, not fatal: CheckAuditLocked still refuses
 	// startup if the runtime role kept its change rights.
 	if err := owner.RevokeAuditChange(ctx); err != nil {

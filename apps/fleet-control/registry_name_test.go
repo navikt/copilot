@@ -14,7 +14,11 @@ func TestRegistryNameAllowed(t *testing.T) {
 	}{
 		{"copilot", "team-a", "no.nav.team-a/svc", true},
 		{"copilot", "team-a", "io.github.navikt/team-a", true},
-		{"copilot", "team-a", "IO.GitHub.Navikt/Team-A-svc", true},
+		{"copilot", "team-a", "IO.GitHub.Navikt/Team-A", true},
+		{"copilot", "team-a", "io.github.navikt/team-a-svc", false},
+		{"copilot", "foo", "io.github.navikt/foo-bar", false},
+		{"copilot", "foo", "no.nav.foo-bar/svc", false},
+		{"copilot", "foo-bar", "no.nav.foo-bar/svc", true},
 		{"copilot", "team-a", "no.nav.team-b/svc", false},
 		{"copilot", "team-a", "io.github.navikt/team-b-svc", false},
 		{"copilot", "team-a", "io.github.navikt/team-ab", false},
@@ -81,5 +85,31 @@ func TestRealPostgresMigration008RefusesCaseCollisions(t *testing.T) {
 	}
 	if err := db.Migrate(ctx); err == nil || !strings.Contains(err.Error(), "no.nav.a/x") {
 		t.Fatalf("want a clear refusal naming the name, got %v", err)
+	}
+}
+
+// A generation published before #2853 under a foreign name is not republished
+// by rollback, and startup lists it.
+func TestRealPostgresRollbackRechecksRegistryName(t *testing.T) {
+	e := newApisEnv(t)
+	e.srv.operatorTeam = "copilot"
+	ctx := context.Background()
+	m := decodeServer(t, e.want(201, "POST", nsBase+"team-a/mcpservers", person("A111111"), registryServerJSON("team-a", "svc", "no.nav.team-a/svc")))
+	e.want(200, "POST", nsBase+"team-a/mcpservers/svc/approval", person("A222222"), approval(1, m.Status.Pending.ContentHash))
+	// As an image from before the rule would have stored it.
+	if _, err := e.db.pool.Exec(ctx, `UPDATE server_versions SET registry = jsonb_set(registry, '{name}', '"com.microsoft/svc"') WHERE namespace = 'team-a' AND name = 'svc'`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := e.db.pool.Exec(ctx, `UPDATE servers SET registry_name = 'com.microsoft/svc' WHERE namespace = 'team-a' AND name = 'svc'`); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := e.db.ForeignRegistryNames(ctx, "copilot"); err != nil || len(got) != 1 || got[0] != "team-a/svc=com.microsoft/svc" {
+		t.Fatalf("foreign names: %v %v", got, err)
+	}
+	m = decodeServer(t, e.want(200, "GET", nsBase+"team-a/mcpservers/svc", person("A111111"), ""))
+	m = decodeServer(t, e.want(200, "PUT", nsBase+"team-a/mcpservers/svc", person("A111111"), strings.Replace(strings.Replace(registryServerJSON("team-a", "svc", "no.nav.team-a/svc"), `"1.0.0"`, `"1.0.1"`, 1), `"namespace"`, `"resourceVersion":"`+m.Metadata.ResourceVersion+`","namespace"`, 1)))
+	e.want(200, "POST", nsBase+"team-a/mcpservers/svc/approval", person("A222222"), approval(2, m.Status.Pending.ContentHash))
+	if code, out := e.do("POST", nsBase+"team-a/mcpservers/svc/rollback", person("A111111"), `{"fromGeneration":2,"reason":"test"}`); code != 422 || !strings.Contains(out, "spec.registry.name") {
+		t.Fatalf("rollback to a foreign name: want 422, got %d %s", code, out)
 	}
 }
