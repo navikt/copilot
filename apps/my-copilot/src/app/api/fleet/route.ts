@@ -47,7 +47,8 @@ export async function POST(request: Request) {
         const allowedTools = str(b, "tools")
           .split(/[\s,]+/)
           .filter(Boolean);
-        const readme = str(b, "readme");
+        // Not trimmed: leading whitespace is Markdown (indented code).
+        const readme = typeof b.readme === "string" && b.readme.trim() ? b.readme : "";
         if (new TextEncoder().encode(readme).length > 64 << 10) return fail("Beskrivelsen kan være høyst 64 KiB.", 400);
         await fleetApi.createServer(ns, name, {
           dataCategory: str(b, "dataCategory"),

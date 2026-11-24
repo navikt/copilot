@@ -95,6 +95,23 @@ describe("POST /api/fleet", () => {
     });
   });
 
+  it("sends the readme untrimmed, and refuses one over 64 KiB", async () => {
+    const base = {
+      action: "register",
+      namespace: "team-a",
+      name: "docs",
+      app: "docs-app",
+      url: "http://x/mcp",
+      tools: "search",
+      dataCategory: "Intern",
+    };
+    const readme = "    kode\n\n# Docs\n";
+    expect((await post({ ...base, readme })).status).toBe(200);
+    expect(JSON.parse(fetch.mock.calls[0][1].body).spec.readme).toBe(readme);
+    expect((await post({ ...base, readme: "æ".repeat(32 * 1024 + 1) })).status).toBe(400);
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
   it("refuses names that are not DNS labels before any call", async () => {
     for (const bad of [
       { namespace: "../admin", name: "docs" },

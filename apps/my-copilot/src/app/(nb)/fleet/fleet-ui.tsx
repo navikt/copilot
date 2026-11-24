@@ -402,7 +402,7 @@ function ServerDocs({ spec }: { spec?: MCPServerSpec }) {
         Om MCP-serveren
       </Heading>
       {spec?.readme && (
-        <div>
+        <div className="prose">
           <ServerReadme markdown={spec.readme} />
         </div>
       )}
