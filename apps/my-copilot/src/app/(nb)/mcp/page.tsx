@@ -2,7 +2,7 @@ import { BodyLong, BodyShort, Box, Button, Heading, HGrid, HStack, Tag, VStack }
 import type { Metadata } from "next";
 import NextLink from "next/link";
 import { EntryCard, HowItWorks, PilotServerCards, WhyGateway } from "@/components/mcp/blocks";
-import { PILOT_SERVERS, enableCommand } from "@/components/mcp/servers";
+import { enableCommand } from "@/components/mcp/servers";
 import { McpHeroDiagram } from "@/components/mcp-hero-diagram";
 import { Bullets, code, linkClass } from "@/components/nav-pilot/doc-page";
 import { getMcpServers } from "@/lib/mcp-registry";
@@ -65,7 +65,7 @@ export default async function McpPage() {
             </BodyLong>
           </VStack>
 
-          <McpHeroDiagram servers={PILOT_SERVERS.map((s) => s.title)} />
+          <McpHeroDiagram />
 
           <VStack gap="space-20" align="start">
             <HStack gap="space-12">

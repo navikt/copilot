@@ -1361,27 +1361,269 @@ button.search-hit {
   }
 }
 
-/* /mcp hero diagram: the wide drawing from 48rem, the tall one below. */
-.mcp-hero-diagram svg {
-  width: 100%;
-  height: auto;
+/* /mcp hero: the gateway diagram (src/components/mcp-hero-diagram.tsx). Aksel tokens, so it follows the theme. */
+.mh {
+  color: var(--ax-text-neutral);
 }
-.mcp-hero-tall {
-  max-width: 24rem;
-  margin-inline: auto;
+.mh-mono {
+  font-family: ui-monospace, "Source Code Pro", monospace;
+  font-size: var(--ax-font-size-small);
 }
-.mcp-hero-wide,
-.mcp-hero-tall {
-  display: block;
+.mh-ok {
+  color: var(--ax-text-success);
+  font-weight: 600;
 }
-@media (min-width: 48rem) {
-  .mcp-hero-tall {
-    display: none;
+.mh-no {
+  color: var(--ax-text-danger);
+  font-weight: 600;
+}
+.mh-fit {
+  position: relative;
+}
+.mh-stage {
+  position: relative;
+  transform-origin: 0 0;
+  background: var(--ax-bg-sunken);
+  border: 1px solid var(--ax-border-neutral-subtle);
+  border-radius: var(--ax-radius-12);
+  overflow: hidden;
+}
+.mh-abs {
+  position: absolute;
+  box-sizing: border-box;
+}
+.mh-ph {
+  border: 1.5px dashed var(--ax-border-neutral-subtle);
+  border-radius: var(--ax-radius-8);
+  opacity: 0.7;
+}
+.mh-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ax-space-4);
+  background: var(--ax-bg-raised);
+  border: 1px solid var(--ax-border-neutral-subtle);
+  border-radius: var(--ax-radius-8);
+  transition:
+    opacity 0.6s,
+    transform 0.6s,
+    box-shadow 0.5s,
+    border-color 0.5s;
+}
+.mh-tile.mh-gone {
+  opacity: 0;
+  transform: scale(0.85);
+}
+.mh-tile.mh-agent {
+  border-style: dashed;
+  border-color: var(--ax-border-warning);
+}
+.mh-tile.mh-on {
+  box-shadow:
+    0 0 0 4px color-mix(in srgb, var(--mh-c) 16%, transparent),
+    0 0 14px color-mix(in srgb, var(--mh-c) 35%, transparent);
+  border-color: var(--mh-c);
+  transition:
+    opacity 0.6s,
+    transform 0.6s,
+    box-shadow 0.08s,
+    border-color 0.08s;
+}
+.mh-tile.mh-focus {
+  outline: 2px solid var(--ax-border-accent-strong);
+  outline-offset: 2px;
+}
+.mh-lb {
+  padding-inline: var(--ax-space-2);
+  color: var(--ax-text-neutral);
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.mh-gw {
+  border: 1.5px solid var(--ax-border-accent);
+  background: color-mix(in srgb, var(--ax-bg-default) 75%, transparent);
+  border-radius: var(--ax-radius-8);
+}
+.mh-gw-name {
+  text-align: center;
+  font-weight: 700;
+}
+.mh-gl {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 18px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 18px;
+  white-space: nowrap;
+  color: var(--ax-text-neutral-subtle);
+}
+.mh-sy {
+  display: inline-block;
+  flex: none;
+  width: 14px;
+  text-align: center;
+}
+.mh-gl-ok .mh-sy {
+  color: var(--ax-text-success);
+}
+.mh-gl-run {
+  color: var(--ax-text-accent);
+}
+.mh-gl-no {
+  color: var(--ax-text-danger);
+}
+.mh-stream {
+  stroke-width: 1;
+  transition: stroke-opacity 0.6s;
+}
+.mh-srv {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ax-space-6);
+  padding: var(--ax-space-6) var(--ax-space-8);
+  background: var(--ax-bg-raised);
+  border: 1px solid var(--ax-border-neutral-subtle);
+  border-radius: var(--ax-radius-8);
+  overflow: hidden;
+  transition: border-color 0.4s;
+}
+.mh-srv-hit {
+  border-color: var(--ax-border-success);
+}
+.mh-srv-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--ax-space-4);
+  white-space: nowrap;
+}
+.mh-tools {
+  display: flex;
+  align-items: center;
+  gap: var(--ax-space-4);
+  overflow: hidden;
+}
+.mh-tl {
+  flex: 0 1 auto;
+  max-width: 118px;
+  height: 20px;
+  padding-inline: var(--ax-space-6);
+  border-radius: var(--ax-radius-12);
+  font-family: ui-monospace, "Source Code Pro", monospace;
+  font-size: 12px;
+  line-height: 20px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--ax-text-neutral-subtle);
+  background: var(--ax-bg-neutral-soft);
+  transition:
+    background 1.2s,
+    color 1.2s;
+}
+.mh-tl-w {
+  background: var(--ax-bg-warning-soft);
+  color: var(--ax-text-warning);
+}
+.mh-tl-hit {
+  background: var(--ax-bg-success-moderate);
+  color: var(--ax-text-success);
+  font-weight: 600;
+  transition: none;
+}
+.mh-more {
+  font-size: 12px;
+  white-space: nowrap;
+  color: var(--ax-text-neutral-subtle);
+}
+.mh-num {
+  z-index: 9;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--ax-bg-accent-strong);
+  color: var(--ax-text-accent-contrast);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 24px;
+  text-align: center;
+}
+.mh-steps {
+  margin: 0;
+  list-style: decimal;
+  padding-inline-start: var(--ax-space-24);
+  line-height: 1.55;
+}
+.mh-steps-2 {
+  columns: 2;
+  column-gap: var(--ax-space-32);
+}
+.mh-legend {
+  font-size: var(--ax-font-size-small);
+  color: var(--ax-text-neutral-subtle);
+}
+.mh-legend > span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ax-space-6);
+}
+.mh-key-agent {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 1.5px dashed var(--ax-border-warning);
+  border-radius: var(--ax-radius-2);
+}
+.mh-log {
+  background: var(--ax-bg-raised);
+  border: 1px solid var(--ax-border-neutral-subtle);
+  border-radius: var(--ax-radius-8);
+  overflow: hidden;
+}
+.mh-log-head {
+  padding: var(--ax-space-8) var(--ax-space-12);
+  background: var(--ax-bg-sunken);
+}
+.mh-row {
+  display: grid;
+  grid-template-columns: 160px 230px 1fr 90px 210px;
+  gap: var(--ax-space-8);
+  align-items: center;
+  padding: var(--ax-space-6) var(--ax-space-12);
+  font-size: var(--ax-font-size-small);
+  border-top: 1px solid var(--ax-border-neutral-subtle);
+}
+.mh-row-head {
+  font-weight: 600;
+  color: var(--ax-text-neutral-subtle);
+  border-top: 0;
+}
+.mh-row-c {
+  grid-template-columns: 1fr auto;
+}
+.mh-row-new {
+  animation: mh-rin 1.4s ease-out backwards;
+}
+@keyframes mh-rin {
+  from {
+    background: var(--ax-bg-accent-soft);
+  }
+  to {
+    background: transparent;
   }
 }
-@media (max-width: 47.99rem) {
-  .mcp-hero-wide {
-    display: none;
+@media (prefers-reduced-motion: reduce) {
+  .mh * {
+    animation: none !important;
+    transition: none !important;
   }
 }
 .mcp-stat-value {
