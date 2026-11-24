@@ -765,3 +765,22 @@ func hideTable(t *testing.T, db *DB, table string, f func()) {
 	}()
 	f()
 }
+
+// A pending update that drops a team's grant hides the profile from that team
+// at the precheck, as excerpt does, without building it first (#2696).
+func TestRealPostgresProfilePrecheckFollowsPending(t *testing.T) {
+	e := newApisEnv(t)
+	e.publish("copilot", "dolly", "C222222", "A111111", "hent")
+	e.publish("team-b", "kodeverk", "B444444", "B555555", "lookup")
+	base := nsBase + "aksel-studio/agentprofiles"
+	p := decodeProfile(t, e.want(201, "POST", base, person("A111111"), profileJSON("aksel-studio", "assistant", "", "copilot/dolly=hent", "team-b/kodeverk=lookup")))
+	for _, g := range p.Status.Grants {
+		owner := map[string]string{"copilot/dolly": "C222222", "team-b/kodeverk": "B444444"}[g.ServerRef.key()]
+		e.want(200, "POST", base+"/assistant/approval", person(owner), grantBody(1, g.ServerRef.key(), g.ContentHash))
+	}
+	full := decodeProfile(t, e.want(200, "GET", base+"/assistant", person("A555555"), ""))
+	e.want(200, "PUT", base+"/assistant", person("A555555"), profileJSON("aksel-studio", "assistant", full.Metadata.ResourceVersion, "copilot/dolly=hent"))
+	hideTable(t, e.db, "audit_events", func() {
+		e.want(404, "GET", base+"/assistant", person("B444444"), "")
+	})
+}

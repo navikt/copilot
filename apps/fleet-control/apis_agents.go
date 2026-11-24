@@ -211,11 +211,12 @@ func listAwaitingProfiles(w http.ResponseWriter, r *http.Request, c caller, db *
 func getProfile(w http.ResponseWriter, r *http.Request, c caller, db *DB) error {
 	ns, name := r.PathValue("namespace"), r.PathValue("name")
 	// A non-member learns nothing from timing: a hidden profile and a missing
-	// one both cost this one query (#2696).
+	// one both cost this one query (#2696). Like excerpt, it reads the pending
+	// generation when there is one.
 	if !c.in(ns) {
 		var shared bool
 		if err := db.pool.QueryRow(r.Context(), `SELECT EXISTS (SELECT 1 FROM agent_profile_resources r
-			JOIN agent_profile_generations g ON g.namespace = r.namespace AND g.name = r.name AND g.generation IN (r.pending_generation, r.published_generation)
+			JOIN agent_profile_generations g ON g.namespace = r.namespace AND g.name = r.name AND g.generation = COALESCE(r.pending_generation, r.published_generation)
 			CROSS JOIN jsonb_object_keys(g.grant_hashes) k
 			WHERE r.namespace = $1 AND r.name = $2 AND split_part(k, '/', 1) = ANY($3))`, ns, name, c.Teams).Scan(&shared); err != nil {
 			return err
