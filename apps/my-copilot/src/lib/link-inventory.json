@@ -569,6 +569,7 @@
       "copilot-cli": ["apps/my-copilot/src/app/(nb)/(mcp)/mcp/bruke/page.tsx"],
       "for-du-starter": ["apps/my-copilot/src/app/(nb)/(mcp)/mcp/bruke/page.tsx"],
       "hjelp": ["apps/my-copilot/src/app/(nb)/(mcp)/mcp/bruke/page.tsx"],
+      "hvorfor-spare": ["apps/my-copilot/src/app/(nb)/(mcp)/mcp/bruke/page.tsx"],
       "innlogging": [
         "apps/my-copilot/src/app/(nb)/(mcp)/mcp/bruke/page.tsx",
         "apps/my-copilot/src/app/(nb)/(mcp)/mcp/referanse/page.tsx"
@@ -579,7 +580,9 @@
         "apps/my-copilot/src/app/(nb)/(mcp)/mcp/bruke/page.tsx",
         "apps/my-copilot/src/app/(nb)/(mcp)/mcp/referanse/page.tsx"
       ],
-      "slik-fungerer-det": ["apps/my-copilot/src/app/(nb)/(mcp)/mcp/bruke/page.tsx"]
+      "slik-fungerer-det": ["apps/my-copilot/src/app/(nb)/(mcp)/mcp/bruke/page.tsx"],
+      "slik-sparer-du": ["apps/my-copilot/src/app/(nb)/(mcp)/mcp/bruke/page.tsx"],
+      "tokenbruk": ["apps/my-copilot/src/app/(nb)/(mcp)/mcp/bruke/page.tsx"]
     }
   },
   "/mcp/fleet-gateway": {

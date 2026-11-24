@@ -23,6 +23,7 @@ const TOC: TocItem[] = [
   { id: "nav-pilot", label: "nav-pilot" },
   { id: "protokollversjon", label: "Protokollversjon" },
   { id: "innlogging", label: "Innlogging" },
+  { id: "tokenbruk", label: "Tokenforbruk" },
   { id: "hjelp", label: "Hjelp" },
 ];
 
@@ -162,6 +163,87 @@ export default function NavMcpServerePage() {
             </NextLink>
             , men det trenger du ikke tenke på.
           </li>
+        </Bullets>
+      </VStack>
+
+      <VStack gap="space-12">
+        <LinkableHeading id="tokenbruk" size="medium" level="2">
+          Tokenforbruk
+        </LinkableHeading>
+        <BodyLong>
+          <strong>Kort fortalt:</strong> Hver MCP-server du kobler til, tar plass i konteksten til modellen i hver tur.
+          Slå bare på serverne og verktøyene du trenger i oppgaven.
+        </BodyLong>
+        <BodyLong>
+          MCP er en åpen protokoll som lar agenten kalle verktøy og hente data fra systemer som Dolly og Teamkatalogen.
+          Agenten slår opp selv, så du slipper å lime inn svar. Det er nyttig når oppgaven trenger data du ikke har for
+          hånden.
+        </BodyLong>
+        <LinkableHeading id="hvorfor-spare" size="small" level="3">
+          Hvorfor spare på MCP-servere
+        </LinkableHeading>
+        <BodyLong>
+          Modellen har et begrenset kontekstvindu. Alt agenten skal vurdere i én tur, må få plass der: instruksjonene,
+          samtalen så langt, filene den har lest og beskrivelsene av alle verktøyene den kan kalle.
+        </BodyLong>
+        <BodyLong>
+          Mange klienter laster beskrivelsen av hvert verktøy inn i konteksten i hver samtale, også når agenten ikke
+          bruker verktøyene. Mange servere gir da mindre plass til koden og oppgaven din. Alt som sendes til modellen,
+          er tokens, så jo mer som ligger i konteksten, desto mer må modellen behandle i hver tur.
+        </BodyLong>
+        <BodyLong>
+          Copilot CLI laster verktøy ved behov når du har rundt 30 verktøy eller flere og bruker en modell som støtter
+          det. Da ligger bare de innebygde verktøyene i konteksten, og agenten søker etter resten. Under 30 verktøy, med
+          andre modeller og i andre klienter kan alle beskrivelsene ligge i konteksten fra start (
+          <a
+            href="https://docs.github.com/en/copilot/concepts/agent-capabilities/agent-powered-workflows-and-operations/tool-search"
+            className={linkClass}
+          >
+            GitHub Docs
+          </a>
+          ).
+        </BodyLong>
+        <BodyLong>
+          Hvor mye det blir, avhenger av hvilke verktøy klienten gir til modellen. Med nav-pilot velger du enkeltverktøy
+          når du slår på en server, og Copilot CLI har <code className={code}>--available-tools</code>. Verktøy du har
+          filtrert bort, tar ikke plass. Gjennom fleet-gateway kan agenten bare kalle verktøyene som er godkjent for
+          hver server. Det stopper kall, men fjerner ikke beskrivelsene fra konteksten. Vi planlegger også ett felles
+          endpoint der agenten søker etter verktøy ved behov i stedet for å få alle beskrivelsene på forhånd (
+          <a href="https://github.com/navikt/copilot/issues/2581" className={linkClass}>
+            #2581
+          </a>
+          ).
+        </BodyLong>
+        <BodyLong>
+          <a
+            href="https://www.microsoft.com/en-us/research/blog/tokeneconomizer-learning-from-experience-to-make-ai-coding-agents-more-efficient/"
+            className={linkClass}
+          >
+            Microsoft Research
+          </a>{" "}
+          profilerte Claude Code på 60 oppgaver fra SWE-Bench. Agenten fikk 23 verktøybeskrivelser i hver tur, og 16 av
+          verktøyene ble aldri kalt. Tallene gjelder ikke Navs servere. Vi har ikke målt dem.
+        </BodyLong>
+        <BodyLong>
+          Færre servere gir også mindre å holde styr på. Hver server du logger inn på, får tilgang på dine vegne, og
+          hvert kall logges med Nav-identen din. Slår du av serverne du ikke bruker, er det færre steder agenten kan
+          hente data eller gjøre endringer.
+        </BodyLong>
+        <LinkableHeading id="slik-sparer-du" size="small" level="3">
+          Slik sparer du
+        </LinkableHeading>
+        <Bullets>
+          <li>Slå på serverne du trenger i oppgaven, og slå dem av etterpå.</li>
+          <li>
+            Bruk Dolly når du skal bestille testpersoner og Teamkatalogen når du skal slå opp et team, ikke som fast
+            oppsett.
+          </li>
+          <li>For oppslag du gjør sjelden: bruk et skript, en CLI eller en skill som lastes bare ved behov.</li>
+          <li>
+            Se hvor mange verktøy en server har før du kobler den til. Velg serveren med færrest verktøy som dekker
+            behovet.
+          </li>
+          <li>Start en ny samtale når oppgaven er ferdig, så følger ikke gamle verktøyresultater med videre.</li>
         </Bullets>
       </VStack>
 
