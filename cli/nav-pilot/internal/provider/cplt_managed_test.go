@@ -166,3 +166,31 @@ func TestManagedUnchangedNotRewrittenOthersUntouched(t *testing.T) {
 		t.Errorf("managed.d holds %d entries, want 2 (no temp files left)", len(entries))
 	}
 }
+
+func TestManagedCheckIsReadOnly(t *testing.T) {
+	home := withManaged(t, managedRelease)
+	if p, reason := CpltManagedCheck(); p != "" || !strings.Contains(reason, "next launch") {
+		t.Fatalf("missing: %q %q", p, reason)
+	}
+	if _, err := os.Lstat(filepath.Join(home, ".config")); err == nil {
+		t.Fatal("check created ~/.config")
+	}
+	path, _ := CpltManagedConfig()
+	if err := os.WriteFile(path, []byte("stale"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	old := time.Now().Add(-time.Hour).Truncate(time.Second)
+	if err := os.Chtimes(path, old, old); err != nil {
+		t.Fatal(err)
+	}
+	if p, reason := CpltManagedCheck(); p != "" || !strings.Contains(reason, "stale") {
+		t.Fatalf("stale: %q %q", p, reason)
+	}
+	if fi, _ := os.Stat(path); !fi.ModTime().Equal(old) {
+		t.Error("check rewrote a stale file")
+	}
+	CpltManagedConfig()
+	if p, _ := CpltManagedCheck(); p != path {
+		t.Errorf("current: %q", p)
+	}
+}

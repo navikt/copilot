@@ -61,18 +61,25 @@ func cpltManagedContent() []byte {
 // supports it and every precondition holds, and returns its path. Otherwise
 // it returns "" and why; the launch then keeps the per-launch flags. It
 // writes nothing else in managed.d and rewrites only on a content change.
-func CpltManagedConfig() (path, reason string) {
+func CpltManagedConfig() (path, reason string) { return cpltManaged(true) }
+
+// CpltManagedCheck is [CpltManagedConfig] without writing, for doctor: the
+// path when the file is present and current, else what launch would do or
+// why it cannot.
+func CpltManagedCheck() (path, reason string) { return cpltManaged(false) }
+
+func cpltManaged(write bool) (path, reason string) {
 	if !cpltManagedSupported() {
 		return "", "cplt is older than " + cpltManagedFloor + " or its version cannot be read"
 	}
-	path, err := ensureCpltManagedFile()
+	path, err := ensureCpltManagedFile(write)
 	if err != nil {
 		return "", err.Error()
 	}
 	return path, ""
 }
 
-func ensureCpltManagedFile() (string, error) {
+func ensureCpltManagedFile(write bool) (string, error) {
 	home, err := passwdHome()
 	if err != nil || home == "" || !filepath.IsAbs(home) {
 		return "", errors.New("cannot read your home directory from the user database")
@@ -91,7 +98,11 @@ func ensureCpltManagedFile() (string, error) {
 	}
 	for _, name := range []string{".config", "cplt", "managed.d"} {
 		dir = filepath.Join(dir, name)
-		if err := os.Mkdir(dir, 0o755); err != nil && !errors.Is(err, fs.ErrExist) {
+		if !write {
+			if _, err := os.Lstat(dir); errors.Is(err, fs.ErrNotExist) {
+				return "", fmt.Errorf("%s is missing; the next launch writes it", filepath.Join(home, ".config", "cplt", "managed.d", "nav-pilot.toml"))
+			}
+		} else if err := os.Mkdir(dir, 0o755); err != nil && !errors.Is(err, fs.ErrExist) {
 			return "", fmt.Errorf("cannot create %s: %v", dir, err)
 		}
 		if err := checkManagedDir(dir, uid, true); err != nil {
@@ -111,6 +122,9 @@ func ensureCpltManagedFile() (string, error) {
 		}
 	} else if !errors.Is(err, fs.ErrNotExist) {
 		return "", err
+	}
+	if !write {
+		return "", fmt.Errorf("%s is missing or stale; the next launch writes it", path)
 	}
 	if err := writeAtomic(dir, path, want); err != nil {
 		return "", fmt.Errorf("cannot write %s: %v", path, err)
