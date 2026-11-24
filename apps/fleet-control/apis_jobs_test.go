@@ -179,3 +179,26 @@ func TestRealPostgresMigration007OldImage(t *testing.T) {
 		t.Fatalf("list: %s", list)
 	}
 }
+
+// An expired profile binds neither its app nor a person's job.
+func TestRealPostgresAgentJobExpiredProfile(t *testing.T) {
+	e := newApisEnv(t)
+	liveProfile(t, e.db, "team-a", "studio", appClientID, "Read")
+	if _, err := e.db.pool.Exec(context.Background(), `UPDATE agent_profile_generations SET expires_at = now() - interval '1 second'`); err != nil {
+		t.Fatal(err)
+	}
+	base := nsBase + "team-a/agentjobs"
+	e.want(401, "POST", base, delegated("B444444"), jobJSON("team-a", "first", ""))
+	e.want(422, "POST", base, person("A111111"), jobJSON("team-a", "first", studioRef))
+}
+
+// The app must be the published generation's identity, not only the
+// resource's published client.
+func TestRealPostgresAgentJobClientMismatch(t *testing.T) {
+	e := newApisEnv(t)
+	liveProfile(t, e.db, "team-a", "studio", appClientID, "Read")
+	if _, err := e.db.pool.Exec(context.Background(), `UPDATE agent_profile_generations SET entra_client_id = '66666666-6666-4666-8666-666666666666'`); err != nil {
+		t.Fatal(err)
+	}
+	e.want(401, "POST", nsBase+"team-a/agentjobs", delegated("B444444"), jobJSON("team-a", "first", ""))
+}
