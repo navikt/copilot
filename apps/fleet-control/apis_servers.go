@@ -21,9 +21,29 @@ type MCPServerSpec struct {
 	Upstream     *Upstream       `json:"upstream,omitempty"`
 	AllowedTools []string        `json:"allowedTools,omitempty"`
 	Registry     json.RawMessage `json:"registry,omitempty"`
+	// Readme is markdown from the owner team, stored and returned as is.
+	// Untrusted: clients must render it without raw HTML.
+	Readme string `json:"readme,omitempty"`
+	// Tools describes allowed tools for people. Optional per tool.
+	Tools []ToolDoc `json:"tools,omitempty"`
 	// Authorization is reserved (owner decision 2) and refused with 422.
 	Authorization json.RawMessage `json:"authorization,omitempty"`
 }
+
+type ToolDoc struct {
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
+}
+
+// Caps on v0.8 text fields, in bytes. Both are part of the contentHash; empty
+// fields are omitted, so specs from before v0.8 keep their hash.
+const (
+	maxReadmeBytes          = 64 << 10
+	maxToolDescriptionBytes = 1024
+	// maxServerTools bounds allowedTools and so tools: 256 x 1 KiB keeps a
+	// spec well under 1 MiB, and real MCP servers list tens of tools.
+	maxServerTools = 256
+)
 
 type Upstream struct {
 	App string `json:"app"`
@@ -78,6 +98,33 @@ func validateServerSpec(cluster, platform, ns, name string, spec MCPServerSpec) 
 		return spec, Server{}, invalid("spec.dataCategory", "StrengtFortrolig needs its own risk assessment and approval first")
 	case !slices.Contains(dataCategories, spec.DataCategory):
 		return spec, Server{}, invalid("spec.dataCategory", "spec.dataCategory must be one of %s", strings.Join(dataCategories, ", "))
+	}
+	if len(spec.AllowedTools) > maxServerTools {
+		return spec, Server{}, invalid("spec.allowedTools", "spec.allowedTools lists at most %d tools", maxServerTools)
+	}
+	if len(spec.Readme) > maxReadmeBytes {
+		return spec, Server{}, invalid("spec.readme", "spec.readme is at most %d bytes", maxReadmeBytes)
+	}
+	if len(spec.Tools) > len(spec.AllowedTools) {
+		return spec, Server{}, invalid("spec.tools", "spec.tools has more entries than allowedTools")
+	}
+	allowed := make(map[string]bool, len(spec.AllowedTools))
+	for _, t := range spec.AllowedTools {
+		allowed[t] = true
+	}
+	seen := make(map[string]bool, len(spec.Tools))
+	for _, t := range spec.Tools {
+		switch {
+		case !allowed[t.Name] || seen[t.Name]:
+			return spec, Server{}, invalid("spec.tools", "%q is not in allowedTools, or is listed twice", t.Name)
+		case len(t.Description) > maxToolDescriptionBytes:
+			return spec, Server{}, invalid("spec.tools.description", "tool %s: description is at most %d bytes", t.Name, maxToolDescriptionBytes)
+		}
+		seen[t.Name] = true
+	}
+	spec.Tools = slices.SortedFunc(slices.Values(spec.Tools), func(a, b ToolDoc) int { return strings.Compare(a.Name, b.Name) })
+	if len(spec.Tools) == 0 {
+		spec.Tools = nil
 	}
 	var draft draftSpec
 	draft.Registry = spec.Registry

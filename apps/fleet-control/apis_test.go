@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -564,8 +565,15 @@ func TestRealPostgresSeededProfileNeedsPerson(t *testing.T) {
 		t.Fatalf("seeding twice must be a no-op: %v", err)
 	}
 	got := decodeProfile(t, e.want(200, "GET", nsBase+"aksel-studio/agentprofiles/studio-assistant", person("A555555"), ""))
-	if got.Status.Pending.SubmittedBy.Kind != "System" {
+	if got.Status.Pending.SubmittedBy.Kind != "System" || !got.Status.NeedsResubmit {
 		t.Fatalf("seeded submitter: %+v", got.Status.Pending.SubmittedBy)
+	}
+	// The granting team sees the flag too, on GET and in its inbox.
+	if ex := decodeProfile(t, e.want(200, "GET", nsBase+"aksel-studio/agentprofiles/studio-assistant", person("C222222"), "")); !ex.Status.NeedsResubmit {
+		t.Fatalf("excerpt drops needsResubmit: %+v", ex.Status)
+	}
+	if inbox := e.want(200, "GET", apisPrefix+"/agentprofiles?awaitingApprovalBy=me", person("C222222"), ""); !strings.Contains(inbox, `"needsResubmit":true`) {
+		t.Fatalf("inbox drops needsResubmit: %s", inbox)
 	}
 	e.want(403, "POST", nsBase+"aksel-studio/agentprofiles/studio-assistant/approval", person("C222222"), grantBody(1, "copilot/dolly", got.Status.Grants[0].ContentHash))
 	// Even with an oid, kind System never counts as a person.
@@ -573,6 +581,25 @@ func TestRealPostgresSeededProfileNeedsPerson(t *testing.T) {
 		t.Fatal(err)
 	}
 	e.want(403, "POST", nsBase+"aksel-studio/agentprofiles/studio-assistant/approval", person("C222222"), grantBody(1, "copilot/dolly", got.Status.Grants[0].ContentHash))
+}
+
+// readme and tool descriptions come back byte for byte, and a person's
+// pending profile does not need resubmitting.
+func TestRealPostgresServerReadmeRoundTrip(t *testing.T) {
+	e := newApisEnv(t)
+	readme := "# Dolly\n\n<script>alert(1)</script> [x](javascript:alert(1))\n"
+	body := strings.Replace(serverJSON("team-a", "svc", "", "a", "b"), `"allowedTools"`, `"readme":`+strconv.Quote(readme)+`,"tools":[{"name":"b","description":"Henter <b>b</b>"}],"allowedTools"`, 1)
+	e.want(201, "POST", nsBase+"team-a/mcpservers", person("A111111"), body)
+	m := decodeServer(t, e.want(200, "GET", nsBase+"team-a/mcpservers/svc", person("A222222"), ""))
+	if p := m.Status.Pending; p == nil || p.Spec.Readme != readme || len(p.Spec.Tools) != 1 || p.Spec.Tools[0].Description != "Henter <b>b</b>" {
+		t.Fatalf("round trip: %+v", m.Status.Pending)
+	}
+	e.want(422, "POST", nsBase+"team-a/mcpservers", person("A111111"), strings.Replace(serverJSON("team-a", "big", "", "a"), `"allowedTools"`, `"readme":"`+strings.Repeat("x", maxReadmeBytes+1)+`","allowedTools"`, 1))
+	e.publish("copilot", "dolly", "C222222", "A111111", "hent")
+	e.want(201, "POST", nsBase+"aksel-studio/agentprofiles", person("A555555"), profileJSON("aksel-studio", "p", "", "copilot/dolly=hent"))
+	if got := decodeProfile(t, e.want(200, "GET", nsBase+"aksel-studio/agentprofiles/p", person("A555555"), "")); got.Status.Pending == nil || got.Status.NeedsResubmit {
+		t.Fatalf("a person's draft needs no resubmit: %+v", got.Status)
+	}
 }
 
 // TestRealPostgresMigration005 stands where an image from before 005 left
