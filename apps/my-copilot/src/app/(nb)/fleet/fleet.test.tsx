@@ -41,7 +41,7 @@ const server = (revoked = false) => ({
   status: {
     publishedGeneration: 2,
     route: { path: "/mcp/team-a/docs" },
-    pending: { generation: 3 },
+    pending: { generation: 3, contentHash: "h3", spec: { dataCategory: "Intern", allowedTools: ["search"] } },
     conditions: [cond("Published", !revoked), cond("PendingApproval", true), cond("Revoked", revoked)],
   },
 });
@@ -116,7 +116,9 @@ describe("/fleet", () => {
     expect(screen.getByRole("heading", { name: "Til godkjenning" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "studio" })).toHaveAttribute("href", "/fleet/agenter/aksel/studio");
     expect(screen.getByText("MCP-server team-a/docs")).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: "team-a" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "team-a" })).toBeInTheDocument();
+    expect(screen.queryByRole("tab")).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Registrer en MCP-server" })).toHaveAttribute("href", "/fleet/registrer");
     expect(screen.getByRole("link", { name: "docs" })).toHaveAttribute("href", "/fleet/mcp-servere/team-a/docs");
     expect(screen.getByText("Ny versjon venter")).toBeInTheDocument();
     expect(screen.getByText("team-a har ingen agentprofiler ennå.")).toBeInTheDocument();
@@ -150,6 +152,25 @@ describe("/fleet", () => {
     expect(screen.getByText(/må godkjenne versjon 3/)).toBeInTheDocument();
     expect(screen.getByText("/mcp/team-a/docs")).toBeInTheDocument();
     expect(screen.getByText("Historikk")).toBeInTheDocument();
+  });
+
+  it("offers approval with the pending version, and revocation only while not revoked", async () => {
+    render(await ServerPage(params("team-a", "docs")));
+    expect(screen.getByRole("button", { name: "Godkjenn og publiser" })).toBeInTheDocument();
+    expect(document.querySelector('input[name="contentHash"]')).toHaveValue("h3");
+    expect(screen.getByRole("button", { name: "Trekk tilbake" })).toBeInTheDocument();
+    expect(screen.getByRole("table", { name: /versjonen som venter/ })).toBeInTheDocument();
+    stub({ [`${API}/namespaces/team-a/mcpservers/docs`]: server(true) });
+    const { container } = render(await ServerPage(params("team-a", "docs")));
+    expect(container.querySelector('textarea[name="reason"]')).toBeNull();
+  });
+
+  it("shows the registration form with the person's teams", async () => {
+    const { default: RegisterPage } = await import("./registrer/page");
+    render(await RegisterPage());
+    expect(screen.getByRole("option", { name: "team-a" })).toBeInTheDocument();
+    vi.stubEnv("FLEET_CONTROL_URL", "");
+    await expect(RegisterPage()).rejects.toThrow("NEXT_NOT_FOUND");
   });
 
   it("shows that a revoked MCP server with a new draft waits for approval", async () => {

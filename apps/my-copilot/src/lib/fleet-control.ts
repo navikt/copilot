@@ -17,12 +17,20 @@ export type Condition = { type: string; status: string; reason: string; message?
 type Actor = { kind?: string; name: string };
 export type ServerRef = { group: string; kind: string; namespace: string; name: string };
 
+export type MCPServerSpec = {
+  dataCategory?: string;
+  upstream?: { app: string; url: string };
+  allowedTools?: string[];
+};
+
 export type MCPServer = {
   metadata: Metadata;
+  spec?: MCPServerSpec;
   status: {
     publishedGeneration?: number;
     route?: { path: string };
-    pending?: { generation: number };
+    // spec and contentHash are for the owner team only; approval sends contentHash back.
+    pending?: { generation: number; contentHash?: string; spec?: MCPServerSpec; submittedBy?: Actor };
     conditions?: Condition[];
   };
 };
@@ -58,7 +66,8 @@ export class FleetControlError extends Error {
   /** reason from fleet-control's metav1.Status body, when it sent one. */
   constructor(
     public readonly status: number,
-    public readonly reason?: string
+    public readonly reason?: string,
+    public readonly detail?: string
   ) {
     super(`fleet-control error (${status}${reason ? ` ${reason}` : ""})`);
     this.name = "FleetControlError";
@@ -72,19 +81,27 @@ export function requireFleet(): string {
   return url;
 }
 
-export async function fleetGet<T>(path: string): Promise<T> {
+export async function fleetGet<T>(path: string, method = "GET", body?: unknown): Promise<T> {
   const url = requireFleet();
   const headers: Record<string, string> = { Accept: "application/json" };
+  if (body !== undefined) headers["Content-Type"] = "application/json";
   if (!isLocalDev()) {
     const token = await getUserToken();
     if (!token) throw new FleetControlError(401);
     headers.Authorization = `Bearer ${await exchangeTokenFor(token, "fleet-control")}`;
   }
-  const res = await fetchWithTimeout(`${url}${path}`, { headers, cache: "no-store" }, 10000, "fleet-control timed out");
+  const res = await fetchWithTimeout(
+    `${url}${path}`,
+    { method, headers, cache: "no-store", body: body === undefined ? undefined : JSON.stringify(body) },
+    10000,
+    "fleet-control timed out"
+  );
   if (!res.ok) {
-    const body = (await res.json().catch(() => null)) as { kind?: string; reason?: unknown } | null;
-    const reason = body?.kind === "Status" && typeof body.reason === "string" ? body.reason : undefined;
-    throw new FleetControlError(res.status, reason);
+    const st = (await res.json().catch(() => null)) as { kind?: string; reason?: unknown; message?: unknown } | null;
+    const isStatus = st?.kind === "Status";
+    const reason = isStatus && typeof st.reason === "string" ? st.reason : undefined;
+    const detail = isStatus && typeof st.message === "string" ? st.message.slice(0, 300) : undefined;
+    throw new FleetControlError(res.status, reason, detail);
   }
   return (await res.json()) as T;
 }
@@ -129,4 +146,15 @@ export const fleetApi = {
   pending: () => fleetGet<List<AgentProfile>>(`${API}/agentprofiles?awaitingApprovalBy=me`),
   history: (kind: "mcpservers" | "agentprofiles", namespace: string, name: string) =>
     fleetGet<List<AuditEvent>>(`${ns(namespace)}/${kind}/${seg(name)}/history`),
+  createServer: (namespace: string, name: string, spec: MCPServerSpec) =>
+    fleetGet<MCPServer>(`${ns(namespace)}/mcpservers`, "POST", {
+      apiVersion: "fleet.nav.no/v1alpha1",
+      kind: "MCPServer",
+      metadata: { namespace: seg(namespace), name: seg(name) },
+      spec,
+    }),
+  approveServer: (namespace: string, name: string, generation: number, contentHash: string) =>
+    fleetGet<MCPServer>(`${ns(namespace)}/mcpservers/${seg(name)}/approval`, "POST", { generation, contentHash }),
+  revokeServer: (namespace: string, name: string, reason: string, block: boolean) =>
+    fleetGet<MCPServer>(`${ns(namespace)}/mcpservers/${seg(name)}/revocation`, "POST", { reason, block }),
 };

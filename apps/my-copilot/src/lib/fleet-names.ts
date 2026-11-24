@@ -8,3 +8,18 @@ export const hasCondition = (obj: { status: { conditions?: { type: string; statu
   obj.status.conditions?.some((c) => c.type === type && c.status === "True") ?? false;
 
 export const refKey = (r: { namespace: string; name: string }) => `${r.namespace}/${r.name}`;
+
+/**
+ * CSRF guard for the /fleet server actions: the request must carry an Origin
+ * whose host is the host it was sent to. A missing or unparsable Origin fails closed.
+ */
+export function isSameOrigin(h: Headers): boolean {
+  const origin = h.get("origin");
+  const host = h.get("x-forwarded-host") ?? h.get("host");
+  if (!origin || !host) return false;
+  try {
+    return new URL(origin).host === host;
+  } catch {
+    return false;
+  }
+}
