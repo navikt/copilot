@@ -1,0 +1,12 @@
+# pilot-routes.dev.yaml
+/mcp/copilot/test: mcp.tool.name in ["whoami"]
+/mcp/copilot/onboarding: mcp.tool.name in ["hello_world", "greet", "whoami", "echo", "get_time", "search_customizations", "list_agents", "list_instructions", "list_prompts", "list_skills", "get_installation_guide", "check_agent_readiness", "suggest_customizations", "generate_agents_md", "generate_setup_steps", "team_readiness"]
+/mcp/copilot/dolly: mcp.tool.name in ["dolly_current_user", "dolly_list_groups", "dolly_get_group", "dolly_search", "dolly_get_order", "dolly_list_group_orders", "create_order"]
+/mcp/copilot/kodeverk: mcp.tool.name in ["list_kodeverk", "get_kodeverk_koder", "get_kodeverk_betydninger", "list_hierarkier", "get_hierarki_noder", "search_kodeverk"]
+/mcp/copilot/team-catalog: mcp.tool.name in ["list_teams", "search_teams", "get_team", "get_teams_by_nais_team", "list_product_areas", "get_product_area", "list_clusters", "get_cluster", "get_member_memberships", "get_nais_team"]
+/mcp/aksel-studio/studio: mcp.tool.name in ["list_konsepter", "les_konsept", "les_fil", "les_komponentregister"]
+# pilot-routes.prod.yaml
+/mcp/copilot/onboarding: mcp.tool.name in ["hello_world", "greet", "whoami", "echo", "get_time", "search_customizations", "list_agents", "list_instructions", "list_prompts", "list_skills", "get_installation_guide", "check_agent_readiness", "suggest_customizations", "generate_agents_md", "generate_setup_steps", "team_readiness"]
+/mcp/copilot/dolly: mcp.tool.name in ["dolly_current_user", "dolly_list_groups", "dolly_get_group", "dolly_search", "dolly_get_order", "dolly_list_group_orders", "create_order"]
+/mcp/copilot/kodeverk: mcp.tool.name in ["list_kodeverk", "get_kodeverk_koder", "get_kodeverk_betydninger", "list_hierarkier", "get_hierarki_noder", "search_kodeverk"]
+/mcp/copilot/team-catalog: mcp.tool.name in ["list_teams", "search_teams", "get_team", "get_teams_by_nais_team", "list_product_areas", "get_product_area", "list_clusters", "get_cluster", "get_member_memberships", "get_nais_team"]
