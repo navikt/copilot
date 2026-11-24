@@ -222,13 +222,17 @@ func TestAuditMCP_AuthZENShape(t *testing.T) {
 	if id, _ := ctx["request_id"].(string); len(id) != 26 {
 		t.Errorf("request_id %q, want 26 base32 characters", id)
 	}
-	ctx["request_id"], ctx["duration_ms"] = "ID", 0
+	if raw["request.id"] != ctx["request_id"] {
+		t.Errorf("request.id %v, want %v", raw["request.id"], ctx["request_id"])
+	}
+	ctx["request_id"], ctx["duration_ms"], raw["request.id"] = "ID", 0, "ID"
 	delete(raw, "time")
 	got, _ := json.Marshal(raw)
 	want := `{"action":{"name":"tools/call","properties":{"tool":"delete"}},` +
 		`"context":{"duration_ms":0,"header_mismatch":true,"http_method":"POST","mcp_headers":{"method":false,"name":true},"outcome":"tool_denied","protocol_version":"2026-07-28","request_id":"ID","scan_incomplete":false},` +
-		`"decision":{"context":{"reason":"not_listed"},"decision":false},"level":"INFO","msg":"audit mcp",` +
-		`"resource":{"id":"team-etterlevelse/etterlevelse","properties":{"backend":"dev-gcp:team-etterlevelse:nav-etterlevelse-mcp"},"type":"mcp_route"},` +
+		`"decision":{"context":{"reason":"not_listed"},"decision":false},` +
+		`"gen_ai.tool.name":"delete","http.method":"POST","jwt.sub":"Z123456","level":"INFO","mcp.method.name":"tools/call","msg":"audit mcp","request.id":"ID",` +
+		`"resource":{"id":"team-etterlevelse/etterlevelse","properties":{"backend":"dev-gcp:team-etterlevelse:nav-etterlevelse-mcp"},"type":"mcp_route"},"route":"team-etterlevelse/etterlevelse",` +
 		`"subject":{"id":"Z123456","properties":{"actor":{"id":"` + fmt.Sprint(audit["client_id"]) + `","type":"oauth_client"},` +
 		`"assurance":"session","client_id":"` + fmt.Sprint(audit["client_id"]) + `","issuer":"fleet-gateway"},"type":"user"}}`
 	if audit["client_id"] == "" || string(got) != want {

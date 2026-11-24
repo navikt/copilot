@@ -33,7 +33,16 @@ curl -s -o /dev/null -w '%{http_code}\n' $URL/health $URL/ready
 kubectl -n $NS logs -l app=fleet-gateway --prefix --tail=-1 --since=30m | grep '"audit '
 ```
 
-Audit lines: `audit mcp` in OpenID AuthZEN shape (`subject.id` NAVident, `resource.id` route, `action.properties.tool`, `decision.decision`, `decision.context.reason`, `context.outcome`; see the README), `audit login`, `audit refresh`, `audit dcr`. A killed route logs `route disabled by kill switch`. Logs are ordinary stdout. Owner decision 2026-11-18: audit lines go to Loki; retention measured at 90 days or more, but the limit is not confirmed by the platform team. A saved query for Grafana Loki or Kibana is not yet recorded: add it here after the drill.
+Audit lines: `audit mcp` in OpenID AuthZEN shape (`subject.id` NAVident, `resource.id` route, `action.properties.tool`, `decision.decision`, `decision.context.reason`, `context.outcome`; see the README), `audit login`, `audit refresh`, `audit dcr`. A killed route logs `route disabled by kill switch`. Logs are ordinary stdout. Owner decision 2026-11-18: audit lines go to Loki; retention measured at 90 days or more, but the limit is not confirmed by the platform team. The record also carries agentgateway's names (`jwt.sub`, `mcp.method.name`, `gen_ai.tool.name`, `route`, `request.id`, `http.method`) until 2027-01-31, when the AuthZEN duplicates may be removed (README, "agentgateway field names"). Write new queries against the new names. Loki's `json` parser turns dots into underscores:
+
+```logql
+# Calls by one user
+{service_name="fleet-gateway"} |= "audit mcp" | json | jwt_sub="Z123456"
+# Denied tool calls per tool
+sum by (gen_ai_tool_name) (count_over_time({service_name="fleet-gateway"} |= "audit mcp" | json | mcp_method_name="tools/call" | decision_decision="false" [1h]))
+```
+
+The stream selector (`service_name`) is not yet verified against the Nais Loki labels: check it after the drill and correct it here.
 
 ## Usage statistics
 
