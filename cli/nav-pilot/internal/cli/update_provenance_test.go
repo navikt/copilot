@@ -104,13 +104,58 @@ func TestVerifyProvenance(t *testing.T) {
 	}
 }
 
-// TestDoUpdateRefusesWithoutGh: no gh means no check, and no check means no
-// update.
-func TestDoUpdateRefusesWithoutGh(t *testing.T) {
-	t.Setenv("PATH", t.TempDir()) // no gh
-	path, _ := writeBinary(t, "release binary")
-	err := verifyProvenance(io.Discard, path, provenanceTag)
-	if err == nil || !strings.Contains(err.Error(), "gh, the GitHub CLI") {
-		t.Fatalf("verifyProvenance without gh = %v, want a refusal naming gh", err)
+// fakeGhOnPath puts a gh script first on PATH: auth says whether it is logged
+// in, and attestation verify always rejects, as for a tampered binary.
+func fakeGhOnPath(t *testing.T, loggedIn bool) {
+	t.Helper()
+	dir := t.TempDir()
+	auth := "1"
+	if loggedIn {
+		auth = "0"
+	}
+	script := "#!/bin/sh\ncase \"$1\" in\nauth) exit " + auth + ";;\nattestation) echo 'no attestations found' >&2; exit 1;;\nesac\nexit 1\n"
+	if err := os.WriteFile(filepath.Join(dir, "gh"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", dir)
+}
+
+func TestVerifyProvenanceGhAvailability(t *testing.T) {
+	tests := []struct {
+		name    string
+		setup   func(t *testing.T)
+		wantErr string // "" means the SHA256-only fallback
+	}{
+		{name: "no gh falls back", setup: func(t *testing.T) { t.Setenv("PATH", t.TempDir()) }},
+		{name: "gh not logged in falls back", setup: func(t *testing.T) { fakeGhOnPath(t, false) }},
+		{name: "gh logged in but rejecting refuses", setup: func(t *testing.T) { fakeGhOnPath(t, true) }, wantErr: "no attestations found"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			isolatedConfig(t)
+			orig := isInteractive
+			t.Cleanup(func() { isInteractive = orig })
+			isInteractive = func() bool { return true }
+			tt.setup(t)
+			path, _ := writeBinary(t, "release binary")
+			var out strings.Builder
+			err := verifyProvenance(&out, path, provenanceTag)
+			if tt.wantErr != "" {
+				if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
+					t.Fatalf("verifyProvenance = %v, want a refusal containing %q", err, tt.wantErr)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("verifyProvenance = %v, want the SHA256-only fallback", err)
+			}
+			if !strings.Contains(out.String(), "gh auth login") {
+				t.Errorf("no hint about gh. Output:\n%s", out.String())
+			}
+			out.Reset()
+			if err := verifyProvenance(&out, path, provenanceTag); err != nil || strings.Contains(out.String(), "gh auth login") {
+				t.Errorf("second run for the same release: err %v, output %q; want no hint", err, out.String())
+			}
+		})
 	}
 }

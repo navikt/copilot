@@ -614,7 +614,10 @@ const (
 // repository, workflow and branch. A variable so tests can stand in for gh.
 var runAttestationVerify = func(path string) ([]byte, error) {
 	if _, err := exec.LookPath("gh"); err != nil {
-		return nil, errors.New("the check needs gh, the GitHub CLI, and it is not installed")
+		return nil, errGhUnavailable
+	}
+	if _, err := runBoundedTimeout(30*time.Second, true, "gh", "auth", "status", "--hostname", "github.com"); err != nil {
+		return nil, errGhUnavailable
 	}
 	out, err := runBoundedTimeout(2*time.Minute, false, "gh", "attestation", "verify", path,
 		"--repo", attestRepo,
@@ -631,11 +634,16 @@ var runAttestationVerify = func(path string) ([]byte, error) {
 	return out, err
 }
 
+// errGhUnavailable means gh is missing or not logged in, so no check ran. Only
+// this falls back to the SHA256 check; a gh that ran and rejected never does.
+var errGhUnavailable = errors.New("gh, the GitHub CLI, is not installed or not logged in")
+
 // verifyProvenance refuses the binary at path unless a GitHub attestation
 // shows it was built by the release workflow on main, from the commit the
 // release tag names. The commit check stops an older, validly attested binary
 // from being served under a newer tag (a downgrade). No attestation, which is
-// every release from before attestations, means no update.
+// every release from before attestations, means no update. Without a usable
+// gh the SHA256 check stands alone and the user is told once per release.
 func verifyProvenance(w io.Writer, path, tag string) (err error) {
 	fmt.Fprint(w, "→ Verifying provenance...")
 	defer func() {
@@ -649,6 +657,13 @@ func verifyProvenance(w io.Writer, path, tag string) (err error) {
 		return fmt.Errorf("release tag %q names no commit", tag)
 	}
 	out, err := runAttestationVerify(path)
+	if errors.Is(err, errGhUnavailable) {
+		fmt.Fprintln(w, " skipped (SHA256 only)")
+		if isInteractive() && providerpkg.SeenChanged("provenance-unverified", tag) {
+			fmt.Fprintf(w, "%s Install gh and run %s so nav-pilot can also check where its updates were built.\n", yellow("ℹ"), bold("gh auth login"))
+		}
+		return nil
+	}
 	if err != nil {
 		return err
 	}

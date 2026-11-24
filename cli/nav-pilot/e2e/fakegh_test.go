@@ -97,11 +97,12 @@ func cmdFakeGH(ts *testscript.TestScript, neg bool, args []string) {
 		ts.Fatalf("copying nav-pilot: %v\n%s", err, out)
 	}
 	// A gh that vouches for the fake release, so the provenance check (#2786)
-	// passes the way a real attested release does. Anything else it refuses.
+	// passes the way a real attested release does. It is logged in, so the
+	// check is mandatory. Anything else it refuses.
 	attest := `[{"verificationResult":{"signature":{"certificate":{"sourceRepositoryURI":"https://github.com/navikt/copilot","buildSignerURI":"https://github.com/navikt/copilot/.github/workflows/release-nav-pilot.yaml@refs/heads/main","sourceRepositoryRef":"refs/heads/main","sourceRepositoryDigest":"bbbbbbb0000000000000000000000000000000000"}}}}]`
-	gh := "#!/bin/sh\nif [ \"$1 $2\" = \"attestation verify\" ]; then echo '" + attest + "'; exit 0; fi\nexit 1\n"
+	gh := "#!/bin/sh\n[ \"$1\" = auth ] && exit 0\nif [ \"$1 $2\" = \"attestation verify\" ]; then echo '" + attest + "'; exit 0; fi\nexit 1\n"
 	if mode == "unattested" {
-		gh = "#!/bin/sh\necho 'no attestations found' >&2\nexit 1\n"
+		gh = "#!/bin/sh\n[ \"$1\" = auth ] && exit 0\necho 'no attestations found' >&2\nexit 1\n"
 	}
 	ts.Check(os.WriteFile(filepath.Join(bin, "gh"), []byte(gh), 0o755))
 	ts.Setenv("PATH", bin+string(os.PathListSeparator)+ts.Getenv("PATH"))

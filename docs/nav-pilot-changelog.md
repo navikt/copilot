@@ -7,7 +7,7 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 ### Selvoppdateringen sjekker hvor binærfilen er bygget
 
 - **`nav-pilot upgrade` og automatisk oppdatering**: Før nav-pilot bytter ut seg selv, sjekker den nå at den nye binærfilen er bygget av nav-pilots utgivelsesflyt i `navikt/copilot`, fra `main` og fra den committen utgivelsen viser til. Sjekken bruker GitHubs attestasjon og `gh attestation verify`. Før sjekket nav-pilot bare `SHA256SUMS`, som ligger i den samme utgivelsen og kan endres av den samme personen (#2786).
-- **Trenger `gh`**: Sjekken krever at GitHub CLI (`gh`) er installert og logget inn. Mangler `gh`, eller finnes det ingen gyldig attestasjon, oppdaterer ikke nav-pilot seg selv. Du får beskjed om å laste ned nav-pilot fra utgivelsessiden. Installerte du med Homebrew eller apt, gjelder ikke dette.
+- **Med og uten `gh`**: Er GitHub CLI (`gh`) installert og logget inn, er sjekken påkrevd. Feiler den, oppdaterer ikke nav-pilot seg selv, og du får beskjed om å laste ned nav-pilot fra utgivelsessiden. Mangler `gh`, eller er den ikke logget inn, oppdaterer nav-pilot seg med SHA256-sjekken som før og foreslår én gang per utgivelse at du installerer `gh` og kjører `gh auth login`.
 
 ### Fleet-gateway-tilgangen ligger i en egen cplt-fil
 
