@@ -231,10 +231,15 @@ func (s *server) agentRoutes(mux *http.ServeMux, a *authz, persons personResolve
 	if persons == nil {
 		return
 	}
-	mux.HandleFunc("POST /admin/v1/agents", withPerson(persons, s.createAgent))
+	// Agent profiles are written through /apis since #2748; the old table is
+	// frozen so an image from before 005 can still read it after a rollback.
+	gone := func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, "gone: write agent profiles through "+apisPrefix+"/namespaces/{namespace}/agentprofiles", http.StatusGone)
+	}
+	mux.HandleFunc("POST /admin/v1/agents", gone)
 	mux.HandleFunc("GET /admin/v1/agents/{namespace}/{name}", withPerson(persons, s.getAgent))
-	mux.HandleFunc("POST /admin/v1/agents/{namespace}/{name}/approvals", withPerson(persons, s.approveAgent))
-	mux.HandleFunc("POST /admin/v1/agents/{namespace}/{name}/revoke", withPerson(persons, s.revokeAgent))
+	mux.HandleFunc("POST /admin/v1/agents/{namespace}/{name}/approvals", gone)
+	mux.HandleFunc("POST /admin/v1/agents/{namespace}/{name}/revoke", gone)
 	s.uiRoutes(mux, persons)
 }
 
@@ -284,6 +289,36 @@ func writeErr(w http.ResponseWriter, err error) {
 		slog.Error("agent profile", "error", strings.NewReplacer("\n", " ", "\r", " ").Replace(err.Error()))
 		http.Error(w, "database unavailable", http.StatusServiceUnavailable)
 	}
+}
+
+// getAgent shows the live profile, its id and per-route approvals, so an
+// approver can review it and send the id back. Only the owner team and the
+// teams owning a granted route see it; everyone else gets 404.
+func (s *server) getAgent(w http.ResponseWriter, r *http.Request, who Person) {
+	as, _, ctx, cancel := s.agentDB(w, r)
+	if as == nil {
+		return
+	}
+	defer cancel()
+	id, p, approvals, err := as.AgentProfileDetail(ctx, r.PathValue("namespace"), r.PathValue("name"))
+	if err == nil && !p.visibleTo(who) {
+		err = errNotFound
+	}
+	if err != nil {
+		writeErr(w, err)
+		return
+	}
+	writeJSON(w, map[string]any{"id": id, "status": p.Status, "profile": p, "approvals": approvals})
+}
+
+// legacyAgentWriteRoutes mounts the /admin/v1/agents write handlers as they
+// were before #2748. Production answers 410 instead (agentRoutes); tests
+// mount these to prove an image from before 005 still works on the new
+// schema after a rollback. Removed with /admin/v1 in PR 4.
+func (s *server) legacyAgentWriteRoutes(mux *http.ServeMux, persons personResolver) {
+	mux.HandleFunc("POST /admin/v1/agents", withPerson(persons, s.createAgent))
+	mux.HandleFunc("POST /admin/v1/agents/{namespace}/{name}/approvals", withPerson(persons, s.approveAgent))
+	mux.HandleFunc("POST /admin/v1/agents/{namespace}/{name}/revoke", withPerson(persons, s.revokeAgent))
 }
 
 func (s *server) createAgent(w http.ResponseWriter, r *http.Request, who Person) {
@@ -360,34 +395,6 @@ func (s *server) approveAgent(w http.ResponseWriter, r *http.Request, who Person
 	writeJSON(w, map[string]any{"status": p.Status, "expires_at": p.ExpiresAt})
 }
 
-// getAgent shows the live profile, its id and per-route approvals, so an
-// approver can review it and send the id back. Only the owner team and the
-// teams owning a granted route see it; everyone else gets 404.
-func (s *server) getAgent(w http.ResponseWriter, r *http.Request, who Person) {
-	as, _, ctx, cancel := s.agentDB(w, r)
-	if as == nil {
-		return
-	}
-	defer cancel()
-	id, p, approvals, err := as.AgentProfileDetail(ctx, r.PathValue("namespace"), r.PathValue("name"))
-	if err == nil && !p.visibleTo(who) {
-		err = errNotFound
-	}
-	if err != nil {
-		writeErr(w, err)
-		return
-	}
-	writeJSON(w, map[string]any{"id": id, "status": p.Status, "profile": p, "approvals": approvals})
-}
-
-// visibleTo is true for the owner team and the owning team of any granted route.
-func (p AgentProfile) visibleTo(who Person) bool {
-	return who.in(p.Namespace) || slices.ContainsFunc(p.Grants, func(g AgentGrant) bool {
-		team, _, _ := strings.Cut(g.Route, "/")
-		return who.in(team)
-	})
-}
-
 func (s *server) revokeAgent(w http.ResponseWriter, r *http.Request, who Person) {
 	as, _, ctx, cancel := s.agentDB(w, r)
 	if as == nil {
@@ -399,6 +406,14 @@ func (s *server) revokeAgent(w http.ResponseWriter, r *http.Request, who Person)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// visibleTo is true for the owner team and the owning team of any granted route.
+func (p AgentProfile) visibleTo(who Person) bool {
+	return who.in(p.Namespace) || slices.ContainsFunc(p.Grants, func(g AgentGrant) bool {
+		team, _, _ := strings.Cut(g.Route, "/")
+		return who.in(team)
+	})
 }
 
 // listAgents serves approved, verified, unexpired profiles to fleet-gateway. The
@@ -668,14 +683,9 @@ func seedAgentsFromEnv(ctx context.Context, db *DB) error {
 		if err := p.validate(); err != nil {
 			return fmt.Errorf("seed agent %s/%s: %w", p.Namespace, p.Name, err)
 		}
-		var exists bool
-		if err := db.pool.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM agent_profiles WHERE namespace = $1 AND name = $2)`, p.Namespace, p.Name).Scan(&exists); err != nil {
-			return err
-		}
-		if exists {
-			continue
-		}
-		if _, err := db.CreateAgentProfile(ctx, p, "seed", false); err != nil {
+		// The 003 table is frozen since #2748; seeds go to the v1alpha1
+		// tables, skipped when the name exists there.
+		if err := db.seedProfileV1(ctx, p); err != nil {
 			return fmt.Errorf("seed agent %s/%s: %w", p.Namespace, p.Name, err)
 		}
 	}

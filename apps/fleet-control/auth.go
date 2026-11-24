@@ -111,6 +111,9 @@ type tokenClaims struct {
 	NAVident string `json:"NAVident"`
 	Email    string `json:"preferred_username"`
 	Tid      string `json:"tid"`
+	// Oid is the Entra object id of a person. The two-person rule in
+	// v1alpha1 compares it; /admin/v1 does not read it.
+	Oid string `json:"oid"`
 	// acct is an optional Entra claim: 0 member, 1 guest. Nais does not
 	// document it, so it may be absent.
 	Acct *json.Number `json:"acct"`
@@ -136,6 +139,10 @@ func (a *authz) user(ctx context.Context, header, adminClientID string) (ident, 
 	if err != nil {
 		return "", "", err
 	}
+	return a.checkUser(claims, adminClientID)
+}
+
+func (a *authz) checkUser(claims *tokenClaims, adminClientID string) (ident, email string, err error) {
 	// Person routes: idtyp absent or "user", and no guest accounts.
 	if (claims.Idtyp != "" && claims.Idtyp != "user") || claims.guest(a.homeTenant) || adminClientID == "" || claims.Azp != adminClientID || !navIdentRegex.MatchString(claims.NAVident) {
 		return "", "", errUnauthorized
@@ -147,6 +154,20 @@ func (a *authz) user(ctx context.Context, header, adminClientID string) (ident, 
 		return "", "", errUnauthorized
 	}
 	return claims.NAVident, email, nil
+}
+
+// personWithOid is user plus the Entra oid, for /apis. A person token
+// without a lowercase-UUID oid is refused like any invalid token.
+func (a *authz) personWithOid(ctx context.Context, header, adminClientID string) (ident, email, oid string, err error) {
+	claims, err := a.introspect(ctx, header)
+	if err != nil {
+		return "", "", "", err
+	}
+	if !uuidRe.MatchString(claims.Oid) {
+		return "", "", "", errUnauthorized
+	}
+	ident, email, err = a.checkUser(claims, adminClientID)
+	return ident, email, claims.Oid, err
 }
 
 // introspect validates the bearer token with Texas and returns its claims

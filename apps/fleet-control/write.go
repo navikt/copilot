@@ -315,6 +315,10 @@ func (d *DB) Revoke(ctx context.Context, actor, ns, name, reason string, block b
 		if _, err := tx.Exec(ctx, `UPDATE servers SET status = 'revoked', updated_at = now() WHERE namespace = $1 AND name = $2`, ns, name); err != nil {
 			return err
 		}
+		// Mark the generation (005), so no rollback through either API returns to it.
+		if _, err := tx.Exec(ctx, `UPDATE server_versions SET revoked_at = clock_timestamp() WHERE namespace = $1 AND name = $2 AND version = $3`, ns, name, *before.Published); err != nil {
+			return err
+		}
 		if block {
 			if _, err := tx.Exec(ctx, `UPDATE server_versions SET blocked = true WHERE namespace = $1 AND name = $2 AND version = $3`, ns, name, *before.Published); err != nil {
 				return err
@@ -339,9 +343,9 @@ func (d *DB) Rollback(ctx context.Context, actor, ns, name string) (int, error) 
 			return refuse(http.StatusConflict, "server has no published version")
 		}
 		var regName *string
-		err = tx.QueryRow(ctx, `SELECT version, registry->>'name' FROM server_versions WHERE namespace = $1 AND name = $2 AND published_at IS NOT NULL AND NOT blocked AND version < $3 ORDER BY version DESC LIMIT 1`, ns, name, *before.Published).Scan(&target, &regName)
+		err = tx.QueryRow(ctx, `SELECT version, registry->>'name' FROM server_versions WHERE namespace = $1 AND name = $2 AND published_at IS NOT NULL AND NOT blocked AND revoked_at IS NULL AND version < $3 ORDER BY version DESC LIMIT 1`, ns, name, *before.Published).Scan(&target, &regName)
 		if errors.Is(err, pgx.ErrNoRows) {
-			return refuse(http.StatusConflict, "no earlier published, unblocked version")
+			return refuse(http.StatusConflict, "no earlier published, unblocked, unrevoked version")
 		}
 		if err != nil {
 			return err

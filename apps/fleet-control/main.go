@@ -121,6 +121,13 @@ func setupDB(ctx context.Context) (*DB, error) {
 	if err := seedFromEnv(ctx, owner); err != nil {
 		return nil, err
 	}
+	// Every start: fills spec and spec_hash on published versions written
+	// before 005 or by an older pod.
+	if n, err := owner.BackfillSpecs(ctx); err != nil {
+		return nil, fmt.Errorf("backfill specs: %w", err)
+	} else if n > 0 {
+		slog.Info("backfilled v1alpha1 specs", "versions", n)
+	}
 	if err := seedAgentsFromEnv(ctx, owner); err != nil {
 		return nil, err
 	}

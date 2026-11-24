@@ -60,7 +60,18 @@ func newAgentEnv(t *testing.T) *agentEnv {
 	s.store.Store(&storeBox{db})
 	// The real user-token path from #2678: Texas plus the static team list.
 	teams := staticTeams{"aksel-studio": {"A111111", "A555555"}, "copilot": {"A111111", "C222222"}, "team-b": {"B444444"}, "team-x": {"X333333"}}
-	ts := httptest.NewServer(s.routes(a, adminID, teams, nil))
+	// The old /admin/v1/agents write handlers stand in for an image from
+	// before 005: production answers 410 (TestAdminAgentWritesAreGone).
+	legacy := http.NewServeMux()
+	s.legacyAgentWriteRoutes(legacy, tokenPersons{a, adminID, teams})
+	h := s.routes(a, adminID, teams, nil)
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if _, pattern := legacy.Handler(r); pattern != "" {
+			legacy.ServeHTTP(w, r)
+			return
+		}
+		h.ServeHTTP(w, r)
+	}))
 	t.Cleanup(ts.Close)
 	return &agentEnv{t, db, s, ts.URL}
 }
@@ -476,17 +487,20 @@ func TestRealPostgresAgentSeed(t *testing.T) {
 	var n int
 	var status, by string
 	var verified bool
-	_ = e.db.pool.QueryRow(ctx, `SELECT count(*), min(status), min(created_by), bool_or(identity_verified_at IS NOT NULL) FROM agent_profiles`).Scan(&n, &status, &by, &verified)
-	if n != 1 || status != "draft" || by != "seed" || verified {
+	_ = e.db.pool.QueryRow(ctx, `SELECT count(*), min(submitted_by_kind), min(submitted_by), bool_or(identity_verified_at IS NOT NULL) FROM agent_profile_generations`).Scan(&n, &status, &by, &verified)
+	var legacy int
+	_ = e.db.pool.QueryRow(ctx, `SELECT count(*) FROM agent_profiles`).Scan(&legacy)
+	if n != 1 || status != "System" || by != "seed" || verified || legacy != 0 {
 		t.Fatalf("seed: n=%d status=%s by=%s verified=%v", n, status, by, verified)
 	}
 }
 
 func TestRealPostgresAgentDetailAndSeededApproval(t *testing.T) {
 	e := newAgentEnv(t)
-	t.Setenv("SEED_AGENTS_FILE", "seed/agents.dev.json")
-	t.Setenv("NAIS_CLUSTER_NAME", "dev-gcp")
-	if err := seedAgentsFromEnv(context.Background(), e.db); err != nil {
+	// The seed as an image from before 005 wrote it.
+	var seeded AgentProfile
+	_ = json.Unmarshal([]byte(fixture(t)), &seeded)
+	if _, err := e.db.CreateAgentProfile(context.Background(), seeded, "seed", false); err != nil {
 		t.Fatal(err)
 	}
 	path := "/admin/v1/agents/aksel-studio/studio-assistant"

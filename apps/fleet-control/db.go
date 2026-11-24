@@ -63,7 +63,11 @@ func (d *DB) Close() { d.pool.Close() }
 func (d *DB) Ping(ctx context.Context) error { return d.pool.Ping(ctx) }
 
 // Migrate applies the embedded migrations once each, under an advisory lock.
-func (d *DB) Migrate(ctx context.Context) error {
+func (d *DB) Migrate(ctx context.Context) error { return d.migrateTo(ctx, "") }
+
+// migrateTo applies migrations up to and including last ("" for all), so a
+// test can stand where an older image left the schema.
+func (d *DB) migrateTo(ctx context.Context, last string) error {
 	if _, err := d.pool.Exec(ctx, `CREATE TABLE IF NOT EXISTS schema_migrations (version TEXT PRIMARY KEY, applied_at TIMESTAMPTZ NOT NULL DEFAULT now())`); err != nil {
 		return fmt.Errorf("create schema_migrations: %w", err)
 	}
@@ -77,6 +81,9 @@ func (d *DB) Migrate(ctx context.Context) error {
 	}
 	sort.Strings(names)
 	for _, name := range names {
+		if last != "" && name > last {
+			break
+		}
 		err := pgx.BeginFunc(ctx, d.pool, func(tx pgx.Tx) error {
 			if _, err := tx.Exec(ctx, "SELECT pg_advisory_xact_lock($1)", lockKey); err != nil {
 				return err

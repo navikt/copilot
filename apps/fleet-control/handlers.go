@@ -48,6 +48,7 @@ func (s *server) routes(a *authz, adminClientID string, teams teamDirectory, ra 
 		persons = tokenPersons{a, adminClientID, teams}
 	}
 	s.agentRoutes(mux, a, persons)
+	s.apisRoutes(mux, a, adminClientID, teams)
 
 	if ra != nil {
 		mux.HandleFunc("POST /runtime/v1/claim", s.runtimeRoute(ra, ra.claim))
