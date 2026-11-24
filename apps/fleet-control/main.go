@@ -44,6 +44,7 @@ func run() error {
 	srv := newServer()
 	adminClientID := adminClientFor(cluster, strings.TrimSpace(os.Getenv("MY_COPILOT_CLIENT_ID")))
 	srv.cluster = cluster
+	srv.notifier = newSlackNotifier(os.Getenv("FLEET_SLACK_WEBHOOK_URL"))
 	// FLEET_CONTROL_OPERATOR_TEAM may set the global job kill switch; unset, nobody can.
 	srv.operatorTeam = strings.TrimSpace(os.Getenv("FLEET_CONTROL_OPERATOR_TEAM"))
 	ra, err := runtimeAuthFromEnv(auth)
@@ -213,6 +214,8 @@ type server struct {
 	persons personResolver
 	// verifier binds an agent's client id to its app; nil leaves profiles unverified.
 	verifier identityVerifier
+	// notifier posts MCPServer changes to Slack; nil sends nothing.
+	notifier *slackNotifier
 }
 
 func newServer() *server {

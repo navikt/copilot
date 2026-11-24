@@ -304,6 +304,7 @@ func (s *server) approveServer(w http.ResponseWriter, r *http.Request, c caller,
 	if err := db.approveServer(r.Context(), c, s.operatorTeam, ns, name, body.Generation, body.ContentHash); err != nil {
 		return err
 	}
+	s.notifyServer(r.Context(), db, "approve", ns, name, "owner")
 	return writeServer(r.Context(), w, db, ns, name, http.StatusOK)
 }
 
@@ -346,6 +347,7 @@ func (s *server) revokeServer(w http.ResponseWriter, r *http.Request, c caller, 
 	if err := db.revokeServer(r.Context(), c, by, ns, name, reason, body.Block); err != nil {
 		return err
 	}
+	s.notifyServer(r.Context(), db, "revoke", ns, name, by)
 	return writeServerFor(r.Context(), w, db, c, ns, name)
 }
 
@@ -370,6 +372,7 @@ func (s *server) rollbackServer(w http.ResponseWriter, r *http.Request, c caller
 	if err := db.rollbackServer(r.Context(), c, s.operatorTeam, by, ns, name, body.FromGeneration, body.ToGeneration, reason); err != nil {
 		return err
 	}
+	s.notifyServer(r.Context(), db, "rollback", ns, name, by)
 	return writeServerFor(r.Context(), w, db, c, ns, name)
 }
 

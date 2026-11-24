@@ -9,6 +9,8 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
+
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 // routes registers the API. The app has no ingress: accessPolicy.inbound
@@ -22,6 +24,7 @@ func (s *server) routes(a *authz, adminClientID string, teams teamDirectory, ra 
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
 	mux.HandleFunc("GET /ready", s.ready)
+	mux.Handle("GET /metrics", promhttp.Handler())
 	mux.HandleFunc("GET /internal/v1/servers", a.require(s.listServers, callerRegistry))
 	mux.HandleFunc("GET /internal/v1/routes", a.require(s.listRoutes, callerGateway))
 	mux.HandleFunc("GET /internal/v1/snapshots/routes", a.require(s.snapshotOf("routes"), callerGateway))
