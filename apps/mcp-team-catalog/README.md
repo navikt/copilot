@@ -29,7 +29,7 @@ All serialized tool payloads are capped at 32 KiB and set `truncated: true` if i
 
 Each tool declares an `outputSchema` and returns `structuredContent` (MCP 2026-07-28), plus the same JSON as a text block for older clients.
 
-Catalog responses (`GET /team`, `GET /productarea`, `GET /cluster`, `GET /naisteam`) are cached in memory for 5 minutes (32 MiB cap). Person membership lookups (`GET /member/membership/{id}`) and error responses are never cached. Caller tokens are validated and exchanged via Texas OBO on every call.
+Nothing from `team-catalog-backend` is cached. Responses contain personal data about employees, so every tool call fetches fresh data. Caller tokens are validated and exchanged via Texas OBO on every call.
 
 ## Environment Variables
 
