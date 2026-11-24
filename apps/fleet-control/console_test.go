@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -261,5 +262,24 @@ func TestConsoleTeamsCacheBounded(t *testing.T) {
 	}
 	if len(c.cache) > consoleTeamsMaxCache {
 		t.Fatalf("cache unbounded: %d", len(c.cache))
+	}
+}
+
+// Prod without a Console binding must start and fail lookups closed, not crash.
+func TestTeamsFromEnvUnboundOutsideDev(t *testing.T) {
+	t.Setenv("NAIS_SERVICE_ACCOUNT_TOKEN_PATH", "")
+	t.Setenv("FLEET_CONTROL_STATIC_TEAMS", "")
+	d, err := teamsFromEnv("prod-gcp")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ok, err := d.IsMember(context.Background(), "team-a", "a@nav.no"); ok || !errors.Is(err, errNoServiceAccount) {
+		t.Fatalf("IsMember = %v, %v; want false, errNoServiceAccount", ok, err)
+	}
+	if _, err := d.Teams(context.Background(), "a@nav.no"); !errors.Is(err, errNoServiceAccount) {
+		t.Fatalf("Teams err = %v", err)
+	}
+	if d, _ := teamsFromEnv("dev-gcp"); d == (unboundTeams{}) {
+		t.Fatal("dev without binding: want empty static list, got unbound")
 	}
 }

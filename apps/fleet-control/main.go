@@ -44,9 +44,17 @@ func run() error {
 		return err
 	}
 	srv := newServer()
-	adminClientID := adminClientFor(cluster, strings.TrimSpace(os.Getenv("MY_COPILOT_CLIENT_ID")))
+	myCopilotID, err := clientIDFromEnv("MY_COPILOT_CLIENT_ID", "my-copilot")
+	if err != nil {
+		return err
+	}
+	adminClientID := adminClientFor(cluster, myCopilotID)
 	srv.cluster = cluster
 	srv.notifier = newSlackNotifier(os.Getenv("FLEET_SLACK_WEBHOOK_URL"))
+	if _, ok := teams.(unboundTeams); ok {
+		srv.teamsUnbound = true
+		slog.Warn("no Console service account bound: team lookups answer 503")
+	}
 	// FLEET_CONTROL_OPERATOR_TEAM may set the global job kill switch; unset, nobody can.
 	srv.operatorTeam = strings.TrimSpace(os.Getenv("FLEET_CONTROL_OPERATOR_TEAM"))
 	ra, err := runtimeAuthFromEnv(auth)
@@ -232,6 +240,8 @@ type snapshotStore interface {
 }
 
 type server struct {
+	// teamsUnbound: no Console service account yet; /ready says so but stays 200.
+	teamsUnbound bool
 	// cluster is NAIS_CLUSTER_NAME; route targets must be in it, since the
 	// gateway resolves service DNS in its own cluster.
 	cluster string

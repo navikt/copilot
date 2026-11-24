@@ -1,5 +1,5 @@
 # dev (provisioned 2026-11-22): nais apply -t copilot -e dev-gcp .nais/postgres.yaml
-# prod: not provisioned yet, see README.md "Prod rollout" (#2754).
+# Deployed with the app by .github/workflows/fleet-control.yaml (nais-resource).
 version: v1
 type: Postgres
 name: fleet-control

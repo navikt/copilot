@@ -1,5 +1,5 @@
-# Not deployed yet: prod-gcp is commented out in .github/workflows/fleet-control.yaml
-# until the owner steps in README.md ("Prod rollout") are done (#2754).
+# Not deployed yet: prod-gcp is not in nais-clusters in .github/workflows/fleet-control.yaml
+# until the owner flips it, see README.md "Prod rollout" (#2754).
 cluster: prod-gcp
 env: prod
 replicas_min: "1"
@@ -7,12 +7,5 @@ replicas_max: "2"
 cpu_request: 50m
 memory_request: 64Mi
 memory_limit: 128Mi
-# Entra client ids of the callers in prod-gcp. Fill in before the first deploy, from
-# `kubectl --context prod-gcp -n copilot get azureapp <app> -o jsonpath='{.status.clientId}'`.
-# Empty stops startup, so a deploy before that fails closed.
-fleet_gateway_client_id: ""
-mcp_registry_client_id: ""
-# The /admin routes are dev only; the app ignores this outside dev-*.
-my_copilot_client_id: ""
-# No agent profile seed and no static team list in prod: the app refuses the list outside dev-*.
-seed_agents_file: ""
+# Caller client ids come from AZURE_APP_PRE_AUTHORIZED_APPS, which Nais fills
+# from accessPolicy.inbound. No agent seed and no static team list in prod.

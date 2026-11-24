@@ -132,7 +132,7 @@ Not built yet: the public ingress fleet-runtime will reach this through (#2686),
 | `FLEET_CONTROL_OPERATOR_TEAM`             | Team that may set the global job kill switch. Unset: nobody                                                                                                                                                                                                                                                                                                                                 |
 | `NAIS_CLUSTER_NAME`                       | Set by Nais. The write routes and the static team list run only in a `dev-*` cluster; the static list in prod stops startup                                                                                                                                                                                                                                                                 |
 
-The app refuses to start when a client id or the Texas endpoint is missing, or when both client ids are equal. Client ids are set per cluster in `.nais/<cluster>.yaml`. A change rolls out pod by pod, so for a short time old and new replicas may accept different callers.
+Client ids are read from `AZURE_APP_PRE_AUTHORIZED_APPS` (set by Nais from `accessPolicy.inbound`), matched on `<NAIS_CLUSTER_NAME>:copilot:<app>`. A caller not listed there falls back to the explicit variable. The app refuses to start when a client id or the Texas endpoint is missing, when both client ids are equal, or when `AZURE_APP_PRE_AUTHORIZED_APPS` is not valid JSON. Outside dev-*, without `NAIS_SERVICE_ACCOUNT_TOKEN_PATH`, the app starts, every team lookup answers 503, and `/ready` says so while staying 200. A change rolls out pod by pod, so for a short time old and new replicas may accept different callers.
 
 ## Migrations
 
@@ -250,14 +250,13 @@ Needs a human with write access to dev-gcp. Fill in and commit the result here. 
 
 ## Prod rollout (#2754)
 
-The manifests for prod-gcp are ready, but the workflow does not deploy there yet. The owner does these steps in order. Agents do none of them.
+The manifests for prod-gcp are ready, but the workflow does not deploy there yet. The owner does these steps in order.
 
-1. **Service account.** In Nais Console, team `copilot`, create a service account that may read team membership, and bind it to the workload `fleet-control` in `prod-gcp`. Nais then sets `NAIS_SERVICE_ACCOUNT_TOKEN_PATH` in the pod. Without it, every write and team check answers 503. See doc.nais.io for the current steps.
-2. **Postgres.** Create the database: `nais apply -t copilot -e prod-gcp .nais/postgres.yaml`. Check in Nais Console that `fleet-control` shows up under Postgres for `prod-gcp` and is ready.
-3. **Client ids.** Fill in `fleet_gateway_client_id` and `mcp_registry_client_id` in `.nais/prod-gcp.yaml` with `kubectl --context prod-gcp -n copilot get azureapp <app> -o jsonpath='{.status.clientId}'`. Empty values stop startup.
-4. **First deploy.** In `.github/workflows/fleet-control.yaml`, change `nais-clusters` to `'["dev-gcp", "prod-gcp"]'` and merge. Check that the pod is ready, that `/ready` answers, and that the log shows no Console API errors.
+1. **Deploy.** In `.github/workflows/fleet-control.yaml`, change `nais-clusters` to `'["dev-gcp", "prod-gcp"]'` and merge. The deploy creates Postgres (`.nais/postgres.yaml`) together with the app. Check that the pod is ready. `/ready` answers 200 with "team lookups unavailable: no Console service account bound" until step 2.
+2. **Service account.** In Nais Console, team `copilot`, create a service account that may read team membership and bind it to the workload `fleet-control` in `prod-gcp`. The binding needs the deployed app. Nais then sets `NAIS_SERVICE_ACCOUNT_TOKEN_PATH`; restart the pod if it does not pick it up. See doc.nais.io for the current steps.
+3. **Verify team lookups.** `/ready` no longer mentions the service account, and a team lookup from my-copilot answers instead of 503. The log shows no Console API errors.
 
-Switching the prod gateway to fleet-control is a separate step (#2760).
+Caller client ids need no manual step: they come from `AZURE_APP_PRE_AUTHORIZED_APPS`. Switching the prod gateway to fleet-control is a separate step (#2760).
 
 ## Development
 
