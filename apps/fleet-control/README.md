@@ -166,7 +166,7 @@ Existing migrations, checked against the rule (#2761):
 | 006 | Revokes rights from the runtime role on `audit_events`. Old code never updated or deleted audit rows |
 | 007 | Defaulted columns; replaces the `(team, name)` unique index with a wider one (loosening) |
 | 008 | New unique index on `lower(registry_name)`. Tightening: an old image that writes a case-only duplicate now gets an error instead of a second row. Intended (#2853) |
-| 009 | Adds `runtime_kill_switches.set_by_operator` with a default. An old image ignores it, so it can clear an operator-set switch (#2854) |
+| 010 | Adds `runtime_kill_switches.set_by_operator` with a default. An old image ignores it, so it can clear an operator-set switch (#2854) |
 
 ## Audit retention
 
