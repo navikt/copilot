@@ -259,6 +259,10 @@ func TestRealPostgresAgentProfileNeedsEveryRouteOwner(t *testing.T) {
 	if len(e.active()) != 0 {
 		t.Fatal("approved before every route owner approved")
 	}
+	// One route's owner does not see who approved another route (#2696).
+	if _, body := e.do("GET", "/admin/v1/agents/aksel-studio/studio-assistant", "B444444:team-b", ""); strings.Contains(body, "C222222") {
+		t.Fatalf("route owner sees another route: %s", body)
+	}
 	e.do("POST", "/admin/v1/agents/aksel-studio/studio-assistant/approvals", "B444444:team-b", e.ab("team-b/kodeverk"))
 	if len(e.active()) != 1 {
 		t.Fatal("not approved after every route owner approved")
@@ -504,14 +508,22 @@ func TestRealPostgresAgentDetailAndSeededApproval(t *testing.T) {
 		t.Fatal(err)
 	}
 	path := "/admin/v1/agents/aksel-studio/studio-assistant"
-	for _, who := range []string{author, approver} {
-		if code, body := e.do("GET", path, who, ""); code != 200 || !strings.Contains(body, `"copilot/dolly":null`) || !strings.Contains(body, `"aksel-studio":null`) {
-			t.Fatalf("%s: %d %s", who, code, body)
-		}
+	if code, body := e.do("GET", path, author, ""); code != 200 || !strings.Contains(body, `"copilot/dolly":null`) || !strings.Contains(body, `"aksel-studio":null`) {
+		t.Fatalf("owner team: %d %s", code, body)
+	}
+	// A route owner sees only its own routes' approvals (#2696).
+	if code, body := e.do("GET", path, approver, ""); code != 200 || !strings.Contains(body, `"copilot/dolly":null`) || strings.Contains(body, `"aksel-studio":`) {
+		t.Fatalf("route owner: %d %s", code, body)
 	}
 	if code, _ := e.do("GET", path, stranger, ""); code != 404 {
 		t.Fatalf("another team must get 404: %d", code)
 	}
+	// A hidden profile is 404 before the approvals query, like a missing one (#2696).
+	hideTable(t, e.db, "agent_profile_approvals", func() {
+		if code, _ := e.do("GET", path, stranger, ""); code != 404 {
+			t.Fatalf("hidden profile read approvals: %d", code)
+		}
+	})
 	if code, _ := e.do("GET", path, "", ""); code != 401 {
 		t.Fatalf("unauthenticated: %d", code)
 	}
@@ -541,6 +553,16 @@ func TestRealPostgresAgentDetailAndSeededApproval(t *testing.T) {
 	}
 	if _, body = e.do("GET", path, author, ""); !strings.Contains(body, `"approved_by":"C222222"`) {
 		t.Fatalf("approval state: %s", body)
+	}
+	if _, body = e.do("GET", path, approver, ""); strings.Contains(body, "A555555") {
+		t.Fatalf("route owner sees the owner team's approver: %s", body)
+	}
+	// An expired profile reads as expired, as the gateway enforces (#2696).
+	if _, err := e.db.pool.Exec(context.Background(), `UPDATE agent_profiles SET expires_at = now() - interval '1 second' WHERE status = 'approved'`); err != nil {
+		t.Fatal(err)
+	}
+	if _, body = e.do("GET", path, author, ""); !strings.Contains(body, `"status":"expired"`) {
+		t.Fatalf("expired profile: %s", body)
 	}
 }
 

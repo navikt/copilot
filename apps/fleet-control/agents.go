@@ -96,7 +96,7 @@ type agentStore interface {
 	ApproveAgentRoute(ctx context.Context, id int64, namespace, name, route, actor string) (AgentProfile, error)
 	RevokeAgentProfile(ctx context.Context, namespace, name string, actor Person) error
 	ActiveAgentProfiles(ctx context.Context) ([]AgentProfile, error)
-	AgentProfileDetail(ctx context.Context, namespace, name string) (int64, AgentProfile, map[string]any, error)
+	AgentProfileDetail(ctx context.Context, namespace, name string, who Person) (int64, AgentProfile, map[string]any, error)
 }
 
 var (
@@ -300,10 +300,7 @@ func (s *server) getAgent(w http.ResponseWriter, r *http.Request, who Person) {
 		return
 	}
 	defer cancel()
-	id, p, approvals, err := as.AgentProfileDetail(ctx, r.PathValue("namespace"), r.PathValue("name"))
-	if err == nil && !p.visibleTo(who) {
-		err = errNotFound
-	}
+	id, p, approvals, err := as.AgentProfileDetail(ctx, r.PathValue("namespace"), r.PathValue("name"), who)
 	if err != nil {
 		writeErr(w, err)
 		return
@@ -609,21 +606,36 @@ func (d *DB) RevokeAgentProfile(ctx context.Context, namespace, name string, act
 	})
 }
 
-// AgentProfileDetail returns the live profile, its id, and per granted route
-// and for the owner team (keyed by namespace) either null or who approved it
-// and when.
-func (d *DB) AgentProfileDetail(ctx context.Context, namespace, name string) (int64, AgentProfile, map[string]any, error) {
+// AgentProfileDetail returns the live profile, its id, and per route either
+// null or who approved it and when. The owner team sees every route and the
+// owner team's own approval (keyed by namespace); a route owner sees only the
+// routes its teams own (#2696). A profile who may not see is errNotFound
+// after the same one query as a missing profile.
+func (d *DB) AgentProfileDetail(ctx context.Context, namespace, name string, who Person) (int64, AgentProfile, map[string]any, error) {
 	id, p, err := scanAgent(d.pool.QueryRow(ctx, `SELECT `+agentCols+` FROM agent_profiles
 		WHERE namespace = $1 AND name = $2 AND status IN ('draft', 'approved')`, namespace, name))
 	if errors.Is(err, pgx.ErrNoRows) {
 		return 0, p, nil, errNotFound
 	}
+	if err == nil && !p.visibleTo(who) {
+		err = errNotFound
+	}
 	if err != nil {
 		return 0, p, nil, err
 	}
-	approvals := map[string]any{p.Namespace: nil}
+	// The gateway drops approved profiles past expires_at; report what it enforces.
+	if p.Status == "approved" && p.ExpiresAt != nil && !p.ExpiresAt.After(time.Now()) {
+		p.Status = "expired"
+	}
+	owner := who.in(p.Namespace)
+	approvals := map[string]any{}
+	if owner {
+		approvals[p.Namespace] = nil
+	}
 	for _, g := range p.Grants {
-		approvals[g.Route] = nil
+		if team, _, _ := strings.Cut(g.Route, "/"); owner || who.in(team) {
+			approvals[g.Route] = nil
+		}
 	}
 	rows, err := d.pool.Query(ctx, `SELECT route, approved_by, approved_at FROM agent_profile_approvals WHERE profile_id = $1`, id)
 	if err != nil {
@@ -636,7 +648,9 @@ func (d *DB) AgentProfileDetail(ctx context.Context, namespace, name string) (in
 		if err := rows.Scan(&route, &by, &at); err != nil {
 			return 0, p, nil, err
 		}
-		approvals[route] = map[string]any{"approved_by": by, "approved_at": at}
+		if _, shown := approvals[route]; shown {
+			approvals[route] = map[string]any{"approved_by": by, "approved_at": at}
+		}
 	}
 	return id, p, approvals, rows.Err()
 }
