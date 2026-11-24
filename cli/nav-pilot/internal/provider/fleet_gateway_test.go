@@ -53,10 +53,13 @@ func TestFleetGatewaySkippedOnOldOrUnknownCplt(t *testing.T) {
 
 func TestFleetGatewayAddsDevMCPHosts(t *testing.T) {
 	withFleetGatewayDefaults(t, "cplt 0.0.0\n")
-	old := devMCP
-	t.Cleanup(func() { devMCP = old })
-	devMCP = func() []string {
-		return []string{"fleet-gateway-b.intern.dev.nav.no", "fleet-gateway.intern.dev.nav.no"}
+	t.Cleanup(func() { devMCPEnabled = nil })
+	// Accepted but no server on it: no grant.
+	if got := cpltArgv(cpltLaunch{agent: "copilot"}); slices.Contains(got, "fleet-gateway-b.intern.dev.nav.no") {
+		t.Fatalf("granted without a server: %q", got)
+	}
+	for _, u := range []string{"https://fleet-gateway-b.intern.dev.nav.no/mcp", "https://fleet-gateway.intern.dev.nav.no/mcp"} {
+		noteDevMCPEnabled(mcpServer{Type: "remote", URL: u})
 	}
 	got := cpltArgv(cpltLaunch{agent: "copilot"})
 	want := []string{"--agent", "copilot",

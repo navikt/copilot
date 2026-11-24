@@ -60,6 +60,10 @@ func validDevMCPHost(h string) bool {
 	return true
 }
 
+// devMCPEnabled is the hosts of servers the override turned on in this
+// launch: only those get cplt's --allow-private-domain.
+var devMCPEnabled []string
+
 // devMCP is [devMCPHosts] once per nav-pilot start, so the warning prints
 // on every start but once only. A var so tests can replace it.
 var devMCP = sync.OnceValue(func() []string { return devMCPHosts(os.Stderr) })
@@ -75,4 +79,11 @@ func devMCPAllowed(s mcpServer, hosts []string) bool {
 	}
 	u, err := url.Parse(strings.TrimSpace(s.URL))
 	return err == nil && strings.EqualFold(u.Scheme, "https") && u.User == nil && slices.Contains(hosts, strings.ToLower(u.Host))
+}
+
+// noteDevMCPEnabled records the host of a server the override turned on.
+func noteDevMCPEnabled(s mcpServer) {
+	if u, err := url.Parse(strings.TrimSpace(s.URL)); err == nil && !slices.Contains(devMCPEnabled, strings.ToLower(u.Host)) {
+		devMCPEnabled = append(devMCPEnabled, strings.ToLower(u.Host))
+	}
 }

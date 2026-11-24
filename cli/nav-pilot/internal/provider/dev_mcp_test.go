@@ -75,7 +75,7 @@ func TestDevMCPAllowed(t *testing.T) {
 
 func TestUnlistedInHonoursDevMCP(t *testing.T) {
 	origPolicy, origReg, origDev := fetchMCPPolicy, fetchMCPRegistry, devMCP
-	t.Cleanup(func() { fetchMCPPolicy, fetchMCPRegistry, devMCP = origPolicy, origReg, origDev })
+	t.Cleanup(func() { fetchMCPPolicy, fetchMCPRegistry, devMCP, devMCPEnabled = origPolicy, origReg, origDev, nil })
 	fetchMCPRegistry = func(string) (mcpRegistry, error) {
 		return mcpRegistry{Remotes: map[string]bool{"https://ok/mcp": true}, Packages: map[string]bool{}}, nil
 	}
@@ -96,6 +96,9 @@ func TestUnlistedInHonoursDevMCP(t *testing.T) {
 		off, err := unlistedIn("https://registry/", servers, names)
 		if err != nil || !slices.Equal(off, tt.off) {
 			t.Errorf("hosts %v: off = %v, err = %v, want %v", tt.hosts, off, err, tt.off)
+		}
+		if want := tt.hosts; !slices.Equal(devMCPEnabled, want) {
+			t.Errorf("enabled hosts = %v, want %v", devMCPEnabled, want)
 		}
 	}
 }
