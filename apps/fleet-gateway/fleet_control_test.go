@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/testutil"
 	dto "github.com/prometheus/client_model/go"
 )
 
@@ -86,6 +87,11 @@ func fleetControlGateway(t *testing.T, f *fakeFleetControl) (*Gateway, *fleetCon
 	gw.cfg.FleetControlURL = f.srv.URL
 	gw.cfg.TexasTokenEndpoint = f.srv.URL + "/texas"
 	gw.cfg.FleetControlAudience = "api://dev-gcp.copilot.fleet-control/.default"
+	// Rebuild through newGateway so the startup route table is the production one.
+	gw, err := newGateway(gw.cfg, gw.now)
+	if err != nil {
+		t.Fatal(err)
+	}
 	return gw, &fleetControlRoutes{cfg: gw.cfg, client: f.srv.Client()}
 }
 
@@ -168,21 +174,63 @@ func TestRouteSyncFailsClosed(t *testing.T) {
 	}
 }
 
-func TestRouteSyncUnreachableAtStartupKeepsGitRoutes(t *testing.T) {
-	f := newFakeFleetControl(t)
-	gw, src := fleetControlGateway(t, f)
-	git := routePaths(gw)
-	f.srv.Close()
-	gw.syncRoutes(context.Background(), src)
-	if got := routePaths(gw); !slices.Equal(got, git) {
-		t.Fatalf("routes = %v, want the Git routes %v", got, git)
+// #2797: a pod that starts while fleet-control, Texas or the snapshot is bad
+// must serve no routes (503, not ready), never the Git file's.
+func TestRouteSyncNoSnapshotAtStartupFailsClosed(t *testing.T) {
+	cases := map[string]func(f *fakeFleetControl){
+		"fleet-control down": func(f *fakeFleetControl) { f.srv.Close() },
+		"fleet-control 503":  func(f *fakeFleetControl) { f.status = http.StatusServiceUnavailable },
+		"texas down":         func(f *fakeFleetControl) { f.texasStatus = http.StatusInternalServerError },
+		"unknown schema": func(f *fakeFleetControl) {
+			f.body = map[string]any{"schema_version": 2, "generation": 1, "routes": []any{primaryRoute()}}
+		},
+		"malformed json":     func(f *fakeFleetControl) { f.body = "not an object" },
+		"304 on first fetch": func(f *fakeFleetControl) { f.status = http.StatusNotModified },
+		"empty routes":       func(f *fakeFleetControl) { f.body = snapBody(1) },
+		"generation zero":    func(f *fakeFleetControl) { f.body = snapBody(0, primaryRoute()) },
+	}
+	for name, breakIt := range cases {
+		t.Run(name, func(t *testing.T) {
+			f := newFakeFleetControl(t)
+			gw, src := fleetControlGateway(t, f)
+			breakIt(f)
+			failures := testutil.ToFloat64(routeSyncFailures)
+			gw.syncRoutes(context.Background(), src)
+			if got := testutil.ToFloat64(routeSyncFailures); got != failures+1 {
+				t.Fatalf("routeSyncFailures = %v, want %v", got, failures+1)
+			}
+			if got := routePaths(gw); len(got) != 0 {
+				t.Fatalf("routes = %v, want none before the first snapshot", got)
+			}
+			rec := httptest.NewRecorder()
+			gw.routes().ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/mcp/team-etterlevelse/etterlevelse", strings.NewReader(`{}`)))
+			if rec.Code != http.StatusServiceUnavailable {
+				t.Fatalf("Git route = %d, want 503", rec.Code)
+			}
+			rec = httptest.NewRecorder()
+			gw.routes().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/ready", nil))
+			if rec.Code != http.StatusServiceUnavailable {
+				t.Fatalf("/ready = %d, want 503", rec.Code)
+			}
+
+			// First valid snapshot: routes served and ready.
+			f2 := newFakeFleetControl(t)
+			src.cfg.FleetControlURL, src.cfg.TexasTokenEndpoint, src.client = f2.srv.URL, f2.srv.URL+"/texas", f2.srv.Client()
+			gw.syncRoutes(context.Background(), src)
+			rec = httptest.NewRecorder()
+			gw.routes().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/ready", nil))
+			if len(routePaths(gw)) != 3 || rec.Code != http.StatusOK {
+				t.Fatalf("after snapshot: routes %v, /ready %d", routePaths(gw), rec.Code)
+			}
+		})
 	}
 }
 
 func TestRouteSyncFlagOffMakesNoRequest(t *testing.T) {
 	f := newFakeFleetControl(t)
-	gw, _ := fleetControlGateway(t, f)
-	gw.cfg.RoutesSource = routesSourceGit
+	gw := newTestEnv(t).gw // built by newGateway with RoutesSource=git
+	gw.cfg.FleetControlURL = f.srv.URL
+	gw.cfg.TexasTokenEndpoint = f.srv.URL + "/texas"
 	before := gw.table()
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

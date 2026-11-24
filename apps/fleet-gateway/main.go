@@ -91,6 +91,10 @@ func newGateway(cfg *Config, now func() time.Time) (*Gateway, error) {
 		return nil, err
 	}
 	table := newRouteTable(cfg)
+	if cfg.RoutesSource == routesSourceFleetControl {
+		// Fail closed (#2797): no Git routes, ever. The file only pins the primary resource.
+		table = &RouteTable{PrimaryResource: table.PrimaryResource}
+	}
 	teamTokens, err := newTeamTokenSource(cfg, store, now)
 	if err != nil {
 		if ownedStore {
@@ -228,7 +232,12 @@ func (g *Gateway) routes() http.Handler {
 
 // routeDispatch serves /mcp/<namespace>/<name> from the current RouteTable.
 func (g *Gateway) routeDispatch(w http.ResponseWriter, r *http.Request) {
-	route, ok := g.table().RoutesByPath["/mcp/"+r.PathValue("ns")+"/"+r.PathValue("name")]
+	table := g.table() // one load: a swap between lookup and check must not turn 503 into 404
+	route, ok := table.RoutesByPath["/mcp/"+r.PathValue("ns")+"/"+r.PathValue("name")]
+	if !ok && g.cfg.RoutesSource == routesSourceFleetControl && len(table.Routes) == 0 {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "temporarily_unavailable", "error_description": "Route table not loaded yet. Try again shortly."})
+		return
+	}
 	if !ok {
 		http.NotFound(w, r)
 		return
@@ -271,6 +280,10 @@ func (g *Gateway) readyHandler(w http.ResponseWriter, r *http.Request) {
 	if err := g.store.Ping(ctx); err != nil {
 		slog.Warn("readiness check failed", "error", err)
 		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"status": "not_ready"})
+		return
+	}
+	if g.awaitingSnapshot() {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"status": "not_ready", "reason": "no_route_snapshot"})
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ready"})

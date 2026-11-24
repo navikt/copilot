@@ -13,8 +13,9 @@ import (
 )
 
 // Routes come from the Git file (PILOT_ROUTES_FILE) unless ROUTES_SOURCE is
-// fleet-control (#2641). Then the file is still loaded and serves until the
-// first good snapshot arrives, and whenever fleet-control never answers.
+// fleet-control (#2641). Then the gateway serves no routes from the file: MCP
+// routes answer 503 and /ready fails until the first valid snapshot (#2797).
+// The file only pins the primary resource.
 const (
 	routesSourceGit          = "git"
 	routesSourceFleetControl = "fleet-control"
@@ -116,6 +117,9 @@ func (f *fleetControlRoutes) fetch(ctx context.Context, current *RouteTable) ([]
 	if snap.SchemaVersion != 1 {
 		return nil, fmt.Errorf("unsupported snapshot schema_version %d", snap.SchemaVersion)
 	}
+	if snap.Generation <= 0 {
+		return nil, fmt.Errorf("snapshot generation %d must be positive", snap.Generation)
+	}
 	if f.generation > 0 && snap.Generation == f.generation && resp.Header.Get("ETag") != f.etag {
 		return nil, fmt.Errorf("snapshot generation %d changed body without a new generation", snap.Generation)
 	}
@@ -173,6 +177,12 @@ func (g *Gateway) syncRoutes(ctx context.Context, f *fleetControlRoutes) {
 	routesLoaded.Set(float64(len(routes)))
 	initMetrics(routes) // idempotent; pre-creates series for new routes and tools
 	slog.Info("route table loaded from fleet-control", "routes", len(routes), "generation", f.generation)
+}
+
+// awaitingSnapshot reports fleet-control mode before the first valid snapshot.
+// A valid snapshot is never empty, so an empty table means none has arrived.
+func (g *Gateway) awaitingSnapshot() bool {
+	return g.cfg.RoutesSource == routesSourceFleetControl && len(g.table().Routes) == 0
 }
 
 // startRouteSync syncs at startup and then every interval until ctx ends.
