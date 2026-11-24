@@ -29,7 +29,8 @@ const (
 	routesSourceFleetControl = "fleet-control"
 
 	fleetControlSyncInterval = 30 * time.Second
-	maxSnapshotBytes         = 1 << 20
+	// Leaves room for the storedSnapshot envelope under the seal limit (#2892).
+	maxSnapshotBytes = sealMaxPlaintext - 4<<10
 	// maxSnapshotAge bounds checked_at: a snapshot fleet-control has not
 	// confirmed against its database for this long may be stale (#2849).
 	maxSnapshotAge = 10 * time.Minute
@@ -45,6 +46,8 @@ type fleetControlRoutes struct {
 	routesHash [sha256.Size]byte // of the accepted generation's routes
 	accepted   []byte            // body of the last accepted snapshot, persisted by syncRoutes
 	checkedAt  time.Time
+	// storePending is set when storing the accepted snapshot failed.
+	storePending bool
 }
 
 type routesSnapshot struct {
@@ -213,14 +216,17 @@ func (g *Gateway) syncRoutes(ctx context.Context, f *fleetControlRoutes) {
 		slog.Warn("fleet-control routes not updated, keeping current table", "error", err, "routes", len(g.table().Routes))
 		return
 	}
-	markRouteSynced()
+	markRouteSynced(time.Now())
 	if routes == nil {
+		if f.storePending { // a 304 must not skip a store that failed earlier
+			f.storePending = !g.storeSnapshot(ctx, f)
+		}
 		return
 	}
 	g.swapRoutes(routes)
 	routesFromStore.Set(0)
 	slog.Info("route table loaded from fleet-control", "routes", len(routes), "generation", f.generation)
-	g.storeSnapshot(ctx, f)
+	f.storePending = !g.storeSnapshot(ctx, f)
 }
 
 func (g *Gateway) swapRoutes(routes []PilotRoute) {
@@ -233,12 +239,12 @@ func (g *Gateway) swapRoutes(routes []PilotRoute) {
 
 // storedSnapshot is the last accepted live snapshot, kept in the gateway's
 // own store so a pod can start while fleet-control is down (#2892). Body is
-// the response exactly as received; the other fields must agree with it.
+// the response as received, compacted; the other fields must agree with it.
 type storedSnapshot struct {
-	Body       []byte    `json:"body"`
-	Generation int64     `json:"generation"`
-	Hash       string    `json:"hash"` // hex sha256 of the routes, as in fleetControlRoutes.routesHash
-	CheckedAt  time.Time `json:"checked_at"`
+	Body       json.RawMessage `json:"body"` // raw JSON, not base64, so the envelope stays under the seal limit; Marshal compacts it
+	Generation int64           `json:"generation"`
+	Hash       string          `json:"hash"` // hex sha256 of the routes, as in fleetControlRoutes.routesHash
+	CheckedAt  time.Time       `json:"checked_at"`
 }
 
 const (
@@ -250,7 +256,7 @@ const (
 
 // storeSnapshot persists the snapshot fetch just accepted. Failure only logs:
 // the live table is already in place.
-func (g *Gateway) storeSnapshot(ctx context.Context, f *fleetControlRoutes) {
+func (g *Gateway) storeSnapshot(ctx context.Context, f *fleetControlRoutes) bool {
 	raw, err := json.Marshal(storedSnapshot{Body: f.accepted, Generation: f.generation, Hash: hex.EncodeToString(f.routesHash[:]), CheckedAt: f.checkedAt})
 	// The newer checked_at wins. Not generation, which can reset when
 	// fleet-control's database is restored. The row stays sealed (integrity
@@ -266,13 +272,14 @@ func (g *Gateway) storeSnapshot(ctx context.Context, f *fleetControlRoutes) {
 		}
 		var cur storedSnapshot
 		if ok && json.Unmarshal(old, &cur) == nil && cur.CheckedAt.After(f.checkedAt) {
-			return
+			return true
 		}
 		if err = g.store.Put(ctx, kindRouteSnapshot, routeSnapshotKey, raw, routeSnapshotTTL); err == nil {
-			return
+			return true
 		}
 	}
-	slog.Warn("could not store route snapshot", "error", err)
+	slog.Warn("could not store route snapshot, retrying on the next poll", "error", err)
+	return false
 }
 
 // loadStoredSnapshot serves the stored snapshot when startup found no live
@@ -299,6 +306,7 @@ func (g *Gateway) loadStoredSnapshot(ctx context.Context, f *fleetControlRoutes)
 	}
 	g.swapRoutes(routes)
 	routesFromStore.Set(1)
+	markRouteSynced(snap.CheckedAt) // age counts from checked_at, so the stale alert fires
 	slog.Warn("route table loaded from stored snapshot, fleet-control unreachable", "routes", len(routes), "generation", snap.Generation, "age", time.Since(snap.CheckedAt).Round(time.Second).String())
 }
 
@@ -339,8 +347,9 @@ var (
 
 // markRouteSynced records a successful fetch (new or unchanged snapshot). The
 // age gauge is registered on the first one, so no series exists before it (#2637).
-func markRouteSynced() {
-	lastRouteSync.Store(time.Now().UnixNano())
+// A stored snapshot passes its checked_at instead of now.
+func markRouteSynced(at time.Time) {
+	lastRouteSync.Store(at.UnixNano())
 	routeSyncAgeGauge.Do(func() {
 		promauto.NewGaugeFunc(prometheus.GaugeOpts{
 			Name: "fleet_gateway_route_snapshot_age_seconds",

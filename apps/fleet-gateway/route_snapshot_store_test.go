@@ -5,10 +5,13 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/testutil"
 )
 
@@ -292,4 +295,77 @@ func TestUnreadableStoredSnapshotIsReplaced(t *testing.T) {
 	if err = json.Unmarshal(raw, &st); err != nil || st.Generation != 1 {
 		t.Fatalf("stored = %s, err %v", raw, err)
 	}
+}
+
+func TestNearMaxSnapshotStoresThroughSealedStore(t *testing.T) {
+	f := newFakeFleetControl(t)
+	gw, _ := fleetControlGateway(t, f)
+	kr, err := parseKeyRing("k1:" + testKeyBase64(t, false))
+	if err != nil {
+		t.Fatal(err)
+	}
+	gw.store = newSealedStore(newMemoryStore(gw.now, nil), kr)
+	body := snapBody(1, primaryRoute(), snapRoute("alpha"))
+	body["checked_at"] = time.Now().UTC().Format(time.RFC3339Nano)
+	body["padding"] = ""
+	base, _ := json.Marshal(body)
+	body["padding"] = strings.Repeat("x", maxSnapshotBytes-len(base)-64) // unknown field, ignored by validation
+	f.body = body
+	src := &fleetControlRoutes{cfg: gw.cfg, client: f.srv.Client()}
+	gw.syncRoutes(context.Background(), src)
+	if len(src.accepted) < maxSnapshotBytes-1024 {
+		t.Fatalf("snapshot is %d bytes, want near %d", len(src.accepted), maxSnapshotBytes)
+	}
+	if _, ok, err := gw.store.Get(context.Background(), kindRouteSnapshot, routeSnapshotKey); err != nil || !ok {
+		t.Fatalf("near-max snapshot not stored: ok=%v err=%v", ok, err)
+	}
+}
+
+func TestFailedStoreRetriesOnNotModified(t *testing.T) {
+	f := newFakeFleetControl(t)
+	gw, _ := fleetControlGateway(t, f)
+	fs := &failingStore{SessionStore: gw.store, failPut: errors.New("db down")}
+	gw.store = fs
+	src := &fleetControlRoutes{cfg: gw.cfg, client: f.srv.Client()}
+	gw.syncRoutes(context.Background(), src)
+	if gw.awaitingSnapshot() {
+		t.Fatal("live snapshot not applied")
+	}
+	fs.failPut = nil
+	gw.syncRoutes(context.Background(), src) // answered 304
+	if f.lastINM != f.etag {
+		t.Fatalf("second poll did not send If-None-Match %s", f.etag)
+	}
+	if _, ok, _ := gw.store.Get(context.Background(), kindRouteSnapshot, routeSnapshotKey); !ok {
+		t.Fatal("snapshot not stored after the store recovered and fleet-control answered 304")
+	}
+}
+
+func TestStoredSnapshotSetsAgeGauge(t *testing.T) {
+	f := newFakeFleetControl(t)
+	body := snapBody(4, primaryRoute(), snapRoute("alpha"))
+	checked := time.Now().Add(-5 * time.Minute).UTC()
+	body["checked_at"] = checked.Format(time.RFC3339Nano)
+	gw := storeLiveSnapshot(t, f, body)
+	lastRouteSync.Store(time.Now().UnixNano())
+	f.status = http.StatusServiceUnavailable
+
+	gw2 := restartGateway(t, gw)
+	startSync(t, gw2)
+	if got := time.Unix(0, lastRouteSync.Load()); !got.Equal(checked) {
+		t.Fatalf("age gauge counts from %s, want checked_at %s", got, checked)
+	}
+	mfs, err := prometheus.DefaultGatherer.Gather()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, mf := range mfs {
+		if mf.GetName() == "fleet_gateway_route_snapshot_age_seconds" {
+			if v := mf.GetMetric()[0].GetGauge().GetValue(); v < 290 {
+				t.Fatalf("age = %v s, want about 300", v)
+			}
+			return
+		}
+	}
+	t.Fatal("fleet_gateway_route_snapshot_age_seconds not registered")
 }
