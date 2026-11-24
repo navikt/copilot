@@ -159,8 +159,8 @@ func TestSetupDBRevokesReGrant(t *testing.T) {
 		"GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO fleet_login_test",
 		"GRANT UPDATE (actor) ON audit_events TO fleet_login_test",
 	} {
-		if _, err := db.pool.Exec(ctx, q); err != nil {
-			t.Fatal(q, err)
+		if _, execErr := db.pool.Exec(ctx, q); execErr != nil {
+			t.Fatal(q, execErr)
 		}
 	}
 	t.Cleanup(func() {
