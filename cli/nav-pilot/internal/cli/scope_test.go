@@ -711,7 +711,7 @@ func TestRun_InstallScopePrompt(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			isolatedConfig(t)
+			existingUser(t) // a new install is not asked (#2781)
 			t.Setenv("HOME", t.TempDir())
 			if tt.interactive {
 				forceInteractive(t)
@@ -747,7 +747,7 @@ func TestRun_InstallScopePrompt(t *testing.T) {
 }
 
 func TestRun_InstallHonoursPromptedScope(t *testing.T) {
-	isolatedConfig(t)
+	existingUser(t) // a new install is not asked (#2781)
 	t.Setenv("HOME", t.TempDir())
 	forceInteractive(t)
 	stubResolveSource(t, pakkeSource(t, defaultSourceRepo))
@@ -833,7 +833,7 @@ func TestRun_RepoFlagConflicts(t *testing.T) {
 // A prompt that cannot open a terminal must not be mistaken for a cancel: the
 // install still lands in the repository, the way it did before the prompt.
 func TestRun_InstallFallsBackToRepoWhenPromptFails(t *testing.T) {
-	isolatedConfig(t)
+	existingUser(t) // a new install is not asked (#2781)
 	t.Setenv("HOME", t.TempDir())
 	forceInteractive(t)
 	stubResolveSource(t, pakkeSource(t, defaultSourceRepo))

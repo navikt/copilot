@@ -59,8 +59,11 @@ nav-pilot
 nav-pilot install nav-pilot
 ```
 
-Første gang du kjører `nav-pilot`, spør den hvilken klient du vil bruke. opencode er valgt.
-Mangler opencode, tilbyr nav-pilot å installere opencode 2: med Homebrew
+Første gang du kjører `nav-pilot` på en ny maskin, spør den ikke om innstillinger. Den velger
+opencode hvis opencode er installert, innlogget og i en testet versjon, ellers Copilot CLI.
+En ny installasjon får automatisk oppdatering på når nav-pilot er lastet ned som binærfil: med installasjonsskriptet på Linux, eller på macOS uten Homebrew. Installerte du med Homebrew (det skriptet bruker på macOS når Homebrew finnes) eller apt, oppdaterer du med pakkebehandleren. Spørsmålene om `.cplt.toml` og Nais-tilgang kommer som
+før. Vil du velge selv, kjør `nav-pilot config setup`.
+Har du ingen av klientene, tilbyr nav-pilot å installere opencode 2: med Homebrew
 (`brew install anomalyco/tap/opencode-v2`) hvis du har det, ellers med npm eller pnpm
 (`npm i -g @opencode/cli@2.1.4`). Sier du nei, bruker nav-pilot Copilot CLI og sier hvordan du
 bytter senere. Har du verken Homebrew eller Node.js, installerer nav-pilot ingenting, men sier
@@ -69,8 +72,9 @@ den installasjonskommandoen for begge. opencode 2 krever cplt 2026.10.22-172931 
 Bruker du opencode 1, varsler nav-pilot om at støtten slutter etter 19. november 2026.
 Se [Klienter](#klienter).
 
-`install` spør hvor den skal installere. Svaret er ikke gitt: repoet deler oppsettet med
-teamet, `--user` følger deg over alle repoer uten å sjekke inn noe. Se
+En ny installasjon havner i `~/.copilot` med hele pakka. Repoet brukes bare når det har
+`.nav-pilot/agentpakke.lock.json`, eller når du kjører med `--repo`. Har du brukt nav-pilot
+før, spør `install` fortsatt hvor den skal installere. Se
 [Hvor skal artefaktene installeres?](#hvor-skal-artefaktene-installeres) før du velger.
 
 ### Installere mindre <a id="collections"></a>
@@ -84,7 +88,8 @@ scopet og overlever både sync og ny installasjon.
 ## Hvor skal artefaktene installeres?
 
 Tre former er i bruk i Nav, og de løser ulike problemer. `install` spør hvor den skal
-installere, i repoet (`.github/`) eller i hjemmekatalogen (`~/.copilot/`). Svar på forhånd
+installere, i repoet (`.github/`) eller i hjemmekatalogen (`~/.copilot/`). En ny installasjon
+spør ikke, men velger `~/.copilot/` (eller repoet hvis det har en låsefil). Svar på forhånd
 med `--repo`, `--user` eller `--target <mappe>` for å hoppe over spørsmålet.
 
 | Form                 | Hvor                                          | Kort sagt                                                   |

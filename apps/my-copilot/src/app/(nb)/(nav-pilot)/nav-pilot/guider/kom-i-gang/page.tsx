@@ -120,39 +120,24 @@ export default function KomIGang() {
             <code className={code}>gh auth login</code>, ikke et gammelt token i skallet.
           </BodyLong>
           <BodyLong>
-            Første gang spør nav-pilot om noen innstillinger. Enter gir det anbefalte valget. Spørsmålene er på engelsk:
-          </BodyLong>
-          <Bullets>
-            <li>
-              <strong>Which coding agent?</strong> OpenCode, GitHub Copilot eller pi. OpenCode er valgt på forhånd.
-            </li>
-            <li>
-              <strong>Conversation mode</strong>: vanlig samtale, plan eller autopilot.
-            </li>
-            <li>
-              <strong>How should the agent run commands?</strong> og <strong>What may the agent do with git?</strong> Se{" "}
-              <a href="#autonomi" className={linkClass}>
-                Hvor mye skal agenten gjøre selv?
-              </a>
-            </li>
-            <li>
-              <strong>Model</strong>, <strong>Reasoning effort</strong> og <strong>Auto-update nav-pilot</strong>.
-            </li>
-          </Bullets>
-          <BodyLong>
-            Til slutt viser <strong>Save these settings?</strong> hva som blir endret, både i nav-pilot og i cplt.
-            Velger du Cancel, lagres ingenting. Etterpå sjekker nav-pilot gh-innloggingen. Kan den ikke bekrefte
-            innloggingen, sier den at agenten kanskje ikke får pushet eller laget pull requests, og viser til{" "}
-            <code className={code}>nav-pilot doctor</code> for detaljer. Mangler gh, viser den kommandoen som
-            installerer den.
+            På en ny maskin spør nav-pilot ikke om innstillinger. Den velger OpenCode hvis OpenCode er installert,
+            innlogget og i en versjon nav-pilot er testet med, og ellers GitHub Copilot CLI. Har du ingen av dem, spør
+            nav-pilot om den skal installere OpenCode. En ny installasjon får automatisk oppdatering på når nav-pilot er
+            lastet ned som binærfil: med installasjonsskriptet på Linux, eller på macOS uten Homebrew. Installerte du
+            med Homebrew (det skriptet bruker på macOS når Homebrew finnes) eller apt, oppdaterer du med
+            pakkebehandleren. Har du brukt nav-pilot før, får du de samme spørsmålene som før. Etterpå sjekker nav-pilot
+            gh-innloggingen. Kan den ikke bekrefte innloggingen, sier den at agenten kanskje ikke får pushet eller laget
+            pull requests, og viser til <code className={code}>nav-pilot doctor</code> for detaljer. Vil du velge selv,
+            kjør <code className={code}>nav-pilot config setup</code>.
           </BodyLong>
           <BodyLong>
             Kjenner cplt igjen verktøyene i repoet, kommer spørsmålet om <code className={code}>.cplt.toml</code> nå, se{" "}
             <a href="#forste-repo" className={linkClass}>
               Første gang i et repo
             </a>
-            . Så spør nav-pilot hvor agentpakka skal ligge (<strong>Where to install?</strong>): i repoet, som hele
-            teamet får, eller i hjemmekatalogen, bare for deg.{" "}
+            . Agentpakka blir installert i hjemmekatalogen (<code className={code}>~/.copilot</code>), bare for deg. Har
+            repoet en låsefil (<code className={code}>.nav-pilot/agentpakke.lock.json</code>), eller kjører du{" "}
+            <code className={code}>nav-pilot install --repo</code>, havner den i repoet.{" "}
             <NextLink href="/nav-pilot/guider/installere-og-oppgradere#velg-installasjonssted" className={linkClass}>
               Installere og oppgradere
             </NextLink>{" "}

@@ -422,21 +422,29 @@ func runConfigSetupWith(flagSource string, advanced bool) error {
 // opencode 2. Otherwise the wizard saves copilot and says how to switch later,
 // naming both clients when neither is installed. It never saves a client that
 // cannot start. Nothing is run without the yes.
+// askInstallOpenCode is the one question a new install may get. Overridable
+// in tests.
+var askInstallOpenCode = func(cmd string) (bool, error) {
+	install := true
+	err := huh.NewConfirm().
+		Title("opencode is not installed. Install it now?").
+		Description("Runs " + cmd + ".").
+		Affirmative("Install").
+		Negative("Use GitHub Copilot instead").
+		Value(&install).
+		WithTheme(navTheme()).
+		Run()
+	return install, err
+}
+
 func opencodeForSetup() (string, error) {
 	if opencodeInstalled() {
 		return "opencode", nil
 	}
-	cmd := opencodeInstallCommand()
+	cmd := opencodeSetupCommand()
 	if cmd != "" {
-		install := true
-		if err := huh.NewConfirm().
-			Title("opencode is not installed. Install it now?").
-			Description("Runs " + cmd + ".").
-			Affirmative("Install").
-			Negative("Use GitHub Copilot instead").
-			Value(&install).
-			WithTheme(navTheme()).
-			Run(); errors.Is(err, huh.ErrUserAborted) {
+		install, err := askInstallOpenCode(cmd)
+		if errors.Is(err, huh.ErrUserAborted) {
 			return "", err
 		} else if err != nil {
 			install = false // a prompt that could not run is no answer
@@ -517,6 +525,10 @@ const opencodeOffPlatform = "opencode 2 runs only on macOS and Linux"
 // pnpm or npm, pinned so it cannot install an untested major. It is "" with
 // none of them, and on a platform other than macOS and Linux, where opencode 2
 // does not run under cplt.
+// opencodeSetupCommand is the install command the first run offers.
+// Overridable in tests, so the question is reachable without brew or pnpm.
+var opencodeSetupCommand = opencodeInstallCommand
+
 func opencodeInstallCommand() string {
 	if !opencodePlatform() {
 		return ""
@@ -553,11 +565,13 @@ func setupSkipped(err error) error {
 	return nil
 }
 
-// maybeRunFirstRunSetup runs the config wizard on the first interactive run.
+// maybeRunFirstRunSetup writes a new install's config on the first
+// interactive run, asking nothing unless no client is installed.
 // It is a no-op when any of the following are true:
 //   - the terminal is not interactive (isInteractive() == false)
 //   - the config file already exists
 func maybeRunFirstRunSetup(flagSource string) error {
+	firstRunWrote = false
 	if !isInteractive() {
 		return nil
 	}
@@ -571,7 +585,188 @@ func maybeRunFirstRunSetup(flagSource string) error {
 	artifacts.FirstRun = true
 	defer func() { artifacts.FirstRun = false }()
 	wizardShown = true
-	return runConfigSetupFn(flagSource)
+	if err := firstRunFn(flagSource); err != nil {
+		return err
+	}
+	firstRunWrote = startedFresh
+	return nil
+}
+
+// openCodeTested and openCodeLoggedIn are the #1022 step 3 conditions for
+// picking opencode. Overridable in tests.
+var (
+	openCodeTested = func() bool {
+		_, tested, err := providerpkg.OpenCodeVersionStatus()
+		return err == nil && tested
+	}
+	openCodeLoggedIn = providerpkg.OpenCodeLoggedIn
+)
+
+func openCodeReady() bool { return openCodeTested() && openCodeLoggedIn() }
+
+// firstRunFn is the first-run step, overridable in tests. Only a machine
+// with no nav-pilot state at all takes the new-install defaults; anyone else
+// gets today's wizard.
+var firstRunFn = func(flagSource string) error {
+	if !startedFresh {
+		return runConfigSetupFn(flagSource)
+	}
+	return firstRunDefaults(flagSource)
+}
+
+// firstRunNoPrompt is set for an install command line that said yes up
+// front: the first run then saves Copilot instead of offering to install
+// opencode, and the launch says how to install a client.
+var firstRunNoPrompt bool
+
+// firstRunWrote is set once this process wrote a new install's first
+// config.toml: the install that follows takes the new-install defaults.
+var firstRunWrote bool
+
+// startedFresh is noNavPilotState() as it was when run() began, before this
+// process wrote any marker or cache of its own.
+var startedFresh bool
+
+// navPilotStateNames are the files and directories nav-pilot keeps beside
+// its config (stateMarker, artifacts.CacheFilePath, telemetry.GetConfigDir).
+// TestStateNamesCoverStateMarkers keeps the stateMarker names in step.
+var navPilotStateNames = []string{
+	"config.toml.bak", "seen-*", "*.seen", "*-declined", "*-failed",
+	"*.json", "*.json.bak*", "device-id", "telemetry-spool", "local", "sources",
+	"source-cache", "pakker", "plugins", "cplt-allowed-domains.txt",
+}
+
+// noNavPilotState reports whether this machine has never had nav-pilot: no
+// config.toml, nothing in ~/.nav-pilot (or beside a relocated config), and no
+// user-scope state file in ~/.copilot (#2781). Any error counts as state.
+func noNavPilotState() bool {
+	found, ok := navPilotState()
+	return ok && len(found) == 0
+}
+
+// navPilotState lists the nav-pilot state entries on this machine. ok is
+// false when there is state that rules out a new install outright: a config,
+// a user-scope state file, or a directory that cannot be read.
+func navPilotState() (found []string, ok bool) {
+	home, err := os.UserHomeDir()
+	if err != nil || home == "" {
+		return nil, false
+	}
+	exists := func(p string) bool {
+		_, err := os.Stat(p)
+		return !errors.Is(err, os.ErrNotExist)
+	}
+	if exists(configPath()) || exists(filepath.Join(home, ".copilot", ".nav-pilot-state.json")) {
+		return nil, false
+	}
+	own := filepath.Join(home, ".nav-pilot")
+	entries, err := os.ReadDir(own)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return nil, false
+	}
+	for _, e := range entries {
+		found = append(found, filepath.Join(own, e.Name()))
+	}
+	// A relocated config may share its directory with other files, so look
+	// there only for nav-pilot's own markers and caches. Only basenames are
+	// matched: the directory path may hold glob metacharacters.
+	dir := filepath.Dir(configPath())
+	entries, err = os.ReadDir(dir)
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return nil, false // unreadable: assume state rather than skip the wizard
+	}
+	for _, e := range entries {
+		for _, pattern := range navPilotStateNames {
+			if m, _ := filepath.Match(pattern, e.Name()); m {
+				found = append(found, filepath.Join(dir, e.Name()))
+				break
+			}
+		}
+	}
+	return found, true
+}
+
+// freshStateEnv carries a new install's decision across the re-exec after
+// a first-launch self-update: the state entries this run wrote, which the
+// re-executed process may find without losing its new-install status.
+const freshStateEnv = "NAV_PILOT_FRESH_STATE"
+
+// freshAfterReexec is noNavPilotState for a process our own re-exec started:
+// state found counts only if the parent did not list it. Outside a re-exec
+// the variable is ignored, and it can only excuse entries it names exactly.
+func freshAfterReexec() bool {
+	listed, set := os.LookupEnv(freshStateEnv)
+	_ = os.Unsetenv(freshStateEnv)
+	if !set || os.Getenv(reexecGuardEnv) != "1" {
+		return noNavPilotState()
+	}
+	found, ok := navPilotState()
+	if !ok {
+		return false
+	}
+	allowed := map[string]bool{}
+	for _, p := range strings.Split(listed, "\n") {
+		allowed[p] = true
+	}
+	for _, p := range found {
+		if !allowed[p] {
+			return false
+		}
+	}
+	return true
+}
+
+// freshInstall reports whether this run is a new install: user scope and
+// the whole agentpakke without being asked (#2781).
+func freshInstall() bool { return firstRunWrote }
+
+// firstRunDefaults writes a new install's config without asking (#2781):
+// opencode when it is installed, else GitHub Copilot when that is, else the
+// one question whether to install opencode. Auto-update is on. The wizard
+// stays behind 'nav-pilot config setup'.
+func firstRunDefaults(flagSource string) error {
+	maybeTelemetryNotice()
+	// OpenCode only when it is installed, logged in and inside the tested
+	// range (#1022 step 3); otherwise Copilot CLI when that is installed.
+	// Copilot CLI unless opencode is installed and ready; a missing Copilot
+	// CLI gets its install instructions at launch. Only with neither client
+	// installed is there a question: whether to install opencode.
+	client := "copilot"
+	copilot := false
+	if p, err := providerFor("copilot"); err == nil && p.Available() {
+		copilot = true
+	}
+	switch {
+	case opencodeInstalled():
+		if openCodeReady() {
+			client = "opencode"
+		}
+	case !copilot && !firstRunNoPrompt:
+		var err error
+		if client, err = opencodeForSetup(); err != nil {
+			return setupSkipped(err)
+		}
+	}
+	if err := writeSetupConfig(setupAnswers{Client: client, AutoUpdate: "true"}); err != nil {
+		return fmt.Errorf("saving config: %w", err)
+	}
+	if p, _ := providerFor(client); p != nil {
+		seedSource, _ := sourceRepoFor(flagSource)
+		if _, err := p.Bootstrap(ResolvedConfig{Client: client, Source: seedSource}); err != nil {
+			fmt.Fprintf(os.Stderr, "%s Could not seed Nav context for %s: %v\n", yellow("⚠"), p.DisplayName(), err)
+		}
+	}
+	// A package-manager install never updates itself, so say so only when
+	// auto_update will act.
+	updates := ", with auto-update on"
+	if packageManager().Name != "" {
+		updates = ""
+	}
+	fmt.Printf("%s nav-pilot uses %s%s. Change it: %s\n",
+		green("✓"), clientLabel[client], updates, bold("nav-pilot config setup"))
+	st, _ := ghAuthProbe()
+	reportGHAuthBrief(os.Stdout, st, artifacts.FirstRun)
+	return nil
 }
 
 // wizardShown is set once the first-run wizard has run in this process: its

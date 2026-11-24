@@ -17,9 +17,9 @@ func TestFirstRunCtrlCEndsTheRun(t *testing.T) {
 	isolatedConfig(t)
 	t.Chdir(t.TempDir())
 	forceInteractive(t)
-	orig := runConfigSetupFn
-	runConfigSetupFn = func(string) error { return setupSkipped(huh.ErrUserAborted) }
-	t.Cleanup(func() { runConfigSetupFn = orig })
+	orig := firstRunFn
+	firstRunFn = func(string) error { return setupSkipped(huh.ErrUserAborted) }
+	t.Cleanup(func() { firstRunFn = orig })
 
 	var err error
 	stdout, stderr := captureRun(t, func() { err = run(nil) })
