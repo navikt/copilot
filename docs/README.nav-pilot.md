@@ -59,8 +59,11 @@ nav-pilot
 nav-pilot install nav-pilot
 ```
 
-Første gang du kjører `nav-pilot`, spør den hvilken klient du vil bruke. opencode er valgt.
-Mangler opencode, tilbyr nav-pilot å installere opencode 2: med Homebrew
+Første gang du kjører `nav-pilot` på en ny maskin, spør den ikke om innstillinger. Den velger
+opencode hvis opencode er installert, innlogget og i en testet versjon, ellers Copilot CLI.
+En ny installasjon får automatisk oppdatering på når nav-pilot er lastet ned som binærfil: med installasjonsskriptet på Linux, eller på macOS uten Homebrew. Installerte du med Homebrew (det skriptet bruker på macOS når Homebrew finnes) eller apt, oppdaterer du med pakkebehandleren. Spørsmålene om `.cplt.toml` og Nais-tilgang kommer som
+før. Vil du velge selv, kjør `nav-pilot config setup`.
+Har du ingen av klientene, tilbyr nav-pilot å installere opencode 2: med Homebrew
 (`brew install anomalyco/tap/opencode-v2`) hvis du har det, ellers med npm eller pnpm
 (`npm i -g @opencode/cli@2.1.4`). Sier du nei, bruker nav-pilot Copilot CLI og sier hvordan du
 bytter senere. Har du verken Homebrew eller Node.js, installerer nav-pilot ingenting, men sier
@@ -69,8 +72,9 @@ den installasjonskommandoen for begge. opencode 2 krever cplt 2026.10.22-172931 
 Bruker du opencode 1, varsler nav-pilot om at støtten slutter etter 19. november 2026.
 Se [Klienter](#klienter).
 
-`install` spør hvor den skal installere. Svaret er ikke gitt: repoet deler oppsettet med
-teamet, `--user` følger deg over alle repoer uten å sjekke inn noe. Se
+En ny installasjon havner i `~/.copilot` med hele pakka. Repoet brukes bare når det har
+`.nav-pilot/agentpakke.lock.json`, eller når du kjører med `--repo`. Har du brukt nav-pilot
+før, spør `install` fortsatt hvor den skal installere. Se
 [Hvor skal artefaktene installeres?](#hvor-skal-artefaktene-installeres) før du velger.
 
 ### Installere mindre <a id="collections"></a>
@@ -84,7 +88,8 @@ scopet og overlever både sync og ny installasjon.
 ## Hvor skal artefaktene installeres?
 
 Tre former er i bruk i Nav, og de løser ulike problemer. `install` spør hvor den skal
-installere, i repoet (`.github/`) eller i hjemmekatalogen (`~/.copilot/`). Svar på forhånd
+installere, i repoet (`.github/`) eller i hjemmekatalogen (`~/.copilot/`). En ny installasjon
+spør ikke, men velger `~/.copilot/` (eller repoet hvis det har en låsefil). Svar på forhånd
 med `--repo`, `--user` eller `--target <mappe>` for å hoppe over spørsmålet.
 
 | Form                 | Hvor                                          | Kort sagt                                                   |
@@ -261,9 +266,9 @@ hva hver av dem gjør og hvordan du slår den av.
 
 | Hook           | Fil                                 | Hva den gjør                                                                                                                                                                                                                                                                                                                                                                                                                                                                | Slå av                                                                          |
 | -------------- | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
-| Loop guard     | `nav-pilot-loop-guard.json`         | Samme regel som `local_loop_guard` for lokale modeller: samme kall med samme resultat 4 ganger på rad, en syklus på to eller tre kall med de samme resultatene 4 ganger på rad, eller samme kall 8 ganger uansett resultat (med standardverdien). Tidsstempler, varigheter, id-er og tall regnes ikke som endring.                                                                                                                                                          | `nav-pilot config set hook_loop_guard false`                                    |
+| Loop guard     | `nav-pilot-loop-guard.json`         | Samme regel som `local_loop_guard` for lokale modeller: samme kall med samme resultat 4 ganger på rad, en syklus på to eller tre kall med de samme resultatene 4 ganger på rad, eller samme kall 8 ganger uansett resultat (med standardverdien). Tidsstempler, varigheter, id-er og tall regnes ikke som endring.                                                                                                                                                          | `nav-pilot config set guards false`                                             |
 | Handlingssjekk | `nav-pilot-action-check.json`       | Før en risikabel skallkommando (endringer med kubectl, nais, gcloud og helm, `terraform apply`/`destroy`, `rm -r`, `git push --force`, `git reset --hard`, `git clean -f`, `dd`, `mkfs`, `DROP` og `TRUNCATE` i SQL) spør hooken den lokale modellen om kommandoen står i forhold til formålet, om den er destruktiv, og om formålet støtter den. Svaret lagres i telemetri og i en logg i sesjonens mappe. Stopper ingenting, og modellen ser ikke svaret. Bare med lokal modell. | `nav-pilot config set hook_action_check off`                                    |
-| Maskering      | `nav-pilot-redact-tool-output.json` | Maskerer hemmeligheter (GitHub-tokener, AWS-nøkkel-id-er, private nøkler, JWT-er og verdien i `password=`/`api_key=`) og fødselsnummer, D-nummer og H-nummer i verktøyresultatet før modellen leser det. Setter en merknad foran et resultat som ser ut som instrukser til modellen («ignore previous instructions», rollemarkører).                                                                                                                                        | `hook_redact_secrets`, `hook_redact_fnr` og `hook_injection_note`, hver for seg |
+| Maskering      | `nav-pilot-redact-tool-output.json` | Maskerer hemmeligheter (GitHub-tokener, AWS-nøkkel-id-er, private nøkler, JWT-er og verdien i `password=`/`api_key=`) og fødselsnummer, D-nummer og H-nummer i verktøyresultatet før modellen leser det. Setter en merknad foran et resultat som ser ut som instrukser til modellen («ignore previous instructions», rollemarkører).                                                                                                                                        | `nav-pilot config set guards false`                                             |
 
 En hook etter verktøykallet (`postToolUse`) kan ikke avslutte en tur. Den kan bare endre
 det modellen leser. Når loop guard slår til, får modellen derfor en beskjed om at den står
@@ -311,7 +316,7 @@ slippe gjennom ved feil: finnes ikke `nav-pilot` på `PATH`, eller går noe galt
 resultatet stående som det var. Unntaket er en `config.toml` som ikke lar seg lese. Da
 kjører hookene med standardverdiene, altså med maskering og loop guard på, og skriver én
 linje om det på stderr. En ødelagt fil skal ikke være det som slår av maskeringen. En nøkkel
-med feil type, for eksempel `hook_redact_secrets = "false"` med anførselstegn, blir hoppet
+med feil type, for eksempel `guards = "false"` med anførselstegn, blir hoppet
 over, så standardverdien gjelder, og hooken sier fra om det på stderr.
 `nav-pilot doctor` sier fra om fila, og `nav-pilot` starter ikke før den er rettet. Hookene kjører også i en
 OpenCode-sesjon som nav-pilot starter, via hook-broen ([opencode-hooks.md](../cli/nav-pilot/docs/opencode-hooks.md)).
@@ -760,10 +765,7 @@ Nøklene, med flagget som overstyrer dem for én kjøring. Tabellen lages fra ko
 | `local_endpoint` | — | en http(s)-URL | Din egen OpenAI-kompatible server (Ollama, llama-server), bare localhost eller privat IP (alfa, uten støtte). Sjekk den med nav-pilot alpha local doctor. |
 | `local_endpoint_model` | — | modell-id på serveren | Modell-id-en local_endpoint skal bruke, f.eks. qwen3.6:35b. Påkrevd sammen med local_endpoint. |
 | `local_dispatch` | --local-dispatch | off · conservative · balanced · aggressive (standard: aggressive) | Hvor mye hovedagenten i opencode delegerer til den lokale modellen. aggressive delegerer mest, men kostet flere AI Credits og tok lengre tid i målingene. |
-| `hook_loop_guard` | — | true · false (standard: true) | Samme løkkeregel i alle Copilot CLI-sesjoner, også i skyen: en postToolUse-hook i ~/.copilot/hooks/ sier fra til modellen når den står fast. false fjerner hooken ved neste oppstart. |
-| `hook_redact_secrets` | — | true · false (standard: true) | Masker hemmeligheter (GitHub-tokener, AWS-nøkkel-id-er, private nøkler, JWT-er, verdien i password=/api_key=) i verktøyresultater før modellen leser dem, i alle Copilot CLI-sesjoner. |
-| `hook_redact_fnr` | — | true · false (standard: true) | Masker fødselsnummer, D-nummer og H-nummer i verktøyresultater. nav-pilot maskerer bare elleve sifre der datoen og begge kontrollsifrene stemmer. |
-| `hook_injection_note` | — | true · false (standard: true) | Sett en merknad foran verktøyresultater som ser ut som instrukser til modellen («ignore previous instructions», rollemarkører), så modellen behandler dem som data. Stopper ingenting. |
+| `guards` | — | true · false (standard: true) | nav-pilots vakter i alle Copilot CLI-sesjoner: sier fra når modellen gjentar samme verktøykall, maskerer hemmeligheter og fødselsnumre i verktøyresultater og merker tekst som ser ut som instrukser til modellen. false skrur av alle. De gamle hook_*-nøklene virker fortsatt og vinner når de er satt. |
 | `hook_action_check` | — | off · log (standard: log) | Spør den lokale decide-modellen om en risikabel skallkommando (kubectl, terraform apply, rm -r, git push --force og lignende) står i forhold til formålet. log lagrer svaret og stopper ingenting. Krever lokal modell. |
 | `mcp_hosts` | — | ask · off (standard: ask) | Om nav-pilot spør før den åpner cplt for hostene MCP-serverne dine trenger. Hostene hentes fra Navs MCP-register. ask spør én gang per sett, off spør aldri. |
 | `copilot_auth_mode` | — | auto · env_only · gh_only (standard: auto) | Filtrerer miljøet før cplt starter. auto endrer ingenting; env_only krever et ikke-blankt token i GH_TOKEN, GITHUB_TOKEN eller COPILOT_GITHUB_TOKEN; gh_only fjerner variablene. Ingen av dem garanterer hvilken innlogging cplt eller Copilot bruker. |

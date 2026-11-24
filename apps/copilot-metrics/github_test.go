@@ -345,3 +345,75 @@ func TestDailySourcesFallbackWhenReportUnavailable(t *testing.T) {
 		}
 	}
 }
+
+func TestUserTeamsCompleteWhenOrgReportNotAvailable(t *testing.T) {
+	client := &GitHubClient{enterprise: "nav", org: "navikt"}
+	client.httpClient = mockClient(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/orgs/") {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		_, _ = w.Write([]byte(`{"report_day":"2026-10-01","download_links":["https://download.test/report"]}`))
+	}))
+	client.downloadClient = mockClient(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"user_id":1,"team_id":2}`))
+	}))
+	result, err := client.FetchDailyUserTeams(context.Background(), billingSyncStart)
+	if err != nil || result == nil || result.Scope != "enterprise" || !result.Complete || len(result.Records) != 1 {
+		t.Fatalf("enterprise report rejected when org report is not generated: %+v %v", result, err)
+	}
+}
+
+func TestUserTeamsIncompleteWhenOrgDownloadReturns204(t *testing.T) {
+	client := &GitHubClient{enterprise: "nav", org: "navikt"}
+	client.httpClient = mockClient(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		link := "https://download.test/enterprise"
+		if strings.HasPrefix(r.URL.Path, "/orgs/") {
+			link = "https://download.test/org"
+		}
+		_, _ = w.Write([]byte(`{"report_day":"2026-10-01","download_links":["` + link + `"]}`))
+	}))
+	client.downloadClient = mockClient(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/org" {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		_, _ = w.Write([]byte(`{"user_id":1,"team_id":2}`))
+	}))
+	result, err := client.FetchDailyUserTeams(context.Background(), billingSyncStart)
+	if err != nil || result == nil || result.Complete {
+		t.Fatalf("failed org download certified as complete: %+v %v", result, err)
+	}
+}
+
+func TestUserTeamsIncompleteWhenOrgDownloadFails(t *testing.T) {
+	enterprise := func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte(`{"user_id":1,"team_id":2}`)) }
+	for name, orgDownload := range map[string]http.RoundTripper{
+		"cancel": roundTripFunc(func(*http.Request) (*http.Response, error) {
+			return nil, errors.New("stream error: stream ID 3; CANCEL")
+		}),
+		"invalid json": &mockTransport{handler: http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			_, _ = w.Write([]byte(`{"user_id":`))
+		})},
+	} {
+		client := &GitHubClient{enterprise: "nav", org: "navikt"}
+		client.httpClient = mockClient(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			link := "https://download.test/enterprise"
+			if strings.HasPrefix(r.URL.Path, "/orgs/") {
+				link = "https://download.test/org"
+			}
+			_, _ = w.Write([]byte(`{"report_day":"2026-10-01","download_links":["` + link + `"]}`))
+		}))
+		ent := &mockTransport{handler: http.HandlerFunc(enterprise)}
+		client.downloadClient = &http.Client{Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+			if r.URL.Path == "/org" {
+				return orgDownload.RoundTrip(r)
+			}
+			return ent.RoundTrip(r)
+		})}
+		result, err := client.FetchDailyUserTeams(context.Background(), billingSyncStart)
+		if err != nil || result == nil || result.Complete {
+			t.Errorf("%s: failed org download certified as complete: %+v %v", name, result, err)
+		}
+	}
+}

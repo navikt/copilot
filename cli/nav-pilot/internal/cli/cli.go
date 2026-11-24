@@ -223,6 +223,23 @@ func userScopeAccepts(itemType string) bool {
 	return u.SupportsType(itemType)
 }
 
+// autoUpdateNudge tells an existing user who never set auto_update, once per
+// machine, that new installs have it on and how to turn it on (#2781). It
+// waits for a terminal, so hooks and CI do not use it up, and stays quiet for
+// someone who already said No to "Upgrade now?".
+func autoUpdateNudge(w io.Writer, cfg *Config) {
+	if cfg == nil || cfg.AutoUpdate != nil || !isInteractive() {
+		return
+	}
+	if _, err := os.Stat(updateDeclinedPath()); err == nil {
+		return
+	}
+	if providerpkg.FirstTime("auto-update-default") {
+		fmt.Fprintf(w, "%s nav-pilot can update itself. New installs have it on; to turn it on: %s\n",
+			yellow("ℹ"), bold("nav-pilot config set auto_update true"))
+	}
+}
+
 // startupUpdateCheck warns about (or installs) a newer nav-pilot before the
 // command runs. stop is true when the caller should return without running the
 // command, which happens only when an update landed but the re-exec failed.
@@ -231,6 +248,12 @@ func userScopeAccepts(itemType string) bool {
 // calls doUpdate directly, so neither the quiet period nor the brew branch below
 // applies to a user who asked for the update, and no prompt asks them again.
 func startupUpdateCheck() (stop bool, err error) {
+	fileCfg, _ := readConfig()
+	// Before any release check: the hint is about the setting, not a release.
+	if packageManager().Name == "" {
+		autoUpdateNudge(os.Stderr, fileCfg)
+	}
+
 	// Self-check: warn if nav-pilot binary is outdated (fast, cached)
 	assessment := assessStaleness(Version)
 	recordFreshness("cli", "none", assessment)
@@ -244,8 +267,9 @@ func startupUpdateCheck() (stop bool, err error) {
 		return false, nil
 	}
 
-	fileCfg, _ := readConfig()
-	autoUpdate := fileCfg != nil && fileCfg.AutoUpdate != nil && *fileCfg.AutoUpdate
+	// A new install has no config yet but takes the new-install policy,
+	// auto_update on, so it never meets "Upgrade now?" (#2781).
+	autoUpdate := startedFresh || (fileCfg != nil && fileCfg.AutoUpdate != nil && *fileCfg.AutoUpdate)
 
 	// Guard against re-exec loops: if we already re-exec'd once after an
 	// auto-update in this process chain, don't attempt another update
@@ -344,6 +368,8 @@ func run(args []string) error {
 	// Per run, not per process: a second run() in one process prints it again.
 	notedProposals = map[string]bool{}
 	armNudges, nudgesReady, wizardShown = false, nil, false
+	// Main checked before telemetry wrote anything; tests enter here.
+	startedFresh = startedFresh || noNavPilotState()
 	providerpkg.Verbose, artifacts.LaunchNotices = false, false
 
 	// --client=opencode reads as --client opencode. alpha keeps its own
@@ -914,6 +940,21 @@ func run(args []string) error {
 		targetDir = abs
 	}
 
+	// A new install that starts with `nav-pilot install` gets the same
+	// first-run defaults as a launch, so neither the scope question nor the
+	// picker appears and the next launch does not open the wizard (#2781).
+	// Explicit scope and selection flags still decide below.
+	// A malformed command line writes nothing: its usage error comes first.
+	// A command line that already said yes asks no question here either.
+	if command == "install" && startedFresh && !jsonOutput && !dryRun && !frozen && len(positional) <= 1 {
+		firstRunNoPrompt = yes || (installAll && scopeProvided)
+		err := maybeRunFirstRunSetup(sourceRepo)
+		firstRunNoPrompt = false
+		if err != nil {
+			return err
+		}
+	}
+
 	// Build scope
 	var scope *InstallScope
 	if userScope {
@@ -956,7 +997,7 @@ func run(args []string) error {
 			scope = ScopeRepo(targetDir)
 		default:
 			var err error
-			scope, err = promptInstallScopeFn(targetDir)
+			scope, err = askInstallScope(targetDir)
 			switch {
 			case err != nil:
 				// No usable terminal: keep the pre-prompt behaviour instead of
@@ -995,8 +1036,11 @@ func run(args []string) error {
 		installFrozen, installRef, installForce = frozen, ref, force
 		// --all with a scope flag, and --frozen, are the documented ways to
 		// install without being asked; --yes is the general one.
-		installConsentRequired = !(yes || (installAll && scopeProvided) || frozen)
-		defer func() { installFrozen, installRef, installForce, installConsentRequired = false, "", false, false }()
+		installConsentGiven = yes || (installAll && scopeProvided) || frozen
+		installConsentRequired = !installConsentGiven
+		defer func() {
+			installFrozen, installRef, installForce, installConsentRequired, installConsentGiven = false, "", false, false, false
+		}()
 		// One suppressor for the whole command, finalization included: every
 		// dispatch below reaches installArtifact, and finishInstall prints
 		// after the document is written.
@@ -1334,6 +1378,11 @@ func reexecSelf() error {
 		return fmt.Errorf("cannot resolve binary path: %w", err)
 	}
 	env := append(os.Environ(), reexecGuardEnv+"=1")
+	if startedFresh {
+		// Everything nav-pilot state now holds, this run wrote.
+		found, _ := navPilotState()
+		env = append(env, freshStateEnv+"="+strings.Join(found, "\n"))
+	}
 	if err := syscall.Exec(exe, os.Args, env); err != nil {
 		return fmt.Errorf("exec failed: %w", err)
 	}
@@ -1342,6 +1391,8 @@ func reexecSelf() error {
 }
 
 func Main(info BuildInfo) {
+	// Before telemetry writes its device id and spool.
+	startedFresh = freshAfterReexec()
 	if len(os.Args) > 1 && os.Args[1] == "hook" {
 		runHookCommand(os.Args[2:], os.Stdin, os.Stdout)
 		return

@@ -65,8 +65,11 @@ export default function InstallereOgOppgradere() {
             Velg installasjonssted
           </LinkableHeading>
           <BodyLong>
-            <code className={code}>install</code> spør hvor agentpakka skal ligge, hvis du ikke svarer på forhånd med{" "}
-            <code className={code}>--repo</code> eller <code className={code}>--user</code>. Tre former er i bruk i Nav:
+            En ny installasjon legger agentpakka i hjemmekatalogen uten å spørre, med mindre repoet har en låsefil (
+            <code className={code}>.nav-pilot/agentpakke.lock.json</code>) eller du velger{" "}
+            <code className={code}>--repo</code>. Har du brukt nav-pilot før, spør <code className={code}>install</code>{" "}
+            som før, hvis du ikke svarer på forhånd med <code className={code}>--repo</code> eller{" "}
+            <code className={code}>--user</code>. Tre former er i bruk i Nav:
           </BodyLong>
           <Bullets>
             <li>
@@ -220,9 +223,14 @@ nav-pilot upgrade && cplt update                                    # installert
             .
           </BodyLong>
           <BodyLong>
-            Med <code className={code}>auto_update = true</code> oppgraderer nav-pilot seg selv før andre kommandoer.
-            Feiler det, får du en advarsel, kommandoen kjører på versjonen du har, og neste forsøk kommer etter 24
-            timer. Slå det av med <code className={code}>nav-pilot config set auto_update false</code>.
+            Nye installasjoner har <code className={code}>auto_update = true</code>. Det virker bare når nav-pilot er
+            lastet ned som binærfil: med installasjonsskriptet på Linux, eller på macOS uten Homebrew. Installerte du
+            med Homebrew (det skriptet bruker på macOS når Homebrew finnes) eller apt, oppdaterer du med
+            pakkebehandleren. Har du brukt nav-pilot før, slår du det på med{" "}
+            <code className={code}>nav-pilot config set auto_update true</code>. Med det på oppgraderer nav-pilot seg
+            selv før andre kommandoer. Feiler det, får du en advarsel, kommandoen kjører på versjonen du har, og neste
+            forsøk kommer etter 24 timer. Slå det av med{" "}
+            <code className={code}>nav-pilot config set auto_update false</code>.
           </BodyLong>
           <Box background="neutral-soft" padding="space-16" borderRadius="8">
             <VStack gap="space-8">

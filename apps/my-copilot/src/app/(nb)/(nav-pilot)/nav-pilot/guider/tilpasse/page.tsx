@@ -175,24 +175,27 @@ nav-pilot ignore instruction nextjs-aksel --user`}
           </LinkableHeading>
           <BodyLong>
             nav-pilot legger egne hooks i <code className={code}>~/.copilot/hooks/</code>, og de kjører i alle sesjoner
-            med Copilot CLI. Fem nøkler slår dem av og på, og alle er på som standard:
+            med Copilot CLI. Nøkkelen <code className={code}>guards</code> slår vaktene av og på samlet, og de er på som
+            standard:
           </BodyLong>
           <Bullets>
-            <li>
-              <code className={code}>hook_loop_guard</code>: sier fra til modellen når den gjør det samme kallet om og
-              om igjen.
-            </li>
-            <li>
-              <code className={code}>hook_redact_secrets</code>: maskerer tokener, nøkler og passord i verktøyresultater
-              før modellen leser dem.
-            </li>
-            <li>
-              <code className={code}>hook_redact_fnr</code>: maskerer fødselsnummer, D-nummer og H-nummer.
-            </li>
-            <li>
-              <code className={code}>hook_injection_note</code>: merker verktøyresultater som ser ut som instrukser til
-              modellen, så den leser dem som data.
-            </li>
+            <li>sier fra til modellen når den gjør det samme kallet om og om igjen</li>
+            <li>maskerer tokener, nøkler og passord i verktøyresultater før modellen leser dem</li>
+            <li>maskerer fødselsnummer, D-nummer og H-nummer</li>
+            <li>merker verktøyresultater som ser ut som instrukser til modellen, så den leser dem som data</li>
+          </Bullets>
+          <CodeBlock compact>
+            {`nav-pilot config set guards false   # fjernes ved neste oppstart
+nav-pilot config set guards true    # på igjen`}
+          </CodeBlock>
+          <BodyLong>
+            Har du satt de gamle nøklene <code className={code}>hook_loop_guard</code>,{" "}
+            <code className={code}>hook_redact_secrets</code>, <code className={code}>hook_redact_fnr</code> eller{" "}
+            <code className={code}>hook_injection_note</code>, virker de fortsatt og vinner over{" "}
+            <code className={code}>guards</code> for sin vakt.
+          </BodyLong>
+          <BodyLong>I tillegg finnes en hook som bare virker med lokal modell:</BodyLong>
+          <Bullets>
             <li>
               <code className={code}>hook_action_check</code>: spør den lokale modellen om en risikabel skallkommando,
               for eksempel <code className={code}>kubectl delete</code> eller <code className={code}>rm -rf</code>, gir
@@ -210,10 +213,6 @@ nav-pilot ignore instruction nextjs-aksel --user`}
               </span>
             </li>
           </Bullets>
-          <CodeBlock compact>
-            {`nav-pilot config set hook_redact_fnr false   # fjernes ved neste oppstart
-nav-pilot config set hook_redact_fnr true    # på igjen`}
-          </CodeBlock>
           <BodyLong>
             Kan ikke nav-pilot lese <code className={code}>config.toml</code>, kjører maskeringen og loop guard (stopper
             agenten når den gjentar seg) likevel, og du får beskjed på stderr. Modellen får ikke vite terskelen, så den

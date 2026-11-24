@@ -23,8 +23,8 @@ func TestFirstRunSetupReceivesFlagSource(t *testing.T) {
 	isInteractive = func() bool { return true }
 
 	var got string
-	origSetup := runConfigSetupFn
-	runConfigSetupFn = func(flagSource string) error {
+	origSetup := firstRunFn
+	firstRunFn = func(flagSource string) error {
 		got = flagSource
 		return nil
 	}
@@ -36,7 +36,7 @@ func TestFirstRunSetupReceivesFlagSource(t *testing.T) {
 
 	t.Cleanup(func() {
 		isInteractive = origInteractive
-		runConfigSetupFn = origSetup
+		firstRunFn = origSetup
 		providerFor = origProviderFor
 	})
 

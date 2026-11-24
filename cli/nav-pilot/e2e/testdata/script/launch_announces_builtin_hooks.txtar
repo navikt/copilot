@@ -13,8 +13,8 @@ cd $WORK/proj
 
 exec nav-pilot --sync --source $WORK/plattform -- -p 'hello'
 stderr 'nav-pilot added Copilot hooks to .*\.copilot/hooks'
-stderr 'nav-pilot-loop-guard.*Off: nav-pilot config set hook_loop_guard false'
-stderr 'nav-pilot-redact-tool-output.*hook_redact_secrets false'
+stderr 'nav-pilot-loop-guard.*Off: nav-pilot config set guards false'
+stderr 'nav-pilot-redact-tool-output.*guards false'
 exists $HOME/.copilot/hooks/nav-pilot-loop-guard.json
 
 exec nav-pilot --sync --source $WORK/plattform -- -p 'hello'

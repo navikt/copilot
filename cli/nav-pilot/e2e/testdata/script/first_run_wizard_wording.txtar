@@ -1,4 +1,4 @@
-# The first-run wizard says what leaving the model unset does (the
+# The setup wizard (behind 'nav-pilot config setup' since #2781) says what leaving the model unset does (the
 # agentpakke's default, the agent's own if it names none), the auto-update
 # answer says what "no" means, and there is no rtk question (#1321).
 
@@ -8,12 +8,11 @@
 # copilot, so the rest of the wizard is the copilot one.
 fake-bin cplt copilot
 
-exits 130 pty-run -wait 'Which coding agent' -send '\r' -wait 'Conversation mode' -send '\r' -wait 'run commands' -send '\r' -wait 'do with git' -send '\r' -wait 'Model' -send '\x03' -- nav-pilot
+exits 130 pty-run -wait 'Which coding agent' -send '\r' -wait 'Conversation mode' -send '\r' -wait 'run commands' -send '\r' -wait 'do with git' -send '\r' -wait 'Model' -send '\x03' -- nav-pilot config setup
 stdout 'leave it unset for the agentpakke.s default \(the agent.s own if it names none\)'
 stdout 'Unset \(agentpakke default\)'
 
-rm home/config.toml
-exits 130 pty-run -wait 'Which coding agent' -send '\r' -wait 'Conversation mode' -send '\r' -wait 'run commands' -send '\r' -wait 'do with git' -send '\r' -wait 'Model' -send '\r' -wait 'Reasoning effort' -send '\r' -wait 'Auto-update' -send '\x03' -- nav-pilot
+exits 130 pty-run -wait 'Which coding agent' -send '\r' -wait 'Conversation mode' -send '\r' -wait 'run commands' -send '\r' -wait 'do with git' -send '\r' -wait 'Model' -send '\r' -wait 'Reasoning effort' -send '\r' -wait 'Auto-update' -send '\x03' -- nav-pilot config setup
 stdout 'No: say when a new version is out, and ask to upgrade once 7 days behind'
 
 # With a config, the launch goes on without offering rtk, and a config that

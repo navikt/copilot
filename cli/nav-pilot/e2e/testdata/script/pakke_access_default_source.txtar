@@ -24,7 +24,9 @@ exec nav-pilot config show
 ! stdout '^source'
 exec /bin/sh -c 'nav-pilot --client copilot -- -p hei </dev/null'
 exists $WORK/fake/cplt.log
-! grep 'allow-private-domain' $WORK/fake/cplt.log
+! grep 'cloud\.nais\.io' $WORK/fake/cplt.log
+grep '^--allow-private-domain\nfleet-gateway\.intern\.nav\.no$' $WORK/fake/cplt.log
+grep '^--allow-private-domain\nfleet-gateway\.intern\.dev\.nav\.no$' $WORK/fake/cplt.log
 rm $WORK/fake/cplt.log
 
 # Allow: every host is passed, and doctor agrees.

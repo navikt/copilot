@@ -300,6 +300,8 @@ func builtinHookCommand(h builtinHook, r ResolvedConfig) string {
 // A write that fails is reported and the launch goes on: a missing hook costs
 // a warning, not the session.
 func syncBuiltinHooks(r ResolvedConfig) {
+	// Before the client branch: the old keys reach OpenCode launches too.
+	nudgeGuardsKey(r)
 	if r.Client == "opencode" {
 		// The OpenCode bridge spools to a directory of its own, and the
 		// launch hands the hooks over itself (openCodeHookBridge).
@@ -351,6 +353,17 @@ func syncBuiltinHooks(r ResolvedConfig) {
 	announceBuiltinHooks(dir, added)
 }
 
+// nudgeGuardsKey says once, when a config still sets one of the old hook_*
+// keys, that one guards switch now covers them. The old keys keep working.
+func nudgeGuardsKey(r ResolvedConfig) {
+	if !r.LegacyGuardKeys || !providerpkg.FirstTime("guards-key-notice") {
+		return
+	}
+	fmt.Fprintf(os.Stderr, "%s %s\n", dim("ℹ"), guardsNudge)
+}
+
+const guardsNudge = "Your config sets hook_* keys. They still work. One key now covers all guards: guards = true or false (nav-pilot config set guards false)."
+
 // announceBuiltinHooks says once per machine, on stderr, what the launch just
 // put in ~/.copilot/hooks and how to turn it off. Hooks run on every tool
 // call, so a file appearing there unannounced is worth one paragraph.
@@ -359,9 +372,9 @@ func announceBuiltinHooks(dir string, added []string) {
 		return
 	}
 	what := map[string]string{
-		"nav-pilot-loop-guard":         "tells the agent when it repeats the same tool call. Off: nav-pilot config set hook_loop_guard false",
+		"nav-pilot-loop-guard":         "tells the agent when it repeats the same tool call. Off: nav-pilot config set guards false",
 		"nav-pilot-action-check":       "before a risky shell command, asks the local model whether it makes sense and logs the answer. Never blocks. Off: nav-pilot config set hook_action_check off",
-		"nav-pilot-redact-tool-output": "masks secrets and fødselsnumre in tool output before the model reads it. Off: nav-pilot config set hook_redact_secrets false (and hook_redact_fnr, hook_injection_note)",
+		"nav-pilot-redact-tool-output": "masks secrets and fødselsnumre in tool output before the model reads it. Off: nav-pilot config set guards false",
 	}
 	fmt.Fprintf(os.Stderr, "%s nav-pilot added Copilot hooks to %s. They run around tool calls:\n", dim("ℹ"), dir)
 	for _, name := range added {

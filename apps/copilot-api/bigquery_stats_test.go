@@ -120,3 +120,27 @@ func TestBillingModelDailySyntheticMixedProduct(t *testing.T) {
 		t.Errorf("amounts = gross %.2f, net %.2f; want 5.00 and 4.00 (Code Quality leaked if 20.00 and 16.00)", r.GrossAmount, r.NetAmount)
 	}
 }
+
+func TestBillingModelForecastQueryFiltersCopilot(t *testing.T) {
+	bqc, err := bigquery.NewClient(context.Background(), "p", option.WithoutAuthentication())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = bqc.Close() })
+	client := &BigQueryClient{client: bqc, projectID: "p", metricsDataset: "d"}
+	q := client.billingModelForecastQuery("2026-06", time.Date(2026, 5, 1, 0, 0, 0, 0, time.UTC))
+	if !strings.Contains(q.Q, "product = 'Copilot'") {
+		t.Errorf("forecast query counts other products:\n%s", q.Q)
+	}
+}
+
+func TestIsTodayUTCComparesDate(t *testing.T) {
+	june := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
+	if !isTodayUTC(june, 15, time.Date(2026, 6, 15, 10, 0, 0, 0, time.UTC)) {
+		t.Error("same date not today")
+	}
+	// Viewing June on 15 July must not treat 15 June as a partial day.
+	if isTodayUTC(june, 15, time.Date(2026, 7, 15, 10, 0, 0, 0, time.UTC)) {
+		t.Error("same day of month in another month treated as today")
+	}
+}

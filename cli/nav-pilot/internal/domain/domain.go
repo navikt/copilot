@@ -84,6 +84,11 @@ type Config struct {
 	// means aggressive. See docs/local-dispatch.md.
 	LocalDispatch   *string `toml:"local_dispatch"`
 	CopilotAuthMode *string `toml:"copilot_auth_mode"`
+	// Guards turns nav-pilot's guards (loop guard, secret and fødselsnummer
+	// masking, injection note) on and off together. Unset means on.
+	Guards *bool `toml:"guards"`
+	// The four hook_* keys below are the per-guard switches guards replaced.
+	// Still read: one that is set wins over guards for its own guard.
 	// HookLoopGuard turns the loop-guard hook on and off: the postToolUse hook
 	// nav-pilot writes to ~/.copilot/hooks/ so the local guard's loop rule
 	// also covers cloud sessions. Unset means on.
@@ -146,6 +151,8 @@ type ResolvedConfig struct {
 	LocalEndpointModel string   // model id to ask LocalEndpoint for
 	LocalDispatch      string   // off | conservative | balanced | aggressive; always set
 	CopilotAuthMode    string   // auto | env_only | gh_only
+	Guards             bool     // the guards switch; the four fields below follow it unless a hook_* key is set
+	LegacyGuardKeys    bool     // a hook_* key is set in the file (for the one-time nudge)
 	HookLoopGuard      bool     // the loop-guard postToolUse hook for every Copilot CLI session
 	HookRedactSecrets  bool     // mask secrets in tool results
 	HookRedactFNR      bool     // mask fødselsnummer, D- and H-nummer in tool results

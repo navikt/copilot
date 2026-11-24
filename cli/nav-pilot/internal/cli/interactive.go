@@ -612,7 +612,15 @@ func interactiveUserInstallFromSource(scope *InstallScope, src *Source, flagSour
 
 	var skippedItems []InstalledFile
 
-	if isInteractive() {
+	if isInteractive() && freshInstall() {
+		// A new install takes the whole agentpakke without the picker
+		// (#2781). Nav's own hooks need no question; hooks from another
+		// source are asked about unless the command line already said yes.
+		incoming := installConsentRequired
+		defer func() { installConsentRequired = incoming }()
+		installConsentRequired = len(manifest.Hooks) > 0 &&
+			!sameSourceRepo(src.Repo, defaultSourceRepo) && !installConsentGiven
+	} else if isInteractive() {
 		fmt.Println()
 		// Hooks are named in the question: they are scripts the client runs
 		// on every matching tool call, outside the cplt sandbox.
@@ -928,14 +936,38 @@ func interactiveRepoInstall(src *Source, scope *InstallScope, flagSource string,
 // prompt can be exercised without a terminal.
 var promptInstallScopeFn = promptInstallScope
 
+// askInstallScope is "where to install?": a new install's own answer without
+// a question (#2781), else the prompt.
+func askInstallScope(targetDir string) (*InstallScope, error) {
+	if freshInstall() {
+		return freshInstallScope(targetDir)
+	}
+	return promptInstallScopeFn(targetDir)
+}
+
 // promptInstallScope asks the user where to install: repo or user home.
 // Returns (nil, nil) only when the user cancels; a prompt that could not run
 // (no usable TTY) returns its error so callers can fall back instead of
 // pretending the user said no.
+// freshInstallScope is a new install's answer to "where to install?": user
+// scope, unless the repo has a lock file (#2781). --repo never reaches here.
+// A lock file that does not parse picks repo too, so its error is reported
+// instead of skipped.
+func freshInstallScope(targetDir string) (*InstallScope, error) {
+	repo := ScopeRepo(targetDir)
+	if d, err := scopeDeclaration(repo); d != nil || err != nil {
+		return repo, nil
+	}
+	return ScopeUser()
+}
+
 func promptInstallScope(targetDir string) (*InstallScope, error) {
 	if !isInteractive() {
 		// Non-interactive: default to repo scope
 		return ScopeRepo(targetDir), nil
+	}
+	if freshInstall() {
+		return freshInstallScope(targetDir)
 	}
 	var choice string
 	err := runField(huh.NewSelect[string]().

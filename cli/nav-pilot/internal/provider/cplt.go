@@ -7,12 +7,14 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"syscall"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/source"
+	"github.com/navikt/copilot/cli/nav-pilot/internal/telemetry"
 )
 
 // cpltLaunch describes how to launch a coding-agent client inside the cplt
@@ -92,9 +94,72 @@ func cpltArgv(spec cpltLaunch) []string {
 	// at each cpltLaunch call site: every launch is assembled by this
 	// function, so a new one cannot forget it.
 	args = append(args, cpltProposalFlags()...)
+	args = append(args, cpltDefaultFlags(append(slices.Clone(args), spec.sessionFlags...))...)
 	args = append(args, spec.sessionFlags...)
 	args = append(args, "--")
 	return append(args, spec.agentArgs...)
+}
+
+// FleetGatewayHosts are the private domains nav-pilot gives every cplt launch:
+// Nav's fleet-gateway resolves to private addresses over naisdevice. nav-pilot
+// supplies Nav's sandbox defaults, cplt does not (navikt/cplt#1091). Constants
+// on purpose: nothing a repository, config or agent writes can add a host.
+var FleetGatewayHosts = []string{"fleet-gateway.intern.nav.no", "fleet-gateway.intern.dev.nav.no"}
+
+// cpltPrivateDomainFloor is the first cplt release with --allow-private-domain
+// (navikt/cplt 61cec3b, release 2026.04.30-130904-61cec3b).
+const cpltPrivateDomainFloor = "2026.04.30-130904"
+
+// FleetGatewayActive reports whether launches pass [FleetGatewayHosts]: only
+// a parsed stamp at or past the floor, or exactly "cplt 0.0.0" (a dev build of
+// current source). Anything else — no cplt, garbled or empty output, "cplt
+// dev", a format nav-pilot does not know — is no, so cplt never meets a flag
+// it may reject.
+func FleetGatewayActive() bool {
+	out, err := probeCpltVersion()
+	if err != nil {
+		return false
+	}
+	if first, _, _ := strings.Cut(out, "\n"); strings.TrimSpace(first) == "cplt 0.0.0" {
+		return true
+	}
+	stamp := cpltStamp(out)
+	return stamp != "" && stamp >= cpltPrivateDomainFloor
+}
+
+// CpltUpgradeHint is the command that upgrades cplt, for doctor.
+func CpltUpgradeHint() string { return cpltUpgradeHint() }
+
+// cpltDefaultFlags is a var so golden launch-vector tests can leave it out
+// without a cplt binary; the provider TestMain does.
+var cpltDefaultFlags = fleetGatewayFlags
+
+// cpltManagedConfig is a var so launch tests run without writing a home.
+var cpltManagedConfig = CpltManagedConfig
+
+// fleetGatewayFlags is --allow-private-domain for each [FleetGatewayHosts]
+// entry not already in args, which holds the user's own --cplt flags too.
+// Skipped, not refused, unless [FleetGatewayActive]: a default must not stop
+// a launch that worked before.
+func fleetGatewayFlags(args []string) []string {
+	if !FleetGatewayActive() {
+		return nil
+	}
+	have := map[string]bool{}
+	for i, a := range args {
+		if a == "--allow-private-domain" && i+1 < len(args) {
+			have[args[i+1]] = true
+		} else if host, ok := strings.CutPrefix(a, "--allow-private-domain="); ok {
+			have[host] = true
+		}
+	}
+	var flags []string
+	for _, host := range FleetGatewayHosts {
+		if !have[host] {
+			flags = append(flags, "--allow-private-domain", host)
+		}
+	}
+	return flags
 }
 
 // cpltFlagFloor is the first cplt release (date-time stamp) that knows a flag
@@ -341,6 +406,12 @@ func launchViaCplt(spec cpltLaunch) error {
 		FirstTime("autonomy-notice")
 	}
 	spec.env = withSkillsDirEnv(spec.env, spec.skillsDir)
+	// The flags stay even with the managed file: cplt may still refuse the
+	// file (a passwd home nav-pilot cannot see, e.g. CGO-less LDAP lookups),
+	// and the lists union, so a duplicate costs nothing.
+	if path, _ := cpltManagedConfig(); path != "" {
+		spec.env, _ = telemetry.SetEnvValue(spec.env, CpltManagedEnv, path)
+	}
 	args, err := withCpltProjectDir(withCpltConfirmation(cpltArgv(spec), IsTerminal(os.Stdin)), spec.projectDir)
 	if err != nil {
 		return err

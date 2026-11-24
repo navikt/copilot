@@ -603,7 +603,7 @@ func cmdInstallFromSource(collection string, src *Source, scope *InstallScope, d
 	defer bases.cleanup()
 	reused := bases.nearest()
 
-	if err := confirmInstallWrites(scope, resolver, manifest, dryRun, jsonOutput); err != nil {
+	if err := confirmInstallWrites(scope, src, resolver, manifest, dryRun, jsonOutput); err != nil {
 		return err
 	}
 	// Past every refusal, so nothing is consented to for an install that then
@@ -1110,7 +1110,7 @@ func cmdInstallInteractive(scope *InstallScope, targetDir, ref, sourceRepo strin
 		}
 		if targetDir != "" {
 			// In a git repo: ask where to install
-			scope, err = promptInstallScopeFn(targetDir)
+			scope, err = askInstallScope(targetDir)
 			if err != nil {
 				return err
 			}
@@ -1234,7 +1234,7 @@ func installAllFromSource(scope *InstallScope, src *Source, manifest *Manifest, 
 	if total == 0 {
 		return fmt.Errorf("nothing in the source that %s can hold", scope.Label())
 	}
-	if err := confirmInstallWrites(scope, resolver, manifest, dryRun, jsonOutput); err != nil {
+	if err := confirmInstallWrites(scope, src, resolver, manifest, dryRun, jsonOutput); err != nil {
 		return err
 	}
 	// Same placement as cmdInstallFromSource: past every refusal (#858).
@@ -2173,6 +2173,11 @@ func kindLabel(kind *ArtifactKind) string {
 // Functions called directly, as the tests and the pickers do, are not asked.
 var installConsentRequired bool
 
+// installConsentGiven is set by run() when the install command line said yes
+// up front (--yes, --all with a scope flag, --frozen). A new install's skipped
+// picker uses it to tell a given yes from a question still owed (#2781).
+var installConsentGiven bool
+
 // askHooks is the question a user-scope install asks before it writes hooks.
 // Overridable in tests.
 var askHooks = func(title, description string) (bool, error) {
@@ -2192,8 +2197,13 @@ var askHooks = func(title, description string) (bool, error) {
 // hooks asks about them, whichever command got there: the picker behind
 // `install --user` always did, the scope picker behind `install <name>` did
 // not.
-func confirmInstallWrites(scope *InstallScope, resolver *SourceResolver, manifest *Manifest, dryRun, jsonOutput bool) error {
+func confirmInstallWrites(scope *InstallScope, src *Source, resolver *SourceResolver, manifest *Manifest, dryRun, jsonOutput bool) error {
 	if dryRun || !installConsentRequired {
+		return nil
+	}
+	// A new install takes Nav's own agentpakke, hooks included, without a
+	// question (#2781); another source's hooks are still asked about.
+	if freshInstall() && src != nil && sameSourceRepo(src.Repo, defaultSourceRepo) {
 		return nil
 	}
 	files := 0

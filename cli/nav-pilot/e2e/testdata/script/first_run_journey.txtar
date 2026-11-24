@@ -1,4 +1,4 @@
-# A new user's first run, end to end: wizard, install, sandbox question,
+# A new user's first run, end to end: defaults without questions (#2781), install, sandbox question,
 # launch (#1962). Each line the journey report found noisy is gone, and the
 # new wording is there.
 
@@ -24,17 +24,21 @@ exec git init -q .
 mkdir .nav-pilot
 cp ../seed/.nav-pilot/agentpakke.lock.json .nav-pilot/agentpakke.lock.json
 ! exists $WORK/home/config.toml
+# The seed install left nav-pilot's markers in the home; a new user has none.
+exec /bin/sh -c '/bin/rm -rf "$HOME/.nav-pilot" "$HOME"/seen-* "$HOME"/*-declined "$HOME/cache.json" "$HOME/device-id" "$HOME/telemetry-spool"'
 
-exits 0 pty-run -wait 'Which coding agent' -send '\r' -wait 'Conversation mode' -send '\r' -wait 'do with git' -send '\r' -wait 'Model' -send '\r' -wait 'Reasoning effort' -send '\r' -wait 'Auto-update' -send '\r' -wait 'Save these settings' -send '\r' -wait 'Where to install' -send '\r' -wait 'Decline' -send '\r' -- nav-pilot
+exits 0 pty-run -wait 'Decline' -send '\r' -- nav-pilot
 
-# F19: a bare first run gets the telemetry notice under the wizard header.
-stdout 'First-run setup(.|\n)*nav-pilot sends pseudonymous usage metrics'
+# F19: a bare first run gets the telemetry notice. Fake opencode reports no
+# tested version, so the pick is Copilot CLI, and the lock file picks repo
+# scope without the scope question.
+stdout 'nav-pilot sends pseudonymous usage metrics'
+stdout 'nav-pilot uses GitHub Copilot, with auto-update on'
+! stdout 'Where to install'
+grep 'auto_update = true' $WORK/home/config.toml
 stdout 'gh is not installed, so the agent can.t push or open PRs.*the launch continues without it'
 # F15
 ! stdout 'cplt: no changes'
-# The Save screen names no config key; one "change anytime", after Save.
-! stdout 'nav-pilot autonomy ='
-stdout -count=1 'anytime'
 # F9: the install that follows adds the hooks.
 ! stdout 'hook\(s\) the source ships are not installed'
 # F2: plain question, one-line decline.

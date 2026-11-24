@@ -40,3 +40,7 @@ require (
 	google.golang.org/grpc v1.84.0 // indirect
 	google.golang.org/protobuf v1.36.12 // indirect
 )
+
+require github.com/navikt/copilot/lib/mcpkit v0.0.0
+
+replace github.com/navikt/copilot/lib/mcpkit => ../../lib/mcpkit
