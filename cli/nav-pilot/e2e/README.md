@@ -143,8 +143,9 @@ NAV_PILOT_DEV_MCP=fleet-gateway.intern.dev.nav.no nav-pilot
 
 - Only bare host names ending in `.intern.dev.nav.no` are accepted. A port, userinfo, path, IP address, wildcard or any other domain is ignored, with one line naming the value.
 - A remote `https` server on an accepted host stays on for that session. Registry-listed servers are unchanged.
-- Each accepted host is also passed to cplt as `--allow-private-domain`.
-- Every start prints a warning while the variable is set.
+- A remote server whose raw entry has `{env:` anywhere is never allowed: cplt strips the variable, so the client would connect to what is left of the raw URL.
+- An accepted host is passed to cplt as `--allow-private-domain` only when the override turned on a server on it in that launch. cplt matches subdomains of that host too; this is an accepted dev-only risk.
+- Every launch and `nav-pilot doctor` print a warning while the variable is set and names a valid host. doctor lists those servers as "allowed by NAV_PILOT_DEV_MCP".
 - Copilot CLI's org policy is separate, and may still refuse the server.
 
 This is for developers only: no config key, no flag, no help text.

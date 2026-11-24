@@ -60,6 +60,10 @@ func validDevMCPHost(h string) bool {
 	return true
 }
 
+// DevMCPWarn prints the NAV_PILOT_DEV_MCP warning, once per start. Every
+// launch and doctor call it, whatever path they take.
+func DevMCPWarn() { devMCP() }
+
 // devMCPEnabled is the hosts of servers the override turned on in this
 // launch: only those get cplt's --allow-private-domain.
 var devMCPEnabled []string

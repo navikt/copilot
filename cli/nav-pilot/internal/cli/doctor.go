@@ -190,6 +190,7 @@ func cmdDoctor() error {
 // doctorChecks prints every doctor section and reports whether a check failed.
 func doctorChecks() bool {
 	fmt.Printf("%s\n\n", bold("nav-pilot doctor"))
+	providerpkg.DevMCPWarn()
 	hasErrors := false
 
 	// The slow waits (cplt processes, GitHub) are independent of each other,

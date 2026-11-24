@@ -1053,6 +1053,7 @@ func installedAgents(state *StateFile) []string {
 }
 
 func launchClient(resolved ResolvedConfig) (err error) {
+	providerpkg.DevMCPWarn()
 	// Before anything is touched: a refusal here launches nothing.
 	if resolved.ExtraArgs, err = sessionClientArgs(resolved.Client, resolved.Session, resolved.ExtraArgs); err != nil {
 		return err
