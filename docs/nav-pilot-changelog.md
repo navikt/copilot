@@ -4,6 +4,10 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ## 2026-11-24
 
+### Streng parsing av MCP-konfigurasjon
+
+- **OpenCode**: nav-pilot leser nå MCP-oppføringer i `opencode.json` med nøyaktig samme nøkler som OpenCode. En oppføring med en nøkkel som går igjen, eller med en kjent nøkkel skrevet med andre store og små bokstaver (for eksempel `URL` i stedet for `url`), regnes ikke som oppført i MCP-registeret og slås av. Vanlige oppføringer virker som før.
+
 ### Telemetri viser om cplt er i bruk
 
 - **Telemetri**: Oppstartsmetrikken `nav_pilot_config_info` har fått feltene `sandbox` (`cplt` eller `none`) og `cplt_version` (bare utgivelsesdatoen, for eksempel `2026.11.24`). Slik ser vi hvor mange som bruker cplt, og hvilke utgivelser. nav-pilot kjører ikke cplt ekstra for å finne versjonen. Er telemetri slått av, sendes ingenting. Se [TELEMETRY.md](../cli/nav-pilot/TELEMETRY.md).

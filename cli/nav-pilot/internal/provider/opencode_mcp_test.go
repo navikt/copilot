@@ -420,3 +420,66 @@ func TestMCPEnvNotInherited(t *testing.T) {
 		t.Errorf("inherited value survived without a registry: %s", all)
 	}
 }
+
+// encoding/json matches keys case-insensitively and keeps the last
+// duplicate; OpenCode reads the exact key. Such an entry is never listed.
+func TestOpenCodeMCPAmbiguousEntryNotListed(t *testing.T) {
+	good := "https://aksel-mcp.nav.no/mcp"
+	reg := mcpRegistry{Remotes: map[string]bool{normalizeMCPURL(good): true}}
+	for name, entry := range map[string]string{
+		"url and URL":   `{"type":"remote","url":"https://evil.example/mcp","URL":"` + good + `"}`,
+		"duplicate url": `{"type":"remote","url":"https://evil.example/mcp","url":"` + good + `"}`,
+		"Url only":      `{"type":"remote","Url":"` + good + `"}`,
+		"Type":          `{"Type":"remote","url":"` + good + `"}`,
+		"Enabled false": `{"type":"remote","url":"https://evil.example/mcp","Enabled":false}`,
+	} {
+		doc := []byte(`{"mcp":{"s":` + entry + `}}`)
+		s, ok := openCodeMCPServersIn([][]byte{doc}, nil)["s"]
+		if !ok || reg.listed(s) || (s.Enabled != nil && !*s.Enabled) {
+			t.Errorf("%s: got %+v (present %v), want present, enabled and unlisted", name, s, ok)
+		}
+	}
+	// MCP beside mcp must not hide mcp's servers.
+	doc := []byte(`{"mcp":{"s":{"type":"remote","url":"https://evil.example/mcp"}},"MCP":{}}`)
+	if _, ok := openCodeMCPServersIn([][]byte{doc}, nil)["s"]; !ok {
+		t.Error(`"MCP" key hid "mcp" servers`)
+	}
+	doc = []byte(`{"mcp":{"s":{"type":"remote","url":"` + good + `"}}}`)
+	if s := openCodeMCPServersIn([][]byte{doc}, nil)["s"]; !reg.listed(s) {
+		t.Errorf("normal entry: got %+v, want listed", s)
+	}
+}
+
+// On opencode 2, "servers" is a server only with an exact "type". A "Type"
+// key, or a duplicate "type", must not hide the nested servers or the entry.
+func TestOpenCodeMCPV2ServersProbeStrict(t *testing.T) {
+	t.Cleanup(func() { versionCache.Delete("opencode") })
+	versionCache.Store("opencode", versionAnswer{"opencode v2.0.24\n", nil, time.Hour})
+	reg := mcpRegistry{Remotes: map[string]bool{}}
+	for name, servers := range map[string]string{
+		"Type":           `{"Type":"remote","url":"https://x/mcp","s":{"type":"remote","url":"https://evil/mcp"}}`,
+		"duplicate type": `{"type":"remote","type":"x","s":{"type":"remote","url":"https://evil/mcp"}}`,
+	} {
+		got := openCodeMCPServersIn([][]byte{[]byte(`{"mcp":{"servers":` + servers + `}}`)}, nil)
+		if s, ok := got["servers"]; !ok || !s.ambiguous || reg.listed(s) {
+			t.Errorf("%s: servers entry = %+v (present %v), want present and ambiguous", name, s, ok)
+		}
+		if s, ok := got["s"]; !ok || s.URL != "https://evil/mcp" {
+			t.Errorf("%s: nested server = %+v (present %v), want checked", name, s, ok)
+		}
+	}
+}
+
+// A permissions entry with a key in another case is read as deny.
+func TestUserPermissionListStrict(t *testing.T) {
+	t.Cleanup(func() { versionCache.Delete("opencode") })
+	versionCache.Store("opencode", versionAnswer{"opencode v2.0.24\n", nil, time.Hour})
+	doc := []byte(`{"permissions":[{"action":"edit","resource":"*","effect":"deny","Effect":"allow"}]}`)
+	if _, deny := userPermission([][]byte{doc}, "edit"); !deny {
+		t.Error("ambiguous permissions entry was not read as deny")
+	}
+	doc = []byte(`{"permissions":[{"action":"edit","resource":"*","effect":"allow"}]}`)
+	if _, deny := userPermission([][]byte{doc}, "edit"); deny {
+		t.Error("normal allow entry read as deny")
+	}
+}
