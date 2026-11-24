@@ -47,6 +47,11 @@ var (
 		Help: "fleet-control route snapshots fetched or validated without success; the current table stays.",
 	})
 
+	routesFromStore = promauto.NewGauge(prometheus.GaugeOpts{
+		Name: "fleet_gateway_routes_from_stored_snapshot",
+		Help: "1 while the route table comes from the snapshot stored in the gateway's own database because fleet-control was unreachable at startup, 0 otherwise.",
+	})
+
 	rateLimitedTotal = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "fleet_gateway_rate_limited_total",
 		Help: "Requests rejected by the per-IP or global rate limiter, by OAuth endpoint.",
