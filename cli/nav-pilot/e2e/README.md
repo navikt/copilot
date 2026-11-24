@@ -132,3 +132,20 @@ Copilot premium requests, billed to the organization. To turn it on:
 If the call fails, the run continues and posts the transcripts without a
 review. (GitHub Models, the other token-only route, was retired on
 2026-07-30.)
+
+## Testing the dev fleet-gateway (`NAV_PILOT_DEV_MCP`)
+
+The MCP registry is public, so dev routes are not listed there, and nav-pilot turns off an unlisted server when it starts OpenCode. To test a dev fleet-gateway end to end, list its hosts in `NAV_PILOT_DEV_MCP`, separated by commas:
+
+```sh
+NAV_PILOT_DEV_MCP=fleet-gateway.intern.dev.nav.no nav-pilot
+```
+
+- Only bare host names ending in `.intern.dev.nav.no` are accepted. A port, userinfo, path, IP address, wildcard or any other domain is ignored, with one line naming the value.
+- A remote `https` server on an accepted host stays on for that session. Registry-listed servers are unchanged.
+- A remote server whose raw entry has `{env:` anywhere is never allowed: cplt strips the variable, so the client would connect to what is left of the raw URL.
+- An accepted host is passed to cplt as `--allow-private-domain` only when the override turned on a server on it in that launch. cplt matches subdomains of that host too; this is an accepted dev-only risk.
+- Every launch and `nav-pilot doctor` print a warning while the variable is set and names a valid host. doctor lists those servers as "allowed by NAV_PILOT_DEV_MCP".
+- Copilot CLI's org policy is separate, and may still refuse the server.
+
+This is for developers only: no config key, no flag, no help text.

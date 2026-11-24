@@ -186,7 +186,7 @@ func TestOpenCodeMCPReportAsksForThePolicyOnce(t *testing.T) {
 	fetchMCPRegistry = func(string) (mcpRegistry, error) {
 		return mcpRegistry{Remotes: map[string]bool{"https://ok/mcp": true}, Packages: map[string]bool{}}, nil
 	}
-	listed, unlisted, err := OpenCodeMCPReport(proj)
+	listed, _, unlisted, err := OpenCodeMCPReport(proj)
 	if err != nil || len(listed) != 1 || len(unlisted) != 0 {
 		t.Fatalf("report = %v %v %v", listed, unlisted, err)
 	}

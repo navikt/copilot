@@ -190,6 +190,7 @@ func cmdDoctor() error {
 // doctorChecks prints every doctor section and reports whether a check failed.
 func doctorChecks() bool {
 	fmt.Printf("%s\n\n", bold("nav-pilot doctor"))
+	providerpkg.DevMCPWarn()
 	hasErrors := false
 
 	// The slow waits (cplt processes, GitHub) are independent of each other,
@@ -457,7 +458,11 @@ func doctorChecks() bool {
 		if !reportOpenCodeVersion() {
 			hasErrors = true
 		}
-		switch listed, unlisted, err := providerpkg.OpenCodeMCPReport(""); {
+		listed, dev, unlisted, err := providerpkg.OpenCodeMCPReport("")
+		if len(dev) > 0 {
+			fmt.Printf("      %s MCP servers allowed by %s: %s\n", yellow("⚠"), providerpkg.DevMCPEnv, strings.Join(dev, ", "))
+		}
+		switch {
 		case err != nil:
 			fmt.Printf("      %s MCP servers not checked against Nav's MCP registry: %v\n", yellow("⚠"), err)
 		case len(unlisted) > 0:
