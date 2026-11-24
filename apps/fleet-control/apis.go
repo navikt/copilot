@@ -113,7 +113,9 @@ func writeStatus(w http.ResponseWriter, r *http.Request, kind string, err error)
 		if ae, isAPI := errors.AsType[*apiError](err); isAPI {
 			se = &statusError{code: ae.code, reason: reasonByCode[ae.code], msg: ae.msg}
 		} else {
-			slog.Error("v1alpha1 request failed", "path", r.URL.Path, "error", strings.NewReplacer("\n", " ", "\r", " ").Replace(err.Error()))
+			// Strip line breaks: path and err carry request-derived text (CodeQL go/log-injection).
+			clean := strings.NewReplacer("\n", " ", "\r", " ")
+			slog.Error("v1alpha1 request failed", "path", clean.Replace(r.URL.Path), "error", clean.Replace(err.Error()))
 			se = stErr(http.StatusServiceUnavailable, "ServiceUnavailable", "database or team lookup unavailable")
 		}
 	}

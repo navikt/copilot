@@ -653,7 +653,7 @@ func (d *DB) approveServer(ctx context.Context, c caller, ns, name string, gen i
 			return err
 		}
 		switch {
-		case v.Hash == nil || *v.Hash != hash:
+		case v.Hash == nil || *v.Hash != hash || !strings.HasPrefix(hash, hashPrefix):
 			return conflict("contentHash", "FieldValueInvalid", "contentHash does not match the pending generation")
 		case deref(v.SubKind) != "User" || v.SubOid == nil:
 			return stErr(http.StatusForbidden, "Forbidden", "the pending generation has no person as submitter; a person must submit it again")
@@ -696,7 +696,7 @@ func (d *DB) revokeServer(ctx context.Context, c caller, by, ns, name, reason st
 		if _, err := tx.Exec(ctx, `UPDATE servers SET status = 'revoked', updated_at = now() WHERE namespace = $1 AND name = $2`, ns, name); err != nil {
 			return err
 		}
-		if _, err := tx.Exec(ctx, `UPDATE server_versions SET revoked_at = now(), blocked = blocked OR $4 WHERE namespace = $1 AND name = $2 AND version = $3`, ns, name, *row.Published, block); err != nil {
+		if _, err := tx.Exec(ctx, `UPDATE server_versions SET revoked_at = clock_timestamp(), blocked = blocked OR $4 WHERE namespace = $1 AND name = $2 AND version = $3`, ns, name, *row.Published, block); err != nil {
 			return err
 		}
 		return auditV1(ctx, tx, c, "revoked", "MCPServer", ns, name, row.Published, map[string]any{"reason": reason, "blocked": block, "by": by})

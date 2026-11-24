@@ -34,6 +34,7 @@ type apisEnv struct {
 	url string
 	// bodies collects every answer, so a test can check that no oid leaks.
 	bodies []string
+	mu     sync.Mutex
 }
 
 func newApisEnv(t *testing.T) *apisEnv {
@@ -64,7 +65,9 @@ func (e *apisEnv) do(method, path, tok, body string) (int, string) {
 	}
 	defer func() { _ = resp.Body.Close() }()
 	raw, _ := io.ReadAll(resp.Body)
+	e.mu.Lock()
 	e.bodies = append(e.bodies, string(raw))
+	e.mu.Unlock()
 	return resp.StatusCode, string(raw)
 }
 
@@ -551,6 +554,11 @@ func TestRealPostgresSeededProfileNeedsPerson(t *testing.T) {
 		t.Fatalf("seeded submitter: %+v", got.Status.Pending.SubmittedBy)
 	}
 	e.want(403, "POST", nsBase+"aksel-studio/agentprofiles/studio-assistant/approval", person("C222222"), grantBody(1, "copilot/dolly", got.Status.Grants[0].ContentHash))
+	// Even with an oid, kind System never counts as a person.
+	if _, err := e.db.pool.Exec(context.Background(), `UPDATE agent_profile_generations SET submitted_by_oid = $1::uuid`, testOid("A555555")); err != nil {
+		t.Fatal(err)
+	}
+	e.want(403, "POST", nsBase+"aksel-studio/agentprofiles/studio-assistant/approval", person("C222222"), grantBody(1, "copilot/dolly", got.Status.Grants[0].ContentHash))
 }
 
 // TestRealPostgresMigration005 stands where an image from before 005 left
@@ -623,12 +631,21 @@ func TestRealPostgresMigration005(t *testing.T) {
 		t.Fatal("a generation revoked before 005 must be marked")
 	}
 	var specHash, grantHash, server string
-	if err := db.pool.QueryRow(ctx, `SELECT g.spec_hash, g.grant_hashes->>'copilot/dolly', a.server FROM agent_profile_generations g
+	if err = db.pool.QueryRow(ctx, `SELECT g.spec_hash, g.grant_hashes->>'copilot/dolly', a.server FROM agent_profile_generations g
 		JOIN agent_profile_grants a USING (namespace, name, generation)`).Scan(&specHash, &grantHash, &server); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.HasPrefix(specHash, "v0:sha256:") || !strings.HasPrefix(grantHash, "v0:sha256:") || server != "copilot/dolly" {
 		t.Fatalf("copied profile: %s %s %s", specHash, grantHash, server)
+	}
+	// A copied draft is refused by its v0 hash even if it had a person's oid.
+	if _, err = db.pool.Exec(ctx, `UPDATE agent_profile_generations SET submitted_by_oid = $1::uuid`, testOid("A111111")); err != nil {
+		t.Fatal(err)
+	}
+	gErr := db.grantProfile(ctx, caller{Ident: "C222222", Oid: testOid("C222222"), Teams: []string{"copilot"}}, "aksel-studio", "studio-assistant", 1,
+		TypedRef{Group: apiGroup, Kind: "MCPServer", Namespace: "copilot", Name: "dolly"}, grantHash)
+	if se, ok := gErr.(*statusError); !ok || se.code != 409 || len(se.causes) == 0 || se.causes[0].Field != "contentHash" {
+		t.Fatalf("a v0 hash must not grant: %v", gErr)
 	}
 	// The old image keeps working against the new schema.
 	if _, err := db.SaveDraft(ctx, "A111111", Server{Namespace: "team-a", Name: "late", Route: &Route{Path: "/mcp/team-a/late", Target: "dev-gcp:team-a:late", UpstreamURL: "http://late.team-a", Enabled: true, Tools: []string{"x"}}}, "h2"); err != nil {
@@ -636,5 +653,86 @@ func TestRealPostgresMigration005(t *testing.T) {
 	}
 	if err := db.Approve(ctx, "A222222", "team-a", "late", 1, "h2"); err != nil {
 		t.Fatalf("old Approve on the new schema: %v", err)
+	}
+}
+
+// Revoking through one API and rolling back through the other never returns
+// to the revoked generation.
+func TestRealPostgresRevokeRollbackAcrossAPIs(t *testing.T) {
+	for _, revokeV1 := range []bool{false, true} {
+		t.Run(fmt.Sprintf("revokeV1=%v", revokeV1), func(t *testing.T) {
+			e := newApisEnv(t)
+			base := nsBase + "team-a/mcpservers/svc"
+			e.publish("team-a", "svc", "A111111", "A222222", "one")
+			submit := func(tools ...string) {
+				cur := decodeServer(t, e.want(200, "GET", base, person("A111111"), ""))
+				m := decodeServer(t, e.want(200, "PUT", base, person("A111111"), serverJSON("team-a", "svc", cur.Metadata.ResourceVersion, tools...)))
+				e.want(200, "POST", base+"/approval", person("A222222"), approval(int(m.Metadata.Generation), m.Status.Pending.ContentHash))
+			}
+			submit("two")
+			if revokeV1 {
+				e.want(200, "POST", base+"/revocation", person("A111111"), `{"reason":"x"}`)
+			} else {
+				e.want(200, "POST", "/admin/v1/servers/team-a/svc/revoke", person("A111111"), `{"reason":"x"}`)
+			}
+			submit("three") // restart
+			if revokeV1 {
+				e.want(200, "POST", "/admin/v1/servers/team-a/svc/rollback", person("A111111"), "")
+				if m := decodeServer(t, e.want(200, "GET", base, person("A111111"), "")); m.Status.PublishedGeneration != 1 {
+					t.Fatalf("/admin/v1 rollback returned to the revoked generation: %d", m.Status.PublishedGeneration)
+				}
+			} else if code, out := e.do("POST", base+"/rollback", person("A111111"), `{"fromGeneration":3,"reason":"x"}`); code != 409 || !strings.Contains(out, "GenerationRevoked") {
+				t.Fatalf("v1alpha1 rollback to a generation revoked through /admin/v1: %d %s", code, out)
+			}
+		})
+	}
+}
+
+// A server team that is not granted anything on a profile gets the same 404
+// as for a profile that does not exist, before any state shows.
+func TestRealPostgresGrantActionsDoNotLeakProfiles(t *testing.T) {
+	e := newApisEnv(t)
+	e.publish("copilot", "dolly", "C222222", "A111111", "hent")
+	e.publish("team-b", "kodeverk", "B444444", "B555555", "lookup")
+	base := nsBase + "aksel-studio/agentprofiles/"
+	e.want(201, "POST", nsBase+"aksel-studio/agentprofiles", person("A111111"), profileJSON("aksel-studio", "assistant", "", "copilot/dolly=hent"))
+	ref := `{"group":"fleet.nav.no","kind":"MCPServer","namespace":"team-b","name":"kodeverk"}`
+	for _, name := range []string{"assistant", "missing"} {
+		for path, body := range map[string]string{
+			"/approval":   grantBody(9, "team-b/kodeverk", "v1:sha256:00"),
+			"/revocation": `{"reason":"x","serverRef":` + ref + `}`,
+		} {
+			code, out := e.do("POST", base+name+path, person("B444444"), body)
+			if code != 404 || !strings.Contains(out, `"reason":"NotFound"`) {
+				t.Errorf("%s%s: want 404, got %d %s", name, path, code, out)
+			}
+		}
+	}
+}
+
+// Publishing re-checks every grant: one whose server was revoked after it
+// was given stops the profile.
+func TestRealPostgresPublishRechecksEveryGrant(t *testing.T) {
+	e := newApisEnv(t)
+	e.publish("copilot", "dolly", "C222222", "A111111", "hent")
+	e.publish("team-b", "kodeverk", "B444444", "B555555", "lookup")
+	base := nsBase + "aksel-studio/agentprofiles"
+	p := decodeProfile(t, e.want(201, "POST", base, person("A111111"), profileJSON("aksel-studio", "assistant", "", "copilot/dolly=hent", "team-b/kodeverk=lookup")))
+	h := map[string]string{}
+	for _, g := range p.Status.Grants {
+		h[g.ServerRef.key()] = g.ContentHash
+	}
+	e.want(200, "POST", base+"/assistant/approval", person("B444444"), grantBody(1, "team-b/kodeverk", h["team-b/kodeverk"]))
+	after := decodeProfile(t, e.want(200, "GET", base+"/assistant", person("A555555"), ""))
+	if after.Metadata.ResourceVersion == p.Metadata.ResourceVersion {
+		t.Fatal("a grant must move resourceVersion")
+	}
+	e.want(200, "POST", nsBase+"team-b/mcpservers/kodeverk/revocation", person("B444444"), `{"reason":"x"}`)
+	// Republishing the server does not bring the old grant back.
+	srv := decodeServer(t, e.want(200, "GET", nsBase+"team-b/mcpservers/kodeverk", person("B444444"), ""))
+	srv = decodeServer(t, e.want(200, "PUT", nsBase+"team-b/mcpservers/kodeverk", person("B444444"), serverJSON("team-b", "kodeverk", srv.Metadata.ResourceVersion, "lookup")))
+	e.want(200, "POST", nsBase+"team-b/mcpservers/kodeverk/approval", person("B555555"), approval(int(srv.Metadata.Generation), srv.Status.Pending.ContentHash))
+	if code, out := e.do("POST", base+"/assistant/approval", person("C222222"), grantBody(1, "copilot/dolly", h["copilot/dolly"])); code == 200 {
+		t.Fatalf("published with a grant on a revoked server: %s", out)
 	}
 }

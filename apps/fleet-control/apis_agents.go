@@ -707,11 +707,11 @@ func (d *DB) buildProfile(ctx context.Context, row profileRow) (AgentProfileV1, 
 // expired, in the caller's transaction. shortcut: done lazily when a client
 // id is claimed, not by a job; a job is needed once expiry must stop
 // gateway traffic on time (it does not today: /internal/v1/agents filters).
-func releaseExpiredClientIDs(ctx context.Context, tx pgx.Tx) error {
+func releaseExpiredClientIDs(ctx context.Context, tx pgx.Tx, clientID string) error {
 	_, err := tx.Exec(ctx, `UPDATE agent_profile_resources r SET published_client_id = NULL
 		FROM agent_profile_generations g
 		WHERE g.namespace = r.namespace AND g.name = r.name AND g.generation = r.published_generation
-		  AND r.published_client_id IS NOT NULL AND g.expires_at <= now()`)
+		  AND r.published_client_id = $1::uuid AND g.expires_at <= now()`, clientID)
 	return err
 }
 
@@ -767,7 +767,7 @@ func (d *DB) insertProfileGeneration(ctx context.Context, c caller, m ObjectMeta
 		if err := blockedContent(ctx, tx, "agent_profile_generations", ns, name, hashes); err != nil {
 			return err
 		}
-		if err := releaseExpiredClientIDs(ctx, tx); err != nil {
+		if err := releaseExpiredClientIDs(ctx, tx, spec.Identity.EntraClientID); err != nil {
 			return err
 		}
 		var taken bool
@@ -797,12 +797,34 @@ func (d *DB) insertProfileGeneration(ctx context.Context, c caller, m ObjectMeta
 	})
 }
 
+// grantVisible is errV1NotFound unless the caller is in the profile's team
+// or ref is granted in its pending or published generation. It runs right
+// after the row lock, before any check that reveals state, so a stranger
+// gets the same 404 for a missing profile and one that is not theirs.
+func grantVisible(ctx context.Context, tx pgx.Tx, c caller, row profileRow, ref TypedRef) error {
+	if c.in(row.NS) {
+		return nil
+	}
+	var granted bool
+	if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM agent_profile_generations WHERE namespace = $1 AND name = $2
+		AND generation IN ($3, $4) AND grant_hashes ? $5)`, row.NS, row.Name, row.Pending, row.Published, ref.key()).Scan(&granted); err != nil {
+		return err
+	}
+	if !granted {
+		return errV1NotFound
+	}
+	return nil
+}
+
 // grantProfile gives one grant on the pending generation. The profile is
 // published once every grant in that generation is given.
 func (d *DB) grantProfile(ctx context.Context, c caller, ns, name string, gen int, ref TypedRef, hash string) error {
 	return pgx.BeginFunc(ctx, d.pool, func(tx pgx.Tx) error {
 		row, err := scanProfileRow(tx.QueryRow(ctx, `SELECT `+profileRowCols+` FROM agent_profile_resources r WHERE r.namespace = $1 AND r.name = $2 FOR UPDATE`, ns, name))
 		if err != nil {
+			return err
+		}
+		if err = grantVisible(ctx, tx, c, row, ref); err != nil {
 			return err
 		}
 		if row.Pending == nil || *row.Pending != gen {
@@ -817,7 +839,7 @@ func (d *DB) grantProfile(ctx context.Context, c caller, ns, name string, gen in
 		switch {
 		case !ok || i < 0:
 			return conflict("serverRef", "FieldValueNotFound", "generation %d grants nothing on %s", gen, ref.key())
-		case want != hash:
+		case want != hash || !strings.HasPrefix(hash, hashPrefix):
 			return conflict("contentHash", "FieldValueInvalid", "contentHash does not match the grant on %s", ref.key())
 		case g.SubKind != "User" || g.SubOid == nil:
 			return stErr(http.StatusForbidden, "Forbidden", "the pending generation has no person as submitter; a person must submit it again")
@@ -831,8 +853,8 @@ func (d *DB) grantProfile(ctx context.Context, c caller, ns, name string, gen in
 		if err = checkGrantServers(ctx, tx, g.Spec.Grants[i:i+1]); err != nil {
 			return err
 		}
-		tag, err := tx.Exec(ctx, `INSERT INTO agent_profile_grants (namespace, name, generation, server, content_hash, granted_by, granted_by_kind, granted_by_oid)
-			VALUES ($1, $2, $3, $4, $5, $6, 'User', $7::uuid) ON CONFLICT DO NOTHING`, ns, name, gen, ref.key(), hash, c.Ident, c.Oid)
+		tag, err := tx.Exec(ctx, `INSERT INTO agent_profile_grants (namespace, name, generation, server, content_hash, granted_by, granted_by_kind, granted_by_oid, granted_at)
+			VALUES ($1, $2, $3, $4, $5, $6, 'User', $7::uuid, clock_timestamp()) ON CONFLICT DO NOTHING`, ns, name, gen, ref.key(), hash, c.Ident, c.Oid)
 		if err != nil {
 			return err
 		}
@@ -847,9 +869,30 @@ func (d *DB) grantProfile(ctx context.Context, c caller, ns, name string, gen in
 			return err
 		}
 		if granted < len(g.Spec.Grants) {
-			return nil
+			// Touch the resource so resourceVersion and the ETag move.
+			_, err := tx.Exec(ctx, `UPDATE agent_profile_resources SET revoked = revoked WHERE namespace = $1 AND name = $2`, ns, name)
+			return err
 		}
-		if err := releaseExpiredClientIDs(ctx, tx); err != nil {
+		// Every server may have changed since its grant: lock them all in key
+		// order and check each grant is still valid before publishing.
+		for _, gr := range g.Spec.Grants { // sorted by serverRef at validation
+			if _, err := tx.Exec(ctx, `SELECT 1 FROM servers WHERE namespace = $1 AND name = $2 FOR SHARE`, gr.ServerRef.Namespace, gr.ServerRef.Name); err != nil {
+				return err
+			}
+		}
+		if err := checkGrantServers(ctx, tx, g.Spec.Grants); err != nil {
+			return err
+		}
+		var stale bool
+		if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM agent_profile_grants a JOIN server_versions v
+			ON v.namespace = split_part(a.server, '/', 1) AND v.name = split_part(a.server, '/', 2)
+			WHERE a.namespace = $1 AND a.name = $2 AND a.generation = $3 AND (a.revoked_at IS NOT NULL OR v.revoked_at > a.granted_at))`, ns, name, gen).Scan(&stale); err != nil {
+			return err
+		}
+		if stale {
+			return conflict("serverRef", "InvalidState", "a grant was revoked, or its server revoked, after it was given; submit the profile again")
+		}
+		if err := releaseExpiredClientIDs(ctx, tx, g.ClientID); err != nil {
 			return err
 		}
 		if _, err := tx.Exec(ctx, `UPDATE agent_profile_resources SET published_generation = $3, pending_generation = NULL, revoked = false,
@@ -875,11 +918,16 @@ func (d *DB) revokeProfileV1(ctx context.Context, c caller, by, ns, name, reason
 		if err != nil {
 			return err
 		}
+		if ref != nil {
+			if err := grantVisible(ctx, tx, c, row, *ref); err != nil {
+				return err
+			}
+		}
 		if row.Published == nil || row.Revoked {
 			return conflict("", "InvalidState", "profile is not published")
 		}
 		if ref != nil {
-			tag, err := tx.Exec(ctx, `UPDATE agent_profile_grants SET revoked_at = now() WHERE namespace = $1 AND name = $2 AND generation = $3 AND server = $4 AND revoked_at IS NULL`,
+			tag, err := tx.Exec(ctx, `UPDATE agent_profile_grants SET revoked_at = clock_timestamp() WHERE namespace = $1 AND name = $2 AND generation = $3 AND server = $4 AND revoked_at IS NULL`,
 				ns, name, *row.Published, ref.key())
 			if err != nil {
 				return err

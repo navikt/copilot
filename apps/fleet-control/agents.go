@@ -683,14 +683,9 @@ func seedAgentsFromEnv(ctx context.Context, db *DB) error {
 		if err := p.validate(); err != nil {
 			return fmt.Errorf("seed agent %s/%s: %w", p.Namespace, p.Name, err)
 		}
-		var exists bool
-		if err := db.pool.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM agent_profiles WHERE namespace = $1 AND name = $2)`, p.Namespace, p.Name).Scan(&exists); err != nil {
-			return err
-		}
-		if exists {
-			continue
-		}
-		if _, err := db.CreateAgentProfile(ctx, p, "seed", false); err != nil {
+		// The 003 table is frozen since #2748; seeds go to the v1alpha1
+		// tables, skipped when the name exists there.
+		if err := db.seedProfileV1(ctx, p); err != nil {
 			return fmt.Errorf("seed agent %s/%s: %w", p.Namespace, p.Name, err)
 		}
 	}
