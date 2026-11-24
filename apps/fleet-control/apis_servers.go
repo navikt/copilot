@@ -69,7 +69,7 @@ var dataCategories = []string{"Aapen", "Intern", "Fortrolig"}
 // validateServerSpec checks spec with the same rules as /admin/v1 drafts
 // and returns it normalised (allowedTools sorted) with the Server the
 // snapshot columns are written from.
-func validateServerSpec(cluster, ns, name string, spec MCPServerSpec) (MCPServerSpec, Server, error) {
+func validateServerSpec(cluster, platform, ns, name string, spec MCPServerSpec) (MCPServerSpec, Server, error) {
 	if len(spec.Authorization) > 0 {
 		return spec, Server{}, invalid("spec.authorization", "spec.authorization is reserved and not supported in v1alpha1")
 	}
@@ -102,7 +102,41 @@ func validateServerSpec(cluster, ns, name string, spec MCPServerSpec) (MCPServer
 	if err != nil {
 		return spec, Server{}, invalid("spec", "%v", err)
 	}
+	if sv.RegistryName != "" && !registryNameAllowed(platform, ns, sv.RegistryName) {
+		return spec, Server{}, invalid("spec.registry.name", "%q is not yours: team %s may use no.nav.%s/<name> or io.github.navikt/%s; other names are registered by the platform team", sv.RegistryName, ns, ns, ns)
+	}
 	return spec, sv, nil
+}
+
+// ForeignRegistryNames lists "<namespace>/<name>=<registry name>" for
+// servers whose stored registry name the prefix rule would now refuse.
+func (d *DB) ForeignRegistryNames(ctx context.Context, platform string) ([]string, error) {
+	rows, err := d.pool.Query(ctx, `SELECT namespace, name, registry_name FROM servers WHERE registry_name IS NOT NULL ORDER BY 1, 2`)
+	if err != nil {
+		return nil, err
+	}
+	var out []string
+	for rows.Next() {
+		var ns, name, reg string
+		if err := rows.Scan(&ns, &name, &reg); err != nil {
+			return nil, err
+		}
+		if !registryNameAllowed(platform, ns, reg) {
+			out = append(out, ns+"/"+name+"="+reg)
+		}
+	}
+	return out, rows.Err()
+}
+
+// registryNameAllowed binds a registry name prefix to the team (#2853). The
+// platform team may register any name, including vendor names such as
+// com.microsoft/*. An unset platform team grants no one that.
+func registryNameAllowed(platform, ns, regName string) bool {
+	if platform != "" && ns == platform {
+		return true
+	}
+	n := strings.ToLower(regName)
+	return strings.HasPrefix(n, "no.nav."+ns+"/") || n == "io.github.navikt/"+ns
 }
 
 // --- handlers ---
@@ -179,7 +213,7 @@ func (s *server) createServer(w http.ResponseWriter, r *http.Request, c caller, 
 	if err != nil {
 		return err
 	}
-	spec, sv, err := validateServerSpec(s.cluster, ns, in.Metadata.Name, in.Spec)
+	spec, sv, err := validateServerSpec(s.cluster, s.operatorTeam, ns, in.Metadata.Name, in.Spec)
 	if err != nil {
 		return err
 	}
@@ -198,7 +232,7 @@ func (s *server) putServer(w http.ResponseWriter, r *http.Request, c caller, db 
 	if err != nil {
 		return err
 	}
-	spec, sv, err := validateServerSpec(s.cluster, ns, name, in.Spec)
+	spec, sv, err := validateServerSpec(s.cluster, s.operatorTeam, ns, name, in.Spec)
 	if err != nil {
 		return err
 	}
@@ -208,7 +242,7 @@ func (s *server) putServer(w http.ResponseWriter, r *http.Request, c caller, db 
 	return writeServer(r.Context(), w, db, ns, name, http.StatusOK)
 }
 
-func approveServer(w http.ResponseWriter, r *http.Request, c caller, db *DB) error {
+func (s *server) approveServer(w http.ResponseWriter, r *http.Request, c caller, db *DB) error {
 	ns, name := r.PathValue("namespace"), r.PathValue("name")
 	if err := memberOf(c, ns); err != nil {
 		return err
@@ -220,7 +254,7 @@ func approveServer(w http.ResponseWriter, r *http.Request, c caller, db *DB) err
 	if err := decodeBody(w, r, &body); err != nil {
 		return stErr(http.StatusBadRequest, "BadRequest", "%v", err)
 	}
-	if err := db.approveServer(r.Context(), c, ns, name, body.Generation, body.ContentHash); err != nil {
+	if err := db.approveServer(r.Context(), c, s.operatorTeam, ns, name, body.Generation, body.ContentHash); err != nil {
 		return err
 	}
 	return writeServer(r.Context(), w, db, ns, name, http.StatusOK)
@@ -286,7 +320,7 @@ func (s *server) rollbackServer(w http.ResponseWriter, r *http.Request, c caller
 	if err != nil {
 		return err
 	}
-	if err := db.rollbackServer(r.Context(), c, by, ns, name, body.FromGeneration, body.ToGeneration, reason); err != nil {
+	if err := db.rollbackServer(r.Context(), c, s.operatorTeam, by, ns, name, body.FromGeneration, body.ToGeneration, reason); err != nil {
 		return err
 	}
 	return writeServerFor(r.Context(), w, db, c, ns, name)
@@ -639,7 +673,7 @@ func (d *DB) submitServer(ctx context.Context, c caller, m ObjectMeta, spec MCPS
 
 // approveServer publishes the pending generation. The approver is another
 // person: different oid and NAVident, and the submitter a User with an oid.
-func (d *DB) approveServer(ctx context.Context, c caller, ns, name string, gen int, hash string) error {
+func (d *DB) approveServer(ctx context.Context, c caller, platform, ns, name string, gen int, hash string) error {
 	return pgx.BeginFunc(ctx, d.pool, func(tx pgx.Tx) error {
 		row, err := lockServerRow(ctx, tx, ns, name)
 		if err != nil {
@@ -659,6 +693,8 @@ func (d *DB) approveServer(ctx context.Context, c caller, ns, name string, gen i
 			return stErr(http.StatusForbidden, "Forbidden", "the pending generation has no person as submitter; a person must submit it again")
 		case *v.SubOid == c.Oid || v.SubName == c.Ident:
 			return stErr(http.StatusForbidden, "Forbidden", "the submitter cannot approve their own generation")
+		case v.RegName != nil && !registryNameAllowed(platform, ns, *v.RegName):
+			return invalid("spec.registry.name", "generation %d has registry name %q, which team %s may not use", gen, *v.RegName, ns)
 		}
 		hashes := []string{hash}
 		if err := blockedContent(ctx, tx, "server_versions", ns, name, hashes); err != nil {
@@ -706,7 +742,7 @@ func (d *DB) revokeServer(ctx context.Context, c caller, by, ns, name, reason st
 // rollbackServer republishes an earlier published generation. fromGeneration
 // must be the published one. A refused target is 409, never a skip to an
 // older generation the person did not choose.
-func (d *DB) rollbackServer(ctx context.Context, c caller, by, ns, name string, from int, to *int, reason string) error {
+func (d *DB) rollbackServer(ctx context.Context, c caller, platform, by, ns, name string, from int, to *int, reason string) error {
 	return pgx.BeginFunc(ctx, d.pool, func(tx pgx.Tx) error {
 		row, err := lockServerRow(ctx, tx, ns, name)
 		if err != nil {
@@ -745,6 +781,9 @@ func (d *DB) rollbackServer(ctx context.Context, c caller, by, ns, name string, 
 			return conflict("toGeneration", "GenerationRevoked", "generation %d was revoked", target)
 		case refused:
 			return conflict("toGeneration", "ContentRefused", "generation %d has the same content as a revoked or blocked generation", target)
+		}
+		if v.RegName != nil && !registryNameAllowed(platform, ns, *v.RegName) {
+			return invalid("spec.registry.name", "generation %d has registry name %q, which team %s may not use", target, *v.RegName, ns)
 		}
 		if _, err := tx.Exec(ctx, `UPDATE servers SET published_version = $3, registry_name = $4, updated_at = now() WHERE namespace = $1 AND name = $2`, ns, name, target, v.RegName); err != nil {
 			if pgErr, ok := errors.AsType[*pgconn.PgError](err); ok && pgErr.Code == "23505" {
