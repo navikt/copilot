@@ -154,6 +154,32 @@ describe("/fleet", () => {
     expect(screen.getByText("Historikk")).toBeInTheDocument();
   });
 
+  it("renders the untrusted readme without raw HTML, unsafe links or images, and shows tool descriptions", async () => {
+    const s = server();
+    Object.assign(s.status.pending.spec, {
+      readme:
+        '# Om docs\n\n<script>alert(1)</script><b id="raw">rå</b>\n\n[ond](javascript:alert(1)) [data](data:text/html,x) [blandet](JaVaScRiPt:alert(1)) [god](https://example.com) ![bilde](https://evil.example/x.png)',
+      tools: [{ name: "search", description: "Søker i dokumentasjonen" }],
+    });
+    stub({ [`${API}/namespaces/team-a/mcpservers/docs`]: s });
+    const { container } = render(await ServerPage(params("team-a", "docs")));
+    expect(screen.getByRole("heading", { name: "Om docs", level: 3 })).toBeInTheDocument();
+    expect(container.querySelector("script")).toBeNull();
+    expect(container.querySelector("#raw")).toBeNull();
+    expect(container.querySelector("img")).toBeNull();
+    for (const t of ["ond", "data", "blandet"]) expect(screen.getByText(t).closest("a")).toBeNull();
+    expect(screen.getByRole("link", { name: "god" })).toHaveAttribute("rel", "noopener noreferrer");
+    expect(screen.getByText("Søker i dokumentasjonen")).toBeInTheDocument();
+  });
+
+  it("tells the owner team to resubmit a draft no person sent in", async () => {
+    const p = profile();
+    Object.assign(p.status, { needsResubmit: true });
+    stub({ [`${API}/namespaces/aksel/agentprofiles/studio`]: p });
+    render(await AgentPage(params("aksel", "studio")));
+    expect(screen.getByText(/må sende det inn på nytt/)).toBeInTheDocument();
+  });
+
   it("offers approval with the pending version, and revocation only while not revoked", async () => {
     render(await ServerPage(params("team-a", "docs")));
     expect(screen.getByRole("button", { name: "Godkjenn og publiser" })).toBeInTheDocument();
