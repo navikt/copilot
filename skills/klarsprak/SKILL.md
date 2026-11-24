@@ -158,7 +158,7 @@ Abstrakte metafor-substantiv: «substrat», «vektor», «paradigme», «nordstj
 
 ## Tegnsetting og formatering
 
-- Ikke bruk tankestrek (—) i prosa. Bruk kolon, komma, parentes eller en ny setning.
+- Ikke bruk tankestrek (—) i prosa et menneske leser: dokumentasjon, README-er, sidetekst og CLI-meldinger. Bruk kolon, komma, parentes eller en ny setning. Kode, tabeller og genererte filer er unntatt.
 - Overskrifter slutter aldri med kolon. Ellers er kolon greit før liste eller eksempel, ikke som setningslim midt i setninger. Kolon i hvert eneste kulepunkt er et KI-tegn.
 - Ikke bruk semikolon unaturlig ofte.
 - Dropp utropstegn i teknisk tekst.

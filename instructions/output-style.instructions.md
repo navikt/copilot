@@ -61,7 +61,7 @@ full wash:
 
 **Punctuation:**
 
-- No em dashes (—) in prose. Use a colon, comma, parentheses, or a second sentence.
+- No em dashes (—) in prose a person reads: docs, READMEs, page text, CLI messages. Use a colon, comma, parentheses, or a second sentence. Code, tables and generated files are exempt.
 - Headings never end with a colon.
 - A colon in every bullet is a tell. Vary the structure.
 - No exclamation marks in technical text.
