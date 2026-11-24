@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -20,7 +21,8 @@ import (
 
 // Routes come from the Git file (PILOT_ROUTES_FILE) unless ROUTES_SOURCE is
 // fleet-control (#2641). Then the gateway serves no routes from the file: MCP
-// routes answer 503 and /ready fails until the first valid snapshot (#2797).
+// routes answer 503 and /ready fails until the first valid snapshot (#2797),
+// live or stored (#2892).
 // The file only pins the primary resource.
 const (
 	routesSourceGit          = "git"
@@ -41,6 +43,8 @@ type fleetControlRoutes struct {
 	etag       string
 	generation int64
 	routesHash [sha256.Size]byte // of the accepted generation's routes
+	accepted   []byte            // body of the last accepted snapshot, persisted by syncRoutes
+	checkedAt  time.Time
 }
 
 type routesSnapshot struct {
@@ -126,45 +130,15 @@ func (f *fleetControlRoutes) fetch(ctx context.Context, current *RouteTable) ([]
 	if err != nil {
 		return nil, fmt.Errorf("read snapshot: %w", err)
 	}
-	if len(raw) > maxSnapshotBytes {
-		return nil, errors.New("snapshot too large")
-	}
-	var snap routesSnapshot
-	if err = json.Unmarshal(raw, &snap); err != nil {
-		return nil, fmt.Errorf("parse snapshot: %w", err)
-	}
-	if snap.SchemaVersion != 1 {
-		return nil, fmt.Errorf("unsupported snapshot schema_version %d", snap.SchemaVersion)
-	}
-	if snap.Generation <= 0 {
-		return nil, fmt.Errorf("snapshot generation %d must be positive", snap.Generation)
-	}
-	// A missing checked_at parses as zero and is refused here, so an old
-	// fleet-control fails closed at startup and static afterwards.
-	if err = checkFresh(snap.CheckedAt); err != nil {
-		return nil, err
-	}
-	routesJSON, err := json.Marshal(snap.Routes)
+	snap, routes, hash, err := f.parseSnapshot(raw, current, true)
 	if err != nil {
 		return nil, err
 	}
-	hash := sha256.Sum256(routesJSON)
 	if f.generation > 0 && snap.Generation == f.generation && hash != f.routesHash {
 		return nil, fmt.Errorf("snapshot generation %d changed body without a new generation", snap.Generation)
 	}
 	if snap.Generation < f.generation {
 		return nil, fmt.Errorf("snapshot generation %d is older than %d", snap.Generation, f.generation)
-	}
-	routes, err := snapshotRoutes(snap)
-	if err != nil {
-		return nil, err
-	}
-	for i := range routes {
-		routes[i].FullRouteID = f.cfg.BaseURL + routes[i].Route
-	}
-	// The primary resource is the token audience in PRM: never move it to another route.
-	if _, ok := (&RouteTable{Routes: routes}).routeByResource(current.PrimaryResource); !ok {
-		return nil, fmt.Errorf("snapshot drops the primary resource %q", current.PrimaryResource)
 	}
 	// No shrink guard here: fleet-control applies it between its own
 	// publications and exempts revocations. Comparing with this table instead
@@ -172,7 +146,53 @@ func (f *fleetControlRoutes) fetch(ctx context.Context, current *RouteTable) ([]
 	f.etag = resp.Header.Get("ETag")
 	f.generation = snap.Generation
 	f.routesHash = hash
+	f.accepted = raw
+	f.checkedAt = snap.CheckedAt
 	return routes, nil
+}
+
+// parseSnapshot validates a snapshot body, live or stored. checkAge applies
+// the past bound of maxSnapshotAge; a stored snapshot skips it (#2892).
+func (f *fleetControlRoutes) parseSnapshot(raw []byte, current *RouteTable, checkAge bool) (routesSnapshot, []PilotRoute, [sha256.Size]byte, error) {
+	var snap routesSnapshot
+	var hash [sha256.Size]byte
+	if len(raw) > maxSnapshotBytes {
+		return snap, nil, hash, errors.New("snapshot too large")
+	}
+	if err := json.Unmarshal(raw, &snap); err != nil {
+		return snap, nil, hash, fmt.Errorf("parse snapshot: %w", err)
+	}
+	if snap.SchemaVersion != 1 {
+		return snap, nil, hash, fmt.Errorf("unsupported snapshot schema_version %d", snap.SchemaVersion)
+	}
+	if snap.Generation <= 0 {
+		return snap, nil, hash, fmt.Errorf("snapshot generation %d must be positive", snap.Generation)
+	}
+	// A missing checked_at parses as zero and is refused here, so an old
+	// fleet-control fails closed at startup and static afterwards.
+	if snap.CheckedAt.IsZero() {
+		return snap, nil, hash, errors.New("snapshot has no checked_at")
+	}
+	if err := checkFresh(snap.CheckedAt); err != nil && (checkAge || snap.CheckedAt.After(time.Now())) {
+		return snap, nil, hash, err
+	}
+	routesJSON, err := json.Marshal(snap.Routes)
+	if err != nil {
+		return snap, nil, hash, err
+	}
+	hash = sha256.Sum256(routesJSON)
+	routes, err := snapshotRoutes(snap)
+	if err != nil {
+		return snap, nil, hash, err
+	}
+	for i := range routes {
+		routes[i].FullRouteID = f.cfg.BaseURL + routes[i].Route
+	}
+	// The primary resource is the token audience in PRM: never move it to another route.
+	if _, ok := (&RouteTable{Routes: routes}).routeByResource(current.PrimaryResource); !ok {
+		return snap, nil, hash, fmt.Errorf("snapshot drops the primary resource %q", current.PrimaryResource)
+	}
+	return snap, routes, hash, nil
 }
 
 // checkFresh refuses a checked_at more than maxSnapshotAge in the past or the future.
@@ -197,12 +217,74 @@ func (g *Gateway) syncRoutes(ctx context.Context, f *fleetControlRoutes) {
 	if routes == nil {
 		return
 	}
+	g.swapRoutes(routes)
+	routesFromStore.Set(0)
+	slog.Info("route table loaded from fleet-control", "routes", len(routes), "generation", f.generation)
+	g.storeSnapshot(ctx, f)
+}
+
+func (g *Gateway) swapRoutes(routes []PilotRoute) {
 	rt := newRouteTable(&Config{Routes: routes})
-	rt.PrimaryResource = g.table().PrimaryResource // fetch checked it is in routes
+	rt.PrimaryResource = g.table().PrimaryResource // parseSnapshot checked it is in routes
 	g.routeTable.Store(rt)
 	routesLoaded.Set(float64(len(routes)))
 	initMetrics(routes) // idempotent; pre-creates series for new routes and tools
-	slog.Info("route table loaded from fleet-control", "routes", len(routes), "generation", f.generation)
+}
+
+// storedSnapshot is the last accepted live snapshot, kept in the gateway's
+// own store so a pod can start while fleet-control is down (#2892). Body is
+// the response exactly as received; the other fields must agree with it.
+type storedSnapshot struct {
+	Body       []byte    `json:"body"`
+	Generation int64     `json:"generation"`
+	Hash       string    `json:"hash"` // hex sha256 of the routes, as in fleetControlRoutes.routesHash
+	CheckedAt  time.Time `json:"checked_at"`
+}
+
+const (
+	kindRouteSnapshot = "route_snapshot"
+	routeSnapshotKey  = "fleet-control"
+	// Age is alert-only (#2826), so the row must outlive any outage.
+	routeSnapshotTTL = 10 * 365 * 24 * time.Hour
+)
+
+// storeSnapshot persists the snapshot fetch just accepted. Failure only logs:
+// the live table is already in place.
+func (g *Gateway) storeSnapshot(ctx context.Context, f *fleetControlRoutes) {
+	raw, err := json.Marshal(storedSnapshot{Body: f.accepted, Generation: f.generation, Hash: hex.EncodeToString(f.routesHash[:]), CheckedAt: f.checkedAt})
+	if err == nil {
+		err = g.store.Put(ctx, kindRouteSnapshot, routeSnapshotKey, raw, routeSnapshotTTL)
+	}
+	if err != nil {
+		slog.Warn("could not store route snapshot", "error", err)
+	}
+}
+
+// loadStoredSnapshot serves the stored snapshot when startup found no live
+// one. It runs the live validation except the age bound, and leaves f's
+// generation, hash and etag alone, so the next live snapshot always wins.
+func (g *Gateway) loadStoredSnapshot(ctx context.Context, f *fleetControlRoutes) {
+	raw, ok, err := g.store.Get(ctx, kindRouteSnapshot, routeSnapshotKey)
+	if err != nil || !ok {
+		slog.Warn("no stored route snapshot to start from", "error", err)
+		return
+	}
+	var st storedSnapshot
+	if err = json.Unmarshal(raw, &st); err != nil {
+		slog.Error("stored route snapshot rejected", "error", err)
+		return
+	}
+	snap, routes, hash, err := f.parseSnapshot(st.Body, g.table(), false)
+	if err == nil && (snap.Generation != st.Generation || hex.EncodeToString(hash[:]) != st.Hash || !snap.CheckedAt.Equal(st.CheckedAt)) {
+		err = errors.New("stored generation, hash or checked_at does not match the body")
+	}
+	if err != nil {
+		slog.Error("stored route snapshot rejected", "error", err)
+		return
+	}
+	g.swapRoutes(routes)
+	routesFromStore.Set(1)
+	slog.Warn("route table loaded from stored snapshot, fleet-control unreachable", "routes", len(routes), "generation", snap.Generation, "age", time.Since(snap.CheckedAt).Round(time.Second).String())
 }
 
 // awaitingSnapshot reports fleet-control mode before the first valid snapshot.
@@ -218,6 +300,9 @@ func (g *Gateway) startRouteSync(ctx context.Context, interval time.Duration) {
 	}
 	f := &fleetControlRoutes{cfg: g.cfg, client: g.cfg.HTTPClient}
 	g.syncRoutes(ctx, f)
+	if g.awaitingSnapshot() {
+		g.loadStoredSnapshot(ctx, f)
+	}
 	go func() {
 		t := time.NewTicker(interval)
 		defer t.Stop()

@@ -15,14 +15,14 @@ OAuth 2.1 authorization server in front of Microsoft Entra ID, plus a reverse pr
 | Nais Postgres (`fleet-gateway`) | Sessions, consent, DCR clients, counters | `/ready` fails, see below |
 | `RT_KEYS` secret `fleet-gateway-rt-keys` | Seals refresh tokens and every store value; also signs the Entra state cookie | Startup fails on Nais without it |
 | Route file (`pilot-routes.<env>.yaml`, baked into the image) | Which routes exist, their tools and `enabled` | Startup fails on an invalid file |
-| fleet-control and Texas (only with `ROUTES_SOURCE=fleet-control`) | The route snapshot | A pod with a snapshot keeps it. A new pod serves no routes: `/mcp/*` 503 and `/ready` fails until the first valid snapshot |
+| fleet-control and Texas (only with `ROUTES_SOURCE=fleet-control`) | The route snapshot | A pod with a snapshot keeps it. A new pod starts from the snapshot stored in Postgres (`fleet_gateway_routes_from_stored_snapshot` = 1). With no valid stored snapshot it serves no routes: `/mcp/*` 503 and `/ready` fails until the first valid snapshot |
 | Upstreams (for example `mcp-onboarding`) | The MCP servers | Only that route fails |
 | `github.com`, `opencode.ai`, `ki-utvikling.nav.no` | Serve the CIMD client documents | New logins for that client fail |
 
 ## Health and logs
 
 - `GET /health`: liveness, always 200 while the process runs.
-- `GET /ready`: pings Postgres with a 2 s timeout. 503 `not_ready` when the database is unreachable, or with `ROUTES_SOURCE=fleet-control` before the first valid route snapshot (`reason: no_route_snapshot`).
+- `GET /ready`: pings Postgres with a 2 s timeout. 503 `not_ready` when the database is unreachable, or with `ROUTES_SOURCE=fleet-control` before the first valid route snapshot, live or stored (`reason: no_route_snapshot`).
 
 ```sh
 kubectl config use-context prod-gcp
