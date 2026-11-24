@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 )
 
 // Snapshot is one published generation of a kind ("routes" or "registry").
@@ -17,6 +18,9 @@ type Snapshot struct {
 	Generation int64
 	ETag       string
 	Items      json.RawMessage
+	// CheckedAt is when this replica last confirmed the snapshot is the
+	// newest in the database. Served as checked_at; zero means never served.
+	CheckedAt time.Time
 }
 
 // snapshotItem is a routes or registry snapshot element; Key identifies it for
@@ -139,10 +143,16 @@ func buildSnapshot(kind string, servers []Server, prev *Snapshot) (*Snapshot, er
 // byte each when enabled turns false (#2687).
 var maxRoutesSnapshotBytes = 1<<20 - 64<<10
 
-// routesFit refuses servers whose routes snapshot fleet-gateway would reject.
+// maxTeamRoutesBytes is one namespace's share of the routes snapshot, so a
+// single team cannot fill the shared limit and block everyone else (#2735).
+var maxTeamRoutesBytes = 64 << 10
+
+// routesFit refuses servers whose routes snapshot fleet-gateway would reject,
+// or whose routes in namespace ns exceed the team budget. Only the writing
+// team's budget is checked, so a team over budget cannot block other teams.
 // Writes that can grow the snapshot call it before they commit, so the
 // published snapshot never reaches a size that stops all later updates.
-func routesFit(servers []Server) error {
+func routesFit(servers []Server, ns string) error {
 	snap, err := buildSnapshot("routes", servers, nil)
 	if errors.Is(err, errEmptySnapshot) {
 		return nil
@@ -152,6 +162,21 @@ func routesFit(servers []Server) error {
 	}
 	if len(snap.Items) > maxRoutesSnapshotBytes {
 		return refuse(http.StatusConflict, "routes snapshot would be %d bytes, over the limit of %d", len(snap.Items), maxRoutesSnapshotBytes)
+	}
+	items, _, _ := snapshotItems("routes", servers) // buildSnapshot succeeded, so this does
+	team := 0
+	for _, it := range items {
+		if it.body.(routeItem).Namespace != ns {
+			continue
+		}
+		b, err := json.Marshal(it.body)
+		if err != nil {
+			return err
+		}
+		team += len(b) + 1 // the comma in the array
+	}
+	if team > maxTeamRoutesBytes {
+		return refuse(http.StatusConflict, "routes of team %s would be %d bytes, over the team limit of %d", ns, team, maxTeamRoutesBytes)
 	}
 	return nil
 }

@@ -273,7 +273,7 @@ func (d *DB) Approve(ctx context.Context, actor, ns, name string, version int, h
 			}
 			return err
 		}
-		if err := checkRoutesFit(ctx, tx); err != nil {
+		if err := checkRoutesFit(ctx, tx, ns); err != nil {
 			return err
 		}
 		after := serverState{Published: &version, Status: "published"}
@@ -284,7 +284,7 @@ func (d *DB) Approve(ctx context.Context, actor, ns, name string, version int, h
 // checkRoutesFit runs routesFit on what tx would publish. The routes snapshot
 // lock serialises it with concurrent approvals and rollbacks, so two writes
 // that each fit cannot together exceed the limit.
-func checkRoutesFit(ctx context.Context, tx pgx.Tx) error {
+func checkRoutesFit(ctx context.Context, tx pgx.Tx, ns string) error {
 	if _, err := tx.Exec(ctx, "SELECT pg_advisory_xact_lock($1)", snapshotLockKey("routes")); err != nil {
 		return err
 	}
@@ -295,7 +295,7 @@ func checkRoutesFit(ctx context.Context, tx pgx.Tx) error {
 	if routesFitPause != nil {
 		routesFitPause()
 	}
-	return routesFit(servers)
+	return routesFit(servers, ns)
 }
 
 // routesFitPause lets a test widen the window between read and commit.
@@ -356,7 +356,7 @@ func (d *DB) Rollback(ctx context.Context, actor, ns, name string) (int, error) 
 			}
 			return err
 		}
-		if err := checkRoutesFit(ctx, tx); err != nil {
+		if err := checkRoutesFit(ctx, tx, ns); err != nil {
 			return err
 		}
 		after := before
