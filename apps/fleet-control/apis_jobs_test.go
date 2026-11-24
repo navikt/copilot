@@ -91,6 +91,11 @@ func TestRealPostgresAgentJobPerson(t *testing.T) {
 		t.Fatalf("cancelled: %+v", done)
 	}
 	e.want(409, "POST", base+"/first/termination", person("A111111"), `{"mode":"Kill"}`)
+	// Both job actions keep the oid next to the NAVident (#2763).
+	var missing int
+	if err := e.db.pool.QueryRow(context.Background(), `SELECT count(*) FROM audit_events WHERE action IN ('job_created', 'job_cancel') AND (actor_oid IS NULL OR actor_kind IS NULL)`).Scan(&missing); err != nil || missing != 0 {
+		t.Fatalf("job audit rows without oid: %d, %v", missing, err)
+	}
 	e.noOidLeak()
 }
 

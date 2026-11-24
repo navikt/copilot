@@ -83,7 +83,7 @@ func TestAuditEventsLockedForRuntimeRole(t *testing.T) {
 		if _, err := tx.Exec(ctx, "SET LOCAL ROLE fleet_rw_test"); err != nil {
 			return err
 		}
-		if _, err := tx.Exec(ctx, "INSERT INTO audit_events (actor, action) VALUES ('t', 't')"); err != nil {
+		if _, err := tx.Exec(ctx, "INSERT INTO audit_events (actor, action, namespace, name) VALUES ('t', 't', 'ns', 'n')"); err != nil {
 			return err
 		}
 		_, err := tx.Exec(ctx, "SELECT count(*) FROM audit_events")
@@ -110,6 +110,13 @@ func TestAuditCheckRefusesSingleRight(t *testing.T) {
 		"GRANT TRIGGER ON audit_events TO fleet_one_test",
 		"GRANT UPDATE (actor) ON audit_events TO fleet_one_test",
 		"GRANT UPDATE ON SEQUENCE audit_events_id_seq TO fleet_one_test",
+		"GRANT INSERT ON resource_status TO fleet_one_test",
+		"GRANT UPDATE ON resource_status TO fleet_one_test",
+		"GRANT DELETE ON resource_status TO fleet_one_test",
+		"GRANT TRUNCATE ON resource_status TO fleet_one_test",
+		"GRANT TRIGGER ON resource_status TO fleet_one_test",
+		"GRANT UPDATE (by_role) ON resource_status TO fleet_one_test",
+		"GRANT INSERT (by_role) ON resource_status TO fleet_one_test",
 	} {
 		t.Run(grant, func(t *testing.T) {
 			_, _ = db.pool.Exec(ctx, "DROP OWNED BY fleet_one_test")
@@ -158,6 +165,7 @@ func TestSetupDBRevokesReGrant(t *testing.T) {
 		"GRANT ALL ON ALL TABLES IN SCHEMA public TO fleet_login_test",
 		"GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO fleet_login_test",
 		"GRANT UPDATE (actor) ON audit_events TO fleet_login_test",
+		"GRANT UPDATE (by_role) ON resource_status TO fleet_login_test",
 	} {
 		if _, execErr := db.pool.Exec(ctx, q); execErr != nil {
 			t.Fatal(q, execErr)
@@ -181,5 +189,14 @@ func TestSetupDBRevokesReGrant(t *testing.T) {
 	defer rt.Close()
 	if err := rt.CheckAuditLocked(ctx); err != nil {
 		t.Fatal(err)
+	}
+	// resource_status stays read-only for the runtime role (009).
+	if _, err := rt.pool.Exec(ctx, "SELECT count(*) FROM resource_status"); err != nil {
+		t.Fatal(err)
+	}
+	for _, q := range []string{"DELETE FROM resource_status", "UPDATE resource_status SET by_role = ''", "INSERT INTO resource_status VALUES ('a', 'b', '', 'revoked', now(), '')", "TRUNCATE resource_status"} {
+		if _, err := rt.pool.Exec(ctx, q); err == nil || !strings.Contains(err.Error(), "permission denied") {
+			t.Errorf("%s as runtime role: %v", q, err)
+		}
 	}
 }

@@ -1,0 +1,98 @@
+-- #2763: every action keeps NAVident (actor) and Entra oid (actor_oid) in
+-- separate columns. Rows written before this by job and agent-profile paths
+-- have only the NAVident; fill the oid where another table pairs that
+-- NAVident with exactly one oid. Ambiguous or unknown names stay NULL.
+CREATE TEMP TABLE ident_oid ON COMMIT DROP AS
+SELECT ident, min(oid::text)::uuid AS oid FROM (
+    SELECT submitted_by AS ident, submitted_by_oid AS oid FROM server_versions
+    UNION ALL SELECT approved_by, approved_by_oid FROM server_versions
+    UNION ALL SELECT submitted_by, submitted_by_oid FROM agent_profile_generations
+    UNION ALL SELECT granted_by, granted_by_oid FROM agent_profile_grants
+    UNION ALL SELECT created_by, created_by_oid FROM runtime_jobs
+    UNION ALL SELECT actor, actor_oid FROM audit_events
+) p WHERE ident IS NOT NULL AND oid IS NOT NULL
+GROUP BY ident HAVING count(DISTINCT oid) = 1;
+
+-- Runs as the owner inside the migration transaction; the append-only
+-- trigger is back on before commit.
+ALTER TABLE audit_events DISABLE TRIGGER audit_events_no_change;
+UPDATE audit_events a SET actor_oid = m.oid
+FROM ident_oid m WHERE a.actor_oid IS NULL AND a.actor = m.ident;
+UPDATE audit_events SET actor_kind = 'System' WHERE actor_kind IS NULL AND actor = 'seed';
+ALTER TABLE audit_events ENABLE TRIGGER audit_events_no_change;
+
+UPDATE runtime_jobs j SET created_by_oid = m.oid
+FROM ident_oid m WHERE j.created_by_oid IS NULL AND j.created_by = m.ident;
+
+-- #2762: audit rows are kept 90 days. The trigger lets a DELETE through only
+-- for rows past that age and only in a session that set
+-- fleet.audit_retention = 'on'. The runtime role has no DELETE right (006),
+-- so in practice only the owner role can run retention.
+CREATE OR REPLACE FUNCTION audit_events_append_only() RETURNS trigger AS $$
+BEGIN
+    IF TG_OP = 'DELETE' AND current_setting('fleet.audit_retention', true) = 'on'
+       AND OLD.at < now() - interval '90 days' THEN
+        RETURN OLD;
+    END IF;
+    RAISE EXCEPTION 'audit_events is append-only';
+END;
+$$ LANGUAGE plpgsql;
+
+-- Status (transition times, who revoked) must not depend on audit rows that
+-- retention deletes. resource_status keeps the newest time per resource and
+-- action, and the revoking role ('platform', 'owner', ...), never a NAVident.
+-- A trigger fills it from every audit insert, old images included.
+CREATE TABLE resource_status (
+    namespace TEXT NOT NULL,
+    name TEXT NOT NULL,
+    kind TEXT NOT NULL,   -- resource_kind, '' for rows written before 005
+    action TEXT NOT NULL,
+    at TIMESTAMPTZ NOT NULL,
+    by_role TEXT NOT NULL DEFAULT '',
+    PRIMARY KEY (namespace, name, kind, action)
+);
+
+INSERT INTO resource_status (namespace, name, kind, action, at, by_role)
+SELECT DISTINCT ON (namespace, name, COALESCE(resource_kind, ''), action)
+       namespace, name, COALESCE(resource_kind, ''), action, at, COALESCE(detail->>'by', '')
+FROM audit_events WHERE namespace IS NOT NULL AND name IS NOT NULL
+ORDER BY namespace, name, COALESCE(resource_kind, ''), action, at DESC, id DESC;
+
+-- SECURITY DEFINER: the runtime role inserts audit rows but needs no rights
+-- on resource_status.
+CREATE FUNCTION audit_events_track_status() RETURNS trigger
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = public, pg_temp AS $$
+BEGIN
+    INSERT INTO resource_status (namespace, name, kind, action, at, by_role)
+    -- now(), not NEW.at: a future at from an insert must not pin the row.
+    VALUES (NEW.namespace, NEW.name, COALESCE(NEW.resource_kind, ''), NEW.action, now(), COALESCE(NEW.detail->>'by', ''))
+    ON CONFLICT (namespace, name, kind, action) DO UPDATE
+        SET at = EXCLUDED.at, by_role = EXCLUDED.by_role
+        WHERE EXCLUDED.at >= resource_status.at;
+    RETURN NULL;
+END;
+$$;
+
+CREATE TRIGGER audit_events_status AFTER INSERT ON audit_events
+    FOR EACH ROW WHEN (NEW.namespace IS NOT NULL AND NEW.name IS NOT NULL)
+    EXECUTE FUNCTION audit_events_track_status();
+
+-- Only the definer trigger writes resource_status. Same as
+-- revokeResourceStatus in db.go, which re-runs it at every start.
+REVOKE INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON resource_status FROM PUBLIC;
+DO $$
+DECLARE r record;
+BEGIN
+    FOR r IN SELECT DISTINCT a.grantee::regrole AS grantee
+             FROM pg_class c, aclexplode(c.relacl) a
+             WHERE c.oid = 'resource_status'::regclass AND a.grantee <> 0 AND a.grantee <> c.relowner
+               AND a.privilege_type <> 'SELECT'
+             UNION
+             SELECT a.grantee::regrole
+             FROM pg_attribute att, aclexplode(att.attacl) a
+             WHERE att.attrelid = 'resource_status'::regclass AND a.grantee <> 0
+               AND a.privilege_type <> 'SELECT'
+    LOOP
+        EXECUTE format('REVOKE INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON resource_status FROM %s', r.grantee);
+    END LOOP;
+END $$;

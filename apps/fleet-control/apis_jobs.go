@@ -356,7 +356,7 @@ func createJobV1(w http.ResponseWriter, r *http.Request, c caller, db *DB) error
 		if insErr != nil {
 			return insErr
 		}
-		return jobAudit(ctx, tx, actor.Kind, actor.Name, "job_created", ns, id, map[string]any{"name": name, "type": spec.Type, "orderer": client, "agent_profile": p.Namespace + "/" + p.Name, "generation": p.Generation})
+		return jobAudit(ctx, tx, caller{Ident: actor.Name, Kind: actor.Kind, Oid: c.Oid, ClientID: client}, "job_created", ns, id, map[string]any{"name": name, "type": spec.Type, "orderer": client, "agent_profile": p.Namespace + "/" + p.Name, "generation": p.Generation})
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		// A twin with the same name won the insert.
@@ -394,7 +394,7 @@ func terminateJobV1(w http.ResponseWriter, r *http.Request, c caller, db *DB) er
 	if err != nil {
 		return err
 	}
-	if err = db.SetJobCommand(ctx, c.actor().Name, ns, id, cmd, req.Reason); err != nil {
+	if err = db.SetJobCommand(ctx, caller{Ident: c.Ident, Kind: c.actor().Kind, Oid: c.Oid, ClientID: c.ClientID}, ns, id, cmd, req.Reason); err != nil {
 		return err
 	}
 	_, j, err := scanJob(db.pool.QueryRow(ctx, `SELECT `+jobCols+` FROM runtime_jobs j WHERE j.id = $1`, id), ns)

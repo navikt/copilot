@@ -318,6 +318,19 @@ func TestRealPostgresMCPServerRevokeRollbackBlock(t *testing.T) {
 	if m := decodeServer(t, out); code != 200 || condOf(m.Status.Conditions, "Revoked").Reason != "Blocked" || m.Spec.Upstream != nil || m.Status.SubmittedBy != nil {
 		t.Fatalf("platform revoke: %d %s", code, out)
 	}
+	// A revocation older than 90 days survives retention (#2762).
+	revokedAt := condOf(decodeServer(t, e.want(200, "GET", base, person("A111111"), "")).Status.Conditions, "Revoked").LastTransitionTime
+	// A second server revoked by the platform without block shows by_role.
+	e.publish("team-a", "svc2", "A111111", "A222222", "one")
+	e.want(200, "POST", nsBase+"team-a/mcpservers/svc2/revocation", person("P999999"), `{"reason":"incident"}`)
+	ageAudit(t, e.db)
+	if m := decodeServer(t, e.want(200, "GET", nsBase+"team-a/mcpservers/svc2", person("A111111"), "")); condOf(m.Status.Conditions, "Revoked").Reason != "RevokedByPlatform" {
+		t.Fatalf("svc2 after prune: %+v", m.Status.Conditions)
+	}
+	if m := decodeServer(t, e.want(200, "GET", base, person("A111111"), "")); condOf(m.Status.Conditions, "Revoked").Reason != "Blocked" || condOf(m.Status.Conditions, "Revoked").Status != "True" ||
+		!condOf(m.Status.Conditions, "Revoked").LastTransitionTime.Equal(revokedAt) {
+		t.Fatalf("after prune: %+v", m.Status.Conditions)
+	}
 	if code, out := rollback(`{"fromGeneration":4,"reason":"x"}`); code != 409 || !strings.Contains(out, "InvalidState") {
 		t.Fatalf("rollback must never lift a revocation: %d %s", code, out)
 	}
@@ -544,6 +557,10 @@ func TestRealPostgresAgentProfileV1(t *testing.T) {
 	p = decodeProfile(t, e.want(200, "POST", base+"/assistant/revocation", person("P999999"), `{"reason":"incident"}`))
 	if condOf(p.Status.Conditions, "Revoked").Reason != "RevokedByPlatform" {
 		t.Fatalf("platform revoke: %+v", p.Status.Conditions)
+	}
+	ageAudit(t, e.db)
+	if p = decodeProfile(t, e.want(200, "GET", base+"/assistant", person("A555555"), "")); condOf(p.Status.Conditions, "Revoked").Reason != "RevokedByPlatform" {
+		t.Fatalf("platform revoke after prune: %+v", p.Status.Conditions)
 	}
 	// Revocation freed the client id.
 	e.want(201, "POST", base, person("A111111"), profileJSON("aksel-studio", "copy", "", "copilot/dolly=hent"))

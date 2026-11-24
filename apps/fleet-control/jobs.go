@@ -124,15 +124,17 @@ var (
 // jobStore is implemented by *DB.
 type jobStore interface {
 	CreateJob(ctx context.Context, actor, team string, req CreateJobRequest) (int64, error)
-	SetJobCommand(ctx context.Context, actor, team string, id int64, cmd, reason string) error
+	SetJobCommand(ctx context.Context, by caller, team string, id int64, cmd, reason string) error
 	SetKillSwitch(ctx context.Context, actor, scope string, on bool, reason string) error
 	Claim(ctx context.Context, runtime, token string, ttl time.Duration) (*Lease, error)
 	Heartbeat(ctx context.Context, runtime, leaseID string, ttl time.Duration) (HeartbeatResponse, error)
 	Finish(ctx context.Context, runtime, leaseID string, ok bool, code, message string) error
 }
 
-func jobAudit(ctx context.Context, tx pgx.Tx, actorKind, actor, action, team string, id int64, detail map[string]any) error {
-	return insertAudit(ctx, tx, auditRow{Actor: actor, ActorKind: actorKind, Action: action, Namespace: team, Name: "job/" + strconv.FormatInt(id, 10), Detail: detail})
+// jobAudit keeps NAVident, kind, oid and client ID in their own columns
+// (#2763); a caller without an oid (runtime, /admin/v1) leaves it empty.
+func jobAudit(ctx context.Context, tx pgx.Tx, by caller, action, team string, id int64, detail map[string]any) error {
+	return insertAudit(ctx, tx, auditRow{Actor: by.Ident, ActorKind: by.Kind, ActorOid: by.Oid, ActorClientID: by.ClientID, Action: action, Namespace: team, Name: "job/" + strconv.FormatInt(id, 10), Detail: detail})
 }
 
 // CreateJob queues a job for team.
@@ -143,14 +145,14 @@ func (d *DB) CreateJob(ctx context.Context, actor, team string, req CreateJobReq
 			team, req.Kind, string(req.Params), req.OnExpiry, req.MaxAttempts, actor).Scan(&id); err != nil {
 			return err
 		}
-		return jobAudit(ctx, tx, "", actor, "job_created", team, id, map[string]any{"kind": req.Kind, "on_expiry": req.OnExpiry, "max_attempts": req.MaxAttempts})
+		return jobAudit(ctx, tx, caller{Ident: actor}, "job_created", team, id, map[string]any{"kind": req.Kind, "on_expiry": req.OnExpiry, "max_attempts": req.MaxAttempts})
 	})
 	return id, err
 }
 
 // SetJobCommand cancels or kills one job. A queued job stops at once; a
 // leased one gets the command on its next heartbeat.
-func (d *DB) SetJobCommand(ctx context.Context, actor, team string, id int64, cmd, reason string) error {
+func (d *DB) SetJobCommand(ctx context.Context, by caller, team string, id int64, cmd, reason string) error {
 	return pgx.BeginFunc(ctx, d.pool, func(tx pgx.Tx) error {
 		var state, before string
 		err := tx.QueryRow(ctx, `SELECT state, command FROM runtime_jobs WHERE id = $1 AND team = $2 FOR UPDATE`, id, team).Scan(&state, &before)
@@ -174,7 +176,7 @@ func (d *DB) SetJobCommand(ctx context.Context, actor, team string, id int64, cm
 		if _, err := tx.Exec(ctx, `UPDATE runtime_jobs SET command = $2, state = $3, updated_at = now() WHERE id = $1`, id, cmd, next); err != nil {
 			return err
 		}
-		return jobAudit(ctx, tx, "", actor, "job_"+cmd, team, id, map[string]any{"before": state, "after": next, "reason": reason})
+		return jobAudit(ctx, tx, by, "job_"+cmd, team, id, map[string]any{"before": state, "after": next, "reason": reason})
 	})
 }
 
@@ -234,7 +236,7 @@ func expireLeases(ctx context.Context, tx pgx.Tx) (int, error) {
 			WHERE id = $1 RETURNING team, state`, e.job).Scan(&team, &state); err != nil {
 			return 0, err
 		}
-		if err := jobAudit(ctx, tx, "Application", e.runtime, "lease_expired", team, e.job, map[string]any{"lease_id": e.lease, "after": state}); err != nil {
+		if err := jobAudit(ctx, tx, caller{Kind: "Application", Ident: e.runtime}, "lease_expired", team, e.job, map[string]any{"lease_id": e.lease, "after": state}); err != nil {
 			return 0, err
 		}
 	}
@@ -337,7 +339,7 @@ func (d *DB) Claim(ctx context.Context, runtime, token string, ttl time.Duration
 		if _, err := tx.Exec(ctx, `UPDATE runtime_jobs SET state = 'leased', attempts = $2, updated_at = now() WHERE id = $1`, id, attempt); err != nil {
 			return err
 		}
-		return jobAudit(ctx, tx, "Application", runtime, "job_claimed", team, id, map[string]any{"lease_id": leaseID, "attempt": attempt})
+		return jobAudit(ctx, tx, caller{Kind: "Application", Ident: runtime}, "job_claimed", team, id, map[string]any{"lease_id": leaseID, "attempt": attempt})
 	})
 	if pgErr, ok := errors.AsType[*pgconn.PgError](err); ok && pgErr.Code == "23505" {
 		// The same token raced itself; the winner's lease is the answer.
@@ -413,7 +415,7 @@ func (d *DB) Heartbeat(ctx context.Context, runtime, leaseID string, ttl time.Du
 			if _, err := tx.Exec(ctx, `UPDATE runtime_jobs SET state = 'killed', command = 'kill', updated_at = now() WHERE id = $1`, job); err != nil {
 				return err
 			}
-			return jobAudit(ctx, tx, "Application", runtime, "kill_delivered", team, job, map[string]any{"lease_id": leaseID, "kill_switch": switched})
+			return jobAudit(ctx, tx, caller{Kind: "Application", Ident: runtime}, "kill_delivered", team, job, map[string]any{"lease_id": leaseID, "kill_switch": switched})
 		}
 		// shortcut: a plain extension is not audited (one row per heartbeat
 		// per job); claim, commands and lease end are.
@@ -429,7 +431,7 @@ func (d *DB) Heartbeat(ctx context.Context, runtime, leaseID string, ttl time.Du
 			return err
 		}
 		if first {
-			return jobAudit(ctx, tx, "Application", runtime, "cancel_delivered", team, job, map[string]any{"lease_id": leaseID})
+			return jobAudit(ctx, tx, caller{Kind: "Application", Ident: runtime}, "cancel_delivered", team, job, map[string]any{"lease_id": leaseID})
 		}
 		return nil
 	})
@@ -465,7 +467,7 @@ func (d *DB) Finish(ctx context.Context, runtime, leaseID string, ok bool, code,
 		if _, err := tx.Exec(ctx, `UPDATE runtime_jobs SET state = $2, result = $3::jsonb, updated_at = now() WHERE id = $1`, job, state, string(result)); err != nil {
 			return err
 		}
-		return jobAudit(ctx, tx, "Application", runtime, "job_"+state, team, job, map[string]any{"lease_id": leaseID, "code": code, "reported_ok": ok})
+		return jobAudit(ctx, tx, caller{Kind: "Application", Ident: runtime}, "job_"+state, team, job, map[string]any{"lease_id": leaseID, "code": code, "reported_ok": ok})
 	})
 }
 
@@ -683,7 +685,7 @@ func postJobCommand(cmd string) adminHandler {
 		if err != nil || id < 1 {
 			return refuse(http.StatusBadRequest, "invalid job id")
 		}
-		if err = js.SetJobCommand(r.Context(), actor, team, id, cmd, ""); err != nil {
+		if err = js.SetJobCommand(r.Context(), caller{Ident: actor}, team, id, cmd, ""); err != nil {
 			return err
 		}
 		w.WriteHeader(http.StatusNoContent)
