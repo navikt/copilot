@@ -11,7 +11,7 @@
  * pause (WCAG 2.2.2). Under prefers-reduced-motion the diagram shows one fixed frame with numbered steps.
  */
 
-import { CodeIcon, LaptopIcon, RobotIcon, SparklesIcon } from "@navikt/aksel-icons";
+import { CodeIcon, LaptopIcon, PauseIcon, PlayIcon, RobotIcon, SparklesIcon } from "@navikt/aksel-icons";
 import { BodyShort, Button, HStack, Switch, Tag, VStack } from "@navikt/ds-react";
 import { SiGithubcopilot } from "@icons-pack/react-simple-icons";
 import { useCallback, useEffect, useRef, useState, type ComponentType } from "react";
@@ -169,8 +169,8 @@ const SERVERS: Server[] = [
 const toolName = (s: number, t?: number) => (SERVERS[s].ex.find((x) => x[1] === t) || ["?"])[0];
 const GATES = [
   { label: "Tilgang", why: "" },
-  { label: "Godkjente verktøy", why: "verktøyet er ikke godkjent" },
-  { label: "Ratelimit", why: "ratelimit nådd" },
+  { label: "Godkjente verktøy", why: "ikke godkjent" },
+  { label: "Ratelimit", why: "ratelimit" },
   { label: "Nødstopp", why: "" },
 ];
 const OUTSIDE = "<verktøy utenfor listen>";
@@ -268,6 +268,7 @@ const EVT: Evt[] = (() => {
   return out.sort((a, b) => a.at - b.at);
 })();
 
+const WIDE_W = 1064;
 type Box = { x: number; y: number; w: number; h: number };
 type Layout = {
   W: number;
@@ -284,26 +285,29 @@ type Layout = {
   sBox: (k: number) => Box;
   sAnc: (k: number) => Pt;
 };
-function layout(v: boolean): Layout {
+// W: the wide drawing stretches to the container; the extra width goes to the gateway band.
+function layout(v: boolean, W = WIDE_W): Layout {
   if (!v) {
+    const dx = Math.max(0, W - WIDE_W),
+      gx = (p: number) => 360 + ((p - 360) * (408 + dx)) / 408;
     // Wide: the band sits on the horizon (cy); streams and cards are symmetric about it.
     const cy = 147,
       lane = (k: number) => cy + (k - 1.5) * 8,
       cardY = [cy - 142, cy - 72, cy + 10, cy + 80];
     return {
-      W: 1064,
+      W: WIDE_W + dx,
       H: 300,
       v,
       tBox: (i) => ({ x: 14 + (i % 4) * 70, y: 14 + Math.floor(i / 4) * 68, w: 66, h: 62 }),
       tAnc: (i) => ({ x: 290, y: 45 + Math.floor(i / 4) * 68 }),
-      gw: { x: 360, y: cy - 24, w: 408, h: 48, ty: cy + 28, tx: 360, tw: 408 },
+      gw: { x: 360, y: cy - 24, w: 408 + dx, h: 48, ty: cy + 28, tx: 360, tw: 408 + dx },
       entry: (k) => ({ x: 360, y: lane(k) }),
-      exit: (k) => ({ x: 768, y: lane(k) }),
-      gatePos: [405, 515, 625, 735],
+      exit: (k) => ({ x: 768 + dx, y: lane(k) }),
+      gatePos: [405, 515, 625, 735].map(gx),
       gateSpan: [cy - 19, cy + 19],
       gateLabel: (p) => ({ x: p - 63, y: cy - 46, w: 110, align: "center" }),
-      sBox: (k) => ({ x: 808, y: cardY[k], w: 246, h: 62 }),
-      sAnc: (k) => ({ x: 808, y: cardY[k] + 31 }),
+      sBox: (k) => ({ x: 808 + dx, y: cardY[k], w: 246, h: 62 }),
+      sAnc: (k) => ({ x: 808 + dx, y: cardY[k] + 31 }),
     };
   }
   const cx = 175,
@@ -334,7 +338,7 @@ function route(L: Layout, c: number, k: number): Pt[] {
     b = L.sAnc(k);
   if (!L.v) {
     const bx = 320,
-      tx = 788;
+      tx = L.exit(0).x + 20;
     return [a, { x: bx, y: a.y }, { x: bx, y: en.y }, en, ex, { x: tx, y: ex.y }, { x: tx, y: b.y }, b];
   }
   const by = 252 + c * 3,
@@ -426,7 +430,7 @@ function distAt(r: { segs: Seg[] }, val: number, vert: boolean) {
 }
 const CACHE: Record<string, Route> = {};
 function R2(L: Layout, c: number, k: number): Route {
-  const key = (L.v ? "v" : "h") + c + ":" + k;
+  const key = (L.v ? "v" : "h" + L.W) + c + ":" + k;
   if (!CACHE[key]) {
     const r = segs(route(L, c, k));
     CACHE[key] = {
@@ -514,6 +518,8 @@ const PER_MIN = EVT.length + Math.round(PER / FP);
 const REJECTED = EVT.filter((x) => x.rej).length + 1;
 // Below this width the tall drawing takes over. Keep in step with the container query in globals.css.
 const TALL_BELOW = 850;
+// The audit log always shows this many rows at a fixed height, so it never moves the page.
+const LOG_ROWS = 5;
 const r2 = (n: number) => Math.round(n * 100) / 100;
 // What React renders; changes only when the followed call reaches a new stage or a tile changes phase.
 const viewKey = (T: number, L: Layout) => {
@@ -540,14 +546,16 @@ function Stage({
   numbered,
   bind,
   uid,
+  W,
 }: {
+  W?: number;
   compact: boolean;
   T: number;
   numbered: boolean;
   bind?: (k: keyof Refs, i: number) => (el: SVGCircleElement | HTMLSpanElement | null) => void;
   uid: string;
 }) {
-  const L = layout(compact),
+  const L = layout(compact, W),
     f = frame(L, T),
     e = f.fe,
     st = f.stage;
@@ -764,6 +772,7 @@ export function McpHeroDiagram() {
   // null until measured: then both drawings render and a container query shows one.
   const [compact, setCompact] = useState<boolean | null>(null);
   const [scale, setScale] = useState(1);
+  const [wideW, setWideW] = useState(WIDE_W);
   // Diagram time in ms as last rendered. Starts a little before the second followed call.
   const [shown, setShown] = useState({ T: 2 * FP - 300, key: "" });
   const wrap = useRef<HTMLDivElement>(null);
@@ -791,7 +800,8 @@ export function McpHeroDiagram() {
       const w = e.contentRect.width,
         tall = w < TALL_BELOW;
       setCompact(tall);
-      setScale(Math.min(1, w / (tall ? 350 : 1064)));
+      setScale(Math.min(1, w / (tall ? 350 : WIDE_W)));
+      setWideW(Math.max(WIDE_W, Math.floor(w)));
     });
     ro.observe(el);
     const io = new IntersectionObserver(([e]) => setOnScreen(e.isIntersecting));
@@ -804,7 +814,7 @@ export function McpHeroDiagram() {
 
   useEffect(() => {
     if (rm || paused || !onScreen || compact === null) return;
-    const L = layout(compact),
+    const L = layout(compact, wideW),
       R = refs.current;
     let raf = 0,
       last = 0;
@@ -843,15 +853,15 @@ export function McpHeroDiagram() {
     };
     raf = requestAnimationFrame(step);
     return () => cancelAnimationFrame(raf);
-  }, [rm, paused, onScreen, compact]);
+  }, [rm, paused, onScreen, compact, wideW]);
 
   const T = rm ? T_STILL : shown.T,
     tall = !!compact;
   const fi = Math.floor(T / FP),
-    st = stageOf(layout(tall), FOCUS[fi % FOCUS.length], (T - fi * FP) / D);
+    st = stageOf(layout(tall, wideW), FOCUS[fi % FOCUS.length], (T - fi * FP) / D);
   const log: { client: string; route: string; tool: string; rej: number; why: string; fresh: boolean; id: number }[] =
     [];
-  for (let i = fi; i >= 0 && log.length < (tall ? 4 : 5); i--) {
+  for (let i = fi; i >= 0 && log.length < LOG_ROWS; i--) {
     const g = FOCUS[i % FOCUS.length];
     if (i === fi && !(st === 6 || st === -1)) continue;
     log.push({
@@ -881,13 +891,17 @@ export function McpHeroDiagram() {
           </span>
         </HStack>
         <HStack gap="space-8" align="center">
-          <Tag variant="warning" size="small">
+          <BodyShort size="small" textColor="subtle">
             Illustrasjon. Kallene er eksempler.
-          </Tag>
+          </BodyShort>
           {!rm && (
-            <Button size="small" variant="secondary" onClick={() => setPaused((p) => !p)}>
-              {paused ? "Spill av" : "Pause"}
-            </Button>
+            <Button
+              size="small"
+              variant="tertiary"
+              icon={paused ? <PlayIcon aria-hidden /> : <PauseIcon aria-hidden />}
+              aria-label={paused ? "Spill av animasjonen" : "Pause animasjonen"}
+              onClick={() => setPaused((p) => !p)}
+            />
           )}
         </HStack>
       </HStack>
@@ -907,13 +921,13 @@ export function McpHeroDiagram() {
             <div
               className="mh-fit"
               style={{
-                height: layout(tall).H * scale,
-                width: layout(tall).W * scale,
+                height: layout(tall, wideW).H * scale,
+                width: layout(tall, wideW).W * scale,
                 marginInline: tall ? "auto" : undefined,
               }}
             >
               <div style={{ transform: `scale(${scale})`, transformOrigin: "0 0" }}>
-                <Stage compact={tall} T={T} numbered={rm} bind={bind} uid="mh-soft" />
+                <Stage compact={tall} W={wideW} T={T} numbered={rm} bind={bind} uid="mh-soft" />
               </div>
             </div>
           )}
@@ -936,7 +950,7 @@ export function McpHeroDiagram() {
         </ol>
       )}
 
-      <HStack gap="space-16" wrap className="mh-legend" aria-hidden>
+      <HStack gap="space-12" wrap className="mh-legend" aria-hidden>
         <span>
           <svg width="14" height="14">
             <circle cx="7" cy="7" r="5" style={{ fill: C_FOCUS, stroke: "var(--ax-bg-default)" }} strokeWidth="1.5" />
@@ -951,16 +965,16 @@ export function McpHeroDiagram() {
           Andre kall
         </span>
         <span>
-          <b className="mh-ok">✓</b>Sjekk bestått: tilgang, godkjente verktøy, ratelimit, nødstopp
+          <b className="mh-ok">✓</b>Sjekk bestått
         </span>
         <span>
           <svg width="12" height="12">
             <circle cx="6" cy="6" r="4" style={{ fill: C_RED }} />
           </svg>
-          <b className="mh-no">✕</b>Avvist i gatewayen
+          <b className="mh-no">✕</b>Avvist
         </span>
         <span>
-          <span className="mh-tl mh-tl-hit">verktøy</span>Verktøyet som kalles
+          <span className="mh-tl mh-tl-hit">verktøy</span>Verktøy som kalles
         </span>
         <span>
           <span className="mh-key-agent" />
@@ -975,31 +989,24 @@ export function McpHeroDiagram() {
             Les opp nye linjer
           </Switch>
         </HStack>
-        {!tall && (
-          <div className="mh-row mh-row-head" aria-hidden>
-            <span>klient</span>
-            <span>rute</span>
-            <span>verktøy</span>
-            <span>utfall</span>
-            <span>avgjørelse</span>
-          </div>
-        )}
-        <div aria-live={live ? "polite" : "off"} className="mh-mono">
+        <div className="mh-row mh-row-head" aria-hidden>
+          <span>klient</span>
+          <span className="mh-col-route">rute</span>
+          <span>verktøy</span>
+          <span>utfall</span>
+          <span>avgjørelse</span>
+        </div>
+        <div aria-live={live ? "polite" : "off"} className="mh-mono mh-rows">
           {log.map((l) => (
-            <div key={l.id} className={"mh-row" + (tall ? " mh-row-c" : "") + (l.fresh ? " mh-row-new" : "")}>
-              {tall ? (
-                <span>
-                  {l.client} · {l.tool}
-                </span>
-              ) : (
-                <>
-                  <span>{l.client}</span>
-                  <span>{l.route}</span>
-                  <span>{l.tool}</span>
-                </>
-              )}
+            <div key={l.id} className={"mh-row" + (l.fresh ? " mh-row-new" : "")}>
+              <span title={l.client}>{l.client}</span>
+              <span className="mh-col-route" title={l.route}>
+                {l.route}
+              </span>
+              {/* The route column hides on narrow screens; the title keeps it. */}
+              <span title={`${l.tool} (${l.route})`}>{l.tool}</span>
               <span className={l.rej ? "mh-no" : "mh-ok"}>{l.rej ? "✕ avvist" : "✓ ok"}</span>
-              {!tall && <span>{l.why}</span>}
+              <span title={l.why}>{l.why}</span>
             </div>
           ))}
         </div>

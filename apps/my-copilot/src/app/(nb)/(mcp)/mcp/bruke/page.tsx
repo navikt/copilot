@@ -152,7 +152,10 @@ export default function NavMcpServerePage() {
         <Bullets>
           <li>Første gang åpnes nettleseren. Du logger inn med Nav-kontoen og godkjenner klienten.</li>
           <li>Godkjenningen huskes i 30 dager per verktøy og server.</li>
-          <li>En innlogging varer i omtrent 12 timer. Etter det logger du inn på nytt.</li>
+          <li>
+            Innloggingen fornyes automatisk mens du bruker den, i opptil 7 dager. Bruker du den ikke på 12 timer, må du
+            logge inn på nytt.
+          </li>
           <li>
             Står det «Unverified client» på godkjenningssiden, fortsett bare hvis du nettopp startet innloggingen selv.
           </li>

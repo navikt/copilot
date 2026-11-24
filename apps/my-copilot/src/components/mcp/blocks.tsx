@@ -81,7 +81,9 @@ export function EntryCard({
   children,
   href,
   cta,
+  level = "2",
 }: {
+  level?: "2" | "3";
   title: string;
   intro: string;
   children: ReactNode;
@@ -98,7 +100,7 @@ export function EntryCard({
       className="mcp-entry"
     >
       <VStack gap="space-12" align="start" className="h-full">
-        <Heading size="medium" level="2">
+        <Heading size="medium" level={level}>
           {title}
         </Heading>
         <BodyLong>{intro}</BodyLong>
@@ -146,10 +148,16 @@ export function PilotServerCards({ compact, tools = {} }: { compact?: boolean; t
               </HStack>
               <BodyShort>{server.summary}</BodyShort>
               <HStack gap="space-4" wrap>
-                {server.readOnly && (
-                  <Tag variant="neutral" size="small">
-                    Bare lesing
+                {compact ? (
+                  <Tag variant={server.readOnly ? "info" : "warning"} size="small">
+                    {server.readOnly ? "Leser" : "Skriver"}
                   </Tag>
+                ) : (
+                  server.readOnly && (
+                    <Tag variant="neutral" size="small">
+                      Bare lesing
+                    </Tag>
+                  )
                 )}
                 {count !== undefined && (
                   <Tag variant="info" size="small">

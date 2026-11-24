@@ -1610,29 +1610,55 @@ button.search-hit {
   padding: var(--ax-space-8) var(--ax-space-12);
   background: var(--ax-bg-sunken);
 }
+.mh-log {
+  container-type: inline-size;
+}
+/* Fixed height: always room for exactly LOG_ROWS (5) rows, so a new line never moves the page. */
+.mh-rows {
+  height: calc(5 * 2rem);
+  overflow: hidden;
+}
 .mh-row {
   display: grid;
-  grid-template-columns: 160px 230px 1fr 90px 210px;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.5fr) minmax(0, 1.4fr) 5.5rem minmax(0, 1.1fr);
   gap: var(--ax-space-8);
   align-items: center;
-  padding: var(--ax-space-6) var(--ax-space-12);
+  height: 2rem;
+  box-sizing: border-box;
+  padding: 0 var(--ax-space-12);
   font-size: var(--ax-font-size-small);
   border-top: 1px solid var(--ax-border-neutral-subtle);
+}
+.mh-row > span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .mh-row-head {
   font-weight: 600;
   color: var(--ax-text-neutral-subtle);
   border-top: 0;
 }
-.mh-row-c {
-  grid-template-columns: 1fr auto;
+@container (max-width: 599px) {
+  .mh-row {
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.4fr) 4.5rem minmax(0, 1fr);
+  }
+  .mh-col-route {
+    display: none;
+  }
 }
 .mh-row-new {
   animation: mh-rin 1.4s ease-out backwards;
 }
 @keyframes mh-rin {
   from {
+    transform: translateY(-100%);
+    opacity: 0;
     background: var(--ax-bg-accent-soft);
+  }
+  30% {
+    transform: none;
+    opacity: 1;
   }
   to {
     background: transparent;
@@ -1656,8 +1682,12 @@ button.search-hit {
 .mcp-entry-cta {
   margin-top: auto;
 }
-.mcp-stats {
-  width: min(100%, 30rem);
+.mcp-steps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ax-space-8);
+  padding-inline-start: var(--ax-space-24);
+  list-style: decimal;
 }
 .mcp-server-cards {
   display: grid;

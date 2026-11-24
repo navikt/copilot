@@ -470,7 +470,10 @@ export default function FleetGatewayForTeamPage() {
         </LinkableHeading>
         <Bullets>
           <li>Test i prod på samme måte som i dev, med prod-adressen.</li>
-          <li>En innlogging varer i 12 timer. Godkjenningen av klienten huskes i 30 dager.</li>
+          <li>
+            Innloggingen fornyes automatisk mens du bruker den, i opptil 7 dager. Bruker du den ikke på 12 timer, må du
+            logge inn på nytt. Godkjenningen av klienten huskes i 30 dager.
+          </li>
           <li>
             Grenser per kall: forespørselen kan være opptil 1 MiB og svaret opptil 10 MiB. Serveren må sende
             svarheaderne innen 60 sekunder, og et vanlig svar må være ferdig innen 60 nye sekunder. Svarer dere med SSE
