@@ -132,7 +132,24 @@ Every request to an MCP route logs one JSON line with `msg` `audit mcp` in the O
  "decision":{"decision":true,"context":{"reason":"listed"}}}
 ```
 
-`decision.decision` is `true` only when the gateway's own checks let the request through; `context.outcome` says what happened after that (for example `upstream_error`). `decision.context.reason` is the tool policy reason (`listed`, `pass_all`, `not_tools_call`, `not_listed`, `ambiguous`) or, for a request stopped earlier, the outcome (`unauthorized`, `disabled`, `bad_request`, ...). `context.scan_incomplete` is `true` when the body scan stopped before the end. `context.protocol_version` is the `MCP-Protocol-Version` header (capped at 32 bytes, `""` if absent) and `context.mcp_headers` says whether `Mcp-Method` and `Mcp-Name` were sent: evidence of which MCP revision clients use before the gateway enforces 2026-07-28. `subject.id` is the user the call is made for. `subject.properties.actor` is the agent or client acting for them, `issuer` is who vouched for the identity and `assurance` how (#2582). Today the issuer is always the gateway's own session and the actor is always the OAuth client, so `actor.id` equals `client_id`. `client_id` stays for existing queries. Both come from the validated session; the gateway never reads an actor from a request header. A request without a valid token has no `subject`: AuthZEN 1.0 requires `subject.id`, and there is no identity to put there. Tool arguments and tokens are never logged. The flat fields of earlier versions (`navident`, `route`, `method`, `tool`, `decision_reason`, `outcome`) are gone; no dashboard or alert in this repository read them.
+`decision.decision` is `true` only when the gateway's own checks let the request through; `context.outcome` says what happened after that (for example `upstream_error`). `decision.context.reason` is the tool policy reason (`listed`, `pass_all`, `not_tools_call`, `not_listed`, `ambiguous`) or, for a request stopped earlier, the outcome (`unauthorized`, `disabled`, `bad_request`, ...). `context.scan_incomplete` is `true` when the body scan stopped before the end. `context.protocol_version` is the `MCP-Protocol-Version` header (capped at 32 bytes, `""` if absent) and `context.mcp_headers` says whether `Mcp-Method` and `Mcp-Name` were sent: evidence of which MCP revision clients use before the gateway enforces 2026-07-28. `subject.id` is the user the call is made for. `subject.properties.actor` is the agent or client acting for them, `issuer` is who vouched for the identity and `assurance` how (#2582). Today the issuer is always the gateway's own session and the actor is always the OAuth client, so `actor.id` equals `client_id`. `client_id` stays for existing queries. Both come from the validated session; the gateway never reads an actor from a request header. A request without a valid token has no `subject`: AuthZEN 1.0 requires `subject.id`, and there is no identity to put there. Tool arguments and tokens are never logged.
+
+### agentgateway field names (transition)
+
+Owner decision 2026-11-24: the record also carries agentgateway's access-log names as flat keys, with the same values. Both sets are written until **2027-01-31**; after that the AuthZEN fields marked below may be removed. Move queries to the new names now.
+
+| AuthZEN field (old) | agentgateway name (new) |
+| --- | --- |
+| `subject.id` | `jwt.sub` (absent without a session, like `subject`) |
+| `action.name` | `mcp.method.name` |
+| `action.properties.tool` | `gen_ai.tool.name` (`mcp.tool.name` in agentgateway CEL) |
+| `resource.id` | `route` |
+| `context.request_id` | `request.id` |
+| `context.http_method` | `http.method` |
+
+The names come from agentgateway's access log (`crates/agentgateway/src/telemetry/log.rs`). The other fields have no agentgateway counterpart and stay as they are: `subject.properties.*`, `resource.properties.backend`, `context.outcome`, `context.duration_ms`, `context.scan_incomplete`, `context.header_mismatch`, `context.protocol_version`, `context.mcp_headers` and `decision`. The record has no HTTP status, so there is no `http.status`. Loki's `json` parser turns dots into underscores: query `jwt_sub`, `mcp_method_name`, `gen_ai_tool_name`. See the [runbook](docs/runbook.md) for queries.
+
+The flat fields of earlier versions (`navident`, `route`, `method`, `tool`, `decision_reason`, `outcome`) are gone; no dashboard or alert in this repository read them.
 
 ## Security
 

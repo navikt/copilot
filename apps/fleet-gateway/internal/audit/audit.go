@@ -44,12 +44,21 @@ func LogMCP(m MCP) {
 	if m.Decision != "allow" && (m.Decision == "" || reason == "") {
 		reason = m.Outcome
 	}
-	var attrs []any
+	// agentgateway access-log names (owner decision 2026-11-24), flat dotted
+	// keys emitted next to the AuthZEN fields. Same values, no new data.
+	attrs := []any{
+		"mcp.method.name", Sanitize(m.Method),
+		"gen_ai.tool.name", Sanitize(m.Tool),
+		"route", m.Route,
+		"request.id", m.RequestID,
+		"http.method", Sanitize(m.HTTPMethod),
+	}
 	// AuthZEN 1.0 §5.1 makes subject.id REQUIRED, so an unauthenticated
 	// request has no subject rather than one with an empty id.
 	// properties.client_id predates the actor group and stays for existing
 	// queries; actor is who acted for the subject (#2582). No token is logged.
 	if c := m.Caller; c.Subject != "" {
+		attrs = append(attrs, "jwt.sub", Sanitize(c.Subject))
 		attrs = append(attrs, slog.Group("subject",
 			"type", "user",
 			"id", Sanitize(c.Subject),
