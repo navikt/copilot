@@ -37,7 +37,7 @@ Every request needs a person's Entra token that my-copilot obtained on their beh
 | 409 | Not the pending version, wrong hash, wrong state, or registry name taken |
 | 503 | Texas, team lookup or Postgres unavailable |
 
-Not built yet: team lookup in the Nais teams API (static list for now), GitHub OIDC from the team's CI, team-level policy, the route owner's approval of another team's agent profile, rate limiting, and `force` for the shrink guard.
+Not built yet: GitHub OIDC from the team's CI, team-level policy, the route owner's approval of another team's agent profile, rate limiting, and `force` for the shrink guard.
 
 ## Agent profiles (#2582)
 
@@ -51,7 +51,7 @@ An agent profile says which caller app may use which tools on which gateway rout
 - `GET /internal/v1/agents` returns approved, verified profiles that have not expired, checked at read time.
 - Every change writes an audit event.
 
-The write routes (`POST /admin/v1/agents`, `.../{namespace}/{name}/approvals`, `.../revoke`) follow the Write API rules above: a person's token from the admin client, teams from `FLEET_CONTROL_STATIC_TEAMS`, dev-* clusters only. `SEED_AGENTS_FILE` imports drafts on startup in dev only (`seed/agents.dev.json`, the Aksel Studio draft). Its `entra_client_id` is the dev client id of `studio-api`. With no identity verifier yet, the profile stays unverified and out of the snapshot. The app refuses `SEED_AGENTS_FILE` outside dev-* clusters.
+The write routes (`POST /admin/v1/agents`, `.../{namespace}/{name}/approvals`, `.../revoke`) follow the Write API rules above: a person's token from the admin client, teams from the Nais Console API (or `FLEET_CONTROL_STATIC_TEAMS` in dev), dev-* clusters only. `SEED_AGENTS_FILE` imports drafts on startup in dev only (`seed/agents.dev.json`, the Aksel Studio draft). Its `entra_client_id` is the dev client id of `studio-api`. With no identity verifier yet, the profile stays unverified and out of the snapshot. The app refuses `SEED_AGENTS_FILE` outside dev-* clusters.
 
 ## Read API for my-copilot
 
@@ -97,7 +97,8 @@ Not built yet: the public ingress fleet-runtime will reach this through (#2686),
 | `NAIS_TOKEN_INTROSPECTION_ENDPOINT` | Texas, set by Nais |
 | `SEED_ROUTES_FILE`, `SEED_ALLOWLIST_FILE` | first-run import |
 | `MY_COPILOT_CLIENT_ID` | my-copilot's Entra client id. Unset: no `/admin` routes |
-| `FLEET_CONTROL_STATIC_TEAMS` | JSON of team to member emails, matched trimmed and case-insensitively against the token's `preferred_username`, until the Nais teams API is wired in. Read from the `fleet-control-static-teams` secret in dev-gcp; refused outside dev-*. Unset: nobody can write |
+| `NAIS_SERVICE_ACCOUNT_TOKEN_PATH` | Set by Nais when a service account is bound to the workload in Console. When set, team membership comes from the Nais Console GraphQL API (`user(email).teams`), keyed on the token's `preferred_username`, trimmed and lowercased. Answers are cached for one minute; errors are not cached. An unreachable API, a rejected or missing token, a GraphQL error or an empty answer gives 503 |
+| `FLEET_CONTROL_STATIC_TEAMS` | Dev fallback when no service account is bound: JSON of team to member emails, matched trimmed and case-insensitively against the token's `preferred_username`. Read from the `fleet-control-static-teams` secret in dev-gcp; refused outside dev-*. Unset: nobody can write |
 | `FLEET_RUNTIME_CLIENT_IDS` | fleet-runtime's Entra client ids, comma-separated. Unset: no `/runtime` routes |
 | `FLEET_RUNTIME_LEASE_TTL` | Lease TTL, 10s to 10m. Default 60s |
 | `FLEET_RUNTIME_SWEEP_INTERVAL` | Lease sweep interval, 1s to 5m. Default 15s |
