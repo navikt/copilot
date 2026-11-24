@@ -55,7 +55,7 @@ func (s *server) routes(a *authz, adminClientID string, teams teamDirectory, ra 
 		mux.HandleFunc("POST /runtime/v1/complete", s.runtimeRoute(ra, finish(true)))
 		mux.HandleFunc("POST /runtime/v1/fail", s.runtimeRoute(ra, finish(false)))
 	}
-	return mux
+	return instrument(mux)
 }
 
 // legacyServerWriteRoutes mounts the /admin/v1/servers write handlers that
@@ -187,7 +187,13 @@ func (s *server) resolve(ctx context.Context, kind string) (*Snapshot, error) {
 	}
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
+	start := time.Now()
 	snap, err := box.Publish(ctx, kind, buildSnapshot)
+	if err == nil {
+		snapshotBuildDuration.WithLabelValues(kind).Observe(time.Since(start).Seconds())
+		snapshotBytes.WithLabelValues(kind).Set(float64(len(snap.Items)))
+		snapshotLastSuccess.WithLabelValues(kind).SetToCurrentTime()
+	}
 	if err != nil {
 		slog.Error("snapshot rebuild failed", "kind", kind, "error", err)
 		// The stored snapshot is still the newest, so it counts as checked.

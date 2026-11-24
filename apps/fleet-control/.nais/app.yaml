@@ -87,3 +87,83 @@ spec:
           namespace: copilot
         - application: my-copilot
           namespace: copilot
+---
+# Alerts for fleet-control (#2891). Runbooks are in the README under "Alerts".
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: fleet-control-alerts
+  namespace: copilot
+  labels:
+    team: copilot
+spec:
+  groups:
+    - name: fleet-control
+      rules:
+        - alert: FleetControlDown
+          expr: absent(up{namespace="copilot", app="fleet-control"} == 1)
+          for: 5m
+          labels:
+            namespace: copilot
+            severity: critical
+            alert_type: custom
+            app: fleet-control
+          annotations:
+            summary: No fleet-control pod is up
+            consequence: Writes fail and gateways serve their last snapshot. New gateway pods cannot start serving routes.
+            action: "See the runbook."
+            runbook_url: https://github.com/navikt/copilot/blob/main/apps/fleet-control/README.md#fleetcontroldown
+        - alert: FleetControlHigh5xxRate
+          expr: |
+            sum(rate(fleet_control_http_requests_total{namespace="copilot", code=~"5.."}[5m]))
+              / sum(rate(fleet_control_http_requests_total{namespace="copilot"}[5m])) > 0.1
+            and sum(increase(fleet_control_http_requests_total{namespace="copilot"}[5m])) > 20
+          for: 5m
+          labels:
+            namespace: copilot
+            severity: warning
+            alert_type: custom
+            app: fleet-control
+          annotations:
+            summary: More than 10 % of fleet-control responses are 5xx
+            consequence: Gateways, the registry or my-copilot get errors from fleet-control.
+            action: "Break down fleet_control_http_requests_total by route and code. See the runbook."
+            runbook_url: https://github.com/navikt/copilot/blob/main/apps/fleet-control/README.md#fleetcontrolhigh5xxrate
+        - alert: FleetControlConsoleLookupsFailing
+          expr: sum(increase(fleet_control_console_lookups_total{namespace="copilot", outcome!="ok"}[10m])) >= 3
+          for: 5m
+          labels:
+            namespace: copilot
+            severity: warning
+            alert_type: custom
+            app: fleet-control
+          annotations:
+            summary: Nais Console team lookups from fleet-control are failing
+            consequence: Team checks fail closed, so writes and admin reads answer 503.
+            action: "Break down fleet_control_console_lookups_total by outcome. See the runbook."
+            runbook_url: https://github.com/navikt/copilot/blob/main/apps/fleet-control/README.md#fleetcontrolconsolelookupsfailing
+        - alert: FleetControlDBErrors
+          expr: sum(increase(fleet_control_db_errors_total{namespace="copilot"}[10m])) > 5
+          for: 5m
+          labels:
+            namespace: copilot
+            severity: warning
+            alert_type: custom
+            app: fleet-control
+          annotations:
+            summary: fleet-control database statements are failing
+            consequence: Writes, audit inserts and snapshot builds can fail. Gateways keep the last snapshot.
+            action: "Check the Postgres instance and pod logs. See the runbook."
+            runbook_url: https://github.com/navikt/copilot/blob/main/apps/fleet-control/README.md#fleetcontroldberrors
+        - alert: FleetControlSnapshotStale
+          expr: time() - max by (kind) (fleet_control_snapshot_last_success_timestamp_seconds{namespace="copilot"}) > 600
+          labels:
+            namespace: copilot
+            severity: warning
+            alert_type: custom
+            app: fleet-control
+          annotations:
+            summary: fleet-control has not built a snapshot of one kind (see the kind label) for more than 10 minutes
+            consequence: Gateways or the registry get the last good snapshot, so changes and revocations do not reach them.
+            action: "Search the logs for `snapshot rebuild failed`. See the runbook."
+            runbook_url: https://github.com/navikt/copilot/blob/main/apps/fleet-control/README.md#fleetcontrolsnapshotstale

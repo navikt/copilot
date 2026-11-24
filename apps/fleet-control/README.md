@@ -179,6 +179,30 @@ Every committed `audit_events` row is also written to stdout as one JSON line, `
 {service_name="fleet-control"} |= "audit fleet-control" | json | resource_id="team-a/my-server"
 ```
 
+## Alerts
+
+The PrometheusRule `fleet-control-alerts` in `.nais/app.yaml` links each alert to a section here. Metrics are on `/metrics`, all prefixed `fleet_control_`.
+
+### FleetControlDown
+
+Severity critical. No pod reports `up` for 5 minutes. Gateways stay fail-static (see [While fleet-control is down](#while-fleet-control-is-down)). Run `kubectl -n copilot get pods -l app=fleet-control` and read the pod logs. Usual causes: Postgres unreachable at startup, a missing client id, or a failed migration.
+
+### FleetControlHigh5xxRate
+
+Severity warning. More than 10 % of responses are 5xx over 5 minutes, with at least 20 requests. Break down `fleet_control_http_requests_total` by `route` and `code`. The `route` label is the mux pattern. 503 from the snapshot or admin routes usually means the database or Console is down: check the two alerts below.
+
+### FleetControlConsoleLookupsFailing
+
+Severity warning. Three or more Nais Console team lookups failed in 10 minutes. Team checks fail closed, so writes answer 503. Break down `fleet_control_console_lookups_total` by `outcome` (`ok`, `error`, `503`) and look at `fleet_control_console_lookup_duration_seconds`. `503` points at Console itself; `error` can also be an expired service account token or a changed answer.
+
+### FleetControlDBErrors
+
+Severity warning. More than 5 failed statements in 10 minutes (`fleet_control_db_errors_total`, not counting cancelled requests or constraint violations). Check the Postgres instance in Nais Console and the pod logs. `fleet_control_audit_write_failures_total` counts failed `audit_events` inserts: the write rolls back with them.
+
+### FleetControlSnapshotStale
+
+Severity warning. No successful snapshot build of one kind for 10 minutes (`fleet_control_snapshot_last_success_timestamp_seconds`). Snapshots are built when a gateway or the registry polls. Search the logs for `snapshot rebuild failed`. A build refused by the fail-closed checks (for example a route over the team budget) needs the offending MCPServer fixed or revoked. `fleet_control_snapshot_build_duration_seconds` and `fleet_control_snapshot_bytes` show build time and size.
+
 ## Backup and restore
 
 Nais Postgres ([doc.nais.io](https://doc.nais.io/persistence/postgres/reference/recovery-window/)) takes a nightly base backup and archives the write-ahead log continuously, into a bucket in the team's project. That gives point-in-time recovery to any second in the window. `.nais/postgres.yaml` sets `backup.retentionDays: 7` (Nais default 2, range 2 to 30). The file is applied by hand, not by CI: run `nais apply -t copilot -e <env> .nais/postgres.yaml` after changing it. Cost at 5Gi is about 5 x 8 x 0.02 = 0.80 EUR a month.
