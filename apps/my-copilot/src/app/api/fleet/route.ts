@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getUser, getUserToken } from "@/lib/auth";
 import { FleetControlError, fleetApi, requireFleet } from "@/lib/fleet-control";
 import { isName, isSameOrigin } from "@/lib/fleet-names";
 
@@ -27,6 +28,9 @@ function failure(err: unknown) {
 
 export async function POST(request: Request) {
   requireFleet();
+  // Same check as the other protected API routes: an introspected user, not only a token.
+  if (!(await getUser(false)) || !(await getUserToken()))
+    return fail("Du er logget ut. Last inn siden på nytt og logg inn.", 401);
   if (!isSameOrigin(request.headers))
     return fail("Vi kunne ikke bekrefte at skjemaet kom fra denne siden. Last inn siden på nytt.", 403);
   const b = (await request.json().catch(() => null)) as Body | null;

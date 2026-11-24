@@ -335,7 +335,7 @@ export function ServerDetail({ server, events }: { server: MCPServer; events: Au
           ["Versjon som venter på godkjenning", server.status.pending?.generation ?? "–"],
         ]}
       />
-      {server.status.pending?.spec && <Versjoner current={server.spec} next={server.status.pending.spec} />}
+      {server.status.pending?.spec && <Versjoner server={server} next={server.status.pending.spec} />}
       <ServerActions server={server} />
       <Historikk events={events} />
     </VStack>
@@ -347,10 +347,21 @@ const specRows = (s?: MCPServerSpec): [string, string][] => [
   ["App", s?.upstream?.app ?? "–"],
   ["Adresse til appen", s?.upstream?.url ?? "–"],
   ["Verktøy", s?.allowedTools?.join(", ") || "–"],
+  ["Versjon i registeret", s?.registry?.version ?? "–"],
+  [
+    "Adresser i registeret",
+    s?.registry?.remotes?.map((r) => [r.type, r.url].filter(Boolean).join(" ")).join(", ") || "–",
+  ],
 ];
 
-function Versjoner({ current, next }: { current?: MCPServerSpec; next: MCPServerSpec }) {
-  const now = specRows(current);
+function Versjoner({ server, next }: { server: MCPServer; next: MCPServerSpec }) {
+  // Before the first approval fleet-control copies the draft into spec, so only a live server has a version in use.
+  const none = hasCondition(server, "Revoked")
+    ? "Trukket tilbake"
+    : hasCondition(server, "Published")
+      ? null
+      : "Ikke publisert ennå";
+  const now = specRows(none ? undefined : server.spec).map(([k, v]): [string, string] => [k, none ?? v]);
   return (
     <Table size="small" aria-label="Versjonen som gjelder, og versjonen som venter">
       <Table.Header>
@@ -452,7 +463,7 @@ function ServerActions({ server }: { server: MCPServer }) {
           </VStack>
         </form>
       )}
-      {!hasCondition(server, "Revoked") && (
+      {hasCondition(server, "Published") && !hasCondition(server, "Revoked") && (
         <form onSubmit={revoke.onSubmit}>
           <VStack gap="space-8" align="start">
             <Heading level="2" size="small">
@@ -461,7 +472,10 @@ function ServerActions({ server }: { server: MCPServer }) {
             <BodyShort>Ingen kan bruke MCP-serveren etterpå. Du trenger ikke godkjenning fra andre.</BodyShort>
             {ids}
             <Textarea label="Begrunnelse" name="reason" maxLength={500} required />
-            <Checkbox name="block">Blokker versjonen, så ingen kan gå tilbake til den som forrige versjon</Checkbox>
+            <Checkbox name="block">
+              Blokker innholdet for godt. Det kan aldri sendes inn eller publiseres igjen, heller ikke som forrige
+              versjon.
+            </Checkbox>
             <ActionError error={revoke.error} />
             <Button size="small" variant="danger" loading={revoke.busy}>
               Trekk tilbake
@@ -487,7 +501,12 @@ export function RegisterForm({ teams }: { teams: string[] }) {
         </Select>
         <TextField label="Navn" name="name" description="Små bokstaver, tall og bindestrek." required />
         <TextField label="App" name="app" description="Nais-appen som kjører MCP-serveren." required />
-        <TextField label="Adresse til appen" name="url" description="For eksempel http://min-app/mcp" required />
+        <TextField
+          label="Adresse til appen"
+          name="url"
+          description="For eksempel http://min-app.mitt-team/mcp eller http://min-app.mitt-team.svc.cluster.local/mcp"
+          required
+        />
         <Textarea
           label="Verktøy"
           name="tools"

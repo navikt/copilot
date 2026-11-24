@@ -165,6 +165,20 @@ describe("/fleet", () => {
     expect(container.querySelector('textarea[name="reason"]')).toBeNull();
   });
 
+  it("shows a never-published draft as not published, with registry changes, and no revocation", async () => {
+    const draft = server();
+    draft.status.conditions = [cond("Published", false), cond("Revoked", false)];
+    Object.assign(draft.status.pending.spec, {
+      registry: { version: "1.2.0", remotes: [{ type: "streamable-http", url: "https://x" }] },
+    });
+    stub({ [`${API}/namespaces/team-a/mcpservers/docs`]: draft });
+    render(await ServerPage(params("team-a", "docs")));
+    expect(screen.getAllByText("Ikke publisert ennå").length).toBeGreaterThan(0);
+    expect(screen.getByText("1.2.0")).toBeInTheDocument();
+    expect(screen.getByText("streamable-http https://x")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Trekk tilbake" })).toBeNull();
+  });
+
   it("shows the registration form with the person's teams", async () => {
     const { default: RegisterPage } = await import("./registrer/page");
     render(await RegisterPage());

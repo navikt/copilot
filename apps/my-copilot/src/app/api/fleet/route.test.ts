@@ -10,6 +10,9 @@ vi.mock("next/navigation", () => ({
   }),
 }));
 
+const auth = { user: { name: "A123456" } as unknown, token: "t" as string | null };
+vi.mock("@/lib/auth", () => ({ getUser: vi.fn(async () => auth.user), getUserToken: vi.fn(async () => auth.token) }));
+
 import { POST } from "./route";
 
 const SAME = { origin: "https://my.nav.no", host: "my.nav.no" };
@@ -25,6 +28,18 @@ describe("POST /api/fleet", () => {
     vi.stubEnv("FLEET_CONTROL_URL", "http://fc");
     fetch = vi.fn(async () => new Response("{}"));
     vi.stubGlobal("fetch", fetch);
+    auth.user = { name: "A123456" };
+    auth.token = "t";
+  });
+
+  it.each([
+    ["no introspected user", () => (auth.user = null)],
+    ["no token", () => (auth.token = null)],
+  ])("is 401 with %s, before any call", async (_, unset) => {
+    unset();
+    const res = await post({ action: "revoke", namespace: "team-a", name: "docs", reason: "x" });
+    expect(res.status).toBe(401);
+    expect(fetch).not.toHaveBeenCalled();
   });
 
   it.each([

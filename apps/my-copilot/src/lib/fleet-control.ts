@@ -21,6 +21,7 @@ export type MCPServerSpec = {
   dataCategory?: string;
   upstream?: { app: string; url: string };
   allowedTools?: string[];
+  registry?: { version?: string; remotes?: { type?: string; url?: string }[] };
 };
 
 export type MCPServer = {
