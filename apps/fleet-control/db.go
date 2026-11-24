@@ -263,6 +263,19 @@ func (d *DB) Publish(ctx context.Context, kind string, build func(string, []Serv
 	return out, err
 }
 
+// RevokeAuditChange re-runs 006 so a later re-grant to the runtime role is
+// removed before CheckAuditLocked runs. Needs the owner pool.
+func (d *DB) RevokeAuditChange(ctx context.Context) error {
+	sql, err := migrationFS.ReadFile("migrations/006_audit_revoke.sql")
+	if err != nil {
+		return err
+	}
+	if _, err := d.pool.Exec(ctx, string(sql)); err != nil {
+		return fmt.Errorf("revoke audit_events rights: %w", err)
+	}
+	return nil
+}
+
 // CheckAuditLocked fails unless the connected role is not the owner of
 // audit_events and holds none of the rights to change it (#2631).
 func (d *DB) CheckAuditLocked(ctx context.Context) error { return checkAuditLocked(ctx, d.pool) }

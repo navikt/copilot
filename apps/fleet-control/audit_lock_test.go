@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"os"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -131,5 +133,53 @@ func TestAuditCheckRefusesSingleRight(t *testing.T) {
 				t.Fatalf("want refusal, got %v", err)
 			}
 		})
+	}
+}
+
+// TestSetupDBRevokesReGrant: a re-grant to the runtime role after 006 (as a
+// later Nais reconcile could do) is revoked at the next start, so setupDB
+// recovers instead of crash-looping.
+func TestSetupDBRevokesReGrant(t *testing.T) {
+	db := openTestDB(t)
+	ctx := context.Background()
+	if err := db.Migrate(ctx); err != nil {
+		t.Fatal(err)
+	}
+	dsn := os.Getenv("TEST_DATABASE_URL")
+	cfg, err := pgx.ParseConfig(dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, _ = db.pool.Exec(ctx, "DROP OWNED BY fleet_login_test")
+	_, _ = db.pool.Exec(ctx, "DROP ROLE IF EXISTS fleet_login_test")
+	for _, q := range []string{
+		"CREATE ROLE fleet_login_test LOGIN PASSWORD 'test'",
+		"GRANT USAGE ON SCHEMA public TO fleet_login_test",
+		"GRANT ALL ON ALL TABLES IN SCHEMA public TO fleet_login_test",
+		"GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO fleet_login_test",
+		"GRANT UPDATE (actor) ON audit_events TO fleet_login_test",
+	} {
+		if _, err := db.pool.Exec(ctx, q); err != nil {
+			t.Fatal(q, err)
+		}
+	}
+	t.Cleanup(func() {
+		_, _ = db.pool.Exec(ctx, "DROP OWNED BY fleet_login_test")
+		_, _ = db.pool.Exec(ctx, "DROP ROLE fleet_login_test")
+	})
+	t.Setenv("DB_URL", dsn)
+	t.Setenv("READWRITE_PGHOST", cfg.Host)
+	t.Setenv("READWRITE_PGPORT", strconv.Itoa(int(cfg.Port)))
+	t.Setenv("READWRITE_PGDATABASE", cfg.Database)
+	t.Setenv("READWRITE_PGUSER", "fleet_login_test")
+	t.Setenv("READWRITE_PGPASSWORD", "test")
+	t.Setenv("READWRITE_PGSSLMODE", "disable")
+	rt, err := setupDB(ctx)
+	if err != nil {
+		t.Fatalf("setupDB after re-grant: %v", err)
+	}
+	defer rt.Close()
+	if err := rt.CheckAuditLocked(ctx); err != nil {
+		t.Fatal(err)
 	}
 }
