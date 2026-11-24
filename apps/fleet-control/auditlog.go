@@ -80,6 +80,13 @@ type auditTracer struct {
 
 var pendingAudit = &auditTracer{pending: map[*pgx.Conn][]loggedAudit{}}
 
+// forget frees rows held on a connection the pool destroys mid-transaction.
+func (t *auditTracer) forget(c *pgx.Conn) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	delete(t.pending, c)
+}
+
 func (t *auditTracer) add(c *pgx.Conn, e loggedAudit) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
@@ -89,12 +96,16 @@ func (t *auditTracer) add(c *pgx.Conn, e loggedAudit) {
 type traceSQL struct{}
 
 func (t *auditTracer) TraceQueryStart(ctx context.Context, _ *pgx.Conn, d pgx.TraceQueryStartData) context.Context {
-	return context.WithValue(ctx, traceSQL{}, strings.ToLower(strings.TrimSpace(d.SQL)))
+	// pgx ends and starts transactions with exactly these lowercase statements.
+	if d.SQL == "commit" || d.SQL == "rollback" || strings.HasPrefix(d.SQL, "begin") {
+		return context.WithValue(ctx, traceSQL{}, d.SQL)
+	}
+	return ctx
 }
 
 func (t *auditTracer) TraceQueryEnd(ctx context.Context, c *pgx.Conn, d pgx.TraceQueryEndData) {
 	sql, _ := ctx.Value(traceSQL{}).(string)
-	if sql != "commit" && sql != "rollback" && !strings.HasPrefix(sql, "begin") {
+	if sql == "" {
 		return
 	}
 	t.mu.Lock()
@@ -129,13 +140,13 @@ func logAudit(e loggedAudit) {
 	}
 	slog.Info("audit fleet-control",
 		"at", e.at.UTC(),
-		"outcome", "committed",
 		slog.Group("subject",
-			"type", kind,
+			"type", strings.ToLower(kind),
 			"id", r.Actor,
 			slog.Group("properties", "oid", r.ActorOid, "client_id", r.ActorClientID),
 		),
 		slog.Group("action", "name", r.Action),
+		slog.Group("context", "outcome", "committed"),
 		slog.Group("resource",
 			"type", r.ResourceKind,
 			"id", strings.Trim(r.Namespace+"/"+r.Name, "/"),

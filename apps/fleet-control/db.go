@@ -33,6 +33,7 @@ func OpenDB(ctx context.Context, dsn string) (*DB, error) {
 	// Simple protocol avoids prepared statements incompatible with PgBouncer transaction mode.
 	cfg.ConnConfig.DefaultQueryExecMode = pgx.QueryExecModeSimpleProtocol
 	cfg.ConnConfig.Tracer = pendingAudit
+	cfg.BeforeClose = pendingAudit.forget
 	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {
 		return nil, err

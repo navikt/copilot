@@ -162,10 +162,10 @@ Existing migrations, checked against the rule (#2761):
 Every committed `audit_events` row is also written to stdout as one JSON line, `audit fleet-control`, so Loki keeps the trail after the database deletes it. The line is logged only after the transaction commits; a rolled-back write logs nothing. Fields, in the fleet-gateway `audit mcp` shape:
 
 - `at`: the row's time
-- `subject.type` (`User`, `Application`, `System`), `subject.id` (NAVident), `subject.properties.oid`, `subject.properties.client_id`
+- `subject.type` (`user`, `application`, `system`), `subject.id` (NAVident), `subject.properties.oid`, `subject.properties.client_id`
 - `action.name`
 - `resource.type`, `resource.id` (`namespace/name`), `resource.properties.namespace`, `.name`, `.generation`
-- `outcome`: always `committed`
+- `context.outcome`: always `committed`
 
 `detail` and tokens are not logged. Find the writes by one person, or to one resource:
 

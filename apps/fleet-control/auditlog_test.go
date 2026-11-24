@@ -86,9 +86,9 @@ func TestRealPostgresAuditLogOnlyAfterCommit(t *testing.T) {
 	for k, want := range map[string]any{
 		"subject.type": sub["type"], "subject.id": sub["id"], "oid": props["oid"], "client_id": props["client_id"],
 		"action": l["action"].(map[string]any)["name"], "resource.type": res["type"], "resource.id": res["id"],
-		"namespace": rp["namespace"], "name": rp["name"], "generation": rp["generation"], "outcome": l["outcome"],
+		"namespace": rp["namespace"], "name": rp["name"], "generation": rp["generation"], "outcome": l["context"].(map[string]any)["outcome"],
 	} {
-		exp := map[string]any{"subject.type": "User", "subject.id": "Z990001", "oid": row.ActorOid, "client_id": "client-a",
+		exp := map[string]any{"subject.type": "user", "subject.id": "Z990001", "oid": row.ActorOid, "client_id": "client-a",
 			"action": "approve", "resource.type": "MCPServer", "resource.id": "team-a/srv",
 			"namespace": "team-a", "name": "srv", "generation": float64(3), "outcome": "committed"}[k]
 		if want != exp {
@@ -97,6 +97,17 @@ func TestRealPostgresAuditLogOnlyAfterCommit(t *testing.T) {
 	}
 	if l["at"] == nil || strings.Contains(fmtJSON(l), "do not log me") {
 		t.Errorf("line missing at or leaks detail: %v", l)
+	}
+}
+
+func TestAuditTracerForget(t *testing.T) {
+	c := &pgx.Conn{}
+	pendingAudit.add(c, loggedAudit{})
+	pendingAudit.forget(c)
+	pendingAudit.mu.Lock()
+	defer pendingAudit.mu.Unlock()
+	if _, ok := pendingAudit.pending[c]; ok {
+		t.Fatal("rows kept for a closed connection")
 	}
 }
 
