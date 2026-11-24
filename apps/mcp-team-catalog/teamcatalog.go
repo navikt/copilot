@@ -106,27 +106,19 @@ type naisTeam struct {
 type teamCatalogClient struct {
 	baseURL    string
 	httpClient *http.Client
-	cache      *responseCache
 }
 
 func newTeamCatalogClient(baseURL string, httpClient *http.Client) *teamCatalogClient {
 	return &teamCatalogClient{
 		baseURL:    strings.TrimRight(baseURL, "/"),
 		httpClient: httpClient,
-		cache:      newResponseCache(),
 	}
 }
 
-func (c *teamCatalogClient) getJSON(ctx context.Context, token, path string, query url.Values, cacheable bool, dst any) error {
+func (c *teamCatalogClient) getJSON(ctx context.Context, token, path string, query url.Values, dst any) error {
 	target := c.baseURL + path
 	if len(query) > 0 {
 		target += "?" + query.Encode()
-	}
-
-	if cacheable {
-		if body, ok := c.cache.get(target); ok {
-			return decodeTeamCatalogJSON(body, dst)
-		}
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, target, nil)
@@ -153,13 +145,7 @@ func (c *teamCatalogClient) getJSON(ctx context.Context, token, path string, que
 		return fmt.Errorf("team-catalog-backend response exceeded %d bytes", maxUpstreamBodyBytes)
 	}
 
-	if err := decodeTeamCatalogJSON(body, dst); err != nil {
-		return err
-	}
-	if cacheable {
-		c.cache.put(target, body)
-	}
-	return nil
+	return decodeTeamCatalogJSON(body, dst)
 }
 
 func decodeTeamCatalogJSON(body []byte, dst any) error {
@@ -182,7 +168,7 @@ func (c *teamCatalogClient) listTeams(ctx context.Context, token, productAreaID,
 		q.Set("status", status)
 	}
 	var page restResponsePage[upstreamTeam]
-	if err := c.getJSON(ctx, token, "/team", q, true, &page); err != nil {
+	if err := c.getJSON(ctx, token, "/team", q, &page); err != nil {
 		return nil, err
 	}
 	if productAreaID != "" && clusterID != "" {
@@ -202,7 +188,7 @@ func (c *teamCatalogClient) listTeams(ctx context.Context, token, productAreaID,
 func (c *teamCatalogClient) searchTeams(ctx context.Context, token, query string) ([]upstreamTeam, error) {
 	path := "/team/search/" + url.PathEscape(query)
 	var page restResponsePage[upstreamTeam]
-	if err := c.getJSON(ctx, token, path, nil, true, &page); err != nil {
+	if err := c.getJSON(ctx, token, path, nil, &page); err != nil {
 		return nil, err
 	}
 	return page.Content, nil
@@ -211,7 +197,7 @@ func (c *teamCatalogClient) searchTeams(ctx context.Context, token, query string
 func (c *teamCatalogClient) getTeam(ctx context.Context, token, id string) (upstreamTeam, error) {
 	path := "/team/" + url.PathEscape(id)
 	var team upstreamTeam
-	if err := c.getJSON(ctx, token, path, nil, false, &team); err != nil {
+	if err := c.getJSON(ctx, token, path, nil, &team); err != nil {
 		return upstreamTeam{}, err
 	}
 	return team, nil
@@ -224,7 +210,7 @@ func (c *teamCatalogClient) getTeamsByNaisTeam(ctx context.Context, token, naisT
 		q.Set("status", status)
 	}
 	var page restResponsePage[upstreamTeam]
-	if err := c.getJSON(ctx, token, path, q, true, &page); err != nil {
+	if err := c.getJSON(ctx, token, path, q, &page); err != nil {
 		return nil, err
 	}
 	return page.Content, nil
@@ -236,7 +222,7 @@ func (c *teamCatalogClient) listProductAreas(ctx context.Context, token, status 
 		q.Set("status", status)
 	}
 	var page restResponsePage[upstreamProductArea]
-	if err := c.getJSON(ctx, token, "/productarea", q, true, &page); err != nil {
+	if err := c.getJSON(ctx, token, "/productarea", q, &page); err != nil {
 		return nil, err
 	}
 	return page.Content, nil
@@ -245,7 +231,7 @@ func (c *teamCatalogClient) listProductAreas(ctx context.Context, token, status 
 func (c *teamCatalogClient) getProductArea(ctx context.Context, token, id string) (upstreamProductArea, error) {
 	path := "/productarea/" + url.PathEscape(id)
 	var area upstreamProductArea
-	if err := c.getJSON(ctx, token, path, nil, false, &area); err != nil {
+	if err := c.getJSON(ctx, token, path, nil, &area); err != nil {
 		return upstreamProductArea{}, err
 	}
 	return area, nil
@@ -257,7 +243,7 @@ func (c *teamCatalogClient) listClusters(ctx context.Context, token, status stri
 		q.Set("status", status)
 	}
 	var page restResponsePage[upstreamCluster]
-	if err := c.getJSON(ctx, token, "/cluster", q, true, &page); err != nil {
+	if err := c.getJSON(ctx, token, "/cluster", q, &page); err != nil {
 		return nil, err
 	}
 	return page.Content, nil
@@ -266,7 +252,7 @@ func (c *teamCatalogClient) listClusters(ctx context.Context, token, status stri
 func (c *teamCatalogClient) getCluster(ctx context.Context, token, id string) (upstreamCluster, error) {
 	path := "/cluster/" + url.PathEscape(id)
 	var cluster upstreamCluster
-	if err := c.getJSON(ctx, token, path, nil, false, &cluster); err != nil {
+	if err := c.getJSON(ctx, token, path, nil, &cluster); err != nil {
 		return upstreamCluster{}, err
 	}
 	return cluster, nil
@@ -275,7 +261,7 @@ func (c *teamCatalogClient) getCluster(ctx context.Context, token, id string) (u
 func (c *teamCatalogClient) getMemberMemberships(ctx context.Context, token, navIdent string) (upstreamMembership, error) {
 	path := "/member/membership/" + url.PathEscape(navIdent)
 	var m upstreamMembership
-	if err := c.getJSON(ctx, token, path, nil, false, &m); err != nil {
+	if err := c.getJSON(ctx, token, path, nil, &m); err != nil {
 		return upstreamMembership{}, err
 	}
 	return m, nil
@@ -284,7 +270,7 @@ func (c *teamCatalogClient) getMemberMemberships(ctx context.Context, token, nav
 func (c *teamCatalogClient) getNaisTeam(ctx context.Context, token, teamID string) (naisTeam, error) {
 	path := "/naisteam/" + url.PathEscape(teamID)
 	var nt naisTeam
-	if err := c.getJSON(ctx, token, path, nil, true, &nt); err != nil {
+	if err := c.getJSON(ctx, token, path, nil, &nt); err != nil {
 		return naisTeam{}, err
 	}
 	return nt, nil
@@ -293,7 +279,7 @@ func (c *teamCatalogClient) getNaisTeam(ctx context.Context, token, teamID strin
 func (c *teamCatalogClient) searchNaisTeams(ctx context.Context, token, query string) ([]naisTeam, error) {
 	path := "/naisteam/search/" + url.PathEscape(query)
 	var page restResponsePage[naisTeam]
-	if err := c.getJSON(ctx, token, path, nil, true, &page); err != nil {
+	if err := c.getJSON(ctx, token, path, nil, &page); err != nil {
 		return nil, err
 	}
 	return page.Content, nil

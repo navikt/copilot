@@ -5,9 +5,8 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
-	"sync/atomic"
+	"sync"
 	"testing"
-	"time"
 )
 
 func toolResultMap(t *testing.T, out map[string]any) map[string]any {
@@ -185,35 +184,7 @@ func TestEveryToolHasOutputSchemaAndExample(t *testing.T) {
 }
 
 func TestStructuredContentMatchesTextAndSchema(t *testing.T) {
-	sampleTeam := map[string]any{"id": testTeamID, "name": "Team Copilot", "status": "ACTIVE", "members": []any{}}
-	sampleArea := map[string]any{"id": testAreaID, "name": "Plattform", "status": "ACTIVE", "members": []any{}}
-	sampleCluster := map[string]any{"id": testClusterID, "name": "KI", "status": "ACTIVE", "members": []any{}}
-	sampleNaisTeam := map[string]any{"slug": "copilot", "purpose": "Copilot platform", "slackChannel": "#copilot"}
-
-	srv := newTestServer(t, defaultTexasHandler("obo"), func(w http.ResponseWriter, r *http.Request) {
-		switch r.URL.Path {
-		case "/team", "/team/search/copilot", "/team/naisteam/copilot":
-			writeJSON(w, http.StatusOK, map[string]any{"content": []any{sampleTeam}})
-		case "/team/" + testTeamID:
-			writeJSON(w, http.StatusOK, sampleTeam)
-		case "/productarea":
-			writeJSON(w, http.StatusOK, map[string]any{"content": []any{sampleArea}})
-		case "/productarea/" + testAreaID:
-			writeJSON(w, http.StatusOK, sampleArea)
-		case "/cluster":
-			writeJSON(w, http.StatusOK, map[string]any{"content": []any{sampleCluster}})
-		case "/cluster/" + testClusterID:
-			writeJSON(w, http.StatusOK, sampleCluster)
-		case "/member/membership/Z123456":
-			writeJSON(w, http.StatusOK, map[string]any{"teams": []any{sampleTeam}, "productAreas": []any{sampleArea}, "clusters": []any{sampleCluster}})
-		case "/naisteam/copilot":
-			writeJSON(w, http.StatusOK, sampleNaisTeam)
-		case "/naisteam/search/copilot":
-			writeJSON(w, http.StatusOK, map[string]any{"content": []any{sampleNaisTeam}})
-		default:
-			http.NotFound(w, r)
-		}
-	})
+	srv := newTestServer(t, defaultTexasHandler("obo"), sampleCatalogHandler())
 
 	schemas := map[string]map[string]any{}
 	for _, d := range toolDefinitions() {
@@ -274,64 +245,84 @@ func TestStructuredContentMatchesTextAndSchema(t *testing.T) {
 	}
 }
 
-func TestCachingBehavior(t *testing.T) {
-	var catalogHits atomic.Int32
-	var memberHits atomic.Int32
+func sampleCatalogHandler() http.HandlerFunc {
+	sampleTeam := map[string]any{"id": testTeamID, "name": "Team Copilot", "status": "ACTIVE", "members": []any{}}
+	sampleArea := map[string]any{"id": testAreaID, "name": "Plattform", "status": "ACTIVE", "members": []any{}}
+	sampleCluster := map[string]any{"id": testClusterID, "name": "KI", "status": "ACTIVE", "members": []any{}}
+	sampleNaisTeam := map[string]any{"slug": "copilot", "purpose": "Copilot platform", "slackChannel": "#copilot"}
 
-	srv := newTestServer(t, defaultTexasHandler("obo"), func(w http.ResponseWriter, r *http.Request) {
-		switch {
-		case r.URL.Path == "/team":
-			catalogHits.Add(1)
-			writeJSON(w, http.StatusOK, map[string]any{"content": []any{}})
-		case strings.HasPrefix(r.URL.Path, "/member/membership/"):
-			memberHits.Add(1)
-			writeJSON(w, http.StatusOK, map[string]any{"teams": []any{}, "productAreas": []any{}, "clusters": []any{}})
+	return func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/team", "/team/search/copilot", "/team/naisteam/copilot":
+			writeJSON(w, http.StatusOK, map[string]any{"content": []any{sampleTeam}})
+		case "/team/" + testTeamID:
+			writeJSON(w, http.StatusOK, sampleTeam)
+		case "/productarea":
+			writeJSON(w, http.StatusOK, map[string]any{"content": []any{sampleArea}})
+		case "/productarea/" + testAreaID:
+			writeJSON(w, http.StatusOK, sampleArea)
+		case "/cluster":
+			writeJSON(w, http.StatusOK, map[string]any{"content": []any{sampleCluster}})
+		case "/cluster/" + testClusterID:
+			writeJSON(w, http.StatusOK, sampleCluster)
+		case "/member/membership/Z123456":
+			writeJSON(w, http.StatusOK, map[string]any{"teams": []any{sampleTeam}, "productAreas": []any{sampleArea}, "clusters": []any{sampleCluster}})
+		case "/naisteam/copilot":
+			writeJSON(w, http.StatusOK, sampleNaisTeam)
+		case "/naisteam/search/copilot":
+			writeJSON(w, http.StatusOK, map[string]any{"content": []any{sampleNaisTeam}})
 		default:
 			http.NotFound(w, r)
 		}
-	})
-
-	// Shared catalog endpoints are cached.
-	callToolModern(t, srv.routes(), "in", "list_teams", map[string]any{})
-	callToolModern(t, srv.routes(), "in", "list_teams", map[string]any{"filter": "copilot"})
-	if n := catalogHits.Load(); n != 1 {
-		t.Fatalf("catalogHits = %d, want 1", n)
-	}
-
-	// Member lookups are never cached.
-	callToolModern(t, srv.routes(), "in", "get_member_memberships", map[string]any{"navIdent": "Z123456"})
-	callToolModern(t, srv.routes(), "in", "get_member_memberships", map[string]any{"navIdent": "Z123456"})
-	if n := memberHits.Load(); n != 2 {
-		t.Fatalf("memberHits = %d, want 2 (member lookups must not be cached)", n)
 	}
 }
 
-func TestResponseCacheExpiresAndBounds(t *testing.T) {
-	c := newResponseCache()
-	now := time.Unix(0, 0)
-	c.now = func() time.Time { return now }
-	c.put("a", []byte("x"))
-	if _, ok := c.get("a"); !ok {
-		t.Fatal("fresh entry missing")
-	}
-	now = now.Add(cacheTTL)
-	if _, ok := c.get("a"); ok {
-		t.Fatal("expired entry served")
-	}
-}
-
-func TestDetailResponsesWithMembersAreNotCached(t *testing.T) {
-	var hits atomic.Int32
-	srv := newTestServer(t, defaultTexasHandler("obo"), func(w http.ResponseWriter, _ *http.Request) {
-		hits.Add(1)
-		writeJSON(w, http.StatusOK, map[string]any{"id": testTeamID, "name": "x", "members": []any{}})
+// Nothing from Teamkatalogen is cached: responses carry personal data about
+// employees (members, contact persons), and a shared cache would hold it for
+// every user in the pod.
+func TestNoToolResponseIsCached(t *testing.T) {
+	hits := map[string]int{}
+	var mu sync.Mutex
+	inner := sampleCatalogHandler()
+	srv := newTestServer(t, defaultTexasHandler("obo"), func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		hits[r.URL.Path]++
+		mu.Unlock()
+		inner(w, r)
 	})
-	for _, tool := range []string{"get_team", "get_product_area", "get_cluster"} {
-		hits.Store(0)
-		callToolModern(t, srv.routes(), "in", tool, map[string]any{"id": testTeamID})
-		callToolModern(t, srv.routes(), "in", tool, map[string]any{"id": testTeamID})
-		if n := hits.Load(); n != 2 {
-			t.Fatalf("%s: upstream hits = %d, want 2 (detail responses must not be cached)", tool, n)
+	for _, tc := range []struct {
+		tool string
+		args map[string]any
+	}{
+		{"list_teams", map[string]any{}},
+		{"search_teams", map[string]any{"query": "copilot"}},
+		{"get_team", map[string]any{"id": testTeamID}},
+		{"get_teams_by_nais_team", map[string]any{"naisTeam": "copilot"}},
+		{"list_product_areas", map[string]any{}},
+		{"get_product_area", map[string]any{"id": testAreaID}},
+		{"list_clusters", map[string]any{}},
+		{"get_cluster", map[string]any{"id": testClusterID}},
+		{"get_member_memberships", map[string]any{"navIdent": "Z123456"}},
+		{"get_nais_team", map[string]any{"teamId": "copilot"}},
+		{"get_nais_team", map[string]any{"query": "copilot"}},
+	} {
+		mu.Lock()
+		clear(hits)
+		mu.Unlock()
+		for range 2 {
+			_, out := callToolModern(t, srv.routes(), "in", tc.tool, tc.args)
+			if txt, isErr := extractToolText(t, out); isErr {
+				t.Fatalf("%s %v: tool error: %s", tc.tool, tc.args, txt)
+			}
+		}
+		mu.Lock()
+		total := 0
+		for _, n := range hits {
+			total += n
+		}
+		mu.Unlock()
+		if total < 2 {
+			t.Fatalf("%s %v: upstream hits = %d, want at least 2 (responses must not be cached)", tc.tool, tc.args, total)
 		}
 	}
 }
