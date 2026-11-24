@@ -3,23 +3,48 @@ package provider
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/local"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/telemetry"
 )
 
-// openCodeCommand runs opencode for its output. A variable so the test can
-// answer for it.
+// openCodeCommand runs opencode on the host for its output. A variable so the
+// test can answer for it. Every host call to opencode goes through here.
+//
+// The repo is attacker-controlled, and opencode loads a project's plugins from
+// its working directory: run there, a repo plugin would execute on the host,
+// outside cplt and before plugin consent (#2789). So opencode starts in a
+// fresh empty directory. A list is scoped to the "current project", which
+// opencode derives from the git history, so the empty directory gets a .git
+// file pointing at dir's git directory: same project, none of the repo's
+// files. OPENCODE_DISABLE_PROJECT_CONFIG and the dropped config variables are
+// a second wall.
 var openCodeCommand = func(ctx context.Context, dir string, args ...string) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(ctx, openCodeHostTimeout)
+	defer cancel()
+	cwd, err := os.MkdirTemp("", "nav-pilot-opencode-cwd-*")
+	if err != nil {
+		return nil, err
+	}
+	defer os.RemoveAll(cwd)
+	if gitDir := findGitDir(dir); gitDir != "" {
+		if err := os.WriteFile(filepath.Join(cwd, ".git"), []byte("gitdir: "+gitDir+"\n"), 0o600); err != nil {
+			return nil, err
+		}
+	}
 	cmd := exec.CommandContext(ctx, "opencode", args...)
-	cmd.Dir = dir
+	cmd.Dir = cwd
+	cmd.Stdin = nil // /dev/null
+	cmd.WaitDelay = time.Second
 	// These reads are not a session: no spans from them.
-	cmd.Env = append(os.Environ(), "OTEL_SDK_DISABLED=true")
+	cmd.Env = append(openCodeHostEnv(os.Environ()), "OTEL_SDK_DISABLED=true", "OPENCODE_DISABLE_PROJECT_CONFIG=1")
 	// opencode 1.18 cuts its output to a pipe at 128 KiB when it exits, which
 	// left any longer session unread. A file gets all of it. The file is
 	// 0600 and unlinked before anything is written, so the raw export is
@@ -42,6 +67,90 @@ var openCodeCommand = func(ctx context.Context, dir string, args ...string) ([]b
 	return io.ReadAll(f)
 }
 
+// openCodeHostTimeout bounds one host call; a variable for the test.
+var openCodeHostTimeout = 10 * time.Second
+
+// openCodeHostEnv drops the variables that point opencode at a project or
+// config directory, so an inherited value cannot bring config back in.
+func openCodeHostEnv(env []string) []string {
+	out := env[:0:0]
+	for _, kv := range env {
+		k, _, _ := strings.Cut(kv, "=")
+		switch k {
+		case "OPENCODE_CONFIG", "OPENCODE_CONFIG_DIR", "OPENCODE_CONFIG_CONTENT",
+			"OPENCODE_CONFIG_PROJECT_DISABLE", "OPENCODE_DISABLE_PROJECT_CONFIG":
+			continue
+		}
+		out = append(out, kv)
+	}
+	return out
+}
+
+// readCapped reads at most limit bytes of path; more is an error.
+func readCapped(path string, limit int64) ([]byte, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	b, err := io.ReadAll(io.LimitReader(f, limit+1))
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(b)) > limit {
+		return nil, fmt.Errorf("%s is larger than %d bytes", path, limit)
+	}
+	return b, nil
+}
+
+// findGitDir returns the git directory of the repo dir is in, or "" outside
+// one. It reads the filesystem only: no git runs in the repo.
+func findGitDir(dir string) string {
+	if dir == "" {
+		return ""
+	}
+	d, err := filepath.Abs(dir)
+	if err != nil {
+		return ""
+	}
+	// A symlinked start dir would walk the alias's parents and miss .git.
+	if r, err := filepath.EvalSymlinks(d); err == nil {
+		d = r
+	}
+	for {
+		p := filepath.Join(d, ".git")
+		// Lstat: .git is repo content. A symlink, FIFO or device would block
+		// or read without bound before any timeout starts, so it is not git.
+		if fi, err := os.Lstat(p); err == nil {
+			if fi.IsDir() {
+				return p
+			}
+			if !fi.Mode().IsRegular() {
+				return ""
+			}
+			// A linked worktree or submodule: .git is a file naming the gitdir.
+			b, err := readCapped(p, 4<<10)
+			if err != nil {
+				return ""
+			}
+			g, ok := strings.CutPrefix(strings.TrimSpace(string(b)), "gitdir:")
+			if !ok {
+				return ""
+			}
+			g = strings.TrimSpace(g)
+			if !filepath.IsAbs(g) {
+				g = filepath.Join(d, g)
+			}
+			return g
+		}
+		parent := filepath.Dir(d)
+		if parent == d {
+			return ""
+		}
+		d = parent
+	}
+}
+
 // readOpenCodeUsage sums the tokens, model calls and tool calls of the
 // sessions in dir that changed since the launch, counting only messages from
 // since on, so a resumed session is not counted twice.
@@ -59,6 +168,14 @@ var openCodeCommand = func(ctx context.Context, dir string, args ...string) ([]b
 func readOpenCodeUsage(dir string, since time.Time) (telemetry.ClientUsage, []telemetry.CopilotSession) {
 	var sessions []telemetry.CopilotSession
 	u := telemetry.ClientUsage{Client: "opencode", Dir: dir, Models: map[telemetry.ModelKey]telemetry.ModelUsage{}, Tools: map[string]int64{}}
+	// A list is scoped to opencode's project, which comes from the git
+	// history. Outside a git repo the only way to learn the project is to run
+	// opencode in the workspace, which #2789 forbids, so no usage is read.
+	// shortcut: non-git workspaces report no opencode usage; upgrade if
+	// opencode gets a project flag for session list.
+	if findGitDir(dir) == "" {
+		return u, nil
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	// v1 runs in-process with --pure; v2 needs --standalone so it does not

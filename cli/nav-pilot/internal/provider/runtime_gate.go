@@ -268,6 +268,15 @@ var runStagedProbe = func(timeout time.Duration, name string, args ...string) (s
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, name, args...)
+	// Not the repo: the probed client runs on the host, and the repo's
+	// contents are attacker-controlled (#2789).
+	// No temp dir, no probe: the version stays unknown, never the repo cwd.
+	cwd, err := os.MkdirTemp("", "nav-pilot-probe-cwd-")
+	if err != nil {
+		return "", fmt.Errorf("could not create an isolated probe directory: %w", err)
+	}
+	defer os.RemoveAll(cwd)
+	cmd.Dir = cwd
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	cmd.Cancel = func() error { return syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL) }
 	cmd.WaitDelay = stagedProbeWaitDelay

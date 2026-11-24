@@ -10,6 +10,10 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ## 2026-11-23
 
+### OpenCode-kall utenfor sandkassen starter ikke lenger i repoet
+
+- **OpenCode**: Når nav-pilot leser bruksdata fra OpenCode etter en økt eller sjekker versjonen, kjører OpenCode på maskinen din, utenfor cplt. Før startet disse kallene i repoet, og OpenCode lastet repoets egne utvidelser uten at du hadde godkjent dem. Nå starter kallene i en tom, midlertidig mappe og laster ikke repoets oppsett (#2789).
+
 ### Nye installasjoner spør ikke lenger om innstillinger
 
 - **Første oppstart på en ny maskin**: nav-pilot spør ikke om klient, innstillinger eller installasjonssted. Den velger OpenCode hvis OpenCode er installert, innlogget og i en testet versjon, ellers GitHub Copilot CLI. Har du ingen av dem, spør nav-pilot om den skal installere OpenCode. Spørsmålene om `.cplt.toml` og Nais-tilgang kommer som før. Vil du velge selv, kjør `nav-pilot config setup` (#2781, #1022).
