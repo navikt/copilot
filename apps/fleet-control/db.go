@@ -32,6 +32,8 @@ func OpenDB(ctx context.Context, dsn string) (*DB, error) {
 	}
 	// Simple protocol avoids prepared statements incompatible with PgBouncer transaction mode.
 	cfg.ConnConfig.DefaultQueryExecMode = pgx.QueryExecModeSimpleProtocol
+	cfg.ConnConfig.Tracer = pendingAudit
+	cfg.BeforeClose = pendingAudit.forget
 	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {
 		return nil, err
@@ -151,7 +153,7 @@ func (d *DB) Seed(ctx context.Context, servers []Server, source string) (bool, e
 		if err != nil {
 			return err
 		}
-		if _, err := tx.Exec(ctx, `INSERT INTO audit_events (actor, action, detail) VALUES ('seed', 'seed_published', $1::jsonb)`, string(detail)); err != nil {
+		if err := insertAudit(ctx, tx, auditRow{Actor: "seed", Action: "seed_published", Detail: json.RawMessage(detail)}); err != nil {
 			return err
 		}
 		seeded = true

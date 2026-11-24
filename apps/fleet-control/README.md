@@ -164,6 +164,21 @@ Existing migrations, checked against the rule (#2761):
 
 `FLEET_AUDIT_RETENTION_DELETE=true` in all clusters: at startup the app deletes `audit_events` older than 90 days. Owner decision 2026-11-24: Loki is the archive. Until #2876 merges, the variable has no effect.
 
+Every committed `audit_events` row is also written to stdout as one JSON line, `audit fleet-control`, so Loki keeps the trail after the database deletes it. The line is logged only after the transaction commits; a rolled-back write logs nothing. Fields, in the fleet-gateway `audit mcp` shape:
+
+- `at`: the row's time
+- `subject.type` (`user`, `application`, `system`), `subject.id` (NAVident), `subject.properties.oid`, `subject.properties.client_id`
+- `action.name`
+- `resource.type`, `resource.id` (`namespace/name`), `resource.properties.namespace`, `.name`, `.generation`
+- `context.outcome`: always `committed`
+
+`detail` and tokens are not logged. Find the writes by one person, or to one resource:
+
+```logql
+{service_name="fleet-control"} |= "audit fleet-control" | json | subject_id="Z123456"
+{service_name="fleet-control"} |= "audit fleet-control" | json | resource_id="team-a/my-server"
+```
+
 ## Backup and restore
 
 Nais Postgres ([doc.nais.io](https://doc.nais.io/persistence/postgres/reference/recovery-window/)) takes a nightly base backup and archives the write-ahead log continuously, into a bucket in the team's project. That gives point-in-time recovery to any second in the window. `.nais/postgres.yaml` sets `backup.retentionDays: 7` (Nais default 2, range 2 to 30). The file is applied by hand, not by CI: run `nais apply -t copilot -e <env> .nais/postgres.yaml` after changing it. Cost at 5Gi is about 5 x 8 x 0.02 = 0.80 EUR a month.
@@ -188,7 +203,7 @@ A restore never overwrites the source. It clones into a new database ([how-to](h
 7. Check `/ready`, then that fleet-gateway fetches a snapshot again: its snapshot age metric drops back.
 8. Keep the source until the clone is verified and nothing uses it. Then delete it, or rename back in a later change.
 
-The audit log in the clone ends at the restore time. Events after it exist only in Loki. Audit rows older than 90 days are pruned again at the next start.
+The audit log in the clone ends at the restore time. Events after it exist only in Loki. Find them with `{service_name="fleet-control"} |= "audit fleet-control" | json` over the time since the restore point. Audit rows older than 90 days are pruned again at the next start.
 
 ### Restore drill in dev (not done yet)
 

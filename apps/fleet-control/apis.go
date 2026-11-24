@@ -158,6 +158,9 @@ type caller struct {
 	// ClientID is the ordering app's azp for a delegated AgentJob request,
 	// "" for a person via my-copilot. Teams is empty when it is set.
 	ClientID string
+	// Azp is the authenticated token's azp on every route, recorded in the
+	// audit row's actor_client_id.
+	Azp string
 }
 
 func (c caller) in(team string) bool { return slices.Contains(c.Teams, team) }
@@ -198,7 +201,7 @@ func (s *server) apisFor(a *authz, adminClientID string, teams teamDirectory, ki
 			writeStatus(w, r, kind, err)
 			return
 		}
-		c := caller{Ident: ident, Oid: oid}
+		c := caller{Ident: ident, Oid: oid, Azp: azp}
 		if azp != adminClientID {
 			c.ClientID = azp
 		} else if c.Teams, err = teams.Teams(ctx, email); err != nil {

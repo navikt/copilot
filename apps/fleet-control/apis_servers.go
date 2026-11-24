@@ -617,17 +617,8 @@ func (d *DB) buildServer(ctx context.Context, row serverRow) (MCPServer, error) 
 // columns. detail never holds an oid. version mirrors generation, so the
 // /admin/v1 audit view keeps working.
 func auditV1(ctx context.Context, tx pgx.Tx, c caller, action, kind, ns, name string, gen *int, detail map[string]any) error {
-	raw, err := json.Marshal(detail)
-	if err != nil {
-		return err
-	}
-	var oid *string
-	if c.Oid != "" {
-		oid = &c.Oid
-	}
-	_, err = tx.Exec(ctx, `INSERT INTO audit_events (actor, actor_kind, actor_oid, action, resource_kind, namespace, name, version, generation, detail)
-		VALUES ($1, $2, $3::uuid, $4, $5, $6, $7, $8, $8, $9::jsonb)`, c.Ident, c.actor().Kind, oid, action, kind, ns, name, gen, string(raw))
-	return err
+	return insertAudit(ctx, tx, auditRow{Actor: c.Ident, ActorKind: c.actor().Kind, ActorOid: c.Oid, ActorClientID: c.Azp,
+		Action: action, ResourceKind: kind, Namespace: ns, Name: name, Version: gen, Generation: gen, Detail: detail})
 }
 
 // blockedContent is 422 when any of hashes equals a blocked generation's
