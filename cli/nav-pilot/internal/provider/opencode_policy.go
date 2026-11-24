@@ -815,6 +815,12 @@ func OpenCodeLoggedIn() bool {
 		return false
 	}
 	defer os.RemoveAll(dir)
+	// opencode also walks up from its directory for project config, so a
+	// TMPDIR inside the checkout would bring the repo's plugins back. Fail
+	// closed: no probe, not logged in.
+	if insideWorkingRepo(dir) {
+		return false
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, path, "auth", "list", "--standalone", "--format", "json")
@@ -825,6 +831,7 @@ func OpenCodeLoggedIn() bool {
 			cmd.Env = append(cmd.Env, kv)
 		}
 	}
+	cmd.Env = append(cmd.Env, "OPENCODE_DISABLE_PROJECT_CONFIG=1")
 	out, err := cmd.Output()
 	if err != nil {
 		return false
@@ -838,6 +845,38 @@ func OpenCodeLoggedIn() bool {
 	}
 	for _, e := range entries {
 		if e.ID == "github-copilot" && len(e.Connections) > 0 {
+			return true
+		}
+	}
+	return false
+}
+
+// insideWorkingRepo reports whether dir lies inside the working directory or
+// the git checkout that contains it. Any error counts as inside.
+func insideWorkingRepo(dir string) bool {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return true
+	}
+	resolve := func(p string) string {
+		if r, err := filepath.EvalSymlinks(p); err == nil {
+			return r
+		}
+		return p
+	}
+	dir, cwd = resolve(dir), resolve(cwd)
+	roots := []string{cwd}
+	for d := cwd; ; d = filepath.Dir(d) {
+		if _, err := os.Stat(filepath.Join(d, ".git")); err == nil {
+			roots = append(roots, d)
+			break
+		}
+		if filepath.Dir(d) == d {
+			break
+		}
+	}
+	for _, r := range roots {
+		if rel, err := filepath.Rel(r, dir); err != nil || (rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))) {
 			return true
 		}
 	}

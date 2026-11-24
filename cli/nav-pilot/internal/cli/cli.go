@@ -944,8 +944,13 @@ func run(args []string) error {
 	// first-run defaults as a launch, so neither the scope question nor the
 	// picker appears and the next launch does not open the wizard (#2781).
 	// Explicit scope and selection flags still decide below.
-	if command == "install" && startedFresh && !jsonOutput && !dryRun && !frozen {
-		if err := maybeRunFirstRunSetup(sourceRepo); err != nil {
+	// A malformed command line writes nothing: its usage error comes first.
+	// A command line that already said yes asks no question here either.
+	if command == "install" && startedFresh && !jsonOutput && !dryRun && !frozen && len(positional) <= 1 {
+		firstRunNoPrompt = yes || (installAll && scopeProvided)
+		err := maybeRunFirstRunSetup(sourceRepo)
+		firstRunNoPrompt = false
+		if err != nil {
 			return err
 		}
 	}

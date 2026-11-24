@@ -610,6 +610,11 @@ var firstRunFn = func(flagSource string) error {
 	return firstRunDefaults(flagSource)
 }
 
+// firstRunNoPrompt is set for an install command line that said yes up
+// front: the first run then saves Copilot instead of offering to install
+// opencode, and the launch says how to install a client.
+var firstRunNoPrompt bool
+
 // firstRunWrote is set once this process wrote a new install's first
 // config.toml: the install that follows takes the new-install defaults.
 var firstRunWrote bool
@@ -732,7 +737,7 @@ func firstRunDefaults(flagSource string) error {
 		if openCodeReady() {
 			client = "opencode"
 		}
-	case !copilot:
+	case !copilot && !firstRunNoPrompt:
 		var err error
 		if client, err = opencodeForSetup(); err != nil {
 			return setupSkipped(err)

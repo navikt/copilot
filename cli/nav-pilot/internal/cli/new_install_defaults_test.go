@@ -523,3 +523,86 @@ func TestStateFoundUnderMetacharacterDir(t *testing.T) {
 		t.Error("device-id under a metacharacter dir not found")
 	}
 }
+
+// A malformed install writes no config and bootstraps nothing; the usage
+// error comes first (#2785 review).
+func TestRunInstallBadArgsOnNewInstallWritesNothing(t *testing.T) {
+	cfg := isolatedConfig(t)
+	t.Setenv("HOME", t.TempDir())
+	forceInteractive(t)
+	stubInstalled(t, map[string]bool{"copilot": true})
+	ran := 0
+	orig := firstRunFn
+	firstRunFn = func(string) error { ran++; return nil }
+	t.Cleanup(func() { firstRunFn = orig })
+	var err error
+	captureRun(t, func() { err = run([]string{"install", "one", "two"}) })
+	if err == nil || !strings.Contains(err.Error(), "install takes one name") {
+		t.Errorf("err = %v, want the usage error", err)
+	}
+	if ran != 0 {
+		t.Error("first-run setup ran before the usage error")
+	}
+	if _, statErr := os.Stat(cfg); !os.IsNotExist(statErr) {
+		t.Error("config written")
+	}
+}
+
+// With no client installed, an install that said yes up front saves the
+// defaults without offering to install opencode (#2785 review).
+func TestRunInstallYesOnNewInstallAsksNoClientQuestion(t *testing.T) {
+	cfg := isolatedConfig(t)
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	forceInteractive(t)
+	origGOOS := installGOOS
+	installGOOS = "darwin"
+	t.Cleanup(func() { installGOOS = origGOOS })
+	asked := stubInstalled(t, nil)
+	stubResolveSource(t, pakkeSource(t, defaultSourceRepo))
+	t.Chdir(repoTarget(t))
+	captureRun(t, func() {
+		if err := run([]string{"install", "--user", "--all", "--yes"}); err != nil {
+			t.Fatal(err)
+		}
+	})
+	if *asked != 0 {
+		t.Errorf("opencode install offered %d times", *asked)
+	}
+	if data, _ := os.ReadFile(cfg); !strings.Contains(string(data), `client = "copilot"`) {
+		t.Errorf("defaults not saved:\n%s", data)
+	}
+}
+
+// The login probe tells opencode to skip project config, and is skipped
+// when its temp dir would sit inside the checkout (#2785 review).
+func TestOpenCodeLoggedInProbeStaysOutOfTheCheckout(t *testing.T) {
+	bin, rec := t.TempDir(), filepath.Join(t.TempDir(), "rec")
+	script := "#!/bin/sh\n/usr/bin/env > " + rec + "\necho '[{\"id\":\"github-copilot\",\"connections\":[{}]}]'\n"
+	if err := os.WriteFile(filepath.Join(bin, "opencode"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin)
+	repo := repoTarget(t)
+	t.Chdir(repo)
+	if !providerpkg.OpenCodeLoggedIn() {
+		t.Fatal("probe outside the checkout failed")
+	}
+	if data, _ := os.ReadFile(rec); !strings.Contains(string(data), "OPENCODE_DISABLE_PROJECT_CONFIG=1") {
+		t.Error("project config not disabled for the probe")
+	}
+
+	_ = os.Remove(rec)
+	sub := filepath.Join(repo, "tmp")
+	if err := os.MkdirAll(sub, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("TMPDIR", sub)
+	t.Chdir(filepath.Join(repo, ".git")) // cwd below the root: the git root still counts
+	if providerpkg.OpenCodeLoggedIn() {
+		t.Error("probe ran with its temp dir inside the checkout")
+	}
+	if _, err := os.Stat(rec); err == nil {
+		t.Error("opencode ran")
+	}
+}
