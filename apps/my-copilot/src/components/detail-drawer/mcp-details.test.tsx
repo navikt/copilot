@@ -253,7 +253,7 @@ describe("McpDetails", () => {
       version: "1",
       remotes: [{ type: "streamable-http", url }],
       tools: ["dolly_search", "create_order"],
-      toolRisk: { create_order: "external" },
+      toolRisk: { create_order: "write" },
     } as unknown as EnrichedCustomization;
     render(<McpDetails item={item} />);
     expect(screen.getAllByRole("tab").map((t) => t.textContent)).toEqual([
@@ -268,9 +268,7 @@ describe("McpDetails", () => {
     fireEvent.mouseDown(screen.getByRole("tab", { name: "Andre klienter" }));
     fireEvent.click(screen.getByRole("tab", { name: "Andre klienter" }));
     expect(screen.getAllByText(url).length).toBeGreaterThan(0);
-    expect(riskCounts(item.type === "mcp" ? item.tools! : [], { create_order: "external" })).toBe(
-      "2 verktøy, 1 endrer"
-    );
+    expect(riskCounts(item.type === "mcp" ? item.tools! : [], { create_order: "write" })).toBe("2 verktøy, 1 endrer");
     expect(serverPagePath("io.github.navikt/dolly")).toBe("/mcp/servere/dolly");
   });
 });

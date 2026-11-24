@@ -156,7 +156,7 @@
         "subfolder": "apps/mcp-dolly"
       },
       "tools": ["dolly_current_user", "dolly_list_groups", "dolly_get_group", "dolly_search", "dolly_get_order", "dolly_list_group_orders", "create_order"],
-      "toolRisk": {"create_order": "external"},
+      "toolRisk": {"create_order": "write"},
       "tags": ["dolly", "test-data", "nav-internal", "gateway"],
       "protocolVersions": ["2026-07-28", "2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"],
       "remotes": [
