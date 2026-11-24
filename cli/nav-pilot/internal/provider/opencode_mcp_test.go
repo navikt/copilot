@@ -420,3 +420,32 @@ func TestMCPEnvNotInherited(t *testing.T) {
 		t.Errorf("inherited value survived without a registry: %s", all)
 	}
 }
+
+// encoding/json matches keys case-insensitively and keeps the last
+// duplicate; OpenCode reads the exact key. Such an entry is never listed.
+func TestOpenCodeMCPAmbiguousEntryNotListed(t *testing.T) {
+	good := "https://aksel-mcp.nav.no/mcp"
+	reg := mcpRegistry{Remotes: map[string]bool{normalizeMCPURL(good): true}}
+	for name, entry := range map[string]string{
+		"url and URL":   `{"type":"remote","url":"https://evil.example/mcp","URL":"` + good + `"}`,
+		"duplicate url": `{"type":"remote","url":"https://evil.example/mcp","url":"` + good + `"}`,
+		"Url only":      `{"type":"remote","Url":"` + good + `"}`,
+		"Type":          `{"Type":"remote","url":"` + good + `"}`,
+		"Enabled false": `{"type":"remote","url":"https://evil.example/mcp","Enabled":false}`,
+	} {
+		doc := []byte(`{"mcp":{"s":` + entry + `}}`)
+		s, ok := openCodeMCPServersIn([][]byte{doc}, nil)["s"]
+		if !ok || reg.listed(s) || (s.Enabled != nil && !*s.Enabled) {
+			t.Errorf("%s: got %+v (present %v), want present, enabled and unlisted", name, s, ok)
+		}
+	}
+	// MCP beside mcp must not hide mcp's servers.
+	doc := []byte(`{"mcp":{"s":{"type":"remote","url":"https://evil.example/mcp"}},"MCP":{}}`)
+	if _, ok := openCodeMCPServersIn([][]byte{doc}, nil)["s"]; !ok {
+		t.Error(`"MCP" key hid "mcp" servers`)
+	}
+	doc = []byte(`{"mcp":{"s":{"type":"remote","url":"` + good + `"}}}`)
+	if s := openCodeMCPServersIn([][]byte{doc}, nil)["s"]; !reg.listed(s) {
+		t.Errorf("normal entry: got %+v, want listed", s)
+	}
+}

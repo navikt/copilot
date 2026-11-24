@@ -69,6 +69,9 @@ type mcpServer struct {
 	Env         map[string]string `json:"env"`
 	hadEnv      bool
 	hadEnvName  bool
+	// ambiguous: the entry has a duplicate key or a known key in another
+	// case, so Go's view may differ from OpenCode's (strictMCPEntry).
+	ambiguous bool
 }
 
 // mcpRegistry is what the registry lists: remote URLs and package ids.
@@ -260,7 +263,7 @@ func normalizeMCPURL(s string) string {
 
 // listed reports whether the registry lists the server.
 func (r mcpRegistry) listed(s mcpServer) bool {
-	if s.hadEnvName {
+	if s.hadEnvName || s.ambiguous {
 		return false
 	}
 	switch s.Type {
@@ -453,6 +456,11 @@ func openCodeMCPServersIn(docs [][]byte, getenv func(string) string) map[string]
 		s := servers[name]
 		s.hadEnv = s.hadEnv || hadEnv
 		s.hadEnvName = s.hadEnvName || hadEnvName
+		if !strictMCPEntry(expanded) {
+			// Fail closed: keep the name so it is turned off, trust nothing else.
+			servers[name] = mcpServer{hadEnv: true, hadEnvName: s.hadEnvName, ambiguous: true}
+			return
+		}
 		if v2Native {
 			var d struct {
 				Disabled *bool `json:"disabled"`
@@ -482,10 +490,15 @@ func openCodeMCPServersIn(docs [][]byte, getenv func(string) string) map[string]
 		}
 	}
 	for _, doc := range docs {
-		var cfg struct {
-			MCP map[string]json.RawMessage `json:"mcp"`
+		// A map, not a struct: its keys match exactly, as OpenCode reads them,
+		// so a "MCP" key cannot shadow "mcp".
+		var top map[string]json.RawMessage
+		var cfg struct{ MCP map[string]json.RawMessage }
+		err := json.Unmarshal(stripJSONC(doc), &top)
+		if err == nil && top["mcp"] != nil {
+			err = json.Unmarshal(top["mcp"], &cfg.MCP)
 		}
-		if json.Unmarshal(stripJSONC(doc), &cfg) != nil {
+		if err != nil {
 			if bytes.Contains(doc, []byte(`"mcp"`)) {
 				fmt.Fprintf(os.Stderr, "%s nav-pilot could not read an OpenCode config with MCP servers, so those servers were not checked against Nav's MCP registry; they run as configured.\n", domain.Yellow("⚠"))
 			}
@@ -520,6 +533,40 @@ func openCodeMCPServersIn(docs [][]byte, getenv func(string) string) map[string]
 		}
 	}
 	return servers
+}
+
+// mcpEntryKeys is every server key nav-pilot reads, as OpenCode spells it.
+var mcpEntryKeys = []string{"type", "url", "command", "enabled", "disabled", "environment", "env"}
+
+// strictMCPEntry reports whether raw is an object with no duplicate keys and
+// no key that matches a known key only case-insensitively. encoding/json
+// matches struct tags case-insensitively and keeps the last duplicate, while
+// OpenCode reads the exact key, so either could make nav-pilot check one URL
+// or command while OpenCode runs another.
+func strictMCPEntry(raw []byte) bool {
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	if t, err := dec.Token(); err != nil || t != json.Delim('{') {
+		return false
+	}
+	seen := map[string]bool{}
+	for dec.More() {
+		t, err := dec.Token()
+		k, ok := t.(string)
+		if err != nil || !ok || seen[k] {
+			return false
+		}
+		seen[k] = true
+		for _, known := range mcpEntryKeys {
+			if strings.EqualFold(k, known) && k != known {
+				return false
+			}
+		}
+		var skip json.RawMessage
+		if dec.Decode(&skip) != nil {
+			return false
+		}
+	}
+	return true
 }
 
 // isOpenCodeWalkStopDir reports whether the ancestor config walk must stop
@@ -736,7 +783,7 @@ func applyOpenCodeMCPPolicyOff(env []string, projectDir string) []string {
 		s := servers[name]
 		cmd := s.Command
 		urlStr := s.URL
-		if s.hadEnv {
+		if s.hadEnv || s.ambiguous {
 			cmd = []string{"false"}
 			urlStr = "https://disabled.invalid"
 		}
