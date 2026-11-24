@@ -138,6 +138,15 @@ func setupDB(ctx context.Context) (*DB, error) {
 	} else if len(names) > 0 {
 		slog.Warn("published registry names outside their team's prefix", "servers", names)
 	}
+	// Off by default until the export target in #2762 is decided. Runs on
+	// each start, with the owner role.
+	if os.Getenv("FLEET_AUDIT_RETENTION_DELETE") == "true" {
+		if n, err := owner.PruneAudit(ctx); err != nil {
+			slog.Warn("prune audit_events", "error", err)
+		} else {
+			slog.Info("pruned audit_events older than 90 days", "rows", n)
+		}
+	}
 	// A failure here is logged, not fatal: CheckAuditLocked still refuses
 	// startup if the runtime role kept its change rights.
 	if err := owner.RevokeAuditChange(ctx); err != nil {

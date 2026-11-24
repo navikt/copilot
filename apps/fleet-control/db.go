@@ -300,3 +300,20 @@ func checkAuditLocked(ctx context.Context, q interface {
 	}
 	return nil
 }
+
+// PruneAudit deletes audit rows older than 90 days (#2762). Needs the owner
+// pool: the runtime role has no DELETE right, and the trigger refuses
+// younger rows and sessions without fleet.audit_retention.
+// shortcut: deletes without export; the export target is not decided (#2762).
+func (d *DB) PruneAudit(ctx context.Context) (int64, error) {
+	var n int64
+	err := pgx.BeginFunc(ctx, d.pool, func(tx pgx.Tx) error {
+		if _, err := tx.Exec(ctx, `SET LOCAL fleet.audit_retention = 'on'`); err != nil {
+			return err
+		}
+		tag, err := tx.Exec(ctx, `DELETE FROM audit_events WHERE at < now() - interval '90 days'`)
+		n = tag.RowsAffected()
+		return err
+	})
+	return n, err
+}
