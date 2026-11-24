@@ -378,6 +378,17 @@ hører til den cplt-en du har: `sudo apt update && sudo apt install --only-upgra
 en `.deb` installert for hånd får samme svar som en fra arkivet. nav-pilot laster aldri ned eller oppgraderer cplt for
 deg. Svarer ikke GitHub, hopper den bare over versjonssjekken.
 
+### Gradle og localhost
+
+Gradle bruker tilfeldige localhost-porter, og dem stenger cplt som standard. Første gang du starter nav-pilot gjennom cplt i et Gradle-repo, spør nav-pilot én gang om localhost skal være åpent for dette repoet. Med ja kan agenten nå lokale databaser, Docker-API-et og utviklingsservere. Svaret lagres per repo med `cplt config set --local sandbox.allow_localhost_any`, og du blir ikke spurt igjen. Uten terminal (CI) spør nav-pilot ikke og endrer ingenting. Krever cplt 2026.11.20 eller nyere.
+
+Vil teamet slippe spørsmålet, sjekker dere inn dette i `.cplt.toml` og godkjenner med `cplt trust`:
+
+```toml
+[propose]
+allow_localhost_any = true
+```
+
 ## Klienter
 
 nav-pilot støtter tre klienter (`client`-feltet i konfig). Hva hver av dem kan, og hva som mangler, står på

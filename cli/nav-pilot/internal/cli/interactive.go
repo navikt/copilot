@@ -1087,6 +1087,7 @@ func launchClient(resolved ResolvedConfig) (err error) {
 	// this may write (provider/mcp_hosts.go).
 	// One question per launch: the trust review first, strict next time.
 	maybeTrustNudge(resolved.ProjectDir)
+	maybeGradleLocalhost(resolved.ProjectDir)
 	offerLeaveStrict()
 	noteMCPHostConsent(resolved.Client, false)
 	probeMCPLoopback(os.Stderr, "", resolved.Client)
