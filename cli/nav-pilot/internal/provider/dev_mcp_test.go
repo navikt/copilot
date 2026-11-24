@@ -2,6 +2,8 @@ package provider
 
 import (
 	"bytes"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -123,5 +125,24 @@ func TestDevMCPRejectsEnvPlaceholder(t *testing.T) {
 	}
 	if devMCPAllowed(s, []string{"a.intern.dev.nav.no"}) {
 		t.Fatal("{env:} URL allowed by NAV_PILOT_DEV_MCP")
+	}
+}
+
+func TestOpenCodeMCPReportGroupsDevMCP(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	proj := t.TempDir()
+	os.Mkdir(filepath.Join(proj, ".git"), 0o700)
+	os.WriteFile(filepath.Join(proj, "opencode.json"), []byte(`{"mcp": {"ok": {"type": "remote", "url": "https://ok/mcp"}, "dev": {"type": "remote", "url": "https://a.intern.dev.nav.no/mcp"}, "bad": {"type": "remote", "url": "https://bad/mcp"}}}`), 0o600)
+	origPolicy, origReg, origDev := fetchMCPPolicy, fetchMCPRegistry, devMCP
+	t.Cleanup(func() { fetchMCPPolicy, fetchMCPRegistry, devMCP, devMCPEnabled = origPolicy, origReg, origDev, nil })
+	fetchMCPPolicy = func() (string, error) { return "https://registry/", nil }
+	fetchMCPRegistry = func(string) (mcpRegistry, error) {
+		return mcpRegistry{Remotes: map[string]bool{"https://ok/mcp": true}, Packages: map[string]bool{}}, nil
+	}
+	devMCP = func() []string { return []string{"a.intern.dev.nav.no"} }
+	listed, dev, unlisted, err := OpenCodeMCPReport(proj)
+	if err != nil || !slices.Equal(listed, []string{"ok"}) || !slices.Equal(dev, []string{"dev"}) || !slices.Equal(unlisted, []string{"bad"}) {
+		t.Fatalf("report = %v %v %v %v", listed, dev, unlisted, err)
 	}
 }

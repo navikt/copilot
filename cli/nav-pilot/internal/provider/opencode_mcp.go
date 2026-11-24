@@ -810,10 +810,11 @@ func unlistedIn(registry string, servers map[string]mcpServer, names []string) (
 }
 
 // OpenCodeMCPReport is doctor's view: each enabled server and whether the
-// org's registry lists it. err says why nothing could be checked.
+// org's registry lists it, or NAV_PILOT_DEV_MCP lets it run (dev). err says
+// why nothing could be checked.
 //
 // With no registry_only policy, nothing is reported: no registry was asked.
-func OpenCodeMCPReport(projectDir string) (listed, unlisted []string, err error) {
+func OpenCodeMCPReport(projectDir string) (listed, dev, unlisted []string, err error) {
 	servers := openCodeMCPServers(projectDir, os.Environ())
 	var names []string
 	for name, s := range servers {
@@ -823,23 +824,28 @@ func OpenCodeMCPReport(projectDir string) (listed, unlisted []string, err error)
 	}
 	sort.Strings(names)
 	if len(names) == 0 {
-		return nil, nil, nil
+		return nil, nil, nil, nil
 	}
 	registry, err := fetchMCPPolicy()
 	if err != nil || registry == "" {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	// The policy once: doctor used to ask GitHub for it twice (#1072).
 	off, err := unlistedIn(registry, servers, names)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
+	reg, _ := fetchMCPRegistry(registry) // cached: unlistedIn just read it
 	for _, n := range names {
-		if !slices.Contains(off, n) {
+		switch {
+		case slices.Contains(off, n):
+		case !reg.listed(servers[n]):
+			dev = append(dev, n)
+		default:
 			listed = append(listed, n)
 		}
 	}
-	return listed, off, nil
+	return listed, dev, off, nil
 }
 
 // stripJSONC removes // and /* */ comments and trailing commas outside
