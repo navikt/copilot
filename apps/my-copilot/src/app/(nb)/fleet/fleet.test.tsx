@@ -200,4 +200,31 @@ describe("/fleet", () => {
       "NEXT_PERMANENT_REDIRECT /fleet/mcp-servere/team-a/docs"
     );
   });
+
+  it.each(["..", "%2e%2e", "a/b", "Team"])("is 404 for the name %s and never fetches or redirects", async (bad) => {
+    await expect(ServerPage(params(bad, "docs"))).rejects.toThrow("NEXT_NOT_FOUND");
+    await expect(ServerPage(params("team-a", bad))).rejects.toThrow("NEXT_NOT_FOUND");
+    await expect(AgentPage(params(bad, "studio"))).rejects.toThrow("NEXT_NOT_FOUND");
+    await expect(OldRoutePage(params("team-a", bad))).rejects.toThrow("NEXT_NOT_FOUND");
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("is 404 on the old /fleet/ruter page without FLEET_CONTROL_URL", async () => {
+    vi.stubEnv("FLEET_CONTROL_URL", "");
+    await expect(OldRoutePage(params("team-a", "docs"))).rejects.toThrow("NEXT_NOT_FOUND");
+  });
+
+  it("shows a revoked grant as revoked, not as waiting, and formats quotas", async () => {
+    stub({
+      [`${API}/namespaces/aksel/agentprofiles/studio`]: profile({
+        granted: false,
+        grantedAt: T,
+        reason: "AccessRevoked",
+      }),
+    });
+    render(await AgentPage(params("aksel", "studio")));
+    expect(screen.getByText("search (tilgang trukket tilbake)")).toBeInTheDocument();
+    expect(screen.queryByText(/Venter på:/)).not.toBeInTheDocument();
+    expect(screen.getByText(/1\s000 kall i døgnet/)).toBeInTheDocument();
+  });
 });

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { FleetControlError, fleetApi, fleetLoad, requireFleet } from "@/lib/fleet-control";
+import { notFound } from "next/navigation";
+import { FleetControlError, fleetApi, fleetLoad, isName, requireFleet } from "@/lib/fleet-control";
 import { FleetFrame, fleetRobots } from "../../../frame";
 import { AgentDetailView, FleetProblemAlert } from "../../../fleet-ui";
 
@@ -10,6 +11,7 @@ type Props = { params: Promise<{ namespace: string; name: string }> };
 export default async function AgentPage({ params }: Props) {
   requireFleet();
   const { namespace, name } = await params;
+  if (!isName(namespace) || !isName(name)) notFound();
   const result = await fleetLoad(async () => {
     const profile = await fleetApi.agent(namespace, name);
     // The history is for the owner team only: an MCP server's owner team sees the profile without it.

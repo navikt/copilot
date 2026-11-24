@@ -42,7 +42,7 @@ export function agentStatus(p: AgentProfile): { label: string; variant: TagVaria
   if (hasCondition(p, "Revoked")) return { label: "Trukket tilbake", variant: "neutral" };
   if (hasCondition(p, "Expired")) return { label: "Utløpt", variant: "neutral" };
   if (hasCondition(p, "Published")) return { label: "Godkjent", variant: "success" };
-  return { label: "Venter på godkjenning", variant: "warning" };
+  return { label: "Venter på tilgang", variant: "warning" };
 }
 
 const ACTIONS: Record<string, string> = {
@@ -65,6 +65,8 @@ const ACTIONS: Record<string, string> = {
 
 const date = (iso: string) =>
   new Date(iso).toLocaleString("nb-NO", { dateStyle: "medium", timeStyle: "short", timeZone: "Europe/Oslo" });
+
+const n = (v: number) => v.toLocaleString("nb-NO");
 
 const StatusTag = ({ s }: { s: { label: string; variant: TagVariant } }) => (
   <Tag size="small" variant={s.variant}>
@@ -198,9 +200,9 @@ export function TeamTabs({ teams }: { teams: TeamData[] }) {
   );
 }
 
-/** The MCP servers whose owner team has not granted access yet. */
+/** The MCP servers whose owner team has not granted access yet. A revoked grant keeps grantedAt and is not waiting. */
 const awaiting = (p: AgentProfile) =>
-  (p.status.grants ?? []).filter((g) => !g.granted).map((g) => `MCP-server ${refKey(g.serverRef)}`);
+  (p.status.grants ?? []).filter((g) => !g.granted && !g.grantedAt).map((g) => `MCP-server ${refKey(g.serverRef)}`);
 
 export function PendingInbox({ agents }: { agents: AgentProfile[] }) {
   return (
@@ -216,7 +218,7 @@ export function PendingInbox({ agents }: { agents: AgentProfile[] }) {
             <Table.Row>
               <Table.HeaderCell scope="col">Agentprofil</Table.HeaderCell>
               <Table.HeaderCell scope="col">Fra team</Table.HeaderCell>
-              <Table.HeaderCell scope="col">Venter på godkjenning</Table.HeaderCell>
+              <Table.HeaderCell scope="col">Venter på tilgang</Table.HeaderCell>
             </Table.Row>
           </Table.Header>
           <Table.Body>
@@ -367,16 +369,18 @@ export function AgentDetailView({ profile: p, events }: { profile: AgentProfile;
           ...(spec.grants ?? []).map((g): [string, ReactNode] => {
             const st = grants.find((s) => refKey(s.serverRef) === refKey(g.serverRef));
             // Another team's view of the profile leaves out who granted access.
-            const given = st?.granted
-              ? ["tilgang gitt", st.grantedBy && `av ${st.grantedBy.name}`, st.grantedAt && date(st.grantedAt)]
-                  .filter(Boolean)
-                  .join(" ")
-              : "ikke gitt tilgang";
+            const given = ["AccessRevoked", "ServerRevoked"].includes(st?.reason ?? "")
+              ? "tilgang trukket tilbake"
+              : st?.granted
+                ? ["tilgang gitt", st.grantedBy && `av ${st.grantedBy.name}`, st.grantedAt && date(st.grantedAt)]
+                    .filter(Boolean)
+                    .join(" ")
+                : "ikke gitt tilgang";
             return [`MCP-server ${refKey(g.serverRef)}`, `${g.allowedTools.join(", ")} (${given})`];
           }),
           [
             "Kvote",
-            `${spec.quota.requestsPerMinute} kall i minuttet, ${spec.quota.dailyCalls} kall i døgnet, ${spec.quota.dailyCallsPerUser} per bruker i døgnet, ${spec.quota.maxInFlight} samtidige kall`,
+            `${n(spec.quota.requestsPerMinute)} kall i minuttet, ${n(spec.quota.dailyCalls)} kall i døgnet, ${n(spec.quota.dailyCallsPerUser)} per bruker i døgnet, ${n(spec.quota.maxInFlight)} samtidige kall`,
           ],
           ...(spec.dpia ? [["DPIA", `${spec.dpia.reference} (eier: ${spec.dpia.owner})`] as [string, ReactNode]] : []),
         ]}

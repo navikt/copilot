@@ -41,7 +41,7 @@ export type AgentProfile = {
     expiresAt?: string;
     // spec here is for the owner team only; status.grants describe this generation.
     pending?: { generation: number; spec?: AgentProfileSpec };
-    grants?: { serverRef: ServerRef; granted: boolean; grantedBy?: Actor; grantedAt?: string }[];
+    grants?: { serverRef: ServerRef; granted: boolean; grantedBy?: Actor; grantedAt?: string; reason?: string }[];
     conditions?: Condition[];
   };
 };
@@ -97,8 +97,7 @@ export async function fleetGet<T>(path: string): Promise<T> {
 /**
  * Turns a failed call into what the page does: 401 logs in again, 404 is
  * «Fant ikke siden», 403, 409 (a stale resourceVersion) and everything else
- * (503, timeouts) become an Alert. Status code decides; metav1.Status.reason
- * only backs it up, so a body that lies about its reason cannot lift a refusal.
+ * (503, timeouts) become an Alert. Only the status code decides.
  */
 export function fleetProblem(err: unknown): FleetProblem {
   const fce = err instanceof FleetControlError ? err : null;
@@ -106,7 +105,7 @@ export function fleetProblem(err: unknown): FleetProblem {
   if (status === 401) redirect("/oauth2/login");
   if (status === 404) notFound();
   if (status === 403) return "forbidden";
-  return status === 409 || fce?.reason === "Conflict" ? "conflict" : "unavailable";
+  return status === 409 ? "conflict" : "unavailable";
 }
 
 /** Runs the calls and returns their data, or the problem that stops the page. */
@@ -118,7 +117,13 @@ export async function fleetLoad<T>(load: () => Promise<T>): Promise<{ data: T } 
   }
 }
 
-const seg = encodeURIComponent;
+/** Nais team and resource names are DNS labels. Anything else, `..` included, never reaches a URL. */
+export const isName = (s: string) => /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/.test(s);
+
+const seg = (s: string) => {
+  if (!isName(s)) throw new FleetControlError(404);
+  return s;
+};
 const API = "/apis/fleet.nav.no/v1alpha1";
 const ns = (namespace: string) => `${API}/namespaces/${seg(namespace)}`;
 

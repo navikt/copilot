@@ -45,13 +45,20 @@ describe("fleet-control client", () => {
     expect((fetch.mock.calls[1]![1]!.headers as Record<string, string>).Authorization).toBe("Bearer obo");
   });
 
-  it("escapes path segments", async () => {
+  it("refuses names that are not DNS labels before any fetch", async () => {
     vi.stubEnv("FLEET_CONTROL_URL", "http://fc");
     const fetch = vi.fn<(url: string) => Promise<Response>>(async () => json({ items: [] }));
     vi.stubGlobal("fetch", fetch);
-    await fleetApi.history("mcpservers", "a/b", "c?d");
+    for (const bad of ["a/b", "..", "%2e%2e", "A", "-a", "a".repeat(64), ""]) {
+      await expect(Promise.resolve().then(() => fleetApi.history("mcpservers", bad, "docs"))).rejects.toMatchObject({
+        status: 404,
+      });
+      await expect(Promise.resolve().then(() => fleetApi.agent("team-a", bad))).rejects.toMatchObject({ status: 404 });
+    }
+    expect(fetch).not.toHaveBeenCalled();
+    await fleetApi.history("mcpservers", "team-a", "docs");
     expect(fetch.mock.calls[0]![0]).toBe(
-      "http://fc/apis/fleet.nav.no/v1alpha1/namespaces/a%2Fb/mcpservers/c%3Fd/history"
+      "http://fc/apis/fleet.nav.no/v1alpha1/namespaces/team-a/mcpservers/docs/history"
     );
   });
 
@@ -85,7 +92,8 @@ describe("fleet-control client", () => {
     expect(fleetProblem(err)).toBe("conflict");
   });
 
-  it("never lets a Status reason lift a 403", () => {
+  it("only HTTP 409 is a conflict, whatever the Status reason says", () => {
     expect(fleetProblem(new FleetControlError(403, "Conflict"))).toBe("forbidden");
+    expect(fleetProblem(new FleetControlError(503, "Conflict"))).toBe("unavailable");
   });
 });

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { fleetApi, fleetLoad, requireFleet } from "@/lib/fleet-control";
+import { notFound } from "next/navigation";
+import { fleetApi, fleetLoad, isName, requireFleet } from "@/lib/fleet-control";
 import { FleetFrame, fleetRobots } from "../../../frame";
 import { FleetProblemAlert, ServerDetail } from "../../../fleet-ui";
 
@@ -10,6 +11,7 @@ type Props = { params: Promise<{ namespace: string; name: string }> };
 export default async function ServerPage({ params }: Props) {
   requireFleet();
   const { namespace, name } = await params;
+  if (!isName(namespace) || !isName(name)) notFound();
   // Both are for the owner team only: anyone else gets 404, which is «Fant ikke siden».
   const result = await fleetLoad(async () => {
     const [server, history] = await Promise.all([
