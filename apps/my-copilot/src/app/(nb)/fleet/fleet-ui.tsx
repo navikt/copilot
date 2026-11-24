@@ -18,41 +18,31 @@ import {
   Tag,
   VStack,
 } from "@navikt/ds-react";
-import type {
-  AgentDetail,
-  AgentProfile,
-  AuditEvent,
-  FleetProblem,
-  PendingAgent,
-  ServerSummary,
-} from "@/lib/fleet-control";
+import { hasCondition, refKey } from "@/lib/fleet-control";
+import type { AgentProfile, AuditEvent, FleetProblem, MCPServer } from "@/lib/fleet-control";
 
 const linkClass = "text-blue-600 hover:underline";
 
 type TagVariant = "success" | "warning" | "info" | "neutral" | "error";
 
-export function serverStatus(s: ServerSummary): { label: string; variant: TagVariant } {
-  if (s.status === "draft") return { label: "Venter på godkjenning", variant: "warning" };
-  // A revoked route can get a new draft, and approving it publishes the route again.
-  if (s.status === "revoked")
-    return s.pending_version
+// Status comes from the conditions; a missing or unknown one reads as false.
+export function serverStatus(s: MCPServer): { label: string; variant: TagVariant } {
+  const pending = s.status.pending?.generation;
+  // A revoked MCP server can get a new draft, and approving it publishes the server again.
+  if (hasCondition(s, "Revoked"))
+    return pending
       ? { label: "Trukket tilbake, ny versjon venter", variant: "warning" }
       : { label: "Trukket tilbake", variant: "neutral" };
-  if (s.pending_version) return { label: "Ny versjon venter", variant: "info" };
+  if (!hasCondition(s, "Published")) return { label: "Venter på godkjenning", variant: "warning" };
+  if (pending) return { label: "Ny versjon venter", variant: "info" };
   return { label: "Publisert", variant: "success" };
 }
 
-export function agentStatus(status: AgentProfile["status"]): { label: string; variant: TagVariant } {
-  switch (status) {
-    case "approved":
-      return { label: "Godkjent", variant: "success" };
-    case "expired":
-      return { label: "Utløpt", variant: "neutral" };
-    case "revoked":
-      return { label: "Trukket tilbake", variant: "neutral" };
-    default:
-      return { label: "Venter på godkjenning", variant: "warning" };
-  }
+export function agentStatus(p: AgentProfile): { label: string; variant: TagVariant } {
+  if (hasCondition(p, "Revoked")) return { label: "Trukket tilbake", variant: "neutral" };
+  if (hasCondition(p, "Expired")) return { label: "Utløpt", variant: "neutral" };
+  if (hasCondition(p, "Published")) return { label: "Godkjent", variant: "success" };
+  return { label: "Venter på godkjenning", variant: "warning" };
 }
 
 const ACTIONS: Record<string, string> = {
@@ -60,10 +50,16 @@ const ACTIONS: Record<string, string> = {
   approved_published: "Godkjent og publisert",
   revoked: "Trukket tilbake",
   rolled_back: "Rullet tilbake",
-  agent_profile_drafted: "Utkast opprettet",
-  agent_profile_route_approved: "Rute godkjent",
-  agent_profile_approved: "Profilen godkjent",
+  agent_profile_submitted: "Utkast sendt inn",
+  agent_profile_access_granted: "Tilgang gitt",
+  agent_profile_published: "Profilen godkjent",
   agent_profile_revoked: "Trukket tilbake",
+  agent_profile_access_revoked: "Tilgang trukket tilbake",
+  metadata_updated: "Etiketter endret",
+  // From before v1alpha1, still in the history of older profiles.
+  agent_profile_drafted: "Utkast opprettet",
+  agent_profile_route_approved: "Tilgang gitt",
+  agent_profile_approved: "Profilen godkjent",
   agent_profile_expired: "Utløpt",
 };
 
@@ -76,13 +72,18 @@ const StatusTag = ({ s }: { s: { label: string; variant: TagVariant } }) => (
   </Tag>
 );
 
-/** 403 and 503 (and timeouts). 401 and 404 never get here: the page logs in again or shows «Fant ikke siden». */
+/** 403, 409 and 503 (and timeouts). 401 and 404 never get here: the page logs in again or shows «Fant ikke siden». */
 export function FleetProblemAlert({ problem }: { problem: FleetProblem }) {
   const router = useRouter();
   if (problem === "forbidden") {
     return (
-      <Alert variant="warning">Du har ikke tilgang. Bare teamet som eier ruten eller agentprofilen, kan se den.</Alert>
+      <Alert variant="warning">
+        Du har ikke tilgang. Bare eierteamet til MCP-serveren eller agentprofilen kan se den.
+      </Alert>
     );
+  }
+  if (problem === "conflict") {
+    return <Alert variant="warning">Noen andre har endret dette. Last inn siden på nytt.</Alert>;
   }
   return (
     <Alert variant="error">
@@ -109,7 +110,7 @@ export function KortFortalt({ children }: { children: ReactNode }) {
   );
 }
 
-export type TeamData = { team: string; servers: ServerSummary[]; agents: AgentProfile[] };
+export type TeamData = { team: string; servers: MCPServer[]; agents: AgentProfile[] };
 
 export function TeamTabs({ teams }: { teams: TeamData[] }) {
   return (
@@ -124,12 +125,12 @@ export function TeamTabs({ teams }: { teams: TeamData[] }) {
           <VStack gap="space-24" paddingBlock="space-16">
             <VStack gap="space-8">
               <Heading level="3" size="small">
-                Ruter
+                MCP-servere
               </Heading>
               {t.servers.length === 0 ? (
-                <BodyShort>{t.team} har ingen ruter ennå.</BodyShort>
+                <BodyShort>{t.team} har ingen MCP-servere ennå.</BodyShort>
               ) : (
-                <Table size="small" aria-label={`Rutene til ${t.team}`}>
+                <Table size="small" aria-label={`MCP-serverne til ${t.team}`}>
                   <Table.Header>
                     <Table.Row>
                       <Table.HeaderCell scope="col">Navn</Table.HeaderCell>
@@ -139,16 +140,16 @@ export function TeamTabs({ teams }: { teams: TeamData[] }) {
                   </Table.Header>
                   <Table.Body>
                     {t.servers.map((s) => (
-                      <Table.Row key={s.name}>
+                      <Table.Row key={s.metadata.name}>
                         <Table.DataCell>
-                          <NextLink className={linkClass} href={`/fleet/ruter/${s.namespace}/${s.name}`}>
-                            {s.name}
+                          <NextLink className={linkClass} href={`/fleet/mcp-servere/${refKey(s.metadata)}`}>
+                            {s.metadata.name}
                           </NextLink>
                         </Table.DataCell>
                         <Table.DataCell>
                           <StatusTag s={serverStatus(s)} />
                         </Table.DataCell>
-                        <Table.DataCell>{s.published_version ?? "–"}</Table.DataCell>
+                        <Table.DataCell>{s.status.publishedGeneration ?? "–"}</Table.DataCell>
                       </Table.Row>
                     ))}
                   </Table.Body>
@@ -167,21 +168,23 @@ export function TeamTabs({ teams }: { teams: TeamData[] }) {
                     <Table.Row>
                       <Table.HeaderCell scope="col">Navn</Table.HeaderCell>
                       <Table.HeaderCell scope="col">Status</Table.HeaderCell>
-                      <Table.HeaderCell scope="col">Ruter</Table.HeaderCell>
+                      <Table.HeaderCell scope="col">MCP-servere</Table.HeaderCell>
                     </Table.Row>
                   </Table.Header>
                   <Table.Body>
                     {t.agents.map((a) => (
-                      <Table.Row key={a.name}>
+                      <Table.Row key={a.metadata.name}>
                         <Table.DataCell>
-                          <NextLink className={linkClass} href={`/fleet/agenter/${a.namespace}/${a.name}`}>
-                            {a.name}
+                          <NextLink className={linkClass} href={`/fleet/agenter/${refKey(a.metadata)}`}>
+                            {a.metadata.name}
                           </NextLink>
                         </Table.DataCell>
                         <Table.DataCell>
-                          <StatusTag s={agentStatus(a.status)} />
+                          <StatusTag s={agentStatus(a)} />
                         </Table.DataCell>
-                        <Table.DataCell>{a.grants.map((g) => g.route).join(", ")}</Table.DataCell>
+                        <Table.DataCell>
+                          {(a.spec.grants ?? []).map((g) => refKey(g.serverRef)).join(", ")}
+                        </Table.DataCell>
                       </Table.Row>
                     ))}
                   </Table.Body>
@@ -195,12 +198,11 @@ export function TeamTabs({ teams }: { teams: TeamData[] }) {
   );
 }
 
-// fleet-control keys the owner team's own approval slot by the profile's namespace, next to route keys.
-function slotLabel(slot: string, namespace: string): string {
-  return slot === namespace ? `Godkjenning fra eget team (${namespace})` : `Rute ${slot}`;
-}
+/** The MCP servers whose owner team has not granted access yet. */
+const awaiting = (p: AgentProfile) =>
+  (p.status.grants ?? []).filter((g) => !g.granted).map((g) => `MCP-server ${refKey(g.serverRef)}`);
 
-export function PendingInbox({ agents }: { agents: PendingAgent[] }) {
+export function PendingInbox({ agents }: { agents: AgentProfile[] }) {
   return (
     <VStack gap="space-8">
       <Heading level="2" size="medium">
@@ -219,14 +221,14 @@ export function PendingInbox({ agents }: { agents: PendingAgent[] }) {
           </Table.Header>
           <Table.Body>
             {agents.map((a) => (
-              <Table.Row key={a.id}>
+              <Table.Row key={refKey(a.metadata)}>
                 <Table.DataCell>
-                  <NextLink className={linkClass} href={`/fleet/agenter/${a.profile.namespace}/${a.profile.name}`}>
-                    {a.profile.name}
+                  <NextLink className={linkClass} href={`/fleet/agenter/${refKey(a.metadata)}`}>
+                    {a.metadata.name}
                   </NextLink>
                 </Table.DataCell>
-                <Table.DataCell>{a.profile.namespace}</Table.DataCell>
-                <Table.DataCell>{a.awaiting.map((w) => slotLabel(w, a.profile.namespace)).join(", ")}</Table.DataCell>
+                <Table.DataCell>{a.metadata.namespace}</Table.DataCell>
+                <Table.DataCell>{awaiting(a).join(", ")}</Table.DataCell>
               </Table.Row>
             ))}
           </Table.Body>
@@ -262,8 +264,8 @@ function Historikk({ events }: { events: AuditEvent[] }) {
                 <Table.Row key={i}>
                   <Table.DataCell>{date(e.at)}</Table.DataCell>
                   <Table.DataCell>{ACTIONS[e.action] ?? e.action}</Table.DataCell>
-                  <Table.DataCell>{e.actor}</Table.DataCell>
-                  <Table.DataCell>{e.version ?? "–"}</Table.DataCell>
+                  <Table.DataCell>{e.actor.name}</Table.DataCell>
+                  <Table.DataCell>{e.generation ?? "–"}</Table.DataCell>
                 </Table.Row>
               ))}
             </Table.Body>
@@ -298,32 +300,35 @@ function Detaljer({ rows }: { rows: [string, ReactNode][] }) {
   );
 }
 
-export function routeNextStep(s: ServerSummary): string {
-  if (s.status === "draft") return "En annen person på teamet må godkjenne utkastet før ruten blir publisert.";
-  if (s.status === "revoked")
-    return s.pending_version
-      ? `En annen person på teamet må godkjenne versjon ${s.pending_version} før ruten blir publisert igjen.`
-      : "Ingen. Ruten er trukket tilbake.";
-  if (s.pending_version)
-    return `En annen person på teamet må godkjenne versjon ${s.pending_version}. Til da gjelder versjon ${s.published_version}.`;
-  return `Ingen. Versjon ${s.published_version} er publisert.`;
+export function serverNextStep(s: MCPServer): string {
+  const pending = s.status.pending?.generation;
+  const published = s.status.publishedGeneration;
+  if (hasCondition(s, "Revoked"))
+    return pending
+      ? `En annen person på teamet må godkjenne versjon ${pending} før MCP-serveren blir publisert igjen.`
+      : "Ingen. MCP-serveren er trukket tilbake.";
+  if (!hasCondition(s, "Published"))
+    return "En annen person på teamet må godkjenne utkastet før MCP-serveren blir publisert.";
+  if (pending) return `En annen person på teamet må godkjenne versjon ${pending}. Til da gjelder versjon ${published}.`;
+  return `Ingen. Versjon ${published} er publisert.`;
 }
 
-export function RouteDetail({ server, events }: { server: ServerSummary; events: AuditEvent[] }) {
+export function ServerDetail({ server, events }: { server: MCPServer; events: AuditEvent[] }) {
   return (
     <VStack gap="space-16">
       <KortFortalt>
         <div>
           <StatusTag s={serverStatus(server)} />
         </div>
-        <BodyLong>Neste steg: {routeNextStep(server)}</BodyLong>
+        <BodyLong>Neste steg: {serverNextStep(server)}</BodyLong>
       </KortFortalt>
       <Detaljer
         rows={[
-          ["Team", server.namespace],
-          ["Navn", server.name],
-          ["Publisert versjon", server.published_version ?? "–"],
-          ["Versjon som venter på godkjenning", server.pending_version ?? "–"],
+          ["Team", server.metadata.namespace],
+          ["Navn", server.metadata.name],
+          ["Rute", server.status.route?.path ?? "–"],
+          ["Publisert versjon", server.status.publishedGeneration ?? "–"],
+          ["Versjon som venter på godkjenning", server.status.pending?.generation ?? "–"],
         ]}
       />
       <Historikk events={events} />
@@ -331,58 +336,49 @@ export function RouteDetail({ server, events }: { server: ServerSummary; events:
   );
 }
 
-export function agentNextStep(d: AgentDetail): string {
-  if (d.status === "approved")
-    return d.profile.expires_at
-      ? `Ingen. Profilen er godkjent til ${date(d.profile.expires_at)}.`
+export function agentNextStep(p: AgentProfile): string {
+  if (hasCondition(p, "Revoked") || hasCondition(p, "Expired")) return "Ingen.";
+  const left = awaiting(p);
+  if (left.length) return `Eierteamet til hver MCP-server må gi tilgang. Venter på: ${left.join(", ")}.`;
+  if (hasCondition(p, "Published"))
+    return p.status.expiresAt
+      ? `Ingen. Profilen er godkjent til ${date(p.status.expiresAt)}.`
       : "Ingen. Profilen er godkjent.";
-  if (d.status === "expired" || d.status === "revoked") return "Ingen.";
-  const ns = d.profile.namespace;
-  const left = Object.entries(d.approvals)
-    .filter(([, a]) => !a)
-    .map(([slot]) => slot);
-  const steps: string[] = [];
-  if (left.includes(ns)) steps.push(`En annen person på teamet ${ns} må godkjenne profilen.`);
-  const routes = left.filter((s) => s !== ns);
-  if (routes.length) steps.push(`Teamet som eier hver rute, må godkjenne den. Venter på: ${routes.join(", ")}.`);
-  return steps.join(" ");
+  return "Ingen. Profilen blir godkjent når alle har gitt tilgang.";
 }
 
-export function AgentDetailView({ detail, events }: { detail: AgentDetail; events: AuditEvent[] | null }) {
-  const p = detail.profile;
+export function AgentDetailView({ profile: p, events }: { profile: AgentProfile; events: AuditEvent[] | null }) {
+  const grants = p.status.grants ?? [];
+  // Show what waits for approval, since status.grants describe that generation.
+  const spec = p.status.pending?.spec ?? p.spec;
   return (
     <VStack gap="space-16">
       <KortFortalt>
         <div>
-          <StatusTag s={agentStatus(detail.status)} />
+          <StatusTag s={agentStatus(p)} />
         </div>
-        <BodyLong>Neste steg: {agentNextStep(detail)}</BodyLong>
+        <BodyLong>Neste steg: {agentNextStep(p)}</BodyLong>
       </KortFortalt>
       <Detaljer
         rows={[
-          ["Team", p.namespace],
-          ["App", `${p.identity.cluster}/${p.identity.namespace}/${p.identity.app}`],
-          ["Entra-klient-ID", p.identity.entra_client_id],
-          ...(p.namespace in detail.approvals
-            ? [
-                ((a): [string, ReactNode] => [
-                  slotLabel(p.namespace, p.namespace),
-                  a ? `godkjent av ${a.approved_by} ${date(a.approved_at)}` : "ikke godkjent",
-                ])(detail.approvals[p.namespace]),
-              ]
-            : []),
-          ...p.grants.map((g): [string, ReactNode] => {
-            const a = detail.approvals[g.route];
-            return [
-              `Rute ${g.route}`,
-              `${g.tools.join(", ")} (${a ? `godkjent av ${a.approved_by} ${date(a.approved_at)}` : "ikke godkjent"})`,
-            ];
+          ["Team", p.metadata.namespace],
+          ["App", `${spec.identity.cluster}/${p.metadata.namespace}/${spec.identity.app}`],
+          ["Entra-klient-ID", spec.identity.entraClientID],
+          ...(spec.grants ?? []).map((g): [string, ReactNode] => {
+            const st = grants.find((s) => refKey(s.serverRef) === refKey(g.serverRef));
+            // Another team's view of the profile leaves out who granted access.
+            const given = st?.granted
+              ? ["tilgang gitt", st.grantedBy && `av ${st.grantedBy.name}`, st.grantedAt && date(st.grantedAt)]
+                  .filter(Boolean)
+                  .join(" ")
+              : "ikke gitt tilgang";
+            return [`MCP-server ${refKey(g.serverRef)}`, `${g.allowedTools.join(", ")} (${given})`];
           }),
           [
             "Kvote",
-            `${p.quota.rpm} kall i minuttet, ${p.quota.daily_calls} kall i døgnet, ${p.quota.daily_calls_per_user} per bruker i døgnet, ${p.quota.max_in_flight} samtidige kall`,
+            `${spec.quota.requestsPerMinute} kall i minuttet, ${spec.quota.dailyCalls} kall i døgnet, ${spec.quota.dailyCallsPerUser} per bruker i døgnet, ${spec.quota.maxInFlight} samtidige kall`,
           ],
-          ["DPIA", `${p.dpia.reference} (eier: ${p.dpia.owner})`],
+          ...(spec.dpia ? [["DPIA", `${spec.dpia.reference} (eier: ${spec.dpia.owner})`] as [string, ReactNode]] : []),
         ]}
       />
       {events && <Historikk events={events} />}

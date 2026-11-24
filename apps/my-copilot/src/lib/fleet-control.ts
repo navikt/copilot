@@ -7,45 +7,65 @@ import { notFound, redirect } from "next/navigation";
 import { exchangeTokenFor, fetchWithTimeout, isLocalDev } from "@/lib/backend-api";
 import { getUserToken } from "@/lib/auth";
 
-export type Me = { ident: string; teams: string[] };
+export type Me = { name: string; teams: string[] };
 
-export type ServerSummary = {
-  namespace: string;
-  name: string;
-  status: "draft" | "published" | "revoked";
-  published_version: number | null;
-  pending_version: number | null;
+// v1alpha1 shapes (fleet-control apis*.go). Empty fields are left out, and
+// enum-like strings stay string so an unknown value never breaks the page.
+type Metadata = { name: string; namespace: string; resourceVersion?: string; generation?: number };
+export type Condition = { type: string; status: string; reason: string; message?: string };
+type Actor = { kind?: string; name: string };
+export type ServerRef = { group: string; kind: string; namespace: string; name: string };
+
+export type MCPServer = {
+  metadata: Metadata;
+  status: {
+    publishedGeneration?: number;
+    route?: { path: string };
+    pending?: { generation: number };
+    conditions?: Condition[];
+  };
+};
+
+export type AgentProfileSpec = {
+  identity: { app: string; cluster: string; entraClientID: string };
+  mode: string;
+  grants?: { serverRef: ServerRef; allowedTools: string[]; maxRisk: string }[];
+  quota: { maxInFlight: number; requestsPerMinute: number; dailyCallsPerUser: number; dailyCalls: number };
+  dpia?: { owner: string; reference: string };
 };
 
 export type AgentProfile = {
-  namespace: string;
-  name: string;
-  identity: { cluster: string; namespace: string; app: string; entra_client_id: string };
-  mode: string;
-  grants: { route: string; tools: string[]; max_risk: string }[];
-  quota: { max_in_flight: number; rpm: number; daily_calls_per_user: number; daily_calls: number };
-  dpia: { owner: string; reference: string };
-  status?: "draft" | "approved" | "expired" | "revoked";
-  expires_at?: string;
+  metadata: Metadata;
+  spec: AgentProfileSpec;
+  status: {
+    expiresAt?: string;
+    // spec here is for the owner team only; status.grants describe this generation.
+    pending?: { generation: number; spec?: AgentProfileSpec };
+    grants?: { serverRef: ServerRef; granted: boolean; grantedBy?: Actor; grantedAt?: string }[];
+    conditions?: Condition[];
+  };
 };
 
-export type AgentDetail = {
-  id: number;
-  status: AgentProfile["status"];
-  profile: AgentProfile;
-  approvals: Record<string, { approved_by: string; approved_at: string } | null>;
-};
+export type List<T> = { items: T[] };
 
-export type PendingAgent = { id: number; profile: AgentProfile; awaiting: string[] };
+export type AuditEvent = { at: string; actor: Actor; action: string; generation?: number };
 
-export type AuditEvent = { at: string; actor: string; action: string; version?: number; detail: unknown };
+/** True when the condition is there with status "True"; missing or unknown is false. */
+export const hasCondition = (obj: { status: { conditions?: Condition[] } }, type: string) =>
+  obj.status.conditions?.some((c) => c.type === type && c.status === "True") ?? false;
+
+export const refKey = (r: { namespace: string; name: string }) => `${r.namespace}/${r.name}`;
 
 /** What a page shows instead of data: no access, or fleet-control is unavailable. */
-export type FleetProblem = "forbidden" | "unavailable";
+export type FleetProblem = "forbidden" | "conflict" | "unavailable";
 
 export class FleetControlError extends Error {
-  constructor(public readonly status: number) {
-    super(`fleet-control error (${status})`);
+  /** reason from fleet-control's metav1.Status body, when it sent one. */
+  constructor(
+    public readonly status: number,
+    public readonly reason?: string
+  ) {
+    super(`fleet-control error (${status}${reason ? ` ${reason}` : ""})`);
     this.name = "FleetControlError";
   }
 }
@@ -66,19 +86,27 @@ export async function fleetGet<T>(path: string): Promise<T> {
     headers.Authorization = `Bearer ${await exchangeTokenFor(token, "fleet-control")}`;
   }
   const res = await fetchWithTimeout(`${url}${path}`, { headers, cache: "no-store" }, 10000, "fleet-control timed out");
-  if (!res.ok) throw new FleetControlError(res.status);
+  if (!res.ok) {
+    const body = (await res.json().catch(() => null)) as { kind?: string; reason?: unknown } | null;
+    const reason = body?.kind === "Status" && typeof body.reason === "string" ? body.reason : undefined;
+    throw new FleetControlError(res.status, reason);
+  }
   return (await res.json()) as T;
 }
 
 /**
  * Turns a failed call into what the page does: 401 logs in again, 404 is
- * «Fant ikke siden», 403 and everything else (503, timeouts) become an Alert.
+ * «Fant ikke siden», 403, 409 (a stale resourceVersion) and everything else
+ * (503, timeouts) become an Alert. Status code decides; metav1.Status.reason
+ * only backs it up, so a body that lies about its reason cannot lift a refusal.
  */
 export function fleetProblem(err: unknown): FleetProblem {
-  const status = err instanceof FleetControlError ? err.status : 0;
+  const fce = err instanceof FleetControlError ? err : null;
+  const status = fce?.status ?? 0;
   if (status === 401) redirect("/oauth2/login");
   if (status === 404) notFound();
-  return status === 403 ? "forbidden" : "unavailable";
+  if (status === 403) return "forbidden";
+  return status === 409 || fce?.reason === "Conflict" ? "conflict" : "unavailable";
 }
 
 /** Runs the calls and returns their data, or the problem that stops the page. */
@@ -91,13 +119,17 @@ export async function fleetLoad<T>(load: () => Promise<T>): Promise<{ data: T } 
 }
 
 const seg = encodeURIComponent;
+const API = "/apis/fleet.nav.no/v1alpha1";
+const ns = (namespace: string) => `${API}/namespaces/${seg(namespace)}`;
 
+// Only /apis: the old /admin/v1 routes are never a fallback (#2748).
 export const fleetApi = {
-  me: () => fleetGet<Me>("/admin/v1/me"),
-  servers: (ns: string) => fleetGet<{ servers: ServerSummary[] }>(`/admin/v1/servers?namespace=${seg(ns)}`),
-  agents: (ns: string) => fleetGet<{ agents: AgentProfile[] }>(`/admin/v1/agents?namespace=${seg(ns)}`),
-  agent: (ns: string, name: string) => fleetGet<AgentDetail>(`/admin/v1/agents/${seg(ns)}/${seg(name)}`),
-  pending: () => fleetGet<{ agents: PendingAgent[] }>("/admin/v1/agents/pending-approval"),
-  audit: (kind: "servers" | "agents", ns: string, name: string) =>
-    fleetGet<{ events: AuditEvent[] }>(`/admin/v1/${kind}/${seg(ns)}/${seg(name)}/audit`),
+  whoami: () => fleetGet<Me>(`${API}/whoami`),
+  servers: (namespace: string) => fleetGet<List<MCPServer>>(`${ns(namespace)}/mcpservers`),
+  server: (namespace: string, name: string) => fleetGet<MCPServer>(`${ns(namespace)}/mcpservers/${seg(name)}`),
+  agents: (namespace: string) => fleetGet<List<AgentProfile>>(`${ns(namespace)}/agentprofiles`),
+  agent: (namespace: string, name: string) => fleetGet<AgentProfile>(`${ns(namespace)}/agentprofiles/${seg(name)}`),
+  pending: () => fleetGet<List<AgentProfile>>(`${API}/agentprofiles?awaitingApprovalBy=me`),
+  history: (kind: "mcpservers" | "agentprofiles", namespace: string, name: string) =>
+    fleetGet<List<AuditEvent>>(`${ns(namespace)}/${kind}/${seg(name)}/history`),
 };

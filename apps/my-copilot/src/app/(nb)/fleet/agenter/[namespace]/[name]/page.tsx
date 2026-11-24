@@ -11,16 +11,16 @@ export default async function AgentPage({ params }: Props) {
   requireFleet();
   const { namespace, name } = await params;
   const result = await fleetLoad(async () => {
-    const detail = await fleetApi.agent(namespace, name);
-    // The audit trail is for the owner team only: a route owner sees the profile without it.
-    const events = await fleetApi.audit("agents", namespace, name).then(
-      (a) => a.events,
+    const profile = await fleetApi.agent(namespace, name);
+    // The history is for the owner team only: an MCP server's owner team sees the profile without it.
+    const events = await fleetApi.history("agentprofiles", namespace, name).then(
+      (h) => h.items,
       (err) => {
         if (err instanceof FleetControlError && err.status === 404) return null;
         throw err;
       }
     );
-    return { detail, events };
+    return { profile, events };
   });
 
   return (
@@ -28,7 +28,7 @@ export default async function AgentPage({ params }: Props) {
       {"problem" in result ? (
         <FleetProblemAlert problem={result.problem} />
       ) : (
-        <AgentDetailView detail={result.data.detail} events={result.data.events} />
+        <AgentDetailView profile={result.data.profile} events={result.data.events} />
       )}
     </FleetFrame>
   );
