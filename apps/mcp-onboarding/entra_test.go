@@ -183,3 +183,32 @@ func TestEntraPilotAzp_DevOnly(t *testing.T) {
 		t.Fatal("pilot must be enabled in dev and absent from prod")
 	}
 }
+
+func TestEntraMode_ToolsListHidesGitHubTools(t *testing.T) {
+	h := newSimpleMCPHandler()
+	list := func(u *UserContext) map[string]bool {
+		resp := h.processRequest(&JSONRPCRequest{JSONRPC: "2.0", ID: float64(1), Method: "tools/list"}, u)
+		names := map[string]bool{}
+		for _, tool := range resp.Result.(ListToolsResult).Tools {
+			names[tool.Name] = true
+		}
+		return names
+	}
+	gw := list(&UserContext{Login: "Z123456", NAVident: "Z123456"})
+	direct := list(&UserContext{Login: "testuser", GitHubAccessToken: "fake-token"})
+	for name := range gw {
+		if !entraTools[name] {
+			t.Errorf("Entra mode lists %s, which needs a GitHub token", name)
+		}
+	}
+	for name := range entraTools {
+		if !gw[name] {
+			t.Errorf("Entra mode does not list %s", name)
+		}
+	}
+	for _, name := range []string{"check_agent_readiness", "suggest_customizations", "generate_agents_md", "generate_setup_steps", "team_readiness"} {
+		if gw[name] || !direct[name] {
+			t.Errorf("%s: gateway=%v direct=%v, want false/true", name, gw[name], direct[name])
+		}
+	}
+}
