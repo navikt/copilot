@@ -134,7 +134,15 @@ func setupDB(ctx context.Context) (*DB, error) {
 	if os.Getenv("READWRITE_PGHOST") == "" {
 		return OpenDB(ctx, os.Getenv("DB_URL"))
 	}
-	return OpenDB(ctx, pgEnvDSN("READWRITE_"))
+	db, openErr := OpenDB(ctx, pgEnvDSN("READWRITE_"))
+	if openErr != nil {
+		return nil, openErr
+	}
+	if lockErr := db.CheckAuditLocked(ctx); lockErr != nil {
+		db.Close()
+		return nil, lockErr
+	}
+	return db, nil
 }
 
 // seedFromEnv imports SEED_ROUTES_FILE and SEED_ALLOWLIST_FILE when both are set.

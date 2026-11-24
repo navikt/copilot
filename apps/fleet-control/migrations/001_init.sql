@@ -59,8 +59,8 @@ CREATE TRIGGER audit_events_no_change BEFORE UPDATE OR DELETE ON audit_events
 CREATE TRIGGER audit_events_no_truncate BEFORE TRUNCATE ON audit_events
     FOR EACH STATEMENT EXECUTE FUNCTION audit_events_append_only();
 
--- shortcut: the app role owns this table and can still disable or drop the
--- triggers. Real protection needs a separate owner role or REVOKE (open Nais question, #2334).
+-- The owner role can still disable or drop these triggers; 006 revokes change
+-- rights from every other role, and the app runs as one of those (#2631).
 
 -- Published snapshots per kind. generation only grows; consumers accept only
 -- a higher generation than the one they hold.
