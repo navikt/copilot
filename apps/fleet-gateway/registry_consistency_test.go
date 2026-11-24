@@ -12,7 +12,7 @@ import (
 // Registry entries that point at the gateway must match the enabled routes in
 // pilot-routes.prod.yaml, and the other way round (#2336). The path comes from
 // the route definition, so it survives a change of route scheme.
-// Routes carry no owner or tool list today; extend here when they do.
+// A registry entry's tools must equal its route's tools (#2604).
 
 const gatewayHostPrefix = "fleet-gateway."
 
@@ -98,5 +98,58 @@ func TestRegistryRouteDiffDetectsDrift(t *testing.T) {
 	entry, route := diffPaths(map[string]string{"/a": "x", "/b": "y"}, map[string]bool{"/a": true, "/c": true})
 	if len(entry) != 1 || entry[0] != "/c" || len(route) != 1 || route[0] != "/b" {
 		t.Fatalf("got %v %v", entry, route)
+	}
+}
+
+func TestRegistryToolsMatchRouteTools(t *testing.T) {
+	raw, err := os.ReadFile("../mcp-registry/allowlist.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc struct {
+		Servers []struct {
+			Name    string   `json:"name"`
+			Tools   []string `json:"tools"`
+			Remotes []struct {
+				URL string `json:"url"`
+			} `json:"remotes"`
+		} `json:"servers"`
+	}
+	if err = json.Unmarshal(raw, &doc); err != nil {
+		t.Fatal(err)
+	}
+	routes, err := loadPilotRoutes("pilot-routes.prod.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	byPath := map[string][]string{}
+	for _, r := range routes {
+		if !r.isDisabled() {
+			byPath[r.Route] = r.Tools
+		}
+	}
+	matched := 0
+	for _, s := range doc.Servers {
+		for _, r := range s.Remotes {
+			u, err := url.Parse(strings.ReplaceAll(r.URL, "{{domain_internal}}", "internal.invalid"))
+			if err != nil || !strings.HasPrefix(u.Hostname(), gatewayHostPrefix) {
+				continue
+			}
+			want, ok := byPath[u.Path]
+			if !ok {
+				continue // TestRegistryMatchesProdRoutes reports it
+			}
+			matched++
+			have := append([]string(nil), s.Tools...)
+			want = append([]string(nil), want...)
+			sort.Strings(have)
+			sort.Strings(want)
+			if strings.Join(have, ",") != strings.Join(want, ",") {
+				t.Errorf("%s: registry tools %v differ from route %s tools %v", s.Name, have, u.Path, want)
+			}
+		}
+	}
+	if matched == 0 {
+		t.Fatal("no registry entry matched a prod route; the test checks nothing")
 	}
 }
