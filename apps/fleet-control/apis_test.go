@@ -164,6 +164,22 @@ func TestApisGuardsFailClosed(t *testing.T) {
 	}
 }
 
+// With a database present, a failed team lookup is still 503, never an answer.
+func TestRealPostgresApisTeamLookupDown(t *testing.T) {
+	db := openTestDB(t)
+	if err := db.Migrate(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	s := newServer()
+	s.store.Store(&storeBox{db})
+	h := s.routes(testAuthz(t), adminID, failingTeams{}, nil)
+	for _, path := range []string{apisPrefix + "/mcpservercatalogentries", apisPrefix + "/whoami", nsBase + "team-a/mcpservers"} {
+		if rec := do(t, h, "GET", path, person("A111111"), ""); rec.Code != 503 {
+			t.Errorf("%s: want 503, got %d %s", path, rec.Code, rec.Body)
+		}
+	}
+}
+
 func TestRealPostgresMCPServerLifecycle(t *testing.T) {
 	e := newApisEnv(t)
 	base := nsBase + "team-a/mcpservers"
@@ -285,6 +301,9 @@ func TestRealPostgresMCPServerRevokeRollbackBlock(t *testing.T) {
 	}
 	if code, out := rollback(`{"fromGeneration":3,"reason":"bad deploy"}`); code != 200 || decodeServer(t, out).Status.PublishedGeneration != 2 {
 		t.Fatalf("rollback to 2: %d %s", code, out)
+	}
+	if code, out := rollback(`{"fromGeneration":2,"toGeneration":3,"reason":"x"}`); code != 409 || !strings.Contains(out, "GenerationNotEligible") {
+		t.Fatalf("rollback never goes forward to a newer generation: %d %s", code, out)
 	}
 	submit("three") // gen 4: same content as gen 3
 	if code, _ := revoke("B444444", `{"reason":"x"}`); code != 404 {
@@ -481,6 +500,9 @@ func TestRealPostgresAgentProfileV1(t *testing.T) {
 	e.want(403, "POST", base+"/assistant/approval", person("A111111"), grantBody(1, "copilot/dolly", hashFor["copilot/dolly"]))
 	e.want(200, "POST", base+"/assistant/approval", person("B444444"), grantBody(1, "team-b/kodeverk", hashFor["team-b/kodeverk"]))
 	e.want(409, "POST", base+"/assistant/approval", person("B555555"), grantBody(1, "team-b/kodeverk", hashFor["team-b/kodeverk"]))
+	if ex2 := e.want(200, "GET", base+"/assistant", person("B555555"), ""); strings.Contains(ex2, "grantedBy") || strings.Contains(ex2, "B444444") {
+		t.Fatalf("excerpt shows who granted: %s", ex2)
+	}
 	ex = e.want(200, "POST", base+"/assistant/approval", person("C222222"), grantBody(1, "copilot/dolly", hashFor["copilot/dolly"]))
 	if strings.Contains(ex, "kodeverk") {
 		t.Fatalf("the granting team's answer must be an excerpt: %s", ex)

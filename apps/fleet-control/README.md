@@ -51,7 +51,30 @@ An agent profile says which caller app may use which tools on which gateway rout
 - `GET /internal/v1/agents` returns approved, verified profiles that have not expired, checked at read time.
 - Every change writes an audit event.
 
-The write routes (`POST /admin/v1/agents`, `.../{namespace}/{name}/approvals`, `.../revoke`) follow the Write API rules above: a person's token from the admin client, teams from the Nais Console API (or `FLEET_CONTROL_STATIC_TEAMS` in dev), dev-* clusters only. `SEED_AGENTS_FILE` imports drafts on startup in dev only (`seed/agents.dev.json`, the Aksel Studio draft). Its `entra_client_id` is the dev client id of `studio-api`. With no identity verifier yet, the profile stays unverified and out of the snapshot. The app refuses `SEED_AGENTS_FILE` outside dev-* clusters.
+Since #2748 agent profiles are written through `/apis/fleet.nav.no/v1alpha1/namespaces/{namespace}/agentprofiles`; the `/admin/v1/agents` write routes below answer 410, and the old table is frozen. They followed the Write API rules above: a person's token from the admin client, teams from the Nais Console API (or `FLEET_CONTROL_STATIC_TEAMS` in dev), dev-* clusters only. `SEED_AGENTS_FILE` imports drafts on startup in dev only (`seed/agents.dev.json`, the Aksel Studio draft). Its `entra_client_id` is the dev client id of `studio-api`. With no identity verifier yet, the profile stays unverified and out of the snapshot. The app refuses `SEED_AGENTS_FILE` outside dev-* clusters.
+
+## API v1alpha1 (#2748)
+
+`/apis/fleet.nav.no/v1alpha1` runs beside `/admin/v1` and follows the design in copilot-intern `fleet/api-v1alpha1.md` (v0.6). It is Kubernetes-shaped JSON over REST on Postgres: `MCPServer` and `AgentProfile` with `metadata`, `spec` and `status` (`metav1.Condition`), errors as `metav1.Status`. `AgentJob` comes in a later PR.
+
+- Writing a spec proposes it. `POST` and `PUT` make a new `generation` only when the spec changes; a label change keeps what is pending. `PUT` needs a fresh `metadata.resourceVersion`, otherwise 409.
+- `spec` is always the published generation; the one awaiting approval is in `status.pending`, for the owner team only.
+- Another person in the owner team approves with `generation` and `contentHash` (`POST .../approval`). The two-person rule compares the Entra `oid`, which is stored but never shown, except your own in `whoami`. A person token without `oid` gets 401. A seeded or `/admin/v1` submitter cannot be approved: a person submits again.
+- `contentHash` is `v1:sha256:` over the normalised spec (sets sorted) in RFC 8785 form. Hashes compare as whole strings. Agent profiles have one hash per grant, which the server's owner team approves.
+- `revocation` (one person in the owner team or `FLEET_CONTROL_OPERATOR_TEAM`) is final for that generation; `rollback` never lifts it and refuses revoked or blocked generations and their content with 409. `block: true` stops the content from ever being submitted again.
+- `mcpservercatalogentries` shows published, unrevoked servers to every signed-in person, with its own field list.
+- Non-members get 404 whether or not a resource exists. A failed team lookup is 503.
+
+`/admin/v1/agents` is read-only: writes answer 410. Migration `005` only adds tables, columns and indexes, so an image from before it can be rolled back. On every start fleet-control fills `spec` and `spec_hash` on published server versions that lack them.
+
+## Snapshot versions (#2764)
+
+`GET /internal/v1/snapshots/routes` and `/registry` carry `schema_version: 1`, and fleet-gateway and mcp-registry refuse other versions. v1alpha1 does not change them. Rules for later changes:
+
+1. New optional fields do not raise `schema_version`. fleet-gateway ignores unknown fields; check mcp-registry before the first addition.
+2. Changed or removed fields raise `schema_version`. fleet-control then serves both versions, chosen with `?schema_version=N` (default 1).
+3. Deploy the gateway first with support for both versions. Remove the old version from fleet-control only when no gateway asks for it.
+4. Agent profiles in the gateway become their own kind with their own `schema_version: 1`, not a change to `routes`.
 
 ## Read API for my-copilot
 
