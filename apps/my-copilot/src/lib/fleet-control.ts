@@ -21,6 +21,9 @@ export type MCPServerSpec = {
   dataCategory?: string;
   upstream?: { app: string; url: string };
   allowedTools?: string[];
+  // Markdown from the owner team. Untrusted: render without raw HTML (ServerReadme).
+  readme?: string;
+  tools?: { name: string; description?: string }[];
   registry?: { version?: string; remotes?: { type?: string; url?: string }[] };
 };
 
@@ -49,6 +52,8 @@ export type AgentProfile = {
   spec: AgentProfileSpec;
   status: {
     expiresAt?: string;
+    // The pending draft has no person as submitter, so nobody can approve it.
+    needsResubmit?: boolean;
     // spec here is for the owner team only; status.grants describe this generation.
     pending?: { generation: number; spec?: AgentProfileSpec };
     grants?: { serverRef: ServerRef; granted: boolean; grantedBy?: Actor; grantedAt?: string; reason?: string }[];

@@ -22,6 +22,8 @@ import {
   TextField,
   VStack,
 } from "@navikt/ds-react";
+import Markdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { hasCondition, refKey } from "@/lib/fleet-names";
 import type { AgentProfile, AuditEvent, FleetProblem, MCPServer, MCPServerSpec } from "@/lib/fleet-control";
 
@@ -335,6 +337,7 @@ export function ServerDetail({ server, events }: { server: MCPServer; events: Au
           ["Versjon som venter på godkjenning", server.status.pending?.generation ?? "–"],
         ]}
       />
+      <ServerDocs spec={server.status.pending?.spec ?? server.spec} />
       {server.status.pending?.spec && <Versjoner server={server} next={server.status.pending.spec} />}
       <ServerActions server={server} />
       <Historikk events={events} />
@@ -353,6 +356,62 @@ const specRows = (s?: MCPServerSpec): [string, string][] => [
     s?.registry?.remotes?.map((r) => [r.type, r.url].filter(Boolean).join(" ")).join(", ") || "–",
   ],
 ];
+
+const safeHref = (href?: string) => (href && /^(https?:|mailto:)/i.test(href) ? href : undefined);
+
+/** The readme is untrusted: raw HTML is skipped, links only for http/https/mailto, no images. */
+export function ServerReadme({ markdown }: { markdown: string }) {
+  return (
+    <Markdown
+      remarkPlugins={[remarkGfm]}
+      skipHtml
+      components={{
+        a: ({ href, children }) => {
+          const safe = safeHref(href);
+          return safe ? (
+            <a href={safe} className={linkClass} rel="noopener noreferrer">
+              {children}
+            </a>
+          ) : (
+            <span>{children}</span>
+          );
+        },
+        img: ({ alt }) => <span>{alt}</span>,
+      }}
+    >
+      {markdown}
+    </Markdown>
+  );
+}
+
+function ServerDocs({ spec }: { spec?: MCPServerSpec }) {
+  const tools = spec?.tools?.filter((t) => t.description) ?? [];
+  if (!spec?.readme && !tools.length) return null;
+  return (
+    <VStack gap="space-8">
+      <Heading level="2" size="small">
+        Om MCP-serveren
+      </Heading>
+      {spec?.readme && (
+        <div>
+          <ServerReadme markdown={spec.readme} />
+        </div>
+      )}
+      {tools.length > 0 && (
+        <Table size="small" aria-label="Verktøy">
+          <Table.Body>
+            {tools.map((t) => (
+              <Table.Row key={t.name}>
+                <Table.HeaderCell scope="row">{t.name}</Table.HeaderCell>
+                <Table.DataCell>{t.description}</Table.DataCell>
+              </Table.Row>
+            ))}
+          </Table.Body>
+        </Table>
+      )}
+    </VStack>
+  );
+}
 
 function Versjoner({ server, next }: { server: MCPServer; next: MCPServerSpec }) {
   // Before the first approval fleet-control copies the draft into spec, so only a live server has a version in use.
@@ -513,6 +572,11 @@ export function RegisterForm({ teams }: { teams: string[] }) {
           description="Verktøyene som skal være tilgjengelige, ett per linje."
           required
         />
+        <Textarea
+          label="Beskrivelse (valgfritt)"
+          name="readme"
+          description="Fortell hva MCP-serveren gjør og hvordan den brukes. Du kan bruke Markdown. Høyst 64 KiB."
+        />
         <Select label="Datakategori" name="dataCategory" required>
           <option value="Intern">Intern</option>
           <option value="Aapen">Åpen</option>
@@ -548,6 +612,12 @@ export function AgentDetailView({ profile: p, events }: { profile: AgentProfile;
         </div>
         <BodyLong>Neste steg: {agentNextStep(p)}</BodyLong>
       </KortFortalt>
+      {p.status.needsResubmit && (
+        <Alert variant="warning" size="small">
+          Utkastet ble ikke sendt inn av en person, så ingen kan godkjenne det. En person på teamet må sende det inn på
+          nytt.
+        </Alert>
+      )}
       <Detaljer
         rows={[
           ["Team", p.metadata.namespace],

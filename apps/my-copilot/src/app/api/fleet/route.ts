@@ -47,10 +47,13 @@ export async function POST(request: Request) {
         const allowedTools = str(b, "tools")
           .split(/[\s,]+/)
           .filter(Boolean);
+        const readme = str(b, "readme");
+        if (new TextEncoder().encode(readme).length > 64 << 10) return fail("Beskrivelsen kan være høyst 64 KiB.", 400);
         await fleetApi.createServer(ns, name, {
           dataCategory: str(b, "dataCategory"),
           upstream: { app, url: str(b, "url") },
           allowedTools,
+          ...(readme && { readme }),
         });
         break;
       }
