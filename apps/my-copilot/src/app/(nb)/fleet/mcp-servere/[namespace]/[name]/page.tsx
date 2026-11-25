@@ -15,11 +15,12 @@ export default async function ServerPage({ params }: Props) {
   if (!isName(namespace) || !isName(name)) notFound();
   // Both are for the owner team only: anyone else gets 404, which is «Fant ikke siden».
   const result = await fleetLoad(async () => {
-    const [server, history] = await Promise.all([
+    const [server, history, me] = await Promise.all([
       fleetApi.server(namespace, name),
       fleetApi.history("mcpservers", namespace, name),
+      fleetApi.whoami(),
     ]);
-    return { server, events: history.items };
+    return { server, events: history.items, me: me.name };
   });
 
   return (
@@ -27,7 +28,7 @@ export default async function ServerPage({ params }: Props) {
       {"problem" in result ? (
         <FleetProblemAlert problem={result.problem} />
       ) : (
-        <ServerDetail server={result.data.server} events={result.data.events} />
+        <ServerDetail server={result.data.server} events={result.data.events} me={result.data.me} />
       )}
     </FleetFrame>
   );
