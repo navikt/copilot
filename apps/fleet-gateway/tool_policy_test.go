@@ -130,14 +130,14 @@ func TestToolPolicy_RouteFile(t *testing.T) {
 		t.Fatalf("v1 must be rejected with a clear error: %v", err)
 	}
 	for _, f := range []string{"pilot-routes.dev.yaml", "pilot-routes.prod.yaml"} {
-		if _, err := (routing.FileSource{Path: f}).Routes(); err != nil {
+		if _, err := routing.Load(f); err != nil {
 			t.Errorf("%q: %v", f, err)
 		}
 	}
-	if _, err := (routing.FileSource{Path: ""}).Routes(); err == nil {
+	if _, err := routing.Load(""); err == nil {
 		t.Error("empty route path must fail closed")
 	}
-	prodRoutes, prodErr := (routing.FileSource{Path: "pilot-routes.prod.yaml"}).Routes()
+	prodRoutes, prodErr := routing.Load("pilot-routes.prod.yaml")
 	if prodErr != nil {
 		t.Fatal(prodErr)
 	}

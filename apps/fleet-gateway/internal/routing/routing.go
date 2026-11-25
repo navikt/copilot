@@ -45,18 +45,6 @@ type Route struct {
 	AllowedTools map[string]bool `yaml:"-" json:"-"`
 }
 
-// RouteSource supplies the validated pilot routes. The route file is the only
-// implementation today; the control service (#2334) becomes the second.
-type RouteSource interface {
-	Routes() ([]Route, error)
-}
-
-// FileSource reads routes from PILOT_ROUTES_FILE.
-type FileSource struct{ Path string }
-
-// Routes loads and validates the route file.
-func (s FileSource) Routes() ([]Route, error) { return Load(s.Path) }
-
 // Disabled reports whether the route is switched off with enabled: false.
 func (r Route) Disabled() bool {
 	return r.Enabled != nil && !*r.Enabled
