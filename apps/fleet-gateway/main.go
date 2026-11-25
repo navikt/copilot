@@ -8,7 +8,6 @@ import (
 	"github.com/navikt/copilot/fleet-gateway/internal/config"
 	"io"
 	"log/slog"
-	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -22,6 +21,7 @@ import (
 	"golang.org/x/sync/singleflight"
 
 	"github.com/navikt/copilot/fleet-gateway/internal/audit"
+	"github.com/navikt/copilot/fleet-gateway/internal/ratelimit"
 )
 
 // Gateway implements the fleet-gateway OAuth 2.1 authorization server and MCP proxy.
@@ -33,8 +33,8 @@ type Gateway struct {
 	lockoutKey    []byte // HMAC key for lockout records (LOCKOUT_KEY); empty disables lockout checks
 	mcpUserKey    []byte // HMAC key for kindMCPSessionUser counters
 	cimdCache     *ttlMap[cachedCIMD]
-	limiters      map[string]*ipRateLimiter
-	rateLimitLog  *rateLimitLogSampler
+	limiters      map[string]*ratelimit.Limiter
+	rateLimitLog  *ratelimit.LogSampler
 	proxyClient   *http.Client
 	refreshWait   time.Duration // how long a concurrent refresh waits for the winner's grace pair
 	inFlight      slots         // buffered MCP calls; bounds memory (see README, Memory and limits)
@@ -103,9 +103,9 @@ func newGateway(cfg *Config, now func() time.Time) (*Gateway, error) {
 		}
 		return nil, fmt.Errorf("initialize team token source: %w", err)
 	}
-	limiters := make(map[string]*ipRateLimiter, len(rateLimitedEndpoints))
+	limiters := make(map[string]*ratelimit.Limiter, len(rateLimitedEndpoints))
 	for _, ep := range rateLimitedEndpoints {
-		limiters[ep] = newIPRateLimiter(cfg.RateLimitRequests, cfg.RateLimitGlobalRequests, cfg.RateLimitWindow, cfg.RateLimitCap, now)
+		limiters[ep] = ratelimit.New(cfg.RateLimitRequests, cfg.RateLimitGlobalRequests, cfg.RateLimitWindow, cfg.RateLimitCap, now)
 	}
 	gw := &Gateway{
 		cfg:          cfg,
@@ -116,7 +116,7 @@ func newGateway(cfg *Config, now func() time.Time) (*Gateway, error) {
 		mcpUserKey:   mcpUserKey,
 		cimdCache:    newTTLMap[cachedCIMD](cfg.CIMDCap, now),
 		limiters:     limiters,
-		rateLimitLog: newRateLimitLogSampler(defaultRateLimitLogWindow, defaultRateLimitLogCap, now),
+		rateLimitLog: ratelimit.NewLogSampler(ratelimit.DefaultLogWindow, ratelimit.DefaultLogCap, now),
 		proxyClient:  newHardenedProxyClient(cfg.ProxyHeaderTimeout),
 		refreshWait:  5 * time.Second,
 		TeamTokens:   teamTokens,
@@ -394,9 +394,9 @@ func (w *statusResponseWriter) Unwrap() http.ResponseWriter {
 	return w.ResponseWriter
 }
 
-func (g *Gateway) rateLimitMiddleware(endpoint string, limiter *ipRateLimiter, next http.HandlerFunc) http.HandlerFunc {
+func (g *Gateway) rateLimitMiddleware(endpoint string, limiter *ratelimit.Limiter, next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		ip := extractClientIP(r)
+		ip := ratelimit.ClientIP(r)
 		if limiter != nil && !limiter.Allow(ip) {
 			observeRateLimited(endpoint)
 			if g.rateLimitLog == nil || g.rateLimitLog.Allow(endpoint+"\x00"+ip) {
@@ -414,161 +414,6 @@ func (g *Gateway) rateLimitMiddleware(endpoint string, limiter *ipRateLimiter, n
 			return
 		}
 		next(w, r)
-	}
-}
-
-// extractClientIP resolves the client IP for rate limiting.
-// Only the Nais ingress is trusted: we take the LAST valid IP address in
-// X-Forwarded-For (appended by the trusted ingress) so earlier client-supplied
-// values cannot spoof the rate-limit key, and fall back to r.RemoteAddr when
-// X-Forwarded-For is absent or unparseable.
-func extractClientIP(r *http.Request) string {
-	if r == nil {
-		return "unknown"
-	}
-	var lastToken string
-	for _, hdr := range r.Header.Values("X-Forwarded-For") {
-		for _, part := range strings.Split(hdr, ",") {
-			if trimmed := strings.TrimSpace(part); trimmed != "" {
-				lastToken = trimmed
-			}
-		}
-	}
-	if lastToken != "" {
-		if ip := parseIPToken(lastToken); ip != "" {
-			return ip
-		}
-	}
-	return parseRemoteAddrIP(r.RemoteAddr)
-}
-
-func parseIPToken(token string) string {
-	if host, _, err := net.SplitHostPort(token); err == nil && host != "" {
-		token = host
-	}
-	token = strings.TrimSuffix(strings.TrimPrefix(token, "["), "]")
-	if ip := net.ParseIP(token); ip != nil {
-		return ip.String()
-	}
-	return ""
-}
-
-func parseRemoteAddrIP(remoteAddr string) string {
-	host, _, err := net.SplitHostPort(remoteAddr)
-	if err == nil && host != "" {
-		return host
-	}
-	if remoteAddr != "" {
-		return remoteAddr
-	}
-	return "unknown"
-}
-
-type rateWindow struct {
-	count   int
-	resetAt time.Time
-}
-
-type ipRateLimiter struct {
-	mu          sync.Mutex
-	buckets     map[string]rateWindow
-	limit       int
-	globalLimit int
-	global      rateWindow
-	window      time.Duration
-	maxSize     int
-	now         func() time.Time
-}
-
-func newIPRateLimiter(limit, globalLimit int, window time.Duration, maxSize int, now func() time.Time) *ipRateLimiter {
-	if now == nil {
-		now = time.Now
-	}
-	if limit <= 0 {
-		limit = defaultRateLimitRequests
-	}
-	if globalLimit <= 0 {
-		globalLimit = defaultRateLimitGlobalRequests
-	}
-	if window <= 0 {
-		window = defaultRateLimitWindow
-	}
-	if maxSize <= 0 {
-		maxSize = 1
-	}
-	return &ipRateLimiter{
-		buckets:     make(map[string]rateWindow),
-		limit:       limit,
-		globalLimit: globalLimit,
-		window:      window,
-		maxSize:     maxSize,
-		now:         now,
-	}
-}
-
-func (l *ipRateLimiter) Allow(ip string) bool {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-
-	now := l.now()
-	if !now.Before(l.global.resetAt) {
-		l.global = rateWindow{count: 0, resetAt: now.Add(l.window)}
-	}
-	if l.global.count >= l.globalLimit {
-		return false
-	}
-
-	b, ok := l.buckets[ip]
-	if !ok || !now.Before(b.resetAt) {
-		if !ok && len(l.buckets) >= l.maxSize {
-			l.sweepLocked(now)
-			if len(l.buckets) >= l.maxSize {
-				l.evictOldestLocked()
-			}
-		}
-		l.buckets[ip] = rateWindow{count: 1, resetAt: now.Add(l.window)}
-		l.global.count++
-		return true
-	}
-	if b.count >= l.limit {
-		return false
-	}
-	b.count++
-	l.buckets[ip] = b
-	l.global.count++
-	return true
-}
-
-func (l *ipRateLimiter) Sweep() int {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	return l.sweepLocked(l.now())
-}
-
-func (l *ipRateLimiter) sweepLocked(now time.Time) int {
-	removed := 0
-	for ip, b := range l.buckets {
-		if !now.Before(b.resetAt) {
-			delete(l.buckets, ip)
-			removed++
-		}
-	}
-	return removed
-}
-
-func (l *ipRateLimiter) evictOldestLocked() {
-	var oldestIP string
-	var oldestReset time.Time
-	first := true
-	for ip, b := range l.buckets {
-		if first || b.resetAt.Before(oldestReset) {
-			oldestIP = ip
-			oldestReset = b.resetAt
-			first = false
-		}
-	}
-	if !first {
-		delete(l.buckets, oldestIP)
 	}
 }
 

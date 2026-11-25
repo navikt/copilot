@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 	"unicode"
+
+	"github.com/navikt/copilot/fleet-gateway/internal/ratelimit"
 )
 
 // dcrClientIDPrefix marks gateway-issued client_ids. The rest is random and
@@ -45,7 +47,7 @@ func (g *Gateway) registerHandler(w http.ResponseWriter, r *http.Request) {
 	fail := func(status int, code, desc string) {
 		writeJSON(w, status, map[string]string{"error": code, "error_description": desc})
 	}
-	ip := extractClientIP(r)
+	ip := ratelimit.ClientIP(r)
 	allowed, err := g.allowRegistration(r.Context(), ip)
 	if err != nil {
 		slog.Warn("dcr rate limit failed", "error", err)

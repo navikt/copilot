@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/navikt/copilot/fleet-gateway/internal/config"
+	"github.com/navikt/copilot/fleet-gateway/internal/ratelimit"
 	"io"
 	"log/slog"
 	"net/http"
@@ -1018,7 +1019,7 @@ func TestMapCapsAndRateLimit(t *testing.T) {
 			run: func(t *testing.T) {
 				te := newTestEnv(t)
 				for _, ep := range rateLimitedEndpoints {
-					te.gw.limiters[ep] = newIPRateLimiter(2, 100, time.Minute, 10, func() time.Time { return te.now })
+					te.gw.limiters[ep] = ratelimit.New(2, 100, time.Minute, 10, func() time.Time { return te.now })
 				}
 				te.handler = te.gw.routes()
 
@@ -1064,7 +1065,7 @@ func TestMapCapsAndRateLimit(t *testing.T) {
 			name: "X-Forwarded-For uses last trusted ingress IP and enforces global ceiling",
 			run: func(t *testing.T) {
 				te := newTestEnv(t)
-				te.gw.limiters[rateLimitEndpointAuthorize] = newIPRateLimiter(2, 4, time.Minute, 10, func() time.Time { return te.now })
+				te.gw.limiters[rateLimitEndpointAuthorize] = ratelimit.New(2, 4, time.Minute, 10, func() time.Time { return te.now })
 				te.handler = te.gw.routes()
 
 				// Spoofing earlier XFF entries cannot bypass per-IP limit keyed on the last entry.

@@ -13,6 +13,8 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus/testutil"
+
+	"github.com/navikt/copilot/fleet-gateway/internal/ratelimit"
 )
 
 // enableDCR turns on DCR for a test env with a fresh store holding capDCR clients.
@@ -317,7 +319,7 @@ func TestDCR_AuthorizeDoesNotRenew(t *testing.T) {
 func TestDCR_RegisterBehindInMemoryRateLimit(t *testing.T) {
 	te := newTestEnv(t)
 	enableDCR(te, 100, 100)
-	te.gw.limiters[rateLimitEndpointRegister] = newIPRateLimiter(1, 100, time.Minute, 10, func() time.Time { return te.now })
+	te.gw.limiters[rateLimitEndpointRegister] = ratelimit.New(1, 100, time.Minute, 10, func() time.Time { return te.now })
 	te.handler = te.gw.routes()
 	registerID(t, te, "10.0.2.1")
 	code, out := postRegister(te, opencodeRegistration(), "10.0.2.1")
