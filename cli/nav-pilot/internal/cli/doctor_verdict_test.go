@@ -1,9 +1,12 @@
 package cli
 
 import (
+	"bytes"
 	"fmt"
 	"strings"
 	"testing"
+
+	providerpkg "github.com/navikt/copilot/cli/nav-pilot/internal/provider"
 )
 
 // A run that printed ⚠ or ✗ rows never ends "healthy"; the control, a run
@@ -81,5 +84,30 @@ func TestDoctorSectionHeaderShowsWorstState(t *testing.T) {
 		if !strings.Contains(out, want) {
 			t.Errorf("missing %q in:\n%s", want, out)
 		}
+	}
+}
+
+// A keyring login over HTTPS is one line; with an SSH origin the push warning
+// still prints, and --verbose shows the full block.
+func TestDoctorGHOneLineOnlyWithoutSSH(t *testing.T) {
+	orig := originUsesSSH
+	t.Cleanup(func() { originUsesSSH = orig; providerpkg.Verbose = false })
+	for _, ssh := range []bool{false, true} {
+		originUsesSSH = func() bool { return ssh }
+		var b bytes.Buffer
+		reportDoctorGH(&b, "copilot", "auto", ghAuthKeyring, "")
+		out := stripANSI(b.String())
+		oneLine := strings.Contains(out, "(push and PRs): ✓ gh is signed in")
+		warned := strings.Contains(out, "origin uses SSH, which cplt blocks")
+		if oneLine == ssh || warned != ssh {
+			t.Errorf("ssh=%v: one-liner=%v warning=%v\n%s", ssh, oneLine, warned, out)
+		}
+	}
+	originUsesSSH = func() bool { return false }
+	providerpkg.Verbose = true
+	var b bytes.Buffer
+	reportDoctorGH(&b, "copilot", "auto", ghAuthKeyring, "")
+	if strings.Contains(b.String(), "(push and PRs): ") || !strings.Contains(b.String(), "Sandbox authentication remains unverified") {
+		t.Errorf("verbose: %s", b.String())
 	}
 }

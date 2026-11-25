@@ -490,12 +490,7 @@ func doctorChecks() bool {
 	ghCfg, _ := readConfig()
 	ghResolved := resolve(ghCfg, CLIOverrides{})
 	gh := ghProbe()
-	if gh.st == ghAuthKeyring && !providerpkg.Verbose && !originUsesSSH() {
-		fmt.Printf("    • GitHub sign-in (push and PRs): %s gh is signed in to github.com\n", green("✓"))
-	} else {
-		fmt.Printf("    • GitHub sign-in (push and PRs)\n")
-		reportGHAuth(os.Stdout, "      ", ghResolved.Client, ghResolved.CopilotAuthMode, gh.st, gh.detail)
-	}
+	reportDoctorGH(os.Stdout, ghResolved.Client, ghResolved.CopilotAuthMode, gh.st, gh.detail)
 	fmt.Println()
 
 	// 3b. Model pins
@@ -630,6 +625,17 @@ func doctorVerdict(fixRows int, hasErrors bool) string {
 	return green("✓") + " All systems healthy! 🚀"
 }
 
+// reportDoctorGH is doctor's GitHub sign-in row: one line for a keyring login
+// over HTTPS, the full block (with its caveats) otherwise or with --verbose.
+func reportDoctorGH(w io.Writer, client, authMode string, st ghAuth, detail string) {
+	if st == ghAuthKeyring && !providerpkg.Verbose && !originUsesSSH() {
+		fmt.Fprintf(w, "    • GitHub sign-in (push and PRs): %s gh is signed in to github.com\n", green("✓"))
+		return
+	}
+	fmt.Fprintf(w, "    • GitHub sign-in (push and PRs)\n")
+	reportGHAuth(w, "      ", client, authMode, st, detail)
+}
+
 // sectionMarker is a section header's marker: the worst state among its
 // lines, so a header never says [i] over a warning (#2905).
 func sectionMarker(lines []string) string {
@@ -680,6 +686,11 @@ func countFixRows(print func()) int {
 				section = []string{line}
 			case section != nil:
 				section = append(section, line)
+				// A section ends with a blank line: print it then, not when
+				// the next header arrives after whatever runs in between.
+				if line == "" {
+					flush()
+				}
 			default:
 				fmt.Fprintln(orig, line)
 			}
