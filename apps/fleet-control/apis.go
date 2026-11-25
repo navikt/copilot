@@ -233,6 +233,7 @@ func (s *server) apisRoutes(mux *http.ServeMux, a *authz, adminClientID string, 
 	}{
 		{"GET " + apisPrefix + "/{$}", "", discovery},
 		{"GET " + apisPrefix + "/whoami", "", whoami},
+		{"GET " + ns + "apps", "", listTeamApps(teams)},
 		{"GET " + apisPrefix + "/mcpservers", "mcpservers", listMyServers},
 		{"GET " + ns + "mcpservers", "mcpservers", listServersNS},
 		{"POST " + ns + "mcpservers", "mcpservers", s.createServer},

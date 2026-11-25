@@ -24,6 +24,10 @@ export type MCPServerSpec = {
   // Markdown from the owner team. Untrusted: render without raw HTML (ServerReadme).
   readme?: string;
   tools?: { name: string; description?: string }[];
+  // read, propose or write; a tool without a level is write (#2968).
+  defaultRisk?: string;
+  toolRisk?: Record<string, string>;
+  rosRef?: string;
   registry?: { version?: string; remotes?: { type?: string; url?: string }[] };
 };
 
@@ -68,6 +72,9 @@ export type AgentProfile = {
     conditions?: Condition[];
   };
 };
+
+/** A Nais application from the Console API, via fleet-control. */
+export type TeamApp = { name: string; environment: string };
 
 export type List<T> = { items: T[] };
 
@@ -179,6 +186,7 @@ const ns = (namespace: string) => `${API}/namespaces/${seg(namespace)}`;
 // Only /apis: the old /admin/v1 routes are never a fallback (#2748).
 export const fleetApi = {
   whoami: () => fleetGet<Me>(`${API}/whoami`),
+  apps: (namespace: string) => fleetGet<List<TeamApp>>(`${ns(namespace)}/apps`),
   servers: (namespace: string) => fleetGet<List<MCPServer>>(`${ns(namespace)}/mcpservers`),
   server: (namespace: string, name: string) => fleetGet<MCPServer>(`${ns(namespace)}/mcpservers/${seg(name)}`),
   catalog: () => fleetGet<List<CatalogEntry>>(`${API}/mcpservercatalogentries`),

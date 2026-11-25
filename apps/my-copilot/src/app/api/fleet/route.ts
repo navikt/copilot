@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getUser, getUserToken } from "@/lib/auth";
 import { FleetControlError, fleetApi, requireFleet, type MCPServerSpec } from "@/lib/fleet-control";
+import { MAX_TOOLS, RISKS, TOOL_NAME } from "@/lib/fleet-wizard";
 import { isName, isSameOrigin } from "@/lib/fleet-names";
 
 /**
@@ -36,6 +37,14 @@ function fieldMessage(field: string, detail: string, team: string): [string, str
     case "spec.allowedTools":
     case "spec.tools":
       return ["tools", "Sjekk verktøyene. Skriv minst ett verktøynavn, og hvert navn bare én gang."];
+    case "spec.defaultRisk":
+    case "spec.toolRisk":
+      return ["defaultRisk", "Velg Leser, Foreslår eller Skriver for verktøyene."];
+    case "spec.rosRef":
+      return [
+        "rosRef",
+        "Verktøy som skriver krever en ROS i prod. Lim inn lenken, eller sett verktøy som ikke skriver til «Leser» eller «Foreslår».",
+      ];
     case "spec.readme":
       return ["readme", "Beskrivelsen kan være høyst 64 KiB."];
     case "spec.dataCategory":
@@ -61,6 +70,51 @@ function fieldMessage(field: string, detail: string, team: string): [string, str
     default:
       return null;
   }
+}
+
+/** The wizard's spec, or a message when its shape is wrong. Names, levels and sizes only: fleet-control validates the rest. */
+function parseRegisterSpec(v: unknown): MCPServerSpec | string {
+  const bad = "Noe er galt med skjemaet. Last inn siden på nytt.";
+  if (!v || typeof v !== "object") return bad;
+  const s = v as Record<string, unknown>;
+  const up = s.upstream as Record<string, unknown> | undefined;
+  if (!up || typeof up.app !== "string" || !isName(up.app))
+    return "App må være små bokstaver, tall og bindestrek, høyst 63 tegn.";
+  if (typeof up.url !== "string" || typeof s.dataCategory !== "string" || !s.dataCategory) return bad;
+  const tools = s.allowedTools;
+  if (
+    !Array.isArray(tools) ||
+    tools.length === 0 ||
+    tools.length > MAX_TOOLS ||
+    !tools.every((t) => typeof t === "string" && TOOL_NAME.test(t)) ||
+    new Set(tools).size !== tools.length
+  )
+    return "Verktøynavn kan bare ha bokstaver, tall, _, . og -. Velg minst ett, og hvert navn bare én gang.";
+  const isRisk = (r: unknown) => typeof r === "string" && (RISKS as string[]).includes(r);
+  if (s.defaultRisk !== undefined && !isRisk(s.defaultRisk)) return bad;
+  const toolRisk = s.toolRisk ?? {};
+  if (typeof toolRisk !== "object" || !Object.entries(toolRisk).every(([k, r]) => tools.includes(k) && isRisk(r)))
+    return bad;
+  const docs = s.tools ?? [];
+  if (!Array.isArray(docs) || !docs.every((d) => d && typeof d.name === "string" && tools.includes(d.name))) return bad;
+  if (s.rosRef !== undefined && typeof s.rosRef !== "string") return bad;
+  const readme = typeof s.readme === "string" ? s.readme : "";
+  if (new TextEncoder().encode(readme).length > 64 << 10) return "Beskrivelsen kan være høyst 64 KiB.";
+  return {
+    dataCategory: s.dataCategory,
+    upstream: { app: up.app, url: up.url.trim() },
+    allowedTools: tools as string[],
+    ...(docs.length && {
+      tools: (docs as { name: string; description?: unknown }[]).map((d) => ({
+        name: d.name,
+        ...(typeof d.description === "string" && { description: d.description }),
+      })),
+    }),
+    ...(isRisk(s.defaultRisk) && { defaultRisk: s.defaultRisk as string }),
+    ...(Object.keys(toolRisk).length && { toolRisk: toolRisk as Record<string, string> }),
+    ...(s.rosRef && { rosRef: s.rosRef as string }),
+    ...(readme && { readme }),
+  };
 }
 
 /** Maps fleet-control's Status (code, reason, message, causes) to a Norwegian message with the next step. */
@@ -140,17 +194,20 @@ export async function POST(request: Request) {
   const href = `/fleet/mcp-servere/${ns}/${name}`;
   try {
     switch (b.action) {
-      case "register":
+      case "register": {
+        // The wizard sends the spec it built (toSpec in fleet-wizard.ts); check its shape before fleet-control does.
+        const spec = parseRegisterSpec(b.spec);
+        if (typeof spec === "string") return fail(spec, 400);
+        await fleetApi.createServer(ns, name, spec);
+        break;
+      }
       case "edit": {
         const spec = specFrom(b);
         if (typeof spec === "string") return fail(spec, 400);
         if (Array.isArray(spec)) return fail(spec[1], 400, undefined, { [spec[0]]: spec[1] });
-        if (b.action === "register") await fleetApi.createServer(ns, name, spec);
-        else {
-          const rv = str(b, "resourceVersion");
-          if (!rv) return fail("Noe er galt med skjemaet. Last inn siden på nytt.", 400);
-          await fleetApi.updateServer(ns, name, rv, spec);
-        }
+        const rv = str(b, "resourceVersion");
+        if (!rv) return fail("Noe er galt med skjemaet. Last inn siden på nytt.", 400);
+        await fleetApi.updateServer(ns, name, rv, spec);
         break;
       }
       case "approve": {

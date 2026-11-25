@@ -17,7 +17,7 @@ vi.mock("next/navigation", () => ({
     throw new Error(`NEXT_PERMANENT_REDIRECT ${to}`);
   }),
   usePathname: () => "/fleet",
-  useRouter: () => ({ refresh: vi.fn() }),
+  useRouter: () => ({ refresh: vi.fn(), replace: vi.fn(), push: vi.fn() }),
 }));
 
 import FleetPage from "./page";
@@ -324,12 +324,14 @@ describe("/fleet", () => {
     expect(screen.queryByRole("button", { name: "Trekk tilbake" })).toBeNull();
   });
 
-  it("shows the registration form with the person's teams", async () => {
+  it("shows the registration wizard with the person's teams", async () => {
     const { default: RegisterPage } = await import("./registrer/page");
-    render(await RegisterPage());
+    const sp = (team?: string) => ({ searchParams: Promise.resolve({ team }) });
+    render(await RegisterPage(sp()));
     expect(screen.getByRole("option", { name: "team-a" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Navn" })).toBeInTheDocument();
     vi.stubEnv("FLEET_CONTROL_URL", "");
-    await expect(RegisterPage()).rejects.toThrow("NEXT_NOT_FOUND");
+    await expect(RegisterPage(sp())).rejects.toThrow("NEXT_NOT_FOUND");
   });
 
   it("shows that a revoked MCP server with a new draft waits for approval", async () => {
@@ -489,18 +491,6 @@ describe("/fleet", () => {
     expect(screen.getByText(/Endre MCP-serveren og send inn en ny versjon/)).toBeInTheDocument();
     expect(screen.queryByText(/Ingen\. MCP-serveren/)).toBeNull();
     expect(screen.getByRole("heading", { name: "Endre MCP-serveren" })).toBeInTheDocument();
-  });
-
-  it("explains each data category, preselects none, and shows the accessPolicy snippet", async () => {
-    const { default: RegisterPage } = await import("./registrer/page");
-    render(await RegisterPage());
-    for (const name of ["Åpne data", "Interne data", "Fortrolige data"]) {
-      const radio = screen.getByRole("radio", { name });
-      expect(radio).not.toBeChecked();
-      expect(radio).toHaveAccessibleDescription(/\w/);
-    }
-    expect(screen.getByText(/application: fleet-gateway/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Kopier" })).toBeInTheDocument();
   });
 
   it("posts «gi tilgang» with the profile, the MCP server and the grant's hash", async () => {

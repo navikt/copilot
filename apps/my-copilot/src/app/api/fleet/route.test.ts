@@ -72,54 +72,64 @@ describe("POST /api/fleet", () => {
     expect(JSON.parse(init.body)).toEqual({ generation: 3, contentHash: "h3" });
   });
 
-  it("registers an MCP server as a v1alpha1 resource", async () => {
-    const res = await post({
-      action: "register",
-      namespace: "team-a",
-      name: "docs",
-      app: "docs-app",
-      url: "http://docs-app/mcp",
-      tools: "search\nread",
-      dataCategory: "Intern",
+  const spec = (over: Record<string, unknown> = {}) => ({
+    dataCategory: "Intern",
+    upstream: { app: "docs-app", url: "http://docs-app/mcp" },
+    allowedTools: ["search", "read"],
+    ...over,
+  });
+
+  it("registers an MCP server as a v1alpha1 resource, with risk and tool docs", async () => {
+    const full = spec({
+      tools: [{ name: "search", description: "Søker" }],
+      defaultRisk: "read",
+      toolRisk: { read: "propose" },
+      rosRef: "https://ros.example/1",
     });
+    const res = await post({ action: "register", namespace: "team-a", name: "docs", spec: full });
     expect(res.status).toBe(200);
     expect(JSON.parse(fetch.mock.calls[0][1].body)).toEqual({
       apiVersion: "fleet.nav.no/v1alpha1",
       kind: "MCPServer",
       metadata: { namespace: "team-a", name: "docs" },
-      spec: {
-        dataCategory: "Intern",
-        upstream: { app: "docs-app", url: "http://docs-app/mcp" },
-        allowedTools: ["search", "read"],
-      },
+      spec: full,
     });
   });
 
   it("sends the readme untrimmed, and refuses one over 64 KiB", async () => {
-    const base = {
-      action: "register",
-      namespace: "team-a",
-      name: "docs",
-      app: "docs-app",
-      url: "http://x/mcp",
-      tools: "search",
-      dataCategory: "Intern",
-    };
+    const base = { action: "register", namespace: "team-a", name: "docs" };
     const readme = "    kode\n\n# Docs\n";
-    expect((await post({ ...base, readme })).status).toBe(200);
+    expect((await post({ ...base, spec: spec({ readme }) })).status).toBe(200);
     expect(JSON.parse(fetch.mock.calls[0][1].body).spec.readme).toBe(readme);
-    expect((await post({ ...base, readme: "æ".repeat(32 * 1024 + 1) })).status).toBe(400);
+    expect((await post({ ...base, spec: spec({ readme: "æ".repeat(32 * 1024 + 1) }) })).status).toBe(400);
     expect(fetch).toHaveBeenCalledTimes(1);
   });
 
   it("refuses names that are not DNS labels before any call", async () => {
     for (const bad of [
-      { namespace: "../admin", name: "docs" },
-      { namespace: "team-a", name: "docs", app: "A/b" },
+      { namespace: "../admin", name: "docs", spec: spec() },
+      { namespace: "team-a", name: "docs", spec: spec({ upstream: { app: "A/b", url: "http://x/mcp" } }) },
     ]) {
       const res = await post({ action: "register", ...bad });
       expect(res.status).toBe(400);
     }
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["no spec", undefined],
+    ["no tools", spec({ allowedTools: [] })],
+    ["tool outside the gateway charset", spec({ allowedTools: ["søk"] })],
+    ["tool with a slash", spec({ allowedTools: ["a/b"] })],
+    ["duplicate tool", spec({ allowedTools: ["a", "a"] })],
+    ["too many tools", spec({ allowedTools: Array.from({ length: 257 }, (_, i) => `t${i}`) })],
+    ["unknown defaultRisk", spec({ defaultRisk: "admin" })],
+    ["toolRisk for a tool not allowed", spec({ toolRisk: { other: "read" } })],
+    ["unknown toolRisk", spec({ toolRisk: { search: "root" } })],
+    ["tool doc for a tool not allowed", spec({ tools: [{ name: "other" }] })],
+  ])("refuses a spec with %s before any call", async (_, bad) => {
+    const res = await post({ action: "register", namespace: "team-a", name: "docs", spec: bad });
+    expect(res.status).toBe(400);
     expect(fetch).not.toHaveBeenCalled();
   });
 
@@ -162,6 +172,13 @@ describe("POST /api/fleet", () => {
     action: "register",
     namespace: "team-a",
     name: "docs",
+    spec: { dataCategory: "Intern", upstream: { app: "docs", url: "x" }, allowedTools: ["search"] },
+  };
+  // The edit form (ServerForm) still posts form fields.
+  const editForm = {
+    action: "edit",
+    namespace: "team-a",
+    name: "docs",
     app: "docs",
     url: "x",
     tools: "search",
@@ -200,6 +217,9 @@ describe("POST /api/fleet", () => {
     );
     out = await (await post(register)).json();
     expect(out.fields.dataCategory).toMatch(/Strengt fortrolig/);
+    fetch.mockResolvedValueOnce(status(422, "Invalid", "MCP-serveren har skriveverktøy", ["spec.rosRef"]));
+    out = await (await post(register)).json();
+    expect(out.fields.rosRef).toMatch(/ROS/);
     fetch.mockResolvedValueOnce(status(422, "Invalid", "spec is odd", ["spec"]));
     out = await (await post(register)).json();
     expect(out).toEqual({ error: "Fleet godtok ikke endringen. Sjekk feltene og prøv igjen.", detail: "spec is odd" });
@@ -212,12 +232,13 @@ describe("POST /api/fleet", () => {
   });
 
   it("needs a data category, and sends none by default", async () => {
-    expect((await post({ ...register, dataCategory: "" })).status).toBe(400);
+    expect((await post({ ...editForm, resourceVersion: "7", dataCategory: "" })).status).toBe(400);
+    expect((await post({ ...register, spec: { ...register.spec, dataCategory: undefined } })).status).toBe(400);
     expect(fetch).not.toHaveBeenCalled();
   });
 
   it("edits with PUT and the resourceVersion, which makes a new version", async () => {
-    const res = await post({ ...register, action: "edit", resourceVersion: "7", tools: "search read" });
+    const res = await post({ ...editForm, resourceVersion: "7", tools: "search read" });
     await expect(res.json()).resolves.toEqual({ href: "/fleet/mcp-servere/team-a/docs" });
     const [url, init] = fetch.mock.calls[0];
     expect(url).toBe("http://fc/apis/fleet.nav.no/v1alpha1/namespaces/team-a/mcpservers/docs");
@@ -226,7 +247,7 @@ describe("POST /api/fleet", () => {
       metadata: { namespace: "team-a", name: "docs", resourceVersion: "7" },
       spec: { allowedTools: ["search", "read"], dataCategory: "Intern" },
     });
-    expect((await post({ ...register, action: "edit" })).status).toBe(400);
+    expect((await post(editForm)).status).toBe(400);
     expect(fetch).toHaveBeenCalledTimes(1);
   });
 
@@ -265,7 +286,7 @@ describe("POST /api/fleet", () => {
   });
 
   it("maps a failed edit: stale resourceVersion is a conflict, a bad field is marked", async () => {
-    const edit = { ...register, action: "edit", resourceVersion: "7" };
+    const edit = { ...editForm, resourceVersion: "7" };
     fetch.mockResolvedValueOnce(status(409, "Conflict", "resourceVersion is stale", ["metadata.resourceVersion"]));
     let res = await post(edit);
     expect(res.status).toBe(409);
