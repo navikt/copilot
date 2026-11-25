@@ -146,6 +146,9 @@ func serverToResponse(s StaticServerData, defaultUpdatedAt time.Time) ServerResp
 // Reload reloads static entries and approved database entries, merging them.
 // On a static load error the last good static set is kept; on a DB error the
 // last good DB set is kept. The DB error is returned.
+// errDBNotConnected is returned by the loader until the database connects.
+var errDBNotConnected = errors.New("database not connected")
+
 func (s *Store) Reload(ctx context.Context) error {
 	s.reloadMu.Lock()
 	defer s.reloadMu.Unlock()
@@ -163,14 +166,20 @@ func (s *Store) Reload(ctx context.Context) error {
 
 	var dbServers []ServerResponse
 	var dbErr error
+	var skipDB bool
 	if s.loader != nil {
 		loadCtx, cancel := context.WithTimeout(ctx, dbLoadTimeout)
 		entries, err := s.loader(loadCtx)
 		cancel()
-		if err != nil {
+		switch {
+		case errors.Is(err, errDBNotConnected):
+			// The first reload runs before connectWithRetry finishes; the connect path reloads again.
+			slog.Debug("Database not connected yet, skipping database entries")
+			skipDB = true
+		case err != nil:
 			slog.Error("Failed to reload registry entries from database, keeping last good set", "error", err)
 			dbErr = err
-		} else {
+		default:
 			dbServers = dbEntriesToResponses(entries)
 		}
 	}
@@ -180,7 +189,7 @@ func (s *Store) Reload(ctx context.Context) error {
 	if staticErr == nil {
 		s.static, s.staticNames = staticServers, staticNames
 	}
-	if s.loader != nil && dbErr == nil {
+	if s.loader != nil && dbErr == nil && !skipDB {
 		s.dbServers = dbServers
 	}
 	if s.static == nil {

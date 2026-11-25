@@ -1,14 +1,17 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -616,4 +619,23 @@ func TestLoadConfig_DatabaseEnabled(t *testing.T) {
 			t.Error("expected DatabaseEnabled to be true")
 		}
 	})
+}
+
+func TestReloadBeforeDBConnectedIsQuiet(t *testing.T) {
+	var buf bytes.Buffer
+	prev := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&buf, nil)))
+	t.Cleanup(func() { slog.SetDefault(prev) })
+
+	loader := func(_ context.Context) ([]DBEntry, error) { return nil, errDBNotConnected }
+	store := NewStore(testConfig(), "allowlist.json", loader)
+	if err := store.Reload(t.Context()); err != nil {
+		t.Fatalf("reload: %v", err)
+	}
+	if servers, _ := store.GetServers(); len(servers) == 0 {
+		t.Error("static entries not served")
+	}
+	if strings.Contains(buf.String(), "level=ERROR") {
+		t.Errorf("unexpected error log: %s", buf.String())
+	}
 }

@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"unicode"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
@@ -191,7 +192,7 @@ func serverVersionHandler(w http.ResponseWriter, r *http.Request, config *Config
 		return
 	}
 	recordServerLookup("unknown", "not_found")
-	slog.Warn("Server not found")
+	slog.Warn("Server not found", "requested", logName(serverName))
 	http.Error(w, "Server not found", http.StatusNotFound)
 }
 
@@ -207,4 +208,17 @@ func respondJSON(w http.ResponseWriter, status int, data interface{}) {
 	if err := json.NewEncoder(w).Encode(data); err != nil {
 		slog.Error("Failed to encode JSON response", "error", err)
 	}
+}
+
+// logName truncates a client-supplied value to 200 bytes and strips control characters before logging.
+func logName(v string) string {
+	if len(v) > 200 {
+		v = v[:200]
+	}
+	return strings.Map(func(r rune) rune {
+		if unicode.IsControl(r) {
+			return -1
+		}
+		return r
+	}, v)
 }
