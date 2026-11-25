@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	"encoding/json"
@@ -8,21 +8,26 @@ import (
 	"strings"
 	"unicode"
 
+	"github.com/navikt/copilot/mcp-registry/internal/registry"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
+// HealthHandler answers the liveness probe.
 func HealthHandler(w http.ResponseWriter, _ *http.Request) {
 	respondJSON(w, http.StatusOK, map[string]string{"status": "healthy"})
 }
 
+// ReadyHandler answers the readiness probe.
 func ReadyHandler(w http.ResponseWriter, _ *http.Request) {
 	respondJSON(w, http.StatusOK, map[string]string{"status": "ready"})
 }
 
+// MetricsHandler serves Prometheus metrics.
 func MetricsHandler() http.Handler {
 	return promhttp.Handler()
 }
 
+// RootHandler serves the root path.
 func RootHandler(w http.ResponseWriter, r *http.Request) {
 	if r.URL.Path != "/" {
 		http.NotFound(w, r)
@@ -43,18 +48,21 @@ func RootHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// RobotsTxtHandler serves robots.txt.
 func RobotsTxtHandler(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write([]byte("User-agent: *\nAllow: /v0.1/\nDisallow: /health\nDisallow: /ready\nDisallow: /metrics\n"))
 }
 
+// SecurityTxtHandler serves security.txt.
 func SecurityTxtHandler(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	_, _ = w.Write([]byte("Contact: soc@nav.no\nPreferred-Languages: no, en\nCanonical: https://www.nav.no/.well-known/security.txt\nDisclosure: Full\n"))
 }
 
+// FaviconHandler answers favicon requests.
 func FaviconHandler(w http.ResponseWriter, _ *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -71,17 +79,18 @@ func substituteVariables(data []byte, config *Config) []byte {
 	return []byte(result)
 }
 
+// MakeServersListHandler serves the server list.
 func MakeServersListHandler(config *Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		serversListHandler(w, r, config)
 	}
 }
 
-func navRegistryMeta(server StaticServerData) *NavRegistryMeta {
+func navRegistryMeta(server registry.StaticServerData) *registry.NavRegistryMeta {
 	if len(server.Tools) == 0 && len(server.Tags) == 0 && len(server.Examples) == 0 && len(server.SetupInstructions) == 0 && len(server.SandboxHosts) == 0 && len(server.ToolRisk) == 0 && server.Audience == nil && len(server.ProtocolVersions) == 0 && server.Owner == "" {
 		return nil
 	}
-	return &NavRegistryMeta{
+	return &registry.NavRegistryMeta{
 		Tools:             server.Tools,
 		Tags:              server.Tags,
 		Examples:          server.Examples,
@@ -117,9 +126,9 @@ func serversListHandler(w http.ResponseWriter, r *http.Request, config *Config) 
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
-	response := ServerListResponse{
+	response := registry.ServerListResponse{
 		Servers: servers,
-		Metadata: Metadata{
+		Metadata: registry.Metadata{
 			Count: len(servers),
 		},
 	}
@@ -128,6 +137,7 @@ func serversListHandler(w http.ResponseWriter, r *http.Request, config *Config) 
 	respondJSON(w, http.StatusOK, response)
 }
 
+// MakeServerVersionHandler serves one server version.
 func MakeServerVersionHandler(config *Config) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		serverVersionHandler(w, r, config)

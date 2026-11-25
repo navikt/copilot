@@ -1,7 +1,9 @@
-package main
+// Package registry holds the MCP server entry types and their validation.
+package registry
 
 import "time"
 
+// Schema, transport, status, package type and length limits from the MCP registry spec.
 const (
 	CurrentSchemaURL = "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json"
 
@@ -25,6 +27,7 @@ const (
 	DescriptionMaxLength = 100
 )
 
+// Transport is a remote endpoint or a package transport.
 type Transport struct {
 	Type    string   `json:"type"`
 	URL     string   `json:"url,omitempty"`
@@ -39,6 +42,7 @@ type Header struct {
 	Description string `json:"description,omitempty"`
 }
 
+// EnvironmentVariable is an environment variable a package reads.
 type EnvironmentVariable struct {
 	Name        string `json:"name"`
 	Description string `json:"description,omitempty"`
@@ -46,6 +50,7 @@ type EnvironmentVariable struct {
 	IsSecret    bool   `json:"isSecret,omitempty"`
 }
 
+// Argument is a runtime or package argument.
 type Argument struct {
 	Type        string `json:"type"`
 	Name        string `json:"name,omitempty"`
@@ -54,6 +59,7 @@ type Argument struct {
 	Description string `json:"description,omitempty"`
 }
 
+// Package is an installable distribution of a server.
 type Package struct {
 	RegistryType         string                `json:"registryType"`
 	Identifier           string                `json:"identifier"`
@@ -65,6 +71,7 @@ type Package struct {
 	RuntimeArguments     []Argument            `json:"runtimeArguments,omitempty"`
 }
 
+// Repository points to a server's source code.
 type Repository struct {
 	URL       string `json:"url"`
 	Source    string `json:"source"`
@@ -72,6 +79,7 @@ type Repository struct {
 	Subfolder string `json:"subfolder,omitempty"`
 }
 
+// ServerJSON is a server entry as served by the registry API.
 type ServerJSON struct {
 	Schema      string      `json:"$schema"`
 	Name        string      `json:"name"`
@@ -105,33 +113,39 @@ type BrokerExtension struct {
 	Login       BrokerLogin       `json:"login"`
 }
 
+// BrokerTools lists the tools a broker may call.
 type BrokerTools struct {
 	Classes map[string]string `json:"classes"`
 }
 
+// BrokerLogin describes how a broker logs in.
 type BrokerLogin struct {
 	Run    string `json:"run"`
 	Status string `json:"status,omitempty"`
 }
 
-type RegistryExtensions struct {
+// Extensions is the official registry _meta block.
+type Extensions struct {
 	Status      string    `json:"status"`
 	PublishedAt time.Time `json:"publishedAt"`
 	UpdatedAt   time.Time `json:"updatedAt,omitempty"`
 	IsLatest    bool      `json:"isLatest"`
 }
 
+// UsageExample is an example prompt for a server.
 type UsageExample struct {
 	Prompt   string `json:"prompt"`
 	Scenario string `json:"scenario"`
 }
 
+// SetupInstruction is one setup step shown to users.
 type SetupInstruction struct {
 	Title       string   `json:"title"`
 	Description string   `json:"description"`
 	Commands    []string `json:"commands"`
 }
 
+// NavRegistryMeta is the Nav-specific _meta block.
 type NavRegistryMeta struct {
 	Tools             []string           `json:"tools,omitempty"`
 	Tags              []string           `json:"tags,omitempty"`
@@ -167,26 +181,31 @@ type Audience struct {
 	Teams []string `json:"teams"`
 }
 
+// ResponseMeta is the _meta block of a served entry.
 type ResponseMeta struct {
-	Official    *RegistryExtensions `json:"io.modelcontextprotocol.registry/official,omitempty"`
-	NavRegistry *NavRegistryMeta    `json:"io.github.navikt/registry,omitempty"`
+	Official    *Extensions      `json:"io.modelcontextprotocol.registry/official,omitempty"`
+	NavRegistry *NavRegistryMeta `json:"io.github.navikt/registry,omitempty"`
 }
 
+// ServerResponse is one served entry.
 type ServerResponse struct {
 	Server ServerJSON   `json:"server"`
 	Meta   ResponseMeta `json:"_meta"`
 }
 
+// Metadata is the paging block of a list response.
 type Metadata struct {
 	NextCursor string `json:"nextCursor,omitempty"`
 	Count      int    `json:"count"`
 }
 
+// ServerListResponse is the body of the server list endpoint.
 type ServerListResponse struct {
 	Servers  []ServerResponse `json:"servers"`
 	Metadata Metadata         `json:"metadata"`
 }
 
+// StaticServerData is one entry in allowlist.json or a fleet-control snapshot.
 type StaticServerData struct {
 	Schema            string             `json:"$schema,omitempty"`
 	Name              string             `json:"name"`
@@ -212,6 +231,7 @@ type StaticServerData struct {
 	Meta     *ServerMeta `json:"_meta,omitempty"`
 }
 
+// StaticRegistryData is the top level of allowlist.json.
 type StaticRegistryData struct {
 	Servers []StaticServerData `json:"servers"`
 }

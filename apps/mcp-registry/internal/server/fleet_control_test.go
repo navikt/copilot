@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	"context"
@@ -27,7 +27,7 @@ type fakeFleetControl struct {
 // fleet-control serves in the registry snapshot.
 func allowlistEntries(t *testing.T, n int) []json.RawMessage {
 	t.Helper()
-	raw, err := os.ReadFile("allowlist.json")
+	raw, err := os.ReadFile("../../allowlist.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -88,8 +88,8 @@ func fleetStore(t *testing.T, f *fakeFleetControl) *Store {
 	if err != nil {
 		t.Fatal(err)
 	}
-	s := NewStore(testConfig(), "allowlist.json", nil)
-	s.fleet = fleet
+	s := NewStore(testConfig(), "../../allowlist.json", nil)
+	s.Fleet = fleet
 	return s
 }
 
@@ -229,7 +229,7 @@ func TestFleetControlFromEnv(t *testing.T) {
 
 func TestFlagOffReadsOnlyAllowlist(t *testing.T) {
 	f := newFakeFleetControl(t)
-	s := NewStore(testConfig(), "allowlist.json", nil)
+	s := NewStore(testConfig(), "../../allowlist.json", nil)
 	before := serverNames(t, s)
 	if err := s.Reload(t.Context()); err != nil {
 		t.Fatal(err)

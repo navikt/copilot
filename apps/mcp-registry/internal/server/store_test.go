@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	"bytes"
@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/navikt/copilot/mcp-registry/internal/registry"
 	"github.com/prometheus/client_golang/prometheus/testutil"
 )
 
@@ -36,7 +37,7 @@ func TestStore_StaticWinsOverDBOnSameName(t *testing.T) {
 		return []DBEntry{collidingDBEntry, validDBEntry}, nil
 	}
 
-	store := NewStore(cfg, "allowlist.json", loader)
+	store := NewStore(cfg, "../../allowlist.json", loader)
 	if err := store.Reload(t.Context()); err != nil {
 		t.Fatalf("unexpected reload error: %v", err)
 	}
@@ -87,7 +88,7 @@ func TestStore_LoaderErrorKeepsLastGoodSet(t *testing.T) {
 		return []DBEntry{validDBEntry}, nil
 	}
 
-	store := NewStore(cfg, "allowlist.json", loader)
+	store := NewStore(cfg, "../../allowlist.json", loader)
 	if err := store.Reload(t.Context()); err != nil {
 		t.Fatalf("initial reload failed: %v", err)
 	}
@@ -140,7 +141,7 @@ func TestStore_LoaderNeverSucceededServesStaticOnly(t *testing.T) {
 		return nil, errors.New("database completely unavailable")
 	}
 
-	store := NewStore(cfg, "allowlist.json", loader)
+	store := NewStore(cfg, "../../allowlist.json", loader)
 	err := store.Reload(t.Context())
 	if err == nil {
 		t.Fatalf("expected error from Reload when loader fails")
@@ -215,7 +216,7 @@ func TestStore_InvalidDBEntryDropped(t *testing.T) {
 		return entries, nil
 	}
 
-	store := NewStore(cfg, "allowlist.json", loader)
+	store := NewStore(cfg, "../../allowlist.json", loader)
 	if err := store.Reload(t.Context()); err != nil {
 		t.Fatalf("unexpected reload error: %v", err)
 	}
@@ -254,7 +255,7 @@ func TestStore_DBEntryUsesRowUpdatedAt(t *testing.T) {
 	loader := func(_ context.Context) ([]DBEntry, error) {
 		return []DBEntry{{Name: "io.github.navikt/dated", Entry: subJSON("io.github.navikt/dated", "d", "1.0.0"), UpdatedAt: updated}}, nil
 	}
-	store := NewStore(testConfig(), "allowlist.json", loader)
+	store := NewStore(testConfig(), "../../allowlist.json", loader)
 	if err := store.Reload(t.Context()); err != nil {
 		t.Fatal(err)
 	}
@@ -271,7 +272,7 @@ func TestStore_DBEntryUsesRowUpdatedAt(t *testing.T) {
 }
 
 func TestStore_StaticLoadFailureKeepsLastGoodSet(t *testing.T) {
-	data, err := os.ReadFile("allowlist.json")
+	data, err := os.ReadFile("../../allowlist.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -464,7 +465,7 @@ func TestStore_ReloadBoundsStalledDBLoad(t *testing.T) {
 		<-ctx.Done()
 		return nil, ctx.Err()
 	}
-	store := NewStore(testConfig(), "allowlist.json", loader)
+	store := NewStore(testConfig(), "../../allowlist.json", loader)
 	done := make(chan error, 1)
 	go func() { done <- store.Reload(context.Background()) }()
 	select {
@@ -495,7 +496,7 @@ func TestStore_HTTPHandlersIntegration(t *testing.T) {
 		return []DBEntry{validDBEntry}, nil
 	}
 
-	store := NewStore(cfg, "allowlist.json", loader)
+	store := NewStore(cfg, "../../allowlist.json", loader)
 	if err := store.Reload(t.Context()); err != nil {
 		t.Fatalf("reload error: %v", err)
 	}
@@ -510,7 +511,7 @@ func TestStore_HTTPHandlersIntegration(t *testing.T) {
 		t.Errorf("serversListHandler expected 200, got %d", listRec.Code)
 	}
 
-	var listResp ServerListResponse
+	var listResp registry.ServerListResponse
 	if err := json.Unmarshal(listRec.Body.Bytes(), &listResp); err != nil {
 		t.Fatalf("failed to decode servers list response: %v", err)
 	}
@@ -538,7 +539,7 @@ func TestStore_HTTPHandlersIntegration(t *testing.T) {
 		t.Fatalf("serverVersionHandler expected 200, got %d: %s", verRec.Code, string(body))
 	}
 
-	var verResp ServerResponse
+	var verResp registry.ServerResponse
 	if err := json.Unmarshal(verRec.Body.Bytes(), &verResp); err != nil {
 		t.Fatalf("failed to decode server version response: %v", err)
 	}
@@ -553,7 +554,7 @@ func TestStore_BackgroundRefresher(t *testing.T) {
 		loaded <- struct{}{}
 		return nil, nil
 	}
-	store := NewStore(testConfig(), "allowlist.json", loader)
+	store := NewStore(testConfig(), "../../allowlist.json", loader)
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
 
@@ -628,7 +629,7 @@ func TestReloadBeforeDBConnectedIsQuiet(t *testing.T) {
 	t.Cleanup(func() { slog.SetDefault(prev) })
 
 	loader := func(_ context.Context) ([]DBEntry, error) { return nil, ErrDBNotConnected }
-	store := NewStore(testConfig(), "allowlist.json", loader)
+	store := NewStore(testConfig(), "../../allowlist.json", loader)
 	if err := store.Reload(t.Context()); err != nil {
 		t.Fatalf("reload: %v", err)
 	}

@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	"context"
@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/navikt/copilot/mcp-registry/internal/auth"
 )
 
 const (
@@ -43,7 +44,7 @@ func setupTestDB(t *testing.T) *DB {
 	return db
 }
 
-func testMux(cfg *Config, db *DB, introspect IntrospectFunc) *http.ServeMux {
+func testMux(cfg *Config, db *DB, introspect auth.IntrospectFunc) *http.ServeMux {
 	ref := &atomic.Pointer[DB]{}
 	ref.Store(db)
 	mux := http.NewServeMux()
@@ -54,13 +55,13 @@ func testMux(cfg *Config, db *DB, introspect IntrospectFunc) *http.ServeMux {
 
 // testFakeIntrospect accepts "token-<user>" with NAVident <user> and azp
 // testWriterAZP; users starting with "admin" are in testAdminGroup.
-func testFakeIntrospect() IntrospectFunc {
-	return func(_ context.Context, token string) (*IntrospectionResult, error) {
+func testFakeIntrospect() auth.IntrospectFunc {
+	return func(_ context.Context, token string) (*auth.IntrospectionResult, error) {
 		user, ok := strings.CutPrefix(token, "token-")
 		if !ok {
-			return &IntrospectionResult{Active: false}, nil
+			return &auth.IntrospectionResult{Active: false}, nil
 		}
-		res := &IntrospectionResult{Active: true, NAVident: user, Azp: testWriterAZP}
+		res := &auth.IntrospectionResult{Active: true, NAVident: user, Azp: testWriterAZP}
 		if strings.HasPrefix(strings.ToLower(user), "admin") {
 			res.Groups = []string{testAdminGroup}
 		}

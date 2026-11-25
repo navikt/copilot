@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	"encoding/json"
@@ -7,9 +7,12 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/navikt/copilot/mcp-registry/internal/registry"
 )
 
 func testConfig() *Config {
@@ -17,7 +20,7 @@ func testConfig() *Config {
 		DomainInternal: "intern.dev.nav.no",
 		DomainExternal: "ekstern.dev.nav.no",
 	}
-	cfg.Store = NewStore(cfg, "allowlist.json", nil)
+	cfg.Store = NewStore(cfg, "../../allowlist.json", nil)
 	return cfg
 }
 
@@ -85,7 +88,7 @@ func TestServersListHandler(t *testing.T) {
 		t.Fatalf("failed to read response body: %v", err)
 	}
 
-	var response ServerListResponse
+	var response registry.ServerListResponse
 	if err := json.Unmarshal(body, &response); err != nil {
 		t.Fatalf("failed to parse response as ServerListResponse: %v", err)
 	}
@@ -144,7 +147,7 @@ func TestServersListHandler_GitHubRemoteOrder(t *testing.T) {
 	if w.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200", w.Code)
 	}
-	var response ServerListResponse
+	var response registry.ServerListResponse
 	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
 		t.Fatal(err)
 	}
@@ -200,7 +203,7 @@ func TestServerVersionHandler_Latest(t *testing.T) {
 		t.Fatalf("failed to read response body: %v", err)
 	}
 
-	var response ServerResponse
+	var response registry.ServerResponse
 	if err := json.Unmarshal(body, &response); err != nil {
 		t.Fatalf("failed to parse response: %v", err)
 	}
@@ -235,7 +238,7 @@ func TestServerVersionHandler_SpecificVersion(t *testing.T) {
 		t.Fatalf("failed to read response body: %v", err)
 	}
 
-	var response ServerResponse
+	var response registry.ServerResponse
 	if err := json.Unmarshal(body, &response); err != nil {
 		t.Fatalf("failed to parse response: %v", err)
 	}
@@ -266,7 +269,7 @@ func TestServerVersionHandler_LatestShortPath(t *testing.T) {
 		t.Fatalf("failed to read response body: %v", err)
 	}
 
-	var response ServerResponse
+	var response registry.ServerResponse
 	if err := json.Unmarshal(body, &response); err != nil {
 		t.Fatalf("failed to parse response: %v", err)
 	}
@@ -460,7 +463,12 @@ func withTempAllowlist(t *testing.T, allowlistJSON string) func() {
 	if err := os.WriteFile(tmpDir+"/allowlist.json", []byte(allowlistJSON), 0600); err != nil {
 		t.Fatalf("failed to write temp allowlist.json: %v", err)
 	}
-	if err := os.Chdir(tmpDir); err != nil {
+	// testConfig reads ../../allowlist.json, the app root seen from this package.
+	workDir := filepath.Join(tmpDir, "internal", "server")
+	if err := os.MkdirAll(workDir, 0o700); err != nil {
+		t.Fatalf("failed to create work dir: %v", err)
+	}
+	if err := os.Chdir(workDir); err != nil {
 		t.Fatalf("failed to chdir: %v", err)
 	}
 	return func() {
@@ -514,7 +522,7 @@ func TestServersListHandler_PackageServers(t *testing.T) {
 		t.Fatalf("failed to read response body: %v", err)
 	}
 
-	var response ServerListResponse
+	var response registry.ServerListResponse
 	if err := json.Unmarshal(body, &response); err != nil {
 		t.Fatalf("failed to parse response: %v", err)
 	}
@@ -606,7 +614,7 @@ func TestServerVersionHandler_PackageServer(t *testing.T) {
 		t.Fatalf("failed to read response body: %v", err)
 	}
 
-	var response ServerResponse
+	var response registry.ServerResponse
 	if err := json.Unmarshal(body, &response); err != nil {
 		t.Fatalf("failed to parse response: %v", err)
 	}
@@ -701,7 +709,7 @@ func TestServerVersionHandler_PackageArguments(t *testing.T) {
 		t.Fatalf("failed to read response body: %v", err)
 	}
 
-	var response ServerResponse
+	var response registry.ServerResponse
 	if err := json.Unmarshal(body, &response); err != nil {
 		t.Fatalf("failed to parse response: %v", err)
 	}
@@ -778,7 +786,7 @@ func TestPlaywrightRecipeReturnedByListAndVersion(t *testing.T) {
 		"browser_wait_for",
 		"browser_tabs",
 	}
-	expectedArguments := []Argument{
+	expectedArguments := []registry.Argument{
 		{Type: "named", Name: "--isolated"},
 		{Type: "named", Name: "--browser", Value: "chromium"},
 		{
@@ -797,7 +805,7 @@ func TestPlaywrightRecipeReturnedByListAndVersion(t *testing.T) {
 		{"cplt update"},
 	}
 
-	assertRecipe := func(t *testing.T, response ServerResponse) {
+	assertRecipe := func(t *testing.T, response registry.ServerResponse) {
 		t.Helper()
 		if response.Server.Name != "com.microsoft/playwright-mcp" {
 			t.Fatalf("expected full registry ID, got %q", response.Server.Name)
@@ -885,11 +893,11 @@ func TestPlaywrightRecipeReturnedByListAndVersion(t *testing.T) {
 	if listRecorder.Code != http.StatusOK {
 		t.Fatalf("expected list response 200, got %d: %s", listRecorder.Code, listRecorder.Body.String())
 	}
-	var listResponse ServerListResponse
+	var listResponse registry.ServerListResponse
 	if err := json.Unmarshal(listRecorder.Body.Bytes(), &listResponse); err != nil {
 		t.Fatalf("failed to parse list response: %v", err)
 	}
-	var playwrightResponse *ServerResponse
+	var playwrightResponse *registry.ServerResponse
 	for i := range listResponse.Servers {
 		if listResponse.Servers[i].Server.Name == "com.microsoft/playwright-mcp" {
 			playwrightResponse = &listResponse.Servers[i]
@@ -911,7 +919,7 @@ func TestPlaywrightRecipeReturnedByListAndVersion(t *testing.T) {
 	if versionRecorder.Code != http.StatusOK {
 		t.Fatalf("expected version response 200, got %d: %s", versionRecorder.Code, versionRecorder.Body.String())
 	}
-	var versionResponse ServerResponse
+	var versionResponse registry.ServerResponse
 	if err := json.Unmarshal(versionRecorder.Body.Bytes(), &versionResponse); err != nil {
 		t.Fatalf("failed to parse version response: %v", err)
 	}
@@ -923,7 +931,7 @@ func TestPlaywrightRecipeReturnedByListAndVersion(t *testing.T) {
 func TestFigmaSandboxHostsServed(t *testing.T) {
 	rec := httptest.NewRecorder()
 	serversListHandler(rec, httptest.NewRequest(http.MethodGet, "/v0.1/servers", nil), testConfig())
-	var list ServerListResponse
+	var list registry.ServerListResponse
 	if err := json.Unmarshal(rec.Body.Bytes(), &list); err != nil {
 		t.Fatalf("failed to parse list response: %v", err)
 	}
@@ -944,7 +952,7 @@ func TestFigmaSandboxHostsServed(t *testing.T) {
 func TestToolRiskServed(t *testing.T) {
 	rec := httptest.NewRecorder()
 	serversListHandler(rec, httptest.NewRequest(http.MethodGet, "/v0.1/servers", nil), testConfig())
-	var list ServerListResponse
+	var list registry.ServerListResponse
 	if err := json.Unmarshal(rec.Body.Bytes(), &list); err != nil {
 		t.Fatalf("failed to parse list response: %v", err)
 	}
@@ -977,7 +985,7 @@ func TestNaisBrokerServed(t *testing.T) {
 		if string(s.Server["name"]) != `"io.github.nais/nais-mcp"` {
 			continue
 		}
-		var meta map[string]BrokerExtension
+		var meta map[string]registry.BrokerExtension
 		if err := json.Unmarshal(s.Server["_meta"], &meta); err != nil {
 			t.Fatalf("server._meta: %v", err)
 		}
@@ -993,7 +1001,7 @@ func TestNaisBrokerServed(t *testing.T) {
 func TestServersListHandler_KodeverkTitle(t *testing.T) {
 	w := httptest.NewRecorder()
 	serversListHandler(w, httptest.NewRequest(http.MethodGet, "/v0.1/servers", nil), testConfig())
-	var response ServerListResponse
+	var response registry.ServerListResponse
 	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
 		t.Fatal(err)
 	}
@@ -1012,7 +1020,7 @@ func TestServersListHandler_KodeverkTitle(t *testing.T) {
 func TestServersListHandler_OnboardingGatewayFirst(t *testing.T) {
 	w := httptest.NewRecorder()
 	serversListHandler(w, httptest.NewRequest(http.MethodGet, "/v0.1/servers", nil), testConfig())
-	var response ServerListResponse
+	var response registry.ServerListResponse
 	if err := json.Unmarshal(w.Body.Bytes(), &response); err != nil {
 		t.Fatal(err)
 	}

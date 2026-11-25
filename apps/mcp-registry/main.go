@@ -1,3 +1,4 @@
+// Package main implements the MCP Registry server.
 package main
 
 import (
@@ -11,10 +12,14 @@ import (
 	"sync/atomic"
 	"syscall"
 	"time"
+
+	"github.com/navikt/copilot/mcp-registry/internal/auth"
+	"github.com/navikt/copilot/mcp-registry/internal/registry"
+	"github.com/navikt/copilot/mcp-registry/internal/server"
 )
 
 func main() {
-	config := LoadConfig()
+	config := server.LoadConfig()
 
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
 		Level: config.LogLevel,
@@ -26,14 +31,14 @@ func main() {
 		"domain_internal", config.DomainInternal,
 		"domain_external", config.DomainExternal,
 		"log_level", config.LogLevel.String(),
-		"logged_endpoints", GetEndpointsList(config.LoggedEndpoints),
+		"logged_endpoints", server.GetEndpointsList(config.LoggedEndpoints),
 	)
 
-	if err := ValidateAllowListFile(); err != nil {
+	if err := registry.ValidateAllowListFile(); err != nil {
 		slog.Error("Server startup failed - invalid allowlist.json", "error", err)
 		os.Exit(1)
 	}
-	fleet, err := FleetControlFromEnv()
+	fleet, err := server.FleetControlFromEnv()
 	if err != nil {
 		slog.Error("Server startup failed - invalid fleet-control config", "error", err)
 		os.Exit(1)
@@ -60,13 +65,13 @@ func main() {
 	// The DB is optional: without DB_URL or PGHOST, or while it cannot be reached,
 	// the reader serves static entries and the write endpoints answer 503.
 	// Reads must stay up when the DB is down, so a failing DB never blocks startup.
-	var db atomic.Pointer[DB]
-	var loader EntryLoader
+	var db atomic.Pointer[server.DB]
+	var loader server.EntryLoader
 	if config.DatabaseEnabled {
-		loader = func(ctx context.Context) ([]DBEntry, error) {
+		loader = func(ctx context.Context) ([]server.DBEntry, error) {
 			d := db.Load()
 			if d == nil {
-				return nil, ErrDBNotConnected
+				return nil, server.ErrDBNotConnected
 			}
 			return d.GetApprovedEntries(ctx)
 		}
@@ -74,18 +79,18 @@ func main() {
 	if loader != nil && len(config.AllowedWriteAZP) == 0 {
 		slog.Warn("ALLOWED_WRITE_AZP resolves to no client ids: every write is rejected")
 	}
-	store := NewStore(config, "allowlist.json", loader)
-	store.fleet = fleet
+	store := server.NewStore(config, "allowlist.json", loader)
+	store.Fleet = fleet
 	if fleet != nil {
 		// allowlist.json, loaded by NewStore, serves until the first good snapshot.
 		if err := store.Reload(sigCtx); err != nil {
 			slog.Warn("Initial reload failed", "error", err)
 		}
-		store.StartRefresher(sigCtx, fleetControlSyncInterval)
+		store.StartRefresher(sigCtx, server.FleetControlSyncInterval)
 	}
 	if loader != nil {
 		go func() {
-			opened, err := connectWithRetry(sigCtx, func(ctx context.Context) (*DB, error) {
+			opened, err := connectWithRetry(sigCtx, func(ctx context.Context) (*server.DB, error) {
 				return openAndMigrate(ctx, config.DatabaseURL)
 			}, 10*time.Second, time.Second, time.Minute)
 			if err != nil {
@@ -101,23 +106,23 @@ func main() {
 			}
 			retentionTicker := time.NewTicker(time.Hour)
 			defer retentionTicker.Stop()
-			RunRetention(sigCtx, opened, retentionTicker.C)
+			server.RunRetention(sigCtx, opened, retentionTicker.C)
 		}()
 	}
 	config.Store = store
 
-	http.HandleFunc("/health", LoggingMiddleware(config, HealthHandler))
-	http.HandleFunc("/ready", LoggingMiddleware(config, ReadyHandler))
-	http.Handle("/metrics", MetricsHandler())
-	http.HandleFunc("/v0.1/servers", LoggingMiddleware(config, MakeServersListHandler(config)))
-	http.HandleFunc("/v0.1/servers/", LoggingMiddleware(config, MakeServerVersionHandler(config)))
-	introspect := NewTexasIntrospector(config.TexasEndpoint)
-	http.HandleFunc("POST /api/v1/entries", LoggingMiddleware(config, MakeSubmitHandler(config, &db, introspect)))
-	http.HandleFunc("POST /api/v1/entries/{name...}", LoggingMiddleware(config, MakeEntryActionHandler(config, &db, introspect)))
-	http.HandleFunc("/robots.txt", RobotsTxtHandler)
-	http.HandleFunc("/favicon.ico", FaviconHandler)
-	http.HandleFunc("/.well-known/security.txt", SecurityTxtHandler)
-	http.HandleFunc("/", LoggingMiddleware(config, RootHandler))
+	http.HandleFunc("/health", server.LoggingMiddleware(config, server.HealthHandler))
+	http.HandleFunc("/ready", server.LoggingMiddleware(config, server.ReadyHandler))
+	http.Handle("/metrics", server.MetricsHandler())
+	http.HandleFunc("/v0.1/servers", server.LoggingMiddleware(config, server.MakeServersListHandler(config)))
+	http.HandleFunc("/v0.1/servers/", server.LoggingMiddleware(config, server.MakeServerVersionHandler(config)))
+	introspect := auth.NewTexasIntrospector(config.TexasEndpoint)
+	http.HandleFunc("POST /api/v1/entries", server.LoggingMiddleware(config, server.MakeSubmitHandler(config, &db, introspect)))
+	http.HandleFunc("POST /api/v1/entries/{name...}", server.LoggingMiddleware(config, server.MakeEntryActionHandler(config, &db, introspect)))
+	http.HandleFunc("/robots.txt", server.RobotsTxtHandler)
+	http.HandleFunc("/favicon.ico", server.FaviconHandler)
+	http.HandleFunc("/.well-known/security.txt", server.SecurityTxtHandler)
+	http.HandleFunc("/", server.LoggingMiddleware(config, server.RootHandler))
 
 	slog.Info("Allowlist validation passed - registry contains valid server configurations")
 	slog.Info("Server listening", "port", config.Port)
@@ -154,9 +159,9 @@ func main() {
 // openAndMigrate opens the DB and applies migrations, closing it on failure.
 // When dbURL is empty, it migrates with unprefixed PG* credentials and then
 // opens the runtime pool with READWRITE_PG* credentials (falling back to PG*).
-func openAndMigrate(ctx context.Context, dbURL string) (*DB, error) {
+func openAndMigrate(ctx context.Context, dbURL string) (*server.DB, error) {
 	if dbURL != "" {
-		db, err := OpenDB(ctx, dbURL)
+		db, err := server.OpenDB(ctx, dbURL)
 		if err != nil {
 			return nil, err
 		}
@@ -167,7 +172,7 @@ func openAndMigrate(ctx context.Context, dbURL string) (*DB, error) {
 		return db, nil
 	}
 
-	migDB, err := OpenDB(ctx, "")
+	migDB, err := server.OpenDB(ctx, "")
 	if err != nil {
 		return nil, err
 	}
@@ -179,9 +184,9 @@ func openAndMigrate(ctx context.Context, dbURL string) (*DB, error) {
 
 	runtimeDSN := ""
 	if os.Getenv("READWRITE_PGHOST") != "" {
-		runtimeDSN = PGEnvDSN("READWRITE_")
+		runtimeDSN = server.PGEnvDSN("READWRITE_")
 	}
-	db, err := OpenDB(ctx, runtimeDSN)
+	db, err := server.OpenDB(ctx, runtimeDSN)
 	if err != nil {
 		return nil, err
 	}
@@ -194,7 +199,7 @@ func openAndMigrate(ctx context.Context, dbURL string) (*DB, error) {
 
 // connectWithRetry calls connect until it succeeds or ctx is cancelled. Each
 // attempt is bounded by timeout; the delay doubles from minDelay up to maxDelay.
-func connectWithRetry(ctx context.Context, connect func(context.Context) (*DB, error), timeout, minDelay, maxDelay time.Duration) (*DB, error) {
+func connectWithRetry(ctx context.Context, connect func(context.Context) (*server.DB, error), timeout, minDelay, maxDelay time.Duration) (*server.DB, error) {
 	delay := minDelay
 	for attempt := 1; ; attempt++ {
 		attemptCtx, cancel := context.WithTimeout(ctx, timeout)

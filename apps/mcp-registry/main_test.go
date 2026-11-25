@@ -5,12 +5,14 @@ import (
 	"errors"
 	"testing"
 	"time"
+
+	"github.com/navikt/copilot/mcp-registry/internal/server"
 )
 
 func TestConnectWithRetry_RetriesUntilSuccess(t *testing.T) {
 	calls := 0
-	want := &DB{}
-	got, err := connectWithRetry(context.Background(), func(ctx context.Context) (*DB, error) {
+	want := &server.DB{}
+	got, err := connectWithRetry(context.Background(), func(ctx context.Context) (*server.DB, error) {
 		calls++
 		if _, ok := ctx.Deadline(); !ok {
 			t.Error("attempt has no deadline")
@@ -27,7 +29,7 @@ func TestConnectWithRetry_RetriesUntilSuccess(t *testing.T) {
 
 func TestConnectWithRetry_StopsOnCancel(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-	_, err := connectWithRetry(ctx, func(context.Context) (*DB, error) {
+	_, err := connectWithRetry(ctx, func(context.Context) (*server.DB, error) {
 		cancel()
 		return nil, errors.New("down")
 	}, time.Second, time.Hour, time.Hour)

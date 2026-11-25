@@ -1,4 +1,4 @@
-package main
+package registry
 
 import (
 	"bytes"
@@ -22,6 +22,7 @@ var serverNameRegex = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9.-]*/[a-zA-Z0-9]
 var hostRegex = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$`)
 var tagRegex = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
 
+// DecodeStaticRegistry decodes allowlist.json and rejects unknown fields.
 func DecodeStaticRegistry(data []byte) (StaticRegistryData, error) {
 	var staticData StaticRegistryData
 	dec := json.NewDecoder(bytes.NewReader(data))
@@ -39,6 +40,7 @@ func DecodeStaticRegistry(data []byte) (StaticRegistryData, error) {
 	return staticData, nil
 }
 
+// ValidateAllowListFile validates allowlist.json in the working directory.
 func ValidateAllowListFile() error {
 	data, err := os.ReadFile("allowlist.json")
 	if err != nil {
@@ -53,10 +55,12 @@ func ValidateAllowListFile() error {
 	return ValidateRegistry(&staticData)
 }
 
+// ValidateRegistry validates every entry of a static registry.
 func ValidateRegistry(data *StaticRegistryData) error {
 	return validateRegistryEntries(nil, data)
 }
 
+// ValidateSubstitutedRegistry validates a registry after domain substitution against its raw form.
 func ValidateSubstitutedRegistry(raw, data *StaticRegistryData) error {
 	if len(data.Servers) != len(raw.Servers) {
 		return fmt.Errorf("server count changed after substitution (%d -> %d)", len(raw.Servers), len(data.Servers))
@@ -303,6 +307,7 @@ func validateSetupInstruction(instruction *SetupInstruction, serverIndex, instru
 	return nil
 }
 
+// ValidateName checks a server name; index is the entry position used in errors.
 func ValidateName(name string, index int) error {
 	if strings.TrimSpace(name) == "" {
 		return fmt.Errorf("server[%d]: 'name' is required and cannot be empty", index)
@@ -641,7 +646,8 @@ func SubmissionErrorMessage(err error) string {
 
 const (
 	maxAudienceTeams = 50
-	maxTeamSlugLen   = 63 // a Nais team is a Kubernetes namespace, a DNS label
+	// MaxTeamSlugLen is the longest Nais team name.
+	MaxTeamSlugLen = 63 // a Nais team is a Kubernetes namespace, a DNS label
 )
 
 // validateAudience is the one check for audience, shared by allowlist.json
@@ -658,8 +664,8 @@ func validateAudience(a *Audience) error {
 	}
 	seen := make(map[string]bool, len(a.Teams))
 	for i, team := range a.Teams {
-		if len(team) > maxTeamSlugLen || !ownerRegex.MatchString(team) {
-			return fmt.Errorf("audience.teams[%d] is invalid: must be a Nais team matching ^[a-z0-9-]+$, at most %d characters", i, maxTeamSlugLen)
+		if len(team) > MaxTeamSlugLen || !ownerRegex.MatchString(team) {
+			return fmt.Errorf("audience.teams[%d] is invalid: must be a Nais team matching ^[a-z0-9-]+$, at most %d characters", i, MaxTeamSlugLen)
 		}
 		if seen[team] {
 			return fmt.Errorf("audience.teams[%d] is a duplicate", i)

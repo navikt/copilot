@@ -1,4 +1,4 @@
-package main
+package registry
 
 import (
 	"os"
@@ -6,27 +6,8 @@ import (
 	"testing"
 )
 
-func TestAllowlistEveryEntryHasOwner(t *testing.T) {
-	raw, err := os.ReadFile("allowlist.json")
-	if err != nil {
-		t.Fatal(err)
-	}
-	data, err := DecodeStaticRegistry(raw)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, s := range data.Servers {
-		if s.Owner == "" {
-			t.Errorf("%s: owner is required in allowlist.json", s.Name)
-		}
-		if m := navRegistryMeta(s); m == nil || m.Owner != s.Owner {
-			t.Errorf("%s: owner must be served in _meta", s.Name)
-		}
-	}
-}
-
 func TestStaticOwnerRejectsInvalidTeam(t *testing.T) {
-	raw, err := os.ReadFile("allowlist.json")
+	raw, err := os.ReadFile("../../allowlist.json")
 	if err != nil {
 		t.Fatal(err)
 	}

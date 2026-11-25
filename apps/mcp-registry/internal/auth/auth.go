@@ -1,4 +1,5 @@
-package main
+// Package auth authenticates write requests through Texas token introspection.
+package auth
 
 import (
 	"bytes"

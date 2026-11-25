@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	"bytes"
@@ -12,6 +12,8 @@ import (
 	"os"
 	"strings"
 	"time"
+
+	"github.com/navikt/copilot/mcp-registry/internal/registry"
 )
 
 // Static entries come from allowlist.json unless REGISTRY_SOURCE is
@@ -21,15 +23,15 @@ const (
 	registrySourceGit          = "git"
 	registrySourceFleetControl = "fleet-control"
 
-	fleetControlSyncInterval = 30 * time.Second
+	FleetControlSyncInterval = 30 * time.Second
 	maxSnapshotBytes         = 4 << 20
 	maxTexasBytes            = 64 << 10
 )
 
 var errNotModified = errors.New("snapshot not modified")
 
-// fleetControlRegistry fetches the registry snapshot from fleet-control.
-type fleetControlRegistry struct {
+// FleetControlRegistry fetches the registry snapshot from fleet-control.
+type FleetControlRegistry struct {
 	baseURL, tokenEndpoint, audience string
 	client                           *http.Client
 
@@ -39,7 +41,7 @@ type fleetControlRegistry struct {
 
 // FleetControlFromEnv returns nil for REGISTRY_SOURCE=git (the default) and
 // an error for anything it cannot use, so a bad config stops startup.
-func FleetControlFromEnv() (*fleetControlRegistry, error) {
+func FleetControlFromEnv() (*FleetControlRegistry, error) {
 	switch src := strings.TrimSpace(os.Getenv("REGISTRY_SOURCE")); src {
 	case "", registrySourceGit:
 		return nil, nil
@@ -47,7 +49,7 @@ func FleetControlFromEnv() (*fleetControlRegistry, error) {
 	default:
 		return nil, fmt.Errorf("unsupported REGISTRY_SOURCE %q (git or fleet-control)", src)
 	}
-	f := &fleetControlRegistry{
+	f := &FleetControlRegistry{
 		baseURL:       strings.TrimRight(strings.TrimSpace(os.Getenv("FLEET_CONTROL_URL")), "/"),
 		tokenEndpoint: strings.TrimSpace(os.Getenv("NAIS_TOKEN_ENDPOINT")),
 		audience:      strings.TrimSpace(os.Getenv("FLEET_CONTROL_AUDIENCE")),
@@ -68,7 +70,7 @@ func FleetControlFromEnv() (*fleetControlRegistry, error) {
 }
 
 // m2mToken gets an app token for fleet-control from Texas.
-func (f *fleetControlRegistry) m2mToken(ctx context.Context) (string, error) {
+func (f *FleetControlRegistry) m2mToken(ctx context.Context) (string, error) {
 	payload, err := json.Marshal(map[string]string{"identity_provider": "entra_id", "target": f.audience})
 	if err != nil {
 		return "", err
@@ -99,7 +101,7 @@ func (f *fleetControlRegistry) m2mToken(ctx context.Context) (string, error) {
 
 // load fetches the snapshot and validates it with parse, the same path as
 // allowlist.json. errNotModified means 304; any other error: keep what you have.
-func (f *fleetControlRegistry) load(ctx context.Context, parse func([]byte, time.Time) ([]ServerResponse, map[string]bool, error)) ([]ServerResponse, map[string]bool, error) {
+func (f *FleetControlRegistry) load(ctx context.Context, parse func([]byte, time.Time) ([]registry.ServerResponse, map[string]bool, error)) ([]registry.ServerResponse, map[string]bool, error) {
 	token, err := f.m2mToken(ctx)
 	if err != nil {
 		return nil, nil, err

@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	"context"
@@ -61,6 +61,7 @@ func OpenDB(ctx context.Context, dbURL string) (*DB, error) {
 
 var pgEnvReplacer = strings.NewReplacer(`\`, `\\`, `'`, `\'`)
 
+// PGEnvDSN builds a DSN from the Nais env vars that share the given prefix.
 func PGEnvDSN(prefix string) string {
 	vars := []struct {
 		env string
