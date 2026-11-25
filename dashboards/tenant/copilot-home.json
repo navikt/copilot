@@ -21,7 +21,7 @@
   "fiscalYearStartMonth": 0,
   "uid": "copilot-ecosystem",
   "title": "Copilot: oversikt",
-  "description": "Inngang til Copilot-dashbordene i tenant-Grafanaen.",
+  "description": "Statustavle for Copilot-appene i namespace copilot: helse, varsler, lisenser og bruk. Detaljer i lenkene øverst.",
   "tags": [
     "copilot",
     "domain:copilot",
@@ -65,14 +65,14 @@
       "tooltip": ""
     },
     {
-      "title": "Copilot-lisenser",
+      "title": "my-copilot: kostnad",
       "type": "link",
-      "url": "/d/copilot-seats-insights?${__url_time_range}&${__all_variables}",
-      "icon": "dashboard",
-      "targetBlank": false,
+      "url": "https://ki-utvikling.nav.no/admin/kostnad",
+      "icon": "external link",
+      "targetBlank": true,
       "keepTime": false,
       "includeVars": false,
-      "tooltip": ""
+      "tooltip": "Hovedkilden for brukere og kostnad"
     }
   ],
   "templating": {
@@ -138,139 +138,2284 @@
   },
   "panels": [
     {
-      "type": "text",
-      "title": "Dashbord",
-      "options": {
-        "mode": "markdown",
-        "content": "**Tenant (denne Grafanaen)**\n\n- nav-fleet: [drift](/d/copilot-fleet-ops) · [bruk](/d/copilot-fleet-insights)\n- Copilot: [my-copilot og copilot-api: drift](/d/copilot-web-ops) · [Copilot-lisenser](/d/copilot-seats-insights)\n\n**nais-org (egen Grafana)**: nav-pilot CLI (`copilot-nav-pilot-cli`), nav-pilot lokal inferens (`copilot-nav-pilot-local`), GitHub Copilot-klienter (`copilot-clients`). Se `dashboards/README.md`."
-      },
-      "id": 1,
-      "gridPos": {
-        "h": 8,
-        "w": 24,
-        "x": 0,
-        "y": 0
-      },
-      "fieldConfig": {
-        "defaults": {},
-        "overrides": []
-      }
-    },
-    {
       "type": "row",
       "title": "Status",
-      "fieldConfig": {
-        "defaults": {},
-        "overrides": []
-      },
-      "id": 2,
+      "collapsed": false,
+      "id": 1,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 8
+        "y": 0
       },
-      "collapsed": false,
       "panels": []
     },
     {
+      "type": "stat",
+      "title": "my-copilot",
+      "description": "Tilgjengelige pods delt på ønsket antall. OK = alle oppe, degradert = noen, NEDE = ingen.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_METRICS}"
       },
       "fieldConfig": {
         "defaults": {
+          "unit": "percentunit",
+          "noValue": "ingen data",
           "color": {
-            "mode": "palette-classic"
+            "mode": "thresholds"
           },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "line",
-            "fillOpacity": 20,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 0.0001
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "-1": {
+                  "text": "ingen pod",
+                  "color": "red"
+                }
+              }
             },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 2,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
+            {
+              "type": "range",
+              "options": {
+                "from": 1,
+                "to": 1000000000.0,
+                "result": {
+                  "text": "OK",
+                  "color": "green"
+                }
+              }
             },
-            "showPoints": "auto",
-            "showValues": false,
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
+            {
+              "type": "range",
+              "options": {
+                "from": 0.0001,
+                "to": 0.9999,
+                "result": {
+                  "text": "degradert",
+                  "color": "orange"
+                }
+              }
             },
-            "thresholdsStyle": {
-              "mode": "off"
+            {
+              "type": "range",
+              "options": {
+                "from": 0,
+                "to": 0,
+                "result": {
+                  "text": "NEDE",
+                  "color": "red"
+                }
+              }
             }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "textMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "wideLayout": true
+      },
+      "links": [
+        {
+          "title": "Detaljer",
+          "url": "/d/copilot-web-ops?${__url_time_range}&var-env=${env}",
+          "targetBlank": false
+        }
+      ],
+      "targets": [
+        {
+          "expr": "sum(kube_deployment_status_replicas_available{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", deployment=\"my-copilot\"}) / sum(kube_deployment_spec_replicas{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", deployment=\"my-copilot\"})",
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "id": 2,
+      "gridPos": {
+        "h": 3,
+        "w": 4,
+        "x": 0,
+        "y": 1
+      }
+    },
+    {
+      "type": "stat",
+      "title": "copilot-api",
+      "description": "Tilgjengelige pods delt på ønsket antall. OK = alle oppe, degradert = noen, NEDE = ingen.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_METRICS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "noValue": "ingen data",
+          "color": {
+            "mode": "thresholds"
           },
-          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 0.0001
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "-1": {
+                  "text": "ingen pod",
+                  "color": "red"
+                }
+              }
+            },
+            {
+              "type": "range",
+              "options": {
+                "from": 1,
+                "to": 1000000000.0,
+                "result": {
+                  "text": "OK",
+                  "color": "green"
+                }
+              }
+            },
+            {
+              "type": "range",
+              "options": {
+                "from": 0.0001,
+                "to": 0.9999,
+                "result": {
+                  "text": "degradert",
+                  "color": "orange"
+                }
+              }
+            },
+            {
+              "type": "range",
+              "options": {
+                "from": 0,
+                "to": 0,
+                "result": {
+                  "text": "NEDE",
+                  "color": "red"
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "textMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "wideLayout": true
+      },
+      "links": [
+        {
+          "title": "Detaljer",
+          "url": "/d/copilot-web-ops?${__url_time_range}&var-env=${env}",
+          "targetBlank": false
+        }
+      ],
+      "targets": [
+        {
+          "expr": "sum(kube_deployment_status_replicas_available{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", deployment=\"copilot-api\"}) / sum(kube_deployment_spec_replicas{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", deployment=\"copilot-api\"})",
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "id": 3,
+      "gridPos": {
+        "h": 3,
+        "w": 4,
+        "x": 4,
+        "y": 1
+      }
+    },
+    {
+      "type": "stat",
+      "title": "copilot-cli",
+      "description": "Tilgjengelige pods delt på ønsket antall. OK = alle oppe, degradert = noen, NEDE = ingen.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_METRICS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "noValue": "ingen data",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 0.0001
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "-1": {
+                  "text": "ingen pod",
+                  "color": "red"
+                }
+              }
+            },
+            {
+              "type": "range",
+              "options": {
+                "from": 1,
+                "to": 1000000000.0,
+                "result": {
+                  "text": "OK",
+                  "color": "green"
+                }
+              }
+            },
+            {
+              "type": "range",
+              "options": {
+                "from": 0.0001,
+                "to": 0.9999,
+                "result": {
+                  "text": "degradert",
+                  "color": "orange"
+                }
+              }
+            },
+            {
+              "type": "range",
+              "options": {
+                "from": 0,
+                "to": 0,
+                "result": {
+                  "text": "NEDE",
+                  "color": "red"
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "textMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "wideLayout": true
+      },
+      "links": [
+        {
+          "title": "Detaljer",
+          "url": "/d/copilot-web-ops?${__url_time_range}&var-env=${env}",
+          "targetBlank": false
+        }
+      ],
+      "targets": [
+        {
+          "expr": "sum(kube_deployment_status_replicas_available{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", deployment=\"copilot-cli\"}) / sum(kube_deployment_spec_replicas{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", deployment=\"copilot-cli\"})",
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "id": 4,
+      "gridPos": {
+        "h": 3,
+        "w": 4,
+        "x": 8,
+        "y": 1
+      }
+    },
+    {
+      "type": "stat",
+      "title": "copilot-survey",
+      "description": "Tilgjengelige pods delt på ønsket antall. OK = alle oppe, degradert = noen, NEDE = ingen.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_METRICS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "noValue": "ingen data",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 0.0001
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "-1": {
+                  "text": "ingen pod",
+                  "color": "red"
+                }
+              }
+            },
+            {
+              "type": "range",
+              "options": {
+                "from": 1,
+                "to": 1000000000.0,
+                "result": {
+                  "text": "OK",
+                  "color": "green"
+                }
+              }
+            },
+            {
+              "type": "range",
+              "options": {
+                "from": 0.0001,
+                "to": 0.9999,
+                "result": {
+                  "text": "degradert",
+                  "color": "orange"
+                }
+              }
+            },
+            {
+              "type": "range",
+              "options": {
+                "from": 0,
+                "to": 0,
+                "result": {
+                  "text": "NEDE",
+                  "color": "red"
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "textMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "wideLayout": true
+      },
+      "links": [
+        {
+          "title": "Detaljer",
+          "url": "/d/copilot-web-ops?${__url_time_range}&var-env=${env}",
+          "targetBlank": false
+        }
+      ],
+      "targets": [
+        {
+          "expr": "sum(kube_deployment_status_replicas_available{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", deployment=\"copilot-survey\"}) / sum(kube_deployment_spec_replicas{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", deployment=\"copilot-survey\"})",
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "id": 5,
+      "gridPos": {
+        "h": 3,
+        "w": 4,
+        "x": 12,
+        "y": 1
+      }
+    },
+    {
+      "type": "stat",
+      "title": "fleet-gateway",
+      "description": "Tilgjengelige pods delt på ønsket antall. OK = alle oppe, degradert = noen, NEDE = ingen.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_METRICS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "noValue": "ingen data",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 0.0001
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "-1": {
+                  "text": "ingen pod",
+                  "color": "red"
+                }
+              }
+            },
+            {
+              "type": "range",
+              "options": {
+                "from": 1,
+                "to": 1000000000.0,
+                "result": {
+                  "text": "OK",
+                  "color": "green"
+                }
+              }
+            },
+            {
+              "type": "range",
+              "options": {
+                "from": 0.0001,
+                "to": 0.9999,
+                "result": {
+                  "text": "degradert",
+                  "color": "orange"
+                }
+              }
+            },
+            {
+              "type": "range",
+              "options": {
+                "from": 0,
+                "to": 0,
+                "result": {
+                  "text": "NEDE",
+                  "color": "red"
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "textMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "wideLayout": true
+      },
+      "links": [
+        {
+          "title": "Detaljer",
+          "url": "/d/copilot-fleet-ops?${__url_time_range}&var-env=${env}",
+          "targetBlank": false
+        }
+      ],
+      "targets": [
+        {
+          "expr": "sum(kube_deployment_status_replicas_available{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", deployment=\"fleet-gateway\"}) / sum(kube_deployment_spec_replicas{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", deployment=\"fleet-gateway\"})",
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "id": 6,
+      "gridPos": {
+        "h": 3,
+        "w": 4,
+        "x": 16,
+        "y": 1
+      }
+    },
+    {
+      "type": "stat",
+      "title": "fleet-control (dev)",
+      "description": "Tilgjengelige pods delt på ønsket antall. OK = alle oppe, degradert = noen, NEDE = ingen.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_METRICS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "noValue": "ingen data",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 0.0001
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "-1": {
+                  "text": "ingen pod",
+                  "color": "red"
+                }
+              }
+            },
+            {
+              "type": "range",
+              "options": {
+                "from": 1,
+                "to": 1000000000.0,
+                "result": {
+                  "text": "OK",
+                  "color": "green"
+                }
+              }
+            },
+            {
+              "type": "range",
+              "options": {
+                "from": 0.0001,
+                "to": 0.9999,
+                "result": {
+                  "text": "degradert",
+                  "color": "orange"
+                }
+              }
+            },
+            {
+              "type": "range",
+              "options": {
+                "from": 0,
+                "to": 0,
+                "result": {
+                  "text": "NEDE",
+                  "color": "red"
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "textMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "wideLayout": true
+      },
+      "links": [
+        {
+          "title": "Detaljer",
+          "url": "/d/copilot-fleet-ops?${__url_time_range}&var-env=${env}",
+          "targetBlank": false
+        }
+      ],
+      "targets": [
+        {
+          "expr": "sum(kube_deployment_status_replicas_available{namespace=\"$namespace\", k8s_cluster_name=\"dev\", deployment=\"fleet-control\"}) / sum(kube_deployment_spec_replicas{namespace=\"$namespace\", k8s_cluster_name=\"dev\", deployment=\"fleet-control\"})",
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "id": 7,
+      "gridPos": {
+        "h": 3,
+        "w": 4,
+        "x": 20,
+        "y": 1
+      }
+    },
+    {
+      "type": "stat",
+      "title": "mcp-registry",
+      "description": "Tilgjengelige pods delt på ønsket antall. OK = alle oppe, degradert = noen, NEDE = ingen.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_METRICS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "noValue": "ingen data",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 0.0001
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "-1": {
+                  "text": "ingen pod",
+                  "color": "red"
+                }
+              }
+            },
+            {
+              "type": "range",
+              "options": {
+                "from": 1,
+                "to": 1000000000.0,
+                "result": {
+                  "text": "OK",
+                  "color": "green"
+                }
+              }
+            },
+            {
+              "type": "range",
+              "options": {
+                "from": 0.0001,
+                "to": 0.9999,
+                "result": {
+                  "text": "degradert",
+                  "color": "orange"
+                }
+              }
+            },
+            {
+              "type": "range",
+              "options": {
+                "from": 0,
+                "to": 0,
+                "result": {
+                  "text": "NEDE",
+                  "color": "red"
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "textMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "wideLayout": true
+      },
+      "links": [
+        {
+          "title": "Detaljer",
+          "url": "/d/copilot-fleet-ops?${__url_time_range}&var-env=${env}",
+          "targetBlank": false
+        }
+      ],
+      "targets": [
+        {
+          "expr": "sum(kube_deployment_status_replicas_available{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", deployment=\"mcp-registry\"}) / sum(kube_deployment_spec_replicas{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", deployment=\"mcp-registry\"})",
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "id": 8,
+      "gridPos": {
+        "h": 3,
+        "w": 4,
+        "x": 0,
+        "y": 4
+      }
+    },
+    {
+      "type": "stat",
+      "title": "mcp-onboarding",
+      "description": "Tilgjengelige pods delt på ønsket antall. OK = alle oppe, degradert = noen, NEDE = ingen.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_METRICS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "noValue": "ingen data",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 0.0001
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "-1": {
+                  "text": "ingen pod",
+                  "color": "red"
+                }
+              }
+            },
+            {
+              "type": "range",
+              "options": {
+                "from": 1,
+                "to": 1000000000.0,
+                "result": {
+                  "text": "OK",
+                  "color": "green"
+                }
+              }
+            },
+            {
+              "type": "range",
+              "options": {
+                "from": 0.0001,
+                "to": 0.9999,
+                "result": {
+                  "text": "degradert",
+                  "color": "orange"
+                }
+              }
+            },
+            {
+              "type": "range",
+              "options": {
+                "from": 0,
+                "to": 0,
+                "result": {
+                  "text": "NEDE",
+                  "color": "red"
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "textMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "wideLayout": true
+      },
+      "links": [
+        {
+          "title": "Detaljer",
+          "url": "/d/copilot-fleet-ops?${__url_time_range}&var-env=${env}",
+          "targetBlank": false
+        }
+      ],
+      "targets": [
+        {
+          "expr": "sum(kube_deployment_status_replicas_available{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", deployment=\"mcp-onboarding\"}) / sum(kube_deployment_spec_replicas{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", deployment=\"mcp-onboarding\"})",
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "id": 9,
+      "gridPos": {
+        "h": 3,
+        "w": 4,
+        "x": 4,
+        "y": 4
+      }
+    },
+    {
+      "type": "stat",
+      "title": "mcp-kodeverk",
+      "description": "Tilgjengelige pods delt på ønsket antall. OK = alle oppe, degradert = noen, NEDE = ingen.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_METRICS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "noValue": "ingen data",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 0.0001
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "-1": {
+                  "text": "ingen pod",
+                  "color": "red"
+                }
+              }
+            },
+            {
+              "type": "range",
+              "options": {
+                "from": 1,
+                "to": 1000000000.0,
+                "result": {
+                  "text": "OK",
+                  "color": "green"
+                }
+              }
+            },
+            {
+              "type": "range",
+              "options": {
+                "from": 0.0001,
+                "to": 0.9999,
+                "result": {
+                  "text": "degradert",
+                  "color": "orange"
+                }
+              }
+            },
+            {
+              "type": "range",
+              "options": {
+                "from": 0,
+                "to": 0,
+                "result": {
+                  "text": "NEDE",
+                  "color": "red"
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "textMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "wideLayout": true
+      },
+      "links": [
+        {
+          "title": "Detaljer",
+          "url": "/d/copilot-fleet-ops?${__url_time_range}&var-env=${env}",
+          "targetBlank": false
+        }
+      ],
+      "targets": [
+        {
+          "expr": "sum(kube_deployment_status_replicas_available{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", deployment=\"mcp-kodeverk\"}) / sum(kube_deployment_spec_replicas{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", deployment=\"mcp-kodeverk\"})",
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "id": 10,
+      "gridPos": {
+        "h": 3,
+        "w": 4,
+        "x": 8,
+        "y": 4
+      }
+    },
+    {
+      "type": "stat",
+      "title": "mcp-dolly",
+      "description": "Tilgjengelige pods delt på ønsket antall. OK = alle oppe, degradert = noen, NEDE = ingen.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_METRICS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "noValue": "ingen data",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 0.0001
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "-1": {
+                  "text": "ingen pod",
+                  "color": "red"
+                }
+              }
+            },
+            {
+              "type": "range",
+              "options": {
+                "from": 1,
+                "to": 1000000000.0,
+                "result": {
+                  "text": "OK",
+                  "color": "green"
+                }
+              }
+            },
+            {
+              "type": "range",
+              "options": {
+                "from": 0.0001,
+                "to": 0.9999,
+                "result": {
+                  "text": "degradert",
+                  "color": "orange"
+                }
+              }
+            },
+            {
+              "type": "range",
+              "options": {
+                "from": 0,
+                "to": 0,
+                "result": {
+                  "text": "NEDE",
+                  "color": "red"
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "textMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "wideLayout": true
+      },
+      "links": [
+        {
+          "title": "Detaljer",
+          "url": "/d/copilot-fleet-ops?${__url_time_range}&var-env=${env}",
+          "targetBlank": false
+        }
+      ],
+      "targets": [
+        {
+          "expr": "sum(kube_deployment_status_replicas_available{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", deployment=\"mcp-dolly\"}) / sum(kube_deployment_spec_replicas{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", deployment=\"mcp-dolly\"})",
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "id": 11,
+      "gridPos": {
+        "h": 3,
+        "w": 4,
+        "x": 12,
+        "y": 4
+      }
+    },
+    {
+      "type": "stat",
+      "title": "mcp-team-catalog",
+      "description": "Tilgjengelige pods delt på ønsket antall. OK = alle oppe, degradert = noen, NEDE = ingen.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_METRICS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "noValue": "ingen data",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 0.0001
+              },
+              {
+                "color": "green",
+                "value": 1
+              }
+            ]
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "-1": {
+                  "text": "ingen pod",
+                  "color": "red"
+                }
+              }
+            },
+            {
+              "type": "range",
+              "options": {
+                "from": 1,
+                "to": 1000000000.0,
+                "result": {
+                  "text": "OK",
+                  "color": "green"
+                }
+              }
+            },
+            {
+              "type": "range",
+              "options": {
+                "from": 0.0001,
+                "to": 0.9999,
+                "result": {
+                  "text": "degradert",
+                  "color": "orange"
+                }
+              }
+            },
+            {
+              "type": "range",
+              "options": {
+                "from": 0,
+                "to": 0,
+                "result": {
+                  "text": "NEDE",
+                  "color": "red"
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "textMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "wideLayout": true
+      },
+      "links": [
+        {
+          "title": "Detaljer",
+          "url": "/d/copilot-fleet-ops?${__url_time_range}&var-env=${env}",
+          "targetBlank": false
+        }
+      ],
+      "targets": [
+        {
+          "expr": "sum(kube_deployment_status_replicas_available{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", deployment=\"mcp-team-catalog\"}) / sum(kube_deployment_spec_replicas{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", deployment=\"mcp-team-catalog\"})",
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "id": 12,
+      "gridPos": {
+        "h": 3,
+        "w": 4,
+        "x": 16,
+        "y": 4
+      }
+    },
+    {
+      "type": "row",
+      "title": "Varsler",
+      "collapsed": false,
+      "id": 13,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 7
+      },
+      "panels": []
+    },
+    {
+      "type": "stat",
+      "title": "Aktive varsler",
+      "description": "Varsler fra PrometheusRule-ene i namespace copilot (fleet-gateway, fleet-control m.fl.).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_METRICS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "—",
+          "color": {
+            "mode": "thresholds"
+          },
           "thresholds": {
             "mode": "absolute",
             "steps": [
               {
                 "color": "green",
-                "value": 0
+                "value": null
               },
               {
                 "color": "red",
-                "value": 80
+                "value": 1
               }
             ]
           },
-          "unit": "short"
+          "mappings": [],
+          "decimals": 0
         },
         "overrides": []
       },
-      "gridPos": {
-        "h": 8,
-        "w": 24,
-        "x": 0,
-        "y": 9
-      },
-      "id": 3,
       "options": {
-        "legend": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "textMode": "auto",
+        "reduceOptions": {
           "calcs": [
-            "sum"
+            "lastNotNull"
           ],
-          "displayMode": "table",
-          "placement": "right",
-          "showLegend": true,
-          "width": 260,
-          "sortBy": "Total",
-          "sortDesc": true
+          "fields": "",
+          "values": false
         },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "multi",
-          "sort": "desc"
-        }
+        "wideLayout": true
       },
-      "pluginVersion": "12.3.2",
+      "links": [],
       "targets": [
         {
-          "expr": "sum by (app, k8s_cluster_name) (up{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app!=\"\"})",
-          "legendFormat": "{{app}} {{k8s_cluster_name}}",
+          "expr": "count(ALERTS{alertstate=\"firing\", namespace=\"$namespace\"}) or vector(0)",
+          "legendFormat": "",
           "refId": "A"
         }
       ],
-      "title": "Oppe per app og miljø",
-      "type": "timeseries",
-      "description": "Én linje per app. Drill ned via lenkene øverst."
+      "id": 14,
+      "gridPos": {
+        "h": 5,
+        "w": 6,
+        "x": 0,
+        "y": 8
+      }
+    },
+    {
+      "type": "table",
+      "title": "Varsler som fyrer",
+      "description": "Varsler fra PrometheusRule-ene i namespace copilot (fleet-gateway, fleet-control m.fl.).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_METRICS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "noValue": "Ingen varsler fyrer"
+        },
+        "overrides": []
+      },
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm"
+      },
+      "targets": [
+        {
+          "expr": "sum by (alertname, app, severity) (ALERTS{alertstate=\"firing\", namespace=\"$namespace\"})",
+          "format": "table",
+          "instant": true,
+          "refId": "A"
+        }
+      ],
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "Value": true
+            }
+          }
+        }
+      ],
+      "id": 15,
+      "gridPos": {
+        "h": 5,
+        "w": 18,
+        "x": 6,
+        "y": 8
+      }
+    },
+    {
+      "type": "row",
+      "title": "Brukere og lisenser",
+      "collapsed": false,
+      "id": 16,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 13
+      },
+      "panels": []
+    },
+    {
+      "type": "stat",
+      "title": "Lisenser totalt",
+      "description": "Hovedkilden for brukere og kostnad er my-copilot.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_METRICS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "—",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "text"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "textMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "wideLayout": true
+      },
+      "links": [
+        {
+          "title": "Kostnad i my-copilot",
+          "url": "https://ki-utvikling.nav.no/admin/kostnad",
+          "targetBlank": true
+        }
+      ],
+      "targets": [
+        {
+          "expr": "max(copilot_seats_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app=\"copilot-api\"})",
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "id": 17,
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 14
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Aktive denne perioden",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_METRICS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "—",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "text"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "textMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "wideLayout": true
+      },
+      "links": [
+        {
+          "title": "Kostnad i my-copilot",
+          "url": "https://ki-utvikling.nav.no/admin/kostnad",
+          "targetBlank": true
+        }
+      ],
+      "targets": [
+        {
+          "expr": "max(copilot_seats_active_this_cycle{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app=\"copilot-api\"})",
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "id": 18,
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 14
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Utnyttelse",
+      "description": "Aktive lisenser delt på alle lisenser.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_METRICS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "noValue": "—",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "text"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "textMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "wideLayout": true
+      },
+      "links": [
+        {
+          "title": "Kostnad i my-copilot",
+          "url": "https://ki-utvikling.nav.no/admin/kostnad",
+          "targetBlank": true
+        }
+      ],
+      "targets": [
+        {
+          "expr": "max(copilot_seats_active_this_cycle{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app=\"copilot-api\"}) / max(copilot_seats_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app=\"copilot-api\"})",
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "id": 19,
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 12,
+        "y": 14
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Venter på invitasjon",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_METRICS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "—",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "text"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "textMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "wideLayout": true
+      },
+      "links": [
+        {
+          "title": "Kostnad i my-copilot",
+          "url": "https://ki-utvikling.nav.no/admin/kostnad",
+          "targetBlank": true
+        }
+      ],
+      "targets": [
+        {
+          "expr": "max(copilot_seats_pending_invitation{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app=\"copilot-api\"})",
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "id": 20,
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 18,
+        "y": 14
+      }
+    },
+    {
+      "type": "row",
+      "title": "Bruk",
+      "collapsed": false,
+      "id": 21,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 18
+      },
+      "panels": []
+    },
+    {
+      "type": "stat",
+      "title": "MCP-kall gjennom gatewayen i dag",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_METRICS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "—",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "text"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "textMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "wideLayout": true
+      },
+      "links": [
+        {
+          "title": "nav-fleet: bruk",
+          "url": "/d/copilot-fleet-insights?var-env=${env}",
+          "targetBlank": false
+        }
+      ],
+      "targets": [
+        {
+          "expr": "round(sum(increase(fleet_gateway_mcp_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app=\"fleet-gateway\"}[$__range])))",
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "timeFrom": "now/d",
+      "hideTimeOverride": false,
+      "id": 22,
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 19
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Verktøykall i mcp-kodeverk i dag",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_METRICS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "—",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "text"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "textMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "wideLayout": true
+      },
+      "links": [
+        {
+          "title": "nav-fleet: bruk",
+          "url": "/d/copilot-fleet-insights?var-env=${env}",
+          "targetBlank": false
+        }
+      ],
+      "targets": [
+        {
+          "expr": "round(sum(increase(mcp_tool_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app=\"mcp-kodeverk\"}[$__range])))",
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "timeFrom": "now/d",
+      "hideTimeOverride": false,
+      "id": 23,
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 19
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Verktøykall i mcp-dolly i dag",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_METRICS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "—",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "text"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "textMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "wideLayout": true
+      },
+      "links": [
+        {
+          "title": "nav-fleet: bruk",
+          "url": "/d/copilot-fleet-insights?var-env=${env}",
+          "targetBlank": false
+        }
+      ],
+      "targets": [
+        {
+          "expr": "round(sum(increase(mcp_tool_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app=\"mcp-dolly\"}[$__range])))",
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "timeFrom": "now/d",
+      "hideTimeOverride": false,
+      "id": 24,
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 12,
+        "y": 19
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Verktøykall i mcp-team-catalog i dag",
+      "description": "",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_METRICS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "—",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "text"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "mappings": [],
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "textMode": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "wideLayout": true
+      },
+      "links": [
+        {
+          "title": "nav-fleet: bruk",
+          "url": "/d/copilot-fleet-insights?var-env=${env}",
+          "targetBlank": false
+        }
+      ],
+      "targets": [
+        {
+          "expr": "round(sum(increase(mcp_tool_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app=\"mcp-team-catalog\"}[$__range])))",
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "timeFrom": "now/d",
+      "hideTimeOverride": false,
+      "id": 25,
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 18,
+        "y": 19
+      }
+    },
+    {
+      "type": "row",
+      "title": "Feil og latens",
+      "collapsed": true,
+      "id": 26,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 23
+      },
+      "panels": [
+        {
+          "type": "timeseries",
+          "title": "5xx-andel per app",
+          "description": "copilot-api, copilot-cli og copilot-survey merker statuskoden code; mcp-onboarding og mcp-registry status_code; fleet-gateway teller ikke bevisste 503.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_METRICS}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percentunit",
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "table",
+              "placement": "right",
+              "showLegend": true,
+              "calcs": [
+                "lastNotNull"
+              ],
+              "sortBy": "Last *",
+              "sortDesc": true,
+              "width": 260
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "expr": "(sum by (app) (rate(http_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", code=~\"5..\"}[$__rate_interval])) or sum by (app) (rate(http_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", code!=\"\"}[$__rate_interval])) * 0) / sum by (app) (rate(http_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", code!=\"\"}[$__rate_interval]))",
+              "legendFormat": "{{app}}",
+              "refId": "A"
+            },
+            {
+              "expr": "(sum by (app) (rate(http_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", status_code=~\"5..\"}[$__rate_interval])) or sum by (app) (rate(http_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", status_code!=\"\"}[$__rate_interval])) * 0) / sum by (app) (rate(http_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", status_code!=\"\"}[$__rate_interval]))",
+              "legendFormat": "{{app}}",
+              "refId": "B"
+            },
+            {
+              "expr": "(sum by (app) (rate(fleet_gateway_http_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", code=~\"5..\", reason=\"\"}[$__rate_interval])) or sum by (app) (rate(fleet_gateway_http_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\"}[$__rate_interval])) * 0) / sum by (app) (rate(fleet_gateway_http_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\"}[$__rate_interval]))",
+              "legendFormat": "{{app}}",
+              "refId": "C"
+            }
+          ],
+          "id": 27,
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 24
+          }
+        },
+        {
+          "type": "timeseries",
+          "title": "Latens p95 per app",
+          "description": "",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_METRICS}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "table",
+              "placement": "right",
+              "showLegend": true,
+              "calcs": [
+                "lastNotNull"
+              ],
+              "sortBy": "Last *",
+              "sortDesc": true,
+              "width": 260
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum by (app, le) (rate(http_request_duration_seconds_bucket{namespace=\"$namespace\", k8s_cluster_name=~\"$env\"}[$__rate_interval])))",
+              "legendFormat": "{{app}}",
+              "refId": "A"
+            },
+            {
+              "expr": "histogram_quantile(0.95, sum by (app, le) (rate(fleet_gateway_mcp_request_duration_seconds_bucket{namespace=\"$namespace\", k8s_cluster_name=~\"$env\"}[$__rate_interval])))",
+              "legendFormat": "{{app}}",
+              "refId": "B"
+            }
+          ],
+          "id": 28,
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 24
+          }
+        },
+        {
+          "type": "timeseries",
+          "title": "my-copilot: 5xx-andel og latens (placeholder)",
+          "description": "Placeholder: my-copilot eksporterer ingen http_requests_total ennå. Venter på #2942. Spørringen er den tiltenkte.",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_METRICS}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percentunit",
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              },
+              "noValue": "Venter på #2942"
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "table",
+              "placement": "right",
+              "showLegend": true,
+              "calcs": [
+                "lastNotNull"
+              ],
+              "sortBy": "Last *",
+              "sortDesc": true,
+              "width": 260
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "expr": "sum(rate(http_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app=\"my-copilot\", code=~\"5..\"}[$__rate_interval])) / sum(rate(http_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app=\"my-copilot\"}[$__rate_interval]))",
+              "legendFormat": "my-copilot",
+              "refId": "A"
+            }
+          ],
+          "id": 29,
+          "gridPos": {
+            "h": 8,
+            "w": 24,
+            "x": 0,
+            "y": 32
+          }
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "Detaljer",
+      "collapsed": true,
+      "id": 30,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 24
+      },
+      "panels": [
+        {
+          "type": "timeseries",
+          "title": "Klare pods mot ønsket per app",
+          "description": "",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_METRICS}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "table",
+              "placement": "right",
+              "showLegend": true,
+              "calcs": [
+                "lastNotNull"
+              ],
+              "sortBy": "Last *",
+              "sortDesc": true,
+              "width": 260
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "expr": "sum by (deployment) (kube_deployment_status_replicas_available{namespace=\"$namespace\", k8s_cluster_name=~\"$env\"})",
+              "legendFormat": "{{deployment}} klare",
+              "refId": "A"
+            },
+            {
+              "expr": "sum by (deployment) (kube_deployment_spec_replicas{namespace=\"$namespace\", k8s_cluster_name=~\"$env\"})",
+              "legendFormat": "{{deployment}} ønsket",
+              "refId": "B"
+            }
+          ],
+          "id": 31,
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 25
+          }
+        },
+        {
+          "type": "timeseries",
+          "title": "Oppe per app og miljø",
+          "description": "",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_METRICS}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "custom": {
+                "fillOpacity": 10,
+                "lineWidth": 1
+              }
+            },
+            "overrides": []
+          },
+          "options": {
+            "legend": {
+              "displayMode": "table",
+              "placement": "right",
+              "showLegend": true,
+              "calcs": [
+                "lastNotNull"
+              ],
+              "sortBy": "Last *",
+              "sortDesc": true,
+              "width": 260
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "expr": "sum by (app, k8s_cluster_name) (up{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app!=\"\"})",
+              "legendFormat": "{{app}} {{k8s_cluster_name}}",
+              "refId": "A"
+            }
+          ],
+          "id": 32,
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 25
+          }
+        }
+      ]
     }
   ]
 }

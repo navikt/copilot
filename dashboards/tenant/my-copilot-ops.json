@@ -43,16 +43,6 @@
       "keepTime": false,
       "includeVars": false,
       "tooltip": ""
-    },
-    {
-      "title": "Copilot-lisenser",
-      "type": "link",
-      "url": "/d/copilot-seats-insights?${__url_time_range}&${__all_variables}",
-      "icon": "dashboard",
-      "targetBlank": false,
-      "keepTime": false,
-      "includeVars": false,
-      "tooltip": ""
     }
   ],
   "templating": {
@@ -87,7 +77,12 @@
         "query": "tempo",
         "refresh": 1,
         "type": "datasource",
-        "description": "Tempo data source with X-Scope-OrgID tenant. This dashboard belongs in the Grafana that reads the tenant org."
+        "description": "Tempo data source with X-Scope-OrgID tenant. This dashboard belongs in the Grafana that reads the tenant org.",
+        "current": {
+          "selected": true,
+          "text": "prod-gcp-tempo",
+          "value": "prod-gcp-tempo"
+        }
       },
       {
         "current": {

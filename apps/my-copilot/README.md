@@ -247,7 +247,7 @@ Exposed via `GET /metrics` in Prometheus format.
 | `copilot_seats_pending_invitation`   | Gauge | —      | Seats with pending invitations          |
 | `copilot_seats_pending_cancellation` | Gauge | —      | Seats pending cancellation              |
 
-Grafana dashboards: [`dashboards/tenant/copilot-seats-insights.json`](../../dashboards/tenant/copilot-seats-insights.json) for seats and [`dashboards/tenant/my-copilot-ops.json`](../../dashboards/tenant/my-copilot-ops.json) for health. See [`dashboards/README.md`](../../dashboards/README.md).
+Grafana dashboards: [`dashboards/tenant/copilot-home.json`](../../dashboards/tenant/copilot-home.json) for a status overview with seats (users and cost live in my-copilot under `/admin/kostnad`) and [`dashboards/tenant/my-copilot-ops.json`](../../dashboards/tenant/my-copilot-ops.json) for health. See [`dashboards/README.md`](../../dashboards/README.md).
 
 ## Install Instructions References
 
