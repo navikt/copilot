@@ -994,7 +994,6 @@ func promptInstallScope(targetDir string) (*InstallScope, error) {
 	}
 }
 
-// uniqueStrings returns a sorted slice with duplicates removed.
 func uniqueStrings(s []string) []string {
 	seen := make(map[string]bool)
 	var result []string
