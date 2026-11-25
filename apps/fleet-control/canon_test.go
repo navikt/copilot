@@ -112,17 +112,19 @@ func TestServerSpecToolRiskAndRosRef(t *testing.T) {
 		name, cluster string
 		mod           func(*MCPServerSpec)
 		ok            bool
+		field         string // 422 cause field, "" for any
 	}{
-		{"dev write without ros", "dev-gcp", func(*MCPServerSpec) {}, true},
-		{"prod unset risk is write", "prod-gcp", func(*MCPServerSpec) {}, false},
-		{"unset cluster is prod", "", func(*MCPServerSpec) {}, false},
-		{"prod one write", "prod-gcp", func(m *MCPServerSpec) { m.ToolRisk = map[string]string{"a": "read"} }, false},
-		{"prod all read", "prod-gcp", func(m *MCPServerSpec) { m.ToolRisk = map[string]string{"a": "read", "b": "read"} }, true},
-		{"prod write with ros", "prod-gcp", func(m *MCPServerSpec) { m.RosRef = "https://ros.example/1" }, true},
-		{"unknown tool", "dev-gcp", func(m *MCPServerSpec) { m.ToolRisk = map[string]string{"c": "read"} }, false},
-		{"bad risk", "dev-gcp", func(m *MCPServerSpec) { m.ToolRisk = map[string]string{"a": "Read"} }, false},
-		{"rosRef spaces", "dev-gcp", func(m *MCPServerSpec) { m.RosRef = " x" }, false},
-		{"rosRef too long", "dev-gcp", func(m *MCPServerSpec) { m.RosRef = strings.Repeat("x", maxRosRefBytes+1) }, false},
+		{"dev write without ros", "dev-gcp", func(*MCPServerSpec) {}, true, ""},
+		{"prod unset risk is write", "prod-gcp", func(*MCPServerSpec) {}, false, "spec.rosRef"},
+		{"unset cluster is prod", "", func(*MCPServerSpec) {}, false, "spec.rosRef"},
+		{"unknown cluster is prod", "prod-fss", func(*MCPServerSpec) {}, false, "spec.rosRef"},
+		{"prod one write", "prod-gcp", func(m *MCPServerSpec) { m.ToolRisk = map[string]string{"a": "read"} }, false, "spec.rosRef"},
+		{"prod all read", "prod-gcp", func(m *MCPServerSpec) { m.ToolRisk = map[string]string{"a": "read", "b": "read"} }, true, ""},
+		{"prod write with ros", "prod-gcp", func(m *MCPServerSpec) { m.RosRef = "https://ros.example/1" }, true, ""},
+		{"unknown tool", "dev-gcp", func(m *MCPServerSpec) { m.ToolRisk = map[string]string{"c": "read"} }, false, ""},
+		{"bad risk", "dev-gcp", func(m *MCPServerSpec) { m.ToolRisk = map[string]string{"a": "Read"} }, false, ""},
+		{"rosRef spaces", "dev-gcp", func(m *MCPServerSpec) { m.RosRef = " x" }, false, ""},
+		{"rosRef too long", "dev-gcp", func(m *MCPServerSpec) { m.RosRef = strings.Repeat("x", maxRosRefBytes+1) }, false, ""},
 	} {
 		m := base
 		c.mod(&m)
@@ -133,6 +135,8 @@ func TestServerSpecToolRiskAndRosRef(t *testing.T) {
 			t.Errorf("%s: %v", c.name, err)
 		case !c.ok && (!errors.As(err, &se) || se.code != http.StatusUnprocessableEntity):
 			t.Errorf("%s: want 422, got %v", c.name, err)
+		case !c.ok && c.field != "" && (len(se.causes) != 1 || se.causes[0].Field != c.field):
+			t.Errorf("%s: want cause %s, got %+v", c.name, c.field, se.causes)
 		case c.ok && len(m.ToolRisk) > 0 && sv.Route.ToolRisk["a"] != m.ToolRisk["a"]:
 			t.Errorf("%s: route lacks toolRisk: %+v", c.name, sv.Route)
 		}
