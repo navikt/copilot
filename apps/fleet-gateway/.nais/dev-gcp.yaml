@@ -16,15 +16,6 @@ pilot_routes_file: "/app/pilot-routes.dev.yaml"
 # no routes are served until the first valid snapshot (#2797).
 routes_source: fleet-control
 fleet_control_audience: "api://dev-gcp.copilot.fleet-control/.default"
-outbound_rules:
-  - application: fleet-control
-  - application: fleet-echo
-  - application: mcp-dolly
-  - application: mcp-kodeverk
-  - application: mcp-onboarding
-  - application: mcp-team-catalog
-  - application: studio-api
-    namespace: aksel-studio
 ingresses:
   - https://fleet-gateway.intern.dev.nav.no
 reply_urls:
