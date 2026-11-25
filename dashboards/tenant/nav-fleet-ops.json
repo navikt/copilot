@@ -382,7 +382,7 @@
     {
       "type": "stat",
       "title": "Error ratio (SLO)",
-      "description": "Share of counted MCP calls that failed, same ratio as the SLO in #2972. Failures use the SLO definition: every outcome except ok, unauthorized (OAuth handshake 401), disabled (kill switch) and tool_denied. user_cap and user_sse_cap count as failures. Excluded outcomes are left out of the denominator too.",
+      "description": "Share of counted MCP calls that failed, same ratio as the SLO in #2972. Failures use the SLO definition: every outcome except ok, unauthorized (OAuth handshake 401), disabled (kill switch) and tool_denied. user_cap and user_sse_cap count as failures. Excluded outcomes are left out of the denominator too. Orange from 3 % and red from 7.2 %, the slow and fast burn thresholds for the 99.5 % target (#2972).",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_METRICS}"
@@ -391,7 +391,7 @@
         "defaults": {
           "unit": "percentunit",
           "decimals": 2,
-          "noValue": "0",
+          "noValue": "no traffic",
           "color": {
             "mode": "thresholds"
           },
@@ -399,12 +399,16 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "red",
+                "color": "green",
                 "value": null
               },
               {
-                "color": "green",
-                "value": 1
+                "color": "orange",
+                "value": 0.03
+              },
+              {
+                "color": "red",
+                "value": 0.072
               }
             ]
           }
@@ -428,7 +432,7 @@
       },
       "targets": [
         {
-          "expr": "(sum(rate(fleet_gateway_mcp_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", outcome!~\"ok|unauthorized|disabled|tool_denied\"}[5m])) or vector(0)) / sum(rate(fleet_gateway_mcp_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", outcome!~\"unauthorized|disabled|tool_denied\"}[5m]))",
+          "expr": "(sum(rate(fleet_gateway_mcp_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", outcome!~\"ok|unauthorized|disabled|tool_denied\"}[5m])) or vector(0)) / (sum(rate(fleet_gateway_mcp_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", outcome!~\"unauthorized|disabled|tool_denied\"}[5m])) > 0)",
           "legendFormat": "",
           "refId": "A"
         }
@@ -971,7 +975,7 @@
               },
               {
                 "color": "red",
-                "value": 2
+                "value": 2.001
               }
             ]
           }
@@ -1334,7 +1338,7 @@
       "pluginVersion": "12.3.2",
       "targets": [
         {
-          "expr": "sum by (deployment) (kube_deployment_status_replicas_ready{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", deployment=~\"fleet-gateway|fleet-control|mcp-registry|mcp-onboarding|mcp-dolly|mcp-kodeverk|mcp-team-catalog\"})",
+          "expr": "sum by (deployment) (kube_deployment_status_replicas_available{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", deployment=~\"fleet-gateway|fleet-control|mcp-registry|mcp-onboarding|mcp-dolly|mcp-kodeverk|mcp-team-catalog\"})",
           "legendFormat": "{{deployment}} ready",
           "refId": "A"
         },
@@ -1344,7 +1348,7 @@
           "refId": "B"
         }
       ],
-      "title": "Ready vs desired replicas",
+      "title": "Available vs desired replicas",
       "type": "timeseries",
       "description": "Alert NoReadyPods fires when a deployment has 0 available replicas."
     },
@@ -1817,7 +1821,7 @@
                   },
                   {
                     "color": "red",
-                    "value": 2
+                    "value": 2.001
                   }
                 ]
               },
