@@ -2,6 +2,8 @@ package provider
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -14,6 +16,7 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 )
 
 // cpltManagedFloor is the first cplt release that reads CPLT_MANAGED_CONFIG
@@ -60,6 +63,8 @@ const cpltManagedHeader = "managed_by = \"nav-pilot\"\nschema = 1\n"
 // bare lowercase DNS name, so the launch keeps its flags and writes nothing.
 func cpltManagedContent(approved []string) []byte {
 	var quoted []string
+	approved = slices.Clone(approved)
+	slices.Sort(approved)
 	for _, h := range append(slices.Clone(FleetGatewayHosts), approved...) {
 		if !validManagedHost(h) {
 			return nil
@@ -100,14 +105,22 @@ func cpltManaged(approved []string, write bool) (path, reason string) {
 	if want == nil {
 		return "", "an approved host is not a plain host name"
 	}
-	path, err := ensureCpltManagedFile(want, write)
+	// One file per approved set: approvals differ per repo, so a shared file
+	// would hand one launch the hosts approved for another. The fleet-only
+	// set keeps nav-pilot.toml, byte-identical to what older nav-pilot wrote.
+	name := "nav-pilot.toml"
+	if !bytes.Equal(want, cpltManagedContent(nil)) {
+		sum := sha256.Sum256(want)
+		name = "nav-pilot-" + hex.EncodeToString(sum[:])[:12] + ".toml"
+	}
+	path, err := ensureCpltManagedFile(name, want, write)
 	if err != nil {
 		return "", err.Error()
 	}
 	return path, ""
 }
 
-func ensureCpltManagedFile(want []byte, write bool) (string, error) {
+func ensureCpltManagedFile(name string, want []byte, write bool) (string, error) {
 	home, err := passwdHome()
 	if err != nil || home == "" || !filepath.IsAbs(home) {
 		return "", errors.New("cannot read your home directory from the user database")
@@ -137,7 +150,10 @@ func ensureCpltManagedFile(want []byte, write bool) (string, error) {
 			return "", err
 		}
 	}
-	path := filepath.Join(dir, "nav-pilot.toml")
+	path := filepath.Join(dir, name)
+	if write {
+		defer pruneManagedFiles(dir, uid, path)
+	}
 	if fi, err := os.Lstat(path); err == nil {
 		st, _ := fi.Sys().(*syscall.Stat_t)
 		if !fi.Mode().IsRegular() || st == nil || int(st.Uid) != uid {
@@ -149,6 +165,10 @@ func ensureCpltManagedFile(want []byte, write bool) (string, error) {
 		// Doctor passes no hosts: the approved set varies per launch, so a
 		// sound file nav-pilot wrote is current enough to report.
 		if fi.Mode().Perm()&0o022 == 0 && st.Nlink == 1 && (!write || fileHolds(path, want)) {
+			if write && name != "nav-pilot.toml" {
+				now := time.Now()
+				_ = os.Chtimes(path, now, now) // in use: keep it out of the prune
+			}
 			return path, nil
 		}
 	} else if !errors.Is(err, fs.ErrNotExist) {
@@ -161,6 +181,35 @@ func ensureCpltManagedFile(want []byte, write bool) (string, error) {
 		return "", fmt.Errorf("cannot write %s: %v", path, err)
 	}
 	return path, nil
+}
+
+// managedPruneAge is how long an unused per-set file stays.
+const managedPruneAge = 7 * 24 * time.Hour
+
+// pruneManagedFiles removes per-set files nav-pilot wrote that no launch has
+// used for [managedPruneAge]. Best effort: errors are ignored, nav-pilot.toml
+// and keep are never touched, nor anything without the header or not yours.
+func pruneManagedFiles(dir string, uid int, keep string) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return
+	}
+	for _, e := range entries {
+		p := filepath.Join(dir, e.Name())
+		if p == keep || !strings.HasPrefix(e.Name(), "nav-pilot-") || !strings.HasSuffix(e.Name(), ".toml") {
+			continue
+		}
+		fi, err := os.Lstat(p)
+		if err != nil {
+			continue
+		}
+		st, _ := fi.Sys().(*syscall.Stat_t)
+		if !fi.Mode().IsRegular() || st == nil || int(st.Uid) != uid ||
+			time.Since(fi.ModTime()) < managedPruneAge || !fileStartsWith(p, []byte(cpltManagedHeader)) {
+			continue
+		}
+		_ = os.Remove(p)
+	}
 }
 
 func checkManagedDir(dir string, uid int, noSymlink bool) error {

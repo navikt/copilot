@@ -294,7 +294,7 @@ func TestManagedHostsEqualFlagHosts(t *testing.T) {
 	fakeProposal(t, "--allow-private-domain", "mimir.nav.cloud.nais.io", "--allow-read", "/x",
 		"--allow-private-domain", "mcp.intern.nav.no")
 	args, env := launchManaged(t)
-	if env != managedPath(home) {
+	if filepath.Dir(env) != filepath.Dir(managedPath(home)) || env == managedPath(home) {
 		t.Fatalf("env %q", env)
 	}
 	flags := proposalPrivateHosts(args)
@@ -335,13 +335,52 @@ func TestManagedLeavesForeignFile(t *testing.T) {
 	}
 }
 
-func TestManagedUpgradesOlderFile(t *testing.T) {
+func TestManagedSetsGetSeparateFiles(t *testing.T) {
 	home := withManaged(t, managedRelease)
-	path, _ := CpltManagedConfig(nil)
-	if p, _ := CpltManagedConfig([]string{"mimir.nav.cloud.nais.io"}); p != managedPath(home) {
-		t.Fatalf("path %q", p)
+	fleet, _ := CpltManagedConfig(nil)
+	a, _ := CpltManagedConfig([]string{"mimir.nav.cloud.nais.io"})
+	b, _ := CpltManagedConfig([]string{"mcp.intern.nav.no"})
+	if fleet != managedPath(home) || a == "" || b == "" || a == b || a == fleet {
+		t.Fatalf("fleet %q a %q b %q", fleet, a, b)
 	}
-	if h := managedHosts(t, path); !slices.Contains(h, "mimir.nav.cloud.nais.io") || len(h) != 3 {
-		t.Errorf("hosts %q", h)
+	if h := managedHosts(t, a); !slices.Contains(h, "mimir.nav.cloud.nais.io") || slices.Contains(h, "mcp.intern.nav.no") {
+		t.Errorf("a hosts %q", h)
+	}
+	if h := managedHosts(t, b); !slices.Contains(h, "mcp.intern.nav.no") || slices.Contains(h, "mimir.nav.cloud.nais.io") {
+		t.Errorf("b hosts %q", h)
+	}
+	if h := managedHosts(t, fleet); len(h) != 2 {
+		t.Errorf("nav-pilot.toml hosts %q", h)
+	}
+	if again, _ := CpltManagedConfig([]string{"mimir.nav.cloud.nais.io"}); again != a {
+		t.Errorf("same set, other file: %q", again)
+	}
+}
+
+func TestManagedPrunesOldSetFiles(t *testing.T) {
+	home := withManaged(t, managedRelease)
+	fleet, _ := CpltManagedConfig(nil)
+	old, _ := CpltManagedConfig([]string{"mcp.intern.nav.no"})
+	dir := filepath.Dir(fleet)
+	foreign := filepath.Join(dir, "nav-pilot-foreign.toml")
+	if err := os.WriteFile(foreign, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	past := time.Now().Add(-8 * 24 * time.Hour)
+	for _, p := range []string{fleet, old, foreign} {
+		if err := os.Chtimes(p, past, past); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if p, _ := CpltManagedConfig([]string{"mimir.nav.cloud.nais.io"}); p == "" {
+		t.Fatal("no path")
+	}
+	if _, err := os.Lstat(old); err == nil {
+		t.Error("old set file kept")
+	}
+	for _, p := range []string{fleet, foreign, managedPath(home)} {
+		if _, err := os.Lstat(p); err != nil {
+			t.Errorf("%s removed", p)
+		}
 	}
 }
