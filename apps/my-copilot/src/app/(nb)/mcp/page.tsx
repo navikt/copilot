@@ -31,13 +31,13 @@ async function registryStats() {
 // The short label is what you see; screen readers get the long one.
 function Stat({ value, label, long }: { value: number; label: string; long: string }) {
   return (
-    <Box background="neutral-soft" borderRadius="8" paddingBlock="space-12" paddingInline="space-20">
+    <Box background="neutral-soft" borderRadius="12" padding="space-16">
       <span className="sr-only">{`${value} ${long}`}</span>
       <span aria-hidden>
         <BodyShort as="span" size="large" weight="semibold" className="mcp-stat-value">
           {value}
         </BodyShort>
-        <BodyShort as="span" textColor="subtle">
+        <BodyShort as="span" textColor="subtle" className="whitespace-nowrap">
           {label}
         </BodyShort>
       </span>
@@ -132,13 +132,13 @@ export default async function McpPage() {
         paddingInline={{ xs: "space-16", sm: "space-20", md: "space-32" }}
       >
         <VStack gap={{ xs: "space-40", md: "space-64" }}>
-          <VStack as="section" gap="space-28">
+          <VStack as="section" gap="space-24">
+            <Tag variant="alt1" size="small" className="self-start">
+              Pilot
+            </Tag>
             <HGrid columns={{ xs: 1, lg: "3fr 2fr" }} gap="space-40" align="start">
               <VStack gap="space-16" align="start">
-                <Tag variant="alt1" size="small">
-                  Pilot
-                </Tag>
-                <Heading size="xlarge" level="1">
+                <Heading size="large" level="1">
                   Navs MCP-servere, én innlogging
                 </Heading>
                 <BodyLong size="large">
@@ -154,7 +154,7 @@ export default async function McpPage() {
                   </Button>
                 </HStack>
               </VStack>
-              <VStack gap="space-12">
+              <VStack gap="space-16">
                 {stats ? (
                   <VStack gap="space-8">
                     <HGrid
@@ -166,7 +166,7 @@ export default async function McpPage() {
                       <Stat value={stats.servers} label="servere" long="MCP-servere i registeret" />
                       {/* Hidden while some servers have no tool list (#2604). */}
                       {stats.tools > 0 && <Stat value={stats.tools} label="verktøy" long="verktøy i registeret" />}
-                      <Stat value={stats.gateway} label="via gateway" long="servere bak fleet-gateway" />
+                      <Stat value={stats.gateway} label="i gateway" long="servere bak fleet-gateway" />
                     </HGrid>
                     <BodyShort size="small" textColor="subtle">
                       Fra MCP-registeret, oppdatert hver time.
@@ -181,7 +181,7 @@ export default async function McpPage() {
                     .
                   </BodyShort>
                 )}
-                <Box background="neutral-soft" borderRadius="12" padding="space-20">
+                <Box background="neutral-soft" borderRadius="12" padding="space-16">
                   <VStack gap="space-8">
                     <Heading size="xsmall" level="2">
                       Kort fortalt

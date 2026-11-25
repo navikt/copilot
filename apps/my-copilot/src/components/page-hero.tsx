@@ -57,7 +57,7 @@ export function PageHeroBase({ label, title, description, actions, badge, pathna
                   {kicker}
                 </BodyShort>
               )}
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3">
                 <Heading size={section ? "xlarge" : "large"} level="1">
                   {title}
                 </Heading>

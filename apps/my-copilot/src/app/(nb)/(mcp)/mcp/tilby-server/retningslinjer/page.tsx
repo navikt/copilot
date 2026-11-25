@@ -1,11 +1,14 @@
 import {
   BarChartIcon,
+  BugIcon,
   ClipboardCheckmarkIcon,
   EyeIcon,
   FileCodeIcon,
   PadlockLockedIcon,
   PencilIcon,
+  PersonCrossIcon,
   RulerIcon,
+  ScissorsIcon,
   ShieldLockIcon,
   TasklistIcon,
 } from "@navikt/aksel-icons";
@@ -231,6 +234,67 @@ const SECTIONS: Section[] = [
     note: "Dette er vårt eget råd, ikke hentet fra en kilde. mcp-kodeverk og mcp-dolly har ingen egne målinger i dag. Vi planlegger å gjøre det til standard i et felles bibliotek (#2490).",
   },
   {
+    id: "svar",
+    icon: ScissorsIcon,
+    why: "Agenter og klienter bygger på formen på svaret, så en endring kan knekke dem uten varsel. Et svar som er kuttet uten at det står, får modellen til å tro at den har sett alt.",
+    todo: [
+      "Beskriv svaret med `outputSchema`, og send det i `structuredContent`.",
+      "Legg bare til felt. Ikke fjern eller endre felt som finnes.",
+      "Merk alltid et kuttet svar, og si hvordan modellen henter resten.",
+      "Svar med feil når baksystemet sender mer enn dere tåler.",
+    ],
+    points: [
+      "Svaret er en API. Beskriv det med `outputSchema`, og send det som `structuredContent`. Bare tilføy felt.",
+      "Kutt aldri i stillhet. Kutt på tegn, ikke bytes, så dere ikke deler et tegn i to. Legg til en markør og et hint om hvilket verktøy eller argument som gir resten.",
+      "Lister som er kuttet, har `truncated` og antall som gjenstår.",
+      "Er svaret fra baksystemet for stort, svar med feil. Ikke send avkuttede data videre som om de var hele svaret.",
+      "Fritekst andre har skrevet, for eksempel kommentarer og beskrivelser, merkes som fritekst eller utelates i svar modellen leser.",
+    ],
+    owasp: [owasp("MCP06"), owasp("MCP10")],
+    spec: [{ label: "Tools: Structured Content, Output Schema", href: `${SPEC}/server/tools` }],
+    note: "Taket på svarstørrelsen står under «Sett grenser for input og svar».",
+  },
+  {
+    id: "data",
+    icon: PersonCrossIcon,
+    why: "Data om borgere og saker skal ikke inn i en KI-assistent. Jo færre verktøy serveren har, jo lettere er den å forstå og sikre.",
+    todo: [
+      "Ikke eksponer borger- eller saksdata, og logg aldri innhold.",
+      "Hent bruker-ID fra tokenet, aldri fra verktøyargumentene.",
+      "Ha få verktøy, og ingen demoverktøy i prod.",
+    ],
+    points: [
+      "Ingen borger- eller saksdata. Logg aldri innhold.",
+      "Bruker-ID kommer fra tokenet (`NAVident`), aldri fra verktøyargumenter. Et argument kan modellen fylle med hva som helst.",
+      "Få verktøy. Ingen demoverktøy i prod.",
+      "Krev fersk innlogging før skriving når eier har bestemt regelen. Regelen er ikke bestemt ennå, se #2964.",
+    ],
+    owasp: [owasp("MCP02"), owasp("MCP07"), owasp("MCP10")],
+    spec: [{ label: "Security best practices", href: SPEC_BEST_PRACTICES }],
+    note: "Regelen om borger- og saksdata er vår egen og står ikke i spesifikasjonen.",
+  },
+  {
+    id: "negative-tester",
+    icon: BugIcon,
+    why: "En tokensjekk som aldri avviser noe, ser lik ut som en som virker. Bare tester som sender feil kall, viser forskjellen.",
+    todo: [
+      "Skriv én test per avvisning i listen under Detaljer.",
+      "Sjekk statuskoden, ikke bare at kallet feiler.",
+      "Kjør samsvarstesten mcp-compliance i CI.",
+    ],
+    points: [
+      "Utløpt token gir 401.",
+      "Apptoken gir 403.",
+      "Feil `azp` gir 403.",
+      "Manglende `NAVident` gir 403.",
+      "Verktøy som ikke finnes eller ikke er tillatt, gir feil.",
+      "For stor forespørsel avvises.",
+    ],
+    owasp: [owasp("MCP07")],
+    spec: [{ label: "Authorization", href: `${SPEC}/basic/authorization` }],
+    note: "mcp-compliance tester flere av disse, se «Eksempler».",
+  },
+  {
     id: "ros",
     icon: ClipboardCheckmarkIcon,
     short: "Lag en ROS per server.",
@@ -259,6 +323,9 @@ const TOC: TocItem[] = [
   { id: "logging", label: "Logg uten persondata" },
   { id: "beskrivelser", label: "Skriv beskrivelser og annotasjoner" },
   { id: "metrikker", label: "Mål hvert verktøy" },
+  { id: "svar", label: "Behandle svaret som et API" },
+  { id: "data", label: "Hold data og verktøy smått" },
+  { id: "negative-tester", label: "Test avvisningene" },
   { id: "ros", label: "Lag en ROS per server" },
   { id: "eksempler", label: "Eksempler" },
   { id: "kilder", label: "Kilder" },
@@ -421,6 +488,27 @@ export default function McpRetningslinjerPage() {
           Mål hvert verktøy
         </LinkableHeading>
         <Rules id="metrikker" />
+      </VStack>
+
+      <VStack gap="space-12">
+        <LinkableHeading id="svar" size="medium" level="2">
+          Behandle svaret som et API
+        </LinkableHeading>
+        <Rules id="svar" />
+      </VStack>
+
+      <VStack gap="space-12">
+        <LinkableHeading id="data" size="medium" level="2">
+          Hold data og verktøy smått
+        </LinkableHeading>
+        <Rules id="data" />
+      </VStack>
+
+      <VStack gap="space-12">
+        <LinkableHeading id="negative-tester" size="medium" level="2">
+          Test avvisningene
+        </LinkableHeading>
+        <Rules id="negative-tester" />
       </VStack>
 
       <VStack gap="space-12">

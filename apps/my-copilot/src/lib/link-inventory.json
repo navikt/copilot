@@ -214,7 +214,8 @@
     "sources": [
       "apps/my-copilot/src/app/(nb)/fleet/catalog.tsx",
       "apps/my-copilot/src/app/(nb)/fleet/nav.tsx",
-      "apps/my-copilot/src/app/(nb)/fleet/page.tsx"
+      "apps/my-copilot/src/app/(nb)/fleet/page.tsx",
+      "apps/my-copilot/src/app/(nb)/fleet/registrer/wizard.tsx"
     ],
     "anchors": {}
   },
@@ -673,6 +674,7 @@
       ],
       "forutsetninger": ["apps/my-copilot/src/app/(nb)/(mcp)/mcp/tilby-server/page.tsx"],
       "ikke-gjor": ["apps/my-copilot/src/app/(nb)/(mcp)/mcp/tilby-server/page.tsx"],
+      "kort-fortalt": ["apps/my-copilot/src/app/(nb)/(mcp)/mcp/tilby-server/page.tsx"],
       "krav-til-serveren": [
         "apps/my-copilot/src/app/(nb)/(mcp)/mcp/fleet-gateway/page.tsx",
         "apps/my-copilot/src/app/(nb)/(mcp)/mcp/referanse/page.tsx",
@@ -696,6 +698,7 @@
     ],
     "anchors": {
       "beskrivelser": ["apps/my-copilot/src/app/(nb)/(mcp)/mcp/tilby-server/retningslinjer/page.tsx"],
+      "data": ["apps/my-copilot/src/app/(nb)/(mcp)/mcp/tilby-server/retningslinjer/page.tsx"],
       "eksempler": [
         "apps/my-copilot/src/app/(nb)/(mcp)/mcp/referanse/page.tsx",
         "apps/my-copilot/src/app/(nb)/(mcp)/mcp/tilby-server/retningslinjer/page.tsx",
@@ -708,7 +711,9 @@
       "lesing-forst": ["apps/my-copilot/src/app/(nb)/(mcp)/mcp/tilby-server/retningslinjer/page.tsx"],
       "logging": ["apps/my-copilot/src/app/(nb)/(mcp)/mcp/tilby-server/retningslinjer/page.tsx"],
       "metrikker": ["apps/my-copilot/src/app/(nb)/(mcp)/mcp/tilby-server/retningslinjer/page.tsx"],
+      "negative-tester": ["apps/my-copilot/src/app/(nb)/(mcp)/mcp/tilby-server/retningslinjer/page.tsx"],
       "ros": ["apps/my-copilot/src/app/(nb)/(mcp)/mcp/tilby-server/retningslinjer/page.tsx"],
+      "svar": ["apps/my-copilot/src/app/(nb)/(mcp)/mcp/tilby-server/retningslinjer/page.tsx"],
       "token": ["apps/my-copilot/src/app/(nb)/(mcp)/mcp/tilby-server/retningslinjer/page.tsx"],
       "verktoylister": ["apps/my-copilot/src/app/(nb)/(mcp)/mcp/tilby-server/retningslinjer/page.tsx"]
     }
