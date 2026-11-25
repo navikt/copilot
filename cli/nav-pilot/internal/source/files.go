@@ -39,7 +39,6 @@ func BytesHash(data []byte) string {
 //   - Trim trailing whitespace per line
 //   - Collapse consecutive blank lines to a single blank line
 func NormalizeMarkdown(data []byte) []byte {
-	// CRLF → LF
 	data = bytes.ReplaceAll(data, []byte("\r\n"), []byte("\n"))
 
 	lines := bytes.Split(data, []byte("\n"))
@@ -331,7 +330,6 @@ func CountDirFiles(dir string) int {
 	return count
 }
 
-// ─── Artifact-level helpers ──────────────────────────────────────────────────
 // These abstract over the file/directory distinction so callers don't branch.
 
 // CopyArtifact copies a file or directory from src to dst.
@@ -360,8 +358,6 @@ func ComparableArtifactHash(path string, isDir bool) (string, error) {
 	}
 	return NormalizedFileHash(path)
 }
-
-// ─── Conflict detection ─────────────────────────────────────────────────────
 
 // Conflict represents a conflicting artifact (existing file differs from source).
 type Conflict struct {

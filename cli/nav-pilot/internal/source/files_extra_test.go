@@ -6,8 +6,6 @@ import (
 	"testing"
 )
 
-// --- FileHash ---
-
 func TestFileHash_Success(t *testing.T) {
 	tmp := t.TempDir()
 	path := filepath.Join(tmp, "test.txt")
@@ -34,8 +32,6 @@ func TestFileHash_NonexistentFile(t *testing.T) {
 		t.Error("FileHash(nonexistent) = nil, want error")
 	}
 }
-
-// --- CopyFile ---
 
 func TestCopyFile_Success(t *testing.T) {
 	tmp := t.TempDir()
@@ -65,8 +61,6 @@ func TestCopyFile_NonexistentSrc(t *testing.T) {
 		t.Error("CopyFile(nonexistent src) = nil, want error")
 	}
 }
-
-// --- CheckConflict ---
 
 func TestCheckConflict_NoExistingTarget(t *testing.T) {
 	tmp := t.TempDir()
@@ -145,8 +139,6 @@ func TestCheckConflict_DifferentContent(t *testing.T) {
 		t.Errorf("Conflict.Path = %q, want %q", c.Path, dst)
 	}
 }
-
-// --- CopyDir ---
 
 func TestCopyDir_Success(t *testing.T) {
 	tmp := t.TempDir()

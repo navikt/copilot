@@ -9,8 +9,6 @@ import (
 	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
 )
 
-// ─── Get ────────────────────────────────────────────────────────────────────
-
 func TestResolverGet_Agent_RootWins22(t *testing.T) {
 	tmp := t.TempDir()
 	mkFile(t, tmp, "agents", "nais.agent.md")
@@ -154,8 +152,6 @@ func TestResolverGet_Prompt_Precedence(t *testing.T) {
 	}
 }
 
-// ─── GetFile ────────────────────────────────────────────────────────────────
-
 func TestResolverGetFile_Root(t *testing.T) {
 	tmp := t.TempDir()
 	mkFile(t, tmp, "agents", "nais.metadata.json")
@@ -181,8 +177,6 @@ func TestResolverGetFile_NotFound(t *testing.T) {
 		t.Error("expected not found")
 	}
 }
-
-// ─── List ───────────────────────────────────────────────────────────────────
 
 func TestResolverList_Agents_RootWinsOnCollision(t *testing.T) {
 	tmp := t.TempDir()
@@ -251,10 +245,6 @@ func TestResolverList_Empty(t *testing.T) {
 	}
 }
 
-// ─── MapLocalPath ───────────────────────────────────────────────────────────
-
-// ─── Helpers ────────────────────────────────────────────────────────────────
-
 func mkFile(t *testing.T, parts ...string) {
 	t.Helper()
 	path := filepath.Join(parts...)
@@ -272,8 +262,6 @@ func mkDir(t *testing.T, parts ...string) {
 		t.Fatal(err)
 	}
 }
-
-// --- layout-aware resolution (agentpakke Tier 1) ---
 
 func TestNewSourceResolverForLayout(t *testing.T) {
 	tmp := t.TempDir()
@@ -362,8 +350,6 @@ func TestCollectAllItemsWithLayout(t *testing.T) {
 		t.Errorf("agents = %v, want [chef]", m.Agents)
 	}
 }
-
-// ─── containment ────────────────────────────────────────────────────────────
 
 // TestResolverRefusesSymlinkedContentDir covers the canonical directories as
 // well as manifest layout paths: an intermediate symlink out of the checkout
