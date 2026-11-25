@@ -47,7 +47,7 @@ Residual risk in published results (owner accepted 2026-11-17, #2271): published
 
 Residual risk: results are visible while a survey is open. An admin who polls `/results` during an open survey can see one new answer appear and, if they know who just answered, attribute it. Answers are written as they arrive, so nothing blunts this; only showing results after close would. The owner accepted this risk on 2026-10-13. Mitigations: admin-only access and the k≥5 threshold. The DPO assessment should reflect this residual risk. The same holds for `/freetext`, which has no threshold: a text that appears right after a known person answered is theirs.
 
-Free-text tokens (`freetext.go`): HMAC-SHA256 of survey, field and raw text under a random key that lives only in memory. A token names a text, not a row; it cannot be traced to the row or the person's other answers, and a restart invalidates it. Hiding stores `sha256(raw text)` per survey and field in `survey_freetext_hidden`, so identical texts in one field are hidden together. The answer stays in `survey_answers` until retention deletes it. A read is logged with survey and number of texts, a hide with survey and field; never the text.
+Free-text tokens (`internal/survey/freetext.go`): HMAC-SHA256 of survey, field and raw text under a random key that lives only in memory. A token names a text, not a row; it cannot be traced to the row or the person's other answers, and a restart invalidates it. Hiding stores `sha256(raw text)` per survey and field in `survey_freetext_hidden`, so identical texts in one field are hidden together. The answer stays in `survey_answers` until retention deletes it. A read is logged with survey and number of texts, a hide with survey and field; never the text.
 
 No OpenTelemetry, no auto-instrumentation, no body logging, no retry that
 buffers a body. Logs carry survey id, status and error type,
@@ -310,7 +310,7 @@ nais cloudsql revoke copilot-survey -t copilot -e prod-gcp --reason "$REASON"
 ### Free-text coding
 
 #2239. Codebook per series in [`surveys/codebooks/`](surveys/codebooks/), rules in
-[`surveys/README.md`](surveys/README.md#codebooks). Code in `codebook.go`, `coding.go`.
+[`surveys/README.md`](surveys/README.md#codebooks). Code in `internal/survey/codebook.go`, `internal/survey/coding.go`.
 
 | Table | Columns |
 | --- | --- |

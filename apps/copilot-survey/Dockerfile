@@ -9,6 +9,7 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 COPY *.go ./
+COPY internal/ ./internal/
 COPY surveys/ ./surveys/
 COPY imports/ ./imports/
 

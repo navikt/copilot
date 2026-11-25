@@ -9,7 +9,7 @@ spec:
   image: {{image}}
   port: 8080
   # Single replica: low-traffic internal service, and free-text hide tokens
-  # are keyed in process memory (freetext.go).
+  # are keyed in process memory (internal/survey/freetext.go).
   replicas:
     min: 1
     max: 1
