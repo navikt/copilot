@@ -3157,8 +3157,7 @@
                   }
                 ]
               },
-              "unit": "short",
-              "noValue": "Venter på data (#2914)"
+              "unit": "reqps"
             },
             "overrides": []
           },
@@ -3190,21 +3189,319 @@
           "pluginVersion": "12.3.2",
           "targets": [
             {
-              "expr": "sum by (app, tool) (rate(mcp_tool_calls_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app=~\"mcp-kodeverk|mcp-team-catalog\"}[$__rate_interval]))",
+              "expr": "sum by (tool) (rate(mcp_tool_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app=\"mcp-kodeverk\"}[$__rate_interval]))",
+              "legendFormat": "{{tool}}",
+              "refId": "A"
+            }
+          ],
+          "title": "mcp-kodeverk: verktøykall per verktøy",
+          "type": "timeseries",
+          "description": "Fra lib/mcpkit."
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_METRICS}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 20,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 2,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "showValues": false,
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": 0
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "percentunit"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 69
+          },
+          "id": 38,
+          "options": {
+            "legend": {
+              "calcs": [
+                "sum"
+              ],
+              "displayMode": "table",
+              "placement": "right",
+              "showLegend": true,
+              "width": 260,
+              "sortBy": "Total",
+              "sortDesc": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "12.3.2",
+          "targets": [
+            {
+              "expr": "sum by (tool) (rate(mcp_tool_errors_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app=\"mcp-kodeverk\"}[$__rate_interval])) / sum by (tool) (rate(mcp_tool_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app=\"mcp-kodeverk\"}[$__rate_interval]))",
+              "legendFormat": "{{tool}}",
+              "refId": "A"
+            }
+          ],
+          "title": "mcp-kodeverk: feilandel per verktøy",
+          "type": "timeseries",
+          "description": "Feilede kall delt på alle kall, per verktøy."
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_METRICS}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 20,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 2,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "showValues": false,
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": 0
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "s"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 77
+          },
+          "id": 39,
+          "options": {
+            "legend": {
+              "calcs": [
+                "sum"
+              ],
+              "displayMode": "table",
+              "placement": "right",
+              "showLegend": true,
+              "width": 260,
+              "sortBy": "Total",
+              "sortDesc": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "12.3.2",
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum by (tool, le) (rate(mcp_tool_duration_seconds_bucket{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app=\"mcp-kodeverk\"}[$__rate_interval])))",
+              "legendFormat": "p95 {{tool}}",
+              "refId": "A"
+            }
+          ],
+          "title": "mcp-kodeverk: latens p95 per verktøy",
+          "type": "timeseries",
+          "description": ""
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_METRICS}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 20,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 2,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "showValues": false,
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": 0
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "short",
+              "noValue": "Venter på data (#2914)"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 77
+          },
+          "id": 40,
+          "options": {
+            "legend": {
+              "calcs": [
+                "sum"
+              ],
+              "displayMode": "table",
+              "placement": "right",
+              "showLegend": true,
+              "width": 260,
+              "sortBy": "Total",
+              "sortDesc": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "12.3.2",
+          "targets": [
+            {
+              "expr": "sum by (app, tool) (rate(mcp_tool_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app=~\"mcp-team-catalog|mcp-dolly\"}[$__rate_interval]))",
               "legendFormat": "{{app}} {{tool}}",
               "refId": "A"
             }
           ],
-          "title": "Verktøykall i mcp-kodeverk og mcp-team-catalog (placeholder)",
+          "title": "Verktøykall i mcp-team-catalog og mcp-dolly (placeholder)",
           "type": "timeseries",
-          "description": "Placeholder: mcp-kodeverk and mcp-team-catalog do not emit tool metrics yet. Tracked in #2914. The query below is the intended one and lights up once the metric exists."
+          "description": "Placeholder: mcp-team-catalog and mcp-dolly export no metrics yet (no up series). nav-fleet tracks this in #2914. The query is the one mcp-kodeverk already answers through lib/mcpkit."
         }
       ]
     },
     {
       "type": "row",
       "title": "fleet-control (dev)",
-      "id": 38,
+      "id": 41,
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -3281,7 +3578,7 @@
             "x": 0,
             "y": 42
           },
-          "id": 39,
+          "id": 42,
           "options": {
             "legend": {
               "calcs": [
@@ -3380,7 +3677,7 @@
             "x": 12,
             "y": 42
           },
-          "id": 40,
+          "id": 43,
           "options": {
             "legend": {
               "calcs": [
@@ -3480,7 +3777,7 @@
             "x": 0,
             "y": 50
           },
-          "id": 41,
+          "id": 44,
           "options": {
             "legend": {
               "calcs": [
@@ -3591,7 +3888,7 @@
             "x": 12,
             "y": 50
           },
-          "id": 42,
+          "id": 45,
           "options": {
             "legend": {
               "calcs": [
@@ -3696,7 +3993,7 @@
             "x": 0,
             "y": 58
           },
-          "id": 43,
+          "id": 46,
           "options": {
             "legend": {
               "calcs": [
@@ -3795,7 +4092,7 @@
             "x": 12,
             "y": 58
           },
-          "id": 44,
+          "id": 47,
           "options": {
             "legend": {
               "calcs": [
@@ -3836,7 +4133,7 @@
     {
       "type": "row",
       "title": "Audit",
-      "id": 45,
+      "id": 48,
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -3913,7 +4210,7 @@
             "x": 0,
             "y": 43
           },
-          "id": 46,
+          "id": 49,
           "options": {
             "legend": {
               "calcs": [
@@ -4013,7 +4310,7 @@
             "x": 12,
             "y": 43
           },
-          "id": 47,
+          "id": 50,
           "options": {
             "legend": {
               "calcs": [
@@ -4049,7 +4346,7 @@
     {
       "type": "row",
       "title": "Ressurser",
-      "id": 48,
+      "id": 51,
       "gridPos": {
         "h": 1,
         "w": 24,
@@ -4126,7 +4423,7 @@
             "x": 0,
             "y": 44
           },
-          "id": 49,
+          "id": 52,
           "options": {
             "legend": {
               "calcs": [
@@ -4225,7 +4522,7 @@
             "x": 12,
             "y": 44
           },
-          "id": 50,
+          "id": 53,
           "options": {
             "legend": {
               "calcs": [
