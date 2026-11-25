@@ -195,7 +195,6 @@ func ResolveSource(ref, sourceRepo, cliVersion string) (*Source, error) {
 
 // resolveSource is ResolveSource with the remote fetch passed in.
 func resolveSource(ref, sourceRepo, cliVersion string, clone func(ref, sourceRepo string) (*Source, error)) (*Source, error) {
-	// If a custom source repo is specified, always clone remote
 	if sourceRepo != "" {
 		if filepath.IsAbs(sourceRepo) {
 			if info, err := os.Stat(sourceRepo); err == nil && info.IsDir() {
@@ -224,7 +223,6 @@ func resolveSource(ref, sourceRepo, cliVersion string, clone func(ref, sourceRep
 		if err != nil {
 			return nil, err
 		}
-		// Extract version from nav-pilot/<version> style refs
 		if v := strings.TrimPrefix(ref, "nav-pilot/"); v != ref {
 			src.Version = v
 		}

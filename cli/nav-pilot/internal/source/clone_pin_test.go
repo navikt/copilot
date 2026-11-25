@@ -10,7 +10,6 @@ import (
 	"time"
 )
 
-// gitRun runs git in dir and fails the test on error.
 func gitRun(t *testing.T, dir string, args ...string) string {
 	t.Helper()
 	cmd := exec.Command("git", args...)

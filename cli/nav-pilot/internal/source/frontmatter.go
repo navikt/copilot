@@ -22,25 +22,19 @@ func SplitFrontmatter(data []byte) ([]byte, []byte, bool) {
 		return nil, data, false
 	}
 
-	// Find the end of the opening delimiter line
 	afterOpen := trimmed[len(delimiter):]
-	// Allow trailing whitespace on the delimiter line
 	afterOpen = bytes.TrimLeft(afterOpen, " \t")
 	idx := bytes.IndexByte(afterOpen, '\n')
 	if idx < 0 {
-		// Only "---" with no closing delimiter
 		return nil, data, false
 	}
 	afterOpen = afterOpen[idx+1:]
 
-	// Find the closing "---" (allowing trailing whitespace)
 	closeIdx := findClosingDelimiter(afterOpen)
 	if closeIdx < 0 {
-		// Check if afterOpen starts with closing delimiter (empty frontmatter)
 		if isDelimiterLine(afterOpen) {
 			delimEnd := len(delimiter)
 			rest := afterOpen[delimEnd:]
-			// Skip trailing whitespace and newline on delimiter line
 			for len(rest) > 0 && (rest[0] == ' ' || rest[0] == '\t') {
 				rest = rest[1:]
 			}
@@ -52,17 +46,13 @@ func SplitFrontmatter(data []byte) ([]byte, []byte, bool) {
 		return nil, data, false
 	}
 
-	// Include the trailing newline in frontmatter
 	fm := afterOpen[:closeIdx+1]
-	// Skip past \n---<optional whitespace>\n
 	rest := afterOpen[closeIdx+1:]
-	// Skip the --- and any trailing whitespace
 	rest = rest[len(delimiter):]
 	for len(rest) > 0 && (rest[0] == ' ' || rest[0] == '\t') {
 		rest = rest[1:]
 	}
 
-	// Skip the newline after closing ---
 	if len(rest) > 0 && rest[0] == '\n' {
 		rest = rest[1:]
 	}
@@ -70,7 +60,6 @@ func SplitFrontmatter(data []byte) ([]byte, []byte, bool) {
 	return fm, rest, true
 }
 
-// hasDelimiterPrefix checks if data starts with "---".
 func hasDelimiterPrefix(data []byte) bool {
 	return bytes.HasPrefix(data, []byte("---"))
 }
@@ -117,7 +106,6 @@ func StripFrontmatterKeys(fm []byte, keys []string) []byte {
 	for _, line := range lines {
 		trimmed := bytes.TrimRight(line, " \t")
 
-		// Check if this is a top-level key (no leading whitespace)
 		if len(trimmed) > 0 && trimmed[0] != ' ' && trimmed[0] != '\t' {
 			colonIdx := bytes.IndexByte(trimmed, ':')
 			if colonIdx > 0 {
@@ -128,7 +116,6 @@ func StripFrontmatterKeys(fm []byte, keys []string) []byte {
 			}
 			skipping = false
 		} else if skipping {
-			// Indented line under a skipped key
 			continue
 		}
 
@@ -138,7 +125,6 @@ func StripFrontmatterKeys(fm []byte, keys []string) []byte {
 	}
 
 	result := bytes.Join(out, []byte("\n"))
-	// Trim trailing empty lines that might remain
 	result = bytes.TrimRight(result, "\n")
 	if len(result) > 0 {
 		result = append(result, '\n')
@@ -157,7 +143,6 @@ func ExtractFrontmatterValue(fm []byte, key string) (string, bool) {
 		if bytes.HasPrefix(trimmed, []byte(prefix)) {
 			val := string(trimmed[len(prefix):])
 			val = strings.TrimSpace(val)
-			// Remove surrounding quotes if present
 			if len(val) >= 2 && ((val[0] == '"' && val[len(val)-1] == '"') || (val[0] == '\'' && val[len(val)-1] == '\'')) {
 				val = val[1 : len(val)-1]
 			}

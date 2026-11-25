@@ -9,8 +9,6 @@ import (
 	"github.com/navikt/copilot/cli/nav-pilot/internal/domain"
 )
 
-// --- ValidateName ---
-
 func TestValidateName(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -33,8 +31,6 @@ func TestValidateName(t *testing.T) {
 		}
 	}
 }
-
-// --- ValidateManifest ---
 
 func TestValidateManifest(t *testing.T) {
 	m := &Manifest{
@@ -68,8 +64,6 @@ func TestValidateManifest(t *testing.T) {
 	}
 }
 
-// --- LoadManifest ---
-
 func TestLoadManifest_Success(t *testing.T) {
 	tmp := t.TempDir()
 	collDir := filepath.Join(tmp, "collections", "all")
@@ -98,8 +92,6 @@ func TestLoadManifest_NotFound(t *testing.T) {
 		t.Error("LoadManifest(nonexistent) = nil, want error")
 	}
 }
-
-// --- ListCollectionDirs ---
 
 func TestListCollectionDirs_WithCollections(t *testing.T) {
 	tmp := t.TempDir()
@@ -132,8 +124,6 @@ func TestListCollectionDirs_NoDir(t *testing.T) {
 	}
 }
 
-// --- CollectAllItems ---
-
 func TestCollectAllItems(t *testing.T) {
 	tmp := setupSourceDir(t)
 	m, err := CollectAllItems(tmp)
@@ -147,8 +137,6 @@ func TestCollectAllItems(t *testing.T) {
 		t.Error("expected at least one agent")
 	}
 }
-
-// --- CountDirFiles ---
 
 func TestCountDirFiles(t *testing.T) {
 	tmp := t.TempDir()
@@ -167,8 +155,6 @@ func TestCountDirFiles(t *testing.T) {
 		t.Errorf("CountDirFiles = %d, want 2", n)
 	}
 }
-
-// --- CopyArtifact ---
 
 func TestCopyArtifact_File(t *testing.T) {
 	tmp := t.TempDir()
@@ -203,8 +189,6 @@ func TestCopyArtifact_Dir(t *testing.T) {
 	}
 }
 
-// --- ComparableArtifactHash ---
-
 func TestComparableArtifactHash_File(t *testing.T) {
 	tmp := t.TempDir()
 	path := filepath.Join(tmp, "test.md")
@@ -237,8 +221,6 @@ func TestComparableArtifactHash_Dir(t *testing.T) {
 		t.Errorf("hash len = %d, want 16", len(h))
 	}
 }
-
-// --- RelPathForName ---
 
 func TestRelPathForName_Repo(t *testing.T) {
 	scope := domain.ScopeRepo("/repo")
