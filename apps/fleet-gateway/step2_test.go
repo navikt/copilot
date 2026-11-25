@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/navikt/copilot/fleet-gateway/internal/httpx"
+	"github.com/navikt/copilot/fleet-gateway/internal/oauth"
 	"github.com/navikt/copilot/fleet-gateway/internal/routing"
 )
 
@@ -80,7 +81,7 @@ func TestGatewayAccessToken_HashedStorage_ResourceBinding_AndExpiry(t *testing.T
 	if _, ok, err := te.gw.getSession(context.Background(), token); err != nil || ok {
 		t.Fatal("raw gateway token must not be stored in sessions map")
 	}
-	if _, ok, err := te.gw.getSession(context.Background(), hashToken(token)); err != nil || !ok {
+	if _, ok, err := te.gw.getSession(context.Background(), oauth.HashToken(token)); err != nil || !ok {
 		t.Fatal("expected SHA-256(token) in sessions map")
 	}
 

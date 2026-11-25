@@ -25,8 +25,6 @@ const (
 	identitySourceIntrospection = "introspection"
 
 	defaultPort                             = "8080"
-	defaultPendingTTL                       = 10 * time.Minute
-	defaultCodeTTL                          = 60 * time.Second
 	defaultSessionMaxAge                    = 12 * time.Hour
 	defaultSessionAbsoluteMaxAge            = 7 * 24 * time.Hour
 	defaultSessionIdleTimeout               = 12 * time.Hour

@@ -17,6 +17,7 @@ import (
 
 	"github.com/navikt/copilot/fleet-gateway/internal/httpx"
 	"github.com/navikt/copilot/fleet-gateway/internal/metrics"
+	"github.com/navikt/copilot/fleet-gateway/internal/oauth"
 	"github.com/navikt/copilot/fleet-gateway/internal/routing"
 )
 
@@ -74,7 +75,7 @@ func TestGatewayReplicas_SharedStore(t *testing.T) {
 	}
 
 	// 2. Delete session on replica B -> MCP call on replica A returns 401.
-	if err := gwB.store.Delete(context.Background(), kindSession, hashToken(tok)); err != nil {
+	if err := gwB.store.Delete(context.Background(), kindSession, oauth.HashToken(tok)); err != nil {
 		t.Fatalf("delete session on B failed: %v", err)
 	}
 	reqA := httptest.NewRequest(http.MethodPost, "/mcp/team-etterlevelse/etterlevelse", strings.NewReader(`{"jsonrpc":"2.0","id":1,"method":"tools/list"}`))
@@ -226,7 +227,7 @@ func TestSessionAbsoluteCap(t *testing.T) {
 	issuedAt := te.gw.now()
 	tok := te.obtainAccessTokenForResource(te.resource)
 
-	sess, ok, err := te.gw.getSession(context.Background(), hashToken(tok))
+	sess, ok, err := te.gw.getSession(context.Background(), oauth.HashToken(tok))
 	if err != nil || !ok {
 		t.Fatalf("getSession failed: ok=%v err=%v", ok, err)
 	}
@@ -241,10 +242,10 @@ func TestSessionAbsoluteCap(t *testing.T) {
 	// Even if putSession is called directly with a longer Expiry and TTL, absolute cap holds.
 	extended := *sess
 	extended.Expiry = issuedAt.Add(48 * time.Hour)
-	if putErr := te.gw.putSession(context.Background(), hashToken(tok), &extended, 48*time.Hour); putErr != nil {
+	if putErr := te.gw.putSession(context.Background(), oauth.HashToken(tok), &extended, 48*time.Hour); putErr != nil {
 		t.Fatalf("putSession failed: %v", putErr)
 	}
-	reloaded, ok, err := te.gw.getSession(context.Background(), hashToken(tok))
+	reloaded, ok, err := te.gw.getSession(context.Background(), oauth.HashToken(tok))
 	if err != nil || !ok {
 		t.Fatalf("getSession after put failed: ok=%v err=%v", ok, err)
 	}
@@ -562,7 +563,7 @@ func TestSealedSessionUnknownKID_Returns401(t *testing.T) {
 	if errBody["error"] != "invalid_token" {
 		t.Fatalf("expected error=invalid_token, got %v", errBody)
 	}
-	if _, ok, err := inner.Get(context.Background(), kindSession, hashToken(tok)); err != nil || !ok {
+	if _, ok, err := inner.Get(context.Background(), kindSession, oauth.HashToken(tok)); err != nil || !ok {
 		t.Fatalf("expected row with unknown kid to be kept for key rollout, got ok=%v err=%v", ok, err)
 	}
 }
@@ -573,7 +574,7 @@ func TestPendingAndCode_HashedKeysAndPlaintextFallback(t *testing.T) {
 
 	t.Run("putPending and popPending hash key", func(t *testing.T) {
 		key := "plain-pending-state"
-		want := &pendingAuth{
+		want := &oauth.PendingAuth{
 			ClientID:    te.clientID,
 			RedirectURI: te.redirectURI,
 			State:       "client-state",
@@ -585,8 +586,8 @@ func TestPendingAndCode_HashedKeysAndPlaintextFallback(t *testing.T) {
 		if _, ok, err := te.gw.store.Get(ctx, kindPendingEntra, key); err != nil || ok {
 			t.Fatalf("expected no row under plaintext key, got ok=%v err=%v", ok, err)
 		}
-		if _, ok, err := te.gw.store.Get(ctx, kindPendingEntra, hashToken(key)); err != nil || !ok {
-			t.Fatalf("expected row under hashToken(key), got ok=%v err=%v", ok, err)
+		if _, ok, err := te.gw.store.Get(ctx, kindPendingEntra, oauth.HashToken(key)); err != nil || !ok {
+			t.Fatalf("expected row under oauth.HashToken(key), got ok=%v err=%v", ok, err)
 		}
 
 		got, ok, err := te.gw.popPending(ctx, kindPendingEntra, key)
@@ -603,11 +604,11 @@ func TestPendingAndCode_HashedKeysAndPlaintextFallback(t *testing.T) {
 
 	t.Run("putCode and popCode hash key", func(t *testing.T) {
 		code := "plain-auth-code"
-		want := &issuedCode{
+		want := &oauth.IssuedCode{
 			ClientID:    te.clientID,
 			RedirectURI: te.redirectURI,
 			Resource:    te.resource,
-			Session: gatewaySession{
+			Session: oauth.Session{
 				NAVIdent: "Z123456",
 			},
 		}
@@ -617,8 +618,8 @@ func TestPendingAndCode_HashedKeysAndPlaintextFallback(t *testing.T) {
 		if _, ok, err := te.gw.store.Get(ctx, kindCode, code); err != nil || ok {
 			t.Fatalf("expected no row under plaintext code, got ok=%v err=%v", ok, err)
 		}
-		if _, ok, err := te.gw.store.Get(ctx, kindCode, hashToken(code)); err != nil || !ok {
-			t.Fatalf("expected row under hashToken(code), got ok=%v err=%v", ok, err)
+		if _, ok, err := te.gw.store.Get(ctx, kindCode, oauth.HashToken(code)); err != nil || !ok {
+			t.Fatalf("expected row under oauth.HashToken(code), got ok=%v err=%v", ok, err)
 		}
 
 		got, ok, err := te.gw.popCode(ctx, code)
@@ -635,7 +636,7 @@ func TestPendingAndCode_HashedKeysAndPlaintextFallback(t *testing.T) {
 
 	t.Run("popPending falls back to plaintext key", func(t *testing.T) {
 		key := "legacy-plain-consent"
-		want := &pendingAuth{
+		want := &oauth.PendingAuth{
 			ClientID: te.clientID,
 			State:    "legacy-state",
 		}
@@ -643,7 +644,7 @@ func TestPendingAndCode_HashedKeysAndPlaintextFallback(t *testing.T) {
 		if err != nil {
 			t.Fatalf("marshal: %v", err)
 		}
-		if putErr := te.gw.store.Put(ctx, kindPendingConsent, key, raw, defaultPendingTTL); putErr != nil {
+		if putErr := te.gw.store.Put(ctx, kindPendingConsent, key, raw, oauth.PendingTTL); putErr != nil {
 			t.Fatalf("store.Put: %v", putErr)
 		}
 
@@ -661,9 +662,9 @@ func TestPendingAndCode_HashedKeysAndPlaintextFallback(t *testing.T) {
 
 	t.Run("popCode falls back to plaintext key", func(t *testing.T) {
 		code := "legacy-plain-code"
-		want := &issuedCode{
+		want := &oauth.IssuedCode{
 			ClientID: te.clientID,
-			Session: gatewaySession{
+			Session: oauth.Session{
 				NAVIdent: "Z654321",
 			},
 		}
@@ -671,7 +672,7 @@ func TestPendingAndCode_HashedKeysAndPlaintextFallback(t *testing.T) {
 		if err != nil {
 			t.Fatalf("marshal: %v", err)
 		}
-		if putErr := te.gw.store.Put(ctx, kindCode, code, raw, defaultCodeTTL); putErr != nil {
+		if putErr := te.gw.store.Put(ctx, kindCode, code, raw, oauth.CodeTTL); putErr != nil {
 			t.Fatalf("store.Put: %v", putErr)
 		}
 

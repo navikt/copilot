@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+
+	"github.com/navikt/copilot/fleet-gateway/internal/oauth"
 )
 
 const csrfCookieName = "__Host-fleet_csrf"
@@ -57,7 +59,7 @@ func setPageSecurityHeaders(w http.ResponseWriter, formAction string) {
 	w.Header().Set("Referrer-Policy", "no-referrer")
 }
 
-func (g *Gateway) renderConsentPage(w http.ResponseWriter, consentID string, p *pendingAuth) {
+func (g *Gateway) renderConsentPage(w http.ResponseWriter, consentID string, p *oauth.PendingAuth) {
 	http.SetCookie(w, &http.Cookie{
 		Name:     csrfCookieName,
 		Value:    p.CSRF,
@@ -65,7 +67,7 @@ func (g *Gateway) renderConsentPage(w http.ResponseWriter, consentID string, p *
 		HttpOnly: true,
 		Secure:   true,
 		SameSite: http.SameSiteStrictMode,
-		MaxAge:   int(defaultPendingTTL.Seconds()),
+		MaxAge:   int(oauth.PendingTTL.Seconds()),
 	})
 	setConsentSecurityHeaders(w, p.RedirectURI)
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")

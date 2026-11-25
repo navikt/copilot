@@ -18,6 +18,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/testutil"
 
 	"github.com/navikt/copilot/fleet-gateway/internal/metrics"
+	"github.com/navikt/copilot/fleet-gateway/internal/oauth"
 	"github.com/navikt/copilot/fleet-gateway/internal/routing"
 )
 
@@ -76,7 +77,7 @@ func TestLockout_SessionRejectedForTargetUserOnly(t *testing.T) {
 		t.Fatalf("user A after lockout: got %d, want 401", rec.Code)
 	}
 	// Session row should have been deleted on lookup.
-	if _, ok, err := te.gw.store.Get(ctx, kindSession, hashToken(tokenA)); err != nil || ok {
+	if _, ok, err := te.gw.store.Get(ctx, kindSession, oauth.HashToken(tokenA)); err != nil || ok {
 		t.Fatalf("expected locked-out session row to be deleted: ok=%v err=%v", ok, err)
 	}
 
@@ -101,8 +102,8 @@ func TestLockout_SessionRejectedForTargetUserOnly(t *testing.T) {
 	if status != http.StatusBadRequest || body["error"] != "invalid_grant" || body["error_description"] != "session revoked" {
 		t.Fatalf("login while blocked: got %d %v, want 400 invalid_grant (session revoked)", status, body)
 	}
-	postLockoutHash := hashToken("post-lockout-session")
-	if err := te.gw.putSession(ctx, postLockoutHash, &gatewaySession{
+	postLockoutHash := oauth.HashToken("post-lockout-session")
+	if err := te.gw.putSession(ctx, postLockoutHash, &oauth.Session{
 		ClientID: te.clientID,
 		Resource: te.resource,
 		NAVIdent: "Z111111",
@@ -191,14 +192,14 @@ func TestLockout_RememberedConsentDeletedAndLegacyHonoured(t *testing.T) {
 		if !te.asksConsent() {
 			t.Fatal("expected consent prompt after lockout")
 		}
-		if _, ok, err := te.gw.store.Get(ctx, kindConsent, consentKey(te.navIdent, te.clientID, te.resource)); err != nil || ok {
+		if _, ok, err := te.gw.store.Get(ctx, kindConsent, oauth.ConsentKey(te.navIdent, te.clientID, te.resource)); err != nil || ok {
 			t.Fatalf("expected pre-lockout consent row to be deleted: ok=%v err=%v", ok, err)
 		}
 	})
 
 	t.Run("legacy consent value 1 still honoured when no lockout exists", func(t *testing.T) {
 		te := withLockoutKey(t, newTestEnv(t))
-		key := consentKey(te.navIdent, te.clientID, te.resource)
+		key := oauth.ConsentKey(te.navIdent, te.clientID, te.resource)
 		if err := te.gw.store.Put(ctx, kindConsent, key, []byte("1"), te.gw.cfg.ConsentTTL); err != nil {
 			t.Fatalf("put legacy consent: %v", err)
 		}
@@ -265,8 +266,8 @@ func TestLockout_Postgres(t *testing.T) {
 		lockoutKey: []byte(testLockoutKey),
 	}
 
-	tokHash := hashToken("pg-session-token")
-	sess := &gatewaySession{
+	tokHash := oauth.HashToken("pg-session-token")
+	sess := &oauth.Session{
 		ClientID: "c1",
 		Resource: "https://fleet-gateway.intern.dev.nav.no/mcp/ns/app",
 		NAVIdent: "Z123456",
@@ -335,7 +336,7 @@ func TestLockout_Undo(t *testing.T) {
 	if revoked, err := te.gw.userRevoked(ctx, te.navIdent, issuedBefore); err != nil || !revoked {
 		t.Fatalf("userRevoked for pre-lockout timestamp after undo: revoked=%v err=%v, want true nil", revoked, err)
 	}
-	if _, ok, err := te.gw.getSession(ctx, hashToken(tokBefore)); err != nil || ok {
+	if _, ok, err := te.gw.getSession(ctx, oauth.HashToken(tokBefore)); err != nil || ok {
 		t.Fatalf("pre-lockout getSession after undo: ok=%v err=%v, want false nil", ok, err)
 	}
 	status, body := te.postToken(url.Values{

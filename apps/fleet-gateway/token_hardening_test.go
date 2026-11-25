@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/navikt/copilot/fleet-gateway/internal/oauth"
 )
 
 func (te *testEnv) refresh(rt string) (int, map[string]any) {
@@ -113,7 +115,7 @@ func TestRefreshToken_LegacyGroupsStillAcceptedAndNewTokenSmall(t *testing.T) {
 	if err != nil {
 		t.Fatalf("marshal legacy session: %v", err)
 	}
-	sessHash := hashToken("legacy-access-token")
+	sessHash := oauth.HashToken("legacy-access-token")
 	if err = te.gw.store.Put(context.Background(), kindSession, sessHash, legacySessJSON, time.Hour); err != nil {
 		t.Fatalf("put legacy session: %v", err)
 	}
@@ -174,7 +176,7 @@ func TestRefreshToken_LoweredMaxAgeRejectsAndClampsRefresh(t *testing.T) {
 			t.Fatalf("expected expires_in clamped to remaining <=900s, got %v", exp)
 		}
 		at, _ := body["access_token"].(string)
-		if _, ok, err := te.gw.getSession(context.Background(), hashToken(at)); err != nil || !ok {
+		if _, ok, err := te.gw.getSession(context.Background(), oauth.HashToken(at)); err != nil || !ok {
 			t.Fatalf("issued session must be readable from store: ok=%v err=%v", ok, err)
 		}
 	})

@@ -23,6 +23,7 @@ import (
 
 	"github.com/navikt/copilot/fleet-gateway/internal/config"
 	"github.com/navikt/copilot/fleet-gateway/internal/httpx"
+	"github.com/navikt/copilot/fleet-gateway/internal/oauth"
 )
 
 const entraStateCookieName = "__Host-fleet_entra_state"
@@ -33,30 +34,11 @@ const maxEntraStateCookies = 8
 
 // entraStateCookieFor names the per-login state cookie, so parallel logins
 // (several gateway routes authenticating at once) don't overwrite each other.
-// The set is bounded by MaxAge (defaultPendingTTL): cookies expire on their own,
+// The set is bounded by MaxAge (oauth.PendingTTL): cookies expire on their own,
 // and the callback clears its own. Each is ~100 bytes.
 func entraStateCookieFor(state string) string {
 	h := sha256.Sum256([]byte(state))
 	return entraStateCookieName + "_" + hex.EncodeToString(h[:4])
-}
-
-type pendingAuth struct {
-	ClientID      string    `json:"client_id"`
-	ClientName    string    `json:"client_name"`
-	Unverified    bool      `json:"unverified,omitempty"`
-	RedirectURI   string    `json:"redirect_uri"`
-	State         string    `json:"state"`
-	Challenge     string    `json:"challenge"`
-	Resource      string    `json:"resource"`
-	Prompt        string    `json:"prompt,omitempty"`
-	Claims        string    `json:"claims,omitempty"`
-	EntraVerifier string    `json:"entra_verifier,omitempty"`
-	EntraNonce    string    `json:"entra_nonce,omitempty"`
-	CSRF          string    `json:"csrf"`
-	Created       time.Time `json:"created"`
-	// Issued is set when consent is asked after the Entra login: the code is
-	// held here until the user approves.
-	Issued *issuedCode `json:"issued,omitempty"`
 }
 
 type clientMetadata struct {
@@ -149,7 +131,7 @@ func (g *Gateway) authorizeHandler(w http.ResponseWriter, r *http.Request) {
 	default:
 		// Consent is asked after the Entra login, once the user is known, so a
 		// remembered consent can skip the page (callbackHandler).
-		g.redirectToEntra(w, r, &pendingAuth{
+		g.redirectToEntra(w, r, &oauth.PendingAuth{
 			ClientID:    clientID,
 			ClientName:  meta.ClientName,
 			Unverified:  unverified,
@@ -322,7 +304,7 @@ func (g *Gateway) fetchCIMD(ctx context.Context, clientID string) (*clientMetada
 	return &doc, nil
 }
 
-func (g *Gateway) redirectToEntra(w http.ResponseWriter, r *http.Request, p *pendingAuth) {
+func (g *Gateway) redirectToEntra(w http.ResponseWriter, r *http.Request, p *oauth.PendingAuth) {
 	authzEndpoint, err := g.entraAuthorizeEndpoint(r.Context())
 	if err != nil {
 		slog.Warn("Entra well-known metadata lookup failed", "error", err)
@@ -384,7 +366,7 @@ func (g *Gateway) redirectToEntra(w http.ResponseWriter, r *http.Request, p *pen
 		HttpOnly: true,
 		Secure:   true,
 		SameSite: http.SameSiteLaxMode,
-		MaxAge:   int(defaultPendingTTL.Seconds()),
+		MaxAge:   int(oauth.PendingTTL.Seconds()),
 	})
 
 	v := url.Values{
@@ -643,7 +625,7 @@ func (g *Gateway) callbackHandler(w http.ResponseWriter, r *http.Request) {
 		sessRT = ""
 		entraRT = rt
 	}
-	sess := gatewaySession{
+	sess := oauth.Session{
 		ClientID:     p.ClientID,
 		Resource:     p.Resource,
 		EntraToken:   at,
@@ -659,7 +641,7 @@ func (g *Gateway) callbackHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	issued := &issuedCode{
+	issued := &oauth.IssuedCode{
 		ClientID:    p.ClientID,
 		RedirectURI: p.RedirectURI,
 		Challenge:   p.Challenge,
@@ -707,7 +689,7 @@ func (g *Gateway) callbackHandler(w http.ResponseWriter, r *http.Request) {
 
 // issueCode stores the gateway authorization code and sends the browser back
 // to the client.
-func (g *Gateway) issueCode(w http.ResponseWriter, r *http.Request, p *pendingAuth, gwCode string, issued *issuedCode) {
+func (g *Gateway) issueCode(w http.ResponseWriter, r *http.Request, p *oauth.PendingAuth, gwCode string, issued *oauth.IssuedCode) {
 	if err := g.putCode(r.Context(), gwCode, issued); err != nil {
 		if errors.Is(err, errStoreFull) {
 			httpx.MarkShed(w, "store_full")
@@ -723,7 +705,7 @@ func (g *Gateway) issueCode(w http.ResponseWriter, r *http.Request, p *pendingAu
 	g.redirectToClient(w, r, p, url.Values{"code": {gwCode}})
 }
 
-func (g *Gateway) redirectToClient(w http.ResponseWriter, r *http.Request, p *pendingAuth, v url.Values) {
+func (g *Gateway) redirectToClient(w http.ResponseWriter, r *http.Request, p *oauth.PendingAuth, v url.Values) {
 	target, err := url.Parse(p.RedirectURI)
 	if err != nil {
 		http.Error(w, "invalid stored redirect_uri", http.StatusInternalServerError)

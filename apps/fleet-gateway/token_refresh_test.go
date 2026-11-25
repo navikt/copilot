@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/navikt/copilot/fleet-gateway/internal/httpx"
+	"github.com/navikt/copilot/fleet-gateway/internal/oauth"
 	"github.com/navikt/copilot/fleet-gateway/internal/routing"
 )
 
@@ -386,7 +387,7 @@ func TestRefreshToken_AbsoluteCap12h(t *testing.T) {
 		t.Fatalf("expected expires_in capped at <= 60s, got %v", expIn)
 	}
 
-	sess, ok, err := te.gw.getSession(context.Background(), hashToken(at2))
+	sess, ok, err := te.gw.getSession(context.Background(), oauth.HashToken(at2))
 	if err != nil || !ok {
 		t.Fatalf("getSession failed: ok=%v err=%v", ok, err)
 	}
@@ -769,7 +770,7 @@ func TestRefreshToken_PlaintextEntraRTNeverStored(t *testing.T) {
 	rt1, _ := body["refresh_token"].(string)
 
 	assertNoPlaintextInMemoryStore("after authorization_code", secretEntraRT)
-	sess1, ok, err := gw.getSession(context.Background(), hashToken(at1))
+	sess1, ok, err := gw.getSession(context.Background(), oauth.HashToken(at1))
 	if err != nil || !ok {
 		t.Fatalf("getSession at1 failed: ok=%v err=%v", ok, err)
 	}
@@ -788,7 +789,7 @@ func TestRefreshToken_PlaintextEntraRTNeverStored(t *testing.T) {
 	at2, _ := body2["access_token"].(string)
 
 	assertNoPlaintextInMemoryStore("after refresh_token", secretEntraRT, "entra-rotated-refresh-1")
-	sess2, ok, err := gw.getSession(context.Background(), hashToken(at2))
+	sess2, ok, err := gw.getSession(context.Background(), oauth.HashToken(at2))
 	if err != nil || !ok {
 		t.Fatalf("getSession at2 failed: ok=%v err=%v", ok, err)
 	}
@@ -988,7 +989,7 @@ func TestConfig_RTStorageModesAndMetadata(t *testing.T) {
 				t.Fatalf("expected no gateway refresh_token in mode %s, got %q", mode, rt)
 			}
 			if mode == rtStorageServer {
-				sess, ok, err := te.gw.getSession(context.Background(), hashToken(at))
+				sess, ok, err := te.gw.getSession(context.Background(), oauth.HashToken(at))
 				if err != nil || !ok || sess.RefreshToken == "" {
 					t.Fatalf("expected Entra RT preserved in server mode session: ok=%v err=%v", ok, err)
 				}
@@ -1252,7 +1253,7 @@ func TestRevoke_RefreshTokenInvalidatesAccessToken(t *testing.T) {
 		t.Fatalf("expected 401 for at2 after RT revoke, got %d", code)
 	}
 	// Session row should also have been deleted on lookup.
-	if _, ok, err := te.gw.store.Get(context.Background(), kindSession, hashToken(at2)); err != nil || ok {
+	if _, ok, err := te.gw.store.Get(context.Background(), kindSession, oauth.HashToken(at2)); err != nil || ok {
 		t.Fatalf("expected revoked session row deleted, got ok=%v err=%v", ok, err)
 	}
 }

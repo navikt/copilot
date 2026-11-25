@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/navikt/copilot/fleet-gateway/internal/oauth"
 )
 
 const consentVerifier = "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG"
@@ -146,7 +148,7 @@ func TestConsent_RollingDeployNeverSkipsConsent(t *testing.T) {
 		if _, ok, _ := te.gw.store.Get(ctx, "pending_entra", st); ok {
 			t.Fatal("new flow wrote the kind old pods pop")
 		}
-		if _, ok, _ := te.gw.store.Get(ctx, kindPendingEntra, hashToken(st)); !ok {
+		if _, ok, _ := te.gw.store.Get(ctx, kindPendingEntra, oauth.HashToken(st)); !ok {
 			t.Fatal("new flow did not store its pending state")
 		}
 	})
@@ -155,7 +157,7 @@ func TestConsent_RollingDeployNeverSkipsConsent(t *testing.T) {
 		te := newTestEnv(t)
 		_ = te.obtainAuthCode(consentVerifier) // consent now remembered
 		st, sc := te.startLogin(consentVerifier)
-		raw, ok, err := te.gw.store.Pop(ctx, kindPendingEntra, hashToken(st))
+		raw, ok, err := te.gw.store.Pop(ctx, kindPendingEntra, oauth.HashToken(st))
 		if err != nil || !ok {
 			t.Fatalf("pop: %v %v", ok, err)
 		}
@@ -184,7 +186,7 @@ func (s failConsentDeleteStore) Delete(ctx context.Context, kind, key string) er
 func TestConsent_RevokeKeepsSessionWhenConsentDeleteFails(t *testing.T) {
 	te := newTestEnv(t)
 	at, _, _ := te.obtainTokensForResource(te.resource)
-	if _, ok, _ := te.gw.store.Get(context.Background(), kindSession, hashToken(at)); !ok {
+	if _, ok, _ := te.gw.store.Get(context.Background(), kindSession, oauth.HashToken(at)); !ok {
 		t.Fatal("precondition: expected a stored session")
 	}
 	inner := te.gw.store
@@ -192,7 +194,7 @@ func TestConsent_RevokeKeepsSessionWhenConsentDeleteFails(t *testing.T) {
 	if code, _ := postRevoke(te.handler, at, te.clientID); code != http.StatusServiceUnavailable {
 		t.Fatalf("revoke with failing consent delete: %d", code)
 	}
-	if _, ok, _ := inner.Get(context.Background(), kindSession, hashToken(at)); !ok {
+	if _, ok, _ := inner.Get(context.Background(), kindSession, oauth.HashToken(at)); !ok {
 		t.Fatal("session deleted although consent delete failed")
 	}
 }
