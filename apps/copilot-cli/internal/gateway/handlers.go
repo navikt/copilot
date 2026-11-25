@@ -67,5 +67,5 @@ func makeRouter(auth *authenticator, api, surveys *upstream) http.Handler {
 		surveys.forward(w, r, "/api/v1/surveys/"+url.PathEscape(r.PathValue("id"))+"/status")
 	}))
 
-	return mux
+	return httpMetrics(mux)
 }
