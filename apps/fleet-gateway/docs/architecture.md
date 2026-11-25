@@ -32,7 +32,7 @@ there are two implementations or a test seam that tests use.
 |---|---|---|
 | `internal/ratelimit` | Per-IP limiter, rate-limit log sampler, client IP from the trusted ingress | `Limiter`, `LogSampler`, `ClientIP` |
 | `internal/routing` | `routing.Route`, YAML loading and validation, tool policy, `routing.Table` | `Load`, `NewTable`. Fleet-control already supplies routes in dev (#2641, `fleetControlRoutes` and `swapRoutes` in `main`); no interface, since the two sources have different shapes |
-| `internal/inflight` | Global and per-user concurrency slots | `Slots`, `UserSlots` |
+| `internal/inflight` | Global, per-user and per-route concurrency slots | `Slots`, `PerKey` |
 | `internal/ttlmap` | Bounded generic TTL map | `Map[V]` |
 | `internal/session` | Store interface, memory and Postgres stores, sealing, key ring (exists) | `Store` |
 | `internal/oauth` | Typed records over the store: pending auth, codes, sessions, consent, refresh grace, DCR clients | consumes `session.Store` |
