@@ -243,24 +243,22 @@ spec:
             summary: A route handler, server action or page in my-copilot threw an unhandled error
             consequence: A user got an error page or a failed action, for example a survey answer or an admin action that did not go through.
             action: Search Loki for "Unhandled request error" in service_name my-copilot. The route field names the failing route.
-        - alert: MyCopilotHigh5xxRate
+        # nginx_ingress_controller_requests does not exist here (Dataplane V2),
+        # so a 5xx share waits for my-copilot's own HTTP metrics (#2952).
+        - alert: MyCopilotReplicasUnavailable
           expr: |
-            (
-              sum(increase(nginx_ingress_controller_requests{namespace="copilot", service="my-copilot", status=~"5.."}[10m]))
-              /
-              sum(increase(nginx_ingress_controller_requests{namespace="copilot", service="my-copilot"}[10m]))
-            ) > 0.05
-            and
-            sum(increase(nginx_ingress_controller_requests{namespace="copilot", service="my-copilot"}[10m])) >= 50
+            max by (namespace, deployment) (kube_deployment_status_replicas_available{namespace="copilot", deployment="my-copilot"})
+              < max by (namespace, deployment) (kube_deployment_spec_replicas{namespace="copilot", deployment="my-copilot"})
+          for: 5m
           labels:
             namespace: copilot
             severity: warning
             alert_type: custom
             app: my-copilot
           annotations:
-            summary: More than 5 % of requests to my-copilot returned 5xx over 10 minutes
-            consequence: Pages or APIs on ki-utvikling.nav.no are failing for a share of users.
-            action: Check the my-copilot pod (restarts, OOM) and its error logs, and whether copilot-api, mcp-registry or copilot-survey is down.
+            summary: my-copilot has fewer available pods than desired
+            consequence: ki-utvikling.nav.no runs with reduced capacity, or is down if no pod is available.
+            action: Check the my-copilot pods (restarts, OOM, failing readiness) and the latest deploy.
         # Next.js logs "Failed to find Server Action" itself, outside
         # onRequestError, so only the logs see it. Nais has no LogQL rules for
         # teams; loki:service:loglevel:count1m is the log metric it offers.
