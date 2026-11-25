@@ -26,34 +26,36 @@ tilgangsinformasjon eller interne tjenester på maskinen.
 
 ## Oppdatert 25.11.2026: Agenter i VS Code og IntelliJ
 
-GitHub Copilot i VS Code og JetBrains (IntelliJ) har unntak fra kravet om
-sandbox. Du kan fortsatt bruke Agent mode og nav-pilots agentpakke der, så lenge
-du godkjenner terminalkommandoene selv. Unntaket gjelder lett og moderat
-agentbruk.
+GitHub Copilot i VS Code og JetBrains (IntelliJ) har unntak fra kravet om å
+bruke cplt. Du kan fortsatt bruke Agent mode og nav-pilots agentpakke der ved
+lett og moderat agentbruk.
 
-Full auto er ikke tillatt: ingen «Allow all», global auto-godkjenning eller
-Autopilot. Agenter i terminalen, som Copilot CLI, opencode og pi, skal fortsatt
-kjøre i cplt.
+Lett og moderat betyr ingen auto-godkjenning: du godkjenner hver
+terminalkommando og hvert MCP-kall selv. Full auto er ikke tillatt. Agenter i
+terminalen, som Copilot CLI, opencode og pi, skal fortsatt kjøre i cplt.
 
 **VS Code**
 
+- Påkrevd på macOS 15 eller nyere og Linux: `chat.agent.sandbox.enabled` satt
+  til `"on"`. På Windows er sandboxen eksperimentell, så der er den anbefalt.
+- Sandboxen dekker terminalkommandoer og MCP-servere. Den dekker ikke
+  redigering av filer, og den stopper ikke utgående nettverk med mindre du
+  begrenser det.
 - Skal være av: `chat.tools.global.autoApprove`.
-- Ikke velg **Allow all** eller **Autopilot** i velgeren for tillatelser.
-- Ikke legg inn egne regler med `true` i `chat.tools.terminal.autoApprove`
-  som godkjenner alle eller brede kommandomønstre.
-- Anbefalt på: `chat.agent.sandbox.enabled` satt til `"on"` på macOS 15 eller
-  nyere og Linux. Innstillingen sandboxer terminalkommandoer og MCP-servere,
-  men ikke redigering av filer, og den stopper ikke nettverk som standard.
+- Ikke legg inn egne regler med `true` i `chat.tools.terminal.autoApprove`.
+- Ikke velg **Allow all**, **Autopilot** eller **Bypass**.
 
 **JetBrains (IntelliJ)**
 
 - Skal være av: **Settings > GitHub Copilot > Chat > Auto Approve > Global
-  Auto Approve**.
-- Ikke slå på auto-godkjenning for kommandoer og filendringer som ingen regel
-  dekker, i samme seksjon.
+  Auto Approve**, og auto-godkjenning av kommandoer og filendringer som ingen
+  regel dekker.
+- Ikke slå på auto-godkjenning av MCP-servere og -verktøy.
 - Bruker du Copilot CLI-agenten i IDE-en: ikke velg **Bypass** eller
   **Autopilot**.
-- Slå på lokal sandboxing hvis IDE-en din har det.
+- Slå på lokal sandboxing der IDE-en har det. Den ble allment tilgjengelig
+  28.10.2026 og begrenser tilgangen til filsystem, nettverk og
+  tilgangsinformasjon for verktøy og kommandoer Copilot starter.
 
 ## Bruk cplt
 
@@ -118,7 +120,7 @@ gjør noe uventet. Derfor skal isolasjonen være på plass før agenten starter.
 **På Nav-utstyr skal AI-agenter alltid kjøre isolert. Bruk cplt. Velger du noe
 annet, er du ansvarlig for å sikre tilsvarende isolasjon. Kravet gjelder både
 Nav-relatert og personlig agentarbeid. Unntak: Copilot i VS Code og IntelliJ,
-med godkjenning av terminalkommandoer og uten full auto.**
+med sandbox i VS Code og uten auto-godkjenning.**
 
 **Kilder:**
 
@@ -127,4 +129,5 @@ med godkjenning av terminalkommandoer og uten full auto.**
 - [Agent sandboxing](https://code.visualstudio.com/docs/agents/run/agent-sandboxing) (VS Code, 18. november 2026)
 - [Approvals and permissions](https://code.visualstudio.com/docs/agents/run/approvals) (VS Code)
 - [Auto-approve in Copilot for JetBrains](https://github.blog/changelog/2026-04-24-inline-agent-mode-in-preview-and-more-in-github-copilot-for-jetbrains-ides/) (GitHub, 24. april 2026)
+- [Local sandboxes GA in JetBrains](https://github.blog/changelog/2026-10-28-github-copilot-in-jetbrains-universe-releases/) (GitHub, 28. oktober 2026)
 - [Cloud and local sandboxes for GitHub Copilot](https://github.blog/changelog/2026-06-02-cloud-and-local-sandboxes-for-github-copilot-now-in-public-preview) (GitHub, 2. juni 2026)

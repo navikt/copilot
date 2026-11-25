@@ -82,11 +82,13 @@ export default function RetningslinjerPage() {
                     .
                   </AllowedItem>
                   <AllowedItem title="Agent mode i editoren">
-                    Du kan bruke Agent mode i VS Code og JetBrains (IntelliJ) til lett og moderat agentbruk. Du
-                    godkjenner terminalkommandoer og vurderer endringene før commit. Full auto er ikke tillatt: hold{" "}
-                    <code>chat.tools.global.autoApprove</code> av i VS Code og <strong>Global Auto Approve</strong> av i
-                    JetBrains, og ikke velg <strong>Allow all</strong> eller <strong>Autopilot</strong>. I VS Code
-                    anbefaler vi <code>chat.agent.sandbox.enabled</code> satt til <code>"on"</code>. Se{" "}
+                    Du kan bruke Agent mode i VS Code og JetBrains (IntelliJ) til lett og moderat agentbruk: du
+                    godkjenner hver terminalkommando og hvert MCP-kall selv, og vurderer endringene før commit. Ingen
+                    auto-godkjenning: ikke <strong>Allow all</strong>, <strong>Autopilot</strong>,{" "}
+                    <strong>Bypass</strong>
+                    eller global auto-godkjenning. I VS Code på macOS 15+ og Linux skal{" "}
+                    <code>chat.agent.sandbox.enabled</code> være <code>"on"</code>. I JetBrains slår du på lokal
+                    sandboxing der IDE-en har det. Se{" "}
                     <NextLink
                       href="/nyheter/sandboxing-er-pakrevd-pa-nav-utstyr"
                       className="text-blue-600 hover:underline"
@@ -314,8 +316,8 @@ export default function RetningslinjerPage() {
                         2026-11-25
                       </td>
                       <td style={{ paddingBlock: "var(--ax-space-8)" }}>
-                        Agent mode i VS Code og JetBrains har unntak fra sandbox-kravet ved lett og moderat bruk. Full
-                        auto er ikke tillatt. <code>chat.agent.sandbox.enabled</code> er anbefalt, ikke påkrevd.
+                        Agent mode i VS Code og JetBrains har unntak fra cplt-kravet ved lett og moderat bruk, uten
+                        auto-godkjenning. <code>chat.agent.sandbox.enabled</code> er påkrevd på macOS 15+ og Linux.
                       </td>
                     </tr>
                     <tr className="border-b">
