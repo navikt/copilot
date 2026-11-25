@@ -28,7 +28,7 @@ export function FleetFrame({
             <aside className="w-56 shrink-0">
               <FleetNav {...nav} />
             </aside>
-            <VStack gap="space-24" className="min-w-0 flex-1 basis-80">
+            <VStack gap="space-24" className="min-w-0 flex-1 basis-80 break-words">
               {children}
             </VStack>
           </HStack>

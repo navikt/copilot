@@ -41,6 +41,7 @@ import {
   type WizardState,
   type WizardTool,
 } from "@/lib/fleet-wizard";
+import { FleetTable } from "../fleet-ui";
 
 const RISK_HELP: Record<Risk, string> = {
   read: "Henter eller søker i data. Endrer ingenting.",
@@ -407,7 +408,7 @@ export function RegisterWizard({ teams, team, apps, requireRos, discoveryEnabled
               </RadioGroup>
 
               {allowed.length > 0 && (
-                <ExpansionCard aria-label="Avansert" size="small">
+                <ExpansionCard aria-label="Avansert">
                   <ExpansionCard.Header>
                     <ExpansionCard.Title as="h3" size="small">
                       Avansert
@@ -487,7 +488,7 @@ export function RegisterWizard({ teams, team, apps, requireRos, discoveryEnabled
               <Heading level="2" size="medium">
                 Se over
               </Heading>
-              <Table size="small" aria-label="Det du sender inn">
+              <FleetTable aria-label="Det du sender inn">
                 <Table.Body>
                   {(
                     [
@@ -511,7 +512,7 @@ export function RegisterWizard({ teams, team, apps, requireRos, discoveryEnabled
                     </Table.Row>
                   ))}
                 </Table.Body>
-              </Table>
+              </FleetTable>
               <Alert variant="info" size="small">
                 Når du sender inn, må en annen i {s.team} godkjenne før MCP-serveren blir publisert.
               </Alert>
@@ -589,7 +590,7 @@ function DiscoveryResult({ discovery: d, app }: { discovery: Discovery; app: str
             <pre className="overflow-x-auto">
               <code>{FLEET_GATEWAY_POLICY}</code>
             </pre>
-            <CopyButton copyText={FLEET_GATEWAY_POLICY} text="Kopier" activeText="Kopiert" size="small" />
+            <CopyButton copyText={FLEET_GATEWAY_POLICY} text="Kopier" activeText="Kopiert" />
           </HStack>
         </Box>
       </VStack>

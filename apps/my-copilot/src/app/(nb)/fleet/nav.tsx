@@ -35,16 +35,14 @@ export function FleetNav({ team, teams = [], pending = 0, hasAgents = false }: F
           <form method="get" action="/fleet">
             <VStack gap="space-4">
               <HStack gap="space-8" align="end" wrap={false}>
-                <Select label="Team" name="team" defaultValue={team} size="small">
+                <Select label="Team" name="team" defaultValue={team}>
                   {teams.map((t) => (
                     <option key={t} value={t}>
                       {t}
                     </option>
                   ))}
                 </Select>
-                <Button size="small" variant="secondary">
-                  Bytt
-                </Button>
+                <Button variant="secondary">Bytt</Button>
               </HStack>
               <Detail>Vi husker teamet til neste gang.</Detail>
             </VStack>

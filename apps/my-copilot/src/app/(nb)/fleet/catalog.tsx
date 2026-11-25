@@ -20,7 +20,7 @@ import {
 import { ExternalLinkIcon } from "@navikt/aksel-icons";
 import type { CatalogEntry } from "@/lib/fleet-control";
 import { isName, refKey } from "@/lib/fleet-names";
-import { KortFortalt } from "./fleet-ui";
+import { FleetTable, KortFortalt } from "./fleet-ui";
 
 const NAIS_CONSOLE = "https://console.nav.cloud.nais.io/";
 
@@ -79,7 +79,7 @@ export function Catalog({ entries }: { entries: CatalogEntry[] }) {
               Viser {shown.length} av {entries.length}
             </BodyShort>
             {shown.length > 0 && (
-              <Table size="small" aria-label="Publiserte MCP-servere">
+              <FleetTable aria-label="Publiserte MCP-servere">
                 <Table.Header>
                   <Table.Row>
                     <Table.HeaderCell scope="col">MCP-server</Table.HeaderCell>
@@ -105,7 +105,7 @@ export function Catalog({ entries }: { entries: CatalogEntry[] }) {
                     </Table.Row>
                   ))}
                 </Table.Body>
-              </Table>
+              </FleetTable>
             )}
           </>
         )}
@@ -293,7 +293,7 @@ export function ServerReadOnly({
             {mine.length > 0 && (
               <BodyShort>Teamet ditt har tilgang gjennom {mine.map((c) => c.name).join(", ")}.</BodyShort>
             )}
-            <Table size="small" aria-label="Agentprofiler med tilgang">
+            <FleetTable aria-label="Agentprofiler med tilgang">
               <Table.Header>
                 <Table.Row>
                   <Table.HeaderCell scope="col">Team</Table.HeaderCell>
@@ -308,7 +308,7 @@ export function ServerReadOnly({
                   </Table.Row>
                 ))}
               </Table.Body>
-            </Table>
+            </FleetTable>
           </>
         )}
       </VStack>
