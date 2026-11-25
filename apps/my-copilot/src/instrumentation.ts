@@ -1,5 +1,11 @@
 import type { Instrumentation } from "next";
 
+export async function register() {
+  if (process.env.NEXT_RUNTIME !== "nodejs") return;
+  const { startHttpMetrics } = await import("@/lib/http-metrics");
+  startHttpMetrics();
+}
+
 // Next.js calls this for every route handler, server action and server render
 // that throws. "Failed to find Server Action" never gets here; the
 // MyCopilotErrorLogs rule in .nais/app.yaml covers it.

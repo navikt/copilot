@@ -243,8 +243,23 @@ spec:
             summary: A route handler, server action or page in my-copilot threw an unhandled error
             consequence: A user got an error page or a failed action, for example a survey answer or an admin action that did not go through.
             action: Search Loki for "Unhandled request error" in service_name my-copilot. The route field names the failing route.
-        # nginx_ingress_controller_requests does not exist here (Dataplane V2),
-        # so a 5xx share waits for my-copilot's own HTTP metrics (#2952).
+        # Built on my-copilot's own HTTP metrics (src/lib/http-metrics.ts);
+        # nginx_ingress_controller_requests does not exist here (#2966).
+        - alert: MyCopilotHigh5xxRate
+          expr: |
+            sum by (k8s_cluster_name) (rate(http_requests_total{namespace="copilot", app="my-copilot", code=~"5.."}[5m]))
+              / sum by (k8s_cluster_name) (rate(http_requests_total{namespace="copilot", app="my-copilot"}[5m])) > 0.05
+            and sum by (k8s_cluster_name) (increase(http_requests_total{namespace="copilot", app="my-copilot"}[5m])) > 20
+          for: 5m
+          labels:
+            namespace: copilot
+            severity: warning
+            alert_type: custom
+            app: my-copilot
+          annotations:
+            summary: More than 5 % of my-copilot responses are 5xx
+            consequence: Pages or APIs on ki-utvikling.nav.no are failing for a share of users.
+            action: Break down http_requests_total by route and code, then check the my-copilot error logs and whether copilot-api, mcp-registry or copilot-survey is down.
         - alert: MyCopilotReplicasUnavailable
           expr: |
             max by (k8s_cluster_name, namespace, deployment) (kube_deployment_status_replicas_available{namespace="copilot", deployment="my-copilot"})
