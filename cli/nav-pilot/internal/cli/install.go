@@ -1422,7 +1422,7 @@ func cmdListInstalledAuto(repoDir string, jsonOutput bool) error {
 		if jsonOutput {
 			return outputJSON(map[string]interface{}{"installed": false})
 		}
-		fmt.Printf("nav-pilot is not installed (repo or user scope).\n")
+		fmt.Printf("The agentpakke is not installed (repo or user scope).\n")
 		fmt.Printf("Install with: %s\n", bold(installCommandFor(nil, nil)))
 
 		return nil

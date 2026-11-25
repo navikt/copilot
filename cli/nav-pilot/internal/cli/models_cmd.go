@@ -80,7 +80,7 @@ func cmdModels(args []string, overrides CLIOverrides) error {
 		return nil
 	}
 
-	fmt.Printf("%s  Known models (%s)\n", bold("📋 nav-pilot"), resolved.Client)
+	fmt.Printf("%s  Known models (%s)\n", bold("nav-pilot"), resolved.Client)
 	fmt.Println()
 	if len(all) == 0 {
 		fmt.Printf("  %s keeps its own model list; nav-pilot has none to show.\n\n", resolved.Client)

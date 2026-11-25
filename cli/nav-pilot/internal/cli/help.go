@@ -152,8 +152,8 @@ opencode.json, plugins, agents, commands, skills and AGENTS.md. In a repo with
 hook gates and no plugins, a no turns off only the gates. Without a terminal it prints the
 state, and exits non-zero only when there is no answer yet.
 `,
-	"mcp": `Usage: nav-pilot mcp [list] [--json]
-       nav-pilot mcp enable <name>... [--client copilot|opencode] [--tools a,b | --all-tools] [--allow-host-exec]
+	"mcp": `Usage: nav-pilot mcp [list] [--json] [--refresh]
+       nav-pilot mcp enable <name>... [--refresh] [--client copilot|opencode] [--tools a,b | --all-tools] [--allow-host-exec]
        nav-pilot mcp disable <name>... [--client copilot|opencode]
        nav-pilot mcp prune [--dry-run] [--yes] [--client copilot|opencode]
 
@@ -204,6 +204,7 @@ Flags:
   --allow-host-exec       enable: allow tools that run outside the sandbox without asking
   -n, --dry-run           prune: show what would be removed without changing anything
   -y, --yes               prune: remove without asking, also without a terminal
+  --refresh               list, enable: read Nav's MCP registry again instead of the cached copy
   --json                  list as JSON
 `,
 	"survey": `Usage: nav-pilot survey [--json]

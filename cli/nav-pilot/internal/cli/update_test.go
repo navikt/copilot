@@ -162,7 +162,7 @@ func TestRun_UpdateCommand(t *testing.T) {
 
 	err := run([]string{"update"})
 	// Should not be "unknown command" — verifies wiring
-	if err != nil && err.Error() == "unknown command: update. Run with --help for usage" {
+	if err != nil && err.Error() == "unknown command: update. Run nav-pilot --help for usage" {
 		t.Fatal("update command not wired up in main.go")
 	}
 	// Will get a network error or version mismatch, that's fine

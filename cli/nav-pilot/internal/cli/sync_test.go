@@ -818,7 +818,7 @@ func TestCmdSyncAuto_NoInstall(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if !strings.Contains(string(out), "nav-pilot is not installed") {
+	if !strings.Contains(string(out), "The agentpakke is not installed") {
 		t.Errorf("expected the not-installed message, got: %s", out)
 	}
 }
