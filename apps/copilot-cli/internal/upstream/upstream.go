@@ -1,4 +1,5 @@
-package gateway
+// Package upstream forwards nav-pilot requests to copilot-api and copilot-survey.
+package upstream
 
 import (
 	"bytes"
@@ -12,9 +13,12 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/navikt/copilot/apps/copilot-cli/internal/httperr"
+	"github.com/navikt/copilot/apps/copilot-cli/internal/texas"
 )
 
-// upstream forwards CLI requests to a service in the cluster (copilot-api,
+// Upstream forwards CLI requests to a service in the cluster (copilot-api,
 // copilot-survey) with copilot-cli's own M2M token for that service and, for
 // a signed-in caller, the verified GitHub login in X-On-Behalf-Of. Each
 // downstream decides which of its routes honour the header (see
@@ -24,15 +28,16 @@ import (
 // Method, request body and Content-Type go through; status, Content-Type,
 // Cache-Control and body come back as they are. No retry: a retry would
 // have to buffer the body, and survey bodies must not linger anywhere.
-type upstream struct {
+type Upstream struct {
 	name       string
 	httpClient *http.Client
 	baseURL    string
-	texas      *texasClient
+	texas      *texas.Client
 }
 
-func newUpstream(name, baseURL string, texas *texasClient) *upstream {
-	return &upstream{
+// New returns an Upstream for baseURL that authenticates with tc.
+func New(name, baseURL string, tc *texas.Client) *Upstream {
+	return &Upstream{
 		name: name,
 		// No redirects: a 30x comes back as it is, never a second request.
 		httpClient: &http.Client{
@@ -40,43 +45,44 @@ func newUpstream(name, baseURL string, texas *texasClient) *upstream {
 			CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
 		},
 		baseURL: strings.TrimSuffix(baseURL, "/"),
-		texas:   texas,
+		texas:   tc,
 	}
 }
 
-// forward proxies r to path on the upstream. A request with no signed-in
-// user (the public survey definitions) goes without a token or header.
-func (p *upstream) forward(w http.ResponseWriter, r *http.Request, path string) {
+// Forward proxies r to path on the upstream on behalf of login. An empty
+// login (no signed-in user, the public survey definitions) goes without a
+// token or header.
+func (p *Upstream) Forward(w http.ResponseWriter, r *http.Request, path, login string) {
 	req, err := http.NewRequestWithContext(r.Context(), r.Method, p.baseURL+path, http.MaxBytesReader(w, r.Body, 32<<10))
 	if err != nil {
 		slog.Error("failed to build upstream request", "upstream", p.name, "error", err)
-		writeError(w, http.StatusInternalServerError, "internal error")
+		httperr.Write(w, http.StatusInternalServerError, "internal error")
 		return
 	}
 	if ct := r.Header.Get("Content-Type"); ct != "" {
 		req.Header.Set("Content-Type", ct)
 	}
 	req.Header.Set("User-Agent", r.Header.Get("User-Agent"))
-	if user, ok := userFromContext(r.Context()); ok {
-		token, tokenErr := p.texas.token(r.Context())
+	if login != "" {
+		token, tokenErr := p.texas.Token(r.Context())
 		if tokenErr != nil {
 			slog.Error("failed to mint M2M token", "upstream", p.name, "error", tokenErr)
-			writeError(w, http.StatusBadGateway, "upstream authentication unavailable")
+			httperr.Write(w, http.StatusBadGateway, "upstream authentication unavailable")
 			return
 		}
 		req.Header.Set("Authorization", "Bearer "+token)
-		req.Header.Set("X-On-Behalf-Of", user.Login)
+		req.Header.Set("X-On-Behalf-Of", login)
 	}
 
 	resp, err := p.httpClient.Do(req)
 	var tooBig *http.MaxBytesError
 	if errors.As(err, &tooBig) {
-		writeError(w, http.StatusRequestEntityTooLarge, "body is larger than 32 KiB")
+		httperr.Write(w, http.StatusRequestEntityTooLarge, "body is larger than 32 KiB")
 		return
 	}
 	if err != nil {
 		slog.Error("upstream request failed", "upstream", p.name, "error_type", fmt.Sprintf("%T", err))
-		writeError(w, http.StatusBadGateway, p.name+" unavailable")
+		httperr.Write(w, http.StatusBadGateway, p.name+" unavailable")
 		return
 	}
 	defer resp.Body.Close()
@@ -86,7 +92,7 @@ func (p *upstream) forward(w http.ResponseWriter, r *http.Request, path string) 
 	// would tell nav-pilot to sign in again and drop a pending answer.
 	if resp.StatusCode == http.StatusUnauthorized && req.Header.Get("Authorization") != "" {
 		slog.Error("upstream refused copilot-cli's token", "upstream", p.name)
-		writeError(w, http.StatusBadGateway, p.name+" refused the gateway")
+		httperr.Write(w, http.StatusBadGateway, p.name+" refused the gateway")
 		return
 	}
 
@@ -107,18 +113,18 @@ func (p *upstream) forward(w http.ResponseWriter, r *http.Request, path string) 
 	}
 }
 
-// usagePath builds the copilot-api path for a given username, mirroring the
+// UsagePath builds the copilot-api path for a given username, mirroring the
 // route documented in the PRD (issue #337).
-func usagePath(username string) string {
+func UsagePath(username string) string {
 	return fmt.Sprintf("/api/v1/copilot/usage/user/%s", url.PathEscape(username))
 }
 
-// isOrgMember asks copilot-api whether login is an active member of the org,
+// IsOrgMember asks copilot-api whether login is an active member of the org,
 // with copilot-cli's M2M token. copilot-api answers with its own GitHub App,
 // so the nav-pilot user token needs no permissions. Anything but a 200 with
 // a boolean "active" is an error, and the caller refuses the sign-in.
-func (p *upstream) isOrgMember(ctx context.Context, login string) (bool, error) {
-	token, err := p.texas.token(ctx)
+func (p *Upstream) IsOrgMember(ctx context.Context, login string) (bool, error) {
+	token, err := p.texas.Token(ctx)
 	if err != nil {
 		return false, fmt.Errorf("minting M2M token: %w", err)
 	}

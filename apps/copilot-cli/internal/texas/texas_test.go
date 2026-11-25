@@ -1,4 +1,4 @@
-package gateway
+package texas
 
 import (
 	"net/http"
@@ -15,9 +15,9 @@ func TestTexasClientToken(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	client := newTexasClient(srv.URL, "api://cluster.copilot.copilot-api/.default")
+	client := New(srv.URL, "api://cluster.copilot.copilot-api/.default")
 
-	token, err := client.token(t.Context())
+	token, err := client.Token(t.Context())
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -26,7 +26,7 @@ func TestTexasClientToken(t *testing.T) {
 	}
 
 	// Second call should be served from cache, not hit the server again.
-	if _, err := client.token(t.Context()); err != nil {
+	if _, err := client.Token(t.Context()); err != nil {
 		t.Fatalf("unexpected error on cached call: %v", err)
 	}
 	if calls != 1 {
@@ -35,8 +35,8 @@ func TestTexasClientToken(t *testing.T) {
 }
 
 func TestTexasClientMissingEndpoint(t *testing.T) {
-	client := newTexasClient("", "api://cluster.copilot.copilot-api/.default")
-	if _, err := client.token(t.Context()); err == nil {
+	client := New("", "api://cluster.copilot.copilot-api/.default")
+	if _, err := client.Token(t.Context()); err == nil {
 		t.Fatal("expected error when NAIS_TOKEN_ENDPOINT is not configured")
 	}
 }

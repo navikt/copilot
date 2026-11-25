@@ -16,7 +16,10 @@ import (
 
 	"golang.org/x/time/rate"
 
+	"github.com/navikt/copilot/apps/copilot-cli/internal/auth"
 	"github.com/navikt/copilot/apps/copilot-cli/internal/config"
+	"github.com/navikt/copilot/apps/copilot-cli/internal/texas"
+	"github.com/navikt/copilot/apps/copilot-cli/internal/upstream"
 )
 
 // Run starts the server and blocks until SIGINT or SIGTERM.
@@ -39,21 +42,16 @@ func Run() {
 		slog.Warn("NAIS_TOKEN_ENDPOINT not configured — M2M calls to copilot-api and copilot-survey will fail (expected in local dev)")
 	}
 
-	api := newUpstream("copilot-api", cfg.CopilotAPIURL, newTexasClient(cfg.NaisTokenEndpoint, cfg.CopilotAPIAudience))
-	auth := &authenticator{
-		github:   newGitHubClient(cfg.GitHubClientID, cfg.GitHubClientSecret),
-		org:      cfg.GitHubOrg,
-		isMember: api.isOrgMember,
-		cache:    newTokenCache(cfg.OrgMembershipCacheTTL),
-		limit:    rate.NewLimiter(1, 10),
-	}
-	slog.Info("GitHub sign-in", "configured", auth.github.configured())
+	api := upstream.New("copilot-api", cfg.CopilotAPIURL, texas.New(cfg.NaisTokenEndpoint, cfg.CopilotAPIAudience))
+	github := auth.NewGitHubClient(auth.GitHubAPIBaseURL, cfg.GitHubClientID, cfg.GitHubClientSecret)
+	authenticator := auth.New(github, cfg.GitHubOrg, api.IsOrgMember, cfg.OrgMembershipCacheTTL, rate.NewLimiter(1, 10))
+	slog.Info("GitHub sign-in", "configured", github.Configured())
 
-	surveys := newUpstream("copilot-survey", cfg.CopilotSurveyURL, newTexasClient(cfg.NaisTokenEndpoint, cfg.CopilotSurveyAudience))
+	surveys := upstream.New("copilot-survey", cfg.CopilotSurveyURL, texas.New(cfg.NaisTokenEndpoint, cfg.CopilotSurveyAudience))
 
 	server := &http.Server{
 		Addr:              ":" + cfg.Port,
-		Handler:           makeRouter(auth, api, surveys),
+		Handler:           makeRouter(authenticator, api, surveys),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       10 * time.Second,
 		WriteTimeout:      30 * time.Second,

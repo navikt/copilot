@@ -1,4 +1,5 @@
-package gateway
+// Package texas mints copilot-cli's M2M tokens through the Nais Texas sidecar.
+package texas
 
 import (
 	"bytes"
@@ -11,13 +12,13 @@ import (
 	"time"
 )
 
-// texasClient exchanges copilot-cli's own workload identity for an M2M
+// Client exchanges copilot-cli's own workload identity for an M2M
 // access token via the Texas sidecar's client_credentials endpoint
 // (NAIS_TOKEN_ENDPOINT), scoped to one audience (copilot-api or
 // copilot-survey).
 //
 // See: https://doc.nais.io/auth/explanations/#texas
-type texasClient struct {
+type Client struct {
 	httpClient *http.Client
 	endpoint   string
 	audience   string
@@ -29,8 +30,9 @@ type texasClient struct {
 	expiresAt time.Time
 }
 
-func newTexasClient(endpoint, audience string) *texasClient {
-	return &texasClient{
+// New returns a client for audience. An empty endpoint makes every Token call fail.
+func New(endpoint, audience string) *Client {
+	return &Client{
 		httpClient: &http.Client{Timeout: 5 * time.Second},
 		endpoint:   endpoint,
 		audience:   audience,
@@ -48,7 +50,8 @@ type texasTokenResponse struct {
 	TokenType   string `json:"token_type"`
 }
 
-func (c *texasClient) token(ctx context.Context) (string, error) {
+// Token returns a cached M2M token, or mints a new one.
+func (c *Client) Token(ctx context.Context) (string, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if c.cachedToken != "" && time.Now().Before(c.expiresAt) {

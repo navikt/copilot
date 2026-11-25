@@ -1,17 +1,65 @@
 package gateway
 
 import (
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
+	"time"
+
+	"golang.org/x/time/rate"
+
+	"github.com/navikt/copilot/apps/copilot-cli/internal/auth"
+	"github.com/navikt/copilot/apps/copilot-cli/internal/texas"
+	"github.com/navikt/copilot/apps/copilot-cli/internal/upstream"
 )
+
+const testClientID = "Iv1.test"
+
+// testAuthenticator signs in good-token (member hans) and outsider-token (not
+// a member) against a fake GitHub, copilot-api membership route and Texas.
+func testAuthenticator(t *testing.T) *auth.Authenticator {
+	t.Helper()
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/token":
+			_, _ = w.Write([]byte(`{"access_token":"m2m","expires_in":3600}`))
+		case "/applications/" + testClientID + "/token":
+			var body struct {
+				AccessToken string `json:"access_token"`
+			}
+			_ = json.NewDecoder(r.Body).Decode(&body)
+			switch body.AccessToken {
+			case "good-token":
+				_, _ = w.Write([]byte(`{"app":{"client_id":"` + testClientID + `"},"user":{"login":"hans","id":42}}`))
+			case "outsider-token":
+				_, _ = w.Write([]byte(`{"app":{"client_id":"` + testClientID + `"},"user":{"login":"outsider","id":7}}`))
+			default:
+				w.WriteHeader(http.StatusNotFound)
+			}
+		case "/internal/v1/github/org-membership":
+			var body struct {
+				Login string `json:"login"`
+			}
+			_ = json.NewDecoder(r.Body).Decode(&body)
+			_, _ = w.Write([]byte(`{"active":` + strconv.FormatBool(body.Login == "hans") + `}`))
+		default:
+			w.WriteHeader(http.StatusTeapot)
+		}
+	}))
+	t.Cleanup(srv.Close)
+	api := upstream.New("copilot-api", srv.URL, texas.New(srv.URL+"/token", "api://x"))
+	return auth.New(auth.NewGitHubClient(srv.URL, testClientID, "s3cret"), "navikt", api.IsOrgMember, 5*time.Minute, rate.NewLimiter(rate.Inf, 1))
+}
 
 type seen struct{ method, path, auth, onBehalfOf, contentType, body string }
 
 // fakeUpstream is copilot-api, copilot-survey and Texas in one server.
-func fakeUpstream(t *testing.T, got *seen) (*upstream, *upstream) {
+func fakeUpstream(t *testing.T, got *seen) (*upstream.Upstream, *upstream.Upstream) {
 	t.Helper()
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/token" {
@@ -28,14 +76,14 @@ func fakeUpstream(t *testing.T, got *seen) (*upstream, *upstream) {
 		_, _ = w.Write([]byte(`{"from":"upstream"}`))
 	}))
 	t.Cleanup(srv.Close)
-	texas := newTexasClient(srv.URL+"/token", "api://x")
-	return newUpstream("copilot-api", srv.URL, texas), newUpstream("copilot-survey", srv.URL, texas)
+	texas := texas.New(srv.URL+"/token", "api://x")
+	return upstream.New("copilot-api", srv.URL, texas), upstream.New("copilot-survey", srv.URL, texas)
 }
 
 // Each /api/v1/* route that shipped nav-pilot binaries call reaches its
 // service unchanged; signed-in ones carry the M2M token and the login.
 func TestRoutesForward(t *testing.T) {
-	a, _ := testAuthenticator(t)
+	a := testAuthenticator(t)
 	var got seen
 	api, surveys := fakeUpstream(t, &got)
 	h := makeRouter(a, api, surveys)
@@ -80,7 +128,7 @@ func TestRoutesForward(t *testing.T) {
 // Nothing reaches a service before sign-in, and a wrong method is 405
 // before the token check.
 func TestRoutesRefuseBeforeForwarding(t *testing.T) {
-	a, _ := testAuthenticator(t)
+	a := testAuthenticator(t)
 	var got seen
 	api, surveys := fakeUpstream(t, &got)
 	h := makeRouter(a, api, surveys)
@@ -112,7 +160,7 @@ func TestRoutesRefuseBeforeForwarding(t *testing.T) {
 // becomes 502, so nav-pilot keeps the answer and retries. An oversized body
 // is 413, not a retryable 502.
 func TestForwardErrorMapping(t *testing.T) {
-	a, _ := testAuthenticator(t)
+	a := testAuthenticator(t)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/token" {
 			_, _ = w.Write([]byte(`{"access_token":"m2m","expires_in":3600}`))
@@ -122,8 +170,8 @@ func TestForwardErrorMapping(t *testing.T) {
 		w.WriteHeader(http.StatusUnauthorized)
 	}))
 	defer srv.Close()
-	texas := newTexasClient(srv.URL+"/token", "api://x")
-	h := makeRouter(a, newUpstream("copilot-api", srv.URL, texas), newUpstream("copilot-survey", srv.URL, texas))
+	texas := texas.New(srv.URL+"/token", "api://x")
+	h := makeRouter(a, upstream.New("copilot-api", srv.URL, texas), upstream.New("copilot-survey", srv.URL, texas))
 
 	for _, tc := range []struct {
 		body string
@@ -145,7 +193,7 @@ func TestForwardErrorMapping(t *testing.T) {
 // A downstream redirect comes back as it is (no second request), and a
 // missing Content-Type stays missing.
 func TestForwardPassesRedirectAsIs(t *testing.T) {
-	a, _ := testAuthenticator(t)
+	a := testAuthenticator(t)
 	followed := false
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/elsewhere" {
@@ -155,8 +203,8 @@ func TestForwardPassesRedirectAsIs(t *testing.T) {
 		w.WriteHeader(http.StatusFound)
 	}))
 	defer srv.Close()
-	texas := newTexasClient(srv.URL+"/token", "api://x")
-	h := makeRouter(a, newUpstream("copilot-api", srv.URL, texas), newUpstream("copilot-survey", srv.URL, texas))
+	texas := texas.New(srv.URL+"/token", "api://x")
+	h := makeRouter(a, upstream.New("copilot-api", srv.URL, texas), upstream.New("copilot-survey", srv.URL, texas))
 
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, httptest.NewRequest("GET", "/api/v1/surveys/active", nil))
@@ -168,14 +216,14 @@ func TestForwardPassesRedirectAsIs(t *testing.T) {
 // The survey list reaches copilot-survey as nav-pilot's, with its
 // User-Agent, whatever query the caller sent.
 func TestSurveyListNamesNavPilot(t *testing.T) {
-	a, _ := testAuthenticator(t)
+	a := testAuthenticator(t)
 	var query, agent string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		query, agent = r.URL.RawQuery, r.UserAgent()
 		w.Header().Set("Vary", "User-Agent")
 	}))
 	t.Cleanup(srv.Close)
-	up := newUpstream("copilot-survey", srv.URL, newTexasClient(srv.URL+"/token", "api://x"))
+	up := upstream.New("copilot-survey", srv.URL, texas.New(srv.URL+"/token", "api://x"))
 	req := httptest.NewRequest("GET", "/api/v1/surveys/active?client=web", nil)
 	req.Header.Set("User-Agent", "nav-pilot/2026.09.29-073815-8801b8d")
 	rec := httptest.NewRecorder()

@@ -1,4 +1,4 @@
-package gateway
+package auth
 
 import (
 	"encoding/json"
@@ -11,6 +11,9 @@ import (
 	"time"
 
 	"golang.org/x/time/rate"
+
+	"github.com/navikt/copilot/apps/copilot-cli/internal/texas"
+	"github.com/navikt/copilot/apps/copilot-cli/internal/upstream"
 )
 
 const testClientID = "Iv1.test"
@@ -76,25 +79,17 @@ func fakeIssuers(t *testing.T) (*httptest.Server, *atomic.Int32) {
 	return srv, &calls
 }
 
-func testAuthenticator(t *testing.T) (*authenticator, *atomic.Int32) {
+func testAuthenticator(t *testing.T) (*Authenticator, *atomic.Int32) {
 	srv, calls := fakeIssuers(t)
-	gh := newGitHubClient(testClientID, "s3cret")
-	gh.baseURL = srv.URL
-	api := newUpstream("copilot-api", srv.URL, newTexasClient(srv.URL+"/token", "api://x"))
-	return &authenticator{
-		github:   gh,
-		org:      "navikt",
-		isMember: api.isOrgMember,
-		cache:    newTokenCache(5 * time.Minute),
-		limit:    rate.NewLimiter(rate.Inf, 1),
-	}, calls
+	api := upstream.New("copilot-api", srv.URL, texas.New(srv.URL+"/token", "api://x"))
+	return New(NewGitHubClient(srv.URL, testClientID, "s3cret"), "navikt", api.IsOrgMember, 5*time.Minute, rate.NewLimiter(rate.Inf, 1)), calls
 }
 
 func TestAuthenticate(t *testing.T) {
 	a, _ := testAuthenticator(t)
 	var got *AuthenticatedUser
-	h := authMiddleware(a, func(_ http.ResponseWriter, r *http.Request) {
-		got, _ = userFromContext(r.Context())
+	h := Middleware(a, func(_ http.ResponseWriter, r *http.Request) {
+		got, _ = UserFromContext(r.Context())
 	})
 
 	for _, tc := range []struct {
@@ -185,7 +180,7 @@ func TestPerTokenLimit(t *testing.T) {
 
 func TestRevoke(t *testing.T) {
 	a, calls := testAuthenticator(t)
-	h := makeRouter(a, nil, nil).ServeHTTP
+	h := RevokeHandler(a)
 	if _, err := a.resolve(t.Context(), "good-token"); err != nil {
 		t.Fatal(err)
 	}
@@ -220,11 +215,7 @@ func TestRevoke(t *testing.T) {
 }
 
 func TestAuthenticateOffWithoutConfig(t *testing.T) {
-	a := &authenticator{
-		github: newGitHubClient("", ""),
-		cache:  newTokenCache(time.Minute),
-		limit:  rate.NewLimiter(rate.Inf, 1),
-	}
+	a := New(NewGitHubClient(GitHubAPIBaseURL, "", ""), "", nil, time.Minute, rate.NewLimiter(rate.Inf, 1))
 	if _, err := a.resolve(t.Context(), "good-token"); err != errIssuerOffline {
 		t.Fatalf("err = %v, want errIssuerOffline", err)
 	}
@@ -303,8 +294,8 @@ func TestMembershipFailsClosed(t *testing.T) {
 			defer srv.Close()
 			a, _ := testAuthenticator(t)
 			a.github.baseURL = srv.URL
-			a.isMember = newUpstream("copilot-api", srv.URL, newTexasClient(srv.URL+"/token", "api://x")).isOrgMember
-			h := authMiddleware(a, func(http.ResponseWriter, *http.Request) { t.Fatal("handler reached") })
+			a.isMember = upstream.New("copilot-api", srv.URL, texas.New(srv.URL+"/token", "api://x")).IsOrgMember
+			h := Middleware(a, func(http.ResponseWriter, *http.Request) { t.Fatal("handler reached") })
 			for range 2 {
 				req := httptest.NewRequest(http.MethodGet, "/x", nil)
 				req.Header.Set("Authorization", "Bearer good-token")
@@ -321,19 +312,5 @@ func TestMembershipFailsClosed(t *testing.T) {
 				t.Fatal("the user token was sent to copilot-api")
 			}
 		})
-	}
-}
-
-// Texas down or copilot-api unreachable: refused too.
-func TestMembershipUnreachable(t *testing.T) {
-	dead := httptest.NewServer(http.NotFoundHandler())
-	dead.Close()
-	for _, u := range []*upstream{
-		newUpstream("copilot-api", dead.URL, newTexasClient(dead.URL+"/token", "api://x")),
-		newUpstream("copilot-api", dead.URL, newTexasClient("", "api://x")),
-	} {
-		if ok, err := u.isOrgMember(t.Context(), "hans"); ok || err == nil {
-			t.Fatalf("ok=%v err=%v, want an error", ok, err)
-		}
 	}
 }
