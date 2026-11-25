@@ -30,7 +30,6 @@ func GetOrCreateDeviceID() (string, error) {
 
 	idFile := filepath.Join(configDir, "device-id")
 
-	// If file exists, read and validate the stored id.
 	if data, err := os.ReadFile(idFile); err == nil {
 		id := strings.TrimSpace(string(data))
 		if deviceIDPattern.MatchString(id) {
@@ -39,7 +38,6 @@ func GetOrCreateDeviceID() (string, error) {
 		DebugLog("stored device-id %q does not match expected format; regenerating", id)
 	}
 
-	// Otherwise: generate deterministic ID from hardware
 	deviceID, err := generateDeterministicDeviceID()
 	if err != nil {
 		return "", fmt.Errorf("failed to generate device ID: %w", err)
@@ -64,35 +62,29 @@ func GetOrCreateDeviceID() (string, error) {
 func generateDeterministicDeviceID() (string, error) {
 	var components []string
 
-	// Component 1: Hostname
 	hostname, err := os.Hostname()
 	if err != nil {
 		hostname = "unknown"
 	}
 	components = append(components, hostname)
 
-	// Component 2: CLI executable path
 	execPath, err := os.Executable()
 	if err != nil {
 		execPath = "unknown"
 	}
 	components = append(components, execPath)
 
-	// Component 3: MAC address (first one available, if any)
 	macAddr, err := getMACAddress()
 	if err != nil {
 		macAddr = "unknown"
 	}
 	components = append(components, macAddr)
 
-	// Create deterministic input string
 	input := strings.Join(components, "|")
 
-	// Hash it
 	hash := sha256.Sum256([]byte(input))
 	hashHex := fmt.Sprintf("%x", hash[:])
 
-	// Return as "nav-pilot-{first12chars}"
 	deviceID := fmt.Sprintf("nav-pilot-%s", hashHex[:12])
 
 	return deviceID, nil
@@ -108,11 +100,9 @@ func getMACAddress() (string, error) {
 	}
 
 	for _, iface := range interfaces {
-		// Skip loopback and down interfaces
 		if iface.Flags&net.FlagLoopback != 0 || iface.Flags&net.FlagUp == 0 {
 			continue
 		}
-		// Skip interfaces with no MAC address
 		if len(iface.HardwareAddr) == 0 {
 			continue
 		}
@@ -141,7 +131,6 @@ func GetConfigDir() (string, error) {
 		configDir = filepath.Join(home, ".nav-pilot")
 	}
 
-	// Create if doesn't exist
 	if err := os.MkdirAll(configDir, 0o700); err != nil {
 		return "", fmt.Errorf("failed to create config dir %s: %w", configDir, err)
 	}

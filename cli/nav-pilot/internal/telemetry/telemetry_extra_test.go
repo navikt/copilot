@@ -117,8 +117,6 @@ func TestNormalizeTelemetryDimension(t *testing.T) {
 	}
 }
 
-// --- NoopRecorder smoke tests for all methods ---
-
 func TestNoopRecorder_AllMethods(t *testing.T) {
 	var r Recorder = NoopRecorder{}
 	r.RecordCommand("install", "interactive", "repo", "success", "", 100*time.Millisecond)
@@ -136,8 +134,6 @@ func TestNoopRecorder_AllMethods(t *testing.T) {
 		t.Errorf("NoopRecorder.Shutdown() = %v, want nil", err)
 	}
 }
-
-// --- otelTelemetry Record* smoke tests ---
 
 func TestOtelRecordCommand_Success(t *testing.T) {
 	tel, _ := newFullTestTelemetry(t)
