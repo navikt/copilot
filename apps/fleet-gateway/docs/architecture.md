@@ -15,7 +15,7 @@ About 6,500 lines of non-test Go sit in `package main`, almost all as methods on
   endpoints, the Entra round trip, CIMD fetch, consent and DCR.
 - `team_token.go`: OBO and refresh strategies for upstream team tokens.
 - `proxy.go`, `inflight.go`: the MCP proxy, SSE streaming and concurrency slots.
-- `routes.go`, `routetable.go`: route loading, validation and the route table.
+- `routes.go`, `routetable.go`, `fleet_control.go`: route loading, validation and the route table.
 - `store_gateway.go`, `session.go`: typed wrappers and aliases over `internal/session`.
 - `config.go`: env parsing, validation and the generic `ttlMap`.
 - `metrics.go`, `lockout.go`: Prometheus metrics and a thin shim over `internal/lockout`.
@@ -31,7 +31,7 @@ there are two implementations or a test seam that tests use.
 | Package | Owns | Key type or interface |
 |---|---|---|
 | `internal/ratelimit` | Per-IP limiter, rate-limit log sampler, client IP from the trusted ingress | `Limiter`, `LogSampler`, `ClientIP` |
-| `internal/routes` | `PilotRoute`, YAML loading and validation, tool policy, route table | `RouteSource`: file today, fleet-control (#2334) planned as the second |
+| `internal/routing` | `routing.Route`, YAML loading and validation, tool policy, `routing.Table` | `Load`, `NewTable`. Fleet-control already supplies routes in dev (#2641, `fleetControlRoutes` and `swapRoutes` in `main`); no interface, since the two sources have different shapes |
 | `internal/inflight` | Global and per-user concurrency slots | `Slots`, `UserSlots` |
 | `internal/ttlmap` | Bounded generic TTL map | `Map[V]` |
 | `internal/session` | Store interface, memory and Postgres stores, sealing, key ring (exists) | `Store` |
@@ -40,7 +40,7 @@ there are two implementations or a test seam that tests use.
 | `internal/teamtoken` | OBO and refresh strategies | `Source` (two implementations) |
 | `internal/policy`, `internal/lockout`, `internal/audit`, `internal/identity` | As today | `lockout.Manager` |
 | `internal/metrics` | Collectors and `observe*` helpers | none |
-| `internal/proxy` | MCP handler, header allowlists, SSE streaming | consumes `teamtoken.Source`, `routes` |
+| `internal/proxy` | MCP handler, header allowlists, SSE streaming | consumes `teamtoken.Source`, `routing` |
 | `internal/httpx` | `writeJSON`, error pages, security headers, status writer | none |
 | `main` | Config loading, `newGateway` wiring, the mux, the `lockout` subcommand | none |
 
@@ -51,12 +51,12 @@ redirect allowlist.
 
 ## Import-cycle risks
 
-- `metrics` takes a `PilotRoute` today. `routes` must not import `metrics`; metrics
-  takes the route name and app as strings, or imports `routes`.
+- `metrics` takes a `routing.Route`. `routing` must not import `metrics`; metrics
+  imports `routing` or takes the route name and app as strings.
 - `Config` is read everywhere. Packages take their own small option structs, built
   in `main`; none of them imports `main`'s `Config`.
-- `teamtoken` reads the route table and the store. It imports `routes` and
-  `session`; `routes` imports neither.
+- `teamtoken` reads the route table and the store. It imports `routing` and
+  `session`; `routing` imports neither.
 - `markShed` writes a reason onto `statusResponseWriter`. Both belong in `httpx`, so
   `proxy` and `main` share them without a cycle.
 - `lockout` already imports `session`. `oauth` may import `lockout`, never the
@@ -67,7 +67,7 @@ redirect allowlist.
 One package per PR, each behaviour-neutral with the same test count:
 
 1. `ratelimit`, together with this page.
-2. `routes` and the route table.
+2. `routing` and the route table.
 3. `inflight` and `ttlmap`.
 4. `metrics` and `httpx`.
 5. `oauth` store records (from `store_gateway.go` and `session.go` aliases).

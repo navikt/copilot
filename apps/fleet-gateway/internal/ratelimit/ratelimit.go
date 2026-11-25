@@ -144,6 +144,7 @@ func (l *Limiter) Allow(ip string) bool {
 }
 
 // Len reports the number of tracked client buckets.
+// Exported because the gateway tests in package main check it after a sweep.
 func (l *Limiter) Len() int {
 	l.mu.Lock()
 	defer l.mu.Unlock()
