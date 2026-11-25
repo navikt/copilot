@@ -25,7 +25,6 @@ const (
 	maxDCRBodyBytes           = 16 * 1024
 	maxFormBodyBytes          = 20 * 1024
 	maxCIMDBodyBytes          = 64 * 1024
-	maxUpstreamBodyBytes      = 1 << 20
 
 	// maxLogClientIDLen bounds a client-supplied client_id (CIMD URL or DCR id) in audit lines.
 	maxLogClientIDLen = 256

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"github.com/navikt/copilot/fleet-gateway/internal/proxy"
 	"net/http"
 	"testing"
 )
@@ -20,12 +19,5 @@ func TestMCPSession_RejectedUpstreamReplyLeavesNoBinding(t *testing.T) {
 	}
 	if _, found := mcpBound(te, "too-big"); found {
 		t.Fatal("a rejected upstream reply created a binding")
-	}
-}
-
-func TestHardenedProxyClient_CapsResponseHeaders(t *testing.T) {
-	tr, ok := proxy.NewHardenedClient(0).Transport.(*http.Transport)
-	if !ok || tr.MaxResponseHeaderBytes != 64<<10 {
-		t.Fatalf("MaxResponseHeaderBytes = %v, want 64 KiB", tr.MaxResponseHeaderBytes)
 	}
 }

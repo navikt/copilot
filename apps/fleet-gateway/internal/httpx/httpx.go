@@ -53,3 +53,6 @@ func MarkShed(w http.ResponseWriter, reason string) {
 		w = u.Unwrap()
 	}
 }
+
+// MaxUpstreamBodyBytes bounds a JSON body read from an upstream service.
+const MaxUpstreamBodyBytes = 1 << 20

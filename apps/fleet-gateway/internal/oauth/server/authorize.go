@@ -93,7 +93,7 @@ func (g *Server) Authorize(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if redirectURI == "" ||
-		!slices.ContainsFunc(meta.RedirectURIs, func(reg string) bool { return RedirectURIMatches(reg, redirectURI) }) {
+		!slices.ContainsFunc(meta.RedirectURIs, func(reg string) bool { return redirectURIMatches(reg, redirectURI) }) {
 		http.Error(w, "redirect_uri does not match client metadata", http.StatusBadRequest)
 		return
 	}
@@ -113,7 +113,7 @@ func (g *Server) Authorize(w http.ResponseWriter, r *http.Request) {
 		if state != "" {
 			v.Set("state", state)
 		}
-		RedirectWithValues(w, r, parsedRedirect, v)
+		redirectWithValues(w, r, parsedRedirect, v)
 	}
 
 	challenge := q.Get("code_challenge")
@@ -159,19 +159,19 @@ func (g *Server) redirectURIAllowlisted(redirectURI string) bool {
 		return true
 	}
 	for reg := range g.cfg.AllowedRedirectURIs {
-		if RedirectURIMatches(reg, redirectURI) {
+		if redirectURIMatches(reg, redirectURI) {
 			return true
 		}
 	}
 	return false
 }
 
-// RedirectURIMatches compares a registered redirect URI with a requested one.
+// redirectURIMatches compares a registered redirect URI with a requested one.
 // Exact string match, except for http loopback IP literals (127.0.0.1, [::1]):
 // there the port may differ, as RFC 8252 section 7.3 requires for native
 // clients that bind an ephemeral port. Scheme, host, path and query must still
 // match exactly. The "localhost" name never gets this treatment (RFC 8252 8.3).
-func RedirectURIMatches(registered, requested string) bool {
+func redirectURIMatches(registered, requested string) bool {
 	if registered == requested {
 		return true
 	}
@@ -183,15 +183,15 @@ func RedirectURIMatches(registered, requested string) bool {
 	if err != nil {
 		return false
 	}
-	return IsLoopbackRedirect(reg) && IsLoopbackRedirect(req) &&
+	return isLoopbackRedirect(reg) && isLoopbackRedirect(req) &&
 		reg.Hostname() == req.Hostname() &&
 		reg.EscapedPath() == req.EscapedPath() &&
 		reg.RawQuery == req.RawQuery
 }
 
-// IsLoopbackRedirect reports whether u is http on a loopback IP literal, with
+// isLoopbackRedirect reports whether u is http on a loopback IP literal, with
 // no userinfo, fragment or opaque part, and a numeric port if any.
-func IsLoopbackRedirect(u *url.URL) bool {
+func isLoopbackRedirect(u *url.URL) bool {
 	if u.Scheme != "http" || u.User != nil || u.Fragment != "" || u.Opaque != "" {
 		return false
 	}
@@ -447,7 +447,7 @@ func (g *Server) Callback(w http.ResponseWriter, r *http.Request) {
 	back := func(v url.Values) {
 		v.Set("state", p.State)
 		v.Set("iss", g.cfg.BaseURL)
-		RedirectWithValues(w, r, redirectParsed, v)
+		redirectWithValues(w, r, redirectParsed, v)
 	}
 
 	if errCode := q.Get("error"); errCode != "" {
@@ -660,7 +660,7 @@ func (g *Server) redirectToClient(w http.ResponseWriter, r *http.Request, p *oau
 	}
 	v.Set("state", p.State)
 	v.Set("iss", g.cfg.BaseURL)
-	RedirectWithValues(w, r, target, v)
+	redirectWithValues(w, r, target, v)
 }
 
 // SignEntraState signs state for the Entra state cookie.
@@ -685,8 +685,8 @@ func clearEntraStateCookie(w http.ResponseWriter, name string) {
 	})
 }
 
-// RedirectWithValues redirects to base with v added to its query.
-func RedirectWithValues(w http.ResponseWriter, r *http.Request, base *url.URL, v url.Values) {
+// redirectWithValues redirects to base with v added to its query.
+func redirectWithValues(w http.ResponseWriter, r *http.Request, base *url.URL, v url.Values) {
 	target := *base
 	q := target.Query()
 	for k, vals := range v {
@@ -834,7 +834,7 @@ func (g *Server) introspectNAVident(ctx context.Context, accessToken string) (st
 		Active   bool   `json:"active"`
 		NAVident string `json:"NAVident"`
 	}
-	if err := json.NewDecoder(io.LimitReader(resp.Body, maxUpstreamBodyBytes)).Decode(&out); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, httpx.MaxUpstreamBodyBytes)).Decode(&out); err != nil {
 		return "", errors.New("invalid introspection response")
 	}
 	if !out.Active {

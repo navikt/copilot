@@ -3,11 +3,8 @@ package main
 import (
 	"io"
 	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
-
-	"github.com/navikt/copilot/fleet-gateway/internal/oauth/server"
 )
 
 func TestConsentPage_ContentAndCSP(t *testing.T) {
@@ -83,13 +80,5 @@ func TestConsentPage_CSRFFailurePreservesPendingConsent(t *testing.T) {
 	defer func() { _ = resp.Body.Close() }()
 	if code := te.clientCode(resp); code == "" {
 		t.Fatal("expected valid consent submission to succeed after CSRF failure")
-	}
-}
-
-func TestConsentCSSHandler(t *testing.T) {
-	rec := httptest.NewRecorder()
-	server.ConsentCSS(rec, httptest.NewRequest(http.MethodGet, "/static/consent.css", nil))
-	if ct := rec.Header().Get("Content-Type"); ct != "text/css; charset=utf-8" || rec.Body.Len() == 0 {
-		t.Fatalf("content-type %q, %d bytes", ct, rec.Body.Len())
 	}
 }

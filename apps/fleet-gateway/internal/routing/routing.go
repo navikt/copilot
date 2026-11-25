@@ -176,7 +176,7 @@ func Validate(routes []Route) ([]Route, error) {
 		r.Namespace = ns
 		r.App = app
 
-		parsed, err := ValidateUpstreamURL(r.UpstreamURL, ns)
+		parsed, err := validateUpstreamURL(r.UpstreamURL, ns)
 		if err != nil {
 			return nil, fmt.Errorf("route %q: invalid upstream_url %q: %w", r.Route, r.UpstreamURL, err)
 		}
@@ -227,8 +227,8 @@ func ParseTarget(target string) (cluster, namespace, app string, err error) {
 	return parts[0], parts[1], parts[2], nil
 }
 
-// ValidateUpstreamURL accepts only an in-cluster URL in the route's namespace.
-func ValidateUpstreamURL(raw, namespace string) (*url.URL, error) {
+// validateUpstreamURL accepts only an in-cluster URL in the route's namespace.
+func validateUpstreamURL(raw, namespace string) (*url.URL, error) {
 	if err := config.ValidateHTTPURL(raw, false); err != nil {
 		return nil, err
 	}

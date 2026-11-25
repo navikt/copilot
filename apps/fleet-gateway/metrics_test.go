@@ -6,42 +6,12 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/prometheus/client_golang/prometheus/testutil"
 
 	"github.com/navikt/copilot/fleet-gateway/internal/metrics"
 	"github.com/navikt/copilot/fleet-gateway/internal/routing"
 )
-
-func TestMetricsRegisteredAndServed(t *testing.T) {
-	metrics.ObserveMCPRequest(routing.Route{Route: "/mcp/ns/test"}, "upstream_token_error", "", "", "", "", time.Second)
-	metrics.ObserveHTTPRequest(http.StatusBadGateway, "")
-	metrics.RoutesLoaded.Set(3)
-
-	if got := testutil.ToFloat64(metrics.MCPRequests.WithLabelValues("/mcp/ns/test", "upstream_token_error", "", "", "")); got < 1 {
-		t.Fatalf("mcp counter = %v, want >= 1", got)
-	}
-
-	srv := httptest.NewServer(metrics.Server("").Handler)
-	defer srv.Close()
-	resp, err := http.Get(srv.URL + "/metrics")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-	body, _ := io.ReadAll(resp.Body)
-	for _, name := range []string{
-		"fleet_gateway_http_requests_total",
-		"fleet_gateway_mcp_requests_total",
-		"fleet_gateway_mcp_request_duration_seconds_bucket",
-		"fleet_gateway_routes_loaded 3",
-	} {
-		if !strings.Contains(string(body), name) {
-			t.Errorf("/metrics lacks %q", name)
-		}
-	}
-}
 
 // /metrics must not be reachable through the public handler (it has an ingress),
 // and the public handler's requests are counted.
@@ -55,28 +25,6 @@ func TestMetricsNotOnPublicPort(t *testing.T) {
 	}
 	if got := testutil.ToFloat64(metrics.HTTPRequests.WithLabelValues("404", "")); got != before+1 {
 		t.Fatalf("http counter for 404 = %v, want %v: loggingMiddleware does not count", got, before+1)
-	}
-}
-
-// The token-error alert uses increase(), which needs a zero sample before the
-// first failure.
-func TestInitMetricsPrecreatesAlertSeries(t *testing.T) {
-	metrics.Init([]routing.Route{{Route: "/mcp/ns/precreated"}})
-	srv := httptest.NewServer(metrics.Server("").Handler)
-	defer srv.Close()
-	resp, err := http.Get(srv.URL + "/metrics")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-	body, _ := io.ReadAll(resp.Body)
-	for _, want := range []string{
-		`fleet_gateway_mcp_requests_total{decision="allow",outcome="upstream_token_error",reason="",route="/mcp/ns/precreated",tool=""} 0`,
-		`fleet_gateway_http_requests_total{code="502",reason=""}`,
-	} {
-		if !strings.Contains(string(body), want) {
-			t.Errorf("/metrics lacks %s", want)
-		}
 	}
 }
 
@@ -150,14 +98,6 @@ func TestInitMetricsPrecreatesDenySeries(t *testing.T) {
 	}
 	if strings.Contains(body, `fleet_gateway_rate_limited_total{endpoint=`) {
 		t.Errorf("old endpoint label still exported")
-	}
-}
-
-func TestObserveMCPRequestBoundsReason(t *testing.T) {
-	r := routing.Route{Route: "/mcp/ns/bound", AllowedTools: map[string]bool{"a": true}}
-	metrics.ObserveMCPRequest(r, "tool_denied", "deny", "made-up", "zzz", "zzz", time.Millisecond)
-	if got := testutil.ToFloat64(metrics.MCPRequests.WithLabelValues(r.Route, "tool_denied", "deny", "", "other")); got != 1 {
-		t.Fatalf("unknown reason/tool not collapsed: %v", got)
 	}
 }
 

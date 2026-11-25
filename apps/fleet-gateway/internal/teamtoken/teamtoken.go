@@ -24,7 +24,7 @@ import (
 	"github.com/navikt/copilot/fleet-gateway/internal/session"
 )
 
-// Same limit as maxUpstreamBodyBytes in main.
+// Same limit as httpx.MaxUpstreamBodyBytes.
 const maxBodyBytes = 1 << 20
 
 // AccessMissingError means Entra refused the token because the team has not
