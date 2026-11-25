@@ -223,6 +223,10 @@ func cmdMCPList(jsonOut, refresh bool) error {
 	}
 	registry, entries, stale, err := mcpRegistryServers()
 	if err != nil {
+		if unreachable(err) {
+			debugLog("%v", err)
+			return errors.New("could not reach Nav's MCP registry. Check the network or naisdevice, and try again")
+		}
 		return fmt.Errorf("could not list MCP servers: %w", err)
 	}
 	providerpkg.MCPClient = mcpLaunchClient()

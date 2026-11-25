@@ -46,7 +46,8 @@ stderr 'Fikk ikke hentet nyhetene fra ki-utvikling.nav.no'
 # Nothing fetched before: an error.
 rm $HOME/news.json
 ! exec nav-pilot news
-stderr 'fikk ikke hentet nyhetene fra ki-utvikling.nav.no'
+stderr 'fikk ikke kontakt med ki-utvikling.nav.no. Sjekk nettverket'
+! stderr 'connection refused'
 
 -- plattform/.nav-pilot/agentpakke.json --
 {"contractVersion":"1","name":"plattform","description":"plattform","layout":{"agents":"agents","skills":"skills"},"clients":{"copilot":{"primaryAgents":["grillmester"]}}}

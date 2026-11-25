@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -264,6 +265,9 @@ func cmdNews(jsonOutput bool) error {
 	switch {
 	case err == nil:
 		st.Items, st.Fetched = items, time.Now()
+	case len(st.Items) == 0 && unreachable(err):
+		debugLog("%v", err)
+		return errors.New("fikk ikke kontakt med ki-utvikling.nav.no. Sjekk nettverket, og prøv igjen")
 	case len(st.Items) == 0:
 		return fmt.Errorf("fikk ikke hentet nyhetene fra ki-utvikling.nav.no: %w", err)
 	default:
