@@ -301,9 +301,8 @@ func isSingleDNSLabel(label string) bool {
 	return true
 }
 
-// Table is the set of MCP routes the gateway serves. Handlers read it
-// through Gateway.table(). It is loaded from the route file, and with
-// ROUTES_SOURCE=fleet-control swapped whole by syncRoutes (#2641).
+// Table is the set of MCP routes the gateway serves. A route change replaces
+// the whole table rather than editing it (#2641).
 type Table struct {
 	Routes           []Route // file order; Routes[0] is the primary resource
 	RoutesByPath     map[string]Route
@@ -311,7 +310,7 @@ type Table struct {
 	PrimaryResource  string
 }
 
-// NewTable builds the table from a validated config, keeping file order.
+// NewTable builds the table from validated routes, keeping their order.
 // Disabled routes stay in it, so they answer 503 rather than 404.
 func NewTable(routes []Route) *Table {
 	rt := &Table{
