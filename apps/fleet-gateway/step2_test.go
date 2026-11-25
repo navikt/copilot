@@ -17,6 +17,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/navikt/copilot/fleet-gateway/internal/httpx"
 	"github.com/navikt/copilot/fleet-gateway/internal/routing"
 )
 
@@ -164,7 +165,7 @@ func TestProxy_OBO_Headers_StreamableHTTP_SSE_Limits_And_Redirects(t *testing.T)
 		mu.Lock()
 		gotTexasPayload = payload
 		mu.Unlock()
-		writeJSON(w, http.StatusOK, map[string]any{
+		httpx.WriteJSON(w, http.StatusOK, map[string]any{
 			"access_token": strings.Join([]string{"team", "obo", "token"}, "-"),
 			"token_type":   "Bearer",
 			"expires_in":   300,
@@ -196,7 +197,7 @@ func TestProxy_OBO_Headers_StreamableHTTP_SSE_Limits_And_Redirects(t *testing.T)
 			w.WriteHeader(http.StatusNoContent)
 		default:
 			w.Header().Set("Mcp-Session-Id", "upstream-sess-1")
-			writeJSON(w, http.StatusOK, map[string]any{"jsonrpc": "2.0", "id": 1, "result": "ok"})
+			httpx.WriteJSON(w, http.StatusOK, map[string]any{"jsonrpc": "2.0", "id": 1, "result": "ok"})
 		}
 	})
 
@@ -354,7 +355,7 @@ func TestStrategyRefresh_Rotation_And_Concurrency(t *testing.T) {
 	te.entraServer.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/.well-known/openid-configuration":
-			writeJSON(w, http.StatusOK, map[string]any{
+			httpx.WriteJSON(w, http.StatusOK, map[string]any{
 				"authorization_endpoint": te.entraServer.URL + "/authorize",
 				"token_endpoint":         te.entraServer.URL + "/token",
 			})
@@ -364,7 +365,7 @@ func TestStrategyRefresh_Rotation_And_Concurrency(t *testing.T) {
 				te.mu.Lock()
 				nonce := te.lastEntraNonce
 				te.mu.Unlock()
-				writeJSON(w, http.StatusOK, map[string]any{
+				httpx.WriteJSON(w, http.StatusOK, map[string]any{
 					"access_token":  te.entraToken,
 					"refresh_token": "rt-0",
 					"id_token":      makeTestIDToken(map[string]any{"NAVident": "Z123456", "nonce": nonce}),
@@ -380,7 +381,7 @@ func TestStrategyRefresh_Rotation_And_Concurrency(t *testing.T) {
 				seenRTs = append(seenRTs, r.FormValue("refresh_token"))
 				seenScopes = append(seenScopes, r.FormValue("scope"))
 				mu.Unlock()
-				writeJSON(w, http.StatusOK, map[string]any{
+				httpx.WriteJSON(w, http.StatusOK, map[string]any{
 					"access_token":  fmt.Sprintf("team-rt-access-%d", idx),
 					"refresh_token": fmt.Sprintf("rt-%d", idx),
 					"expires_in":    3600,
@@ -395,7 +396,7 @@ func TestStrategyRefresh_Rotation_And_Concurrency(t *testing.T) {
 		mu.Lock()
 		upstreamAuths = append(upstreamAuths, r.Header.Get("Authorization"))
 		mu.Unlock()
-		writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+		httpx.WriteJSON(w, http.StatusOK, map[string]any{"ok": true})
 	})
 
 	gwToken := te.obtainAccessTokenForResource(te.resource)
@@ -506,11 +507,11 @@ func TestErrorMapping_AADSTS65001_And_NoRawEntraLeak(t *testing.T) {
 
 			if tt.strategy == strategyOBO {
 				te.texasServer.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-					writeJSON(w, tt.upstreamStatus, tt.upstreamBody)
+					httpx.WriteJSON(w, tt.upstreamStatus, tt.upstreamBody)
 				})
 			} else {
 				te.entraServer.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-					writeJSON(w, tt.upstreamStatus, tt.upstreamBody)
+					httpx.WriteJSON(w, tt.upstreamStatus, tt.upstreamBody)
 				})
 			}
 
@@ -585,7 +586,7 @@ func TestHardening_OIDCNonce_PKCE_Singleflight_Prompt_And_Claims(t *testing.T) {
 				te.entraServer.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					switch r.URL.Path {
 					case "/.well-known/openid-configuration":
-						writeJSON(w, http.StatusOK, map[string]any{
+						httpx.WriteJSON(w, http.StatusOK, map[string]any{
 							"authorization_endpoint": te.entraServer.URL + "/authorize",
 							"token_endpoint":         te.entraServer.URL + "/token",
 						})
@@ -603,7 +604,7 @@ func TestHardening_OIDCNonce_PKCE_Singleflight_Prompt_And_Claims(t *testing.T) {
 						case "wrong_iss":
 							resp["id_token"] = makeTestIDToken(map[string]any{"iss": "https://login.test/evil/v2.0"})
 						}
-						writeJSON(w, http.StatusOK, resp)
+						httpx.WriteJSON(w, http.StatusOK, resp)
 					}
 				})
 
@@ -633,7 +634,7 @@ func TestHardening_OIDCNonce_PKCE_Singleflight_Prompt_And_Claims(t *testing.T) {
 			if r.URL.Path == "/.well-known/openid-configuration" {
 				wellKnownHits.Add(1)
 				time.Sleep(30 * time.Millisecond)
-				writeJSON(w, http.StatusOK, map[string]any{
+				httpx.WriteJSON(w, http.StatusOK, map[string]any{
 					"authorization_endpoint": te.entraServer.URL + "/authorize",
 					"token_endpoint":         te.entraServer.URL + "/token",
 				})
@@ -1082,7 +1083,7 @@ func TestProxy_KillSwitch(t *testing.T) {
 			var upstreamCalls atomic.Int32
 			te.upstreamServer.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				upstreamCalls.Add(1)
-				writeJSON(w, http.StatusOK, map[string]any{"jsonrpc": "2.0", "id": 1, "result": "ok"})
+				httpx.WriteJSON(w, http.StatusOK, map[string]any{"jsonrpc": "2.0", "id": 1, "result": "ok"})
 			})
 
 			routesYAML := `version: 2
@@ -1192,7 +1193,7 @@ func TestProxy_MCPSessionIDBoundToUser(t *testing.T) {
 		if r.Header.Get("Mcp-Session-Id") == "" {
 			w.Header().Set("Mcp-Session-Id", "mcp-sess-user-a")
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"jsonrpc": "2.0", "id": 1, "result": "ok"})
+		httpx.WriteJSON(w, http.StatusOK, map[string]any{"jsonrpc": "2.0", "id": 1, "result": "ok"})
 	})
 
 	// User A obtains an Mcp-Session-Id from upstream.

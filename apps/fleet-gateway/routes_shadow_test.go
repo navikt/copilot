@@ -7,6 +7,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus/testutil"
 
+	"github.com/navikt/copilot/fleet-gateway/internal/metrics"
 	"github.com/navikt/copilot/fleet-gateway/internal/routing"
 )
 
@@ -59,7 +60,7 @@ func TestShadowSyncFailureIsIsolated(t *testing.T) {
 	gw, s := shadowGateway(t, f)
 	gw.shadowSync(context.Background(), s)
 	before, diff := gw.table(), testutil.ToFloat64(shadowDiffGauge)
-	failures, syncFailures := testutil.ToFloat64(shadowFailures), testutil.ToFloat64(routeSyncFailures)
+	failures, syncFailures := testutil.ToFloat64(shadowFailures), testutil.ToFloat64(metrics.RouteSyncFailures)
 
 	f.status, f.etag = http.StatusInternalServerError, `"e3"`
 	gw.shadowSync(context.Background(), s)
@@ -72,7 +73,7 @@ func TestShadowSyncFailureIsIsolated(t *testing.T) {
 	if got := testutil.ToFloat64(shadowDiffGauge); got != diff {
 		t.Fatalf("shadow failure moved the diff gauge to %v", got)
 	}
-	if got := testutil.ToFloat64(routeSyncFailures); got != syncFailures {
+	if got := testutil.ToFloat64(metrics.RouteSyncFailures); got != syncFailures {
 		t.Fatal("shadow failure counted as a serving sync failure")
 	}
 }

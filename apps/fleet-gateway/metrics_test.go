@@ -10,19 +10,20 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus/testutil"
 
+	"github.com/navikt/copilot/fleet-gateway/internal/metrics"
 	"github.com/navikt/copilot/fleet-gateway/internal/routing"
 )
 
 func TestMetricsRegisteredAndServed(t *testing.T) {
-	observeMCPRequest(routing.Route{Route: "/mcp/ns/test"}, "upstream_token_error", "", "", "", "", time.Second)
-	observeHTTPRequest(http.StatusBadGateway, "")
-	routesLoaded.Set(3)
+	metrics.ObserveMCPRequest(routing.Route{Route: "/mcp/ns/test"}, "upstream_token_error", "", "", "", "", time.Second)
+	metrics.ObserveHTTPRequest(http.StatusBadGateway, "")
+	metrics.RoutesLoaded.Set(3)
 
-	if got := testutil.ToFloat64(mcpRequestsTotal.WithLabelValues("/mcp/ns/test", "upstream_token_error", "", "", "")); got < 1 {
+	if got := testutil.ToFloat64(metrics.MCPRequests.WithLabelValues("/mcp/ns/test", "upstream_token_error", "", "", "")); got < 1 {
 		t.Fatalf("mcp counter = %v, want >= 1", got)
 	}
 
-	srv := httptest.NewServer(metricsServer("").Handler)
+	srv := httptest.NewServer(metrics.Server("").Handler)
 	defer srv.Close()
 	resp, err := http.Get(srv.URL + "/metrics")
 	if err != nil {
@@ -46,13 +47,13 @@ func TestMetricsRegisteredAndServed(t *testing.T) {
 // and the public handler's requests are counted.
 func TestMetricsNotOnPublicPort(t *testing.T) {
 	te := newTestEnv(t)
-	before := testutil.ToFloat64(httpRequestsTotal.WithLabelValues("404", ""))
+	before := testutil.ToFloat64(metrics.HTTPRequests.WithLabelValues("404", ""))
 	rec := httptest.NewRecorder()
 	te.handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/metrics", nil))
 	if rec.Code == http.StatusOK {
 		t.Fatalf("/metrics answered 200 on the public handler")
 	}
-	if got := testutil.ToFloat64(httpRequestsTotal.WithLabelValues("404", "")); got != before+1 {
+	if got := testutil.ToFloat64(metrics.HTTPRequests.WithLabelValues("404", "")); got != before+1 {
 		t.Fatalf("http counter for 404 = %v, want %v: loggingMiddleware does not count", got, before+1)
 	}
 }
@@ -60,8 +61,8 @@ func TestMetricsNotOnPublicPort(t *testing.T) {
 // The token-error alert uses increase(), which needs a zero sample before the
 // first failure.
 func TestInitMetricsPrecreatesAlertSeries(t *testing.T) {
-	initMetrics([]routing.Route{{Route: "/mcp/ns/precreated"}})
-	srv := httptest.NewServer(metricsServer("").Handler)
+	metrics.Init([]routing.Route{{Route: "/mcp/ns/precreated"}})
+	srv := httptest.NewServer(metrics.Server("").Handler)
 	defer srv.Close()
 	resp, err := http.Get(srv.URL + "/metrics")
 	if err != nil {
@@ -84,8 +85,8 @@ func TestKillSwitch503IsLabelled(t *testing.T) {
 	te := newTestEnv(t)
 	te.gw.cfg.GatewayDisabled = true
 	te.handler = te.gw.routes()
-	shed := httpRequestsTotal.WithLabelValues("503", "disabled")
-	unlabelled := httpRequestsTotal.WithLabelValues("503", "")
+	shed := metrics.HTTPRequests.WithLabelValues("503", "disabled")
+	unlabelled := metrics.HTTPRequests.WithLabelValues("503", "")
 	beforeShed, beforeReal := testutil.ToFloat64(shed), testutil.ToFloat64(unlabelled)
 	rec := httptest.NewRecorder()
 	te.handler.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, te.gw.cfg.Routes[0].Route, strings.NewReader(`{}`)))
@@ -119,7 +120,7 @@ func TestMCPRequestsTotalDecisionReasonTool(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			c := mcpRequestsTotal.WithLabelValues(route, tc.outcome, tc.decision, tc.reason, tc.tool)
+			c := metrics.MCPRequests.WithLabelValues(route, tc.outcome, tc.decision, tc.reason, tc.tool)
 			before := testutil.ToFloat64(c)
 			auditToolsHeaders(t, http.MethodPost, tc.tools, tc.body, tc.hdr)
 			if got := testutil.ToFloat64(c); got != before+1 {
@@ -135,14 +136,14 @@ func TestMCPRequestsTotalDecisionReasonTool(t *testing.T) {
 }
 
 func TestInitMetricsPrecreatesDenySeries(t *testing.T) {
-	initMetrics([]routing.Route{{Route: "/mcp/ns/deny"}})
+	metrics.Init([]routing.Route{{Route: "/mcp/ns/deny"}})
 	body := scrapeMetrics(t)
-	for _, reason := range denyReasons {
+	for _, reason := range metrics.DenyReasons {
 		if !strings.Contains(body, `decision="deny",outcome=`) || !strings.Contains(body, `reason="`+reason+`"`) {
 			t.Errorf("no pre-created deny series for reason %q", reason)
 		}
 	}
-	for _, ep := range rateLimitedEndpoints {
+	for _, ep := range metrics.RateLimitedEndpoints {
 		if !strings.Contains(body, `fleet_gateway_rate_limited_total{oauth_endpoint="`+ep+`"} `) {
 			t.Errorf("no pre-created rate limit series for %q", ep)
 		}
@@ -154,15 +155,15 @@ func TestInitMetricsPrecreatesDenySeries(t *testing.T) {
 
 func TestObserveMCPRequestBoundsReason(t *testing.T) {
 	r := routing.Route{Route: "/mcp/ns/bound", AllowedTools: map[string]bool{"a": true}}
-	observeMCPRequest(r, "tool_denied", "deny", "made-up", "zzz", "zzz", time.Millisecond)
-	if got := testutil.ToFloat64(mcpRequestsTotal.WithLabelValues(r.Route, "tool_denied", "deny", "", "other")); got != 1 {
+	metrics.ObserveMCPRequest(r, "tool_denied", "deny", "made-up", "zzz", "zzz", time.Millisecond)
+	if got := testutil.ToFloat64(metrics.MCPRequests.WithLabelValues(r.Route, "tool_denied", "deny", "", "other")); got != 1 {
 		t.Fatalf("unknown reason/tool not collapsed: %v", got)
 	}
 }
 
 func scrapeMetrics(t *testing.T) string {
 	t.Helper()
-	srv := httptest.NewServer(metricsServer("").Handler)
+	srv := httptest.NewServer(metrics.Server("").Handler)
 	defer srv.Close()
 	resp, err := http.Get(srv.URL + "/metrics")
 	if err != nil {
@@ -177,7 +178,7 @@ func scrapeMetrics(t *testing.T) string {
 func TestMCPToolLabelUsesFullName(t *testing.T) {
 	long := strings.Repeat("a", 100)
 	tools := map[string]bool{long: true}
-	c := mcpRequestsTotal.WithLabelValues("/mcp/team-etterlevelse/etterlevelse", "ok", "allow", "", long)
+	c := metrics.MCPRequests.WithLabelValues("/mcp/team-etterlevelse/etterlevelse", "ok", "allow", "", long)
 	before := testutil.ToFloat64(c)
 	auditPostTools(t, tools, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"`+long+`"}}`)
 	if got := testutil.ToFloat64(c); got != before+1 {
@@ -187,7 +188,7 @@ func TestMCPToolLabelUsesFullName(t *testing.T) {
 
 // increase() needs a zero sample per tool before the first call.
 func TestInitMetricsPrecreatesToolSeries(t *testing.T) {
-	initMetrics([]routing.Route{{Route: "/mcp/ns/tools", AllowedTools: map[string]bool{"search_x": true}}})
+	metrics.Init([]routing.Route{{Route: "/mcp/ns/tools", AllowedTools: map[string]bool{"search_x": true}}})
 	body := scrapeMetrics(t)
 	for _, tool := range []string{"search_x", "other"} {
 		want := `outcome="upstream_token_error",reason="",route="/mcp/ns/tools",tool="` + tool + `"} 0`

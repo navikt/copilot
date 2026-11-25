@@ -14,6 +14,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus/testutil"
 
+	"github.com/navikt/copilot/fleet-gateway/internal/metrics"
 	"github.com/navikt/copilot/fleet-gateway/internal/ratelimit"
 )
 
@@ -319,7 +320,7 @@ func TestDCR_AuthorizeDoesNotRenew(t *testing.T) {
 func TestDCR_RegisterBehindInMemoryRateLimit(t *testing.T) {
 	te := newTestEnv(t)
 	enableDCR(te, 100, 100)
-	te.gw.limiters[rateLimitEndpointRegister] = ratelimit.New(1, 100, time.Minute, 10, func() time.Time { return te.now })
+	te.gw.limiters[metrics.EndpointRegister] = ratelimit.New(1, 100, time.Minute, 10, func() time.Time { return te.now })
 	te.handler = te.gw.routes()
 	registerID(t, te, "10.0.2.1")
 	code, out := postRegister(te, opencodeRegistration(), "10.0.2.1")
@@ -333,12 +334,12 @@ func TestDCR_AllowRegistrationRejectionIncrementsMetric(t *testing.T) {
 	enableDCR(te, 100, 1)
 	registerID(t, te, "10.0.2.2")
 
-	before := testutil.ToFloat64(rateLimitedTotal.WithLabelValues(rateLimitEndpointRegister))
+	before := testutil.ToFloat64(metrics.RateLimited.WithLabelValues(metrics.EndpointRegister))
 	code, out := postRegister(te, opencodeRegistration(), "10.0.2.2")
 	if code != http.StatusTooManyRequests || out["error"] != "temporarily_unavailable" {
 		t.Fatalf("second register from same IP: got %d %v, want 429 temporarily_unavailable", code, out)
 	}
-	if got := testutil.ToFloat64(rateLimitedTotal.WithLabelValues(rateLimitEndpointRegister)); got != before+1 {
+	if got := testutil.ToFloat64(metrics.RateLimited.WithLabelValues(metrics.EndpointRegister)); got != before+1 {
 		t.Fatalf("register rate_limited_total = %v, want %v", got, before+1)
 	}
 }

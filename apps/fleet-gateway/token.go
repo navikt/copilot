@@ -14,6 +14,8 @@ import (
 	"net/url"
 	"strconv"
 	"time"
+
+	"github.com/navikt/copilot/fleet-gateway/internal/httpx"
 )
 
 const (
@@ -179,7 +181,7 @@ func randomJTI() (string, error) {
 
 func (g *Gateway) tokenHandler(w http.ResponseWriter, r *http.Request) {
 	bad := func(status int, errCode, desc string) {
-		writeJSON(w, status, map[string]string{
+		httpx.WriteJSON(w, status, map[string]string{
 			"error":             errCode,
 			"error_description": desc,
 		})
@@ -331,7 +333,7 @@ func (g *Gateway) handleAuthorizationCodeGrant(w http.ResponseWriter, r *http.Re
 
 	if err := g.putSession(r.Context(), hashToken(accessToken), &issued.Session, ttl); err != nil {
 		if errors.Is(err, errStoreFull) {
-			markShed(w, "store_full")
+			httpx.MarkShed(w, "store_full")
 			bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store capacity reached")
 			return
 		}
@@ -349,7 +351,7 @@ func (g *Gateway) handleAuthorizationCodeGrant(w http.ResponseWriter, r *http.Re
 		resp["refresh_token"] = refreshToken
 	}
 	g.renewClient(r.Context(), issued.Session.ClientID)
-	writeJSON(w, http.StatusOK, resp)
+	httpx.WriteJSON(w, http.StatusOK, resp)
 }
 
 // rtExpiry is when a refresh token issued at now stops working: the idle
@@ -503,7 +505,7 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 		}
 		if ok {
 			outcome = "grace_replay"
-			writeJSON(w, http.StatusOK, resp)
+			httpx.WriteJSON(w, http.StatusOK, resp)
 			return
 		}
 		// Replay: someone holds an already-rotated RT. Kill the family (until the
@@ -558,7 +560,7 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 		}
 		if ok {
 			outcome = "grace_concurrent"
-			writeJSON(w, http.StatusOK, resp)
+			httpx.WriteJSON(w, http.StatusOK, resp)
 			return
 		}
 		// A legit client may be retrying after a transient upstream error; do not
@@ -567,7 +569,7 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 		outcome = "refresh_in_flight"
 		retry := min(refreshPendingTTL, absExpiry.Sub(g.now()), g.cfg.RefreshGraceWindow/2)
 		w.Header().Set("Retry-After", strconv.Itoa(max(1, int(retry.Seconds()))))
-		markShed(w, "refresh_in_flight")
+		httpx.MarkShed(w, "refresh_in_flight")
 		bad(http.StatusServiceUnavailable, "temporarily_unavailable", "refresh in progress, retry later")
 		return
 	}
@@ -682,7 +684,7 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 	if err = g.putSession(ctx, hashToken(accessToken), newSess, ttl); err != nil {
 		outcome = "store_error"
 		if errors.Is(err, errStoreFull) {
-			markShed(w, "store_full")
+			httpx.MarkShed(w, "store_full")
 			bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store capacity reached")
 			return
 		}
@@ -706,7 +708,7 @@ func (g *Gateway) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Request
 	}
 
 	g.renewClient(ctx, clientID)
-	writeJSON(w, http.StatusOK, map[string]any{
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{
 		"access_token":  accessToken,
 		"token_type":    "Bearer",
 		"expires_in":    int(ttl.Seconds()),
@@ -735,7 +737,7 @@ func (g *Gateway) redeemEntraRefreshToken(ctx context.Context, entraRT string) (
 
 func (g *Gateway) revokeHandler(w http.ResponseWriter, r *http.Request) {
 	bad := func(status int, errCode, desc string) {
-		writeJSON(w, status, map[string]string{
+		httpx.WriteJSON(w, status, map[string]string{
 			"error":             errCode,
 			"error_description": desc,
 		})
@@ -765,7 +767,7 @@ func (g *Gateway) revokeHandler(w http.ResponseWriter, r *http.Request) {
 		if ok {
 			if sess.ClientID != clientID {
 				slog.Warn("revoke client mismatch")
-				writeJSON(w, http.StatusOK, map[string]any{})
+				httpx.WriteJSON(w, http.StatusOK, map[string]any{})
 				return
 			}
 			// Consent first: if its delete fails the session stays, so a retry still finds it.
@@ -789,7 +791,7 @@ func (g *Gateway) revokeHandler(w http.ResponseWriter, r *http.Request) {
 				bad(http.StatusServiceUnavailable, "temporarily_unavailable", "session store unavailable")
 				return
 			}
-			writeJSON(w, http.StatusOK, map[string]any{})
+			httpx.WriteJSON(w, http.StatusOK, map[string]any{})
 			return
 		}
 		payload, err := g.openRefreshToken(token)
@@ -800,12 +802,12 @@ func (g *Gateway) revokeHandler(w http.ResponseWriter, r *http.Request) {
 				bad(http.StatusServiceUnavailable, "temporarily_unavailable", "refresh token key unavailable")
 				return
 			}
-			writeJSON(w, http.StatusOK, map[string]any{})
+			httpx.WriteJSON(w, http.StatusOK, map[string]any{})
 			return
 		}
 		if payload.ClientID != clientID {
 			slog.Warn("revoke client mismatch")
-			writeJSON(w, http.StatusOK, map[string]any{})
+			httpx.WriteJSON(w, http.StatusOK, map[string]any{})
 			return
 		}
 		if err := g.forgetConsent(r.Context(), payload.NAVIdent, payload.ClientID, payload.Resource); err != nil {
@@ -833,7 +835,7 @@ func (g *Gateway) revokeHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	writeJSON(w, http.StatusOK, map[string]any{})
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{})
 }
 
 func hashToken(token string) string {

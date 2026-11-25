@@ -11,6 +11,9 @@ import (
 	"testing"
 
 	"github.com/prometheus/client_golang/prometheus/testutil"
+
+	"github.com/navikt/copilot/fleet-gateway/internal/httpx"
+	"github.com/navikt/copilot/fleet-gateway/internal/metrics"
 )
 
 func TestPerUserInFlightConfig(t *testing.T) {
@@ -75,7 +78,7 @@ func TestPerUserInFlightCap(t *testing.T) {
 			entered <- struct{}{}
 			<-release
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"jsonrpc": "2.0", "id": 1, "result": map[string]any{}})
+		httpx.WriteJSON(w, http.StatusOK, map[string]any{"jsonrpc": "2.0", "id": 1, "result": map[string]any{}})
 	})
 
 	tokenA := te.obtainAccessTokenForResource(te.resource)
@@ -97,11 +100,11 @@ func TestPerUserInFlightCap(t *testing.T) {
 		<-entered
 	}
 
-	shed := httpRequestsTotal.WithLabelValues("503", "user_cap")
+	shed := metrics.HTTPRequests.WithLabelValues("503", "user_cap")
 	beforeShed := testutil.ToFloat64(shed)
-	mcpDeny := mcpRequestsTotal.WithLabelValues(route, "user_cap", "deny", "user_cap", "")
+	mcpDeny := metrics.MCPRequests.WithLabelValues(route, "user_cap", "deny", "user_cap", "")
 	beforeDeny := testutil.ToFloat64(mcpDeny)
-	mcpAllow := mcpRequestsTotal.WithLabelValues(route, "user_cap", "allow", "", "")
+	mcpAllow := metrics.MCPRequests.WithLabelValues(route, "user_cap", "allow", "", "")
 	beforeAllow := testutil.ToFloat64(mcpAllow)
 
 	// (a) Next call for user A gets 503 with Retry-After and user_cap shed/audit.
@@ -132,13 +135,13 @@ func TestPerUserInFlightCap(t *testing.T) {
 		t.Fatalf("unexpected 503 body: %+v", errJSON)
 	}
 	if got := testutil.ToFloat64(shed); got != beforeShed+1 {
-		t.Errorf("httpRequestsTotal(503, user_cap) = %v, want %v", got, beforeShed+1)
+		t.Errorf("metrics.HTTPRequests(503, user_cap) = %v, want %v", got, beforeShed+1)
 	}
 	if got := testutil.ToFloat64(mcpDeny); got != beforeDeny+1 {
-		t.Errorf("mcpRequestsTotal(user_cap, deny) = %v, want %v", got, beforeDeny+1)
+		t.Errorf("metrics.MCPRequests(user_cap, deny) = %v, want %v", got, beforeDeny+1)
 	}
 	if got := testutil.ToFloat64(mcpAllow); got != beforeAllow {
-		t.Errorf("mcpRequestsTotal(user_cap, allow) = %v, want %v", got, beforeAllow)
+		t.Errorf("metrics.MCPRequests(user_cap, allow) = %v, want %v", got, beforeAllow)
 	}
 
 	var foundAudit bool
@@ -241,7 +244,7 @@ func TestPerUserSSECap(t *testing.T) {
 			}
 			return
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"jsonrpc": "2.0", "id": 1, "result": map[string]any{}})
+		httpx.WriteJSON(w, http.StatusOK, map[string]any{"jsonrpc": "2.0", "id": 1, "result": map[string]any{}})
 	})
 
 	tokenA := te.obtainAccessTokenForResource(te.resource)
@@ -285,11 +288,11 @@ func TestPerUserSSECap(t *testing.T) {
 		}
 	}
 
-	shed := httpRequestsTotal.WithLabelValues("503", "user_sse_cap")
+	shed := metrics.HTTPRequests.WithLabelValues("503", "user_sse_cap")
 	beforeShed := testutil.ToFloat64(shed)
-	mcpDeny := mcpRequestsTotal.WithLabelValues(route, "user_sse_cap", "deny", "user_sse_cap", "")
+	mcpDeny := metrics.MCPRequests.WithLabelValues(route, "user_sse_cap", "deny", "user_sse_cap", "")
 	beforeDeny := testutil.ToFloat64(mcpDeny)
-	mcpAllow := mcpRequestsTotal.WithLabelValues(route, "user_sse_cap", "allow", "", "")
+	mcpAllow := metrics.MCPRequests.WithLabelValues(route, "user_sse_cap", "allow", "", "")
 	beforeAllow := testutil.ToFloat64(mcpAllow)
 
 	// (a) 5th concurrent SSE stream for user A gets 503 with reason=user_sse_cap.
@@ -311,13 +314,13 @@ func TestPerUserSSECap(t *testing.T) {
 		t.Fatalf("unexpected 503 body: %+v", errJSON)
 	}
 	if got := testutil.ToFloat64(shed); got != beforeShed+1 {
-		t.Errorf("httpRequestsTotal(503, user_sse_cap) = %v, want %v", got, beforeShed+1)
+		t.Errorf("metrics.HTTPRequests(503, user_sse_cap) = %v, want %v", got, beforeShed+1)
 	}
 	if got := testutil.ToFloat64(mcpDeny); got != beforeDeny+1 {
-		t.Errorf("mcpRequestsTotal(user_sse_cap, deny) = %v, want %v", got, beforeDeny+1)
+		t.Errorf("metrics.MCPRequests(user_sse_cap, deny) = %v, want %v", got, beforeDeny+1)
 	}
 	if got := testutil.ToFloat64(mcpAllow); got != beforeAllow {
-		t.Errorf("mcpRequestsTotal(user_sse_cap, allow) = %v, want %v", got, beforeAllow)
+		t.Errorf("metrics.MCPRequests(user_sse_cap, allow) = %v, want %v", got, beforeAllow)
 	}
 
 	var foundAudit bool

@@ -12,6 +12,8 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/navikt/copilot/fleet-gateway/internal/httpx"
+	"github.com/navikt/copilot/fleet-gateway/internal/metrics"
 	"github.com/navikt/copilot/fleet-gateway/internal/ratelimit"
 )
 
@@ -45,7 +47,7 @@ type dcrRequest struct {
 // enforced at /authorize for every client.
 func (g *Gateway) registerHandler(w http.ResponseWriter, r *http.Request) {
 	fail := func(status int, code, desc string) {
-		writeJSON(w, status, map[string]string{"error": code, "error_description": desc})
+		httpx.WriteJSON(w, status, map[string]string{"error": code, "error_description": desc})
 	}
 	ip := ratelimit.ClientIP(r)
 	allowed, err := g.allowRegistration(r.Context(), ip)
@@ -55,9 +57,9 @@ func (g *Gateway) registerHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if !allowed {
-		observeRateLimited(rateLimitEndpointRegister)
-		if g.rateLimitLog == nil || g.rateLimitLog.Allow(rateLimitEndpointRegister+"\x00"+ip) {
-			slog.Warn("rate limited", "endpoint", rateLimitEndpointRegister)
+		metrics.ObserveRateLimited(metrics.EndpointRegister)
+		if g.rateLimitLog == nil || g.rateLimitLog.Allow(metrics.EndpointRegister+"\x00"+ip) {
+			slog.Warn("rate limited", "endpoint", metrics.EndpointRegister)
 		}
 		w.Header().Set("Retry-After", "3600")
 		fail(http.StatusTooManyRequests, "temporarily_unavailable", "registration rate limit exceeded")
@@ -139,7 +141,7 @@ func (g *Gateway) registerHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if errors.Is(err, errStoreFull) {
 			w.Header().Set("Retry-After", "3600")
-			markShed(w, "store_full")
+			httpx.MarkShed(w, "store_full")
 			fail(http.StatusServiceUnavailable, "temporarily_unavailable", "client registration capacity reached")
 			return
 		}
@@ -149,7 +151,7 @@ func (g *Gateway) registerHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	slog.Info("audit dcr", "outcome", "registered", "client_id", meta.ClientID, "client_name", sanitizeLogValue(meta.ClientName))
 
-	writeJSON(w, http.StatusCreated, map[string]any{
+	httpx.WriteJSON(w, http.StatusCreated, map[string]any{
 		"client_id":                  meta.ClientID,
 		"client_id_issued_at":        now.Unix(),
 		"client_name":                meta.ClientName,

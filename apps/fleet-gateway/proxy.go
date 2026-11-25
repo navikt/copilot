@@ -18,7 +18,9 @@ import (
 	"time"
 
 	"github.com/navikt/copilot/fleet-gateway/internal/audit"
+	"github.com/navikt/copilot/fleet-gateway/internal/httpx"
 	"github.com/navikt/copilot/fleet-gateway/internal/identity"
+	"github.com/navikt/copilot/fleet-gateway/internal/metrics"
 	"github.com/navikt/copilot/fleet-gateway/internal/policy"
 	"github.com/navikt/copilot/fleet-gateway/internal/routing"
 )
@@ -124,7 +126,7 @@ func (g *Gateway) mcpHandler(route routing.Route) http.HandlerFunc {
 		// decision is true only when the gateway's own checks let the request through;
 		// context.outcome tells what happened after that.
 		defer func() {
-			observeMCPRequest(route, outcome, decision, decisionReason, toolName, rawTool, g.now().Sub(start))
+			metrics.ObserveMCPRequest(route, outcome, decision, decisionReason, toolName, rawTool, g.now().Sub(start))
 			audit.LogMCP(audit.MCP{
 				Caller: caller,
 				Method: rpcMethod, Tool: toolName,
@@ -144,7 +146,7 @@ func (g *Gateway) mcpHandler(route routing.Route) http.HandlerFunc {
 		default:
 			outcome = "method_not_allowed"
 			w.Header().Set("Allow", "GET, POST, DELETE")
-			writeJSON(w, http.StatusMethodNotAllowed, map[string]string{
+			httpx.WriteJSON(w, http.StatusMethodNotAllowed, map[string]string{
 				"error":   "method_not_allowed",
 				"message": "only GET, POST, and DELETE are supported",
 			})
@@ -153,10 +155,10 @@ func (g *Gateway) mcpHandler(route routing.Route) http.HandlerFunc {
 
 		if g.cfg.GatewayDisabled || route.Disabled() {
 			outcome = "disabled"
-			markShed(w, "disabled")
+			httpx.MarkShed(w, "disabled")
 			slog.Warn("route disabled by kill switch", "route", route.Route, "global", g.cfg.GatewayDisabled)
 			w.Header().Set("Retry-After", "300")
-			writeJSON(w, http.StatusServiceUnavailable, map[string]string{
+			httpx.WriteJSON(w, http.StatusServiceUnavailable, map[string]string{
 				"error":   "temporarily_unavailable",
 				"message": "this route is temporarily disabled by the gateway operator",
 			})
@@ -175,7 +177,7 @@ func (g *Gateway) mcpHandler(route routing.Route) http.HandlerFunc {
 		if err != nil {
 			outcome = "store_error"
 			slog.Warn("session lookup failed", "route", route.Route, "error", err)
-			writeJSON(w, http.StatusServiceUnavailable, map[string]string{
+			httpx.WriteJSON(w, http.StatusServiceUnavailable, map[string]string{
 				"error":   "temporarily_unavailable",
 				"message": "session store unavailable",
 			})
@@ -197,7 +199,7 @@ func (g *Gateway) mcpHandler(route routing.Route) http.HandlerFunc {
 
 		if sess.Resource != fullRouteURL {
 			outcome = "forbidden_resource"
-			writeJSON(w, http.StatusForbidden, map[string]string{
+			httpx.WriteJSON(w, http.StatusForbidden, map[string]string{
 				"error":   "invalid_target",
 				"message": "token is not bound to this route",
 			})
@@ -206,7 +208,7 @@ func (g *Gateway) mcpHandler(route routing.Route) http.HandlerFunc {
 
 		if len(r.Header.Values("Mcp-Session-Id")) > 1 {
 			outcome = "bad_request"
-			writeJSON(w, http.StatusBadRequest, map[string]string{
+			httpx.WriteJSON(w, http.StatusBadRequest, map[string]string{
 				"error":   "invalid_request",
 				"message": "only one Mcp-Session-Id header is allowed",
 			})
@@ -217,7 +219,7 @@ func (g *Gateway) mcpHandler(route routing.Route) http.HandlerFunc {
 		if reqSessionID != "" {
 			if len(reqSessionID) > maxMCPSessionIDBytes {
 				outcome = "bad_request"
-				writeJSON(w, http.StatusBadRequest, map[string]string{
+				httpx.WriteJSON(w, http.StatusBadRequest, map[string]string{
 					"error":   "invalid_request",
 					"message": "Mcp-Session-Id exceeds maximum allowed length",
 				})
@@ -228,7 +230,7 @@ func (g *Gateway) mcpHandler(route routing.Route) http.HandlerFunc {
 				// Fail closed: treating the row as missing would let any caller ride the owner's upstream session.
 				outcome = "mcp_session_unverifiable"
 				slog.Warn("mcp session binding sealed with unknown key id", "route", route.Route)
-				writeJSON(w, http.StatusForbidden, map[string]string{
+				httpx.WriteJSON(w, http.StatusForbidden, map[string]string{
 					"error":   "forbidden",
 					"message": "Mcp-Session-Id cannot be verified; start a new MCP session",
 				})
@@ -237,7 +239,7 @@ func (g *Gateway) mcpHandler(route routing.Route) http.HandlerFunc {
 			if getErr != nil {
 				outcome = "store_error"
 				slog.Warn("mcp session lookup failed", "route", route.Route, "error", getErr)
-				writeJSON(w, http.StatusServiceUnavailable, map[string]string{
+				httpx.WriteJSON(w, http.StatusServiceUnavailable, map[string]string{
 					"error":   "temporarily_unavailable",
 					"message": "session store unavailable",
 				})
@@ -250,7 +252,7 @@ func (g *Gateway) mcpHandler(route routing.Route) http.HandlerFunc {
 						"navident", sanitizeLogValue(caller.Subject),
 						"route", route.Route,
 					)
-					writeJSON(w, http.StatusForbidden, map[string]string{
+					httpx.WriteJSON(w, http.StatusForbidden, map[string]string{
 						"error":   "forbidden",
 						"message": "Mcp-Session-Id belongs to another user",
 					})
@@ -270,9 +272,9 @@ func (g *Gateway) mcpHandler(route routing.Route) http.HandlerFunc {
 			outcome = "user_cap"
 			decision = "deny"
 			decisionReason = "user_cap"
-			markShed(w, "user_cap")
+			httpx.MarkShed(w, "user_cap")
 			w.Header().Set("Retry-After", "1")
-			writeJSON(w, http.StatusServiceUnavailable, map[string]string{
+			httpx.WriteJSON(w, http.StatusServiceUnavailable, map[string]string{
 				"error":   "too_many_requests",
 				"message": "too many concurrent MCP requests for this user; retry shortly",
 			})
@@ -301,14 +303,14 @@ func (g *Gateway) mcpHandler(route routing.Route) http.HandlerFunc {
 			var maxErr *http.MaxBytesError
 			if errors.As(err, &maxErr) {
 				outcome = "payload_too_large"
-				writeJSON(w, http.StatusRequestEntityTooLarge, map[string]string{
+				httpx.WriteJSON(w, http.StatusRequestEntityTooLarge, map[string]string{
 					"error":   "payload_too_large",
 					"message": "request body exceeds maximum allowed size",
 				})
 				return
 			}
 			outcome = "bad_request"
-			writeJSON(w, http.StatusBadRequest, map[string]string{
+			httpx.WriteJSON(w, http.StatusBadRequest, map[string]string{
 				"error":   "invalid_request",
 				"message": "failed to read request body",
 			})
@@ -317,7 +319,7 @@ func (g *Gateway) mcpHandler(route routing.Route) http.HandlerFunc {
 
 		if !policy.HeadersValid(r.Header) {
 			outcome = "bad_request"
-			writeJSON(w, http.StatusBadRequest, map[string]string{
+			httpx.WriteJSON(w, http.StatusBadRequest, map[string]string{
 				"error":   "invalid_request",
 				"message": "too many, too large, duplicate or non-ASCII Mcp-* headers",
 			})
@@ -326,7 +328,7 @@ func (g *Gateway) mcpHandler(route routing.Route) http.HandlerFunc {
 		// Policy and upstream could read different Content-Type values (#2851).
 		if len(r.Header.Values("Content-Type")) > 1 {
 			outcome = "bad_request"
-			writeJSON(w, http.StatusBadRequest, map[string]string{
+			httpx.WriteJSON(w, http.StatusBadRequest, map[string]string{
 				"error":   "invalid_request",
 				"message": "more than one Content-Type header",
 			})
@@ -343,14 +345,14 @@ func (g *Gateway) mcpHandler(route routing.Route) http.HandlerFunc {
 		switch {
 		case pd.NonPostBody:
 			outcome = "bad_request"
-			writeJSON(w, http.StatusBadRequest, map[string]string{
+			httpx.WriteJSON(w, http.StatusBadRequest, map[string]string{
 				"error":   "invalid_request",
 				"message": "request body is only accepted on POST",
 			})
 			return
 		case pd.Reason == reasonHeaderMismatch:
 			outcome = "tool_denied"
-			writeJSON(w, http.StatusBadRequest, map[string]any{
+			httpx.WriteJSON(w, http.StatusBadRequest, map[string]any{
 				"jsonrpc": "2.0",
 				"id":      nil,
 				"error":   map[string]any{"code": -32020, "message": "Mcp-Method or Mcp-Name does not match the request body"},
@@ -372,9 +374,9 @@ func (g *Gateway) mcpHandler(route routing.Route) http.HandlerFunc {
 				outcome = "user_sse_cap"
 				decision = "deny"
 				decisionReason = "user_sse_cap"
-				markShed(w, "user_sse_cap")
+				httpx.MarkShed(w, "user_sse_cap")
 				w.Header().Set("Retry-After", "1")
-				writeJSON(w, http.StatusServiceUnavailable, map[string]string{
+				httpx.WriteJSON(w, http.StatusServiceUnavailable, map[string]string{
 					"error":   "too_many_requests",
 					"message": "too many concurrent SSE streams for this user; retry shortly",
 				})
@@ -396,7 +398,7 @@ func (g *Gateway) mcpHandler(route routing.Route) http.HandlerFunc {
 
 		if g.TeamTokens == nil {
 			outcome = "upstream_token_error"
-			writeJSON(w, http.StatusBadGateway, map[string]string{
+			httpx.WriteJSON(w, http.StatusBadGateway, map[string]string{
 				"error":   "upstream_token_error",
 				"message": "team token source is not configured",
 			})
@@ -408,7 +410,7 @@ func (g *Gateway) mcpHandler(route routing.Route) http.HandlerFunc {
 			var missingAccess *upstreamAccessMissingError
 			if errors.As(err, &missingAccess) {
 				outcome = "upstream_access_missing"
-				writeJSON(w, http.StatusBadGateway, map[string]string{
+				httpx.WriteJSON(w, http.StatusBadGateway, map[string]string{
 					"error":   "upstream_access_missing",
 					"message": missingAccess.Error(),
 				})
@@ -416,7 +418,7 @@ func (g *Gateway) mcpHandler(route routing.Route) http.HandlerFunc {
 			}
 			outcome = "upstream_token_error"
 			slog.Warn("team token failed", "route", route.Route, "reason", err.Error())
-			writeJSON(w, http.StatusBadGateway, map[string]string{
+			httpx.WriteJSON(w, http.StatusBadGateway, map[string]string{
 				"error":   "upstream_token_error",
 				"message": "failed to acquire upstream team token",
 			})
@@ -446,7 +448,7 @@ func (g *Gateway) mcpHandler(route routing.Route) http.HandlerFunc {
 		upReq, err := http.NewRequestWithContext(upCtx, r.Method, targetURL, bodyReader)
 		if err != nil {
 			outcome = "upstream_error"
-			writeJSON(w, http.StatusBadGateway, map[string]string{
+			httpx.WriteJSON(w, http.StatusBadGateway, map[string]string{
 				"error":   "upstream_error",
 				"message": "failed to build upstream request",
 			})
@@ -470,7 +472,7 @@ func (g *Gateway) mcpHandler(route routing.Route) http.HandlerFunc {
 		resp, err := client.Do(upReq) //nolint:gosec // upstream URL validated from versioned pilot-routes config
 		if err != nil {
 			outcome = "upstream_error"
-			writeJSON(w, http.StatusBadGateway, map[string]string{
+			httpx.WriteJSON(w, http.StatusBadGateway, map[string]string{
 				"error":   "upstream_error",
 				"message": "upstream request failed",
 			})
@@ -542,7 +544,7 @@ func (g *Gateway) mcpHandler(route routing.Route) http.HandlerFunc {
 			if !streamReserved {
 				// The client did not accept SSE, so no slot was reserved (MCP forbids this reply).
 				outcome = "upstream_unexpected_sse"
-				writeJSON(w, http.StatusBadGateway, map[string]string{
+				httpx.WriteJSON(w, http.StatusBadGateway, map[string]string{
 					"error":   "upstream_error",
 					"message": "upstream answered with an event stream the client did not accept",
 				})
@@ -593,7 +595,7 @@ func (g *Gateway) mcpHandler(route routing.Route) http.HandlerFunc {
 		}
 		if resp.ContentLength > maxRespBytes {
 			outcome = "response_too_large"
-			writeJSON(w, http.StatusBadGateway, map[string]string{
+			httpx.WriteJSON(w, http.StatusBadGateway, map[string]string{
 				"error":   "response_too_large",
 				"message": "upstream response exceeds maximum allowed size",
 			})
@@ -609,7 +611,7 @@ func (g *Gateway) mcpHandler(route routing.Route) http.HandlerFunc {
 		bodyTimer.Stop()
 		if err != nil {
 			outcome = "stream_error"
-			writeJSON(w, http.StatusBadGateway, map[string]string{
+			httpx.WriteJSON(w, http.StatusBadGateway, map[string]string{
 				"error":   "upstream_error",
 				"message": "failed to read upstream response",
 			})
@@ -617,7 +619,7 @@ func (g *Gateway) mcpHandler(route routing.Route) http.HandlerFunc {
 		}
 		if respLen > maxRespBytes {
 			outcome = "response_too_large"
-			writeJSON(w, http.StatusBadGateway, map[string]string{
+			httpx.WriteJSON(w, http.StatusBadGateway, map[string]string{
 				"error":   "response_too_large",
 				"message": "upstream response exceeds maximum allowed size",
 			})
@@ -820,7 +822,7 @@ func writeToolDenied(w http.ResponseWriter, reason string) {
 	if reason == reasonAmbiguous {
 		status, code, msg = http.StatusBadRequest, -32600, "invalid_request: ambiguous JSON-RPC body"
 	}
-	writeJSON(w, status, map[string]any{
+	httpx.WriteJSON(w, status, map[string]any{
 		"jsonrpc": "2.0",
 		"id":      nil,
 		"error":   map[string]any{"code": code, "message": msg},
@@ -836,7 +838,7 @@ func writeUnauthorized(w http.ResponseWriter, prmURL string, presented bool) {
 		challenge = fmt.Sprintf(`Bearer error="invalid_token", resource_metadata="%s"`, prmURL)
 	}
 	w.Header().Set("WWW-Authenticate", challenge)
-	writeJSON(w, http.StatusUnauthorized, map[string]string{
+	httpx.WriteJSON(w, http.StatusUnauthorized, map[string]string{
 		"error":   "invalid_token",
 		"message": "missing, invalid, or expired bearer token",
 	})

@@ -1,9 +1,10 @@
 package main
 
 import (
-	"encoding/json"
 	"net/http"
 	"strings"
+
+	"github.com/navikt/copilot/fleet-gateway/internal/httpx"
 )
 
 // prmHandler serves RFC 9728 OAuth 2.0 Protected Resource Metadata.
@@ -21,7 +22,7 @@ func (g *Gateway) prmHandler(w http.ResponseWriter, r *http.Request) {
 		resource = candidate
 	}
 
-	writeJSON(w, http.StatusOK, map[string]any{
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{
 		"resource":                 resource,
 		"authorization_servers":    []string{g.cfg.BaseURL},
 		"bearer_methods_supported": []string{"header"},
@@ -48,15 +49,5 @@ func (g *Gateway) asMetadataHandler(w http.ResponseWriter, _ *http.Request) {
 		meta["grant_types_supported"] = []string{"authorization_code", "refresh_token"}
 		meta["revocation_endpoint"] = g.cfg.BaseURL + "/revoke"
 	}
-	writeJSON(w, http.StatusOK, meta)
-}
-
-func writeJSON(w http.ResponseWriter, status int, payload any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Cache-Control", "no-store")
-	w.Header().Set("Pragma", "no-cache")
-	w.WriteHeader(status)
-	enc := json.NewEncoder(w)
-	enc.SetIndent("", "  ")
-	_ = enc.Encode(payload)
+	httpx.WriteJSON(w, http.StatusOK, meta)
 }

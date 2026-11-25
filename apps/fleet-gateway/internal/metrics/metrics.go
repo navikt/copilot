@@ -1,4 +1,5 @@
-package main
+// Package metrics holds the gateway's Prometheus collectors and observe helpers.
+package metrics //nolint:revive // the gateway never imports runtime/metrics; name per docs/architecture.md
 
 import (
 	"maps"
@@ -17,13 +18,15 @@ import (
 
 // Metrics carry no user identifiers: labels are limited to values from the
 // route config, the fixed outcome/decision sets in proxy.go and HTTP status codes.
+// HTTPRequests, MCPRequests and RateLimited are exported for the package main
+// tests that drive the full handler and read the series.
 var (
-	httpRequestsTotal = promauto.NewCounterVec(prometheus.CounterOpts{
+	HTTPRequests = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "fleet_gateway_http_requests_total",
 		Help: "HTTP requests answered by fleet-gateway, by status code. Excludes /health and /ready. reason is empty except for deliberate 503s (disabled: kill switch, cap: in-flight/SSE cap, user_cap: per-user in-flight cap, user_sse_cap: per-user SSE cap, store_full: store quota, refresh_in_flight: concurrent refresh).",
 	}, []string{"code", "reason"})
 
-	mcpRequestsTotal = promauto.NewCounterVec(prometheus.CounterOpts{
+	MCPRequests = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "fleet_gateway_mcp_requests_total",
 		Help: "MCP proxy requests by route, outcome and tool-policy decision. reason is set on deny only (not_listed, ambiguous, header_mismatch, user_cap, user_sse_cap). tool is the called tool when it is on the route's explicit list, else other; empty when the request is not a tool call.",
 	}, []string{"route", "outcome", "decision", "reason", "tool"})
@@ -34,64 +37,67 @@ var (
 		Buckets: []float64{0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 60, 120},
 	}, []string{"route"})
 
-	lockoutAuditOutboxPending = promauto.NewGauge(prometheus.GaugeOpts{
+	LockoutAuditOutboxPending = promauto.NewGauge(prometheus.GaugeOpts{
 		Name: "fleet_gateway_lockout_audit_outbox_pending",
 		Help: "Lockout audit entries left in the outbox after the last drain. Above zero for long means the drain keeps failing.",
 	})
-	routesLoaded = promauto.NewGauge(prometheus.GaugeOpts{
+	RoutesLoaded = promauto.NewGauge(prometheus.GaugeOpts{
 		Name: "fleet_gateway_routes_loaded",
 		Help: "Number of MCP routes in the current route table.",
 	})
 
-	routeSyncFailures = promauto.NewCounter(prometheus.CounterOpts{
+	RouteSyncFailures = promauto.NewCounter(prometheus.CounterOpts{
 		Name: "fleet_gateway_route_sync_failures_total",
 		Help: "fleet-control route snapshots fetched or validated without success; the current table stays.",
 	})
 
-	routesFromStore = promauto.NewGauge(prometheus.GaugeOpts{
+	RoutesFromStore = promauto.NewGauge(prometheus.GaugeOpts{
 		Name: "fleet_gateway_routes_from_stored_snapshot",
 		Help: "1 while the route table comes from the snapshot stored in the gateway's own database because fleet-control was unreachable at startup, 0 otherwise.",
 	})
 
-	storeUp = promauto.NewGauge(prometheus.GaugeOpts{
+	StoreUp = promauto.NewGauge(prometheus.GaugeOpts{
 		Name: "fleet_gateway_store_up",
 		Help: "1 if the last session-store ping (on each /ready probe) succeeded, 0 if it failed. /ready does not fail on it (#2893).",
 	})
 
-	rateLimitedTotal = promauto.NewCounterVec(prometheus.CounterOpts{
+	RateLimited = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "fleet_gateway_rate_limited_total",
 		Help: "Requests rejected by the per-IP or global rate limiter, by OAuth endpoint.",
 	}, []string{"oauth_endpoint"})
 )
 
+// OAuth endpoint names on the oauth_endpoint label of RateLimited.
 const (
-	rateLimitEndpointAuthorize = "authorize"
-	rateLimitEndpointConsent   = "consent"
-	rateLimitEndpointToken     = "token"
-	rateLimitEndpointRevoke    = "revoke"
-	rateLimitEndpointRegister  = "register"
+	EndpointAuthorize = "authorize"
+	EndpointConsent   = "consent"
+	EndpointToken     = "token"
+	EndpointRevoke    = "revoke"
+	EndpointRegister  = "register"
 )
 
-var rateLimitedEndpoints = []string{
-	rateLimitEndpointAuthorize,
-	rateLimitEndpointConsent,
-	rateLimitEndpointToken,
-	rateLimitEndpointRevoke,
-	rateLimitEndpointRegister,
+// RateLimitedEndpoints lists every endpoint behind a rate limiter.
+var RateLimitedEndpoints = []string{
+	EndpointAuthorize,
+	EndpointConsent,
+	EndpointToken,
+	EndpointRevoke,
+	EndpointRegister,
 }
 
-func observeRateLimited(endpoint string) {
-	rateLimitedTotal.WithLabelValues(endpoint).Inc()
+// ObserveRateLimited counts one rejected request on endpoint.
+func ObserveRateLimited(endpoint string) {
+	RateLimited.WithLabelValues(endpoint).Inc()
 }
 
-// denyReasons is the closed set of reason values on decision="deny".
-var denyReasons = []string{policy.ReasonNotListed, policy.ReasonAmbiguous, policy.ReasonHeaderMismatch, "user_cap", "user_sse_cap"}
+// DenyReasons is the closed set of reason values on decision="deny".
+var DenyReasons = []string{policy.ReasonNotListed, policy.ReasonAmbiguous, policy.ReasonHeaderMismatch, "user_cap", "user_sse_cap"}
 
-// observeMCPRequest bounds both extra labels: reason only on deny and only from
-// denyReasons; tool only when on the route's explicit list, else "other"
+// ObserveMCPRequest bounds both extra labels: reason only on deny and only from
+// DenyReasons; tool only when on the route's explicit list, else "other"
 // (passAllTools routes always give "other").
-func observeMCPRequest(route routing.Route, outcome, decision, reason, tool, rawTool string, d time.Duration) {
-	if decision != "deny" || !slices.Contains(denyReasons, reason) {
+func ObserveMCPRequest(route routing.Route, outcome, decision, reason, tool, rawTool string, d time.Duration) {
+	if decision != "deny" || !slices.Contains(DenyReasons, reason) {
 		reason = ""
 	}
 	// tool is the truncated audit value, only used to tell "not a tool call" from "other".
@@ -102,67 +108,49 @@ func observeMCPRequest(route routing.Route, outcome, decision, reason, tool, raw
 	default:
 		tool = "other"
 	}
-	mcpRequestsTotal.WithLabelValues(route.Route, outcome, decision, reason, tool).Inc()
+	MCPRequests.WithLabelValues(route.Route, outcome, decision, reason, tool).Inc()
 	mcpRequestDuration.WithLabelValues(route.Route).Observe(d.Seconds())
 }
 
-func observeHTTPRequest(code int, reason string) {
-	httpRequestsTotal.WithLabelValues(strconv.Itoa(code), reason).Inc()
+// ObserveHTTPRequest counts one answered request by status code and shed reason.
+func ObserveHTTPRequest(code int, reason string) {
+	HTTPRequests.WithLabelValues(strconv.Itoa(code), reason).Inc()
 }
 
-// markShed labels a deliberate 503 so the 5xx alert can tell it apart from
-// real failures: "disabled" (kill switch), "cap" (in-flight/SSE limits),
-// "user_cap" (per-user in-flight limit), "user_sse_cap" (per-user SSE limit),
-// "store_full" (store quota reached), "refresh_in_flight" (concurrent refresh).
-// Store errors and upstream failures stay unlabelled and count.
-func markShed(w http.ResponseWriter, reason string) {
-	for {
-		if sw, ok := w.(*statusResponseWriter); ok {
-			sw.reason = reason
-			return
-		}
-		u, ok := w.(interface{ Unwrap() http.ResponseWriter })
-		if !ok {
-			return
-		}
-		w = u.Unwrap()
-	}
-}
-
-// initMetrics creates the series the alerts read, at zero, before traffic.
+// Init creates the series the alerts read, at zero, before traffic.
 // CounterVec creates a series on first Inc, so increase() would miss a first
 // burst that lands between two scrapes.
-func initMetrics(routes []routing.Route) {
+func Init(routes []routing.Route) {
 	for _, code := range []string{"200", "500", "502", "503", "504"} {
-		httpRequestsTotal.WithLabelValues(code, "")
+		HTTPRequests.WithLabelValues(code, "")
 	}
 	for _, reason := range []string{"disabled", "cap", "user_cap", "user_sse_cap", "store_full", "refresh_in_flight"} {
-		httpRequestsTotal.WithLabelValues("503", reason)
+		HTTPRequests.WithLabelValues("503", reason)
 	}
-	for _, ep := range rateLimitedEndpoints {
-		rateLimitedTotal.WithLabelValues(ep)
+	for _, ep := range RateLimitedEndpoints {
+		RateLimited.WithLabelValues(ep)
 	}
 	for _, r := range routes {
 		tools := append([]string{"", "other"}, slices.Sorted(maps.Keys(r.AllowedTools))...)
 		for _, o := range []string{"ok", "upstream_token_error", "upstream_error"} {
 			for _, tool := range tools {
-				mcpRequestsTotal.WithLabelValues(r.Route, o, "allow", "", tool)
+				MCPRequests.WithLabelValues(r.Route, o, "allow", "", tool)
 			}
 		}
-		for _, reason := range denyReasons {
+		for _, reason := range DenyReasons {
 			o := "tool_denied"
 			switch reason {
 			case "user_cap", "user_sse_cap":
 				o = reason
 			}
-			mcpRequestsTotal.WithLabelValues(r.Route, o, "deny", reason, "")
+			MCPRequests.WithLabelValues(r.Route, o, "deny", reason, "")
 		}
-		mcpRequestsTotal.WithLabelValues(r.Route, "disabled", "", "", "")
+		MCPRequests.WithLabelValues(r.Route, "disabled", "", "", "")
 	}
 }
 
-// metricsServer serves /metrics on its own port, which has no ingress.
-func metricsServer(addr string) *http.Server {
+// Server serves /metrics on its own port, which has no ingress.
+func Server(addr string) *http.Server {
 	mux := http.NewServeMux()
 	mux.Handle("GET /metrics", promhttp.Handler())
 	return &http.Server{Addr: addr, Handler: mux, ReadHeaderTimeout: 5 * time.Second}
