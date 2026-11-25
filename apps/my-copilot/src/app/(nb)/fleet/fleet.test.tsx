@@ -59,7 +59,17 @@ const profile = (granted: Record<string, unknown> = { granted: false }) => ({
   status: { pending: { generation: 1 }, grants: [{ serverRef: ref, ...granted }] },
 });
 
+const entry = (namespace: string, name: string, dataCategory = "Intern") => ({
+  apiVersion: "fleet.nav.no/v1alpha1",
+  kind: "MCPServerCatalogEntry",
+  metadata: { namespace, name },
+  spec: { dataCategory, allowedTools: ["hent_sak"] },
+  status: { publishedGeneration: 1, route: { path: `/mcp/${namespace}/${name}` } },
+});
+
 const routes: Record<string, unknown> = {
+  [`${API}/mcpservercatalogentries`]: { items: [entry("team-a", "docs"), entry("team-b", "saker", "Fortrolig")] },
+  [`${API}/namespaces/team-b/mcpservercatalogentries/saker`]: entry("team-b", "saker", "Fortrolig"),
   [`${API}/whoami`]: { name: "A123456", oid: "x", teams: ["team-a"] },
   [`${API}/namespaces/team-a/mcpservers`]: { items: [server()] },
   [`${API}/namespaces/team-a/mcpservers/docs`]: server(),
@@ -83,6 +93,7 @@ function stub(overrides: Record<string, unknown> = {}, status: Record<string, nu
   );
 }
 
+const sp = (team?: string) => ({ searchParams: Promise.resolve(team ? { team } : {}) });
 const params = (namespace: string, name: string) => ({ params: Promise.resolve({ namespace, name }) });
 
 describe("/fleet", () => {
@@ -96,13 +107,13 @@ describe("/fleet", () => {
 
   it("is 404 on every page without FLEET_CONTROL_URL", async () => {
     vi.stubEnv("FLEET_CONTROL_URL", "");
-    await expect(FleetPage()).rejects.toThrow("NEXT_NOT_FOUND");
+    await expect(FleetPage(sp())).rejects.toThrow("NEXT_NOT_FOUND");
     await expect(ServerPage(params("team-a", "docs"))).rejects.toThrow("NEXT_NOT_FOUND");
     await expect(AgentPage(params("aksel", "studio"))).rejects.toThrow("NEXT_NOT_FOUND");
   });
 
   it("calls only the v1alpha1 API, never /admin/v1", async () => {
-    render(await FleetPage());
+    render(await FleetPage(sp()));
     render(await ServerPage(params("team-a", "docs")));
     render(await AgentPage(params("aksel", "studio")));
     const urls = vi.mocked(fetch).mock.calls.map((c) => String(c[0]));
@@ -111,7 +122,7 @@ describe("/fleet", () => {
   });
 
   it("shows Kort fortalt, the inbox and the team's MCP servers with status", async () => {
-    render(await FleetPage());
+    render(await FleetPage(sp()));
     expect(screen.getByText("Kort fortalt")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Til godkjenning" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "studio" })).toHaveAttribute("href", "/fleet/agenter/aksel/studio");
@@ -119,32 +130,85 @@ describe("/fleet", () => {
     expect(screen.getByRole("heading", { name: "team-a" })).toBeInTheDocument();
     expect(screen.queryByRole("tab")).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Registrer en MCP-server" })).toHaveAttribute("href", "/fleet/registrer");
-    expect(screen.getByRole("link", { name: "docs" })).toHaveAttribute("href", "/fleet/mcp-servere/team-a/docs");
+    expect(screen.getAllByRole("link", { name: "docs" })[0]).toHaveAttribute("href", "/fleet/mcp-servere/team-a/docs");
     expect(screen.getByText("Ny versjon venter")).toBeInTheDocument();
     expect(screen.getByText("team-a har ingen agentprofiler ennå.")).toBeInTheDocument();
   });
 
   it("explains the empty state for a person with no teams", async () => {
     stub({ [`${API}/whoami`]: { name: "A123456", teams: [] } });
-    render(await FleetPage());
-    expect(screen.getByText(/ikke med i noe team/)).toBeInTheDocument();
+    render(await FleetPage(sp()));
+    expect(screen.getByRole("heading", { name: "Kom i gang" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Nais Console" })).toHaveAttribute(
+      "href",
+      "https://console.nav.cloud.nais.io/"
+    );
+    expect(screen.queryByRole("link", { name: "Registrer en MCP-server" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "saker" })).toHaveAttribute("href", "/fleet/mcp-servere/team-b/saker");
+  });
+
+  it("lists published MCP servers from every team in the catalogue", async () => {
+    render(await FleetPage(sp()));
+    const table = screen.getByRole("table", { name: "Publiserte MCP-servere" });
+    expect(table).toHaveTextContent("team-b");
+    expect(table).toHaveTextContent("Fortrolig");
+    expect(screen.getByRole("link", { name: "saker" })).toHaveAttribute("href", "/fleet/mcp-servere/team-b/saker");
+  });
+
+  it("hides teams with nothing in Fleet and offers a picker between the rest", async () => {
+    stub({
+      [`${API}/whoami`]: { name: "A123456", teams: ["team-a", "team-c", "team-d"] },
+      [`${API}/namespaces/team-c/mcpservers`]: { items: [] },
+      [`${API}/namespaces/team-c/agentprofiles`]: { items: [] },
+      [`${API}/namespaces/team-d/mcpservers`]: { items: [] },
+      [`${API}/namespaces/team-d/agentprofiles`]: { items: [profile()] },
+    });
+    render(await FleetPage(sp()));
+    expect(screen.queryByRole("heading", { name: "team-c" })).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "team-d" })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Team" })).toHaveTextContent("team-d");
+    expect(screen.getByRole("combobox", { name: "Team" })).not.toHaveTextContent("team-c");
+  });
+
+  it("explains an unknown or invalid team and links back", async () => {
+    for (const team of ["team-x", "Not a label!"]) {
+      const { unmount } = render(await FleetPage(sp(team)));
+      if (team === "team-x") {
+        expect(screen.getByText(/ikke med i teamet/)).toBeInTheDocument();
+        expect(screen.getByRole("link", { name: "Vis alle teamene dine" })).toHaveAttribute("href", "/fleet");
+      } else {
+        expect(screen.getByRole("heading", { name: "team-a" })).toBeInTheDocument();
+      }
+      unmount();
+    }
+  });
+
+  it("shows only the picked team", async () => {
+    stub({
+      [`${API}/whoami`]: { name: "A123456", teams: ["team-a", "team-d"] },
+      [`${API}/namespaces/team-d/mcpservers`]: { items: [] },
+      [`${API}/namespaces/team-d/agentprofiles`]: { items: [profile()] },
+    });
+    render(await FleetPage(sp("team-d")));
+    expect(screen.queryByRole("heading", { name: "team-a" })).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "team-d" })).toBeInTheDocument();
   });
 
   it("shows an Alert on 403 and 409, and a retry on 503", async () => {
     stub({}, { [`${API}/whoami`]: 403 });
-    render(await FleetPage());
+    render(await FleetPage(sp()));
     expect(screen.getByText(/ikke tilgang/)).toBeInTheDocument();
     stub({}, { [`${API}/whoami`]: 409 });
-    render(await FleetPage());
+    render(await FleetPage(sp()));
     expect(screen.getByText("Noen andre har endret dette. Last inn siden på nytt.")).toBeInTheDocument();
     stub({}, { [`${API}/whoami`]: 503 });
-    render(await FleetPage());
+    render(await FleetPage(sp()));
     expect(screen.getByRole("button", { name: "Prøv igjen" })).toBeInTheDocument();
   });
 
   it("sends 401 to login", async () => {
     stub({}, { [`${API}/whoami`]: 401 });
-    await expect(FleetPage()).rejects.toThrow("NEXT_REDIRECT /oauth2/login");
+    await expect(FleetPage(sp())).rejects.toThrow("NEXT_REDIRECT /oauth2/login");
   });
 
   it("shows an MCP server with its route, who acts next and its history", async () => {
@@ -235,9 +299,41 @@ describe("/fleet", () => {
     expect(screen.getByText(/må godkjenne versjon 3 før MCP-serveren blir publisert igjen/)).toBeInTheDocument();
   });
 
-  it("is 404 for an MCP server the team does not have, or another team's", async () => {
+  it("is 404 for an MCP server that is not in the catalogue", async () => {
     await expect(ServerPage(params("team-a", "nope"))).rejects.toThrow("NEXT_NOT_FOUND");
     await expect(ServerPage(params("other", "docs"))).rejects.toThrow("NEXT_NOT_FOUND");
+  });
+
+  it("shows another team's published MCP server read-only, without history or actions", async () => {
+    render(await ServerPage(params("team-b", "saker")));
+    expect(screen.getByText("Fortrolig")).toBeInTheDocument();
+    expect(screen.getByText("/mcp/team-b/saker")).toBeInTheDocument();
+    expect(screen.getByText("hent_sak")).toBeInTheDocument();
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+    const urls = vi.mocked(fetch).mock.calls.map((c) => String(c[0]));
+    expect(urls).toContain(`http://fc${API}/namespaces/team-b/mcpservercatalogentries/saker`);
+  });
+
+  const catalogFetched = () =>
+    vi.mocked(fetch).mock.calls.some((c) => String(c[0]).includes("mcpservercatalogentries"));
+
+  it("does not fall back to the catalogue on 503", async () => {
+    stub({}, { [`${API}/namespaces/team-b/mcpservers/saker`]: 503 });
+    render(await ServerPage(params("team-b", "saker")));
+    expect(catalogFetched()).toBe(false);
+    expect(screen.getByText(/Vi får ikke kontakt med Fleet/)).toBeInTheDocument();
+  });
+
+  it("sends 401 on the server to login without fetching the catalogue", async () => {
+    stub({}, { [`${API}/namespaces/team-b/mcpservers/saker`]: 401 });
+    await expect(ServerPage(params("team-b", "saker"))).rejects.toThrow("NEXT_REDIRECT /oauth2/login");
+    expect(catalogFetched()).toBe(false);
+  });
+
+  it("does not switch to the read-only view when only history is 404", async () => {
+    stub({}, { [`${API}/namespaces/team-a/mcpservers/docs/history`]: 404 });
+    await expect(ServerPage(params("team-a", "docs"))).rejects.toThrow("NEXT_NOT_FOUND");
+    expect(catalogFetched()).toBe(false);
   });
 
   it("shows an agent profile to an MCP server's owner team without the history", async () => {
