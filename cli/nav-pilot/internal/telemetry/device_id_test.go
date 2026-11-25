@@ -9,7 +9,6 @@ import (
 // TestDeviceIDDeterminism verifies that device ID generation is deterministic.
 // Same inputs should always produce the same UUID.
 func TestDeviceIDDeterminism(t *testing.T) {
-	// Generate ID twice
 	id1, err := generateDeterministicDeviceID()
 	if err != nil {
 		t.Fatalf("first generation failed: %v", err)
@@ -20,12 +19,10 @@ func TestDeviceIDDeterminism(t *testing.T) {
 		t.Fatalf("second generation failed: %v", err)
 	}
 
-	// They should match
 	if id1 != id2 {
 		t.Errorf("device IDs not deterministic: %q != %q", id1, id2)
 	}
 
-	// They should be in the expected format
 	if !strings.HasPrefix(id1, "nav-pilot-") {
 		t.Errorf("device ID missing prefix: %q", id1)
 	}
@@ -42,18 +39,15 @@ func TestDeviceIDFormatValid(t *testing.T) {
 		t.Fatalf("generation failed: %v", err)
 	}
 
-	// Check prefix
 	if !strings.HasPrefix(id, "nav-pilot-") {
 		t.Errorf("missing 'nav-pilot-' prefix: %q", id)
 	}
 
-	// Check length
 	expectedLen := len("nav-pilot-") + 12 // prefix + 12 hex chars
 	if len(id) != expectedLen {
 		t.Errorf("wrong length: got %d, want %d", len(id), expectedLen)
 	}
 
-	// Check that hash part is hex only
 	hashPart := strings.TrimPrefix(id, "nav-pilot-")
 	for _, ch := range hashPart {
 		if !strings.ContainsRune("0123456789abcdef", ch) {
@@ -66,19 +60,16 @@ func TestDeviceIDPersistence(t *testing.T) {
 	t.Setenv("HOME", t.TempDir())
 	t.Setenv("NAV_PILOT_CONFIG", "")
 
-	// Get or create
 	id1, err := GetOrCreateDeviceID()
 	if err != nil {
 		t.Fatalf("first call failed: %v", err)
 	}
 
-	// Get again (should read from disk)
 	id2, err := GetOrCreateDeviceID()
 	if err != nil {
 		t.Fatalf("second call failed: %v", err)
 	}
 
-	// Should be identical
 	if id1 != id2 {
 		t.Errorf("device ID not persistent: %q != %q", id1, id2)
 	}
@@ -110,8 +101,6 @@ func TestDeviceIDNoUserInfo(t *testing.T) {
 		}
 	}
 }
-
-// ─── device-id format validation ────────────────────────────────────────────
 
 func TestGetOrCreateDeviceID_ValidStoredIDReturned(t *testing.T) {
 	dir := t.TempDir()
