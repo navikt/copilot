@@ -33,7 +33,16 @@ type snapshotItem struct {
 type routeItem struct {
 	Namespace string `json:"namespace"`
 	Name      string `json:"name"`
+	// Cluster is the target's cluster. DataClass is omitted when unknown, and
+	// a consumer that enforces data classes must then treat it as the highest (#2896).
+	Cluster   string `json:"cluster"`
+	DataClass string `json:"data_class,omitempty"`
 	Route
+}
+
+func newRouteItem(s Server, r Route) routeItem {
+	cluster, _, _ := strings.Cut(r.Target, ":")
+	return routeItem{s.Namespace, s.Name, cluster, s.DataClass, r}
 }
 
 var errEmptySnapshot = errors.New("snapshot would be empty")
@@ -46,7 +55,7 @@ func snapshotItems(kind string, servers []Server) (items []snapshotItem, revoked
 		var it snapshotItem
 		switch {
 		case kind == "routes" && s.Route != nil:
-			it = snapshotItem{key: s.Key(), body: routeItem{s.Namespace, s.Name, *s.Route}}
+			it = snapshotItem{key: s.Key(), body: newRouteItem(s, *s.Route)}
 		case kind == "registry" && s.Registry != nil:
 			it = snapshotItem{key: s.RegistryName, body: s.Registry}
 		case kind != "routes" && kind != "registry":
@@ -72,7 +81,7 @@ func snapshotItems(kind string, servers []Server) (items []snapshotItem, revoked
 			// The gateway never calls a disabled route's upstream, but still
 			// validates it; the target's app in its namespace passes and stays short.
 			r.UpstreamURL = "http://" + r.Target[strings.LastIndex(r.Target, ":")+1:] + "." + s.Namespace
-			it.body = routeItem{s.Namespace, s.Name, r}
+			it.body = newRouteItem(s, r)
 		}
 		items = append(items, it)
 	}

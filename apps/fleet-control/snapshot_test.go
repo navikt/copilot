@@ -314,3 +314,24 @@ func TestRoutesFitRefusesOversizedSnapshot(t *testing.T) {
 		t.Fatalf("oversized snapshot must be refused with 409: %v", err)
 	}
 }
+
+func TestRoutesSnapshotHasClusterAndDataClass(t *testing.T) {
+	two := testServers(2)
+	two[0].DataClass = "Fortrolig"
+	two[1].Status = "revoked"
+	snap, err := buildSnapshot("routes", two, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var rows []map[string]any
+	if err := json.Unmarshal(snap.Items, &rows); err != nil {
+		t.Fatal(err)
+	}
+	if rows[0]["cluster"] != "dev-gcp" || rows[0]["data_class"] != "Fortrolig" {
+		t.Errorf("published route: %v", rows[0])
+	}
+	// Unknown class (written before 005) is absent, not a default; revoked keeps cluster.
+	if _, ok := rows[1]["data_class"]; ok || rows[1]["cluster"] != "dev-gcp" {
+		t.Errorf("revoked legacy route: %v", rows[1])
+	}
+}

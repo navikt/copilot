@@ -227,7 +227,7 @@ func TestRealPostgresMCPServerLifecycle(t *testing.T) {
 		t.Fatalf("actors: %+v %+v", m.Status.SubmittedBy, m.Status.ApprovedBy)
 	}
 	servers, _ := e.db.Servers(context.Background())
-	if i := slices.IndexFunc(servers, func(s Server) bool { return s.Key() == "team-a/svc" }); i < 0 || servers[i].Route.Target != "dev-gcp:team-a:svc" {
+	if i := slices.IndexFunc(servers, func(s Server) bool { return s.Key() == "team-a/svc" }); i < 0 || servers[i].Route.Target != "dev-gcp:team-a:svc" || servers[i].DataClass != "Intern" {
 		t.Fatalf("snapshot columns: %+v", servers)
 	}
 
