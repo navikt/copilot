@@ -462,6 +462,7 @@ func main() {
 	)
 
 	metrics.Init(gw.table().Routes)
+	metrics.SetRoutesSource(cfg.RoutesSource)
 	metrics := metrics.Server(":" + config.Get("METRICS_PORT", "9090"))
 	go func() {
 		if err := metrics.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {

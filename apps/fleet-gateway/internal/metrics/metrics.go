@@ -46,6 +46,12 @@ var (
 		Help: "Number of MCP routes in the current route table.",
 	})
 
+	// Alerts scope on this, not on the deploy template: Mimir evaluates rules tenant-wide (#2949).
+	RoutesSource = promauto.NewGaugeVec(prometheus.GaugeOpts{
+		Name: "fleet_gateway_routes_source_info",
+		Help: "Always 1; the source label says where this pod reads routes from (git or fleet-control).",
+	}, []string{"source"})
+
 	RouteSyncFailures = promauto.NewCounter(prometheus.CounterOpts{
 		Name: "fleet_gateway_route_sync_failures_total",
 		Help: "fleet-control route snapshots fetched or validated without success; the current table stays.",
@@ -115,6 +121,12 @@ func ObserveMCPRequest(route routing.Route, outcome, decision, reason, tool, raw
 // ObserveHTTPRequest counts one answered request by status code and shed reason.
 func ObserveHTTPRequest(code int, reason string) {
 	HTTPRequests.WithLabelValues(strconv.Itoa(code), reason).Inc()
+}
+
+// SetRoutesSource leaves exactly one source series at 1.
+func SetRoutesSource(source string) {
+	RoutesSource.Reset()
+	RoutesSource.WithLabelValues(source).Set(1)
 }
 
 // Init creates the series the alerts read, at zero, before traffic.

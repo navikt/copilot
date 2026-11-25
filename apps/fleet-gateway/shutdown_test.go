@@ -52,6 +52,10 @@ func TestNeverSyncedAlertOnlyWithFleetControlRoutes(t *testing.T) {
 	if i < 0 || open < 0 || strings.Contains(s[open:i], "{{/if}}") {
 		t.Fatal("FleetGatewayRouteNeverSynced must sit inside a column-0 {{#if routes_source}} block")
 	}
+	// The template alone is not enough: Mimir evaluates the rule over the whole tenant, prod pods included (#2949).
+	if !strings.Contains(s[i:], `expr: fleet_gateway_routes_source_info{namespace="copilot", source="fleet-control"} unless`) {
+		t.Fatal("FleetGatewayRouteNeverSynced must select pods with source=\"fleet-control\"")
+	}
 	if !strings.Contains(s, "fleet_gateway_route_sync_failures_total{namespace=\"copilot\"}[15m])) > 0") {
 		t.Fatal("FleetGatewayRouteSyncFailing alert missing")
 	}
