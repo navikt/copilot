@@ -132,6 +132,40 @@ metadata:
     team: copilot
 spec:
   groups:
+    # SLO recording rules (runbook "SLO"). Alerts and dashboards (#2916) read these names.
+    # "or total * 0" makes errors 0, not a gap, on a route with traffic but no bad series yet;
+    # metrics.Init pre-creates only upstream_token_error. A route without traffic stays a gap (unknown).
+    - name: fleet-gateway-slo
+      rules:
+        - record: fleet_gateway:slo_availability_errors:ratio_rate5m
+          expr: |
+            (sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome=~"store_error|upstream_token_error|over_capacity|sse_over_capacity|user_cap|user_sse_cap"}[5m]))
+              or sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome!~"unauthorized|disabled|tool_denied"}[5m])) * 0)
+              / sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome!~"unauthorized|disabled|tool_denied"}[5m]))
+        - record: fleet_gateway:slo_availability_errors:ratio_rate1h
+          expr: |
+            (sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome=~"store_error|upstream_token_error|over_capacity|sse_over_capacity|user_cap|user_sse_cap"}[1h]))
+              or sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome!~"unauthorized|disabled|tool_denied"}[1h])) * 0)
+              / sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome!~"unauthorized|disabled|tool_denied"}[1h]))
+        - record: fleet_gateway:slo_availability_errors:ratio_rate6h
+          expr: |
+            (sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome=~"store_error|upstream_token_error|over_capacity|sse_over_capacity|user_cap|user_sse_cap"}[6h]))
+              or sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome!~"unauthorized|disabled|tool_denied"}[6h])) * 0)
+              / sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome!~"unauthorized|disabled|tool_denied"}[6h]))
+        - record: fleet_gateway:slo_availability_errors:ratio_rate1d
+          expr: |
+            (sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome=~"store_error|upstream_token_error|over_capacity|sse_over_capacity|user_cap|user_sse_cap"}[1d]))
+              or sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome!~"unauthorized|disabled|tool_denied"}[1d])) * 0)
+              / sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome!~"unauthorized|disabled|tool_denied"}[1d]))
+        - record: fleet_gateway:slo_availability_requests:increase6h
+          expr: sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome!~"unauthorized|disabled|tool_denied"}[6h]))
+        - record: fleet_gateway:slo_availability_requests:increase1d
+          expr: sum by (namespace, route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome!~"unauthorized|disabled|tool_denied"}[1d]))
+        - record: fleet_gateway:slo_5xx:ratio_rate1d
+          expr: |
+            sum by (namespace) (increase(fleet_gateway_http_requests_total{namespace="copilot", code=~"5..", reason=""}[1d]))
+              / sum by (namespace) (increase(fleet_gateway_http_requests_total{namespace="copilot"}[1d]))
+            and on (namespace) sum by (namespace) (increase(fleet_gateway_http_requests_total{namespace="copilot"}[1d])) >= 20
     - name: fleet-gateway
       rules:
         - alert: FleetGatewayRouteSnapshotStale
@@ -224,6 +258,36 @@ spec:
             description: Deliberate 503s (kill switch, in-flight cap, store quota, concurrent refresh) carry a non-empty reason label and are not counted.
             consequence: Users get errors on login or MCP calls.
             action: "Break down `fleet_gateway_mcp_requests_total` by route and outcome, then read the `audit mcp` log lines for that route."
+        - alert: FleetGatewayAvailabilityBurnFast
+          expr: |
+            fleet_gateway:slo_availability_errors:ratio_rate1h{namespace="copilot"} > 0.072
+            and fleet_gateway:slo_availability_errors:ratio_rate5m{namespace="copilot"} > 0.072
+            and fleet_gateway:slo_availability_requests:increase6h{namespace="copilot"} >= 20
+          labels:
+            namespace: copilot
+            severity: critical
+            alert_type: custom
+            app: fleet-gateway
+          annotations:
+            summary: "A route burns its monthly 99.5 % availability budget 14.4 times too fast (1 h and 5 min)"
+            consequence: Users get errors caused by the gateway itself on the route in the route label. Upstream errors, 401 handshakes, tool denials and the kill switch are not counted.
+            action: "Break down `fleet_gateway_mcp_requests_total` by outcome for the route, then follow the runbook."
+            runbook_url: https://github.com/navikt/copilot/blob/main/apps/fleet-gateway/docs/runbook.md#availability-burn-rate
+        - alert: FleetGatewayAvailabilityBurnSlow
+          expr: |
+            fleet_gateway:slo_availability_errors:ratio_rate1d{namespace="copilot"} > 0.03
+            and fleet_gateway:slo_availability_errors:ratio_rate6h{namespace="copilot"} > 0.03
+            and fleet_gateway:slo_availability_requests:increase1d{namespace="copilot"} >= 20
+          labels:
+            namespace: copilot
+            severity: warning
+            alert_type: custom
+            app: fleet-gateway
+          annotations:
+            summary: "A route burns its monthly 99.5 % availability budget 6 times too fast (1 d and 6 h)"
+            consequence: Users get errors caused by the gateway itself on the route in the route label. Upstream errors, 401 handshakes, tool denials and the kill switch are not counted.
+            action: "Break down `fleet_gateway_mcp_requests_total` by outcome for the route, then follow the runbook."
+            runbook_url: https://github.com/navikt/copilot/blob/main/apps/fleet-gateway/docs/runbook.md#availability-burn-rate
         - alert: FleetGatewaySustainedShedding
           expr: sum by (reason) (increase(fleet_gateway_http_requests_total{namespace="copilot", code="503", reason=~"store_full|cap"}[5m])) > 5
           for: 15m
