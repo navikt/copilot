@@ -4,6 +4,14 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ## 2026-11-25
 
+### Ryddigere hjelp og tekster
+
+- **`nav-pilot --help`**: Startflaggene står nå i en egen del til slutt, etter kommandoene, flaggene, exit-kodene og eksemplene.
+- **Ukjent kommando**: Hintet sier nå `Run nav-pilot --help for usage`.
+- **`nav-pilot mcp --help`**: Viser `--refresh`, som leser MCP-registeret på nytt for `list` og `enable`.
+- **`nav-pilot list --installed` og `nav-pilot sync`**: Uten noe installert står det nå «The agentpakke is not installed», ikke «nav-pilot is not installed».
+- **`nav-pilot models`**: Overskriften har ikke lenger emoji (#2907).
+
 ### uv-datamappen er skrivebeskyttet i cplt
 
 - **cplt**: Fra cplt 2026.11.24 er uvs datamappe, `~/.local/share/uv`, skrivebeskyttet i sandkassen, fordi det som installeres der, kjører utenfor sandkassen. `uv sync`, `uv run` og `uv pip install` virker som før. Kjør `uv tool install` og `uv python install` i en vanlig terminal utenfor agenten, eller start med `--allow-write ~/.local/share/uv` (#2837).

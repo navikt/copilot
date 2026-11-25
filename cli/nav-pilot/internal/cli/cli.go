@@ -137,6 +137,30 @@ Flags:
   --tmux                  Compact one-line output for a tmux status bar (usage only)
   -F, --feature           Submit a feature request (feedback only)
 
+Exit Codes:
+  0   Success
+  1   Error / Updates available (sync)
+  2   Sync failed, or a launch with -- found nothing installed
+  3   Frozen install refused (no declaration, no usable pin, another revision, or a partial install)
+
+Run nav-pilot help <command> (or nav-pilot <command> --help) for a command's own flags.
+
+Get started:
+  nav-pilot                              # Interactive: install, upgrade, or launch your coding agent
+  nav-pilot list                         # See the agentpakke and its items
+  nav-pilot install nav-pilot            # Install everything to .github/
+  nav-pilot install --user --all         # Install everything for every repo (user scope)
+  nav-pilot install security-champion    # Install a single agent
+  nav-pilot install nav-pilot --repo     # Install to this repo without being asked
+  nav-pilot sync                         # Check for updates
+  nav-pilot export opencode              # Export for OpenCode/oh-my-openagent
+  nav-pilot install <name> --source navikt/x   # Install another team's agentpakke
+  nav-pilot install <name> --source navikt/x --save-source   # ...and make it your default source
+  nav-pilot validate --source navikt/x   # Check an agentpakke repo against the contract
+  nav-pilot install nav-pilot --frozen --force    # CI: install exactly the pinned revision, or fail
+
+After installing, run nav-pilot to start a session, or use @nav-pilot in GitHub Copilot Chat.
+
 Launch flags (nav-pilot with no command; each overrides the config key for one run):
   --client <name>         Coding agent: copilot, opencode or pi
   --persona <name>        Which of the agentpakke's agents to start
@@ -172,30 +196,6 @@ Launch flags (nav-pilot with no command; each overrides the config key for one r
                           nav-pilot prompt, no sync, with or without a terminal (nav-pilot -- -p "…").
                           Needs an install and cplt; exits 2 if nothing is installed.
                           In a terminal cplt still shows its own sandbox confirmation
-
-Exit Codes:
-  0   Success
-  1   Error / Updates available (sync)
-  2   Sync failed, or a launch with -- found nothing installed
-  3   Frozen install refused (no declaration, no usable pin, another revision, or a partial install)
-
-Run nav-pilot help <command> (or nav-pilot <command> --help) for a command's own flags.
-
-Get started:
-  nav-pilot                              # Interactive: install, upgrade, or launch your coding agent
-  nav-pilot list                         # See the agentpakke and its items
-  nav-pilot install nav-pilot            # Install everything to .github/
-  nav-pilot install --user --all         # Install everything for every repo (user scope)
-  nav-pilot install security-champion    # Install a single agent
-  nav-pilot install nav-pilot --repo     # Install to this repo without being asked
-  nav-pilot sync                         # Check for updates
-  nav-pilot export opencode              # Export for OpenCode/oh-my-openagent
-  nav-pilot install <name> --source navikt/x   # Install another team's agentpakke
-  nav-pilot install <name> --source navikt/x --save-source   # ...and make it your default source
-  nav-pilot validate --source navikt/x   # Check an agentpakke repo against the contract
-  nav-pilot install nav-pilot --frozen --force    # CI: install exactly the pinned revision, or fail
-
-After installing, run nav-pilot to start a session, or use @nav-pilot in GitHub Copilot Chat.
 `)
 }
 
@@ -1333,9 +1333,9 @@ func run(args []string) error {
 			if hint == "update" {
 				hint = "upgrade" // update is the deprecated name
 			}
-			return fmt.Errorf("unknown command: %s. Did you mean %s?\nRun with --help for usage", command, hint)
+			return fmt.Errorf("unknown command: %s. Did you mean %s?\nRun nav-pilot --help for usage", command, hint)
 		}
-		return fmt.Errorf("unknown command: %s. Run with --help for usage", command)
+		return fmt.Errorf("unknown command: %s. Run nav-pilot --help for usage", command)
 	}
 }
 
