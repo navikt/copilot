@@ -1,3 +1,4 @@
+// Package dolly is the HTTP client for dolly-backend, called with an OBO token.
 package dolly
 
 import (
@@ -41,26 +42,31 @@ func (e *upstreamStatusError) Error() string {
 	return fmt.Sprintf("dolly-backend returned status %d", e.status)
 }
 
+// Client calls dolly-backend. Callers bound concurrency; the client does not.
 type Client struct {
 	baseURL    string
 	HTTPClient *http.Client
 }
 
+// NewClient returns a client for baseURL, which must already be validated.
 func NewClient(baseURL string, httpClient *http.Client) *Client {
 	return &Client{baseURL: strings.TrimRight(baseURL, "/"), HTTPClient: httpClient}
 }
 
+// BestillingRequest is the body of POST /api/v1/gruppe/{gruppeId}/bestilling.
 type BestillingRequest struct {
-	Antall       int            `json:"antall"`
-	Environments []string       `json:"environments"`
+	Antall       int       `json:"antall"`
+	Environments []string  `json:"environments"`
 	Pdldata      PdlPerson `json:"pdldata"`
 }
 
+// PdlPerson is the PDL part of an order.
 type PdlPerson struct {
 	OpprettNyPerson OpprettNyPerson `json:"opprettNyPerson"`
 	Person          *PersonDTO      `json:"person,omitempty"`
 }
 
+// OpprettNyPerson describes the persons Dolly creates.
 type OpprettNyPerson struct {
 	Identtype  string `json:"identtype"`
 	Syntetisk  bool   `json:"syntetisk"`
@@ -68,14 +74,17 @@ type OpprettNyPerson struct {
 	FoedtFoer  string `json:"foedtFoer,omitempty"`
 }
 
+// PersonDTO holds optional person attributes.
 type PersonDTO struct {
 	Kjoenn []KjoennDTO `json:"kjoenn,omitempty"`
 }
 
+// KjoennDTO sets the gender of created persons.
 type KjoennDTO struct {
 	Kjoenn string `json:"kjoenn"`
 }
 
+// Get reads path from dolly-backend and returns compacted JSON capped at MaxUpstreamBodyBytes.
 func (c *Client) Get(ctx context.Context, token, path string, query url.Values) ([]byte, error) {
 	target := c.baseURL + path
 	if len(query) > 0 {
