@@ -231,20 +231,20 @@ A restore never overwrites the source. It clones into a new database ([how-to](h
 
 The audit log in the clone ends at the restore time. Events after it exist only in Loki. Find them with `{service_name="fleet-control"} |= "audit fleet-control" | json` over the time since the restore point. Audit rows older than 90 days are pruned again at the next start.
 
-### Restore drill in dev (not done yet)
+### Restore drill in dev (partly done 2026-11-25)
 
-Needs a human with write access to dev-gcp. Fill in and commit the result here.
+Needs a human with write access to dev-gcp. Fill in and commit the result here. The clone steps ran on 2026-11-25 (#2881); the deploy steps did not, because the live app was not repointed.
 
-- [ ] Date, who: ____
-- [ ] Note a test write and its time T: ____
-- [ ] Clone started (time): ____
-- [ ] Clone `Completed` and `Ready` (time): ____  Clone duration: ____
-- [ ] fleet-control deployed against the clone, `/ready` (time): ____
-- [ ] fleet-gateway snapshot age dropped (time): ____
-- [ ] Data matches T (yes/no, what differed): ____
-- [ ] Total RTO, step 2 to step 7: ____
-- [ ] Switched back and clone deleted: ____
-- [ ] Surprises or doc fixes: ____
+- [x] Date, who: 2026-11-25, an agent on the owner's authorization, dev-gcp only.
+- [x] Note a test write and its time T: no write was made to the source. The app itself wrote `snapshots` routes generation 2 at 09:30:25Z, after the clone point, which serves as T.
+- [x] Clone started (time): 09:34:33Z, `nais postgres clone fleet-control fleet-control-restore-drill` without `--at`. Clone point 09:24:33Z (latest point, 10 minutes back).
+- [x] Clone `Completed` and `Ready` (time): 09:38:35Z (polled every 20 s).  Clone duration: about 4 minutes.
+- [ ] fleet-control deployed against the clone, `/ready` (time): not done. Needs a separate test deployment, or a planned repoint of the dev app.
+- [ ] fleet-gateway snapshot age dropped (time): not done, as above.
+- [x] Data matches T (yes/no, what differed): yes. Row counts are equal in all 12 tables except `snapshots` (source 3, clone 2); the missing row is routes generation 2 from after the clone point. Migration version `011_drop_legacy.sql` in both. `audit_events` and `resource_status` ACLs are identical (only `app` may write), and the `CheckAuditLocked` query returns owner=false, change rights=false on both for a personal read user. Latest `audit_events` row 2026-11-23 in both.
+- [ ] Total RTO, step 2 to step 7: not measured. Steps 2 to 4 took 5 minutes (clone 4, verify 1); add one deploy.
+- [x] Switched back and clone deleted: no switch was needed. `nais postgres delete fleet-control-restore-drill` at 09:39:45Z; pods gone and the instance no longer in `nais postgres list` at 09:41:12Z. Source `fleet-control` still `Ready`.
+- [x] Surprises or doc fixes: without `--at` the clone point is 10 minutes back, so writes from the last 10 minutes are missing. Pass `--at` for a recent point. `nais postgres psql --access-level read` is enough for step 4.
 
 ## Development
 
