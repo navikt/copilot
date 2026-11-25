@@ -137,7 +137,7 @@
       "title": "Dashbord",
       "options": {
         "mode": "markdown",
-        "content": "**Tenant (denne Grafanaen)**\n\n- nav-fleet: [drift](/d/copilot-fleet-ops) · [bruk](/d/copilot-fleet-insights)\n- Copilot: [my-copilot og copilot-api: drift](/d/copilot-web-ops) · [Copilot-lisenser](/d/copilot-seats-insights)\n\n**nais-org (egen Grafana)**: nav-pilot CLI (`copilot-navpilot-cli-nais`), nav-pilot lokal inferens (`copilot-navpilot-local-nais`), GitHub Copilot-klienter (`copilot-clients-nais`). Se `dashboards/README.md`."
+        "content": "**Tenant (denne Grafanaen)**\n\n- nav-fleet: [drift](/d/copilot-fleet-ops) · [bruk](/d/copilot-fleet-insights)\n- Copilot: [my-copilot og copilot-api: drift](/d/copilot-web-ops) · [Copilot-lisenser](/d/copilot-seats-insights)\n\n**nais-org (egen Grafana)**: nav-pilot CLI (`copilot-nav-pilot-cli`), nav-pilot lokal inferens (`copilot-nav-pilot-local`), GitHub Copilot-klienter (`copilot-clients`). Se `dashboards/README.md`."
       },
       "id": 1,
       "gridPos": {

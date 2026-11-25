@@ -33,6 +33,8 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 HOUSE = ROOT / "dashboards" / "nais" / "nav-pilot-cli.json"
 OUT = ROOT / "dashboards" / "nais" / "nav-pilot-local.json"
 
+API_VERSION = "dashboard.grafana.app/v2"  # Grafana 13 v2 schema
+
 SEL = '{version=~"$version"}'
 SEL_LE0 = '{version=~"$version", le="0"}'
 
@@ -170,7 +172,7 @@ def house_viz(house, group):
 
 
 def build():
-    house = json.loads(HOUSE.read_text())
+    house = json.loads(HOUSE.read_text())["spec"]
     ds = {"name": "${DS_METRICS}"}
 
     elements = {}
@@ -221,7 +223,7 @@ def build():
     variables = [v for v in house["variables"]
                  if v["spec"]["name"] in ("DS_METRICS", "version")]
 
-    return {
+    spec = {
         "annotations": house.get("annotations", {"kind": "AnnotationQueries", "spec": []}),
         "cursorSync": house.get("cursorSync", "Off"),
         "description": (
@@ -240,6 +242,9 @@ def build():
         "title": "nav-pilot — lokal inferens (nais)",
         "variables": variables,
     }
+    # A complete v2 resource, so Grafana imports it with a stable uid.
+    return {"apiVersion": API_VERSION, "kind": "Dashboard",
+            "metadata": {"name": "copilot-nav-pilot-local"}, "spec": spec}
 
 
 def main():
@@ -256,7 +261,7 @@ def main():
         print("✓ dashboard is up to date")
         return 0
     OUT.write_text(want)
-    print(f"wrote {OUT.relative_to(ROOT)}: {len(build()['elements'])} panels, {len(ROWS)} rows")
+    print(f"wrote {OUT.relative_to(ROOT)}: {len(build()['spec']['elements'])} panels, {len(ROWS)} rows")
     return 0
 
 

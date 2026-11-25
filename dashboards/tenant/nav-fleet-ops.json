@@ -1626,7 +1626,7 @@
       "pluginVersion": "12.3.2",
       "targets": [
         {
-          "expr": "sum by (code) (rate(fleet_control_http_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app=\"fleet-control\"}[$__rate_interval]))",
+          "expr": "sum by (code) (rate(fleet_control_http_requests_total{namespace=\"$namespace\", k8s_cluster_name=\"dev\", app=\"fleet-control\"}[$__rate_interval]))",
           "legendFormat": "{{code}}",
           "refId": "A"
         }
@@ -1722,7 +1722,7 @@
       "pluginVersion": "12.3.2",
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(fleet_control_http_request_duration_seconds_bucket{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app=\"fleet-control\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(fleet_control_http_request_duration_seconds_bucket{namespace=\"$namespace\", k8s_cluster_name=\"dev\", app=\"fleet-control\"}[$__rate_interval])))",
           "legendFormat": "p95",
           "refId": "A"
         }
@@ -1818,17 +1818,17 @@
       "pluginVersion": "12.3.2",
       "targets": [
         {
-          "expr": "sum(increase(fleet_control_db_errors_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app=\"fleet-control\"}[$__rate_interval]))",
+          "expr": "sum(increase(fleet_control_db_errors_total{namespace=\"$namespace\", k8s_cluster_name=\"dev\", app=\"fleet-control\"}[$__rate_interval]))",
           "legendFormat": "db",
           "refId": "A"
         },
         {
-          "expr": "sum(increase(fleet_control_audit_write_failures_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app=\"fleet-control\"}[$__rate_interval]))",
+          "expr": "sum(increase(fleet_control_audit_write_failures_total{namespace=\"$namespace\", k8s_cluster_name=\"dev\", app=\"fleet-control\"}[$__rate_interval]))",
           "legendFormat": "audit",
           "refId": "B"
         },
         {
-          "expr": "sum(increase(fleet_control_notify_failures_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app=\"fleet-control\"}[$__rate_interval]))",
+          "expr": "sum(increase(fleet_control_notify_failures_total{namespace=\"$namespace\", k8s_cluster_name=\"dev\", app=\"fleet-control\"}[$__rate_interval]))",
           "legendFormat": "varsling",
           "refId": "C"
         }
@@ -1924,12 +1924,12 @@
       "pluginVersion": "12.3.2",
       "targets": [
         {
-          "expr": "sum(increase(fleet_control_console_lookup_duration_seconds_count{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app=\"fleet-control\"}[$__rate_interval]))",
+          "expr": "sum(increase(fleet_control_console_lookup_duration_seconds_count{namespace=\"$namespace\", k8s_cluster_name=\"dev\", app=\"fleet-control\"}[$__rate_interval]))",
           "legendFormat": "totalt",
           "refId": "A"
         },
         {
-          "expr": "sum(increase(fleet_control_console_lookups_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app=\"fleet-control\", outcome!=\"ok\"}[$__rate_interval])) or vector(0)",
+          "expr": "sum(increase(fleet_control_console_lookups_total{namespace=\"$namespace\", k8s_cluster_name=\"dev\", app=\"fleet-control\", outcome!=\"ok\"}[$__rate_interval])) or vector(0)",
           "legendFormat": "feilet",
           "refId": "B"
         }
@@ -2025,7 +2025,7 @@
       "pluginVersion": "12.3.2",
       "targets": [
         {
-          "expr": "time() - max by (kind) (fleet_control_snapshot_last_success_timestamp_seconds{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app=\"fleet-control\"})",
+          "expr": "time() - max by (kind) (fleet_control_snapshot_last_success_timestamp_seconds{namespace=\"$namespace\", k8s_cluster_name=\"dev\", app=\"fleet-control\"})",
           "legendFormat": "{{kind}}",
           "refId": "A"
         }
@@ -2121,12 +2121,12 @@
       "pluginVersion": "12.3.2",
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, sum by (le) (rate(fleet_control_snapshot_build_duration_seconds_bucket{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app=\"fleet-control\"}[1h])))",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(fleet_control_snapshot_build_duration_seconds_bucket{namespace=\"$namespace\", k8s_cluster_name=\"dev\", app=\"fleet-control\"}[1h])))",
           "legendFormat": "byggetid p95 (s)",
           "refId": "A"
         },
         {
-          "expr": "max(fleet_control_snapshot_bytes{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app=\"fleet-control\"})",
+          "expr": "max(fleet_control_snapshot_bytes{namespace=\"$namespace\", k8s_cluster_name=\"dev\", app=\"fleet-control\"})",
           "legendFormat": "bytes",
           "refId": "B"
         }
@@ -2651,7 +2651,8 @@
               }
             ]
           },
-          "unit": "short"
+          "unit": "short",
+          "noValue": "Ingen verktøykall i perioden"
         },
         "overrides": [
           {
@@ -2717,7 +2718,8 @@
         }
       ],
       "title": "Tool Call Success vs Error",
-      "type": "timeseries"
+      "type": "timeseries",
+      "description": "mcp_tool_calls_total{tool,status} finnes bare etter første verktøykall siden poden startet, og status=\"error\" bare etter et feilet kall. Tom graf betyr ingen kall i perioden, ikke manglende data."
     },
     {
       "datasource": {
@@ -2732,7 +2734,7 @@
           "mappings": [],
           "max": 1,
           "min": 0,
-          "noValue": "—",
+          "noValue": "Ingen verktøykall i perioden",
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -2787,7 +2789,8 @@
         }
       ],
       "title": "Tool Error Rate (1h)",
-      "type": "stat"
+      "type": "stat",
+      "description": "mcp_tool_calls_total{tool,status} finnes bare etter første verktøykall siden poden startet, og status=\"error\" bare etter et feilet kall. Tom graf betyr ingen kall i perioden, ikke manglende data."
     },
     {
       "datasource": {

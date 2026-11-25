@@ -481,7 +481,7 @@ produserer `hung`. Den har rapportert `ready` og ingenting annet.
 det er to tall som kan bli uenige.
 
 > En ferdig Grafana-dashboard ligger i [`dashboards/nais/nav-pilot-cli.json`](../../dashboards/nais/nav-pilot-cli.json)
-> (uid tildeles ved import, bruk `copilot-navpilot-cli-nais`). nav-pilot-telemetrien finnes bare i nais-org-en, så dashboardet hører hjemme i Grafanaen som leser den (`X-Scope-OrgID: nais`). Spørringene er robuste mot manglende data under utrulling
+> (uid `copilot-nav-pilot-cli`). nav-pilot-telemetrien finnes bare i nais-org-en, så dashboardet hører hjemme i Grafanaen som leser den (`X-Scope-OrgID: nais`). Spørringene er robuste mot manglende data under utrulling
 > (`or vector(0)`, `clamp_min(...)`-vakter). Eksakte Prometheus-serienavn (suffiks som
 > `_bucket`/`_sum`/`_count`, evt. enhetssuffiks, og `target_info` for ressursattributter)
 > bør verifiseres mot den faktiske datakilden og justeres ved behov.
