@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+
+	"github.com/navikt/copilot/fleet-control/internal/store"
 )
 
 func captureAuditLines(t *testing.T) func() []map[string]any {
@@ -41,13 +43,13 @@ func TestRealPostgresAuditLogOnlyAfterCommit(t *testing.T) {
 	}
 	lines := captureAuditLines(t)
 	gen := 3
-	row := auditRow{Actor: "Z990001", ActorKind: "User", ActorOid: "00000000-0000-0000-0000-000000000001", ActorClientID: "client-a",
+	row := store.AuditRow{Actor: "Z990001", ActorKind: "User", ActorOid: "00000000-0000-0000-0000-000000000001", ActorClientID: "client-a",
 		Action: "approve", ResourceKind: "MCPServer", Namespace: "team-a", Name: "srv", Version: &gen, Generation: &gen,
 		Detail: map[string]any{"reason": "do not log me"}}
 
 	boom := errors.New("boom")
 	if err := pgx.BeginFunc(ctx, db.pool, func(tx pgx.Tx) error {
-		if err := insertAudit(ctx, tx, row); err != nil {
+		if err := store.InsertAudit(ctx, tx, row); err != nil {
 			return err
 		}
 		return boom
@@ -56,7 +58,7 @@ func TestRealPostgresAuditLogOnlyAfterCommit(t *testing.T) {
 	}
 	// A failed statement after the insert aborts the transaction; COMMIT then rolls back.
 	if err := pgx.BeginFunc(ctx, db.pool, func(tx pgx.Tx) error {
-		if err := insertAudit(ctx, tx, row); err != nil {
+		if err := store.InsertAudit(ctx, tx, row); err != nil {
 			return err
 		}
 		_, _ = tx.Exec(ctx, `SELECT 1/0`)
@@ -68,7 +70,7 @@ func TestRealPostgresAuditLogOnlyAfterCommit(t *testing.T) {
 		t.Fatalf("rolled-back writes logged %d lines: %v", len(got), got)
 	}
 
-	if err := pgx.BeginFunc(ctx, db.pool, func(tx pgx.Tx) error { return insertAudit(ctx, tx, row) }); err != nil {
+	if err := pgx.BeginFunc(ctx, db.pool, func(tx pgx.Tx) error { return store.InsertAudit(ctx, tx, row) }); err != nil {
 		t.Fatal(err)
 	}
 	got := lines()
@@ -98,17 +100,6 @@ func TestRealPostgresAuditLogOnlyAfterCommit(t *testing.T) {
 	}
 	if l["at"] == nil || strings.Contains(fmtJSON(l), "do not log me") {
 		t.Errorf("line missing at or leaks detail: %v", l)
-	}
-}
-
-func TestAuditTracerForget(t *testing.T) {
-	c := &pgx.Conn{}
-	pendingAudit.add(c, loggedAudit{})
-	pendingAudit.forget(c)
-	pendingAudit.mu.Lock()
-	defer pendingAudit.mu.Unlock()
-	if _, ok := pendingAudit.pending[c]; ok {
-		t.Fatal("rows kept for a closed connection")
 	}
 }
 

@@ -16,6 +16,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/navikt/copilot/fleet-control/internal/metrics"
+	"github.com/navikt/copilot/fleet-control/internal/store"
 )
 
 //go:embed migrations/*.sql
@@ -35,8 +36,8 @@ func OpenDB(ctx context.Context, dsn string) (*DB, error) {
 	}
 	// Simple protocol avoids prepared statements incompatible with PgBouncer transaction mode.
 	cfg.ConnConfig.DefaultQueryExecMode = pgx.QueryExecModeSimpleProtocol
-	cfg.ConnConfig.Tracer = multitracer.New(pendingAudit, metrics.DBTracer{})
-	cfg.BeforeClose = pendingAudit.forget
+	cfg.ConnConfig.Tracer = multitracer.New(store.PendingAudit, metrics.DBTracer{})
+	cfg.BeforeClose = store.PendingAudit.Forget
 	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {
 		return nil, err
@@ -156,7 +157,7 @@ func (d *DB) Seed(ctx context.Context, servers []Server, source string) (bool, e
 		if err != nil {
 			return err
 		}
-		if err := insertAudit(ctx, tx, auditRow{Actor: "seed", Action: "seed_published", Detail: json.RawMessage(detail)}); err != nil {
+		if err := store.InsertAudit(ctx, tx, store.AuditRow{Actor: "seed", Action: "seed_published", Detail: json.RawMessage(detail)}); err != nil {
 			return err
 		}
 		seeded = true
@@ -247,7 +248,7 @@ func snapshotLockKey(kind string) int64 {
 	return lockKey + 2
 }
 
-// Publish implements store.
+// Publish implements snapshotStore.
 func (d *DB) Publish(ctx context.Context, kind string, build func(string, []Server, *Snapshot) (*Snapshot, error)) (*Snapshot, error) {
 	var out *Snapshot
 	err := pgx.BeginFunc(ctx, d.pool, func(tx pgx.Tx) error {

@@ -218,9 +218,9 @@ func seedFromEnv(ctx context.Context, db *DB) error {
 }
 
 // storeBox lets atomic.Pointer hold an interface.
-type storeBox struct{ store }
+type storeBox struct{ snapshotStore }
 
-type store interface {
+type snapshotStore interface {
 	Ping(ctx context.Context) error
 	Servers(ctx context.Context) ([]Server, error)
 	LatestSnapshot(ctx context.Context, kind string) (*Snapshot, error)

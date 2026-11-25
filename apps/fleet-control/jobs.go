@@ -15,6 +15,8 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+
+	"github.com/navikt/copilot/fleet-control/internal/store"
 )
 
 // Job API for fleet-runtime (#2689). The contract is the request and
@@ -133,7 +135,7 @@ type jobStore interface {
 // jobAudit keeps NAVident, kind, oid and client ID in their own columns
 // (#2763); a caller without an oid (runtime, /admin/v1) leaves it empty.
 func jobAudit(ctx context.Context, tx pgx.Tx, by caller, action, team string, id int64, detail map[string]any) error {
-	return insertAudit(ctx, tx, auditRow{Actor: by.Ident, ActorKind: by.Kind, ActorOid: by.Oid, ActorClientID: by.ClientID, Action: action, Namespace: team, Name: "job/" + strconv.FormatInt(id, 10), Detail: detail})
+	return store.InsertAudit(ctx, tx, store.AuditRow{Actor: by.Ident, ActorKind: by.Kind, ActorOid: by.Oid, ActorClientID: by.ClientID, Action: action, Namespace: team, Name: "job/" + strconv.FormatInt(id, 10), Detail: detail})
 }
 
 // SetJobCommand cancels or kills one job. A queued job stops at once; a
@@ -202,7 +204,7 @@ func (d *DB) SetKillSwitch(ctx context.Context, actor, scope string, on bool, re
 			return err
 		}
 		team, _ := strings.CutPrefix(scope, "team:")
-		return insertAudit(ctx, tx, auditRow{Actor: actor, Action: "kill_switch", Namespace: team, Name: scope, Detail: map[string]any{"scope": scope, "on": on, "reason": reason}})
+		return store.InsertAudit(ctx, tx, store.AuditRow{Actor: actor, Action: "kill_switch", Namespace: team, Name: scope, Detail: map[string]any{"scope": scope, "on": on, "reason": reason}})
 	})
 }
 
@@ -554,7 +556,7 @@ func (s *server) runtimeRoute(ra *runtimeAuth, h runtimeHandler) http.HandlerFun
 
 func (s *server) jobs() jobStore {
 	if box := s.store.Load(); box != nil {
-		js, _ := box.store.(jobStore)
+		js, _ := box.snapshotStore.(jobStore)
 		return js
 	}
 	return nil
