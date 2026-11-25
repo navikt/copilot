@@ -73,7 +73,9 @@ export class FleetControlError extends Error {
   constructor(
     public readonly status: number,
     public readonly reason?: string,
-    public readonly detail?: string
+    public readonly detail?: string,
+    /** details.causes[].field from the Status body, for per-field messages. */
+    public readonly fields: string[] = []
   ) {
     super(`fleet-control error (${status}${reason ? ` ${reason}` : ""})`);
     this.name = "FleetControlError";
@@ -103,11 +105,22 @@ export async function fleetGet<T>(path: string, method = "GET", body?: unknown):
     "fleet-control timed out"
   );
   if (!res.ok) {
-    const st = (await res.json().catch(() => null)) as { kind?: string; reason?: unknown; message?: unknown } | null;
+    const st = (await res.json().catch(() => null)) as {
+      kind?: string;
+      reason?: unknown;
+      message?: unknown;
+      details?: { causes?: unknown };
+    } | null;
     const isStatus = st?.kind === "Status";
     const reason = isStatus && typeof st.reason === "string" ? st.reason : undefined;
     const detail = isStatus && typeof st.message === "string" ? st.message.slice(0, 300) : undefined;
-    throw new FleetControlError(res.status, reason, detail);
+    const causes = isStatus && Array.isArray(st.details?.causes) ? (st.details.causes as unknown[]) : [];
+    const fields = causes.flatMap((c) =>
+      c && typeof c === "object" && typeof (c as { field?: unknown }).field === "string"
+        ? [(c as { field: string }).field]
+        : []
+    );
+    throw new FleetControlError(res.status, reason, detail, fields);
   }
   return (await res.json()) as T;
 }

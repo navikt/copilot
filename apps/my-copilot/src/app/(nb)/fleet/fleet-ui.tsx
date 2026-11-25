@@ -13,6 +13,7 @@ import {
   Button,
   Checkbox,
   ExpansionCard,
+  Link,
   ReadMore,
   Heading,
   Select,
@@ -86,7 +87,9 @@ export function FleetProblemAlert({ problem }: { problem: FleetProblem }) {
   if (problem === "forbidden") {
     return (
       <Alert variant="warning">
-        Du har ikke tilgang. Bare eierteamet til MCP-serveren eller agentprofilen kan se den.
+        Du har ikke tilgang. Bare eierteamet til MCP-serveren eller agentprofilen kan se den. Er du på teamet, be en
+        eier legge deg til i <Link href="https://console.nav.cloud.nais.io/">Nais Console</Link> og last inn siden på
+        nytt.
       </Alert>
     );
   }
@@ -96,7 +99,7 @@ export function FleetProblemAlert({ problem }: { problem: FleetProblem }) {
   return (
     <Alert variant="error">
       <VStack gap="space-8" align="start">
-        <BodyShort>Vi får ikke kontakt med fleet-control akkurat nå. Prøv igjen om litt.</BodyShort>
+        <BodyShort>Vi får ikke kontakt med Fleet akkurat nå. Prøv igjen om litt.</BodyShort>
         <Button size="small" variant="secondary" onClick={() => router.refresh()}>
           Prøv igjen
         </Button>
@@ -319,7 +322,7 @@ export function serverNextStep(s: MCPServer): string {
   return `Ingen. Versjon ${published} er publisert.`;
 }
 
-export function ServerDetail({ server, events }: { server: MCPServer; events: AuditEvent[] }) {
+export function ServerDetail({ server, events, me }: { server: MCPServer; events: AuditEvent[]; me?: string }) {
   return (
     <VStack gap="space-16">
       <KortFortalt>
@@ -339,7 +342,7 @@ export function ServerDetail({ server, events }: { server: MCPServer; events: Au
       />
       <ServerDocs spec={server.status.pending?.spec ?? server.spec} />
       {server.status.pending?.spec && <Versjoner server={server} next={server.status.pending.spec} />}
-      <ServerActions server={server} />
+      <ServerActions server={server} me={me} />
       <Historikk events={events} />
     </VStack>
   );
@@ -452,10 +455,12 @@ function Versjoner({ server, next }: { server: MCPServer; next: MCPServerSpec })
   );
 }
 
+type FleetError = { message: string; detail?: string; fields?: Record<string, string> };
+
 /** Posts a form to /api/fleet and opens the page it answers with; the error stays on the form. */
 function useFleetPost(action: string) {
   const router = useRouter();
-  const [error, setError] = useState<{ message: string; detail?: string }>();
+  const [error, setError] = useState<FleetError>();
   const [busy, setBusy] = useState(false);
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -470,15 +475,20 @@ function useFleetPost(action: string) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-      const out = (await res.json().catch(() => ({}))) as { href?: string; error?: string; detail?: string };
+      const out = (await res.json().catch(() => ({}))) as {
+        href?: string;
+        error?: string;
+        detail?: string;
+        fields?: Record<string, string>;
+      };
       if (res.ok && out.href) {
         router.push(out.href);
         router.refresh();
         return;
       }
-      setError({ message: out.error ?? "Noe gikk galt. Prøv igjen om litt.", detail: out.detail });
+      setError({ message: out.error ?? "Noe gikk galt. Prøv igjen om litt.", detail: out.detail, fields: out.fields });
     } catch {
-      setError({ message: "Vi får ikke kontakt med registeret akkurat nå. Prøv igjen om litt." });
+      setError({ message: "Vi får ikke kontakt med Fleet akkurat nå. Prøv igjen om litt." });
     } finally {
       setBusy(false);
     }
@@ -487,7 +497,7 @@ function useFleetPost(action: string) {
 }
 
 // shortcut: the detail is fleet-control's English message; #2864 tracks translating it.
-const ActionError = ({ error }: { error?: { message: string; detail?: string } }) =>
+const ActionError = ({ error }: { error?: FleetError }) =>
   error ? (
     <Alert variant="error" size="small">
       <VStack gap="space-8">
@@ -501,11 +511,13 @@ const ActionError = ({ error }: { error?: { message: string; detail?: string } }
     </Alert>
   ) : null;
 
-function ServerActions({ server }: { server: MCPServer }) {
+function ServerActions({ server, me }: { server: MCPServer; me?: string }) {
   const approve = useFleetPost("approve");
   const revoke = useFleetPost("revoke");
   const { namespace, name } = server.metadata;
   const pending = server.status.pending;
+  // Hides the button only; fleet-control enforces the two-person rule on approval.
+  const ownVersion = !!me && pending?.submittedBy?.name === me;
   const ids = (
     <>
       <input type="hidden" name="namespace" value={namespace} />
@@ -514,7 +526,12 @@ function ServerActions({ server }: { server: MCPServer }) {
   );
   return (
     <VStack gap="space-24">
-      {pending?.contentHash && (
+      {pending?.contentHash && ownVersion && (
+        <BodyShort>
+          Du sendte inn versjon {pending.generation} selv. En annen på {namespace} må godkjenne den.
+        </BodyShort>
+      )}
+      {pending?.contentHash && !ownVersion && (
         <form onSubmit={approve.onSubmit}>
           <VStack gap="space-8" align="start">
             <Heading level="2" size="small">
@@ -567,26 +584,41 @@ export function RegisterForm({ teams }: { teams: string[] }) {
             </option>
           ))}
         </Select>
-        <TextField label="Navn" name="name" description="Små bokstaver, tall og bindestrek." required />
-        <TextField label="App" name="app" description="Nais-appen som kjører MCP-serveren." required />
+        <TextField
+          label="Navn"
+          name="name"
+          error={register.error?.fields?.name}
+          description="Små bokstaver, tall og bindestrek."
+          required
+        />
+        <TextField
+          label="App"
+          name="app"
+          error={register.error?.fields?.app}
+          description="Nais-appen som kjører MCP-serveren."
+          required
+        />
         <TextField
           label="Adresse til appen"
           name="url"
+          error={register.error?.fields?.url}
           description="For eksempel http://min-app.mitt-team/mcp eller http://min-app.mitt-team.svc.cluster.local/mcp"
           required
         />
         <Textarea
           label="Verktøy"
           name="tools"
+          error={register.error?.fields?.tools}
           description="Verktøyene som skal være tilgjengelige, ett per linje."
           required
         />
         <Textarea
           label="Beskrivelse (valgfritt)"
           name="readme"
+          error={register.error?.fields?.readme}
           description="Fortell hva MCP-serveren gjør og hvordan den brukes. Du kan bruke Markdown. Høyst 64 KiB."
         />
-        <Select label="Datakategori" name="dataCategory" required>
+        <Select label="Datakategori" name="dataCategory" error={register.error?.fields?.dataCategory} required>
           <option value="Intern">Intern</option>
           <option value="Aapen">Åpen</option>
           <option value="Fortrolig">Fortrolig</option>

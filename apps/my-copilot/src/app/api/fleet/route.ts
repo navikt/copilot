@@ -11,19 +11,96 @@ import { isName, isSameOrigin } from "@/lib/fleet-names";
 type Body = Record<string, unknown>;
 
 const str = (b: Body, k: string) => (typeof b[k] === "string" ? (b[k] as string).trim() : "");
-const fail = (error: string, status: number, detail?: string) => NextResponse.json({ error, detail }, { status });
+const fail = (error: string, status: number, detail?: string, fields?: Record<string, string>) =>
+  NextResponse.json({ error, detail, fields }, { status });
 
-/** Only the status code decides; 400/422 pass fleet-control's English message as detail. */
-function failure(err: unknown) {
+const NO_ACCESS = (team: string) =>
+  `Du har ikke tilgang. Bare medlemmer av ${team} kan gjøre dette. Er du på teamet, be en eier legge deg til i Nais Console.`;
+
+// fleet-control's 403 on approval has no distinct reason, so the exact message decides; anything else is NO_ACCESS.
+const SELF_APPROVAL = "the submitter cannot approve their own generation";
+const NO_PERSON = "the pending generation has no person as submitter; a person must submit it again";
+const NO_OID = "the approver has no object id";
+
+/**
+ * A 422 cause field as a message by the form field it belongs to; "" is the form as a whole.
+ * Unknown fields return null so the caller keeps the generic message and the English detail.
+ */
+function fieldMessage(field: string, detail: string, team: string): [string, string] | null {
+  switch (field) {
+    case "metadata.name":
+      return ["name", "Navnet kan bare ha små bokstaver, tall og bindestrek, høyst 63 tegn."];
+    case "spec.upstream.app":
+      return ["app", "Appnavnet kan bare ha små bokstaver, tall og bindestrek."];
+    case "spec.allowedTools":
+    case "spec.tools":
+      return ["tools", "Sjekk verktøyene. Skriv minst ett verktøynavn, og hvert navn bare én gang."];
+    case "spec.readme":
+      return ["readme", "Beskrivelsen kan være høyst 64 KiB."];
+    case "spec.dataCategory":
+      return detail.includes("StrengtFortrolig")
+        ? [
+            "dataCategory",
+            "Strengt fortrolig krever egen risikovurdering og godkjenning først. Velg en annen datakategori.",
+          ]
+        : ["dataCategory", "Velg en datakategori fra listen."];
+    case "spec.registry.name":
+      return [
+        "",
+        `Navnet i MCP-registeret tilhører ikke ${team}. Bruk no.nav.${team}/<navn> eller io.github.navikt/${team}, eller be plattformteamet registrere navnet.`,
+      ];
+    case "spec":
+      // The upstream URL check reports the whole spec; its message names route.upstream_url.
+      if (detail.startsWith("route.upstream_url"))
+        return [
+          "url",
+          `Den interne adressen må gå til appen i ${team}, for eksempel http://min-app.${team}/mcp, uten ? eller #.`,
+        ];
+      return null;
+    default:
+      return null;
+  }
+}
+
+/** Maps fleet-control's Status (code, reason, message, causes) to a Norwegian message with the next step. */
+function failure(err: unknown, team: string, name: string, generation: number) {
   const fce = err instanceof FleetControlError ? err : null;
   const status = fce?.status ?? 0;
+  const detail = fce?.detail ?? "";
   if (status === 401) return fail("Du er logget ut. Last inn siden på nytt og logg inn.", 401);
-  if (status === 403) return fail("Du har ikke tilgang. Bare eierteamet kan gjøre dette.", 403);
+  if (status === 403) {
+    if (detail === SELF_APPROVAL)
+      return fail(`Du sendte inn versjon ${generation} selv. En annen på ${team} må godkjenne den.`, 403);
+    if (detail === NO_PERSON)
+      return fail(`Ingen person sendte inn versjon ${generation}. Noen på ${team} må sende den inn på nytt.`, 403);
+    if (detail === NO_OID)
+      return fail("Fleet kjenner ikke igjen innloggingen din. Logg ut, logg inn og prøv igjen.", 403);
+    return fail(NO_ACCESS(team), 403);
+  }
   if (status === 404) return fail("Fant ikke MCP-serveren, eller du har ikke tilgang.", 404);
-  if (status === 409) return fail("Noen andre har endret dette. Last inn siden på nytt.", 409);
-  if (status === 400 || status === 422)
-    return fail("Registeret godtok ikke endringen. Sjekk feltene og prøv igjen.", 422, fce?.detail);
-  return fail("Vi får ikke kontakt med registeret akkurat nå. Prøv igjen om litt.", 502);
+  if (status === 409) {
+    if (fce?.reason === "AlreadyExists")
+      return fail(
+        `Det finnes allerede en MCP-server som heter ${name} i ${team}. Velg et annet navn, eller åpne den som finnes.`,
+        409
+      );
+    if (fce?.fields.includes("spec.registry.name"))
+      return fail(
+        "En annen MCP-server bruker allerede dette navnet i MCP-registeret. Send inn en ny versjon med et annet navn.",
+        409
+      );
+    return fail("Noen andre har endret dette. Last inn siden på nytt.", 409);
+  }
+  if (status === 400 || status === 422) {
+    const mapped = (fce?.fields ?? []).map((f) => fieldMessage(f, detail, team));
+    if (mapped.length > 0 && mapped.every((m): m is [string, string] => m !== null)) {
+      const fields = Object.fromEntries(mapped.filter(([k]) => k !== ""));
+      const whole = mapped.find(([k]) => k === "");
+      return fail(whole?.[1] ?? "Rett feltene som er merket, og send inn på nytt.", 422, undefined, fields);
+    }
+    return fail("Fleet godtok ikke endringen. Sjekk feltene og prøv igjen.", 422, fce?.detail);
+  }
+  return fail("Vi får ikke kontakt med Fleet akkurat nå. Prøv igjen om litt.", 502);
 }
 
 export async function POST(request: Request) {
@@ -74,7 +151,7 @@ export async function POST(request: Request) {
         return fail("Noe er galt med skjemaet. Last inn siden på nytt.", 400);
     }
   } catch (err) {
-    return failure(err);
+    return failure(err, ns, name, Number(b.generation));
   }
   return NextResponse.json({ href });
 }

@@ -191,6 +191,21 @@ describe("/fleet", () => {
     expect(container.querySelector('textarea[name="reason"]')).toBeNull();
   });
 
+  it("hides approval from the person who submitted the pending version", async () => {
+    const own = server();
+    Object.assign(own.status.pending, { submittedBy: { kind: "User", name: "A123456" } });
+    stub({ [`${API}/namespaces/team-a/mcpservers/docs`]: own });
+    render(await ServerPage(params("team-a", "docs")));
+    expect(screen.queryByRole("button", { name: "Godkjenn og publiser" })).toBeNull();
+    expect(screen.getByText("Du sendte inn versjon 3 selv. En annen på team-a må godkjenne den.")).toBeInTheDocument();
+  });
+
+  it("gives a next step when the team has no access", async () => {
+    stub({}, { [`${API}/namespaces/team-a/mcpservers/docs`]: 403 });
+    render(await ServerPage(params("team-a", "docs")));
+    expect(screen.getByRole("link", { name: "Nais Console" })).toBeInTheDocument();
+  });
+
   it("shows a never-published draft as not published, with registry changes, and no revocation", async () => {
     const draft = server();
     draft.status.conditions = [cond("Published", false), cond("Revoked", false)];

@@ -139,12 +139,62 @@ describe("POST /api/fleet", () => {
     );
     res = await post(body);
     await expect(res.json()).resolves.toEqual({
-      error: "Registeret godtok ikke endringen. Sjekk feltene og prøv igjen.",
+      error: "Fleet godtok ikke endringen. Sjekk feltene og prøv igjen.",
       detail: "spec.dataCategory must be one of",
     });
     fetch.mockResolvedValueOnce(new Response("{}", { status: 404 }));
     res = await post(body);
     await expect(res.json()).resolves.toEqual({ error: "Fant ikke MCP-serveren, eller du har ikke tilgang." });
+  });
+
+  const status = (code: number, reason: string, message: string, fields: string[] = []) =>
+    new Response(
+      JSON.stringify({
+        kind: "Status",
+        code,
+        reason,
+        message,
+        details: { causes: fields.map((field) => ({ field, reason: "FieldValueInvalid", message })) },
+      }),
+      { status: code }
+    );
+  const register = { action: "register", namespace: "team-a", name: "docs", app: "docs", url: "x", tools: "search" };
+  const approve = { action: "approve", namespace: "team-a", name: "docs", generation: "3", contentHash: "h3" };
+
+  it("tells a taken name apart from a conflicting edit", async () => {
+    fetch.mockResolvedValueOnce(status(409, "AlreadyExists", 'mcpservers "docs" already exists'));
+    await expect((await post(register)).json()).resolves.toMatchObject({
+      error:
+        "Det finnes allerede en MCP-server som heter docs i team-a. Velg et annet navn, eller åpne den som finnes.",
+    });
+    fetch.mockResolvedValueOnce(
+      status(409, "Conflict", "generation 3 is not the one awaiting approval", ["generation"])
+    );
+    await expect((await post(approve)).json()).resolves.toMatchObject({ error: expect.stringMatching(/Noen andre/) });
+  });
+
+  it("tells the submitter that someone else must approve, and others how to get access", async () => {
+    fetch.mockResolvedValueOnce(status(403, "Forbidden", "the submitter cannot approve their own generation"));
+    await expect((await post(approve)).json()).resolves.toMatchObject({
+      error: "Du sendte inn versjon 3 selv. En annen på team-a må godkjenne den.",
+    });
+    fetch.mockResolvedValueOnce(status(403, "Forbidden", "not a member"));
+    await expect((await post(approve)).json()).resolves.toMatchObject({ error: expect.stringMatching(/Nais Console/) });
+  });
+
+  it("marks the field from details.causes, and falls back to the detail for unknown fields", async () => {
+    fetch.mockResolvedValueOnce(status(422, "Invalid", "route.upstream_url: host must be docs.team-a", ["spec"]));
+    let out = await (await post(register)).json();
+    expect(out.fields.url).toMatch(/intern(e)? adresse/i);
+    expect(out.detail).toBeUndefined();
+    fetch.mockResolvedValueOnce(
+      status(422, "Invalid", "StrengtFortrolig needs its own risk assessment and approval first", ["spec.dataCategory"])
+    );
+    out = await (await post(register)).json();
+    expect(out.fields.dataCategory).toMatch(/Strengt fortrolig/);
+    fetch.mockResolvedValueOnce(status(422, "Invalid", "spec is odd", ["spec"]));
+    out = await (await post(register)).json();
+    expect(out).toEqual({ error: "Fleet godtok ikke endringen. Sjekk feltene og prøv igjen.", detail: "spec is odd" });
   });
 
   it("needs a reason to revoke, and a known action", async () => {
