@@ -21,6 +21,7 @@ import (
 	"github.com/navikt/copilot/fleet-gateway/internal/config"
 	"github.com/navikt/copilot/fleet-gateway/internal/httpx"
 	"github.com/navikt/copilot/fleet-gateway/internal/metrics"
+	"github.com/navikt/copilot/fleet-gateway/internal/oauth/server"
 	"github.com/navikt/copilot/fleet-gateway/internal/ratelimit"
 	"github.com/navikt/copilot/fleet-gateway/internal/routing"
 )
@@ -187,7 +188,7 @@ func newTestEnv(t *testing.T) *testEnv {
 			}
 			if expectedChallenge != "" {
 				verifier := r.FormValue("code_verifier")
-				if verifier == "" || pkceS256(verifier) != expectedChallenge {
+				if verifier == "" || server.PKCES256(verifier) != expectedChallenge {
 					httpx.WriteJSON(w, http.StatusBadRequest, map[string]any{
 						"error":             "invalid_grant",
 						"error_description": "PKCE code_verifier mismatch",
@@ -379,7 +380,7 @@ func (te *testEnv) followToEntra(req *http.Request) (entraState string, stateCoo
 		te.t.Fatalf("invalid Entra redirect location: %v", err)
 	}
 	for _, c := range resp.Cookies() {
-		if strings.HasPrefix(c.Name, entraStateCookieName) {
+		if strings.HasPrefix(c.Name, server.EntraStateCookieName) {
 			stateCookie = c
 		}
 	}
@@ -417,7 +418,7 @@ func (te *testEnv) parseConsentPage(resp *http.Response) (consentID, csrf string
 		te.t.Fatalf("missing hidden fields in consent HTML: %s", body)
 	}
 	for _, c := range resp.Cookies() {
-		if c.Name == csrfCookieName {
+		if c.Name == server.CSRFCookieName {
 			csrfCookie = c
 		}
 	}
@@ -802,7 +803,7 @@ func TestConsent_CSRF_SecurityHeaders_And_NoRememberedConsent(t *testing.T) {
 		{
 			name: "mismatched CSRF cookie fails with 403",
 			mutate: func(_, _ *string, cookie **http.Cookie) {
-				*cookie = &http.Cookie{Name: csrfCookieName, Value: "different-cookie-value"}
+				*cookie = &http.Cookie{Name: server.CSRFCookieName, Value: "different-cookie-value"}
 			},
 			decision:   "approve",
 			wantStatus: http.StatusForbidden,
@@ -890,14 +891,14 @@ func TestCallback_StateCookieBinding(t *testing.T) {
 		{
 			name: "forged state cookie signature fails with 403",
 			mutate: func(_ *testEnv, state *string, cookie **http.Cookie) {
-				*cookie = &http.Cookie{Name: entraStateCookieFor(*state), Value: *state + ".forged-signature"}
+				*cookie = &http.Cookie{Name: server.EntraStateCookieFor(*state), Value: *state + ".forged-signature"}
 			},
 			wantStatus: http.StatusForbidden,
 		},
 		{
 			name: "cookie signed for different state fails with 403",
 			mutate: func(te *testEnv, state *string, cookie **http.Cookie) {
-				*cookie = &http.Cookie{Name: entraStateCookieFor(*state), Value: te.gw.signEntraState("other-state")}
+				*cookie = &http.Cookie{Name: server.EntraStateCookieFor(*state), Value: te.gw.oauth().SignEntraState("other-state")}
 			},
 			wantStatus: http.StatusForbidden,
 		},
@@ -908,7 +909,7 @@ func TestCallback_StateCookieBinding(t *testing.T) {
 			te := newTestEnv(t)
 			entraState, stateCookie := te.startLogin(verifier)
 
-			if stateCookie.Name != entraStateCookieFor(entraState) || stateCookie.Path != "/" || stateCookie.Domain != "" ||
+			if stateCookie.Name != server.EntraStateCookieFor(entraState) || stateCookie.Path != "/" || stateCookie.Domain != "" ||
 				!stateCookie.HttpOnly || !stateCookie.Secure || stateCookie.SameSite != http.SameSiteLaxMode {
 				t.Fatalf("unexpected state cookie attributes: %+v", stateCookie)
 			}
@@ -1256,7 +1257,7 @@ func TestCallback_IdentityFromIntrospection(t *testing.T) {
 				if code == "" {
 					t.Fatal("expected gateway code on success")
 				}
-				ic, ok, err := te.gw.popCode(context.Background(), code)
+				ic, ok, err := te.gw.oauth().PopCode(context.Background(), code)
 				if err != nil || !ok || ic.Session.NAVIdent != tc.wantIdent {
 					t.Fatalf("session NAVident wrong or code missing (ok=%v err=%v), want %q", ok, err, tc.wantIdent)
 				}
@@ -1296,7 +1297,7 @@ func TestCallback_LegacyIdentitySource(t *testing.T) {
 	te.introspectStatus = http.StatusInternalServerError
 	te.mu.Unlock()
 	code := te.obtainAuthCode(verifier)
-	ic, ok, err := te.gw.popCode(context.Background(), code)
+	ic, ok, err := te.gw.oauth().PopCode(context.Background(), code)
 	if err != nil || !ok || ic.Session.NAVIdent != "A987654" {
 		t.Fatalf("legacy NAVident wrong (ok=%v err=%v)", ok, err)
 	}
@@ -1404,7 +1405,7 @@ func TestLogInjection_SanitizedAndEntraErrorTruncated(t *testing.T) {
 		t.Fatalf("sanitizeLogValue=%q, want %q", got, "abcd")
 	}
 	long := strings.Repeat("x", 80) + "\n\r"
-	if got := truncateLogValue(long, maxLogErrorLen); len(got) != maxLogErrorLen || strings.ContainsAny(got, "\r\n") {
+	if got := server.TruncateLogValue(long, server.MaxLogErrorLen); len(got) != server.MaxLogErrorLen || strings.ContainsAny(got, "\r\n") {
 		t.Fatalf("truncateLogValue len=%d val=%q", len(got), got)
 	}
 
@@ -1457,8 +1458,8 @@ func TestLogInjection_SanitizedAndEntraErrorTruncated(t *testing.T) {
 				if strings.ContainsAny(loggedErr, "\r\n") {
 					t.Fatalf("entra_error log contained CR/LF: %q", loggedErr)
 				}
-				if len(loggedErr) != maxLogErrorLen {
-					t.Fatalf("expected logged error truncated to %d chars, got %d (%q)", maxLogErrorLen, len(loggedErr), loggedErr)
+				if len(loggedErr) != server.MaxLogErrorLen {
+					t.Fatalf("expected logged error truncated to %d chars, got %d (%q)", server.MaxLogErrorLen, len(loggedErr), loggedErr)
 				}
 			}
 		case "CIMD fetch or validation failed":
@@ -1502,7 +1503,7 @@ func TestCallback_ParallelLoginsEachKeepOwnStateCookie(t *testing.T) {
 		resp := rec.Result()
 		cleared := 0
 		for _, c := range resp.Cookies() {
-			if strings.HasPrefix(c.Name, entraStateCookieName) && c.MaxAge < 0 {
+			if strings.HasPrefix(c.Name, server.EntraStateCookieName) && c.MaxAge < 0 {
 				cleared++
 				if c.Name != l.cookie.Name {
 					t.Fatalf("login %d cleared foreign cookie %q", i+1, c.Name)
@@ -1522,18 +1523,18 @@ func TestCallback_ParallelLoginsEachKeepOwnStateCookie(t *testing.T) {
 
 func TestAuthorize_StateCookieCountIsCapped(t *testing.T) {
 	te := newTestEnv(t)
-	for n := 0; n <= maxEntraStateCookies+3; n++ {
+	for n := 0; n <= server.MaxEntraStateCookies+3; n++ {
 		req := httptest.NewRequest(http.MethodGet, te.authorizeURL(nil, "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG"), nil)
 		held := map[string]bool{}
 		for i := 0; i < n; i++ {
-			name := entraStateCookieName + "_" + string(rune('a'+i)) + "0000000"
+			name := server.EntraStateCookieName + "_" + string(rune('a'+i)) + "0000000"
 			req.AddCookie(&http.Cookie{Name: name, Value: "x"})
 			held[name] = true
 		}
 		rec := httptest.NewRecorder()
 		te.handler.ServeHTTP(rec, req)
 		for _, c := range rec.Result().Cookies() {
-			if !strings.HasPrefix(c.Name, entraStateCookieName+"_") {
+			if !strings.HasPrefix(c.Name, server.EntraStateCookieName+"_") {
 				continue
 			}
 			if c.MaxAge < 0 {
@@ -1542,8 +1543,8 @@ func TestAuthorize_StateCookieCountIsCapped(t *testing.T) {
 				held[c.Name] = true
 			}
 		}
-		if len(held) > maxEntraStateCookies {
-			t.Fatalf("with %d existing cookies the browser ends with %d, cap %d", n, len(held), maxEntraStateCookies)
+		if len(held) > server.MaxEntraStateCookies {
+			t.Fatalf("with %d existing cookies the browser ends with %d, cap %d", n, len(held), server.MaxEntraStateCookies)
 		}
 	}
 }
@@ -1551,7 +1552,7 @@ func TestAuthorize_StateCookieCountIsCapped(t *testing.T) {
 func TestCallback_LegacyFixedNameCookieAccepted(t *testing.T) {
 	te := newTestEnv(t)
 	state, c := te.startLogin("abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG")
-	legacy := &http.Cookie{Name: entraStateCookieName, Value: c.Value}
+	legacy := &http.Cookie{Name: server.EntraStateCookieName, Value: c.Value}
 	req := httptest.NewRequest(http.MethodGet, "/oauth2/callback?code=entra-code&state="+url.QueryEscape(state), nil)
 	req.AddCookie(legacy)
 	rec := httptest.NewRecorder()

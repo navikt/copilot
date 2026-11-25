@@ -33,8 +33,6 @@ type (
 var (
 	errStoreFull      = session.ErrStoreFull
 	errSealUnknownKID = session.ErrSealUnknownKID
-	errSealDecrypt    = session.ErrSealDecrypt
-	errSealMalformed  = session.ErrSealMalformed
 
 	newMemoryStore       = session.NewMemoryStore
 	newSealedStore       = session.NewSealedStore

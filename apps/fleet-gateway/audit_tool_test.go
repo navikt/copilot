@@ -340,7 +340,7 @@ func TestMCP_IncompleteSessionUnauthorized(t *testing.T) {
 			t.Cleanup(func() { slog.SetDefault(old) })
 			te := newTestEnv(t)
 			sess.Resource, sess.IssuedAt, sess.Expiry = te.resource, te.now, te.now.Add(time.Hour)
-			if err := te.gw.putSession(context.Background(), oauth.HashToken("incomplete"), &sess, time.Hour); err != nil {
+			if err := te.gw.oauth().PutSession(context.Background(), oauth.HashToken("incomplete"), &sess, time.Hour); err != nil {
 				t.Fatal(err)
 			}
 			if _, ok, err := te.gw.getSession(context.Background(), oauth.HashToken("incomplete")); !ok || err != nil {

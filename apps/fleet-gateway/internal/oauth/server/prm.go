@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	"net/http"
@@ -7,8 +7,8 @@ import (
 	"github.com/navikt/copilot/fleet-gateway/internal/httpx"
 )
 
-// prmHandler serves RFC 9728 OAuth 2.0 Protected Resource Metadata.
-func (g *Gateway) prmHandler(w http.ResponseWriter, r *http.Request) {
+// PRM serves RFC 9728 OAuth 2.0 Protected Resource Metadata.
+func (g *Server) PRM(w http.ResponseWriter, r *http.Request) {
 	table := g.table()
 	resource := table.PrimaryResource
 	const prefix = "/.well-known/oauth-protected-resource"
@@ -29,8 +29,8 @@ func (g *Gateway) prmHandler(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// asMetadataHandler serves RFC 8414 OAuth 2.0 Authorization Server Metadata.
-func (g *Gateway) asMetadataHandler(w http.ResponseWriter, _ *http.Request) {
+// ASMetadata serves RFC 8414 OAuth 2.0 Authorization Server Metadata.
+func (g *Server) ASMetadata(w http.ResponseWriter, _ *http.Request) {
 	meta := map[string]any{
 		"issuer":                                         g.cfg.BaseURL,
 		"authorization_endpoint":                         g.cfg.BaseURL + "/authorize",
@@ -45,7 +45,7 @@ func (g *Gateway) asMetadataHandler(w http.ResponseWriter, _ *http.Request) {
 	if g.cfg.DCREnabled {
 		meta["registration_endpoint"] = g.cfg.BaseURL + "/register"
 	}
-	if g.cfg.RTStorage == rtStorageClientEncrypted {
+	if g.cfg.RTStorage == RTStorageClientEncrypted {
 		meta["grant_types_supported"] = []string{"authorization_code", "refresh_token"}
 		meta["revocation_endpoint"] = g.cfg.BaseURL + "/revoke"
 	}

@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	"context"
@@ -15,20 +15,21 @@ import (
 	"github.com/navikt/copilot/fleet-gateway/internal/httpx"
 	"github.com/navikt/copilot/fleet-gateway/internal/metrics"
 	"github.com/navikt/copilot/fleet-gateway/internal/ratelimit"
+	"github.com/navikt/copilot/fleet-gateway/internal/session"
 )
 
-// dcrClientIDPrefix marks gateway-issued client_ids. The rest is random and
+// DCRClientIDPrefix marks gateway-issued client_ids. The rest is random and
 // carries no meaning; it only keeps them apart from CIMD URLs in logs.
 const (
-	dcrClientIDPrefix  = "dcr-"
-	maxDCRClientName   = 64
+	DCRClientIDPrefix  = "dcr-"
+	MaxDCRClientName   = 64
 	maxDCRRedirectURIs = 5
 )
 
 // dcrClient is the stored record. IssuedAt bounds the sliding TTL by
 // DCRClientMaxAge; RenewedAt throttles renewal writes.
 type dcrClient struct {
-	clientMetadata
+	ClientMetadata
 	IssuedAt  time.Time `json:"issued_at"`
 	RenewedAt time.Time `json:"renewed_at"`
 }
@@ -42,10 +43,10 @@ type dcrRequest struct {
 	ApplicationType         *string  `json:"application_type"`
 }
 
-// registerHandler implements RFC 7591 dynamic client registration for public
+// Register implements RFC 7591 dynamic client registration for public
 // native clients only: loopback redirect URIs, no client secret. PKCE is
 // enforced at /authorize for every client.
-func (g *Gateway) registerHandler(w http.ResponseWriter, r *http.Request) {
+func (g *Server) Register(w http.ResponseWriter, r *http.Request) {
 	fail := func(status int, code, desc string) {
 		httpx.WriteJSON(w, status, map[string]string{"error": code, "error_description": desc})
 	}
@@ -118,8 +119,8 @@ func (g *Gateway) registerHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
-	meta := clientMetadata{
-		ClientID:                dcrClientIDPrefix + random,
+	meta := ClientMetadata{
+		ClientID:                DCRClientIDPrefix + random,
 		ClientName:              sanitizeClientName(req.ClientName),
 		RedirectURIs:            redirects,
 		GrantTypes:              grants,
@@ -127,19 +128,19 @@ func (g *Gateway) registerHandler(w http.ResponseWriter, r *http.Request) {
 		TokenEndpointAuthMethod: "none",
 	}
 	now := g.now()
-	raw, err := json.Marshal(dcrClient{clientMetadata: meta, IssuedAt: now, RenewedAt: now})
+	raw, err := json.Marshal(dcrClient{ClientMetadata: meta, IssuedAt: now, RenewedAt: now})
 	if err != nil {
 		http.Error(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 	// Full: drop the client with the earliest expiry. Expiry slides only on a
 	// successful token exchange, so this is the least recently renewed client.
-	evicted, err := g.store.PutEvict(r.Context(), kindDCRClient, meta.ClientID, raw, g.cfg.DCRClientTTL)
+	evicted, err := g.store.PutEvict(r.Context(), session.KindDCRClient, meta.ClientID, raw, g.cfg.DCRClientTTL)
 	if evicted {
 		slog.Info("audit dcr", "outcome", "evicted_oldest")
 	}
 	if err != nil {
-		if errors.Is(err, errStoreFull) {
+		if errors.Is(err, session.ErrStoreFull) {
 			w.Header().Set("Retry-After", "3600")
 			httpx.MarkShed(w, "store_full")
 			fail(http.StatusServiceUnavailable, "temporarily_unavailable", "client registration capacity reached")
@@ -167,7 +168,7 @@ func (g *Gateway) registerHandler(w http.ResponseWriter, r *http.Request) {
 // the session store, so every replica shares them. The global counter only
 // counts requests the per-IP limit let through: one IP cannot use up more of
 // the global budget than its own limit.
-func (g *Gateway) allowRegistration(ctx context.Context, ip string) (bool, error) {
+func (g *Server) allowRegistration(ctx context.Context, ip string) (bool, error) {
 	n, err := g.store.Incr(ctx, "dcr_ip:"+ip, defaultDCRRateLimitWindow)
 	if err != nil || n > g.cfg.DCRRateLimitRequests {
 		return false, err
@@ -195,7 +196,7 @@ func filterDCRRedirectURIs(in []string) ([]string, error) {
 		if err != nil {
 			return nil, errors.New("invalid redirect_uri")
 		}
-		if isLoopbackRedirect(u) {
+		if IsLoopbackRedirect(u) {
 			out = append(out, raw)
 			continue
 		}
@@ -219,8 +220,8 @@ func sanitizeClientName(name string) string {
 		}
 		return -1
 	}, strings.TrimSpace(name))
-	if r := []rune(name); len(r) > maxDCRClientName {
-		name = string(r[:maxDCRClientName])
+	if r := []rune(name); len(r) > MaxDCRClientName {
+		name = string(r[:MaxDCRClientName])
 	}
 	if name == "" {
 		name = "unnamed client"
@@ -230,19 +231,19 @@ func sanitizeClientName(name string) string {
 
 // registeredClient loads a client registered through DCR. ok is false for
 // unknown or expired ids, and always when DCR is disabled.
-func (g *Gateway) registeredClient(ctx context.Context, clientID string) (*clientMetadata, bool, error) {
-	if !g.cfg.DCREnabled || !strings.HasPrefix(clientID, dcrClientIDPrefix) {
+func (g *Server) registeredClient(ctx context.Context, clientID string) (*ClientMetadata, bool, error) {
+	if !g.cfg.DCREnabled || !strings.HasPrefix(clientID, DCRClientIDPrefix) {
 		return nil, false, nil
 	}
-	raw, ok, err := g.store.Get(ctx, kindDCRClient, clientID)
+	raw, ok, err := g.store.Get(ctx, session.KindDCRClient, clientID)
 	if err != nil {
-		if errors.Is(err, errSealUnknownKID) {
+		if errors.Is(err, session.ErrSealUnknownKID) {
 			slog.Warn("dcr client row sealed with unknown key id, treating as missing")
 			return nil, false, nil
 		}
-		if errors.Is(err, errSealDecrypt) || errors.Is(err, errSealMalformed) {
+		if errors.Is(err, session.ErrSealDecrypt) || errors.Is(err, session.ErrSealMalformed) {
 			slog.Warn("unreadable dcr client row, treating as missing", "reason", err.Error())
-			_ = g.store.Delete(ctx, kindDCRClient, clientID)
+			_ = g.store.Delete(ctx, session.KindDCRClient, clientID)
 			return nil, false, nil
 		}
 		return nil, false, err
@@ -253,21 +254,21 @@ func (g *Gateway) registeredClient(ctx context.Context, clientID string) (*clien
 	var rec dcrClient
 	if err := json.Unmarshal(raw, &rec); err != nil {
 		slog.Warn("unreadable dcr client row, treating as missing", "reason", err.Error())
-		_ = g.store.Delete(ctx, kindDCRClient, clientID)
+		_ = g.store.Delete(ctx, session.KindDCRClient, clientID)
 		return nil, false, nil
 	}
-	return &rec.clientMetadata, true, nil
+	return &rec.ClientMetadata, true, nil
 }
 
-// renewClient slides a DCR client's TTL after a successful token exchange, at
+// RenewClient slides a DCR client's TTL after a successful token exchange, at
 // most once per TTL/30, and never past IssuedAt+DCRClientMaxAge. It is not
 // called from /authorize: unauthenticated requests must not keep a client
 // alive. A failed renewal only logs: the client is live until its expiry.
-func (g *Gateway) renewClient(ctx context.Context, clientID string) {
-	if !g.cfg.DCREnabled || !strings.HasPrefix(clientID, dcrClientIDPrefix) {
+func (g *Server) RenewClient(ctx context.Context, clientID string) {
+	if !g.cfg.DCREnabled || !strings.HasPrefix(clientID, DCRClientIDPrefix) {
 		return
 	}
-	raw, ok, err := g.store.Get(ctx, kindDCRClient, clientID)
+	raw, ok, err := g.store.Get(ctx, session.KindDCRClient, clientID)
 	if err != nil || !ok {
 		return
 	}
@@ -289,18 +290,18 @@ func (g *Gateway) renewClient(ctx context.Context, clientID string) {
 	rec.RenewedAt = now
 	raw, err = json.Marshal(rec)
 	if err == nil {
-		err = g.store.Put(ctx, kindDCRClient, rec.ClientID, raw, ttl)
+		err = g.store.Put(ctx, session.KindDCRClient, rec.ClientID, raw, ttl)
 	}
 	if err != nil {
 		slog.Warn("renew dcr client failed", "error", err)
 	}
 }
 
-// clientGrants loads a client once: known is true for allowlisted or live DCR
+// ClientGrants loads a client once: known is true for allowlisted or live DCR
 // clients, mayRefresh honours the grant_types a DCR client registered (RFC 7591
 // 2: default authorization_code only). Allowlisted CIMD clients may refresh. A
 // store error is returned so callers answer 503, not a client error.
-func (g *Gateway) clientGrants(ctx context.Context, clientID string) (known, mayRefresh bool, err error) {
+func (g *Server) ClientGrants(ctx context.Context, clientID string) (known, mayRefresh bool, err error) {
 	if clientID == "" {
 		return false, false, nil
 	}

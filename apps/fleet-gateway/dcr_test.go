@@ -15,6 +15,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/testutil"
 
 	"github.com/navikt/copilot/fleet-gateway/internal/metrics"
+	"github.com/navikt/copilot/fleet-gateway/internal/oauth/server"
 	"github.com/navikt/copilot/fleet-gateway/internal/ratelimit"
 )
 
@@ -78,7 +79,7 @@ func TestDCR_RegisterAndAuthorize(t *testing.T) {
 		t.Fatalf("register status %d: %v", code, out)
 	}
 	clientID, _ := out["client_id"].(string)
-	if !strings.HasPrefix(clientID, dcrClientIDPrefix) || len(clientID) < 40 {
+	if !strings.HasPrefix(clientID, server.DCRClientIDPrefix) || len(clientID) < 40 {
 		t.Fatalf("client_id not opaque random: %q", clientID)
 	}
 	if out["token_endpoint_auth_method"] != "none" {
@@ -139,7 +140,7 @@ func TestDCR_UnknownOrExpiredClientRejected(t *testing.T) {
 	te := newTestEnv(t)
 	enableDCR(te, 10, 10)
 	verifier := "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG"
-	u := te.authorizeURL(map[string]string{"client_id": dcrClientIDPrefix + "made-up", "redirect_uri": "http://127.0.0.1:40001/mcp/oauth/callback"}, verifier)
+	u := te.authorizeURL(map[string]string{"client_id": server.DCRClientIDPrefix + "made-up", "redirect_uri": "http://127.0.0.1:40001/mcp/oauth/callback"}, verifier)
 	rec := httptest.NewRecorder()
 	te.handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, u, nil))
 	if rec.Code != http.StatusBadRequest {
@@ -160,7 +161,7 @@ func TestDCR_UnknownOrExpiredClientRejected(t *testing.T) {
 	_, out = postRegister(te, opencodeRegistration(), "10.0.0.1")
 	clientID, _ = out["client_id"].(string)
 	te.gw.cfg.DCREnabled = false
-	if known, _, _ := te.gw.clientGrants(t.Context(), clientID); known {
+	if known, _, _ := te.gw.oauth().ClientGrants(t.Context(), clientID); known {
 		t.Fatalf("registered client must be unknown with DCR disabled")
 	}
 }
@@ -224,7 +225,7 @@ func TestDCR_DropsLocalhostKeepsLoopbackIP(t *testing.T) {
 		t.Fatalf("redirect_uris = %v", uris)
 	}
 	name, _ := out["client_name"].(string)
-	if strings.ContainsRune(name, '\x1b') || len([]rune(name)) > maxDCRClientName {
+	if strings.ContainsRune(name, '\x1b') || len([]rune(name)) > server.MaxDCRClientName {
 		t.Fatalf("client_name not sanitized: %q", name)
 	}
 }
@@ -258,7 +259,7 @@ func registerID(t *testing.T, te *testEnv, ip string) string {
 
 func clientKnown(t *testing.T, te *testEnv, id string) bool {
 	t.Helper()
-	known, _, err := te.gw.clientGrants(t.Context(), id)
+	known, _, err := te.gw.oauth().ClientGrants(t.Context(), id)
 	if err != nil {
 		t.Fatalf("clientGrants: %v", err)
 	}
@@ -273,7 +274,7 @@ func TestDCR_FullCapEvictsLeastRecentlyRenewed(t *testing.T) {
 	te.advance(time.Hour)
 	b := registerID(t, te, "10.0.0.6")
 	te.advance(time.Hour)
-	te.gw.renewClient(t.Context(), a) // a token exchange renews a past b
+	te.gw.oauth().RenewClient(t.Context(), a) // a token exchange renews a past b
 	c := registerID(t, te, "10.0.0.7")
 	if !clientKnown(t, te, a) || !clientKnown(t, te, c) {
 		t.Fatalf("a and c should be live after eviction")
@@ -293,7 +294,7 @@ func TestDCR_TTLRenewedOnUseBoundedByMaxAge(t *testing.T) {
 		if !clientKnown(t, te, id) {
 			t.Fatalf("client renewed every 20h expired after %s; TTL is 24h", elapsed)
 		}
-		te.gw.renewClient(t.Context(), id)
+		te.gw.oauth().RenewClient(t.Context(), id)
 	}
 	te.advance(20 * time.Hour) // 80h > 72h max age
 	if clientKnown(t, te, id) {
@@ -386,7 +387,7 @@ func TestDCR_RefreshHonoursRegisteredGrantTypes(t *testing.T) {
 		return id
 	}
 	mayRefresh := func(id string) bool {
-		_, ok, err := te.gw.clientGrants(t.Context(), id)
+		_, ok, err := te.gw.oauth().ClientGrants(t.Context(), id)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -425,8 +426,8 @@ func TestDCR_AuthorizeRequiresRegisteredCodeGrant(t *testing.T) {
 	te := newTestEnv(t)
 	enableDCR(te, 10, 10)
 	// A registration stored before grant_types were enforced.
-	id := dcrClientIDPrefix + "legacy"
-	raw, _ := json.Marshal(clientMetadata{ClientID: id, RedirectURIs: []string{"http://127.0.0.1/mcp/oauth/callback"}, GrantTypes: []string{"refresh_token"}})
+	id := server.DCRClientIDPrefix + "legacy"
+	raw, _ := json.Marshal(server.ClientMetadata{ClientID: id, RedirectURIs: []string{"http://127.0.0.1/mcp/oauth/callback"}, GrantTypes: []string{"refresh_token"}})
 	if err := te.gw.store.Put(t.Context(), kindDCRClient, id, raw, time.Hour); err != nil {
 		t.Fatal(err)
 	}

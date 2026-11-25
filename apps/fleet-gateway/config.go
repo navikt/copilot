@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/navikt/copilot/fleet-gateway/internal/config"
+	"github.com/navikt/copilot/fleet-gateway/internal/oauth/server"
 	"github.com/navikt/copilot/fleet-gateway/internal/proxy"
 	"github.com/navikt/copilot/fleet-gateway/internal/ratelimit"
 	"github.com/navikt/copilot/fleet-gateway/internal/routing"
@@ -22,17 +23,14 @@ import (
 
 const (
 	identitySourceLegacy        = "legacy"
-	identitySourceIntrospection = "introspection"
+	identitySourceIntrospection = server.IdentitySourceIntrospection
 
 	defaultPort                             = "8080"
 	defaultSessionMaxAge                    = proxy.DefaultSessionMaxAge
-	defaultSessionAbsoluteMaxAge            = 7 * 24 * time.Hour
+	defaultSessionAbsoluteMaxAge            = server.DefaultSessionAbsoluteMaxAge
 	defaultSessionIdleTimeout               = 12 * time.Hour
 	defaultRefreshGraceWindow               = 30 * time.Second
 	defaultConsentTTL                       = 30 * 24 * time.Hour
-	defaultSessionTTL                       = time.Hour
-	defaultCIMDTTL                          = 5 * time.Minute
-	cimdStaleMax                            = 24 * time.Hour
 	defaultOutboundTimeout                  = proxy.DefaultOutboundTimeout
 	defaultUpstreamTimeout                  = 60 * time.Second // MCP tool calls; headers and body each get this long
 	defaultMCPMaxInFlight                   = 16
@@ -50,8 +48,6 @@ const (
 	defaultDCRClientCap                     = 5000
 	defaultDCRRateLimitRequests             = 10
 	defaultDCRRateLimitGlobalRequests       = 100
-	defaultDCRRateLimitWindow               = time.Hour
-	maxDCRBodyBytes                         = 16 * 1024
 	defaultRateLimitCap                     = 4096
 	defaultRateLimitRequests                = ratelimit.DefaultRequests
 	defaultRateLimitGlobalRequests          = ratelimit.DefaultGlobalRequests
@@ -60,13 +56,10 @@ const (
 	defaultSSEMaxDuration                   = 10 * time.Minute
 	defaultSSEIdleTimeout                   = 60 * time.Second
 	defaultSSEMaxBytes                int64 = 16 << 20 // 16 MiB
-	maxFormBodyBytes                        = 20 * 1024
-	maxClaimsBytes                          = 4096
-	maxCIMDBodyBytes                        = 64 * 1024
 	maxUpstreamBodyBytes                    = 1 << 20
 
 	rtStorageNone            = "none"
-	rtStorageClientEncrypted = "client-encrypted"
+	rtStorageClientEncrypted = server.RTStorageClientEncrypted
 	// rtStorageServer keeps the Entra refresh token inside the session in the store
 	// (existing teamtoken.Refresh behaviour) and issues NO gateway refresh token
 	// (cplt re-logs in when the access token expires).
@@ -600,14 +593,6 @@ func loadCookieSecret(raw, rtKeys string, onNais bool) ([][]byte, error) {
 		return nil, errors.New("COOKIE_SIGNING_SECRET must be at least 32 bytes")
 	}
 	return [][]byte{[]byte(trimmed)}, nil
-}
-
-func randomToken() (string, error) {
-	buf := make([]byte, 32)
-	if _, err := rand.Read(buf); err != nil {
-		return "", err
-	}
-	return base64.RawURLEncoding.EncodeToString(buf), nil
 }
 
 // defaultEntraScope asks Entra for an access token issued to fleet-gateway

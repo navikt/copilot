@@ -6,6 +6,8 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+
+	"github.com/navikt/copilot/fleet-gateway/internal/oauth/server"
 )
 
 func TestRedirectURIMatches(t *testing.T) {
@@ -35,7 +37,7 @@ func TestRedirectURIMatches(t *testing.T) {
 		{"http://127.0.0.1/callback", "http://127.0.0.1:51234/callback#frag", false},
 	}
 	for _, tt := range tests {
-		if got := redirectURIMatches(tt.registered, tt.requested); got != tt.want {
+		if got := server.RedirectURIMatches(tt.registered, tt.requested); got != tt.want {
 			t.Errorf("redirectURIMatches(%q, %q) = %v, want %v", tt.registered, tt.requested, got, tt.want)
 		}
 	}
@@ -97,11 +99,11 @@ func TestLoopbackRandomPort_EndToEnd(t *testing.T) {
 func TestIsLoopbackRedirect_RejectsNonDigitPort(t *testing.T) {
 	for _, rawHost := range []string{"127.0.0.1:+80", "[::1]:+80", "127.0.0.1:-80", "127.0.0.1:0"} {
 		u := &url.URL{Scheme: "http", Host: rawHost, Path: "/callback"}
-		if isLoopbackRedirect(u) {
+		if server.IsLoopbackRedirect(u) {
 			t.Errorf("isLoopbackRedirect(%q) = true, want false", rawHost)
 		}
 	}
-	if !isLoopbackRedirect(&url.URL{Scheme: "http", Host: "127.0.0.1:8080", Path: "/callback"}) {
+	if !server.IsLoopbackRedirect(&url.URL{Scheme: "http", Host: "127.0.0.1:8080", Path: "/callback"}) {
 		t.Error("isLoopbackRedirect with valid numeric port = false, want true")
 	}
 }
@@ -113,7 +115,7 @@ func TestRedirectWithValues_PreservesRegisteredQuery(t *testing.T) {
 	}
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/authorize", nil)
-	redirectWithValues(rec, req, base, url.Values{
+	server.RedirectWithValues(rec, req, base, url.Values{
 		"code":  {"gw-code"},
 		"state": {"st-1"},
 		"iss":   {"https://gw.example"},

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/navikt/copilot/fleet-gateway/internal/oauth"
+	"github.com/navikt/copilot/fleet-gateway/internal/oauth/server"
 )
 
 func (te *testEnv) refresh(rt string) (int, map[string]any) {
@@ -43,13 +44,13 @@ func TestRefreshToken_LegacyGroupsStillAcceptedAndNewTokenSmall(t *testing.T) {
 	}
 	te.groups = append(te.groups, groups...)
 
-	// Newly issued RTs ignore groups from Entra claims and stay under maxRefreshTokenLen.
+	// Newly issued RTs ignore groups from Entra claims and stay under server.MaxRefreshTokenLen.
 	_, newRT, _ := te.obtainTokensForResource(te.resource)
-	if len(newRT) > maxRefreshTokenLen {
-		t.Fatalf("new RT should stay under maxRefreshTokenLen (%d), got %d", maxRefreshTokenLen, len(newRT))
+	if len(newRT) > server.MaxRefreshTokenLen {
+		t.Fatalf("new RT should stay under maxRefreshTokenLen (%d), got %d", server.MaxRefreshTokenLen, len(newRT))
 	}
 
-	// Build a legacy RT payload JSON by hand with a "groups" array exceeding maxRefreshTokenLen.
+	// Build a legacy RT payload JSON by hand with a "groups" array exceeding server.MaxRefreshTokenLen.
 	now := te.gw.now()
 	legacyJSON, err := json.Marshal(map[string]any{
 		"v":         1,
@@ -66,16 +67,16 @@ func TestRefreshToken_LegacyGroupsStillAcceptedAndNewTokenSmall(t *testing.T) {
 	if err != nil {
 		t.Fatalf("marshal legacy RT payload: %v", err)
 	}
-	blob, err := te.gw.rtKeys.Seal([]byte(rtSealAAD), legacyJSON)
+	blob, err := te.gw.rtKeys.Seal([]byte(server.RTSealAAD), legacyJSON)
 	if err != nil {
 		t.Fatalf("seal legacy RT payload: %v", err)
 	}
 	legacyRT := base64.RawURLEncoding.EncodeToString(blob)
-	if len(legacyRT) <= maxRefreshTokenLen {
-		t.Fatalf("test premise: legacy RT with 100 groups must exceed maxRefreshTokenLen (%d), got %d", maxRefreshTokenLen, len(legacyRT))
+	if len(legacyRT) <= server.MaxRefreshTokenLen {
+		t.Fatalf("test premise: legacy RT with 100 groups must exceed maxRefreshTokenLen (%d), got %d", server.MaxRefreshTokenLen, len(legacyRT))
 	}
-	if len(legacyRT) > maxLegacyRefreshTokenLen {
-		t.Fatalf("test premise: legacy RT must stay within maxLegacyRefreshTokenLen (%d), got %d", maxLegacyRefreshTokenLen, len(legacyRT))
+	if len(legacyRT) > server.MaxLegacyRefreshTokenLen {
+		t.Fatalf("test premise: legacy RT must stay within maxLegacyRefreshTokenLen (%d), got %d", server.MaxLegacyRefreshTokenLen, len(legacyRT))
 	}
 
 	status, body := te.refresh(legacyRT)
@@ -83,14 +84,14 @@ func TestRefreshToken_LegacyGroupsStillAcceptedAndNewTokenSmall(t *testing.T) {
 		t.Fatalf("refresh with legacy many-groups RT: %d (%v)", status, body)
 	}
 	rotatedRT, _ := body["refresh_token"].(string)
-	if rotatedRT == "" || len(rotatedRT) > maxRefreshTokenLen {
-		t.Fatalf("rotated RT must be non-empty and <= %d, got len=%d", maxRefreshTokenLen, len(rotatedRT))
+	if rotatedRT == "" || len(rotatedRT) > server.MaxRefreshTokenLen {
+		t.Fatalf("rotated RT must be non-empty and <= %d, got len=%d", server.MaxRefreshTokenLen, len(rotatedRT))
 	}
 	rotatedBlob, err := base64.RawURLEncoding.DecodeString(rotatedRT)
 	if err != nil {
 		t.Fatalf("decode rotated RT: %v", err)
 	}
-	rotatedPlain, err := te.gw.rtKeys.Open([]byte(rtSealAAD), rotatedBlob)
+	rotatedPlain, err := te.gw.rtKeys.Open([]byte(server.RTSealAAD), rotatedBlob)
 	if err != nil {
 		t.Fatalf("open rotated RT: %v", err)
 	}
@@ -135,9 +136,9 @@ func TestRefreshToken_RealisticSizeWithoutGroups(t *testing.T) {
 	te.mu.Unlock()
 
 	_, rt, _ := te.obtainTokensForResource(te.resource)
-	t.Logf("sealed RT length with 2 KiB Entra RT = %d (maxRefreshTokenLen = %d)", len(rt), maxRefreshTokenLen)
-	if len(rt) > maxRefreshTokenLen {
-		t.Fatalf("sealed RT with 2 KiB Entra RT (%d bytes) exceeds maxRefreshTokenLen (%d)", len(rt), maxRefreshTokenLen)
+	t.Logf("sealed RT length with 2 KiB Entra RT = %d (maxRefreshTokenLen = %d)", len(rt), server.MaxRefreshTokenLen)
+	if len(rt) > server.MaxRefreshTokenLen {
+		t.Fatalf("sealed RT with 2 KiB Entra RT (%d bytes) exceeds maxRefreshTokenLen (%d)", len(rt), server.MaxRefreshTokenLen)
 	}
 }
 
@@ -283,7 +284,7 @@ func TestRefreshToken_TransientUpstreamDoesNotBurnRT(t *testing.T) {
 	te.mu.Lock()
 	te.entraRefreshStatus = http.StatusOK
 	te.mu.Unlock()
-	te.advance(refreshPendingTTL + time.Second)
+	te.advance(server.RefreshPendingTTL + time.Second)
 	if status, body := te.refresh(rt); status != http.StatusOK {
 		t.Fatalf("RT must survive a transient failure, got %d (%v)", status, body)
 	}

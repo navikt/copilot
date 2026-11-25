@@ -4,13 +4,14 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/navikt/copilot/fleet-gateway/internal/oauth/server"
 	"github.com/navikt/copilot/fleet-gateway/internal/proxy"
 	"github.com/navikt/copilot/fleet-gateway/internal/teamtoken"
 )
 
 const (
 	strategyOBO     = "obo"
-	strategyRefresh = "refresh"
+	strategyRefresh = server.StrategyRefresh
 )
 
 func newTeamTokenSource(cfg *Config, store SessionStore, now func() time.Time) (proxy.TeamTokenSource, error) {

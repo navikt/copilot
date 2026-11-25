@@ -72,7 +72,7 @@ func TestSliding_RefreshedSessionExpiryCappedAtHardCap(t *testing.T) {
 		t.Fatalf("expires_in must be clamped to the hard cap (<=600 s), got %v", exp)
 	}
 	// The new refresh token must not outlive the hard cap either.
-	np, err := te.gw.openRefreshToken(body["refresh_token"].(string))
+	np, err := te.gw.oauth().OpenRefreshToken(body["refresh_token"].(string))
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -118,13 +118,13 @@ func TestSliding_LockoutStillKillsAfterRefreshes(t *testing.T) {
 func TestSliding_LegacyTokenTreatsIATAsLogin(t *testing.T) {
 	te := newClientEncryptedTestEnv(t, "k1:"+testKeyBase64(t, false))
 	_, rt, _ := te.obtainTokensForResource(te.resource)
-	p, err := te.gw.openRefreshToken(rt)
+	p, err := te.gw.oauth().OpenRefreshToken(rt)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
 	p.EXP = p.IAT + int64((12 * time.Hour).Seconds())
 	p.ABS = 0 // issued before ABS existed
-	legacy, err := te.gw.sealRefreshToken(*p)
+	legacy, err := te.gw.oauth().SealRefreshToken(*p)
 	if err != nil {
 		t.Fatalf("seal: %v", err)
 	}
@@ -133,7 +133,7 @@ func TestSliding_LegacyTokenTreatsIATAsLogin(t *testing.T) {
 	if status != http.StatusOK {
 		t.Fatalf("legacy RT inside its 12 h: %d %v", status, body)
 	}
-	np, err := te.gw.openRefreshToken(body["refresh_token"].(string))
+	np, err := te.gw.oauth().OpenRefreshToken(body["refresh_token"].(string))
 	if err != nil {
 		t.Fatalf("open new: %v", err)
 	}
@@ -209,13 +209,13 @@ func TestSliding_GraceRetryAcrossIdleDeadline(t *testing.T) {
 // legacyRT turns a fresh token into one minted before ABS existed: no ABS, exp = iat + 12 h.
 func legacyRT(t *testing.T, te *testEnv, rt string) string {
 	t.Helper()
-	p, err := te.gw.openRefreshToken(rt)
+	p, err := te.gw.oauth().OpenRefreshToken(rt)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
 	p.ABS = 0
 	p.EXP = p.IAT + int64((12 * time.Hour).Seconds())
-	out, err := te.gw.sealRefreshToken(*p)
+	out, err := te.gw.oauth().SealRefreshToken(*p)
 	if err != nil {
 		t.Fatalf("seal: %v", err)
 	}

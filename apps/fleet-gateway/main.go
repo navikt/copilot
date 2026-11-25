@@ -22,6 +22,7 @@ import (
 	"github.com/navikt/copilot/fleet-gateway/internal/inflight"
 	"github.com/navikt/copilot/fleet-gateway/internal/metrics"
 	"github.com/navikt/copilot/fleet-gateway/internal/oauth/entra"
+	"github.com/navikt/copilot/fleet-gateway/internal/oauth/server"
 	"github.com/navikt/copilot/fleet-gateway/internal/policy"
 	"github.com/navikt/copilot/fleet-gateway/internal/proxy"
 	"github.com/navikt/copilot/fleet-gateway/internal/ratelimit"
@@ -40,7 +41,7 @@ type Gateway struct {
 	rtKeys        *keyRing
 	lockoutKey    []byte // HMAC key for lockout records (LOCKOUT_KEY); empty disables lockout checks
 	mcpUserKey    []byte // HMAC key for kindMCPSessionUser counters
-	cimdCache     *ttlmap.Map[cachedCIMD]
+	cimdCache     *ttlmap.Map[server.CachedCIMD]
 	limiters      map[string]*ratelimit.Limiter
 	rateLimitLog  *ratelimit.LogSampler
 	proxyClient   *http.Client
@@ -120,7 +121,7 @@ func newGateway(cfg *Config, now func() time.Time) (*Gateway, error) {
 		rtKeys:       rtKeys,
 		lockoutKey:   lockoutKey,
 		mcpUserKey:   mcpUserKey,
-		cimdCache:    ttlmap.New[cachedCIMD](cfg.CIMDCap, now),
+		cimdCache:    ttlmap.New[server.CachedCIMD](cfg.CIMDCap, now),
 		limiters:     limiters,
 		rateLimitLog: ratelimit.NewLogSampler(ratelimit.DefaultLogWindow, ratelimit.DefaultLogCap, now),
 		proxyClient:  proxy.NewHardenedClient(cfg.ProxyHeaderTimeout),
@@ -228,7 +229,7 @@ func (g *Gateway) routes() http.Handler {
 	mux.HandleFunc("GET /.well-known/oauth-authorization-server", g.asMetadataHandler)
 	mux.HandleFunc("GET /authorize", g.rateLimitMiddleware(metrics.EndpointAuthorize, g.limiters[metrics.EndpointAuthorize], g.authorizeHandler))
 	mux.HandleFunc("POST /consent", g.rateLimitMiddleware(metrics.EndpointConsent, g.limiters[metrics.EndpointConsent], g.consentPostHandler))
-	mux.HandleFunc("GET /static/consent.css", consentCSSHandler)
+	mux.HandleFunc("GET /static/consent.css", server.ConsentCSS)
 	mux.HandleFunc("GET /oauth2/callback", g.callbackHandler)
 	mux.HandleFunc("POST /token", g.rateLimitMiddleware(metrics.EndpointToken, g.limiters[metrics.EndpointToken], g.tokenHandler))
 	mux.HandleFunc("POST /revoke", g.rateLimitMiddleware(metrics.EndpointRevoke, g.limiters[metrics.EndpointRevoke], g.revokeHandler))
@@ -385,27 +386,7 @@ func (g *Gateway) loggingMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-const maxLogErrorLen = 64
-
-// maxLogClientIDLen bounds a client-supplied client_id (CIMD URL or DCR id) in audit lines.
-const maxLogClientIDLen = 256
-
 func sanitizeLogValue(s string) string { return audit.Sanitize(s) }
-
-func truncateLogValue(s string, maxChars int) string {
-	s = sanitizeLogValue(s)
-	if maxChars <= 0 {
-		return ""
-	}
-	count := 0
-	for i := range s {
-		if count == maxChars {
-			return s[:i]
-		}
-		count++
-	}
-	return s
-}
 
 const serverReadTimeout = 10 * time.Second
 

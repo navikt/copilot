@@ -12,6 +12,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/navikt/copilot/fleet-gateway/internal/oauth/server"
 )
 
 type roundTripFunc func(*http.Request) (*http.Response, error)
@@ -72,7 +74,7 @@ func TestCIMDStaleFallback(t *testing.T) {
 		})
 
 		// Initial valid fetch populates cache.
-		doc, err := te.gw.fetchCIMD(context.Background(), te.clientID)
+		doc, err := te.gw.oauth().FetchCIMD(context.Background(), te.clientID)
 		if err != nil {
 			t.Fatalf("initial fetchCIMD failed: %v", err)
 		}
@@ -91,12 +93,12 @@ func TestCIMDStaleFallback(t *testing.T) {
 			{name: "503 status", mode: "status", status: http.StatusServiceUnavailable},
 		}
 		for _, tc := range cases {
-			te.advance(defaultCIMDTTL + time.Minute)
+			te.advance(server.DefaultCIMDTTL + time.Minute)
 			mu.Lock()
 			mode, status = tc.mode, tc.status
 			mu.Unlock()
 
-			got, err := te.gw.fetchCIMD(context.Background(), te.clientID)
+			got, err := te.gw.oauth().FetchCIMD(context.Background(), te.clientID)
 			if err != nil {
 				t.Fatalf("%s: expected stale fallback, got error: %v", tc.name, err)
 			}
@@ -137,7 +139,7 @@ func TestCIMDStaleFallback(t *testing.T) {
 			return nil, nil
 		})
 
-		if _, err := te.gw.fetchCIMD(context.Background(), te.clientID); err != nil {
+		if _, err := te.gw.oauth().FetchCIMD(context.Background(), te.clientID); err != nil {
 			t.Fatalf("initial fetchCIMD failed: %v", err)
 		}
 
@@ -146,17 +148,17 @@ func TestCIMDStaleFallback(t *testing.T) {
 		mu.Unlock()
 
 		// Still within 24h after Sweep: entry is retained and usable.
-		te.advance(cimdStaleMax - time.Minute)
+		te.advance(server.CIMDStaleMax - time.Minute)
 		if removed := te.gw.cimdCache.Sweep(); removed != 0 {
 			t.Fatalf("expected 0 swept before cimdStaleMax, got %d", removed)
 		}
-		if _, err := te.gw.fetchCIMD(context.Background(), te.clientID); err != nil {
+		if _, err := te.gw.oauth().FetchCIMD(context.Background(), te.clientID); err != nil {
 			t.Fatalf("expected stale fallback before limit, got: %v", err)
 		}
 
 		// Reach 24h limit: /authorize and fetchCIMD must fail, and Sweep cleans up.
 		te.advance(time.Minute)
-		if _, err := te.gw.fetchCIMD(context.Background(), te.clientID); err == nil {
+		if _, err := te.gw.oauth().FetchCIMD(context.Background(), te.clientID); err == nil {
 			t.Fatal("expected error after cimdStaleMax, got nil")
 		}
 		req := httptest.NewRequest(http.MethodGet, te.authorizeURL(nil, verifier), nil)
@@ -195,19 +197,19 @@ func TestCIMDStaleFallback(t *testing.T) {
 					return nil, nil
 				})
 
-				if _, err := te.gw.fetchCIMD(context.Background(), te.clientID); err != nil {
+				if _, err := te.gw.oauth().FetchCIMD(context.Background(), te.clientID); err != nil {
 					t.Fatalf("initial fetchCIMD failed: %v", err)
 				}
 				if te.gw.cimdCache.Len() != 1 {
 					t.Fatalf("expected cache Len=1 after initial fetch, got %d", te.gw.cimdCache.Len())
 				}
 
-				te.advance(defaultCIMDTTL + time.Minute)
+				te.advance(server.DefaultCIMDTTL + time.Minute)
 				mu.Lock()
 				respStatus = status
 				mu.Unlock()
 
-				if _, err := te.gw.fetchCIMD(context.Background(), te.clientID); err == nil {
+				if _, err := te.gw.oauth().FetchCIMD(context.Background(), te.clientID); err == nil {
 					t.Fatalf("status %d: expected error, got nil", status)
 				}
 				if te.gw.cimdCache.Len() != 0 {
@@ -217,7 +219,7 @@ func TestCIMDStaleFallback(t *testing.T) {
 				mu.Lock()
 				respStatus = http.StatusServiceUnavailable
 				mu.Unlock()
-				if _, err := te.gw.fetchCIMD(context.Background(), te.clientID); err == nil {
+				if _, err := te.gw.oauth().FetchCIMD(context.Background(), te.clientID); err == nil {
 					t.Fatalf("status %d followed by 503: expected error (no resurrection), got nil", status)
 				}
 			})
@@ -276,16 +278,16 @@ func TestCIMDStaleFallback(t *testing.T) {
 					}
 				})
 
-				if _, err := te.gw.fetchCIMD(context.Background(), te.clientID); err != nil {
+				if _, err := te.gw.oauth().FetchCIMD(context.Background(), te.clientID); err != nil {
 					t.Fatalf("initial fetchCIMD failed: %v", err)
 				}
 
-				te.advance(defaultCIMDTTL + time.Minute)
+				te.advance(server.DefaultCIMDTTL + time.Minute)
 				mu.Lock()
 				mode = "invalid"
 				mu.Unlock()
 
-				if _, err := te.gw.fetchCIMD(context.Background(), te.clientID); err == nil {
+				if _, err := te.gw.oauth().FetchCIMD(context.Background(), te.clientID); err == nil {
 					t.Fatalf("%s: expected validation error, got nil", tc.name)
 				}
 				if te.gw.cimdCache.Len() != 0 {
@@ -301,7 +303,7 @@ func TestCIMDStaleFallback(t *testing.T) {
 				mu.Lock()
 				mode = "503"
 				mu.Unlock()
-				if _, err := te.gw.fetchCIMD(context.Background(), te.clientID); err == nil {
+				if _, err := te.gw.oauth().FetchCIMD(context.Background(), te.clientID); err == nil {
 					t.Fatalf("%s followed by 503: expected error (no resurrection), got nil", tc.name)
 				}
 			})
