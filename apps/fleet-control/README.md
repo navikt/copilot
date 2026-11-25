@@ -250,13 +250,16 @@ Needs a human with write access to dev-gcp. Fill in and commit the result here. 
 
 ## Prod rollout (#2754)
 
-The manifests for prod-gcp are ready, but the workflow does not deploy there yet. The owner does these steps in order.
+Closed pilot: teams `copilot` and `aksel-studio`. Merging the PR that adds `prod-gcp` to `nais-clusters` in `.github/workflows/fleet-control.yaml` is the deploy. The owner does the steps below in order.
 
-1. **Deploy.** In `.github/workflows/fleet-control.yaml`, change `nais-clusters` to `'["dev-gcp", "prod-gcp"]'` and merge. The deploy creates Postgres (`.nais/postgres.yaml`) together with the app. Check that the pod is ready. `/ready` answers 200 with "team lookups unavailable: no Console service account bound" until step 2.
-2. **Service account.** In Nais Console, team `copilot`, create a service account that may read team membership and bind it to the workload `fleet-control` in `prod-gcp`. The binding needs the deployed app. Nais then sets `NAIS_SERVICE_ACCOUNT_TOKEN_PATH`; restart the pod if it does not pick it up. See doc.nais.io for the current steps.
-3. **Verify team lookups.** `/ready` no longer mentions the service account, and a team lookup from my-copilot answers instead of 503. The log shows no Console API errors.
+1. **Deploy.** Merge. The deploy creates Postgres (`.nais/postgres.yaml`, 7 days of backups) together with the app. Check that the pod is ready. `/ready` answers 200 with "team lookups unavailable: no Console service account bound" until step 3.
+2. **Verify the seed.** The first start imports the gateway servers from `pilot-routes.prod.yaml` and the allowlist. Check the log for the seed import and no `snapshot rebuild failed`, and that `fleet_control_snapshot_last_success_timestamp_seconds` exists for `routes`. No static teams and no agent seed exist in prod.
+3. **Service account.** In Nais Console, team `copilot`, create a service account that may read team membership and bind it to the workload `fleet-control` in `prod-gcp`. The binding needs the deployed app. Nais then sets `NAIS_SERVICE_ACCOUNT_TOKEN_PATH`; restart the pod if it does not pick it up. Check that `/ready` no longer mentions the service account and that `fleet_control_console_lookups_total{outcome!="ok"}` stays flat.
+4. **Shadow.** fleet-gateway prod runs with `routes_shadow_source: fleet-control`: it serves routes from git and compares them with the fleet-control snapshot. Watch `fleet_gateway_routes_shadow_diff` and `fleet_gateway_routes_shadow_failures_total` for a few days. The diff must be 0.
+5. **my-copilot.** `/fleet` stays hidden in prod until `FLEET_CONTROL_URL` is set for my-copilot in prod. Set it once steps 1 to 4 hold, then check the page as a member of a pilot team.
+6. **Switch.** When the shadow diff has been 0 for a few days with no sync failures, set `routes_source: fleet-control` in `apps/fleet-gateway/.nais/prod-gcp.yaml` and remove `routes_shadow_source` (#2760). Roll back by reverting that change: routes come from git again.
 
-Caller client ids need no manual step: they come from `AZURE_APP_PRE_AUTHORIZED_APPS`. Switching the prod gateway to fleet-control is a separate step (#2760).
+Caller client ids need no manual step: they come from `AZURE_APP_PRE_AUTHORIZED_APPS`.
 
 ## Development
 

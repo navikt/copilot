@@ -1,5 +1,4 @@
-# Not deployed yet: prod-gcp is not in nais-clusters in .github/workflows/fleet-control.yaml
-# until the owner flips it, see README.md "Prod rollout" (#2754).
+# Deployed by .github/workflows/fleet-control.yaml. Owner steps: README.md "Prod rollout" (#2754).
 cluster: prod-gcp
 env: prod
 replicas_min: "1"

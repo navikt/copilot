@@ -51,9 +51,8 @@ jobs:
       deploy-pr-to-dev: false
       check-on-pr: true
       nais-team: copilot
-      # Prod switch (#2754): replace with '["dev-gcp", "prod-gcp"]' once the owner
-      # steps in apps/fleet-control/README.md ("Prod rollout") are done.
-      nais-clusters: '["dev-gcp"]'
+      # Prod for the closed pilot (#2754). Owner steps after the first deploy: apps/fleet-control/README.md, "Prod rollout".
+      nais-clusters: '["dev-gcp", "prod-gcp"]'
 
   # Runs the Postgres-backed tests, which skip without TEST_DATABASE_URL.
   db-test:
