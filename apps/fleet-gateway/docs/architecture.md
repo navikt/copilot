@@ -18,7 +18,7 @@ About 6,500 lines of non-test Go sit in `package main`, almost all as methods on
 - `routes.go`, `routetable.go`, `fleet_control.go`: route loading, validation and the route table.
 - `store_gateway.go`, `session.go`: typed wrappers and aliases over `internal/session`.
 - `config.go`: env parsing, validation and the generic `ttlMap`.
-- `metrics.go`, `lockout.go`: Prometheus metrics and a thin shim over `internal/lockout`.
+- `lockout.go`: a thin shim over `internal/lockout`.
 
 `internal/` already holds `audit`, `config` (env helpers), `identity`, `lockout`,
 `policy` and `session`.
@@ -35,13 +35,13 @@ there are two implementations or a test seam that tests use.
 | `internal/inflight` | Global, per-user and per-route concurrency slots | `Slots`, `PerKey` |
 | `internal/ttlmap` | Bounded generic TTL map | `Map[V]` |
 | `internal/session` | Store interface, memory and Postgres stores, sealing, key ring (exists) | `Store` |
-| `internal/oauth` | Typed records over the store: pending auth, codes, sessions, consent, refresh grace, DCR clients | consumes `session.Store` |
-| `internal/oauth/entra` | Entra authorize URL, code and refresh redemption, ID-token checks, state cookie | `Client` |
-| `internal/teamtoken` | OBO and refresh strategies | `Source` (two implementations) |
+| `internal/oauth` | Typed records over the store: pending auth, codes, sessions, consent. Refresh grace and DCR clients move with `oauth/server` | `PendingAuth`, `IssuedCode`, `Session`, `HashToken`; functions take a `session.Store` |
+| `internal/oauth/entra` | Entra authorize endpoint, code and refresh redemption, ID-token checks, state cookie signing | `Client`, `SignState`, `VerifyState`, `ValidateIDTokenClaims` |
+| `internal/teamtoken` | OBO and refresh strategies | `OBO`, `Refresh`. Their interface, `TeamTokenSource`, stays at the consumer in `main` until `proxy` moves |
 | `internal/policy`, `internal/lockout`, `internal/audit`, `internal/identity` | As today | `lockout.Manager` |
-| `internal/metrics` | Collectors and `observe*` helpers | none |
-| `internal/proxy` | MCP handler, header allowlists, SSE streaming | consumes `teamtoken.Source`, `routing` |
-| `internal/httpx` | `writeJSON`, error pages, security headers, status writer | none |
+| `internal/metrics` | Collectors and `Observe*` helpers, `Init`, the `/metrics` server | none |
+| `internal/proxy` | MCP handler, header allowlists, SSE streaming | defines the team-token interface it consumes; uses `routing` |
+| `internal/httpx` | `WriteJSON`, `StatusWriter`, `MarkShed`. Error pages and security headers move with `oauth/server` | none |
 | `main` | Config loading, `newGateway` wiring, the mux, the `lockout` subcommand | none |
 
 The OAuth handlers (`authorize`, `token`, `revoke`, `register`, consent, PRM) stay
