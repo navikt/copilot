@@ -14,6 +14,8 @@ import (
 	"sync/atomic"
 	"syscall"
 	"time"
+
+	"github.com/navikt/copilot/fleet-control/internal/model"
 )
 
 func main() {
@@ -222,11 +224,11 @@ type storeBox struct{ snapshotStore }
 
 type snapshotStore interface {
 	Ping(ctx context.Context) error
-	Servers(ctx context.Context) ([]Server, error)
-	LatestSnapshot(ctx context.Context, kind string) (*Snapshot, error)
+	Servers(ctx context.Context) ([]model.Server, error)
+	LatestSnapshot(ctx context.Context, kind string) (*model.Snapshot, error)
 	// Publish reads servers and the latest snapshot of kind, builds the next
 	// one and stores it, all in one transaction serialised per kind.
-	Publish(ctx context.Context, kind string, build func(string, []Server, *Snapshot) (*Snapshot, error)) (*Snapshot, error)
+	Publish(ctx context.Context, kind string, build func(string, []model.Server, *model.Snapshot) (*model.Snapshot, error)) (*model.Snapshot, error)
 }
 
 type server struct {
@@ -238,7 +240,7 @@ type server struct {
 	store        atomic.Pointer[storeBox]
 	// lastGood holds the last served snapshot per kind, so a database outage
 	// keeps serving it; after a restart there is none and the answer is 503.
-	lastGood map[string]*atomic.Pointer[Snapshot]
+	lastGood map[string]*atomic.Pointer[model.Snapshot]
 	// verifier binds an agent's client id to its app; nil leaves profiles unverified.
 	verifier identityVerifier
 	// notifier posts MCPServer changes to Slack; nil sends nothing.
@@ -246,5 +248,5 @@ type server struct {
 }
 
 func newServer() *server {
-	return &server{lastGood: map[string]*atomic.Pointer[Snapshot]{"routes": {}, "registry": {}}}
+	return &server{lastGood: map[string]*atomic.Pointer[model.Snapshot]{"routes": {}, "registry": {}}}
 }

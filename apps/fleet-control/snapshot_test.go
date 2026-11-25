@@ -12,17 +12,19 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/navikt/copilot/fleet-control/internal/model"
 )
 
-func testServers(n int) []Server {
-	out := make([]Server, n)
+func testServers(n int) []model.Server {
+	out := make([]model.Server, n)
 	for i := range out {
 		name := fmt.Sprintf("s%d", i)
-		out[i] = Server{
+		out[i] = model.Server{
 			Namespace: "copilot", Name: name, Status: "published",
 			RegistryName: "io.github.navikt/" + name,
 			Registry:     json.RawMessage(`{"name":"io.github.navikt/` + name + `"}`),
-			Route:        &Route{Path: "/mcp/copilot/" + name, Target: "dev-gcp:copilot:" + name, UpstreamURL: "http://" + name + ".copilot/", Enabled: true, Tools: []string{"t"}},
+			Route:        &model.Route{Path: "/mcp/copilot/" + name, Target: "dev-gcp:copilot:" + name, UpstreamURL: "http://" + name + ".copilot/", Enabled: true, Tools: []string{"t"}},
 		}
 	}
 	return out
@@ -91,19 +93,19 @@ func TestRegistrySnapshotIsPublicEntryOnly(t *testing.T) {
 
 // fakeStore keeps snapshots in memory; err makes every call fail.
 type fakeStore struct {
-	servers   []Server
-	snapshots map[string]*Snapshot
+	servers   []model.Server
+	snapshots map[string]*model.Snapshot
 	err       error
 }
 
 func (f *fakeStore) Ping(context.Context) error { return f.err }
-func (f *fakeStore) Servers(context.Context) ([]Server, error) {
+func (f *fakeStore) Servers(context.Context) ([]model.Server, error) {
 	return f.servers, f.err
 }
-func (f *fakeStore) LatestSnapshot(_ context.Context, kind string) (*Snapshot, error) {
+func (f *fakeStore) LatestSnapshot(_ context.Context, kind string) (*model.Snapshot, error) {
 	return f.snapshots[kind], f.err
 }
-func (f *fakeStore) Publish(_ context.Context, kind string, build func(string, []Server, *Snapshot) (*Snapshot, error)) (*Snapshot, error) {
+func (f *fakeStore) Publish(_ context.Context, kind string, build func(string, []model.Server, *model.Snapshot) (*model.Snapshot, error)) (*model.Snapshot, error) {
 	if f.err != nil {
 		return nil, f.err
 	}
@@ -115,22 +117,22 @@ func (f *fakeStore) Publish(_ context.Context, kind string, build func(string, [
 }
 
 func TestStoreIfNewerNeverGoesBack(t *testing.T) {
-	var p atomic.Pointer[Snapshot]
+	var p atomic.Pointer[model.Snapshot]
 	var wg sync.WaitGroup
 	for g := int64(1); g <= 200; g++ {
-		wg.Go(func() { storeIfNewer(&p, &Snapshot{Generation: g}) })
+		wg.Go(func() { storeIfNewer(&p, &model.Snapshot{Generation: g}) })
 	}
 	wg.Wait()
 	if got := p.Load().Generation; got != 200 {
 		t.Fatalf("got generation %d, want 200", got)
 	}
-	if got := storeIfNewer(&p, &Snapshot{Generation: 3}); got.Generation != 200 {
+	if got := storeIfNewer(&p, &model.Snapshot{Generation: 3}); got.Generation != 200 {
 		t.Errorf("an older generation replaced a newer one: %d", got.Generation)
 	}
 }
 
 func TestReadyUsesCachedSnapshots(t *testing.T) {
-	fs := &fakeStore{servers: testServers(3), snapshots: map[string]*Snapshot{}}
+	fs := &fakeStore{servers: testServers(3), snapshots: map[string]*model.Snapshot{}}
 	srv := newServer()
 	srv.store.Store(&storeBox{fs})
 	h := srv.routes(testAuthz(t), "", nil, nil)
@@ -176,7 +178,7 @@ func TestHandlers(t *testing.T) {
 		t.Errorf("health: %d", rec.Code)
 	}
 
-	fs := &fakeStore{servers: testServers(3), snapshots: map[string]*Snapshot{}}
+	fs := &fakeStore{servers: testServers(3), snapshots: map[string]*model.Snapshot{}}
 	fs.servers[2].Status = "revoked"
 	srv.store.Store(&storeBox{fs})
 
@@ -230,7 +232,7 @@ func TestHandlers(t *testing.T) {
 	}
 
 	// After a restart, a rejected rebuild serves the snapshot stored in the database.
-	stored := &fakeStore{servers: testServers(1), snapshots: map[string]*Snapshot{}}
+	stored := &fakeStore{servers: testServers(1), snapshots: map[string]*model.Snapshot{}}
 	stored.snapshots["routes"], _ = buildSnapshot("routes", testServers(10), nil)
 	restarted := newServer()
 	restarted.store.Store(&storeBox{stored})
@@ -243,7 +245,7 @@ func TestHandlers(t *testing.T) {
 
 	// Everything revoked or deleted: the snapshot is rejected, not emptied.
 	empty := newServer()
-	empty.store.Store(&storeBox{&fakeStore{snapshots: map[string]*Snapshot{}}})
+	empty.store.Store(&storeBox{&fakeStore{snapshots: map[string]*model.Snapshot{}}})
 	if rec := get(t, empty.routes(testAuthz(t), "", nil, nil), "/internal/v1/snapshots/routes", ""); rec.Code != http.StatusServiceUnavailable {
 		t.Errorf("empty snapshot: %d %s", rec.Code, rec.Body)
 	}
@@ -266,7 +268,7 @@ func TestRevokedRoutesStayDisabled(t *testing.T) {
 	if err != nil {
 		t.Fatalf("revoking the last route must publish: %v", err)
 	}
-	var rows []Route
+	var rows []model.Route
 	if err := json.Unmarshal(next.Items, &rows); err != nil || len(rows) != 1 || rows[0].Enabled || rows[0].Path != "/mcp/copilot/s0" || len(rows[0].Tools) != 1 || rows[0].UpstreamURL != "http://s0.copilot" {
 		t.Fatalf("revoked route must stay as disabled: %v %s", err, next.Items)
 	}
@@ -339,11 +341,11 @@ func TestRoutesSnapshotHasClusterAndDataClass(t *testing.T) {
 // #2903: the routes snapshot carries toolRisk for the gateway, but not for
 // a revoked route, which is disabled.
 func TestRoutesSnapshotCarriesToolRisk(t *testing.T) {
-	route := func() *Route {
-		return &Route{Path: "/mcp/a/s", Target: "dev-gcp:a:s", UpstreamURL: "http://s.a", Enabled: true, Tools: []string{"x", "y"}, ToolRisk: map[string]string{"x": "read"}}
+	route := func() *model.Route {
+		return &model.Route{Path: "/mcp/a/s", Target: "dev-gcp:a:s", UpstreamURL: "http://s.a", Enabled: true, Tools: []string{"x", "y"}, ToolRisk: map[string]string{"x": "read"}}
 	}
 	for status, want := range map[string]bool{"published": true, "revoked": false} {
-		snap, err := buildSnapshot("routes", []Server{{Namespace: "a", Name: "s", Status: status, Route: route()}}, nil)
+		snap, err := buildSnapshot("routes", []model.Server{{Namespace: "a", Name: "s", Status: status, Route: route()}}, nil)
 		if err != nil {
 			t.Fatal(err)
 		}

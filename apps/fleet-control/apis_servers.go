@@ -14,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/navikt/copilot/fleet-control/internal/canon"
+	"github.com/navikt/copilot/fleet-control/internal/model"
 	"github.com/navikt/copilot/fleet-control/internal/store"
 )
 
@@ -103,24 +104,24 @@ var dataCategories = []string{"Aapen", "Intern", "Fortrolig"}
 // validateServerSpec checks spec with the same rules as /admin/v1 drafts
 // and returns it normalised (allowedTools sorted) with the Server the
 // snapshot columns are written from.
-func validateServerSpec(cluster, platform, ns, name string, spec MCPServerSpec) (MCPServerSpec, Server, error) {
+func validateServerSpec(cluster, platform, ns, name string, spec MCPServerSpec) (MCPServerSpec, model.Server, error) {
 	if len(spec.Authorization) > 0 {
-		return spec, Server{}, invalid("spec.authorization", "spec.authorization is reserved and not supported in v1alpha1")
+		return spec, model.Server{}, invalid("spec.authorization", "spec.authorization is reserved and not supported in v1alpha1")
 	}
 	switch {
 	case spec.DataCategory == "StrengtFortrolig":
-		return spec, Server{}, invalid("spec.dataCategory", "StrengtFortrolig needs its own risk assessment and approval first")
+		return spec, model.Server{}, invalid("spec.dataCategory", "StrengtFortrolig needs its own risk assessment and approval first")
 	case !slices.Contains(dataCategories, spec.DataCategory):
-		return spec, Server{}, invalid("spec.dataCategory", "spec.dataCategory must be one of %s", strings.Join(dataCategories, ", "))
+		return spec, model.Server{}, invalid("spec.dataCategory", "spec.dataCategory must be one of %s", strings.Join(dataCategories, ", "))
 	}
 	if len(spec.AllowedTools) > maxServerTools {
-		return spec, Server{}, invalid("spec.allowedTools", "spec.allowedTools lists at most %d tools", maxServerTools)
+		return spec, model.Server{}, invalid("spec.allowedTools", "spec.allowedTools lists at most %d tools", maxServerTools)
 	}
 	if len(spec.Readme) > maxReadmeBytes {
-		return spec, Server{}, invalid("spec.readme", "spec.readme is at most %d bytes", maxReadmeBytes)
+		return spec, model.Server{}, invalid("spec.readme", "spec.readme is at most %d bytes", maxReadmeBytes)
 	}
 	if len(spec.Tools) > len(spec.AllowedTools) {
-		return spec, Server{}, invalid("spec.tools", "spec.tools has more entries than allowedTools")
+		return spec, model.Server{}, invalid("spec.tools", "spec.tools has more entries than allowedTools")
 	}
 	allowed := make(map[string]bool, len(spec.AllowedTools))
 	for _, t := range spec.AllowedTools {
@@ -130,9 +131,9 @@ func validateServerSpec(cluster, platform, ns, name string, spec MCPServerSpec) 
 	for _, t := range spec.Tools {
 		switch {
 		case !allowed[t.Name] || seen[t.Name]:
-			return spec, Server{}, invalid("spec.tools", "%q is not in allowedTools, or is listed twice", t.Name)
+			return spec, model.Server{}, invalid("spec.tools", "%q is not in allowedTools, or is listed twice", t.Name)
 		case len(t.Description) > maxToolDescriptionBytes:
-			return spec, Server{}, invalid("spec.tools.description", "tool %s: description is at most %d bytes", t.Name, maxToolDescriptionBytes)
+			return spec, model.Server{}, invalid("spec.tools.description", "tool %s: description is at most %d bytes", t.Name, maxToolDescriptionBytes)
 		}
 		seen[t.Name] = true
 	}
@@ -142,31 +143,31 @@ func validateServerSpec(cluster, platform, ns, name string, spec MCPServerSpec) 
 	}
 	for t, risk := range spec.ToolRisk {
 		if !allowed[t] || riskRank[risk] == 0 {
-			return spec, Server{}, invalid("spec.toolRisk", "%q: tool must be in allowedTools and risk read, propose or write", t)
+			return spec, model.Server{}, invalid("spec.toolRisk", "%q: tool must be in allowedTools and risk read, propose or write", t)
 		}
 	}
 	if spec.DefaultRisk != "" && riskRank[spec.DefaultRisk] == 0 {
-		return spec, Server{}, invalid("spec.defaultRisk", "must be read, propose or write")
+		return spec, model.Server{}, invalid("spec.defaultRisk", "must be read, propose or write")
 	}
-	resolved := resolveToolRisk(spec.AllowedTools, spec.ToolRisk, spec.DefaultRisk)
+	resolved := model.ResolveToolRisk(spec.AllowedTools, spec.ToolRisk, spec.DefaultRisk)
 	if len(spec.ToolRisk) == 0 {
 		spec.ToolRisk = nil
 	}
 	if spec.RosRef != strings.TrimSpace(spec.RosRef) || len(spec.RosRef) > maxRosRefBytes {
-		return spec, Server{}, invalid("spec.rosRef", "spec.rosRef has no surrounding spaces and is at most %d bytes", maxRosRefBytes)
+		return spec, model.Server{}, invalid("spec.rosRef", "spec.rosRef has no surrounding spaces and is at most %d bytes", maxRosRefBytes)
 	}
 	// Outside dev-* (an unset cluster included) write tools need a ROS.
 	if !devCluster(cluster) && spec.RosRef == "" && slices.ContainsFunc(spec.AllowedTools, func(t string) bool { return toolRiskOf(resolved, t) == "write" }) {
-		return spec, Server{}, invalid("spec.rosRef", "MCP-serveren har skriveverktøy, og i prod krever det en ROS. Legg til spec.rosRef med lenke til ROS-en, eller sett spec.defaultRisk eller spec.toolRisk til read eller propose for verktøy som ikke skriver.")
+		return spec, model.Server{}, invalid("spec.rosRef", "MCP-serveren har skriveverktøy, og i prod krever det en ROS. Legg til spec.rosRef med lenke til ROS-en, eller sett spec.defaultRisk eller spec.toolRisk til read eller propose for verktøy som ikke skriver.")
 	}
 	var draft draftSpec
 	draft.Registry = spec.Registry
 	if u := spec.Upstream; u != nil {
 		if !dnsLabelRegex.MatchString(u.App) {
-			return spec, Server{}, invalid("spec.upstream.app", "must be a lowercase DNS label")
+			return spec, model.Server{}, invalid("spec.upstream.app", "must be a lowercase DNS label")
 		}
 		if len(spec.AllowedTools) == 0 {
-			return spec, Server{}, invalid("spec.allowedTools", "upstream needs at least one allowed tool")
+			return spec, model.Server{}, invalid("spec.allowedTools", "upstream needs at least one allowed tool")
 		}
 		spec.AllowedTools = slices.Sorted(slices.Values(spec.AllowedTools))
 		draft.Route = &struct {
@@ -176,14 +177,14 @@ func validateServerSpec(cluster, platform, ns, name string, spec MCPServerSpec) 
 			Tools       []string `json:"tools"`
 		}{Target: cluster + ":" + ns + ":" + u.App, UpstreamURL: u.URL, Tools: spec.AllowedTools}
 	} else if len(spec.AllowedTools) > 0 {
-		return spec, Server{}, invalid("spec.allowedTools", "allowedTools needs upstream")
+		return spec, model.Server{}, invalid("spec.allowedTools", "allowedTools needs upstream")
 	}
 	sv, err := validateDraft(cluster, ns, name, draft)
 	if err != nil {
-		return spec, Server{}, invalid("spec", "%v", err)
+		return spec, model.Server{}, invalid("spec", "%v", err)
 	}
 	if sv.RegistryName != "" && !registryNameAllowed(platform, ns, sv.RegistryName) {
-		return spec, Server{}, invalid("spec.registry.name", "%q is not yours: team %s may use no.nav.%s/<name> or io.github.navikt/%s; other names are registered by the platform team", sv.RegistryName, ns, ns, ns)
+		return spec, model.Server{}, invalid("spec.registry.name", "%q is not yours: team %s may use no.nav.%s/<name> or io.github.navikt/%s; other names are registered by the platform team", sv.RegistryName, ns, ns, ns)
 	}
 	if sv.Route != nil {
 		sv.Route.ToolRisk = resolved
@@ -200,23 +201,6 @@ func toolRiskOf(resolved map[string]string, tool string) string {
 		return "write"
 	}
 	return resolved[tool]
-}
-
-// resolveToolRisk gives every allowed tool its level when defaultRisk is
-// set, so the gateway never needs defaultRisk. Without it the map is
-// toolRisk as is, so snapshots of old specs do not change.
-func resolveToolRisk(tools []string, toolRisk map[string]string, defaultRisk string) map[string]string {
-	if defaultRisk == "" || len(tools) == 0 {
-		return toolRisk
-	}
-	out := make(map[string]string, len(tools))
-	for _, t := range tools {
-		out[t] = defaultRisk
-		if r, ok := toolRisk[t]; ok {
-			out[t] = r
-		}
-	}
-	return out
 }
 
 // ForeignRegistryNames lists "<namespace>/<name>=<registry name>" for
@@ -702,7 +686,7 @@ func blockedContent(ctx context.Context, tx pgx.Tx, table, ns, name string, hash
 // submitServer is POST (create) and PUT. A new generation is made only when
 // the spec differs from both the pending and the published one, or when the
 // server is revoked (restart). Otherwise only labels and annotations change.
-func (d *DB) submitServer(ctx context.Context, c caller, m ObjectMeta, spec MCPServerSpec, sv Server, create bool) error {
+func (d *DB) submitServer(ctx context.Context, c caller, m ObjectMeta, spec MCPServerSpec, sv model.Server, create bool) error {
 	hashes, herr := canon.Hashes(spec)
 	if herr != nil {
 		return herr

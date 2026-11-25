@@ -13,6 +13,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/navikt/copilot/fleet-control/internal/canon"
+	"github.com/navikt/copilot/fleet-control/internal/model"
 )
 
 // TypedRef points at another resource, as targetRefs in Gateway API.
@@ -171,7 +172,7 @@ func checkGrantServers(ctx context.Context, q querier, grants []AgentGrantV1) er
 		return err
 	}
 	for _, g := range grants {
-		i := slices.IndexFunc(servers, func(s Server) bool { return s.Key() == g.ServerRef.key() })
+		i := slices.IndexFunc(servers, func(s model.Server) bool { return s.Key() == g.ServerRef.key() })
 		if i < 0 || servers[i].Status != "published" || servers[i].Route == nil {
 			return invalid("spec.grants.serverRef", "MCP server %s is not published behind fleet-gateway", g.ServerRef.key())
 		}
@@ -557,7 +558,7 @@ func (d *DB) grantStatus(ctx context.Context, g profileGen) ([]GrantStatus, erro
 				st.Granted, st.Reason = false, "ServerRevoked"
 			}
 		}
-		if i := slices.IndexFunc(servers, func(s Server) bool { return s.Key() == key }); i >= 0 && servers[i].Route != nil {
+		if i := slices.IndexFunc(servers, func(s model.Server) bool { return s.Key() == key }); i >= 0 && servers[i].Route != nil {
 			for _, t := range gr.AllowedTools {
 				if !slices.Contains(servers[i].Route.Tools, t) {
 					st.MissingTools = append(st.MissingTools, t)
