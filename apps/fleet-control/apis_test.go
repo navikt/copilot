@@ -819,16 +819,20 @@ func TestListTeamAppsHidesConsoleError(t *testing.T) {
 type staticTeams map[string][]string
 
 func (s staticTeams) IsMember(_ context.Context, team, id string) (bool, error) {
-	return slices.Contains(s[team], id), nil
+	return has(s[team], id), nil
 }
 
 func (s staticTeams) Teams(_ context.Context, id string) ([]string, error) {
 	out := []string{}
 	for team, members := range s {
-		if slices.Contains(members, id) {
+		if has(members, id) {
 			out = append(out, team)
 		}
 	}
 	slices.Sort(out)
 	return out, nil
+}
+
+func has(members []string, id string) bool {
+	return slices.ContainsFunc(members, func(m string) bool { return strings.EqualFold(m, id) })
 }
