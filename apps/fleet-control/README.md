@@ -210,7 +210,7 @@ Severity warning. No successful snapshot build of one kind for 10 minutes (`flee
 Nais Postgres ([doc.nais.io](https://doc.nais.io/persistence/postgres/reference/recovery-window/)) takes a nightly base backup and archives the write-ahead log continuously, into a bucket in the team's project. That gives point-in-time recovery to any second in the window. `.nais/postgres.yaml` sets `backup.retentionDays: 7` (Nais default 2, range 2 to 30). The file is applied by hand, not by CI: run `nais apply -t copilot -e <env> .nais/postgres.yaml` after changing it. Cost at 5Gi is about 5 x 8 x 0.02 = 0.80 EUR a month.
 
 - RPO: seconds (WAL archive), within 7 days.
-- RTO: clone time plus one deploy. Measure it in the drill below.
+- RTO: clone time plus one deploy, about 5 minutes in the dev drill below.
 
 ### While fleet-control is down
 
@@ -231,19 +231,19 @@ A restore never overwrites the source. It clones into a new database ([how-to](h
 
 The audit log in the clone ends at the restore time. Events after it exist only in Loki. Find them with `{service_name="fleet-control"} |= "audit fleet-control" | json` over the time since the restore point. Audit rows older than 90 days are pruned again at the next start.
 
-### Restore drill in dev (partly done 2026-11-25)
+### Restore drill in dev (done 2026-11-25)
 
-Needs a human with write access to dev-gcp. Fill in and commit the result here. The clone steps ran on 2026-11-25 (#2881); the deploy steps did not, because the live app was not repointed.
+Needs a human with write access to dev-gcp. Fill in and commit the result here. Done on 2026-11-25 (#2881) in two runs: a clone-and-verify run, then a repoint run that moved the dev app to a clone and back.
 
 - [x] Date, who: 2026-11-25, an agent on the owner's authorization, dev-gcp only.
 - [x] Note a test write and its time T: no write was made to the source. The app itself wrote `snapshots` routes generation 2 at 09:30:25Z, after the clone point, which serves as T.
 - [x] Clone started (time): 09:34:33Z, `nais postgres clone fleet-control fleet-control-restore-drill` without `--at`. Clone point 09:24:33Z (latest point, 10 minutes back).
 - [x] Clone `Completed` and `Ready` (time): 09:38:35Z (polled every 20 s).  Clone duration: about 4 minutes.
-- [ ] fleet-control deployed against the clone, `/ready` (time): not done. Needs a separate test deployment, or a planned repoint of the dev app.
-- [ ] fleet-gateway snapshot age dropped (time): not done, as above.
+- [x] fleet-control deployed against the clone, `/ready` (time): repoint run, clone 09:53:03Z to `Completed` 09:56:50Z (3 min 47 s). Repoint patched 09:57:13Z, rolled out and ready 09:57:49Z (36 s). The repoint used `kubectl patch application` on `spec.uses.postgres[0].name`, not a PR, because CI deploys only from main. Do that in dev only; in prod, follow step 6.
+- [x] fleet-gateway snapshot age dropped (time): snapshot age 6 s after the repoint, 0 sync failures.
 - [x] Data matches T (yes/no, what differed): yes. Row counts are equal in all 12 tables except `snapshots` (source 3, clone 2); the missing row is routes generation 2 from after the clone point. Migration version `011_drop_legacy.sql` in both. `audit_events` and `resource_status` ACLs are identical (only `app` may write), and the `CheckAuditLocked` query returns owner=false, change rights=false on both for a personal read user. Latest `audit_events` row 2026-11-23 in both.
-- [ ] Total RTO, step 2 to step 7: not measured. Steps 2 to 4 took 5 minutes (clone 4, verify 1); add one deploy.
-- [x] Switched back and clone deleted: no switch was needed. `nais postgres delete fleet-control-restore-drill` at 09:39:45Z; pods gone and the instance no longer in `nais postgres list` at 09:41:12Z. Source `fleet-control` still `Ready`.
+- [x] Total RTO, step 2 to step 7: about 4 min 46 s (clone start to app ready on the clone), plus lost writes since the clone point: up to about 10 minutes without `--at`.
+- [x] Switched back and clone deleted: repoint run switched back to the source in 52 s, snapshot age 18 s, 0 sync failures; that clone was deleted. First run: `nais postgres delete fleet-control-restore-drill` at 09:39:45Z; pods gone and the instance no longer in `nais postgres list` at 09:41:12Z. Source `fleet-control` still `Ready`.
 - [x] Surprises or doc fixes: without `--at` the clone point is 10 minutes back, so writes from the last 10 minutes are missing. Pass `--at` for a recent point. `nais postgres psql --access-level read` is enough for step 4.
 
 ## Development
