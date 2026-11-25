@@ -210,7 +210,7 @@ func main() {
 
 	server := &http.Server{
 		Addr:              ":" + config.Port,
-		Handler:           mux,
+		Handler:           httpMetrics(mux),
 		ReadTimeout:       30 * time.Second,
 		ReadHeaderTimeout: 10 * time.Second,
 		WriteTimeout:      30 * time.Second,
