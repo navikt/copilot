@@ -193,7 +193,7 @@ Exposed via `GET /metrics` in Prometheus format.
 `path` is bounded to the registered routes; any other path is recorded as `other`, so an
 unknown path cannot grow the number of series.
 
-A shared Grafana dashboard is available at [`dashboards/copilot-ecosystem.json`](../../dashboards/copilot-ecosystem.json).
+Grafana dashboards: [`dashboards/tenant/nav-fleet-ops.json`](../../dashboards/tenant/nav-fleet-ops.json) for health and [`dashboards/tenant/nav-fleet-insights.json`](../../dashboards/tenant/nav-fleet-insights.json) for usage. See [`dashboards/README.md`](../../dashboards/README.md).
 
 ## API Endpoints
 

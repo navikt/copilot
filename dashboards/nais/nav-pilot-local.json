@@ -1153,10 +1153,10 @@
             "transformations": []
           }
         },
-        "description": "decided og below_threshold er svar; no_server betyr at ingen lokal server kjørte, og timeout at den var opptatt eller treg. Én kjøring av `alpha decide` er ett punkt. --eval teller ikke her, bare som kommandoen `alpha decide eval`.",
+        "description": "Placeholder: no series yet in Mimir. Tracked in #1015. The query is the intended one. decided og below_threshold er svar; no_server betyr at ingen lokal server kjørte, og timeout at den var opptatt eller treg. Én kjøring av `alpha decide` er ett punkt. --eval teller ikke her, bare som kommandoen `alpha decide eval`.",
         "id": 30,
         "links": [],
-        "title": "decide-kall per utfall",
+        "title": "decide-kall per utfall (placeholder)",
         "vizConfig": {
           "group": "timeseries",
           "kind": "VizConfig",
@@ -1269,10 +1269,10 @@
             "transformations": []
           }
         },
-        "description": "hook: git kjørte kallet (GIT_INDEX_FILE/GIT_EXEC_PATH satt). tty: en person i terminalen. script: alt annet. Er dette mest tty, prøver folk den ut; er det hook, bruker de den.",
+        "description": "Placeholder: no series yet in Mimir. Tracked in #1015. The query is the intended one. hook: git kjørte kallet (GIT_INDEX_FILE/GIT_EXEC_PATH satt). tty: en person i terminalen. script: alt annet. Er dette mest tty, prøver folk den ut; er det hook, bruker de den.",
         "id": 31,
         "links": [],
-        "title": "Hvem kaller decide",
+        "title": "Hvem kaller decide (placeholder)",
         "vizConfig": {
           "group": "piechart",
           "kind": "VizConfig",
@@ -1376,10 +1376,10 @@
             "transformations": []
           }
         },
-        "description": "Bare besvarte kall. Venting på serverlåsen er med: en agentøkt på samme server forsinker decide, og det er den ventetiden en git-hook merker.",
+        "description": "Placeholder: no series yet in Mimir. Tracked in #1015. The query is the intended one. Bare besvarte kall. Venting på serverlåsen er med: en agentøkt på samme server forsinker decide, og det er den ventetiden en git-hook merker.",
         "id": 32,
         "links": [],
-        "title": "decide-latens, p95 per evidensstørrelse",
+        "title": "decide-latens, p95 per evidensstørrelse (placeholder)",
         "vizConfig": {
           "group": "timeseries",
           "kind": "VizConfig",
@@ -1492,10 +1492,10 @@
             "transformations": []
           }
         },
-        "description": "Hvor ofte modellen er usikker på sitt eget valg. Stiger den for en modell, er spørsmålene folk stiller den vanskeligere enn det den ble målt på.",
+        "description": "Placeholder: no series yet in Mimir. Tracked in #1015. The query is the intended one. Hvor ofte modellen er usikker på sitt eget valg. Stiger den for en modell, er spørsmålene folk stiller den vanskeligere enn det den ble målt på.",
         "id": 33,
         "links": [],
-        "title": "Andel valg med p under 0,8, per modell",
+        "title": "Andel valg med p under 0,8, per modell (placeholder)",
         "vizConfig": {
           "group": "timeseries",
           "kind": "VizConfig",
@@ -1608,10 +1608,10 @@
             "transformations": []
           }
         },
-        "description": "session=local er vakten foran den lokale modellen, som avslutter turen. session=cloud er postToolUse-hooken i Copilot-økter mot skymodeller, som bare kan skrive om resultatet. Begge telles når nav-pilot-økten avslutter, ikke når de skjer.",
+        "description": "Placeholder: no series yet in Mimir. Tracked in #2915. The query is the intended one. session=local er vakten foran den lokale modellen, som avslutter turen. session=cloud er postToolUse-hooken i Copilot-økter mot skymodeller, som bare kan skrive om resultatet. Begge telles når nav-pilot-økten avslutter, ikke når de skjer.",
         "id": 40,
         "links": [],
-        "title": "Løkkevakten slo til, per regel",
+        "title": "Løkkevakten slo til, per regel (placeholder)",
         "vizConfig": {
           "group": "timeseries",
           "kind": "VizConfig",
@@ -1840,10 +1840,10 @@
             "transformations": []
           }
         },
-        "description": "Om den lokale modellen fikk sjekke en risikabel skallkommando før den kjørte, og hva den svarte. flagged er kommandoer modellen fant risikable; skipped_* er sjekker som ikke ble gjort (frist, ingen server, eller feil).",
+        "description": "Placeholder: no series yet in Mimir. Tracked in #2915. The query is the intended one. Om den lokale modellen fikk sjekke en risikabel skallkommando før den kjørte, og hva den svarte. flagged er kommandoer modellen fant risikable; skipped_* er sjekker som ikke ble gjort (frist, ingen server, eller feil).",
         "id": 42,
         "links": [],
-        "title": "Handlingssjekken, per utfall og kategori",
+        "title": "Handlingssjekken, per utfall og kategori (placeholder)",
         "vizConfig": {
           "group": "timeseries",
           "kind": "VizConfig",
@@ -2242,6 +2242,8 @@
   "preload": false,
   "tags": [
     "nav-pilot",
+    "domain:nav-pilot",
+    "concern:insights",
     "lokal-inferens",
     "alpha"
   ],
@@ -2263,7 +2265,7 @@
     "timezone": "browser",
     "to": "now"
   },
-  "title": "nav-pilot — lokal inferens",
+  "title": "nav-pilot — lokal inferens (nais)",
   "variables": [
     {
       "kind": "DatasourceVariable",
@@ -2282,7 +2284,8 @@
         "pluginId": "prometheus",
         "refresh": "onDashboardLoad",
         "regex": "",
-        "skipUrlSync": false
+        "skipUrlSync": false,
+        "description": "Mimir data source with X-Scope-OrgID nais. nav-pilot telemetry exists only in the nais org; import this dashboard into the Grafana that reads it."
       }
     },
     {

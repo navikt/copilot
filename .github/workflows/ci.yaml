@@ -227,7 +227,7 @@ jobs:
               - 'scripts/check-harness-budget.py'
               - '.github/workflows/nav-pilot-ci.yaml'
               - '.github/workflows/ci.yaml'
-              - 'dashboards/nav-pilot-*.json'
+              - 'dashboards/nais/nav-pilot-*.json'
               - 'scripts/build-local-dashboard.py'
               - 'scripts/nav-pilot-golden.sh'
               - 'scripts/benchmark-*.py'
@@ -831,7 +831,7 @@ jobs:
           python3 scripts/check-harness-budget.py
       - name: Persona transcripts selftest
         run: python3 cli/nav-pilot/e2e/persona_transcripts.py --selftest
-      # nav-pilot-local.json is generated: a hand edit, or a change to the
+      # dashboards/nais/nav-pilot-local.json is generated: a hand edit, or a change to the
       # house style it copies from nav-pilot-cli.json, means nav-pilot-local.json
       # must be regenerated.
       - name: Local dashboard is generated

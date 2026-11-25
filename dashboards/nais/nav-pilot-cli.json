@@ -3519,7 +3519,8 @@
   "tags": [
     "copilot",
     "nav-pilot",
-    "nais"
+    "domain:nav-pilot",
+    "concern:insights"
   ],
   "timeSettings": {
     "autoRefresh": "",
@@ -3539,7 +3540,7 @@
     "timezone": "browser",
     "to": "now"
   },
-  "title": "Nav-pilot CLI",
+  "title": "nav-pilot CLI (nais)",
   "variables": [
     {
       "kind": "DatasourceVariable",
@@ -3558,7 +3559,8 @@
         "pluginId": "prometheus",
         "refresh": "onDashboardLoad",
         "regex": "",
-        "skipUrlSync": false
+        "skipUrlSync": false,
+        "description": "Mimir data source with X-Scope-OrgID nais. nav-pilot telemetry exists only in the nais org; import this dashboard into the Grafana that reads it."
       }
     },
     {

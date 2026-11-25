@@ -480,13 +480,13 @@ produserer `hung`. Den har rapportert `ready` og ingenting annet.
 **En måling per spørsmål.** To metrikker som svarer på det samme er ikke redundans,
 det er to tall som kan bli uenige.
 
-> En ferdig Grafana-dashboard ligger i [`dashboards/nav-pilot-cli.json`](../../dashboards/nav-pilot-cli.json)
-> (uid tildeles ved import). Spørringene er robuste mot manglende data under utrulling
+> En ferdig Grafana-dashboard ligger i [`dashboards/nais/nav-pilot-cli.json`](../../dashboards/nais/nav-pilot-cli.json)
+> (uid tildeles ved import, bruk `copilot-navpilot-cli-nais`). nav-pilot-telemetrien finnes bare i nais-org-en, så dashboardet hører hjemme i Grafanaen som leser den (`X-Scope-OrgID: nais`). Spørringene er robuste mot manglende data under utrulling
 > (`or vector(0)`, `clamp_min(...)`-vakter). Eksakte Prometheus-serienavn (suffiks som
 > `_bucket`/`_sum`/`_count`, evt. enhetssuffiks, og `target_info` for ressursattributter)
 > bør verifiseres mot den faktiske datakilden og justeres ved behov.
 >
-> Dashboardet for lokal inferens, [`dashboards/nav-pilot-local.json`](../../dashboards/nav-pilot-local.json),
+> Dashboardet for lokal inferens, [`dashboards/nais/nav-pilot-local.json`](../../dashboards/nais/nav-pilot-local.json),
 > lages av `scripts/build-local-dashboard.py`. Endre skriptet, ikke JSON-fila. CI kjører
 > `scripts/build-local-dashboard.py --check` og feiler hvis fila ikke stemmer med skriptet.
 > Automatisk opplasting til Grafana er parkert: det krever et servicekonto-token for Grafana

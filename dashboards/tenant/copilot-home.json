@@ -1,0 +1,260 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "graphTooltip": 1,
+  "schemaVersion": 42,
+  "fiscalYearStartMonth": 0,
+  "uid": "copilot-ecosystem",
+  "title": "Copilot: oversikt",
+  "description": "Inngang til Copilot-dashbordene i tenant-Grafanaen.",
+  "tags": [
+    "copilot",
+    "domain:copilot",
+    "concern:ops"
+  ],
+  "time": {
+    "from": "now-24h",
+    "to": "now"
+  },
+  "refresh": "",
+  "timezone": "browser",
+  "links": [
+    {
+      "title": "nav-fleet: drift",
+      "type": "link",
+      "url": "/d/copilot-fleet-ops?${__url_time_range}&${__all_variables}",
+      "icon": "dashboard",
+      "targetBlank": false,
+      "keepTime": false,
+      "includeVars": false,
+      "tooltip": ""
+    },
+    {
+      "title": "nav-fleet: bruk",
+      "type": "link",
+      "url": "/d/copilot-fleet-insights?${__url_time_range}&${__all_variables}",
+      "icon": "dashboard",
+      "targetBlank": false,
+      "keepTime": false,
+      "includeVars": false,
+      "tooltip": ""
+    },
+    {
+      "title": "my-copilot og copilot-api: drift",
+      "type": "link",
+      "url": "/d/copilot-web-ops?${__url_time_range}&${__all_variables}",
+      "icon": "dashboard",
+      "targetBlank": false,
+      "keepTime": false,
+      "includeVars": false,
+      "tooltip": ""
+    },
+    {
+      "title": "Copilot-lisenser",
+      "type": "link",
+      "url": "/d/copilot-seats-insights?${__url_time_range}&${__all_variables}",
+      "icon": "dashboard",
+      "targetBlank": false,
+      "keepTime": false,
+      "includeVars": false,
+      "tooltip": ""
+    }
+  ],
+  "templating": {
+    "list": [
+      {
+        "label": "Metrics",
+        "name": "DS_METRICS",
+        "options": [],
+        "query": "prometheus",
+        "refresh": 1,
+        "type": "datasource",
+        "description": "Mimir data source with X-Scope-OrgID tenant. This dashboard belongs in the Grafana that reads the tenant org."
+      },
+      {
+        "current": {
+          "text": "copilot",
+          "value": "copilot"
+        },
+        "label": "Namespace",
+        "name": "namespace",
+        "options": [
+          {
+            "selected": true,
+            "text": "copilot",
+            "value": "copilot"
+          }
+        ],
+        "query": "copilot",
+        "type": "custom"
+      },
+      {
+        "name": "env",
+        "label": "Miljø",
+        "type": "custom",
+        "query": "dev,prod",
+        "multi": true,
+        "includeAll": true,
+        "allValue": "dev|prod",
+        "current": {
+          "text": "prod",
+          "value": "prod"
+        },
+        "options": [
+          {
+            "selected": false,
+            "text": "dev",
+            "value": "dev"
+          },
+          {
+            "selected": true,
+            "text": "prod",
+            "value": "prod"
+          }
+        ],
+        "description": "k8s_cluster_name: dev-gcp or prod-gcp."
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "text",
+      "title": "Dashbord",
+      "options": {
+        "mode": "markdown",
+        "content": "**Tenant (denne Grafanaen)**\n\n- nav-fleet: [drift](/d/copilot-fleet-ops) · [bruk](/d/copilot-fleet-insights)\n- Copilot: [my-copilot og copilot-api: drift](/d/copilot-web-ops) · [Copilot-lisenser](/d/copilot-seats-insights)\n\n**nais-org (egen Grafana)**: nav-pilot CLI (`copilot-navpilot-cli-nais`), nav-pilot lokal inferens (`copilot-navpilot-local-nais`), GitHub Copilot-klienter (`copilot-clients-nais`). Se `dashboards/README.md`."
+      },
+      "id": 1,
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      }
+    },
+    {
+      "type": "row",
+      "title": "Status",
+      "collapsed": false,
+      "panels": [],
+      "id": 2,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 8
+      }
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_METRICS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 20,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "showValues": false,
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": 0
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 9
+      },
+      "id": 3,
+      "options": {
+        "legend": {
+          "calcs": [
+            "sum"
+          ],
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "pluginVersion": "12.3.2",
+      "targets": [
+        {
+          "expr": "sum by (app, k8s_cluster_name) (up{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app!=\"\"})",
+          "legendFormat": "{{app}} {{k8s_cluster_name}}",
+          "refId": "A"
+        }
+      ],
+      "title": "Oppe per app og miljø",
+      "type": "timeseries",
+      "description": "Én linje per app. Drill ned via lenkene øverst."
+    }
+  ]
+}

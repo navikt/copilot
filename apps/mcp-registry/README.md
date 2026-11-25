@@ -301,7 +301,7 @@ Exposed via `GET /metrics` in Prometheus format.
 | `http_request_duration_seconds` | Histogram | `method`, `path`                | HTTP request latency                                     |
 | `registry_server_lookups_total` | Counter   | `server`, `result`              | Server lookups by name and result (`found`, `not_found`) |
 
-A shared Grafana dashboard is available at [`dashboards/copilot-ecosystem.json`](../../dashboards/copilot-ecosystem.json).
+Grafana dashboards: [`dashboards/tenant/nav-fleet-ops.json`](../../dashboards/tenant/nav-fleet-ops.json) for health and [`dashboards/tenant/nav-fleet-insights.json`](../../dashboards/tenant/nav-fleet-insights.json) for usage. See [`dashboards/README.md`](../../dashboards/README.md).
 
 ## References
 

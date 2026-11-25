@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Generate dashboards/nav-pilot-local.json.
+"""Generate dashboards/nais/nav-pilot-local.json.
 
 Written as a generator rather than hand-edited JSON because the interesting
 part of this dashboard is nine PromQL expressions, and everything around them
 is nine hundred lines of Grafana boilerplate that hides them. Here the queries
 sit together where they can be read against each other, and the house style is
-lifted from `nav-pilot-cli.json` at build time so the two cannot drift.
+lifted from `nais/nav-pilot-cli.json` at build time so the two cannot drift.
 
 Two rules are baked in, both bought with a wrong PR:
 
@@ -30,8 +30,8 @@ import pathlib
 import sys
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-HOUSE = ROOT / "dashboards" / "nav-pilot-cli.json"
-OUT = ROOT / "dashboards" / "nav-pilot-local.json"
+HOUSE = ROOT / "dashboards" / "nais" / "nav-pilot-cli.json"
+OUT = ROOT / "dashboards" / "nais" / "nav-pilot-local.json"
 
 SEL = '{version=~"$version"}'
 SEL_LE0 = '{version=~"$version", le="0"}'
@@ -143,6 +143,11 @@ def panels():
     ]
 
 
+# Panels whose instruments have no series yet. Kept with their intended query
+# so they light up once data arrives.
+PLACEHOLDERS = {30: 1015, 31: 1015, 32: 1015, 33: 1015, 40: 2915, 42: 2915}
+
+
 ROWS = [
     ("Adopsjon", [1, 2, 3, 4]),
     ("Dispatch — brukes workeren?", [10, 11, 12, 13]),
@@ -170,6 +175,10 @@ def build():
 
     elements = {}
     for pid, title, group, desc, queries in panels():
+        if pid in PLACEHOLDERS:
+            title = f"{title} (placeholder)"
+            desc = (f"Placeholder: no series yet in Mimir. Tracked in #{PLACEHOLDERS[pid]}. "
+                    f"The query is the intended one. {desc}")
         viz = house_viz(house, group)
         if group == "stat" and pid == 4:
             viz["spec"]["fieldConfig"]["defaults"]["unit"] = "percent"
@@ -226,9 +235,9 @@ def build():
         "links": [],
         "liveNow": False,
         "preload": False,
-        "tags": ["nav-pilot", "lokal-inferens", "alpha"],
+        "tags": ["nav-pilot", "domain:nav-pilot", "concern:insights", "lokal-inferens", "alpha"],
         "timeSettings": house.get("timeSettings", {"from": "now-7d", "to": "now"}),
-        "title": "nav-pilot — lokal inferens",
+        "title": "nav-pilot — lokal inferens (nais)",
         "variables": variables,
     }
 
@@ -242,7 +251,7 @@ def main():
     if args.check:
         have = OUT.read_text() if OUT.exists() else ""
         if have != want:
-            print("✗ dashboards/nav-pilot-local.json is out of date — run scripts/build-local-dashboard.py")
+            print("✗ dashboards/nais/nav-pilot-local.json is out of date — run scripts/build-local-dashboard.py")
             return 1
         print("✓ dashboard is up to date")
         return 0
