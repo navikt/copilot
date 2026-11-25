@@ -59,3 +59,27 @@ func TestCpltVersionRowReportsOfferedUpgrade(t *testing.T) {
 		t.Errorf("offered upgrade: behind=%v current=%v, want true false", behind, current)
 	}
 }
+
+// A section header shows the worst state among its lines (#2905). Control: a
+// section with only info lines keeps [i].
+func TestDoctorSectionHeaderShowsWorstState(t *testing.T) {
+	out := captureStdout(func() {
+		countFixRows(func() {
+			fmt.Println("[i] Clients")
+			fmt.Println("    ✓ found")
+			fmt.Println("    ⚠ out of date")
+			fmt.Println("[i] Pins")
+			fmt.Println("    ✓ none")
+			fmt.Println("[i] Hooks")
+			fmt.Println("    • none installed")
+			fmt.Println("[i] Security")
+			fmt.Println("    ⚠ waiver")
+			fmt.Println("    [✗] not enforcing")
+		})
+	})
+	for _, want := range []string{"[⚠] Clients\n", "[✓] Pins\n", "[i] Hooks\n", "[✗] Security\n"} {
+		if !strings.Contains(out, want) {
+			t.Errorf("missing %q in:\n%s", want, out)
+		}
+	}
+}

@@ -486,11 +486,16 @@ func doctorChecks() bool {
 	}
 
 	// Push and PRs from inside the sandbox need a gh login the client can read.
-	fmt.Printf("    • GitHub sign-in (push and PRs)\n")
+	// Signed in with secure storage is one line; the caveats need --verbose.
 	ghCfg, _ := readConfig()
 	ghResolved := resolve(ghCfg, CLIOverrides{})
 	gh := ghProbe()
-	reportGHAuth(os.Stdout, "      ", ghResolved.Client, ghResolved.CopilotAuthMode, gh.st, gh.detail)
+	if gh.st == ghAuthKeyring && !providerpkg.Verbose && !originUsesSSH() {
+		fmt.Printf("    • GitHub sign-in (push and PRs): %s gh is signed in to github.com\n", green("✓"))
+	} else {
+		fmt.Printf("    • GitHub sign-in (push and PRs)\n")
+		reportGHAuth(os.Stdout, "      ", ghResolved.Client, ghResolved.CopilotAuthMode, gh.st, gh.detail)
+	}
 	fmt.Println()
 
 	// 3b. Model pins
@@ -511,10 +516,14 @@ func doctorChecks() bool {
 	}
 
 	// 3c. Local model. Config only; alpha local doctor runs the probes.
-	fmt.Printf("[i] Local model\n")
+	// Silent when none is set up, unless --verbose.
 	localCfg, _ := readConfig()
-	reportLocalModel(os.Stdout, resolve(localCfg, CLIOverrides{}), local.Installed())
-	fmt.Println()
+	localResolved, localManaged := resolve(localCfg, CLIOverrides{}), local.Installed()
+	if providerpkg.Verbose || localResolved.LocalEndpoint != "" || localResolved.LocalEnabled || localManaged {
+		fmt.Printf("[i] Local model\n")
+		reportLocalModel(os.Stdout, localResolved, localManaged)
+		fmt.Println()
+	}
 
 	// 4. Project Security
 	fmt.Printf("[i] Project Security (.cplt.toml)\n")
@@ -621,6 +630,21 @@ func doctorVerdict(fixRows int, hasErrors bool) string {
 	return green("✓") + " All systems healthy! 🚀"
 }
 
+// sectionMarker is a section header's marker: the worst state among its
+// lines, so a header never says [i] over a warning (#2905).
+func sectionMarker(lines []string) string {
+	body := strings.Join(lines, "\n")
+	switch {
+	case strings.Contains(body, "✗"):
+		return red("[✗]")
+	case strings.Contains(body, "⚠"):
+		return yellow("[⚠]")
+	case strings.Contains(body, "✓"):
+		return green("[✓]")
+	}
+	return "[i]"
+}
+
 // countFixRows runs print with stdout teed through a pipe and returns how many
 // printed lines carry a ⚠ or ✗.
 func countFixRows(print func()) int {
@@ -633,15 +657,34 @@ func countFixRows(print func()) int {
 	done := make(chan int)
 	go func() {
 		n := 0
+		var section []string
+		flush := func() {
+			if len(section) > 0 {
+				section[0] = sectionMarker(section[1:]) + strings.TrimPrefix(section[0], "[i]")
+			}
+			for _, l := range section {
+				fmt.Fprintln(orig, l)
+			}
+			section = nil
+		}
 		sc := bufio.NewScanner(r)
 		sc.Buffer(make([]byte, 64*1024), 4*1024*1024)
 		for sc.Scan() {
 			line := sc.Text()
-			fmt.Fprintln(orig, line)
 			if strings.ContainsAny(line, "⚠✗") {
 				n++
 			}
+			switch {
+			case strings.HasPrefix(line, "[i] "):
+				flush()
+				section = []string{line}
+			case section != nil:
+				section = append(section, line)
+			default:
+				fmt.Fprintln(orig, line)
+			}
 		}
+		flush()
 		_, _ = io.Copy(orig, r)
 		done <- n
 	}()

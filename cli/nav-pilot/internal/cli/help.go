@@ -257,12 +257,13 @@ With auto_update = true, nav-pilot upgrades itself before other commands. A
 failed auto-update warns on stderr, runs the version you have and waits 24
 hours before it tries again. Turn it off: nav-pilot config set auto_update false
 `,
-	"doctor": `Usage: nav-pilot doctor
+	"doctor": `Usage: nav-pilot doctor [--verbose]
 
 Check this machine and say what to fix: the config file, what is installed in
 ~/.copilot and this repository, hooks, the clients (copilot, opencode, pi) and
 cplt, model pins, the cplt sandbox and git. Each problem comes with the command
-that fixes it. Reads only; changes nothing.
+that fixes it. Reads only; changes nothing. --verbose also shows the detail
+behind checks that passed, and the local-model section when none is set up.
 
 Exits 0 even when it finds problems; read the Solution lines.
 `,
