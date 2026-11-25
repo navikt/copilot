@@ -38,3 +38,21 @@ func TestGracePeriodCoversShutdownDrain(t *testing.T) {
 		t.Fatal("terminationGracePeriodSeconds must be 180 and exceed maxShutdownDrain plus the preStop sleep")
 	}
 }
+
+// The never-synced guard only makes sense where routes come from fleet-control;
+// with the Git file the age gauge never appears. Template tags stay at column 0 (#2910).
+func TestNeverSyncedAlertOnlyWithFleetControlRoutes(t *testing.T) {
+	b, err := os.ReadFile(".nais/app.yaml")
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(b)
+	i := strings.Index(s, "- alert: FleetGatewayRouteNeverSynced")
+	open := strings.LastIndex(s[:i], "\n{{#if routes_source}}\n")
+	if i < 0 || open < 0 || strings.Contains(s[open:i], "{{/if}}") {
+		t.Fatal("FleetGatewayRouteNeverSynced must sit inside a column-0 {{#if routes_source}} block")
+	}
+	if !strings.Contains(s, "fleet_gateway_route_sync_failures_total{namespace=\"copilot\"}[15m])) > 0") {
+		t.Fatal("FleetGatewayRouteSyncFailing alert missing")
+	}
+}
