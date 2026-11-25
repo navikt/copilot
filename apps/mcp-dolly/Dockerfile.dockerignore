@@ -4,5 +4,7 @@
 !apps/mcp-dolly/go.mod
 !apps/mcp-dolly/go.sum
 !apps/mcp-dolly/*.go
+!apps/mcp-dolly/internal/
 apps/mcp-dolly/*_test.go
+apps/mcp-dolly/internal/**/*_test.go
 lib/mcpkit/*_test.go

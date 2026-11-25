@@ -13,6 +13,7 @@ WORKDIR /src/apps/mcp-dolly
 RUN go mod download
 
 COPY apps/mcp-dolly/*.go ./
+COPY apps/mcp-dolly/internal/ ./internal/
 
 RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -trimpath -ldflags="-s -w" -o main .
 
