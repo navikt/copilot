@@ -43,10 +43,10 @@ spec:
       tenant: nav.no
       allowAllUsers: true
       replyURLs:
-      {{#each reply_urls as |url|}}
+{{#each reply_urls as |url|}}
         - {{url}}
-      {{/each}}
-  {{#if postgres}}
+{{/each}}
+{{#if postgres}}
   # TODO(#2221): provisioning is Nais Postgres (spec.uses.postgres, dev only for now);
   # the Cloud SQL option (gcp.sqlInstances) is deliberately not used.
   uses:
@@ -55,7 +55,7 @@ spec:
   envFrom:
     - secret: fleet-gateway-rt-keys # key RT_KEYS = "kid:base64key,..." (newest first); created by a human
     - secret: fleet-gateway-lockout-key # key LOCKOUT_KEY (at least 32 bytes); created by a human in dev-gcp and prod-gcp (#2436)
-  {{/if}}
+{{/if}}
   env:
     # Soft heap limit below the container limit, so GC runs before an OOM kill (README, Memory and limits).
     - name: GOMEMLIMIT
@@ -78,45 +78,45 @@ spec:
       value: "{{allowed_client_ids}}"
     - name: ALLOWED_REDIRECT_URIS
       value: "{{allowed_redirect_uris}}"
-    {{#if dcr_enabled}}
+{{#if dcr_enabled}}
     - name: DCR_ENABLED
       value: "{{dcr_enabled}}"
-    {{/if}}
-    {{#if identity_source}}
+{{/if}}
+{{#if identity_source}}
     - name: IDENTITY_SOURCE
       value: "{{identity_source}}"
-    {{/if}}
-    {{#if routes_source}}
+{{/if}}
+{{#if routes_source}}
     - name: ROUTES_SOURCE
       value: "{{routes_source}}"
-    {{/if}}
-    {{#if routes_shadow_source}}
+{{/if}}
+{{#if routes_shadow_source}}
     - name: ROUTES_SHADOW_SOURCE
       value: "{{routes_shadow_source}}"
-    {{/if}}
-    {{#if fleet_control_audience}}
+{{/if}}
+{{#if fleet_control_audience}}
     - name: FLEET_CONTROL_URL
       value: "http://fleet-control"
     - name: FLEET_CONTROL_AUDIENCE
       value: "{{fleet_control_audience}}"
-    {{/if}}
-    {{#if pilot_routes_file}}
+{{/if}}
+{{#if pilot_routes_file}}
     - name: PILOT_ROUTES_FILE
       value: "{{pilot_routes_file}}"
-    {{/if}}
+{{/if}}
   accessPolicy:
     outbound:
       # In-cluster egress comes from the NetworkPolicy fleet-gateway-egress
       # below: Nais drops outbound rules with application "*".
       external:
         - host: login.microsoftonline.com
-      {{#each cimd_hosts as |host|}}
+{{#each cimd_hosts as |host|}}
         - host: "{{host}}"
-      {{/each}}
+{{/each}}
   ingresses:
-  {{#each ingresses as |url|}}
+{{#each ingresses as |url|}}
     - {{url}}
-  {{/each}}
+{{/each}}
 ---
 # Owner decision 2026-11-25 (#2985): the gateway may reach any pod in the
 # cluster, so a new MCP server needs no change here. Security rests on the
