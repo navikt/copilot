@@ -31,7 +31,7 @@
     "from": "now-30d",
     "to": "now"
   },
-  "refresh": "",
+  "refresh": "15m",
   "timezone": "browser",
   "links": [
     {
@@ -119,11 +119,7 @@
   "panels": [
     {
       "type": "row",
-      "title": "Routes and tools",
-      "fieldConfig": {
-        "defaults": {},
-        "overrides": []
-      },
+      "title": "Totals",
       "id": 1,
       "gridPos": {
         "h": 1,
@@ -135,93 +131,294 @@
       "panels": []
     },
     {
+      "type": "stat",
+      "title": "Gateway calls",
+      "description": "MCP calls through fleet-gateway over the range.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_METRICS}"
       },
       "fieldConfig": {
         "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "0",
           "color": {
-            "mode": "palette-classic"
+            "mode": "fixed",
+            "fixedColor": "text"
           },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "line",
-            "fillOpacity": 20,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 2,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "showValues": false,
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
           "thresholds": {
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
-                "value": 0
-              },
-              {
-                "color": "red",
-                "value": 80
+                "color": "text",
+                "value": null
               }
             ]
-          },
-          "unit": "short",
-          "decimals": 0
+          }
         },
         "overrides": []
       },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "expr": "round(sum(increase(fleet_gateway_mcp_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app=\"fleet-gateway\"}[$__range])))",
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "id": 2,
       "gridPos": {
-        "h": 8,
-        "w": 12,
+        "h": 4,
+        "w": 6,
         "x": 0,
         "y": 1
+      }
+    },
+    {
+      "type": "stat",
+      "title": "MCP server tool calls",
+      "description": "Tool calls in mcp-kodeverk, mcp-dolly and mcp-team-catalog over the range.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_METRICS}"
       },
-      "id": 2,
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "0",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "text"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "expr": "round(sum(increase(mcp_tool_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app=~\"mcp-kodeverk|mcp-dolly|mcp-team-catalog\"}[$__range])))",
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "id": 3,
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 1
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Routes used",
+      "description": "Routes with at least one call in the range.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_METRICS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "0",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "text"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "expr": "count(sum by (route) (increase(fleet_gateway_mcp_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app=\"fleet-gateway\"}[$__range])) > 0)",
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "id": 4,
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 12,
+        "y": 1
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Tools used",
+      "description": "MCP server tools with at least one call in the range.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_METRICS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "0",
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "text"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "expr": "count(sum by (app, tool) (increase(mcp_tool_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app=~\"mcp-kodeverk|mcp-dolly|mcp-team-catalog\"}[$__range])) > 0)",
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "id": 5,
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 18,
+        "y": 1
+      }
+    },
+    {
+      "type": "row",
+      "title": "Routes and tools",
+      "id": 6,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 5
+      },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "type": "timeseries",
+      "title": "Requests by route",
+      "description": "Daily bars: calls per day. Drill down to nav-fleet: operations on anomalies.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_METRICS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 80,
+            "lineWidth": 1,
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            }
+          }
+        },
+        "overrides": []
+      },
       "options": {
         "legend": {
-          "calcs": [
-            "sum"
-          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true,
+          "calcs": [
+            "sum"
+          ],
           "sortBy": "Total",
           "sortDesc": true
         },
         "tooltip": {
-          "hideZeros": false,
           "mode": "multi",
           "sort": "desc"
         }
       },
-      "pluginVersion": "12.3.2",
       "targets": [
         {
           "expr": "sum by (route) (increase(fleet_gateway_mcp_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app=\"fleet-gateway\"}[$__interval]))",
@@ -229,110 +426,126 @@
           "refId": "A"
         }
       ],
-      "title": "Requests by route",
-      "type": "timeseries",
-      "description": "Volume by route. Drill down to nav-fleet: operations on anomalies.",
-      "interval": "5m"
+      "interval": "1d",
+      "id": 7,
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 6
+      }
     },
     {
+      "type": "timeseries",
+      "title": "Tool calls by tool (gateway)",
+      "description": "Daily bars: calls per day.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_METRICS}"
       },
       "fieldConfig": {
         "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "line",
-            "fillOpacity": 20,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 2,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "showValues": false,
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
           "unit": "short",
-          "decimals": 0
+          "min": 0,
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 80,
+            "lineWidth": 1,
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            }
+          }
         },
         "overrides": []
       },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 1
-      },
-      "id": 3,
       "options": {
         "legend": {
-          "calcs": [
-            "sum"
-          ],
           "displayMode": "table",
           "placement": "bottom",
           "showLegend": true,
+          "calcs": [
+            "sum"
+          ],
           "sortBy": "Total",
           "sortDesc": true
         },
         "tooltip": {
-          "hideZeros": false,
           "mode": "multi",
           "sort": "desc"
         }
       },
-      "pluginVersion": "12.3.2",
       "targets": [
         {
-          "expr": "topk(15, sum by (tool) (increase(fleet_gateway_mcp_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app=\"fleet-gateway\", tool!=\"\"}[$__interval])))",
+          "expr": "sum by (tool) (increase(fleet_gateway_mcp_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app=\"fleet-gateway\", tool!=\"\"}[$__interval]))",
           "legendFormat": "{{tool}}",
           "refId": "A"
         }
       ],
-      "title": "Tool calls by tool (gateway)",
+      "interval": "1d",
+      "id": 8,
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 6
+      }
+    },
+    {
       "type": "timeseries",
-      "description": "",
-      "interval": "5m"
+      "title": "Tool calls by server and tool",
+      "description": "Daily bars: calls per day. From lib/mcpkit in each MCP server.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_METRICS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 80,
+            "lineWidth": 1,
+            "stacking": {
+              "mode": "normal",
+              "group": "A"
+            }
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "sum"
+          ],
+          "sortBy": "Total",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "targets": [
+        {
+          "expr": "sum by (app, tool) (increase(mcp_tool_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app=~\"mcp-kodeverk|mcp-dolly|mcp-team-catalog\"}[$__interval]))",
+          "legendFormat": "{{app}} {{tool}}",
+          "refId": "A"
+        }
+      ],
+      "interval": "1d",
+      "id": 9,
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 6
+      }
     },
     {
       "type": "row",
@@ -341,246 +554,247 @@
         "defaults": {},
         "overrides": []
       },
-      "id": 4,
+      "id": 10,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 9
+        "y": 14
       },
-      "collapsed": false,
-      "panels": []
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_METRICS}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "fixed",
-            "fixedColor": "text"
-          },
-          "mappings": [],
-          "noValue": "—",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              }
-            ]
-          },
-          "unit": "short",
-          "decimals": 0
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 24,
-        "x": 0,
-        "y": 10
-      },
-      "id": 5,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "none",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "percentChangeColorMode": "standard",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showPercentChange": false,
-        "textMode": "auto",
-        "wideLayout": true
-      },
-      "pluginVersion": "12.3.2",
-      "targets": [
+      "collapsed": true,
+      "panels": [
         {
-          "expr": "round(sum(increase(registry_server_lookups_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app=\"mcp-registry\"}[$__range])))",
-          "legendFormat": "",
-          "refId": "A"
-        }
-      ],
-      "title": "Registry lookups in range",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_METRICS}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_METRICS}"
           },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "bars",
-            "fillOpacity": 80,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "fixed",
+                "fixedColor": "text"
+              },
+              "mappings": [],
+              "noValue": "—",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": 0
+                  }
+                ]
+              },
+              "unit": "short",
+              "decimals": 0
             },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 4,
+            "w": 24,
+            "x": 0,
+            "y": 15
+          },
+          "id": 11,
+          "options": {
+            "colorMode": "value",
+            "graphMode": "none",
+            "justifyMode": "auto",
+            "orientation": "auto",
+            "percentChangeColorMode": "standard",
+            "reduceOptions": {
+              "calcs": [
+                "lastNotNull"
+              ],
+              "fields": "",
+              "values": false
             },
-            "showPoints": "auto",
-            "showValues": false,
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "normal"
+            "showPercentChange": false,
+            "textMode": "auto",
+            "wideLayout": true
+          },
+          "pluginVersion": "12.3.2",
+          "targets": [
+            {
+              "expr": "round(sum(increase(registry_server_lookups_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app=\"mcp-registry\"}[$__range])))",
+              "legendFormat": "",
+              "refId": "A"
+            }
+          ],
+          "title": "Registry lookups in range",
+          "type": "stat"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_METRICS}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "bars",
+                "fillOpacity": 80,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 1,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "showValues": false,
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "normal"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": 0
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "short",
+              "decimals": 0
             },
-            "thresholdsStyle": {
-              "mode": "off"
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 19
+          },
+          "id": 12,
+          "options": {
+            "legend": {
+              "calcs": [
+                "sum"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true,
+              "sortBy": "Total",
+              "sortDesc": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
             }
           },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
+          "pluginVersion": "12.3.2",
+          "targets": [
+            {
+              "expr": "sum by (server) (increase(registry_server_lookups_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app=\"mcp-registry\"}[$__interval]))",
+              "legendFormat": "{{server}}",
+              "refId": "A"
+            }
+          ],
+          "title": "Lookups by server",
+          "type": "timeseries",
+          "interval": "5m",
+          "description": "server=\"unknown\" is a lookup of a server that is not in the registry (result=\"not_found\"). mcp-registry deliberately records \"unknown\" instead of the name from the URL, so unknown names do not each create a series."
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_METRICS}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "fixed",
+                "fixedColor": "blue"
               },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": 0
+                  }
+                ]
+              },
+              "unit": "short",
+              "decimals": 0
+            },
+            "overrides": []
           },
-          "unit": "short",
-          "decimals": 0
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 14
-      },
-      "id": 6,
-      "options": {
-        "legend": {
-          "calcs": [
-            "sum"
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 19
+          },
+          "id": 13,
+          "options": {
+            "displayMode": "gradient",
+            "legend": {
+              "calcs": [],
+              "displayMode": "list",
+              "placement": "bottom",
+              "showLegend": false
+            },
+            "maxVizHeight": 300,
+            "minVizHeight": 16,
+            "minVizWidth": 8,
+            "namePlacement": "auto",
+            "orientation": "horizontal",
+            "reduceOptions": {
+              "calcs": [
+                "sum"
+              ],
+              "fields": "",
+              "values": false
+            },
+            "showUnfilled": true,
+            "sizing": "auto",
+            "valueMode": "color"
+          },
+          "pluginVersion": "12.3.2",
+          "targets": [
+            {
+              "expr": "round(sum by (server) (increase(registry_server_lookups_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app=\"mcp-registry\", result=\"found\"}[$__range])))",
+              "legendFormat": "{{server}}",
+              "refId": "A"
+            }
           ],
-          "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true,
-          "sortBy": "Total",
-          "sortDesc": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "multi",
-          "sort": "desc"
+          "title": "Most used servers",
+          "type": "bargauge",
+          "description": "server=\"unknown\" is a lookup of a server that is not in the registry (result=\"not_found\"). mcp-registry deliberately records \"unknown\" instead of the name from the URL, so unknown names do not each create a series."
         }
-      },
-      "pluginVersion": "12.3.2",
-      "targets": [
-        {
-          "expr": "sum by (server) (increase(registry_server_lookups_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app=\"mcp-registry\"}[$__interval]))",
-          "legendFormat": "{{server}}",
-          "refId": "A"
-        }
-      ],
-      "title": "Lookups by server",
-      "type": "timeseries",
-      "interval": "5m",
-      "description": "server=\"unknown\" is a lookup of a server that is not in the registry (result=\"not_found\"). mcp-registry deliberately records \"unknown\" instead of the name from the URL, so unknown names do not each create a series."
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_METRICS}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "fixed",
-            "fixedColor": "blue"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              }
-            ]
-          },
-          "unit": "short",
-          "decimals": 0
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 14
-      },
-      "id": 7,
-      "options": {
-        "displayMode": "gradient",
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": false
-        },
-        "maxVizHeight": 300,
-        "minVizHeight": 16,
-        "minVizWidth": 8,
-        "namePlacement": "auto",
-        "orientation": "horizontal",
-        "reduceOptions": {
-          "calcs": [
-            "sum"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "showUnfilled": true,
-        "sizing": "auto",
-        "valueMode": "color"
-      },
-      "pluginVersion": "12.3.2",
-      "targets": [
-        {
-          "expr": "round(sum by (server) (increase(registry_server_lookups_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app=\"mcp-registry\", result=\"found\"}[$__range])))",
-          "legendFormat": "{{server}}",
-          "refId": "A"
-        }
-      ],
-      "title": "Most used servers",
-      "type": "bargauge",
-      "description": "server=\"unknown\" is a lookup of a server that is not in the registry (result=\"not_found\"). mcp-registry deliberately records \"unknown\" instead of the name from the URL, so unknown names do not each create a series."
+      ]
     },
     {
       "type": "row",
@@ -589,12 +803,12 @@
         "defaults": {},
         "overrides": []
       },
-      "id": 8,
+      "id": 14,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 22
+        "y": 15
       },
       "collapsed": true,
       "panels": [
@@ -628,9 +842,9 @@
             "h": 4,
             "w": 6,
             "x": 0,
-            "y": 23
+            "y": 16
           },
-          "id": 9,
+          "id": 15,
           "options": {
             "colorMode": "value",
             "graphMode": "none",
@@ -689,9 +903,9 @@
             "h": 4,
             "w": 6,
             "x": 6,
-            "y": 23
+            "y": 16
           },
-          "id": 10,
+          "id": 16,
           "options": {
             "colorMode": "value",
             "graphMode": "none",
@@ -751,9 +965,9 @@
             "h": 4,
             "w": 6,
             "x": 12,
-            "y": 23
+            "y": 16
           },
-          "id": 11,
+          "id": 17,
           "options": {
             "colorMode": "value",
             "graphMode": "none",
@@ -813,9 +1027,9 @@
             "h": 4,
             "w": 6,
             "x": 18,
-            "y": 23
+            "y": 16
           },
-          "id": 12,
+          "id": 18,
           "options": {
             "colorMode": "value",
             "graphMode": "none",
@@ -911,9 +1125,9 @@
             "h": 8,
             "w": 24,
             "x": 0,
-            "y": 27
+            "y": 20
           },
-          "id": 13,
+          "id": 19,
           "options": {
             "legend": {
               "calcs": [
@@ -946,5 +1160,15 @@
         }
       ]
     }
-  ]
+  ],
+  "timepicker": {
+    "refresh_intervals": [
+      "30s",
+      "1m",
+      "5m",
+      "15m",
+      "30m",
+      "1h"
+    ]
+  }
 }

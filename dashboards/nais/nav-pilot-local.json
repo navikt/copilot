@@ -898,7 +898,7 @@
                       }
                     ]
                   },
-                  "unit": "short"
+                  "unit": "s"
                 },
                 "overrides": []
               },
@@ -1446,7 +1446,7 @@
                       }
                     ]
                   },
-                  "unit": "short"
+                  "unit": "ms"
                 },
                 "overrides": []
               },
@@ -1565,7 +1565,7 @@
                       }
                     ]
                   },
-                  "unit": "short"
+                  "unit": "percent"
                 },
                 "overrides": []
               },
@@ -2271,19 +2271,17 @@
       "alpha"
     ],
     "timeSettings": {
-      "autoRefresh": "",
+      "autoRefresh": "15m",
       "autoRefreshIntervals": [
         "30s",
         "1m",
         "5m",
         "15m",
         "30m",
-        "1h",
-        "2h",
-        "1d"
+        "1h"
       ],
       "fiscalYearStartMonth": 0,
-      "from": "now-7d",
+      "from": "now-30d",
       "hideTimepicker": false,
       "timezone": "browser",
       "to": "now"

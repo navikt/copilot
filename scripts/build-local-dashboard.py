@@ -121,6 +121,10 @@ def panels():
 PLACEHOLDERS = {30: 1015, 31: 1015, 32: 1015, 33: 1015, 40: 2915, 42: 2915}
 
 
+# Panels whose values are not plain counts.
+UNITS = {20: "s", 32: "ms", 33: "percent"}
+
+
 ROWS = [
     ("Adoption", [1, 2, 3, 4]),
     ("Dispatch: is the worker used?", [10, 11, 12, 13]),
@@ -164,6 +168,8 @@ def build():
                 "sortBy": "Total" if counter else "Max"}
         if group == "stat" and pid == 4:
             viz["spec"]["fieldConfig"]["defaults"]["unit"] = "percent"
+        if pid in UNITS:
+            viz["spec"]["fieldConfig"]["defaults"]["unit"] = UNITS[pid]
         elements[f"panel-{pid}"] = {
             "kind": "Panel",
             "spec": {
