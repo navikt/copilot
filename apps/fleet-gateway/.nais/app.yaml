@@ -363,7 +363,7 @@ spec:
             runbook_url: https://github.com/navikt/copilot/blob/main/apps/fleet-gateway/docs/runbook.md#fleetgatewayupstreamtokenerrors
         - alert: FleetGatewayIdPErrors
           # Only Entra/Texas failures; the normal OAuth handshake 401 is not in this counter.
-          expr: sum by (step) (increase(fleet_gateway_idp_errors_total{namespace="copilot"}[10m])) > 3
+          expr: sum by (k8s_cluster_name, step) (increase(fleet_gateway_idp_errors_total{namespace="copilot"}[10m])) > 3
           for: 10m
           labels:
             namespace: copilot

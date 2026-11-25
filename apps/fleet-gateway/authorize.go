@@ -468,7 +468,9 @@ func (g *Gateway) callbackHandler(w http.ResponseWriter, r *http.Request) {
 	missingToken := (at == "" && idt == "") || (at == "" && g.cfg.TeamTokenStrategy != strategyRefresh)
 	if err != nil || status != http.StatusOK || missingToken {
 		errType, _ := out["error"].(string)
-		if err != nil || status >= 500 {
+		// IdP fault: Entra unreachable (no status) or 5xx. A 4xx body that fails to parse,
+		// or a client that went away (context.Canceled), is not Entra's fault.
+		if (err != nil && status == 0 && !errors.Is(err, context.Canceled)) || status >= 500 {
 			metrics.IDPErrors.WithLabelValues("code_redeem").Inc()
 		}
 		slog.Warn("audit login", "outcome", "code_redeem_failed", "status", status, "error", sanitizeLogValue(errType), "client_id", sanitizeLogValue(p.ClientID), "resource", sanitizeLogValue(p.Resource))
