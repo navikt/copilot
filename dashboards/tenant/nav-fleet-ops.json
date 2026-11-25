@@ -253,7 +253,7 @@
       "gridPos": {
         "h": 4,
         "w": 4,
-        "x": 4,
+        "x": 8,
         "y": 1
       },
       "links": [
@@ -266,7 +266,7 @@
     {
       "type": "stat",
       "title": "Failed MCP calls/s",
-      "description": "MCP calls with an outcome other than ok, over the last 5 min. Break down in Health and alerts.",
+      "description": "Failures use the SLO definition: every outcome except ok, unauthorized (OAuth handshake 401), disabled (kill switch) and tool_denied. user_cap and user_sse_cap count as failures.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_METRICS}"
@@ -309,7 +309,7 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(fleet_gateway_mcp_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", outcome!=\"ok\"}[5m])) or vector(0)",
+          "expr": "sum(rate(fleet_gateway_mcp_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", outcome!~\"ok|unauthorized|disabled|tool_denied\"}[5m])) or vector(0)",
           "legendFormat": "",
           "refId": "A"
         }
@@ -318,14 +318,14 @@
       "gridPos": {
         "h": 4,
         "w": 4,
-        "x": 8,
+        "x": 12,
         "y": 1
       }
     },
     {
       "type": "stat",
-      "title": "Latency p95",
-      "description": "No latency alert; shown for trend.",
+      "title": "Latency p95 incl. SSE",
+      "description": "No latency alert; shown for trend. Includes SSE streams, which count until they close, and fast 401s. Shown as p95 incl. SSE until the gateway has an SSE label.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_METRICS}"
@@ -375,22 +375,22 @@
       "gridPos": {
         "h": 4,
         "w": 4,
-        "x": 12,
+        "x": 16,
         "y": 1
       }
     },
     {
       "type": "stat",
-      "title": "Routes loaded",
-      "description": "Routes the gateway has loaded. Red at 0.",
+      "title": "Error ratio (SLO)",
+      "description": "Share of counted MCP calls that failed, same ratio as the SLO in #2972. Failures use the SLO definition: every outcome except ok, unauthorized (OAuth handshake 401), disabled (kill switch) and tool_denied. user_cap and user_sse_cap count as failures. Excluded outcomes are left out of the denominator too.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_METRICS}"
       },
       "fieldConfig": {
         "defaults": {
-          "unit": "short",
-          "decimals": 0,
+          "unit": "percentunit",
+          "decimals": 2,
           "noValue": "0",
           "color": {
             "mode": "thresholds"
@@ -428,7 +428,7 @@
       },
       "targets": [
         {
-          "expr": "max(fleet_gateway_routes_loaded{namespace=\"$namespace\", k8s_cluster_name=~\"$env\"})",
+          "expr": "(sum(rate(fleet_gateway_mcp_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", outcome!~\"ok|unauthorized|disabled|tool_denied\"}[5m])) or vector(0)) / sum(rate(fleet_gateway_mcp_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", outcome!~\"unauthorized|disabled|tool_denied\"}[5m]))",
           "legendFormat": "",
           "refId": "A"
         }
@@ -437,14 +437,14 @@
       "gridPos": {
         "h": 4,
         "w": 4,
-        "x": 16,
+        "x": 4,
         "y": 1
       }
     },
     {
       "type": "stat",
-      "title": "Ready replicas",
-      "description": "Red at 0, like the alert NoReadyPods.",
+      "title": "Available replicas",
+      "description": "Same metric as the alert FleetGatewayNoReadyPods.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_METRICS}"
@@ -489,7 +489,7 @@
       },
       "targets": [
         {
-          "expr": "sum(kube_deployment_status_replicas_ready{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", deployment=\"fleet-gateway\"})",
+          "expr": "sum(kube_deployment_status_replicas_available{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", deployment=\"fleet-gateway\"})",
           "legendFormat": "",
           "refId": "A"
         }
@@ -572,7 +572,7 @@
       "id": 9,
       "gridPos": {
         "h": 4,
-        "w": 4,
+        "w": 3,
         "x": 0,
         "y": 6
       }
@@ -634,8 +634,8 @@
       "id": 10,
       "gridPos": {
         "h": 4,
-        "w": 4,
-        "x": 4,
+        "w": 3,
+        "x": 3,
         "y": 6
       }
     },
@@ -696,15 +696,15 @@
       "id": 11,
       "gridPos": {
         "h": 4,
-        "w": 4,
-        "x": 8,
+        "w": 3,
+        "x": 6,
         "y": 6
       }
     },
     {
       "type": "stat",
       "title": "Failed MCP calls (5 min)",
-      "description": "MCP calls with an outcome other than ok. Count over the last 5 min, last value. No alert, so neutral colour.",
+      "description": "Failures use the SLO definition: every outcome except ok, unauthorized (OAuth handshake 401), disabled (kill switch) and tool_denied. user_cap and user_sse_cap count as failures.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_METRICS}"
@@ -747,7 +747,7 @@
       },
       "targets": [
         {
-          "expr": "sum(increase(fleet_gateway_mcp_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", outcome!=\"ok\"}[5m])) or vector(0)",
+          "expr": "sum(increase(fleet_gateway_mcp_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", outcome!~\"ok|unauthorized|disabled|tool_denied\"}[5m])) or vector(0)",
           "legendFormat": "",
           "refId": "A"
         }
@@ -755,8 +755,8 @@
       "id": 12,
       "gridPos": {
         "h": 4,
-        "w": 4,
-        "x": 12,
+        "w": 3,
+        "x": 9,
         "y": 6
       }
     },
@@ -809,7 +809,7 @@
       },
       "targets": [
         {
-          "expr": "sum(increase(fleet_gateway_route_sync_failures_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app=\"fleet-gateway\"}[15m])) or vector(0)",
+          "expr": "sum(increase(fleet_gateway_route_sync_failures_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\"}[15m])) or vector(0)",
           "legendFormat": "",
           "refId": "A"
         }
@@ -817,8 +817,132 @@
       "id": 13,
       "gridPos": {
         "h": 4,
-        "w": 4,
-        "x": 16,
+        "w": 3,
+        "x": 12,
+        "y": 6
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Never synced pods",
+      "description": "Gateway pods with no successful route sync yet, like the alert FleetGatewayRouteNeverSynced. Route snapshot age shows nothing for these pods.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_METRICS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "0",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "expr": "count(fleet_gateway_routes_loaded{namespace=\"$namespace\", k8s_cluster_name=~\"$env\"} unless on (pod, k8s_cluster_name) fleet_gateway_route_snapshot_age_seconds{namespace=\"$namespace\", k8s_cluster_name=~\"$env\"}) or vector(0)",
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "id": 67,
+      "gridPos": {
+        "h": 4,
+        "w": 3,
+        "x": 15,
+        "y": 6
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Routes disabled (kill switch)",
+      "description": "Routes that answered with outcome=disabled (503 reason=disabled) in the last 5 min: the kill switch is on. Not a fault.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_METRICS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "0",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "expr": "count(sum by (route) (increase(fleet_gateway_mcp_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", outcome=\"disabled\"}[5m])) > 0) or vector(0)",
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "id": 66,
+      "gridPos": {
+        "h": 4,
+        "w": 3,
+        "x": 18,
         "y": 6
       }
     },
@@ -847,7 +971,7 @@
               },
               {
                 "color": "red",
-                "value": 3
+                "value": 2
               }
             ]
           }
@@ -879,8 +1003,8 @@
       "id": 14,
       "gridPos": {
         "h": 4,
-        "w": 4,
-        "x": 20,
+        "w": 3,
+        "x": 21,
         "y": 6
       }
     },
@@ -978,7 +1102,7 @@
       "pluginVersion": "12.3.2",
       "targets": [
         {
-          "expr": "sum(rate(fleet_gateway_http_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", code=~\"5..\", reason=\"\"}[$__rate_interval])) / sum(rate(fleet_gateway_http_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\"}[$__rate_interval]))",
+          "expr": "(sum(rate(fleet_gateway_http_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", code=~\"5..\", reason=\"\"}[$__rate_interval])) or vector(0)) / sum(rate(fleet_gateway_http_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\"}[$__rate_interval]))",
           "legendFormat": "5xx rate",
           "refId": "A"
         }
@@ -1059,7 +1183,7 @@
     {
       "type": "timeseries",
       "title": "Failed MCP calls by route and outcome",
-      "description": "upstream_* outcomes point at the MCP server behind the route; tool_denied, unauthorized, user_cap and disabled are the gateway's own decisions.",
+      "description": "Failures use the SLO definition: every outcome except ok, unauthorized (OAuth handshake 401), disabled (kill switch) and tool_denied. user_cap and user_sse_cap count as failures.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_METRICS}"
@@ -1100,7 +1224,7 @@
       },
       "targets": [
         {
-          "expr": "sum by (route, outcome) (rate(fleet_gateway_mcp_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", outcome!=\"ok\"}[$__rate_interval]))",
+          "expr": "sum by (route, outcome) (rate(fleet_gateway_mcp_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", outcome!~\"ok|unauthorized|disabled|tool_denied\"}[$__rate_interval]))",
           "legendFormat": "{{route}} {{outcome}}",
           "refId": "A"
         }
@@ -1624,12 +1748,12 @@
           "pluginVersion": "12.3.2",
           "targets": [
             {
-              "expr": "sum(increase(fleet_gateway_route_sync_failures_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app=\"fleet-gateway\"}[$__interval]))",
+              "expr": "sum(increase(fleet_gateway_route_sync_failures_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\"}[$__interval]))",
               "legendFormat": "sync",
               "refId": "A"
             },
             {
-              "expr": "sum(increase(fleet_gateway_routes_shadow_failures_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app=\"fleet-gateway\"}[$__interval]))",
+              "expr": "sum(increase(fleet_gateway_routes_shadow_failures_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\"}[$__interval]))",
               "legendFormat": "shadow",
               "refId": "B"
             }
@@ -1680,7 +1804,7 @@
                   "mode": "none"
                 },
                 "thresholdsStyle": {
-                  "mode": "off"
+                  "mode": "dashed"
                 }
               },
               "mappings": [],
@@ -1689,11 +1813,11 @@
                 "steps": [
                   {
                     "color": "green",
-                    "value": 0
+                    "value": null
                   },
                   {
                     "color": "red",
-                    "value": 80
+                    "value": 2
                   }
                 ]
               },
@@ -1738,6 +1862,107 @@
           "type": "timeseries",
           "description": "Alert PodRestarts: more than 2 restarts in 15 min.",
           "interval": "5m"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_METRICS}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 20,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 2,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "showValues": false,
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "dashed"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 600
+                  }
+                ]
+              },
+              "unit": "s",
+              "noValue": "n/a in prod (routes from git)"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 43
+          },
+          "id": 58,
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean",
+                "max",
+                "lastNotNull"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true,
+              "sortBy": "Max",
+              "sortDesc": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "12.3.2",
+          "targets": [
+            {
+              "expr": "max by (pod) (fleet_gateway_route_snapshot_age_seconds{namespace=\"$namespace\", k8s_cluster_name=~\"$env\"})",
+              "legendFormat": "{{pod}}",
+              "refId": "A"
+            }
+          ],
+          "title": "Route snapshot age (fleet-gateway)",
+          "type": "timeseries",
+          "description": "Age of each pod's route snapshot. The alert FleetGatewayRouteSnapshotStale fires above 600 s. Pods that never synced are missing here: see Never synced pods."
         }
       ]
     },
@@ -2078,14 +2303,14 @@
           "pluginVersion": "12.3.2",
           "targets": [
             {
-              "expr": "sum by (decision, outcome) (rate(fleet_gateway_mcp_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\"}[$__rate_interval]))",
-              "legendFormat": "{{decision}} / {{outcome}}",
+              "expr": "sum by (outcome) (rate(fleet_gateway_mcp_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", outcome!~\"unauthorized|disabled|tool_denied\"}[$__rate_interval]))",
+              "legendFormat": "{{outcome}}",
               "refId": "A"
             }
           ],
-          "title": "Requests by outcome",
+          "title": "Requests by outcome (counted by SLO)",
           "type": "timeseries",
-          "description": "All MCP calls by decision and outcome. ok is a served call; tool_denied, unauthorized, user_cap and disabled are refused by the gateway; upstream_* failed at the MCP server. The by-route view is in Health and alerts."
+          "description": "Outcomes the SLO counts. Every outcome except ok is a failure; user_cap and user_sse_cap count as failures. Excluded outcomes are in the next panel."
         },
         {
           "datasource": {
@@ -2179,19 +2404,19 @@
           "pluginVersion": "12.3.2",
           "targets": [
             {
-              "expr": "histogram_quantile(0.5, sum by (route, le) (rate(fleet_gateway_mcp_request_duration_seconds_bucket{namespace=\"$namespace\", k8s_cluster_name=~\"$env\"}[$__rate_interval])))",
-              "legendFormat": "p50 {{route}}",
+              "expr": "histogram_quantile(0.5, sum by (route, le) (rate(fleet_gateway_mcp_request_duration_seconds_bucket{namespace=\"$namespace\", k8s_cluster_name=~\"$env\"}[$__rate_interval]))) and on (route) sum by (route) (rate(fleet_gateway_mcp_request_duration_seconds_count{namespace=\"$namespace\", k8s_cluster_name=~\"$env\"}[$__rate_interval])) > 0",
+              "legendFormat": "{{route}} p50",
               "refId": "A"
             },
             {
-              "expr": "histogram_quantile(0.95, sum by (route, le) (rate(fleet_gateway_mcp_request_duration_seconds_bucket{namespace=\"$namespace\", k8s_cluster_name=~\"$env\"}[$__rate_interval])))",
-              "legendFormat": "p95 {{route}}",
+              "expr": "histogram_quantile(0.95, sum by (route, le) (rate(fleet_gateway_mcp_request_duration_seconds_bucket{namespace=\"$namespace\", k8s_cluster_name=~\"$env\"}[$__rate_interval]))) and on (route) sum by (route) (rate(fleet_gateway_mcp_request_duration_seconds_count{namespace=\"$namespace\", k8s_cluster_name=~\"$env\"}[$__rate_interval])) > 0",
+              "legendFormat": "{{route}} p95",
               "refId": "B"
             }
           ],
-          "title": "Latency p50 / p95 by route",
+          "title": "Latency p50 / p95 by route incl. SSE",
           "type": "timeseries",
-          "description": "MCP call duration by route."
+          "description": "MCP call duration by route. Includes SSE streams, which count until they close, and fast 401s. Shown as p95 incl. SSE until the gateway has an SSE label."
         },
         {
           "datasource": {
@@ -2412,7 +2637,7 @@
                 "barAlignment": 0,
                 "barWidthFactor": 0.6,
                 "drawStyle": "line",
-                "fillOpacity": 20,
+                "fillOpacity": 10,
                 "gradientMode": "none",
                 "hideFrom": {
                   "legend": false,
@@ -2438,6 +2663,7 @@
                 }
               },
               "mappings": [],
+              "noValue": "—",
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
@@ -2451,8 +2677,7 @@
                   }
                 ]
               },
-              "unit": "short",
-              "noValue": "Waiting for data (#2914)"
+              "unit": "reqps"
             },
             "overrides": []
           },
@@ -2462,18 +2687,16 @@
             "x": 12,
             "y": 49
           },
-          "id": 34,
+          "id": 65,
           "options": {
             "legend": {
               "calcs": [
-                "mean",
-                "max",
-                "lastNotNull"
+                "sum"
               ],
               "displayMode": "table",
               "placement": "bottom",
               "showLegend": true,
-              "sortBy": "Max",
+              "sortBy": "Total",
               "sortDesc": true
             },
             "tooltip": {
@@ -2485,115 +2708,14 @@
           "pluginVersion": "12.3.2",
           "targets": [
             {
-              "expr": "max by (route) (fleet_gateway_route_enabled{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app=\"fleet-gateway\"})",
-              "legendFormat": "{{route}}",
+              "expr": "sum by (outcome) (rate(fleet_gateway_mcp_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", outcome=~\"unauthorized|disabled|tool_denied\"}[$__rate_interval]))",
+              "legendFormat": "{{outcome}}",
               "refId": "A"
             }
           ],
-          "title": "Route enabled (placeholder)",
+          "title": "Excluded outcomes (not failures)",
           "type": "timeseries",
-          "description": "Placeholder: fleet_gateway_route_enabled{route} does not exist yet. Tracked in #2914. The query below is the intended one and lights up once the metric exists."
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_METRICS}"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisBorderShow": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "barWidthFactor": 0.6,
-                "drawStyle": "line",
-                "fillOpacity": 20,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "insertNulls": false,
-                "lineInterpolation": "linear",
-                "lineWidth": 2,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "auto",
-                "showValues": false,
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": 0
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
-                ]
-              },
-              "unit": "short",
-              "noValue": "Waiting for data (#2914)"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 0,
-            "y": 57
-          },
-          "id": 35,
-          "options": {
-            "legend": {
-              "calcs": [
-                "mean",
-                "max",
-                "lastNotNull"
-              ],
-              "displayMode": "table",
-              "placement": "bottom",
-              "showLegend": true,
-              "sortBy": "Max",
-              "sortDesc": true
-            },
-            "tooltip": {
-              "hideZeros": false,
-              "mode": "multi",
-              "sort": "desc"
-            }
-          },
-          "pluginVersion": "12.3.2",
-          "targets": [
-            {
-              "expr": "max(fleet_gateway_kill_switch_enabled{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app=\"fleet-gateway\"})",
-              "legendFormat": "",
-              "refId": "A"
-            }
-          ],
-          "title": "Kill switch (placeholder)",
-          "type": "timeseries",
-          "description": "Placeholder: fleet-gateway has no kill-switch gauge yet; a kill switch answers 503 like shedding. Tracked in #2914. The query below is the intended one and lights up once the metric exists."
+          "description": "unauthorized (OAuth handshake 401), disabled (kill switch) and tool_denied. The SLO leaves these out."
         }
       ]
     },
@@ -4330,7 +4452,7 @@
                   "mode": "none"
                 },
                 "thresholdsStyle": {
-                  "mode": "off"
+                  "mode": "dashed"
                 }
               },
               "mappings": [],
@@ -4339,11 +4461,11 @@
                 "steps": [
                   {
                     "color": "green",
-                    "value": 0
+                    "value": null
                   },
                   {
                     "color": "red",
-                    "value": 80
+                    "value": 600
                   }
                 ]
               },
@@ -4588,107 +4710,6 @@
           "title": "Snapshot size",
           "type": "timeseries",
           "description": ""
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_METRICS}"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisBorderShow": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "barWidthFactor": 0.6,
-                "drawStyle": "line",
-                "fillOpacity": 20,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "insertNulls": false,
-                "lineInterpolation": "linear",
-                "lineWidth": 2,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "auto",
-                "showValues": false,
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": 0
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
-                ]
-              },
-              "unit": "s",
-              "noValue": "n/a in prod (routes from git)"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 12,
-            "y": 56
-          },
-          "id": 58,
-          "options": {
-            "legend": {
-              "calcs": [
-                "mean",
-                "max",
-                "lastNotNull"
-              ],
-              "displayMode": "table",
-              "placement": "bottom",
-              "showLegend": true,
-              "sortBy": "Max",
-              "sortDesc": true
-            },
-            "tooltip": {
-              "hideZeros": false,
-              "mode": "multi",
-              "sort": "desc"
-            }
-          },
-          "pluginVersion": "12.3.2",
-          "targets": [
-            {
-              "expr": "max by (pod) (fleet_gateway_route_snapshot_age_seconds{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app=\"fleet-gateway\"})",
-              "legendFormat": "{{pod}}",
-              "refId": "A"
-            }
-          ],
-          "title": "Route snapshot age (fleet-gateway, dev)",
-          "type": "timeseries",
-          "description": "Alert RouteSnapshotStale above 600 s. Only dev reads routes from fleet-control; prod reads them from git and has no snapshot."
         }
       ]
     },
@@ -4768,7 +4789,7 @@
           },
           "gridPos": {
             "h": 8,
-            "w": 12,
+            "w": 24,
             "x": 0,
             "y": 33
           },
@@ -4779,7 +4800,7 @@
                 "sum"
               ],
               "displayMode": "table",
-              "placement": "bottom",
+              "placement": "right",
               "showLegend": true,
               "sortBy": "Total",
               "sortDesc": true
@@ -4801,105 +4822,6 @@
           "title": "Audit events by service",
           "type": "timeseries",
           "description": "From the stdout log (tenant Loki). Shows volume, not content."
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "${DS_METRICS}"
-          },
-          "fieldConfig": {
-            "defaults": {
-              "color": {
-                "mode": "palette-classic"
-              },
-              "custom": {
-                "axisBorderShow": false,
-                "axisCenteredZero": false,
-                "axisColorMode": "text",
-                "axisLabel": "",
-                "axisPlacement": "auto",
-                "barAlignment": 0,
-                "barWidthFactor": 0.6,
-                "drawStyle": "line",
-                "fillOpacity": 20,
-                "gradientMode": "none",
-                "hideFrom": {
-                  "legend": false,
-                  "tooltip": false,
-                  "viz": false
-                },
-                "insertNulls": false,
-                "lineInterpolation": "linear",
-                "lineWidth": 2,
-                "pointSize": 5,
-                "scaleDistribution": {
-                  "type": "linear"
-                },
-                "showPoints": "auto",
-                "showValues": false,
-                "spanNulls": false,
-                "stacking": {
-                  "group": "A",
-                  "mode": "none"
-                },
-                "thresholdsStyle": {
-                  "mode": "off"
-                }
-              },
-              "mappings": [],
-              "thresholds": {
-                "mode": "absolute",
-                "steps": [
-                  {
-                    "color": "green",
-                    "value": 0
-                  },
-                  {
-                    "color": "red",
-                    "value": 80
-                  }
-                ]
-              },
-              "unit": "short",
-              "noValue": "Waiting for data (#2914)"
-            },
-            "overrides": []
-          },
-          "gridPos": {
-            "h": 8,
-            "w": 12,
-            "x": 12,
-            "y": 33
-          },
-          "id": 61,
-          "options": {
-            "legend": {
-              "calcs": [
-                "sum"
-              ],
-              "displayMode": "table",
-              "placement": "bottom",
-              "showLegend": true,
-              "sortBy": "Total",
-              "sortDesc": true
-            },
-            "tooltip": {
-              "hideZeros": false,
-              "mode": "multi",
-              "sort": "desc"
-            }
-          },
-          "pluginVersion": "12.3.2",
-          "targets": [
-            {
-              "expr": "sum by (app, action) (rate(fleet_audit_events_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app=~\"fleet-gateway|fleet-control\"}[$__rate_interval]))",
-              "legendFormat": "{{app}} {{action}}",
-              "refId": "A"
-            }
-          ],
-          "title": "Audit events counter (placeholder)",
-          "type": "timeseries",
-          "description": "Placeholder: there is no audit events counter yet; the Loki panel beside it counts log lines instead. Tracked in #2914. The query below is the intended one and lights up once the metric exists."
         }
       ]
     },
