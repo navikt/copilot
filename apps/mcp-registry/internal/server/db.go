@@ -245,7 +245,6 @@ func (s *DB) Submit(ctx context.Context, actor string, entryJSON []byte, name st
 		return 0, ErrForbidden
 	}
 
-	// Compute MAX(version) after the locks
 	var maxVersion int
 	err = tx.QueryRow(ctx, `
 		SELECT COALESCE(MAX(version), 0)
@@ -267,7 +266,6 @@ func (s *DB) Submit(ctx context.Context, actor string, entryJSON []byte, name st
 		return 0, fmt.Errorf("inserting entry version: %w", err)
 	}
 
-	// Lock and check current entry row
 	var currentStatus string
 	var supersededVersion *int
 	var currentVersion int
@@ -427,7 +425,6 @@ func (s *DB) Approve(ctx context.Context, actor, name string, version int) error
 		return fmt.Errorf("%w: version %d is not the pending version (%d)", ErrConflict, version, pendingVer)
 	}
 
-	// Fetch version entry
 	var entryJSON []byte
 	err = tx.QueryRow(ctx, `
 		SELECT entry
@@ -441,7 +438,6 @@ func (s *DB) Approve(ctx context.Context, actor, name string, version int) error
 		return fmt.Errorf("fetching version entry: %w", err)
 	}
 
-	// Update registry_entries with approved version
 	_, err = tx.Exec(ctx, `
 		UPDATE registry_entries
 		SET status = 'approved',

@@ -93,7 +93,6 @@ func Authenticate(r *http.Request, introspect IntrospectFunc) (*Principal, error
 		return nil, ErrUnauthorized
 	}
 
-	// Cap Authorization header length at 8 KiB
 	if len(authHeader) > 8*1024 {
 		return nil, ErrUnauthorized
 	}
@@ -117,12 +116,10 @@ func Authenticate(r *http.Request, introspect IntrospectFunc) (*Principal, error
 		return nil, ErrUnauthorized
 	}
 
-	// Reject app tokens (idtyp must not be 'app')
 	if strings.EqualFold(res.IDType, "app") {
 		return nil, ErrUnauthorized
 	}
 
-	// Require non-empty NAVident
 	if strings.TrimSpace(res.NAVident) == "" {
 		return nil, ErrUnauthorized
 	}
