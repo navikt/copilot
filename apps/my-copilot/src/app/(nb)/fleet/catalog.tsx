@@ -18,16 +18,16 @@ import {
   VStack,
 } from "@navikt/ds-react";
 import type { CatalogEntry } from "@/lib/fleet-control";
-import { refKey } from "@/lib/fleet-names";
+import { isName, refKey } from "@/lib/fleet-names";
 import { KortFortalt } from "./fleet-ui";
 
 const NAIS_CONSOLE = "https://console.nav.cloud.nais.io/";
 
 // Datakategori is the risk level. An unknown value is shown as it is.
 const CATEGORY: Record<string, { label: string; variant: "success" | "info" | "warning" }> = {
-  Aapen: { label: "Åpen", variant: "success" },
-  Intern: { label: "Intern", variant: "info" },
-  Fortrolig: { label: "Fortrolig", variant: "warning" },
+  Aapen: { label: "Åpne data", variant: "success" },
+  Intern: { label: "Interne data", variant: "info" },
+  Fortrolig: { label: "Fortrolige data", variant: "warning" },
 };
 
 export function CategoryTag({ category }: { category?: string }) {
@@ -51,14 +51,8 @@ export function Catalog({ entries }: { entries: CatalogEntry[] }) {
       (!q || `${e.metadata.namespace}/${e.metadata.name}`.toLowerCase().includes(q))
   );
   return (
-    <section aria-labelledby="katalog">
+    <section aria-label="Katalog">
       <VStack gap="space-16">
-        <Heading id="katalog" level="2" size="medium">
-          Katalog
-        </Heading>
-        <BodyShort>
-          Publiserte MCP-servere fra alle team. Åpne en for å se verktøyene og be eierteamet om tilgang.
-        </BodyShort>
         {entries.length === 0 ? (
           <BodyShort>Ingen MCP-servere er publisert ennå.</BodyShort>
         ) : (
@@ -119,15 +113,6 @@ export function Catalog({ entries }: { entries: CatalogEntry[] }) {
   );
 }
 
-/** Aksel Link with NextLink must render on the client: a server component cannot pass NextLink as a prop. */
-export function RegisterLink() {
-  return (
-    <Link as={NextLink} href="/fleet/registrer">
-      Registrer en MCP-server
-    </Link>
-  );
-}
-
 export type TeamSummary = { team: string; servers: number; pending: number };
 
 /** Shown when a person in several teams has not picked one yet. */
@@ -157,12 +142,12 @@ export function TeamChooser({ teams }: { teams: TeamSummary[] }) {
   );
 }
 
-/** A ?team= that is not one of the person's teams. */
+/** A ?team= that is not one of the person's teams. Only a valid team name is echoed. */
 export function UnknownTeam({ team }: { team: string }) {
   return (
     <Alert variant="info">
       <BodyLong>
-        Du er ikke med i {team}.{" "}
+        {isName(team) ? `Du er ikke med i ${team}.` : "Du er ikke med i det teamet."}{" "}
         <Link as={NextLink} href="/fleet?team=">
           Velg et av teamene dine
         </Link>
@@ -201,6 +186,8 @@ export function ServerReadOnly({ entry, myTeams = [] }: { entry: CatalogEntry; m
   const owner = entry.metadata.namespace;
   const docs = new Map((entry.spec.tools ?? []).map((t) => [t.name, t.description]));
   const tools = entry.spec.allowedTools ?? [];
+  const consumers = entry.status.consumers ?? [];
+  const mine = consumers.filter((c) => myTeams.includes(c.namespace));
   return (
     <VStack gap="space-24">
       <KortFortalt>
@@ -255,7 +242,7 @@ export function ServerReadOnly({ entry, myTeams = [] }: { entry: CatalogEntry; m
               </List.Item>
               <List.Item>{owner} får forespørselen under «Til godkjenning» og gir tilgang, eller sier nei.</List.Item>
               <List.Item>
-                Har dere spørsmål først, finner du kontaktinformasjon og Slack-kanalen til eierteamet i{" "}
+                Har dere spørsmål først, finner dere kontaktinformasjon og Slack-kanalen til eierteamet i{" "}
                 <Link href={`${NAIS_CONSOLE}team/${owner}`}>Nais Console</Link>.
               </List.Item>
             </List>
@@ -281,9 +268,33 @@ export function ServerReadOnly({ entry, myTeams = [] }: { entry: CatalogEntry; m
       </VStack>
       <VStack gap="space-8">
         <Heading level="2" size="small">
-          Konsumenter
+          Team med tilgang
         </Heading>
-        <BodyShort>Bare eierteamet ser hvilke team som har tilgang.</BodyShort>
+        {consumers.length === 0 ? (
+          <BodyShort>Ingen agentprofiler har tilgang ennå.</BodyShort>
+        ) : (
+          <>
+            {mine.length > 0 && (
+              <BodyShort>Teamet ditt har tilgang gjennom {mine.map((c) => c.name).join(", ")}.</BodyShort>
+            )}
+            <Table size="small" aria-label="Agentprofiler med tilgang">
+              <Table.Header>
+                <Table.Row>
+                  <Table.HeaderCell scope="col">Team</Table.HeaderCell>
+                  <Table.HeaderCell scope="col">Agentprofil</Table.HeaderCell>
+                </Table.Row>
+              </Table.Header>
+              <Table.Body>
+                {consumers.map((c) => (
+                  <Table.Row key={refKey(c)}>
+                    <Table.DataCell>{c.namespace}</Table.DataCell>
+                    <Table.DataCell>{c.name}</Table.DataCell>
+                  </Table.Row>
+                ))}
+              </Table.Body>
+            </Table>
+          </>
+        )}
       </VStack>
     </VStack>
   );

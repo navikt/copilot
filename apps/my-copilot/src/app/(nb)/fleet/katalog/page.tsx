@@ -17,7 +17,10 @@ export default async function CatalogPage() {
     return { member: me.teams.length > 0, entries: catalog.items };
   });
   return (
-    <FleetFrame title="Katalog" description="Publiserte MCP-servere fra alle team.">
+    <FleetFrame
+      title="Katalog"
+      description="Publiserte MCP-servere fra alle team. Åpne en MCP-server for å se verktøyene og be eierteamet om tilgang."
+    >
       {"problem" in result ? (
         <FleetProblemAlert problem={result.problem} />
       ) : (

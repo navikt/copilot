@@ -75,7 +75,13 @@ export type List<T> = { items: T[] };
 export type CatalogEntry = {
   metadata: Metadata;
   spec: Pick<MCPServerSpec, "dataCategory" | "allowedTools" | "registry" | "tools">;
-  status: { publishedGeneration: number; route?: { path: string }; approvedAt?: string };
+  status: {
+    publishedGeneration: number;
+    route?: { path: string };
+    approvedAt?: string;
+    /** Live agent profiles with access, by name only. Only on the single entry. */
+    consumers?: { namespace: string; name: string }[];
+  };
 };
 
 export type AuditEvent = { at: string; actor: Actor; action: string; generation?: number };

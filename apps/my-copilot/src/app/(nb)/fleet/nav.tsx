@@ -25,7 +25,7 @@ function NavLink({ href, children }: { href: string; children: React.ReactNode }
 
 export function FleetNav({ team, teams = [], pending = 0, hasAgents = false }: FleetNavProps) {
   useEffect(() => {
-    if (team) document.cookie = `${TEAM_COOKIE}=${team}; path=/; max-age=31536000; samesite=lax`;
+    if (team) document.cookie = `${TEAM_COOKIE}=${team}; path=/; max-age=31536000; samesite=lax; secure`;
   }, [team]);
   const base = team ? `/fleet?team=${team}` : "/fleet";
   return (

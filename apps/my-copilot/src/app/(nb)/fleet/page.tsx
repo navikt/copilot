@@ -6,7 +6,7 @@ import { fleetApi, fleetLoad, requireFleet } from "@/lib/fleet-control";
 import { TEAM_COOKIE } from "@/lib/fleet-names";
 import { FleetFrame, fleetRobots } from "./frame";
 import { FleetProblemAlert, KortFortalt, PendingInbox, TeamSections } from "./fleet-ui";
-import { RegisterLink, TeamChooser, UnknownTeam } from "./catalog";
+import { TeamChooser, UnknownTeam } from "./catalog";
 
 const DNS_LABEL = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/;
 
@@ -71,7 +71,7 @@ export default async function FleetPage({ searchParams }: Props) {
       <KortFortalt>
         <BodyLong>
           Teamet registrerer en <strong>MCP-server</strong>. En annen i teamet godkjenner. Da får MCP-serveren en{" "}
-          <strong>rute</strong> i fleet-gateway, adressen <code>/mcp/team/navn</code>, og team dere gir tilgang kan
+          <strong>rute</strong> i fleet-gateway, adressen <code>/mcp/team/navn</code>, og team dere gir tilgang, kan
           bruke den.
         </BodyLong>
         <BodyLong>
@@ -81,9 +81,6 @@ export default async function FleetPage({ searchParams }: Props) {
       </KortFortalt>
       {picked ? (
         <>
-          <BodyLong>
-            <RegisterLink />
-          </BodyLong>
           {pending.length > 0 && <PendingInbox agents={pending} />}
           <TeamSections teams={[picked]} />
         </>

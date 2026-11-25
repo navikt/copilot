@@ -54,7 +54,7 @@ Agent profiles are written through `/apis/fleet.nav.no/v1alpha1/namespaces/{name
 - Another person in the owner team approves with `generation` and `contentHash` (`POST .../approval`). The two-person rule compares the Entra `oid`, which is stored but never shown, except your own in `whoami`. A person token without `oid` gets 401. A seeded submitter, or one from before v1alpha1, cannot be approved: a person submits again.
 - `contentHash` is `v1:sha256:` over the normalised spec (sets sorted) in RFC 8785 form. Hashes compare as whole strings. Agent profiles have one hash per grant, which the server's owner team approves.
 - `revocation` (one person in the owner team or `FLEET_CONTROL_OPERATOR_TEAM`) is final for that generation; `rollback` never lifts it and refuses revoked or blocked generations and their content with 409. `block: true` stops the content from ever being submitted again.
-- `mcpservercatalogentries` shows published, unrevoked servers to every signed-in person, with its own field list.
+- `mcpservercatalogentries` shows published, unrevoked servers to every signed-in person, with its own field list. The single entry also lists the live agent profiles with access (`status.consumers`, names only).
 - Non-members get 404 whether or not a resource exists. A failed team lookup is 503.
 
 ### AgentJob

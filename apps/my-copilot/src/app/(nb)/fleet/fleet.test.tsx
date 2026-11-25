@@ -81,6 +81,11 @@ const routes: Record<string, unknown> = {
       allowedTools: ["hent_sak"],
       tools: [{ name: "hent_sak", description: "Henter én sak." }],
     },
+    status: {
+      publishedGeneration: 1,
+      route: { path: "/mcp/team-b/saker" },
+      consumers: [{ namespace: "team-a", name: "studio" }],
+    },
   },
   [`${API}/whoami`]: { name: "A123456", oid: "x", teams: ["team-a"] },
   [`${API}/namespaces/team-a/mcpservers`]: { items: [server()] },
@@ -142,8 +147,9 @@ describe("/fleet", () => {
     expect(screen.getByText("MCP-server team-a/docs")).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "team-a" })).toBeInTheDocument();
     expect(screen.queryByRole("tab")).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Registrer en MCP-server" })).toHaveAttribute("href", "/fleet/registrer");
-    expect(screen.getByRole("link", { name: "Registrer en MCP-server" })).toHaveClass("aksel-link");
+    expect(screen.getAllByRole("link", { name: /Registrer/ })).toHaveLength(1);
+    expect(screen.getByRole("link", { name: "Registrer MCP-server" })).toHaveAttribute("href", "/fleet/registrer");
+    expect(screen.getByRole("link", { name: "Registrer MCP-server" })).toHaveClass("aksel-link");
     expect(screen.getByRole("navigation", { name: "Fleet" })).toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: "docs" })[0]).toHaveAttribute("href", "/fleet/mcp-servere/team-a/docs");
     expect(screen.getByText("Ny versjon venter")).toBeInTheDocument();
@@ -173,7 +179,7 @@ describe("/fleet", () => {
     render(await CatalogPage());
     const table = () => screen.getByRole("table", { name: "Publiserte MCP-servere" });
     expect(table()).toHaveTextContent("team-b");
-    expect(table()).toHaveTextContent("Fortrolig");
+    expect(table()).toHaveTextContent("Fortrolige data");
     fireEvent.change(screen.getByRole("textbox", { name: /Søk/ }), { target: { value: "SAK" } });
     expect(screen.queryByRole("link", { name: "docs" })).not.toBeInTheDocument();
     expect(screen.getByRole("link", { name: "saker" })).toBeInTheDocument();
@@ -224,7 +230,8 @@ describe("/fleet", () => {
     expect(screen.getByRole("heading", { name: "Velg team" })).toBeInTheDocument();
     unmount();
     render(await FleetPage(sp("Not a label!")));
-    expect(screen.getByText(/Du er ikke med i Not a label!/)).toBeInTheDocument();
+    expect(screen.getByText(/Du er ikke med i det teamet\./)).toBeInTheDocument();
+    expect(screen.queryByText(/Not a label/)).not.toBeInTheDocument();
   });
 
   it("shows an Alert on 403 and 409, and a retry on 503", async () => {
@@ -339,7 +346,7 @@ describe("/fleet", () => {
 
   it("shows another team's published MCP server read-only, without history or actions", async () => {
     render(await ServerPage(params("team-b", "saker")));
-    expect(screen.getByText("Fortrolig")).toBeInTheDocument();
+    expect(screen.getByText("Fortrolige data")).toBeInTheDocument();
     expect(screen.getByText("/mcp/team-b/saker")).toBeInTheDocument();
     expect(screen.getByText("hent_sak")).toBeInTheDocument();
     expect(screen.getByText(/Henter én sak\./)).toBeInTheDocument();
@@ -349,7 +356,11 @@ describe("/fleet", () => {
       "href",
       "https://console.nav.cloud.nais.io/team/team-b"
     );
-    expect(screen.getByRole("heading", { name: "Konsumenter" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Team med tilgang" })).toBeInTheDocument();
+    const consumers = screen.getByRole("table", { name: "Agentprofiler med tilgang" });
+    expect(consumers).toHaveTextContent("team-a");
+    expect(consumers).toHaveTextContent("studio");
+    expect(screen.getByText("Teamet ditt har tilgang gjennom studio.")).toBeInTheDocument();
     const urls = vi.mocked(fetch).mock.calls.map((c) => String(c[0]));
     expect(urls).toContain(`http://fc${API}/namespaces/team-b/mcpservercatalogentries/saker`);
   });
@@ -483,7 +494,7 @@ describe("/fleet", () => {
   it("explains each data category, preselects none, and shows the accessPolicy snippet", async () => {
     const { default: RegisterPage } = await import("./registrer/page");
     render(await RegisterPage());
-    for (const name of ["Åpen", "Intern", "Fortrolig"]) {
+    for (const name of ["Åpne data", "Interne data", "Fortrolige data"]) {
       const radio = screen.getByRole("radio", { name });
       expect(radio).not.toBeChecked();
       expect(radio).toHaveAccessibleDescription(/\w/);

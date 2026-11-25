@@ -463,7 +463,7 @@ export function ServerDetail({
 }
 
 const specRows = (s?: MCPServerSpec): [string, string][] => [
-  ["Datakategori", s?.dataCategory ?? "–"],
+  ["Datakategori", DATA_CATEGORIES.find((d) => d[0] === s?.dataCategory)?.[1] ?? s?.dataCategory ?? "–"],
   ["App", s?.upstream?.app ?? "–"],
   ["Adresse til appen", s?.upstream?.url ?? "–"],
   ["Verktøy", s?.allowedTools?.join(", ") || "–"],
@@ -807,16 +807,16 @@ export function AccessPolicy({ app }: { app?: string }) {
 }
 
 const DATA_CATEGORIES: [string, string, string][] = [
-  ["Aapen", "Åpen", "Kan deles med alle, også utenfor Nav. For eksempel offentlige kodeverk og regelverk."],
+  ["Aapen", "Åpne data", "Kan deles med alle, også utenfor Nav. For eksempel offentlige kodeverk og regelverk."],
   [
     "Intern",
-    "Intern",
+    "Interne data",
     "For ansatte i Nav. Ikke personopplysninger og ikke taushetsbelagt. For eksempel interne rutiner og systemdokumentasjon.",
   ],
   [
     "Fortrolig",
-    "Fortrolig",
-    "Kan skade personer eller Nav hvis det kommer på avveie, for eksempel personopplysninger. Velg Fortrolig hvis du er i tvil.",
+    "Fortrolige data",
+    "Kan skade personer eller Nav hvis det kommer på avveie, for eksempel personopplysninger. Velg Fortrolige data hvis du er i tvil.",
   ],
 ];
 
