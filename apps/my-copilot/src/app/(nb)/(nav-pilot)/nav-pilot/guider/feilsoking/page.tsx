@@ -316,8 +316,8 @@ cplt check exec docker                         # får agenten kjøre programmet?
             <code className={code}>uv tool install</code> og <code className={code}>uv python install</code> må du kjøre
             i en vanlig terminal utenfor agenten. Verktøy og Python-versjoner som allerede er installert, kjører som
             før. Trenger du å installere inne i sandkassen likevel, start med{" "}
-            <code className={code}>--allow-write ~/.local/share/uv</code>. Da kan agenten endre programmer du kjører
-            senere.
+            <code className={code}>--allow-write ~/.local/share/uv</code>. Det du installerer slik, kan ikke kjøres i
+            sandkassen, og agenten kan endre programmer du senere kjører utenfor.
           </BodyLong>
         </VStack>
       </section>
