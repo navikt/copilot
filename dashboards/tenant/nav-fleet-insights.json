@@ -123,10 +123,10 @@
           "uid": "${DS_METRICS}"
         },
         "query": {
-          "query": "label_values(fleet_gateway_mcp_requests_total{namespace=\"copilot\", k8s_cluster_name=~\"$env\"}, route)",
+          "query": "label_values(fleet_gateway_mcp_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\"}, route)",
           "refId": "route"
         },
-        "definition": "label_values(fleet_gateway_mcp_requests_total{namespace=\"copilot\", k8s_cluster_name=~\"$env\"}, route)",
+        "definition": "label_values(fleet_gateway_mcp_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\"}, route)",
         "multi": true,
         "includeAll": true,
         "allValue": ".*",

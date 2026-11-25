@@ -296,7 +296,7 @@
     {
       "type": "stat",
       "title": "Failed MCP calls/s",
-      "description": "Failures use the SLO definition: every outcome except ok, unauthorized (OAuth handshake 401), disabled (kill switch) and tool_denied. user_cap and user_sse_cap count as failures.",
+      "description": "Every outcome except ok, unauthorized, disabled and tool_denied, so upstream_<code> and upstream_error are included. This is broader than the SLO in #2972. The SLO counts as errors only store_error, upstream_token_error, over_capacity, sse_over_capacity, user_cap and user_sse_cap, and excludes unauthorized, disabled and tool_denied from the total.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_METRICS}"
@@ -462,7 +462,7 @@
       },
       "targets": [
         {
-          "expr": "max(fleet_gateway:slo_availability_errors:ratio_rate5m{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", route=~\"$route\"})",
+          "expr": "max((fleet_gateway:slo_availability_errors:ratio_rate5m{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", route=~\"$route\"} >= 0))",
           "legendFormat": "",
           "refId": "A"
         }
@@ -552,7 +552,7 @@
     {
       "type": "stat",
       "title": "Availability (1 d) by route",
-      "description": "Share of counted MCP calls that succeeded over the last day, per route. Orange below 97 % and red below 92.8 %, the slow (3 %) and fast (7.2 %) burn thresholds on the error ratio. A route with fewer than 20 counted calls in a day shows no tile: too little traffic to judge. Errors follow the SLO in #2972: gateway faults count as bad (store_error, upstream_token_error, over_capacity, sse_over_capacity, user_cap, user_sse_cap); unauthorized, disabled and tool_denied are left out of the total; upstream_<code> and upstream_error are not counted as bad. Target 99.5 % availability per route per month. The latency SLO (p95 below 1 s, SSE excluded) has no panel until #2973 adds an SSE label.",
+      "description": "Share of counted MCP calls that succeeded over the last day, per route. Red below 97 %: an error ratio of 3 %, which is 6x burn, the slow alert's threshold on its own 1 d window. The fast alert (14.4x) uses 5 min and 1 h windows; see the fast burn panel. A route with fewer than 20 counted calls in a day shows no tile: too little traffic to judge. Errors follow the SLO in #2972: gateway faults count as bad (store_error, upstream_token_error, over_capacity, sse_over_capacity, user_cap, user_sse_cap); unauthorized, disabled and tool_denied are left out of the total; upstream_<code> and upstream_error are not counted as bad. Target 99.5 % availability per route per month. The latency SLO (p95 below 1 s, SSE excluded) has no panel until #2973 adds an SSE label.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_METRICS}"
@@ -572,10 +572,6 @@
                 "value": null
               },
               {
-                "color": "orange",
-                "value": 0.928
-              },
-              {
                 "color": "green",
                 "value": 0.97
               }
@@ -587,7 +583,7 @@
       },
       "targets": [
         {
-          "expr": "(1 - fleet_gateway:slo_availability_errors:ratio_rate1d{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", route=~\"$route\"}) and on (namespace, k8s_cluster_name, route) (fleet_gateway:slo_availability_requests:increase1d{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", route=~\"$route\"} >= 20)",
+          "expr": "(1 - (fleet_gateway:slo_availability_errors:ratio_rate1d{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", route=~\"$route\"} >= 0)) and on (namespace, k8s_cluster_name, route) (fleet_gateway:slo_availability_requests:increase1d{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", route=~\"$route\"} >= 20)",
           "legendFormat": "{{route}}",
           "refId": "A"
         }
@@ -649,7 +645,7 @@
       },
       "targets": [
         {
-          "expr": "fleet_gateway:slo_5xx:ratio_rate1d{namespace=\"$namespace\", k8s_cluster_name=~\"$env\"}",
+          "expr": "(fleet_gateway:slo_5xx:ratio_rate1d{namespace=\"$namespace\", k8s_cluster_name=~\"$env\"} >= 0)",
           "legendFormat": "",
           "refId": "A"
         }
@@ -679,8 +675,8 @@
     },
     {
       "type": "timeseries",
-      "title": "Availability burn rate (1 h and 6 h)",
-      "description": "Error ratio divided by the error budget (0.5 %). 1 means the budget lasts exactly the month. The dashed lines are the alert thresholds: 6x (FleetGatewayAvailabilityBurnSlow) and 14.4x (FleetGatewayAvailabilityBurnFast). Errors follow the SLO in #2972: gateway faults count as bad (store_error, upstream_token_error, over_capacity, sse_over_capacity, user_cap, user_sse_cap); unauthorized, disabled and tool_denied are left out of the total; upstream_<code> and upstream_error are not counted as bad. Target 99.5 % availability per route per month. The latency SLO (p95 below 1 s, SSE excluded) has no panel until #2973 adds an SSE label.",
+      "title": "Fast burn (5 min and 1 h)",
+      "description": "Error ratio divided by the error budget (0.5 %), over the two windows FleetGatewayAvailabilityBurnFast uses. It fires when both are above 14.4x (dashed line). Errors follow the SLO in #2972: gateway faults count as bad (store_error, upstream_token_error, over_capacity, sse_over_capacity, user_cap, user_sse_cap); unauthorized, disabled and tool_denied are left out of the total; upstream_<code> and upstream_error are not counted as bad. Target 99.5 % availability per route per month. The latency SLO (p95 below 1 s, SSE excluded) has no panel until #2973 adds an SSE label.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_METRICS}"
@@ -698,10 +694,6 @@
               {
                 "color": "green",
                 "value": null
-              },
-              {
-                "color": "orange",
-                "value": 6
               },
               {
                 "color": "red",
@@ -722,13 +714,13 @@
       },
       "targets": [
         {
-          "expr": "fleet_gateway:slo_availability_errors:ratio_rate1h{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", route=~\"$route\"} / 0.005",
-          "legendFormat": "{{route}} 1 h",
+          "expr": "(fleet_gateway:slo_availability_errors:ratio_rate5m{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", route=~\"$route\"} >= 0) / 0.005",
+          "legendFormat": "{{route}} 5m",
           "refId": "A"
         },
         {
-          "expr": "fleet_gateway:slo_availability_errors:ratio_rate6h{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", route=~\"$route\"} / 0.005",
-          "legendFormat": "{{route}} 6 h",
+          "expr": "(fleet_gateway:slo_availability_errors:ratio_rate1h{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", route=~\"$route\"} >= 0) / 0.005",
+          "legendFormat": "{{route}} 1h",
           "refId": "B"
         }
       ],
@@ -753,8 +745,85 @@
       "id": 11,
       "gridPos": {
         "h": 8,
-        "w": 12,
+        "w": 8,
         "x": 0,
+        "y": 10
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Slow burn (6 h and 1 d)",
+      "description": "Error ratio divided by the error budget (0.5 %), over the two windows FleetGatewayAvailabilityBurnSlow uses. It fires when both are above 6x (dashed line). Errors follow the SLO in #2972: gateway faults count as bad (store_error, upstream_token_error, over_capacity, sse_over_capacity, user_cap, user_sse_cap); unauthorized, disabled and tool_denied are left out of the total; upstream_<code> and upstream_error are not counted as bad. Target 99.5 % availability per route per month. The latency SLO (p95 below 1 s, SSE excluded) has no panel until #2973 adds an SSE label.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_METRICS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "noValue": "too little traffic",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 6
+              }
+            ]
+          },
+          "custom": {
+            "thresholdsStyle": {
+              "mode": "dashed"
+            },
+            "lineWidth": 1,
+            "fillOpacity": 0
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "(fleet_gateway:slo_availability_errors:ratio_rate6h{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", route=~\"$route\"} >= 0) / 0.005",
+          "legendFormat": "{{route}} 6h",
+          "refId": "A"
+        },
+        {
+          "expr": "(fleet_gateway:slo_availability_errors:ratio_rate1d{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", route=~\"$route\"} >= 0) / 0.005",
+          "legendFormat": "{{route}} 1d",
+          "refId": "B"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ],
+          "sortBy": "Max",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "id": 70,
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
         "y": 10
       }
     },
@@ -824,8 +893,8 @@
       "id": 12,
       "gridPos": {
         "h": 8,
-        "w": 12,
-        "x": 12,
+        "w": 8,
+        "x": 16,
         "y": 10
       }
     },
@@ -1031,7 +1100,7 @@
     {
       "type": "stat",
       "title": "Failed MCP calls (5 min)",
-      "description": "Failures use the SLO definition: every outcome except ok, unauthorized (OAuth handshake 401), disabled (kill switch) and tool_denied. user_cap and user_sse_cap count as failures.",
+      "description": "Every outcome except ok, unauthorized, disabled and tool_denied, so upstream_<code> and upstream_error are included. This is broader than the SLO in #2972. The SLO counts as errors only store_error, upstream_token_error, over_capacity, sse_over_capacity, user_cap and user_sse_cap, and excludes unauthorized, disabled and tool_denied from the total.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_METRICS}"
@@ -1510,7 +1579,7 @@
     {
       "type": "timeseries",
       "title": "Failed MCP calls by route and outcome",
-      "description": "Failures use the SLO definition: every outcome except ok, unauthorized (OAuth handshake 401), disabled (kill switch) and tool_denied. user_cap and user_sse_cap count as failures.",
+      "description": "Every outcome except ok, unauthorized, disabled and tool_denied, so upstream_<code> and upstream_error are included. This is broader than the SLO in #2972. The SLO counts as errors only store_error, upstream_token_error, over_capacity, sse_over_capacity, user_cap and user_sse_cap, and excludes unauthorized, disabled and tool_denied from the total.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_METRICS}"
@@ -2635,9 +2704,9 @@
               "refId": "A"
             }
           ],
-          "title": "Requests by outcome (counted by SLO)",
+          "title": "Requests by outcome (in the SLO total)",
           "type": "timeseries",
-          "description": "Outcomes the SLO counts. Every outcome except ok is a failure; user_cap and user_sse_cap count as failures. Excluded outcomes are in the next panel."
+          "description": "Outcomes in the SLO total: everything except unauthorized, disabled and tool_denied. Of these, only store_error, upstream_token_error, over_capacity, sse_over_capacity, user_cap and user_sse_cap are SLO errors (#2972); ok, upstream_<code> and upstream_error are not. Excluded outcomes are in the next panel."
         },
         {
           "datasource": {
