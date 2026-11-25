@@ -157,7 +157,16 @@ func TestRouteSyncFailsClosed(t *testing.T) {
 	pathMismatch := snapRoute("eps")
 	pathMismatch["path"] = "/mcp/copilot/other"
 
+	noEnabled := snapRoute("zeta")
+	delete(noEnabled, "enabled")
+	delete(noEnabled, "tools")
+	nullEnabled := snapRoute("eta")
+	nullEnabled["enabled"] = nil
+	nullEnabled["tools"] = nil
+
 	cases := map[string]func(f *fakeFleetControl){
+		"missing enabled":     func(f *fakeFleetControl) { f.body = snapBody(2, primaryRoute(), snapRoute("alpha"), noEnabled) },
+		"null enabled":        func(f *fakeFleetControl) { f.body = snapBody(2, primaryRoute(), snapRoute("alpha"), nullEnabled) },
 		"empty snapshot":      func(f *fakeFleetControl) { f.body = snapBody(2) },
 		"invalid upstream":    func(f *fakeFleetControl) { f.body = snapBody(2, primaryRoute(), snapRoute("alpha"), bad) },
 		"route without tools": func(f *fakeFleetControl) { f.body = snapBody(2, primaryRoute(), snapRoute("alpha"), noTools) },
