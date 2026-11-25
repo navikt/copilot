@@ -66,7 +66,7 @@ func main() {
 		loader = func(ctx context.Context) ([]DBEntry, error) {
 			d := db.Load()
 			if d == nil {
-				return nil, errors.New("database not connected")
+				return nil, errDBNotConnected
 			}
 			return d.GetApprovedEntries(ctx)
 		}

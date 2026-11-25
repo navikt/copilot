@@ -1028,3 +1028,12 @@ func TestServersListHandler_OnboardingGatewayFirst(t *testing.T) {
 	}
 	t.Fatal("io.github.navikt/mcp-onboarding not listed")
 }
+
+func TestLogName(t *testing.T) {
+	if got := logName("a\nb\x1b[31mc\t"); got != "ab[31mc" {
+		t.Errorf("control chars not stripped: %q", got)
+	}
+	if got := logName(strings.Repeat("x", 300)); len(got) != 200 {
+		t.Errorf("len = %d, want 200", len(got))
+	}
+}
