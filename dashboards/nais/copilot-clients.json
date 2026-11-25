@@ -64,7 +64,7 @@
           "description": "",
           "id": 1,
           "links": [],
-          "title": "LLM-latens (p95)",
+          "title": "LLM latency (p95)",
           "vizConfig": {
             "group": "timeseries",
             "kind": "VizConfig",
@@ -188,7 +188,7 @@
           "description": "",
           "id": 2,
           "links": [],
-          "title": "Forespørsler per leverandør",
+          "title": "Requests by provider",
           "vizConfig": {
             "group": "barchart",
             "kind": "VizConfig",
@@ -298,7 +298,7 @@
           "description": "",
           "id": 3,
           "links": [],
-          "title": "Verktøykjøringer i agenten (friksjon)",
+          "title": "Agent tool executions (friction)",
           "vizConfig": {
             "group": "barchart",
             "kind": "VizConfig",
@@ -408,7 +408,7 @@
           "description": "",
           "id": 4,
           "links": [],
-          "title": "MCP-tilkoblinger",
+          "title": "MCP connections",
           "vizConfig": {
             "group": "barchart",
             "kind": "VizConfig",
@@ -518,7 +518,7 @@
           "description": "",
           "id": 5,
           "links": [],
-          "title": "Tokenforbruk per modell (inn og ut)",
+          "title": "Token usage by model (input and output)",
           "vizConfig": {
             "group": "timeseries",
             "kind": "VizConfig",
@@ -640,7 +640,7 @@
           "description": "",
           "id": 6,
           "links": [],
-          "title": "LLM-forespørsler totalt",
+          "title": "Total LLM requests",
           "vizConfig": {
             "group": "timeseries",
             "kind": "VizConfig",
@@ -770,7 +770,7 @@
                   ]
                 }
               },
-              "title": "Plattformhelse og varsling"
+              "title": "Platform health and alerting"
             }
           },
           {
@@ -810,7 +810,7 @@
                   ]
                 }
               },
-              "title": "Kvalitet og agentoppførsel"
+              "title": "Quality and agent behaviour"
             }
           },
           {
@@ -850,7 +850,7 @@
                   ]
                 }
               },
-              "title": "ROI og optimalisering"
+              "title": "ROI and optimisation"
             }
           }
         ]
@@ -883,7 +883,7 @@
       "timezone": "browser",
       "to": "now"
     },
-    "title": "GitHub Copilot-klienter (nais)",
+    "title": "GitHub Copilot clients (nais)",
     "variables": [
       {
         "kind": "DatasourceVariable",

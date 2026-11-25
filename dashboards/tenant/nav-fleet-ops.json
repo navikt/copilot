@@ -20,8 +20,8 @@
   "schemaVersion": 42,
   "fiscalYearStartMonth": 0,
   "uid": "copilot-fleet-ops",
-  "title": "nav-fleet: drift",
-  "description": "Helse for fleet-gateway, fleet-control, mcp-registry og MCP-serverne. Panelene følger alertene i .nais/app.yaml.",
+  "title": "nav-fleet: operations",
+  "description": "Health of fleet-gateway, fleet-control, mcp-registry and the MCP servers. Panels follow the alerts in .nais/app.yaml.",
   "tags": [
     "copilot",
     "domain:nav-fleet",
@@ -35,7 +35,7 @@
   "timezone": "browser",
   "links": [
     {
-      "title": "Copilot: oversikt",
+      "title": "Copilot: overview",
       "type": "link",
       "url": "/d/copilot-ecosystem",
       "icon": "dashboard",
@@ -45,7 +45,7 @@
       "tooltip": ""
     },
     {
-      "title": "nav-fleet: bruk",
+      "title": "nav-fleet: usage",
       "type": "link",
       "url": "/d/copilot-fleet-insights?${__url_time_range}&${__all_variables}",
       "icon": "dashboard",
@@ -99,7 +99,7 @@
       },
       {
         "name": "env",
-        "label": "Miljø",
+        "label": "Environment",
         "type": "custom",
         "query": "dev,prod",
         "multi": true,
@@ -128,7 +128,7 @@
   "panels": [
     {
       "type": "row",
-      "title": "Oversikt",
+      "title": "Overview",
       "id": 1,
       "gridPos": {
         "h": 1,
@@ -141,8 +141,8 @@
     },
     {
       "type": "stat",
-      "title": "Forespørsler/s",
-      "description": "MCP-forespørsler gjennom gatewayen.",
+      "title": "Requests/s",
+      "description": "MCP requests through the gateway.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_METRICS}"
@@ -198,8 +198,8 @@
     },
     {
       "type": "stat",
-      "title": "5xx-andel",
-      "description": "Rød over 10 %, som alerten FleetGatewayHigh5xxRate. Bevisste 503 med reason telles ikke.",
+      "title": "5xx rate",
+      "description": "Red above 10 %, like the alert FleetGatewayHigh5xxRate. Deliberate 503s with a reason are not counted.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_METRICS}"
@@ -259,8 +259,8 @@
     },
     {
       "type": "stat",
-      "title": "Lastsheding/s",
-      "description": "Rød over 5 per 5 min, som alerten SustainedShedding.",
+      "title": "Load shedding/s",
+      "description": "Red above 5 per 5 min, like the alert SustainedShedding.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_METRICS}"
@@ -320,8 +320,8 @@
     },
     {
       "type": "stat",
-      "title": "Latens p95",
-      "description": "Ingen alert på latens; vises for trend.",
+      "title": "Latency p95",
+      "description": "No latency alert; shown for trend.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_METRICS}"
@@ -377,8 +377,8 @@
     },
     {
       "type": "stat",
-      "title": "Alder på rute-snapshot",
-      "description": "Rød over 600 s, som alerten RouteSnapshotStale.",
+      "title": "Route snapshot age",
+      "description": "Red above 600 s, like the alert RouteSnapshotStale. Only dev reads routes from fleet-control; prod reads them from git and has no snapshot.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_METRICS}"
@@ -389,7 +389,7 @@
           "color": {
             "mode": "thresholds"
           },
-          "noValue": "—",
+          "noValue": "n/a in prod (routes from git)",
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -438,8 +438,8 @@
     },
     {
       "type": "stat",
-      "title": "Klare replikaer",
-      "description": "Rød ved 0, som alerten NoReadyPods.",
+      "title": "Ready replicas",
+      "description": "Red at 0, like the alert NoReadyPods.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_METRICS}"
@@ -499,7 +499,7 @@
     },
     {
       "type": "row",
-      "title": "Helse og alarmer",
+      "title": "Health and alerts",
       "id": 8,
       "gridPos": {
         "h": 1,
@@ -509,6 +509,337 @@
       },
       "collapsed": false,
       "panels": []
+    },
+    {
+      "type": "stat",
+      "title": "Load shedding",
+      "description": "503s from shedding over the range. Red above 5, the SustainedShedding threshold per 5 min.",
+      "interval": "5m",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_METRICS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "0",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 6
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "sum"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(fleet_gateway_http_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", code=\"503\", reason=~\"store_full|cap\"}[$__interval]))",
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "id": 9,
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 6
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Rate limited",
+      "description": "429s over the range. Red above 20, the SustainedRateLimiting threshold per 5 min.",
+      "interval": "5m",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_METRICS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "0",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 21
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "sum"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(fleet_gateway_rate_limited_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\"}[$__interval]))",
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "id": 10,
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 6
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Upstream token errors",
+      "description": "Over the range. Red above 5, the UpstreamTokenErrors threshold per 10 min.",
+      "interval": "5m",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_METRICS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "0",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 6
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "sum"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(fleet_gateway_mcp_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", outcome=\"upstream_token_error\"}[$__interval]))",
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "id": 11,
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 6
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Route sync failures",
+      "description": "Over the range. No alert; amber from 1.",
+      "interval": "5m",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_METRICS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "0",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "sum"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(fleet_gateway_route_sync_failures_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app=\"fleet-gateway\"}[$__interval]))",
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "id": 12,
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 12,
+        "y": 6
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Container restarts",
+      "description": "fleet-gateway restarts over the range. Red above 2, the PodRestarts threshold per 15 min.",
+      "interval": "5m",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_METRICS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "noValue": "0",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 3
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "sum"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto",
+        "wideLayout": true
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(kube_pod_container_status_restarts_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", container=\"fleet-gateway\"}[$__interval]))",
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "id": 13,
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 16,
+        "y": 6
+      }
     },
     {
       "datasource": {
@@ -551,8 +882,9 @@
               "mode": "none"
             },
             "thresholdsStyle": {
-              "mode": "off"
-            }
+              "mode": "dashed"
+            },
+            "axisSoftMax": 0.2
           },
           "mappings": [],
           "noValue": "—",
@@ -561,25 +893,26 @@
             "steps": [
               {
                 "color": "green",
-                "value": 0
+                "value": null
               },
               {
                 "color": "red",
-                "value": 80
+                "value": 0.1
               }
             ]
           },
-          "unit": "percentunit"
+          "unit": "percentunit",
+          "min": 0
         },
         "overrides": []
       },
       "gridPos": {
         "h": 8,
-        "w": 12,
+        "w": 8,
         "x": 0,
-        "y": 6
+        "y": 10
       },
-      "id": 9,
+      "id": 14,
       "options": {
         "legend": {
           "calcs": [
@@ -603,211 +936,13 @@
       "targets": [
         {
           "expr": "sum(rate(fleet_gateway_http_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", code=~\"5..\", reason=\"\"}[$__rate_interval])) / sum(rate(fleet_gateway_http_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\"}[$__rate_interval]))",
-          "legendFormat": "5xx-andel",
+          "legendFormat": "5xx rate",
           "refId": "A"
         }
       ],
-      "title": "5xx-andel (uten bevisst avvisning)",
+      "title": "5xx rate (excluding deliberate rejections)",
       "type": "timeseries",
-      "description": "Samme uttrykk som varselet FleetGatewayHigh5xxRate: 5xx uten reason-etikett. Varsler over 10 %."
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_METRICS}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 2,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "showValues": false,
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "noValue": "—",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "reqps"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 6
-      },
-      "id": 10,
-      "options": {
-        "legend": {
-          "calcs": [
-            "sum"
-          ],
-          "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true,
-          "sortBy": "Total",
-          "sortDesc": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "pluginVersion": "12.3.2",
-      "targets": [
-        {
-          "expr": "sum by (reason) (rate(fleet_gateway_http_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", code=\"503\", reason!=\"\"}[$__rate_interval]))",
-          "legendFormat": "{{reason}}",
-          "refId": "A"
-        }
-      ],
-      "title": "Lastsheding per årsak",
-      "type": "timeseries",
-      "description": "503 med reason: cap, user_cap, user_sse_cap, store_full, refresh_in_flight, disabled."
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_METRICS}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 2,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "showValues": false,
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "noValue": "—",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "reqps"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 14
-      },
-      "id": 11,
-      "options": {
-        "legend": {
-          "calcs": [
-            "sum"
-          ],
-          "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true,
-          "sortBy": "Total",
-          "sortDesc": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "pluginVersion": "12.3.2",
-      "targets": [
-        {
-          "expr": "sum by (oauth_endpoint) (rate(fleet_gateway_rate_limited_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\"}[$__rate_interval]))",
-          "legendFormat": "{{oauth_endpoint}}",
-          "refId": "A"
-        }
-      ],
-      "title": "Rate-begrenset per endepunkt",
-      "type": "timeseries",
-      "description": "Avviste kall (429) per OAuth-endepunkt."
+      "description": "Same expression as the alert FleetGatewayHigh5xxRate: 5xx without a reason label. Alerts above 10 %."
     },
     {
       "datasource": {
@@ -867,117 +1002,18 @@
               }
             ]
           },
-          "unit": "short",
-          "decimals": 0
+          "unit": "s",
+          "noValue": "n/a in prod (routes from git)"
         },
         "overrides": []
       },
       "gridPos": {
         "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 14
+        "w": 8,
+        "x": 8,
+        "y": 10
       },
-      "id": 12,
-      "options": {
-        "legend": {
-          "calcs": [
-            "sum"
-          ],
-          "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true,
-          "sortBy": "Total",
-          "sortDesc": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "pluginVersion": "12.3.2",
-      "targets": [
-        {
-          "expr": "sum by (route) (increase(fleet_gateway_mcp_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", outcome=\"upstream_token_error\"}[10m]))",
-          "legendFormat": "{{route}}",
-          "refId": "A"
-        }
-      ],
-      "title": "Upstream-tokenfeil",
-      "type": "timeseries",
-      "description": "Alert UpstreamTokenErrors: mer enn 5 på 10 min.",
-      "interval": "5m"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_METRICS}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "line",
-            "fillOpacity": 20,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 2,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "showValues": false,
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "s"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 22
-      },
-      "id": 13,
+      "id": 15,
       "options": {
         "legend": {
           "calcs": [
@@ -1005,114 +1041,9 @@
           "refId": "A"
         }
       ],
-      "title": "Alder på rute-snapshot",
+      "title": "Route snapshot age",
       "type": "timeseries",
-      "description": "Alert RouteSnapshotStale ved over 600 s."
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_METRICS}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "line",
-            "fillOpacity": 20,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 2,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "showValues": false,
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "short",
-          "decimals": 0
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 22
-      },
-      "id": 14,
-      "options": {
-        "legend": {
-          "calcs": [
-            "sum"
-          ],
-          "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true,
-          "sortBy": "Total",
-          "sortDesc": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "pluginVersion": "12.3.2",
-      "targets": [
-        {
-          "expr": "sum(increase(fleet_gateway_route_sync_failures_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app=\"fleet-gateway\"}[$__interval]))",
-          "legendFormat": "synk",
-          "refId": "A"
-        },
-        {
-          "expr": "sum(increase(fleet_gateway_routes_shadow_failures_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app=\"fleet-gateway\"}[$__interval]))",
-          "legendFormat": "skygge",
-          "refId": "B"
-        }
-      ],
-      "title": "Rutesynk-feil",
-      "type": "timeseries",
-      "description": "",
-      "interval": "5m"
+      "description": "Alert RouteSnapshotStale above 600 s. Only dev reads routes from fleet-control; prod reads them from git and has no snapshot."
     },
     {
       "datasource": {
@@ -1178,11 +1109,11 @@
       },
       "gridPos": {
         "h": 8,
-        "w": 12,
-        "x": 0,
-        "y": 30
+        "w": 8,
+        "x": 16,
+        "y": 10
       },
-      "id": 15,
+      "id": 16,
       "options": {
         "legend": {
           "calcs": [
@@ -1206,128 +1137,545 @@
       "targets": [
         {
           "expr": "sum by (deployment) (kube_deployment_status_replicas_ready{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", deployment=~\"fleet-gateway|fleet-control|mcp-registry|mcp-onboarding|mcp-dolly|mcp-kodeverk|mcp-team-catalog\"})",
-          "legendFormat": "{{deployment}} klar",
+          "legendFormat": "{{deployment}} ready",
           "refId": "A"
         },
         {
           "expr": "sum by (deployment) (kube_deployment_spec_replicas{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", deployment=~\"fleet-gateway|fleet-control|mcp-registry|mcp-onboarding|mcp-dolly|mcp-kodeverk|mcp-team-catalog\"})",
-          "legendFormat": "{{deployment}} ønsket",
+          "legendFormat": "{{deployment}} desired",
           "refId": "B"
         }
       ],
-      "title": "Klare replikaer mot ønsket",
+      "title": "Ready vs desired replicas",
       "type": "timeseries",
-      "description": "Alert NoReadyPods slår til når en deployment har 0 tilgjengelige replikaer."
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_METRICS}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "line",
-            "fillOpacity": 20,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 2,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "showValues": false,
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "short",
-          "decimals": 0
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 30
-      },
-      "id": 16,
-      "options": {
-        "legend": {
-          "calcs": [
-            "sum"
-          ],
-          "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true,
-          "sortBy": "Total",
-          "sortDesc": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "pluginVersion": "12.3.2",
-      "targets": [
-        {
-          "expr": "sum by (container) (increase(kube_pod_container_status_restarts_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", container=~\"fleet-gateway|fleet-control|mcp-registry|mcp-onboarding|mcp-dolly|mcp-kodeverk|mcp-team-catalog\"}[$__interval]))",
-          "legendFormat": "{{container}}",
-          "refId": "A"
-        }
-      ],
-      "title": "Container-restarter",
-      "type": "timeseries",
-      "description": "Alert PodRestarts: mer enn 2 restarter på 15 min.",
-      "interval": "5m"
+      "description": "Alert NoReadyPods fires when a deployment has 0 available replicas."
     },
     {
       "type": "row",
-      "title": "Ruter og verktøy",
+      "title": "Health details",
       "id": 17,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 38
+        "y": 18
+      },
+      "collapsed": true,
+      "panels": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_METRICS}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 2,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "showValues": false,
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "noValue": "—",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": 0
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "reqps"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 19
+          },
+          "id": 18,
+          "options": {
+            "legend": {
+              "calcs": [
+                "sum"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true,
+              "sortBy": "Total",
+              "sortDesc": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "12.3.2",
+          "targets": [
+            {
+              "expr": "sum by (reason) (rate(fleet_gateway_http_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", code=\"503\", reason!=\"\"}[$__rate_interval]))",
+              "legendFormat": "{{reason}}",
+              "refId": "A"
+            }
+          ],
+          "title": "Load shedding by reason",
+          "type": "timeseries",
+          "description": "503 with a reason: cap, user_cap, user_sse_cap, store_full, refresh_in_flight, disabled."
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_METRICS}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 2,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "showValues": false,
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "noValue": "—",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": 0
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "reqps"
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 19
+          },
+          "id": 19,
+          "options": {
+            "legend": {
+              "calcs": [
+                "sum"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true,
+              "sortBy": "Total",
+              "sortDesc": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "12.3.2",
+          "targets": [
+            {
+              "expr": "sum by (oauth_endpoint) (rate(fleet_gateway_rate_limited_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\"}[$__rate_interval]))",
+              "legendFormat": "{{oauth_endpoint}}",
+              "refId": "A"
+            }
+          ],
+          "title": "Rate limited by endpoint",
+          "type": "timeseries",
+          "description": "Rejected calls (429) by OAuth endpoint."
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_METRICS}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 20,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 2,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "showValues": false,
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": 0
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "short",
+              "decimals": 0
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 27
+          },
+          "id": 20,
+          "options": {
+            "legend": {
+              "calcs": [
+                "sum"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true,
+              "sortBy": "Total",
+              "sortDesc": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "12.3.2",
+          "targets": [
+            {
+              "expr": "sum by (route) (increase(fleet_gateway_mcp_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", outcome=\"upstream_token_error\"}[10m]))",
+              "legendFormat": "{{route}}",
+              "refId": "A"
+            }
+          ],
+          "title": "Upstream token errors",
+          "type": "timeseries",
+          "description": "Alert UpstreamTokenErrors: more than 5 in 10 min.",
+          "interval": "5m"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_METRICS}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 20,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 2,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "showValues": false,
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": 0
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "short",
+              "decimals": 0
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 27
+          },
+          "id": 21,
+          "options": {
+            "legend": {
+              "calcs": [
+                "sum"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true,
+              "sortBy": "Total",
+              "sortDesc": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "12.3.2",
+          "targets": [
+            {
+              "expr": "sum(increase(fleet_gateway_route_sync_failures_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app=\"fleet-gateway\"}[$__interval]))",
+              "legendFormat": "sync",
+              "refId": "A"
+            },
+            {
+              "expr": "sum(increase(fleet_gateway_routes_shadow_failures_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app=\"fleet-gateway\"}[$__interval]))",
+              "legendFormat": "shadow",
+              "refId": "B"
+            }
+          ],
+          "title": "Route sync failures",
+          "type": "timeseries",
+          "description": "",
+          "interval": "5m"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_METRICS}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 20,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 2,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "showValues": false,
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": 0
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "short",
+              "decimals": 0
+            },
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 35
+          },
+          "id": 22,
+          "options": {
+            "legend": {
+              "calcs": [
+                "sum"
+              ],
+              "displayMode": "table",
+              "placement": "bottom",
+              "showLegend": true,
+              "sortBy": "Total",
+              "sortDesc": true
+            },
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "pluginVersion": "12.3.2",
+          "targets": [
+            {
+              "expr": "sum by (container) (increase(kube_pod_container_status_restarts_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", container=~\"fleet-gateway|fleet-control|mcp-registry|mcp-onboarding|mcp-dolly|mcp-kodeverk|mcp-team-catalog\"}[$__interval]))",
+              "legendFormat": "{{container}}",
+              "refId": "A"
+            }
+          ],
+          "title": "Container restarts",
+          "type": "timeseries",
+          "description": "Alert PodRestarts: more than 2 restarts in 15 min.",
+          "interval": "5m"
+        }
+      ]
+    },
+    {
+      "type": "row",
+      "title": "Routes and tools",
+      "id": 23,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 19
       },
       "collapsed": true,
       "panels": [
@@ -1398,9 +1746,9 @@
             "h": 4,
             "w": 24,
             "x": 0,
-            "y": 39
+            "y": 20
           },
-          "id": 18,
+          "id": 24,
           "options": {
             "reduceOptions": {
               "calcs": [
@@ -1417,13 +1765,13 @@
           "targets": [
             {
               "expr": "max(fleet_gateway_routes_loaded{namespace=\"$namespace\", k8s_cluster_name=~\"$env\"})",
-              "legendFormat": "ruter",
+              "legendFormat": "routes",
               "refId": "A"
             }
           ],
-          "title": "Ruter lastet",
+          "title": "Routes loaded",
           "type": "stat",
-          "description": "Antall ruter gatewayen har lastet fra konfigurasjonen."
+          "description": "Routes the gateway has loaded from its configuration."
         },
         {
           "datasource": {
@@ -1492,9 +1840,9 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 43
+            "y": 24
           },
-          "id": 19,
+          "id": 25,
           "options": {
             "legend": {
               "calcs": [
@@ -1520,9 +1868,9 @@
               "refId": "A"
             }
           ],
-          "title": "Forespørsler per rute",
+          "title": "Requests by route",
           "type": "timeseries",
-          "description": "Kall mot MCP-gatewayen per rute."
+          "description": "Calls to the MCP gateway by route."
         },
         {
           "datasource": {
@@ -1591,9 +1939,9 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 43
+            "y": 24
           },
-          "id": 20,
+          "id": 26,
           "options": {
             "legend": {
               "calcs": [
@@ -1619,9 +1967,9 @@
               "refId": "A"
             }
           ],
-          "title": "Utfall per rute",
+          "title": "Outcome by route",
           "type": "timeseries",
-          "description": "Alle kall slippes gjennom (decision=allow). Avvik vises som utfall: unauthorized, disabled, upstream_*."
+          "description": "All calls are let through (decision=allow). Deviations show as outcomes: unauthorized, disabled, upstream_*."
         },
         {
           "datasource": {
@@ -1690,9 +2038,9 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 51
+            "y": 32
           },
-          "id": 21,
+          "id": 27,
           "options": {
             "legend": {
               "calcs": [
@@ -1725,9 +2073,9 @@
               "refId": "B"
             }
           ],
-          "title": "Latens p50 / p95 per rute",
+          "title": "Latency p50 / p95 by route",
           "type": "timeseries",
-          "description": "Varighet for MCP-kall per rute."
+          "description": "MCP call duration by route."
         },
         {
           "datasource": {
@@ -1795,9 +2143,9 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 51
+            "y": 32
           },
-          "id": 22,
+          "id": 28,
           "options": {
             "legend": {
               "calcs": [
@@ -1825,9 +2173,9 @@
               "refId": "A"
             }
           ],
-          "title": "Ruter fra lagret snapshot",
+          "title": "Routes from stored snapshot",
           "type": "timeseries",
-          "description": "1 betyr at poden startet fra et lagret snapshot fordi fleet-control ikke svarte."
+          "description": "1 means the pod started from a stored snapshot because fleet-control did not answer."
         },
         {
           "datasource": {
@@ -1895,9 +2243,9 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 59
+            "y": 40
           },
-          "id": 23,
+          "id": 29,
           "options": {
             "legend": {
               "calcs": [
@@ -1925,7 +2273,7 @@
               "refId": "A"
             }
           ],
-          "title": "Ventende audit-hendelser (lockout-outbox)",
+          "title": "Pending audit events (lockout outbox)",
           "type": "timeseries",
           "description": ""
         },
@@ -1988,7 +2336,7 @@
                 ]
               },
               "unit": "short",
-              "noValue": "Venter på data (#2914)"
+              "noValue": "Waiting for data (#2914)"
             },
             "overrides": []
           },
@@ -1996,9 +2344,9 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 59
+            "y": 40
           },
-          "id": 24,
+          "id": 30,
           "options": {
             "legend": {
               "calcs": [
@@ -2026,7 +2374,7 @@
               "refId": "A"
             }
           ],
-          "title": "Rute aktivert (placeholder)",
+          "title": "Route enabled (placeholder)",
           "type": "timeseries",
           "description": "Placeholder: fleet_gateway_route_enabled{route} does not exist yet. Tracked in #2914. The query below is the intended one and lights up once the metric exists."
         },
@@ -2089,7 +2437,7 @@
                 ]
               },
               "unit": "short",
-              "noValue": "Venter på data (#2914)"
+              "noValue": "Waiting for data (#2914)"
             },
             "overrides": []
           },
@@ -2097,9 +2445,9 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 67
+            "y": 48
           },
-          "id": 25,
+          "id": 31,
           "options": {
             "legend": {
               "calcs": [
@@ -2136,12 +2484,12 @@
     {
       "type": "row",
       "title": "MCP-registry",
-      "id": 26,
+      "id": 32,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 39
+        "y": 20
       },
       "collapsed": true,
       "panels": [
@@ -2212,9 +2560,9 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 40
+            "y": 21
           },
-          "id": 27,
+          "id": 33,
           "options": {
             "legend": {
               "calcs": [
@@ -2240,7 +2588,7 @@
               "refId": "A"
             }
           ],
-          "title": "HTTP-forespørsler per sti",
+          "title": "HTTP requests by path",
           "type": "timeseries"
         },
         {
@@ -2310,9 +2658,9 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 40
+            "y": 21
           },
-          "id": 28,
+          "id": 34,
           "options": {
             "legend": {
               "calcs": [
@@ -2340,20 +2688,20 @@
               "refId": "A"
             }
           ],
-          "title": "HTTP-latens p95 per sti",
+          "title": "HTTP latency p95 by path",
           "type": "timeseries"
         }
       ]
     },
     {
       "type": "row",
-      "title": "MCP-servere og mcp-onboarding",
-      "id": 29,
+      "title": "MCP servers and mcp-onboarding",
+      "id": 35,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 40
+        "y": 21
       },
       "collapsed": true,
       "panels": [
@@ -2370,7 +2718,7 @@
               "mappings": [],
               "max": 1,
               "min": 0,
-              "noValue": "Ingen verktøykall i perioden",
+              "noValue": "No tool calls in range",
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
@@ -2392,9 +2740,9 @@
             "h": 4,
             "w": 24,
             "x": 0,
-            "y": 41
+            "y": 22
           },
-          "id": 30,
+          "id": 36,
           "options": {
             "colorMode": "value",
             "graphMode": "none",
@@ -2420,9 +2768,9 @@
               "refId": "A"
             }
           ],
-          "title": "Feilandel verktøykall (1 t)",
+          "title": "Tool call error rate (1 h)",
           "type": "stat",
-          "description": "mcp_tool_calls_total{tool,status} finnes bare etter første verktøykall siden poden startet, og status=\"error\" bare etter et feilet kall. Tom graf betyr ingen kall i perioden, ikke manglende data."
+          "description": "mcp_tool_calls_total{tool,status} only exists after the first tool call since the pod started, and status=\"error\" only after a failed call. An empty graph means no calls in range, not missing data."
         },
         {
           "datasource": {
@@ -2490,9 +2838,9 @@
             "h": 8,
             "w": 8,
             "x": 0,
-            "y": 45
+            "y": 26
           },
-          "id": 31,
+          "id": 37,
           "options": {
             "legend": {
               "calcs": [
@@ -2520,9 +2868,9 @@
               "refId": "A"
             }
           ],
-          "title": "Oppe per MCP-server",
+          "title": "Up by MCP server",
           "type": "timeseries",
-          "description": "mcp-dolly, mcp-kodeverk og mcp-team-catalog har ingen egne app-metrikker; dette og pod-panelene er det vi har."
+          "description": "Scrape target health for the MCP servers."
         },
         {
           "datasource": {
@@ -2591,9 +2939,9 @@
             "h": 8,
             "w": 8,
             "x": 8,
-            "y": 45
+            "y": 26
           },
-          "id": 32,
+          "id": 38,
           "options": {
             "legend": {
               "calcs": [
@@ -2619,7 +2967,7 @@
               "refId": "A"
             }
           ],
-          "title": "OAuth-flyt per steg",
+          "title": "OAuth flow by stage",
           "type": "timeseries",
           "interval": "5m"
         },
@@ -2736,9 +3084,9 @@
             "h": 8,
             "w": 8,
             "x": 16,
-            "y": 45
+            "y": 26
           },
-          "id": 33,
+          "id": 39,
           "options": {
             "legend": {
               "calcs": [
@@ -2764,7 +3112,7 @@
               "refId": "A"
             }
           ],
-          "title": "OAuth-callback per resultat",
+          "title": "OAuth callback by result",
           "type": "timeseries",
           "interval": "5m"
         },
@@ -2827,7 +3175,7 @@
                 ]
               },
               "unit": "short",
-              "noValue": "Ingen verktøykall i perioden",
+              "noValue": "No tool calls in range",
               "decimals": 0
             },
             "overrides": [
@@ -2867,9 +3215,9 @@
             "h": 8,
             "w": 8,
             "x": 0,
-            "y": 53
+            "y": 34
           },
-          "id": 34,
+          "id": 40,
           "options": {
             "legend": {
               "calcs": [
@@ -2895,9 +3243,9 @@
               "refId": "A"
             }
           ],
-          "title": "Verktøykall: vellykket mot feil",
+          "title": "Tool calls: success vs error",
           "type": "timeseries",
-          "description": "mcp_tool_calls_total{tool,status} finnes bare etter første verktøykall siden poden startet, og status=\"error\" bare etter et feilet kall. Tom graf betyr ingen kall i perioden, ikke manglende data.",
+          "description": "mcp_tool_calls_total{tool,status} only exists after the first tool call since the pod started, and status=\"error\" only after a failed call. An empty graph means no calls in range, not missing data.",
           "interval": "5m"
         },
         {
@@ -2967,9 +3315,9 @@
             "h": 8,
             "w": 8,
             "x": 8,
-            "y": 53
+            "y": 34
           },
-          "id": 35,
+          "id": 41,
           "options": {
             "legend": {
               "calcs": [
@@ -2995,7 +3343,7 @@
               "refId": "A"
             }
           ],
-          "title": "HTTP-forespørsler per sti",
+          "title": "HTTP requests by path",
           "type": "timeseries"
         },
         {
@@ -3065,9 +3413,9 @@
             "h": 8,
             "w": 8,
             "x": 16,
-            "y": 53
+            "y": 34
           },
-          "id": 36,
+          "id": 42,
           "options": {
             "legend": {
               "calcs": [
@@ -3095,7 +3443,7 @@
               "refId": "A"
             }
           ],
-          "title": "HTTP-latens p95 per sti",
+          "title": "HTTP latency p95 by path",
           "type": "timeseries"
         },
         {
@@ -3164,9 +3512,9 @@
             "h": 8,
             "w": 8,
             "x": 0,
-            "y": 61
+            "y": 42
           },
-          "id": 37,
+          "id": 43,
           "options": {
             "legend": {
               "calcs": [
@@ -3192,9 +3540,9 @@
               "refId": "A"
             }
           ],
-          "title": "Verktøykall per server og verktøy",
+          "title": "Tool calls by server and tool",
           "type": "timeseries",
-          "description": "mcp-kodeverk, mcp-team-catalog og mcp-dolly, fra lib/mcpkit."
+          "description": "mcp-kodeverk, mcp-team-catalog and mcp-dolly, from lib/mcpkit."
         },
         {
           "datasource": {
@@ -3237,8 +3585,9 @@
                   "mode": "none"
                 },
                 "thresholdsStyle": {
-                  "mode": "off"
-                }
+                  "mode": "dashed"
+                },
+                "axisSoftMax": 0.2
               },
               "mappings": [],
               "thresholds": {
@@ -3246,15 +3595,16 @@
                 "steps": [
                   {
                     "color": "green",
-                    "value": 0
+                    "value": null
                   },
                   {
                     "color": "red",
-                    "value": 80
+                    "value": 0.1
                   }
                 ]
               },
-              "unit": "percentunit"
+              "unit": "percentunit",
+              "min": 0
             },
             "overrides": []
           },
@@ -3262,9 +3612,9 @@
             "h": 8,
             "w": 8,
             "x": 8,
-            "y": 61
+            "y": 42
           },
-          "id": 38,
+          "id": 44,
           "options": {
             "legend": {
               "calcs": [
@@ -3292,9 +3642,9 @@
               "refId": "A"
             }
           ],
-          "title": "Feilandel verktøykall per server",
+          "title": "Tool call error rate by server",
           "type": "timeseries",
-          "description": "Feilede kall delt på alle kall."
+          "description": "Failed calls divided by all calls."
         },
         {
           "datasource": {
@@ -3362,9 +3712,9 @@
             "h": 8,
             "w": 8,
             "x": 16,
-            "y": 61
+            "y": 42
           },
-          "id": 39,
+          "id": 45,
           "options": {
             "legend": {
               "calcs": [
@@ -3392,7 +3742,7 @@
               "refId": "A"
             }
           ],
-          "title": "Latens p95 per server",
+          "title": "Latency p95 by server",
           "type": "timeseries",
           "description": ""
         }
@@ -3401,12 +3751,12 @@
     {
       "type": "row",
       "title": "fleet-control (dev)",
-      "id": 40,
+      "id": 46,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 41
+        "y": 22
       },
       "collapsed": true,
       "panels": [
@@ -3476,9 +3826,9 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 42
+            "y": 23
           },
-          "id": 41,
+          "id": 47,
           "options": {
             "legend": {
               "calcs": [
@@ -3504,7 +3854,7 @@
               "refId": "A"
             }
           ],
-          "title": "HTTP-forespørsler per statuskode",
+          "title": "HTTP requests by status code",
           "type": "timeseries",
           "description": "Alert High5xxRate for fleet-control."
         },
@@ -3574,9 +3924,9 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 42
+            "y": 23
           },
-          "id": 42,
+          "id": 48,
           "options": {
             "legend": {
               "calcs": [
@@ -3604,7 +3954,7 @@
               "refId": "A"
             }
           ],
-          "title": "HTTP-latens p95",
+          "title": "HTTP latency p95",
           "type": "timeseries",
           "description": ""
         },
@@ -3675,9 +4025,9 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 50
+            "y": 31
           },
-          "id": 43,
+          "id": 49,
           "options": {
             "legend": {
               "calcs": [
@@ -3709,13 +4059,13 @@
             },
             {
               "expr": "sum(increase(fleet_control_notify_failures_total{namespace=\"$namespace\", k8s_cluster_name=\"dev\", app=\"fleet-control\"}[$__interval]))",
-              "legendFormat": "varsling",
+              "legendFormat": "notify",
               "refId": "C"
             }
           ],
-          "title": "Feil: database, audit, varsling",
+          "title": "Errors: database, audit, notify",
           "type": "timeseries",
-          "description": "Alert DBErrors: mer enn 5 databasefeil på 10 min.",
+          "description": "Alert DBErrors: more than 5 database errors in 10 min.",
           "interval": "5m"
         },
         {
@@ -3785,9 +4135,9 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 50
+            "y": 31
           },
-          "id": 44,
+          "id": 50,
           "options": {
             "legend": {
               "calcs": [
@@ -3809,18 +4159,18 @@
           "targets": [
             {
               "expr": "sum(increase(fleet_control_console_lookup_duration_seconds_count{namespace=\"$namespace\", k8s_cluster_name=\"dev\", app=\"fleet-control\"}[$__interval]))",
-              "legendFormat": "totalt",
+              "legendFormat": "total",
               "refId": "A"
             },
             {
               "expr": "sum(increase(fleet_control_console_lookups_total{namespace=\"$namespace\", k8s_cluster_name=\"dev\", app=\"fleet-control\", outcome!=\"ok\"}[$__interval])) or vector(0)",
-              "legendFormat": "feilet",
+              "legendFormat": "failed",
               "refId": "B"
             }
           ],
-          "title": "Konsolloppslag: totalt og feilet",
+          "title": "Console lookups: total and failed",
           "type": "timeseries",
-          "description": "Alert ConsoleLookupsFailing: 3 eller flere feilede oppslag på 10 min.",
+          "description": "Alert ConsoleLookupsFailing: 3 or more failed lookups in 10 min.",
           "interval": "5m"
         },
         {
@@ -3889,9 +4239,9 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 58
+            "y": 39
           },
-          "id": 45,
+          "id": 51,
           "options": {
             "legend": {
               "calcs": [
@@ -3919,9 +4269,9 @@
               "refId": "A"
             }
           ],
-          "title": "Alder på siste vellykkede snapshot",
+          "title": "Last successful snapshot age",
           "type": "timeseries",
-          "description": "Alert SnapshotStale ved over 600 s."
+          "description": "Alert SnapshotStale above 600 s."
         },
         {
           "datasource": {
@@ -3989,9 +4339,9 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 58
+            "y": 39
           },
-          "id": 46,
+          "id": 52,
           "options": {
             "legend": {
               "calcs": [
@@ -4015,7 +4365,7 @@
           "targets": [
             {
               "expr": "histogram_quantile(0.95, sum by (le) (rate(fleet_control_snapshot_build_duration_seconds_bucket{namespace=\"$namespace\", k8s_cluster_name=\"dev\", app=\"fleet-control\"}[1h])))",
-              "legendFormat": "byggetid p95 (s)",
+              "legendFormat": "build time p95 (s)",
               "refId": "A"
             },
             {
@@ -4024,7 +4374,7 @@
               "refId": "B"
             }
           ],
-          "title": "Snapshot: byggetid p95 og størrelse",
+          "title": "Snapshot: build time p95 and size",
           "type": "timeseries",
           "description": ""
         }
@@ -4033,12 +4383,12 @@
     {
       "type": "row",
       "title": "Audit",
-      "id": 47,
+      "id": 53,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 42
+        "y": 23
       },
       "collapsed": true,
       "panels": [
@@ -4108,9 +4458,9 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 43
+            "y": 24
           },
-          "id": 48,
+          "id": 54,
           "options": {
             "legend": {
               "calcs": [
@@ -4136,9 +4486,9 @@
               "refId": "A"
             }
           ],
-          "title": "Audit-hendelser per tjeneste",
+          "title": "Audit events by service",
           "type": "timeseries",
-          "description": "Fra stdout-loggen (tenant Loki). Viser volum, ikke innhold."
+          "description": "From the stdout log (tenant Loki). Shows volume, not content."
         },
         {
           "datasource": {
@@ -4199,7 +4549,7 @@
                 ]
               },
               "unit": "short",
-              "noValue": "Venter på data (#2914)"
+              "noValue": "Waiting for data (#2914)"
             },
             "overrides": []
           },
@@ -4207,9 +4557,9 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 43
+            "y": 24
           },
-          "id": 49,
+          "id": 55,
           "options": {
             "legend": {
               "calcs": [
@@ -4235,7 +4585,7 @@
               "refId": "A"
             }
           ],
-          "title": "Audit-hendelser (teller) (placeholder)",
+          "title": "Audit events counter (placeholder)",
           "type": "timeseries",
           "description": "Placeholder: there is no audit events counter yet; the Loki panel beside it counts log lines instead. Tracked in #2914. The query below is the intended one and lights up once the metric exists."
         }
@@ -4243,13 +4593,13 @@
     },
     {
       "type": "row",
-      "title": "Ressurser",
-      "id": 50,
+      "title": "Resources",
+      "id": 56,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 43
+        "y": 24
       },
       "collapsed": true,
       "panels": [
@@ -4311,7 +4661,8 @@
                   }
                 ]
               },
-              "unit": "percentunit"
+              "unit": "percentunit",
+              "min": 0
             },
             "overrides": []
           },
@@ -4319,9 +4670,9 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 44
+            "y": 25
           },
-          "id": 51,
+          "id": 57,
           "options": {
             "legend": {
               "calcs": [
@@ -4349,7 +4700,7 @@
               "refId": "A"
             }
           ],
-          "title": "CPU mot request",
+          "title": "CPU vs request",
           "type": "timeseries",
           "description": ""
         },
@@ -4419,9 +4770,9 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 44
+            "y": 25
           },
-          "id": 52,
+          "id": 58,
           "options": {
             "legend": {
               "calcs": [
@@ -4449,7 +4800,7 @@
               "refId": "A"
             }
           ],
-          "title": "Minne (working set)",
+          "title": "Memory (working set)",
           "type": "timeseries",
           "description": ""
         }

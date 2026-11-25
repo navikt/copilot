@@ -11,15 +11,15 @@ Each dashboard's datasource variables (`DS_METRICS`, `DS_LOGS`, `DS_TRACES`) say
 
 ## Dashboards
 
-| File                             | Title                             | uid                       | Grafana folder | Tags                                   |
-| -------------------------------- | --------------------------------- | ------------------------- | -------------- | -------------------------------------- |
-| `tenant/copilot-home.json`       | Copilot: oversikt                 | `copilot-ecosystem`       | Copilot        | `domain:copilot`, `concern:ops`        |
-| `tenant/nav-fleet-ops.json`      | nav-fleet: drift                  | `copilot-fleet-ops`       | nav-fleet      | `domain:nav-fleet`, `concern:ops`      |
-| `tenant/nav-fleet-insights.json` | nav-fleet: bruk                   | `copilot-fleet-insights`  | nav-fleet      | `domain:nav-fleet`, `concern:insights` |
-| `tenant/my-copilot-ops.json`     | my-copilot og copilot-api: drift  | `copilot-web-ops`         | Copilot        | `domain:copilot`, `concern:ops`        |
-| `nais/nav-pilot-cli.json`        | nav-pilot CLI (nais)              | `copilot-nav-pilot-cli`   | nav-pilot      | `domain:nav-pilot`, `concern:insights` |
-| `nais/nav-pilot-local.json`      | nav-pilot — lokal inferens (nais) | `copilot-nav-pilot-local` | nav-pilot      | `domain:nav-pilot`, `concern:insights` |
-| `nais/copilot-clients.json`      | GitHub Copilot-klienter (nais)    | `copilot-clients`         | nav-pilot      | `domain:nav-pilot`, `concern:insights` |
+| File                             | Title                                  | uid                       | Grafana folder | Tags                                   |
+| -------------------------------- | -------------------------------------- | ------------------------- | -------------- | -------------------------------------- |
+| `tenant/copilot-home.json`       | Copilot: overview                      | `copilot-ecosystem`       | Copilot        | `domain:copilot`, `concern:ops`        |
+| `tenant/nav-fleet-ops.json`      | nav-fleet: operations                  | `copilot-fleet-ops`       | nav-fleet      | `domain:nav-fleet`, `concern:ops`      |
+| `tenant/nav-fleet-insights.json` | nav-fleet: usage                       | `copilot-fleet-insights`  | nav-fleet      | `domain:nav-fleet`, `concern:insights` |
+| `tenant/my-copilot-ops.json`     | my-copilot and copilot-api: operations | `copilot-web-ops`         | Copilot        | `domain:copilot`, `concern:ops`        |
+| `nais/nav-pilot-cli.json`        | nav-pilot CLI (nais)                   | `copilot-nav-pilot-cli`   | nav-pilot      | `domain:nav-pilot`, `concern:insights` |
+| `nais/nav-pilot-local.json`      | nav-pilot local inference (nais)       | `copilot-nav-pilot-local` | nav-pilot      | `domain:nav-pilot`, `concern:insights` |
+| `nais/copilot-clients.json`      | GitHub Copilot clients (nais)          | `copilot-clients`         | nav-pilot      | `domain:nav-pilot`, `concern:insights` |
 
 The home dashboard keeps the old `copilot-ecosystem` uid, so existing bookmarks land on it. The tenant files carry their uid, so links between them keep working. The nais files are complete Grafana 13 v2 resources (`apiVersion: dashboard.grafana.app/v2`) with the uid in `metadata.name`.
 

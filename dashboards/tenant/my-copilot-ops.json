@@ -20,8 +20,8 @@
   "schemaVersion": 42,
   "fiscalYearStartMonth": 0,
   "uid": "copilot-web-ops",
-  "title": "my-copilot og copilot-api: drift",
-  "description": "Ingress, innlogging, plattform, logger og traces for apper i namespace copilot.",
+  "title": "my-copilot and copilot-api: operations",
+  "description": "Ingress, login, platform, logs and traces for apps in namespace copilot.",
   "tags": [
     "copilot",
     "domain:copilot",
@@ -35,7 +35,7 @@
   "timezone": "browser",
   "links": [
     {
-      "title": "Copilot: oversikt",
+      "title": "Copilot: overview",
       "type": "link",
       "url": "/d/copilot-ecosystem",
       "icon": "dashboard",
@@ -103,7 +103,7 @@
       },
       {
         "name": "env",
-        "label": "Miljø",
+        "label": "Environment",
         "type": "custom",
         "query": "dev,prod",
         "multi": true,
@@ -129,7 +129,7 @@
       },
       {
         "name": "app",
-        "label": "App (logger)",
+        "label": "App (logs)",
         "type": "custom",
         "query": "my-copilot,copilot-api,copilot-survey,mcp-onboarding,mcp-registry",
         "multi": true,
@@ -140,7 +140,7 @@
           "value": "$__all"
         },
         "options": [],
-        "description": "service_name i tenant Loki."
+        "description": "service_name in tenant Loki."
       },
       {
         "current": {
@@ -164,7 +164,7 @@
   "panels": [
     {
       "type": "row",
-      "title": "Ingress (tilgangslogg)",
+      "title": "Ingress (access log)",
       "fieldConfig": {
         "defaults": {},
         "overrides": []
@@ -273,9 +273,9 @@
           "refId": "A"
         }
       ],
-      "title": "Forespørsler per host",
+      "title": "Requests by host",
       "type": "timeseries",
-      "description": "Fra nais-ingress sin tilgangslogg i tenant Loki. Erstatter nginx-metrikkene, som ikke finnes i noen org."
+      "description": "From the nais-ingress access log in tenant Loki. Replaces the nginx metrics, which exist in neither org."
     },
     {
       "datasource": {
@@ -432,9 +432,9 @@
           "refId": "A"
         }
       ],
-      "title": "Svar per statuskode",
+      "title": "Responses by status class",
       "type": "timeseries",
-      "description": "Statusklasser fra nais-ingress sin tilgangslogg."
+      "description": "Status classes from the nais-ingress access log."
     },
     {
       "datasource": {
@@ -532,9 +532,9 @@
           "refId": "A"
         }
       ],
-      "title": "Svartid p95 per host",
+      "title": "Response time p95 by host",
       "type": "timeseries",
-      "description": "request_time i tilgangsloggen er millisekunder."
+      "description": "request_time in the access log is in milliseconds."
     },
     {
       "datasource": {
@@ -632,13 +632,13 @@
           "refId": "A"
         }
       ],
-      "title": "Svarstørrelse p95 per host",
+      "title": "Response size p95 by host",
       "type": "timeseries",
       "description": ""
     },
     {
       "type": "row",
-      "title": "Wonderwall (innlogging i my-copilot)",
+      "title": "Wonderwall (my-copilot login)",
       "fieldConfig": {
         "defaults": {},
         "overrides": []
@@ -753,7 +753,7 @@
           "refId": "B"
         }
       ],
-      "title": "Innlogginger og utlogginger",
+      "title": "Logins and logouts",
       "type": "timeseries",
       "interval": "5m"
     },
@@ -852,13 +852,13 @@
           "refId": "A"
         }
       ],
-      "title": "Wonderwall-forespørsler per sti",
+      "title": "Wonderwall requests by path",
       "type": "timeseries",
       "interval": "5m"
     },
     {
       "type": "row",
-      "title": "Plattform (alle apper i namespace)",
+      "title": "Platform (all apps in namespace)",
       "fieldConfig": {
         "defaults": {},
         "overrides": []
@@ -917,7 +917,6 @@
                 }
               },
               "mappings": [],
-              "max": 1,
               "thresholds": {
                 "mode": "absolute",
                 "steps": [
@@ -931,7 +930,8 @@
                   }
                 ]
               },
-              "unit": "percentunit"
+              "unit": "percentunit",
+              "min": 0
             },
             "overrides": []
           },
@@ -969,7 +969,7 @@
               "refId": "A"
             }
           ],
-          "title": "CPU mot request",
+          "title": "CPU vs request",
           "type": "timeseries"
         },
         {
@@ -1073,7 +1073,7 @@
               "refId": "B"
             }
           ],
-          "title": "Minne (working set)",
+          "title": "Memory (working set)",
           "type": "timeseries"
         },
         {
@@ -1171,7 +1171,7 @@
               "refId": "A"
             }
           ],
-          "title": "Container-restarter",
+          "title": "Container restarts",
           "type": "timeseries",
           "interval": "5m"
         },
@@ -1228,7 +1228,7 @@
               "refId": "A"
             }
           ],
-          "title": "Go-goroutiner",
+          "title": "Go goroutines",
           "type": "timeseries"
         },
         {
@@ -1289,14 +1289,14 @@
               "refId": "B"
             }
           ],
-          "title": "Replikaer (ønsket mot klare)",
+          "title": "Replicas (desired vs ready)",
           "type": "timeseries"
         }
       ]
     },
     {
       "type": "row",
-      "title": "Logger",
+      "title": "Logs",
       "fieldConfig": {
         "defaults": {},
         "overrides": []
@@ -1343,7 +1343,7 @@
               "refId": "A"
             }
           ],
-          "title": "Applikasjonslogger",
+          "title": "Application logs",
           "type": "logs"
         },
         {
@@ -1379,7 +1379,7 @@
               "refId": "A"
             }
           ],
-          "title": "Feil og advarsler",
+          "title": "Errors and warnings",
           "type": "logs"
         }
       ]
@@ -1439,7 +1439,7 @@
               "refId": "A"
             }
           ],
-          "title": "Siste traces",
+          "title": "Recent traces",
           "type": "traces"
         }
       ]

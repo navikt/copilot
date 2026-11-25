@@ -20,8 +20,8 @@
   "schemaVersion": 42,
   "fiscalYearStartMonth": 0,
   "uid": "copilot-ecosystem",
-  "title": "Copilot: oversikt",
-  "description": "Statustavle for Copilot-appene i namespace copilot: helse, varsler, lisenser og bruk. Detaljer i lenkene øverst.",
+  "title": "Copilot: overview",
+  "description": "Status board for the Copilot apps in namespace copilot: health, alerts, seats and usage. Details in the links at the top.",
   "tags": [
     "copilot",
     "domain:copilot",
@@ -35,7 +35,7 @@
   "timezone": "browser",
   "links": [
     {
-      "title": "nav-fleet: drift",
+      "title": "nav-fleet: operations",
       "type": "link",
       "url": "/d/copilot-fleet-ops?${__url_time_range}&${__all_variables}",
       "icon": "dashboard",
@@ -45,7 +45,7 @@
       "tooltip": ""
     },
     {
-      "title": "nav-fleet: bruk",
+      "title": "nav-fleet: usage",
       "type": "link",
       "url": "/d/copilot-fleet-insights?${__url_time_range}&${__all_variables}",
       "icon": "dashboard",
@@ -55,7 +55,7 @@
       "tooltip": ""
     },
     {
-      "title": "my-copilot og copilot-api: drift",
+      "title": "my-copilot and copilot-api: operations",
       "type": "link",
       "url": "/d/copilot-web-ops?${__url_time_range}&${__all_variables}",
       "icon": "dashboard",
@@ -65,14 +65,14 @@
       "tooltip": ""
     },
     {
-      "title": "my-copilot: kostnad",
+      "title": "my-copilot: cost",
       "type": "link",
       "url": "https://ki-utvikling.nav.no/admin/kostnad",
       "icon": "external link",
       "targetBlank": true,
       "keepTime": false,
       "includeVars": false,
-      "tooltip": "Hovedkilden for brukere og kostnad"
+      "tooltip": "The primary source for users and cost"
     }
   ],
   "templating": {
@@ -110,7 +110,7 @@
       },
       {
         "name": "env",
-        "label": "Miljø",
+        "label": "Environment",
         "type": "custom",
         "query": "dev,prod",
         "multi": true,
@@ -153,7 +153,7 @@
     {
       "type": "stat",
       "title": "my-copilot",
-      "description": "Tilgjengelige pods delt på ønsket antall. OK = alle oppe, degradert = noen, NEDE = ingen.",
+      "description": "Available pods divided by desired. OK = all up, degraded = some, DOWN = none.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_METRICS}"
@@ -161,7 +161,7 @@
       "fieldConfig": {
         "defaults": {
           "unit": "percentunit",
-          "noValue": "ingen data",
+          "noValue": "no data",
           "color": {
             "mode": "thresholds"
           },
@@ -187,7 +187,7 @@
               "type": "value",
               "options": {
                 "-1": {
-                  "text": "ingen pod",
+                  "text": "no pod",
                   "color": "red"
                 }
               }
@@ -209,7 +209,7 @@
                 "from": 0.0001,
                 "to": 0.9999,
                 "result": {
-                  "text": "degradert",
+                  "text": "degraded",
                   "color": "orange"
                 }
               }
@@ -220,7 +220,7 @@
                 "from": 0,
                 "to": 0,
                 "result": {
-                  "text": "NEDE",
+                  "text": "DOWN",
                   "color": "red"
                 }
               }
@@ -246,7 +246,7 @@
       },
       "links": [
         {
-          "title": "Detaljer",
+          "title": "Details",
           "url": "/d/copilot-web-ops?${__url_time_range}&var-env=${env}",
           "targetBlank": false
         }
@@ -269,7 +269,7 @@
     {
       "type": "stat",
       "title": "copilot-api",
-      "description": "Tilgjengelige pods delt på ønsket antall. OK = alle oppe, degradert = noen, NEDE = ingen.",
+      "description": "Available pods divided by desired. OK = all up, degraded = some, DOWN = none.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_METRICS}"
@@ -277,7 +277,7 @@
       "fieldConfig": {
         "defaults": {
           "unit": "percentunit",
-          "noValue": "ingen data",
+          "noValue": "no data",
           "color": {
             "mode": "thresholds"
           },
@@ -303,7 +303,7 @@
               "type": "value",
               "options": {
                 "-1": {
-                  "text": "ingen pod",
+                  "text": "no pod",
                   "color": "red"
                 }
               }
@@ -325,7 +325,7 @@
                 "from": 0.0001,
                 "to": 0.9999,
                 "result": {
-                  "text": "degradert",
+                  "text": "degraded",
                   "color": "orange"
                 }
               }
@@ -336,7 +336,7 @@
                 "from": 0,
                 "to": 0,
                 "result": {
-                  "text": "NEDE",
+                  "text": "DOWN",
                   "color": "red"
                 }
               }
@@ -362,7 +362,7 @@
       },
       "links": [
         {
-          "title": "Detaljer",
+          "title": "Details",
           "url": "/d/copilot-web-ops?${__url_time_range}&var-env=${env}",
           "targetBlank": false
         }
@@ -385,7 +385,7 @@
     {
       "type": "stat",
       "title": "copilot-cli",
-      "description": "Tilgjengelige pods delt på ønsket antall. OK = alle oppe, degradert = noen, NEDE = ingen.",
+      "description": "Available pods divided by desired. OK = all up, degraded = some, DOWN = none.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_METRICS}"
@@ -393,7 +393,7 @@
       "fieldConfig": {
         "defaults": {
           "unit": "percentunit",
-          "noValue": "ingen data",
+          "noValue": "no data",
           "color": {
             "mode": "thresholds"
           },
@@ -419,7 +419,7 @@
               "type": "value",
               "options": {
                 "-1": {
-                  "text": "ingen pod",
+                  "text": "no pod",
                   "color": "red"
                 }
               }
@@ -441,7 +441,7 @@
                 "from": 0.0001,
                 "to": 0.9999,
                 "result": {
-                  "text": "degradert",
+                  "text": "degraded",
                   "color": "orange"
                 }
               }
@@ -452,7 +452,7 @@
                 "from": 0,
                 "to": 0,
                 "result": {
-                  "text": "NEDE",
+                  "text": "DOWN",
                   "color": "red"
                 }
               }
@@ -478,7 +478,7 @@
       },
       "links": [
         {
-          "title": "Detaljer",
+          "title": "Details",
           "url": "/d/copilot-web-ops?${__url_time_range}&var-env=${env}",
           "targetBlank": false
         }
@@ -501,7 +501,7 @@
     {
       "type": "stat",
       "title": "copilot-survey",
-      "description": "Tilgjengelige pods delt på ønsket antall. OK = alle oppe, degradert = noen, NEDE = ingen.",
+      "description": "Available pods divided by desired. OK = all up, degraded = some, DOWN = none.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_METRICS}"
@@ -509,7 +509,7 @@
       "fieldConfig": {
         "defaults": {
           "unit": "percentunit",
-          "noValue": "ingen data",
+          "noValue": "no data",
           "color": {
             "mode": "thresholds"
           },
@@ -535,7 +535,7 @@
               "type": "value",
               "options": {
                 "-1": {
-                  "text": "ingen pod",
+                  "text": "no pod",
                   "color": "red"
                 }
               }
@@ -557,7 +557,7 @@
                 "from": 0.0001,
                 "to": 0.9999,
                 "result": {
-                  "text": "degradert",
+                  "text": "degraded",
                   "color": "orange"
                 }
               }
@@ -568,7 +568,7 @@
                 "from": 0,
                 "to": 0,
                 "result": {
-                  "text": "NEDE",
+                  "text": "DOWN",
                   "color": "red"
                 }
               }
@@ -594,7 +594,7 @@
       },
       "links": [
         {
-          "title": "Detaljer",
+          "title": "Details",
           "url": "/d/copilot-web-ops?${__url_time_range}&var-env=${env}",
           "targetBlank": false
         }
@@ -617,7 +617,7 @@
     {
       "type": "stat",
       "title": "fleet-gateway",
-      "description": "Tilgjengelige pods delt på ønsket antall. OK = alle oppe, degradert = noen, NEDE = ingen.",
+      "description": "Available pods divided by desired. OK = all up, degraded = some, DOWN = none.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_METRICS}"
@@ -625,7 +625,7 @@
       "fieldConfig": {
         "defaults": {
           "unit": "percentunit",
-          "noValue": "ingen data",
+          "noValue": "no data",
           "color": {
             "mode": "thresholds"
           },
@@ -651,7 +651,7 @@
               "type": "value",
               "options": {
                 "-1": {
-                  "text": "ingen pod",
+                  "text": "no pod",
                   "color": "red"
                 }
               }
@@ -673,7 +673,7 @@
                 "from": 0.0001,
                 "to": 0.9999,
                 "result": {
-                  "text": "degradert",
+                  "text": "degraded",
                   "color": "orange"
                 }
               }
@@ -684,7 +684,7 @@
                 "from": 0,
                 "to": 0,
                 "result": {
-                  "text": "NEDE",
+                  "text": "DOWN",
                   "color": "red"
                 }
               }
@@ -710,7 +710,7 @@
       },
       "links": [
         {
-          "title": "Detaljer",
+          "title": "Details",
           "url": "/d/copilot-fleet-ops?${__url_time_range}&var-env=${env}",
           "targetBlank": false
         }
@@ -733,7 +733,7 @@
     {
       "type": "stat",
       "title": "fleet-control (dev)",
-      "description": "Tilgjengelige pods delt på ønsket antall. OK = alle oppe, degradert = noen, NEDE = ingen.",
+      "description": "Available pods divided by desired. OK = all up, degraded = some, DOWN = none.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_METRICS}"
@@ -741,7 +741,7 @@
       "fieldConfig": {
         "defaults": {
           "unit": "percentunit",
-          "noValue": "ingen data",
+          "noValue": "no data",
           "color": {
             "mode": "thresholds"
           },
@@ -767,7 +767,7 @@
               "type": "value",
               "options": {
                 "-1": {
-                  "text": "ingen pod",
+                  "text": "no pod",
                   "color": "red"
                 }
               }
@@ -789,7 +789,7 @@
                 "from": 0.0001,
                 "to": 0.9999,
                 "result": {
-                  "text": "degradert",
+                  "text": "degraded",
                   "color": "orange"
                 }
               }
@@ -800,7 +800,7 @@
                 "from": 0,
                 "to": 0,
                 "result": {
-                  "text": "NEDE",
+                  "text": "DOWN",
                   "color": "red"
                 }
               }
@@ -826,7 +826,7 @@
       },
       "links": [
         {
-          "title": "Detaljer",
+          "title": "Details",
           "url": "/d/copilot-fleet-ops?${__url_time_range}&var-env=${env}",
           "targetBlank": false
         }
@@ -849,7 +849,7 @@
     {
       "type": "stat",
       "title": "mcp-registry",
-      "description": "Tilgjengelige pods delt på ønsket antall. OK = alle oppe, degradert = noen, NEDE = ingen.",
+      "description": "Available pods divided by desired. OK = all up, degraded = some, DOWN = none.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_METRICS}"
@@ -857,7 +857,7 @@
       "fieldConfig": {
         "defaults": {
           "unit": "percentunit",
-          "noValue": "ingen data",
+          "noValue": "no data",
           "color": {
             "mode": "thresholds"
           },
@@ -883,7 +883,7 @@
               "type": "value",
               "options": {
                 "-1": {
-                  "text": "ingen pod",
+                  "text": "no pod",
                   "color": "red"
                 }
               }
@@ -905,7 +905,7 @@
                 "from": 0.0001,
                 "to": 0.9999,
                 "result": {
-                  "text": "degradert",
+                  "text": "degraded",
                   "color": "orange"
                 }
               }
@@ -916,7 +916,7 @@
                 "from": 0,
                 "to": 0,
                 "result": {
-                  "text": "NEDE",
+                  "text": "DOWN",
                   "color": "red"
                 }
               }
@@ -942,7 +942,7 @@
       },
       "links": [
         {
-          "title": "Detaljer",
+          "title": "Details",
           "url": "/d/copilot-fleet-ops?${__url_time_range}&var-env=${env}",
           "targetBlank": false
         }
@@ -965,7 +965,7 @@
     {
       "type": "stat",
       "title": "mcp-onboarding",
-      "description": "Tilgjengelige pods delt på ønsket antall. OK = alle oppe, degradert = noen, NEDE = ingen.",
+      "description": "Available pods divided by desired. OK = all up, degraded = some, DOWN = none.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_METRICS}"
@@ -973,7 +973,7 @@
       "fieldConfig": {
         "defaults": {
           "unit": "percentunit",
-          "noValue": "ingen data",
+          "noValue": "no data",
           "color": {
             "mode": "thresholds"
           },
@@ -999,7 +999,7 @@
               "type": "value",
               "options": {
                 "-1": {
-                  "text": "ingen pod",
+                  "text": "no pod",
                   "color": "red"
                 }
               }
@@ -1021,7 +1021,7 @@
                 "from": 0.0001,
                 "to": 0.9999,
                 "result": {
-                  "text": "degradert",
+                  "text": "degraded",
                   "color": "orange"
                 }
               }
@@ -1032,7 +1032,7 @@
                 "from": 0,
                 "to": 0,
                 "result": {
-                  "text": "NEDE",
+                  "text": "DOWN",
                   "color": "red"
                 }
               }
@@ -1058,7 +1058,7 @@
       },
       "links": [
         {
-          "title": "Detaljer",
+          "title": "Details",
           "url": "/d/copilot-fleet-ops?${__url_time_range}&var-env=${env}",
           "targetBlank": false
         }
@@ -1081,7 +1081,7 @@
     {
       "type": "stat",
       "title": "mcp-kodeverk",
-      "description": "Tilgjengelige pods delt på ønsket antall. OK = alle oppe, degradert = noen, NEDE = ingen.",
+      "description": "Available pods divided by desired. OK = all up, degraded = some, DOWN = none.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_METRICS}"
@@ -1089,7 +1089,7 @@
       "fieldConfig": {
         "defaults": {
           "unit": "percentunit",
-          "noValue": "ingen data",
+          "noValue": "no data",
           "color": {
             "mode": "thresholds"
           },
@@ -1115,7 +1115,7 @@
               "type": "value",
               "options": {
                 "-1": {
-                  "text": "ingen pod",
+                  "text": "no pod",
                   "color": "red"
                 }
               }
@@ -1137,7 +1137,7 @@
                 "from": 0.0001,
                 "to": 0.9999,
                 "result": {
-                  "text": "degradert",
+                  "text": "degraded",
                   "color": "orange"
                 }
               }
@@ -1148,7 +1148,7 @@
                 "from": 0,
                 "to": 0,
                 "result": {
-                  "text": "NEDE",
+                  "text": "DOWN",
                   "color": "red"
                 }
               }
@@ -1174,7 +1174,7 @@
       },
       "links": [
         {
-          "title": "Detaljer",
+          "title": "Details",
           "url": "/d/copilot-fleet-ops?${__url_time_range}&var-env=${env}",
           "targetBlank": false
         }
@@ -1197,7 +1197,7 @@
     {
       "type": "stat",
       "title": "mcp-dolly",
-      "description": "Tilgjengelige pods delt på ønsket antall. OK = alle oppe, degradert = noen, NEDE = ingen.",
+      "description": "Available pods divided by desired. OK = all up, degraded = some, DOWN = none.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_METRICS}"
@@ -1205,7 +1205,7 @@
       "fieldConfig": {
         "defaults": {
           "unit": "percentunit",
-          "noValue": "ingen data",
+          "noValue": "no data",
           "color": {
             "mode": "thresholds"
           },
@@ -1231,7 +1231,7 @@
               "type": "value",
               "options": {
                 "-1": {
-                  "text": "ingen pod",
+                  "text": "no pod",
                   "color": "red"
                 }
               }
@@ -1253,7 +1253,7 @@
                 "from": 0.0001,
                 "to": 0.9999,
                 "result": {
-                  "text": "degradert",
+                  "text": "degraded",
                   "color": "orange"
                 }
               }
@@ -1264,7 +1264,7 @@
                 "from": 0,
                 "to": 0,
                 "result": {
-                  "text": "NEDE",
+                  "text": "DOWN",
                   "color": "red"
                 }
               }
@@ -1290,7 +1290,7 @@
       },
       "links": [
         {
-          "title": "Detaljer",
+          "title": "Details",
           "url": "/d/copilot-fleet-ops?${__url_time_range}&var-env=${env}",
           "targetBlank": false
         }
@@ -1313,7 +1313,7 @@
     {
       "type": "stat",
       "title": "mcp-team-catalog",
-      "description": "Tilgjengelige pods delt på ønsket antall. OK = alle oppe, degradert = noen, NEDE = ingen.",
+      "description": "Available pods divided by desired. OK = all up, degraded = some, DOWN = none.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_METRICS}"
@@ -1321,7 +1321,7 @@
       "fieldConfig": {
         "defaults": {
           "unit": "percentunit",
-          "noValue": "ingen data",
+          "noValue": "no data",
           "color": {
             "mode": "thresholds"
           },
@@ -1347,7 +1347,7 @@
               "type": "value",
               "options": {
                 "-1": {
-                  "text": "ingen pod",
+                  "text": "no pod",
                   "color": "red"
                 }
               }
@@ -1369,7 +1369,7 @@
                 "from": 0.0001,
                 "to": 0.9999,
                 "result": {
-                  "text": "degradert",
+                  "text": "degraded",
                   "color": "orange"
                 }
               }
@@ -1380,7 +1380,7 @@
                 "from": 0,
                 "to": 0,
                 "result": {
-                  "text": "NEDE",
+                  "text": "DOWN",
                   "color": "red"
                 }
               }
@@ -1406,7 +1406,7 @@
       },
       "links": [
         {
-          "title": "Detaljer",
+          "title": "Details",
           "url": "/d/copilot-fleet-ops?${__url_time_range}&var-env=${env}",
           "targetBlank": false
         }
@@ -1428,7 +1428,7 @@
     },
     {
       "type": "row",
-      "title": "Varsler",
+      "title": "Alerts",
       "collapsed": false,
       "id": 13,
       "gridPos": {
@@ -1441,8 +1441,8 @@
     },
     {
       "type": "stat",
-      "title": "Aktive varsler",
-      "description": "Varsler fra PrometheusRule-ene i namespace copilot (fleet-gateway, fleet-control m.fl.).",
+      "title": "Firing alerts",
+      "description": "Alerts from the PrometheusRules in namespace copilot (fleet-gateway, fleet-control and others).",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_METRICS}"
@@ -1505,15 +1505,15 @@
     },
     {
       "type": "table",
-      "title": "Varsler som fyrer",
-      "description": "Varsler fra PrometheusRule-ene i namespace copilot (fleet-gateway, fleet-control m.fl.).",
+      "title": "Alerts firing",
+      "description": "Alerts from the PrometheusRules in namespace copilot (fleet-gateway, fleet-control and others).",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_METRICS}"
       },
       "fieldConfig": {
         "defaults": {
-          "noValue": "Ingen varsler fyrer"
+          "noValue": "No alerts firing"
         },
         "overrides": []
       },
@@ -1550,7 +1550,7 @@
     },
     {
       "type": "row",
-      "title": "Brukere og lisenser",
+      "title": "Users and seats",
       "collapsed": false,
       "id": 16,
       "gridPos": {
@@ -1563,8 +1563,8 @@
     },
     {
       "type": "stat",
-      "title": "Lisenser totalt",
-      "description": "Hovedkilden for brukere og kostnad er my-copilot.",
+      "title": "Total seats",
+      "description": "The primary source for users and cost is my-copilot.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_METRICS}"
@@ -1608,7 +1608,7 @@
       },
       "links": [
         {
-          "title": "Kostnad i my-copilot",
+          "title": "Cost in my-copilot",
           "url": "https://ki-utvikling.nav.no/admin/kostnad",
           "targetBlank": true
         }
@@ -1630,7 +1630,7 @@
     },
     {
       "type": "stat",
-      "title": "Aktive denne perioden",
+      "title": "Active this cycle",
       "description": "",
       "datasource": {
         "type": "prometheus",
@@ -1675,7 +1675,7 @@
       },
       "links": [
         {
-          "title": "Kostnad i my-copilot",
+          "title": "Cost in my-copilot",
           "url": "https://ki-utvikling.nav.no/admin/kostnad",
           "targetBlank": true
         }
@@ -1697,8 +1697,8 @@
     },
     {
       "type": "stat",
-      "title": "Utnyttelse",
-      "description": "Aktive lisenser delt på alle lisenser.",
+      "title": "Utilisation",
+      "description": "Active seats divided by all seats.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_METRICS}"
@@ -1742,7 +1742,7 @@
       },
       "links": [
         {
-          "title": "Kostnad i my-copilot",
+          "title": "Cost in my-copilot",
           "url": "https://ki-utvikling.nav.no/admin/kostnad",
           "targetBlank": true
         }
@@ -1764,7 +1764,7 @@
     },
     {
       "type": "stat",
-      "title": "Venter på invitasjon",
+      "title": "Pending invitation",
       "description": "",
       "datasource": {
         "type": "prometheus",
@@ -1809,7 +1809,7 @@
       },
       "links": [
         {
-          "title": "Kostnad i my-copilot",
+          "title": "Cost in my-copilot",
           "url": "https://ki-utvikling.nav.no/admin/kostnad",
           "targetBlank": true
         }
@@ -1831,7 +1831,7 @@
     },
     {
       "type": "row",
-      "title": "Bruk",
+      "title": "Usage",
       "collapsed": false,
       "id": 21,
       "gridPos": {
@@ -1844,7 +1844,7 @@
     },
     {
       "type": "stat",
-      "title": "MCP-kall gjennom gatewayen i dag",
+      "title": "Gateway MCP calls today",
       "description": "",
       "datasource": {
         "type": "prometheus",
@@ -1889,7 +1889,7 @@
       },
       "links": [
         {
-          "title": "nav-fleet: bruk",
+          "title": "nav-fleet: usage",
           "url": "/d/copilot-fleet-insights?var-env=${env}",
           "targetBlank": false
         }
@@ -1913,7 +1913,7 @@
     },
     {
       "type": "stat",
-      "title": "Verktøykall i mcp-kodeverk i dag",
+      "title": "mcp-kodeverk tool calls today",
       "description": "",
       "datasource": {
         "type": "prometheus",
@@ -1958,7 +1958,7 @@
       },
       "links": [
         {
-          "title": "nav-fleet: bruk",
+          "title": "nav-fleet: usage",
           "url": "/d/copilot-fleet-insights?var-env=${env}",
           "targetBlank": false
         }
@@ -1982,7 +1982,7 @@
     },
     {
       "type": "stat",
-      "title": "Verktøykall i mcp-dolly i dag",
+      "title": "mcp-dolly tool calls today",
       "description": "",
       "datasource": {
         "type": "prometheus",
@@ -2027,7 +2027,7 @@
       },
       "links": [
         {
-          "title": "nav-fleet: bruk",
+          "title": "nav-fleet: usage",
           "url": "/d/copilot-fleet-insights?var-env=${env}",
           "targetBlank": false
         }
@@ -2051,7 +2051,7 @@
     },
     {
       "type": "stat",
-      "title": "Verktøykall i mcp-team-catalog i dag",
+      "title": "mcp-team-catalog tool calls today",
       "description": "",
       "datasource": {
         "type": "prometheus",
@@ -2096,7 +2096,7 @@
       },
       "links": [
         {
-          "title": "nav-fleet: bruk",
+          "title": "nav-fleet: usage",
           "url": "/d/copilot-fleet-insights?var-env=${env}",
           "targetBlank": false
         }
@@ -2120,7 +2120,7 @@
     },
     {
       "type": "row",
-      "title": "Feil og latens",
+      "title": "Errors and latency",
       "collapsed": true,
       "id": 26,
       "gridPos": {
@@ -2132,8 +2132,8 @@
       "panels": [
         {
           "type": "timeseries",
-          "title": "5xx-andel per app",
-          "description": "copilot-api, copilot-cli og copilot-survey merker statuskoden code; mcp-onboarding og mcp-registry status_code; fleet-gateway teller ikke bevisste 503.",
+          "title": "5xx rate by app",
+          "description": "copilot-api, copilot-cli and copilot-survey label the status as code; mcp-onboarding and mcp-registry as status_code; fleet-gateway does not count deliberate 503s.",
           "datasource": {
             "type": "prometheus",
             "uid": "${DS_METRICS}"
@@ -2143,7 +2143,25 @@
               "unit": "percentunit",
               "custom": {
                 "fillOpacity": 10,
-                "lineWidth": 1
+                "lineWidth": 1,
+                "axisSoftMax": 0.2,
+                "thresholdsStyle": {
+                  "mode": "dashed"
+                }
+              },
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 0.1
+                  }
+                ]
               }
             },
             "overrides": []
@@ -2193,7 +2211,7 @@
         },
         {
           "type": "timeseries",
-          "title": "Latens p95 per app",
+          "title": "Latency p95 by app",
           "description": "",
           "datasource": {
             "type": "prometheus",
@@ -2249,8 +2267,8 @@
         },
         {
           "type": "timeseries",
-          "title": "my-copilot: 5xx-andel og latens (placeholder)",
-          "description": "Placeholder: my-copilot eksporterer ingen http_requests_total ennå. Venter på #2942. Spørringen er den tiltenkte.",
+          "title": "my-copilot: 5xx rate and latency (placeholder)",
+          "description": "Placeholder: my-copilot exports no http_requests_total yet. Waiting for #2942. The query is the intended one.",
           "datasource": {
             "type": "prometheus",
             "uid": "${DS_METRICS}"
@@ -2260,9 +2278,27 @@
               "unit": "percentunit",
               "custom": {
                 "fillOpacity": 10,
-                "lineWidth": 1
+                "lineWidth": 1,
+                "axisSoftMax": 0.2,
+                "thresholdsStyle": {
+                  "mode": "dashed"
+                }
               },
-              "noValue": "Venter på #2942"
+              "noValue": "Waiting for #2942",
+              "min": 0,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": null
+                  },
+                  {
+                    "color": "red",
+                    "value": 0.1
+                  }
+                ]
+              }
             },
             "overrides": []
           },
@@ -2304,7 +2340,7 @@
     },
     {
       "type": "row",
-      "title": "Detaljer",
+      "title": "Details",
       "collapsed": true,
       "id": 30,
       "gridPos": {
@@ -2316,7 +2352,7 @@
       "panels": [
         {
           "type": "timeseries",
-          "title": "Klare pods mot ønsket per app",
+          "title": "Ready vs desired pods by app",
           "description": "",
           "datasource": {
             "type": "prometheus",
@@ -2353,12 +2389,12 @@
           "targets": [
             {
               "expr": "sum by (deployment) (kube_deployment_status_replicas_available{namespace=\"$namespace\", k8s_cluster_name=~\"$env\"})",
-              "legendFormat": "{{deployment}} klare",
+              "legendFormat": "{{deployment}} ready",
               "refId": "A"
             },
             {
               "expr": "sum by (deployment) (kube_deployment_spec_replicas{namespace=\"$namespace\", k8s_cluster_name=~\"$env\"})",
-              "legendFormat": "{{deployment}} ønsket",
+              "legendFormat": "{{deployment}} desired",
               "refId": "B"
             }
           ],
@@ -2372,7 +2408,7 @@
         },
         {
           "type": "timeseries",
-          "title": "Oppe per app og miljø",
+          "title": "Up by app and environment",
           "description": "",
           "datasource": {
             "type": "prometheus",

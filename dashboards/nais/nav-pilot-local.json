@@ -27,7 +27,7 @@
       }
     ],
     "cursorSync": "Crosshair",
-    "description": "Lokal inferens i nav-pilot alpha: hvem bruker den, hva sender de dit, og kommer serveren opp. Alle spørringer bruker sum_over_time, ikke increase(): alle kjøringer på en maskin deler serie og starter på sin egen 1, så increase() gir 0. Hvert sample er det som er nytt siden prosessens forrige eksport, så summen teller hver kjøring én gang.",
+    "description": "Local inference in nav-pilot alpha: who uses it, what they send there, and whether the server comes up. Every query uses sum_over_time, not increase(): all runs on a machine share a series and start at their own 1, so increase() gives 0. Each sample is what is new since the process's last export, so the sum counts each run once.",
     "editable": true,
     "elements": {
       "panel-1": {
@@ -61,10 +61,10 @@
               "transformations": []
             }
           },
-          "description": "Hvor mange som har kjørt minst én lokal sesjon i perioden. Nevneren for alt annet her.",
+          "description": "How many ran at least one local session in the range. The denominator for everything else here.",
           "id": 1,
           "links": [],
-          "title": "Maskiner med lokal kjøring",
+          "title": "Machines running locally",
           "vizConfig": {
             "group": "stat",
             "kind": "VizConfig",
@@ -142,10 +142,10 @@
               "transformations": []
             }
           },
-          "description": "Én sesjon er én klientkjøring med lokal worker tilgjengelig, talt når klienten avslutter.",
+          "description": "One session is one client run with a local worker available, counted when the client exits.",
           "id": 2,
           "links": [],
-          "title": "Sesjoner",
+          "title": "Sessions",
           "vizConfig": {
             "group": "stat",
             "kind": "VizConfig",
@@ -223,10 +223,10 @@
               "transformations": []
             }
           },
-          "description": "Sum av oppgaver hovedagenten faktisk sendte til den lokale modellen.",
+          "description": "Total tasks the main agent actually sent to the local model.",
           "id": 3,
           "links": [],
-          "title": "Oppgaver sendt lokalt",
+          "title": "Tasks sent locally",
           "vizConfig": {
             "group": "stat",
             "kind": "VizConfig",
@@ -304,10 +304,10 @@
               "transformations": []
             }
           },
-          "description": "Panelet som avgjør om alfaen utvides. Se fordelingen under for hvorfor tallet er som det er — en null betyr ikke det samme i de to tilfellene.",
+          "description": "The panel that decides whether the alpha widens. See the breakdown below for why the number is what it is: a zero does not mean the same thing in the two cases.",
           "id": 4,
           "links": [],
-          "title": "Andel sesjoner uten dispatch",
+          "title": "Share of sessions without dispatch",
           "vizConfig": {
             "group": "stat",
             "kind": "VizConfig",
@@ -374,7 +374,7 @@
                       "kind": "DataQuery",
                       "spec": {
                         "expr": "sum by (saw_traffic) (sum_over_time(nav_pilot_local_dispatches_bucket{version=~\"$version\", le=\"0\"}[$__interval]))",
-                        "legendFormat": "så workeren: {{saw_traffic}}"
+                        "legendFormat": "saw worker: {{saw_traffic}}"
                       },
                       "version": "v0"
                     }
@@ -385,10 +385,10 @@
               "transformations": []
             }
           },
-          "description": "Den ene grafen som er verdt å bygge dashbordet for. saw_traffic=true betyr at klienten nådde workeren og lot være å bruke den — det er en dom over modellen. saw_traffic=false betyr at oppkoblingen aldri kom fram, som er vår feil, ikke modellens. Uten dette skillet er en null tre forskjellige ting rapportert som én.\n\nVENTER PÅ DATA: saw_traffic ble lagt til etter at alfaen gikk ut, så panelet er tomt til folk har oppdatert. Tomt er riktig her — en null vi ikke kan tolke er verre enn ingen strek.",
+          "description": "The one graph worth building the dashboard for. saw_traffic=true means the client reached the worker and chose not to use it: a verdict on the model. saw_traffic=false means the connection never got through, which is our fault, not the model's. Without this split a zero is three different things reported as one.\n\nWAITING FOR DATA: saw_traffic was added after the alpha shipped, so the panel is empty until people upgrade. Empty is correct here: a zero we cannot interpret is worse than no line.",
           "id": 10,
           "links": [],
-          "title": "Sesjoner uten dispatch, delt på om klienten så workeren",
+          "title": "Sessions without dispatch, by whether the client saw the worker",
           "vizConfig": {
             "group": "timeseries",
             "kind": "VizConfig",
@@ -491,7 +491,7 @@
                       "kind": "DataQuery",
                       "spec": {
                         "expr": "sum(sum_over_time(nav_pilot_local_dispatches_bucket{version=~\"$version\", le=\"0\"}[$__range]))",
-                        "legendFormat": "0 oppgaver"
+                        "legendFormat": "0 tasks"
                       },
                       "version": "v0"
                     }
@@ -540,10 +540,10 @@
               "transformations": []
             }
           },
-          "description": "Fordeling, aldri gjennomsnitt: de fleste sesjonene sender ingenting og noen få sender mye, og et snitt av de to beskriver ingen faktisk sesjon. Bøttene er trukket fra hverandre, så hver søyle er sesjoner i akkurat det intervallet.",
+          "description": "Distribution, never mean: most sessions send nothing and a few send a lot, and an average of the two describes no real session. The buckets are subtracted from each other, so each bar is sessions in exactly that interval.",
           "id": 11,
           "links": [],
-          "title": "Oppgaver per sesjon",
+          "title": "Tasks per session",
           "vizConfig": {
             "group": "barchart",
             "kind": "VizConfig",
@@ -589,10 +589,10 @@
               "transformations": []
             }
           },
-          "description": "opencode kjører modellen som subagent under en skyagent; Copilot CLI kjører hele økten lokalt.",
+          "description": "opencode runs the model as a subagent under a cloud agent; Copilot CLI runs the whole session locally.",
           "id": 12,
           "links": [],
-          "title": "Sesjoner per intervall, per klient",
+          "title": "Sessions per interval, by client",
           "vizConfig": {
             "group": "timeseries",
             "kind": "VizConfig",
@@ -706,10 +706,10 @@
               "transformations": []
             }
           },
-          "description": "Hva vakten foran den lokale modellen gjorde i økter med local_dispatch balanced eller aggressive. deny_* er ting den stoppet; dispatched_after_deny endte likevel med utsending; verify_nudge er påminnelsen når den lokale modellen er ferdig og ingen bygging eller test har kjørt etterpå; create_retry* er oppfølging etter at den opprettet en ny fil.",
+          "description": "What the guard in front of the local model did in sessions with local_dispatch balanced or aggressive. deny_* are things it stopped; dispatched_after_deny still ended in a dispatch; verify_nudge is the reminder when the local model is done and no build or test has run since; create_retry* is follow-up after it created a new file.",
           "id": 13,
           "links": [],
-          "title": "Utsendingsvakten, per utfall",
+          "title": "Dispatch guard, by outcome",
           "vizConfig": {
             "group": "timeseries",
             "kind": "VizConfig",
@@ -842,10 +842,10 @@
               "transformations": []
             }
           },
-          "description": "p50 og p95 for oppstarter som faktisk kom opp. Filteret outcome=\"ready\" er ikke pynt: en oppstart som går i timeout bidrar med ti minutter, og en p95 uten filteret måler feilene, ikke ventetiden.\n\nVENTER PÅ DATA: outcome kom inn etter forrige release, så panelet fylles først når folk har oppdatert.",
+          "description": "p50 and p95 for starts that actually came up. The filter outcome=\"ready\" is not decoration: a start that times out contributes ten minutes, and a p95 without the filter measures the failures, not the wait.\n\nWAITING FOR DATA: outcome arrived after the previous release, so the panel fills once people upgrade.",
           "id": 20,
           "links": [],
-          "title": "Tid til klar",
+          "title": "Time to ready",
           "vizConfig": {
             "group": "timeseries",
             "kind": "VizConfig",
@@ -961,10 +961,10 @@
               "transformations": []
             }
           },
-          "description": "ready, failed eller interrupted. Fram til denne fantes ble bare vellykkede oppstarter registrert, så den trege halen manglet per konstruksjon.\n\nVENTER PÅ DATA: outcome kom inn etter forrige release og fylles etter hvert som folk oppdaterer. Fra samme release teller også autostart, som er den vanlige veien inn — tidligere målte histogrammet bare oppstarter noen skrev inn for hånd.",
+          "description": "ready, failed or interrupted. Until this existed only successful starts were recorded, so the slow tail was missing by construction.\n\nWAITING FOR DATA: outcome arrived after the previous release and fills as people upgrade. From the same release autostart is counted too, which is the usual way in; before, the histogram only measured starts someone typed by hand.",
           "id": 21,
           "links": [],
-          "title": "Hvordan oppstarter endte",
+          "title": "How starts ended",
           "vizConfig": {
             "group": "timeseries",
             "kind": "VizConfig",
@@ -1078,10 +1078,10 @@
               "transformations": []
             }
           },
-          "description": "Skal være én. Flere betyr at noen kjører noe vi ikke har målt.",
+          "description": "Should be one. More means someone runs something we have not measured.",
           "id": 22,
           "links": [],
-          "title": "Modeller i bruk",
+          "title": "Models in use",
           "vizConfig": {
             "group": "piechart",
             "kind": "VizConfig",
@@ -1166,10 +1166,10 @@
               "transformations": []
             }
           },
-          "description": "Placeholder: no series yet in Mimir. Tracked in #1015. The query is the intended one. decided og below_threshold er svar; no_server betyr at ingen lokal server kjørte, og timeout at den var opptatt eller treg. Én kjøring av `alpha decide` er ett punkt. --eval teller ikke her, bare som kommandoen `alpha decide eval`.",
+          "description": "Placeholder: no series yet in Mimir. Tracked in #1015. The query is the intended one. decided and below_threshold are answers; no_server means no local server was running, and timeout that it was busy or slow. One run of `alpha decide` is one point. --eval does not count here, only as the command `alpha decide eval`.",
           "id": 30,
           "links": [],
-          "title": "decide-kall per utfall (placeholder)",
+          "title": "decide calls by outcome (placeholder)",
           "vizConfig": {
             "group": "timeseries",
             "kind": "VizConfig",
@@ -1283,10 +1283,10 @@
               "transformations": []
             }
           },
-          "description": "Placeholder: no series yet in Mimir. Tracked in #1015. The query is the intended one. hook: git kjørte kallet (GIT_INDEX_FILE/GIT_EXEC_PATH satt). tty: en person i terminalen. script: alt annet. Er dette mest tty, prøver folk den ut; er det hook, bruker de den.",
+          "description": "Placeholder: no series yet in Mimir. Tracked in #1015. The query is the intended one. hook: git ran the call (GIT_INDEX_FILE/GIT_EXEC_PATH set). tty: a person at the terminal. script: everything else. Mostly tty means people are trying it; mostly hook means they use it.",
           "id": 31,
           "links": [],
-          "title": "Hvem kaller decide (placeholder)",
+          "title": "Who calls decide (placeholder)",
           "vizConfig": {
             "group": "piechart",
             "kind": "VizConfig",
@@ -1379,7 +1379,7 @@
                       "kind": "DataQuery",
                       "spec": {
                         "expr": "histogram_quantile(0.5, sum by (le) (sum_over_time(nav_pilot_decide_latency_ms_bucket{version=~\"$version\"}[$__range])))",
-                        "legendFormat": "p50 alle"
+                        "legendFormat": "p50 all"
                       },
                       "version": "v0"
                     }
@@ -1390,10 +1390,10 @@
               "transformations": []
             }
           },
-          "description": "Placeholder: no series yet in Mimir. Tracked in #1015. The query is the intended one. Bare besvarte kall. Venting på serverlåsen er med: en agentøkt på samme server forsinker decide, og det er den ventetiden en git-hook merker.",
+          "description": "Placeholder: no series yet in Mimir. Tracked in #1015. The query is the intended one. Answered calls only. Waiting for the server lock is included: an agent session on the same server delays decide, and that is the wait a git hook notices.",
           "id": 32,
           "links": [],
-          "title": "decide-latens, p95 per evidensstørrelse (placeholder)",
+          "title": "decide latency, p95 by evidence size (placeholder)",
           "vizConfig": {
             "group": "timeseries",
             "kind": "VizConfig",
@@ -1509,10 +1509,10 @@
               "transformations": []
             }
           },
-          "description": "Placeholder: no series yet in Mimir. Tracked in #1015. The query is the intended one. Hvor ofte modellen er usikker på sitt eget valg. Stiger den for en modell, er spørsmålene folk stiller den vanskeligere enn det den ble målt på.",
+          "description": "Placeholder: no series yet in Mimir. Tracked in #1015. The query is the intended one. How often the model is unsure of its own choice. If it rises for a model, the questions people ask it are harder than what it was measured on.",
           "id": 33,
           "links": [],
-          "title": "Andel valg med p under 0,8, per modell (placeholder)",
+          "title": "Share of choices with p below 0.8, by model (placeholder)",
           "vizConfig": {
             "group": "timeseries",
             "kind": "VizConfig",
@@ -1628,10 +1628,10 @@
               "transformations": []
             }
           },
-          "description": "Placeholder: no series yet in Mimir. Tracked in #2915. The query is the intended one. session=local er vakten foran den lokale modellen, som avslutter turen. session=cloud er postToolUse-hooken i Copilot-økter mot skymodeller, som bare kan skrive om resultatet. Begge telles når nav-pilot-økten avslutter, ikke når de skjer.",
+          "description": "Placeholder: no series yet in Mimir. Tracked in #2915. The query is the intended one. session=local is the guard in front of the local model, which ends the turn. session=cloud is the postToolUse hook in Copilot sessions against cloud models, which can only rewrite the result. Both are counted when the nav-pilot session ends, not when they happen.",
           "id": 40,
           "links": [],
-          "title": "Løkkevakten slo til, per regel (placeholder)",
+          "title": "Loop guard triggered, by rule (placeholder)",
           "vizConfig": {
             "group": "timeseries",
             "kind": "VizConfig",
@@ -1745,10 +1745,10 @@
               "transformations": []
             }
           },
-          "description": "Antall, aldri innhold. secret og fnr er maskerte verdier; injection_note er resultater som fikk en merknad om at teksten ser ut som instruksjoner.",
+          "description": "Counts, never content. secret and fnr are masked values; injection_note is results that got a note that the text looks like instructions.",
           "id": 41,
           "links": [],
-          "title": "Maskeringer i verktøyresultater",
+          "title": "Redactions in tool results",
           "vizConfig": {
             "group": "timeseries",
             "kind": "VizConfig",
@@ -1862,10 +1862,10 @@
               "transformations": []
             }
           },
-          "description": "Placeholder: no series yet in Mimir. Tracked in #2915. The query is the intended one. Om den lokale modellen fikk sjekke en risikabel skallkommando før den kjørte, og hva den svarte. flagged er kommandoer modellen fant risikable; skipped_* er sjekker som ikke ble gjort (frist, ingen server, eller feil).",
+          "description": "Placeholder: no series yet in Mimir. Tracked in #2915. The query is the intended one. Whether the local model got to check a risky shell command before it ran, and what it answered. flagged are commands the model found risky; skipped_* are checks that were not made (deadline, no server, or error).",
           "id": 42,
           "links": [],
-          "title": "Handlingssjekken, per utfall og kategori (placeholder)",
+          "title": "Action check, by outcome and category (placeholder)",
           "vizConfig": {
             "group": "timeseries",
             "kind": "VizConfig",
@@ -1957,7 +1957,7 @@
             "kind": "RowsLayoutRow",
             "spec": {
               "collapse": false,
-              "title": "Adopsjon",
+              "title": "Adoption",
               "layout": {
                 "kind": "GridLayout",
                 "spec": {
@@ -2023,7 +2023,7 @@
             "kind": "RowsLayoutRow",
             "spec": {
               "collapse": false,
-              "title": "Dispatch — brukes workeren?",
+              "title": "Dispatch: is the worker used?",
               "layout": {
                 "kind": "GridLayout",
                 "spec": {
@@ -2089,7 +2089,7 @@
             "kind": "RowsLayoutRow",
             "spec": {
               "collapse": true,
-              "title": "Lokal server",
+              "title": "Local server",
               "layout": {
                 "kind": "GridLayout",
                 "spec": {
@@ -2267,7 +2267,7 @@
       "nav-pilot",
       "domain:nav-pilot",
       "concern:insights",
-      "lokal-inferens",
+      "local-inference",
       "alpha"
     ],
     "timeSettings": {
@@ -2288,7 +2288,7 @@
       "timezone": "browser",
       "to": "now"
     },
-    "title": "nav-pilot — lokal inferens (nais)",
+    "title": "nav-pilot local inference (nais)",
     "variables": [
       {
         "kind": "DatasourceVariable",
@@ -2323,7 +2323,7 @@
           "definition": "label_values(nav_pilot_info, version)",
           "hide": "dontHide",
           "includeAll": true,
-          "label": "Versjon",
+          "label": "Version",
           "multi": true,
           "name": "version",
           "options": [],

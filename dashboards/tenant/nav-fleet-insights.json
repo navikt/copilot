@@ -20,8 +20,8 @@
   "schemaVersion": 42,
   "fiscalYearStartMonth": 0,
   "uid": "copilot-fleet-insights",
-  "title": "nav-fleet: bruk",
-  "description": "Bruk av gateway-ruter, verktøy, registry og mcp-onboarding over tid.",
+  "title": "nav-fleet: usage",
+  "description": "Usage of gateway routes, tools, the registry and mcp-onboarding over time.",
   "tags": [
     "copilot",
     "domain:nav-fleet",
@@ -35,7 +35,7 @@
   "timezone": "browser",
   "links": [
     {
-      "title": "Copilot: oversikt",
+      "title": "Copilot: overview",
       "type": "link",
       "url": "/d/copilot-ecosystem",
       "icon": "dashboard",
@@ -45,7 +45,7 @@
       "tooltip": ""
     },
     {
-      "title": "nav-fleet: drift",
+      "title": "nav-fleet: operations",
       "type": "link",
       "url": "/d/copilot-fleet-ops?${__url_time_range}&${__all_variables}",
       "icon": "dashboard",
@@ -90,7 +90,7 @@
       },
       {
         "name": "env",
-        "label": "Miljø",
+        "label": "Environment",
         "type": "custom",
         "query": "dev,prod",
         "multi": true,
@@ -119,7 +119,7 @@
   "panels": [
     {
       "type": "row",
-      "title": "Ruter og verktøy",
+      "title": "Routes and tools",
       "fieldConfig": {
         "defaults": {},
         "overrides": []
@@ -229,9 +229,9 @@
           "refId": "A"
         }
       ],
-      "title": "Forespørsler per rute",
+      "title": "Requests by route",
       "type": "timeseries",
-      "description": "Daglig volum per rute. Drill ned i nav-fleet: drift ved avvik.",
+      "description": "Volume by route. Drill down to nav-fleet: operations on anomalies.",
       "interval": "5m"
     },
     {
@@ -329,7 +329,7 @@
           "refId": "A"
         }
       ],
-      "title": "Verktøykall per verktøy (gateway)",
+      "title": "Tool calls by tool (gateway)",
       "type": "timeseries",
       "description": "",
       "interval": "5m"
@@ -410,7 +410,7 @@
           "refId": "A"
         }
       ],
-      "title": "Registry-oppslag i perioden",
+      "title": "Registry lookups in range",
       "type": "stat"
     },
     {
@@ -508,10 +508,10 @@
           "refId": "A"
         }
       ],
-      "title": "Oppslag per server",
+      "title": "Lookups by server",
       "type": "timeseries",
       "interval": "5m",
-      "description": "server=\"unknown\" er oppslag på en server som ikke finnes i registryet (result=\"not_found\"). mcp-registry setter bevisst \"unknown\" i stedet for navnet fra URL-en, så ukjente navn ikke gir én serie hver."
+      "description": "server=\"unknown\" is a lookup of a server that is not in the registry (result=\"not_found\"). mcp-registry deliberately records \"unknown\" instead of the name from the URL, so unknown names do not each create a series."
     },
     {
       "datasource": {
@@ -578,9 +578,9 @@
           "refId": "A"
         }
       ],
-      "title": "Mest brukte servere",
+      "title": "Most used servers",
       "type": "bargauge",
-      "description": "server=\"unknown\" er oppslag på en server som ikke finnes i registryet (result=\"not_found\"). mcp-registry setter bevisst \"unknown\" i stedet for navnet fra URL-en, så ukjente navn ikke gir én serie hver."
+      "description": "server=\"unknown\" is a lookup of a server that is not in the registry (result=\"not_found\"). mcp-registry deliberately records \"unknown\" instead of the name from the URL, so unknown names do not each create a series."
     },
     {
       "type": "row",
@@ -656,7 +656,7 @@
               "refId": "A"
             }
           ],
-          "title": "Aktive tokener",
+          "title": "Active tokens",
           "type": "stat"
         },
         {
@@ -717,7 +717,7 @@
               "refId": "A"
             }
           ],
-          "title": "Refresh-tokener",
+          "title": "Refresh tokens",
           "type": "stat"
         },
         {
@@ -779,7 +779,7 @@
               "refId": "A"
             }
           ],
-          "title": "Innlogginger i perioden",
+          "title": "Logins in range",
           "type": "stat"
         },
         {
@@ -841,7 +841,7 @@
               "refId": "A"
             }
           ],
-          "title": "Verktøykall i perioden",
+          "title": "Tool calls in range",
           "type": "stat"
         },
         {
@@ -940,7 +940,7 @@
               "refId": "A"
             }
           ],
-          "title": "Verktøykall per verktøy",
+          "title": "Tool calls by tool",
           "type": "timeseries",
           "interval": "5m"
         }
