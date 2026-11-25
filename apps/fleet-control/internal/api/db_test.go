@@ -44,7 +44,7 @@ func TestRealPostgresSeedAndSnapshot(t *testing.T) {
 		}
 	}
 	routes, allowlist := readSeedFiles(t, "prod")
-	servers, err := seedServers(routes, allowlist)
+	servers, err := seedServers("prod-gcp", routes, allowlist)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -89,7 +89,7 @@ func TestRealPostgresSeedAndSnapshot(t *testing.T) {
 	// A running instance does not read the seed files again.
 	t.Setenv("SEED_ROUTES_FILE", "/nonexistent/routes.yaml")
 	t.Setenv("SEED_ALLOWLIST_FILE", "/nonexistent/allowlist.json")
-	if err = seedFromEnv(ctx, db); err != nil {
+	if err = seedFromEnv(ctx, db, "prod-gcp"); err != nil {
 		t.Errorf("seed with a populated database must not read the files: %v", err)
 	}
 

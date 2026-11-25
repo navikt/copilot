@@ -111,7 +111,7 @@ func TestRealPostgresAuditActorKindAndClientID(t *testing.T) {
 	e := newApisEnv(t)
 	ctx := context.Background()
 	routes, allowlist := readSeedFiles(t, "prod")
-	servers, err := seedServers(routes, allowlist)
+	servers, err := seedServers("prod-gcp", routes, allowlist)
 	if err != nil {
 		t.Fatal(err)
 	}

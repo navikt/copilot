@@ -70,7 +70,7 @@ func (a *API) Handler() http.Handler { return a.handler }
 // Connect retries the database until ctx ends, then serves from it and starts
 // the job sweep when the runtime API is enabled.
 func (a *API) Connect(ctx context.Context) {
-	db, err := connect(ctx)
+	db, err := connect(ctx, a.srv.cluster)
 	if err != nil {
 		slog.Error("database setup failed; snapshots stay unavailable", "error", err)
 		return
@@ -94,9 +94,9 @@ func newHTTPServer(port string, h http.Handler) *http.Server {
 
 // connect migrates and seeds as the owner role, then opens the runtime pool
 // (Nais READWRITE_ role when present). It retries until ctx ends.
-func connect(ctx context.Context) (*DB, error) {
+func connect(ctx context.Context, cluster string) (*DB, error) {
 	for delay := time.Second; ; delay = min(delay*2, 30*time.Second) {
-		db, err := setupDB(ctx)
+		db, err := setupDB(ctx, cluster)
 		if err == nil {
 			return db, nil
 		}
@@ -109,7 +109,7 @@ func connect(ctx context.Context) (*DB, error) {
 	}
 }
 
-func setupDB(ctx context.Context) (*DB, error) {
+func setupDB(ctx context.Context, cluster string) (*DB, error) {
 	owner, err := OpenDB(ctx, os.Getenv("DB_URL"))
 	if err != nil {
 		return nil, err
@@ -118,7 +118,7 @@ func setupDB(ctx context.Context) (*DB, error) {
 	if err := owner.Migrate(ctx); err != nil {
 		return nil, err
 	}
-	if err := seedFromEnv(ctx, owner); err != nil {
+	if err := seedFromEnv(ctx, owner, cluster); err != nil {
 		return nil, err
 	}
 	// Every start: fills spec and spec_hash on published versions written
@@ -187,7 +187,7 @@ func ownerFallbackAllowed(cluster string) error {
 }
 
 // seedFromEnv imports SEED_ROUTES_FILE and SEED_ALLOWLIST_FILE when both are set.
-func seedFromEnv(ctx context.Context, db *DB) error {
+func seedFromEnv(ctx context.Context, db *DB, cluster string) error {
 	routesPath, allowlistPath := os.Getenv("SEED_ROUTES_FILE"), os.Getenv("SEED_ALLOWLIST_FILE")
 	if routesPath == "" || allowlistPath == "" {
 		return nil
@@ -204,7 +204,7 @@ func seedFromEnv(ctx context.Context, db *DB) error {
 	if err != nil {
 		return err
 	}
-	servers, err := seedServers(routes, allowlist)
+	servers, err := seedServers(cluster, routes, allowlist)
 	if err != nil {
 		return fmt.Errorf("seed: %w", err)
 	}
