@@ -1,4 +1,4 @@
-package main
+package gateway
 
 import (
 	"bytes"
@@ -48,8 +48,6 @@ type texasTokenResponse struct {
 	TokenType   string `json:"token_type"`
 }
 
-// token returns a valid M2M access token, refreshing it via Texas when the
-// cached one is missing or close to expiry.
 func (c *texasClient) token(ctx context.Context) (string, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()

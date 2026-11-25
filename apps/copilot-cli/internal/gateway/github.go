@@ -1,4 +1,4 @@
-package main
+package gateway
 
 import (
 	"bytes"
@@ -128,8 +128,6 @@ func (c *GitHubClient) revoke(ctx context.Context, token string) error {
 	}
 }
 
-// appTokenRequest calls /applications/{client_id}/token with this app's
-// credentials, about token.
 func (c *GitHubClient) appTokenRequest(ctx context.Context, method, token string) (*http.Response, error) {
 	body, err := json.Marshal(map[string]string{"access_token": token})
 	if err != nil {

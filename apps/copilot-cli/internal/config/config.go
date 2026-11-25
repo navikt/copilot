@@ -1,8 +1,5 @@
-// Package main implements copilot-cli, a NAIS-hosted gateway for nav-pilot.
-// It signs callers in with a GitHub token (navikt org members only) and
-// forwards usage requests to copilot-api and survey requests to
-// copilot-survey.
-package main
+// Package config loads copilot-cli's runtime configuration from the environment.
+package config
 
 import (
 	"log/slog"
@@ -49,7 +46,8 @@ type Config struct {
 	OrgMembershipCacheTTL time.Duration
 }
 
-func loadConfig() *Config {
+// Load reads the configuration from environment variables.
+func Load() *Config {
 	cluster := getEnv("NAIS_CLUSTER_NAME", "local")
 
 	return &Config{
