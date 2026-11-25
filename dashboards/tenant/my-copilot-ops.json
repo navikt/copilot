@@ -64,7 +64,12 @@
         "query": "prometheus",
         "refresh": 1,
         "type": "datasource",
-        "description": "Mimir data source with X-Scope-OrgID tenant. This dashboard belongs in the Grafana that reads the tenant org."
+        "description": "Mimir data source with X-Scope-OrgID tenant. This dashboard belongs in the Grafana that reads the tenant org.",
+        "current": {
+          "selected": true,
+          "text": "prod-gcp",
+          "value": "prod-gcp"
+        }
       },
       {
         "label": "Logs",
