@@ -108,8 +108,6 @@ func TestNilManifestHelpers(t *testing.T) {
 	}
 }
 
-// --- legacy synthesis ---
-
 func TestDefaultIsAValidManifest(t *testing.T) {
 	// The legacy adapter is not a special case: it must survive the same
 	// validation a manifest read off disk does, or consumers would need to know
@@ -189,8 +187,6 @@ func TestSynthesizeLegacyCarriesTheCollection(t *testing.T) {
 		})
 	}
 }
-
-// --- published schema ---
 
 func TestEmbeddedSchemaMatchesPublishedFile(t *testing.T) {
 	// The file in cli/nav-pilot/schemas is what agentpakke repos lint against;
