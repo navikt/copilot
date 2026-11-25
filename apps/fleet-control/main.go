@@ -44,9 +44,23 @@ func run() error {
 		return err
 	}
 	srv := newServer()
-	adminClientID := adminClientFor(cluster, strings.TrimSpace(os.Getenv("MY_COPILOT_CLIENT_ID")))
+	myCopilotID, err := clientIDFromEnv("MY_COPILOT_CLIENT_ID", "my-copilot")
+	if err != nil {
+		return err
+	}
+	adminClientID := myCopilotID
 	srv.cluster = cluster
+	if srv.pilotTeams, err = pilotTeamsFromEnv(); err != nil {
+		return err
+	}
+	if !devCluster(cluster) && len(srv.pilotTeams) == 0 {
+		slog.Warn("FLEET_CONTROL_PILOT_TEAMS empty outside dev: every write is refused", "cluster", cluster)
+	}
 	srv.notifier = newSlackNotifier(os.Getenv("FLEET_SLACK_WEBHOOK_URL"))
+	if _, ok := teams.(unboundTeams); ok {
+		srv.teamsUnbound = true
+		slog.Warn("no Console service account bound: team lookups answer 503")
+	}
 	// FLEET_CONTROL_OPERATOR_TEAM may set the global job kill switch; unset, nobody can.
 	srv.operatorTeam = strings.TrimSpace(os.Getenv("FLEET_CONTROL_OPERATOR_TEAM"))
 	ra, err := runtimeAuthFromEnv(auth)
@@ -232,12 +246,16 @@ type snapshotStore interface {
 }
 
 type server struct {
+	// teamsUnbound: no Console service account yet; /ready says so but stays 200.
+	teamsUnbound bool
 	// cluster is NAIS_CLUSTER_NAME; route targets must be in it, since the
 	// gateway resolves service DNS in its own cluster.
 	cluster string
 	// operatorTeam may set the global job kill switch.
 	operatorTeam string
-	store        atomic.Pointer[storeBox]
+	// pilotTeams may write outside dev-*; see writeAllowed.
+	pilotTeams []string
+	store      atomic.Pointer[storeBox]
 	// lastGood holds the last served snapshot per kind, so a database outage
 	// keeps serving it; after a restart there is none and the answer is 503.
 	lastGood map[string]*atomic.Pointer[model.Snapshot]

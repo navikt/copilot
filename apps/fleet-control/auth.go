@@ -34,7 +34,14 @@ type authz struct {
 
 func newAuthzFromEnv() (*authz, error) {
 	endpoint := os.Getenv("NAIS_TOKEN_INTROSPECTION_ENDPOINT")
-	gw, reg := strings.TrimSpace(os.Getenv("FLEET_GATEWAY_CLIENT_ID")), strings.TrimSpace(os.Getenv("MCP_REGISTRY_CLIENT_ID"))
+	gw, err := clientIDFromEnv("FLEET_GATEWAY_CLIENT_ID", "fleet-gateway")
+	if err != nil {
+		return nil, err
+	}
+	reg, err := clientIDFromEnv("MCP_REGISTRY_CLIENT_ID", "mcp-registry")
+	if err != nil {
+		return nil, err
+	}
 	a, err := newAuthz(endpoint, gw, reg)
 	if a != nil {
 		// Set by Nais when azure.application is enabled. Empty: every person token is refused.
@@ -215,4 +222,27 @@ func (a *authz) introspect(ctx context.Context, header string) (*tokenClaims, er
 		return nil, errUnauthorized
 	}
 	return &claims, nil
+}
+
+// clientIDFromEnv resolves app's Entra client id from AZURE_APP_PRE_AUTHORIZED_APPS,
+// which Nais fills from accessPolicy.inbound, matched on
+// "<NAIS_CLUSTER_NAME>:copilot:<app>". Not listed there: the explicit envVar.
+// Unparseable JSON refuses startup rather than falling back.
+func clientIDFromEnv(envVar, app string) (string, error) {
+	if raw := strings.TrimSpace(os.Getenv("AZURE_APP_PRE_AUTHORIZED_APPS")); raw != "" {
+		var apps []struct {
+			Name     string `json:"name"`
+			ClientID string `json:"clientId"`
+		}
+		if err := json.Unmarshal([]byte(raw), &apps); err != nil {
+			return "", fmt.Errorf("AZURE_APP_PRE_AUTHORIZED_APPS: %w", err)
+		}
+		want := os.Getenv("NAIS_CLUSTER_NAME") + ":copilot:" + app
+		for _, a := range apps {
+			if a.Name == want && strings.TrimSpace(a.ClientID) != "" {
+				return strings.TrimSpace(a.ClientID), nil
+			}
+		}
+	}
+	return strings.TrimSpace(os.Getenv(envVar)), nil
 }

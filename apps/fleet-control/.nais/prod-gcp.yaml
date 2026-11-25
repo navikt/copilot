@@ -1,0 +1,14 @@
+# Deployed by .github/workflows/fleet-control.yaml. Owner steps: README.md "Prod rollout" (#2754).
+cluster: prod-gcp
+env: prod
+replicas_min: "1"
+replicas_max: "2"
+cpu_request: 50m
+memory_request: 64Mi
+memory_limit: 128Mi
+# Same headroom as dev (#3000).
+gomemlimit: 115MiB
+# Caller client ids come from AZURE_APP_PRE_AUTHORIZED_APPS, which Nais fills
+# from accessPolicy.inbound. No agent seed and no static team list in prod.
+# Owner decision 2026-11-25: writes on for the closed pilot only.
+pilot_teams: copilot,aksel-studio

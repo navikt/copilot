@@ -130,9 +130,9 @@ Not built yet: the public ingress fleet-runtime will reach this through (#2686),
 | `FLEET_RUNTIME_LEASE_TTL`                 | Lease TTL, 10s to 10m. Default 60s                                                                                                                                                                                                                                                                                                                                                          |
 | `FLEET_RUNTIME_SWEEP_INTERVAL`            | Lease sweep interval, 1s to 5m. Default 15s                                                                                                                                                                                                                                                                                                                                                 |
 | `FLEET_CONTROL_OPERATOR_TEAM`             | Team that may set the global job kill switch. Unset: nobody                                                                                                                                                                                                                                                                                                                                 |
-| `NAIS_CLUSTER_NAME`                       | Set by Nais. The write routes and the static team list run only in a `dev-*` cluster; the static list in prod stops startup                                                                                                                                                                                                                                                                 |
+| `NAIS_CLUSTER_NAME`                       | Set by Nais. Write routes run in dev-* and, in prod, for the teams in `FLEET_CONTROL_PILOT_TEAMS`; the static team list in prod stops startup                                                                                                                                                                                                                                                                 |
 
-The app refuses to start when a client id or the Texas endpoint is missing, or when both client ids are equal. Client ids are set per cluster in `.nais/<cluster>.yaml`. A change rolls out pod by pod, so for a short time old and new replicas may accept different callers.
+Client ids are read from `AZURE_APP_PRE_AUTHORIZED_APPS` (set by Nais from `accessPolicy.inbound`), matched on `<NAIS_CLUSTER_NAME>:copilot:<app>`. A caller not listed there falls back to the explicit variable. The app refuses to start when a client id or the Texas endpoint is missing, when both client ids are equal, or when `AZURE_APP_PRE_AUTHORIZED_APPS` is not valid JSON. Outside dev-*, without `NAIS_SERVICE_ACCOUNT_TOKEN_PATH`, the app starts, every team lookup answers 503, and `/ready` says so while staying 200. A change rolls out pod by pod, so for a short time old and new replicas may accept different callers.
 
 ## Migrations
 
@@ -209,7 +209,7 @@ Severity warning. No successful snapshot build of one kind for 10 minutes (`flee
 
 ## Backup and restore
 
-Nais Postgres ([doc.nais.io](https://doc.nais.io/persistence/postgres/reference/recovery-window/)) takes a nightly base backup and archives the write-ahead log continuously, into a bucket in the team's project. That gives point-in-time recovery to any second in the window. `.nais/postgres.yaml` sets `backup.retentionDays: 7` (Nais default 2, range 2 to 30). The file is applied by hand, not by CI: run `nais apply -t copilot -e <env> .nais/postgres.yaml` after changing it. Cost at 5Gi is about 5 x 8 x 0.02 = 0.80 EUR a month.
+Nais Postgres ([doc.nais.io](https://doc.nais.io/persistence/postgres/reference/recovery-window/)) takes a nightly base backup and archives the write-ahead log continuously, into a bucket in the team's project. That gives point-in-time recovery to any second in the window. `.nais/postgres.yaml` sets `spec.pitr.windowDays: 7` (Nais default 2, range 2 to 30). CI deploys the file with the app (`nais-resource` in `.github/workflows/fleet-control.yaml`). Cost at 5Gi is about 5 x 8 x 0.02 = 0.80 EUR a month.
 
 - RPO: seconds (WAL archive), within 7 days.
 - RTO: clone time plus one deploy, about 5 minutes in the dev drill below.
@@ -247,6 +247,19 @@ Needs a human with write access to dev-gcp. Fill in and commit the result here. 
 - [x] Total RTO, step 2 to step 7: about 4 min 46 s (clone start to app ready on the clone), plus lost writes since the clone point: up to about 10 minutes without `--at`.
 - [x] Switched back and clone deleted: repoint run switched back to the source in 52 s, snapshot age 18 s, 0 sync failures; that clone was deleted. First run: `nais postgres delete fleet-control-restore-drill` at 09:39:45Z; pods gone and the instance no longer in `nais postgres list` at 09:41:12Z. Source `fleet-control` still `Ready`.
 - [x] Surprises or doc fixes: without `--at` the clone point is 10 minutes back, so writes from the last 10 minutes are missing. Pass `--at` for a recent point. `nais postgres psql --access-level read` is enough for step 4.
+
+## Prod rollout (#2754)
+
+Closed pilot: teams `copilot` and `aksel-studio`. Merging the PR that adds `prod-gcp` to `nais-clusters` in `.github/workflows/fleet-control.yaml` is the deploy. The owner does the steps below in order.
+
+1. **Deploy.** Merge. The deploy creates Postgres (`.nais/postgres.yaml`; Nais takes a nightly base backup plus archived WAL, with a 7-day point-in-time recovery window set by `spec.pitr.windowDays`) together with the app. Check that the pod is ready. `/ready` answers 200 with "team lookups unavailable: no Console service account bound" until step 3.
+2. **Verify the seed.** The first start imports the gateway servers from `pilot-routes.prod.yaml` and the allowlist. Check the log for the seed import and no `snapshot rebuild failed`, and that `fleet_control_snapshot_last_success_timestamp_seconds` exists for `routes`. No static teams and no agent seed exist in prod.
+3. **Service account.** In Nais Console, team `copilot`, create a service account that may read team membership and bind it to the workload `fleet-control` in `prod-gcp`. The binding needs the deployed app. Nais then sets `NAIS_SERVICE_ACCOUNT_TOKEN_PATH`; restart the pod if it does not pick it up. Check that `/ready` no longer mentions the service account and that `fleet_control_console_lookups_total{outcome!="ok"}` stays flat.
+4. **Shadow.** fleet-gateway prod runs with `routes_shadow_source: fleet-control`: it serves routes from git and compares them with the fleet-control snapshot. Watch `fleet_gateway_routes_shadow_diff` and `fleet_gateway_routes_shadow_failures_total` for a few days. The diff must be 0.
+5. **my-copilot.** `/fleet` stays hidden in prod until `FLEET_CONTROL_URL` is set for my-copilot in prod. Set it once steps 1 to 4 hold, then check the page as a member of a pilot team. Write routes (`/apis`, `/admin`) are on in prod for the pilot teams in `FLEET_CONTROL_PILOT_TEAMS` (`copilot,aksel-studio`, owner decision 2026-11-25). A write needs both: the target team is on that list and the caller is a member of it per Nais Console. Other teams get 403; an empty list refuses every write. Writes answer 503 until the service account from step 3 is bound.
+6. **Switch.** When the shadow diff has been 0 for a few days with no sync failures, set `routes_source: fleet-control` in `apps/fleet-gateway/.nais/prod-gcp.yaml` and remove `routes_shadow_source` (#2760). Roll back by reverting that change: routes come from git again.
+
+Caller client ids need no manual step: they come from `AZURE_APP_PRE_AUTHORIZED_APPS`.
 
 ## Development
 

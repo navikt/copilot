@@ -207,3 +207,26 @@ func TestUserRefusesGuests(t *testing.T) {
 		t.Error("no home tenant configured: want refusal")
 	}
 }
+
+func TestClientIDFromEnv(t *testing.T) {
+	t.Setenv("NAIS_CLUSTER_NAME", "prod-gcp")
+	t.Setenv("FLEET_GATEWAY_CLIENT_ID", "explicit")
+	t.Setenv("AZURE_APP_PRE_AUTHORIZED_APPS", `[{"name":"dev-gcp:copilot:fleet-gateway","clientId":"wrong-cluster"},{"name":"prod-gcp:other:fleet-gateway","clientId":"wrong-ns"},{"name":"prod-gcp:copilot:fleet-gateway","clientId":"injected"}]`)
+	if id, err := clientIDFromEnv("FLEET_GATEWAY_CLIENT_ID", "fleet-gateway"); err != nil || id != "injected" {
+		t.Fatalf("got %q, %v; want injected", id, err)
+	}
+	// Not pre-authorized: explicit var.
+	t.Setenv("MCP_REGISTRY_CLIENT_ID", "explicit-reg")
+	if id, _ := clientIDFromEnv("MCP_REGISTRY_CLIENT_ID", "mcp-registry"); id != "explicit-reg" {
+		t.Fatalf("got %q, want explicit-reg", id)
+	}
+	// Missing from both: empty, which newAuthz refuses.
+	t.Setenv("MCP_REGISTRY_CLIENT_ID", "")
+	if id, _ := clientIDFromEnv("MCP_REGISTRY_CLIENT_ID", "mcp-registry"); id != "" {
+		t.Fatalf("got %q, want empty", id)
+	}
+	t.Setenv("AZURE_APP_PRE_AUTHORIZED_APPS", "{not json")
+	if _, err := clientIDFromEnv("FLEET_GATEWAY_CLIENT_ID", "fleet-gateway"); err == nil {
+		t.Fatal("bad JSON: want error")
+	}
+}

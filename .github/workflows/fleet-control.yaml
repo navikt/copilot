@@ -46,11 +46,13 @@ jobs:
       mise-setup-tasks: '["install"]'
       mise-tasks: '["lint", "check"]'
       deploys-to-nais: true
-      # Dev only (#2334). Postgres is created by `nais apply`, see .nais/postgres.yaml.
+      # Postgres deploys with the app in every cluster; dev already has it, so this is a no-op there.
+      nais-resource: '.nais/postgres.yaml,.nais/app.yaml'
       deploy-pr-to-dev: false
       check-on-pr: true
       nais-team: copilot
-      nais-clusters: '["dev-gcp"]'
+      # Prod for the closed pilot (#2754). Owner steps after the first deploy: apps/fleet-control/README.md, "Prod rollout".
+      nais-clusters: '["dev-gcp", "prod-gcp"]'
 
   # Runs the Postgres-backed tests, which skip without TEST_DATABASE_URL.
   db-test:

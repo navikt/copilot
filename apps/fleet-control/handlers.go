@@ -58,6 +58,9 @@ func (s *server) ready(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	w.WriteHeader(http.StatusOK)
+	if s.teamsUnbound {
+		_, _ = w.Write([]byte("team lookups unavailable: no Console service account bound\n"))
+	}
 }
 
 // snapshot serves the current generation of a kind. It never serves an empty

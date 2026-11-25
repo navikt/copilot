@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"slices"
@@ -62,14 +63,33 @@ func devCluster(cluster string) bool {
 	return strings.HasPrefix(cluster, "dev-")
 }
 
-// adminClientFor returns the client id that mounts the write routes, or ""
-// outside dev. shortcut: write routes are dev-only until fleet-control
-// has a prod manifest and a service account bound there.
-func adminClientFor(cluster, clientID string) string {
-	if !devCluster(cluster) {
-		return ""
+// pilotTeamsFromEnv reads FLEET_CONTROL_PILOT_TEAMS, the comma-separated
+// teams that may write outside dev-*. Entries are trimmed and must be
+// lowercase DNS labels, the exact form of a namespace path value; anything
+// else refuses startup rather than being folded into a match. Empty or unset
+// gives nil: every write outside dev is refused.
+func pilotTeamsFromEnv() ([]string, error) {
+	var out []string
+	for _, t := range strings.Split(os.Getenv("FLEET_CONTROL_PILOT_TEAMS"), ",") {
+		t = strings.TrimSpace(t)
+		if t == "" {
+			continue
+		}
+		if !dnsLabelRegex.MatchString(t) {
+			return nil, fmt.Errorf("FLEET_CONTROL_PILOT_TEAMS: invalid team %q", t)
+		}
+		if !slices.Contains(out, t) {
+			out = append(out, t)
+		}
 	}
-	return clientID
+	return out, nil
+}
+
+// writeAllowed reports whether team ns may be written to in this cluster:
+// always in dev-*, elsewhere (unset cluster included) only for a pilot team.
+// Membership is checked separately; this narrows, never widens.
+func (s *server) writeAllowed(ns string) bool {
+	return devCluster(s.cluster) || slices.Contains(s.pilotTeams, ns)
 }
 
 // resolvePerson returns the NAVident behind a write request and its teams,
@@ -83,11 +103,23 @@ func resolvePerson(ctx context.Context, a *authz, header, adminClientID string, 
 	return ident, list, err
 }
 
+// errNoServiceAccount: no Console service account is bound to this workload yet.
+var errNoServiceAccount = errors.New("nais console: no service account bound (NAIS_SERVICE_ACCOUNT_TOKEN_PATH unset)")
+
+// unboundTeams answers every lookup with errNoServiceAccount.
+type unboundTeams struct{}
+
+func (unboundTeams) IsMember(context.Context, string, string) (bool, error) {
+	return false, errNoServiceAccount
+}
+
+func (unboundTeams) Teams(context.Context, string) ([]string, error) { return nil, errNoServiceAccount }
+
 // teamsFromEnv picks the team directory. With a Nais service account binding
 // (NAIS_SERVICE_ACCOUNT_TOKEN_PATH) it is the Nais Console API. Otherwise it
 // reads FLEET_CONTROL_STATIC_TEAMS, a JSON object of team to member emails,
 // from the fleet-control-static-teams secret, in dev only. Neither set means
-// no members, so every write is refused.
+// no members in dev-*, and unboundTeams elsewhere.
 func teamsFromEnv(cluster string) (teamDirectory, error) {
 	raw := os.Getenv("FLEET_CONTROL_STATIC_TEAMS")
 	if path := strings.TrimSpace(os.Getenv("NAIS_SERVICE_ACCOUNT_TOKEN_PATH")); path != "" {
@@ -95,6 +127,10 @@ func teamsFromEnv(cluster string) (teamDirectory, error) {
 			return nil, fmt.Errorf("FLEET_CONTROL_STATIC_TEAMS is for dev only, refused in cluster %q", cluster)
 		}
 		return newConsoleTeams(consoleTeamsURL, path), nil
+	}
+	if raw == "" && !devCluster(cluster) {
+		// Prod before the Console binding exists: start, but fail every lookup closed (503).
+		return unboundTeams{}, nil
 	}
 	t := staticTeams{}
 	if raw == "" {
