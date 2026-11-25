@@ -44,10 +44,13 @@ func devMCPHosts(w io.Writer) []string {
 
 func validDevMCPHost(h string) bool {
 	label, ok := strings.CutSuffix(h, devMCPSuffix)
-	if !ok || label == "" {
-		return false
-	}
-	for _, p := range strings.Split(label, ".") {
+	return ok && label != "" && validHostLabels(label)
+}
+
+// validHostLabels reports whether every dot-separated label is non-empty
+// lowercase letters, digits and inner hyphens.
+func validHostLabels(name string) bool {
+	for _, p := range strings.Split(name, ".") {
 		if p == "" || p[0] == '-' || p[len(p)-1] == '-' {
 			return false
 		}

@@ -71,6 +71,9 @@ type cpltLaunch struct {
 	// launchConfig is a Tier 1 opencode launch's additions to
 	// OPENCODE_CONFIG_CONTENT, for [applyOpenCodeProviderPolicy].
 	launchConfig map[string]any
+	// proposal is cpltProposalFlags, computed once by launchViaCplt so the
+	// managed file gets exactly the hosts the flags carry. Nil: compute.
+	proposal []string
 }
 
 // cpltArgv is the argument vector launchViaCplt passes to cplt:
@@ -93,7 +96,11 @@ func cpltArgv(spec cpltLaunch) []string {
 	// Seam one of two for an approved sandbox proposal (#858). Here rather than
 	// at each cpltLaunch call site: every launch is assembled by this
 	// function, so a new one cannot forget it.
-	args = append(args, cpltProposalFlags()...)
+	proposal := spec.proposal
+	if proposal == nil {
+		proposal = cpltProposalFlags()
+	}
+	args = append(args, proposal...)
 	args = append(args, cpltDefaultFlags(append(slices.Clone(args), spec.sessionFlags...))...)
 	args = append(args, spec.sessionFlags...)
 	args = append(args, "--")
@@ -136,6 +143,17 @@ var cpltDefaultFlags = fleetGatewayFlags
 
 // cpltManagedConfig is a var so launch tests run without writing a home.
 var cpltManagedConfig = CpltManagedConfig
+
+// proposalPrivateHosts is the --allow-private-domain values in flags.
+func proposalPrivateHosts(flags []string) []string {
+	var hosts []string
+	for i := 0; i+1 < len(flags); i++ {
+		if flags[i] == "--allow-private-domain" {
+			hosts = append(hosts, flags[i+1])
+		}
+	}
+	return hosts
+}
 
 // fleetGatewayFlags is --allow-private-domain for each [FleetGatewayHosts]
 // entry not already in args, which holds the user's own --cplt flags too.
@@ -412,7 +430,10 @@ func launchViaCplt(spec cpltLaunch) error {
 	// The flags stay even with the managed file: cplt may still refuse the
 	// file (a passwd home nav-pilot cannot see, e.g. CGO-less LDAP lookups),
 	// and the lists union, so a duplicate costs nothing.
-	if path, _ := cpltManagedConfig(); path != "" {
+	spec.proposal = append([]string{}, cpltProposalFlags()...)
+	// An inherited value may name another set's file: drop it on every path.
+	spec.env = slices.DeleteFunc(spec.env, func(e string) bool { return strings.HasPrefix(e, CpltManagedEnv+"=") })
+	if path, _ := cpltManagedConfig(proposalPrivateHosts(spec.proposal)); path != "" {
 		spec.env, _ = telemetry.SetEnvValue(spec.env, CpltManagedEnv, path)
 	}
 	args, err := withCpltProjectDir(withCpltConfirmation(cpltArgv(spec), IsTerminal(os.Stdin)), spec.projectDir)

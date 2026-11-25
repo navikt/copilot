@@ -25,6 +25,10 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 - **`nav-pilot news` og `nav-pilot mcp list`**: Uten nett skrev kommandoene Gos rå feilmelding, for eksempel `context deadline exceeded`. Nå sier de hva nav-pilot ikke fikk kontakt med, og ber deg sjekke nettverket (og naisdevice for MCP-registeret) og prøve igjen. Den rå feilen vises med `DEBUG=1` (#2906).
 - **`nav-pilot mcp enable` og `nav-pilot mcp prune`**: Uten nett sier også disse at MCP-registeret ikke svarte, at ingenting ble endret, og ber deg sjekke nettverket eller naisdevice og prøve igjen. Den rå feilen vises med `DEBUG=1` (#2940).
 
+### Godkjente adresser i cplts managed-fil
+
+- **cplt**: Med cplt 2026.11.24 eller nyere skriver nav-pilot nå også adressene du har godkjent for pakkens sandkasseunntak og for MCP-servere fra registeret, i en egen fil per sett med godkjente adresser under `~/.config/cplt/managed.d/`. Når nav-pilot starter agenten, får et repo aldri adresser som er godkjent for et annet. Starter du `cplt` direkte, styrer ikke nav-pilot hvilken fil cplt leser. Filer som ikke er brukt på sju dager, fjernes. Filen får de samme adressene som oppstarten sender som flagg, ikke flere, og flaggene sendes fortsatt. Ligger det en fil der som nav-pilot ikke har skrevet, lar nav-pilot den være. Du merker ingen forskjell (#2950).
+
 ### Localhost-spørsmålet bruker cplts JSON-svar
 
 - **cplt**: Før nav-pilot spør om localhost i et Gradle-repo, sjekker den nå med `cplt config get --json sandbox.allow_localhost_any` om svaret allerede er bestemt, også når en preset har satt det. nav-pilot spør bare når `set` er `false`. Med eldre cplt, eller når svaret ikke kan leses, sjekker nav-pilot som før (#2874).
