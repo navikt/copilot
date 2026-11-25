@@ -21,10 +21,8 @@ func main() {
 	branch := flag.String("branch", "main", "Git branch for raw URLs")
 	flag.Parse()
 
-	// Create generator
 	generator := NewGenerator(*repoOwner, *repoName, *branch)
 
-	// Generate manifest from files
 	manifest, err := generator.GenerateManifest(*githubDir)
 	if err != nil {
 		log.Fatalf("Failed to generate manifest: %v", err)
@@ -34,7 +32,6 @@ func main() {
 		log.Fatal("Manifest is nil")
 	}
 
-	// Add metadata
 	outputData := struct {
 		Version      string                    `json:"version"`
 		Repository   string                    `json:"repository"`

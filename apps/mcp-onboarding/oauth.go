@@ -11,12 +11,15 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	"github.com/navikt/copilot/mcp-onboarding/internal/github"
+	"github.com/navikt/copilot/mcp-onboarding/internal/store"
 )
 
 type OAuthServer struct {
 	BaseURL             string
-	GitHubClient        *GitHubClient
-	Store               *TokenStore
+	GitHubClient        *github.Client
+	Store               *store.TokenStore
 	AllowedOrganization string
 	clientIDKey         []byte
 }
@@ -53,11 +56,11 @@ type ProtectedResourceMetadata struct {
 	AuthorizationServers []string `json:"authorization_servers"`
 }
 
-func NewOAuthServer(baseURL string, githubClient *GitHubClient, store *TokenStore, allowedOrganization string) *OAuthServer {
+func NewOAuthServer(baseURL string, githubClient *github.Client, ts *store.TokenStore, allowedOrganization string) *OAuthServer {
 	return &OAuthServer{
 		BaseURL:             baseURL,
 		GitHubClient:        githubClient,
-		Store:               store,
+		Store:               ts,
 		AllowedOrganization: allowedOrganization,
 		clientIDKey:         deriveClientIDKey(githubClient.ClientSecret),
 	}
@@ -176,7 +179,7 @@ func (s *OAuthServer) handleAuthorize(w http.ResponseWriter, r *http.Request) {
 
 	internalState := generateSecureToken(32)
 
-	session := &AuthSession{
+	session := &store.AuthSession{
 		ClientID:            clientID,
 		ClientState:         clientState,
 		RedirectURI:         redirectURI,
@@ -286,7 +289,6 @@ func (s *OAuthServer) handleCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check organization membership
 	if s.AllowedOrganization != "" {
 		isMember, matchedOrg := s.GitHubClient.CheckOrgMembership(githubToken.AccessToken, []string{s.AllowedOrganization})
 		if !isMember {
@@ -308,7 +310,7 @@ func (s *OAuthServer) handleCallback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	mcpCode := generateSecureToken(32)
-	s.Store.SaveAuthCode(mcpCode, &AuthCode{
+	s.Store.SaveAuthCode(mcpCode, &store.AuthCode{
 		ClientID:           session.ClientID,
 		GitHubAccessToken:  githubToken.AccessToken,
 		GitHubRefreshToken: githubToken.RefreshToken,
@@ -426,7 +428,7 @@ func (s *OAuthServer) handleAuthorizationCodeGrant(w http.ResponseWriter, r *htt
 	refreshToken := generateSecureToken(64)
 	expiresIn := 3600
 
-	s.Store.SaveToken(accessToken, &TokenData{
+	s.Store.SaveToken(accessToken, &store.TokenData{
 		GitHubAccessToken:  authCode.GitHubAccessToken,
 		GitHubRefreshToken: authCode.GitHubRefreshToken,
 		GitHubExpiresAt:    authCode.GitHubExpiresAt,
@@ -437,7 +439,7 @@ func (s *OAuthServer) handleAuthorizationCodeGrant(w http.ResponseWriter, r *htt
 		RefreshToken:       refreshToken,
 	})
 
-	s.Store.SaveRefreshToken(refreshToken, &RefreshTokenData{
+	s.Store.SaveRefreshToken(refreshToken, &store.RefreshTokenData{
 		ClientID:           authCode.ClientID,
 		GitHubRefreshToken: authCode.GitHubRefreshToken,
 		UserLogin:          authCode.UserLogin,
@@ -502,7 +504,7 @@ func (s *OAuthServer) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Req
 	newRefreshToken := generateSecureToken(64)
 	expiresIn := 3600
 
-	err = s.Store.RotateRefreshToken(refreshToken, rtData.ClientID, accessToken, &TokenData{
+	err = s.Store.RotateRefreshToken(refreshToken, rtData.ClientID, accessToken, &store.TokenData{
 		GitHubAccessToken:  newGitHubToken.AccessToken,
 		GitHubRefreshToken: newGitHubToken.RefreshToken,
 		GitHubExpiresAt:    newGitHubToken.ExpiresAt,
@@ -511,7 +513,7 @@ func (s *OAuthServer) handleRefreshTokenGrant(w http.ResponseWriter, r *http.Req
 		ExpiresAt:          time.Now().Add(time.Duration(expiresIn) * time.Second),
 		ClientID:           rtData.ClientID,
 		RefreshToken:       newRefreshToken,
-	}, newRefreshToken, &RefreshTokenData{
+	}, newRefreshToken, &store.RefreshTokenData{
 		ClientID:           rtData.ClientID,
 		GitHubRefreshToken: newGitHubToken.RefreshToken,
 		UserLogin:          rtData.UserLogin,
@@ -564,14 +566,14 @@ func (s *OAuthServer) handleRevoke(w http.ResponseWriter, r *http.Request) {
 	}
 
 	switch s.Store.RevokeToken(token, clientID) {
-	case RevokeNotOwner:
+	case store.RevokeNotOwner:
 		slog.Warn("revocation refused: token issued to another client", "client_id", logSafe(clientID))
 		recordOAuthFlow("token_revoke", "invalid_client")
 		s.writeTokenError(w, "invalid_client", "token was not issued to this client")
 		return
-	case RevokeDone:
+	case store.RevokeDone:
 		recordOAuthFlow("token_revoke", "success")
-	case RevokeUnknown:
+	case store.RevokeUnknown:
 		recordOAuthFlow("token_revoke", "unknown_token")
 	}
 	w.WriteHeader(http.StatusOK)

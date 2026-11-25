@@ -1,4 +1,5 @@
-package main
+// Package store holds OAuth sessions, codes and tokens in memory.
+package store
 
 import (
 	"errors"
@@ -6,12 +7,13 @@ import (
 	"time"
 )
 
+// ErrNotFound means the entry is missing or expired.
 var ErrNotFound = errors.New("not found")
 
-// TODO: If we need to scale beyond a single replica, replace in-memory maps with Redis
-// to share sessions and tokens across pods. Client registrations are not here:
-// the client_id carries its own signed registration (see clientid.go).
+// The maps are per pod, so the app runs as a single replica. Client
+// registrations are not here: the client_id carries its own signed registration (see clientid.go).
 
+// AuthSession is an authorization request waiting for the GitHub callback.
 type AuthSession struct {
 	ClientID            string
 	ClientState         string
@@ -21,6 +23,7 @@ type AuthSession struct {
 	CreatedAt           time.Time
 }
 
+// AuthCode is an issued authorization code waiting for the token request.
 type AuthCode struct {
 	ClientID           string
 	GitHubAccessToken  string
@@ -33,6 +36,7 @@ type AuthCode struct {
 	CreatedAt          time.Time
 }
 
+// TokenData is what an access token grants.
 type TokenData struct {
 	GitHubAccessToken  string
 	GitHubRefreshToken string
@@ -47,6 +51,7 @@ type TokenData struct {
 	RefreshToken string
 }
 
+// RefreshTokenData is what a refresh token grants.
 type RefreshTokenData struct {
 	// ClientID is the client the token was issued to. The refresh grant
 	// requires the caller to present it, so a stolen refresh token is not
@@ -60,6 +65,7 @@ type RefreshTokenData struct {
 	AccessToken string
 }
 
+// TokenStore is safe for concurrent use.
 type TokenStore struct {
 	authSessions  map[string]*AuthSession
 	authCodes     map[string]*AuthCode
@@ -68,6 +74,7 @@ type TokenStore struct {
 	mu            sync.RWMutex
 }
 
+// NewTokenStore starts a goroutine that purges expired entries.
 func NewTokenStore() *TokenStore {
 	store := &TokenStore{
 		authSessions:  make(map[string]*AuthSession),
@@ -83,6 +90,7 @@ func NewTokenStore() *TokenStore {
 
 const maxStoreEntries = 10000
 
+// SaveAuthSession evicts an entry when the store is full.
 func (s *TokenStore) SaveAuthSession(state string, session *AuthSession) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -103,6 +111,7 @@ func (s *TokenStore) SaveAuthSession(state string, session *AuthSession) {
 	s.authSessions[state] = session
 }
 
+// GetAuthSession returns ErrNotFound after 10 minutes.
 func (s *TokenStore) GetAuthSession(state string) (*AuthSession, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -116,12 +125,14 @@ func (s *TokenStore) GetAuthSession(state string) (*AuthSession, error) {
 	return session, nil
 }
 
+// DeleteAuthSession removes the session for state.
 func (s *TokenStore) DeleteAuthSession(state string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	delete(s.authSessions, state)
 }
 
+// SaveAuthCode evicts an entry when the store is full.
 func (s *TokenStore) SaveAuthCode(code string, authCode *AuthCode) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -142,6 +153,7 @@ func (s *TokenStore) SaveAuthCode(code string, authCode *AuthCode) {
 	s.authCodes[code] = authCode
 }
 
+// GetAuthCode returns the code or ErrNotFound.
 func (s *TokenStore) GetAuthCode(code string) (*AuthCode, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -152,12 +164,14 @@ func (s *TokenStore) GetAuthCode(code string) (*AuthCode, error) {
 	return authCode, nil
 }
 
+// DeleteAuthCode removes the code.
 func (s *TokenStore) DeleteAuthCode(code string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	delete(s.authCodes, code)
 }
 
+// SaveToken evicts an entry when the store is full.
 func (s *TokenStore) SaveToken(token string, data *TokenData) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -182,6 +196,7 @@ func (s *TokenStore) saveTokenLocked(token string, data *TokenData) {
 	s.tokens[token] = data
 }
 
+// GetToken returns ErrNotFound for expired tokens.
 func (s *TokenStore) GetToken(token string) (*TokenData, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -195,6 +210,7 @@ func (s *TokenStore) GetToken(token string) (*TokenData, error) {
 	return data, nil
 }
 
+// SaveRefreshToken evicts an entry when the store is full.
 func (s *TokenStore) SaveRefreshToken(token string, data *RefreshTokenData) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -219,6 +235,7 @@ func (s *TokenStore) saveRefreshTokenLocked(token string, data *RefreshTokenData
 	s.refreshTokens[token] = data
 }
 
+// GetRefreshToken returns ErrNotFound after 30 days.
 func (s *TokenStore) GetRefreshToken(token string) (*RefreshTokenData, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
@@ -232,10 +249,26 @@ func (s *TokenStore) GetRefreshToken(token string) (*RefreshTokenData, error) {
 	return data, nil
 }
 
+// DeleteRefreshToken removes the refresh token.
 func (s *TokenStore) DeleteRefreshToken(token string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	delete(s.refreshTokens, token)
+}
+
+// DeleteToken removes an access token without touching its refresh token, as
+// cleanupExpired does.
+func (s *TokenStore) DeleteToken(token string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.tokens, token)
+}
+
+// Sizes returns the number of stored entries of each kind.
+func (s *TokenStore) Sizes() (authSessions, tokens, refreshTokens int) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return len(s.authSessions), len(s.tokens), len(s.refreshTokens)
 }
 
 // RotateRefreshToken consumes oldRefresh and saves the new pair under one
@@ -260,6 +293,7 @@ func (s *TokenStore) RotateRefreshToken(oldRefresh, clientID, access string, at 
 // RevokeResult is the outcome of RevokeToken.
 type RevokeResult int
 
+// Outcomes of RevokeToken.
 const (
 	RevokeUnknown  RevokeResult = iota // no such token: RFC 7009 still answers 200
 	RevokeDone                         // token and its pair removed

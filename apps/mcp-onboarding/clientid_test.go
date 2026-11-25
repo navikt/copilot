@@ -28,13 +28,13 @@ func authorize(mux *http.ServeMux, clientID, redirectURI string) *httptest.Respo
 
 // TestSignedClientID_SurvivesRestart is the point of the whole change: a
 // client_id issued by one process still authorises against a later process
-// with an empty store, because the registration travels inside the client_id
+// with an empty ts, because the registration travels inside the client_id
 // rather than in a map that a deploy wipes.
 func TestSignedClientID_SurvivesRestart(t *testing.T) {
 	before, _ := newChainTestServer(t)
 	clientID := registerClient(t, before, testRedirectURI)
 
-	// Same app, restarted: new mux, new store, same signing key.
+	// Same app, restarted: new mux, new ts, same signing key.
 	after, _ := newChainTestServer(t)
 
 	auth, callback, token := runChain(t, after, clientID, testRedirectURI)

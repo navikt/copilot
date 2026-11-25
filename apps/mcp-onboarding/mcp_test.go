@@ -9,10 +9,12 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/navikt/copilot/mcp-onboarding/internal/github"
 )
 
 func newSimpleMCPHandler() *MCPHandler {
-	githubClient := NewGitHubClient("test-client-id", "test-client-secret")
+	githubClient := github.NewClient("test-client-id", "test-client-secret")
 	return newTestMCPHandler(githubClient)
 }
 

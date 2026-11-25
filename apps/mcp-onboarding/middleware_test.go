@@ -8,11 +8,13 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/navikt/copilot/mcp-onboarding/internal/store"
 )
 
 func TestAuthMiddleware_NoAuthHeader(t *testing.T) {
-	store := newTestStore()
-	mw := NewAuthMiddleware(store, "https://mcp.example.com")
+	ts := store.NewTokenStore()
+	mw := NewAuthMiddleware(ts, "https://mcp.example.com")
 
 	handler := mw.Authenticate(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
 		t.Error("handler should not be called")
@@ -32,8 +34,8 @@ func TestAuthMiddleware_NoAuthHeader(t *testing.T) {
 }
 
 func TestAuthMiddleware_InvalidFormat(t *testing.T) {
-	store := newTestStore()
-	mw := NewAuthMiddleware(store, "https://mcp.example.com")
+	ts := store.NewTokenStore()
+	mw := NewAuthMiddleware(ts, "https://mcp.example.com")
 
 	handler := mw.Authenticate(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
 		t.Error("handler should not be called")
@@ -50,8 +52,8 @@ func TestAuthMiddleware_InvalidFormat(t *testing.T) {
 }
 
 func TestAuthMiddleware_InvalidToken(t *testing.T) {
-	store := newTestStore()
-	mw := NewAuthMiddleware(store, "https://mcp.example.com")
+	ts := store.NewTokenStore()
+	mw := NewAuthMiddleware(ts, "https://mcp.example.com")
 
 	handler := mw.Authenticate(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
 		t.Error("handler should not be called")
@@ -68,14 +70,14 @@ func TestAuthMiddleware_InvalidToken(t *testing.T) {
 }
 
 func TestAuthMiddleware_ExpiredToken(t *testing.T) {
-	store := newTestStore()
-	store.SaveToken("expired-token", &TokenData{
+	ts := store.NewTokenStore()
+	ts.SaveToken("expired-token", &store.TokenData{
 		GitHubAccessToken: "gh-token",
 		UserLogin:         "testuser",
 		UserID:            12345,
 		ExpiresAt:         time.Now().Add(-1 * time.Hour),
 	})
-	mw := NewAuthMiddleware(store, "https://mcp.example.com")
+	mw := NewAuthMiddleware(ts, "https://mcp.example.com")
 
 	handler := mw.Authenticate(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
 		t.Error("handler should not be called for expired token")
@@ -92,14 +94,14 @@ func TestAuthMiddleware_ExpiredToken(t *testing.T) {
 }
 
 func TestAuthMiddleware_ValidToken(t *testing.T) {
-	store := newTestStore()
-	store.SaveToken("valid-token", &TokenData{
+	ts := store.NewTokenStore()
+	ts.SaveToken("valid-token", &store.TokenData{
 		GitHubAccessToken: "gh-access-token",
 		UserLogin:         "octocat",
 		UserID:            42,
 		ExpiresAt:         time.Now().Add(1 * time.Hour),
 	})
-	mw := NewAuthMiddleware(store, "https://mcp.example.com")
+	mw := NewAuthMiddleware(ts, "https://mcp.example.com")
 
 	var gotUser *UserContext
 	handler := mw.Authenticate(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -130,8 +132,8 @@ func TestAuthMiddleware_ValidToken(t *testing.T) {
 }
 
 func TestAuthMiddleware_UnauthorizedResponse(t *testing.T) {
-	store := newTestStore()
-	mw := NewAuthMiddleware(store, "https://mcp.example.com/")
+	ts := store.NewTokenStore()
+	mw := NewAuthMiddleware(ts, "https://mcp.example.com/")
 
 	handler := mw.Authenticate(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {}))
 
@@ -168,7 +170,7 @@ func TestGetUserFromContext_NoUser(t *testing.T) {
 }
 
 func TestAuthMiddleware_InvalidTokenChallenge(t *testing.T) {
-	mw := NewAuthMiddleware(newTestStore(), "https://mcp.example.com")
+	mw := NewAuthMiddleware(store.NewTokenStore(), "https://mcp.example.com")
 	h := mw.Authenticate(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {}))
 
 	req := httptest.NewRequest("POST", "/mcp", nil)
@@ -189,7 +191,7 @@ func TestAuthMiddleware_InvalidTokenChallenge(t *testing.T) {
 }
 
 func TestAuthMiddleware_NonBearerSchemeHasNoErrorCode(t *testing.T) {
-	h := NewAuthMiddleware(newTestStore(), "https://mcp.example.com").Authenticate(http.NotFoundHandler())
+	h := NewAuthMiddleware(store.NewTokenStore(), "https://mcp.example.com").Authenticate(http.NotFoundHandler())
 	req := httptest.NewRequest("POST", "/mcp", nil)
 	req.Header.Set("Authorization", "Basic dXNlcjpwdw==")
 	w := httptest.NewRecorder()

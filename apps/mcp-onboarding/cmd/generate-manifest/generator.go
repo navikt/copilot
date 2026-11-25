@@ -117,7 +117,6 @@ func (g *Generator) GenerateManifest(githubDir string) (*discovery.Customization
 		Skills:       []discovery.Customization{},
 	}
 
-	// Load agents
 	agentsDir := filepath.Join(githubDir, "agents")
 	agents, err := g.loadAgents(agentsDir)
 	if err != nil {
@@ -125,7 +124,6 @@ func (g *Generator) GenerateManifest(githubDir string) (*discovery.Customization
 	}
 	manifest.Agents = agents
 
-	// Load instructions
 	instructionsDir := filepath.Join(githubDir, "instructions")
 	instructions, err := g.loadInstructions(instructionsDir)
 	if err != nil {
@@ -133,7 +131,6 @@ func (g *Generator) GenerateManifest(githubDir string) (*discovery.Customization
 	}
 	manifest.Instructions = instructions
 
-	// Load prompts
 	promptsDir := filepath.Join(githubDir, "prompts")
 	prompts, err := g.loadPrompts(promptsDir)
 	if err != nil {
@@ -141,7 +138,6 @@ func (g *Generator) GenerateManifest(githubDir string) (*discovery.Customization
 	}
 	manifest.Prompts = prompts
 
-	// Load skills
 	skillsDir := filepath.Join(githubDir, "skills")
 	if _, err := os.Stat(skillsDir); err == nil {
 		skills, err := g.loadSkills(skillsDir)

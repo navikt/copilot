@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/navikt/copilot/mcp-onboarding/internal/discovery"
+	"github.com/navikt/copilot/mcp-onboarding/internal/github"
 )
 
 // mockTransport serves HTTP requests in-process without TCP connections.
@@ -39,8 +40,8 @@ func newGitHubMock(_ *testing.T, handlers map[string]http.HandlerFunc) *mockServ
 	return &mockServer{handler: mux}
 }
 
-func newTestGitHubClient(mock *mockServer) *GitHubClient {
-	client := &GitHubClient{
+func newTestGitHubClient(mock *mockServer) *github.Client {
+	client := &github.Client{
 		ClientID:     "test-id",
 		ClientSecret: "test-secret",
 		APIBaseURL:   "http://test",
@@ -52,8 +53,6 @@ func newTestGitHubClient(mock *mockServer) *GitHubClient {
 	}
 	return client
 }
-
-// --- GitHub API method tests ---
 
 func TestGetRepoFile_Exists(t *testing.T) {
 	server := newGitHubMock(t, map[string]http.HandlerFunc{
@@ -114,7 +113,7 @@ func TestGetDirectoryCount(t *testing.T) {
 	server := newGitHubMock(t, map[string]http.HandlerFunc{
 		"GET /repos/navikt/my-app/contents/.github/instructions": func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode([]RepoContent{
+			_ = json.NewEncoder(w).Encode([]github.RepoContent{
 				{Name: "kotlin.instructions.md", Type: "file"},
 				{Name: "testing.instructions.md", Type: "file"},
 				{Name: "database.instructions.md", Type: "file"},
@@ -264,9 +263,7 @@ func TestDetectRepoInfo_MavenProject(t *testing.T) {
 	}
 }
 
-// --- MCP tool handler tests ---
-
-func newTestMCPHandler(githubClient *GitHubClient) *MCPHandler {
+func newTestMCPHandler(githubClient *github.Client) *MCPHandler {
 	ds := discovery.NewService("navikt", "copilot", "main", "http://localhost:8080")
 	if err := ds.LoadManifest(); err != nil {
 		panic("failed to load manifest: " + err.Error())
@@ -297,11 +294,11 @@ func TestCheckAgentReadiness_FullRepo(t *testing.T) {
 		},
 		"GET /repos/navikt/my-app/contents/.github/instructions": func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode([]RepoContent{{Name: "test.instructions.md"}})
+			_ = json.NewEncoder(w).Encode([]github.RepoContent{{Name: "test.instructions.md"}})
 		},
 		"GET /repos/navikt/my-app/contents/.github/agents": func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode([]RepoContent{{Name: "review.agent.md"}})
+			_ = json.NewEncoder(w).Encode([]github.RepoContent{{Name: "review.agent.md"}})
 		},
 		"GET /repos/navikt/my-app/contents/.github/prompts": func(w http.ResponseWriter, _ *http.Request) {
 			w.WriteHeader(http.StatusNotFound)
@@ -597,8 +594,6 @@ func TestProcessRequest_UserContextPassedToTools(t *testing.T) {
 	}
 }
 
-// --- Phase 2: generate_copilot_instructions & generate_setup_steps ---
-
 func newRepoInfoMock(t *testing.T, langs string, files map[string]bool) *mockServer {
 	t.Helper()
 	return newGitHubMock(t, map[string]http.HandlerFunc{
@@ -855,13 +850,11 @@ func TestDetectPackageManager_NpmDefault(t *testing.T) {
 	}
 }
 
-// --- ListTeamRepos tests ---
-
 func TestListTeamRepos(t *testing.T) {
 	server := newGitHubMock(t, map[string]http.HandlerFunc{
 		"GET /orgs/navikt/teams/dagpenger/repos": func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode([]GitHubRepo{
+			_ = json.NewEncoder(w).Encode([]github.Repo{
 				{Name: "dp-inntekt", FullName: "navikt/dp-inntekt"},
 				{Name: "dp-soknad", FullName: "navikt/dp-soknad"},
 				{Name: "old-lib", FullName: "navikt/old-lib", Archived: true},
@@ -902,8 +895,6 @@ func TestListTeamRepos_NotFound(t *testing.T) {
 		t.Fatal("expected error for nonexistent team")
 	}
 }
-
-// --- SearchReposByPrefix tests ---
 
 func TestSearchReposByPrefix(t *testing.T) {
 	server := newGitHubMock(t, map[string]http.HandlerFunc{
@@ -949,8 +940,6 @@ func TestSearchReposByPrefix_Empty(t *testing.T) {
 		t.Errorf("expected 0 repos, got %d", len(repos))
 	}
 }
-
-// --- team_readiness tool tests ---
 
 func TestTeamReadiness_ByPrefix(t *testing.T) {
 	server := newGitHubMock(t, map[string]http.HandlerFunc{
@@ -1016,7 +1005,7 @@ func TestTeamReadiness_ByTeam(t *testing.T) {
 	server := newGitHubMock(t, map[string]http.HandlerFunc{
 		"GET /orgs/navikt/teams/dagpenger/repos": func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode([]GitHubRepo{
+			_ = json.NewEncoder(w).Encode([]github.Repo{
 				{Name: "dp-inntekt", FullName: "navikt/dp-inntekt"},
 			})
 		},

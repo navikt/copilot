@@ -8,13 +8,15 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/navikt/copilot/mcp-onboarding/internal/store"
 )
 
 func TestMCPComplianceTool(t *testing.T) {
-	store := newTestStore()
-	store.SaveToken("test-token", &TokenData{UserLogin: "u", UserID: 1, ExpiresAt: time.Now().Add(time.Hour)})
+	tokens := store.NewTokenStore()
+	tokens.SaveToken("test-token", &store.TokenData{UserLogin: "u", UserID: 1, ExpiresAt: time.Now().Add(time.Hour)})
 	mux := http.NewServeMux()
-	registerMCPRoutes(mux, newSimpleMCPHandler(), NewAuthMiddleware(store, "https://mcp.example.com").Authenticate, nil)
+	registerMCPRoutes(mux, newSimpleMCPHandler(), NewAuthMiddleware(tokens, "https://mcp.example.com").Authenticate, nil)
 	ts := httptest.NewServer(mux)
 	t.Cleanup(ts.Close)
 

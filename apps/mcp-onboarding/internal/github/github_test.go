@@ -1,4 +1,4 @@
-package main
+package github
 
 import (
 	"encoding/json"
@@ -6,8 +6,6 @@ import (
 	"net/http"
 	"testing"
 )
-
-// --- ExchangeCode tests ---
 
 func TestExchangeCode_Success(t *testing.T) {
 	mock := &mockServer{handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -28,7 +26,7 @@ func TestExchangeCode_Success(t *testing.T) {
 		})
 	})}
 
-	client := &GitHubClient{
+	client := &Client{
 		ClientID:     "test-id",
 		ClientSecret: "test-secret",
 		HTTPClient:   &http.Client{Transport: &mockTransport{handler: mock.handler}},
@@ -62,7 +60,7 @@ func TestExchangeCode_ErrorResponse(t *testing.T) {
 		})
 	})}
 
-	client := &GitHubClient{
+	client := &Client{
 		ClientID:     "test-id",
 		ClientSecret: "test-secret",
 		HTTPClient:   &http.Client{Transport: &mockTransport{handler: mock.handler}},
@@ -79,7 +77,7 @@ func TestExchangeCode_InvalidJSON(t *testing.T) {
 		_, _ = w.Write([]byte("not json"))
 	})}
 
-	client := &GitHubClient{
+	client := &Client{
 		ClientID:     "test-id",
 		ClientSecret: "test-secret",
 		HTTPClient:   &http.Client{Transport: &mockTransport{handler: mock.handler}},
@@ -90,8 +88,6 @@ func TestExchangeCode_InvalidJSON(t *testing.T) {
 		t.Fatal("expected error for invalid JSON response")
 	}
 }
-
-// --- RefreshToken tests ---
 
 func TestRefreshToken_Success(t *testing.T) {
 	mock := &mockServer{handler: http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
@@ -106,7 +102,7 @@ func TestRefreshToken_Success(t *testing.T) {
 		})
 	})}
 
-	client := &GitHubClient{
+	client := &Client{
 		ClientID:     "test-id",
 		ClientSecret: "test-secret",
 		HTTPClient:   &http.Client{Transport: &mockTransport{handler: mock.handler}},
@@ -132,7 +128,7 @@ func TestRefreshToken_Error(t *testing.T) {
 		})
 	})}
 
-	client := &GitHubClient{
+	client := &Client{
 		ClientID:     "test-id",
 		ClientSecret: "test-secret",
 		HTTPClient:   &http.Client{Transport: &mockTransport{handler: mock.handler}},
@@ -144,8 +140,6 @@ func TestRefreshToken_Error(t *testing.T) {
 	}
 }
 
-// --- GetUser tests ---
-
 func TestGetUser_Success(t *testing.T) {
 	server := newGitHubMock(t, map[string]http.HandlerFunc{
 		"GET /user": func(w http.ResponseWriter, r *http.Request) {
@@ -153,7 +147,7 @@ func TestGetUser_Success(t *testing.T) {
 				t.Errorf("expected Authorization 'Bearer test-token', got %q", r.Header.Get("Authorization"))
 			}
 			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(GitHubUser{
+			_ = json.NewEncoder(w).Encode(User{
 				ID:        42,
 				Login:     "octocat",
 				Email:     "octocat@github.com",
@@ -199,18 +193,16 @@ func TestGetUser_Unauthorized(t *testing.T) {
 	}
 }
 
-// --- GetUserOrganizations tests ---
-
 func TestGetUserOrganizations_Paginates(t *testing.T) {
 	server := newGitHubMock(t, map[string]http.HandlerFunc{
 		"GET /user/orgs": func(w http.ResponseWriter, r *http.Request) {
-			var orgs []GitHubOrg
+			var orgs []Org
 			if r.URL.Query().Get("page") == "1" {
 				for i := range 100 {
-					orgs = append(orgs, GitHubOrg{ID: int64(i), Login: fmt.Sprintf("org-%d", i)})
+					orgs = append(orgs, Org{ID: int64(i), Login: fmt.Sprintf("org-%d", i)})
 				}
 			} else {
-				orgs = []GitHubOrg{{ID: 999, Login: "navikt"}}
+				orgs = []Org{{ID: 999, Login: "navikt"}}
 			}
 			_ = json.NewEncoder(w).Encode(orgs)
 		},
@@ -227,7 +219,7 @@ func TestGetUserOrganizations_Success(t *testing.T) {
 	server := newGitHubMock(t, map[string]http.HandlerFunc{
 		"GET /user/orgs": func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode([]GitHubOrg{
+			_ = json.NewEncoder(w).Encode([]Org{
 				{ID: 1, Login: "navikt"},
 				{ID: 2, Login: "github"},
 			})
@@ -267,13 +259,11 @@ func TestGetUserOrganizations_Forbidden(t *testing.T) {
 	}
 }
 
-// --- CheckOrgMembership tests ---
-
 func TestCheckOrgMembership_IsMember(t *testing.T) {
 	server := newGitHubMock(t, map[string]http.HandlerFunc{
 		"GET /user/orgs": func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode([]GitHubOrg{
+			_ = json.NewEncoder(w).Encode([]Org{
 				{ID: 1, Login: "navikt"},
 				{ID: 2, Login: "other-org"},
 			})
@@ -295,7 +285,7 @@ func TestCheckOrgMembership_CaseInsensitive(t *testing.T) {
 	server := newGitHubMock(t, map[string]http.HandlerFunc{
 		"GET /user/orgs": func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode([]GitHubOrg{
+			_ = json.NewEncoder(w).Encode([]Org{
 				{ID: 1, Login: "NavIKT"},
 			})
 		},
@@ -316,7 +306,7 @@ func TestCheckOrgMembership_NotMember(t *testing.T) {
 	server := newGitHubMock(t, map[string]http.HandlerFunc{
 		"GET /user/orgs": func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode([]GitHubOrg{
+			_ = json.NewEncoder(w).Encode([]Org{
 				{ID: 1, Login: "other-org"},
 			})
 		},
@@ -337,7 +327,7 @@ func TestCheckOrgMembership_MultipleAllowedOrgs(t *testing.T) {
 	server := newGitHubMock(t, map[string]http.HandlerFunc{
 		"GET /user/orgs": func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode([]GitHubOrg{
+			_ = json.NewEncoder(w).Encode([]Org{
 				{ID: 1, Login: "some-other-org"},
 				{ID: 2, Login: "navikt"},
 			})
@@ -372,8 +362,6 @@ func TestCheckOrgMembership_APIError(t *testing.T) {
 		t.Errorf("expected empty org on error, got %q", org)
 	}
 }
-
-// --- ListDirectory tests ---
 
 func TestListDirectory_Success(t *testing.T) {
 	server := newGitHubMock(t, map[string]http.HandlerFunc{
@@ -434,10 +422,8 @@ func TestListDirectory_ServerError(t *testing.T) {
 	}
 }
 
-// --- NewGitHubClient tests ---
-
 func TestNewGitHubClient(t *testing.T) {
-	client := NewGitHubClient("my-id", "my-secret")
+	client := NewClient("my-id", "my-secret")
 	if client.ClientID != "my-id" {
 		t.Errorf("expected ClientID 'my-id', got %q", client.ClientID)
 	}
