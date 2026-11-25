@@ -184,8 +184,11 @@ func TestPublishedRoutes(t *testing.T) {
 		{webToken, 200},
 		{adminToken, 200},
 	} {
-		if rec := do(h, "GET", "/api/v1/surveys/published", tc.token, ""); rec.Code != tc.want {
-			t.Fatalf("published list %q: %d, want %d", tc.token, rec.Code, tc.want)
+		// cli:hans and cliAdmin are copilot-cli tokens (app and user): not web users.
+		for _, path := range []string{"/api/v1/surveys/published", "/api/v1/surveys/old/results"} {
+			if rec := do(h, "GET", path, tc.token, ""); rec.Code != tc.want {
+				t.Fatalf("%s %q: %d, want %d", path, tc.token, rec.Code, tc.want)
+			}
 		}
 	}
 
