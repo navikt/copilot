@@ -128,14 +128,13 @@
                 },
                 "legend": {
                   "calcs": [
-                    "mean"
+                    "sum"
                   ],
                   "displayMode": "table",
-                  "placement": "right",
+                  "placement": "bottom",
                   "showLegend": true,
-                  "width": 260,
                   "sortDesc": true,
-                  "sortBy": "Mean"
+                  "sortBy": "Total"
                 },
                 "tooltip": {
                   "hideZeros": false,
@@ -246,14 +245,13 @@
                 },
                 "legend": {
                   "calcs": [
-                    "mean"
+                    "sum"
                   ],
                   "displayMode": "table",
-                  "placement": "right",
+                  "placement": "bottom",
                   "showLegend": true,
-                  "width": 260,
                   "sortDesc": true,
-                  "sortBy": "Mean"
+                  "sortBy": "Total"
                 },
                 "tooltip": {
                   "hideZeros": false,
@@ -364,14 +362,13 @@
                 },
                 "legend": {
                   "calcs": [
-                    "mean"
+                    "sum"
                   ],
                   "displayMode": "table",
-                  "placement": "right",
+                  "placement": "bottom",
                   "showLegend": true,
-                  "width": 260,
                   "sortDesc": true,
-                  "sortBy": "Mean"
+                  "sortBy": "Total"
                 },
                 "tooltip": {
                   "hideZeros": false,
@@ -837,14 +834,15 @@
                 },
                 "legend": {
                   "calcs": [
-                    "mean"
+                    "mean",
+                    "max",
+                    "lastNotNull"
                   ],
                   "displayMode": "table",
-                  "placement": "right",
+                  "placement": "bottom",
                   "showLegend": true,
-                  "width": 260,
                   "sortDesc": true,
-                  "sortBy": "Mean"
+                  "sortBy": "Max"
                 },
                 "tooltip": {
                   "hideZeros": false,
@@ -1734,14 +1732,15 @@
                 },
                 "legend": {
                   "calcs": [
-                    "mean"
+                    "mean",
+                    "max",
+                    "lastNotNull"
                   ],
                   "displayMode": "table",
-                  "placement": "right",
+                  "placement": "bottom",
                   "showLegend": true,
-                  "width": 260,
                   "sortDesc": true,
-                  "sortBy": "Mean"
+                  "sortBy": "Max"
                 },
                 "tooltip": {
                   "hideZeros": false,

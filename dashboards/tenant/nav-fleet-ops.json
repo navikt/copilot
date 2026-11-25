@@ -583,13 +583,14 @@
       "options": {
         "legend": {
           "calcs": [
-            "mean"
+            "mean",
+            "max",
+            "lastNotNull"
           ],
           "displayMode": "table",
-          "placement": "right",
+          "placement": "bottom",
           "showLegend": true,
-          "width": 260,
-          "sortBy": "Mean",
+          "sortBy": "Max",
           "sortDesc": true
         },
         "tooltip": {
@@ -683,13 +684,12 @@
       "options": {
         "legend": {
           "calcs": [
-            "mean"
+            "sum"
           ],
           "displayMode": "table",
-          "placement": "right",
+          "placement": "bottom",
           "showLegend": true,
-          "width": 260,
-          "sortBy": "Mean",
+          "sortBy": "Total",
           "sortDesc": true
         },
         "tooltip": {
@@ -783,13 +783,12 @@
       "options": {
         "legend": {
           "calcs": [
-            "mean"
+            "sum"
           ],
           "displayMode": "table",
-          "placement": "right",
+          "placement": "bottom",
           "showLegend": true,
-          "width": 260,
-          "sortBy": "Mean",
+          "sortBy": "Total",
           "sortDesc": true
         },
         "tooltip": {
@@ -886,9 +885,8 @@
             "sum"
           ],
           "displayMode": "table",
-          "placement": "right",
+          "placement": "bottom",
           "showLegend": true,
-          "width": 260,
           "sortBy": "Total",
           "sortDesc": true
         },
@@ -983,13 +981,14 @@
       "options": {
         "legend": {
           "calcs": [
-            "sum"
+            "mean",
+            "max",
+            "lastNotNull"
           ],
           "displayMode": "table",
-          "placement": "right",
+          "placement": "bottom",
           "showLegend": true,
-          "width": 260,
-          "sortBy": "Total",
+          "sortBy": "Max",
           "sortDesc": true
         },
         "tooltip": {
@@ -1086,9 +1085,8 @@
             "sum"
           ],
           "displayMode": "table",
-          "placement": "right",
+          "placement": "bottom",
           "showLegend": true,
-          "width": 260,
           "sortBy": "Total",
           "sortDesc": true
         },
@@ -1188,13 +1186,14 @@
       "options": {
         "legend": {
           "calcs": [
-            "sum"
+            "mean",
+            "max",
+            "lastNotNull"
           ],
           "displayMode": "table",
-          "placement": "right",
+          "placement": "bottom",
           "showLegend": true,
-          "width": 260,
-          "sortBy": "Total",
+          "sortBy": "Max",
           "sortDesc": true
         },
         "tooltip": {
@@ -1296,9 +1295,8 @@
             "sum"
           ],
           "displayMode": "table",
-          "placement": "right",
+          "placement": "bottom",
           "showLegend": true,
-          "width": 260,
           "sortBy": "Total",
           "sortDesc": true
         },
@@ -1500,13 +1498,12 @@
           "options": {
             "legend": {
               "calcs": [
-                "mean"
+                "sum"
               ],
               "displayMode": "table",
-              "placement": "right",
+              "placement": "bottom",
               "showLegend": true,
-              "width": 260,
-              "sortBy": "Mean",
+              "sortBy": "Total",
               "sortDesc": true
             },
             "tooltip": {
@@ -1600,13 +1597,12 @@
           "options": {
             "legend": {
               "calcs": [
-                "mean"
+                "sum"
               ],
               "displayMode": "table",
-              "placement": "right",
+              "placement": "bottom",
               "showLegend": true,
-              "width": 260,
-              "sortBy": "Mean",
+              "sortBy": "Total",
               "sortDesc": true
             },
             "tooltip": {
@@ -1700,13 +1696,14 @@
           "options": {
             "legend": {
               "calcs": [
-                "mean"
+                "mean",
+                "max",
+                "lastNotNull"
               ],
               "displayMode": "table",
-              "placement": "right",
+              "placement": "bottom",
               "showLegend": true,
-              "width": 260,
-              "sortBy": "Mean",
+              "sortBy": "Max",
               "sortDesc": true
             },
             "tooltip": {
@@ -1804,13 +1801,14 @@
           "options": {
             "legend": {
               "calcs": [
-                "sum"
+                "mean",
+                "max",
+                "lastNotNull"
               ],
               "displayMode": "table",
-              "placement": "right",
+              "placement": "bottom",
               "showLegend": true,
-              "width": 260,
-              "sortBy": "Total",
+              "sortBy": "Max",
               "sortDesc": true
             },
             "tooltip": {
@@ -1903,13 +1901,14 @@
           "options": {
             "legend": {
               "calcs": [
-                "sum"
+                "mean",
+                "max",
+                "lastNotNull"
               ],
               "displayMode": "table",
-              "placement": "right",
+              "placement": "bottom",
               "showLegend": true,
-              "width": 260,
-              "sortBy": "Total",
+              "sortBy": "Max",
               "sortDesc": true
             },
             "tooltip": {
@@ -2003,13 +2002,14 @@
           "options": {
             "legend": {
               "calcs": [
-                "sum"
+                "mean",
+                "max",
+                "lastNotNull"
               ],
               "displayMode": "table",
-              "placement": "right",
+              "placement": "bottom",
               "showLegend": true,
-              "width": 260,
-              "sortBy": "Total",
+              "sortBy": "Max",
               "sortDesc": true
             },
             "tooltip": {
@@ -2103,13 +2103,14 @@
           "options": {
             "legend": {
               "calcs": [
-                "sum"
+                "mean",
+                "max",
+                "lastNotNull"
               ],
               "displayMode": "table",
-              "placement": "right",
+              "placement": "bottom",
               "showLegend": true,
-              "width": 260,
-              "sortBy": "Total",
+              "sortBy": "Max",
               "sortDesc": true
             },
             "tooltip": {
@@ -2217,14 +2218,13 @@
           "options": {
             "legend": {
               "calcs": [
-                "mean"
+                "sum"
               ],
               "displayMode": "table",
-              "placement": "right",
+              "placement": "bottom",
               "showLegend": true,
-              "sortBy": "Mean",
-              "sortDesc": true,
-              "width": 260
+              "sortBy": "Total",
+              "sortDesc": true
             },
             "tooltip": {
               "hideZeros": false,
@@ -2316,13 +2316,14 @@
           "options": {
             "legend": {
               "calcs": [
-                "mean"
+                "mean",
+                "max",
+                "lastNotNull"
               ],
               "displayMode": "table",
-              "placement": "right",
+              "placement": "bottom",
               "showLegend": true,
-              "width": 260,
-              "sortBy": "Mean",
+              "sortBy": "Max",
               "sortDesc": true
             },
             "tooltip": {
@@ -2495,13 +2496,14 @@
           "options": {
             "legend": {
               "calcs": [
-                "sum"
+                "mean",
+                "max",
+                "lastNotNull"
               ],
               "displayMode": "table",
-              "placement": "right",
+              "placement": "bottom",
               "showLegend": true,
-              "width": 260,
-              "sortBy": "Total",
+              "sortBy": "Max",
               "sortDesc": true
             },
             "tooltip": {
@@ -2598,9 +2600,8 @@
                 "sum"
               ],
               "displayMode": "table",
-              "placement": "right",
+              "placement": "bottom",
               "showLegend": true,
-              "width": 260,
               "sortBy": "Total",
               "sortDesc": true
             },
@@ -2744,9 +2745,8 @@
                 "sum"
               ],
               "displayMode": "table",
-              "placement": "right",
+              "placement": "bottom",
               "showLegend": true,
-              "width": 260,
               "sortBy": "Total",
               "sortDesc": true
             },
@@ -2876,9 +2876,8 @@
                 "sum"
               ],
               "displayMode": "table",
-              "placement": "right",
+              "placement": "bottom",
               "showLegend": true,
-              "width": 260,
               "sortBy": "Total",
               "sortDesc": true
             },
@@ -2974,14 +2973,13 @@
           "options": {
             "legend": {
               "calcs": [
-                "mean"
+                "sum"
               ],
               "displayMode": "table",
-              "placement": "right",
+              "placement": "bottom",
               "showLegend": true,
-              "sortBy": "Mean",
-              "sortDesc": true,
-              "width": 260
+              "sortBy": "Total",
+              "sortDesc": true
             },
             "tooltip": {
               "hideZeros": false,
@@ -3073,13 +3071,14 @@
           "options": {
             "legend": {
               "calcs": [
-                "mean"
+                "mean",
+                "max",
+                "lastNotNull"
               ],
               "displayMode": "table",
-              "placement": "right",
+              "placement": "bottom",
               "showLegend": true,
-              "width": 260,
-              "sortBy": "Mean",
+              "sortBy": "Max",
               "sortDesc": true
             },
             "tooltip": {
@@ -3174,9 +3173,8 @@
                 "sum"
               ],
               "displayMode": "table",
-              "placement": "right",
+              "placement": "bottom",
               "showLegend": true,
-              "width": 260,
               "sortBy": "Total",
               "sortDesc": true
             },
@@ -3270,13 +3268,14 @@
           "options": {
             "legend": {
               "calcs": [
-                "sum"
+                "mean",
+                "max",
+                "lastNotNull"
               ],
               "displayMode": "table",
-              "placement": "right",
+              "placement": "bottom",
               "showLegend": true,
-              "width": 260,
-              "sortBy": "Total",
+              "sortBy": "Max",
               "sortDesc": true
             },
             "tooltip": {
@@ -3369,13 +3368,14 @@
           "options": {
             "legend": {
               "calcs": [
-                "sum"
+                "mean",
+                "max",
+                "lastNotNull"
               ],
               "displayMode": "table",
-              "placement": "right",
+              "placement": "bottom",
               "showLegend": true,
-              "width": 260,
-              "sortBy": "Total",
+              "sortBy": "Max",
               "sortDesc": true
             },
             "tooltip": {
@@ -3485,9 +3485,8 @@
                 "sum"
               ],
               "displayMode": "table",
-              "placement": "right",
+              "placement": "bottom",
               "showLegend": true,
-              "width": 260,
               "sortBy": "Total",
               "sortDesc": true
             },
@@ -3581,13 +3580,14 @@
           "options": {
             "legend": {
               "calcs": [
-                "sum"
+                "mean",
+                "max",
+                "lastNotNull"
               ],
               "displayMode": "table",
-              "placement": "right",
+              "placement": "bottom",
               "showLegend": true,
-              "width": 260,
-              "sortBy": "Total",
+              "sortBy": "Max",
               "sortDesc": true
             },
             "tooltip": {
@@ -3684,9 +3684,8 @@
                 "sum"
               ],
               "displayMode": "table",
-              "placement": "right",
+              "placement": "bottom",
               "showLegend": true,
-              "width": 260,
               "sortBy": "Total",
               "sortDesc": true
             },
@@ -3795,9 +3794,8 @@
                 "sum"
               ],
               "displayMode": "table",
-              "placement": "right",
+              "placement": "bottom",
               "showLegend": true,
-              "width": 260,
               "sortBy": "Total",
               "sortDesc": true
             },
@@ -3897,13 +3895,14 @@
           "options": {
             "legend": {
               "calcs": [
-                "sum"
+                "mean",
+                "max",
+                "lastNotNull"
               ],
               "displayMode": "table",
-              "placement": "right",
+              "placement": "bottom",
               "showLegend": true,
-              "width": 260,
-              "sortBy": "Total",
+              "sortBy": "Max",
               "sortDesc": true
             },
             "tooltip": {
@@ -3996,13 +3995,14 @@
           "options": {
             "legend": {
               "calcs": [
-                "sum"
+                "mean",
+                "max",
+                "lastNotNull"
               ],
               "displayMode": "table",
-              "placement": "right",
+              "placement": "bottom",
               "showLegend": true,
-              "width": 260,
-              "sortBy": "Total",
+              "sortBy": "Max",
               "sortDesc": true
             },
             "tooltip": {
@@ -4117,9 +4117,8 @@
                 "sum"
               ],
               "displayMode": "table",
-              "placement": "right",
+              "placement": "bottom",
               "showLegend": true,
-              "width": 260,
               "sortBy": "Total",
               "sortDesc": true
             },
@@ -4217,9 +4216,8 @@
                 "sum"
               ],
               "displayMode": "table",
-              "placement": "right",
+              "placement": "bottom",
               "showLegend": true,
-              "width": 260,
               "sortBy": "Total",
               "sortDesc": true
             },
@@ -4327,13 +4325,14 @@
           "options": {
             "legend": {
               "calcs": [
-                "sum"
+                "mean",
+                "max",
+                "lastNotNull"
               ],
               "displayMode": "table",
-              "placement": "right",
+              "placement": "bottom",
               "showLegend": true,
-              "width": 260,
-              "sortBy": "Total",
+              "sortBy": "Max",
               "sortDesc": true
             },
             "tooltip": {
@@ -4426,13 +4425,14 @@
           "options": {
             "legend": {
               "calcs": [
-                "sum"
+                "mean",
+                "max",
+                "lastNotNull"
               ],
               "displayMode": "table",
-              "placement": "right",
+              "placement": "bottom",
               "showLegend": true,
-              "width": 260,
-              "sortBy": "Total",
+              "sortBy": "Max",
               "sortDesc": true
             },
             "tooltip": {

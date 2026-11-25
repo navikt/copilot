@@ -182,6 +182,15 @@ def build():
             desc = (f"Placeholder: no series yet in Mimir. Tracked in #{PLACEHOLDERS[pid]}. "
                     f"The query is the intended one. {desc}")
         viz = house_viz(house, group)
+        if group == "timeseries":
+            # Half-width charts: legend table below. Counts sum; latency and
+            # shares never do, so they show mean, max and last instead.
+            exprs = [e for e, _ in queries]
+            counter = not any(k in e for e in exprs for k in ("histogram_quantile", " / "))
+            viz["spec"].setdefault("options", {})["legend"] = {
+                "displayMode": "table", "placement": "bottom", "showLegend": True, "sortDesc": True,
+                "calcs": ["sum"] if counter else ["mean", "max", "lastNotNull"],
+                "sortBy": "Total" if counter else "Max"}
         if group == "stat" and pid == 4:
             viz["spec"]["fieldConfig"]["defaults"]["unit"] = "percent"
         elements[f"panel-{pid}"] = {

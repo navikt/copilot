@@ -210,9 +210,8 @@
             "sum"
           ],
           "displayMode": "table",
-          "placement": "right",
+          "placement": "bottom",
           "showLegend": true,
-          "width": 260,
           "sortBy": "Total",
           "sortDesc": true
         },
@@ -311,9 +310,8 @@
             "sum"
           ],
           "displayMode": "table",
-          "placement": "right",
+          "placement": "bottom",
           "showLegend": true,
-          "width": 260,
           "sortBy": "Total",
           "sortDesc": true
         },
@@ -491,11 +489,10 @@
             "sum"
           ],
           "displayMode": "table",
-          "placement": "right",
+          "placement": "bottom",
           "showLegend": true,
           "sortBy": "Total",
-          "sortDesc": true,
-          "width": 260
+          "sortDesc": true
         },
         "tooltip": {
           "hideZeros": false,
@@ -927,7 +924,7 @@
               "showLegend": true,
               "sortBy": "Total",
               "sortDesc": true,
-              "width": 260
+              "width": 320
             },
             "tooltip": {
               "hideZeros": false,
