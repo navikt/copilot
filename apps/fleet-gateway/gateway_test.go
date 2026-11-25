@@ -19,6 +19,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/navikt/copilot/fleet-gateway/internal/routing"
 )
 
 type testEnv struct {
@@ -268,7 +270,7 @@ func newTestEnv(t *testing.T) *testEnv {
 		BaseURL:             baseURL,
 		AllowedClientIDs:    map[string]bool{te.clientID: true},
 		AllowedRedirectURIs: map[string]bool{te.redirectURI: true},
-		Routes: []PilotRoute{
+		Routes: []routing.Route{
 			{
 				Route:       "/mcp/team-etterlevelse/etterlevelse",
 				Team:        "team-etterlevelse",

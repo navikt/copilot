@@ -1,6 +1,10 @@
 package main
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/navikt/copilot/fleet-gateway/internal/routing"
+)
 
 // #2848: the short form <app>.<ns> is dialled as <app>.<ns>.svc.cluster.local,
 // so a namespace that is a TLD cannot point the gateway at public DNS.
@@ -17,14 +21,14 @@ func TestUpstreamURLShortFormIsClusterLocal(t *testing.T) {
 		{"http://studio-api.aksel-studio/mcp", "aksel-studio", "http://studio-api.aksel-studio.svc.cluster.local/mcp"},
 		{"http://studio-api.aksel-studio.svc.cluster.local/mcp", "aksel-studio", "http://studio-api.aksel-studio.svc.cluster.local/mcp"},
 	} {
-		u, err := validateInternalUpstreamURL(c.raw, c.ns)
+		u, err := routing.ValidateUpstreamURL(c.raw, c.ns)
 		if err != nil {
 			t.Errorf("%s (ns %s): %v", c.raw, c.ns, err)
 		} else if u.String() != c.want {
 			t.Errorf("%s (ns %s) = %s, want %s", c.raw, c.ns, u, c.want)
 		}
 	}
-	if _, err := validateInternalUpstreamURL("http://xn--nv-fia.copilot/mcp", "copilot"); err == nil {
+	if _, err := routing.ValidateUpstreamURL("http://xn--nv-fia.copilot/mcp", "copilot"); err == nil {
 		t.Error("punycode host accepted")
 	}
 }

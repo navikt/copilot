@@ -8,6 +8,8 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/navikt/copilot/fleet-gateway/internal/routing"
 )
 
 var updateCELGolden = flag.Bool("update-cel-golden", false, "rewrite testdata/agentgateway_cel_golden.txt")
@@ -15,8 +17,8 @@ var updateCELGolden = flag.Bool("update-cel-golden", false, "rewrite testdata/ag
 // agentgatewayToolRule renders a route's tool allowlist as the agentgateway
 // mcpAuthorization CEL rule that allows the same tools. It is test-only: the
 // runtime still enforces allowedTools; this pins the mapping for a later move.
-func agentgatewayToolRule(r PilotRoute) string {
-	if r.allowedTools == nil {
+func agentgatewayToolRule(r routing.Route) string {
+	if r.AllowedTools == nil {
 		return "true" // passAllTools: operator-only, forwards every tool
 	}
 	quoted := make([]string, len(r.Tools))
@@ -60,7 +62,7 @@ func TestAgentgatewayCELMatchesAllowlist(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		routes, err := parseAndValidatePilotRoutes(raw)
+		routes, err := routing.Parse(raw)
 		if err != nil {
 			t.Fatalf("%s: %v", file, err)
 		}
@@ -70,7 +72,7 @@ func TestAgentgatewayCELMatchesAllowlist(t *testing.T) {
 			fmt.Fprintf(&golden, "%s: %s\n", r.Route, rule)
 			probes := append([]string{"", "delete_all", "not-a-tool", "\"]||true"}, r.Tools...)
 			for _, p := range probes {
-				want := r.allowedTools == nil || r.allowedTools[p]
+				want := r.AllowedTools == nil || r.AllowedTools[p]
 				if got := celAllowed(t, rule, p); got != want {
 					t.Errorf("%s %s: tool %q allowed=%v by CEL, %v by gateway", file, r.Route, p, got, want)
 				}
@@ -99,13 +101,13 @@ func TestAgentgatewayCELMatchesAllowlist(t *testing.T) {
 func TestToolNamesOutsideMCPCharsetRejected(t *testing.T) {
 	long := strings.Repeat("a", 129)
 	for _, bad := range []string{"", "\xff", "caf\u00e9", " x", "x y", `x"]||true||["`, `back\slash`, "a/b", long} {
-		r := PilotRoute{Route: "/mcp/a/b", Tools: []string{bad}}
-		if err := applyToolPolicy(&r); err == nil {
+		r := routing.Route{Route: "/mcp/a/b", Tools: []string{bad}}
+		if err := routing.ApplyToolPolicy(&r); err == nil {
 			t.Errorf("tool %q accepted", bad)
 		}
 	}
-	r := PilotRoute{Route: "/mcp/a/b", Tools: []string{"get_team", "a.b-C9", strings.Repeat("a", 128)}}
-	if err := applyToolPolicy(&r); err != nil {
+	r := routing.Route{Route: "/mcp/a/b", Tools: []string{"get_team", "a.b-C9", strings.Repeat("a", 128)}}
+	if err := routing.ApplyToolPolicy(&r); err != nil {
 		t.Fatal(err)
 	}
 }

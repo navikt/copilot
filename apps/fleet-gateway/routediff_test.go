@@ -5,9 +5,11 @@ import (
 	"os"
 	"slices"
 	"testing"
+
+	"github.com/navikt/copilot/fleet-gateway/internal/routing"
 )
 
-func loadSnapshotRoutes(t *testing.T, path string) []PilotRoute {
+func loadSnapshotRoutes(t *testing.T, path string) []routing.Route {
 	t.Helper()
 	raw, err := os.ReadFile(path) //nolint:gosec // operator-supplied test input
 	if err != nil {
@@ -28,7 +30,7 @@ func loadSnapshotRoutes(t *testing.T, path string) []PilotRoute {
 }
 
 func TestRouteDiffFixtures(t *testing.T) {
-	file, err := loadPilotRoutes("testdata/routediff/routes.yaml")
+	file, err := routing.Load("testdata/routediff/routes.yaml")
 	if err != nil {
 		t.Fatal(err)
 	}

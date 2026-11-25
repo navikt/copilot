@@ -10,6 +10,8 @@ import (
 	"sort"
 	"strconv"
 	"testing"
+
+	"github.com/navikt/copilot/fleet-gateway/internal/routing"
 )
 
 type upstreamToolLoader func() (map[string]bool, error)
@@ -98,7 +100,7 @@ func TestDiffRouteTools(t *testing.T) {
 
 func checkRouteFileTools(t *testing.T, routeFile string, loaders map[string]upstreamToolLoader) {
 	t.Helper()
-	routes, err := loadPilotRoutes(routeFile)
+	routes, err := routing.Load(routeFile)
 	if err != nil {
 		t.Fatalf("load %s: %v", routeFile, err)
 	}

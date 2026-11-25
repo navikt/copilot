@@ -17,6 +17,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/navikt/copilot/fleet-gateway/internal/routing"
 )
 
 func newClientEncryptedTestEnv(t *testing.T, rtKeys string) *testEnv {
@@ -25,7 +27,7 @@ func newClientEncryptedTestEnv(t *testing.T, rtKeys string) *testEnv {
 	te.gw.store.Close()
 
 	cfgCopy := *te.gw.cfg
-	cfgCopy.Routes = append([]PilotRoute(nil), te.gw.cfg.Routes...)
+	cfgCopy.Routes = append([]routing.Route(nil), te.gw.cfg.Routes...)
 	cfgCopy.RTKeys = rtKeys
 	cfgCopy.RTStorage = rtStorageClientEncrypted
 	cfgCopy.EntraScope = "openid offline_access api://azure-client-id/.default"

@@ -16,6 +16,8 @@ import (
 	"time"
 
 	"golang.org/x/sync/singleflight"
+
+	"github.com/navikt/copilot/fleet-gateway/internal/routing"
 )
 
 const (
@@ -81,7 +83,7 @@ type StrategyOBO struct {
 }
 
 // TeamToken exchanges the session's Entra access token for a downstream team token via Texas.
-func (s *StrategyOBO) TeamToken(ctx context.Context, sessionID string, route PilotRoute) (string, error) {
+func (s *StrategyOBO) TeamToken(ctx context.Context, sessionID string, route routing.Route) (string, error) {
 	if s.endpoint == "" {
 		return "", &upstreamTokenError{reason: "texas exchange endpoint not configured"}
 	}
@@ -163,7 +165,7 @@ func (s *StrategyRefresh) lockSession(sessionID string) *sync.Mutex {
 }
 
 // TeamToken acquires a downstream team token by refreshing against Entra with per-session serialization.
-func (s *StrategyRefresh) TeamToken(ctx context.Context, sessionID string, route PilotRoute) (string, error) {
+func (s *StrategyRefresh) TeamToken(ctx context.Context, sessionID string, route routing.Route) (string, error) {
 	if s.tokenEndpoint == "" {
 		return "", &upstreamTokenError{reason: "entra token endpoint not configured"}
 	}
@@ -299,7 +301,7 @@ var (
 )
 
 func entraScopeForTarget(target string) string {
-	cluster, ns, app, err := parseTarget(target)
+	cluster, ns, app, err := routing.ParseTarget(target)
 	if err == nil {
 		return "api://" + cluster + "." + ns + "." + app + "/.default"
 	}

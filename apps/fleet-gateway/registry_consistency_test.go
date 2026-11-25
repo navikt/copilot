@@ -7,6 +7,8 @@ import (
 	"sort"
 	"strings"
 	"testing"
+
+	"github.com/navikt/copilot/fleet-gateway/internal/routing"
 )
 
 // Registry entries that point at the gateway must match the enabled routes in
@@ -54,13 +56,13 @@ func registryGatewayPaths(t *testing.T) map[string]string {
 
 func enabledProdRoutes(t *testing.T) map[string]bool {
 	t.Helper()
-	routes, err := loadPilotRoutes("pilot-routes.prod.yaml")
+	routes, err := routing.Load("pilot-routes.prod.yaml")
 	if err != nil {
 		t.Fatalf("load prod routes: %v", err)
 	}
 	set := map[string]bool{}
 	for _, r := range routes {
-		if !r.isDisabled() {
+		if !r.Disabled() {
 			set[r.Route] = true
 		}
 	}
@@ -118,13 +120,13 @@ func TestRegistryToolsMatchRouteTools(t *testing.T) {
 	if err = json.Unmarshal(raw, &doc); err != nil {
 		t.Fatal(err)
 	}
-	routes, err := loadPilotRoutes("pilot-routes.prod.yaml")
+	routes, err := routing.Load("pilot-routes.prod.yaml")
 	if err != nil {
 		t.Fatal(err)
 	}
 	byPath := map[string][]string{}
 	for _, r := range routes {
-		if !r.isDisabled() {
+		if !r.Disabled() {
 			byPath[r.Route] = r.Tools
 		}
 	}

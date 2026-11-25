@@ -12,6 +12,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/navikt/copilot/fleet-gateway/internal/policy"
+	"github.com/navikt/copilot/fleet-gateway/internal/routing"
 )
 
 // Metrics carry no user identifiers: labels are limited to values from the
@@ -89,14 +90,14 @@ var denyReasons = []string{policy.ReasonNotListed, policy.ReasonAmbiguous, polic
 // observeMCPRequest bounds both extra labels: reason only on deny and only from
 // denyReasons; tool only when on the route's explicit list, else "other"
 // (passAllTools routes always give "other").
-func observeMCPRequest(route PilotRoute, outcome, decision, reason, tool, rawTool string, d time.Duration) {
+func observeMCPRequest(route routing.Route, outcome, decision, reason, tool, rawTool string, d time.Duration) {
 	if decision != "deny" || !slices.Contains(denyReasons, reason) {
 		reason = ""
 	}
 	// tool is the truncated audit value, only used to tell "not a tool call" from "other".
 	switch {
 	case tool == "":
-	case route.allowedTools[rawTool]:
+	case route.AllowedTools[rawTool]:
 		tool = rawTool
 	default:
 		tool = "other"
@@ -131,7 +132,7 @@ func markShed(w http.ResponseWriter, reason string) {
 // initMetrics creates the series the alerts read, at zero, before traffic.
 // CounterVec creates a series on first Inc, so increase() would miss a first
 // burst that lands between two scrapes.
-func initMetrics(routes []PilotRoute) {
+func initMetrics(routes []routing.Route) {
 	for _, code := range []string{"200", "500", "502", "503", "504"} {
 		httpRequestsTotal.WithLabelValues(code, "")
 	}
@@ -142,7 +143,7 @@ func initMetrics(routes []PilotRoute) {
 		rateLimitedTotal.WithLabelValues(ep)
 	}
 	for _, r := range routes {
-		tools := append([]string{"", "other"}, slices.Sorted(maps.Keys(r.allowedTools))...)
+		tools := append([]string{"", "other"}, slices.Sorted(maps.Keys(r.AllowedTools))...)
 		for _, o := range []string{"ok", "upstream_token_error", "upstream_error"} {
 			for _, tool := range tools {
 				mcpRequestsTotal.WithLabelValues(r.Route, o, "allow", "", tool)

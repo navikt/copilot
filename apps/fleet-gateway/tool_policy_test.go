@@ -7,6 +7,8 @@ import (
 	"testing"
 
 	"gopkg.in/yaml.v3"
+
+	"github.com/navikt/copilot/fleet-gateway/internal/routing"
 )
 
 var policyTools = map[string]bool{"whoami": true}
@@ -91,7 +93,7 @@ func TestToolPolicy_RouteFilesAreV2(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		var doc PilotRoutesConfig
+		var doc routing.File
 		if err := yaml.Unmarshal(raw, &doc); err != nil || doc.Version != 2 {
 			t.Errorf("%s: version %d (err %v), want 2", f, doc.Version, err)
 		}
@@ -111,31 +113,31 @@ func TestToolPolicy_RouteFile(t *testing.T) {
 		"passAll false only": route("    passAllTools: false\n"),
 	}
 	for name, y := range bad {
-		if _, err := parseAndValidatePilotRoutes([]byte(y)); err == nil {
+		if _, err := routing.Parse([]byte(y)); err == nil {
 			t.Errorf("%s: expected validation error", name)
 		}
 	}
-	rs, err := parseAndValidatePilotRoutes([]byte(route("    tools: [a, b]\n")))
-	if err != nil || !rs[0].allowedTools["a"] || !rs[0].allowedTools["b"] || len(rs[0].allowedTools) != 2 {
+	rs, err := routing.Parse([]byte(route("    tools: [a, b]\n")))
+	if err != nil || !rs[0].AllowedTools["a"] || !rs[0].AllowedTools["b"] || len(rs[0].AllowedTools) != 2 {
 		t.Fatalf("tools route: %v %v", err, rs)
 	}
-	rs, err = parseAndValidatePilotRoutes([]byte(route("    passAllTools: true\n")))
-	if err != nil || rs[0].allowedTools != nil {
+	rs, err = routing.Parse([]byte(route("    passAllTools: true\n")))
+	if err != nil || rs[0].AllowedTools != nil {
 		t.Fatalf("passAll route must not enforce: %v", err)
 	}
-	_, err = parseAndValidatePilotRoutes([]byte(strings.Replace(route("    tools: [a]\n"), "version: 2", "version: 1", 1)))
+	_, err = routing.Parse([]byte(strings.Replace(route("    tools: [a]\n"), "version: 2", "version: 1", 1)))
 	if err == nil || !strings.Contains(err.Error(), "version 1 is no longer supported") {
 		t.Fatalf("v1 must be rejected with a clear error: %v", err)
 	}
 	for _, f := range []string{"pilot-routes.dev.yaml", "pilot-routes.prod.yaml"} {
-		if _, err := (fileRouteSource{path: f}).Routes(); err != nil {
+		if _, err := routing.Load(f); err != nil {
 			t.Errorf("%q: %v", f, err)
 		}
 	}
-	if _, err := (fileRouteSource{path: ""}).Routes(); err == nil {
+	if _, err := routing.Load(""); err == nil {
 		t.Error("empty route path must fail closed")
 	}
-	prodRoutes, prodErr := (fileRouteSource{path: "pilot-routes.prod.yaml"}).Routes()
+	prodRoutes, prodErr := routing.Load("pilot-routes.prod.yaml")
 	if prodErr != nil {
 		t.Fatal(prodErr)
 	}
@@ -143,7 +145,7 @@ func TestToolPolicy_RouteFile(t *testing.T) {
 	for _, r := range prodRoutes {
 		if r.Route == "/mcp/copilot/dolly" {
 			foundDolly = true
-			if len(r.allowedTools) == 0 {
+			if len(r.AllowedTools) == 0 {
 				t.Fatal("/mcp/copilot/dolly in pilot-routes.prod.yaml must keep an explicit tools list")
 			}
 		}

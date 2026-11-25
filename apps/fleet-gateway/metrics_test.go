@@ -9,10 +9,12 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus/testutil"
+
+	"github.com/navikt/copilot/fleet-gateway/internal/routing"
 )
 
 func TestMetricsRegisteredAndServed(t *testing.T) {
-	observeMCPRequest(PilotRoute{Route: "/mcp/ns/test"}, "upstream_token_error", "", "", "", "", time.Second)
+	observeMCPRequest(routing.Route{Route: "/mcp/ns/test"}, "upstream_token_error", "", "", "", "", time.Second)
 	observeHTTPRequest(http.StatusBadGateway, "")
 	routesLoaded.Set(3)
 
@@ -58,7 +60,7 @@ func TestMetricsNotOnPublicPort(t *testing.T) {
 // The token-error alert uses increase(), which needs a zero sample before the
 // first failure.
 func TestInitMetricsPrecreatesAlertSeries(t *testing.T) {
-	initMetrics([]PilotRoute{{Route: "/mcp/ns/precreated"}})
+	initMetrics([]routing.Route{{Route: "/mcp/ns/precreated"}})
 	srv := httptest.NewServer(metricsServer("").Handler)
 	defer srv.Close()
 	resp, err := http.Get(srv.URL + "/metrics")
@@ -133,7 +135,7 @@ func TestMCPRequestsTotalDecisionReasonTool(t *testing.T) {
 }
 
 func TestInitMetricsPrecreatesDenySeries(t *testing.T) {
-	initMetrics([]PilotRoute{{Route: "/mcp/ns/deny"}})
+	initMetrics([]routing.Route{{Route: "/mcp/ns/deny"}})
 	body := scrapeMetrics(t)
 	for _, reason := range denyReasons {
 		if !strings.Contains(body, `decision="deny",outcome=`) || !strings.Contains(body, `reason="`+reason+`"`) {
@@ -151,7 +153,7 @@ func TestInitMetricsPrecreatesDenySeries(t *testing.T) {
 }
 
 func TestObserveMCPRequestBoundsReason(t *testing.T) {
-	r := PilotRoute{Route: "/mcp/ns/bound", allowedTools: map[string]bool{"a": true}}
+	r := routing.Route{Route: "/mcp/ns/bound", AllowedTools: map[string]bool{"a": true}}
 	observeMCPRequest(r, "tool_denied", "deny", "made-up", "zzz", "zzz", time.Millisecond)
 	if got := testutil.ToFloat64(mcpRequestsTotal.WithLabelValues(r.Route, "tool_denied", "deny", "", "other")); got != 1 {
 		t.Fatalf("unknown reason/tool not collapsed: %v", got)
@@ -185,7 +187,7 @@ func TestMCPToolLabelUsesFullName(t *testing.T) {
 
 // increase() needs a zero sample per tool before the first call.
 func TestInitMetricsPrecreatesToolSeries(t *testing.T) {
-	initMetrics([]PilotRoute{{Route: "/mcp/ns/tools", allowedTools: map[string]bool{"search_x": true}}})
+	initMetrics([]routing.Route{{Route: "/mcp/ns/tools", AllowedTools: map[string]bool{"search_x": true}}})
 	body := scrapeMetrics(t)
 	for _, tool := range []string{"search_x", "other"} {
 		want := `outcome="upstream_token_error",reason="",route="/mcp/ns/tools",tool="` + tool + `"} 0`

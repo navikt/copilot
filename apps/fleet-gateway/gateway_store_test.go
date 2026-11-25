@@ -14,6 +14,8 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus/testutil"
+
+	"github.com/navikt/copilot/fleet-gateway/internal/routing"
 )
 
 func cloneTestEnvWithSharedStore(t *testing.T, base *testEnv, shared SessionStore, nowFn func() time.Time) (*Gateway, http.Handler) {
@@ -21,7 +23,7 @@ func cloneTestEnvWithSharedStore(t *testing.T, base *testEnv, shared SessionStor
 	cfgCopy := *base.gw.cfg
 	cfgCopy.AllowedClientIDs = map[string]bool{base.clientID: true}
 	cfgCopy.AllowedRedirectURIs = map[string]bool{base.redirectURI: true}
-	cfgCopy.Routes = append([]PilotRoute(nil), base.gw.cfg.Routes...)
+	cfgCopy.Routes = append([]routing.Route(nil), base.gw.cfg.Routes...)
 	cfgCopy.Store = shared
 
 	if err := validateConfig(&cfgCopy); err != nil {

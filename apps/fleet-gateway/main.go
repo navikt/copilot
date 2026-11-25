@@ -22,6 +22,7 @@ import (
 
 	"github.com/navikt/copilot/fleet-gateway/internal/audit"
 	"github.com/navikt/copilot/fleet-gateway/internal/ratelimit"
+	"github.com/navikt/copilot/fleet-gateway/internal/routing"
 )
 
 // Gateway implements the fleet-gateway OAuth 2.1 authorization server and MCP proxy.
@@ -42,7 +43,7 @@ type Gateway struct {
 	sseStreams    slots         // open SSE response streams; they buffer nothing, so get their own cap
 	userSSE       *userSlots    // concurrent open SSE response streams per user on this pod
 	routeInFlight *userSlots    // concurrent buffered MCP calls per route on this pod, keyed by route path
-	routeTable    atomic.Pointer[RouteTable]
+	routeTable    atomic.Pointer[routing.Table]
 	draining      atomic.Bool // set on SIGTERM so /ready drops the pod before Shutdown
 
 	wellKnownMu         sync.RWMutex
@@ -91,10 +92,10 @@ func newGateway(cfg *Config, now func() time.Time) (*Gateway, error) {
 		}
 		return nil, err
 	}
-	table := newRouteTable(cfg)
+	table := routing.NewTable(cfg.Routes)
 	if cfg.RoutesSource == routesSourceFleetControl {
 		// Fail closed (#2797): no Git routes, ever. The file only pins the primary resource.
-		table = &RouteTable{PrimaryResource: table.PrimaryResource}
+		table = &routing.Table{PrimaryResource: table.PrimaryResource}
 	}
 	teamTokens, err := newTeamTokenSource(cfg, store, now)
 	if err != nil {
@@ -224,14 +225,14 @@ func (g *Gateway) routes() http.Handler {
 	g.sseStreams = make(slots, g.cfg.MCPMaxSSE)
 	g.userSSE = &userSlots{max: g.cfg.MCPMaxSSEPerUser}
 	g.routeInFlight = &userSlots{max: min(g.cfg.MCPMaxInFlightPerRoute, cap(g.inFlight))}
-	// Two method-less, disjoint patterns, as before RouteTable: no /mcp/ subtree,
+	// Two method-less, disjoint patterns, as before routing.Table: no /mcp/ subtree,
 	// so /mcp, /mcp/ and trailing slashes stay plain 404s and are never redirected.
 	mux.HandleFunc("/mcp/{ns}/{name}", g.routeDispatch)
 	mux.HandleFunc("/mcp/{name}", g.oldRoutePathHandler)
 	return g.loggingMiddleware(mux)
 }
 
-// routeDispatch serves /mcp/<namespace>/<name> from the current RouteTable.
+// routeDispatch serves /mcp/<namespace>/<name> from the current routing.Table.
 func (g *Gateway) routeDispatch(w http.ResponseWriter, r *http.Request) {
 	table := g.table() // one load: a swap between lookup and check must not turn 503 into 404
 	route, ok := table.RoutesByPath["/mcp/"+r.PathValue("ns")+"/"+r.PathValue("name")]
@@ -255,7 +256,7 @@ func (g *Gateway) oldRoutePathHandler(w http.ResponseWriter, r *http.Request) {
 		"error_description": "MCP routes moved to /mcp/<namespace>/<name>. Update your MCP client config and log in again.",
 	}
 	// Two namespaces may share a route name: only hint when the match is unique.
-	var match *PilotRoute
+	var match *routing.Route
 	matches := 0
 	routes := g.table().Routes
 	for i, route := range routes {
