@@ -1,5 +1,5 @@
-// Package store holds fleet-control's Postgres access: for now the audit_events
-// writer and the tracer that logs committed audit rows.
+// Package store holds fleet-control's Postgres access: migrations, server and
+// snapshot queries, the audit_events writer and audit maintenance.
 package store
 
 import (

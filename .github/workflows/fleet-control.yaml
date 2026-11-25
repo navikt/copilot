@@ -84,4 +84,5 @@ jobs:
         with:
           experimental: true
           working_directory: apps/fleet-control
-      - run: go test -count=1 -v ./...
+      # -p 1: the main and store packages share one database and its roles.
+      - run: go test -count=1 -p 1 -v ./...

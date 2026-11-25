@@ -151,27 +151,16 @@ func TestRealPostgresAgentJobDelegated(t *testing.T) {
 	e.noOidLeak()
 }
 
-// An image from before 007 keeps inserting jobs, and its rows show up for
-// persons as job-<id>.
+// Rows an image from before 007 inserts show up for persons as job-<id>.
+// Migration of a pre-007 row is covered in internal/store.
 func TestRealPostgresMigration007OldImage(t *testing.T) {
 	e := newApisEnv(t)
 	ctx := context.Background()
-	if _, err := e.db.pool.Exec(ctx, "DROP SCHEMA public CASCADE; CREATE SCHEMA public"); err != nil {
-		t.Fatal(err)
-	}
-	if err := e.db.migrateTo(ctx, "005_v1alpha1.sql"); err != nil {
-		t.Fatal(err)
-	}
-	oldInsert := `INSERT INTO runtime_jobs (team, kind, params, on_expiry, max_attempts, created_by) VALUES ('team-a', 'k', '{}', 'requeue', 3, 'A111111') RETURNING id`
-	var before, after int64
-	if err := e.db.pool.QueryRow(ctx, oldInsert).Scan(&before); err != nil {
-		t.Fatal(err)
-	}
-	if err := e.db.Migrate(ctx); err != nil {
-		t.Fatal(err)
-	}
-	if err := e.db.pool.QueryRow(ctx, oldInsert).Scan(&after); err != nil {
-		t.Fatalf("old-image insert after 007: %v", err)
+	oldInsert := `INSERT INTO runtime_jobs (team, kind, params, on_expiry, max_attempts, created_by) VALUES ('team-a', 'k', '{}', 'requeue', 3, 'A111111')`
+	for range 2 {
+		if _, err := e.db.pool.Exec(ctx, oldInsert); err != nil {
+			t.Fatalf("old-image insert after 007: %v", err)
+		}
 	}
 	if _, err := createTestJob(ctx, e.db, "A111111", "team-a", CreateJobRequest{Kind: "k", Params: json.RawMessage("{}"), OnExpiry: "requeue", MaxAttempts: 3}); err != nil {
 		t.Fatal(err)

@@ -74,20 +74,6 @@ func TestRealPostgresRegistryNamePrefix(t *testing.T) {
 	e.want(409, "POST", nsBase+"copilot/mcpservers/svc/approval", person("C222222"), approval(1, m.Status.Pending.ContentHash))
 }
 
-func TestRealPostgresMigration008RefusesCaseCollisions(t *testing.T) {
-	db := openTestDB(t)
-	ctx := context.Background()
-	if err := db.migrateTo(ctx, "007_agentjob_orderer.sql"); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := db.pool.Exec(ctx, `INSERT INTO servers (namespace, name, registry_name, status) VALUES ('a', 'x', 'no.nav.a/x', 'draft'), ('b', 'x', 'No.Nav.A/x', 'draft')`); err != nil {
-		t.Fatal(err)
-	}
-	if err := db.Migrate(ctx); err == nil || !strings.Contains(err.Error(), "no.nav.a/x") {
-		t.Fatalf("want a clear refusal naming the name, got %v", err)
-	}
-}
-
 // A generation published before #2853 under a foreign name is not republished
 // by rollback, and startup lists it.
 func TestRealPostgresRollbackRechecksRegistryName(t *testing.T) {
