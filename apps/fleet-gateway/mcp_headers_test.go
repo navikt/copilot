@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/navikt/copilot/fleet-gateway/internal/policy"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -64,20 +65,20 @@ func TestProxy_ForwardsMCPRequestMetadataHeaders(t *testing.T) {
 	mu.Unlock()
 
 	tooMany := map[string]string{}
-	for i := 0; i <= maxMCPParamHeaders; i++ {
+	for i := 0; i <= policy.MaxMCPParamHeaders; i++ {
 		tooMany["Mcp-Param-P"+strconv.Itoa(i)] = "x"
 	}
 	for name, hdrs := range map[string]map[string]string{
 		"count": tooMany,
-		"size":  {"Mcp-Param-Q": strings.Repeat("a", maxMCPParamHeaderBytes)},
+		"size":  {"Mcp-Param-Q": strings.Repeat("a", policy.MaxMCPParamHeaderBytes)},
 	} {
 		if rec := post(hdrs); rec.Code != http.StatusBadRequest {
 			t.Errorf("%s: expected 400, got %d", name, rec.Code)
 		}
 	}
 	for name, hdrs := range map[string]http.Header{
-		"name size":      {"Mcp-Name": {strings.Repeat("a", maxMCPNameHeaderBytes+1)}},
-		"method size":    {"Mcp-Method": {strings.Repeat("a", maxMCPNameHeaderBytes+1)}},
+		"name size":      {"Mcp-Name": {strings.Repeat("a", policy.MaxMCPNameHeaderBytes+1)}},
+		"method size":    {"Mcp-Method": {strings.Repeat("a", policy.MaxMCPNameHeaderBytes+1)}},
 		"name twice":     {"Mcp-Name": {"search", "delete"}},
 		"method twice":   {"Mcp-Method": {"tools/call", "tools/list"}},
 		"obs-text name":  {"Mcp-Name": {"s\xf8k"}},

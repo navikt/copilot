@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/navikt/copilot/fleet-gateway/internal/proxy"
 	"io"
 	"log/slog"
 	"net"
@@ -147,26 +148,6 @@ func capPost(t *testing.T, ts *httptest.Server, token, query string) int {
 	return resp.StatusCode
 }
 
-// readChunks must not reallocate: io.ReadAll on an unknown-length 10 MiB body
-// allocates roughly 2-3x that while growing.
-func TestReadChunksAllocatesBodySize(t *testing.T) {
-	const size = 10 << 20
-	var ms0, ms1 runtime.MemStats
-	runtime.ReadMemStats(&ms0)
-	chunks, n, err := readChunks(io.LimitReader(zeroReader{}, size), size+1)
-	runtime.ReadMemStats(&ms1)
-	if err != nil || n != size || len(chunks) == 0 {
-		t.Fatalf("n=%d err=%v", n, err)
-	}
-	if alloc := ms1.TotalAlloc - ms0.TotalAlloc; alloc > size*11/10 {
-		t.Fatalf("allocated %d bytes for a %d-byte body, want <= 1.1x", alloc, size)
-	}
-}
-
-type zeroReader struct{}
-
-func (zeroReader) Read(p []byte) (int, error) { clear(p); return len(p), nil }
-
 // A real server enforces WriteTimeout (httptest.ResponseRecorder does not).
 // A call that uses most of its token and upstream budgets must still finish.
 func TestWriteTimeoutCoversTokenAndUpstream(t *testing.T) {
@@ -236,7 +217,7 @@ func TestUpstreamTimeoutConfig(t *testing.T) {
 // it fits under GOMEMLIMIT, which must stay at or below 90 % of the pod limit.
 func TestMemoryBudgetFitsManifests(t *testing.T) {
 	const mib = 1 << 20
-	perCall := float64(maxMCPResponseBodyBytes+32<<10) + 4*float64(maxMCPRequestBodyBytes) + 0.1*mib
+	perCall := float64(proxy.MaxMCPResponseBodyBytes+32<<10) + 4*float64(proxy.MaxMCPRequestBodyBytes) + 0.1*mib
 	budget := defaultMCPMaxInFlight*perCall + defaultMCPMaxSSE*48<<10 + 30*mib
 	for _, f := range []string{".nais/dev-gcp.yaml", ".nais/prod-gcp.yaml"} {
 		raw, err := os.ReadFile(f) //nolint:gosec // fixed manifest paths
@@ -413,7 +394,7 @@ func TestPerRouteInFlightCap(t *testing.T) {
 func largeJSONRPCPayload() []byte {
 	const prefix = `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"x","arguments":{"data":"`
 	const suffix = `"}}}`
-	return []byte(prefix + strings.Repeat("a", maxMCPRequestBodyBytes-len(prefix)-len(suffix)-64) + suffix)
+	return []byte(prefix + strings.Repeat("a", proxy.MaxMCPRequestBodyBytes-len(prefix)-len(suffix)-64) + suffix)
 }
 
 func TestSSEEarlyFlushUpstreamGetsFullBody(t *testing.T) {

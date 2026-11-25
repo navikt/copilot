@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/navikt/copilot/fleet-gateway/internal/policy"
 	"net/http"
 	"os"
 	"strings"
@@ -21,28 +22,28 @@ func TestToolPolicy_Proxy(t *testing.T) {
 		name, body, reason string
 		code               int
 	}{
-		{"allowed", call("whoami"), reasonListed, http.StatusOK},
-		{"non-call", `{"jsonrpc":"2.0","id":1,"method":"tools/list"}`, reasonNotCall, http.StatusOK},
-		{"denied", call("delete_all"), reasonNotListed, http.StatusForbidden},
-		{"name case", call("WhoAmI"), reasonNotListed, http.StatusForbidden},
-		{"case-variant keys", `{"jsonrpc":"2.0","id":1,"Method":"tools/call","Params":{"Name":"delete_all"}}`, reasonAmbiguous, http.StatusBadRequest},
-		{"case-variant name", `{"method":"tools/call","params":{"name":"whoami","NAME":"delete_all"}}`, reasonAmbiguous, http.StatusBadRequest},
-		{"fold variant params", `{"method":"tools/call","paramſ":{"name":"delete_all"},"params":{"name":"whoami"}}`, reasonAmbiguous, http.StatusBadRequest},
-		{"method case", `{"method":"Tools/Call","params":{"name":"delete_all"}}`, reasonAmbiguous, http.StatusBadRequest},
-		{"duplicate method", `{"method":"tools/list","method":"tools/call","params":{"name":"delete_all"}}`, reasonAmbiguous, http.StatusBadRequest},
-		{"duplicate name", `{"method":"tools/call","params":{"name":"whoami","name":"delete_all"}}`, reasonAmbiguous, http.StatusBadRequest},
-		{"trailing data", call("whoami") + "\n" + call("delete_all"), reasonAmbiguous, http.StatusBadRequest},
-		{"unparseable", "\xef\xbb\xbf" + call("whoami"), reasonAmbiguous, http.StatusBadRequest},
-		{"truncated", call("whoami")[:30], reasonAmbiguous, http.StatusBadRequest},
-		{"batch allowed", "[" + call("whoami") + `,{"method":"notifications/initialized"}]`, reasonListed, http.StatusOK},
-		{"batch mixed", "[" + call("whoami") + "," + call("delete_all") + "]", reasonNotListed, http.StatusForbidden},
-		{"batch ambiguous", "[" + call("whoami") + `,{"METHOD":"tools/call","params":{"name":"delete_all"}}]`, reasonAmbiguous, http.StatusBadRequest},
-		{"denied then trailing", call("delete_all") + "]", reasonAmbiguous, http.StatusBadRequest},
-		{"batch denied then ambiguous", "[" + call("delete_all") + `,{"METHOD":"tools/call"}]`, reasonAmbiguous, http.StatusBadRequest},
-		{"method NUL", `{"method":"tools/call\u0000","params":{"name":"delete_all"}}`, reasonAmbiguous, http.StatusBadRequest},
-		{"method tab", `{"method":"tools/\tcall","params":{"name":"delete_all"}}`, reasonAmbiguous, http.StatusBadRequest},
-		{"method space", `{"method":" tools/call","params":{"name":"delete_all"}}`, reasonAmbiguous, http.StatusBadRequest},
-		{"batch unclosed", "[" + call("whoami"), reasonAmbiguous, http.StatusBadRequest},
+		{"allowed", call("whoami"), policy.ReasonListed, http.StatusOK},
+		{"non-call", `{"jsonrpc":"2.0","id":1,"method":"tools/list"}`, policy.ReasonNotCall, http.StatusOK},
+		{"denied", call("delete_all"), policy.ReasonNotListed, http.StatusForbidden},
+		{"name case", call("WhoAmI"), policy.ReasonNotListed, http.StatusForbidden},
+		{"case-variant keys", `{"jsonrpc":"2.0","id":1,"Method":"tools/call","Params":{"Name":"delete_all"}}`, policy.ReasonAmbiguous, http.StatusBadRequest},
+		{"case-variant name", `{"method":"tools/call","params":{"name":"whoami","NAME":"delete_all"}}`, policy.ReasonAmbiguous, http.StatusBadRequest},
+		{"fold variant params", `{"method":"tools/call","paramſ":{"name":"delete_all"},"params":{"name":"whoami"}}`, policy.ReasonAmbiguous, http.StatusBadRequest},
+		{"method case", `{"method":"Tools/Call","params":{"name":"delete_all"}}`, policy.ReasonAmbiguous, http.StatusBadRequest},
+		{"duplicate method", `{"method":"tools/list","method":"tools/call","params":{"name":"delete_all"}}`, policy.ReasonAmbiguous, http.StatusBadRequest},
+		{"duplicate name", `{"method":"tools/call","params":{"name":"whoami","name":"delete_all"}}`, policy.ReasonAmbiguous, http.StatusBadRequest},
+		{"trailing data", call("whoami") + "\n" + call("delete_all"), policy.ReasonAmbiguous, http.StatusBadRequest},
+		{"unparseable", "\xef\xbb\xbf" + call("whoami"), policy.ReasonAmbiguous, http.StatusBadRequest},
+		{"truncated", call("whoami")[:30], policy.ReasonAmbiguous, http.StatusBadRequest},
+		{"batch allowed", "[" + call("whoami") + `,{"method":"notifications/initialized"}]`, policy.ReasonListed, http.StatusOK},
+		{"batch mixed", "[" + call("whoami") + "," + call("delete_all") + "]", policy.ReasonNotListed, http.StatusForbidden},
+		{"batch ambiguous", "[" + call("whoami") + `,{"METHOD":"tools/call","params":{"name":"delete_all"}}]`, policy.ReasonAmbiguous, http.StatusBadRequest},
+		{"denied then trailing", call("delete_all") + "]", policy.ReasonAmbiguous, http.StatusBadRequest},
+		{"batch denied then ambiguous", "[" + call("delete_all") + `,{"METHOD":"tools/call"}]`, policy.ReasonAmbiguous, http.StatusBadRequest},
+		{"method NUL", `{"method":"tools/call\u0000","params":{"name":"delete_all"}}`, policy.ReasonAmbiguous, http.StatusBadRequest},
+		{"method tab", `{"method":"tools/\tcall","params":{"name":"delete_all"}}`, policy.ReasonAmbiguous, http.StatusBadRequest},
+		{"method space", `{"method":" tools/call","params":{"name":"delete_all"}}`, policy.ReasonAmbiguous, http.StatusBadRequest},
+		{"batch unclosed", "[" + call("whoami"), policy.ReasonAmbiguous, http.StatusBadRequest},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -68,7 +69,7 @@ func TestToolPolicy_Proxy(t *testing.T) {
 
 func TestToolPolicy_PassAllRouteForwards(t *testing.T) {
 	audit, got, code := auditPostTools(t, nil, `{"method":"tools/call","params":{"name":"delete_all"}}`)
-	if code != http.StatusOK || got == nil || audit["decision"] != "allow" || audit["decision_reason"] != reasonPassAll {
+	if code != http.StatusOK || got == nil || audit["decision"] != "allow" || audit["decision_reason"] != policy.ReasonPassAll {
 		t.Fatalf("pass-all route: code=%d forwarded=%v audit=%v/%v", code, got != nil, audit["decision"], audit["decision_reason"])
 	}
 }
@@ -81,7 +82,7 @@ func TestToolPolicy_NonPostBody(t *testing.T) {
 			t.Fatalf("%s with body: code=%d forwarded=%v decision=%v", m, code, got != nil, audit["decision"])
 		}
 		audit, _, code = auditTools(t, m, policyTools, "")
-		if code == http.StatusBadRequest || audit["decision"] != "allow" || audit["decision_reason"] != reasonNotCall {
+		if code == http.StatusBadRequest || audit["decision"] != "allow" || audit["decision_reason"] != policy.ReasonNotCall {
 			t.Fatalf("%s without body: code=%d audit=%v/%v", m, code, audit["decision"], audit["decision_reason"])
 		}
 	}
@@ -155,19 +156,19 @@ func TestToolPolicy_RouteFile(t *testing.T) {
 	}
 }
 
-// The audit list stops at maxAuditBatchTools; the policy must still read every member.
+// The audit list stops at policy.MaxAuditBatchTools; the policy must still read every member.
 func TestToolPolicy_BatchPastDisplayCap(t *testing.T) {
 	call := func(name string) string {
 		return `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"` + name + `"}}`
 	}
-	head := "[" + strings.Repeat(call("whoami")+",", maxAuditBatchTools+1)
+	head := "[" + strings.Repeat(call("whoami")+",", policy.MaxAuditBatchTools+1)
 	cases := []struct {
 		name, body, reason string
 		code               int
 	}{
-		{"disallowed", head + call("delete_all") + "]", reasonNotListed, http.StatusForbidden},
-		{"duplicate name", head + `{"method":"tools/call","params":{"name":"whoami","name":"delete_all"}}]`, reasonAmbiguous, http.StatusBadRequest},
-		{"trailing data", head + call("whoami") + "]" + call("delete_all"), reasonAmbiguous, http.StatusBadRequest},
+		{"disallowed", head + call("delete_all") + "]", policy.ReasonNotListed, http.StatusForbidden},
+		{"duplicate name", head + `{"method":"tools/call","params":{"name":"whoami","name":"delete_all"}}]`, policy.ReasonAmbiguous, http.StatusBadRequest},
+		{"trailing data", head + call("whoami") + "]" + call("delete_all"), policy.ReasonAmbiguous, http.StatusBadRequest},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

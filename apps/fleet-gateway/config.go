@@ -2,7 +2,6 @@
 package main
 
 import (
-	"context"
 	"crypto/hkdf"
 	"crypto/rand"
 	"crypto/sha256"
@@ -16,6 +15,7 @@ import (
 	"time"
 
 	"github.com/navikt/copilot/fleet-gateway/internal/config"
+	"github.com/navikt/copilot/fleet-gateway/internal/proxy"
 	"github.com/navikt/copilot/fleet-gateway/internal/ratelimit"
 	"github.com/navikt/copilot/fleet-gateway/internal/routing"
 )
@@ -25,7 +25,7 @@ const (
 	identitySourceIntrospection = "introspection"
 
 	defaultPort                             = "8080"
-	defaultSessionMaxAge                    = 12 * time.Hour
+	defaultSessionMaxAge                    = proxy.DefaultSessionMaxAge
 	defaultSessionAbsoluteMaxAge            = 7 * 24 * time.Hour
 	defaultSessionIdleTimeout               = 12 * time.Hour
 	defaultRefreshGraceWindow               = 30 * time.Second
@@ -33,7 +33,7 @@ const (
 	defaultSessionTTL                       = time.Hour
 	defaultCIMDTTL                          = 5 * time.Minute
 	cimdStaleMax                            = 24 * time.Hour
-	defaultOutboundTimeout                  = 10 * time.Second
+	defaultOutboundTimeout                  = proxy.DefaultOutboundTimeout
 	defaultUpstreamTimeout                  = 60 * time.Second // MCP tool calls; headers and body each get this long
 	defaultMCPMaxInFlight                   = 16
 	defaultMCPMaxInFlightPerRoute           = 8
@@ -72,13 +72,6 @@ const (
 	// (cplt re-logs in when the access token expires).
 	rtStorageServer = "server"
 )
-
-// TeamTokenSource acquires downstream Entra OBO tokens for team MCP servers.
-type TeamTokenSource interface {
-	// route is the entry the request was dispatched with, so the token's
-	// audience and the upstream come from one snapshot (#2641).
-	TeamToken(ctx context.Context, sessionID string, route routing.Route) (string, error)
-}
 
 // Config holds validated runtime configuration for fleet-gateway.
 type Config struct {
@@ -253,7 +246,7 @@ func loadConfigFromEnv() (*Config, error) {
 		SSEMaxDuration:          config.Duration("SSE_MAX_DURATION", defaultSSEMaxDuration),
 		SSEIdleTimeout:          config.Duration("SSE_IDLE_TIMEOUT", defaultSSEIdleTimeout),
 		SSEMaxBytes:             config.Int64("SSE_MAX_BYTES", defaultSSEMaxBytes),
-		MaxResponseBodyBytes:    config.Int64("MAX_RESPONSE_BODY_BYTES", maxMCPResponseBodyBytes),
+		MaxResponseBodyBytes:    config.Int64("MAX_RESPONSE_BODY_BYTES", proxy.MaxMCPResponseBodyBytes),
 		PendingCap:              config.Int("PENDING_MAP_CAP", defaultPendingCap),
 		CodeCap:                 config.Int("CODE_MAP_CAP", defaultCodeCap),
 		SessionCap:              config.Int("SESSION_MAP_CAP", defaultSessionCap),
@@ -452,7 +445,7 @@ func validateConfig(cfg *Config) error {
 		cfg.SSEMaxBytes = defaultSSEMaxBytes
 	}
 	if cfg.MaxResponseBodyBytes <= 0 {
-		cfg.MaxResponseBodyBytes = maxMCPResponseBodyBytes
+		cfg.MaxResponseBodyBytes = proxy.MaxMCPResponseBodyBytes
 	}
 	if cfg.RateLimitCap <= 0 {
 		cfg.RateLimitCap = defaultRateLimitCap

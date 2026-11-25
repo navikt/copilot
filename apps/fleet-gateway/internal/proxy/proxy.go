@@ -1,4 +1,6 @@
-package main
+// Package proxy is the MCP reverse proxy: the per-route handler, header
+// allowlists and SSE streaming.
+package proxy
 
 import (
 	"context"
@@ -20,18 +22,19 @@ import (
 	"github.com/navikt/copilot/fleet-gateway/internal/audit"
 	"github.com/navikt/copilot/fleet-gateway/internal/httpx"
 	"github.com/navikt/copilot/fleet-gateway/internal/identity"
+	"github.com/navikt/copilot/fleet-gateway/internal/inflight"
 	"github.com/navikt/copilot/fleet-gateway/internal/metrics"
 	"github.com/navikt/copilot/fleet-gateway/internal/oauth"
 	"github.com/navikt/copilot/fleet-gateway/internal/policy"
 	"github.com/navikt/copilot/fleet-gateway/internal/routing"
+	"github.com/navikt/copilot/fleet-gateway/internal/session"
 	"github.com/navikt/copilot/fleet-gateway/internal/teamtoken"
 )
 
+// Body caps and other proxy limits.
 const (
-	maxMCPRequestBodyBytes  = 1 << 20  // 1 MiB
-	maxMCPResponseBodyBytes = 10 << 20 // 10 MiB for non-SSE responses
-	maxAuditMethodLen       = policy.MaxAuditMethodLen
-	maxAuditBatchTools      = policy.MaxAuditBatchTools
+	MaxMCPRequestBodyBytes  = 1 << 20  // 1 MiB
+	MaxMCPResponseBodyBytes = 10 << 20 // 10 MiB for non-SSE responses
 	maxMCPSessionIDBytes    = 256
 )
 
@@ -47,20 +50,13 @@ var allowedUpstreamRequestHeaders = map[string]bool{
 }
 
 const (
-	maxMCPParamHeaders     = policy.MaxMCPParamHeaders
-	maxMCPParamHeaderBytes = policy.MaxMCPParamHeaderBytes
-	maxMCPNameHeaderBytes  = policy.MaxMCPNameHeaderBytes
-	// MaxHeaderBytes covers every Mcp-Param-* at its cap (128 KiB), a bearer token
+	// MaxRequestHeaderBytes covers every Mcp-Param-* at its cap (128 KiB), a bearer token
 	// and the other headers with room to spare; Go's default is 1 MiB.
-	maxRequestHeaderBytes = 192 << 10
+	MaxRequestHeaderBytes = 192 << 10
 )
 
 // Tool policy decision reasons, logged in the audit line.
 const (
-	reasonPassAll        = policy.ReasonPassAll
-	reasonListed         = policy.ReasonListed
-	reasonNotCall        = policy.ReasonNotCall
-	reasonNotListed      = policy.ReasonNotListed
 	reasonAmbiguous      = policy.ReasonAmbiguous
 	reasonHeaderMismatch = policy.ReasonHeaderMismatch
 )
@@ -85,9 +81,68 @@ var hopByHopHeaders = map[string]bool{
 	"Upgrade":             true,
 }
 
-func newHardenedProxyClient(headerTimeout time.Duration) *http.Client {
+// TeamTokenSource acquires downstream Entra OBO tokens for team MCP servers.
+type TeamTokenSource interface {
+	// route is the entry the request was dispatched with, so the token's
+	// audience and the upstream come from one snapshot (#2641).
+	TeamToken(ctx context.Context, sessionID string, route routing.Route) (string, error)
+}
+
+// Defaults when the matching Config field is zero.
+const (
+	DefaultOutboundTimeout = 10 * time.Second
+	DefaultSessionMaxAge   = 12 * time.Hour
+)
+
+// Config is the part of the gateway configuration the proxy reads.
+type Config struct {
+	BaseURL              string
+	GatewayDisabled      bool
+	RiskEnforcement      string
+	HTTPClient           *http.Client
+	ProxyHeaderTimeout   time.Duration
+	SSEMaxDuration       time.Duration
+	SSEIdleTimeout       time.Duration
+	SSEMaxBytes          int64
+	MaxResponseBodyBytes int64
+	MCPSessionUserCap    int
+	SessionMaxAge        time.Duration
+}
+
+// Handler holds what the MCP handler needs from the gateway.
+type Handler struct {
+	Cfg               Config
+	Now               func() time.Time
+	Store             session.Store
+	GetSession        func(ctx context.Context, hash string) (*oauth.Session, bool, error)
+	MCPSessionUserKey func(navIdent string) string
+	Client            *http.Client
+	InFlight          inflight.Slots
+	UserInFlight      *inflight.PerKey
+	SSEStreams        inflight.Slots
+	UserSSE           *inflight.PerKey
+	RouteInFlight     *inflight.PerKey
+	TeamTokens        TeamTokenSource
+	// RiskCaller identifies the tools/call caller for the risk check; nil means a
+	// logged-in human (#2964).
+	RiskCaller func(*http.Request) policy.Caller
+}
+
+// writeOverCapacity answers 503 with Retry-After instead of queueing.
+func writeOverCapacity(w http.ResponseWriter, what string) {
+	httpx.MarkShed(w, "cap")
+	w.Header().Set("Retry-After", "1")
+	httpx.WriteJSON(w, http.StatusServiceUnavailable, map[string]string{
+		"error":   "too_many_requests",
+		"message": "fleet-gateway is at its limit of concurrent " + what + "; retry shortly",
+	})
+}
+
+// NewHardenedClient returns the upstream client: bounded dial, TLS and header
+// timeouts, capped response headers, no redirects.
+func NewHardenedClient(headerTimeout time.Duration) *http.Client {
 	if headerTimeout <= 0 {
-		headerTimeout = defaultOutboundTimeout
+		headerTimeout = DefaultOutboundTimeout
 	}
 	return &http.Client{
 		Transport: &http.Transport{
@@ -106,12 +161,14 @@ func newHardenedProxyClient(headerTimeout time.Duration) *http.Client {
 	}
 }
 
-func (g *Gateway) mcpHandler(route routing.Route) http.HandlerFunc {
-	fullRouteURL := g.cfg.BaseURL + route.Route
-	prmURL := g.cfg.BaseURL + "/.well-known/oauth-protected-resource" + route.Route
+// MCP returns the handler that authenticates, applies tool policy and proxies
+// one route.
+func (g *Handler) MCP(route routing.Route) http.HandlerFunc {
+	fullRouteURL := g.Cfg.BaseURL + route.Route
+	prmURL := g.Cfg.BaseURL + "/.well-known/oauth-protected-resource" + route.Route
 
 	return func(w http.ResponseWriter, r *http.Request) {
-		start := g.now()
+		start := g.Now()
 		outcome := "ok"
 		var caller identity.Caller
 		rpcMethod := ""
@@ -129,7 +186,7 @@ func (g *Gateway) mcpHandler(route routing.Route) http.HandlerFunc {
 		// decision is true only when the gateway's own checks let the request through;
 		// context.outcome tells what happened after that.
 		defer func() {
-			metrics.ObserveMCPRequest(route, outcome, decision, decisionReason, toolName, rawTool, g.now().Sub(start))
+			metrics.ObserveMCPRequest(route, outcome, decision, decisionReason, toolName, rawTool, g.Now().Sub(start))
 			audit.LogMCP(audit.MCP{
 				Caller: caller,
 				Method: rpcMethod, Tool: toolName,
@@ -139,7 +196,7 @@ func (g *Gateway) mcpHandler(route routing.Route) http.HandlerFunc {
 				ProtocolVersion: policy.ProtocolVersion(r.Header.Get("Mcp-Protocol-Version")),
 				HasMcpMethod:    r.Header.Get("Mcp-Method") != "",
 				HasMcpName:      r.Header.Get("Mcp-Name") != "",
-				Outcome:         outcome, DurationMS: g.now().Sub(start).Milliseconds(),
+				Outcome:         outcome, DurationMS: g.Now().Sub(start).Milliseconds(),
 				Decision: decision, DecisionReason: decisionReason,
 				Risk: risk, RiskDecision: riskDecision,
 			})
@@ -157,10 +214,10 @@ func (g *Gateway) mcpHandler(route routing.Route) http.HandlerFunc {
 			return
 		}
 
-		if g.cfg.GatewayDisabled || route.Disabled() {
+		if g.Cfg.GatewayDisabled || route.Disabled() {
 			outcome = "disabled"
 			httpx.MarkShed(w, "disabled")
-			slog.Warn("route disabled by kill switch", "route", route.Route, "global", g.cfg.GatewayDisabled)
+			slog.Warn("route disabled by kill switch", "route", route.Route, "global", g.Cfg.GatewayDisabled)
 			w.Header().Set("Retry-After", "300")
 			httpx.WriteJSON(w, http.StatusServiceUnavailable, map[string]string{
 				"error":   "temporarily_unavailable",
@@ -177,7 +234,7 @@ func (g *Gateway) mcpHandler(route routing.Route) http.HandlerFunc {
 		}
 
 		tokenHash := oauth.HashToken(token)
-		sess, ok, err := g.getSession(r.Context(), tokenHash)
+		sess, ok, err := g.GetSession(r.Context(), tokenHash)
 		if err != nil {
 			outcome = "store_error"
 			slog.Warn("session lookup failed", "route", route.Route, "error", err)
@@ -187,7 +244,7 @@ func (g *Gateway) mcpHandler(route routing.Route) http.HandlerFunc {
 			})
 			return
 		}
-		if !ok || !g.now().Before(sess.Expiry) {
+		if !ok || !g.Now().Before(sess.Expiry) {
 			outcome = "unauthorized"
 			writeUnauthorized(w, prmURL, true)
 			return
@@ -229,8 +286,8 @@ func (g *Gateway) mcpHandler(route routing.Route) http.HandlerFunc {
 				})
 				return
 			}
-			owner, found, getErr := g.store.Get(r.Context(), kindMCPSession, route.Route+"\n"+reqSessionID)
-			if errors.Is(getErr, errSealUnknownKID) {
+			owner, found, getErr := g.Store.Get(r.Context(), session.KindMCPSession, route.Route+"\n"+reqSessionID)
+			if errors.Is(getErr, session.ErrSealUnknownKID) {
 				// Fail closed: treating the row as missing would let any caller ride the owner's upstream session.
 				outcome = "mcp_session_unverifiable"
 				slog.Warn("mcp session binding sealed with unknown key id", "route", route.Route)
@@ -253,7 +310,7 @@ func (g *Gateway) mcpHandler(route routing.Route) http.HandlerFunc {
 				if string(owner) != sess.NAVIdent {
 					outcome = "mcp_session_mismatch"
 					slog.Warn("mcp session id belongs to another user",
-						"navident", sanitizeLogValue(caller.Subject),
+						"navident", audit.Sanitize(caller.Subject),
 						"route", route.Route,
 					)
 					httpx.WriteJSON(w, http.StatusForbidden, map[string]string{
@@ -270,8 +327,8 @@ func (g *Gateway) mcpHandler(route routing.Route) http.HandlerFunc {
 		// since the cap bounds buffered memory. The per-user cap comes first so
 		// one user cannot fill a route or pod; the route cap comes next so one
 		// slow upstream cannot hold every global slot.
-		userKey := g.mcpSessionUserKey(sess.NAVIdent)
-		releaseUserSlot, ok := g.userInFlight.TryAcquire(userKey)
+		userKey := g.MCPSessionUserKey(sess.NAVIdent)
+		releaseUserSlot, ok := g.UserInFlight.TryAcquire(userKey)
 		if !ok {
 			outcome = "user_cap"
 			decision = "deny"
@@ -285,14 +342,14 @@ func (g *Gateway) mcpHandler(route routing.Route) http.HandlerFunc {
 			return
 		}
 		defer releaseUserSlot()
-		releaseRouteSlot, ok := g.routeInFlight.TryAcquire(route.Route)
+		releaseRouteSlot, ok := g.RouteInFlight.TryAcquire(route.Route)
 		if !ok {
 			outcome = "over_capacity"
 			writeOverCapacity(w, "MCP requests on this route")
 			return
 		}
 		defer releaseRouteSlot()
-		releaseGlobalSlot, ok := g.inFlight.TryAcquire()
+		releaseGlobalSlot, ok := g.InFlight.TryAcquire()
 		if !ok {
 			outcome = "over_capacity"
 			writeOverCapacity(w, "MCP requests")
@@ -301,7 +358,7 @@ func (g *Gateway) mcpHandler(route routing.Route) http.HandlerFunc {
 		defer releaseGlobalSlot()
 		releaseSlot := func() { releaseGlobalSlot(); releaseRouteSlot(); releaseUserSlot() }
 
-		r.Body = http.MaxBytesReader(w, r.Body, maxMCPRequestBodyBytes)
+		r.Body = http.MaxBytesReader(w, r.Body, MaxMCPRequestBodyBytes)
 		reqBody, err := io.ReadAll(r.Body)
 		if err != nil {
 			var maxErr *http.MaxBytesError
@@ -373,10 +430,10 @@ func (g *Gateway) mcpHandler(route routing.Route) http.HandlerFunc {
 			// TODO(#2964): the gateway does not identify agent profiles yet, so
 			// every caller is a logged-in human and nothing would be refused.
 			rc := policy.Caller{}
-			if g.riskCaller != nil {
-				rc = g.riskCaller(r)
+			if g.RiskCaller != nil {
+				rc = g.RiskCaller(r)
 			}
-			r, rd, refuse := policy.CheckRisk(route.ToolRisk, pd.RawTool, rc, g.cfg.RiskEnforcement == "enforce")
+			r, rd, refuse := policy.CheckRisk(route.ToolRisk, pd.RawTool, rc, g.Cfg.RiskEnforcement == "enforce")
 			risk, riskDecision = r.String(), rd
 			metrics.ObserveRiskDecision(route, pd.RawTool, r, rc.Kind(), rd)
 			if refuse {
@@ -391,7 +448,7 @@ func (g *Gateway) mcpHandler(route routing.Route) http.HandlerFunc {
 		// A request that accepts SSE holds one until the response proves it JSON.
 		releaseStream, streamReserved := func() {}, false
 		if r.Method == http.MethodGet || acceptsEventStream(r.Header) {
-			releaseUserStream, ok := g.userSSE.TryAcquire(userKey)
+			releaseUserStream, ok := g.UserSSE.TryAcquire(userKey)
 			if !ok {
 				outcome = "user_sse_cap"
 				decision = "deny"
@@ -405,7 +462,7 @@ func (g *Gateway) mcpHandler(route routing.Route) http.HandlerFunc {
 				return
 			}
 			defer releaseUserStream()
-			releaseGlobalStream, ok := g.sseStreams.TryAcquire()
+			releaseGlobalStream, ok := g.SSEStreams.TryAcquire()
 			if !ok {
 				// Shed, not a decision: same as over_capacity above.
 				decision, decisionReason = "", ""
@@ -487,9 +544,9 @@ func (g *Gateway) mcpHandler(route routing.Route) http.HandlerFunc {
 		copyMCPParamHeaders(upReq.Header, r.Header)
 		upReq.Header.Set("Authorization", "Bearer "+teamToken)
 
-		client := g.proxyClient
+		client := g.Client
 		if client == nil {
-			client = g.cfg.HTTPClient
+			client = g.Cfg.HTTPClient
 		}
 		resp, err := client.Do(upReq) //nolint:gosec // upstream URL validated from versioned pilot-routes config
 		if err != nil {
@@ -502,14 +559,14 @@ func (g *Gateway) mcpHandler(route routing.Route) http.HandlerFunc {
 		}
 		defer func() { _ = resp.Body.Close() }()
 
-		mcpSessionTTL := g.cfg.SessionMaxAge
+		mcpSessionTTL := g.Cfg.SessionMaxAge
 		if mcpSessionTTL <= 0 {
-			mcpSessionTTL = defaultSessionMaxAge
+			mcpSessionTTL = DefaultSessionMaxAge
 		}
 		bindMCPSession := func(id string) {
 			key := route.Route + "\n" + id
 			// Never take over an id another user already owns.
-			owner, found, getErr := g.store.Get(r.Context(), kindMCPSession, key)
+			owner, found, getErr := g.Store.Get(r.Context(), session.KindMCPSession, key)
 			if getErr != nil || (found && string(owner) != sess.NAVIdent) {
 				slog.Warn("mcp session bind skipped", "route", route.Route, "owned_by_other", found, "error", getErr)
 				return
@@ -519,31 +576,31 @@ func (g *Gateway) mcpHandler(route routing.Route) http.HandlerFunc {
 			}
 			// Count live rows: a counter drifted when session rows expired without decrementing.
 			// shortcut: count-then-put is not atomic across pods, so the cap is approximate; fine as defence in depth.
-			userKey := g.mcpSessionUserKey(sess.NAVIdent)
-			count, cntErr := g.store.CountPrefix(r.Context(), kindMCPSessionUser, userKey+":")
+			userKey := g.MCPSessionUserKey(sess.NAVIdent)
+			count, cntErr := g.Store.CountPrefix(r.Context(), session.KindMCPSessionUser, userKey+":")
 			if cntErr != nil {
 				slog.Warn("mcp session bind skipped: count failed", "route", route.Route, "error", cntErr)
 				return
 			}
-			if count >= g.cfg.MCPSessionUserCap {
-				slog.Warn("mcp session bind skipped: per-user cap reached", "route", route.Route, "navident", sanitizeLogValue(caller.Subject))
+			if count >= g.Cfg.MCPSessionUserCap {
+				slog.Warn("mcp session bind skipped: per-user cap reached", "route", route.Route, "navident", audit.Sanitize(caller.Subject))
 				return
 			}
-			if putErr := g.store.Put(r.Context(), kindMCPSession, key, []byte(sess.NAVIdent), mcpSessionTTL); putErr != nil {
+			if putErr := g.Store.Put(r.Context(), session.KindMCPSession, key, []byte(sess.NAVIdent), mcpSessionTTL); putErr != nil {
 				slog.Warn("mcp session bind failed", "route", route.Route, "error", putErr)
 				return
 			}
-			_ = g.store.Put(r.Context(), kindMCPSessionUser, userKey+":"+key, []byte("1"), mcpSessionTTL)
+			_ = g.Store.Put(r.Context(), session.KindMCPSessionUser, userKey+":"+key, []byte("1"), mcpSessionTTL)
 		}
 		// A terminated session frees its binding and the user's slot under the cap.
 		if r.Method == http.MethodDelete && ownsReqSession && resp.StatusCode < 300 {
 			// Pop, not Delete: only the request that removed the binding frees the slot,
 			// so concurrent DELETEs of one session cannot decrement twice.
 			key := route.Route + "\n" + reqSessionID
-			if _, removed, delErr := g.store.Pop(r.Context(), kindMCPSession, key); delErr != nil {
+			if _, removed, delErr := g.Store.Pop(r.Context(), session.KindMCPSession, key); delErr != nil {
 				slog.Warn("mcp session unbind failed", "route", route.Route, "error", delErr)
 			} else if removed {
-				_ = g.store.Delete(r.Context(), kindMCPSessionUser, g.mcpSessionUserKey(sess.NAVIdent)+":"+key)
+				_ = g.Store.Delete(r.Context(), session.KindMCPSessionUser, g.MCPSessionUserKey(sess.NAVIdent)+":"+key)
 			}
 		}
 		// Bind only ids the upstream issued on a successful response (MCP streamable HTTP).
@@ -601,7 +658,7 @@ func (g *Gateway) mcpHandler(route routing.Route) http.HandlerFunc {
 			rc := http.NewResponseController(w)
 			_ = rc.SetWriteDeadline(time.Time{})
 			w.WriteHeader(resp.StatusCode)
-			if streamErr := streamSSE(upCtx, w, rc, resp.Body, g.cfg.SSEMaxDuration, g.cfg.SSEIdleTimeout, g.cfg.SSEMaxBytes); streamErr != nil {
+			if streamErr := streamSSE(upCtx, w, rc, resp.Body, g.Cfg.SSEMaxDuration, g.Cfg.SSEIdleTimeout, g.Cfg.SSEMaxBytes); streamErr != nil {
 				outcome = "stream_error"
 			} else if resp.StatusCode >= 400 {
 				outcome = fmt.Sprintf("upstream_%d", resp.StatusCode)
@@ -611,9 +668,9 @@ func (g *Gateway) mcpHandler(route routing.Route) http.HandlerFunc {
 
 		releaseStream()
 
-		maxRespBytes := g.cfg.MaxResponseBodyBytes
+		maxRespBytes := g.Cfg.MaxResponseBodyBytes
 		if maxRespBytes <= 0 {
-			maxRespBytes = maxMCPResponseBodyBytes
+			maxRespBytes = MaxMCPResponseBodyBytes
 		}
 		if resp.ContentLength > maxRespBytes {
 			outcome = "response_too_large"
@@ -624,9 +681,9 @@ func (g *Gateway) mcpHandler(route routing.Route) http.HandlerFunc {
 			return
 		}
 
-		bodyTimeout := g.cfg.ProxyHeaderTimeout
+		bodyTimeout := g.Cfg.ProxyHeaderTimeout
 		if bodyTimeout <= 0 {
-			bodyTimeout = defaultOutboundTimeout
+			bodyTimeout = DefaultOutboundTimeout
 		}
 		bodyTimer := time.AfterFunc(bodyTimeout, upCancel)
 		respBody, respLen, err := readChunks(resp.Body, maxRespBytes+1)

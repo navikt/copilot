@@ -23,6 +23,7 @@ import (
 	"github.com/navikt/copilot/fleet-gateway/internal/metrics"
 	"github.com/navikt/copilot/fleet-gateway/internal/oauth/entra"
 	"github.com/navikt/copilot/fleet-gateway/internal/policy"
+	"github.com/navikt/copilot/fleet-gateway/internal/proxy"
 	"github.com/navikt/copilot/fleet-gateway/internal/ratelimit"
 	"github.com/navikt/copilot/fleet-gateway/internal/routing"
 	"github.com/navikt/copilot/fleet-gateway/internal/ttlmap"
@@ -54,7 +55,7 @@ type Gateway struct {
 
 	entra *entra.Client
 
-	TeamTokens TeamTokenSource
+	TeamTokens proxy.TeamTokenSource
 }
 
 func newGateway(cfg *Config, now func() time.Time) (*Gateway, error) {
@@ -122,7 +123,7 @@ func newGateway(cfg *Config, now func() time.Time) (*Gateway, error) {
 		cimdCache:    ttlmap.New[cachedCIMD](cfg.CIMDCap, now),
 		limiters:     limiters,
 		rateLimitLog: ratelimit.NewLogSampler(ratelimit.DefaultLogWindow, ratelimit.DefaultLogCap, now),
-		proxyClient:  newHardenedProxyClient(cfg.ProxyHeaderTimeout),
+		proxyClient:  proxy.NewHardenedClient(cfg.ProxyHeaderTimeout),
 		refreshWait:  5 * time.Second,
 		TeamTokens:   teamTokens,
 		entra: &entra.Client{
@@ -261,6 +262,38 @@ func (g *Gateway) routeDispatch(w http.ResponseWriter, r *http.Request) {
 	}
 	afterRouteLookup()
 	g.mcpHandler(route).ServeHTTP(w, r)
+}
+
+// mcpHandler builds the proxy handler per request, so it reads g.cfg as it is now.
+func (g *Gateway) mcpHandler(route routing.Route) http.HandlerFunc {
+	h := &proxy.Handler{
+		Cfg: proxy.Config{
+			BaseURL:              g.cfg.BaseURL,
+			GatewayDisabled:      g.cfg.GatewayDisabled,
+			RiskEnforcement:      g.cfg.RiskEnforcement,
+			HTTPClient:           g.cfg.HTTPClient,
+			ProxyHeaderTimeout:   g.cfg.ProxyHeaderTimeout,
+			SSEMaxDuration:       g.cfg.SSEMaxDuration,
+			SSEIdleTimeout:       g.cfg.SSEIdleTimeout,
+			SSEMaxBytes:          g.cfg.SSEMaxBytes,
+			MaxResponseBodyBytes: g.cfg.MaxResponseBodyBytes,
+			MCPSessionUserCap:    g.cfg.MCPSessionUserCap,
+			SessionMaxAge:        g.cfg.SessionMaxAge,
+		},
+		Now:               g.now,
+		Store:             g.store,
+		GetSession:        g.getSession,
+		MCPSessionUserKey: g.mcpSessionUserKey,
+		Client:            g.proxyClient,
+		InFlight:          g.inFlight,
+		UserInFlight:      g.userInFlight,
+		SSEStreams:        g.sseStreams,
+		UserSSE:           g.userSSE,
+		RouteInFlight:     g.routeInFlight,
+		TeamTokens:        g.TeamTokens,
+		RiskCaller:        g.riskCaller,
+	}
+	return h.MCP(route)
 }
 
 // oldRoutePathHandler answers the retired /mcp/<name> paths with a 404 that names
@@ -456,7 +489,7 @@ func main() {
 		ReadTimeout:       serverReadTimeout,
 		WriteTimeout:      mcpWriteTimeout(serverReadTimeout, defaultOutboundTimeout, cfg.ProxyHeaderTimeout, 5*time.Second),
 		IdleTimeout:       60 * time.Second,
-		MaxHeaderBytes:    maxRequestHeaderBytes,
+		MaxHeaderBytes:    proxy.MaxRequestHeaderBytes,
 	}
 
 	slog.Info("Starting fleet-gateway",
