@@ -80,6 +80,7 @@ After editing an app, run `mise check` in that app's directory. Run `mise all` w
   ownership, privacy, what we stop doing) go in copilot-intern's
   `beslutningslogg.md` with a link to the issue or PR. Do not log what git and
   PR history already show: implementation choices, wording, UI details.
+- Default is no comment. Keep a comment only when it says why and tells the reader something the code cannot show, such as an unusual choice or a privacy or migration reason. Remove comments that restate the code, section banners, changelog notes and TODOs without an issue link. Doc comments on exported identifiers stay when they add to the name, and so do `shortcut: <limit>, <when to upgrade>` comments.
 - Start with the smallest safe change and keep diffs task-focused.
 - Reuse existing patterns before adding new abstractions.
 - In `my-copilot`, use Aksel spacing tokens, not Tailwind `p-*/m-*` utilities.
