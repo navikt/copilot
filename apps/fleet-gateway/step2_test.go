@@ -1099,7 +1099,7 @@ routes:
     passAllTools: true
     enabled: false
 `
-			parsedRoutes, err := routing.Parse([]byte(routesYAML))
+			parsedRoutes, err := parseRoutes(t, []byte(routesYAML))
 			if err != nil {
 				t.Fatalf("parseAndValidatePilotRoutes failed: %v", err)
 			}

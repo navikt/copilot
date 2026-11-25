@@ -17,8 +17,8 @@ import (
 	"go.yaml.in/yaml/v3"
 )
 
-// File is the versioned pilot route list loaded at startup.
-type File struct {
+// routesFile is the versioned pilot route list loaded at startup.
+type routesFile struct {
 	Version int     `yaml:"version" json:"version"`
 	Routes  []Route `yaml:"routes" json:"routes"`
 }
@@ -63,16 +63,16 @@ func Load(filePath string) ([]Route, error) {
 	if err != nil {
 		return nil, fmt.Errorf("read pilot routes file %q: %w", trimmed, err)
 	}
-	return Parse(raw)
+	return parse(raw)
 }
 
-// Parse decodes and validates a route file.
-func Parse(raw []byte) ([]Route, error) {
+// parse decodes and validates a route file.
+func parse(raw []byte) ([]Route, error) {
 	if len(bytes.TrimSpace(raw)) == 0 {
 		return nil, errors.New("pilot routes config is empty")
 	}
 
-	var doc File
+	var doc routesFile
 	dec := yaml.NewDecoder(bytes.NewReader(raw))
 	dec.KnownFields(true)
 	if err := dec.Decode(&doc); err != nil {

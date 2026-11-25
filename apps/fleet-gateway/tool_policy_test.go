@@ -4,6 +4,7 @@ import (
 	"github.com/navikt/copilot/fleet-gateway/internal/policy"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -94,7 +95,7 @@ func TestToolPolicy_RouteFilesAreV2(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		var doc routing.File
+		var doc struct{ Version int }
 		if err := yaml.Unmarshal(raw, &doc); err != nil || doc.Version != 2 {
 			t.Errorf("%s: version %d (err %v), want 2", f, doc.Version, err)
 		}
@@ -114,19 +115,19 @@ func TestToolPolicy_RouteFile(t *testing.T) {
 		"passAll false only": route("    passAllTools: false\n"),
 	}
 	for name, y := range bad {
-		if _, err := routing.Parse([]byte(y)); err == nil {
+		if _, err := parseRoutes(t, []byte(y)); err == nil {
 			t.Errorf("%s: expected validation error", name)
 		}
 	}
-	rs, err := routing.Parse([]byte(route("    tools: [a, b]\n")))
+	rs, err := parseRoutes(t, []byte(route("    tools: [a, b]\n")))
 	if err != nil || !rs[0].AllowedTools["a"] || !rs[0].AllowedTools["b"] || len(rs[0].AllowedTools) != 2 {
 		t.Fatalf("tools route: %v %v", err, rs)
 	}
-	rs, err = routing.Parse([]byte(route("    passAllTools: true\n")))
+	rs, err = parseRoutes(t, []byte(route("    passAllTools: true\n")))
 	if err != nil || rs[0].AllowedTools != nil {
 		t.Fatalf("passAll route must not enforce: %v", err)
 	}
-	_, err = routing.Parse([]byte(strings.Replace(route("    tools: [a]\n"), "version: 2", "version: 1", 1)))
+	_, err = parseRoutes(t, []byte(strings.Replace(route("    tools: [a]\n"), "version: 2", "version: 1", 1)))
 	if err == nil || !strings.Contains(err.Error(), "version 1 is no longer supported") {
 		t.Fatalf("v1 must be rejected with a clear error: %v", err)
 	}
@@ -181,4 +182,14 @@ func TestToolPolicy_BatchPastDisplayCap(t *testing.T) {
 			}
 		})
 	}
+}
+
+// parseRoutes validates a route file through routing.Load, the path startup uses.
+func parseRoutes(t *testing.T, raw []byte) ([]routing.Route, error) {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "routes.yaml")
+	if err := os.WriteFile(path, raw, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return routing.Load(path)
 }
