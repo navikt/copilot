@@ -13,6 +13,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/navikt/copilot/fleet-control/internal/metrics"
 )
 
 // consoleTeamsURL is the Nais Console GraphQL API (beta), see
@@ -144,8 +146,8 @@ func (c *consoleTeams) page(ctx context.Context, email string, after *string) (_
 		if err == nil {
 			outcome = "ok"
 		}
-		consoleLookups.WithLabelValues(outcome).Inc()
-		consoleDuration.Observe(time.Since(start).Seconds())
+		metrics.ConsoleLookups.WithLabelValues(outcome).Inc()
+		metrics.ConsoleDuration.Observe(time.Since(start).Seconds())
 	}()
 	raw, err := os.ReadFile(c.tokenPath)
 	if err != nil {

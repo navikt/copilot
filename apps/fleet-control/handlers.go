@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+
+	"github.com/navikt/copilot/fleet-control/internal/metrics"
 )
 
 // routes registers the API. The app has no ingress: accessPolicy.inbound
@@ -39,7 +41,7 @@ func (s *server) routes(a *authz, adminClientID string, teams teamDirectory, ra 
 		mux.HandleFunc("POST /runtime/v1/complete", s.runtimeRoute(ra, finish(true)))
 		mux.HandleFunc("POST /runtime/v1/fail", s.runtimeRoute(ra, finish(false)))
 	}
-	return instrument(mux)
+	return metrics.Instrument(mux)
 }
 
 // ready is true when both snapshot kinds can be served, from memory or the
@@ -104,9 +106,9 @@ func (s *server) resolve(ctx context.Context, kind string) (*Snapshot, error) {
 	start := time.Now()
 	snap, err := box.Publish(ctx, kind, buildSnapshot)
 	if err == nil {
-		snapshotBuildDuration.WithLabelValues(kind).Observe(time.Since(start).Seconds())
-		snapshotBytes.WithLabelValues(kind).Set(float64(len(snap.Items)))
-		snapshotLastSuccess.WithLabelValues(kind).SetToCurrentTime()
+		metrics.SnapshotBuildDuration.WithLabelValues(kind).Observe(time.Since(start).Seconds())
+		metrics.SnapshotBytes.WithLabelValues(kind).Set(float64(len(snap.Items)))
+		metrics.SnapshotLastSuccess.WithLabelValues(kind).SetToCurrentTime()
 	}
 	if err != nil {
 		slog.Error("snapshot rebuild failed", "kind", kind, "error", err)
