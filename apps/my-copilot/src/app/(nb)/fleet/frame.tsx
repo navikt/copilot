@@ -1,16 +1,19 @@
 import type { ReactNode } from "react";
-import { Box, VStack } from "@navikt/ds-react";
+import { Box, HStack, VStack } from "@navikt/ds-react";
 import { PageHero } from "@/components/page-hero";
+import { FleetNav, type FleetNavProps } from "./nav";
 
 export const fleetRobots = { index: false, follow: false };
 
 export function FleetFrame({
   title,
   description,
+  nav = {},
   children,
 }: {
   title: string;
   description: string;
+  nav?: FleetNavProps;
   children: ReactNode;
 }) {
   return (
@@ -21,7 +24,14 @@ export function FleetFrame({
           paddingBlock={{ xs: "space-16", sm: "space-20", md: "space-24" }}
           paddingInline={{ xs: "space-16", sm: "space-20", md: "space-32", lg: "space-40" }}
         >
-          <VStack gap="space-24">{children}</VStack>
+          <HStack gap="space-40" align="start">
+            <aside className="w-56 shrink-0">
+              <FleetNav {...nav} />
+            </aside>
+            <VStack gap="space-24" className="min-w-0 flex-1 basis-80">
+              {children}
+            </VStack>
+          </HStack>
         </Box>
       </div>
     </main>

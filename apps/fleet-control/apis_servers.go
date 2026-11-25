@@ -996,6 +996,8 @@ type CatalogEntry struct {
 		DataCategory string          `json:"dataCategory,omitempty"`
 		AllowedTools []string        `json:"allowedTools,omitempty"`
 		Registry     json.RawMessage `json:"registry,omitempty"`
+		// Tools carries the owner team's tool descriptions for other teams.
+		Tools []ToolDoc `json:"tools,omitempty"`
 	} `json:"spec"`
 	Status struct {
 		Route               *RouteStatus `json:"route,omitempty"`
@@ -1045,7 +1047,7 @@ func (d *DB) catalog(ctx context.Context, ns, name string) ([]CatalogEntry, erro
 			return e, err
 		}
 		e.APIVersion, e.Kind = apiGroupVersion, "MCPServerCatalogEntry"
-		e.Spec.DataCategory, e.Spec.AllowedTools, e.Spec.Registry = s.DataCategory, s.AllowedTools, s.Registry
+		e.Spec.DataCategory, e.Spec.AllowedTools, e.Spec.Registry, e.Spec.Tools = s.DataCategory, s.AllowedTools, s.Registry, s.Tools
 		if s.Upstream != nil {
 			e.Status.Route = &RouteStatus{Path: "/mcp/" + e.Metadata.Namespace + "/" + e.Metadata.Name}
 		}

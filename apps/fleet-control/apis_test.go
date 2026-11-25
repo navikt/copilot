@@ -413,6 +413,14 @@ func TestRealPostgresCatalogShowsOnlyPublished(t *testing.T) {
 	e.want(200, "GET", nsBase+"team-a/mcpservercatalogentries/live", person("B444444"), "")
 	e.want(404, "GET", nsBase+"team-a/mcpservercatalogentries/draft", person("B444444"), "")
 	e.want(404, "GET", nsBase+"team-a/mcpservercatalogentries/gone", person("B444444"), "")
+	// Tool descriptions reach other teams through the catalog; upstream and readme do not.
+	doc := `{"apiVersion":"` + apiGroupVersion + `","kind":"MCPServer","metadata":{"name":"doc","namespace":"team-a"},"spec":{"dataCategory":"Intern","upstream":{"app":"svc","url":"http://svc.team-a/mcp"},"allowedTools":["search"],"readme":"secret","tools":[{"name":"search","description":"Finds things."}]}}`
+	m := decodeServer(t, e.want(201, "POST", nsBase+"team-a/mcpservers", person("A111111"), doc))
+	e.want(200, "POST", nsBase+"team-a/mcpservers/doc/approval", person("A222222"), approval(1, m.Status.Pending.ContentHash))
+	got := e.want(200, "GET", nsBase+"team-a/mcpservercatalogentries/doc", person("B444444"), "")
+	if !strings.Contains(got, `"tools":[{"name":"search","description":"Finds things."}]`) || strings.Contains(got, "secret") || strings.Contains(got, "upstream") {
+		t.Fatalf("catalog entry tools: %s", got)
+	}
 	e.noOidLeak()
 }
 

@@ -74,7 +74,7 @@ export type List<T> = { items: T[] };
 /** A published MCP server as every team may see it (fleet-control CatalogEntry): no upstream, readme or actors. */
 export type CatalogEntry = {
   metadata: Metadata;
-  spec: Pick<MCPServerSpec, "dataCategory" | "allowedTools" | "registry">;
+  spec: Pick<MCPServerSpec, "dataCategory" | "allowedTools" | "registry" | "tools">;
   status: { publishedGeneration: number; route?: { path: string }; approvedAt?: string };
 };
 

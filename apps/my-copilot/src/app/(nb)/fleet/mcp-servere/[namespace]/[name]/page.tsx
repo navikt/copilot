@@ -22,7 +22,10 @@ export default async function ServerPage({ params }: Props) {
       if (err instanceof FleetControlError && err.status === 404) return null;
       throw err;
     });
-    if (!server) return { owner: false as const, entry: await fleetApi.catalogEntry(namespace, name) };
+    if (!server) {
+      const [entry, me] = await Promise.all([fleetApi.catalogEntry(namespace, name), fleetApi.whoami()]);
+      return { owner: false as const, entry, myTeams: me.teams };
+    }
     const [history, me, pending] = await Promise.all([
       fleetApi.history("mcpservers", namespace, name),
       fleetApi.whoami(),
@@ -46,7 +49,7 @@ export default async function ServerPage({ params }: Props) {
       {"problem" in result ? (
         <FleetProblemAlert problem={result.problem} />
       ) : !result.data.owner ? (
-        <ServerReadOnly entry={result.data.entry} />
+        <ServerReadOnly entry={result.data.entry} myTeams={result.data.myTeams} />
       ) : (
         <ServerDetail
           server={result.data.server}

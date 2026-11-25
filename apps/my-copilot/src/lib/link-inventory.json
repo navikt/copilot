@@ -211,11 +211,28 @@
     "anchors": {}
   },
   "/fleet": {
-    "sources": ["apps/my-copilot/src/app/(nb)/fleet/page.tsx"],
+    "sources": [
+      "apps/my-copilot/src/app/(nb)/fleet/catalog.tsx",
+      "apps/my-copilot/src/app/(nb)/fleet/nav.tsx",
+      "apps/my-copilot/src/app/(nb)/fleet/page.tsx"
+    ],
+    "anchors": {}
+  },
+  "/fleet/katalog": {
+    "sources": [
+      "apps/my-copilot/src/app/(nb)/fleet/katalog/page.tsx",
+      "apps/my-copilot/src/app/(nb)/fleet/nav.tsx",
+      "apps/my-copilot/src/app/(nb)/fleet/page.tsx"
+    ],
     "anchors": {}
   },
   "/fleet/registrer": {
-    "sources": ["apps/my-copilot/src/app/(nb)/fleet/page.tsx", "apps/my-copilot/src/app/(nb)/fleet/registrer/page.tsx"],
+    "sources": [
+      "apps/my-copilot/src/app/(nb)/fleet/catalog.tsx",
+      "apps/my-copilot/src/app/(nb)/fleet/nav.tsx",
+      "apps/my-copilot/src/app/(nb)/fleet/page.tsx",
+      "apps/my-copilot/src/app/(nb)/fleet/registrer/page.tsx"
+    ],
     "anchors": {}
   },
   "/images/alpha-decide-system1-system2.png": {
