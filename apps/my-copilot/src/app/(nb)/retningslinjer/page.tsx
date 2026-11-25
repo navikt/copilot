@@ -81,10 +81,20 @@ export default function RetningslinjerPage() {
                     </NextLink>
                     .
                   </AllowedItem>
-                  <AllowedItem title="Agent mode i editoren">
-                    Du kan bruke Agent mode til autonome redigeringer lokalt. I VS Code skal{" "}
-                    <code>chat.agent.sandbox.enabled</code> være satt til <code>"on"</code>. Du godkjenner
-                    terminalkommandoer og vurderer endringene før commit, med samme ansvar som for all annen kode.
+                  <AllowedItem title="KI-agenter">
+                    <ul className="list-disc" style={{ paddingInlineStart: "var(--ax-space-20)" }}>
+                      <li>
+                        Terminal: start agenter med <code>nav-pilot</code> (cplt).
+                      </li>
+                      <li>VS Code og IntelliJ: greit. Slå på editorens sandkasse hvis den har en.</li>
+                      <li>Aldri bruk Allow all, Autopilot eller global auto-godkjenning.</li>
+                    </ul>
+                    <NextLink
+                      href="/nav-pilot/forklaring/sandkassen#ide-klienter"
+                      className="text-blue-600 hover:underline"
+                    >
+                      Slik gjør du det
+                    </NextLink>
                   </AllowedItem>
                   <AllowedItem title="Copilot CLI, opencode og pi i terminalen">
                     Copilot CLI, opencode og pi, installert med{" "}
@@ -137,7 +147,8 @@ export default function RetningslinjerPage() {
                   </ForbiddenItem>
                   <ForbiddenItem title="Agenter uten isolasjon">
                     Å kjøre KI-agenter med ubegrenset tilgang til Nav-utstyr er ikke tillatt. Bruk cplt eller
-                    tilsvarende isolasjon, også for personlig agentarbeid på utstyret.
+                    tilsvarende isolasjon, også for personlig agentarbeid på utstyret. Aldri bruk Allow all, Autopilot
+                    eller global auto-godkjenning.
                   </ForbiddenItem>
                 </HGrid>
               </VStack>
@@ -147,18 +158,26 @@ export default function RetningslinjerPage() {
             <Section icon={<ShieldLockIcon aria-hidden />} title="Krav: agenter skal kjøre isolert">
               <VStack gap="space-8">
                 <BodyLong>
-                  Når du bruker en KI-agent på Nav-utstyr, skal agenten kjøre i en sandbox eller tilsvarende isolasjon.
-                  Kravet gjelder all agentbruk på utstyret, både Nav-relatert arbeid og personlig agentarbeid.
+                  Når du bruker en KI-agent på Nav-utstyr, skal agenten kjøre i en sandkasse eller tilsvarende
+                  isolasjon. Kravet gjelder all agentbruk på utstyret, både Nav-relatert arbeid og personlig
+                  agentarbeid.
                 </BodyLong>
                 <BodyLong>
                   Bruk{" "}
                   <NextLink href="/cplt" className="text-blue-600 hover:underline">
                     cplt
                   </NextLink>
-                  , Navs egen sandbox for KI-agenter. Velger du en annen løsning, må du selv sette deg inn i og aktivere
-                  isolasjonen agentklienten tilbyr, eller bruke en annen mekanisme (for eksempel VM eller container).
-                  Ikke kjør agenter med ubegrenset tilgang til maskinen.
+                  , Navs egen sandkasse for KI-agenter. Velger du en annen løsning, må du selv sette deg inn i og
+                  aktivere isolasjonen agentklienten tilbyr, eller bruke en annen mekanisme (for eksempel VM eller
+                  container). Ikke kjør agenter med ubegrenset tilgang til maskinen.
                 </BodyLong>
+                <ul className="list-disc" style={{ paddingInlineStart: "var(--ax-space-20)" }}>
+                  <li>
+                    Terminal: start agenter med <code>nav-pilot</code> (cplt).
+                  </li>
+                  <li>VS Code og IntelliJ: greit. Slå på editorens sandkasse hvis den har en.</li>
+                  <li>Aldri bruk Allow all, Autopilot eller global auto-godkjenning.</li>
+                </ul>
                 <BodyLong>
                   <NextLink
                     href="/nyheter/sandboxing-er-pakrevd-pa-nav-utstyr"
@@ -302,6 +321,18 @@ export default function RetningslinjerPage() {
                         className="whitespace-nowrap align-top"
                         style={{ paddingBlock: "var(--ax-space-8)", paddingRight: "var(--ax-space-16)" }}
                       >
+                        2026-11-25
+                      </td>
+                      <td style={{ paddingBlock: "var(--ax-space-8)" }}>
+                        Copilot i VS Code og IntelliJ er greit med editorens sandkasse på. Aldri Allow all, Autopilot
+                        eller global auto-godkjenning.
+                      </td>
+                    </tr>
+                    <tr className="border-b">
+                      <td
+                        className="whitespace-nowrap align-top"
+                        style={{ paddingBlock: "var(--ax-space-8)", paddingRight: "var(--ax-space-16)" }}
+                      >
                         2026-10-11
                       </td>
                       <td style={{ paddingBlock: "var(--ax-space-8)" }}>
@@ -420,7 +451,9 @@ function AllowedItem({ title, children }: { title: string; children: React.React
         <Heading size="xsmall" level="3">
           {title}
         </Heading>
-        <BodyShort size="small">{children}</BodyShort>
+        <BodyShort as="div" size="small">
+          {children}
+        </BodyShort>
       </VStack>
     </Box>
   );

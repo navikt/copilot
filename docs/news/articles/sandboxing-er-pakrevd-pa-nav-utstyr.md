@@ -3,7 +3,7 @@ title: "Sandboxing og isolasjon er påkrevd på Nav-utstyr"
 date: 2026-08-10
 author: starefossen
 category: praksis
-excerpt: "AI-agenter skal alltid kjøre isolert på Nav-utstyr. Bruk cplt som standard, også når agentarbeidet er personlig."
+excerpt: "KI-agenter på Nav-utstyr: start dem med nav-pilot i terminalen. VS Code og IntelliJ er greit med editorens sandkasse på. Aldri Allow all, Autopilot eller global auto-godkjenning."
 tags:
   - cplt
   - security
@@ -11,7 +11,7 @@ tags:
   - coding-agents
 ---
 
-Når du bruker en AI-agent på Nav-utstyr, skal agenten kjøre i en sandbox eller
+Når du bruker en KI-agent på Nav-utstyr, skal agenten kjøre i en sandkasse eller
 tilsvarende isolasjon. Dette er et krav, ikke et valgfritt sikkerhetstiltak.
 
 Kravet gjelder alt agentarbeid på utstyret:
@@ -23,6 +23,14 @@ Kravet gjelder alt agentarbeid på utstyret:
 Det er utstyret og tilgangene som må beskyttes. At oppgaven er personlig, reduserer
 ikke risikoen for at agenten får tilgang til filer, hemmeligheter,
 tilgangsinformasjon eller interne tjenester på maskinen.
+
+## Oppdatert 25.11.2026: Agenter i VS Code og IntelliJ
+
+- Terminal: start agenter med `nav-pilot` (cplt).
+- VS Code og IntelliJ: greit. Slå på editorens sandkasse hvis den har en.
+- Aldri bruk Allow all, Autopilot eller global auto-godkjenning.
+
+[Slik gjør du det i VS Code og IntelliJ](/nav-pilot/forklaring/sandkassen#ide-klienter)
 
 ## Bruk cplt
 
@@ -58,8 +66,8 @@ Det første aliaset sender vanlig bruk av `copilot` gjennom cplt. `--` gjør at
 Copilot-flagg sendes videre til Copilot CLI. Det andre er bare en kortform for
 `nav-pilot`, som allerede bruker cplt.
 
-Aliasene gjelder bare i terminalen. Agenter i VS Code, JetBrains og andre
-klienter må fortsatt bruke klientens sandboxing eller en annen
+Aliasene gjelder bare i terminalen. For VS Code og IntelliJ gjelder reglene
+over. Andre klienter må bruke klientens sandboxing eller en annen
 isolasjonsmekanisme.
 
 ## Hvis du ikke bruker cplt
@@ -70,7 +78,7 @@ tilstrekkelig beskyttelse, må du bruke en annen mekanisme, for eksempel en VM
 eller container.
 
 Vi går ikke nærmere inn på oppsett av alternative løsninger her. Hovedregelen er
-enkel: Ikke kjør en AI-agent med ubegrenset tilgang til Nav-utstyret.
+enkel: Ikke kjør en KI-agent med ubegrenset tilgang til Nav-utstyret.
 
 ## Hvorfor godkjenning ikke er nok
 
@@ -84,12 +92,18 @@ gjør noe uventet. Derfor skal isolasjonen være på plass før agenten starter.
 
 ## Kortversjonen
 
-**På Nav-utstyr skal AI-agenter alltid kjøre isolert. Bruk cplt. Velger du noe
-annet, er du ansvarlig for å sikre tilsvarende isolasjon. Kravet gjelder både
-Nav-relatert og personlig agentarbeid.**
+**På Nav-utstyr skal KI-agenter kjøre isolert, også ved personlig bruk.**
+
+- Terminal: start agenter med `nav-pilot` (cplt).
+- VS Code og IntelliJ: greit. Slå på editorens sandkasse hvis den har en.
+- Aldri bruk Allow all, Autopilot eller global auto-godkjenning.
 
 **Kilder:**
 
 - [cplt-dokumentasjonen](/cplt) (Nav)
 - [cplt threat model](https://github.com/navikt/cplt/blob/main/SECURITY.md) (GitHub)
+- [Agent sandboxing](https://code.visualstudio.com/docs/agents/run/agent-sandboxing) (VS Code, 18. november 2026)
+- [Approvals and permissions](https://code.visualstudio.com/docs/agents/run/approvals) (VS Code)
+- [Auto-approve in Copilot for JetBrains](https://github.blog/changelog/2026-04-24-inline-agent-mode-in-preview-and-more-in-github-copilot-for-jetbrains-ides/) (GitHub, 24. april 2026)
+- [Local sandboxes GA in JetBrains](https://github.blog/changelog/2026-10-28-github-copilot-in-jetbrains-universe-releases/) (GitHub, 28. oktober 2026)
 - [Cloud and local sandboxes for GitHub Copilot](https://github.blog/changelog/2026-06-02-cloud-and-local-sandboxes-for-github-copilot-now-in-public-preview) (GitHub, 2. juni 2026)
