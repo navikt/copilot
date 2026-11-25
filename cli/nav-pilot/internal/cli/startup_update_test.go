@@ -210,7 +210,7 @@ func TestAutoUpdateLeavesCpltAlone(t *testing.T) {
 	t.Cleanup(func() { releasesAPI, latestCpltVersion = origAPI, origCplt })
 	releasesAPI = srv.URL
 	looked := false
-	latestCpltVersion = func() (string, error) { looked = true; return "2099.01.01-000000-fffffff", nil }
+	latestCpltVersion = func(time.Duration) (string, error) { looked = true; return "2099.01.01-000000-fffffff", nil }
 	bin := t.TempDir()
 	mustWrite(t, filepath.Join(bin, "cplt"), "#!/bin/sh\necho 'cplt 2026.09.28-185454-a924b3d'\n")
 	if err := os.Chmod(filepath.Join(bin, "cplt"), 0o755); err != nil {

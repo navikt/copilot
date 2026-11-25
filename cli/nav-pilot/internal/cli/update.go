@@ -392,17 +392,59 @@ func githubRequest(ctx context.Context, url, accept, token string) (*http.Respon
 	return httpClient.Do(req)
 }
 
-// latestCpltVersion returns the newest published cplt version. The short
-// timeout keeps a slow or unreachable GitHub from stalling doctor or upgrade —
-// callers treat an error as "could not check", never as "outdated".
-// A var so tests can stub it without a network call.
-var latestCpltVersion = func() (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+// latestCpltVersion asks GitHub for the newest published cplt version and
+// caches the answer for doctor. `nav-pilot upgrade` calls it directly: it
+// must see a release from the last hour. The short timeout keeps a slow or
+// unreachable GitHub from stalling — callers treat an error as "could not
+// check", never as "outdated". A var so tests can stub it without a network
+// call.
+var latestCpltVersion = func(timeout time.Duration) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 	// Only the version is read here; nav-pilot never downloads cplt itself.
 	ver, _, _, err := fetchLatestRelease(ctx, cpltReleasesAPI, "", "")
+	if err != nil {
+		return "", err
+	}
+	artifacts.WriteCacheAt(artifacts.CpltCacheFilePath(), &artifacts.StalenessCache{
+		LastChecked:   time.Now().UTC().Format(time.RFC3339),
+		LatestVersion: ver,
+	})
+	return ver, nil
+}
+
+// cachedLatestCpltVersion is doctor's lookup: the answer is cached for a day
+// (#2904), so doctor does not wait on GitHub every run. A failed lookup falls
+// back to a stale cached answer when there is one.
+func cachedLatestCpltVersion() (string, error) {
+	cache := artifacts.ReadCacheAt(artifacts.CpltCacheFilePath())
+	if cache != nil && cache.LatestVersion != "" {
+		// A future timestamp or an unparseable version is a miss, not a day of trust.
+		age := time.Since(parseRFC3339(cache.LastChecked))
+		if age >= 0 && age < cpltCacheTTL && versionParseable(cache.LatestVersion) {
+			return cache.LatestVersion, nil
+		}
+	}
+	ver, err := latestCpltVersion(cpltLookupTimeout)
+	if err != nil && cache != nil && cache.LatestVersion != "" {
+		return cache.LatestVersion, nil
+	}
 	return ver, err
 }
+
+// parseRFC3339 returns the zero time, which reads as long expired, on error.
+func parseRFC3339(s string) time.Time {
+	t, _ := time.Parse(time.RFC3339, s)
+	return t
+}
+
+// cpltCacheTTL and cpltLookupTimeout are vars for the tests. Doctor's
+// uncached lookup gets the short timeout; upgrade, an explicit action, 5 s.
+var (
+	cpltCacheTTL       = 24 * time.Hour
+	cpltLookupTimeout  = 1500 * time.Millisecond
+	cpltUpgradeTimeout = 5 * time.Second
+)
 
 // cpltCommandTimeout bounds every cplt process spawn. Each spawn gets its own
 // deadline: no check may share a wall clock with an unrelated one. A var so
@@ -507,7 +549,7 @@ func cpltVersionSkew() cpltSkew {
 	if err != nil {
 		return cpltVersionUnknown
 	}
-	latest, lerr := latestCpltVersion()
+	latest, lerr := latestCpltVersion(cpltUpgradeTimeout)
 	return classifyCpltSkew(parseCpltVersion(string(out)), latest, lerr)
 }
 
@@ -523,7 +565,7 @@ func reportCpltUpgrade(w io.Writer) {
 	}
 	out, _ := runBounded(cliPath, "--version")
 	installed := parseCpltVersion(string(out))
-	latest, lerr := latestCpltVersion()
+	latest, lerr := latestCpltVersion(cpltUpgradeTimeout)
 	switch classifyCpltSkew(installed, latest, lerr) {
 	case cpltVersionBehind:
 		fmt.Fprintf(w, "cplt %s is out of date (latest: %s). Run %s\n", installed, latest,

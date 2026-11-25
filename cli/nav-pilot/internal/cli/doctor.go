@@ -210,7 +210,7 @@ func doctorChecks() bool {
 	if cpltPath != "" {
 		enforcement = async(cpltEnforcement)
 		latest = async(func() latestCplt {
-			v, err := latestCpltVersion()
+			v, err := cachedLatestCpltVersion()
 			return latestCplt{v, err}
 		})
 		preset = async(cpltSandboxPreset)
@@ -664,7 +664,7 @@ func countFixRows(print func()) int {
 // host list. That is said once, and the upgrade is offered only when there may
 // be one: a current cplt without the subcommand has nothing newer to go to.
 func reportCpltVersion(cpltPath, version string) {
-	latest, lerr := latestCpltVersion()
+	latest, lerr := cachedLatestCpltVersion()
 	reportCpltVersionWith(cpltPath, version, latest, lerr)
 }
 

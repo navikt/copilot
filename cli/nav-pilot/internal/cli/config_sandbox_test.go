@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/navikt/copilot/cli/nav-pilot/internal/agentpakke"
 	"github.com/navikt/copilot/cli/nav-pilot/internal/testhome"
@@ -785,7 +786,7 @@ func TestDoctorReportsCpltVersion(t *testing.T) {
 			}
 			orig := latestCpltVersion
 			t.Cleanup(func() { latestCpltVersion = orig })
-			latestCpltVersion = func() (string, error) { return tc.latest, nil }
+			latestCpltVersion = func(time.Duration) (string, error) { return tc.latest, nil }
 			out := captureStdout(func() { reportCpltVersion("/usr/local/bin/cplt", installed) })
 			for _, w := range tc.want {
 				if !strings.Contains(out, w) {
