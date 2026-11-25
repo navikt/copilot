@@ -23,7 +23,8 @@ type Route struct {
 	UpstreamURL string   `json:"upstream_url"`
 	Enabled     bool     `json:"enabled"`
 	Tools       []string `json:"tools"`
-	// ToolRisk is spec.toolRisk; a tool without an entry is write (#2903).
+	// ToolRisk is spec.toolRisk resolved with spec.defaultRisk (#2967); a
+	// tool without an entry is write (#2903).
 	ToolRisk map[string]string `json:"tool_risk,omitempty"`
 }
 

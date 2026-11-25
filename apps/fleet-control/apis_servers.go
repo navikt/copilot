@@ -30,6 +30,9 @@ type MCPServerSpec struct {
 	// without an entry is Write. Empty fields are omitted, so specs from
 	// before #2903 keep their contentHash.
 	ToolRisk map[string]string `json:"toolRisk,omitempty"`
+	// DefaultRisk applies to allowed tools without a toolRisk entry (#2967).
+	// Unset keeps the old rule: such a tool is write.
+	DefaultRisk string `json:"defaultRisk,omitempty"`
 	// RosRef points to the risk assessment (ROS). Required in prod when any
 	// allowed tool is Write.
 	RosRef string `json:"rosRef,omitempty"`
@@ -135,10 +138,14 @@ func validateServerSpec(cluster, platform, ns, name string, spec MCPServerSpec) 
 		spec.Tools = nil
 	}
 	for t, risk := range spec.ToolRisk {
-		if !allowed[t] || (risk != "read" && risk != "write") {
-			return spec, Server{}, invalid("spec.toolRisk", "%q: tool must be in allowedTools and risk read or write", t)
+		if !allowed[t] || riskRank[risk] == 0 {
+			return spec, Server{}, invalid("spec.toolRisk", "%q: tool must be in allowedTools and risk read, propose or write", t)
 		}
 	}
+	if spec.DefaultRisk != "" && riskRank[spec.DefaultRisk] == 0 {
+		return spec, Server{}, invalid("spec.defaultRisk", "must be read, propose or write")
+	}
+	resolved := resolveToolRisk(spec.AllowedTools, spec.ToolRisk, spec.DefaultRisk)
 	if len(spec.ToolRisk) == 0 {
 		spec.ToolRisk = nil
 	}
@@ -146,8 +153,8 @@ func validateServerSpec(cluster, platform, ns, name string, spec MCPServerSpec) 
 		return spec, Server{}, invalid("spec.rosRef", "spec.rosRef has no surrounding spaces and is at most %d bytes", maxRosRefBytes)
 	}
 	// Outside dev-* (an unset cluster included) write tools need a ROS.
-	if !devCluster(cluster) && spec.RosRef == "" && slices.ContainsFunc(spec.AllowedTools, func(t string) bool { return spec.ToolRisk[t] != "read" }) {
-		return spec, Server{}, invalid("spec.rosRef", "MCP-serveren har skriveverktøy, og i prod krever det en ROS. Legg til spec.rosRef med lenke til ROS-en, eller sett spec.toolRisk til read for verktøy som bare leser.")
+	if !devCluster(cluster) && spec.RosRef == "" && slices.ContainsFunc(spec.AllowedTools, func(t string) bool { return toolRiskOf(resolved, t) == "write" }) {
+		return spec, Server{}, invalid("spec.rosRef", "MCP-serveren har skriveverktøy, og i prod krever det en ROS. Legg til spec.rosRef med lenke til ROS-en, eller sett spec.defaultRisk eller spec.toolRisk til read eller propose for verktøy som ikke skriver.")
 	}
 	var draft draftSpec
 	draft.Registry = spec.Registry
@@ -176,9 +183,37 @@ func validateServerSpec(cluster, platform, ns, name string, spec MCPServerSpec) 
 		return spec, Server{}, invalid("spec.registry.name", "%q is not yours: team %s may use no.nav.%s/<name> or io.github.navikt/%s; other names are registered by the platform team", sv.RegistryName, ns, ns, ns)
 	}
 	if sv.Route != nil {
-		sv.Route.ToolRisk = spec.ToolRisk
+		sv.Route.ToolRisk = resolved
 	}
 	return spec, sv, nil
+}
+
+// riskRank orders tool risk levels: read < propose < write. Unknown is 0.
+var riskRank = map[string]int{"read": 1, "propose": 2, "write": 3}
+
+// toolRiskOf is tool's level in a resolved map; missing or unknown is write.
+func toolRiskOf(resolved map[string]string, tool string) string {
+	if riskRank[resolved[tool]] == 0 {
+		return "write"
+	}
+	return resolved[tool]
+}
+
+// resolveToolRisk gives every allowed tool its level when defaultRisk is
+// set, so the gateway never needs defaultRisk. Without it the map is
+// toolRisk as is, so snapshots of old specs do not change.
+func resolveToolRisk(tools []string, toolRisk map[string]string, defaultRisk string) map[string]string {
+	if defaultRisk == "" || len(tools) == 0 {
+		return toolRisk
+	}
+	out := make(map[string]string, len(tools))
+	for _, t := range tools {
+		out[t] = defaultRisk
+		if r, ok := toolRisk[t]; ok {
+			out[t] = r
+		}
+	}
+	return out
 }
 
 // ForeignRegistryNames lists "<namespace>/<name>=<registry name>" for

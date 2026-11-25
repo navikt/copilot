@@ -91,7 +91,8 @@ func scanLiveProfile(row pgx.Row) (*boundProfile, error) {
 		return nil, err
 	}
 	for _, g := range spec.Grants {
-		p.write = p.write || g.MaxRisk != "Read"
+		// Ranked read < propose < write; anything above read, unknown included, is write.
+		p.write = p.write || riskRank[strings.ToLower(g.MaxRisk)] != riskRank["read"]
 	}
 	return &p, nil
 }
