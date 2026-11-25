@@ -1,44 +1,23 @@
 package main
 
 import (
-	"encoding/json"
 	"errors"
 	"maps"
 	"net/http"
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/navikt/copilot/fleet-control/internal/canon"
 )
 
-// Vectors from RFC 8785 section 3.2.2 and appendix B.
-func TestJCS(t *testing.T) {
-	for in, want := range map[string]string{
-		`{"numbers":[333333333.33333329,1E30,4.50,2e-3,0.000000000000000000000000001],"literals":[null,true,false]}`: `{"literals":[null,true,false],"numbers":[333333333.3333333,1e+30,4.5,0.002,1e-27]}`,
-		// Keys sort by UTF-16 code units: U+1F600 (surrogates D83D) sorts before U+FB33.
-		`{"\u20ac":1,"\r":2,"1":3,"\ud83d\ude00":4,"\u0080":5,"\u00f6":6,"\ufb33":7}`: "{\"\\r\":2,\"1\":3,\"\u0080\":5,\"\u00f6\":6,\"\u20ac\":1,\"\U0001f600\":4,\"\ufb33\":7}",
-		`[-0, 1e21, 1e-7, 123456789012345680000, 9007199254740992]`:                   `[0,1e+21,1e-7,123456789012345680000,9007199254740992]`,
-		// Only quote, backslash and control characters are escaped; <&> and / are not.
-		`"<&>/\u000f\n\"\\"`: `"<&>/\u000f\n\"\\"`,
-	} {
-		var v any
-		if err := json.Unmarshal([]byte(in), &v); err != nil {
-			t.Fatal(err)
-		}
-		got, err := jcs(v)
-		if err != nil || string(got) != want {
-			t.Errorf("jcs(%s)\n got %s %v\nwant %s", in, got, err, want)
-		}
-	}
-}
-
-// A set in another order gives the same hash; a new tool does not.
 func TestServerSpecHashNormalises(t *testing.T) {
 	spec := func(tools ...string) string {
 		s, _, err := validateServerSpec("dev-gcp", "", "team-a", "svc", MCPServerSpec{DataCategory: "Intern", Upstream: &Upstream{App: "svc", URL: "http://svc.team-a/mcp"}, AllowedTools: tools})
 		if err != nil {
 			t.Fatal(err)
 		}
-		h, _ := specHash(s)
+		h, _ := canon.Hash(s)
 		return h
 	}
 	if spec("b", "a") != spec("a", "b") || spec("a", "b") == spec("a", "b", "c") {
@@ -53,11 +32,11 @@ func TestServerSpecHashStableForOldSpecs(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if h, _ := specHash(s); h != "v1:sha256:4b421d525ace75dd45814de801bbe840e3e0d514318127a939bf72c0e9988001" {
+	if h, _ := canon.Hash(s); h != "v1:sha256:4b421d525ace75dd45814de801bbe840e3e0d514318127a939bf72c0e9988001" {
 		t.Fatalf("old spec hash changed: %s", h)
 	}
 	// readme and tool descriptions are content: a change needs approval again.
-	base, _ := specHash(s)
+	base, _ := canon.Hash(s)
 	for _, mod := range []func(*MCPServerSpec){
 		func(m *MCPServerSpec) { m.Readme = "# Hei" },
 		func(m *MCPServerSpec) { m.Tools = []ToolDoc{{Name: "a", Description: "x"}} },
@@ -67,7 +46,7 @@ func TestServerSpecHashStableForOldSpecs(t *testing.T) {
 	} {
 		m := s
 		mod(&m)
-		if h, _ := specHash(m); h == base {
+		if h, _ := canon.Hash(m); h == base {
 			t.Errorf("hash ignores %+v", m)
 		}
 	}

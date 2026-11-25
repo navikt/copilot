@@ -12,6 +12,8 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+
+	"github.com/navikt/copilot/fleet-control/internal/canon"
 )
 
 // MCPServerSpec is the v1alpha1 spec. target and path are derived; enabled
@@ -684,7 +686,7 @@ func auditV1(ctx context.Context, tx pgx.Tx, c caller, action, kind, ns, name st
 }
 
 // blockedContent is 422 when any of hashes equals a blocked generation's
-// hash on this resource. Hashes compare as whole strings (see specHashes).
+// hash on this resource. Hashes compare as whole strings (see canon.Hashes).
 func blockedContent(ctx context.Context, tx pgx.Tx, table, ns, name string, hashes []string) error {
 	var blocked bool
 	if err := tx.QueryRow(ctx, `SELECT EXISTS (SELECT 1 FROM `+table+` WHERE namespace = $1 AND name = $2 AND blocked AND spec_hash = ANY($3))`, ns, name, hashes).Scan(&blocked); err != nil {
@@ -700,7 +702,7 @@ func blockedContent(ctx context.Context, tx pgx.Tx, table, ns, name string, hash
 // the spec differs from both the pending and the published one, or when the
 // server is revoked (restart). Otherwise only labels and annotations change.
 func (d *DB) submitServer(ctx context.Context, c caller, m ObjectMeta, spec MCPServerSpec, sv Server, create bool) error {
-	hashes, herr := specHashes(spec)
+	hashes, herr := canon.Hashes(spec)
 	if herr != nil {
 		return herr
 	}
@@ -789,7 +791,7 @@ func (d *DB) approveServer(ctx context.Context, c caller, platform, ns, name str
 			return err
 		}
 		switch {
-		case v.Hash == nil || *v.Hash != hash || !strings.HasPrefix(hash, hashPrefix):
+		case v.Hash == nil || *v.Hash != hash || !strings.HasPrefix(hash, canon.Prefix):
 			return conflict("contentHash", "FieldValueInvalid", "contentHash does not match the pending generation")
 		case deref(v.SubKind) != "User" || v.SubOid == nil:
 			return stErr(http.StatusForbidden, "Forbidden", "the pending generation has no person as submitter; a person must submit it again")
@@ -936,7 +938,7 @@ func (d *DB) BackfillSpecs(ctx context.Context) (int, error) {
 			if len(spec.AllowedTools) == 0 {
 				spec.AllowedTools = nil
 			}
-			hash, err := specHash(spec)
+			hash, err := canon.Hash(spec)
 			if err != nil {
 				return err
 			}
