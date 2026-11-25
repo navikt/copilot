@@ -451,7 +451,7 @@ func validateConfig(cfg *Config) error {
 	if cfg.RateLimitGlobalRequests <= 0 {
 		cfg.RateLimitGlobalRequests = defaultRateLimitGlobalRequests
 	}
-	// Below that, a full map evicts live buckets and resets throttled IPs inside the window (ipRateLimiter.Allow).
+	// Below that, a full map evicts live buckets and resets throttled IPs inside the window (ratelimit.Limiter.Allow).
 	if cfg.RateLimitCap < cfg.RateLimitGlobalRequests {
 		cfg.RateLimitCap = cfg.RateLimitGlobalRequests
 	}
@@ -477,9 +477,6 @@ func validateConfig(cfg *Config) error {
 			return fmt.Errorf("invalid RT_KEYS: %w", err)
 		}
 	}
-	// rtStorageServer ("server") keeps the Entra refresh token inside the session
-	// in the store (existing StrategyRefresh behaviour) and issues NO gateway
-	// refresh token (cplt re-logs in when the access token expires).
 	switch strings.ToLower(strings.TrimSpace(cfg.RTStorage)) {
 	case "":
 		if strings.TrimSpace(cfg.RTKeys) != "" {

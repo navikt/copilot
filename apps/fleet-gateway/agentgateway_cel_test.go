@@ -16,21 +16,21 @@ var updateCELGolden = flag.Bool("update-cel-golden", false, "rewrite testdata/ag
 
 // agentgatewayToolRule renders a route's tool allowlist as the agentgateway
 // mcpAuthorization CEL rule that allows the same tools. It is test-only: the
-// runtime still enforces allowedTools; this pins the mapping for a later move.
+// runtime still enforces AllowedTools; this pins the mapping for a later move.
 func agentgatewayToolRule(r routing.Route) string {
 	if r.AllowedTools == nil {
 		return "true" // passAllTools: operator-only, forwards every tool
 	}
 	quoted := make([]string, len(r.Tools))
 	for i, t := range r.Tools {
-		// Names are limited to [A-Za-z0-9_.-] by applyToolPolicy, so quoting never escapes.
+		// Names are limited to [A-Za-z0-9_.-] by routing.ApplyToolPolicy, so quoting never escapes.
 		quoted[i] = strconv.Quote(t)
 	}
 	return "mcp.tool.name in [" + strings.Join(quoted, ", ") + "]"
 }
 
 // celAllowed reads the rule back and answers whether it allows tool, so the
-// test proves the rule permits exactly what allowedTools permits.
+// test proves the rule permits exactly what AllowedTools permits.
 func celAllowed(t *testing.T, rule, tool string) bool {
 	t.Helper()
 	if rule == "true" {
