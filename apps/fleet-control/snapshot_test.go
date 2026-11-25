@@ -352,3 +352,23 @@ func TestRoutesSnapshotCarriesToolRisk(t *testing.T) {
 		}
 	}
 }
+
+// TestSnapshotGolden pins the routes and registry snapshot bytes and ETags
+// for a fixed input: the snapshot is fleet-gateway's wire contract.
+func TestSnapshotGolden(t *testing.T) {
+	servers := testServers(2)
+	servers[0].DataClass = "intern"
+	servers[0].Route.ToolRisk = map[string]string{"t": "read"}
+	for kind, want := range map[string]string{
+		"routes":   "32bc69d5b2552c0316e7f4abe9d06d14f2baf91eb9a8524820fda5dc21a9fb48",
+		"registry": "5fbeef3863687001f09c2b401a9516d66f4c8482910e7a493b8242184be23aa3",
+	} {
+		s, err := buildSnapshot(kind, servers, nil)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if s.ETag != want {
+			t.Errorf("%s etag %s, want %s", kind, s.ETag, want)
+		}
+	}
+}
