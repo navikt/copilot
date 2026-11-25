@@ -195,7 +195,8 @@ spec:
 {{#if routes_source}}
         - alert: FleetGatewayRouteNeverSynced
           # The age gauge appears on the first successful sync (#2637), so the stale alert cannot see a pod that never synced.
-          expr: fleet_gateway_routes_loaded{namespace="copilot"} unless on(pod, k8s_cluster_name) fleet_gateway_route_snapshot_age_seconds{namespace="copilot"}
+          # Evaluated per cluster today; the source selector keeps it correct if deployed in prod or evaluated tenant-wide (#2949).
+          expr: fleet_gateway_routes_source_info{namespace="copilot", source="fleet-control"} unless on(pod, k8s_cluster_name) fleet_gateway_route_snapshot_age_seconds{namespace="copilot"}
           for: 15m
           labels:
             namespace: copilot
@@ -208,7 +209,7 @@ spec:
             action: "Search the pod's logs for `fleet-control routes not updated` and check fleet-control health."
 {{/if}}
         - alert: FleetGatewayNoReadyPods
-          expr: sum(kube_deployment_status_replicas_available{namespace="copilot", deployment="fleet-gateway"}) == 0
+          expr: sum by (k8s_cluster_name) (kube_deployment_status_replicas_available{namespace="copilot", deployment="fleet-gateway"}) == 0
           for: 2m
           labels:
             namespace: copilot
@@ -244,9 +245,9 @@ spec:
             action: "Run `kubectl -n copilot describe pod -l app=fleet-gateway` and look at Last State."
         - alert: FleetGatewayHigh5xxRate
           expr: |
-            sum(rate(fleet_gateway_http_requests_total{namespace="copilot", code=~"5..", reason=""}[5m]))
-              / sum(rate(fleet_gateway_http_requests_total{namespace="copilot"}[5m])) > 0.1
-            and sum(increase(fleet_gateway_http_requests_total{namespace="copilot"}[5m])) > 20
+            sum by (k8s_cluster_name) (rate(fleet_gateway_http_requests_total{namespace="copilot", code=~"5..", reason=""}[5m]))
+              / sum by (k8s_cluster_name) (rate(fleet_gateway_http_requests_total{namespace="copilot"}[5m])) > 0.1
+            and sum by (k8s_cluster_name) (increase(fleet_gateway_http_requests_total{namespace="copilot"}[5m])) > 20
           for: 5m
           labels:
             namespace: copilot

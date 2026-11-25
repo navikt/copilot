@@ -420,3 +420,16 @@ func TestRouteSync304ChecksCheckedAt(t *testing.T) {
 		})
 	}
 }
+
+// The never-synced alert selects source="fleet-control"; a git pod must not carry it (#2949).
+func TestSetRoutesSource(t *testing.T) {
+	for _, src := range []string{routesSourceGit, routesSourceFleetControl} {
+		metrics.SetRoutesSource(src)
+		if got := testutil.CollectAndCount(metrics.RoutesSource); got != 1 {
+			t.Fatalf("source %s: %d series, want 1", src, got)
+		}
+		if got := testutil.ToFloat64(metrics.RoutesSource.WithLabelValues(src)); got != 1 {
+			t.Fatalf("source %s: gauge %v, want 1", src, got)
+		}
+	}
+}
