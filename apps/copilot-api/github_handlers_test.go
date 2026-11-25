@@ -8,6 +8,8 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+
+	"github.com/navikt/copilot/apps/copilot-api/internal/auth"
 )
 
 // mockGitHubClient implements GitHubAPI for testing
@@ -44,7 +46,7 @@ func (m *mockGitHubClient) unassignUserFromCopilot(_ context.Context, _ string) 
 	return m.unassignResult, m.unassignErr
 }
 
-func (m *mockGitHubClient) getUsernameBySamlIdentity(_ context.Context, _ string) (string, error) {
+func (m *mockGitHubClient) GetUsernameBySamlIdentity(_ context.Context, _ string) (string, error) {
 	return m.samlUsername, m.samlErr
 }
 
@@ -57,16 +59,16 @@ func (m *mockGitHubClient) getRepositoryContributors(_ context.Context, _ string
 }
 
 // userContext injects a User into the request context (test helper)
-func userContext(req *http.Request, u *User) *http.Request {
-	return req.WithContext(context.WithValue(req.Context(), userContextKey, u))
+func userContext(req *http.Request, u *auth.User) *http.Request {
+	return req.WithContext(context.WithValue(req.Context(), auth.UserContextKey, u))
 }
 
 // identityContext injects a ResolvedIdentity into the request context (test
 // helper), simulating what IdentityMiddleware would have set for an
 // already-authenticated, already-identity-resolved request.
 func identityContext(req *http.Request, githubUsername string) *http.Request {
-	identity := &ResolvedIdentity{GitHubUsername: githubUsername, Source: "test"}
-	return req.WithContext(context.WithValue(req.Context(), resolvedIdentityContextKey, identity))
+	identity := &auth.ResolvedIdentity{GitHubUsername: githubUsername, Source: "test"}
+	return req.WithContext(context.WithValue(req.Context(), auth.ResolvedIdentityContextKey, identity))
 }
 
 func TestIsValidGitHubUsername(t *testing.T) {
@@ -74,12 +76,12 @@ func TestIsValidGitHubUsername(t *testing.T) {
 	invalid := []string{"", "-leading", "trailing-", "inv@lid", strings.Repeat("a", 40), "has/slash"}
 
 	for _, u := range valid {
-		if !isValidGitHubUsername(u) {
+		if !auth.IsValidGitHubUsername(u) {
 			t.Errorf("expected %q to be valid", u)
 		}
 	}
 	for _, u := range invalid {
-		if isValidGitHubUsername(u) {
+		if auth.IsValidGitHubUsername(u) {
 			t.Errorf("expected %q to be invalid", u)
 		}
 	}
@@ -188,7 +190,7 @@ func TestHandleAssignSeat(t *testing.T) {
 		h := newGitHubHandlers(&mockGitHubClient{assignResult: &AssignResult{SeatsCreated: 1}})
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/copilot/seats", strings.NewReader(`{"username":"octocat"}`))
 		req = identityContext(req, "octocat")
-		req = req.WithContext(context.WithValue(req.Context(), userContextKey, &User{Groups: []string{"admin"}}))
+		req = req.WithContext(context.WithValue(req.Context(), auth.UserContextKey, &auth.User{Groups: []string{"admin"}}))
 		rec := httptest.NewRecorder()
 		h.handleAssignSeat(rec, req)
 		if rec.Code != http.StatusForbidden {
@@ -205,7 +207,7 @@ func TestHandleAssignSeat(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/copilot/seats",
 			strings.NewReader(`{"username":"octocat"}`))
 		req = identityContext(req, "octocat")
-		req = req.WithContext(context.WithValue(req.Context(), userContextKey, &User{Groups: []string{"g"}}))
+		req = req.WithContext(context.WithValue(req.Context(), auth.UserContextKey, &auth.User{Groups: []string{"g"}}))
 		rec := httptest.NewRecorder()
 		h.handleAssignSeat(rec, req)
 
@@ -220,7 +222,7 @@ func TestHandleAssignSeat(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/copilot/seats",
 			strings.NewReader(`{"username":"octocat"}`))
 		req = identityContext(req, "octocat")
-		req = req.WithContext(context.WithValue(req.Context(), userContextKey, &User{}))
+		req = req.WithContext(context.WithValue(req.Context(), auth.UserContextKey, &auth.User{}))
 		rec := httptest.NewRecorder()
 		h.handleAssignSeat(rec, req)
 
@@ -397,7 +399,7 @@ func TestHandleGetUsernameBySAML(t *testing.T) {
 			req := httptest.NewRequest(http.MethodGet, "/api/v1/copilot/saml/"+tc.identity, nil)
 			req.SetPathValue("identity", tc.identity)
 			if tc.actorEmail != "" {
-				req = userContext(req, &User{Email: tc.actorEmail, NAVident: "T123456"})
+				req = userContext(req, &auth.User{Email: tc.actorEmail, NAVident: "T123456"})
 			}
 			rec := httptest.NewRecorder()
 			h.handleGetUsernameBySAML(rec, req)

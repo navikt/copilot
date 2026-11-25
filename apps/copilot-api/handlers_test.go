@@ -13,6 +13,9 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
+
+	"github.com/navikt/copilot/apps/copilot-api/internal/auth"
+	"github.com/navikt/copilot/apps/copilot-api/internal/problem"
 )
 
 func TestHealthHandler(t *testing.T) {
@@ -31,6 +34,9 @@ func TestHealthHandler(t *testing.T) {
 }
 
 func TestReadyHandler(t *testing.T) {
+	// Dev mode marks the auth middleware ready; this ran as a side effect of
+	// the auth tests before they moved to internal/auth.
+	auth.Middleware(auth.Config{Environment: "local"})
 	req := httptest.NewRequest(http.MethodGet, "/ready", nil)
 	rec := httptest.NewRecorder()
 
@@ -181,7 +187,7 @@ func TestAPIRoutesRequireAuth(t *testing.T) {
 	// Use a strict auth middleware that rejects missing tokens (same as prod).
 	authMiddleware := func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			_, err := extractBearerToken(r)
+			_, err := auth.ExtractBearerToken(r)
 			if err != nil {
 				respondError(w, "unauthorized", err.Error(), http.StatusUnauthorized)
 				return
@@ -191,7 +197,7 @@ func TestAPIRoutesRequireAuth(t *testing.T) {
 	}
 
 	config := &Config{Environment: "prod"}
-	apiRouter := authMiddleware(makeAPIRouter(config, nil, nil, nil, NewIdentityResolverChain(), nil))
+	apiRouter := authMiddleware(makeAPIRouter(config, nil, nil, nil, auth.NewIdentityResolverChain(), nil))
 
 	// All /api/v1/ paths should require auth
 	paths := []string{
@@ -214,7 +220,7 @@ func TestAPIRoutesRequireAuth(t *testing.T) {
 				t.Errorf("GET %s without token: expected 401, got %d", path, rec.Code)
 			}
 
-			var problem ProblemDetail
+			var problem problem.Detail
 			if err := json.NewDecoder(rec.Body).Decode(&problem); err != nil {
 				t.Fatalf("Failed to decode response body: %v", err)
 			}
@@ -311,6 +317,19 @@ func TestUsernamePathsRedacted(t *testing.T) {
 		}
 		if !slices.Contains(got, p) {
 			t.Errorf("handler did not get the real path %s; got %v", p, got)
+		}
+	}
+}
+
+// Every allowlisted pattern must be one the API router registers, or the
+// allowlist silently stops matching after a route is renamed.
+func TestOnBehalfOfRoutesAreRegistered(t *testing.T) {
+	mux := makeAPIRouter(&Config{}, nil, nil, nil, auth.NewIdentityResolverChain(), nil).(*http.ServeMux)
+	for _, pattern := range auth.OnBehalfOfRoutePatterns() {
+		method, path, _ := strings.Cut(pattern, " ")
+		req := httptest.NewRequest(method, strings.ReplaceAll(path, "{username}", "ola"), nil)
+		if _, got := mux.Handler(req); got != pattern {
+			t.Errorf("%q routes to %q", pattern, got)
 		}
 	}
 }

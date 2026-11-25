@@ -8,6 +8,9 @@ import (
 	"strings"
 
 	"go.opentelemetry.io/otel/trace"
+
+	"github.com/navikt/copilot/apps/copilot-api/internal/auth"
+	"github.com/navikt/copilot/apps/copilot-api/internal/problem"
 )
 
 // healthHandler handles /health endpoint
@@ -30,7 +33,7 @@ func readyHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
-	if !authMiddlewareReady.Load() {
+	if !auth.Ready() {
 		w.WriteHeader(http.StatusServiceUnavailable)
 		if _, err := w.Write([]byte("AUTH_UNAVAILABLE")); err != nil {
 			slog.Warn("Failed to write ready response", "error", err)
@@ -48,7 +51,7 @@ func readyHandler(w http.ResponseWriter, r *http.Request) {
 // requireResolvedIdentity) — this is defense-in-depth on top of each
 // handler's own requireOwnership/GetResolvedIdentity call, ensuring a future
 // per-user route can't accidentally ship without an ownership check.
-func makeAPIRouter(config *Config, bqHandlers *BigQueryHandlers, ghHandlers *GitHubHandlers, budgetHandlers *BudgetHandlers, identityChain *IdentityResolverChain, raise *budgetRaiseHandlers) http.Handler {
+func makeAPIRouter(config *Config, bqHandlers *BigQueryHandlers, ghHandlers *GitHubHandlers, budgetHandlers *BudgetHandlers, identityChain *auth.IdentityResolverChain, raise *budgetRaiseHandlers) http.Handler {
 	mux := http.NewServeMux()
 
 	bqStub := serviceUnavailableHandler("BigQuery is not configured for this environment")
@@ -77,7 +80,7 @@ func makeAPIRouter(config *Config, bqHandlers *BigQueryHandlers, ghHandlers *Git
 	// Applied only to routes whose handler ownership-checks a specific
 	// {username}/caller (see requireOwnership usage in those handlers).
 	perUser := func(h http.HandlerFunc) http.HandlerFunc {
-		return requireResolvedIdentity(identityChain, h)
+		return auth.RequireResolvedIdentity(identityChain, h)
 	}
 
 	// BigQuery endpoints
@@ -201,42 +204,12 @@ func cacheControl(w http.ResponseWriter, duration int, public bool) {
 	w.Header().Set("Cache-Control", policy)
 }
 
-// noCacheControl disables caching for responses (mutations, sensitive data)
-func noCacheControl(w http.ResponseWriter) {
-	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
-	w.Header().Set("Pragma", "no-cache")
-	w.Header().Set("Expires", "0")
-}
-
-// RFC 7807 Problem Details response
-type ProblemDetail struct {
-	Type     string `json:"type"`
-	Title    string `json:"title"`
-	Status   int    `json:"status"`
-	Detail   string `json:"detail,omitempty"`
-	Instance string `json:"instance,omitempty"`
-}
-
-func respondError(w http.ResponseWriter, errorType, detail string, status int) {
-	problem := ProblemDetail{
-		Type:     "about:blank",
-		Title:    http.StatusText(status),
-		Status:   status,
-		Detail:   detail,
-		Instance: "",
-	}
-
-	if errorType != "" {
-		problem.Type = "https://copilot-api.nav.no/errors/" + errorType
-	}
-
-	w.Header().Set("Content-Type", "application/problem+json")
-	noCacheControl(w)
-	w.WriteHeader(status)
-	if err := json.NewEncoder(w).Encode(problem); err != nil {
-		slog.Error("Failed to encode problem details response", "error", err)
-	}
-}
+// Kept as package names so the handlers need no change; they live in
+// internal/problem because the auth middleware writes the same responses.
+var (
+	noCacheControl = problem.NoCache
+	respondError   = problem.Respond
+)
 
 func respondJSON(w http.ResponseWriter, data interface{}, status int) {
 	w.Header().Set("Content-Type", "application/json")
@@ -244,30 +217,6 @@ func respondJSON(w http.ResponseWriter, data interface{}, status int) {
 	if err := json.NewEncoder(w).Encode(data); err != nil {
 		slog.Error("Failed to encode JSON response", "error", err)
 	}
-}
-
-// redactPath replaces the path segments that name a person, so a request log
-// or a span never says who was active when: everything after /saml/ (the
-// caller's Nav e-mail), and the GitHub username in /usage/user/{username}
-// and /seats/{username}. Case-insensitive, so /SAML/<e-mail> (a 404, but
-// logged first) is caught too.
-func redactPath(p string) string {
-	// Slice the lowered string: ToLower can change a rune's byte length.
-	low := strings.ToLower(p)
-	if i := strings.Index(low, "/saml/"); i >= 0 {
-		return low[:i] + "/saml/{identity}"
-	}
-	for _, m := range []string{"/usage/user/", "/seats/"} {
-		if i := strings.Index(low, m); i >= 0 {
-			// TrimLeft: %2F before the name decodes to a leading slash.
-			_, tail, _ := strings.Cut(strings.TrimLeft(low[i+len(m):], "/"), "/")
-			if tail != "" {
-				tail = "/" + tail
-			}
-			return low[:i] + m + "{username}" + tail
-		}
-	}
-	return p
 }
 
 // tracePath reports whether a request may be traced. The SAML lookup never
@@ -288,7 +237,7 @@ func loggingMiddleware(config *Config, next http.Handler) http.Handler {
 		if shouldLog {
 			args := []any{
 				"method", r.Method,
-				"path", redactPath(r.URL.Path),
+				"path", auth.RedactPath(r.URL.Path),
 				"remote_addr", r.RemoteAddr,
 			}
 			if sc := trace.SpanFromContext(r.Context()).SpanContext(); sc.IsValid() {

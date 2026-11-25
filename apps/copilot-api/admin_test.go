@@ -6,6 +6,8 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/navikt/copilot/apps/copilot-api/internal/auth"
 )
 
 // TestAdminRoutesGuarded walks every registered admin route.
@@ -17,12 +19,12 @@ func TestAdminRoutesGuarded(t *testing.T) {
 	cases := []struct {
 		name string
 		env  string
-		user *User
+		user *auth.User
 		want int
 	}{
-		{"admin", group, &User{Groups: []string{group}}, http.StatusServiceUnavailable},
-		{"non-admin", group, &User{Groups: []string{"other"}}, http.StatusNotFound},
-		{"group unset", "", &User{Groups: []string{group}}, http.StatusNotFound},
+		{"admin", group, &auth.User{Groups: []string{group}}, http.StatusServiceUnavailable},
+		{"non-admin", group, &auth.User{Groups: []string{"other"}}, http.StatusNotFound},
+		{"group unset", "", &auth.User{Groups: []string{group}}, http.StatusNotFound},
 	}
 	var paths []string
 	for _, r := range adminRoutes() {
@@ -36,7 +38,7 @@ func TestAdminRoutesGuarded(t *testing.T) {
 			t.Run(tc.name+" "+p, func(t *testing.T) {
 				t.Setenv(adminGroupEnv, tc.env)
 				req := httptest.NewRequest(http.MethodGet, p, nil)
-				req = req.WithContext(context.WithValue(req.Context(), userContextKey, tc.user))
+				req = req.WithContext(context.WithValue(req.Context(), auth.UserContextKey, tc.user))
 				rec := httptest.NewRecorder()
 				router.ServeHTTP(rec, req)
 				if rec.Code != tc.want {
@@ -53,21 +55,21 @@ func TestRequireAdmin(t *testing.T) {
 	cases := []struct {
 		name string
 		env  string
-		user *User
+		user *auth.User
 		want int
 	}{
-		{"admin", group, &User{Groups: []string{"other", group}}, http.StatusOK},
-		{"non-admin", group, &User{Groups: []string{"other"}}, http.StatusNotFound},
-		{"no groups", group, &User{}, http.StatusNotFound},
+		{"admin", group, &auth.User{Groups: []string{"other", group}}, http.StatusOK},
+		{"non-admin", group, &auth.User{Groups: []string{"other"}}, http.StatusNotFound},
+		{"no groups", group, &auth.User{}, http.StatusNotFound},
 		{"no user", group, nil, http.StatusNotFound},
-		{"group unset", "", &User{Groups: []string{""}}, http.StatusNotFound},
+		{"group unset", "", &auth.User{Groups: []string{""}}, http.StatusNotFound},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Setenv(adminGroupEnv, tc.env)
 			req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/x", nil)
 			if tc.user != nil {
-				req = req.WithContext(context.WithValue(req.Context(), userContextKey, tc.user))
+				req = req.WithContext(context.WithValue(req.Context(), auth.UserContextKey, tc.user))
 			}
 			rec := httptest.NewRecorder()
 			requireAdmin(ok).ServeHTTP(rec, req)
@@ -91,7 +93,7 @@ func TestOldAdminPathsGone(t *testing.T) {
 		"/api/v1/copilot/admin/cost-forecast",
 	} {
 		req := httptest.NewRequest(http.MethodGet, p, nil)
-		req = req.WithContext(context.WithValue(req.Context(), userContextKey, &User{Groups: []string{group}}))
+		req = req.WithContext(context.WithValue(req.Context(), auth.UserContextKey, &auth.User{Groups: []string{group}}))
 		rec := httptest.NewRecorder()
 		router.ServeHTTP(rec, req)
 		if rec.Code != http.StatusNotFound {

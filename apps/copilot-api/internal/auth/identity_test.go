@@ -1,4 +1,4 @@
-package main
+package auth
 
 import (
 	"context"
@@ -16,7 +16,7 @@ type mockSamlLookup struct {
 	err      error
 }
 
-func (m *mockSamlLookup) getUsernameBySamlIdentity(_ context.Context, _ string) (string, error) {
+func (m *mockSamlLookup) GetUsernameBySamlIdentity(_ context.Context, _ string) (string, error) {
 	return m.username, m.err
 }
 
@@ -145,19 +145,6 @@ func TestOnBehalfOfIdentityResolverCanResolve(t *testing.T) {
 	empty := NewOnBehalfOfIdentityResolver(nil)
 	if empty.CanResolve(cliApp, get) {
 		t.Error("expected CanResolve false when trustedClientIDs is empty/nil")
-	}
-}
-
-// Every allowlisted pattern must be one the API router registers, or the
-// allowlist silently stops matching after a route is renamed.
-func TestOnBehalfOfRoutesAreRegistered(t *testing.T) {
-	mux := makeAPIRouter(&Config{}, nil, nil, nil, NewIdentityResolverChain(), nil).(*http.ServeMux)
-	for pattern := range onBehalfOfRoutes {
-		method, path, _ := strings.Cut(pattern, " ")
-		req := httptest.NewRequest(method, strings.ReplaceAll(path, "{username}", "ola"), nil)
-		if _, got := mux.Handler(req); got != pattern {
-			t.Errorf("%q routes to %q", pattern, got)
-		}
 	}
 }
 
@@ -307,7 +294,7 @@ func TestIdentityMiddleware(t *testing.T) {
 		gotIdentity = nil
 		handler := IdentityMiddleware(chain, true)(next)
 		req := httptest.NewRequest(http.MethodGet, "/", nil)
-		req = req.WithContext(context.WithValue(req.Context(), userContextKey, &User{Email: "hans@nav.no"}))
+		req = req.WithContext(context.WithValue(req.Context(), UserContextKey, &User{Email: "hans@nav.no"}))
 		rec := httptest.NewRecorder()
 		handler.ServeHTTP(rec, req)
 
@@ -324,7 +311,7 @@ func TestIdentityMiddleware(t *testing.T) {
 		emptyChain := NewIdentityResolverChain()
 		handler := IdentityMiddleware(emptyChain, true)(next)
 		req := httptest.NewRequest(http.MethodGet, "/", nil)
-		req = req.WithContext(context.WithValue(req.Context(), userContextKey, &User{Email: "hans@nav.no"}))
+		req = req.WithContext(context.WithValue(req.Context(), UserContextKey, &User{Email: "hans@nav.no"}))
 		rec := httptest.NewRecorder()
 		handler.ServeHTTP(rec, req)
 
@@ -338,7 +325,7 @@ func TestIdentityMiddleware(t *testing.T) {
 		handler := IdentityMiddleware(chain, true)(next)
 		req := routed(http.MethodGet, "GET /api/v1/copilot/usage/user/{username}")
 		req.Header.Set("X-On-Behalf-Of", "inv@lid")
-		req = req.WithContext(context.WithValue(req.Context(), userContextKey, cliApp))
+		req = req.WithContext(context.WithValue(req.Context(), UserContextKey, cliApp))
 		rec := httptest.NewRecorder()
 		handler.ServeHTTP(rec, req)
 
@@ -355,7 +342,7 @@ func TestIdentityMiddleware(t *testing.T) {
 			handler := IdentityMiddleware(chain, required)(next)
 			req := routed(http.MethodGet, "GET /api/v1/copilot/usage/user/{username}")
 			req.Header.Set("X-On-Behalf-Of", "someone-else")
-			req = req.WithContext(context.WithValue(req.Context(), userContextKey,
+			req = req.WithContext(context.WithValue(req.Context(), UserContextKey,
 				&User{AZP: "copilot-cli-client-id", NAVident: "Z123456", Email: "hans@nav.no"}))
 			rec := httptest.NewRecorder()
 			handler.ServeHTTP(rec, req)
@@ -371,7 +358,7 @@ func TestIdentityMiddleware(t *testing.T) {
 		emptyChain := NewIdentityResolverChain()
 		handler := IdentityMiddleware(emptyChain, false)(next)
 		req := httptest.NewRequest(http.MethodGet, "/", nil)
-		req = req.WithContext(context.WithValue(req.Context(), userContextKey, &User{Email: "hans@nav.no"}))
+		req = req.WithContext(context.WithValue(req.Context(), UserContextKey, &User{Email: "hans@nav.no"}))
 		rec := httptest.NewRecorder()
 		handler.ServeHTTP(rec, req)
 
@@ -405,7 +392,7 @@ func TestGetResolvedIdentity(t *testing.T) {
 	})
 
 	t.Run("present", func(t *testing.T) {
-		ctx := context.WithValue(context.Background(), resolvedIdentityContextKey, &ResolvedIdentity{GitHubUsername: "hans"})
+		ctx := context.WithValue(context.Background(), ResolvedIdentityContextKey, &ResolvedIdentity{GitHubUsername: "hans"})
 		identity, ok := GetResolvedIdentity(ctx)
 		if !ok || identity.GitHubUsername != "hans" {
 			t.Fatalf("expected identity for hans, got %+v, ok=%v", identity, ok)
@@ -417,7 +404,7 @@ func TestRequireOwnership(t *testing.T) {
 	newReqWithIdentity := func(identity *ResolvedIdentity) *http.Request {
 		req := httptest.NewRequest(http.MethodGet, "/", nil)
 		if identity != nil {
-			req = req.WithContext(context.WithValue(req.Context(), resolvedIdentityContextKey, identity))
+			req = req.WithContext(context.WithValue(req.Context(), ResolvedIdentityContextKey, identity))
 		}
 		return req
 	}
@@ -425,8 +412,8 @@ func TestRequireOwnership(t *testing.T) {
 	t.Run("no identity in context", func(t *testing.T) {
 		rec := httptest.NewRecorder()
 		req := newReqWithIdentity(nil)
-		if requireOwnership(rec, req, "hans") {
-			t.Fatal("expected requireOwnership to fail without identity")
+		if RequireOwnership(rec, req, "hans") {
+			t.Fatal("expected RequireOwnership to fail without identity")
 		}
 		if rec.Code != http.StatusUnauthorized {
 			t.Errorf("status = %d, want %d", rec.Code, http.StatusUnauthorized)
@@ -436,15 +423,15 @@ func TestRequireOwnership(t *testing.T) {
 	t.Run("matching username", func(t *testing.T) {
 		rec := httptest.NewRecorder()
 		req := newReqWithIdentity(&ResolvedIdentity{GitHubUsername: "hans", Source: "saml"})
-		if !requireOwnership(rec, req, "hans") {
-			t.Fatalf("expected requireOwnership to succeed, got %d: %s", rec.Code, rec.Body.String())
+		if !RequireOwnership(rec, req, "hans") {
+			t.Fatalf("expected RequireOwnership to succeed, got %d: %s", rec.Code, rec.Body.String())
 		}
 	})
 
 	t.Run("case-insensitive match", func(t *testing.T) {
 		rec := httptest.NewRecorder()
 		req := newReqWithIdentity(&ResolvedIdentity{GitHubUsername: "Hans", Source: "saml"})
-		if !requireOwnership(rec, req, "hans") {
+		if !RequireOwnership(rec, req, "hans") {
 			t.Fatalf("expected case-insensitive match to succeed, got %d", rec.Code)
 		}
 	})
@@ -452,8 +439,8 @@ func TestRequireOwnership(t *testing.T) {
 	t.Run("mismatched username", func(t *testing.T) {
 		rec := httptest.NewRecorder()
 		req := newReqWithIdentity(&ResolvedIdentity{GitHubUsername: "attacker", Source: "on-behalf-of"})
-		if requireOwnership(rec, req, "hans") {
-			t.Fatal("expected requireOwnership to fail on mismatch")
+		if RequireOwnership(rec, req, "hans") {
+			t.Fatal("expected RequireOwnership to fail on mismatch")
 		}
 		if rec.Code != http.StatusForbidden {
 			t.Errorf("status = %d, want %d", rec.Code, http.StatusForbidden)
@@ -533,7 +520,7 @@ func TestTrustedClientIDForApp(t *testing.T) {
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got, err := trustedClientIDForApp(tc.input, "copilot-cli")
+			got, err := TrustedClientIDForApp(tc.input, "copilot-cli")
 			if tc.wantErr {
 				if err == nil {
 					t.Fatal("expected an error, got nil")
@@ -544,7 +531,7 @@ func TestTrustedClientIDForApp(t *testing.T) {
 				t.Fatalf("unexpected error: %v", err)
 			}
 			if got != tc.want {
-				t.Errorf("trustedClientIDForApp() = %q, want %q", got, tc.want)
+				t.Errorf("TrustedClientIDForApp() = %q, want %q", got, tc.want)
 			}
 		})
 	}

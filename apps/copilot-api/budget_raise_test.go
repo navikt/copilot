@@ -1,8 +1,6 @@
 package main
 
 import (
-	"github.com/navikt/copilot/apps/copilot-api/internal/cache"
-
 	"bytes"
 	"cloud.google.com/go/bigquery"
 	"cloud.google.com/go/civil"
@@ -21,6 +19,9 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/navikt/copilot/apps/copilot-api/internal/auth"
+	"github.com/navikt/copilot/apps/copilot-api/internal/cache"
 )
 
 const testTeam = "team-b" // the caller's own team in newBudgetEnv
@@ -203,9 +204,9 @@ func (s fakeSeats) getCopilotSeat(context.Context, string) (*CopilotSeat, error)
 // comes from the authenticated user, as with the real resolvers.
 type emailResolver struct{}
 
-func (emailResolver) CanResolve(u *User, _ *http.Request) bool { return u != nil }
-func (emailResolver) Resolve(_ context.Context, u *User, _ *http.Request) (*ResolvedIdentity, error) {
-	return &ResolvedIdentity{GitHubUsername: strings.TrimSuffix(u.Email, "@nav.no"), Source: "test"}, nil
+func (emailResolver) CanResolve(u *auth.User, _ *http.Request) bool { return u != nil }
+func (emailResolver) Resolve(_ context.Context, u *auth.User, _ *http.Request) (*auth.ResolvedIdentity, error) {
+	return &auth.ResolvedIdentity{GitHubUsername: strings.TrimSuffix(u.Email, "@nav.no"), Source: "test"}, nil
 }
 
 type budgetEnv struct {
@@ -236,7 +237,7 @@ func newBudgetEnv(t *testing.T, dsn string) *budgetEnv {
 		}
 	})
 	env := &budgetEnv{t: t, gh: gh, h: h, dsn: dsn}
-	env.router = makeAPIRouter(&Config{}, nil, nil, nil, NewIdentityResolverChain(emailResolver{}), h)
+	env.router = makeAPIRouter(&Config{}, nil, nil, nil, auth.NewIdentityResolverChain(emailResolver{}), h)
 	return env
 }
 
@@ -246,7 +247,7 @@ func (e *budgetEnv) do(method, path, login, key, body string, groups ...string) 
 	if key != "" {
 		req.Header.Set("Idempotency-Key", key)
 	}
-	req = req.WithContext(context.WithValue(req.Context(), userContextKey, &User{Email: login + "@nav.no", Groups: groups}))
+	req = req.WithContext(context.WithValue(req.Context(), auth.UserContextKey, &auth.User{Email: login + "@nav.no", Groups: groups}))
 	rec := httptest.NewRecorder()
 	e.router.ServeHTTP(rec, req)
 	var out map[string]any
@@ -542,9 +543,9 @@ func TestBudgetRaiseUnavailable(t *testing.T) {
 		t.Errorf("GitHub written: %v", e.gh.writes)
 	}
 	// Not configured at all: own 503, the router still builds.
-	r := makeAPIRouter(&Config{}, nil, nil, nil, NewIdentityResolverChain(emailResolver{}), nil)
+	r := makeAPIRouter(&Config{}, nil, nil, nil, auth.NewIdentityResolverChain(emailResolver{}), nil)
 	req := httptest.NewRequest("GET", "/api/v1/copilot/budget/profile", nil)
-	req = req.WithContext(context.WithValue(req.Context(), userContextKey, &User{Email: "ola@nav.no"}))
+	req = req.WithContext(context.WithValue(req.Context(), auth.UserContextKey, &auth.User{Email: "ola@nav.no"}))
 	rec := httptest.NewRecorder()
 	r.ServeHTTP(rec, req)
 	if rec.Code != 503 {
@@ -617,7 +618,7 @@ func TestBudgetRaiseClientDisconnectStillRecorded(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	req := httptest.NewRequest("POST", "/api/v1/copilot/budget/raises", strings.NewReader(`{"category":"koding","expectedValue":"spare_tid"}`))
 	req.Header.Set("Idempotency-Key", "k1")
-	req = req.WithContext(context.WithValue(ctx, userContextKey, &User{Email: "ola@nav.no"}))
+	req = req.WithContext(context.WithValue(ctx, auth.UserContextKey, &auth.User{Email: "ola@nav.no"}))
 	done := make(chan struct{})
 	go func() { e.router.ServeHTTP(httptest.NewRecorder(), req); close(done) }()
 	for e.count("SELECT count(*) FROM budget_raises") == 0 {
@@ -786,7 +787,7 @@ func TestBudgetRaiseAcrossReplicas(t *testing.T) {
 			h2.store.pool.Close()
 		}
 	})
-	r2 := makeAPIRouter(&Config{}, nil, nil, nil, NewIdentityResolverChain(emailResolver{}), h2)
+	r2 := makeAPIRouter(&Config{}, nil, nil, nil, auth.NewIdentityResolverChain(emailResolver{}), h2)
 	for i := range 20 {
 		login := fmt.Sprint("user", i)
 		e.profile(login)
@@ -795,7 +796,7 @@ func TestBudgetRaiseAcrossReplicas(t *testing.T) {
 			wg.Go(func() {
 				req := httptest.NewRequest("POST", "/api/v1/copilot/budget/raises", strings.NewReader(`{"category":"koding","expectedValue":"spare_tid"}`))
 				req.Header.Set("Idempotency-Key", fmt.Sprint("k", j))
-				req = req.WithContext(context.WithValue(req.Context(), userContextKey, &User{Email: login + "@nav.no"}))
+				req = req.WithContext(context.WithValue(req.Context(), auth.UserContextKey, &auth.User{Email: login + "@nav.no"}))
 				router.ServeHTTP(httptest.NewRecorder(), req)
 			})
 		}
@@ -878,12 +879,12 @@ func TestBudgetRaiseStaleListAcrossReplicas(t *testing.T) {
 		close(reached)
 		<-release
 	}
-	r2 := makeAPIRouter(&Config{}, nil, nil, nil, NewIdentityResolverChain(emailResolver{}), h2)
+	r2 := makeAPIRouter(&Config{}, nil, nil, nil, auth.NewIdentityResolverChain(emailResolver{}), h2)
 	done := make(chan int)
 	go func() {
 		req := httptest.NewRequest("POST", "/api/v1/copilot/budget/raises", strings.NewReader(`{"category":"koding","expectedValue":"spare_tid"}`))
 		req.Header.Set("Idempotency-Key", "b")
-		req = req.WithContext(context.WithValue(req.Context(), userContextKey, &User{Email: "ola@nav.no"}))
+		req = req.WithContext(context.WithValue(req.Context(), auth.UserContextKey, &auth.User{Email: "ola@nav.no"}))
 		rec := httptest.NewRecorder()
 		r2.ServeHTTP(rec, req)
 		done <- rec.Code
@@ -1174,11 +1175,11 @@ func TestBudgetRaiseWriteSerialisedWithReserve(t *testing.T) {
 			h2.store.pool.Close()
 		}
 	})
-	r2 := makeAPIRouter(&Config{}, nil, nil, nil, NewIdentityResolverChain(emailResolver{}), h2)
+	r2 := makeAPIRouter(&Config{}, nil, nil, nil, auth.NewIdentityResolverChain(emailResolver{}), h2)
 	post := func(router http.Handler, key string) int {
 		req := httptest.NewRequest("POST", "/api/v1/copilot/budget/raises", strings.NewReader(`{"category":"koding","expectedValue":"spare_tid"}`))
 		req.Header.Set("Idempotency-Key", key)
-		req = req.WithContext(context.WithValue(req.Context(), userContextKey, &User{Email: "ola@nav.no"}))
+		req = req.WithContext(context.WithValue(req.Context(), auth.UserContextKey, &auth.User{Email: "ola@nav.no"}))
 		rec := httptest.NewRecorder()
 		router.ServeHTTP(rec, req)
 		return rec.Code
@@ -1240,11 +1241,11 @@ func (e *budgetEnv) secondReplica() (*budgetRaiseHandlers, func(key string) int)
 			h2.store.pool.Close()
 		}
 	})
-	r2 := makeAPIRouter(&Config{}, nil, nil, nil, NewIdentityResolverChain(emailResolver{}), h2)
+	r2 := makeAPIRouter(&Config{}, nil, nil, nil, auth.NewIdentityResolverChain(emailResolver{}), h2)
 	return h2, func(key string) int {
 		req := httptest.NewRequest("POST", "/api/v1/copilot/budget/raises", strings.NewReader(`{"category":"koding","expectedValue":"spare_tid"}`))
 		req.Header.Set("Idempotency-Key", key)
-		req = req.WithContext(context.WithValue(req.Context(), userContextKey, &User{Email: "ola@nav.no"}))
+		req = req.WithContext(context.WithValue(req.Context(), auth.UserContextKey, &auth.User{Email: "ola@nav.no"}))
 		rec := httptest.NewRecorder()
 		r2.ServeHTTP(rec, req)
 		return rec.Code

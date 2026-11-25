@@ -10,10 +10,12 @@ import (
 	"net/http"
 	"strings"
 	"sync/atomic"
+
+	"github.com/navikt/copilot/apps/copilot-api/internal/auth"
 )
 
 const (
-	samlNameIDPath    = "/internal/v1/saml/name-id"
+	samlNameIDPath    = auth.SAMLNameIDPath
 	orgMembershipPath = "/internal/v1/github/org-membership"
 )
 
@@ -57,7 +59,7 @@ func readLogin(r io.Reader) (string, bool) {
 	}
 	dec := json.NewDecoder(r)
 	dec.DisallowUnknownFields()
-	if err := dec.Decode(&body); err != nil || !isValidGitHubUsername(body.Login) || !errors.Is(dec.Decode(&struct{}{}), io.EOF) {
+	if err := dec.Decode(&body); err != nil || !auth.IsValidGitHubUsername(body.Login) || !errors.Is(dec.Decode(&struct{}{}), io.EOF) {
 		return "", false
 	}
 	return body.Login, true
@@ -76,8 +78,8 @@ func readLogin(r io.Reader) (string, bool) {
 // and the login stays out of the path and the log.
 func orgMembershipHandler(cliClientID string, isMember func(context.Context, string) (bool, error)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		user, ok := getUserFromContext(r.Context())
-		if !ok || cliClientID == "" || !user.isAppToken() || user.AZP != cliClientID {
+		user, ok := auth.UserFromContext(r.Context())
+		if !ok || cliClientID == "" || !user.IsAppToken() || user.AZP != cliClientID {
 			respondError(w, "forbidden", "Only copilot-cli may call this route", http.StatusForbidden)
 			return
 		}
@@ -123,8 +125,8 @@ func samlNameIDHandler(surveyClientID string, lookup func(context.Context, strin
 			}
 		}()
 		w = rec
-		user, ok := getUserFromContext(r.Context())
-		if !ok || surveyClientID == "" || !user.isAppToken() || user.AZP != surveyClientID {
+		user, ok := auth.UserFromContext(r.Context())
+		if !ok || surveyClientID == "" || !user.IsAppToken() || user.AZP != surveyClientID {
 			respondError(w, "forbidden", "Only copilot-survey may call this route", http.StatusForbidden)
 			return
 		}

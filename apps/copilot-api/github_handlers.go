@@ -12,23 +12,18 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-)
 
-// validGitHubUsername matches GitHub's username rules: alphanumeric + hyphens, 1-39 chars
-var validGitHubUsername = regexp.MustCompile(`^[a-zA-Z0-9]([a-zA-Z0-9-]{0,37}[a-zA-Z0-9])?$`)
+	"github.com/navikt/copilot/apps/copilot-api/internal/auth"
+)
 
 // validRepoName matches GitHub repository names: letters, digits, '.', '-'
 // and '_', at most 100 characters.
 var validRepoName = regexp.MustCompile(`^[A-Za-z0-9._-]{1,100}$`)
 
-func isValidGitHubUsername(s string) bool {
-	return validGitHubUsername.MatchString(s)
-}
-
 // navIdentOf returns user.NAVident for audit logging, or "" if user is nil
 // (e.g. when the caller authenticated via a trusted-intermediary mechanism
 // like X-On-Behalf-Of rather than a NAV employee's own token).
-func navIdentOf(user *User) string {
+func navIdentOf(user *auth.User) string {
 	if user == nil {
 		return ""
 	}
@@ -41,7 +36,7 @@ type GitHubAPI interface {
 	getCopilotSeat(ctx context.Context, username string) (*CopilotSeat, error)
 	assignUserToCopilot(ctx context.Context, username string) (*AssignResult, error)
 	unassignUserFromCopilot(ctx context.Context, username string) (*UnassignResult, error)
-	getUsernameBySamlIdentity(ctx context.Context, identity string) (string, error)
+	GetUsernameBySamlIdentity(ctx context.Context, identity string) (string, error)
 	getPremiumRequestUsage(ctx context.Context, org string, year, month int) (*PremiumRequestUsage, error)
 	getRepositoryContributors(ctx context.Context, owner, repo string, paths []string) ([]Contributor, error)
 }
@@ -73,7 +68,7 @@ func (h *GitHubHandlers) handleBilling(w http.ResponseWriter, r *http.Request) {
 // handleGetSeat handles GET /api/v1/copilot/seats/{username}
 func (h *GitHubHandlers) handleGetSeat(w http.ResponseWriter, r *http.Request) {
 	username := r.PathValue("username")
-	if !isValidGitHubUsername(username) {
+	if !auth.IsValidGitHubUsername(username) {
 		respondError(w, "invalid_parameter", "Invalid GitHub username", http.StatusBadRequest)
 		return
 	}
@@ -82,7 +77,7 @@ func (h *GitHubHandlers) handleGetSeat(w http.ResponseWriter, r *http.Request) {
 	// the shared IdentityResolver-based check (see identity_middleware.go)
 	// so this handler works identically whether the caller authenticated
 	// via SAML or a trusted intermediary's X-On-Behalf-Of header.
-	if !requireOwnership(w, r, username) {
+	if !auth.RequireOwnership(w, r, username) {
 		return
 	}
 
@@ -106,7 +101,7 @@ func (h *GitHubHandlers) handleGetSeat(w http.ResponseWriter, r *http.Request) {
 func (h *GitHubHandlers) handleAssignSeat(w http.ResponseWriter, r *http.Request) {
 	// user supplies the groups for the check below and the NAVident for audit
 	// logging; the ownership check is mechanism-agnostic (see requireOwnership).
-	user, _ := getUserFromContext(r.Context())
+	user, _ := auth.UserFromContext(r.Context())
 
 	var req struct {
 		Username string `json:"username"`
@@ -117,7 +112,7 @@ func (h *GitHubHandlers) handleAssignSeat(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	if !isValidGitHubUsername(req.Username) {
+	if !auth.IsValidGitHubUsername(req.Username) {
 		respondError(w, "invalid_parameter", "Invalid GitHub username", http.StatusBadRequest)
 		return
 	}
@@ -125,7 +120,7 @@ func (h *GitHubHandlers) handleAssignSeat(w http.ResponseWriter, r *http.Request
 	// Defense-in-depth: verify the requested username resolves to the authenticated caller.
 	// The BFF already performs this check, but enforcing it here ensures the backend
 	// cannot be used to manage seats for other users even if the BFF were bypassed.
-	if !requireOwnership(w, r, req.Username) {
+	if !auth.RequireOwnership(w, r, req.Username) {
 		return
 	}
 
@@ -166,10 +161,10 @@ func (h *GitHubHandlers) handleAssignSeat(w http.ResponseWriter, r *http.Request
 func (h *GitHubHandlers) handleUnassignSeat(w http.ResponseWriter, r *http.Request) {
 	// user is only used for audit logging (NAVident) below — the ownership
 	// check itself is mechanism-agnostic (see requireOwnership).
-	user, _ := getUserFromContext(r.Context())
+	user, _ := auth.UserFromContext(r.Context())
 
 	username := r.PathValue("username")
-	if !isValidGitHubUsername(username) {
+	if !auth.IsValidGitHubUsername(username) {
 		respondError(w, "invalid_parameter", "Invalid GitHub username", http.StatusBadRequest)
 		return
 	}
@@ -177,7 +172,7 @@ func (h *GitHubHandlers) handleUnassignSeat(w http.ResponseWriter, r *http.Reque
 	// Defense-in-depth: verify the requested username resolves to the authenticated caller.
 	// The BFF already performs this check, but enforcing it here ensures the backend
 	// cannot be used to manage seats for other users even if the BFF were bypassed.
-	if !requireOwnership(w, r, username) {
+	if !auth.RequireOwnership(w, r, username) {
 		return
 	}
 
@@ -217,7 +212,7 @@ func (h *GitHubHandlers) handleGetUsernameBySAML(w http.ResponseWriter, r *http.
 	}
 
 	// Ownership check: only allow users to look up their own email.
-	user, ok := getUserFromContext(r.Context())
+	user, ok := auth.UserFromContext(r.Context())
 	if !ok || user == nil {
 		respondError(w, "unauthorized", "Authentication required", http.StatusUnauthorized)
 		return
@@ -227,7 +222,7 @@ func (h *GitHubHandlers) handleGetUsernameBySAML(w http.ResponseWriter, r *http.
 		return
 	}
 
-	username, err := h.githubClient.getUsernameBySamlIdentity(r.Context(), identity)
+	username, err := h.githubClient.GetUsernameBySamlIdentity(r.Context(), identity)
 	if err != nil {
 		slog.Error("Failed to lookup SAML identity", "error", err)
 		respondError(w, "github_error", "Failed to lookup SAML identity", http.StatusInternalServerError)
@@ -254,7 +249,7 @@ func (h *GitHubHandlers) handleGetUsernameBySAML(w http.ResponseWriter, r *http.
 // Cache: 1 hour (billing data updated daily)
 func (h *GitHubHandlers) handlePremiumRequestUsage(w http.ResponseWriter, r *http.Request) {
 	org := r.URL.Query().Get("org")
-	if org == "" || !isValidGitHubUsername(org) {
+	if org == "" || !auth.IsValidGitHubUsername(org) {
 		respondError(w, "invalid_parameter", "Invalid organization name", http.StatusBadRequest)
 		return
 	}
@@ -298,7 +293,7 @@ func (h *GitHubHandlers) handleRepositoryContributors(w http.ResponseWriter, r *
 	repo := r.URL.Query().Get("repo")
 	pathsJSON := r.URL.Query().Get("paths")
 
-	if owner == "" || !isValidGitHubUsername(owner) {
+	if owner == "" || !auth.IsValidGitHubUsername(owner) {
 		respondError(w, "invalid_parameter", "Invalid owner", http.StatusBadRequest)
 		return
 	}

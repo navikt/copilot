@@ -7,6 +7,8 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/navikt/copilot/apps/copilot-api/internal/auth"
 )
 
 func TestHighConsumerMonth(t *testing.T) {
@@ -87,7 +89,7 @@ func TestAdminTrendRoutesNeedAdmin(t *testing.T) {
 			want   int
 		}{{nil, http.StatusNotFound}, {[]string{group}, http.StatusOK}} {
 			req := httptest.NewRequest(http.MethodGet, path, nil)
-			req = req.WithContext(context.WithValue(req.Context(), userContextKey, &User{Groups: tc.groups}))
+			req = req.WithContext(context.WithValue(req.Context(), auth.UserContextKey, &auth.User{Groups: tc.groups}))
 			rec := httptest.NewRecorder()
 			router.ServeHTTP(rec, req)
 			if rec.Code != tc.want {

@@ -1,4 +1,6 @@
-package main
+// Package auth validates Azure AD tokens and resolves the caller's GitHub
+// identity.
+package auth
 
 import (
 	"context"
@@ -11,6 +13,7 @@ import (
 	"log/slog"
 	"math/big"
 	"net/http"
+	"os"
 	"slices"
 	"strings"
 	"sync"
@@ -18,18 +21,31 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+
+	"github.com/navikt/copilot/apps/copilot-api/internal/problem"
 )
 
 type contextKey string
 
-const userContextKey contextKey = "user"
+const UserContextKey contextKey = "user"
 
 const minRefreshInterval = 30 * time.Second
 
+// SAMLNameIDPath is the only route copilot-survey's token may call.
+const SAMLNameIDPath = "/internal/v1/saml/name-id"
+
 var authMiddlewareReady atomic.Bool
 
-func init() {
-	authMiddlewareReady.Store(false)
+// Ready reports whether Middleware has a working token validator.
+func Ready() bool { return authMiddlewareReady.Load() }
+
+// Config is the Azure AD configuration the middleware needs.
+type Config struct {
+	Environment       string
+	AzureIssuer       string
+	AzureClientID     string
+	AzureJWKSURI      string
+	PreAuthorizedApps string
 }
 
 // User represents an authenticated user from Azure AD token
@@ -46,10 +62,10 @@ type User struct {
 	Roles []string `json:"roles,omitempty"`
 }
 
-// isAppToken reports whether the token is an app's own (M2M), not a user's:
+// IsAppToken reports whether the token is an app's own (M2M), not a user's:
 // idtyp app or the access_as_application role, and no NAVident or e-mail.
 // Only such a token may assert a user with X-On-Behalf-Of.
-func (u *User) isAppToken() bool {
+func (u *User) IsAppToken() bool {
 	return (u.Idtyp == "app" || slices.Contains(u.Roles, "access_as_application")) &&
 		u.NAVident == "" && u.Email == ""
 }
@@ -225,7 +241,7 @@ type TokenValidator struct {
 	preAuthorizedApps map[string]bool
 }
 
-func newTokenValidator(config *Config) (*TokenValidator, error) {
+func newTokenValidator(config Config) (*TokenValidator, error) {
 	if config.AzureIssuer == "" || config.AzureClientID == "" || config.AzureJWKSURI == "" {
 		return nil, errors.New("azure AD configuration incomplete")
 	}
@@ -350,8 +366,8 @@ func getStringClaim(claims jwt.MapClaims, key string) string {
 	return ""
 }
 
-// extractBearerToken extracts the Bearer token from Authorization header
-func extractBearerToken(r *http.Request) (string, error) {
+// ExtractBearerToken extracts the Bearer token from Authorization header
+func ExtractBearerToken(r *http.Request) (string, error) {
 	authHeader := r.Header.Get("Authorization")
 	if authHeader == "" {
 		return "", errors.New("authorization header missing")
@@ -386,19 +402,22 @@ func validateAudience(rawAudience interface{}, expectedAudience string) bool {
 	return false
 }
 
-// makeAuthMiddleware creates authentication middleware
-func makeAuthMiddleware(config *Config) func(http.Handler) http.Handler {
+// Middleware creates authentication middleware
+func Middleware(config Config) func(http.Handler) http.Handler {
 	// In development without Azure config, allow requests through
 	if config.Environment == "local" && config.AzureIssuer == "" {
 		authMiddlewareReady.Store(true)
 		// The mock user's email drives SAML-based username resolution (e.g. the budget
 		// endpoint). Make it configurable so local dev can resolve a real GitHub identity.
-		devEmail := getEnv("DEV_USER_EMAIL", "dev@nav.no")
+		devEmail := os.Getenv("DEV_USER_EMAIL")
+		if devEmail == "" {
+			devEmail = "dev@nav.no"
+		}
 		slog.Warn("Running in development mode without Azure AD validation", "devUserEmail", devEmail)
 		return func(next http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				// Mock user for development
-				ctx := context.WithValue(r.Context(), userContextKey, &User{
+				ctx := context.WithValue(r.Context(), UserContextKey, &User{
 					Email:             devEmail,
 					Name:              "Developer User",
 					NAVident:          "DEV001",
@@ -418,7 +437,7 @@ func makeAuthMiddleware(config *Config) func(http.Handler) http.Handler {
 		// Return middleware that rejects all requests
 		return func(next http.Handler) http.Handler {
 			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				respondError(w, "authentication_unavailable", "Authentication service unavailable", http.StatusServiceUnavailable)
+				problem.Respond(w, "authentication_unavailable", "Authentication service unavailable", http.StatusServiceUnavailable)
 			})
 		}
 	}
@@ -427,45 +446,45 @@ func makeAuthMiddleware(config *Config) func(http.Handler) http.Handler {
 	// Every match, even when ambiguous: the fence fails closed. A parse error
 	// cannot happen here, newTokenValidator already parsed the same JSON.
 	surveyClientIDs, _ := clientIDsForApp(config.PreAuthorizedApps, "copilot-survey")
-	return bearerAuth(validator.validate, surveyClientIDs)
+	return BearerAuth(validator.validate, surveyClientIDs)
 }
 
-// bearerAuth validates the bearer token and puts its user in the context.
+// BearerAuth validates the bearer token and puts its user in the context.
 //
 // copilot-survey is pre-authorized for POST /internal/v1/saml/name-id only,
 // but Nais inbound access is pod-wide, so its tokens are refused (403) on
 // every other path. The name-id route also logs no identity.
-func bearerAuth(validate func(string) (*User, error), surveyClientIDs []string) func(http.Handler) http.Handler {
+func BearerAuth(validate func(string) (*User, error), surveyClientIDs []string) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			token, err := extractBearerToken(r)
+			token, err := ExtractBearerToken(r)
 			if err != nil {
-				respondError(w, "unauthorized", err.Error(), http.StatusUnauthorized)
+				problem.Respond(w, "unauthorized", err.Error(), http.StatusUnauthorized)
 				return
 			}
 
 			user, err := validate(token)
 			if err != nil {
-				slog.Warn("Token validation failed", "error", logSafe(err.Error()), "path", logSafe(redactPath(r.URL.Path)))
-				respondError(w, "unauthorized", "Invalid or expired token", http.StatusUnauthorized)
+				slog.Warn("Token validation failed", "error", logSafe(err.Error()), "path", logSafe(RedactPath(r.URL.Path)))
+				problem.Respond(w, "unauthorized", "Invalid or expired token", http.StatusUnauthorized)
 				return
 			}
 
-			if r.URL.Path != samlNameIDPath {
+			if r.URL.Path != SAMLNameIDPath {
 				if slices.Contains(surveyClientIDs, user.AZP) {
-					respondError(w, "forbidden", "copilot-survey may only call POST "+samlNameIDPath, http.StatusForbidden)
+					problem.Respond(w, "forbidden", "copilot-survey may only call POST "+SAMLNameIDPath, http.StatusForbidden)
 					return
 				}
 			}
 
-			ctx := context.WithValue(r.Context(), userContextKey, user)
+			ctx := context.WithValue(r.Context(), UserContextKey, user)
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
 }
 
-// getUserFromContext extracts the authenticated user from request context
-func getUserFromContext(ctx context.Context) (*User, bool) {
-	user, ok := ctx.Value(userContextKey).(*User)
+// UserFromContext extracts the authenticated user from request context
+func UserFromContext(ctx context.Context) (*User, bool) {
+	user, ok := ctx.Value(UserContextKey).(*User)
 	return user, ok
 }

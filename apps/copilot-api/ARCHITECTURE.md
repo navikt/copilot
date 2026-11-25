@@ -13,7 +13,7 @@ Before this architecture, every per-user handler contained inline branching logi
 if isCopilotCLI(user.AZP) {
     username = r.Header.Get("X-On-Behalf-Of")
 } else {
-    username, _ = github.getUsernameBySamlIdentity(user.Email)
+    username, _ = github.GetUsernameBySamlIdentity(user.Email)
 }
 ```
 

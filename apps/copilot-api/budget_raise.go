@@ -24,6 +24,8 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/navikt/copilot/apps/copilot-api/internal/auth"
 )
 
 // Personal budget and self-service raises. Design: copilot-intern
@@ -232,7 +234,7 @@ func (l *loginLimiter) allow(login string, now time.Time) bool {
 // callerLogin is the only source of identity: the auth and identity
 // middleware. Body and query never name the caller.
 func callerLogin(r *http.Request) (string, bool) {
-	id, ok := GetResolvedIdentity(r.Context())
+	id, ok := auth.GetResolvedIdentity(r.Context())
 	if !ok || id.GitHubUsername == "" {
 		return "", false
 	}
