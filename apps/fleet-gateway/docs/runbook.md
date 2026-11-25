@@ -218,7 +218,7 @@ The global kill-switch drill took 56 s in prod with the same command, so expect 
 
 ## SLO
 
-Proposed defaults (#2893), pending owner approval. Window: one calendar month.
+Proposed defaults (#2893), pending owner approval of the targets. Window: one calendar month.
 
 | SLO | Target | Error budget |
 | --- | --- | --- |
@@ -228,7 +228,7 @@ Proposed defaults (#2893), pending owner approval. Window: one calendar month.
 
 **Availability** reads `fleet_gateway_mcp_requests_total{route,outcome}`; it is the only request counter with a route label.
 
-- Counts as bad (the gateway's own fault): `store_error`, `upstream_token_error`, `over_capacity`, `sse_over_capacity`.
+- Counts as bad (the gateway's own fault): `store_error`, `upstream_token_error`, `over_capacity`, `sse_over_capacity`. The capacity outcomes count because we set the capacity (decided 2026-11-25).
 - Does not count: `upstream_error` and `upstream_unexpected_sse` (the MCP server failed), `disabled` (kill switch, left out of the total too), `stream_error` (200 already sent), client errors (`unauthorized`, `bad_request`, `tool_denied`, `user_cap`, `user_sse_cap`, `payload_too_large`, `response_too_large`, `upstream_access_missing` and the other 4xx outcomes).
 
 ```promql
@@ -238,10 +238,10 @@ Proposed defaults (#2893), pending owner approval. Window: one calendar month.
 )
 ```
 
-**Latency** reads `fleet_gateway_mcp_request_duration_seconds{route}`. No metric isolates the gateway's own overhead: the histogram includes token exchange and the upstream, and SSE streams count until they end. This is therefore end-to-end p95, and long SSE streams push it up. A separate overhead histogram is a follow-up if the number proves useless.
+**Latency**: end-to-end p95 under 1 s for normal tool calls, SSE streams excluded (decided 2026-11-25). `fleet_gateway_mcp_request_duration_seconds` has only a `route` label and times SSE streams until they end, so it cannot exclude them yet. Until #2973 adds a label for that, this SLO is documented here but neither measured nor alerted on. The query once the label exists (label name to be settled in #2973):
 
 ```promql
-histogram_quantile(0.95, sum by (route, le) (rate(fleet_gateway_mcp_request_duration_seconds_bucket{namespace="copilot"}[30d])))
+histogram_quantile(0.95, sum by (route, le) (rate(fleet_gateway_mcp_request_duration_seconds_bucket{namespace="copilot", kind!="sse"}[30d])))
 ```
 
 **5xx rate** reads `fleet_gateway_http_requests_total{code,reason}`. It has no route label, so it is gateway-wide. Deliberate 503s carry a non-empty `reason` (kill switch, caps, store quota, concurrent refresh) and do not count. Upstream 502s cannot be told apart in this counter and do count.
