@@ -1,0 +1,78 @@
+package survey
+
+import (
+	"net/http"
+	"slices"
+	"strconv"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
+)
+
+// submissions counts answers per survey and status (201, 409, 503, …), the
+// signal for alerts on error ratio and bursts. No identity, ever.
+var submissions = promauto.NewCounterVec(prometheus.CounterOpts{
+	Name: "survey_submissions_total",
+	Help: "Survey submissions by survey id and HTTP status.",
+}, []string{"survey", "status"})
+
+// unexpectedNameIDs counts nav-pilot submissions whose SAML nameId is not
+// an @nav.no address. The web hashes the Entra preferred_username, which is
+// @nav.no, so such a nameId would give the same person a second answer. No
+// label and no identity: only how often it happens.
+var unexpectedNameIDs = promauto.NewCounter(prometheus.CounterOpts{
+	Name: "survey_cli_nameid_unexpected_domain_total",
+	Help: "nav-pilot survey submissions whose SAML nameId is not an @nav.no address.",
+})
+
+type statusRecorder struct {
+	http.ResponseWriter
+	status int
+}
+
+func (s *statusRecorder) WriteHeader(code int) {
+	s.status = code
+	s.ResponseWriter.WriteHeader(code)
+}
+
+// makeRouter wires the probes, the public definitions and schema, and the signed-in
+// submit route. No ingress: only copilot-cli and my-copilot reach it
+// (accessPolicy.inbound).
+func makeRouter(auth *authenticator, surveys *surveyAPI) http.Handler {
+	mux := http.NewServeMux()
+	ok := func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte("OK")) }
+	mux.HandleFunc("GET /health", ok)
+	mux.HandleFunc("GET /ready", ok)
+	mux.Handle("GET /metrics", metricsHandler())
+
+	mux.HandleFunc("GET /api/v1/surveys/active", surveys.active)
+	mux.HandleFunc("GET /api/v1/surveys/schema", surveys.schema)
+	mux.HandleFunc("GET /api/v1/surveys/published", webUserOnly(auth, surveys.publishedList))
+	mux.HandleFunc("GET /api/v1/surveys/published/compare", webUserOnly(auth, surveys.publishedCompare))
+	mux.HandleFunc("GET /api/v1/surveys/{id}/results", webUserOnly(auth, surveys.publishedResults))
+	mux.HandleFunc("GET /api/v1/surveys/{id}/status", authMiddleware(auth, surveys.status))
+	submit := authMiddleware(auth, surveys.submit)
+	mux.HandleFunc("POST /api/v1/surveys/{id}/responses", func(w http.ResponseWriter, r *http.Request) {
+		rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
+		submit(rec, r)
+		label := "unknown"
+		if id := r.PathValue("id"); slices.ContainsFunc(surveys.surveys, func(s survey) bool { return s.ID == id }) {
+			label = id
+		}
+		submissions.WithLabelValues(label, strconv.Itoa(rec.status)).Inc()
+	})
+
+	// Every admin route lives under /api/v1/admin/ and passes adminOnly once.
+	admin := http.NewServeMux()
+	admin.HandleFunc("GET /api/v1/admin/surveys", surveys.list)
+	admin.HandleFunc("GET /api/v1/admin/surveys/{id}/results", surveys.results)
+	admin.HandleFunc("GET /api/v1/admin/surveys/compare", surveys.compare)
+	admin.HandleFunc("GET /api/v1/admin/surveys/{id}/freetext", surveys.freetext)
+	admin.HandleFunc("POST /api/v1/admin/surveys/{id}/freetext/hide", surveys.hideFreetext)
+	admin.HandleFunc("GET /api/v1/admin/surveys/{id}/freetext/coding", surveys.coding)
+	admin.HandleFunc("POST /api/v1/admin/surveys/{id}/freetext/coding", surveys.saveCoding)
+	admin.HandleFunc("POST /api/v1/admin/surveys/{id}/freetext/coding/model", surveys.importModelCodes)
+	admin.HandleFunc("GET /api/v1/admin/surveys/{id}/export.csv", surveys.exportCSV)
+	mux.Handle("/api/v1/admin/", adminOnly(auth, admin))
+	return mux
+}
