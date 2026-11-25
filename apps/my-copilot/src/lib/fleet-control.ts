@@ -110,7 +110,7 @@ export class FleetControlError extends Error {
   }
 }
 
-/** The pages are 404 unless FLEET_CONTROL_URL is set (dev only for now). */
+/** The pages are 404 unless FLEET_CONTROL_URL is set. */
 export function requireFleet(): string {
   const url = process.env.FLEET_CONTROL_URL;
   if (!url) notFound();
