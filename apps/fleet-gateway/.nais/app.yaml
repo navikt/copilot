@@ -224,6 +224,40 @@ spec:
             description: Deliberate 503s (kill switch, in-flight cap, store quota, concurrent refresh) carry a non-empty reason label and are not counted.
             consequence: Users get errors on login or MCP calls.
             action: "Break down `fleet_gateway_mcp_requests_total` by route and outcome, then read the `audit mcp` log lines for that route."
+        - alert: FleetGatewayAvailabilityBurnFast
+          expr: |
+            (sum by (route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome=~"store_error|upstream_token_error|over_capacity|sse_over_capacity"}[1h]))
+              / sum by (route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome!="disabled"}[1h]))) > 0.072
+            and (sum by (route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome=~"store_error|upstream_token_error|over_capacity|sse_over_capacity"}[5m]))
+              / sum by (route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome!="disabled"}[5m]))) > 0.072
+            and sum by (route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome!="disabled"}[5m])) > 20
+          labels:
+            namespace: copilot
+            severity: critical
+            alert_type: custom
+            app: fleet-gateway
+          annotations:
+            summary: "A route (see the route label) burns its monthly 99.5 % availability budget 14.4 times too fast (1 h and 5 min)"
+            consequence: Users get 5xx from the gateway itself on this route. Upstream errors and the kill switch are not counted.
+            action: "Break down `fleet_gateway_mcp_requests_total` by outcome for the route, then follow the runbook."
+            runbook_url: https://github.com/navikt/copilot/blob/main/apps/fleet-gateway/docs/runbook.md#availability-burn-rate
+        - alert: FleetGatewayAvailabilityBurnSlow
+          expr: |
+            (sum by (route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome=~"store_error|upstream_token_error|over_capacity|sse_over_capacity"}[6h]))
+              / sum by (route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome!="disabled"}[6h]))) > 0.03
+            and (sum by (route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome=~"store_error|upstream_token_error|over_capacity|sse_over_capacity"}[30m]))
+              / sum by (route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome!="disabled"}[30m]))) > 0.03
+            and sum by (route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome!="disabled"}[30m])) > 20
+          labels:
+            namespace: copilot
+            severity: warning
+            alert_type: custom
+            app: fleet-gateway
+          annotations:
+            summary: "A route (see the route label) burns its monthly 99.5 % availability budget 6 times too fast (6 h and 30 min)"
+            consequence: Users get 5xx from the gateway itself on this route. Upstream errors and the kill switch are not counted.
+            action: "Break down `fleet_gateway_mcp_requests_total` by outcome for the route, then follow the runbook."
+            runbook_url: https://github.com/navikt/copilot/blob/main/apps/fleet-gateway/docs/runbook.md#availability-burn-rate
         - alert: FleetGatewaySustainedShedding
           expr: sum by (reason) (increase(fleet_gateway_http_requests_total{namespace="copilot", code="503", reason=~"store_full|cap"}[5m])) > 5
           for: 15m

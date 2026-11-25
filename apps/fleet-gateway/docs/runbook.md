@@ -216,6 +216,50 @@ kubectl --context prod-gcp -n copilot rollout status deploy/fleet-gateway
 
 The global kill-switch drill took 56 s in prod with the same command, so expect about 1 min. The setting does not survive the next deploy: revert the PR from step 5 at once. While the file is the source, routes registered or changed in fleet-control after seeding are not served; they stay in fleet-control and come back at the next switch. Before switching again, run the diff and decide per difference whether the file or fleet-control is right.
 
+## SLO
+
+Proposed defaults (#2893), pending owner approval. Window: one calendar month.
+
+| SLO | Target | Error budget |
+| --- | --- | --- |
+| Availability per route | 99.5 % | 0.5 % of requests, about 3.6 h of full outage per month |
+| Latency per route, p95 | below 1 s | 5 % of requests may be slower |
+| Gateway 5xx rate | below 1 % | 1 % of responses |
+
+**Availability** reads `fleet_gateway_mcp_requests_total{route,outcome}`; it is the only request counter with a route label.
+
+- Counts as bad (the gateway's own fault): `store_error`, `upstream_token_error`, `over_capacity`, `sse_over_capacity`.
+- Does not count: `upstream_error` and `upstream_unexpected_sse` (the MCP server failed), `disabled` (kill switch, left out of the total too), `stream_error` (200 already sent), client errors (`unauthorized`, `bad_request`, `tool_denied`, `user_cap`, `user_sse_cap`, `payload_too_large`, `response_too_large`, `upstream_access_missing` and the other 4xx outcomes).
+
+```promql
+1 - (
+  sum by (route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome=~"store_error|upstream_token_error|over_capacity|sse_over_capacity"}[30d]))
+  / sum by (route) (increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome!="disabled"}[30d]))
+)
+```
+
+**Latency** reads `fleet_gateway_mcp_request_duration_seconds{route}`. No metric isolates the gateway's own overhead: the histogram includes token exchange and the upstream, and SSE streams count until they end. This is therefore end-to-end p95, and long SSE streams push it up. A separate overhead histogram is a follow-up if the number proves useless.
+
+```promql
+histogram_quantile(0.95, sum by (route, le) (rate(fleet_gateway_mcp_request_duration_seconds_bucket{namespace="copilot"}[30d])))
+```
+
+**5xx rate** reads `fleet_gateway_http_requests_total{code,reason}`. It has no route label, so it is gateway-wide. Deliberate 503s carry a non-empty `reason` (kill switch, caps, store quota, concurrent refresh) and do not count. Upstream 502s cannot be told apart in this counter and do count.
+
+```promql
+sum(increase(fleet_gateway_http_requests_total{namespace="copilot", code=~"5..", reason=""}[30d]))
+  / sum(increase(fleet_gateway_http_requests_total{namespace="copilot"}[30d]))
+```
+
+### Availability burn rate
+
+Two alerts on the availability SLO, both per route and both requiring at least 20 requests in the short window:
+
+- `FleetGatewayAvailabilityBurnFast`: error ratio above 7.2 % (14.4 times budget) over both 1 h and 5 min. At that rate 2 % of the month's budget is gone in an hour.
+- `FleetGatewayAvailabilityBurnSlow`: error ratio above 3 % (6 times budget) over both 6 h and 30 min. 5 % of the budget is gone in six hours.
+
+What to do: break `fleet_gateway_mcp_requests_total` down by `outcome` for the route in the alert. `store_error` means Postgres (see "Postgres outage or loss"). `upstream_token_error` means token exchange with Entra ID fails; search pod logs for `audit mcp` lines with that outcome. `over_capacity` or `sse_over_capacity` means the in-flight cap is hit; look for a slow upstream holding requests.
+
 ## Contacts
 
 - Owner: team copilot (placeholder: on-call rota and phone, to be filled in).
