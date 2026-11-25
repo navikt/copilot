@@ -433,3 +433,33 @@ func TestSetRoutesSource(t *testing.T) {
 		}
 	}
 }
+
+// A disabled route without tools is accepted and answers 503 (#2734); one with
+// tools still set never forwards either.
+func TestRouteSyncDisabledRouteNeedsNoTools(t *testing.T) {
+	cases := map[string]func(r map[string]any){
+		"missing tools": func(r map[string]any) { delete(r, "tools") },
+		"null tools":    func(r map[string]any) { r["tools"] = nil },
+		"empty tools":   func(r map[string]any) { r["tools"] = []string{} },
+		"tools set":     func(map[string]any) {},
+	}
+	for name, mutate := range cases {
+		t.Run(name, func(t *testing.T) {
+			f := newFakeFleetControl(t)
+			gw, src := fleetControlGateway(t, f)
+			off := snapRoute("alpha")
+			off["enabled"] = false
+			mutate(off)
+			f.body = snapBody(1, primaryRoute(), off)
+			gw.syncRoutes(context.Background(), src)
+			if got := routePaths(gw); len(got) != 2 || !gw.table().Routes[1].Disabled() {
+				t.Fatalf("snapshot with disabled route not applied: %v", got)
+			}
+			rec := httptest.NewRecorder()
+			gw.routes().ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/mcp/copilot/alpha", strings.NewReader(`{}`)))
+			if rec.Code != http.StatusServiceUnavailable {
+				t.Fatalf("disabled route = %d, want 503", rec.Code)
+			}
+		})
+	}
+}
