@@ -6,5 +6,7 @@ replicas_max: "2"
 cpu_request: 50m
 memory_request: 64Mi
 memory_limit: 128Mi
+# Same headroom as dev (#3000).
+gomemlimit: 115MiB
 # Caller client ids come from AZURE_APP_PRE_AUTHORIZED_APPS, which Nais fills
 # from accessPolicy.inbound. No agent seed and no static team list in prod.
