@@ -1,4 +1,6 @@
-package main
+// Package canon computes the v1 contentHash: SHA-256 over RFC 8785 (JCS)
+// canonical JSON.
+package canon
 
 import (
 	"bytes"
@@ -13,28 +15,28 @@ import (
 	"unicode/utf8"
 )
 
-// hashPrefix names the canonicalisation behind a contentHash. A new field
+// Prefix names the canonicalisation behind a contentHash. A new field
 // with a default, or any other change to canonical form, gets a new prefix;
 // stored hashes are never recomputed.
-const hashPrefix = "v1:sha256:"
+const Prefix = "v1:sha256:"
 
-// specHash is the v1 contentHash of v: SHA-256 over its RFC 8785 (JCS) form.
+// Hash is the v1 contentHash of v: SHA-256 over its RFC 8785 (JCS) form.
 // The caller has normalised v (defaults filled in, sets sorted).
-func specHash(v any) (string, error) {
+func Hash(v any) (string, error) {
 	raw, err := jcs(v)
 	if err != nil {
 		return "", err
 	}
 	sum := sha256.Sum256(raw)
-	return hashPrefix + hex.EncodeToString(sum[:]), nil
+	return Prefix + hex.EncodeToString(sum[:]), nil
 }
 
-// specHashes returns v's hash under every canonicalisation this build knows.
+// Hashes returns v's hash under every canonicalisation this build knows.
 // Hashes compare only as whole strings, so a hash with another prefix never
 // matches. Blocking by content checks every hash in this list, so blocked
 // v1 content stays blocked once v2 exists: v2 code keeps computing v1 too.
-func specHashes(v any) ([]string, error) {
-	h, err := specHash(v)
+func Hashes(v any) ([]string, error) {
+	h, err := Hash(v)
 	return []string{h}, err
 }
 

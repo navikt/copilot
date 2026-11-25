@@ -11,6 +11,8 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
+
+	"github.com/navikt/copilot/fleet-control/internal/canon"
 )
 
 // TypedRef points at another resource, as targetRefs in Gateway API.
@@ -153,7 +155,7 @@ func validateProfileSpec(spec AgentProfileSpec) (AgentProfileSpec, error) {
 // grantHash covers what the server's owner team sees: identity, mode,
 // quota and their one grant (owner decision 13).
 func grantHash(spec AgentProfileSpec, g AgentGrantV1) (string, error) {
-	return specHash(struct {
+	return canon.Hash(struct {
 		Identity AgentIdentityV1 `json:"identity"`
 		Mode     string          `json:"mode"`
 		Quota    AgentQuotaV1    `json:"quota"`
@@ -742,7 +744,7 @@ func (d *DB) submitProfile(ctx context.Context, c caller, m ObjectMeta, spec Age
 }
 
 func (d *DB) insertProfileGeneration(ctx context.Context, c caller, m ObjectMeta, spec AgentProfileSpec, verified, create bool) error {
-	hashes, err := specHashes(spec)
+	hashes, err := canon.Hashes(spec)
 	if err != nil {
 		return err
 	}
@@ -866,7 +868,7 @@ func (d *DB) grantProfile(ctx context.Context, c caller, ns, name string, gen in
 		switch {
 		case !ok || i < 0:
 			return conflict("serverRef", "FieldValueNotFound", "generation %d grants nothing on %s", gen, ref.key())
-		case want != hash || !strings.HasPrefix(hash, hashPrefix):
+		case want != hash || !strings.HasPrefix(hash, canon.Prefix):
 			return conflict("contentHash", "FieldValueInvalid", "contentHash does not match the grant on %s", ref.key())
 		case g.SubKind != "User" || g.SubOid == nil:
 			return stErr(http.StatusForbidden, "Forbidden", "the pending generation has no person as submitter; a person must submit it again")
