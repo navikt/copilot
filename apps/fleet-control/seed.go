@@ -14,37 +14,9 @@ import (
 	"strings"
 
 	"gopkg.in/yaml.v3"
+
+	"github.com/navikt/copilot/fleet-control/internal/model"
 )
-
-// Route is a fleet-gateway route. Path is /mcp/<namespace>/<name>.
-type Route struct {
-	Path        string   `json:"path"`
-	Target      string   `json:"target"`
-	UpstreamURL string   `json:"upstream_url"`
-	Enabled     bool     `json:"enabled"`
-	Tools       []string `json:"tools"`
-	// ToolRisk is spec.toolRisk resolved with spec.defaultRisk (#2967); a
-	// tool without an entry is write (#2903).
-	ToolRisk map[string]string `json:"tool_risk,omitempty"`
-}
-
-// Server is one published server version: a registry entry, a route, or both.
-type Server struct {
-	Namespace    string          `json:"namespace"`
-	Name         string          `json:"name"`
-	RegistryName string          `json:"registryName,omitempty"`
-	Registry     json.RawMessage `json:"registry,omitempty"`
-	Route        *Route          `json:"-"` // served only by /internal/v1/routes and the routes snapshot
-	Status       string          `json:"-"`
-	// DataClass is spec.dataCategory of the published generation; empty for
-	// generations written before 005 or by /admin/v1.
-	DataClass string `json:"-"`
-	// gatewayPath is the route a registry entry's gateway remote points to.
-	gatewayPath string
-}
-
-// Key is the server's identity, "<namespace>/<name>".
-func (s Server) Key() string { return s.Namespace + "/" + s.Name }
 
 var (
 	dnsLabelRegex   = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$`)
@@ -75,8 +47,8 @@ type routesFile struct {
 
 // seedServers turns today's Git files into servers. Both files are untrusted
 // input: every name, URL and tool is validated, and any error stops the seed.
-func seedServers(routesYAML, allowlistJSON []byte) ([]Server, error) {
-	byKey := map[string]*Server{}
+func seedServers(routesYAML, allowlistJSON []byte) ([]model.Server, error) {
+	byKey := map[string]*model.Server{}
 
 	routes, err := parseRoutes(routesYAML)
 	if err != nil {
@@ -102,7 +74,7 @@ func seedServers(routesYAML, allowlistJSON []byte) ([]Server, error) {
 		seenRegistry[key] = e.RegistryName
 		if s := byKey[key]; s != nil {
 			// Join only through a gateway remote naming this exact route.
-			if s.Route == nil || e.gatewayPath != s.Route.Path {
+			if s.Route == nil || e.GatewayPath != s.Route.Path {
 				return nil, fmt.Errorf("registry entry %q maps to %s, which a route already uses without a gateway remote to it", e.RegistryName, key)
 			}
 			s.RegistryName, s.Registry = e.RegistryName, e.Registry
@@ -111,16 +83,16 @@ func seedServers(routesYAML, allowlistJSON []byte) ([]Server, error) {
 		byKey[key] = &e
 	}
 
-	out := make([]Server, 0, len(byKey))
+	out := make([]model.Server, 0, len(byKey))
 	for _, s := range byKey {
 		s.Status = "published"
 		out = append(out, *s)
 	}
-	slices.SortFunc(out, func(a, b Server) int { return strings.Compare(a.Key(), b.Key()) })
+	slices.SortFunc(out, func(a, b model.Server) int { return strings.Compare(a.Key(), b.Key()) })
 	return out, nil
 }
 
-func parseRoutes(raw []byte) ([]Server, error) {
+func parseRoutes(raw []byte) ([]model.Server, error) {
 	var doc routesFile
 	dec := yaml.NewDecoder(bytes.NewReader(raw))
 	dec.KnownFields(true)
@@ -137,7 +109,7 @@ func parseRoutes(raw []byte) ([]Server, error) {
 	if len(doc.Routes) == 0 {
 		return nil, errors.New("routes file has no routes")
 	}
-	out := make([]Server, 0, len(doc.Routes))
+	out := make([]model.Server, 0, len(doc.Routes))
 	for _, r := range doc.Routes {
 		ns, name, err := splitRoutePath(r.Route)
 		if err != nil {
@@ -159,7 +131,7 @@ func parseRoutes(raw []byte) ([]Server, error) {
 		if err := validateTools(r.Tools); err != nil {
 			return nil, fmt.Errorf("route %q: %w", r.Route, err)
 		}
-		out = append(out, Server{Namespace: ns, Name: name, Route: &Route{
+		out = append(out, model.Server{Namespace: ns, Name: name, Route: &model.Route{
 			Path: r.Route, Target: r.Target, UpstreamURL: r.UpstreamURL,
 			Enabled: r.Enabled == nil || *r.Enabled, Tools: r.Tools,
 		}})
@@ -228,7 +200,7 @@ func validateUpstreamURL(raw, ns string) error {
 // fleet-gateway are dropped (owner decision on #2334). Entries without a
 // fleet-gateway remote are skipped: they live only in the catalogue
 // (owner decision 2026-11-25).
-func parseAllowlist(raw []byte) ([]Server, error) {
+func parseAllowlist(raw []byte) ([]model.Server, error) {
 	var doc struct {
 		Servers []json.RawMessage `json:"servers"`
 	}
@@ -238,13 +210,13 @@ func parseAllowlist(raw []byte) ([]Server, error) {
 	if len(doc.Servers) == 0 {
 		return nil, errors.New("allowlist has no servers")
 	}
-	out := make([]Server, 0, len(doc.Servers))
+	out := make([]model.Server, 0, len(doc.Servers))
 	for i, rawEntry := range doc.Servers {
 		s, err := parseRegistryEntry(rawEntry)
 		if err != nil {
 			return nil, fmt.Errorf("allowlist server[%d]: %w", i, err)
 		}
-		if s.gatewayPath == "" {
+		if s.GatewayPath == "" {
 			continue
 		}
 		out = append(out, s)
@@ -252,26 +224,26 @@ func parseAllowlist(raw []byte) ([]Server, error) {
 	return out, nil
 }
 
-func parseRegistryEntry(raw json.RawMessage) (Server, error) {
+func parseRegistryEntry(raw json.RawMessage) (model.Server, error) {
 	var entry map[string]any
 	dec := json.NewDecoder(bytes.NewReader(raw))
 	dec.UseNumber()
 	if err := dec.Decode(&entry); err != nil {
-		return Server{}, err
+		return model.Server{}, err
 	}
 	name, _ := entry["name"].(string)
 	if len(name) < 3 || len(name) > 200 || !serverNameRegex.MatchString(name) {
-		return Server{}, fmt.Errorf("invalid name %q", name)
+		return model.Server{}, fmt.Errorf("invalid name %q", name)
 	}
 	if v, ok := entry["websiteUrl"].(string); ok {
 		if err := validatePublicURL(v, false); err != nil {
-			return Server{}, fmt.Errorf("%s: websiteUrl: %w", name, err)
+			return model.Server{}, fmt.Errorf("%s: websiteUrl: %w", name, err)
 		}
 	}
 	if repo, ok := entry["repository"].(map[string]any); ok {
 		v, _ := repo["url"].(string)
 		if err := validatePublicURL(v, false); err != nil {
-			return Server{}, fmt.Errorf("%s: repository.url: %w", name, err)
+			return model.Server{}, fmt.Errorf("%s: repository.url: %w", name, err)
 		}
 	}
 
@@ -285,10 +257,10 @@ func parseRegistryEntry(raw json.RawMessage) (Server, error) {
 			if rest, ok := strings.CutPrefix(u, gatewayRemotePrefix); ok {
 				var err error
 				if gatewayPath != "" {
-					return Server{}, fmt.Errorf("%s: more than one gateway remote", name)
+					return model.Server{}, fmt.Errorf("%s: more than one gateway remote", name)
 				}
 				if ns, short, err = splitRoutePath(rest); err != nil {
-					return Server{}, fmt.Errorf("%s: gateway remote %q: %w", name, u, err)
+					return model.Server{}, fmt.Errorf("%s: gateway remote %q: %w", name, u, err)
 				}
 				gatewayPath = rest
 				kept = append(kept, r)
@@ -299,20 +271,20 @@ func parseRegistryEntry(raw json.RawMessage) (Server, error) {
 				continue
 			}
 			if err := validatePublicURL(u, true); err != nil {
-				return Server{}, fmt.Errorf("%s: remote: %w", name, err)
+				return model.Server{}, fmt.Errorf("%s: remote: %w", name, err)
 			}
 			kept = append(kept, r)
 		}
 		entry["remotes"] = kept
 	}
 	if !dnsLabelRegex.MatchString(short) {
-		return Server{}, fmt.Errorf("%s: derived server name %q is not a DNS label", name, short)
+		return model.Server{}, fmt.Errorf("%s: derived server name %q is not a DNS label", name, short)
 	}
 	body, err := json.Marshal(entry)
 	if err != nil {
-		return Server{}, err
+		return model.Server{}, err
 	}
-	return Server{Namespace: ns, Name: short, RegistryName: name, Registry: body, gatewayPath: gatewayPath}, nil
+	return model.Server{Namespace: ns, Name: short, RegistryName: name, Registry: body, GatewayPath: gatewayPath}, nil
 }
 
 // validatePublicURL allows https on port 443 to a public DNS name, and plain

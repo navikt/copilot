@@ -6,6 +6,8 @@ import (
 	"os"
 	"sync"
 	"testing"
+
+	"github.com/navikt/copilot/fleet-control/internal/model"
 )
 
 const testIssuer = "https://login.microsoftonline.com/test-tenant/v2.0"
@@ -96,12 +98,12 @@ func TestRealPostgresSeedAndSnapshot(t *testing.T) {
 	errs := make(chan error, 10)
 	for i := range 10 {
 		wg.Go(func() {
-			_, pubErr := db.Publish(ctx, "registry", func(kind string, servers []Server, prev *Snapshot) (*Snapshot, error) {
+			_, pubErr := db.Publish(ctx, "registry", func(kind string, servers []model.Server, prev *model.Snapshot) (*model.Snapshot, error) {
 				next, buildErr := buildSnapshot(kind, servers, prev)
 				if buildErr != nil {
 					return nil, buildErr
 				}
-				return &Snapshot{Kind: kind, Generation: prev.Generation + 1, ETag: fmt.Sprint(next.ETag, i), Items: next.Items}, nil
+				return &model.Snapshot{Kind: kind, Generation: prev.Generation + 1, ETag: fmt.Sprint(next.ETag, i), Items: next.Items}, nil
 			})
 			errs <- pubErr
 		})

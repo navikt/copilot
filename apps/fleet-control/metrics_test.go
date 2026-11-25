@@ -10,6 +10,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/testutil"
 
 	"github.com/navikt/copilot/fleet-control/internal/metrics"
+	"github.com/navikt/copilot/fleet-control/internal/model"
 )
 
 func TestHTTPMetricsUseRoutePattern(t *testing.T) {
@@ -80,7 +81,7 @@ func TestConsoleMetrics(t *testing.T) {
 
 func TestSnapshotMetrics(t *testing.T) {
 	srv := newServer()
-	srv.store.Store(&storeBox{&fakeStore{servers: testServers(2), snapshots: map[string]*Snapshot{}}})
+	srv.store.Store(&storeBox{&fakeStore{servers: testServers(2), snapshots: map[string]*model.Snapshot{}}})
 	metrics.SnapshotLastSuccess.WithLabelValues("routes").Set(0)
 	metrics.SnapshotBytes.WithLabelValues("routes").Set(0)
 	if rec := get(t, srv.routes(testAuthz(t), "", nil, nil), "/internal/v1/snapshots/routes", ""); rec.Code != http.StatusOK {

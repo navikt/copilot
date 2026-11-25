@@ -13,6 +13,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/navikt/copilot/fleet-control/internal/metrics"
+	"github.com/navikt/copilot/fleet-control/internal/model"
 )
 
 // routes registers the API. The app has no ingress: accessPolicy.inbound
@@ -92,7 +93,7 @@ func (s *server) snapshot(w http.ResponseWriter, r *http.Request, kind string) {
 // resolve builds the current snapshot; on failure it falls back to the last
 // good one in memory, then to the one stored in the database. What it serves
 // becomes lastGood, which never moves to a lower generation.
-func (s *server) resolve(ctx context.Context, kind string) (*Snapshot, error) {
+func (s *server) resolve(ctx context.Context, kind string) (*model.Snapshot, error) {
 	last := s.lastGood[kind]
 	box := s.store.Load()
 	if box == nil {
@@ -130,7 +131,7 @@ func (s *server) resolve(ctx context.Context, kind string) (*Snapshot, error) {
 
 // storeIfNewer sets p to snap unless p already holds a higher generation, or
 // the same one checked no earlier, and returns what p holds afterwards.
-func storeIfNewer(p *atomic.Pointer[Snapshot], snap *Snapshot) *Snapshot {
+func storeIfNewer(p *atomic.Pointer[model.Snapshot], snap *model.Snapshot) *model.Snapshot {
 	for {
 		cur := p.Load()
 		if cur != nil && (cur.Generation > snap.Generation || cur.Generation == snap.Generation && !snap.CheckedAt.After(cur.CheckedAt)) {

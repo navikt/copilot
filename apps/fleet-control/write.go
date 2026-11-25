@@ -13,6 +13,8 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5"
+
+	"github.com/navikt/copilot/fleet-control/internal/model"
 )
 
 // Write API (#2625, #2626). A team member submits a draft version, a second
@@ -35,8 +37,8 @@ type draftSpec struct {
 
 // validateDraft applies the seed's validation to hostile input and returns
 // the server it describes.
-func validateDraft(cluster, ns, name string, spec draftSpec) (Server, error) {
-	s := Server{Namespace: ns, Name: name}
+func validateDraft(cluster, ns, name string, spec draftSpec) (model.Server, error) {
+	s := model.Server{Namespace: ns, Name: name}
 	if spec.Route == nil && len(spec.Registry) == 0 {
 		return s, errors.New("registry or route is required")
 	}
@@ -66,7 +68,7 @@ func validateDraft(cluster, ns, name string, spec draftSpec) (Server, error) {
 		if err := validateTools(r.Tools); err != nil {
 			return s, fmt.Errorf("route: %w", err)
 		}
-		s.Route = &Route{Path: "/mcp/" + ns + "/" + name, Target: r.Target, UpstreamURL: r.UpstreamURL, Enabled: r.Enabled == nil || *r.Enabled, Tools: r.Tools}
+		s.Route = &model.Route{Path: "/mcp/" + ns + "/" + name, Target: r.Target, UpstreamURL: r.UpstreamURL, Enabled: r.Enabled == nil || *r.Enabled, Tools: r.Tools}
 	}
 	if len(spec.Registry) > 0 {
 		// mcp-registry rejects the whole snapshot without these.
@@ -88,14 +90,14 @@ func validateDraft(cluster, ns, name string, spec draftSpec) (Server, error) {
 		}
 		// Without a gateway remote the parser defaults the namespace to
 		// copilot; the owning namespace is then the authenticated path's.
-		if e.gatewayPath == "" {
+		if e.GatewayPath == "" {
 			e.Namespace = ns
 		}
 		if e.Namespace != ns || e.Name != name {
 			return s, fmt.Errorf("registry: entry %q maps to %s, not %s", e.RegistryName, e.Key(), s.Key())
 		}
 		// As in the seed: a registry entry joins a route only through a gateway remote to it.
-		if (s.Route == nil) != (e.gatewayPath == "") {
+		if (s.Route == nil) != (e.GatewayPath == "") {
 			return s, errors.New("registry: a gateway remote needs a route, and a route needs a gateway remote")
 		}
 		s.RegistryName, s.Registry = e.RegistryName, e.Registry

@@ -5,6 +5,8 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/navikt/copilot/fleet-control/internal/model"
 )
 
 func readSeedFiles(t *testing.T, env string) (routes, allowlist []byte) {
@@ -30,7 +32,7 @@ func TestSeedRealFiles(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			byKey := map[string]Server{}
+			byKey := map[string]model.Server{}
 			for _, s := range servers {
 				byKey[s.Key()] = s
 			}

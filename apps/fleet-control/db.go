@@ -16,6 +16,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/navikt/copilot/fleet-control/internal/metrics"
+	"github.com/navikt/copilot/fleet-control/internal/model"
 	"github.com/navikt/copilot/fleet-control/internal/store"
 )
 
@@ -122,7 +123,7 @@ func (d *DB) migrateTo(ctx context.Context, last string) error {
 // only runs on an empty servers table, so a second run, or a run after the
 // database has become the source of truth, changes nothing. It reports
 // whether it imported.
-func (d *DB) Seed(ctx context.Context, servers []Server, source string) (bool, error) {
+func (d *DB) Seed(ctx context.Context, servers []model.Server, source string) (bool, error) {
 	seeded := false
 	err := pgx.BeginFunc(ctx, d.pool, func(tx pgx.Tx) error {
 		if _, err := tx.Exec(ctx, "SELECT pg_advisory_xact_lock($1)", lockKey); err != nil {
@@ -170,7 +171,7 @@ func (d *DB) Seed(ctx context.Context, servers []Server, source string) (bool, e
 }
 
 // Servers returns every server at its published version, revoked ones included.
-func (d *DB) Servers(ctx context.Context) ([]Server, error) { return queryServers(ctx, d.pool) }
+func (d *DB) Servers(ctx context.Context) ([]model.Server, error) { return queryServers(ctx, d.pool) }
 
 // querier is a pool or a transaction.
 type querier interface {
@@ -178,7 +179,7 @@ type querier interface {
 	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
 }
 
-func queryServers(ctx context.Context, q querier) ([]Server, error) {
+func queryServers(ctx context.Context, q querier) ([]model.Server, error) {
 	rows, err := q.Query(ctx, `
 		SELECT s.namespace, s.name, COALESCE(s.registry_name, ''), s.status,
 		       v.registry::text, v.route_path, v.target, v.upstream_url, v.enabled, v.tools,
@@ -189,8 +190,8 @@ func queryServers(ctx context.Context, q querier) ([]Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (Server, error) {
-		var s Server
+	return pgx.CollectRows(rows, func(row pgx.CollectableRow) (model.Server, error) {
+		var s model.Server
 		var registry, path, target, upstream *string
 		var enabled bool
 		var tools []string
@@ -203,25 +204,25 @@ func queryServers(ctx context.Context, q querier) ([]Server, error) {
 			s.Registry = json.RawMessage(*registry)
 		}
 		if path != nil {
-			s.Route = &Route{Path: *path, Target: *target, UpstreamURL: *upstream, Enabled: enabled, Tools: tools}
+			s.Route = &model.Route{Path: *path, Target: *target, UpstreamURL: *upstream, Enabled: enabled, Tools: tools}
 			if toolRisk != nil {
 				if err := json.Unmarshal([]byte(*toolRisk), &s.Route.ToolRisk); err != nil {
 					return s, fmt.Errorf("%s/%s: spec.toolRisk: %w", s.Namespace, s.Name, err)
 				}
 			}
-			s.Route.ToolRisk = resolveToolRisk(tools, s.Route.ToolRisk, defaultRisk)
+			s.Route.ToolRisk = model.ResolveToolRisk(tools, s.Route.ToolRisk, defaultRisk)
 		}
 		return s, nil
 	})
 }
 
 // LatestSnapshot returns the newest stored snapshot of kind, or nil.
-func (d *DB) LatestSnapshot(ctx context.Context, kind string) (*Snapshot, error) {
+func (d *DB) LatestSnapshot(ctx context.Context, kind string) (*model.Snapshot, error) {
 	return latestSnapshot(ctx, d.pool, kind)
 }
 
-func latestSnapshot(ctx context.Context, q querier, kind string) (*Snapshot, error) {
-	s := Snapshot{Kind: kind}
+func latestSnapshot(ctx context.Context, q querier, kind string) (*model.Snapshot, error) {
+	s := model.Snapshot{Kind: kind}
 	var body string
 	err := q.QueryRow(ctx, `SELECT generation, etag, body::text FROM snapshots WHERE kind = $1 ORDER BY generation DESC LIMIT 1`, kind).Scan(&s.Generation, &s.ETag, &body)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -252,8 +253,8 @@ func snapshotLockKey(kind string) int64 {
 }
 
 // Publish implements snapshotStore.
-func (d *DB) Publish(ctx context.Context, kind string, build func(string, []Server, *Snapshot) (*Snapshot, error)) (*Snapshot, error) {
-	var out *Snapshot
+func (d *DB) Publish(ctx context.Context, kind string, build func(string, []model.Server, *model.Snapshot) (*model.Snapshot, error)) (*model.Snapshot, error) {
+	var out *model.Snapshot
 	err := pgx.BeginFunc(ctx, d.pool, func(tx pgx.Tx) error {
 		if _, err := tx.Exec(ctx, "SELECT pg_advisory_xact_lock($1)", snapshotLockKey(kind)); err != nil {
 			return err

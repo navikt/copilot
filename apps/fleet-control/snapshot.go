@@ -8,20 +8,9 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
-	"time"
-)
 
-// Snapshot is one published generation of a kind ("routes" or "registry").
-// Items is the JSON array served to consumers.
-type Snapshot struct {
-	Kind       string
-	Generation int64
-	ETag       string
-	Items      json.RawMessage
-	// CheckedAt is when this replica last confirmed the snapshot is the
-	// newest in the database. Served as checked_at; zero means never served.
-	CheckedAt time.Time
-}
+	"github.com/navikt/copilot/fleet-control/internal/model"
+)
 
 // snapshotItem is a routes or registry snapshot element; Key identifies it for
 // the shrink guard and is not served.
@@ -37,10 +26,10 @@ type routeItem struct {
 	// a consumer that enforces data classes must then treat it as the highest (#2896).
 	Cluster   string `json:"cluster"`
 	DataClass string `json:"data_class,omitempty"`
-	Route
+	model.Route
 }
 
-func newRouteItem(s Server, r Route) routeItem {
+func newRouteItem(s model.Server, r model.Route) routeItem {
 	cluster, _, _ := strings.Cut(r.Target, ":")
 	return routeItem{s.Namespace, s.Name, cluster, s.DataClass, r}
 }
@@ -49,7 +38,7 @@ var errEmptySnapshot = errors.New("snapshot would be empty")
 
 // snapshotItems returns the published items of kind and the keys of revoked
 // servers. Registry items expose only the public server.json entry.
-func snapshotItems(kind string, servers []Server) (items []snapshotItem, revoked map[string]bool, err error) {
+func snapshotItems(kind string, servers []model.Server) (items []snapshotItem, revoked map[string]bool, err error) {
 	revoked = map[string]bool{}
 	for _, s := range servers {
 		var it snapshotItem
@@ -93,7 +82,7 @@ func snapshotItems(kind string, servers []Server) (items []snapshotItem, revoked
 // one (nil if none). It fails closed: an empty result is rejected, and so is
 // one that drops more than max(3, 20 %) of the previous keys for any reason
 // other than a revoke.
-func buildSnapshot(kind string, servers []Server, prev *Snapshot) (*Snapshot, error) {
+func buildSnapshot(kind string, servers []model.Server, prev *model.Snapshot) (*model.Snapshot, error) {
 	items, revoked, err := snapshotItems(kind, servers)
 	if err != nil {
 		return nil, err
@@ -127,7 +116,7 @@ func buildSnapshot(kind string, servers []Server, prev *Snapshot) (*Snapshot, er
 	sum := sha256.Sum256(raw)
 	etag := hex.EncodeToString(sum[:])
 	if prev == nil {
-		return &Snapshot{Kind: kind, Generation: 1, ETag: etag, Items: raw}, nil
+		return &model.Snapshot{Kind: kind, Generation: 1, ETag: etag, Items: raw}, nil
 	}
 	if prev.ETag == etag {
 		return prev, nil
@@ -145,7 +134,7 @@ func buildSnapshot(kind string, servers []Server, prev *Snapshot) (*Snapshot, er
 	if limit := max(3, len(prevKeys)/5); removed > limit {
 		return nil, fmt.Errorf("%s snapshot would drop %d of %d entries (limit %d)", kind, removed, len(prevKeys), limit)
 	}
-	return &Snapshot{Kind: kind, Generation: prev.Generation + 1, ETag: etag, Items: raw}, nil
+	return &model.Snapshot{Kind: kind, Generation: prev.Generation + 1, ETag: etag, Items: raw}, nil
 }
 
 // maxRoutesSnapshotBytes keeps the routes snapshot under fleet-gateway's
@@ -162,7 +151,7 @@ var maxTeamRoutesBytes = 64 << 10
 // team's budget is checked, so a team over budget cannot block other teams.
 // Writes that can grow the snapshot call it before they commit, so the
 // published snapshot never reaches a size that stops all later updates.
-func routesFit(servers []Server, ns string) error {
+func routesFit(servers []model.Server, ns string) error {
 	snap, err := buildSnapshot("routes", servers, nil)
 	if errors.Is(err, errEmptySnapshot) {
 		return nil
