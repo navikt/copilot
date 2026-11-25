@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -12,9 +13,12 @@ type gradleFixture struct {
 	root   string
 	calls  []string
 	stored bool
+	json   string // answer to `get --json`; "" means older cplt (exit 2)
 	answer bool
 	asked  int
 }
+
+var prevRunCpltConfig = runCpltConfig
 
 func newGradleFixture(t *testing.T, files map[string]string) *gradleFixture {
 	t.Helper()
@@ -40,6 +44,12 @@ func newGradleFixture(t *testing.T, files map[string]string) *gradleFixture {
 	askTrustReview = func(p string) bool { f.asked++; return f.answer }
 	runCpltConfig = func(dir string, args ...string) (string, error) {
 		f.calls = append(f.calls, strings.Join(args, " "))
+		if args[0] == "get" && args[1] == "--json" {
+			if f.json == "" {
+				return "error: unexpected argument '--json'\n", errors.New("exit status 2")
+			}
+			return f.json, nil
+		}
 		if args[0] == "get" && !f.stored {
 			return "false\n[cplt] (default, not set in config file)\n", nil
 		}
@@ -69,7 +79,7 @@ func TestGradleLocalhostStoresAnswer(t *testing.T) {
 		f := newGradleFixture(t, map[string]string{"build.gradle.kts": ""})
 		f.answer = tc.answer
 		maybeGradleLocalhost(f.root)
-		if f.asked != 1 || len(f.calls) != 2 || f.calls[1] != "set --local sandbox.allow_localhost_any "+tc.want {
+		if f.asked != 1 || f.calls[len(f.calls)-1] != "set --local sandbox.allow_localhost_any "+tc.want {
 			t.Errorf("answer %v: asked %d, calls %q", tc.answer, f.asked, f.calls)
 		}
 	}
@@ -97,6 +107,69 @@ func TestGradleLocalhostSkips(t *testing.T) {
 				if strings.HasPrefix(c, "set") {
 					t.Errorf("changed config: %q", c)
 				}
+			}
+		})
+	}
+}
+
+func TestGradleLocalhostJSON(t *testing.T) {
+	const k = `"key":"sandbox.allow_localhost_any"`
+	for _, tc := range []struct {
+		name, json string
+		stored     bool // the text fallback's answer
+		ask        bool
+	}{
+		{"unset", `{"schema":1,` + k + `,"value":false,"source":"default","set":false}`, true, true},
+		{"set local", `{"schema":1,` + k + `,"value":false,"source":"local","set":true}`, false, false},
+		{"set by preset", `{"schema":1,` + k + `,"value":false,"source":"user","set":true,"preset":"strict"}`, false, false},
+		{"older cplt, text says default", "", false, true},
+		{"older cplt, text says stored", "", true, false},
+		{"schema 2 falls back", `{"schema":2,` + k + `,"set":false}`, true, false},
+		{"other key falls back", `{"schema":1,"key":"sandbox.quiet","set":false}`, true, false},
+		{"no set field falls back", `{"schema":1,` + k + `}`, true, false},
+		{"garbage falls back", `false`, true, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newGradleFixture(t, map[string]string{"gradlew": ""})
+			f.json, f.stored = tc.json, tc.stored
+			maybeGradleLocalhost(f.root)
+			if (f.asked == 1) != tc.ask {
+				t.Errorf("asked %d, want ask=%v; calls %q", f.asked, tc.ask, f.calls)
+			}
+		})
+	}
+}
+
+// Crosses the exec seam once with a fake cplt script: exit 3 (unsupported
+// key) must keep the text check, and a JSON "set":true must stop the prompt.
+func TestGradleLocalhostFakeCpltScript(t *testing.T) {
+	for _, tc := range []struct {
+		name, jsonBranch string
+		ask              bool
+	}{
+		{"exit 3 keeps text check", `exit 3`, true},
+		{"json set", `echo '{"schema":1,"key":"sandbox.allow_localhost_any","value":true,"source":"local","set":true}'`, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := newGradleFixture(t, map[string]string{"gradlew": ""})
+			runCpltConfig = prevRunCpltConfig
+			dir := t.TempDir()
+			log := filepath.Join(dir, "set.log")
+			script := "#!/bin/sh\n" +
+				"if [ \"$1 $2 $3\" = \"config get --json\" ]; then " + tc.jsonBranch + "; exit 0; fi\n" +
+				"if [ \"$1 $2\" = \"config get\" ]; then echo false; echo '[cplt] (default, not set in config file)' >&2; exit 0; fi\n" +
+				"echo \"$*\" >> " + log + "\n"
+			if err := os.WriteFile(filepath.Join(dir, "cplt"), []byte(script), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+			maybeGradleLocalhost(f.root)
+			if (f.asked == 1) != tc.ask {
+				t.Fatalf("asked %d, want ask=%v", f.asked, tc.ask)
+			}
+			got, _ := os.ReadFile(log)
+			if tc.ask != strings.Contains(string(got), "config set --local sandbox.allow_localhost_any false") {
+				t.Errorf("set log %q", got)
 			}
 		})
 	}

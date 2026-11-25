@@ -2,6 +2,12 @@
 
 Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, prompts og samlinger.
 
+## 2026-11-25
+
+### Localhost-spørsmålet bruker cplts JSON-svar
+
+- **cplt**: Før nav-pilot spør om localhost i et Gradle-repo, sjekker den nå med `cplt config get --json sandbox.allow_localhost_any` om svaret allerede er bestemt, også når en preset har satt det. nav-pilot spør bare når `set` er `false`. Med eldre cplt, eller når svaret ikke kan leses, sjekker nav-pilot som før (#2874).
+
 ## 2026-11-24
 
 ### Gradle-repoer spør om localhost én gang
