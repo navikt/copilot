@@ -74,5 +74,5 @@ func makeRouter(auth *authenticator, surveys *surveyAPI) http.Handler {
 	admin.HandleFunc("POST /api/v1/admin/surveys/{id}/freetext/coding/model", surveys.importModelCodes)
 	admin.HandleFunc("GET /api/v1/admin/surveys/{id}/export.csv", surveys.exportCSV)
 	mux.Handle("/api/v1/admin/", adminOnly(auth, admin))
-	return mux
+	return httpMetrics(mux)
 }
