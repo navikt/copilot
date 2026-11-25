@@ -9,13 +9,11 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/navikt/copilot/fleet-control/internal/auth"
 )
 
 const adminID = "44444444-4444-4444-4444-444444444444"
 
-var testTeams = auth.StaticTeams{"team-a": {"A111111", "A222222"}, "team-b": {"B111111"}}
+var testTeams = staticTeams{"team-a": {"A111111", "A222222"}, "team-b": {"B111111"}}
 
 func userTok(ident string) string { return "user:" + adminID + ":" + ident }
 
@@ -113,7 +111,7 @@ func TestAdminGuardsFailClosed(t *testing.T) {
 		"not a member":       {h, path, userTok("B111111"), 403},
 		"team lookup fails":  {srv.routes(testAuthz(t), adminID, failingTeams{}, nil), path, userTok("A111111"), 503},
 		"database down":      {h, path, userTok("A111111"), 503},
-		"unset static teams": {srv.routes(testAuthz(t), adminID, auth.StaticTeams{}, nil), path, userTok("A111111"), 403},
+		"unset static teams": {srv.routes(testAuthz(t), adminID, staticTeams{}, nil), path, userTok("A111111"), 403},
 	}
 	for name, c := range cases {
 		if rec := do(t, c.h, http.MethodPut, c.path, c.tok, `{"scope":"team","on":false}`); rec.Code != c.want {

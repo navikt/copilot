@@ -22,7 +22,7 @@ const nsBase = apisPrefix + "/namespaces/"
 
 // Every person below has an oid from testOid. A111111 is in two teams, so
 // it can be both submitter and server owner.
-var apisTeams = auth.StaticTeams{
+var apisTeams = staticTeams{
 	"team-a":       {"A111111", "A222222"},
 	"copilot":      {"A111111", "C222222"},
 	"aksel-studio": {"A111111", "A555555"},
@@ -770,7 +770,7 @@ func TestRealPostgresToolRiskSnapshot(t *testing.T) {
 
 // fakeApps is a team directory that can also list Nais applications.
 type fakeApps struct {
-	auth.StaticTeams
+	staticTeams
 	apps []auth.TeamApp
 	err  error
 }
@@ -793,7 +793,7 @@ func TestListTeamApps(t *testing.T) {
 	if _, _, err = call(ct, caller{Teams: []string{"team-b"}}); err != errV1NotFound {
 		t.Fatalf("non-member must get 404, got %v", err)
 	}
-	_, _, err = call(auth.StaticTeams{"team-a": {"x@nav.no"}}, caller{Teams: []string{"team-a"}})
+	_, _, err = call(staticTeams{"team-a": {"x@nav.no"}}, caller{Teams: []string{"team-a"}})
 	if se, ok := err.(*statusError); !ok || se.code != http.StatusServiceUnavailable {
 		t.Fatalf("no Console must be 503, got %v", err)
 	}
@@ -813,4 +813,22 @@ func TestListTeamAppsHidesConsoleError(t *testing.T) {
 	if w.Code != http.StatusServiceUnavailable || strings.Contains(w.Body.String(), "kari") || strings.Contains(w.Body.String(), "allowed") {
 		t.Fatalf("%d %s", w.Code, w.Body.String())
 	}
+}
+
+// staticTeams is a test team directory: team -> member ids.
+type staticTeams map[string][]string
+
+func (s staticTeams) IsMember(_ context.Context, team, id string) (bool, error) {
+	return slices.Contains(s[team], id), nil
+}
+
+func (s staticTeams) Teams(_ context.Context, id string) ([]string, error) {
+	out := []string{}
+	for team, members := range s {
+		if slices.Contains(members, id) {
+			out = append(out, team)
+		}
+	}
+	slices.Sort(out)
+	return out, nil
 }
