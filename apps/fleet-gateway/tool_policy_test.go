@@ -23,8 +23,8 @@ func TestToolPolicy_Proxy(t *testing.T) {
 		name, body, reason string
 		code               int
 	}{
-		{"allowed", call("whoami"), policy.ReasonListed, http.StatusOK},
-		{"non-call", `{"jsonrpc":"2.0","id":1,"method":"tools/list"}`, policy.ReasonNotCall, http.StatusOK},
+		{"allowed", call("whoami"), "listed", http.StatusOK},
+		{"non-call", `{"jsonrpc":"2.0","id":1,"method":"tools/list"}`, "not_tools_call", http.StatusOK},
 		{"denied", call("delete_all"), policy.ReasonNotListed, http.StatusForbidden},
 		{"name case", call("WhoAmI"), policy.ReasonNotListed, http.StatusForbidden},
 		{"case-variant keys", `{"jsonrpc":"2.0","id":1,"Method":"tools/call","Params":{"Name":"delete_all"}}`, policy.ReasonAmbiguous, http.StatusBadRequest},
@@ -36,7 +36,7 @@ func TestToolPolicy_Proxy(t *testing.T) {
 		{"trailing data", call("whoami") + "\n" + call("delete_all"), policy.ReasonAmbiguous, http.StatusBadRequest},
 		{"unparseable", "\xef\xbb\xbf" + call("whoami"), policy.ReasonAmbiguous, http.StatusBadRequest},
 		{"truncated", call("whoami")[:30], policy.ReasonAmbiguous, http.StatusBadRequest},
-		{"batch allowed", "[" + call("whoami") + `,{"method":"notifications/initialized"}]`, policy.ReasonListed, http.StatusOK},
+		{"batch allowed", "[" + call("whoami") + `,{"method":"notifications/initialized"}]`, "listed", http.StatusOK},
 		{"batch mixed", "[" + call("whoami") + "," + call("delete_all") + "]", policy.ReasonNotListed, http.StatusForbidden},
 		{"batch ambiguous", "[" + call("whoami") + `,{"METHOD":"tools/call","params":{"name":"delete_all"}}]`, policy.ReasonAmbiguous, http.StatusBadRequest},
 		{"denied then trailing", call("delete_all") + "]", policy.ReasonAmbiguous, http.StatusBadRequest},
@@ -70,7 +70,7 @@ func TestToolPolicy_Proxy(t *testing.T) {
 
 func TestToolPolicy_PassAllRouteForwards(t *testing.T) {
 	audit, got, code := auditPostTools(t, nil, `{"method":"tools/call","params":{"name":"delete_all"}}`)
-	if code != http.StatusOK || got == nil || audit["decision"] != "allow" || audit["decision_reason"] != policy.ReasonPassAll {
+	if code != http.StatusOK || got == nil || audit["decision"] != "allow" || audit["decision_reason"] != "pass_all" {
 		t.Fatalf("pass-all route: code=%d forwarded=%v audit=%v/%v", code, got != nil, audit["decision"], audit["decision_reason"])
 	}
 }
@@ -83,7 +83,7 @@ func TestToolPolicy_NonPostBody(t *testing.T) {
 			t.Fatalf("%s with body: code=%d forwarded=%v decision=%v", m, code, got != nil, audit["decision"])
 		}
 		audit, _, code = auditTools(t, m, policyTools, "")
-		if code == http.StatusBadRequest || audit["decision"] != "allow" || audit["decision_reason"] != policy.ReasonNotCall {
+		if code == http.StatusBadRequest || audit["decision"] != "allow" || audit["decision_reason"] != "not_tools_call" {
 			t.Fatalf("%s without body: code=%d audit=%v/%v", m, code, audit["decision"], audit["decision_reason"])
 		}
 	}
