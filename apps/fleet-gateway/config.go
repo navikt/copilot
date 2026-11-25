@@ -125,6 +125,7 @@ type Config struct {
 	ProbeEnabled            bool
 	ProbeAllowedAzp         string // my-copilot's client id
 	ProbeTokenPath          string // Nais service account token for the Console team lookup
+	ProbeCluster            string // NAIS_CLUSTER_NAME, cluster of the probed apps' OBO targets
 	DCRClientTTL            time.Duration
 	DCRClientMaxAge         time.Duration
 	DCRClientCap            int
@@ -264,6 +265,7 @@ func loadConfigFromEnv() (*Config, error) {
 		ProbeEnabled:            probeEnabled,
 		ProbeAllowedAzp:         strings.TrimSpace(os.Getenv("PROBE_ALLOWED_AZP")),
 		ProbeTokenPath:          strings.TrimSpace(os.Getenv("NAIS_SERVICE_ACCOUNT_TOKEN_PATH")),
+		ProbeCluster:            strings.TrimSpace(os.Getenv("NAIS_CLUSTER_NAME")),
 		DCRClientTTL:            config.Duration("DCR_CLIENT_TTL", defaultDCRClientTTL),
 		DCRClientMaxAge:         config.Duration("DCR_CLIENT_MAX_AGE", defaultDCRClientMaxAge),
 		DCRClientCap:            config.Int("DCR_CLIENT_CAP", defaultDCRClientCap),
@@ -409,8 +411,11 @@ func validateConfig(cfg *Config) error {
 		if err := config.ValidateHTTPURL(cfg.TexasIntrospectEndpoint, false); err != nil {
 			return fmt.Errorf("PROBE_ENABLED needs a valid NAIS_TOKEN_INTROSPECTION_ENDPOINT: %w", err)
 		}
-		if cfg.ProbeAllowedAzp == "" || cfg.ProbeTokenPath == "" {
-			return errors.New("PROBE_ENABLED needs PROBE_ALLOWED_AZP and NAIS_SERVICE_ACCOUNT_TOKEN_PATH")
+		if err := config.ValidateHTTPURL(cfg.TexasExchangeEndpoint, false); err != nil {
+			return fmt.Errorf("PROBE_ENABLED needs a valid NAIS_TOKEN_EXCHANGE_ENDPOINT: %w", err)
+		}
+		if cfg.ProbeAllowedAzp == "" || cfg.ProbeTokenPath == "" || cfg.ProbeCluster == "" {
+			return errors.New("PROBE_ENABLED needs PROBE_ALLOWED_AZP, NAIS_SERVICE_ACCOUNT_TOKEN_PATH and NAIS_CLUSTER_NAME")
 		}
 	}
 	if cfg.AzureAuthorizeEndpoint == "" && cfg.AzureWellKnownURL == "" {

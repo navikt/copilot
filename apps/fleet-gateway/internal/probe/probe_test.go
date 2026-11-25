@@ -39,6 +39,7 @@ type fakeUpstream struct {
 	mu      sync.Mutex
 	methods []string
 	session []string
+	auth    []string
 }
 
 // newUpstream answers initialize and tools/list; tools is the tools/list result.
@@ -53,7 +54,12 @@ func newUpstream(t *testing.T, tools string) *fakeUpstream {
 		f.mu.Lock()
 		f.methods = append(f.methods, msg.Method)
 		f.session = append(f.session, r.Header.Get("Mcp-Session-Id"))
+		f.auth = append(f.auth, r.Header.Get("Authorization"))
 		f.mu.Unlock()
+		if msg.Method == "notifications/initialized" {
+			w.WriteHeader(http.StatusAccepted)
+			return
+		}
 		result := `{"protocolVersion":"2025-06-18","capabilities":{"tools":{}}}`
 		if msg.Method == "tools/list" {
 			result = tools
@@ -96,6 +102,20 @@ type opts struct {
 	texas   int
 	members Members
 	limit   int
+	targets *[]string // records each exchange target
+}
+
+// fakeExchange returns "obo:<target>" so tests can see which token went upstream.
+func fakeExchange(seen *[]string) Exchange {
+	return func(_ context.Context, userToken, target, _ string) (string, error) {
+		if userToken != "tok" {
+			return "", errors.New("wrong user token")
+		}
+		if seen != nil {
+			*seen = append(*seen, target)
+		}
+		return "obo:" + target, nil
+	}
 }
 
 // newHandler builds a handler whose upstream client may dial loopback (the
@@ -117,6 +137,7 @@ func newHandler(t *testing.T, up *fakeUpstream, o opts) *Handler {
 	h, err := New(Config{
 		IntrospectURL: newTexas(t, o.claims, o.texas), Issuer: testIssuer, Audience: testAud, AllowedAzp: testAzp,
 		Members: o.members, Limiter: ratelimit.New(o.limit, 1000, time.Minute, 100, func() time.Time { return testNow }),
+		Cluster: "dev-gcp", Exchange: fakeExchange(o.targets),
 		Now: func() time.Time { return testNow },
 	})
 	if err != nil {
@@ -145,13 +166,16 @@ func do(h http.Handler, token, body string) *httptest.ResponseRecorder {
 	return rec
 }
 
-const okBody = `{"team":"team-a","upstream_url":"http://app.team-a"}`
+// The fake validator maps the URL to the loopback test server, so the app
+// cannot come from the host and is given explicitly.
+const okBody = `{"team":"team-a","upstream_url":"http://app.team-a","app":"app"}`
 
 const twoTools = `{"tools":[{"name":"search","description":"d","annotations":{"readOnlyHint":true}},{"name":"get.item"}]}`
 
 func TestProbeListsTools(t *testing.T) {
 	up := newUpstream(t, twoTools)
-	rec := do(newHandler(t, up, opts{}), "tok", okBody)
+	var targets []string
+	rec := do(newHandler(t, up, opts{targets: &targets}), "tok", okBody)
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status %d: %s", rec.Code, rec.Body)
 	}
@@ -159,11 +183,19 @@ func TestProbeListsTools(t *testing.T) {
 	if err := json.Unmarshal(rec.Body.Bytes(), &out); err != nil || len(out.Tools) != 2 || out.Tools[0].Name != "search" {
 		t.Fatalf("tools = %+v, err %v", out.Tools, err)
 	}
-	if got := strings.Join(up.seen(), ","); got != "initialize,tools/list" {
-		t.Fatalf("upstream saw %q, want initialize,tools/list only", got)
+	if got := strings.Join(up.seen(), ","); got != "initialize,notifications/initialized,tools/list" {
+		t.Fatalf("upstream saw %q, want initialize,notifications/initialized,tools/list only", got)
 	}
-	if up.session[1] != "sess-1" {
-		t.Fatalf("tools/list session %q, want sess-1", up.session[1])
+	if up.session[1] != "sess-1" || up.session[2] != "sess-1" {
+		t.Fatalf("sessions %q, want sess-1 after initialize", up.session)
+	}
+	if strings.Join(targets, ",") != "dev-gcp:team-a:app" {
+		t.Fatalf("exchange targets %q, want dev-gcp:team-a:app", targets)
+	}
+	for _, a := range up.auth {
+		if a != "Bearer obo:dev-gcp:team-a:app" {
+			t.Fatalf("upstream Authorization %q, want the OBO token, never the caller's", a)
+		}
 	}
 }
 
@@ -304,11 +336,44 @@ func TestProbeDialGuard(t *testing.T) {
 	}
 }
 
+type failTransport struct{}
+
+func (failTransport) RoundTrip(*http.Request) (*http.Response, error) {
+	return nil, errors.New("no dial in test")
+}
+
+// The app for the token comes from the cluster DNS host; another app is refused.
+func TestProbeAppFromHost(t *testing.T) {
+	for name, tc := range map[string]struct {
+		body, target string
+		status       int
+	}{
+		"derived":        {`{"team":"team-a","upstream_url":"http://mcp.team-a"}`, "dev-gcp:team-a:mcp", 0},
+		"same app given": {`{"team":"team-a","upstream_url":"http://mcp.team-a","app":"mcp"}`, "dev-gcp:team-a:mcp", 0},
+		"other app":      {`{"team":"team-a","upstream_url":"http://mcp.team-a","app":"other"}`, "", http.StatusUnprocessableEntity},
+		"ingress no app": {`{"team":"team-a","upstream_url":"https://mcp.intern.dev.nav.no/mcp"}`, "", http.StatusUnprocessableEntity},
+		"ingress app":    {`{"team":"team-a","upstream_url":"https://mcp.intern.dev.nav.no/mcp","app":"mcp"}`, "dev-gcp:team-a:mcp", 0},
+	} {
+		t.Run(name, func(t *testing.T) {
+			var targets []string
+			h := newHandler(t, nil, opts{targets: &targets})
+			h.upstream = &http.Client{Transport: failTransport{}} // no DNS, no dial
+			rec := do(h, "tok", tc.body)
+			if tc.status != 0 && rec.Code != tc.status {
+				t.Fatalf("status %d, want %d: %s", rec.Code, tc.status, rec.Body)
+			}
+			if strings.Join(targets, ",") != tc.target {
+				t.Fatalf("exchange targets %q, want %q", targets, tc.target)
+			}
+		})
+	}
+}
+
 func TestProbeForwardsOnlyInitializeAndToolsList(t *testing.T) {
 	up := newUpstream(t, twoTools)
 	h := newHandler(t, up, opts{})
-	for _, m := range []string{"tools/call", "resources/read", "notifications/initialized"} {
-		if _, _, err := h.call(context.Background(), up.URL, "", 1, m, nil); err == nil {
+	for _, m := range []string{"tools/call", "resources/read", "notifications/cancelled"} {
+		if _, _, err := h.call(context.Background(), up.URL, "t", "", 1, m, nil); err == nil {
 			t.Fatalf("%s forwarded", m)
 		}
 	}
@@ -325,7 +390,7 @@ func TestProbeRefusesOversizedResponse(t *testing.T) {
 		t.Fatalf("status %d, want 502", rec.Code)
 	}
 	// The cap itself, not a JSON error from a truncated body.
-	if _, _, err := h.call(context.Background(), up.URL, "", 1, "tools/list", nil); err == nil || !strings.Contains(err.Error(), "bytes") {
+	if _, _, err := h.call(context.Background(), up.URL, "t", "", 1, "tools/list", nil); err == nil || !strings.Contains(err.Error(), "bytes") {
 		t.Fatalf("err %v, want the size cap", err)
 	}
 }

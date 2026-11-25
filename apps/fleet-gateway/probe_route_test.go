@@ -23,9 +23,13 @@ func TestProbeOffByDefault(t *testing.T) {
 	cfg := *te.gw.cfg
 	cfg.ProbeEnabled = true
 	if err := validateConfig(&cfg); err == nil {
-		t.Fatal("PROBE_ENABLED without PROBE_ALLOWED_AZP and token path must fail validation")
+		t.Fatal("PROBE_ENABLED without PROBE_ALLOWED_AZP, token path and cluster must fail validation")
 	}
 	cfg.ProbeAllowedAzp, cfg.ProbeTokenPath = "my-copilot-client-id", "/var/run/secrets/nais.io/serviceaccount/token"
+	if err := validateConfig(&cfg); err == nil {
+		t.Fatal("PROBE_ENABLED without NAIS_CLUSTER_NAME must fail validation")
+	}
+	cfg.ProbeCluster = "dev-gcp"
 	if err := validateConfig(&cfg); err != nil {
 		t.Fatalf("validateConfig: %v", err)
 	}

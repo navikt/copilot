@@ -30,6 +30,7 @@ import (
 	"github.com/navikt/copilot/fleet-gateway/internal/proxy"
 	"github.com/navikt/copilot/fleet-gateway/internal/ratelimit"
 	"github.com/navikt/copilot/fleet-gateway/internal/routing"
+	"github.com/navikt/copilot/fleet-gateway/internal/teamtoken"
 	"github.com/navikt/copilot/fleet-gateway/internal/ttlmap"
 )
 
@@ -152,7 +153,12 @@ func newGateway(cfg *Config, now func() time.Time) (*Gateway, error) {
 			Audience: cfg.AzureClientID, AllowedAzp: cfg.ProbeAllowedAzp,
 			Members: probe.NewConsoleTeams(cfg.ProbeTokenPath),
 			Limiter: ratelimit.New(probeRateLimit, probeRateLimitGlobal, time.Minute, cfg.RateLimitCap, now),
-			Now:     now,
+			Cluster: cfg.ProbeCluster,
+			// The same Texas OBO exchange as a route, so the target sees a normal gateway token.
+			Exchange: func(ctx context.Context, userToken, target, app string) (string, error) {
+				return teamtoken.ExchangeOBO(ctx, cfg.HTTPClient, cfg.TexasExchangeEndpoint, target, app, userToken)
+			},
+			Now: now,
 		})
 		if err != nil {
 			if ownedStore {
