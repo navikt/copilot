@@ -807,9 +807,14 @@ func (d *DB) insertProfileGeneration(ctx context.Context, c caller, m ObjectMeta
 		if c.Oid != "" {
 			oid = &c.Oid
 		}
+		// Written as both entra_client_id and {issuer, subject} (#2896).
+		if entraIssuer == "" {
+			return stErr(http.StatusServiceUnavailable, "ServiceUnavailable", "the identity issuer is not configured")
+		}
 		if _, err := tx.Exec(ctx, `INSERT INTO agent_profile_generations (namespace, name, generation, spec, spec_hash, entra_client_id, submitted_by, submitted_by_kind,
-			submitted_by_oid, identity_verified_at, grant_hashes) VALUES ($1, $2, $3, $4::jsonb, $5, $6::uuid, $7, $8, $9::uuid, CASE WHEN $10 THEN now() END, $11::jsonb)`,
-			ns, name, gen, string(specJSON), hash, spec.Identity.EntraClientID, c.Ident, c.actor().Kind, oid, verified, string(hashJSON)); err != nil {
+			submitted_by_oid, identity_verified_at, grant_hashes, identity_issuer, identity_subject)
+			VALUES ($1, $2, $3, $4::jsonb, $5, $6::uuid, $7, $8, $9::uuid, CASE WHEN $10 THEN now() END, $11::jsonb, $12, $13)`,
+			ns, name, gen, string(specJSON), hash, spec.Identity.EntraClientID, c.Ident, c.actor().Kind, oid, verified, string(hashJSON), entraIssuer, spec.Identity.EntraClientID); err != nil {
 			return err
 		}
 		if _, err := tx.Exec(ctx, `UPDATE agent_profile_resources SET pending_generation = $3 WHERE namespace = $1 AND name = $2`, ns, name, gen); err != nil {

@@ -357,3 +357,32 @@ func (d *DB) PruneAudit(ctx context.Context) (int64, error) {
 	})
 	return n, err
 }
+
+// entraIssuer is the Entra issuer (AZURE_OPENID_CONFIG_ISSUER) stored with
+// Entra identities. Empty: writes that need it are refused (#2896).
+var entraIssuer string
+
+// BackfillIdentity fills {issuer, subject} on rows written before 012 or by
+// an older pod, which writes only entra_client_id and the ” orderer
+// sentinels. It runs on every start and changes nothing without an issuer.
+func (d *DB) BackfillIdentity(ctx context.Context, issuer string) (int64, error) {
+	if issuer == "" {
+		return 0, nil
+	}
+	var n int64
+	err := pgx.BeginFunc(ctx, d.pool, func(tx pgx.Tx) error {
+		tag, err := tx.Exec(ctx, `UPDATE agent_profile_generations SET identity_issuer = $1, identity_subject = entra_client_id::text
+			WHERE identity_subject IS NULL AND entra_client_id IS NOT NULL`, issuer)
+		if err != nil {
+			return err
+		}
+		n = tag.RowsAffected()
+		// A delegated job has both orderer_client_id and orderer_subject; a
+		// person via my-copilot has neither and keeps NULL.
+		tag, err = tx.Exec(ctx, `UPDATE runtime_jobs SET orderer_issuer = $1, orderer_client = orderer_client_id, orderer_sub = orderer_subject
+			WHERE orderer_client IS NULL AND orderer_client_id <> '' AND orderer_subject <> ''`, issuer)
+		n += tag.RowsAffected()
+		return err
+	})
+	return n, err
+}

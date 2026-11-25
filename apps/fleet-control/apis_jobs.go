@@ -318,6 +318,11 @@ func createJobV1(w http.ResponseWriter, r *http.Request, c caller, db *DB) error
 		return err
 	}
 	client, subject := ordererKey(c)
+	// A delegated orderer is stored as {issuer, client, subject}; refuse
+	// rather than write a job whose orderer cannot be named (#2896).
+	if client != "" && (entraIssuer == "" || subject == "") {
+		return stErr(http.StatusServiceUnavailable, "ServiceUnavailable", "the orderer's issuer or subject is unknown")
+	}
 	// The name check comes before the kill switch: a retry of a job that
 	// exists gets it back even while the switch is on.
 	existing := func() error {
@@ -354,11 +359,12 @@ func createJobV1(w http.ResponseWriter, r *http.Request, c caller, db *DB) error
 			return stErr(http.StatusServiceUnavailable, "ServiceUnavailable", "the kill switch is on for %s", ns)
 		}
 		insErr := tx.QueryRow(ctx, `INSERT INTO runtime_jobs (team, kind, params, on_expiry, max_attempts, created_by, created_by_kind, created_by_client_id, created_by_oid,
-				name, submitted_spec, orderer_client_id, orderer_subject, agent_profile_generation)
-			VALUES ($1, $2, $3::jsonb, $4, $5, $6, $7, NULLIF($8, ''), $9::uuid, $10, $11::jsonb, $8, $12, $13)
+				name, submitted_spec, orderer_client_id, orderer_subject, agent_profile_generation, orderer_issuer, orderer_client, orderer_sub)
+			VALUES ($1, $2, $3::jsonb, $4, $5, $6, $7, NULLIF($8, ''), $9::uuid, $10, $11::jsonb, $8, $12, $13,
+				CASE WHEN $8 <> '' THEN $14 END, NULLIF($8, ''), CASE WHEN $8 <> '' THEN $12 END)
 			ON CONFLICT (team, orderer_client_id, orderer_subject, name) WHERE name IS NOT NULL DO NOTHING RETURNING id`,
 			ns, spec.Type, string(spec.Params), strings.ToLower(spec.OnExpiry), spec.MaxAttempts, actor.Name, actor.Kind, client, c.Oid,
-			name, string(specJSON), subject, p.Generation).Scan(&id)
+			name, string(specJSON), subject, p.Generation, entraIssuer).Scan(&id)
 		if insErr != nil {
 			return insErr
 		}
