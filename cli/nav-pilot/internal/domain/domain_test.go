@@ -9,8 +9,6 @@ import (
 	"testing"
 )
 
-// --- ValidateModelValue ---
-
 func TestValidateModelValue(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -40,8 +38,6 @@ func TestValidateModelValue(t *testing.T) {
 	}
 }
 
-// --- ValidateOptionalModel ---
-
 func TestValidateOptionalModel(t *testing.T) {
 	if err := ValidateOptionalModel(""); err != nil {
 		t.Errorf("ValidateOptionalModel(empty) = %v, want nil", err)
@@ -57,8 +53,6 @@ func TestValidateOptionalModel(t *testing.T) {
 	}
 }
 
-// --- ContainsStr ---
-
 func TestContainsStr(t *testing.T) {
 	list := []string{"a", "b", "c"}
 	if !ContainsStr(list, "b") {
@@ -71,8 +65,6 @@ func TestContainsStr(t *testing.T) {
 		t.Error("ContainsStr(nil, a) = true, want false")
 	}
 }
-
-// --- ScopeRepo ---
 
 func TestScopeRepo(t *testing.T) {
 	s := ScopeRepo("/some/repo")
@@ -95,8 +87,6 @@ func TestScopeRepo(t *testing.T) {
 		t.Error("SupportsType(unknown) = true, want false")
 	}
 }
-
-// --- ScopeUser ---
 
 func TestScopeUser(t *testing.T) {
 	s, err := ScopeUser()
@@ -122,8 +112,6 @@ func TestScopeUser(t *testing.T) {
 	}
 }
 
-// --- SupportsType ---
-
 func TestSupportsType(t *testing.T) {
 	s := ScopeRepo("/r")
 	for _, typ := range []string{"agent", "skill", "instruction", "prompt"} {
@@ -132,8 +120,6 @@ func TestSupportsType(t *testing.T) {
 		}
 	}
 }
-
-// --- DstPath and RelPath ---
 
 func TestDstPathAndRelPath_Repo(t *testing.T) {
 	s := ScopeRepo("/repo")
@@ -188,8 +174,6 @@ func TestDstPathAndRelPath_UserInstructions(t *testing.T) {
 	}
 }
 
-// --- StatePath ---
-
 func TestStatePath(t *testing.T) {
 	s := ScopeRepo("/repo")
 	want := filepath.Join("/repo", ".github/.nav-pilot-state.json")
@@ -197,8 +181,6 @@ func TestStatePath(t *testing.T) {
 		t.Errorf("StatePath() = %q, want %q", got, want)
 	}
 }
-
-// --- ValidateStatePath ---
 
 func TestValidateStatePath_Repo(t *testing.T) {
 	s := ScopeRepo("/repo")
@@ -252,18 +234,14 @@ func TestValidateStatePath_User(t *testing.T) {
 	}
 }
 
-// --- CleanupDirs ---
-
 func TestCleanupDirs_Repo_RemovesEmptyDirs(t *testing.T) {
 	tmp := t.TempDir()
 	s := ScopeRepo(tmp)
 
-	// create empty agents dir
 	agentsDir := filepath.Join(tmp, ".github", "agents")
 	if err := os.MkdirAll(agentsDir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	// non-empty instructions dir
 	instrDir := filepath.Join(tmp, ".github", "instructions")
 	if err := os.MkdirAll(instrDir, 0o755); err != nil {
 		t.Fatal(err)
@@ -315,8 +293,6 @@ func TestCleanupDirs_User_RemovesEmptyDirs(t *testing.T) {
 	}
 }
 
-// --- Label ---
-
 func TestLabel(t *testing.T) {
 	u := &InstallScope{Name: "user", RootDir: "/home/foo/.copilot"}
 	if got := u.Label(); !strings.Contains(got, "user-wide") {
@@ -329,8 +305,6 @@ func TestLabel(t *testing.T) {
 	}
 }
 
-// --- IsUser ---
-
 func TestIsUser(t *testing.T) {
 	u := &InstallScope{Name: "user"}
 	if !u.IsUser() {
@@ -341,8 +315,6 @@ func TestIsUser(t *testing.T) {
 		t.Error("IsUser() = true for repo scope")
 	}
 }
-
-// --- Color helpers ---
 
 func TestColorHelpers_WithColor(t *testing.T) {
 	orig := UseColor

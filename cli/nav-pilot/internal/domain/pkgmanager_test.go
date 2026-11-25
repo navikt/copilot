@@ -9,7 +9,6 @@ import (
 	"github.com/navikt/copilot/cli/nav-pilot/internal/testhome"
 )
 
-// fakeDpkgQuery puts a dpkg-query with a fixed exit code on PATH.
 func fakeDpkgQuery(t *testing.T, exit int) {
 	t.Helper()
 	dir := t.TempDir()
