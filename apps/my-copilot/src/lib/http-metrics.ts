@@ -43,21 +43,44 @@ export function recordHttpRequest(method: string | undefined, route: string, cod
   duration.observe({ route }, seconds);
 }
 
+let started = false;
+let failureLogged = false;
+
+// A throw inside a diagnostics_channel subscriber becomes an uncaughtException
+// and takes the process down, so metrics failures are swallowed here.
+function safely<T>(fn: (m: T) => void) {
+  return (m: unknown) => {
+    try {
+      fn(m as T);
+    } catch (err) {
+      if (!failureLogged) {
+        failureLogged = true;
+        console.debug("http metrics: failed to record a request", err);
+      }
+    }
+  };
+}
+
 export function startHttpMetrics(manifestPath = join(process.cwd(), ".next", "routes-manifest.json")) {
+  if (started) return; // a second subscription would count every request twice
+  started = true;
   let routes: Route[] = [];
   try {
     routes = routesFromManifest(JSON.parse(readFileSync(manifestPath, "utf8")));
   } catch {
     // No manifest (unusual dev layout): every request counts as "unmatched".
   }
-  const started = new WeakMap<IncomingMessage, bigint>();
-  subscribe("http.server.request.start", (m) => {
-    started.set((m as { request: IncomingMessage }).request, process.hrtime.bigint());
-  });
-  subscribe("http.server.response.finish", (m) => {
-    const { request, response } = m as { request: IncomingMessage; response: ServerResponse };
-    const start = started.get(request);
-    const seconds = start === undefined ? 0 : Number(process.hrtime.bigint() - start) / 1e9;
-    recordHttpRequest(request.method, routeFor(request.url, routes), response.statusCode, seconds);
-  });
+  const startTimes = new WeakMap<IncomingMessage, bigint>();
+  subscribe(
+    "http.server.request.start",
+    safely<{ request: IncomingMessage }>(({ request }) => startTimes.set(request, process.hrtime.bigint()))
+  );
+  subscribe(
+    "http.server.response.finish",
+    safely<{ request: IncomingMessage; response: ServerResponse }>(({ request, response }) => {
+      const start = startTimes.get(request);
+      const seconds = start === undefined ? 0 : Number(process.hrtime.bigint() - start) / 1e9;
+      recordHttpRequest(request.method, routeFor(request.url, routes), response.statusCode, seconds);
+    })
+  );
 }

@@ -247,9 +247,9 @@ spec:
         # nginx_ingress_controller_requests does not exist here (#2966).
         - alert: MyCopilotHigh5xxRate
           expr: |
-            sum(rate(http_requests_total{namespace="copilot", app="my-copilot", code=~"5.."}[5m]))
-              / sum(rate(http_requests_total{namespace="copilot", app="my-copilot"}[5m])) > 0.05
-            and sum(increase(http_requests_total{namespace="copilot", app="my-copilot"}[5m])) > 20
+            sum by (k8s_cluster_name) (rate(http_requests_total{namespace="copilot", app="my-copilot", code=~"5.."}[5m]))
+              / sum by (k8s_cluster_name) (rate(http_requests_total{namespace="copilot", app="my-copilot"}[5m])) > 0.05
+            and sum by (k8s_cluster_name) (increase(http_requests_total{namespace="copilot", app="my-copilot"}[5m])) > 20
           for: 5m
           labels:
             namespace: copilot

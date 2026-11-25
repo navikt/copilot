@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { register } from "@prometheus-io/client";
-import { recordHttpRequest, routeFor, routesFromManifest } from "./http-metrics";
+import { channel } from "node:diagnostics_channel";
+import { recordHttpRequest, routeFor, routesFromManifest, startHttpMetrics } from "./http-metrics";
 
 // Shape of .next/routes-manifest.json for one static and one dynamic route.
 const routes = routesFromManifest({
@@ -23,5 +24,16 @@ describe("http metrics", () => {
     expect(routeFor("/admin", routes)).toBe("/admin");
     recordHttpRequest("PROPFIND", "unmatched", 404, 0);
     expect(await register.metrics()).toContain('http_requests_total{method="other",route="unmatched",code="404"} 1');
+  });
+});
+
+describe("startHttpMetrics", () => {
+  it("survives a bad message on the channel and subscribes only once", async () => {
+    startHttpMetrics("/nonexistent/routes-manifest.json");
+    startHttpMetrics("/nonexistent/routes-manifest.json");
+    // A publish runs subscribers synchronously; a throw would surface here.
+    expect(() => channel("http.server.response.finish").publish({ request: null, response: null })).not.toThrow();
+    channel("http.server.response.finish").publish({ request: { method: "GET", url: "/x" }, response: { statusCode: 418 } });
+    expect(await register.metrics()).toContain('http_requests_total{method="GET",route="unmatched",code="418"} 1');
   });
 });
