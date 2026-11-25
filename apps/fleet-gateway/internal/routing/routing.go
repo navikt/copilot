@@ -1,4 +1,6 @@
-package main
+// Package routing loads and validates the pilot MCP routes and builds the
+// route table the gateway serves.
+package routing
 
 import (
 	"bytes"
@@ -15,14 +17,14 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// PilotRoutesConfig is the versioned pilot route list loaded at startup.
-type PilotRoutesConfig struct {
-	Version int          `yaml:"version" json:"version"`
-	Routes  []PilotRoute `yaml:"routes" json:"routes"`
+// File is the versioned pilot route list loaded at startup.
+type File struct {
+	Version int     `yaml:"version" json:"version"`
+	Routes  []Route `yaml:"routes" json:"routes"`
 }
 
-// PilotRoute defines one allowed MCP route and its upstream target.
-type PilotRoute struct {
+// Route defines one allowed MCP route and its upstream target.
+type Route struct {
 	Route       string `yaml:"route" json:"route"`
 	Team        string `yaml:"team" json:"team"`
 	Target      string `yaml:"target" json:"target"`
@@ -39,26 +41,29 @@ type PilotRoute struct {
 	App         string   `yaml:"-" json:"-"`
 	ParsedURL   *url.URL `yaml:"-" json:"-"`
 	FullRouteID string   `yaml:"-" json:"-"`
-	// allowedTools is set when the route enforces a tool allowlist; nil passes all.
-	allowedTools map[string]bool
+	// AllowedTools is set when the route enforces a tool allowlist; nil passes all.
+	AllowedTools map[string]bool `yaml:"-" json:"-"`
 }
 
 // RouteSource supplies the validated pilot routes. The route file is the only
 // implementation today; the control service (#2334) becomes the second.
 type RouteSource interface {
-	Routes() ([]PilotRoute, error)
+	Routes() ([]Route, error)
 }
 
-// fileRouteSource reads routes from PILOT_ROUTES_FILE.
-type fileRouteSource struct{ path string }
+// FileSource reads routes from PILOT_ROUTES_FILE.
+type FileSource struct{ Path string }
 
-func (s fileRouteSource) Routes() ([]PilotRoute, error) { return loadPilotRoutes(s.path) }
+// Routes loads and validates the route file.
+func (s FileSource) Routes() ([]Route, error) { return Load(s.Path) }
 
-func (r PilotRoute) isDisabled() bool {
+// Disabled reports whether the route is switched off with enabled: false.
+func (r Route) Disabled() bool {
 	return r.Enabled != nil && !*r.Enabled
 }
 
-func loadPilotRoutes(filePath string) ([]PilotRoute, error) {
+// Load reads and validates the route file at filePath.
+func Load(filePath string) ([]Route, error) {
 	trimmed := strings.TrimSpace(filePath)
 	if trimmed == "" {
 		return nil, errors.New("PILOT_ROUTES_FILE is required")
@@ -67,15 +72,16 @@ func loadPilotRoutes(filePath string) ([]PilotRoute, error) {
 	if err != nil {
 		return nil, fmt.Errorf("read pilot routes file %q: %w", trimmed, err)
 	}
-	return parseAndValidatePilotRoutes(raw)
+	return Parse(raw)
 }
 
-func parseAndValidatePilotRoutes(raw []byte) ([]PilotRoute, error) {
+// Parse decodes and validates a route file.
+func Parse(raw []byte) ([]Route, error) {
 	if len(bytes.TrimSpace(raw)) == 0 {
 		return nil, errors.New("pilot routes config is empty")
 	}
 
-	var doc PilotRoutesConfig
+	var doc File
 	dec := yaml.NewDecoder(bytes.NewReader(raw))
 	dec.KnownFields(true)
 	if err := dec.Decode(&doc); err != nil {
@@ -93,21 +99,21 @@ func parseAndValidatePilotRoutes(raw []byte) ([]PilotRoute, error) {
 		return nil, fmt.Errorf("unsupported pilot routes version %d", doc.Version)
 	}
 	for i := range doc.Routes {
-		if err := applyToolPolicy(&doc.Routes[i]); err != nil {
+		if err := ApplyToolPolicy(&doc.Routes[i]); err != nil {
 			return nil, err
 		}
 	}
-	return validatePilotRoutes(doc.Routes)
+	return Validate(doc.Routes)
 }
 
 // mcpToolName is the MCP tool-name charset (spec 2025-11-25, "Tool names").
 // Restricting to ASCII keeps names safe to render as agentgateway CEL literals.
 var mcpToolName = regexp.MustCompile(`^[A-Za-z0-9_.-]{1,128}$`)
 
-// applyToolPolicy validates tools and passAllTools and builds the allowlist.
+// ApplyToolPolicy validates tools and passAllTools and builds the allowlist.
 // Version 2 denies by default: a route must list tools or be marked
 // passAllTools by the operator, not both.
-func applyToolPolicy(r *PilotRoute) error {
+func ApplyToolPolicy(r *Route) error {
 	name := strings.TrimSpace(r.Route)
 	if r.Tools == nil {
 		if !r.PassAllTools {
@@ -121,26 +127,27 @@ func applyToolPolicy(r *PilotRoute) error {
 	if len(r.Tools) == 0 {
 		return fmt.Errorf("route %q: tools must not be empty", name)
 	}
-	r.allowedTools = make(map[string]bool, len(r.Tools))
+	r.AllowedTools = make(map[string]bool, len(r.Tools))
 	for _, t := range r.Tools {
 		if !mcpToolName.MatchString(t) {
 			return fmt.Errorf("route %q: invalid tool name %q", name, t)
 		}
-		if r.allowedTools[t] {
+		if r.AllowedTools[t] {
 			return fmt.Errorf("route %q: duplicate tool %q", name, t)
 		}
-		r.allowedTools[t] = true
+		r.AllowedTools[t] = true
 	}
 	return nil
 }
 
-func validatePilotRoutes(routes []PilotRoute) ([]PilotRoute, error) {
+// Validate checks every route and fills in the derived fields.
+func Validate(routes []Route) ([]Route, error) {
 	if len(routes) == 0 {
 		return nil, errors.New("pilot routes list must not be empty")
 	}
 
 	seen := make(map[string]bool, len(routes))
-	out := make([]PilotRoute, len(routes))
+	out := make([]Route, len(routes))
 	for i, r := range routes {
 		r.Route = strings.TrimSpace(r.Route)
 		r.Team = strings.TrimSpace(r.Team)
@@ -160,7 +167,7 @@ func validatePilotRoutes(routes []PilotRoute) ([]PilotRoute, error) {
 			return nil, fmt.Errorf("route %q: team is required", r.Route)
 		}
 
-		cluster, targetNS, app, err := parseTarget(r.Target)
+		cluster, targetNS, app, err := ParseTarget(r.Target)
 		if err != nil {
 			return nil, fmt.Errorf("route %q: %w", r.Route, err)
 		}
@@ -172,7 +179,7 @@ func validatePilotRoutes(routes []PilotRoute) ([]PilotRoute, error) {
 		r.Namespace = ns
 		r.App = app
 
-		parsed, err := validateInternalUpstreamURL(r.UpstreamURL, ns)
+		parsed, err := ValidateUpstreamURL(r.UpstreamURL, ns)
 		if err != nil {
 			return nil, fmt.Errorf("route %q: invalid upstream_url %q: %w", r.Route, r.UpstreamURL, err)
 		}
@@ -209,7 +216,8 @@ func validatePilotRoutePath(route string) (string, error) {
 	return segs[0], nil
 }
 
-func parseTarget(target string) (cluster, namespace, app string, err error) {
+// ParseTarget splits a cluster:namespace:app target.
+func ParseTarget(target string) (cluster, namespace, app string, err error) {
 	parts := strings.Split(target, ":")
 	if len(parts) != 3 {
 		return "", "", "", fmt.Errorf("invalid target %q: expected cluster:namespace:app", target)
@@ -222,7 +230,8 @@ func parseTarget(target string) (cluster, namespace, app string, err error) {
 	return parts[0], parts[1], parts[2], nil
 }
 
-func validateInternalUpstreamURL(raw, namespace string) (*url.URL, error) {
+// ValidateUpstreamURL accepts only an in-cluster URL in the route's namespace.
+func ValidateUpstreamURL(raw, namespace string) (*url.URL, error) {
 	if err := config.ValidateHTTPURL(raw, false); err != nil {
 		return nil, err
 	}
@@ -302,4 +311,42 @@ func isSingleDNSLabel(label string) bool {
 		}
 	}
 	return true
+}
+
+// Table is the set of MCP routes the gateway serves. Handlers read it
+// through Gateway.table(). It is loaded from the route file, and with
+// ROUTES_SOURCE=fleet-control swapped whole by syncRoutes (#2641).
+type Table struct {
+	Routes           []Route // file order; Routes[0] is the primary resource
+	RoutesByPath     map[string]Route
+	AllowedResources map[string]bool
+	PrimaryResource  string
+}
+
+// NewTable builds the table from a validated config, keeping file order.
+// Disabled routes stay in it, so they answer 503 rather than 404.
+func NewTable(routes []Route) *Table {
+	rt := &Table{
+		Routes:           append([]Route(nil), routes...),
+		RoutesByPath:     make(map[string]Route, len(routes)),
+		AllowedResources: make(map[string]bool, len(routes)),
+	}
+	for _, r := range rt.Routes {
+		rt.RoutesByPath[r.Route] = r
+		rt.AllowedResources[r.FullRouteID] = true
+	}
+	if len(rt.Routes) > 0 {
+		rt.PrimaryResource = rt.Routes[0].FullRouteID
+	}
+	return rt
+}
+
+// ByResource finds the route whose resource URL is res.
+func (rt *Table) ByResource(res string) (Route, bool) {
+	for _, r := range rt.Routes {
+		if r.FullRouteID == res {
+			return r, true
+		}
+	}
+	return Route{}, false
 }

@@ -16,6 +16,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/navikt/copilot/fleet-gateway/internal/routing"
 )
 
 func (te *testEnv) obtainAccessTokenForResource(resource string) string {
@@ -44,7 +46,7 @@ func (te *testEnv) obtainAccessTokenForResource(resource string) string {
 
 func TestGatewayAccessToken_HashedStorage_ResourceBinding_AndExpiry(t *testing.T) {
 	te := newTestEnv(t)
-	te.gw.cfg.Routes = append(te.gw.cfg.Routes, PilotRoute{
+	te.gw.cfg.Routes = append(te.gw.cfg.Routes, routing.Route{
 		Route:       "/mcp/team-sec/restricted",
 		Team:        "team-sec",
 		Target:      "dev-gcp:team-sec:sec-mcp",
@@ -60,7 +62,7 @@ func TestGatewayAccessToken_HashedStorage_ResourceBinding_AndExpiry(t *testing.T
 	for i := range te.gw.cfg.Routes {
 		te.gw.cfg.Routes[i].ParsedURL = parsedUpstream
 	}
-	te.gw.routeTable.Store(newRouteTable(te.gw.cfg))
+	te.gw.routeTable.Store(routing.NewTable(te.gw.cfg.Routes))
 	te.gw.TeamTokens, err = newTeamTokenSource(te.gw.cfg, te.gw.store, func() time.Time {
 		te.mu.Lock()
 		defer te.mu.Unlock()
@@ -331,7 +333,7 @@ func TestStrategyRefresh_Rotation_And_Concurrency(t *testing.T) {
 	te.gw.cfg.MCPMaxInFlightPerUser = 8
 	te.handler = te.gw.routes()
 	var err error
-	te.gw.routeTable.Store(newRouteTable(te.gw.cfg))
+	te.gw.routeTable.Store(routing.NewTable(te.gw.cfg.Routes))
 	te.gw.TeamTokens, err = newTeamTokenSource(te.gw.cfg, te.gw.store, func() time.Time {
 		te.mu.Lock()
 		defer te.mu.Unlock()
@@ -494,7 +496,7 @@ func TestErrorMapping_AADSTS65001_And_NoRawEntraLeak(t *testing.T) {
 			te := newTestEnv(t)
 			te.gw.cfg.TeamTokenStrategy = tt.strategy
 			var err error
-			te.gw.routeTable.Store(newRouteTable(te.gw.cfg))
+			te.gw.routeTable.Store(routing.NewTable(te.gw.cfg.Routes))
 			te.gw.TeamTokens, err = newTeamTokenSource(te.gw.cfg, te.gw.store, te.gw.now)
 			if err != nil {
 				t.Fatalf("newTeamTokenSource failed: %v", err)
@@ -1097,7 +1099,7 @@ routes:
     passAllTools: true
     enabled: false
 `
-			parsedRoutes, err := parseAndValidatePilotRoutes([]byte(routesYAML))
+			parsedRoutes, err := routing.Parse([]byte(routesYAML))
 			if err != nil {
 				t.Fatalf("parseAndValidatePilotRoutes failed: %v", err)
 			}
@@ -1112,7 +1114,7 @@ routes:
 			for i := range te.gw.cfg.Routes {
 				te.gw.cfg.Routes[i].ParsedURL = parsedUpstream
 			}
-			te.gw.routeTable.Store(newRouteTable(te.gw.cfg))
+			te.gw.routeTable.Store(routing.NewTable(te.gw.cfg.Routes))
 			te.gw.TeamTokens, err = newTeamTokenSource(te.gw.cfg, te.gw.store, func() time.Time {
 				te.mu.Lock()
 				defer te.mu.Unlock()
@@ -1269,7 +1271,7 @@ func TestOldRoutePathAmbiguousNameOmitsNewURL(t *testing.T) {
 	dup.Route = "/mcp/other-ns/" + dup.Route[strings.LastIndex(dup.Route, "/")+1:]
 	dup.FullRouteID = te.gw.cfg.BaseURL + dup.Route
 	te.gw.cfg.Routes = append(te.gw.cfg.Routes, dup)
-	te.gw.routeTable.Store(newRouteTable(te.gw.cfg))
+	te.gw.routeTable.Store(routing.NewTable(te.gw.cfg.Routes))
 
 	name := dup.Route[strings.LastIndex(dup.Route, "/")+1:]
 	rec := httptest.NewRecorder()

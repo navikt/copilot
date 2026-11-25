@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"github.com/navikt/copilot/fleet-gateway/internal/config"
 	"github.com/navikt/copilot/fleet-gateway/internal/ratelimit"
+	"github.com/navikt/copilot/fleet-gateway/internal/routing"
 	"log/slog"
 	"net/http"
 	"os"
@@ -78,7 +79,7 @@ const (
 type TeamTokenSource interface {
 	// route is the entry the request was dispatched with, so the token's
 	// audience and the upstream come from one snapshot (#2641).
-	TeamToken(ctx context.Context, sessionID string, route PilotRoute) (string, error)
+	TeamToken(ctx context.Context, sessionID string, route routing.Route) (string, error)
 }
 
 // Config holds validated runtime configuration for fleet-gateway.
@@ -90,8 +91,8 @@ type Config struct {
 	AllowedRedirectURIs     map[string]bool
 	AllowedResources        map[string]bool
 	PrimaryResource         string
-	Routes                  []PilotRoute
-	RoutesByPath            map[string]PilotRoute
+	Routes                  []routing.Route
+	RoutesByPath            map[string]routing.Route
 	GatewayDisabled         bool
 	TeamTokenStrategy       string
 	TexasExchangeEndpoint   string
@@ -161,13 +162,13 @@ func loadConfigFromEnv() (*Config, error) {
 	clientIDs := config.CSVSet(os.Getenv("ALLOWED_CLIENT_IDS"))
 	redirectURIs := config.CSVSet(os.Getenv("ALLOWED_REDIRECT_URIS"))
 
-	routes, err := fileRouteSource{path: os.Getenv("PILOT_ROUTES_FILE")}.Routes()
+	routes, err := routing.FileSource{Path: os.Getenv("PILOT_ROUTES_FILE")}.Routes()
 	if err != nil {
 		return nil, err
 	}
 
 	resources := make(map[string]bool, len(routes))
-	routesByPath := make(map[string]PilotRoute, len(routes))
+	routesByPath := make(map[string]routing.Route, len(routes))
 	primaryResource := ""
 	for i := range routes {
 		fullURL := baseURL + routes[i].Route
@@ -308,7 +309,7 @@ func validateConfig(cfg *Config) error {
 			return fmt.Errorf("invalid ALLOWED_REDIRECT_URIS entry %q: %w", redirectURI, err)
 		}
 	}
-	validatedRoutes, err := validatePilotRoutes(cfg.Routes)
+	validatedRoutes, err := routing.Validate(cfg.Routes)
 	if err != nil {
 		return err
 	}
@@ -340,7 +341,7 @@ func validateConfig(cfg *Config) error {
 			return errors.New("FLEET_CONTROL_AUDIENCE is required when ROUTES_SOURCE or ROUTES_SHADOW_SOURCE is fleet-control")
 		}
 	}
-	cfg.RoutesByPath = make(map[string]PilotRoute, len(validatedRoutes))
+	cfg.RoutesByPath = make(map[string]routing.Route, len(validatedRoutes))
 	cfg.AllowedResources = make(map[string]bool, len(validatedRoutes))
 	for i := range cfg.Routes {
 		fullURL := cfg.BaseURL + cfg.Routes[i].Route

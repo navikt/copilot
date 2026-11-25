@@ -10,13 +10,15 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/navikt/copilot/fleet-gateway/internal/routing"
 )
 
 var updateRouteGolden = flag.Bool("update-route-golden", false, "rewrite testdata/routetable_golden.txt")
 
 // TestRouteDispatchGolden pins the status, key headers and body of route
 // dispatch, PRM, /authorize and /token resource checks. The golden file was
-// recorded on origin/main before RouteTable (#2334), so it proves the move
+// recorded on origin/main before routing.Table (#2334), so it proves the move
 // changed nothing a client can see.
 func TestRouteDispatchGolden(t *testing.T) {
 	te := newTestEnv(t)
@@ -24,7 +26,7 @@ func TestRouteDispatchGolden(t *testing.T) {
 
 	off := false
 	cfg := *te.gw.cfg
-	cfg.Routes = []PilotRoute{
+	cfg.Routes = []routing.Route{
 		te.gw.cfg.Routes[0],
 		{Route: "/mcp/team-a/shared", Team: "team-a", Target: "dev-gcp:team-a:shared", UpstreamURL: "http://shared.team-a"},
 		{Route: "/mcp/team-b/shared", Team: "team-b", Target: "dev-gcp:team-b:shared", UpstreamURL: "http://shared.team-b"},

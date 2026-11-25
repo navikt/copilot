@@ -16,6 +16,8 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus/testutil"
+
+	"github.com/navikt/copilot/fleet-gateway/internal/routing"
 )
 
 // Generated per run so no key-shaped literal lives in the source.
@@ -26,7 +28,7 @@ func withLockoutKey(t *testing.T, te *testEnv) *testEnv {
 	te.gw.store.Close()
 
 	cfgCopy := *te.gw.cfg
-	cfgCopy.Routes = append([]PilotRoute(nil), te.gw.cfg.Routes...)
+	cfgCopy.Routes = append([]routing.Route(nil), te.gw.cfg.Routes...)
 	cfgCopy.LockoutKey = testLockoutKey
 	if err := validateConfig(&cfgCopy); err != nil {
 		t.Fatalf("validateConfig failed: %v", err)
@@ -722,7 +724,7 @@ func TestLockout_NewGatewayMarkerCheck(t *testing.T) {
 	shared := newMemoryStore(te.gw.now, nil)
 
 	baseCfg := *te.gw.cfg
-	baseCfg.Routes = append([]PilotRoute(nil), te.gw.cfg.Routes...)
+	baseCfg.Routes = append([]routing.Route(nil), te.gw.cfg.Routes...)
 	baseCfg.Store = shared
 	baseCfg.LockoutKey = ""
 

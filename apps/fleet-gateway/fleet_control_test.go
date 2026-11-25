@@ -354,7 +354,7 @@ func TestRouteSyncRevokedPrimaryAnswers503(t *testing.T) {
 	revoked["enabled"] = false
 	f.body = snapBody(1, revoked)
 	gw.syncRoutes(context.Background(), src)
-	if got := routePaths(gw); len(got) != 1 || !gw.table().Routes[0].isDisabled() {
+	if got := routePaths(gw); len(got) != 1 || !gw.table().Routes[0].Disabled() {
 		t.Fatalf("revoked primary not applied as disabled: %v", got)
 	}
 	rec := httptest.NewRecorder()

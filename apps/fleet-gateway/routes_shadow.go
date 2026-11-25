@@ -11,6 +11,8 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
+
+	"github.com/navikt/copilot/fleet-gateway/internal/routing"
 )
 
 // Shadow mode (#2760): with ROUTES_SOURCE=git and ROUTES_SHADOW_SOURCE=fleet-control
@@ -31,9 +33,9 @@ var (
 
 // diffRoutes compares the Git route file with a fleet-control snapshot after
 // both are validated, so upstreams compare in canonical .svc.cluster.local form.
-func diffRoutes(file, snap []PilotRoute) []string {
-	byRoute := func(rs []PilotRoute) map[string]PilotRoute {
-		m := map[string]PilotRoute{}
+func diffRoutes(file, snap []routing.Route) []string {
+	byRoute := func(rs []routing.Route) map[string]routing.Route {
+		m := map[string]routing.Route{}
 		for _, r := range rs {
 			m[r.Route] = r
 		}
@@ -52,7 +54,7 @@ func diffRoutes(file, snap []PilotRoute) []string {
 			{"team", a.Team, b.Team},
 			{"target", a.Target, b.Target},
 			{"upstream", a.ParsedURL.String(), b.ParsedURL.String()},
-			{"enabled", fmt.Sprint(!a.isDisabled()), fmt.Sprint(!b.isDisabled())},
+			{"enabled", fmt.Sprint(!a.Disabled()), fmt.Sprint(!b.Disabled())},
 			{"tools", fmt.Sprint(at), fmt.Sprint(bt)},
 			{"passAllTools", fmt.Sprint(a.PassAllTools), fmt.Sprint(b.PassAllTools)},
 		} {

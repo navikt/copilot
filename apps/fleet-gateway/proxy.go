@@ -20,6 +20,7 @@ import (
 	"github.com/navikt/copilot/fleet-gateway/internal/audit"
 	"github.com/navikt/copilot/fleet-gateway/internal/identity"
 	"github.com/navikt/copilot/fleet-gateway/internal/policy"
+	"github.com/navikt/copilot/fleet-gateway/internal/routing"
 )
 
 const (
@@ -101,7 +102,7 @@ func newHardenedProxyClient(headerTimeout time.Duration) *http.Client {
 	}
 }
 
-func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
+func (g *Gateway) mcpHandler(route routing.Route) http.HandlerFunc {
 	fullRouteURL := g.cfg.BaseURL + route.Route
 	prmURL := g.cfg.BaseURL + "/.well-known/oauth-protected-resource" + route.Route
 
@@ -150,7 +151,7 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 			return
 		}
 
-		if g.cfg.GatewayDisabled || route.isDisabled() {
+		if g.cfg.GatewayDisabled || route.Disabled() {
 			outcome = "disabled"
 			markShed(w, "disabled")
 			slog.Warn("route disabled by kill switch", "route", route.Route, "global", g.cfg.GatewayDisabled)
@@ -332,7 +333,7 @@ func (g *Gateway) mcpHandler(route PilotRoute) http.HandlerFunc {
 			return
 		}
 
-		pd := policy.Decide(r.Method, route.allowedTools, r.Header, reqBody)
+		pd := policy.Decide(r.Method, route.AllowedTools, r.Header, reqBody)
 		rpcMethod, toolName, scanIncomplete, headerMismatch = pd.Method, pd.Tool, pd.ScanIncomplete, pd.HeaderMismatch
 		rawTool = pd.RawTool
 		decision, decisionReason = "allow", pd.Reason

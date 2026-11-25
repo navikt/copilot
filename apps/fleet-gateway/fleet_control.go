@@ -17,6 +17,8 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
+
+	"github.com/navikt/copilot/fleet-gateway/internal/routing"
 )
 
 // Routes come from the Git file (PILOT_ROUTES_FILE) unless ROUTES_SOURCE is
@@ -97,7 +99,7 @@ func (f *fleetControlRoutes) m2mToken(ctx context.Context) (string, error) {
 
 // fetch returns the validated routes, or nil routes and no error when the
 // snapshot is unchanged (304). Any error means: keep what you have.
-func (f *fleetControlRoutes) fetch(ctx context.Context, current *RouteTable) ([]PilotRoute, error) {
+func (f *fleetControlRoutes) fetch(ctx context.Context, current *routing.Table) ([]routing.Route, error) {
 	token, err := f.m2mToken(ctx)
 	if err != nil {
 		return nil, err
@@ -156,7 +158,7 @@ func (f *fleetControlRoutes) fetch(ctx context.Context, current *RouteTable) ([]
 
 // parseSnapshot validates a snapshot body, live or stored. checkAge applies
 // the past bound of maxSnapshotAge; a stored snapshot skips it (#2892).
-func (f *fleetControlRoutes) parseSnapshot(raw []byte, current *RouteTable, checkAge bool) (routesSnapshot, []PilotRoute, [sha256.Size]byte, error) {
+func (f *fleetControlRoutes) parseSnapshot(raw []byte, current *routing.Table, checkAge bool) (routesSnapshot, []routing.Route, [sha256.Size]byte, error) {
 	var snap routesSnapshot
 	var hash [sha256.Size]byte
 	if len(raw) > maxSnapshotBytes {
@@ -192,7 +194,7 @@ func (f *fleetControlRoutes) parseSnapshot(raw []byte, current *RouteTable, chec
 		routes[i].FullRouteID = f.cfg.BaseURL + routes[i].Route
 	}
 	// The primary resource is the token audience in PRM: never move it to another route.
-	if _, ok := (&RouteTable{Routes: routes}).routeByResource(current.PrimaryResource); !ok {
+	if _, ok := (&routing.Table{Routes: routes}).ByResource(current.PrimaryResource); !ok {
 		return snap, nil, hash, fmt.Errorf("snapshot drops the primary resource %q", current.PrimaryResource)
 	}
 	return snap, routes, hash, nil
@@ -229,8 +231,8 @@ func (g *Gateway) syncRoutes(ctx context.Context, f *fleetControlRoutes) {
 	f.storePending = !g.storeSnapshot(ctx, f)
 }
 
-func (g *Gateway) swapRoutes(routes []PilotRoute) {
-	rt := newRouteTable(&Config{Routes: routes})
+func (g *Gateway) swapRoutes(routes []routing.Route) {
+	rt := routing.NewTable(routes)
 	rt.PrimaryResource = g.table().PrimaryResource // parseSnapshot checked it is in routes
 	g.routeTable.Store(rt)
 	routesLoaded.Set(float64(len(routes)))
@@ -359,19 +361,19 @@ func markRouteSynced(at time.Time) {
 }
 
 // snapshotRoutes validates snapshot routes by the same rules as the Git file.
-func snapshotRoutes(snap routesSnapshot) ([]PilotRoute, error) {
-	routes := make([]PilotRoute, 0, len(snap.Routes))
+func snapshotRoutes(snap routesSnapshot) ([]routing.Route, error) {
+	routes := make([]routing.Route, 0, len(snap.Routes))
 	for _, r := range snap.Routes {
 		if r.Path != "/mcp/"+r.Namespace+"/"+r.Name {
 			return nil, fmt.Errorf("route %q does not match %s/%s", r.Path, r.Namespace, r.Name)
 		}
 		enabled := r.Enabled
-		pr := PilotRoute{Route: r.Path, Team: r.Namespace, Target: r.Target, UpstreamURL: r.UpstreamURL, Enabled: &enabled, Tools: r.Tools}
+		pr := routing.Route{Route: r.Path, Team: r.Namespace, Target: r.Target, UpstreamURL: r.UpstreamURL, Enabled: &enabled, Tools: r.Tools}
 		// Same rules as the Git file; passAllTools is operator-only and never comes from fleet-control.
-		if err := applyToolPolicy(&pr); err != nil {
+		if err := routing.ApplyToolPolicy(&pr); err != nil {
 			return nil, err
 		}
 		routes = append(routes, pr)
 	}
-	return validatePilotRoutes(routes) // rejects an empty list
+	return routing.Validate(routes) // rejects an empty list
 }

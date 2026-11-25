@@ -13,6 +13,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/navikt/copilot/fleet-gateway/internal/routing"
 )
 
 // flatAudit maps the AuthZEN-shaped audit record onto flat keys so tests can
@@ -83,8 +85,8 @@ func auditToolsHeaders(t *testing.T, method string, tools map[string]bool, body 
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = w.Write([]byte(`{"jsonrpc":"2.0","id":1,"result":{}}`))
 	})
-	te.gw.cfg.Routes[0].allowedTools = tools
-	te.gw.routeTable.Store(newRouteTable(te.gw.cfg))
+	te.gw.cfg.Routes[0].AllowedTools = tools
+	te.gw.routeTable.Store(routing.NewTable(te.gw.cfg.Routes))
 	te.handler = te.gw.routes()
 	gwToken := te.obtainAccessTokenForResource(te.resource)
 

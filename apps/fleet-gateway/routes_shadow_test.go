@@ -6,6 +6,8 @@ import (
 	"testing"
 
 	"github.com/prometheus/client_golang/prometheus/testutil"
+
+	"github.com/navikt/copilot/fleet-gateway/internal/routing"
 )
 
 func shadowGateway(t *testing.T, f *fakeFleetControl) (*Gateway, *shadowRoutes) {
@@ -14,7 +16,7 @@ func shadowGateway(t *testing.T, f *fakeFleetControl) (*Gateway, *shadowRoutes) 
 	gw.cfg.RoutesShadowSource = routesSourceFleetControl
 	gw.cfg.Routes[0].Tools = []string{"whoami"} // as primaryRoute in the snapshot
 	// Canonicalize like loadConfigFromEnv does for the Git file.
-	routes, err := validatePilotRoutes(gw.cfg.Routes)
+	routes, err := routing.Validate(gw.cfg.Routes)
 	if err != nil {
 		t.Fatal(err)
 	}

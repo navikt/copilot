@@ -8,6 +8,8 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+
+	"github.com/navikt/copilot/fleet-gateway/internal/routing"
 )
 
 // A route swap between dispatch and the token exchange must not split one
@@ -38,7 +40,7 @@ func TestTokenAndUpstreamFromOneSnapshot(t *testing.T) {
 	swapped.Target = "dev-gcp:team-etterlevelse:other-app"
 	swapped.ParsedURL, _ = url.Parse(other.URL)
 	afterRouteLookup = func() {
-		te.gw.routeTable.Store(&RouteTable{Routes: []PilotRoute{swapped}, RoutesByPath: map[string]PilotRoute{swapped.Route: swapped}, AllowedResources: map[string]bool{swapped.FullRouteID: true}, PrimaryResource: swapped.FullRouteID})
+		te.gw.routeTable.Store(&routing.Table{Routes: []routing.Route{swapped}, RoutesByPath: map[string]routing.Route{swapped.Route: swapped}, AllowedResources: map[string]bool{swapped.FullRouteID: true}, PrimaryResource: swapped.FullRouteID})
 	}
 	t.Cleanup(func() { afterRouteLookup = func() {} })
 
