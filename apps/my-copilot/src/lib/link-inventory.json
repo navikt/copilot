@@ -1632,7 +1632,8 @@
       "mcp-verktoy": [
         "apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/feilsoking/page.tsx",
         "docs/README.mcp.md"
-      ]
+      ],
+      "uv": ["apps/my-copilot/src/app/(nb)/(nav-pilot)/nav-pilot/guider/feilsoking/page.tsx"]
     }
   },
   "/nav-pilot/guider/installere-og-oppgradere": {

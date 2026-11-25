@@ -18,6 +18,7 @@ const TOC: TocItem[] = [
   { id: "cplt-feil", label: "Feil fra cplt" },
   { id: "blokkeringer", label: "Se hva cplt blokkerer" },
   { id: "kjernen", label: "Filer, programmer og localhost" },
+  { id: "uv", label: "uv tool install feiler" },
   { id: "lokal", label: "Når den lokale modellen henger" },
 ];
 
@@ -301,6 +302,22 @@ cplt check exec docker                         # får agenten kjøre programmet?
             <code className={code}>Sandbox: cat(85111) deny(1) file-read-data /Users/deg/.npmrc</code>. Loggen tar med
             andre programmer også, så se etter navnet på det som feilet. På Linux finnes ikke loggen, fordi Landlock
             ikke logger det den stopper.
+          </BodyLong>
+          <LinkableHeading id="uv" size="small" level="3">
+            uv tool install og uv python install feiler
+          </LinkableHeading>
+          <BodyLong>
+            cplt gjør uvs datamappe, <code className={code}>~/.local/share/uv</code>, skrivebeskyttet i sandkassen. Det
+            som installeres der, kjører på maskinen din utenfor sandkassen. <code className={code}>uv sync</code>,{" "}
+            <code className={code}>uv run</code> og <code className={code}>uv pip install</code> i prosjektets venv
+            virker som før. Krever cplt 2026.11.24 eller nyere.
+          </BodyLong>
+          <BodyLong>
+            <code className={code}>uv tool install</code> og <code className={code}>uv python install</code> må du kjøre
+            i en vanlig terminal utenfor agenten. Verktøy og Python-versjoner som allerede er installert, kjører som
+            før. Trenger du å installere inne i sandkassen likevel, start med{" "}
+            <code className={code}>--allow-write ~/.local/share/uv</code>. Det du installerer slik, kan ikke kjøres i
+            sandkassen, og agenten kan endre programmer du senere kjører utenfor.
           </BodyLong>
         </VStack>
       </section>
