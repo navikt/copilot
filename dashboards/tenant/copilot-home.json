@@ -2211,8 +2211,8 @@
         },
         {
           "type": "timeseries",
-          "title": "Latency p95 by app",
-          "description": "",
+          "title": "Latency p95 by app (gateway incl. SSE)",
+          "description": "The fleet-gateway series includes SSE streams until they close, and fast 401s.",
           "datasource": {
             "type": "prometheus",
             "uid": "${DS_METRICS}"
