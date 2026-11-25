@@ -84,15 +84,14 @@ export default function Sandkassen() {
           </BodyLong>
           <Bullets>
             <li>
-              Sett <code className={code}>chat.agent.sandbox.enabled</code> til <code className={code}>"on"</code>{" "}
-              (standard er <code className={code}>off</code>). Virker på macOS 15 eller nyere og Linux med glibc og
-              bubblewrap 0.5.0+. På Windows er sandkassen eksperimentell: slå den på der den virker.
+              Påkrevd på macOS 15 eller nyere og Linux (glibc og bubblewrap 0.5.0+):{" "}
+              <code className={code}>chat.agent.sandbox.enabled</code> = <code className={code}>"on"</code> (standard er{" "}
+              <code className={code}>off</code>). På Windows er sandkassen eksperimentell: slå den på der den virker.
             </li>
             <li>
-              Hold <code className={code}>chat.tools.global.autoApprove</code> av, og legg ikke inn brede regler med{" "}
-              <code className={code}>true</code> i <code className={code}>chat.tools.terminal.autoApprove</code>.
+              Hold <code className={code}>chat.tools.global.autoApprove</code> av.
             </li>
-            <li>Ikke velg Allow all eller Autopilot.</li>
+            <li>Manual permissions og Assisted permissions er tillatt. Ikke velg Allow all eller Autopilot.</li>
             <li>
               Sandkassen dekker terminalkommandoer, MCP-servere og språkservere. Den dekker ikke filredigering, og
               utgående nettverk er åpent som standard. Kommandoer i sandkassen kan kjøre uten å spørre.
@@ -103,7 +102,7 @@ export default function Sandkassen() {
           </BodyLong>
           <Bullets>
             <li>
-              Slå på lokal sandkasse i versjoner som har den.{" "}
+              Påkrevd: lokal sandkasse slått på i versjoner som har den.{" "}
               <a
                 href="https://github.blog/changelog/2026-10-28-github-copilot-in-jetbrains-universe-releases/"
                 className={linkClass}
@@ -114,9 +113,10 @@ export default function Sandkassen() {
             </li>
             <li>
               Hold <strong>Settings &gt; GitHub Copilot &gt; Chat &gt; Auto Approve &gt; Global Auto Approve</strong>{" "}
-              av, og auto-godkjenning av kommandoer og filendringer som ingen regel dekker.
+              av.
             </li>
           </Bullets>
+          <BodyLong>Du vurderer endringene før commit, med samme ansvar som for all annen kode.</BodyLong>
           <BodyLong>
             Kilder:{" "}
             <a href="https://code.visualstudio.com/docs/agents/run/agent-sandboxing" className={linkClass}>

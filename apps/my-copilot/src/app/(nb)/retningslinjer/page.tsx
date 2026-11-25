@@ -451,7 +451,9 @@ function AllowedItem({ title, children }: { title: string; children: React.React
         <Heading size="xsmall" level="3">
           {title}
         </Heading>
-        <BodyShort size="small">{children}</BodyShort>
+        <BodyShort as="div" size="small">
+          {children}
+        </BodyShort>
       </VStack>
     </Box>
   );
