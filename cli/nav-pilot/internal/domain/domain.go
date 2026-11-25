@@ -442,7 +442,6 @@ func (s *InstallScope) StatePath() string {
 
 // ValidateStatePath checks that a path from the state file is safe for this scope.
 func (s *InstallScope) ValidateStatePath(p string) error {
-	// Normalize to forward slashes so checks work on all platforms.
 	p = filepath.ToSlash(p)
 
 	if filepath.IsAbs(p) {
@@ -518,7 +517,6 @@ func (s *InstallScope) CleanupDirs() {
 		}
 		return
 	}
-	// User scope
 	for _, sub := range []string{"agents", "skills", "hooks", "extensions"} {
 		dir := filepath.Join(s.RootDir, sub)
 		entries, err := os.ReadDir(dir)
@@ -526,11 +524,9 @@ func (s *InstallScope) CleanupDirs() {
 			os.Remove(dir)
 		}
 	}
-	// Instructions live under .github/instructions/ in user scope
 	instrDir := filepath.Join(s.RootDir, ".github", "instructions")
 	if entries, err := os.ReadDir(instrDir); err == nil && len(entries) == 0 {
 		os.Remove(instrDir)
-		// Remove .github/ if now empty too
 		if entries, err := os.ReadDir(filepath.Join(s.RootDir, ".github")); err == nil && len(entries) == 0 {
 			os.Remove(filepath.Join(s.RootDir, ".github"))
 		}
@@ -896,23 +892,19 @@ func CheckSymlink(path, boundary string) error {
 	cleanPath := filepath.Clean(path)
 	cleanBoundary := filepath.Clean(boundary)
 
-	// Verify path is lexically under (or equal to) boundary.
 	rel, err := filepath.Rel(cleanBoundary, cleanPath)
 	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
 		return fmt.Errorf("path %q is not under boundary %q", path, boundary)
 	}
 
-	// Check the file itself if it exists
 	if info, err := os.Lstat(path); err == nil && info.Mode()&os.ModeSymlink != 0 {
 		return fmt.Errorf("refusing to overwrite symlink: %s", path)
 	}
 
-	// If path IS boundary, no intermediate directories to check.
 	if cleanPath == cleanBoundary {
 		return nil
 	}
 
-	// Walk from parent directory up to (but not including) boundary.
 	dir := filepath.Clean(filepath.Dir(path))
 	for dir != cleanBoundary {
 		info, err := os.Lstat(dir)
