@@ -79,7 +79,7 @@ func TestGradleLocalhostStoresAnswer(t *testing.T) {
 		f := newGradleFixture(t, map[string]string{"build.gradle.kts": ""})
 		f.answer = tc.answer
 		maybeGradleLocalhost(f.root)
-		if f.asked != 1 || f.calls[len(f.calls)-1] != "set --local sandbox.allow_localhost_any "+tc.want {
+		if f.asked != 1 || len(f.calls) != 3 || f.calls[2] != "set --local sandbox.allow_localhost_any "+tc.want {
 			t.Errorf("answer %v: asked %d, calls %q", tc.answer, f.asked, f.calls)
 		}
 	}
@@ -118,23 +118,24 @@ func TestGradleLocalhostJSON(t *testing.T) {
 		name, json string
 		stored     bool // the text fallback's answer
 		ask        bool
+		calls      int // cplt calls: JSON probe, text fallback if any, write if asked
 	}{
-		{"unset", `{"schema":1,` + k + `,"value":false,"source":"default","set":false}`, true, true},
-		{"set local", `{"schema":1,` + k + `,"value":false,"source":"local","set":true}`, false, false},
-		{"set by preset", `{"schema":1,` + k + `,"value":false,"source":"user","set":true,"preset":"strict"}`, false, false},
-		{"older cplt, text says default", "", false, true},
-		{"older cplt, text says stored", "", true, false},
-		{"schema 2 falls back", `{"schema":2,` + k + `,"set":false}`, true, false},
-		{"other key falls back", `{"schema":1,"key":"sandbox.quiet","set":false}`, true, false},
-		{"no set field falls back", `{"schema":1,` + k + `}`, true, false},
-		{"garbage falls back", `false`, true, false},
+		{"unset", `{"schema":1,` + k + `,"value":false,"source":"default","set":false}`, true, true, 2},
+		{"set local", `{"schema":1,` + k + `,"value":false,"source":"local","set":true}`, false, false, 1},
+		{"set by preset", `{"schema":1,` + k + `,"value":false,"source":"user","set":true,"preset":"strict"}`, false, false, 1},
+		{"older cplt, text says default", "", false, true, 3},
+		{"older cplt, text says stored", "", true, false, 2},
+		{"schema 2 falls back", `{"schema":2,` + k + `,"set":false}`, true, false, 2},
+		{"other key falls back", `{"schema":1,"key":"sandbox.quiet","set":false}`, true, false, 2},
+		{"no set field falls back", `{"schema":1,` + k + `}`, true, false, 2},
+		{"garbage falls back", `false`, true, false, 2},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			f := newGradleFixture(t, map[string]string{"gradlew": ""})
 			f.json, f.stored = tc.json, tc.stored
 			maybeGradleLocalhost(f.root)
-			if (f.asked == 1) != tc.ask {
-				t.Errorf("asked %d, want ask=%v; calls %q", f.asked, tc.ask, f.calls)
+			if (f.asked == 1) != tc.ask || len(f.calls) != tc.calls {
+				t.Errorf("asked %d, want ask=%v; calls %q, want %d", f.asked, tc.ask, f.calls, tc.calls)
 			}
 		})
 	}
