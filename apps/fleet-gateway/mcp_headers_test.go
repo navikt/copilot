@@ -1,13 +1,14 @@
 package main
 
 import (
-	"github.com/navikt/copilot/fleet-gateway/internal/policy"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
 	"strings"
 	"sync"
 	"testing"
+
+	"github.com/navikt/copilot/fleet-gateway/internal/policy"
 
 	"github.com/navikt/copilot/fleet-gateway/internal/httpx"
 )

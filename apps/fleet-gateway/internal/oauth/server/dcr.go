@@ -196,7 +196,7 @@ func filterDCRRedirectURIs(in []string) ([]string, error) {
 		if err != nil {
 			return nil, errors.New("invalid redirect_uri")
 		}
-		if IsLoopbackRedirect(u) {
+		if isLoopbackRedirect(u) {
 			out = append(out, raw)
 			continue
 		}

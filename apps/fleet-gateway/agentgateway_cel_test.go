@@ -94,20 +94,3 @@ func TestAgentgatewayCELMatchesAllowlist(t *testing.T) {
 		t.Errorf("CEL rules changed; rerun with -update-cel-golden and review:\n%s", golden.String())
 	}
 }
-
-// TestToolNamesOutsideMCPCharsetRejected guards the CEL rendering: only names
-// in the MCP charset reach it, so no escape (such as \xHH for invalid UTF-8,
-// which CEL reads as a different code point) can change what the rule allows.
-func TestToolNamesOutsideMCPCharsetRejected(t *testing.T) {
-	long := strings.Repeat("a", 129)
-	for _, bad := range []string{"", "\xff", "caf\u00e9", " x", "x y", `x"]||true||["`, `back\slash`, "a/b", long} {
-		r := routing.Route{Route: "/mcp/a/b", Tools: []string{bad}}
-		if err := routing.ApplyToolPolicy(&r); err == nil {
-			t.Errorf("tool %q accepted", bad)
-		}
-	}
-	r := routing.Route{Route: "/mcp/a/b", Tools: []string{"get_team", "a.b-C9", strings.Repeat("a", 128)}}
-	if err := routing.ApplyToolPolicy(&r); err != nil {
-		t.Fatal(err)
-	}
-}

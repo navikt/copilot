@@ -56,7 +56,6 @@ const (
 	defaultSSEMaxDuration                   = 10 * time.Minute
 	defaultSSEIdleTimeout                   = 60 * time.Second
 	defaultSSEMaxBytes                int64 = 16 << 20 // 16 MiB
-	maxUpstreamBodyBytes                    = 1 << 20
 
 	rtStorageNone            = "none"
 	rtStorageClientEncrypted = server.RTStorageClientEncrypted

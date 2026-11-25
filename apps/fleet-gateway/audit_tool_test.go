@@ -5,8 +5,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/navikt/copilot/fleet-gateway/internal/policy"
-	"github.com/navikt/copilot/fleet-gateway/internal/proxy"
 	"io"
 	"log/slog"
 	"net/http"
@@ -15,6 +13,9 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/navikt/copilot/fleet-gateway/internal/policy"
+	"github.com/navikt/copilot/fleet-gateway/internal/proxy"
 
 	"github.com/navikt/copilot/fleet-gateway/internal/oauth"
 	"github.com/navikt/copilot/fleet-gateway/internal/routing"

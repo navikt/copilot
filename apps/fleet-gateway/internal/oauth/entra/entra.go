@@ -25,7 +25,7 @@ import (
 	"github.com/navikt/copilot/fleet-gateway/internal/config"
 )
 
-// Same limits as maxCIMDBodyBytes and maxUpstreamBodyBytes in main.
+// Same limits as maxCIMDBodyBytes and httpx.MaxUpstreamBodyBytes.
 const (
 	maxWellKnownBytes = 64 * 1024
 	maxTokenBodyBytes = 1 << 20

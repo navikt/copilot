@@ -128,7 +128,7 @@ func (g *Server) ConsentPost(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "invalid stored redirect_uri", http.StatusInternalServerError)
 			return
 		}
-		RedirectWithValues(w, r, target, url.Values{
+		redirectWithValues(w, r, target, url.Values{
 			"error": {"access_denied"},
 			"state": {p.State},
 			"iss":   {g.cfg.BaseURL},

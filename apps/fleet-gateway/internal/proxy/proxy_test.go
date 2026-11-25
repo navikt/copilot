@@ -43,3 +43,10 @@ func TestAcceptsEventStream_QZero(t *testing.T) {
 		}
 	}
 }
+
+func TestHardenedProxyClient_CapsResponseHeaders(t *testing.T) {
+	tr, ok := NewHardenedClient(0).Transport.(*http.Transport)
+	if !ok || tr.MaxResponseHeaderBytes != 64<<10 {
+		t.Fatalf("MaxResponseHeaderBytes = %v, want 64 KiB", tr.MaxResponseHeaderBytes)
+	}
+}

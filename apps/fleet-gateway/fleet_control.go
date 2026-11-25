@@ -18,6 +18,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 
+	"github.com/navikt/copilot/fleet-gateway/internal/httpx"
 	"github.com/navikt/copilot/fleet-gateway/internal/metrics"
 	"github.com/navikt/copilot/fleet-gateway/internal/routing"
 )
@@ -91,7 +92,7 @@ func (f *fleetControlRoutes) m2mToken(ctx context.Context) (string, error) {
 		return "", fmt.Errorf("texas token request: status %d", resp.StatusCode)
 	}
 	var out map[string]any
-	if err := json.NewDecoder(io.LimitReader(resp.Body, maxUpstreamBodyBytes)).Decode(&out); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, httpx.MaxUpstreamBodyBytes)).Decode(&out); err != nil {
 		return "", errors.New("invalid texas token response")
 	}
 	token, _ := out["access_token"].(string)

@@ -6,9 +6,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/navikt/copilot/fleet-gateway/internal/oauth/server"
-	"github.com/navikt/copilot/fleet-gateway/internal/policy"
-	"github.com/navikt/copilot/fleet-gateway/internal/proxy"
 	"io"
 	"log/slog"
 	"net/http"
@@ -19,6 +16,10 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/navikt/copilot/fleet-gateway/internal/oauth/server"
+	"github.com/navikt/copilot/fleet-gateway/internal/policy"
+	"github.com/navikt/copilot/fleet-gateway/internal/proxy"
 
 	"github.com/navikt/copilot/fleet-gateway/internal/httpx"
 	"github.com/navikt/copilot/fleet-gateway/internal/oauth"
