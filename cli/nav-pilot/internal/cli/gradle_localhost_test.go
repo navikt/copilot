@@ -140,14 +140,16 @@ func TestGradleLocalhostJSON(t *testing.T) {
 	}
 }
 
-// Crosses the exec seam once with a fake cplt script: exit 3 (unsupported
-// key) must keep the text check, and a JSON "set":true must stop the prompt.
+// Crosses the exec seam with a fake cplt script: a non-zero exit, even with
+// JSON on stdout, must keep the text check, and a JSON "set":true must stop the prompt.
 func TestGradleLocalhostFakeCpltScript(t *testing.T) {
 	for _, tc := range []struct {
 		name, jsonBranch string
 		ask              bool
 	}{
 		{"exit 3 keeps text check", `exit 3`, true},
+		{"non-zero exit ignores JSON", `echo '{"schema":1,"key":"sandbox.allow_localhost_any","value":true,"source":"local","set":true}'; exit 1`, true},
+		{"stderr warning, json on stdout", `echo '[cplt] warning: something' >&2; echo '{"schema":1,"key":"sandbox.allow_localhost_any","value":true,"source":"local","set":true}'`, false},
 		{"json set", `echo '{"schema":1,"key":"sandbox.allow_localhost_any","value":true,"source":"local","set":true}'`, false},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

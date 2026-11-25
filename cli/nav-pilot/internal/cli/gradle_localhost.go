@@ -46,14 +46,16 @@ func proposesLocalhost(root string) bool {
 	return ok
 }
 
-// runCpltConfig runs `cplt config ...` in dir and returns combined output.
+// runCpltConfig runs `cplt config ...` in dir and returns combined output,
+// or stdout only for `get --json`, so a stderr warning cannot break the parse.
 // A var so tests never run the real cplt.
 var runCpltConfig = func(dir string, args ...string) (string, error) {
 	cpltPath, err := findCplt()
 	if err != nil {
 		return "", err
 	}
-	out, err := runBoundedIn(dir, cpltCommandTimeout, true, cpltPath, append([]string{"config"}, args...)...)
+	combined := len(args) < 2 || args[1] != "--json"
+	out, err := runBoundedIn(dir, cpltCommandTimeout, combined, cpltPath, append([]string{"config"}, args...)...)
 	return string(out), err
 }
 
