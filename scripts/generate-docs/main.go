@@ -74,7 +74,11 @@ func parseFrontmatter(path string) map[string]string {
 	if err != nil {
 		fatal("cannot open %s: %v", path, err)
 	}
-	defer f.Close()
+	defer func() {
+		if err := f.Close(); err != nil {
+			fatal("cannot close %s: %v", path, err)
+		}
+	}()
 
 	result := make(map[string]string)
 	scanner := bufio.NewScanner(f)
@@ -365,52 +369,6 @@ func updateDocWithMarkers(path, begin, end, newContent string) int {
 		fmt.Printf("   %s (no changes)\n", filepath.Base(path))
 	}
 	return 0
-}
-
-func countFiles(dir, pattern string) int {
-	matches, err := filepath.Glob(filepath.Join(dir, pattern))
-	if err != nil {
-		return 0
-	}
-	count := 0
-	for _, m := range matches {
-		stem := strings.TrimSuffix(filepath.Base(m), filepath.Ext(filepath.Base(m)))
-		// Remove double extension (e.g. "foo.agent" from "foo.agent.md")
-		stem = strings.TrimSuffix(filepath.Base(m), ".agent.md")
-		if stem == filepath.Base(m) {
-			stem = strings.TrimSuffix(filepath.Base(m), ".instructions.md")
-		}
-		if stem == filepath.Base(m) {
-			stem = strings.TrimSuffix(filepath.Base(m), ".prompt.md")
-		}
-		metaPath := filepath.Join(dir, stem+".metadata.json")
-		meta := readMetadata(metaPath)
-		if !meta.Excluded {
-			count++
-		}
-	}
-	return count
-}
-
-func countPublicSkills(dir string) int {
-	entries, err := os.ReadDir(dir)
-	if err != nil {
-		return 0
-	}
-	count := 0
-	for _, e := range entries {
-		if !e.IsDir() {
-			continue
-		}
-		if _, err := os.Stat(filepath.Join(dir, e.Name(), "SKILL.md")); err != nil {
-			continue
-		}
-		meta := readMetadata(filepath.Join(dir, e.Name(), "metadata.json"))
-		if !meta.Excluded {
-			count++
-		}
-	}
-	return count
 }
 
 func fatal(format string, args ...interface{}) {
