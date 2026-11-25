@@ -146,6 +146,33 @@ spec:
             summary: A fleet-gateway pod has not fetched a fleet-control route snapshot for more than 10 minutes
             consequence: The pod keeps serving its last route table, so route changes and revocations in fleet-control do not reach it.
             action: "Check fleet-control health and its Postgres, then search fleet-gateway pod logs for `fleet-control routes not updated`."
+        - alert: FleetGatewayRouteSyncFailing
+          expr: sum(increase(fleet_gateway_route_sync_failures_total{namespace="copilot"}[15m])) > 0
+          for: 15m
+          labels:
+            namespace: copilot
+            severity: warning
+            alert_type: custom
+            app: fleet-gateway
+          annotations:
+            summary: fleet-gateway has failed to fetch or validate fleet-control route snapshots for 15 minutes
+            consequence: The pods keep serving their last route table, so route changes and revocations in fleet-control do not reach them.
+            action: "Search fleet-gateway pod logs for `fleet-control routes not updated`; the error says whether fleet-control is down or its snapshot is refused (contract mismatch, see docs/runbook.md)."
+{{#if routes_source}}
+        - alert: FleetGatewayRouteNeverSynced
+          # The age gauge appears on the first successful sync (#2637), so the stale alert cannot see a pod that never synced.
+          expr: fleet_gateway_routes_loaded{namespace="copilot"} unless on(pod, k8s_cluster_name) fleet_gateway_route_snapshot_age_seconds{namespace="copilot"}
+          for: 15m
+          labels:
+            namespace: copilot
+            severity: warning
+            alert_type: custom
+            app: fleet-gateway
+          annotations:
+            summary: A fleet-gateway pod has run for 15 minutes without one successful fleet-control route sync
+            consequence: The pod serves no route table from fleet-control, so MCP routes fail closed.
+            action: "Search the pod's logs for `fleet-control routes not updated` and check fleet-control health."
+{{/if}}
         - alert: FleetGatewayNoReadyPods
           expr: sum(kube_deployment_status_replicas_available{namespace="copilot", deployment="fleet-gateway"}) == 0
           for: 2m

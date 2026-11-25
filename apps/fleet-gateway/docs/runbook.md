@@ -155,6 +155,14 @@ The deploy that hashes the store keys for authorization codes, consent ids and E
 2. One login with your own user through a real client.
 3. One tool call (`whoami`); an `audit mcp` line with `context.outcome` `ok` and `decision.decision` `true` appears. Full version: [t7-prod-test.md](t7-prod-test.md).
 
+## Route sync failing
+
+`FleetGatewayRouteSyncFailing` fires when route snapshot fetches fail for 15 minutes. `FleetGatewayRouteNeverSynced` fires when a pod with `routes_source` set has run 15 minutes without one successful sync. `FleetGatewayRouteSnapshotStale` cannot catch that case: its age series only appears after the first sync (#2637). Routing fails closed either way.
+
+Search the pod logs for `fleet-control routes not updated`. A refused snapshot (for example `snapshot has no checked_at`) means a contract mismatch, not an outage.
+
+Snapshot contract rule: for one release the gateway accepts the snapshot both with and without a changed field. fleet-control ships the new field first; the gateway requires it only in a later release. See "Snapshot versions" in `apps/fleet-control/README.md`. Incident: #2861 required `checked_at` before dev fleet-control served it, and dev route sync failed from 24 Nov 18:54 to 25 Nov 08:38 (1679 failures, no alert) until #2910.
+
 ## Switch prod routes to fleet-control (#2760)
 
 Prod reads routes from `pilot-routes.prod.yaml` today. This section moves it to `ROUTES_SOURCE=fleet-control` and back. Rehearse the whole run in dev first and write the times below.

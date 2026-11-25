@@ -88,7 +88,7 @@ Publish and rollback return 409 when the routes snapshot would pass 960 KiB, und
 1. New optional fields do not raise `schema_version`. fleet-gateway ignores unknown fields; check mcp-registry before the first addition.
 2. Changed or removed fields raise `schema_version`. fleet-control then serves both versions, chosen with `?schema_version=N` (default 1).
 3. Deploy the gateway first with support for both versions. Remove the old version from fleet-control only when no gateway asks for it.
-4. A consumer may start requiring an optional field only after every fleet-control replica serves it. `checked_at` (#2849) works this way: deploy fleet-control first, then fleet-gateway.
+4. A consumer may start requiring an optional field only after every fleet-control replica serves it. `checked_at` (#2849) works this way: deploy fleet-control first, then fleet-gateway. Ship the field in one release and require it in a later one, so the gateway accepts the snapshot with and without it in between. #2861 required `checked_at` before dev fleet-control served it, and dev route sync failed for 14 hours on 24–25 Nov 2026 until #2910.
 5. Agent profiles in the gateway become their own kind with their own `schema_version: 1`, not a change to `routes`.
 
 ## Job API for fleet-runtime
