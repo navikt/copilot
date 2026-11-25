@@ -120,8 +120,10 @@
     {
       "type": "row",
       "title": "Lisenser",
-      "collapsed": false,
-      "panels": [],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
       "id": 1,
       "gridPos": {
         "h": 1,
@@ -129,10 +131,8 @@
         "x": 0,
         "y": 0
       },
-      "fieldConfig": {
-        "defaults": {},
-        "overrides": []
-      }
+      "collapsed": false,
+      "panels": []
     },
     {
       "datasource": {
@@ -563,7 +563,7 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 10,
+        "h": 8,
         "w": 24,
         "x": 0,
         "y": 5

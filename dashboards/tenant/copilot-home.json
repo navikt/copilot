@@ -146,7 +146,7 @@
       },
       "id": 1,
       "gridPos": {
-        "h": 6,
+        "h": 8,
         "w": 24,
         "x": 0,
         "y": 0
@@ -159,19 +159,19 @@
     {
       "type": "row",
       "title": "Status",
-      "collapsed": false,
-      "panels": [],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
       "id": 2,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 6
+        "y": 8
       },
-      "fieldConfig": {
-        "defaults": {},
-        "overrides": []
-      }
+      "collapsed": false,
+      "panels": []
     },
     {
       "datasource": {
@@ -236,10 +236,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 10,
+        "h": 8,
         "w": 24,
         "x": 0,
-        "y": 7
+        "y": 9
       },
       "id": 3,
       "options": {

@@ -749,7 +749,7 @@
                           "kind": "ElementReference",
                           "name": "panel-1"
                         },
-                        "height": 9,
+                        "height": 8,
                         "width": 12,
                         "x": 0,
                         "y": 0
@@ -762,7 +762,7 @@
                           "kind": "ElementReference",
                           "name": "panel-2"
                         },
-                        "height": 9,
+                        "height": 8,
                         "width": 12,
                         "x": 12,
                         "y": 0
@@ -789,7 +789,7 @@
                           "kind": "ElementReference",
                           "name": "panel-3"
                         },
-                        "height": 9,
+                        "height": 8,
                         "width": 12,
                         "x": 0,
                         "y": 0
@@ -802,7 +802,7 @@
                           "kind": "ElementReference",
                           "name": "panel-4"
                         },
-                        "height": 9,
+                        "height": 8,
                         "width": 12,
                         "x": 12,
                         "y": 0
@@ -817,7 +817,7 @@
           {
             "kind": "RowsLayoutRow",
             "spec": {
-              "collapse": false,
+              "collapse": true,
               "layout": {
                 "kind": "GridLayout",
                 "spec": {
@@ -829,7 +829,7 @@
                           "kind": "ElementReference",
                           "name": "panel-5"
                         },
-                        "height": 9,
+                        "height": 8,
                         "width": 12,
                         "x": 0,
                         "y": 0
@@ -842,7 +842,7 @@
                           "kind": "ElementReference",
                           "name": "panel-6"
                         },
-                        "height": 9,
+                        "height": 8,
                         "width": 12,
                         "x": 12,
                         "y": 0

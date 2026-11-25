@@ -205,21 +205,21 @@ def build():
         }
 
     rows = []
-    for title, ids in ROWS:
-        # Same grid as the other dashboards: stats share one full-width line,
-        # charts go in pairs of 12, and an odd last chart takes the full width.
+    for n, (title, ids) in enumerate(ROWS):
+        # Same grid as the other dashboards: every panel in a row has the same
+        # size; stats are one strip, charts go two or three to a line.
         items = []
+        k = len(ids) if len(ids) <= 3 else 2 if len(ids) % 2 == 0 else 3
         for i, pid in enumerate(ids):
             if pid < 10:
                 width, height, x, y = 24 // len(ids), 4, i * (24 // len(ids)), 0
             else:
-                last_odd = i == len(ids) - 1 and len(ids) % 2
-                width, height, x, y = (24 if last_odd else 12), 9, (i % 2) * 12, (i // 2) * 9
+                width, height, x, y = 24 // k, 8, (i % k) * (24 // k), (i // k) * 8
             items.append({"kind": "GridLayoutItem", "spec": {
                 "element": {"kind": "ElementReference", "name": f"panel-{pid}"},
                 "height": height, "width": width, "x": x, "y": y}})
         rows.append({"kind": "RowsLayoutRow", "spec": {
-            "collapse": False, "title": title,
+            "collapse": n >= 2, "title": title,  # two rows open, the rest load when expanded
             "layout": {"kind": "GridLayout", "spec": {"items": items}}}})
 
     # Only the two variables that mean anything here. The CLI dashboard's

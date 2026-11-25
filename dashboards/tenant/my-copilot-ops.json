@@ -170,8 +170,10 @@
     {
       "type": "row",
       "title": "Ingress (tilgangslogg)",
-      "collapsed": false,
-      "panels": [],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
       "id": 1,
       "gridPos": {
         "h": 1,
@@ -179,10 +181,8 @@
         "x": 0,
         "y": 0
       },
-      "fieldConfig": {
-        "defaults": {},
-        "overrides": []
-      }
+      "collapsed": false,
+      "panels": []
     },
     {
       "datasource": {
@@ -247,7 +247,7 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 10,
+        "h": 8,
         "w": 12,
         "x": 0,
         "y": 1
@@ -346,7 +346,7 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 10,
+        "h": 8,
         "w": 12,
         "x": 12,
         "y": 1
@@ -445,10 +445,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 10,
+        "h": 8,
         "w": 12,
         "x": 0,
-        "y": 11
+        "y": 9
       },
       "id": 4,
       "options": {
@@ -544,10 +544,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 10,
+        "h": 8,
         "w": 12,
         "x": 12,
-        "y": 11
+        "y": 9
       },
       "id": 5,
       "options": {
@@ -583,19 +583,19 @@
     {
       "type": "row",
       "title": "Wonderwall (innlogging i my-copilot)",
-      "collapsed": false,
-      "panels": [],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
       "id": 6,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 21
+        "y": 17
       },
-      "fieldConfig": {
-        "defaults": {},
-        "overrides": []
-      }
+      "collapsed": false,
+      "panels": []
     },
     {
       "datasource": {
@@ -661,10 +661,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 10,
+        "h": 8,
         "w": 12,
         "x": 0,
-        "y": 22
+        "y": 18
       },
       "id": 7,
       "options": {
@@ -766,10 +766,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 10,
+        "h": 8,
         "w": 12,
         "x": 12,
-        "y": 22
+        "y": 18
       },
       "id": 8,
       "options": {
@@ -805,584 +805,587 @@
     {
       "type": "row",
       "title": "Plattform (alle apper i namespace)",
-      "collapsed": false,
-      "panels": [],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
       "id": 9,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 32
+        "y": 26
       },
-      "fieldConfig": {
-        "defaults": {},
-        "overrides": []
-      }
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_METRICS}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
+      "collapsed": true,
+      "panels": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_METRICS}"
           },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "line",
-            "fillOpacity": 20,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 20,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 2,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "showValues": false,
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "max": 1,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": 0
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "percentunit"
             },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 2,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 27
+          },
+          "id": 10,
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean"
+              ],
+              "displayMode": "table",
+              "placement": "right",
+              "showLegend": true,
+              "width": 260,
+              "sortBy": "Mean",
+              "sortDesc": true
             },
-            "showPoints": "auto",
-            "showValues": false,
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
             }
           },
-          "mappings": [],
-          "max": 1,
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "percentunit"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 10,
-        "w": 12,
-        "x": 0,
-        "y": 33
-      },
-      "id": 10,
-      "options": {
-        "legend": {
-          "calcs": [
-            "mean"
+          "pluginVersion": "12.3.2",
+          "targets": [
+            {
+              "expr": "sum by (container) (rate(container_cpu_usage_seconds_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", container!=\"\", container!=\"POD\"}[$__rate_interval])) / sum by (container) (kube_pod_container_resource_requests{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", resource=\"cpu\", container!=\"\"})",
+              "legendFormat": "{{container}}",
+              "refId": "A"
+            }
           ],
-          "displayMode": "table",
-          "placement": "right",
-          "showLegend": true,
-          "width": 260,
-          "sortBy": "Mean",
-          "sortDesc": true
+          "title": "CPU mot request",
+          "type": "timeseries"
         },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "pluginVersion": "12.3.2",
-      "targets": [
         {
-          "expr": "sum by (container) (rate(container_cpu_usage_seconds_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", container!=\"\", container!=\"POD\"}[$__rate_interval])) / sum by (container) (kube_pod_container_resource_requests{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", resource=\"cpu\", container!=\"\"})",
-          "legendFormat": "{{container}}",
-          "refId": "A"
-        }
-      ],
-      "title": "CPU mot request",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_METRICS}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_METRICS}"
           },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "line",
-            "fillOpacity": 20,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 20,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 2,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "showValues": false,
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": 0
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "bytes"
             },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 2,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 27
+          },
+          "id": 11,
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean"
+              ],
+              "displayMode": "table",
+              "placement": "right",
+              "showLegend": true,
+              "width": 260,
+              "sortBy": "Mean",
+              "sortDesc": true
             },
-            "showPoints": "auto",
-            "showValues": false,
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
             }
           },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
-              },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
-          },
-          "unit": "bytes"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 10,
-        "w": 12,
-        "x": 12,
-        "y": 33
-      },
-      "id": 11,
-      "options": {
-        "legend": {
-          "calcs": [
-            "mean"
+          "pluginVersion": "12.3.2",
+          "targets": [
+            {
+              "expr": "sum by (container) (container_memory_working_set_bytes{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", container!=\"\", container!=\"POD\"})",
+              "legendFormat": "{{container}} used",
+              "refId": "A"
+            },
+            {
+              "expr": "sum by (container) (kube_pod_container_resource_limits{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", resource=\"memory\", container!=\"\"})",
+              "legendFormat": "{{container}} limit",
+              "refId": "B"
+            }
           ],
-          "displayMode": "table",
-          "placement": "right",
-          "showLegend": true,
-          "width": 260,
-          "sortBy": "Mean",
-          "sortDesc": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "pluginVersion": "12.3.2",
-      "targets": [
-        {
-          "expr": "sum by (container) (container_memory_working_set_bytes{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", container!=\"\", container!=\"POD\"})",
-          "legendFormat": "{{container}} used",
-          "refId": "A"
+          "title": "Minne (working set)",
+          "type": "timeseries"
         },
         {
-          "expr": "sum by (container) (kube_pod_container_resource_limits{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", resource=\"memory\", container!=\"\"})",
-          "legendFormat": "{{container}} limit",
-          "refId": "B"
-        }
-      ],
-      "title": "Minne (working set)",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_METRICS}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_METRICS}"
           },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "axisCenteredZero": false,
+                "axisColorMode": "text",
+                "axisLabel": "",
+                "axisPlacement": "auto",
+                "barAlignment": 0,
+                "barWidthFactor": 0.6,
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "gradientMode": "none",
+                "hideFrom": {
+                  "legend": false,
+                  "tooltip": false,
+                  "viz": false
+                },
+                "insertNulls": false,
+                "lineInterpolation": "linear",
+                "lineWidth": 2,
+                "pointSize": 5,
+                "scaleDistribution": {
+                  "type": "linear"
+                },
+                "showPoints": "auto",
+                "showValues": false,
+                "spanNulls": false,
+                "stacking": {
+                  "group": "A",
+                  "mode": "none"
+                },
+                "thresholdsStyle": {
+                  "mode": "off"
+                }
+              },
+              "mappings": [],
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  {
+                    "color": "green",
+                    "value": 0
+                  },
+                  {
+                    "color": "red",
+                    "value": 80
+                  }
+                ]
+              },
+              "unit": "short",
+              "decimals": 0
             },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 2,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 35
+          },
+          "id": 12,
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean"
+              ],
+              "displayMode": "table",
+              "placement": "right",
+              "showLegend": true,
+              "width": 260,
+              "sortBy": "Mean",
+              "sortDesc": true
             },
-            "showPoints": "auto",
-            "showValues": false,
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
+            "tooltip": {
+              "hideZeros": false,
+              "mode": "multi",
+              "sort": "desc"
             }
           },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": 0
+          "pluginVersion": "12.3.2",
+          "targets": [
+            {
+              "expr": "sum by (container) (increase(kube_pod_container_status_restarts_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\"}[$__interval]))",
+              "legendFormat": "{{container}}",
+              "refId": "A"
+            }
+          ],
+          "title": "Container-restarter",
+          "type": "timeseries",
+          "interval": "5m"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_METRICS}"
+          },
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
               },
-              {
-                "color": "red",
-                "value": 80
-              }
-            ]
+              "custom": {
+                "axisBorderShow": false,
+                "drawStyle": "line",
+                "fillOpacity": 10,
+                "lineWidth": 2,
+                "showPoints": "auto"
+              },
+              "unit": "short"
+            },
+            "overrides": []
           },
-          "unit": "short",
-          "decimals": 0
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 10,
-        "w": 12,
-        "x": 0,
-        "y": 43
-      },
-      "id": 12,
-      "options": {
-        "legend": {
-          "calcs": [
-            "mean"
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 12,
+            "y": 35
+          },
+          "id": 13,
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean"
+              ],
+              "displayMode": "table",
+              "placement": "right",
+              "showLegend": true,
+              "width": 260,
+              "sortBy": "Mean",
+              "sortDesc": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "expr": "go_goroutines{namespace=\"$namespace\", k8s_cluster_name=~\"$env\"}",
+              "legendFormat": "{{app}}",
+              "refId": "A"
+            }
           ],
-          "displayMode": "table",
-          "placement": "right",
-          "showLegend": true,
-          "width": 260,
-          "sortBy": "Mean",
-          "sortDesc": true
+          "title": "Go-goroutiner",
+          "type": "timeseries"
         },
-        "tooltip": {
-          "hideZeros": false,
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "pluginVersion": "12.3.2",
-      "targets": [
         {
-          "expr": "sum by (container) (increase(kube_pod_container_status_restarts_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\"}[$__interval]))",
-          "legendFormat": "{{container}}",
-          "refId": "A"
-        }
-      ],
-      "title": "Container-restarter",
-      "type": "timeseries",
-      "interval": "5m"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_METRICS}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
+          "datasource": {
+            "type": "prometheus",
+            "uid": "${DS_METRICS}"
           },
-          "custom": {
-            "axisBorderShow": false,
-            "drawStyle": "line",
-            "fillOpacity": 10,
-            "lineWidth": 2,
-            "showPoints": "auto"
+          "fieldConfig": {
+            "defaults": {
+              "color": {
+                "mode": "palette-classic"
+              },
+              "custom": {
+                "axisBorderShow": false,
+                "drawStyle": "line",
+                "fillOpacity": 20,
+                "lineWidth": 2,
+                "showPoints": "auto"
+              },
+              "unit": "short"
+            },
+            "overrides": []
           },
-          "unit": "short"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 10,
-        "w": 12,
-        "x": 12,
-        "y": 43
-      },
-      "id": 13,
-      "options": {
-        "legend": {
-          "calcs": [
-            "mean"
+          "gridPos": {
+            "h": 8,
+            "w": 12,
+            "x": 0,
+            "y": 43
+          },
+          "id": 14,
+          "options": {
+            "legend": {
+              "calcs": [
+                "mean"
+              ],
+              "displayMode": "table",
+              "placement": "right",
+              "showLegend": true,
+              "width": 260,
+              "sortBy": "Mean",
+              "sortDesc": true
+            },
+            "tooltip": {
+              "mode": "multi",
+              "sort": "desc"
+            }
+          },
+          "targets": [
+            {
+              "expr": "kube_deployment_spec_replicas{namespace=\"$namespace\", k8s_cluster_name=~\"$env\"}",
+              "legendFormat": "{{deployment}} desired",
+              "refId": "A"
+            },
+            {
+              "expr": "kube_deployment_status_replicas_ready{namespace=\"$namespace\", k8s_cluster_name=~\"$env\"}",
+              "legendFormat": "{{deployment}} ready",
+              "refId": "B"
+            }
           ],
-          "displayMode": "table",
-          "placement": "right",
-          "showLegend": true,
-          "width": 260,
-          "sortBy": "Mean",
-          "sortDesc": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
+          "title": "Replikaer (ønsket mot klare)",
+          "type": "timeseries"
         }
-      },
-      "targets": [
-        {
-          "expr": "go_goroutines{namespace=\"$namespace\", k8s_cluster_name=~\"$env\"}",
-          "legendFormat": "{{app}}",
-          "refId": "A"
-        }
-      ],
-      "title": "Go-goroutiner",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "${DS_METRICS}"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "drawStyle": "line",
-            "fillOpacity": 20,
-            "lineWidth": 2,
-            "showPoints": "auto"
-          },
-          "unit": "short"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 10,
-        "w": 24,
-        "x": 0,
-        "y": 53
-      },
-      "id": 14,
-      "options": {
-        "legend": {
-          "calcs": [
-            "mean"
-          ],
-          "displayMode": "table",
-          "placement": "right",
-          "showLegend": true,
-          "width": 260,
-          "sortBy": "Mean",
-          "sortDesc": true
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      },
-      "targets": [
-        {
-          "expr": "kube_deployment_spec_replicas{namespace=\"$namespace\", k8s_cluster_name=~\"$env\"}",
-          "legendFormat": "{{deployment}} desired",
-          "refId": "A"
-        },
-        {
-          "expr": "kube_deployment_status_replicas_ready{namespace=\"$namespace\", k8s_cluster_name=~\"$env\"}",
-          "legendFormat": "{{deployment}} ready",
-          "refId": "B"
-        }
-      ],
-      "title": "Replikaer (ønsket mot klare)",
-      "type": "timeseries"
+      ]
     },
     {
       "type": "row",
       "title": "Logger",
-      "collapsed": false,
-      "panels": [],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
       "id": 15,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 63
+        "y": 27
       },
-      "fieldConfig": {
-        "defaults": {},
-        "overrides": []
-      }
-    },
-    {
-      "datasource": {
-        "type": "loki",
-        "uid": "${DS_LOGS}"
-      },
-      "fieldConfig": {
-        "defaults": {},
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 10,
-        "w": 24,
-        "x": 0,
-        "y": 64
-      },
-      "id": 16,
-      "options": {
-        "dedupStrategy": "none",
-        "enableLogDetails": true,
-        "prettifyLogMessage": false,
-        "showCommonLabels": false,
-        "showLabels": false,
-        "showTime": true,
-        "sortOrder": "Descending",
-        "wrapLogMessage": false
-      },
-      "targets": [
+      "collapsed": true,
+      "panels": [
         {
-          "expr": "{service_namespace=\"$namespace\", k8s_cluster_name=~\"$env\", service_name=~\"$app\"} |= \"$log_filter\"",
-          "legendFormat": "",
-          "refId": "A"
-        }
-      ],
-      "title": "Applikasjonslogger",
-      "type": "logs"
-    },
-    {
-      "datasource": {
-        "type": "loki",
-        "uid": "${DS_LOGS}"
-      },
-      "fieldConfig": {
-        "defaults": {},
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 10,
-        "w": 24,
-        "x": 0,
-        "y": 74
-      },
-      "id": 17,
-      "options": {
-        "dedupStrategy": "none",
-        "enableLogDetails": true,
-        "prettifyLogMessage": false,
-        "showCommonLabels": false,
-        "showLabels": false,
-        "showTime": true,
-        "sortOrder": "Descending",
-        "wrapLogMessage": false
-      },
-      "targets": [
+          "datasource": {
+            "type": "loki",
+            "uid": "${DS_LOGS}"
+          },
+          "fieldConfig": {
+            "defaults": {},
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 10,
+            "w": 12,
+            "x": 0,
+            "y": 28
+          },
+          "id": 16,
+          "options": {
+            "dedupStrategy": "none",
+            "enableLogDetails": true,
+            "prettifyLogMessage": false,
+            "showCommonLabels": false,
+            "showLabels": false,
+            "showTime": true,
+            "sortOrder": "Descending",
+            "wrapLogMessage": false
+          },
+          "targets": [
+            {
+              "expr": "{service_namespace=\"$namespace\", k8s_cluster_name=~\"$env\", service_name=~\"$app\"} |= \"$log_filter\"",
+              "legendFormat": "",
+              "refId": "A"
+            }
+          ],
+          "title": "Applikasjonslogger",
+          "type": "logs"
+        },
         {
-          "expr": "{service_namespace=\"$namespace\", k8s_cluster_name=~\"$env\", service_name=~\"$app\"} | json | level=~\"error|warn|ERROR|WARN\"",
-          "legendFormat": "",
-          "refId": "A"
+          "datasource": {
+            "type": "loki",
+            "uid": "${DS_LOGS}"
+          },
+          "fieldConfig": {
+            "defaults": {},
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 10,
+            "w": 12,
+            "x": 12,
+            "y": 28
+          },
+          "id": 17,
+          "options": {
+            "dedupStrategy": "none",
+            "enableLogDetails": true,
+            "prettifyLogMessage": false,
+            "showCommonLabels": false,
+            "showLabels": false,
+            "showTime": true,
+            "sortOrder": "Descending",
+            "wrapLogMessage": false
+          },
+          "targets": [
+            {
+              "expr": "{service_namespace=\"$namespace\", k8s_cluster_name=~\"$env\", service_name=~\"$app\"} | json | level=~\"error|warn|ERROR|WARN\"",
+              "legendFormat": "",
+              "refId": "A"
+            }
+          ],
+          "title": "Feil og advarsler",
+          "type": "logs"
         }
-      ],
-      "title": "Feil og advarsler",
-      "type": "logs"
+      ]
     },
     {
       "type": "row",
       "title": "Traces",
-      "collapsed": false,
-      "panels": [],
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
+      },
       "id": 18,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 84
+        "y": 28
       },
-      "fieldConfig": {
-        "defaults": {},
-        "overrides": []
-      }
-    },
-    {
-      "datasource": {
-        "type": "tempo",
-        "uid": "${DS_TRACES}"
-      },
-      "fieldConfig": {
-        "defaults": {},
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 10,
-        "w": 24,
-        "x": 0,
-        "y": 85
-      },
-      "id": 19,
-      "options": {},
-      "targets": [
+      "collapsed": true,
+      "panels": [
         {
-          "filters": [
+          "datasource": {
+            "type": "tempo",
+            "uid": "${DS_TRACES}"
+          },
+          "fieldConfig": {
+            "defaults": {},
+            "overrides": []
+          },
+          "gridPos": {
+            "h": 10,
+            "w": 24,
+            "x": 0,
+            "y": 29
+          },
+          "id": 19,
+          "options": {},
+          "targets": [
             {
-              "id": "service-name",
-              "operator": "=~",
-              "scope": "resource",
-              "tag": "service.name",
-              "value": [
-                "my-copilot",
-                "copilot-api",
-                "mcp-onboarding",
-                "mcp-registry"
+              "filters": [
+                {
+                  "id": "service-name",
+                  "operator": "=~",
+                  "scope": "resource",
+                  "tag": "service.name",
+                  "value": [
+                    "my-copilot",
+                    "copilot-api",
+                    "mcp-onboarding",
+                    "mcp-registry"
+                  ],
+                  "valueType": "string"
+                }
               ],
-              "valueType": "string"
+              "limit": 20,
+              "queryType": "traceqlSearch",
+              "refId": "A"
             }
           ],
-          "limit": 20,
-          "queryType": "traceqlSearch",
-          "refId": "A"
+          "title": "Siste traces",
+          "type": "traces"
         }
-      ],
-      "title": "Siste traces",
-      "type": "traces"
+      ]
     }
   ]
 }

@@ -2040,7 +2040,7 @@
                           "kind": "ElementReference",
                           "name": "panel-10"
                         },
-                        "height": 9,
+                        "height": 8,
                         "width": 12,
                         "x": 0,
                         "y": 0
@@ -2053,7 +2053,7 @@
                           "kind": "ElementReference",
                           "name": "panel-11"
                         },
-                        "height": 9,
+                        "height": 8,
                         "width": 12,
                         "x": 12,
                         "y": 0
@@ -2066,10 +2066,10 @@
                           "kind": "ElementReference",
                           "name": "panel-12"
                         },
-                        "height": 9,
+                        "height": 8,
                         "width": 12,
                         "x": 0,
-                        "y": 9
+                        "y": 8
                       }
                     },
                     {
@@ -2079,10 +2079,10 @@
                           "kind": "ElementReference",
                           "name": "panel-13"
                         },
-                        "height": 9,
+                        "height": 8,
                         "width": 12,
                         "x": 12,
-                        "y": 9
+                        "y": 8
                       }
                     }
                   ]
@@ -2093,7 +2093,7 @@
           {
             "kind": "RowsLayoutRow",
             "spec": {
-              "collapse": false,
+              "collapse": true,
               "title": "Lokal server",
               "layout": {
                 "kind": "GridLayout",
@@ -2106,8 +2106,8 @@
                           "kind": "ElementReference",
                           "name": "panel-20"
                         },
-                        "height": 9,
-                        "width": 12,
+                        "height": 8,
+                        "width": 8,
                         "x": 0,
                         "y": 0
                       }
@@ -2119,9 +2119,9 @@
                           "kind": "ElementReference",
                           "name": "panel-21"
                         },
-                        "height": 9,
-                        "width": 12,
-                        "x": 12,
+                        "height": 8,
+                        "width": 8,
+                        "x": 8,
                         "y": 0
                       }
                     },
@@ -2132,10 +2132,10 @@
                           "kind": "ElementReference",
                           "name": "panel-22"
                         },
-                        "height": 9,
-                        "width": 24,
-                        "x": 0,
-                        "y": 9
+                        "height": 8,
+                        "width": 8,
+                        "x": 16,
+                        "y": 0
                       }
                     }
                   ]
@@ -2146,7 +2146,7 @@
           {
             "kind": "RowsLayoutRow",
             "spec": {
-              "collapse": false,
+              "collapse": true,
               "title": "alpha decide",
               "layout": {
                 "kind": "GridLayout",
@@ -2159,7 +2159,7 @@
                           "kind": "ElementReference",
                           "name": "panel-30"
                         },
-                        "height": 9,
+                        "height": 8,
                         "width": 12,
                         "x": 0,
                         "y": 0
@@ -2172,7 +2172,7 @@
                           "kind": "ElementReference",
                           "name": "panel-31"
                         },
-                        "height": 9,
+                        "height": 8,
                         "width": 12,
                         "x": 12,
                         "y": 0
@@ -2185,10 +2185,10 @@
                           "kind": "ElementReference",
                           "name": "panel-32"
                         },
-                        "height": 9,
+                        "height": 8,
                         "width": 12,
                         "x": 0,
-                        "y": 9
+                        "y": 8
                       }
                     },
                     {
@@ -2198,10 +2198,10 @@
                           "kind": "ElementReference",
                           "name": "panel-33"
                         },
-                        "height": 9,
+                        "height": 8,
                         "width": 12,
                         "x": 12,
-                        "y": 9
+                        "y": 8
                       }
                     }
                   ]
@@ -2212,7 +2212,7 @@
           {
             "kind": "RowsLayoutRow",
             "spec": {
-              "collapse": false,
+              "collapse": true,
               "title": "Hooks",
               "layout": {
                 "kind": "GridLayout",
@@ -2225,8 +2225,8 @@
                           "kind": "ElementReference",
                           "name": "panel-40"
                         },
-                        "height": 9,
-                        "width": 12,
+                        "height": 8,
+                        "width": 8,
                         "x": 0,
                         "y": 0
                       }
@@ -2238,9 +2238,9 @@
                           "kind": "ElementReference",
                           "name": "panel-41"
                         },
-                        "height": 9,
-                        "width": 12,
-                        "x": 12,
+                        "height": 8,
+                        "width": 8,
+                        "x": 8,
                         "y": 0
                       }
                     },
@@ -2251,10 +2251,10 @@
                           "kind": "ElementReference",
                           "name": "panel-42"
                         },
-                        "height": 9,
-                        "width": 24,
-                        "x": 0,
-                        "y": 9
+                        "height": 8,
+                        "width": 8,
+                        "x": 16,
+                        "y": 0
                       }
                     }
                   ]
