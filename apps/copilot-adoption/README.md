@@ -40,7 +40,7 @@ The scanner checks every non-archived repository for **16 customization categori
 | --------------- | ---------------- | ---- | ------------ |
 | `windsurfrules` | `.windsurfrules` | file | exists only  |
 
-> To add a new category, append an entry to `DefaultCriteria()` in [criteria.go](criteria.go) — no other code changes needed.
+> To add a new category, append an entry to `DefaultCriteria()` in [internal/adoption/criteria.go](internal/adoption/criteria.go) — no other code changes needed.
 
 ## Data Model
 

@@ -1,4 +1,4 @@
-package main
+package config
 
 import (
 	"cmp"
@@ -24,7 +24,7 @@ type Config struct {
 	SlackWebhookURL         string
 }
 
-func loadConfig() *Config {
+func Load() *Config {
 	return &Config{
 		Port:                    getEnv("PORT", "8080"),
 		LogLevel:                parseLogLevel(getEnv("LOG_LEVEL", "INFO")),

@@ -10,6 +10,12 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/navikt/copilot/apps/copilot-adoption/internal/config"
+	"github.com/navikt/copilot/apps/copilot-adoption/internal/github"
+	"github.com/navikt/copilot/apps/copilot-adoption/internal/scanner"
+	"github.com/navikt/copilot/apps/copilot-adoption/internal/slack"
+	"github.com/navikt/copilot/apps/copilot-adoption/internal/store"
 )
 
 func main() {
@@ -17,10 +23,10 @@ func main() {
 	dryRun := flag.Bool("dry-run", false, "Scan repos and print results without writing to BigQuery")
 	flag.Parse()
 
-	config := loadConfig()
+	cfg := config.Load()
 
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
-		Level: config.LogLevel,
+		Level: cfg.LogLevel,
 	}))
 	slog.SetDefault(logger)
 
@@ -28,16 +34,15 @@ func main() {
 	defer finishRun(0)
 
 	slog.Info("Starting copilot-adoption",
-		"org", config.OrganizationSlug,
-		"log_level", config.LogLevel.String(),
-		"batch_size", config.GraphQLBatchSize,
-		"concurrency", config.ScanConcurrency,
+		"org", cfg.OrganizationSlug,
+		"log_level", cfg.LogLevel.String(),
+		"batch_size", cfg.GraphQLBatchSize,
+		"concurrency", cfg.ScanConcurrency,
 		"run_once", *runOnce,
 	)
 
 	if *dryRun {
-		// Dry-run: only validate GitHub credentials, skip BigQuery
-		if config.GitHubAppID == 0 || config.GitHubAppPrivateKey == "" || config.GitHubAppInstallationID == 0 {
+		if cfg.GitHubAppID == 0 || cfg.GitHubAppPrivateKey == "" || cfg.GitHubAppInstallationID == 0 {
 			slog.Error("GitHub credentials required for dry-run")
 			exit(1)
 		}
@@ -45,14 +50,14 @@ func main() {
 		ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 		defer cancel()
 
-		ghClient, err := NewGitHubClient(config)
+		ghClient, err := github.NewGitHubClient(cfg)
 		if err != nil {
 			slog.Error("Failed to create GitHub client", "error", err)
 			exit(1)
 		}
 
 		today := time.Now().UTC().Truncate(24 * time.Hour)
-		results, err := DryRunScan(ctx, ghClient, config, today)
+		results, err := scanner.DryRunScan(ctx, ghClient, cfg, today)
 		if err != nil {
 			slog.Error("Dry-run scan failed", "error", err)
 			exit(1)
@@ -63,7 +68,7 @@ func main() {
 		return
 	}
 
-	if err := config.Validate(); err != nil {
+	if err := cfg.Validate(); err != nil {
 		slog.Error("Configuration error", "error", err)
 		exit(1)
 	}
@@ -71,13 +76,13 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
-	ghClient, err := NewGitHubClient(config)
+	ghClient, err := github.NewGitHubClient(cfg)
 	if err != nil {
 		slog.Error("Failed to create GitHub client", "error", err)
 		exit(1)
 	}
 
-	bqClient, err := NewBigQueryClient(ctx, config)
+	bqClient, err := store.NewBigQueryClient(ctx, cfg)
 	if err != nil {
 		slog.Error("Failed to create BigQuery client", "error", err)
 		exit(1)
@@ -94,9 +99,9 @@ func main() {
 		exit(1)
 	}
 
-	slack := NewSlackNotifier(config.SlackWebhookURL)
+	slack := slack.NewSlackNotifier(cfg.SlackWebhookURL)
 	today := time.Now().UTC().Truncate(24 * time.Hour)
-	if err := RunScan(ctx, ghClient, bqClient, config, today, slack); err != nil {
+	if err := scanner.RunScan(ctx, ghClient, bqClient, cfg, today, slack); err != nil {
 		slog.Error("Scan failed", "error", err)
 		if slack != nil {
 			slack.NotifyError(ctx, fmt.Sprintf("Scan failed: %v", err))

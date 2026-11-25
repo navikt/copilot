@@ -1,4 +1,4 @@
-package main
+package store
 
 import (
 	"bytes"
@@ -9,6 +9,9 @@ import (
 	"time"
 
 	"cloud.google.com/go/bigquery"
+
+	"github.com/navikt/copilot/apps/copilot-adoption/internal/adoption"
+	"github.com/navikt/copilot/apps/copilot-adoption/internal/config"
 )
 
 type BigQueryClient struct {
@@ -41,7 +44,7 @@ type RepoScanRow struct {
 	LoadedAt                time.Time  `bigquery:"loaded_at"`
 }
 
-func NewBigQueryClient(ctx context.Context, cfg *Config) (*BigQueryClient, error) {
+func NewBigQueryClient(ctx context.Context, cfg *config.Config) (*BigQueryClient, error) {
 	client, err := bigquery.NewClient(ctx, cfg.BigQueryProjectID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create BigQuery client: %w", err)
@@ -118,7 +121,6 @@ func desiredSchema() bigquery.Schema {
 	}
 }
 
-// ensureColumns adds any columns present in desiredSchema() but missing from the live table.
 func (c *BigQueryClient) ensureColumns(ctx context.Context, table *bigquery.Table, md *bigquery.TableMetadata) error {
 	existing := make(map[string]bool, len(md.Schema))
 	for _, f := range md.Schema {
@@ -150,7 +152,7 @@ func (c *BigQueryClient) ensureColumns(ctx context.Context, table *bigquery.Tabl
 	return nil
 }
 
-func (c *BigQueryClient) InsertScanResults(ctx context.Context, scanDate time.Time, results []RepoScanResult) error {
+func (c *BigQueryClient) InsertScanResults(ctx context.Context, scanDate time.Time, results []adoption.RepoScanResult) error {
 	if len(results) == 0 {
 		slog.Warn("No results to insert")
 		return nil
@@ -159,7 +161,6 @@ func (c *BigQueryClient) InsertScanResults(ctx context.Context, scanDate time.Ti
 	dateStr := scanDate.Format("2006-01-02")
 	loadedAt := time.Now().UTC()
 
-	// Build rows
 	var rows []*RepoScanRow
 	for _, r := range results {
 		customizationsJSON, err := json.Marshal(r.Customizations)
@@ -203,7 +204,6 @@ func (c *BigQueryClient) InsertScanResults(ctx context.Context, scanDate time.Ti
 	partitionDecorator := scanDate.Format("20060102")
 	table := c.client.Dataset(c.dataset).Table(c.table + "$" + partitionDecorator)
 
-	// Create JSONL data in memory
 	var buf bytes.Buffer
 	for _, row := range rows {
 		jsonMap := map[string]any{
@@ -260,3 +260,5 @@ func (c *BigQueryClient) InsertScanResults(ctx context.Context, scanDate time.Ti
 	slog.Info("Loaded scan results", "date", dateStr, "repos", len(results), "job_id", job.ID())
 	return nil
 }
+
+var _ adoption.AdoptionStore = (*BigQueryClient)(nil)
