@@ -238,17 +238,17 @@ const SECTIONS: Section[] = [
     icon: ScissorsIcon,
     why: "Agenter og klienter bygger på formen på svaret, så en endring kan knekke dem uten varsel. Et svar som er kuttet uten at det står, får modellen til å tro at den har sett alt.",
     todo: [
-      "Beskriv svaret med `outputSchema`, og send det i `structuredContent`.",
+      "Beskriv svaret med `outputSchema`, og send det i `structuredContent`. Ta også med JSON-en som tekst i `content`.",
       "Legg bare til felt. Ikke fjern eller endre felt som finnes.",
       "Merk alltid et kuttet svar, og si hvordan modellen henter resten.",
       "Svar med feil når baksystemet sender mer enn dere tåler.",
     ],
     points: [
-      "Svaret er en API. Beskriv det med `outputSchema`, og send det som `structuredContent`. Bare tilføy felt.",
+      "Svaret er et API. Beskriv det med `outputSchema`, og send det som `structuredContent`. Legg bare til felt. Ta også med den serialiserte JSON-en som tekstblokk i `content`, for klienter som ikke leser `structuredContent` (MCP-spesifikasjonen).",
       "Kutt aldri i stillhet. Kutt på tegn, ikke bytes, så dere ikke deler et tegn i to. Legg til en markør og et hint om hvilket verktøy eller argument som gir resten.",
       "Lister som er kuttet, har `truncated` og antall som gjenstår.",
       "Er svaret fra baksystemet for stort, svar med feil. Ikke send avkuttede data videre som om de var hele svaret.",
-      "Fritekst andre har skrevet, for eksempel kommentarer og beskrivelser, merkes som fritekst eller utelates i svar modellen leser.",
+      "Merk fritekst andre har skrevet, som kommentarer og beskrivelser, eller utelat den fra svar modellen leser.",
     ],
     owasp: [owasp("MCP06"), owasp("MCP10")],
     spec: [{ label: "Tools: Structured Content, Output Schema", href: `${SPEC}/server/tools` }],
@@ -264,10 +264,10 @@ const SECTIONS: Section[] = [
       "Ha få verktøy, og ingen demoverktøy i prod.",
     ],
     points: [
-      "Ingen borger- eller saksdata. Logg aldri innhold.",
+      "Ikke eksponer borger- eller saksdata, og logg aldri innhold.",
       "Bruker-ID kommer fra tokenet (`NAVident`), aldri fra verktøyargumenter. Et argument kan modellen fylle med hva som helst.",
-      "Få verktøy. Ingen demoverktøy i prod.",
-      "Krev fersk innlogging før skriving når eier har bestemt regelen. Regelen er ikke bestemt ennå, se #2964.",
+      "Hold antallet verktøy lavt, og ha ingen demoverktøy i prod.",
+      "Krev fersk innlogging før skriving når kravet er fastsatt (ikke bestemt ennå, se #2964).",
     ],
     owasp: [owasp("MCP02"), owasp("MCP07"), owasp("MCP10")],
     spec: [{ label: "Security best practices", href: SPEC_BEST_PRACTICES }],
@@ -324,7 +324,7 @@ const TOC: TocItem[] = [
   { id: "beskrivelser", label: "Skriv beskrivelser og annotasjoner" },
   { id: "metrikker", label: "Mål hvert verktøy" },
   { id: "svar", label: "Behandle svaret som et API" },
-  { id: "data", label: "Hold data og verktøy smått" },
+  { id: "data", label: "Begrens data og antall verktøy" },
   { id: "negative-tester", label: "Test avvisningene" },
   { id: "ros", label: "Lag en ROS per server" },
   { id: "eksempler", label: "Eksempler" },
@@ -370,7 +370,9 @@ function Rules({ id }: { id: string }) {
         </Heading>
         <Bullets>
           {s.todo.map((t) => (
-            <li key={t}>{t}</li>
+            <li key={t}>
+              <Inline text={t} />
+            </li>
           ))}
         </Bullets>
       </VStack>
@@ -499,7 +501,7 @@ export default function McpRetningslinjerPage() {
 
       <VStack gap="space-12">
         <LinkableHeading id="data" size="medium" level="2">
-          Hold data og verktøy smått
+          Begrens data og antall verktøy
         </LinkableHeading>
         <Rules id="data" />
       </VStack>

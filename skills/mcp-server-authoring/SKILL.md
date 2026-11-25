@@ -41,7 +41,7 @@ Checklist:
 - [ ] No tokens or personal data in logs.
 - [ ] Static descriptions; all four annotations set; annotations are hints only.
 - [ ] Per-tool metrics with bounded labels (tool name, outcome).
-- [ ] Output is an API: `outputSchema` + `structuredContent`; only add fields.
+- [ ] Output is an API: `outputSchema` + `structuredContent` (also the serialized JSON as a `content` text block, for clients that ignore `structuredContent`); only add fields.
 - [ ] Never truncate silently: cut on characters, not bytes, with a marker and a tool hint; lists carry `truncated` and the remaining count.
 - [ ] Oversized backend replies are errors, not truncated data.
 - [ ] Free text written by others is marked or left out of what the model reads.

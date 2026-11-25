@@ -176,7 +176,7 @@ export default function FleetGatewayForTeamPage() {
           <a href="#steg" className={linkClass}>
             Steg for steg
           </a>
-          . Resten av siden er sammenfoldet.
+          . Bakgrunn og referansedetaljer kan åpnes under hver overskrift.
         </BodyShort>
       </VStack>
 
