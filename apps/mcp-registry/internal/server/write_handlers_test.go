@@ -76,6 +76,13 @@ func TestHandlers_Authentication(t *testing.T) {
 			return &auth.IntrospectionResult{
 				Active: false,
 			}, nil
+		case "inactive-with-navident":
+			// Only the Active flag is wrong, so this fails if the !res.Active check is removed.
+			return &auth.IntrospectionResult{
+				Active:   false,
+				NAVident: "A123456",
+				Azp:      testWriterAZP,
+			}, nil
 		default:
 			return &auth.IntrospectionResult{Active: false}, nil
 		}
@@ -112,6 +119,17 @@ func TestHandlers_Authentication(t *testing.T) {
 
 		if rec.Code != http.StatusUnauthorized {
 			t.Fatalf("expected 401 on inactive token, got %d", rec.Code)
+		}
+	})
+
+	t.Run("inactive token with valid NAVident", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/entries", strings.NewReader(`{}`))
+		req.Header.Set("Authorization", "Bearer inactive-with-navident")
+		rec := httptest.NewRecorder()
+		mux.ServeHTTP(rec, req)
+
+		if rec.Code != http.StatusUnauthorized {
+			t.Fatalf("expected 401 on inactive token with NAVident, got %d", rec.Code)
 		}
 	})
 
