@@ -452,12 +452,14 @@
                 },
                 "legend": {
                   "calcs": [
-                    "mean",
-                    "max"
+                    "mean"
                   ],
                   "displayMode": "table",
-                  "placement": "bottom",
-                  "showLegend": true
+                  "placement": "right",
+                  "showLegend": true,
+                  "width": 260,
+                  "sortDesc": true,
+                  "sortBy": "Mean"
                 },
                 "tooltip": {
                   "hideZeros": false,
@@ -655,12 +657,14 @@
                 },
                 "legend": {
                   "calcs": [
-                    "mean",
-                    "max"
+                    "mean"
                   ],
                   "displayMode": "table",
-                  "placement": "bottom",
-                  "showLegend": true
+                  "placement": "right",
+                  "showLegend": true,
+                  "width": 260,
+                  "sortDesc": true,
+                  "sortBy": "Mean"
                 },
                 "tooltip": {
                   "hideZeros": false,
@@ -771,12 +775,14 @@
                 },
                 "legend": {
                   "calcs": [
-                    "mean",
-                    "max"
+                    "mean"
                   ],
                   "displayMode": "table",
-                  "placement": "bottom",
-                  "showLegend": true
+                  "placement": "right",
+                  "showLegend": true,
+                  "width": 260,
+                  "sortDesc": true,
+                  "sortBy": "Mean"
                 },
                 "tooltip": {
                   "hideZeros": false,
@@ -906,12 +912,14 @@
                 },
                 "legend": {
                   "calcs": [
-                    "mean",
-                    "max"
+                    "mean"
                   ],
                   "displayMode": "table",
-                  "placement": "bottom",
-                  "showLegend": true
+                  "placement": "right",
+                  "showLegend": true,
+                  "width": 260,
+                  "sortDesc": true,
+                  "sortBy": "Mean"
                 },
                 "tooltip": {
                   "hideZeros": false,
@@ -1022,12 +1030,14 @@
                 },
                 "legend": {
                   "calcs": [
-                    "mean",
-                    "max"
+                    "mean"
                   ],
                   "displayMode": "table",
-                  "placement": "bottom",
-                  "showLegend": true
+                  "placement": "right",
+                  "showLegend": true,
+                  "width": 260,
+                  "sortDesc": true,
+                  "sortBy": "Mean"
                 },
                 "tooltip": {
                   "hideZeros": false,
@@ -1226,12 +1236,14 @@
                 },
                 "legend": {
                   "calcs": [
-                    "mean",
-                    "max"
+                    "mean"
                   ],
                   "displayMode": "table",
-                  "placement": "bottom",
-                  "showLegend": true
+                  "placement": "right",
+                  "showLegend": true,
+                  "width": 260,
+                  "sortDesc": true,
+                  "sortBy": "Mean"
                 },
                 "tooltip": {
                   "hideZeros": false,
@@ -1449,12 +1461,14 @@
                 },
                 "legend": {
                   "calcs": [
-                    "mean",
-                    "max"
+                    "mean"
                   ],
                   "displayMode": "table",
-                  "placement": "bottom",
-                  "showLegend": true
+                  "placement": "right",
+                  "showLegend": true,
+                  "width": 260,
+                  "sortDesc": true,
+                  "sortBy": "Mean"
                 },
                 "tooltip": {
                   "hideZeros": false,
@@ -1565,12 +1579,14 @@
                 },
                 "legend": {
                   "calcs": [
-                    "mean",
-                    "max"
+                    "mean"
                   ],
                   "displayMode": "table",
-                  "placement": "bottom",
-                  "showLegend": true
+                  "placement": "right",
+                  "showLegend": true,
+                  "width": 260,
+                  "sortDesc": true,
+                  "sortBy": "Mean"
                 },
                 "tooltip": {
                   "hideZeros": false,
@@ -1681,12 +1697,14 @@
                 },
                 "legend": {
                   "calcs": [
-                    "mean",
-                    "max"
+                    "mean"
                   ],
                   "displayMode": "table",
-                  "placement": "bottom",
-                  "showLegend": true
+                  "placement": "right",
+                  "showLegend": true,
+                  "width": 260,
+                  "sortDesc": true,
+                  "sortBy": "Mean"
                 },
                 "tooltip": {
                   "hideZeros": false,
@@ -1797,12 +1815,14 @@
                 },
                 "legend": {
                   "calcs": [
-                    "mean",
-                    "max"
+                    "mean"
                   ],
                   "displayMode": "table",
-                  "placement": "bottom",
-                  "showLegend": true
+                  "placement": "right",
+                  "showLegend": true,
+                  "width": 260,
+                  "sortDesc": true,
+                  "sortBy": "Mean"
                 },
                 "tooltip": {
                   "hideZeros": false,
@@ -1913,12 +1933,14 @@
                 },
                 "legend": {
                   "calcs": [
-                    "mean",
-                    "max"
+                    "mean"
                   ],
                   "displayMode": "table",
-                  "placement": "bottom",
-                  "showLegend": true
+                  "placement": "right",
+                  "showLegend": true,
+                  "width": 260,
+                  "sortDesc": true,
+                  "sortBy": "Mean"
                 },
                 "tooltip": {
                   "hideZeros": false,
@@ -2018,8 +2040,8 @@
                           "kind": "ElementReference",
                           "name": "panel-10"
                         },
-                        "height": 8,
-                        "width": 6,
+                        "height": 9,
+                        "width": 12,
                         "x": 0,
                         "y": 0
                       }
@@ -2031,9 +2053,9 @@
                           "kind": "ElementReference",
                           "name": "panel-11"
                         },
-                        "height": 8,
-                        "width": 6,
-                        "x": 6,
+                        "height": 9,
+                        "width": 12,
+                        "x": 12,
                         "y": 0
                       }
                     },
@@ -2044,10 +2066,10 @@
                           "kind": "ElementReference",
                           "name": "panel-12"
                         },
-                        "height": 8,
-                        "width": 6,
-                        "x": 12,
-                        "y": 0
+                        "height": 9,
+                        "width": 12,
+                        "x": 0,
+                        "y": 9
                       }
                     },
                     {
@@ -2057,10 +2079,10 @@
                           "kind": "ElementReference",
                           "name": "panel-13"
                         },
-                        "height": 8,
-                        "width": 6,
-                        "x": 18,
-                        "y": 0
+                        "height": 9,
+                        "width": 12,
+                        "x": 12,
+                        "y": 9
                       }
                     }
                   ]
@@ -2084,8 +2106,8 @@
                           "kind": "ElementReference",
                           "name": "panel-20"
                         },
-                        "height": 8,
-                        "width": 8,
+                        "height": 9,
+                        "width": 12,
                         "x": 0,
                         "y": 0
                       }
@@ -2097,9 +2119,9 @@
                           "kind": "ElementReference",
                           "name": "panel-21"
                         },
-                        "height": 8,
-                        "width": 8,
-                        "x": 8,
+                        "height": 9,
+                        "width": 12,
+                        "x": 12,
                         "y": 0
                       }
                     },
@@ -2110,10 +2132,10 @@
                           "kind": "ElementReference",
                           "name": "panel-22"
                         },
-                        "height": 8,
-                        "width": 8,
-                        "x": 16,
-                        "y": 0
+                        "height": 9,
+                        "width": 24,
+                        "x": 0,
+                        "y": 9
                       }
                     }
                   ]
@@ -2137,8 +2159,8 @@
                           "kind": "ElementReference",
                           "name": "panel-30"
                         },
-                        "height": 8,
-                        "width": 6,
+                        "height": 9,
+                        "width": 12,
                         "x": 0,
                         "y": 0
                       }
@@ -2150,9 +2172,9 @@
                           "kind": "ElementReference",
                           "name": "panel-31"
                         },
-                        "height": 8,
-                        "width": 6,
-                        "x": 6,
+                        "height": 9,
+                        "width": 12,
+                        "x": 12,
                         "y": 0
                       }
                     },
@@ -2163,10 +2185,10 @@
                           "kind": "ElementReference",
                           "name": "panel-32"
                         },
-                        "height": 8,
-                        "width": 6,
-                        "x": 12,
-                        "y": 0
+                        "height": 9,
+                        "width": 12,
+                        "x": 0,
+                        "y": 9
                       }
                     },
                     {
@@ -2176,10 +2198,10 @@
                           "kind": "ElementReference",
                           "name": "panel-33"
                         },
-                        "height": 8,
-                        "width": 6,
-                        "x": 18,
-                        "y": 0
+                        "height": 9,
+                        "width": 12,
+                        "x": 12,
+                        "y": 9
                       }
                     }
                   ]
@@ -2203,8 +2225,8 @@
                           "kind": "ElementReference",
                           "name": "panel-40"
                         },
-                        "height": 8,
-                        "width": 8,
+                        "height": 9,
+                        "width": 12,
                         "x": 0,
                         "y": 0
                       }
@@ -2216,9 +2238,9 @@
                           "kind": "ElementReference",
                           "name": "panel-41"
                         },
-                        "height": 8,
-                        "width": 8,
-                        "x": 8,
+                        "height": 9,
+                        "width": 12,
+                        "x": 12,
                         "y": 0
                       }
                     },
@@ -2229,10 +2251,10 @@
                           "kind": "ElementReference",
                           "name": "panel-42"
                         },
-                        "height": 8,
-                        "width": 8,
-                        "x": 16,
-                        "y": 0
+                        "height": 9,
+                        "width": 24,
+                        "x": 0,
+                        "y": 9
                       }
                     }
                   ]

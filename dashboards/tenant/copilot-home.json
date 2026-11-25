@@ -146,10 +146,14 @@
       },
       "id": 1,
       "gridPos": {
-        "h": 8,
+        "h": 6,
         "w": 24,
         "x": 0,
         "y": 0
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
       }
     },
     {
@@ -162,7 +166,11 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 8
+        "y": 6
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
       }
     },
     {
@@ -228,10 +236,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
+        "h": 10,
         "w": 24,
         "x": 0,
-        "y": 9
+        "y": 7
       },
       "id": 3,
       "options": {
@@ -240,8 +248,11 @@
             "sum"
           ],
           "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
+          "placement": "right",
+          "showLegend": true,
+          "width": 260,
+          "sortBy": "Total",
+          "sortDesc": true
         },
         "tooltip": {
           "hideZeros": false,

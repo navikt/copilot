@@ -178,6 +178,10 @@
         "w": 24,
         "x": 0,
         "y": 0
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
       }
     },
     {
@@ -243,7 +247,7 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
+        "h": 10,
         "w": 12,
         "x": 0,
         "y": 1
@@ -255,8 +259,11 @@
             "sum"
           ],
           "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
+          "placement": "right",
+          "showLegend": true,
+          "width": 260,
+          "sortBy": "Total",
+          "sortDesc": true
         },
         "tooltip": {
           "hideZeros": false,
@@ -339,7 +346,7 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
+        "h": 10,
         "w": 12,
         "x": 12,
         "y": 1
@@ -351,8 +358,11 @@
             "sum"
           ],
           "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
+          "placement": "right",
+          "showLegend": true,
+          "width": 260,
+          "sortBy": "Total",
+          "sortDesc": true
         },
         "tooltip": {
           "hideZeros": false,
@@ -435,10 +445,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
+        "h": 10,
         "w": 12,
         "x": 0,
-        "y": 9
+        "y": 11
       },
       "id": 4,
       "options": {
@@ -447,8 +457,11 @@
             "sum"
           ],
           "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
+          "placement": "right",
+          "showLegend": true,
+          "width": 260,
+          "sortBy": "Total",
+          "sortDesc": true
         },
         "tooltip": {
           "hideZeros": false,
@@ -531,10 +544,10 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
+        "h": 10,
         "w": 12,
         "x": 12,
-        "y": 9
+        "y": 11
       },
       "id": 5,
       "options": {
@@ -543,8 +556,11 @@
             "sum"
           ],
           "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
+          "placement": "right",
+          "showLegend": true,
+          "width": 260,
+          "sortBy": "Total",
+          "sortDesc": true
         },
         "tooltip": {
           "hideZeros": false,
@@ -574,7 +590,11 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 17
+        "y": 21
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
       }
     },
     {
@@ -635,15 +655,16 @@
               }
             ]
           },
-          "unit": "short"
+          "unit": "short",
+          "decimals": 0
         },
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
+        "h": 10,
         "w": 12,
         "x": 0,
-        "y": 18
+        "y": 22
       },
       "id": 7,
       "options": {
@@ -652,8 +673,11 @@
             "sum"
           ],
           "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
+          "placement": "right",
+          "showLegend": true,
+          "width": 260,
+          "sortBy": "Total",
+          "sortDesc": true
         },
         "tooltip": {
           "hideZeros": false,
@@ -664,18 +688,19 @@
       "pluginVersion": "12.3.2",
       "targets": [
         {
-          "expr": "increase(wonderwall_logins{namespace=\"$namespace\", k8s_cluster_name=~\"$env\"}[$__rate_interval])",
+          "expr": "increase(wonderwall_logins{namespace=\"$namespace\", k8s_cluster_name=~\"$env\"}[$__interval])",
           "legendFormat": "Logins",
           "refId": "A"
         },
         {
-          "expr": "increase(wonderwall_logouts{namespace=\"$namespace\", k8s_cluster_name=~\"$env\"}[$__rate_interval])",
+          "expr": "increase(wonderwall_logouts{namespace=\"$namespace\", k8s_cluster_name=~\"$env\"}[$__interval])",
           "legendFormat": "Logouts",
           "refId": "B"
         }
       ],
-      "title": "Logins & Logouts",
-      "type": "timeseries"
+      "title": "Innlogginger og utlogginger",
+      "type": "timeseries",
+      "interval": "5m"
     },
     {
       "datasource": {
@@ -735,15 +760,16 @@
               }
             ]
           },
-          "unit": "short"
+          "unit": "short",
+          "decimals": 0
         },
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
+        "h": 10,
         "w": 12,
         "x": 12,
-        "y": 18
+        "y": 22
       },
       "id": 8,
       "options": {
@@ -752,10 +778,11 @@
             "sum"
           ],
           "displayMode": "table",
-          "placement": "bottom",
+          "placement": "right",
           "showLegend": true,
           "sortBy": "Total",
-          "sortDesc": true
+          "sortDesc": true,
+          "width": 260
         },
         "tooltip": {
           "hideZeros": false,
@@ -766,13 +793,14 @@
       "pluginVersion": "12.3.2",
       "targets": [
         {
-          "expr": "sum by (path) (increase(requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", service=\"wonderwall\"}[$__rate_interval]))",
+          "expr": "sum by (path) (increase(requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", service=\"wonderwall\"}[$__interval]))",
           "legendFormat": "{{path}}",
           "refId": "A"
         }
       ],
-      "title": "Wonderwall Requests by Path",
-      "type": "timeseries"
+      "title": "Wonderwall-forespørsler per sti",
+      "type": "timeseries",
+      "interval": "5m"
     },
     {
       "type": "row",
@@ -784,7 +812,11 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 26
+        "y": 32
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
       }
     },
     {
@@ -851,21 +883,23 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
+        "h": 10,
         "w": 12,
         "x": 0,
-        "y": 27
+        "y": 33
       },
       "id": 10,
       "options": {
         "legend": {
           "calcs": [
-            "mean",
-            "max"
+            "mean"
           ],
           "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
+          "placement": "right",
+          "showLegend": true,
+          "width": 260,
+          "sortBy": "Mean",
+          "sortDesc": true
         },
         "tooltip": {
           "hideZeros": false,
@@ -881,7 +915,7 @@
           "refId": "A"
         }
       ],
-      "title": "CPU Usage vs Requests",
+      "title": "CPU mot request",
       "type": "timeseries"
     },
     {
@@ -947,21 +981,23 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
+        "h": 10,
         "w": 12,
         "x": 12,
-        "y": 27
+        "y": 33
       },
       "id": 11,
       "options": {
         "legend": {
           "calcs": [
-            "mean",
-            "max"
+            "mean"
           ],
           "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
+          "placement": "right",
+          "showLegend": true,
+          "width": 260,
+          "sortBy": "Mean",
+          "sortDesc": true
         },
         "tooltip": {
           "hideZeros": false,
@@ -982,7 +1018,7 @@
           "refId": "B"
         }
       ],
-      "title": "Memory Working Set",
+      "title": "Minne (working set)",
       "type": "timeseries"
     },
     {
@@ -1043,26 +1079,29 @@
               }
             ]
           },
-          "unit": "short"
+          "unit": "short",
+          "decimals": 0
         },
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
+        "h": 10,
         "w": 12,
         "x": 0,
-        "y": 35
+        "y": 43
       },
       "id": 12,
       "options": {
         "legend": {
           "calcs": [
-            "mean",
-            "max"
+            "mean"
           ],
           "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
+          "placement": "right",
+          "showLegend": true,
+          "width": 260,
+          "sortBy": "Mean",
+          "sortDesc": true
         },
         "tooltip": {
           "hideZeros": false,
@@ -1073,13 +1112,14 @@
       "pluginVersion": "12.3.2",
       "targets": [
         {
-          "expr": "sum by (container) (increase(kube_pod_container_status_restarts_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\"}[$__rate_interval]))",
+          "expr": "sum by (container) (increase(kube_pod_container_status_restarts_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\"}[$__interval]))",
           "legendFormat": "{{container}}",
           "refId": "A"
         }
       ],
-      "title": "Container Restarts",
-      "type": "timeseries"
+      "title": "Container-restarter",
+      "type": "timeseries",
+      "interval": "5m"
     },
     {
       "datasource": {
@@ -1103,20 +1143,23 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
+        "h": 10,
         "w": 12,
         "x": 12,
-        "y": 35
+        "y": 43
       },
       "id": 13,
       "options": {
         "legend": {
           "calcs": [
-            "mean",
-            "max"
+            "mean"
           ],
           "displayMode": "table",
-          "placement": "bottom"
+          "placement": "right",
+          "showLegend": true,
+          "width": 260,
+          "sortBy": "Mean",
+          "sortDesc": true
         },
         "tooltip": {
           "mode": "multi",
@@ -1130,7 +1173,7 @@
           "refId": "A"
         }
       ],
-      "title": "Go Goroutines",
+      "title": "Go-goroutiner",
       "type": "timeseries"
     },
     {
@@ -1155,20 +1198,23 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
-        "w": 12,
+        "h": 10,
+        "w": 24,
         "x": 0,
-        "y": 43
+        "y": 53
       },
       "id": 14,
       "options": {
         "legend": {
           "calcs": [
-            "mean",
-            "max"
+            "mean"
           ],
           "displayMode": "table",
-          "placement": "bottom"
+          "placement": "right",
+          "showLegend": true,
+          "width": 260,
+          "sortBy": "Mean",
+          "sortDesc": true
         },
         "tooltip": {
           "mode": "multi",
@@ -1187,7 +1233,7 @@
           "refId": "B"
         }
       ],
-      "title": "Replicas (Desired vs Ready)",
+      "title": "Replikaer (ønsket mot klare)",
       "type": "timeseries"
     },
     {
@@ -1200,7 +1246,11 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 51
+        "y": 63
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
       }
     },
     {
@@ -1216,7 +1266,7 @@
         "h": 10,
         "w": 24,
         "x": 0,
-        "y": 52
+        "y": 64
       },
       "id": 16,
       "options": {
@@ -1236,7 +1286,7 @@
           "refId": "A"
         }
       ],
-      "title": "Application Logs",
+      "title": "Applikasjonslogger",
       "type": "logs"
     },
     {
@@ -1252,7 +1302,7 @@
         "h": 10,
         "w": 24,
         "x": 0,
-        "y": 62
+        "y": 74
       },
       "id": 17,
       "options": {
@@ -1272,7 +1322,7 @@
           "refId": "A"
         }
       ],
-      "title": "Errors & Warnings",
+      "title": "Feil og advarsler",
       "type": "logs"
     },
     {
@@ -1285,7 +1335,11 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 72
+        "y": 84
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
       }
     },
     {
@@ -1301,7 +1355,7 @@
         "h": 10,
         "w": 24,
         "x": 0,
-        "y": 73
+        "y": 85
       },
       "id": 19,
       "options": {},
@@ -1327,7 +1381,7 @@
           "refId": "A"
         }
       ],
-      "title": "Recent Traces",
+      "title": "Siste traces",
       "type": "traces"
     }
   ]

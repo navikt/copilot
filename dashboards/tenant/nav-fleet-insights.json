@@ -128,6 +128,10 @@
         "w": 24,
         "x": 0,
         "y": 0
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
       }
     },
     {
@@ -188,12 +192,13 @@
               }
             ]
           },
-          "unit": "short"
+          "unit": "short",
+          "decimals": 0
         },
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
+        "h": 10,
         "w": 12,
         "x": 0,
         "y": 1
@@ -205,8 +210,11 @@
             "sum"
           ],
           "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
+          "placement": "right",
+          "showLegend": true,
+          "width": 260,
+          "sortBy": "Total",
+          "sortDesc": true
         },
         "tooltip": {
           "hideZeros": false,
@@ -217,14 +225,15 @@
       "pluginVersion": "12.3.2",
       "targets": [
         {
-          "expr": "sum by (route) (increase(fleet_gateway_mcp_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app=\"fleet-gateway\"}[1d]))",
+          "expr": "sum by (route) (increase(fleet_gateway_mcp_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app=\"fleet-gateway\"}[$__interval]))",
           "legendFormat": "{{route}}",
           "refId": "A"
         }
       ],
       "title": "Forespørsler per rute",
       "type": "timeseries",
-      "description": "Daglig volum per rute. Drill ned i nav-fleet: drift ved avvik."
+      "description": "Daglig volum per rute. Drill ned i nav-fleet: drift ved avvik.",
+      "interval": "5m"
     },
     {
       "datasource": {
@@ -284,12 +293,13 @@
               }
             ]
           },
-          "unit": "short"
+          "unit": "short",
+          "decimals": 0
         },
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
+        "h": 10,
         "w": 12,
         "x": 12,
         "y": 1
@@ -301,8 +311,11 @@
             "sum"
           ],
           "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
+          "placement": "right",
+          "showLegend": true,
+          "width": 260,
+          "sortBy": "Total",
+          "sortDesc": true
         },
         "tooltip": {
           "hideZeros": false,
@@ -313,14 +326,15 @@
       "pluginVersion": "12.3.2",
       "targets": [
         {
-          "expr": "topk(15, sum by (tool) (increase(fleet_gateway_mcp_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app=\"fleet-gateway\", tool!=\"\"}[1d])))",
+          "expr": "topk(15, sum by (tool) (increase(fleet_gateway_mcp_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app=\"fleet-gateway\", tool!=\"\"}[$__interval])))",
           "legendFormat": "{{tool}}",
           "refId": "A"
         }
       ],
       "title": "Verktøykall per verktøy (gateway)",
       "type": "timeseries",
-      "description": ""
+      "description": "",
+      "interval": "5m"
     },
     {
       "type": "row",
@@ -332,7 +346,11 @@
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 9
+        "y": 11
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
       }
     },
     {
@@ -343,7 +361,8 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "thresholds"
+            "mode": "fixed",
+            "fixedColor": "text"
           },
           "mappings": [],
           "noValue": "—",
@@ -356,20 +375,21 @@
               }
             ]
           },
-          "unit": "short"
+          "unit": "short",
+          "decimals": 0
         },
         "overrides": []
       },
       "gridPos": {
         "h": 4,
-        "w": 6,
+        "w": 24,
         "x": 0,
-        "y": 10
+        "y": 12
       },
       "id": 5,
       "options": {
-        "colorMode": "background",
-        "graphMode": "area",
+        "colorMode": "value",
+        "graphMode": "none",
         "justifyMode": "auto",
         "orientation": "auto",
         "percentChangeColorMode": "standard",
@@ -387,12 +407,12 @@
       "pluginVersion": "12.3.2",
       "targets": [
         {
-          "expr": "sum(increase(registry_server_lookups_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app=\"mcp-registry\"}[24h]))",
+          "expr": "round(sum(increase(registry_server_lookups_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app=\"mcp-registry\"}[$__range])))",
           "legendFormat": "",
           "refId": "A"
         }
       ],
-      "title": "Registry Lookups (24h)",
+      "title": "Registry-oppslag i perioden",
       "type": "stat"
     },
     {
@@ -453,15 +473,16 @@
               }
             ]
           },
-          "unit": "short"
+          "unit": "short",
+          "decimals": 0
         },
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
+        "h": 10,
         "w": 12,
-        "x": 6,
-        "y": 10
+        "x": 0,
+        "y": 16
       },
       "id": 6,
       "options": {
@@ -470,10 +491,11 @@
             "sum"
           ],
           "displayMode": "table",
-          "placement": "bottom",
+          "placement": "right",
           "showLegend": true,
           "sortBy": "Total",
-          "sortDesc": true
+          "sortDesc": true,
+          "width": 260
         },
         "tooltip": {
           "hideZeros": false,
@@ -484,13 +506,15 @@
       "pluginVersion": "12.3.2",
       "targets": [
         {
-          "expr": "sum by (server) (increase(registry_server_lookups_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app=\"mcp-registry\"}[$__rate_interval]))",
+          "expr": "sum by (server) (increase(registry_server_lookups_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app=\"mcp-registry\"}[$__interval]))",
           "legendFormat": "{{server}}",
           "refId": "A"
         }
       ],
-      "title": "Server Lookups by Server",
-      "type": "timeseries"
+      "title": "Oppslag per server",
+      "type": "timeseries",
+      "interval": "5m",
+      "description": "server=\"unknown\" er oppslag på en server som ikke finnes i registryet (result=\"not_found\"). mcp-registry setter bevisst \"unknown\" i stedet for navnet fra URL-en, så ukjente navn ikke gir én serie hver."
     },
     {
       "datasource": {
@@ -500,7 +524,8 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "thresholds"
+            "mode": "fixed",
+            "fixedColor": "blue"
           },
           "mappings": [],
           "thresholds": {
@@ -512,15 +537,16 @@
               }
             ]
           },
-          "unit": "short"
+          "unit": "short",
+          "decimals": 0
         },
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
+        "h": 10,
         "w": 12,
-        "x": 0,
-        "y": 18
+        "x": 12,
+        "y": 16
       },
       "id": 7,
       "options": {
@@ -550,13 +576,14 @@
       "pluginVersion": "12.3.2",
       "targets": [
         {
-          "expr": "sum by (server) (increase(registry_server_lookups_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app=\"mcp-registry\", result=\"found\"}[$__range]))",
+          "expr": "round(sum by (server) (increase(registry_server_lookups_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app=\"mcp-registry\", result=\"found\"}[$__range])))",
           "legendFormat": "{{server}}",
           "refId": "A"
         }
       ],
-      "title": "Most Popular Servers",
-      "type": "bargauge"
+      "title": "Mest brukte servere",
+      "type": "bargauge",
+      "description": "server=\"unknown\" er oppslag på en server som ikke finnes i registryet (result=\"not_found\"). mcp-registry setter bevisst \"unknown\" i stedet for navnet fra URL-en, så ukjente navn ikke gir én serie hver."
     },
     {
       "type": "row",
@@ -569,6 +596,10 @@
         "w": 24,
         "x": 0,
         "y": 26
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
       }
     },
     {
@@ -579,7 +610,8 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "thresholds"
+            "mode": "fixed",
+            "fixedColor": "text"
           },
           "mappings": [],
           "noValue": "—",
@@ -604,8 +636,8 @@
       },
       "id": 9,
       "options": {
-        "colorMode": "background",
-        "graphMode": "area",
+        "colorMode": "value",
+        "graphMode": "none",
         "justifyMode": "auto",
         "orientation": "auto",
         "percentChangeColorMode": "standard",
@@ -628,7 +660,7 @@
           "refId": "A"
         }
       ],
-      "title": "Active Tokens",
+      "title": "Aktive tokener",
       "type": "stat"
     },
     {
@@ -639,7 +671,8 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "thresholds"
+            "mode": "fixed",
+            "fixedColor": "text"
           },
           "mappings": [],
           "noValue": "—",
@@ -664,8 +697,8 @@
       },
       "id": 10,
       "options": {
-        "colorMode": "background",
-        "graphMode": "area",
+        "colorMode": "value",
+        "graphMode": "none",
         "justifyMode": "auto",
         "orientation": "auto",
         "percentChangeColorMode": "standard",
@@ -688,7 +721,7 @@
           "refId": "A"
         }
       ],
-      "title": "Refresh Tokens",
+      "title": "Refresh-tokener",
       "type": "stat"
     },
     {
@@ -699,7 +732,8 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "thresholds"
+            "mode": "fixed",
+            "fixedColor": "text"
           },
           "mappings": [],
           "noValue": "—",
@@ -712,7 +746,8 @@
               }
             ]
           },
-          "unit": "short"
+          "unit": "short",
+          "decimals": 0
         },
         "overrides": []
       },
@@ -724,8 +759,8 @@
       },
       "id": 11,
       "options": {
-        "colorMode": "background",
-        "graphMode": "area",
+        "colorMode": "value",
+        "graphMode": "none",
         "justifyMode": "auto",
         "orientation": "auto",
         "percentChangeColorMode": "standard",
@@ -743,12 +778,12 @@
       "pluginVersion": "12.3.2",
       "targets": [
         {
-          "expr": "sum(increase(authenticated_users_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app=\"mcp-onboarding\"}[24h]))",
+          "expr": "round(sum(increase(authenticated_users_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app=\"mcp-onboarding\"}[$__range])))",
           "legendFormat": "",
           "refId": "A"
         }
       ],
-      "title": "Authentications (24h)",
+      "title": "Innlogginger i perioden",
       "type": "stat"
     },
     {
@@ -759,7 +794,8 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "mode": "thresholds"
+            "mode": "fixed",
+            "fixedColor": "text"
           },
           "mappings": [],
           "noValue": "—",
@@ -772,7 +808,8 @@
               }
             ]
           },
-          "unit": "short"
+          "unit": "short",
+          "decimals": 0
         },
         "overrides": []
       },
@@ -784,8 +821,8 @@
       },
       "id": 12,
       "options": {
-        "colorMode": "background",
-        "graphMode": "area",
+        "colorMode": "value",
+        "graphMode": "none",
         "justifyMode": "auto",
         "orientation": "auto",
         "percentChangeColorMode": "standard",
@@ -803,12 +840,12 @@
       "pluginVersion": "12.3.2",
       "targets": [
         {
-          "expr": "sum(increase(mcp_tool_calls_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app=\"mcp-onboarding\"}[24h]))",
+          "expr": "round(sum(increase(mcp_tool_calls_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app=\"mcp-onboarding\"}[$__range])))",
           "legendFormat": "",
           "refId": "A"
         }
       ],
-      "title": "Tool Calls (24h)",
+      "title": "Verktøykall i perioden",
       "type": "stat"
     },
     {
@@ -869,13 +906,14 @@
               }
             ]
           },
-          "unit": "short"
+          "unit": "short",
+          "decimals": 0
         },
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
-        "w": 12,
+        "h": 10,
+        "w": 24,
         "x": 0,
         "y": 31
       },
@@ -886,10 +924,11 @@
             "sum"
           ],
           "displayMode": "table",
-          "placement": "bottom",
+          "placement": "right",
           "showLegend": true,
           "sortBy": "Total",
-          "sortDesc": true
+          "sortDesc": true,
+          "width": 260
         },
         "tooltip": {
           "hideZeros": false,
@@ -900,13 +939,14 @@
       "pluginVersion": "12.3.2",
       "targets": [
         {
-          "expr": "sum by (tool) (increase(mcp_tool_calls_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app=\"mcp-onboarding\"}[$__rate_interval]))",
+          "expr": "sum by (tool) (increase(mcp_tool_calls_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app=\"mcp-onboarding\"}[$__interval]))",
           "legendFormat": "{{tool}}",
           "refId": "A"
         }
       ],
-      "title": "Tool Calls by Tool",
-      "type": "timeseries"
+      "title": "Verktøykall per verktøy",
+      "type": "timeseries",
+      "interval": "5m"
     }
   ]
 }

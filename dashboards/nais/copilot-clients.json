@@ -64,7 +64,7 @@
           "description": "",
           "id": 1,
           "links": [],
-          "title": "LLM Latency (P95)",
+          "title": "LLM-latens (p95)",
           "vizConfig": {
             "group": "timeseries",
             "kind": "VizConfig",
@@ -132,10 +132,15 @@
                   "multiLane": false
                 },
                 "legend": {
-                  "calcs": [],
+                  "calcs": [
+                    "mean"
+                  ],
                   "displayMode": "table",
-                  "placement": "bottom",
-                  "showLegend": true
+                  "placement": "right",
+                  "showLegend": true,
+                  "width": 260,
+                  "sortDesc": true,
+                  "sortBy": "Mean"
                 },
                 "tooltip": {
                   "hideZeros": false,
@@ -182,7 +187,7 @@
           "description": "",
           "id": 2,
           "links": [],
-          "title": "Provider Requests",
+          "title": "Forespørsler per leverandør",
           "vizConfig": {
             "group": "barchart",
             "kind": "VizConfig",
@@ -292,7 +297,7 @@
           "description": "",
           "id": 3,
           "links": [],
-          "title": "Agent Tool Executions (Verktøy-friksjon)",
+          "title": "Verktøykjøringer i agenten (friksjon)",
           "vizConfig": {
             "group": "barchart",
             "kind": "VizConfig",
@@ -402,7 +407,7 @@
           "description": "",
           "id": 4,
           "links": [],
-          "title": "MCP Connections",
+          "title": "MCP-tilkoblinger",
           "vizConfig": {
             "group": "barchart",
             "kind": "VizConfig",
@@ -512,7 +517,7 @@
           "description": "",
           "id": 5,
           "links": [],
-          "title": "Token Forbruk pr Modell (Input vs Output)",
+          "title": "Tokenforbruk per modell (inn og ut)",
           "vizConfig": {
             "group": "timeseries",
             "kind": "VizConfig",
@@ -580,10 +585,15 @@
                   "multiLane": false
                 },
                 "legend": {
-                  "calcs": [],
+                  "calcs": [
+                    "mean"
+                  ],
                   "displayMode": "table",
-                  "placement": "bottom",
-                  "showLegend": true
+                  "placement": "right",
+                  "showLegend": true,
+                  "width": 260,
+                  "sortDesc": true,
+                  "sortBy": "Mean"
                 },
                 "tooltip": {
                   "hideZeros": false,
@@ -630,7 +640,7 @@
           "description": "",
           "id": 6,
           "links": [],
-          "title": "Totalt LLM Requests",
+          "title": "LLM-forespørsler totalt",
           "vizConfig": {
             "group": "timeseries",
             "kind": "VizConfig",
@@ -698,10 +708,15 @@
                   "multiLane": false
                 },
                 "legend": {
-                  "calcs": [],
+                  "calcs": [
+                    "mean"
+                  ],
                   "displayMode": "table",
-                  "placement": "bottom",
-                  "showLegend": true
+                  "placement": "right",
+                  "showLegend": true,
+                  "width": 260,
+                  "sortDesc": true,
+                  "sortBy": "Mean"
                 },
                 "tooltip": {
                   "hideZeros": false,
@@ -734,7 +749,7 @@
                           "kind": "ElementReference",
                           "name": "panel-1"
                         },
-                        "height": 8,
+                        "height": 9,
                         "width": 12,
                         "x": 0,
                         "y": 0
@@ -747,7 +762,7 @@
                           "kind": "ElementReference",
                           "name": "panel-2"
                         },
-                        "height": 8,
+                        "height": 9,
                         "width": 12,
                         "x": 12,
                         "y": 0
@@ -756,7 +771,7 @@
                   ]
                 }
               },
-              "title": "SEKSJON 1: PLATTFORMHELSE & ALERTING"
+              "title": "Plattformhelse og varsling"
             }
           },
           {
@@ -774,7 +789,7 @@
                           "kind": "ElementReference",
                           "name": "panel-3"
                         },
-                        "height": 8,
+                        "height": 9,
                         "width": 12,
                         "x": 0,
                         "y": 0
@@ -787,7 +802,7 @@
                           "kind": "ElementReference",
                           "name": "panel-4"
                         },
-                        "height": 8,
+                        "height": 9,
                         "width": 12,
                         "x": 12,
                         "y": 0
@@ -796,7 +811,7 @@
                   ]
                 }
               },
-              "title": "SEKSJON 2: KVALITET & AGENT-OPPFØRSEL"
+              "title": "Kvalitet og agentoppførsel"
             }
           },
           {
@@ -814,7 +829,7 @@
                           "kind": "ElementReference",
                           "name": "panel-5"
                         },
-                        "height": 8,
+                        "height": 9,
                         "width": 12,
                         "x": 0,
                         "y": 0
@@ -827,7 +842,7 @@
                           "kind": "ElementReference",
                           "name": "panel-6"
                         },
-                        "height": 8,
+                        "height": 9,
                         "width": 12,
                         "x": 12,
                         "y": 0
@@ -836,7 +851,7 @@
                   ]
                 }
               },
-              "title": "SEKSJON 3: ROI & OPTIMALISERING"
+              "title": "ROI og optimalisering"
             }
           }
         ]

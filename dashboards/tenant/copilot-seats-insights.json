@@ -128,6 +128,10 @@
         "w": 24,
         "x": 0,
         "y": 0
+      },
+      "fieldConfig": {
+        "defaults": {},
+        "overrides": []
       }
     },
     {
@@ -138,8 +142,8 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "fixedColor": "blue",
-            "mode": "fixed"
+            "mode": "fixed",
+            "fixedColor": "text"
           },
           "mappings": [],
           "noValue": "—",
@@ -188,7 +192,7 @@
           "refId": "A"
         }
       ],
-      "title": "Total Seats",
+      "title": "Lisenser totalt",
       "type": "stat"
     },
     {
@@ -199,8 +203,8 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "fixedColor": "green",
-            "mode": "fixed"
+            "mode": "fixed",
+            "fixedColor": "text"
           },
           "mappings": [],
           "noValue": "—",
@@ -249,7 +253,7 @@
           "refId": "A"
         }
       ],
-      "title": "Active This Cycle",
+      "title": "Aktive denne perioden",
       "type": "stat"
     },
     {
@@ -260,8 +264,8 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "fixedColor": "orange",
-            "mode": "fixed"
+            "mode": "fixed",
+            "fixedColor": "text"
           },
           "mappings": [],
           "noValue": "—",
@@ -310,7 +314,7 @@
           "refId": "A"
         }
       ],
-      "title": "Inactive This Cycle",
+      "title": "Inaktive denne perioden",
       "type": "stat"
     },
     {
@@ -321,8 +325,8 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "fixedColor": "semi-dark-green",
-            "mode": "fixed"
+            "mode": "fixed",
+            "fixedColor": "text"
           },
           "mappings": [],
           "noValue": "—",
@@ -371,7 +375,7 @@
           "refId": "A"
         }
       ],
-      "title": "Added This Cycle",
+      "title": "Lagt til denne perioden",
       "type": "stat"
     },
     {
@@ -382,8 +386,8 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "fixedColor": "yellow",
-            "mode": "fixed"
+            "mode": "fixed",
+            "fixedColor": "text"
           },
           "mappings": [],
           "noValue": "—",
@@ -432,7 +436,7 @@
           "refId": "A"
         }
       ],
-      "title": "Pending Invitation",
+      "title": "Venter på invitasjon",
       "type": "stat"
     },
     {
@@ -443,8 +447,8 @@
       "fieldConfig": {
         "defaults": {
           "color": {
-            "fixedColor": "red",
-            "mode": "fixed"
+            "mode": "fixed",
+            "fixedColor": "text"
           },
           "mappings": [],
           "noValue": "—",
@@ -493,7 +497,7 @@
           "refId": "A"
         }
       ],
-      "title": "Pending Cancellation",
+      "title": "Venter på oppsigelse",
       "type": "stat"
     },
     {
@@ -559,7 +563,7 @@
         "overrides": []
       },
       "gridPos": {
-        "h": 8,
+        "h": 10,
         "w": 24,
         "x": 0,
         "y": 5
@@ -571,8 +575,11 @@
             "lastNotNull"
           ],
           "displayMode": "table",
-          "placement": "bottom",
-          "showLegend": true
+          "placement": "right",
+          "showLegend": true,
+          "width": 260,
+          "sortBy": "Last *",
+          "sortDesc": true
         },
         "tooltip": {
           "hideZeros": false,
@@ -613,7 +620,7 @@
           "refId": "F"
         }
       ],
-      "title": "Copilot Seats Over Time",
+      "title": "Lisenser over tid",
       "type": "timeseries"
     }
   ]

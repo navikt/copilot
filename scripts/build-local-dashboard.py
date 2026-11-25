@@ -206,13 +206,18 @@ def build():
 
     rows = []
     for title, ids in ROWS:
-        items, x = [], 0
-        width = 24 // len(ids)
-        for pid in ids:
+        # Same grid as the other dashboards: stats share one full-width line,
+        # charts go in pairs of 12, and an odd last chart takes the full width.
+        items = []
+        for i, pid in enumerate(ids):
+            if pid < 10:
+                width, height, x, y = 24 // len(ids), 4, i * (24 // len(ids)), 0
+            else:
+                last_odd = i == len(ids) - 1 and len(ids) % 2
+                width, height, x, y = (24 if last_odd else 12), 9, (i % 2) * 12, (i // 2) * 9
             items.append({"kind": "GridLayoutItem", "spec": {
                 "element": {"kind": "ElementReference", "name": f"panel-{pid}"},
-                "height": 8 if pid >= 10 else 4, "width": width, "x": x, "y": 0}})
-            x += width
+                "height": height, "width": width, "x": x, "y": y}})
         rows.append({"kind": "RowsLayoutRow", "spec": {
             "collapse": False, "title": title,
             "layout": {"kind": "GridLayout", "spec": {"items": items}}}})
