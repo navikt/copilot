@@ -824,8 +824,8 @@
     },
     {
       "type": "stat",
-      "title": "Never synced pods",
-      "description": "Gateway pods with no successful route sync yet, like the alert FleetGatewayRouteNeverSynced. Route snapshot age shows nothing for these pods.",
+      "title": "Never synced pods (dev)",
+      "description": "Dev gateway pods with no successful route sync from fleet-control yet, like the alert FleetGatewayRouteNeverSynced. Dev only: prod reads routes from git, so the snapshot age gauge never exists there.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_METRICS}"
@@ -871,7 +871,7 @@
       },
       "targets": [
         {
-          "expr": "count(fleet_gateway_routes_loaded{namespace=\"$namespace\", k8s_cluster_name=~\"$env\"} unless on (pod, k8s_cluster_name) fleet_gateway_route_snapshot_age_seconds{namespace=\"$namespace\", k8s_cluster_name=~\"$env\"}) or vector(0)",
+          "expr": "count(fleet_gateway_routes_loaded{namespace=\"$namespace\", k8s_cluster_name=\"dev\"} unless on (pod, k8s_cluster_name) fleet_gateway_route_snapshot_age_seconds{namespace=\"$namespace\", k8s_cluster_name=\"dev\"}) or vector(0)",
           "legendFormat": "",
           "refId": "A"
         }
