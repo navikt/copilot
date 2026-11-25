@@ -7,6 +7,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/navikt/copilot/fleet-gateway/internal/oauth/entra"
 )
 
 func testRTKeys(t *testing.T) (string, []byte) {
@@ -84,10 +86,10 @@ func TestEntraStateCookie_ValidatesAcrossKeyRotation(t *testing.T) {
 		t.Fatal(err)
 	}
 	gw := &Gateway{cfg: &Config{CookieSecret: newKeys[0], CookieVerifyKeys: newKeys[1:]}}
-	if !gw.verifyEntraStateCookie(signEntraStateWith(oldKeys[0], "s"), "s") {
+	if !gw.verifyEntraStateCookie(entra.SignState(oldKeys[0], "s"), "s") {
 		t.Fatal("cookie signed with the old primary rejected after rotation")
 	}
-	if gw.verifyEntraStateCookie(signEntraStateWith(make([]byte, 32), "s"), "s") {
+	if gw.verifyEntraStateCookie(entra.SignState(make([]byte, 32), "s"), "s") {
 		t.Fatal("cookie signed with an unknown key accepted")
 	}
 }

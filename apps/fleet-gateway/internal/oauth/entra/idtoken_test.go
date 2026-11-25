@@ -1,10 +1,12 @@
-package main
+package entra
 
 import (
 	"strings"
 	"testing"
 	"time"
 )
+
+const testIssuer = "https://login.test/tenant/v2.0"
 
 func TestValidateIDTokenClaims(t *testing.T) {
 	now := time.Unix(1_800_000_000, 0)
@@ -47,7 +49,7 @@ func TestValidateIDTokenClaims(t *testing.T) {
 			if tc.issuer == "-" {
 				issuer = ""
 			}
-			err := validateIDTokenClaims(c, issuer, "azure-client-id", now)
+			err := ValidateIDTokenClaims(c, issuer, "azure-client-id", now)
 			if tc.wantErr == "" {
 				if err != nil {
 					t.Fatalf("want ok, got %v", err)

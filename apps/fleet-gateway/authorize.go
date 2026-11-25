@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"crypto/hmac"
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/base64"
@@ -24,6 +23,7 @@ import (
 	"github.com/navikt/copilot/fleet-gateway/internal/config"
 	"github.com/navikt/copilot/fleet-gateway/internal/httpx"
 	"github.com/navikt/copilot/fleet-gateway/internal/oauth"
+	"github.com/navikt/copilot/fleet-gateway/internal/oauth/entra"
 )
 
 const entraStateCookieName = "__Host-fleet_entra_state"
@@ -305,7 +305,7 @@ func (g *Gateway) fetchCIMD(ctx context.Context, clientID string) (*clientMetada
 }
 
 func (g *Gateway) redirectToEntra(w http.ResponseWriter, r *http.Request, p *oauth.PendingAuth) {
-	authzEndpoint, err := g.entraAuthorizeEndpoint(r.Context())
+	authzEndpoint, err := g.entra.AuthorizeEndpoint(r.Context())
 	if err != nil {
 		slog.Warn("Entra well-known metadata lookup failed", "error", err)
 		http.Error(w, "upstream identity provider unavailable", http.StatusBadGateway)
@@ -392,75 +392,6 @@ func (g *Gateway) redirectToEntra(w http.ResponseWriter, r *http.Request, p *oau
 	http.Redirect(w, r, authzEndpoint+"?"+v.Encode(), http.StatusFound)
 }
 
-func (g *Gateway) entraAuthorizeEndpoint(ctx context.Context) (string, error) {
-	if g.cfg.AzureAuthorizeEndpoint != "" {
-		return g.cfg.AzureAuthorizeEndpoint, nil
-	}
-
-	g.wellKnownMu.RLock()
-	cached := g.cachedAuthzEndpoint
-	g.wellKnownMu.RUnlock()
-	if cached != "" {
-		return cached, nil
-	}
-
-	ch := g.wellKnownGroup.DoChan("authz", func() (any, error) {
-		g.wellKnownMu.RLock()
-		if g.cachedAuthzEndpoint != "" {
-			ep := g.cachedAuthzEndpoint
-			g.wellKnownMu.RUnlock()
-			return ep, nil
-		}
-		g.wellKnownMu.RUnlock()
-
-		fetchCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), defaultOutboundTimeout)
-		defer cancel()
-
-		req, err := http.NewRequestWithContext(fetchCtx, http.MethodGet, g.cfg.AzureWellKnownURL, nil)
-		if err != nil {
-			return "", err
-		}
-		req.Header.Set("Accept", "application/json")
-		req.Header.Set("User-Agent", "fleet-gateway/1.0")
-
-		resp, err := g.cfg.HTTPClient.Do(req) //nolint:gosec // URL validated at startup
-		if err != nil {
-			return "", err
-		}
-		defer func() { _ = resp.Body.Close() }()
-
-		if resp.StatusCode != http.StatusOK {
-			return "", fmt.Errorf("well-known returned status %d", resp.StatusCode)
-		}
-
-		var metadata struct {
-			AuthorizationEndpoint string `json:"authorization_endpoint"`
-		}
-		if err := json.NewDecoder(io.LimitReader(resp.Body, maxCIMDBodyBytes)).Decode(&metadata); err != nil {
-			return "", fmt.Errorf("decode well-known: %w", err)
-		}
-		if err := config.ValidateHTTPURL(metadata.AuthorizationEndpoint, false); err != nil {
-			return "", fmt.Errorf("invalid authorization_endpoint in well-known: %w", err)
-		}
-
-		g.wellKnownMu.Lock()
-		g.cachedAuthzEndpoint = metadata.AuthorizationEndpoint
-		g.wellKnownMu.Unlock()
-		return metadata.AuthorizationEndpoint, nil
-	})
-
-	select {
-	case <-ctx.Done():
-		return "", ctx.Err()
-	case res := <-ch:
-		if res.Err != nil {
-			return "", res.Err
-		}
-		ep, _ := res.Val.(string)
-		return ep, nil
-	}
-}
-
 func (g *Gateway) callbackHandler(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	queryState := q.Get("state")
@@ -528,7 +459,7 @@ func (g *Gateway) callbackHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	out, status, err := g.redeemEntraCode(r.Context(), entraCode, p.EntraVerifier)
+	out, status, err := g.entra.RedeemCode(r.Context(), entraCode, p.EntraVerifier)
 	at, _ := out["access_token"].(string)
 	idt, _ := out["id_token"].(string)
 	logAccessTokenShape(at)
@@ -556,9 +487,9 @@ func (g *Gateway) callbackHandler(w http.ResponseWriter, r *http.Request) {
 	var idClaims map[string]any
 	var parseErr error
 	if idt != "" {
-		idClaims, parseErr = parseJWTClaims(idt)
+		idClaims, parseErr = entra.ParseJWTClaims(idt)
 		if parseErr == nil {
-			parseErr = validateIDTokenClaims(idClaims, g.cfg.AzureIssuer, g.cfg.AzureClientID, g.now())
+			parseErr = entra.ValidateIDTokenClaims(idClaims, g.cfg.AzureIssuer, g.cfg.AzureClientID, g.now())
 		}
 	}
 	if parseErr != nil {
@@ -592,7 +523,7 @@ func (g *Gateway) callbackHandler(w http.ResponseWriter, r *http.Request) {
 		// legacy: unchanged main behaviour; removed in the follow-up to #2594.
 		extractIdentityFromClaims(idClaims, &navIdent)
 		if at != "" {
-			if atClaims, atErr := parseJWTClaims(at); atErr == nil {
+			if atClaims, atErr := entra.ParseJWTClaims(at); atErr == nil {
 				extractIdentityFromClaims(atClaims, &navIdent)
 			}
 		}
@@ -716,81 +647,12 @@ func (g *Gateway) redirectToClient(w http.ResponseWriter, r *http.Request, p *oa
 	redirectWithValues(w, r, target, v)
 }
 
-func (g *Gateway) redeemEntraCode(ctx context.Context, code, codeVerifier string) (map[string]any, int, error) {
-	form := url.Values{
-		"client_id":     {g.cfg.AzureClientID},
-		"client_secret": {g.cfg.AzureClientSecret},
-		"grant_type":    {"authorization_code"},
-		"code":          {code},
-		"redirect_uri":  {g.cfg.BaseURL + "/oauth2/callback"},
-		"scope":         {g.cfg.EntraScope},
-	}
-	if codeVerifier != "" {
-		form.Set("code_verifier", codeVerifier)
-	}
-
-	body, status, err := g.postEntraToken(ctx, form)
-	if err != nil {
-		return nil, status, err
-	}
-	var out map[string]any
-	if err := json.Unmarshal(body, &out); err != nil {
-		return nil, status, err
-	}
-	return out, status, nil
-}
-
-func (g *Gateway) postEntraToken(ctx context.Context, form url.Values) ([]byte, int, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, g.cfg.AzureTokenEndpoint, strings.NewReader(form.Encode()))
-	if err != nil {
-		return nil, 0, err
-	}
-	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	req.Header.Set("Accept", "application/json")
-	req.Header.Set("User-Agent", "fleet-gateway/1.0")
-
-	resp, err := g.cfg.HTTPClient.Do(req) //nolint:gosec // URL validated at startup
-	if err != nil {
-		return nil, 0, err
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	body, err := io.ReadAll(io.LimitReader(resp.Body, maxUpstreamBodyBytes))
-	if err != nil {
-		return nil, resp.StatusCode, err
-	}
-	return body, resp.StatusCode, nil
-}
-
 func (g *Gateway) signEntraState(state string) string {
-	return signEntraStateWith(g.cfg.CookieSecret, state)
-}
-
-func signEntraStateWith(key []byte, state string) string {
-	mac := hmac.New(sha256.New, key)
-	mac.Write([]byte("entra-state:"))
-	mac.Write([]byte(state))
-	return state + "." + base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
+	return entra.SignState(g.cfg.CookieSecret, state)
 }
 
 func (g *Gateway) verifyEntraStateCookie(cookieVal, queryState string) bool {
-	if queryState == "" || cookieVal == "" {
-		return false
-	}
-	parts := strings.Split(cookieVal, ".")
-	if len(parts) != 2 || parts[0] == "" || parts[1] == "" {
-		return false
-	}
-	valid := false
-	for _, key := range append([][]byte{g.cfg.CookieSecret}, g.cfg.CookieVerifyKeys...) {
-		if subtle.ConstantTimeCompare([]byte(cookieVal), []byte(signEntraStateWith(key, parts[0]))) == 1 {
-			valid = true
-		}
-	}
-	if !valid {
-		return false
-	}
-	return subtle.ConstantTimeCompare([]byte(parts[0]), []byte(queryState)) == 1
+	return entra.VerifyState(append([][]byte{g.cfg.CookieSecret}, g.cfg.CookieVerifyKeys...), cookieVal, queryState)
 }
 
 func clearEntraStateCookie(w http.ResponseWriter, name string) {
@@ -911,82 +773,6 @@ func hasScope(scopes, target string) bool {
 		}
 	}
 	return false
-}
-
-func parseJWTClaims(rawJWT string) (map[string]any, error) {
-	parts := strings.Split(rawJWT, ".")
-	if len(parts) != 3 || parts[1] == "" {
-		return nil, errors.New("malformed JWT")
-	}
-	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
-	if err != nil {
-		return nil, fmt.Errorf("decode JWT payload: %w", err)
-	}
-	var claims map[string]any
-	if err := json.Unmarshal(payload, &claims); err != nil || claims == nil {
-		return nil, errors.New("invalid JWT claims JSON")
-	}
-	return claims, nil
-}
-
-// idTokenSkew is the clock skew tolerated on exp, nbf and iat.
-const idTokenSkew = 2 * time.Minute
-
-// validateIDTokenClaims checks iss, aud/azp and exp/nbf/iat of the Entra
-// id_token (OIDC Core 3.1.3.7, steps 2-5 and 9-10). The signature is not
-// checked: the token comes straight from the configured Entra token endpoint
-// over TLS in the back-channel code redemption, which step 6 allows to stand
-// in for signature validation. Every claim is still treated as hostile, and a
-// missing claim or empty configuration fails closed.
-func validateIDTokenClaims(claims map[string]any, issuer, clientID string, now time.Time) error {
-	if issuer == "" || clientID == "" {
-		return errors.New("id_token validation not configured")
-	}
-	if iss, _ := claims["iss"].(string); iss != issuer {
-		return errors.New("id_token iss mismatch")
-	}
-	var auds []string
-	switch v := claims["aud"].(type) {
-	case string:
-		auds = []string{v}
-	case []any:
-		for _, a := range v {
-			s, ok := a.(string)
-			if !ok {
-				return errors.New("id_token aud malformed")
-			}
-			auds = append(auds, s)
-		}
-	}
-	if !slices.Contains(auds, clientID) {
-		return errors.New("id_token aud mismatch")
-	}
-	if azp, ok := claims["azp"]; (len(auds) > 1 || ok) && azp != clientID {
-		return errors.New("id_token azp mismatch")
-	}
-	numeric := func(name string) (time.Time, bool) {
-		f, ok := claims[name].(float64)
-		// Upper bound (year 9999) keeps int64 conversion and time math from overflowing.
-		if !ok || f <= 0 || f > 253402300799 {
-			return time.Time{}, false
-		}
-		return time.Unix(int64(f), 0), true
-	}
-	exp, ok := numeric("exp")
-	if !ok || !now.Before(exp.Add(idTokenSkew)) {
-		return errors.New("id_token expired or exp missing")
-	}
-	iat, ok := numeric("iat")
-	if !ok || iat.After(now.Add(idTokenSkew)) {
-		return errors.New("id_token iat missing or in the future")
-	}
-	if _, present := claims["nbf"]; present {
-		nbf, ok := numeric("nbf")
-		if !ok || nbf.After(now.Add(idTokenSkew)) {
-			return errors.New("id_token not yet valid")
-		}
-	}
-	return nil
 }
 
 func extractIdentityFromClaims(claims map[string]any, navIdent *string) {
