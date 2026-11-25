@@ -67,7 +67,7 @@ func TestRefreshToken_LegacyGroupsStillAcceptedAndNewTokenSmall(t *testing.T) {
 	if err != nil {
 		t.Fatalf("marshal legacy RT payload: %v", err)
 	}
-	blob, err := te.gw.rtKeys.Seal([]byte(server.RTSealAAD), legacyJSON)
+	blob, err := te.gw.rtKeys.Seal([]byte(rtSealAAD), legacyJSON)
 	if err != nil {
 		t.Fatalf("seal legacy RT payload: %v", err)
 	}
@@ -91,7 +91,7 @@ func TestRefreshToken_LegacyGroupsStillAcceptedAndNewTokenSmall(t *testing.T) {
 	if err != nil {
 		t.Fatalf("decode rotated RT: %v", err)
 	}
-	rotatedPlain, err := te.gw.rtKeys.Open([]byte(server.RTSealAAD), rotatedBlob)
+	rotatedPlain, err := te.gw.rtKeys.Open([]byte(rtSealAAD), rotatedBlob)
 	if err != nil {
 		t.Fatalf("open rotated RT: %v", err)
 	}

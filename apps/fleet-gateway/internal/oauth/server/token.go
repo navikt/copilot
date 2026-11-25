@@ -21,8 +21,8 @@ import (
 )
 
 const (
-	// RTSealAAD is the additional data sealed into refresh tokens.
-	RTSealAAD = "fgw-rt-v1"
+	// rtSealAAD is the additional data sealed into refresh tokens.
+	rtSealAAD = "fgw-rt-v1"
 	// MaxRefreshTokenLen is the expected upper bound for newly issued sealed
 	// refresh tokens without groups: a ~2 KiB Entra RT plus metadata seals and
 	// base64-encodes to ~3.1 KiB (3148 B measured), so 4 KiB leaves headroom
@@ -60,7 +60,7 @@ func (g *Server) SealRefreshToken(p RTPayload) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	blob, err := g.rtKeys.Seal([]byte(RTSealAAD), raw)
+	blob, err := g.rtKeys.Seal([]byte(rtSealAAD), raw)
 	if err != nil {
 		return "", err
 	}
@@ -76,7 +76,7 @@ func (g *Server) OpenRefreshToken(token string) (*RTPayload, error) {
 	if err != nil {
 		return nil, session.ErrSealMalformed
 	}
-	plaintext, err := g.rtKeys.Open([]byte(RTSealAAD), blob)
+	plaintext, err := g.rtKeys.Open([]byte(rtSealAAD), blob)
 	if err != nil {
 		return nil, err
 	}
@@ -246,7 +246,7 @@ func (g *Server) handleAuthorizationCodeGrant(w http.ResponseWriter, r *http.Req
 
 	verifier := r.PostFormValue("code_verifier")
 	if !isValidCodeVerifier(verifier) ||
-		subtle.ConstantTimeCompare([]byte(PKCES256(verifier)), []byte(issued.Challenge)) != 1 {
+		subtle.ConstantTimeCompare([]byte(pkceS256(verifier)), []byte(issued.Challenge)) != 1 {
 		bad(http.StatusBadRequest, "invalid_grant", "PKCE verification failed")
 		return
 	}
@@ -374,7 +374,7 @@ func (g *Server) HandleRefreshTokenGrant(w http.ResponseWriter, r *http.Request,
 	// Bounded: the value is client-supplied and not yet validated.
 	clientID := r.PostFormValue("client_id")
 	defer func() {
-		slog.Info("audit refresh", "outcome", outcome, "navident", sanitizeLogValue(navIdent), "client_id", TruncateLogValue(clientID, maxLogClientIDLen))
+		slog.Info("audit refresh", "outcome", outcome, "navident", sanitizeLogValue(navIdent), "client_id", truncateLogValue(clientID, maxLogClientIDLen))
 	}()
 
 	rawRT := r.PostFormValue("refresh_token")
@@ -807,8 +807,8 @@ func (g *Server) Revoke(w http.ResponseWriter, r *http.Request) {
 	httpx.WriteJSON(w, http.StatusOK, map[string]any{})
 }
 
-// PKCES256 returns the S256 code challenge for verifier.
-func PKCES256(verifier string) string {
+// pkceS256 returns the S256 code challenge for verifier.
+func pkceS256(verifier string) string {
 	sum := sha256.Sum256([]byte(verifier))
 	return base64.RawURLEncoding.EncodeToString(sum[:])
 }

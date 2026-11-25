@@ -285,9 +285,9 @@ func rpcMethodTool(rawMethod, params json.RawMessage) (method, tool string, ambi
 
 // Tool policy decision reasons, logged in the audit line.
 const (
-	ReasonPassAll   = "pass_all"
-	ReasonListed    = "listed"
-	ReasonNotCall   = "not_tools_call"
+	reasonPassAll   = "pass_all"
+	reasonListed    = "listed"
+	reasonNotCall   = "not_tools_call"
 	ReasonNotListed = "not_listed"
 	ReasonAmbiguous = "ambiguous"
 	// ReasonHeaderMismatch: Mcp-Method/Mcp-Name disagree with the body on a route with an allowlist.
@@ -363,9 +363,9 @@ func toolPolicyDecision(body []byte, allowed map[string]bool) (allow bool, reaso
 		return false, ReasonNotListed
 	}
 	if sawCall {
-		return true, ReasonListed
+		return true, reasonListed
 	}
-	return true, ReasonNotCall
+	return true, reasonNotCall
 }
 
 // auditScanObject reads one object whose '{' is consumed and returns the raw
@@ -465,9 +465,9 @@ type Decision struct {
 // Decide applies the tool policy to a request whose Mcp-* headers already
 // passed HeadersValid. allowed is the route's tool allowlist; nil passes all.
 func Decide(httpMethod string, allowed map[string]bool, h http.Header, body []byte) Decision {
-	d := Decision{Allow: true, Reason: ReasonPassAll}
+	d := Decision{Allow: true, Reason: reasonPassAll}
 	if httpMethod != http.MethodPost && allowed != nil {
-		d.Reason = ReasonNotCall
+		d.Reason = reasonNotCall
 	}
 	// MCP defines no body for GET/DELETE; reject one rather than strip it,
 	// so a client sending tools/call that way learns it was never run.

@@ -7,7 +7,6 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus/testutil"
 
-	"github.com/navikt/copilot/fleet-gateway/internal/metrics"
 	"github.com/navikt/copilot/fleet-gateway/internal/policy"
 )
 
@@ -36,7 +35,7 @@ func TestRiskEnforcement_EndToEnd(t *testing.T) {
 				route = gw.cfg.Routes[0].Route
 			}
 			counter := func() float64 {
-				return testutil.ToFloat64(metrics.RiskDecisions.WithLabelValues(route, "other", tc.risk, "agent", tc.decision))
+				return testutil.ToFloat64(riskSeries(route, "other", tc.risk, "agent", tc.decision))
 			}
 			var before float64
 			audit, got, code, resp := auditRisk(t, body, setup, func() { before = counter() })

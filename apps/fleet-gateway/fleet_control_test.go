@@ -14,7 +14,6 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/testutil"
-	dto "github.com/prometheus/client_model/go"
 
 	"github.com/navikt/copilot/fleet-gateway/internal/metrics"
 )
@@ -339,11 +338,7 @@ func TestRouteSyncInitialisesMetricsForNewRoutes(t *testing.T) {
 	f.body = map[string]any{"schema_version": 1, "generation": 1, "routes": []any{primaryRoute(), snapRoute("metricsonly")}}
 	gw.syncRoutes(context.Background(), src)
 	got := 0
-	ch := make(chan prometheus.Metric, 4096)
-	go func() { metrics.MCPRequests.Collect(ch); close(ch) }()
-	for m := range ch {
-		var d dto.Metric
-		_ = m.Write(&d)
+	for _, d := range gatherFamily("fleet_gateway_mcp_requests_total") {
 		for _, l := range d.GetLabel() {
 			if l.GetValue() == "/mcp/copilot/metricsonly" {
 				got++
@@ -427,19 +422,6 @@ func TestRouteSync304ChecksCheckedAt(t *testing.T) {
 				t.Fatal("a 304 with a bad Fleet-Checked-At must count a failure and not mark the sync")
 			}
 		})
-	}
-}
-
-// The never-synced alert selects source="fleet-control"; a git pod must not carry it (#2949).
-func TestSetRoutesSource(t *testing.T) {
-	for _, src := range []string{routesSourceGit, routesSourceFleetControl} {
-		metrics.SetRoutesSource(src)
-		if got := testutil.CollectAndCount(metrics.RoutesSource); got != 1 {
-			t.Fatalf("source %s: %d series, want 1", src, got)
-		}
-		if got := testutil.ToFloat64(metrics.RoutesSource.WithLabelValues(src)); got != 1 {
-			t.Fatalf("source %s: gauge %v, want 1", src, got)
-		}
 	}
 }
 

@@ -38,8 +38,8 @@ func randomToken() (string, error) {
 	return base64.RawURLEncoding.EncodeToString(buf), nil
 }
 
-// TruncateLogValue sanitizes s and cuts it to maxChars runes.
-func TruncateLogValue(s string, maxChars int) string {
+// truncateLogValue sanitizes s and cuts it to maxChars runes.
+func truncateLogValue(s string, maxChars int) string {
 	s = sanitizeLogValue(s)
 	if maxChars <= 0 {
 		return ""

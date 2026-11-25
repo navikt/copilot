@@ -79,7 +79,7 @@ func TestDCR_RegisterAndAuthorize(t *testing.T) {
 		t.Fatalf("register status %d: %v", code, out)
 	}
 	clientID, _ := out["client_id"].(string)
-	if !strings.HasPrefix(clientID, server.DCRClientIDPrefix) || len(clientID) < 40 {
+	if !strings.HasPrefix(clientID, dcrClientIDPrefix) || len(clientID) < 40 {
 		t.Fatalf("client_id not opaque random: %q", clientID)
 	}
 	if out["token_endpoint_auth_method"] != "none" {
@@ -140,7 +140,7 @@ func TestDCR_UnknownOrExpiredClientRejected(t *testing.T) {
 	te := newTestEnv(t)
 	enableDCR(te, 10, 10)
 	verifier := "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG"
-	u := te.authorizeURL(map[string]string{"client_id": server.DCRClientIDPrefix + "made-up", "redirect_uri": "http://127.0.0.1:40001/mcp/oauth/callback"}, verifier)
+	u := te.authorizeURL(map[string]string{"client_id": dcrClientIDPrefix + "made-up", "redirect_uri": "http://127.0.0.1:40001/mcp/oauth/callback"}, verifier)
 	rec := httptest.NewRecorder()
 	te.handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, u, nil))
 	if rec.Code != http.StatusBadRequest {
@@ -335,12 +335,12 @@ func TestDCR_AllowRegistrationRejectionIncrementsMetric(t *testing.T) {
 	enableDCR(te, 100, 1)
 	registerID(t, te, "10.0.2.2")
 
-	before := testutil.ToFloat64(metrics.RateLimited.WithLabelValues(metrics.EndpointRegister))
+	before := testutil.ToFloat64(rateLimitedSeries(metrics.EndpointRegister))
 	code, out := postRegister(te, opencodeRegistration(), "10.0.2.2")
 	if code != http.StatusTooManyRequests || out["error"] != "temporarily_unavailable" {
 		t.Fatalf("second register from same IP: got %d %v, want 429 temporarily_unavailable", code, out)
 	}
-	if got := testutil.ToFloat64(metrics.RateLimited.WithLabelValues(metrics.EndpointRegister)); got != before+1 {
+	if got := testutil.ToFloat64(rateLimitedSeries(metrics.EndpointRegister)); got != before+1 {
 		t.Fatalf("register rate_limited_total = %v, want %v", got, before+1)
 	}
 }
@@ -426,7 +426,7 @@ func TestDCR_AuthorizeRequiresRegisteredCodeGrant(t *testing.T) {
 	te := newTestEnv(t)
 	enableDCR(te, 10, 10)
 	// A registration stored before grant_types were enforced.
-	id := server.DCRClientIDPrefix + "legacy"
+	id := dcrClientIDPrefix + "legacy"
 	raw, _ := json.Marshal(server.ClientMetadata{ClientID: id, RedirectURIs: []string{"http://127.0.0.1/mcp/oauth/callback"}, GrantTypes: []string{"refresh_token"}})
 	if err := te.gw.store.Put(t.Context(), kindDCRClient, id, raw, time.Hour); err != nil {
 		t.Fatal(err)

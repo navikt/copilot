@@ -4,6 +4,7 @@ import (
 	"github.com/navikt/copilot/fleet-gateway/internal/policy"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -22,8 +23,8 @@ func TestToolPolicy_Proxy(t *testing.T) {
 		name, body, reason string
 		code               int
 	}{
-		{"allowed", call("whoami"), policy.ReasonListed, http.StatusOK},
-		{"non-call", `{"jsonrpc":"2.0","id":1,"method":"tools/list"}`, policy.ReasonNotCall, http.StatusOK},
+		{"allowed", call("whoami"), "listed", http.StatusOK},
+		{"non-call", `{"jsonrpc":"2.0","id":1,"method":"tools/list"}`, "not_tools_call", http.StatusOK},
 		{"denied", call("delete_all"), policy.ReasonNotListed, http.StatusForbidden},
 		{"name case", call("WhoAmI"), policy.ReasonNotListed, http.StatusForbidden},
 		{"case-variant keys", `{"jsonrpc":"2.0","id":1,"Method":"tools/call","Params":{"Name":"delete_all"}}`, policy.ReasonAmbiguous, http.StatusBadRequest},
@@ -35,7 +36,7 @@ func TestToolPolicy_Proxy(t *testing.T) {
 		{"trailing data", call("whoami") + "\n" + call("delete_all"), policy.ReasonAmbiguous, http.StatusBadRequest},
 		{"unparseable", "\xef\xbb\xbf" + call("whoami"), policy.ReasonAmbiguous, http.StatusBadRequest},
 		{"truncated", call("whoami")[:30], policy.ReasonAmbiguous, http.StatusBadRequest},
-		{"batch allowed", "[" + call("whoami") + `,{"method":"notifications/initialized"}]`, policy.ReasonListed, http.StatusOK},
+		{"batch allowed", "[" + call("whoami") + `,{"method":"notifications/initialized"}]`, "listed", http.StatusOK},
 		{"batch mixed", "[" + call("whoami") + "," + call("delete_all") + "]", policy.ReasonNotListed, http.StatusForbidden},
 		{"batch ambiguous", "[" + call("whoami") + `,{"METHOD":"tools/call","params":{"name":"delete_all"}}]`, policy.ReasonAmbiguous, http.StatusBadRequest},
 		{"denied then trailing", call("delete_all") + "]", policy.ReasonAmbiguous, http.StatusBadRequest},
@@ -69,7 +70,7 @@ func TestToolPolicy_Proxy(t *testing.T) {
 
 func TestToolPolicy_PassAllRouteForwards(t *testing.T) {
 	audit, got, code := auditPostTools(t, nil, `{"method":"tools/call","params":{"name":"delete_all"}}`)
-	if code != http.StatusOK || got == nil || audit["decision"] != "allow" || audit["decision_reason"] != policy.ReasonPassAll {
+	if code != http.StatusOK || got == nil || audit["decision"] != "allow" || audit["decision_reason"] != "pass_all" {
 		t.Fatalf("pass-all route: code=%d forwarded=%v audit=%v/%v", code, got != nil, audit["decision"], audit["decision_reason"])
 	}
 }
@@ -82,7 +83,7 @@ func TestToolPolicy_NonPostBody(t *testing.T) {
 			t.Fatalf("%s with body: code=%d forwarded=%v decision=%v", m, code, got != nil, audit["decision"])
 		}
 		audit, _, code = auditTools(t, m, policyTools, "")
-		if code == http.StatusBadRequest || audit["decision"] != "allow" || audit["decision_reason"] != policy.ReasonNotCall {
+		if code == http.StatusBadRequest || audit["decision"] != "allow" || audit["decision_reason"] != "not_tools_call" {
 			t.Fatalf("%s without body: code=%d audit=%v/%v", m, code, audit["decision"], audit["decision_reason"])
 		}
 	}
@@ -94,7 +95,7 @@ func TestToolPolicy_RouteFilesAreV2(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		var doc routing.File
+		var doc struct{ Version int }
 		if err := yaml.Unmarshal(raw, &doc); err != nil || doc.Version != 2 {
 			t.Errorf("%s: version %d (err %v), want 2", f, doc.Version, err)
 		}
@@ -114,19 +115,19 @@ func TestToolPolicy_RouteFile(t *testing.T) {
 		"passAll false only": route("    passAllTools: false\n"),
 	}
 	for name, y := range bad {
-		if _, err := routing.Parse([]byte(y)); err == nil {
+		if _, err := parseRoutes(t, []byte(y)); err == nil {
 			t.Errorf("%s: expected validation error", name)
 		}
 	}
-	rs, err := routing.Parse([]byte(route("    tools: [a, b]\n")))
+	rs, err := parseRoutes(t, []byte(route("    tools: [a, b]\n")))
 	if err != nil || !rs[0].AllowedTools["a"] || !rs[0].AllowedTools["b"] || len(rs[0].AllowedTools) != 2 {
 		t.Fatalf("tools route: %v %v", err, rs)
 	}
-	rs, err = routing.Parse([]byte(route("    passAllTools: true\n")))
+	rs, err = parseRoutes(t, []byte(route("    passAllTools: true\n")))
 	if err != nil || rs[0].AllowedTools != nil {
 		t.Fatalf("passAll route must not enforce: %v", err)
 	}
-	_, err = routing.Parse([]byte(strings.Replace(route("    tools: [a]\n"), "version: 2", "version: 1", 1)))
+	_, err = parseRoutes(t, []byte(strings.Replace(route("    tools: [a]\n"), "version: 2", "version: 1", 1)))
 	if err == nil || !strings.Contains(err.Error(), "version 1 is no longer supported") {
 		t.Fatalf("v1 must be rejected with a clear error: %v", err)
 	}
@@ -181,4 +182,14 @@ func TestToolPolicy_BatchPastDisplayCap(t *testing.T) {
 			}
 		})
 	}
+}
+
+// parseRoutes validates a route file through routing.Load, the path startup uses.
+func parseRoutes(t *testing.T, raw []byte) ([]routing.Route, error) {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "routes.yaml")
+	if err := os.WriteFile(path, raw, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return routing.Load(path)
 }

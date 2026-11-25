@@ -18,10 +18,10 @@ import (
 	"github.com/navikt/copilot/fleet-gateway/internal/session"
 )
 
-// DCRClientIDPrefix marks gateway-issued client_ids. The rest is random and
+// dcrClientIDPrefix marks gateway-issued client_ids. The rest is random and
 // carries no meaning; it only keeps them apart from CIMD URLs in logs.
 const (
-	DCRClientIDPrefix  = "dcr-"
+	dcrClientIDPrefix  = "dcr-"
 	MaxDCRClientName   = 64
 	maxDCRRedirectURIs = 5
 )
@@ -120,7 +120,7 @@ func (g *Server) Register(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	meta := ClientMetadata{
-		ClientID:                DCRClientIDPrefix + random,
+		ClientID:                dcrClientIDPrefix + random,
 		ClientName:              sanitizeClientName(req.ClientName),
 		RedirectURIs:            redirects,
 		GrantTypes:              grants,
@@ -232,7 +232,7 @@ func sanitizeClientName(name string) string {
 // registeredClient loads a client registered through DCR. ok is false for
 // unknown or expired ids, and always when DCR is disabled.
 func (g *Server) registeredClient(ctx context.Context, clientID string) (*ClientMetadata, bool, error) {
-	if !g.cfg.DCREnabled || !strings.HasPrefix(clientID, DCRClientIDPrefix) {
+	if !g.cfg.DCREnabled || !strings.HasPrefix(clientID, dcrClientIDPrefix) {
 		return nil, false, nil
 	}
 	raw, ok, err := g.store.Get(ctx, session.KindDCRClient, clientID)
@@ -265,7 +265,7 @@ func (g *Server) registeredClient(ctx context.Context, clientID string) (*Client
 // called from /authorize: unauthenticated requests must not keep a client
 // alive. A failed renewal only logs: the client is live until its expiry.
 func (g *Server) RenewClient(ctx context.Context, clientID string) {
-	if !g.cfg.DCREnabled || !strings.HasPrefix(clientID, DCRClientIDPrefix) {
+	if !g.cfg.DCREnabled || !strings.HasPrefix(clientID, dcrClientIDPrefix) {
 		return
 	}
 	raw, ok, err := g.store.Get(ctx, session.KindDCRClient, clientID)

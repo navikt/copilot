@@ -269,7 +269,7 @@ func TestRefreshToken_TamperWrongKIDAndKeyRotation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parseKeyRing other: %v", err)
 	}
-	wrongKIDBlob, err := otherKR.Seal([]byte(server.RTSealAAD), []byte(`{"v":1,"jti":"x","iat":1700000000,"client_id":"`+te.clientID+`","resource":"`+te.resource+`","nav_ident":"Z123456","entra_rt":"rt"}`))
+	wrongKIDBlob, err := otherKR.Seal([]byte(rtSealAAD), []byte(`{"v":1,"jti":"x","iat":1700000000,"client_id":"`+te.clientID+`","resource":"`+te.resource+`","nav_ident":"Z123456","entra_rt":"rt"}`))
 	if err != nil {
 		t.Fatalf("seal wrong kid: %v", err)
 	}
@@ -1315,7 +1315,7 @@ func TestRevoke_UnknownKIDReturns503AndOtherErrorsReturn200(t *testing.T) {
 	if err != nil {
 		t.Fatalf("marshal RTPayload: %v", err)
 	}
-	unknownKIDBlob, err := otherKR.Seal([]byte(server.RTSealAAD), rawPayload)
+	unknownKIDBlob, err := otherKR.Seal([]byte(rtSealAAD), rawPayload)
 	if err != nil {
 		t.Fatalf("seal unknown kid: %v", err)
 	}

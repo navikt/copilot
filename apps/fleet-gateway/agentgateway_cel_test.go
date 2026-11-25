@@ -58,11 +58,7 @@ func celAllowed(t *testing.T, rule, tool string) bool {
 func TestAgentgatewayCELMatchesAllowlist(t *testing.T) {
 	var golden strings.Builder
 	for _, file := range []string{"pilot-routes.dev.yaml", "pilot-routes.prod.yaml"} {
-		raw, err := os.ReadFile(file) //nolint:gosec // fixed repo file names
-		if err != nil {
-			t.Fatal(err)
-		}
-		routes, err := routing.Parse(raw)
+		routes, err := routing.Load(file)
 		if err != nil {
 			t.Fatalf("%s: %v", file, err)
 		}

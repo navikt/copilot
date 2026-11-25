@@ -13,8 +13,8 @@ import (
 	"github.com/navikt/copilot/fleet-gateway/internal/session"
 )
 
-// CSRFCookieName is the consent form's CSRF cookie.
-const CSRFCookieName = "__Host-fleet_csrf"
+// csrfCookieName is the consent form's CSRF cookie.
+const csrfCookieName = "__Host-fleet_csrf"
 
 //go:embed web/pages.html
 var pagesHTML string
@@ -63,7 +63,7 @@ func setPageSecurityHeaders(w http.ResponseWriter, formAction string) {
 
 func (g *Server) renderConsentPage(w http.ResponseWriter, consentID string, p *oauth.PendingAuth) {
 	http.SetCookie(w, &http.Cookie{
-		Name:     CSRFCookieName,
+		Name:     csrfCookieName,
 		Value:    p.CSRF,
 		Path:     "/",
 		HttpOnly: true,
@@ -99,7 +99,7 @@ func (g *Server) ConsentPost(w http.ResponseWriter, r *http.Request) {
 
 	consentID := r.PostFormValue("id")
 	formCSRF := r.PostFormValue("csrf")
-	cookie, cookieErr := r.Cookie(CSRFCookieName)
+	cookie, cookieErr := r.Cookie(csrfCookieName)
 
 	if consentID == "" || cookieErr != nil || formCSRF == "" ||
 		subtle.ConstantTimeCompare([]byte(cookie.Value), []byte(formCSRF)) != 1 {
@@ -154,7 +154,7 @@ func (g *Server) ConsentPost(w http.ResponseWriter, r *http.Request) {
 
 func clearCSRFCookie(w http.ResponseWriter) {
 	http.SetCookie(w, &http.Cookie{
-		Name:     CSRFCookieName,
+		Name:     csrfCookieName,
 		Value:    "",
 		Path:     "/",
 		HttpOnly: true,

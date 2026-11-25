@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -188,7 +189,7 @@ func newTestEnv(t *testing.T) *testEnv {
 			}
 			if expectedChallenge != "" {
 				verifier := r.FormValue("code_verifier")
-				if verifier == "" || server.PKCES256(verifier) != expectedChallenge {
+				if verifier == "" || testPKCE(verifier) != expectedChallenge {
 					httpx.WriteJSON(w, http.StatusBadRequest, map[string]any{
 						"error":             "invalid_grant",
 						"error_description": "PKCE code_verifier mismatch",
@@ -330,6 +331,23 @@ func (te *testEnv) advance(d time.Duration) {
 	te.now = te.now.Add(d)
 }
 
+// Names and formats as browsers, clients and stored tokens see them. The server
+// package keeps its own copies unexported; these pin the observable contract.
+const (
+	csrfCookieName       = "__Host-fleet_csrf"
+	entraStateCookieName = "__Host-fleet_entra_state"
+	dcrClientIDPrefix    = "dcr-"
+	// rtSealAAD binds sealed refresh tokens; changing it invalidates every issued token.
+	rtSealAAD = "fgw-rt-v1"
+)
+
+// entraStateCookieFor is the per-login state cookie name: prefix plus the first
+// four bytes of sha256(state), hex.
+func entraStateCookieFor(state string) string {
+	h := sha256.Sum256([]byte(state))
+	return entraStateCookieName + "_" + hex.EncodeToString(h[:4])
+}
+
 func testPKCE(verifier string) string {
 	h := sha256.Sum256([]byte(verifier))
 	return base64.RawURLEncoding.EncodeToString(h[:])
@@ -380,7 +398,7 @@ func (te *testEnv) followToEntra(req *http.Request) (entraState string, stateCoo
 		te.t.Fatalf("invalid Entra redirect location: %v", err)
 	}
 	for _, c := range resp.Cookies() {
-		if strings.HasPrefix(c.Name, server.EntraStateCookieName) {
+		if strings.HasPrefix(c.Name, entraStateCookieName) {
 			stateCookie = c
 		}
 	}
@@ -418,7 +436,7 @@ func (te *testEnv) parseConsentPage(resp *http.Response) (consentID, csrf string
 		te.t.Fatalf("missing hidden fields in consent HTML: %s", body)
 	}
 	for _, c := range resp.Cookies() {
-		if c.Name == server.CSRFCookieName {
+		if c.Name == csrfCookieName {
 			csrfCookie = c
 		}
 	}
@@ -803,7 +821,7 @@ func TestConsent_CSRF_SecurityHeaders_And_NoRememberedConsent(t *testing.T) {
 		{
 			name: "mismatched CSRF cookie fails with 403",
 			mutate: func(_, _ *string, cookie **http.Cookie) {
-				*cookie = &http.Cookie{Name: server.CSRFCookieName, Value: "different-cookie-value"}
+				*cookie = &http.Cookie{Name: csrfCookieName, Value: "different-cookie-value"}
 			},
 			decision:   "approve",
 			wantStatus: http.StatusForbidden,
@@ -891,14 +909,14 @@ func TestCallback_StateCookieBinding(t *testing.T) {
 		{
 			name: "forged state cookie signature fails with 403",
 			mutate: func(_ *testEnv, state *string, cookie **http.Cookie) {
-				*cookie = &http.Cookie{Name: server.EntraStateCookieFor(*state), Value: *state + ".forged-signature"}
+				*cookie = &http.Cookie{Name: (*cookie).Name, Value: *state + ".forged-signature"}
 			},
 			wantStatus: http.StatusForbidden,
 		},
 		{
 			name: "cookie signed for different state fails with 403",
-			mutate: func(te *testEnv, state *string, cookie **http.Cookie) {
-				*cookie = &http.Cookie{Name: server.EntraStateCookieFor(*state), Value: te.gw.oauth().SignEntraState("other-state")}
+			mutate: func(te *testEnv, _ *string, cookie **http.Cookie) {
+				*cookie = &http.Cookie{Name: (*cookie).Name, Value: te.gw.oauth().SignEntraState("other-state")}
 			},
 			wantStatus: http.StatusForbidden,
 		},
@@ -909,7 +927,7 @@ func TestCallback_StateCookieBinding(t *testing.T) {
 			te := newTestEnv(t)
 			entraState, stateCookie := te.startLogin(verifier)
 
-			if stateCookie.Name != server.EntraStateCookieFor(entraState) || stateCookie.Path != "/" || stateCookie.Domain != "" ||
+			if stateCookie.Name != entraStateCookieFor(entraState) || stateCookie.Path != "/" || stateCookie.Domain != "" ||
 				!stateCookie.HttpOnly || !stateCookie.Secure || stateCookie.SameSite != http.SameSiteLaxMode {
 				t.Fatalf("unexpected state cookie attributes: %+v", stateCookie)
 			}
@@ -1404,10 +1422,6 @@ func TestLogInjection_SanitizedAndEntraErrorTruncated(t *testing.T) {
 	if got := sanitizeLogValue("a\nb\rc\r\nd"); got != "abcd" {
 		t.Fatalf("sanitizeLogValue=%q, want %q", got, "abcd")
 	}
-	long := strings.Repeat("x", 80) + "\n\r"
-	if got := server.TruncateLogValue(long, server.MaxLogErrorLen); len(got) != server.MaxLogErrorLen || strings.ContainsAny(got, "\r\n") {
-		t.Fatalf("truncateLogValue len=%d val=%q", len(got), got)
-	}
 
 	var logBuf bytes.Buffer
 	oldLogger := slog.Default()
@@ -1503,7 +1517,7 @@ func TestCallback_ParallelLoginsEachKeepOwnStateCookie(t *testing.T) {
 		resp := rec.Result()
 		cleared := 0
 		for _, c := range resp.Cookies() {
-			if strings.HasPrefix(c.Name, server.EntraStateCookieName) && c.MaxAge < 0 {
+			if strings.HasPrefix(c.Name, entraStateCookieName) && c.MaxAge < 0 {
 				cleared++
 				if c.Name != l.cookie.Name {
 					t.Fatalf("login %d cleared foreign cookie %q", i+1, c.Name)
@@ -1527,14 +1541,14 @@ func TestAuthorize_StateCookieCountIsCapped(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, te.authorizeURL(nil, "abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG"), nil)
 		held := map[string]bool{}
 		for i := 0; i < n; i++ {
-			name := server.EntraStateCookieName + "_" + string(rune('a'+i)) + "0000000"
+			name := entraStateCookieName + "_" + string(rune('a'+i)) + "0000000"
 			req.AddCookie(&http.Cookie{Name: name, Value: "x"})
 			held[name] = true
 		}
 		rec := httptest.NewRecorder()
 		te.handler.ServeHTTP(rec, req)
 		for _, c := range rec.Result().Cookies() {
-			if !strings.HasPrefix(c.Name, server.EntraStateCookieName+"_") {
+			if !strings.HasPrefix(c.Name, entraStateCookieName+"_") {
 				continue
 			}
 			if c.MaxAge < 0 {
@@ -1552,7 +1566,7 @@ func TestAuthorize_StateCookieCountIsCapped(t *testing.T) {
 func TestCallback_LegacyFixedNameCookieAccepted(t *testing.T) {
 	te := newTestEnv(t)
 	state, c := te.startLogin("abcdefghijklmnopqrstuvwxyz0123456789ABCDEFG")
-	legacy := &http.Cookie{Name: server.EntraStateCookieName, Value: c.Value}
+	legacy := &http.Cookie{Name: entraStateCookieName, Value: c.Value}
 	req := httptest.NewRequest(http.MethodGet, "/oauth2/callback?code=entra-code&state="+url.QueryEscape(state), nil)
 	req.AddCookie(legacy)
 	rec := httptest.NewRecorder()

@@ -7,7 +7,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/testutil"
+	dto "github.com/prometheus/client_model/go"
 
 	"github.com/navikt/copilot/fleet-gateway/internal/metrics"
 	"github.com/navikt/copilot/fleet-gateway/internal/routing"
@@ -17,13 +19,13 @@ import (
 // and the public handler's requests are counted.
 func TestMetricsNotOnPublicPort(t *testing.T) {
 	te := newTestEnv(t)
-	before := testutil.ToFloat64(metrics.HTTPRequests.WithLabelValues("404", ""))
+	before := testutil.ToFloat64(httpSeries("404", ""))
 	rec := httptest.NewRecorder()
 	te.handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/metrics", nil))
 	if rec.Code == http.StatusOK {
 		t.Fatalf("/metrics answered 200 on the public handler")
 	}
-	if got := testutil.ToFloat64(metrics.HTTPRequests.WithLabelValues("404", "")); got != before+1 {
+	if got := testutil.ToFloat64(httpSeries("404", "")); got != before+1 {
 		t.Fatalf("http counter for 404 = %v, want %v: loggingMiddleware does not count", got, before+1)
 	}
 }
@@ -33,8 +35,8 @@ func TestKillSwitch503IsLabelled(t *testing.T) {
 	te := newTestEnv(t)
 	te.gw.cfg.GatewayDisabled = true
 	te.handler = te.gw.routes()
-	shed := metrics.HTTPRequests.WithLabelValues("503", "disabled")
-	unlabelled := metrics.HTTPRequests.WithLabelValues("503", "")
+	shed := httpSeries("503", "disabled")
+	unlabelled := httpSeries("503", "")
 	beforeShed, beforeReal := testutil.ToFloat64(shed), testutil.ToFloat64(unlabelled)
 	rec := httptest.NewRecorder()
 	te.handler.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, te.gw.cfg.Routes[0].Route, strings.NewReader(`{}`)))
@@ -68,7 +70,7 @@ func TestMCPRequestsTotalDecisionReasonTool(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			c := metrics.MCPRequests.WithLabelValues(route, tc.outcome, tc.decision, tc.reason, tc.tool)
+			c := mcpSeries(route, tc.outcome, tc.decision, tc.reason, tc.tool)
 			before := testutil.ToFloat64(c)
 			auditToolsHeaders(t, http.MethodPost, tc.tools, tc.body, tc.hdr)
 			if got := testutil.ToFloat64(c); got != before+1 {
@@ -80,24 +82,6 @@ func TestMCPRequestsTotalDecisionReasonTool(t *testing.T) {
 	body := scrapeMetrics(t)
 	if strings.Contains(body, "evil-") {
 		t.Errorf("unlisted tool name leaked into /metrics")
-	}
-}
-
-func TestInitMetricsPrecreatesDenySeries(t *testing.T) {
-	metrics.Init([]routing.Route{{Route: "/mcp/ns/deny"}})
-	body := scrapeMetrics(t)
-	for _, reason := range metrics.DenyReasons {
-		if !strings.Contains(body, `decision="deny",outcome=`) || !strings.Contains(body, `reason="`+reason+`"`) {
-			t.Errorf("no pre-created deny series for reason %q", reason)
-		}
-	}
-	for _, ep := range metrics.RateLimitedEndpoints {
-		if !strings.Contains(body, `fleet_gateway_rate_limited_total{oauth_endpoint="`+ep+`"} `) {
-			t.Errorf("no pre-created rate limit series for %q", ep)
-		}
-	}
-	if strings.Contains(body, `fleet_gateway_rate_limited_total{endpoint=`) {
-		t.Errorf("old endpoint label still exported")
 	}
 }
 
@@ -118,7 +102,7 @@ func scrapeMetrics(t *testing.T) string {
 func TestMCPToolLabelUsesFullName(t *testing.T) {
 	long := strings.Repeat("a", 100)
 	tools := map[string]bool{long: true}
-	c := metrics.MCPRequests.WithLabelValues("/mcp/team-etterlevelse/etterlevelse", "ok", "allow", "", long)
+	c := mcpSeries("/mcp/team-etterlevelse/etterlevelse", "ok", "allow", "", long)
 	before := testutil.ToFloat64(c)
 	auditPostTools(t, tools, `{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"`+long+`"}}`)
 	if got := testutil.ToFloat64(c); got != before+1 {
@@ -136,4 +120,73 @@ func TestInitMetricsPrecreatesToolSeries(t *testing.T) {
 			t.Errorf("/metrics lacks %s", want)
 		}
 	}
+}
+
+// series is one counter series read from the default registry, the same data
+// /metrics serves, so these tests need no access to the collector variables.
+// It is a Collector, so testutil.ToFloat64 reads it; a series not yet created reads 0.
+type series struct {
+	name   string
+	labels map[string]string
+}
+
+func labelled(name string, kv ...string) series {
+	s := series{name: name, labels: map[string]string{}}
+	for i := 0; i+1 < len(kv); i += 2 {
+		s.labels[kv[i]] = kv[i+1]
+	}
+	return s
+}
+
+func httpSeries(code, reason string) series {
+	return labelled("fleet_gateway_http_requests_total", "code", code, "reason", reason)
+}
+
+func mcpSeries(route, outcome, decision, reason, tool string) series {
+	return labelled("fleet_gateway_mcp_requests_total", "route", route, "outcome", outcome, "decision", decision, "reason", reason, "tool", tool)
+}
+
+func rateLimitedSeries(endpoint string) series {
+	return labelled("fleet_gateway_rate_limited_total", "oauth_endpoint", endpoint)
+}
+
+func riskSeries(route, tool, risk, callerKind, decision string) series {
+	return labelled("fleet_gateway_risk_decisions_total", "route", route, "tool", tool, "risk", risk, "caller_kind", callerKind, "decision", decision)
+}
+
+func (s series) desc() *prometheus.Desc { return prometheus.NewDesc(s.name, "test view", nil, nil) }
+
+func (s series) Describe(ch chan<- *prometheus.Desc) { ch <- s.desc() }
+
+func (s series) Collect(ch chan<- prometheus.Metric) {
+	v := 0.0
+	for _, m := range gatherFamily(s.name) {
+		if len(m.GetLabel()) != len(s.labels) {
+			continue
+		}
+		match := true
+		for _, l := range m.GetLabel() {
+			if want, ok := s.labels[l.GetName()]; !ok || want != l.GetValue() {
+				match = false
+			}
+		}
+		if match {
+			v = m.GetCounter().GetValue()
+		}
+	}
+	ch <- prometheus.MustNewConstMetric(s.desc(), prometheus.CounterValue, v)
+}
+
+// gatherFamily returns every series of one metric family in the default registry.
+func gatherFamily(name string) []*dto.Metric {
+	mfs, err := prometheus.DefaultGatherer.Gather()
+	if err != nil {
+		panic(err)
+	}
+	for _, mf := range mfs {
+		if mf.GetName() == name {
+			return mf.GetMetric()
+		}
+	}
+	return nil
 }

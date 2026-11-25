@@ -117,9 +117,9 @@ func TestRateLimit_MetricsAndWarnLog(t *testing.T) {
 	}
 	te.handler = te.gw.routes()
 
-	beforeToken := testutil.ToFloat64(metrics.RateLimited.WithLabelValues(metrics.EndpointToken))
-	beforeAuth := testutil.ToFloat64(metrics.RateLimited.WithLabelValues(metrics.EndpointAuthorize))
-	beforeRevoke := testutil.ToFloat64(metrics.RateLimited.WithLabelValues(metrics.EndpointRevoke))
+	beforeToken := testutil.ToFloat64(rateLimitedSeries(metrics.EndpointToken))
+	beforeAuth := testutil.ToFloat64(rateLimitedSeries(metrics.EndpointAuthorize))
+	beforeRevoke := testutil.ToFloat64(rateLimitedSeries(metrics.EndpointRevoke))
 
 	clientIP := "198.51.100.77"
 	for i := 0; i < 2; i++ {
@@ -130,13 +130,13 @@ func TestRateLimit_MetricsAndWarnLog(t *testing.T) {
 		te.handler.ServeHTTP(rec, req)
 	}
 
-	if got := testutil.ToFloat64(metrics.RateLimited.WithLabelValues(metrics.EndpointToken)); got != beforeToken+1 {
+	if got := testutil.ToFloat64(rateLimitedSeries(metrics.EndpointToken)); got != beforeToken+1 {
 		t.Fatalf("token rate_limited_total = %v, want %v", got, beforeToken+1)
 	}
-	if got := testutil.ToFloat64(metrics.RateLimited.WithLabelValues(metrics.EndpointAuthorize)); got != beforeAuth {
+	if got := testutil.ToFloat64(rateLimitedSeries(metrics.EndpointAuthorize)); got != beforeAuth {
 		t.Fatalf("authorize rate_limited_total changed unexpectedly: got %v, want %v", got, beforeAuth)
 	}
-	if got := testutil.ToFloat64(metrics.RateLimited.WithLabelValues(metrics.EndpointRevoke)); got != beforeRevoke {
+	if got := testutil.ToFloat64(rateLimitedSeries(metrics.EndpointRevoke)); got != beforeRevoke {
 		t.Fatalf("revoke rate_limited_total changed unexpectedly: got %v, want %v", got, beforeRevoke)
 	}
 
@@ -148,11 +148,11 @@ func TestRateLimit_MetricsAndWarnLog(t *testing.T) {
 		rec := httptest.NewRecorder()
 		te.handler.ServeHTTP(rec, req)
 	}
-	if got := testutil.ToFloat64(metrics.RateLimited.WithLabelValues(metrics.EndpointAuthorize)); got != beforeAuth+1 {
+	if got := testutil.ToFloat64(rateLimitedSeries(metrics.EndpointAuthorize)); got != beforeAuth+1 {
 		t.Fatalf("authorize rate_limited_total = %v, want %v", got, beforeAuth+1)
 	}
 
-	beforeConsent := testutil.ToFloat64(metrics.RateLimited.WithLabelValues(metrics.EndpointConsent))
+	beforeConsent := testutil.ToFloat64(rateLimitedSeries(metrics.EndpointConsent))
 	consentClientIP := "198.51.100.79"
 	for i := 0; i < 2; i++ {
 		req := httptest.NewRequest(http.MethodPost, "/consent", strings.NewReader("id=missing&csrf=bad"))
@@ -164,7 +164,7 @@ func TestRateLimit_MetricsAndWarnLog(t *testing.T) {
 			t.Fatalf("consent second request: got %d, want 429", rec.Code)
 		}
 	}
-	if got := testutil.ToFloat64(metrics.RateLimited.WithLabelValues(metrics.EndpointConsent)); got != beforeConsent+1 {
+	if got := testutil.ToFloat64(rateLimitedSeries(metrics.EndpointConsent)); got != beforeConsent+1 {
 		t.Fatalf("consent rate_limited_total = %v, want %v", got, beforeConsent+1)
 	}
 
@@ -209,7 +209,7 @@ func TestRateLimit_LogSamplingAndCounter(t *testing.T) {
 		t.Fatalf("initial /token request unexpectedly rate limited")
 	}
 
-	before := testutil.ToFloat64(metrics.RateLimited.WithLabelValues(metrics.EndpointToken))
+	before := testutil.ToFloat64(rateLimitedSeries(metrics.EndpointToken))
 
 	const flood = 25
 	for i := 0; i < flood; i++ {
@@ -219,7 +219,7 @@ func TestRateLimit_LogSamplingAndCounter(t *testing.T) {
 		te.advance(time.Second)
 	}
 
-	if got := testutil.ToFloat64(metrics.RateLimited.WithLabelValues(metrics.EndpointToken)); got != before+float64(flood) {
+	if got := testutil.ToFloat64(rateLimitedSeries(metrics.EndpointToken)); got != before+float64(flood) {
 		t.Fatalf("rate_limited_total after flood = %v, want %v", got, before+float64(flood))
 	}
 	if got := strings.Count(logBuf.String(), `"msg":"rate limited"`); got != 1 {
@@ -242,7 +242,7 @@ func TestRateLimit_LogSamplingAndCounter(t *testing.T) {
 		}
 	}
 
-	if got := testutil.ToFloat64(metrics.RateLimited.WithLabelValues(metrics.EndpointToken)); got != before+float64(flood+secondFlood) {
+	if got := testutil.ToFloat64(rateLimitedSeries(metrics.EndpointToken)); got != before+float64(flood+secondFlood) {
 		t.Fatalf("rate_limited_total after second flood = %v, want %v", got, before+float64(flood+secondFlood))
 	}
 	if got := strings.Count(logBuf.String(), `"msg":"rate limited"`); got != 2 {
