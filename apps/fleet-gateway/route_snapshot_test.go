@@ -61,3 +61,18 @@ func TestTokenAndUpstreamFromOneSnapshot(t *testing.T) {
 		t.Fatal("request reached the upstream of a later snapshot")
 	}
 }
+
+// #2967: tool_risk is new in the routes snapshot and may hold levels this
+// replica does not know (propose, or later ones). It must decode and load
+// the route as before, not reject the snapshot (#2949).
+func TestSnapshotIgnoresToolRisk(t *testing.T) {
+	raw := `{"schema_version":1,"generation":1,"checked_at":"2026-11-25T00:00:00Z","routes":[{"namespace":"team-a","name":"svc","path":"/mcp/team-a/svc","target":"dev-gcp:team-a:svc","upstream_url":"http://svc.team-a/mcp","enabled":true,"tools":["a","b"],"tool_risk":{"a":"propose","b":"unknown-level"}}]}`
+	var snap routesSnapshot
+	if err := json.Unmarshal([]byte(raw), &snap); err != nil {
+		t.Fatal(err)
+	}
+	routes, err := snapshotRoutes(snap)
+	if err != nil || len(routes) != 1 || len(routes[0].Tools) != 2 {
+		t.Fatalf("snapshot with tool_risk must load: %v %+v", err, routes)
+	}
+}

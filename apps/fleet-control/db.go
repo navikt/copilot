@@ -176,7 +176,7 @@ func queryServers(ctx context.Context, q querier) ([]Server, error) {
 	rows, err := q.Query(ctx, `
 		SELECT s.namespace, s.name, COALESCE(s.registry_name, ''), s.status,
 		       v.registry::text, v.route_path, v.target, v.upstream_url, v.enabled, v.tools,
-		       COALESCE(v.spec->>'dataCategory', ''), (v.spec->'toolRisk')::text
+		       COALESCE(v.spec->>'dataCategory', ''), (v.spec->'toolRisk')::text, COALESCE(v.spec->>'defaultRisk', '')
 		FROM servers s JOIN server_versions v
 		  ON v.namespace = s.namespace AND v.name = s.name AND v.version = s.published_version
 		ORDER BY s.namespace, s.name`)
@@ -189,7 +189,8 @@ func queryServers(ctx context.Context, q querier) ([]Server, error) {
 		var enabled bool
 		var tools []string
 		var toolRisk *string
-		if err := row.Scan(&s.Namespace, &s.Name, &s.RegistryName, &s.Status, &registry, &path, &target, &upstream, &enabled, &tools, &s.DataClass, &toolRisk); err != nil {
+		var defaultRisk string
+		if err := row.Scan(&s.Namespace, &s.Name, &s.RegistryName, &s.Status, &registry, &path, &target, &upstream, &enabled, &tools, &s.DataClass, &toolRisk, &defaultRisk); err != nil {
 			return s, err
 		}
 		if registry != nil {
@@ -202,6 +203,7 @@ func queryServers(ctx context.Context, q querier) ([]Server, error) {
 					return s, fmt.Errorf("%s/%s: spec.toolRisk: %w", s.Namespace, s.Name, err)
 				}
 			}
+			s.Route.ToolRisk = resolveToolRisk(tools, s.Route.ToolRisk, defaultRisk)
 		}
 		return s, nil
 	})

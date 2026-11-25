@@ -707,6 +707,9 @@ func TestRealPostgresToolRiskSnapshot(t *testing.T) {
 	m := decodeServer(t, e.want(201, "POST", nsBase+"team-a/mcpservers", person("A111111"), body))
 	e.want(200, "POST", nsBase+"team-a/mcpservers/svc/approval", person("A222222"), approval(1, m.Status.Pending.ContentHash))
 	e.publish("team-a", "legacy", "A111111", "A222222", "c")
+	body = strings.Replace(serverJSON("team-a", "dflt", "", "a", "b"), `"allowedTools"`, `"defaultRisk":"propose","toolRisk":{"a":"write"},"allowedTools"`, 1)
+	m = decodeServer(t, e.want(201, "POST", nsBase+"team-a/mcpservers", person("A111111"), body))
+	e.want(200, "POST", nsBase+"team-a/mcpservers/dflt/approval", person("A222222"), approval(1, m.Status.Pending.ContentHash))
 	if _, err := e.db.pool.Exec(ctx, `UPDATE server_versions SET spec = spec - 'toolRisk' WHERE name = 'legacy'`); err != nil {
 		t.Fatal(err)
 	}
@@ -727,6 +730,9 @@ func TestRealPostgresToolRiskSnapshot(t *testing.T) {
 	}
 	if r, ok := got["/mcp/team-a/svc"]; !ok || len(r) != 1 || r["a"] != "read" {
 		t.Errorf("svc toolRisk lost: %s", snap.Items)
+	}
+	if r := got["/mcp/team-a/dflt"]; len(r) != 2 || r["a"] != "write" || r["b"] != "propose" {
+		t.Errorf("dflt must carry resolved risk per tool: %s", snap.Items)
 	}
 	if r, ok := got["/mcp/team-a/legacy"]; !ok || r != nil {
 		t.Errorf("legacy row must have no tool_risk: %s", snap.Items)

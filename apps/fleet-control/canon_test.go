@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"maps"
 	"net/http"
 	"strconv"
 	"strings"
@@ -62,6 +63,7 @@ func TestServerSpecHashStableForOldSpecs(t *testing.T) {
 		func(m *MCPServerSpec) { m.Tools = []ToolDoc{{Name: "a", Description: "x"}} },
 		func(m *MCPServerSpec) { m.ToolRisk = map[string]string{"a": "read"} },
 		func(m *MCPServerSpec) { m.RosRef = "ROS-1" },
+		func(m *MCPServerSpec) { m.DefaultRisk = "read" },
 	} {
 		m := s
 		mod(&m)
@@ -123,6 +125,13 @@ func TestServerSpecToolRiskAndRosRef(t *testing.T) {
 		{"prod write with ros", "prod-gcp", func(m *MCPServerSpec) { m.RosRef = "https://ros.example/1" }, true, ""},
 		{"unknown tool", "dev-gcp", func(m *MCPServerSpec) { m.ToolRisk = map[string]string{"c": "read"} }, false, ""},
 		{"bad risk", "dev-gcp", func(m *MCPServerSpec) { m.ToolRisk = map[string]string{"a": "Read"} }, false, ""},
+		{"prod default read", "prod-gcp", func(m *MCPServerSpec) { m.DefaultRisk = "read" }, true, ""},
+		{"prod propose needs no ros", "prod-gcp", func(m *MCPServerSpec) { m.DefaultRisk = "propose" }, true, ""},
+		{"prod toolRisk propose", "prod-gcp", func(m *MCPServerSpec) { m.ToolRisk = map[string]string{"a": "propose", "b": "read"} }, true, ""},
+		{"prod default read, one write", "prod-gcp", func(m *MCPServerSpec) { m.DefaultRisk = "read"; m.ToolRisk = map[string]string{"a": "write"} }, false, "spec.rosRef"},
+		{"prod default write", "prod-gcp", func(m *MCPServerSpec) { m.DefaultRisk = "write"; m.ToolRisk = map[string]string{"a": "read"} }, false, "spec.rosRef"},
+		{"bad default", "dev-gcp", func(m *MCPServerSpec) { m.DefaultRisk = "Read" }, false, "spec.defaultRisk"},
+		{"unknown default", "dev-gcp", func(m *MCPServerSpec) { m.DefaultRisk = "admin" }, false, "spec.defaultRisk"},
 		{"rosRef spaces", "dev-gcp", func(m *MCPServerSpec) { m.RosRef = " x" }, false, ""},
 		{"rosRef too long", "dev-gcp", func(m *MCPServerSpec) { m.RosRef = strings.Repeat("x", maxRosRefBytes+1) }, false, ""},
 	} {
@@ -140,5 +149,22 @@ func TestServerSpecToolRiskAndRosRef(t *testing.T) {
 		case c.ok && len(m.ToolRisk) > 0 && sv.Route.ToolRisk["a"] != m.ToolRisk["a"]:
 			t.Errorf("%s: route lacks toolRisk: %+v", c.name, sv.Route)
 		}
+	}
+	// #2967: the route carries the resolved level per tool; toolRisk wins.
+	m := base
+	m.DefaultRisk, m.ToolRisk = "propose", map[string]string{"a": "read"}
+	if _, sv, err := validateServerSpec("dev-gcp", "", "team-a", "svc", m); err != nil || !maps.Equal(sv.Route.ToolRisk, map[string]string{"a": "read", "b": "propose"}) {
+		t.Errorf("resolved toolRisk: %v %+v", err, sv.Route)
+	}
+}
+
+func TestToolRiskOfFailsClosed(t *testing.T) {
+	for in, want := range map[string]string{"read": "read", "propose": "propose", "write": "write", "": "write", "admin": "write", "Read": "write"} {
+		if got := toolRiskOf(map[string]string{"t": in}, "t"); got != want {
+			t.Errorf("%q: got %q, want %q", in, got, want)
+		}
+	}
+	if riskRank["read"] >= riskRank["propose"] || riskRank["propose"] >= riskRank["write"] {
+		t.Error("ranking must be read < propose < write")
 	}
 }
