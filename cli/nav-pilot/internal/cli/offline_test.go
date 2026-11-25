@@ -37,4 +37,10 @@ func TestOfflineSaysWhatToDo(t *testing.T) {
 	if err == nil || strings.Contains(err.Error(), "connect") || !strings.Contains(err.Error(), "Check the network or naisdevice") {
 		t.Errorf("mcp list: %v", err)
 	}
+	for _, args := range [][]string{{"enable", "x"}, {"prune"}} {
+		err = cmdMCP(args)
+		if err == nil || strings.Contains(err.Error(), "connect") || !strings.Contains(err.Error(), "nothing was changed. Check the network or naisdevice") {
+			t.Errorf("mcp %s: %v", args[0], err)
+		}
+	}
 }

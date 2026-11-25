@@ -872,6 +872,16 @@ func errMCPFailed(verb string, failed, total int) error {
 	return fmt.Errorf("%d of %d server(s) could not be %s", failed, total, verb)
 }
 
+// mcpUnchangedErr says the registry did not answer and nothing changed: one
+// line with a next step when the network is down, the raw error with DEBUG=1.
+func mcpUnchangedErr(err error) error {
+	if unreachable(err) {
+		debugLog("%v", err)
+		return errors.New("could not reach Nav's MCP registry, so nothing was changed. Check the network or naisdevice, and try again")
+	}
+	return fmt.Errorf("could not reach Nav's MCP registry, so nothing was changed: %w", err)
+}
+
 func mcpFail(name string, err error) {
 	fmt.Fprintf(os.Stderr, "%s %s: %v\n", red("✗"), safe(name, 64), err)
 }
@@ -896,7 +906,7 @@ func cmdMCPEnable(names []string, clientsOf func() ([]string, error), topts mcpT
 	}
 	registry, entries, stale, err := mcpRegistryServers()
 	if err != nil {
-		return fmt.Errorf("could not reach Nav's MCP registry, so nothing was changed: %w", err)
+		return mcpUnchangedErr(err)
 	}
 	mcpNoteStale(stale)
 	failed := 0
@@ -1293,7 +1303,7 @@ type mcpPrunePlan struct {
 func cmdMCPPrune(clientFlag string, dryRun, yes bool) error {
 	_, entries, stale, err := mcpRegistryServers()
 	if err != nil {
-		return fmt.Errorf("could not reach Nav's MCP registry, so nothing was changed: %w", err)
+		return mcpUnchangedErr(err)
 	}
 	if len(entries) == 0 {
 		return fmt.Errorf("the MCP registry returned no servers, so nothing was changed")
