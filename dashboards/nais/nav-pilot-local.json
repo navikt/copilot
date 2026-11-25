@@ -1628,10 +1628,10 @@
               "transformations": []
             }
           },
-          "description": "Placeholder: no series yet in Mimir. Tracked in #2915. The query is the intended one. session=local is the guard in front of the local model, which ends the turn. session=cloud is the postToolUse hook in Copilot sessions against cloud models, which can only rewrite the result. Both are counted when the nav-pilot session ends, not when they happen.",
+          "description": "session=local is the guard in front of the local model, which ends the turn. session=cloud is the postToolUse hook in Copilot sessions against cloud models, which can only rewrite the result. Both are counted when the nav-pilot session ends, not when they happen.",
           "id": 40,
           "links": [],
-          "title": "Loop guard triggered, by rule (placeholder)",
+          "title": "Loop guard triggered, by rule",
           "vizConfig": {
             "group": "timeseries",
             "kind": "VizConfig",
@@ -1862,10 +1862,10 @@
               "transformations": []
             }
           },
-          "description": "Placeholder: no series yet in Mimir. Tracked in #2915. The query is the intended one. Whether the local model got to check a risky shell command before it ran, and what it answered. flagged are commands the model found risky; skipped_* are checks that were not made (deadline, no server, or error).",
+          "description": "Whether the local model got to check a risky shell command before it ran, and what it answered. flagged are commands the model found risky; skipped_* are checks that were not made (deadline, no server, or error).",
           "id": 42,
           "links": [],
-          "title": "Action check, by outcome and category (placeholder)",
+          "title": "Action check, by outcome and category",
           "vizConfig": {
             "group": "timeseries",
             "kind": "VizConfig",
