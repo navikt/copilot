@@ -63,6 +63,13 @@ export type AgentProfile = {
 
 export type List<T> = { items: T[] };
 
+/** A published MCP server as every team may see it (fleet-control CatalogEntry): no upstream, readme or actors. */
+export type CatalogEntry = {
+  metadata: Metadata;
+  spec: Pick<MCPServerSpec, "dataCategory" | "allowedTools" | "registry">;
+  status: { publishedGeneration: number; route?: { path: string }; approvedAt?: string };
+};
+
 export type AuditEvent = { at: string; actor: Actor; action: string; generation?: number };
 
 /** What a page shows instead of data: no access, or fleet-control is unavailable. */
@@ -160,6 +167,9 @@ export const fleetApi = {
   whoami: () => fleetGet<Me>(`${API}/whoami`),
   servers: (namespace: string) => fleetGet<List<MCPServer>>(`${ns(namespace)}/mcpservers`),
   server: (namespace: string, name: string) => fleetGet<MCPServer>(`${ns(namespace)}/mcpservers/${seg(name)}`),
+  catalog: () => fleetGet<List<CatalogEntry>>(`${API}/mcpservercatalogentries`),
+  catalogEntry: (namespace: string, name: string) =>
+    fleetGet<CatalogEntry>(`${ns(namespace)}/mcpservercatalogentries/${seg(name)}`),
   agents: (namespace: string) => fleetGet<List<AgentProfile>>(`${ns(namespace)}/agentprofiles`),
   agent: (namespace: string, name: string) => fleetGet<AgentProfile>(`${ns(namespace)}/agentprofiles/${seg(name)}`),
   pending: () => fleetGet<List<AgentProfile>>(`${API}/agentprofiles?awaitingApprovalBy=me`),

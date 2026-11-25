@@ -4,6 +4,7 @@ import { BodyLong } from "@navikt/ds-react";
 import { fleetApi, fleetLoad, requireFleet } from "@/lib/fleet-control";
 import { FleetFrame, fleetRobots } from "./frame";
 import { FleetProblemAlert, KortFortalt, PendingInbox, TeamSections } from "./fleet-ui";
+import { Catalog, NoTeam, TeamPicker } from "./catalog";
 
 export const metadata: Metadata = {
   title: "Fleet",
@@ -11,11 +12,14 @@ export const metadata: Metadata = {
   robots: fleetRobots,
 };
 
-export default async function FleetPage() {
+type Props = { searchParams: Promise<{ team?: string }> };
+
+export default async function FleetPage({ searchParams }: Props) {
   requireFleet();
+  const { team: picked } = await searchParams;
   const result = await fleetLoad(async () => {
     const me = await fleetApi.whoami();
-    const [teams, pending] = await Promise.all([
+    const [teams, pending, catalog] = await Promise.all([
       Promise.all(
         me.teams.map(async (team) => {
           const [s, a] = await Promise.all([fleetApi.servers(team), fleetApi.agents(team)]);
@@ -23,8 +27,11 @@ export default async function FleetPage() {
         })
       ),
       fleetApi.pending(),
+      fleetApi.catalog(),
     ]);
-    return { teams, pending: pending.items };
+    // A team with nothing in Fleet gets no section; registering starts at /fleet/registrer.
+    const used = teams.filter((t) => t.servers.length > 0 || t.agents.length > 0);
+    return { member: me.teams.length > 0, used, pending: pending.items, catalog: catalog.items };
   });
 
   return (
@@ -42,19 +49,23 @@ export default async function FleetPage() {
       </KortFortalt>
       {"problem" in result ? (
         <FleetProblemAlert problem={result.problem} />
-      ) : result.data.teams.length === 0 ? (
-        <BodyLong>
-          Du er ikke med i noe team i Nais ennå. Når du blir med i et team, ser du MCP-serverne og agentprofilene her.
-        </BodyLong>
       ) : (
         <>
-          <BodyLong>
-            <NextLink className="text-blue-600 hover:underline" href="/fleet/registrer">
-              Registrer en MCP-server
-            </NextLink>
-          </BodyLong>
-          <PendingInbox agents={result.data.pending} />
-          <TeamSections teams={result.data.teams} />
+          {result.data.member ? (
+            <>
+              <BodyLong>
+                <NextLink className="text-blue-600 hover:underline" href="/fleet/registrer">
+                  Registrer en MCP-server
+                </NextLink>
+              </BodyLong>
+              <PendingInbox agents={result.data.pending} />
+              <TeamPicker teams={result.data.used.map((t) => t.team)} current={picked} />
+              <TeamSections teams={result.data.used.filter((t) => !picked || t.team === picked)} />
+            </>
+          ) : (
+            <NoTeam />
+          )}
+          <Catalog entries={result.data.catalog} />
         </>
       )}
     </FleetFrame>
