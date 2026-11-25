@@ -13,13 +13,14 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus/testutil"
 
+	"github.com/navikt/copilot/fleet-gateway/internal/metrics"
 	"github.com/navikt/copilot/fleet-gateway/internal/ratelimit"
 )
 
 func TestRateLimit_PerEndpointIsolationAndSweep(t *testing.T) {
 	te := newTestEnv(t)
 	te.gw.cfg.DCREnabled = true
-	for _, ep := range rateLimitedEndpoints {
+	for _, ep := range metrics.RateLimitedEndpoints {
 		te.gw.limiters[ep] = ratelimit.New(2, 100, time.Minute, 10, func() time.Time { return te.now })
 	}
 	te.handler = te.gw.routes()
@@ -79,7 +80,7 @@ func TestRateLimit_PerEndpointIsolationAndSweep(t *testing.T) {
 	// sweepAll sweeps all endpoint limiters after the window expires.
 	te.advance(2 * time.Minute)
 	te.gw.sweepAll()
-	for _, ep := range rateLimitedEndpoints {
+	for _, ep := range metrics.RateLimitedEndpoints {
 		if n := te.gw.limiters[ep].Len(); n != 0 {
 			t.Fatalf("limiter[%s] buckets after sweepAll = %d, want 0", ep, n)
 		}
@@ -87,8 +88,8 @@ func TestRateLimit_PerEndpointIsolationAndSweep(t *testing.T) {
 }
 
 func TestRateLimit_MetricsAndWarnLog(t *testing.T) {
-	initMetrics(nil)
-	srv := httptest.NewServer(metricsServer("").Handler)
+	metrics.Init(nil)
+	srv := httptest.NewServer(metrics.Server("").Handler)
 	defer srv.Close()
 	resp, err := http.Get(srv.URL + "/metrics")
 	if err != nil {
@@ -96,7 +97,7 @@ func TestRateLimit_MetricsAndWarnLog(t *testing.T) {
 	}
 	defer func() { _ = resp.Body.Close() }()
 	metricsBody, _ := io.ReadAll(resp.Body)
-	for _, ep := range rateLimitedEndpoints {
+	for _, ep := range metrics.RateLimitedEndpoints {
 		want := `fleet_gateway_rate_limited_total{oauth_endpoint="` + ep + `"}`
 		if !strings.Contains(string(metricsBody), want) {
 			t.Errorf("/metrics missing pre-initialized series %s", want)
@@ -111,14 +112,14 @@ func TestRateLimit_MetricsAndWarnLog(t *testing.T) {
 	})
 
 	te := newTestEnv(t)
-	for _, ep := range rateLimitedEndpoints {
+	for _, ep := range metrics.RateLimitedEndpoints {
 		te.gw.limiters[ep] = ratelimit.New(1, 100, time.Minute, 10, func() time.Time { return te.now })
 	}
 	te.handler = te.gw.routes()
 
-	beforeToken := testutil.ToFloat64(rateLimitedTotal.WithLabelValues(rateLimitEndpointToken))
-	beforeAuth := testutil.ToFloat64(rateLimitedTotal.WithLabelValues(rateLimitEndpointAuthorize))
-	beforeRevoke := testutil.ToFloat64(rateLimitedTotal.WithLabelValues(rateLimitEndpointRevoke))
+	beforeToken := testutil.ToFloat64(metrics.RateLimited.WithLabelValues(metrics.EndpointToken))
+	beforeAuth := testutil.ToFloat64(metrics.RateLimited.WithLabelValues(metrics.EndpointAuthorize))
+	beforeRevoke := testutil.ToFloat64(metrics.RateLimited.WithLabelValues(metrics.EndpointRevoke))
 
 	clientIP := "198.51.100.77"
 	for i := 0; i < 2; i++ {
@@ -129,13 +130,13 @@ func TestRateLimit_MetricsAndWarnLog(t *testing.T) {
 		te.handler.ServeHTTP(rec, req)
 	}
 
-	if got := testutil.ToFloat64(rateLimitedTotal.WithLabelValues(rateLimitEndpointToken)); got != beforeToken+1 {
+	if got := testutil.ToFloat64(metrics.RateLimited.WithLabelValues(metrics.EndpointToken)); got != beforeToken+1 {
 		t.Fatalf("token rate_limited_total = %v, want %v", got, beforeToken+1)
 	}
-	if got := testutil.ToFloat64(rateLimitedTotal.WithLabelValues(rateLimitEndpointAuthorize)); got != beforeAuth {
+	if got := testutil.ToFloat64(metrics.RateLimited.WithLabelValues(metrics.EndpointAuthorize)); got != beforeAuth {
 		t.Fatalf("authorize rate_limited_total changed unexpectedly: got %v, want %v", got, beforeAuth)
 	}
-	if got := testutil.ToFloat64(rateLimitedTotal.WithLabelValues(rateLimitEndpointRevoke)); got != beforeRevoke {
+	if got := testutil.ToFloat64(metrics.RateLimited.WithLabelValues(metrics.EndpointRevoke)); got != beforeRevoke {
 		t.Fatalf("revoke rate_limited_total changed unexpectedly: got %v, want %v", got, beforeRevoke)
 	}
 
@@ -147,11 +148,11 @@ func TestRateLimit_MetricsAndWarnLog(t *testing.T) {
 		rec := httptest.NewRecorder()
 		te.handler.ServeHTTP(rec, req)
 	}
-	if got := testutil.ToFloat64(rateLimitedTotal.WithLabelValues(rateLimitEndpointAuthorize)); got != beforeAuth+1 {
+	if got := testutil.ToFloat64(metrics.RateLimited.WithLabelValues(metrics.EndpointAuthorize)); got != beforeAuth+1 {
 		t.Fatalf("authorize rate_limited_total = %v, want %v", got, beforeAuth+1)
 	}
 
-	beforeConsent := testutil.ToFloat64(rateLimitedTotal.WithLabelValues(rateLimitEndpointConsent))
+	beforeConsent := testutil.ToFloat64(metrics.RateLimited.WithLabelValues(metrics.EndpointConsent))
 	consentClientIP := "198.51.100.79"
 	for i := 0; i < 2; i++ {
 		req := httptest.NewRequest(http.MethodPost, "/consent", strings.NewReader("id=missing&csrf=bad"))
@@ -163,7 +164,7 @@ func TestRateLimit_MetricsAndWarnLog(t *testing.T) {
 			t.Fatalf("consent second request: got %d, want 429", rec.Code)
 		}
 	}
-	if got := testutil.ToFloat64(rateLimitedTotal.WithLabelValues(rateLimitEndpointConsent)); got != beforeConsent+1 {
+	if got := testutil.ToFloat64(metrics.RateLimited.WithLabelValues(metrics.EndpointConsent)); got != beforeConsent+1 {
 		t.Fatalf("consent rate_limited_total = %v, want %v", got, beforeConsent+1)
 	}
 
@@ -180,7 +181,7 @@ func TestRateLimit_MetricsAndWarnLog(t *testing.T) {
 }
 
 func TestRateLimit_LogSamplingAndCounter(t *testing.T) {
-	initMetrics(nil)
+	metrics.Init(nil)
 
 	var logBuf bytes.Buffer
 	prevLogger := slog.Default()
@@ -190,7 +191,7 @@ func TestRateLimit_LogSamplingAndCounter(t *testing.T) {
 	})
 
 	te := newTestEnv(t)
-	te.gw.limiters[rateLimitEndpointToken] = ratelimit.New(1, 1000, time.Minute, 10, te.gw.now)
+	te.gw.limiters[metrics.EndpointToken] = ratelimit.New(1, 1000, time.Minute, 10, te.gw.now)
 	te.handler = te.gw.routes()
 
 	clientIP := "198.51.100.99"
@@ -208,7 +209,7 @@ func TestRateLimit_LogSamplingAndCounter(t *testing.T) {
 		t.Fatalf("initial /token request unexpectedly rate limited")
 	}
 
-	before := testutil.ToFloat64(rateLimitedTotal.WithLabelValues(rateLimitEndpointToken))
+	before := testutil.ToFloat64(metrics.RateLimited.WithLabelValues(metrics.EndpointToken))
 
 	const flood = 25
 	for i := 0; i < flood; i++ {
@@ -218,7 +219,7 @@ func TestRateLimit_LogSamplingAndCounter(t *testing.T) {
 		te.advance(time.Second)
 	}
 
-	if got := testutil.ToFloat64(rateLimitedTotal.WithLabelValues(rateLimitEndpointToken)); got != before+float64(flood) {
+	if got := testutil.ToFloat64(metrics.RateLimited.WithLabelValues(metrics.EndpointToken)); got != before+float64(flood) {
 		t.Fatalf("rate_limited_total after flood = %v, want %v", got, before+float64(flood))
 	}
 	if got := strings.Count(logBuf.String(), `"msg":"rate limited"`); got != 1 {
@@ -241,7 +242,7 @@ func TestRateLimit_LogSamplingAndCounter(t *testing.T) {
 		}
 	}
 
-	if got := testutil.ToFloat64(rateLimitedTotal.WithLabelValues(rateLimitEndpointToken)); got != before+float64(flood+secondFlood) {
+	if got := testutil.ToFloat64(metrics.RateLimited.WithLabelValues(metrics.EndpointToken)); got != before+float64(flood+secondFlood) {
 		t.Fatalf("rate_limited_total after second flood = %v, want %v", got, before+float64(flood+secondFlood))
 	}
 	if got := strings.Count(logBuf.String(), `"msg":"rate limited"`); got != 2 {
@@ -259,8 +260,8 @@ func TestRateLimit_Register429JSONAndLogPerEndpoint(t *testing.T) {
 
 	te := newTestEnv(t)
 	te.gw.cfg.DCREnabled = true
-	te.gw.limiters[rateLimitEndpointToken] = ratelimit.New(1, 100, time.Minute, 10, func() time.Time { return te.now })
-	te.gw.limiters[rateLimitEndpointRegister] = ratelimit.New(1, 100, time.Minute, 10, func() time.Time { return te.now })
+	te.gw.limiters[metrics.EndpointToken] = ratelimit.New(1, 100, time.Minute, 10, func() time.Time { return te.now })
+	te.gw.limiters[metrics.EndpointRegister] = ratelimit.New(1, 100, time.Minute, 10, func() time.Time { return te.now })
 	te.handler = te.gw.routes()
 
 	clientIP := "198.51.100.88"

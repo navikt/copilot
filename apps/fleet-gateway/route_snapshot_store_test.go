@@ -13,6 +13,8 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/testutil"
+
+	"github.com/navikt/copilot/fleet-gateway/internal/metrics"
 )
 
 // restartGateway builds a new pod on gw's store, as a restart would (#2892).
@@ -59,7 +61,7 @@ func TestStoredSnapshotServesWhenFleetControlDown(t *testing.T) {
 	if gw2.awaitingSnapshot() {
 		t.Fatal("/ready would answer 503 with a stored snapshot")
 	}
-	if v := testutil.ToFloat64(routesFromStore); v != 1 {
+	if v := testutil.ToFloat64(metrics.RoutesFromStore); v != 1 {
 		t.Fatalf("routes_from_stored_snapshot = %v, want 1", v)
 	}
 }
@@ -113,7 +115,7 @@ func TestStoredOlderGenerationDoesNotOverrideLive(t *testing.T) {
 	if got := routePaths(gw2); len(got) != 2 || got[1] != "/mcp/copilot/new" {
 		t.Fatalf("routes = %v, want the live generation 5", got)
 	}
-	if v := testutil.ToFloat64(routesFromStore); v != 0 {
+	if v := testutil.ToFloat64(metrics.RoutesFromStore); v != 0 {
 		t.Fatalf("routes_from_stored_snapshot = %v, want 0", v)
 	}
 }

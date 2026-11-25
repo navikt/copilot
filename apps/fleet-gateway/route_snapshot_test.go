@@ -9,6 +9,7 @@ import (
 	"sync/atomic"
 	"testing"
 
+	"github.com/navikt/copilot/fleet-gateway/internal/httpx"
 	"github.com/navikt/copilot/fleet-gateway/internal/routing"
 )
 
@@ -22,7 +23,7 @@ func TestTokenAndUpstreamFromOneSnapshot(t *testing.T) {
 		var in map[string]string
 		_ = json.NewDecoder(r.Body).Decode(&in)
 		targets = append(targets, in["target"])
-		writeJSON(w, http.StatusOK, map[string]any{"access_token": "team-token", "expires_in": 300})
+		httpx.WriteJSON(w, http.StatusOK, map[string]any{"access_token": "team-token", "expires_in": 300})
 	}))
 	t.Cleanup(texas.Close)
 	var otherHits atomic.Int32

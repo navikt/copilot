@@ -15,6 +15,8 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus/testutil"
 
+	"github.com/navikt/copilot/fleet-gateway/internal/httpx"
+	"github.com/navikt/copilot/fleet-gateway/internal/metrics"
 	"github.com/navikt/copilot/fleet-gateway/internal/routing"
 )
 
@@ -121,7 +123,7 @@ func TestGatewayReplicas_RefreshRotationAcrossReplicas(t *testing.T) {
 	te.entraServer.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/.well-known/openid-configuration":
-			writeJSON(w, http.StatusOK, map[string]any{
+			httpx.WriteJSON(w, http.StatusOK, map[string]any{
 				"authorization_endpoint": te.entraServer.URL + "/authorize",
 				"token_endpoint":         te.entraServer.URL + "/token",
 			})
@@ -131,7 +133,7 @@ func TestGatewayReplicas_RefreshRotationAcrossReplicas(t *testing.T) {
 				te.mu.Lock()
 				nonce := te.lastEntraNonce
 				te.mu.Unlock()
-				writeJSON(w, http.StatusOK, map[string]any{
+				httpx.WriteJSON(w, http.StatusOK, map[string]any{
 					"access_token":  te.entraToken,
 					"refresh_token": "rt-init",
 					"id_token":      makeTestIDToken(map[string]any{"NAVident": "Z123456", "nonce": nonce}),
@@ -145,7 +147,7 @@ func TestGatewayReplicas_RefreshRotationAcrossReplicas(t *testing.T) {
 				idx := rtCounter
 				seenRTs = append(seenRTs, r.FormValue("refresh_token"))
 				mu.Unlock()
-				writeJSON(w, http.StatusOK, map[string]any{
+				httpx.WriteJSON(w, http.StatusOK, map[string]any{
 					"access_token":  fmt.Sprintf("team-at-%d", idx),
 					"refresh_token": fmt.Sprintf("rt-next-%d", idx),
 					"expires_in":    3600,
@@ -204,7 +206,7 @@ func TestSessionAbsoluteCap(t *testing.T) {
 	te.entraServer.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/.well-known/openid-configuration":
-			writeJSON(w, http.StatusOK, map[string]any{
+			httpx.WriteJSON(w, http.StatusOK, map[string]any{
 				"authorization_endpoint": te.entraServer.URL + "/authorize",
 				"token_endpoint":         te.entraServer.URL + "/token",
 			})
@@ -212,7 +214,7 @@ func TestSessionAbsoluteCap(t *testing.T) {
 			te.mu.Lock()
 			nonce := te.lastEntraNonce
 			te.mu.Unlock()
-			writeJSON(w, http.StatusOK, map[string]any{
+			httpx.WriteJSON(w, http.StatusOK, map[string]any{
 				"access_token":  te.entraToken,
 				"refresh_token": "rt-cap",
 				"id_token":      makeTestIDToken(map[string]any{"NAVident": "Z123456", "nonce": nonce}),
@@ -407,14 +409,14 @@ func TestReady_StorePingFailureStaysReady(t *testing.T) {
 	if code := get(); code != http.StatusOK {
 		t.Fatalf("expected 200 on /ready store Ping error, got %d", code)
 	}
-	if v := testutil.ToFloat64(storeUp); v != 0 {
+	if v := testutil.ToFloat64(metrics.StoreUp); v != 0 {
 		t.Fatalf("fleet_gateway_store_up = %v after Ping error, want 0", v)
 	}
 	te.gw.store = inner
 	if code := get(); code != http.StatusOK {
 		t.Fatalf("expected 200 on healthy /ready, got %d", code)
 	}
-	if v := testutil.ToFloat64(storeUp); v != 1 {
+	if v := testutil.ToFloat64(metrics.StoreUp); v != 1 {
 		t.Fatalf("fleet_gateway_store_up = %v after Ping ok, want 1", v)
 	}
 }

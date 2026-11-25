@@ -15,6 +15,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/testutil"
 	dto "github.com/prometheus/client_model/go"
+
+	"github.com/navikt/copilot/fleet-gateway/internal/metrics"
 )
 
 type fakeFleetControl struct {
@@ -238,10 +240,10 @@ func TestRouteSyncNoSnapshotAtStartupFailsClosed(t *testing.T) {
 			f := newFakeFleetControl(t)
 			gw, src := fleetControlGateway(t, f)
 			breakIt(f)
-			failures := testutil.ToFloat64(routeSyncFailures)
+			failures := testutil.ToFloat64(metrics.RouteSyncFailures)
 			gw.syncRoutes(context.Background(), src)
-			if got := testutil.ToFloat64(routeSyncFailures); got != failures+1 {
-				t.Fatalf("routeSyncFailures = %v, want %v", got, failures+1)
+			if got := testutil.ToFloat64(metrics.RouteSyncFailures); got != failures+1 {
+				t.Fatalf("metrics.RouteSyncFailures = %v, want %v", got, failures+1)
 			}
 			if got := routePaths(gw); len(got) != 0 {
 				t.Fatalf("routes = %v, want none before the first snapshot", got)
@@ -329,7 +331,7 @@ func TestRouteSyncInitialisesMetricsForNewRoutes(t *testing.T) {
 	gw.syncRoutes(context.Background(), src)
 	got := 0
 	ch := make(chan prometheus.Metric, 4096)
-	go func() { mcpRequestsTotal.Collect(ch); close(ch) }()
+	go func() { metrics.MCPRequests.Collect(ch); close(ch) }()
 	for m := range ch {
 		var d dto.Metric
 		_ = m.Write(&d)
@@ -407,12 +409,12 @@ func TestRouteSync304ChecksCheckedAt(t *testing.T) {
 			gw.syncRoutes(context.Background(), src)
 			f.checkedAt = header
 			synced := lastRouteSync.Load()
-			failures := testutil.ToFloat64(routeSyncFailures)
+			failures := testutil.ToFloat64(metrics.RouteSyncFailures)
 			gw.syncRoutes(context.Background(), src)
 			if f.lastINM != f.etag {
 				t.Fatal("fixture did not take the 304 path")
 			}
-			if testutil.ToFloat64(routeSyncFailures) != failures+1 || lastRouteSync.Load() != synced {
+			if testutil.ToFloat64(metrics.RouteSyncFailures) != failures+1 || lastRouteSync.Load() != synced {
 				t.Fatal("a 304 with a bad Fleet-Checked-At must count a failure and not mark the sync")
 			}
 		})

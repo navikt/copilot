@@ -17,6 +17,7 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus/testutil"
 
+	"github.com/navikt/copilot/fleet-gateway/internal/metrics"
 	"github.com/navikt/copilot/fleet-gateway/internal/routing"
 )
 
@@ -573,13 +574,13 @@ func TestLockout_Postgres_OutboxSurvivesRestart(t *testing.T) {
 
 	after, pgAfter := newGateway()
 	defer pgAfter.Close()
-	lockoutAuditOutboxPending.Set(-1)
+	metrics.LockoutAuditOutboxPending.Set(-1)
 	after.drainLockoutAudit(ctx)
 	lines := parseJSONLogLines(t, buf.Bytes())
 	if len(lines) != 1 || lines[0]["action"] != "lock" || lines[0]["operator"] != "op-before" {
 		t.Fatalf("drain after restart logged %v, want the lock queued before shutdown", lines)
 	}
-	if got := testutil.ToFloat64(lockoutAuditOutboxPending); got != 0 {
+	if got := testutil.ToFloat64(metrics.LockoutAuditOutboxPending); got != 0 {
 		t.Fatalf("outbox pending after drain = %v, want 0", got)
 	}
 }
@@ -597,15 +598,15 @@ func TestLockout_DrainAuditSetsPendingGauge(t *testing.T) {
 		t.Fatalf("lockOutUser: %v", err)
 	}
 	// A cancelled context makes the read fail: the gauge keeps its last value.
-	lockoutAuditOutboxPending.Set(7)
+	metrics.LockoutAuditOutboxPending.Set(7)
 	cancelled, cancel := context.WithCancel(ctx)
 	cancel()
 	te.gw.drainLockoutAudit(cancelled)
-	if got := testutil.ToFloat64(lockoutAuditOutboxPending); got != 7 {
+	if got := testutil.ToFloat64(metrics.LockoutAuditOutboxPending); got != 7 {
 		t.Fatalf("gauge after failed drain = %v, want unchanged 7", got)
 	}
 	te.gw.drainLockoutAudit(ctx)
-	if got := testutil.ToFloat64(lockoutAuditOutboxPending); got != 0 {
+	if got := testutil.ToFloat64(metrics.LockoutAuditOutboxPending); got != 0 {
 		t.Fatalf("gauge after drain = %v, want 0", got)
 	}
 }

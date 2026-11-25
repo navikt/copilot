@@ -7,8 +7,6 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/navikt/copilot/fleet-gateway/internal/config"
-	"github.com/navikt/copilot/fleet-gateway/internal/ratelimit"
 	"io"
 	"log/slog"
 	"net/http"
@@ -20,6 +18,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/navikt/copilot/fleet-gateway/internal/config"
+	"github.com/navikt/copilot/fleet-gateway/internal/httpx"
+	"github.com/navikt/copilot/fleet-gateway/internal/metrics"
+	"github.com/navikt/copilot/fleet-gateway/internal/ratelimit"
 	"github.com/navikt/copilot/fleet-gateway/internal/routing"
 )
 
@@ -89,7 +91,7 @@ func newTestEnv(t *testing.T) *testEnv {
 	te.cimdServer = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/oauth-client.json":
-			writeJSON(w, http.StatusOK, map[string]any{
+			httpx.WriteJSON(w, http.StatusOK, map[string]any{
 				"client_id":                  te.cimdServer.URL + "/oauth-client.json",
 				"client_name":                "cplt test client",
 				"redirect_uris":              []string{te.redirectURI},
@@ -98,7 +100,7 @@ func newTestEnv(t *testing.T) *testEnv {
 				"token_endpoint_auth_method": "none",
 			})
 		case "/other-client.json":
-			writeJSON(w, http.StatusOK, map[string]any{
+			httpx.WriteJSON(w, http.StatusOK, map[string]any{
 				"client_id":                  te.cimdServer.URL + "/other-client.json",
 				"client_name":                "other test client",
 				"redirect_uris":              []string{te.redirectURI},
@@ -107,7 +109,7 @@ func newTestEnv(t *testing.T) *testEnv {
 				"token_endpoint_auth_method": "none",
 			})
 		case "/bad-client-id.json":
-			writeJSON(w, http.StatusOK, map[string]any{
+			httpx.WriteJSON(w, http.StatusOK, map[string]any{
 				"client_id":                  "https://evil.example/other.json",
 				"client_name":                "spoofed",
 				"redirect_uris":              []string{te.redirectURI},
@@ -122,7 +124,7 @@ func newTestEnv(t *testing.T) *testEnv {
 	te.entraServer = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/.well-known/openid-configuration":
-			writeJSON(w, http.StatusOK, map[string]any{
+			httpx.WriteJSON(w, http.StatusOK, map[string]any{
 				"authorization_endpoint": te.entraServer.URL + "/authorize",
 				"token_endpoint":         te.entraServer.URL + "/token",
 			})
@@ -148,7 +150,7 @@ func newTestEnv(t *testing.T) *testEnv {
 					expiresIn = 3600
 				}
 				if status != http.StatusOK {
-					writeJSON(w, status, map[string]any{
+					httpx.WriteJSON(w, status, map[string]any{
 						"error":             "invalid_grant",
 						"error_description": "AADSTS700082: The refresh token has expired due to inactivity",
 					})
@@ -162,7 +164,7 @@ func newTestEnv(t *testing.T) *testEnv {
 				if !omitRT {
 					resp["refresh_token"] = fmt.Sprintf("entra-rotated-refresh-%d", idx)
 				}
-				writeJSON(w, http.StatusOK, resp)
+				httpx.WriteJSON(w, http.StatusOK, resp)
 				return
 			}
 			te.mu.Lock()
@@ -177,7 +179,7 @@ func newTestEnv(t *testing.T) *testEnv {
 			expiresIn := te.entraExpiresIn
 			te.mu.Unlock()
 			if entraStatus != http.StatusOK {
-				writeJSON(w, entraStatus, map[string]any{
+				httpx.WriteJSON(w, entraStatus, map[string]any{
 					"error":             "invalid_grant",
 					"error_description": "AADSTS65001: user has not consented",
 				})
@@ -186,7 +188,7 @@ func newTestEnv(t *testing.T) *testEnv {
 			if expectedChallenge != "" {
 				verifier := r.FormValue("code_verifier")
 				if verifier == "" || pkceS256(verifier) != expectedChallenge {
-					writeJSON(w, http.StatusBadRequest, map[string]any{
+					httpx.WriteJSON(w, http.StatusBadRequest, map[string]any{
 						"error":             "invalid_grant",
 						"error_description": "PKCE code_verifier mismatch",
 					})
@@ -221,7 +223,7 @@ func newTestEnv(t *testing.T) *testEnv {
 					delete(resp, "id_token")
 				}
 			}
-			writeJSON(w, http.StatusOK, resp)
+			httpx.WriteJSON(w, http.StatusOK, resp)
 		default:
 			http.NotFound(w, r)
 		}
@@ -242,12 +244,12 @@ func newTestEnv(t *testing.T) *testEnv {
 		if status == 0 {
 			status = http.StatusOK
 		}
-		writeJSON(w, status, body)
+		httpx.WriteJSON(w, status, body)
 	}))
 	t.Cleanup(introspectServer.Close)
 
 	te.texasServer = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		writeJSON(w, http.StatusOK, map[string]any{
+		httpx.WriteJSON(w, http.StatusOK, map[string]any{
 			"access_token": strings.Join([]string{"team", "obo", "token"}, "-"),
 			"token_type":   "Bearer",
 			"expires_in":   300,
@@ -256,7 +258,7 @@ func newTestEnv(t *testing.T) *testEnv {
 	t.Cleanup(te.texasServer.Close)
 
 	te.upstreamServer = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		writeJSON(w, http.StatusOK, map[string]any{"jsonrpc": "2.0", "id": 1, "result": map[string]any{}})
+		httpx.WriteJSON(w, http.StatusOK, map[string]any{"jsonrpc": "2.0", "id": 1, "result": map[string]any{}})
 	}))
 	t.Cleanup(te.upstreamServer.Close)
 
@@ -1020,7 +1022,7 @@ func TestMapCapsAndRateLimit(t *testing.T) {
 			name: "per-IP rate limit enforced on authorize and token",
 			run: func(t *testing.T) {
 				te := newTestEnv(t)
-				for _, ep := range rateLimitedEndpoints {
+				for _, ep := range metrics.RateLimitedEndpoints {
 					te.gw.limiters[ep] = ratelimit.New(2, 100, time.Minute, 10, func() time.Time { return te.now })
 				}
 				te.handler = te.gw.routes()
@@ -1067,7 +1069,7 @@ func TestMapCapsAndRateLimit(t *testing.T) {
 			name: "X-Forwarded-For uses last trusted ingress IP and enforces global ceiling",
 			run: func(t *testing.T) {
 				te := newTestEnv(t)
-				te.gw.limiters[rateLimitEndpointAuthorize] = ratelimit.New(2, 4, time.Minute, 10, func() time.Time { return te.now })
+				te.gw.limiters[metrics.EndpointAuthorize] = ratelimit.New(2, 4, time.Minute, 10, func() time.Time { return te.now })
 				te.handler = te.gw.routes()
 
 				// Spoofing earlier XFF entries cannot bypass per-IP limit keyed on the last entry.

@@ -18,6 +18,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 
+	"github.com/navikt/copilot/fleet-gateway/internal/metrics"
 	"github.com/navikt/copilot/fleet-gateway/internal/routing"
 )
 
@@ -214,7 +215,7 @@ func (g *Gateway) syncRoutes(ctx context.Context, f *fleetControlRoutes) {
 	defer cancel()
 	routes, err := f.fetch(ctx, g.table())
 	if err != nil {
-		routeSyncFailures.Inc()
+		metrics.RouteSyncFailures.Inc()
 		slog.Warn("fleet-control routes not updated, keeping current table", "error", err, "routes", len(g.table().Routes))
 		return
 	}
@@ -226,7 +227,7 @@ func (g *Gateway) syncRoutes(ctx context.Context, f *fleetControlRoutes) {
 		return
 	}
 	g.swapRoutes(routes)
-	routesFromStore.Set(0)
+	metrics.RoutesFromStore.Set(0)
 	slog.Info("route table loaded from fleet-control", "routes", len(routes), "generation", f.generation)
 	f.storePending = !g.storeSnapshot(ctx, f)
 }
@@ -235,8 +236,8 @@ func (g *Gateway) swapRoutes(routes []routing.Route) {
 	rt := routing.NewTable(routes)
 	rt.PrimaryResource = g.table().PrimaryResource // parseSnapshot checked it is in routes
 	g.routeTable.Store(rt)
-	routesLoaded.Set(float64(len(routes)))
-	initMetrics(routes) // idempotent; pre-creates series for new routes and tools
+	metrics.RoutesLoaded.Set(float64(len(routes)))
+	metrics.Init(routes) // idempotent; pre-creates series for new routes and tools
 }
 
 // storedSnapshot is the last accepted live snapshot, kept in the gateway's
@@ -307,7 +308,7 @@ func (g *Gateway) loadStoredSnapshot(ctx context.Context, f *fleetControlRoutes)
 		return
 	}
 	g.swapRoutes(routes)
-	routesFromStore.Set(1)
+	metrics.RoutesFromStore.Set(1)
 	markRouteSynced(snap.CheckedAt) // age counts from checked_at, so the stale alert fires
 	slog.Warn("route table loaded from stored snapshot, fleet-control unreachable", "routes", len(routes), "generation", snap.Generation, "age", time.Since(snap.CheckedAt).Round(time.Second).String())
 }

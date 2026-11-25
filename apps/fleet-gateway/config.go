@@ -9,14 +9,15 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"github.com/navikt/copilot/fleet-gateway/internal/config"
-	"github.com/navikt/copilot/fleet-gateway/internal/ratelimit"
-	"github.com/navikt/copilot/fleet-gateway/internal/routing"
 	"log/slog"
 	"net/http"
 	"os"
 	"strings"
 	"time"
+
+	"github.com/navikt/copilot/fleet-gateway/internal/config"
+	"github.com/navikt/copilot/fleet-gateway/internal/ratelimit"
+	"github.com/navikt/copilot/fleet-gateway/internal/routing"
 )
 
 const (

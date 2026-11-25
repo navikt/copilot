@@ -18,6 +18,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/navikt/copilot/fleet-gateway/internal/httpx"
 	"github.com/navikt/copilot/fleet-gateway/internal/routing"
 )
 
@@ -106,7 +107,7 @@ func TestRefreshToken_HappyPathAndMCP(t *testing.T) {
 		texasMu.Lock()
 		seenTexasAssertions = append(seenTexasAssertions, reqBody["user_token"])
 		texasMu.Unlock()
-		writeJSON(w, http.StatusOK, map[string]any{
+		httpx.WriteJSON(w, http.StatusOK, map[string]any{
 			"access_token": strings.Join([]string{"team", "obo", "token"}, "-"),
 			"token_type":   "Bearer",
 			"expires_in":   300,

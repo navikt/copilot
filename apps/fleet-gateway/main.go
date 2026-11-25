@@ -5,7 +5,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/navikt/copilot/fleet-gateway/internal/config"
 	"io"
 	"log/slog"
 	"net/http"
@@ -21,7 +20,10 @@ import (
 	"golang.org/x/sync/singleflight"
 
 	"github.com/navikt/copilot/fleet-gateway/internal/audit"
+	"github.com/navikt/copilot/fleet-gateway/internal/config"
+	"github.com/navikt/copilot/fleet-gateway/internal/httpx"
 	"github.com/navikt/copilot/fleet-gateway/internal/inflight"
+	"github.com/navikt/copilot/fleet-gateway/internal/metrics"
 	"github.com/navikt/copilot/fleet-gateway/internal/ratelimit"
 	"github.com/navikt/copilot/fleet-gateway/internal/routing"
 	"github.com/navikt/copilot/fleet-gateway/internal/ttlmap"
@@ -106,8 +108,8 @@ func newGateway(cfg *Config, now func() time.Time) (*Gateway, error) {
 		}
 		return nil, fmt.Errorf("initialize team token source: %w", err)
 	}
-	limiters := make(map[string]*ratelimit.Limiter, len(rateLimitedEndpoints))
-	for _, ep := range rateLimitedEndpoints {
+	limiters := make(map[string]*ratelimit.Limiter, len(metrics.RateLimitedEndpoints))
+	for _, ep := range metrics.RateLimitedEndpoints {
 		limiters[ep] = ratelimit.New(cfg.RateLimitRequests, cfg.RateLimitGlobalRequests, cfg.RateLimitWindow, cfg.RateLimitCap, now)
 	}
 	gw := &Gateway{
@@ -212,14 +214,14 @@ func (g *Gateway) routes() http.Handler {
 	mux.HandleFunc("GET /.well-known/oauth-protected-resource", g.prmHandler)
 	mux.HandleFunc("GET /.well-known/oauth-protected-resource/{rest...}", g.prmHandler)
 	mux.HandleFunc("GET /.well-known/oauth-authorization-server", g.asMetadataHandler)
-	mux.HandleFunc("GET /authorize", g.rateLimitMiddleware(rateLimitEndpointAuthorize, g.limiters[rateLimitEndpointAuthorize], g.authorizeHandler))
-	mux.HandleFunc("POST /consent", g.rateLimitMiddleware(rateLimitEndpointConsent, g.limiters[rateLimitEndpointConsent], g.consentPostHandler))
+	mux.HandleFunc("GET /authorize", g.rateLimitMiddleware(metrics.EndpointAuthorize, g.limiters[metrics.EndpointAuthorize], g.authorizeHandler))
+	mux.HandleFunc("POST /consent", g.rateLimitMiddleware(metrics.EndpointConsent, g.limiters[metrics.EndpointConsent], g.consentPostHandler))
 	mux.HandleFunc("GET /static/consent.css", consentCSSHandler)
 	mux.HandleFunc("GET /oauth2/callback", g.callbackHandler)
-	mux.HandleFunc("POST /token", g.rateLimitMiddleware(rateLimitEndpointToken, g.limiters[rateLimitEndpointToken], g.tokenHandler))
-	mux.HandleFunc("POST /revoke", g.rateLimitMiddleware(rateLimitEndpointRevoke, g.limiters[rateLimitEndpointRevoke], g.revokeHandler))
+	mux.HandleFunc("POST /token", g.rateLimitMiddleware(metrics.EndpointToken, g.limiters[metrics.EndpointToken], g.tokenHandler))
+	mux.HandleFunc("POST /revoke", g.rateLimitMiddleware(metrics.EndpointRevoke, g.limiters[metrics.EndpointRevoke], g.revokeHandler))
 	if g.cfg.DCREnabled {
-		mux.HandleFunc("POST /register", g.rateLimitMiddleware(rateLimitEndpointRegister, g.limiters[rateLimitEndpointRegister], g.registerHandler))
+		mux.HandleFunc("POST /register", g.rateLimitMiddleware(metrics.EndpointRegister, g.limiters[metrics.EndpointRegister], g.registerHandler))
 	}
 	// Shared by all MCP routes.
 	g.inFlight = make(inflight.Slots, g.cfg.MCPMaxInFlight)
@@ -239,7 +241,7 @@ func (g *Gateway) routeDispatch(w http.ResponseWriter, r *http.Request) {
 	table := g.table() // one load: a swap between lookup and check must not turn 503 into 404
 	route, ok := table.RoutesByPath["/mcp/"+r.PathValue("ns")+"/"+r.PathValue("name")]
 	if !ok && g.cfg.RoutesSource == routesSourceFleetControl && len(table.Routes) == 0 {
-		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "temporarily_unavailable", "error_description": "Route table not loaded yet. Try again shortly."})
+		httpx.WriteJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "temporarily_unavailable", "error_description": "Route table not loaded yet. Try again shortly."})
 		return
 	}
 	if !ok {
@@ -271,33 +273,33 @@ func (g *Gateway) oldRoutePathHandler(w http.ResponseWriter, r *http.Request) {
 		body["new_url"] = match.FullRouteID
 		body["error_description"] = "This route moved to " + match.FullRouteID + ". Update your MCP client config and log in again."
 	}
-	writeJSON(w, http.StatusNotFound, body)
+	httpx.WriteJSON(w, http.StatusNotFound, body)
 }
 
 func healthHandler(w http.ResponseWriter, _ *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]string{"status": "healthy"})
+	httpx.WriteJSON(w, http.StatusOK, map[string]string{"status": "healthy"})
 }
 
 func (g *Gateway) readyHandler(w http.ResponseWriter, r *http.Request) {
 	if g.draining.Load() {
-		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"status": "not_ready", "reason": "shutting_down"})
+		httpx.WriteJSON(w, http.StatusServiceUnavailable, map[string]string{"status": "not_ready", "reason": "shutting_down"})
 		return
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 	defer cancel()
 	// The DB is not a readiness condition (#2893): routing runs from the in-memory
-	// snapshot, so pods stay in rotation and the alert on storeUp reports the outage.
+	// snapshot, so pods stay in rotation and the alert on metrics.StoreUp reports the outage.
 	if err := g.store.Ping(ctx); err != nil {
 		slog.Warn("session store ping failed", "error", err)
-		storeUp.Set(0)
+		metrics.StoreUp.Set(0)
 	} else {
-		storeUp.Set(1)
+		metrics.StoreUp.Set(1)
 	}
 	if g.awaitingSnapshot() {
-		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"status": "not_ready", "reason": "no_route_snapshot"})
+		httpx.WriteJSON(w, http.StatusServiceUnavailable, map[string]string{"status": "not_ready", "reason": "no_route_snapshot"})
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]string{"status": "ready"})
+	httpx.WriteJSON(w, http.StatusOK, map[string]string{"status": "ready"})
 }
 
 func (g *Gateway) rootHandler(w http.ResponseWriter, r *http.Request) {
@@ -305,7 +307,7 @@ func (g *Gateway) rootHandler(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{
+	httpx.WriteJSON(w, http.StatusOK, map[string]any{
 		"service":     "fleet-gateway",
 		"description": "Nav MCP OAuth 2.1 authorization gateway",
 		"endpoints": map[string]string{
@@ -322,18 +324,18 @@ func (g *Gateway) rootHandler(w http.ResponseWriter, r *http.Request) {
 func (g *Gateway) loggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := g.now()
-		wrapped := &statusResponseWriter{ResponseWriter: w, statusCode: http.StatusOK}
+		wrapped := &httpx.StatusWriter{ResponseWriter: w, Status: http.StatusOK}
 		next.ServeHTTP(wrapped, r)
 
 		if r.URL.Path == "/health" || r.URL.Path == "/ready" {
 			return
 		}
-		observeHTTPRequest(wrapped.statusCode, wrapped.reason)
+		metrics.ObserveHTTPRequest(wrapped.Status, wrapped.Reason)
 		// Never log query strings, headers, tokens, codes, or verifiers.
 		slog.Info("request completed",
 			"method", sanitizeLogValue(r.Method),
 			"path", sanitizeLogValue(r.URL.Path),
-			"status", sanitizeLogValue(strconv.Itoa(wrapped.statusCode)),
+			"status", sanitizeLogValue(strconv.Itoa(wrapped.Status)),
 			"duration_ms", g.now().Sub(start).Milliseconds(),
 		)
 	})
@@ -382,32 +384,17 @@ func shutdownDrain(writeTimeout time.Duration) time.Duration {
 	return min(writeTimeout, maxShutdownDrain)
 }
 
-type statusResponseWriter struct {
-	http.ResponseWriter
-	statusCode int
-	reason     string // set by markShed; labels deliberate 5xx in metrics
-}
-
-func (w *statusResponseWriter) WriteHeader(code int) {
-	w.statusCode = code
-	w.ResponseWriter.WriteHeader(code)
-}
-
-func (w *statusResponseWriter) Unwrap() http.ResponseWriter {
-	return w.ResponseWriter
-}
-
 func (g *Gateway) rateLimitMiddleware(endpoint string, limiter *ratelimit.Limiter, next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ip := ratelimit.ClientIP(r)
 		if limiter != nil && !limiter.Allow(ip) {
-			observeRateLimited(endpoint)
+			metrics.ObserveRateLimited(endpoint)
 			if g.rateLimitLog == nil || g.rateLimitLog.Allow(endpoint+"\x00"+ip) {
 				slog.Warn("rate limited", "endpoint", endpoint)
 			}
 			w.Header().Set("Retry-After", "60")
 			if r.URL.Path == "/token" || r.URL.Path == "/revoke" || r.URL.Path == "/register" {
-				writeJSON(w, http.StatusTooManyRequests, map[string]string{
+				httpx.WriteJSON(w, http.StatusTooManyRequests, map[string]string{
 					"error":             "temporarily_unavailable",
 					"error_description": "rate limit exceeded",
 				})
@@ -447,7 +434,7 @@ func main() {
 	defer stop()
 
 	gw.startSweeper(ctx, defaultSweepInterval)
-	routesLoaded.Set(float64(len(gw.table().Routes)))
+	metrics.RoutesLoaded.Set(float64(len(gw.table().Routes)))
 	gw.startRouteSync(ctx, fleetControlSyncInterval)
 	gw.startShadowSync(ctx, fleetControlSyncInterval)
 
@@ -474,8 +461,8 @@ func main() {
 		"routes_source", cfg.RoutesSource,
 	)
 
-	initMetrics(gw.table().Routes)
-	metrics := metricsServer(":" + config.Get("METRICS_PORT", "9090"))
+	metrics.Init(gw.table().Routes)
+	metrics := metrics.Server(":" + config.Get("METRICS_PORT", "9090"))
 	go func() {
 		if err := metrics.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			slog.Error("Metrics server failed", "error", err)

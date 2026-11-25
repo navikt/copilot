@@ -7,12 +7,14 @@ import (
 	"strings"
 	"sync"
 	"testing"
+
+	"github.com/navikt/copilot/fleet-gateway/internal/httpx"
 )
 
 func TestProxy_ForwardsMCPRequestMetadataHeaders(t *testing.T) {
 	te := newTestEnv(t)
 	te.texasServer.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		writeJSON(w, http.StatusOK, map[string]any{"access_token": "team-obo", "token_type": "Bearer", "expires_in": 300})
+		httpx.WriteJSON(w, http.StatusOK, map[string]any{"access_token": "team-obo", "token_type": "Bearer", "expires_in": 300})
 	})
 	var (
 		mu  sync.Mutex
@@ -24,7 +26,7 @@ func TestProxy_ForwardsMCPRequestMetadataHeaders(t *testing.T) {
 		got = r.Header.Clone()
 		upstreamCalls++
 		mu.Unlock()
-		writeJSON(w, http.StatusOK, map[string]any{"jsonrpc": "2.0", "id": 1, "result": "ok"})
+		httpx.WriteJSON(w, http.StatusOK, map[string]any{"jsonrpc": "2.0", "id": 1, "result": "ok"})
 	})
 	gwToken := te.obtainAccessTokenForResource(te.resource)
 
@@ -104,7 +106,7 @@ func TestProxy_ForwardsMCPRequestMetadataHeaders(t *testing.T) {
 func TestProxy_StripsQueryAndRejectsDuplicateContentType(t *testing.T) {
 	te := newTestEnv(t)
 	te.texasServer.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		writeJSON(w, http.StatusOK, map[string]any{"access_token": "team-obo", "token_type": "Bearer", "expires_in": 300})
+		httpx.WriteJSON(w, http.StatusOK, map[string]any{"access_token": "team-obo", "token_type": "Bearer", "expires_in": 300})
 	})
 	var (
 		mu       sync.Mutex
@@ -117,7 +119,7 @@ func TestProxy_StripsQueryAndRejectsDuplicateContentType(t *testing.T) {
 		gotQuery, gotHdr = r.URL.RawQuery, r.Header.Clone()
 		calls++
 		mu.Unlock()
-		writeJSON(w, http.StatusOK, map[string]any{"jsonrpc": "2.0", "id": 1, "result": "ok"})
+		httpx.WriteJSON(w, http.StatusOK, map[string]any{"jsonrpc": "2.0", "id": 1, "result": "ok"})
 	})
 	gwToken := te.obtainAccessTokenForResource(te.resource)
 

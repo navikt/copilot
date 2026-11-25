@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/prometheus/client_golang/prometheus/testutil"
 	"io"
 	"log/slog"
 	"net"
@@ -21,6 +20,11 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/prometheus/client_golang/prometheus/testutil"
+
+	"github.com/navikt/copilot/fleet-gateway/internal/httpx"
+	"github.com/navikt/copilot/fleet-gateway/internal/metrics"
 )
 
 // Over the cap: 503 with Retry-After, an audit line and outcome over_capacity.
@@ -38,7 +42,7 @@ func TestInFlightCapRejectsWithAudit(t *testing.T) {
 	te.upstreamServer.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		entered <- struct{}{}
 		<-release
-		writeJSON(w, http.StatusOK, map[string]any{"jsonrpc": "2.0", "id": 1, "result": map[string]any{}})
+		httpx.WriteJSON(w, http.StatusOK, map[string]any{"jsonrpc": "2.0", "id": 1, "result": map[string]any{}})
 	})
 	tokenA := te.obtainAccessTokenForResource(te.resource)
 	te.mu.Lock()
@@ -51,7 +55,7 @@ func TestInFlightCapRejectsWithAudit(t *testing.T) {
 	first := make(chan int, 1)
 	go func() { first <- capPost(t, ts, tokenA, "") }()
 	<-entered
-	shed := httpRequestsTotal.WithLabelValues("503", "cap")
+	shed := metrics.HTTPRequests.WithLabelValues("503", "cap")
 	beforeShed := testutil.ToFloat64(shed)
 	if code := capPost(t, ts, tokenB, ""); code != http.StatusServiceUnavailable {
 		t.Fatalf("over cap: code %d, want 503", code)
@@ -85,7 +89,7 @@ func TestSSEStreamsDoNotStarveToolCalls(t *testing.T) {
 	stop := make(chan struct{})
 	te.upstreamServer.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if testQuery(r).Get("sse") == "" {
-			writeJSON(w, http.StatusOK, map[string]any{"jsonrpc": "2.0", "id": 1, "result": map[string]any{}})
+			httpx.WriteJSON(w, http.StatusOK, map[string]any{"jsonrpc": "2.0", "id": 1, "result": map[string]any{}})
 			return
 		}
 		w.Header().Set("Content-Type", "text/event-stream")
@@ -303,7 +307,7 @@ func TestSSECapCheckedBeforeUpstream(t *testing.T) {
 		hits.Add(1)
 		w.Header().Set("Mcp-Session-Id", "s-"+strconv.Itoa(int(hits.Load())))
 		if testQuery(r).Get("sse") == "" {
-			writeJSON(w, http.StatusOK, map[string]any{"jsonrpc": "2.0", "id": 1, "result": map[string]any{}})
+			httpx.WriteJSON(w, http.StatusOK, map[string]any{"jsonrpc": "2.0", "id": 1, "result": map[string]any{}})
 			return
 		}
 		w.Header().Set("Content-Type", "text/event-stream")
@@ -331,7 +335,7 @@ func TestSSECapCheckedBeforeUpstream(t *testing.T) {
 		t.Fatalf("first stream: code %d", resp.StatusCode)
 	}
 	before := hits.Load()
-	shed := httpRequestsTotal.WithLabelValues("503", "cap")
+	shed := metrics.HTTPRequests.WithLabelValues("503", "cap")
 	beforeShed := testutil.ToFloat64(shed)
 	if code := capPost(t, ts, token, "?sse=1"); code != http.StatusServiceUnavailable {
 		t.Fatalf("over SSE cap: code %d, want 503", code)
@@ -358,7 +362,7 @@ func TestBogusBearerDoesNotTakeSlot(t *testing.T) {
 	te.upstreamServer.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		entered <- struct{}{}
 		<-release
-		writeJSON(w, http.StatusOK, map[string]any{"jsonrpc": "2.0", "id": 1, "result": map[string]any{}})
+		httpx.WriteJSON(w, http.StatusOK, map[string]any{"jsonrpc": "2.0", "id": 1, "result": map[string]any{}})
 	})
 	token := te.obtainAccessTokenForResource(te.resource)
 	ts := httptest.NewServer(withTestQuery(te.handler))
@@ -384,7 +388,7 @@ func TestPerRouteInFlightCap(t *testing.T) {
 	te.upstreamServer.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		entered <- struct{}{}
 		<-release
-		writeJSON(w, http.StatusOK, map[string]any{"jsonrpc": "2.0", "id": 1, "result": map[string]any{}})
+		httpx.WriteJSON(w, http.StatusOK, map[string]any{"jsonrpc": "2.0", "id": 1, "result": map[string]any{}})
 	})
 	token := te.obtainAccessTokenForResource(te.resource)
 	ts := httptest.NewServer(withTestQuery(te.handler))
@@ -393,7 +397,7 @@ func TestPerRouteInFlightCap(t *testing.T) {
 	first := make(chan int, 1)
 	go func() { first <- capPost(t, ts, token, "") }()
 	<-entered
-	shed := httpRequestsTotal.WithLabelValues("503", "cap")
+	shed := metrics.HTTPRequests.WithLabelValues("503", "cap")
 	beforeShed := testutil.ToFloat64(shed)
 	if code := capPost(t, ts, token, ""); code != http.StatusServiceUnavailable {
 		t.Fatalf("second request on a route at its cap: code %d, want 503", code)
@@ -424,7 +428,7 @@ func TestSSEEarlyFlushUpstreamGetsFullBody(t *testing.T) {
 	var readErr atomic.Value
 	te.upstreamServer.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if testQuery(r).Get("sse") != "1" {
-			writeJSON(w, http.StatusOK, map[string]any{"jsonrpc": "2.0", "id": 1, "result": map[string]any{}})
+			httpx.WriteJSON(w, http.StatusOK, map[string]any{"jsonrpc": "2.0", "id": 1, "result": map[string]any{}})
 			return
 		}
 		if err := http.NewResponseController(w).EnableFullDuplex(); err != nil {
@@ -696,7 +700,7 @@ func TestSSECapShedIsNotAuditedAsAllow(t *testing.T) {
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	allow := mcpRequestsTotal.WithLabelValues(route, "sse_over_capacity", "allow", "", "")
+	allow := metrics.MCPRequests.WithLabelValues(route, "sse_over_capacity", "allow", "", "")
 	before := testutil.ToFloat64(allow)
 	if code := capPost(t, ts, token, "?sse=1"); code != http.StatusServiceUnavailable {
 		t.Fatalf("second SSE stream: code %d, want 503", code)
@@ -836,7 +840,7 @@ func TestSSECancelDoesNotCutFollowUpKeepAlive(t *testing.T) {
 			return
 		}
 		time.Sleep(200 * time.Millisecond)
-		writeJSON(w, http.StatusOK, map[string]any{"jsonrpc": "2.0", "id": 1, "result": map[string]any{"ok": true}})
+		httpx.WriteJSON(w, http.StatusOK, map[string]any{"jsonrpc": "2.0", "id": 1, "result": map[string]any{"ok": true}})
 	})
 
 	token := te.obtainAccessTokenForResource(te.resource)

@@ -6,6 +6,7 @@ import (
 
 	"github.com/navikt/copilot/fleet-gateway/internal/audit"
 	"github.com/navikt/copilot/fleet-gateway/internal/lockout"
+	"github.com/navikt/copilot/fleet-gateway/internal/metrics"
 )
 
 // Lockout logic lives in internal/lockout. These aliases and delegating
@@ -49,7 +50,7 @@ func (g *Gateway) undoLockout(ctx context.Context, navIdent, operator string) er
 
 func (g *Gateway) drainLockoutAudit(ctx context.Context) {
 	if n := g.lockouts().DrainAudit(ctx); n >= 0 {
-		lockoutAuditOutboxPending.Set(float64(n))
+		metrics.LockoutAuditOutboxPending.Set(float64(n))
 	}
 }
 
