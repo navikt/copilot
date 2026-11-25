@@ -14,6 +14,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/navikt/copilot/fleet-control/internal/auth"
 	"github.com/navikt/copilot/fleet-control/internal/model"
 )
 
@@ -21,7 +22,7 @@ const nsBase = apisPrefix + "/namespaces/"
 
 // Every person below has an oid from testOid. A111111 is in two teams, so
 // it can be both submitter and server owner.
-var apisTeams = staticTeams{
+var apisTeams = auth.StaticTeams{
 	"team-a":       {"A111111", "A222222"},
 	"copilot":      {"A111111", "C222222"},
 	"aksel-studio": {"A111111", "A555555"},
@@ -764,5 +765,52 @@ func TestRealPostgresToolRiskSnapshot(t *testing.T) {
 	kept, err := e.srv.resolve(ctx, "routes")
 	if err != nil || kept.Generation != snap.Generation || kept.ETag != snap.ETag {
 		t.Errorf("previous snapshot must be kept: %v %+v", err, kept)
+	}
+}
+
+// fakeApps is a team directory that can also list Nais applications.
+type fakeApps struct {
+	auth.StaticTeams
+	apps []auth.TeamApp
+	err  error
+}
+
+func (f fakeApps) Apps(context.Context, string) ([]auth.TeamApp, error) { return f.apps, f.err }
+
+func TestListTeamApps(t *testing.T) {
+	ct := fakeApps{apps: []auth.TeamApp{{Name: "a-mcp", Environment: "dev-gcp"}}}
+	call := func(teams auth.TeamDirectory, c caller) (int, string, error) {
+		r := httptest.NewRequest("GET", nsBase+"team-a/apps", nil)
+		r.SetPathValue("namespace", "team-a")
+		w := httptest.NewRecorder()
+		err := listTeamApps(teams)(w, r, c, nil)
+		return w.Code, w.Body.String(), err
+	}
+	code, body, err := call(ct, caller{Teams: []string{"team-a"}})
+	if err != nil || code != 200 || !strings.Contains(body, `"a-mcp"`) || !strings.Contains(body, `"TeamAppList"`) {
+		t.Fatalf("member: %d %s %v", code, body, err)
+	}
+	if _, _, err = call(ct, caller{Teams: []string{"team-b"}}); err != errV1NotFound {
+		t.Fatalf("non-member must get 404, got %v", err)
+	}
+	_, _, err = call(auth.StaticTeams{"team-a": {"x@nav.no"}}, caller{Teams: []string{"team-a"}})
+	if se, ok := err.(*statusError); !ok || se.code != http.StatusServiceUnavailable {
+		t.Fatalf("no Console must be 503, got %v", err)
+	}
+}
+
+// A Console failure is logged, never answered: the 503 body holds only the generic message.
+func TestListTeamAppsHidesConsoleError(t *testing.T) {
+	const secret = "kari.nordmann@nav.no is not allowed"
+	r := httptest.NewRequest("GET", nsBase+"team-a/apps", nil)
+	r.SetPathValue("namespace", "team-a")
+	w := httptest.NewRecorder()
+	err := listTeamApps(fakeApps{err: errors.New("nais console: " + secret)})(w, r, caller{Teams: []string{"team-a"}}, nil)
+	if err == nil {
+		t.Fatal("want error")
+	}
+	writeStatus(w, r, "", err)
+	if w.Code != http.StatusServiceUnavailable || strings.Contains(w.Body.String(), "kari") || strings.Contains(w.Body.String(), "allowed") {
+		t.Fatalf("%d %s", w.Code, w.Body.String())
 	}
 }

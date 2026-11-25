@@ -9,11 +9,13 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
 
+	"github.com/navikt/copilot/fleet-control/internal/auth"
 	"github.com/navikt/copilot/fleet-control/internal/model"
 	"github.com/navikt/copilot/fleet-control/internal/store"
 )
@@ -144,14 +146,14 @@ type adminHandler func(w http.ResponseWriter, r *http.Request, js jobStore, acto
 // admin guards a write route: valid names (400), a user token from my-copilot
 // (401, 503 when Texas fails), membership of the owning team (403, 503 when
 // the lookup fails) and a database (503). Every check fails closed.
-func (s *server) admin(a *authz, adminClientID string, teams teamDirectory, h adminHandler) http.HandlerFunc {
+func (s *server) admin(a *auth.Authz, adminClientID string, teams auth.TeamDirectory, h adminHandler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ns := r.PathValue("namespace")
 		if !dnsLabelRegex.MatchString(ns) {
 			http.Error(w, "namespace must be a lowercase DNS label", http.StatusBadRequest)
 			return
 		}
-		actor, email, err := a.user(r.Context(), r.Header.Get("Authorization"), adminClientID)
+		actor, email, err := a.User(r.Context(), r.Header.Get("Authorization"), adminClientID)
 		if !writeAuthError(w, err) {
 			return
 		}
@@ -191,4 +193,11 @@ func decodeBody(w http.ResponseWriter, r *http.Request, v any) error {
 		return refuse(http.StatusBadRequest, "invalid body: trailing content")
 	}
 	return nil
+}
+
+// writeAllowed reports whether team ns may be written to in this cluster:
+// always in dev-*, elsewhere (unset cluster included) only for a pilot team.
+// Membership is checked separately; this narrows, never widens.
+func (s *server) writeAllowed(ns string) bool {
+	return auth.DevCluster(s.cluster) || slices.Contains(s.pilotTeams, ns)
 }

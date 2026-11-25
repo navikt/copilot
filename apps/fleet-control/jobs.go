@@ -16,6 +16,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 
+	"github.com/navikt/copilot/fleet-control/internal/auth"
 	"github.com/navikt/copilot/fleet-control/internal/store"
 )
 
@@ -482,7 +483,7 @@ func (d *DB) Finish(ctx context.Context, runtime, leaseID string, ok bool, code,
 // runtimeAuth lets only fleet-runtime's Entra app tokens through: idtyp=app
 // and an azp on the exact allowlist.
 type runtimeAuth struct {
-	a     *authz
+	a     *auth.Authz
 	allow map[string][]string // client id to the teams whose jobs it may claim
 	ttl   time.Duration
 	wait  time.Duration
@@ -491,11 +492,11 @@ type runtimeAuth struct {
 // runtimeAuthFromEnv reads FLEET_RUNTIME_CLIENT_IDS (comma-separated
 // <Entra client id>=<team>[|<team>...]) and FLEET_RUNTIME_LEASE_TTL. An unset allowlist returns nil:
 // the /runtime routes are not mounted.
-func runtimeAuthFromEnv(a *authz) (*runtimeAuth, error) {
+func runtimeAuthFromEnv(a *auth.Authz) (*runtimeAuth, error) {
 	return newRuntimeAuth(a, os.Getenv("FLEET_RUNTIME_CLIENT_IDS"), os.Getenv("FLEET_RUNTIME_LEASE_TTL"))
 }
 
-func newRuntimeAuth(a *authz, ids, ttlRaw string) (*runtimeAuth, error) {
+func newRuntimeAuth(a *auth.Authz, ids, ttlRaw string) (*runtimeAuth, error) {
 	allow := map[string][]string{}
 	for entry := range strings.SplitSeq(ids, ",") {
 		if entry = strings.TrimSpace(entry); entry == "" {
@@ -510,7 +511,7 @@ func newRuntimeAuth(a *authz, ids, ttlRaw string) (*runtimeAuth, error) {
 			}
 			teams = append(teams, team)
 		}
-		if _, taken := a.callers[id]; taken {
+		if a.KnownClient(id) {
 			return nil, fmt.Errorf("FLEET_RUNTIME_CLIENT_IDS: %s is already another caller", id)
 		}
 		allow[id] = teams
@@ -534,9 +535,9 @@ type runtimeHandler func(w http.ResponseWriter, r *http.Request, js jobStore, ru
 // and the database (503).
 func (s *server) runtimeRoute(ra *runtimeAuth, h runtimeHandler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		claims, err := ra.a.introspect(r.Context(), r.Header.Get("Authorization"))
+		claims, err := ra.a.Introspect(r.Context(), r.Header.Get("Authorization"))
 		if err == nil && claims.Idtyp != "app" {
-			err = errUnauthorized
+			err = auth.ErrUnauthorized
 		}
 		if !writeAuthError(w, err) {
 			return
@@ -691,7 +692,7 @@ func writeAuthError(w http.ResponseWriter, err error) bool {
 	switch {
 	case err == nil:
 		return true
-	case errors.Is(err, errUnauthorized):
+	case errors.Is(err, auth.ErrUnauthorized):
 		w.Header().Set("WWW-Authenticate", `Bearer error="invalid_token"`)
 		http.Error(w, "unauthorized", http.StatusUnauthorized)
 	default:

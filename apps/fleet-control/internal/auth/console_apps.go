@@ -1,4 +1,4 @@
-package main
+package auth
 
 import (
 	"bytes"
@@ -13,9 +13,9 @@ import (
 	"strings"
 )
 
-// appLister lists a team's Nais applications. Only consoleTeams has one: the
+// AppLister lists a team's Nais applications. Only consoleTeams has one: the
 // dev fallback (staticTeams) answers 503, and /fleet falls back to a text field.
-type appLister interface {
+type AppLister interface {
 	Apps(ctx context.Context, team string) ([]TeamApp, error)
 }
 
@@ -127,25 +127,4 @@ func (c *consoleTeams) post(ctx context.Context, query string, vars map[string]a
 		return fmt.Errorf("nais console: decode: %w", err)
 	}
 	return nil
-}
-
-// listTeamApps answers the team's Nais applications to its members. A
-// non-member gets 404 like every other team route; no Console client is 503.
-func listTeamApps(teams teamDirectory) apisHandler {
-	return func(w http.ResponseWriter, r *http.Request, c caller, _ *DB) error {
-		ns := r.PathValue("namespace")
-		if err := memberOf(c, ns); err != nil {
-			return err
-		}
-		l, ok := teams.(appLister)
-		if !ok {
-			return stErr(http.StatusServiceUnavailable, "ServiceUnavailable", "the Nais application list is not available here")
-		}
-		apps, err := l.Apps(r.Context(), ns)
-		if err != nil {
-			return fmt.Errorf("list apps: %w", err)
-		}
-		writeObject(w, http.StatusOK, map[string]any{"apiVersion": apiGroupVersion, "kind": "TeamAppList", "items": apps})
-		return nil
-	}
 }
