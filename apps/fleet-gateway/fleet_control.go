@@ -63,7 +63,7 @@ type routesSnapshot struct {
 		Path        string   `json:"path"`
 		Target      string   `json:"target"`
 		UpstreamURL string   `json:"upstream_url"`
-		Enabled     bool     `json:"enabled"`
+		Enabled     *bool    `json:"enabled"`
 		Tools       []string `json:"tools"`
 		// toolRisk is decoded apart (decodeToolRisk) so the routes hash, and
 		// with it every stored snapshot, stays as before #2964.
@@ -372,7 +372,11 @@ func snapshotRoutes(snap routesSnapshot) ([]routing.Route, error) {
 		if r.Path != "/mcp/"+r.Namespace+"/"+r.Name {
 			return nil, fmt.Errorf("route %q does not match %s/%s", r.Path, r.Namespace, r.Name)
 		}
-		enabled := r.Enabled
+		// A missing or null enabled must not read as disabled: that would skip tool validation.
+		if r.Enabled == nil {
+			return nil, fmt.Errorf("route %q: enabled is required", r.Path)
+		}
+		enabled := *r.Enabled
 		pr := routing.Route{Route: r.Path, Team: r.Namespace, Target: r.Target, UpstreamURL: r.UpstreamURL, Enabled: &enabled, Tools: r.Tools, ToolRisk: r.toolRisk}
 		// Same rules as the Git file; passAllTools is operator-only and never comes from fleet-control.
 		if err := routing.ApplyToolPolicy(&pr); err != nil {

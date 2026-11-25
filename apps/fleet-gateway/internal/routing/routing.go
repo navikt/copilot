@@ -106,6 +106,12 @@ var mcpToolName = regexp.MustCompile(`^[A-Za-z0-9_.-]{1,128}$`)
 // passAllTools by the operator, not both.
 func ApplyToolPolicy(r *Route) error {
 	name := strings.TrimSpace(r.Route)
+	// A disabled route answers 503 and never forwards, so it needs no tools (#2734).
+	// The empty allowlist denies every call should that check ever be bypassed.
+	if r.Disabled() && len(r.Tools) == 0 && !r.PassAllTools {
+		r.AllowedTools = map[string]bool{}
+		return nil
+	}
 	if r.Tools == nil {
 		if !r.PassAllTools {
 			return fmt.Errorf("route %q: version 2 routes must declare tools (or passAllTools, set by the operator)", name)
