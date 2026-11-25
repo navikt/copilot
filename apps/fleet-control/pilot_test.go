@@ -85,10 +85,15 @@ func TestPilotWriteGate(t *testing.T) {
 // With a database, an allowlisted member's write in prod goes through.
 func TestRealPostgresPilotWrite(t *testing.T) {
 	e := newApisEnv(t)
+	// Prod needs a ROS for write tools; declare the tool read.
+	body := func(ns, name string) string {
+		return strings.Replace(serverJSON(ns, name, "", "a"), `"allowedTools"`, `"toolRisk":{"a":"read"},"allowedTools"`, 1)
+	}
 	e.srv.cluster = "prod-gcp"
-	e.want(403, "POST", nsBase+"copilot/mcpservers", person("A111111"), serverJSON("copilot", "s1", "", "a"))
+	e.want(403, "POST", nsBase+"copilot/mcpservers", person("A111111"), body("copilot", "s1"))
 	e.srv.pilotTeams = []string{"copilot", "aksel-studio"}
-	e.want(403, "POST", nsBase+"team-a/mcpservers", person("A111111"), serverJSON("team-a", "s1", "", "a"))
-	e.want(201, "POST", nsBase+"copilot/mcpservers", person("A111111"), serverJSON("copilot", "s1", "", "a"))
-	e.want(403, "POST", nsBase+"copilot/mcpservers", person("B444444"), serverJSON("copilot", "s2", "", "a"))
+	e.want(403, "POST", nsBase+"team-a/mcpservers", person("A111111"), body("team-a", "s1"))
+	e.want(201, "POST", nsBase+"copilot/mcpservers", person("A111111"), body("copilot", "s1"))
+	// 404: memberOf hides team names from non-members (apis.go).
+	e.want(404, "POST", nsBase+"copilot/mcpservers", person("B444444"), body("copilot", "s2"))
 }

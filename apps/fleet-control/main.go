@@ -255,7 +255,7 @@ type server struct {
 	operatorTeam string
 	// pilotTeams may write outside dev-*; see writeAllowed.
 	pilotTeams []string
-	store        atomic.Pointer[storeBox]
+	store      atomic.Pointer[storeBox]
 	// lastGood holds the last served snapshot per kind, so a database outage
 	// keeps serving it; after a restart there is none and the answer is 503.
 	lastGood map[string]*atomic.Pointer[model.Snapshot]
