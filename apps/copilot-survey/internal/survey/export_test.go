@@ -26,7 +26,7 @@ func TestRedact(t *testing.T) {
 		"Kari på team X":                         "Kari på team X",
 	}
 	for in, want := range cases {
-		if got := redact(in); got != want {
+		if got := Redact(in); got != want {
 			t.Errorf("redact(%q) = %q, want %q", in, got, want)
 		}
 	}
@@ -55,9 +55,9 @@ func TestExportRedactsAndSuppressesSmallSegments(t *testing.T) {
 	if err := RunExport(strings.NewReader(in.String()), &out); err != nil {
 		t.Fatal(err)
 	}
-	var rows []exportRow
+	var rows []ExportRow
 	for _, l := range strings.Split(strings.TrimSpace(out.String()), "\n") {
-		var r exportRow
+		var r ExportRow
 		if err := json.Unmarshal([]byte(l), &r); err != nil {
 			t.Fatal(err)
 		}

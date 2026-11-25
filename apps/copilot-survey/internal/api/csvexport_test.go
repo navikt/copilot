@@ -1,4 +1,4 @@
-package survey
+package api
 
 import (
 	"encoding/csv"
@@ -7,6 +7,9 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/navikt/copilot/apps/copilot-survey/internal/store"
+	"github.com/navikt/copilot/apps/copilot-survey/internal/survey"
 )
 
 // TestExportCSV runs against Postgres when COPILOT_SURVEY_TEST_DB_URL is set
@@ -17,21 +20,21 @@ func TestExportCSV(t *testing.T) {
 		t.Skip("COPILOT_SURVEY_TEST_DB_URL not set")
 	}
 	ctx := t.Context()
-	st, err := openSurveyStore(ctx, url)
+	st, err := store.Open(ctx, url)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer st.pool.Close()
-	_, _ = st.pool.Exec(ctx, `DELETE FROM survey_answers; DELETE FROM survey_results; DELETE FROM survey_freetext_hidden`)
+	defer st.Pool.Close()
+	_, _ = st.Pool.Exec(ctx, `DELETE FROM survey_answers; DELETE FROM survey_results; DELETE FROM survey_freetext_hidden`)
 
 	defs, err := loadSurveys([]byte(testSurveys))
 	if err != nil {
 		t.Fatal(err)
 	}
 	s := defs[0] // q4-2026, open 2026-10-01 to 2026-11-30
-	st.defs = []survey{s}
+	st.Defs = []survey.Survey{s}
 	insert := func(answers, versions, context string) {
-		if _, err = st.pool.Exec(ctx, `INSERT INTO survey_answers VALUES ($1, $2, $3, $4, '2027-06-01')`, s.ID, answers, versions, context); err != nil {
+		if _, err = st.Pool.Exec(ctx, `INSERT INTO survey_answers VALUES ($1, $2, $3, $4, '2027-06-01')`, s.ID, answers, versions, context); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -44,13 +47,12 @@ func TestExportCSV(t *testing.T) {
 		insert(`{"overall":5}`, `{"overall":1}`, common)
 	}
 	insert(`{"overall":4}`, `{"overall":1}`, `{"client":"pi","os":"linux","version":"2026.09","local_models":false}`)
-	if err = st.hide(ctx, s.ID, "comment", textHash("skjul meg")); err != nil {
+	if err = st.Hide(ctx, s.ID, "comment", survey.TextHash("skjul meg")); err != nil {
 		t.Fatal(err)
 	}
 
 	now := time.Date(2026, 10, 15, 12, 0, 0, 0, time.UTC)
-	api := &surveyAPI{surveys: []survey{s}, answers: st.answers, final: st.final, hidden: st.hidden, hide: st.hide,
-		textKey: []byte("k"), now: func() time.Time { return now }}
+	api := &surveyAPI{surveys: []survey.Survey{s}, textKey: []byte("k"), now: func() time.Time { return now }, store: &funcStore{answers: st.Answers, final: st.Final, hidden: st.Hidden, hide: st.Hide}}
 	h := makeRouter(testAuthenticator(t), api)
 
 	rec := do(h, "GET", "/api/v1/admin/surveys/q4-2026/export.csv", adminToken, "")
@@ -107,11 +109,11 @@ func TestExportCSV(t *testing.T) {
 
 	// Closed, aggregated, rows deleted: 410.
 	now = time.Date(2026, 12, 15, 12, 0, 0, 0, time.UTC)
-	st.closeOut(ctx, now)
+	st.CloseOut(ctx, now)
 	if rec := do(h, "GET", "/api/v1/admin/surveys/q4-2026/export.csv", adminToken, ""); rec.Code != 200 {
 		t.Fatalf("closed with rows: %d", rec.Code)
 	}
-	_, _ = st.pool.Exec(ctx, `DELETE FROM survey_answers`)
+	_, _ = st.Pool.Exec(ctx, `DELETE FROM survey_answers`)
 	if rec := do(h, "GET", "/api/v1/admin/surveys/q4-2026/export.csv", adminToken, ""); rec.Code != 410 {
 		t.Fatalf("after deletion: %d %s", rec.Code, rec.Body)
 	}

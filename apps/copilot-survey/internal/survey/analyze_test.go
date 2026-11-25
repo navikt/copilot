@@ -12,11 +12,11 @@ import (
 	"time"
 )
 
-func toExportRows(rows []storedAnswer) []exportRow {
-	out := make([]exportRow, len(rows))
+func toExportRows(rows []StoredAnswer) []ExportRow {
+	out := make([]ExportRow, len(rows))
 	for i, r := range rows {
 		ctx := map[string]any{"client": r.Client}
-		out[i] = newExportRow(cloneAnswers(r.Answers), r.QuestionVersions, ctx, func(string, string) bool { return false })
+		out[i] = NewExportRow(cloneAnswers(r.Answers), r.QuestionVersions, ctx, func(string, string) bool { return false })
 	}
 	return out
 }
@@ -32,17 +32,17 @@ func cloneAnswers(m map[string]any) map[string]any {
 func TestReadExportRefusesUnknownLabelOnCurrentVersion(t *testing.T) {
 	defs, _ := loadSurveys([]byte(testSurveys))
 	var buf bytes.Buffer
-	writeExportCSV(&buf, defs[0], toExportRows([]storedAnswer{row(`{"overall":2,"client":"copilot","fast":"Kanskje","safe":4}`, `{"overall":1,"client":1,"fast":2,"safe":1}`)}))
-	if _, err := readExportCSV(defs[0], &buf); err == nil {
+	WriteExportCSV(&buf, defs[0], toExportRows([]StoredAnswer{row(`{"overall":2,"client":"copilot","fast":"Kanskje","safe":4}`, `{"overall":1,"client":1,"fast":2,"safe":1}`)}))
+	if _, err := ReadExportCSV(defs[0], &buf); err == nil {
 		t.Error("took «Kanskje» on the current version")
 	}
 }
 
-func roundTrip(t *testing.T, s survey, rows []storedAnswer) []storedAnswer {
+func roundTrip(t *testing.T, s Survey, rows []StoredAnswer) []StoredAnswer {
 	t.Helper()
 	var buf bytes.Buffer
-	writeExportCSV(&buf, s, toExportRows(rows))
-	got, err := readExportCSV(s, &buf)
+	WriteExportCSV(&buf, s, toExportRows(rows))
+	got, err := ReadExportCSV(s, &buf)
 	if err != nil {
 		t.Fatalf("%v\n%s", err, buf.String())
 	}
@@ -67,10 +67,10 @@ func TestAnalyzeMatchesOnline(t *testing.T) {
 		t.Fatal(err)
 	}
 	s := defs[0]
-	var rows []storedAnswer
+	var rows []StoredAnswer
 	for i := range 6 {
 		// fast answered as version 1 although the definition is at 2: the
-		// export must write the version column for readExportCSV to see it.
+		// export must write the version column for ReadExportCSV to see it.
 		r := row(`{"overall":3,"client":"copilot","tools":["a","b"],"editor":["vim","Annet"],"editor.other":"=x","fast":4,"safe":2,"comment":"-hei"}`,
 			`{"overall":1,"client":1,"tools":1,"editor":2,"fast":1,"safe":1,"comment":1}`)
 		if i%2 == 0 {
@@ -90,17 +90,17 @@ func TestAnalyzeMatchesOnline(t *testing.T) {
 		rows = append(rows, row(`{"tools":["old"],"client":"'=x"}`, `{"tools":1,"client":1}`))
 	}
 	got := roundTrip(t, s, rows)
-	want, have := aggregate(s, rows, now), aggregate(s, got, now)
+	want, have := Aggregate(s, rows, now), Aggregate(s, got, now)
 	sameJSON(t, "results", want.Questions, have.Questions)
 	sameJSON(t, "responses", want.Responses, have.Responses)
 
 	cd, _ := loadSurveys([]byte(compareSurveys))
 	data := waveRows()
-	online := compareWavesResult(cd, [][]storedAnswer{mergeClients(data["spring"]), mergeClients(data["autumn"])}, now)
-	local := compareWavesResult(cd, [][]storedAnswer{roundTrip(t, cd[0], data["spring"]), roundTrip(t, cd[1], data["autumn"])}, now)
+	online := CompareWavesResult(cd, [][]StoredAnswer{MergeClients(data["spring"]), MergeClients(data["autumn"])}, now)
+	local := CompareWavesResult(cd, [][]StoredAnswer{roundTrip(t, cd[0], data["spring"]), roundTrip(t, cd[1], data["autumn"])}, now)
 	sameJSON(t, "comparison", online.Questions, local.Questions)
 	var a, b bytes.Buffer
-	if writeCompareCSV(&a, online) != nil || writeCompareCSV(&b, local) != nil {
+	if WriteCompareCSV(&a, online) != nil || WriteCompareCSV(&b, local) != nil {
 		t.Fatal("write")
 	}
 	// Byte for byte, channels too: autumn's web 3 and copilot 2 are «annet» in both.
@@ -115,11 +115,11 @@ func TestAnalyzeMatchesOnline(t *testing.T) {
 func TestReadExportCSVRefusesOtherColumns(t *testing.T) {
 	defs, _ := loadSurveys([]byte(compareSurveys))
 	var buf bytes.Buffer
-	writeExportCSV(&buf, defs[0], nil)
-	if _, err := readExportCSV(defs[1], strings.NewReader(strings.Replace(buf.String(), "grid.fast", "grid.quick", 1))); err == nil {
+	WriteExportCSV(&buf, defs[0], nil)
+	if _, err := ReadExportCSV(defs[1], strings.NewReader(strings.Replace(buf.String(), "grid.fast", "grid.quick", 1))); err == nil {
 		t.Error("renamed column accepted")
 	}
-	if _, err := readExportCSV(defs[0], strings.NewReader(buf.String()+strings.Repeat(",", strings.Count(strings.SplitN(buf.String(), "\n", 2)[0], ","))+"\n")); err != nil {
+	if _, err := ReadExportCSV(defs[0], strings.NewReader(buf.String()+strings.Repeat(",", strings.Count(strings.SplitN(buf.String(), "\n", 2)[0], ","))+"\n")); err != nil {
 		t.Errorf("empty row: %v", err)
 	}
 }
@@ -129,30 +129,30 @@ type failWriter struct{}
 func (failWriter) Write([]byte) (int, error) { return 0, io.ErrClosedPipe }
 
 func TestCompareCSVEdges(t *testing.T) {
-	res := compareResult{
-		Surveys:   []waveMeta{{surveySummary: surveySummary{ID: "spring"}}},
-		Questions: []compareQuestion{{ID: "q", Waves: []waveCounts{{Excluded: new(6), Versions: []waveStat{}}}}},
+	res := CompareResult{
+		Surveys:   []waveMeta{{Summary: Summary{ID: "spring"}}},
+		Questions: []compareQuestion{{ID: "q", Waves: []WaveCounts{{Excluded: new(6), Versions: []waveStat{}}}}},
 	}
 	var buf bytes.Buffer
-	if err := writeCompareCSV(&buf, res); err != nil || !strings.Contains(buf.String(), "answer,spring,q,,,false,,,,6,,") {
+	if err := WriteCompareCSV(&buf, res); err != nil || !strings.Contains(buf.String(), "answer,spring,q,,,false,,,,6,,") {
 		t.Errorf("all excluded lost: %v\n%s", err, buf.String())
 	}
 	five := 5
-	res.Questions[0].Waves[0] = waveCounts{Excluded: new(0), Versions: []waveStat{{versionResult: versionResult{Version: 1, N: &five, Options: []optionCount{}}}}}
+	res.Questions[0].Waves[0] = WaveCounts{Excluded: new(0), Versions: []waveStat{{VersionResult: VersionResult{Version: 1, N: &five, Options: []OptionCount{}}}}}
 	buf.Reset()
-	if _ = writeCompareCSV(&buf, res); !strings.Contains(buf.String(), "answer,spring,q,,1,false,,,5,0,,") {
+	if _ = WriteCompareCSV(&buf, res); !strings.Contains(buf.String(), "answer,spring,q,,1,false,,,5,0,,") {
 		t.Errorf("version without options lost:\n%s", buf.String())
 	}
-	if writeCompareCSV(failWriter{}, res) == nil {
+	if WriteCompareCSV(failWriter{}, res) == nil {
 		t.Error("write error swallowed")
 	}
 }
 
 func TestAnalyzeRefusesRepeatedSurvey(t *testing.T) {
-	defs, _ := loadSurveyDir(surveyFiles)
-	i := slices.IndexFunc(defs, func(s survey) bool { return s.ID == "q4-2026" })
+	defs, _ := LoadSurveyDir(SurveyFiles)
+	i := slices.IndexFunc(defs, func(s Survey) bool { return s.ID == "q4-2026" })
 	var buf bytes.Buffer
-	writeExportCSV(&buf, defs[i], nil)
+	WriteExportCSV(&buf, defs[i], nil)
 	f := filepath.Join(t.TempDir(), "a.csv")
 	if err := os.WriteFile(f, buf.Bytes(), 0o600); err != nil {
 		t.Fatal(err)

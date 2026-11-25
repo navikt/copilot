@@ -8,9 +8,9 @@ import (
 	"strconv"
 )
 
-// significance tests the first wave against the last for one scale or
+// Significance tests the first wave against the last for one scale or
 // matrix item. Only set where both waves answered the same single version.
-type significance struct {
+type Significance struct {
 	// P: two-sided Mann–Whitney U, normal approximation with tie correction
 	// and without continuity correction.
 	P *float64 `json:"p,omitempty"`
@@ -20,7 +20,7 @@ type significance struct {
 
 // testFirstLast sets sig from ws unless the item has a break or either end
 // wave has nothing to test. It reports whether it set anything.
-func testFirstLast(sig *significance, ws []waveCounts, br bool) bool {
+func testFirstLast(sig *Significance, ws []WaveCounts, br bool) bool {
 	if br || len(ws) < 2 || len(ws[0].Versions) != 1 || len(ws[len(ws)-1].Versions) != 1 {
 		return false
 	}

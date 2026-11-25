@@ -30,7 +30,8 @@ var redactions = []struct {
 // ipCandidate finds what may be an IPv4 or IPv6 address; netip decides.
 var ipCandidate = regexp.MustCompile(`(?:[0-9A-Fa-f]{0,4}:){2,7}(?:\d{1,3}(?:\.\d{1,3}){3}|[0-9A-Fa-f]{1,4})?|\b\d{1,3}(?:\.\d{1,3}){3}\b`)
 
-func redact(s string) string {
+// Redact masks what looks like personal data in a free text.
+func Redact(s string) string {
 	for _, r := range redactions[:2] {
 		s = r.re.ReplaceAllString(s, r.tag)
 	}
@@ -50,7 +51,7 @@ func redact(s string) string {
 func redactValue(v any) any {
 	switch t := v.(type) {
 	case string:
-		return redact(t)
+		return Redact(t)
 	case []any:
 		for i := range t {
 			t[i] = redactValue(t[i])
@@ -63,26 +64,27 @@ func redactValue(v any) any {
 	return v
 }
 
-// minSegment is the smallest group of respondents an export may show.
-const minSegment = 5
+// MinSegment is the smallest group of respondents an export may show.
+const MinSegment = 5
 
 const merged = "annet"
 
-type exportRow struct {
+// ExportRow is one answer as exported.
+type ExportRow struct {
 	Answers          map[string]any    `json:"answers"`
 	QuestionVersions map[string]int    `json:"question_versions"`
 	Context          map[string]string `json:"context"`
 	// Codes: the codes of this row's text per field, for the admin CSV.
-	Codes map[string]textCodes `json:"-"`
+	Codes map[string]TextCodes `json:"-"`
 }
 
 // RunExport reads one JSON object per line (answers, question_versions,
 // context, as stored in survey_answers, and hidden: the texts an admin hid) and writes them back with free text
-// redacted and every context value held by fewer than minSegment rows merged
+// redacted and every context value held by fewer than MinSegment rows merged
 // into «annet». A row whose combination of context values is still rarer
 // than that gets «annet» for all of them.
 func RunExport(in io.Reader, out io.Writer) error {
-	var rows []exportRow
+	var rows []ExportRow
 	sc := bufio.NewScanner(in)
 	sc.Buffer(nil, 1<<20)
 	for sc.Scan() {
@@ -101,14 +103,14 @@ func RunExport(in io.Reader, out io.Writer) error {
 		if err := json.Unmarshal([]byte(line), &raw); err != nil {
 			return fmt.Errorf("row %d: %w", len(rows)+1, err)
 		}
-		rows = append(rows, newExportRow(raw.Answers, raw.QuestionVersions, raw.Context, func(field, raw string) bool {
-			return slices.Contains(*hidden, field+" "+textHash(raw))
+		rows = append(rows, NewExportRow(raw.Answers, raw.QuestionVersions, raw.Context, func(field, raw string) bool {
+			return slices.Contains(*hidden, field+" "+TextHash(raw))
 		}))
 	}
 	if err := sc.Err(); err != nil {
 		return err
 	}
-	suppressSmallSegments(rows)
+	SuppressSmallSegments(rows)
 	enc := json.NewEncoder(out)
 	enc.SetEscapeHTML(false)
 	for _, r := range rows {
@@ -119,9 +121,9 @@ func RunExport(in io.Reader, out io.Writer) error {
 	return nil
 }
 
-// newExportRow drops the texts hidden says an admin hid, redacts the rest
+// NewExportRow drops the texts hidden says an admin hid, redacts the rest
 // and flattens context to strings. Shared by the CLI export and the admin CSV.
-func newExportRow(answers map[string]any, versions map[string]int, context map[string]any, hidden func(field, raw string) bool) exportRow {
+func NewExportRow(answers map[string]any, versions map[string]int, context map[string]any, hidden func(field, raw string) bool) ExportRow {
 	ctx := map[string]string{}
 	for k, v := range context {
 		switch t := v.(type) {
@@ -139,10 +141,11 @@ func newExportRow(answers map[string]any, versions map[string]int, context map[s
 		}
 	}
 	redactValue(answers)
-	return exportRow{Answers: answers, QuestionVersions: versions, Context: ctx}
+	return ExportRow{Answers: answers, QuestionVersions: versions, Context: ctx}
 }
 
-func suppressSmallSegments(rows []exportRow) {
+// SuppressSmallSegments merges context values held by fewer than MinSegment rows.
+func SuppressSmallSegments(rows []ExportRow) {
 	counts := map[string]map[string]int{}
 	for _, r := range rows {
 		for k, v := range r.Context {
@@ -154,7 +157,7 @@ func suppressSmallSegments(rows []exportRow) {
 	}
 	for _, r := range rows {
 		for k, v := range r.Context {
-			if counts[k][v] < minSegment {
+			if counts[k][v] < MinSegment {
 				r.Context[k] = merged
 			}
 		}
@@ -165,7 +168,7 @@ func suppressSmallSegments(rows []exportRow) {
 		combos[key(r.Context)]++
 	}
 	for _, r := range rows {
-		if combos[key(r.Context)] < minSegment {
+		if combos[key(r.Context)] < MinSegment {
 			for k := range r.Context {
 				r.Context[k] = merged
 			}

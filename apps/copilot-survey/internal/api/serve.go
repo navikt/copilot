@@ -1,5 +1,6 @@
-// Package survey holds survey definitions, storage, aggregation and the HTTP API.
-package survey
+// Package api is the HTTP API. Survey definitions and aggregation are in
+// internal/survey, storage in internal/store behind Store.
+package api
 
 import (
 	"context"
@@ -13,50 +14,42 @@ import (
 	"time"
 
 	"github.com/navikt/copilot/apps/copilot-survey/internal/config"
+	"github.com/navikt/copilot/apps/copilot-survey/internal/store"
+	"github.com/navikt/copilot/apps/copilot-survey/internal/survey"
 	"github.com/navikt/copilot/apps/copilot-survey/internal/texas"
 )
 
 // Serve runs the HTTP server until SIGINT or SIGTERM.
 func Serve(config *config.Config) {
-	defs, err := loadSurveyDir(surveyFiles)
+	defs, err := survey.LoadSurveyDir(survey.SurveyFiles)
 	if err != nil {
 		slog.Error("Invalid survey definitions", "error", err)
 		os.Exit(1)
 	}
-	defs = forCluster(defs, os.Getenv("NAIS_CLUSTER_NAME"))
-	activateInDev(defs, os.Getenv("NAIS_CLUSTER_NAME"), os.Getenv("SURVEY_ACTIVE_IDS"))
+	defs = survey.ForCluster(defs, os.Getenv("NAIS_CLUSTER_NAME"))
+	survey.ActivateInDev(defs, os.Getenv("NAIS_CLUSTER_NAME"), os.Getenv("SURVEY_ACTIVE_IDS"))
 	auth := newAuthenticator(config.NaisTokenIntrospectionEndpoint, config.AzurePreAuthorizedApps)
 	lookup := newNameIDClient(config.CopilotAPIURL, texas.New(config.NaisTokenEndpoint, config.CopilotAPIAudience))
-	codebooks, err := loadCodebooks(surveyFiles)
+	codebooks, err := survey.LoadCodebooks(survey.SurveyFiles)
 	if err != nil {
 		slog.Error("Invalid codebooks", "error", err)
 		os.Exit(1)
 	}
-	surveys := &surveyAPI{surveys: defs, keys: surveyKeys(defs, time.Now()), emailFor: lookup.emailFor, now: time.Now, textKey: make([]byte, 32), codebooks: codebooks}
+	surveys := &surveyAPI{surveys: defs, keys: survey.Keys(defs, time.Now()), emailFor: lookup.emailFor, now: time.Now, textKey: make([]byte, 32), codebooks: codebooks}
 	_, _ = rand.Read(surveys.textKey) // crypto/rand: never fails
 
 	ctx := context.Background()
-	var store *surveyStore
 	if config.DatabaseURL != "" {
-		if store, err = openSurveyStore(ctx, config.DatabaseURL); err != nil {
+		st, err := store.Open(ctx, config.DatabaseURL)
+		if err != nil {
 			slog.Error("Survey storage unavailable", "error", err)
 			os.Exit(1)
 		}
-		surveys.store = store.submit
-		surveys.answers = store.answers
-		surveys.answered = store.answered
-		surveys.final = store.final
-		surveys.finalCompare = store.finalCompare
-		store.defs = defs
-		surveys.hidden = store.hidden
-		surveys.hide = store.hide
-		store.codebooks = codebooks
-		surveys.codes = store.codes
-		surveys.saveCodes = store.saveCodes
-		surveys.finalCoding = store.finalCoding
-		go store.purgeExpired(ctx, time.Now)
+		st.Defs, st.Codebooks = defs, codebooks
+		surveys.store = st
+		go st.PurgeExpired(ctx, time.Now)
 	}
-	slog.Info("Starting copilot-survey", "port", config.Port, "storage", store != nil,
+	slog.Info("Starting copilot-survey", "port", config.Port, "storage", surveys.store != nil,
 		"copilot_cli_trusted", auth.cliID != "", "my_copilot_trusted", auth.webID != "",
 		"surveys", len(defs), "surveys_with_key", len(surveys.keys))
 

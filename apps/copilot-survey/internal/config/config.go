@@ -24,7 +24,7 @@ type Config struct {
 	AzurePreAuthorizedApps         string
 
 	// DatabaseURL turns on submissions; each survey also needs its own key,
-	// SURVEY_KEY_<ID> (see surveyKeys).
+	// SURVEY_KEY_<ID> (see survey.Keys).
 	DatabaseURL string
 }
 

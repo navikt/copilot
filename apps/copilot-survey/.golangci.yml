@@ -77,6 +77,14 @@ linters:
         - G705
         - G706
 
+  exclusions:
+    rules:
+      # internal/api is the HTTP layer's package name (#2931).
+      - path: internal/api/
+        text: "var-naming: avoid meaningless package names"
+        linters:
+          - revive
+
   exclude-rules:
     - path: _test\.go
       text: "Error return value of `os\\.(Setenv|Unsetenv)` is not checked"

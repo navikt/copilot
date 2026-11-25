@@ -16,7 +16,7 @@ import (
 // say: unique category ids, one catch-all per field, every category in use, mutual merge_with pairs,
 // and fields that exist in the series.
 func TestCodebooksMatchSchema(t *testing.T) {
-	raw, err := fs.ReadFile(surveyFiles, "surveys/codebooks/schema.json")
+	raw, err := fs.ReadFile(SurveyFiles, "surveys/codebooks/schema.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -32,18 +32,18 @@ func TestCodebooksMatchSchema(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defs, err := loadSurveyDir(surveyFiles)
+	defs, err := LoadSurveyDir(SurveyFiles)
 	if err != nil {
 		t.Fatal(err)
 	}
-	names, _ := fs.Glob(surveyFiles, "surveys/codebooks/*.json")
+	names, _ := fs.Glob(SurveyFiles, "surveys/codebooks/*.json")
 	n := 0
 	for _, name := range names {
 		if path.Base(name) == "schema.json" {
 			continue
 		}
 		n++
-		raw, _ := fs.ReadFile(surveyFiles, name)
+		raw, _ := fs.ReadFile(SurveyFiles, name)
 		inst, err := jsonschema.UnmarshalJSON(bytes.NewReader(raw))
 		if err != nil {
 			t.Fatalf("%s: %v", name, err)
@@ -119,7 +119,7 @@ func TestCodebooksMatchSchema(t *testing.T) {
 	}
 }
 
-func seriesHasFreetext(defs []survey, series, field string) bool {
+func seriesHasFreetext(defs []Survey, series, field string) bool {
 	id, other := strings.CutSuffix(field, ".other")
 	for _, d := range defs {
 		if d.Series != series {

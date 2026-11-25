@@ -1,25 +1,22 @@
 package survey
 
 import (
-	"encoding/json"
-	"errors"
-	"net/http"
 	"slices"
 	"strconv"
-	"strings"
 	"time"
 )
 
-// storedAnswer is one survey_answers row as the admin aggregates read it.
-type storedAnswer struct {
+// StoredAnswer is one survey_answers row as the admin aggregates read it.
+type StoredAnswer struct {
 	Answers          map[string]any       `json:"answers"`
 	QuestionVersions map[string]int       `json:"question_versions"`
 	Client           string               `json:"-"` // context.client: web, copilot, forms (import), …
 	Context          map[string]any       `json:"-"` // version, os, client, local_models; for the CSV export
-	Codes            map[string]textCodes `json:"-"` // per field, read back from the CSV's codes columns
+	Codes            map[string]TextCodes `json:"-"` // per field, read back from the CSV's codes columns
 }
 
-type surveySummary struct {
+// Summary is a survey as listed for admins.
+type Summary struct {
 	ID        string `json:"id"`
 	Title     string `json:"title"`
 	Starts    string `json:"starts"`
@@ -30,13 +27,15 @@ type surveySummary struct {
 	Published bool   `json:"published,omitempty"`
 }
 
-func (s survey) summary(now time.Time, responses int) surveySummary {
-	return surveySummary{s.ID, s.Title, s.Starts, s.Ends, s.status(now), responses, s.Series, s.Published}
+// Summary is s as listed, with its number of responses.
+func (s Survey) Summary(now time.Time, responses int) Summary {
+	return Summary{s.ID, s.Title, s.Starts, s.Ends, s.Status(now), responses, s.Series, s.Published}
 }
 
-func (s survey) status(now time.Time) string {
+// Status is s's state on now.
+func (s Survey) Status(now time.Time) string {
 	switch {
-	case s.activeOn(now):
+	case s.ActiveOn(now):
 		return "åpen"
 	case now.UTC().Format(time.DateOnly) < s.Starts:
 		return "kommende"
@@ -44,78 +43,20 @@ func (s survey) status(now time.Time) string {
 	return "stengt"
 }
 
-func (a *surveyAPI) list(w http.ResponseWriter, r *http.Request) {
-	out := []surveySummary{}
-	for _, s := range a.surveys {
-		t, err := a.tally(r, s)
-		if err != nil {
-			writeError(w, http.StatusServiceUnavailable, "survey storage unavailable")
-			return
-		}
-		out = append(out, s.summary(a.now(), t.Responses))
-	}
-	writeJSON(w, map[string]any{"surveys": out})
-}
-
-// publishedList lists closed, published surveys with at least minSegment
-// responses for signed-in Nav users (#1775).
-func (a *surveyAPI) publishedList(w http.ResponseWriter, r *http.Request) {
-	now := a.now()
-	out := []surveySummary{}
-	for _, s := range a.surveys {
-		if !s.Published || s.status(now) != "stengt" {
-			continue
-		}
-		t, err := a.tally(r, s)
-		if err != nil {
-			writeError(w, http.StatusServiceUnavailable, "survey storage unavailable")
-			return
-		}
-		if t.Responses >= minSegment {
-			out = append(out, s.summary(now, t.Responses))
-		}
-	}
-	writeJSON(w, map[string]any{"surveys": out})
-}
-
-// tally reads a closed survey's final aggregates (survey_results) and falls
-// back to its rows while it has none, as an open survey always does.
-func (a *surveyAPI) tally(r *http.Request, s survey) (surveyTally, error) {
-	if a.final != nil && s.status(a.now()) == "stengt" {
-		t, err := a.final(r.Context(), s.ID)
-		if err != nil {
-			return surveyTally{}, err
-		}
-		if t != nil {
-			return *t, nil
-		}
-	}
-	rows, err := a.read(r, s.ID)
-	return tallyRows(s, rows), err
-}
-
-var errNoStorage = errors.New("no storage")
-
-func (a *surveyAPI) read(r *http.Request, id string) ([]storedAnswer, error) {
-	if a.answers == nil {
-		return nil, errNoStorage
-	}
-	return a.answers(r.Context(), id)
-}
-
-// optionCount is one option's count. Suppressed is always false; it stays
+// OptionCount is one option's count. Suppressed is always false; it stays
 // for clients that still read it.
-type optionCount struct {
+type OptionCount struct {
 	Value      string `json:"value"`
 	Count      *int   `json:"count"`
 	Suppressed bool   `json:"suppressed"`
 }
 
-type versionResult struct {
+// VersionResult is the counts for one version of a question.
+type VersionResult struct {
 	Version int `json:"version"`
 	// N is respondents who answered this version (people, also for multi).
 	N       *int          `json:"n"`
-	Options []optionCount `json:"options"`
+	Options []OptionCount `json:"options"`
 	// Hidden: published results left out a small group; N and Options are null.
 	Hidden bool `json:"hidden,omitempty"`
 }
@@ -123,73 +64,36 @@ type versionResult struct {
 type itemResult struct {
 	ID       string          `json:"id"`
 	Text     string          `json:"text"`
-	Versions []versionResult `json:"versions"`
+	Versions []VersionResult `json:"versions"`
 }
 
-type questionResult struct {
+// QuestionResult is the results for one question.
+type QuestionResult struct {
 	ID       string          `json:"id"`
 	Type     string          `json:"type"`
 	Text     string          `json:"text"`
-	Versions []versionResult `json:"versions,omitempty"` // scale, choice, multi
+	Versions []VersionResult `json:"versions,omitempty"` // scale, choice, multi
 	Items    []itemResult    `json:"items,omitempty"`    // matrix: one per statement
 }
 
-type surveyResults struct {
-	surveySummary
-	// Suppressed: fewer than minSegment responses, and Questions is null.
+// Results is a survey's aggregated results.
+type Results struct {
+	Summary
+	// Suppressed: fewer than MinSegment responses, and Questions is null.
 	Suppressed bool             `json:"suppressed"`
 	Channels   map[string]int   `json:"channels,omitempty"`
-	Questions  []questionResult `json:"questions"`
+	Questions  []QuestionResult `json:"questions"`
 }
 
-func (a *surveyAPI) results(w http.ResponseWriter, r *http.Request) {
-	i := slices.IndexFunc(a.surveys, func(s survey) bool { return s.ID == r.PathValue("id") })
-	if i < 0 {
-		writeError(w, http.StatusNotFound, "unknown survey")
-		return
-	}
-	t, err := a.tally(r, a.surveys[i])
-	if err != nil {
-		writeError(w, http.StatusServiceUnavailable, "survey storage unavailable")
-		return
-	}
-	writeJSON(w, aggregateTally(a.surveys[i], t, a.now()))
-}
-
-// publishedResults serves aggregated results for a closed, published survey
-// with at least minSegment responses (#1775). Open, unpublished, or small
-// surveys return 404.
-func (a *surveyAPI) publishedResults(w http.ResponseWriter, r *http.Request) {
-	now := a.now()
-	i := slices.IndexFunc(a.surveys, func(s survey) bool { return s.ID == r.PathValue("id") })
-	if i < 0 || !a.surveys[i].Published || a.surveys[i].status(now) != "stengt" {
-		writeError(w, http.StatusNotFound, "unknown survey")
-		return
-	}
-	t, err := a.tally(r, a.surveys[i])
-	if err != nil {
-		writeError(w, http.StatusServiceUnavailable, "survey storage unavailable")
-		return
-	}
-	if t.Responses < minSegment {
-		writeError(w, http.StatusNotFound, "unknown survey")
-		return
-	}
-	res := aggregateTally(a.surveys[i], t, now)
-	res.Channels = mergeSmallChannels(res.Channels)
-	hideSmallVersions(&res)
-	writeJSON(w, res)
-}
-
-// mergeSmallChannels folds every channel under minSegment into «annet», the
+// MergeSmallChannels folds every channel under MinSegment into «annet», the
 // export's rule for one context value. Admin /results keeps them apart.
-func mergeSmallChannels(channels map[string]int) map[string]int {
+func MergeSmallChannels(channels map[string]int) map[string]int {
 	if channels == nil {
 		return nil
 	}
 	out := map[string]int{}
 	for c, n := range channels {
-		if n < minSegment {
+		if n < MinSegment {
 			c = merged
 		}
 		out[c] += n
@@ -197,16 +101,16 @@ func mergeSmallChannels(channels map[string]int) map[string]int {
 	return out
 }
 
-// small is a group of 1 to minSegment-1: shown, its answers could be told apart.
-func small(n int) bool { return n > 0 && n < minSegment }
+// small is a group of 1 to MinSegment-1: shown, its answers could be told apart.
+func small(n int) bool { return n > 0 && n < MinSegment }
 
-func (v *versionResult) hide() { v.N, v.Options, v.Hidden = nil, nil, true }
+func (v *VersionResult) hide() { v.N, v.Options, v.Hidden = nil, nil, true }
 
-// hideSmallVersions hides every version under minSegment respondents in
+// HideSmallVersions hides every version under MinSegment respondents in
 // published /results: one person answering an old version would otherwise
 // show their answer.
-func hideSmallVersions(res *surveyResults) {
-	hide := func(vs []versionResult) {
+func HideSmallVersions(res *Results) {
+	hide := func(vs []VersionResult) {
 		for i := range vs {
 			if vs[i].N != nil && small(*vs[i].N) {
 				vs[i].hide()
@@ -221,12 +125,12 @@ func hideSmallVersions(res *surveyResults) {
 	}
 }
 
-// hideSmallWaveVersions hides every version under minSegment respondents in
-// a published comparison, as hideSmallVersions does in /results, and the
+// HideSmallWaveVersions hides every version under MinSegment respondents in
+// a published comparison, as HideSmallVersions does in /results, and the
 // item's test when the first or last wave has one. Holm keeps the hidden
 // items (owner decision). It drops excluded, which is 0 without the rule.
-func hideSmallWaveVersions(res *compareResult) {
-	hide := func(sig *significance, ws []waveCounts) {
+func HideSmallWaveVersions(res *CompareResult) {
+	hide := func(sig *Significance, ws []WaveCounts) {
 		for i := range ws {
 			ws[i].Excluded = nil
 			for vi := range ws[i].Versions {
@@ -237,108 +141,40 @@ func hideSmallWaveVersions(res *compareResult) {
 				v.hide()
 				v.Mean, v.Agree = nil, nil
 				if i == 0 || i == len(ws)-1 {
-					*sig = significance{}
+					*sig = Significance{}
 				}
 			}
 		}
 	}
 	for qi := range res.Questions {
 		q := &res.Questions[qi]
-		hide(&q.significance, q.Waves)
+		hide(&q.Significance, q.Waves)
 		for ii := range q.Items {
-			hide(&q.Items[ii].significance, q.Items[ii].Waves)
+			hide(&q.Items[ii].Significance, q.Items[ii].Waves)
 		}
 	}
 }
 
-// publishedCompare compares the last four closed, published waves of a
-// series that have at least minSegment rows, oldest first (#2229). Channels
-// are left out, and so are versions under minSegment (hideSmallWaveVersions).
-// Coded free text comes along per wave as publishedCoding gives it.
-// Unlike compare, the last wave's skip_if is not applied to earlier waves:
-// each wave counts its own answers as its /results does, so no difference
-// between the two can single out a small group (owner decision, #2271). The
-// test then compares groups that are not quite alike. An unknown series, or
-// fewer than two such waves, is 404. Each wave is read as its /results is
-// (tally): from its aggregates once closed, so it stays after its rows are
-// deleted.
-func (a *surveyAPI) publishedCompare(w http.ResponseWriter, r *http.Request) {
-	now, series := a.now(), r.URL.Query().Get("series")
-	candidates := slices.Clone(a.surveys)
-	slices.SortFunc(candidates, func(x, y survey) int { return strings.Compare(y.Starts, x.Starts) }) // newest first
-	var waves []survey
-	var tallies []waveTally
-	for _, s := range candidates {
-		if len(waves) == 4 {
-			break
-		}
-		if series == "" || s.Series != series || !s.Published || s.status(now) != "stengt" {
-			continue
-		}
-		t, err := a.tally(r, s)
-		if err != nil {
-			writeError(w, http.StatusServiceUnavailable, "survey storage unavailable")
-			return
-		}
-		if t.Responses >= minSegment {
-			waves = append([]survey{s}, waves...)
-			tallies = append([]waveTally{{Responses: t.Responses, Keys: t.Keys}}, tallies...)
-		}
-	}
-	if len(waves) < 2 {
-		writeError(w, http.StatusNotFound, "unknown series")
-		return
-	}
-	last := &waves[len(waves)-1]
-	last.Questions = slices.Clone(last.Questions)
-	for i := range last.Questions {
-		last.Questions[i].SkipIf = nil
-	}
-	res := compareTallies(waves, tallies, now)
-	for i := range res.Surveys {
-		res.Surveys[i].Channels = nil
-	}
-	hideSmallWaveVersions(&res)
-	for _, s := range waves {
-		wf, err := a.publishedCoding(r.Context(), s)
-		if err != nil {
-			writeError(w, http.StatusServiceUnavailable, "survey storage unavailable")
-			return
-		}
-		if wf != nil {
-			res.Freetext = append(res.Freetext, *wf)
-		}
-	}
-	if r.URL.Query().Get("format") == "csv" {
-		w.Header().Set("Content-Type", "text/csv; charset=utf-8")
-		w.Header().Set("Content-Disposition", `attachment; filename="sammenligning-`+series+`.csv"`)
-		w.Header().Set("Cache-Control", "no-store")
-		_ = writeCompareCSV(w, res)
-		return
-	}
-	writeJSON(w, res)
-}
-
-// aggregate counts answers per question and question version. Free text is
-// never read. Below minSegment respondents for the whole survey nothing is
+// Aggregate counts answers per question and question version. Free text is
+// never read. Below MinSegment respondents for the whole survey nothing is
 // shown; otherwise every count is real (owner decision 2026-10-13).
-func aggregate(s survey, rows []storedAnswer, now time.Time) surveyResults {
-	return aggregateTally(s, tallyRows(s, rows), now)
+func Aggregate(s Survey, rows []StoredAnswer, now time.Time) Results {
+	return AggregateTally(s, TallyRows(s, rows), now)
 }
 
-// aggregateTally is aggregate from counts, live or stored (survey_results).
-func aggregateTally(s survey, t surveyTally, now time.Time) surveyResults {
-	res := surveyResults{surveySummary: s.summary(now, t.Responses)}
-	if t.Responses < minSegment {
+// AggregateTally is aggregate from counts, live or stored (survey_results).
+func AggregateTally(s Survey, t Tally, now time.Time) Results {
+	res := Results{Summary: s.Summary(now, t.Responses)}
+	if t.Responses < MinSegment {
 		res.Suppressed = true
 		return res
 	}
 	if len(t.Channels) > 0 {
 		res.Channels = t.Channels
 	}
-	res.Questions = []questionResult{}
+	res.Questions = []QuestionResult{}
 	for _, q := range s.Questions {
-		qr := questionResult{ID: q.ID, Type: q.Type, Text: q.Text}
+		qr := QuestionResult{ID: q.ID, Type: q.Type, Text: q.Text}
 		switch q.Type {
 		case "text":
 			continue
@@ -346,30 +182,30 @@ func aggregateTally(s survey, t surveyTally, now time.Time) surveyResults {
 			for _, it := range q.Items {
 				item := q
 				item.Type, item.ID, item.Version = "scale", it.ID, it.Version
-				qr.Items = append(qr.Items, itemResult{it.ID, it.Text, versionsFrom(item, t.Keys[it.ID])})
+				qr.Items = append(qr.Items, itemResult{it.ID, it.Text, VersionsFrom(item, t.Keys[it.ID])})
 			}
 		default:
-			qr.Versions = versionsFrom(q, t.Keys[q.ID])
+			qr.Versions = VersionsFrom(q, t.Keys[q.ID])
 		}
 		res.Questions = append(res.Questions, qr)
 	}
 	return res
 }
 
-// versionsFrom turns one answer key's tally into the API's versions, with
+// VersionsFrom turns one answer key's tally into the API's versions, with
 // options as cells lists them.
-func versionsFrom(q question, t map[int]*verTally) []versionResult {
-	out := []versionResult{}
+func VersionsFrom(q Question, t map[int]*VerTally) []VersionResult {
+	out := []VersionResult{}
 	for _, ver := range sortedKeys(t) {
 		n := t[ver].N
-		out = append(out, versionResult{Version: ver, N: &n, Options: cells(q, ver, t[ver].Counts)})
+		out = append(out, VersionResult{Version: ver, N: &n, Options: Cells(q, ver, t[ver].Counts)})
 	}
 	return out
 }
 
-// cells lists the options as defined (current version) or as seen (older
+// Cells lists the options as defined (current version) or as seen (older
 // versions) with their real counts.
-func cells(q question, ver int, counts map[string]int) []optionCount {
+func Cells(q Question, ver int, counts map[string]int) []OptionCount {
 	var values []string
 	if ver == q.Version {
 		if q.Type == "scale" {
@@ -388,7 +224,7 @@ func cells(q question, ver int, counts map[string]int) []optionCount {
 			values = append(values, v)
 		}
 	}
-	out := make([]optionCount, len(values))
+	out := make([]OptionCount, len(values))
 	for i, v := range values {
 		c := counts[v]
 		out[i].Value, out[i].Count = v, &c
@@ -403,9 +239,4 @@ func sortedKeys[K int | string, V any](m map[K]V) []K {
 	}
 	slices.Sort(keys)
 	return keys
-}
-
-func writeJSON(w http.ResponseWriter, v any) {
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(v)
 }

@@ -6,7 +6,7 @@ import (
 	"strconv"
 )
 
-// writeCompareCSV writes a comparison in long form, one row per number, so a
+// WriteCompareCSV writes a comparison in long form, one row per number, so a
 // spreadsheet, pandas or an agent reads it without knowing the JSON:
 //
 //	kind      survey_id question_id item_id version break option count n excluded mean agree p p_holm
@@ -17,14 +17,14 @@ import (
 // mean and agree are on every option row of their version, unrounded; the
 // item's first-to-last test (significance) on every answer row of the item. A
 // wave with nothing counted has one answer row with only excluded. In the
-// published comparison (hideSmallWaveVersions) a version under 5 has one
+// published comparison (HideSmallWaveVersions) a version under 5 has one
 // answer row with n «hidden» and nothing else counted.
 // The published series adds coded free text (publishedCoding): a
 // freetext row per published category or merged pair with its count and n
 // (respondents who wrote in the field) and a freetext_onske row with the
 // wishes among them; version is the codebook's. Counts under 5 are «<5».
 // Never a text.
-func writeCompareCSV(w io.Writer, res compareResult) error {
+func WriteCompareCSV(w io.Writer, res CompareResult) error {
 	if _, err := w.Write([]byte("\xef\xbb\xbf")); err != nil {
 		return err
 	}
@@ -36,7 +36,7 @@ func writeCompareCSV(w io.Writer, res compareResult) error {
 			_ = cw.Write([]string{"channel", m.ID, "", "", "", "", c, strconv.Itoa(m.Channels[c]), "", "", "", "", "", ""})
 		}
 	}
-	waves := func(qid, iid string, br bool, ws []waveCounts, sig significance) {
+	waves := func(qid, iid string, br bool, ws []WaveCounts, sig Significance) {
 		test := []string{floatCell(sig.P), floatCell(sig.PHolm)}
 		for i, wc := range ws {
 			excluded := intCell(wc.Excluded)
@@ -59,9 +59,9 @@ func writeCompareCSV(w io.Writer, res compareResult) error {
 		}
 	}
 	for _, q := range res.Questions {
-		waves(q.ID, "", q.Break, q.Waves, q.significance)
+		waves(q.ID, "", q.Break, q.Waves, q.Significance)
 		for _, it := range q.Items {
-			waves(q.ID, it.ID, it.Break, it.Waves, it.significance)
+			waves(q.ID, it.ID, it.Break, it.Waves, it.Significance)
 		}
 	}
 	for _, wf := range res.Freetext {

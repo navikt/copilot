@@ -13,17 +13,17 @@ import (
 	"time"
 )
 
-// readExportCSV is writeExportCSV's inverse: rows as storedAnswer, for the
+// ReadExportCSV is WriteExportCSV's inverse: rows as StoredAnswer, for the
 // definition s the CSV was exported from. It refuses a CSV whose columns are
 // not exactly what s exports, so an edited or mismatched file fails rather
 // than giving other numbers.
 //
 // What the CSV cannot give back: hidden or redacted free text (never
 // counted), multi picks outside the current options, and context values
-// under minSegment, which the export merged into «annet». The answer counts
+// under MinSegment, which the export merged into «annet». The answer counts
 // therefore match the admin page exactly; the channels match only at the
 // merged level.
-func readExportCSV(s survey, r io.Reader) ([]storedAnswer, error) {
+func ReadExportCSV(s Survey, r io.Reader) ([]StoredAnswer, error) {
 	cr := csv.NewReader(r)
 	head, err := cr.Read()
 	if err != nil {
@@ -67,7 +67,7 @@ func readExportCSV(s survey, r io.Reader) ([]storedAnswer, error) {
 		want = append(want, "context."+k)
 	}
 	var coded []string
-	for _, f := range freetextFields(s) {
+	for _, f := range FreetextFields(s) {
 		if _, ok := col["codes."+f.ID+".final"]; ok {
 			coded = append(coded, f.ID)
 			for _, c := range codeColumns {
@@ -79,7 +79,7 @@ func readExportCSV(s survey, r io.Reader) ([]storedAnswer, error) {
 		return nil, fmt.Errorf("columns do not match survey %s:\n got  %s\n want %s", s.ID, strings.Join(head, ","), strings.Join(want, ","))
 	}
 
-	var rows []storedAnswer
+	var rows []StoredAnswer
 	for line := 2; ; line++ {
 		rec, err := cr.Read()
 		if errors.Is(err, io.EOF) {
@@ -88,7 +88,7 @@ func readExportCSV(s survey, r io.Reader) ([]storedAnswer, error) {
 		if err != nil {
 			return nil, err
 		}
-		row := storedAnswer{Answers: map[string]any{}, QuestionVersions: map[string]int{}, Context: map[string]any{}}
+		row := StoredAnswer{Answers: map[string]any{}, QuestionVersions: map[string]int{}, Context: map[string]any{}}
 		put := func(key, name string, def int, v any) error {
 			row.Answers[key] = v
 			row.QuestionVersions[key] = def
@@ -167,10 +167,10 @@ func readExportCSV(s survey, r io.Reader) ([]storedAnswer, error) {
 			}
 		}
 		for _, f := range coded {
-			cell := func(c string) []code { return parseCodesCell(rec[col["codes."+f+"."+c]]) }
-			if t := (textCodes{Final: cell("final"), Model: cell("model"), Human: cell("human")}); t.Final != nil || t.Model != nil || t.Human != nil {
+			cell := func(c string) []Code { return parseCodesCell(rec[col["codes."+f+"."+c]]) }
+			if t := (TextCodes{Final: cell("final"), Model: cell("model"), Human: cell("human")}); t.Final != nil || t.Model != nil || t.Human != nil {
 				if row.Codes == nil {
-					row.Codes = map[string]textCodes{}
+					row.Codes = map[string]TextCodes{}
 				}
 				row.Codes[f] = t
 			}
@@ -187,7 +187,7 @@ func unformula(s string) string {
 
 // multiOptions are q's options and the older ones the header carries
 // (multiColumns), in header order after the current ones.
-func multiOptions(q question, head []string) []string {
+func multiOptions(q Question, head []string) []string {
 	opts := q.options()
 	for _, h := range head {
 		if v, ok := strings.CutPrefix(h, q.ID+"="); ok && !slices.Contains(opts, v) {
@@ -208,30 +208,30 @@ func RunAnalyze(args []string, out io.Writer, now time.Time) error {
 	if len(args) < 1 || len(args) > 4 {
 		return errors.New("usage: copilot-survey analyze [--csv] <survey-id>=<file.csv> … (one survey, or two to four oldest first)")
 	}
-	defs, err := loadSurveyDir(surveyFiles)
+	defs, err := LoadSurveyDir(SurveyFiles)
 	if err != nil {
 		return err
 	}
-	cbs, err := loadCodebooks(surveyFiles)
+	cbs, err := LoadCodebooks(SurveyFiles)
 	if err != nil {
 		return err
 	}
-	var waves []survey
-	var rows [][]storedAnswer
+	var waves []Survey
+	var rows [][]StoredAnswer
 	for _, a := range args {
 		id, path, ok := strings.Cut(a, "=")
-		i := slices.IndexFunc(defs, func(s survey) bool { return s.ID == id })
+		i := slices.IndexFunc(defs, func(s Survey) bool { return s.ID == id })
 		if !ok || i < 0 {
 			return fmt.Errorf("%q: want <survey-id>=<file.csv> with a known survey id", a)
 		}
-		if slices.ContainsFunc(waves, func(s survey) bool { return s.ID == id }) {
+		if slices.ContainsFunc(waves, func(s Survey) bool { return s.ID == id }) {
 			return fmt.Errorf("%q: survey %s given twice", a, id) // as /compare refuses it
 		}
 		f, err := os.Open(path) //nolint:gosec // G304: the path is the operator's own argument to a local command
 		if err != nil {
 			return err
 		}
-		rs, err := readExportCSV(defs[i], f)
+		rs, err := ReadExportCSV(defs[i], f)
 		_ = f.Close()
 		if err != nil {
 			return fmt.Errorf("%s: %w", path, err)
@@ -243,27 +243,27 @@ func RunAnalyze(args []string, out io.Writer, now time.Time) error {
 			return errors.New("--csv is for comparisons")
 		}
 		res := struct {
-			surveyResults
-			Freetext []codedField `json:"freetext,omitempty"`
-		}{surveyResults: aggregate(waves[0], rows[0], now)}
-		if cb, ok := cbs[waves[0].Series]; ok && waves[0].Series != "" && slices.ContainsFunc(rows[0], func(r storedAnswer) bool { return r.Codes != nil }) {
-			res.Freetext = codingResults(waves[0], cb, tallyAll(cb, csvCodes(cb, rows[0])))
+			Results
+			Freetext []CodedField `json:"freetext,omitempty"`
+		}{Results: Aggregate(waves[0], rows[0], now)}
+		if cb, ok := cbs[waves[0].Series]; ok && waves[0].Series != "" && slices.ContainsFunc(rows[0], func(r StoredAnswer) bool { return r.Codes != nil }) {
+			res.Freetext = CodingResults(waves[0], cb, TallyAll(cb, CsvCodes(cb, rows[0])))
 		}
 		return encodeJSON(out, res)
 	}
-	res := compareWavesResult(waves, rows, now)
+	res := CompareWavesResult(waves, rows, now)
 	// Coded free text as the published series shows it, from CSVs with codes.
 	for i, s := range waves {
 		cb, ok := cbs[s.Series]
-		if !ok || s.Series == "" || !slices.ContainsFunc(rows[i], func(r storedAnswer) bool { return r.Codes != nil }) {
+		if !ok || s.Series == "" || !slices.ContainsFunc(rows[i], func(r StoredAnswer) bool { return r.Codes != nil }) {
 			continue
 		}
-		if wf := publishedFreetext(s, cb, tallyAll(cb, csvCodes(cb, rows[i]))); wf != nil {
+		if wf := PublishedFreetext(s, cb, TallyAll(cb, CsvCodes(cb, rows[i]))); wf != nil {
 			res.Freetext = append(res.Freetext, *wf)
 		}
 	}
 	if asCSV {
-		return writeCompareCSV(out, res)
+		return WriteCompareCSV(out, res)
 	}
 	return encodeJSON(out, res)
 }
