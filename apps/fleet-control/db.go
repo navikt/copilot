@@ -14,6 +14,8 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/multitracer"
 	"github.com/jackc/pgx/v5/pgxpool"
+
+	"github.com/navikt/copilot/fleet-control/internal/metrics"
 )
 
 //go:embed migrations/*.sql
@@ -33,7 +35,7 @@ func OpenDB(ctx context.Context, dsn string) (*DB, error) {
 	}
 	// Simple protocol avoids prepared statements incompatible with PgBouncer transaction mode.
 	cfg.ConnConfig.DefaultQueryExecMode = pgx.QueryExecModeSimpleProtocol
-	cfg.ConnConfig.Tracer = multitracer.New(pendingAudit, dbTracer{})
+	cfg.ConnConfig.Tracer = multitracer.New(pendingAudit, metrics.DBTracer{})
 	cfg.BeforeClose = pendingAudit.forget
 	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {
