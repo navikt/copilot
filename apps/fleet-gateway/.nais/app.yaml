@@ -157,7 +157,19 @@ spec:
           annotations:
             summary: fleet-gateway has no ready pods
             consequence: Every MCP call through the gateway fails.
-            action: "Check `kubectl -n copilot get pods -l app=fleet-gateway` and the pod logs. Usual causes: Postgres unreachable, a bad route file or RT_KEYS."
+            action: "Check `kubectl -n copilot get pods -l app=fleet-gateway` and the pod logs. Usual causes: a bad route file or RT_KEYS."
+        - alert: FleetGatewayStoreDown
+          expr: min(fleet_gateway_store_up{namespace="copilot"}) == 0
+          for: 2m
+          labels:
+            namespace: copilot
+            severity: critical
+            alert_type: custom
+            app: fleet-gateway
+          annotations:
+            summary: A fleet-gateway pod cannot reach its Postgres
+            consequence: Pods stay in rotation and route from the stored snapshot, but logins, token refresh and sessions fail.
+            action: "Check the fleet-gateway Postgres in Nais Console and search pod logs for `session store ping failed`."
         - alert: FleetGatewayPodRestarts
           expr: sum(increase(kube_pod_container_status_restarts_total{namespace="copilot", container="fleet-gateway"}[15m])) > 2
           labels:

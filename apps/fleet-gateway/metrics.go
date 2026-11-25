@@ -52,6 +52,11 @@ var (
 		Help: "1 while the route table comes from the snapshot stored in the gateway's own database because fleet-control was unreachable at startup, 0 otherwise.",
 	})
 
+	storeUp = promauto.NewGauge(prometheus.GaugeOpts{
+		Name: "fleet_gateway_store_up",
+		Help: "1 if the last session-store ping (on each /ready probe) succeeded, 0 if it failed. /ready does not fail on it (#2893).",
+	})
+
 	rateLimitedTotal = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "fleet_gateway_rate_limited_total",
 		Help: "Requests rejected by the per-IP or global rate limiter, by OAuth endpoint.",

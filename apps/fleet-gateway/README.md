@@ -107,6 +107,7 @@ Prometheus scrapes `/metrics` on port 9090. That port has no ingress, so the pub
 
 | Metric | Labels | What it shows |
 |---|---|---|
+| `fleet_gateway_store_up` | | 1 if the last session-store ping (each `/ready` probe) succeeded, 0 if not. `/ready` does not fail on it (#2893). Alert: `FleetGatewayStoreDown` |
 | `fleet_gateway_http_requests_total` | `code`, `reason` | All responses except `/health` and `/ready`. `reason` is empty except on deliberate 503s: `disabled` (kill switch), `cap` (in-flight or SSE limit), `user_cap` (per-user in-flight limit), `user_sse_cap` (per-user SSE limit), `store_full` (store quota reached), `refresh_in_flight` (concurrent refresh of the same token). The 5xx alert counts only `reason=""` |
 | `fleet_gateway_mcp_requests_total` | `route`, `outcome`, `decision`, `reason`, `tool` | MCP calls. `reason` is set on `deny` only; `tool` is the called tool if on the route list, else `other`. `outcome` matches the `audit mcp` log line, for example `ok`, `upstream_token_error`, `store_error` or `upstream_502` |
 | `fleet_gateway_mcp_request_duration_seconds` | `route` | Time per MCP call, token exchange and upstream included. An SSE stream counts until it ends |

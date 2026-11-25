@@ -12,6 +12,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/prometheus/client_golang/prometheus/testutil"
 )
 
 func cloneTestEnvWithSharedStore(t *testing.T, base *testEnv, shared SessionStore, nowFn func() time.Time) (*Gateway, http.Handler) {
@@ -388,25 +390,30 @@ func TestStoreError_Returns503FailClosed(t *testing.T) {
 	}
 }
 
-func TestReady_StorePingFailureReturns503(t *testing.T) {
+// The DB is not a readiness condition (#2893): a Ping error keeps /ready at 200
+// and sets fleet_gateway_store_up to 0.
+func TestReady_StorePingFailureStaysReady(t *testing.T) {
 	te := newTestEnv(t)
-	te.gw.store = &failingStore{
-		SessionStore: te.gw.store,
-		failPing:     errors.New("db connection refused"),
-	}
+	inner := te.gw.store
+	te.gw.store = &failingStore{SessionStore: inner, failPing: errors.New("db connection refused")}
 
-	req := httptest.NewRequest(http.MethodGet, "/ready", nil)
-	rec := httptest.NewRecorder()
-	te.handler.ServeHTTP(rec, req)
-	if rec.Code != http.StatusServiceUnavailable {
-		t.Fatalf("expected 503 on /ready store Ping error, got %d (%s)", rec.Code, rec.Body.String())
+	get := func() int {
+		rec := httptest.NewRecorder()
+		te.handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/ready", nil))
+		return rec.Code
 	}
-	var body map[string]string
-	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
-		t.Fatalf("expected JSON body on 503, got %q: %v", rec.Body.String(), err)
+	if code := get(); code != http.StatusOK {
+		t.Fatalf("expected 200 on /ready store Ping error, got %d", code)
 	}
-	if body["status"] != "not_ready" {
-		t.Fatalf("expected status=not_ready, got %v", body)
+	if v := testutil.ToFloat64(storeUp); v != 0 {
+		t.Fatalf("fleet_gateway_store_up = %v after Ping error, want 0", v)
+	}
+	te.gw.store = inner
+	if code := get(); code != http.StatusOK {
+		t.Fatalf("expected 200 on healthy /ready, got %d", code)
+	}
+	if v := testutil.ToFloat64(storeUp); v != 1 {
+		t.Fatalf("fleet_gateway_store_up = %v after Ping ok, want 1", v)
 	}
 }
 
