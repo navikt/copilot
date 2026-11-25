@@ -1,4 +1,4 @@
-package main
+package registry
 
 import (
 	"encoding/json"
@@ -7,13 +7,6 @@ import (
 	"strings"
 	"testing"
 )
-
-func TestValidateAllowListFile(t *testing.T) {
-	err := validateAllowListFile()
-	if err != nil {
-		t.Fatalf("allowlist.json validation failed: %v", err)
-	}
-}
 
 func TestValidateRegistry_RequiredFields(t *testing.T) {
 	tests := []struct {
@@ -862,7 +855,7 @@ func TestValidateRegistry_RequiredFields(t *testing.T) {
 			"figma":                 false,
 			"":                      false,
 		} {
-			err := validateRegistry(&StaticRegistryData{Servers: []StaticServerData{{
+			err := ValidateRegistry(&StaticRegistryData{Servers: []StaticServerData{{
 				Name: "io.github.test/server", Description: "Test Description", Version: "1.0.0",
 				SandboxHosts: []string{host},
 			}}})
@@ -894,7 +887,7 @@ func TestValidateRegistry_RequiredFields(t *testing.T) {
 			"localhost with tools":    {server([]string{"read_source"}, nil, "http://127.0.0.1:3846/mcp"), true},
 			"remote without tools":    {server(nil, nil, "https://mcp.example.com/mcp"), true},
 		} {
-			if err := validateRegistry(tc.reg); (err == nil) != tc.ok {
+			if err := ValidateRegistry(tc.reg); (err == nil) != tc.ok {
 				t.Errorf("%s: valid=%v, got %v", name, tc.ok, err)
 			}
 		}
@@ -1004,7 +997,7 @@ func TestValidateRegistry_RequiredFields(t *testing.T) {
 
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
-				err := validateRegistry(registryWithInstruction(tt.instruction))
+				err := ValidateRegistry(registryWithInstruction(tt.instruction))
 				if tt.errorMsg == "" {
 					if err != nil {
 						t.Fatalf("expected valid setup instruction, got %v", err)
@@ -1020,7 +1013,7 @@ func TestValidateRegistry_RequiredFields(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := validateRegistry(tt.data)
+			err := ValidateRegistry(tt.data)
 			if tt.expectError {
 				if err == nil {
 					t.Errorf("expected error containing '%s', got nil", tt.errorMsg)
@@ -1063,7 +1056,7 @@ func TestValidateBroker(t *testing.T) {
 		tc.mut(b)
 		reg := &StaticRegistryData{Servers: []StaticServerData{{Name: "io.github.test/server", Description: "Test", Version: "1.0.0",
 			Tools: []string{"q", "w"}, Meta: &ServerMeta{Broker: b}}}}
-		if err := validateRegistry(reg); (err == nil) != tc.ok {
+		if err := ValidateRegistry(reg); (err == nil) != tc.ok {
 			t.Errorf("%s: valid=%v, got %v", name, tc.ok, err)
 		}
 	}
@@ -1072,7 +1065,7 @@ func TestValidateBroker(t *testing.T) {
 // The registry's mechanism table matches the shared fixture, which
 // nav-pilot's own test also checks its table against.
 func TestBrokerMechanismsMatchFixture(t *testing.T) {
-	data, err := os.ReadFile("testdata/broker-mechanisms.json")
+	data, err := os.ReadFile("../../testdata/broker-mechanisms.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1143,55 +1136,6 @@ func TestValidateURLSchemeAndHost(t *testing.T) {
 			err := validateURL(tc.rawURL)
 			if (err != nil) != tc.wantErr {
 				t.Errorf("validateURL(%q) = %v, wantErr=%v", tc.rawURL, err, tc.wantErr)
-			}
-		})
-	}
-}
-
-func TestDecodeStaticRegistry_RejectsUnknownFields(t *testing.T) {
-	allowlistBytes, err := os.ReadFile("allowlist.json")
-	if err != nil {
-		t.Fatal(err)
-	}
-	substituted := substituteVariables(allowlistBytes, &Config{
-		DomainInternal: "intern.dev.nav.no",
-		DomainExternal: "ekstern.dev.nav.no",
-	})
-
-	tests := []struct {
-		name    string
-		raw     []byte
-		wantErr bool
-	}{
-		{name: "current allowlist.json", raw: allowlistBytes, wantErr: false},
-		{name: "substituted allowlist.json", raw: substituted, wantErr: false},
-		{
-			name:    "misspelled protocolVersion",
-			raw:     []byte(`{"servers":[{"name":"io.github.test/s","description":"d","version":"1","protocolVersion":["2026-07-28"]}]}`),
-			wantErr: true,
-		},
-		{
-			name:    "misspelled sandboxHost",
-			raw:     []byte(`{"servers":[{"name":"io.github.test/s","description":"d","version":"1","sandboxHost":["api.figma.com"]}]}`),
-			wantErr: true,
-		},
-		{
-			name:    "unknown top-level key",
-			raw:     []byte(`{"servers":[{"name":"io.github.test/s","description":"d","version":"1"}],"extra":1}`),
-			wantErr: true,
-		},
-		{
-			name:    "trailing json object",
-			raw:     []byte(`{"servers":[{"name":"io.github.test/s","description":"d","version":"1"}]}{"extra":1}`),
-			wantErr: true,
-		},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			_, err := decodeStaticRegistry(tc.raw)
-			if (err != nil) != tc.wantErr {
-				t.Errorf("decodeStaticRegistry(%s) err = %v, wantErr=%v", tc.name, err, tc.wantErr)
 			}
 		})
 	}

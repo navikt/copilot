@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	"context"
@@ -27,7 +27,7 @@ type fakeFleetControl struct {
 // fleet-control serves in the registry snapshot.
 func allowlistEntries(t *testing.T, n int) []json.RawMessage {
 	t.Helper()
-	raw, err := os.ReadFile("allowlist.json")
+	raw, err := os.ReadFile("../../allowlist.json")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -84,12 +84,12 @@ func fleetStore(t *testing.T, f *fakeFleetControl) *Store {
 	t.Setenv("FLEET_CONTROL_URL", f.srv.URL)
 	t.Setenv("NAIS_TOKEN_ENDPOINT", f.srv.URL+"/texas")
 	t.Setenv("FLEET_CONTROL_AUDIENCE", "api://dev-gcp.copilot.fleet-control/.default")
-	fleet, err := fleetControlFromEnv()
+	fleet, err := FleetControlFromEnv()
 	if err != nil {
 		t.Fatal(err)
 	}
-	s := NewStore(testConfig(), "allowlist.json", nil)
-	s.fleet = fleet
+	s := NewStore(testConfig(), "../../allowlist.json", nil)
+	s.Fleet = fleet
 	return s
 }
 
@@ -212,7 +212,7 @@ func TestFleetControlFromEnv(t *testing.T) {
 			if tc.override != "" {
 				t.Setenv("REGISTRY_SOURCE", tc.override)
 			}
-			f, err := fleetControlFromEnv()
+			f, err := FleetControlFromEnv()
 			switch {
 			case tc.wantErr != "":
 				if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
@@ -229,7 +229,7 @@ func TestFleetControlFromEnv(t *testing.T) {
 
 func TestFlagOffReadsOnlyAllowlist(t *testing.T) {
 	f := newFakeFleetControl(t)
-	s := NewStore(testConfig(), "allowlist.json", nil)
+	s := NewStore(testConfig(), "../../allowlist.json", nil)
 	before := serverNames(t, s)
 	if err := s.Reload(t.Context()); err != nil {
 		t.Fatal(err)

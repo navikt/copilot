@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	"context"
@@ -9,6 +9,8 @@ import (
 	"os"
 	"sync"
 	"time"
+
+	"github.com/navikt/copilot/mcp-registry/internal/registry"
 )
 
 // DBEntry represents a single row returned from registry_entries.
@@ -35,11 +37,11 @@ type Store struct {
 	allowlistPath string
 	config        *Config
 	loader        EntryLoader
-	fleet         *fleetControlRegistry // nil: static entries come from allowlistPath only
-	static        []ServerResponse
+	Fleet         *FleetControlRegistry // nil: static entries come from allowlistPath only
+	static        []registry.ServerResponse
 	staticNames   map[string]bool
-	dbServers     []ServerResponse
-	cachedServers []ServerResponse
+	dbServers     []registry.ServerResponse
+	cachedServers []registry.ServerResponse
 }
 
 // NewStore creates a new Store instance.
@@ -58,7 +60,7 @@ func NewStore(config *Config, allowlistPath string, loader EntryLoader) *Store {
 	return s
 }
 
-func (s *Store) loadStatic() ([]ServerResponse, map[string]bool, error) {
+func (s *Store) loadStatic() ([]registry.ServerResponse, map[string]bool, error) {
 	data, err := os.ReadFile(s.allowlistPath)
 	if err != nil {
 		return nil, nil, fmt.Errorf("reading static allowlist file: %w", err)
@@ -72,13 +74,13 @@ func (s *Store) loadStatic() ([]ServerResponse, map[string]bool, error) {
 
 // parseStatic validates and converts an allowlist document, from the file or
 // from a fleet-control snapshot (#2641).
-func (s *Store) parseStatic(data []byte, updatedAt time.Time) ([]ServerResponse, map[string]bool, error) {
+func (s *Store) parseStatic(data []byte, updatedAt time.Time) ([]registry.ServerResponse, map[string]bool, error) {
 	// Same validation as startup, so a bad file never replaces the last good set.
-	raw, err := decodeStaticRegistry(data)
+	raw, err := registry.DecodeStaticRegistry(data)
 	if err != nil {
 		return nil, nil, fmt.Errorf("parsing static allowlist JSON: %w", err)
 	}
-	if err = validateRegistry(&raw); err != nil {
+	if err = registry.ValidateRegistry(&raw); err != nil {
 		return nil, nil, fmt.Errorf("validating static allowlist: %w", err)
 	}
 
@@ -86,17 +88,17 @@ func (s *Store) parseStatic(data []byte, updatedAt time.Time) ([]ServerResponse,
 		data = substituteVariables(data, s.config)
 	}
 
-	staticData, err := decodeStaticRegistry(data)
+	staticData, err := registry.DecodeStaticRegistry(data)
 	if err != nil {
 		return nil, nil, fmt.Errorf("parsing static allowlist JSON: %w", err)
 	}
 	if s.config != nil {
-		if err = validateSubstitutedRegistry(&raw, &staticData); err != nil {
+		if err = registry.ValidateSubstitutedRegistry(&raw, &staticData); err != nil {
 			return nil, nil, fmt.Errorf("validating static allowlist after substitution: %w", err)
 		}
 	}
 
-	servers := make([]ServerResponse, 0, len(staticData.Servers))
+	servers := make([]registry.ServerResponse, 0, len(staticData.Servers))
 	names := make(map[string]bool, len(staticData.Servers))
 
 	for _, server := range staticData.Servers {
@@ -107,7 +109,7 @@ func (s *Store) parseStatic(data []byte, updatedAt time.Time) ([]ServerResponse,
 	return servers, names, nil
 }
 
-func serverToResponse(s StaticServerData, defaultUpdatedAt time.Time) ServerResponse {
+func serverToResponse(s registry.StaticServerData, defaultUpdatedAt time.Time) registry.ServerResponse {
 	publishedAt := defaultUpdatedAt
 	if s.PublishedAt != "" {
 		if parsed, err := time.Parse(time.RFC3339, s.PublishedAt); err == nil {
@@ -116,11 +118,11 @@ func serverToResponse(s StaticServerData, defaultUpdatedAt time.Time) ServerResp
 	}
 	status := s.Status
 	if status == "" {
-		status = StatusActive
+		status = registry.StatusActive
 	}
-	return ServerResponse{
-		Server: ServerJSON{
-			Schema:      CurrentSchemaURL,
+	return registry.ServerResponse{
+		Server: registry.ServerJSON{
+			Schema:      registry.CurrentSchemaURL,
 			Name:        s.Name,
 			Title:       s.Title,
 			Description: s.Description,
@@ -131,8 +133,8 @@ func serverToResponse(s StaticServerData, defaultUpdatedAt time.Time) ServerResp
 			Packages:    s.Packages,
 			Meta:        s.Meta,
 		},
-		Meta: ResponseMeta{
-			Official: &RegistryExtensions{
+		Meta: registry.ResponseMeta{
+			Official: &registry.Extensions{
 				Status:      status,
 				PublishedAt: publishedAt,
 				UpdatedAt:   defaultUpdatedAt,
@@ -143,20 +145,20 @@ func serverToResponse(s StaticServerData, defaultUpdatedAt time.Time) ServerResp
 	}
 }
 
+// ErrDBNotConnected is returned by the loader until the database connects.
+var ErrDBNotConnected = errors.New("database not connected")
+
 // Reload reloads static entries and approved database entries, merging them.
 // On a static load error the last good static set is kept; on a DB error the
 // last good DB set is kept. The DB error is returned.
-// errDBNotConnected is returned by the loader until the database connects.
-var errDBNotConnected = errors.New("database not connected")
-
 func (s *Store) Reload(ctx context.Context) error {
 	s.reloadMu.Lock()
 	defer s.reloadMu.Unlock()
-	var staticServers []ServerResponse
+	var staticServers []registry.ServerResponse
 	var staticNames map[string]bool
 	var staticErr error
-	if s.fleet != nil {
-		staticServers, staticNames, staticErr = s.fleet.load(ctx, s.parseStatic)
+	if s.Fleet != nil {
+		staticServers, staticNames, staticErr = s.Fleet.load(ctx, s.parseStatic)
 	} else {
 		staticServers, staticNames, staticErr = s.loadStatic()
 	}
@@ -164,7 +166,7 @@ func (s *Store) Reload(ctx context.Context) error {
 		slog.Error("Failed to load static allowlist, keeping last good set", "error", staticErr)
 	}
 
-	var dbServers []ServerResponse
+	var dbServers []registry.ServerResponse
 	var dbErr error
 	var skipDB bool
 	if s.loader != nil {
@@ -172,7 +174,7 @@ func (s *Store) Reload(ctx context.Context) error {
 		entries, err := s.loader(loadCtx)
 		cancel()
 		switch {
-		case errors.Is(err, errDBNotConnected):
+		case errors.Is(err, ErrDBNotConnected):
 			// The first reload runs before connectWithRetry finishes; the connect path reloads again.
 			slog.Debug("Database not connected yet, skipping database entries")
 			skipDB = true
@@ -196,7 +198,7 @@ func (s *Store) Reload(ctx context.Context) error {
 		return fmt.Errorf("loading static allowlist: %w", staticErr)
 	}
 
-	merged := make([]ServerResponse, 0, len(s.static)+len(s.dbServers))
+	merged := make([]registry.ServerResponse, 0, len(s.static)+len(s.dbServers))
 	merged = append(merged, s.static...)
 	for _, sr := range s.dbServers {
 		if s.staticNames[sr.Server.Name] {
@@ -212,15 +214,15 @@ func (s *Store) Reload(ctx context.Context) error {
 
 // dbEntriesToResponses validates DB rows with the submission validator and
 // converts them. Rows that fail are dropped and counted.
-func dbEntriesToResponses(entries []DBEntry) []ServerResponse {
-	var out []ServerResponse
+func dbEntriesToResponses(entries []DBEntry) []registry.ServerResponse {
+	var out []registry.ServerResponse
 	for _, entry := range entries {
 		if !json.Valid(entry.Entry) {
 			slog.Warn("Failed to parse database registry entry, dropping", "server", entry.Name)
 			recordDBDropped("parse")
 			continue
 		}
-		sub, _, err := validateSubmission(entry.Entry)
+		sub, _, err := registry.ValidateSubmission(entry.Entry)
 		if err == nil && sub.Name != entry.Name {
 			err = fmt.Errorf("entry name %q does not match row name", sub.Name)
 		}
@@ -229,11 +231,11 @@ func dbEntriesToResponses(entries []DBEntry) []ServerResponse {
 			recordDBDropped("invalid")
 			continue
 		}
-		remotes := make([]Transport, len(sub.Remotes))
+		remotes := make([]registry.Transport, len(sub.Remotes))
 		for i, r := range sub.Remotes {
-			remotes[i] = Transport{Type: r.Type, URL: r.URL}
+			remotes[i] = registry.Transport{Type: r.Type, URL: r.URL}
 		}
-		sr := serverToResponse(StaticServerData{
+		sr := serverToResponse(registry.StaticServerData{
 			Name:        sub.Name,
 			Description: sub.Description,
 			Version:     sub.Version,
@@ -241,26 +243,26 @@ func dbEntriesToResponses(entries []DBEntry) []ServerResponse {
 			Repository:  sub.Repository,
 			Remotes:     remotes,
 		}, entry.UpdatedAt.UTC())
-		sr.Meta.NavRegistry = &NavRegistryMeta{Owner: sub.Owner, Audience: sub.Audience, ProtocolVersions: sub.ProtocolVersions}
+		sr.Meta.NavRegistry = &registry.NavRegistryMeta{Owner: sub.Owner, Audience: sub.Audience, ProtocolVersions: sub.ProtocolVersions}
 		out = append(out, sr)
 	}
 	return out
 }
 
 // GetServers returns all merged server responses.
-func (s *Store) GetServers() ([]ServerResponse, error) {
+func (s *Store) GetServers() ([]registry.ServerResponse, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	if s.cachedServers == nil {
 		return nil, errors.New("no servers available in store")
 	}
-	servers := make([]ServerResponse, len(s.cachedServers))
+	servers := make([]registry.ServerResponse, len(s.cachedServers))
 	copy(servers, s.cachedServers)
 	return servers, nil
 }
 
 // GetServer returns a specific server response matching name and version.
-func (s *Store) GetServer(name, version string) (*ServerResponse, error) {
+func (s *Store) GetServer(name, version string) (*registry.ServerResponse, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	if s.cachedServers == nil {

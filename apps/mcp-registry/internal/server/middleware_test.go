@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	"net/http"
@@ -58,7 +58,7 @@ func TestLoggingMiddleware_EnabledEndpoint(t *testing.T) {
 	}
 
 	called := false
-	handler := loggingMiddleware(config, func(w http.ResponseWriter, _ *http.Request) {
+	handler := LoggingMiddleware(config, func(w http.ResponseWriter, _ *http.Request) {
 		called = true
 		w.WriteHeader(http.StatusOK)
 	})
@@ -87,7 +87,7 @@ func TestLoggingMiddleware_DisabledEndpoint(t *testing.T) {
 	}
 
 	called := false
-	handler := loggingMiddleware(config, func(w http.ResponseWriter, _ *http.Request) {
+	handler := LoggingMiddleware(config, func(w http.ResponseWriter, _ *http.Request) {
 		called = true
 		w.WriteHeader(http.StatusOK)
 	})

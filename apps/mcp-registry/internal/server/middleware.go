@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	"log/slog"
@@ -29,7 +29,8 @@ func obfuscateHeaders(headers http.Header) map[string]string {
 	return obfuscated
 }
 
-func loggingMiddleware(config *Config, next http.HandlerFunc) http.HandlerFunc {
+// LoggingMiddleware logs requests and records HTTP metrics.
+func LoggingMiddleware(config *Config, next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		loggingEnabled := config.LoggedEndpoints[r.URL.Path]
 		start := time.Now()

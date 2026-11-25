@@ -1,5 +1,5 @@
-// Package main implements the MCP Registry server.
-package main
+// Package server serves the registry API: configuration, storage, and HTTP handlers.
+package server
 
 import (
 	"encoding/json"
@@ -76,7 +76,8 @@ func parseAllowedWriteAZP(raw, preAuthorizedJSON string) []string {
 	return out
 }
 
-func loadConfig() *Config {
+// LoadConfig reads the configuration from the environment.
+func LoadConfig() *Config {
 	dbURL := getDatabaseURL()
 	config := &Config{
 		Port:            getEnv("PORT", "8080"),
@@ -129,7 +130,8 @@ func getDatabaseURL() string {
 	return os.Getenv("DB_URL")
 }
 
-func getEndpointsList(endpoints map[string]bool) []string {
+// GetEndpointsList returns the enabled endpoint paths.
+func GetEndpointsList(endpoints map[string]bool) []string {
 	list := make([]string, 0, len(endpoints))
 	for endpoint := range endpoints {
 		list = append(list, endpoint)

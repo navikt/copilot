@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	"context"
@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/navikt/copilot/mcp-registry/internal/auth"
 )
 
 const (
@@ -43,24 +44,24 @@ func setupTestDB(t *testing.T) *DB {
 	return db
 }
 
-func testMux(cfg *Config, db *DB, introspect IntrospectFunc) *http.ServeMux {
+func testMux(cfg *Config, db *DB, introspect auth.IntrospectFunc) *http.ServeMux {
 	ref := &atomic.Pointer[DB]{}
 	ref.Store(db)
 	mux := http.NewServeMux()
-	mux.HandleFunc("POST /api/v1/entries", makeSubmitHandler(cfg, ref, introspect))
-	mux.HandleFunc("POST /api/v1/entries/{name...}", makeEntryActionHandler(cfg, ref, introspect))
+	mux.HandleFunc("POST /api/v1/entries", MakeSubmitHandler(cfg, ref, introspect))
+	mux.HandleFunc("POST /api/v1/entries/{name...}", MakeEntryActionHandler(cfg, ref, introspect))
 	return mux
 }
 
 // testFakeIntrospect accepts "token-<user>" with NAVident <user> and azp
 // testWriterAZP; users starting with "admin" are in testAdminGroup.
-func testFakeIntrospect() IntrospectFunc {
-	return func(_ context.Context, token string) (*IntrospectionResult, error) {
+func testFakeIntrospect() auth.IntrospectFunc {
+	return func(_ context.Context, token string) (*auth.IntrospectionResult, error) {
 		user, ok := strings.CutPrefix(token, "token-")
 		if !ok {
-			return &IntrospectionResult{Active: false}, nil
+			return &auth.IntrospectionResult{Active: false}, nil
 		}
-		res := &IntrospectionResult{Active: true, NAVident: user, Azp: testWriterAZP}
+		res := &auth.IntrospectionResult{Active: true, NAVident: user, Azp: testWriterAZP}
 		if strings.HasPrefix(strings.ToLower(user), "admin") {
 			res.Groups = []string{testAdminGroup}
 		}
@@ -680,13 +681,13 @@ func TestPgEnvDSN(t *testing.T) {
 
 	t.Run("skips empty vars", func(t *testing.T) {
 		clearEnv(t, "READWRITE_")
-		if got := pgEnvDSN("READWRITE_"); got != "" {
+		if got := PGEnvDSN("READWRITE_"); got != "" {
 			t.Fatalf("got %q, want empty string", got)
 		}
 		t.Setenv("READWRITE_PGHOST", "127.0.0.1")
 		t.Setenv("READWRITE_PGUSER", "rw")
 		want := "host='127.0.0.1' user='rw'"
-		if got := pgEnvDSN("READWRITE_"); got != want {
+		if got := PGEnvDSN("READWRITE_"); got != want {
 			t.Fatalf("got %q, want %q", got, want)
 		}
 	})
@@ -702,7 +703,7 @@ func TestPgEnvDSN(t *testing.T) {
 		t.Setenv("READWRITE_PGSSLKEY", "/tmp/client.key")
 		t.Setenv("READWRITE_PGSSLROOTCERT", "/tmp/ca.crt")
 
-		got := pgEnvDSN("READWRITE_")
+		got := PGEnvDSN("READWRITE_")
 		want := `host='db.local' port='5432' dbname='app\'s\\db' user='user\\name\'1' sslmode='verify-full' sslcert='/tmp/a\'b\\c.crt' sslkey='/tmp/client.key' sslrootcert='/tmp/ca.crt'`
 		if got != want {
 			t.Fatalf("got  %q\nwant %q", got, want)
@@ -717,7 +718,7 @@ func TestPgEnvDSN(t *testing.T) {
 		t.Setenv("READWRITE_PGUSER", `user\name'1`)
 		t.Setenv("READWRITE_PGSSLMODE", "disable")
 
-		dsn := pgEnvDSN("READWRITE_")
+		dsn := PGEnvDSN("READWRITE_")
 		cfg, err := pgxpool.ParseConfig(dsn)
 		if err != nil {
 			t.Fatalf("ParseConfig(%q): %v", dsn, err)

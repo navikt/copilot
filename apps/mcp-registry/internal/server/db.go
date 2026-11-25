@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	"context"
@@ -61,7 +61,8 @@ func OpenDB(ctx context.Context, dbURL string) (*DB, error) {
 
 var pgEnvReplacer = strings.NewReplacer(`\`, `\\`, `'`, `\'`)
 
-func pgEnvDSN(prefix string) string {
+// PGEnvDSN builds a DSN from the Nais env vars that share the given prefix.
+func PGEnvDSN(prefix string) string {
 	vars := []struct {
 		env string
 		key string
@@ -244,7 +245,6 @@ func (s *DB) Submit(ctx context.Context, actor string, entryJSON []byte, name st
 		return 0, ErrForbidden
 	}
 
-	// Compute MAX(version) after the locks
 	var maxVersion int
 	err = tx.QueryRow(ctx, `
 		SELECT COALESCE(MAX(version), 0)
@@ -266,7 +266,6 @@ func (s *DB) Submit(ctx context.Context, actor string, entryJSON []byte, name st
 		return 0, fmt.Errorf("inserting entry version: %w", err)
 	}
 
-	// Lock and check current entry row
 	var currentStatus string
 	var supersededVersion *int
 	var currentVersion int
@@ -370,8 +369,8 @@ func (s *DB) PurgeExpired(ctx context.Context) error {
 	return nil
 }
 
-// runRetention calls PurgeExpired on every tick until ctx is done.
-func runRetention(ctx context.Context, db *DB, ticks <-chan time.Time) {
+// RunRetention calls PurgeExpired on every tick until ctx is done.
+func RunRetention(ctx context.Context, db *DB, ticks <-chan time.Time) {
 	for {
 		if err := db.PurgeExpired(ctx); err != nil && ctx.Err() == nil {
 			slog.Warn("Retention purge failed", "error", err)
@@ -426,7 +425,6 @@ func (s *DB) Approve(ctx context.Context, actor, name string, version int) error
 		return fmt.Errorf("%w: version %d is not the pending version (%d)", ErrConflict, version, pendingVer)
 	}
 
-	// Fetch version entry
 	var entryJSON []byte
 	err = tx.QueryRow(ctx, `
 		SELECT entry
@@ -440,7 +438,6 @@ func (s *DB) Approve(ctx context.Context, actor, name string, version int) error
 		return fmt.Errorf("fetching version entry: %w", err)
 	}
 
-	// Update registry_entries with approved version
 	_, err = tx.Exec(ctx, `
 		UPDATE registry_entries
 		SET status = 'approved',

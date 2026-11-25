@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	"bytes"
@@ -9,6 +9,8 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/navikt/copilot/mcp-registry/internal/auth"
 )
 
 func TestHandlers_NoDatabaseReturns503(t *testing.T) {
@@ -35,7 +37,7 @@ func TestIntrospectorSendsEntraID(t *testing.T) {
 		_, _ = w.Write([]byte(`{"active":true,"azp":"c1","NAVident":"A1","groups":["g1"]}`))
 	}))
 	defer srv.Close()
-	res, err := newTexasIntrospector(srv.URL)(t.Context(), "tok")
+	res, err := auth.NewTexasIntrospector(srv.URL)(t.Context(), "tok")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -52,30 +54,30 @@ func TestIntrospectorSendsEntraID(t *testing.T) {
 
 func TestHandlers_Authentication(t *testing.T) {
 	cfg := &Config{AdminGroupID: testAdminGroup, AllowedWriteAZP: []string{testWriterAZP}}
-	introspect := func(_ context.Context, token string) (*IntrospectionResult, error) {
+	introspect := func(_ context.Context, token string) (*auth.IntrospectionResult, error) {
 		switch token {
 		case "valid-user":
-			return &IntrospectionResult{
+			return &auth.IntrospectionResult{
 				Active:   true,
 				NAVident: " a123456 ",
 			}, nil
 		case "app-token":
-			return &IntrospectionResult{
+			return &auth.IntrospectionResult{
 				Active:   true,
 				IDType:   "app",
 				NAVident: "A123456",
 			}, nil
 		case "no-navident":
-			return &IntrospectionResult{
+			return &auth.IntrospectionResult{
 				Active:   true,
 				NAVident: "",
 			}, nil
 		case "inactive-token":
-			return &IntrospectionResult{
+			return &auth.IntrospectionResult{
 				Active: false,
 			}, nil
 		default:
-			return &IntrospectionResult{Active: false}, nil
+			return &auth.IntrospectionResult{Active: false}, nil
 		}
 	}
 
@@ -150,7 +152,7 @@ func TestHandlers_Authentication(t *testing.T) {
 	t.Run("actor is the uppercased NAVident", func(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/entries", nil)
 		req.Header.Set("Authorization", "Bearer valid-user")
-		caller, err := authenticate(req, introspect)
+		caller, err := auth.Authenticate(req, introspect)
 		if err != nil {
 			t.Fatalf("unexpected authenticate error: %v", err)
 		}
@@ -162,8 +164,8 @@ func TestHandlers_Authentication(t *testing.T) {
 
 func TestHandlers_SubmitValidationFailures(t *testing.T) {
 	cfg := &Config{AdminGroupID: testAdminGroup, AllowedWriteAZP: []string{testWriterAZP}}
-	introspect := func(_ context.Context, _ string) (*IntrospectionResult, error) {
-		return &IntrospectionResult{
+	introspect := func(_ context.Context, _ string) (*auth.IntrospectionResult, error) {
+		return &auth.IntrospectionResult{
 			Active:   true,
 			NAVident: "A123456",
 			Azp:      testWriterAZP,
