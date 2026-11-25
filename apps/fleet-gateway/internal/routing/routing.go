@@ -14,7 +14,7 @@ import (
 	"regexp"
 	"strings"
 
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v3"
 )
 
 // File is the versioned pilot route list loaded at startup.
