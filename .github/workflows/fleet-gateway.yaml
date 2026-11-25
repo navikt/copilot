@@ -5,12 +5,14 @@ on:
     branches: [main]
     paths:
       - 'apps/fleet-gateway/**'
+      - 'apps/fleet-control/testdata/validator_contract.json'
       - '.github/workflows/fleet-gateway.yaml'
       - '.github/workflows/mise-build-deploy-nais.yaml'
   pull_request:
     branches: [main]
     paths:
       - 'apps/fleet-gateway/**'
+      - 'apps/fleet-control/testdata/validator_contract.json'
       - '.github/workflows/fleet-gateway.yaml'
       - '.github/workflows/mise-build-deploy-nais.yaml'
   workflow_dispatch:
