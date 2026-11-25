@@ -68,7 +68,7 @@ const (
 	rtStorageNone            = "none"
 	rtStorageClientEncrypted = "client-encrypted"
 	// rtStorageServer keeps the Entra refresh token inside the session in the store
-	// (existing StrategyRefresh behaviour) and issues NO gateway refresh token
+	// (existing teamtoken.Refresh behaviour) and issues NO gateway refresh token
 	// (cplt re-logs in when the access token expires).
 	rtStorageServer = "server"
 )

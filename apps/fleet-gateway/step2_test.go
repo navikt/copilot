@@ -1041,12 +1041,6 @@ func TestProxy_SSEBounds_And_NonSSEResponseLimit(t *testing.T) {
 	})
 }
 
-func TestEntraScopeForTarget(t *testing.T) {
-	if got := entraScopeForTarget("dev-gcp:copilot:fleet-echo"); got != "api://dev-gcp.copilot.fleet-echo/.default" {
-		t.Fatalf("entraScopeForTarget = %q, want %q", got, "api://dev-gcp.copilot.fleet-echo/.default")
-	}
-}
-
 func TestProxy_KillSwitch(t *testing.T) {
 	setBaseValidEnv(t)
 	t.Setenv("GATEWAY_DISABLED", "not-a-bool")

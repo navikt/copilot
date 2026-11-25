@@ -24,6 +24,7 @@ import (
 	"github.com/navikt/copilot/fleet-gateway/internal/oauth"
 	"github.com/navikt/copilot/fleet-gateway/internal/policy"
 	"github.com/navikt/copilot/fleet-gateway/internal/routing"
+	"github.com/navikt/copilot/fleet-gateway/internal/teamtoken"
 )
 
 const (
@@ -408,7 +409,7 @@ func (g *Gateway) mcpHandler(route routing.Route) http.HandlerFunc {
 
 		teamToken, err := g.TeamTokens.TeamToken(r.Context(), tokenHash, route)
 		if err != nil {
-			var missingAccess *upstreamAccessMissingError
+			var missingAccess *teamtoken.AccessMissingError
 			if errors.As(err, &missingAccess) {
 				outcome = "upstream_access_missing"
 				httpx.WriteJSON(w, http.StatusBadGateway, map[string]string{
