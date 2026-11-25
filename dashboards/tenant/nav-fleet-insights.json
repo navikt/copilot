@@ -113,6 +113,36 @@
           }
         ],
         "description": "k8s_cluster_name: dev-gcp or prod-gcp."
+      },
+      {
+        "name": "route",
+        "label": "Route",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "${DS_METRICS}"
+        },
+        "query": {
+          "query": "label_values(fleet_gateway_mcp_requests_total{namespace=\"copilot\", k8s_cluster_name=~\"$env\"}, route)",
+          "refId": "route"
+        },
+        "definition": "label_values(fleet_gateway_mcp_requests_total{namespace=\"copilot\", k8s_cluster_name=~\"$env\"}, route)",
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "refresh": 2,
+        "sort": 1,
+        "regex": "",
+        "options": []
       }
     ]
   },
@@ -176,7 +206,7 @@
       },
       "targets": [
         {
-          "expr": "round(sum(increase(fleet_gateway_mcp_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app=\"fleet-gateway\"}[$__range])))",
+          "expr": "round(sum(increase(fleet_gateway_mcp_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", route=~\"$route\", app=\"fleet-gateway\"}[$__range])))",
           "legendFormat": "",
           "refId": "A"
         }
@@ -294,7 +324,7 @@
       },
       "targets": [
         {
-          "expr": "count(sum by (route) (increase(fleet_gateway_mcp_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app=\"fleet-gateway\"}[$__range])) > 0)",
+          "expr": "count(sum by (route) (increase(fleet_gateway_mcp_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", route=~\"$route\", app=\"fleet-gateway\"}[$__range])) > 0)",
           "legendFormat": "",
           "refId": "A"
         }
@@ -421,7 +451,7 @@
       },
       "targets": [
         {
-          "expr": "sum by (route) (increase(fleet_gateway_mcp_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app=\"fleet-gateway\"}[$__interval]))",
+          "expr": "sum by (route) (increase(fleet_gateway_mcp_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", route=~\"$route\", app=\"fleet-gateway\"}[$__interval]))",
           "legendFormat": "{{route}}",
           "refId": "A"
         }
@@ -477,7 +507,7 @@
       },
       "targets": [
         {
-          "expr": "sum by (tool) (increase(fleet_gateway_mcp_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", app=\"fleet-gateway\", tool!=\"\"}[$__interval]))",
+          "expr": "sum by (tool) (increase(fleet_gateway_mcp_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", route=~\"$route\", app=\"fleet-gateway\", tool!=\"\"}[$__interval]))",
           "legendFormat": "{{tool}}",
           "refId": "A"
         }
