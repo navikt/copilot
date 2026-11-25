@@ -4,7 +4,7 @@
 // are undefined when read off a client reference in a server component.
 import NextLink from "next/link";
 import { useRouter } from "next/navigation";
-import { useState, type FormEvent, type ReactNode } from "react";
+import { useRef, useState, type FormEvent, type ReactNode } from "react";
 import {
   Alert,
   BodyLong,
@@ -12,7 +12,12 @@ import {
   Box,
   Button,
   Checkbox,
+  CopyButton,
   ExpansionCard,
+  HStack,
+  Modal,
+  Radio,
+  RadioGroup,
   Link,
   ReadMore,
   Heading,
@@ -26,7 +31,7 @@ import {
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { hasCondition, refKey } from "@/lib/fleet-names";
-import type { AgentProfile, AuditEvent, FleetProblem, MCPServer, MCPServerSpec } from "@/lib/fleet-control";
+import type { AgentProfile, AuditEvent, FleetProblem, MCPServer, MCPServerSpec, ServerRef } from "@/lib/fleet-control";
 
 const linkClass = "text-blue-600 hover:underline";
 
@@ -211,6 +216,84 @@ export function TeamSections({ teams }: { teams: TeamData[] }) {
 const awaiting = (p: AgentProfile) =>
   (p.status.grants ?? []).filter((g) => !g.granted && !g.grantedAt).map((g) => `MCP-server ${refKey(g.serverRef)}`);
 
+/** Grants on the pending generation that the owner team has not given yet; only those can be given. */
+export const waitingGrants = (p: AgentProfile) =>
+  p.status.pending ? (p.status.grants ?? []).filter((g) => !g.granted && !g.grantedAt && g.contentHash) : [];
+
+/** «Gi tilgang»: the owner team of the MCP server grants the agent profile access. fleet-control checks the team. */
+export function GrantAccess({
+  profile,
+  serverRef,
+  withServerName,
+}: {
+  profile: AgentProfile;
+  serverRef: ServerRef;
+  withServerName?: boolean;
+}) {
+  const grant = useFleetPost("grant");
+  const hash = profile.status.grants?.find((g) => refKey(g.serverRef) === refKey(serverRef))?.contentHash;
+  if (!profile.status.pending || !hash) return null;
+  return (
+    <form onSubmit={grant.onSubmit}>
+      <VStack gap="space-8" align="start">
+        <input type="hidden" name="namespace" value={profile.metadata.namespace} />
+        <input type="hidden" name="name" value={profile.metadata.name} />
+        <input type="hidden" name="serverNamespace" value={serverRef.namespace} />
+        <input type="hidden" name="serverName" value={serverRef.name} />
+        <input type="hidden" name="generation" value={profile.status.pending.generation} />
+        <input type="hidden" name="contentHash" value={hash} />
+        <ActionError error={grant.error} />
+        <Button size="small" variant="secondary" loading={grant.busy}>
+          {withServerName ? `Gi tilgang til ${serverRef.name}` : "Gi tilgang"}
+        </Button>
+      </VStack>
+    </form>
+  );
+}
+
+/** The agent profiles that wait for this MCP server's owner team. */
+function WaitingForAccess({ server, agents }: { server: MCPServer; agents: AgentProfile[] }) {
+  const key = refKey(server.metadata);
+  const waiting = agents.filter((a) => waitingGrants(a).some((g) => refKey(g.serverRef) === key));
+  if (!waiting.length) return null;
+  return (
+    <VStack gap="space-8">
+      <Heading level="2" size="small">
+        Venter på tilgang
+      </Heading>
+      <BodyShort>
+        Disse agentprofilene vil bruke MCP-serveren. Når du gir tilgang, kan agentene bruke verktøyene.
+      </BodyShort>
+      <Table size="small" aria-label="Agentprofiler som venter på tilgang">
+        <Table.Header>
+          <Table.Row>
+            <Table.HeaderCell scope="col">Agentprofil</Table.HeaderCell>
+            <Table.HeaderCell scope="col">Verktøy</Table.HeaderCell>
+            <Table.HeaderCell scope="col">Handling</Table.HeaderCell>
+          </Table.Row>
+        </Table.Header>
+        <Table.Body>
+          {waiting.map((a) => (
+            <Table.Row key={refKey(a.metadata)}>
+              <Table.DataCell>
+                <NextLink className={linkClass} href={`/fleet/agenter/${refKey(a.metadata)}`}>
+                  {refKey(a.metadata)}
+                </NextLink>
+              </Table.DataCell>
+              <Table.DataCell>
+                {a.spec.grants?.find((g) => refKey(g.serverRef) === key)?.allowedTools.join(", ") || "–"}
+              </Table.DataCell>
+              <Table.DataCell>
+                <GrantAccess profile={a} serverRef={{ group: "fleet.nav.no", kind: "MCPServer", ...server.metadata }} />
+              </Table.DataCell>
+            </Table.Row>
+          ))}
+        </Table.Body>
+      </Table>
+    </VStack>
+  );
+}
+
 export function PendingInbox({ agents }: { agents: AgentProfile[] }) {
   return (
     <VStack gap="space-8">
@@ -226,6 +309,7 @@ export function PendingInbox({ agents }: { agents: AgentProfile[] }) {
               <Table.HeaderCell scope="col">Agentprofil</Table.HeaderCell>
               <Table.HeaderCell scope="col">Fra team</Table.HeaderCell>
               <Table.HeaderCell scope="col">Venter på tilgang</Table.HeaderCell>
+              <Table.HeaderCell scope="col">Handling</Table.HeaderCell>
             </Table.Row>
           </Table.Header>
           <Table.Body>
@@ -238,6 +322,13 @@ export function PendingInbox({ agents }: { agents: AgentProfile[] }) {
                 </Table.DataCell>
                 <Table.DataCell>{a.metadata.namespace}</Table.DataCell>
                 <Table.DataCell>{awaiting(a).join(", ")}</Table.DataCell>
+                <Table.DataCell>
+                  <VStack gap="space-8" align="start">
+                    {waitingGrants(a).map((g) => (
+                      <GrantAccess key={refKey(g.serverRef)} profile={a} serverRef={g.serverRef} withServerName />
+                    ))}
+                  </VStack>
+                </Table.DataCell>
               </Table.Row>
             ))}
           </Table.Body>
@@ -315,14 +406,29 @@ export function serverNextStep(s: MCPServer): string {
   if (hasCondition(s, "Revoked"))
     return pending
       ? `En annen person på teamet må godkjenne versjon ${pending} før MCP-serveren blir publisert igjen.`
-      : "Ingen. MCP-serveren er trukket tilbake.";
+      : "Endre MCP-serveren og send inn en ny versjon. Når en annen på teamet har godkjent den, blir MCP-serveren publisert igjen.";
   if (!hasCondition(s, "Published"))
     return "En annen person på teamet må godkjenne utkastet før MCP-serveren blir publisert.";
   if (pending) return `En annen person på teamet må godkjenne versjon ${pending}. Til da gjelder versjon ${published}.`;
   return `Ingen. Versjon ${published} er publisert.`;
 }
 
-export function ServerDetail({ server, events, me }: { server: MCPServer; events: AuditEvent[]; me?: string }) {
+export function ServerDetail({
+  server,
+  events,
+  me,
+  owner = false,
+  agents = [],
+  agentsFailed = false,
+}: {
+  server: MCPServer;
+  events: AuditEvent[];
+  me?: string;
+  // In the owner team: only then the edit form shows. fleet-control checks it again.
+  owner?: boolean;
+  agents?: AgentProfile[];
+  agentsFailed?: boolean;
+}) {
   return (
     <VStack gap="space-16">
       <KortFortalt>
@@ -340,9 +446,17 @@ export function ServerDetail({ server, events, me }: { server: MCPServer; events
           ["Versjon som venter på godkjenning", server.status.pending?.generation ?? "–"],
         ]}
       />
+      {agentsFailed ? (
+        <Alert variant="warning" size="small">
+          Vi fikk ikke hentet agentprofilene som venter på tilgang. Last inn siden på nytt.
+        </Alert>
+      ) : (
+        <WaitingForAccess server={server} agents={agents} />
+      )}
+      <AccessPolicy app={(server.status.pending?.spec ?? server.spec)?.upstream?.app} />
       <ServerDocs spec={server.status.pending?.spec ?? server.spec} />
       {server.status.pending?.spec && <Versjoner server={server} next={server.status.pending.spec} />}
-      <ServerActions server={server} me={me} />
+      <ServerActions server={server} me={me} owner={owner} />
       <Historikk events={events} />
     </VStack>
   );
@@ -511,9 +625,69 @@ const ActionError = ({ error }: { error?: FleetError }) =>
     </Alert>
   ) : null;
 
-function ServerActions({ server, me }: { server: MCPServer; me?: string }) {
+/**
+ * A form whose submit button asks first in a Modal. The Modal's button submits the form,
+ * so the request and its error handling stay those of useFleetPost.
+ */
+function ConfirmForm({
+  onSubmit,
+  heading,
+  question,
+  confirm,
+  busy,
+  children,
+}: {
+  onSubmit: (e: FormEvent<HTMLFormElement>) => void;
+  heading: string;
+  question: ReactNode;
+  confirm: string;
+  busy: boolean;
+  children: ReactNode;
+}) {
+  const form = useRef<HTMLFormElement>(null);
+  const [open, setOpen] = useState(false);
+  return (
+    <form ref={form} onSubmit={onSubmit}>
+      <VStack gap="space-8" align="start">
+        {children}
+        <Button
+          type="button"
+          size="small"
+          variant="danger"
+          loading={busy}
+          onClick={() => form.current?.reportValidity() && setOpen(true)}
+        >
+          {confirm}
+        </Button>
+      </VStack>
+      <Modal open={open} onClose={() => setOpen(false)} header={{ heading }} width="small">
+        <Modal.Body>
+          <BodyLong>{question}</BodyLong>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button
+            type="button"
+            variant="danger"
+            onClick={() => {
+              setOpen(false);
+              form.current?.requestSubmit();
+            }}
+          >
+            {confirm}
+          </Button>
+          <Button type="button" variant="secondary" onClick={() => setOpen(false)}>
+            Avbryt
+          </Button>
+        </Modal.Footer>
+      </Modal>
+    </form>
+  );
+}
+
+function ServerActions({ server, me, owner }: { server: MCPServer; me?: string; owner: boolean }) {
   const approve = useFleetPost("approve");
   const revoke = useFleetPost("revoke");
+  const live = hasCondition(server, "Published") && !hasCondition(server, "Revoked");
   const { namespace, name } = server.metadata;
   const pending = server.status.pending;
   // Hides the button only; fleet-control enforces the two-person rule on approval.
@@ -548,83 +722,185 @@ function ServerActions({ server, me }: { server: MCPServer; me?: string }) {
           </VStack>
         </form>
       )}
-      {hasCondition(server, "Published") && !hasCondition(server, "Revoked") && (
-        <form onSubmit={revoke.onSubmit}>
-          <VStack gap="space-8" align="start">
-            <Heading level="2" size="small">
-              Trekk tilbake
-            </Heading>
-            <BodyShort>Ingen kan bruke MCP-serveren etterpå. Du trenger ikke godkjenning fra andre.</BodyShort>
-            {ids}
-            <Textarea label="Begrunnelse" name="reason" maxLength={500} required />
-            <Checkbox name="block">
-              Blokker innholdet for godt. Det kan aldri sendes inn eller publiseres igjen, heller ikke som forrige
-              versjon.
-            </Checkbox>
-            <ActionError error={revoke.error} />
-            <Button size="small" variant="danger" loading={revoke.busy}>
-              Trekk tilbake
-            </Button>
-          </VStack>
-        </form>
+      {live && (
+        <ConfirmForm
+          onSubmit={revoke.onSubmit}
+          heading={`Trekk tilbake ${name}?`}
+          question="Ingen kan bruke MCP-serveren etterpå, og agentene mister tilgangen. For å publisere den igjen må dere sende inn en ny versjon som en annen på teamet godkjenner."
+          confirm="Trekk tilbake"
+          busy={revoke.busy}
+        >
+          <Heading level="2" size="small">
+            Trekk tilbake
+          </Heading>
+          <BodyShort>Ingen kan bruke MCP-serveren etterpå. Du trenger ikke godkjenning fra andre.</BodyShort>
+          {ids}
+          <Textarea label="Begrunnelse" name="reason" maxLength={500} required />
+          <Checkbox name="block">
+            Sperr denne versjonen for alltid. Den kan aldri sendes inn eller publiseres igjen, heller ikke ved
+            tilbakerulling.
+          </Checkbox>
+          <ActionError error={revoke.error} />
+        </ConfirmForm>
+      )}
+      {owner && live && (
+        <VStack gap="space-8">
+          <Heading level="2" size="small">
+            Har MCP-serveren et problem?
+          </Heading>
+          <BodyLong>
+            Trekk den tilbake ovenfor hvis ingen skal bruke den. Er feil i oppsettet, endre MCP-serveren og send inn en
+            ny versjon. Er feilen i koden til appen, ruller dere tilbake appen i Nais. Haster det for alle, kan
+            plattformteamet bruke nødstopp i fleet-gateway.
+          </BodyLong>
+        </VStack>
+      )}
+      {owner && (
+        <ExpansionCard aria-label="Endre MCP-serveren" size="small">
+          <ExpansionCard.Header>
+            <ExpansionCard.Title as="h2" size="small">
+              Endre MCP-serveren
+            </ExpansionCard.Title>
+            <ExpansionCard.Description>
+              Endringen blir en ny versjon. En annen på {server.metadata.namespace} må godkjenne den før den gjelder.
+            </ExpansionCard.Description>
+          </ExpansionCard.Header>
+          <ExpansionCard.Content>
+            <ServerForm server={server} />
+          </ExpansionCard.Content>
+        </ExpansionCard>
       )}
     </VStack>
   );
 }
 
-export function RegisterForm({ teams }: { teams: string[] }) {
-  const register = useFleetPost("register");
+const FLEET_GATEWAY_POLICY = `spec:
+  accessPolicy:
+    inbound:
+      rules:
+        - application: fleet-gateway
+          namespace: copilot`;
+
+/** Item 6 in #2920: what the app's nais.yaml needs before fleet-gateway can reach it. */
+export function AccessPolicy({ app }: { app?: string }) {
   return (
-    <form onSubmit={register.onSubmit}>
+    <VStack gap="space-8">
+      <Heading level="2" size="small">
+        Slipp inn fleet-gateway
+      </Heading>
+      <BodyLong>
+        fleet-gateway kaller {app ? <code>{app}</code> : "appen"} på den interne adressen. Det virker bare hvis appen
+        slipper inn fleet-gateway i <code>accessPolicy.inbound</code>. Fleet kan ikke sjekke dette ennå, så sjekk selv
+        at <code>nais.yaml</code> har dette:
+      </BodyLong>
+      <Box background="neutral-soft" padding="space-12" borderRadius="8">
+        <HStack gap="space-8" justify="space-between" align="start" wrap={false}>
+          <pre className="overflow-x-auto">
+            <code>{FLEET_GATEWAY_POLICY}</code>
+          </pre>
+          <CopyButton copyText={FLEET_GATEWAY_POLICY} text="Kopier" activeText="Kopiert" size="small" />
+        </HStack>
+      </Box>
+      <BodyShort size="small">Mangler regelen, svarer fleet-gateway med feil når agentene kaller verktøyene.</BodyShort>
+    </VStack>
+  );
+}
+
+const DATA_CATEGORIES: [string, string, string][] = [
+  ["Aapen", "Åpen", "Kan deles med alle, også utenfor Nav. For eksempel offentlige kodeverk og regelverk."],
+  [
+    "Intern",
+    "Intern",
+    "For ansatte i Nav. Ikke personopplysninger og ikke taushetsbelagt. For eksempel interne rutiner og systemdokumentasjon.",
+  ],
+  [
+    "Fortrolig",
+    "Fortrolig",
+    "Kan skade personer eller Nav hvis det kommer på avveie, for eksempel personopplysninger. Velg Fortrolig hvis du er i tvil.",
+  ],
+];
+
+/** Register a new MCP server, or with server: edit it, which submits a new version for approval. */
+export function ServerForm({ teams = [], server }: { teams?: string[]; server?: MCPServer }) {
+  const post = useFleetPost(server ? "edit" : "register");
+  const spec = server?.status.pending?.spec ?? server?.spec;
+  const err = post.error?.fields;
+  return (
+    <form onSubmit={post.onSubmit}>
       <VStack gap="space-16" align="start">
-        <Select label="Team" name="namespace" required>
-          {teams.map((t) => (
-            <option key={t} value={t}>
-              {t}
-            </option>
-          ))}
-        </Select>
-        <TextField
-          label="Navn"
-          name="name"
-          error={register.error?.fields?.name}
-          description="Små bokstaver, tall og bindestrek."
-          required
-        />
+        {server ? (
+          <>
+            <input type="hidden" name="namespace" value={server.metadata.namespace} />
+            <input type="hidden" name="name" value={server.metadata.name} />
+            <input type="hidden" name="resourceVersion" value={server.metadata.resourceVersion ?? ""} />
+          </>
+        ) : (
+          <>
+            <Select label="Team" name="namespace" required>
+              {teams.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </Select>
+            <TextField
+              label="Navn"
+              name="name"
+              error={err?.name}
+              description="Små bokstaver, tall og bindestrek."
+              required
+            />
+          </>
+        )}
         <TextField
           label="App"
           name="app"
-          error={register.error?.fields?.app}
+          defaultValue={spec?.upstream?.app}
+          error={err?.app}
           description="Nais-appen som kjører MCP-serveren."
           required
         />
         <TextField
-          label="Adresse til appen"
+          label="Intern adresse"
           name="url"
-          error={register.error?.fields?.url}
+          defaultValue={spec?.upstream?.url}
+          error={err?.url}
           description="For eksempel http://min-app.mitt-team/mcp eller http://min-app.mitt-team.svc.cluster.local/mcp"
           required
         />
         <Textarea
           label="Verktøy"
           name="tools"
-          error={register.error?.fields?.tools}
+          defaultValue={spec?.allowedTools?.join("\n")}
+          error={err?.tools}
           description="Verktøyene som skal være tilgjengelige, ett per linje."
           required
         />
         <Textarea
           label="Beskrivelse (valgfritt)"
           name="readme"
-          error={register.error?.fields?.readme}
+          defaultValue={spec?.readme}
+          error={err?.readme}
           description="Fortell hva MCP-serveren gjør og hvordan den brukes. Du kan bruke Markdown. Høyst 64 KiB."
         />
-        <Select label="Datakategori" name="dataCategory" error={register.error?.fields?.dataCategory} required>
-          <option value="Intern">Intern</option>
-          <option value="Aapen">Åpen</option>
-          <option value="Fortrolig">Fortrolig</option>
-        </Select>
-        <ActionError error={register.error} />
-        <Button loading={register.busy}>Send inn til godkjenning</Button>
+        <RadioGroup
+          legend="Hva slags data gir verktøyene ut?"
+          name="dataCategory"
+          defaultValue={spec?.dataCategory}
+          error={err?.dataCategory}
+          description="Velg den strengeste kategorien som passer. Strengt fortrolig krever egen risikovurdering og godkjenning først."
+        >
+          {DATA_CATEGORIES.map(([value, label, help]) => (
+            <Radio key={value} value={value} description={help}>
+              {label}
+            </Radio>
+          ))}
+        </RadioGroup>
+        {!server && <AccessPolicy />}
+        <ActionError error={post.error} />
+        <Button loading={post.busy}>
+          {server ? "Send inn ny versjon til godkjenning" : "Send inn til godkjenning"}
+        </Button>
       </VStack>
     </form>
   );

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { BodyLong } from "@navikt/ds-react";
 import { fleetApi, fleetLoad, requireFleet } from "@/lib/fleet-control";
 import { FleetFrame, fleetRobots } from "../frame";
-import { FleetProblemAlert, KortFortalt, RegisterForm } from "../fleet-ui";
+import { FleetProblemAlert, KortFortalt, ServerForm } from "../fleet-ui";
 
 export const metadata: Metadata = { title: "Registrer MCP-server", robots: fleetRobots };
 
@@ -22,7 +22,7 @@ export default async function RegisterPage() {
       ) : result.data.teams.length === 0 ? (
         <BodyLong>Du må være med i et team i Nais for å registrere en MCP-server.</BodyLong>
       ) : (
-        <RegisterForm teams={result.data.teams} />
+        <ServerForm teams={result.data.teams} />
       )}
     </FleetFrame>
   );

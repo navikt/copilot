@@ -23,8 +23,22 @@ export default async function ServerPage({ params }: Props) {
       throw err;
     });
     if (!server) return { owner: false as const, entry: await fleetApi.catalogEntry(namespace, name) };
-    const [history, me] = await Promise.all([fleetApi.history("mcpservers", namespace, name), fleetApi.whoami()]);
-    return { owner: true as const, server, events: history.items, me: me.name };
+    const [history, me, pending] = await Promise.all([
+      fleetApi.history("mcpservers", namespace, name),
+      fleetApi.whoami(),
+      // The agent profiles waiting for «gi tilgang»; a failure shows a warning, not an empty list.
+      fleetApi.pending().catch(() => null),
+    ]);
+    return {
+      owner: true as const,
+      server,
+      events: history.items,
+      me: me.name,
+      // The platform team also sees the server; only the owner team gets the edit form.
+      inTeam: me.teams.includes(namespace),
+      agents: pending?.items ?? [],
+      agentsFailed: pending === null,
+    };
   });
 
   return (
@@ -34,7 +48,14 @@ export default async function ServerPage({ params }: Props) {
       ) : !result.data.owner ? (
         <ServerReadOnly entry={result.data.entry} />
       ) : (
-        <ServerDetail server={result.data.server} events={result.data.events} me={result.data.me} />
+        <ServerDetail
+          server={result.data.server}
+          events={result.data.events}
+          me={result.data.me}
+          owner={result.data.inTeam}
+          agents={result.data.agents}
+          agentsFailed={result.data.agentsFailed}
+        />
       )}
     </FleetFrame>
   );
