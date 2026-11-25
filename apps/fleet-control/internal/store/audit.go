@@ -1,4 +1,6 @@
-package main
+// Package store holds fleet-control's Postgres access: for now the audit_events
+// writer and the tracer that logs committed audit rows.
+package store
 
 import (
 	"context"
@@ -12,19 +14,19 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-// auditRow is one audit_events row. Nil pointers and empty actor or
+// AuditRow is one audit_events row. Nil pointers and empty actor or
 // resource kind, oid and client id are stored as NULL.
-type auditRow struct {
+type AuditRow struct {
 	Actor, ActorKind, ActorOid, ActorClientID string
 	Action, ResourceKind, Namespace, Name     string
 	Version, Generation                       *int
 	Detail                                    any
 }
 
-// insertAudit is the only writer of audit_events. The `audit fleet-control`
-// line is logged by auditTracer once the transaction commits, so Loki holds
+// InsertAudit is the only writer of audit_events. The `audit fleet-control`
+// line is logged by AuditTracer once the transaction commits, so Loki holds
 // the trail after the database prunes it (#2762).
-func insertAudit(ctx context.Context, tx pgx.Tx, r auditRow) error {
+func InsertAudit(ctx context.Context, tx pgx.Tx, r AuditRow) error {
 	var detail *string
 	if r.Detail != nil {
 		raw, err := json.Marshal(r.Detail)
@@ -61,33 +63,34 @@ func insertAudit(ctx context.Context, tx pgx.Tx, r auditRow) error {
 	if err != nil {
 		return err
 	}
-	pendingAudit.add(tx.Conn(), loggedAudit{at, r})
+	PendingAudit.add(tx.Conn(), loggedAudit{at, r})
 	return nil
 }
 
 type loggedAudit struct {
 	at time.Time
-	r  auditRow
+	r  AuditRow
 }
 
-// auditTracer holds inserted rows per connection until the transaction ends:
+// AuditTracer holds inserted rows per connection until the transaction ends:
 // a COMMIT logs them, anything else that ends the transaction drops them.
 // Nested transactions (savepoints) are not used for audited writes.
-type auditTracer struct {
+type AuditTracer struct {
 	mu      sync.Mutex
 	pending map[*pgx.Conn][]loggedAudit
 }
 
-var pendingAudit = &auditTracer{pending: map[*pgx.Conn][]loggedAudit{}}
+// PendingAudit is the tracer OpenDB installs on every pool connection.
+var PendingAudit = &AuditTracer{pending: map[*pgx.Conn][]loggedAudit{}}
 
-// forget frees rows held on a connection the pool destroys mid-transaction.
-func (t *auditTracer) forget(c *pgx.Conn) {
+// Forget frees rows held on a connection the pool destroys mid-transaction.
+func (t *AuditTracer) Forget(c *pgx.Conn) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	delete(t.pending, c)
 }
 
-func (t *auditTracer) add(c *pgx.Conn, e loggedAudit) {
+func (t *AuditTracer) add(c *pgx.Conn, e loggedAudit) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	t.pending[c] = append(t.pending[c], e)
@@ -95,7 +98,8 @@ func (t *auditTracer) add(c *pgx.Conn, e loggedAudit) {
 
 type traceSQL struct{}
 
-func (t *auditTracer) TraceQueryStart(ctx context.Context, _ *pgx.Conn, d pgx.TraceQueryStartData) context.Context {
+// TraceQueryStart marks transaction-ending statements for TraceQueryEnd.
+func (t *AuditTracer) TraceQueryStart(ctx context.Context, _ *pgx.Conn, d pgx.TraceQueryStartData) context.Context {
 	// pgx ends and starts transactions with exactly these lowercase statements.
 	if d.SQL == "commit" || d.SQL == "rollback" || strings.HasPrefix(d.SQL, "begin") {
 		return context.WithValue(ctx, traceSQL{}, d.SQL)
@@ -103,7 +107,8 @@ func (t *auditTracer) TraceQueryStart(ctx context.Context, _ *pgx.Conn, d pgx.Tr
 	return ctx
 }
 
-func (t *auditTracer) TraceQueryEnd(ctx context.Context, c *pgx.Conn, d pgx.TraceQueryEndData) {
+// TraceQueryEnd logs or drops the rows held on c once its transaction ends.
+func (t *AuditTracer) TraceQueryEnd(ctx context.Context, c *pgx.Conn, d pgx.TraceQueryEndData) {
 	sql, _ := ctx.Value(traceSQL{}).(string)
 	if sql == "" {
 		return

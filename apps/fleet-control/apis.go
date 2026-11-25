@@ -210,7 +210,7 @@ func (s *server) apisFor(a *authz, adminClientID string, teams teamDirectory, ki
 		}
 		var db *DB
 		if box := s.store.Load(); box != nil {
-			db, _ = box.store.(*DB)
+			db, _ = box.snapshotStore.(*DB)
 		}
 		if db == nil {
 			writeStatus(w, r, kind, errDBUnavailable)

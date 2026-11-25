@@ -14,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 
 	"github.com/navikt/copilot/fleet-control/internal/canon"
+	"github.com/navikt/copilot/fleet-control/internal/store"
 )
 
 // MCPServerSpec is the v1alpha1 spec. target and path are derived; enabled
@@ -681,7 +682,7 @@ func (d *DB) buildServer(ctx context.Context, row serverRow) (MCPServer, error) 
 // columns. detail never holds an oid. version mirrors generation, so the
 // /admin/v1 audit view keeps working.
 func auditV1(ctx context.Context, tx pgx.Tx, c caller, action, kind, ns, name string, gen *int, detail map[string]any) error {
-	return insertAudit(ctx, tx, auditRow{Actor: c.Ident, ActorKind: c.actor().Kind, ActorOid: c.Oid, ActorClientID: c.Azp,
+	return store.InsertAudit(ctx, tx, store.AuditRow{Actor: c.Ident, ActorKind: c.actor().Kind, ActorOid: c.Oid, ActorClientID: c.Azp,
 		Action: action, ResourceKind: kind, Namespace: ns, Name: name, Version: gen, Generation: gen, Detail: detail})
 }
 
