@@ -48,8 +48,14 @@ func run() error {
 	if err != nil {
 		return err
 	}
-	adminClientID := adminClientFor(cluster, myCopilotID)
+	adminClientID := myCopilotID
 	srv.cluster = cluster
+	if srv.pilotTeams, err = pilotTeamsFromEnv(); err != nil {
+		return err
+	}
+	if !devCluster(cluster) && len(srv.pilotTeams) == 0 {
+		slog.Warn("FLEET_CONTROL_PILOT_TEAMS empty outside dev: every write is refused", "cluster", cluster)
+	}
 	srv.notifier = newSlackNotifier(os.Getenv("FLEET_SLACK_WEBHOOK_URL"))
 	if _, ok := teams.(unboundTeams); ok {
 		srv.teamsUnbound = true
@@ -247,6 +253,8 @@ type server struct {
 	cluster string
 	// operatorTeam may set the global job kill switch.
 	operatorTeam string
+	// pilotTeams may write outside dev-*; see writeAllowed.
+	pilotTeams []string
 	store        atomic.Pointer[storeBox]
 	// lastGood holds the last served snapshot per kind, so a database outage
 	// keeps serving it; after a restart there is none and the answer is 503.

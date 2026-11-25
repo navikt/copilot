@@ -208,6 +208,11 @@ func (s *server) apisFor(a *authz, adminClientID string, teams teamDirectory, ki
 			writeStatus(w, r, kind, fmt.Errorf("team lookup: %w", err))
 			return
 		}
+		// Every /apis write is a non-GET on a namespace path; outside dev only pilot teams pass.
+		if r.Method != http.MethodGet && !s.writeAllowed(r.PathValue("namespace")) {
+			writeStatus(w, r, kind, stErr(http.StatusForbidden, "Forbidden", "writes are not enabled for this team in this cluster"))
+			return
+		}
 		var db *DB
 		if box := s.store.Load(); box != nil {
 			db, _ = box.snapshotStore.(*DB)
@@ -220,8 +225,8 @@ func (s *server) apisFor(a *authz, adminClientID string, teams teamDirectory, ki
 	}
 }
 
-// apisRoutes mounts v1alpha1. Like /admin/v1 it needs the admin client, so
-// it exists only in dev-* clusters.
+// apisRoutes mounts v1alpha1. Like /admin/v1 it needs the admin client.
+// Outside dev-* writes pass only for pilot teams (writeAllowed in apisFor).
 func (s *server) apisRoutes(mux *http.ServeMux, a *authz, adminClientID string, teams teamDirectory) {
 	if adminClientID == "" {
 		return

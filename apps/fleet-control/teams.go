@@ -63,14 +63,33 @@ func devCluster(cluster string) bool {
 	return strings.HasPrefix(cluster, "dev-")
 }
 
-// adminClientFor returns the client id that mounts the write routes, or ""
-// outside dev. shortcut: write routes are dev-only until fleet-control
-// has a prod manifest and a service account bound there.
-func adminClientFor(cluster, clientID string) string {
-	if !devCluster(cluster) {
-		return ""
+// pilotTeamsFromEnv reads FLEET_CONTROL_PILOT_TEAMS, the comma-separated
+// teams that may write outside dev-*. Entries are trimmed and must be
+// lowercase DNS labels, the exact form of a namespace path value; anything
+// else refuses startup rather than being folded into a match. Empty or unset
+// gives nil: every write outside dev is refused.
+func pilotTeamsFromEnv() ([]string, error) {
+	var out []string
+	for _, t := range strings.Split(os.Getenv("FLEET_CONTROL_PILOT_TEAMS"), ",") {
+		t = strings.TrimSpace(t)
+		if t == "" {
+			continue
+		}
+		if !dnsLabelRegex.MatchString(t) {
+			return nil, fmt.Errorf("FLEET_CONTROL_PILOT_TEAMS: invalid team %q", t)
+		}
+		if !slices.Contains(out, t) {
+			out = append(out, t)
+		}
 	}
-	return clientID
+	return out, nil
+}
+
+// writeAllowed reports whether team ns may be written to in this cluster:
+// always in dev-*, elsewhere (unset cluster included) only for a pilot team.
+// Membership is checked separately; this narrows, never widens.
+func (s *server) writeAllowed(ns string) bool {
+	return devCluster(s.cluster) || slices.Contains(s.pilotTeams, ns)
 }
 
 // resolvePerson returns the NAVident behind a write request and its teams,

@@ -73,9 +73,12 @@ spec:
       value: "{{fleet_gateway_client_id}}"
     - name: MCP_REGISTRY_CLIENT_ID
       value: "{{mcp_registry_client_id}}"
-    # Mounts the /admin routes for my-copilot's OBO tokens; ignored outside dev-*.
+    # Client id for my-copilot's OBO tokens on the /apis and /admin write routes.
     - name: MY_COPILOT_CLIENT_ID
       value: "{{my_copilot_client_id}}"
+    # Teams that may write outside dev-* (comma-separated). Empty: every write there is refused.
+    - name: FLEET_CONTROL_PILOT_TEAMS
+      value: "{{ pilot_teams }}"
     # Owner decision 2026-11-24: Loki keeps the audit archive, the DB deletes
     # audit_events older than 90 days.
     - name: FLEET_AUDIT_RETENTION_DELETE

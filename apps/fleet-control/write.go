@@ -167,6 +167,10 @@ func (s *server) admin(a *authz, adminClientID string, teams teamDirectory, h ad
 			http.Error(w, "forbidden: not a member of team "+ns, http.StatusForbidden)
 			return
 		}
+		if !s.writeAllowed(ns) {
+			http.Error(w, "forbidden: writes are not enabled for team "+ns+" in this cluster", http.StatusForbidden)
+			return
+		}
 		js := s.jobs()
 		if js == nil {
 			http.Error(w, "database unavailable", http.StatusServiceUnavailable)

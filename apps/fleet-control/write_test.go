@@ -91,6 +91,7 @@ func (failingTeams) IsMember(context.Context, string, string) (bool, error) {
 
 func TestAdminGuardsFailClosed(t *testing.T) {
 	srv := newServer() // no database
+	srv.cluster = "dev-gcp"
 	h := srv.routes(testAuthz(t), adminID, testTeams, nil)
 	path := "/admin/v1/jobs/team-a/kill-switch"
 	cases := map[string]struct {
@@ -136,9 +137,6 @@ func TestTeamsFromEnv(t *testing.T) {
 		if _, err := teamsFromEnv(cluster); err == nil {
 			t.Errorf("static teams in cluster %q: want error", cluster)
 		}
-		if got := adminClientFor(cluster, adminID); got != "" {
-			t.Errorf("write routes mounted in cluster %q", cluster)
-		}
 	}
 	ident, list, err := resolvePerson(context.Background(), testAuthz(t), "Bearer "+userTok("A111111"), adminID, testTeams)
 	if err != nil || ident != "A111111" || strings.Join(list, ",") != "team-a" {
@@ -146,9 +144,6 @@ func TestTeamsFromEnv(t *testing.T) {
 	}
 	if _, _, err = resolvePerson(context.Background(), testAuthz(t), "Bearer "+adminID, adminID, testTeams); !errors.Is(err, errUnauthorized) {
 		t.Errorf("resolvePerson with an app token: %v", err)
-	}
-	if adminClientFor("dev-gcp", adminID) != adminID {
-		t.Error("dev-gcp must mount the write routes")
 	}
 	// A mixed-case preferred_username in the token resolves to its teams.
 	_, list, err = resolvePerson(context.Background(), testAuthz(t), "Bearer "+userTok("A111111")+":Kari.Nordmann@Example.com", adminID, staticTeams{"team-a": {"kari.nordmann@example.com"}})
