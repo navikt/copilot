@@ -1,8 +1,12 @@
 package cli
 
 import (
+	"bytes"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -35,7 +39,7 @@ func fakeCpltReleases(t *testing.T, delay time.Duration) *atomic.Int32 {
 func TestLatestCpltVersionCacheHitSkipsNetwork(t *testing.T) {
 	hits := fakeCpltReleases(t, 0)
 	for i := 0; i < 2; i++ {
-		v, err := latestCpltVersion()
+		v, err := cachedLatestCpltVersion()
 		if err != nil || v != "2026.11.01-120000-abcdef0" {
 			t.Fatalf("run %d: got %q, %v", i, v, err)
 		}
@@ -53,11 +57,32 @@ func TestLatestCpltVersionTimesOutWithoutCache(t *testing.T) {
 	cpltLookupTimeout = 100 * time.Millisecond
 	t.Cleanup(func() { cpltLookupTimeout = orig })
 	start := time.Now()
-	v, err := latestCpltVersion()
+	v, err := cachedLatestCpltVersion()
 	if err == nil {
 		t.Fatalf("got %q with no error, want a timeout", v)
 	}
 	if d := time.Since(start); d > 3*time.Second {
 		t.Fatalf("lookup took %s, want it bounded by the timeout", d)
+	}
+}
+
+// Owner decision on #2908: upgrade checks cplt fresh, even with a fresh cache.
+func TestCpltUpgradeSkipsCache(t *testing.T) {
+	hits := fakeCpltReleases(t, 0)
+	if _, err := cachedLatestCpltVersion(); err != nil {
+		t.Fatal(err)
+	}
+	cli := filepath.Join(t.TempDir(), "cplt")
+	if err := os.WriteFile(cli, []byte("#!/bin/sh\necho 'cplt 2026.01.01-000000-0000000'\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", filepath.Dir(cli)+string(os.PathListSeparator)+os.Getenv("PATH"))
+	var out bytes.Buffer
+	reportCpltUpgrade(&out)
+	if !strings.Contains(out.String(), "out of date") {
+		t.Fatalf("upgrade output %q, want cplt reported out of date", out.String())
+	}
+	if n := hits.Load(); n != 2 {
+		t.Fatalf("GitHub asked %d times, want 2: upgrade must not use the cache", n)
 	}
 }

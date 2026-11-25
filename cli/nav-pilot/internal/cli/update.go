@@ -392,35 +392,42 @@ func githubRequest(ctx context.Context, url, accept, token string) (*http.Respon
 	return httpClient.Do(req)
 }
 
-// latestCpltVersion returns the newest published cplt version. The answer is
-// cached for a day (#2904), so doctor does not wait on GitHub every run. The
-// short timeout keeps a slow or unreachable GitHub from stalling doctor or
-// upgrade — callers treat an error as "could not check", never as "outdated".
-// A failed lookup falls back to a stale cached answer when there is one.
-// A var so tests can stub it without a network call.
+// latestCpltVersion asks GitHub for the newest published cplt version and
+// caches the answer for doctor. `nav-pilot upgrade` calls it directly: it
+// must see a release from the last hour. The short timeout keeps a slow or
+// unreachable GitHub from stalling — callers treat an error as "could not
+// check", never as "outdated". A var so tests can stub it without a network
+// call.
 var latestCpltVersion = func() (string, error) {
-	path := artifacts.CpltCacheFilePath()
-	cache := artifacts.ReadCacheAt(path)
-	if cache != nil && cache.LatestVersion != "" {
-		if t, err := time.Parse(time.RFC3339, cache.LastChecked); err == nil && time.Since(t) < cpltCacheTTL {
-			return cache.LatestVersion, nil
-		}
-	}
 	ctx, cancel := context.WithTimeout(context.Background(), cpltLookupTimeout)
 	defer cancel()
 	// Only the version is read here; nav-pilot never downloads cplt itself.
 	ver, _, _, err := fetchLatestRelease(ctx, cpltReleasesAPI, "", "")
 	if err != nil {
-		if cache != nil && cache.LatestVersion != "" {
-			return cache.LatestVersion, nil
-		}
 		return "", err
 	}
-	artifacts.WriteCacheAt(path, &artifacts.StalenessCache{
+	artifacts.WriteCacheAt(artifacts.CpltCacheFilePath(), &artifacts.StalenessCache{
 		LastChecked:   time.Now().UTC().Format(time.RFC3339),
 		LatestVersion: ver,
 	})
 	return ver, nil
+}
+
+// cachedLatestCpltVersion is doctor's lookup: the answer is cached for a day
+// (#2904), so doctor does not wait on GitHub every run. A failed lookup falls
+// back to a stale cached answer when there is one.
+func cachedLatestCpltVersion() (string, error) {
+	cache := artifacts.ReadCacheAt(artifacts.CpltCacheFilePath())
+	if cache != nil && cache.LatestVersion != "" {
+		if t, err := time.Parse(time.RFC3339, cache.LastChecked); err == nil && time.Since(t) < cpltCacheTTL {
+			return cache.LatestVersion, nil
+		}
+	}
+	ver, err := latestCpltVersion()
+	if err != nil && cache != nil && cache.LatestVersion != "" {
+		return cache.LatestVersion, nil
+	}
+	return ver, err
 }
 
 // cpltCacheTTL and cpltLookupTimeout are vars for the tests.
