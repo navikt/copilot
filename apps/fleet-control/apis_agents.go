@@ -14,6 +14,7 @@ import (
 
 	"github.com/navikt/copilot/fleet-control/internal/canon"
 	"github.com/navikt/copilot/fleet-control/internal/model"
+	"github.com/navikt/copilot/fleet-control/internal/store"
 )
 
 // TypedRef points at another resource, as targetRefs in Gateway API.
@@ -166,8 +167,8 @@ func grantHash(spec AgentProfileSpec, g AgentGrantV1) (string, error) {
 
 // checkGrantServers requires every grant to name a published, unrevoked
 // gateway server that lists every granted tool.
-func checkGrantServers(ctx context.Context, q querier, grants []AgentGrantV1) error {
-	servers, err := queryServers(ctx, q)
+func checkGrantServers(ctx context.Context, q store.Querier, grants []AgentGrantV1) error {
+	servers, err := store.QueryServers(ctx, q)
 	if err != nil {
 		return err
 	}
@@ -496,7 +497,7 @@ type grantRow struct {
 
 func (g profileGen) submitter() *Actor { return &Actor{Kind: g.SubKind, Name: g.SubName} }
 
-func loadProfileGen(ctx context.Context, q querier, ns, name string, gen int) (profileGen, error) {
+func loadProfileGen(ctx context.Context, q store.Querier, ns, name string, gen int) (profileGen, error) {
 	var g profileGen
 	var spec, hashes string
 	err := q.QueryRow(ctx, `SELECT generation, spec::text, spec_hash, entra_client_id::text, submitted_by, submitted_by_kind, submitted_by_oid::text,
@@ -533,7 +534,7 @@ func loadProfileGen(ctx context.Context, q querier, ns, name string, gen int) (p
 
 // grantStatus is the live state of each grant in g.
 func (d *DB) grantStatus(ctx context.Context, g profileGen) ([]GrantStatus, error) {
-	servers, err := queryServers(ctx, d.pool)
+	servers, err := store.QueryServers(ctx, d.pool)
 	if err != nil {
 		return nil, err
 	}
