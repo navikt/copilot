@@ -86,9 +86,9 @@ func TestPilotWriteGate(t *testing.T) {
 func TestRealPostgresPilotWrite(t *testing.T) {
 	e := newApisEnv(t)
 	e.srv.cluster = "prod-gcp"
-	e.want(403, "POST", nsBase+"copilot/mcpservers", person("A111111"), serverJSON("copilot", "s1", ""))
+	e.want(403, "POST", nsBase+"copilot/mcpservers", person("A111111"), serverJSON("copilot", "s1", "", "a"))
 	e.srv.pilotTeams = []string{"copilot", "aksel-studio"}
-	e.want(403, "POST", nsBase+"team-a/mcpservers", person("A111111"), serverJSON("team-a", "s1", ""))
-	e.want(201, "POST", nsBase+"copilot/mcpservers", person("A111111"), serverJSON("copilot", "s1", ""))
-	e.want(403, "POST", nsBase+"copilot/mcpservers", person("B444444"), serverJSON("copilot", "s2", ""))
+	e.want(403, "POST", nsBase+"team-a/mcpservers", person("A111111"), serverJSON("team-a", "s1", "", "a"))
+	e.want(201, "POST", nsBase+"copilot/mcpservers", person("A111111"), serverJSON("copilot", "s1", "", "a"))
+	e.want(403, "POST", nsBase+"copilot/mcpservers", person("B444444"), serverJSON("copilot", "s2", "", "a"))
 }
