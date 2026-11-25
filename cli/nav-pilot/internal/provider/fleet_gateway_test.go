@@ -71,3 +71,16 @@ func TestFleetGatewayAddsDevMCPHosts(t *testing.T) {
 		t.Errorf("got %q\nwant %q", got, want)
 	}
 }
+
+// Every launch already allows the fleet-gateway, so a server behind it is
+// never put up for consent (#2829).
+func TestFleetGatewayServersNeedNoConsent(t *testing.T) {
+	reg := mcpRegistry{Servers: map[string][]string{
+		"io.github.navikt/kodeverk": {"https://fleet-gateway.intern.nav.no/kodeverk/mcp"},
+		"com.figma/figma-mcp":       {"https://mcp.figma.com/mcp"},
+	}}
+	got := matchMCPHosts(reg, []string{"io.github.navikt/kodeverk", "com.figma/figma-mcp"}, nil)
+	if names := got.Names(); !slices.Equal(names, []string{"mcp.figma.com"}) {
+		t.Errorf("hosts = %v, want only mcp.figma.com", names)
+	}
+}

@@ -797,6 +797,10 @@ func mcpProbeTarget(raw string, st providerpkg.MCPHostState) (string, []string, 
 			extra = []string{"--allow-private-domain", host}
 		}
 	}
+	// The launch's own default for the fleet-gateway (#2829).
+	if slices.Contains(providerpkg.FleetGatewayHosts, host) && providerpkg.FleetGatewayActive() {
+		extra = []string{"--allow-private-domain", host}
+	}
 	return net.JoinHostPort(host, port), extra, true
 }
 

@@ -4,6 +4,10 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 
 ## 2026-11-25
 
+### Ingen falsk advarsel om fleet-gateway
+
+- **`nav-pilot mcp enable`, `nav-pilot mcp list` og oppstart**: For MCP-servere bak `fleet-gateway.intern.nav.no` sa nav-pilot at cplt blokkerer adressen og ba deg svare i en terminal. Oppstarten slipper alltid fleet-gateway gjennom, så advarselen var feil. Nå spør nav-pilot ikke om disse adressene, og sjekken regner med det oppstarten slipper gjennom (#2829).
+
 ### Ryddigere hjelp og tekster
 
 - **`nav-pilot --help`**: Startflaggene står nå i en egen del til slutt, etter kommandoene, flaggene, exit-kodene og eksemplene.
