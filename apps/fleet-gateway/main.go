@@ -26,6 +26,7 @@ import (
 	"github.com/navikt/copilot/fleet-gateway/internal/oauth/entra"
 	"github.com/navikt/copilot/fleet-gateway/internal/oauth/server"
 	"github.com/navikt/copilot/fleet-gateway/internal/policy"
+	"github.com/navikt/copilot/fleet-gateway/internal/probe"
 	"github.com/navikt/copilot/fleet-gateway/internal/proxy"
 	"github.com/navikt/copilot/fleet-gateway/internal/ratelimit"
 	"github.com/navikt/copilot/fleet-gateway/internal/routing"
@@ -59,7 +60,11 @@ type Gateway struct {
 	entra *entra.Client
 
 	TeamTokens proxy.TeamTokenSource
+	probe      *probe.Handler // nil unless PROBE_ENABLED
 }
+
+// Per-user and global probes per minute (#2985).
+const probeRateLimit, probeRateLimitGlobal = 10, 120
 
 func newGateway(cfg *Config, now func() time.Time) (*Gateway, error) {
 	if cfg == nil {
@@ -140,6 +145,21 @@ func newGateway(cfg *Config, now func() time.Time) (*Gateway, error) {
 			WellKnownURL:    cfg.AzureWellKnownURL,
 			OutboundTimeout: defaultOutboundTimeout,
 		},
+	}
+	if cfg.ProbeEnabled {
+		gw.probe, err = probe.New(probe.Config{
+			IntrospectURL: cfg.TexasIntrospectEndpoint, Issuer: cfg.AzureIssuer,
+			Audience: cfg.AzureClientID, AllowedAzp: cfg.ProbeAllowedAzp,
+			Members: probe.NewConsoleTeams(cfg.ProbeTokenPath),
+			Limiter: ratelimit.New(probeRateLimit, probeRateLimitGlobal, time.Minute, cfg.RateLimitCap, now),
+			Now:     now,
+		})
+		if err != nil {
+			if ownedStore {
+				store.Close()
+			}
+			return nil, err
+		}
 	}
 	gw.routeTable.Store(table)
 	return gw, nil
@@ -235,6 +255,9 @@ func (g *Gateway) routes() http.Handler {
 	mux.HandleFunc("GET /oauth2/callback", g.callbackHandler)
 	mux.HandleFunc("POST /token", g.rateLimitMiddleware(metrics.EndpointToken, g.limiters[metrics.EndpointToken], g.tokenHandler))
 	mux.HandleFunc("POST /revoke", g.rateLimitMiddleware(metrics.EndpointRevoke, g.limiters[metrics.EndpointRevoke], g.revokeHandler))
+	if g.probe != nil {
+		mux.Handle("POST /probe/v1/tools", g.probe)
+	}
 	if g.cfg.DCREnabled {
 		mux.HandleFunc("POST /register", g.rateLimitMiddleware(metrics.EndpointRegister, g.limiters[metrics.EndpointRegister], g.registerHandler))
 	}

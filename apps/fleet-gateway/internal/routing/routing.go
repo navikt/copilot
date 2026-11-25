@@ -101,6 +101,9 @@ func parse(raw []byte) ([]Route, error) {
 // Restricting to ASCII keeps names safe to render as agentgateway CEL literals.
 var mcpToolName = regexp.MustCompile(`^[A-Za-z0-9_.-]{1,128}$`)
 
+// ValidToolName reports whether name fits the gateway's tool-name charset.
+func ValidToolName(name string) bool { return mcpToolName.MatchString(name) }
+
 // ApplyToolPolicy validates tools and passAllTools and builds the allowlist.
 // Version 2 denies by default: a route must list tools or be marked
 // passAllTools by the operator, not both.

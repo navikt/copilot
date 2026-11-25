@@ -10,6 +10,7 @@ The gateway is live in prod (2026-11-17) for a controlled pilot. It runs the aut
 - `GET /.well-known/oauth-protected-resource/{resource}` — Resource-specific PRM (must match a configured pilot route)
 - `GET /.well-known/oauth-authorization-server` — RFC 8414 Authorization Server Metadata
 - `POST /register` — RFC 7591 dynamic client registration, only when `DCR_ENABLED=true`
+- `POST /probe/v1/tools` — `tools/list` of a server that is not yet approved, for the `/fleet` wizard (#2985). Only when `PROBE_ENABLED=true`. Body `{"team","upstream_url"}`; takes the user's Entra OBO token with `azp` = `PROBE_ALLOWED_AZP`, requires membership of `team` (Nais Console), validates `upstream_url` as at registration, sends only `initialize` and `tools/list` without credentials, 10 s timeout, 512 KiB cap, 10 probes per user per minute, logged as `audit probe`
 - `GET /authorize` — OAuth 2.1 authorization endpoint (CIMD allowlist, exact `redirect_uri` except the port of http loopback IP literals per RFC 8252 §7.3, PKCE `S256`, RFC 8707 `resource`, RFC 9207 `iss`)
 - `POST /consent` — Consent submission with CSRF cookie check. The page is shown after the Entra login, and only when the user has no remembered consent for this client and route
 - `GET /oauth2/callback` — Entra ID reply URL, verified against signed `__Host-fleet_entra_state` cookie
@@ -26,6 +27,7 @@ The gateway is live in prod (2026-11-17) for a controlled pilot. It runs the aut
 | `BASE_URL` | Yes | — | External gateway origin without trailing slash |
 | `ALLOWED_CLIENT_IDS` | Yes | — | Comma-separated allowlist of CIMD `client_id` URLs |
 | `ALLOWED_REDIRECT_URIS` | Yes | — | Comma-separated allowlist of `redirect_uri` values. Exact match, except that `http://127.0.0.1` and `http://[::1]` entries match on any port (RFC 8252 §7.3); `localhost` never does |
+| `PROBE_ENABLED` | No | `false` | Serve `POST /probe/v1/tools`. Needs `NAIS_TOKEN_INTROSPECTION_ENDPOINT`, `PROBE_ALLOWED_AZP` (my-copilot's client id) and `NAIS_SERVICE_ACCOUNT_TOKEN_PATH`, or the gateway refuses to start |
 | `DCR_ENABLED` | No | `false` | Serve RFC 7591 dynamic client registration at `POST /register` and advertise `registration_endpoint`. Only http loopback redirect URIs and `token_endpoint_auth_method: none`; registered clients are shown as unverified on the consent page |
 | `DCR_CLIENT_TTL` | No | `720h` | Lifetime of an unused registered client. Each use extends it, up to `DCR_CLIENT_MAX_AGE` |
 | `DCR_CLIENT_MAX_AGE` | No | `4320h` | Maximum lifetime of a registered client, used or not |
