@@ -11,7 +11,6 @@ RUN go mod download
 
 COPY apps/fleet-control/*.go ./
 COPY apps/fleet-control/internal ./internal
-COPY apps/fleet-control/migrations ./migrations
 
 RUN CGO_ENABLED=0 GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH} go build -trimpath -ldflags="-s -w" -o main .
 

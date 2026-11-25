@@ -18,21 +18,22 @@ run = ["go get -u ./...", "go mod tidy"]
 description = "Build the Go application"
 run = "go build -o bin/fleet-control ."
 
+# -p 1: package main and internal/store reset the same test database and cluster roles.
 [tasks.test]
 description = "Run all tests with verbose output"
-run = "go test -v ./..."
+run = "go test -p 1 -v ./..."
 
 [tasks."test:coverage"]
 description = "Run tests with coverage report"
 run = [
-  "go test -v -cover -coverprofile=coverage.out ./...",
+  "go test -p 1 -v -cover -coverprofile=coverage.out ./...",
   "go tool cover -html=coverage.out -o coverage.html",
   "echo 'Coverage report: coverage.html'",
 ]
 
 [tasks."test:short"]
 description = "Run tests without verbose output"
-run = "go test ./..."
+run = "go test -p 1 ./..."
 
 [tasks.lint]
 description = "Run linters (golangci-lint)"

@@ -6,44 +6,14 @@ import (
 	"testing"
 )
 
-// Rows from an image before 012 get {issuer, subject} on the next start,
-// new writes carry both, and a person's job keeps NULL, not ” (#2896).
+// New writes carry {issuer, subject}, and a person's job keeps NULL, not ”
+// (#2896). The backfill of rows from before 012 is covered in internal/store.
 func TestRealPostgresIdentityIssuerSubject(t *testing.T) {
 	e := newApisEnv(t)
 	ctx := context.Background()
-	if _, err := e.db.pool.Exec(ctx, "DROP SCHEMA public CASCADE; CREATE SCHEMA public"); err != nil {
-		t.Fatal(err)
-	}
-	if err := e.db.migrateTo(ctx, "011_drop_legacy.sql"); err != nil {
-		t.Fatal(err)
-	}
-	liveProfile(t, e.db, "team-a", "studio", appClientID, "Read") // old image's insert
-	oldJob := `INSERT INTO runtime_jobs (team, kind, created_by, orderer_client_id, orderer_subject) VALUES ('team-a', 'k', 'B444444', $1, $2)`
-	if _, err := e.db.pool.Exec(ctx, oldJob, appClientID, "66666666-6666-4666-8666-666666666666"); err != nil {
-		t.Fatal(err)
-	}
-	if err := e.db.Migrate(ctx); err != nil {
-		t.Fatal(err)
-	}
-	// Old image after 012: still inserts, new columns stay empty.
-	if _, err := e.db.pool.Exec(ctx, oldJob, "", ""); err != nil {
-		t.Fatalf("old-image insert after 012: %v", err)
-	}
-	if n, err := e.db.BackfillIdentity(ctx, ""); err != nil || n != 0 {
-		t.Fatalf("backfill without issuer: %d %v", n, err)
-	}
-	if n, err := e.db.BackfillIdentity(ctx, testIssuer); err != nil || n != 2 {
-		t.Fatalf("backfill: %d %v", n, err)
-	}
+	liveProfile(t, e.db, "team-a", "studio", appClientID, "Read")
 	var iss, sub string
-	if err := e.db.pool.QueryRow(ctx, `SELECT identity_issuer, identity_subject FROM agent_profile_generations`).Scan(&iss, &sub); err != nil || iss != testIssuer || sub != appClientID {
-		t.Fatalf("profile identity: %q %q %v", iss, sub, err)
-	}
 	var withOrderer, persons int
-	if err := e.db.pool.QueryRow(ctx, `SELECT count(*) FILTER (WHERE orderer_issuer = $1 AND orderer_client = $2 AND orderer_sub <> ''),
-		count(*) FILTER (WHERE orderer_issuer IS NULL AND orderer_client IS NULL AND orderer_sub IS NULL) FROM runtime_jobs`, testIssuer, appClientID).Scan(&withOrderer, &persons); err != nil || withOrderer != 1 || persons != 1 {
-		t.Fatalf("jobs: delegated %d person %d %v", withOrderer, persons, err)
-	}
 
 	// New writes: refused without an issuer, both forms with one.
 	entraIssuer = ""
