@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { vi } from "vitest";
 
 vi.mock("next/headers", () => ({ headers: vi.fn() }));
@@ -398,5 +398,93 @@ describe("/fleet", () => {
     expect(screen.getByText("search (tilgang trukket tilbake)")).toBeInTheDocument();
     expect(screen.queryByText(/Venter på:/)).not.toBeInTheDocument();
     expect(screen.getByText(/1\s000 kall i døgnet/)).toBeInTheDocument();
+  });
+
+  const waiting = () => profile({ granted: false, contentHash: "g1" });
+
+  it("offers «gi tilgang» in the inbox and on the MCP server page, with the grant's hash", async () => {
+    stub({ [`${API}/agentprofiles?awaitingApprovalBy=me`]: { items: [waiting()] } });
+    const { unmount } = render(await FleetPage(sp()));
+    expect(screen.getByRole("button", { name: "Gi tilgang til docs" })).toBeInTheDocument();
+    unmount();
+    render(await ServerPage(params("team-a", "docs")));
+    const table = screen.getByRole("table", { name: "Agentprofiler som venter på tilgang" });
+    expect(within(table).getByRole("link", { name: "aksel/studio" })).toBeInTheDocument();
+    expect(within(table).getByRole("button", { name: "Gi tilgang" })).toBeInTheDocument();
+    expect(table.querySelector('input[name="contentHash"]')).toHaveValue("g1");
+    expect(table.querySelector('input[name="generation"]')).toHaveValue("1");
+  });
+
+  it("offers no «gi tilgang» without a pending version or hash", async () => {
+    render(await FleetPage(sp()));
+    expect(screen.queryByRole("button", { name: /Gi tilgang/ })).toBeNull();
+  });
+
+  it("asks in a Modal before revoking", async () => {
+    render(await ServerPage(params("team-a", "docs")));
+    const reason = screen.getAllByRole("textbox", { name: "Begrunnelse" }).at(-1)!;
+    fireEvent.change(reason, { target: { value: "lekker data" } });
+    const before = vi.mocked(fetch).mock.calls.length;
+    fireEvent.click(screen.getByRole("button", { name: "Trekk tilbake" }));
+    expect(screen.getByRole("dialog", { name: "Trekk tilbake docs?" })).toBeInTheDocument();
+    expect(vi.mocked(fetch).mock.calls.length).toBe(before);
+  });
+
+  it("tells a revoked MCP server how to come back, not «Ingen»", async () => {
+    const revoked = server(true);
+    delete (revoked.status as { pending?: unknown }).pending;
+    stub({ [`${API}/namespaces/team-a/mcpservers/docs`]: revoked });
+    render(await ServerPage(params("team-a", "docs")));
+    expect(screen.getByText(/Endre MCP-serveren og send inn en ny versjon/)).toBeInTheDocument();
+    expect(screen.queryByText(/Ingen\. MCP-serveren/)).toBeNull();
+    expect(screen.getByRole("heading", { name: "Endre MCP-serveren" })).toBeInTheDocument();
+  });
+
+  it("explains each data category, preselects none, and shows the accessPolicy snippet", async () => {
+    const { default: RegisterPage } = await import("./registrer/page");
+    render(await RegisterPage());
+    for (const name of ["Åpen", "Intern", "Fortrolig"]) {
+      const radio = screen.getByRole("radio", { name });
+      expect(radio).not.toBeChecked();
+      expect(radio).toHaveAccessibleDescription(/\w/);
+    }
+    expect(screen.getByText(/application: fleet-gateway/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Kopier" })).toBeInTheDocument();
+  });
+
+  it("posts «gi tilgang» with the profile, the MCP server and the grant's hash", async () => {
+    stub({ [`${API}/agentprofiles?awaitingApprovalBy=me`]: { items: [waiting()] } });
+    render(await FleetPage(sp()));
+    const post = vi.fn(async () => new Response(JSON.stringify({ error: "Nei" }), { status: 403 }));
+    vi.stubGlobal("fetch", post);
+    fireEvent.click(screen.getByRole("button", { name: "Gi tilgang til docs" }));
+    expect(await screen.findByText("Nei")).toBeInTheDocument();
+    const [url, init] = post.mock.calls[0] as unknown as [string, RequestInit];
+    expect(url).toBe("/api/fleet");
+    expect(JSON.parse(String(init.body))).toEqual({
+      action: "grant",
+      namespace: "aksel",
+      name: "studio",
+      serverNamespace: "team-a",
+      serverName: "docs",
+      generation: "1",
+      contentHash: "g1",
+    });
+  });
+
+  it("warns when the waiting agent profiles cannot be fetched, instead of hiding them", async () => {
+    stub({}, { [`${API}/agentprofiles?awaitingApprovalBy=me`]: 503 });
+    render(await ServerPage(params("team-a", "docs")));
+    expect(screen.getByText(/Vi fikk ikke hentet agentprofilene/)).toBeInTheDocument();
+  });
+
+  it("shows the edit form and no rollback only to the owner team", async () => {
+    render(await ServerPage(params("team-a", "docs")));
+    expect(screen.getByRole("heading", { name: "Endre MCP-serveren" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Rull tilbake/ })).toBeNull();
+    expect(screen.getByText(/ruller dere tilbake appen i Nais/)).toBeInTheDocument();
+    stub({ [`${API}/whoami`]: { name: "A123456", teams: ["plattform"] } });
+    const { container } = render(await ServerPage(params("team-a", "docs")));
+    expect(container.querySelector('[aria-label="Endre MCP-serveren"]')).toBeNull();
   });
 });

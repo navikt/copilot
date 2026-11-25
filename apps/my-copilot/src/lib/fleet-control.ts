@@ -56,7 +56,15 @@ export type AgentProfile = {
     needsResubmit?: boolean;
     // spec here is for the owner team only; status.grants describe this generation.
     pending?: { generation: number; spec?: AgentProfileSpec };
-    grants?: { serverRef: ServerRef; granted: boolean; grantedBy?: Actor; grantedAt?: string; reason?: string }[];
+    grants?: {
+      serverRef: ServerRef;
+      granted: boolean;
+      grantedBy?: Actor;
+      grantedAt?: string;
+      reason?: string;
+      // The hash «gi tilgang» sends back for this grant.
+      contentHash?: string;
+    }[];
     conditions?: Condition[];
   };
 };
@@ -186,4 +194,18 @@ export const fleetApi = {
     fleetGet<MCPServer>(`${ns(namespace)}/mcpservers/${seg(name)}/approval`, "POST", { generation, contentHash }),
   revokeServer: (namespace: string, name: string, reason: string, block: boolean) =>
     fleetGet<MCPServer>(`${ns(namespace)}/mcpservers/${seg(name)}/revocation`, "POST", { reason, block }),
+  // A new generation; it waits for a second person like the first one did.
+  updateServer: (namespace: string, name: string, resourceVersion: string, spec: MCPServerSpec) =>
+    fleetGet<MCPServer>(`${ns(namespace)}/mcpservers/${seg(name)}`, "PUT", {
+      apiVersion: "fleet.nav.no/v1alpha1",
+      kind: "MCPServer",
+      metadata: { namespace: seg(namespace), name: seg(name), resourceVersion },
+      spec,
+    }),
+  grantAccess: (namespace: string, name: string, generation: number, serverRef: ServerRef, contentHash: string) =>
+    fleetGet<AgentProfile>(`${ns(namespace)}/agentprofiles/${seg(name)}/approval`, "POST", {
+      generation,
+      serverRef: { ...serverRef, namespace: seg(serverRef.namespace), name: seg(serverRef.name) },
+      contentHash,
+    }),
 };

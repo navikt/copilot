@@ -158,7 +158,15 @@ describe("POST /api/fleet", () => {
       }),
       { status: code }
     );
-  const register = { action: "register", namespace: "team-a", name: "docs", app: "docs", url: "x", tools: "search" };
+  const register = {
+    action: "register",
+    namespace: "team-a",
+    name: "docs",
+    app: "docs",
+    url: "x",
+    tools: "search",
+    dataCategory: "Intern",
+  };
   const approve = { action: "approve", namespace: "team-a", name: "docs", generation: "3", contentHash: "h3" };
 
   it("tells a taken name apart from a conflicting edit", async () => {
@@ -201,5 +209,70 @@ describe("POST /api/fleet", () => {
     expect((await post({ action: "revoke", namespace: "team-a", name: "docs", reason: " " })).status).toBe(400);
     expect((await post({ action: "delete", namespace: "team-a", name: "docs" })).status).toBe(400);
     expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("needs a data category, and sends none by default", async () => {
+    expect((await post({ ...register, dataCategory: "" })).status).toBe(400);
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("edits with PUT and the resourceVersion, which makes a new version", async () => {
+    const res = await post({ ...register, action: "edit", resourceVersion: "7", tools: "search read" });
+    await expect(res.json()).resolves.toEqual({ href: "/fleet/mcp-servere/team-a/docs" });
+    const [url, init] = fetch.mock.calls[0];
+    expect(url).toBe("http://fc/apis/fleet.nav.no/v1alpha1/namespaces/team-a/mcpservers/docs");
+    expect(init.method).toBe("PUT");
+    expect(JSON.parse(init.body)).toMatchObject({
+      metadata: { namespace: "team-a", name: "docs", resourceVersion: "7" },
+      spec: { allowedTools: ["search", "read"], dataCategory: "Intern" },
+    });
+    expect((await post({ ...register, action: "edit" })).status).toBe(400);
+    expect(fetch).toHaveBeenCalledTimes(1);
+  });
+
+  const grant = {
+    action: "grant",
+    namespace: "team-b",
+    name: "agent",
+    serverNamespace: "team-a",
+    serverName: "docs",
+    generation: "2",
+    contentHash: "g2",
+  };
+
+  it("gives access with a typed server ref, and opens the agent profile", async () => {
+    const res = await post(grant);
+    await expect(res.json()).resolves.toEqual({ href: "/fleet/agenter/team-b/agent" });
+    const [url, init] = fetch.mock.calls[0];
+    expect(url).toBe("http://fc/apis/fleet.nav.no/v1alpha1/namespaces/team-b/agentprofiles/agent/approval");
+    expect(JSON.parse(init.body)).toEqual({
+      generation: 2,
+      serverRef: { group: "fleet.nav.no", kind: "MCPServer", namespace: "team-a", name: "docs" },
+      contentHash: "g2",
+    });
+  });
+
+  it("maps grant errors to the MCP server's team", async () => {
+    fetch.mockResolvedValueOnce(status(403, "Forbidden", "the submitter cannot grant access to their own profile"));
+    await expect((await post(grant)).json()).resolves.toMatchObject({
+      error: "Du sendte inn agentprofilen selv. En annen på team-a må gi tilgang.",
+    });
+    fetch.mockResolvedValueOnce(status(403, "Forbidden", "only the owner team of MCP server team-a/docs can act"));
+    await expect((await post(grant)).json()).resolves.toMatchObject({ error: expect.stringMatching(/team-a/) });
+    fetch.mockResolvedValueOnce(status(404, "NotFound", "not found"));
+    await expect((await post(grant)).json()).resolves.toMatchObject({ error: expect.stringMatching(/agentprofilen/) });
+    expect((await post({ ...grant, serverName: "../x" })).status).toBe(400);
+  });
+
+  it("maps a failed edit: stale resourceVersion is a conflict, a bad field is marked", async () => {
+    const edit = { ...register, action: "edit", resourceVersion: "7" };
+    fetch.mockResolvedValueOnce(status(409, "Conflict", "resourceVersion is stale", ["metadata.resourceVersion"]));
+    let res = await post(edit);
+    expect(res.status).toBe(409);
+    await expect(res.json()).resolves.toMatchObject({ error: expect.stringMatching(/Noen andre har endret/) });
+    fetch.mockResolvedValueOnce(status(422, "Invalid", "tools must be unique", ["spec.allowedTools"]));
+    res = await post(edit);
+    expect(res.status).toBe(422);
+    expect((await res.json()).fields.tools).toMatch(/verktøy/i);
   });
 });

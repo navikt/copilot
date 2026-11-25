@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { getUser, getUserToken } from "@/lib/auth";
-import { FleetControlError, fleetApi, requireFleet } from "@/lib/fleet-control";
+import { FleetControlError, fleetApi, requireFleet, type MCPServerSpec } from "@/lib/fleet-control";
 import { isName, isSameOrigin } from "@/lib/fleet-names";
 
 /**
- * Writes for /fleet: register, approve and revoke an MCP server. A route
+ * Writes for /fleet: register, edit, approve and revoke an MCP server, and «gi tilgang» to an agent profile. A route
  * handler, not a server action: an action id dies with each deploy (#1804).
  * fleet-control checks team membership and four eyes again with the OBO token.
  */
@@ -21,6 +21,7 @@ const NO_ACCESS = (team: string) =>
 const SELF_APPROVAL = "the submitter cannot approve their own generation";
 const NO_PERSON = "the pending generation has no person as submitter; a person must submit it again";
 const NO_OID = "the approver has no object id";
+const SELF_GRANT = "the submitter cannot grant access to their own profile";
 
 /**
  * A 422 cause field as a message by the form field it belongs to; "" is the form as a whole.
@@ -63,7 +64,7 @@ function fieldMessage(field: string, detail: string, team: string): [string, str
 }
 
 /** Maps fleet-control's Status (code, reason, message, causes) to a Norwegian message with the next step. */
-function failure(err: unknown, team: string, name: string, generation: number) {
+function failure(err: unknown, team: string, name: string, generation: number, what = "MCP-serveren") {
   const fce = err instanceof FleetControlError ? err : null;
   const status = fce?.status ?? 0;
   const detail = fce?.detail ?? "";
@@ -73,11 +74,12 @@ function failure(err: unknown, team: string, name: string, generation: number) {
       return fail(`Du sendte inn versjon ${generation} selv. En annen på ${team} må godkjenne den.`, 403);
     if (detail === NO_PERSON)
       return fail(`Ingen person sendte inn versjon ${generation}. Noen på ${team} må sende den inn på nytt.`, 403);
+    if (detail === SELF_GRANT) return fail(`Du sendte inn agentprofilen selv. En annen på ${team} må gi tilgang.`, 403);
     if (detail === NO_OID)
       return fail("Fleet kjenner ikke igjen innloggingen din. Logg ut, logg inn og prøv igjen.", 403);
     return fail(NO_ACCESS(team), 403);
   }
-  if (status === 404) return fail("Fant ikke MCP-serveren, eller du har ikke tilgang.", 404);
+  if (status === 404) return fail(`Fant ikke ${what}, eller du har ikke tilgang.`, 404);
   if (status === 409) {
     if (fce?.reason === "AlreadyExists")
       return fail(
@@ -103,6 +105,26 @@ function failure(err: unknown, team: string, name: string, generation: number) {
   return fail("Vi får ikke kontakt med Fleet akkurat nå. Prøv igjen om litt.", 502);
 }
 
+/** The spec from the register and edit forms, or the message for the field that is wrong. */
+function specFrom(b: Body): MCPServerSpec | [string, string] | string {
+  const app = str(b, "app");
+  if (!isName(app)) return "App må være små bokstaver, tall og bindestrek, høyst 63 tegn.";
+  const dataCategory = str(b, "dataCategory");
+  if (!dataCategory) return ["dataCategory", "Velg hva slags data MCP-serveren gir ut."];
+  const allowedTools = str(b, "tools")
+    .split(/[\s,]+/)
+    .filter(Boolean);
+  // Not trimmed: leading whitespace is Markdown (indented code).
+  const readme = typeof b.readme === "string" && b.readme.trim() ? b.readme : "";
+  if (new TextEncoder().encode(readme).length > 64 << 10) return "Beskrivelsen kan være høyst 64 KiB.";
+  return { dataCategory, upstream: { app, url: str(b, "url") }, allowedTools, ...(readme && { readme }) };
+}
+
+const reasonOf = (b: Body) => {
+  const reason = str(b, "reason");
+  return reason && reason.length <= 500 ? reason : null;
+};
+
 export async function POST(request: Request) {
   requireFleet();
   // Same check as the other protected API routes: an introspected user, not only a token.
@@ -118,21 +140,17 @@ export async function POST(request: Request) {
   const href = `/fleet/mcp-servere/${ns}/${name}`;
   try {
     switch (b.action) {
-      case "register": {
-        const app = str(b, "app");
-        if (!isName(app)) return fail("App må være små bokstaver, tall og bindestrek, høyst 63 tegn.", 400);
-        const allowedTools = str(b, "tools")
-          .split(/[\s,]+/)
-          .filter(Boolean);
-        // Not trimmed: leading whitespace is Markdown (indented code).
-        const readme = typeof b.readme === "string" && b.readme.trim() ? b.readme : "";
-        if (new TextEncoder().encode(readme).length > 64 << 10) return fail("Beskrivelsen kan være høyst 64 KiB.", 400);
-        await fleetApi.createServer(ns, name, {
-          dataCategory: str(b, "dataCategory"),
-          upstream: { app, url: str(b, "url") },
-          allowedTools,
-          ...(readme && { readme }),
-        });
+      case "register":
+      case "edit": {
+        const spec = specFrom(b);
+        if (typeof spec === "string") return fail(spec, 400);
+        if (Array.isArray(spec)) return fail(spec[1], 400, undefined, { [spec[0]]: spec[1] });
+        if (b.action === "register") await fleetApi.createServer(ns, name, spec);
+        else {
+          const rv = str(b, "resourceVersion");
+          if (!rv) return fail("Noe er galt med skjemaet. Last inn siden på nytt.", 400);
+          await fleetApi.updateServer(ns, name, rv, spec);
+        }
         break;
       }
       case "approve": {
@@ -142,10 +160,29 @@ export async function POST(request: Request) {
         break;
       }
       case "revoke": {
-        const reason = str(b, "reason");
-        if (!reason || reason.length > 500) return fail("Skriv en begrunnelse på høyst 500 tegn.", 400);
+        const reason = reasonOf(b);
+        if (!reason) return fail("Skriv en begrunnelse på høyst 500 tegn.", 400);
         await fleetApi.revokeServer(ns, name, reason, b.block === true);
         break;
+      }
+      case "grant": {
+        // namespace and name are the agent profile; the MCP server is serverNamespace/serverName.
+        const [sns, sname] = [str(b, "serverNamespace"), str(b, "serverName")];
+        const generation = Number(b.generation);
+        if (!isName(sns) || !isName(sname) || !Number.isInteger(generation))
+          return fail("Noe er galt med skjemaet. Last inn siden på nytt.", 400);
+        try {
+          await fleetApi.grantAccess(
+            ns,
+            name,
+            generation,
+            { group: "fleet.nav.no", kind: "MCPServer", namespace: sns, name: sname },
+            str(b, "contentHash")
+          );
+        } catch (err) {
+          return failure(err, sns, sname, generation, "agentprofilen");
+        }
+        return NextResponse.json({ href: `/fleet/agenter/${ns}/${name}` });
       }
       default:
         return fail("Noe er galt med skjemaet. Last inn siden på nytt.", 400);
