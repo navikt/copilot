@@ -200,7 +200,6 @@ func mergeSmallChannels(channels map[string]int) map[string]int {
 // small is a group of 1 to minSegment-1: shown, its answers could be told apart.
 func small(n int) bool { return n > 0 && n < minSegment }
 
-// hide removes a version's counts, n and statistics.
 func (v *versionResult) hide() { v.N, v.Options, v.Hidden = nil, nil, true }
 
 // hideSmallVersions hides every version under minSegment respondents in

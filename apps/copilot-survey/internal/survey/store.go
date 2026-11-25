@@ -142,7 +142,6 @@ func (s *surveyStore) submit(ctx context.Context, surveyID, hash string, closesO
 	return fresh, err
 }
 
-// answered: hash has answered surveyID.
 func (s *surveyStore) answered(ctx context.Context, surveyID, hash string) (bool, error) {
 	var seen bool
 	err := s.pool.QueryRow(ctx,

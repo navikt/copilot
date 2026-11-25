@@ -55,7 +55,6 @@ type codebookCategory struct {
 	Examples   []string `json:"examples"`
 }
 
-// code is one code a coder gave a text.
 type code struct {
 	Category string `json:"category"`
 	Onske    bool   `json:"onske"`

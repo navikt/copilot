@@ -12,7 +12,6 @@ import (
 	"strings"
 )
 
-// exportCSVContext are the context columns, in order.
 var exportCSVContext = []string{"client", "os", "version", "local_models"}
 
 // exportCSV is GET /api/v1/admin/surveys/{id}/export.csv: one row per
@@ -84,7 +83,6 @@ func (a *surveyAPI) exportCSV(w http.ResponseWriter, r *http.Request) {
 // so every export, and the test of the round trip, goes through it.
 func writeExportCSV(w io.Writer, s survey, rows []exportRow) {
 	suppressSmallSegments(rows)
-	// A column is a header and how a row fills it.
 	type column struct {
 		name string
 		cell func(exportRow) string

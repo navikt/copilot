@@ -36,7 +36,6 @@ func (a *surveyAPI) surveyCodebook(w http.ResponseWriter, s survey) (codebook, b
 	return cb, ok && s.Series != ""
 }
 
-// codingTexts reads a survey's rows, hidden texts and codes for coding.
 func (a *surveyAPI) codingTexts(w http.ResponseWriter, r *http.Request) (survey, codebook, []storedAnswer, map[string]bool, map[string]*textCodes, bool) {
 	s, rows, hidden, ok := a.freetextRows(w, r)
 	if !ok {

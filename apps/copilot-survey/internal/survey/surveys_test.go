@@ -593,7 +593,6 @@ func TestForCluster(t *testing.T) {
 	}
 }
 
-// loadSurveys reads a JSON array of surveys (tests).
 func loadSurveys(raw []byte) ([]survey, error) {
 	var surveys []survey
 	if err := decodeStrict(raw, &surveys); err != nil {
