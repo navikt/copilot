@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"github.com/navikt/copilot/cli/nav-pilot/internal/artifacts"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -11,6 +12,89 @@ import (
 	"testing"
 	"time"
 )
+
+// fakeOldCpltOnPath puts a cplt older than the fake release first on PATH.
+func fakeOldCpltOnPath(t *testing.T) {
+	t.Helper()
+	cli := filepath.Join(t.TempDir(), "cplt")
+	if err := os.WriteFile(cli, []byte("#!/bin/sh\necho 'cplt 2026.01.01-000000-0000000'\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", filepath.Dir(cli)+string(os.PathListSeparator)+os.Getenv("PATH"))
+}
+
+// seedCpltCache writes a cplt cache entry checked at the given time.
+func seedCpltCache(t *testing.T, version string, checked time.Time) {
+	t.Helper()
+	artifacts.WriteCacheAt(artifacts.CpltCacheFilePath(), &artifacts.StalenessCache{
+		LastChecked:   checked.UTC().Format(time.RFC3339),
+		LatestVersion: version,
+	})
+}
+
+const (
+	oldCached  = "2026.10.01-120000-1111111"
+	newRelease = "2026.11.01-120000-abcdef0"
+)
+
+// Each entry a lookup must not trust: it asks GitHub and stores the answer.
+func TestCachedLatestCpltVersionRefreshes(t *testing.T) {
+	for _, tc := range []struct {
+		name, version string
+		checked       time.Duration
+	}{
+		{"expired", oldCached, -25 * time.Hour},
+		{"future-dated", oldCached, time.Hour},
+		{"unparseable version", "garbage", -time.Minute},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			hits := fakeCpltReleases(t, 0)
+			seedCpltCache(t, tc.version, time.Now().Add(tc.checked))
+			v, err := cachedLatestCpltVersion()
+			if err != nil || v != newRelease {
+				t.Fatalf("got %q, %v; want %q", v, err, newRelease)
+			}
+			if n := hits.Load(); n != 1 {
+				t.Fatalf("GitHub asked %d times, want 1", n)
+			}
+			if c := artifacts.ReadCacheAt(artifacts.CpltCacheFilePath()); c == nil || c.LatestVersion != newRelease {
+				t.Fatalf("cache %+v, want %q stored", c, newRelease)
+			}
+		})
+	}
+}
+
+// A failed refresh of an expired entry returns the old answer, not an error.
+func TestCachedLatestCpltVersionFailedRefreshKeepsOld(t *testing.T) {
+	isolatedConfig(t)
+	t.Setenv("GITHUB_TOKEN", "")
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	t.Cleanup(srv.Close)
+	orig := cpltReleasesAPI
+	cpltReleasesAPI = srv.URL
+	t.Cleanup(func() { cpltReleasesAPI = orig })
+	seedCpltCache(t, oldCached, time.Now().Add(-25*time.Hour))
+	v, err := cachedLatestCpltVersion()
+	if err != nil || v != oldCached {
+		t.Fatalf("got %q, %v; want the old %q", v, err, oldCached)
+	}
+}
+
+// Upgrade is an explicit action: it waits longer than doctor's 1.5 s.
+func TestCpltUpgradeUsesLongTimeout(t *testing.T) {
+	fakeCpltReleases(t, 300*time.Millisecond)
+	fakeOldCpltOnPath(t)
+	orig := cpltLookupTimeout
+	cpltLookupTimeout = 50 * time.Millisecond
+	t.Cleanup(func() { cpltLookupTimeout = orig })
+	var out bytes.Buffer
+	reportCpltUpgrade(&out)
+	if !strings.Contains(out.String(), "out of date") {
+		t.Fatalf("upgrade output %q: it gave up at doctor's timeout", out.String())
+	}
+}
 
 // fakeCpltReleases points the cplt release lookup at a local server that
 // counts its requests and answers after delay.
@@ -72,11 +156,7 @@ func TestCpltUpgradeSkipsCache(t *testing.T) {
 	if _, err := cachedLatestCpltVersion(); err != nil {
 		t.Fatal(err)
 	}
-	cli := filepath.Join(t.TempDir(), "cplt")
-	if err := os.WriteFile(cli, []byte("#!/bin/sh\necho 'cplt 2026.01.01-000000-0000000'\n"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("PATH", filepath.Dir(cli)+string(os.PathListSeparator)+os.Getenv("PATH"))
+	fakeOldCpltOnPath(t)
 	var out bytes.Buffer
 	reportCpltUpgrade(&out)
 	if !strings.Contains(out.String(), "out of date") {

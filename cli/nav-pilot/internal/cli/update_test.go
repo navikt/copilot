@@ -492,7 +492,7 @@ func TestUpgradeChecksCpltWhenNavPilotIsCurrent(t *testing.T) {
 			})
 			Version = current
 			packageManager = func() domain.PkgManager { return tc.mgr }
-			latestCpltVersion = func() (string, error) { return tc.latest, tc.lookErr }
+			latestCpltVersion = func(time.Duration) (string, error) { return tc.latest, tc.lookErr }
 			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				fmt.Fprintf(w, `[{"tag_name": "nav-pilot/%s", "assets": [{"name": %q}, {"name": "SHA256SUMS"}]}]`, current, platformAsset)
 			}))
