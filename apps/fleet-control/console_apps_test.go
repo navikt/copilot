@@ -91,7 +91,7 @@ func TestListTeamApps(t *testing.T) {
 	if err != nil || code != 200 || !strings.Contains(body, `"a-mcp"`) || !strings.Contains(body, `"TeamAppList"`) {
 		t.Fatalf("member: %d %s %v", code, body, err)
 	}
-	if _, _, err := call(ct, caller{Teams: []string{"team-b"}}); err != errV1NotFound {
+	if _, _, err = call(ct, caller{Teams: []string{"team-b"}}); err != errV1NotFound {
 		t.Fatalf("non-member must get 404, got %v", err)
 	}
 	_, _, err = call(staticTeams{"team-a": {"x@nav.no"}}, caller{Teams: []string{"team-a"}})

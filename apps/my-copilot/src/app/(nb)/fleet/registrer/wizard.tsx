@@ -390,7 +390,7 @@ export function RegisterWizard({ teams, team, apps, requireRos, discoveryEnabled
 
               <RadioGroup
                 legend="Hva gjør verktøyene?"
-                description="Gjelder alle verktøyene, med mindre du velger noe annet for ett verktøy under «Avansert». Uten valg regnes et verktøy som «Skriver»."
+                description="Gjelder alle verktøyene, med mindre du velger noe annet for ett verktøy under «Avansert»."
                 value={s.defaultRisk}
                 onChange={(v: Risk) => set({ defaultRisk: v })}
                 error={errors.defaultRisk}
