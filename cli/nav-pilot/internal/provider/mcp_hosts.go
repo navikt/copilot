@@ -178,6 +178,10 @@ func matchMCPHosts(reg mcpRegistry, copilot []string, openCode map[string]mcpSer
 			}
 			return
 		}
+		// Every launch already passes FleetGatewayHosts (#2829): nothing to ask.
+		if slices.Contains(FleetGatewayHosts, host) {
+			return
+		}
 		if !slices.Contains(hosts[host], server) {
 			hosts[host] = append(hosts[host], server)
 		}
