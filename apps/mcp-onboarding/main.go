@@ -1,3 +1,4 @@
+// Package main implements an MCP server with GitHub OAuth authentication.
 package main
 
 import (
@@ -14,6 +15,8 @@ import (
 	"time"
 
 	"github.com/navikt/copilot/mcp-onboarding/internal/discovery"
+	"github.com/navikt/copilot/mcp-onboarding/internal/github"
+	"github.com/navikt/copilot/mcp-onboarding/internal/store"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
@@ -87,9 +90,9 @@ func main() {
 
 	buildInfo.WithLabelValues(version).Set(1)
 
-	store := NewTokenStore()
-	githubClient := NewGitHubClient(cfg.GitHubClientID, cfg.GitHubClientSecret)
-	oauthServer := NewOAuthServer(cfg.BaseURL, githubClient, store, cfg.AllowedOrganization)
+	ts := store.NewTokenStore()
+	githubClient := github.NewClient(cfg.GitHubClientID, cfg.GitHubClientSecret)
+	oauthServer := NewOAuthServer(cfg.BaseURL, githubClient, ts, cfg.AllowedOrganization)
 
 	// Initialize discovery service with embedded manifest
 	discoveryService := discovery.NewService("navikt", "copilot", "main", cfg.BaseURL)
@@ -119,7 +122,7 @@ func main() {
 	}
 
 	mcpHandler := NewMCPHandler(githubClient, discoveryService, cfg.BaseURL)
-	authMiddleware := NewAuthMiddleware(store, cfg.BaseURL)
+	authMiddleware := NewAuthMiddleware(ts, cfg.BaseURL)
 
 	mux := http.NewServeMux()
 
@@ -135,7 +138,7 @@ func main() {
 	mux.HandleFunc("GET /health", handleHealth)
 	mux.HandleFunc("GET /ready", handleReady)
 	mux.HandleFunc("GET /metrics", func(w http.ResponseWriter, r *http.Request) {
-		updateTokenStoreGauges(store)
+		updateTokenStoreGauges(ts)
 		promhttp.Handler().ServeHTTP(w, r)
 	})
 

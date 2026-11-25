@@ -1,5 +1,5 @@
-// Package main implements an MCP server with GitHub OAuth authentication.
-package main
+// Package github is the GitHub OAuth and REST client.
+package github
 
 import (
 	"encoding/json"
@@ -11,14 +11,16 @@ import (
 	"time"
 )
 
-type GitHubClient struct {
+// Client calls GitHub OAuth and the REST API.
+type Client struct {
 	ClientID     string
 	ClientSecret string
 	HTTPClient   *http.Client
 	APIBaseURL   string
 }
 
-type GitHubToken struct {
+// Token is a GitHub user access token.
+type Token struct {
 	AccessToken  string
 	RefreshToken string
 	ExpiresAt    time.Time
@@ -26,7 +28,8 @@ type GitHubToken struct {
 	Scope        string
 }
 
-type GitHubUser struct {
+// User is the authenticated GitHub user.
+type User struct {
 	ID        int64  `json:"id"`
 	Login     string `json:"login"`
 	Email     string `json:"email"`
@@ -34,12 +37,14 @@ type GitHubUser struct {
 	AvatarURL string `json:"avatar_url"`
 }
 
-type GitHubOrg struct {
+// Org is a GitHub organization.
+type Org struct {
 	ID    int64  `json:"id"`
 	Login string `json:"login"`
 }
 
-type GitHubRepo struct {
+// Repo is a GitHub repository.
+type Repo struct {
 	Name     string `json:"name"`
 	FullName string `json:"full_name"`
 	Archived bool   `json:"archived"`
@@ -47,8 +52,9 @@ type GitHubRepo struct {
 	Private  bool   `json:"private"`
 }
 
-func NewGitHubClient(clientID, clientSecret string) *GitHubClient {
-	return &GitHubClient{
+// NewClient returns a client for api.github.com.
+func NewClient(clientID, clientSecret string) *Client {
+	return &Client{
 		ClientID:     clientID,
 		ClientSecret: clientSecret,
 		HTTPClient:   &http.Client{Timeout: 30 * time.Second},
@@ -56,7 +62,8 @@ func NewGitHubClient(clientID, clientSecret string) *GitHubClient {
 	}
 }
 
-func (c *GitHubClient) ExchangeCode(code string) (*GitHubToken, error) {
+// ExchangeCode exchanges an OAuth authorization code for a token.
+func (c *Client) ExchangeCode(code string) (*Token, error) {
 	data := url.Values{
 		"client_id":     {c.ClientID},
 		"client_secret": {c.ClientSecret},
@@ -104,7 +111,7 @@ func (c *GitHubClient) ExchangeCode(code string) (*GitHubToken, error) {
 		expiresAt = time.Now().Add(time.Duration(tokenResp.ExpiresIn) * time.Second)
 	}
 
-	return &GitHubToken{
+	return &Token{
 		AccessToken:  tokenResp.AccessToken,
 		RefreshToken: tokenResp.RefreshToken,
 		ExpiresAt:    expiresAt,
@@ -113,7 +120,8 @@ func (c *GitHubClient) ExchangeCode(code string) (*GitHubToken, error) {
 	}, nil
 }
 
-func (c *GitHubClient) RefreshToken(refreshToken string) (*GitHubToken, error) {
+// RefreshToken exchanges a refresh token for a new token.
+func (c *Client) RefreshToken(refreshToken string) (*Token, error) {
 	data := url.Values{
 		"client_id":     {c.ClientID},
 		"client_secret": {c.ClientSecret},
@@ -151,7 +159,7 @@ func (c *GitHubClient) RefreshToken(refreshToken string) (*GitHubToken, error) {
 		return nil, fmt.Errorf("github refresh error: %s", tokenResp.Error)
 	}
 
-	return &GitHubToken{
+	return &Token{
 		AccessToken:  tokenResp.AccessToken,
 		RefreshToken: tokenResp.RefreshToken,
 		ExpiresAt:    time.Now().Add(time.Duration(tokenResp.ExpiresIn) * time.Second),
@@ -160,7 +168,8 @@ func (c *GitHubClient) RefreshToken(refreshToken string) (*GitHubToken, error) {
 	}, nil
 }
 
-func (c *GitHubClient) GetUser(accessToken string) (*GitHubUser, error) {
+// GetUser returns the user the token belongs to.
+func (c *Client) GetUser(accessToken string) (*User, error) {
 	req, err := http.NewRequest("GET", c.APIBaseURL+"/user", nil)
 	if err != nil {
 		return nil, err
@@ -180,7 +189,7 @@ func (c *GitHubClient) GetUser(accessToken string) (*GitHubUser, error) {
 		return nil, fmt.Errorf("github api error: %d - %s", resp.StatusCode, string(body))
 	}
 
-	var user GitHubUser
+	var user User
 	if err := json.NewDecoder(resp.Body).Decode(&user); err != nil {
 		return nil, err
 	}
@@ -188,8 +197,9 @@ func (c *GitHubClient) GetUser(accessToken string) (*GitHubUser, error) {
 	return &user, nil
 }
 
-func (c *GitHubClient) GetUserOrganizations(accessToken string) ([]GitHubOrg, error) {
-	var all []GitHubOrg
+// GetUserOrganizations returns every organization the user belongs to.
+func (c *Client) GetUserOrganizations(accessToken string) ([]Org, error) {
+	var all []Org
 	for page := 1; ; page++ {
 		req, err := http.NewRequest("GET", fmt.Sprintf("%s/user/orgs?per_page=100&page=%d", c.APIBaseURL, page), nil)
 		if err != nil {
@@ -210,7 +220,7 @@ func (c *GitHubClient) GetUserOrganizations(accessToken string) ([]GitHubOrg, er
 			return nil, fmt.Errorf("github api error: %d - %s", resp.StatusCode, string(body))
 		}
 
-		var orgs []GitHubOrg
+		var orgs []Org
 		err = json.NewDecoder(resp.Body).Decode(&orgs)
 		_ = resp.Body.Close()
 		if err != nil {
@@ -224,7 +234,8 @@ func (c *GitHubClient) GetUserOrganizations(accessToken string) ([]GitHubOrg, er
 	}
 }
 
-func (c *GitHubClient) CheckOrgMembership(accessToken string, allowedOrgs []string) (bool, string) {
+// CheckOrgMembership reports whether the user is in one of allowedOrgs, and which.
+func (c *Client) CheckOrgMembership(accessToken string, allowedOrgs []string) (bool, string) {
 	orgs, err := c.GetUserOrganizations(accessToken)
 	if err != nil {
 		return false, ""
@@ -241,13 +252,15 @@ func (c *GitHubClient) CheckOrgMembership(accessToken string, allowedOrgs []stri
 	return false, ""
 }
 
+// RepoContent is one entry in a repository directory listing.
 type RepoContent struct {
 	Name string `json:"name"`
 	Type string `json:"type"`
 	Path string `json:"path"`
 }
 
-func (c *GitHubClient) GetRepoFile(accessToken, owner, repo, path string) (bool, error) {
+// GetRepoFile reports whether path exists in the repository.
+func (c *Client) GetRepoFile(accessToken, owner, repo, path string) (bool, error) {
 	apiURL := fmt.Sprintf("%s/repos/%s/%s/contents/%s",
 		c.APIBaseURL, url.PathEscape(owner), url.PathEscape(repo), path)
 
@@ -276,7 +289,8 @@ func (c *GitHubClient) GetRepoFile(accessToken, owner, repo, path string) (bool,
 	}
 }
 
-func (c *GitHubClient) ListDirectory(accessToken, owner, repo, path string) ([]RepoContent, error) {
+// ListDirectory lists path, or returns nil if it does not exist.
+func (c *Client) ListDirectory(accessToken, owner, repo, path string) ([]RepoContent, error) {
 	apiURL := fmt.Sprintf("%s/repos/%s/%s/contents/%s",
 		c.APIBaseURL, url.PathEscape(owner), url.PathEscape(repo), path)
 
@@ -311,7 +325,8 @@ func (c *GitHubClient) ListDirectory(accessToken, owner, repo, path string) ([]R
 	return contents, nil
 }
 
-func (c *GitHubClient) GetDirectoryCount(accessToken, owner, repo, path string) (int, error) {
+// GetDirectoryCount returns the number of entries in path.
+func (c *Client) GetDirectoryCount(accessToken, owner, repo, path string) (int, error) {
 	entries, err := c.ListDirectory(accessToken, owner, repo, path)
 	if err != nil {
 		return 0, err
@@ -319,7 +334,8 @@ func (c *GitHubClient) GetDirectoryCount(accessToken, owner, repo, path string) 
 	return len(entries), nil
 }
 
-func (c *GitHubClient) GetRepoLanguages(accessToken, owner, repo string) ([]string, error) {
+// GetRepoLanguages returns the repository languages.
+func (c *Client) GetRepoLanguages(accessToken, owner, repo string) ([]string, error) {
 	apiURL := fmt.Sprintf("%s/repos/%s/%s/languages",
 		c.APIBaseURL, url.PathEscape(owner), url.PathEscape(repo))
 
@@ -356,8 +372,8 @@ func (c *GitHubClient) GetRepoLanguages(accessToken, owner, repo string) ([]stri
 
 // ListTeamRepos returns non-archived, non-fork repositories for a GitHub team.
 // Uses the team slug (URL-friendly name). Results are paginated.
-func (c *GitHubClient) ListTeamRepos(accessToken, org, teamSlug string) ([]GitHubRepo, error) {
-	var allRepos []GitHubRepo
+func (c *Client) ListTeamRepos(accessToken, org, teamSlug string) ([]Repo, error) {
+	var allRepos []Repo
 	page := 1
 	perPage := 100
 
@@ -384,7 +400,7 @@ func (c *GitHubClient) ListTeamRepos(accessToken, org, teamSlug string) ([]GitHu
 			return nil, fmt.Errorf("github api error: %d - %s", resp.StatusCode, string(body))
 		}
 
-		var repos []GitHubRepo
+		var repos []Repo
 		if err := json.NewDecoder(resp.Body).Decode(&repos); err != nil {
 			_ = resp.Body.Close()
 			return nil, err
@@ -407,13 +423,13 @@ func (c *GitHubClient) ListTeamRepos(accessToken, org, teamSlug string) ([]GitHu
 }
 
 type searchReposResponse struct {
-	Items []GitHubRepo `json:"items"`
+	Items []Repo `json:"items"`
 }
 
 // SearchReposByPrefix finds repos in an org matching a name prefix.
 // Uses the GitHub search API. Results are paginated, limited to 200 repos.
-func (c *GitHubClient) SearchReposByPrefix(accessToken, org, prefix string) ([]GitHubRepo, error) {
-	var allRepos []GitHubRepo
+func (c *Client) SearchReposByPrefix(accessToken, org, prefix string) ([]Repo, error) {
+	var allRepos []Repo
 	page := 1
 	perPage := 100
 	const maxResults = 200

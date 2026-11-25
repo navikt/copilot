@@ -8,6 +8,9 @@ import (
 	"strings"
 	"sync"
 	"testing"
+
+	"github.com/navikt/copilot/mcp-onboarding/internal/github"
+	"github.com/navikt/copilot/mcp-onboarding/internal/store"
 )
 
 const revokeRedirect = "http://127.0.0.1:33418/callback"
@@ -136,11 +139,11 @@ func TestRevoke_UnknownTokenReturns200(t *testing.T) {
 func TestRevoke_LegacyTokens(t *testing.T) {
 	mux, oauth := newChainTestServer(t)
 	clientID := registerClient(t, mux, revokeRedirect)
-	oauth.Store.SaveRefreshToken("legacy-rt", &RefreshTokenData{ClientID: clientID, UserLogin: "u"})
+	oauth.Store.SaveRefreshToken("legacy-rt", &store.RefreshTokenData{ClientID: clientID, UserLogin: "u"})
 	if w := revoke(mux, "legacy-rt", clientID); w.Code != http.StatusOK {
 		t.Fatalf("legacy revoke: %d", w.Code)
 	}
-	if _, ok := oauth.Store.refreshTokens["legacy-rt"]; ok {
+	if _, _, refreshTokens := oauth.Store.Sizes(); refreshTokens != 0 {
 		t.Fatal("legacy refresh token not revoked")
 	}
 }
@@ -170,15 +173,15 @@ func newServerWithRefreshHook(t *testing.T, onRefresh func()) (*http.ServeMux, *
 			})
 		},
 		"GET /user": func(w http.ResponseWriter, _ *http.Request) {
-			_ = json.NewEncoder(w).Encode(GitHubUser{ID: 42, Login: "victim"})
+			_ = json.NewEncoder(w).Encode(github.User{ID: 42, Login: "victim"})
 		},
 		"GET /user/orgs": func(w http.ResponseWriter, _ *http.Request) {
-			_ = json.NewEncoder(w).Encode([]GitHubOrg{{ID: 1, Login: "navikt"}})
+			_ = json.NewEncoder(w).Encode([]github.Org{{ID: 1, Login: "navikt"}})
 		},
 	})
 	gh := newTestGitHubClient(github)
 	gh.ClientSecret = "test-secret"
-	oauth := NewOAuthServer("http://localhost:8080", gh, NewTokenStore(), "navikt")
+	oauth := NewOAuthServer("http://localhost:8080", gh, store.NewTokenStore(), "navikt")
 	mux := http.NewServeMux()
 	oauth.RegisterRoutes(mux)
 	return mux, oauth
@@ -198,11 +201,11 @@ func TestRefresh_RevokeDuringRefreshWins(t *testing.T) {
 	if w.Code != http.StatusBadRequest || !strings.Contains(w.Body.String(), "invalid_grant") {
 		t.Fatalf("refresh after concurrent revoke: status %d", w.Code) // body would hold tokens
 	}
-	oauth.Store.mu.RLock()
-	defer oauth.Store.mu.RUnlock()
-	if len(oauth.Store.tokens) != 0 || len(oauth.Store.refreshTokens) != 0 {
+	_, tokens, refreshTokens := oauth.Store.Sizes()
+	if tokens != 0 || refreshTokens != 0 {
+		_, err := oauth.Store.GetToken(at)
 		t.Fatalf("store not empty after revoke: %d access, %d refresh (old access %v)",
-			len(oauth.Store.tokens), len(oauth.Store.refreshTokens), oauth.Store.tokens[at] != nil)
+			tokens, refreshTokens, err == nil)
 	}
 }
 
@@ -233,9 +236,7 @@ func TestRevoke_PurgedAccessTokenRevokesRefresh(t *testing.T) {
 	mux, oauth := newChainTestServer(t)
 	clientID := registerClient(t, mux, revokeRedirect)
 	at, rt := issueTokens(t, mux, clientID)
-	oauth.Store.mu.Lock()
-	delete(oauth.Store.tokens, at) // as cleanupExpired does
-	oauth.Store.mu.Unlock()
+	oauth.Store.DeleteToken(at)
 	if w := revoke(mux, at, clientID); w.Code != http.StatusOK {
 		t.Fatalf("revoke: %d", w.Code)
 	}

@@ -17,17 +17,18 @@ import (
 	"unicode"
 
 	"github.com/navikt/copilot/mcp-onboarding/internal/discovery"
+	"github.com/navikt/copilot/mcp-onboarding/internal/github"
 	"github.com/navikt/copilot/mcp-onboarding/internal/readiness"
 	"github.com/navikt/copilot/mcp-onboarding/internal/templates"
 )
 
 type MCPHandler struct {
-	githubClient     *GitHubClient
+	githubClient     *github.Client
 	discoveryService *discovery.Service
 	baseURL          string
 }
 
-func NewMCPHandler(githubClient *GitHubClient, discoveryService *discovery.Service, baseURL string) *MCPHandler {
+func NewMCPHandler(githubClient *github.Client, discoveryService *discovery.Service, baseURL string) *MCPHandler {
 	return &MCPHandler{
 		githubClient:     githubClient,
 		discoveryService: discoveryService,
@@ -1042,7 +1043,7 @@ This information is from your GitHub OAuth session.`, user.Login, user.ID)
 			}
 		}
 
-		var repos []GitHubRepo
+		var repos []github.Repo
 		var err error
 		if team != "" {
 			repos, err = h.githubClient.ListTeamRepos(user.GitHubAccessToken, org, team)
@@ -1376,7 +1377,7 @@ func (h *MCPHandler) detectRepoInfo(accessToken, owner, repo string) (*templates
 	return info, nil
 }
 
-func detectPackageManager(client *GitHubClient, accessToken, owner, repo string) string {
+func detectPackageManager(client *github.Client, accessToken, owner, repo string) string {
 	if exists, _ := client.GetRepoFile(accessToken, owner, repo, "pnpm-lock.yaml"); exists {
 		return "pnpm"
 	}

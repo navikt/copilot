@@ -8,12 +8,15 @@ import (
 	"net/url"
 	"testing"
 	"time"
+
+	"github.com/navikt/copilot/mcp-onboarding/internal/github"
+	"github.com/navikt/copilot/mcp-onboarding/internal/store"
 )
 
 func newTestOAuthServer() *OAuthServer {
-	store := NewTokenStore()
-	githubClient := NewGitHubClient("test-client-id", "test-client-secret")
-	return NewOAuthServer("http://localhost:8080", githubClient, store, "navikt")
+	ts := store.NewTokenStore()
+	githubClient := github.NewClient("test-client-id", "test-client-secret")
+	return NewOAuthServer("http://localhost:8080", githubClient, ts, "navikt")
 }
 
 func TestHandleRegister_Success(t *testing.T) {

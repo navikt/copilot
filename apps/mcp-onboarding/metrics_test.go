@@ -6,21 +6,18 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus/testutil"
+
+	"github.com/navikt/copilot/mcp-onboarding/internal/store"
 )
 
 func TestUpdateTokenStoreGauges(t *testing.T) {
-	store := &TokenStore{
-		tokens: map[string]*TokenData{
-			"tok1": {UserLogin: "user1", ExpiresAt: time.Now().Add(time.Hour)},
-			"tok2": {UserLogin: "user2", ExpiresAt: time.Now().Add(time.Hour)},
-		},
-		refreshTokens: map[string]*RefreshTokenData{
-			"ref1": {UserLogin: "user1"},
-		},
-	}
+	ts := store.NewTokenStore()
+	ts.SaveToken("tok1", &store.TokenData{UserLogin: "user1", ExpiresAt: time.Now().Add(time.Hour)})
+	ts.SaveToken("tok2", &store.TokenData{UserLogin: "user2", ExpiresAt: time.Now().Add(time.Hour)})
+	ts.SaveRefreshToken("ref1", &store.RefreshTokenData{UserLogin: "user1"})
 
 	tokenStoreSize.Reset()
-	updateTokenStoreGauges(store)
+	updateTokenStoreGauges(ts)
 
 	activeTokens := testutil.ToFloat64(tokenStoreSize.WithLabelValues("active_tokens"))
 	if activeTokens != 2 {

@@ -12,6 +12,9 @@ import (
 	"testing"
 	"time"
 	"unicode"
+
+	"github.com/navikt/copilot/mcp-onboarding/internal/github"
+	"github.com/navikt/copilot/mcp-onboarding/internal/store"
 )
 
 // newChainTestServer wires the real route table (RegisterRoutes) against a
@@ -40,16 +43,16 @@ func newChainTestServerWithSecret(t *testing.T, githubClientSecret string) (*htt
 			})
 		},
 		"GET /user": func(w http.ResponseWriter, _ *http.Request) {
-			_ = json.NewEncoder(w).Encode(GitHubUser{ID: 42, Login: "victim"})
+			_ = json.NewEncoder(w).Encode(github.User{ID: 42, Login: "victim"})
 		},
 		"GET /user/orgs": func(w http.ResponseWriter, _ *http.Request) {
-			_ = json.NewEncoder(w).Encode([]GitHubOrg{{ID: 1, Login: "navikt"}})
+			_ = json.NewEncoder(w).Encode([]github.Org{{ID: 1, Login: "navikt"}})
 		},
 	})
 
 	githubClient := newTestGitHubClient(github)
 	githubClient.ClientSecret = githubClientSecret
-	oauth := NewOAuthServer("http://localhost:8080", githubClient, NewTokenStore(), "navikt")
+	oauth := NewOAuthServer("http://localhost:8080", githubClient, store.NewTokenStore(), "navikt")
 	mux := http.NewServeMux()
 	oauth.RegisterRoutes(mux)
 	return mux, oauth
@@ -178,9 +181,7 @@ func TestOAuthChain_UnregisteredClientID_Rejected(t *testing.T) {
 	}
 
 	// No session may have been created with the attacker's redirect_uri.
-	oauth.Store.mu.RLock()
-	sessions := len(oauth.Store.authSessions)
-	oauth.Store.mu.RUnlock()
+	sessions, _, _ := oauth.Store.Sizes()
 	if sessions != 0 {
 		t.Fatalf("expected no auth session for a rejected client_id, got %d", sessions)
 	}
@@ -216,7 +217,7 @@ func TestHandleAuthorize_MissingCodeChallenge_Rejected(t *testing.T) {
 func TestTokenEndpoint_MissingClientID_Rejected(t *testing.T) {
 	mux, oauth := newChainTestServer(t)
 
-	oauth.Store.SaveAuthCode("stolen-code", &AuthCode{
+	oauth.Store.SaveAuthCode("stolen-code", &store.AuthCode{
 		ClientID:    "legit-client",
 		RedirectURI: "http://127.0.0.1:33418/callback",
 		UserLogin:   "victim",
@@ -594,7 +595,7 @@ func TestRefreshGrant_UnboundToken_Rejected(t *testing.T) {
 	mux, oauth := newChainTestServer(t)
 	clientID := registerClient(t, mux, "http://127.0.0.1:33418/callback")
 
-	oauth.Store.SaveRefreshToken("legacy-unbound", &RefreshTokenData{
+	oauth.Store.SaveRefreshToken("legacy-unbound", &store.RefreshTokenData{
 		GitHubRefreshToken: "ghr_victim",
 		UserLogin:          "victim",
 		UserID:             42,

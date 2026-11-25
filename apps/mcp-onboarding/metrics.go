@@ -6,6 +6,8 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
+
+	"github.com/navikt/copilot/mcp-onboarding/internal/store"
 )
 
 var (
@@ -92,9 +94,8 @@ func recordAuthentication() {
 	authenticatedUsersTotal.Inc()
 }
 
-func updateTokenStoreGauges(store *TokenStore) {
-	store.mu.RLock()
-	defer store.mu.RUnlock()
-	tokenStoreSize.WithLabelValues("active_tokens").Set(float64(len(store.tokens)))
-	tokenStoreSize.WithLabelValues("refresh_tokens").Set(float64(len(store.refreshTokens)))
+func updateTokenStoreGauges(ts *store.TokenStore) {
+	_, tokens, refreshTokens := ts.Sizes()
+	tokenStoreSize.WithLabelValues("active_tokens").Set(float64(tokens))
+	tokenStoreSize.WithLabelValues("refresh_tokens").Set(float64(refreshTokens))
 }

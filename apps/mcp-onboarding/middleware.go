@@ -5,16 +5,18 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+
+	"github.com/navikt/copilot/mcp-onboarding/internal/store"
 )
 
 type AuthMiddleware struct {
-	store   *TokenStore
+	store   *store.TokenStore
 	baseURL string
 }
 
-func NewAuthMiddleware(store *TokenStore, baseURL string) *AuthMiddleware {
+func NewAuthMiddleware(ts *store.TokenStore, baseURL string) *AuthMiddleware {
 	return &AuthMiddleware{
-		store:   store,
+		store:   ts,
 		baseURL: baseURL,
 	}
 }

@@ -1,4 +1,4 @@
-package main
+package github
 
 import (
 	"encoding/json"
@@ -28,7 +28,7 @@ func TestExchangeCode_Success(t *testing.T) {
 		})
 	})}
 
-	client := &GitHubClient{
+	client := &Client{
 		ClientID:     "test-id",
 		ClientSecret: "test-secret",
 		HTTPClient:   &http.Client{Transport: &mockTransport{handler: mock.handler}},
@@ -62,7 +62,7 @@ func TestExchangeCode_ErrorResponse(t *testing.T) {
 		})
 	})}
 
-	client := &GitHubClient{
+	client := &Client{
 		ClientID:     "test-id",
 		ClientSecret: "test-secret",
 		HTTPClient:   &http.Client{Transport: &mockTransport{handler: mock.handler}},
@@ -79,7 +79,7 @@ func TestExchangeCode_InvalidJSON(t *testing.T) {
 		_, _ = w.Write([]byte("not json"))
 	})}
 
-	client := &GitHubClient{
+	client := &Client{
 		ClientID:     "test-id",
 		ClientSecret: "test-secret",
 		HTTPClient:   &http.Client{Transport: &mockTransport{handler: mock.handler}},
@@ -106,7 +106,7 @@ func TestRefreshToken_Success(t *testing.T) {
 		})
 	})}
 
-	client := &GitHubClient{
+	client := &Client{
 		ClientID:     "test-id",
 		ClientSecret: "test-secret",
 		HTTPClient:   &http.Client{Transport: &mockTransport{handler: mock.handler}},
@@ -132,7 +132,7 @@ func TestRefreshToken_Error(t *testing.T) {
 		})
 	})}
 
-	client := &GitHubClient{
+	client := &Client{
 		ClientID:     "test-id",
 		ClientSecret: "test-secret",
 		HTTPClient:   &http.Client{Transport: &mockTransport{handler: mock.handler}},
@@ -153,7 +153,7 @@ func TestGetUser_Success(t *testing.T) {
 				t.Errorf("expected Authorization 'Bearer test-token', got %q", r.Header.Get("Authorization"))
 			}
 			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode(GitHubUser{
+			_ = json.NewEncoder(w).Encode(User{
 				ID:        42,
 				Login:     "octocat",
 				Email:     "octocat@github.com",
@@ -204,13 +204,13 @@ func TestGetUser_Unauthorized(t *testing.T) {
 func TestGetUserOrganizations_Paginates(t *testing.T) {
 	server := newGitHubMock(t, map[string]http.HandlerFunc{
 		"GET /user/orgs": func(w http.ResponseWriter, r *http.Request) {
-			var orgs []GitHubOrg
+			var orgs []Org
 			if r.URL.Query().Get("page") == "1" {
 				for i := range 100 {
-					orgs = append(orgs, GitHubOrg{ID: int64(i), Login: fmt.Sprintf("org-%d", i)})
+					orgs = append(orgs, Org{ID: int64(i), Login: fmt.Sprintf("org-%d", i)})
 				}
 			} else {
-				orgs = []GitHubOrg{{ID: 999, Login: "navikt"}}
+				orgs = []Org{{ID: 999, Login: "navikt"}}
 			}
 			_ = json.NewEncoder(w).Encode(orgs)
 		},
@@ -227,7 +227,7 @@ func TestGetUserOrganizations_Success(t *testing.T) {
 	server := newGitHubMock(t, map[string]http.HandlerFunc{
 		"GET /user/orgs": func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode([]GitHubOrg{
+			_ = json.NewEncoder(w).Encode([]Org{
 				{ID: 1, Login: "navikt"},
 				{ID: 2, Login: "github"},
 			})
@@ -273,7 +273,7 @@ func TestCheckOrgMembership_IsMember(t *testing.T) {
 	server := newGitHubMock(t, map[string]http.HandlerFunc{
 		"GET /user/orgs": func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode([]GitHubOrg{
+			_ = json.NewEncoder(w).Encode([]Org{
 				{ID: 1, Login: "navikt"},
 				{ID: 2, Login: "other-org"},
 			})
@@ -295,7 +295,7 @@ func TestCheckOrgMembership_CaseInsensitive(t *testing.T) {
 	server := newGitHubMock(t, map[string]http.HandlerFunc{
 		"GET /user/orgs": func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode([]GitHubOrg{
+			_ = json.NewEncoder(w).Encode([]Org{
 				{ID: 1, Login: "NavIKT"},
 			})
 		},
@@ -316,7 +316,7 @@ func TestCheckOrgMembership_NotMember(t *testing.T) {
 	server := newGitHubMock(t, map[string]http.HandlerFunc{
 		"GET /user/orgs": func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode([]GitHubOrg{
+			_ = json.NewEncoder(w).Encode([]Org{
 				{ID: 1, Login: "other-org"},
 			})
 		},
@@ -337,7 +337,7 @@ func TestCheckOrgMembership_MultipleAllowedOrgs(t *testing.T) {
 	server := newGitHubMock(t, map[string]http.HandlerFunc{
 		"GET /user/orgs": func(w http.ResponseWriter, _ *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
-			_ = json.NewEncoder(w).Encode([]GitHubOrg{
+			_ = json.NewEncoder(w).Encode([]Org{
 				{ID: 1, Login: "some-other-org"},
 				{ID: 2, Login: "navikt"},
 			})
@@ -434,10 +434,10 @@ func TestListDirectory_ServerError(t *testing.T) {
 	}
 }
 
-// --- NewGitHubClient tests ---
+// --- NewClient tests ---
 
 func TestNewGitHubClient(t *testing.T) {
-	client := NewGitHubClient("my-id", "my-secret")
+	client := NewClient("my-id", "my-secret")
 	if client.ClientID != "my-id" {
 		t.Errorf("expected ClientID 'my-id', got %q", client.ClientID)
 	}
