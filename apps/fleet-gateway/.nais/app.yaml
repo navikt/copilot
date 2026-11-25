@@ -139,7 +139,12 @@ spec:
     - Egress
   egress:
     - to:
-        - namespaceSelector: {}
+        # Team namespaces only. Every namespace without a team label is a
+        # platform namespace (kube-system, nais-system, kyverno, cnrm-system,
+        # gke-managed-*, ...): `kubectl get ns -l '!team'` on 2026-11-25.
+        - namespaceSelector:
+            matchExpressions:
+              - { key: team, operator: Exists }
           podSelector: {}
 ---
 # Alerts for fleet-gateway. The 5xx and token rules need some traffic before they

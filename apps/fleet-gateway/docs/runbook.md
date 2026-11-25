@@ -151,14 +151,14 @@ The deploy that hashes the store keys for authorization codes, consent ids and E
 
 ## Receivers must be closed by default
 
-The gateway may reach any pod in the cluster (NetworkPolicy `fleet-gateway-egress` in `.nais/app.yaml`, owner decision 2026-11-25, #2985). Adding an MCP server needs no change to the gateway manifest. The network no longer limits what the gateway can call, so each receiver must close itself. Before a route goes live, check the receiver:
+The gateway may reach any pod in a team namespace (namespaces with a `team` label; NetworkPolicy `fleet-gateway-egress` in `.nais/app.yaml`, owner decision 2026-11-25, #2985). Adding an MCP server needs no change to the gateway manifest. The network no longer limits what the gateway can call, so each receiver must close itself. Before a route goes live, check the receiver:
 
 1. `accessPolicy.inbound.rules` lists `fleet-gateway` in namespace `copilot`, and no `application: "*"` or other broad rule.
-2. It validates the Entra token on every request: signature, issuer, audience is the receiver's own client ID, and expiry.
+2. It validates the Entra token on every request: signature, issuer, audience is the receiver's own client ID, and expiry. Today's receivers rely on Texas for `aud`; an explicit check is tracked in #2995.
 3. It checks that `azp` is the fleet-gateway client ID and rejects app-only tokens (no `NAVident`).
-4. It applies its own access control from claims such as groups.
+4. Group restriction is optional. A receiver open to every Nav employee sets `allowAllUsers: true` (all four receivers today do, on purpose); that choice must be recorded in the ROS.
 
-A receiver that fails a check stays out of `pilot-routes.<env>.yaml` and fleet-control until fixed.
+Known gaps: #2995. A receiver that fails a check stays out of `pilot-routes.<env>.yaml` and fleet-control until fixed.
 
 ## Post-deploy smoke (three steps)
 
