@@ -1,6 +1,8 @@
 package main
 
 import (
+	"github.com/navikt/copilot/apps/copilot-api/internal/cache"
+
 	"bytes"
 	"context"
 	"crypto/rsa"
@@ -31,8 +33,8 @@ type GitHubClient struct {
 	token          string
 	tokenExpiry    time.Time
 	tokenMu        sync.Mutex
-	samlCache      *Cache // email→GitHub username cache
-	memberCache    *Cache // lower-cased login→active org member (bool)
+	samlCache      *cache.Cache // email→GitHub username cache
+	memberCache    *cache.Cache // lower-cased login→active org member (bool)
 }
 
 func newGitHubClient(config *Config) (*GitHubClient, error) {
@@ -67,8 +69,8 @@ func newGitHubClient(config *Config) (*GitHubClient, error) {
 		appID:          config.GitHubAppID,
 		privateKey:     privateKey,
 		installationID: config.GitHubInstallationID,
-		samlCache:      NewCache(10 * time.Minute),
-		memberCache:    NewCache(time.Minute),
+		samlCache:      cache.New(10 * time.Minute),
+		memberCache:    cache.New(time.Minute),
 	}, nil
 }
 

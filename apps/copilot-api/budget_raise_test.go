@@ -1,6 +1,8 @@
 package main
 
 import (
+	"github.com/navikt/copilot/apps/copilot-api/internal/cache"
+
 	"bytes"
 	"cloud.google.com/go/bigquery"
 	"cloud.google.com/go/civil"
@@ -1022,7 +1024,7 @@ func TestRosterTeamsNoSnapshotIsUnknown(t *testing.T) {
 func TestCachedRosterRechecksSnapshotAge(t *testing.T) {
 	day := time.Date(2026, 11, 23, 23, 55, 0, 0, time.UTC)
 	now := day
-	c := &CachedBigQueryClient{cache: NewCache(time.Hour), now: func() time.Time { return now }}
+	c := &CachedBigQueryClient{cache: cache.New(time.Hour), now: func() time.Time { return now }}
 	c.cache.Set("roster_rows_ola", []rosterRow{{
 		SnapshotDate: bigquery.NullDate{Date: civil.DateOf(day).AddDays(-rosterMaxAgeDays), Valid: true},
 		TeamSlug:     bigquery.NullString{StringVal: "team-b", Valid: true},

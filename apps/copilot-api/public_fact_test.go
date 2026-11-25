@@ -1,6 +1,8 @@
 package main
 
 import (
+	"github.com/navikt/copilot/apps/copilot-api/internal/cache"
+
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -161,7 +163,7 @@ func TestWithRepoCounts(t *testing.T) {
 }
 
 func TestCachedFactAdoptionCachesFailures(t *testing.T) {
-	c := NewCache(time.Hour)
+	c := cache.New(time.Hour)
 	calls := 0
 	fail := func() (*AdoptionSummary, error) { calls++; return nil, errors.New("bq down") }
 	for range 3 {

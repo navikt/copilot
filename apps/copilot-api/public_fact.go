@@ -1,6 +1,8 @@
 package main
 
 import (
+	"github.com/navikt/copilot/apps/copilot-api/internal/cache"
+
 	"context"
 	"fmt"
 	"hash/fnv"
@@ -317,7 +319,7 @@ func (c *CachedBigQueryClient) GetFactAggregates(ctx context.Context) (*FactAggr
 // cachedFactAdoption loads the repo scan once per key. A failure or an empty
 // scan is cached as nil for negativeCacheTTL, so anonymous front-page views
 // cannot re-run a failing query (#1572).
-func cachedFactAdoption(c *Cache, key string, load func() (*AdoptionSummary, error)) *AdoptionSummary {
+func cachedFactAdoption(c *cache.Cache, key string, load func() (*AdoptionSummary, error)) *AdoptionSummary {
 	if v, ok := c.Get(key); ok {
 		s, _ := v.(*AdoptionSummary)
 		return s
