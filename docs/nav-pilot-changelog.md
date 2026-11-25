@@ -11,6 +11,7 @@ Endringslogg for nav-pilot agent harness — agenter, skills, instruksjoner, pro
 ### Tydelig melding uten nett
 
 - **`nav-pilot news` og `nav-pilot mcp list`**: Uten nett skrev kommandoene Gos rå feilmelding, for eksempel `context deadline exceeded`. Nå sier de hva nav-pilot ikke fikk kontakt med, og ber deg sjekke nettverket (og naisdevice for MCP-registeret) og prøve igjen. Den rå feilen vises med `DEBUG=1` (#2906).
+- **`nav-pilot mcp enable` og `nav-pilot mcp prune`**: Uten nett sier også disse at MCP-registeret ikke svarte, at ingenting ble endret, og ber deg sjekke nettverket eller naisdevice og prøve igjen. Den rå feilen vises med `DEBUG=1` (#2940).
 
 ### Localhost-spørsmålet bruker cplts JSON-svar
 
