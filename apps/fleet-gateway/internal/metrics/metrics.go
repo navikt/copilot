@@ -26,6 +26,12 @@ var (
 		Help: "HTTP requests answered by fleet-gateway, by status code. Excludes /health and /ready. reason is empty except for deliberate 503s (disabled: kill switch, cap: in-flight/SSE cap, user_cap: per-user in-flight cap, user_sse_cap: per-user SSE cap, store_full: store quota, refresh_in_flight: concurrent refresh).",
 	}, []string{"code", "reason"})
 
+	// IDPErrors counts login failures caused by Entra or Texas, not by the user (#2893).
+	IDPErrors = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "fleet_gateway_idp_errors_total",
+		Help: "Login steps that failed at Entra ID or Texas: metadata (well-known lookup), code_redeem (network error or 5xx), introspection (Texas).",
+	}, []string{"step"})
+
 	MCPRequests = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "fleet_gateway_mcp_requests_total",
 		Help: "MCP proxy requests by route, outcome and tool-policy decision. reason is set on deny only (not_listed, ambiguous, header_mismatch, user_cap, user_sse_cap). tool is the called tool when it is on the route's explicit list, else other; empty when the request is not a tool call.",
@@ -153,6 +159,9 @@ func Init(routes []routing.Route) {
 	}
 	for _, reason := range []string{"disabled", "cap", "user_cap", "user_sse_cap", "store_full", "refresh_in_flight"} {
 		HTTPRequests.WithLabelValues("503", reason)
+	}
+	for _, step := range []string{"metadata", "code_redeem", "introspection"} {
+		IDPErrors.WithLabelValues(step)
 	}
 	for _, ep := range RateLimitedEndpoints {
 		RateLimited.WithLabelValues(ep)

@@ -207,6 +207,7 @@ spec:
             summary: A fleet-gateway pod has not fetched a fleet-control route snapshot for more than 10 minutes
             consequence: The pod keeps serving its last route table, so route changes and revocations in fleet-control do not reach it.
             action: "Check fleet-control health and its Postgres, then search fleet-gateway pod logs for `fleet-control routes not updated`."
+            runbook_url: https://github.com/navikt/copilot/blob/main/apps/fleet-gateway/docs/runbook.md#fleetgatewayroutesnapshotstale
         - alert: FleetGatewayRouteSyncFailing
           expr: sum(increase(fleet_gateway_route_sync_failures_total{namespace="copilot"}[15m])) > 0
           for: 15m
@@ -219,6 +220,7 @@ spec:
             summary: fleet-gateway has failed to fetch or validate fleet-control route snapshots for 15 minutes
             consequence: The pods keep serving their last route table, so route changes and revocations in fleet-control do not reach them.
             action: "Search fleet-gateway pod logs for `fleet-control routes not updated`; the error says whether fleet-control is down or its snapshot is refused (contract mismatch, see docs/runbook.md)."
+            runbook_url: https://github.com/navikt/copilot/blob/main/apps/fleet-gateway/docs/runbook.md#fleetgatewayroutesyncfailing
 {{#if routes_source}}
         - alert: FleetGatewayRouteNeverSynced
           # The age gauge appears on the first successful sync (#2637), so the stale alert cannot see a pod that never synced.
@@ -234,6 +236,7 @@ spec:
             summary: A fleet-gateway pod has run for 15 minutes without one successful fleet-control route sync
             consequence: The pod serves no route table from fleet-control, so MCP routes fail closed.
             action: "Search the pod's logs for `fleet-control routes not updated` and check fleet-control health."
+            runbook_url: https://github.com/navikt/copilot/blob/main/apps/fleet-gateway/docs/runbook.md#fleetgatewayrouteneversynced
 {{/if}}
         - alert: FleetGatewayNoReadyPods
           expr: sum by (k8s_cluster_name) (kube_deployment_status_replicas_available{namespace="copilot", deployment="fleet-gateway"}) == 0
@@ -247,6 +250,7 @@ spec:
             summary: fleet-gateway has no ready pods
             consequence: Every MCP call through the gateway fails.
             action: "Check `kubectl -n copilot get pods -l app=fleet-gateway` and the pod logs. Usual causes: a bad route file or RT_KEYS."
+            runbook_url: https://github.com/navikt/copilot/blob/main/apps/fleet-gateway/docs/runbook.md#fleetgatewaynoreadypods
         - alert: FleetGatewayStoreDown
           expr: min(fleet_gateway_store_up{namespace="copilot"}) == 0
           for: 2m
@@ -259,6 +263,7 @@ spec:
             summary: A fleet-gateway pod cannot reach its Postgres
             consequence: Pods stay in rotation and route from the stored snapshot, but logins, token refresh and sessions fail.
             action: "Check the fleet-gateway Postgres in Nais Console and search pod logs for `session store ping failed`."
+            runbook_url: https://github.com/navikt/copilot/blob/main/apps/fleet-gateway/docs/runbook.md#fleetgatewaystoredown
         - alert: FleetGatewayPodRestarts
           expr: sum(increase(kube_pod_container_status_restarts_total{namespace="copilot", container="fleet-gateway"}[15m])) > 2
           labels:
@@ -270,6 +275,7 @@ spec:
             summary: fleet-gateway restarted more than twice in 15 minutes
             consequence: Calls in flight are cut. OOMKilled means the memory limit is too low for the bodies being buffered.
             action: "Run `kubectl -n copilot describe pod -l app=fleet-gateway` and look at Last State."
+            runbook_url: https://github.com/navikt/copilot/blob/main/apps/fleet-gateway/docs/runbook.md#fleetgatewaypodrestarts
         - alert: FleetGatewayHigh5xxRate
           expr: |
             sum by (k8s_cluster_name) (rate(fleet_gateway_http_requests_total{namespace="copilot", code=~"5..", reason=""}[5m]))
@@ -286,6 +292,7 @@ spec:
             description: Deliberate 503s (kill switch, in-flight cap, store quota, concurrent refresh) carry a non-empty reason label and are not counted.
             consequence: Users get errors on login or MCP calls.
             action: "Break down `fleet_gateway_mcp_requests_total` by route and outcome, then read the `audit mcp` log lines for that route."
+            runbook_url: https://github.com/navikt/copilot/blob/main/apps/fleet-gateway/docs/runbook.md#fleetgatewayhigh5xxrate
         - alert: FleetGatewayAvailabilityBurnFast
           expr: |
             fleet_gateway:slo_availability_errors:ratio_rate1h{namespace="copilot"} > 0.072
@@ -328,6 +335,7 @@ spec:
             summary: More than 5 deliberate 503s (store_full or cap) per 5 minutes for 15 minutes; the reason label says which
             consequence: "store_full: new logins and registrations fail. cap: MCP calls get 503 over capacity."
             action: "store_full: count rows per kind in the session store and look for a client registering in a loop. cap: check `fleet_gateway_mcp_requests_total` by route and slow upstreams."
+            runbook_url: https://github.com/navikt/copilot/blob/main/apps/fleet-gateway/docs/runbook.md#fleetgatewaysustainedshedding
         - alert: FleetGatewaySustainedRateLimiting
           expr: sum by (oauth_endpoint) (increase(fleet_gateway_rate_limited_total{namespace="copilot"}[5m])) > 20
           for: 15m
@@ -340,6 +348,7 @@ spec:
             summary: More than 20 rate-limited requests per 5 minutes for 15 minutes on an unauthenticated endpoint; the endpoint label says which
             consequence: Clients on that endpoint get 429 Too Many Requests from the per-IP or global limit.
             action: "Check `fleet_gateway_rate_limited_total` by endpoint and search pod logs for `rate limited`."
+            runbook_url: https://github.com/navikt/copilot/blob/main/apps/fleet-gateway/docs/runbook.md#fleetgatewaysustainedratelimiting
         - alert: FleetGatewayUpstreamTokenErrors
           expr: sum(increase(fleet_gateway_mcp_requests_total{namespace="copilot", outcome="upstream_token_error"}[10m])) > 5
           labels:
@@ -351,6 +360,21 @@ spec:
             summary: fleet-gateway failed to get upstream team tokens more than 5 times in 10 minutes
             consequence: MCP calls fail with 502 upstream_token_error.
             action: "Find `team token failed` in the logs; the reason carries the AADSTS code. Check Entra ID status and the team's app registration."
+            runbook_url: https://github.com/navikt/copilot/blob/main/apps/fleet-gateway/docs/runbook.md#fleetgatewayupstreamtokenerrors
+        - alert: FleetGatewayIdPErrors
+          # Only Entra/Texas failures; the normal OAuth handshake 401 is not in this counter.
+          expr: sum by (step) (increase(fleet_gateway_idp_errors_total{namespace="copilot"}[10m])) > 3
+          for: 10m
+          labels:
+            namespace: copilot
+            severity: warning
+            alert_type: custom
+            app: fleet-gateway
+          annotations:
+            summary: Logins fail at Entra ID or Texas more than 3 times per 10 minutes for 10 minutes; the step label says where
+            consequence: Users cannot log in to MCP servers through the gateway. Existing sessions keep working until they need a refresh.
+            action: "Search pod logs for `audit login` with outcome code_redeem_failed or introspection_failed, or for `Entra well-known metadata lookup failed`."
+            runbook_url: https://github.com/navikt/copilot/blob/main/apps/fleet-gateway/docs/runbook.md#fleetgatewayidperrors
 ---
 # Sends fleet-gateway's custom alerts to #github-copilot-alerts, as copilot-survey does.
 apiVersion: monitoring.coreos.com/v1alpha1

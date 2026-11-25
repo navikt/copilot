@@ -5,6 +5,8 @@ replicas_max: "2"
 cpu_request: 50m
 memory_request: 64Mi
 memory_limit: 128Mi
+# Measured 15Mi in dev (kubectl top, 2026-11-25); 128Mi has ample headroom.
+gomemlimit: 115MiB
 # Entra client ids of the callers in dev-gcp, from
 # `kubectl -n copilot get azureapp <app> -o jsonpath='{.status.clientId}'`.
 fleet_gateway_client_id: 3c9d6972-9c61-4a8c-9450-2274dd721345

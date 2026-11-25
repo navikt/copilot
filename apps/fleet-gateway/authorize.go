@@ -22,6 +22,7 @@ import (
 
 	"github.com/navikt/copilot/fleet-gateway/internal/config"
 	"github.com/navikt/copilot/fleet-gateway/internal/httpx"
+	"github.com/navikt/copilot/fleet-gateway/internal/metrics"
 	"github.com/navikt/copilot/fleet-gateway/internal/oauth"
 	"github.com/navikt/copilot/fleet-gateway/internal/oauth/entra"
 )
@@ -308,6 +309,7 @@ func (g *Gateway) redirectToEntra(w http.ResponseWriter, r *http.Request, p *oau
 	authzEndpoint, err := g.entra.AuthorizeEndpoint(r.Context())
 	if err != nil {
 		slog.Warn("Entra well-known metadata lookup failed", "error", err)
+		metrics.IDPErrors.WithLabelValues("metadata").Inc()
 		http.Error(w, "upstream identity provider unavailable", http.StatusBadGateway)
 		return
 	}
@@ -466,6 +468,9 @@ func (g *Gateway) callbackHandler(w http.ResponseWriter, r *http.Request) {
 	missingToken := (at == "" && idt == "") || (at == "" && g.cfg.TeamTokenStrategy != strategyRefresh)
 	if err != nil || status != http.StatusOK || missingToken {
 		errType, _ := out["error"].(string)
+		if err != nil || status >= 500 {
+			metrics.IDPErrors.WithLabelValues("code_redeem").Inc()
+		}
 		slog.Warn("audit login", "outcome", "code_redeem_failed", "status", status, "error", sanitizeLogValue(errType), "client_id", sanitizeLogValue(p.ClientID), "resource", sanitizeLogValue(p.Resource))
 		back(url.Values{
 			"error":             {"server_error"},
@@ -529,6 +534,7 @@ func (g *Gateway) callbackHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if introErr != nil {
+		metrics.IDPErrors.WithLabelValues("introspection").Inc()
 		slog.Warn("audit login", "outcome", "introspection_failed", "reason", introErr.Error(), "client_id", p.ClientID, "resource", p.Resource)
 		back(url.Values{
 			"error":             {"server_error"},

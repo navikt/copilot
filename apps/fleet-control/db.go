@@ -36,6 +36,9 @@ func OpenDB(ctx context.Context, dsn string) (*DB, error) {
 	}
 	// Simple protocol avoids prepared statements incompatible with PgBouncer transaction mode.
 	cfg.ConnConfig.DefaultQueryExecMode = pgx.QueryExecModeSimpleProtocol
+	// pgx defaults to max(4, NumCPU), which is the node's cores. 10 per pod keeps
+	// 3 pods (2 replicas plus a rolling surge) at 30, well under max_connections 100 (#2893).
+	cfg.MaxConns = 10
 	cfg.ConnConfig.Tracer = multitracer.New(store.PendingAudit, metrics.DBTracer{})
 	cfg.BeforeClose = store.PendingAudit.Forget
 	pool, err := pgxpool.NewWithConfig(ctx, cfg)

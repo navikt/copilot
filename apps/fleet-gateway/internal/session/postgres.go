@@ -52,6 +52,9 @@ func openPGPool(ctx context.Context, dsn string) (*pgxpool.Pool, error) {
 	}
 	// PgBouncer in transaction mode: no server-side prepared statements, no session state.
 	poolCfg.ConnConfig.DefaultQueryExecMode = pgx.QueryExecModeSimpleProtocol
+	// pgx defaults to max(4, NumCPU), which is the node's cores. 10 per pod keeps
+	// 3 pods (2 replicas plus a rolling surge) at 30, well under max_connections 100 (#2893).
+	poolCfg.MaxConns = 10
 	pool, err := pgxpool.NewWithConfig(ctx, poolCfg)
 	if err != nil {
 		return nil, fmt.Errorf("create postgres pool: %w", err)
