@@ -30,30 +30,33 @@ export default function McpReferansePage() {
           Serverne i piloten, med prod-adressen klienten kobler til. Registeret har den fulle listen på{" "}
           <code className={code}>https://mcp-registry.nav.no</code>.
         </BodyLong>
-        <Table size="small">
-          <TableHeader>
-            <TableRow>
-              <TableHeaderCell scope="col">Server</TableHeaderCell>
-              <TableHeaderCell scope="col">Navn i registeret</TableHeaderCell>
-              <TableHeaderCell scope="col">Adresse</TableHeaderCell>
-              <TableHeaderCell scope="col">Tilgang</TableHeaderCell>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {PILOT_SERVERS.map((s) => (
-              <TableRow key={s.id}>
-                <TableDataCell>{s.title}</TableDataCell>
-                <TableDataCell>
-                  <code className={code}>{s.id}</code>
-                </TableDataCell>
-                <TableDataCell>
-                  <code className={code}>{GATEWAY + s.route}</code>
-                </TableDataCell>
-                <TableDataCell>{s.readOnly ? "Bare lesing" : "Lesing og skriving"}</TableDataCell>
+        {/* Long gateway URLs: scroll the table, not the page, on a phone. */}
+        <div className="overflow-x-auto">
+          <Table size="small">
+            <TableHeader>
+              <TableRow>
+                <TableHeaderCell scope="col">Server</TableHeaderCell>
+                <TableHeaderCell scope="col">Navn i registeret</TableHeaderCell>
+                <TableHeaderCell scope="col">Adresse</TableHeaderCell>
+                <TableHeaderCell scope="col">Tilgang</TableHeaderCell>
               </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+            </TableHeader>
+            <TableBody>
+              {PILOT_SERVERS.map((s) => (
+                <TableRow key={s.id}>
+                  <TableDataCell>{s.title}</TableDataCell>
+                  <TableDataCell>
+                    <code className={code}>{s.id}</code>
+                  </TableDataCell>
+                  <TableDataCell>
+                    <code className={code}>{GATEWAY + s.route}</code>
+                  </TableDataCell>
+                  <TableDataCell>{s.readOnly ? "Bare lesing" : "Lesing og skriving"}</TableDataCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       </VStack>
 
       <VStack gap="space-12">

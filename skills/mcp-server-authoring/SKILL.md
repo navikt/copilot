@@ -28,7 +28,7 @@ Build an MCP server that Nav teams can run behind fleet-gateway. Workflow adapte
 
 ## Guidelines (source of truth)
 
-The full rules, each linked to OWASP MCP Top 10 and the MCP `2026-07-28` spec, live in one place: [Retningslinjer for MCP-servere](https://ki-utvikling.nav.no/mcp/tilby-server/retningslinjer) (`apps/my-copilot/src/app/(nb)/(nav-pilot)/mcp/tilby-server/retningslinjer/page.tsx`). Do not repeat them here; read the page. Registration steps: [fleet-gateway for teams](https://ki-utvikling.nav.no/mcp/tilby-server).
+The full rules, each linked to OWASP MCP Top 10 and the MCP `2026-07-28` spec, live in one place: [Retningslinjer for MCP-servere](https://ki-utvikling.nav.no/mcp/tilby-server/retningslinjer) (`apps/my-copilot/src/app/(nb)/(mcp)/mcp/tilby-server/retningslinjer/page.tsx`). Do not repeat them here; read the page. Registration steps: [fleet-gateway for teams](https://ki-utvikling.nav.no/mcp/tilby-server).
 
 Checklist:
 
@@ -41,6 +41,15 @@ Checklist:
 - [ ] No tokens or personal data in logs.
 - [ ] Static descriptions; all four annotations set; annotations are hints only.
 - [ ] Per-tool metrics with bounded labels (tool name, outcome).
+- [ ] Output is an API: `outputSchema` + `structuredContent` (also the serialized JSON as a `content` text block, for clients that ignore `structuredContent`); only add fields.
+- [ ] Never truncate silently: cut on characters, not bytes, with a marker and a tool hint; lists carry `truncated` and the remaining count.
+- [ ] Oversized backend replies are errors, not truncated data.
+- [ ] Free text written by others is marked or left out of what the model reads.
+- [ ] User ID from the token (`NAVident`), never from tool arguments.
+- [ ] No citizen or case data; never log content.
+- [ ] Few tools; no demo tools in prod.
+- [ ] Negative tests: expired token, app token, wrong `azp`, missing `NAVident`, wrong tool, oversized body.
+- [ ] Fresh login before writes once the owner has set the rule (#2964, not decided).
 - [ ] One ROS per server (template: `fleet-gateway/ros-mcp-server-mal.md` in the private `navikt/copilot-intern` repo).
 
 ## Registry and gateway route

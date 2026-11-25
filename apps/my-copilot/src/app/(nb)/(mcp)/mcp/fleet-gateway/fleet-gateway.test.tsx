@@ -52,6 +52,9 @@ describe("Retningslinjer", () => {
     "logging",
     "beskrivelser",
     "metrikker",
+    "svar",
+    "data",
+    "negative-tester",
     "ros",
     "eksempler",
     "kilder",
@@ -70,9 +73,17 @@ describe("Retningslinjer", () => {
   it("renders the collapsed details, so the facts stay on the page", () => {
     const { container } = render(<RetningslinjerPage />);
     const names = screen.getAllByRole("button", { name: /^Detaljer: / }).map((b) => b.textContent);
-    expect(names).toHaveLength(9);
-    expect(new Set(names).size).toBe(9);
-    for (const fact of ["AZURE_APP_PRE_AUTHORIZED_APPS", "introspection_failed", "-32020", "user_sse_cap", "MCP08"])
+    expect(names).toHaveLength(12);
+    expect(new Set(names).size).toBe(12);
+    for (const fact of [
+      "AZURE_APP_PRE_AUTHORIZED_APPS",
+      "introspection_failed",
+      "-32020",
+      "user_sse_cap",
+      "MCP08",
+      "structuredContent",
+      "truncated",
+    ])
       expect(container.textContent).toContain(fact);
   });
 });
