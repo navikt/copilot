@@ -915,7 +915,7 @@ func TestCallback_StateCookieBinding(t *testing.T) {
 		},
 		{
 			name: "cookie signed for different state fails with 403",
-			mutate: func(te *testEnv, state *string, cookie **http.Cookie) {
+			mutate: func(te *testEnv, _ *string, cookie **http.Cookie) {
 				*cookie = &http.Cookie{Name: (*cookie).Name, Value: te.gw.oauth().SignEntraState("other-state")}
 			},
 			wantStatus: http.StatusForbidden,
