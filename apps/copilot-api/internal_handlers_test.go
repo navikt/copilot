@@ -1,6 +1,8 @@
 package main
 
 import (
+	"github.com/navikt/copilot/apps/copilot-api/internal/cache"
+
 	"bytes"
 	"context"
 	"errors"
@@ -352,7 +354,7 @@ func TestIsActiveOrgMember(t *testing.T) {
 		_, _ = w.Write([]byte(a.body))
 	}))
 	defer srv.Close()
-	cache := NewCache(time.Minute)
+	cache := cache.New(time.Minute)
 	defer cache.Stop()
 	g := &GitHubClient{httpClient: &http.Client{Transport: rewrite{srv}}, org: "navikt",
 		token: "inst", tokenExpiry: time.Now().Add(time.Hour), memberCache: cache}

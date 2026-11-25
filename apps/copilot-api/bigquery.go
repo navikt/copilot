@@ -1,6 +1,8 @@
 package main
 
 import (
+	"github.com/navikt/copilot/apps/copilot-api/internal/cache"
+
 	"context"
 	"encoding/json"
 	"fmt"
@@ -998,7 +1000,7 @@ type BigQueryQuerier interface {
 // Cache wrapper for BigQuery operations
 type CachedBigQueryClient struct {
 	client *BigQueryClient
-	cache  *Cache
+	cache  *cache.Cache
 	group  singleflight.Group
 	now    func() time.Time // nil: time.Now; tests set a fake clock
 }
@@ -1006,7 +1008,7 @@ type CachedBigQueryClient struct {
 func newCachedBigQueryClient(client *BigQueryClient, ttl time.Duration) *CachedBigQueryClient {
 	return &CachedBigQueryClient{
 		client: client,
-		cache:  NewCache(ttl),
+		cache:  cache.New(ttl),
 	}
 }
 

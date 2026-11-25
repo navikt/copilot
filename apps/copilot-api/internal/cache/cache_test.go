@@ -1,4 +1,4 @@
-package main
+package cache
 
 import (
 	"fmt"
@@ -7,7 +7,7 @@ import (
 )
 
 func TestCacheStopIsIdempotent(t *testing.T) {
-	cache := NewCache(10 * time.Millisecond)
+	cache := New(10 * time.Millisecond)
 	cache.Stop()
 	cache.Stop()
 }
@@ -15,7 +15,7 @@ func TestCacheStopIsIdempotent(t *testing.T) {
 func TestCacheEvictsExpiredEntriesBeforeGrowingPastCap(t *testing.T) {
 	// Long TTL so entries don't expire naturally during the test, but we
 	// manually backdate some entries' expiration to simulate staleness.
-	cache := newCacheWithMaxSize(time.Hour, 3)
+	cache := newWithMaxSize(time.Hour, 3)
 	defer cache.Stop()
 
 	cache.Set("a", 1)
@@ -45,7 +45,7 @@ func TestCacheEvictsExpiredEntriesBeforeGrowingPastCap(t *testing.T) {
 
 func TestCacheNeverExceedsMaxSize(t *testing.T) {
 	const maxSize = 10
-	cache := newCacheWithMaxSize(time.Hour, maxSize)
+	cache := newWithMaxSize(time.Hour, maxSize)
 	defer cache.Stop()
 
 	for i := 0; i < maxSize*5; i++ {
@@ -62,7 +62,7 @@ func TestCacheNeverExceedsMaxSize(t *testing.T) {
 }
 
 func TestCacheUpdatingExistingKeyDoesNotEvict(t *testing.T) {
-	cache := newCacheWithMaxSize(time.Hour, 2)
+	cache := newWithMaxSize(time.Hour, 2)
 	defer cache.Stop()
 
 	cache.Set("a", 1)

@@ -1,19 +1,18 @@
-package main
+package cache
 
 import (
 	"sync"
 	"time"
 )
 
-// defaultMaxCacheEntries bounds in-memory cache growth. Per-user cache keys
+// defaultMaxEntries bounds in-memory cache growth. Per-user cache keys
 // (user_metrics_*, user_daily_credits_*, user_weekly_trends_*, etc.) grow
 // unboundedly between TTL-triggered cleanups under normal operation; this cap
 // is a safety valve against unbounded memory growth if usage patterns spike
 // (e.g. many distinct users/params hitting cache within a single TTL window).
-const defaultMaxCacheEntries = 5000
+const defaultMaxEntries = 5000
 
-// CacheEntry represents a single cached value with expiration
-type CacheEntry struct {
+type item struct {
 	value      interface{}
 	expiration time.Time
 }
@@ -21,7 +20,7 @@ type CacheEntry struct {
 // Cache is a simple in-memory cache with TTL and a soft maximum entry count.
 type Cache struct {
 	mu       sync.RWMutex
-	entries  map[string]CacheEntry
+	entries  map[string]item
 	ttl      time.Duration
 	maxSize  int
 	stopOnce sync.Once
@@ -29,24 +28,23 @@ type Cache struct {
 	doneCh   chan struct{}
 }
 
-// NewCache creates a new cache with the specified TTL and starts a background cleanup goroutine
-func NewCache(ttl time.Duration) *Cache {
-	return newCacheWithMaxSize(ttl, defaultMaxCacheEntries)
+// New returns a cache with the given TTL and starts a background cleanup goroutine.
+func New(ttl time.Duration) *Cache {
+	return newWithMaxSize(ttl, defaultMaxEntries)
 }
 
-// newCacheWithMaxSize is like NewCache but allows overriding the entry cap —
+// newWithMaxSize is like New but allows overriding the entry cap —
 // primarily for tests that need to exercise eviction without inserting
 // thousands of entries.
-func newCacheWithMaxSize(ttl time.Duration, maxSize int) *Cache {
+func newWithMaxSize(ttl time.Duration, maxSize int) *Cache {
 	c := &Cache{
-		entries: make(map[string]CacheEntry),
+		entries: make(map[string]item),
 		ttl:     ttl,
 		maxSize: maxSize,
 		stopCh:  make(chan struct{}),
 		doneCh:  make(chan struct{}),
 	}
 
-	// Run cache cleanup every TTL interval
 	go func() {
 		ticker := time.NewTicker(ttl)
 		defer ticker.Stop()
@@ -64,7 +62,6 @@ func newCacheWithMaxSize(ttl time.Duration, maxSize int) *Cache {
 	return c
 }
 
-// Get retrieves a value from the cache
 func (c *Cache) Get(key string) (interface{}, bool) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
@@ -99,7 +96,7 @@ func (c *Cache) SetWithTTL(key string, value interface{}, ttl time.Duration) {
 		c.evictLocked()
 	}
 
-	c.entries[key] = CacheEntry{
+	c.entries[key] = item{
 		value:      value,
 		expiration: time.Now().Add(ttl),
 	}
@@ -127,7 +124,6 @@ func (c *Cache) evictLocked() {
 	}
 }
 
-// Delete removes a value from the cache
 func (c *Cache) Delete(key string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -135,15 +131,13 @@ func (c *Cache) Delete(key string) {
 	delete(c.entries, key)
 }
 
-// Clear removes all entries from the cache
 func (c *Cache) Clear() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	c.entries = make(map[string]CacheEntry)
+	c.entries = make(map[string]item)
 }
 
-// Cleanup removes expired entries (should be called periodically)
 func (c *Cache) Cleanup() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -156,7 +150,6 @@ func (c *Cache) Cleanup() {
 	}
 }
 
-// Stop stops the background cleanup goroutine.
 func (c *Cache) Stop() {
 	c.stopOnce.Do(func() {
 		close(c.stopCh)
