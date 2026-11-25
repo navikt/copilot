@@ -37,7 +37,7 @@
     {
       "title": "Copilot: overview",
       "type": "link",
-      "url": "/d/copilot-ecosystem",
+      "url": "/d/copilot-ecosystem?${__url_time_range}&${env:queryparam}",
       "icon": "dashboard",
       "targetBlank": false,
       "keepTime": false,
@@ -132,10 +132,10 @@
           "uid": "${DS_METRICS}"
         },
         "query": {
-          "query": "label_values(fleet_gateway_mcp_requests_total{namespace=\"copilot\", k8s_cluster_name=~\"$env\"}, route)",
+          "query": "label_values(fleet_gateway_mcp_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\"}, route)",
           "refId": "route"
         },
-        "definition": "label_values(fleet_gateway_mcp_requests_total{namespace=\"copilot\", k8s_cluster_name=~\"$env\"}, route)",
+        "definition": "label_values(fleet_gateway_mcp_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\"}, route)",
         "multi": true,
         "includeAll": true,
         "allValue": ".*",
@@ -229,7 +229,7 @@
     {
       "type": "stat",
       "title": "5xx rate",
-      "description": "Red above 10 %, like the alert FleetGatewayHigh5xxRate. Deliberate 503s with a reason are not counted. The alert also needs more than 20 requests in 5 min, so a few requests at night can turn this red without an alert.",
+      "description": "Red above 10 %, like the alert FleetGatewayHigh5xxRate. Deliberate 503s with a reason are not counted. The alert also needs more than 20 requests in 5 min, so a few requests at night can turn this red without an alert. Does not follow the route filter (no route label).",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_METRICS}"
@@ -283,20 +283,20 @@
       "gridPos": {
         "h": 4,
         "w": 4,
-        "x": 8,
+        "x": 4,
         "y": 1
       },
       "links": [
         {
           "title": "Gateway logs",
-          "url": "/d/copilot-fleet-ops?viewPanel=26&${__url_time_range}&var-env=${env}&${route:queryparam}"
+          "url": "/d/copilot-fleet-ops?viewPanel=34&${__url_time_range}&${env:queryparam}&${route:queryparam}"
         }
       ]
     },
     {
       "type": "stat",
       "title": "Failed MCP calls/s",
-      "description": "Failures use the SLO definition: every outcome except ok, unauthorized (OAuth handshake 401), disabled (kill switch) and tool_denied. user_cap and user_sse_cap count as failures.",
+      "description": "Every outcome except ok, unauthorized, disabled and tool_denied, so upstream_<code> and upstream_error are included. This is broader than the SLO in #2972. The SLO counts as errors only store_error, upstream_token_error, over_capacity, sse_over_capacity, user_cap and user_sse_cap, and excludes unauthorized, disabled and tool_denied from the total.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_METRICS}"
@@ -348,7 +348,7 @@
       "gridPos": {
         "h": 4,
         "w": 4,
-        "x": 12,
+        "x": 8,
         "y": 1
       }
     },
@@ -405,14 +405,14 @@
       "gridPos": {
         "h": 4,
         "w": 4,
-        "x": 16,
+        "x": 12,
         "y": 1
       }
     },
     {
       "type": "stat",
-      "title": "Error ratio (SLO)",
-      "description": "Share of counted MCP calls that failed, same ratio as the SLO in #2972. Failures use the SLO definition: every outcome except ok, unauthorized (OAuth handshake 401), disabled (kill switch) and tool_denied. user_cap and user_sse_cap count as failures. Excluded outcomes are left out of the denominator too. Orange from 3 % and red from 7.2 %, the slow and fast burn thresholds for the 99.5 % target (#2972).",
+      "title": "Worst route error ratio (5 min)",
+      "description": "Highest 5-minute error ratio of any route, from the recording rule the SLO alerts use (#2972). Orange from 3 % and red from 7.2 %, the slow and fast burn thresholds for the 99.5 % target. Errors follow the SLO in #2972: gateway faults count as bad (store_error, upstream_token_error, over_capacity, sse_over_capacity, user_cap, user_sse_cap); unauthorized, disabled and tool_denied are left out of the total; upstream_<code> and upstream_error are not counted as bad. Target 99.5 % availability per route per month. The latency SLO (p95 below 1 s, SSE excluded) has no panel until #2973 adds an SSE label.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_METRICS}"
@@ -421,7 +421,7 @@
         "defaults": {
           "unit": "percentunit",
           "decimals": 2,
-          "noValue": "no traffic",
+          "noValue": "too little traffic",
           "color": {
             "mode": "thresholds"
           },
@@ -462,7 +462,7 @@
       },
       "targets": [
         {
-          "expr": "(sum(rate(fleet_gateway_mcp_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", route=~\"$route\", outcome!~\"ok|unauthorized|disabled|tool_denied\"}[5m])) or vector(0)) / (sum(rate(fleet_gateway_mcp_requests_total{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", route=~\"$route\", outcome!~\"unauthorized|disabled|tool_denied\"}[5m])) > 0)",
+          "expr": "max((fleet_gateway:slo_availability_errors:ratio_rate5m{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", route=~\"$route\"} >= 0))",
           "legendFormat": "",
           "refId": "A"
         }
@@ -471,14 +471,14 @@
       "gridPos": {
         "h": 4,
         "w": 4,
-        "x": 4,
+        "x": 16,
         "y": 1
       }
     },
     {
       "type": "stat",
       "title": "Available replicas",
-      "description": "Same metric as the alert FleetGatewayNoReadyPods.",
+      "description": "Same metric as the alert FleetGatewayNoReadyPods. Does not follow the route filter (no route label).",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_METRICS}"
@@ -538,7 +538,7 @@
     },
     {
       "type": "row",
-      "title": "Health and alerts",
+      "title": "SLO",
       "id": 8,
       "gridPos": {
         "h": 1,
@@ -551,8 +551,370 @@
     },
     {
       "type": "stat",
+      "title": "Availability (1 d) by route",
+      "description": "Share of counted MCP calls that succeeded over the last day, per route. Red below 97 %: an error ratio of 3 %, which is 6x burn, the slow alert's threshold on its own 1 d window. The fast alert (14.4x) uses 5 min and 1 h windows; see the fast burn panel. A route with fewer than 20 counted calls in a day shows no tile: too little traffic to judge. Errors follow the SLO in #2972: gateway faults count as bad (store_error, upstream_token_error, over_capacity, sse_over_capacity, user_cap, user_sse_cap); unauthorized, disabled and tool_denied are left out of the total; upstream_<code> and upstream_error are not counted as bad. Target 99.5 % availability per route per month. The latency SLO (p95 below 1 s, SSE excluded) has no panel until #2973 adds an SSE label.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_METRICS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "noValue": "too little traffic",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 0.97
+              }
+            ]
+          },
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "(1 - (fleet_gateway:slo_availability_errors:ratio_rate1d{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", route=~\"$route\"} >= 0)) and on (namespace, k8s_cluster_name, route) (fleet_gateway:slo_availability_requests:increase1d{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", route=~\"$route\"} >= 20)",
+          "legendFormat": "{{route}}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "textMode": "value",
+        "wideLayout": true,
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "id": 9,
+      "gridPos": {
+        "h": 4,
+        "w": 12,
+        "x": 0,
+        "y": 6
+      }
+    },
+    {
+      "type": "stat",
+      "title": "5xx rate (1 d), gateway-wide",
+      "description": "Gateway-wide 5xx share over the last day from the recording rule (no route label, so it does not follow the route filter). Target below 1 %; red from 1 %. The rule needs at least 20 responses a day, so dev and quiet days show too little traffic.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_METRICS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "noValue": "too little traffic",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 0.01
+              }
+            ]
+          },
+          "decimals": 2
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "(fleet_gateway:slo_5xx:ratio_rate1d{namespace=\"$namespace\", k8s_cluster_name=~\"$env\"} >= 0)",
+          "legendFormat": "",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "textMode": "value",
+        "wideLayout": true,
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        }
+      },
+      "id": 10,
+      "gridPos": {
+        "h": 4,
+        "w": 12,
+        "x": 12,
+        "y": 6
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Fast burn (5 min and 1 h)",
+      "description": "Error ratio divided by the error budget (0.5 %), over the two windows FleetGatewayAvailabilityBurnFast uses. It fires when both are above 14.4x (dashed line). Errors follow the SLO in #2972: gateway faults count as bad (store_error, upstream_token_error, over_capacity, sse_over_capacity, user_cap, user_sse_cap); unauthorized, disabled and tool_denied are left out of the total; upstream_<code> and upstream_error are not counted as bad. Target 99.5 % availability per route per month. The latency SLO (p95 below 1 s, SSE excluded) has no panel until #2973 adds an SSE label.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_METRICS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "noValue": "too little traffic",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 14.4
+              }
+            ]
+          },
+          "custom": {
+            "thresholdsStyle": {
+              "mode": "dashed"
+            },
+            "lineWidth": 1,
+            "fillOpacity": 0
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "(fleet_gateway:slo_availability_errors:ratio_rate5m{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", route=~\"$route\"} >= 0) / 0.005",
+          "legendFormat": "{{route}} 5m",
+          "refId": "A"
+        },
+        {
+          "expr": "(fleet_gateway:slo_availability_errors:ratio_rate1h{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", route=~\"$route\"} >= 0) / 0.005",
+          "legendFormat": "{{route}} 1h",
+          "refId": "B"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ],
+          "sortBy": "Max",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "id": 11,
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 10
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Slow burn (6 h and 1 d)",
+      "description": "Error ratio divided by the error budget (0.5 %), over the two windows FleetGatewayAvailabilityBurnSlow uses. It fires when both are above 6x (dashed line). Errors follow the SLO in #2972: gateway faults count as bad (store_error, upstream_token_error, over_capacity, sse_over_capacity, user_cap, user_sse_cap); unauthorized, disabled and tool_denied are left out of the total; upstream_<code> and upstream_error are not counted as bad. Target 99.5 % availability per route per month. The latency SLO (p95 below 1 s, SSE excluded) has no panel until #2973 adds an SSE label.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_METRICS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "noValue": "too little traffic",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 6
+              }
+            ]
+          },
+          "custom": {
+            "thresholdsStyle": {
+              "mode": "dashed"
+            },
+            "lineWidth": 1,
+            "fillOpacity": 0
+          },
+          "min": 0
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "(fleet_gateway:slo_availability_errors:ratio_rate6h{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", route=~\"$route\"} >= 0) / 0.005",
+          "legendFormat": "{{route}} 6h",
+          "refId": "A"
+        },
+        {
+          "expr": "(fleet_gateway:slo_availability_errors:ratio_rate1d{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", route=~\"$route\"} >= 0) / 0.005",
+          "legendFormat": "{{route}} 1d",
+          "refId": "B"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "mean",
+            "max",
+            "lastNotNull"
+          ],
+          "sortBy": "Max",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "id": 70,
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 10
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Counted requests (1 d) by route",
+      "description": "Calls the availability SLO counts, over a sliding day. Below the dashed line at 20 the SLO tiles and alerts have too little traffic to judge.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "${DS_METRICS}"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "noValue": "no traffic",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 20
+              }
+            ]
+          },
+          "custom": {
+            "thresholdsStyle": {
+              "mode": "dashed"
+            },
+            "lineWidth": 1,
+            "fillOpacity": 0
+          },
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "expr": "fleet_gateway:slo_availability_requests:increase1d{namespace=\"$namespace\", k8s_cluster_name=~\"$env\", route=~\"$route\"}",
+          "legendFormat": "{{route}}",
+          "refId": "A"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "showLegend": true,
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ],
+          "sortBy": "Last *",
+          "sortDesc": true
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "id": 12,
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 10
+      }
+    },
+    {
+      "type": "row",
+      "title": "Health and alerts",
+      "id": 13,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 18
+      },
+      "collapsed": false,
+      "panels": []
+    },
+    {
+      "type": "stat",
       "title": "Load shedding (5 min)",
-      "description": "503s from shedding. The value is the count over the alert's own window (5 min), last value, with the alert threshold. The sparkline shows the history. Red above 5 (SustainedShedding).",
+      "description": "503s from shedding. The value is the count over the alert's own window (5 min), last value, with the alert threshold. The sparkline shows the history. Red above 5 (SustainedShedding). Does not follow the route filter (no route label).",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_METRICS}"
@@ -603,18 +965,18 @@
           "refId": "A"
         }
       ],
-      "id": 9,
+      "id": 14,
       "gridPos": {
         "h": 4,
         "w": 3,
         "x": 0,
-        "y": 6
+        "y": 19
       }
     },
     {
       "type": "stat",
       "title": "Rate limited (5 min)",
-      "description": "429s. The value is the count over the alert's own window (5 min), last value, with the alert threshold. The sparkline shows the history. Red above 20 (SustainedRateLimiting).",
+      "description": "429s. The value is the count over the alert's own window (5 min), last value, with the alert threshold. The sparkline shows the history. Red above 20 (SustainedRateLimiting). Does not follow the route filter (no route label).",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_METRICS}"
@@ -665,12 +1027,12 @@
           "refId": "A"
         }
       ],
-      "id": 10,
+      "id": 15,
       "gridPos": {
         "h": 4,
         "w": 3,
         "x": 3,
-        "y": 6
+        "y": 19
       }
     },
     {
@@ -727,18 +1089,18 @@
           "refId": "A"
         }
       ],
-      "id": 11,
+      "id": 16,
       "gridPos": {
         "h": 4,
         "w": 3,
         "x": 6,
-        "y": 6
+        "y": 19
       }
     },
     {
       "type": "stat",
       "title": "Failed MCP calls (5 min)",
-      "description": "Failures use the SLO definition: every outcome except ok, unauthorized (OAuth handshake 401), disabled (kill switch) and tool_denied. user_cap and user_sse_cap count as failures.",
+      "description": "Every outcome except ok, unauthorized, disabled and tool_denied, so upstream_<code> and upstream_error are included. This is broader than the SLO in #2972. The SLO counts as errors only store_error, upstream_token_error, over_capacity, sse_over_capacity, user_cap and user_sse_cap, and excludes unauthorized, disabled and tool_denied from the total.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_METRICS}"
@@ -786,18 +1148,18 @@
           "refId": "A"
         }
       ],
-      "id": 12,
+      "id": 17,
       "gridPos": {
         "h": 4,
         "w": 3,
         "x": 9,
-        "y": 6
+        "y": 19
       }
     },
     {
       "type": "stat",
       "title": "Route sync failures (15 min)",
-      "description": "Count over the last 15 min, last value. No alert; amber from 1.",
+      "description": "Count over the last 15 min, last value. No alert; amber from 1. Does not follow the route filter (no route label).",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_METRICS}"
@@ -848,18 +1210,18 @@
           "refId": "A"
         }
       ],
-      "id": 13,
+      "id": 18,
       "gridPos": {
         "h": 4,
         "w": 3,
         "x": 12,
-        "y": 6
+        "y": 19
       }
     },
     {
       "type": "stat",
-      "title": "Never synced pods (dev)",
-      "description": "Dev gateway pods with no successful route sync from fleet-control yet, like the alert FleetGatewayRouteNeverSynced. Dev only: prod reads routes from git, so the snapshot age gauge never exists there.",
+      "title": "Never synced pods",
+      "description": "Gateway pods that read routes from fleet-control and have no successful sync yet, like the alert FleetGatewayRouteNeverSynced. Pods that read routes from git are not counted. Does not follow the route filter (no route label).",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_METRICS}"
@@ -905,17 +1267,17 @@
       },
       "targets": [
         {
-          "expr": "count(fleet_gateway_routes_loaded{namespace=\"$namespace\", k8s_cluster_name=\"dev\"} unless on (pod, k8s_cluster_name) fleet_gateway_route_snapshot_age_seconds{namespace=\"$namespace\", k8s_cluster_name=\"dev\"}) or vector(0)",
+          "expr": "count(fleet_gateway_routes_loaded{namespace=\"$namespace\", k8s_cluster_name=~\"$env\"} * on (pod, k8s_cluster_name) group_left fleet_gateway_routes_source_info{namespace=\"$namespace\", source=\"fleet-control\"} unless on (pod, k8s_cluster_name) fleet_gateway_route_snapshot_age_seconds{namespace=\"$namespace\"}) or vector(0)",
           "legendFormat": "",
           "refId": "A"
         }
       ],
-      "id": 67,
+      "id": 19,
       "gridPos": {
         "h": 4,
         "w": 3,
         "x": 15,
-        "y": 6
+        "y": 19
       }
     },
     {
@@ -972,18 +1334,18 @@
           "refId": "A"
         }
       ],
-      "id": 66,
+      "id": 20,
       "gridPos": {
         "h": 4,
         "w": 3,
         "x": 18,
-        "y": 6
+        "y": 19
       }
     },
     {
       "type": "stat",
       "title": "Container restarts (15 min)",
-      "description": "The value is the count over the alert's own window (15 min), last value, with the alert threshold. The sparkline shows the history. Red above 2 (PodRestarts).",
+      "description": "The value is the count over the alert's own window (15 min), last value, with the alert threshold. The sparkline shows the history. Red above 2 (PodRestarts). Does not follow the route filter (no route label).",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_METRICS}"
@@ -1034,12 +1396,12 @@
           "refId": "A"
         }
       ],
-      "id": 14,
+      "id": 21,
       "gridPos": {
         "h": 4,
         "w": 3,
         "x": 21,
-        "y": 6
+        "y": 19
       }
     },
     {
@@ -1111,9 +1473,9 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 10
+        "y": 23
       },
-      "id": 15,
+      "id": 22,
       "options": {
         "legend": {
           "calcs": [
@@ -1143,18 +1505,18 @@
       ],
       "title": "5xx rate (excluding deliberate rejections)",
       "type": "timeseries",
-      "description": "Same expression as the alert FleetGatewayHigh5xxRate: 5xx without a reason label. Alerts above 10 %.",
+      "description": "Same expression as the alert FleetGatewayHigh5xxRate: 5xx without a reason label. Alerts above 10 %. Does not follow the route filter (no route label).",
       "links": [
         {
           "title": "Gateway logs",
-          "url": "/d/copilot-fleet-ops?viewPanel=26&${__url_time_range}&var-env=${env}&${route:queryparam}"
+          "url": "/d/copilot-fleet-ops?viewPanel=34&${__url_time_range}&${env:queryparam}&${route:queryparam}"
         }
       ]
     },
     {
       "type": "timeseries",
       "title": "5xx by status code",
-      "description": "5xx responses the alert counts (no reason label), by status code.",
+      "description": "5xx responses the alert counts (no reason label), by status code. Does not follow the route filter (no route label).",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_METRICS}"
@@ -1203,21 +1565,21 @@
       "links": [
         {
           "title": "Gateway logs",
-          "url": "/d/copilot-fleet-ops?viewPanel=26&${__url_time_range}&var-env=${env}&${route:queryparam}"
+          "url": "/d/copilot-fleet-ops?viewPanel=34&${__url_time_range}&${env:queryparam}&${route:queryparam}"
         }
       ],
-      "id": 16,
+      "id": 23,
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 10
+        "y": 23
       }
     },
     {
       "type": "timeseries",
       "title": "Failed MCP calls by route and outcome",
-      "description": "Failures use the SLO definition: every outcome except ok, unauthorized (OAuth handshake 401), disabled (kill switch) and tool_denied. user_cap and user_sse_cap count as failures.",
+      "description": "Every outcome except ok, unauthorized, disabled and tool_denied, so upstream_<code> and upstream_error are included. This is broader than the SLO in #2972. The SLO counts as errors only store_error, upstream_token_error, over_capacity, sse_over_capacity, user_cap and user_sse_cap, and excludes unauthorized, disabled and tool_denied from the total.",
       "datasource": {
         "type": "prometheus",
         "uid": "${DS_METRICS}"
@@ -1266,15 +1628,15 @@
       "links": [
         {
           "title": "Gateway logs",
-          "url": "/d/copilot-fleet-ops?viewPanel=26&${__url_time_range}&var-env=${env}&${route:queryparam}"
+          "url": "/d/copilot-fleet-ops?viewPanel=34&${__url_time_range}&${env:queryparam}&${route:queryparam}"
         }
       ],
-      "id": 17,
+      "id": 24,
       "gridPos": {
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 18
+        "y": 31
       }
     },
     {
@@ -1343,9 +1705,9 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 18
+        "y": 31
       },
-      "id": 18,
+      "id": 25,
       "options": {
         "legend": {
           "calcs": [
@@ -1380,17 +1742,17 @@
       ],
       "title": "Available vs desired replicas",
       "type": "timeseries",
-      "description": "Alert NoReadyPods fires when a deployment has 0 available replicas."
+      "description": "Alert NoReadyPods fires when a deployment has 0 available replicas. Does not follow the route filter (no route label)."
     },
     {
       "type": "row",
       "title": "Health details",
-      "id": 19,
+      "id": 26,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 26
+        "y": 39
       },
       "collapsed": true,
       "panels": [
@@ -1461,9 +1823,9 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 27
+            "y": 40
           },
-          "id": 20,
+          "id": 27,
           "options": {
             "legend": {
               "calcs": [
@@ -1491,7 +1853,7 @@
           ],
           "title": "Load shedding by reason",
           "type": "timeseries",
-          "description": "503 with a reason: cap, user_cap, user_sse_cap, store_full, refresh_in_flight, disabled."
+          "description": "503 with a reason: cap, user_cap, user_sse_cap, store_full, refresh_in_flight, disabled. Does not follow the route filter (no route label)."
         },
         {
           "datasource": {
@@ -1560,9 +1922,9 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 27
+            "y": 40
           },
-          "id": 21,
+          "id": 28,
           "options": {
             "legend": {
               "calcs": [
@@ -1590,7 +1952,7 @@
           ],
           "title": "Rate limited by endpoint",
           "type": "timeseries",
-          "description": "Rejected calls (429) by OAuth endpoint."
+          "description": "Rejected calls (429) by OAuth endpoint. Does not follow the route filter (no route label)."
         },
         {
           "datasource": {
@@ -1659,9 +2021,9 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 35
+            "y": 48
           },
-          "id": 22,
+          "id": 29,
           "options": {
             "legend": {
               "calcs": [
@@ -1759,9 +2121,9 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 35
+            "y": 48
           },
-          "id": 23,
+          "id": 30,
           "options": {
             "legend": {
               "calcs": [
@@ -1794,7 +2156,7 @@
           ],
           "title": "Route sync failures",
           "type": "timeseries",
-          "description": "",
+          "description": "Does not follow the route filter (no route label).",
           "interval": "5m"
         },
         {
@@ -1864,9 +2226,9 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 43
+            "y": 56
           },
-          "id": 24,
+          "id": 31,
           "options": {
             "legend": {
               "calcs": [
@@ -1894,7 +2256,7 @@
           ],
           "title": "Container restarts",
           "type": "timeseries",
-          "description": "Alert PodRestarts: more than 2 restarts in 15 min.",
+          "description": "Alert PodRestarts: more than 2 restarts in 15 min. Does not follow the route filter (no route label).",
           "interval": "5m"
         },
         {
@@ -1964,9 +2326,9 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 43
+            "y": 56
           },
-          "id": 58,
+          "id": 32,
           "options": {
             "legend": {
               "calcs": [
@@ -1996,26 +2358,26 @@
           ],
           "title": "Route snapshot age (fleet-gateway)",
           "type": "timeseries",
-          "description": "Age of each pod's route snapshot. The alert FleetGatewayRouteSnapshotStale fires above 600 s. Pods that never synced are missing here: see Never synced pods."
+          "description": "Age of each pod's route snapshot. The alert FleetGatewayRouteSnapshotStale fires above 600 s. Pods that never synced are missing here: see Never synced pods. Does not follow the route filter (no route label)."
         }
       ]
     },
     {
       "type": "row",
       "title": "Gateway logs",
-      "id": 25,
+      "id": 33,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 27
+        "y": 40
       },
       "collapsed": true,
       "panels": [
         {
           "type": "logs",
           "title": "fleet-gateway errors and warnings",
-          "description": "Error and warning lines from fleet-gateway (tenant Loki).",
+          "description": "Error and warning lines from fleet-gateway (tenant Loki). Does not follow the route filter (no route label).",
           "datasource": {
             "type": "loki",
             "uid": "${DS_LOGS}"
@@ -2032,12 +2394,12 @@
               "refId": "A"
             }
           ],
-          "id": 26,
+          "id": 34,
           "gridPos": {
             "h": 10,
             "w": 24,
             "x": 0,
-            "y": 28
+            "y": 41
           }
         }
       ]
@@ -2045,12 +2407,12 @@
     {
       "type": "row",
       "title": "Routes and tools",
-      "id": 27,
+      "id": 35,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 28
+        "y": 41
       },
       "collapsed": true,
       "panels": [
@@ -2121,9 +2483,9 @@
             "h": 4,
             "w": 24,
             "x": 0,
-            "y": 29
+            "y": 42
           },
-          "id": 28,
+          "id": 36,
           "options": {
             "reduceOptions": {
               "calcs": [
@@ -2146,7 +2508,7 @@
           ],
           "title": "Routes loaded",
           "type": "stat",
-          "description": "Routes the gateway has loaded from its configuration."
+          "description": "Routes the gateway has loaded from its configuration. Does not follow the route filter (no route label)."
         },
         {
           "datasource": {
@@ -2215,9 +2577,9 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 33
+            "y": 46
           },
-          "id": 29,
+          "id": 37,
           "options": {
             "legend": {
               "calcs": [
@@ -2314,9 +2676,9 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 33
+            "y": 46
           },
-          "id": 30,
+          "id": 38,
           "options": {
             "legend": {
               "calcs": [
@@ -2342,9 +2704,9 @@
               "refId": "A"
             }
           ],
-          "title": "Requests by outcome (counted by SLO)",
+          "title": "Requests by outcome (in the SLO total)",
           "type": "timeseries",
-          "description": "Outcomes the SLO counts. Every outcome except ok is a failure; user_cap and user_sse_cap count as failures. Excluded outcomes are in the next panel."
+          "description": "Outcomes in the SLO total: everything except unauthorized, disabled and tool_denied. Of these, only store_error, upstream_token_error, over_capacity, sse_over_capacity, user_cap and user_sse_cap are SLO errors (#2972); ok, upstream_<code> and upstream_error are not. Excluded outcomes are in the next panel."
         },
         {
           "datasource": {
@@ -2413,9 +2775,9 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 41
+            "y": 54
           },
-          "id": 31,
+          "id": 39,
           "options": {
             "legend": {
               "calcs": [
@@ -2518,9 +2880,9 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 41
+            "y": 54
           },
-          "id": 32,
+          "id": 40,
           "options": {
             "legend": {
               "calcs": [
@@ -2550,7 +2912,7 @@
           ],
           "title": "Routes from stored snapshot",
           "type": "timeseries",
-          "description": "1 means the pod started from a stored snapshot because fleet-control did not answer."
+          "description": "1 means the pod started from a stored snapshot because fleet-control did not answer. Does not follow the route filter (no route label)."
         },
         {
           "datasource": {
@@ -2618,9 +2980,9 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 49
+            "y": 62
           },
-          "id": 33,
+          "id": 41,
           "options": {
             "legend": {
               "calcs": [
@@ -2650,7 +3012,7 @@
           ],
           "title": "Pending audit events (lockout outbox)",
           "type": "timeseries",
-          "description": ""
+          "description": "Does not follow the route filter (no route label)."
         },
         {
           "datasource": {
@@ -2719,9 +3081,9 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 49
+            "y": 62
           },
-          "id": 65,
+          "id": 42,
           "options": {
             "legend": {
               "calcs": [
@@ -2756,12 +3118,12 @@
     {
       "type": "row",
       "title": "MCP-registry",
-      "id": 36,
+      "id": 43,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 29
+        "y": 42
       },
       "collapsed": true,
       "panels": [
@@ -2832,9 +3194,9 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 30
+            "y": 43
           },
-          "id": 37,
+          "id": 44,
           "options": {
             "legend": {
               "calcs": [
@@ -2861,7 +3223,8 @@
             }
           ],
           "title": "HTTP requests by path",
-          "type": "timeseries"
+          "type": "timeseries",
+          "description": "Does not follow the route filter (no route label)."
         },
         {
           "datasource": {
@@ -2930,9 +3293,9 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 30
+            "y": 43
           },
-          "id": 38,
+          "id": 45,
           "options": {
             "legend": {
               "calcs": [
@@ -2961,19 +3324,20 @@
             }
           ],
           "title": "HTTP latency p95 by path",
-          "type": "timeseries"
+          "type": "timeseries",
+          "description": "Does not follow the route filter (no route label)."
         }
       ]
     },
     {
       "type": "row",
       "title": "MCP servers and mcp-onboarding",
-      "id": 39,
+      "id": 46,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 30
+        "y": 43
       },
       "collapsed": true,
       "panels": [
@@ -3012,9 +3376,9 @@
             "h": 4,
             "w": 24,
             "x": 0,
-            "y": 31
+            "y": 44
           },
-          "id": 40,
+          "id": 47,
           "options": {
             "colorMode": "value",
             "graphMode": "none",
@@ -3042,7 +3406,7 @@
           ],
           "title": "Tool call error rate (1 h)",
           "type": "stat",
-          "description": "mcp_tool_calls_total{tool,status} only exists after the first tool call since the pod started, and status=\"error\" only after a failed call. An empty graph means no calls in range, not missing data."
+          "description": "mcp_tool_calls_total{tool,status} only exists after the first tool call since the pod started, and status=\"error\" only after a failed call. An empty graph means no calls in range, not missing data. Does not follow the route filter (no route label)."
         },
         {
           "datasource": {
@@ -3110,9 +3474,9 @@
             "h": 8,
             "w": 8,
             "x": 0,
-            "y": 35
+            "y": 48
           },
-          "id": 41,
+          "id": 48,
           "options": {
             "legend": {
               "calcs": [
@@ -3142,7 +3506,7 @@
           ],
           "title": "Up by MCP server",
           "type": "timeseries",
-          "description": "Scrape target health for the MCP servers."
+          "description": "Scrape target health for the MCP servers. Does not follow the route filter (no route label)."
         },
         {
           "datasource": {
@@ -3211,9 +3575,9 @@
             "h": 8,
             "w": 8,
             "x": 8,
-            "y": 35
+            "y": 48
           },
-          "id": 42,
+          "id": 49,
           "options": {
             "legend": {
               "calcs": [
@@ -3241,7 +3605,8 @@
           ],
           "title": "OAuth flow by stage",
           "type": "timeseries",
-          "interval": "5m"
+          "interval": "5m",
+          "description": "Does not follow the route filter (no route label)."
         },
         {
           "datasource": {
@@ -3356,9 +3721,9 @@
             "h": 8,
             "w": 8,
             "x": 16,
-            "y": 35
+            "y": 48
           },
-          "id": 43,
+          "id": 50,
           "options": {
             "legend": {
               "calcs": [
@@ -3386,7 +3751,8 @@
           ],
           "title": "OAuth callback by result",
           "type": "timeseries",
-          "interval": "5m"
+          "interval": "5m",
+          "description": "Does not follow the route filter (no route label)."
         },
         {
           "datasource": {
@@ -3487,9 +3853,9 @@
             "h": 8,
             "w": 8,
             "x": 0,
-            "y": 43
+            "y": 56
           },
-          "id": 44,
+          "id": 51,
           "options": {
             "legend": {
               "calcs": [
@@ -3517,7 +3883,7 @@
           ],
           "title": "Tool calls: success vs error",
           "type": "timeseries",
-          "description": "mcp_tool_calls_total{tool,status} only exists after the first tool call since the pod started, and status=\"error\" only after a failed call. An empty graph means no calls in range, not missing data.",
+          "description": "mcp_tool_calls_total{tool,status} only exists after the first tool call since the pod started, and status=\"error\" only after a failed call. An empty graph means no calls in range, not missing data. Does not follow the route filter (no route label).",
           "interval": "5m"
         },
         {
@@ -3587,9 +3953,9 @@
             "h": 8,
             "w": 8,
             "x": 8,
-            "y": 43
+            "y": 56
           },
-          "id": 45,
+          "id": 52,
           "options": {
             "legend": {
               "calcs": [
@@ -3616,7 +3982,8 @@
             }
           ],
           "title": "HTTP requests by path",
-          "type": "timeseries"
+          "type": "timeseries",
+          "description": "Does not follow the route filter (no route label)."
         },
         {
           "datasource": {
@@ -3685,9 +4052,9 @@
             "h": 8,
             "w": 8,
             "x": 16,
-            "y": 43
+            "y": 56
           },
-          "id": 46,
+          "id": 53,
           "options": {
             "legend": {
               "calcs": [
@@ -3716,7 +4083,8 @@
             }
           ],
           "title": "HTTP latency p95 by path",
-          "type": "timeseries"
+          "type": "timeseries",
+          "description": "Does not follow the route filter (no route label)."
         },
         {
           "datasource": {
@@ -3784,9 +4152,9 @@
             "h": 8,
             "w": 8,
             "x": 0,
-            "y": 51
+            "y": 64
           },
-          "id": 47,
+          "id": 54,
           "options": {
             "legend": {
               "calcs": [
@@ -3814,7 +4182,7 @@
           ],
           "title": "Tool calls by server and tool",
           "type": "timeseries",
-          "description": "mcp-kodeverk, mcp-team-catalog and mcp-dolly, from lib/mcpkit."
+          "description": "mcp-kodeverk, mcp-team-catalog and mcp-dolly, from lib/mcpkit. Does not follow the route filter (no route label)."
         },
         {
           "datasource": {
@@ -3884,9 +4252,9 @@
             "h": 8,
             "w": 8,
             "x": 8,
-            "y": 51
+            "y": 64
           },
-          "id": 48,
+          "id": 55,
           "options": {
             "legend": {
               "calcs": [
@@ -3916,7 +4284,7 @@
           ],
           "title": "Tool call error rate by server",
           "type": "timeseries",
-          "description": "Failed calls divided by all calls."
+          "description": "Failed calls divided by all calls. Does not follow the route filter (no route label)."
         },
         {
           "datasource": {
@@ -3984,9 +4352,9 @@
             "h": 8,
             "w": 8,
             "x": 16,
-            "y": 51
+            "y": 64
           },
-          "id": 49,
+          "id": 56,
           "options": {
             "legend": {
               "calcs": [
@@ -4016,19 +4384,19 @@
           ],
           "title": "Latency p95 by server",
           "type": "timeseries",
-          "description": ""
+          "description": "Does not follow the route filter (no route label)."
         }
       ]
     },
     {
       "type": "row",
       "title": "fleet-control (dev)",
-      "id": 50,
+      "id": 57,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 31
+        "y": 44
       },
       "collapsed": true,
       "panels": [
@@ -4098,9 +4466,9 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 32
+            "y": 45
           },
-          "id": 51,
+          "id": 58,
           "options": {
             "legend": {
               "calcs": [
@@ -4128,7 +4496,7 @@
           ],
           "title": "HTTP requests by status code",
           "type": "timeseries",
-          "description": "Alert High5xxRate for fleet-control."
+          "description": "Alert High5xxRate for fleet-control. Does not follow the route filter (no route label)."
         },
         {
           "datasource": {
@@ -4196,9 +4564,9 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 32
+            "y": 45
           },
-          "id": 52,
+          "id": 59,
           "options": {
             "legend": {
               "calcs": [
@@ -4228,7 +4596,7 @@
           ],
           "title": "HTTP latency p95",
           "type": "timeseries",
-          "description": ""
+          "description": "Does not follow the route filter (no route label)."
         },
         {
           "datasource": {
@@ -4297,9 +4665,9 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 40
+            "y": 53
           },
-          "id": 53,
+          "id": 60,
           "options": {
             "legend": {
               "calcs": [
@@ -4337,7 +4705,7 @@
           ],
           "title": "Errors: database, audit, notify",
           "type": "timeseries",
-          "description": "Alert DBErrors: more than 5 database errors in 10 min.",
+          "description": "Alert DBErrors: more than 5 database errors in 10 min. Does not follow the route filter (no route label).",
           "interval": "5m"
         },
         {
@@ -4407,9 +4775,9 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 40
+            "y": 53
           },
-          "id": 54,
+          "id": 61,
           "options": {
             "legend": {
               "calcs": [
@@ -4442,7 +4810,7 @@
           ],
           "title": "Console lookups: total and failed",
           "type": "timeseries",
-          "description": "Alert ConsoleLookupsFailing: 3 or more failed lookups in 10 min.",
+          "description": "Alert ConsoleLookupsFailing: 3 or more failed lookups in 10 min. Does not follow the route filter (no route label).",
           "interval": "5m"
         },
         {
@@ -4511,9 +4879,9 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 48
+            "y": 61
           },
-          "id": 55,
+          "id": 62,
           "options": {
             "legend": {
               "calcs": [
@@ -4543,7 +4911,7 @@
           ],
           "title": "Last successful snapshot age",
           "type": "timeseries",
-          "description": "Alert SnapshotStale above 600 s."
+          "description": "Alert SnapshotStale above 600 s. Does not follow the route filter (no route label)."
         },
         {
           "datasource": {
@@ -4611,9 +4979,9 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 48
+            "y": 61
           },
-          "id": 56,
+          "id": 63,
           "options": {
             "legend": {
               "calcs": [
@@ -4643,7 +5011,7 @@
           ],
           "title": "Snapshot build time p95",
           "type": "timeseries",
-          "description": ""
+          "description": "Does not follow the route filter (no route label)."
         },
         {
           "datasource": {
@@ -4711,9 +5079,9 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 56
+            "y": 69
           },
-          "id": 57,
+          "id": 64,
           "options": {
             "legend": {
               "calcs": [
@@ -4743,19 +5111,19 @@
           ],
           "title": "Snapshot size",
           "type": "timeseries",
-          "description": ""
+          "description": "Does not follow the route filter (no route label)."
         }
       ]
     },
     {
       "type": "row",
       "title": "Audit",
-      "id": 59,
+      "id": 65,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 32
+        "y": 45
       },
       "collapsed": true,
       "panels": [
@@ -4825,9 +5193,9 @@
             "h": 8,
             "w": 24,
             "x": 0,
-            "y": 33
+            "y": 46
           },
-          "id": 60,
+          "id": 66,
           "options": {
             "legend": {
               "calcs": [
@@ -4855,19 +5223,19 @@
           ],
           "title": "Audit events by service",
           "type": "timeseries",
-          "description": "From the stdout log (tenant Loki). Shows volume, not content."
+          "description": "From the stdout log (tenant Loki). Shows volume, not content. Does not follow the route filter (no route label)."
         }
       ]
     },
     {
       "type": "row",
       "title": "Resources",
-      "id": 62,
+      "id": 67,
       "gridPos": {
         "h": 1,
         "w": 24,
         "x": 0,
-        "y": 33
+        "y": 46
       },
       "collapsed": true,
       "panels": [
@@ -4938,9 +5306,9 @@
             "h": 8,
             "w": 12,
             "x": 0,
-            "y": 34
+            "y": 47
           },
-          "id": 63,
+          "id": 68,
           "options": {
             "legend": {
               "calcs": [
@@ -4970,7 +5338,7 @@
           ],
           "title": "CPU vs request",
           "type": "timeseries",
-          "description": ""
+          "description": "Does not follow the route filter (no route label)."
         },
         {
           "datasource": {
@@ -5038,9 +5406,9 @@
             "h": 8,
             "w": 12,
             "x": 12,
-            "y": 34
+            "y": 47
           },
-          "id": 64,
+          "id": 69,
           "options": {
             "legend": {
               "calcs": [
@@ -5070,7 +5438,7 @@
           ],
           "title": "Memory (working set)",
           "type": "timeseries",
-          "description": ""
+          "description": "Does not follow the route filter (no route label)."
         }
       ]
     }

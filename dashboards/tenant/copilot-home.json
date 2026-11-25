@@ -247,7 +247,7 @@
       "links": [
         {
           "title": "Details",
-          "url": "/d/copilot-web-ops?${__url_time_range}&var-env=${env}",
+          "url": "/d/copilot-web-ops?${__url_time_range}&${env:queryparam}",
           "targetBlank": false
         }
       ],
@@ -363,7 +363,7 @@
       "links": [
         {
           "title": "Details",
-          "url": "/d/copilot-web-ops?${__url_time_range}&var-env=${env}",
+          "url": "/d/copilot-web-ops?${__url_time_range}&${env:queryparam}",
           "targetBlank": false
         }
       ],
@@ -479,7 +479,7 @@
       "links": [
         {
           "title": "Details",
-          "url": "/d/copilot-web-ops?${__url_time_range}&var-env=${env}",
+          "url": "/d/copilot-web-ops?${__url_time_range}&${env:queryparam}",
           "targetBlank": false
         }
       ],
@@ -595,7 +595,7 @@
       "links": [
         {
           "title": "Details",
-          "url": "/d/copilot-web-ops?${__url_time_range}&var-env=${env}",
+          "url": "/d/copilot-web-ops?${__url_time_range}&${env:queryparam}",
           "targetBlank": false
         }
       ],
@@ -711,7 +711,7 @@
       "links": [
         {
           "title": "Details",
-          "url": "/d/copilot-fleet-ops?${__url_time_range}&var-env=${env}",
+          "url": "/d/copilot-fleet-ops?${__url_time_range}&${env:queryparam}",
           "targetBlank": false
         }
       ],
@@ -827,7 +827,7 @@
       "links": [
         {
           "title": "Details",
-          "url": "/d/copilot-fleet-ops?${__url_time_range}&var-env=${env}",
+          "url": "/d/copilot-fleet-ops?${__url_time_range}&${env:queryparam}",
           "targetBlank": false
         }
       ],
@@ -943,7 +943,7 @@
       "links": [
         {
           "title": "Details",
-          "url": "/d/copilot-fleet-ops?${__url_time_range}&var-env=${env}",
+          "url": "/d/copilot-fleet-ops?${__url_time_range}&${env:queryparam}",
           "targetBlank": false
         }
       ],
@@ -1059,7 +1059,7 @@
       "links": [
         {
           "title": "Details",
-          "url": "/d/copilot-fleet-ops?${__url_time_range}&var-env=${env}",
+          "url": "/d/copilot-fleet-ops?${__url_time_range}&${env:queryparam}",
           "targetBlank": false
         }
       ],
@@ -1175,7 +1175,7 @@
       "links": [
         {
           "title": "Details",
-          "url": "/d/copilot-fleet-ops?${__url_time_range}&var-env=${env}",
+          "url": "/d/copilot-fleet-ops?${__url_time_range}&${env:queryparam}",
           "targetBlank": false
         }
       ],
@@ -1291,7 +1291,7 @@
       "links": [
         {
           "title": "Details",
-          "url": "/d/copilot-fleet-ops?${__url_time_range}&var-env=${env}",
+          "url": "/d/copilot-fleet-ops?${__url_time_range}&${env:queryparam}",
           "targetBlank": false
         }
       ],
@@ -1407,7 +1407,7 @@
       "links": [
         {
           "title": "Details",
-          "url": "/d/copilot-fleet-ops?${__url_time_range}&var-env=${env}",
+          "url": "/d/copilot-fleet-ops?${__url_time_range}&${env:queryparam}",
           "targetBlank": false
         }
       ],
@@ -1890,7 +1890,7 @@
       "links": [
         {
           "title": "nav-fleet: usage",
-          "url": "/d/copilot-fleet-insights?var-env=${env}",
+          "url": "/d/copilot-fleet-insights?${env:queryparam}",
           "targetBlank": false
         }
       ],
@@ -1959,7 +1959,7 @@
       "links": [
         {
           "title": "nav-fleet: usage",
-          "url": "/d/copilot-fleet-insights?var-env=${env}",
+          "url": "/d/copilot-fleet-insights?${env:queryparam}",
           "targetBlank": false
         }
       ],
@@ -2028,7 +2028,7 @@
       "links": [
         {
           "title": "nav-fleet: usage",
-          "url": "/d/copilot-fleet-insights?var-env=${env}",
+          "url": "/d/copilot-fleet-insights?${env:queryparam}",
           "targetBlank": false
         }
       ],
@@ -2097,7 +2097,7 @@
       "links": [
         {
           "title": "nav-fleet: usage",
-          "url": "/d/copilot-fleet-insights?var-env=${env}",
+          "url": "/d/copilot-fleet-insights?${env:queryparam}",
           "targetBlank": false
         }
       ],
