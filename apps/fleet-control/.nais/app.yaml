@@ -52,6 +52,9 @@ spec:
     - secret: {{slack_webhook_secret}}
 {{/if}}
   env:
+    # Soft heap limit at about 90 % of the memory limit, so GC runs before an OOM kill.
+    - name: GOMEMLIMIT
+      value: "{{gomemlimit}}"
     - name: PORT
       value: "8080"
     - name: SEED_ROUTES_FILE

@@ -290,6 +290,64 @@ Two alerts on the availability SLO, per route. The long window carries the volum
 
 What to do: break `fleet_gateway_mcp_requests_total` down by `outcome` for the route in the alert. `store_error` means Postgres (see "Postgres outage or loss"). `upstream_token_error` means token exchange with Entra ID fails; search pod logs for `audit mcp` lines with that outcome. `over_capacity` or `sse_over_capacity` means the global in-flight cap is hit; look for a slow upstream holding requests. `user_cap` or `user_sse_cap` means one user hit the per-user cap; check whether a client loops.
 
+## Alerts
+
+Every alert in `.nais/app.yaml` links here through `runbook_url`. Each section says where to start; the alert's `action` annotation has the first step.
+
+### FleetGatewayRouteSnapshotStale
+
+A pod has not fetched a route snapshot from fleet-control for 10 minutes. It keeps serving its last route table. Check fleet-control first (its README, section Alerts), then see "Route sync failing".
+
+### FleetGatewayRouteSyncFailing
+
+Route snapshot fetches or validation fail. See "Route sync failing".
+
+### FleetGatewayRouteNeverSynced
+
+A pod has never synced with fleet-control and serves no routes, so MCP calls fail closed. See "Route sync failing".
+
+### FleetGatewayNoReadyPods
+
+No pod is ready, so every call fails. Run `kubectl -n copilot get pods -l app=fleet-gateway` and read the logs. Usual causes: a bad route file or `RT_KEYS` (see "Rotate `RT_KEYS`").
+
+### FleetGatewayStoreDown
+
+A pod cannot reach Postgres. Logins, refresh and sessions fail. See "Postgres outage or loss".
+
+### FleetGatewayPodRestarts
+
+Run `kubectl -n copilot describe pod -l app=fleet-gateway` and read Last State. `OOMKilled` means the memory limit is too low; see the README, section Memory and limits.
+
+### FleetGatewayHigh5xxRate
+
+Break `fleet_gateway_mcp_requests_total` down by route and outcome, then read the `audit mcp` log lines for that route. See "SLO" for which outcomes are the gateway's own fault.
+
+### FleetGatewaySustainedShedding
+
+`store_full`: count rows per kind in the session store and look for a client registering in a loop (see "Block one client"). `cap`: look for a slow upstream holding requests.
+
+### FleetGatewaySustainedRateLimiting
+
+Check `fleet_gateway_rate_limited_total` by endpoint and search the logs for `rate limited`. One IP in a loop: see "Block one client".
+
+### FleetGatewayUpstreamTokenErrors
+
+Team token exchange with Entra ID fails. Find `team token failed` in the logs; the reason carries the AADSTS code. Check Entra ID status and the team's app registration.
+
+### FleetGatewayIdPErrors
+
+Login fails at Entra ID or Texas. `fleet_gateway_idp_errors_total` counts only failures on their side, by `step`:
+
+- `metadata`: the Entra well-known lookup failed. Search the logs for `Entra well-known metadata lookup failed`.
+- `code_redeem`: the code exchange at Entra failed with a network error or 5xx. Search for `audit login` with `outcome=code_redeem_failed`.
+- `introspection`: Texas could not validate the Entra access token. Search for `outcome=introspection_failed`.
+
+401 responses from the OAuth handshake are normal and not counted. Check Entra ID status, then Texas (Nais platform support, see "Contacts").
+
+### FleetGatewayAvailabilityBurnFast and FleetGatewayAvailabilityBurnSlow
+
+See "Availability burn rate".
+
 ## Contacts
 
 - Owner: team copilot (placeholder: on-call rota and phone, to be filled in).
