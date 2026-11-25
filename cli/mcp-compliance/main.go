@@ -258,7 +258,6 @@ func (w warnError) Error() string { return string(w) }
 
 func (s skipError) Error() string { return string(s) }
 
-// pickTool returns -tool, or the first tool tools/list reports.
 func (cfg *config) pickTool() (string, error) {
 	if cfg.tool != "" {
 		return cfg.tool, nil

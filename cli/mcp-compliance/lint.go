@@ -42,7 +42,6 @@ func softInvisibleRune(r rune) bool {
 	return r == 0x00AD || r == 0x034F || r == 0x180E || r >= 0xFE00 && r <= 0xFE0F || r >= 0xE0100 && r <= 0xE01EF
 }
 
-// descriptions returns every description string in a tool: its own and those in inputSchema.
 func descriptions(tool map[string]any) []string {
 	var out []string
 	var walk func(v any)
