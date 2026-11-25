@@ -124,7 +124,6 @@ func readMetadata(path string) metadata {
 	return m
 }
 
-// titleCase converts "nais-agent" → "Nais Agent"
 func titleCase(s string) string {
 	words := strings.Split(s, "-")
 	for i, w := range words {
@@ -135,7 +134,6 @@ func titleCase(s string) string {
 	return strings.Join(words, " ")
 }
 
-// escapeTableCell escapes pipe characters in markdown table cell content
 func escapeTableCell(s string) string {
 	return strings.ReplaceAll(s, "|", "\\|")
 }
@@ -377,7 +375,6 @@ func countFiles(dir, pattern string) int {
 	count := 0
 	for _, m := range matches {
 		stem := strings.TrimSuffix(filepath.Base(m), filepath.Ext(filepath.Base(m)))
-		// Remove double extension (e.g. "foo.agent" from "foo.agent.md")
 		stem = strings.TrimSuffix(filepath.Base(m), ".agent.md")
 		if stem == filepath.Base(m) {
 			stem = strings.TrimSuffix(filepath.Base(m), ".instructions.md")

@@ -165,7 +165,6 @@ func unionWithFile(doc *document, path string) error {
 	return nil
 }
 
-// present reports whether a path exists in the working tree.
 func present(p string) bool {
 	_, err := os.Stat(p)
 	return err == nil
