@@ -13,7 +13,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus/testutil"
 
 	"github.com/navikt/copilot/fleet-gateway/internal/httpx"
-	"github.com/navikt/copilot/fleet-gateway/internal/metrics"
 )
 
 func TestPerUserInFlightConfig(t *testing.T) {
@@ -100,11 +99,11 @@ func TestPerUserInFlightCap(t *testing.T) {
 		<-entered
 	}
 
-	shed := metrics.HTTPRequests.WithLabelValues("503", "user_cap")
+	shed := httpSeries("503", "user_cap")
 	beforeShed := testutil.ToFloat64(shed)
-	mcpDeny := metrics.MCPRequests.WithLabelValues(route, "user_cap", "deny", "user_cap", "")
+	mcpDeny := mcpSeries(route, "user_cap", "deny", "user_cap", "")
 	beforeDeny := testutil.ToFloat64(mcpDeny)
-	mcpAllow := metrics.MCPRequests.WithLabelValues(route, "user_cap", "allow", "", "")
+	mcpAllow := mcpSeries(route, "user_cap", "allow", "", "")
 	beforeAllow := testutil.ToFloat64(mcpAllow)
 
 	// (a) Next call for user A gets 503 with Retry-After and user_cap shed/audit.
@@ -135,13 +134,13 @@ func TestPerUserInFlightCap(t *testing.T) {
 		t.Fatalf("unexpected 503 body: %+v", errJSON)
 	}
 	if got := testutil.ToFloat64(shed); got != beforeShed+1 {
-		t.Errorf("metrics.HTTPRequests(503, user_cap) = %v, want %v", got, beforeShed+1)
+		t.Errorf("HTTPRequests(503, user_cap) = %v, want %v", got, beforeShed+1)
 	}
 	if got := testutil.ToFloat64(mcpDeny); got != beforeDeny+1 {
-		t.Errorf("metrics.MCPRequests(user_cap, deny) = %v, want %v", got, beforeDeny+1)
+		t.Errorf("MCPRequests(user_cap, deny) = %v, want %v", got, beforeDeny+1)
 	}
 	if got := testutil.ToFloat64(mcpAllow); got != beforeAllow {
-		t.Errorf("metrics.MCPRequests(user_cap, allow) = %v, want %v", got, beforeAllow)
+		t.Errorf("MCPRequests(user_cap, allow) = %v, want %v", got, beforeAllow)
 	}
 
 	var foundAudit bool
@@ -288,11 +287,11 @@ func TestPerUserSSECap(t *testing.T) {
 		}
 	}
 
-	shed := metrics.HTTPRequests.WithLabelValues("503", "user_sse_cap")
+	shed := httpSeries("503", "user_sse_cap")
 	beforeShed := testutil.ToFloat64(shed)
-	mcpDeny := metrics.MCPRequests.WithLabelValues(route, "user_sse_cap", "deny", "user_sse_cap", "")
+	mcpDeny := mcpSeries(route, "user_sse_cap", "deny", "user_sse_cap", "")
 	beforeDeny := testutil.ToFloat64(mcpDeny)
-	mcpAllow := metrics.MCPRequests.WithLabelValues(route, "user_sse_cap", "allow", "", "")
+	mcpAllow := mcpSeries(route, "user_sse_cap", "allow", "", "")
 	beforeAllow := testutil.ToFloat64(mcpAllow)
 
 	// (a) 5th concurrent SSE stream for user A gets 503 with reason=user_sse_cap.
@@ -314,13 +313,13 @@ func TestPerUserSSECap(t *testing.T) {
 		t.Fatalf("unexpected 503 body: %+v", errJSON)
 	}
 	if got := testutil.ToFloat64(shed); got != beforeShed+1 {
-		t.Errorf("metrics.HTTPRequests(503, user_sse_cap) = %v, want %v", got, beforeShed+1)
+		t.Errorf("HTTPRequests(503, user_sse_cap) = %v, want %v", got, beforeShed+1)
 	}
 	if got := testutil.ToFloat64(mcpDeny); got != beforeDeny+1 {
-		t.Errorf("metrics.MCPRequests(user_sse_cap, deny) = %v, want %v", got, beforeDeny+1)
+		t.Errorf("MCPRequests(user_sse_cap, deny) = %v, want %v", got, beforeDeny+1)
 	}
 	if got := testutil.ToFloat64(mcpAllow); got != beforeAllow {
-		t.Errorf("metrics.MCPRequests(user_sse_cap, allow) = %v, want %v", got, beforeAllow)
+		t.Errorf("MCPRequests(user_sse_cap, allow) = %v, want %v", got, beforeAllow)
 	}
 
 	var foundAudit bool

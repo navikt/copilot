@@ -10,8 +10,6 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus/testutil"
-
-	"github.com/navikt/copilot/fleet-gateway/internal/metrics"
 )
 
 type shedFakeStore struct {
@@ -39,8 +37,8 @@ func (s *shedFakeStore) PutEvict(ctx context.Context, kind, key string, val []by
 
 func assertShed503(t *testing.T, wantReason, otherReason string, fn func() int) {
 	t.Helper()
-	wantCounter := metrics.HTTPRequests.WithLabelValues("503", wantReason)
-	otherCounter := metrics.HTTPRequests.WithLabelValues("503", otherReason)
+	wantCounter := httpSeries("503", wantReason)
+	otherCounter := httpSeries("503", otherReason)
 	beforeWant := testutil.ToFloat64(wantCounter)
 	beforeOther := testutil.ToFloat64(otherCounter)
 
@@ -49,10 +47,10 @@ func assertShed503(t *testing.T, wantReason, otherReason string, fn func() int) 
 		t.Fatalf("status = %d, want 503", code)
 	}
 	if got := testutil.ToFloat64(wantCounter); got != beforeWant+1 {
-		t.Errorf("metrics.HTTPRequests(503, %q) = %v, want %v", wantReason, got, beforeWant+1)
+		t.Errorf("HTTPRequests(503, %q) = %v, want %v", wantReason, got, beforeWant+1)
 	}
 	if got := testutil.ToFloat64(otherCounter); got != beforeOther {
-		t.Errorf("metrics.HTTPRequests(503, %q) = %v, want %v", otherReason, got, beforeOther)
+		t.Errorf("HTTPRequests(503, %q) = %v, want %v", otherReason, got, beforeOther)
 	}
 }
 

@@ -335,12 +335,12 @@ func TestDCR_AllowRegistrationRejectionIncrementsMetric(t *testing.T) {
 	enableDCR(te, 100, 1)
 	registerID(t, te, "10.0.2.2")
 
-	before := testutil.ToFloat64(metrics.RateLimited.WithLabelValues(metrics.EndpointRegister))
+	before := testutil.ToFloat64(rateLimitedSeries(metrics.EndpointRegister))
 	code, out := postRegister(te, opencodeRegistration(), "10.0.2.2")
 	if code != http.StatusTooManyRequests || out["error"] != "temporarily_unavailable" {
 		t.Fatalf("second register from same IP: got %d %v, want 429 temporarily_unavailable", code, out)
 	}
-	if got := testutil.ToFloat64(metrics.RateLimited.WithLabelValues(metrics.EndpointRegister)); got != before+1 {
+	if got := testutil.ToFloat64(rateLimitedSeries(metrics.EndpointRegister)); got != before+1 {
 		t.Fatalf("register rate_limited_total = %v, want %v", got, before+1)
 	}
 }

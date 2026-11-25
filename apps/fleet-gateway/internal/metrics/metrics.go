@@ -18,10 +18,8 @@ import (
 
 // Metrics carry no user identifiers: labels are limited to values from the
 // route config, the fixed outcome/decision sets in proxy.go and HTTP status codes.
-// HTTPRequests, MCPRequests and RateLimited are exported for the package main
-// tests that drive the full handler and read the series.
 var (
-	HTTPRequests = promauto.NewCounterVec(prometheus.CounterOpts{
+	httpRequests = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "fleet_gateway_http_requests_total",
 		Help: "HTTP requests answered by fleet-gateway, by status code. Excludes /health and /ready. reason is empty except for deliberate 503s (disabled: kill switch, cap: in-flight/SSE cap, user_cap: per-user in-flight cap, user_sse_cap: per-user SSE cap, store_full: store quota, refresh_in_flight: concurrent refresh).",
 	}, []string{"code", "reason"})
@@ -32,13 +30,13 @@ var (
 		Help: "Login steps that failed at Entra ID or Texas: metadata (well-known lookup), code_redeem (network error or 5xx), introspection (Texas).",
 	}, []string{"step"})
 
-	MCPRequests = promauto.NewCounterVec(prometheus.CounterOpts{
+	mcpRequests = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "fleet_gateway_mcp_requests_total",
 		Help: "MCP proxy requests by route, outcome and tool-policy decision. reason is set on deny only (not_listed, ambiguous, header_mismatch, user_cap, user_sse_cap). tool is the called tool when it is on the route's explicit list, else other; empty when the request is not a tool call.",
 	}, []string{"route", "outcome", "decision", "reason", "tool"})
 
-	// RiskDecisions counts tool-risk checks at tools/call (#2964), refused or not.
-	RiskDecisions = promauto.NewCounterVec(prometheus.CounterOpts{
+	// riskDecisions counts tool-risk checks at tools/call (#2964), refused or not.
+	riskDecisions = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "fleet_gateway_risk_decisions_total",
 		Help: "Tool-risk checks at tools/call. risk is read, propose or write (unknown counts as write); caller_kind is human or agent; decision is allow or would_deny. would_deny is refused only with RISK_ENFORCEMENT=enforce. tool is the called tool when on the route's list, else other.",
 	}, []string{"route", "tool", "risk", "caller_kind", "decision"})
@@ -59,7 +57,7 @@ var (
 	})
 
 	// Alerts select on this so they stay correct if deployed in prod or evaluated tenant-wide; today rules run per cluster (#2949).
-	RoutesSource = promauto.NewGaugeVec(prometheus.GaugeOpts{
+	routesSource = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "fleet_gateway_routes_source_info",
 		Help: "Always 1; the source label says where this pod reads routes from (git or fleet-control).",
 	}, []string{"source"})
@@ -79,13 +77,13 @@ var (
 		Help: "1 if the last session-store ping (on each /ready probe) succeeded, 0 if it failed. /ready does not fail on it (#2893).",
 	})
 
-	RateLimited = promauto.NewCounterVec(prometheus.CounterOpts{
+	rateLimited = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "fleet_gateway_rate_limited_total",
 		Help: "Requests rejected by the per-IP or global rate limiter, by OAuth endpoint.",
 	}, []string{"oauth_endpoint"})
 )
 
-// OAuth endpoint names on the oauth_endpoint label of RateLimited.
+// OAuth endpoint names on the oauth_endpoint label of rateLimited.
 const (
 	EndpointAuthorize = "authorize"
 	EndpointConsent   = "consent"
@@ -105,17 +103,17 @@ var RateLimitedEndpoints = []string{
 
 // ObserveRateLimited counts one rejected request on endpoint.
 func ObserveRateLimited(endpoint string) {
-	RateLimited.WithLabelValues(endpoint).Inc()
+	rateLimited.WithLabelValues(endpoint).Inc()
 }
 
-// DenyReasons is the closed set of reason values on decision="deny".
-var DenyReasons = []string{policy.ReasonNotListed, policy.ReasonAmbiguous, policy.ReasonHeaderMismatch, policy.ReasonRisk, "user_cap", "user_sse_cap"}
+// denyReasons is the closed set of reason values on decision="deny".
+var denyReasons = []string{policy.ReasonNotListed, policy.ReasonAmbiguous, policy.ReasonHeaderMismatch, policy.ReasonRisk, "user_cap", "user_sse_cap"}
 
 // ObserveMCPRequest bounds both extra labels: reason only on deny and only from
-// DenyReasons; tool only when on the route's explicit list, else "other"
+// denyReasons; tool only when on the route's explicit list, else "other"
 // (passAllTools routes always give "other").
 func ObserveMCPRequest(route routing.Route, outcome, decision, reason, tool, rawTool string, d time.Duration) {
-	if decision != "deny" || !slices.Contains(DenyReasons, reason) {
+	if decision != "deny" || !slices.Contains(denyReasons, reason) {
 		reason = ""
 	}
 	// tool is the truncated audit value, only used to tell "not a tool call" from "other".
@@ -126,7 +124,7 @@ func ObserveMCPRequest(route routing.Route, outcome, decision, reason, tool, raw
 	default:
 		tool = "other"
 	}
-	MCPRequests.WithLabelValues(route.Route, outcome, decision, reason, tool).Inc()
+	mcpRequests.WithLabelValues(route.Route, outcome, decision, reason, tool).Inc()
 	mcpRequestDuration.WithLabelValues(route.Route).Observe(d.Seconds())
 }
 
@@ -136,18 +134,18 @@ func ObserveRiskDecision(route routing.Route, rawTool string, risk policy.Risk, 
 	if route.AllowedTools[rawTool] {
 		tool = rawTool
 	}
-	RiskDecisions.WithLabelValues(route.Route, tool, risk.String(), callerKind, decision).Inc()
+	riskDecisions.WithLabelValues(route.Route, tool, risk.String(), callerKind, decision).Inc()
 }
 
 // ObserveHTTPRequest counts one answered request by status code and shed reason.
 func ObserveHTTPRequest(code int, reason string) {
-	HTTPRequests.WithLabelValues(strconv.Itoa(code), reason).Inc()
+	httpRequests.WithLabelValues(strconv.Itoa(code), reason).Inc()
 }
 
 // SetRoutesSource leaves exactly one source series at 1.
 func SetRoutesSource(source string) {
-	RoutesSource.Reset()
-	RoutesSource.WithLabelValues(source).Set(1)
+	routesSource.Reset()
+	routesSource.WithLabelValues(source).Set(1)
 }
 
 // Init creates the series the alerts read, at zero, before traffic.
@@ -155,33 +153,33 @@ func SetRoutesSource(source string) {
 // burst that lands between two scrapes.
 func Init(routes []routing.Route) {
 	for _, code := range []string{"200", "500", "502", "503", "504"} {
-		HTTPRequests.WithLabelValues(code, "")
+		httpRequests.WithLabelValues(code, "")
 	}
 	for _, reason := range []string{"disabled", "cap", "user_cap", "user_sse_cap", "store_full", "refresh_in_flight"} {
-		HTTPRequests.WithLabelValues("503", reason)
+		httpRequests.WithLabelValues("503", reason)
 	}
 	for _, step := range []string{"metadata", "code_redeem", "introspection"} {
 		IDPErrors.WithLabelValues(step)
 	}
 	for _, ep := range RateLimitedEndpoints {
-		RateLimited.WithLabelValues(ep)
+		rateLimited.WithLabelValues(ep)
 	}
 	for _, r := range routes {
 		tools := append([]string{"", "other"}, slices.Sorted(maps.Keys(r.AllowedTools))...)
 		for _, o := range []string{"ok", "upstream_token_error", "upstream_error"} {
 			for _, tool := range tools {
-				MCPRequests.WithLabelValues(r.Route, o, "allow", "", tool)
+				mcpRequests.WithLabelValues(r.Route, o, "allow", "", tool)
 			}
 		}
-		for _, reason := range DenyReasons {
+		for _, reason := range denyReasons {
 			o := "tool_denied"
 			switch reason {
 			case "user_cap", "user_sse_cap":
 				o = reason
 			}
-			MCPRequests.WithLabelValues(r.Route, o, "deny", reason, "")
+			mcpRequests.WithLabelValues(r.Route, o, "deny", reason, "")
 		}
-		MCPRequests.WithLabelValues(r.Route, "disabled", "", "", "")
+		mcpRequests.WithLabelValues(r.Route, "disabled", "", "", "")
 	}
 }
 

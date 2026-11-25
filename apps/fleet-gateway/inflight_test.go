@@ -26,7 +26,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus/testutil"
 
 	"github.com/navikt/copilot/fleet-gateway/internal/httpx"
-	"github.com/navikt/copilot/fleet-gateway/internal/metrics"
 )
 
 // Over the cap: 503 with Retry-After, an audit line and outcome over_capacity.
@@ -57,7 +56,7 @@ func TestInFlightCapRejectsWithAudit(t *testing.T) {
 	first := make(chan int, 1)
 	go func() { first <- capPost(t, ts, tokenA, "") }()
 	<-entered
-	shed := metrics.HTTPRequests.WithLabelValues("503", "cap")
+	shed := httpSeries("503", "cap")
 	beforeShed := testutil.ToFloat64(shed)
 	if code := capPost(t, ts, tokenB, ""); code != http.StatusServiceUnavailable {
 		t.Fatalf("over cap: code %d, want 503", code)
@@ -317,7 +316,7 @@ func TestSSECapCheckedBeforeUpstream(t *testing.T) {
 		t.Fatalf("first stream: code %d", resp.StatusCode)
 	}
 	before := hits.Load()
-	shed := metrics.HTTPRequests.WithLabelValues("503", "cap")
+	shed := httpSeries("503", "cap")
 	beforeShed := testutil.ToFloat64(shed)
 	if code := capPost(t, ts, token, "?sse=1"); code != http.StatusServiceUnavailable {
 		t.Fatalf("over SSE cap: code %d, want 503", code)
@@ -379,7 +378,7 @@ func TestPerRouteInFlightCap(t *testing.T) {
 	first := make(chan int, 1)
 	go func() { first <- capPost(t, ts, token, "") }()
 	<-entered
-	shed := metrics.HTTPRequests.WithLabelValues("503", "cap")
+	shed := httpSeries("503", "cap")
 	beforeShed := testutil.ToFloat64(shed)
 	if code := capPost(t, ts, token, ""); code != http.StatusServiceUnavailable {
 		t.Fatalf("second request on a route at its cap: code %d, want 503", code)
@@ -682,7 +681,7 @@ func TestSSECapShedIsNotAuditedAsAllow(t *testing.T) {
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	allow := metrics.MCPRequests.WithLabelValues(route, "sse_over_capacity", "allow", "", "")
+	allow := mcpSeries(route, "sse_over_capacity", "allow", "", "")
 	before := testutil.ToFloat64(allow)
 	if code := capPost(t, ts, token, "?sse=1"); code != http.StatusServiceUnavailable {
 		t.Fatalf("second SSE stream: code %d, want 503", code)
