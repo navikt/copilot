@@ -292,6 +292,8 @@ const (
 	ReasonAmbiguous = "ambiguous"
 	// ReasonHeaderMismatch: Mcp-Method/Mcp-Name disagree with the body on a route with an allowlist.
 	ReasonHeaderMismatch = "header_mismatch"
+	// ReasonRisk denies a tool above the caller's max_risk (#2964).
+	ReasonRisk = "risk_exceeded"
 )
 
 // toolPolicyDecision decides a POST body against a route's tool allowlist,

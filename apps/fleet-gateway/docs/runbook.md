@@ -174,6 +174,15 @@ Search the pod logs for `fleet-control routes not updated`. A refused snapshot (
 
 Snapshot contract rule: for one release the gateway accepts the snapshot both with and without a changed field. fleet-control ships the new field first; the gateway requires it only in a later release. See "Snapshot versions" in `apps/fleet-control/README.md`. Incident: #2861 required `checked_at` before dev fleet-control served it, and dev route sync failed from 24 Nov 18:54 to 25 Nov 08:38 (1679 failures, no alert) until #2910.
 
+## Tool risk: report before enforce (#2964)
+
+The gateway runs with `RISK_ENFORCEMENT=report`: it refuses nothing on risk, but counts every `tools/call` in `fleet_gateway_risk_decisions_total` and writes `risk` and `risk_decision` in the `audit mcp` line.
+
+- What would be refused: `sum by (route, tool, risk, caller_kind) (increase(fleet_gateway_risk_decisions_total{decision="would_deny"}[1d]))`
+- Search the logs for `risk_decision=would_deny`.
+
+Before setting `RISK_ENFORCEMENT=enforce`, the would-deny count must be zero or every hit understood. Routes from the Git file carry no `tool_risk`, so all their tools count as write. Roll back by setting `report` and redeploying.
+
 ## Switch prod routes to fleet-control (#2760)
 
 Prod reads routes from `pilot-routes.prod.yaml` today. This section moves it to `ROUTES_SOURCE=fleet-control` and back. Rehearse the whole run in dev first and write the times below.

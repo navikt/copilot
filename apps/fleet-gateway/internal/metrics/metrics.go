@@ -31,6 +31,12 @@ var (
 		Help: "MCP proxy requests by route, outcome and tool-policy decision. reason is set on deny only (not_listed, ambiguous, header_mismatch, user_cap, user_sse_cap). tool is the called tool when it is on the route's explicit list, else other; empty when the request is not a tool call.",
 	}, []string{"route", "outcome", "decision", "reason", "tool"})
 
+	// RiskDecisions counts tool-risk checks at tools/call (#2964), refused or not.
+	RiskDecisions = promauto.NewCounterVec(prometheus.CounterOpts{
+		Name: "fleet_gateway_risk_decisions_total",
+		Help: "Tool-risk checks at tools/call. risk is read, propose or write (unknown counts as write); caller_kind is human or agent; decision is allow or would_deny. would_deny is refused only with RISK_ENFORCEMENT=enforce. tool is the called tool when on the route's list, else other.",
+	}, []string{"route", "tool", "risk", "caller_kind", "decision"})
+
 	mcpRequestDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
 		Name:    "fleet_gateway_mcp_request_duration_seconds",
 		Help:    "Time from request to finished response on MCP routes, including token exchange and upstream. SSE streams count until the stream ends.",
@@ -97,7 +103,7 @@ func ObserveRateLimited(endpoint string) {
 }
 
 // DenyReasons is the closed set of reason values on decision="deny".
-var DenyReasons = []string{policy.ReasonNotListed, policy.ReasonAmbiguous, policy.ReasonHeaderMismatch, "user_cap", "user_sse_cap"}
+var DenyReasons = []string{policy.ReasonNotListed, policy.ReasonAmbiguous, policy.ReasonHeaderMismatch, policy.ReasonRisk, "user_cap", "user_sse_cap"}
 
 // ObserveMCPRequest bounds both extra labels: reason only on deny and only from
 // DenyReasons; tool only when on the route's explicit list, else "other"
@@ -116,6 +122,15 @@ func ObserveMCPRequest(route routing.Route, outcome, decision, reason, tool, raw
 	}
 	MCPRequests.WithLabelValues(route.Route, outcome, decision, reason, tool).Inc()
 	mcpRequestDuration.WithLabelValues(route.Route).Observe(d.Seconds())
+}
+
+// ObserveRiskDecision counts one tool-risk check; tool is bounded like ObserveMCPRequest.
+func ObserveRiskDecision(route routing.Route, rawTool string, risk policy.Risk, callerKind, decision string) {
+	tool := "other"
+	if route.AllowedTools[rawTool] {
+		tool = rawTool
+	}
+	RiskDecisions.WithLabelValues(route.Route, tool, risk.String(), callerKind, decision).Inc()
 }
 
 // ObserveHTTPRequest counts one answered request by status code and shed reason.

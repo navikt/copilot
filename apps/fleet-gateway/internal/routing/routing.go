@@ -43,6 +43,9 @@ type Route struct {
 	FullRouteID string   `yaml:"-" json:"-"`
 	// AllowedTools is set when the route enforces a tool allowlist; nil passes all.
 	AllowedTools map[string]bool `yaml:"-" json:"-"`
+	// ToolRisk is tool name to risk from the fleet-control snapshot (#2964).
+	// The Git file has none, so its tools count as write.
+	ToolRisk map[string]string `yaml:"-" json:"-"`
 }
 
 // Disabled reports whether the route is switched off with enabled: false.
