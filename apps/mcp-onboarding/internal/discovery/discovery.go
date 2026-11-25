@@ -102,12 +102,10 @@ func (d *Service) Search(query string, customType string, tags []string) []Custo
 
 	searchIn := func(items []Customization) {
 		for _, item := range items {
-			// Filter by type if specified
 			if customType != "" && string(item.Type) != customType {
 				continue
 			}
 
-			// Filter by tags if specified
 			if len(tags) > 0 {
 				hasTag := false
 				for _, filterTag := range tags {
@@ -126,7 +124,6 @@ func (d *Service) Search(query string, customType string, tags []string) []Custo
 				}
 			}
 
-			// Search in name, description, tags
 			if query == "" ||
 				strings.Contains(strings.ToLower(item.Name), queryLower) ||
 				strings.Contains(strings.ToLower(item.DisplayName), queryLower) ||
@@ -169,7 +166,6 @@ func (d *Service) ListByType(customType CustomizationType, category string) []Cu
 		return items
 	}
 
-	// Filter by category
 	var filtered []Customization
 	for _, item := range items {
 		if strings.EqualFold(item.Category, category) {
@@ -264,7 +260,6 @@ Or for VS Code Insiders:
 		item.Description,
 	)
 
-	// Add usage examples for specific types
 	if customType == TypeAgent && len(item.UseCases) > 0 {
 		guide += "\n## Usage Examples\n\n"
 		for _, useCase := range item.UseCases {

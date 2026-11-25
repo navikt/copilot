@@ -10,9 +10,8 @@ import (
 // ErrNotFound means the entry is missing or expired.
 var ErrNotFound = errors.New("not found")
 
-// TODO: If we need to scale beyond a single replica, replace in-memory maps with Redis
-// to share sessions and tokens across pods. Client registrations are not here:
-// the client_id carries its own signed registration (see clientid.go).
+// The maps are per pod, so the app runs as a single replica. Client
+// registrations are not here: the client_id carries its own signed registration (see clientid.go).
 
 // AuthSession is an authorization request waiting for the GitHub callback.
 type AuthSession struct {

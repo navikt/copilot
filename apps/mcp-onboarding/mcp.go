@@ -1353,7 +1353,6 @@ func (h *MCPHandler) detectRepoInfo(accessToken, owner, repo string) (*templates
 
 	info.HasNais, _ = h.githubClient.GetRepoFile(accessToken, owner, repo, ".nais")
 
-	// Stack-specific detection
 	if info.HasPackageJSON {
 		info.HasNextConfig, _ = h.githubClient.GetRepoFile(accessToken, owner, repo, "next.config.ts")
 		if !info.HasNextConfig {

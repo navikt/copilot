@@ -7,8 +7,6 @@ import (
 	"testing"
 )
 
-// --- ExchangeCode tests ---
-
 func TestExchangeCode_Success(t *testing.T) {
 	mock := &mockServer{handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != "POST" {
@@ -91,8 +89,6 @@ func TestExchangeCode_InvalidJSON(t *testing.T) {
 	}
 }
 
-// --- RefreshToken tests ---
-
 func TestRefreshToken_Success(t *testing.T) {
 	mock := &mockServer{handler: http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -143,8 +139,6 @@ func TestRefreshToken_Error(t *testing.T) {
 		t.Fatal("expected error for invalid_grant")
 	}
 }
-
-// --- GetUser tests ---
 
 func TestGetUser_Success(t *testing.T) {
 	server := newGitHubMock(t, map[string]http.HandlerFunc{
@@ -198,8 +192,6 @@ func TestGetUser_Unauthorized(t *testing.T) {
 		t.Fatal("expected error for 401 response")
 	}
 }
-
-// --- GetUserOrganizations tests ---
 
 func TestGetUserOrganizations_Paginates(t *testing.T) {
 	server := newGitHubMock(t, map[string]http.HandlerFunc{
@@ -266,8 +258,6 @@ func TestGetUserOrganizations_Forbidden(t *testing.T) {
 		t.Fatal("expected error for 403 response")
 	}
 }
-
-// --- CheckOrgMembership tests ---
 
 func TestCheckOrgMembership_IsMember(t *testing.T) {
 	server := newGitHubMock(t, map[string]http.HandlerFunc{
@@ -373,8 +363,6 @@ func TestCheckOrgMembership_APIError(t *testing.T) {
 	}
 }
 
-// --- ListDirectory tests ---
-
 func TestListDirectory_Success(t *testing.T) {
 	server := newGitHubMock(t, map[string]http.HandlerFunc{
 		"GET /repos/navikt/app/contents/.github": func(w http.ResponseWriter, _ *http.Request) {
@@ -433,8 +421,6 @@ func TestListDirectory_ServerError(t *testing.T) {
 		t.Fatal("expected error for 500 response")
 	}
 }
-
-// --- NewClient tests ---
 
 func TestNewGitHubClient(t *testing.T) {
 	client := NewClient("my-id", "my-secret")

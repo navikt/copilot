@@ -54,8 +54,6 @@ func newTestGitHubClient(mock *mockServer) *github.Client {
 	return client
 }
 
-// --- GitHub API method tests ---
-
 func TestGetRepoFile_Exists(t *testing.T) {
 	server := newGitHubMock(t, map[string]http.HandlerFunc{
 		"GET /repos/navikt/my-app/contents/.github/copilot-instructions.md": func(w http.ResponseWriter, r *http.Request) {
@@ -264,8 +262,6 @@ func TestDetectRepoInfo_MavenProject(t *testing.T) {
 		t.Error("expected HasPomXML")
 	}
 }
-
-// --- MCP tool handler tests ---
 
 func newTestMCPHandler(githubClient *github.Client) *MCPHandler {
 	ds := discovery.NewService("navikt", "copilot", "main", "http://localhost:8080")
@@ -598,8 +594,6 @@ func TestProcessRequest_UserContextPassedToTools(t *testing.T) {
 	}
 }
 
-// --- Phase 2: generate_copilot_instructions & generate_setup_steps ---
-
 func newRepoInfoMock(t *testing.T, langs string, files map[string]bool) *mockServer {
 	t.Helper()
 	return newGitHubMock(t, map[string]http.HandlerFunc{
@@ -856,8 +850,6 @@ func TestDetectPackageManager_NpmDefault(t *testing.T) {
 	}
 }
 
-// --- ListTeamRepos tests ---
-
 func TestListTeamRepos(t *testing.T) {
 	server := newGitHubMock(t, map[string]http.HandlerFunc{
 		"GET /orgs/navikt/teams/dagpenger/repos": func(w http.ResponseWriter, _ *http.Request) {
@@ -904,8 +896,6 @@ func TestListTeamRepos_NotFound(t *testing.T) {
 	}
 }
 
-// --- SearchReposByPrefix tests ---
-
 func TestSearchReposByPrefix(t *testing.T) {
 	server := newGitHubMock(t, map[string]http.HandlerFunc{
 		"GET /search/repositories": func(w http.ResponseWriter, r *http.Request) {
@@ -950,8 +940,6 @@ func TestSearchReposByPrefix_Empty(t *testing.T) {
 		t.Errorf("expected 0 repos, got %d", len(repos))
 	}
 }
-
-// --- team_readiness tool tests ---
 
 func TestTeamReadiness_ByPrefix(t *testing.T) {
 	server := newGitHubMock(t, map[string]http.HandlerFunc{

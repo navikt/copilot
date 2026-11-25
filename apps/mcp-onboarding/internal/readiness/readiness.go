@@ -63,14 +63,12 @@ type RepoContents struct {
 	AgentsMD            bool
 	Languages           []string
 
-	// Stack detection fields
 	HasNextConfig  bool // next.config.ts/js/mjs detected
 	HasAppYml      bool // application.yml or application.properties (Spring Boot)
 	HasGradleKts   bool
 	HasPomXML      bool
 	HasPackageJSON bool
 
-	// Verification infrastructure fields
 	HasCIWorkflows  bool // .github/workflows/ has files
 	HasLinterConfig bool // eslint/golangci/detekt config found
 	HasTypeChecking bool // tsconfig.json or inherently typed language

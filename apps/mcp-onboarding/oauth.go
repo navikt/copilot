@@ -289,7 +289,6 @@ func (s *OAuthServer) handleCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check organization membership
 	if s.AllowedOrganization != "" {
 		isMember, matchedOrg := s.GitHubClient.CheckOrgMembership(githubToken.AccessToken, []string{s.AllowedOrganization})
 		if !isMember {
