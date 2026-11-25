@@ -504,7 +504,7 @@ func deref(s *string) string {
 	return *s
 }
 
-func loadVersion(ctx context.Context, q querier, ns, name string, version int) (versionRow, error) {
+func loadVersion(ctx context.Context, q store.Querier, ns, name string, version int) (versionRow, error) {
 	var v versionRow
 	var spec string
 	err := q.QueryRow(ctx, `SELECT v.version, COALESCE(v.spec, `+legacySpecSQL+`)::text, v.spec_hash, v.submitted_by_kind, v.submitted_by,
@@ -522,7 +522,7 @@ func loadVersion(ctx context.Context, q querier, ns, name string, version int) (
 
 // lastEvents returns the time of the newest event per action for one
 // resource. It reads resource_status, which outlives audit retention.
-func lastEvents(ctx context.Context, q querier, kind, ns, name string, legacy []string) (map[string]time.Time, error) {
+func lastEvents(ctx context.Context, q store.Querier, kind, ns, name string, legacy []string) (map[string]time.Time, error) {
 	rows, err := q.Query(ctx, `SELECT action, max(at) FROM resource_status WHERE namespace = $1 AND name = $2
 		AND (kind = $3 OR (kind = '' AND action = ANY($4))) GROUP BY action`, ns, name, kind, legacy)
 	if err != nil {
@@ -898,7 +898,7 @@ func (d *DB) rollbackServer(ctx context.Context, c caller, platform, by, ns, nam
 func (d *DB) BackfillSpecs(ctx context.Context) (int, error) {
 	n := 0
 	err := pgx.BeginFunc(ctx, d.pool, func(tx pgx.Tx) error {
-		if _, err := tx.Exec(ctx, "SELECT pg_advisory_xact_lock($1)", lockKey); err != nil {
+		if _, err := tx.Exec(ctx, "SELECT pg_advisory_xact_lock($1)", store.LockKey); err != nil {
 			return err
 		}
 		rows, err := tx.Query(ctx, `SELECT v.namespace, v.name, v.version, `+legacySpecSQL+`::text FROM server_versions v WHERE v.spec IS NULL AND v.published_at IS NOT NULL`)

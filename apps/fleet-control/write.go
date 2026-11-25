@@ -15,6 +15,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/navikt/copilot/fleet-control/internal/model"
+	"github.com/navikt/copilot/fleet-control/internal/store"
 )
 
 // Write API (#2625, #2626). A team member submits a draft version, a second
@@ -121,10 +122,10 @@ func refuse(code int, format string, args ...any) error {
 // lock serialises it with concurrent approvals and rollbacks, so two writes
 // that each fit cannot together exceed the limit.
 func checkRoutesFit(ctx context.Context, tx pgx.Tx, ns string) error {
-	if _, err := tx.Exec(ctx, "SELECT pg_advisory_xact_lock($1)", snapshotLockKey("routes")); err != nil {
+	if _, err := tx.Exec(ctx, "SELECT pg_advisory_xact_lock($1)", store.SnapshotLockKey("routes")); err != nil {
 		return err
 	}
-	servers, err := queryServers(ctx, tx)
+	servers, err := store.QueryServers(ctx, tx)
 	if err != nil {
 		return err
 	}
